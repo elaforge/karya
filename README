@@ -1,0 +1,50 @@
+ui/  - fltk code for the ui widgets, in c++
+inteface/ - the api to talk with the ui, in c
+main/ - the rest of the sequencer
+
+    Tempo
+
+Tempo warping by dragging, to align one track with another.
+
+    Editing continuous data (breath controller, pitch)
+
+It would be nice to have a good visualization and way to edit continuous data,
+especially continuous pitch curves.
+
+Examples:
+Breath controller: realign attacks, smooth or sharpen attacks, decrescendo
+a breath curve, splice an attack onto another note.
+
+Retune continuum intervals, fix a wrong note or add new notes, change
+portamento speed.  Add, widen, or narrow vibrato.
+
+The pitch contour should go through a layer that maps absolute pitch values
+(fractional notes or hz) to midi nn + pitchbend: (hz, max_pb) -> (midi_nn,
+pb_val).    I should be able to use fractional note values, do a portamento
+between notes, 
+
+Trace pitch contour over the output of a pitch tracker or spectrum analyzer.
+
+    Derived tracks
+
+This is a way to create a track derived from another in some programmatic way,
+and then tweak the derived track by hand.  The trick is to rerun your
+derivation, but keep any changes you made.  Derivations should also be
+derivable.
+
+On the UI, a derived track has a leading '>' and all derived events have
+leading '>'.  By simply deleting all > events before running the derivation,
+I can keep the altered events (you would have to remove the > when changing
+them).  Each derived event stores its parent in its attributes, and a parent
+will not generate children if there are already events with it as parent.
+Since one parent may have many children, or one child many parents, how to do
+this is up to the deriving function.
+
+Tempo changes are also implemented as a derivation, that creates a derived
+block.
+
+    Custom notation (low priority)
+
+It would be nice to be able to draw my own symbols and include them in notes.
+The easiest way to do this might be to put them in some special range of
+unicode and use the TTF renderer for them.

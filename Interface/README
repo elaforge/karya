@@ -1,0 +1,7 @@
+There are three main UI objects: Block, Track, and Event, each contained within
+the other.  Blocks and Tracks have a corresponding BlockView and TrackView that
+represent the display aspects.  This is so a single Block can have multiple
+windows, and a single Track may appear in different blocks.
+
+There is no EventView because the blocks-as-macros functionality should allow
+you to put a single event in multiple places already.
