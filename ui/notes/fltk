@@ -1,0 +1,8 @@
+to make fltk usable:
+--enable-debug
+
+Edit either configure.in or configure to remove -fno-exceptions since I use
+them, and wrapped python callbacks will use them.
+
+Comment out .SILENT in makeinclude and possibly delete some of the Compiling
+echos, since I like to see exactly what flags cc is getting.
