@@ -20,9 +20,9 @@ BlockColorConfig color_config()
 {
     BlockColorConfig c;
     c.select.push_back(Color(0xffff00));
-    c.bg = Color(0x252525);
-    c.track_box = Color(0xddffff);
-    c.sb_box = Color(0xaaffff);
+    c.bg = Color(0xdddddd);
+    c.track_box = Color(0x44ffff);
+    c.sb_box = Color(0x00ffff);
     return c;
 }
 

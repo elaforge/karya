@@ -104,11 +104,15 @@ typedef RectTmpl<double> DRect;
 struct Color {
     Color(unsigned char r, unsigned char g, unsigned char b, unsigned char a=0)
         : r(r), g(g), b(b), a(a) {}
-    Color(unsigned long rgba) :
-        r(0xff & (rgba >> 24)), g(0xff & (rgba >> 16)), b(0xff & (rgba >> 8)),
-            a(0xff & rgba) {}
+    Color(unsigned long rgb) :
+        r(0xff & (rgb >> 16)), g(0xff & (rgb >> 8)), b(0xff & rgb), a(0) {}
+
     Color() : r(0), g(0), b(0), a(0) {}
     unsigned char r, g, b, a;
 };
+
+// Color(unsigned long rgba) :
+//     r(0xff & (rgba >> 24)), g(0xff & (rgba >> 16)), b(0xff & (rgba >> 8)),
+//         a(0xff & rgba) {}
 
 #endif
