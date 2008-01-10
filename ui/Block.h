@@ -31,11 +31,13 @@ seems to realize the Block has changed sizes
 */
 
 #include <vector>
+#include <algorithm>
 
 #include <FL/Fl.H>
 #include <FL/Fl_Group.H>
 #include <FL/Fl_Tile.H>
 #include <FL/Fl_Box.H>
+#include <FL/Fl_Double_Window.H>
 
 #include "SeqScrollbar.h"
 #include "SeqInput.h"
@@ -51,14 +53,14 @@ seems to realize the Block has changed sizes
 // 'remove_track' has no effect.
 enum { ruler_tracknum = -1 };
 
-class BlockView;
-
 struct BlockColorConfig {
     std::vector<Color> select;
     Color bg;
     Color track_box;
     Color sb_box;
 };
+
+class BlockView;
 
 class BlockModel {
 public:
@@ -68,24 +70,26 @@ public:
     const char *get_title() const { return title; }
     void set_title(const char *s);
 
-    void add_track(int tracknum, const TrackModel &track, int width);
-    void remove_track(int tracknum);
-    const TrackModel *track_at(int tracknum);
+    void insert_track(int at, const TracklikeModel &track, int width);
+    void remove_track(int at);
+    const TracklikeModel track_at(int at) const { return tracks.at(at); }
 
     const BlockColorConfig &get_color_config() const { return color_config; }
     void set_color_config(const BlockColorConfig &color_config);
 
     // Called by BlockView, to register itself with the model.
-    void add_view(BlockView *view);
-    void remove_view(BlockView *view);
+    void add_view(BlockView *view) { views.push_back(view); }
+    void remove_view(BlockView *view) {
+        remove(views.begin(), views.end(), view);
+    }
 
 private:
     const char *title;
     BlockColorConfig color_config;
     // All the BlockViews that point to this BlockModel.  BlockView
     // adds this when it's created so block modifications can notify its views.
-    const std::vector<BlockView *> views;
-    std::vector<TrackModel *> tracks;
+    std::vector<BlockView *> views;
+    std::vector<TracklikeModel> tracks;
 };
 
 
@@ -103,12 +107,11 @@ class BlockView : public Fl_Group {
 public:
     BlockView(int X, int Y, int W, int H, BlockModel &model,
             const BlockConfig &config);
+    ~BlockView();
 
     // fltk methods
     void resize(int X, int Y, int W, int H);
     void redraw();
-    // called by fltk
-    int handle(int evt);
 
     // api methods
     const ZoomInfo &get_zoom() const { return this->zoom_info; }
@@ -120,6 +123,13 @@ public:
 
     // Called by BlockModel when it changes:
     void set_title(const char *s);
+
+    void insert_track(int at, const TracklikeModel &track, int width);
+    void remove_track(int at);
+
+protected:
+    int handle(int evt);
+
 private:
     BlockModel &model;
     BlockConfig config;
@@ -133,7 +143,7 @@ private:
             Fl_Box track_box;
             Fl_Box sb_box;
             SeqScrollbar time_sb;
-            Ruler ruler;
+            RulerView ruler;
         Fl_Group track_group;
             SeqScrollbar track_sb;
             Zoom track_zoom;
@@ -141,6 +151,20 @@ private:
 
     void update_sizes();
     void update_colors();
+};
+
+
+class BlockViewWindow : public Fl_Double_Window {
+public:
+    BlockViewWindow(int X, int Y, int W, int H, BlockModel &model,
+            const BlockConfig &config) :
+        Fl_Double_Window(X, Y, W, H),
+        block(X, Y, W, H, model, config)
+    {
+        resizable(this);
+    }
+private:
+    BlockView block;
 };
 
 #endif

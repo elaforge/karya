@@ -12,24 +12,29 @@ void
 BlockModel::set_title(const char *s)
 {
     this->title = s;
-    // for view in this->views: view.set_title(this->title);
+    for (int i = 0; i < views.size(); i++)
+        views[i]->set_title(s);
 }
 
 void
-BlockModel::add_track(int tracknum, const TrackModel &track, int width)
+BlockModel::insert_track(int at, const TracklikeModel &track, int width)
 {
+    ASSERT(0 <= at && at <= tracks.size());
+    tracks.insert(tracks.begin() + at, track);
+    for (int i = 0; i < views.size(); i++)
+        views[i]->insert_track(at, track, width);
 }
 
 void
-BlockModel::remove_track(int tracknum)
+BlockModel::remove_track(int at)
 {
+    ASSERT(0 <= at && at <= tracks.size());
+    for (int i = 0; i < views.size(); i++)
+        views[i]->remove_track(at);
+    tracks.erase(tracks.begin() + at);
 }
 
-const TrackModel *
-BlockModel::track_at(int tracknum)
-{
-    return 0;
-}
+// const TracklikeModel *BlockModel::track_at(int at) const // inline
 
 void
 BlockModel::set_color_config(const BlockColorConfig &color_config)
@@ -37,18 +42,14 @@ BlockModel::set_color_config(const BlockColorConfig &color_config)
     // set color_config and update views if necessary
 }
 
-void
-BlockModel::add_view(BlockView *view)
-{
-}
-
-void
-BlockModel::remove_view(BlockView *view)
-{
-}
+// void BlockModel::add_view(BlockView *view) // inline
+// void BlockModel::remove_view(BlockView *view) // inline
 
 
 // BlockView
+
+// An empty ruler to initialize the block ruler.
+static const RulerModel empty_ruler = RulerModel();
 
 BlockView::BlockView(int X, int Y, int W, int H, BlockModel &model,
         const BlockConfig &config) :
@@ -63,11 +64,11 @@ BlockView::BlockView(int X, int Y, int W, int H, BlockModel &model,
             track_box(0, 0, 1, 1),
             sb_box(0, 0, 1, 1),
             time_sb(0, 0, 1, 1),
-            ruler(0, 0, 1, 1),
+            ruler(empty_ruler),
         track_group(0, 0, 1, 1),
             track_sb(0, 0, 1, 1),
             track_zoom(0, 0, 1, 1),
-                track_tile(0, 0, 1, 1)
+                track_tile(0, 0, 1, 1, model.get_color_config().bg)
 {
     // The sizes of 1 are so that groups realize that their children are inside
     // of them.  The real resizing will be done in update_sizes
@@ -85,7 +86,15 @@ BlockView::BlockView(int X, int Y, int W, int H, BlockModel &model,
 
     update_sizes();
     update_colors();
+
+    model.add_view(this);
 }
+
+BlockView::~BlockView()
+{
+    model.remove_view(this);
+}
+
 
 void
 BlockView::update_sizes()
@@ -94,13 +103,14 @@ BlockView::update_sizes()
     // resizes as their parents move them around.  on the other hand, if
     // we go the other way, parents mess up their children.
     // Spurious resizes it is.
+    int wx = 0, wy = 0;
 
-    title.resize(x(), y(), w(), config.title_size);
-    body.resize(x(), y() + config.title_size, w(), h() - config.title_size);
+    title.resize(wx, wy, w(), config.title_size);
+    body.resize(wx, wy + config.title_size, w(), h() - config.title_size);
     body_resize_group.resize(body.x() + config.sb_size, body.y(),
             body.w() - config.sb_size, body.h());
 
-    ruler_group.resize(x(), body.y(),
+    ruler_group.resize(wx, body.y(),
             config.sb_size + config.ruler_size, body.h());
     Rect p = rect(ruler_group);
     track_group.resize(p.r(), body.y(), body.w() - p.w, body.h());
@@ -192,4 +202,33 @@ void
 BlockView::set_title(const char *s)
 {
     title.value(s);
+}
+
+
+void
+BlockView::insert_track(int at, const TracklikeModel &track, int width)
+{
+    TracklikeView *t;
+
+    if (track.track)
+        t = new TrackView(*track.track);
+    else if (track.ruler)
+        t = new RulerView(*track.ruler);
+    else
+        t = new DividerView(*track.divider);
+    track_tile.insert_track(at, t, width);
+}
+
+
+void
+BlockView::remove_track(int at)
+{
+    TracklikeView *t = track_tile.remove_track(at);
+    RulerView *rv = dynamic_cast<RulerView *>(t);
+    TrackView *tv = dynamic_cast<TrackView *>(t);
+    DividerView *dv = dynamic_cast<DividerView *>(t);
+
+    if (rv) delete rv;
+    else if (tv) delete tv;
+    else if (dv) delete dv;
 }

@@ -29,16 +29,27 @@ BlockColorConfig color_config()
 int
 main(int argc, char **argv)
 {
-    Fl_Double_Window win(200, 200);
-    win.resizable(win);
 
     BlockColorConfig cconfig = color_config();
     BlockConfig config = block_config();
     BlockModel *model = new BlockModel(cconfig);
-    BlockView *view = new BlockView(0, 0, 200, 200, *model, config);
+    BlockViewWindow view(0, 0, 200, 200, *model, config);
 
-    // print_children(view);
+    model->set_title("hi there");
 
-    win.show(argc, argv);
+    TrackModel *t = new TrackModel();
+    DividerModel *d = new DividerModel(Color(0x0000ff));
+    RulerModel *r = new RulerModel();
+
+    TracklikeModel track(t, 0, 0);
+    TracklikeModel ruler(0, r, 0);
+    TracklikeModel divider(0, 0, d);
+    model->insert_track(0, track, 40);
+    model->insert_track(1, ruler, 25);
+    model->insert_track(1, divider, 4);
+
+    print_children(&view);
+
+    view.show(argc, argv);
     Fl::run();
 }
