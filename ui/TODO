@@ -1,0 +1,22 @@
++ ask fltk mailing list about MoveTile
++ also ask about why they use -fno-exceptions
+
+- c interface
+- haskell interface
+
+- MoveTile implementation
+
+- zoom implementation
+
+ruler:
+  - draw marks
+  - draw mouse pos
+
+
+- msg implementation: receive event, 
+  entire ui should be modeless, except maybe kbd focus on inputs, so make
+  sure fltk isn't doing kbd navigation or something like that
+
+
+- think about how to implement snapping
+- think about dragging event implementation
