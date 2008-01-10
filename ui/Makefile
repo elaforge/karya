@@ -2,7 +2,7 @@ DEBUG=-g
 CXXFLAGS=`fltk-config --cxxflags` -I. $(DEBUG)
 LDFLAGS=`fltk-config --ldflags` $(DEBUG)
 
-OBJS=Block.o TrackTile.o Track.o Ruler.o
+OBJS=Block.o TrackTile.o Track.o Ruler.o EventTrack.o
 
 all: test_block
 

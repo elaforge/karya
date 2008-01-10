@@ -5,6 +5,10 @@
 
 #include "Block.h"
 
+#include "EventTrack.h"
+#include "Ruler.h"
+
+
 BlockConfig block_config()
 {
     BlockConfig c;

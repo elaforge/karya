@@ -3,6 +3,10 @@
 
 #include "Block.h"
 
+#include "Track.h"
+#include "EventTrack.h"
+#include "Ruler.h"
+
 
 // BlockModel
 

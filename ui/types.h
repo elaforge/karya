@@ -1,3 +1,5 @@
+#ifndef __TYPES_H
+#define __TYPES_H
 
 enum Orientation { HorizontalTime, VerticalTime };
 
@@ -12,3 +14,5 @@ struct Selection {
 
 class ZoomInfo {
 };
+
+#endif

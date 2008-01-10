@@ -4,8 +4,6 @@
 #ifndef __TRACK_H
 #define __TRACK_H
 
-#include <vector>
-
 #include <FL/Fl_Widget.H>
 #include <FL/Fl_Group.H>
 #include <FL/Fl_Box.H>
@@ -13,11 +11,10 @@
 #include "util.h"
 #include "f_util.h"
 
-// Since I want to keep RulerTrackModel and RulerTrackView in the same file, instead
-// of splitting them, I have to forward declare this.
+// Since I want to keep RulerTrackModel and RulerTrackView in the same file,
+// instead of splitting them, I have to forward declare this.
 class RulerTrackModel;
-// Model and view reference each other.
-class EventTrackView;
+class EventTrackModel;
 
 
 // Dividers are not shared between views like tracks and rulers are, but being
@@ -25,14 +22,6 @@ class EventTrackView;
 struct DividerModel {
     DividerModel(Color c) : color(c) {}
     Color color;
-};
-
-
-class EventTrackModel {
-private:
-    // events
-    // Views of this track, to update when it changes.
-    std::vector<EventTrackView *> views;
 };
 
 
@@ -76,16 +65,6 @@ public:
     bool resizable() const { return false; }
 private:
     Fl_Box box;
-};
-
-
-class EventTrackView : public TrackView {
-public:
-    EventTrackView(EventTrackModel &track);
-
-private:
-    EventTrackModel &model;
-    Fl_Box bg_box;
 };
 
 #endif
