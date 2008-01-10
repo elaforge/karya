@@ -1,0 +1,25 @@
+#!/bin/zsh
+backupdir=$(readlink -f ../backup/seq)
+if [ ! -d $backupdir ]; then
+	echo "$backupdir not a directory!"
+	exit 1
+fi
+
+version=$(cat version)
+tarball=seq-$(printf "%04d" $version).tgz
+if [ -e $backupdir/$tarball ]; then
+	echo $backupdir/$tarball already exists, is version confused\?
+	exit 1
+fi
+echo $(expr 1 + $version) >version
+
+setopt extended_glob
+files=(^*.o~test_block(.))
+
+rm -rf dist
+mkdir -p dist/seq
+cp $extra $files dist/seq
+cd dist
+tar czf $tarball seq
+ls -l $tarball
+mv $tarball $backupdir

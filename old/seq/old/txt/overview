@@ -1,0 +1,10 @@
+The sequencer is a specialized editor for a musical programming
+language.  
+
+The language
+
+At the simplest level, sound is created by means of functions which either
+transform a sound or create one.  This is a notion supported by nyquist.
+
+The language supports the notion of functions which conceptually
+transform input sound data into

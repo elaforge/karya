@@ -1,0 +1,171 @@
+The new idea for seq:
+
+I implement a language much like nyquist (perhaps even derived from nyquist).
+Instruments are functions that return signal objects.  A sound object consists of
+a stream of either samples or midi events.  Another function realizes a sound
+object by either sending it out the speakers or the midi port.
+
+Transformations
+In nyquist, transformations are handled by setting global parameters:
+
+(loud 10 (osc .4))
+
+is a macro which turns into something like
+
+(let ((*loudness* 10)) (osc .4))
+
+
+What I need to do is somehow extend the nyquist idea to handle events during
+the note... then again perhaps I don't:
+
+(inst 0 1 :pitch c4 :vib (pwl 0 .2 0 .4 1 1 1) :vol (pwl 1 .8 1 1 0))
+
+this approach puts the control info inside of the note specification.  nyquist
+would do something like:
+
+(loud (pwl 1 .8 1 1 0)
+  (vibrato (pwl 0 .2 0 .4 1 1 1)
+           (inst 0 1 :pitch c4)))
+
+This seems harder to read, but is a better approach, because then functions
+that don't care about that information (like a function that defines a phrase)
+pass it along implicitly.  It's not quite as symmetrical, though, since there
+is now an order of execution, although that shouldn't really matter.  In this
+case, we should move the start time, duration, and pitch info out of the
+instrument as well:
+
+(loud (pwl 1 .8 1 1 0)
+  (vibrato (pwl 0 .2 0 .4 1 1 1)
+           (stretch 1
+                    (at 0
+                        (pitch c4
+                               (inst))))))
+
+This is ugly.  Nyquist puts pitch information inside the function.  This seems
+reasonable, since the functionality of pitch can't be merged with that of
+transpose (transpose is additive, pitch is absolute).  Come to think of it,
+nyquist has a mechanism for absolute vs. relative parameters.  I think pitch
+should be a parameter like anything other, without anything special about it.
+How do we say which parameters belong in the function and which ones belong in
+the enviroment?  It seems like pitch could usefully be in the enviroment, for
+example, two notes with the same pitch:
+
+(pitch c4
+  (sim (at 0 (inst1))
+       (at 1 (inst1))))
+
+The reason why I'm fiddling the construction is so that this can fit nicely
+into a tracker metaphor, where tracks can be marked as having implicit
+functions associated with them, and their position in the track somehow
+implicitly sets the times:
+
+       +- track 1 - (zoomed to 1:1 4/4) --------+
+time   |func   |pitch  |vol    |other           |
+0      |(inst1 |(c4    |       |                |
+.25    |       |       |       |(vibrato (lin 0 |
+.5     |       |       |       |              1)|
+.75    |       |       |(lin 1 |                |
+1      |      )|   )   |     0)|)               |
+
+Timewise, everything is normalized to be one second long, and then at and
+stretch are used to manipulate them.  at and stretch are implicitly attached
+to functions depending on their position.  Notice that there the volume
+implicitly starts at 1, and the vibrato stays where you put it until the
+closing paren.  Whether or not inst1 is a "single note" or not is irrelevant
+(although you might leave out the pitch in that case).  Here's an interesting
+question:  in the above conception, we would bend the pitch by sticking a (lin
+c4 d4) in the pitch column.  However, if inst1 were a phrase, it would be most
+natural to think of this as transpose.  So how do we merge transpose and
+pitch?  A thought was to have transpose check if it's been given a symbol or a
+number.  If it's a symbol, it assumes that's the pitch and sets the pitch to
+whatever the symbol evaluates to.  If it's a number, it adds that number to
+whatever the pitch is.  (It's a macro, so scheme doesn't evaluate the symbol
+before it gets it, or we can use (delay) or something.)  The question now is
+what units do we transpose in?  By default, cents, but the user can rebind the
+conversion function that pitch uses.  Somehow, I don't quite like this.  But I
+don't like having pitch and transpose be seperate either.
+
+It would be interesting to have the pitch, vol, and other macros exist
+independently of the "main" function, where they would just be functions that
+output signal to the dynamically-scoped instrument parameters, instead of to
+the speakers.  The track defines the namespace that all of these signal
+functions live in.
+
+Hmmm... now we're back to a tracker paradigm I wanted to get out of:  where
+tracks are holders for notes.  I'd like tracks to be ways to organize and view
+notes.  I could have each track be associated with an implicit note function
+(the function that writes to the speakers), like the subtracks are associated
+with an implicit parameter function (a function that writes to note
+parameters).  Now we have the one instrument / track paradigm that most
+sequencers have:
+
+       +- inst1 --- (zoomed to 1:1 4/4) --------+
+time   |note   |pitch  |vol    |other           |
+0      |(      |(c4    |       |                |
+.25    |       |       |       |(vibrato (lin 0 |
+.5     |       |       |       |              1)|
+.75    |       |       |(lin 1 |                |
+1      |)      |   )   |     0)|)               |
+
+However, the tracker style of using tracks as "sound bins" is very useful and
+much more compact: you organize your sound visually, grouping together similar
+instruments on one or two tracks (like a percussion track).  There is
+information stored in where the composer chooses to put which notes, even if
+it doesn't affect the sound at all.  I think what will happen is that I will
+do it the tracker way, except that you can rearrange the views to be organized
+by note functions.
+
+Now the lisp representation looks something like (where at and stretch are
+consolidated into the time macro):
+
+(time 0 1
+
+
+I don't really like nyquist's method of using dynamically scoped bindings and
+lisp macros: dynamically scoped bindings inherit the fragility of global
+variables and lisp macros are obfuscatory.  Perhaps I could pass an
+environment object to every function, so that
+
+(pitch env c4 func)
+
+modifies env.pitch to have c4 and passes it to func.  Then you could store
+certain environments and use them interchangably (i.e. a high-quality stereo
+44.1K environment vs. a draft 11K mono environment with some "quality"
+parameter tweaked so that instruments use less expensive techniques, if
+available (such as substituting a pre-rendered sample and transposing it)).
+
+
+A problem I have is representation of time.  nyquist's "behavioral
+abstraction" paradigm means that time is as mutable as any other parameter.
+So there can easily exist multiple levels of time: instrument time, which is
+always one second long, score time which is arbitrarily long, real-time
+which is score time with ritards and accels realized, etc. etc.  A natural
+musical way to do things is in beats.  Unfortunately, that leads us into the
+necessity of a time signature, but perhaps that's not so bad.  And I already
+need a signature for "zoom factor" (what time interval the cursor is quantized
+to).
+
+The problem is that levels of time are arbitrarily nested in nyquist, as they
+should be, but I'm not sure how to make a graphical interface reflect that.
+Perhaps we could split time up into the three parts I mentioned above, and you
+could choose to view your function/instrument/composition (all the same thing)
+as either 0 -> 1 seconds, logical beginning -> logical end (in beats?), and
+real beginning -> real ending.  When you go to "real-time" mode, ritards,
+accels, and fermata disappear and are simply reflected in displaced notes.  So
+if you slide notes around in real-time mode, do you create a fermata?  For now
+I think yes, so that no matter what you do in real-time mode you can't move
+anything in beat-time mode, but if you go to beat-time and slide the note, you
+move it to a seperate beat.
+
+Internally in nyquist, of course, this is all just seconds: beat-time is just
+seconds, and the time signature and bpm determine how they are stretched to
+create real-time.  So in 4/4:
+
+0:0 -> 0
+0:1 -> 0.25
+3:3 -> 3.75
+
+etc.  If you insert a fermata in beat-time, it is stretched along with
+everything else, so it depends on the bpm.  If you want absolute timing, you
+do that using the same mechanism as absolute pitch vs. transpose, and absolute
+envelope instruments.

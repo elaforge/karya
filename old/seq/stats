@@ -1,0 +1,8 @@
+#!/bin/zsh
+setopt extended_glob
+h=$(wc *.h | tail -1)
+cc=$(wc *.cc~Fl_Tile2.cc | tail -1)
+total=$(wc *.cc *.h | tail -1)
+echo ${h/total/*.h}
+echo ${cc/total/*.cc}
+echo $total

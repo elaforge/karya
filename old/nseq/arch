@@ -1,0 +1,127 @@
+Models store the data.  They can be modified from the interface and from the
+UI.  Views are GUI objects, and can also be manipulated from the interface.
+
+
+t1 = Track()
+t2 = Track()
+t3 = Track()
+b1 = Block()
+b2 = Block()
+
+# 2 blocks may include the same track
+b1.add(t1)
+b2.add(t1)
+b1.add(t2)
+d2.add(t3)
+
+block_view_config = BlockViewConfig(w=100, h=100, zoom=...)
+# 2 views may view the same block
+bv1 = BlockView(b1, block_view_config)
+bv2 = BlockView(b1)
+bv1.show() # create window
+
+
+class Mark:
+  ...
+
+
+def Ruler:
+  def __init__(self, marks)
+
+class Event:
+  start, length, title, ranges
+
+class Track:
+  def __init__(self, length=default_length, initial_events=[]):
+    """(TimeInterval, [Event]) -> Track"""
+  def change_length(self, length)
+  def events(self):
+    """() -> [Event]"""
+  def insert_events(self, index, events):
+  def delete_events(self, start_index, end_index)
+  
+class BlockView:
+  def __init__(self, block, ruler, block_view_config):
+  def configure(self, block_view_config)
+  def show()
+  def hide()
+
+
+click(down, btn, bid, tid, tpos_start, tpos_end, eid)
+key(down, char, bid, tid, tpos, eid)
+
+this is actually always a drag, since all the event-sending widgets accept
+drags.  bid is always set, tid is None means it's the ruler.  or, api gives
+a wid for everything, and python dispatches to the handler
+
+click(down, btn, wid, tpos_start, tpos_end)
+key(down, char, wid, tpos)
+
+w = widget_wid[wid]
+while w:
+	if w.handle(down, char, tpos):
+		break
+	w = w.parent()
+
+Block
+Track	Ruler
+Event
+
+class Block:
+	default_child = Track
+
+class Track:
+	default_child = Event
+	def __init__(self, parent, track_state):
+		self.parent = parent
+		self.children = []
+		for (tpos, event_state) in track_state.events:
+			self.insert_event(tpos, event_state)
+		self._widget = ui.make_track(self.parent._widget, length)
+		widget_wid[self._widget.id] = self
+		self._widget.show()
+	def show(self): self._widget.show()
+	def hide(self): self._widget.hide()
+	def insert_event(self, tpos, event_state):
+		"""(TrackPos, EventState) -> None"""
+		c = self.default_child(self, event_state)
+		self.children.append(c)
+
+	def remove_event(self, eventi):
+		"""int -> None"""
+
+	def handle(self, evt):
+		"""Event -> bool"""
+		case evt of
+		insert_event:
+			
+
+let
+  e = event_eid[eid]
+  t = track_tid[tid]
+in
+e.insert_char -> e.replace_selection(char)
+e.left_arrow -> e.set_selection(e.selection.start - 1, e.selection.start - 1)
+e.backspace -> e.replace_selection('')
+t.up_arrow -> t.events[t.trackn_eid[eid] - 1).set_selection(0, 0)
+t.insert_event -> t.insert_event(tpos, Event(default_event_extent))
+t.remove_event -> t.remove_event(t.trackn_eid[eid])
+
+class Event
+	def replace_selection(self, s):
+		"""str -> None
+			Text under selection is replaced with 's' and selection set to
+			after the inserted text.
+		""
+	def set_selection(self, begin, extent):
+		"""(int, int)"""
+	def selection(self):
+		"""() -> Sel(begin, extent)"""
+	
+
+
+
+widget
+type
+util 
+model

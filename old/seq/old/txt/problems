@@ -1,0 +1,5 @@
+access to the midi port --
+*	to avoid having more than one process open the midi port, all access should
+be done through one process
+*	what to do when this proc blocks?  this proc would need to be always
+blocking for reading...

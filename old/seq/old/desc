@@ -1,0 +1,178 @@
+Each track represents a signal.  Each track is applied to the track to its
+left using the function in its title ('vel', 'mult'), and the rightmost track
+is the value of the block.
+
+	score track		parameter track		parameter track		...
+f	score-f			vel env-f			mult env-f
+    |-------------------------------------------------------------
+0	|
+	|
+.25	| a5			1					lin 0
+	|									1 exp
+.5	| ~
+	|
+.75 | b5								0
+	|  
+1   |-------------------------------------------------------------
+
+becomes
+
+s1 = (score-f ((.25 .75 a5) (.75 1 b5)))
+s2 = (vel (env-f ((.25 1 1))) s1)
+out = (mult (env-f ((.25 .375 lin 0) (.375 .75 1 exp) (.75 1 0))) s2)
+
+The score format is:
+
+(score-function ((evt1_start evt1_end evt1_arg1 ...) (evt2_start ...))
+	[ left_track ])
+
+'score-function' is expected to take a list of event starting and stopping
+times and arbitrary event args to a signal.  In the example, 'score-f' takes
+pitch names and hands them to a behavior (instrument), which is shifted and
+stretched according to the start and end times.  'env-f' takes signal values,
+along with possible slope symbols, to an envelope style function that hits
+those values at those slopes.
+
+I could get rid of 'evtn_end' by specifying the track as a sequence:
+
+s1 = (score-f ((0 nil) (.25 a5) (.5 nil) (.75 b5)))
+
+
+Other ideas:
+
+External inputs are represented as signals.  To use this to integrate MIDI
+with "normal" functions, this implies that I should be able to take signals
+to function calls?  *midi-in* is a signal of very small block size (with just
+one sample per block?  it should be reasonably efficient to do that).  Maybe
+signals should be a special case of a general lazy stream.
+
+(defun quantize-signal (sig &optional time-theshold value-theshold)
+  "Resample 'sig' by generating a signal which has values filtered by
+   'time-theshold' and 'value-theshold'.  For example,
+   (thin-signal sig .1 .1) will give a signal with samples at .1 second
+   intervals and values quantized to increments of .1.  If 'time-theshold'
+   is nil, samples will be let through only when they trigger the
+   'value-theshold'.  If 'value-theshold' is nil, any change of value will be
+	let through."
+  ...)
+
+... this implies variable-rate signals.
+
+(defun realize-midi (midi-sig beh)
+  (seq (beh (sig-car midi-sig)) (realize-midi (sig-cdr midi-sig beh))))
+
+(realize-midi (quantize-signal *midi-in*))
+  
+
+Since each track represents a signal, that signal is drawn beneath the track,
+either as a light red graph, or as a gradient of light to dark red.
+When a track is updated, the redrawing of all visible signals will force
+the recomputing of only signals that are dependent on the altered signal.
+
+A "snd-inspect" function brings up a window with a graph of the signal.  This
+graph will be updated just like the track graphs.  Or you can "snd-edit" on
+a fully evaluated signal, and you can then edit the signal in place.
+
+
+sound, signal - Lazily evaluated immutable sequence of values.
+
+behavior - Unevaluated function which can generate a signal.  The reason it's
+not a signal is that it accepts an environment of abstract parameters like
+time warping, pitch transposition, loudness, etc. which should be interpreted
+by the function as it is generating its signal.
+
+Nyquist implements behaviors with lots of macro magic: setting the
+environmental parameters is done with macros that set dynamic variables
+around their (unevaluated) signal argument.  This distinction between
+unevaluated behavior and evaluated signal leads to a rather alarming loss
+of referential transparency:
+
+(let ((s (osc c4)))
+  (seq s s))
+
+does not work because 'let' evaluates '(osc c4)' to set 's', at which point
+it is no longer a behavior but a signal, and 'seq's time warping won't work.
+Instead you must write
+
+(flet ((s () (osc c4)))
+  (seq (s) (s)))
+
+What I'd like to do is merge 'behavior' and 'signal', so that a signal is
+actually a function that will generate samples based on the current
+environment.  This would fix up the 'let' situation and also eliminate the
+need for macros to avoid strictness.
+
+How to do this?  Perhaps have '(osc c4)' return a 'Behavior' object, which has
+an 'environment' slot.  Then functions like 'seq' return new Behaviors with
+modified environments, and eventually the 'play' function forces the final
+composite Behavior to generate its samples.  This seems to simplistic, what's
+the flaw?
+
+Problems:
+
+I don't really like xlisp much.  It's an old, unmaintained (the newer version
+is totally different), feature-starved version of common lisp with no GUI
+bindings, poor debugging and error reporting, and besides it segfaults all the
+time for me.
+
+Other languages:
+
+xlisp pros:
+- nyquist already implemented in xlisp
+- small, simple, easy to modify and port
+
+xlisp cons:
+- old, unmaintained, feature-starved, poor debugging and error reporting
+- slow, interpreted
+- generally sucks
+
+cmucl pros:
+- lisp syntax with macros, which is necessary for the nyquist idea of
+	signals and behaviors (not that I'm entirely happy with that)
+- good compiler, interactive toplevel with incremental compilation, which
+	could be really nice for developing music code interactively
+
+cmucl cons:
+- giant hard to build system, very hard to port---I don't mind this so much
+- what is the FFI like?  how easy is it to create my own types and functions
+	in C and possibly modify the GC to collect signal chunks?  How much of
+	that can I do in plain lisp, and will the standard GC collect signals
+	well enough?
+- does cmucl have any GUI bindings?  I don't want motif, maybe just
+	dirt-simple libframe, or some subset of gtk.  I think I'd prefer
+	a hacked up libframe or something at that low level.
+
+clisp pros and cons:
+- basically like cmucl, except slower (no native compilation, worse error
+	reporting) but easier to deal with (easier to build, maybe modify?)
+
+commercial lisp pros and cons:
+- who knows, but assuredly massively expensive, what do they have that cmucl
+	lacks?
+- what about MCL, is that free now?
+
+haskell pros:
+- the nyquist model is of lazy immutable sounds and a lot of functions, which
+	haskell is natural at, has much nicer syntax for that sort of thing than
+	lisp
+- actively maintained and improved, good compiler and FFI, etc.
+
+haskell cons:
+- I haven't thought of how behaviors would work in haskell.  I suppose all
+	behaviors would have to get an Environment monad... or how would that
+	work the above Behavior idea?
+- The working of a functional lazy compiler is way beyond me.  I have no idea
+	what's efficient and what's not, and how to modify the compiler if needed,
+	etc.
+
+python pros:
+- easy to extend and modify, compiler is (relatively) simple and easy to port
+- very actively maintained and improved
+- large amount of existing code out there: Numeric, PIL, GUI bindings, MIDI
+	parsing, etc.
+
+python cons:
+- not necessarily suited for a lazy functional type thing... but Behavior
+	... and generators!!
+- slow.  have to push more into C or C++
+- um...  I'm tired of python.

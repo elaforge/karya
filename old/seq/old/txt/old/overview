@@ -1,0 +1,325 @@
+-----------------------------------  xseq  -------------------------------------
+cheesy quote:
+	"Any tool should be useful in the expected way, but a great tool lends
+itself to uses you never expected."
+
+xseq (for lack of better name):
+an x-based tracker-style music editor ala OctaMED, or the ProTracker, but much
+better.
+
+Note data is stored internally at high resolution, and only displayed
+quantized.  This means you can arbitrarily scale the view; you are simply
+zooming in on the notes.  There needs to be some quickly recognizable,
+space-efficient indication of where in the row the note actually occurs (a
+fraction is not quickly recognizable).  Notes entered in step time are
+quantized to rows, notes entered in real time have detailed position data
+already.
+The tracker-style interface is just one editor.  More editors can be added if
+they are wanted.
+
+----------------------------------  Overview  ----------------------------------
+
+The basic philosophy behind xseq is that when writing music, the user interface
+is very important.  Functions for entering, changing, and deleting notes should
+be fast, flexible, and powerful, so one's train of thought is not interrupted.
+It should also be highly configurable, with the abiltiy to define and redefine
+functions, mappings, etc., pipe output to tools like perl for score processing,
+and provide hooks for extending the existing functionality.  There would a number
+of formats to output:  raw ascii suitable for external processing, a native
+binary format, and midi type 0/1.  Flexibility, speed, and power all take 
+precedence over a gentle learning curve.
+-   Flexibility is good.
+-   If many things are integrated and simplified, things make more sense and
+    are easier to learn.  I.E. options are just vars, ':' mode is just the
+    interpreter, the undo stack is just a bunch of registers, registers are
+    just tracks, etc.  In addition, you can modify everything in a
+    comprehensive, flexible way, from program settings to note data.
+
+To this end, I plan to use an interface that's vi-ish and also has elements of
+a shell/interpreted/command language.
+
+The vi-esque parts:  seperate, user definable editing modes.  Key mappings can
+all be totally changed for any of the modes, but the default would be to have:
+
+A command mode, which would feature two major editing operations:
+
+-   operators (delete, yank, mark, substitute, etc.) and
+-   selectors (motions, visual selection, pattern searches, etc.)
+            (more if I can think of them)
+
+It would also have miscellaneous non-editing functions like:
+    scrolling the screen around
+    recording macros
+    marking spots (although jumping to them is a selector)
+    indicating registers (")
+
+Operators take selectors as arguments, i.e. dw, cw, ~w, etc.  Selectors invoked
+by themselves move the cursor around.  Most anything can have a number prefixed
+to execute it multiple times.
+
+Note that since nothing is doing any inputting, a midi device should be mapped
+to commands, too.  For instance, the white keys could jump your position around
+and the black keys could be like function keys, or registers for storing notes,
+macros, etc.  Whatever.
+
+An "ex" mode, with line independent stuff like %s/foo/bar/g, which would
+technically be a subset of command mode.  "ex" mode (: mode hereafter) would
+also provide more general options such as file io at the Input Level.
+
+An insert mode for the inserting of notes.  An ascii keyboard or midi device
+can be used, or both at the same time.
+
+Infinite levels of undo, of course.
+
+    Of course, it's a simple matter to map any command mode command to input
+something, or vice versa.  There would be overlap for practical reasons, the
+most useful perhaps being backspace in input mode to delete a note.  Also,
+one can design one's own modes.  All it would involve would be setting up
+key bindings for it.
+
+    The shell-like parts:
+Definable functions, with programming structures (if-then, while-loops, vars,
+etc.), but designed around musical data (special sorts of variables for
+different events, notes, etc. and lots of time-related stuff).  Functions
+would be more powerful macros, capable of doing stuff like talking to other
+programs, running actual shell scripts, and pipelines.  It would also
+interface with the hierarchichal event structure.  This could be used for
+things like algorithmic composition, score "convolutions" like quantization
+and randomization, as well as many other things.  Exporting a score to
+csound for processing and "rendering" is another example.
+
+    [Maybe scheme as a built-in language??]
+
+----------------------------  UI Thoughts  -------------------------------------
+
+Different Levels:
+    The different Levels would be organized 'ergonomically' from the
+using-the-program point of view.  The only Levels I can think of immediately
+are:
+
+Input Level -- This is the Level where you are actually entering data.  This
+    Level emphasizes speed, and quick changes.  As many things as possible
+    would be done with the standard typewriter keys ala vi.
+    Escape-Meta-Alt-Control-Shift operations would be minimized (for common
+    operations, at least -- the complexity of a key combo is inversely
+    proportional to its usefulness).  This Level would be entirely keyboard
+    based.  Reaching all the way over to a mouse, and fumbling around with
+    windows and buttons is too slow.  Note that this Level isn't necessarily
+    text-based.  It would all be in it's own window, of course, so one doesn't
+    have to mess withe focus, but many musical elements are best viewed
+    graphically (see Display Ideas).
+
+Edit Level -- This Level is designed for making more general changes and non-
+    input related operations, such as file io and editing program settings, such
+    as the event class libraries (which could be saved and loaded seperately, of
+    course), and configuration options (also settable with X resources).  This
+    Level would use windows, buttons, and all that mousy stuff.
+
+Viewing Level -- This Level would be for visualization of the score.  It
+    wouldn't really have settings that can be changed, more like displays one
+    can turn on and off.  Things like instrument lists, score position
+    indicators, colored "note-histograms" ala st3, etc.  See Display Ideas.
+
+Programming Level -- This is when you're writing tools for use while writing
+    music.  Mostly you would just pull out vi and make text files, but perhaps
+    something a little more interactive would be useful too?  A little
+    mini-debugger so you could step through your script, look at var contents,
+    see what's happening to your score, etc.
+
+Levels are a purely "ergonomic" thing.  They have no place in the actual
+program itself, but are more like layout guidelines.  They're Capitalized
+because they're sort of "outside" the program.
+
+Representation of event data:
+    Tracks can be named.  Also, the yank, put, and undo registers are their own
+tracks, so deleting off one track and putting to another would be accomplished
+with something like "(track)d(selector).  In this way, registers and tracks are
+consolidated.  Tracks aren't limited to one character though -- thus the "
+indicator needs a way to take more than one char as an arg.  Actually,
+one-letter tracks might not be such a problem, it would only limit you to 52
+tracks.  That would mean there would have to be some sort of provision to give
+a track two names, a descriptive one like "tpt 2" or "pno", and a letter name
+to refer to it with, which would be icky.  Besides, there shouldn't be any
+limits on the number of tracks (or if there is, they should be more like
+65536).  So maybe "(track)"(op)(selector), so you could do "pno"dG?
+    As an option, you should be able to represent samples graphically.  Or maybe
+if this is too slow, use a color scheme where brighter colors are louder, and
+each inst has its own color.  To have this work with midi stuff, you would need
+to give it approximate AHDSR values.  Then you could give events colors by mop,
+like inst 1 green, inst 2 red, etc, and have a very pretty scrolling visual
+representation of your music...
+    OK, first we get rid of the tracker-style note concurrency -- i.e.
+'concurrency is built into the track format, so only one thing can play per
+track'.  Instead, tracks are a purely orginizational structure.  Also, the
+differences between notes and other commands are blurred since notes are simply
+a more specific event.  Therefore, what is displayed on what track is totally
+up to the user.  You could have the 'free-style' mode where you can throw down
+any event on any track, and control note concurrency like the trackers do.
+Then you could set up the display on each track using mops -- e.g. track A
+could be all midi controller stuff, tracks 1-16 could be all non-controller
+stuff with midi channels 1-16, tracks 16+ sampled notes and their info.  Track
+B could be everything left over (events like tempo changes, program control
+settings, maybe it could steal midi sysex dumps from their corresponding
+channels, etc.  Events could be color-coded, so all events that match a
+particular mop could be green, others red, etc.
+
+Hmm... maybe it should be all text-mode for speed.  Scrolling event data should
+be a responsive as possible.  Windows and graphical displays are nice, but
+maybe they aren't really necessary.  It would be nice to be able to cut the
+frills for maximum speed, and not be stuck running this in x...  Of course,
+if I get a faster machine, x will be much more feasible.
+
+----------------------------  Implementation  ----------------------------------
+
+Of course, vi cannot be just mapped over to a music editor since music and text
+is not the same.  I could implement it in a way that treats the music as text
+on the screen ala octamed '000 G#7 070C3F', but I would much rather implement
+it as something completely differently, since musical data is not necessarily
+well represented with all text (see UI).  Here are some major considerations:
+
+    The decision I have to make here is whether to orient event structure around
+what is literally true (i.e. notes as a subset of midi events, since notes
+are literally midi events), or to build a logical meta-structure on top to
+make everything more consistent from a _musical_ aspect.  I think the second
+method is best, but I don't want to get too far away from what is actually
+happening at the computer level.
+
+    Event Description:
+Notes are like associative arrays:  they can have an arbitrary number of
+characteristics that contain arbitrary values.  Thus, a note need not
+have pitch or duration (which is why they will be called "events"), an
+example would be midi commands, tempo changes, etc.  There would exist
+a hierarchy of event generality, so that mops can be addressed to any
+layer in an elegant and powerful fashion.  The format of "event regexps"
+must be carefully thought out since it is an integral part of the 
+editor.
+
+    Event Structure:
+Events are one of the most important low-level considerations.  Therefore,
+they must be well thought out, and provide great flexibility with a simple
+overall structure.
+
+The format of events would be a hierarchal/object-oriented one.  The
+most general class is an event --  an event is anything that
+occurs in the score.  The most general score-wide changes would be addressed
+to them.  Next we would have score commands and notes.  Notes would divide
+into instruments, then pitches.  Of course, one can define one's own classes
+any step along the way, and override existing characteristics, so one need
+not have notes with pitches.  They could even have several pitches, in the case
+of a chord.  One could define a note event that shares nothing in common with
+other note events for organizational purposes.  Here's an issue:  at what level
+should chords be integrated into the event structure?  See General Thoughts.  
+
+This is just one orginization!!  This one is based on "musical intuition".
+Notice that it pays no attention to whether the notes are midi notes or
+sample notes, although this distinction is important, since midi notes are
+intrinsically different from samples.  The advantage of this approach is that
+the different types of instruments are transparent.  A difficulty with this is
+that there are some things you can do with samples but not with midi notes and
+vice versa.  This means that midi notes and samples must occupy their own
+classes with some incompatible characteristics (but most could be shared).  One
+solution to this would be a multi-dimensional approach with different logical
+event-structure topologies (I'm starting to sound like Howland Owl...) , but I
+have a sneaky suspicion that this would get way too complex.  I might wind up
+with a logical/literal compromise, or implement both if I come up with a
+brilliant _practical_ way to elegantly integrate them both.  I also want to
+avoid emacs syndrome.
+
+------------------------  Musical Regexps (or MOPS)  ---------------------------
+
+    mops should be _musically_ oriented.  They should know (or
+be able to be taught) about intervals, chords, scale position (tonic,
+dominant, etc.), rhythms, etc., so that one could conceivably use 
+substitution to realize figured bass (complex substitution -- it might 
+have to refer to some predefined database or call some functions).
+As far as stuff like recognizing chords, you would want to make some
+libraries for it to refer to.  You also would have to specify certiain
+things such as the key of the piece, meter, so it would know what it was
+doing.
+    A concern is that mops should not get to high level -- keep
+them simple and use specialized functions for the more complex stuff.
+On the other hand, a unified approach would be cleaner and more logical.
+If it can be done without cluttering the simpler functions, why not?
+
+mops also have their selectors and operators, but they are different than
+insert-mode's.  They serve the same purpose, though.  I would like them to
+be consistent, but the major difference between the regexp operators and
+selectors is that they are line independent.  Hmm... maybe they could be the
+same, but when you were in insert mode, there would be an assumed . range,
+or something like that.
+
+    Specifications:
+Referencing selectors should be hierarchal -- general purpose selectors can be
+used inside a higher-level refernce.  For example, you can match all 3rds of
+subdominant chords (chord level) with accidentals (note level) on row 25
+(general level).  The levels don't really work hierachally -- they are just
+alternate notations.  For example, one could refer to f#4 and midi note number
+57.  If they are ANDed, it will match only non midi f#4s, and since f#4 is not
+note number 57.  If they are ORed, it will match three types of note:  non-midi
+f#4s, midi f#4s, midi note number 57s.  The different levels overlap.  If an
+event is matched twice, either one match is thrown away, or the operator
+operates twice on that event, depending on the user's preference.  Example:
+With no_throw_away_events_matched_twice set: If you say 'transpose all note
+number 64s and c-3s in this block up a diatonic scale step', all midi c-3s will
+go up two scale steps, and all non-midi c-3s will go up only one scale step.
+With throw_away_events_matched_twice, all c-3s go up only one scale step,
+regardless.
+
+General Referencing Selectors:
+
+Note Referencing Operators:
+by an arbitrary spec or value (i.e. exists(spec) && spec{value} > x)
+
+MIDI Referncing Operators:
+channel, controller, velocity, note number, specific hex string, etc.
+
+Chord Referencing Operators:
+You should be able to easily refer to a specific note in a chord, all 
+occurances of one note, the musical function of the notes (3rd, 5th, etc.).
+This would be a subset of the general referencing operators.
+
+There is an issue when referring to a chord with a mop -- the notes in a chord
+have to somehow know that they 'belong' to each other, and be able to figure
+out what role they play (i.e.  'I am a g#7: the 5th of a 2nd inversion c#
+diminished 7th, the first is x, the third is y, and the 7th is z'.  To this
+end, perhaps we could have 'linking' specs shared between a number of events
+that give info about their relatedness...  The other idea was to refer to
+chords by simply globbing events, but that would get too cumbersome -- there
+needs to be a way to set up relations between events.
+
+---------------------------  Modularity  ---------------------------------------
+
+To increase code clarity, and decrease the chance of a complete rewrite when I
+really mess things up, I will pursue a modular design.  There will be a central
+means of communication between the various parts of the program that is flexible
+but constant.  If I keep the interface constant, I can change the implementation
+without messing up all the other parts of the program.  So it will be OO, even
+if not written in an OO language.
+
+	Multiple Processes:
+I will take advantage of multitasking whenever possible.  I plan to implement
+the main program as a server that runs like a daemon.  The interface would be a
+number of clients that talk to the server with shared memory and tell it what
+to do.
+	Jobs of the Server (xseq-main):
+Keep track of score information
+Do i/o -- writitng files, talking to the midi port -- midi port reads will
+block!  so perhaps we use a seperate proc?
+
+	Jobs of the Clients:
+(xseq-tracker)
+Provide a tracker-like interface
+
+(xseq-interpreter)
+Provide the xseq interpreter.  This can run without X.  It gives an xseq command
+line -- ':' mode.
+
+(xseq-opts)
+
+
+--------------------------  General Thoughts  ----------------------------------
+
+-   Locical vs. literal event hierarchy.
+-   Exact syntax for the Great and Mighty MOPS.
+-   If everything is worked in with a programming lang (like scheme), my
+    terminology and mops, vars, functions, etc., will change.

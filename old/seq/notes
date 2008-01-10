@@ -1,0 +1,159 @@
+
+Should support left-to-right as well as top-to-bottom orientation.
+
+useful things to do with the mouse:
+
+select events for: time translation
+
+event manipulation:
+copy selection.  clear selection.
+clear selection and move next events to sel beginning
+resize event.
+move event.  move event and all before / after it
+
+insert at selection, overwrite begining at selection, overwrite until end of selection
+
+
+programmable actions (click actions or drag actions)
+
+interfaces:
+draw and maintain text and selection boxes
+handle collisions
+scroll and zoom
+click and drag info is sent to text object
+
+click1 starts select box
+drag1 makes select box which, if started outside of text, fully selects any
+text it comes in contact, otherwise selects text normally
+
+click2 will perform a programmable action on its target
+
+click3 will fully select text it is clicked on
+drag3 will move selected text
+
+chord12 cuts & copies, chord 13 pastes
+
+scrollbars:
+plan9 style: left moves up/left, middle sets pos, right moves down/right
+time_sb has little marks from marklist, track_sb shows track divisions
+insertion selection also shows up on scrollbars
+can zoom from sb
+
+
+Ruler - 2 pane Frame: top contains ruler and bottom contains child, draws
+ruler line overlay.  keeps track of cursor.
+
+Zoom - resize children
+
+Tile_ext - resize children proportionally or only one, children have minimum
+sizes
+
+Tracks - some children can have thicker lines between
+
+Track - Keep track of Event positions and extents (with Track_model), manage
+label as special case.  Tell Events if they overlap with others.  Manage Event
+children: selection, copy & paste, moving, insertion, deletion.  Manage and
+draw insertion point.
+
+Event - is a Label, but draws beginning and ending lines.  Text collapses if
+parent tells it it's overlapping with someone else (resize(x, y, w, h,
+overlapping)).  Draws waveform.
+
+| dk color |||| | | | transp color | | | | |||| lt color |
+| Event text blah blah blah blah						  |
+| possibly wraps?										  |
+
+Scrollbar - plan9 style scrollbars
+
+Label - acme-style text editing
+
+---
+
+Higher level code manipulates models:
+
+State - has title and tracks
+Track_state - has event positions, extents
+Event_state - has text, color, waveform, ...
+
+... and manipulates the View_state:
+
+create / delete views of Block_models and Track_model
+add / remove Track_model from Block
+
+move insertion point, change zoom, change scroll
+
+If gui objects have state:
+- changes to state trigger a corresponding "notice state change" method call
+on the Block object
++ gui objects can directly update any state they need to, state object doesn't
+have to know
+
+if state has gui objects:
++ state object can directly frob gui object when its bits change, so gui
+objects don't need all the various "notice" methods.
++ gui objects need no knowledge of the whole state object
+- but they still have to remember bits they need, and be able to update state they
+may modify
+
+---
+
+Later:
+derived tracks
+track merging / splitting
+
+This can be done by higher level code, right?
+
+---
+
+merging track derivation with user deltas:
+
+
+--- implementation notes:
+zero zoom: widgets should expect a zoom of 0, since this is what zoom
+will be before it is set (and it must be initialized to 0 since there is nothing
+to zoom on in that case, or we could just imagine there is a 1sec x 1sec
+track?)
+
+unzoomed pixels must be ints, but since trackpos is potentially large, there
+needs to be something to do when the track length overflows a signed int
+its actually worse than that, because sizes() is stored in signed shorts.
+
+Zoom_info stores the window info as Trackpos
+scrollbars are set based on the ratio between that and track_length (also Trackpos)
+track_tile displays tracks larger than itself as only slightly so, and transmits its
+offset() messages to the tracks
+tracks create and delete event widgets as they get near the display window
+this way, you can have thousands of events without transforming thousands of
+widgets on each scroll
+
+now there is no zoomed and unzoomed pixel distinction, but Trackpos and pixel
+you go back and forth with Trackpos::to_screen(zoom) and Trackpos(pixels, zoom)
+
+the only tricky bit is in Track:
+widgets are stored in a deque.
+on each scroll to the right, go through left end of deque deleting events which are
+> window offset - winsz*zoom.  The go through the right end adding
+events until we are > winsz*zoom + window right edge.  Since we are creating
+and deleting a lot of Events, it might be good to have a special Event allocation
+pool, via overloaded new.  But only do that if I have to.
+
+events should be stored in a structure which is space efficient, has at least
+log n search time, and at least log n insertion / deletion time.  possibly some
+kind of self-balancing tree?  look into splay trees.
+
+so what about trackwise?  Track heights are stored in their tracks, and
+screen positions obtained with track_zoom * h.  This means the zoom rect is
+Trackpos xpos and width and int ypos and height.  Actually, why not store
+track heights as Trackpos too?  It would make zoomrect handling stuff more
+uniform.
+
+
+Ruler marks: marks are allowed to have 0 width, which means they are not
+drawn.  They are still useful because their name can still be drawn, and they can
+still be used for navigation.
+
+mark->name(Trackpos mark_pos) -> mark name.  That way, marks can make their
+names dependent on where they are.  E.g. name is <mark_pos>sec, or name is
+measure:beat where we look up measure and beat using mark_pos.  We can have a
+simple time display by having a regular ruler with invisible marks that have second
+labels.  Should name() also return font size?

@@ -1,0 +1,43 @@
+//
+// "$Id: Fl_Tile.H,v 1.6.2.3.2.4 2004/04/11 04:38:54 easysw Exp $"
+//
+// Tile header file for the Fast Light Tool Kit (FLTK).
+//
+// Copyright 1998-2004 by Bill Spitzak and others.
+//
+// This library is free software; you can redistribute it and/or
+// modify it under the terms of the GNU Library General Public
+// License as published by the Free Software Foundation; either
+// version 2 of the License, or (at your option) any later version.
+//
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// Library General Public License for more details.
+//
+// You should have received a copy of the GNU Library General Public
+// License along with this library; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
+// USA.
+//
+// Please report all bugs and problems to "fltk-bugs@fltk.org".
+//
+
+#ifndef Fl_Tile2_H
+#define Fl_Tile2_H
+
+#include <FL/Fl_Group.H>
+
+class FL_EXPORT Fl_Tile2 : public Fl_Group {
+public:
+  int handle(int);
+  Fl_Tile2(int X,int Y,int W,int H,const char*l=0) : Fl_Group(X,Y,W,H,l) {}
+  void resize(int, int, int, int);
+  virtual void position(int, int, int, int);
+};
+
+#endif
+
+//
+// End of "$Id: Fl_Tile.H,v 1.6.2.3.2.4 2004/04/11 04:38:54 easysw Exp $".
+//
