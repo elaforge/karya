@@ -37,13 +37,13 @@ main(int argc, char **argv)
 
     model->set_title("hi there");
 
-    TrackModel *t = new TrackModel();
+    EventTrackModel *t = new EventTrackModel();
     DividerModel *d = new DividerModel(Color(0x0000ff));
-    RulerModel *r = new RulerModel();
+    RulerTrackModel *r = new RulerTrackModel();
 
-    TracklikeModel track(t, 0, 0);
-    TracklikeModel ruler(0, r, 0);
-    TracklikeModel divider(0, 0, d);
+    TrackModel track(t, 0, 0);
+    TrackModel ruler(0, r, 0);
+    TrackModel divider(0, 0, d);
     model->insert_track(0, track, 40);
     model->insert_track(1, ruler, 25);
     model->insert_track(1, divider, 4);

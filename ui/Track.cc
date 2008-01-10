@@ -1,6 +1,6 @@
 #include "Track.h"
 
-TrackView::TrackView(TrackModel &track) :
+EventTrackView::EventTrackView(EventTrackModel &track) :
      bg_box(0, 0, 1, 1), model(track)
 {
     end(); // make sure no one else falls in?

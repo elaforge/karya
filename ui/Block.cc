@@ -17,7 +17,7 @@ BlockModel::set_title(const char *s)
 }
 
 void
-BlockModel::insert_track(int at, const TracklikeModel &track, int width)
+BlockModel::insert_track(int at, const TrackModel &track, int width)
 {
     ASSERT(0 <= at && at <= tracks.size());
     tracks.insert(tracks.begin() + at, track);
@@ -34,7 +34,7 @@ BlockModel::remove_track(int at)
     tracks.erase(tracks.begin() + at);
 }
 
-// const TracklikeModel *BlockModel::track_at(int at) const // inline
+// const TrackModel *BlockModel::track_at(int at) const // inline
 
 void
 BlockModel::set_color_config(const BlockColorConfig &color_config)
@@ -49,7 +49,7 @@ BlockModel::set_color_config(const BlockColorConfig &color_config)
 // BlockView
 
 // An empty ruler to initialize the block ruler.
-static const RulerModel empty_ruler = RulerModel();
+static const RulerTrackModel empty_ruler = RulerTrackModel();
 
 BlockView::BlockView(int X, int Y, int W, int H, BlockModel &model,
         const BlockConfig &config) :
@@ -206,14 +206,14 @@ BlockView::set_title(const char *s)
 
 
 void
-BlockView::insert_track(int at, const TracklikeModel &track, int width)
+BlockView::insert_track(int at, const TrackModel &track, int width)
 {
-    TracklikeView *t;
+    TrackView *t;
 
     if (track.track)
-        t = new TrackView(*track.track);
+        t = new EventTrackView(*track.track);
     else if (track.ruler)
-        t = new RulerView(*track.ruler);
+        t = new RulerTrackView(*track.ruler);
     else
         t = new DividerView(*track.divider);
     track_tile.insert_track(at, t, width);
@@ -223,9 +223,9 @@ BlockView::insert_track(int at, const TracklikeModel &track, int width)
 void
 BlockView::remove_track(int at)
 {
-    TracklikeView *t = track_tile.remove_track(at);
-    RulerView *rv = dynamic_cast<RulerView *>(t);
-    TrackView *tv = dynamic_cast<TrackView *>(t);
+    TrackView *t = track_tile.remove_track(at);
+    RulerTrackView *rv = dynamic_cast<RulerTrackView *>(t);
+    EventTrackView *tv = dynamic_cast<EventTrackView *>(t);
     DividerView *dv = dynamic_cast<DividerView *>(t);
 
     if (rv) delete rv;

@@ -19,23 +19,23 @@ struct Mark {
     double zoom_level;
 };
 
-class RulerModel {
+class RulerTrackModel {
 private:
     // mark list
 };
 
 const Color ruler_color = Color(116, 70, 0);
 
-class RulerView : public TracklikeView {
+class RulerTrackView : public TrackView {
 public:
-    RulerView(const RulerModel &ruler) : model(ruler), bg_box(0, 0, 1, 1) {
+    RulerTrackView(const RulerTrackModel &ruler) : model(ruler), bg_box(0, 0, 1, 1) {
         bg_box.box(FL_THIN_DOWN_BOX);
         bg_box.color(color_to_fl(ruler_color));
         this->add(bg_box);
     }
 
 private:
-    const RulerModel &model;
+    const RulerTrackModel &model;
     Fl_Box bg_box;
 };
 

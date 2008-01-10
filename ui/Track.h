@@ -13,11 +13,11 @@
 #include "util.h"
 #include "f_util.h"
 
-// Since I want to keep RulerModel and RulerView in the same file, instead
+// Since I want to keep RulerTrackModel and RulerTrackView in the same file, instead
 // of splitting them, I have to forward declare this.
-class RulerModel;
+class RulerTrackModel;
 // Model and view reference each other.
-class TrackView;
+class EventTrackView;
 
 
 // Dividers are not shared between views like tracks and rulers are, but being
@@ -28,34 +28,34 @@ struct DividerModel {
 };
 
 
-class TrackModel {
+class EventTrackModel {
 private:
     // events
     // Views of this track, to update when it changes.
-    std::vector<TrackView *> views;
+    std::vector<EventTrackView *> views;
 };
 
 
-struct TracklikeModel {
+struct TrackModel {
     // cheap union type
-    TracklikeModel(TrackModel *t, RulerModel *r, DividerModel *d) :
+    TrackModel(EventTrackModel *t, RulerTrackModel *r, DividerModel *d) :
         track(0), ruler(0), divider(0)
     {
         if (t) track = t;
         else if (r) ruler = r;
         else divider = d;
     }
-    TrackModel *track;
-    RulerModel *ruler;
+    EventTrackModel *track;
+    RulerTrackModel *ruler;
     DividerModel *divider;
 };
 
 
 // Define methods that things appearing in track lanes should support.
 // Also acts like a union of Divider, Track, and Ruler.
-class TracklikeView : public Fl_Group {
+class TrackView : public Fl_Group {
 public:
-    TracklikeView() : Fl_Group(0, 0, 1, 1) {
+    TrackView() : Fl_Group(0, 0, 1, 1) {
         end(); // This is a Group, but I don't want anything else to fall in.
     }
     // zoom
@@ -66,7 +66,7 @@ private:
 };
 
 
-class DividerView : public TracklikeView {
+class DividerView : public TrackView {
 public:
     DividerView(const DividerModel &dm) : box(0, 0, 1, 1) {
         box.box(FL_FLAT_BOX);
@@ -79,12 +79,12 @@ private:
 };
 
 
-class TrackView : public TracklikeView {
+class EventTrackView : public TrackView {
 public:
-    TrackView(TrackModel &track);
+    EventTrackView(EventTrackModel &track);
 
 private:
-    TrackModel &model;
+    EventTrackModel &model;
     Fl_Box bg_box;
 };
 

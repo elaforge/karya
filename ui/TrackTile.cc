@@ -14,16 +14,16 @@ TrackTile::TrackTile(int X, int Y, int W, int H, Color bg_color) :
 }
 
 
-TracklikeView *
+TrackView *
 TrackTile::track_at(int at)
 {
     ASSERT(0 <= at && at <= tracks());
-    return dynamic_cast<TracklikeView *>(child(at));
+    return dynamic_cast<TrackView *>(child(at));
 }
 
 
 void
-TrackTile::insert_track(int at, TracklikeView *track, int width)
+TrackTile::insert_track(int at, TrackView *track, int width)
 {
     ASSERT(0 <= at && at <= tracks());
     ASSERT(width > 0);
@@ -37,11 +37,11 @@ TrackTile::insert_track(int at, TracklikeView *track, int width)
 }
 
 
-TracklikeView *
+TrackView *
 TrackTile::remove_track(int at)
 {
     ASSERT(0 <= at && at <= tracks());
-    TracklikeView *t = track_at(at);
+    TrackView *t = track_at(at);
     remove(t);
     update_sizes();
     return t;

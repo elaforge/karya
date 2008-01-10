@@ -70,9 +70,9 @@ public:
     const char *get_title() const { return title; }
     void set_title(const char *s);
 
-    void insert_track(int at, const TracklikeModel &track, int width);
+    void insert_track(int at, const TrackModel &track, int width);
     void remove_track(int at);
-    const TracklikeModel track_at(int at) const { return tracks.at(at); }
+    const TrackModel track_at(int at) const { return tracks.at(at); }
 
     const BlockColorConfig &get_color_config() const { return color_config; }
     void set_color_config(const BlockColorConfig &color_config);
@@ -89,7 +89,7 @@ private:
     // All the BlockViews that point to this BlockModel.  BlockView
     // adds this when it's created so block modifications can notify its views.
     std::vector<BlockView *> views;
-    std::vector<TracklikeModel> tracks;
+    std::vector<TrackModel> tracks;
 };
 
 
@@ -124,7 +124,7 @@ public:
     // Called by BlockModel when it changes:
     void set_title(const char *s);
 
-    void insert_track(int at, const TracklikeModel &track, int width);
+    void insert_track(int at, const TrackModel &track, int width);
     void remove_track(int at);
 
 protected:
@@ -143,7 +143,7 @@ private:
             Fl_Box track_box;
             Fl_Box sb_box;
             SeqScrollbar time_sb;
-            RulerView ruler;
+            RulerTrackView ruler;
         Fl_Group track_group;
             SeqScrollbar track_sb;
             Zoom track_zoom;

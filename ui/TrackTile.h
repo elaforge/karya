@@ -25,10 +25,10 @@ public:
     void set_bg_color(Color c) { track_pad.color(color_to_fl(c)); }
 
     int tracks() const { return children()-1; } // not counting track_pad
-    TracklikeView *track_at(int at);
-    void insert_track(int at, TracklikeView *track, int width);
-    // Remove and return the TracklikeView, so the parent can delete it.
-    TracklikeView *remove_track(int at);
+    TrackView *track_at(int at);
+    void insert_track(int at, TrackView *track, int width);
+    // Remove and return the TrackView, so the parent can delete it.
+    TrackView *remove_track(int at);
 private:
     Fl_Box track_pad; // box to take up space not covered by tracks
 
