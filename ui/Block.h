@@ -97,7 +97,8 @@ struct BlockConfig {
     Orientation orientation;
     double zoom_speed;
 
-    int title_size;
+    int block_title_height;
+    int track_title_height;
     int sb_size;
     int ruler_size;
 };

@@ -14,7 +14,8 @@ BlockConfig block_config()
     BlockConfig c;
     c.orientation = HorizontalTime;
     c.zoom_speed = 1;
-    c.title_size = 20;
+    c.block_title_height = 20;
+    c.track_title_height = 20;
     c.sb_size = 18;
     c.ruler_size = 26;
     return c;
@@ -75,9 +76,9 @@ main(int argc, char **argv)
     TrackModel divider(0, 0, d);
 
     model->insert_track(0, track, 40);
-    // model->insert_track(1, ruler, 25);
+    model->insert_track(1, ruler, 25);
     model->insert_track(1, divider, 4);
-    // model->insert_track(3, track, 60);
+    model->insert_track(3, track, 60);
 
     // print_children(&view);
 

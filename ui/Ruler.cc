@@ -11,9 +11,8 @@
 void
 OverlayRuler::draw()
 {
-    TrackView::draw();
+    Fl_Group::draw();
     draw_marklists();
-    // fl_rectf(x(), y(), 10, 20);
 }
 
 static Rect
@@ -95,8 +94,25 @@ OverlayRuler::draw_marklists()
 }
 
 
-void
-RulerTrackView::draw()
+RulerTrackView::RulerTrackView(const RulerTrackModel &ruler_model,
+        int title_height) :
+    TrackView(title_height),
+    title_box(0, 0, 1, 1),
+    ruler(ruler_model),
+        bg_box(0, 0, 1, 1)
 {
-    OverlayRuler::draw();
+    this->add(title_box);
+    this->add(ruler);
+    ruler.add(bg_box);
+
+    title_box.box(FL_FLAT_BOX);
+    title_box.color(FL_BLACK);
+    bg_box.box(FL_THIN_DOWN_BOX);
+    bg_box.color(color_to_fl(ruler_model.bg));
+
+    title_box.resize(0, 0, 1, title_height);
+    ruler.resize(0, title_height, 1, 1);
+    init_sizes();
+    ruler.init_sizes();
+    resizable(ruler);
 }

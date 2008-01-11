@@ -30,7 +30,7 @@ TrackTile::insert_track(int at, TrackView *track, int width)
     // Coords will be fixed by update_sizes()
     track->size(width, h());
     this->insert(*track, at);
-    if (!track->resizable()) {
+    if (track->track_not_resizable()) {
         this->set_child_not_resizable(at);
     }
     update_sizes();

@@ -44,12 +44,18 @@ struct TrackModel {
 // Also acts like a union of Divider, Track, and Ruler.
 class TrackView : public Fl_Group {
 public:
-    TrackView() : Fl_Group(0, 0, 1, 1) {
+    TrackView(int title_height) :
+        Fl_Group(0, 0, 1, 1), title_height(title_height)
+    {
         end(); // This is a Group, but I don't want anything else to fall in.
     }
     // zoom
 
-    virtual bool resizable() const { return true; }
+    virtual bool track_not_resizable() const { return true; }
+
+protected:
+    int title_height;
+
 private:
     
 };
@@ -57,12 +63,14 @@ private:
 
 class DividerView : public TrackView {
 public:
-    DividerView(const DividerModel &dm) : box(0, 0, 1, 1) {
+    DividerView(const DividerModel &dm, int title_height) :
+        TrackView(title_height), box(0, 0, 1, 1)
+    {
         box.box(FL_FLAT_BOX);
         box.color(color_to_fl(dm.color));
         add(box);
     }
-    bool resizable() const { return false; }
+    bool track_not_resizable() const { return false; }
 private:
     Fl_Box box;
 };

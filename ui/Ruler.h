@@ -12,6 +12,7 @@ track overlay, and alpha for the ruler track.
 #include <utility>
 #include <vector>
 
+#include <FL/Fl_Group.H>
 #include <FL/Fl_Box.H>
 
 #include "util.h"
@@ -50,9 +51,12 @@ struct RulerTrackModel {
 };
 
 
-class OverlayRuler : public TrackView {
+class OverlayRuler : public Fl_Group {
 public:
-    OverlayRuler(const RulerTrackModel &ruler) : model(ruler) {}
+    OverlayRuler(const RulerTrackModel &ruler) :
+        Fl_Group(0, 0, 1, 1),
+        model(ruler)
+    {}
 
 protected:
     void draw();
@@ -68,21 +72,17 @@ private:
 };
 
 
-class RulerTrackView : public OverlayRuler {
+class RulerTrackView : public TrackView {
 public:
-    RulerTrackView(const RulerTrackModel &ruler) :
-        OverlayRuler(ruler), bg_box(0, 0, 1, 1)
-    {
-        bg_box.box(FL_THIN_DOWN_BOX);
-        bg_box.color(color_to_fl(model.bg));
-        this->add(bg_box);
-    }
+    RulerTrackView(const RulerTrackModel &ruler_model, int title_height);
 
 protected:
-    void draw();
+    // void draw();
 
 private:
-    Fl_Box bg_box;
+    Fl_Box title_box;
+    OverlayRuler ruler;
+        Fl_Box bg_box;
 };
 
 #endif

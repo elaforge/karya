@@ -65,7 +65,7 @@ BlockView::BlockView(int X, int Y, int W, int H, BlockModel &model,
             track_box(0, 0, 1, 1),
             sb_box(0, 0, 1, 1),
             time_sb(0, 0, 1, 1),
-            ruler(ruler_model),
+            ruler(ruler_model, config.track_title_height),
         track_group(0, 0, 1, 1),
             track_sb(0, 0, 1, 1),
             track_zoom(0, 0, 1, 1),
@@ -106,8 +106,9 @@ BlockView::update_sizes()
     // Spurious resizes it is.
     int wx = 0, wy = 0;
 
-    title.resize(wx, wy, w(), config.title_size);
-    body.resize(wx, wy + config.title_size, w(), h() - config.title_size);
+    title.resize(wx, wy, w(), config.block_title_height);
+    body.resize(wx, wy + config.block_title_height,
+            w(), h() - config.block_title_height);
     body_resize_group.resize(body.x() + config.sb_size, body.y(),
             body.w() - config.sb_size, body.h());
 
@@ -116,7 +117,7 @@ BlockView::update_sizes()
     Rect p = rect(ruler_group);
     track_group.resize(p.r(), body.y(), body.w() - p.w, body.h());
 
-    track_box.resize(p.x, p.y, p.w, config.title_size);
+    track_box.resize(p.x, p.y, p.w, config.block_title_height);
     sb_box.resize(p.x, p.b() - config.sb_size, p.w, config.sb_size);
 
     time_sb.type(FL_VERTICAL);
@@ -212,11 +213,11 @@ BlockView::insert_track(int at, const TrackModel &track, int width)
     TrackView *t;
 
     if (track.track)
-        t = new EventTrackView(*track.track);
+        t = new EventTrackView(*track.track, config.track_title_height);
     else if (track.ruler)
-        t = new RulerTrackView(*track.ruler);
+        t = new RulerTrackView(*track.ruler, config.track_title_height);
     else
-        t = new DividerView(*track.divider);
+        t = new DividerView(*track.divider, config.track_title_height);
     track_tile.insert_track(at, t, width);
 }
 

@@ -1,6 +1,8 @@
 #ifndef __TYPES_H
 #define __TYPES_H
 
+#include "util.h"
+
 enum Orientation { HorizontalTime, VerticalTime };
 
 typedef double TrackPos;
@@ -21,6 +23,14 @@ struct ZoomInfo {
     // 2.0 each TrackPos gets 2 pixels.
     // etc.
     double factor;
+};
+
+
+struct TextStyle {
+    char *font;
+    char *style;
+    int size;
+    Color color;
 };
 
 #endif

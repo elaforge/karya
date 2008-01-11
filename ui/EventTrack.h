@@ -6,6 +6,8 @@
 
 #include <vector>
 
+#include "types.h"
+
 #include "Track.h"
 
 // Models and views refer to each other.
@@ -23,7 +25,7 @@ private:
 
 class EventTrackView : public TrackView {
 public:
-    EventTrackView(EventTrackModel &track);
+    EventTrackView(EventTrackModel &track, int title_height);
 
 private:
     EventTrackModel &model;
