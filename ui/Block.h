@@ -106,7 +106,7 @@ struct BlockConfig {
 class BlockView : public Fl_Group {
 public:
     BlockView(int X, int Y, int W, int H, BlockModel &model,
-            const BlockConfig &config);
+            const RulerTrackModel &ruler_model, const BlockConfig &config);
     ~BlockView();
 
     // fltk methods
@@ -157,9 +157,9 @@ private:
 class BlockViewWindow : public Fl_Double_Window {
 public:
     BlockViewWindow(int X, int Y, int W, int H, BlockModel &model,
-            const BlockConfig &config) :
+            const RulerTrackModel &ruler_model, const BlockConfig &config) :
         Fl_Double_Window(X, Y, W, H),
-        block(X, Y, W, H, model, config)
+        block(X, Y, W, H, model, ruler_model, config)
     {
         resizable(this);
     }

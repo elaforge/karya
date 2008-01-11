@@ -30,29 +30,56 @@ BlockColorConfig color_config()
     return c;
 }
 
+static Marklist *
+m44_marklist()
+{
+    static Marklist *mlist = new Marklist();
+    char *name = "";
+
+    for (int i = 0; i < 600; i++) {
+        TrackPos t = i*8;
+        if (i % 4 == 0) {
+            Mark m(1, 3, Color(116, 70, 0), NULL, 0, 0);
+            mlist->push_back(std::pair<TrackPos, Mark>(t, m));
+        } else {
+            Mark m(2, 2, Color(255, 100, 50), NULL, 0, 0);
+            mlist->push_back(std::pair<TrackPos, Mark>(t, m));
+        }
+    }
+    return mlist;
+}
+
 int
 main(int argc, char **argv)
 {
-
     BlockColorConfig cconfig = color_config();
     BlockConfig config = block_config();
     BlockModel *model = new BlockModel(cconfig);
-    BlockViewWindow view(0, 0, 200, 200, *model, config);
+
+    // static const Marklists no_marks = Marklists();
+    Color ruler_bg = Color(255, 220, 128);
+
+    Marklists mlists;
+    Marklist *ms = m44_marklist();
+    mlists.push_back(ms);
+    RulerTrackModel *r = new RulerTrackModel(mlists, ruler_bg);
+    BlockViewWindow view(0, 0, 200, 200, *model, *r, config);
 
     model->set_title("hi there");
 
     EventTrackModel *t = new EventTrackModel();
     DividerModel *d = new DividerModel(Color(0x0000ff));
-    RulerTrackModel *r = new RulerTrackModel();
 
     TrackModel track(t, 0, 0);
     TrackModel ruler(0, r, 0);
     TrackModel divider(0, 0, d);
-    model->insert_track(0, track, 40);
-    model->insert_track(1, ruler, 25);
-    model->insert_track(1, divider, 4);
 
-    print_children(&view);
+    model->insert_track(0, track, 40);
+    // model->insert_track(1, ruler, 25);
+    model->insert_track(1, divider, 4);
+    // model->insert_track(3, track, 60);
+
+    // print_children(&view);
 
     view.show(argc, argv);
     Fl::run();

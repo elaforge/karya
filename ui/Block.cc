@@ -52,11 +52,8 @@ BlockModel::set_color_config(const BlockColorConfig &color_config)
 
 // BlockView
 
-// An empty ruler to initialize the block ruler.
-static const RulerTrackModel empty_ruler = RulerTrackModel();
-
 BlockView::BlockView(int X, int Y, int W, int H, BlockModel &model,
-        const BlockConfig &config) :
+        const RulerTrackModel &ruler_model, const BlockConfig &config) :
     Fl_Group(X, Y, W, H),
     model(model),
     config(config),
@@ -68,7 +65,7 @@ BlockView::BlockView(int X, int Y, int W, int H, BlockModel &model,
             track_box(0, 0, 1, 1),
             sb_box(0, 0, 1, 1),
             time_sb(0, 0, 1, 1),
-            ruler(empty_ruler),
+            ruler(ruler_model),
         track_group(0, 0, 1, 1),
             track_sb(0, 0, 1, 1),
             track_zoom(0, 0, 1, 1),

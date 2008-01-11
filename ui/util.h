@@ -103,6 +103,14 @@ struct RectTmpl {
 	}
 };
 
+template <class T> inline std::ostream &
+operator<<(std::ostream &os, const RectTmpl<T> &r)
+{
+    return os << "Rect(" << r.x << ", " << r.y << ", " << r.w << ", "
+        << r.h << ")";
+}
+
+
 typedef RectTmpl<int> Rect;
 typedef RectTmpl<double> DRect;
 
@@ -116,6 +124,13 @@ struct Color {
     Color() : r(0), g(0), b(0), a(0) {}
     unsigned char r, g, b, a;
 };
+
+inline std::ostream &
+operator<<(std::ostream &os, const Color &c)
+{
+    return os << "Color(" << (int) c.r << ", " << (int) c.g << ", "
+        << (int) c.b << ", " << (int) c.a << ")";
+}
 
 // Color(unsigned long rgba) :
 //     r(0xff & (rgba >> 24)), g(0xff & (rgba >> 16)), b(0xff & (rgba >> 8)),
@@ -162,5 +177,7 @@ min(T a, T b)
     return a < b ? a : b;
 }
 
+
+#define DEBUG(X) do { std::cout << X << '\n'; } while (0)
 
 #endif

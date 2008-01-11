@@ -5,6 +5,7 @@ enum Orientation { HorizontalTime, VerticalTime };
 
 typedef double TrackPos;
 
+
 struct Selection {
     int start_tracknum;
     TrackPos start_trackpos;
@@ -12,7 +13,14 @@ struct Selection {
     TrackPos end_trackpos;
 };
 
-class ZoomInfo {
+
+struct ZoomInfo {
+    ZoomInfo() : offset(0), factor(1) {}
+    TrackPos offset;
+    // 1.0 means that each TrackPos gets 1 pixel.
+    // 2.0 each TrackPos gets 2 pixels.
+    // etc.
+    double factor;
 };
 
 #endif

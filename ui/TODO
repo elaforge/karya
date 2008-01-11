@@ -13,7 +13,7 @@ ruler:
   - draw mouse pos
 
 
-- msg implementation: receive event, 
+- msg implementation: receive event,
   entire ui should be modeless, except maybe kbd focus on inputs, so make
   sure fltk isn't doing kbd navigation or something like that
 
