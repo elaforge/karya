@@ -65,17 +65,19 @@ BlockView::BlockView(int X, int Y, int W, int H, BlockModel &model,
             track_box(0, 0, 1, 1),
             sb_box(0, 0, 1, 1),
             time_sb(0, 0, 1, 1),
-            ruler(ruler_model, config.track_title_height),
+            ruler(ruler_model),
         track_group(0, 0, 1, 1),
             track_sb(0, 0, 1, 1),
             track_zoom(0, 0, 1, 1),
-                track_tile(0, 0, 1, 1, model.get_color_config().bg)
+                track_tile(0, 0, 1, 1, model.get_color_config().bg,
+                        config.track_title_height)
 {
     // The sizes of 1 are so that groups realize that their children are inside
     // of them.  The real resizing will be done in update_sizes
     current(0); // done adding widgets
     body.add(ruler_group);
     body.add(track_group); // fix up hierarchy
+    body_resize_group.hide();
 
     track_box.box(FL_THIN_DOWN_BOX);
     sb_box.box(FL_THIN_DOWN_BOX);
@@ -213,11 +215,11 @@ BlockView::insert_track(int at, const TrackModel &track, int width)
     TrackView *t;
 
     if (track.track)
-        t = new EventTrackView(*track.track, config.track_title_height);
+        t = new EventTrackView(*track.track);
     else if (track.ruler)
-        t = new RulerTrackView(*track.ruler, config.track_title_height);
+        t = new RulerTrackView(*track.ruler);
     else
-        t = new DividerView(*track.divider, config.track_title_height);
+        t = new DividerView(*track.divider);
     track_tile.insert_track(at, t, width);
 }
 

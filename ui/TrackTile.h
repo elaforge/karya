@@ -5,10 +5,17 @@ the given color.
 
 Accept zoom callbacks from parent Zoom and BlockView.
 
+Tracks come in pairs of a title and body.  
+
+TrackTile_______
+   |             \
+EventTrackTitle EventTrack
+
 */
 #ifndef __TRACK_TILE_H
 #define __TRACK_TILE_H
 
+#include <math.h>
 #include <FL/Fl_Box.H>
 
 #include "util.h"
@@ -20,16 +27,18 @@ Accept zoom callbacks from parent Zoom and BlockView.
 
 class TrackTile : public MoveTile {
 public:
-    TrackTile(int X, int Y, int W, int H, Color bg_color);
+    TrackTile(int X, int Y, int W, int H, Color bg_color, int title_height);
 
     void set_bg_color(Color c) { track_pad.color(color_to_fl(c)); }
 
-    int tracks() const { return children()-1; } // not counting track_pad
+    // A track is a (title, body) pair, minus the track_pad.
+    int tracks() const { return floor(children()/2.0); }
     TrackView *track_at(int at);
     void insert_track(int at, TrackView *track, int width);
     // Remove and return the TrackView, so the parent can delete it.
     TrackView *remove_track(int at);
 private:
+    int title_height;
     Fl_Box track_pad; // box to take up space not covered by tracks
 
     void update_sizes();

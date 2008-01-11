@@ -9,7 +9,7 @@
 - zoom implementation
 
 ruler:
-  - draw marks
+  * draw marks
   - draw mouse pos
 
 

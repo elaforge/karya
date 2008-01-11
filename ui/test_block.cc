@@ -80,7 +80,7 @@ main(int argc, char **argv)
     model->insert_track(1, divider, 4);
     model->insert_track(3, track, 60);
 
-    // print_children(&view);
+    print_children(&view);
 
     view.show(argc, argv);
     Fl::run();

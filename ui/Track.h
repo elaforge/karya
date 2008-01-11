@@ -44,35 +44,38 @@ struct TrackModel {
 // Also acts like a union of Divider, Track, and Ruler.
 class TrackView : public Fl_Group {
 public:
-    TrackView(int title_height) :
-        Fl_Group(0, 0, 1, 1), title_height(title_height)
-    {
+    TrackView() : Fl_Group(0, 0, 1, 1) {
         end(); // This is a Group, but I don't want anything else to fall in.
     }
     // zoom
 
     virtual bool track_not_resizable() const { return true; }
 
-protected:
-    int title_height;
-
-private:
-    
+    // Factory to generate the title widget for this track.  It should be
+    // dynamically allocated because it will be passed to TrackTile who will
+    // own it.
+    virtual Fl_Widget &title_widget() = 0;
 };
 
 
 class DividerView : public TrackView {
 public:
-    DividerView(const DividerModel &dm, int title_height) :
-        TrackView(title_height), box(0, 0, 1, 1)
+    DividerView(const DividerModel &dm) :
+        box(0, 0, 1, 1)
     {
         box.box(FL_FLAT_BOX);
         box.color(color_to_fl(dm.color));
         add(box);
+
+        this->title_box = new Fl_Box(0, 0, 1, 1);
+        title_box->box(FL_FLAT_BOX);
+        title_box->color(color_to_fl(dm.color));
     }
     bool track_not_resizable() const { return false; }
+    virtual Fl_Box &title_widget() { return *this->title_box; }
 private:
     Fl_Box box;
+    Fl_Box *title_box;
 };
 
 #endif

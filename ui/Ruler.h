@@ -58,9 +58,9 @@ public:
         model(ruler)
     {}
 
+    const RulerTrackModel &model;
 protected:
     void draw();
-    const RulerTrackModel &model;
 
 private:
     void draw_marklists();
@@ -74,13 +74,14 @@ private:
 
 class RulerTrackView : public TrackView {
 public:
-    RulerTrackView(const RulerTrackModel &ruler_model, int title_height);
+    RulerTrackView(const RulerTrackModel &ruler_model);
+    virtual Fl_Box &title_widget();
 
 protected:
     // void draw();
 
 private:
-    Fl_Box title_box;
+    Fl_Box *title_box;
     OverlayRuler ruler;
         Fl_Box bg_box;
 };
