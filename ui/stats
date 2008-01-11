@@ -1,0 +1,11 @@
+#!/bin/zsh
+setopt extended_glob
+h=$(wc *.h | tail -1)
+cc=$(wc *.cc | tail -1)
+total=$(wc *.cc *.h | tail -1)
+
+echo
+y-m-d
+echo ${h/total/*.h}
+echo ${cc/total/*.cc}
+echo $total
