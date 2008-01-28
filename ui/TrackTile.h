@@ -11,6 +11,13 @@ TrackTile_______
    |             \
 EventTrackTitle EventTrack
 
+TODO:
+MoveTile will also have to report moves (in the callback?) which can then be
+used to resize the left_body.
+
+Only resize the pad when the widget resizes, not the children.  Setting
+resizable or using an Fl_Scroll could solve this.
+
 */
 #ifndef __TRACK_TILE_H
 #define __TRACK_TILE_H

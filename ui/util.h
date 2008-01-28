@@ -5,6 +5,7 @@
 
 #include <iostream>
 #include <stdexcept>
+#include <vector>
 
 // so code has access to debugging printf
 #include <stdio.h>
@@ -22,8 +23,16 @@ struct PointTmpl {
 	bool operator!=(const PointTmpl<T> &o) const { return !(*this == o); }
 };
 
+template <class T> inline std::ostream &
+operator<<(std::ostream &os, const PointTmpl<T> &p)
+{
+    return os << "Point(" << p.x << ", " << p.y << ")"; 
+}
+
+
 typedef PointTmpl<int> Point;
 typedef PointTmpl<double> DPoint;
+typedef PointTmpl<bool> BoolPoint;
 
 
 // Rect
@@ -46,9 +55,15 @@ struct RectTmpl {
 	void r(T v) { x = v - w; }
 	T b() const { return y + h; }
 	void b(T v) { y = v - h; }
+    // Overlaps upper left edge, inside lower right edge.
 	bool contains(const PointTmpl<T> &p) {
 		return (x <= p.x && p.x < r() && y <= p.y && p.y < b());
 	}
+    bool intersects(const PointTmpl<T> &p) {
+        return ! (p.r() < x || p.b() < y || p.x >= r() || p.y >= b());
+    }
+
+    void size(T w, T h) { this->w = w; this->h = h; }
 
 	// move this to be inside 'o'.  if 'o' is too large, overflow to +xy
 	void clamp(const RectTmpl<T> &o) {
@@ -178,6 +193,22 @@ min(T a, T b)
 }
 
 
-#define DEBUG(X) do { std::cout << X << '\n'; } while (0)
+#define DEBUG(X) do { std::cout << __FILE__ << ':' << __LINE__ << ' ' \
+    << X << '\n'; } while (0)
+
+
+template <class T> inline std::ostream &
+operator<<(std::ostream &os, const std::vector<T> &a)
+{
+    os << '[';
+    for (int i = 0; i < a.size(); i++) {
+        if (i)
+            os << ", ";
+        os << a[i];
+    }
+    os << ']';
+    return os;
+}
+
 
 #endif

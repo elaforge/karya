@@ -32,18 +32,20 @@ TrackTile::insert_track(int at, TrackView *track, int width)
 {
     ASSERT(0 <= at && at <= tracks());
     ASSERT(width > 0);
+    int child_pos = at*2;
 
     // Just set sizes here, coords will be fixed by update_sizes()
     Fl_Widget &title = track->title_widget();
     title.size(width, this->title_height);
-    this->insert(title, at*2);
+    this->insert(title, child_pos);
 
     track->size(width, h() - this->title_height);
-    this->insert(*track, at*2+1);
+    this->insert(*track, child_pos+1);
 
-    if (track->track_not_resizable()) {
-        this->set_child_not_resizable(at);
-        this->set_child_not_resizable(at+1);
+    if (!track->track_resizable()) {
+        this->set_stiff_child(child_pos);
+        this->set_stiff_child(child_pos+1);
+        DEBUG("stiff: " << child_pos);
     }
     update_sizes();
 }

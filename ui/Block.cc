@@ -60,7 +60,7 @@ BlockView::BlockView(int X, int Y, int W, int H, BlockModel &model,
 
     title(0, 0, 1, 1),
     body(0, 0, 1, 1),
-        body_resize_group(0, 0, 1, 1),
+        body_resize_group(0, 0, 1, 1, "resize group"),
         ruler_group(0, 0, 1, 1),
             track_box(0, 0, 1, 1),
             sb_box(0, 0, 1, 1),
@@ -79,8 +79,8 @@ BlockView::BlockView(int X, int Y, int W, int H, BlockModel &model,
     body.add(track_group); // fix up hierarchy
     body_resize_group.hide();
 
-    track_box.box(FL_THIN_DOWN_BOX);
-    sb_box.box(FL_THIN_DOWN_BOX);
+    track_box.box(FL_FLAT_BOX);
+    sb_box.box(FL_FLAT_BOX);
 
     resizable(body);
     body.resizable(body_resize_group);

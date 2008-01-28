@@ -1,8 +1,8 @@
-DEBUG=-g
+DEBUG=-ggdb
 CXXFLAGS=`fltk-config --cxxflags` -I. $(DEBUG)
 LDFLAGS=`fltk-config --ldflags` $(DEBUG)
 
-OBJS=Block.o TrackTile.o Track.o Ruler.o EventTrack.o
+OBJS=Block.o TrackTile.o Track.o Ruler.o EventTrack.o MoveTile.o
 
 all: test_block
 

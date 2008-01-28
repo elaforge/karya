@@ -76,10 +76,27 @@ main(int argc, char **argv)
     TrackModel divider(0, 0, d);
 
     model->insert_track(0, track, 40);
-    model->insert_track(1, ruler, 25);
-    model->insert_track(1, divider, 4);
-    model->insert_track(3, track, 60);
+    model->insert_track(1, track, 60);
+    // model->insert_track(1, divider, 20);
+    // model->insert_track(2, ruler, 25);
+    // model->insert_track(3, track, 60);
 
+    print_children(&view);
+
+    // internal to right
+    // view.block.drag_tile(Point(84, 0), Point(88, 0));
+    // view.block.drag_tile(Point(84, 0), Point(96, 0));
+
+    // internal to left
+    // view.block.drag_tile(Point(84, 0), Point(64, 0));
+
+    // rightmost to left
+    // view.block.drag_tile(Point(144, 0), Point(134, 0));
+
+    // rightmost overlaps middle
+    // view.block.drag_tile(Point(144, 0), Point(60, 0));
+    view.block.drag_tile(Point(144, 0), Point(70, 0));
+    view.block.drag_tile(Point(70, 0), Point(144, 0));
     print_children(&view);
 
     view.show(argc, argv);

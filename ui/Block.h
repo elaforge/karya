@@ -128,6 +128,10 @@ public:
     void insert_track(int at, const TrackModel &track, int width);
     void remove_track(int at);
 
+    void drag_tile(Point drag_from, Point drag_to) {
+        track_tile.drag_tile(drag_from, drag_to);
+    }
+
 protected:
     int handle(int evt);
 
@@ -164,7 +168,6 @@ public:
     {
         resizable(this);
     }
-private:
     BlockView block;
 };
 

@@ -49,7 +49,7 @@ public:
     }
     // zoom
 
-    virtual bool track_not_resizable() const { return true; }
+    virtual bool track_resizable() const { return true; }
 
     // Factory to generate the title widget for this track.  It should be
     // dynamically allocated because it will be passed to TrackTile who will
@@ -71,7 +71,7 @@ public:
         title_box->box(FL_FLAT_BOX);
         title_box->color(color_to_fl(dm.color));
     }
-    bool track_not_resizable() const { return false; }
+    bool track_resizable() const { return false; }
     virtual Fl_Box &title_widget() { return *this->title_box; }
 private:
     Fl_Box box;
