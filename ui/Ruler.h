@@ -44,10 +44,15 @@ typedef std::vector<const Marklist *> Marklists;
 // will draw over earlier ones.
 struct RulerTrackModel {
     RulerTrackModel(const Marklists &lists, Color bg) :
-        marklists(lists), bg(bg)
+        marklists(lists), bg(bg), refs(1)
     {}
+    void decref() { if (--refs <= 0) delete this; }
+    void incref() { refs++; }
     const Marklists &marklists;
     const Color bg;
+
+private:
+    int refs;
 };
 
 

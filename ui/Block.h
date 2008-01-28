@@ -65,7 +65,10 @@ class BlockView;
 class BlockModel {
 public:
     BlockModel(const BlockColorConfig &color_config) :
-        color_config(color_config) {}
+        refs(1), color_config(color_config) {}
+    ~BlockModel();
+    void decref() { if (--refs <= 0) delete this; }
+    void incref() { refs++; }
 
     const char *get_title() const { return title; }
     void set_title(const char *s);
@@ -84,11 +87,14 @@ public:
     }
 
 private:
+    int refs;
     const char *title;
     BlockColorConfig color_config;
     // All the BlockViews that point to this BlockModel.  BlockView
     // adds this when it's created so block modifications can notify its views.
     std::vector<BlockView *> views;
+    // This has TrackModels instead of pointers to them because a TrackModel
+    // is just a cheap union.
     std::vector<TrackModel> tracks;
 };
 

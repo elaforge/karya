@@ -16,7 +16,13 @@
 class EventTrackView;
 
 class EventTrackModel {
+public:
+    EventTrackModel() : refs(1) {}
+    ~EventTrackModel();
+    void decref() { if (--refs <= 0) delete this; }
+    void incref() { refs++; }
 private:
+    int refs;
     std::vector<std::pair<TrackPos, EventModel> > events;
     // Views of this track, to update when it changes.
     std::vector<EventTrackView *> views;

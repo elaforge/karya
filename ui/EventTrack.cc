@@ -1,5 +1,15 @@
+#include "util.h"
 #include "SeqInput.h"
 #include "EventTrack.h"
+
+
+EventTrackModel::~EventTrackModel()
+{
+    // Clients should remove all these views from their tracks before
+    // deleting the model.  Otherwise, this method would have to track down
+    // the BlockViews and remove the tracks itself.
+    ASSERT(this->views.size() == 0);
+}
 
 
 EventTrackView::EventTrackView(EventTrackModel &track) :

@@ -34,6 +34,7 @@ struct TrackModel {
         else if (r) ruler = r;
         else divider = d;
     }
+    ~TrackModel();
     EventTrackModel *track;
     RulerTrackModel *ruler;
     DividerModel *divider;

@@ -12,6 +12,18 @@
 
 // const char *BlockModel::get_title() const // inline
 
+BlockModel::~BlockModel()
+{
+    // Destroy all views that point to this model.
+    for (unsigned i = 0; i < this->views.size(); i++) {
+        delete this->views[i];
+    }
+    // The TrackModels in this->tracks will automatically be destroyed.
+
+    // Or maybe the model doesn't own this string.
+    delete this->title;
+}
+
 void
 BlockModel::set_title(const char *s)
 {
