@@ -26,7 +26,7 @@ struct PointTmpl {
 template <class T> inline std::ostream &
 operator<<(std::ostream &os, const PointTmpl<T> &p)
 {
-    return os << "Point(" << p.x << ", " << p.y << ")"; 
+    return os << "Point(" << p.x << ", " << p.y << ")";
 }
 
 
