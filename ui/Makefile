@@ -8,7 +8,7 @@ all: test_block
 
 .PHONY: dep
 dep:
-	g++ -MM *.cc >.depend
+	g++ -MM $(CXXFLAGS) *.cc >.depend
 include .depend
 
 test_block: $(OBJS) test_block.o f_util.o
