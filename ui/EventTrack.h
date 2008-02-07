@@ -17,12 +17,11 @@ class EventTrackView;
 
 class EventTrackModel {
 public:
-    EventTrackModel() : refs(1) {}
+    EventTrackModel() {}
     ~EventTrackModel();
-    void decref() { if (--refs <= 0) delete this; }
-    void incref() { refs++; }
+    // void register(EventTrackView *view) { views.push_back(view); }
+    void deregister(EventTrackView *view) { } // views.erase(view); }
 private:
-    int refs;
     std::vector<std::pair<TrackPos, EventModel> > events;
     // Views of this track, to update when it changes.
     std::vector<EventTrackView *> views;
@@ -32,11 +31,12 @@ private:
 
 class EventTrackView : public TrackView {
 public:
-    EventTrackView(EventTrackModel &track);
+    EventTrackView(EventTrackModel *model);
+    ~EventTrackView();
     virtual SeqInput &title_widget() { return *this->title_input; }
 
 private:
-    EventTrackModel &model;
+    EventTrackModel *model;
     Fl_Box bg_box;
     SeqInput *title_input;
 };

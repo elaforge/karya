@@ -27,14 +27,7 @@ struct DividerModel {
 
 struct TrackModel {
     // cheap union type
-    TrackModel(EventTrackModel *t, RulerTrackModel *r, DividerModel *d) :
-        track(0), ruler(0), divider(0)
-    {
-        if (t) track = t;
-        else if (r) ruler = r;
-        else divider = d;
-    }
-    ~TrackModel();
+    TrackModel(EventTrackModel *t, RulerTrackModel *r, DividerModel *d);
     EventTrackModel *track;
     RulerTrackModel *ruler;
     DividerModel *divider;
@@ -48,6 +41,7 @@ public:
     TrackView() : Fl_Group(0, 0, 1, 1) {
         end(); // This is a Group, but I don't want anything else to fall in.
     }
+    virtual ~TrackView() {}
     // zoom
 
     virtual bool track_resizable() const { return true; }
@@ -61,16 +55,14 @@ public:
 
 class DividerView : public TrackView {
 public:
-    DividerView(const DividerModel &dm) :
-        box(0, 0, 1, 1)
-    {
+    DividerView(const DividerModel *model) : box(0, 0, 1, 1) {
         box.box(FL_FLAT_BOX);
-        box.color(color_to_fl(dm.color));
+        box.color(color_to_fl(model->color));
         add(box);
 
         this->title_box = new Fl_Box(0, 0, 1, 1);
         title_box->box(FL_FLAT_BOX);
-        title_box->color(color_to_fl(dm.color));
+        title_box->color(color_to_fl(model->color));
     }
     bool track_resizable() const { return false; }
     virtual Fl_Box &title_widget() { return *this->title_box; }

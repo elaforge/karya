@@ -73,8 +73,8 @@ OverlayRuler::draw_marklists()
     if (clip.w == 0 || clip.h == 0)
         return;
     // Later marklists will draw over earlier ones.
-    for (Marklists::const_iterator mlist = model.marklists.begin();
-            mlist != model.marklists.end(); ++mlist)
+    for (Marklists::const_iterator mlist = model->marklists.begin();
+            mlist != model->marklists.end(); ++mlist)
     {
         for (Marklist::const_iterator mark = (*mlist)->begin();
                 mark != (*mlist)->end(); ++mark)
@@ -94,8 +94,8 @@ OverlayRuler::draw_marklists()
 }
 
 
-RulerTrackView::RulerTrackView(const RulerTrackModel &ruler_model) :
-    ruler(ruler_model),
+RulerTrackView::RulerTrackView(const RulerTrackModel *model) :
+    ruler(model),
         bg_box(0, 0, 1, 1)
 {
     this->add(ruler);
@@ -103,7 +103,7 @@ RulerTrackView::RulerTrackView(const RulerTrackModel &ruler_model) :
     end();
 
     bg_box.box(FL_THIN_DOWN_BOX);
-    bg_box.color(color_to_fl(ruler_model.bg));
+    bg_box.color(color_to_fl(model->bg));
 }
 
 
@@ -115,7 +115,7 @@ RulerTrackView::title_widget()
     if (!this->title_box) {
         this->title_box = new Fl_Box(0, 0, 1, 1);
         title_box->box(FL_FLAT_BOX);
-        title_box->color(color_to_fl(ruler.model.bg));
+        title_box->color(color_to_fl(ruler.model->bg));
     }
     return *this->title_box;
 }

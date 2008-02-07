@@ -5,15 +5,13 @@
 
 EventTrackModel::~EventTrackModel()
 {
-    // Clients should remove all these views from their tracks before
-    // deleting the model.  Otherwise, this method would have to track down
-    // the BlockViews and remove the tracks itself.
+    // Any remaining views should have kept this model alive.
     ASSERT(this->views.size() == 0);
 }
 
 
-EventTrackView::EventTrackView(EventTrackModel &track) :
-     bg_box(0, 0, 1, 1), model(track)
+EventTrackView::EventTrackView(EventTrackModel *model) :
+     bg_box(0, 0, 1, 1), model(model)
 {
     end(); // make sure no one else falls in
     add(bg_box);

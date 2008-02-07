@@ -61,10 +61,10 @@ main(int argc, char **argv)
     Color ruler_bg = Color(255, 220, 128);
 
     Marklists mlists;
-    Marklist *ms = m44_marklist();
+    const Marklist *ms(m44_marklist());
     mlists.push_back(ms);
     RulerTrackModel *r = new RulerTrackModel(mlists, ruler_bg);
-    BlockViewWindow view(0, 0, 200, 200, *model, *r, config);
+    BlockViewWindow view(0, 0, 200, 200, model, r, config);
 
     model->set_title("hi there");
 

@@ -14,12 +14,8 @@
 
 BlockModel::~BlockModel()
 {
-    // Destroy all views that point to this model.
-    for (unsigned i = 0; i < this->views.size(); i++) {
-        delete this->views[i];
-    }
-    // The TrackModels in this->tracks will automatically be destroyed.
-
+    // Any remaining views should have kept this model alive.
+    ASSERT(this->views.size() == 0);
     // Or maybe the model doesn't own this string.
     delete this->title;
 }
@@ -64,8 +60,8 @@ BlockModel::set_color_config(const BlockColorConfig &color_config)
 
 // BlockView
 
-BlockView::BlockView(int X, int Y, int W, int H, BlockModel &model,
-        const RulerTrackModel &ruler_model, const BlockConfig &config) :
+BlockView::BlockView(int X, int Y, int W, int H, BlockModel *model,
+        const RulerTrackModel *ruler_model, const BlockConfig config) :
     Fl_Group(X, Y, W, H),
     model(model),
     config(config),
@@ -81,7 +77,7 @@ BlockView::BlockView(int X, int Y, int W, int H, BlockModel &model,
         track_group(0, 0, 1, 1),
             track_sb(0, 0, 1, 1),
             track_zoom(0, 0, 1, 1),
-                track_tile(0, 0, 1, 1, model.get_color_config().bg,
+                track_tile(0, 0, 1, 1, model->get_color_config().bg,
                         config.track_title_height)
 {
     // The sizes of 1 are so that groups realize that their children are inside
@@ -102,12 +98,12 @@ BlockView::BlockView(int X, int Y, int W, int H, BlockModel &model,
     update_sizes();
     update_colors();
 
-    model.add_view(this);
+    model->add_view(this);
 }
 
 BlockView::~BlockView()
 {
-    model.remove_view(this);
+    model->remove_view(this);
 }
 
 
@@ -161,7 +157,7 @@ BlockView::update_sizes()
 void
 BlockView::update_colors()
 {
-    const BlockColorConfig &c = this->model.get_color_config();
+    const BlockColorConfig &c = this->model->get_color_config();
     this->track_box.color(color_to_fl(c.track_box));
     this->sb_box.color(color_to_fl(c.sb_box));
     // redraw?
@@ -227,11 +223,11 @@ BlockView::insert_track(int at, const TrackModel &track, int width)
     TrackView *t;
 
     if (track.track)
-        t = new EventTrackView(*track.track);
+        t = new EventTrackView(track.track);
     else if (track.ruler)
-        t = new RulerTrackView(*track.ruler);
+        t = new RulerTrackView(track.ruler);
     else
-        t = new DividerView(*track.divider);
+        t = new DividerView(track.divider);
     track_tile.insert_track(at, t, width);
 }
 
@@ -240,11 +236,5 @@ void
 BlockView::remove_track(int at)
 {
     TrackView *t = track_tile.remove_track(at);
-    RulerTrackView *rv = dynamic_cast<RulerTrackView *>(t);
-    EventTrackView *tv = dynamic_cast<EventTrackView *>(t);
-    DividerView *dv = dynamic_cast<DividerView *>(t);
-
-    if (rv) delete rv;
-    else if (tv) delete tv;
-    else if (dv) delete dv;
+    delete t;
 }

@@ -43,27 +43,22 @@ typedef std::vector<const Marklist *> Marklists;
 // Markslists will be drawn in the order they are given, so later marklists
 // will draw over earlier ones.
 struct RulerTrackModel {
-    RulerTrackModel(const Marklists &lists, Color bg) :
-        marklists(lists), bg(bg), refs(1)
+    RulerTrackModel(const Marklists lists, Color bg) :
+        marklists(lists), bg(bg)
     {}
-    void decref() { if (--refs <= 0) delete this; }
-    void incref() { refs++; }
-    const Marklists &marklists;
+    const Marklists marklists;
     const Color bg;
-
-private:
-    int refs;
 };
 
 
 class OverlayRuler : public Fl_Group {
 public:
-    OverlayRuler(const RulerTrackModel &ruler) :
+    OverlayRuler(const RulerTrackModel *model) :
         Fl_Group(0, 0, 1, 1),
-        model(ruler)
+        model(model)
     {}
 
-    const RulerTrackModel &model;
+    const RulerTrackModel *model;
 protected:
     void draw();
 
@@ -79,7 +74,7 @@ private:
 
 class RulerTrackView : public TrackView {
 public:
-    RulerTrackView(const RulerTrackModel &ruler_model);
+    RulerTrackView(const RulerTrackModel *model);
     virtual Fl_Box &title_widget();
 
 protected:

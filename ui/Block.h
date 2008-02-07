@@ -24,10 +24,6 @@ block length, ...
 these should be in both Trackpos units and relative to Mark units
 (controllable from python)
 
-bugs:
-scrollbars don't resize properly when the Block is resized, in fact, no one
-seems to realize the Block has changed sizes
-
 */
 
 #include <vector>
@@ -65,10 +61,8 @@ class BlockView;
 class BlockModel {
 public:
     BlockModel(const BlockColorConfig &color_config) :
-        refs(1), color_config(color_config) {}
+        color_config(color_config) {}
     ~BlockModel();
-    void decref() { if (--refs <= 0) delete this; }
-    void incref() { refs++; }
 
     const char *get_title() const { return title; }
     void set_title(const char *s);
@@ -87,7 +81,6 @@ public:
     }
 
 private:
-    int refs;
     const char *title;
     BlockColorConfig color_config;
     // All the BlockViews that point to this BlockModel.  BlockView
@@ -112,8 +105,9 @@ struct BlockConfig {
 
 class BlockView : public Fl_Group {
 public:
-    BlockView(int X, int Y, int W, int H, BlockModel &model,
-            const RulerTrackModel &ruler_model, const BlockConfig &config);
+    BlockView(int X, int Y, int W, int H, BlockModel *model,
+            const RulerTrackModel *ruler_model,
+            const BlockConfig config);
     ~BlockView();
 
     // fltk methods
@@ -142,7 +136,7 @@ protected:
     int handle(int evt);
 
 private:
-    BlockModel &model;
+    BlockModel *model;
     BlockConfig config;
     ZoomInfo zoom_info;
 
@@ -167,8 +161,9 @@ private:
 
 class BlockViewWindow : public Fl_Double_Window {
 public:
-    BlockViewWindow(int X, int Y, int W, int H, BlockModel &model,
-            const RulerTrackModel &ruler_model, const BlockConfig &config) :
+    BlockViewWindow(int X, int Y, int W, int H, BlockModel *model,
+            const RulerTrackModel *ruler_model,
+            const BlockConfig &config) :
         Fl_Double_Window(X, Y, W, H),
         block(X, Y, W, H, model, ruler_model, config)
     {

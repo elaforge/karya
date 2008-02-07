@@ -20,6 +20,7 @@ block_ab.add_track(track block_a)
 block_ab.add_track(track block_b)
 
 
+memory:
 
 Since multiple BlockViews can share a BlockModel, and multiple TrackViews (in
 different BlockViews) can share a TrackModel:
@@ -28,3 +29,13 @@ BlockModel, EventTrackModel, and RulerTrackModel all implement a reference
 counting scheme.  DividerTrackModel is too trivial to be shared.  Objects that
 have subobjects of this kind call a decref method on them instead of deleting
 them directly.
+
+When you delete a model, it decrefs.  If there are views on the model, their
+refs should keep it alive until they are destroyed.
+
+
+TODO:
+- revert the refcounting changes
+- install boost
+- gradually convert views to use shared_ptrs to models, and models to use
+weak_ptrs back to the views.

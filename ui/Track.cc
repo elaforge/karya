@@ -2,12 +2,9 @@
 #include "EventTrack.h"
 #include "Ruler.h"
 
-TrackModel::~TrackModel()
+TrackModel::TrackModel(EventTrackModel *t, RulerTrackModel *r, DividerModel *d)
 {
-    if (this->track)
-        this->track->decref();
-    else if (this->ruler)
-        this->ruler->decref();
-    else
-        delete this->divider;
+    if (t) track = t;
+    else if (r) ruler = r;
+    else divider = d;
 }
