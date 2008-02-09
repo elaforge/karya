@@ -55,7 +55,7 @@ main(int argc, char **argv)
 {
     BlockColorConfig cconfig = color_config();
     BlockConfig config = block_config();
-    BlockModel *model = new BlockModel(cconfig);
+    boost::shared_ptr<BlockModel> model(new BlockModel(cconfig));
 
     // static const Marklists no_marks = Marklists();
     Color ruler_bg = Color(255, 220, 128);
@@ -63,17 +63,22 @@ main(int argc, char **argv)
     Marklists mlists;
     const Marklist *ms(m44_marklist());
     mlists.push_back(ms);
-    RulerTrackModel *r = new RulerTrackModel(mlists, ruler_bg);
-    BlockViewWindow view(0, 0, 200, 200, model, r, config);
 
     model->set_title("hi there");
 
-    EventTrackModel *t = new EventTrackModel();
-    DividerModel *d = new DividerModel(Color(0x0000ff));
+    boost::shared_ptr<EventTrackModel> t(new EventTrackModel());
+    boost::shared_ptr<DividerModel> d(new DividerModel(Color(0x0000ff)));
+    boost::shared_ptr<RulerTrackModel> r(new RulerTrackModel(mlists, ruler_bg));
 
-    TrackModel track(t, 0, 0);
-    TrackModel ruler(0, r, 0);
-    TrackModel divider(0, 0, d);
+    boost::shared_ptr<EventTrackModel> null_track;
+    boost::shared_ptr<DividerModel> null_divider;
+    boost::shared_ptr<RulerTrackModel> null_ruler;
+
+    TrackModel track(t, null_ruler, null_divider);
+    TrackModel ruler(null_track, r, null_divider);
+    TrackModel divider(null_track, null_ruler, d);
+
+    BlockViewWindow view(0, 0, 200, 200, model, r, config);
 
     model->insert_track(0, track, 40);
     model->insert_track(1, track, 60);
@@ -101,4 +106,5 @@ main(int argc, char **argv)
 
     view.show(argc, argv);
     Fl::run();
+    printf("complete\n");
 }

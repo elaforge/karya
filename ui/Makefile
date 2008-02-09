@@ -1,5 +1,6 @@
 DEBUG=-ggdb
-CXXFLAGS=`fltk-config --cxxflags` -I. $(DEBUG)
+BOOST=/usr/local/src/boost_1_34_1
+CXXFLAGS=`fltk-config --cxxflags` -I. -I../../libcc -I$(BOOST) $(DEBUG)
 LDFLAGS=`fltk-config --ldflags` $(DEBUG)
 
 OBJS=Block.o TrackTile.o Track.o Ruler.o EventTrack.o MoveTile.o

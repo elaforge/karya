@@ -11,6 +11,7 @@ track overlay, and alpha for the ruler track.
 
 #include <utility>
 #include <vector>
+#include <boost/shared_ptr.hpp>
 
 #include <FL/Fl_Group.H>
 #include <FL/Fl_Box.H>
@@ -53,12 +54,12 @@ struct RulerTrackModel {
 
 class OverlayRuler : public Fl_Group {
 public:
-    OverlayRuler(const RulerTrackModel *model) :
+    OverlayRuler(boost::shared_ptr<const RulerTrackModel> model) :
         Fl_Group(0, 0, 1, 1),
         model(model)
     {}
 
-    const RulerTrackModel *model;
+        boost::shared_ptr<const RulerTrackModel> model;
 protected:
     void draw();
 
@@ -74,7 +75,7 @@ private:
 
 class RulerTrackView : public TrackView {
 public:
-    RulerTrackView(const RulerTrackModel *model);
+    RulerTrackView(boost::shared_ptr<const RulerTrackModel> model);
     virtual Fl_Box &title_widget();
 
 protected:

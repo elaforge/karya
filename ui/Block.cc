@@ -10,14 +10,12 @@
 
 // BlockModel
 
-// const char *BlockModel::get_title() const // inline
-
 BlockModel::~BlockModel()
 {
     // Any remaining views should have kept this model alive.
     ASSERT(this->views.size() == 0);
     // Or maybe the model doesn't own this string.
-    delete this->title;
+    // delete this->title;
 }
 
 void
@@ -46,22 +44,19 @@ BlockModel::remove_track(int at)
     tracks.erase(tracks.begin() + at);
 }
 
-// const TrackModel *BlockModel::track_at(int at) const // inline
-
 void
 BlockModel::set_color_config(const BlockColorConfig &color_config)
 {
     // set color_config and update views if necessary
 }
 
-// void BlockModel::add_view(BlockView *view) // inline
-// void BlockModel::remove_view(BlockView *view) // inline
-
 
 // BlockView
 
-BlockView::BlockView(int X, int Y, int W, int H, BlockModel *model,
-        const RulerTrackModel *ruler_model, const BlockConfig config) :
+BlockView::BlockView(int X, int Y, int W, int H,
+        boost::shared_ptr<BlockModel> model,
+        boost::shared_ptr<const RulerTrackModel> ruler_model,
+        const BlockConfig config) :
     Fl_Group(X, Y, W, H),
     model(model),
     config(config),

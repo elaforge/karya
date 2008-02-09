@@ -5,6 +5,7 @@
 #define __EVENT_TRACK_H
 
 #include <vector>
+#include <boost/shared_ptr.hpp>
 
 #include "types.h"
 
@@ -19,8 +20,10 @@ class EventTrackModel {
 public:
     EventTrackModel() {}
     ~EventTrackModel();
-    // void register(EventTrackView *view) { views.push_back(view); }
-    void deregister(EventTrackView *view) { } // views.erase(view); }
+    void add_view(EventTrackView *view) { views.push_back(view); }
+    void remove_view(EventTrackView *view) {
+        views.erase(std::remove(views.begin(), views.end(), view), views.end());
+    }
 private:
     std::vector<std::pair<TrackPos, EventModel> > events;
     // Views of this track, to update when it changes.
@@ -31,12 +34,12 @@ private:
 
 class EventTrackView : public TrackView {
 public:
-    EventTrackView(EventTrackModel *model);
+    EventTrackView(boost::shared_ptr<EventTrackModel> model);
     ~EventTrackView();
     virtual SeqInput &title_widget() { return *this->title_input; }
 
 private:
-    EventTrackModel *model;
+    boost::shared_ptr<EventTrackModel> model;
     Fl_Box bg_box;
     SeqInput *title_input;
 };

@@ -28,6 +28,7 @@ these should be in both Trackpos units and relative to Mark units
 
 #include <vector>
 #include <algorithm>
+#include <boost/shared_ptr.hpp>
 
 #include <FL/Fl.H>
 #include <FL/Fl_Group.H>
@@ -67,6 +68,8 @@ public:
     const char *get_title() const { return title; }
     void set_title(const char *s);
 
+    // TrackModels are passed and stored by value because a TrackModel is just
+    // a union of pointers.
     void insert_track(int at, const TrackModel &track, int width);
     void remove_track(int at);
     const TrackModel track_at(int at) const { return tracks.at(at); }
@@ -77,7 +80,7 @@ public:
     // Called by BlockView, to register itself with the model.
     void add_view(BlockView *view) { views.push_back(view); }
     void remove_view(BlockView *view) {
-        remove(views.begin(), views.end(), view);
+        views.erase(std::remove(views.begin(), views.end(), view), views.end());
     }
 
 private:
@@ -86,8 +89,6 @@ private:
     // All the BlockViews that point to this BlockModel.  BlockView
     // adds this when it's created so block modifications can notify its views.
     std::vector<BlockView *> views;
-    // This has TrackModels instead of pointers to them because a TrackModel
-    // is just a cheap union.
     std::vector<TrackModel> tracks;
 };
 
@@ -105,8 +106,8 @@ struct BlockConfig {
 
 class BlockView : public Fl_Group {
 public:
-    BlockView(int X, int Y, int W, int H, BlockModel *model,
-            const RulerTrackModel *ruler_model,
+    BlockView(int X, int Y, int W, int H, boost::shared_ptr<BlockModel> model,
+            boost::shared_ptr<const RulerTrackModel> ruler_model,
             const BlockConfig config);
     ~BlockView();
 
@@ -136,7 +137,7 @@ protected:
     int handle(int evt);
 
 private:
-    BlockModel *model;
+    boost::shared_ptr<BlockModel> model;
     BlockConfig config;
     ZoomInfo zoom_info;
 
@@ -161,8 +162,9 @@ private:
 
 class BlockViewWindow : public Fl_Double_Window {
 public:
-    BlockViewWindow(int X, int Y, int W, int H, BlockModel *model,
-            const RulerTrackModel *ruler_model,
+    BlockViewWindow(int X, int Y, int W, int H,
+            boost::shared_ptr<BlockModel> model,
+            boost::shared_ptr<const RulerTrackModel> ruler_model,
             const BlockConfig &config) :
         Fl_Double_Window(X, Y, W, H),
         block(X, Y, W, H, model, ruler_model, config)

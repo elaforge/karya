@@ -10,7 +10,7 @@ EventTrackModel::~EventTrackModel()
 }
 
 
-EventTrackView::EventTrackView(EventTrackModel *model) :
+EventTrackView::EventTrackView(boost::shared_ptr<EventTrackModel> model) :
      bg_box(0, 0, 1, 1), model(model)
 {
     end(); // make sure no one else falls in
@@ -20,4 +20,11 @@ EventTrackView::EventTrackView(EventTrackModel *model) :
     bg_box.color(FL_WHITE);
 
     this->title_input = new SeqInput(0, 0, 1, 1);
+    model->add_view(this);
+}
+
+
+EventTrackView::~EventTrackView()
+{
+    model->remove_view(this);
 }

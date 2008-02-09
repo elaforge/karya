@@ -23,6 +23,7 @@ resizable or using an Fl_Scroll could solve this.
 #define __TRACK_TILE_H
 
 #include <math.h>
+
 #include <FL/Fl_Box.H>
 
 #include "util.h"

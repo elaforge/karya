@@ -34,6 +34,11 @@ When you delete a model, it decrefs.  If there are views on the model, their
 refs should keep it alive until they are destroyed.
 
 
+Views hold shared_ptrs to models.  When all views to a model are destroyed
+(views are destroyed explicitly), the model will be destroyed.  At that point,
+the model's views pointers should be empty because each view removes itself
+from the list in its destructor.
+
 TODO:
 - revert the refcounting changes
 - install boost

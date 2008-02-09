@@ -4,6 +4,8 @@
 #ifndef __TRACK_H
 #define __TRACK_H
 
+#include <boost/shared_ptr.hpp>
+
 #include <FL/Fl_Widget.H>
 #include <FL/Fl_Group.H>
 #include <FL/Fl_Box.H>
@@ -27,10 +29,12 @@ struct DividerModel {
 
 struct TrackModel {
     // cheap union type
-    TrackModel(EventTrackModel *t, RulerTrackModel *r, DividerModel *d);
-    EventTrackModel *track;
-    RulerTrackModel *ruler;
-    DividerModel *divider;
+    TrackModel(boost::shared_ptr<EventTrackModel> t,
+            boost::shared_ptr<RulerTrackModel> r,
+            boost::shared_ptr<DividerModel> d);
+    boost::shared_ptr<EventTrackModel> track;
+    boost::shared_ptr<RulerTrackModel> ruler;
+    boost::shared_ptr<DividerModel> divider;
 };
 
 
@@ -55,7 +59,7 @@ public:
 
 class DividerView : public TrackView {
 public:
-    DividerView(const DividerModel *model) : box(0, 0, 1, 1) {
+    DividerView(boost::shared_ptr<DividerModel> model) : box(0, 0, 1, 1) {
         box.box(FL_FLAT_BOX);
         box.color(color_to_fl(model->color));
         add(box);

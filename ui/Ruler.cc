@@ -94,7 +94,7 @@ OverlayRuler::draw_marklists()
 }
 
 
-RulerTrackView::RulerTrackView(const RulerTrackModel *model) :
+RulerTrackView::RulerTrackView(boost::shared_ptr<const RulerTrackModel> model) :
     ruler(model),
         bg_box(0, 0, 1, 1)
 {
