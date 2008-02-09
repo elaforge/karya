@@ -9,9 +9,9 @@
 #include "Ruler.h"
 
 
-BlockConfig block_config()
+BlockViewConfig block_view_config()
 {
-    BlockConfig c;
+    BlockViewConfig c;
     c.orientation = HorizontalTime;
     c.zoom_speed = 1;
     c.block_title_height = 20;
@@ -21,9 +21,9 @@ BlockConfig block_config()
     return c;
 }
 
-BlockColorConfig color_config()
+BlockModelConfig block_model_config()
 {
-    BlockColorConfig c;
+    BlockModelConfig c;
     c.select.push_back(Color(0xffff00));
     c.bg = Color(0xdddddd);
     c.track_box = Color(0x44ffff);
@@ -53,9 +53,9 @@ m44_marklist()
 int
 main(int argc, char **argv)
 {
-    BlockColorConfig cconfig = color_config();
-    BlockConfig config = block_config();
-    boost::shared_ptr<BlockModel> model(new BlockModel(cconfig));
+    BlockViewConfig view_config = block_view_config();
+    BlockModelConfig config = block_model_config();
+    boost::shared_ptr<BlockModel> model(new BlockModel(config));
 
     // static const Marklists no_marks = Marklists();
     Color ruler_bg = Color(255, 220, 128);
@@ -78,7 +78,7 @@ main(int argc, char **argv)
     TrackModel ruler(null_track, r, null_divider);
     TrackModel divider(null_track, null_ruler, d);
 
-    BlockViewWindow view(0, 0, 200, 200, model, r, config);
+    BlockViewWindow view(0, 0, 200, 200, model, r, view_config);
 
     model->insert_track(0, track, 40);
     model->insert_track(1, track, 60);

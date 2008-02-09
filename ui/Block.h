@@ -50,7 +50,7 @@ these should be in both Trackpos units and relative to Mark units
 // 'remove_track' has no effect.
 enum { ruler_tracknum = -1 };
 
-struct BlockColorConfig {
+struct BlockModelConfig {
     std::vector<Color> select;
     Color bg;
     Color track_box;
@@ -61,11 +61,11 @@ class BlockView;
 
 class BlockModel {
 public:
-    BlockModel(const BlockColorConfig &color_config) :
-        color_config(color_config) {}
+    BlockModel(const BlockModelConfig &config) :
+        config(config) {}
     ~BlockModel();
 
-    const char *get_title() const { return title; }
+    const char *get_title() const { return title.c_str(); }
     void set_title(const char *s);
 
     // TrackModels are passed and stored by value because a TrackModel is just
@@ -74,8 +74,8 @@ public:
     void remove_track(int at);
     const TrackModel track_at(int at) const { return tracks.at(at); }
 
-    const BlockColorConfig &get_color_config() const { return color_config; }
-    void set_color_config(const BlockColorConfig &color_config);
+    const BlockModelConfig &get_config() const { return config; }
+    void set_config(const BlockModelConfig &config);
 
     // Called by BlockView, to register itself with the model.
     void add_view(BlockView *view) { views.push_back(view); }
@@ -84,8 +84,8 @@ public:
     }
 
 private:
-    const char *title;
-    BlockColorConfig color_config;
+    std::string title;
+    BlockModelConfig config;
     // All the BlockViews that point to this BlockModel.  BlockView
     // adds this when it's created so block modifications can notify its views.
     std::vector<BlockView *> views;
@@ -93,7 +93,7 @@ private:
 };
 
 
-struct BlockConfig {
+struct BlockViewConfig {
     Orientation orientation;
     double zoom_speed;
 
@@ -108,7 +108,7 @@ class BlockView : public Fl_Group {
 public:
     BlockView(int X, int Y, int W, int H, boost::shared_ptr<BlockModel> model,
             boost::shared_ptr<const RulerTrackModel> ruler_model,
-            const BlockConfig config);
+            const BlockViewConfig &config);
     ~BlockView();
 
     // fltk methods
@@ -118,8 +118,8 @@ public:
     // api methods
     const ZoomInfo &get_zoom() const { return this->zoom_info; }
     void set_zoom(const ZoomInfo &zoom);
-    const BlockConfig &get_config() const { return this->config; }
-    void set_config(const BlockConfig &config);
+    const BlockViewConfig &get_config() const { return this->config; }
+    void set_config(const BlockViewConfig &config);
     const Selection &get_selection() const;
     void set_selection(int selnum, const Selection &sel);
 
@@ -138,7 +138,7 @@ protected:
 
 private:
     boost::shared_ptr<BlockModel> model;
-    BlockConfig config;
+    BlockViewConfig config;
     ZoomInfo zoom_info;
 
     SeqInput title;
@@ -165,7 +165,7 @@ public:
     BlockViewWindow(int X, int Y, int W, int H,
             boost::shared_ptr<BlockModel> model,
             boost::shared_ptr<const RulerTrackModel> ruler_model,
-            const BlockConfig &config) :
+            const BlockViewConfig &config) :
         Fl_Double_Window(X, Y, W, H),
         block(X, Y, W, H, model, ruler_model, config)
     {

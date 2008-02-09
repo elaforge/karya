@@ -14,8 +14,6 @@ BlockModel::~BlockModel()
 {
     // Any remaining views should have kept this model alive.
     ASSERT(this->views.size() == 0);
-    // Or maybe the model doesn't own this string.
-    // delete this->title;
 }
 
 void
@@ -45,9 +43,9 @@ BlockModel::remove_track(int at)
 }
 
 void
-BlockModel::set_color_config(const BlockColorConfig &color_config)
+BlockModel::set_config(const BlockModelConfig &config)
 {
-    // set color_config and update views if necessary
+    // set config and update views if necessary
 }
 
 
@@ -56,7 +54,7 @@ BlockModel::set_color_config(const BlockColorConfig &color_config)
 BlockView::BlockView(int X, int Y, int W, int H,
         boost::shared_ptr<BlockModel> model,
         boost::shared_ptr<const RulerTrackModel> ruler_model,
-        const BlockConfig config) :
+        const BlockViewConfig &config) :
     Fl_Group(X, Y, W, H),
     model(model),
     config(config),
@@ -72,7 +70,7 @@ BlockView::BlockView(int X, int Y, int W, int H,
         track_group(0, 0, 1, 1),
             track_sb(0, 0, 1, 1),
             track_zoom(0, 0, 1, 1),
-                track_tile(0, 0, 1, 1, model->get_color_config().bg,
+                track_tile(0, 0, 1, 1, model->get_config().bg,
                         config.track_title_height)
 {
     // The sizes of 1 are so that groups realize that their children are inside
@@ -152,7 +150,7 @@ BlockView::update_sizes()
 void
 BlockView::update_colors()
 {
-    const BlockColorConfig &c = this->model->get_color_config();
+    const BlockModelConfig &c = this->model->get_config();
     this->track_box.color(color_to_fl(c.track_box));
     this->sb_box.color(color_to_fl(c.sb_box));
     // redraw?
@@ -188,10 +186,10 @@ BlockView::set_zoom(const ZoomInfo &zoom)
 {
 }
 
-// const BlockConfig &BlockView::get_config() // inline
+// const BlockViewConfig &BlockView::get_config() // inline
 
 void
-BlockView::set_config(const BlockConfig &config)
+BlockView::set_config(const BlockViewConfig &config)
 {
 }
 
