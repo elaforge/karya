@@ -24,7 +24,9 @@ BlockViewConfig block_view_config()
 BlockModelConfig block_model_config()
 {
     BlockModelConfig c;
-    c.select.push_back(Color(0xffff00));
+    c.select[0] = Color(0xffff00);
+    c.select[1] = Color(0xffff00);
+    c.select[2] = Color(0xffff00);
     c.bg = Color(0xdddddd);
     c.track_box = Color(0x44ffff);
     c.sb_box = Color(0x00ffff);

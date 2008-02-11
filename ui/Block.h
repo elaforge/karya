@@ -49,9 +49,11 @@ these should be in both Trackpos units and relative to Mark units
 // tracknum.  'add_track' on this tracknum replaces the ruler track, and
 // 'remove_track' has no effect.
 enum { ruler_tracknum = -1 };
+enum { select_colors = 3 };
 
 struct BlockModelConfig {
-    std::vector<Color> select;
+    // An array of 3 or more Colors for the selections.
+    Color select[select_colors];
     Color bg;
     Color track_box;
     Color sb_box;
