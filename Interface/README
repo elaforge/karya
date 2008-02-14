@@ -5,3 +5,42 @@ windows, and a single Track may appear in different blocks.
 
 There is no EventView because the blocks-as-macros functionality should allow
 you to put a single event in multiple places already.
+
+measures <- Ruler.create_marklist [mark, ..]
+sections <- Ruler.create_marklist [...]
+ruler1 <- Ruler.create bg_color [measures, sections]
+
+block1 <- Block.create block_model_config
+block2 <- Block.create block_model_config
+
+-- two views of one block
+view1a <- Block.view block_view_config block1
+view1b <- Block.view block_view_config block1
+Block.zoom view1b (Zoom 1.5sec 2)
+Block.close view1b -- destroy view
+
+track1 <- Track.create
+Block.set_ruler_track block1 ruler1 20
+Block.insert_track block1 0 (Block.R ruler1) 20
+Block.insert_track block1 1 (Block.T (ruler1, track1)) 60
+Block.insert_track block1 2 (Block.D Color.blue) 5
+
+-- block2 also has the same track
+Block.insert_track block2 0 (Block.T (ruler1, track1)) 100
+
+
+kbd_map = [
+    (Key.down_arrow, \active -> next_minor (Event.active_block active)),
+    (Key.insert, \active -> insert_event (Event.active_track active)),
+]
+
+ins_sel = 0
+next_minor blockv = do
+    pos <- Block.selection blockv ins_sel
+    ruler <- Block.get_ruler_track (Block.model blockv)
+    sel <- Block.get_selection blockv ins_sel
+    Block.set_selection blockv ins_sel (next_mark (rank 1) ruler (sel_pos sel))
+
+insert_event blockv trackv = do
+    pos <- Block.selection blockv ins_sel
+    Track.insert_event (Track.model trackv) ""

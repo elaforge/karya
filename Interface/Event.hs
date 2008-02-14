@@ -32,6 +32,7 @@ hard to add.
 -}
 
 module Interface.Event where
+import qualified Interface.Color as Color
 import Interface.Types
 
 data Event = Event
@@ -39,20 +40,19 @@ data Event = Event
     , event_style :: TextStyle
     , event_duration :: TrackPos
     , event_subs :: [Sub]
-    , event_color :: Color
+    , event_color :: Color.Color
     , event_signal :: Signal
     , event_render_style :: RenderStyle
     , event_attrs :: Attrs
     }
-type T = Event
 
 -- | A sub event.
 data Sub = Sub TrackPos String
 
 -- | How to display the signal under an Event.
-data RenderStyle = ColorMap [(Double, Color)] | Graph deriving (Show)
+data RenderStyle = ColorMap [(Double, Color.Color)] | Graph deriving (Show)
 data Signal = Signal [Double] -- probably an array actually
 
-type TextStyle = (Font, FontStyle, Color)
+type TextStyle = (Font, FontStyle, Color.Color)
 type Font = String
 type FontStyle = String
