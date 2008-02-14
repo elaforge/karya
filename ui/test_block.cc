@@ -1,3 +1,5 @@
+#include <boost/shared_ptr.hpp>
+
 #include <FL/Fl.H>
 #include <FL/Fl_Double_Window.H>
 
@@ -33,10 +35,10 @@ BlockModelConfig block_model_config()
     return c;
 }
 
-static Marklist *
+static boost::shared_ptr<Marklist>
 m44_marklist()
 {
-    static Marklist *mlist = new Marklist();
+    boost::shared_ptr<Marklist> mlist(new Marklist());
     char *name = "";
 
     for (int i = 0; i < 600; i++) {
@@ -63,8 +65,7 @@ main(int argc, char **argv)
     Color ruler_bg = Color(255, 220, 128);
 
     Marklists mlists;
-    const Marklist *ms(m44_marklist());
-    mlists.push_back(ms);
+    mlists.push_back(m44_marklist());
 
     model->set_title("hi there");
 
@@ -72,13 +73,9 @@ main(int argc, char **argv)
     boost::shared_ptr<DividerModel> d(new DividerModel(Color(0x0000ff)));
     boost::shared_ptr<RulerTrackModel> r(new RulerTrackModel(mlists, ruler_bg));
 
-    boost::shared_ptr<EventTrackModel> null_track;
-    boost::shared_ptr<DividerModel> null_divider;
-    boost::shared_ptr<RulerTrackModel> null_ruler;
-
-    TrackModel track(t, null_ruler, null_divider);
-    TrackModel ruler(null_track, r, null_divider);
-    TrackModel divider(null_track, null_ruler, d);
+    TrackModel track(t, r);
+    TrackModel ruler(r);
+    TrackModel divider(d);
 
     BlockViewWindow view(0, 0, 200, 200, model, r, view_config);
 

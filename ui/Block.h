@@ -64,7 +64,11 @@ class BlockView;
 class BlockModel {
 public:
     BlockModel(const BlockModelConfig &config) :
-        config(config) {}
+        serial_number(current_serial_number++),
+        config(config)
+    {
+        DEBUG("creating block model " << this->serial_number);
+    }
     ~BlockModel();
 
     const char *get_title() const { return title.c_str(); }
@@ -86,6 +90,10 @@ public:
     }
 
 private:
+    // Keep track of created models.
+    static int current_serial_number;
+    const int serial_number;
+
     std::string title;
     BlockModelConfig config;
     // All the BlockViews that point to this BlockModel.  BlockView

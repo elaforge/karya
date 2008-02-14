@@ -34,12 +34,14 @@ private:
 
 class EventTrackView : public TrackView {
 public:
-    EventTrackView(boost::shared_ptr<EventTrackModel> model);
+    EventTrackView(boost::shared_ptr<EventTrackModel> model,
+            boost::shared_ptr<RulerTrackModel> ruler_model);
     ~EventTrackView();
     virtual SeqInput &title_widget() { return *this->title_input; }
 
 private:
     boost::shared_ptr<EventTrackModel> model;
+    boost::shared_ptr<RulerTrackModel> ruler_model;
     Fl_Box bg_box;
     SeqInput *title_input;
 };

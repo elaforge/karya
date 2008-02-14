@@ -11,6 +11,7 @@ track overlay, and alpha for the ruler track.
 
 #include <utility>
 #include <vector>
+#include <string>
 #include <boost/shared_ptr.hpp>
 
 #include <FL/Fl_Group.H>
@@ -22,8 +23,8 @@ track overlay, and alpha for the ruler track.
 #include "Track.h"
 
 struct Mark {
-    Mark(int rank, int width, Color color, char *name, double name_zoom_level,
-            double zoom_level) :
+    Mark(int rank, int width, Color color, const char *name,
+            double name_zoom_level, double zoom_level) :
         rank(rank), width(width), color(color), name(name),
         name_zoom_level(name_zoom_level), zoom_level(zoom_level)
     {
@@ -33,13 +34,14 @@ struct Mark {
     int rank;
     int width;
     Color color;
-    char *name;
+    // Logically const, but can't be because vector push_back uses assignment.
+    std::string name;
     double name_zoom_level;
     double zoom_level;
 };
 
 typedef std::vector<std::pair<TrackPos, Mark> > Marklist;
-typedef std::vector<const Marklist *> Marklists;
+typedef std::vector<boost::shared_ptr<const Marklist> > Marklists;
 
 // Markslists will be drawn in the order they are given, so later marklists
 // will draw over earlier ones.

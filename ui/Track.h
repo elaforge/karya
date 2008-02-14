@@ -30,8 +30,9 @@ struct DividerModel {
 struct TrackModel {
     // cheap union type
     TrackModel(boost::shared_ptr<EventTrackModel> t,
-            boost::shared_ptr<RulerTrackModel> r,
-            boost::shared_ptr<DividerModel> d);
+            boost::shared_ptr<RulerTrackModel> r);
+    TrackModel(boost::shared_ptr<RulerTrackModel> r);
+    TrackModel(boost::shared_ptr<DividerModel> d);
     boost::shared_ptr<EventTrackModel> track;
     boost::shared_ptr<RulerTrackModel> ruler;
     boost::shared_ptr<DividerModel> divider;

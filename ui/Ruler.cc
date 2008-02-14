@@ -58,7 +58,7 @@ OverlayRuler::draw_mark(int offset, const Mark &mark)
         rectf(Rect(x()+w() - width - 1, offset, width, mark.width), c);
 
     if (this->zoom.factor >= mark.name_zoom_level && this->show_names
-            && mark.name)
+            && mark.name.size() > 0)
     {
         // TODO draw name
     }

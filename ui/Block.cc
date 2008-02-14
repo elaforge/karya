@@ -10,10 +10,13 @@
 
 // BlockModel
 
+int BlockModel::current_serial_number = 0;
+
 BlockModel::~BlockModel()
 {
     // Any remaining views should have kept this model alive.
     ASSERT(this->views.size() == 0);
+    DEBUG("destroy block model " << this->serial_number);
 }
 
 void
@@ -91,6 +94,8 @@ BlockView::BlockView(int X, int Y, int W, int H,
     update_sizes();
     update_colors();
 
+    // TODO: get the other current state from model
+    this->set_title(model->get_title());
     model->add_view(this);
 }
 
@@ -216,7 +221,7 @@ BlockView::insert_track(int at, const TrackModel &track, int width)
     TrackView *t;
 
     if (track.track)
-        t = new EventTrackView(track.track);
+        t = new EventTrackView(track.track, track.ruler);
     else if (track.ruler)
         t = new RulerTrackView(track.ruler);
     else
