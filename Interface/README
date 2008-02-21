@@ -44,3 +44,10 @@ next_minor blockv = do
 insert_event blockv trackv = do
     pos <- Block.selection blockv ins_sel
     Track.insert_event (Track.model trackv) ""
+
+
+threading
+A haskell thread, in its own os thread, loops on Fl::wait(), passing back
+events as they come.  Every time wait() returns, it clears out a channel of
+incoming IO actions to perform on the UI.  Sending an action on the channel
+triggers the wait() to release, by calling Fl::awake().

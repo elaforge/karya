@@ -19,12 +19,18 @@ sent on the mousedown, and on the mouseup.
 module Interface.Block (
     BlockModelConfig(..), Block -- no constructors for Block
     , create
-    , select_colors
+    -- , select_colors
     , get_title, set_title, get_attrs, set_attrs
 
     -- * Track management
     , Tracklike(..)
     , insert_track, remove_track
+
+    , BlockViewConfig(..), BlockView
+    , Zoom(..), Selection(..)
+    , create_view
+    , redraw, resize, get_zoom, set_zoom
+    , get_selection, set_selection, get_view_config, set_view_config
 ) where
 
 import qualified Interface.Util as Util
@@ -40,11 +46,6 @@ import Foreign.C
 
 data Block = Block (ForeignPtr CBlockModel) Attrs
 data CBlockModel
-{- data Block = Block
-    title :: String
-    tracks :: [RulerView | TrackView | Divider]
-    attrs :: Attrs
--}
 
 data BlockModelConfig = BlockModelConfig
     { block_select_colors :: [Color.Color]
@@ -66,10 +67,10 @@ select_colors = fromIntegral (#const select_colors)
 instance Storable BlockModelConfig where
     sizeOf _ = #size BlockModelConfig
     alignment _ = 1
-    peek = _peek_block_model_config
-    poke = _poke_block_model_config
+    peek = peek_block_model_config
+    poke = poke_block_model_config
 
-_peek_block_model_config configp = do
+peek_block_model_config configp = do
     select <- (#peek BlockModelConfig, select) configp
         >>= peekArray select_colors
     bg <- (#peek BlockModelConfig, bg) configp >>= peek
@@ -77,7 +78,7 @@ _peek_block_model_config configp = do
     sb_box <- (#peek BlockModelConfig, sb_box) configp >>= peek
     return $ BlockModelConfig select bg track_box sb_box
 
-_poke_block_model_config configp (BlockModelConfig
+poke_block_model_config configp (BlockModelConfig
         { block_select_colors = select, block_bg_color = bg
         , block_track_box_color = track_box, block_sb_box_color = sb_box
         })
@@ -97,20 +98,17 @@ foreign import ccall unsafe "&block_model_destroy"
 get_title :: Block -> UI String
 get_title (Block blockfp _) =
     withForeignPtr blockfp c_block_model_get_title >>= peekCString
-
 foreign import ccall unsafe "block_model_get_title"
     c_block_model_get_title :: Ptr CBlockModel -> IO CString
 
 set_title :: Block -> String -> UI ()
 set_title (Block blockfp _) s = withForeignPtr blockfp $ \blockp ->
     withCString s $ \cstr -> c_block_model_set_title blockp cstr
-
 foreign import ccall unsafe "block_model_set_title"
     c_block_model_set_title :: Ptr CBlockModel -> CString -> IO ()
 
 get_attrs :: Block -> Attrs
 get_attrs (Block _ attrs) = attrs
-
 set_attrs :: Block -> Attrs -> Block
 set_attrs (Block ptr _) attrs = Block ptr attrs
 
@@ -125,7 +123,7 @@ data Tracklike = T (Track.Track, Ruler.Ruler) | R Ruler.Ruler | D Color.Color
 
 insert_track :: Block -> TrackNum -> Tracklike -> Width -> UI ()
 insert_track (Block blockfp _) at track width =
-    withForeignPtr blockfp $ \blockp -> case track of
+    withFP blockfp $ \blockp -> case track of
         T ((Track.Track trackfp _), (Ruler.Ruler rulerfp _)) ->
             withFP trackfp $ \trackp -> withFP rulerfp $ \rulerp ->
                 c_block_model_insert_event_track blockp at' width' trackp rulerp
@@ -155,80 +153,136 @@ foreign import ccall unsafe "block_model_insert_divider"
 foreign import ccall unsafe "block_model_remove_track"
     c_block_model_remove_track :: Ptr CBlockModel -> CInt -> IO ()
 
-{-
-
 track_at :: Block -> TrackNum -> UI (Tracklike, Width)
 track_at block i = undefined
 
--- | block view
+-- * view
 
-data BlockView = BlockView deriving (Show) {- opaque, a window on a Block
-    zoom :: Zoom
-    size :: (x, y, w, h)
-    zoom_speed :: Double
-    selections :: [Selection]
-    select_colors :: [Color.Color]
+data BlockView = BlockView (Ptr CBlockView) deriving (Show)
+data CBlockView
 
-    state :: Block
--}
+-- The defaults for newly created blocks and the trackviews automatically
+-- created.
+data BlockViewConfig = BlockViewConfig
+    { config_zoom_speed :: Double
+    } deriving (Show)
 
-create_view :: Block -> BlockConfig -> UI BlockView
-create_view block config = undefined
+-- | Zoom offset factor
+data Zoom = Zoom TrackPos Double deriving (Show)
+
+-- | A selection may span multiple tracks.
+data Selection = Selection (TrackNum, TrackPos) (TrackNum, TrackPos)
+    deriving (Show)
+
+
+create_view :: (Int, Int) -> (Int, Int) -> Block -> Ruler.Ruler
+    -> BlockViewConfig -> UI BlockView
+create_view (x, y) (w, h) (Block blockfp _) (Ruler.Ruler rulerfp _) config = do
+    viewp <- withFP blockfp $ \blockp -> withFP rulerfp $ \rulerp ->
+        with config $ \configp ->
+            c_block_view_create (i x) (i y) (i w) (i h) blockp rulerp configp
+    return $ BlockView viewp
+    where
+    i = Util.c_int
+    withFP = withForeignPtr
+
+foreign import ccall unsafe "block_view_create"
+    c_block_view_create :: CInt -> CInt -> CInt -> CInt -> Ptr CBlockModel
+        -> Ptr Ruler.CRulerTrackModel -> Ptr BlockViewConfig
+        -> IO (Ptr CBlockView)
 
 -- | Changes to any of the UI objects will not be reflected on the screen until
 -- you call redraw on their Block.
 redraw :: BlockView -> UI ()
-redraw bview = undefined
-
-hide :: BlockView -> UI ()
-hide bview = undefined
+redraw (BlockView viewp)  = c_block_view_redraw viewp
+foreign import ccall unsafe "block_view_redraw"
+    c_block_view_redraw :: Ptr CBlockView -> IO ()
 
 resize :: BlockView -> (Int, Int) -> (Int, Int) -> UI ()
-resize bview (x, y) (w, h) = undefined
-
--- the defaults for newly created blocks and the trackviews automatically
--- created
-data BlockConfig = BlockConfig
-    { config_orientation :: Orientation
-    , config_zoom_speed :: Double
-    , config_select_colors :: [Color.Color]
-    , config_bg :: Color.Color
-    } deriving (Show)
-
-data Orientation = Horizontal | Vertical deriving (Show)
-
--- | Zoom (trackpos_offset, y_offset) (pixel_per_trackpos, pixel_per_y)
-data Zoom = Zoom (TrackPos, Int) (Double, Double) deriving (Show)
+resize (BlockView viewp) (x, y) (w, h) =
+    c_block_view_resize viewp (i x) (i y) (i w) (i h)
+    where i = Util.c_int
+foreign import ccall unsafe "block_view_resize"
+    c_block_view_resize :: Ptr CBlockView -> CInt -> CInt -> CInt -> CInt
+        -> IO ()
 
 get_zoom :: BlockView -> UI Zoom
-get_zoom bview = undefined
+get_zoom (BlockView viewp) = c_block_view_get_zoom viewp >>= peek
+foreign import ccall unsafe "block_view_get_zoom"
+    c_block_view_get_zoom :: Ptr CBlockView -> IO (Ptr Zoom)
 
 set_zoom :: BlockView -> Zoom -> UI ()
-set_zoom bview zoom = undefined
+set_zoom (BlockView viewp) zoom =
+    with zoom $ \zoomp -> c_block_view_set_zoom viewp zoomp
+foreign import ccall unsafe "block_view_set_zoom"
+    c_block_view_set_zoom :: Ptr CBlockView -> Ptr Zoom -> IO ()
 
-get_config :: BlockView -> UI BlockConfig
-get_config bview = undefined
+get_selection :: BlockView -> UI Selection
+get_selection (BlockView viewp) = c_block_view_get_selection viewp >>= peek
+foreign import ccall unsafe "block_view_get_selection"
+    c_block_view_get_selection :: Ptr CBlockView -> IO (Ptr Selection)
 
-set_config :: BlockView -> BlockConfig -> UI ()
-set_config bview config = undefined
+set_selection :: BlockView -> Selection -> UI ()
+set_selection (BlockView viewp) sel =
+    with sel $ \selp -> c_block_view_set_selection viewp selp
+foreign import ccall unsafe "block_view_set_selection"
+    c_block_view_set_selection :: Ptr CBlockView -> Ptr Selection -> IO ()
 
--- A selection may span multiple tracks.
-data Selection = Selection Block (TrackNum, TrackPos) (TrackNum, TrackPos)
+get_view_config :: BlockView -> UI BlockViewConfig
+get_view_config view = undefined
 
-get_selection :: BlockView -> UI (Track.T, Selection)
-get_selection bview = undefined
+set_view_config :: BlockView -> BlockViewConfig -> UI ()
+set_view_config (BlockView viewp) config =
+    with config $ \configp -> c_block_view_set_config viewp configp
+foreign import ccall unsafe "block_view_set_config"
+    c_block_view_set_config :: Ptr CBlockView -> Ptr BlockViewConfig -> IO ()
 
-set_selection :: BlockView -> Int -> Selection -> UI ()
-set_selection bview selnum sel = undefined
 
+-- * storable
 
--- Divider, declared here since a separate module would be overkill.
-{-
-A divider is a line between tracks.  It's used to divide logical track groups
-visually.  The UI may also let you collapse entire track groups.
--}
+instance Storable Selection where
+    sizeOf _ = #size Selection
+    alignment _ = 4
+    peek = peek_selection
+    poke = poke_selection
 
--- | Divider color width
-data Divider = Divider Color.Color Double deriving (Show)
+peek_selection selp = do
+    start_track <- (#peek Selection, start_track) selp :: IO CInt
+    start_pos <- (#peek Selection, start_pos) selp
+    end_track <- (#peek Selection, end_track) selp :: IO CInt
+    end_pos <- (#peek Selection, end_pos) selp
+    return $ Selection (fromIntegral start_track, start_pos)
+        (fromIntegral end_track, end_pos)
 
--}
+poke_selection selp (Selection (start_track, start_pos) (end_track, end_pos)) =
+    do
+        (#poke Selection, start_track) selp (Util.c_int start_track)
+        (#poke Selection, start_pos) selp start_pos
+        (#poke Selection, end_track) selp (Util.c_int end_track)
+        (#poke Selection, end_pos) selp end_pos
+
+instance Storable Zoom where
+    sizeOf _ = #size ZoomInfo
+    alignment _ = 4
+    peek = peek_zoom
+    poke = poke_zoom
+
+peek_zoom zoomp = do
+    offset <- (#peek ZoomInfo, offset) zoomp
+    factor <- (#peek ZoomInfo, factor) zoomp :: IO CDouble
+    return $ Zoom offset (realToFrac factor)
+
+poke_zoom zoomp (Zoom offset factor) = do
+    (#poke ZoomInfo, offset) zoomp offset
+    (#poke ZoomInfo, factor) zoomp (Util.c_double factor)
+
+instance Storable BlockViewConfig where
+    sizeOf _ = #size BlockViewConfig
+    alignment _ = 1
+    peek = error "no peek for BlockViewConfig"
+    poke = poke_config
+
+-- It actually has more fields, but they're set by constants in the interface
+-- for now.
+poke_config configp (BlockViewConfig zoom_speed) = do
+    (#poke BlockViewConfig, zoom_speed) configp zoom_speed

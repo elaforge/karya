@@ -35,6 +35,59 @@ RulerMarklist, RuleMark
 
 extern "C" {
 
+// UI Event
+
+void
+initialize()
+{
+    DEBUG("lock");
+    Fl::lock();
+}
+
+void
+ui_msg_wait()
+{
+    // Fl::run();
+    int got = Fl::wait();
+    // DEBUG("got: " << got);
+}
+
+void
+ui_msg_awake()
+{
+    DEBUG("awake");
+    Fl::awake((void*) 0);
+}
+
+int
+take_ui_msgs(UiEvent **msgs)
+{
+    UiEvent msg_queue[1024];
+    int ecount = 0;
+    // fltk calls these events but I call them msgs
+    for (Fl_Window *win = Fl::first_window(); win; win = Fl::next_window(win)) {
+        EventCollectWindow *ewin = dynamic_cast<EventCollectWindow *>(win);
+        if (!ewin) {
+            DEBUG("toplevel window not an event collector: " << ewin);
+            continue;
+        }
+        for (unsigned i = 0;
+                i < ewin->event_queue.size() && ecount < sizeof msg_queue;
+                i++)
+        {
+            msg_queue[ecount++] = ewin->event_queue[i];
+        }
+        // DEBUG("popped " << ecount);
+        ewin->event_queue.clear();
+    }
+    if (ecount >= sizeof msg_queue) {
+        DEBUG("msg overflow!");
+    }
+    *msgs = msg_queue;
+    return ecount;
+}
+
+
 BlockModelRef *
 block_model_create(const BlockModelConfig *config)
 {
@@ -47,6 +100,18 @@ block_model_destroy(BlockModelRef *b)
 {
     DEBUG("destroy model");
     delete b;
+}
+
+const BlockModelConfig *
+block_model_get_config(BlockModelRef *b)
+{
+    return &(*b)->get_config();
+}
+
+void
+block_model_set_config(BlockModelRef *b, BlockModelConfig *config)
+{
+    (*b)->set_config(*config);
 }
 
 const char *
@@ -62,6 +127,7 @@ block_model_set_title(BlockModelRef *b, const char *s)
     DEBUG("set title " << s);
     (*b)->set_title(s);
 }
+
 
 void
 block_model_insert_event_track(BlockModelRef *b, int at, int width,
@@ -89,6 +155,78 @@ block_model_remove_track(BlockModelRef *b, int at)
 {
     (*b)->remove_track(at);
 }
+
+// Block view
+
+BlockViewWindow *
+block_view_create(int x, int y, int w, int h, BlockModelRef *model,
+        RulerTrackModelRef *r, BlockViewConfig *view_config)
+{
+    BlockViewConfig c(*view_config);
+    c.block_title_height = 20;
+    c.track_title_height = 20;
+    c.sb_size = 18;
+    c.ruler_size = 26;
+    BlockViewWindow *win = new BlockViewWindow(x, y, w, h, *model, *r, c);
+    win->show();
+    DEBUG("create and show window");
+    return win;
+}
+
+void
+block_view_destroy(BlockViewWindow *b)
+{
+    delete b;
+}
+
+void
+block_view_redraw(BlockViewWindow *b)
+{
+    b->redraw();
+}
+
+void
+block_view_resize(BlockViewWindow *b, int x, int y, int w, int h)
+{
+    b->resize(x, y, w, h);
+}
+
+const BlockViewConfig *
+block_view_get_config(BlockViewWindow *b)
+{
+    return &b->block.get_config();
+}
+
+void
+block_view_set_config(BlockViewWindow *b, BlockViewConfig *config)
+{
+    b->block.set_config(*config);
+}
+
+const ZoomInfo *
+block_view_get_zoom(const BlockViewWindow *b)
+{
+    return &b->block.get_zoom();
+}
+
+void
+block_view_set_zoom(BlockViewWindow *b, const ZoomInfo *zoom)
+{
+    b->block.set_zoom(*zoom);
+}
+
+const Selection *
+block_view_get_selection(const BlockViewWindow *b)
+{
+    return &b->block.get_selection();
+}
+
+void
+block_view_set_selection(BlockViewWindow *b, const Selection *sel)
+{
+    b->block.set_selection(*sel);
+}
+
 
 
 // rulers

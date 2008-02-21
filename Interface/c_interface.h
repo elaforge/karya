@@ -5,13 +5,26 @@
 typedef boost::shared_ptr<BlockModel> BlockModelRef;
 typedef boost::shared_ptr<EventTrackModel> EventTrackModelRef;
 typedef boost::shared_ptr<RulerTrackModel> RulerTrackModelRef;
-
 typedef boost::shared_ptr<Marklist> MarklistRef;
+
+typedef BlockViewWindow BlockViewRef;
 
 extern "C" {
 
-BlockModelRef *block_model_create(const BlockModelConfig *color_config);
+// UI Event
+
+void initialize();
+void ui_msg_wait();
+void ui_msg_awake();
+int take_ui_msgs(UiEvent **msgs);
+
+
+// Block
+
+BlockModelRef *block_model_create(const BlockModelConfig *config);
 void block_model_destroy(BlockModelRef *b);
+const BlockModelConfig *block_model_get_config(BlockModelRef *b);
+void block_model_set_config(BlockModelRef *b, BlockModelConfig *config);
 const char *block_model_get_title(const BlockModelRef *b);
 void block_model_set_title(BlockModelRef *b, const char *s);
 
@@ -25,6 +38,28 @@ void block_model_insert_divider(BlockModelRef *b, int at, int width,
 void block_model_remove_track(BlockModelRef *b, int at);
 
 // void block_model_track_at(BlockModelRef *b, int at);
+
+// Block view
+
+BlockViewWindow *block_view_create(int x, int y, int w, int h,
+        BlockModelRef *model, RulerTrackModelRef *r,
+        BlockViewConfig *view_config);
+void block_view_destroy(BlockViewWindow *b);
+void block_view_redraw(BlockViewWindow *b);
+void block_view_resize(BlockViewWindow *b, int x, int y, int w, int h);
+const BlockViewConfig *block_view_get_config(BlockViewWindow *b);
+void block_view_set_config(BlockViewWindow *b, BlockViewConfig *config);
+const ZoomInfo *block_view_get_zoom(const BlockViewWindow *b);
+void block_view_set_zoom(BlockViewWindow *b, const ZoomInfo *zoom);
+const Selection *block_view_get_selection(const BlockViewWindow *b);
+void block_view_set_selection(BlockViewWindow *b, const Selection *sel);
+
+/*
+get_zoom, set_zoom
+get_config, set_config
+get_selection, set_selection
+get_model
+*/
 
 // Ruler
 

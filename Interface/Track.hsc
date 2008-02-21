@@ -44,3 +44,8 @@ get_attrs (Track _ (attrs, _)) = attrs
 
 set_attrs :: Track -> Attrs -> Track
 set_attrs (Track fp (_, evts)) attrs = Track fp (attrs, evts)
+
+
+-- * view
+
+data TrackView = TrackView deriving (Show)

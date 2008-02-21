@@ -1,17 +1,17 @@
+{-# OPTIONS_GHC -XGeneralizedNewtypeDeriving #-}
 {-
 The basic types that the interface modules use.
 -}
 module Interface.Types where
-import Foreign.C
+import Foreign
 
-type UI = IO -- probably just IO, but maybe add errors?
+-- TODO:
+-- implement Ui such that you can only run Ui actions in the monad
+-- returned by initialize.
+type UI = IO
 
 -- | Used to associate auxiliary values with UI objects.
 type Attrs = [(String, String)]
 
 -- | The position of an Event on a track.  One of these is normally a second.
-type TrackPos = Double
-type CTrackPos = CDouble
-
-c_trackpos :: TrackPos -> CTrackPos
-c_trackpos = realToFrac
+newtype TrackPos = TrackPos Double deriving (Eq, Ord, Show, Storable)

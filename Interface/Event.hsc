@@ -32,8 +32,8 @@ hard to add.
 -}
 
 module Interface.Event where
-import qualified Interface.Color as Color
 import Interface.Types
+import qualified Interface.Color as Color
 
 data Event = Event
     { event_title :: String

@@ -81,7 +81,7 @@ poke_mark markp (MarkMarshal (pos, Mark
     , mark_zoom_level = zoom_level
     })) = do
         namep <- newCString name
-        (#poke MarkMarshal, pos) markp (c_trackpos pos)
+        (#poke MarkMarshal, pos) markp pos
         (#poke MarkMarshal, rank) markp (Util.c_int rank)
         (#poke MarkMarshal, width) markp (Util.c_int width)
         (#poke MarkMarshal, color) markp color
