@@ -5,9 +5,8 @@ A Track is a container for Events.  A track goes from TrackPos 0 until
 the end of the last Event.
 -}
 
-module Interface.Track where
+module Interface.TrackImpl where
 import Foreign
--- import Foreign.C
 
 import Interface.Types
 -- import qualified Interface.Color as Color

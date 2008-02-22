@@ -15,8 +15,8 @@ import Foreign.C
 -- import qualified Interface.Util as Util
 import Interface.Types
 
-import qualified Interface.Block as Block
-import qualified Interface.Track as Track
+import qualified Interface.BlockImpl as BlockImpl
+import qualified Interface.TrackImpl as TrackImpl
 -- import qualified Interface.Event as Event
 
 take_ui_msgs = with nullPtr $ \msgspp -> do
@@ -39,8 +39,8 @@ data UiMsg = UiMsg
     } deriving (Show)
 
 data Context = Context
-    { ctx_block :: Maybe Block.BlockView
-    , ctx_track :: Maybe Track.TrackView
+    { ctx_block :: Maybe BlockImpl.BlockView
+    , ctx_track :: Maybe TrackImpl.TrackView
     , ctx_event :: Maybe TrackPos
     } -- You can get the selection by asking the Track or Event.
     deriving (Show)

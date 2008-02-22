@@ -51,3 +51,67 @@ A haskell thread, in its own os thread, loops on Fl::wait(), passing back
 events as they come.  Every time wait() returns, it clears out a channel of
 incoming IO actions to perform on the UI.  Sending an action on the channel
 triggers the wait() to release, by calling Fl::awake().
+
+
+
+The 'send' function ships actions to the ui thread to execute.  To keep the ui
+thread from doing too much work I should make sure it's strict as possible.
+Easiest way I can think of to do this is to only send c_something calls since
+the args have been serialized... or could that by lazy too?
+
+Or, I can have the various args get !s?
+
+
+The problem is to always execute actions from the same thread.  Solutions:
+
+Need to be single threaded:
+create view
+modify view (model modification counts too)
+
+Don't need to be single threaded:
+query model
+query view (make sure that all values are stored in the class, not the widget,
+so e.g. title is set by fl_input callback)
+
+Onle the write actions should trigger coming out of wait()... but then I guess
+even reads should be serialized.  If there are certain things that get called
+a lot maybe I could put the lock in the c++?
+
+In any case, it would be good to abstract away 'send_action' so I just call the
+functions and they work right.
+
+--------------
+
+X Passing an existentially quantified type on the chan doesn't work, since all
+types passed must support the same operations.
+
+- unsafeCoerce# the operation to Any, then unsafeCoerce# the mvar contents back
+again.  seems to require wrappers for all the operations to do the casting
+
+- do the serialization in the c interface: send a function
+(\f mvar -> f >>= putMVar mvar) (c_function args) retbox as a nullary foreign
+export (can I do this?), and then pass it to awake().  wait() calls the passed
+function when it returns.
+
+- do without exports:
+each c function makes a closure of the operation and turns it into a c function
+pointer, which it ships over awake().  I also have to do the return mvar in c.
+
+
+- Figure out how to call fltk from multiple threads.  I can use Fl::lock(), but
+won't it block in wait()?  No, I think wait() unlocks.  Which platforms don't
+like reentrant gui calls?
+
+- Don't return values.
+
+- Just require that all gui calls be in the same thread
+
+- each view operation has its own (TMVar Bool, TVar result).  The ui thread
+waits on all TMVars
+
+
+case labelled op_vars of
+    create_block_view ->
+
+
+-}

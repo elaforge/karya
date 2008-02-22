@@ -7,7 +7,7 @@ name.  They also have a display at zoom value.  Marks are only displayed if
 the zoom level is >= the display at zoom.
 -}
 
-module Interface.Ruler where
+module Interface.RulerImpl where
 import Foreign
 import Foreign.C
 

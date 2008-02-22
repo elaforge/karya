@@ -88,6 +88,7 @@ take_ui_msgs(UiEvent **msgs)
 }
 
 
+
 BlockModelRef *
 block_model_create(const BlockModelConfig *config)
 {
@@ -157,6 +158,22 @@ block_model_remove_track(BlockModelRef *b, int at)
 }
 
 // Block view
+
+/*
+possible implementation for doing the serialization in c
+BlockViewWindow *
+block_view_create(int x, int y, int w, int h, BlockModelRef *model,
+        RulerTrackModelRef *r, BlockViewConfig *view_config)
+{
+    MVar mvar;
+    f = closure {
+        win = do_block_view_create(x, y,...);
+        mvar.put(win);
+    }
+    Fl::awake(f, 0);
+    return mvar.get()
+}
+*/
 
 BlockViewWindow *
 block_view_create(int x, int y, int w, int h, BlockModelRef *model,

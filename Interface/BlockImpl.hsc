@@ -16,28 +16,13 @@ Resize tracks by dragging the dividers.  Reorder tracks by dragging.
 The Block also tracks selections.  You can select with any button.  A Msg is
 sent on the mousedown, and on the mouseup.
 -}
-module Interface.Block (
-    BlockModelConfig(..), Block -- no constructors for Block
-    , create
-    -- , select_colors
-    , get_title, set_title, get_attrs, set_attrs
-
-    -- * Track management
-    , Tracklike(..)
-    , insert_track, remove_track
-
-    , BlockViewConfig(..), BlockView
-    , Zoom(..), Selection(..)
-    , create_view
-    , redraw, resize, get_zoom, set_zoom
-    , get_selection, set_selection, get_view_config, set_view_config
-) where
+module Interface.BlockImpl where
 
 import qualified Interface.Util as Util
 import Interface.Types
 import qualified Interface.Color as Color
-import qualified Interface.Track as Track
-import qualified Interface.Ruler as Ruler
+import qualified Interface.TrackImpl as TrackImpl
+import qualified Interface.RulerImpl as RulerImpl
 
 #include "c_interface.h"
 
@@ -119,15 +104,16 @@ type TrackNum = Int
 type Width = Int
 
 -- Tracks may have a Ruler overlay
-data Tracklike = T (Track.Track, Ruler.Ruler) | R Ruler.Ruler | D Color.Color
+data Tracklike = T (TrackImpl.Track, RulerImpl.Ruler) | R RulerImpl.Ruler
+    | D Color.Color
 
 insert_track :: Block -> TrackNum -> Tracklike -> Width -> UI ()
 insert_track (Block blockfp _) at track width =
     withFP blockfp $ \blockp -> case track of
-        T ((Track.Track trackfp _), (Ruler.Ruler rulerfp _)) ->
+        T ((TrackImpl.Track trackfp _), (RulerImpl.Ruler rulerfp _)) ->
             withFP trackfp $ \trackp -> withFP rulerfp $ \rulerp ->
                 c_block_model_insert_event_track blockp at' width' trackp rulerp
-        R (Ruler.Ruler rulerfp _) -> withFP rulerfp $ \rulerp ->
+        R (RulerImpl.Ruler rulerfp _) -> withFP rulerfp $ \rulerp ->
             c_block_model_insert_ruler_track blockp at' width' rulerp
         D color -> with color $ \colorp ->
             c_block_model_insert_divider blockp at' width' colorp
@@ -142,10 +128,11 @@ remove_track (Block blockfp _) at = withForeignPtr blockfp $ \blockp ->
 
 foreign import ccall unsafe "block_model_insert_event_track"
     c_block_model_insert_event_track :: Ptr CBlockModel -> CInt -> CInt
-        -> Ptr Track.CEventTrackModel -> Ptr Ruler.CRulerTrackModel -> IO ()
+        -> Ptr TrackImpl.CEventTrackModel -> Ptr RulerImpl.CRulerTrackModel
+        -> IO ()
 foreign import ccall unsafe "block_model_insert_ruler_track"
     c_block_model_insert_ruler_track :: Ptr CBlockModel -> CInt -> CInt
-        -> Ptr Ruler.CRulerTrackModel -> IO ()
+        -> Ptr RulerImpl.CRulerTrackModel -> IO ()
 foreign import ccall unsafe "block_model_insert_divider"
     c_block_model_insert_divider :: Ptr CBlockModel -> CInt -> CInt
         -> Ptr Color.Color -> IO ()
@@ -175,21 +162,27 @@ data Selection = Selection (TrackNum, TrackPos) (TrackNum, TrackPos)
     deriving (Show)
 
 
-create_view :: (Int, Int) -> (Int, Int) -> Block -> Ruler.Ruler
+create_view :: (Int, Int) -> (Int, Int) -> Block -> RulerImpl.Ruler
     -> BlockViewConfig -> UI BlockView
-create_view (x, y) (w, h) (Block blockfp _) (Ruler.Ruler rulerfp _) config = do
-    viewp <- withFP blockfp $ \blockp -> withFP rulerfp $ \rulerp ->
-        with config $ \configp ->
-            c_block_view_create (i x) (i y) (i w) (i h) blockp rulerp configp
-    return $ BlockView viewp
+create_view (x, y) (w, h) (Block blockfp _) (RulerImpl.Ruler rulerfp _) config
+    = do
+        viewp <- withFP blockfp $ \blockp -> withFP rulerfp $ \rulerp ->
+            with config $ \configp ->
+                c_block_view_create (i x) (i y) (i w) (i h) blockp rulerp
+                    configp
+        return $ BlockView viewp
     where
     i = Util.c_int
     withFP = withForeignPtr
 
 foreign import ccall unsafe "block_view_create"
     c_block_view_create :: CInt -> CInt -> CInt -> CInt -> Ptr CBlockModel
-        -> Ptr Ruler.CRulerTrackModel -> Ptr BlockViewConfig
+        -> Ptr RulerImpl.CRulerTrackModel -> Ptr BlockViewConfig
         -> IO (Ptr CBlockView)
+
+destroy_view (BlockView viewp) = c_block_view_destroy viewp
+foreign import ccall unsafe "block_view_destroy"
+    c_block_view_destroy :: Ptr CBlockView -> IO ()
 
 -- | Changes to any of the UI objects will not be reflected on the screen until
 -- you call redraw on their Block.

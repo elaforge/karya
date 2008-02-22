@@ -17,44 +17,21 @@ import qualified Interface.Block as Block
 import qualified Interface.Ruler as Ruler
 import qualified Interface.Track as Track
 
---
-import qualified Interface.UiMsg as UiMsg
-
-main = test1
-
-tf :: IO (forall a. IO a -> IO a)
-tf = return $ (\op -> op >> op)
-
-test1 = do
-    f <- tf
-    x <- f (print 4 >> return 4)
-    y <- tf (print "hi" >> return "hi")
-    print (x, y)
-
-{-
-test2 = do
-    (ui_th, send_act, msg_chan) <- Ui.initialize
-    x <- send_act $ putStrLn "hi" >> return 4
-    y <- send_act $ putStrLn "there"
-    print (x, y)
--}
-
+main = test_view
 
 test_view = do
     block <- Block.create block_config
     ruler <- Ruler.create ruler_bg [marklist]
 
-    (ui_th, send_act, msg_chan) <- Ui.initialize
-    -- msg_chan <- TChan.newTChanIO :: IO (STM.TChan UiMsg.Msg)
+    msg_chan <- Ui.initialize
     msg_th <- Util.start_thread "print msgs" (msg_thread msg_chan)
-    view <- send_act $
+    view <- Ui.send_action $
         Block.create_view (10, 10) (200, 200) block ruler view_config
     putStrLn $ "got response " ++ show view
     putStr "? " >> IO.hFlush IO.stdout >> getLine
     putStrLn "killing"
     Concurrent.killThread msg_th
-    -- send_act $ Concurrent.killThread ui_th
-    -- Ui.kill_ui_thread ui_th
+    Ui.kill_ui_thread
 
 msg_thread msg_chan = Monad.forever $ do
     msg <- STM.atomically $ TChan.readTChan msg_chan
