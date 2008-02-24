@@ -44,6 +44,7 @@ these should be in both Trackpos units and relative to Mark units
 #include "TrackTile.h"
 #include "Zoom.h"
 #include "Ruler.h"
+#include "Event.h"
 
 // The track in the special non-scrolling ruler space is represented by this
 // tracknum.  'add_track' on this tracknum replaces the ruler track, and
@@ -126,18 +127,22 @@ public:
     void redraw();
 
     // api methods
-    const ZoomInfo &get_zoom() const { return this->zoom_info; }
+    const ZoomInfo &get_zoom() const { return zoom_info; }
     void set_zoom(const ZoomInfo &zoom);
-    const BlockViewConfig &get_config() const { return this->config; }
+    const BlockViewConfig &get_config() const { return config; }
     void set_config(const BlockViewConfig &config);
     const Selection &get_selection() const;
-    void set_selection(int selnum, const Selection &sel);
+    void set_selection(const Selection &sel);
 
     // Called by BlockModel when it changes:
     void set_title(const char *s);
 
     void insert_track(int at, const TrackModel &track, int width);
     void remove_track(int at);
+    TrackView *track_at(int at) {
+        return track_tile.track_at(at);
+    }
+    int tracks() const { return track_tile.tracks(); }
 
     void drag_tile(Point drag_from, Point drag_to) {
         track_tile.drag_tile(drag_from, drag_to);
@@ -170,17 +175,37 @@ private:
 };
 
 
-class BlockViewWindow : public Fl_Double_Window {
+class BlockViewWindow;
+
+struct UiEvent {
+    int event;
+    int button, clicks, is_click, x, y;
+    int state;
+    int key;
+
+    BlockViewWindow *inside_block;
+    TrackView *inside_track;
+    TrackPos inside_event;
+};
+
+
+class EventCollectWindow : public Fl_Double_Window {
+public:
+    EventCollectWindow(int X, int Y, int W, int H) :
+        Fl_Double_Window(X, Y, W, H)
+    {}
+    std::vector<UiEvent> event_queue;
+
+protected:
+    virtual int handle(int evt);
+};
+
+class BlockViewWindow : public EventCollectWindow {
 public:
     BlockViewWindow(int X, int Y, int W, int H,
             boost::shared_ptr<BlockModel> model,
             boost::shared_ptr<const RulerTrackModel> ruler_model,
-            const BlockViewConfig &config) :
-        Fl_Double_Window(X, Y, W, H),
-        block(X, Y, W, H, model, ruler_model, config)
-    {
-        resizable(this);
-    }
+            const BlockViewConfig &config);
     BlockView block;
 };
 

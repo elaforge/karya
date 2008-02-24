@@ -1,5 +1,5 @@
 to make fltk usable:
---enable-debug
+--enable-debug --enable-threads --enable-quartz
 
 Edit either configure.in or configure to remove -fno-exceptions since I use
 them, and wrapped python callbacks will use them.

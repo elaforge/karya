@@ -47,9 +47,7 @@ initialize()
 void
 ui_msg_wait()
 {
-    // Fl::run();
-    int got = Fl::wait();
-    // DEBUG("got: " << got);
+    Fl::wait(100);
 }
 
 void

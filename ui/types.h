@@ -9,10 +9,10 @@ typedef double TrackPos;
 
 
 struct Selection {
-    int start_tracknum;
-    TrackPos start_trackpos;
-    int end_tracknum;
-    TrackPos end_trackpos;
+    int start_track;
+    TrackPos start_pos;
+    int end_track;
+    TrackPos end_pos;
 };
 
 

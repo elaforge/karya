@@ -2,11 +2,7 @@ ui/  - fltk code for the ui widgets, in c++
 inteface/ - the api to talk with the ui, in c
 main/ - the rest of the sequencer
 
-    Tempo
-
-Tempo warping by dragging, to align one track with another.
-
-    Editing continuous data (breath controller, pitch)
+    Continuous data (breath controller, pitch)
 
 It would be nice to have a good visualization and way to edit continuous data,
 especially continuous pitch curves.
@@ -21,9 +17,49 @@ portamento speed.  Add, widen, or narrow vibrato.
 The pitch contour should go through a layer that maps absolute pitch values
 (fractional notes or hz) to midi nn + pitchbend: (hz, max_pb) -> (midi_nn,
 pb_val).    I should be able to use fractional note values, do a portamento
-between notes, 
+between notes, add complicated vibrato, etc.
 
 Trace pitch contour over the output of a pitch tracker or spectrum analyzer.
+
+Continuous data is represented as a stream of events, each one with the value
+at that point in time (an analyzer could reduce it into fewer events with
+interpolation).  Since a value doesn't have a duration, it's represented as
+events with 0 duration, which means the event "lasts" until the next event.
+
+Since so many events will jam up together, there needs to be a way to hide
+events.  A "display" derivation can replace a series of events representing
+pitch data with a series of scale note markers along with a graph of deviations
+from those notes.  You should then be able to edit the points or add new ones.
+TODO: figure out how this will work.
+
+I think I need another kind of track: ControllerTrack.  It only accepts Events
+like (None | Linear | Exp?, value) and displays them in one of the background
+rendering styles.  You can actually display additional axes of information in
+the color (or color component, like alpha) of the graph, e.g. (pitch=pos,
+pressure=alpha, timbre=hue).
+
+ControllerTracks could also use a kind of vertical ruler that marks off scale
+degrees or intervals (e.g. a piano keyboard).  They should also be able to
+display reference+offset as described above.  In addition, ControllerTracks
+would be useful with HorizontalTime.
+
+It would be nice to unify a controller track with an event track, because e.g.
+note pitch can be continuous data and it would be good to not have to make an
+arbitrary decision.  Unfortunately, a controller track can't really represent
+higher level things like triplets.
+
+
+    Tempo
+
+Tempo warping by dragging, to align one track with another.  I just need
+to put a selection on the difference and then invoke a function that changes
+the tempo accordingly.
+
+Tempo in general is just another kind of continuous data, but has the effect of
+creating an entire derived block with the tempo "flattened".  I'd probably need
+some special casing to make the playback line go at the right speed, unless
+I do that in general for all parents of derived tracks that are being played.
+
 
     Derived tracks
 

@@ -25,9 +25,8 @@ test_view = do
 
     msg_chan <- Ui.initialize
     msg_th <- Util.start_thread "print msgs" (msg_thread msg_chan)
-    view <- Ui.send_action $
-        Block.create_view (10, 10) (200, 200) block ruler view_config
-    putStrLn $ "got response " ++ show view
+    view <- Block.create_view (10, 10) (200, 200) block ruler view_config
+    putStrLn $ "*** got response " ++ show view
     putStr "? " >> IO.hFlush IO.stdout >> getLine
     putStrLn "killing"
     Concurrent.killThread msg_th

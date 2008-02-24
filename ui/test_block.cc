@@ -14,7 +14,7 @@
 BlockViewConfig block_view_config()
 {
     BlockViewConfig c;
-    c.orientation = HorizontalTime;
+    c.orientation = VerticalTime;
     c.zoom_speed = 1;
     c.block_title_height = 20;
     c.track_title_height = 20;
@@ -39,15 +39,15 @@ static boost::shared_ptr<Marklist>
 m44_marklist()
 {
     boost::shared_ptr<Marklist> mlist(new Marklist());
-    char *name = "";
+    // char *name = "";
 
     for (int i = 0; i < 600; i++) {
         TrackPos t = i*8;
         if (i % 4 == 0) {
-            Mark m(1, 3, Color(116, 70, 0), NULL, 0, 0);
+            Mark m(1, 3, Color(116, 70, 0), "", 0, 0);
             mlist->push_back(std::pair<TrackPos, Mark>(t, m));
         } else {
-            Mark m(2, 2, Color(255, 100, 50), NULL, 0, 0);
+            Mark m(2, 2, Color(255, 100, 50), "", 0, 0);
             mlist->push_back(std::pair<TrackPos, Mark>(t, m));
         }
     }

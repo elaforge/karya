@@ -32,7 +32,7 @@ import Interface.BlockImpl (Block, BlockModelConfig(..), Tracklike(..)
 force = id
 
 view_list :: MVar.MVar [BlockView]
-view_list = unsafePerformIO MVar.newEmptyMVar
+view_list = unsafePerformIO (MVar.newMVar [])
 
 create = B.create
 get_title = send_action . B.get_title
