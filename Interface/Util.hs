@@ -1,3 +1,5 @@
+{-# LANGUAGE ForeignFunctionInterface #-}
+{-# OPTIONS_GHC -fglasgow-exts #-}
 module Interface.Util where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Exception as Exception
@@ -32,3 +34,16 @@ do_start_thread fork name th = fork $ Exception.bracket_
     (putStrLn $ "thread start: " ++ name)
     (putStrLn $ "thread exit: " ++ name)
     th
+
+-- debugging
+
+data CWidget
+
+class Widget a where
+    show_children :: a -> IO String
+
+do_show_children :: Ptr a -> IO String
+do_show_children widgetp
+    = c_show_children (castPtr widgetp) (c_int (-1)) >>= peekCString
+foreign import ccall unsafe "i_show_children"
+    c_show_children :: Ptr CWidget -> CInt -> IO CString

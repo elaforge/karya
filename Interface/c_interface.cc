@@ -139,6 +139,7 @@ void
 block_model_insert_ruler_track(BlockModelRef *b, int at, int width,
         RulerTrackModelRef *r)
 {
+    DEBUG("insert ruler");
     (*b)->insert_track(at, TrackModel(*r), width);
 }
 
@@ -312,5 +313,13 @@ show_block_view
 hide_block_view
 
 */
+
+// debugging
+
+const char *
+i_show_children(const Fl_Widget *w, int nlevels)
+{
+    show_children(w, nlevels, 0);
+}
 
 }

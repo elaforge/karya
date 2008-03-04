@@ -87,4 +87,9 @@ void marklist_destroy(MarklistRef *m);
 EventTrackModelRef *event_track_model_new();
 void event_track_model_destroy(EventTrackModelRef *t);
 
+
+// debugging
+
+const char *i_show_children(const Fl_Widget *w, int nlevels);
+
 }
