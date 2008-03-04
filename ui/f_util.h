@@ -32,9 +32,10 @@ mouse_pos()
 
 // printing stuff for debugging
 
-char *show_event(int ev);
-char *show_damage(uchar d);
-char *show_widget(const Fl_Widget *w);
+const char *show_event(int ev);
+const char *show_damage(uchar d);
+const char *show_widget(const Fl_Widget *w);
+const char *show_children(const Fl_Widget *w, int nlevels=-1, int recurse=0);
 
 void print_widget(const Fl_Widget *w);
 void print_children(const Fl_Widget *w, int nlevels=-1, int recurse = 0);

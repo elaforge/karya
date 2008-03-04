@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <string>
+#include <sstream>
 #include <typeinfo>
 
 #include <FL/Fl.H>
@@ -13,7 +15,7 @@
 // enum { DAMAGE_ZOOM = FL_DAMAGE_USER1 };
 
 
-char *
+const char *
 show_event(int ev)
 {
     static char buf[1024];
@@ -51,7 +53,7 @@ show_event(int ev)
 }
 
 
-char *
+const char *
 show_damage(uchar d)
 {
     static char buf[1024];
@@ -71,10 +73,10 @@ show_damage(uchar d)
 }
 
 
-char *
+const char *
 show_widget(const Fl_Widget *w)
 {
-    static char buf[64];
+    static char buf[127];
     Rect r = rect(*w);
     snprintf(buf, sizeof buf, "(%d %d %d %d) %s \"%s\"", r.x, r.y, r.w, r.h,
         typeid(*w).name(), w->label());
@@ -85,19 +87,15 @@ show_widget(const Fl_Widget *w)
 void
 print_widget(const Fl_Widget *w)
 {
-        // for some reason c++ style io silently prints nothing
-        // std::cout << "c" << i << ' ' << rect_from_widget(*c)
-        //  << typeid(*c).name() << " \"" << c->label() << "\"\n";
-    Rect r = rect(*w);
-    printf("(%d %d %d %d) %s \"%s\"\n", r.x, r.y, r.w, r.h,
-        typeid(*w).name(), w->label());
+    printf("%s\n", show_widget(w));
 }
 
 
-void
-print_children(const Fl_Widget *w, int nlevels, int recurse)
+static void
+do_show_children(const Fl_Widget *w, int nlevels, int recurse,
+        std::ostringstream &out)
 {
-    print_widget(w);
+    out << show_widget(w) << '\n';
     if (nlevels-- == 0)
         return;
     const Fl_Group *g = dynamic_cast<const Fl_Group *>(w);
@@ -106,9 +104,27 @@ print_children(const Fl_Widget *w, int nlevels, int recurse)
             if (!g->child(i)->visible())
                 continue;
             for (int r = recurse; r; r--)
-                printf("    ");
-            printf("c%d: ", i);
-            print_children(g->child(i), nlevels, recurse+1);
+                out << "    ";
+            out << 'c' << i << ": ";
+            do_show_children(g->child(i), nlevels, recurse+1, out);
         }
     }
+}
+
+
+const char *
+show_children(const Fl_Widget *w, int nlevels, int recurse)
+{
+    std::ostringstream out;
+    static std::string outs;
+    do_show_children(w, nlevels, recurse, out);
+    outs = out.str();
+    return outs.c_str();
+}
+
+
+void
+print_children(const Fl_Widget *w, int nlevels, int recurse)
+{
+    printf("%s\n", show_children(w, nlevels, recurse));
 }
