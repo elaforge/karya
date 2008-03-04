@@ -11,6 +11,7 @@ module Interface.UiMsg where
 import Control.Monad
 import Foreign
 import Foreign.C
+import Text.Printf
 
 -- import qualified Interface.Util as Util
 import Interface.Types
@@ -60,12 +61,24 @@ data Data = Mouse
     { kbd_state :: KbdState
     , kbd_char :: Char
     }
+    | AuxMsg AuxMsg
     | Unhandled Int
     deriving (Show)
+
+data AuxMsg = Enter | Leave | Focus | Unfocus | Shortcut | Deactivate
+    | Activate | Hide | Show
+    deriving (Eq, Show)
 
 data MouseState = MouseMove | MouseDrag | MouseDown Int | MouseUp Int
     deriving (Show)
 data KbdState = KeyDown | KeyUp deriving (Show)
+
+short_show (UiMsg context state x y mdata) = case mdata of
+    Mouse mstate clicks is_click ->
+        printf "Mouse: %s (%d, %d)" (show mstate) x y
+    Kbd kstate char -> printf "Kbd: %s %s" (show kstate) (show char)
+    AuxMsg msg -> printf "Aux: %s" (show msg)
+    Unhandled x -> printf "Unhandled: %d" x
 
 -- * Storable
 
@@ -100,6 +113,7 @@ decode_msg fltk_msg button clicks is_click key = msg
     where
     mouse typ = Mouse typ 0 False
     kbd typ = Kbd typ '\0'
+    aux = AuxMsg
     partial_msg = case fltk_msg of
         (#const FL_PUSH) -> mouse (MouseDown button)
         (#const FL_DRAG) -> mouse MouseDrag
@@ -107,6 +121,16 @@ decode_msg fltk_msg button clicks is_click key = msg
         (#const FL_MOVE) -> mouse MouseMove
         (#const FL_KEYDOWN) -> kbd KeyDown
         (#const FL_KEYUP) -> kbd KeyUp
+
+        (#const FL_ENTER) -> aux Enter
+        (#const FL_LEAVE) -> aux Leave
+        (#const FL_FOCUS) -> aux Focus
+        (#const FL_UNFOCUS) -> aux Unfocus
+        (#const FL_SHORTCUT) -> aux Shortcut
+        (#const FL_DEACTIVATE) -> aux Deactivate
+        (#const FL_ACTIVATE) -> aux Activate
+        (#const FL_HIDE) -> aux Hide
+        (#const FL_SHOW) -> aux Show
         _ -> Unhandled fltk_msg
     msg = case partial_msg of
         Mouse {} -> partial_msg
