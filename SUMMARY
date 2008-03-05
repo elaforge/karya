@@ -1,0 +1,130 @@
+There are a lot of sequencers out there.  How is this one different?
+
+First, a screed / rant about the existing state of affairs that makes me want
+to write something better.
+
+Having grown up on trackers, I find that the existing commercial sequencer
+paradigm (e.g. cubase) is awkward for me.  You are expected to record your
+notes in real time on a keyboard in a multitracking style, with minimal edits
+afterwards to fix mistakes.  This means that both step entry and editing
+existing data is primitive.
+
+For instance, it's awkward to enter a note along with a controller value (say
+you want to set a filter cutoff, or set a sample articulation): turn on step
+record, play the note (better be the right one, because backspace won't delete
+it and undo won't move the entry point back!), click on velocity and type one
+in if you didn't get it just right, click on the controller strip chart right
+before your note (how?  I dunno, zoom in and eyeball it?), then click on it and
+type in the value, or go to the note entry list, find your note, and enter
+a controller event slightly before it, subtracting in your head.  And all this
+is just to enter a single note!
+
+In a tracker, you can do this by playing the note, hitting a key to get to the
+controller column, and typing in the controller and value.  So fast you can
+actualy write music this way without losing your concentration.  On the other
+hand, the tracker is limited and awkward when it comes to rhythm.  Want to edit
+a triplet?  Hope your arbitrary "frame" tempo plus the number of rows you want
+the triplet over is divisible by three, do the division yourself manually and
+put it in as row offsets.  Want a fast part next to a slow part?  Set the tempo
+high and deal with highly separated slow parts; you can't zoom in or out.  Want
+to record a natural curve with a breath controller?  Record a live audio part?
+I haven't seen a tracker that lets you do these things.
+
+Editing notes in a sequencer is just as awkward as entering them.  You have
+a breath curve that you want to gradualy decrescendo?  Hopefully your sequencer
+lets you multiply controller data by a curve ($600 cubase doesn't), but even if
+it does once they are multiplied you lose the original data, so you're stuck if
+you want to change the curve later.  Want to bend a pitch to a specific place?
+Cubase forces you to manually figure out the right 14-bit number based on the
+pitch bend range and type it in, which makes it too much work to be practical.
+Want to work with several midi channels to isolate controller effects?  Cubase
+provides no support for this and you have to manage the channels manually.
+
+Trackers have the same problem with note data being at the lowest level: once
+you enter a controller slide, the information that it was a slide is lost and
+it looks like any other stream of numbers.
+
+Both trackers and sequencers suffer from not being programmable.  You can't
+directly write in your own scale, you have to write in a western 12-tone scale
+bent into your tuning by some other means.  You can't describe music
+articulations like trills or sforzando at a high level and have it realized for
+you.  You can't create names or symbols for sample offsets into (or effects
+settings on) a drum loop and then write your drum track in that notation.  You
+can't automatically derive one part from another, except with whatever
+primitive "midi plugins" happen to be implemented.
+
+What's more, existing sequencers perpetuate the problems with MIDI by embedding
+them deeply (e.g. 128 addressable notes per channel, manually managed 16
+channels per port, note number + pitch bend representation of pitch), and not
+supporting a successor protocol like OSC.  Trackers tend to ship with their own
+primitive sampler with no modern features like streaming large samples from
+disk or even velocity switching, let alone actual synthesis.  Unless you want
+toreinvent the massive amount of work put into various synthesizers both
+software and hardware, you have to support MIDI.
+
+A whole field of midi processors have grown up around the inadequacies of MIDI
+as a protocol (also the transport, but that's separate) and the sequencer, like
+the ad-hoc VSL midi tool, primitive built in languages like kontakt's KSP, and
+step sequencers built into synthesizers.  Widespread support for
+a general-purpose successor to MIDI is a major effort and shows no sign of
+materializing, but the software sequencers have no excuse for continuing to
+suck.
+
+
+Ok, rant over.  So what does my sequencer do that's not sucky?
+
+In a general way, you could see it as an IDE for a language with a notion of
+time.
+
+It consists of two parts: a generic and simple UI inspired by the trackers of
+yore, and then an app layer that renders the musical data in the UI down to
+a sound producing backend (the main backend is realtime MIDI, but may also be
+OSC, offline csound scores, or whatever).  The app layer also allows the UI to
+be programmed by setting the meaning of keystrokes, note selections.  It's
+programmable, which means that you can write code per-song (or create reusable
+libraries) that customizes the UI, letting you define your own workflow, and
+customizes the derivation of entered score to whatever backend, letting you
+define your own notation.
+
+The UI is not totally generic, of course, so your notation is restricted to the
+structure it imposes.  The basic unit is the "block", each of which has its own
+window (one block may have multiple windows).  A block is a set of "tracks"
+along with auxiliary data like a name, and controls to zoom and scroll on the
+tracks.
+
+The tracks hold the actual note data, called "events".  There are also ruler
+tracks to align your notes---unlike trackers, events are freely placed and
+there is no "note matrix".  A track is like the block it sits in: it has
+a title and then a list of events.  An event is a bit of text with a starting
+time and a duration.  That's basically it.  It's up to the deriver to give that
+event meaning.  It may become a note or a sequence of notes.  It may be a point
+in a curve of a controller applied to a neighboring track that represents
+notes, or sequences of notes.  It may be a point on a curve that affects the
+derivation of the whole block (say a tempo curve that will space notes out
+further).
+
+The UI doesn't have a means to add or remove tracks or events.  That has to be
+done through the programmatic layer---you use the app layer to bind keystrokes
+to those kinds of actions.  All you can do directly with the UI is zoom and
+scroll, drag select events with any button (the app interprets what that
+means), and edit the text.  It's designed to be fairly modeless, so keystrokes
+generally mean the same thing no matter where focus is, except there is an
+insertion point for text and another insertion point for events.  There are no
+buttons or menus per se, but you can map clicks in specific spots to specific
+actions (for example, a right click in a track header to mute it).
+
+Tracks can also display curve data, for visual feedback of controller data or
+whatever kind of numeric that is easier to grasp as a graph or a color gradient
+than a stream of numbers.  The graph display goes behind the events and is
+for display only.  The deriver is responsible for generating and sending graph
+data back to the UI in the same way that it's responsible for generating note
+data and sending it to the backend.
+
+The interpretation of the score is generic and programmable, but there are some
+defaults based on tracker convention.  The leftmost track in a section will
+be the note track.  Its title will define an instrument and the events in the
+track represent notes played on that instrument.  Tracks to the right of the
+note track represent controllers that affect (or effect) the notes to their
+left.
+
+The intention is to use 

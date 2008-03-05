@@ -1,0 +1,39 @@
+bugs
+  * scoped_ptr causing crash at shutdown
+  * tracks added from hs don't get drawn
+    fix this so I can demonstrate bugs with hs code
+  - figure out redraw situation.  when do I have to call it?
+  - tracks get misaligned when dragging them back and forth in MoveTile
+  - vertical move totally screwed up, disable it
+
+interface
+  * use main thread for ui
+  - get/set block config, block view config
+  - MidiMsg
+
+ui
+  - zoom and scroll
+  - events
+  find out how to draw:
+    - transparent selections
+    - background graphs / antialiased lines
+
+app
+  - actions
+  - msg -> action mapping
+
+research
+  - download sequencers and see how they ship midi reliably
+  - investigate hs-plugins and xmonad to see about hs plugin possibilities
+    xmonad just recompiles the whole app
+    I could actually do that at first too
+  - learn about hs gtk for reference
+
+future
+  - check out jack some more.  I don't necessarily support it in the beginning
+  but should have an idea at least.
+    Looks like I could use it for midi i/o, but what's the advantage over
+    e.g. portmidi?  Maybe the ability to send midi to e.g. local apps in
+    standalone mode?  Or would be be better to support vst?
+  - vst interface
+  - liblash would let me save plugin / jack configuration

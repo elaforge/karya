@@ -1,0 +1,68 @@
+Vocab: derive : Score -> Score, realize : Score -> NoteList
+
+The Derive layer converts the raw block format (Score) to the NoteList format.
+Derivation is the part of playing that doesn't depend on the backend.  The
+NoteList format is a set of notes with start and end times, instrument data
+(contents passed to the backend for interpretation), and controller curves
+(stored as high level curve descriptions so the backend has the choice of how
+to realize it).
+
+Derive functions get EventAddresses for the events they process, so they can
+report errors.
+
+Derivation is actually a pipeline of derivers that all take Score -> Score, and
+possibly display or update a derived track, and then a realizer that takes
+Score -> NoteList.
+
+Since derived blocks and tracks may be derived themselves, realizing a block
+means deriving its parent blocks and so on.  To make this fast, blocks cache
+their derivations and only recompute if the bock has been modified since the
+cache, make-style.  So changes are displayed quickly, a background thread
+refreshes the derivations when a block is modified.
+
+
+    Block Attrs
+
+    Track Attrs
+random seed - so random processes are consistent
+midi controller resolution
+
+-- Score
+
+data BlockData = BlockData String Score
+data Score = Score
+    { score_title :: String
+    , score_attrs :: Attrs
+    , score_tracks :: [Track]
+    }
+
+data Track = Track String Attrs [Event]
+
+
+-- NoteList
+
+data NoteList = NoteList [NoteList]
+
+data Note = Note
+    { start :: TrackPos
+    , end :: TrackPos
+    , instrument :: InstrumentData
+    , controllers :: [ControllerCurve]
+    }
+
+type ControllerCurve = [CurveSegment]
+
+data CurveSegment = CurveSegment InterpolationMethod [Point]
+data InterpolationMethod = InterpolationMethod String
+    -- Given the input points, give values at each of those points.
+    -- This takes a list to a list to allow a more efficient implementation.
+    (Points -> [TrackPos] -> [ControllerValue])
+-- e.g. InterpolationMethod "linear" (\pts pos -> pts at pos)
+
+type Points = Array (TrackPos, ControllerValue) -- sorted by TrackPos
+type ControllerValue = Double
+
+data InstrumentData
+    = MidiInstrument MidiRender.InstrumentData
+    | OscInstrument OscRender.InstrumentData
+    | ...
