@@ -45,8 +45,11 @@ class TrackView : public Fl_Group {
 public:
     TrackView() : Fl_Group(0, 0, 1, 1) {
         end(); // This is a Group, but I don't want anything else to fall in.
+        DEBUG("created track view " << this);
     }
-    virtual ~TrackView() {}
+    virtual ~TrackView() {
+        DEBUG("deleted track view " << this);
+    }
     // zoom
 
     virtual bool track_resizable() const { return true; }

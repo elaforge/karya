@@ -84,6 +84,7 @@ protected:
     // void draw();
 
 private:
+    // If created, this is owned by a Fl_Group, which deletes it.
     Fl_Box *title_box;
     OverlayRuler ruler;
         Fl_Box bg_box;

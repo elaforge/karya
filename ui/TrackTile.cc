@@ -36,7 +36,9 @@ TrackTile::insert_track(int at, TrackView *track, int width)
 
     // Just set sizes here, coords will be fixed by update_sizes()
     Fl_Widget &title = track->title_widget();
+    DEBUG("insert " << &title << " " << this->title_height);
     title.size(width, this->title_height);
+    DEBUG("insert " << track);
     this->insert(title, child_pos);
 
     track->size(width, h() - this->title_height);

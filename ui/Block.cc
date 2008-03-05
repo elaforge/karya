@@ -30,8 +30,8 @@ BlockModel::set_title(const char *s)
 void
 BlockModel::insert_track(int at, const TrackModel &track, int width)
 {
-    ASSERT(0 <= at && at <= tracks.size());
-    tracks.insert(tracks.begin() + at, track);
+    ASSERT(0 <= at && at <= tracks());
+    _tracks.insert(_tracks.begin() + at, std::make_pair(track, width));
     for (int i = 0; i < views.size(); i++)
         views[i]->insert_track(at, track, width);
 }
@@ -39,10 +39,10 @@ BlockModel::insert_track(int at, const TrackModel &track, int width)
 void
 BlockModel::remove_track(int at)
 {
-    ASSERT(0 <= at && at <= tracks.size());
+    ASSERT(0 <= at && at <= tracks());
     for (int i = 0; i < views.size(); i++)
         views[i]->remove_track(at);
-    tracks.erase(tracks.begin() + at);
+    _tracks.erase(_tracks.begin() + at);
 }
 
 void
@@ -94,8 +94,12 @@ BlockView::BlockView(int X, int Y, int W, int H,
     update_sizes();
     update_colors();
 
-    // TODO: get the other current state from model
+    // Initialize the view with the model's state.
     this->set_title(model->get_title());
+    for (int i = 0; i < model->tracks(); i++) {
+        std::pair<TrackModel, int> trackw = model->track_at(i);
+        this->insert_track(i, trackw.first, trackw.second);
+    }
     model->add_view(this);
 }
 
@@ -220,6 +224,7 @@ BlockView::insert_track(int at, const TrackModel &track, int width)
 {
     TrackView *t;
 
+    DEBUG("view insert at " << at);
     if (track.track)
         t = new EventTrackView(track.track, track.ruler);
     else if (track.ruler)
@@ -279,7 +284,7 @@ EventCollectWindow::handle(int evt)
     e.key = Fl::event_key();
     find_active(e);
     this->event_queue.push_back(e);
-    DEBUG("pushed " << event_queue.size() << ": " << show_event(evt));
+    // DEBUG("pushing " << show_event(evt));
 
     return Fl_Double_Window::handle(evt);
 }

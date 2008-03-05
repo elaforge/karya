@@ -26,8 +26,9 @@ these should be in both Trackpos units and relative to Mark units
 
 */
 
-#include <vector>
 #include <algorithm>
+#include <utility>
+#include <vector>
 #include <boost/shared_ptr.hpp>
 
 #include <FL/Fl.H>
@@ -79,7 +80,8 @@ public:
     // a union of pointers.
     void insert_track(int at, const TrackModel &track, int width);
     void remove_track(int at);
-    const TrackModel track_at(int at) const { return tracks.at(at); }
+    std::pair<TrackModel, int> track_at(int at) const { return _tracks.at(at); }
+    int tracks() const { return _tracks.size(); }
 
     const BlockModelConfig &get_config() const { return config; }
     void set_config(const BlockModelConfig &config);
@@ -100,7 +102,7 @@ private:
     // All the BlockViews that point to this BlockModel.  BlockView
     // adds this when it's created so block modifications can notify its views.
     std::vector<BlockView *> views;
-    std::vector<TrackModel> tracks;
+    std::vector<std::pair<TrackModel, int> > _tracks;
 };
 
 
