@@ -12,7 +12,7 @@ module Interface.Block (
     , BlockViewConfig(..), BlockView
     , Zoom(..), Selection(..)
     , create_view
-    , redraw, resize, get_zoom, set_zoom
+    , resize, get_zoom, set_zoom
     , get_selection, set_selection, get_view_config, set_view_config
 ) where
 
@@ -53,7 +53,6 @@ create_view (!x, !y) (!w, !h) !block !ruler !config = do
     MVar.modifyMVar_ view_list (return . (view:))
     return view
 
-redraw !view = send_action (redraw view)
 resize !view (!x, !y) (!w, !h) = send_action (B.resize view (x, y) (w, h))
 
 get_zoom !view = send_action (B.get_zoom view)

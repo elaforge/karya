@@ -158,22 +158,6 @@ block_model_remove_track(BlockModelRef *b, int at)
 
 // Block view
 
-/*
-possible implementation for doing the serialization in c
-BlockViewWindow *
-block_view_create(int x, int y, int w, int h, BlockModelRef *model,
-        RulerTrackModelRef *r, BlockViewConfig *view_config)
-{
-    MVar mvar;
-    f = closure {
-        win = do_block_view_create(x, y,...);
-        mvar.put(win);
-    }
-    Fl::awake(f, 0);
-    return mvar.get()
-}
-*/
-
 BlockViewWindow *
 block_view_create(int x, int y, int w, int h, BlockModelRef *model,
         RulerTrackModelRef *r, BlockViewConfig *view_config)
@@ -193,12 +177,6 @@ void
 block_view_destroy(BlockViewWindow *b)
 {
     delete b;
-}
-
-void
-block_view_redraw(BlockViewWindow *b)
-{
-    b->redraw();
 }
 
 void
@@ -245,7 +223,7 @@ block_view_set_selection(BlockViewWindow *b, const Selection *sel)
 
 
 
-// rulers
+// Ruler
 
 RulerTrackModelRef *
 ruler_track_model_new(Color *bg, int mlists, MarklistRef **marklists)

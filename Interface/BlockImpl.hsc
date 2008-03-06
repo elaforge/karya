@@ -194,13 +194,6 @@ destroy_view view = c_block_view_destroy (view_p view)
 foreign import ccall unsafe "block_view_destroy"
     c_block_view_destroy :: Ptr CBlockView -> IO ()
 
--- | Changes to any of the UI objects will not be reflected on the screen until
--- you call redraw on their Block.
-redraw :: BlockView -> UI ()
-redraw (BlockView viewp)  = c_block_view_redraw viewp
-foreign import ccall unsafe "block_view_redraw"
-    c_block_view_redraw :: Ptr CBlockView -> IO ()
-
 resize :: BlockView -> (Int, Int) -> (Int, Int) -> UI ()
 resize view (x, y) (w, h) =
     c_block_view_resize (view_p view) (i x) (i y) (i w) (i h)
