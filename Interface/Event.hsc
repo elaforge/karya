@@ -44,14 +44,14 @@ data Event = Event
     , event_signal :: Signal
     , event_render_style :: RenderStyle
     , event_attrs :: Attrs
-    }
+    } deriving (Eq, Show)
 
 -- | A sub event.
-data Sub = Sub TrackPos String
+data Sub = Sub TrackPos String deriving (Eq, Show)
 
 -- | How to display the signal under an Event.
-data RenderStyle = ColorMap [(Double, Color.Color)] | Graph deriving (Show)
-data Signal = Signal [Double] -- probably an array actually
+data RenderStyle = ColorMap [(Double, Color.Color)] | Graph deriving (Eq, Show)
+data Signal = Signal [Double] deriving (Eq, Show) -- probably an array actually
 
 type TextStyle = (Font, FontStyle, Color.Color)
 type Font = String

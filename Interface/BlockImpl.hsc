@@ -29,7 +29,10 @@ import qualified Interface.RulerImpl as RulerImpl
 import Foreign
 import Foreign.C
 
-data Block = Block (ForeignPtr CBlockModel) Attrs
+data Block = Block
+    { block_p :: ForeignPtr CBlockModel
+    , block_attrs :: Attrs
+    } deriving (Show)
 data CBlockModel
 
 data BlockModelConfig = BlockModelConfig
@@ -81,21 +84,21 @@ foreign import ccall unsafe "&block_model_destroy"
 
 
 get_title :: Block -> UI String
-get_title (Block blockfp _) =
-    withForeignPtr blockfp c_block_model_get_title >>= peekCString
+get_title block =
+    withForeignPtr (block_p block) c_block_model_get_title >>= peekCString
 foreign import ccall unsafe "block_model_get_title"
     c_block_model_get_title :: Ptr CBlockModel -> IO CString
 
 set_title :: Block -> String -> UI ()
-set_title (Block blockfp _) s = withForeignPtr blockfp $ \blockp ->
+set_title block s = withForeignPtr (block_p block) $ \blockp ->
     withCString s $ \cstr -> c_block_model_set_title blockp cstr
 foreign import ccall unsafe "block_model_set_title"
     c_block_model_set_title :: Ptr CBlockModel -> CString -> IO ()
 
 get_attrs :: Block -> Attrs
-get_attrs (Block _ attrs) = attrs
+get_attrs = block_attrs
 set_attrs :: Block -> Attrs -> Block
-set_attrs (Block ptr _) attrs = Block ptr attrs
+set_attrs block attrs = block { block_attrs = attrs }
 
 -- * Track management
 
@@ -108,12 +111,12 @@ data Tracklike = T (TrackImpl.Track, RulerImpl.Ruler) | R RulerImpl.Ruler
     | D Color.Color
 
 insert_track :: Block -> TrackNum -> Tracklike -> Width -> UI ()
-insert_track (Block blockfp _) at track width =
-    withFP blockfp $ \blockp -> case track of
-        T ((TrackImpl.Track trackfp _), (RulerImpl.Ruler rulerfp _)) ->
-            withFP trackfp $ \trackp -> withFP rulerfp $ \rulerp ->
+insert_track block at track width =
+    withFP (block_p block) $ \blockp -> case track of
+        T (track, ruler) -> withFP (TrackImpl.track_p track) $ \trackp ->
+            withFP (RulerImpl.ruler_p ruler) $ \rulerp ->
                 c_block_model_insert_event_track blockp at' width' trackp rulerp
-        R (RulerImpl.Ruler rulerfp _) -> withFP rulerfp $ \rulerp ->
+        R ruler -> withFP (RulerImpl.ruler_p ruler) $ \rulerp ->
             c_block_model_insert_ruler_track blockp at' width' rulerp
         D color -> with color $ \colorp ->
             c_block_model_insert_divider blockp at' width' colorp
@@ -123,7 +126,7 @@ insert_track (Block blockfp _) at track width =
     withFP = withForeignPtr
 
 remove_track :: Block -> TrackNum -> UI ()
-remove_track (Block blockfp _) at = withForeignPtr blockfp $ \blockp ->
+remove_track block at = withForeignPtr (block_p block) $ \blockp ->
     c_block_model_remove_track blockp (Util.c_int at)
 
 foreign import ccall unsafe "block_model_insert_event_track"
@@ -145,8 +148,15 @@ track_at block i = undefined
 
 -- * view
 
-data BlockView = BlockView (Ptr CBlockView) deriving (Show)
+data BlockView = BlockView (Ptr CBlockView) Block deriving (Show)
+data BlockView = BlockView
+    { view_p :: Ptr CBlockView
+    , view_block :: Block
+    } deriving (Show)
 data CBlockView
+
+instance Util.Widget BlockView where
+    show_children view = Util.do_show_children (view_p view)
 
 -- The defaults for newly created blocks and the trackviews automatically
 -- created.
@@ -164,13 +174,13 @@ data Selection = Selection (TrackNum, TrackPos) (TrackNum, TrackPos)
 
 create_view :: (Int, Int) -> (Int, Int) -> Block -> RulerImpl.Ruler
     -> BlockViewConfig -> UI BlockView
-create_view (x, y) (w, h) (Block blockfp _) (RulerImpl.Ruler rulerfp _) config
-    = do
-        viewp <- withFP blockfp $ \blockp -> withFP rulerfp $ \rulerp ->
+create_view (x, y) (w, h) block ruler config = do
+    viewp <- withFP (block_p block) $ \blockp ->
+        withFP (RulerImpl.ruler_p ruler) $ \rulerp ->
             with config $ \configp ->
                 c_block_view_create (i x) (i y) (i w) (i h) blockp rulerp
                     configp
-        return $ BlockView viewp
+    return $ BlockView viewp block
     where
     i = Util.c_int
     withFP = withForeignPtr
@@ -180,7 +190,7 @@ foreign import ccall unsafe "block_view_create"
         -> Ptr RulerImpl.CRulerTrackModel -> Ptr BlockViewConfig
         -> IO (Ptr CBlockView)
 
-destroy_view (BlockView viewp) = c_block_view_destroy viewp
+destroy_view view = c_block_view_destroy (view_p view)
 foreign import ccall unsafe "block_view_destroy"
     c_block_view_destroy :: Ptr CBlockView -> IO ()
 
@@ -192,32 +202,32 @@ foreign import ccall unsafe "block_view_redraw"
     c_block_view_redraw :: Ptr CBlockView -> IO ()
 
 resize :: BlockView -> (Int, Int) -> (Int, Int) -> UI ()
-resize (BlockView viewp) (x, y) (w, h) =
-    c_block_view_resize viewp (i x) (i y) (i w) (i h)
+resize view (x, y) (w, h) =
+    c_block_view_resize (view_p view) (i x) (i y) (i w) (i h)
     where i = Util.c_int
 foreign import ccall unsafe "block_view_resize"
     c_block_view_resize :: Ptr CBlockView -> CInt -> CInt -> CInt -> CInt
         -> IO ()
 
 get_zoom :: BlockView -> UI Zoom
-get_zoom (BlockView viewp) = c_block_view_get_zoom viewp >>= peek
+get_zoom view = c_block_view_get_zoom (view_p view) >>= peek
 foreign import ccall unsafe "block_view_get_zoom"
     c_block_view_get_zoom :: Ptr CBlockView -> IO (Ptr Zoom)
 
 set_zoom :: BlockView -> Zoom -> UI ()
-set_zoom (BlockView viewp) zoom =
-    with zoom $ \zoomp -> c_block_view_set_zoom viewp zoomp
+set_zoom view zoom =
+    with zoom $ \zoomp -> c_block_view_set_zoom (view_p view) zoomp
 foreign import ccall unsafe "block_view_set_zoom"
     c_block_view_set_zoom :: Ptr CBlockView -> Ptr Zoom -> IO ()
 
 get_selection :: BlockView -> UI Selection
-get_selection (BlockView viewp) = c_block_view_get_selection viewp >>= peek
+get_selection view = c_block_view_get_selection (view_p view) >>= peek
 foreign import ccall unsafe "block_view_get_selection"
     c_block_view_get_selection :: Ptr CBlockView -> IO (Ptr Selection)
 
 set_selection :: BlockView -> Selection -> UI ()
-set_selection (BlockView viewp) sel =
-    with sel $ \selp -> c_block_view_set_selection viewp selp
+set_selection view sel =
+    with sel $ \selp -> c_block_view_set_selection (view_p view) selp
 foreign import ccall unsafe "block_view_set_selection"
     c_block_view_set_selection :: Ptr CBlockView -> Ptr Selection -> IO ()
 
@@ -225,8 +235,8 @@ get_view_config :: BlockView -> UI BlockViewConfig
 get_view_config view = undefined
 
 set_view_config :: BlockView -> BlockViewConfig -> UI ()
-set_view_config (BlockView viewp) config =
-    with config $ \configp -> c_block_view_set_config viewp configp
+set_view_config view config =
+    with config $ \configp -> c_block_view_set_config (view_p view) configp
 foreign import ccall unsafe "block_view_set_config"
     c_block_view_set_config :: Ptr CBlockView -> Ptr BlockViewConfig -> IO ()
 

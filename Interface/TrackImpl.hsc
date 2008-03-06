@@ -13,14 +13,18 @@ import Interface.Types
 import qualified Interface.Event as Event
 
 data CEventTrackModel
-data Track = Track (ForeignPtr CEventTrackModel) (Attrs, EventList)
+data Track = Track
+    { track_p :: ForeignPtr CEventTrackModel
+    , track_attrs :: Attrs
+    , track_events :: EventList
+    } deriving (Show)
 type EventList = [(TrackPos, Event.Event)]
 
 create :: IO Track
 create = do
     trackp <- c_event_track_model_new
     trackfp <- newForeignPtr c_event_track_model_destroy trackp
-    return $ Track trackfp ([], [])
+    return $ Track trackfp [] []
 
 foreign import ccall unsafe "event_track_model_new"
     c_event_track_model_new :: IO (Ptr CEventTrackModel)
@@ -39,10 +43,10 @@ get_events track begin end = undefined
 -}
 
 get_attrs :: Track -> Attrs
-get_attrs (Track _ (attrs, _)) = attrs
+get_attrs = track_attrs
 
 set_attrs :: Track -> Attrs -> Track
-set_attrs (Track fp (_, evts)) attrs = Track fp (attrs, evts)
+set_attrs track attrs = track { track_attrs = attrs }
 
 
 -- * view

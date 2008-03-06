@@ -17,7 +17,11 @@ import qualified Interface.Color as Color
 
 data CRulerTrackModel
 newtype Marklist = Marklist [(TrackPos, Mark)] deriving (Eq, Show)
-data Ruler = Ruler (ForeignPtr CRulerTrackModel) (Color.Color, [Marklist])
+data Ruler = Ruler
+    { ruler_p :: ForeignPtr CRulerTrackModel
+    , ruler_color :: Color.Color
+    , ruler_marklist :: [Marklist]
+    } deriving (Show)
 
 data Mark = Mark
     { mark_rank :: Int
@@ -39,7 +43,7 @@ create bg marklists = with bg $ \bgp -> do
     rulerp <- Util.withForeignPtrs mlistfps $ \ps -> withArray ps $ \mlistp ->
         c_ruler_track_model_new bgp (Util.c_int (length marklists)) mlistp
     rulerfp <- newForeignPtr c_ruler_track_model_destroy rulerp
-    return $ Ruler rulerfp (bg, marklists)
+    return $ Ruler rulerfp bg marklists
 
 foreign import ccall unsafe "ruler_track_model_new"
     c_ruler_track_model_new :: Ptr Color.Color -> CInt
