@@ -1,6 +1,6 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
 {-# OPTIONS_GHC -fglasgow-exts #-}
-module Interface.Ui where
+module Interface.Ui (initialize, send_action, Msg(..)) where
 import qualified Control.Monad as Monad
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.MVar as MVar
@@ -20,16 +20,20 @@ actions = unsafePerformIO (MVar.newMVar [])
 ui_thread_id :: MVar.MVar Concurrent.ThreadId
 ui_thread_id = unsafePerformIO MVar.newEmptyMVar
 
--- | Start up the ui thread, return a channel that will produce msgs.
-initialize :: IO (TChan.TChan Msg)
-initialize = do
+-- | Run the 'app' thread, passing it a channel that produces msgs, and go
+-- into the UI polling loop.  This is intended to be run from the main thread,
+-- since some UIs don't work properly unless run from the main thread.
+-- When 'app' exits, the ui loop will be aborted.
+initialize app = do
     msg_chan <- TChan.newTChanIO
-    th_id <- Util.start_os_thread "ui handler" (ui_thread actions msg_chan)
+    Util.start_os_thread "app" (app msg_chan >> kill_ui_thread)
+    th_id <- Concurrent.myThreadId
     MVar.putMVar ui_thread_id th_id
-    return msg_chan
+    poll_loop actions msg_chan
 
 add_act x = MVar.modifyMVar_ actions (return . (x:))
 
+-- | Send the UI to the ui thread and run it, returning its result.
 send_action :: UI a -> IO a
 send_action act = do
     retbox <- MVar.newEmptyMVar
@@ -39,8 +43,8 @@ send_action act = do
     -- putStrLn "wait result"
     MVar.takeMVar retbox
 
--- The ui thread's polling cycle.
-ui_thread actions msg_chan = do
+-- | The ui's polling cycle.
+poll_loop actions msg_chan = do
     c_initialize
     Monad.forever $ do
         wait

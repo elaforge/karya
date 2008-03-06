@@ -12,6 +12,7 @@ import qualified System.IO as IO
 import Interface.Types
 import qualified Interface.Util as Util
 import qualified Interface.Color as Color
+import qualified Interface.UiMsg as UiMsg
 import qualified Interface.Ui as Ui
 import qualified Interface.Block as Block
 import qualified Interface.Ruler as Ruler
@@ -19,22 +20,27 @@ import qualified Interface.Track as Track
 
 main = test_view
 
-test_view = do
+test_view = Ui.initialize $ \msg_chan -> do
     block <- Block.create block_config
     ruler <- Ruler.create ruler_bg [marklist]
 
-    msg_chan <- Ui.initialize
     msg_th <- Util.start_thread "print msgs" (msg_thread msg_chan)
+
     view <- Block.create_view (10, 10) (200, 200) block ruler view_config
-    putStrLn $ "*** got response " ++ show view
+    Block.insert_track block 0 (Block.R ruler) 25
+
+    Util.show_children view >>= putStrLn
     putStr "? " >> IO.hFlush IO.stdout >> getLine
     putStrLn "killing"
     Concurrent.killThread msg_th
-    Ui.kill_ui_thread
 
 msg_thread msg_chan = Monad.forever $ do
     msg <- STM.atomically $ TChan.readTChan msg_chan
-    putStrLn $ "msg: " ++ show msg
+    return ()
+    -- let s = case msg of
+    --         Ui.MUi m -> UiMsg.short_show m
+    --         _ -> show msg
+    -- putStrLn $ "msg: " ++ s
 
 test_block = do
     block <- Block.create block_config
