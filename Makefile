@@ -1,15 +1,22 @@
 DEBUG = -ggdb
-CINCLUDE = -Iui -I../libcc
+# PORTMIDI = /usr/local/src/portmidi-macosx-1.0
+PORTMIDI = /usr/local/src/portmedia/portmidi/trunk
+MIDI_LIBS = $(PORTMIDI)/pm_mac/libportmidi.a \
+	$(PORTMIDI)/porttime/libporttime.a \
+	-framework CoreFoundation -framework CoreMIDI -framework CoreAudio
+CINCLUDE = -Iui -I../libcc -I$(PORTMIDI)/pm_common -I$(PORTMIDI)/porttime
 CXXFLAGS = `fltk-config --cxxflags` $(DEBUG) $(CINCLUDE)
 LDFLAGS = `fltk-config --ldflags` $(DEBUG)
+REZ = /Developer/Tools/Rez -t APPL -o $@ /usr/local/include/FL/mac.r
 
-HFLAGS=-W $(CINCLUDE) -pgmc g++ -pgml g++ -threaded
+HFLAGS = -W $(CINCLUDE) -pgmc g++ -pgml g++ -threaded -debug -optc -ggdb \
+	-optl -ggdb
 
 UI_OBJS := Block.o TrackTile.o Track.o Ruler.o EventTrack.o MoveTile.o \
 	f_util.o
 UI_OBJS := $(addprefix ui/, $(UI_OBJS))
 
-all: test_block test_interface
+all: test_block test_interface test_midi
 
 .PHONY: dep
 dep: fixdeps
@@ -25,24 +32,34 @@ clean:
 
 test_block: $(UI_OBJS) ui/test_block.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
-	/Developer/Tools/Rez -t APPL -o $@ /usr/local/include/FL/mac.r
+	$(REZ)
 
 ui/ui.a: $(UI_OBJS)
 	ar -rs $@ $^
 
-HSCS = $(wildcard Interface/*.hsc)
-INTERFACE_HS = $(HSCS:hsc=hs)
+INTERFACE_HSC = $(wildcard Interface/*.hsc)
+INTERFACE_HS = $(INTERFACE_HSC:hsc=hs)
 INTERFACE_OBJS = Interface/c_interface.o
 
-# -main-is Interface.TestInterface.main doesn't seem to work
+MIDI_HSC = $(wildcard Midi/*.hsc)
+MIDI_HS = $(MIDI_HSC:hsc=hs)
+
+# PHONY convinces make to always run ghc, which figures out deps on its own
 .PHONY: test_interface
-test_interface: $(INTERFACE_HS) $(INTERFACE_OBJS) Interface/test_interface.o \
-		ui/ui.a
+test_interface: $(INTERFACE_HS) $(INTERFACE_OBJS) \
+		Interface/test_interface.o ui/ui.a
 	ghc $(HFLAGS) --make \
-	-main-is Interface.TestInterface Interface/TestInterface.hs $^ \
-	`fltk-config --ldflags` \
-	-o $@
-	/Developer/Tools/Rez -t APPL -o $@ /usr/local/include/FL/mac.r
+		-main-is Interface.TestInterface Interface/TestInterface.hs $^ \
+		`fltk-config --ldflags` \
+		-o $@
+	$(REZ)
+
+.PHONY: test_midi
+test_midi: $(MIDI_HS)
+	ghc $(HFLAGS) --make \
+		-main-is Midi.TestMidi Midi/TestMidi.hs $^ $(MIDI_LIBS) -o $@
+
+
 
 %.hs: %.hsc
 	hsc2hs -c g++ --cflag -Wno-invalid-offsetof $(CINCLUDE) $<
