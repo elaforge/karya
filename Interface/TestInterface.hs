@@ -9,6 +9,7 @@ import qualified Control.Concurrent.STM as STM
 import Foreign
 import qualified System.IO as IO
 
+import qualified Util.Thread as Thread
 import Interface.Types
 import qualified Interface.Util as Util
 import qualified Interface.Color as Color
@@ -24,7 +25,7 @@ test_view = Ui.initialize $ \msg_chan -> do
     block <- Block.create block_config
     ruler <- Ruler.create ruler_bg [marklist]
 
-    msg_th <- Util.start_thread "print msgs" (msg_thread msg_chan)
+    msg_th <- Thread.start_thread "print msgs" (msg_thread msg_chan)
 
     view <- Block.create_view (10, 10) (200, 200) block ruler view_config
     Block.insert_track block 0 (Block.R ruler) 25
