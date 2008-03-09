@@ -1,42 +1,24 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
 {-# OPTIONS_GHC -XEmptyDataDecls #-}
-{-
-
-portmidi.h:
-    For input, the buffersize specifies the number of input events to be
-    buffered waiting to be read using Pm_Read(). For output, buffersize
-    specifies the number of output events to be buffered waiting for output.
-    (In some cases -- see below -- PortMidi does not buffer output at all
-    and merely passes data to a lower-level API, in which case buffersize
-    is ignored.)
-
-However, it never appears to explain those "some cases".
-
-    (In some cases -- see below -- PortMidi does not buffer output at all
-    and merely passes data to a lower-level API, in which case buffersize
-    is ignored.)
-
-    (NOTE: time is measured relative to the time source indicated by time_proc.
-    Timestamps are absolute, not relative delays or offsets.)
-
+{- | Wrapper for the portmidi library.
 -}
-
 module Midi.PortMidi (
-    Stream -- opaque
+    ReadStream, WriteStream -- opaque
     , initialize, terminate
-    -- * errors
-    , PmError
 
     -- * devices
     , devices
     -- no access to device_id, or to the constructor
     , Device, device_interface, device_name, device_input, device_output
-    , open_input, open_output, close
+    , open_input, open_output, close_input, close_output
 
     -- * reading and writing streams
     , Event(..)
     , read_events, enqueue
     , write_event
+
+    -- * errors
+    , PmError
 ) where
 
 import Control.Monad
@@ -102,38 +84,44 @@ peek_device_info dev = do
     -- device_id will be filled in later
     return $ Device interf name (toBool input) (toBool output) 0
 
+-- | A stream you can read from.
+newtype ReadStream = ReadStream (Ptr CStream)
+-- | A stream you can write to.
+newtype WriteStream = WriteStream (Ptr CStream)
 data CStream
-newtype Stream = Stream (Ptr CStream)
 
 -- | Input and output buffer size.
-buffer_size = 512 :: Int
+buffer_size :: Int
+buffer_size = 512
 
-open_input :: Device -> IO Stream
+open_input :: Device -> IO ReadStream
 open_input dev = alloca $ \streampp -> checked
     (c_open_input streampp (device_id dev) nullPtr (fromIntegral buffer_size)
         nullPtr nullPtr)
-    (fmap Stream (peek streampp))
+    (fmap ReadStream (peek streampp))
 foreign import ccall unsafe "Pm_OpenInput"
     -- stream, inputDevice, inputDriverInfo
     c_open_input :: Ptr (Ptr CStream) -> CInt -> Ptr ()
         -- bufferSize, time_proc, time_info
         -> CLong -> Ptr () -> Ptr () -> IO CPmError
 
-open_output :: Device -> IO Stream
+open_output :: Device -> IO WriteStream
 open_output dev = alloca $ \streampp -> checked
     -- Pass a latency of 1 because portmidi requires this to obey outgoing
-    -- timestamps.  I don't know why.
+    -- timestamps.  'write_event' should subtract this from outgoing timestamps.
     (c_open_output streampp (device_id dev) nullPtr (fromIntegral buffer_size)
         nullPtr nullPtr 1)
-    (fmap Stream (peek streampp))
+    (fmap WriteStream (peek streampp))
 foreign import ccall unsafe "Pm_OpenOutput"
     -- stream, inputDevice, outputDriverInfo
     c_open_output :: Ptr (Ptr CStream) -> CInt -> Ptr ()
         -- bufferSize, time_proc, time_info, latency
         -> CLong -> Ptr () -> Ptr () -> CLong -> IO CPmError
 
-close :: Stream -> IO ()
-close (Stream streamp) = checked_ (c_close streamp)
+close_input :: ReadStream -> IO ()
+close_input (ReadStream streamp) = checked_ (c_close streamp)
+close_output :: WriteStream -> IO ()
+close_output (WriteStream streamp) = checked_ (c_close streamp)
 foreign import ccall unsafe "Pm_Close" c_close :: Ptr CStream -> IO CPmError
 
 
@@ -146,13 +134,19 @@ foreign import ccall unsafe "Pm_SetChannelMask"
     c_set_channel_mask :: Ptr CStream -> CInt -> IO CPmError
 -}
 
+-- | A single MIDI event happening at the given Timestamp.  The event is
+-- stored as uninterpreted bytes, but should represent exactly one midi msg.
 newtype Event = Event ([Word.Word8], Timestamp) deriving (Show, Eq)
 type Timestamp = Integer
 -- defined as a long
 type CTimestamp = (#type PmTimestamp)
 
-read_events :: Stream -> IO [Event]
-read_events (Stream streamp) = allocaArray buffer_size $ \evt_array -> do
+-- | Read pending Events.  This function doesn't block.  Every Event has
+-- 3 bytes, which means that some may have trailing 0s, and sysex msgs will be
+-- spread across many Events, and may have realtime Events interspersed.
+-- 'enqueue' gives a nicer interface.
+read_events :: ReadStream -> IO [Event]
+read_events (ReadStream streamp) = allocaArray buffer_size $ \evt_array -> do
     nread <- c_read streamp evt_array (fromIntegral buffer_size)
     check_errno nread
     peekArray (fromIntegral nread) evt_array
@@ -161,23 +155,23 @@ foreign import ccall unsafe "Pm_Read"
 
 
 -- | Go into a loop, reading events from 'stream' and sticking them on 'chan'.
--- Never returns.
-enqueue :: Stream -> Chan.Chan Event -> IO ()
-enqueue stream chan = _enqueue Nothing []
+-- Unlike 'read_events', each Event represents one MIDI msg, even if it's a
+-- long sysex.  Never returns.
+enqueue :: ReadStream -> (Event -> IO ()) -> IO ()
+enqueue stream wchan = _enqueue Nothing []
     where
-    wchan = Chan.writeChan chan
     delay = 1000 -- 1ms seems ok CPU-wise, and 10ms is audible
     _enqueue sysex [] = Concurrent.threadDelay delay
         >> read_events stream >>= _enqueue sysex
     _enqueue (Just sysex_evts) (evt:rest)
         -- realtime msgs may be interspersed in a sysex
         | is_realtime evt = wchan evt >> _enqueue (Just sysex_evts) rest
-        -- sysex is terminated by either EOX or a non-realtime status
-        -- (sysex was truncated)
-        | has_eox evt || is_status evt
-            = wchan (merge_evts (reverse (evt:sysex_evts)))
-                >> _enqueue Nothing rest
-        | otherwise = _enqueue (Just (evt:sysex_evts)) rest
+        | has_eox evt = wchan (merge_evts (reverse (evt:sysex_evts)))
+            >> _enqueue Nothing rest
+        -- non-realtime status byte means the sysex was truncated
+        | is_status evt = wchan (merge_evts (reverse (sysex_evts)))
+            >> _enqueue Nothing (evt:rest)
+        | otherwise = >> _enqueue (Just (evt:sysex_evts)) rest
     _enqueue Nothing (evt:rest)
         | is_sysex evt = _enqueue (Just [evt]) rest
         | otherwise = wchan evt >> _enqueue Nothing rest
@@ -190,13 +184,14 @@ is_sysex = (==0xf0) . head . evt_bytes
 merge_evts [] = error "can't merge 0 Events"
 merge_evts evts@(Event (_, ts):_) = Event (concatMap evt_bytes evts, ts)
 
-write_event :: Stream -> Event -> IO ()
-write_event (Stream streamp) evt@(Event (bytes, ts))
+write_event :: WriteStream -> Event -> IO ()
+write_event (WriteStream streamp) evt@(Event (bytes, ts))
     | is_sysex evt = withArray bytes $ \bytesp -> checked_ $
         -- I think it's ok to cast (Ptr Word8) to (Ptr CUChar)
-        c_write_sysex streamp (to_c_long ts) (castPtr bytesp)
+        -- Subtract 1 from timstamp, see 'open_output'.
+        c_write_sysex streamp (to_c_long (ts-1)) (castPtr bytesp)
     | otherwise = checked_ $
-        c_write_short streamp (to_c_long ts) (encode_message bytes)
+        c_write_short streamp (to_c_long (ts-1)) (encode_message bytes)
 
 to_c_long = fromIntegral
 
@@ -219,10 +214,9 @@ peek_event evt = do
 -- could probably get hsc2hs to pull the macros, but I don't mind doing this
 -- in haskell
 decode_message :: Int32 -> [Word.Word8]
-decode_message msg = [st, d1, d2]
+decode_message msg = [shift 0, shift 8, shift 16, shift 24]
     where
-    [st, d1, d2] = map fromIntegral
-        [msg .&. 0xff, shiftR msg 8 .&. 0xff, shiftR msg 16 .&. 0xff]
+    shift x = fromIntegral (shiftR msg x .&. 0xff)
 encode_message :: [Word.Word8] -> CLong
 encode_message bytes
     | length bytes == 3 = let [st, d1, d2] = map fromIntegral bytes in
@@ -282,5 +276,3 @@ get_error_text :: CPmError -> IO PmError
 get_error_text errno = c_get_error_text errno >>= peekCString
 foreign import ccall unsafe "Pm_GetErrorText"
     c_get_error_text :: CInt -> IO CString
-
-
