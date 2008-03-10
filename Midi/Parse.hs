@@ -45,10 +45,10 @@ decode (status:d1:d2:bytes)
         _ -> UndefinedRealtime chan
 decode _ = UnknownMessage 0 0 0
 
--- is_sysex = (==0x80)
-is_eox = (==0xf7)
--- is_status = (/=0) . (.&. 0x80)
--- is_realtime = (>= 0xf8)
+is_sysex = (== 0x80)
+is_eox = (== 0xf7)
+is_status = (>= 0x80)
+is_realtime = (>= 0xf8)
 
 take_include f [] = []
 take_include f (x:xs)
@@ -93,6 +93,9 @@ encode (CommonMessage msg) = join4 0xf code : bytes
         EOX -> (0x7, []) -- this should have been in SystemExclusive
         _ -> error $ "unknown CommonMessage " ++ show msg
 
+encode (UnknownMessage st d1 d2)
+    = error $ "UnknownMessage: " ++ show (st, d1, d2)
+
 data Message
     = ChannelMessage Channel ChannelMessage
     | CommonMessage CommonMessage
@@ -105,14 +108,14 @@ type Key = Word8
 type Velocity = Word8
 type Controller = Word8
 type Program = Word8
-type Value = Word8
+type ControlValue = Word8
 data ChannelMessage =
     NoteOff Key Velocity
     | NoteOn Key Velocity
     | Aftertouch Key Velocity
-    | ControlChange Controller Value
+    | ControlChange Controller ControlValue
     | ProgramChange Program
-    | ChannelPressure Value
+    | ChannelPressure ControlValue
     | PitchWheel Int
     -- channel mode messages (special controller values)
     | AllSoundOff

@@ -130,6 +130,34 @@ preferences.
 
 
 
+MIDI bandwidth: 3,125 bytes per second (according to SysEx librarian)
+Pitchbend resolution: -8192 - 8192
+
+max / pb_range = steps_per_semi
+max / steps_per_semi = pb_range
+For one cent resolution, I need pb range of 81.92.  
+
+-- | Given pitchbend range and a target frequence, generate midi note number,
+-- pitchbend amount, and the inaccuracy of the output frequency.
+-- This assumes the synthesizer is in equal temperment.
+hz_to_midi :: Int -> Hz -> (Int, Int, Double)
+hz_to_midi pb_range hz = 
+
+newtype PbRange = PbRange (Int, Int) -- ^ Range in semis below, semis above.
+-- | Given sounding note number and desired frequency, calculate the required
+-- pitch bend setting and the inaccuracy of the resulting frequency.
+pitch_bend :: PbRange -> NoteNum -> Hz -> (Int, Double)
+pitch_bend (PbRange (down, up)) (NoteNum nn) (Hz hz) = undefined
+
+
+http://www.bikexprt.com/cakewalk/midiprob.htm
+
+Sampling rate for different controllers can be different, depending on their
+percuptual resolution.
+
+Midi instruments have a settable decay time, so I know when I can mute
+controllers or reuse the channel.
+
     How other people do timing:
 
 tutka tracker:

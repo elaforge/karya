@@ -5,48 +5,45 @@ import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.Chan as Chan
 import Text.Printf (printf)
 
-import qualified Seq
+import qualified Util.Seq as Seq
 import qualified Util.Log as Log
 
-import qualified Midi.PortMidi as PortMidi
 import qualified Midi.Parse as Parse
+import qualified Util.Thread as Thread
+
+import qualified Midi.Midi as Midi
 
 import DUtil
 
-end = PortMidi.terminate >> putStrLn "bye"
-main = Exception.bracket_ PortMidi.initialize end $ do
-    devs <- PortMidi.devices
-    putStrLn "devices:"
-    plist (map PortMidi.device_name devs)
-    chan <- Chan.newChan
-    -- let enqueue = Chan.writeChan chan
-    -- in_stream <- PortMidi.open_input (devs !! 0)
-    out_stream <- PortMidi.open_output (devs !! 5)
-    mapM_ (open_read chan) devs
+print_err = flip Midi.catch (\err -> putStrLn $ "err got out: " ++ show err)
+main = Midi.with $ print_err $ do
+    ports <- Midi.ports
+    putStrLn "ports:"
+    plist (map Midi.port_name ports)
+
+    Midi.open_read_port (ports !! 0)
+    Midi.open_write_port (ports !! 6)
+
     forever $ do
-        PortMidi.Event (bytes, ts) <- Chan.readChan chan
-        putStrLn $ show_msg (Parse.decode bytes)
-        let thru_evts = map (echo ts . Parse.encode) (thru (Parse.decode bytes))
-        mapM_ (PortMidi.write_event out_stream) thru_evts
+        (port, ts, msg) <- Midi.read_msg
+        -- print (Midi.port_name port, ts, msg)
+        let msgs = thru (ts, msg)
+        print ((ts, msg), msgs)
+        mapM_ (uncurry (Midi.write_msg (ports !! 6))) msgs
 
-echo ts bytes = PortMidi.Event (bytes, ts + 500)
-
-open_read chan dev
-    | PortMidi.device_input dev = do
-        stream <- PortMidi.open_input dev
-        Concurrent.forkIO (PortMidi.enqueue stream (Chan.writeChan chan))
-        return ()
-    | otherwise = return ()
-
-thru msg = case msg of
+thru (ts, msg) = case msg of
     Parse.ChannelMessage ch (Parse.NoteOn key vel)
-        -> [Parse.ChannelMessage ch (Parse.NoteOn (key+12) vel)]
+        -> [(ts1, Parse.ChannelMessage ch (Parse.NoteOn (key+12) vel)),
+            (ts2, Parse.ChannelMessage ch (Parse.NoteOn (key+19) vel))]
+            
     Parse.ChannelMessage ch (Parse.NoteOff key vel)
-        -> [Parse.ChannelMessage ch (Parse.NoteOff (key+12) vel)]
+        -> [(ts1, Parse.ChannelMessage ch (Parse.NoteOff (key+12) vel)),
+            (ts2, Parse.ChannelMessage ch (Parse.NoteOff (key+19) vel))]
     m -> []
+    where
+    ts1 = ts + 500
+    ts2 = ts + 1000
 
 show_msg (Parse.CommonMessage (Parse.SystemExclusive manuf bytes))
     = printf "Sysex %x: [%s]" manuf (Seq.join ", " (map Log.hex bytes))
 show_msg m = show m
-
-decode (PortMidi.Event (bytes, ts)) = Parse.decode bytes
