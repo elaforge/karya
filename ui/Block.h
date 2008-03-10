@@ -15,7 +15,7 @@ track_box sb_box     time_sb ruler   track_sb  track_zoom
                                         track | ruler | divider, ...
                                        /    \
                               track_body    track_title
-                         transparent_ruler
+                         overlay_ruler
                          /
                      event, ...
 
@@ -145,6 +145,9 @@ public:
         return track_tile.track_at(at);
     }
     int tracks() const { return track_tile.tracks(); }
+    void set_track_width(int at, int width) {
+        track_tile.set_track_width(at, width);
+    }
 
     void drag_tile(Point drag_from, Point drag_to) {
         track_tile.drag_tile(drag_from, drag_to);

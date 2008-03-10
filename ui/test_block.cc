@@ -77,15 +77,22 @@ main(int argc, char **argv)
     TrackModel ruler(r);
     TrackModel divider(d);
 
-    BlockViewWindow view(0, 0, 200, 200, model, r, view_config);
-
-    model->insert_track(0, track, 40);
-    model->insert_track(1, track, 60);
+    model->insert_track(0, track, 30);
+    model->insert_track(1, track, 30);
     // model->insert_track(1, divider, 20);
-    // model->insert_track(2, ruler, 25);
+    model->insert_track(2, ruler, 30);
     // model->insert_track(3, track, 60);
 
+    BlockViewWindow view(0, 0, 200, 200, model, r, view_config);
+
     print_children(&view);
+
+    // drag over and back
+    DEBUG(1);
+    view.block.drag_tile(Point(104, 0), Point(60, 0));
+    DEBUG(2);
+    view.block.drag_tile(Point(104, 0), Point(101, 0));
+    view.block.tile_init();
 
     // internal to right
     // view.block.drag_tile(Point(84, 0), Point(88, 0));
@@ -99,9 +106,9 @@ main(int argc, char **argv)
 
     // rightmost overlaps middle
     // view.block.drag_tile(Point(144, 0), Point(60, 0));
-    view.block.drag_tile(Point(144, 0), Point(70, 0));
-    view.block.drag_tile(Point(70, 0), Point(144, 0));
-    print_children(&view);
+    // view.block.drag_tile(Point(144, 0), Point(70, 0));
+    // view.block.drag_tile(Point(70, 0), Point(144, 0));
+    // print_children(&view);
 
     view.show(argc, argv);
     Fl::run();

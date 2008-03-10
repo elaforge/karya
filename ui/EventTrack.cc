@@ -12,6 +12,7 @@ EventTrackModel::~EventTrackModel()
 
 EventTrackView::EventTrackView(boost::shared_ptr<EventTrackModel> model,
         boost::shared_ptr<RulerTrackModel> ruler_model) :
+    TrackView("events"),
      bg_box(0, 0, 1, 1), model(model), ruler_model(ruler_model)
 {
     end(); // make sure no one else falls in

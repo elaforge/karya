@@ -39,12 +39,13 @@ public:
 
     void set_bg_color(Color c) { track_pad.color(color_to_fl(c)); }
 
-    // A track is a (title, body) pair, minus the track_pad.
-    int tracks() const { return floor(children()/2.0); }
-    TrackView *track_at(int at);
     void insert_track(int at, TrackView *track, int width);
     // Remove and return the TrackView, so the parent can delete it.
     TrackView *remove_track(int at);
+    // A track is a (title, body) pair, minus the track_pad.
+    int tracks() const { return floor(children()/2.0); }
+    TrackView *track_at(int at);
+    void set_track_width(int at, int width);
 private:
     int title_height;
     Fl_Box track_pad; // box to take up space not covered by tracks

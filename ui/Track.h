@@ -43,7 +43,8 @@ struct TrackModel {
 // Also acts like a union of Divider, Track, and Ruler.
 class TrackView : public Fl_Group {
 public:
-    TrackView() : Fl_Group(0, 0, 1, 1) {
+    TrackView(const char *label=0) : Fl_Group(0, 0, 1, 1, label) {
+        this->labeltype(FL_NO_LABEL);
         end(); // This is a Group, but I don't want anything else to fall in.
         DEBUG("created track view " << this);
     }
@@ -63,7 +64,10 @@ public:
 
 class DividerView : public TrackView {
 public:
-    DividerView(boost::shared_ptr<DividerModel> model) : box(0, 0, 1, 1) {
+    DividerView(boost::shared_ptr<DividerModel> model) :
+        TrackView("divider"),
+        box(0, 0, 1, 1)
+    {
         box.box(FL_FLAT_BOX);
         box.color(color_to_fl(model->color));
         add(box);

@@ -76,6 +76,7 @@ set_cursor(Fl_Widget *widget, BoolPoint drag_state)
 }
 
 
+// This just sets up drag_state, it doesn't actually resize any children.
 int
 MoveTile::handle_move(int evt, BoolPoint &drag_state, Point &drag_from)
 {
@@ -93,7 +94,6 @@ MoveTile::handle_move(int evt, BoolPoint &drag_state, Point &drag_from)
     bool inside_stiff_child = false;
     for (int i = 0; i < this->children(); i++) {
         Rect child_box = rect(this->child(i));
-        // First two quads are entire widget and resize box.
         Rect child_original_box = this->original_box(i);
 
         // Only bother checking edges that are within the tile.
@@ -133,7 +133,7 @@ MoveTile::handle_move(int evt, BoolPoint &drag_state, Point &drag_from)
     set_cursor(this, drag_state);
     // DEBUG("state: " << drag_state << " drag_from: " << drag_from);
     if (drag_state.x || drag_state.y)
-        return 1;
+        return true; // I'm taking control now
     else
         return Fl_Group::handle(evt);
 }
@@ -158,12 +158,7 @@ MoveTile::handle(int evt)
 
     case FL_DRAG: case FL_RELEASE: {
         ASSERT(drag_state.x || drag_state.y);
-        Point drag_to(0, 0);
-        if (drag_state.x)
-            drag_to.x = mouse.x;
-        if (drag_state.y)
-            drag_to.y = mouse.y;
-
+        Point drag_to(drag_state.x ? mouse.x : 0, drag_state.y ? mouse.y : 0);
         this->handle_drag_tile(drag_from, drag_to);
         if (evt == FL_DRAG)
             this->set_changed(); // this means "changed value" to a callback
@@ -174,71 +169,6 @@ MoveTile::handle(int evt)
     }
     }
     return Fl_Group::handle(evt);
-
-    /*
-    // insane
-    static Point sd(0, 0);
-    static Point drag_from(0, 0); // was sx, sy
-
-    case FL_PUSH: {
-        Point mind(100, 100);
-        Rect tile_sz = this->original_box(MoveTile::GROUP_SIZE);
-
-        for (int i = 0; i < children(); i++) {
-            Fl_Widget &child = *child(i);
-            Rect child_box = rect(child);
-            Rect child_sz = this->original_box(i);
-
-            if (child = resizable())
-                continue;
-            // child original right edge strictly inside tile
-            // (can't resize tiles whose edges are outside)
-            if (child_sz.r() < tile_sz.r()
-                // && child top not below mouse grab range
-                && child_box.y <= mouse.y + grab_area
-                // && child bottom not above mouse grab range
-                && child_box.b() >= mouse.y - grab_area)
-                // top in or above && bottom in or below
-                // grab box intersects child box
-            {
-                // how far right of child right
-                int t = mouse.x - child_box.r();
-                int right_edge_dist_from_mouse = abs(t);
-                // child right closer
-                if (abs(t) < mind.x) {
-                    sd.x = t;
-                    mind.x = right_edge_dist_from_mouse;
-                    old.x = child_sz.r();
-                }
-            }
-        }
-        sdrag = 0;
-        drag_from.x = drag_from.y = 0;
-        if (mind.x <= grab_area) {
-            sdrag = DRAGH;
-            drag_from.x = old.x;
-        }
-        set_cursor();
-        if (sdrag)
-            return 1;
-        else
-            return Fl_Group::handle(evt);
-    }
-    case FL_DRAG: case FL_RELEASE: {
-        ASSERT(sdrag);
-        Fl_Widget *r = resizable() || this;
-
-        Point drag_to(0, 0);
-        if (sdrag & DRAGH) {
-            drag_to.x = mouse.x - sd.x;
-            if (drag_to.x < r->x())
-                drag_to.x = r->x();
-            else if (drag_to.x > r->r())
-                drag_to.x = r->r();
-        } else
-            drag_to.x = drag_from.x;
-    }
-    */
 }
 
 
@@ -276,7 +206,9 @@ find_dragged_child(const std::vector<Rect> &original_boxes,
 }
 
 
-// resize child 'i' in 't', moving its neighbors to the right and down
+// Move neighbors to the right and down
+// Doesn't actually resize any chidren, but modifies 'boxes' to the destination
+// sizes and positions.
 static void
 jostle(const std::vector<Rect> &original_boxes, const std::vector<int> &ordered,
         std::vector<Rect> &boxes, Point drag_from, Point drag_to)
@@ -290,7 +222,6 @@ jostle(const std::vector<Rect> &original_boxes, const std::vector<int> &ordered,
             break;
         DEBUG(ordered[i] << " resize from " << c.w << " -> " << c.w + shift.x);
         c.w += shift.x;
-        // c.size(c.w + shift.x, c.h);
     }
 
     // continue to the right, pushing over children
@@ -357,8 +288,7 @@ MoveTile::handle_drag_tile(Point drag_from, Point drag_to)
 
     for (unsigned i = 0; i < boxes.size(); i++) {
         const Rect r = boxes[i];
-        if (r == original_boxes[i])
-            continue;
+        DEBUG(i << ": " << original_boxes[i] << " -> " << boxes[i]);
         this->child(i)->resize(r.x, r.y, r.w, r.h);
         this->child(i)->redraw();
     }

@@ -19,14 +19,6 @@ TrackTile::TrackTile(int X, int Y, int W, int H, Color bg_color,
 }
 
 
-TrackView *
-TrackTile::track_at(int at)
-{
-    ASSERT(0 <= at && at <= tracks());
-    return dynamic_cast<TrackView *>(child(at*2 + 1));
-}
-
-
 void
 TrackTile::insert_track(int at, TrackView *track, int width)
 {
@@ -62,6 +54,27 @@ TrackTile::remove_track(int at)
     remove(t->title_widget());
     update_sizes();
     return t;
+}
+
+
+TrackView *
+TrackTile::track_at(int at)
+{
+    ASSERT(0 <= at && at <= tracks());
+    return dynamic_cast<TrackView *>(child(at*2 + 1));
+}
+
+
+void
+TrackTile::set_track_width(int at, int width)
+{
+    ASSERT(width > 0);
+    TrackView *track = this->track_at(at);
+    Fl_Widget &title = track->title_widget();
+    title.size(width, title.h());
+    track->size(width, track->h());
+    this->update_sizes();
+    this->redraw();
 }
 
 
