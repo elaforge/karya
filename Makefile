@@ -9,8 +9,11 @@ CXXFLAGS = `fltk-config --cxxflags` $(DEBUG) $(CINCLUDE)
 LDFLAGS = `fltk-config --ldflags` $(DEBUG)
 REZ = /Developer/Tools/Rez -t APPL -o $@ /usr/local/include/FL/mac.r
 
-HFLAGS = -W $(CINCLUDE) -pgmc g++ -pgml g++ -threaded -debug -optc -ggdb \
-	-optl -ggdb
+GHC = ghc-6.8.2
+GHC_LIB = /usr/local/lib/ghc-6.8.2
+
+HFLAGS = -W $(CINCLUDE) -i../lib -pgmc g++ -pgml g++ -threaded -debug \
+	-optc -ggdb -optl -ggdb
 
 UI_OBJS := Block.o TrackTile.o Track.o Ruler.o EventTrack.o MoveTile.o \
 	f_util.o
@@ -24,11 +27,11 @@ dep: fixdeps
 include .depend
 
 fixdeps: fixdeps.hs
-	ghc -o $@ $^
+	$(GHC) -o $@ $^
 
 .PHONY: clean
 clean:
-	rm -f */*.o */*.hi ui/ui.a $(HSCS:hsc=hs)
+	rm -f */*.o */*.hi ui/ui.a $(INTERFACE_HS) $(MIDI_HS) haddock/*
 
 test_block: $(UI_OBJS) ui/test_block.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
@@ -48,7 +51,7 @@ MIDI_HS = $(MIDI_HSC:hsc=hs)
 .PHONY: test_interface
 test_interface: $(INTERFACE_HS) $(INTERFACE_OBJS) \
 		Interface/test_interface.o ui/ui.a
-	ghc $(HFLAGS) --make \
+	$(GHC) $(HFLAGS) --make \
 		-main-is Interface.TestInterface Interface/TestInterface.hs $^ \
 		`fltk-config --ldflags` \
 		-o $@
@@ -56,10 +59,14 @@ test_interface: $(INTERFACE_HS) $(INTERFACE_OBJS) \
 
 .PHONY: test_midi
 test_midi: $(MIDI_HS)
-	ghc $(HFLAGS) --make \
+	$(GHC) $(HFLAGS) --make \
 		-main-is Midi.TestMidi Midi/TestMidi.hs $^ $(MIDI_LIBS) -o $@
 
-
+.PHONY: doc
+doc:
+	haddock --html -B $(GHC_LIB) -o haddock [A-Z]*/*.hs
 
 %.hs: %.hsc
-	hsc2hs -c g++ --cflag -Wno-invalid-offsetof $(CINCLUDE) $<
+	# include GHC_LIB/include since hsc includes HsFFI.h
+	hsc2hs -c g++ --cflag -Wno-invalid-offsetof $(CINCLUDE) \
+		-I$(GHC_LIB)/include $<

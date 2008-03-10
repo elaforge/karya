@@ -9,11 +9,19 @@ bugs
 interface
   * use main thread for ui
   - get/set block config, block view config
-  - MidiMsg
+  - BlockView.set_track_width
+  - track_at
 
 ui
+  - make TrackPos into an opaque type to let me be more free with impl.
+    implement as int64 usec?  or since it's just block relative, I can use
+    plain unsigned msec?
   - zoom and scroll
-  - events
+  event track
+    - events
+    - overlay ruler
+  - ruler: text labels
+
   find out how to draw:
     - transparent selections
     - background graphs / antialiased lines

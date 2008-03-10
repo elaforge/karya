@@ -1,6 +1,14 @@
 ui/  - fltk code for the ui widgets, in c++
-inteface/ - the api to talk with the ui, in c
-main/ - the rest of the sequencer
+Inteface/ - the api to talk with the ui, in c and hs
+Action/ - The Action type, which represents serializable UI actions, interacts
+    with Interface.
+Derive/ - Convert from Score to NoteList.
+Render/ - Render a NoteList to a given backend: MIDI, MIDI file, OSC, csound
+Plugin/ - Support for dynamic compiling and loading of code.
+Midi/ - The MIDI reading and writing thread.
+App/ - Core app logic, to tie it all together.  Also has the player logic, that
+    displays the playback position.
+
 
     Continuous data (breath controller, pitch)
 
