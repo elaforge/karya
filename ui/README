@@ -1,26 +1,9 @@
-conventions:
-order: public, protected, private
+    c++ style conventions:
+declaration order:
+public, protected, private
 methods, data, widgets
 
-
-multiple BlockViews on one BlockModel:
-
-block_a = BlockModel ...
-bva1 = BlockView x y w h block_a config
-bva2 = BlockView x y w h block_a config
-
-one BlockView with Tracks from multiple places:
-
-block_b = BlockModel ...
-
-block_ab = BlockModel
-bv_ab = BlockView x y h block_ab
-
-block_ab.add_track(track block_a)
-block_ab.add_track(track block_b)
-
-
-memory:
+    Memory management:
 
 Since multiple BlockViews can share a BlockModel, and multiple TrackViews (in
 different BlockViews) can share a TrackModel:
@@ -33,14 +16,7 @@ them directly.
 When you delete a model, it decrefs.  If there are views on the model, their
 refs should keep it alive until they are destroyed.
 
-
 Views hold shared_ptrs to models.  When all views to a model are destroyed
 (views are destroyed explicitly), the model will be destroyed.  At that point,
 the model's views pointers should be empty because each view removes itself
 from the list in its destructor.
-
-TODO:
-- revert the refcounting changes
-- install boost
-- gradually convert views to use shared_ptrs to models, and models to use
-weak_ptrs back to the views.
