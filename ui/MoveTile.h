@@ -6,7 +6,13 @@ get moved.
 Some children may be marked as non-resizable.  They are never resized, and
 their entire area is available for drag.
 
+When the entire widget is dragged, only the right and bottom widgets resize.
+
 The callback is called when things are dragged.
+
+BUGS:
+If the grab areas overlap it gets confused.  So minimum size should be
+> 2*grab_ear.
 */
 
 #ifndef __MOVE_TILE_H
@@ -30,8 +36,8 @@ public:
         // Fl_Tile(X, Y, W, H, label)
         Fl_Group(X, Y, W, H, label),
         hmove(no_move), vmove(no_move),
-        minimum_size(5, 5),
-        grab_area(4)
+        minimum_size(10, 10),
+        grab_area(3)
     {}
 
     virtual void resize(int X, int Y, int W, int H);

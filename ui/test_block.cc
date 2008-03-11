@@ -88,11 +88,11 @@ main(int argc, char **argv)
     print_children(&view);
 
     // drag over and back
-    DEBUG(1);
-    view.block.drag_tile(Point(104, 0), Point(60, 0));
-    DEBUG(2);
-    view.block.drag_tile(Point(104, 0), Point(101, 0));
-    view.block.tile_init();
+    // DEBUG(1);
+    // view.block.drag_tile(Point(104, 0), Point(60, 0));
+    // DEBUG(2);
+    // view.block.drag_tile(Point(104, 0), Point(101, 0));
+    // view.block.tile_init();
 
     // internal to right
     // view.block.drag_tile(Point(84, 0), Point(88, 0));

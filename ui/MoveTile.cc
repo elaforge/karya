@@ -19,18 +19,34 @@ their entire area is available for drag.
 
 The callback is called when things are dragged.
 
-
-BUGS:
-tiles aren't lined up after repeated resizes
 */
 
 
 // Only resize widgets along the right and bottom edges.
 // This is so that the tile proportions don't all grow when the widget grows.
 void
-MoveTile::resize(int X, int Y, int W, int H)
+MoveTile::resize(int x, int y, int w, int h)
 {
-    return Fl_Group::resize(X, Y, W, H);
+    // Only resize the rightmost and bottommost widgets.  Shrink them down to 0
+    // if necessary, but stop resizing children beyond that.
+    Point edge(0, 0);
+    for (int i = 0; i < this->children(); i++) {
+        Rect c = rect(child(i));
+        edge.x = std::max(edge.x, c.r());
+        edge.y = std::max(edge.y, c.b());
+    }
+    for (int i = 0; i < this->children(); i++) {
+        Rect c = rect(child(i));
+        Rect new_c = c;
+        if (c.r() == edge.x)
+            new_c.w = std::max(0, (this->x() + w) - c.x);
+        if (c.b() == edge.y)
+            new_c.h = std::max(0, (this->y() + h) - c.y);
+        if (new_c != c)
+            child(i)->resize(new_c.x, new_c.y, new_c.w, new_c.h);
+    }
+    Fl_Widget::resize(x, y, w, h);
+    this->init_sizes();
 }
 
 
@@ -185,7 +201,7 @@ children_we_ns(Fl_Group *g)
     std::vector<Fl_Widget *> sorted(g->children());
     for (int i = 0; i < g->children(); i++)
         sorted[i] = g->child(i);
-    sort(sorted.begin(), sorted.end(), child_wn_of);
+    std::sort(sorted.begin(), sorted.end(), child_wn_of);
     std::vector<int> indices(sorted.size());
     for (unsigned i = 0; i < sorted.size(); i++)
         indices[i] = g->find(sorted[i]);
@@ -251,6 +267,7 @@ MoveTile::handle_drag_tile(Point drag_from, Point drag_to)
     // absolute action.
     // A 0 in drag_from mean no movement there.
     // Also, respect this->minimum_size.
+    // TODO: except the the rightmost / bottommost widget, which resizes
     std::vector<Rect> original_boxes(this->children());
     for (unsigned i = 0; i < children(); i++)
         original_boxes[i] = this->original_box(i);
@@ -292,7 +309,6 @@ MoveTile::handle_drag_tile(Point drag_from, Point drag_to)
         this->child(i)->resize(r.x, r.y, r.w, r.h);
         this->child(i)->redraw();
     }
-
 }
 
 

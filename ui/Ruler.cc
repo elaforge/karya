@@ -54,6 +54,7 @@ OverlayRuler::draw_mark(int offset, const Mark &mark)
         width *= 1.0/mark.rank;
     width = floor(width);
 
+    // TODO: clip the mark if it will fall outside the widget boundaries
     if (this->zoom.factor >= mark.zoom_level)
         rectf(Rect(x()+w() - width - 1, offset, width, mark.width), c);
 
