@@ -44,10 +44,10 @@ m44_marklist()
     for (int i = 0; i < 600; i++) {
         TrackPos t = i*8;
         if (i % 4 == 0) {
-            Mark m(1, 3, Color(116, 70, 0), "", 0, 0);
+            Mark m(1, 3, Color(116, 70, 0, 90), "", 0, 0);
             mlist->push_back(std::pair<TrackPos, Mark>(t, m));
         } else {
-            Mark m(2, 2, Color(255, 100, 50), "", 0, 0);
+            Mark m(2, 2, Color(255, 100, 50, 90), "", 0, 0);
             mlist->push_back(std::pair<TrackPos, Mark>(t, m));
         }
     }
@@ -71,15 +71,18 @@ main(int argc, char **argv)
 
     boost::shared_ptr<EventTrackModel> t(new EventTrackModel());
     boost::shared_ptr<DividerModel> d(new DividerModel(Color(0x0000ff)));
-    boost::shared_ptr<RulerTrackModel> r(new RulerTrackModel(mlists, ruler_bg));
+    boost::shared_ptr<RulerTrackModel> r(new RulerTrackModel(mlists, ruler_bg,
+                true, false, false));
+    boost::shared_ptr<RulerTrackModel> tr(new RulerTrackModel(mlists, ruler_bg,
+                false, true, true));
 
-    TrackModel track(t, r);
+    TrackModel track(t, tr);
     TrackModel ruler(r);
     TrackModel divider(d);
 
     model->insert_track(0, track, 30);
     model->insert_track(1, track, 30);
-    // model->insert_track(1, divider, 20);
+    model->insert_track(1, divider, 10);
     model->insert_track(2, ruler, 30);
     // model->insert_track(3, track, 60);
 

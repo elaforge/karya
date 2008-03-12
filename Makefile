@@ -16,7 +16,7 @@ HFLAGS = -W $(CINCLUDE) -i../lib -pgmc g++ -pgml g++ -threaded -debug \
 	-optc -ggdb -optl -ggdb
 
 UI_OBJS := Block.o TrackTile.o Track.o Ruler.o EventTrack.o MoveTile.o \
-	f_util.o
+	f_util.o alpha_draw.o
 UI_OBJS := $(addprefix ui/, $(UI_OBJS))
 
 all: test_block test_interface test_midi
@@ -31,7 +31,8 @@ fixdeps: fixdeps.hs
 
 .PHONY: clean
 clean:
-	rm -f */*.o */*.hi ui/ui.a $(INTERFACE_HS) $(MIDI_HS) haddock/*
+	rm -f *.o *.hi fixdeps \
+		*/*.o */*.hi ui/ui.a $(INTERFACE_HS) $(MIDI_HS) haddock/*
 
 test_block: $(UI_OBJS) ui/test_block.o
 	$(CXX) -o $@ $^ $(LDFLAGS)

@@ -13,10 +13,14 @@ EventTrackModel::~EventTrackModel()
 EventTrackView::EventTrackView(boost::shared_ptr<EventTrackModel> model,
         boost::shared_ptr<RulerTrackModel> ruler_model) :
     TrackView("events"),
-     bg_box(0, 0, 1, 1), model(model), ruler_model(ruler_model)
+    model(model),
+    title_input(0),
+    overlay_ruler(ruler_model),
+        bg_box(0, 0, 1, 1)
 {
     end(); // make sure no one else falls in
-    add(bg_box);
+    this->add(this->overlay_ruler);
+    this->overlay_ruler.add(bg_box);
     // create event widgets
     bg_box.box(FL_THIN_DOWN_BOX);
     bg_box.color(FL_WHITE);

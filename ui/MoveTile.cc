@@ -44,6 +44,9 @@ MoveTile::resize(int x, int y, int w, int h)
             new_c.w = std::max(1, (this->x() + w) - c.x);
         if (c.b() == edge.y)
             new_c.h = std::max(1, (this->y() + h) - c.y);
+        // if (c.r() == edge.x || c.b() == edge.y)
+        //     DEBUG("resize " << i << ": " << c << " -> " << new_c);
+        this->child(i)->resize(new_c.x, new_c.y, new_c.w, new_c.h);
     }
     Fl_Widget::resize(x, y, w, h);
     this->init_sizes();

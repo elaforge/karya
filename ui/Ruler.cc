@@ -4,6 +4,7 @@
 
 #include "util.h"
 #include "f_util.h"
+#include "alpha_draw.h"
 
 #include "Ruler.h"
 
@@ -12,7 +13,7 @@ void
 OverlayRuler::draw()
 {
     Fl_Group::draw();
-    draw_marklists();
+    this->draw_marklists();
 }
 
 static Rect
@@ -24,29 +25,18 @@ clip_rect(Rect r)
 }
 
 
-static void
-rectf(Rect r, Color c)
-{
-    // DEBUG(r);
-    // like fl_rectf, but supports alpha
-    fl_color(color_to_fl(c));
-    // fl_color(FL_BLACK);
-    fl_rectf(r.x, r.y, r.w, r.h);
-}
-
-
 void
 OverlayRuler::draw_mark(int offset, const Mark &mark)
 {
     Color c = mark.color;
 
     // DEBUG("mark: @" << offset << " r" << mark.rank << " c: " << mark.color);
-    if (!this->use_alpha)
-        c.a = 0;
+    if (!this->model->use_alpha)
+        c.a = 0xff;
 
     double width = w() - 2; // 2 pixels to keep away from the box edges
     // The rank->width sequence goes [1/1, 3/4, 1/2, 1/3, ...]
-    if (mark.rank == 0)
+    if (this->model->full_width || mark.rank == 0)
         ;
     else if (mark.rank == 1)
         width *= 3.0/4.0;
@@ -56,9 +46,9 @@ OverlayRuler::draw_mark(int offset, const Mark &mark)
 
     // TODO: clip the mark if it will fall outside the widget boundaries
     if (this->zoom.factor >= mark.zoom_level)
-        rectf(Rect(x()+w() - width - 1, offset, width, mark.width), c);
+        alpha_rectf(Rect(x()+w() - width - 1, offset, width, mark.width), c);
 
-    if (this->zoom.factor >= mark.name_zoom_level && this->show_names
+    if (this->zoom.factor >= mark.name_zoom_level && this->model->show_names
             && mark.name.size() > 0)
     {
         // TODO draw name
@@ -122,7 +112,7 @@ RulerTrackView::title_widget()
     if (!this->title_box) {
         this->title_box = new Fl_Box(0, 0, 1, 1);
         title_box->box(FL_FLAT_BOX);
-        title_box->color(color_to_fl(ruler.model->bg));
+        title_box->color(color_to_fl(this->ruler.model->bg));
     }
     return *this->title_box;
 }

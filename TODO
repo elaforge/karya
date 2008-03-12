@@ -1,6 +1,6 @@
 ui
   - figure out redraw situation.  when do I have to call it?
-  - make TrackPos into an opaque type to let me be more free with impl.
+  * make TrackPos into an opaque type to let me be more free with impl.
     implement as int64 usec?  or since it's just block relative, I can use
     plain unsigned msec?
   - scroll
@@ -11,14 +11,14 @@ ui
     - tracks close together seem to have a problem, and the arrow hot point
       isn't obvious.  highlight?  or a handle somehow?
   event track
+    * overlay ruler
     - events
-    - overlay ruler
   Ruler
     * clip markers when they overlap edge of widget
     - text labels
 
   find out how to draw
-    - transparent selections
+    * transparent selections
     - background graphs / antialiased lines
 
 interface

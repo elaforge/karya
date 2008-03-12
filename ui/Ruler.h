@@ -46,22 +46,32 @@ typedef std::vector<boost::shared_ptr<const Marklist> > Marklists;
 // Markslists will be drawn in the order they are given, so later marklists
 // will draw over earlier ones.
 struct RulerTrackModel {
-    RulerTrackModel(const Marklists lists, Color bg) :
-        marklists(lists), bg(bg)
+    RulerTrackModel(const Marklists lists, Color bg, bool show_names,
+            bool use_alpha, bool full_width) :
+        marklists(lists), bg(bg), show_names(show_names), use_alpha(use_alpha),
+        full_width(full_width)
     {}
     const Marklists marklists;
+
+    // RulerTrackView uses this to set the bg_box, an EventTrack's OverlayRuler
+    // doesn't use it.
     const Color bg;
+
+    // So I can share marklists but have different display styles.
+    bool show_names;
+    bool use_alpha;
+    // Always draw marks across the full width of the track.
+    bool full_width;
 };
 
 
 class OverlayRuler : public Fl_Group {
 public:
     OverlayRuler(boost::shared_ptr<const RulerTrackModel> model) :
-        Fl_Group(0, 0, 1, 1),
-        model(model)
+        Fl_Group(0, 0, 1, 1), model(model)
     {}
 
-        boost::shared_ptr<const RulerTrackModel> model;
+    boost::shared_ptr<const RulerTrackModel> model;
 protected:
     void draw();
 
@@ -69,8 +79,6 @@ private:
     void draw_marklists();
     void draw_mark(int offset, const Mark &mark);
 
-    bool show_names;
-    bool use_alpha;
     ZoomInfo zoom;
 };
 
