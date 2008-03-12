@@ -129,7 +129,7 @@ public:
     void redraw();
 
     // api methods
-    const ZoomInfo &get_zoom() const { return zoom_info; }
+    const ZoomInfo &get_zoom() const { return zoom; }
     void set_zoom(const ZoomInfo &zoom);
     const BlockViewConfig &get_config() const { return config; }
     void set_config(const BlockViewConfig &config);
@@ -159,7 +159,7 @@ protected:
 private:
     boost::shared_ptr<BlockModel> model;
     BlockViewConfig config;
-    ZoomInfo zoom_info;
+    ZoomInfo zoom;
 
     SeqInput title;
     Fl_Tile body;

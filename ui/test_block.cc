@@ -18,7 +18,7 @@ BlockViewConfig block_view_config()
     c.zoom_speed = 1;
     c.block_title_height = 20;
     c.track_title_height = 20;
-    c.sb_size = 18;
+    c.sb_size = 12;
     c.ruler_size = 26;
     return c;
 }
@@ -69,31 +69,43 @@ main(int argc, char **argv)
 
     model->set_title("hi there");
 
-    boost::shared_ptr<EventTrackModel> t(new EventTrackModel());
+    Color eventc = Color(240, 220, 200);
+    // Color event_bg = Color(127, 127, 127);
+    Color event_bg = Color(255, 255, 255);
+
+    boost::shared_ptr<EventTrackModel> t(new EventTrackModel(event_bg));
     boost::shared_ptr<DividerModel> d(new DividerModel(Color(0x0000ff)));
     boost::shared_ptr<RulerTrackModel> r(new RulerTrackModel(mlists, ruler_bg,
                 true, false, false));
     boost::shared_ptr<RulerTrackModel> tr(new RulerTrackModel(mlists, ruler_bg,
                 false, true, true));
 
+    t->insert_event(TrackPos(0), EventModel(TrackPos(16), eventc));
+    t->insert_event(TrackPos(32), EventModel(TrackPos(64), eventc));
+
     TrackModel track(t, tr);
     TrackModel ruler(r);
     TrackModel divider(d);
 
     model->insert_track(0, track, 30);
-    model->insert_track(1, track, 30);
     model->insert_track(1, divider, 10);
     model->insert_track(2, ruler, 30);
-    // model->insert_track(3, track, 60);
+    model->insert_track(3, track, 60);
 
-    BlockViewWindow view(0, 0, 200, 200, model, r, view_config);
+    BlockViewWindow view(0, 0, 200, 400, model, r, view_config);
+
+    t->insert_event(TrackPos(128), EventModel(TrackPos(32), eventc));
 
     print_children(&view);
+    // DEBUG(1);
+    // view.resize(0, 0, 100, 100);
+    // print_children(&view);
+    // DEBUG(2);
+    // view.resize(0, 0, 300, 300);
+    // print_children(&view);
 
     // drag over and back
-    // DEBUG(1);
     // view.block.drag_tile(Point(104, 0), Point(60, 0));
-    // DEBUG(2);
     // view.block.drag_tile(Point(104, 0), Point(101, 0));
     // view.block.tile_init();
 

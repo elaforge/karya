@@ -16,7 +16,7 @@ HFLAGS = -W $(CINCLUDE) -i../lib -pgmc g++ -pgml g++ -threaded -debug \
 	-optc -ggdb -optl -ggdb
 
 UI_OBJS := Block.o TrackTile.o Track.o Ruler.o EventTrack.o MoveTile.o \
-	f_util.o alpha_draw.o
+	f_util.o alpha_draw.o types.o
 UI_OBJS := $(addprefix ui/, $(UI_OBJS))
 
 all: test_block test_interface test_midi

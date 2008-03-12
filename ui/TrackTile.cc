@@ -20,6 +20,14 @@ TrackTile::TrackTile(int X, int Y, int W, int H, Color bg_color,
 
 
 void
+TrackTile::set_zoom(const ZoomInfo &zoom)
+{
+    for (int i = 0; i < this->tracks(); i++)
+        this->track_at(i)->set_zoom(zoom);
+}
+
+
+void
 TrackTile::insert_track(int at, TrackView *track, int width)
 {
     ASSERT(0 <= at && at <= tracks());

@@ -7,10 +7,11 @@ using namespace geom_util;
 
 
 struct Color {
-    Color(unsigned char r, unsigned char g, unsigned char b, unsigned char a=0)
+    Color(unsigned char r, unsigned char g, unsigned char b,
+            unsigned char a=0xff)
         : r(r), g(g), b(b), a(a) {}
     Color(unsigned long rgb) :
-        r(0xff & (rgb >> 16)), g(0xff & (rgb >> 8)), b(0xff & rgb), a(0) {}
+        r(0xff & (rgb >> 16)), g(0xff & (rgb >> 8)), b(0xff & rgb), a(0xff) {}
 
     Color() : r(0), g(0), b(0), a(0) {}
     unsigned char r, g, b, a;

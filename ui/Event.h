@@ -1,3 +1,11 @@
+/*
+Events have a start and duration TrackPos.  The duration can be 0.
+
+They have a number of Subs, which are (offset, text) pairs.
+
+The Sub text tries to stay inside the Event if possible.
+*/
+
 #ifndef __EVENT_H
 #define __EVENT_H
 
@@ -12,17 +20,23 @@ struct SubEvent {
 };
 
 struct EventModel {
-    char *title;
+    // This has a default contsructor so I can assign it by value into
+    // the EventTrackModel::Events map.
+    EventModel() : duration(0), bg_color(255, 255, 255) {}
+    EventModel(TrackPos duration, Color bg) :
+        duration(duration), bg_color(bg)
+    {}
+
     TextStyle style;
     TrackPos duration;
-    std::vector<SubEvent> subs;
     Color bg_color;
+    std::vector<SubEvent> subs;
     // void *signal;
     // RenderStyle render_style;
 };
 
 
-class EventView : Fl_Box {
+class EventView : public Fl_Box {
 public:
     EventView(EventModel &event) :
         model(event),
@@ -32,8 +46,8 @@ public:
         color(color_to_fl(model.bg_color));
     }
 
-private:
     EventModel &model;
+private:
 };
 
 #endif

@@ -12,6 +12,7 @@
 
 #include "util.h"
 #include "f_util.h"
+#include "types.h"
 
 // Since I want to keep RulerTrackModel and RulerTrackView in the same file,
 // instead of splitting them, I have to forward declare this.
@@ -51,8 +52,8 @@ public:
     virtual ~TrackView() {
         DEBUG("deleted track view " << this);
     }
-    // zoom
 
+    virtual void set_zoom(const ZoomInfo &zoom) {}
     virtual bool track_resizable() const { return true; }
 
     // Factory to generate the title widget for this track.  It should be

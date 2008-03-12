@@ -13,6 +13,8 @@ enum Orientation { HorizontalTime, VerticalTime };
 class TrackPos {
 public:
     TrackPos(double val) : _val(val) {}
+    // Used by EventTrack::create_widget for "everything"
+    static TrackPos max_pos;
 
     // Scale by a given factor, for zooming.
     double scale(double factor) const { return _val * factor; }

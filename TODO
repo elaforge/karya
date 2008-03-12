@@ -5,14 +5,17 @@ ui
     plain unsigned msec?
   - scroll
   - zoom
+  - selections
   MoveTile
-    - enable vertical dragging
+    - bug: I can resize a divider by dragging the right edge
+    - bug: dragging divider jumps to dragging by left edge
+    - bug: enable vertical dragging
     - dragging tracks should resize rightmost / bottommost widget like resize()
-    - tracks close together seem to have a problem, and the arrow hot point
+    - bug: tracks close together seem to have a problem, and the arrow hot point
       isn't obvious.  highlight?  or a handle somehow?
   event track
     * overlay ruler
-    - events
+    + events
   Ruler
     * clip markers when they overlap edge of widget
     - text labels
@@ -30,6 +33,18 @@ interface
 app
   - actions
   - msg -> action mapping
+
+Midi
+  - midi thru: MVar (Port -> Message -> [(Port, Message)])
+  - scheduler for out of order writes + thru?  how about I always write in
+    order and don't allow timestamps on thru?
+  bandwidth
+    - keep stats
+    - display widget
+  - midi tools: Hz -> midi mapper, channer allocator
+
+Osc
+  - does reaktor support timestamps?
 
 research
   - download sequencers and see how they ship midi reliably

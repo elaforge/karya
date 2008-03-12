@@ -101,6 +101,10 @@ BlockView::BlockView(int X, int Y, int W, int H,
         this->insert_track(i, trackw.first, trackw.second);
     }
     model->add_view(this);
+
+    // Initialize zoom to default.  This will cause zooming children to
+    // properly position their widgets.
+    this->set_zoom(this->zoom);
 }
 
 BlockView::~BlockView()
@@ -193,6 +197,7 @@ BlockView::handle(int evt)
 void
 BlockView::set_zoom(const ZoomInfo &zoom)
 {
+    this->track_tile.set_zoom(zoom);
 }
 
 // const BlockViewConfig &BlockView::get_config() // inline
