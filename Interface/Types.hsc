@@ -14,4 +14,13 @@ type UI = IO
 type Attrs = [(String, String)]
 
 -- | The position of an Event on a track.  One of these is normally a second.
-newtype TrackPos = TrackPos Double deriving (Eq, Ord, Show, Storable)
+-- The type of the value here should be kept in sync with the type of the c++
+-- TrackPos value.
+newtype TrackPos = TrackPos Double deriving (Eq, Ord, Show)
+
+#include "c_interface.h"
+instance Storable TrackPos where
+    sizeOf _ = #size TrackPos
+    alignment _ = undefined
+    peek posp = (#peek TrackPos, _val) posp >>= return . TrackPos
+    poke posp (TrackPos pos) = (#poke TrackPos, _val) posp pos

@@ -183,6 +183,10 @@ private:
 class BlockViewWindow;
 
 struct UiEvent {
+    UiEvent() : event(0), button(0), clicks(0), is_click(0), x(0), y(0),
+        state(0), key(0),
+        inside_block(0), inside_track(0), inside_event(false)
+    {}
     int event;
     int button, clicks, is_click, x, y;
     int state;
@@ -190,7 +194,9 @@ struct UiEvent {
 
     BlockViewWindow *inside_block;
     TrackView *inside_track;
-    TrackPos inside_event;
+    // TODO: later this should be the TrackPos of the event it's in
+    bool inside_event;
+    // TrackPos track_pos;
 };
 
 

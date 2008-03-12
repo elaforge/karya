@@ -72,7 +72,7 @@ foreign import ccall unsafe "&marklist_destroy"
 
 instance Storable MarkMarshal where
     sizeOf _ = #size MarkMarshal
-    alignment _ = 1
+    alignment _ = undefined
     peek = undefined
     poke = poke_mark
 

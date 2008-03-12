@@ -85,9 +85,9 @@ OverlayRuler::draw_marklists()
                 mark != (*mlist)->end(); ++mark)
         {
             // mark is pair(trackpos, mark)
-            int offset = y() + floor(mark->first * zoom.factor - zoom.offset);
-            // mlist should be sorted
-            // actually, check if it's in the clip range
+            int offset = y() + zoom.to_pixels(mark->first);
+            // mlist should be sorted, so I can break after I pass the bottom.
+            // TODO: check if it's in the clip range
             if (offset < clip.y)
                 continue;
             else if (offset >= clip.b())
