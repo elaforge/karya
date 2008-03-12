@@ -38,12 +38,12 @@ MoveTile::resize(int x, int y, int w, int h)
     for (int i = 0; i < this->children(); i++) {
         Rect c = rect(child(i));
         Rect new_c = c;
+        // Resize down to 1 pixel minimum, not 0.  0 width would make it
+        // impossible to tell which widget was the right/bottom most.
         if (c.r() == edge.x)
-            new_c.w = std::max(0, (this->x() + w) - c.x);
+            new_c.w = std::max(1, (this->x() + w) - c.x);
         if (c.b() == edge.y)
-            new_c.h = std::max(0, (this->y() + h) - c.y);
-        if (new_c != c)
-            child(i)->resize(new_c.x, new_c.y, new_c.w, new_c.h);
+            new_c.h = std::max(1, (this->y() + h) - c.y);
     }
     Fl_Widget::resize(x, y, w, h);
     this->init_sizes();
