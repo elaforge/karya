@@ -40,4 +40,11 @@ const char *show_children(const Fl_Widget *w, int nlevels=-1, int recurse=0);
 void print_widget(const Fl_Widget *w);
 void print_children(const Fl_Widget *w, int nlevels=-1, int recurse = 0);
 
+// RAII style clipping
+
+struct ClipArea {
+    ClipArea(Rect r) { fl_push_clip(r.x, r.y, r.w, r.h); }
+    ~ClipArea() { fl_pop_clip(); }
+};
+
 #endif

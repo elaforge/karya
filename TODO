@@ -1,30 +1,31 @@
-bugs
-  * scoped_ptr causing crash at shutdown
-  * tracks added from hs don't get drawn
-    fix this so I can demonstrate bugs with hs code
+ui
   - figure out redraw situation.  when do I have to call it?
-  - tracks get misaligned when dragging them back and forth in MoveTile
-  - vertical move totally screwed up, disable it
+  - make TrackPos into an opaque type to let me be more free with impl.
+    implement as int64 usec?  or since it's just block relative, I can use
+    plain unsigned msec?
+  - scroll
+  - zoom
+  MoveTile
+    - enable vertical dragging
+    - dragging tracks should resize rightmost / bottommost widget like resize()
+    - tracks close together seem to have a problem, and the arrow hot point
+      isn't obvious.  highlight?  or a handle somehow?
+  event track
+    - events
+    - overlay ruler
+  Ruler
+    * clip markers when they overlap edge of widget
+    - text labels
+
+  find out how to draw
+    - transparent selections
+    - background graphs / antialiased lines
 
 interface
   * use main thread for ui
   - get/set block config, block view config
   - BlockView.set_track_width
   - track_at
-
-ui
-  - make TrackPos into an opaque type to let me be more free with impl.
-    implement as int64 usec?  or since it's just block relative, I can use
-    plain unsigned msec?
-  - zoom and scroll
-  event track
-    - events
-    - overlay ruler
-  - ruler: text labels
-
-  find out how to draw:
-    - transparent selections
-    - background graphs / antialiased lines
 
 app
   - actions
@@ -39,9 +40,10 @@ research
 
 future
   - check out jack some more.  I don't necessarily support it in the beginning
-  but should have an idea at least.
+    but should have an idea at least.
     Looks like I could use it for midi i/o, but what's the advantage over
     e.g. portmidi?  Maybe the ability to send midi to e.g. local apps in
     standalone mode?  Or would be be better to support vst?
+  - sync via jack with e.g. ardour, rosegarden
   - vst interface
   - liblash would let me save plugin / jack configuration

@@ -69,10 +69,14 @@ OverlayRuler::draw_mark(int offset, const Mark &mark)
 void
 OverlayRuler::draw_marklists()
 {
-    Rect clip = clip_rect(rect(this));
+    Rect draw_area = rect(this);
+    draw_area.h--; // tiles make a 1 pixel lower border
+    Rect clip = clip_rect(draw_area);
     // DEBUG("clip: " << clip);
     if (clip.w == 0 || clip.h == 0)
         return;
+    // Prevent marks at the top and bottom from drawing outside the ruler.
+    ClipArea clip_area(draw_area);
     // Later marklists will draw over earlier ones.
     for (Marklists::const_iterator mlist = model->marklists.begin();
             mlist != model->marklists.end(); ++mlist)
