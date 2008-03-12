@@ -1,0 +1,18 @@
+#!/bin/zsh
+setopt extended_glob
+function count { wc "$@" | tail -1 }
+hs_files=([A-Z]*/*.hs*)
+h_files=(*/*.h)
+cc_files=(*/*.cc)
+
+hs=$(count $hs_files)
+h=$(count $h_files)
+cc=$(count $cc_files)
+total=$(count $hs_files $h_files $cc_files)
+
+echo
+y-m-d
+echo ${hs/total/*.hs}
+echo ${h/total/*.h}
+echo ${cc/total/*.cc}
+echo $total
