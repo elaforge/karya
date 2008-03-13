@@ -9,8 +9,8 @@ ui
   MoveTile
     * bug: I can resize a divider by dragging the right edge
     * bug: dragging divider jumps to dragging by left edge
-    - bug: enable vertical dragging
     * dragging tracks should resize rightmost / bottommost widget like resize()
+    * bug: moving a track off the right side chops it off
     - bug: tracks close together seem to have a problem, and the arrow hot point
       isn't obvious.  highlight?  or a handle somehow?
   event track

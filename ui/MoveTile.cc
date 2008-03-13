@@ -14,7 +14,7 @@
 void
 MoveTile::resize(int x, int y, int w, int h)
 {
-    // Only resize the rightmost and bottommost widgets.  Shrink them down to 0
+    // Only resize the rightmost and bottommost widgets.  Shrink them down to 1
     // if necessary, but stop resizing children beyond that.
     Point edge(0, 0);
     for (int i = 0; i < this->children(); i++) {
@@ -22,17 +22,17 @@ MoveTile::resize(int x, int y, int w, int h)
         edge.x = std::max(edge.x, c.r());
         edge.y = std::max(edge.y, c.b());
     }
+    Point translate(x - this->x(), y - this->y());
     for (int i = 0; i < this->children(); i++) {
         Rect c = rect(child(i));
         Rect new_c = c;
+        new_c.translate(translate);
         // Resize down to 1 pixel minimum, not 0.  0 width would make it
         // impossible to tell which widget was the right/bottom most.
         if (c.r() == edge.x)
             new_c.w = std::max(1, (this->x() + w) - c.x);
         if (c.b() == edge.y)
             new_c.h = std::max(1, (this->y() + h) - c.y);
-        // if (c.r() == edge.x || c.b() == edge.y)
-        //     DEBUG("resize " << i << ": " << c << " -> " << new_c);
         this->child(i)->resize(new_c.x, new_c.y, new_c.w, new_c.h);
     }
     Fl_Widget::resize(x, y, w, h);
@@ -205,7 +205,7 @@ MoveTile::handle_move(int evt, BoolPoint *drag_state, int *dragged_child)
 // drag_from is relative to the boxes in 'boxes'.
 // dragged_child should be the upper left most dragged child.
 static void
-jostle(std::vector<Rect> &boxes, const Point &tile_edges,
+jostle(std::vector<Rect> &boxes, const Point &tile_edge,
         Point drag_from, Point drag_to, int dragged_child)
 {
     DEBUG("jostle " << drag_from << " -> " << drag_to << " c" << dragged_child);
@@ -220,22 +220,28 @@ jostle(std::vector<Rect> &boxes, const Point &tile_edges,
     }
 
     // Continue to the right, pushing over children, except the rightmost
-    // track, which gets resized.
+    // track, which gets resized, unless it's already as small as it can get,
+    // in which case, push over.  The minimum size is 1, not 0, so the
+    // order of the children is still clear.
+    Point edge(0, 0);
+    for (int j = 0; j < boxes.size(); j++)
+        edge.x = std::max(edge.x, boxes[j].r());
     for (; i < boxes.size(); i++) {
         Rect &c = boxes[i];
         // DEBUG("box to right at x " << c.x);
         // drag_from is relative to the original positions, not the current
         // dragged positions.
-        if (c.r() < tile_edges.x) {
+        if (c.r() < edge.x) {
             DEBUG(i << " move by " << shift << " from " << c.x << " to "
                     << c.x + shift.x);
             // This relies on dragged_child being the upper left most.
             c.x += shift.x;
         } else {
-            int shrink_to = std::max(1, c.w - shift.x);
-            DEBUG(i << " outermost, shrink " << c.w << " to " << shrink_to);
-            c.x = c.x + (c.w - shrink_to);
-            c.w = shrink_to;
+            int new_x = c.x + shift.x;
+            int new_r = std::max(tile_edge.x, new_x+1);
+            DEBUG(i << " outermost, (" << new_x << ", " << new_r << ")");
+            c.x = new_x;
+            c.w = new_r - new_x;
         }
         // TODO y drag
     }
