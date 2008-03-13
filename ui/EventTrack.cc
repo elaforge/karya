@@ -107,7 +107,9 @@ EventTrackView::draw()
     draw_area.h--; // tiles make a 1 pixel lower border
     ClipArea clip_area(draw_area);
     TrackView::draw();
-    // this->draw_child(this->overlay_ruler);
+    for (int i = 0; i < this->events(); i++) {
+        this->event_at(i)->draw_upper_layer();
+    }
 }
 
 
@@ -136,7 +138,7 @@ EventTrackView::create_widgets(TrackPos start, TrackPos duration)
             break;
         EventView *v = this->displayed_events[&event->second];
         if (!v) {
-            v = new EventView(event->second);
+            v = new EventView(&event->second);
             DEBUG("new view: " << event->first);
             // Keep the children in their trackpos order.  The main thing is
             // to keep bg_box at 0 and overlay_ruler at the end, but it's
@@ -158,7 +160,7 @@ EventTrackView::create_widgets(TrackPos start, TrackPos duration)
     for (int i = 0; i < this->events(); ) {
         EventView *v = this->event_at(i);
         if (cur_displayed.find(v) != cur_displayed.end()) {
-            this->displayed_events[&v->model] = v;
+            this->displayed_events[v->model] = v;
             i++;
         } else {
             DEBUG("didn't find " << v);
