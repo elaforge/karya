@@ -95,7 +95,8 @@ set_cursor(Fl_Widget *widget, BoolPoint drag_state)
 }
 
 
-// This just sets up drag_state, it doesn't actually resize any children.
+// This just sets up drag_state and drag_from, it doesn't actually resize any
+// children.
 int
 MoveTile::handle_move(int evt, BoolPoint &drag_state, Point &drag_from)
 {
@@ -135,19 +136,21 @@ MoveTile::handle_move(int evt, BoolPoint &drag_state, Point &drag_from)
                 inside_stiff_child = true;
         }
     }
-    if (dist(widget_edge.x, mouse.x) <= grab_area || inside_stiff_child) {
+    if (dist(widget_edge.x, mouse.x) <= this->grab_area || inside_stiff_child) {
         drag_state.x = true;
         // drag_from.x stays the same
     } else {
         drag_state.x = false;
         drag_from.x = 0;
     }
-    if (dist(widget_edge.y, mouse.y) <= grab_area) {
+    if (dist(widget_edge.y, mouse.y) <= this->grab_area) {
         drag_state.y = true;
     } else {
         drag_state.y = false;
         drag_from.y = 0;
     }
+    // Don't bother supporting vertical drag for now.
+    drag_state.y = false;
 
     set_cursor(this, drag_state);
     // DEBUG("state: " << drag_state << " drag_from: " << drag_from);
