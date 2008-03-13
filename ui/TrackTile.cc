@@ -103,5 +103,7 @@ TrackTile::update_sizes()
         xpos += width;
     }
     track_pad.resize(x() + xpos, y(), max(0, w() - xpos), h());
+    // They should have been inserted at the right place.
+    ASSERT(!this->sort_children());
     init_sizes();
 }

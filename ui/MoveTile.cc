@@ -9,19 +9,6 @@
 #define DEBUG(X) ;
 
 
-/*
-Differences from Fl_Tile:
-When dragging, only resize the widget to the left.  The widgets to the right
-get moved.
-
-Some children may be marked as non-resizable.  They are never resized, and
-their entire area is available for drag.
-
-The callback is called when things are dragged.
-
-*/
-
-
 // Only resize widgets along the right and bottom edges.
 // This is so that the tile proportions don't all grow when the widget grows.
 void
@@ -53,26 +40,6 @@ MoveTile::resize(int x, int y, int w, int h)
 }
 
 
-// unpack the crazy Fl_Group::sizes() array
-// 0 1 2 3 - x r y b
-// obj, resize rect, child 0, child 1, ...
-Rect
-MoveTile::original_box(int child)
-{
-    const short *p = this->sizes();
-    p += 8 + child*4;
-    return Rect(p[0], p[2], p[1] - p[0], p[3] - p[2]);
-}
-
-
-static int dist(int x, int y) { return abs(x-y); }
-
-// Return true if y1 is closer to x than y2 is.
-static bool closer(int x, int y1, int y2)
-{
-    return abs(x-y1) < abs(x-y2);
-}
-
 static void
 set_cursor(Fl_Widget *widget, BoolPoint drag_state)
 {
@@ -95,93 +62,38 @@ set_cursor(Fl_Widget *widget, BoolPoint drag_state)
 }
 
 
-// This just sets up drag_state and drag_from, it doesn't actually resize any
-// children.
-int
-MoveTile::handle_move(int evt, BoolPoint &drag_state, Point &drag_from)
-{
-    Point mouse = mouse_pos();
-    Point widget_edge(0, 0);
-
-    // Set widget_edge to closest widget edge and drag_from to its according
-    // original edge.  If drag_from.x is within the grab box, we're dragging.
-    // Inside a stiff child counts as inside the grab box.
-    // Since stiff children have area, I have to choose a direction
-    // they drag since there's no way to figure it out.  I choose
-    // horizontal.
-
-    Rect tile_original_box = this->original_box(MoveTile::GROUP_SIZE);
-    bool inside_stiff_child = false;
-    for (int i = 0; i < this->children(); i++) {
-        Rect child_box = rect(this->child(i));
-        Rect child_original_box = this->original_box(i);
-
-        // Only bother checking edges that are within the tile.
-        // Resize the right and bottom edges.
-        if (child_original_box.r() < tile_original_box.r()
-                && closer(mouse.x, child_box.r(), widget_edge.x))
-        {
-            widget_edge.x = child_box.r();
-            drag_from.x = child_original_box.r();
-        }
-        if (child_original_box.b() < tile_original_box.b()
-                && closer(mouse.y, child_box.b(), widget_edge.y))
-        {
-            widget_edge.y = child_box.b();
-            drag_from.y = child_original_box.b();
-        }
-
-        if (stiff_child(i)) {
-            if (child_box.x <= mouse.x && mouse.x <= child_box.r())
-                inside_stiff_child = true;
-        }
-    }
-    if (dist(widget_edge.x, mouse.x) <= this->grab_area || inside_stiff_child) {
-        drag_state.x = true;
-        // drag_from.x stays the same
-    } else {
-        drag_state.x = false;
-        drag_from.x = 0;
-    }
-    if (dist(widget_edge.y, mouse.y) <= this->grab_area) {
-        drag_state.y = true;
-    } else {
-        drag_state.y = false;
-        drag_from.y = 0;
-    }
-    // Don't bother supporting vertical drag for now.
-    drag_state.y = false;
-
-    set_cursor(this, drag_state);
-    // DEBUG("state: " << drag_state << " drag_from: " << drag_from);
-    if (drag_state.x || drag_state.y)
-        return true; // I'm taking control now
-    else
-        return Fl_Group::handle(evt);
-}
-
 int
 MoveTile::handle(int evt)
 {
-    static BoolPoint not_dragging(false, false);
-    static BoolPoint drag_state = not_dragging;
+    static BoolPoint drag_state(false, false);
     static Point drag_from(0, 0);
+    static int dragged_child = -1;
 
     Point mouse = mouse_pos();
 
     switch (evt) {
     case FL_MOVE: case FL_ENTER: case FL_PUSH:
-        return handle_move(evt, drag_state, drag_from);
+        // return handle_move(evt, drag_state, drag_from);
+        int r = this->handle_move(evt, &drag_state, &dragged_child);
+        if (drag_state.x)
+            drag_from.x = mouse.x;
+        if (drag_state.y)
+            drag_from.y = mouse.y;
+        if (drag_state.x || drag_state.y)
+            ASSERT(0 <= dragged_child && dragged_child < children());
+        return r;
 
     case FL_LEAVE:
-        drag_state = not_dragging;
+        drag_state = BoolPoint(false, false);
         set_cursor(this, drag_state);
         break;
 
     case FL_DRAG: case FL_RELEASE: {
+        // I should only get these events if handle_move returned true, which
+        // means am dragging.
         ASSERT(drag_state.x || drag_state.y);
         Point drag_to(drag_state.x ? mouse.x : 0, drag_state.y ? mouse.y : 0);
-        this->handle_drag_tile(drag_from, drag_to);
+        this->handle_drag_tile(drag_from, drag_to, dragged_child);
         if (evt == FL_DRAG)
             this->set_changed(); // this means "changed value" to a callback
         else if (evt == FL_RELEASE)
@@ -193,6 +105,47 @@ MoveTile::handle(int evt)
     return Fl_Group::handle(evt);
 }
 
+
+void
+MoveTile::drag_tile(Point drag_from, Point drag_to)
+{
+    BoolPoint drag_state;
+    int dragged_child = this->find_dragged_child(drag_from, &drag_state);
+    this->handle_drag_tile(drag_from, drag_to, dragged_child);
+    this->init_sizes();
+}
+
+
+void
+MoveTile::set_stiff_child(int child)
+{
+    for (int i = this->stiff_children.size(); i < children(); i++) {
+        this->stiff_children.push_back(false);
+    }
+    this->stiff_children[child] = true;
+}
+
+
+bool
+MoveTile::stiff_child(int child)
+{
+    return child < this->stiff_children.size() && this->stiff_children[child];
+}
+
+
+// unpack the crazy Fl_Group::sizes() array
+// 0 1 2 3 - x r y b
+// obj, resize rect, child 0, child 1, ...
+Rect
+MoveTile::original_box(int child)
+{
+    const short *p = this->sizes();
+    p += 8 + child*4;
+    return Rect(p[0], p[2], p[1] - p[0], p[3] - p[2]);
+}
+
+
+// sort_children /////////////
 
 static bool
 child_wn_of(const Fl_Widget *c1, const Fl_Widget *c2)
@@ -215,48 +168,76 @@ children_we_ns(Fl_Group *g)
 }
 
 
-static int
-find_dragged_child(const std::vector<Rect> &original_boxes,
-        const std::vector<int> &ordered, Point drag_from)
+bool
+MoveTile::sort_children()
 {
-    int i = 0;
-    for (; i < ordered.size(); i++) {
-        if (original_boxes[ordered[i]].r() == drag_from.x)
-            return i;
+    bool moved = false;
+    const std::vector<int> ordered = children_we_ns(this);
+    for (int i = 0; i < ordered.size(); i++) {
+        if (i != ordered[i]) {
+            moved = true;
+            this->insert(*this->child(i), i);
+        }
     }
-    return i;
+    return moved;
+}
+
+
+
+int
+MoveTile::handle_move(int evt, BoolPoint *drag_state, int *dragged_child)
+{
+    *dragged_child = this->find_dragged_child(mouse_pos(), drag_state);
+    // TODO Disable vertical drag for now.
+    drag_state->y = false;
+    set_cursor(this, *drag_state);
+    // DEBUG("state: " << *drag_state << " drag_from: " << drag_from);
+    if (drag_state->x || drag_state->y)
+        return true; // I'm taking control now
+    else
+        return Fl_Group::handle(evt);
 }
 
 
 // Move neighbors to the right and down
 // Doesn't actually resize any chidren, but modifies 'boxes' to the destination
 // sizes and positions.
+// drag_from is relative to the boxes in 'boxes'.
+// dragged_child should be the upper left most dragged child.
 static void
-jostle(const std::vector<Rect> &original_boxes, const std::vector<int> &ordered,
-        std::vector<Rect> &boxes, Point drag_from, Point drag_to)
+jostle(std::vector<Rect> &boxes, const Point &tile_edges,
+        Point drag_from, Point drag_to, int dragged_child)
 {
-    DEBUG("jostle " << drag_from << " -> " << drag_to);
+    DEBUG("jostle " << drag_from << " -> " << drag_to << " c" << dragged_child);
     Point shift(drag_to.x - drag_from.x, drag_to.y - drag_from.y);
-    int i = find_dragged_child(original_boxes, ordered, drag_from);
-    for (; i < ordered.size(); i++) {
-        Rect &c = boxes[ordered[i]];
-        if (c.r() != drag_from.x)
-            break;
-        DEBUG(ordered[i] << " resize from " << c.w << " -> " << c.w + shift.x);
-        c.w += shift.x;
+    Rect dchild_box = boxes[dragged_child];
+    int i = dragged_child;
+    // Resize everyone lined up with the dragged child.
+    for (; i < boxes.size() && boxes[i].r() == dchild_box.r(); i++) {
+        DEBUG(i << " resize from " << boxes[i].w
+                << " -> " << boxes[i].w + shift.x);
+        boxes[i].w += shift.x;
     }
 
-    // continue to the right, pushing over children
-    for (; i < ordered.size(); i++) {
-        Rect &c = boxes[ordered[i]];
-        if (c.x >= drag_from.x)
+    // Continue to the right, pushing over children, except the rightmost
+    // track, which gets resized.
+    for (; i < boxes.size(); i++) {
+        Rect &c = boxes[i];
+        // DEBUG("box to right at x " << c.x);
+        // drag_from is relative to the original positions, not the current
+        // dragged positions.
+        if (c.r() < tile_edges.x) {
+            DEBUG(i << " move by " << shift << " from " << c.x << " to "
+                    << c.x + shift.x);
+            // This relies on dragged_child being the upper left most.
             c.x += shift.x;
-        if (c.y >= drag_from.y)
-            c.y += shift.y;
-
-        if (c.x >= drag_from.x || c.y >= drag_from.y) {
-            DEBUG(ordered[i] << " move by " << shift << " to " << c);
+        } else {
+            int shrink_to = std::max(1, c.w - shift.x);
+            DEBUG(i << " outermost, shrink " << c.w << " to " << shrink_to);
+            c.x = c.x + (c.w - shrink_to);
+            c.w = shrink_to;
         }
+        // TODO y drag
     }
 }
 
@@ -265,21 +246,22 @@ jostle(const std::vector<Rect> &original_boxes, const std::vector<int> &ordered,
 // on mouse up.  An alternate approach would reset the drag from on every
 // event.  This would leave widgets where they are.
 void
-MoveTile::handle_drag_tile(Point drag_from, Point drag_to)
+MoveTile::handle_drag_tile(const Point drag_from, const Point drag_to,
+        int dragged_child)
 {
     DEBUG("drag tile from " << drag_from << " to " << drag_to);
-    // Resize and move according to hmove and vmove.
     // drag_from is always the *original* from point, i.e. this is always an
-    // absolute action.
+    // absolute action.  That makes things easier here since otherwise
+    // drag_from would be continually changing during a drag.  It also means
+    // that widgets "remember" where they were as long as the mouse button is
+    // down, which is possibly useful, possibly not.
     // A 0 in drag_from mean no movement there.
     // Also, respect this->minimum_size.
-    // TODO: except the the rightmost / bottommost widget, which resizes
+    // The right most / bottom most widget resizes instead of moving.
     std::vector<Rect> original_boxes(this->children());
     for (unsigned i = 0; i < children(); i++)
         original_boxes[i] = this->original_box(i);
-
     std::vector<Rect> boxes(original_boxes.begin(), original_boxes.end());
-    const std::vector<int> ordered = children_we_ns(this);
 
     /*
         if growing, jostle to right
@@ -287,27 +269,40 @@ MoveTile::handle_drag_tile(Point drag_from, Point drag_to)
             jostle to min.x
     */
     Point shift(drag_to.x - drag_from.x, drag_to.y - drag_from.y);
+    Point tile_edges(this->x() + this->w(), this->y() + this->h());
+    DEBUG("shift is " << shift);
     if (shift.x > 0) {
         // Going right is easy, just jostle over all children to the right.
-        jostle(original_boxes, ordered, boxes, drag_from, drag_to);
+        jostle(boxes, tile_edges, drag_from, drag_to, dragged_child);
+        // Unless this is stiff, in which point I should go back to grow.
     } else {
         // Going left is harder, go back to the left trying to shrink children
         // until I have enough space.
         int shrinkage = -shift.x;
-        for (int i = find_dragged_child(original_boxes, ordered, drag_from);
-                shrinkage > 0 && i >= 0; i--)
-        {
-            Rect child_box = boxes[ordered[i]];
+        for (int i = dragged_child; shrinkage > 0 && i >= 0; i--) {
+            // I need to shrink by the upper left most, so if there is someone
+            // before me at the same x, I should skip.
+            if (i > 0 && boxes[i-1].x == boxes[i].x)
+                continue;
+            Rect child_box = boxes[i];
             int shrink_to = std::max(this->minimum_size.x,
                     child_box.w - shrinkage);
-            DEBUG(ordered[i] << " shrink " << child_box.w << "->" << shrink_to);
-            jostle(original_boxes, ordered, boxes,
-                    Point(child_box.r(), 0), Point(child_box.x + shrink_to, 0));
-            shrinkage -= child_box.w - shrink_to;
+            // Stiff children never change size.
+            if (this->stiff_child(i))
+                shrink_to = child_box.w;
+            DEBUG(i << show_widget(child(i)) << " shirk left " << shrinkage
+                    << " from " << child_box.w << "->" << shrink_to);
+            if (child_box.w > shrink_to) {
+                jostle(boxes, tile_edges, Point(child_box.r(), 0),
+                        Point(child_box.x + shrink_to, 0),
+                        i);
+                shrinkage -= child_box.w - shrink_to;
+            }
         }
         ASSERT(shrinkage >= 0);
+        DEBUG("shrink left " << shrinkage);
     }
-    // ok, now what about y?
+    // TODO y drag
 
     for (unsigned i = 0; i < boxes.size(); i++) {
         const Rect r = boxes[i];
@@ -318,18 +313,45 @@ MoveTile::handle_drag_tile(Point drag_from, Point drag_to)
 }
 
 
-void
-MoveTile::set_stiff_child(int child)
+static int dist(int x, int y) { return abs(x-y); }
+
+// Find the upper left most child from drag_from, if any, and return its
+// index.  Also return dragging status into drag_state.  If 'drag_from'
+// doesn't indicate any child, return -1 and drag_state is (false, false).
+int
+MoveTile::find_dragged_child(Point drag_from, BoolPoint *drag_state)
 {
-    for (int i = this->stiff_children.size(); i < children(); i++) {
-        this->stiff_children.push_back(false);
+    // Edges on or outside the tile never get dragged.
+    Rect tile_box = this->original_box(MoveTile::GROUP_SIZE);
+    *drag_state = BoolPoint(false, false);
+    for (int i = 0; i < this->children(); i++) {
+        Rect box = rect(this->child(i));
+
+        bool in_bounds = box.r() < tile_box.r();
+        bool grabbable = dist(drag_from.x, box.r()) <= this->grab_area;
+        bool inside = box.x <= drag_from.x && drag_from.x <= box.r();
+        if (in_bounds && (grabbable || (this->stiff_child(i) && inside))) {
+            drag_state->x = true;
+            if (this->stiff_child(i))
+                return this->previous_track(i);
+            else
+                return this->find(this->child(i));
+        }
+        // TODO y drag
     }
-    this->stiff_children[child] = true;
+    return -1;
 }
 
 
-bool
-MoveTile::stiff_child(int child)
+int
+MoveTile::previous_track(int i) const
 {
-    return child < this->stiff_children.size() && this->stiff_children[child];
+    int child_x = this->child(i)->x();
+    while (i > 0 && this->child(i)->x() >= child_x)
+        i--;
+    // Found the one to the left, now find the uppermost one.
+    child_x = this->child(i)->x();
+    while (i > 0 && this->child(i)->x() == child_x)
+        i--;
+    return i;
 }

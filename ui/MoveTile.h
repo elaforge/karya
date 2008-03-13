@@ -1,18 +1,22 @@
 /*
 Differences from Fl_Tile:
 When dragging, only resize the widget to the left.  The widgets to the right
-get moved.
+get moved, except the rightmost widget, which resizes as normal (it's intended
+to be a padding widget to take up the unused space).
+
+The children should always be sorted left to right, top to bottom.  There is
+a protected method 'sort_children' that subclasses should call after inserting
+widgets.  Unfortunately FLTK's 'insert' is not virtual so this can't be done
+automatically.
 
 Some children may be marked as non-resizable.  They are never resized, and
 their entire area is available for drag.
-
-When the entire widget is dragged, only the right and bottom widgets resize.
 
 The callback is called when things are dragged.
 
 BUGS:
 If the grab areas overlap it gets confused.  So minimum size should be
-> 2*grab_ear.
+> 2*grab_area.
 */
 
 #ifndef __MOVE_TILE_H
@@ -21,9 +25,7 @@ If the grab areas overlap it gets confused.  So minimum size should be
 #include <vector>
 
 #include <FL/Fl_Group.H>
-// #include <FL/Fl_Tile.H>
 
-// class MoveTile : public Fl_Tile {
 class MoveTile : public Fl_Group {
 public:
     // 'no_move' means you get normal Fl_Tile resizing behaviour.
@@ -42,10 +44,7 @@ public:
 
     virtual void resize(int X, int Y, int W, int H);
     virtual int handle(int evt);
-    void drag_tile(Point drag_from, Point drag_to) {
-        this->handle_drag_tile(drag_from, drag_to);
-        this->init_sizes();
-    }
+    void drag_tile(Point drag_from, Point drag_to);
 
     void set_move_direction(MoveDirection horizontal, MoveDirection vertical) {
         this->hmove = horizontal;
@@ -61,9 +60,17 @@ public:
     // this should be const, but sizes_ isn't declared mutable
     Rect original_box(int child);
 
+protected:
+    // Put children in left->right, top->bottom order, and return true if
+    // they weren't already sorted when this was called.
+    bool sort_children();
+
 private:
-    int handle_move(int evt, BoolPoint &drag_state, Point &drag_from);
-    void handle_drag_tile(Point drag_from, Point drag_to);
+    // int handle_move(int evt, BoolPoint &drag_state, Point &drag_from);
+    int handle_move(int evt, BoolPoint *drag_state, int *dragged_child);
+    void handle_drag_tile(Point drag_from, Point drag_to, int dragged_child);
+    int find_dragged_child(Point drag_from, BoolPoint *drag_state);
+    int previous_track(int i) const;
 
     MoveDirection hmove, vmove;
     // Don't resize a pane smaller than the x and y here.

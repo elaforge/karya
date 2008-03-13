@@ -7,10 +7,10 @@ ui
   - zoom
   - selections
   MoveTile
-    - bug: I can resize a divider by dragging the right edge
-    - bug: dragging divider jumps to dragging by left edge
+    * bug: I can resize a divider by dragging the right edge
+    * bug: dragging divider jumps to dragging by left edge
     - bug: enable vertical dragging
-    - dragging tracks should resize rightmost / bottommost widget like resize()
+    * dragging tracks should resize rightmost / bottommost widget like resize()
     - bug: tracks close together seem to have a problem, and the arrow hot point
       isn't obvious.  highlight?  or a handle somehow?
   event track
@@ -24,11 +24,13 @@ ui
     * transparent selections
     - background graphs / antialiased lines
 
+
 interface
   * use main thread for ui
   - get/set block config, block view config
   - BlockView.set_track_width
   - track_at
+  - Event
 
 app
   - actions
@@ -47,7 +49,10 @@ Osc
   - does reaktor support timestamps?
 
 research
+  - loading fonts in fltk, and drawing new fonts
+  - subscribe to haskell-art
   - download sequencers and see how they ship midi reliably
+  - draw antialiased lines and curves on os x
   - investigate hs-plugins and xmonad to see about hs plugin possibilities
     xmonad just recompiles the whole app
     I could actually do that at first too
