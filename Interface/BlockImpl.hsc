@@ -54,7 +54,7 @@ select_colors = fromIntegral (#const select_colors)
 
 instance Storable BlockModelConfig where
     sizeOf _ = #size BlockModelConfig
-    alignment _ = 1
+    alignment _ = undefined
     peek = peek_block_model_config
     poke = poke_block_model_config
 
@@ -148,7 +148,6 @@ track_at block i = undefined
 
 -- * view
 
-data BlockView = BlockView (Ptr CBlockView) Block deriving (Show)
 data BlockView = BlockView
     { view_p :: Ptr CBlockView
     , view_block :: Block
@@ -161,7 +160,12 @@ instance Util.Widget BlockView where
 -- The defaults for newly created blocks and the trackviews automatically
 -- created.
 data BlockViewConfig = BlockViewConfig
-    { config_zoom_speed :: Double
+    { vconfig_zoom_speed :: Double
+    , vconfig_block_title_height :: Int
+    , vconfig_track_title_height :: Int
+    , vconfig_sb_size :: Int
+    , vconfig_ruler_size :: Int
+    , vconfig_status_size :: Int
     } deriving (Show)
 
 -- | Zoom offset factor
@@ -238,7 +242,7 @@ foreign import ccall unsafe "block_view_set_config"
 
 instance Storable Selection where
     sizeOf _ = #size Selection
-    alignment _ = 4
+    alignment _ = undefined
     peek = peek_selection
     poke = poke_selection
 
@@ -259,7 +263,7 @@ poke_selection selp (Selection (start_track, start_pos) (end_track, end_pos)) =
 
 instance Storable Zoom where
     sizeOf _ = #size ZoomInfo
-    alignment _ = 4
+    alignment _ = undefined
     peek = peek_zoom
     poke = poke_zoom
 
@@ -274,11 +278,24 @@ poke_zoom zoomp (Zoom offset factor) = do
 
 instance Storable BlockViewConfig where
     sizeOf _ = #size BlockViewConfig
-    alignment _ = 1
+    alignment _ = undefined
     peek = error "no peek for BlockViewConfig"
     poke = poke_config
 
--- It actually has more fields, but they're set by constants in the interface
--- for now.
-poke_config configp (BlockViewConfig zoom_speed) = do
-    (#poke BlockViewConfig, zoom_speed) configp zoom_speed
+poke_config configp (BlockViewConfig
+        { vconfig_zoom_speed = zoom_speed
+        , vconfig_block_title_height :: block_title_height
+        , vconfig_track_title_height :: track_title_height
+        , vconfig_sb_size :: sb_size
+        , vconfig_ruler_size :: ruler_size
+        , vconfig_status_size :: status_size
+        }
+    = do
+        (#poke BlockViewConfig, zoom_speed) configp zoom_speed
+        (#poke BlockViewConfig, block_title_height) configp
+            (Util.c_int block_title_height)
+        (#poke BlockViewConfig, track_title_height) configp
+            (Util.c_int track_title_height)
+        (#poke BlockViewConfig, sb_size) configp (Util.c_int sb_size)
+        (#poke BlockViewConfig, ruler_size) configp (Util.c_int ruler_size)
+        (#poke BlockViewConfig, status_size) configp (Util.c_int status_size)

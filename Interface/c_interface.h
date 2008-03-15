@@ -83,7 +83,7 @@ void marklist_destroy(MarklistRef *m);
 
 // Event
 
-EventTrackModelRef *event_track_model_new();
+EventTrackModelRef *event_track_model_new(Color *c);
 void event_track_model_destroy(EventTrackModelRef *t);
 
 

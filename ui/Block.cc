@@ -7,6 +7,8 @@
 #include "EventTrack.h"
 #include "Ruler.h"
 
+// Try to avoid running into the little resize tab on the mac.
+static const int mac_resizer_width = 15;
 
 // BlockModel
 
@@ -48,7 +50,7 @@ BlockModel::remove_track(int at)
 void
 BlockModel::set_config(const BlockModelConfig &config)
 {
-    // set config and update views if necessary
+    // TODO set config and update views if necessary
 }
 
 
@@ -63,6 +65,7 @@ BlockView::BlockView(int X, int Y, int W, int H,
     config(config),
 
     title(0, 0, 1, 1),
+    status_line(0, 0, 1, 1),
     body(0, 0, 1, 1),
         body_resize_group(0, 0, 1, 1, "resize group"),
         ruler_group(0, 0, 1, 1),
@@ -84,6 +87,7 @@ BlockView::BlockView(int X, int Y, int W, int H,
     body.add(track_group); // fix up hierarchy
     body_resize_group.hide();
 
+    status_line.box(FL_FLAT_BOX);
     track_box.box(FL_FLAT_BOX);
     sb_box.box(FL_FLAT_BOX);
     // track_scroll.type(0); // no scrollbars
@@ -132,8 +136,11 @@ BlockView::update_sizes()
     int wx = 0, wy = 0;
 
     title.resize(wx, wy, w(), config.block_title_height);
-    body.resize(wx, wy + config.block_title_height,
-            w(), h() - config.block_title_height);
+    status_line.resize(x(), h() - config.status_size,
+            w() - mac_resizer_width, config.status_size);
+    status_line.textsize(config.status_size - 4);
+    body.resize(wx, wy + title.h(),
+            w(), h() - title.h() - status_line.h());
     body_resize_group.resize(body.x() + config.sb_size, body.y(),
             body.w() - config.sb_size, body.h());
 
@@ -202,6 +209,7 @@ void
 BlockView::resize(int X, int Y, int W, int H)
 {
     Fl_Group::resize(X, Y, W, H);
+    status_line.size(w() - mac_resizer_width, status_line.h());
     this->update_scrollbars();
 }
 
@@ -265,12 +273,6 @@ BlockView::get_selection() const
 void
 BlockView::set_selection(const Selection &sel)
 {
-}
-
-void
-BlockView::set_title(const char *s)
-{
-    title.value(s);
 }
 
 

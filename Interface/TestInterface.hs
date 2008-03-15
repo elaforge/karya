@@ -68,7 +68,15 @@ marklist = Ruler.Marklist $ take 10 $ zip (map TrackPos [10, 20 ..])
 
 block_config = Block.BlockModelConfig [Color.black] Color.white
     Color.blue Color.blue
-view_config = Block.BlockViewConfig 1
+view_config = Block.BlockViewConfig
+    { Block.vconfig_zoom_speed = 1
+    , Block.vconfig_block_title_height = 20
+    , Block.vconfig_track_title_height = 20
+    , Block.vconfig_sb_size = 12
+    , Block.vconfig_ruler_size = 18
+    , Block.vconfig_status_size = 16
+    }
+
 ruler_bg = Color.Color 1 0.85 0.5 0
 
 test_color = do

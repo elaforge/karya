@@ -20,14 +20,14 @@ data Track = Track
     } deriving (Show)
 type EventList = [(TrackPos, Event.Event)]
 
-create :: IO Track
-create = do
-    trackp <- c_event_track_model_new
+create :: Color.Color -> IO Track
+create color = do
+    trackp <- with color $ \colorp -> c_event_track_model_new colorp
     trackfp <- newForeignPtr c_event_track_model_destroy trackp
     return $ Track trackfp [] []
 
 foreign import ccall unsafe "event_track_model_new"
-    c_event_track_model_new :: IO (Ptr CEventTrackModel)
+    c_event_track_model_new :: Ptr Color.Color -> IO (Ptr CEventTrackModel)
 foreign import ccall unsafe "&event_track_model_destroy"
     c_event_track_model_destroy :: FunPtr (Ptr CEventTrackModel -> IO ())
 

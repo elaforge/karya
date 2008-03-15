@@ -20,6 +20,7 @@ BlockViewConfig block_view_config()
     c.track_title_height = 20;
     c.sb_size = 12;
     c.ruler_size = 18;
+    c.status_size = 16;
     return c;
 }
 
@@ -110,6 +111,7 @@ main(int argc, char **argv)
     model->insert_track(4, track2, 30);
 
     BlockViewWindow view(0, 0, 200, 200, model, r, view_config);
+    view.block.set_status("no status yet");
 
     t1->insert_event(TrackPos(128), EventModel(TrackPos(32), eventc, sub3));
     t1->insert_event(TrackPos(175), EventModel(TrackPos(8), eventc, sub4));

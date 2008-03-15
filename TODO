@@ -4,9 +4,11 @@ ui
     implement as int64 usec?  or since it's just block relative, I can use
     plain unsigned msec?
   * scroll
+  * add info line at the bottom
   - zoom
   - selections
   - bug: one pixel drawing glitch at bottom of tracks
+  - bug: resizing ruler to 0 crashes
   MoveTile
     * bug: I can resize a divider by dragging the right edge
     * bug: dragging divider jumps to dragging by left edge

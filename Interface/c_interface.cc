@@ -116,7 +116,6 @@ block_model_set_config(BlockModelRef *b, BlockModelConfig *config)
 const char *
 block_model_get_title(const BlockModelRef *b)
 {
-    DEBUG("get title");
     return (*b)->get_title();
 }
 
@@ -139,7 +138,7 @@ void
 block_model_insert_ruler_track(BlockModelRef *b, int at, int width,
         RulerTrackModelRef *r)
 {
-    DEBUG("insert ruler");
+    DEBUG("insert ruler at " << at);
     (*b)->insert_track(at, TrackModel(*r), width);
 }
 
@@ -163,10 +162,9 @@ block_view_create(int x, int y, int w, int h, BlockModelRef *model,
         RulerTrackModelRef *r, BlockViewConfig *view_config)
 {
     BlockViewConfig c(*view_config);
-    c.block_title_height = 20;
-    c.track_title_height = 20;
-    c.sb_size = 18;
-    c.ruler_size = 26;
+    // This isn't implemented currently.
+    c.orientation = VerticalTime;
+
     BlockViewWindow *win = new BlockViewWindow(x, y, w, h, *model, *r, c);
     win->show();
     DEBUG("create and show window");
@@ -272,9 +270,9 @@ marklist_destroy(MarklistRef *m)
 // Event
 
 EventTrackModelRef *
-event_track_model_new()
+event_track_model_new(Color *c)
 {
-    return new EventTrackModelRef(new EventTrackModel());
+    return new EventTrackModelRef(new EventTrackModel(*c));
 }
 
 void

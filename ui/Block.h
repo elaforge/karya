@@ -2,8 +2,8 @@
 #define __BLOCK_H
 
 /*
-        block (Group)
-        /    \
+        block (Group) ---\
+        /    \          status_line (Output)
     title   __ body __________________  (Tile)
           /                           \
 ruler_group _________________        track_group
@@ -38,6 +38,7 @@ on an scrollbar callback
 
 #include <FL/Fl.H>
 #include <FL/Fl_Group.H>
+#include <FL/Fl_Output.H>
 #include <FL/Fl_Tile.H>
 #include <FL/Fl_Box.H>
 #include <FL/Fl_Double_Window.H>
@@ -120,6 +121,7 @@ struct BlockViewConfig {
     int track_title_height;
     int sb_size;
     int ruler_size;
+    int status_size;
 };
 
 
@@ -148,7 +150,9 @@ public:
     void set_selection(const Selection &sel);
 
     // Called by BlockModel when it changes:
-    void set_title(const char *s);
+    void set_title(const char *s) { title.value(s); }
+    const char *get_title() const { return title.value(); }
+    void set_status(const char *s) { status_line.value(s); }
 
     void insert_track(int at, const TrackModel &track, int width);
     void remove_track(int at);
@@ -173,6 +177,7 @@ private:
     ZoomInfo zoom;
 
     SeqInput title;
+    Fl_Output status_line;
     Fl_Tile body;
         // Dummy group to limit body tile.
         Fl_Group body_resize_group;
