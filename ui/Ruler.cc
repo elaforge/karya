@@ -44,7 +44,6 @@ OverlayRuler::draw_mark(int offset, const Mark &mark)
         width *= 1.0/mark.rank;
     width = floor(width);
 
-    // TODO: clip the mark if it will fall outside the widget boundaries
     if (this->zoom.factor >= mark.zoom_level)
         alpha_rectf(Rect(x()+w() - width - 1, offset, width, mark.width), c);
 
@@ -71,13 +70,13 @@ OverlayRuler::draw_marklists()
     for (Marklists::const_iterator mlist = model->marklists.begin();
             mlist != model->marklists.end(); ++mlist)
     {
+        // TODO binary search?
         for (Marklist::const_iterator mark = (*mlist)->begin();
                 mark != (*mlist)->end(); ++mark)
         {
             // mark is pair(trackpos, mark)
             int offset = y() + zoom.to_pixels(mark->first);
             // mlist should be sorted, so I can break after I pass the bottom.
-            // TODO: check if it's in the clip range
             if (offset < clip.y)
                 continue;
             else if (offset >= clip.b())

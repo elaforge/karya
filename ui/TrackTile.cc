@@ -9,7 +9,7 @@ TrackTile::TrackTile(int X, int Y, int W, int H, Color bg_color,
         int title_height) :
     MoveTile(X, Y, W, H),
     title_height(title_height),
-    track_pad(X, Y, W, H, "pad")
+    track_pad(X, Y, W, H, "P")
 {
     ASSERT(title_height >= 0);
     end(); // don't automatically put more children in here
@@ -24,6 +24,33 @@ TrackTile::set_zoom(const ZoomInfo &zoom)
 {
     for (int i = 0; i < this->tracks(); i++)
         this->track_at(i)->set_zoom(zoom);
+}
+
+
+TrackPos
+TrackTile::time_end() const
+{
+    TrackPos end(0);
+    // It's too much hassle to make a const version of track_at when I know
+    // I'm using it const.
+    for (int i = 0; i < this->tracks(); i++) {
+        // DEBUG("t" << i << " " << const_cast<TrackTile *>(this)->track_at(i)->time_end());
+        end = std::max(end,
+                const_cast<TrackTile *>(this)->track_at(i)->time_end());
+    }
+    return end;
+}
+
+
+int
+TrackTile::track_end() const
+{
+    int end = 0;
+    for (int i = 0; i < this->tracks(); i++) {
+        const TrackView *t = const_cast<TrackTile *>(this)->track_at(i);
+        end = std::max(end, t->x() + t->w() - this->x());
+    }
+    return end;
 }
 
 
@@ -49,7 +76,8 @@ TrackTile::insert_track(int at, TrackView *track, int width)
         this->set_stiff_child(child_pos+1);
         DEBUG("stiff: " << child_pos);
     }
-    update_sizes();
+    this->update_sizes();
+    this->redraw();
 }
 
 
@@ -60,7 +88,8 @@ TrackTile::remove_track(int at)
     TrackView *t = track_at(at);
     remove(t);
     remove(t->title_widget());
-    update_sizes();
+    this->update_sizes();
+    this->redraw();
     return t;
 }
 
@@ -102,7 +131,8 @@ TrackTile::update_sizes()
                 width, h() - this->title_height);
         xpos += width;
     }
-    track_pad.resize(x() + xpos, y(), max(0, w() - xpos), h());
+    // track_pad can't be 0 width, see MoveTile.
+    track_pad.resize(x() + xpos, y(), std::max(1, w() - xpos), h());
     // They should have been inserted at the right place.
     ASSERT(!this->sort_children());
     init_sizes();

@@ -37,7 +37,13 @@ class TrackTile : public MoveTile {
 public:
     TrackTile(int X, int Y, int W, int H, Color bg_color, int title_height);
 
-    void set_bg_color(Color c) { track_pad.color(color_to_fl(c)); }
+    void set_bg_color(Color c) { track_pad.color(color_to_fl(c)); redraw(); }
+    void set_zoom(const ZoomInfo &zoom);
+
+    // TrackPos of the end of the last event.
+    TrackPos time_end() const;
+    // Right side of the rightmost track.
+    int track_end() const;
 
     void insert_track(int at, TrackView *track, int width);
     // Remove and return the TrackView, so the parent can delete it.

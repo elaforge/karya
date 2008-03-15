@@ -19,7 +19,7 @@ BlockViewConfig block_view_config()
     c.block_title_height = 20;
     c.track_title_height = 20;
     c.sb_size = 12;
-    c.ruler_size = 26;
+    c.ruler_size = 18;
     return c;
 }
 
@@ -40,14 +40,16 @@ m44_marklist()
 {
     boost::shared_ptr<Marklist> mlist(new Marklist());
     // char *name = "";
+    Color major = Color(116, 70, 0, 90);
+    Color minor = Color(225, 100, 50, 90);
 
     for (int i = 0; i < 600; i++) {
         TrackPos t = i*8;
         if (i % 4 == 0) {
-            Mark m(1, 3, Color(116, 70, 0, 90), "", 0, 0);
+            Mark m(1, 3, major, "", 0, 0);
             mlist->push_back(std::pair<TrackPos, Mark>(t, m));
         } else {
-            Mark m(2, 2, Color(255, 100, 50, 90), "", 0, 0);
+            Mark m(2, 2, minor, "", 0, 0);
             mlist->push_back(std::pair<TrackPos, Mark>(t, m));
         }
     }
@@ -61,68 +63,63 @@ main(int argc, char **argv)
     BlockModelConfig config = block_model_config();
     boost::shared_ptr<BlockModel> model(new BlockModel(config));
 
+    Color reddish(255, 230, 230);
+    Color greenish(230, 255, 230);
+    Color blueish(230, 230, 255);
+    Color white(255, 255, 255);
+
     // static const Marklists no_marks = Marklists();
     Color ruler_bg = Color(255, 220, 128);
 
     Marklists mlists;
     mlists.push_back(m44_marklist());
+    Marklists nomarks;
 
     model->set_title("hi there");
 
-    Color eventc = Color(240, 220, 200);
-    // Color event_bg = Color(127, 127, 127);
-    Color event_bg = Color(255, 255, 255);
+    Color eventc = Color(230, 230, 200);
 
-    boost::shared_ptr<EventTrackModel> t(new EventTrackModel(event_bg));
+    boost::shared_ptr<EventTrackModel> t1(new EventTrackModel(white));
+    boost::shared_ptr<EventTrackModel> t2(new EventTrackModel(reddish));
+    boost::shared_ptr<EventTrackModel> t3(new EventTrackModel(greenish));
+
     boost::shared_ptr<DividerModel> d(new DividerModel(Color(0x0000ff)));
     boost::shared_ptr<RulerTrackModel> r(new RulerTrackModel(mlists, ruler_bg,
                 true, false, false));
     boost::shared_ptr<RulerTrackModel> tr(new RulerTrackModel(mlists, ruler_bg,
                 false, true, true));
+    boost::shared_ptr<RulerTrackModel> tr2(
+            new RulerTrackModel(nomarks, ruler_bg, false, true, true));
 
-    t->insert_event(TrackPos(0), EventModel(TrackPos(16), eventc));
-    t->insert_event(TrackPos(32), EventModel(TrackPos(64), eventc));
+    SubEvent sub1(TrackPos(0), "4c#");
+    SubEvent sub2(TrackPos(0), "4d-");
+    SubEvent sub3(TrackPos(32), "0.7");
+    SubEvent sub4(TrackPos(6), "0.4");
+    t1->insert_event(TrackPos(0), EventModel(TrackPos(16), eventc, sub1));
+    t1->insert_event(TrackPos(32), EventModel(TrackPos(64), eventc, sub2));
 
-    TrackModel track(t, tr);
+    TrackModel track(t1, tr);
+    TrackModel track2(t1, tr2);
     TrackModel ruler(r);
     TrackModel divider(d);
 
-    model->insert_track(0, track, 30);
-    model->insert_track(1, divider, 10);
-    model->insert_track(2, ruler, 30);
-    model->insert_track(3, track, 60);
+    model->insert_track(0, track, 70);
+    model->insert_track(1, divider, 4);
+    model->insert_track(2, ruler, 50);
+    model->insert_track(3, track, 30);
+    model->insert_track(4, track2, 30);
 
-    BlockViewWindow view(0, 0, 200, 400, model, r, view_config);
+    BlockViewWindow view(0, 0, 200, 200, model, r, view_config);
 
-    t->insert_event(TrackPos(128), EventModel(TrackPos(32), eventc));
+    t1->insert_event(TrackPos(128), EventModel(TrackPos(32), eventc, sub3));
+    t1->insert_event(TrackPos(175), EventModel(TrackPos(8), eventc, sub4));
 
-    print_children(&view);
+    // print_children(&view);
     // DEBUG(1);
     // view.resize(0, 0, 100, 100);
     // print_children(&view);
     // DEBUG(2);
     // view.resize(0, 0, 300, 300);
-    // print_children(&view);
-
-    // drag over and back
-    // view.block.drag_tile(Point(104, 0), Point(60, 0));
-    // view.block.drag_tile(Point(104, 0), Point(101, 0));
-    // view.block.tile_init();
-
-    // internal to right
-    // view.block.drag_tile(Point(84, 0), Point(88, 0));
-    // view.block.drag_tile(Point(84, 0), Point(96, 0));
-
-    // internal to left
-    // view.block.drag_tile(Point(84, 0), Point(64, 0));
-
-    // rightmost to left
-    // view.block.drag_tile(Point(144, 0), Point(134, 0));
-
-    // rightmost overlaps middle
-    // view.block.drag_tile(Point(144, 0), Point(60, 0));
-    // view.block.drag_tile(Point(144, 0), Point(70, 0));
-    // view.block.drag_tile(Point(70, 0), Point(144, 0));
     // print_children(&view);
 
     view.show(argc, argv);

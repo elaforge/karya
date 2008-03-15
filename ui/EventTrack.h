@@ -48,7 +48,8 @@ private:
 };
 
 
-
+// Calls the callback when events are inserted or removed, so parents can
+// e.g. update scrollbars based on the new boundaries.
 class EventTrackView : public TrackView {
 public:
     EventTrackView(boost::shared_ptr<EventTrackModel> model,
@@ -57,6 +58,7 @@ public:
     void resize(int x, int y, int w, int h);
     virtual SeqInput &title_widget() { return *this->title_input; }
     void set_zoom(const ZoomInfo &zoom);
+    virtual TrackPos time_end() const;
 
     // Only called by EventTrackModel
     void insert_event(TrackPos pos, const EventModel &event);

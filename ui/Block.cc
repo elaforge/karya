@@ -73,8 +73,9 @@ BlockView::BlockView(int X, int Y, int W, int H,
         track_group(0, 0, 1, 1),
             track_sb(0, 0, 1, 1),
             track_zoom(0, 0, 1, 1),
-                track_tile(0, 0, 1, 1, model->get_config().bg,
-                        config.track_title_height)
+                track_scroll(0, 0, 1, 1),
+                    track_tile(0, 0, 1, 1, model->get_config().bg,
+                            config.track_title_height)
 {
     // The sizes of 1 are so that groups realize that their children are inside
     // of them.  The real resizing will be done in update_sizes
@@ -85,11 +86,17 @@ BlockView::BlockView(int X, int Y, int W, int H,
 
     track_box.box(FL_FLAT_BOX);
     sb_box.box(FL_FLAT_BOX);
+    // track_scroll.type(0); // no scrollbars
+    time_sb.callback(BlockView::scrollbar_cb, static_cast<void *>(this));
+    track_sb.callback(BlockView::scrollbar_cb, static_cast<void *>(this));
+    track_tile.callback(BlockView::update_scrollbars_cb,
+            static_cast<void *>(this));
 
     resizable(body);
     body.resizable(body_resize_group);
     ruler_group.resizable(ruler);
     track_group.resizable(track_zoom);
+    // track_zoom.resizable(track_scroll);
 
     update_sizes();
     update_colors();
@@ -105,6 +112,8 @@ BlockView::BlockView(int X, int Y, int W, int H,
     // Initialize zoom to default.  This will cause zooming children to
     // properly position their widgets.
     this->set_zoom(this->zoom);
+    // Update the scrollbars last, after I've added all the tracks.
+    update_scrollbars();
 }
 
 BlockView::~BlockView()
@@ -136,8 +145,8 @@ BlockView::update_sizes()
     track_box.resize(p.x, p.y, p.w, config.block_title_height);
     sb_box.resize(p.x, p.b() - config.sb_size, p.w, config.sb_size);
 
-    time_sb.type(FL_VERTICAL);
-    track_sb.type(FL_HORIZONTAL);
+    time_sb.set_orientation(P9Scrollbar::vertical);
+    track_sb.set_orientation(P9Scrollbar::horizontal);
 
     time_sb.resize(p.x, p.y + track_box.h(),
             config.sb_size, p.h - track_box.h() - sb_box.h());
@@ -147,6 +156,7 @@ BlockView::update_sizes()
     p = rect(track_group);
     track_sb.resize(p.x, p.b() - config.sb_size, p.w, config.sb_size);
     track_zoom.resize(p.x, p.y, p.w, p.h - track_sb.h());
+    track_scroll.resize(p.x, p.y, p.w, p.h - track_sb.h());
     track_tile.resize(track_zoom.x(), track_zoom.y(),
             track_zoom.w(), track_zoom.h());
 
@@ -156,6 +166,7 @@ BlockView::update_sizes()
     ruler_group.init_sizes();
     track_group.init_sizes();
     track_zoom.init_sizes();
+    track_scroll.init_sizes();
     track_tile.init_sizes();
 }
 
@@ -170,11 +181,28 @@ BlockView::update_colors()
 }
 
 
+// Update scrollbar display based on the current zoom and scroll offset.
+void
+BlockView::update_scrollbars()
+{
+    // DEBUG("update scrolls " << track_tile.track_end());
+    this->track_sb.set_scroll_zoom(track_tile.track_end(),
+            get_track_scroll(), track_tile.w());
+
+    const ZoomInfo &zoom = this->get_zoom();
+    // The scale(1)s just convert a TrackPos to a double.
+    int track_h = track_tile.h() - config.track_title_height;
+    this->time_sb.set_scroll_zoom(track_tile.time_end().scale(1),
+            zoom.offset.scale(1), zoom.to_trackpos(track_h).scale(1));
+}
+
+
 // fltk methods
 void
 BlockView::resize(int X, int Y, int W, int H)
 {
     Fl_Group::resize(X, Y, W, H);
+    this->update_scrollbars();
 }
 
 void
@@ -192,15 +220,37 @@ BlockView::handle(int evt)
 
 
 // api methods
-// const ZoomInfo &BlockView::get_zoom() // inline
 
 void
 BlockView::set_zoom(const ZoomInfo &zoom)
 {
-    this->track_tile.set_zoom(zoom);
+    this->zoom = zoom;
+    this->track_tile.set_zoom(this->zoom);
+    this->ruler.set_zoom(this->zoom);
+    this->update_scrollbars();
 }
 
-// const BlockViewConfig &BlockView::get_config() // inline
+
+int
+BlockView::get_track_scroll() const
+{
+    return track_scroll.get_offset().x;
+}
+
+
+void
+BlockView::set_track_scroll(int offset)
+{
+    track_scroll.set_offset(Point(
+            -std::min(track_tile.track_end() - track_tile.w(), offset), 0));
+
+    int track_end = this->track_tile.track_end();
+    int max_offset = std::max(0, track_end - this->track_tile.w());
+    offset = std::min(max_offset, offset);
+    this->track_scroll.set_offset(Point(-offset, 0));
+    this->update_scrollbars();
+}
+
 
 void
 BlockView::set_config(const BlockViewConfig &config)
@@ -230,9 +280,10 @@ BlockView::insert_track(int at, const TrackModel &track, int width)
     TrackView *t;
 
     DEBUG("view insert at " << at);
-    if (track.track)
+    if (track.track) {
         t = new EventTrackView(track.track, track.ruler);
-    else if (track.ruler)
+        t->callback(BlockView::update_scrollbars_cb, static_cast<void *>(this));
+    } else if (track.ruler)
         t = new RulerTrackView(track.ruler);
     else
         t = new DividerView(track.divider);
@@ -247,6 +298,45 @@ BlockView::remove_track(int at)
     delete t;
 }
 
+
+// static callbacks
+
+// Scrollbar callback.  Update the view window based on the scrollbar
+// positions.
+void
+BlockView::scrollbar_cb(Fl_Widget *_unused_w, void *vp)
+{
+    BlockView *self = static_cast<BlockView *>(vp);
+
+    double time_offset = self->time_sb.get_offset();
+    TrackPos end = self->track_tile.time_end();
+    // TODO consider putting the repeated code into their own functions.
+    // This does the same stuff as BlockView::set_zoom, but naturally doesn't
+    // call update_scrollbars, or we don't get anywhere.
+    self->zoom = ZoomInfo(end.scale(time_offset), self->get_zoom().factor);
+    self->ruler.set_zoom(self->zoom);
+    self->track_tile.set_zoom(self->zoom);
+
+    // This is the same as set_track_scroll, but can reuse track_end, and
+    // doesn't call update_scrollbars.
+    double track_offset = self->track_sb.get_offset();
+    int track_end = self->track_tile.track_end();
+    int max_offset = std::max(0, track_end - self->track_tile.w());
+    int offset = std::min(max_offset, int(track_offset * track_end));
+    self->track_scroll.set_offset(Point(-offset, 0));
+}
+
+
+// The tracks or events changed, so fix up the scrollbars.
+void
+BlockView::update_scrollbars_cb(Fl_Widget *w, void *vp)
+{
+    BlockView *self = static_cast<BlockView *>(vp);
+    self->update_scrollbars();
+}
+
+
+// EventCollectWindow ////////
 
 static void
 find_active(UiEvent &e)
@@ -291,9 +381,11 @@ EventCollectWindow::handle(int evt)
     this->event_queue.push_back(e);
     // DEBUG("pushing " << show_event(evt));
 
+    // return 1;
     return Fl_Double_Window::handle(evt);
 }
 
+// BlockViewWindow ///////////
 
 // Don't let escape kill the window.
 static void

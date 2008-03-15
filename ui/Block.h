@@ -9,6 +9,8 @@
 ruler_group _________________        track_group
    |       \         \       \         |        \
 track_box sb_box     time_sb ruler   track_sb  track_zoom
+                                                  /
+                                             track_scroll
                                                 /
                                             track_tile
                                             /
@@ -24,6 +26,9 @@ block length, ...
 these should be in both Trackpos units and relative to Mark units
 (controllable from python)
 
+scrolling:
+on an scrollbar callback
+
 */
 
 #include <algorithm>
@@ -37,6 +42,7 @@ these should be in both Trackpos units and relative to Mark units
 #include <FL/Fl_Box.H>
 #include <FL/Fl_Double_Window.H>
 
+#include "SimpleScroll.h"
 #include "SeqScrollbar.h"
 #include "SeqInput.h"
 
@@ -129,8 +135,13 @@ public:
     void redraw();
 
     // api methods
+    // Set the zoom, which is the view rectangle in the timewise direction.
     const ZoomInfo &get_zoom() const { return zoom; }
     void set_zoom(const ZoomInfo &zoom);
+    // Get and set trackwise scrolling, in pixels.
+    int get_track_scroll() const;
+    void set_track_scroll(int offset);
+
     const BlockViewConfig &get_config() const { return config; }
     void set_config(const BlockViewConfig &config);
     const Selection &get_selection() const;
@@ -168,15 +179,21 @@ private:
         Fl_Group ruler_group;
             Fl_Box track_box;
             Fl_Box sb_box;
-            SeqScrollbar time_sb;
+            P9SeqScrollbar time_sb;
             RulerTrackView ruler;
         Fl_Group track_group;
-            SeqScrollbar track_sb;
+            P9SeqScrollbar track_sb;
             Zoom track_zoom;
-                TrackTile track_tile;
+                SimpleScroll track_scroll;
+                    TrackTile track_tile;
 
     void update_sizes();
     void update_colors();
+    void update_scrollbars();
+
+    // Called by scrollbar.
+    static void scrollbar_cb(Fl_Widget *w, void *vp);
+    static void update_scrollbars_cb(Fl_Widget *w, void *vp);
 };
 
 

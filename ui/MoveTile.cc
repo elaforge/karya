@@ -14,6 +14,7 @@
 void
 MoveTile::resize(int x, int y, int w, int h)
 {
+    DEBUG("resize " << rect(this) << " to " << Rect(x, y, w, h));
     // Only resize the rightmost and bottommost widgets.  Shrink them down to 1
     // if necessary, but stop resizing children beyond that.
     Point edge(0, 0);
@@ -33,10 +34,15 @@ MoveTile::resize(int x, int y, int w, int h)
             new_c.w = std::max(1, (this->x() + w) - c.x);
         if (c.b() == edge.y)
             new_c.h = std::max(1, (this->y() + h) - c.y);
-        this->child(i)->resize(new_c.x, new_c.y, new_c.w, new_c.h);
+        if (new_c != c) {
+            DEBUG("c" << i << rect(child(i)) << " to " << new_c);
+            this->child(i)->resize(new_c.x, new_c.y, new_c.w, new_c.h);
+        }
     }
-    Fl_Widget::resize(x, y, w, h);
-    this->init_sizes();
+    if (Rect(x, y, w, h) != rect(this)) {
+        Fl_Widget::resize(x, y, w, h);
+        this->init_sizes();
+    }
 }
 
 
@@ -223,6 +229,8 @@ jostle(std::vector<Rect> &boxes, const Point &tile_edge,
     // track, which gets resized, unless it's already as small as it can get,
     // in which case, push over.  The minimum size is 1, not 0, so the
     // order of the children is still clear.
+    // TODO this is error prone, I can let it reach 0 if I go by the rightmost
+    // xpos, not the rightmost r()
     Point edge(0, 0);
     for (int j = 0; j < boxes.size(); j++)
         edge.x = std::max(edge.x, boxes[j].r());
@@ -255,7 +263,7 @@ void
 MoveTile::handle_drag_tile(const Point drag_from, const Point drag_to,
         int dragged_child)
 {
-    DEBUG("drag tile from " << drag_from << " to " << drag_to);
+    // DEBUG("drag tile from " << drag_from << " to " << drag_to);
     // drag_from is always the *original* from point, i.e. this is always an
     // absolute action.  That makes things easier here since otherwise
     // drag_from would be continually changing during a drag.  It also means
@@ -276,7 +284,7 @@ MoveTile::handle_drag_tile(const Point drag_from, const Point drag_to,
     */
     Point shift(drag_to.x - drag_from.x, drag_to.y - drag_from.y);
     Point tile_edges(this->x() + this->w(), this->y() + this->h());
-    DEBUG("shift is " << shift);
+    // DEBUG("shift is " << shift);
     if (shift.x > 0) {
         // Going right is easy, just jostle over all children to the right.
         jostle(boxes, tile_edges, drag_from, drag_to, dragged_child);
@@ -312,7 +320,7 @@ MoveTile::handle_drag_tile(const Point drag_from, const Point drag_to,
 
     for (unsigned i = 0; i < boxes.size(); i++) {
         const Rect r = boxes[i];
-        DEBUG(i << ": " << original_boxes[i] << " -> " << boxes[i]);
+        // DEBUG(i << ": " << original_boxes[i] << " -> " << boxes[i]);
         this->child(i)->resize(r.x, r.y, r.w, r.h);
         this->child(i)->redraw();
     }

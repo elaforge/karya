@@ -70,6 +70,7 @@ public:
     OverlayRuler(boost::shared_ptr<const RulerTrackModel> model) :
         Fl_Group(0, 0, 1, 1), model(model)
     {}
+    void set_zoom(const ZoomInfo &zoom) { this->zoom = zoom; redraw(); }
 
     boost::shared_ptr<const RulerTrackModel> model;
 protected:
@@ -87,6 +88,7 @@ class RulerTrackView : public TrackView {
 public:
     RulerTrackView(boost::shared_ptr<const RulerTrackModel> model);
     virtual Fl_Box &title_widget();
+    virtual void set_zoom(const ZoomInfo &zoom) { ruler.set_zoom(zoom); }
 
 protected:
     // void draw();

@@ -6,3 +6,11 @@ them, and wrapped python callbacks will use them.
 
 Comment out .SILENT in makeinclude and possibly delete some of the Compiling
 echos, since I like to see exactly what flags cc is getting.
+
+
+Fl_Group::insert and Fl_Group::remove should be virtual.
+
+Fl_Scrollbar::value should be const.
+
+Fl_Scroll overrides "position" to set the position of the children, but not
+itself.  That seems confusing.

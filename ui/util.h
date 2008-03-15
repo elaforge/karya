@@ -56,17 +56,13 @@ operator<<(std::ostream &os, const AssertionError &a)
 }
 
 
-// Supposedly these are in <algorithm>, but when I include that, they're not.
+// Restrict 'v' to be in the given range, like composed min and max.
 template<class T> inline T
-max(T a, T b)
+clamp(T min, T max, T v)
 {
-    return a > b ? a : b;
-}
-
-template<class T> inline T
-min(T a, T b)
-{
-    return a < b ? a : b;
+    if (v < min) return min;
+    else if (v > max) return max;
+    else return v;
 }
 
 

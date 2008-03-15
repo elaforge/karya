@@ -48,14 +48,14 @@ struct Selection {
     TrackPos end_pos;
 };
 
+// You divide by factor to go from TrackPos -> pixels, so it can't be 0.
+#define MINIMUM_FACTOR .0001
 
 struct ZoomInfo {
     ZoomInfo() : offset(0), factor(1) {}
-    TrackPos offset;
-    // 1.0 means that each TrackPos gets 1 pixel.
-    // 2.0 each TrackPos gets 2 pixels.
-    // etc.
-    double factor;
+    ZoomInfo(TrackPos offset, double factor) :
+        offset(offset), factor(std::max(MINIMUM_FACTOR, factor))
+    {}
 
     // How many pixels is the given pos at, at this zoom?
     int to_pixels(TrackPos pos) const {
@@ -65,7 +65,21 @@ struct ZoomInfo {
         return int(floor(std::max(double(INT_MIN), std::min(double(INT_MAX),
                             scaled))));
     }
+
+    TrackPos to_trackpos(int pixels) const { return double(pixels) / factor; }
+
+    TrackPos offset;
+    // 1.0 means that each TrackPos gets 1 pixel.
+    // 2.0 each TrackPos gets 2 pixels.
+    // etc.
+    double factor;
 };
+
+inline std::ostream &
+operator<<(std::ostream &os, const ZoomInfo &z)
+{
+    os << "ZoomInfo(" << z.offset << ", " << z.factor << ")";
+}
 
 
 struct TextStyle {

@@ -60,10 +60,10 @@ EventTrackView::~EventTrackView()
 }
 
 
-
 void
 EventTrackView::resize(int x, int y, int w, int h)
 {
+    DEBUG("resize " << rect(this) << " -> " << Rect(x, y, w, h));
     // Don't call Fl_Group::resize because I just did the sizes myself.
     Fl_Widget::resize(x, y, w, h);
     this->overlay_ruler.resize(x, y, w, h);
@@ -81,8 +81,26 @@ EventTrackView::set_zoom(const ZoomInfo &zoom)
 {
     // TODO: if just the offset changed and the move is < h(), I can use the
     // Fl_Scroll blit to do it quickly.
+    DEBUG("zoom " << this->zoom << " to " << zoom);
     this->zoom = zoom;
     this->create_widgets();
+    this->overlay_ruler.set_zoom(zoom);
+}
+
+
+TrackPos
+EventTrackView::time_end() const
+{
+    int i = 0;
+    TrackPos end(0);
+    for (EventTrackModel::Events::const_iterator event = model->events.begin();
+        event != model->events.end();
+        ++event)
+    {
+        // DEBUG("e"<< i++ << ": " << event->first << " + " << event->second.duration);
+        end = std::max(end, event->first + event->second.duration);
+    }
+    return end;
 }
 
 
@@ -90,6 +108,7 @@ void
 EventTrackView::insert_event(TrackPos pos, const EventModel &event)
 {
     this->create_widgets(pos, event.duration);
+    this->do_callback();
 }
 
 
@@ -97,6 +116,7 @@ void
 EventTrackView::remove_event(TrackPos pos)
 {
     this->create_widgets(); // TODO find event duration
+    this->do_callback();
 }
 
 
@@ -120,18 +140,23 @@ EventTrackView::draw()
 void
 EventTrackView::create_widgets(TrackPos start, TrackPos duration)
 {
+    // Record the widgets currently onscreen, so I can delete the unused ones.
     std::set<EventView *> cur_displayed;
     // later do a binary search or something?
     // = std::lower_bound(model->events.begin(), model->events.end(),
     //      this->zoom.to_pixels(event->first)
     //          + this->zoom.to_pixels(event->second.duration) <= 0
     EventView *last_view = 0;
+    DEBUG("create_widgets at " << zoom);
+    int i=0;
     for (EventTrackModel::Events::iterator event = model->events.begin();
         event != model->events.end();
-        ++event)
+        ++event, ++i)
     {
         int offset = y() + this->zoom.to_pixels(event->first);
-        int height = this->zoom.to_pixels(event->second.duration);
+        int height = this->zoom.to_pixels(zoom.offset + event->second.duration);
+        DEBUG(i << ": (" << event->first << ", " << event->second.duration
+                << "), (" << (offset-y()) << ", " << height << ")");
         if (offset + height <= y())
             continue;
         else if (offset >= y() + h())
@@ -149,9 +174,10 @@ EventTrackView::create_widgets(TrackPos start, TrackPos duration)
             else
                 this->insert(*v, 1);
         } else {
-            DEBUG("using existing view " << v << ": " << event->first);
+            // DEBUG("using existing view " << v << ": " << event->first);
         }
         cur_displayed.insert(v);
+        DEBUG(i << ": resize " << rect(v) << " -> " << Rect(x()+1, offset, w()-2, height));
         // Give 2 pixels for the border.
         v->resize(x()+1, offset, w()-2, height);
         last_view = v;
