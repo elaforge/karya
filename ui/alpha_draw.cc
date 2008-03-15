@@ -20,6 +20,9 @@ void alpha_rectf(Rect r, Color c)
     }
     */
     int nbytes = r.w * r.h * 4;
+    // Don't crash if the caller wants a negative sized rect.
+    if (nbytes <= 0)
+        return;
     boost::scoped_array<unsigned char> data(new unsigned char[nbytes]);
     for (int i = 0; i < nbytes; i+=4) {
         data[i] = c.r;

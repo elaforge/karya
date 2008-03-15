@@ -5,10 +5,14 @@ ui
     plain unsigned msec?
   * scroll
   * add info line at the bottom
+  - show_names, use_alpha etc. should go in OverlayRuler
   - zoom
   - selections
   - bug: one pixel drawing glitch at bottom of tracks
-  - bug: resizing ruler to 0 crashes
+  * bug: resizing ruler to 0 crashes
+  EventCollector:
+    - convert EventCollectWindow to global EventCollector
+    - everyone should send their events there
   MoveTile
     * bug: I can resize a divider by dragging the right edge
     * bug: dragging divider jumps to dragging by left edge
