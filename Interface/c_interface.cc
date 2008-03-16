@@ -60,29 +60,19 @@ ui_msg_awake()
 int
 take_ui_msgs(UiEvent **msgs)
 {
-    UiEvent msg_queue[1024];
-    int ecount = 0;
     // fltk calls these events but I call them msgs
-    for (Fl_Window *win = Fl::first_window(); win; win = Fl::next_window(win)) {
-        EventCollectWindow *ewin = dynamic_cast<EventCollectWindow *>(win);
-        if (!ewin) {
-            DEBUG("toplevel window not an event collector: " << ewin);
-            continue;
-        }
-        for (unsigned i = 0;
-                i < ewin->event_queue.size() && ecount < sizeof msg_queue;
-                i++)
-        {
-            msg_queue[ecount++] = ewin->event_queue[i];
-        }
-        // DEBUG("popped " << ecount);
-        ewin->event_queue.clear();
+    static UiEvent msg_queue[1024];
+    std::vector<UiEvent> &events = global_event_collector()->events;
+    // Apparently std::copy_n doesn't exist any more?
+    int i = 0;
+    for (; i <  events.size() && i < sizeof msg_queue; i++)
+        msg_queue[i] = events[i];
+    if (events.size() > sizeof msg_queue) {
+        DEBUG("msg overflow, lost " << events.size() - sizeof msg_queue);
     }
-    if (ecount >= sizeof msg_queue) {
-        DEBUG("msg overflow!");
-    }
+    events.clear();
     *msgs = msg_queue;
-    return ecount;
+    return i;
 }
 
 

@@ -1,11 +1,12 @@
 #include "util.h"
 #include "f_util.h"
 
-#include "Block.h"
-
+#include "EventCollector.h"
 #include "Track.h"
 #include "EventTrack.h"
 #include "Ruler.h"
+
+#include "Block.h"
 
 // Try to avoid running into the little resize tab on the mac.
 static const int mac_resizer_width = 15;
@@ -223,6 +224,7 @@ BlockView::redraw()
 int
 BlockView::handle(int evt)
 {
+    global_event_collector()->collect(evt);
     return Fl_Group::handle(evt);
 }
 
@@ -338,55 +340,6 @@ BlockView::update_scrollbars_cb(Fl_Widget *w, void *vp)
 }
 
 
-// EventCollectWindow ////////
-
-static void
-find_active(UiEvent &e)
-{
-    e.inside_block = 0;
-    e.inside_track = 0;
-    e.inside_event = 0;
-    for (Fl_Window *win = Fl::first_window(); win; win = Fl::next_window(win)) {
-        if (Fl::event_inside(win)) {
-            e.inside_block = dynamic_cast<BlockViewWindow *>(win);
-            break;
-        }
-    }
-    if (!e.inside_block)
-        return;
-    for (int i = 0; i < e.inside_block->block.tracks(); i++) {
-        TrackView *t = e.inside_block->block.track_at(i);
-        if (Fl::event_inside(t)) {
-            e.inside_track = t;
-            break;
-        }
-    }
-    if (!e.inside_track)
-        return;
-    // do events
-}
-
-
-int
-EventCollectWindow::handle(int evt)
-{
-    UiEvent e;
-    e.event = evt;
-    e.button = Fl::event_button();
-    e.clicks = Fl::event_clicks();
-    e.is_click = Fl::event_is_click();
-    e.x = Fl::event_x();
-    e.y = Fl::event_y();
-    e.state = Fl::event_state();
-    e.key = Fl::event_key();
-    find_active(e);
-    this->event_queue.push_back(e);
-    // DEBUG("pushing " << show_event(evt));
-
-    // return 1;
-    return Fl_Double_Window::handle(evt);
-}
-
 // BlockViewWindow ///////////
 
 // Don't let escape kill the window.
@@ -403,7 +356,7 @@ BlockViewWindow::BlockViewWindow(int X, int Y, int W, int H,
         boost::shared_ptr<BlockModel> model,
         boost::shared_ptr<const RulerTrackModel> ruler_model,
         const BlockViewConfig &config) :
-    EventCollectWindow(X, Y, W, H),
+    Fl_Double_Window(X, Y, W, H),
     block(X, Y, W, H, model, ruler_model, config)
 {
     callback((Fl_Callback *) block_view_window_cb);

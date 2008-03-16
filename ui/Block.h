@@ -202,38 +202,7 @@ private:
 };
 
 
-class BlockViewWindow;
-
-struct UiEvent {
-    UiEvent() : event(0), button(0), clicks(0), is_click(0), x(0), y(0),
-        state(0), key(0),
-        inside_block(0), inside_track(0), inside_event(false)
-    {}
-    int event;
-    int button, clicks, is_click, x, y;
-    int state;
-    int key;
-
-    BlockViewWindow *inside_block;
-    TrackView *inside_track;
-    // TODO: later this should be the TrackPos of the event it's in
-    bool inside_event;
-    // TrackPos track_pos;
-};
-
-
-class EventCollectWindow : public Fl_Double_Window {
-public:
-    EventCollectWindow(int X, int Y, int W, int H) :
-        Fl_Double_Window(X, Y, W, H)
-    {}
-    std::vector<UiEvent> event_queue;
-
-protected:
-    virtual int handle(int evt);
-};
-
-class BlockViewWindow : public EventCollectWindow {
+class BlockViewWindow : public Fl_Double_Window {
 public:
     BlockViewWindow(int X, int Y, int W, int H,
             boost::shared_ptr<BlockModel> model,
