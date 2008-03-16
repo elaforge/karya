@@ -197,6 +197,18 @@ block_view_set_zoom(BlockViewWindow *b, const ZoomInfo *zoom)
     b->block.set_zoom(*zoom);
 }
 
+int
+block_view_get_track_scroll(BlockViewWindow *b)
+{
+    return b->block.get_track_scroll();
+}
+
+void
+block_view_set_track_scroll(BlockViewWindow *b, int pixels)
+{
+    b->block.set_track_scroll(pixels);
+}
+
 const Selection *
 block_view_get_selection(const BlockViewWindow *b)
 {

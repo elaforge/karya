@@ -219,6 +219,18 @@ set_zoom view zoom =
 foreign import ccall unsafe "block_view_set_zoom"
     c_block_view_set_zoom :: Ptr CBlockView -> Ptr Zoom -> IO ()
 
+-- | Get and set the scroll along the track dimension, in pixels.
+get_track_scroll :: BlockView -> UI Int
+get_track_scroll view = fmap fromIntegral (c_get_track_scroll (view_p view))
+foreign import ccall unsafe "block_view_get_track_scroll"
+    c_get_track_scroll :: Ptr CBlockView -> IO CInt
+
+set_track_scroll :: BlockView -> Int -> UI ()
+set_track_scroll view offset
+    = c_set_track_scroll (view_p view) (Util.c_int offset)
+foreign import ccall unsafe "block_view_set_track_scroll"
+    c_set_track_scroll :: Ptr CBlockView -> CInt -> IO ()
+
 get_selection :: BlockView -> UI Selection
 get_selection view = c_block_view_get_selection (view_p view) >>= peek
 foreign import ccall unsafe "block_view_get_selection"
@@ -229,6 +241,14 @@ set_selection view sel =
     with sel $ \selp -> c_block_view_set_selection (view_p view) selp
 foreign import ccall unsafe "block_view_set_selection"
     c_block_view_set_selection :: Ptr CBlockView -> Ptr Selection -> IO ()
+
+set_track_width :: BlockView -> TrackNum -> Width -> UI ()
+set_track_width view at width = do
+    ntracks <- tracks (view_block view)
+    c_set_track_width (view_p view) (Util.c_int_in_range 0 ntracks at)
+        (Util.c_int width)
+foreign import ccall unsafe "set_track_width"
+    c_set_track_width :: Ptr CBlockView -> CInt -> CInt -> IO ()
 
 get_view_config :: BlockView -> UI BlockViewConfig
 get_view_config view = undefined

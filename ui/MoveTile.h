@@ -37,8 +37,8 @@ public:
     MoveTile(int X, int Y, int W, int H, char *label = 0) :
         // Fl_Tile(X, Y, W, H, label)
         Fl_Group(X, Y, W, H, label),
-        hmove(no_move), vmove(no_move),
         minimum_size(10, 10),
+        hmove(no_move), vmove(no_move),
         grab_area(3)
     {}
 
@@ -64,6 +64,8 @@ protected:
     // Put children in left->right, top->bottom order, and return true if
     // they weren't already sorted when this was called.
     bool sort_children();
+    // Don't resize a pane smaller than the x and y here.
+    const Point minimum_size;
 
 private:
     // int handle_move(int evt, BoolPoint &drag_state, Point &drag_from);
@@ -73,8 +75,6 @@ private:
     int previous_track(int i) const;
 
     MoveDirection hmove, vmove;
-    // Don't resize a pane smaller than the x and y here.
-    Point minimum_size;
     std::vector<bool> stiff_children;
 
     // Allow dragging of panes this many pixels from the widget edges.

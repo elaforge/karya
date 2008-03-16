@@ -51,6 +51,8 @@ const BlockViewConfig *block_view_get_config(BlockViewWindow *b);
 void block_view_set_config(BlockViewWindow *b, BlockViewConfig *config);
 const ZoomInfo *block_view_get_zoom(const BlockViewWindow *b);
 void block_view_set_zoom(BlockViewWindow *b, const ZoomInfo *zoom);
+int block_view_get_track_scroll(BlockViewWindow *b);
+void block_view_set_track_scroll(BlockViewWindow *b, int pixels);
 const Selection *block_view_get_selection(const BlockViewWindow *b);
 void block_view_set_selection(BlockViewWindow *b, const Selection *sel);
 

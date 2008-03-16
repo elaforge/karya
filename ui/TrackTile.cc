@@ -59,14 +59,13 @@ void
 TrackTile::insert_track(int at, TrackView *track, int width)
 {
     ASSERT(0 <= at && at <= tracks());
-    ASSERT(width > 0);
+    // Can't create a track smaller than you could resize.
+    width = std::max(this->minimum_size.x, width);
     int child_pos = at*2;
 
     // Just set sizes here, coords will be fixed by update_sizes()
     Fl_Widget &title = track->title_widget();
-    DEBUG("insert " << &title << " " << this->title_height);
     title.size(width, this->title_height);
-    DEBUG("insert " << track);
     this->insert(title, child_pos);
 
     track->size(width, h() - this->title_height);

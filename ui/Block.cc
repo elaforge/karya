@@ -244,16 +244,13 @@ BlockView::set_zoom(const ZoomInfo &zoom)
 int
 BlockView::get_track_scroll() const
 {
-    return track_scroll.get_offset().x;
+    return -track_scroll.get_offset().x;
 }
 
 
 void
 BlockView::set_track_scroll(int offset)
 {
-    track_scroll.set_offset(Point(
-            -std::min(track_tile.track_end() - track_tile.w(), offset), 0));
-
     int track_end = this->track_tile.track_end();
     int max_offset = std::max(0, track_end - this->track_tile.w());
     offset = std::min(max_offset, offset);
@@ -292,6 +289,7 @@ BlockView::insert_track(int at, const TrackModel &track, int width)
     else
         t = new DividerView(track.divider);
     track_tile.insert_track(at, t, width);
+    this->update_scrollbars();
 }
 
 
@@ -300,6 +298,7 @@ BlockView::remove_track(int at)
 {
     TrackView *t = track_tile.remove_track(at);
     delete t;
+    this->update_scrollbars();
 }
 
 

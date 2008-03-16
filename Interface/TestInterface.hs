@@ -30,11 +30,16 @@ test_view = Ui.initialize $ \msg_chan -> do
 
     msg_th <- Thread.start_thread "print msgs" (msg_thread msg_chan)
 
-    view <- Block.create_view (0, 0) (200, 200) block track_ruler view_config
+    view <- Block.create_view (0, 0) (100, 200) block track_ruler view_config
     Block.insert_track block 0 (Block.R track_ruler) 10
-    Block.insert_track block 1 (Block.T t1 overlay_ruler) 30
+    Block.insert_track block 1 (Block.T t1 overlay_ruler) 70
+    Block.insert_track block 2 (Block.T t1 overlay_ruler) 50
 
-    Util.show_children view >>= putStrLn
+    Block.set_track_scroll view 150
+    Block.get_track_scroll view >>= print
+    Block.set_track_scroll view 0
+
+    -- Util.show_children view >>= putStrLn
     putStr "? " >> IO.hFlush IO.stdout >> getLine
     putStrLn "killing"
     Concurrent.killThread msg_th
@@ -67,7 +72,7 @@ test_ruler = do
 
 major = Ruler.Mark 1 3 (Color.rgba 0.45 0.27 0 0.35) "" 0 0
 minor = Ruler.Mark 2 2 (Color.rgba 1 0.39 0.2 0.35) "" 0 0
-marklist = Ruler.Marklist $ take 10 $ zip (map TrackPos [10, 20 ..])
+marklist = Ruler.Marklist $ take 64 $ zip (map TrackPos [0, 10 ..])
     (cycle [major, minor, minor, minor])
 
 ruler_bg = Color.rgb 1 0.85 0.5

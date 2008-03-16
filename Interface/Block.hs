@@ -13,6 +13,7 @@ module Interface.Block (
     , Zoom(..), Selection(..)
     , create_view
     , resize, get_zoom, set_zoom
+    , get_track_scroll, set_track_scroll
     , get_selection, set_selection, get_view_config, set_view_config
 ) where
 
@@ -57,6 +58,9 @@ resize !view (!x, !y) (!w, !h) = send_action (B.resize view (x, y) (w, h))
 
 get_zoom !view = send_action (B.get_zoom view)
 set_zoom !view !zoom = send_action (B.set_zoom view (force zoom))
+
+get_track_scroll !view = send_action (B.get_track_scroll view)
+set_track_scroll !view !offset = send_action (B.set_track_scroll view offset)
 
 get_selection !view = send_action (B.get_selection view)
 set_selection !view !sel = send_action (B.set_selection view (force sel))
