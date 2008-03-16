@@ -5,11 +5,11 @@ ui
     plain unsigned msec?
   * scroll
   * add info line at the bottom
-  - show_names, use_alpha etc. should go in OverlayRuler
   - zoom
   - selections
   - organized logging situation
   - bug: one pixel drawing glitch at bottom of tracks
+  - bug: starting with an x,y offset makes BlockView confused
   * bug: resizing ruler to 0 crashes
   EventCollector:
     * convert EventCollectWindow to global EventCollector

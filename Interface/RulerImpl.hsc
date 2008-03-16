@@ -19,8 +19,15 @@ data CRulerTrackModel
 newtype Marklist = Marklist [(TrackPos, Mark)] deriving (Eq, Show)
 data Ruler = Ruler
     { ruler_p :: ForeignPtr CRulerTrackModel
-    , ruler_color :: Color.Color
-    , ruler_marklist :: [Marklist]
+    , ruler_config :: Config
+    } deriving (Show)
+
+data Config = Config
+    { config_marklists :: [Marklist]
+    , config_bg :: Color.Color
+    , config_show_names :: Bool
+    , config_use_alpha :: Bool
+    , config_full_width :: Bool
     } deriving (Show)
 
 data Mark = Mark
@@ -35,19 +42,23 @@ data Mark = Mark
 
 -- Marshalling
 
-create :: Color.Color -> [Marklist] -> IO Ruler
-create bg marklists = with bg $ \bgp -> do
-    -- Do mlist marshalling here, but I may later let clients do that so
-    -- mlists can be shared at the c level.
-    mlistfps <- mapM marshal_marklist marklists
-    rulerp <- Util.withForeignPtrs mlistfps $ \ps -> withArray ps $ \mlistp ->
-        c_ruler_track_model_new bgp (Util.c_int (length marklists)) mlistp
-    rulerfp <- newForeignPtr c_ruler_track_model_destroy rulerp
-    return $ Ruler rulerfp bg marklists
+create :: Config -> IO Ruler
+create config@(Config marklists bg show_names use_alpha full_width)
+    = with bg $ \bgp -> do
+        -- Do mlist marshalling here, but I may later let clients do that so
+        -- mlists can be shared at the c level.
+        mlistfps <- mapM marshal_marklist marklists
+        rulerp <- Util.withForeignPtrs mlistfps $ \ps ->
+            withArray ps $ \mlistp ->
+                c_ruler_track_model_new bgp (Util.c_int (length marklists))
+                    mlistp (fromBool show_names) (fromBool use_alpha)
+                    (fromBool full_width)
+        rulerfp <- newForeignPtr c_ruler_track_model_destroy rulerp
+        return $ Ruler rulerfp config
 
 foreign import ccall unsafe "ruler_track_model_new"
-    c_ruler_track_model_new :: Ptr Color.Color -> CInt
-        -> Ptr (Ptr CMarklist) -> IO (Ptr CRulerTrackModel)
+    c_ruler_track_model_new :: Ptr Color.Color -> CInt -> Ptr (Ptr CMarklist)
+        -> CInt -> CInt -> CInt -> IO (Ptr CRulerTrackModel)
 foreign import ccall unsafe "&ruler_track_model_destroy"
     c_ruler_track_model_destroy :: FunPtr (Ptr CRulerTrackModel -> IO ())
 

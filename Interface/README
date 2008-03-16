@@ -80,38 +80,14 @@ a lot maybe I could put the lock in the c++?
 In any case, it would be good to abstract away 'send_action' so I just call the
 functions and they work right.
 
---------------
 
-X Passing an existentially quantified type on the chan doesn't work, since all
-types passed must support the same operations.
+    Implementation
 
-- unsafeCoerce# the operation to Any, then unsafeCoerce# the mvar contents back
-again.  seems to require wrappers for all the operations to do the casting
+The XImpl modules implement the actual c interface.  The corresponding
+X modules call send_action as necessary, first fully evaluating their arguments
+to prevent the ui thread hanging up on thunks.
 
-- do the serialization in the c interface: send a function
-(\f mvar -> f >>= putMVar mvar) (c_function args) retbox as a nullary foreign
-export (can I do this?), and then pass it to awake().  wait() calls the passed
-function when it returns.
-
-- do without exports:
-each c function makes a closure of the operation and turns it into a c function
-pointer, which it ships over awake().  I also have to do the return mvar in c.
-
-
-- Figure out how to call fltk from multiple threads.  I can use Fl::lock(), but
-won't it block in wait()?  No, I think wait() unlocks.  Which platforms don't
-like reentrant gui calls?
-
-- Don't return values.
-
-- Just require that all gui calls be in the same thread
-
-- each view operation has its own (TMVar Bool, TVar result).  The ui thread
-waits on all TMVars
-
-
-case labelled op_vars of
-    create_block_view ->
-
-
--}
+The opaque raw implementation types Block, BlockView, etc. contain the pointer
+or foreign pointer to the C structure and then auxiliary haskell data along for
+the ride.  Some of this data (e.g. the Block of a BlockView) could technically
+be derived from the C struct, but it's easier to get it from the haskell type.

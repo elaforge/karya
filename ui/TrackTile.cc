@@ -30,11 +30,11 @@ TrackTile::set_zoom(const ZoomInfo &zoom)
 TrackPos
 TrackTile::time_end() const
 {
-    TrackPos end(0);
+    // These both have a 1 minimum to keep others from dividing by 0.
+    TrackPos end(1);
     // It's too much hassle to make a const version of track_at when I know
     // I'm using it const.
     for (int i = 0; i < this->tracks(); i++) {
-        // DEBUG("t" << i << " " << const_cast<TrackTile *>(this)->track_at(i)->time_end());
         end = std::max(end,
                 const_cast<TrackTile *>(this)->track_at(i)->time_end());
     }
@@ -45,7 +45,8 @@ TrackTile::time_end() const
 int
 TrackTile::track_end() const
 {
-    int end = 0;
+    // These both have a 1 minimum to keep others from dividing by 0.
+    int end = 1;
     for (int i = 0; i < this->tracks(); i++) {
         const TrackView *t = const_cast<TrackTile *>(this)->track_at(i);
         end = std::max(end, t->x() + t->w() - this->x());

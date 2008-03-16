@@ -1,3 +1,4 @@
+#include "EventCollector.h"
 #include "Block.h"
 #include "Track.h"
 #include "EventTrack.h"
@@ -63,7 +64,8 @@ get_model
 // Ruler
 
 RulerTrackModelRef *ruler_track_model_new(Color *bg, int mlists,
-        MarklistRef **marklists);
+        MarklistRef **marklists,
+        bool show_names, bool use_alpha, bool full_width);
 void ruler_track_model_destroy(RulerTrackModelRef *r);
 
 // A struct version of Mark, used to pass a marklist from haskell to C all

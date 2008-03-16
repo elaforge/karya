@@ -6,12 +6,25 @@ import qualified Interface.Util as Util
 
 -- r, g, b, alpha, from 0--1
 data Color = Color Double Double Double Double deriving (Eq, Show)
+-- | An opaque color with the given r, g, and b.
+rgb r g b = Color r g b 1
+rgba r g b a = Color r g b a
 
-black = Color 0 0 0 0
-white = Color 1 1 1 0
-red = Color 1 0 0 0
-green = Color 0 1 0 0
-blue = Color 0 0 1 0
+black = rgb 0 0 0
+white = rgb 1 1 1
+red = rgb 1 0 0
+green = rgb 0 1 0
+blue = rgb 0 0 1
+
+gray1 = rgb 0.1 0.1 0.1
+gray2 = rgb 0.2 0.2 0.2
+gray3 = rgb 0.3 0.3 0.3
+gray4 = rgb 0.4 0.4 0.4
+gray5 = rgb 0.5 0.5 0.5
+gray6 = rgb 0.6 0.6 0.6
+gray7 = rgb 0.7 0.7 0.7
+gray8 = rgb 0.8 0.8 0.8
+gray9 = rgb 0.9 0.9 0.9
 
 
 -- Storable instance

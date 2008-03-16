@@ -36,10 +36,10 @@ data Block = Block
 data CBlockModel
 
 data BlockModelConfig = BlockModelConfig
-    { block_select_colors :: [Color.Color]
-    , block_bg_color :: Color.Color
-    , block_track_box_color :: Color.Color
-    , block_sb_box_color :: Color.Color
+    { config_select_colors :: [Color.Color]
+    , config_bg_color :: Color.Color
+    , config_track_box_color :: Color.Color
+    , config_sb_box_color :: Color.Color
     }
 
 create :: BlockModelConfig -> IO Block
@@ -67,8 +67,10 @@ peek_block_model_config configp = do
     return $ BlockModelConfig select bg track_box sb_box
 
 poke_block_model_config configp (BlockModelConfig
-        { block_select_colors = select, block_bg_color = bg
-        , block_track_box_color = track_box, block_sb_box_color = sb_box
+        { config_select_colors = select
+        , config_bg_color = bg
+        , config_track_box_color = track_box
+        , config_sb_box_color = sb_box
         })
     = do
         pokeArray ((#ptr BlockModelConfig, select) configp)
@@ -107,13 +109,13 @@ type TrackNum = Int
 type Width = Int
 
 -- Tracks may have a Ruler overlay
-data Tracklike = T (TrackImpl.Track, RulerImpl.Ruler) | R RulerImpl.Ruler
+data Tracklike = T TrackImpl.Track RulerImpl.Ruler | R RulerImpl.Ruler
     | D Color.Color
 
 insert_track :: Block -> TrackNum -> Tracklike -> Width -> UI ()
 insert_track block at track width =
     withFP (block_p block) $ \blockp -> case track of
-        T (track, ruler) -> withFP (TrackImpl.track_p track) $ \trackp ->
+        T track ruler -> withFP (TrackImpl.track_p track) $ \trackp ->
             withFP (RulerImpl.ruler_p ruler) $ \rulerp ->
                 c_block_model_insert_event_track blockp at' width' trackp rulerp
         R ruler -> withFP (RulerImpl.ruler_p ruler) $ \rulerp ->
@@ -284,12 +286,12 @@ instance Storable BlockViewConfig where
 
 poke_config configp (BlockViewConfig
         { vconfig_zoom_speed = zoom_speed
-        , vconfig_block_title_height :: block_title_height
-        , vconfig_track_title_height :: track_title_height
-        , vconfig_sb_size :: sb_size
-        , vconfig_ruler_size :: ruler_size
-        , vconfig_status_size :: status_size
-        }
+        , vconfig_block_title_height = block_title_height
+        , vconfig_track_title_height = track_title_height
+        , vconfig_sb_size = sb_size
+        , vconfig_ruler_size = ruler_size
+        , vconfig_status_size = status_size
+        })
     = do
         (#poke BlockViewConfig, zoom_speed) configp zoom_speed
         (#poke BlockViewConfig, block_title_height) configp

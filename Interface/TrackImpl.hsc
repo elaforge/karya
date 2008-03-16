@@ -9,7 +9,7 @@ module Interface.TrackImpl where
 import Foreign
 
 import Interface.Types
--- import qualified Interface.Color as Color
+import qualified Interface.Color as Color
 import qualified Interface.Event as Event
 
 data CEventTrackModel

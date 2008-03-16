@@ -214,14 +214,16 @@ block_view_set_selection(BlockViewWindow *b, const Selection *sel)
 // Ruler
 
 RulerTrackModelRef *
-ruler_track_model_new(Color *bg, int mlists, MarklistRef **marklists)
+ruler_track_model_new(Color *bg, int mlists, MarklistRef **marklists,
+        bool show_names, bool use_alpha, bool full_width)
 {
     Marklists lists;
     for (int i = 0; i < mlists; i++) {
         lists.push_back(**marklists);
         (*marklists)++;
     }
-    return new RulerTrackModelRef(new RulerTrackModel(lists, *bg));
+    return new RulerTrackModelRef(new RulerTrackModel(lists, *bg,
+            show_names, use_alpha, full_width));
 }
 
 void
