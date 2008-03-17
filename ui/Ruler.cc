@@ -8,6 +8,11 @@
 
 #include "Ruler.h"
 
+// Height in pixels both above and below  of the special indicator that is
+// drawn on a 0 size selection.
+const static int selection_point_size = 4;
+// Selections are always at least this many pixels.
+const static int selection_min_size = 4;
 
 void
 OverlayRuler::set_zoom(const ZoomInfo &zoom)
@@ -95,7 +100,8 @@ OverlayRuler::damage_range(TrackPos start, TrackPos end)
 {
     Rect r = rect(this);
     r.y = this->zoom.to_pixels(start);
-    r.h = this->zoom.to_pixels(this->zoom.offset + end);
+    r.h = std::max(selection_min_size,
+            this->zoom.to_pixels(this->zoom.offset + end));
     this->damaged_area.union_(r);
     this->damage(FL_DAMAGE_USER1);
 }
@@ -168,8 +174,17 @@ OverlayRuler::draw_selections()
         if (sel.tracks == 0)
             continue;
         int start = y() + this->zoom.to_pixels(sel.start_pos);
-        int height = this->zoom.to_pixels(zoom.offset + sel.duration);
+        int height = std::max(selection_min_size,
+                this->zoom.to_pixels(zoom.offset + sel.duration));
         alpha_rectf(Rect(x(), start, w(), height), this->selections[i].first);
+        if (sel.duration == TrackPos(0)) {
+            // Darken the select color a bit, and make it non-transparent.
+            fl_color(color_to_fl(this->selections[i].first.scale(0.5)));
+            fl_line(x() + 2, start, x() + w() - 2, start);
+            // Draw little bevel thingy.
+            const int sz = selection_point_size;
+            fl_polygon(x(), start - sz, x() + 4, start, x(), start + sz);
+        }
     }
 }
 

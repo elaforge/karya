@@ -27,7 +27,7 @@ BlockViewConfig block_view_config()
 BlockModelConfig block_model_config()
 {
     BlockModelConfig c;
-    c.select[0] = Color(0, 0, 255, 30);
+    c.select[0] = Color(0, 0, 255, 45);
     c.select[1] = Color(255, 0, 255, 90);
     c.select[2] = Color(0, 255, 255, 90);
     c.bg = Color(0xdddddd);
@@ -118,6 +118,7 @@ main(int argc, char **argv)
 
     view.block.set_selection(0, Selection(0, TrackPos(60), 4, TrackPos(56)));
     view.block.set_selection(0, Selection(0, TrackPos(0), 4, TrackPos(56)));
+    view.block.set_selection(1, Selection(0, TrackPos(64), 4, TrackPos(0)));
 
     // print_children(&view);
     // DEBUG(1);
