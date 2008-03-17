@@ -20,7 +20,7 @@ newtype Marklist = Marklist [(TrackPos, Mark)] deriving (Eq, Show)
 data Ruler = Ruler
     { ruler_p :: ForeignPtr CRulerTrackModel
     , ruler_config :: Config
-    } deriving (Show)
+    } deriving (Eq, Show)
 
 data Config = Config
     { config_marklists :: [Marklist]
@@ -28,7 +28,7 @@ data Config = Config
     , config_show_names :: Bool
     , config_use_alpha :: Bool
     , config_full_width :: Bool
-    } deriving (Show)
+    } deriving (Eq, Show)
 
 data Mark = Mark
     { mark_rank :: Int

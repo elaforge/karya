@@ -58,11 +58,11 @@ on an scrollbar callback
 // tracknum.  'add_track' on this tracknum replaces the ruler track, and
 // 'remove_track' has no effect.
 enum { ruler_tracknum = -1 };
-enum { select_colors = 3 };
+enum { max_selections = 3 };
 
 struct BlockModelConfig {
     // An array of 3 or more Colors for the selections.
-    Color select[select_colors];
+    Color select[max_selections];
     Color bg;
     Color track_box;
     Color sb_box;
@@ -134,7 +134,6 @@ public:
 
     // fltk methods
     void resize(int X, int Y, int W, int H);
-    void redraw();
 
     // api methods
     // Set the zoom, which is the view rectangle in the timewise direction.

@@ -117,6 +117,8 @@ block_model_set_title(BlockModelRef *b, const char *s)
 }
 
 
+// tracks
+
 void
 block_model_insert_event_track(BlockModelRef *b, int at, int width,
         EventTrackModelRef *t, RulerTrackModelRef *r)
@@ -221,6 +223,11 @@ block_view_set_selection(BlockViewWindow *b, const Selection *sel)
     b->block.set_selection(*sel);
 }
 
+void
+set_track_width(BlockViewWindow *b, int at, int width)
+{
+    b->block.set_track_width(at, width);
+}
 
 
 // Ruler

@@ -19,30 +19,28 @@ import qualified Interface.Block as Block
 import qualified Interface.Ruler as Ruler
 import qualified Interface.Track as Track
 
-main = test_view
+main = Ui.initialize $ \msg_chan -> do
+    msg_th <- Thread.start_thread "print msgs" (msg_thread msg_chan)
+    test_view
 
-test_view = Ui.initialize $ \msg_chan -> do
+
+test_view = do
     block <- Block.create block_config
-    track_ruler <- Ruler.create ruler_config
-    overlay_ruler <- Ruler.create (overlay_config ruler_config)
+    track_ruler <- Ruler.create (ruler_config 64)
+    overlay_ruler <- Ruler.create (overlay_config (ruler_config 64))
 
     t1 <- Track.create Color.white
-
-    msg_th <- Thread.start_thread "print msgs" (msg_thread msg_chan)
 
     view <- Block.create_view (0, 0) (100, 200) block track_ruler view_config
     Block.insert_track block 0 (Block.R track_ruler) 10
     Block.insert_track block 1 (Block.T t1 overlay_ruler) 70
     Block.insert_track block 2 (Block.T t1 overlay_ruler) 50
-
-    Block.set_track_scroll view 150
-    Block.get_track_scroll view >>= print
-    Block.set_track_scroll view 0
+    ntracks <- Block.tracks block
+    -- assert ntracks == 3
 
     -- Util.show_children view >>= putStrLn
     putStr "? " >> IO.hFlush IO.stdout >> getLine
-    putStrLn "killing"
-    Concurrent.killThread msg_th
+
 
 msg_thread msg_chan = Monad.forever $ do
     msg <- STM.atomically $ TChan.readTChan msg_chan
@@ -52,31 +50,68 @@ msg_thread msg_chan = Monad.forever $ do
     --         _ -> show msg
     -- putStrLn $ "msg: " ++ s
 
+
+test_scroll_zoom view = do
+    Block.set_track_scroll view 150
+    Block.get_track_scroll view >>= print
+    Block.set_track_scroll view 0
+    -- test zoom and time scroll
+
+
+-- * Cheap tests.  TODO: use HUnit?
+
+-- ** block tests
+
 test_block = do
     block <- Block.create block_config
+
+    io_equal (Block.get_config block) block_config
+    let config2 = block_config { Block.config_bg_color = Color.black }
+    Block.set_config block config2
+    io_equal (Block.get_config block) config2
+
     Block.set_title block "oh no"
-    t <- Block.get_title block
-    putStrLn t
+    io_equal (Block.get_title block) "oh no"
 
-test_ruler = do
-    ruler1 <- Ruler.create ruler_config
-    track1 <- Track.create track_bg
+    io_equal (Block.get_attrs block) []
+    let attrs = [("hi", "there")]
+    Block.set_attrs block attrs
+    io_equal (Block.get_attrs block) attrs
 
-    block1 <- Block.create block_config
-    block2 <- Block.create block_config
+test_block_tracks = do
+    block <- Block.create block_config
+    track_ruler <- Ruler.create (ruler_config 2)
+    overlay_ruler <- Ruler.create (overlay_config (ruler_config 2))
+    t1 <- Track.create Color.white
 
-    Block.insert_track block1 0 (Block.R ruler1) 20
-    Block.insert_track block1 1 (Block.T track1 ruler1) 60
-    Block.insert_track block1 2 (Block.D Color.blue) 5
-    print "done"
+    io_equal (Block.tracks block) 0
+
+    Block.insert_track block 0 (Block.R track_ruler) 10
+    Block.insert_track block 1 (Block.T t1 overlay_ruler) 70
+    Block.insert_track block 1 (Block.D Color.blue) 10
+
+    io_equal (Block.tracks block) 3
+
+    io_equal (Block.track_at block 0) (Block.R track_ruler)
+    io_equal (Block.track_at block 1) (Block.D Color.blue)
+    io_equal (Block.track_at block 2) (Block.T t1 overlay_ruler)
+
+io_equal io_val expected = do
+    val <- io_val
+    if val == expected
+        then putStrLn $ "++-> " ++ show val
+        else error $ "expected: " ++ show expected ++ ", got: " ++ show val
+
+
+-- * setup
 
 major = Ruler.Mark 1 3 (Color.rgba 0.45 0.27 0 0.35) "" 0 0
 minor = Ruler.Mark 2 2 (Color.rgba 1 0.39 0.2 0.35) "" 0 0
-marklist = Ruler.Marklist $ take 64 $ zip (map TrackPos [0, 10 ..])
+marklist n = Ruler.Marklist $ take n $ zip (map TrackPos [0, 10 ..])
     (cycle [major, minor, minor, minor])
 
 ruler_bg = Color.rgb 1 0.85 0.5
-ruler_config = Ruler.Config [marklist] ruler_bg True False False
+ruler_config marks = Ruler.Config [marklist marks] ruler_bg True False False
 -- Convert a ruler config for an overlay ruler.
 overlay_config config = config
     { Ruler.config_show_names = False
@@ -84,14 +119,14 @@ overlay_config config = config
     , Ruler.config_full_width = True
     }
 
-block_config = Block.BlockModelConfig
+block_config = Block.Config
     { Block.config_select_colors = [Color.black]
     , Block.config_bg_color = Color.gray8
     , Block.config_track_box_color = Color.rgb 0.25 1 1
     , Block.config_sb_box_color = Color.rgb 0.25 1 1
     }
 
-view_config = Block.BlockViewConfig
+view_config = Block.ViewConfig
     { Block.vconfig_zoom_speed = 1
     , Block.vconfig_block_title_height = 20
     , Block.vconfig_track_title_height = 20

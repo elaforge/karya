@@ -38,8 +38,6 @@ void block_model_insert_divider(BlockModelRef *b, int at, int width,
 
 void block_model_remove_track(BlockModelRef *b, int at);
 
-// void block_model_track_at(BlockModelRef *b, int at);
-
 // Block view
 
 BlockViewWindow *block_view_create(int x, int y, int w, int h,
@@ -62,6 +60,8 @@ get_config, set_config
 get_selection, set_selection
 get_model
 */
+
+void set_track_width(BlockViewWindow *b, int at, int width);
 
 // Ruler
 

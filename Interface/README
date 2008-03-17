@@ -1,3 +1,23 @@
+    Interface conventions
+Parameters that will need to be checked (e.g. array indices) have a trailing
+_.  They should be checked like 'let x = Util.in_range desc a b x_'.  Passing
+x_ could be a source of crashes, at the least an undescriptive "out of bounds"
+type crash.
+
+Raw C functions have a leading c_.
+
+Haskell types should be converted to C types with Util.c_*.  This can do range
+checking if necessary.  This is because haskell Integers can be larger than
+CInts.  TODO but I don't use those, rethink this bit.  At the least, this
+provides an easy way to grep for hs->c conversions.
+
+Functions in the UI monad make calls to FLTK and must be called in the ui
+thread so they are serialized in the main thread (this is a requirement for
+some OSs).  Functions with IO types don't call FLTK and can be run from any
+thread concurrently.
+
+    OVERVIEW
+
 There are three main UI objects: Block, Track, and Event, each contained within
 the other.  Blocks and Tracks have a corresponding BlockView and TrackView that
 represent the display aspects.  This is so a single Block can have multiple
@@ -91,3 +111,48 @@ The opaque raw implementation types Block, BlockView, etc. contain the pointer
 or foreign pointer to the C structure and then auxiliary haskell data along for
 the ride.  Some of this data (e.g. the Block of a BlockView) could technically
 be derived from the C struct, but it's easier to get it from the haskell type.
+
+
+    Where data is stored
+
+Ultimately, track and event data is stored in the c++ *Model classes.  This
+gives the view classes easy access to the data they need to draw.  However,
+their is auxiliary data associated with blocks and tracks that the GUI doesn't
+need, so I have two choices for storing data:
+
+- Store all data in the c++ classes.  This means it's in only one place, but
+I need to do awkward and inefficient cross language marshalling to get it from
+c++ to haskell.  It also means all access is serialized through the ui thread,
+but since this is shared mutable data, access needs to be serialized in some
+way anyway.  If it turns out complete serialization is hurting read access
+which could happen concurrently, I would have to put shared locks in at the
+c++ level and specify that some c_interface.h functions can be called outside
+the ui thread.  To store auxiliary haskell data, I have to put a "data" ptr
+into the c++ classes, and export that as a stable ptr from haskell, casted to
+void* and back.
+
+- "Cache" some or all data in the haskell types.  With this scheme, Block and
+Track data stores mutable references to haskell data locally.  This means
+I don't have to ask c++ for that data (so I can avoid writing peeks for e.g.
+config data), and concurrent access is easier since I can serialize around
+a haskell mvar.  The downside is that I have to store the data in two places,
+which is an opportunity to get out of sync.
+
+Block attrs: haskell only, mutable Map
+
+Config data: 
+
+
+    View validity
+
+Views can be destroyed from the UI, so there's a chance a haskell view will be
+stale, i.e. point to a deleted window.  To avoid concurrent delete issues in
+c++, fltk must already serialize delete into the event handler.  So I just
+serialize the deletes through the haskell event handler, which issues the
+window destroys.  This lets haskell maintain a valid map for view ptrs.  All
+view ops check for the ptr in the map, and since UI ops are all serialized,
+the ptr will continue to be valid while the view op executes.
+
+This only applies to block views, since I don't give direct access to any
+other kind of view.
+TODO: so what happens when you do a force close?

@@ -1,20 +1,27 @@
 {-# OPTIONS_GHC -XBangPatterns #-}
 module Interface.Block (
-    BlockModelConfig(..), Block -- no constructors for Block
+    -- * Block model
+    Config(..), Block -- no constructors for Block
     , create
-    -- , select_colors
+    -- ** Model modification
+    , get_config, set_config
     , get_title, set_title, get_attrs, set_attrs
 
-    -- * Track management
+    -- ** Track management
     , Tracklike(..)
-    , insert_track, remove_track
+    , tracks, track_at, insert_track, remove_track
 
-    , BlockViewConfig(..), BlockView
+    -- * Block view
+    , ViewConfig(..), BlockView
     , Zoom(..), Selection(..)
     , create_view
-    , resize, get_zoom, set_zoom
+
+    -- ** View modification
+    , resize
+    , get_view_config, set_view_config
+    , get_zoom, set_zoom
     , get_track_scroll, set_track_scroll
-    , get_selection, set_selection, get_view_config, set_view_config
+    , get_selection, set_selection
 ) where
 
 {-
@@ -26,8 +33,8 @@ import System.IO.Unsafe
 
 import Interface.Ui (send_action)
 import qualified Interface.BlockImpl as B
-import Interface.BlockImpl (Block, BlockModelConfig(..), Tracklike(..)
-    , BlockView, BlockViewConfig(..), Zoom(..), Selection(..)
+import Interface.BlockImpl (Block, Config(..), Tracklike(..)
+    , BlockView, ViewConfig(..), Zoom(..), Selection(..)
     )
 
 force = id
@@ -42,6 +49,17 @@ set_title block s = send_action (B.set_title block (force s))
 -- No serialization needed for these.
 get_attrs = B.get_attrs
 set_attrs = B.set_attrs
+
+get_config = B.get_config
+set_config block config = send_action (B.set_config block config)
+
+-- | How many tracks does 'block' have?
+tracks :: Block -> IO Int
+tracks block = send_action (B.tracks block)
+
+-- | Return track for the track index.
+track_at :: Block -> Int -> IO Tracklike
+track_at block at = send_action (B.track_at block at)
 
 insert_track !block !at !track !width =
     send_action (B.insert_track block at track width)
@@ -64,6 +82,9 @@ set_track_scroll !view !offset = send_action (B.set_track_scroll view offset)
 
 get_selection !view = send_action (B.get_selection view)
 set_selection !view !sel = send_action (B.set_selection view (force sel))
+
+set_track_width !view !at !width =
+    send_action (B.set_track_width view at width)
 
 get_view_config !view = send_action (B.get_view_config view)
 set_view_config !view !config = send_action

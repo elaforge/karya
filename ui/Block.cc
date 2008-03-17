@@ -214,12 +214,6 @@ BlockView::resize(int X, int Y, int W, int H)
     this->update_scrollbars();
 }
 
-void
-BlockView::redraw()
-{
-    Fl_Group::redraw();
-}
-
 // called by fltk
 int
 BlockView::handle(int evt)

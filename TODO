@@ -40,6 +40,10 @@ interface
   - track_at
   - Event
 
+tests
+  - hunit for Interface testing
+  - some kind of organized hunit / quickcheck for pure code
+
 app
   - actions
   - msg -> action mapping

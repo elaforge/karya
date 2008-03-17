@@ -17,7 +17,7 @@ data Track = Track
     { track_p :: ForeignPtr CEventTrackModel
     , track_attrs :: Attrs
     , track_events :: EventList
-    } deriving (Show)
+    } deriving (Show, Eq)
 type EventList = [(TrackPos, Event.Event)]
 
 create :: Color.Color -> IO Track
