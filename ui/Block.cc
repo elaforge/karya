@@ -278,10 +278,17 @@ BlockView::insert_track(int at, const TrackModel &track, int width)
     if (track.track) {
         t = new EventTrackView(track.track, track.ruler);
         t->callback(BlockView::update_scrollbars_cb, static_cast<void *>(this));
-    } else if (track.ruler)
+    } else if (track.ruler) {
         t = new RulerTrackView(track.ruler);
-    else
+    } else {
         t = new DividerView(track.divider);
+    }
+
+    if (!track.divider) {
+        // Can't create a track smaller than you could resize, except dividers
+        // which are supposed to be small.
+        width = std::max(track_tile.get_minimum_size().x, width);
+    }
     track_tile.insert_track(at, t, width);
     this->update_scrollbars();
 }
@@ -339,7 +346,7 @@ BlockView::update_scrollbars_cb(Fl_Widget *w, void *vp)
 static void
 block_view_window_cb(Fl_Window *win, void *p)
 {
-    if (Fl::event_key(FL_Escape))
+    if (0 && Fl::event_key(FL_Escape))
         ;
     else
         Fl_Window::default_callback(win, p);

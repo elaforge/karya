@@ -45,6 +45,7 @@ public:
     virtual void resize(int X, int Y, int W, int H);
     virtual int handle(int evt);
     void drag_tile(Point drag_from, Point drag_to);
+    Point get_minimum_size() const { return minimum_size; }
 
     void set_move_direction(MoveDirection horizontal, MoveDirection vertical) {
         this->hmove = horizontal;
