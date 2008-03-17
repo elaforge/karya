@@ -56,9 +56,7 @@ private:
 
 class EventView : public Fl_Box {
 public:
-    // EventView will take ownership of the passed EventModel.
-    EventView(EventModel *event) : Fl_Box(0, 0, 1, 1), model(event)
-    {
+    EventView(EventModel *event) : Fl_Box(0, 0, 1, 1), model(event) {
         box(FL_FLAT_BOX);
         color(color_to_fl(model->bg_color));
     }
@@ -70,7 +68,7 @@ public:
     EventModel *model;
 protected:
     void draw();
-    // Cuz it calls draw_upper_layer() to draw the text over the ruler.
+    // EventTrackView calls draw_upper_layer() to draw the text over the ruler.
     friend class EventTrackView;
     void draw_upper_layer();
 

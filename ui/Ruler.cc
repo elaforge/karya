@@ -10,18 +10,94 @@
 
 
 void
-OverlayRuler::draw()
+OverlayRuler::set_zoom(const ZoomInfo &zoom)
 {
-    Fl_Group::draw();
-    this->draw_marklists();
+    if (this->zoom == zoom)
+        return;
+    if (this->zoom.factor == zoom.factor) {
+        this->shift = this->zoom.to_pixels(zoom.offset - this->zoom.offset);
+        this->damage(FL_DAMAGE_SCROLL);
+    } else {
+        this->damage(FL_DAMAGE_ALL);
+    }
+    this->zoom = zoom;
 }
 
+
+void
+OverlayRuler::set_selection(int selnum, Color c, const Selection &sel)
+{
+    DEBUG("set sel " << selnum << " " << c << ": "
+            << sel.start_pos << "--" << sel.duration);
+    const Selection &old = this->selections[selnum].second;
+    if (old.tracks != 0) {
+        this->damage_range(old.start_pos, old.start_pos + old.duration);
+    }
+    this->damage_range(sel.start_pos, sel.start_pos + sel.duration);
+    this->selections[selnum] = std::make_pair(c, sel);
+}
+
+
+TrackPos
+OverlayRuler::time_end() const
+{
+    TrackPos end(0);
+    for (int i = 0; i < this->selections.size(); i++) {
+        const Selection &sel = selections[i].second;
+        if (sel.tracks != 0)
+            end = std::max(end, sel.start_pos + sel.duration);
+    }
+    return end;
+}
+
+
+void
+OverlayRuler::draw()
+{
+    Rect draw_area = rect(this);
+    draw_area.h--; // tiles make a 1 pixel lower border
+    // Prevent marks at the top and bottom from drawing outside the ruler.
+    ClipArea clip_area(draw_area);
+
+    /*
+    uchar d = this->damage();
+
+    if (d & FL_DAMAGE_ALL) {
+        // draw_area(rect(this));
+    } else {
+        if (d & FL_DAMAGE_SCROLL) {
+            // fl_scroll(...)
+            // draw_area(...) // revealed areas
+        }
+    }
+    */
+
+    Fl_Group::draw();
+    this->draw_marklists();
+    this->draw_selections();
+    this->damaged_area.w = this->damaged_area.h = 0;
+    this->shift = 0;
+}
+
+
+// Intersect 'r' with the clip area.
 static Rect
 clip_rect(Rect r)
 {
     int x, y, w, h;
     fl_clip_box(r.x, r.y, r.w, r.h, x, y, w, h);
     return Rect(x, y, w, h);
+}
+
+
+void
+OverlayRuler::damage_range(TrackPos start, TrackPos end)
+{
+    Rect r = rect(this);
+    r.y = this->zoom.to_pixels(start);
+    r.h = this->zoom.to_pixels(this->zoom.offset + end);
+    this->damaged_area.union_(r);
+    this->damage(FL_DAMAGE_USER1);
 }
 
 
@@ -58,14 +134,10 @@ OverlayRuler::draw_mark(int offset, const Mark &mark)
 void
 OverlayRuler::draw_marklists()
 {
-    Rect draw_area = rect(this);
-    draw_area.h--; // tiles make a 1 pixel lower border
-    Rect clip = clip_rect(draw_area);
+    Rect clip = clip_rect(rect(this));
     // DEBUG("clip: " << clip);
     if (clip.w == 0 || clip.h == 0)
         return;
-    // Prevent marks at the top and bottom from drawing outside the ruler.
-    ClipArea clip_area(draw_area);
     // Later marklists will draw over earlier ones.
     for (Marklists::const_iterator mlist = model->marklists.begin();
             mlist != model->marklists.end(); ++mlist)
@@ -84,6 +156,20 @@ OverlayRuler::draw_marklists()
             else
                 draw_mark(offset, mark->second);
         }
+    }
+}
+
+
+void
+OverlayRuler::draw_selections()
+{
+    for (int i = 0; i < this->selections.size(); i++) {
+        const Selection &sel = this->selections[i].second;
+        if (sel.tracks == 0)
+            continue;
+        int start = y() + this->zoom.to_pixels(sel.start_pos);
+        int height = this->zoom.to_pixels(zoom.offset + sel.duration);
+        alpha_rectf(Rect(x(), start, w(), height), this->selections[i].first);
     }
 }
 

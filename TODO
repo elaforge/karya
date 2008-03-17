@@ -1,27 +1,30 @@
 ui
-  - figure out redraw situation.  when do I have to call it?
   * make TrackPos into an opaque type to let me be more free with impl.
     implement as int64 usec?  or since it's just block relative, I can use
     plain unsigned msec?
   * scroll
   * add info line at the bottom
   - zoom
-  - selections
+  * selections
   - organized logging situation
-  - bug: one pixel drawing glitch at bottom of tracks
+  * bug: one pixel drawing glitch at bottom of tracks
+    it has something to do with FL_FLAT_BOX + FL_THIN_DOWN_BOX
   - bug: starting with an x,y offset makes BlockView confused
   * bug: resizing ruler to 0 crashes
   EventCollector:
     * convert EventCollectWindow to global EventCollector
     + everyone should send their events there
+    - custom Msg type that includes events, as well as "new selection" and
+      other UI actions
 
   Track
-    - dividers can have separate color for upper part, for collapsable tracks
+    / dividers can have separate color for upper part, for collapsable tracks
   event track
     * overlay ruler
     + events
   Ruler
     * clip markers when they overlap edge of widget
+    - bug: looks like overlay is getting drawn twice when called from Interface
     - text labels
 
   MoveTile

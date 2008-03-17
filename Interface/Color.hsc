@@ -7,8 +7,8 @@ import qualified Interface.Util as Util
 -- r, g, b, alpha, from 0--1
 data Color = Color Double Double Double Double deriving (Eq, Show)
 -- | An opaque color with the given r, g, and b.
-rgb r g b = Color r g b 1
-rgba r g b a = Color r g b a
+rgb r g b = rgba r g b 1
+rgba r g b a = let c = clamp 0 1 in Color (c r) (c g) (c b) (c a)
 
 black = rgb 0 0 0
 white = rgb 1 1 1
@@ -26,6 +26,14 @@ gray7 = rgb 0.7 0.7 0.7
 gray8 = rgb 0.8 0.8 0.8
 gray9 = rgb 0.9 0.9 0.9
 
+scale :: Double -> Color -> Color
+scale d (Color r g b a) = rgba (r*d) (g*d) (b*d) a
+lighten d = scale (1+d)
+darken d = scale (1-d)
+
+alpha a' (Color r g b a) = rgba r g b a'
+
+clamp lo hi = max lo . min hi
 
 -- Storable instance
 

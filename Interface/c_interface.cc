@@ -212,15 +212,15 @@ block_view_set_track_scroll(BlockViewWindow *b, int pixels)
 }
 
 const Selection *
-block_view_get_selection(const BlockViewWindow *b)
+block_view_get_selection(const BlockViewWindow *b, int selnum)
 {
-    return &b->block.get_selection();
+    return &b->block.get_selection(selnum);
 }
 
 void
-block_view_set_selection(BlockViewWindow *b, const Selection *sel)
+block_view_set_selection(BlockViewWindow *b, int selnum, const Selection *sel)
 {
-    b->block.set_selection(*sel);
+    b->block.set_selection(selnum, *sel);
 }
 
 void

@@ -18,6 +18,7 @@ track overlay, and alpha for the ruler track.
 #include <FL/Fl_Box.H>
 
 #include "util.h"
+#include "config.h"
 
 #include "types.h"
 #include "Track.h"
@@ -68,18 +69,27 @@ struct RulerTrackModel {
 class OverlayRuler : public Fl_Group {
 public:
     OverlayRuler(boost::shared_ptr<const RulerTrackModel> model) :
-        Fl_Group(0, 0, 1, 1), model(model)
+        Fl_Group(0, 0, 1, 1), model(model), selections(Config::max_selections)
     {}
-    void set_zoom(const ZoomInfo &zoom) { this->zoom = zoom; redraw(); }
+    void set_zoom(const ZoomInfo &zoom);
+    void set_selection(int selnum, Color c, const Selection &sel);
+    TrackPos time_end() const;
 
     boost::shared_ptr<const RulerTrackModel> model;
 protected:
     void draw();
 
 private:
-    void draw_marklists();
+    void damage_range(TrackPos start, TrackPos end);
     void draw_mark(int offset, const Mark &mark);
+    void draw_marklists();
+    void draw_selections();
+    std::vector<std::pair<Color, Selection> > selections;
 
+    // This area needs to be redrawn.
+    Rect damaged_area;
+    // Widget should be shifted by this many pixels timewise.  For scrolling.
+    int shift;
     ZoomInfo zoom;
 };
 
@@ -89,6 +99,10 @@ public:
     RulerTrackView(boost::shared_ptr<const RulerTrackModel> model);
     virtual Fl_Box &title_widget();
     virtual void set_zoom(const ZoomInfo &zoom) { ruler.set_zoom(zoom); }
+    virtual void set_selection(int selnum, Color c, const Selection &sel) {
+        ruler.set_selection(selnum, c, sel);
+    }
+    virtual TrackPos time_end() const { return ruler.time_end(); }
 
 protected:
     // void draw();

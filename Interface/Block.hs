@@ -80,8 +80,9 @@ set_zoom !view !zoom = send_action (B.set_zoom view (force zoom))
 get_track_scroll !view = send_action (B.get_track_scroll view)
 set_track_scroll !view !offset = send_action (B.set_track_scroll view offset)
 
-get_selection !view = send_action (B.get_selection view)
-set_selection !view !sel = send_action (B.set_selection view (force sel))
+get_selection !view !selnum = send_action (B.get_selection view selnum)
+set_selection !view !selnum !sel
+    = send_action (B.set_selection view selnum (force sel))
 
 set_track_width !view !at !width =
     send_action (B.set_track_width view at width)

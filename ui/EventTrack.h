@@ -58,6 +58,9 @@ public:
     void resize(int x, int y, int w, int h);
     virtual SeqInput &title_widget() { return *this->title_input; }
     void set_zoom(const ZoomInfo &zoom);
+    virtual void set_selection(int selnum, Color c, const Selection &sel) {
+        overlay_ruler.set_selection(selnum, c, sel);
+    }
     virtual TrackPos time_end() const;
 
     // Only called by EventTrackModel

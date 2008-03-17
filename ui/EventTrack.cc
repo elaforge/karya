@@ -1,6 +1,8 @@
 #include <set>
 
+#include "config.h"
 #include "util.h"
+#include "alpha_draw.h"
 #include "SeqInput.h"
 #include "EventTrack.h"
 
@@ -100,7 +102,7 @@ EventTrackView::time_end() const
         // DEBUG("e"<< i++ << ": " << event->first << " + " << event->second.duration);
         end = std::max(end, event->first + event->second.duration);
     }
-    return end;
+    return std::max(end, this->overlay_ruler.time_end());
 }
 
 
@@ -123,6 +125,19 @@ EventTrackView::remove_event(TrackPos pos)
 void
 EventTrackView::draw()
 {
+    /*
+    uchar d = this->damage();
+
+    if (d & FL_DAMAGE_ALL) {
+        // draw_area(rect(this));
+    } else {
+        if (d & FL_DAMAGE_SCROLL) {
+            // fl_scroll(...)
+            // draw_area(...) // revealed areas
+        }
+    }
+    */
+
     Rect draw_area = rect(this);
     draw_area.h--; // tiles make a 1 pixel lower border
     ClipArea clip_area(draw_area);
@@ -137,6 +152,9 @@ EventTrackView::draw()
 // This does a complete refresh of the events from the model and a complete
 // redraw.
 // TODO use start and duration
+// TODO instead of doing this with widgets can I do it all in draw?  then I
+// can't put event drawing code in its own widget and events don't get
+// delivired.  But it seems the neither is a big deal.
 void
 EventTrackView::create_widgets(TrackPos start, TrackPos duration)
 {

@@ -16,3 +16,27 @@ TrackModel::TrackModel(boost::shared_ptr<RulerTrackModel> r) :
 
 TrackModel::TrackModel(boost::shared_ptr<DividerModel> d) :
     track(null_track), ruler(null_ruler), divider(d) {}
+
+
+
+DividerView::DividerView(boost::shared_ptr<DividerModel> model) :
+    TrackView("divider"), box(0, 0, 1, 1)
+{
+    box.box(FL_FLAT_BOX);
+    box.color(color_to_fl(model->color));
+    add(box);
+
+    this->title_box = new Fl_Box(0, 0, 1, 1);
+    title_box->box(FL_FLAT_BOX);
+    title_box->color(color_to_fl(model->color));
+}
+
+
+void
+DividerView::draw()
+{
+    Rect r = rect(this);
+    r.h--;
+    ClipArea c(r);
+    TrackView::draw();
+}

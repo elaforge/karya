@@ -1,3 +1,4 @@
+#include "config.h"
 #include "EventCollector.h"
 #include "Block.h"
 #include "Track.h"
@@ -51,15 +52,9 @@ const ZoomInfo *block_view_get_zoom(const BlockViewWindow *b);
 void block_view_set_zoom(BlockViewWindow *b, const ZoomInfo *zoom);
 int block_view_get_track_scroll(BlockViewWindow *b);
 void block_view_set_track_scroll(BlockViewWindow *b, int pixels);
-const Selection *block_view_get_selection(const BlockViewWindow *b);
-void block_view_set_selection(BlockViewWindow *b, const Selection *sel);
-
-/*
-get_zoom, set_zoom
-get_config, set_config
-get_selection, set_selection
-get_model
-*/
+const Selection *block_view_get_selection(const BlockViewWindow *b, int selnum);
+void block_view_set_selection(BlockViewWindow *b, int selnum,
+        const Selection *sel);
 
 void set_track_width(BlockViewWindow *b, int at, int width);
 

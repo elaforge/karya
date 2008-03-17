@@ -41,11 +41,19 @@ operator<<(std::ostream &os, const TrackPos &pos)
 }
 
 
+// "No selection" is if 'tracks' is 0.
 struct Selection {
+    Selection() : start_track(0), start_pos(0), tracks(0), duration(0) {}
+    Selection(int start_track, TrackPos start_pos, int tracks,
+            TrackPos duration) :
+        start_track(start_track), start_pos(start_pos),
+        tracks(tracks), duration(duration)
+    {}
+
     int start_track;
     TrackPos start_pos;
-    int end_track;
-    TrackPos end_pos;
+    int tracks;
+    TrackPos duration;
 };
 
 // You divide by factor to go from TrackPos -> pixels, so it can't be 0.
@@ -56,6 +64,9 @@ struct ZoomInfo {
     ZoomInfo(TrackPos offset, double factor) :
         offset(offset), factor(std::max(MINIMUM_FACTOR, factor))
     {}
+    bool operator==(const ZoomInfo &o) {
+        return offset == o.offset && factor == o.factor;
+    }
 
     // How many pixels is the given pos at, at this zoom?
     int to_pixels(TrackPos pos) const {

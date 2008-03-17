@@ -27,9 +27,9 @@ BlockViewConfig block_view_config()
 BlockModelConfig block_model_config()
 {
     BlockModelConfig c;
-    c.select[0] = Color(0xffff00);
-    c.select[1] = Color(0xffff00);
-    c.select[2] = Color(0xffff00);
+    c.select[0] = Color(0, 0, 255, 30);
+    c.select[1] = Color(255, 0, 255, 90);
+    c.select[2] = Color(0, 255, 255, 90);
     c.bg = Color(0xdddddd);
     c.track_box = Color(0x44ffff);
     c.sb_box = Color(0x00ffff);
@@ -70,7 +70,7 @@ main(int argc, char **argv)
     Color white(255, 255, 255);
 
     // static const Marklists no_marks = Marklists();
-    Color ruler_bg = Color(255, 220, 128);
+    Color ruler_bg = Color(255, 230, 160);
 
     Marklists mlists;
     mlists.push_back(m44_marklist());
@@ -115,6 +115,9 @@ main(int argc, char **argv)
 
     t1->insert_event(TrackPos(128), EventModel(TrackPos(32), eventc, sub3));
     t1->insert_event(TrackPos(175), EventModel(TrackPos(8), eventc, sub4));
+
+    view.block.set_selection(0, Selection(0, TrackPos(60), 4, TrackPos(56)));
+    view.block.set_selection(0, Selection(0, TrackPos(0), 4, TrackPos(56)));
 
     // print_children(&view);
     // DEBUG(1);

@@ -9,7 +9,7 @@ TrackTile::TrackTile(int X, int Y, int W, int H, Color bg_color,
         int title_height) :
     MoveTile(X, Y, W, H),
     title_height(title_height),
-    track_pad(X, Y, W, H, "P")
+    track_pad(X, Y, W, H)
 {
     ASSERT(title_height >= 0);
     end(); // don't automatically put more children in here

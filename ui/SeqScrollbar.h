@@ -7,10 +7,10 @@ Or adapt to a Fl_Scrollbar for 1 mouse macs?
 */
 #include <FL/Fl_Scroll.H>
 
+#include "util.h"
+
 #include "P9Scrollbar.h"
 #include "Ruler.h"
-
-#include "util.h"
 
 class P9SeqScrollbar : public P9Scrollbar {
 public:

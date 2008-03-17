@@ -64,6 +64,7 @@ BlockView::BlockView(int X, int Y, int W, int H,
     Fl_Group(X, Y, W, H),
     model(model),
     config(config),
+    selections(Config::max_selections),
 
     title(0, 0, 1, 1),
     status_line(0, 0, 1, 1),
@@ -259,13 +260,34 @@ BlockView::set_config(const BlockViewConfig &config)
 }
 
 const Selection &
-BlockView::get_selection() const
+BlockView::get_selection(int selnum) const
 {
+    ASSERT(0 <= selnum && selnum < Config::max_selections);
+    return this->selections[selnum];
 }
 
 void
-BlockView::set_selection(const Selection &sel)
+BlockView::set_selection(int selnum, const Selection &sel)
 {
+    ASSERT(0 <= selnum && selnum < Config::max_selections);
+    // clear old selection
+    const Selection &old = this->selections[selnum];
+    const Color &color = model->get_config().select[selnum];
+    Selection empty;
+    for (int i = old.start_track;
+            i < old.start_track + old.tracks && i < tracks(); i++)
+    {
+        track_at(i)->set_selection(selnum, color, empty);
+    }
+
+    // draw new one
+    for (int i = sel.start_track;
+            i < sel.start_track + sel.tracks && i < tracks(); i++)
+    {
+        track_at(i)->set_selection(selnum, color, sel);
+    }
+
+    this->selections[selnum] = sel;
 }
 
 

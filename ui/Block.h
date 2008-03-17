@@ -47,6 +47,7 @@ on an scrollbar callback
 #include "SeqScrollbar.h"
 #include "SeqInput.h"
 
+#include "config.h"
 #include "types.h"
 #include "Track.h"
 #include "TrackTile.h"
@@ -58,11 +59,10 @@ on an scrollbar callback
 // tracknum.  'add_track' on this tracknum replaces the ruler track, and
 // 'remove_track' has no effect.
 enum { ruler_tracknum = -1 };
-enum { max_selections = 3 };
 
 struct BlockModelConfig {
     // An array of 3 or more Colors for the selections.
-    Color select[max_selections];
+    Color select[Config::max_selections];
     Color bg;
     Color track_box;
     Color sb_box;
@@ -145,8 +145,8 @@ public:
 
     const BlockViewConfig &get_config() const { return config; }
     void set_config(const BlockViewConfig &config);
-    const Selection &get_selection() const;
-    void set_selection(const Selection &sel);
+    const Selection &get_selection(int selnum) const;
+    void set_selection(int selnum, const Selection &sel);
 
     // Called by BlockModel when it changes:
     void set_title(const char *s) { title.value(s); }
@@ -166,6 +166,7 @@ public:
     void drag_tile(Point drag_from, Point drag_to) {
         track_tile.drag_tile(drag_from, drag_to);
     }
+    void tile_init() { track_tile.init_sizes(); }
 
 protected:
     int handle(int evt);
@@ -174,6 +175,7 @@ private:
     boost::shared_ptr<BlockModel> model;
     BlockViewConfig config;
     ZoomInfo zoom;
+    std::vector<Selection> selections;
 
     SeqInput title;
     Fl_Output status_line;

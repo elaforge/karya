@@ -54,6 +54,7 @@ public:
     }
 
     virtual void set_zoom(const ZoomInfo &zoom) {}
+    virtual void set_selection(int selnum, Color c, const Selection &sel) {}
     virtual bool track_resizable() const { return true; }
     // Return the end of the last event.
     virtual TrackPos time_end() const { return TrackPos(0); }
@@ -67,20 +68,11 @@ public:
 
 class DividerView : public TrackView {
 public:
-    DividerView(boost::shared_ptr<DividerModel> model) :
-        TrackView("divider"),
-        box(0, 0, 1, 1)
-    {
-        box.box(FL_FLAT_BOX);
-        box.color(color_to_fl(model->color));
-        add(box);
-
-        this->title_box = new Fl_Box(0, 0, 1, 1);
-        title_box->box(FL_FLAT_BOX);
-        title_box->color(color_to_fl(model->color));
-    }
+    DividerView(boost::shared_ptr<DividerModel> model);
     bool track_resizable() const { return false; }
     virtual Fl_Box &title_widget() { return *this->title_box; }
+protected:
+    void draw();
 private:
     Fl_Box box;
     Fl_Box *title_box;

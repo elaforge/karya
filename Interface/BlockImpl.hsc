@@ -69,7 +69,7 @@ create config = do
 
 -- | Max number of selections, hardcoded in ui/Block.h.
 max_selections :: Int
-max_selections = fromIntegral (#const max_selections)
+max_selections = fromIntegral (#const Config::max_selections)
 
 instance Storable Config where
     sizeOf _ = #size BlockModelConfig
@@ -288,16 +288,19 @@ set_track_scroll view offset
 foreign import ccall unsafe "block_view_set_track_scroll"
     c_set_track_scroll :: Ptr CBlockView -> CInt -> IO ()
 
-get_selection :: BlockView -> UI Selection
-get_selection view = c_block_view_get_selection (view_p view) >>= peek
+get_selection :: BlockView -> Int -> UI Selection
+get_selection view selnum
+    = c_block_view_get_selection (view_p view) (Util.c_int selnum) >>= peek
 foreign import ccall unsafe "block_view_get_selection"
-    c_block_view_get_selection :: Ptr CBlockView -> IO (Ptr Selection)
+    c_block_view_get_selection :: Ptr CBlockView -> CInt -> IO (Ptr Selection)
 
-set_selection :: BlockView -> Selection -> UI ()
-set_selection view sel =
-    with sel $ \selp -> c_block_view_set_selection (view_p view) selp
+set_selection :: BlockView -> Int -> Selection -> UI ()
+set_selection view selnum sel =
+    with sel $ \selp ->
+        c_block_view_set_selection (view_p view) (Util.c_int selnum) selp
 foreign import ccall unsafe "block_view_set_selection"
-    c_block_view_set_selection :: Ptr CBlockView -> Ptr Selection -> IO ()
+    c_block_view_set_selection :: Ptr CBlockView -> CInt -> Ptr Selection
+        -> IO ()
 
 set_track_width :: BlockView -> TrackNum -> Width -> UI ()
 set_track_width view at_ width = do
@@ -319,17 +322,17 @@ instance Storable Selection where
 peek_selection selp = do
     start_track <- (#peek Selection, start_track) selp :: IO CInt
     start_pos <- (#peek Selection, start_pos) selp
-    end_track <- (#peek Selection, end_track) selp :: IO CInt
-    end_pos <- (#peek Selection, end_pos) selp
+    tracks <- (#peek Selection, tracks) selp :: IO CInt
+    duration <- (#peek Selection, duration) selp
     return $ Selection (fromIntegral start_track, start_pos)
-        (fromIntegral end_track, end_pos)
+        (fromIntegral tracks, duration)
 
-poke_selection selp (Selection (start_track, start_pos) (end_track, end_pos)) =
+poke_selection selp (Selection (start_track, start_pos) (tracks, duration)) =
     do
         (#poke Selection, start_track) selp (Util.c_int start_track)
         (#poke Selection, start_pos) selp start_pos
-        (#poke Selection, end_track) selp (Util.c_int end_track)
-        (#poke Selection, end_pos) selp end_pos
+        (#poke Selection, tracks) selp (Util.c_int tracks)
+        (#poke Selection, duration) selp duration
 
 instance Storable Zoom where
     sizeOf _ = #size ZoomInfo

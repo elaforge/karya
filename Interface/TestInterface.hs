@@ -31,12 +31,16 @@ test_view = do
 
     t1 <- Track.create Color.white
 
-    view <- Block.create_view (0, 0) (100, 200) block track_ruler view_config
+    -- Insert some tracks before creating the view, some after.
     Block.insert_track block 0 (Block.R track_ruler) 10
+    view <- Block.create_view (0, 0) (100, 200) block track_ruler view_config
     Block.insert_track block 1 (Block.T t1 overlay_ruler) 70
     Block.insert_track block 2 (Block.T t1 overlay_ruler) 50
-    ntracks <- Block.tracks block
-    -- assert ntracks == 3
+    Block.insert_track block 2 (Block.D Color.blue) 5
+
+    -- test selections
+    Block.set_selection view 0
+        (Block.Selection (0, TrackPos 0) (2, TrackPos 64))
 
     -- Util.show_children view >>= putStrLn
     putStr "? " >> IO.hFlush IO.stdout >> getLine
@@ -120,7 +124,9 @@ overlay_config config = config
     }
 
 block_config = Block.Config
-    { Block.config_select_colors = [Color.black]
+    { Block.config_select_colors =
+        let sel = Color.alpha 0.3 . Color.lighten 0.8 in
+            [sel Color.blue, sel Color.green, sel Color.red]
     , Block.config_bg_color = Color.gray8
     , Block.config_track_box_color = Color.rgb 0.25 1 1
     , Block.config_sb_box_color = Color.rgb 0.25 1 1
