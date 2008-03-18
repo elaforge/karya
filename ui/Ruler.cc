@@ -132,6 +132,7 @@ OverlayRuler::draw_mark(int offset, const Mark &mark)
     if (this->zoom.factor >= mark.name_zoom_level && this->model->show_names
             && mark.name.size() > 0)
     {
+        fl_font(fl_font(), 9);
         int text_width = fl_width(mark.name.c_str());
         int xmin = x() + 2;
         int xmax = x() + w() - text_width;
@@ -139,7 +140,6 @@ OverlayRuler::draw_mark(int offset, const Mark &mark)
         // site if I must.
         int xpos = ::clamp(xmin, xmax, x() + w() - int(width) - text_width);
 
-        fl_font(fl_font(), 9);
         fl_color(FL_BLACK);
         fl_draw(mark.name.c_str(), xpos, offset);
     }

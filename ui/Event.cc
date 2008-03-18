@@ -25,11 +25,11 @@ EventView::draw_upper_layer()
 
         // TODO
         // if the text is too long it gets blue-blocked off
+        fl_font(fl_font(), 12);
         int text_h = fl_height() - fl_descent();
         int textpos = y() + text_h;
         // TODO set according to style
         fl_color(FL_BLACK);
-        fl_font(fl_font(), 12);
         fl_draw(this->model->text.c_str(), x(), textpos);
     } else {
         // TODO draw line at bottom, align text on top of it
