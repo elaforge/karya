@@ -17,51 +17,43 @@ The Sub text tries to stay inside the Event if possible.
 #include "util.h"
 #include "types.h"
 
-struct SubEvent {
-    SubEvent() : pos(0) {}
-    SubEvent(TrackPos pos, const std::string &text) : pos(pos), text(text) {}
-    TrackPos pos;
-    std::string text;
-};
 
-class EventView;
-
+// Events are immutable.  They are never modified in place, so they don't need
+// pointers to their views.  However, I can't actually make the members const
+// since I assign them by value into STL containers.
 struct EventModel {
     // This has a default contsructor so I can assign it by value into
     // the EventTrackModel::Events map.
-    EventModel() : duration(0), bg_color(255, 255, 255) {}
-    EventModel(TrackPos duration, Color bg, const SubEvent &sub) :
-        duration(duration), bg_color(bg)
-    {
-        this->subs.push_back(sub);
-    }
-    void insert_sub(TrackPos pos, const std::string &text);
-    void remove_sub(TrackPos pos);
-    void update();
+    EventModel() : duration(0), color(0, 0, 0) {}
+    EventModel(const std::string &text, TrackPos duration, Color color,
+            const TextStyle &style) :
+        text(text), duration(duration), color(color), style(style),
+        align_to_top(true)
+    {}
 
-    void set_view(EventView *view) { this->view = view; }
-
-    TextStyle style;
+    std::string text;
     TrackPos duration;
-    Color bg_color;
-    typedef std::vector<SubEvent> SubEvents;
-    SubEvents subs;
+    Color color;
+    TextStyle style;
+    // If true, align the text with the beginning of the event for western
+    // style notation.  Otherwise, align it to the end, indonesian style.
+    bool align_to_top;
     // float *signal;
     // RenderStyle render_style;
-private:
-    // Events only ever belong to one view, so they just have a single pointer.
-    EventView *view;
 };
 
 
+// Using a widget for an event may be too heavyweight.
+// I don't need the separate coordinates and event delivery.  If I draw
+// EventModels directly in the EventTrackView, I can avoid this overhead and
+// also handle event collapsing when they're too close.
 class EventView : public Fl_Box {
 public:
     EventView(EventModel *event) : Fl_Box(0, 0, 1, 1), model(event) {
         box(FL_FLAT_BOX);
-        color(color_to_fl(model->bg_color));
+        color(color_to_fl(model->color));
     }
     void set_zoom(const ZoomInfo &zoom) { this->zoom = zoom; redraw(); }
-    void update() { redraw(); }
 
     // view:event is 1:1, but the model is owned and deallocated by
     // EventTrackModel.

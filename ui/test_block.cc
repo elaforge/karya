@@ -51,8 +51,8 @@ m44_marklist()
             Mark m(1, 3, major, name, 0, 0);
             mlist->push_back(std::pair<TrackPos, Mark>(t, m));
         } else {
-            sprintf(name, "%d.%d", i / 4, i % 4);
-            Mark m(2, 2, minor, name, 0, 0);
+            // sprintf(name, "%d.%d", i / 4, i % 4);
+            Mark m(2, 2, minor, "", 0, 0);
             mlist->push_back(std::pair<TrackPos, Mark>(t, m));
         }
     }
@@ -94,12 +94,12 @@ main(int argc, char **argv)
     boost::shared_ptr<RulerTrackModel> tr2(
             new RulerTrackModel(nomarks, ruler_bg, false, true, true));
 
-    SubEvent sub1(TrackPos(0), "4c#");
-    SubEvent sub2(TrackPos(0), "4d-");
-    SubEvent sub3(TrackPos(32), "0.7");
-    SubEvent sub4(TrackPos(6), "0.4");
-    t1->insert_event(TrackPos(0), EventModel(TrackPos(16), eventc, sub1));
-    t1->insert_event(TrackPos(32), EventModel(TrackPos(64), eventc, sub2));
+    TextStyle style;
+
+    t1->insert_event(TrackPos(0),
+            EventModel("4c#", TrackPos(16), eventc, style));
+    t1->insert_event(TrackPos(32),
+            EventModel("4d-", TrackPos(64), eventc, style));
 
     TrackModel track(t1, tr);
     TrackModel track2(t1, tr2);
@@ -115,8 +115,10 @@ main(int argc, char **argv)
     BlockViewWindow view(0, 0, 200, 200, model, r, view_config);
     view.block.set_status("no status yet");
 
-    t1->insert_event(TrackPos(128), EventModel(TrackPos(32), eventc, sub3));
-    t1->insert_event(TrackPos(175), EventModel(TrackPos(8), eventc, sub4));
+    t1->insert_event(TrackPos(128),
+        EventModel("0.7", TrackPos(32), eventc, style));
+    t1->insert_event(TrackPos(175),
+        EventModel("0.4", TrackPos(8), eventc, style));
 
     view.block.set_selection(0, Selection(0, TrackPos(60), 4, TrackPos(56)));
     view.block.set_selection(0, Selection(0, TrackPos(0), 4, TrackPos(56)));

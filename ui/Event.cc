@@ -5,46 +5,6 @@
 #include "Event.h"
 
 
-// EventModel //////
-
-void
-EventModel::insert_sub(TrackPos pos, const std::string &text)
-{
-    for (EventModel::SubEvents::iterator sub = this->subs.begin(); ; ++sub) {
-        if (sub == subs.end() || sub->pos > pos) {
-            this->subs.insert(sub, SubEvent(pos, text));
-            break;
-        } else if (sub->pos == pos) {
-            sub->text = text;
-            break;
-        }
-    }
-    this->update();
-}
-
-
-void
-EventModel::remove_sub(TrackPos pos)
-{
-    for (EventModel::SubEvents::iterator sub = this->subs.begin();
-            sub != this->subs.end(); ++sub)
-    {
-        if (sub->pos == pos) {
-            this->subs.erase(sub);
-            break;
-        }
-    }
-    this->update();
-}
-
-
-void
-EventModel::update()
-{
-    if (this->view)
-        this->view->update();
-}
-
 // EventView ///////
 
 void
@@ -54,28 +14,24 @@ EventView::draw()
 }
 
 
+// These elements get drawn in a separate pass so they are on top of the ruler.
 void
 EventView::draw_upper_layer()
 {
-    fl_color(FL_BLACK);
-    fl_font(fl_font(), 12);
-    for (EventModel::SubEvents::const_iterator sub = this->model->subs.begin();
-            sub != this->model->subs.end(); ++sub)
-    {
-        Rect r(x(), y() + zoom.to_pixels(sub->pos), w(), 1);
+    if (this->model->align_to_top) {
         fl_color(FL_RED);
-        fl_rectf(r.x, r.y, r.w, r.h);
+        fl_line_style(FL_SOLID, 1);
+        fl_line(x(), y(), x()+w(), y());
 
         // TODO
         // if the text is too long it gets blue-blocked off
-        // draw text last in a separate pass so it's on top of the ruler
-
-        int texth = fl_height() - fl_descent();
-        // Try to not go below the event's bottom, but never protrude above the
-        // event's top.
-        int textpos = std::max(y() + texth - 1,
-                std::min(y() + h(), r.y + texth));
+        int text_h = fl_height() - fl_descent();
+        int textpos = y() + text_h;
+        // TODO set according to style
         fl_color(FL_BLACK);
-        fl_draw(sub->text.c_str(), r.x, textpos);
+        fl_font(fl_font(), 12);
+        fl_draw(this->model->text.c_str(), x(), textpos);
+    } else {
+        // TODO draw line at bottom, align text on top of it
     }
 }

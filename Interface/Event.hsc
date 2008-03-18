@@ -15,7 +15,7 @@ The Event has attributes which store arbitrary key-value pairs.  This can be
 used to store the "parent event" of a derivation, for instance.
 
 The text in events never changes size, even when you zoom in or out.  If an
-Event gets too small for its text, 
+Event gets too small for its text, it collapses into a blue chunk, the standard symbol for some data that didn't fit.
 
 The beginning of the Event and each Sub's position is marked with a red line.
 The text will begin slightly below the line, but still try to fit within the
@@ -24,10 +24,7 @@ the line so that its bottom touches the bottom of the Event.  If there is no
 room for the text at all, because of other text or the top of the Event, the
 text will disappear and the line will be blue, to mark hidden text.
 
-No Event may overlap another Event on the same Track.  The only reason for that
-is to simplify Event layout.  If I ever want overlapping Events it shouldn't be
-hard to add.
-
+No Event may overlap another Event on the same Track.
 
 -}
 
@@ -36,23 +33,13 @@ import Interface.Types
 import qualified Interface.Color as Color
 
 data Event = Event
-    { event_title :: String
-    , event_style :: TextStyle
+    { event_text :: String
     , event_duration :: TrackPos
-    , event_subs :: [Sub]
     , event_color :: Color.Color
-    , event_signal :: Signal
-    , event_render_style :: RenderStyle
+    , event_style :: TextStyle
     , event_attrs :: Attrs
     } deriving (Eq, Show)
 
--- | A sub event.
-data Sub = Sub TrackPos String deriving (Eq, Show)
-
--- | How to display the signal under an Event.
-data RenderStyle = ColorMap [(Double, Color.Color)] | Graph deriving (Eq, Show)
-data Signal = Signal [Double] deriving (Eq, Show) -- probably an array actually
-
-type TextStyle = (Font, FontStyle, Color.Color)
+data TextStyle = TextStyle Font FontStyle Color.Color deriving (Eq, Show)
 type Font = String
 type FontStyle = String

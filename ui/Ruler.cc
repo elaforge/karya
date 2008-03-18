@@ -189,6 +189,7 @@ OverlayRuler::draw_selections()
         if (sel.duration == TrackPos(0)) {
             // Darken the select color a bit, and make it non-transparent.
             fl_color(color_to_fl(this->selections[i].first.scale(0.5)));
+            fl_line_style(FL_SOLID, 1);
             fl_line(x() + 2, start, x() + w() - 2, start);
             // Draw little bevel thingy.
             const int sz = selection_point_size;
