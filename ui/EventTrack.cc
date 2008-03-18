@@ -6,6 +6,8 @@
 #include "SeqInput.h"
 #include "EventTrack.h"
 
+// #define DEBUG(X) ;
+
 // EventTrackModel ///////
 
 EventTrackModel::~EventTrackModel()
@@ -65,7 +67,7 @@ EventTrackView::~EventTrackView()
 void
 EventTrackView::resize(int x, int y, int w, int h)
 {
-    DEBUG("resize " << rect(this) << " -> " << Rect(x, y, w, h));
+    // DEBUG("resize " << rect(this) << " -> " << Rect(x, y, w, h));
     // Don't call Fl_Group::resize because I just did the sizes myself.
     Fl_Widget::resize(x, y, w, h);
     this->overlay_ruler.resize(x, y, w, h);
@@ -83,7 +85,7 @@ EventTrackView::set_zoom(const ZoomInfo &zoom)
 {
     // TODO: if just the offset changed and the move is < h(), I can use the
     // Fl_Scroll blit to do it quickly.
-    DEBUG("zoom " << this->zoom << " to " << zoom);
+    // DEBUG("zoom " << this->zoom << " to " << zoom);
     this->zoom = zoom;
     this->create_widgets();
     this->overlay_ruler.set_zoom(zoom);
@@ -99,7 +101,8 @@ EventTrackView::time_end() const
         event != model->events.end();
         ++event)
     {
-        // DEBUG("e"<< i++ << ": " << event->first << " + " << event->second.duration);
+        // DEBUG("e"<< i++ << ": " << event->first << " + "
+        //     << event->second.duration);
         end = std::max(end, event->first + event->second.duration);
     }
     return std::max(end, this->overlay_ruler.time_end());
@@ -165,7 +168,7 @@ EventTrackView::create_widgets(TrackPos start, TrackPos duration)
     //      this->zoom.to_pixels(event->first)
     //          + this->zoom.to_pixels(event->second.duration) <= 0
     EventView *last_view = 0;
-    DEBUG("create_widgets at " << zoom);
+    // DEBUG("create_widgets at " << zoom);
     int i=0;
     for (EventTrackModel::Events::iterator event = model->events.begin();
         event != model->events.end();
@@ -173,8 +176,8 @@ EventTrackView::create_widgets(TrackPos start, TrackPos duration)
     {
         int offset = y() + this->zoom.to_pixels(event->first);
         int height = this->zoom.to_pixels(zoom.offset + event->second.duration);
-        DEBUG(i << ": (" << event->first << ", " << event->second.duration
-                << "), (" << (offset-y()) << ", " << height << ")");
+        // DEBUG(i << ": (" << event->first << ", " << event->second.duration
+        //         << "), (" << (offset-y()) << ", " << height << ")");
         if (offset + height <= y())
             continue;
         else if (offset >= y() + h())
@@ -182,7 +185,7 @@ EventTrackView::create_widgets(TrackPos start, TrackPos duration)
         EventView *v = this->displayed_events[&event->second];
         if (!v) {
             v = new EventView(&event->second);
-            DEBUG("new view: " << event->first);
+            // DEBUG("new view: " << event->first);
             // Keep the children in their trackpos order.  The main thing is
             // to keep bg_box at 0 and overlay_ruler at the end, but it's
             // easier to read debugging dumps if they're all in order.
@@ -195,7 +198,8 @@ EventTrackView::create_widgets(TrackPos start, TrackPos duration)
             // DEBUG("using existing view " << v << ": " << event->first);
         }
         cur_displayed.insert(v);
-        DEBUG(i << ": resize " << rect(v) << " -> " << Rect(x()+1, offset, w()-2, height));
+        // DEBUG(i << ": resize " << rect(v) << " -> "
+        //         << Rect(x()+1, offset, w()-2, height));
         // Give 2 pixels for the border.
         v->resize(x()+1, offset, w()-2, height);
         last_view = v;
@@ -207,7 +211,7 @@ EventTrackView::create_widgets(TrackPos start, TrackPos duration)
             this->displayed_events[v->model] = v;
             i++;
         } else {
-            DEBUG("didn't find " << v);
+            // DEBUG("didn't find " << v);
             this->remove(v);
             delete v; // Fl_Group::remove doesn't delete
         }

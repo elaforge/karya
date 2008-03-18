@@ -32,8 +32,8 @@ OverlayRuler::set_zoom(const ZoomInfo &zoom)
 void
 OverlayRuler::set_selection(int selnum, Color c, const Selection &sel)
 {
-    DEBUG("set sel " << selnum << " " << c << ": "
-            << sel.start_pos << "--" << sel.duration);
+    // DEBUG("set sel " << selnum << " " << c << ": "
+    //         << sel.start_pos << "--" << sel.duration);
     const Selection &old = this->selections[selnum].second;
     if (old.tracks != 0) {
         this->damage_range(old.start_pos, old.start_pos + old.duration);

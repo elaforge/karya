@@ -17,6 +17,8 @@ find_active(UiEvent &e)
     }
     if (!e.inside_block)
         return;
+    // DEBUG("*** found block: " << e.inside_block->block.tracks());
+    // print_children(e.inside_block);
     for (int i = 0; i < e.inside_block->block.tracks(); i++) {
         TrackView *t = e.inside_block->block.track_at(i);
         if (Fl::event_inside(t)) {

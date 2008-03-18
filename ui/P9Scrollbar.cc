@@ -42,8 +42,8 @@ P9Scrollbar::set_scroll(double offset, double size)
     if (orientation == P9Scrollbar::vertical) {
         int pos = std::min(h() - this->min_size, int(offset*h()));
         int sz = std::max(this->min_size, int(size*h()));
-        DEBUG("scroll pos " << DPoint(offset, size) << " actually "
-                << Point(pos, sz));
+        // DEBUG("scroll pos " << DPoint(offset, size) << " actually "
+        //         << Point(pos, sz));
         scrollbox.resize(x()+1, y() + pos, w()-2, sz);
     } else if (orientation == P9Scrollbar::horizontal) {
         int pos = std::min(w() - this->min_size, int(offset*w()));
@@ -62,8 +62,8 @@ P9Scrollbar::set_scroll_zoom(double max, double offset, double displayed_area)
 {
     double scaled_offset = ::clamp(0.0, 1.0, offset / max);
     double size = ::clamp(0.0, max, displayed_area) / max;
-    DEBUG("set_scroll_zoom " << max << ", " << offset << ", " << displayed_area
-            << " -> " << DPoint(scaled_offset, size));
+    // DEBUG("set_scroll_zoom " << max << ", " << offset << ", "
+    //         << displayed_area << " -> " << DPoint(scaled_offset, size));
     this->set_scroll(scaled_offset, size);
 }
 
@@ -72,7 +72,7 @@ int
 P9Scrollbar::handle(int evt)
 {
     if (evt == FL_PUSH || evt == FL_RELEASE || evt == FL_DRAG) {
-        DEBUG("got: " << show_event(evt));
+        // DEBUG("got: " << show_event(evt));
         return 1;
     }
     // DEBUG("got: " << show_event(evt));

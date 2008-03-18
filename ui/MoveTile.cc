@@ -6,7 +6,7 @@
 
 #include "MoveTile.h"
 
-#define DEBUG(X) ;
+// #define DEBUG(X) ;
 
 
 // Only resize widgets along the right and bottom edges.
@@ -14,7 +14,7 @@
 void
 MoveTile::resize(int x, int y, int w, int h)
 {
-    DEBUG("resize " << rect(this) << " to " << Rect(x, y, w, h));
+    // DEBUG("resize " << rect(this) << " to " << Rect(x, y, w, h));
     // Only resize the rightmost and bottommost widgets.  Shrink them down to 1
     // if necessary, but stop resizing children beyond that.
     Point edge(0, 0);
@@ -35,7 +35,7 @@ MoveTile::resize(int x, int y, int w, int h)
         if (c.b() == edge.y)
             new_c.h = std::max(1, (this->y() + h) - c.y);
         if (new_c != c) {
-            DEBUG("c" << i << rect(child(i)) << " to " << new_c);
+            // DEBUG("c" << i << rect(child(i)) << " to " << new_c);
             this->child(i)->resize(new_c.x, new_c.y, new_c.w, new_c.h);
         }
     }
@@ -214,14 +214,15 @@ static void
 jostle(std::vector<Rect> &boxes, const Point &tile_edge,
         Point drag_from, Point drag_to, int dragged_child)
 {
-    DEBUG("jostle " << drag_from << " -> " << drag_to << " c" << dragged_child);
+    // DEBUG("jostle " << drag_from << " -> " << drag_to << " c"
+    //         << dragged_child);
     Point shift(drag_to.x - drag_from.x, drag_to.y - drag_from.y);
     Rect dchild_box = boxes[dragged_child];
     int i = dragged_child;
     // Resize everyone lined up with the dragged child.
     for (; i < boxes.size() && boxes[i].r() == dchild_box.r(); i++) {
-        DEBUG(i << " resize from " << boxes[i].w
-                << " -> " << boxes[i].w + shift.x);
+        // DEBUG(i << " resize from " << boxes[i].w
+        //         << " -> " << boxes[i].w + shift.x);
         boxes[i].w += shift.x;
     }
 
@@ -240,14 +241,14 @@ jostle(std::vector<Rect> &boxes, const Point &tile_edge,
         // drag_from is relative to the original positions, not the current
         // dragged positions.
         if (c.r() < edge.x) {
-            DEBUG(i << " move by " << shift << " from " << c.x << " to "
-                    << c.x + shift.x);
+            // DEBUG(i << " move by " << shift << " from " << c.x << " to "
+            //         << c.x + shift.x);
             // This relies on dragged_child being the upper left most.
             c.x += shift.x;
         } else {
             int new_x = c.x + shift.x;
             int new_r = std::max(tile_edge.x, new_x+1);
-            DEBUG(i << " outermost, (" << new_x << ", " << new_r << ")");
+            // DEBUG(i << " outermost, (" << new_x << ", " << new_r << ")");
             c.x = new_x;
             c.w = new_r - new_x;
         }
@@ -304,8 +305,8 @@ MoveTile::handle_drag_tile(const Point drag_from, const Point drag_to,
             // Stiff children never change size.
             if (this->stiff_child(i))
                 shrink_to = child_box.w;
-            DEBUG(i << show_widget(child(i)) << " shirk left " << shrinkage
-                    << " from " << child_box.w << "->" << shrink_to);
+            // DEBUG(i << show_widget(child(i)) << " shirk left " << shrinkage
+            //         << " from " << child_box.w << "->" << shrink_to);
             if (child_box.w > shrink_to) {
                 jostle(boxes, tile_edges, Point(child_box.r(), 0),
                         Point(child_box.x + shrink_to, 0),
@@ -314,7 +315,7 @@ MoveTile::handle_drag_tile(const Point drag_from, const Point drag_to,
             }
         }
         ASSERT(shrinkage >= 0);
-        DEBUG("shrink left " << shrinkage);
+        // DEBUG("shrink left " << shrinkage);
     }
     // TODO y drag
 

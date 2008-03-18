@@ -77,7 +77,7 @@ TrackTile::insert_track(int at, TrackView *track, int width)
     if (!track->track_resizable()) {
         this->set_stiff_child(child_pos);
         this->set_stiff_child(child_pos+1);
-        DEBUG("stiff: " << child_pos);
+        // DEBUG("stiff: " << child_pos);
     }
     this->update_sizes();
     this->redraw();

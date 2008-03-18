@@ -19,7 +19,7 @@ BlockModel::~BlockModel()
 {
     // Any remaining views should have kept this model alive.
     ASSERT(this->views.size() == 0);
-    DEBUG("destroy block model " << this->serial_number);
+    // DEBUG("destroy block model " << this->serial_number);
 }
 
 void
@@ -296,7 +296,7 @@ BlockView::insert_track(int at, const TrackModel &track, int width)
 {
     TrackView *t;
 
-    DEBUG("view insert at " << at);
+    // DEBUG("view insert at " << at);
     if (track.track) {
         t = new EventTrackView(track.track, track.ruler);
         t->callback(BlockView::update_scrollbars_cb, static_cast<void *>(this));
