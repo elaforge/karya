@@ -15,6 +15,8 @@ struct Color {
 
     Color() : r(0), g(0), b(0), a(0) {}
     unsigned char r, g, b, a;
+
+    Color scale(double d) { return Color(r * d, g * d, b * d, a); }
 };
 
 inline std::ostream &

@@ -32,7 +32,7 @@ test_view = do
     t1 <- Track.create Color.white
 
     -- Insert some tracks before creating the view, some after.
-    Block.insert_track block 0 (Block.R track_ruler) 10
+    Block.insert_track block 0 (Block.R track_ruler) 15
     view <- Block.create_view (0, 0) (100, 200) block track_ruler view_config
     Block.insert_track block 1 (Block.T t1 overlay_ruler) 70
     Block.insert_track block 2 (Block.T t1 overlay_ruler) 50
@@ -40,7 +40,7 @@ test_view = do
 
     -- test selections
     Block.set_selection view 0
-        (Block.Selection (0, TrackPos 0) (2, TrackPos 64))
+        (Block.Selection (0, TrackPos 0) (2, TrackPos 0))
 
     -- Util.show_children view >>= putStrLn
     putStr "? " >> IO.hFlush IO.stdout >> getLine
@@ -63,6 +63,19 @@ test_scroll_zoom view = do
 
 
 -- * Cheap tests.  TODO: use HUnit?
+
+-- ** view tests
+
+test_view_track_width view = do
+    -- test set sizes
+    track_ruler <- Ruler.create (ruler_config 3)
+    Block.insert_track (Block.view_block view) 0 (Block.R track_ruler) 15
+    io_equal (Block.get_track_width view 0) 15
+    Block.set_track_width view 0 10
+    io_equal (Block.get_track_width view 0) 10
+    Block.set_track_width view 0 5
+    -- minimum size is 10
+    io_equal (Block.get_track_width view 0) 10
 
 -- ** block tests
 

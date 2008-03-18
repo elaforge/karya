@@ -12,7 +12,7 @@ module Interface.Block (
     , tracks, track_at, insert_track, remove_track
 
     -- * Block view
-    , ViewConfig(..), BlockView
+    , ViewConfig(..), BlockView, view_block
     , Zoom(..), Selection(..)
     , create_view
 
@@ -22,6 +22,7 @@ module Interface.Block (
     , get_zoom, set_zoom
     , get_track_scroll, set_track_scroll
     , get_selection, set_selection
+    , get_track_width, set_track_width
 ) where
 
 {-
@@ -34,7 +35,7 @@ import System.IO.Unsafe
 import Interface.Ui (send_action)
 import qualified Interface.BlockImpl as B
 import Interface.BlockImpl (Block, Config(..), Tracklike(..)
-    , BlockView, ViewConfig(..), Zoom(..), Selection(..)
+    , BlockView, view_block, ViewConfig(..), Zoom(..), Selection(..)
     )
 
 force = id
@@ -84,6 +85,7 @@ get_selection !view !selnum = send_action (B.get_selection view selnum)
 set_selection !view !selnum !sel
     = send_action (B.set_selection view selnum (force sel))
 
+get_track_width !view !at = send_action (B.get_track_width view at)
 set_track_width !view !at !width =
     send_action (B.set_track_width view at width)
 

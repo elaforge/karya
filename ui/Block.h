@@ -143,6 +143,7 @@ public:
     int get_track_scroll() const;
     void set_track_scroll(int offset);
 
+    // unused by api
     const BlockViewConfig &get_config() const { return config; }
     void set_config(const BlockViewConfig &config);
     const Selection &get_selection(int selnum) const;
@@ -155,10 +156,13 @@ public:
 
     void insert_track(int at, const TrackModel &track, int width);
     void remove_track(int at);
+    // unused by api
     TrackView *track_at(int at) {
         return track_tile.track_at(at);
     }
+    // unused by api
     int tracks() const { return track_tile.tracks(); }
+    int get_track_width(int at) { track_tile.get_track_width(at); }
     void set_track_width(int at, int width) {
         track_tile.set_track_width(at, width);
     }

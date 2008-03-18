@@ -56,7 +56,8 @@ const Selection *block_view_get_selection(const BlockViewWindow *b, int selnum);
 void block_view_set_selection(BlockViewWindow *b, int selnum,
         const Selection *sel);
 
-void set_track_width(BlockViewWindow *b, int at, int width);
+int block_view_get_track_width(BlockViewWindow *b, int at);
+void block_view_set_track_width(BlockViewWindow *b, int at, int width);
 
 // Ruler
 

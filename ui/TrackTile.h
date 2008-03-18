@@ -51,6 +51,7 @@ public:
     // A track is a (title, body) pair, minus the track_pad.
     int tracks() const { return floor(children()/2.0); }
     TrackView *track_at(int at);
+    int get_track_width(int at);
     void set_track_width(int at, int width);
 private:
     int title_height;

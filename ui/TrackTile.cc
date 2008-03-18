@@ -59,11 +59,16 @@ void
 TrackTile::insert_track(int at, TrackView *track, int width)
 {
     ASSERT(0 <= at && at <= tracks());
-    int child_pos = at*2;
+
+    // Can't create a track smaller than you could resize, except dividers
+    // which are supposed to be small.
+    if (track->track_resizable())
+        width = std::max(this->minimum_size.x, width);
 
     // Just set sizes here, coords will be fixed by update_sizes()
     Fl_Widget &title = track->title_widget();
     title.size(width, this->title_height);
+    int child_pos = at*2;
     this->insert(title, child_pos);
 
     track->size(width, h() - this->title_height);
@@ -100,11 +105,21 @@ TrackTile::track_at(int at)
 }
 
 
+int
+TrackTile::get_track_width(int at)
+{
+    return this->track_at(at)->w();
+}
+
+
 void
 TrackTile::set_track_width(int at, int width)
 {
     ASSERT(width > 0);
     TrackView *track = this->track_at(at);
+    if (track->track_resizable())
+        width = std::max(this->minimum_size.x, width);
+
     Fl_Widget &title = track->title_widget();
     title.size(width, title.h());
     track->size(width, track->h());

@@ -305,12 +305,6 @@ BlockView::insert_track(int at, const TrackModel &track, int width)
     } else {
         t = new DividerView(track.divider);
     }
-
-    if (!track.divider) {
-        // Can't create a track smaller than you could resize, except dividers
-        // which are supposed to be small.
-        width = std::max(track_tile.get_minimum_size().x, width);
-    }
     track_tile.insert_track(at, t, width);
     this->update_scrollbars();
 }

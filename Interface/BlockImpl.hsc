@@ -302,13 +302,22 @@ foreign import ccall unsafe "block_view_set_selection"
     c_block_view_set_selection :: Ptr CBlockView -> CInt -> Ptr Selection
         -> IO ()
 
+get_track_width :: BlockView -> TrackNum -> UI Int
+get_track_width view at_ = do
+    ntracks <- tracks (view_block view)
+    width <- c_block_view_get_track_width (view_p view)
+        (Util.in_range "get_track_width" 0 ntracks at_)
+    return (fromIntegral width)
+foreign import ccall unsafe "block_view_get_track_width"
+    c_block_view_get_track_width :: Ptr CBlockView -> CInt -> IO CInt
+
 set_track_width :: BlockView -> TrackNum -> Width -> UI ()
 set_track_width view at_ width = do
     ntracks <- tracks (view_block view)
-    c_set_track_width (view_p view)
+    c_block_view_set_track_width (view_p view)
         (Util.in_range "set_track_width" 0 ntracks at_) (Util.c_int width)
-foreign import ccall unsafe "set_track_width"
-    c_set_track_width :: Ptr CBlockView -> CInt -> CInt -> IO ()
+foreign import ccall unsafe "block_view_set_track_width"
+    c_block_view_set_track_width :: Ptr CBlockView -> CInt -> CInt -> IO ()
 
 
 -- * storable
