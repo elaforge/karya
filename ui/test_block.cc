@@ -40,17 +40,19 @@ static boost::shared_ptr<Marklist>
 m44_marklist()
 {
     boost::shared_ptr<Marklist> mlist(new Marklist());
-    // char *name = "";
+    char name[32];
     Color major = Color(116, 70, 0, 90);
     Color minor = Color(225, 100, 50, 90);
 
     for (int i = 0; i < 600; i++) {
         TrackPos t = i*8;
         if (i % 4 == 0) {
-            Mark m(1, 3, major, "", 0, 0);
+            sprintf(name, "%d", i / 4);
+            Mark m(1, 3, major, name, 0, 0);
             mlist->push_back(std::pair<TrackPos, Mark>(t, m));
         } else {
-            Mark m(2, 2, minor, "", 0, 0);
+            sprintf(name, "%d.%d", i / 4, i % 4);
+            Mark m(2, 2, minor, name, 0, 0);
             mlist->push_back(std::pair<TrackPos, Mark>(t, m));
         }
     }

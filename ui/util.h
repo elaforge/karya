@@ -59,6 +59,7 @@ operator<<(std::ostream &os, const AssertionError &a)
 
 
 // Restrict 'v' to be in the given range, like composed min and max.
+// If 'v' is less than 'min' *and* greater than 'max', it will be 'min'.
 template<class T> inline T
 clamp(T min, T max, T v)
 {

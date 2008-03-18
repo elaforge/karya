@@ -1,3 +1,5 @@
+- .depend doesn't have *.hsc -> *.h dependencies
+
 ui
   * make TrackPos into an opaque type to let me be more free with impl.
     implement as int64 usec?  or since it's just block relative, I can use
@@ -11,9 +13,11 @@ ui
     it has something to do with FL_FLAT_BOX + FL_THIN_DOWN_BOX
   - bug: starting with an x,y offset makes BlockView confused
   * bug: resizing ruler to 0 crashes
+  _ optimize redraw by implementing scroll and selection damage
   EventCollector:
     * convert EventCollectWindow to global EventCollector
     + everyone should send their events there
+    - remove the fltk default event handling, except for inputs
     - custom Msg type that includes events, as well as "new selection" and
       other UI actions
 
@@ -25,29 +29,28 @@ ui
   Ruler
     * clip markers when they overlap edge of widget
     - bug: looks like overlay is getting drawn twice when called from Interface
-    - text labels
+      after adding a selection
+    * text labels
 
   MoveTile
     - bug: upper part of ruler track not getting resize?
-    - bug: not shrinking to the left?
+      also not shrinking to the left
+      hard to trigger this one
     * bug: I can resize a divider by dragging the right edge
     * bug: dragging divider jumps to dragging by left edge
     * dragging tracks should resize rightmost / bottommost widget like resize()
     * bug: moving a track off the right side chops it off
-    - bug: tracks close together seem to have a problem, and the arrow hot point
+    _ bug: tracks close together seem to have a problem, and the arrow hot point
       isn't obvious.  highlight?  or a handle somehow?
 
-  find out how to draw
-    * transparent selections
-    - background graphs / antialiased lines
 
-
-interface
+Interface
   * use main thread for ui
   - get/set block config, block view config
-  - BlockView.set_track_width
-  - track_at
+  * BlockView.set_track_width, BlockView.get_track_width
+  * track_at
   - Event
+  - figure out how to force args
 
 tests
   - hunit for Interface testing
