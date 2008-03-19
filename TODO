@@ -21,7 +21,7 @@ ui
     * remove the fltk default event handling, except for inputs
     * custom Msg type that includes events, as well as "new selection" and
       other UI actions
-    - send msg_scroll_changed msgs
+    * send msg_scroll_changed msgs
     * figure out how to go BlockView* -> BlockView in UiMsg
     - clicking outside of SeqInput should unfocus it
 

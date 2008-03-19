@@ -34,12 +34,12 @@ clean:
 	rm -f *.o *.hi fixdeps \
 		*/*.o */*.hi ui/ui.a $(INTERFACE_HS) $(MIDI_HS) haddock/*
 
-test_block: $(UI_OBJS) ui/test_block.o
-	$(CXX) -o $@ $^ $(LDFLAGS)
-	$(REZ)
-
 ui/ui.a: $(UI_OBJS)
 	ar -rs $@ $^
+
+test_block: ui/test_block.o ui/ui.a
+	$(CXX) -o $@ $^ $(LDFLAGS)
+	$(REZ)
 
 INTERFACE_HSC = $(wildcard Interface/*.hsc)
 INTERFACE_HS = $(INTERFACE_HSC:hsc=hs)

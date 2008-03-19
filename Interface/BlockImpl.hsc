@@ -192,7 +192,7 @@ remove_track block at_ = MVar.modifyMVar_ (block_tracks block) $ \tracks -> do
 foreign import ccall unsafe "block_model_remove_track"
     c_block_model_remove_track :: Ptr CBlockModel -> CInt -> IO ()
 
--- * view creation
+-- * View creation
 
 data View = View
     { view_p :: Ptr CBlockView

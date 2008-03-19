@@ -16,7 +16,7 @@ module Interface.Block (
     , Zoom(..), Selection(..)
     , create_view
 
-    -- ** view modification
+    -- ** View modification
     , resize
     , get_view_config, set_view_config
     , get_zoom, set_zoom

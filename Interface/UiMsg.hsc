@@ -44,9 +44,20 @@ data UiMsg = UiMsg
     , msg_data :: Data
     } deriving (Show)
 
-
-data Type = TypeUi | TypeInputChanged | TypeScrollChanged | TypeClose
+-- | Corresponds to UiMsg::MsgType enum.
+data Type = TypeEvent | TypeInput | TypeTrackScroll | TypeZoom
+    | TypeViewResize | TypeTrackWidth | TypeClose
     deriving (Show)
+
+decode_type typ = case typ of
+    (#const UiMsg::msg_event) -> TypeEvent
+    (#const UiMsg::msg_input) -> TypeInput
+    (#const UiMsg::msg_track_scroll) -> TypeTrackScroll
+    (#const UiMsg::msg_zoom) -> TypeZoom
+    (#const UiMsg::msg_view_resize) -> TypeViewResize
+    (#const UiMsg::msg_track_width) -> TypeTrackWidth
+    (#const UiMsg::msg_close) -> TypeClose
+    _ -> error $ "unknown UiMsg type: " ++ show typ
 
 data Context = Context
     { ctx_block :: Maybe BlockImpl.View
@@ -83,7 +94,7 @@ data MouseState = MouseMove | MouseDrag | MouseDown Int | MouseUp Int
     deriving (Show)
 data KbdState = KeyDown | KeyUp deriving (Show)
 
-pretty_ui_msg (UiMsg TypeUi context state x y mdata) = case mdata of
+pretty_ui_msg (UiMsg TypeEvent context state x y mdata) = case mdata of
     Mouse mstate clicks is_click ->
         printf "Mouse: %s (%d, %d) %s" (show mstate) x y
             (pretty_context context)
@@ -150,13 +161,6 @@ make_context viewp has_track track has_pos pos
     context view = Context view (to_maybe has_track (fromIntegral track))
         (to_maybe has_pos pos)
     to_maybe b val = if toBool b then Just val else Nothing
-
-decode_type typ = case typ of
-    (#const UiMsg::msg_ui) -> TypeUi
-    (#const UiMsg::msg_input_changed) -> TypeInputChanged
-    (#const UiMsg::msg_scroll_changed) -> TypeScrollChanged
-    (#const UiMsg::msg_close) -> TypeClose
-    _ -> error $ "unknown UiMsg type: " ++ show typ
 
 decode_msg event button clicks is_click key = msg
     where

@@ -66,17 +66,19 @@ with ^click or something
 */
 
 
-
 // This struct is simple so it can be serialized to haskell.
 struct UiMsg {
     // It's always initialized manually, but STL needs a default constructor.
     UiMsg() : view(0), has_track(false), has_pos(false), pos(0) {}
 
     enum MsgType {
-        msg_ui,
-        msg_input_changed,
-        msg_scroll_changed, // block in block context
-        msg_close // block in block context
+        msg_event,
+        msg_input,
+
+        // block changed msgs all have 'view' set
+        msg_track_scroll, msg_zoom, msg_view_resize,
+        msg_track_width,
+        msg_close
     };
 
     MsgType type;
@@ -106,15 +108,16 @@ class MsgCollector {
 public:
     MsgCollector() {}
     void event(int evt);
-    void input_changed(BlockViewWindow *view);
-    void input_changed(BlockViewWindow *view, int track);
-    void close(BlockViewWindow *view);
+    // these are all const, but adding it causes const trickle
+    void block_changed(Fl_Widget *w, UiMsg::MsgType type, int track = -1);
+    void window_changed(BlockViewWindow *view, UiMsg::MsgType type,
+            int track = -1);
     std::vector<UiMsg> msgs;
 
 private:
     void push(const UiMsg &m) {
         msgs.push_back(m);
-        // DEBUG("pushing " << m);
+        // DEBUG("collected " << m);
     }
 };
 

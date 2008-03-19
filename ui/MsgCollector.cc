@@ -7,26 +7,25 @@
 inline std::ostream &
 operator<<(std::ostream &os, const UiMsg &m)
 {
+    // Keep this up to date with UiMsg::MsgType
+    static const char *msg_type_names[] = { "event", "input",
+        "track_scroll", "zoom", "view_resize",
+        "track_width", "close" };
+
     char keybuf[12];
-    os << '<';
+    os << '<' << msg_type_names[m.type];
     switch (m.type) {
-    case UiMsg::msg_ui:
+    case UiMsg::msg_event:
         if (isprint(m.key))
             sprintf(keybuf, "%c", m.key);
         else
             sprintf(keybuf, "\\0x%x", m.key);
-        os << "msg_ui=" << show_event(m.event)
+        os << "=" << show_event(m.event)
             << " button=" << m.button << " clicks=" << m.clicks
             << " is_click=" << m.is_click
             << " xy=(" << m.x << ", " << m.y
             << ") state=" << m.state
             << " key='" << keybuf << "'";
-        break;
-    case UiMsg::msg_input_changed:
-        os << "input changed";
-        break;
-    case UiMsg::msg_close:
-        os << "close";
         break;
     }
     if (m.view)
@@ -96,40 +95,32 @@ void
 MsgCollector::event(int evt)
 {
     UiMsg m;
-    m.type = UiMsg::msg_ui;
+    m.type = UiMsg::msg_event;
     set_msg_from_event(m, evt);
     set_msg_context(m);
     this->push(m);
 }
 
+
 void
-MsgCollector::input_changed(BlockViewWindow *view)
+MsgCollector::block_changed(Fl_Widget *w, UiMsg::MsgType type, int track)
 {
-    UiMsg m;
-    m.type = UiMsg::msg_input_changed;
-    m.view = view;
-    this->push(m);
+    BlockViewWindow *win = static_cast<BlockViewWindow *>(w->window());
+    this->window_changed(win, type, track);
 }
 
 
 void
-MsgCollector::input_changed(BlockViewWindow *view, int track)
+MsgCollector::window_changed(BlockViewWindow *view, UiMsg::MsgType type,
+        int track)
 {
     UiMsg m;
-    m.type = UiMsg::msg_input_changed;
+    m.type = type;
     m.view = view;
-    m.has_track = true;
-    m.track = track;
-    this->push(m);
-}
-
-
-void
-MsgCollector::close(BlockViewWindow *view)
-{
-    UiMsg m;
-    m.type = UiMsg::msg_close;
-    m.view = view;
+    if (track != -1) {
+        m.has_track = true;
+        m.track = track;
+    }
     this->push(m);
 }
 

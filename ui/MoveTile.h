@@ -35,9 +35,9 @@ public:
     enum MoveDirection { no_move, move_negative, move_positive };
 
     MoveTile(int X, int Y, int W, int H, char *label = 0) :
-        // Fl_Tile(X, Y, W, H, label)
         Fl_Group(X, Y, W, H, label),
         minimum_size(10, 10),
+        dragged_child(-1),
         hmove(no_move), vmove(no_move),
         grab_area(3)
     {}
@@ -46,10 +46,12 @@ public:
     virtual int handle(int evt);
     void drag_tile(Point drag_from, Point drag_to);
 
+    /* unimplemented
     void set_move_direction(MoveDirection horizontal, MoveDirection vertical) {
         this->hmove = horizontal;
         this->vmove = vertical;
     }
+    */
 
     // Child won't resize, and its entire area is used for dragging.
     void set_stiff_child(int child);
@@ -66,6 +68,9 @@ protected:
     bool sort_children();
     // Don't resize a pane smaller than the x and y here.
     const Point minimum_size;
+    // Child currently being dragged.  Reset to -1 before a drag and after
+    // a release.  It's here so subclass callbacks can get the dragged child.
+    int dragged_child;
 
 private:
     // int handle_move(int evt, BoolPoint &drag_state, Point &drag_from);

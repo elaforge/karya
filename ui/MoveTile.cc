@@ -73,20 +73,19 @@ MoveTile::handle(int evt)
 {
     static BoolPoint drag_state(false, false);
     static Point drag_from(0, 0);
-    static int dragged_child = -1;
 
     Point mouse = mouse_pos();
 
     switch (evt) {
     case FL_MOVE: case FL_ENTER: case FL_PUSH:
         // return handle_move(evt, drag_state, drag_from);
-        int r = this->handle_move(evt, &drag_state, &dragged_child);
+        int r = this->handle_move(evt, &drag_state, &this->dragged_child);
         if (drag_state.x)
             drag_from.x = mouse.x;
         if (drag_state.y)
             drag_from.y = mouse.y;
         if (drag_state.x || drag_state.y)
-            ASSERT(0 <= dragged_child && dragged_child < children());
+            ASSERT(0 <= this->dragged_child && dragged_child < children());
         return r;
 
     case FL_LEAVE:
@@ -99,12 +98,17 @@ MoveTile::handle(int evt)
         // means am dragging.
         ASSERT(drag_state.x || drag_state.y);
         Point drag_to(drag_state.x ? mouse.x : 0, drag_state.y ? mouse.y : 0);
-        this->handle_drag_tile(drag_from, drag_to, dragged_child);
+        this->handle_drag_tile(drag_from, drag_to, this->dragged_child);
         if (evt == FL_DRAG)
             this->set_changed(); // this means "changed value" to a callback
-        else if (evt == FL_RELEASE)
+        else if (evt == FL_RELEASE) {
             this->init_sizes();
-        do_callback();
+            // Unlike Fl_Tile, I only callback at the end of a drag.  This
+            // means scrollbars don't get updated continuously then, but
+            // only generates one event for a drag.
+            do_callback();
+            this->dragged_child = -1;
+        }
         return 1;
     }
     }

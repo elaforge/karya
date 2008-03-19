@@ -67,6 +67,7 @@ struct ZoomInfo {
     bool operator==(const ZoomInfo &o) {
         return offset == o.offset && factor == o.factor;
     }
+    bool operator!=(const ZoomInfo &o) { return !(*this == o); }
 
     // How many pixels is the given pos at, at this zoom?
     // This subtracts 'offset' to get an absolute screen position, which means

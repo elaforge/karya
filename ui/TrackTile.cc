@@ -101,6 +101,7 @@ TrackView *
 TrackTile::track_at(int at)
 {
     ASSERT(0 <= at && at <= tracks());
+    // Widgets alternate [title0, track0, title1, track1, ... box]
     return dynamic_cast<TrackView *>(child(at*2 + 1));
 }
 
@@ -125,6 +126,17 @@ TrackTile::set_track_width(int at, int width)
     track->size(width, track->h());
     this->update_sizes();
     this->redraw();
+}
+
+
+int
+TrackTile::get_dragged_track() const
+{
+    DEBUG("dragged child " << this->dragged_child);
+    if (this->dragged_child == -1)
+        return -1;
+    else
+        return this->dragged_child / 2; // see track_at()
 }
 
 

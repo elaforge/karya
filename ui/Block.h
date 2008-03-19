@@ -158,9 +158,7 @@ public:
     void insert_track(int at, const TrackModel &track, int width);
     void remove_track(int at);
     // unused by api
-    TrackView *track_at(int at) {
-        return track_tile.track_at(at);
-    }
+    TrackView *track_at(int at) { return track_tile.track_at(at); }
     // unused by api
     int tracks() const { return track_tile.tracks(); }
     int get_track_width(int at) { track_tile.get_track_width(at); }
@@ -204,6 +202,7 @@ private:
     // Called by scrollbar.
     static void scrollbar_cb(Fl_Widget *w, void *vp);
     static void update_scrollbars_cb(Fl_Widget *w, void *vp);
+    static void track_tile_cb(Fl_Widget *w, void *vp);
 };
 
 

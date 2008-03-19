@@ -53,6 +53,9 @@ public:
     TrackView *track_at(int at);
     int get_track_width(int at);
     void set_track_width(int at, int width);
+
+    // Return the track currently being dragged right now, or -1.
+    int get_dragged_track() const;
 private:
     int title_height;
     Fl_Box track_pad; // box to take up space not covered by tracks
