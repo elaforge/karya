@@ -69,7 +69,10 @@ struct ZoomInfo {
     }
 
     // How many pixels is the given pos at, at this zoom?
-    int to_pixels(TrackPos pos) const {
+    // This subtracts 'offset' to get an absolute screen position, which means
+    // if you're using it to get a "duration" in pixels you have to add offset
+    // back on.
+    int to_pixels(const TrackPos pos) const {
         // A TrackPos is not guaranteed to fit in an int, but (pos-offset)
         // should put it in range.
         double scaled = (pos-offset).scale(this->factor);
@@ -77,7 +80,13 @@ struct ZoomInfo {
                             scaled))));
     }
 
-    TrackPos to_trackpos(int pixels) const { return double(pixels) / factor; }
+    // Given the current offset and zoom, this many pixels corresponds to
+    // how much trackpos?
+    // As above, this adds 'offset', so if you want trackpos/pixel, subtract it
+    // back off.
+    TrackPos to_trackpos(int pixels) const {
+        return TrackPos(double(pixels) / factor) + offset;
+    }
 
     TrackPos offset;
     // 1.0 means that each TrackPos gets 1 pixel.

@@ -45,34 +45,30 @@ initialize()
 }
 
 void
-ui_msg_wait()
+ui_wait()
 {
+    // TODO remind myself and fix the comment
     Fl::wait(100);
 }
 
 void
-ui_msg_awake()
+ui_awake()
 {
     DEBUG("awake");
     Fl::awake((void*) 0);
 }
 
 int
-take_ui_msgs(UiEvent **msgs)
+take_ui_msgs(UiMsg **msgs)
 {
-    // fltk calls these events but I call them msgs
-    static UiEvent msg_queue[1024];
-    std::vector<UiEvent> &events = global_event_collector()->events;
-    // Apparently std::copy_n doesn't exist any more?
-    int i = 0;
-    for (; i <  events.size() && i < sizeof msg_queue; i++)
-        msg_queue[i] = events[i];
-    if (events.size() > sizeof msg_queue) {
-        DEBUG("msg overflow, lost " << events.size() - sizeof msg_queue);
-    }
-    events.clear();
-    *msgs = msg_queue;
-    return i;
+    // Turn vector into c-array.  C++ standard says vector is supposed to
+    // use a contiguous array:
+    // http://www.open-std.org/jtc1/sc22/wg21/docs/lwg-defects.html#69
+    MsgCollector *m = global_msg_collector();
+    *msgs = &m->msgs[0];
+    int sz = m->msgs.size();
+    m->msgs.clear();
+    return sz;
 }
 
 

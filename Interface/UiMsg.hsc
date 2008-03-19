@@ -13,6 +13,8 @@ import Foreign
 import Foreign.C
 import Text.Printf
 
+import qualified Util.Seq as Seq
+
 -- import qualified Interface.Util as Util
 import Interface.Types
 
@@ -32,22 +34,27 @@ foreign import ccall unsafe "take_ui_msgs"
 --
 
 data UiMsg = UiMsg
-    { msg_context :: Context
-    , msg_state :: [MsgState]
+    { msg_type :: Type
+    , msg_context :: Context
+    , msg_state :: [State]
     , msg_x :: Int
     , msg_y :: Int
     , msg_data :: Data
     } deriving (Show)
 
+
+data Type = TypeUi | TypeInputChanged | TypeScrollChanged | TypeClose
+    deriving (Show)
+
 data Context = Context
     { ctx_block :: Maybe BlockImpl.BlockView
     -- | Index into block tracks.
     , ctx_track :: Maybe Int
-    , ctx_event :: Maybe TrackPos
+    , ctx_pos :: Maybe TrackPos
     -- You can get the selection by asking the Track or Event.
     } deriving (Show)
 
-data MsgState = Shift | CapsLock | Control | Alt | NumLock | Meta
+data State = Shift | CapsLock | Control | Alt | NumLock | Meta
     | ScrollLock | Button Int
     deriving (Show)
 
@@ -74,48 +81,82 @@ data MouseState = MouseMove | MouseDrag | MouseDown Int | MouseUp Int
     deriving (Show)
 data KbdState = KeyDown | KeyUp deriving (Show)
 
-short_show (UiMsg context state x y mdata) = case mdata of
+pretty_ui_msg (UiMsg TypeUi context state x y mdata) = case mdata of
     Mouse mstate clicks is_click ->
-        printf "Mouse: %s (%d, %d)" (show mstate) x y
+        printf "Mouse: %s (%d, %d) %s" (show mstate) x y
+            (pretty_context context)
     Kbd kstate char -> printf "Kbd: %s %s" (show kstate) (show char)
     AuxMsg msg -> printf "Aux: %s" (show msg)
     Unhandled x -> printf "Unhandled: %d" x
+pretty_ui_msg (UiMsg typ context _ _ _ _)
+    = printf "Other Event: %s %s" (show typ) (pretty_context context)
+
+pretty_context (Context block track pos) = "<" ++ contents ++ ">"
+    where
+    contents = Seq.join " " (filter (not.null) [show_maybe "block" block,
+        show_maybe "track" track, show_maybe "pos" pos])
+    show_maybe desc Nothing = ""
+    show_maybe desc (Just x) = desc ++ "=" ++ show x
 
 -- * Storable
 
 #include "c_interface.h"
 
 instance Storable UiMsg where
-    sizeOf _ = #size UiEvent
-    alignment _ = 1
+    sizeOf _ = #size UiMsg
+    alignment _ = undefined
     peek = peek_msg
     poke = error "no poke for UiMsg"
 
 peek_msg msgp = do
-    msg <- (#peek UiEvent, event) msgp :: IO CInt
-    button <- (#peek UiEvent, button) msgp :: IO CInt
-    clicks <- (#peek UiEvent, clicks) msgp :: IO CInt
-    is_click <- (#peek UiEvent, is_click) msgp :: IO CInt
-    x <- (#peek UiEvent, x) msgp :: IO CInt
-    y <- (#peek UiEvent, y) msgp :: IO CInt
-    state <- (#peek UiEvent, state) msgp :: IO CInt
-    key <- (#peek UiEvent, key) msgp :: IO CInt
-    return $ make_msg (i msg) (i button) (i clicks) (i is_click /= 0)
+    type_num <- (#peek UiMsg, type) msgp :: IO CInt
+    event <- (#peek UiMsg, event) msgp :: IO CInt
+    button <- (#peek UiMsg, button) msgp :: IO CInt
+    clicks <- (#peek UiMsg, clicks) msgp :: IO CInt
+    is_click <- (#peek UiMsg, is_click) msgp :: IO CInt
+    x <- (#peek UiMsg, x) msgp :: IO CInt
+    y <- (#peek UiMsg, y) msgp :: IO CInt
+    state <- (#peek UiMsg, state) msgp :: IO CInt
+    key <- (#peek UiMsg, key) msgp :: IO CInt
+
+    -- TODO implement this
+    -- viewp <- (#peek UiMsg, view) msgp :: IO (Ptr CBlockView)
+    let viewp = undefined
+    has_track <- (#peek UiMsg, has_track) msgp :: IO CChar
+    track <- (#peek UiMsg, track) msgp :: IO CInt
+    has_pos <- (#peek UiMsg, has_pos) msgp :: IO CChar
+    pos <- (#peek UiMsg, pos) msgp
+
+    let cxt = make_context viewp has_track track has_pos pos
+    return $ make_msg (decode_type type_num) cxt
+        (i event) (i button) (i clicks) (i is_click /= 0)
         (i x) (i y) state (i key)
     where i = fromIntegral
 
-make_msg msg button clicks is_click x y state key
-        = UiMsg context (decode_state state) x y edata
-    where
-    context = Context Nothing Nothing Nothing
-    edata = decode_msg msg button clicks is_click key
+make_msg typ context event button clicks is_click x y state key
+        = UiMsg typ context (decode_state state) x y edata
+    where edata = decode_msg event button clicks is_click key
 
-decode_msg fltk_msg button clicks is_click key = msg
+make_context viewp has_track track has_pos pos
+    = Context Nothing -- TODO how to get BlockView?
+        (to_maybe has_track (fromIntegral track))
+        (to_maybe has_pos pos)
+    where
+    to_maybe b val = if toBool b then Just val else Nothing
+
+decode_type typ = case typ of
+    (#const UiMsg::msg_ui) -> TypeUi
+    (#const UiMsg::msg_input_changed) -> TypeInputChanged
+    (#const UiMsg::msg_scroll_changed) -> TypeScrollChanged
+    (#const UiMsg::msg_close) -> TypeClose
+    _ -> error $ "unknown UiMsg type: " ++ show typ
+
+decode_msg event button clicks is_click key = msg
     where
     mouse typ = Mouse typ 0 False
     kbd typ = Kbd typ '\0'
     aux = AuxMsg
-    partial_msg = case fltk_msg of
+    partial_msg = case event of
         (#const FL_PUSH) -> mouse (MouseDown button)
         (#const FL_DRAG) -> mouse MouseDrag
         (#const FL_RELEASE) -> mouse (MouseUp button)
@@ -132,14 +173,14 @@ decode_msg fltk_msg button clicks is_click key = msg
         (#const FL_ACTIVATE) -> aux Activate
         (#const FL_HIDE) -> aux Hide
         (#const FL_SHOW) -> aux Show
-        _ -> Unhandled fltk_msg
+        _ -> Unhandled event
     msg = case partial_msg of
         Mouse {} -> partial_msg
             { mouse_clicks = clicks, mouse_is_click = is_click }
         Kbd {} -> partial_msg { kbd_char = toEnum key }
         _ -> partial_msg
 
-decode_state :: CInt -> [MsgState]
+decode_state :: CInt -> [State]
 decode_state fltk_state = [ st | (bit, st) <- const_map, has fltk_state bit ]
     where
     has x y = (x .&. y) /= 0
@@ -155,16 +196,3 @@ decode_state fltk_state = [ st | (bit, st) <- const_map, has fltk_state bit ]
         , ((#const FL_BUTTON2), Button 2)
         , ((#const FL_BUTTON3), Button 3)
         ]
-
-{-
-struct UiEvent {
-    int event;
-    int button, clicks, is_click, x, y;
-    int state;
-    int key;
-
-    BlockViewWindow *inside_block;
-    TrackView *inside_track;
-    TrackPos inside_event;
-};
--}

@@ -1,7 +1,7 @@
 #include "util.h"
 #include "f_util.h"
 
-#include "EventCollector.h"
+#include "MsgCollector.h"
 #include "Track.h"
 #include "EventTrack.h"
 #include "Ruler.h"
@@ -89,6 +89,7 @@ BlockView::BlockView(int X, int Y, int W, int H,
     body.add(track_group); // fix up hierarchy
     body_resize_group.hide();
 
+    status_line.visible_focus(false); // TODO remove from tabbing
     status_line.box(FL_FLAT_BOX);
     track_box.box(FL_FLAT_BOX);
     sb_box.box(FL_FLAT_BOX);
@@ -211,7 +212,8 @@ BlockView::update_scrollbars()
     // The scale(1)s just convert a TrackPos to a double.
     int track_h = track_tile.h() - config.track_title_height;
     this->time_sb.set_scroll_zoom(track_tile.time_end().scale(1),
-            zoom.offset.scale(1), zoom.to_trackpos(track_h).scale(1));
+            zoom.offset.scale(1),
+            (zoom.to_trackpos(track_h) - zoom.offset).scale(1));
 }
 
 
@@ -222,14 +224,6 @@ BlockView::resize(int X, int Y, int W, int H)
     Fl_Group::resize(X, Y, W, H);
     status_line.size(w() - mac_resizer_width, status_line.h());
     this->update_scrollbars();
-}
-
-// called by fltk
-int
-BlockView::handle(int evt)
-{
-    global_event_collector()->collect(evt);
-    return Fl_Group::handle(evt);
 }
 
 
@@ -266,6 +260,7 @@ BlockView::set_track_scroll(int offset)
 void
 BlockView::set_config(const BlockViewConfig &config)
 {
+    // TODO
 }
 
 const Selection &
@@ -371,9 +366,10 @@ BlockView::update_scrollbars_cb(Fl_Widget *w, void *vp)
 static void
 block_view_window_cb(Fl_Window *win, void *p)
 {
-    if (0 && Fl::event_key(FL_Escape))
-        ;
-    else
+    BlockViewWindow *view = static_cast<BlockViewWindow *>(win);
+    global_msg_collector()->close(view);
+    // TODO remove this, and add a event handling thread to test_block
+    if (view->testing)
         Fl_Window::default_callback(win, p);
 }
 
@@ -382,8 +378,48 @@ BlockViewWindow::BlockViewWindow(int X, int Y, int W, int H,
         boost::shared_ptr<const RulerTrackModel> ruler_model,
         const BlockViewConfig &config) :
     Fl_Double_Window(X, Y, W, H),
-    block(X, Y, W, H, model, ruler_model, config)
+    block(X, Y, W, H, model, ruler_model, config),
+    testing(false)
 {
     callback((Fl_Callback *) block_view_window_cb);
     resizable(this);
+    // turn off some annoying defaults
+    Fl::dnd_text_ops(false); // don't do drag and drop text
+    // Fl::visible_focus(false); // doesn't seem to do anything
+}
+
+
+int
+BlockViewWindow::handle(int evt)
+{
+    if (evt == FL_KEYDOWN || evt == FL_KEYUP) {
+        // The fact I got it means I have focus.
+        int key = Fl::event_key();
+        if (evt == FL_KEYDOWN) {
+            this->keys_down[key] = true;
+        } else {
+            // Actually, I get KEYUP even if I don't have focus, and also get
+            // the KEYUP half of an event that defocuses.  Eat those up
+            // silently.
+            if (!this->keys_down[key])
+                return true;
+            else
+                this->keys_down[key] = false;
+        }
+        global_msg_collector()->event(evt);
+        if (this->testing && Fl::event_key() == FL_Escape)
+            return false; // this will wind up closing the window
+        return true;
+    }
+
+    bool accepted = false;
+    if (evt == FL_PUSH || evt == FL_MOVE) {
+        // see if someone else wants it
+        accepted = Fl_Group::handle(evt);
+    }
+    if (!accepted && (evt == FL_PUSH || evt == FL_DRAG)) {
+        global_msg_collector()->event(evt);
+        return true;
+    }
+    return accepted;
 }

@@ -19,29 +19,20 @@ const char *
 show_event(int ev)
 {
     static char buf[1024];
-    char *s;
     switch (ev) {
     case FL_NO_EVENT: return "nothing";
-    case FL_PUSH: case FL_DRAG: case FL_RELEASE: case FL_MOVE:
-        if (ev==FL_PUSH) s = "push";
-        else if (ev == FL_DRAG) s = "drag";
-        else if (ev == FL_RELEASE) s = "release";
-        else if (ev == FL_MOVE) s = "move";
-        sprintf(buf, "%s: %d (%d %d)", s, Fl::event_button(),
-            Fl::event_x(), Fl::event_y());
-        return buf;
+    case FL_PUSH: return "push";
+    case FL_DRAG: return "drag";
+    case FL_RELEASE: return "release";
+    case FL_MOVE: return "move";
     case FL_ENTER: return "enter";
     case FL_LEAVE: return "leave";
     case FL_FOCUS: return "focus";
     case FL_UNFOCUS: return "unfocus";
 
-    case FL_KEYDOWN: case FL_KEYUP: case FL_SHORTCUT:
-        if (ev == FL_KEYDOWN) s = "down";
-        else if (ev == FL_KEYUP) s = "up";
-        else s = "shortcut";
-        sprintf(buf, "key%s: %.*s", s, Fl::event_length(), Fl::event_text());
-        return buf;
-
+    case FL_KEYDOWN: return "keydown";
+    case FL_KEYUP: return "keyup";
+    case FL_SHORTCUT: return "shortcut";
     case FL_DEACTIVATE: return "deactivate";
     case FL_ACTIVATE: return "activate";
     case FL_HIDE: return "hide";

@@ -1,5 +1,5 @@
 #include "config.h"
-#include "EventCollector.h"
+#include "MsgCollector.h"
 #include "Block.h"
 #include "Track.h"
 #include "EventTrack.h"
@@ -16,9 +16,9 @@ extern "C" {
 // UI Event
 
 void initialize();
-void ui_msg_wait();
-void ui_msg_awake();
-int take_ui_msgs(UiEvent **msgs);
+void ui_wait();
+void ui_awake();
+int take_ui_msgs(UiMsg **msgs);
 
 
 // Block

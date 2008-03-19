@@ -112,7 +112,8 @@ main(int argc, char **argv)
     model->insert_track(3, track, 30);
     model->insert_track(4, track2, 30);
 
-    BlockViewWindow view(0, 0, 200, 200, model, r, view_config);
+    BlockViewWindow view(300, 250, 200, 200, model, r, view_config);
+    view.testing = true;
     view.block.set_status("no status yet");
 
     t1->insert_event(TrackPos(128),

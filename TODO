@@ -11,16 +11,18 @@ ui
   - organized logging situation
   * bug: one pixel drawing glitch at bottom of tracks
     it has something to do with FL_FLAT_BOX + FL_THIN_DOWN_BOX
-  - bug: starting with an x,y offset makes BlockView confused
+  * bug: starting with an x,y offset makes BlockView confused
   * bug: resizing ruler to 0 crashes
   _ optimize redraw by implementing scroll and selection damage
   - scrolling should add text height to time_end()
   EventCollector:
     * convert EventCollectWindow to global EventCollector
-    + everyone should send their events there
-    - remove the fltk default event handling, except for inputs
-    - custom Msg type that includes events, as well as "new selection" and
+    * remove the fltk default event handling, except for inputs
+    * custom Msg type that includes events, as well as "new selection" and
       other UI actions
+    - send msg_scroll_changed msgs
+    - figure out how to go BlockView* -> BlockView in UiMsg
+    - clicking outside of SeqInput should unfocus it
 
   Track
     / dividers can have separate color for upper part, for collapsable tracks
@@ -68,6 +70,7 @@ Midi
   - midi thru: MVar (Port -> Message -> [(Port, Message)])
   - scheduler for out of order writes + thru?  how about I always write in
     order and don't allow timestamps on thru?
+    no, I still need the scheduler, phooey.
   bandwidth
     - keep stats
     - display widget

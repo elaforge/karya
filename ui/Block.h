@@ -34,6 +34,7 @@ on an scrollbar callback
 #include <algorithm>
 #include <utility>
 #include <vector>
+#include <map>
 #include <boost/shared_ptr.hpp>
 
 #include <FL/Fl.H>
@@ -172,9 +173,6 @@ public:
     }
     void tile_init() { track_tile.init_sizes(); }
 
-protected:
-    int handle(int evt);
-
 private:
     boost::shared_ptr<BlockModel> model;
     BlockViewConfig config;
@@ -216,6 +214,15 @@ public:
             boost::shared_ptr<const RulerTrackModel> ruler_model,
             const BlockViewConfig &config);
     BlockView block;
+
+    // If true, this is running from c++, not haskell.
+    bool testing;
+protected:
+    int handle(int evt);
+
+private:
+    // Keep track of which keys are down, to suppress spurious key ups.
+    std::map<int, bool> keys_down;
 };
 
 #endif

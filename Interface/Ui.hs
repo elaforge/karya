@@ -61,8 +61,8 @@ kill_ui_thread = do
 
 foreign import ccall unsafe "initialize" c_initialize :: IO ()
 -- "wait" must be safe since it blocks.
-foreign import ccall safe "ui_msg_wait" wait :: IO ()
-foreign import ccall unsafe "ui_msg_awake" awake :: IO ()
+foreign import ccall safe "ui_wait" wait :: IO ()
+foreign import ccall unsafe "ui_awake" awake :: IO ()
 
 handle_actions actions = MVar.modifyMVar_ actions $ \acts ->
     sequence_ acts >> return []

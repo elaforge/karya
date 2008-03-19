@@ -53,10 +53,10 @@ test_view = do
 msg_thread msg_chan = Monad.forever $ do
     msg <- STM.atomically $ TChan.readTChan msg_chan
     return ()
-    -- let s = case msg of
-    --         Ui.MUi m -> UiMsg.short_show m
-    --         _ -> show msg
-    -- putStrLn $ "msg: " ++ s
+    let s = case msg of
+            Ui.MUi m -> UiMsg.pretty_ui_msg m
+            _ -> show msg
+    putStrLn $ "msg: " ++ s
 
 
 test_scroll_zoom view = do
