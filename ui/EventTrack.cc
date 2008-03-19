@@ -22,21 +22,19 @@ EventTrackModel::insert_event(TrackPos pos, const EventModel &event)
 {
     EventTrackModel::Events::const_iterator evt
         = this->events.lower_bound(pos);
-    DEBUG("insert event at " << pos << " dur " << event.duration);
+    // DEBUG("insert event at " << pos << " dur " << event.duration);
     if (evt != events.begin()) {
         --evt;
         if (evt->first + evt->second.duration > pos)
             return false; // prev event overlaps
         ++evt;
-    } else DEBUG("first");
+    }
     if (evt != events.end()) {
-        if (evt->first == pos) {
+        if (evt->first == pos)
             ++evt;
-            DEBUG("equal");
-        }
         if (pos + event.duration > evt->first)
             return false; // I overlap with next event
-    } else DEBUG("last");
+    }
 
     this->events[pos] = event;
     for (int i = 0; i < this->views.size(); i++)
@@ -186,7 +184,7 @@ EventTrackView::draw_area(Rect area)
         int height = this->zoom.to_pixels(zoom.offset + event->second.duration);
         // It's < not <= so that 0 height events on area.y still get drawn.
         if (offset + height < area.y) {
-            DEBUG("skip " << offset << " + " << height << " > " << area.y);
+            // DEBUG("skip " << offset << " + " << height << " > " << area.y);
             continue;
         } else if (offset >= area.b())
             break;

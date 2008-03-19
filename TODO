@@ -30,6 +30,7 @@ ui
     - bug: scrolling gets little one pixels shifts
     - bug: event tracks flicker when moving horizontally
   Ruler
+    * don't clip out the text as soon as the marker scrolls off screen
     * clip markers when they overlap edge of widget
     - bug: looks like overlay is getting drawn twice when called from Interface
       after adding a selection
@@ -52,7 +53,7 @@ Interface
   - get/set block config, block view config
   * BlockView.set_track_width, BlockView.get_track_width
   * track_at
-  - Event
+  * Event
   - figure out how to force args
 
 tests

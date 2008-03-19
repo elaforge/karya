@@ -108,6 +108,36 @@ OverlayRuler::damage_range(TrackPos start, TrackPos end)
 
 
 void
+OverlayRuler::draw_marklists()
+{
+    Rect clip = clip_rect(rect(this));
+    // DEBUG("clip: " << clip);
+    if (clip.w == 0 || clip.h == 0)
+        return;
+    fl_font(FL_HELVETICA, 9);
+    // Later marklists will draw over earlier ones.
+    for (Marklists::const_iterator mlist = model->marklists.begin();
+            mlist != model->marklists.end(); ++mlist)
+    {
+        // TODO binary search?
+        for (Marklist::const_iterator mark = (*mlist)->begin();
+                mark != (*mlist)->end(); ++mark)
+        {
+            // mark is pair(trackpos, mark)
+            int offset = y() + zoom.to_pixels(mark->first);
+            // mlist should be sorted, so I can break after I pass the bottom.
+            if (offset < clip.y)
+                continue;
+            else if (offset - fl_height() >= clip.b())
+                break;
+            else
+                draw_mark(offset, mark->second);
+        }
+    }
+}
+
+
+void
 OverlayRuler::draw_mark(int offset, const Mark &mark)
 {
     Color c = mark.color;
@@ -132,7 +162,6 @@ OverlayRuler::draw_mark(int offset, const Mark &mark)
     if (this->zoom.factor >= mark.name_zoom_level && this->model->show_names
             && mark.name.size() > 0)
     {
-        fl_font(fl_font(), 9);
         int text_width = fl_width(mark.name.c_str());
         int xmin = x() + 2;
         int xmax = x() + w() - text_width;
@@ -142,35 +171,6 @@ OverlayRuler::draw_mark(int offset, const Mark &mark)
 
         fl_color(FL_BLACK);
         fl_draw(mark.name.c_str(), xpos, offset);
-    }
-}
-
-
-void
-OverlayRuler::draw_marklists()
-{
-    Rect clip = clip_rect(rect(this));
-    // DEBUG("clip: " << clip);
-    if (clip.w == 0 || clip.h == 0)
-        return;
-    // Later marklists will draw over earlier ones.
-    for (Marklists::const_iterator mlist = model->marklists.begin();
-            mlist != model->marklists.end(); ++mlist)
-    {
-        // TODO binary search?
-        for (Marklist::const_iterator mark = (*mlist)->begin();
-                mark != (*mlist)->end(); ++mark)
-        {
-            // mark is pair(trackpos, mark)
-            int offset = y() + zoom.to_pixels(mark->first);
-            // mlist should be sorted, so I can break after I pass the bottom.
-            if (offset < clip.y)
-                continue;
-            else if (offset >= clip.b())
-                break;
-            else
-                draw_mark(offset, mark->second);
-        }
     }
 }
 

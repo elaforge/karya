@@ -81,8 +81,8 @@ protected:
 
 private:
     void damage_range(TrackPos start, TrackPos end);
-    void draw_mark(int offset, const Mark &mark);
     void draw_marklists();
+    void draw_mark(int offset, const Mark &mark);
     void draw_selections();
     std::vector<std::pair<Color, Selection> > selections;
 
