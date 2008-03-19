@@ -135,10 +135,19 @@ BlockView::update_sizes()
     // resizes as their parents move them around.  on the other hand, if
     // we go the other way, parents mess up their children.
     // Spurious resizes it is.
+
+    // I don't totally understand what's going on here.  The window's x() and
+    // y() are the values that are passed to the constructor.  However, all
+    // widget positions are measured relative to 0, so using x() and y() here
+    // will screw up placement.  In addition, using (0, 0) here screws up
+    // resizing.
+    // Setting the position to 0 fixes all that and doesn't even seem to move
+    // the window around.
     int wx = 0, wy = 0;
+    this->position(0, 0);
 
     title.resize(wx, wy, w(), config.block_title_height);
-    status_line.resize(x(), h() - config.status_size,
+    status_line.resize(wx, h() - config.status_size,
             w() - mac_resizer_width, config.status_size);
     status_line.textsize(config.status_size - 4);
     body.resize(wx, wy + title.h(),
