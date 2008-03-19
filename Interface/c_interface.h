@@ -81,10 +81,24 @@ struct MarkMarshal {
 MarklistRef *marklist_new(int len, MarkMarshal *marks);
 void marklist_destroy(MarklistRef *m);
 
-// Event
+// EventTrack
+
+struct EventMarshal {
+    char *text;
+    TrackPos duration;
+    Color color;
+    TextStyle style;
+    bool align_to_bottom;
+};
 
 EventTrackModelRef *event_track_model_new(Color *c);
 void event_track_model_destroy(EventTrackModelRef *t);
+
+// Return 0 if the insert failed (previous event overlaps) or remove failed
+// (no event at that pos).
+int event_track_model_insert_event(EventTrackModelRef *t, const TrackPos *pos,
+        EventMarshal *em);
+int event_track_model_remove_event(EventTrackModelRef *t, const TrackPos *pos);
 
 
 // debugging

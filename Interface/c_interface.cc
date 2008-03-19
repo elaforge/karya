@@ -298,14 +298,21 @@ event_track_model_destroy(EventTrackModelRef *t)
     delete t;
 }
 
+int
+event_track_model_insert_event(EventTrackModelRef *t, const TrackPos *pos,
+        EventMarshal *em)
+{
+    EventModel e(em->text, em->duration, em->color, em->style,
+            em->align_to_bottom);
+    return (*t)->insert_event(*pos, e);
+}
 
-/*
-create_block_view
-destroy_block_view
-show_block_view
-hide_block_view
+int
+event_track_model_remove_event(EventTrackModelRef *t, const TrackPos *pos)
+{
+    return (*t)->remove_event(*pos);
+}
 
-*/
 
 // debugging
 

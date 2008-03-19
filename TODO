@@ -14,6 +14,7 @@ ui
   - bug: starting with an x,y offset makes BlockView confused
   * bug: resizing ruler to 0 crashes
   _ optimize redraw by implementing scroll and selection damage
+  - scrolling should add text height to time_end()
   EventCollector:
     * convert EventCollectWindow to global EventCollector
     + everyone should send their events there
@@ -25,7 +26,9 @@ ui
     / dividers can have separate color for upper part, for collapsable tracks
   event track
     * overlay ruler
-    + events
+    * events
+    - bug: scrolling gets little one pixels shifts
+    - bug: event tracks flicker when moving horizontally
   Ruler
     * clip markers when they overlap edge of widget
     - bug: looks like overlay is getting drawn twice when called from Interface

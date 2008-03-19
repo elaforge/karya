@@ -94,8 +94,7 @@ operator<<(std::ostream &os, const ZoomInfo &z)
 
 
 struct TextStyle {
-    char *font;
-    char *style;
+    int font; // font and face as an fltk font index
     int size;
     Color color;
 };

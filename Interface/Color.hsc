@@ -41,7 +41,7 @@ clamp lo hi = max lo . min hi
 
 instance Storable Color where
     sizeOf _ = #size Color
-    alignment _ = 1
+    alignment _ = undefined
     peek = peek_color
     poke = poke_color
 

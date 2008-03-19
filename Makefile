@@ -1,5 +1,4 @@
 DEBUG = -ggdb
-# PORTMIDI = /usr/local/src/portmidi-macosx-1.0
 PORTMIDI = /usr/local/src/portmedia/portmidi/trunk
 MIDI_LIBS = $(PORTMIDI)/pm_mac/libportmidi.a \
 	$(PORTMIDI)/porttime/libporttime.a \
@@ -69,6 +68,6 @@ doc:
 	haddock --html -B $(GHC_LIB) -o haddock [A-Z]*/*.hs
 
 %.hs: %.hsc
-	# include GHC_LIB/include since hsc includes HsFFI.h
+	@# include GHC_LIB/include since hsc includes HsFFI.h
 	hsc2hs -c g++ --cflag -Wno-invalid-offsetof $(CINCLUDE) \
 		-I$(GHC_LIB)/include $<

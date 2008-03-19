@@ -41,7 +41,8 @@ data UiMsg = UiMsg
 
 data Context = Context
     { ctx_block :: Maybe BlockImpl.BlockView
-    , ctx_track :: Maybe TrackImpl.TrackView
+    -- | Index into block tracks.
+    , ctx_track :: Maybe Int
     , ctx_event :: Maybe TrackPos
     -- You can get the selection by asking the Track or Event.
     } deriving (Show)

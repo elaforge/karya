@@ -29,17 +29,42 @@ No Event may overlap another Event on the same Track.
 -}
 
 module Interface.Event where
+import qualified Data.List as List
+import Foreign
+import Foreign.C
+
+import qualified Interface.Util as Util
 import Interface.Types
 import qualified Interface.Color as Color
+
 
 data Event = Event
     { event_text :: String
     , event_duration :: TrackPos
     , event_color :: Color.Color
     , event_style :: TextStyle
-    , event_attrs :: Attrs
+    , event_align_to_bottom :: Bool
+    -- These will have to be immutable... is that ok?
+    -- and I'll need a stable pointer...
+    -- , event_attrs :: Attrs
     } deriving (Eq, Show)
 
-data TextStyle = TextStyle Font FontStyle Color.Color deriving (Eq, Show)
-type Font = String
-type FontStyle = String
+
+-- * storable
+
+#include "c_interface.h"
+
+instance Storable Event where
+    sizeOf _ = #size EventMarshal
+    alignment _ = undefined
+    peek = peek_event
+    poke = poke_event
+
+peek_event eventp = undefined
+poke_event eventp (Event text dur color style align_to_bottom)
+    = withCString text $ \textp -> do
+        (#poke EventMarshal, text) eventp textp
+        (#poke EventMarshal, duration) eventp dur
+        (#poke EventMarshal, color) eventp color
+        (#poke EventMarshal, style) eventp style
+        (#poke EventMarshal, align_to_bottom) eventp align_to_bottom

@@ -10,7 +10,6 @@ Thread management functions.
 module Interface.Util where
 import Foreign
 import Foreign.C
--- import qualified Interface.Types as Types
 
 bounded_list def max_len xs = take max_len xs
     ++ replicate (max_len - length xs) def
@@ -29,6 +28,8 @@ in_range desc lo hi n
 
 c_int :: Int -> CInt
 c_int i = fromIntegral i -- c ints should be at least as big as hs ones
+
+c_nat :: Int -> CInt
 c_nat = c_int -- I don't check for > 0 yet, I should catch the c++ exception
 
 c_double :: Double -> CDouble

@@ -80,7 +80,7 @@ main(int argc, char **argv)
 
     model->set_title("hi there");
 
-    Color eventc = Color(230, 230, 200);
+    Color eventc = Color(200, 200, 170);
 
     boost::shared_ptr<EventTrackModel> t1(new EventTrackModel(white));
     boost::shared_ptr<EventTrackModel> t2(new EventTrackModel(reddish));
@@ -119,6 +119,9 @@ main(int argc, char **argv)
         EventModel("0.7", TrackPos(32), eventc, style));
     t1->insert_event(TrackPos(175),
         EventModel("0.4", TrackPos(8), eventc, style));
+
+    t1->insert_event(TrackPos(0),
+            EventModel("pwned!", TrackPos(8), eventc, style));
 
     view.block.set_selection(0, Selection(0, TrackPos(60), 4, TrackPos(56)));
     view.block.set_selection(0, Selection(0, TrackPos(0), 4, TrackPos(56)));
