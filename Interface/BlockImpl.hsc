@@ -192,19 +192,19 @@ remove_track block at_ = MVar.modifyMVar_ (block_tracks block) $ \tracks -> do
 foreign import ccall unsafe "block_model_remove_track"
     c_block_model_remove_track :: Ptr CBlockModel -> CInt -> IO ()
 
--- * View creation
+-- * view creation
 
-data BlockView = BlockView
+data View = View
     { view_p :: Ptr CBlockView
     , view_config :: MVar.MVar ViewConfig
     , view_block :: Block
     }
-instance Show BlockView where
-    show (BlockView viewp config block) = "<BlockView " ++ show viewp
+instance Show View where
+    show (View viewp config block) = "<View " ++ show viewp
         ++ " " ++ show block ++ ">"
 data CBlockView
 
-instance Util.Widget BlockView where
+instance Util.Widget View where
     show_children view = Util.do_show_children (view_p view)
 
 -- The defaults for newly created blocks and the trackviews automatically
@@ -231,11 +231,11 @@ data Selection = Selection (TrackNum, TrackPos) (TrackNum, TrackPos)
 -- serialize it to c++ and back.  When the UI passes back a view pointer,
 -- I can look it up here.
 -- They don't need to be weak ptrs because views are explicitly destroyed.
-view_ptr_to_view :: MVar.MVar (Map.Map (Ptr CBlockView) BlockView)
+view_ptr_to_view :: MVar.MVar (Map.Map (Ptr CBlockView) View)
 view_ptr_to_view = Unsafe.unsafePerformIO (MVar.newMVar Map.empty)
 
 create_view :: (Int, Int) -> (Int, Int) -> Block -> RulerImpl.Ruler
-    -> ViewConfig -> UI BlockView
+    -> ViewConfig -> UI View
 create_view (x, y) (w, h) block ruler config = do
     viewp <- withForeignPtr (block_p block) $ \blockp ->
         withForeignPtr (RulerImpl.ruler_p ruler) $ \rulerp ->
@@ -243,7 +243,7 @@ create_view (x, y) (w, h) block ruler config = do
                 c_block_view_create (i x) (i y) (i w) (i h) blockp rulerp
                     configp
     config_mv <- MVar.newMVar config
-    let view = BlockView viewp config_mv block
+    let view = View viewp config_mv block
     MVar.modifyMVar_ view_ptr_to_view (return . Map.insert viewp view)
     return view
     where i = Util.c_int
@@ -259,7 +259,7 @@ destroy_view view = do
 foreign import ccall unsafe "block_view_destroy"
     c_block_view_destroy :: Ptr CBlockView -> IO ()
 
-resize :: BlockView -> (Int, Int) -> (Int, Int) -> UI ()
+resize :: View -> (Int, Int) -> (Int, Int) -> UI ()
 resize view (x, y) (w, h) =
     c_block_view_resize (view_p view) (i x) (i y) (i w) (i h)
     where i = Util.c_int
@@ -267,46 +267,46 @@ foreign import ccall unsafe "block_view_resize"
     c_block_view_resize :: Ptr CBlockView -> CInt -> CInt -> CInt -> CInt
         -> IO ()
 
-get_view_config :: BlockView -> IO ViewConfig
+get_view_config :: View -> IO ViewConfig
 get_view_config view = MVar.readMVar (view_config view)
 
-set_view_config :: BlockView -> ViewConfig -> UI ()
+set_view_config :: View -> ViewConfig -> UI ()
 set_view_config view config = do
     MVar.swapMVar (view_config view) config
     with config $ \configp -> c_block_view_set_config (view_p view) configp
 foreign import ccall unsafe "block_view_set_config"
     c_block_view_set_config :: Ptr CBlockView -> Ptr ViewConfig -> IO ()
 
-get_zoom :: BlockView -> UI Zoom
+get_zoom :: View -> UI Zoom
 get_zoom view = c_block_view_get_zoom (view_p view) >>= peek
 foreign import ccall unsafe "block_view_get_zoom"
     c_block_view_get_zoom :: Ptr CBlockView -> IO (Ptr Zoom)
 
-set_zoom :: BlockView -> Zoom -> UI ()
+set_zoom :: View -> Zoom -> UI ()
 set_zoom view zoom =
     with zoom $ \zoomp -> c_block_view_set_zoom (view_p view) zoomp
 foreign import ccall unsafe "block_view_set_zoom"
     c_block_view_set_zoom :: Ptr CBlockView -> Ptr Zoom -> IO ()
 
 -- | Get and set the scroll along the track dimension, in pixels.
-get_track_scroll :: BlockView -> UI Int
+get_track_scroll :: View -> UI Int
 get_track_scroll view = fmap fromIntegral (c_get_track_scroll (view_p view))
 foreign import ccall unsafe "block_view_get_track_scroll"
     c_get_track_scroll :: Ptr CBlockView -> IO CInt
 
-set_track_scroll :: BlockView -> Int -> UI ()
+set_track_scroll :: View -> Int -> UI ()
 set_track_scroll view offset
     = c_set_track_scroll (view_p view) (Util.c_int offset)
 foreign import ccall unsafe "block_view_set_track_scroll"
     c_set_track_scroll :: Ptr CBlockView -> CInt -> IO ()
 
-get_selection :: BlockView -> Int -> UI Selection
+get_selection :: View -> Int -> UI Selection
 get_selection view selnum
     = c_block_view_get_selection (view_p view) (Util.c_int selnum) >>= peek
 foreign import ccall unsafe "block_view_get_selection"
     c_block_view_get_selection :: Ptr CBlockView -> CInt -> IO (Ptr Selection)
 
-set_selection :: BlockView -> Int -> Selection -> UI ()
+set_selection :: View -> Int -> Selection -> UI ()
 set_selection view selnum sel =
     with sel $ \selp ->
         c_block_view_set_selection (view_p view) (Util.c_int selnum) selp
@@ -314,7 +314,7 @@ foreign import ccall unsafe "block_view_set_selection"
     c_block_view_set_selection :: Ptr CBlockView -> CInt -> Ptr Selection
         -> IO ()
 
-get_track_width :: BlockView -> TrackNum -> UI Int
+get_track_width :: View -> TrackNum -> UI Int
 get_track_width view at_ = do
     ntracks <- tracks (view_block view)
     width <- c_block_view_get_track_width (view_p view)
@@ -323,7 +323,7 @@ get_track_width view at_ = do
 foreign import ccall unsafe "block_view_get_track_width"
     c_block_view_get_track_width :: Ptr CBlockView -> CInt -> IO CInt
 
-set_track_width :: BlockView -> TrackNum -> Width -> UI ()
+set_track_width :: View -> TrackNum -> Width -> UI ()
 set_track_width view at_ width = do
     ntracks <- tracks (view_block view)
     c_block_view_set_track_width (view_p view)

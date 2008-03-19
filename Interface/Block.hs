@@ -12,11 +12,11 @@ module Interface.Block (
     , tracks, track_at, insert_track, remove_track
 
     -- * Block view
-    , ViewConfig(..), BlockView, view_block
+    , ViewConfig(..), View, view_block
     , Zoom(..), Selection(..)
     , create_view
 
-    -- ** View modification
+    -- ** view modification
     , resize
     , get_view_config, set_view_config
     , get_zoom, set_zoom
@@ -35,12 +35,12 @@ import System.IO.Unsafe
 import Interface.Ui (send_action)
 import qualified Interface.BlockImpl as B
 import Interface.BlockImpl (Block, Config(..), Tracklike(..)
-    , BlockView, view_block, ViewConfig(..), Zoom(..), Selection(..)
+    , View, view_block, ViewConfig(..), Zoom(..), Selection(..)
     )
 
 force = id
 
-view_list :: MVar.MVar [BlockView]
+view_list :: MVar.MVar [View]
 view_list = unsafePerformIO (MVar.newMVar [])
 
 create = B.create

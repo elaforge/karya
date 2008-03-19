@@ -49,7 +49,7 @@ data Type = TypeUi | TypeInputChanged | TypeScrollChanged | TypeClose
     deriving (Show)
 
 data Context = Context
-    { ctx_block :: Maybe BlockImpl.BlockView
+    { ctx_block :: Maybe BlockImpl.View
     -- | Index into block tracks.
     , ctx_track :: Maybe Int
     , ctx_pos :: Maybe TrackPos
