@@ -9,6 +9,8 @@ dynamically change mouse and keyboard mapping at the haskell level.
 
 module Interface.UiMsg where
 import Control.Monad
+import qualified Control.Concurrent.MVar as MVar
+import qualified Data.Map as Map
 import Foreign
 import Foreign.C
 import Text.Printf
@@ -91,7 +93,7 @@ pretty_ui_msg (UiMsg TypeUi context state x y mdata) = case mdata of
 pretty_ui_msg (UiMsg typ context _ _ _ _)
     = printf "Other Event: %s %s" (show typ) (pretty_context context)
 
-pretty_context (Context block track pos) = "<" ++ contents ++ ">"
+pretty_context (Context block track pos) = "{" ++ contents ++ "}"
     where
     contents = Seq.join " " (filter (not.null) [show_maybe "block" block,
         show_maybe "track" track, show_maybe "pos" pos])
@@ -119,15 +121,13 @@ peek_msg msgp = do
     state <- (#peek UiMsg, state) msgp :: IO CInt
     key <- (#peek UiMsg, key) msgp :: IO CInt
 
-    -- TODO implement this
-    -- viewp <- (#peek UiMsg, view) msgp :: IO (Ptr CBlockView)
-    let viewp = undefined
+    viewp <- (#peek UiMsg, view) msgp :: IO (Ptr BlockImpl.CBlockView)
     has_track <- (#peek UiMsg, has_track) msgp :: IO CChar
     track <- (#peek UiMsg, track) msgp :: IO CInt
     has_pos <- (#peek UiMsg, has_pos) msgp :: IO CChar
     pos <- (#peek UiMsg, pos) msgp
 
-    let cxt = make_context viewp has_track track has_pos pos
+    cxt <- make_context viewp has_track track has_pos pos
     return $ make_msg (decode_type type_num) cxt
         (i event) (i button) (i clicks) (i is_click /= 0)
         (i x) (i y) state (i key)
@@ -138,10 +138,17 @@ make_msg typ context event button clicks is_click x y state key
     where edata = decode_msg event button clicks is_click key
 
 make_context viewp has_track track has_pos pos
-    = Context Nothing -- TODO how to get BlockView?
-        (to_maybe has_track (fromIntegral track))
-        (to_maybe has_pos pos)
+    | viewp == nullPtr = return (context Nothing)
+    | otherwise = do
+        ptr_map <- MVar.readMVar BlockImpl.view_ptr_to_view
+        let { view = case Map.lookup viewp ptr_map of
+            Nothing -> error $ "ptr to view not in the map: " ++ show viewp
+            Just view -> view
+            }
+        return (context (Just view))
     where
+    context view = Context view (to_maybe has_track (fromIntegral track))
+        (to_maybe has_pos pos)
     to_maybe b val = if toBool b then Just val else Nothing
 
 decode_type typ = case typ of

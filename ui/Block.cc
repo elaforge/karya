@@ -371,6 +371,8 @@ block_view_window_cb(Fl_Window *win, void *p)
     // TODO remove this, and add a event handling thread to test_block
     if (view->testing)
         Fl_Window::default_callback(win, p);
+    else
+        DEBUG("don't wanna die!");
 }
 
 BlockViewWindow::BlockViewWindow(int X, int Y, int W, int H,
@@ -417,7 +419,7 @@ BlockViewWindow::handle(int evt)
         // see if someone else wants it
         accepted = Fl_Group::handle(evt);
     }
-    if (!accepted && (evt == FL_PUSH || evt == FL_DRAG)) {
+    if (!accepted && (evt == FL_PUSH || evt == FL_DRAG || evt == FL_RELEASE)) {
         global_msg_collector()->event(evt);
         return true;
     }

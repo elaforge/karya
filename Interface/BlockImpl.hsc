@@ -19,6 +19,8 @@ sent on the mousedown, and on the mouseup.
 module Interface.BlockImpl where
 
 import qualified Control.Concurrent.MVar as MVar
+import qualified Data.Map as Map
+import qualified System.IO.Unsafe as Unsafe
 
 import qualified Interface.Util as Util
 import Interface.Types
@@ -36,7 +38,7 @@ import Foreign.C
 -- "Cached" values are stored in MVars since they are mutable and accessed
 -- concurrently.  Their only access is via the functions in this module, which
 -- should either only read a single MVar at a time, or always read them in
--- their order in Block.
+-- their order in Block, and so shouldn't deadlock.
 -- TODO: check this
 data Block = Block
     { block_p :: ForeignPtr CBlockModel
@@ -65,7 +67,7 @@ create config = do
     config_mv <- MVar.newMVar config
     attrs <- MVar.newMVar []
     tracks <- MVar.newMVar []
-    return $ Block blockfp config_mv attrs tracks
+    return (Block blockfp config_mv attrs tracks)
 
 -- | Max number of selections, hardcoded in ui/Block.h.
 max_selections :: Int
@@ -199,7 +201,7 @@ data BlockView = BlockView
     }
 instance Show BlockView where
     show (BlockView viewp config block) = "<BlockView " ++ show viewp
-        ++ show block ++ ">"
+        ++ " " ++ show block ++ ">"
 data CBlockView
 
 instance Util.Widget BlockView where
@@ -224,26 +226,36 @@ data Selection = Selection (TrackNum, TrackPos) (TrackNum, TrackPos)
     deriving (Show)
 
 
+-- | Maintain a map of view pointers to their haskell equivalents.
+-- This is so I can maintain auxiliary data with a Block but not have to
+-- serialize it to c++ and back.  When the UI passes back a view pointer,
+-- I can look it up here.
+-- They don't need to be weak ptrs because views are explicitly destroyed.
+view_ptr_to_view :: MVar.MVar (Map.Map (Ptr CBlockView) BlockView)
+view_ptr_to_view = Unsafe.unsafePerformIO (MVar.newMVar Map.empty)
+
 create_view :: (Int, Int) -> (Int, Int) -> Block -> RulerImpl.Ruler
     -> ViewConfig -> UI BlockView
 create_view (x, y) (w, h) block ruler config = do
-    viewp <- withFP (block_p block) $ \blockp ->
-        withFP (RulerImpl.ruler_p ruler) $ \rulerp ->
+    viewp <- withForeignPtr (block_p block) $ \blockp ->
+        withForeignPtr (RulerImpl.ruler_p ruler) $ \rulerp ->
             with config $ \configp ->
                 c_block_view_create (i x) (i y) (i w) (i h) blockp rulerp
                     configp
     config_mv <- MVar.newMVar config
-    return $ BlockView viewp config_mv block
-    where
-    i = Util.c_int
-    withFP = withForeignPtr
+    let view = BlockView viewp config_mv block
+    MVar.modifyMVar_ view_ptr_to_view (return . Map.insert viewp view)
+    return view
+    where i = Util.c_int
 
 foreign import ccall unsafe "block_view_create"
     c_block_view_create :: CInt -> CInt -> CInt -> CInt -> Ptr CBlockModel
         -> Ptr RulerImpl.CRulerTrackModel -> Ptr ViewConfig
         -> IO (Ptr CBlockView)
 
-destroy_view view = c_block_view_destroy (view_p view)
+destroy_view view = do
+    c_block_view_destroy (view_p view)
+    MVar.modifyMVar_ view_ptr_to_view (return . Map.delete (view_p view))
 foreign import ccall unsafe "block_view_destroy"
     c_block_view_destroy :: Ptr CBlockView -> IO ()
 

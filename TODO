@@ -15,13 +15,14 @@ ui
   * bug: resizing ruler to 0 crashes
   _ optimize redraw by implementing scroll and selection damage
   - scrolling should add text height to time_end()
-  EventCollector:
+
+  UI Msgs
     * convert EventCollectWindow to global EventCollector
     * remove the fltk default event handling, except for inputs
     * custom Msg type that includes events, as well as "new selection" and
       other UI actions
     - send msg_scroll_changed msgs
-    - figure out how to go BlockView* -> BlockView in UiMsg
+    * figure out how to go BlockView* -> BlockView in UiMsg
     - clicking outside of SeqInput should unfocus it
 
   Track
