@@ -50,10 +50,10 @@ MIDI_HS = $(MIDI_HSC:hsc=hs)
 
 # PHONY convinces make to always run ghc, which figures out deps on its own
 .PHONY: test_interface
-test_interface: $(INTERFACE_HS) $(INTERFACE_OBJS) \
-		Interface/test_interface.o ui/ui.a
+test_interface: $(INTERFACE_HS) $(INTERFACE_OBJS) ui/ui.a
 	$(GHC) $(HFLAGS) --make \
-		-main-is Interface.TestInterface Interface/TestInterface.hs $^ \
+		-main-is Interface.TestInterface Interface/TestInterface.hs \
+		$(INTERFACE_OBJS) ui/ui.a \
 		`fltk-config --ldflags` \
 		-o $@
 	$(REZ)

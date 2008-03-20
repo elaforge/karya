@@ -1,6 +1,6 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
 {-# OPTIONS_GHC -fglasgow-exts #-}
-module Interface.Ui (initialize, send_action, Msg(..)) where
+module Interface.Ui (initialize, send_action) where
 import qualified Control.Monad as Monad
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.MVar as MVar
@@ -50,7 +50,8 @@ poll_loop actions msg_chan = do
         wait
         -- putStrLn "woke up"
         handle_actions actions
-        handle_msgs msg_chan
+        ui_msgs <- UiMsg.take_ui_msgs
+        STM.atomically (mapM_ (TChan.writeTChan msg_chan) ui_msgs)
 
 kill_ui_thread = do
     th_id <- MVar.readMVar ui_thread_id
@@ -66,14 +67,3 @@ foreign import ccall unsafe "ui_awake" awake :: IO ()
 
 handle_actions actions = MVar.modifyMVar_ actions $ \acts ->
     sequence_ acts >> return []
-
-data Msg = MUi UiMsg.UiMsg | MMidi MidiMsg.MidiMsg | MOsc OscMsg.OscMsg
-    deriving (Show)
-
-handle_msgs msg_chan = do
-    ui <- UiMsg.take_ui_msgs
-    midi <- MidiMsg.take_midi_msgs
-    osc <- OscMsg.take_osc_msgs
-    mapM_ (write msg_chan) (map MUi ui ++ map MMidi midi ++ map MOsc osc)
-
-write tchan = STM.atomically . TChan.writeTChan tchan

@@ -17,12 +17,10 @@ import Text.Printf
 
 import qualified Util.Seq as Seq
 
--- import qualified Interface.Util as Util
 import Interface.Types
 
 import qualified Interface.BlockImpl as BlockImpl
 import qualified Interface.TrackImpl as TrackImpl
--- import qualified Interface.Event as Event
 
 take_ui_msgs = with nullPtr $ \msgspp -> do
     count <- c_take_ui_msgs msgspp
@@ -64,15 +62,12 @@ data Context = Context
     -- | Index into block tracks.
     , ctx_track :: Maybe Int
     , ctx_pos :: Maybe TrackPos
-    -- You can get the selection by asking the Track or Event.
     } deriving (Show)
 
 data State = Shift | CapsLock | Control | Alt | NumLock | Meta
     | ScrollLock | Button Int
     deriving (Show)
 
--- TODO: split it off so that midi and osc can go in their own modules and
--- get combined later
 data Data = Mouse
     { mouse_state :: MouseState
     , mouse_clicks :: Int
@@ -80,6 +75,8 @@ data Data = Mouse
     }
     | Kbd
     { kbd_state :: KbdState
+    -- TODO convert this to a more general Key that includes things like shift
+    -- does haskell have a standard type for this?
     , kbd_char :: Char
     }
     | AuxMsg AuxMsg

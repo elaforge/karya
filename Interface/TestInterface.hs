@@ -52,11 +52,7 @@ test_view = do
 
 msg_thread msg_chan = Monad.forever $ do
     msg <- STM.atomically $ TChan.readTChan msg_chan
-    return ()
-    let s = case msg of
-            Ui.MUi m -> UiMsg.pretty_ui_msg m
-            _ -> show msg
-    putStrLn $ "msg: " ++ s
+    putStrLn $ "msg: " ++ UiMsg.pretty_ui_msg msg
 
 
 test_scroll_zoom view = do
@@ -217,10 +213,3 @@ track_bg = Color.white
 
 event s dur = Event.Event s (TrackPos dur) Color.gray7 text_style False
 text_style = TextStyle Helvetica [] 12 Color.black
-
-test_color = do
-    alloca $ \colorp -> do
-        poke colorp Color.red
-        c_print_color colorp
-
-foreign import ccall "print_color" c_print_color :: Ptr Color.Color -> IO ()
