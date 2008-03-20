@@ -59,15 +59,15 @@ encode :: Message -> [Word8]
 encode (ChannelMessage chan msg) = [join4 st chan, d1, d2]
     where
     (st, d1, d2) = case msg of
-        (NoteOff n v) -> (0x8, n, v)
-        (NoteOn n v) -> (0x9, n, v)
-        (Aftertouch n v) -> (0xa, n, v)
-        (ControlChange c v) -> (0xb, c, v)
-        (ProgramChange v) -> (0xc, v, 0)
+        NoteOff n v -> (0x8, n, v)
+        NoteOn n v -> (0x9, n, v)
+        Aftertouch n v -> (0xa, n, v)
+        ControlChange c v -> (0xb, c, v)
+        ProgramChange v -> (0xc, v, 0)
         -- channel mode msgs
         AllSoundOff -> (0xb, 0x78, 0)
         ResetAllControllers -> (0xb, 0x79, 0)
-        (LocalControl on) -> (0xb, 0x7a, if on then 0xff else 0)
+        LocalControl on -> (0xb, 0x7a, if on then 0xff else 0)
         AllNotesOff -> (0xb, 0x7b, 0)
         _ -> error $ "unknown ChannelMessage " ++ show msg
 

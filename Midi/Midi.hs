@@ -13,14 +13,16 @@ if scheduled time is <= now-write_ahead, send it
 -}
 module Midi.Midi (
     -- * initialize, open and close
-    with
-    , Port, port_name, ports
-    , open_read_port, open_write_port
+    initialize
+    , Device, device_name, device_input, device_output
+    , devices
+    , open_read_device, open_write_device
     -- * read and write
-    , read_msg , write_msg
+    , get_read_chan , write_msg
     -- * thru handling
     -- * bandwidth monitoring
     -- * message types
+    , CompleteMessage
     , Message(..), ChannelMessage(..), CommonMessage(..)
     , RealtimeMessage(..)
     , Channel, Key, Velocity, Controller, Program, ControlValue
@@ -30,7 +32,8 @@ module Midi.Midi (
 
 import Prelude hiding (catch)
 import qualified Control.Concurrent as Concurrent
-import qualified Control.Concurrent.Chan as Chan
+import qualified Control.Concurrent.STM as STM
+import qualified Control.Concurrent.STM.TChan as TChan
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
 import qualified Data.Map as Map
@@ -40,85 +43,91 @@ import qualified System.IO.Unsafe as Unsafe
 
 import qualified Util.Thread as Thread
 import qualified Midi.PortMidi as PortMidi
+import Midi.PortMidi (Device, device_input, device_output, Timestamp)
 import qualified Midi.Parse as Parse
 import Midi.Parse (Message(..), ChannelMessage(..), CommonMessage(..),
     RealtimeMessage(..),
     Channel, Key, Velocity, Controller, Program, ControlValue)
-import Midi.PortMidi (Timestamp)
 
 -- | Run the given computation with the midi library initialized.
-with :: IO a -> IO a
-with = Exception.bracket_ PortMidi.initialize PortMidi.terminate
-
-newtype Port = Port PortMidi.Device deriving (Show, Eq)
-instance Ord Port where
-    compare a b = compare (port_name a) (port_name b)
+initialize :: IO () -> IO ()
+initialize = Exception.bracket_ PortMidi.initialize PortMidi.terminate
 
 -- | PortMidi has both interface and device name.  Interface is probably always
--- the same (e.g. CoreMIDI), but prepend it to the port name just for
+-- the same (e.g. CoreMIDI), but prepend it to the device name just for
 -- completeness.
-port_name :: Port -> String
-port_name (Port dev) = interface ++ "/" ++ name ++ "/" ++ io
+device_name :: Device -> String
+device_name dev = interface ++ "/" ++ name ++ "/" ++ io
     where
     interface = PortMidi.device_interface dev
     name = PortMidi.device_name dev
     io = if PortMidi.device_input dev then "input" else "output"
 
--- | Get a list of connected Ports.
-ports :: IO [Port]
-ports = PortMidi.devices >>= (return . map Port)
+-- This is just so I can put them in a Map, which doesn't let you pass
+-- your own ordering function.
+instance Ord Device where
+    compare a b = compare (PortMidi.device_id a) (PortMidi.device_id b)
 
--- | Start putting msgs from given port into the queue that 'read_msg' reads
+-- | Get a list of connected Devices.
+devices :: IO [Device]
+devices = PortMidi.devices
+
+-- | Start putting msgs from given device into the queue that 'read_msg' reads
 -- from.
-open_read_port :: Port -> IO ()
-open_read_port port@(Port dev) = do
+open_read_device :: Device -> IO ()
+open_read_device dev = do
     stream <- PortMidi.open_input dev
     -- This starts a separate thread for each input.  Would latency be better
     -- if enqueue took a list of inputs?  Then I'd have to keep separate sysex
     -- buffers for each one.
     chan <- IORef.readIORef read_channel_ref
-    Thread.start_thread ("enqueue " ++ port_name port) $
-        enqueue stream (enqueue_event chan port)
+    Thread.start_thread ("enqueue " ++ device_name dev) $
+        enqueue stream (enqueue_event chan dev)
     return ()
     where
-    enqueue_event chan port (PortMidi.Event (bytes, ts))
-        = Chan.writeChan chan (port, ts, Parse.decode bytes)
+    enqueue_event chan dev (PortMidi.Event (bytes, ts))
+        = STM.atomically $ TChan.writeTChan chan (dev, ts, Parse.decode bytes)
 
--- | Open the given port for writing.  Subsequent calls to 'write_msg' on
--- this port will work.
-open_write_port :: Port -> IO ()
-open_write_port port@(Port dev) = do
-    print dev
+-- | Open the given device for writing.  Subsequent calls to 'write_msg' on
+-- this device will work.
+open_write_device :: Device -> IO ()
+open_write_device dev = do
     stream <- PortMidi.open_output dev
-    MVar.modifyMVar_ write_port_map (return . Map.insertWithKey err port stream)
+    MVar.modifyMVar_ write_dev_map
+        (return . Map.insertWithKey err dev stream)
     where
-    err port _new_stream _old_stream
-        = midi_error $ "write port already open: " ++ port_name port
+    err dev _new_stream _old_stream
+        = midi_error $ "write dev already open: " ++ device_name dev
 
--- | Get the next msg in the queue.
-read_msg :: IO (Port, Timestamp, Message)
-read_msg = IORef.readIORef read_channel_ref >>= Chan.readChan
+type CompleteMessage = (Device, Timestamp, Message)
 
-write_port_map :: MVar.MVar (Map.Map Port PortMidi.WriteStream)
-write_port_map = Unsafe.unsafePerformIO (MVar.newMVar Map.empty)
+-- | Get a TChan that produces CompleteMessages
+get_read_chan :: IO (TChan.TChan CompleteMessage)
+get_read_chan = IORef.readIORef read_channel_ref
+
+-- | A global map of open write devs.  It might be more elegant to just pass
+-- the open stream to write_msg, but for now it seems easier to not expose
+-- the streams to the outside world.
+write_dev_map :: MVar.MVar (Map.Map Device PortMidi.WriteStream)
+write_dev_map = Unsafe.unsafePerformIO (MVar.newMVar Map.empty)
 
 -- | All midi read functions dump messages into this channel.
-read_channel_ref :: IORef.IORef (Chan.Chan (Port, Timestamp, Message))
-read_channel_ref = Unsafe.unsafePerformIO (Chan.newChan >>= IORef.newIORef)
+read_channel_ref :: IORef.IORef (TChan.TChan CompleteMessage)
+read_channel_ref = Unsafe.unsafePerformIO (TChan.newTChanIO >>= IORef.newIORef)
 
--- | Write the given msg to 'port'.  For the moment, 'timestamp' must always
--- be increasing for a given port.
+-- | Write the given msg to 'dev'.  For the moment, 'timestamp' must always
+-- be increasing for a given device.
 -- TODO: solutions: write a scheduler
 -- write a priority chan:
 -- write_pchan tchan (ts, msg) = merge into tchan according to ts
 -- read_pchan tchan = atomically $ if now-newest <= 1sec then newest else retry
 -- actually, they're the same thing except the latter inserts some latency
 -- for a buffer
-write_msg :: Port -> Timestamp -> Message -> IO ()
-write_msg port timestamp msg = do
-    port_map <- MVar.readMVar write_port_map
-    case Map.lookup port port_map of
-        Nothing -> midi_error $ "port not open for writing: " ++ show port
+write_msg :: Device -> Timestamp -> Message -> IO ()
+write_msg dev timestamp msg = do
+    dev_map <- MVar.readMVar write_dev_map
+    case Map.lookup dev dev_map of
+        Nothing -> midi_error $ "device not open for writing: " ++ show dev
         Just stream -> PortMidi.write_event stream
             (PortMidi.Event (Parse.encode msg, timestamp))
     -- put it in the bw monitor

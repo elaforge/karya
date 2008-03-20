@@ -59,6 +59,11 @@ data MidiFilter = MidiFilter
 
     Monitor midi bandwidth:
 
+Midi monitor window has bandwidth strip charts for each port, color coded by
+channel.  Then it has a light grid, with nn horizontally and channel
+vertically.  Another display maps breath controller to intensity and position
+to pitch bend.
+
 -- | Read the next item from the bandwidth queue, blocking if it's not
 -- available.  The Timestamp is rounded to the last 0.1 second, and the list
 -- reports IO and a bytecount for it that happened during that second.

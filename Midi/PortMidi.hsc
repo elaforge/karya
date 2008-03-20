@@ -9,8 +9,9 @@ module Midi.PortMidi (
 
     -- * devices
     , devices
-    -- no access to device_id, or to the constructor
+    -- no direct access to the constructor
     , Device, device_interface, device_name, device_input, device_output
+    , device_id
     , open_input, open_output, close_input, close_output
 
     -- * reading and writing streams
@@ -167,8 +168,7 @@ write_event (WriteStream streamp) evt@(Event (bytes, ts))
         -- I think it's ok to cast (Ptr Word8) to (Ptr CUChar)
         -- Subtract 1 from timstamp, see 'open_output'.
         c_write_sysex streamp (to_c_long (ts-1)) (castPtr bytesp)
-    | otherwise = checked_ $ do
-        putStrLn $ "write short: " ++ show (to_c_long (ts-1)) ++ " " ++ show bytes
+    | otherwise = checked_ $
         c_write_short streamp (to_c_long (ts-1)) (encode_message bytes)
 
 to_c_long = fromIntegral
