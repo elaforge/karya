@@ -24,6 +24,9 @@ all: test_block test_interface test_midi
 .PHONY: dep
 dep: fixdeps
 	g++ -MM $(CXXFLAGS) */*.cc | ./fixdeps >.depend
+	echo -e '\n# hsc deps:\n' >>.depend
+	./hscdeps.py $(CINCLUDE) -I$(GHC_LIB)/include */*.hsc >>.depend
+
 include .depend
 
 fixdeps: fixdeps.hs
