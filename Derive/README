@@ -20,12 +20,77 @@ their derivations and only recompute if the bock has been modified since the
 cache, make-style.  So changes are displayed quickly, a background thread
 refreshes the derivations when a block is modified.
 
+Tempo
+Some events should not undergo tempo modification, i.e. the attack of a note.
+So there needs to be a way to set absolute tempo which overrides the tempo from
+the environment.  In fact, absolute and relative versions of all controllers
+would be useful.
+
+
+Derivation is a set of composed derive functions.  Each one has type
+'Score -> Derive Score'.  Derive is a monad which keeps log msgs (both status
+reports and errors), and provides access to the derivation environment (String
+-> Signal mapping).  Each derivation step is optionally exposed as a set of
+Tracks.  Merging with a Block is also a derivation step.
+
+When you hit "play" on a block, it should play the contents.  However, only
+a realized score can be played, and only "sufficiently derived" scores can be
+realized.  What's more, a block may have more than one derivation (say, before
+and after tempo warping is applied).
+
+So I need a definition of "sufficiently derived" so I can know for sure if
+a given score is realizable.  Then, given a block, I can get a list of its
+playable derivations.  Each block should have a "play" derivation explicitly
+set in its Attrs.  If not, there's a heuristic that looks for the closest
+realizable derivation, or sends an error if there is >1 realizable derivation.
+
+    Realizable derivation
+
+A Score that can be realized.  What this is depends on the backend.  After
+running the derivation, I try to realize it and store the realization or error
+msgs.  Derivations can set their results as explicitly unrealizable to save CPU
+time or bypass this derivation in the search for closest realizable derivation.
+
+    Keeping track of derivations
+
+You should be able to hit a key and "descend" one level into derivation, or
+have second block window with the derivation, or have a derived track next to
+the source.
+
+Derived block - A separate block with the derivation.
+
+Stacked derivation - Hit a key on a block to "descend" one derivation level.
+The derived block replaces the current one.
+
+Derived track - Another track in the same block derived from one track.
+
+So derivations can have scope over a whole block (tempo), or over a set of
+tracks (triplet derivation, controller merging, ...).  They result in a set of
+tracks, possibly preserving things like dividers and rulers.
+
 
     Block Attrs
 
     Track Attrs
 random seed - so random processes are consistent
-midi controller resolution
+
+midi controller resolution - changeable dynamically per controller for effects,
+also because lower resolution may not be noticable on some controllers.  So
+this is a track level event, rather than a track attr.
+
+Some events directly address the derivation environment, like interpolation
+resolution.
+
+    Derive monad
+log msg -- Write to log msg output list.  Used for progress reports and error
+msgs.  Another thread is reading this list as it becomes available, so reports
+can be displayed as they are calculated.
+
+log_error msg -- Like 'log', but abort further derivation.
+
+dynamic_let key signal -- Attach the key to the event's environment.  This is
+used to implement nyquist like behaviours, where lower levels of the
+derivation, or the realizer, can decide how to interpret an arbitrary signal.
 
 -- Score
 
