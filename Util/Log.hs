@@ -15,8 +15,10 @@ a given pattern may go to the status bar.
 
 module Util.Log (
     debug, notice, warn, error
+    , log, write, Msg
+    , hex -- debugging, remove me later
 ) where
-import Prelude hiding (error)
+import Prelude hiding (error, log)
 import qualified Data.Word as Word
 import Text.Printf (printf)
 
@@ -24,13 +26,20 @@ import Text.Printf (printf)
 -- Later have versions that log context, log to a logging monad, etc.
 -- TODO how can I automatically get FileContext?
 -- TODO system should be dynamically scoped, 'Log.with_system sys (code)'
-write_log :: Prio -> String -> IO ()
-write_log prio msg = printf "%s - %s\n" (prio_stars prio) msg
+log :: Prio -> String -> IO ()
+log prio text = write (msg prio text)
+default_show msg = printf "%s - %s\n" (prio_stars (msg_prio msg)) (msg_text msg)
 
-debug = write_log Debug
-notice = write_log Notice
-warn = write_log Warn
-error = write_log Error
+write :: Msg -> IO ()
+write msg = putStrLn (default_show msg)
+
+debug = log Debug
+notice = log Notice
+warn = log Warn
+error = log Error
+
+msg :: Prio -> String -> Msg
+msg prio text = Msg () prio text []
 
 data Prio = Debug -- ^ Lots of msgs produced by code level.  Users don't look
         -- at this during normal use, but can be useful for debugging.
@@ -47,14 +56,14 @@ data Msg = Msg
     { msg_date :: () -- Datetime
     , msg_prio :: Prio
     -- | Named system, higher level than just the filename.
-    , msg_system :: System
-    , msg_file_context :: FileContext
+    -- , msg_system :: System
+    -- , msg_file_context :: FileContext
     -- | Free form text for humans.
     , msg_text  :: String
     -- | Higher level context info for the msg.
     , msg_context :: [Context]
     -- | Additional misc attributes the msg may have.
-    , msg_attrs :: [(String, String)]
+    -- , msg_attrs :: [(String, String)]
     } deriving (Show, Eq)
 
 data System

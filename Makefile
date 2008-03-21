@@ -19,7 +19,7 @@ FLTK_OBJS := Block.o TrackTile.o Track.o Ruler.o EventTrack.o MoveTile.o \
 	f_util.o alpha_draw.o types.o config.o
 FLTK_OBJS := $(addprefix fltk/, $(FLTK_OBJS))
 
-all: test_block test_ui test_midi
+all: seq test_block test_ui test_midi
 
 .PHONY: dep
 dep: fixdeps
@@ -65,6 +65,15 @@ test_ui: $(UI_HS) $(UI_OBJS) fltk/fltk.a
 test_midi: $(MIDI_HS)
 	$(GHC) $(HFLAGS) --make \
 		-main-is Midi.TestMidi Midi/TestMidi.hs $^ $(MIDI_LIBS) -o $@
+
+.PHONY: seq
+seq: $(UI_HS) $(UI_OBJS) $(MIDI_HS) fltk/fltk.a
+	$(GHC) $(HFLAGS) --make \
+		-main-is App.Main App/Main.hs \
+		$(UI_OBJS) fltk/fltk.a \
+		$(MIDI_LIBS) `fltk-config --ldflags` \
+		-o $@
+	$(REZ)
 
 .PHONY: doc
 doc:
