@@ -15,6 +15,14 @@ Resize tracks by dragging the dividers.  Reorder tracks by dragging.
 
 The Block also tracks selections.  You can select with any button.  A Msg is
 sent on the mousedown, and on the mouseup.
+
+
+BlockAttrs (must be serializable if a block is to be serializable)
+
+key responder
+deriver
+cached derivation
+cached realization
 -}
 module Ui.BlockImpl where
 
@@ -49,7 +57,7 @@ data Block = Block
 -- It's convenient to be able to print things containing blocks, but MVar's
 -- aren't showable in a pure function.
 instance Show Block where
-    show block = "<BlockModel " ++ show (block_p block) ++ ">"
+    show block = "<Block.Block " ++ show (block_p block) ++ ">"
 data CBlockModel
 
 data Config = Config
@@ -200,7 +208,7 @@ data View = View
     , view_block :: Block
     }
 instance Show View where
-    show (View viewp config block) = "<View " ++ show viewp
+    show (View viewp config block) = "<Block.View " ++ show viewp
         ++ " " ++ show block ++ ">"
 data CBlockView
 

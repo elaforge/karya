@@ -4,10 +4,18 @@
 A Track is a container for Events.  A track goes from TrackPos 0 until
 the end of the last Event.
 
-Should be able to lazily fetch events starting at any TrackPos, going forwards or backwards.
+Should be able to lazily fetch events starting at any TrackPos, going forwards
+or backwards.
+
+TrackAttrs:
+
+cached derivation and realization (depending on deriver scope)
+modified event map, for derivation (old trackpos -> new trackpos)
+
 -}
 
 module Ui.TrackImpl where
+import qualified Control.Concurrent.MVar as MVar
 import Foreign
 import Foreign.C
 
@@ -18,14 +26,17 @@ import qualified Ui.Event as Event
 data CEventTrackModel
 data Track = Track
     { track_p :: ForeignPtr CEventTrackModel
-    , track_attrs :: Attrs
-    } deriving (Show, Eq)
+    , track_attrs :: MVar.MVar Attrs
+    } deriving (Eq)
+instance Show Track where
+    show track = "<Track.Track " ++ show (track_p track) ++ ">"
 
 create :: Color.Color -> UI Track
 create color = do
     trackp <- with color $ \colorp -> c_event_track_model_new colorp
     trackfp <- newForeignPtr c_event_track_model_destroy trackp
-    return $ Track trackfp []
+    attrs <- MVar.newMVar []
+    return $ Track trackfp attrs
 
 foreign import ccall unsafe "event_track_model_new"
     c_event_track_model_new :: Ptr Color.Color -> IO (Ptr CEventTrackModel)
@@ -63,8 +74,7 @@ get_events_forward track pos = undefined
 get_events_backward :: Track -> TrackPos -> UI [(TrackPos, Event.Event)]
 get_events_backward track pos = undefined
 
-get_attrs :: Track -> Attrs
-get_attrs = track_attrs
-
-set_attrs :: Track -> Attrs -> Track
-set_attrs track attrs = track { track_attrs = attrs }
+get_attrs :: Track -> IO Attrs
+get_attrs track = MVar.readMVar (track_attrs track)
+set_attrs :: Track -> Attrs -> IO ()
+set_attrs track attrs = MVar.swapMVar (track_attrs track) attrs >> return ()
