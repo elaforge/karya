@@ -1,8 +1,8 @@
-module Interface.Color where
+module Ui.Color where
 import Foreign
 import Foreign.C
 
-import qualified Interface.Util as Util
+import qualified Ui.Util as Util
 
 -- r, g, b, alpha, from 0--1
 data Color = Color Double Double Double Double deriving (Eq, Show)

@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -XBangPatterns #-}
-module Interface.Block (
+module Ui.Block (
     -- * Block model
     Config(..), Block -- no constructors for Block
     , create
@@ -32,9 +32,9 @@ Fully evaluate arguments and ship them to send_action.
 import qualified Control.Concurrent.MVar as MVar
 import System.IO.Unsafe
 
-import Interface.Ui (send_action)
-import qualified Interface.BlockImpl as B
-import Interface.BlockImpl (Block, Config(..), Tracklike(..)
+import Ui.Ui (send_action)
+import qualified Ui.BlockImpl as B
+import Ui.BlockImpl (Block, Config(..), Tracklike(..)
     , View, view_block, ViewConfig(..), Zoom(..), Selection(..)
     )
 

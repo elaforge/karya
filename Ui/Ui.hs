@@ -1,6 +1,6 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
 {-# OPTIONS_GHC -fglasgow-exts #-}
-module Interface.Ui (initialize, send_action) where
+module Ui.Ui (initialize, send_action) where
 import qualified Control.Monad as Monad
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.MVar as MVar
@@ -9,12 +9,10 @@ import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception
 import System.IO.Unsafe
 
-import Interface.Types
+import Ui.Types
 import qualified Util.Thread as Thread
 import qualified Util.Log as Log
-import qualified Interface.UiMsg as UiMsg
-import qualified Interface.MidiMsg as MidiMsg
-import qualified Interface.OscMsg as OscMsg
+import qualified Ui.UiMsg as UiMsg
 
 
 actions :: MVar.MVar [a]

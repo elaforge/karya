@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -XBangPatterns #-}
-module Interface.Track (
+module Ui.Track (
     -- * Track model
     Track, create
     -- ** Model modification
@@ -10,9 +10,9 @@ module Interface.Track (
     , get_events_forward, get_events_backward
 ) where
 
-import Interface.Ui (send_action)
-import qualified Interface.TrackImpl as T
-import Interface.TrackImpl (Track)
+import Ui.Ui (send_action)
+import qualified Ui.TrackImpl as T
+import Ui.TrackImpl (Track)
 
 force = id
 

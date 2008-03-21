@@ -7,7 +7,7 @@ receive those events and make the appropriate API calls.  This is so I can
 dynamically change mouse and keyboard mapping at the haskell level.
 -}
 
-module Interface.UiMsg where
+module Ui.UiMsg where
 import Control.Monad
 import qualified Control.Concurrent.MVar as MVar
 import qualified Data.Map as Map
@@ -17,10 +17,10 @@ import Text.Printf
 
 import qualified Util.Seq as Seq
 
-import Interface.Types
+import Ui.Types
 
-import qualified Interface.BlockImpl as BlockImpl
-import qualified Interface.TrackImpl as TrackImpl
+import qualified Ui.BlockImpl as BlockImpl
+import qualified Ui.TrackImpl as TrackImpl
 
 take_ui_msgs = with nullPtr $ \msgspp -> do
     count <- c_take_ui_msgs msgspp

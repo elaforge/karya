@@ -1,6 +1,6 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
 {-# OPTIONS_GHC -fglasgow-exts #-}
-module Interface.TestInterface where
+module Ui.TestUi where
 
 import qualified Control.Monad as Monad
 import qualified Control.Concurrent as Concurrent
@@ -10,15 +10,15 @@ import Foreign
 import qualified System.IO as IO
 
 import qualified Util.Thread as Thread
-import Interface.Types
-import qualified Interface.Util as Util
-import qualified Interface.Color as Color
-import qualified Interface.UiMsg as UiMsg
-import qualified Interface.Ui as Ui
-import qualified Interface.Block as Block
-import qualified Interface.Ruler as Ruler
-import qualified Interface.Track as Track
-import qualified Interface.Event as Event
+import Ui.Types
+import qualified Ui.Util as Util
+import qualified Ui.Color as Color
+import qualified Ui.UiMsg as UiMsg
+import qualified Ui.Ui as Ui
+import qualified Ui.Block as Block
+import qualified Ui.Ruler as Ruler
+import qualified Ui.Track as Track
+import qualified Ui.Event as Event
 
 main = Ui.initialize $ \msg_chan -> do
     msg_th <- Thread.start_thread "print msgs" (msg_thread msg_chan)

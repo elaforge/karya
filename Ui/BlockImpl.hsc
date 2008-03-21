@@ -16,17 +16,17 @@ Resize tracks by dragging the dividers.  Reorder tracks by dragging.
 The Block also tracks selections.  You can select with any button.  A Msg is
 sent on the mousedown, and on the mouseup.
 -}
-module Interface.BlockImpl where
+module Ui.BlockImpl where
 
 import qualified Control.Concurrent.MVar as MVar
 import qualified Data.Map as Map
 import qualified System.IO.Unsafe as Unsafe
 
-import qualified Interface.Util as Util
-import Interface.Types
-import qualified Interface.Color as Color
-import qualified Interface.TrackImpl as TrackImpl
-import qualified Interface.RulerImpl as RulerImpl
+import qualified Ui.Util as Util
+import Ui.Types
+import qualified Ui.Color as Color
+import qualified Ui.TrackImpl as TrackImpl
+import qualified Ui.RulerImpl as RulerImpl
 
 #include "c_interface.h"
 

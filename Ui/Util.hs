@@ -7,7 +7,7 @@ Thread management functions.
 -}
 {-# LANGUAGE ForeignFunctionInterface #-}
 {-# OPTIONS_GHC -fglasgow-exts #-}
-module Interface.Util where
+module Ui.Util where
 import Foreign
 import Foreign.C
 

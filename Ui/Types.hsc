@@ -2,8 +2,8 @@
 {-
 The basic types that the interface modules use.
 -}
-module Interface.Types (
-    UI -- this should move to Interface.Ui or something
+module Ui.Types (
+    UI -- this should move to Ui.Ui or something
     , Attrs
     -- * trackpos
     , TrackPos(..)
@@ -14,8 +14,8 @@ module Interface.Types (
 import qualified Data.List as List
 import Foreign
 
-import qualified Interface.Util as Util
-import qualified Interface.Color as Color
+import qualified Ui.Util as Util
+import qualified Ui.Color as Color
 
 -- TODO:
 -- implement Ui such that you can only run Ui actions in the monad

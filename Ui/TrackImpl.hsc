@@ -7,13 +7,13 @@ the end of the last Event.
 Should be able to lazily fetch events starting at any TrackPos, going forwards or backwards.
 -}
 
-module Interface.TrackImpl where
+module Ui.TrackImpl where
 import Foreign
 import Foreign.C
 
-import Interface.Types
-import qualified Interface.Color as Color
-import qualified Interface.Event as Event
+import Ui.Types
+import qualified Ui.Color as Color
+import qualified Ui.Event as Event
 
 data CEventTrackModel
 data Track = Track

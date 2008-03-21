@@ -3,7 +3,7 @@ PORTMIDI = /usr/local/src/portmedia/portmidi/trunk
 MIDI_LIBS = $(PORTMIDI)/pm_mac/libportmidi.a \
 	$(PORTMIDI)/porttime/libporttime.a \
 	-framework CoreFoundation -framework CoreMIDI -framework CoreAudio
-CINCLUDE = -Iui -I../libcc -I$(PORTMIDI)/pm_common -I$(PORTMIDI)/porttime
+CINCLUDE = -Ifltk -I../libcc -I$(PORTMIDI)/pm_common -I$(PORTMIDI)/porttime
 CXXFLAGS = `fltk-config --cxxflags` $(DEBUG) $(CINCLUDE)
 LDFLAGS = `fltk-config --ldflags` $(DEBUG)
 REZ = /Developer/Tools/Rez -t APPL -o $@ /usr/local/include/FL/mac.r
@@ -14,12 +14,12 @@ GHC_LIB = /usr/local/lib/ghc-6.8.2
 HFLAGS = -W $(CINCLUDE) -i../lib -pgmc g++ -pgml g++ -threaded -debug \
 	-optc -ggdb -optl -ggdb
 
-UI_OBJS := Block.o TrackTile.o Track.o Ruler.o EventTrack.o MoveTile.o \
+FLTK_OBJS := Block.o TrackTile.o Track.o Ruler.o EventTrack.o MoveTile.o \
 	Event.o P9Scrollbar.o SimpleScroll.o SeqInput.o MsgCollector.o \
 	f_util.o alpha_draw.o types.o config.o
-UI_OBJS := $(addprefix ui/, $(UI_OBJS))
+FLTK_OBJS := $(addprefix fltk/, $(FLTK_OBJS))
 
-all: test_block test_interface test_midi
+all: test_block test_ui test_midi
 
 .PHONY: dep
 dep: fixdeps
@@ -35,28 +35,28 @@ fixdeps: fixdeps.hs
 .PHONY: clean
 clean:
 	rm -f *.o *.hi fixdeps \
-		*/*.o */*.hi ui/ui.a $(INTERFACE_HS) $(MIDI_HS) haddock/*
+		*/*.o */*.hi fltk/fltk.a $(UI_HS) $(MIDI_HS) haddock/*
 
-ui/ui.a: $(UI_OBJS)
+fltk/fltk.a: $(FLTK_OBJS)
 	ar -rs $@ $^
 
-test_block: ui/test_block.o ui/ui.a
+test_block: fltk/test_block.o fltk/fltk.a
 	$(CXX) -o $@ $^ $(LDFLAGS)
 	$(REZ)
 
-INTERFACE_HSC = $(wildcard Interface/*.hsc)
-INTERFACE_HS = $(INTERFACE_HSC:hsc=hs)
-INTERFACE_OBJS = Interface/c_interface.o
+UI_HSC = $(wildcard Ui/*.hsc)
+UI_HS = $(UI_HSC:hsc=hs)
+UI_OBJS = Ui/c_interface.o
 
 MIDI_HSC = $(wildcard Midi/*.hsc)
 MIDI_HS = $(MIDI_HSC:hsc=hs)
 
 # PHONY convinces make to always run ghc, which figures out deps on its own
-.PHONY: test_interface
-test_interface: $(INTERFACE_HS) $(INTERFACE_OBJS) ui/ui.a
+.PHONY: test_ui
+test_ui: $(UI_HS) $(UI_OBJS) fltk/fltk.a
 	$(GHC) $(HFLAGS) --make \
-		-main-is Interface.TestInterface Interface/TestInterface.hs \
-		$(INTERFACE_OBJS) ui/ui.a \
+		-main-is Ui.TestUi Ui/TestUi.hs \
+		$(UI_OBJS) fltk/fltk.a \
 		`fltk-config --ldflags` \
 		-o $@
 	$(REZ)

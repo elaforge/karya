@@ -7,13 +7,13 @@ name.  They also have a display at zoom value.  Marks are only displayed if
 the zoom level is >= the display at zoom.
 -}
 
-module Interface.RulerImpl where
+module Ui.RulerImpl where
 import Foreign
 import Foreign.C
 
-import Interface.Types
-import qualified Interface.Util as Util
-import qualified Interface.Color as Color
+import Ui.Types
+import qualified Ui.Util as Util
+import qualified Ui.Color as Color
 
 data CRulerTrackModel
 newtype Marklist = Marklist [(TrackPos, Mark)] deriving (Eq, Show)

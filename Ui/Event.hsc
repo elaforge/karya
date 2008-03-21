@@ -28,14 +28,14 @@ No Event may overlap another Event on the same Track.
 
 -}
 
-module Interface.Event where
+module Ui.Event where
 import qualified Data.List as List
 import Foreign
 import Foreign.C
 
-import qualified Interface.Util as Util
-import Interface.Types
-import qualified Interface.Color as Color
+import qualified Ui.Util as Util
+import Ui.Types
+import qualified Ui.Color as Color
 
 
 data Event = Event
