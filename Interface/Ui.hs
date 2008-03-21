@@ -6,10 +6,12 @@ import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.STM.TChan as TChan
 import qualified Control.Concurrent.STM as STM
+import qualified Control.Exception as Exception
 import System.IO.Unsafe
 
 import Interface.Types
 import qualified Util.Thread as Thread
+import qualified Util.Log as Log
 import qualified Interface.UiMsg as UiMsg
 import qualified Interface.MidiMsg as MidiMsg
 import qualified Interface.OscMsg as OscMsg
@@ -26,10 +28,16 @@ ui_thread_id = unsafePerformIO MVar.newEmptyMVar
 -- When 'app' exits, the ui loop will be aborted.
 initialize app = do
     msg_chan <- TChan.newTChanIO
-    Thread.start_os_thread "app" (app msg_chan >> kill_ui_thread)
+    Thread.start_os_thread "app" (app_wrapper (app msg_chan))
     th_id <- Concurrent.myThreadId
     MVar.putMVar ui_thread_id th_id
     poll_loop actions msg_chan
+    `Exception.finally`
+    (Log.notice "main thread quitting")
+
+app_wrapper app = do
+    Exception.catch app (\exc -> Log.error ("caught exception: " ++ show exc))
+    kill_ui_thread
 
 add_act x = MVar.modifyMVar_ actions (return . (x:))
 

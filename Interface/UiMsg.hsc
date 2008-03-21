@@ -1,5 +1,5 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
-{-
+{- |
 As much functionality as possible is implemented at the app level, not the C++
 UI level.  Except some hardcoded actions like selections and zooming, keyboard
 and mouse events are dropped into a block-specific event queue.  The app must
@@ -43,6 +43,8 @@ data UiMsg = UiMsg
     } deriving (Show)
 
 -- | Corresponds to UiMsg::MsgType enum.
+-- Many of these are just view updates, and are only sent so they can be
+-- stored as Actions and go into the undo list.
 data Type = TypeEvent | TypeInput | TypeTrackScroll | TypeZoom
     | TypeViewResize | TypeTrackWidth | TypeClose
     deriving (Show)

@@ -48,6 +48,7 @@ test_view = do
 
     -- Util.show_children view >>= putStrLn
     putStr "? " >> IO.hFlush IO.stdout >> getLine
+    return ()
 
 
 msg_thread msg_chan = Monad.forever $ do
