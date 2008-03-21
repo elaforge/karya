@@ -18,7 +18,7 @@ import Text.Printf
 import qualified Util.Seq as Seq
 
 import Ui.Types
-
+import qualified Ui.Key as Key
 import qualified Ui.BlockImpl as BlockImpl
 import qualified Ui.TrackImpl as TrackImpl
 
@@ -77,9 +77,7 @@ data Data = Mouse
     }
     | Kbd
     { kbd_state :: KbdState
-    -- TODO convert this to a more general Key that includes things like shift
-    -- does haskell have a standard type for this?
-    , kbd_char :: Char
+    , kbd_key :: Key.Key
     }
     | AuxMsg AuxMsg
     | Unhandled Int
@@ -97,7 +95,8 @@ pretty_ui_msg (UiMsg TypeEvent context state x y mdata) = case mdata of
     Mouse mstate clicks is_click ->
         printf "Mouse: %s (%d, %d) %s" (show mstate) x y
             (pretty_context context)
-    Kbd kstate char -> printf "Kbd: %s %s" (show kstate) (show char)
+    Kbd kstate char -> printf "Kbd: %s %s %s" (show kstate) (show char)
+        (show state)
     AuxMsg msg -> printf "Aux: %s" (show msg)
     Unhandled x -> printf "Unhandled: %d" x
 pretty_ui_msg (UiMsg typ context _ _ _ _)
@@ -164,7 +163,7 @@ make_context viewp has_track track has_pos pos
 decode_msg event button clicks is_click key = msg
     where
     mouse typ = Mouse typ 0 False
-    kbd typ = Kbd typ '\0'
+    kbd typ = Kbd typ (Key.Unknown 0)
     aux = AuxMsg
     partial_msg = case event of
         (#const FL_PUSH) -> mouse (MouseDown button)
@@ -187,7 +186,7 @@ decode_msg event button clicks is_click key = msg
     msg = case partial_msg of
         Mouse {} -> partial_msg
             { mouse_clicks = clicks, mouse_is_click = is_click }
-        Kbd {} -> partial_msg { kbd_char = toEnum key }
+        Kbd {} -> partial_msg { kbd_key = Key.decode_key key }
         _ -> partial_msg
 
 decode_state :: CInt -> [State]

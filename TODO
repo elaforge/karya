@@ -54,7 +54,7 @@ ui
 Interface
   * rename Interface -> Ui, ui -> fltk
   - force evaluation of args in Block.hs etc.
-  - UiMsg: use Key data type instead of Char for e.g. backspace
+  * UiMsg: use Key data type instead of Char for e.g. backspace
   * use main thread for ui
   - get/set block config, block view config
   * BlockView.set_track_width, BlockView.get_track_width
