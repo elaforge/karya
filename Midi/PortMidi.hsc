@@ -19,7 +19,7 @@ module Midi.PortMidi (
     , read_events, write_event
 
     -- * errors
-    , Error(..), catch
+    , Error(..), catch, throw
 ) where
 
 import Prelude hiding (catch)
@@ -214,6 +214,8 @@ type CPmError = CInt -- internal
 -- | Catch PortMidi exceptions.
 catch :: IO a -> (Error -> IO a) -> IO a
 catch = Exception.catchDyn
+throw :: String -> a
+throw err = Exception.throwDyn (Error err)
 
 
 -- | run 'op' and throw if there's a problem, otherwise return if_ok
@@ -222,7 +224,7 @@ checked op if_ok = do
     errno <- op
     err <- get_error_str errno
     case err of
-        Just errstr -> Exception.throwDyn (Error errstr)
+        Just err -> throw err
         Nothing -> if_ok
 
 checked_ op = checked op (return ())

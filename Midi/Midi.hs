@@ -27,7 +27,7 @@ module Midi.Midi (
     , RealtimeMessage(..)
     , Channel, Key, Velocity, Controller, Program, ControlValue
     -- * errors
-    , catch
+    , Error(..), catch, throw
 ) where
 
 import Prelude hiding (catch)
@@ -43,7 +43,8 @@ import qualified System.IO.Unsafe as Unsafe
 
 import qualified Util.Thread as Thread
 import qualified Midi.PortMidi as PortMidi
-import Midi.PortMidi (Device, device_input, device_output, Timestamp)
+import Midi.PortMidi (Device, device_input, device_output, Timestamp,
+    Error(..), catch, throw)
 import qualified Midi.Parse as Parse
 import Midi.Parse (Message(..), ChannelMessage(..), CommonMessage(..),
     RealtimeMessage(..),
@@ -51,7 +52,15 @@ import Midi.Parse (Message(..), ChannelMessage(..), CommonMessage(..),
 
 -- | Run the given computation with the midi library initialized.
 initialize :: IO () -> IO ()
-initialize = Exception.bracket_ PortMidi.initialize PortMidi.terminate
+initialize = Exception.bracket_ PortMidi.initialize terminate
+
+terminate = do
+    thread_ids <- MVar.readMVar read_thread_ids
+    -- The threads' finally handlers should close their input streams.
+    mapM_ Concurrent.killThread thread_ids
+    dev_map <- MVar.readMVar dev_to_write_stream
+    mapM_ PortMidi.close_output (Map.elems dev_map)
+    PortMidi.terminate
 
 -- | PortMidi has both interface and device name.  Interface is probably always
 -- the same (e.g. CoreMIDI), but prepend it to the device name just for
@@ -74,6 +83,7 @@ devices = PortMidi.devices
 
 -- | Start putting msgs from given device into the queue that 'read_msg' reads
 -- from.
+
 open_read_device :: Device -> IO ()
 open_read_device dev = do
     stream <- PortMidi.open_input dev
@@ -81,8 +91,10 @@ open_read_device dev = do
     -- if enqueue took a list of inputs?  Then I'd have to keep separate sysex
     -- buffers for each one.
     chan <- IORef.readIORef read_channel_ref
-    Thread.start_thread ("enqueue " ++ device_name dev) $
+    th_id <- Thread.start_thread ("enqueue " ++ device_name dev) $
         enqueue stream (enqueue_event chan dev)
+        `Exception.finally` PortMidi.close_input stream
+    MVar.modifyMVar_ read_thread_ids (return . (th_id:))
     return ()
     where
     enqueue_event chan dev (PortMidi.Event (bytes, ts))
@@ -93,11 +105,11 @@ open_read_device dev = do
 open_write_device :: Device -> IO ()
 open_write_device dev = do
     stream <- PortMidi.open_output dev
-    MVar.modifyMVar_ write_dev_map
+    MVar.modifyMVar_ dev_to_write_stream
         (return . Map.insertWithKey err dev stream)
     where
     err dev _new_stream _old_stream
-        = midi_error $ "write dev already open: " ++ device_name dev
+        = throw $ "write dev already open: " ++ device_name dev
 
 type CompleteMessage = (Device, Timestamp, Message)
 
@@ -108,8 +120,11 @@ get_read_chan = IORef.readIORef read_channel_ref
 -- | A global map of open write devs.  It might be more elegant to just pass
 -- the open stream to write_msg, but for now it seems easier to not expose
 -- the streams to the outside world.
-write_dev_map :: MVar.MVar (Map.Map Device PortMidi.WriteStream)
-write_dev_map = Unsafe.unsafePerformIO (MVar.newMVar Map.empty)
+dev_to_write_stream :: MVar.MVar (Map.Map Device PortMidi.WriteStream)
+dev_to_write_stream = Unsafe.unsafePerformIO (MVar.newMVar Map.empty)
+
+read_thread_ids :: MVar.MVar [Concurrent.ThreadId]
+read_thread_ids = Unsafe.unsafePerformIO (MVar.newMVar [])
 
 -- | All midi read functions dump messages into this channel.
 read_channel_ref :: IORef.IORef (TChan.TChan CompleteMessage)
@@ -123,11 +138,11 @@ read_channel_ref = Unsafe.unsafePerformIO (TChan.newTChanIO >>= IORef.newIORef)
 -- read_pchan tchan = atomically $ if now-newest <= 1sec then newest else retry
 -- actually, they're the same thing except the latter inserts some latency
 -- for a buffer
-write_msg :: Device -> Timestamp -> Message -> IO ()
-write_msg dev timestamp msg = do
-    dev_map <- MVar.readMVar write_dev_map
+write_msg :: CompleteMessage -> IO ()
+write_msg (dev, timestamp, msg) = do
+    dev_map <- MVar.readMVar dev_to_write_stream
     case Map.lookup dev dev_map of
-        Nothing -> midi_error $ "device not open for writing: " ++ show dev
+        Nothing -> throw $ "device not open for writing: " ++ show dev
         Just stream -> PortMidi.write_event stream
             (PortMidi.Event (Parse.encode msg, timestamp))
     -- put it in the bw monitor
@@ -163,9 +178,3 @@ is_sysex = (==0xf0) . head . evt_bytes
 merge_evts [] = error "can't merge 0 Events"
 merge_evts evts@(PortMidi.Event (_, ts):_)
     = PortMidi.Event (concatMap evt_bytes evts, ts)
-
--- * errors
-
-newtype Error = Error String deriving (Show, Typeable)
-midi_error = error
-catch = PortMidi.catch
