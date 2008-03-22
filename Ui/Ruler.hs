@@ -1,13 +1,14 @@
 {-# OPTIONS_GHC -XBangPatterns #-}
 module Ui.Ruler (
-    Ruler, Config(..), Marklist(..), Mark(..)
-    , create
+    Ruler, Config(..), Marklist, Mark(..)
+    , create, create_marklist
 ) where
 
 import Ui.Ui (send_action)
 import qualified Ui.RulerImpl as R
-import Ui.RulerImpl (Ruler, Config(..), Marklist(..), Mark(..))
+import Ui.RulerImpl (Ruler, Config(..), Marklist, Mark(..))
 
 force = id
 
 create = R.create
+create_marklist = R.create_marklist

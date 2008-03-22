@@ -8,7 +8,9 @@ import qualified Control.Concurrent.STM.TChan as TChan
 import qualified Control.Concurrent.STM as STM
 import Foreign
 import qualified System.IO as IO
+import qualified System.IO.Unsafe as Unsafe
 
+import qualified Util.Test as Test
 import qualified Util.Thread as Thread
 import Ui.Types
 import qualified Ui.Util as Util
@@ -65,6 +67,8 @@ test_scroll_zoom view = do
 
 -- * Cheap tests.  TODO: use HUnit?
 empty_ruler = Ruler.create (ruler_config 0)
+io_equal :: (Eq a, Show a) => IO a -> a -> IO ()
+io_equal = Test.io_check_equal
 
 -- ** view tests
 
@@ -102,14 +106,15 @@ test_insert_events = do
 
     ruler <- empty_ruler
     view <- Block.create_view (0, 0) (100, 200) block ruler view_config
-    human_test "alternating 'replace' and 'krazy' events, no brick" (return ())
+    Test.io_human "alternating 'replace' and 'krazy' events, no brick"
+        (return ())
 
 test_view_selections view = do
     -- TODO incomplete
-    human_test "insertion point at beginning over 2 tracks " $
+    Test.io_human "insertion point at beginning over 2 tracks " $
         Block.set_selection view 0
             (Block.Selection (0, TrackPos 0) (2, TrackPos 0))
-    human_test "insertion point moves, only 1 track" $
+    Test.io_human "insertion point moves, only 1 track" $
         Block.set_selection view 0
             (Block.Selection (0, TrackPos 16) (1, TrackPos 0))
 
@@ -161,24 +166,13 @@ test_block_tracks = do
     io_equal (Block.track_at block 1) (Block.D Color.blue)
     io_equal (Block.track_at block 2) (Block.T t1 overlay_ruler)
 
-io_equal io_val expected = do
-    val <- io_val
-    if val == expected
-        then putStrLn $ "++-> " ++ show val
-        else error $ "expected: " ++ show expected ++ ", got: " ++ show val
-
--- Only a human can check these things.
-human_test msg op = do
-    op
-    putStr $ "should see: " ++ msg
-    IO.hFlush IO.stdout >> getLine
-
 
 -- * setup
 
 major n = Ruler.Mark 1 3 (Color.rgba 0.45 0.27 0 0.35) (show n) 0 0
 minor = Ruler.Mark 2 2 (Color.rgba 1 0.39 0.2 0.35) "" 0 0
-marklist n = Ruler.Marklist $ take n $ zip (map TrackPos [0, 10 ..]) m44
+marklist n = Unsafe.unsafePerformIO $
+    Ruler.create_marklist (take n $ zip (map TrackPos [0, 10 ..]) m44)
 
 
 m44 = concatMap (\n -> [major n, minor, minor, minor]) [0..]

@@ -4,6 +4,9 @@ where
 import qualified Char
 import List
 
+sortOn :: Ord b => (a -> b) -> [a] -> [a]
+sortOn key = sortBy (\a b -> compare (key a) (key b))
+
 rDropWhile f = reverse . dropWhile f . reverse
 
 lstrip = dropWhile Char.isSpace
