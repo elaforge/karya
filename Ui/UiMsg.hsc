@@ -20,7 +20,6 @@ import qualified Util.Seq as Seq
 import Ui.Types
 import qualified Ui.Key as Key
 import qualified Ui.BlockImpl as BlockImpl
-import qualified Ui.TrackImpl as TrackImpl
 
 take_ui_msgs = with nullPtr $ \msgspp -> do
     count <- c_take_ui_msgs msgspp

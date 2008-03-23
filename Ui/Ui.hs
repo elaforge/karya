@@ -4,7 +4,6 @@ module Ui.Ui (initialize, send_action) where
 import qualified Control.Monad as Monad
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.MVar as MVar
-import qualified Control.Concurrent.STM.TChan as TChan
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception
 import System.IO.Unsafe
@@ -25,7 +24,7 @@ ui_thread_id = unsafePerformIO MVar.newEmptyMVar
 -- since some UIs don't work properly unless run from the main thread.
 -- When 'app' exits, the ui loop will be aborted.
 initialize app = do
-    msg_chan <- TChan.newTChanIO
+    msg_chan <- STM.newTChanIO
     Thread.start_os_thread "app" (app_wrapper (app msg_chan))
     th_id <- Concurrent.myThreadId
     MVar.putMVar ui_thread_id th_id
@@ -57,7 +56,7 @@ poll_loop actions msg_chan = do
         -- putStrLn "woke up"
         handle_actions actions
         ui_msgs <- UiMsg.take_ui_msgs
-        STM.atomically (mapM_ (TChan.writeTChan msg_chan) ui_msgs)
+        STM.atomically (mapM_ (STM.writeTChan msg_chan) ui_msgs)
 
 kill_ui_thread = do
     th_id <- MVar.readMVar ui_thread_id

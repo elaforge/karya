@@ -38,7 +38,6 @@ import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
 import qualified Data.Map as Map
 import qualified Data.IORef as IORef
-import Data.Typeable (Typeable)
 import qualified System.IO.Unsafe as Unsafe
 
 import qualified Util.Thread as Thread

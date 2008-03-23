@@ -55,14 +55,14 @@ prio_stars prio = replicate (fromEnum prio + 1) '*'
 data Msg = Msg
     { msg_date :: () -- Datetime
     , msg_prio :: Prio
-    -- | Named system, higher level than just the filename.
+    -- Named system, higher level than just the filename.
     -- , msg_system :: System
     -- , msg_file_context :: FileContext
     -- | Free form text for humans.
     , msg_text  :: String
     -- | Higher level context info for the msg.
     , msg_context :: [Context]
-    -- | Additional misc attributes the msg may have.
+    -- Additional misc attributes the msg may have.
     -- , msg_attrs :: [(String, String)]
     } deriving (Show, Eq)
 
@@ -83,11 +83,13 @@ data FileContext = FileContext
 -- reports at Info, an error in derivation would send Block at Warn, and
 -- playback would send Block at Info.
 data Context
-    = Progress -- ^ Progress report on a process.
+    -- | Progress report on a process.
+    = Progress
         { progress_amount :: Double
         , progress_total :: Double
         }
-    | Block -- ^ Msg pertains to this region in a block.
+    -- | Msg pertains to this region in a block.
+    | Block
         { block_name :: String -- ^ Just the name, to avoid circular imports.
         , block_area :: () -- Types.Selection -- ^ affected area
         }

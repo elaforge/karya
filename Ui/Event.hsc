@@ -29,11 +29,9 @@ No Event may overlap another Event on the same Track.
 -}
 
 module Ui.Event where
-import qualified Data.List as List
 import Foreign
 import Foreign.C
 
-import qualified Ui.Util as Util
 import Ui.Types
 import qualified Ui.Color as Color
 

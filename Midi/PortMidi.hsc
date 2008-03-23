@@ -24,8 +24,6 @@ module Midi.PortMidi (
 
 import Prelude hiding (catch)
 import Control.Monad
-import qualified Control.Concurrent as Concurrent
-import qualified Control.Concurrent.Chan as Chan
 import qualified Control.Exception as Exception
 import qualified Data.Word as Word
 import Data.Typeable (Typeable)

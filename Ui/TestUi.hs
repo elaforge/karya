@@ -3,17 +3,14 @@
 module Ui.TestUi where
 
 import qualified Control.Monad as Monad
-import qualified Control.Concurrent as Concurrent
-import qualified Control.Concurrent.STM.TChan as TChan
 import qualified Control.Concurrent.STM as STM
-import Foreign
 import qualified System.IO as IO
 import qualified System.IO.Unsafe as Unsafe
 
 import qualified Util.Test as Test
 import qualified Util.Thread as Thread
 import Ui.Types
-import qualified Ui.Util as Util
+-- import qualified Ui.Util as Util
 import qualified Ui.Color as Color
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.Ui as Ui
@@ -24,7 +21,7 @@ import qualified Ui.Event as Event
 
 main = Ui.initialize $ \msg_chan -> do
     msg_th <- Thread.start_thread "print msgs" (msg_thread msg_chan)
-    test_view
+    test_set_config
 
 
 test_view = do
@@ -50,11 +47,14 @@ test_view = do
 
     -- Util.show_children view >>= putStrLn
     putStr "? " >> IO.hFlush IO.stdout >> getLine
+    Block.set_config block
+        (block_config { Block.config_track_box_color = Color.rgb 1 0 0 })
+    putStr "? " >> IO.hFlush IO.stdout >> getLine
     return ()
 
 
 msg_thread msg_chan = Monad.forever $ do
-    msg <- STM.atomically $ TChan.readTChan msg_chan
+    msg <- STM.atomically $ STM.readTChan msg_chan
     putStrLn $ "msg: " ++ UiMsg.pretty_ui_msg msg
 
 
