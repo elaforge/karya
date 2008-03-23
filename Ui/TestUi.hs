@@ -72,11 +72,38 @@ io_equal = Test.io_check_equal
 
 -- ** view tests
 
+test_set_config = do
+    block <- setup_event_track
+    ruler <- empty_ruler
+    view <- Block.create_view (0, 0) (200, 200) block ruler view_config
+
+    -- block config
+    Test.io_human "track box turns red" $
+        Block.set_config block
+            (block_config { Block.config_track_box_color = Color.rgb 1 0 0 })
+    config <- Block.get_config block
+    Test.io_human "sb box also red" $
+        Block.set_config block
+            (config { Block.config_sb_box_color = Color.rgb 1 0 0 })
+    config <- Block.get_config block
+    Test.io_human "block bg turns red" $
+        Block.set_config block
+            (config { Block.config_bg_color = Color.rgb 1 0 0 })
+    config <- Block.get_config block
+
+    Block.set_selection view 0
+        (Block.Selection (0, TrackPos 10) (1, TrackPos 20))
+    Test.io_human "selection turns red" $
+        Block.set_config block
+            (config {Block.config_select_colors
+                = Color.rgb 1 0 0 : tail (Block.config_select_colors config)})
+
+    -- view config
 
 -- ** track tests
 
 -- Give me a block with one event track.
-setup_track = do
+setup_event_track = do
     block <- Block.create block_config
     ruler <- empty_ruler
     track <- Track.create Color.white
@@ -84,7 +111,7 @@ setup_track = do
     return block
 
 test_insert_events = do
-    block <- setup_track
+    block <- setup_event_track
     Block.T track _ <- Block.track_at block 0
     Track.insert_event track (TrackPos 20) (event "brick" 10)
     Track.insert_event track (TrackPos 40) (event "so" 10)

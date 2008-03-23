@@ -51,7 +51,10 @@ BlockModel::remove_track(int at)
 void
 BlockModel::set_config(const BlockModelConfig &config)
 {
-    // TODO set config and update views if necessary
+    BlockModelConfig old = this->config;
+    this->config = config;
+    for (int i = 0; i < views.size(); i++)
+        views[i]->update_model_config(&old);
 }
 
 
@@ -104,8 +107,9 @@ BlockView::BlockView(int X, int Y, int W, int H,
     track_group.resizable(track_zoom);
     // track_zoom.resizable(track_scroll);
 
-    update_sizes();
-    update_colors();
+    this->update_sizes();
+    this->update_model_config(0);
+
 
     // Initialize the view with the model's state.
     this->set_title(model->get_title());
@@ -186,16 +190,6 @@ BlockView::update_sizes()
     track_zoom.init_sizes();
     track_scroll.init_sizes();
     track_tile.init_sizes();
-}
-
-
-void
-BlockView::update_colors()
-{
-    const BlockModelConfig &c = this->model->get_config();
-    this->track_box.color(color_to_fl(c.track_box));
-    this->sb_box.color(color_to_fl(c.sb_box));
-    // redraw?
 }
 
 
@@ -322,6 +316,30 @@ BlockView::remove_track(int at)
     this->update_scrollbars();
 }
 
+
+void
+BlockView::update_model_config(const BlockModelConfig *old)
+{
+    const BlockModelConfig &config = this->model->get_config();
+    for (int i = 0; i < Config::max_selections; i++) {
+        if (!old || config.select[i] != old->select[i]) {
+            this->set_selection(i, this->get_selection(i));
+        }
+    }
+
+    if (!old || config.bg != old->bg) {
+        track_tile.set_bg_color(config.bg);
+    }
+    if (!old || config.track_box != old->track_box) {
+        track_box.color(color_to_fl(config.track_box));
+        track_box.redraw();
+    }
+    if (!old || config.sb_box != old->sb_box) {
+        sb_box.color(color_to_fl(config.sb_box));
+        sb_box.redraw();
+    }
+    DEBUG("model updated");
+}
 
 // static callbacks
 

@@ -17,8 +17,8 @@ used to resize the left_body.
 
 Only resize the pad when the widget resizes, not the children.  Setting
 resizable or using an Fl_Scroll could solve this.
-
 */
+
 #ifndef __TRACK_TILE_H
 #define __TRACK_TILE_H
 
@@ -37,7 +37,10 @@ class TrackTile : public MoveTile {
 public:
     TrackTile(int X, int Y, int W, int H, Color bg_color, int title_height);
 
-    void set_bg_color(Color c) { track_pad.color(color_to_fl(c)); redraw(); }
+    void set_bg_color(Color c) {
+        track_pad.color(color_to_fl(c));
+        track_pad.redraw();
+    }
     void set_zoom(const ZoomInfo &zoom);
 
     // TrackPos of the end of the last event.

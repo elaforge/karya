@@ -25,7 +25,8 @@ int take_ui_msgs(UiMsg **msgs);
 
 BlockModelRef *block_model_create(const BlockModelConfig *config);
 void block_model_destroy(BlockModelRef *b);
-const BlockModelConfig *block_model_get_config(BlockModelRef *b);
+// unused because I store it in the Block now
+// const BlockModelConfig *block_model_get_config(BlockModelRef *b);
 void block_model_set_config(BlockModelRef *b, BlockModelConfig *config);
 const char *block_model_get_title(const BlockModelRef *b);
 void block_model_set_title(BlockModelRef *b, const char *s);
@@ -46,7 +47,8 @@ BlockViewWindow *block_view_create(int x, int y, int w, int h,
         BlockViewConfig *view_config);
 void block_view_destroy(BlockViewWindow *b);
 void block_view_resize(BlockViewWindow *b, int x, int y, int w, int h);
-const BlockViewConfig *block_view_get_config(BlockViewWindow *b);
+// unused because I store it in the Block now
+// const BlockViewConfig *block_view_get_config(BlockViewWindow *b);
 void block_view_set_config(BlockViewWindow *b, BlockViewConfig *config);
 const ZoomInfo *block_view_get_zoom(const BlockViewWindow *b);
 void block_view_set_zoom(BlockViewWindow *b, const ZoomInfo *zoom);

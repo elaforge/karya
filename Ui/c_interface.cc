@@ -87,11 +87,13 @@ block_model_destroy(BlockModelRef *b)
     delete b;
 }
 
+/*
 const BlockModelConfig *
 block_model_get_config(BlockModelRef *b)
 {
     return &(*b)->get_config();
 }
+*/
 
 void
 block_model_set_config(BlockModelRef *b, BlockModelConfig *config)
@@ -171,11 +173,13 @@ block_view_resize(BlockViewWindow *b, int x, int y, int w, int h)
     b->resize(x, y, w, h);
 }
 
+/*
 const BlockViewConfig *
 block_view_get_config(BlockViewWindow *b)
 {
     return &b->block.get_config();
 }
+*/
 
 void
 block_view_set_config(BlockViewWindow *b, BlockViewConfig *config)

@@ -1,4 +1,6 @@
 * .depend doesn't have *.hsc -> *.h dependencies
+- put keydown map in Responder to augment the context with midi note down and
+keydown
 
 ui
   * make TrackPos into an opaque type to let me be more free with impl.
@@ -50,21 +52,25 @@ ui
     _ bug: tracks close together seem to have a problem, and the arrow hot point
       isn't obvious.  highlight?  or a handle somehow?
 
-
-Interface
+Ui
   * rename Interface -> Ui, ui -> fltk
   - force evaluation of args in Block.hs etc.
   * UiMsg: use Key data type instead of Char for e.g. backspace
   * use main thread for ui
-  - get/set block config, block view config
+  * set block config
+  - set block view config
   * BlockView.set_track_width, BlockView.get_track_width
   * track_at
   * Event
-  - figure out how to force args
+
+Msg
+  - Msg/Matcher.hs matching functions for responder
 
 tests
   - hunit for Interface testing
   - some kind of organized hunit / quickcheck for pure code
+  - I should be able to type 'make test' and it compiles and runs all automatic
+    tests, make human_test to run interactive tests (with Test.io_human)
 
 app
   - actions
@@ -75,10 +81,11 @@ Midi
   - scheduler for out of order writes + thru?  how about I always write in
     order and don't allow timestamps on thru?
     no, I still need the scheduler, phooey.
+    write WriteStream *OpenMergedOutput(WriteStream *stm, ...)
   bandwidth
     - keep stats
     - display widget
-  - midi tools: Hz -> midi mapper, channer allocator
+  - midi tools: Hz -> midi mapper, channel allocator
 
 Osc
   - does reaktor support timestamps?

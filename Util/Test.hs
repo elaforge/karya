@@ -32,6 +32,11 @@ io_check_equal io_val expected = do
 
 -- Only a human can check these things.
 io_human expected_msg op = do
-    op
     putStr $ "should see: " ++ expected_msg
     IO.hFlush IO.stdout >> getLine
+    op
+    putStr $ "  ... ok? "
+    IO.hFlush IO.stdout
+    c <- getChar
+    -- TODO maybe ask if it was ok here?
+    return ()

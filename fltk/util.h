@@ -12,6 +12,10 @@ struct Color {
         : r(r), g(g), b(b), a(a) {}
     Color(unsigned long rgb) :
         r(0xff & (rgb >> 16)), g(0xff & (rgb >> 8)), b(0xff & rgb), a(0xff) {}
+    bool operator==(const Color &o) const {
+        return r==o.r && g==o.g && b==o.b && a==o.a;
+    }
+    bool operator!=(const Color &o) const { return !(*this == o); }
 
     Color() : r(0), g(0), b(0), a(0) {}
     unsigned char r, g, b, a;

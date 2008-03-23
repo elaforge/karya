@@ -121,8 +121,10 @@ get_config block = MVar.readMVar (block_config block)
 set_config :: Block -> Config -> UI ()
 set_config block config = do
     MVar.swapMVar (block_config block) config
-    return ()
-    -- c_block_model_set_config config -- TODO
+    withForeignPtr (block_p block) $ \blockp -> with config $ \configp ->
+        c_block_model_set_config blockp configp
+foreign import ccall unsafe "block_model_set_config"
+    c_block_model_set_config :: Ptr CBlockModel -> Ptr Config  -> IO ()
 
 get_title :: Block -> UI String
 get_title block =

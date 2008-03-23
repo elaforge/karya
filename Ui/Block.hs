@@ -78,9 +78,13 @@ resize !view (!x, !y) (!w, !h) = send_action (B.resize view (x, y) (w, h))
 get_zoom !view = send_action (B.get_zoom view)
 set_zoom !view !zoom = send_action (B.set_zoom view (force zoom))
 
+get_track_scroll :: View -> IO Int
 get_track_scroll !view = send_action (B.get_track_scroll view)
+set_track_scroll :: View -> Int -> IO ()
 set_track_scroll !view !offset = send_action (B.set_track_scroll view offset)
 
+-- | Get the selection on the given view.
+get_selection :: View -> Int -> IO Selection
 get_selection !view !selnum = send_action (B.get_selection view selnum)
 set_selection !view !selnum !sel
     = send_action (B.set_selection view selnum (force sel))

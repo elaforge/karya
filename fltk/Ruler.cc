@@ -60,7 +60,9 @@ void
 OverlayRuler::draw()
 {
     Rect draw_area = rect(this);
-    draw_area.h--; // tiles make a 1 pixel lower border
+    draw_area.h--; // tiles make a 1 pixel left/lower border
+    draw_area.w--;
+    draw_area.x++;
     // Prevent marks at the top and bottom from drawing outside the ruler.
     ClipArea clip_area(draw_area);
 

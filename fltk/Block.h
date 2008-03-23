@@ -144,7 +144,6 @@ public:
     int get_track_scroll() const;
     void set_track_scroll(int offset);
 
-    // unused by api
     const BlockViewConfig &get_config() const { return config; }
     void set_config(const BlockViewConfig &config);
     const Selection &get_selection(int selnum) const;
@@ -157,6 +156,8 @@ public:
 
     void insert_track(int at, const TrackModel &track, int width);
     void remove_track(int at);
+    void update_model_config(const BlockModelConfig *old);
+
     // unused by api
     TrackView *track_at(int at) { return track_tile.track_at(at); }
     // unused by api
@@ -196,7 +197,6 @@ private:
                     TrackTile track_tile;
 
     void update_sizes();
-    void update_colors();
     void update_scrollbars();
 
     // Called by scrollbar.
