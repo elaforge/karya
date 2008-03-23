@@ -14,7 +14,7 @@ class TrackPos {
 public:
     TrackPos(double val) : _val(val) {}
     // Used by EventTrack::create_widget for "everything"
-    static TrackPos max_pos;
+    // static TrackPos max_pos;
 
     // Scale by a given factor, for zooming.
     double scale(double factor) const { return _val * factor; }
@@ -29,7 +29,9 @@ TrackPos operator X(const TrackPos &o) const { \
 #define OP(X) bool operator X(const TrackPos &o) const { return _val X o._val; }
     OP(==) OP(!=) OP(<) OP(<=) OP(>) OP(>=)
 #undef OP
-    double _val;
+    // The only reason this isn't private is so the haskell FFI can see it.
+    // Lets have lots of space.
+    long long _val;
 private:
     friend std::ostream &operator<<(std::ostream &os, const TrackPos &pos);
 };

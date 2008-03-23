@@ -30,7 +30,7 @@ ui
   event track
     * overlay ruler
     * events
-    - bug: scrolling gets little one pixels shifts
+    * bug: scrolling gets little one pixels shifts
     - bug: event tracks flicker when moving horizontally
   Ruler
     * don't clip out the text as soon as the marker scrolls off screen

@@ -68,6 +68,9 @@ void ruler_track_model_destroy(RulerTrackModelRef *r);
 
 // A struct version of Mark, used to pass a marklist from haskell to C all
 // in one go.  The duplication with Mark is unfortunate.
+// I do it so I can pass (pos, mark) pairs, and also I can only pass char*, not
+// std::string and c++ strings deallocate themselves.  I could use a
+// scoped_ptr<char *>, but I'd still have the (pos, mark) problem.
 struct MarkMarshal {
     TrackPos pos;
     int rank;

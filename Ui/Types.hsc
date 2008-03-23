@@ -13,6 +13,7 @@ module Ui.Types (
 ) where
 import qualified Data.List as List
 import Foreign
+import Foreign.C
 
 import qualified Ui.Util as Util
 import qualified Ui.Color as Color
@@ -27,17 +28,24 @@ type Attrs = [(String, String)]
 
 -- * trackpos
 
--- | The position of an Event on a track.  One of these is normally a second.
--- The type of the value here should be kept in sync with the type of the c++
--- TrackPos value.
-newtype TrackPos = TrackPos Double deriving (Eq, Ord, Show)
+-- | The position of an Event on a track.  The units are arbitrary, so how
+-- many units are in one second depends on the tempo.  TrackPos units
+-- can be negative, but once they get to the UI they will be clamped to be
+-- within 0--ULONG_MAX.
+newtype TrackPos = TrackPos Integer deriving (Num, Eq, Ord, Show)
 
 #include "c_interface.h"
 instance Storable TrackPos where
     sizeOf _ = #size TrackPos
     alignment _ = undefined
-    peek posp = (#peek TrackPos, _val) posp >>= return . TrackPos
-    poke posp (TrackPos pos) = (#poke TrackPos, _val) posp pos
+    peek posp = do
+        v <- (#peek TrackPos, _val) posp :: IO CLLong
+        return (TrackPos (fromIntegral v))
+    poke posp (TrackPos pos) = (#poke TrackPos, _val) posp cpos
+        where
+        cpos :: CLLong
+        cpos = fromIntegral
+            (Util.bounded 0 (fromIntegral (maxBound::CLLong)) pos)
 
 
 -- * fonts
