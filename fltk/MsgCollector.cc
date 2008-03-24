@@ -41,9 +41,6 @@ operator<<(std::ostream &os, const UiMsg &m)
 static void
 set_msg_context(UiMsg &m)
 {
-    m.view = 0;
-    m.has_track = m.has_pos = false;
-
     for (Fl_Window *win = Fl::first_window(); win; win = Fl::next_window(win)) {
         // Events are reported relative to the window.
         Rect r = rect(win);
@@ -92,12 +89,16 @@ set_msg_from_event(UiMsg &m, int evt)
 // MsgCollector //////////////
 
 void
-MsgCollector::event(int evt)
+MsgCollector::event(int evt, BlockViewWindow *view)
 {
     UiMsg m;
     m.type = UiMsg::msg_event;
     set_msg_from_event(m, evt);
-    set_msg_context(m);
+    if (!view) {
+        set_msg_context(m);
+    } else {
+        m.view = view;
+    }
     this->push(m);
 }
 

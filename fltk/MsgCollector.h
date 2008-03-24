@@ -72,13 +72,14 @@ struct UiMsg {
     UiMsg() : view(0), has_track(false), has_pos(false), pos(0) {}
 
     enum MsgType {
+        // Fltk events.
         msg_event,
+        // Text input changed, has view and maybe track set.
         msg_input,
 
-        // block changed msgs all have 'view' set
+        // Block changed msgs all have 'view' set.
         msg_track_scroll, msg_zoom, msg_view_resize,
-        msg_track_width,
-        msg_close
+        msg_track_width, msg_close
     };
 
     MsgType type;
@@ -107,7 +108,9 @@ std::ostream &operator<<(std::ostream &os, const UiMsg &m);
 class MsgCollector {
 public:
     MsgCollector() {}
-    void event(int evt);
+    // Normally 'view' will be intuited from the mouse position, but 
+    // you can override that by passing it explicitly.
+    void event(int evt, BlockViewWindow *view = 0);
     // these are all const, but adding it causes const trickle
     void block_changed(Fl_Widget *w, UiMsg::MsgType type, int track = -1);
     void window_changed(BlockViewWindow *view, UiMsg::MsgType type,

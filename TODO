@@ -1,6 +1,6 @@
 * .depend doesn't have *.hsc -> *.h dependencies
-- put keydown map in Responder to augment the context with midi note down and
-keydown
+- remove global vars
+- check use of Ints
 
 ui
   * make TrackPos into an opaque type to let me be more free with impl.
@@ -64,6 +64,11 @@ Ui
   * Event
 
 Msg
+  * put keydown map in Responder to augment the context with midi note down and
+    keydown
+  * refactor UiMsg.UiMsg
+  * add block_focus / MsgFocus msg type
+  - put all stateful keys (kbd, mouse button, midi note) into keydown set
   - Msg/Matcher.hs matching functions for responder
 
 tests

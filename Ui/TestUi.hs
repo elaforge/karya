@@ -21,7 +21,7 @@ import qualified Ui.Event as Event
 
 main = Ui.initialize $ \msg_chan -> do
     msg_th <- Thread.start_thread "print msgs" (msg_thread msg_chan)
-    test_set_config
+    test_view
 
 
 test_view = do
@@ -46,9 +46,6 @@ test_view = do
     Track.insert_event t1 (TrackPos 96) (event "tiny" 0)
 
     -- Util.show_children view >>= putStrLn
-    putStr "? " >> IO.hFlush IO.stdout >> getLine
-    Block.set_config block
-        (block_config { Block.config_track_box_color = Color.rgb 1 0 0 })
     putStr "? " >> IO.hFlush IO.stdout >> getLine
     return ()
 

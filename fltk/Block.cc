@@ -338,7 +338,6 @@ BlockView::update_model_config(const BlockModelConfig *old)
         sb_box.color(color_to_fl(config.sb_box));
         sb_box.redraw();
     }
-    DEBUG("model updated");
 }
 
 // static callbacks
@@ -452,8 +451,14 @@ BlockViewWindow::handle(int evt)
         // see if someone else wants it
         accepted = Fl_Group::handle(evt);
     }
-    if (!accepted && (evt == FL_PUSH || evt == FL_DRAG || evt == FL_RELEASE)) {
-        global_msg_collector()->event(evt);
+    if (!accepted) {
+        switch (evt) {
+        case FL_PUSH: case FL_DRAG: case FL_RELEASE:
+            global_msg_collector()->event(evt);
+            break;
+        case FL_FOCUS:
+            global_msg_collector()->event(evt, this);
+        }
         return true;
     }
     return accepted;
