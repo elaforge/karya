@@ -1,5 +1,6 @@
 module App.Main where
 
+import Control.Monad
 import qualified Control.Concurrent as Concurrent
 
 import qualified Util.Thread as Thread
@@ -35,34 +36,31 @@ main = Ui.initialize $ \msg_chan -> Midi.initialize $ do
     midi_chan <- Midi.get_read_chan
 
     let get_msg = Responder.read_msg_chans msg_chan midi_chan
-    let initial_namespace = ()
-    let initial_state = ()
-    -- msg_th <- Thread.start_thread "responder"
-    --     (Responder.responder_thread initial_namespace initial_state
-    --         get_msg Midi.write_msg)
     devs <- Midi.devices
     putStrLn "devices:"
     putStrLn $ "\t" ++ Seq.join "\n\t" (map Midi.device_name devs)
 
-    let input_dev = head (filter Midi.device_input devs)
-    putStrLn $ "open input " ++ Midi.device_name input_dev
-    Midi.open_read_device (head (filter Midi.device_input devs))
-    let output_dev = head (filter Midi.device_output devs)
-    putStrLn $ "open output " ++ Midi.device_name output_dev
-    Midi.open_write_device output_dev
+    let input_dev = filter Midi.device_input devs
+    when (not (null input_dev)) $ do
+        putStrLn $ "open input " ++ Midi.device_name (head input_dev)
+        Midi.open_read_device (head (filter Midi.device_input devs))
+    let output_dev = filter Midi.device_output devs
+    when (not (null output_dev)) $ do
+        putStrLn $ "open output " ++ Midi.device_name (head output_dev)
+        Midi.open_write_device (head output_dev)
 
     make_test_block
 
-    (Responder.responder_thread initial_namespace initial_state
-        get_msg Midi.write_msg)
+    (Responder.responder_thread get_msg Midi.write_msg)
 
 
 -- * test
 
 make_test_block = do
     block <- Block.create block_config
-    track_ruler <- Ruler.create (ruler_config 64)
-    overlay_ruler <- Ruler.create (overlay_config (ruler_config 64))
+    mlist <- marklist 64
+    track_ruler <- Ruler.create (ruler_config [mlist])
+    overlay_ruler <- Ruler.create (overlay_config (ruler_config [mlist]))
 
     t1 <- Track.create Color.white
 
@@ -79,13 +77,13 @@ make_test_block = do
 
 major n = Ruler.Mark 1 3 (Color.rgba 0.45 0.27 0 0.35) (show n) 0 0
 minor = Ruler.Mark 2 2 (Color.rgba 1 0.39 0.2 0.35) "" 0 0
-marklist n = Ruler.Marklist $ take n $ zip (map TrackPos [0, 10 ..]) m44
+marklist n = Ruler.create_marklist $ take n $ zip (map TrackPos [0, 10 ..]) m44
 
 
 m44 = concatMap (\n -> [major n, minor, minor, minor]) [0..]
 
 ruler_bg = Color.rgb 1 0.85 0.5
-ruler_config marks = Ruler.Config [marklist marks] ruler_bg True False False
+ruler_config marklists = Ruler.Config marklists ruler_bg True False False
 -- Convert a ruler config for an overlay ruler.
 overlay_config config = config
     { Ruler.config_show_names = False

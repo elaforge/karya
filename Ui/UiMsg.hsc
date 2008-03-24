@@ -30,8 +30,8 @@ take_ui_msgs = with nullPtr $ \msgspp -> do
 foreign import ccall unsafe "take_ui_msgs"
     c_take_ui_msgs :: Ptr (Ptr UiMsg) -> IO CInt
 
---
-
+-- TODO normalize this
+-- put Type in UiMsg, remove Context, put msg_x, msg_y in Mouse
 data UiMsg = UiMsg
     { msg_type :: Type
     , msg_context :: Context

@@ -9,7 +9,7 @@ data Key = KeyChar Char
     | ShiftL | ShiftR | ControlL | ControlR | CapsLock | AltL | AltR
     | MetaL | MetaR | Menu | NumLock | KPEnter
     | Unknown Int
-    deriving (Eq, Show)
+    deriving (Eq, Ord, Show)
 
 -- Actually just need FL/Fl_Enumerations.H
 #include "c_interface.h"
