@@ -3,9 +3,10 @@
 -}
 module Msg.Responder where
 
-import qualified Control.Monad as Monad
+import Control.Monad
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Concurrent.STM.TChan as TChan
+import qualified Data.List as List
 import qualified Data.Set as Set
 
 import qualified Util.Log as Log
@@ -33,19 +34,39 @@ cmd_quit msg = return $ case msg of
 -- (ButtonPush, ButtonRelease)
 cmd_record_keys msg = do
     case msg of
-        Msg.Ui (UiMsg.UiMsg _ (UiMsg.MsgEvent (UiMsg.Kbd key_state key)))
-            -> case key_state of
-                UiMsg.KeyDown -> do
-                    modify_keys (Set.insert key)
-                    keys <- Handler.keys_down
-                    Handler.write_log Log.Debug ("keydown " ++ show keys)
-                UiMsg.KeyUp -> do
-                    modify_keys (Set.delete key)
-                    keys <- Handler.keys_down
-                    Handler.write_log Log.Debug ("keyup " ++ show keys)
+        Msg.Ui (UiMsg.UiMsg _ (UiMsg.MsgEvent evt)) -> case evt of
+            UiMsg.Kbd UiMsg.KeyDown key ->
+                insert_mod (Handler.KeyMod key)
+            UiMsg.Kbd UiMsg.KeyUp key ->
+                delete_mod (Handler.KeyMod key)
+            UiMsg.Mouse {UiMsg.mouse_state = UiMsg.MouseDown btn} ->
+                insert_mod (Handler.MouseMod btn)
+            UiMsg.Mouse {UiMsg.mouse_state = UiMsg.MouseUp btn} ->
+                delete_mod (Handler.MouseMod btn)
+            _ -> return ()
+        Msg.Midi (_dev, _timestamp, msg) -> case msg of
+            Midi.ChannelMessage chan (Midi.NoteOn key _vel) ->
+                insert_mod (Handler.MidiMod chan key)
+            Midi.ChannelMessage chan (Midi.NoteOff key _vel) ->
+                delete_mod (Handler.MidiMod chan key)
+            _ -> return ()
         _ -> return ()
     return Handler.Continue
     where
+    insert_mod mod = do
+        mods <- Handler.keys_down
+        when (mod `elem` mods) $
+            Handler.write_log Log.Warn
+                ("keydown for " ++ show mod ++ " already in modifiers")
+        modify_keys (Set.insert mod)
+        Handler.write_log Log.Debug ("keydown " ++ show (mod:mods))
+    delete_mod mod = do
+        mods <- Handler.keys_down
+        when (mod `notElem` mods) $
+            Handler.write_log Log.Warn
+                ("keyup for " ++ show mod ++ " not in modifiers")
+        modify_keys (Set.delete mod)
+        Handler.write_log Log.Debug ("keyup " ++ show (List.delete mod mods))
     modify_keys f = Handler.modify $ \st ->
         st {Handler.state_keys_down = f (Handler.state_keys_down st)}
 

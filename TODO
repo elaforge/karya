@@ -68,8 +68,11 @@ Msg
     keydown
   * refactor UiMsg.UiMsg
   * add block_focus / MsgFocus msg type
-  - put all stateful keys (kbd, mouse button, midi note) into keydown set
-  - Msg/Matcher.hs matching functions for responder
+  * put all stateful keys (kbd, mouse button, midi note) into keydown set
+  - keymaps that combine key patterns into a table and create a Handler
+  - write basic keymap
+  - bug: first modifier event doesn't get emitted.  This appears to be an fltk
+  thing?
 
 tests
   - hunit for Interface testing

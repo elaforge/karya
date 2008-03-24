@@ -108,7 +108,7 @@ std::ostream &operator<<(std::ostream &os, const UiMsg &m);
 class MsgCollector {
 public:
     MsgCollector() {}
-    // Normally 'view' will be intuited from the mouse position, but 
+    // Normally 'view' will be intuited from the mouse position, but
     // you can override that by passing it explicitly.
     void event(int evt, BlockViewWindow *view = 0);
     // these are all const, but adding it causes const trickle

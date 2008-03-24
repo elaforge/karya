@@ -8,6 +8,7 @@ data Key = KeyChar Char
     | Left | Up | Right | Down
     | ShiftL | ShiftR | ControlL | ControlR | CapsLock | AltL | AltR
     | MetaL | MetaR | Menu | NumLock | KPEnter
+    | Keypad Char
     | Unknown Int
     deriving (Eq, Ord, Show)
 
@@ -16,6 +17,9 @@ data Key = KeyChar Char
 
 decode_key :: Int -> Key
 decode_key code
+    | code /= (#const FL_KP_Enter)
+        && (#const FL_KP) < code && code <= (#const FL_KP_Last)
+            = Keypad (toEnum (code - (#const FL_KP)))
     | code <= 127 = KeyChar (toEnum code)
     | otherwise = case code of
         (#const FL_Escape) -> Escape

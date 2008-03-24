@@ -26,9 +26,17 @@ abort = HandlerM $ Error.throwError Abort
 instance Error.Error Abort where
     noMsg = Abort
 
+
+data Modifier = KeyMod Key.Key
+    | MouseMod Int
+    -- | Only chan and key are stored.  While it may be useful to map according
+    -- to the dev, this code doesn't know which devs are available.  Block or
+    -- track level handlers can query the dev themselves.
+    | MidiMod Midi.Channel Midi.Key
+    deriving (Eq, Ord, Show)
 data State = State {
     -- | Map of keys held down.  Maintained by Responder.cmd_record_keys.
-    state_keys_down :: Set.Set Key.Key
+    state_keys_down :: Set.Set Modifier
     -- | Block that has focus.  Maintained by Responder.cmd_block_focus,
     -- so non-ui msgs can know what block is active.
     , state_current_block :: Maybe Block.View
@@ -80,7 +88,7 @@ current_block = do
         Just view -> return view
 
 -- | Keys currently held down.
-keys_down :: HandlerM [Key.Key]
+keys_down :: HandlerM [Modifier]
 keys_down = do
     st <- get
     return (Set.elems (state_keys_down st))
