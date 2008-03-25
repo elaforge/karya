@@ -1,18 +1,18 @@
-module Msg.TimeInterval where
+module Msg.TimeStep where
 import Ui.Types
 import qualified Ui.Ruler as Ruler
 
--- | A variable time interval, used to find out how much to advance
+-- | A variable time step, used to find out how much to advance
 -- the cursor, how long an event should be, etc.
-data TimeInterval
-    = Absolute TrackPos -- ^ absolute time interval
+data TimeStep
+    = Absolute TrackPos -- ^ absolute time step
     | UntilMark MarkMatch -- ^ until the next mark that matches
     | MarkDistance MarkMatch -- ^ until next mark + offset from previous mark
 
 
 -- | Advance the given pos according to step on the ruler.
-advance :: TimeInterval -> Ruler.Marklist -> TrackPos -> Maybe TrackPos
-advance interval marklist start_pos = case interval of
+advance :: TimeStep -> Ruler.Marklist -> TrackPos -> Maybe TrackPos
+advance step marklist start_pos = case step of
     Absolute pos -> Just (start_pos + pos)
     UntilMark matcher -> matcher (Ruler.forward_from marklist start_pos)
     MarkDistance matcher -> do
@@ -21,8 +21,8 @@ advance interval marklist start_pos = case interval of
         return (next_pos + (start_pos - prev_pos))
 
 -- | Just like 'advance', but get a previous pos.
-rewind :: TimeInterval -> Ruler.Marklist -> TrackPos -> Maybe TrackPos
-rewind interval marklist start_pos = case interval of
+rewind :: TimeStep -> Ruler.Marklist -> TrackPos -> Maybe TrackPos
+rewind step marklist start_pos = case step of
     Absolute pos -> Just (start_pos - pos)
     UntilMark matcher -> matcher
         (Ruler.backward_from marklist start_pos)
