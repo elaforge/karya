@@ -11,6 +11,7 @@ import qualified Control.Monad.State as State
 import qualified Control.Monad.Writer as Writer
 import qualified Data.Set as Set
 
+import Ui.Types
 import qualified Ui.Key as Key
 import qualified Util.Log as Log
 import qualified Midi.Midi as Midi
@@ -26,9 +27,13 @@ abort = HandlerM $ Error.throwError Abort
 instance Error.Error Abort where
     noMsg = Abort
 
-
+-- It would be nicer if this were defined closer to where it's used, in
+-- Handler or a later commands module.  Figure it out when I organize the Msg
+-- modules.
 data Modifier = KeyMod Key.Key
-    | MouseMod Int
+    -- | Mouse button, and (tracknum, pos) in went down at, if any.
+    -- The block is not recorded because you can't drag across blocks.
+    | MouseMod Int (Maybe (Int, TrackPos))
     -- | Only chan and key are stored.  While it may be useful to map according
     -- to the dev, this code doesn't know which devs are available.  Block or
     -- track level handlers can query the dev themselves.

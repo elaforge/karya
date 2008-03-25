@@ -30,19 +30,22 @@ cmd_quit msg = return $ case msg of
         -> Handler.Quit
     _ -> Handler.Continue
 
--- TODO: list of state_key pairs:  (KeyUp, KeyDown) (NoteOn, NoteOff)
--- (ButtonPush, ButtonRelease)
 cmd_record_keys msg = do
     case msg of
-        Msg.Ui (UiMsg.UiMsg _ (UiMsg.MsgEvent evt)) -> case evt of
+        Msg.Ui (UiMsg.UiMsg ctx (UiMsg.MsgEvent evt)) -> case evt of
             UiMsg.Kbd UiMsg.KeyDown key ->
                 insert_mod (Handler.KeyMod key)
             UiMsg.Kbd UiMsg.KeyUp key ->
                 delete_mod (Handler.KeyMod key)
             UiMsg.Mouse {UiMsg.mouse_state = UiMsg.MouseDown btn} ->
-                insert_mod (Handler.MouseMod btn)
-            UiMsg.Mouse {UiMsg.mouse_state = UiMsg.MouseUp btn} ->
-                delete_mod (Handler.MouseMod btn)
+                insert_mod (Handler.MouseMod btn (mouse_context ctx))
+            UiMsg.Mouse {UiMsg.mouse_state = UiMsg.MouseUp btn} -> do
+                mods <- Handler.keys_down
+                delete_mod $ case List.find (has_button btn) mods of
+                    Just mod -> mod
+                    -- I don't think it will be found, but this will trigger
+                    -- a warning at least.
+                    Nothing -> Handler.MouseMod btn (mouse_context ctx)
             _ -> return ()
         Msg.Midi (_dev, _timestamp, msg) -> case msg of
             Midi.ChannelMessage chan (Midi.NoteOn key _vel) ->
@@ -53,6 +56,11 @@ cmd_record_keys msg = do
         _ -> return ()
     return Handler.Continue
     where
+    mouse_context (UiMsg.Context
+        {UiMsg.ctx_track = Just n, UiMsg.ctx_pos = Just pos}) = Just (n, pos)
+    mouse_context _ = Nothing
+    has_button btn (Handler.MouseMod btn2 _) = btn == btn2
+    has_button btn _ = False
     insert_mod mod = do
         mods <- Handler.keys_down
         when (mod `elem` mods) $
@@ -70,6 +78,11 @@ cmd_record_keys msg = do
     modify_keys f = Handler.modify $ \st ->
         st {Handler.state_keys_down = f (Handler.state_keys_down st)}
 
+cmd_print :: Handler.Handler
+cmd_print msg = do
+    -- Handler.write_log Log.Debug ("msg: " ++ show msg)
+    return Handler.Continue
+
 -- | Runs in a loop, reading and handling msgs.
 responder_thread :: IO Msg.Msg -> (Midi.CompleteMessage -> IO ()) -> IO ()
 responder_thread = responder_loop Handler.initial_state
@@ -77,7 +90,7 @@ responder_thread = responder_loop Handler.initial_state
 responder_loop state get_msg write_midi = do
     msg <- get_msg
     -- later this is hardcoded list merged with Block and Track mappings
-    let cmd_stack = [cmd_record_keys, cmd_quit]
+    let cmd_stack = [cmd_record_keys, cmd_print, cmd_quit]
     (res, state') <- do_cmds write_midi state msg cmd_stack
     case res of
         Handler.Quit -> return ()

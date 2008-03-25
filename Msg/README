@@ -1,3 +1,17 @@
+This model needs a better name.  Seq has three main parts:
+
+UI and mouse interaction: fltk, Ui
+
+UI msg handling, this plus previous is ui from user's pov:
+    Msg
+        Plugin
+        Action
+
+Derivation + playing:
+    Derive, Realize
+        Midi
+
+
 'j' and 'k' go up and down by events if there is one, or the current step if
 there isn't one.
 
