@@ -173,6 +173,15 @@ block_view_resize(BlockViewWindow *b, int x, int y, int w, int h)
     b->resize(x, y, w, h);
 }
 
+void
+block_view_get_size(BlockViewWindow *b, int *sz)
+{
+    sz[0] = b->x();
+    sz[1] = b->y();
+    sz[2] = b->w();
+    sz[3] = b->h();
+}
+
 /*
 const BlockViewConfig *
 block_view_get_config(BlockViewWindow *b)

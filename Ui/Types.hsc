@@ -19,8 +19,12 @@ import qualified Ui.Util as Util
 import qualified Ui.Color as Color
 
 -- TODO:
--- implement Ui such that you can only run Ui actions in the monad
+-- implement UI such that you can only run Ui actions in the monad
 -- returned by initialize.
+
+-- | You can query and modify the UI in this monad.
+-- It's just a synonym for IO right now, but all UI actions (i.e. functions
+-- from Block, Track, and Ruler) shoud be in this monad.
 type UI = IO
 
 -- | Used to associate auxiliary values with UI objects.

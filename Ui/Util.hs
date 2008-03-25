@@ -1,15 +1,21 @@
-{-
-Functions to convert between haskell and c types.
+{- Utilities for the XImpl layer.
 
-Generic UI debugging functions.
-
-Thread management functions.
+- Fltk monad
+- Functions to convert between haskell and c types.
+- Generic UI debugging functions.
 -}
 {-# LANGUAGE ForeignFunctionInterface #-}
 {-# OPTIONS_GHC -fglasgow-exts #-}
 module Ui.Util where
 import Foreign
 import Foreign.C
+
+-- | This is similar to Ui.Types.UI, except that it's intended for the low
+-- level fltk operations.  The difference is that all fltk operations must be
+-- executed serially in the ui thread.
+-- Currently this is just a synonym for IO, but in the future I could guarantee
+-- only the thread gets to run them with some newtype deriving magic.
+type Fltk = IO
 
 bounded_list def max_len xs = take max_len xs
     ++ replicate (max_len - length xs) def

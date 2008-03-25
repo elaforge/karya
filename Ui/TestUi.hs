@@ -21,10 +21,10 @@ import qualified Ui.Event as Event
 
 main = Ui.initialize $ \msg_chan -> do
     msg_th <- Thread.start_thread "print msgs" (msg_thread msg_chan)
-    test_view
+    test_view_size
 
 
-test_view = do
+test = do
     block <- Block.create block_config
     track_ruler <- Ruler.create (ruler_config 64)
     overlay_ruler <- Ruler.create (overlay_config (ruler_config 64))
@@ -34,14 +34,17 @@ test_view = do
     -- Insert some tracks before creating the view, some after.
     Block.insert_track block 0 (Block.T t1 overlay_ruler) 70
 
-    view <- Block.create_view (0, 0) (100, 200) block track_ruler view_config
+    view <- Block.create_view (Block.Rect (10, 50) (100, 200)) block track_ruler
+        view_config
+    view <- Block.create_view (Block.Rect (200, 0) (100, 200)) block track_ruler
+        view_config
 
     Block.insert_track block 1 (Block.D Color.blue) 5
     Block.insert_track block 2 (Block.R track_ruler) 15
     Block.insert_track block 3 (Block.T t1 overlay_ruler) 50
 
     Block.set_selection view 0
-        (Block.Selection (0, TrackPos 0) (2, TrackPos 0))
+        (Block.Selection 0 (TrackPos 0) 2 (TrackPos 0))
 
     Track.insert_event t1 (TrackPos 96) (event "tiny" 0)
 
@@ -69,10 +72,24 @@ io_equal = Test.io_check_equal
 
 -- ** view tests
 
+setup_view = do
+    block <- Block.create block_config
+    ruler <- empty_ruler
+    Block.create_view default_size block ruler view_config
+
+test_view_size = do
+    view <- setup_view
+    print =<< Block.get_size view
+    io_equal (Block.get_size view) default_size
+    Test.io_human "move and change size" $
+        Block.resize view (Block.Rect (200, 200) (200, 200))
+    io_equal (Block.get_size view) (Block.Rect (200, 200) (200, 200))
+
 test_set_config = do
     block <- setup_event_track
     ruler <- empty_ruler
-    view <- Block.create_view (0, 0) (200, 200) block ruler view_config
+    view <- Block.create_view (Block.Rect (0, 0) (200, 200)) block ruler
+        view_config
 
     -- block config
     Test.io_human "track box turns red" $
@@ -89,7 +106,7 @@ test_set_config = do
     config <- Block.get_config block
 
     Block.set_selection view 0
-        (Block.Selection (0, TrackPos 10) (1, TrackPos 20))
+        (Block.Selection 0 (TrackPos 10) 1 (TrackPos 20))
     Test.io_human "selection turns red" $
         Block.set_config block
             (config {Block.config_select_colors
@@ -109,7 +126,7 @@ setup_event_track = do
 
 test_insert_events = do
     block <- setup_event_track
-    Block.T track _ <- Block.track_at block 0
+    (Block.T track  _ruler, _width) <- Block.track_at block 0
     Track.insert_event track (TrackPos 20) (event "brick" 10)
     Track.insert_event track (TrackPos 40) (event "so" 10)
     Track.insert_event track (TrackPos 60) (event "bleck" 10)
@@ -129,7 +146,7 @@ test_insert_events = do
     io_equal (repl 70) True
 
     ruler <- empty_ruler
-    view <- Block.create_view (0, 0) (100, 200) block ruler view_config
+    view <- Block.create_view default_size block ruler view_config
     Test.io_human "alternating 'replace' and 'krazy' events, no brick"
         (return ())
 
@@ -137,10 +154,10 @@ test_view_selections view = do
     -- TODO incomplete
     Test.io_human "insertion point at beginning over 2 tracks " $
         Block.set_selection view 0
-            (Block.Selection (0, TrackPos 0) (2, TrackPos 0))
+            (Block.Selection 0 (TrackPos 0) 2 (TrackPos 0))
     Test.io_human "insertion point moves, only 1 track" $
         Block.set_selection view 0
-            (Block.Selection (0, TrackPos 16) (1, TrackPos 0))
+            (Block.Selection 0 (TrackPos 16) 1 (TrackPos 0))
 
 test_view_track_width view = do
     -- test set sizes
@@ -186,12 +203,17 @@ test_block_tracks = do
 
     io_equal (Block.tracks block) 3
 
-    io_equal (Block.track_at block 0) (Block.R track_ruler)
-    io_equal (Block.track_at block 1) (Block.D Color.blue)
-    io_equal (Block.track_at block 2) (Block.T t1 overlay_ruler)
+    io_equal (Block.track_at block 0) ((Block.R track_ruler), 10)
+    io_equal (Block.track_at block 1) ((Block.D Color.blue), 10)
+    io_equal (Block.track_at block 2) ((Block.T t1 overlay_ruler), 70)
 
 
 -- * setup
+
+-- (10, 50) seems to be the smallest x,y os x will accept.  Apparently
+-- fltk's sizes don't take the menu bar into account, which is about 44 pixels
+-- high, so a y of 44 is the minimum.
+default_size = Block.Rect (10, 50) (100, 200)
 
 major n = Ruler.Mark 1 3 (Color.rgba 0.45 0.27 0 0.35) (show n) 0 0
 minor = Ruler.Mark 2 2 (Color.rgba 1 0.39 0.2 0.35) "" 0 0

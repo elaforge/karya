@@ -8,16 +8,15 @@ module Ui.Block (
     , get_title, set_title, get_attrs, set_attrs
 
     -- ** Track management
-    , Tracklike(..)
+    , TrackNum, Width, SelNum, Tracklike(..)
     , tracks, track_at, insert_track, remove_track
 
     -- * Block view
-    , ViewConfig(..), View, view_block
-    , Zoom(..), Selection(..)
-    , create_view
+    , View, Rect(..), ViewConfig(..), Zoom(..), Selection(..)
+    , create_view, view_block
 
     -- ** View modification
-    , resize
+    , get_size, resize
     , get_view_config, set_view_config
     , get_zoom, set_zoom
     , get_track_scroll, set_track_scroll
@@ -35,13 +34,12 @@ import System.IO.Unsafe
 import Ui.Ui (send_action)
 import qualified Ui.BlockImpl as B
 import Ui.BlockImpl (Block, Config(..), Tracklike(..)
-    , View, view_block, ViewConfig(..), Zoom(..), Selection(..)
+    , TrackNum, SelNum, Width
+    , View, Rect(..), ViewConfig(..), Zoom(..), Selection(..)
+    , view_block
     )
 
 force = id
-
-view_list :: MVar.MVar [View]
-view_list = unsafePerformIO (MVar.newMVar [])
 
 create = B.create
 get_title = send_action . B.get_title
@@ -59,7 +57,7 @@ tracks :: Block -> IO Int
 tracks block = send_action (B.tracks block)
 
 -- | Return track for the track index.
-track_at :: Block -> Int -> IO Tracklike
+track_at :: Block -> TrackNum -> IO (Tracklike, Width)
 track_at block at = send_action (B.track_at block at)
 
 insert_track !block !at !track !width =
@@ -68,10 +66,12 @@ remove_track !block !at = send_action (B.remove_track block at)
 
 -- * views
 
-create_view (!x, !y) (!w, !h) !block !ruler !config = do
-    view <- send_action (B.create_view (x, y) (w, h) block ruler config)
-    MVar.modifyMVar_ view_list (return . (view:))
-    return view
+create_view !rect !block !ruler !config =
+    send_action (B.create_view rect block ruler config)
+
+-- | Get the current size of the view window.
+get_size :: View -> UI Rect
+get_size !view = send_action (B.get_size view)
 
 resize !view (!x, !y) (!w, !h) = send_action (B.resize view (x, y) (w, h))
 
