@@ -168,7 +168,7 @@ block_view_destroy(BlockViewWindow *b)
 }
 
 void
-block_view_resize(BlockViewWindow *b, int x, int y, int w, int h)
+block_view_set_size(BlockViewWindow *b, int x, int y, int w, int h)
 {
     b->resize(x, y, w, h);
 }

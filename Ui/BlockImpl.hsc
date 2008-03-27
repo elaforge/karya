@@ -211,10 +211,11 @@ foreign import ccall unsafe "block_model_remove_track"
 data View = View
     { view_p :: Ptr CBlockView
     , view_config :: MVar.MVar ViewConfig
+    , view_ruler :: MVar.MVar RulerImpl.Ruler
     , view_block :: Block
     }
 instance Show View where
-    show (View viewp config block) = "<Block.View " ++ show viewp
+    show (View viewp config ruler block) = "<Block.View " ++ show viewp
         ++ " " ++ show block ++ ">"
 data CBlockView
 
@@ -252,15 +253,16 @@ data Selection = Selection
 view_ptr_to_view :: MVar.MVar (Map.Map (Ptr CBlockView) View)
 view_ptr_to_view = Unsafe.unsafePerformIO (MVar.newMVar Map.empty)
 
-create_view :: Rect -> Block -> RulerImpl.Ruler -> ViewConfig -> Fltk View
-create_view (Rect (x, y) (w, h)) block ruler config = do
+create_view :: Block -> Rect -> RulerImpl.Ruler -> ViewConfig -> Fltk View
+create_view block (Rect (x, y) (w, h)) ruler config = do
     viewp <- withForeignPtr (block_p block) $ \blockp ->
         withForeignPtr (RulerImpl.ruler_p ruler) $ \rulerp ->
             with config $ \configp ->
                 c_block_view_create (i x) (i y) (i w) (i h) blockp rulerp
                     configp
     config_mv <- MVar.newMVar config
-    let view = View viewp config_mv block
+    ruler_mv <- MVar.newMVar ruler
+    let view = View viewp config_mv ruler_mv block
     MVar.modifyMVar_ view_ptr_to_view (return . Map.insert viewp view)
     return view
     where i = Util.c_int
@@ -278,12 +280,12 @@ foreign import ccall unsafe "block_view_destroy"
 
 data Rect = Rect (Int, Int) (Int, Int) deriving (Show, Eq)
 
-resize :: View -> Rect -> Fltk ()
-resize view (Rect (x, y) (w, h)) =
-    c_block_view_resize (view_p view) (i x) (i y) (i w) (i h)
+set_size :: View -> Rect -> Fltk ()
+set_size view (Rect (x, y) (w, h)) =
+    c_block_view_set_size (view_p view) (i x) (i y) (i w) (i h)
     where i = Util.c_int
-foreign import ccall unsafe "block_view_resize"
-    c_block_view_resize :: Ptr CBlockView -> CInt -> CInt -> CInt -> CInt
+foreign import ccall unsafe "block_view_set_size"
+    c_block_view_set_size :: Ptr CBlockView -> CInt -> CInt -> CInt -> CInt
         -> IO ()
 
 get_size :: View -> Fltk Rect
@@ -305,6 +307,9 @@ set_view_config view config = do
     with config $ \configp -> c_block_view_set_config (view_p view) configp
 foreign import ccall unsafe "block_view_set_config"
     c_block_view_set_config :: Ptr CBlockView -> Ptr ViewConfig -> IO ()
+
+get_ruler :: View -> IO RulerImpl.Ruler
+get_ruler view = MVar.readMVar (view_ruler view)
 
 get_zoom :: View -> Fltk Zoom
 get_zoom view = c_block_view_get_zoom (view_p view) >>= peek

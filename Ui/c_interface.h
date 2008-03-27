@@ -46,7 +46,7 @@ BlockViewWindow *block_view_create(int x, int y, int w, int h,
         BlockModelRef *model, RulerTrackModelRef *r,
         BlockViewConfig *view_config);
 void block_view_destroy(BlockViewWindow *b);
-void block_view_resize(BlockViewWindow *b, int x, int y, int w, int h);
+void block_view_set_size(BlockViewWindow *b, int x, int y, int w, int h);
 void block_view_get_size(BlockViewWindow *b, int *sz);
 // unused because I store it in the Block now
 // const BlockViewConfig *block_view_get_config(BlockViewWindow *b);
