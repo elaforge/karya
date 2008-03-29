@@ -7,7 +7,7 @@ module Ui.Track (
 
     -- ** Events
     , insert_event, remove_event
-    , event_at, advance, rewind
+    -- , event_at, advance, rewind
 ) where
 
 import Ui.Ui (send_action)
@@ -31,6 +31,3 @@ set_attrs = T.set_attrs
 
 insert_event track pos event = send_action (T.insert_event track pos event)
 remove_event track pos = send_action (T.remove_event track pos)
-
-get_events_forward track pos = send_action (T.get_events_forward track pos)
-get_events_backward track pos = send_action (T.get_events_backward track pos)

@@ -10,13 +10,11 @@ import qualified Util.Log as Log
 
 import qualified Midi.Midi as Midi
 
-import DUtil
-
 print_err = flip Midi.catch (\err -> putStrLn $ "err got out: " ++ show err)
 main = Midi.initialize $ print_err $ do
     devs <- Midi.devices
     putStrLn "devs:"
-    plist (map Midi.device_name devs)
+    mapM_ print (map Midi.device_name devs)
 
     Midi.open_read_device (devs !! 0)
     let out_dev = devs !! 5

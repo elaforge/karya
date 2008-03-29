@@ -21,7 +21,7 @@ import qualified Ui.Event as Event
 
 main = Ui.initialize $ \msg_chan -> do
     msg_th <- Thread.start_thread "print msgs" (msg_thread msg_chan)
-    test_view_size
+    test
 
 
 test = do
@@ -34,9 +34,9 @@ test = do
     -- Insert some tracks before creating the view, some after.
     Block.insert_track block 0 (Block.T t1 overlay_ruler) 70
 
-    view <- Block.create_view (Block.Rect (10, 50) (100, 200)) block track_ruler
+    view <- Block.create_view block (Block.Rect (10, 50) (100, 200)) track_ruler
         view_config
-    view <- Block.create_view (Block.Rect (200, 0) (100, 200)) block track_ruler
+    view <- Block.create_view block (Block.Rect (200, 0) (100, 200)) track_ruler
         view_config
 
     Block.insert_track block 1 (Block.D Color.blue) 5
@@ -75,20 +75,20 @@ io_equal = Test.io_check_equal
 setup_view = do
     block <- Block.create block_config
     ruler <- empty_ruler
-    Block.create_view default_size block ruler view_config
+    Block.create_view block default_size ruler view_config
 
 test_view_size = do
     view <- setup_view
     print =<< Block.get_size view
     io_equal (Block.get_size view) default_size
     Test.io_human "move and change size" $
-        Block.resize view (Block.Rect (200, 200) (200, 200))
+        Block.set_size view (Block.Rect (200, 200) (200, 200))
     io_equal (Block.get_size view) (Block.Rect (200, 200) (200, 200))
 
 test_set_config = do
     block <- setup_event_track
     ruler <- empty_ruler
-    view <- Block.create_view (Block.Rect (0, 0) (200, 200)) block ruler
+    view <- Block.create_view block (Block.Rect (0, 0) (200, 200)) ruler
         view_config
 
     -- block config
@@ -146,7 +146,7 @@ test_insert_events = do
     io_equal (repl 70) True
 
     ruler <- empty_ruler
-    view <- Block.create_view default_size block ruler view_config
+    view <- Block.create_view block default_size ruler view_config
     Test.io_human "alternating 'replace' and 'krazy' events, no brick"
         (return ())
 

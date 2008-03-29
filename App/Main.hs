@@ -67,7 +67,8 @@ make_test_block = do
     -- Insert some tracks before creating the view, some after.
     Block.insert_track block 0 (Block.T t1 overlay_ruler) 70
 
-    view <- Block.create_view (0, 0) (100, 200) block track_ruler view_config
+    view <- Block.create_view block (Block.Rect (0, 0) (100, 200))
+        track_ruler view_config
 
     Block.insert_track block 1 (Block.D Color.blue) 5
     Block.insert_track block 2 (Block.R track_ruler) 15
