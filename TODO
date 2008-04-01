@@ -2,7 +2,7 @@
 - remove global vars
 - check use of Ints
 
-ui
+fltk
   * make TrackPos into an opaque type to let me be more free with impl.
     implement as int64 usec?  or since it's just block relative, I can use
     plain unsigned msec?
@@ -18,6 +18,11 @@ ui
   _ optimize redraw by implementing scroll and selection damage
   - scrolling should add text height to time_end()
 
+  - change ZoomInfo to_trackpos and to_pixels to not use offset
+  - rename at -> tracknum
+  - resizing when you're scrolled should scroll back if there's nothing
+  interesting
+
   UI Msgs
     * convert EventCollectWindow to global EventCollector
     * remove the fltk default event handling, except for inputs
@@ -26,6 +31,10 @@ ui
     * send msg_scroll_changed msgs
     * figure out how to go BlockView* -> BlockView in UiMsg
     - clicking outside of SeqInput should unfocus it
+
+  Block
+    - BlockView::set_ruler
+    - BlockView::set_config
 
   Track
     / dividers can have separate color for upper part, for collapsable tracks
@@ -42,6 +51,7 @@ ui
     * text labels
 
   MoveTile
+    - only capture drag on a plain drag with no modifiers
     - bug: upper part of ruler track not getting resize?
       also not shrinking to the left
       hard to trigger this one

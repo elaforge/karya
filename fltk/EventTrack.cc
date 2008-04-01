@@ -8,62 +8,15 @@
 
 // #define DEBUG(X) ;
 
-// EventTrackModel ///////
-
-EventTrackModel::~EventTrackModel()
-{
-    // Any remaining views should have kept this model alive.
-    ASSERT(this->views.size() == 0);
-}
-
-
-bool
-EventTrackModel::insert_event(TrackPos pos, const EventModel &event)
-{
-    EventTrackModel::Events::const_iterator evt
-        = this->events.lower_bound(pos);
-    // DEBUG("insert event at " << pos << " dur " << event.duration);
-    if (evt != events.begin()) {
-        --evt;
-        if (evt->first + evt->second.duration > pos)
-            return false; // prev event overlaps
-        ++evt;
-    }
-    if (evt != events.end()) {
-        if (evt->first == pos)
-            ++evt;
-        if (pos + event.duration > evt->first)
-            return false; // I overlap with next event
-    }
-
-    this->events[pos] = event;
-    for (int i = 0; i < this->views.size(); i++)
-        views[i]->insert_event(pos, event);
-    return true;
-}
-
-
-bool
-EventTrackModel::remove_event(TrackPos pos)
-{
-    EventTrackModel::Events::const_iterator evt = this->events.find(pos);
-    if (evt == events.end())
-        return false;
-    this->events.erase(pos);
-    for (int i = 0; i < this->views.size(); i++)
-        views[i]->remove_event(pos);
-}
-
-
 // EventTrackView ///////
 
-EventTrackView::EventTrackView(boost::shared_ptr<EventTrackModel> model,
-        boost::shared_ptr<RulerTrackModel> ruler_model) :
+EventTrackView::EventTrackView(const EventTrackConfig &config,
+            const RulerConfig &ruler_config) :
     TrackView("events"),
-    model(model),
+    config(config),
     title_input(0),
     bg_box(0, 0, 1, 1),
-    overlay_ruler(ruler_model)
+    overlay_ruler(ruler_config)
 {
     // this->resizable(0); // don't resize children
     end(); // make sure no one else falls in
@@ -71,16 +24,9 @@ EventTrackView::EventTrackView(boost::shared_ptr<EventTrackModel> model,
     this->add(this->overlay_ruler);
     // create event widgets
     bg_box.box(FL_THIN_DOWN_BOX);
-    bg_box.color(color_to_fl(model->bg_color));
+    bg_box.color(color_to_fl(config.bg_color));
 
     this->title_input = new SeqInput(0, 0, 1, 1);
-    model->add_view(this);
-}
-
-
-EventTrackView::~EventTrackView()
-{
-    model->remove_view(this);
 }
 
 
@@ -109,33 +55,9 @@ EventTrackView::set_zoom(const ZoomInfo &zoom)
 TrackPos
 EventTrackView::time_end() const
 {
-    int i = 0;
-    TrackPos end(0);
-    for (EventTrackModel::Events::const_iterator event = model->events.begin();
-        event != model->events.end();
-        ++event)
-    {
-        // DEBUG("e"<< i++ << ": " << event->first << " + "
-        //     << event->second.duration);
-        end = std::max(end, event->first + event->second.duration);
-    }
-    return std::max(end, this->overlay_ruler.time_end());
-}
-
-
-void
-EventTrackView::insert_event(TrackPos pos, const EventModel &event)
-{
-    this->redraw();
-    this->do_callback();
-}
-
-
-void
-EventTrackView::remove_event(TrackPos pos)
-{
-    this->redraw();
-    this->do_callback();
+    TrackPos last;
+    this->config.last_track_pos(&last);
+    return last;
 }
 
 
@@ -169,48 +91,49 @@ EventTrackView::draw_area(Rect area)
 {
     this->draw_child(this->bg_box);
 
-    // later do a binary search or something?
-    // = std::lower_bound(model->events.begin(), model->events.end(),
-    //      this->zoom.to_pixels(event->first)
-    //          + this->zoom.to_pixels(event->second.duration) <= 0
+    TrackPos start = this->zoom.offset;
+    TrackPos end = this->zoom.to_trackpos(area.h);
+    Event *events;
+    TrackPos *event_pos;
+    int count = this->config.find_events(&start, &end, &event_pos, &events);
 
-    // TODO fix repetition here
-
-    for (EventTrackModel::Events::iterator event = model->events.begin();
-        event != model->events.end();
-        ++event)
-    {
-        int offset = y() + this->zoom.to_pixels(event->first);
-        int height = this->zoom.to_pixels(zoom.offset + event->second.duration);
+    for (int i = 0; i < count; i++) {
+        const Event &event = events[i];
+        const TrackPos &pos = event_pos[i];
+        int offset = y() + this->zoom.to_pixels(pos);
+        int height = this->zoom.to_pixels(zoom.offset + event.duration);
         // It's < not <= so that 0 height events on area.y still get drawn.
         if (offset + height < area.y) {
             // DEBUG("skip " << offset << " + " << height << " > " << area.y);
             continue;
         } else if (offset >= area.b())
             break;
-        fl_color(color_to_fl(event->second.color));
+        fl_color(color_to_fl(event.color));
         fl_rectf(this->x() + 1, offset, this->w() - 2, height);
     }
 
     this->draw_child(this->overlay_ruler);
 
-    for (EventTrackModel::Events::iterator event = model->events.begin();
-        event != model->events.end();
-        ++event)
-    {
-        int offset = y() + this->zoom.to_pixels(event->first);
-        int height = this->zoom.to_pixels(zoom.offset + event->second.duration);
+    for (int i = 0; i < count; i++) {
+        const Event &event = events[i];
+        const TrackPos &pos = event_pos[i];
+        int offset = y() + this->zoom.to_pixels(pos);
+        int height = this->zoom.to_pixels(zoom.offset + event.duration);
         if (offset + height < area.y)
             continue;
         else if (offset >= area.b())
             break;
-        this->draw_upper_layer(offset, event->second);
+        this->draw_upper_layer(offset, event);
+    }
+    if (count) {
+        free(events);
+        free(event_pos);
     }
 }
 
 
 void
-EventTrackView::draw_upper_layer(int offset, const EventModel &event)
+EventTrackView::draw_upper_layer(int offset, const Event &event)
 {
     if (event.align_to_bottom) {
         // TODO draw line at bottom, align text on top of it

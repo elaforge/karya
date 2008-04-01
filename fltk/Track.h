@@ -4,8 +4,6 @@
 #ifndef __TRACK_H
 #define __TRACK_H
 
-#include <boost/shared_ptr.hpp>
-
 #include <FL/Fl_Widget.H>
 #include <FL/Fl_Group.H>
 #include <FL/Fl_Box.H>
@@ -16,27 +14,31 @@
 
 // Since I want to keep RulerTrackModel and RulerTrackView in the same file,
 // instead of splitting them, I have to forward declare this.
-class RulerTrackModel;
-class EventTrackModel;
+class RulerConfig;
+class EventTrackConfig;
 
 
 // Dividers are not shared between views like tracks and rulers are, but being
 // consistent with this structure is convenient.
-struct DividerModel {
-    DividerModel(Color c) : color(c) {}
+struct DividerConfig {
+    DividerConfig(Color c) : color(c) {}
     Color color;
 };
 
 
-struct TrackModel {
-    // cheap union type
-    TrackModel(boost::shared_ptr<EventTrackModel> t,
-            boost::shared_ptr<RulerTrackModel> r);
-    TrackModel(boost::shared_ptr<RulerTrackModel> r);
-    TrackModel(boost::shared_ptr<DividerModel> d);
-    boost::shared_ptr<EventTrackModel> track;
-    boost::shared_ptr<RulerTrackModel> ruler;
-    boost::shared_ptr<DividerModel> divider;
+struct Tracklike {
+    // cheap variant
+    Tracklike(EventTrackConfig *t, RulerConfig *r)
+        : track(t), ruler(r), divider(0) {}
+    Tracklike(RulerConfig *r)
+        : track(0), ruler(r), divider(0) {}
+    Tracklike(DividerConfig *d)
+        : track(0), ruler(0), divider(d) {}
+
+    // TODO: const?
+    EventTrackConfig *track;
+    RulerConfig *ruler;
+    DividerConfig *divider;
 };
 
 
@@ -68,7 +70,7 @@ public:
 
 class DividerView : public TrackView {
 public:
-    DividerView(boost::shared_ptr<DividerModel> model);
+    DividerView(const DividerConfig &config);
     bool track_resizable() const { return false; }
     virtual Fl_Box &title_widget() { return *this->title_box; }
 protected:

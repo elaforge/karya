@@ -35,7 +35,6 @@ on an scrollbar callback
 #include <utility>
 #include <vector>
 #include <map>
-#include <boost/shared_ptr.hpp>
 
 #include <FL/Fl.H>
 #include <FL/Fl_Group.H>
@@ -69,50 +68,6 @@ struct BlockModelConfig {
     Color sb_box;
 };
 
-class BlockView;
-
-class BlockModel {
-public:
-    BlockModel(const BlockModelConfig &config) :
-        serial_number(current_serial_number++),
-        config(config)
-    {
-        DEBUG("creating block model " << this->serial_number);
-    }
-    ~BlockModel();
-
-    const char *get_title() const { return title.c_str(); }
-    void set_title(const char *s);
-
-    // TrackModels are passed and stored by value because a TrackModel is just
-    // a union of pointers.
-    void insert_track(int at, const TrackModel &track, int width);
-    void remove_track(int at);
-    std::pair<TrackModel, int> track_at(int at) const { return _tracks.at(at); }
-    int tracks() const { return _tracks.size(); }
-
-    const BlockModelConfig &get_config() const { return config; }
-    void set_config(const BlockModelConfig &config);
-
-    // Called by BlockView, to register itself with the model.
-    void add_view(BlockView *view) { views.push_back(view); }
-    void remove_view(BlockView *view) {
-        views.erase(std::remove(views.begin(), views.end(), view), views.end());
-    }
-
-private:
-    // Keep track of created models.
-    static int current_serial_number;
-    const int serial_number;
-
-    std::string title;
-    BlockModelConfig config;
-    // All the BlockViews that point to this BlockModel.  BlockView
-    // adds this when it's created so block modifications can notify its views.
-    std::vector<BlockView *> views;
-    std::vector<std::pair<TrackModel, int> > _tracks;
-};
-
 
 struct BlockViewConfig {
     Orientation orientation;
@@ -128,10 +83,10 @@ struct BlockViewConfig {
 
 class BlockView : public Fl_Group {
 public:
-    BlockView(int X, int Y, int W, int H, boost::shared_ptr<BlockModel> model,
-            boost::shared_ptr<const RulerTrackModel> ruler_model,
-            const BlockViewConfig &config);
-    ~BlockView();
+    BlockView(int X, int Y, int W, int H,
+            const BlockModelConfig &model_config,
+            const RulerConfig &ruler_config,
+            const BlockViewConfig &view_config);
 
     // fltk methods
     void resize(int X, int Y, int W, int H);
@@ -144,23 +99,24 @@ public:
     int get_track_scroll() const;
     void set_track_scroll(int offset);
 
-    const BlockViewConfig &get_config() const { return config; }
-    void set_config(const BlockViewConfig &config);
+    const BlockViewConfig &get_config() const { return view_config; }
+    void set_config(const BlockViewConfig &view_config);
     const Selection &get_selection(int selnum) const;
     void set_selection(int selnum, const Selection &sel);
 
-    // Called by BlockModel when it changes:
     void set_title(const char *s) { title.value(s); }
     const char *get_title() const { return title.value(); }
     void set_status(const char *s) { status_line.value(s); }
 
-    void insert_track(int at, const TrackModel &track, int width);
+    void insert_track(int at, const Tracklike &track, int width);
     void remove_track(int at);
-    void update_model_config(const BlockModelConfig *old);
+    void update_model_config(const BlockModelConfig *old = 0);
 
-    // unused by api
+    // TODO
+    // Redraw the given tracks in given track pos range.  Update scrollbars.
+    // void update_event_track(int at, TrackPos start, TrackPos end);
+
     TrackView *track_at(int at) { return track_tile.track_at(at); }
-    // unused by api
     int tracks() const { return track_tile.tracks(); }
     int get_track_width(int at) { track_tile.get_track_width(at); }
     void set_track_width(int at, int width) {
@@ -173,8 +129,8 @@ public:
     void tile_init() { track_tile.init_sizes(); }
 
 private:
-    boost::shared_ptr<BlockModel> model;
-    BlockViewConfig config;
+    BlockModelConfig model_config;
+    BlockViewConfig view_config;
     ZoomInfo zoom;
     std::vector<Selection> selections;
 
@@ -209,9 +165,9 @@ private:
 class BlockViewWindow : public Fl_Double_Window {
 public:
     BlockViewWindow(int X, int Y, int W, int H,
-            boost::shared_ptr<BlockModel> model,
-            boost::shared_ptr<const RulerTrackModel> ruler_model,
-            const BlockViewConfig &config);
+            const BlockModelConfig &model_config,
+            const RulerConfig &ruler_config,
+            const BlockViewConfig &view_config);
     BlockView block;
 
     // If true, this is running from c++, not haskell.

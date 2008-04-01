@@ -46,11 +46,11 @@ typedef std::vector<boost::shared_ptr<const Marklist> > Marklists;
 
 // Markslists will be drawn in the order they are given, so later marklists
 // will draw over earlier ones.
-struct RulerTrackModel {
-    RulerTrackModel(const Marklists lists, Color bg, bool show_names,
+struct RulerConfig {
+    RulerConfig(const Marklists &mlists, Color bg, bool show_names,
             bool use_alpha, bool full_width) :
-        marklists(lists), bg(bg), show_names(show_names), use_alpha(use_alpha),
-        full_width(full_width)
+        marklists(mlists), bg(bg), show_names(show_names),
+        use_alpha(use_alpha), full_width(full_width)
     {}
     const Marklists marklists;
 
@@ -68,14 +68,14 @@ struct RulerTrackModel {
 
 class OverlayRuler : public Fl_Group {
 public:
-    OverlayRuler(boost::shared_ptr<const RulerTrackModel> model) :
-        Fl_Group(0, 0, 1, 1), model(model), selections(Config::max_selections)
+    OverlayRuler(const RulerConfig &config) :
+        Fl_Group(0, 0, 1, 1), config(config), selections(Config::max_selections)
     {}
     void set_zoom(const ZoomInfo &zoom);
     void set_selection(int selnum, Color c, const Selection &sel);
     TrackPos time_end() const;
 
-    boost::shared_ptr<const RulerTrackModel> model;
+    RulerConfig config;
 protected:
     void draw();
 
@@ -96,7 +96,7 @@ private:
 
 class RulerTrackView : public TrackView {
 public:
-    RulerTrackView(boost::shared_ptr<const RulerTrackModel> model);
+    RulerTrackView(const RulerConfig &config);
     virtual Fl_Box &title_widget();
     virtual void set_zoom(const ZoomInfo &zoom) { ruler.set_zoom(zoom); }
     virtual void set_selection(int selnum, Color c, const Selection &sel) {

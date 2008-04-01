@@ -59,74 +59,91 @@ m44_marklist()
     return mlist;
 }
 
+
+typedef static std::vector<std::pair<TrackPos, Event> > TrackData;
+static TrackData t1_events;
+
+void t1_set()
+{
+    TrackData &e = t1_events;
+    Color eventc = Color(200, 200, 170);
+    TextStyle style;
+
+    e.push_back(std::make_pair(TrackPos(0),
+        Event("4c#", TrackPos(16), eventc, style)));
+    e.push_back(std::make_pair(TrackPos(32),
+        Event("4d-", TrackPos(64), eventc, style)));
+}
+
+int
+t1_find_events(TrackPos *start_pos, TrackPos *end_pos,
+        TrackPos **ret_pos, Event **ret_events)
+{
+    int count = 0;
+    int start = 0;
+    for (; start < t1_events.size(); start++) {
+        if (t1_events[start].first + t1_events[start].second.duration
+                >= *start_pos)
+            break;
+    }
+    while (start + count < t1_events.size()) {
+        if (t1_events[start+count].first >= *end_pos)
+            break;
+        count++;
+    }
+
+    *ret_pos = (TrackPos *) calloc(count, sizeof(TrackPos));
+    *ret_events = (Event *) calloc(count, sizeof(Event));
+    for (int i = 0; i < count; i++) {
+        // Placement new since malloced space is uninitialized.
+        new((*ret_pos) + i) TrackPos(t1_events[start+i].first);
+        new((*ret_events) + i) Event(t1_events[start+i].second);
+    }
+    return count;
+}
+
+void
+t1_last_track_pos(TrackPos *pos)
+{
+    int i = t1_events.size() - 1;
+    *pos = t1_events[i].first + t1_events[i].second.duration;
+}
+
 int
 main(int argc, char **argv)
 {
     BlockViewConfig view_config = block_view_config();
     BlockModelConfig config = block_model_config();
-    boost::shared_ptr<BlockModel> model(new BlockModel(config));
-
-    Color reddish(255, 230, 230);
-    Color greenish(230, 255, 230);
-    Color blueish(230, 230, 255);
-    Color white(255, 255, 255);
-
-    // static const Marklists no_marks = Marklists();
-    Color ruler_bg = Color(255, 230, 160);
 
     Marklists mlists;
     mlists.push_back(m44_marklist());
     Marklists nomarks;
 
-    model->set_title("hi there");
+    Color ruler_bg = Color(255, 230, 160);
+    Color track_bg = Color(255, 255, 255);
 
-    Color eventc = Color(200, 200, 170);
+    t1_set();
 
-    boost::shared_ptr<EventTrackModel> t1(new EventTrackModel(white));
-    boost::shared_ptr<EventTrackModel> t2(new EventTrackModel(reddish));
-    boost::shared_ptr<EventTrackModel> t3(new EventTrackModel(greenish));
+    RulerConfig ruler(mlists, ruler_bg, true, false, false);
+    RulerConfig truler(mlists, ruler_bg, false, true, true);
+    DividerConfig divider(Color(0x0000ff));
+    EventTrackConfig track(track_bg, t1_find_events, t1_last_track_pos);
+    EventTrackConfig track2(track_bg, t1_find_events, t1_last_track_pos);
 
-    boost::shared_ptr<DividerModel> d(new DividerModel(Color(0x0000ff)));
-    boost::shared_ptr<RulerTrackModel> r(new RulerTrackModel(mlists, ruler_bg,
-                true, false, false));
-    boost::shared_ptr<RulerTrackModel> tr(new RulerTrackModel(mlists, ruler_bg,
-                false, true, true));
-    boost::shared_ptr<RulerTrackModel> tr2(
-            new RulerTrackModel(nomarks, ruler_bg, false, true, true));
+    BlockViewWindow view(300, 250, 200, 200, config, ruler, view_config);
 
-    TextStyle style;
-
-    t1->insert_event(TrackPos(0),
-            EventModel("4c#", TrackPos(16), eventc, style));
-    t1->insert_event(TrackPos(32),
-            EventModel("4d-", TrackPos(64), eventc, style));
-
-    TrackModel track(t1, tr);
-    TrackModel track2(t1, tr2);
-    TrackModel ruler(r);
-    TrackModel divider(d);
-
-    model->insert_track(0, track, 70);
-    model->insert_track(1, divider, 4);
-    model->insert_track(2, ruler, 50);
-    model->insert_track(3, track, 30);
-    model->insert_track(4, track2, 30);
-
-    BlockViewWindow view(300, 250, 200, 200, model, r, view_config);
     view.testing = true;
     view.block.set_status("no status yet");
+    view.block.set_title("hi there");
 
-    t1->insert_event(TrackPos(128),
-        EventModel("0.7", TrackPos(32), eventc, style));
-    t1->insert_event(TrackPos(175),
-        EventModel("0.4", TrackPos(8), eventc, style));
+    view.block.insert_track(0, Tracklike(&divider), 4);
+    view.block.insert_track(1, Tracklike(&ruler), 25);
+    view.block.insert_track(2, Tracklike(&track, &truler), 50);
+    view.block.insert_track(3, Tracklike(&track2, &truler), 50);
 
-    t1->insert_event(TrackPos(0),
-            EventModel("pwned!", TrackPos(8), eventc, style));
-
-    view.block.set_selection(0, Selection(0, TrackPos(60), 4, TrackPos(56)));
-    view.block.set_selection(0, Selection(0, TrackPos(0), 4, TrackPos(56)));
-    view.block.set_selection(1, Selection(0, TrackPos(64), 4, TrackPos(0)));
+    view.block.set_selection(0, Selection(1, TrackPos(60), 4, TrackPos(56)));
+    view.block.set_selection(0, Selection(1, TrackPos(0), 4, TrackPos(56)));
+    view.block.set_selection(1, Selection(1, TrackPos(64), 4, TrackPos(0)));
 
     // print_children(&view);
     // DEBUG(1);

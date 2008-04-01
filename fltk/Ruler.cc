@@ -118,8 +118,8 @@ OverlayRuler::draw_marklists()
         return;
     fl_font(FL_HELVETICA, 9);
     // Later marklists will draw over earlier ones.
-    for (Marklists::const_iterator mlist = model->marklists.begin();
-            mlist != model->marklists.end(); ++mlist)
+    for (Marklists::const_iterator mlist = config.marklists.begin();
+            mlist != config.marklists.end(); ++mlist)
     {
         // TODO binary search?
         for (Marklist::const_iterator mark = (*mlist)->begin();
@@ -145,12 +145,12 @@ OverlayRuler::draw_mark(int offset, const Mark &mark)
     Color c = mark.color;
 
     // DEBUG("mark: @" << offset << " r" << mark.rank << " c: " << mark.color);
-    if (!this->model->use_alpha)
+    if (!this->config.use_alpha)
         c.a = 0xff;
 
     double width = w() - 2; // 2 pixels to keep away from the box edges
     // The rank->width sequence goes [1/1, 3/4, 1/2, 1/3, ...]
-    if (this->model->full_width || mark.rank == 0)
+    if (this->config.full_width || mark.rank == 0)
         ;
     else if (mark.rank == 1)
         width *= 3.0/4.0;
@@ -161,7 +161,7 @@ OverlayRuler::draw_mark(int offset, const Mark &mark)
     if (this->zoom.factor >= mark.zoom_level)
         alpha_rectf(Rect(x()+w() - width - 1, offset, width, mark.width), c);
 
-    if (this->zoom.factor >= mark.name_zoom_level && this->model->show_names
+    if (this->zoom.factor >= mark.name_zoom_level && this->config.show_names
             && mark.name.size() > 0)
     {
         int text_width = fl_width(mark.name.c_str());
@@ -201,10 +201,10 @@ OverlayRuler::draw_selections()
 }
 
 
-RulerTrackView::RulerTrackView(boost::shared_ptr<const RulerTrackModel> model) :
+RulerTrackView::RulerTrackView(const RulerConfig &config) :
     TrackView("ruler"),
     title_box(0),
-    ruler(model),
+    ruler(config),
         bg_box(0, 0, 1, 1)
 {
     this->add(ruler);
@@ -212,7 +212,7 @@ RulerTrackView::RulerTrackView(boost::shared_ptr<const RulerTrackModel> model) :
     end();
 
     bg_box.box(FL_THIN_DOWN_BOX);
-    bg_box.color(color_to_fl(model->bg));
+    bg_box.color(color_to_fl(config.bg));
 }
 
 
@@ -224,7 +224,7 @@ RulerTrackView::title_widget()
     if (!this->title_box) {
         this->title_box = new Fl_Box(0, 0, 1, 1);
         title_box->box(FL_FLAT_BOX);
-        title_box->color(color_to_fl(this->ruler.model->bg));
+        title_box->color(color_to_fl(this->ruler.config.bg));
     }
     return *this->title_box;
 }

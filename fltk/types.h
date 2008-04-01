@@ -12,6 +12,7 @@ enum Orientation { HorizontalTime, VerticalTime };
 
 class TrackPos {
 public:
+    TrackPos() : _val(0) {}
     TrackPos(double val) : _val(val) {}
     // Used by EventTrack::create_widget for "everything"
     // static TrackPos max_pos;

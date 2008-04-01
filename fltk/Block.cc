@@ -11,62 +11,13 @@
 // Try to avoid running into the little resize tab on the mac.
 static const int mac_resizer_width = 15;
 
-// BlockModel
-
-int BlockModel::current_serial_number = 0;
-
-BlockModel::~BlockModel()
-{
-    // Any remaining views should have kept this model alive.
-    ASSERT(this->views.size() == 0);
-    // DEBUG("destroy block model " << this->serial_number);
-}
-
-void
-BlockModel::set_title(const char *s)
-{
-    this->title = s;
-    for (int i = 0; i < views.size(); i++)
-        views[i]->set_title(s);
-}
-
-void
-BlockModel::insert_track(int at, const TrackModel &track, int width)
-{
-    ASSERT(0 <= at && at <= tracks());
-    _tracks.insert(_tracks.begin() + at, std::make_pair(track, width));
-    for (int i = 0; i < views.size(); i++)
-        views[i]->insert_track(at, track, width);
-}
-
-void
-BlockModel::remove_track(int at)
-{
-    ASSERT(0 <= at && at <= tracks());
-    for (int i = 0; i < views.size(); i++)
-        views[i]->remove_track(at);
-    _tracks.erase(_tracks.begin() + at);
-}
-
-void
-BlockModel::set_config(const BlockModelConfig &config)
-{
-    BlockModelConfig old = this->config;
-    this->config = config;
-    for (int i = 0; i < views.size(); i++)
-        views[i]->update_model_config(&old);
-}
-
-
-// BlockView
-
 BlockView::BlockView(int X, int Y, int W, int H,
-        boost::shared_ptr<BlockModel> model,
-        boost::shared_ptr<const RulerTrackModel> ruler_model,
-        const BlockViewConfig &config) :
+        const BlockModelConfig &model_config,
+        const RulerConfig &ruler_config,
+        const BlockViewConfig &view_config) :
     Fl_Group(X, Y, W, H),
-    model(model),
-    config(config),
+    model_config(model_config),
+    view_config(view_config),
     selections(Config::max_selections),
 
     title(0, 0, 1, 1),
@@ -77,13 +28,13 @@ BlockView::BlockView(int X, int Y, int W, int H,
             track_box(0, 0, 1, 1),
             sb_box(0, 0, 1, 1),
             time_sb(0, 0, 1, 1),
-            ruler(ruler_model),
+            ruler(ruler_config),
         track_group(0, 0, 1, 1),
             track_sb(0, 0, 1, 1),
             track_zoom(0, 0, 1, 1),
                 track_scroll(0, 0, 1, 1),
-                    track_tile(0, 0, 1, 1, model->get_config().bg,
-                            config.track_title_height)
+                    track_tile(0, 0, 1, 1, model_config.bg,
+                            view_config.track_title_height)
 {
     // The sizes of 1 are so that groups realize that their children are inside
     // of them.  The real resizing will be done in update_sizes
@@ -92,11 +43,12 @@ BlockView::BlockView(int X, int Y, int W, int H,
     body.add(track_group); // fix up hierarchy
     body_resize_group.hide();
 
-    status_line.visible_focus(false); // TODO remove from tabbing
+    // Remove the status line from the tab focus list.  I bypass that anyway
+    // so this doesn't have any effect.
+    // status_line.visible_focus(false);
     status_line.box(FL_FLAT_BOX);
     track_box.box(FL_FLAT_BOX);
     sb_box.box(FL_FLAT_BOX);
-    // track_scroll.type(0); // no scrollbars
     time_sb.callback(BlockView::scrollbar_cb, static_cast<void *>(this));
     track_sb.callback(BlockView::scrollbar_cb, static_cast<void *>(this));
     track_tile.callback(BlockView::track_tile_cb, static_cast<void *>(this));
@@ -108,27 +60,13 @@ BlockView::BlockView(int X, int Y, int W, int H,
     // track_zoom.resizable(track_scroll);
 
     this->update_sizes();
-    this->update_model_config(0);
-
-
-    // Initialize the view with the model's state.
-    this->set_title(model->get_title());
-    for (int i = 0; i < model->tracks(); i++) {
-        std::pair<TrackModel, int> trackw = model->track_at(i);
-        this->insert_track(i, trackw.first, trackw.second);
-    }
-    model->add_view(this);
+    this->update_model_config();
 
     // Initialize zoom to default.  This will cause zooming children to
     // properly position their widgets.
     this->set_zoom(this->zoom);
     // Update the scrollbars last, after I've added all the tracks.
     update_scrollbars();
-}
-
-BlockView::~BlockView()
-{
-    model->remove_view(this);
 }
 
 
@@ -150,33 +88,35 @@ BlockView::update_sizes()
     int wx = 0, wy = 0;
     this->position(0, 0);
 
-    title.resize(wx, wy, w(), config.block_title_height);
-    status_line.resize(wx, h() - config.status_size,
-            w() - mac_resizer_width, config.status_size);
-    status_line.textsize(config.status_size - 4);
+    const BlockViewConfig &vconfig = this->view_config;
+
+    title.resize(wx, wy, w(), vconfig.block_title_height);
+    status_line.resize(wx, h() - vconfig.status_size,
+            w() - mac_resizer_width, vconfig.status_size);
+    status_line.textsize(vconfig.status_size - 4);
     body.resize(wx, wy + title.h(),
             w(), h() - title.h() - status_line.h());
-    body_resize_group.resize(body.x() + config.sb_size, body.y(),
-            body.w() - config.sb_size, body.h());
+    body_resize_group.resize(body.x() + vconfig.sb_size, body.y(),
+            body.w() - vconfig.sb_size, body.h());
 
     ruler_group.resize(wx, body.y(),
-            config.sb_size + config.ruler_size, body.h());
+            vconfig.sb_size + vconfig.ruler_size, body.h());
     Rect p = rect(ruler_group);
     track_group.resize(p.r(), body.y(), body.w() - p.w, body.h());
 
-    track_box.resize(p.x, p.y, p.w, config.block_title_height);
-    sb_box.resize(p.x, p.b() - config.sb_size, p.w, config.sb_size);
+    track_box.resize(p.x, p.y, p.w, vconfig.block_title_height);
+    sb_box.resize(p.x, p.b() - vconfig.sb_size, p.w, vconfig.sb_size);
 
     time_sb.set_orientation(P9Scrollbar::vertical);
     track_sb.set_orientation(P9Scrollbar::horizontal);
 
     time_sb.resize(p.x, p.y + track_box.h(),
-            config.sb_size, p.h - track_box.h() - sb_box.h());
+            vconfig.sb_size, p.h - track_box.h() - sb_box.h());
     ruler.resize(p.x + time_sb.w(), p.y + track_box.h(),
-            config.ruler_size, time_sb.h());
+            vconfig.ruler_size, time_sb.h());
 
     p = rect(track_group);
-    track_sb.resize(p.x, p.b() - config.sb_size, p.w, config.sb_size);
+    track_sb.resize(p.x, p.b() - vconfig.sb_size, p.w, vconfig.sb_size);
     track_zoom.resize(p.x, p.y, p.w, p.h - track_sb.h());
     track_scroll.resize(p.x, p.y, p.w, p.h - track_sb.h());
     track_tile.resize(track_zoom.x(), track_zoom.y(),
@@ -203,7 +143,7 @@ BlockView::update_scrollbars()
 
     const ZoomInfo &zoom = this->get_zoom();
     // The scale(1)s just convert a TrackPos to a double.
-    int track_h = track_tile.h() - config.track_title_height;
+    int track_h = track_tile.h() - view_config.track_title_height;
     this->time_sb.set_scroll_zoom(track_tile.time_end().scale(1),
             zoom.offset.scale(1),
             (zoom.to_trackpos(track_h) - zoom.offset).scale(1));
@@ -252,7 +192,7 @@ BlockView::set_track_scroll(int offset)
 
 
 void
-BlockView::set_config(const BlockViewConfig &config)
+BlockView::set_config(const BlockViewConfig &view_config)
 {
     // TODO
 }
@@ -270,7 +210,7 @@ BlockView::set_selection(int selnum, const Selection &sel)
     ASSERT(0 <= selnum && selnum < Config::max_selections);
     // clear old selection
     const Selection &old = this->selections[selnum];
-    const Color &color = model->get_config().select[selnum];
+    const Color &color = model_config.select[selnum];
     Selection empty;
     for (int i = old.start_track;
             i < old.start_track + old.tracks && i < tracks(); i++)
@@ -290,18 +230,17 @@ BlockView::set_selection(int selnum, const Selection &sel)
 
 
 void
-BlockView::insert_track(int at, const TrackModel &track, int width)
+BlockView::insert_track(int at, const Tracklike &track, int width)
 {
     TrackView *t;
 
     // DEBUG("view insert at " << at);
     if (track.track) {
-        t = new EventTrackView(track.track, track.ruler);
-        t->callback(BlockView::update_scrollbars_cb, static_cast<void *>(this));
+        t = new EventTrackView(*track.track, *track.ruler);
     } else if (track.ruler) {
-        t = new RulerTrackView(track.ruler);
+        t = new RulerTrackView(*track.ruler);
     } else {
-        t = new DividerView(track.divider);
+        t = new DividerView(*track.divider);
     }
     track_tile.insert_track(at, t, width);
     this->update_scrollbars();
@@ -320,7 +259,7 @@ BlockView::remove_track(int at)
 void
 BlockView::update_model_config(const BlockModelConfig *old)
 {
-    const BlockModelConfig &config = this->model->get_config();
+    const BlockModelConfig &config = this->model_config;
     for (int i = 0; i < Config::max_selections; i++) {
         if (!old || config.select[i] != old->select[i]) {
             this->set_selection(i, this->get_selection(i));
@@ -407,12 +346,13 @@ block_view_window_cb(Fl_Window *win, void *p)
         Fl_Window::default_callback(win, p);
 }
 
+
 BlockViewWindow::BlockViewWindow(int X, int Y, int W, int H,
-        boost::shared_ptr<BlockModel> model,
-        boost::shared_ptr<const RulerTrackModel> ruler_model,
-        const BlockViewConfig &config) :
+        const BlockModelConfig &model_config,
+        const RulerConfig &ruler_config,
+        const BlockViewConfig &view_config) :
     Fl_Double_Window(X, Y, W, H),
-    block(X, Y, W, H, model, ruler_model, config),
+    block(X, Y, W, H, model_config, ruler_config, view_config),
     testing(false)
 {
     callback((Fl_Callback *) block_view_window_cb);
