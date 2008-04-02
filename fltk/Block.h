@@ -85,8 +85,8 @@ class BlockView : public Fl_Group {
 public:
     BlockView(int X, int Y, int W, int H,
             const BlockModelConfig &model_config,
-            const RulerConfig &ruler_config,
-            const BlockViewConfig &view_config);
+            const BlockViewConfig &view_config,
+            const RulerConfig &ruler_config);
 
     // fltk methods
     void resize(int X, int Y, int W, int H);
@@ -166,8 +166,8 @@ class BlockViewWindow : public Fl_Double_Window {
 public:
     BlockViewWindow(int X, int Y, int W, int H,
             const BlockModelConfig &model_config,
-            const RulerConfig &ruler_config,
-            const BlockViewConfig &view_config);
+            const BlockViewConfig &view_config,
+            const RulerConfig &ruler_config);
     BlockView block;
 
     // If true, this is running from c++, not haskell.

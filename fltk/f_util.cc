@@ -25,6 +25,7 @@ show_event(int ev)
     case FL_DRAG: return "drag";
     case FL_RELEASE: return "release";
     case FL_MOVE: return "move";
+    case FL_MOUSEWHEEL: return "mousewheel";
     case FL_ENTER: return "enter";
     case FL_LEAVE: return "leave";
     case FL_FOCUS: return "focus";

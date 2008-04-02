@@ -1,3 +1,4 @@
+
 * .depend doesn't have *.hsc -> *.h dependencies
 - remove global vars
 - check use of Ints
@@ -21,9 +22,14 @@ fltk
   - change ZoomInfo to_trackpos and to_pixels to not use offset
   - rename at -> tracknum
   - resizing when you're scrolled should scroll back if there's nothing
-  interesting
+    interesting
+
+  - figure out how to have a minimal title bar in os x (win.border(0) removes
+    it altogether)
+  - FL_Sys_Menu_Bar can put things in the OS X main menu
 
   UI Msgs
+    - can I capture os x two-finger drag events?
     * convert EventCollectWindow to global EventCollector
     * remove the fltk default event handling, except for inputs
     * custom Msg type that includes events, as well as "new selection" and

@@ -102,12 +102,6 @@ EventTrackView::draw_area(Rect area)
         const TrackPos &pos = event_pos[i];
         int offset = y() + this->zoom.to_pixels(pos);
         int height = this->zoom.to_pixels(zoom.offset + event.duration);
-        // It's < not <= so that 0 height events on area.y still get drawn.
-        if (offset + height < area.y) {
-            // DEBUG("skip " << offset << " + " << height << " > " << area.y);
-            continue;
-        } else if (offset >= area.b())
-            break;
         fl_color(color_to_fl(event.color));
         fl_rectf(this->x() + 1, offset, this->w() - 2, height);
     }
@@ -119,13 +113,11 @@ EventTrackView::draw_area(Rect area)
         const TrackPos &pos = event_pos[i];
         int offset = y() + this->zoom.to_pixels(pos);
         int height = this->zoom.to_pixels(zoom.offset + event.duration);
-        if (offset + height < area.y)
-            continue;
-        else if (offset >= area.b())
-            break;
         this->draw_upper_layer(offset, event);
     }
     if (count) {
+        for (int i = 0; i < count; i++)
+            free(events[i].text);
         free(events);
         free(event_pos);
     }
@@ -149,6 +141,6 @@ EventTrackView::draw_upper_layer(int offset, const Event &event)
         int textpos = offset + text_h;
         // TODO set according to style
         fl_color(FL_BLACK);
-        fl_draw(event.text.c_str(), x() + 2, textpos);
+        fl_draw(event.text, x() + 2, textpos);
     }
 }

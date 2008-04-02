@@ -12,7 +12,6 @@ track overlay, and alpha for the ruler track.
 #include <utility>
 #include <vector>
 #include <string>
-#include <boost/shared_ptr.hpp>
 
 #include <FL/Fl_Group.H>
 #include <FL/Fl_Box.H>
@@ -24,7 +23,8 @@ track overlay, and alpha for the ruler track.
 #include "Track.h"
 
 struct Mark {
-    Mark(int rank, int width, Color color, const char *name,
+    Mark() {}
+    Mark(int rank, int width, Color color, char *name,
             double name_zoom_level, double zoom_level) :
         rank(rank), width(width), color(color), name(name),
         name_zoom_level(name_zoom_level), zoom_level(zoom_level)
@@ -35,24 +35,34 @@ struct Mark {
     int rank;
     int width;
     Color color;
-    // Logically const, but can't be because vector push_back uses assignment.
-    std::string name;
+    // std::string would be much nicer here, but you can't serialize to one of
+    // those from haskell.
+    char *name;
     double name_zoom_level;
     double zoom_level;
 };
 
-typedef std::vector<std::pair<TrackPos, Mark> > Marklist;
-typedef std::vector<boost::shared_ptr<const Marklist> > Marklists;
+struct Marklist {
+    // Get marks from start to end.  Return the TrackPos in pos, the events in
+    // 'marks', and the count.
+    typedef int (*FindMarks)(TrackPos *start_pos, TrackPos *end_pos,
+            TrackPos **ret_tps, Mark **ret_marks);
+    Marklist(FindMarks find_marks) : find_marks(find_marks) {}
+    FindMarks find_marks;
+};
+
+typedef std::vector<Marklist> Marklists;
 
 // Markslists will be drawn in the order they are given, so later marklists
 // will draw over earlier ones.
 struct RulerConfig {
-    RulerConfig(const Marklists &mlists, Color bg, bool show_names,
-            bool use_alpha, bool full_width) :
-        marklists(mlists), bg(bg), show_names(show_names),
-        use_alpha(use_alpha), full_width(full_width)
+    // Not passing marklists is less convenient from c++, but more convenient
+    // to serialize from haskell.
+    RulerConfig(Color bg, bool show_names, bool use_alpha, bool full_width) :
+        bg(bg), show_names(show_names), use_alpha(use_alpha),
+        full_width(full_width)
     {}
-    const Marklists marklists;
+    Marklists marklists;
 
     // RulerTrackView uses this to set the bg_box, an EventTrack's OverlayRuler
     // doesn't use it.

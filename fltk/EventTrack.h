@@ -15,12 +15,15 @@ Events don't overlap.
 #include "Event.h"
 
 
+// TODO: as an optimization, I could cache the last set of found events plus
+// one before start and one after end.  Then if the next draw_area is within
+// that area (as it will be when scrolling smoothly) I can avoid the callback.
 class EventTrackConfig {
 public:
     // Get events from start to end.  Return the TrackPos in pos, the events in
     // 'events', and the count.
     typedef int (*FindEvents)(TrackPos *start_pos, TrackPos *end_pos,
-            TrackPos **ret_pos, Event **ret_events);
+            TrackPos **ret_tps, Event **ret_events);
     // Get last trackpos
     typedef void (*LastTrackPos)(TrackPos *last);
 

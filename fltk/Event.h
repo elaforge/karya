@@ -22,13 +22,14 @@ struct Event {
     // This has a default contsructor so I can assign it by value into
     // the EventTrackModel::Events map.
     Event() : duration(0), color(0, 0, 0) {}
-    Event(const std::string &text, TrackPos duration, Color color,
+    Event(char *text, TrackPos duration, Color color,
             const TextStyle &style, bool align_to_bottom = false) :
         text(text), duration(duration), color(color), style(style),
         align_to_bottom(align_to_bottom)
     {}
 
-    std::string text;
+    // std::string would be nicer but I can't serialize to that from haskell.
+    char *text;
     TrackPos duration;
     Color color;
     TextStyle style;

@@ -13,8 +13,8 @@ static const int mac_resizer_width = 15;
 
 BlockView::BlockView(int X, int Y, int W, int H,
         const BlockModelConfig &model_config,
-        const RulerConfig &ruler_config,
-        const BlockViewConfig &view_config) :
+        const BlockViewConfig &view_config,
+        const RulerConfig &ruler_config) :
     Fl_Group(X, Y, W, H),
     model_config(model_config),
     view_config(view_config),
@@ -349,10 +349,10 @@ block_view_window_cb(Fl_Window *win, void *p)
 
 BlockViewWindow::BlockViewWindow(int X, int Y, int W, int H,
         const BlockModelConfig &model_config,
-        const RulerConfig &ruler_config,
-        const BlockViewConfig &view_config) :
+        const BlockViewConfig &view_config,
+        const RulerConfig &ruler_config) :
     Fl_Double_Window(X, Y, W, H),
-    block(X, Y, W, H, model_config, ruler_config, view_config),
+    block(X, Y, W, H, model_config, view_config, ruler_config),
     testing(false)
 {
     callback((Fl_Callback *) block_view_window_cb);
@@ -385,6 +385,8 @@ BlockViewWindow::handle(int evt)
             return false; // this will wind up closing the window
         return true;
     }
+
+    // TODO turn FL_SCROLLWHEEL (also sent by two-finger drag) into scrolls
 
     bool accepted = false;
     if (evt == FL_PUSH || evt == FL_MOVE) {

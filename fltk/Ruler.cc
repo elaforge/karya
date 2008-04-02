@@ -116,25 +116,29 @@ OverlayRuler::draw_marklists()
     // DEBUG("clip: " << clip);
     if (clip.w == 0 || clip.h == 0)
         return;
+
+    TrackPos *mark_tps;
+    Mark *marks;
+    int count;
+    TrackPos start = this->zoom.offset;
+    TrackPos end = this->zoom.to_trackpos(clip.h);
+
     fl_font(FL_HELVETICA, 9);
     // Later marklists will draw over earlier ones.
     for (Marklists::const_iterator mlist = config.marklists.begin();
             mlist != config.marklists.end(); ++mlist)
     {
-        // TODO binary search?
-        for (Marklist::const_iterator mark = (*mlist)->begin();
-                mark != (*mlist)->end(); ++mark)
-        {
-            // mark is pair(trackpos, mark)
-            int offset = y() + zoom.to_pixels(mark->first);
-            // mlist should be sorted, so I can break after I pass the bottom.
-            if (offset < clip.y)
-                continue;
-            else if (offset - fl_height() >= clip.b())
-                break;
-            else
-                draw_mark(offset, mark->second);
+        count = mlist->find_marks(&start, &end, &mark_tps, &marks);
+        for (int i = 0; i < count; i++) {
+            int offset = y() + zoom.to_pixels(mark_tps[i]);
+            draw_mark(offset, marks[i]);
         }
+    }
+    if (count) {
+        for (int i = 0; i < count; i++)
+            free(marks[i].name);
+        free(marks);
+        free(mark_tps);
     }
 }
 
@@ -162,9 +166,9 @@ OverlayRuler::draw_mark(int offset, const Mark &mark)
         alpha_rectf(Rect(x()+w() - width - 1, offset, width, mark.width), c);
 
     if (this->zoom.factor >= mark.name_zoom_level && this->config.show_names
-            && mark.name.size() > 0)
+            && mark.name)
     {
-        int text_width = fl_width(mark.name.c_str());
+        int text_width = fl_width(mark.name);
         int xmin = x() + 2;
         int xmax = x() + w() - text_width;
         // Try to be right to the left of the mark, but align with the left
@@ -172,7 +176,7 @@ OverlayRuler::draw_mark(int offset, const Mark &mark)
         int xpos = ::clamp(xmin, xmax, x() + w() - int(width) - text_width);
 
         fl_color(FL_BLACK);
-        fl_draw(mark.name.c_str(), xpos, offset);
+        fl_draw(mark.name, xpos, offset);
     }
 }
 

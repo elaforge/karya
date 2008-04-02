@@ -1,5 +1,3 @@
-#include <boost/shared_ptr.hpp>
-
 #include <FL/Fl.H>
 #include <FL/Fl_Double_Window.H>
 
@@ -36,27 +34,65 @@ BlockModelConfig block_model_config()
     return c;
 }
 
-static boost::shared_ptr<Marklist>
-m44_marklist()
+typedef static std::vector<std::pair<TrackPos, Mark> > MarkData;
+static MarkData m44_marks;
+
+void m44_set()
 {
-    boost::shared_ptr<Marklist> mlist(new Marklist());
+    MarkData &mlist = m44_marks;
     char name[32];
     Color major = Color(116, 70, 0, 90);
     Color minor = Color(225, 100, 50, 90);
 
-    for (int i = 0; i < 600; i++) {
+    for (int i = 0; i < 100; i++) {
         TrackPos t = i*8;
         if (i % 4 == 0) {
             sprintf(name, "%d", i / 4);
-            Mark m(1, 3, major, name, 0, 0);
-            mlist->push_back(std::pair<TrackPos, Mark>(t, m));
+            Mark m(1, 3, major, strdup(name), 0, 0);
+            mlist.push_back(std::make_pair(t, m));
         } else {
             // sprintf(name, "%d.%d", i / 4, i % 4);
-            Mark m(2, 2, minor, "", 0, 0);
-            mlist->push_back(std::pair<TrackPos, Mark>(t, m));
+            Mark m(2, 2, minor, 0, 0, 0);
+            mlist.push_back(std::make_pair(t, m));
         }
     }
-    return mlist;
+}
+
+int
+m44_find_marks(TrackPos *start_pos, TrackPos *end_pos,
+        TrackPos **ret_tps, Mark **ret_marks)
+{
+    MarkData &mlist = m44_marks;
+    int count = 0;
+    int start = 0;
+    for (; start < mlist.size(); start++) {
+        if (mlist[start].first >= *start_pos)
+            break;
+    }
+    while (start + count < mlist.size()) {
+        if (mlist[start+count].first >= *end_pos)
+            break;
+        count++;
+    }
+
+    // One extra on the top and bottom so they get drawn when partially
+    // offscreen.  This will still clip if marks are close.
+    if (start)
+        start--;
+    if (count < mlist.size())
+        count += 2;
+
+    *ret_tps = (TrackPos *) calloc(count, sizeof(TrackPos));
+    *ret_marks = (Mark *) calloc(count, sizeof(Mark));
+    for (int i = 0; i < count; i++) {
+        // Placement new since malloced space is uninitialized.
+        new((*ret_tps) + i) TrackPos(mlist[start+i].first);
+        new((*ret_marks) + i) Mark(mlist[start+i].second);
+        char **namep = &(*ret_marks)[i].name;
+        if (*namep)
+            *namep = strdup(*namep);
+    }
+    return count;
 }
 
 
@@ -77,7 +113,7 @@ void t1_set()
 
 int
 t1_find_events(TrackPos *start_pos, TrackPos *end_pos,
-        TrackPos **ret_pos, Event **ret_events)
+        TrackPos **ret_tps, Event **ret_events)
 {
     int count = 0;
     int start = 0;
@@ -92,12 +128,15 @@ t1_find_events(TrackPos *start_pos, TrackPos *end_pos,
         count++;
     }
 
-    *ret_pos = (TrackPos *) calloc(count, sizeof(TrackPos));
+    *ret_tps = (TrackPos *) calloc(count, sizeof(TrackPos));
     *ret_events = (Event *) calloc(count, sizeof(Event));
     for (int i = 0; i < count; i++) {
         // Placement new since malloced space is uninitialized.
-        new((*ret_pos) + i) TrackPos(t1_events[start+i].first);
+        new((*ret_tps) + i) TrackPos(t1_events[start+i].first);
         new((*ret_events) + i) Event(t1_events[start+i].second);
+        char **textp = &(*ret_events)[i].text;
+        if (*textp)
+            *textp = strdup(*textp);
     }
     return count;
 }
@@ -116,21 +155,25 @@ main(int argc, char **argv)
     BlockModelConfig config = block_model_config();
 
     Marklists mlists;
-    mlists.push_back(m44_marklist());
+    mlists.push_back(Marklist(m44_find_marks));
     Marklists nomarks;
 
     Color ruler_bg = Color(255, 230, 160);
     Color track_bg = Color(255, 255, 255);
 
     t1_set();
+    m44_set();
 
-    RulerConfig ruler(mlists, ruler_bg, true, false, false);
-    RulerConfig truler(mlists, ruler_bg, false, true, true);
+    RulerConfig ruler(ruler_bg, true, false, false);
+    ruler.marklists = mlists;
+    RulerConfig truler(ruler_bg, false, true, true);
+    truler.marklists = mlists;
     DividerConfig divider(Color(0x0000ff));
     EventTrackConfig track(track_bg, t1_find_events, t1_last_track_pos);
     EventTrackConfig track2(track_bg, t1_find_events, t1_last_track_pos);
 
-    BlockViewWindow view(300, 250, 200, 200, config, ruler, view_config);
+    BlockViewWindow view(300, 250, 200, 200, config, view_config, ruler);
+    // view.border(0);
 
     view.testing = true;
     view.block.set_status("no status yet");
