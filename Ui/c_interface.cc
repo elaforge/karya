@@ -72,92 +72,21 @@ take_ui_msgs(UiMsg **msgs)
 }
 
 
-
-BlockModelRef *
-block_model_create(const BlockModelConfig *config)
-{
-    DEBUG("new block model");
-    return new BlockModelRef(new BlockModel(*config));
-}
-
-void
-block_model_destroy(BlockModelRef *b)
-{
-    DEBUG("destroy model");
-    delete b;
-}
-
-/*
-const BlockModelConfig *
-block_model_get_config(BlockModelRef *b)
-{
-    return &(*b)->get_config();
-}
-*/
-
-void
-block_model_set_config(BlockModelRef *b, BlockModelConfig *config)
-{
-    (*b)->set_config(*config);
-}
-
-const char *
-block_model_get_title(const BlockModelRef *b)
-{
-    return (*b)->get_title();
-}
-
-void
-block_model_set_title(BlockModelRef *b, const char *s)
-{
-    DEBUG("set title " << s);
-    (*b)->set_title(s);
-}
-
-
-// tracks
-
-void
-block_model_insert_event_track(BlockModelRef *b, int at, int width,
-        EventTrackModelRef *t, RulerTrackModelRef *r)
-{
-    (*b)->insert_track(at, TrackModel(*t, *r), width);
-}
-
-void
-block_model_insert_ruler_track(BlockModelRef *b, int at, int width,
-        RulerTrackModelRef *r)
-{
-    DEBUG("insert ruler at " << at);
-    (*b)->insert_track(at, TrackModel(*r), width);
-}
-
-void
-block_model_insert_divider(BlockModelRef *b, int at, int width, Color *color)
-{
-    boost::shared_ptr<DividerModel> d(new DividerModel(*color));
-    (*b)->insert_track(at, TrackModel(d), width);
-}
-
-void
-block_model_remove_track(BlockModelRef *b, int at)
-{
-    (*b)->remove_track(at);
-}
-
 // Block view
 
 BlockViewWindow *
-block_view_create(int x, int y, int w, int h, BlockModelRef *model,
-        RulerTrackModelRef *r, BlockViewConfig *view_config)
+block_view_create(int x, int y, int w, int h, BlockModelConfig *model_config,
+        BlockViewConfig *view_config, RulerConfig *ruler, Marklist *marklists,
+        int nmarklists)
 {
-    BlockViewConfig c(*view_config);
-    // This isn't implemented currently.
-    c.orientation = VerticalTime;
-
-    BlockViewWindow *win = new BlockViewWindow(x, y, w, h, *model, *r, c);
+    Marklists mlists;
+    RulerConfig ruler_config(ruler->bg, ruler->show_names, ruler->use_alpha,
+            ruler->full_width);
+    for (int i = 0; i < nmarklists; i++)
+        ruler_config.marklists.push_back(marklists[i]);
+    BlockViewWindow *win = new BlockViewWindow(x, y, w, h, *model_config,
+        *view_config, ruler_config);
     win->show();
-    DEBUG("create and show window");
     return win;
 }
 
@@ -181,14 +110,6 @@ block_view_get_size(BlockViewWindow *b, int *sz)
     sz[2] = b->w();
     sz[3] = b->h();
 }
-
-/*
-const BlockViewConfig *
-block_view_get_config(BlockViewWindow *b)
-{
-    return &b->block.get_config();
-}
-*/
 
 void
 block_view_set_config(BlockViewWindow *b, BlockViewConfig *config)
@@ -247,54 +168,10 @@ block_view_set_track_width(BlockViewWindow *b, int at, int width)
 
 // Ruler
 
-RulerTrackModelRef *
-ruler_track_model_new(Color *bg, int mlists, MarklistRef **marklists,
-        bool show_names, bool use_alpha, bool full_width)
-{
-    Marklists lists;
-    for (int i = 0; i < mlists; i++) {
-        lists.push_back(**marklists);
-        (*marklists)++;
-    }
-    return new RulerTrackModelRef(new RulerTrackModel(lists, *bg,
-            show_names, use_alpha, full_width));
-}
-
-void
-ruler_track_model_destroy(RulerTrackModelRef *r)
-{
-    delete r;
-}
-
-// marklists
-
-// 'marklist_new' is responsible for freeing all storage in 'marks'.
-MarklistRef *
-marklist_new(int len, MarkMarshal *marks)
-{
-    boost::shared_ptr<Marklist> mlist(new Marklist());
-    mlist->reserve(len);
-    MarkMarshal *m = marks;
-    for (int i = 0; i < len; i++, m++) {
-        Mark mark(m->rank, m->width, m->color, m->name, m->name_zoom_level,
-                m->zoom_level);
-        mlist->push_back(std::make_pair(m->pos, mark));
-        delete m->name;
-    }
-    delete marks;
-    return new MarklistRef(mlist);
-}
-
-void
-marklist_destroy(MarklistRef *m)
-{
-    DEBUG("destroy marklist");
-    delete m;
-}
-
 
 // Event
 
+/*
 EventTrackModelRef *
 event_track_model_new(Color *c)
 {
@@ -321,6 +198,7 @@ event_track_model_remove_event(EventTrackModelRef *t, const TrackPos *pos)
 {
     return (*t)->remove_event(*pos);
 }
+*/
 
 
 // debugging

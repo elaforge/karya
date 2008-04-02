@@ -1,6 +1,5 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
-{-# OPTIONS_GHC -fglasgow-exts #-}
-module Ui.Ui (initialize, send_action) where
+module Ui.Initialize (initialize, send_action) where
 import qualified Control.Monad as Monad
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.MVar as MVar
@@ -14,8 +13,6 @@ import qualified Util.Log as Log
 import qualified Ui.UiMsg as UiMsg
 
 
-actions :: MVar.MVar [a]
-actions = unsafePerformIO (MVar.newMVar [])
 ui_thread_id :: MVar.MVar Concurrent.ThreadId
 ui_thread_id = unsafePerformIO MVar.newEmptyMVar
 
@@ -25,50 +22,55 @@ ui_thread_id = unsafePerformIO MVar.newEmptyMVar
 -- When 'app' exits, the ui loop will be aborted.
 initialize app = do
     msg_chan <- STM.newTChanIO
-    Thread.start_os_thread "app" (app_wrapper (app msg_chan))
+    acts_mvar <- MVar.newMVar []
+    Thread.start_os_thread "app" $ app_wrapper acts_mvar
+        (app (send_action acts_mvar) msg_chan)
     th_id <- Concurrent.myThreadId
     MVar.putMVar ui_thread_id th_id
-    poll_loop actions msg_chan
+    poll_loop acts_mvar msg_chan
     `Exception.finally`
     (Log.notice "main thread quitting")
 
-app_wrapper app = do
-    Exception.catch app (\exc -> Log.error ("caught exception: " ++ show exc))
-    kill_ui_thread
+-- Type of (send_action acts_mvar), which sends actions to the ui thread.
+type Send = IO () -> IO ()
 
-add_act x = MVar.modifyMVar_ actions (return . (x:))
+app_wrapper acts_mvar app = do
+    Exception.catch app (\exc -> Log.error ("caught exception: " ++ show exc))
+    kill_ui_thread acts_mvar
 
 -- | Send the UI to the ui thread and run it, returning its result.
-send_action :: UI a -> IO a
-send_action act = do
+send_action :: MVar.MVar [IO ()] -> IO a -> IO a
+send_action acts_mvar act = do
     retbox <- MVar.newEmptyMVar
-    add_act (act >>= MVar.putMVar retbox)
-    -- putStrLn "wrote act"
+    add_act acts_mvar (act >>= MVar.putMVar retbox)
     awake
-    -- putStrLn "wait result"
     MVar.takeMVar retbox
+add_act acts_mvar x = MVar.modifyMVar_ acts_mvar (return . (x:))
 
 -- | The ui's polling cycle.
-poll_loop actions msg_chan = do
+poll_loop acts_mvar msg_chan = do
     c_initialize
     Monad.forever $ do
         wait
-        -- putStrLn "woke up"
-        handle_actions actions
+        -- I think that fltk will wake up once for every call to awake, so I
+        -- shouldn't have to worry about another awake call coming in right
+        -- here.
+        handle_actions acts_mvar
         ui_msgs <- UiMsg.take_ui_msgs
         STM.atomically (mapM_ (STM.writeTChan msg_chan) ui_msgs)
 
-kill_ui_thread = do
+kill_ui_thread acts_mvar = do
     th_id <- MVar.readMVar ui_thread_id
     -- Send a kill over to be handled so I know it'll be awake, but don't wait
     -- for a return val.
-    add_act (Concurrent.killThread th_id)
+    add_act acts_mvar (Concurrent.killThread th_id)
     awake -- get it out of wait
 
-foreign import ccall unsafe "initialize" c_initialize :: IO ()
--- "wait" must be safe since it blocks.
-foreign import ccall safe "ui_wait" wait :: IO ()
-foreign import ccall unsafe "ui_awake" awake :: IO ()
+foreign import ccall "initialize" c_initialize :: IO ()
+-- "wait" must be safe since it blocks.  Unsafe FFI calls block all haskell
+-- threads.
+foreign import ccall "ui_wait" wait :: IO ()
+foreign import ccall "ui_awake" awake :: IO ()
 
-handle_actions actions = MVar.modifyMVar_ actions $ \acts ->
+handle_actions acts_mvar = MVar.modifyMVar_ acts_mvar $ \acts ->
     sequence_ acts >> return []

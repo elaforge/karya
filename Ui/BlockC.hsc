@@ -17,6 +17,25 @@ The Block also tracks selections.  You can select with any button.  A Msg is
 sent on the mousedown, and on the mouseup.
 
 
+Blocks have:
+
+    Block.hsc
+- Block and View data types, along with configs ()
+
+- access methods to EventData and Marklist, must be with the data declaration
+so it can hide it (data)
+
+- Storable instances - should be next to their data? (data, hsc)
+
+    BlockFfi.hs
+foreign function calls to create and manipulate c++ views, + callbacks for
+events (data, ffi)
+
+    BlockState.hs
+monadic access to State (HandlerM, State, block data)
+
+
+
 BlockAttrs (must be serializable if a block is to be serializable)
 
 key responder
@@ -24,65 +43,83 @@ deriver
 cached derivation
 cached realization
 -}
-module Ui.BlockImpl where
+module Ui.BlockC where
+{-
+    -- * Block model
+    Config(..), Block -- no constructors for Block
+    , create
+    -- ** Model modification
+    , get_config, set_config
+    , get_title, set_title, get_attrs, set_attrs
 
-import qualified Control.Concurrent.MVar as MVar
-import qualified Data.Map as Map
-import qualified System.IO.Unsafe as Unsafe
+    -- ** Track management
+    , TrackNum, Width, SelNum, Tracklike(..)
+    , tracks, track_at, insert_track, remove_track
+
+    -- * Block view
+    , View, Rect(..), ViewConfig(..), Zoom(..), Selection(..)
+    , create_view, view_block
+
+    -- ** View modification
+    , get_size, set_size
+    , get_view_config, set_view_config
+    , get_zoom, set_zoom
+    , get_track_scroll, set_track_scroll
+    , get_selection, set_selection
+    , get_track_width, set_track_width
+-}
 
 import qualified Ui.Util as Util
 import Ui.Util (Fltk)
-import Ui.Types
+-- import Ui.Types
 import qualified Ui.Color as Color
-import qualified Ui.TrackImpl as TrackImpl
-import qualified Ui.RulerImpl as RulerImpl
 
-#include "c_interface.h"
+import qualified Ui.Block as Block
+import qualified Ui.Ruler as Ruler
+import qualified Ui.RulerC as RulerC
+-- import qualified Ui.TrackC as TrackC
 
 import Foreign
 import Foreign.C
 
--- * Model creation
+#include "c_interface.h"
 
--- "Cached" values are stored in MVars since they are mutable and accessed
--- concurrently.  Their only access is via the functions in this module, which
--- should either only read a single MVar at a time, or always read them in
--- their order in Block, and so shouldn't deadlock.
--- TODO: check this
-data Block = Block
-    { block_p :: ForeignPtr CBlockModel
-    , block_config :: MVar.MVar Config
-    , block_attrs :: MVar.MVar Attrs
-    , block_tracks :: MVar.MVar [(Tracklike, Width)]
-    }
--- It's convenient to be able to print things containing blocks, but MVar's
--- aren't showable in a pure function.
-instance Show Block where
-    show block = "<Block.Block " ++ show (block_p block) ++ ">"
-data CBlockModel
+-- * view creation
 
-data Config = Config
-    { config_select_colors :: [Color.Color]
-    , config_bg_color :: Color.Color
-    , config_track_box_color :: Color.Color
-    , config_sb_box_color :: Color.Color
-    } deriving (Eq, Show)
+newtype ViewPtr = ViewPtr (Ptr CView) deriving (Show)
+data CView
 
-create :: Config -> IO Block
-create config = do
-    blockp <- with config $ \configp ->
-        c_block_model_create configp
-    blockfp <- newForeignPtr c_block_model_destroy blockp
-    config_mv <- MVar.newMVar config
-    attrs <- MVar.newMVar []
-    tracks <- MVar.newMVar []
-    return (Block blockfp config_mv attrs tracks)
+create_view :: Block.Block -> Block.Rect -> Ruler.Ruler -> Block.ViewConfig
+    -> Fltk ViewPtr
+create_view block (Block.Rect (x, y) (w, h)) ruler view_config = do
+    viewp <- with config $ \configp -> with view_config $ \view_configp ->
+        RulerC.with_ruler ruler $ \(rulerp, mlistp, len) ->
+            c_block_view_create (i x) (i y) (i w) (i h) configp view_configp
+                rulerp mlistp (Util.c_int len)
+    -- TODO set title
+    -- TODO add tracks
+    return (ViewPtr viewp)
+    where
+    i = Util.c_int
+    config = Block.block_config block
+
+foreign import ccall "block_view_create"
+    c_block_view_create :: CInt -> CInt -> CInt -> CInt -> Ptr Block.Config
+        -> Ptr Block.ViewConfig -> Ptr Ruler.Ruler
+        -> Ptr Ruler.Marklist -> CInt -> IO (Ptr CView)
+
+destroy_view (ViewPtr viewp) = c_block_view_destroy viewp
+foreign import ccall "block_view_destroy"
+    c_block_view_destroy :: Ptr CView -> IO ()
+
+
+-- ** view storable
 
 -- | Max number of selections, hardcoded in ui/Block.h.
 max_selections :: Int
-max_selections = fromIntegral (#const Config::max_selections)
+max_selections = (#const Config::max_selections)
 
-instance Storable Config where
+instance Storable Block.Config where
     sizeOf _ = #size BlockModelConfig
     alignment _ = undefined
     peek = peek_block_model_config
@@ -94,13 +131,13 @@ peek_block_model_config configp = do
     bg <- (#peek BlockModelConfig, bg) configp >>= peek
     track_box <- (#peek BlockModelConfig, track_box) configp >>= peek
     sb_box <- (#peek BlockModelConfig, sb_box) configp >>= peek
-    return $ Config select bg track_box sb_box
+    return $ Block.Config select bg track_box sb_box
 
-poke_block_model_config configp (Config
-        { config_select_colors = select
-        , config_bg_color = bg
-        , config_track_box_color = track_box
-        , config_sb_box_color = sb_box
+poke_block_model_config configp (Block.Config
+        { Block.config_select_colors = select
+        , Block.config_bg_color = bg
+        , Block.config_track_box_color = track_box
+        , Block.config_sb_box_color = sb_box
         })
     = do
         pokeArray ((#ptr BlockModelConfig, select) configp)
@@ -109,63 +146,46 @@ poke_block_model_config configp (Config
         (#poke BlockModelConfig, track_box) configp track_box
         (#poke BlockModelConfig, sb_box) configp sb_box
 
-foreign import ccall unsafe "block_model_create"
-    c_block_model_create :: Ptr Config -> IO (Ptr CBlockModel)
-foreign import ccall unsafe "&block_model_destroy"
-    c_block_model_destroy :: FunPtr (Ptr CBlockModel -> IO ())
+instance Storable Block.ViewConfig where
+    sizeOf _ = #size BlockViewConfig
+    alignment _ = undefined
+    peek = error "no peek for ViewConfig"
+    poke = poke_config
 
+poke_config configp (Block.ViewConfig
+        { Block.vconfig_zoom_speed = zoom_speed
+        , Block.vconfig_block_title_height = block_title_height
+        , Block.vconfig_track_title_height = track_title_height
+        , Block.vconfig_sb_size = sb_size
+        , Block.vconfig_ruler_size = ruler_size
+        , Block.vconfig_status_size = status_size
+        })
+    = do
+        (#poke BlockViewConfig, zoom_speed) configp zoom_speed
+        (#poke BlockViewConfig, block_title_height) configp
+            (Util.c_int block_title_height)
+        (#poke BlockViewConfig, track_title_height) configp
+            (Util.c_int track_title_height)
+        (#poke BlockViewConfig, sb_size) configp (Util.c_int sb_size)
+        (#poke BlockViewConfig, ruler_size) configp (Util.c_int ruler_size)
+        (#poke BlockViewConfig, status_size) configp (Util.c_int status_size)
 
--- * Model modification
-
-get_config :: Block -> IO Config
-get_config block = MVar.readMVar (block_config block)
-set_config :: Block -> Config -> Fltk ()
-set_config block config = do
-    MVar.swapMVar (block_config block) config
-    withForeignPtr (block_p block) $ \blockp -> with config $ \configp ->
-        c_block_model_set_config blockp configp
-foreign import ccall unsafe "block_model_set_config"
-    c_block_model_set_config :: Ptr CBlockModel -> Ptr Config  -> IO ()
-
-get_title :: Block -> Fltk String
-get_title block =
-    withForeignPtr (block_p block) c_block_model_get_title >>= peekCString
-foreign import ccall unsafe "block_model_get_title"
-    c_block_model_get_title :: Ptr CBlockModel -> IO CString
-
-set_title :: Block -> String -> Fltk ()
-set_title block s = withForeignPtr (block_p block) $ \blockp ->
-    withCString s $ \cstr -> c_block_model_set_title blockp cstr
-foreign import ccall unsafe "block_model_set_title"
-    c_block_model_set_title :: Ptr CBlockModel -> CString -> IO ()
-
-get_attrs :: Block -> IO Attrs
-get_attrs block = MVar.readMVar (block_attrs block)
-set_attrs :: Block -> Attrs -> IO ()
--- This is the only way to modify attrs, so the swap race shouldn't happen.
-set_attrs block attrs = MVar.swapMVar (block_attrs block) attrs >> return ()
 
 -- ** Track management
 
--- | Index into a block's tracks.
-type TrackNum = Int
--- | Width of a track in pixels.
-type Width = Int
--- | Index into the the selection list.
-type SelNum = Int
+{-
+data TracklikeImpl =
+    T Track.Track RulerImpl.RulerImpl
+    | R RulerImpl.RulerImpl
+    | D Color
+    deriving (Eq, Ord, Show)
 
--- Tracks may have a Ruler overlay
-data Tracklike = T TrackImpl.Track RulerImpl.Ruler | R RulerImpl.Ruler
-    | D Color.Color
-    deriving (Show, Eq)
-
-tracks :: Block -> IO TrackNum
-tracks block = fmap length (MVar.readMVar (block_tracks block))
-
-track_at :: Block -> TrackNum -> IO (Tracklike, Width)
-track_at block at = do
-    tracks <- MVar.readMVar (block_tracks block)
-    return (Util.at "track_at" tracks at)
+insert_track :: ViewPtr -> Block.TrackNum -> Block.Tracklike -> Block.Width
+    -> Fltk ()
+insert_track (ViewPtr viewp) tracknum tracklike width = do
+    case tracklike of
+        T track ruler -> with track $ \trackp -> with ruler $ \rulerp ->
+            c_block_model_insert_event_track viewp tracknum width trackp rulerp
 
 insert_track :: Block -> TrackNum -> Tracklike -> Width -> Fltk ()
 insert_track block at_ track width = MVar.modifyMVar_ mvar $ \tracks -> do
@@ -194,7 +214,7 @@ foreign import ccall unsafe "block_model_insert_ruler_track"
         -> Ptr RulerImpl.CRulerTrackModel -> IO ()
 foreign import ccall unsafe "block_model_insert_divider"
     c_block_model_insert_divider :: Ptr CBlockModel -> CInt -> CInt
-        -> Ptr Color.Color -> IO ()
+        -> Ptr Color -> IO ()
 
 remove_track :: Block -> TrackNum -> Fltk ()
 remove_track block at_ = MVar.modifyMVar_ (block_tracks block) $ \tracks -> do
@@ -222,63 +242,7 @@ data CBlockView
 instance Util.Widget View where
     show_children view = Util.do_show_children (view_p view)
 
--- The defaults for newly created blocks and the trackviews automatically
--- created.
-data ViewConfig = ViewConfig
-    { vconfig_zoom_speed :: Double
-    , vconfig_block_title_height :: Int
-    , vconfig_track_title_height :: Int
-    , vconfig_sb_size :: Int
-    , vconfig_ruler_size :: Int
-    , vconfig_status_size :: Int
-    } deriving (Show)
 
--- | Zoom offset factor
-data Zoom = Zoom TrackPos Double deriving (Show)
-
--- | A selection may span multiple tracks.
-data Selection = Selection
-    { sel_start_track :: TrackNum
-    , sel_start_pos :: TrackPos
-    , sel_tracks :: TrackNum
-    , sel_duration :: TrackPos
-    } deriving (Show)
-
-
--- | Maintain a map of view pointers to their haskell equivalents.
--- This is so I can maintain auxiliary data with a Block but not have to
--- serialize it to c++ and back.  When the UI passes back a view pointer,
--- I can look it up here.
--- They don't need to be weak ptrs because views are explicitly destroyed.
-view_ptr_to_view :: MVar.MVar (Map.Map (Ptr CBlockView) View)
-view_ptr_to_view = Unsafe.unsafePerformIO (MVar.newMVar Map.empty)
-
-create_view :: Block -> Rect -> RulerImpl.Ruler -> ViewConfig -> Fltk View
-create_view block (Rect (x, y) (w, h)) ruler config = do
-    viewp <- withForeignPtr (block_p block) $ \blockp ->
-        withForeignPtr (RulerImpl.ruler_p ruler) $ \rulerp ->
-            with config $ \configp ->
-                c_block_view_create (i x) (i y) (i w) (i h) blockp rulerp
-                    configp
-    config_mv <- MVar.newMVar config
-    ruler_mv <- MVar.newMVar ruler
-    let view = View viewp config_mv ruler_mv block
-    MVar.modifyMVar_ view_ptr_to_view (return . Map.insert viewp view)
-    return view
-    where i = Util.c_int
-
-foreign import ccall unsafe "block_view_create"
-    c_block_view_create :: CInt -> CInt -> CInt -> CInt -> Ptr CBlockModel
-        -> Ptr RulerImpl.CRulerTrackModel -> Ptr ViewConfig
-        -> IO (Ptr CBlockView)
-
-destroy_view view = do
-    c_block_view_destroy (view_p view)
-    MVar.modifyMVar_ view_ptr_to_view (return . Map.delete (view_p view))
-foreign import ccall unsafe "block_view_destroy"
-    c_block_view_destroy :: Ptr CBlockView -> IO ()
-
-data Rect = Rect (Int, Int) (Int, Int) deriving (Show, Eq)
 
 set_size :: View -> Rect -> Fltk ()
 set_size view (Rect (x, y) (w, h)) =
@@ -403,27 +367,4 @@ peek_zoom zoomp = do
 poke_zoom zoomp (Zoom offset factor) = do
     (#poke ZoomInfo, offset) zoomp offset
     (#poke ZoomInfo, factor) zoomp (Util.c_double factor)
-
-instance Storable ViewConfig where
-    sizeOf _ = #size BlockViewConfig
-    alignment _ = undefined
-    peek = error "no peek for ViewConfig"
-    poke = poke_config
-
-poke_config configp (ViewConfig
-        { vconfig_zoom_speed = zoom_speed
-        , vconfig_block_title_height = block_title_height
-        , vconfig_track_title_height = track_title_height
-        , vconfig_sb_size = sb_size
-        , vconfig_ruler_size = ruler_size
-        , vconfig_status_size = status_size
-        })
-    = do
-        (#poke BlockViewConfig, zoom_speed) configp zoom_speed
-        (#poke BlockViewConfig, block_title_height) configp
-            (Util.c_int block_title_height)
-        (#poke BlockViewConfig, track_title_height) configp
-            (Util.c_int track_title_height)
-        (#poke BlockViewConfig, sb_size) configp (Util.c_int sb_size)
-        (#poke BlockViewConfig, ruler_size) configp (Util.c_int ruler_size)
-        (#poke BlockViewConfig, status_size) configp (Util.c_int status_size)
+-}

@@ -1,93 +1,75 @@
-{-# OPTIONS_GHC -XBangPatterns #-}
-module Ui.Block (
-    -- * Block model
-    Config(..), Block -- no constructors for Block
-    , create
-    -- ** Model modification
-    , get_config, set_config
-    , get_title, set_title, get_attrs, set_attrs
+module Ui.Block where
 
-    -- ** Track management
-    , TrackNum, Width, SelNum, Tracklike(..)
-    , tracks, track_at, insert_track, remove_track
+import Ui.Types
+import qualified Ui.Track as Track
+import qualified Ui.Ruler as Ruler
 
-    -- * Block view
-    , View, Rect(..), ViewConfig(..), Zoom(..), Selection(..)
-    , create_view, view_block
 
-    -- ** View modification
-    , get_size, set_size
-    , get_view_config, set_view_config
-    , get_zoom, set_zoom
-    , get_track_scroll, set_track_scroll
-    , get_selection, set_selection
-    , get_track_width, set_track_width
-) where
+-- These would have to be hierarchical names, so if you load
+-- another song you don't get ID collisions.
+newtype BlockId = BlockId String deriving (Eq, Ord, Show)
+newtype ViewId = ViewId String deriving (Eq, Ord, Show)
 
-{-
-Fully evaluate arguments and ship them to send_action.
--}
+-- * block model
 
-import Ui.Ui (send_action)
-import qualified Ui.BlockImpl as B
-import Ui.BlockImpl (Block, Config(..), Tracklike(..)
-    , TrackNum, SelNum, Width
-    , View, Rect(..), ViewConfig(..), Zoom(..), Selection(..)
-    , view_block
-    )
+data Block = Block {
+    block_title :: String
+    , block_config :: Config
+    , block_tracks :: [Tracklike]
+    } deriving (Eq, Ord, Show)
 
-create = B.create
-get_title = send_action . B.get_title
-set_title block s = send_action (B.set_title block s)
+data Config = Config {
+    config_select_colors :: [Color]
+    , config_bg_color :: Color
+    , config_track_box_color :: Color
+    , config_sb_box_color :: Color
+    } deriving (Eq, Ord, Show)
 
--- No serialization needed for these.
-get_attrs = B.get_attrs
-set_attrs = B.set_attrs
+-- Tracks may have a Ruler overlay
+data Tracklike =
+    T Track.TrackId Ruler.RulerId
+    | R Ruler.RulerId
+    | D Color
+    deriving (Eq, Ord, Show)
 
-get_config = B.get_config
-set_config block config = send_action (B.set_config block config)
+-- * block view
 
--- | How many tracks does 'block' have?
-tracks :: Block -> IO Int
-tracks block = send_action (B.tracks block)
+data View = View {
+    -- view_block should never change.  Views that point to a BlockId not
+    -- in state_blocks will be destroyed.
+    view_block :: BlockId
+    , view_rect :: Rect
+    , view_ruler :: Ruler.RulerId
+    , view_config :: ViewConfig
+    } deriving (Eq, Ord, Show)
 
--- | Return track for the track index.
-track_at :: Block -> TrackNum -> IO (Tracklike, Width)
-track_at block at = send_action (B.track_at block at)
+data Rect = Rect (Int, Int) (Int, Int) deriving (Eq, Ord, Show)
 
-insert_track block at track width =
-    send_action (B.insert_track block at track width)
-remove_track block at = send_action (B.remove_track block at)
+-- The defaults for newly created blocks and the trackviews automatically
+-- created.
+data ViewConfig = ViewConfig
+    { vconfig_zoom_speed :: Double
+    , vconfig_block_title_height :: Int
+    , vconfig_track_title_height :: Int
+    , vconfig_sb_size :: Int
+    , vconfig_ruler_size :: Int
+    , vconfig_status_size :: Int
+    } deriving (Eq, Ord, Show)
 
--- * views
+-- | Zoom offset factor
+data Zoom = Zoom TrackPos Double deriving (Show)
 
-create_view rect block ruler config =
-    send_action (B.create_view rect block ruler config)
+-- | A selection may span multiple tracks.
+data Selection = Selection
+    { sel_start_track :: TrackNum
+    , sel_start_pos :: TrackPos
+    , sel_tracks :: TrackNum
+    , sel_duration :: TrackPos
+    } deriving (Show)
 
--- | Get the current size of the view window.
-get_size :: View -> IO Rect
-get_size view = send_action (B.get_size view)
-
-set_size view rect = send_action (B.set_size view rect)
-
-get_zoom view = send_action (B.get_zoom view)
-set_zoom view zoom = send_action (B.set_zoom view zoom)
-
-get_track_scroll :: View -> IO Int
-get_track_scroll view = send_action (B.get_track_scroll view)
-set_track_scroll :: View -> Int -> IO ()
-set_track_scroll view offset = send_action (B.set_track_scroll view offset)
-
--- | Get the selection on the given view.
-get_selection :: View -> Int -> IO Selection
-get_selection view selnum = send_action (B.get_selection view selnum)
-set_selection view selnum sel
-    = send_action (B.set_selection view selnum sel)
-
-get_track_width view at = send_action (B.get_track_width view at)
-set_track_width view at width =
-    send_action (B.set_track_width view at width)
-
-get_view_config view = send_action (B.get_view_config view)
-set_view_config view config = send_action
-    (B.set_view_config view config)
+-- | Index into a block's tracks.
+type TrackNum = Int
+-- | Width of a track in pixels.
+type Width = Int
+-- | Index into the the selection list.
+type SelNum = Int

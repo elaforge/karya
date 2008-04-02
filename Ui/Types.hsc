@@ -4,6 +4,8 @@ The basic types that the interface modules use.
 -}
 module Ui.Types (
     UI -- this should move to Ui.Ui or something
+    -- From Ui.Color, but it's convenient to have the type in scope.
+    , Color
     , Attrs
     -- * trackpos
     , TrackPos(..)
@@ -16,7 +18,8 @@ import Foreign
 import Foreign.C
 
 import qualified Ui.Util as Util
-import qualified Ui.Color as Color
+import qualified Ui.Color
+import Ui.Color (Color)
 
 -- TODO:
 -- implement UI such that you can only run Ui actions in the monad
@@ -58,7 +61,7 @@ data TextStyle = TextStyle
     { style_font :: Font
     , style_face :: [FontFace]
     , style_size :: Int
-    , style_color :: Color.Color
+    , style_color :: Color
     } deriving (Eq, Show)
 
 data Font = Helvetica | Times | Courier deriving (Eq, Show)

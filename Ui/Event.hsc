@@ -53,7 +53,7 @@ data Event = Event
 #include "c_interface.h"
 
 instance Storable Event where
-    sizeOf _ = #size EventMarshal
+    sizeOf _ = #size Event
     alignment _ = undefined
     peek = peek_event
     poke = poke_event
@@ -61,8 +61,8 @@ instance Storable Event where
 peek_event eventp = undefined
 poke_event eventp (Event text dur color style align_to_bottom)
     = withCString text $ \textp -> do
-        (#poke EventMarshal, text) eventp textp
-        (#poke EventMarshal, duration) eventp dur
-        (#poke EventMarshal, color) eventp color
-        (#poke EventMarshal, style) eventp style
-        (#poke EventMarshal, align_to_bottom) eventp align_to_bottom
+        (#poke Event, text) eventp textp
+        (#poke Event, duration) eventp dur
+        (#poke Event, color) eventp color
+        (#poke Event, style) eventp style
+        (#poke Event, align_to_bottom) eventp align_to_bottom

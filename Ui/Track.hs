@@ -1,33 +1,16 @@
-{-# OPTIONS_GHC -XBangPatterns #-}
-module Ui.Track (
-    -- * Track model
-    Track, create
-    -- * Model modification
-    , get_attrs, set_attrs
+module Ui.Track where
+import qualified Data.Map as Map
 
-    -- ** Events
-    , insert_event, remove_event
-    -- , event_at, advance, rewind
-) where
-
-import Ui.Ui (send_action)
 import Ui.Types
-import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 
-import qualified Ui.TrackImpl as T
-import Ui.TrackImpl (Track)
 
+-- IntMap is more efficient than Map, but only takes Int keys...
+newtype TrackData = TrackData (Map.Map TrackPos Event.Event) deriving Show
+    -- alternate efficient version for controller tracks?
+    -- | ControllerTrack (Array (TrackPos, Double))
+-- This should be opaque, with a few operations to query and modify it,
+-- so I keep freedom to change the implemenctation.  Also needs to expose
+-- the queries to c++.
 
--- | Create a new empty event track.
-create :: Color.Color -> UI Track
-create = T.create
-
--- ** Model modification
-
-get_attrs :: Track -> UI Attrs
-get_attrs = T.get_attrs
-set_attrs = T.set_attrs
-
-insert_event track pos event = send_action (T.insert_event track pos event)
-remove_event track pos = send_action (T.remove_event track pos)
+newtype TrackId = TrackId String deriving (Eq, Ord, Show)

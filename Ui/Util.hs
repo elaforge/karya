@@ -70,8 +70,10 @@ data CWidget
 class Widget a where
     show_children :: a -> IO String
 
+{-
 do_show_children :: Ptr a -> IO String
 do_show_children widgetp
     = c_show_children (castPtr widgetp) (c_int (-1)) >>= peekCString
 foreign import ccall unsafe "i_show_children"
     c_show_children :: Ptr CWidget -> CInt -> IO CString
+-}
