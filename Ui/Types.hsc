@@ -12,13 +12,14 @@ module Ui.Types (
 
     -- * fonts
     , TextStyle(..), Font(..), FontFace(..)
+    , default_style
 ) where
 import qualified Data.List as List
 import Foreign
 import Foreign.C
 
 import qualified Ui.Util as Util
-import qualified Ui.Color
+import qualified Ui.Color as Color
 import Ui.Color (Color)
 
 -- TODO:
@@ -63,6 +64,8 @@ data TextStyle = TextStyle
     , style_size :: Int
     , style_color :: Color
     } deriving (Eq, Show)
+
+default_style = TextStyle Helvetica [] 9 Color.black
 
 data Font = Helvetica | Times | Courier deriving (Eq, Show)
 data FontFace = Bold | Italic deriving (Eq, Show)

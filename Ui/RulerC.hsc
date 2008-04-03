@@ -18,9 +18,12 @@ import qualified Ui.Util as Util
 import qualified Ui.Ruler as Ruler
 
 
+with_ruler :: Ruler.Ruler
+    -> ((Ptr Ruler.Ruler, Ptr Ruler.Marklist, CInt) -> IO a)
+    -> IO a
 with_ruler ruler f = do
     with ruler $ \rulerp -> withArrayLen marklists $ \len mlists ->
-        f (rulerp, mlists, len)
+        f (rulerp, mlists, (Util.c_int len))
     where marklists = Ruler.ruler_marklists ruler
 
 
@@ -37,12 +40,16 @@ cb_find_marks marklist startp endp ret_tps ret_marks = do
     end <- peek endp
     let (bwd, fwd) = Ruler.at marklist start
         (until_end, rest) = break ((>=end) . fst) fwd
+        -- Give extra marks, one before start and one after end, so that marks
+        -- scrolled half-off are still displayed.
         marks = take 1 bwd ++ until_end ++ take 1 rest
     when (not (null marks)) $ do
+        -- Calling c++ is responsible for freeing this.
         tp_array <- newArray (map fst marks)
         mark_array <- newArray (map snd marks)
         poke ret_tps tp_array
         poke ret_marks mark_array
+    -- putStrLn $ "find marks: " ++ show (length marks)
     return (length marks)
 
 foreign import ccall "wrapper"
@@ -89,8 +96,8 @@ poke_mark markp (Ruler.Mark
     , Ruler.mark_name_zoom_level = name_zoom_level
     , Ruler.mark_zoom_level = zoom_level
     }) = do
-        -- Must be freed by the caller.
-        namep <- newCString name
+        -- Must be freed by the caller, OverlayRuler::draw_marklists.
+        namep <- if null name then return nullPtr else newCString name
         (#poke Mark, rank) markp (Util.c_int rank)
         (#poke Mark, width) markp (Util.c_int width)
         (#poke Mark, color) markp color

@@ -7,7 +7,6 @@ import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception
 import System.IO.Unsafe
 
-import Ui.Types
 import qualified Util.Thread as Thread
 import qualified Util.Log as Log
 import qualified Ui.UiMsg as UiMsg
@@ -16,31 +15,34 @@ import qualified Ui.UiMsg as UiMsg
 ui_thread_id :: MVar.MVar Concurrent.ThreadId
 ui_thread_id = unsafePerformIO MVar.newEmptyMVar
 
+-- Global channel to the ui thread.  I tried passing this as an argument,
+-- but for some reason when I do that it loses its polymorphism, even with a
+-- rank2 type.
+acts_mvar :: MVar.MVar [a]
+acts_mvar = unsafePerformIO (MVar.newMVar [])
+
 -- | Run the 'app' thread, passing it a channel that produces msgs, and go
 -- into the UI polling loop.  This is intended to be run from the main thread,
 -- since some UIs don't work properly unless run from the main thread.
 -- When 'app' exits, the ui loop will be aborted.
+initialize :: (STM.TChan UiMsg.UiMsg -> IO ()) -> IO ()
 initialize app = do
     msg_chan <- STM.newTChanIO
-    acts_mvar <- MVar.newMVar []
-    Thread.start_os_thread "app" $ app_wrapper acts_mvar
-        (app (send_action acts_mvar) msg_chan)
+    Thread.start_os_thread "app" $ app_wrapper acts_mvar (app msg_chan)
     th_id <- Concurrent.myThreadId
     MVar.putMVar ui_thread_id th_id
     poll_loop acts_mvar msg_chan
     `Exception.finally`
     (Log.notice "main thread quitting")
 
--- Type of (send_action acts_mvar), which sends actions to the ui thread.
-type Send = IO () -> IO ()
-
 app_wrapper acts_mvar app = do
     Exception.catch app (\exc -> Log.error ("caught exception: " ++ show exc))
     kill_ui_thread acts_mvar
 
 -- | Send the UI to the ui thread and run it, returning its result.
-send_action :: MVar.MVar [IO ()] -> IO a -> IO a
-send_action acts_mvar act = do
+-- send_action :: MVar.MVar [IO ()] -> Send
+send_action :: IO a -> IO a
+send_action act = do
     retbox <- MVar.newEmptyMVar
     add_act acts_mvar (act >>= MVar.putMVar retbox)
     awake

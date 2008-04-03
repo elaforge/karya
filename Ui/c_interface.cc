@@ -76,16 +76,16 @@ take_ui_msgs(UiMsg **msgs)
 
 BlockViewWindow *
 block_view_create(int x, int y, int w, int h, BlockModelConfig *model_config,
-        BlockViewConfig *view_config, RulerConfig *ruler, Marklist *marklists,
-        int nmarklists)
+        BlockViewConfig *view_config, RulerConfig *partial_ruler,
+        Marklist *marklists, int nmarklists)
 {
     Marklists mlists;
-    RulerConfig ruler_config(ruler->bg, ruler->show_names, ruler->use_alpha,
-            ruler->full_width);
+    RulerConfig ruler(partial_ruler->bg, partial_ruler->show_names,
+            partial_ruler->use_alpha, partial_ruler->full_width);
     for (int i = 0; i < nmarklists; i++)
-        ruler_config.marklists.push_back(marklists[i]);
+        ruler.marklists.push_back(marklists[i]);
     BlockViewWindow *win = new BlockViewWindow(x, y, w, h, *model_config,
-        *view_config, ruler_config);
+        *view_config, ruler);
     win->show();
     return win;
 }
@@ -165,6 +165,37 @@ block_view_set_track_width(BlockViewWindow *b, int at, int width)
     b->block.set_track_width(at, width);
 }
 
+
+// tracks
+
+void
+block_view_insert_track(BlockViewWindow *view, int tracknum,
+        Tracklike *track, int width,
+        Marklist *marklists, int nmarklists)
+{
+    RulerConfig *old_ruler = track->ruler;
+    if (track->ruler) {
+        // Substitute a complete ruler for the semi-constructed one.
+        RulerConfig &partial = *track->ruler;
+        RulerConfig config(partial.bg, partial.show_names, partial.use_alpha,
+                partial.full_width);
+        DEBUG("ADD marklists "<<nmarklists);
+        for (int i = 0; i < nmarklists; i++)
+            config.marklists.push_back(marklists[i]);
+        track->ruler = &config;
+    }
+    view->block.insert_track(tracknum, *track, width);
+    if (track->ruler) {
+        // Put it back the way I found it.
+        track->ruler = old_ruler;
+    }
+}
+
+void
+block_view_remove_track(BlockViewWindow *view, int tracknum)
+{
+    view->block.remove_track(tracknum);
+}
 
 // Ruler
 

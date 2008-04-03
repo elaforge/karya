@@ -119,7 +119,7 @@ OverlayRuler::draw_marklists()
 
     TrackPos *mark_tps;
     Mark *marks;
-    int count;
+    int count = 0;
     TrackPos start = this->zoom.offset;
     TrackPos end = this->zoom.to_trackpos(clip.h);
 
@@ -128,17 +128,19 @@ OverlayRuler::draw_marklists()
     for (Marklists::const_iterator mlist = config.marklists.begin();
             mlist != config.marklists.end(); ++mlist)
     {
-        count = mlist->find_marks(&start, &end, &mark_tps, &marks);
+        int count = mlist->find_marks(&start, &end, &mark_tps, &marks);
         for (int i = 0; i < count; i++) {
             int offset = y() + zoom.to_pixels(mark_tps[i]);
             draw_mark(offset, marks[i]);
         }
-    }
-    if (count) {
-        for (int i = 0; i < count; i++)
-            free(marks[i].name);
-        free(marks);
-        free(mark_tps);
+        if (count) {
+            for (int i = 0; i < count; i++) {
+                if (marks[i].name)
+                    free(marks[i].name);
+            }
+            free(marks);
+            free(mark_tps);
+        }
     }
 }
 

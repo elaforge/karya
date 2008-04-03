@@ -14,67 +14,64 @@ modified event map, for derivation (old trackpos -> new trackpos)
 
 -}
 
-module Ui.TrackImpl where
-import qualified Control.Concurrent.MVar as MVar
+module Ui.TrackC where
+import Control.Monad
 import Foreign
-import Foreign.C
 
 import Ui.Types
-import qualified Ui.Color as Color
 import qualified Ui.Event as Event
+import qualified Ui.Track as Track
 
-data CEventTrackModel
-data Track = Track
-    { track_p :: ForeignPtr CEventTrackModel
-    , track_attrs :: MVar.MVar Attrs
-    } deriving (Eq)
-instance Show Track where
-    show track = "<Track.Track " ++ show (track_p track) ++ ">"
 
-create :: Color.Color -> UI Track
-create color = do
-    trackp <- with color $ \colorp -> c_event_track_model_new colorp
-    trackfp <- newForeignPtr c_event_track_model_destroy trackp
-    attrs <- MVar.newMVar []
-    return $ Track trackfp attrs
+#include "c_interface.h"
 
-foreign import ccall unsafe "event_track_model_new"
-    c_event_track_model_new :: Ptr Color.Color -> IO (Ptr CEventTrackModel)
-foreign import ccall unsafe "&event_track_model_destroy"
-    c_event_track_model_destroy :: FunPtr (Ptr CEventTrackModel -> IO ())
+instance Storable Track.Track where
+    sizeOf _ = #size EventTrackConfig
+    alignment _ = undefined
+    poke = poke_track
 
--- Return False if the event couldn't be inserted because it overlaps with
--- the previous one.
-insert_event :: Track -> TrackPos -> Event.Event -> UI Bool
-insert_event track pos event = do
-    ok <- withForeignPtr (track_p track) $ \trackp -> with pos $ \posp ->
-        with event $ \eventp ->
-            c_event_track_model_insert_event trackp posp eventp
-    return (toBool ok)
+poke_track trackp (Track.Track
+        { Track.track_events = events
+        , Track.track_bg_color = bg
+        })
+    = do
+        find_events <- make_find_events events
+        last_track_pos <- make_last_track_pos events
+        (#poke EventTrackConfig, bg_color) trackp bg
+        (#poke EventTrackConfig, find_events) trackp find_events
+        (#poke EventTrackConfig, last_track_pos) trackp last_track_pos
 
-remove_event :: Track -> TrackPos -> UI Bool
-remove_event track pos = do
-    ok <- withForeignPtr (track_p track) $ \trackp -> with pos $ \posp ->
-        c_event_track_model_remove_event trackp posp
-    return (toBool ok)
+make_find_events events = c_make_find_events (cb_find_events events)
+make_last_track_pos events = c_make_last_track_pos (cb_last_track_pos events)
 
-foreign import ccall unsafe "event_track_model_insert_event"
-    c_event_track_model_insert_event :: Ptr CEventTrackModel -> Ptr TrackPos
-        -> Ptr Event.Event -> IO CInt
-foreign import ccall unsafe "event_track_model_remove_event"
-    c_event_track_model_remove_event :: Ptr CEventTrackModel -> Ptr TrackPos
-        -> IO CInt
--- Longer than call-with-current-continuation!
+-- typedef int (*FindEvents)(TrackPos *start_pos, TrackPos *end_pos,
+--         TrackPos **ret_tps, Event **ret_events);
+-- typedef int (*LastTrackPos)(TrackPos *last);
+type FindEvents = Ptr TrackPos -> Ptr TrackPos -> Ptr (Ptr TrackPos)
+    -> Ptr (Ptr Event.Event) -> IO Int
+type LastTrackPos = Ptr TrackPos -> IO Int
 
--- | Lazy list of events starting at 'pos' to the end of the track.
-get_events_forward :: Track -> TrackPos -> UI [(TrackPos, Event.Event)]
-get_events_forward track pos = undefined
+cb_find_events :: Track.TrackEvents -> FindEvents
+cb_find_events events startp endp ret_tps ret_events = do
+    start <- peek startp
+    end <- peek endp
+    let (bwd, fwd) = Track.events_at start events
+        (until_end, _rest) = break ((>= end) . fst) fwd
+        found_events = take 1 bwd ++ until_end
+    when (not (null found_events)) $ do
+        -- Calling c++ is responsible for freeing this.
+        tp_array <- newArray (map fst found_events)
+        event_array <- newArray (map snd found_events)
+        poke ret_tps tp_array
+        poke ret_events event_array
+    return (length found_events)
 
--- | Like 'get_events_forward' except from 'pos' to the beginning of the track.
-get_events_backward :: Track -> TrackPos -> UI [(TrackPos, Event.Event)]
-get_events_backward track pos = undefined
+cb_last_track_pos :: Track.TrackEvents -> LastTrackPos
+cb_last_track_pos events posp = case Track.last_event events of
+    Nothing -> return 0
+    Just (pos, _) -> poke posp pos >> return 1
 
-get_attrs :: Track -> IO Attrs
-get_attrs track = MVar.readMVar (track_attrs track)
-set_attrs :: Track -> Attrs -> IO ()
-set_attrs track attrs = MVar.swapMVar (track_attrs track) attrs >> return ()
+foreign import ccall "wrapper"
+    c_make_find_events :: FindEvents -> IO (FunPtr FindEvents)
+foreign import ccall "wrapper"
+    c_make_last_track_pos :: LastTrackPos -> IO (FunPtr LastTrackPos)

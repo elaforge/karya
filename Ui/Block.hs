@@ -29,8 +29,12 @@ data Config = Config {
 data Tracklike =
     T Track.TrackId Ruler.RulerId
     | R Ruler.RulerId
-    | D Color
+    | D Divider
     deriving (Eq, Ord, Show)
+
+-- | A divider separating tracks.
+-- Declared here in Block since it's so trivial.
+data Divider = Divider Color deriving (Eq, Ord, Show)
 
 -- * block view
 

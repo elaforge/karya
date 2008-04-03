@@ -47,6 +47,8 @@ data Event = Event
     -- , event_attrs :: Attrs
     } deriving (Eq, Show)
 
+event text dur = Event text dur (Color.rgb 0.8 0.8 0.6) default_style False
+
 
 -- * storable
 
@@ -59,8 +61,9 @@ instance Storable Event where
     poke = poke_event
 
 peek_event eventp = undefined
-poke_event eventp (Event text dur color style align_to_bottom)
-    = withCString text $ \textp -> do
+poke_event eventp (Event text dur color style align_to_bottom) = do
+        -- Must be freed by the caller, EventTrackView::draw_area.
+        textp <- if null text then return nullPtr else newCString text
         (#poke Event, text) eventp textp
         (#poke Event, duration) eventp dur
         (#poke Event, color) eventp color

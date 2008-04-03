@@ -77,7 +77,8 @@ import qualified Ui.Color as Color
 import qualified Ui.Block as Block
 import qualified Ui.Ruler as Ruler
 import qualified Ui.RulerC as RulerC
--- import qualified Ui.TrackC as TrackC
+import qualified Ui.Track as Track
+import qualified Ui.TrackC as TrackC
 
 import Foreign
 import Foreign.C
@@ -95,7 +96,7 @@ create_view block (Block.Rect (x, y) (w, h)) ruler view_config = do
     viewp <- with config $ \configp -> with view_config $ \view_configp ->
         RulerC.with_ruler ruler $ \(rulerp, mlistp, len) ->
             c_block_view_create (i x) (i y) (i w) (i h) configp view_configp
-                rulerp mlistp (Util.c_int len)
+                rulerp mlistp len
     -- TODO set title
     -- TODO add tracks
     return (ViewPtr viewp)
@@ -115,7 +116,7 @@ foreign import ccall "block_view_destroy"
 
 -- ** view storable
 
--- | Max number of selections, hardcoded in ui/Block.h.
+-- | Max number of selections, hardcoded in ui/config.h.
 max_selections :: Int
 max_selections = (#const Config::max_selections)
 
@@ -171,78 +172,70 @@ poke_config configp (Block.ViewConfig
         (#poke BlockViewConfig, status_size) configp (Util.c_int status_size)
 
 
--- ** Track management
+-- ** Track insert / remove
+
+insert_track :: ViewPtr -> Block.TrackNum -> Tracklike -> Block.Width
+    -> Fltk ()
+insert_track (ViewPtr viewp) tracknum tracklike width = case tracklike of
+    T track ruler -> RulerC.with_ruler ruler $ \(rulerp, mlistp, len) ->
+        with track $ \trackp -> with (TPtr trackp rulerp) $ \tp ->
+            c_block_view_insert_track viewp ctracknum tp cwidth  mlistp len
+    R ruler -> RulerC.with_ruler ruler $ \(rulerp, mlistp, len) ->
+        with (RPtr rulerp) $ \tp ->
+            c_block_view_insert_track viewp ctracknum tp cwidth mlistp len
+    D div -> with div $ \dividerp -> with (DPtr dividerp) $ \tp ->
+        c_block_view_insert_track viewp ctracknum tp cwidth nullPtr 0
+    where
+    ctracknum = Util.c_int tracknum
+    cwidth = Util.c_int width
+
+remove_track :: ViewPtr -> Block.TrackNum -> Fltk ()
+remove_track (ViewPtr viewp) tracknum = do
+    c_block_view_remove_track viewp (Util.c_int tracknum)
+
+foreign import ccall "block_view_insert_track"
+    c_block_view_insert_track :: Ptr CView -> CInt -> Ptr TracklikePtr -> CInt
+        -> Ptr Ruler.Marklist -> CInt -> IO ()
+foreign import ccall "block_view_remove_track"
+    c_block_view_remove_track :: Ptr CView -> CInt -> IO ()
+
+-- | Like Block.Tracklike, except it has actual values instead of IDs.
+data Tracklike =
+    T Track.Track Ruler.Ruler
+    | R Ruler.Ruler
+    | D Block.Divider
+    deriving (Show)
+
+instance Storable Block.Divider where
+    sizeOf _ = #size DividerConfig
+    poke dividerp (Block.Divider color) =
+        (#poke DividerConfig, color) dividerp color
+
+data TracklikePtr =
+    TPtr (Ptr Track.Track) (Ptr Ruler.Ruler)
+    | RPtr (Ptr Ruler.Ruler)
+    | DPtr (Ptr Block.Divider)
+
+instance Storable TracklikePtr where
+    sizeOf _ = #size Tracklike
+    alignment _ = undefined
+    poke = poke_tracklike_ptr
+
+poke_tracklike_ptr tp (TPtr trackp rulerp) = do
+    (#poke Tracklike, track) tp trackp
+    (#poke Tracklike, ruler) tp rulerp
+poke_tracklike_ptr tp (RPtr rulerp) = do
+    (#poke Tracklike, ruler) tp rulerp
+poke_tracklike_ptr tp (DPtr dividerp) = do
+    (#poke Tracklike, divider) tp dividerp
 
 {-
-data TracklikeImpl =
-    T Track.Track RulerImpl.RulerImpl
-    | R RulerImpl.RulerImpl
-    | D Color
-    deriving (Eq, Ord, Show)
-
-insert_track :: ViewPtr -> Block.TrackNum -> Block.Tracklike -> Block.Width
-    -> Fltk ()
-insert_track (ViewPtr viewp) tracknum tracklike width = do
-    case tracklike of
-        T track ruler -> with track $ \trackp -> with ruler $ \rulerp ->
-            c_block_model_insert_event_track viewp tracknum width trackp rulerp
-
-insert_track :: Block -> TrackNum -> Tracklike -> Width -> Fltk ()
-insert_track block at_ track width = MVar.modifyMVar_ mvar $ \tracks -> do
-    let at = Util.in_range "insert_track" 0 (length tracks + 1) at_
-        cat = Util.c_int at
-        cwidth = Util.c_nat width
-    withFP (block_p block) $ \blockp -> case track of
-        T track ruler -> withFP (TrackImpl.track_p track) $ \trackp ->
-            withFP (RulerImpl.ruler_p ruler) $ \rulerp ->
-                c_block_model_insert_event_track blockp cat cwidth trackp rulerp
-        R ruler -> withFP (RulerImpl.ruler_p ruler) $ \rulerp ->
-            c_block_model_insert_ruler_track blockp cat cwidth rulerp
-        D color -> with color $ \colorp ->
-            c_block_model_insert_divider blockp cat cwidth colorp
-    return $ Util.list_insert tracks at (track, width)
-    where
-    mvar = block_tracks block
-    withFP = withForeignPtr
-
-foreign import ccall unsafe "block_model_insert_event_track"
-    c_block_model_insert_event_track :: Ptr CBlockModel -> CInt -> CInt
-        -> Ptr TrackImpl.CEventTrackModel -> Ptr RulerImpl.CRulerTrackModel
-        -> IO ()
-foreign import ccall unsafe "block_model_insert_ruler_track"
-    c_block_model_insert_ruler_track :: Ptr CBlockModel -> CInt -> CInt
-        -> Ptr RulerImpl.CRulerTrackModel -> IO ()
-foreign import ccall unsafe "block_model_insert_divider"
-    c_block_model_insert_divider :: Ptr CBlockModel -> CInt -> CInt
-        -> Ptr Color -> IO ()
-
-remove_track :: Block -> TrackNum -> Fltk ()
-remove_track block at_ = MVar.modifyMVar_ (block_tracks block) $ \tracks -> do
-    let at = Util.in_range "remove_track" 0 (length tracks) at_
-    withForeignPtr (block_p block) $ \blockp ->
-        c_block_model_remove_track blockp (Util.c_int at)
-    return (Util.list_remove tracks at)
-
-foreign import ccall unsafe "block_model_remove_track"
-    c_block_model_remove_track :: Ptr CBlockModel -> CInt -> IO ()
-
--- * View creation
-
-data View = View
-    { view_p :: Ptr CBlockView
-    , view_config :: MVar.MVar ViewConfig
-    , view_ruler :: MVar.MVar RulerImpl.Ruler
-    , view_block :: Block
-    }
-instance Show View where
-    show (View viewp config ruler block) = "<Block.View " ++ show viewp
-        ++ " " ++ show block ++ ">"
-data CBlockView
-
 instance Util.Widget View where
     show_children view = Util.do_show_children (view_p view)
+-}
 
 
+{-
 
 set_size :: View -> Rect -> Fltk ()
 set_size view (Rect (x, y) (w, h)) =
@@ -367,4 +360,5 @@ peek_zoom zoomp = do
 poke_zoom zoomp (Zoom offset factor) = do
     (#poke ZoomInfo, offset) zoomp offset
     (#poke ZoomInfo, factor) zoomp (Util.c_double factor)
+
 -}

@@ -20,19 +20,31 @@ import qualified Ui.Track as Track
 import qualified Ui.Event as Event
 
 
-main = Initialize.initialize $ \send_action msg_chan -> do
+main = Initialize.initialize $ \msg_chan -> do
     msg_th <- Thread.start_thread "print msgs" (msg_thread msg_chan)
-    test send_action
+    test
 
 msg_thread msg_chan = Monad.forever $ do
     msg <- STM.atomically $ STM.readTChan msg_chan
     putStrLn $ "msg: " ++ UiMsg.pretty_ui_msg msg
 
-test send_action = do
+send = Initialize.send_action
+
+event pos name dur = (TrackPos pos, Event.event name (TrackPos dur))
+
+test = do
     let ruler = mkruler 20
-    view <- send_action $ BlockC.create_view empty_block default_rect ruler
+    view <- send $ BlockC.create_view empty_block default_rect ruler
         default_view_config
-    print "created view"
+    send $ BlockC.insert_track view
+        0 (BlockC.T empty_track (overlay_ruler ruler)) 30
+    send $ BlockC.insert_track view
+        1 (BlockC.D (Block.Divider Color.blue)) 5
+    let event_track = Track.modify_events empty_track (Track.insert_events
+            [event 0 "hi" 16, event 30 "there" 32])
+    send $ BlockC.insert_track view
+        2 (BlockC.T event_track (overlay_ruler ruler)) 30
+    putStrLn $ "created view " ++ show view
     putStr "? " >> IO.hFlush IO.stdout >> getLine
     return ()
 
@@ -221,6 +233,7 @@ test_block_tracks = do
 
 -- No tracks
 empty_block = Block.Block "title" default_block_config []
+empty_track = Track.track "track1" [] Color.white
 
 -- (10, 50) seems to be the smallest x,y os x will accept.  Apparently
 -- fltk's sizes don't take the menu bar into account, which is about 44 pixels
@@ -263,5 +276,4 @@ default_view_config = Block.ViewConfig
 
 track_bg = Color.white
 
-event s dur = Event.Event s (TrackPos dur) Color.gray7 text_style False
 text_style = TextStyle Helvetica [] 12 Color.black

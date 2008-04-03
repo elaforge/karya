@@ -56,8 +56,10 @@ TrackPos
 EventTrackView::time_end() const
 {
     TrackPos last;
-    this->config.last_track_pos(&last);
-    return last;
+    if (this->config.last_track_pos(&last))
+        return last;
+    else
+        return TrackPos(0);
 }
 
 

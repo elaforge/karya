@@ -1,3 +1,4 @@
+- efficient Map.toDescList
 
 * .depend doesn't have *.hsc -> *.h dependencies
 - remove global vars
@@ -61,6 +62,7 @@ fltk
     - bug: upper part of ruler track not getting resize?
       also not shrinking to the left
       hard to trigger this one
+      ok, this happens whenever a stiff child is on the far left or far right
     * bug: I can resize a divider by dragging the right edge
     * bug: dragging divider jumps to dragging by left edge
     * dragging tracks should resize rightmost / bottommost widget like resize()
