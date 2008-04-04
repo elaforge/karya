@@ -16,9 +16,6 @@ BlockView::BlockView(int X, int Y, int W, int H,
         const BlockViewConfig &view_config,
         const RulerConfig &ruler_config) :
     Fl_Group(X, Y, W, H),
-    model_config(model_config),
-    view_config(view_config),
-    selections(Config::max_selections),
 
     title(0, 0, 1, 1),
     status_line(0, 0, 1, 1),
@@ -37,7 +34,7 @@ BlockView::BlockView(int X, int Y, int W, int H,
                             view_config.track_title_height)
 {
     // The sizes of 1 are so that groups realize that their children are inside
-    // of them.  The real resizing will be done in update_sizes
+    // of them.  The real resizing will be done in set_view_config
     current(0); // done adding widgets
     body.add(ruler_group);
     body.add(track_group); // fix up hierarchy
@@ -59,20 +56,32 @@ BlockView::BlockView(int X, int Y, int W, int H,
     track_group.resizable(track_zoom);
     // track_zoom.resizable(track_scroll);
 
-    this->update_sizes();
-    this->update_model_config();
+    this->set_view_config(view_config, true);
+    this->set_model_config(model_config, true);
 
     // Initialize zoom to default.  This will cause zooming children to
     // properly position their widgets.
     this->set_zoom(this->zoom);
-    // Update the scrollbars last, after I've added all the tracks.
-    update_scrollbars();
+    this->update_scrollbars();
 }
 
 
 void
-BlockView::update_sizes()
+BlockView::resize(int X, int Y, int W, int H)
 {
+    Fl_Group::resize(X, Y, W, H);
+    status_line.size(w() - mac_resizer_width, status_line.h());
+    this->update_scrollbars();
+    global_msg_collector()->block_changed(this, UiMsg::msg_view_resize);
+}
+
+
+void
+BlockView::set_view_config(const BlockViewConfig &vconfig, bool always_update)
+{
+    // I update everything, even if always_update is false.  It's probably not
+    // worth trying to skip things that haven't changed for this.
+
     // If I resize from parent to child, then children get a lot of spurious
     // resizes as their parents move them around.  on the other hand, if
     // we go the other way, parents mess up their children.
@@ -87,8 +96,6 @@ BlockView::update_sizes()
     // the window around.
     int wx = 0, wy = 0;
     this->position(0, 0);
-
-    const BlockViewConfig &vconfig = this->view_config;
 
     title.resize(wx, wy, w(), vconfig.block_title_height);
     status_line.resize(wx, h() - vconfig.status_size,
@@ -130,38 +137,35 @@ BlockView::update_sizes()
     track_zoom.init_sizes();
     track_scroll.init_sizes();
     track_tile.init_sizes();
-}
 
-
-// Update scrollbar display based on the current zoom and scroll offset.
-void
-BlockView::update_scrollbars()
-{
-    // DEBUG("update scrolls " << track_tile.track_end());
-    this->track_sb.set_scroll_zoom(track_tile.track_end(),
-            get_track_scroll(), track_tile.w());
-
-    const ZoomInfo &zoom = this->get_zoom();
-    // The scale(1)s just convert a TrackPos to a double.
-    int track_h = track_tile.h() - view_config.track_title_height;
-    this->time_sb.set_scroll_zoom(track_tile.time_end().scale(1),
-            zoom.offset.scale(1),
-            (zoom.to_trackpos(track_h) - zoom.offset).scale(1));
-}
-
-
-// fltk methods
-void
-BlockView::resize(int X, int Y, int W, int H)
-{
-    Fl_Group::resize(X, Y, W, H);
-    status_line.size(w() - mac_resizer_width, status_line.h());
     this->update_scrollbars();
-    global_msg_collector()->block_changed(this, UiMsg::msg_view_resize);
+
+    this->view_config = vconfig;
 }
 
 
-// api methods
+void
+BlockView::set_model_config(const BlockModelConfig &config, bool update_all)
+{
+    const BlockModelConfig &old = this->model_config;
+    for (int i = 0; i < Config::max_selections; i++)
+        this->set_selection(i, config.selections[i]);
+
+    if (update_all || old.bg != config.bg) {
+        track_tile.set_bg_color(config.bg);
+        track_tile.redraw();
+    }
+    if (update_all || old.track_box != config.track_box) {
+        track_box.color(color_to_fl(config.track_box));
+        track_box.redraw();
+    }
+    if (update_all || old.sb_box != config.sb_box) {
+        sb_box.color(color_to_fl(config.sb_box));
+        sb_box.redraw();
+    }
+    this->model_config = config;
+}
+
 
 void
 BlockView::set_zoom(const ZoomInfo &zoom)
@@ -191,41 +195,25 @@ BlockView::set_track_scroll(int offset)
 }
 
 
-void
-BlockView::set_config(const BlockViewConfig &view_config)
-{
-    // TODO
-}
-
 const Selection &
 BlockView::get_selection(int selnum) const
 {
     ASSERT(0 <= selnum && selnum < Config::max_selections);
-    return this->selections[selnum];
+    return this->model_config.selections[selnum];
 }
+
 
 void
 BlockView::set_selection(int selnum, const Selection &sel)
 {
     ASSERT(0 <= selnum && selnum < Config::max_selections);
-    // clear old selection
-    const Selection &old = this->selections[selnum];
-    const Color &color = model_config.select[selnum];
-    Selection empty;
-    for (int i = old.start_track;
-            i < old.start_track + old.tracks && i < tracks(); i++)
-    {
-        track_at(i)->set_selection(selnum, color, empty);
-    }
-
-    // draw new one
     for (int i = sel.start_track;
             i < sel.start_track + sel.tracks && i < tracks(); i++)
     {
-        track_at(i)->set_selection(selnum, color, sel);
+        track_at(i)->set_selection(selnum, sel);
     }
 
-    this->selections[selnum] = sel;
+    this->model_config.selections[selnum] = sel;
 }
 
 
@@ -256,27 +244,22 @@ BlockView::remove_track(int at)
 }
 
 
-void
-BlockView::update_model_config(const BlockModelConfig *old)
-{
-    const BlockModelConfig &config = this->model_config;
-    for (int i = 0; i < Config::max_selections; i++) {
-        if (!old || config.select[i] != old->select[i]) {
-            this->set_selection(i, this->get_selection(i));
-        }
-    }
+// private
 
-    if (!old || config.bg != old->bg) {
-        track_tile.set_bg_color(config.bg);
-    }
-    if (!old || config.track_box != old->track_box) {
-        track_box.color(color_to_fl(config.track_box));
-        track_box.redraw();
-    }
-    if (!old || config.sb_box != old->sb_box) {
-        sb_box.color(color_to_fl(config.sb_box));
-        sb_box.redraw();
-    }
+// Update scrollbar display based on the current zoom and scroll offset.
+void
+BlockView::update_scrollbars()
+{
+    // DEBUG("update scrolls " << track_tile.track_end());
+    this->track_sb.set_scroll_zoom(track_tile.track_end(),
+            get_track_scroll(), track_tile.w());
+
+    const ZoomInfo &zoom = this->get_zoom();
+    // The scale(1)s just convert a TrackPos to a double.
+    int track_h = track_tile.h() - view_config.track_title_height;
+    this->time_sb.set_scroll_zoom(track_tile.time_end().scale(1),
+            zoom.offset.scale(1),
+            (zoom.to_trackpos(track_h) - zoom.offset).scale(1));
 }
 
 // static callbacks

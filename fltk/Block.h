@@ -61,8 +61,7 @@ on an scrollbar callback
 enum { ruler_tracknum = -1 };
 
 struct BlockModelConfig {
-    // An array of 3 or more Colors for the selections.
-    Color select[Config::max_selections];
+    Selection selections[Config::max_selections];
     Color bg;
     Color track_box;
     Color sb_box;
@@ -70,7 +69,6 @@ struct BlockModelConfig {
 
 
 struct BlockViewConfig {
-    Orientation orientation;
     double zoom_speed;
 
     int block_title_height;
@@ -88,10 +86,12 @@ public:
             const BlockViewConfig &view_config,
             const RulerConfig &ruler_config);
 
-    // fltk methods
     void resize(int X, int Y, int W, int H);
+    void set_view_config(const BlockViewConfig &view_config,
+            bool always_update=false);
+    void set_model_config(const BlockModelConfig &config,
+            bool always_update=false);
 
-    // api methods
     // Set the zoom, which is the view rectangle in the timewise direction.
     const ZoomInfo &get_zoom() const { return zoom; }
     void set_zoom(const ZoomInfo &zoom);
@@ -100,7 +100,6 @@ public:
     void set_track_scroll(int offset);
 
     const BlockViewConfig &get_config() const { return view_config; }
-    void set_config(const BlockViewConfig &view_config);
     const Selection &get_selection(int selnum) const;
     void set_selection(int selnum, const Selection &sel);
 
@@ -110,11 +109,15 @@ public:
 
     void insert_track(int at, const Tracklike &track, int width);
     void remove_track(int at);
-    void update_model_config(const BlockModelConfig *old = 0);
 
     // TODO
-    // Redraw the given tracks in given track pos range.  Update scrollbars.
-    // void update_event_track(int at, TrackPos start, TrackPos end);
+    // Update the given track.  Update scrollbars.
+    // 'track' should be the same kind of track as the one at 'at' or this
+    // throws.  Update colors and whatnot if they have changed (pointers
+    // may be passed as NULL which means no change).  Also mark that the range
+    // 'start' to 'end' should be updated.  If 'end' is TrackPos(0), the entire
+    // range should be updated.
+    void update_track(int at, Tracklike &track, TrackPos start, TrackPos end);
 
     TrackView *track_at(int at) { return track_tile.track_at(at); }
     int tracks() const { return track_tile.tracks(); }
@@ -132,7 +135,6 @@ private:
     BlockModelConfig model_config;
     BlockViewConfig view_config;
     ZoomInfo zoom;
-    std::vector<Selection> selections;
 
     SeqInput title;
     Fl_Output status_line;
@@ -152,7 +154,6 @@ private:
                 SimpleScroll track_scroll;
                     TrackTile track_tile;
 
-    void update_sizes();
     void update_scrollbars();
 
     // Called by scrollbar.

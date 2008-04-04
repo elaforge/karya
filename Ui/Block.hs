@@ -65,7 +65,8 @@ data Zoom = Zoom TrackPos Double deriving (Show)
 
 -- | A selection may span multiple tracks.
 data Selection = Selection
-    { sel_start_track :: TrackNum
+    { sel_color :: Color
+    , sel_start_track :: TrackNum
     , sel_start_pos :: TrackPos
     , sel_tracks :: TrackNum
     , sel_duration :: TrackPos

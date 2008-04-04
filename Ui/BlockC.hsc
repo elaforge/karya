@@ -127,7 +127,7 @@ instance Storable Block.Config where
     poke = poke_block_model_config
 
 peek_block_model_config configp = do
-    select <- (#peek BlockModelConfig, select) configp
+    select <- (#peek BlockModelConfig, selections) configp
         >>= peekArray max_selections
     bg <- (#peek BlockModelConfig, bg) configp >>= peek
     track_box <- (#peek BlockModelConfig, track_box) configp >>= peek
@@ -141,7 +141,7 @@ poke_block_model_config configp (Block.Config
         , Block.config_sb_box_color = sb_box
         })
     = do
-        pokeArray ((#ptr BlockModelConfig, select) configp)
+        pokeArray ((#ptr BlockModelConfig, selections) configp)
             (Util.bounded_list Color.black max_selections select)
         (#poke BlockModelConfig, bg) configp bg
         (#poke BlockModelConfig, track_box) configp track_box
@@ -261,9 +261,9 @@ get_view_config view = MVar.readMVar (view_config view)
 set_view_config :: View -> ViewConfig -> Fltk ()
 set_view_config view config = do
     MVar.swapMVar (view_config view) config
-    with config $ \configp -> c_block_view_set_config (view_p view) configp
+    with config $ \configp -> c_block_view_set_view_config (view_p view) configp
 foreign import ccall unsafe "block_view_set_config"
-    c_block_view_set_config :: Ptr CBlockView -> Ptr ViewConfig -> IO ()
+    c_block_view_set_view_config :: Ptr CBlockView -> Ptr ViewConfig -> IO ()
 
 get_ruler :: View -> IO RulerImpl.Ruler
 get_ruler view = MVar.readMVar (view_ruler view)

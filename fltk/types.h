@@ -46,13 +46,23 @@ operator<<(std::ostream &os, const TrackPos &pos)
 
 // "No selection" is if 'tracks' is 0.
 struct Selection {
-    Selection() : start_track(0), start_pos(0), tracks(0), duration(0) {}
-    Selection(int start_track, TrackPos start_pos, int tracks,
+    Selection() : start_track(0), tracks(0) {}
+    Selection(Color color) : color(color), start_track(0), tracks(0) {}
+    Selection(Color color, int start_track, TrackPos start_pos, int tracks,
             TrackPos duration) :
-        start_track(start_track), start_pos(start_pos),
+        color(color), start_track(start_track), start_pos(start_pos),
         tracks(tracks), duration(duration)
     {}
 
+    bool operator==(const Selection &o) const {
+        return color == o.color && start_track == o.start_track
+            && start_pos == o.start_pos && tracks == o.tracks
+            && duration == o.duration;
+    }
+    bool operator!=(const Selection &o) const { return !(*this == o); }
+    bool no_selection() const { return tracks == 0; }
+
+    Color color;
     int start_track;
     TrackPos start_pos;
     int tracks;

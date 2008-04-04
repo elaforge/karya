@@ -9,10 +9,15 @@
 #include "Ruler.h"
 
 
+Color selection_colors[] = {
+    Color(0, 0, 255, 45),
+    Color(255, 0, 255, 90),
+    Color(0, 255, 255, 90)
+};
+
 BlockViewConfig block_view_config()
 {
     BlockViewConfig c;
-    c.orientation = VerticalTime;
     c.zoom_speed = 1;
     c.block_title_height = 20;
     c.track_title_height = 20;
@@ -25,9 +30,9 @@ BlockViewConfig block_view_config()
 BlockModelConfig block_model_config()
 {
     BlockModelConfig c;
-    c.select[0] = Color(0, 0, 255, 45);
-    c.select[1] = Color(255, 0, 255, 90);
-    c.select[2] = Color(0, 255, 255, 90);
+    c.selections[0] = Selection(selection_colors[0]);
+    c.selections[1] = Selection(selection_colors[1]);
+    c.selections[2] = Selection(selection_colors[2]);
     c.bg = Color(0xdddddd);
     c.track_box = Color(0x44ffff);
     c.sb_box = Color(0x00ffff);
@@ -141,11 +146,12 @@ t1_find_events(TrackPos *start_pos, TrackPos *end_pos,
     return count;
 }
 
-void
+int
 t1_last_track_pos(TrackPos *pos)
 {
     int i = t1_events.size() - 1;
     *pos = t1_events[i].first + t1_events[i].second.duration;
+    return 1;
 }
 
 int
@@ -184,9 +190,12 @@ main(int argc, char **argv)
     view.block.insert_track(2, Tracklike(&track, &truler), 50);
     view.block.insert_track(3, Tracklike(&track2, &truler), 50);
 
-    view.block.set_selection(0, Selection(1, TrackPos(60), 4, TrackPos(56)));
-    view.block.set_selection(0, Selection(1, TrackPos(0), 4, TrackPos(56)));
-    view.block.set_selection(1, Selection(1, TrackPos(64), 4, TrackPos(0)));
+    view.block.set_selection(0, Selection(selection_colors[0],
+                1, TrackPos(60), 4, TrackPos(56)));
+    view.block.set_selection(0, Selection(selection_colors[0],
+                1, TrackPos(0), 4, TrackPos(56)));
+    view.block.set_selection(1, Selection(selection_colors[1],
+                1, TrackPos(64), 4, TrackPos(0)));
 
     // print_children(&view);
     // DEBUG(1);

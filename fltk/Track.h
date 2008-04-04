@@ -56,7 +56,7 @@ public:
     }
 
     virtual void set_zoom(const ZoomInfo &zoom) {}
-    virtual void set_selection(int selnum, Color c, const Selection &sel) {}
+    virtual void set_selection(int selnum, const Selection &sel) {}
     virtual bool track_resizable() const { return true; }
     // Return the end of the last event.
     virtual TrackPos time_end() const { return TrackPos(0); }

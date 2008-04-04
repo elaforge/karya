@@ -79,10 +79,10 @@ struct RulerConfig {
 class OverlayRuler : public Fl_Group {
 public:
     OverlayRuler(const RulerConfig &config) :
-        Fl_Group(0, 0, 1, 1), config(config), selections(Config::max_selections)
+        Fl_Group(0, 0, 1, 1), config(config)
     {}
     void set_zoom(const ZoomInfo &zoom);
-    void set_selection(int selnum, Color c, const Selection &sel);
+    void set_selection(int selnum, const Selection &sel);
     TrackPos time_end() const;
 
     RulerConfig config;
@@ -94,7 +94,7 @@ private:
     void draw_marklists();
     void draw_mark(int offset, const Mark &mark);
     void draw_selections();
-    std::vector<std::pair<Color, Selection> > selections;
+    Selection selections[Config::max_selections];
 
     // This area needs to be redrawn.
     Rect damaged_area;
@@ -109,8 +109,8 @@ public:
     RulerTrackView(const RulerConfig &config);
     virtual Fl_Box &title_widget();
     virtual void set_zoom(const ZoomInfo &zoom) { ruler.set_zoom(zoom); }
-    virtual void set_selection(int selnum, Color c, const Selection &sel) {
-        ruler.set_selection(selnum, c, sel);
+    virtual void set_selection(int selnum, const Selection &sel) {
+        ruler.set_selection(selnum, sel);
     }
     virtual TrackPos time_end() const { return ruler.time_end(); }
 

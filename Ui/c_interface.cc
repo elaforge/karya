@@ -1,31 +1,5 @@
 /*
 C procedural interface to the UI level.
-
-Memory management:
-Blocks and tracks are kept alive via ref counts.  They are also passed out
-to haskell for inspection.  Either:
-
-Interface passes out BlockId and TrackId.  It maintains a map from IDs to
-the objects, and can have an operation return Nothing if the ID has been
-deallocated.  This means that blocks and tracks must be managed manually and
-can leak.
-
-Interface increfs and passes out block and track foreign pointers, with
-a finalizer to decref.  Because views represt windows and must be destroyed
-deterministically, it passes out IDs for BlockViews and TrackViews.
-
-Small objects are returned as copies marshalled into haskell data structures.
-
-Ref counted:
-BlockModel, TrackModel, RulerModel
-
-Explicitly destroyed:
-BlockView, TrackView, RulerView
-
-Marshalled:
-Divider
-BlockModelConfig, BlockViewConfig, TrackModelConfig, TrackViewConfig
-RulerMarklist, RuleMark
 */
 
 #include <utility>
@@ -112,9 +86,9 @@ block_view_get_size(BlockViewWindow *b, int *sz)
 }
 
 void
-block_view_set_config(BlockViewWindow *b, BlockViewConfig *config)
+block_view_set_view_config(BlockViewWindow *b, BlockViewConfig *config)
 {
-    b->block.set_config(*config);
+    b->block.set_view_config(*config);
 }
 
 const ZoomInfo *
@@ -179,7 +153,6 @@ block_view_insert_track(BlockViewWindow *view, int tracknum,
         RulerConfig &partial = *track->ruler;
         RulerConfig config(partial.bg, partial.show_names, partial.use_alpha,
                 partial.full_width);
-        DEBUG("ADD marklists "<<nmarklists);
         for (int i = 0; i < nmarklists; i++)
             config.marklists.push_back(marklists[i]);
         track->ruler = &config;

@@ -30,16 +30,18 @@ OverlayRuler::set_zoom(const ZoomInfo &zoom)
 
 
 void
-OverlayRuler::set_selection(int selnum, Color c, const Selection &sel)
+OverlayRuler::set_selection(int selnum, const Selection &sel)
 {
-    // DEBUG("set sel " << selnum << " " << c << ": "
-    //         << sel.start_pos << "--" << sel.duration);
-    const Selection &old = this->selections[selnum].second;
-    if (old.tracks != 0) {
-        this->damage_range(old.start_pos, old.start_pos + old.duration);
-    }
-    this->damage_range(sel.start_pos, sel.start_pos + sel.duration);
-    this->selections[selnum] = std::make_pair(c, sel);
+    ASSERT(0 <= selnum && selnum < Config::max_selections);
+    // TODO clear the old selection if there is one
+    const Selection &old = this->selections[selnum];
+    if (old == sel)
+        return;
+    // Clear old selection.
+    this->damage_range(old.start_pos, old.start_pos + old.duration);
+    if (!sel.no_selection())
+        this->damage_range(sel.start_pos, sel.start_pos + sel.duration);
+    this->selections[selnum ] = sel;
 }
 
 
@@ -47,8 +49,8 @@ TrackPos
 OverlayRuler::time_end() const
 {
     TrackPos end(0);
-    for (int i = 0; i < this->selections.size(); i++) {
-        const Selection &sel = selections[i].second;
+    for (int i = 0; i < Config::max_selections; i++) {
+        const Selection &sel = selections[i];
         if (sel.tracks != 0)
             end = std::max(end, sel.start_pos + sel.duration);
     }
@@ -186,17 +188,17 @@ OverlayRuler::draw_mark(int offset, const Mark &mark)
 void
 OverlayRuler::draw_selections()
 {
-    for (int i = 0; i < this->selections.size(); i++) {
-        const Selection &sel = this->selections[i].second;
+    for (int i = 0; i < Config::max_selections; i++) {
+        const Selection &sel = this->selections[i];
         if (sel.tracks == 0)
             continue;
         int start = y() + this->zoom.to_pixels(sel.start_pos);
         int height = std::max(selection_min_size,
                 this->zoom.to_pixels(zoom.offset + sel.duration));
-        alpha_rectf(Rect(x(), start, w(), height), this->selections[i].first);
+        alpha_rectf(Rect(x(), start, w(), height), sel.color);
         if (sel.duration == TrackPos(0)) {
             // Darken the select color a bit, and make it non-transparent.
-            fl_color(color_to_fl(this->selections[i].first.scale(0.5)));
+            fl_color(color_to_fl(sel.color.scale(0.5)));
             fl_line_style(FL_SOLID, 1);
             fl_line(x() + 2, start, x() + w() - 2, start);
             // Draw little bevel thingy.
