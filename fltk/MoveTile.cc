@@ -277,6 +277,7 @@ MoveTile::handle_drag_tile(const Point drag_from, const Point drag_to,
     // A 0 in drag_from mean no movement there.
     // Also, respect this->minimum_size.
     // The right most / bottom most widget resizes instead of moving.
+    // Stiff children don't resize at all.
     std::vector<Rect> original_boxes(this->children());
     for (unsigned i = 0; i < children(); i++)
         original_boxes[i] = this->original_box(i);
@@ -351,9 +352,15 @@ MoveTile::find_dragged_child(Point drag_from, BoolPoint *drag_state)
         bool inside = box.x <= drag_from.x && drag_from.x <= box.r();
         if (in_bounds && (grabbable || (this->stiff_child(i) && inside))) {
             drag_state->x = true;
-            if (this->stiff_child(i))
-                return this->previous_track(i);
-            else
+            if (this->stiff_child(i)) {
+                if (i == 0) {
+                    // You just can't drag if the leftmost child is stiff.
+                    drag_state->x = false;
+                    return -1;
+                } else {
+                    return this->previous_track(i);
+                }
+            } else
                 return this->find(this->child(i));
         }
         // TODO y drag
@@ -366,11 +373,12 @@ int
 MoveTile::previous_track(int i) const
 {
     int child_x = this->child(i)->x();
+    i--;
     while (i > 0 && this->child(i)->x() >= child_x)
         i--;
     // Found the one to the left, now find the uppermost one.
     child_x = this->child(i)->x();
-    while (i > 0 && this->child(i)->x() == child_x)
+    while (i-1 > 0 && this->child(i-1)->x() == child_x)
         i--;
     return i;
 }
