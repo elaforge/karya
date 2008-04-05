@@ -45,6 +45,7 @@ fltk
 
   Track
     / dividers can have separate color for upper part, for collapsable tracks
+    - tracks have their own status lines, to report things like mute
   event track
     * overlay ruler
     * events

@@ -68,20 +68,20 @@ module Ui.BlockC where
     , get_selection, set_selection
     , get_track_width, set_track_width
 -}
+import qualified Control.Exception as Exception
+import Foreign
+import Foreign.C
 
 import qualified Ui.Util as Util
 import Ui.Util (Fltk)
--- import Ui.Types
+import Ui.Types
 import qualified Ui.Color as Color
 
 import qualified Ui.Block as Block
 import qualified Ui.Ruler as Ruler
 import qualified Ui.RulerC as RulerC
 import qualified Ui.Track as Track
-import qualified Ui.TrackC as TrackC
-
-import Foreign
-import Foreign.C
+import qualified Ui.TrackC as TrackC () -- just want Storable instance
 
 #include "c_interface.h"
 
@@ -94,7 +94,7 @@ create_view :: Block.Block -> Block.Rect -> Ruler.Ruler -> Block.ViewConfig
     -> Fltk ViewPtr
 create_view block (Block.Rect (x, y) (w, h)) ruler view_config = do
     viewp <- with config $ \configp -> with view_config $ \view_configp ->
-        RulerC.with_ruler ruler $ \(rulerp, mlistp, len) ->
+        RulerC.with_ruler ruler $ \rulerp mlistp len ->
             c_block_view_create (i x) (i y) (i w) (i h) configp view_configp
                 rulerp mlistp len
     -- TODO set title
@@ -109,9 +109,11 @@ foreign import ccall "block_view_create"
         -> Ptr Block.ViewConfig -> Ptr Ruler.Ruler
         -> Ptr Ruler.Marklist -> CInt -> IO (Ptr CView)
 
-destroy_view (ViewPtr viewp) = c_block_view_destroy viewp
+destroy_view (ViewPtr viewp) = Exception.bracket
+    make_free_fun_ptr freeHaskellFunPtr $ \finalize ->
+        c_block_view_destroy viewp finalize
 foreign import ccall "block_view_destroy"
-    c_block_view_destroy :: Ptr CView -> IO ()
+    c_block_view_destroy :: Ptr CView -> FunPtr (FunPtrFinalizer a) -> IO ()
 
 
 -- ** view storable
@@ -176,28 +178,56 @@ poke_config configp (Block.ViewConfig
 
 insert_track :: ViewPtr -> Block.TrackNum -> Tracklike -> Block.Width
     -> Fltk ()
-insert_track (ViewPtr viewp) tracknum tracklike width = case tracklike of
-    T track ruler -> RulerC.with_ruler ruler $ \(rulerp, mlistp, len) ->
-        with track $ \trackp -> with (TPtr trackp rulerp) $ \tp ->
-            c_block_view_insert_track viewp ctracknum tp cwidth  mlistp len
-    R ruler -> RulerC.with_ruler ruler $ \(rulerp, mlistp, len) ->
-        with (RPtr rulerp) $ \tp ->
-            c_block_view_insert_track viewp ctracknum tp cwidth mlistp len
-    D div -> with div $ \dividerp -> with (DPtr dividerp) $ \tp ->
-        c_block_view_insert_track viewp ctracknum tp cwidth nullPtr 0
-    where
-    ctracknum = Util.c_int tracknum
-    cwidth = Util.c_int width
+insert_track (ViewPtr viewp) tracknum tracklike width =
+    with_tracklike tracklike $ \tp mlistp len ->
+        c_block_view_insert_track viewp (Util.c_int tracknum) tp
+            (Util.c_int width) mlistp len
 
 remove_track :: ViewPtr -> Block.TrackNum -> Fltk ()
-remove_track (ViewPtr viewp) tracknum = do
-    c_block_view_remove_track viewp (Util.c_int tracknum)
+remove_track (ViewPtr viewp) tracknum = Exception.bracket
+    make_free_fun_ptr freeHaskellFunPtr $ \finalize ->
+        c_block_view_remove_track viewp (Util.c_int tracknum) finalize
+
+update_track :: ViewPtr -> Block.TrackNum -> Tracklike -> TrackPos -> TrackPos
+    -> Fltk ()
+update_track (ViewPtr viewp) tracknum tracklike start end = Exception.bracket
+    make_free_fun_ptr
+    freeHaskellFunPtr $ \finalize ->
+        with start $ \startp -> with end $ \endp ->
+            with_tracklike tracklike $ \tp mlistp len ->
+                c_block_view_update_track viewp (Util.c_int tracknum) tp
+                    mlistp len finalize startp endp
+
+-- When I do anything that will destroy previous callbacks, I have to pass
+-- yet another callback which will be used to mark the old callbacks as done,
+-- so that the haskell GC knows it can collected data those callbacks use.
+type FunPtrFinalizer a = FunPtr a -> IO ()
+foreign import ccall "wrapper"
+    c_make_free_fun_ptr :: FunPtrFinalizer a -> IO (FunPtr (FunPtrFinalizer a))
+-- make_free_fun_ptr = c_make_free_fun_ptr
+--     (\p -> putStrLn ("free: " ++ show p) >> freeHaskellFunPtr p)
+make_free_fun_ptr = c_make_free_fun_ptr freeHaskellFunPtr
+
+with_tracklike tracklike f = case tracklike of
+    T track ruler -> RulerC.with_ruler ruler $ \rulerp mlistp len ->
+        with track $ \trackp -> with (TPtr trackp rulerp) $ \tp ->
+            f tp mlistp len
+    R ruler -> RulerC.with_ruler ruler $ \rulerp mlistp len ->
+        with (RPtr rulerp) $ \tp ->
+            f tp mlistp len
+    D div -> with div $ \dividerp -> with (DPtr dividerp) $ \tp ->
+        f tp nullPtr 0
 
 foreign import ccall "block_view_insert_track"
     c_block_view_insert_track :: Ptr CView -> CInt -> Ptr TracklikePtr -> CInt
         -> Ptr Ruler.Marklist -> CInt -> IO ()
 foreign import ccall "block_view_remove_track"
-    c_block_view_remove_track :: Ptr CView -> CInt -> IO ()
+    c_block_view_remove_track :: Ptr CView -> CInt
+        -> FunPtr (FunPtrFinalizer a) -> IO ()
+foreign import ccall "block_view_update_track"
+    c_block_view_update_track :: Ptr CView -> CInt -> Ptr TracklikePtr
+        -> Ptr Ruler.Marklist -> CInt -> FunPtr (FunPtrFinalizer a)
+        -> Ptr TrackPos -> Ptr TrackPos -> IO ()
 
 -- | Like Block.Tracklike, except it has actual values instead of IDs.
 data Tracklike =
@@ -208,6 +238,7 @@ data Tracklike =
 
 instance Storable Block.Divider where
     sizeOf _ = #size DividerConfig
+    alignment _ = undefined
     poke dividerp (Block.Divider color) =
         (#poke DividerConfig, color) dividerp color
 
@@ -221,13 +252,17 @@ instance Storable TracklikePtr where
     alignment _ = undefined
     poke = poke_tracklike_ptr
 
-poke_tracklike_ptr tp (TPtr trackp rulerp) = do
-    (#poke Tracklike, track) tp trackp
-    (#poke Tracklike, ruler) tp rulerp
-poke_tracklike_ptr tp (RPtr rulerp) = do
-    (#poke Tracklike, ruler) tp rulerp
-poke_tracklike_ptr tp (DPtr dividerp) = do
-    (#poke Tracklike, divider) tp dividerp
+poke_tracklike_ptr tp trackp = do
+    -- Apparently 'with' doesn't zero out the memory it allocates.
+    (#poke Tracklike, track) tp nullPtr
+    (#poke Tracklike, ruler) tp nullPtr
+    (#poke Tracklike, divider) tp nullPtr
+    case trackp of
+        TPtr trackp rulerp -> do
+            (#poke Tracklike, track) tp trackp
+            (#poke Tracklike, ruler) tp rulerp
+        RPtr rulerp -> (#poke Tracklike, ruler) tp rulerp
+        DPtr dividerp -> (#poke Tracklike, divider) tp dividerp
 
 {-
 instance Util.Widget View where

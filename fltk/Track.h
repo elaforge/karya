@@ -60,6 +60,11 @@ public:
     virtual bool track_resizable() const { return true; }
     // Return the end of the last event.
     virtual TrackPos time_end() const { return TrackPos(0); }
+    virtual void update(const Tracklike &track, FinalizeCallback finalizer,
+            TrackPos start, TrackPos end)
+    {}
+    // This is called before the object is deleted.
+    virtual void finalize_callbacks(FinalizeCallback finalizer) {}
 
     // Factory to generate the title widget for this track.  It should be
     // dynamically allocated because it will be passed to TrackTile who will

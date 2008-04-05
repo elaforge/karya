@@ -19,11 +19,11 @@ import qualified Ui.Ruler as Ruler
 
 
 with_ruler :: Ruler.Ruler
-    -> ((Ptr Ruler.Ruler, Ptr Ruler.Marklist, CInt) -> IO a)
+    -> (Ptr Ruler.Ruler -> Ptr Ruler.Marklist -> CInt -> IO a)
     -> IO a
 with_ruler ruler f = do
     with ruler $ \rulerp -> withArrayLen marklists $ \len mlists ->
-        f (rulerp, mlists, (Util.c_int len))
+        f rulerp mlists (Util.c_int len)
     where marklists = Ruler.ruler_marklists ruler
 
 

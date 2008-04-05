@@ -64,6 +64,29 @@ EventTrackView::time_end() const
 
 
 void
+EventTrackView::update(const Tracklike &track, FinalizeCallback finalizer,
+        TrackPos start, TrackPos end)
+{
+    ASSERT(track.track && track.ruler);
+    finalizer((void *) this->config.find_events);
+    finalizer((void* ) this->config.last_track_pos);
+    this->overlay_ruler.set_config(*track.ruler, finalizer, start, end);
+    this->config = *track.track;
+    // TODO should have a damage scheme like with ruler
+    this->redraw();
+}
+
+
+void
+EventTrackView::finalize_callbacks(FinalizeCallback finalizer)
+{
+    finalizer((void *) this->config.find_events);
+    finalizer((void* ) this->config.last_track_pos);
+    this->overlay_ruler.finalize_callbacks(finalizer);
+}
+
+
+void
 EventTrackView::draw()
 {
     /*

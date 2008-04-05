@@ -24,7 +24,7 @@ int take_ui_msgs(UiMsg **msgs);
 BlockViewWindow *block_view_create(int x, int y, int w, int h,
         BlockModelConfig *model_config, BlockViewConfig *view_config,
         RulerConfig *ruler, Marklist *marklists, int nmarklists);
-void block_view_destroy(BlockViewWindow *b);
+void block_view_destroy(BlockViewWindow *b, FinalizeCallback finalizer);
 
 void block_view_set_size(BlockViewWindow *b, int x, int y, int w, int h);
 void block_view_get_size(BlockViewWindow *b, int *sz);
@@ -46,7 +46,11 @@ void block_view_set_track_width(BlockViewWindow *b, int at, int width);
 void block_view_insert_track(BlockViewWindow *view, int tracknum,
         Tracklike *track, int width,
         Marklist *marklists, int nmarklists);
-void block_view_remove_track(BlockViewWindow *view, int tracknum);
+void block_view_remove_track(BlockViewWindow *view, int tracknum,
+        FinalizeCallback finalizer);
+void block_view_update_track(BlockViewWindow *view, int tracknum,
+        Tracklike *track, Marklist *marklists, int nmarklists,
+        FinalizeCallback finalizer, TrackPos *start, TrackPos *end);
 
 // Ruler
 

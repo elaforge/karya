@@ -108,7 +108,7 @@ public:
     void set_status(const char *s) { status_line.value(s); }
 
     void insert_track(int at, const Tracklike &track, int width);
-    void remove_track(int at);
+    void remove_track(int at, FinalizeCallback finalizer);
 
     // TODO
     // Update the given track.  Update scrollbars.
@@ -117,7 +117,8 @@ public:
     // may be passed as NULL which means no change).  Also mark that the range
     // 'start' to 'end' should be updated.  If 'end' is TrackPos(0), the entire
     // range should be updated.
-    void update_track(int at, Tracklike &track, TrackPos start, TrackPos end);
+    void update_track(int at, const Tracklike &track,
+            FinalizeCallback finalizer, TrackPos start, TrackPos end);
 
     TrackView *track_at(int at) { return track_tile.track_at(at); }
     int tracks() const { return track_tile.tracks(); }
@@ -125,11 +126,9 @@ public:
     void set_track_width(int at, int width) {
         track_tile.set_track_width(at, width);
     }
-
     void drag_tile(Point drag_from, Point drag_to) {
         track_tile.drag_tile(drag_from, drag_to);
     }
-    void tile_init() { track_tile.init_sizes(); }
 
 private:
     BlockModelConfig model_config;

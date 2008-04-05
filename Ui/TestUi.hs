@@ -33,20 +33,41 @@ send = Initialize.send_action
 event pos name dur = (TrackPos pos, Event.event name (TrackPos dur))
 
 test = do
-    let ruler = mkruler 20
+    let ruler = mkruler 20 10
     view <- send $ BlockC.create_view empty_block default_rect ruler
         default_view_config
     send $ BlockC.insert_track view
         0 (BlockC.T empty_track (overlay_ruler ruler)) 30
     send $ BlockC.insert_track view
         1 (BlockC.D (Block.Divider Color.blue)) 5
-    let event_track = Track.modify_events empty_track (Track.insert_events
-            [event 0 "hi" 16, event 30 "there" 32])
     send $ BlockC.insert_track view
-        2 (BlockC.T event_track (overlay_ruler ruler)) 30
+        2 (BlockC.T event_track_1 (overlay_ruler ruler)) 30
     putStrLn $ "created view " ++ show view
-    putStr "? " >> IO.hFlush IO.stdout >> getLine
+    pause
     return ()
+
+event_track_1 = Track.modify_events empty_track (Track.insert_events
+    [event 0 "hi" 16, event 30 "there" 32])
+event_track_2 = Track.modify_events empty_track (Track.insert_events
+    [event 16 "ho" 10, event 30 "eyo" 32])
+
+test_update_track = do
+    let ruler = mkruler 20 10
+    view <- send $ BlockC.create_view empty_block default_rect ruler
+        default_view_config
+    send $ BlockC.insert_track view 0 (BlockC.R ruler) 30
+    send $ BlockC.insert_track view 1
+        (BlockC.T event_track_1 (overlay_ruler ruler)) 30
+    Test.io_human "ruler gets wider, both events change" $ do
+        send $ BlockC.update_track view 0
+            (BlockC.R (mkruler 20 16))
+            (TrackPos 0) (TrackPos 60)
+        send $ BlockC.update_track view 1
+            (BlockC.T event_track_2 (overlay_ruler ruler))
+            (TrackPos 0) (TrackPos 60)
+    send $ BlockC.destroy_view view
+
+pause = putStr "? " >> IO.hFlush IO.stdout >> getLine >> return ()
 
 {-
 test = do
@@ -242,13 +263,13 @@ default_rect = Block.Rect (10, 50) (100, 200)
 
 major n = Ruler.Mark 1 3 (Color.rgba 0.45 0.27 0 0.35) (show n) 0 0
 minor = Ruler.Mark 2 2 (Color.rgba 1 0.39 0.2 0.35) "" 0 0
-marklist n = Ruler.marklist (take n $ zip (map TrackPos [0, 10 ..]) m44)
+marklist n dist = Ruler.marklist (take n $ zip (map TrackPos [0, dist ..]) m44)
 
 
 m44 = concatMap (\n -> [major n, minor, minor, minor]) [0..]
 
 ruler_bg = Color.rgb 1 0.85 0.5
-mkruler marks = Ruler.Ruler [marklist marks] ruler_bg True False False
+mkruler marks dist = Ruler.Ruler [marklist marks dist] ruler_bg True False False
 -- Convert a ruler config for an overlay ruler.
 overlay_ruler ruler = ruler
     { Ruler.ruler_show_names = False

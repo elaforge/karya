@@ -69,7 +69,8 @@ cb_find_events events startp endp ret_tps ret_events = do
 cb_last_track_pos :: Track.TrackEvents -> LastTrackPos
 cb_last_track_pos events posp = case Track.last_event events of
     Nothing -> return 0
-    Just (pos, _) -> poke posp pos >> return 1
+    Just (pos, event) -> poke posp (pos + Event.event_duration event)
+        >> return 1
 
 foreign import ccall "wrapper"
     c_make_find_events :: FindEvents -> IO (FunPtr FindEvents)

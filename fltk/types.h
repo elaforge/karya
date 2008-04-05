@@ -6,6 +6,11 @@
 #include <algorithm>
 #include <math.h>
 
+// Pass the addresses of callbacks to this before they are replaced.  Won't be
+// valid outside of the specific function that passes it, such as update() or
+// remove_track().
+typedef void (*FinalizeCallback)(void *callback);
+
 enum Orientation { HorizontalTime, VerticalTime };
 
 // typedef double TrackPos;

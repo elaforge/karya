@@ -34,6 +34,10 @@ be unboxed.
 2 Diff one map with another takes time relative to size of difference, not
 size of maps.  This is also important for storing snapshots, since I'd like to
 store a diff in the common case.
+
+IntMap claims to be much faster than Map, but uses Ints.  It looks like I can
+change the types to Word64 to store TrackPos's.  Then maybe I can implement
+toDescList with foldl?
 -}
 -- IntMap is more efficient than Map, but only takes Int keys...
 newtype TrackEvents = TrackEvents (Map.Map TrackPos Event.Event)

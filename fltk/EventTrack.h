@@ -48,6 +48,9 @@ public:
         overlay_ruler.set_selection(selnum, sel);
     }
     virtual TrackPos time_end() const;
+    virtual void update(const Tracklike &track, FinalizeCallback finalizer,
+            TrackPos start, TrackPos end);
+    virtual void finalize_callbacks(FinalizeCallback finalizer);
 
 protected:
     void draw();

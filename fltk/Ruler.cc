@@ -59,6 +59,24 @@ OverlayRuler::time_end() const
 
 
 void
+OverlayRuler::set_config(const RulerConfig &config, FinalizeCallback finalizer,
+        TrackPos start, TrackPos end)
+{
+    this->finalize_callbacks(finalizer);
+    this->config = config;
+    this->damage_range(start, end); // TODO what about damage everything?
+}
+
+
+void
+OverlayRuler::finalize_callbacks(FinalizeCallback finalizer)
+{
+    for (int i = 0; i < this->config.marklists.size(); i++)
+        finalizer((void *) this->config.marklists[i].find_marks);
+}
+
+
+void
 OverlayRuler::draw()
 {
     Rect draw_area = rect(this);
@@ -235,4 +253,21 @@ RulerTrackView::title_widget()
         title_box->color(color_to_fl(this->ruler.config.bg));
     }
     return *this->title_box;
+}
+
+
+void
+RulerTrackView::update(const Tracklike &track, FinalizeCallback finalizer,
+        TrackPos start, TrackPos end)
+{
+    ASSERT(track.ruler && !track.track);
+    ruler.set_config(*track.ruler, finalizer, start, end);
+    if (color_to_fl(track.ruler->bg) != bg_box.color()) {
+        bg_box.color(color_to_fl(track.ruler->bg));
+        bg_box.redraw();
+        if (title_box) {
+            title_box->color(color_to_fl(track.ruler->bg));
+            title_box->redraw();
+        }
+    }
 }

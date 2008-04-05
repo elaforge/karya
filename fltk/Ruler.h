@@ -66,7 +66,7 @@ struct RulerConfig {
 
     // RulerTrackView uses this to set the bg_box, an EventTrack's OverlayRuler
     // doesn't use it.
-    const Color bg;
+    Color bg;
 
     // So I can share marklists but have different display styles.
     bool show_names;
@@ -84,6 +84,9 @@ public:
     void set_zoom(const ZoomInfo &zoom);
     void set_selection(int selnum, const Selection &sel);
     TrackPos time_end() const;
+    void set_config(const RulerConfig &config, FinalizeCallback finalizer,
+            TrackPos start, TrackPos end);
+    void finalize_callbacks(FinalizeCallback finalizer);
 
     RulerConfig config;
 protected:
@@ -113,6 +116,11 @@ public:
         ruler.set_selection(selnum, sel);
     }
     virtual TrackPos time_end() const { return ruler.time_end(); }
+    virtual void update(const Tracklike &track, FinalizeCallback finalizer,
+            TrackPos start, TrackPos end);
+    virtual void finalize_callbacks(FinalizeCallback finalizer) {
+        ruler.finalize_callbacks(finalizer);
+    }
 
 protected:
     // void draw();

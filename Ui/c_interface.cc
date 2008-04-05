@@ -65,8 +65,11 @@ block_view_create(int x, int y, int w, int h, BlockModelConfig *model_config,
 }
 
 void
-block_view_destroy(BlockViewWindow *b)
+block_view_destroy(BlockViewWindow *b, FinalizeCallback finalizer)
 {
+    // Make sure all the callbacks are finalized.
+    for (int i = b->block.tracks() - 1; i; i--)
+        b->block.remove_track(i, finalizer);
     delete b;
 }
 
@@ -165,10 +168,34 @@ block_view_insert_track(BlockViewWindow *view, int tracknum,
 }
 
 void
-block_view_remove_track(BlockViewWindow *view, int tracknum)
+block_view_remove_track(BlockViewWindow *view, int tracknum,
+        FinalizeCallback finalizer)
 {
-    view->block.remove_track(tracknum);
+    view->block.remove_track(tracknum, finalizer);
 }
+
+void
+block_view_update_track(BlockViewWindow *view, int tracknum,
+        Tracklike *track, Marklist *marklists, int nmarklists,
+        FinalizeCallback finalizer, TrackPos *start, TrackPos *end)
+{
+    RulerConfig *old_ruler = track->ruler;
+    if (track->ruler) {
+        // Substitute a complete ruler for the semi-constructed one.
+        RulerConfig &partial = *track->ruler;
+        RulerConfig config(partial.bg, partial.show_names, partial.use_alpha,
+                partial.full_width);
+        for (int i = 0; i < nmarklists; i++)
+            config.marklists.push_back(marklists[i]);
+        track->ruler = &config;
+    }
+    view->block.update_track(tracknum, *track, finalizer, *start, *end);
+    if (track->ruler) {
+        // Put it back the way I found it.
+        track->ruler = old_ruler;
+    }
+}
+
 
 // Ruler
 

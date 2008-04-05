@@ -236,10 +236,20 @@ BlockView::insert_track(int at, const Tracklike &track, int width)
 
 
 void
-BlockView::remove_track(int at)
+BlockView::remove_track(int at, FinalizeCallback finalizer)
 {
     TrackView *t = track_tile.remove_track(at);
+    t->finalize_callbacks(finalizer);
     delete t;
+    this->update_scrollbars();
+}
+
+
+void
+BlockView::update_track(int at, const Tracklike &track,
+        FinalizeCallback finalizer, TrackPos start, TrackPos end)
+{
+    this->track_at(at)->update(track, finalizer, start, end);
     this->update_scrollbars();
 }
 
