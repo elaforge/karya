@@ -107,24 +107,24 @@ public:
     const char *get_title() const { return title.value(); }
     void set_status(const char *s) { status_line.value(s); }
 
-    void insert_track(int at, const Tracklike &track, int width);
-    void remove_track(int at, FinalizeCallback finalizer);
+    void insert_track(int tracknum, const Tracklike &track, int width);
+    void remove_track(int tracknum, FinalizeCallback finalizer);
 
     // TODO
     // Update the given track.  Update scrollbars.
-    // 'track' should be the same kind of track as the one at 'at' or this
+    // 'track' should be the same kind of track as the one at 'tracknum' or this
     // throws.  Update colors and whatnot if they have changed (pointers
     // may be passed as NULL which means no change).  Also mark that the range
     // 'start' to 'end' should be updated.  If 'end' is TrackPos(0), the entire
     // range should be updated.
-    void update_track(int at, const Tracklike &track,
+    void update_track(int tracknum, const Tracklike &track,
             FinalizeCallback finalizer, TrackPos start, TrackPos end);
 
-    TrackView *track_at(int at) { return track_tile.track_at(at); }
+    TrackView *track_at(int tracknum) { return track_tile.track_at(tracknum); }
     int tracks() const { return track_tile.tracks(); }
-    int get_track_width(int at) { track_tile.get_track_width(at); }
-    void set_track_width(int at, int width) {
-        track_tile.set_track_width(at, width);
+    int get_track_width(int tracknum) { track_tile.get_track_width(tracknum); }
+    void set_track_width(int tracknum, int width) {
+        track_tile.set_track_width(tracknum, width);
     }
     void drag_tile(Point drag_from, Point drag_to) {
         track_tile.drag_tile(drag_from, drag_to);

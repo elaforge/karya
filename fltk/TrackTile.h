@@ -48,14 +48,14 @@ public:
     // Right side of the rightmost track.
     int track_end() const;
 
-    void insert_track(int at, TrackView *track, int width);
+    void insert_track(int tracknum, TrackView *track, int width);
     // Remove and return the TrackView, so the parent can delete it.
-    TrackView *remove_track(int at);
+    TrackView *remove_track(int tracknum);
     // A track is a (title, body) pair, minus the track_pad.
     int tracks() const { return floor(children()/2.0); }
-    TrackView *track_at(int at);
-    int get_track_width(int at);
-    void set_track_width(int at, int width);
+    TrackView *track_at(int tracknum);
+    int get_track_width(int tracknum);
+    void set_track_width(int tracknum, int width);
 
     // Return the track currently being dragged right now, or -1.
     int get_dragged_track() const;

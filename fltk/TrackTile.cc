@@ -56,9 +56,9 @@ TrackTile::track_end() const
 
 
 void
-TrackTile::insert_track(int at, TrackView *track, int width)
+TrackTile::insert_track(int tracknum, TrackView *track, int width)
 {
-    ASSERT(0 <= at && at <= tracks());
+    ASSERT(0 <= tracknum && tracknum <= tracks());
 
     // Can't create a track smaller than you could resize, except dividers
     // which are supposed to be small.
@@ -68,7 +68,7 @@ TrackTile::insert_track(int at, TrackView *track, int width)
     // Just set sizes here, coords will be fixed by update_sizes()
     Fl_Widget &title = track->title_widget();
     title.size(width, this->title_height);
-    int child_pos = at*2;
+    int child_pos = tracknum*2;
     this->insert(title, child_pos);
 
     track->size(width, h() - this->title_height);
@@ -85,10 +85,10 @@ TrackTile::insert_track(int at, TrackView *track, int width)
 
 
 TrackView *
-TrackTile::remove_track(int at)
+TrackTile::remove_track(int tracknum)
 {
-    ASSERT(0 <= at && at <= tracks());
-    TrackView *t = track_at(at);
+    ASSERT(0 <= tracknum && tracknum <= tracks());
+    TrackView *t = track_at(tracknum);
     remove(t);
     remove(t->title_widget());
     this->update_sizes();
@@ -98,26 +98,26 @@ TrackTile::remove_track(int at)
 
 
 TrackView *
-TrackTile::track_at(int at)
+TrackTile::track_at(int tracknum)
 {
-    ASSERT(0 <= at && at <= tracks());
+    ASSERT(0 <= tracknum && tracknum <= tracks());
     // Widgets alternate [title0, track0, title1, track1, ... box]
-    return dynamic_cast<TrackView *>(child(at*2 + 1));
+    return dynamic_cast<TrackView *>(child(tracknum*2 + 1));
 }
 
 
 int
-TrackTile::get_track_width(int at)
+TrackTile::get_track_width(int tracknum)
 {
-    return this->track_at(at)->w();
+    return this->track_at(tracknum)->w();
 }
 
 
 void
-TrackTile::set_track_width(int at, int width)
+TrackTile::set_track_width(int tracknum, int width)
 {
     ASSERT(width > 0);
-    TrackView *track = this->track_at(at);
+    TrackView *track = this->track_at(tracknum);
     if (track->track_resizable())
         width = std::max(this->minimum_size.x, width);
 

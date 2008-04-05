@@ -79,10 +79,11 @@ data MouseState = MouseMove | MouseDrag | MouseDown Int | MouseUp Int
     deriving (Eq, Ord, Show)
 data KbdState = KeyDown | KeyUp deriving (Eq, Ord, Show)
 
+pretty_ui_msg :: UiMsg -> String
 pretty_ui_msg (UiMsg ctx (MsgEvent mdata)) = case mdata of
     Mouse mstate coords clicks is_click ->
-        printf "Mouse: %s %s %s" (show mstate) (show coords)
-            (pretty_context ctx)
+        printf "Mouse: %s %s %s click: %s %d" (show mstate) (show coords)
+            (pretty_context ctx) (show is_click) clicks
     Kbd kstate key -> printf "Kbd: %s %s" (show kstate) (show key)
     AuxMsg msg -> printf "Aux: %s %s" (show msg) (pretty_context ctx)
     Unhandled x -> printf "Unhandled: %d" x
@@ -93,7 +94,7 @@ pretty_context (Context block track pos) = "{" ++ contents ++ "}"
     where
     contents = Seq.join " " (filter (not.null) [show_maybe "block" block,
         show_maybe "track" track, show_maybe "pos" pos])
-    show_maybe desc Nothing = ""
+    show_maybe _ Nothing = ""
     show_maybe desc (Just x) = desc ++ "=" ++ show x
 
 -- * Storable
@@ -114,7 +115,6 @@ peek_msg msgp = do
     is_click <- (#peek UiMsg, is_click) msgp :: IO CInt
     x <- (#peek UiMsg, x) msgp :: IO CInt
     y <- (#peek UiMsg, y) msgp :: IO CInt
-    state <- (#peek UiMsg, state) msgp :: IO CInt
     key <- (#peek UiMsg, key) msgp :: IO CInt
 
     viewp <- (#peek UiMsg, view) msgp :: IO (Ptr BlockC.CView)
@@ -126,10 +126,10 @@ peek_msg msgp = do
     let context = make_context viewp has_track track has_pos pos
     return $ make_msg type_num context
         (i event) (i button) (i clicks) (i is_click /= 0)
-        (i x) (i y) state (i key)
+        (i x) (i y) (i key)
     where i = fromIntegral
 
-make_msg type_num context event button clicks is_click x y state key
+make_msg type_num context event button clicks is_click x y key
     = UiMsg context $ case type_num of
         (#const UiMsg::msg_event) ->
             MsgEvent (decode_msg_event event button x y clicks is_click key)

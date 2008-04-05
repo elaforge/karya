@@ -218,11 +218,11 @@ BlockView::set_selection(int selnum, const Selection &sel)
 
 
 void
-BlockView::insert_track(int at, const Tracklike &track, int width)
+BlockView::insert_track(int tracknum, const Tracklike &track, int width)
 {
     TrackView *t;
 
-    // DEBUG("view insert at " << at);
+    // DEBUG("view insert at " << tracknum);
     if (track.track) {
         t = new EventTrackView(*track.track, *track.ruler);
     } else if (track.ruler) {
@@ -230,15 +230,15 @@ BlockView::insert_track(int at, const Tracklike &track, int width)
     } else {
         t = new DividerView(*track.divider);
     }
-    track_tile.insert_track(at, t, width);
+    track_tile.insert_track(tracknum, t, width);
     this->update_scrollbars();
 }
 
 
 void
-BlockView::remove_track(int at, FinalizeCallback finalizer)
+BlockView::remove_track(int tracknum, FinalizeCallback finalizer)
 {
-    TrackView *t = track_tile.remove_track(at);
+    TrackView *t = track_tile.remove_track(tracknum);
     t->finalize_callbacks(finalizer);
     delete t;
     this->update_scrollbars();
@@ -246,10 +246,10 @@ BlockView::remove_track(int at, FinalizeCallback finalizer)
 
 
 void
-BlockView::update_track(int at, const Tracklike &track,
+BlockView::update_track(int tracknum, const Tracklike &track,
         FinalizeCallback finalizer, TrackPos start, TrackPos end)
 {
-    this->track_at(at)->update(track, finalizer, start, end);
+    this->track_at(tracknum)->update(track, finalizer, start, end);
     this->update_scrollbars();
 }
 

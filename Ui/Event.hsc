@@ -57,10 +57,8 @@ event text dur = Event text dur (Color.rgb 0.8 0.8 0.6) default_style False
 instance Storable Event where
     sizeOf _ = #size Event
     alignment _ = undefined
-    peek = peek_event
     poke = poke_event
 
-peek_event eventp = undefined
 poke_event eventp (Event text dur color style align_to_bottom) = do
         -- Must be freed by the caller, EventTrackView::draw_area.
         textp <- if null text then return nullPtr else newCString text

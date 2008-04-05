@@ -131,15 +131,15 @@ block_view_set_selection(BlockViewWindow *b, int selnum, const Selection *sel)
 }
 
 int
-block_view_get_track_width(BlockViewWindow *b, int at)
+block_view_get_track_width(BlockViewWindow *b, int tracknum)
 {
-    return b->block.get_track_width(at);
+    return b->block.get_track_width(tracknum);
 }
 
 void
-block_view_set_track_width(BlockViewWindow *b, int at, int width)
+block_view_set_track_width(BlockViewWindow *b, int tracknum, int width)
 {
-    b->block.set_track_width(at, width);
+    b->block.set_track_width(tracknum, width);
 }
 
 

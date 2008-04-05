@@ -31,7 +31,7 @@ scale d (Color r g b a) = rgba (r*d) (g*d) (b*d) a
 lighten d = scale (1+d)
 darken d = scale (1-d)
 
-alpha a' (Color r g b a) = rgba r g b a'
+alpha a' (Color r g b _a) = rgba r g b a'
 
 clamp lo hi = max lo . min hi
 

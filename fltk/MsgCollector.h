@@ -87,7 +87,6 @@ struct UiMsg {
     // Fields from the various fltk event_*() functions.
     int event;
     int button, clicks, is_click, x, y;
-    int state;
     int key;
 
     // context

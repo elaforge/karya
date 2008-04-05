@@ -24,8 +24,7 @@ operator<<(std::ostream &os, const UiMsg &m)
             << " button=" << m.button << " clicks=" << m.clicks
             << " is_click=" << m.is_click
             << " xy=(" << m.x << ", " << m.y
-            << ") state=" << m.state
-            << " key='" << keybuf << "'";
+            << ") key='" << keybuf << "'";
         break;
     }
     if (m.view)
@@ -81,7 +80,6 @@ set_msg_from_event(UiMsg &m, int evt)
     m.is_click = Fl::event_is_click();
     m.x = Fl::event_x();
     m.y = Fl::event_y();
-    m.state = Fl::event_state();
     m.key = Fl::event_key();
 }
 

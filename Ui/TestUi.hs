@@ -22,7 +22,7 @@ import qualified Ui.Event as Event
 
 main = Initialize.initialize $ \msg_chan -> do
     msg_th <- Thread.start_thread "print msgs" (msg_thread msg_chan)
-    test
+    test_update_track
 
 msg_thread msg_chan = Monad.forever $ do
     msg <- STM.atomically $ STM.readTChan msg_chan
