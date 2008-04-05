@@ -1,7 +1,7 @@
 -- | Basic testing utilities.
 module Util.Test where
 
--- import qualified Control.Exception as Exception
+import qualified Control.Exception as Exception
 import qualified System.IO as IO
 
 
@@ -33,10 +33,16 @@ io_check_equal io_val expected = do
 -- Only a human can check these things.
 io_human expected_msg op = do
     putStr $ "should see: " ++ expected_msg
-    IO.hFlush IO.stdout >> getLine
+    IO.hFlush IO.stdout >> get_one
     op
     putStr $ "  ... ok? "
     IO.hFlush IO.stdout
-    c <- getChar
-    -- TODO maybe ask if it was ok here?
+    c <- get_one
+    -- TODO do something based on the answer
     return ()
+
+-- getChar with no buffering
+get_one = do
+    mode <- IO.hGetBuffering IO.stdin
+    IO.hSetBuffering IO.stdin IO.NoBuffering
+    getChar `Exception.finally` IO.hSetBuffering IO.stdin mode
