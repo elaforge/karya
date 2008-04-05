@@ -87,24 +87,20 @@ struct ZoomInfo {
     }
     bool operator!=(const ZoomInfo &o) { return !(*this == o); }
 
-    // How many pixels is the given pos at, at this zoom?
-    // This subtracts 'offset' to get an absolute screen position, which means
-    // if you're using it to get a "duration" in pixels you have to add offset
-    // back on.
+    // How many pixels is the given pos at, at this zoom?  This doesn't take
+    // the zoom offset into account, so you'll have to subtract that from 'pos'
+    // if you want a scroll position.
     int to_pixels(const TrackPos pos) const {
-        // A TrackPos is not guaranteed to fit in an int, but (pos-offset)
-        // should put it in range.
-        double scaled = (pos-offset).scale(this->factor);
+        // A TrackPos is not guaranteed to fit in an int.
+        double scaled = pos.scale(this->factor);
         return int(floor(std::max(double(INT_MIN), std::min(double(INT_MAX),
                             scaled))));
     }
 
     // Given the current offset and zoom, this many pixels corresponds to
     // how much trackpos?
-    // As above, this adds 'offset', so if you want trackpos/pixel, subtract it
-    // back off.
     TrackPos to_trackpos(int pixels) const {
-        return TrackPos(double(pixels) / factor) + offset;
+        return TrackPos(double(pixels) / factor);
     }
 
     TrackPos offset;

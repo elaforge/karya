@@ -1,8 +1,7 @@
-to make fltk usable:
---enable-debug --enable-threads --enable-quartz
-
 Edit either configure.in or configure to remove -fno-exceptions since I use
 them, and wrapped python callbacks will use them.
+
+--enable-debug --enable-threads --enable-quartz --enable-shared
 
 Comment out .SILENT in makeinclude and possibly delete some of the Compiling
 echos, since I like to see exactly what flags cc is getting.
@@ -14,3 +13,6 @@ Fl_Scrollbar::value should be const.
 
 Fl_Scroll overrides "position" to set the position of the children, but not
 itself.  That seems confusing.
+
+
+the undocmunted FL_Sys_Menu_Bar can put things in the OS X main menu

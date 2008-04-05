@@ -121,9 +121,8 @@ void
 OverlayRuler::damage_range(TrackPos start, TrackPos end)
 {
     Rect r = rect(this);
-    r.y = this->zoom.to_pixels(start);
-    r.h = std::max(selection_min_size,
-            this->zoom.to_pixels(this->zoom.offset + end));
+    r.y = this->zoom.to_pixels(start - this->zoom.offset);
+    r.h = std::max(selection_min_size, this->zoom.to_pixels(end));
     this->damaged_area.union_(r);
     this->damage(FL_DAMAGE_USER1);
 }
@@ -141,7 +140,7 @@ OverlayRuler::draw_marklists()
     Mark *marks;
     int count = 0;
     TrackPos start = this->zoom.offset;
-    TrackPos end = this->zoom.to_trackpos(clip.h);
+    TrackPos end = this->zoom.to_trackpos(clip.h) + this->zoom.offset;
 
     fl_font(FL_HELVETICA, 9);
     // Later marklists will draw over earlier ones.
@@ -150,7 +149,7 @@ OverlayRuler::draw_marklists()
     {
         int count = mlist->find_marks(&start, &end, &mark_tps, &marks);
         for (int i = 0; i < count; i++) {
-            int offset = y() + zoom.to_pixels(mark_tps[i]);
+            int offset = y() + zoom.to_pixels(mark_tps[i] - zoom.offset);
             draw_mark(offset, marks[i]);
         }
         if (count) {
@@ -210,9 +209,10 @@ OverlayRuler::draw_selections()
         const Selection &sel = this->selections[i];
         if (sel.tracks == 0)
             continue;
-        int start = y() + this->zoom.to_pixels(sel.start_pos);
+        int start = y() + this->zoom.to_pixels(
+                sel.start_pos - this->zoom.offset);
         int height = std::max(selection_min_size,
-                this->zoom.to_pixels(zoom.offset + sel.duration));
+                this->zoom.to_pixels(sel.duration));
         alpha_rectf(Rect(x(), start, w(), height), sel.color);
         if (sel.duration == TrackPos(0)) {
             // Darken the select color a bit, and make it non-transparent.

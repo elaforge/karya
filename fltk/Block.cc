@@ -269,7 +269,7 @@ BlockView::update_scrollbars()
     int track_h = track_tile.h() - view_config.track_title_height;
     this->time_sb.set_scroll_zoom(track_tile.time_end().scale(1),
             zoom.offset.scale(1),
-            (zoom.to_trackpos(track_h) - zoom.offset).scale(1));
+            zoom.to_trackpos(track_h).scale(1));
 }
 
 // static callbacks

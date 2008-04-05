@@ -117,7 +117,7 @@ EventTrackView::draw_area(Rect area)
     this->draw_child(this->bg_box);
 
     TrackPos start = this->zoom.offset;
-    TrackPos end = this->zoom.to_trackpos(area.h);
+    TrackPos end = this->zoom.to_trackpos(area.h) + this->zoom.offset;
     Event *events;
     TrackPos *event_pos;
     int count = this->config.find_events(&start, &end, &event_pos, &events);
@@ -125,8 +125,8 @@ EventTrackView::draw_area(Rect area)
     for (int i = 0; i < count; i++) {
         const Event &event = events[i];
         const TrackPos &pos = event_pos[i];
-        int offset = y() + this->zoom.to_pixels(pos);
-        int height = this->zoom.to_pixels(zoom.offset + event.duration);
+        int offset = y() + this->zoom.to_pixels(pos - this->zoom.offset);
+        int height = this->zoom.to_pixels(event.duration);
         fl_color(color_to_fl(event.color));
         fl_rectf(this->x() + 1, offset, this->w() - 2, height);
     }
@@ -136,8 +136,8 @@ EventTrackView::draw_area(Rect area)
     for (int i = 0; i < count; i++) {
         const Event &event = events[i];
         const TrackPos &pos = event_pos[i];
-        int offset = y() + this->zoom.to_pixels(pos);
-        int height = this->zoom.to_pixels(zoom.offset + event.duration);
+        int offset = y() + this->zoom.to_pixels(pos - this->zoom.offset);
+        int height = this->zoom.to_pixels(event.duration);
         this->draw_upper_layer(offset, event);
     }
     if (count) {

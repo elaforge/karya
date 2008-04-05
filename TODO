@@ -20,14 +20,12 @@ fltk
   _ optimize redraw by implementing scroll and selection damage
   - scrolling should add text height to time_end()
 
-  - change ZoomInfo to_trackpos and to_pixels to not use offset
-  - rename at -> tracknum
+  * change ZoomInfo to_trackpos and to_pixels to not use offset
   - resizing when you're scrolled should scroll back if there's nothing
     interesting
 
   - figure out how to have a minimal title bar in os x (win.border(0) removes
     it altogether)
-  - FL_Sys_Menu_Bar can put things in the OS X main menu
 
   UI Msgs
     - can I capture os x two-finger drag events?

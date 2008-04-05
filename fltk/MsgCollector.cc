@@ -66,7 +66,8 @@ set_msg_context(UiMsg &m)
     if (Fl::event_inside(t)) {
         int y = Fl::event_y() - t->y();
         m.has_pos = true;
-        m.pos = m.view->block.get_zoom().to_trackpos(y);
+        const ZoomInfo &zoom = m.view->block.get_zoom();
+        m.pos = zoom.to_trackpos(y) + zoom.offset;
     }
 }
 
