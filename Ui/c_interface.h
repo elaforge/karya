@@ -20,35 +20,35 @@ int take_ui_msgs(UiMsg **msgs);
 // convenient in c++, but to pass it from haskell I need this grody hack where
 // I pass a partially constructed RulerConfig and then fill in the vector from
 // the passed c array.
-// This hack is also in block_view_insert_track.
-BlockViewWindow *block_view_create(int x, int y, int w, int h,
+// This hack is also in insert_track.
+BlockViewWindow *create(int x, int y, int w, int h,
         BlockModelConfig *model_config, BlockViewConfig *view_config,
         RulerConfig *ruler, Marklist *marklists, int nmarklists);
-void block_view_destroy(BlockViewWindow *b, FinalizeCallback finalizer);
+void destroy(BlockViewWindow *view, FinalizeCallback finalizer);
 
-void block_view_set_size(BlockViewWindow *b, int x, int y, int w, int h);
-void block_view_get_size(BlockViewWindow *b, int *sz);
-void block_view_set_view_config(BlockViewWindow *b, BlockViewConfig *config);
-void block_view_set_model_config(BlockViewWindow *b, BlockModelConfig *config);
-void block_view_set_zoom(BlockViewWindow *b, const ZoomInfo *zoom);
-void block_view_set_track_scroll(BlockViewWindow *b, int pixels);
-void block_view_set_selection(BlockViewWindow *b, int selnum,
-        const Selection *sel);
-void block_view_set_track_width(BlockViewWindow *b, int tracknum, int width);
+void set_size(BlockViewWindow *view, int x, int y, int w, int h);
+void get_size(BlockViewWindow *view, int *sz);
+void set_view_config(BlockViewWindow *view, BlockViewConfig *config);
+void set_model_config(BlockViewWindow *view, BlockModelConfig *config);
+void set_zoom(BlockViewWindow *view, const ZoomInfo *zoom);
+void set_track_scroll(BlockViewWindow *view, int pixels);
+void set_selection(BlockViewWindow *view, int selnum, const Selection *sel);
+void set_title(BlockViewWindow *view, char *title);
 
 // tracks
-void block_view_insert_track(BlockViewWindow *view, int tracknum,
+
+void insert_track(BlockViewWindow *view, int tracknum,
         Tracklike *track, int width,
         Marklist *marklists, int nmarklists);
-void block_view_remove_track(BlockViewWindow *view, int tracknum,
+void remove_track(BlockViewWindow *view, int tracknum,
         FinalizeCallback finalizer);
-void block_view_update_track(BlockViewWindow *view, int tracknum,
+void update_track(BlockViewWindow *view, int tracknum,
         Tracklike *track, Marklist *marklists, int nmarklists,
         FinalizeCallback finalizer, TrackPos *start, TrackPos *end);
-
+void set_track_width(BlockViewWindow *view, int tracknum, int width);
 
 // debugging
 
-const char *i_show_children(const Fl_Widget *w, int nlevels);
+const char *i_show_children(const BlockViewWindow *w, int nlevels);
 
 }

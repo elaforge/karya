@@ -62,18 +62,3 @@ list_insert :: [a] -> Int -> a -> [a]
 list_insert xs i x = let (pre, post) = splitAt i xs in pre ++ [x] ++ post
 list_remove :: [a] -> Int -> [a]
 list_remove xs i = let (pre, post) = splitAt i xs in pre ++ drop 1 post
-
--- debugging
-
-data CWidget
-
-class Widget a where
-    show_children :: a -> IO String
-
-{-
-do_show_children :: Ptr a -> IO String
-do_show_children widgetp
-    = c_show_children (castPtr widgetp) (c_int (-1)) >>= peekCString
-foreign import ccall unsafe "i_show_children"
-    c_show_children :: Ptr CWidget -> CInt -> IO CString
--}

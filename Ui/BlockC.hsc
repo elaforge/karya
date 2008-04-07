@@ -92,30 +92,24 @@ create_view :: Block.Rect -> Block.ViewConfig -> Block.Config -> Ruler.Ruler
 create_view (Block.Rect (x, y) (w, h)) view_config block_config ruler = do
     viewp <- with block_config $ \configp -> with view_config $ \view_configp ->
         RulerC.with_ruler ruler $ \rulerp mlistp len ->
-            c_block_view_create (i x) (i y) (i w) (i h) configp view_configp
+            c_create (i x) (i y) (i w) (i h) configp view_configp
                 rulerp mlistp len
     return (ViewPtr viewp)
     where
     i = Util.c_int
 
-foreign import ccall "block_view_create"
-    c_block_view_create :: CInt -> CInt -> CInt -> CInt -> Ptr Block.Config
+foreign import ccall "create"
+    c_create :: CInt -> CInt -> CInt -> CInt -> Ptr Block.Config
         -> Ptr Block.ViewConfig -> Ptr Ruler.Ruler
         -> Ptr Ruler.Marklist -> CInt -> IO (Ptr CView)
 
 destroy_view (ViewPtr viewp) = Exception.bracket
     make_free_fun_ptr freeHaskellFunPtr
-    (\finalize -> c_block_view_destroy viewp finalize)
-foreign import ccall "block_view_destroy"
-    c_block_view_destroy :: Ptr CView -> FunPtr (FunPtrFinalizer a) -> IO ()
-
+    (\finalize -> c_destroy viewp finalize)
+foreign import ccall "destroy"
+    c_destroy :: Ptr CView -> FunPtr (FunPtrFinalizer a) -> IO ()
 
 -- ** Set other attributes
-
-{-
-instance Util.Widget View where
-    show_children view = Util.do_show_children (view_p view)
--}
 
 -- Unlike the other view attributes, I have a getter for the size.  This is
 -- because the OS doesn't seem to say when the window gets moved, so I have
@@ -123,53 +117,51 @@ instance Util.Widget View where
 get_size :: ViewPtr -> Fltk Block.Rect
 get_size (ViewPtr viewp) = do
     sz <- allocaArray 4 $ \sizep -> do
-        c_block_view_get_size viewp sizep
+        c_get_size viewp sizep
         peekArray 4 sizep
     let [x, y, w, h] = map fromIntegral sz
     return (Block.Rect (x, y) (w, h))
-foreign import ccall unsafe "block_view_get_size"
-    c_block_view_get_size :: Ptr CView -> Ptr CInt -> IO ()
+foreign import ccall unsafe "get_size"
+    c_get_size :: Ptr CView -> Ptr CInt -> IO ()
 
 set_size :: ViewPtr -> Block.Rect -> Fltk ()
 set_size (ViewPtr viewp) (Block.Rect (x, y) (w, h)) =
-    c_block_view_set_size viewp (i x) (i y) (i w) (i h)
+    c_set_size viewp (i x) (i y) (i w) (i h)
     where i = Util.c_int
-foreign import ccall "block_view_set_size"
-    c_block_view_set_size :: Ptr CView -> CInt -> CInt -> CInt -> CInt
-        -> IO ()
+foreign import ccall "set_size"
+    c_set_size :: Ptr CView -> CInt -> CInt -> CInt -> CInt -> IO ()
 
 set_view_config :: ViewPtr -> Block.ViewConfig -> Fltk ()
 set_view_config (ViewPtr viewp) config =
-    with config $ \configp -> c_block_view_set_view_config viewp configp
-foreign import ccall "block_view_set_view_config"
-    c_block_view_set_view_config :: Ptr CView -> Ptr Block.ViewConfig -> IO ()
+    with config $ \configp -> c_set_view_config viewp configp
+foreign import ccall "set_view_config"
+    c_set_view_config :: Ptr CView -> Ptr Block.ViewConfig -> IO ()
 
 set_zoom :: ViewPtr -> Block.Zoom -> Fltk ()
 set_zoom (ViewPtr viewp) zoom =
-    with zoom $ \zoomp -> c_block_view_set_zoom viewp zoomp
-foreign import ccall "block_view_set_zoom"
-    c_block_view_set_zoom :: Ptr CView -> Ptr Block.Zoom -> IO ()
+    with zoom $ \zoomp -> c_set_zoom viewp zoomp
+foreign import ccall "set_zoom"
+    c_set_zoom :: Ptr CView -> Ptr Block.Zoom -> IO ()
 
 -- | Set the scroll along the track dimension, in pixels.
 set_track_scroll :: ViewPtr -> Block.Width -> Fltk ()
 set_track_scroll (ViewPtr viewp) offset =
     c_set_track_scroll viewp (Util.c_int offset)
-foreign import ccall "block_view_set_track_scroll"
+foreign import ccall "set_track_scroll"
     c_set_track_scroll :: Ptr CView -> CInt -> IO ()
 
 set_selection :: ViewPtr -> Block.SelNum -> Block.Selection -> Fltk ()
 set_selection (ViewPtr viewp) selnum sel =
     with sel $ \selp ->
-        c_block_view_set_selection viewp (Util.c_int selnum) selp
-foreign import ccall "block_view_set_selection"
-    c_block_view_set_selection :: Ptr CView -> CInt -> Ptr Block.Selection
-        -> IO ()
+        c_set_selection viewp (Util.c_int selnum) selp
+foreign import ccall "set_selection"
+    c_set_selection :: Ptr CView -> CInt -> Ptr Block.Selection -> IO ()
 
 set_track_width :: ViewPtr -> Block.TrackNum -> Block.Width -> Fltk ()
 set_track_width (ViewPtr viewp) tracknum width =
-    c_block_view_set_track_width viewp (Util.c_int tracknum) (Util.c_int width)
-foreign import ccall "block_view_set_track_width"
-    c_block_view_set_track_width :: Ptr CView -> CInt -> CInt -> IO ()
+    c_set_track_width viewp (Util.c_int tracknum) (Util.c_int width)
+foreign import ccall "set_track_width"
+    c_set_track_width :: Ptr CView -> CInt -> CInt -> IO ()
 
 
 -- * Block operations
@@ -178,22 +170,30 @@ foreign import ccall "block_view_set_track_width"
 -- this layer.
 
 set_title :: ViewPtr -> String -> Fltk ()
-set_title = undefined
+set_title (ViewPtr viewp) title =
+    withCString title (c_set_title viewp)
+foreign import ccall "set_title"
+    c_set_title :: Ptr CView -> CString -> IO ()
+
+set_block_config :: ViewPtr -> Block.Config -> Fltk ()
+set_block_config (ViewPtr viewp) config = with config $ \configp ->
+    c_block_set_model_config viewp configp
+foreign import ccall "set_model_config"
+    c_block_set_model_config :: Ptr CView -> Ptr Block.Config -> IO ()
 
 -- ** Track operations
 
 insert_track :: ViewPtr -> Block.TrackNum -> CTracklike -> Block.Width
     -> Fltk ()
 insert_track (ViewPtr viewp) tracknum tracklike width = do
-    putStrLn "instert"
     with_tracklike tracklike $ \tp mlistp len ->
-        c_block_view_insert_track viewp (Util.c_int tracknum) tp
+        c_insert_track viewp (Util.c_int tracknum) tp
             (Util.c_int width) mlistp len
 
 remove_track :: ViewPtr -> Block.TrackNum -> Fltk ()
 remove_track (ViewPtr viewp) tracknum = Exception.bracket
     make_free_fun_ptr freeHaskellFunPtr $ \finalize ->
-        c_block_view_remove_track viewp (Util.c_int tracknum) finalize
+        c_remove_track viewp (Util.c_int tracknum) finalize
 
 update_track :: ViewPtr -> Block.TrackNum -> CTracklike -> TrackPos -> TrackPos
     -> Fltk ()
@@ -202,7 +202,7 @@ update_track (ViewPtr viewp) tracknum tracklike start end = Exception.bracket
     freeHaskellFunPtr $ \finalize ->
         with start $ \startp -> with end $ \endp ->
             with_tracklike tracklike $ \tp mlistp len ->
-                c_block_view_update_track viewp (Util.c_int tracknum) tp
+                c_update_track viewp (Util.c_int tracknum) tp
                     mlistp len finalize startp endp
 
 -- When I do anything that will destroy previous callbacks, I have to pass
@@ -225,14 +225,13 @@ with_tracklike tracklike f = case tracklike of
     D div -> with div $ \dividerp -> with (DPtr dividerp) $ \tp ->
         f tp nullPtr 0
 
-foreign import ccall "block_view_insert_track"
-    c_block_view_insert_track :: Ptr CView -> CInt -> Ptr TracklikePtr -> CInt
+foreign import ccall "insert_track"
+    c_insert_track :: Ptr CView -> CInt -> Ptr TracklikePtr -> CInt
         -> Ptr Ruler.Marklist -> CInt -> IO ()
-foreign import ccall "block_view_remove_track"
-    c_block_view_remove_track :: Ptr CView -> CInt
-        -> FunPtr (FunPtrFinalizer a) -> IO ()
-foreign import ccall "block_view_update_track"
-    c_block_view_update_track :: Ptr CView -> CInt -> Ptr TracklikePtr
+foreign import ccall "remove_track"
+    c_remove_track :: Ptr CView -> CInt -> FunPtr (FunPtrFinalizer a) -> IO ()
+foreign import ccall "update_track"
+    c_update_track :: Ptr CView -> CInt -> Ptr TracklikePtr
         -> Ptr Ruler.Marklist -> CInt -> FunPtr (FunPtrFinalizer a)
         -> Ptr TrackPos -> Ptr TrackPos -> IO ()
 
@@ -271,6 +270,13 @@ poke_tracklike_ptr tp trackp = do
         RPtr rulerp -> (#poke Tracklike, ruler) tp rulerp
         DPtr dividerp -> (#poke Tracklike, divider) tp dividerp
 
+-- ** debugging
+
+show_children :: ViewPtr -> IO String
+show_children (ViewPtr viewp) =
+    c_show_children viewp (Util.c_int (-1)) >>= peekCString
+foreign import ccall "i_show_children"
+    c_show_children :: Ptr CView -> CInt -> IO CString
 
 -- * storable
 

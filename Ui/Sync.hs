@@ -36,8 +36,8 @@ run_update (Update.ViewUpdate view_id Update.CreateView) = do
         -- add tracks and title
         forM_ (zip3 [0..] ctracks (map snd (Block.block_tracks block))) $
             \(i, ctrack, width) -> BlockC.insert_track viewp i ctrack width
-        -- when (not (null (Block.block_title block))) $
-        --     BlockC.set_title viewp (Block.block_title block)
+        when (not (null (Block.block_title block))) $
+            BlockC.set_title viewp (Block.block_title block)
         return viewp
     State.add_view_ptr view_id viewp
 

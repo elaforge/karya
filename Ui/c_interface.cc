@@ -49,7 +49,7 @@ take_ui_msgs(UiMsg **msgs)
 // Block view
 
 BlockViewWindow *
-block_view_create(int x, int y, int w, int h, BlockModelConfig *model_config,
+create(int x, int y, int w, int h, BlockModelConfig *model_config,
         BlockViewConfig *view_config, RulerConfig *partial_ruler,
         Marklist *marklists, int nmarklists)
 {
@@ -65,70 +65,73 @@ block_view_create(int x, int y, int w, int h, BlockModelConfig *model_config,
 }
 
 void
-block_view_destroy(BlockViewWindow *b, FinalizeCallback finalizer)
+destroy(BlockViewWindow *view, FinalizeCallback finalizer)
 {
     // Make sure all the callbacks are finalized.
-    for (int i = b->block.tracks() - 1; i; i--)
-        b->block.remove_track(i, finalizer);
-    delete b;
+    for (int i = view->block.tracks() - 1; i; i--)
+        view->block.remove_track(i, finalizer);
+    delete view;
 }
 
 void
-block_view_set_size(BlockViewWindow *b, int x, int y, int w, int h)
+set_size(BlockViewWindow *view, int x, int y, int w, int h)
 {
-    b->resize(x, y, w, h);
+    view->resize(x, y, w, h);
 }
 
 void
-block_view_get_size(BlockViewWindow *b, int *sz)
+get_size(BlockViewWindow *view, int *sz)
 {
-    sz[0] = b->x();
-    sz[1] = b->y();
-    sz[2] = b->w();
-    sz[3] = b->h();
+    sz[0] = view->x();
+    sz[1] = view->y();
+    sz[2] = view->w();
+    sz[3] = view->h();
 }
 
 void
-block_view_set_view_config(BlockViewWindow *b, BlockViewConfig *config)
+set_view_config(BlockViewWindow *view, BlockViewConfig *config)
 {
-    b->block.set_view_config(*config);
+    view->block.set_view_config(*config);
 }
 
 void
-block_view_set_model_config(BlockViewWindow *b, BlockModelConfig *config)
+set_model_config(BlockViewWindow *view, BlockModelConfig *config)
 {
-    b->block.set_model_config(*config);
+    view->block.set_model_config(*config);
 }
 
 void
-block_view_set_zoom(BlockViewWindow *b, const ZoomInfo *zoom)
+set_zoom(BlockViewWindow *view, const ZoomInfo *zoom)
 {
-    b->block.set_zoom(*zoom);
+    view->block.set_zoom(*zoom);
 }
 
 void
-block_view_set_track_scroll(BlockViewWindow *b, int pixels)
+set_track_scroll(BlockViewWindow *view, int pixels)
 {
-    b->block.set_track_scroll(pixels);
+    view->block.set_track_scroll(pixels);
 }
 
 void
-block_view_set_selection(BlockViewWindow *b, int selnum, const Selection *sel)
+set_selection(BlockViewWindow *view, int selnum, const Selection *sel)
 {
-    b->block.set_selection(selnum, *sel);
+    view->block.set_selection(selnum, *sel);
 }
 
+
+// block
+
 void
-block_view_set_track_width(BlockViewWindow *b, int tracknum, int width)
+set_title(BlockViewWindow *view, char *title)
 {
-    b->block.set_track_width(tracknum, width);
+    view->block.set_title(title);
 }
 
 
 // tracks
 
 void
-block_view_insert_track(BlockViewWindow *view, int tracknum,
+insert_track(BlockViewWindow *view, int tracknum,
         Tracklike *track, int width,
         Marklist *marklists, int nmarklists)
 {
@@ -150,14 +153,14 @@ block_view_insert_track(BlockViewWindow *view, int tracknum,
 }
 
 void
-block_view_remove_track(BlockViewWindow *view, int tracknum,
+remove_track(BlockViewWindow *view, int tracknum,
         FinalizeCallback finalizer)
 {
     view->block.remove_track(tracknum, finalizer);
 }
 
 void
-block_view_update_track(BlockViewWindow *view, int tracknum,
+update_track(BlockViewWindow *view, int tracknum,
         Tracklike *track, Marklist *marklists, int nmarklists,
         FinalizeCallback finalizer, TrackPos *start, TrackPos *end)
 {
@@ -178,11 +181,17 @@ block_view_update_track(BlockViewWindow *view, int tracknum,
     }
 }
 
+void
+set_track_width(BlockViewWindow *view, int tracknum, int width)
+{
+    view->block.set_track_width(tracknum, width);
+}
+
 
 // debugging
 
 const char *
-i_show_children(const Fl_Widget *w, int nlevels)
+i_show_children(const BlockViewWindow *w, int nlevels)
 {
     show_children(w, nlevels, 0);
 }
