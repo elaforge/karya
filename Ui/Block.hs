@@ -1,4 +1,6 @@
+{-# OPTIONS_GHC -XEmptyDataDecls #-}
 module Ui.Block where
+import qualified Foreign
 
 import Ui.Types
 import qualified Ui.Track as Track
@@ -10,12 +12,20 @@ import qualified Ui.Ruler as Ruler
 newtype BlockId = BlockId String deriving (Eq, Ord, Show)
 newtype ViewId = ViewId String deriving (Eq, Ord, Show)
 
+-- These are used by BlockC, but declared here so I don't have to import
+-- BlockC to deal with Ui.State.  The real problem is that I can't figure out
+-- how to get ghci to load all the various foreign object files the BlockC
+-- winds up depending on.
+newtype ViewPtr = ViewPtr (Foreign.Ptr CView) deriving (Show)
+data CView
+
 -- * block model
 
 data Block = Block {
     block_title :: String
     , block_config :: Config
-    , block_tracks :: [Tracklike]
+    , block_ruler :: Ruler.RulerId
+    , block_tracks :: [(Tracklike, Width)]
     } deriving (Eq, Ord, Show)
 
 data Config = Config {
@@ -43,7 +53,6 @@ data View = View {
     -- in state_blocks will be destroyed.
     view_block :: BlockId
     , view_rect :: Rect
-    , view_ruler :: Ruler.RulerId
     , view_config :: ViewConfig
     } deriving (Eq, Ord, Show)
 

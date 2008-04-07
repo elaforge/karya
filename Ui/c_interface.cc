@@ -94,10 +94,10 @@ block_view_set_view_config(BlockViewWindow *b, BlockViewConfig *config)
     b->block.set_view_config(*config);
 }
 
-const ZoomInfo *
-block_view_get_zoom(const BlockViewWindow *b)
+void
+block_view_set_model_config(BlockViewWindow *b, BlockModelConfig *config)
 {
-    return &b->block.get_zoom();
+    b->block.set_model_config(*config);
 }
 
 void
@@ -106,34 +106,16 @@ block_view_set_zoom(BlockViewWindow *b, const ZoomInfo *zoom)
     b->block.set_zoom(*zoom);
 }
 
-int
-block_view_get_track_scroll(BlockViewWindow *b)
-{
-    return b->block.get_track_scroll();
-}
-
 void
 block_view_set_track_scroll(BlockViewWindow *b, int pixels)
 {
     b->block.set_track_scroll(pixels);
 }
 
-const Selection *
-block_view_get_selection(const BlockViewWindow *b, int selnum)
-{
-    return &b->block.get_selection(selnum);
-}
-
 void
 block_view_set_selection(BlockViewWindow *b, int selnum, const Selection *sel)
 {
     b->block.set_selection(selnum, *sel);
-}
-
-int
-block_view_get_track_width(BlockViewWindow *b, int tracknum)
-{
-    return b->block.get_track_width(tracknum);
 }
 
 void
@@ -195,41 +177,6 @@ block_view_update_track(BlockViewWindow *view, int tracknum,
         track->ruler = old_ruler;
     }
 }
-
-
-// Ruler
-
-
-// Event
-
-/*
-EventTrackModelRef *
-event_track_model_new(Color *c)
-{
-    return new EventTrackModelRef(new EventTrackModel(*c));
-}
-
-void
-event_track_model_destroy(EventTrackModelRef *t)
-{
-    delete t;
-}
-
-int
-event_track_model_insert_event(EventTrackModelRef *t, const TrackPos *pos,
-        EventMarshal *em)
-{
-    EventModel e(em->text, em->duration, em->color, em->style,
-            em->align_to_bottom);
-    return (*t)->insert_event(*pos, e);
-}
-
-int
-event_track_model_remove_event(EventTrackModelRef *t, const TrackPos *pos)
-{
-    return (*t)->remove_event(*pos);
-}
-*/
 
 
 // debugging

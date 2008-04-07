@@ -1,11 +1,28 @@
 module Ui.Update where
-import qualified Ui.State as State
 
-data Update =
-    CreateView State.ViewId
-    | DestroyView State.ViewId
-    | SetRuler State.ViewId State.RulerId
-    | SetTitle State.BlockId String
-    | RemoveTrack State.BlockId Int
-    | InsertTrack State.BlockId Int State.Tracklike
+import qualified Ui.Block as Block
+import Ui.Block (ViewId, BlockId)
+import qualified Ui.Ruler as Ruler
+import Ui.Ruler (RulerId)
+
+
+data Update = ViewUpdate ViewId ViewUpdate | BlockUpdate BlockId BlockUpdate
+    -- | One of these in the updates means a serious error occurred diffing
+    -- the states.
+    | Error String
+    deriving Show
+
+data ViewUpdate =
+    CreateView
+    | DestroyView
+    | ViewSize Block.Rect
+    | ViewConfig Block.ViewConfig
+    deriving Show
+
+data BlockUpdate =
+    BlockTitle String
+    | BlockConfig Block.Config
+    | BlockRuler RulerId
+    | RemoveTrack Int
+    | InsertTrack Int Block.Tracklike Block.Width
     deriving Show

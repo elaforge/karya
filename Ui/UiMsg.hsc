@@ -17,7 +17,7 @@ import qualified Util.Seq as Seq
 
 import Ui.Types
 import qualified Ui.Key as Key
-import qualified Ui.BlockC as BlockC
+import qualified Ui.Block as Block
 
 take_ui_msgs = with nullPtr $ \msgspp -> do
     count <- c_take_ui_msgs msgspp
@@ -35,7 +35,7 @@ data UiMsg = UiMsg Context Msg
     deriving (Show)
 
 data Context = Context
-    { ctx_block :: Maybe BlockC.ViewPtr
+    { ctx_block :: Maybe Block.ViewPtr
     -- | Index into block tracks.
     , ctx_track :: Maybe Int
     , ctx_pos :: Maybe TrackPos
@@ -117,7 +117,7 @@ peek_msg msgp = do
     y <- (#peek UiMsg, y) msgp :: IO CInt
     key <- (#peek UiMsg, key) msgp :: IO CInt
 
-    viewp <- (#peek UiMsg, view) msgp :: IO (Ptr BlockC.CView)
+    viewp <- (#peek UiMsg, view) msgp :: IO (Ptr Block.CView)
     has_track <- (#peek UiMsg, has_track) msgp :: IO CChar
     track <- (#peek UiMsg, track) msgp :: IO CInt
     has_pos <- (#peek UiMsg, has_pos) msgp :: IO CChar
@@ -137,7 +137,7 @@ make_msg type_num context event button clicks is_click x y key
 
 make_context viewp has_track track has_pos pos
     | viewp == nullPtr = context Nothing
-    | otherwise = context (Just (BlockC.ViewPtr viewp))
+    | otherwise = context (Just (Block.ViewPtr viewp))
     where
     context view = Context view (to_maybe has_track (fromIntegral track))
         (to_maybe has_pos pos)

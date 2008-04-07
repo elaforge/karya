@@ -3,7 +3,7 @@ module Ui.TestUi where
 import qualified Control.Monad as Monad
 import qualified Control.Concurrent.STM as STM
 import qualified System.IO as IO
-import qualified System.IO.Unsafe as Unsafe
+-- import qualified System.IO.Unsafe as Unsafe
 
 import qualified Util.Test as Test
 import qualified Util.Thread as Thread
@@ -19,10 +19,14 @@ import qualified Ui.Ruler as Ruler
 import qualified Ui.Track as Track
 import qualified Ui.Event as Event
 
+import qualified Ui.State as State
+import qualified Ui.Diff as Diff
+import qualified Ui.Sync as Sync
+
 
 main = Initialize.initialize $ \msg_chan -> do
     msg_th <- Thread.start_thread "print msgs" (msg_thread msg_chan)
-    test_update_track
+    test_sync
 
 msg_thread msg_chan = Monad.forever $ do
     msg <- STM.atomically $ STM.readTChan msg_chan
@@ -32,10 +36,26 @@ send = Initialize.send_action
 
 event pos name dur = (TrackPos pos, Event.event name (TrackPos dur))
 
+test_sync = do
+    st <- State.run State.empty $ do
+        State.insert_ruler "r1" (mkruler 20 10)
+        State.insert_track "b1.t1" event_track_1
+        State.insert_block "b1" (Block.Block "hi b1" default_block_config
+            (Ruler.RulerId "r1")
+                [(Block.T (Track.TrackId "b1.t1") (Ruler.RulerId "r1"), 30)])
+        State.insert_view "v1" (Block.View
+            (Block.BlockId "b1") default_rect default_view_config)
+    let state = case st of
+            Left err -> error $ "err: " ++ show  err
+            Right s -> s
+        updates = Diff.diff State.empty state
+    print updates
+    state' <- Sync.sync state updates
+    pause
+
 test = do
     let ruler = mkruler 20 10
-    view <- send $ BlockC.create_view empty_block default_rect ruler
-        default_view_config
+    view <- create_empty_view
     send $ BlockC.insert_track view
         0 (BlockC.T empty_track (overlay_ruler ruler)) 30
     send $ BlockC.insert_track view
@@ -46,15 +66,10 @@ test = do
     pause
     return ()
 
-event_track_1 = Track.modify_events empty_track (Track.insert_events
-    [event 0 "hi" 16, event 30 "there" 32])
-event_track_2 = Track.modify_events empty_track (Track.insert_events
-    [event 16 "ho" 10, event 30 "eyo" 32])
-
 test_update_track = do
+    view <- create_empty_view
     let ruler = mkruler 20 10
-    view <- send $ BlockC.create_view empty_block default_rect ruler
-        default_view_config
+    view <- create_empty_view
     send $ BlockC.insert_track view 0 (BlockC.R ruler) 30
     send $ BlockC.insert_track view 1
         (BlockC.T event_track_1 (overlay_ruler ruler)) 30
@@ -69,41 +84,33 @@ test_update_track = do
 
 pause = putStr "? " >> IO.hFlush IO.stdout >> getLine >> return ()
 
-{-
-test = do
-    block <- Block.create default_block_config
-    track_ruler <- Ruler.create (mkruler 64)
-    overlay_ruler <- Ruler.create (overlay_ruler (mkruler 64))
-
-    t1 <- Track.create Color.white
-
-    -- Insert some tracks before creating the view, some after.
-    Block.insert_track block 0 (Block.T t1 overlay_ruler) 70
-
-    view <- Block.create_view block (Block.Rect (10, 50) (100, 200)) track_ruler
-        default_view_config
-    view <- Block.create_view block (Block.Rect (200, 0) (100, 200)) track_ruler
-        default_view_config
-
-    Block.insert_track block 1 (Block.D Color.blue) 5
-    Block.insert_track block 2 (Block.R track_ruler) 15
-    Block.insert_track block 3 (Block.T t1 overlay_ruler) 50
-
-    Block.set_selection view 0
-        (Block.Selection 0 (TrackPos 0) 2 (TrackPos 0))
-
-    Track.insert_event t1 (TrackPos 96) (event "tiny" 0)
-
-    -- Util.show_children view >>= putStrLn
-    putStr "? " >> IO.hFlush IO.stdout >> getLine
-    return ()
-
-
-test_scroll_zoom view = do
-    Block.set_track_scroll view 150
-    Block.get_track_scroll view >>= print
-    Block.set_track_scroll view 0
+test_scroll_zoom = do
+    view <- create_empty_view
+    send $ BlockC.insert_track view 0 (BlockC.R default_ruler) 100
+    Test.io_human "scroll a little to the right" $
+        send $ BlockC.set_track_scroll view 10
+    Test.io_human "all the way to the right" $
+        send $ BlockC.set_track_scroll view 100
+    Test.io_human "all the way back" $
+        send $ BlockC.set_track_scroll view 0
     -- test zoom and time scroll
+
+create_empty_view =
+    send $ BlockC.create_view default_rect default_view_config
+        default_block_config default_ruler
+
+create_default_view = do
+    let ruler = default_ruler
+    view <- create_empty_view
+    send $ BlockC.insert_track view
+        0 (BlockC.T event_track_1 (overlay_ruler ruler)) 30
+    send $ BlockC.insert_track view
+        1 (BlockC.D (Block.Divider Color.blue)) 5
+    send $ BlockC.insert_track view
+        2 (BlockC.T event_track_2 (overlay_ruler ruler)) 30
+    return view
+
+{-
 
 
 -- * Cheap tests.  TODO: use HUnit?
@@ -253,8 +260,16 @@ test_block_tracks = do
 -- * setup
 
 -- No tracks
-empty_block = Block.Block "title" default_block_config []
+empty_block = Block.Block "title" default_block_config (Ruler.RulerId "") []
 empty_track = Track.track "track1" [] Color.white
+
+
+default_ruler = mkruler 20 10
+
+event_track_1 = Track.modify_events empty_track (Track.insert_events
+    [event 0 "hi" 16, event 30 "there" 32])
+event_track_2 = Track.modify_events empty_track (Track.insert_events
+    [event 16 "ho" 10, event 30 "eyo" 32])
 
 -- (10, 50) seems to be the smallest x,y os x will accept.  Apparently
 -- fltk's sizes don't take the menu bar into account, which is about 44 pixels

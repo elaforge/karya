@@ -1,6 +1,10 @@
 module Ui.Sync where
-import qualified Data.Map as Map
+import Control.Monad
+import qualified Control.Monad.Trans as Trans
+import qualified Ui.Initialize as Initialize
 
+import qualified Ui.Block as Block
+import qualified Ui.BlockC as BlockC
 import qualified Ui.State as State
 import qualified Ui.Update as Update
 
@@ -11,56 +15,60 @@ although for the moment redrawing everywhere is fine
 -}
 
 -- | Sync with the ui by applying the given updates to it.
-sync :: Initialize.Send -> State.State -> [Update.Update]
-    -> IO [(State.ViewId, Int)]
-sync send state updates = undefined
+sync :: State.State -> [Update.Update]
+    -> IO (Either State.StateError State.State)
+sync state updates = do
+    State.run state (mapM_ run_update updates)
 
-update (Update.CreateView view_id) = do
-    view <- get_view view_id
-    block <- get_block (State.view_block view)
-    ruler <- get_ruler (State.view_ruler view)
-    viewp <- send $ BlockImpl.create_view block
-        (State.view_rect rect) ruler
-        (State.view_config view)
+send act = Trans.liftIO (Initialize.send_action act)
 
--- These should go in the SyncM monad:
--- read state, exception
--- but this should also be reusable in the Cmd/Handler monad:
--- read/write state, exception, midi thru, log
+-- | Apply the update to the UI.
+-- CreateView Updates will modify the State to add the ViewPtr
+run_update :: Update.Update -> State.StateT IO ()
+run_update (Update.ViewUpdate view_id Update.CreateView) = do
+    view <- State.get_view view_id
+    block <- State.get_block (Block.view_block view)
+    ruler <- State.get_ruler (Block.block_ruler block)
+    ctracks <- mapM (tracklike_to_ctracklike . fst) (Block.block_tracks block)
+    viewp <- send $ do
+        viewp <- BlockC.create_view (Block.view_rect view)
+            (Block.view_config view) (Block.block_config block) ruler
+        -- add tracks and title
+        forM_ (zip3 [0..] ctracks (map snd (Block.block_tracks block))) $
+            \(i, ctrack, width) -> BlockC.insert_track viewp i ctrack width
+        -- when (not (null (Block.block_title block))) $
+        --     BlockC.set_title viewp (Block.block_title block)
+        return viewp
+    State.add_view_ptr view_id viewp
 
-get_view view_id = do
-    st <- get_state
-    case Map.lookup view_id (State.state_views st) of
-        Nothing -> throw $ "unknown view_id " ++ show view_id
-        Just (view, _) -> return view
+run_update (Update.ViewUpdate view_id update) = do
+    viewp <- State.get_view_ptr view_id
+    case update of
+        Update.DestroyView -> send (BlockC.destroy_view viewp)
+        Update.ViewSize rect -> send (BlockC.set_size viewp rect)
+        Update.ViewConfig config -> send (BlockC.set_view_config viewp config)
 
-get_block block_id = do
-    st <- get_state
-    case Map.lookup block_id (State.state_blocks st) of
-        Nothing -> throw $ "unknown block_id " ++ show block_id
-        Just block -> return block
+-- Block ops apply to every view with that block.
+run_update (Update.BlockUpdate block_id update) = do
+    viewps <- State.get_view_ptrs_of block_id
+    case update of
+        Update.BlockTitle title ->
+            mapM_ (send . flip BlockC.set_title title) viewps
+        -- Update.BlockConfig config ->
+        -- Update.BlockRuler ruler ->
+        Update.RemoveTrack tracknum ->
+            mapM_ (send . flip BlockC.remove_track tracknum) viewps
+        Update.InsertTrack tracknum track width -> do
+            ctrack <- tracklike_to_ctracklike track
+            send $ mapM_
+                (\viewp -> BlockC.insert_track viewp tracknum ctrack width)
+                viewps
 
-get_ruler ruler_id = do
-    st <- get_state
-    case Map.lookup ruler_id (State.state_rulers st) of
-        Nothing -> throw $ "unknown ruler_id " ++ show ruler_id
-        Just ruler -> return ruler
+run_update _ = undefined
 
-type GetMarks = Ptr TrackPos -> Ptr TrackPos -> Ptr Int -> IO (Ptr TrackPos)
-
-get_marks :: State.Marklist -> GetMarks
-get_marks marklist startp endp np = do
-    start <- peek startp
-    end <- peek endp
-    let marks = State.marklist_find marklist start end
-    len n = length marks
-    poke np n
-    if n > 0
-        then newArray marks
-        else return nullPtr
-
-foreign import ccall "wrapper"
-    cb_get_marks :: GetMarks -> IO (FunPtr GetMarks)
-
-foreign export ccall "ruler_find" export_ruler_find :: RulerId -> TrackPos
-    -> RulerIterator
+tracklike_to_ctracklike track = case track of
+    Block.T track_id ruler_id ->
+        liftM2 BlockC.T (State.get_track track_id) (State.get_ruler ruler_id)
+    Block.R ruler_id ->
+        liftM BlockC.R (State.get_ruler ruler_id)
+    Block.D divider -> return (BlockC.D divider)

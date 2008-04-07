@@ -15,6 +15,7 @@ data Track = Track {
     -- track attrs
     } deriving (Show)
 
+-- | Construct an empty Track.
 track title events bg = Track title (insert_events events empty_events) bg
 
 modify_events :: Track -> (TrackEvents -> TrackEvents) -> Track

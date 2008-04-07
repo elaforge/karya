@@ -1,5 +1,4 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
-{-# OPTIONS_GHC -XEmptyDataDecls #-}
 {-
 The main window is the Block.  Blocks have scroll and zoom controls and 0 or
 more Tracks, running either horizontally or vertically, depending on the
@@ -78,6 +77,7 @@ import Ui.Types
 import qualified Ui.Color as Color
 
 import qualified Ui.Block as Block
+import Ui.Block (ViewPtr(..), CView)
 import qualified Ui.Ruler as Ruler
 import qualified Ui.RulerC as RulerC
 import qualified Ui.Track as Track
@@ -87,22 +87,16 @@ import qualified Ui.TrackC as TrackC () -- just want Storable instance
 
 -- * view creation
 
-newtype ViewPtr = ViewPtr (Ptr CView) deriving (Show)
-data CView
-
-create_view :: Block.Block -> Block.Rect -> Ruler.Ruler -> Block.ViewConfig
+create_view :: Block.Rect -> Block.ViewConfig -> Block.Config -> Ruler.Ruler
     -> Fltk ViewPtr
-create_view block (Block.Rect (x, y) (w, h)) ruler view_config = do
-    viewp <- with config $ \configp -> with view_config $ \view_configp ->
+create_view (Block.Rect (x, y) (w, h)) view_config block_config ruler = do
+    viewp <- with block_config $ \configp -> with view_config $ \view_configp ->
         RulerC.with_ruler ruler $ \rulerp mlistp len ->
             c_block_view_create (i x) (i y) (i w) (i h) configp view_configp
                 rulerp mlistp len
-    -- TODO set title
-    -- TODO add tracks
     return (ViewPtr viewp)
     where
     i = Util.c_int
-    config = Block.block_config block
 
 foreign import ccall "block_view_create"
     c_block_view_create :: CInt -> CInt -> CInt -> CInt -> Ptr Block.Config
@@ -110,13 +104,177 @@ foreign import ccall "block_view_create"
         -> Ptr Ruler.Marklist -> CInt -> IO (Ptr CView)
 
 destroy_view (ViewPtr viewp) = Exception.bracket
-    make_free_fun_ptr freeHaskellFunPtr $ \finalize ->
-        c_block_view_destroy viewp finalize
+    make_free_fun_ptr freeHaskellFunPtr
+    (\finalize -> c_block_view_destroy viewp finalize)
 foreign import ccall "block_view_destroy"
     c_block_view_destroy :: Ptr CView -> FunPtr (FunPtrFinalizer a) -> IO ()
 
 
--- ** view storable
+-- ** Set other attributes
+
+{-
+instance Util.Widget View where
+    show_children view = Util.do_show_children (view_p view)
+-}
+
+-- Unlike the other view attributes, I have a getter for the size.  This is
+-- because the OS doesn't seem to say when the window gets moved, so I have
+-- to ask.
+get_size :: ViewPtr -> Fltk Block.Rect
+get_size (ViewPtr viewp) = do
+    sz <- allocaArray 4 $ \sizep -> do
+        c_block_view_get_size viewp sizep
+        peekArray 4 sizep
+    let [x, y, w, h] = map fromIntegral sz
+    return (Block.Rect (x, y) (w, h))
+foreign import ccall unsafe "block_view_get_size"
+    c_block_view_get_size :: Ptr CView -> Ptr CInt -> IO ()
+
+set_size :: ViewPtr -> Block.Rect -> Fltk ()
+set_size (ViewPtr viewp) (Block.Rect (x, y) (w, h)) =
+    c_block_view_set_size viewp (i x) (i y) (i w) (i h)
+    where i = Util.c_int
+foreign import ccall "block_view_set_size"
+    c_block_view_set_size :: Ptr CView -> CInt -> CInt -> CInt -> CInt
+        -> IO ()
+
+set_view_config :: ViewPtr -> Block.ViewConfig -> Fltk ()
+set_view_config (ViewPtr viewp) config =
+    with config $ \configp -> c_block_view_set_view_config viewp configp
+foreign import ccall "block_view_set_view_config"
+    c_block_view_set_view_config :: Ptr CView -> Ptr Block.ViewConfig -> IO ()
+
+set_zoom :: ViewPtr -> Block.Zoom -> Fltk ()
+set_zoom (ViewPtr viewp) zoom =
+    with zoom $ \zoomp -> c_block_view_set_zoom viewp zoomp
+foreign import ccall "block_view_set_zoom"
+    c_block_view_set_zoom :: Ptr CView -> Ptr Block.Zoom -> IO ()
+
+-- | Set the scroll along the track dimension, in pixels.
+set_track_scroll :: ViewPtr -> Block.Width -> Fltk ()
+set_track_scroll (ViewPtr viewp) offset =
+    c_set_track_scroll viewp (Util.c_int offset)
+foreign import ccall "block_view_set_track_scroll"
+    c_set_track_scroll :: Ptr CView -> CInt -> IO ()
+
+set_selection :: ViewPtr -> Block.SelNum -> Block.Selection -> Fltk ()
+set_selection (ViewPtr viewp) selnum sel =
+    with sel $ \selp ->
+        c_block_view_set_selection viewp (Util.c_int selnum) selp
+foreign import ccall "block_view_set_selection"
+    c_block_view_set_selection :: Ptr CView -> CInt -> Ptr Block.Selection
+        -> IO ()
+
+set_track_width :: ViewPtr -> Block.TrackNum -> Block.Width -> Fltk ()
+set_track_width (ViewPtr viewp) tracknum width =
+    c_block_view_set_track_width viewp (Util.c_int tracknum) (Util.c_int width)
+foreign import ccall "block_view_set_track_width"
+    c_block_view_set_track_width :: Ptr CView -> CInt -> CInt -> IO ()
+
+
+-- * Block operations
+
+-- These operate on ViewPtrs too because there is no block/view distinction at
+-- this layer.
+
+set_title :: ViewPtr -> String -> Fltk ()
+set_title = undefined
+
+-- ** Track operations
+
+insert_track :: ViewPtr -> Block.TrackNum -> CTracklike -> Block.Width
+    -> Fltk ()
+insert_track (ViewPtr viewp) tracknum tracklike width = do
+    putStrLn "instert"
+    with_tracklike tracklike $ \tp mlistp len ->
+        c_block_view_insert_track viewp (Util.c_int tracknum) tp
+            (Util.c_int width) mlistp len
+
+remove_track :: ViewPtr -> Block.TrackNum -> Fltk ()
+remove_track (ViewPtr viewp) tracknum = Exception.bracket
+    make_free_fun_ptr freeHaskellFunPtr $ \finalize ->
+        c_block_view_remove_track viewp (Util.c_int tracknum) finalize
+
+update_track :: ViewPtr -> Block.TrackNum -> CTracklike -> TrackPos -> TrackPos
+    -> Fltk ()
+update_track (ViewPtr viewp) tracknum tracklike start end = Exception.bracket
+    make_free_fun_ptr
+    freeHaskellFunPtr $ \finalize ->
+        with start $ \startp -> with end $ \endp ->
+            with_tracklike tracklike $ \tp mlistp len ->
+                c_block_view_update_track viewp (Util.c_int tracknum) tp
+                    mlistp len finalize startp endp
+
+-- When I do anything that will destroy previous callbacks, I have to pass
+-- yet another callback which will be used to mark the old callbacks as done,
+-- so that the haskell GC knows it can collected data those callbacks use.
+type FunPtrFinalizer a = FunPtr a -> IO ()
+foreign import ccall "wrapper"
+    c_make_free_fun_ptr :: FunPtrFinalizer a -> IO (FunPtr (FunPtrFinalizer a))
+-- make_free_fun_ptr = c_make_free_fun_ptr
+--     (\p -> putStrLn ("free: " ++ show p) >> freeHaskellFunPtr p)
+make_free_fun_ptr = c_make_free_fun_ptr freeHaskellFunPtr
+
+with_tracklike tracklike f = case tracklike of
+    T track ruler -> RulerC.with_ruler ruler $ \rulerp mlistp len ->
+        with track $ \trackp -> with (TPtr trackp rulerp) $ \tp ->
+            f tp mlistp len
+    R ruler -> RulerC.with_ruler ruler $ \rulerp mlistp len ->
+        with (RPtr rulerp) $ \tp ->
+            f tp mlistp len
+    D div -> with div $ \dividerp -> with (DPtr dividerp) $ \tp ->
+        f tp nullPtr 0
+
+foreign import ccall "block_view_insert_track"
+    c_block_view_insert_track :: Ptr CView -> CInt -> Ptr TracklikePtr -> CInt
+        -> Ptr Ruler.Marklist -> CInt -> IO ()
+foreign import ccall "block_view_remove_track"
+    c_block_view_remove_track :: Ptr CView -> CInt
+        -> FunPtr (FunPtrFinalizer a) -> IO ()
+foreign import ccall "block_view_update_track"
+    c_block_view_update_track :: Ptr CView -> CInt -> Ptr TracklikePtr
+        -> Ptr Ruler.Marklist -> CInt -> FunPtr (FunPtrFinalizer a)
+        -> Ptr TrackPos -> Ptr TrackPos -> IO ()
+
+-- | Like Block.Tracklike, except it has actual values instead of IDs.
+data CTracklike =
+    T Track.Track Ruler.Ruler
+    | R Ruler.Ruler
+    | D Block.Divider
+    deriving (Show)
+
+instance Storable Block.Divider where
+    sizeOf _ = #size DividerConfig
+    alignment _ = undefined
+    poke dividerp (Block.Divider color) =
+        (#poke DividerConfig, color) dividerp color
+
+data TracklikePtr =
+    TPtr (Ptr Track.Track) (Ptr Ruler.Ruler)
+    | RPtr (Ptr Ruler.Ruler)
+    | DPtr (Ptr Block.Divider)
+
+instance Storable TracklikePtr where
+    sizeOf _ = #size Tracklike
+    alignment _ = undefined
+    poke = poke_tracklike_ptr
+
+poke_tracklike_ptr tp trackp = do
+    -- Apparently 'with' doesn't zero out the memory it allocates.
+    (#poke Tracklike, track) tp nullPtr
+    (#poke Tracklike, ruler) tp nullPtr
+    (#poke Tracklike, divider) tp nullPtr
+    case trackp of
+        TPtr trackp rulerp -> do
+            (#poke Tracklike, track) tp trackp
+            (#poke Tracklike, ruler) tp rulerp
+        RPtr rulerp -> (#poke Tracklike, ruler) tp rulerp
+        DPtr dividerp -> (#poke Tracklike, divider) tp dividerp
+
+
+-- * storable
+
+-- ** configs
 
 -- | Max number of selections, hardcoded in ui/config.h.
 max_selections :: Int
@@ -173,215 +331,34 @@ poke_config configp (Block.ViewConfig
         (#poke BlockViewConfig, ruler_size) configp (Util.c_int ruler_size)
         (#poke BlockViewConfig, status_size) configp (Util.c_int status_size)
 
+-- ** selection
 
--- ** Track insert / remove
-
-insert_track :: ViewPtr -> Block.TrackNum -> Tracklike -> Block.Width
-    -> Fltk ()
-insert_track (ViewPtr viewp) tracknum tracklike width =
-    with_tracklike tracklike $ \tp mlistp len ->
-        c_block_view_insert_track viewp (Util.c_int tracknum) tp
-            (Util.c_int width) mlistp len
-
-remove_track :: ViewPtr -> Block.TrackNum -> Fltk ()
-remove_track (ViewPtr viewp) tracknum = Exception.bracket
-    make_free_fun_ptr freeHaskellFunPtr $ \finalize ->
-        c_block_view_remove_track viewp (Util.c_int tracknum) finalize
-
-update_track :: ViewPtr -> Block.TrackNum -> Tracklike -> TrackPos -> TrackPos
-    -> Fltk ()
-update_track (ViewPtr viewp) tracknum tracklike start end = Exception.bracket
-    make_free_fun_ptr
-    freeHaskellFunPtr $ \finalize ->
-        with start $ \startp -> with end $ \endp ->
-            with_tracklike tracklike $ \tp mlistp len ->
-                c_block_view_update_track viewp (Util.c_int tracknum) tp
-                    mlistp len finalize startp endp
-
--- When I do anything that will destroy previous callbacks, I have to pass
--- yet another callback which will be used to mark the old callbacks as done,
--- so that the haskell GC knows it can collected data those callbacks use.
-type FunPtrFinalizer a = FunPtr a -> IO ()
-foreign import ccall "wrapper"
-    c_make_free_fun_ptr :: FunPtrFinalizer a -> IO (FunPtr (FunPtrFinalizer a))
--- make_free_fun_ptr = c_make_free_fun_ptr
---     (\p -> putStrLn ("free: " ++ show p) >> freeHaskellFunPtr p)
-make_free_fun_ptr = c_make_free_fun_ptr freeHaskellFunPtr
-
-with_tracklike tracklike f = case tracklike of
-    T track ruler -> RulerC.with_ruler ruler $ \rulerp mlistp len ->
-        with track $ \trackp -> with (TPtr trackp rulerp) $ \tp ->
-            f tp mlistp len
-    R ruler -> RulerC.with_ruler ruler $ \rulerp mlistp len ->
-        with (RPtr rulerp) $ \tp ->
-            f tp mlistp len
-    D div -> with div $ \dividerp -> with (DPtr dividerp) $ \tp ->
-        f tp nullPtr 0
-
-foreign import ccall "block_view_insert_track"
-    c_block_view_insert_track :: Ptr CView -> CInt -> Ptr TracklikePtr -> CInt
-        -> Ptr Ruler.Marklist -> CInt -> IO ()
-foreign import ccall "block_view_remove_track"
-    c_block_view_remove_track :: Ptr CView -> CInt
-        -> FunPtr (FunPtrFinalizer a) -> IO ()
-foreign import ccall "block_view_update_track"
-    c_block_view_update_track :: Ptr CView -> CInt -> Ptr TracklikePtr
-        -> Ptr Ruler.Marklist -> CInt -> FunPtr (FunPtrFinalizer a)
-        -> Ptr TrackPos -> Ptr TrackPos -> IO ()
-
--- | Like Block.Tracklike, except it has actual values instead of IDs.
-data Tracklike =
-    T Track.Track Ruler.Ruler
-    | R Ruler.Ruler
-    | D Block.Divider
-    deriving (Show)
-
-instance Storable Block.Divider where
-    sizeOf _ = #size DividerConfig
-    alignment _ = undefined
-    poke dividerp (Block.Divider color) =
-        (#poke DividerConfig, color) dividerp color
-
-data TracklikePtr =
-    TPtr (Ptr Track.Track) (Ptr Ruler.Ruler)
-    | RPtr (Ptr Ruler.Ruler)
-    | DPtr (Ptr Block.Divider)
-
-instance Storable TracklikePtr where
-    sizeOf _ = #size Tracklike
-    alignment _ = undefined
-    poke = poke_tracklike_ptr
-
-poke_tracklike_ptr tp trackp = do
-    -- Apparently 'with' doesn't zero out the memory it allocates.
-    (#poke Tracklike, track) tp nullPtr
-    (#poke Tracklike, ruler) tp nullPtr
-    (#poke Tracklike, divider) tp nullPtr
-    case trackp of
-        TPtr trackp rulerp -> do
-            (#poke Tracklike, track) tp trackp
-            (#poke Tracklike, ruler) tp rulerp
-        RPtr rulerp -> (#poke Tracklike, ruler) tp rulerp
-        DPtr dividerp -> (#poke Tracklike, divider) tp dividerp
-
-{-
-instance Util.Widget View where
-    show_children view = Util.do_show_children (view_p view)
--}
-
-
-{-
-
-set_size :: View -> Rect -> Fltk ()
-set_size view (Rect (x, y) (w, h)) =
-    c_block_view_set_size (view_p view) (i x) (i y) (i w) (i h)
-    where i = Util.c_int
-foreign import ccall unsafe "block_view_set_size"
-    c_block_view_set_size :: Ptr CBlockView -> CInt -> CInt -> CInt -> CInt
-        -> IO ()
-
-get_size :: View -> Fltk Rect
-get_size view = do
-    sz <- allocaArray 4 $ \sizep -> do
-        c_block_view_get_size (view_p view) sizep
-        peekArray 4 sizep
-    let [x, y, w, h] = map fromIntegral sz
-    return (Rect (x, y) (w, h))
-foreign import ccall unsafe "block_view_get_size"
-    c_block_view_get_size :: Ptr CBlockView -> Ptr CInt -> IO ()
-
-get_view_config :: View -> IO ViewConfig
-get_view_config view = MVar.readMVar (view_config view)
-
-set_view_config :: View -> ViewConfig -> Fltk ()
-set_view_config view config = do
-    MVar.swapMVar (view_config view) config
-    with config $ \configp -> c_block_view_set_view_config (view_p view) configp
-foreign import ccall unsafe "block_view_set_config"
-    c_block_view_set_view_config :: Ptr CBlockView -> Ptr ViewConfig -> IO ()
-
-get_ruler :: View -> IO RulerImpl.Ruler
-get_ruler view = MVar.readMVar (view_ruler view)
-
-get_zoom :: View -> Fltk Zoom
-get_zoom view = c_block_view_get_zoom (view_p view) >>= peek
-foreign import ccall unsafe "block_view_get_zoom"
-    c_block_view_get_zoom :: Ptr CBlockView -> IO (Ptr Zoom)
-
-set_zoom :: View -> Zoom -> Fltk ()
-set_zoom view zoom =
-    with zoom $ \zoomp -> c_block_view_set_zoom (view_p view) zoomp
-foreign import ccall unsafe "block_view_set_zoom"
-    c_block_view_set_zoom :: Ptr CBlockView -> Ptr Zoom -> IO ()
-
--- | Get and set the scroll along the track dimension, in pixels.
-get_track_scroll :: View -> Fltk Int
-get_track_scroll view = fmap fromIntegral (c_get_track_scroll (view_p view))
-foreign import ccall unsafe "block_view_get_track_scroll"
-    c_get_track_scroll :: Ptr CBlockView -> IO CInt
-
-set_track_scroll :: View -> Int -> Fltk ()
-set_track_scroll view offset
-    = c_set_track_scroll (view_p view) (Util.c_int offset)
-foreign import ccall unsafe "block_view_set_track_scroll"
-    c_set_track_scroll :: Ptr CBlockView -> CInt -> IO ()
-
-get_selection :: View -> SelNum -> Fltk Selection
-get_selection view selnum
-    = c_block_view_get_selection (view_p view) (Util.c_int selnum) >>= peek
-foreign import ccall unsafe "block_view_get_selection"
-    c_block_view_get_selection :: Ptr CBlockView -> CInt -> IO (Ptr Selection)
-
-set_selection :: View -> SelNum -> Selection -> Fltk ()
-set_selection view selnum sel =
-    with sel $ \selp ->
-        c_block_view_set_selection (view_p view) (Util.c_int selnum) selp
-foreign import ccall unsafe "block_view_set_selection"
-    c_block_view_set_selection :: Ptr CBlockView -> CInt -> Ptr Selection
-        -> IO ()
-
-get_track_width :: View -> TrackNum -> Fltk Width
-get_track_width view at_ = do
-    ntracks <- tracks (view_block view)
-    width <- c_block_view_get_track_width (view_p view)
-        (Util.in_range "get_track_width" 0 ntracks at_)
-    return (fromIntegral width)
-foreign import ccall unsafe "block_view_get_track_width"
-    c_block_view_get_track_width :: Ptr CBlockView -> CInt -> IO CInt
-
-set_track_width :: View -> TrackNum -> Width -> Fltk ()
-set_track_width view at_ width = do
-    ntracks <- tracks (view_block view)
-    c_block_view_set_track_width (view_p view)
-        (Util.in_range "set_track_width" 0 ntracks at_) (Util.c_int width)
-foreign import ccall unsafe "block_view_set_track_width"
-    c_block_view_set_track_width :: Ptr CBlockView -> CInt -> CInt -> IO ()
-
-
--- * storable
-
-instance Storable Selection where
+instance Storable Block.Selection where
     sizeOf _ = #size Selection
     alignment _ = undefined
     peek = peek_selection
     poke = poke_selection
 
 peek_selection selp = do
+    color <- (#peek Selection, color) selp :: IO Color
     start_track <- (#peek Selection, start_track) selp :: IO CInt
     start_pos <- (#peek Selection, start_pos) selp
     tracks <- (#peek Selection, tracks) selp :: IO CInt
     duration <- (#peek Selection, duration) selp
-    return $ Selection (fromIntegral start_track) start_pos
+    return $ Block.Selection color (fromIntegral start_track) start_pos
         (fromIntegral tracks) duration
 
-poke_selection selp (Selection start_track start_pos tracks duration) =
+poke_selection selp (Block.Selection c start_track start_pos tracks duration) =
     do
+        (#poke Selection, color) selp c
         (#poke Selection, start_track) selp (Util.c_int start_track)
         (#poke Selection, start_pos) selp start_pos
         (#poke Selection, tracks) selp (Util.c_int tracks)
         (#poke Selection, duration) selp duration
 
-instance Storable Zoom where
+-- ** zoom
+
+instance Storable Block.Zoom where
     sizeOf _ = #size ZoomInfo
     alignment _ = undefined
     peek = peek_zoom
@@ -390,10 +367,8 @@ instance Storable Zoom where
 peek_zoom zoomp = do
     offset <- (#peek ZoomInfo, offset) zoomp
     factor <- (#peek ZoomInfo, factor) zoomp :: IO CDouble
-    return $ Zoom offset (realToFrac factor)
+    return $ Block.Zoom offset (realToFrac factor)
 
-poke_zoom zoomp (Zoom offset factor) = do
+poke_zoom zoomp (Block.Zoom offset factor) = do
     (#poke ZoomInfo, offset) zoomp offset
     (#poke ZoomInfo, factor) zoomp (Util.c_double factor)
-
--}
