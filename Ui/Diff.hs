@@ -19,7 +19,7 @@ diff st1 st2 = (snd . Writer.runWriter) $ do
     -- view.
     let visible_ids = (List.nub . map Block.view_block . map fst . Map.elems)
             (State.state_views st2)
-        visible_blocks = Map.filterWithKey (\k a -> k `elem` visible_ids)
+        visible_blocks = Map.filterWithKey (\k _a -> k `elem` visible_ids)
             (State.state_blocks st2)
     mapM_ (uncurry3 diff_block)
         (pair_maps (State.state_blocks st1) visible_blocks)
@@ -48,11 +48,17 @@ diff_block block_id block1 block2 = do
         change [block_update $ Update.BlockTitle (Block.block_title block2)]
     when (Block.block_config block1 /= Block.block_config block2) $
         change [block_update $ Update.BlockConfig (Block.block_config block2)]
-    when (Block.block_ruler block1 /= Block.block_ruler block2) $
-        change [block_update $ Update.BlockRuler (Block.block_ruler block2)]
+
+    when (Block.block_ruler_track block1 /= Block.block_ruler_track block2) $
+        change [block_update $ Update.InsertTrack Block.ruler_tracknum
+            (Block.block_ruler_track block2) 0]
+
     let edits = edit_distance (\a b -> fst a == fst b)
             (Block.block_tracks block1) (Block.block_tracks block2)
     forM_ (zip [0..] edits) $ \(i, edit) -> case edit of
+        -- TODO Same should emit updates if necessary.  May have to use
+        -- diff_hints?
+        -- TODO also, if just the width has changed, emit SetTrackWidth
         Same -> return ()
         Delete -> change [block_update $ Update.RemoveTrack i]
         Insert (track, width) ->

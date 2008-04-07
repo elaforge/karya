@@ -28,11 +28,11 @@ run_update :: Update.Update -> State.StateT IO ()
 run_update (Update.ViewUpdate view_id Update.CreateView) = do
     view <- State.get_view view_id
     block <- State.get_block (Block.view_block view)
-    ruler <- State.get_ruler (Block.block_ruler block)
+    ruler_track <- tracklike_to_ctracklike (Block.block_ruler_track block)
     ctracks <- mapM (tracklike_to_ctracklike . fst) (Block.block_tracks block)
     viewp <- send $ do
         viewp <- BlockC.create_view (Block.view_rect view)
-            (Block.view_config view) (Block.block_config block) ruler
+            (Block.view_config view) (Block.block_config block) ruler_track
         -- add tracks and title
         forM_ (zip3 [0..] ctracks (map snd (Block.block_tracks block))) $
             \(i, ctrack, width) -> BlockC.insert_track viewp i ctrack width
@@ -54,8 +54,8 @@ run_update (Update.BlockUpdate block_id update) = do
     case update of
         Update.BlockTitle title ->
             mapM_ (send . flip BlockC.set_title title) viewps
-        -- Update.BlockConfig config ->
-        -- Update.BlockRuler ruler ->
+        Update.BlockConfig config ->
+            mapM_ (send . flip BlockC.set_model_config config) viewps
         Update.RemoveTrack tracknum ->
             mapM_ (send . flip BlockC.remove_track tracknum) viewps
         Update.InsertTrack tracknum track width -> do

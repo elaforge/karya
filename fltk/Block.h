@@ -55,11 +55,6 @@ on an scrollbar callback
 #include "Ruler.h"
 #include "Event.h"
 
-// The track in the special non-scrolling ruler space is represented by this
-// tracknum.  'add_track' on this tracknum replaces the ruler track, and
-// 'remove_track' has no effect.
-enum { ruler_tracknum = -1 };
-
 struct BlockModelConfig {
     Selection selections[Config::max_selections];
     Color bg;
@@ -84,7 +79,7 @@ public:
     BlockView(int X, int Y, int W, int H,
             const BlockModelConfig &model_config,
             const BlockViewConfig &view_config,
-            const RulerConfig &ruler_config);
+            const Tracklike &ruler_track);
 
     void resize(int X, int Y, int W, int H);
     void set_view_config(const BlockViewConfig &view_config,
@@ -99,7 +94,6 @@ public:
     int get_track_scroll() const;
     void set_track_scroll(int offset);
 
-    const BlockViewConfig &get_config() const { return view_config; }
     const Selection &get_selection(int selnum) const;
     void set_selection(int selnum, const Selection &sel);
 
@@ -107,10 +101,13 @@ public:
     const char *get_title() const { return title.value(); }
     void set_status(const char *s) { status_line.value(s); }
 
+    // The track in the special non-scrolling ruler space is represented by
+    // this tracknum.  'insert_track' on this tracknum replaces it, and
+    // 'update_track' updates it.
+    enum { ruler_tracknum = -1 };
     void insert_track(int tracknum, const Tracklike &track, int width);
     void remove_track(int tracknum, FinalizeCallback finalizer);
 
-    // TODO
     // Update the given track.  Update scrollbars.
     // 'track' should be the same kind of track as the one at 'tracknum' or this
     // throws.  Update colors and whatnot if they have changed (pointers
@@ -120,7 +117,12 @@ public:
     void update_track(int tracknum, const Tracklike &track,
             FinalizeCallback finalizer, TrackPos start, TrackPos end);
 
-    TrackView *track_at(int tracknum) { return track_tile.track_at(tracknum); }
+    TrackView *track_at(int tracknum) {
+        if (tracknum == BlockView::ruler_tracknum)
+            return ruler_track;
+        else
+            return track_tile.track_at(tracknum);
+    }
     int tracks() const { return track_tile.tracks(); }
     int get_track_width(int tracknum) { track_tile.get_track_width(tracknum); }
     void set_track_width(int tracknum, int width) {
@@ -145,7 +147,8 @@ private:
             Fl_Box sb_box;
             FlSeqScrollbar time_sb;
             // P9SeqScrollbar time_sb;
-            RulerTrackView ruler;
+            // This can be replaced.
+            TrackView *ruler_track;
         Fl_Group track_group;
             FlSeqScrollbar track_sb;
             // P9SeqScrollbar track_sb;
@@ -167,7 +170,7 @@ public:
     BlockViewWindow(int X, int Y, int W, int H,
             const BlockModelConfig &model_config,
             const BlockViewConfig &view_config,
-            const RulerConfig &ruler_config);
+            const Tracklike &ruler_track);
     BlockView block;
 
     // If true, this is running from c++, not haskell.

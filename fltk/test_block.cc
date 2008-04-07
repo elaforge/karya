@@ -178,14 +178,15 @@ main(int argc, char **argv)
     EventTrackConfig track(track_bg, t1_find_events, t1_last_track_pos);
     EventTrackConfig track2(track_bg, t1_find_events, t1_last_track_pos);
 
-    BlockViewWindow view(300, 250, 200, 200, config, view_config, ruler);
+    BlockViewWindow view(300, 250, 200, 200, config, view_config,
+            Tracklike(&ruler));
     // view.border(0);
 
     view.testing = true;
     view.block.set_status("no status yet");
     view.block.set_title("hi there");
 
-    view.block.insert_track(0, Tracklike(&divider), 4);
+    view.block.insert_track(0, Tracklike(&divider), 8);
     view.block.insert_track(1, Tracklike(&ruler), 25);
     view.block.insert_track(2, Tracklike(&track, &truler), 50);
     view.block.insert_track(3, Tracklike(&track2, &truler), 50);

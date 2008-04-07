@@ -54,12 +54,6 @@ modify f = StateT (State.modify f)
 run :: Monad m => State -> StateT m a -> m (Either StateError State)
 run state = Error.runErrorT . flip State.execStateT state . run_state_t
 
-{-
-run state statem = case _run state statem of
-    Left err -> Left err
-    Right (_, state') -> Right state'
--}
-
 test :: IO ()
 test = do
     print =<< run empty (get_view (Block.ViewId "hi"))

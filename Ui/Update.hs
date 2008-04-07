@@ -22,7 +22,6 @@ data ViewUpdate =
 data BlockUpdate =
     BlockTitle String
     | BlockConfig Block.Config
-    | BlockRuler RulerId
     | RemoveTrack Int
     | InsertTrack Int Block.Tracklike Block.Width
     deriving Show

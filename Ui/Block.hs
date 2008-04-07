@@ -24,7 +24,7 @@ data CView
 data Block = Block {
     block_title :: String
     , block_config :: Config
-    , block_ruler :: Ruler.RulerId
+    , block_ruler_track :: Tracklike
     , block_tracks :: [(Tracklike, Width)]
     } deriving (Eq, Ord, Show)
 
@@ -80,6 +80,13 @@ data Selection = Selection
     , sel_tracks :: TrackNum
     , sel_duration :: TrackPos
     } deriving (Show)
+
+-- | Index of the non-scrolling ruler track (it doesn't necessarily have
+-- a ruler, it's just meant for one).
+-- This could be translated by BlockC into BlockView::ruler_tracknum, but for
+-- now I'm just going to trust that they're the same.
+ruler_tracknum :: TrackNum
+ruler_tracknum = -1
 
 -- | Index into a block's tracks.
 type TrackNum = Int

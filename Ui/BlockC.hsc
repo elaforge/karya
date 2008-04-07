@@ -87,21 +87,21 @@ import qualified Ui.TrackC as TrackC () -- just want Storable instance
 
 -- * view creation
 
-create_view :: Block.Rect -> Block.ViewConfig -> Block.Config -> Ruler.Ruler
+create_view :: Block.Rect -> Block.ViewConfig -> Block.Config -> CTracklike
     -> Fltk ViewPtr
-create_view (Block.Rect (x, y) (w, h)) view_config block_config ruler = do
+create_view (Block.Rect (x, y) (w, h)) view_config block_config ruler_track = do
     viewp <- with block_config $ \configp -> with view_config $ \view_configp ->
-        RulerC.with_ruler ruler $ \rulerp mlistp len ->
+        with_tracklike ruler_track $ \trackp mlistp len ->
             c_create (i x) (i y) (i w) (i h) configp view_configp
-                rulerp mlistp len
+                trackp mlistp len
     return (ViewPtr viewp)
     where
     i = Util.c_int
 
 foreign import ccall "create"
     c_create :: CInt -> CInt -> CInt -> CInt -> Ptr Block.Config
-        -> Ptr Block.ViewConfig -> Ptr Ruler.Ruler
-        -> Ptr Ruler.Marklist -> CInt -> IO (Ptr CView)
+        -> Ptr Block.ViewConfig -> Ptr TracklikePtr -> Ptr Ruler.Marklist
+        -> CInt -> IO (Ptr CView)
 
 destroy_view (ViewPtr viewp) = Exception.bracket
     make_free_fun_ptr freeHaskellFunPtr
@@ -169,17 +169,15 @@ foreign import ccall "set_track_width"
 -- These operate on ViewPtrs too because there is no block/view distinction at
 -- this layer.
 
-set_title :: ViewPtr -> String -> Fltk ()
-set_title (ViewPtr viewp) title =
-    withCString title (c_set_title viewp)
-foreign import ccall "set_title"
-    c_set_title :: Ptr CView -> CString -> IO ()
-
-set_block_config :: ViewPtr -> Block.Config -> Fltk ()
-set_block_config (ViewPtr viewp) config = with config $ \configp ->
-    c_block_set_model_config viewp configp
+set_model_config :: ViewPtr -> Block.Config -> Fltk ()
+set_model_config (ViewPtr viewp) config = with config $ \configp ->
+    c_set_model_config viewp configp
 foreign import ccall "set_model_config"
-    c_block_set_model_config :: Ptr CView -> Ptr Block.Config -> IO ()
+    c_set_model_config :: Ptr CView -> Ptr Block.Config -> IO ()
+
+set_title :: ViewPtr -> String -> Fltk ()
+set_title (ViewPtr viewp) title = withCString title (c_set_title viewp)
+foreign import ccall "set_title" c_set_title :: Ptr CView -> CString -> IO ()
 
 -- ** Track operations
 

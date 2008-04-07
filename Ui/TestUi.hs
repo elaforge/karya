@@ -41,8 +41,8 @@ test_sync = do
         State.insert_ruler "r1" (mkruler 20 10)
         State.insert_track "b1.t1" event_track_1
         State.insert_block "b1" (Block.Block "hi b1" default_block_config
-            (Ruler.RulerId "r1")
-                [(Block.T (Track.TrackId "b1.t1") (Ruler.RulerId "r1"), 30)])
+            (Block.R (Ruler.RulerId "r1"))
+            [(Block.T (Track.TrackId "b1.t1") (Ruler.RulerId "r1"), 30)])
         State.insert_view "v1" (Block.View
             (Block.BlockId "b1") default_rect default_view_config)
     let state = case st of
@@ -97,7 +97,7 @@ test_scroll_zoom = do
 
 create_empty_view =
     send $ BlockC.create_view default_rect default_view_config
-        default_block_config default_ruler
+        default_block_config default_ruler_track
 
 create_default_view = do
     let ruler = default_ruler
@@ -260,11 +260,13 @@ test_block_tracks = do
 -- * setup
 
 -- No tracks
-empty_block = Block.Block "title" default_block_config (Ruler.RulerId "") []
+empty_block = Block.Block "title" default_block_config
+    (Block.R (Ruler.RulerId "")) []
 empty_track = Track.track "track1" [] Color.white
 
 
 default_ruler = mkruler 20 10
+default_ruler_track = BlockC.R default_ruler
 
 event_track_1 = Track.modify_events empty_track (Track.insert_events
     [event 0 "hi" 16, event 30 "there" 32])

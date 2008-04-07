@@ -38,7 +38,6 @@ fltk
     - clicking outside of SeqInput should unfocus it
 
   Block
-    - BlockView::set_ruler
     - BlockView::set_config
 
   Track
@@ -58,7 +57,7 @@ fltk
 
   MoveTile
     - only capture drag on a plain drag with no modifiers
-    - bug: upper part of ruler track not getting resize?
+    * bug: upper part of ruler track not getting resize?
       also not shrinking to the left
       hard to trigger this one
       ok, this happens whenever a stiff child is on the far left or far right
@@ -71,7 +70,6 @@ fltk
 
 Ui
   * rename Interface -> Ui, ui -> fltk
-  - force evaluation of args in Block.hs etc.
   * UiMsg: use Key data type instead of Char for e.g. backspace
   * use main thread for ui
   * set block config

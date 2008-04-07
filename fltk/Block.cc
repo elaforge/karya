@@ -14,7 +14,7 @@ static const int mac_resizer_width = 15;
 BlockView::BlockView(int X, int Y, int W, int H,
         const BlockModelConfig &model_config,
         const BlockViewConfig &view_config,
-        const RulerConfig &ruler_config) :
+        const Tracklike &ruler_track) :
     Fl_Group(X, Y, W, H),
 
     title(0, 0, 1, 1),
@@ -25,7 +25,7 @@ BlockView::BlockView(int X, int Y, int W, int H,
             track_box(0, 0, 1, 1),
             sb_box(0, 0, 1, 1),
             time_sb(0, 0, 1, 1),
-            ruler(ruler_config),
+            ruler_track(0), // filled in later by insert_track
         track_group(0, 0, 1, 1),
             track_sb(0, 0, 1, 1),
             track_zoom(0, 0, 1, 1),
@@ -36,9 +36,15 @@ BlockView::BlockView(int X, int Y, int W, int H,
     // The sizes of 1 are so that groups realize that their children are inside
     // of them.  The real resizing will be done in set_view_config
     current(0); // done adding widgets
+    // fltk's automatic group stuff gets most of the hierarchy above, but not
+    // all of it.
     body.add(ruler_group);
-    body.add(track_group); // fix up hierarchy
+    body.add(track_group);
     body_resize_group.hide();
+
+    // The size will be set again by set_view_config, but that's ok.
+    this->insert_track(BlockView::ruler_tracknum, ruler_track,
+            view_config.ruler_size);
 
     // Remove the status line from the tab focus list.  I bypass that anyway
     // so this doesn't have any effect.
@@ -52,7 +58,6 @@ BlockView::BlockView(int X, int Y, int W, int H,
 
     resizable(body);
     body.resizable(body_resize_group);
-    ruler_group.resizable(ruler);
     track_group.resizable(track_zoom);
     // track_zoom.resizable(track_scroll);
 
@@ -119,7 +124,7 @@ BlockView::set_view_config(const BlockViewConfig &vconfig, bool always_update)
 
     time_sb.resize(p.x, p.y + track_box.h(),
             vconfig.sb_size, p.h - track_box.h() - sb_box.h());
-    ruler.resize(p.x + time_sb.w(), p.y + track_box.h(),
+    ruler_track->resize(p.x + time_sb.w(), p.y + track_box.h(),
             vconfig.ruler_size, time_sb.h());
 
     p = rect(track_group);
@@ -172,7 +177,7 @@ BlockView::set_zoom(const ZoomInfo &zoom)
 {
     this->zoom = zoom;
     this->track_tile.set_zoom(this->zoom);
-    this->ruler.set_zoom(this->zoom);
+    this->ruler_track->set_zoom(this->zoom);
     this->update_scrollbars();
 }
 
@@ -230,7 +235,17 @@ BlockView::insert_track(int tracknum, const Tracklike &track, int width)
     } else {
         t = new DividerView(*track.divider);
     }
-    track_tile.insert_track(tracknum, t, width);
+    if (tracknum == BlockView::ruler_tracknum) {
+        if (this->ruler_track) {
+            this->ruler_group.remove(ruler_track);
+            delete ruler_track;
+        }
+        this->ruler_track = t;
+        ruler_group.add(t);
+        ruler_group.resizable(ruler_track);
+    } else {
+        track_tile.insert_track(tracknum, t, width);
+    }
     this->update_scrollbars();
 }
 
@@ -289,7 +304,7 @@ BlockView::scrollbar_cb(Fl_Widget *_unused_w, void *vp)
     ZoomInfo new_zoom(end.scale(time_offset), self->get_zoom().factor);
     if (new_zoom != self->get_zoom()) {
         self->zoom = new_zoom;
-        self->ruler.set_zoom(self->zoom);
+        self->ruler_track->set_zoom(self->zoom);
         self->track_tile.set_zoom(self->zoom);
         global_msg_collector()->block_changed(self, UiMsg::msg_zoom);
     }
@@ -343,9 +358,9 @@ block_view_window_cb(Fl_Window *win, void *p)
 BlockViewWindow::BlockViewWindow(int X, int Y, int W, int H,
         const BlockModelConfig &model_config,
         const BlockViewConfig &view_config,
-        const RulerConfig &ruler_config) :
+        const Tracklike &ruler_track) :
     Fl_Double_Window(X, Y, W, H),
-    block(X, Y, W, H, model_config, view_config, ruler_config),
+    block(X, Y, W, H, model_config, view_config, ruler_track),
     testing(false)
 {
     callback((Fl_Callback *) block_view_window_cb);

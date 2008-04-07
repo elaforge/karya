@@ -50,19 +50,34 @@ take_ui_msgs(UiMsg **msgs)
 
 BlockViewWindow *
 create(int x, int y, int w, int h, BlockModelConfig *model_config,
-        BlockViewConfig *view_config, RulerConfig *partial_ruler,
-        Marklist *marklists, int nmarklists)
+        BlockViewConfig *view_config,
+        Tracklike *ruler_track, Marklist *marklists, int nmarklists)
 {
-    Marklists mlists;
-    RulerConfig ruler(partial_ruler->bg, partial_ruler->show_names,
-            partial_ruler->use_alpha, partial_ruler->full_width);
-    for (int i = 0; i < nmarklists; i++)
-        ruler.marklists.push_back(marklists[i]);
-    BlockViewWindow *win = new BlockViewWindow(x, y, w, h, *model_config,
-        *view_config, ruler);
+    // This is basically a copy and paste of insert_track.
+    Tracklike *track = ruler_track;
+    RulerConfig *old_ruler = track->ruler;
+    BlockViewWindow *win = 0;
+    if (track->ruler) {
+        // Substitute a complete ruler for the semi-constructed one.
+        RulerConfig &partial = *track->ruler;
+        RulerConfig config(partial.bg, partial.show_names, partial.use_alpha,
+                partial.full_width);
+        for (int i = 0; i < nmarklists; i++)
+            config.marklists.push_back(marklists[i]);
+        track->ruler = &config;
+        // Pass 'track' while 'config' is still in scope.
+        win = new BlockViewWindow(x, y, w, h, *model_config,
+                *view_config, *track);
+        // Don't leave it pointing to out of scope data.
+        track->ruler = old_ruler;
+    } else {
+        win = new BlockViewWindow(x, y, w, h, *model_config,
+                *view_config, *track);
+    }
     win->show();
     return win;
 }
+
 
 void
 destroy(BlockViewWindow *view, FinalizeCallback finalizer)
@@ -95,12 +110,6 @@ set_view_config(BlockViewWindow *view, BlockViewConfig *config)
 }
 
 void
-set_model_config(BlockViewWindow *view, BlockModelConfig *config)
-{
-    view->block.set_model_config(*config);
-}
-
-void
 set_zoom(BlockViewWindow *view, const ZoomInfo *zoom)
 {
     view->block.set_zoom(*zoom);
@@ -120,6 +129,12 @@ set_selection(BlockViewWindow *view, int selnum, const Selection *sel)
 
 
 // block
+
+void
+set_model_config(BlockViewWindow *view, BlockModelConfig *config)
+{
+    view->block.set_model_config(*config);
+}
 
 void
 set_title(BlockViewWindow *view, char *title)
@@ -144,11 +159,11 @@ insert_track(BlockViewWindow *view, int tracknum,
         for (int i = 0; i < nmarklists; i++)
             config.marklists.push_back(marklists[i]);
         track->ruler = &config;
-    }
-    view->block.insert_track(tracknum, *track, width);
-    if (track->ruler) {
-        // Put it back the way I found it.
+        view->block.insert_track(tracknum, *track, width);
+        // Don't leave it pointing to out of scope data.
         track->ruler = old_ruler;
+    } else {
+        view->block.insert_track(tracknum, *track, width);
     }
 }
 

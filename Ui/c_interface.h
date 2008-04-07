@@ -23,16 +23,17 @@ int take_ui_msgs(UiMsg **msgs);
 // This hack is also in insert_track.
 BlockViewWindow *create(int x, int y, int w, int h,
         BlockModelConfig *model_config, BlockViewConfig *view_config,
-        RulerConfig *ruler, Marklist *marklists, int nmarklists);
+        Tracklike *ruler_track, Marklist *marklists, int nmarklists);
 void destroy(BlockViewWindow *view, FinalizeCallback finalizer);
 
 void set_size(BlockViewWindow *view, int x, int y, int w, int h);
 void get_size(BlockViewWindow *view, int *sz);
 void set_view_config(BlockViewWindow *view, BlockViewConfig *config);
-void set_model_config(BlockViewWindow *view, BlockModelConfig *config);
 void set_zoom(BlockViewWindow *view, const ZoomInfo *zoom);
 void set_track_scroll(BlockViewWindow *view, int pixels);
 void set_selection(BlockViewWindow *view, int selnum, const Selection *sel);
+
+void set_model_config(BlockViewWindow *view, BlockModelConfig *config);
 void set_title(BlockViewWindow *view, char *title);
 
 // tracks
