@@ -29,6 +29,7 @@ fltk
 
   UI Msgs
     - can I capture os x two-finger drag events?
+      yes, they're reported as FL_MOUSEWHEEL, so I should scroll on mousewheel
     * convert EventCollectWindow to global EventCollector
     * remove the fltk default event handling, except for inputs
     * custom Msg type that includes events, as well as "new selection" and
@@ -90,9 +91,8 @@ Msg
   thing?
 
 tests
-  - hunit for Interface testing
-  - some kind of organized hunit / quickcheck for pure code
-  - I should be able to type 'make test' and it compiles and runs all automatic
+  + some kind of organized hunit / quickcheck for pure code
+  * I should be able to type 'make test' and it compiles and runs all automatic
     tests, make human_test to run interactive tests (with Test.io_human)
 
 app

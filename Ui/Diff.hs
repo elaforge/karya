@@ -34,6 +34,7 @@ diff_views views1 views2 = do
 diff_view view_id (view1, _) (view2, _) = do
     let view_update = Update.ViewUpdate view_id
     when (Block.view_block view1 /= Block.view_block view2) $
+        -- TODO get rid of this, add ErrorT to the monad
         change [Update.Error $ show view_id ++ " changed from "
             ++ show (Block.view_block view1) ++ " to "
             ++ show (Block.view_block view2)]
@@ -73,7 +74,7 @@ uncurry3 f (a, b, c) = f a b c
 pair_maps map1 map2 =
     [(k, v1, v2) | (k, v1) <- Map.assocs map1, v2 <- Map.lookup k map2]
 
-data Show a => Edit a = Insert a | Delete | Same deriving Show
+data Show a => Edit a = Insert a | Delete | Same deriving (Eq, Show)
 edit_distance :: Show a => (a -> a -> Bool) -> [a] -> [a] -> [Edit a]
 edit_distance _ [] ys = map Insert ys
 edit_distance _ xs [] = replicate (length xs) Delete
@@ -81,16 +82,3 @@ edit_distance eq (x:xs) (y:ys)
     | x `eq` y = Same : edit_distance eq xs ys
     | any (eq x) ys = Insert y : edit_distance eq (x:xs) ys
     | otherwise = Delete : edit_distance eq xs (y:ys)
-
-
-{-
-test = do
-    let dist = edit_distance (==)
-    let d1 = dist "abc" "abc"
-        d2 = dist "abc" "axbc"
-        d3 = dist "abc" "axxbc"
-        d4 = dist "abc" "bc"
-        d5 = dist "abc" "xyz"
-        d6 = dist "abc" "axxxbc"
-        d7 = dist "axxxbc" "abc"
--}
