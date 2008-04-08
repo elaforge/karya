@@ -21,7 +21,7 @@ initialize()
 void
 ui_wait()
 {
-    // TODO remind myself and fix the comment
+    // TODO remind myself why this is 100 and comment
     Fl::wait(100);
 }
 

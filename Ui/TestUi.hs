@@ -1,5 +1,3 @@
-module Ui.TestUi where
-
 import qualified Control.Monad as Monad
 import qualified Control.Concurrent.STM as STM
 import qualified System.IO as IO
@@ -38,19 +36,22 @@ event pos name dur = (TrackPos pos, Event.event name (TrackPos dur))
 
 test_sync = do
     st <- State.run State.empty $ do
-        State.insert_ruler "r1" (mkruler 20 10)
-        State.insert_track "b1.t1" event_track_1
-        State.insert_block "b1" (Block.Block "hi b1" default_block_config
-            (Block.R (Ruler.RulerId "r1"))
-            [(Block.T (Track.TrackId "b1.t1") (Ruler.RulerId "r1"), 30)])
-        State.insert_view "v1" (Block.View
-            (Block.BlockId "b1") default_rect default_view_config)
+        ruler <- State.insert_ruler "r1" (mkruler 20 10)
+        t1 <- State.insert_track "b1.t1" event_track_1
+        b1 <- State.insert_block "b1" (Block.Block "hi b1" default_block_config
+            (Block.R ruler) [(Block.T t1 ruler, 30)])
+        v1 <- State.insert_view "v1" (Block.View
+            b1 default_rect default_view_config)
+        return ()
     let state = case st of
-            Left err -> error $ "err: " ++ show  err
+            Left err -> error $ "err: " ++ show err
             Right s -> s
         updates = Diff.diff State.empty state
     print updates
-    state' <- Sync.sync state updates
+    result <- Sync.sync state updates
+    case result of
+        Left err -> putStrLn $ "err: " ++ show err
+        Right s -> putStrLn "synced"
     pause
 
 test = do
@@ -95,9 +96,11 @@ test_scroll_zoom = do
         send $ BlockC.set_track_scroll view 0
     -- test zoom and time scroll
 
-create_empty_view =
-    send $ BlockC.create_view default_rect default_view_config
-        default_block_config default_ruler_track
+create_empty_view = do
+    let view_id = Block.ViewId "default"
+    send $ BlockC.create_view view_id default_rect
+        default_view_config default_block_config default_ruler_track
+    return view_id
 
 create_default_view = do
     let ruler = default_ruler

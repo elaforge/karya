@@ -1,10 +1,46 @@
-    Interface conventions
-Parameters that will need to be checked (e.g. array indices) have a trailing
-_.  They should be checked like 'let x = Util.in_range desc a b x_'.  Passing
-x_ could be a source of crashes, at the least an undescriptive "out of bounds"
-type crash.
+    OVERVIEW
 
-Raw C functions have a leading c_.
+This is the interface between the C++ implementation of the UI (which is in
+fltk/) and the rest of the app.
+
+    BlockC, UiMsg, Initialize
+
+The lowest level is in the various *C modules, which contain code to serialize
+the haskell versions of the sequencer state to the c++ versions, and imported
+functions that directly call the C++ code.  Since the haskell FFI can't talk
+directly to C++, they actually call an API defined in c_interface.h, which
+basically just re-exports the relevant C++ methods, and does things like
+serialize C arrays to C++ vectors.  BlockC is actually the only module with
+foreign calls in it, since all C++ calls go through BlockViewWindow.
+
+If BlockC is for haskell -> C++ communication, UiMsg is for C++ -> haskell
+communication.  The UI emits UiMsgs in response to mouse and keyboard actions.
+UiMsg deserializes those and puts them on a channel for the rest of the app.
+
+Initialize ties the UI handling together.  All UI actions are run in a single
+bound haskell thread to due to OS limitations and to avoid races in the C++.
+Initialize has functions to start that thread and communicate with it.
+
+    Block, Ruler, Track, Event, Sync, Diff
+
+Most of the UI data like widget sizes and tracks displayed is small and is just
+copied to the C++ layer, which basically maintains a mirror image of the
+haskell state, but note and ruler data is passed to C++ as callbacks.
+
+The UI level data structures are declared in Block, Ruler, Track and Event.
+These are all tied together by State, which represents the complete app state,
+at the UI level at least.  State also maintains the block -> block view mapping
+(also track -> track view), since the C++ layer has no notion of sharing
+a block between multiple views.
+
+On every change to the State (which is immutable), the displayed portions have
+to be synced with the C++ state.  Recreating all the windows from scratch on
+every change would be slow and look ugly, so the Diff module generates a set of
+Updates needed to change one State to another, and the Sync module then applies
+those by calling the action BlockC functions.
+
+
+    Code conventions
 
 Haskell types should be converted to C types with Util.c_*.  This can do range
 checking if necessary.  This is because haskell Integers can be larger than
@@ -16,12 +52,9 @@ thread so they are serialized in the main thread (this is a requirement for
 some OSs).  Functions with IO types don't call FLTK and can be run from any
 thread concurrently.
 
-    OVERVIEW
 
-There are three main UI objects: Block, Track, and Event, each contained within
-the other.  Blocks and Tracks have a corresponding BlockView and TrackView that
-represent the display aspects.  This is so a single Block can have multiple
-windows, and a single Track may appear in different blocks.
+
+    OVERVIEW
 
 There is no EventView because the blocks-as-macros functionality should allow
 you to put a single event in multiple places already.

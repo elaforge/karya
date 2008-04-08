@@ -1,3 +1,13 @@
+{- |
+
+The C++ level and BlockC have no notion of "blocks" which may be shared between
+block views.  The haskell State does have this notion, so it's this module's
+job to distribute an operation on a block to all of the C++ block views that
+are displaying that block.  Thus if this module has a bug, two views of one
+block could get out of sync and display different data.  Hopefully that won't
+happen.
+
+-}
 module Ui.Sync where
 import Control.Monad
 import qualified Control.Monad.Trans as Trans
@@ -20,7 +30,7 @@ sync :: State.State -> [Update.Update]
 sync state updates = do
     State.run state (mapM_ run_update updates)
 
-send act = Trans.liftIO (Initialize.send_action act)
+send = Trans.liftIO . Initialize.send_action
 
 -- | Apply the update to the UI.
 -- CreateView Updates will modify the State to add the ViewPtr
@@ -30,39 +40,39 @@ run_update (Update.ViewUpdate view_id Update.CreateView) = do
     block <- State.get_block (Block.view_block view)
     ruler_track <- tracklike_to_ctracklike (Block.block_ruler_track block)
     ctracks <- mapM (tracklike_to_ctracklike . fst) (Block.block_tracks block)
-    viewp <- send $ do
-        viewp <- BlockC.create_view (Block.view_rect view)
+    send $ do
+        BlockC.create_view view_id (Block.view_rect view)
             (Block.view_config view) (Block.block_config block) ruler_track
         -- add tracks and title
         forM_ (zip3 [0..] ctracks (map snd (Block.block_tracks block))) $
-            \(i, ctrack, width) -> BlockC.insert_track viewp i ctrack width
+            \(i, ctrack, width) -> BlockC.insert_track view_id i ctrack width
         when (not (null (Block.block_title block))) $
-            BlockC.set_title viewp (Block.block_title block)
-        return viewp
-    State.add_view_ptr view_id viewp
+            BlockC.set_title view_id (Block.block_title block)
 
 run_update (Update.ViewUpdate view_id update) = do
-    viewp <- State.get_view_ptr view_id
     case update of
-        Update.DestroyView -> send (BlockC.destroy_view viewp)
-        Update.ViewSize rect -> send (BlockC.set_size viewp rect)
-        Update.ViewConfig config -> send (BlockC.set_view_config viewp config)
+        Update.DestroyView -> send (BlockC.destroy_view view_id)
+        Update.ViewSize rect -> send (BlockC.set_size view_id rect)
+        Update.ViewConfig config -> send (BlockC.set_view_config view_id config)
+        -- Previous equation should have gotten this, but ghc warning doesn't
+        -- know that.
+        Update.CreateView -> error "run_update: notreached"
 
 -- Block ops apply to every view with that block.
 run_update (Update.BlockUpdate block_id update) = do
-    viewps <- State.get_view_ptrs_of block_id
+    view_ids <- State.get_view_ids_of block_id
     case update of
         Update.BlockTitle title ->
-            mapM_ (send . flip BlockC.set_title title) viewps
+            mapM_ (send . flip BlockC.set_title title) view_ids
         Update.BlockConfig config ->
-            mapM_ (send . flip BlockC.set_model_config config) viewps
+            mapM_ (send . flip BlockC.set_model_config config) view_ids
         Update.RemoveTrack tracknum ->
-            mapM_ (send . flip BlockC.remove_track tracknum) viewps
+            mapM_ (send . flip BlockC.remove_track tracknum) view_ids
         Update.InsertTrack tracknum track width -> do
             ctrack <- tracklike_to_ctracklike track
             send $ mapM_
-                (\viewp -> BlockC.insert_track viewp tracknum ctrack width)
-                viewps
+                (\view_id -> BlockC.insert_track view_id tracknum ctrack width)
+                view_ids
 
 run_update _ = undefined
 

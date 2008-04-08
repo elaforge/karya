@@ -62,7 +62,7 @@ backward marklist pos = fst (at marklist pos)
 test_fwd_bwd = do
     let mlist = marklist (zip pos (repeat null_mark))
     let eq f pos expected =
-            Test.check_equal (map fst (f mlist (TrackPos pos))) expected
+            Test.equal (map fst (f mlist (TrackPos pos))) expected
     -- before, equal to, after
     eq forward 0 pos
     eq forward_from 0 pos

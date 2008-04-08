@@ -1,4 +1,5 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
+{-# OPTIONS_GHC -XEmptyDataDecls #-}
 {-
 The main window is the Block.  Blocks have scroll and zoom controls and 0 or
 more Tracks, running either horizontally or vertically, depending on the
@@ -67,7 +68,11 @@ module Ui.BlockC where
     , get_selection, set_selection
     , get_track_width, set_track_width
 -}
+import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
+import Control.Monad
+import qualified Data.List as List
+import qualified Data.Map as Map
 import Foreign
 import Foreign.C
 
@@ -77,7 +82,6 @@ import Ui.Types
 import qualified Ui.Color as Color
 
 import qualified Ui.Block as Block
-import Ui.Block (ViewPtr(..), CView)
 import qualified Ui.Ruler as Ruler
 import qualified Ui.RulerC as RulerC
 import qualified Ui.Track as Track
@@ -87,15 +91,53 @@ import qualified Ui.TrackC as TrackC () -- just want Storable instance
 
 -- * view creation
 
-create_view :: Block.Rect -> Block.ViewConfig -> Block.Config -> CTracklike
-    -> Fltk ViewPtr
-create_view (Block.Rect (x, y) (w, h)) view_config block_config ruler_track = do
-    viewp <- with block_config $ \configp -> with view_config $ \view_configp ->
-        with_tracklike ruler_track $ \trackp mlistp len ->
-            c_create (i x) (i y) (i w) (i h) configp view_configp
-                trackp mlistp len
-    return (ViewPtr viewp)
+-- These are used by BlockC, but declared here so I don't have to import
+-- BlockC to deal with Ui.State.  The real problem is that I can't figure out
+-- how to get ghci to load all the various foreign object files the BlockC
+-- winds up depending on.
+data CView
+
+-- | Global map of view IDs to their windows.  This is global mutable state
+-- because the underlying window system is also global mutable state, and is
+-- not well represented by a persistent functional state.
+view_id_to_ptr :: MVar.MVar (Map.Map Block.ViewId (Ptr CView))
+view_id_to_ptr = unsafePerformIO (MVar.newMVar Map.empty)
+
+-- TODO have a BlockC exception type
+-- also, turn c++ exceptions into this exception
+throw = error
+
+get_ptr view_id = do
+    ptr_map <- MVar.readMVar view_id_to_ptr
+    case Map.lookup view_id ptr_map of
+        Nothing -> throw $ show view_id ++ " not in displayed view list: "
+            ++ show (Map.elems ptr_map)
+        Just viewp -> return viewp
+
+get_id viewp = do
+    ptr_map <- MVar.readMVar view_id_to_ptr
+    case List.find ((==viewp) . snd) (Map.assocs ptr_map) of
+        -- If it's Nothing, the UI returned a view ptr I didn't know I had.
+        -- That really should not happen.
+        Nothing -> throw $ show viewp ++ " not in displayed view list: "
+            ++ show (Map.assocs ptr_map)
+        Just (view_id, _) -> return view_id
+
+create_view :: Block.ViewId -> Block.Rect -> Block.ViewConfig -> Block.Config
+    -> CTracklike -> Fltk ()
+create_view view_id rect view_config block_config ruler_track =
+    MVar.modifyMVar_ view_id_to_ptr $ \ptr_map -> do
+        when (view_id `Map.member` ptr_map) $
+            throw $ show view_id ++ " already in displayed view list: "
+                ++ show (Map.elems ptr_map)
+        viewp <- with block_config $ \configp ->
+            with view_config $ \view_configp ->
+                with_tracklike ruler_track $ \trackp mlistp len ->
+                    c_create (i x) (i y) (i w) (i h) configp view_configp
+                        trackp mlistp len
+        return $ Map.insert view_id viewp ptr_map
     where
+    Block.Rect (x, y) (w, h) = rect
     i = Util.c_int
 
 foreign import ccall "create"
@@ -103,9 +145,11 @@ foreign import ccall "create"
         -> Ptr Block.ViewConfig -> Ptr TracklikePtr -> Ptr Ruler.Marklist
         -> CInt -> IO (Ptr CView)
 
-destroy_view (ViewPtr viewp) = Exception.bracket
-    make_free_fun_ptr freeHaskellFunPtr
-    (\finalize -> c_destroy viewp finalize)
+destroy_view :: Block.ViewId -> Fltk ()
+destroy_view view_id = do
+    viewp <- get_ptr view_id
+    Exception.bracket make_free_fun_ptr freeHaskellFunPtr
+        (\finalize -> c_destroy viewp finalize)
 foreign import ccall "destroy"
     c_destroy :: Ptr CView -> FunPtr (FunPtrFinalizer a) -> IO ()
 
@@ -114,8 +158,9 @@ foreign import ccall "destroy"
 -- Unlike the other view attributes, I have a getter for the size.  This is
 -- because the OS doesn't seem to say when the window gets moved, so I have
 -- to ask.
-get_size :: ViewPtr -> Fltk Block.Rect
-get_size (ViewPtr viewp) = do
+get_size :: Block.ViewId -> Fltk Block.Rect
+get_size view_id = do
+    viewp <- get_ptr view_id
     sz <- allocaArray 4 $ \sizep -> do
         c_get_size viewp sizep
         peekArray 4 sizep
@@ -124,41 +169,47 @@ get_size (ViewPtr viewp) = do
 foreign import ccall unsafe "get_size"
     c_get_size :: Ptr CView -> Ptr CInt -> IO ()
 
-set_size :: ViewPtr -> Block.Rect -> Fltk ()
-set_size (ViewPtr viewp) (Block.Rect (x, y) (w, h)) =
+set_size :: Block.ViewId -> Block.Rect -> Fltk ()
+set_size view_id (Block.Rect (x, y) (w, h)) = do
+    viewp <- get_ptr view_id
     c_set_size viewp (i x) (i y) (i w) (i h)
     where i = Util.c_int
 foreign import ccall "set_size"
     c_set_size :: Ptr CView -> CInt -> CInt -> CInt -> CInt -> IO ()
 
-set_view_config :: ViewPtr -> Block.ViewConfig -> Fltk ()
-set_view_config (ViewPtr viewp) config =
+set_view_config :: Block.ViewId -> Block.ViewConfig -> Fltk ()
+set_view_config view_id config = do
+    viewp <- get_ptr view_id
     with config $ \configp -> c_set_view_config viewp configp
 foreign import ccall "set_view_config"
     c_set_view_config :: Ptr CView -> Ptr Block.ViewConfig -> IO ()
 
-set_zoom :: ViewPtr -> Block.Zoom -> Fltk ()
-set_zoom (ViewPtr viewp) zoom =
+set_zoom :: Block.ViewId -> Block.Zoom -> Fltk ()
+set_zoom view_id zoom = do
+    viewp <- get_ptr view_id
     with zoom $ \zoomp -> c_set_zoom viewp zoomp
 foreign import ccall "set_zoom"
     c_set_zoom :: Ptr CView -> Ptr Block.Zoom -> IO ()
 
 -- | Set the scroll along the track dimension, in pixels.
-set_track_scroll :: ViewPtr -> Block.Width -> Fltk ()
-set_track_scroll (ViewPtr viewp) offset =
+set_track_scroll :: Block.ViewId -> Block.Width -> Fltk ()
+set_track_scroll view_id offset = do
+    viewp <- get_ptr view_id
     c_set_track_scroll viewp (Util.c_int offset)
 foreign import ccall "set_track_scroll"
     c_set_track_scroll :: Ptr CView -> CInt -> IO ()
 
-set_selection :: ViewPtr -> Block.SelNum -> Block.Selection -> Fltk ()
-set_selection (ViewPtr viewp) selnum sel =
+set_selection :: Block.ViewId -> Block.SelNum -> Block.Selection -> Fltk ()
+set_selection view_id selnum sel = do
+    viewp <- get_ptr view_id
     with sel $ \selp ->
         c_set_selection viewp (Util.c_int selnum) selp
 foreign import ccall "set_selection"
     c_set_selection :: Ptr CView -> CInt -> Ptr Block.Selection -> IO ()
 
-set_track_width :: ViewPtr -> Block.TrackNum -> Block.Width -> Fltk ()
-set_track_width (ViewPtr viewp) tracknum width =
+set_track_width :: Block.ViewId -> Block.TrackNum -> Block.Width -> Fltk ()
+set_track_width view_id tracknum width = do
+    viewp <- get_ptr view_id
     c_set_track_width viewp (Util.c_int tracknum) (Util.c_int width)
 foreign import ccall "set_track_width"
     c_set_track_width :: Ptr CView -> CInt -> CInt -> IO ()
@@ -166,38 +217,43 @@ foreign import ccall "set_track_width"
 
 -- * Block operations
 
--- These operate on ViewPtrs too because there is no block/view distinction at
+-- These operate on ViewIds too because there is no block/view distinction at
 -- this layer.
 
-set_model_config :: ViewPtr -> Block.Config -> Fltk ()
-set_model_config (ViewPtr viewp) config = with config $ \configp ->
-    c_set_model_config viewp configp
+set_model_config :: Block.ViewId -> Block.Config -> Fltk ()
+set_model_config view_id config = do
+    viewp <- get_ptr view_id
+    with config $ \configp -> c_set_model_config viewp configp
 foreign import ccall "set_model_config"
     c_set_model_config :: Ptr CView -> Ptr Block.Config -> IO ()
 
-set_title :: ViewPtr -> String -> Fltk ()
-set_title (ViewPtr viewp) title = withCString title (c_set_title viewp)
+set_title :: Block.ViewId -> String -> Fltk ()
+set_title view_id title = do
+    viewp <- get_ptr view_id
+    withCString title (c_set_title viewp)
 foreign import ccall "set_title" c_set_title :: Ptr CView -> CString -> IO ()
 
 -- ** Track operations
 
-insert_track :: ViewPtr -> Block.TrackNum -> CTracklike -> Block.Width
+insert_track :: Block.ViewId -> Block.TrackNum -> CTracklike -> Block.Width
     -> Fltk ()
-insert_track (ViewPtr viewp) tracknum tracklike width = do
+insert_track view_id tracknum tracklike width = do
+    viewp <- get_ptr view_id
     with_tracklike tracklike $ \tp mlistp len ->
         c_insert_track viewp (Util.c_int tracknum) tp
             (Util.c_int width) mlistp len
 
-remove_track :: ViewPtr -> Block.TrackNum -> Fltk ()
-remove_track (ViewPtr viewp) tracknum = Exception.bracket
-    make_free_fun_ptr freeHaskellFunPtr $ \finalize ->
+remove_track :: Block.ViewId -> Block.TrackNum -> Fltk ()
+remove_track view_id tracknum = do
+    viewp <- get_ptr view_id
+    Exception.bracket make_free_fun_ptr freeHaskellFunPtr $ \finalize ->
         c_remove_track viewp (Util.c_int tracknum) finalize
 
-update_track :: ViewPtr -> Block.TrackNum -> CTracklike -> TrackPos -> TrackPos
-    -> Fltk ()
-update_track (ViewPtr viewp) tracknum tracklike start end = Exception.bracket
-    make_free_fun_ptr
-    freeHaskellFunPtr $ \finalize ->
+update_track :: Block.ViewId -> Block.TrackNum -> CTracklike -> TrackPos
+    -> TrackPos -> Fltk ()
+update_track view_id tracknum tracklike start end = do
+    viewp <- get_ptr view_id
+    Exception.bracket make_free_fun_ptr freeHaskellFunPtr $ \finalize ->
         with start $ \startp -> with end $ \endp ->
             with_tracklike tracklike $ \tp mlistp len ->
                 c_update_track viewp (Util.c_int tracknum) tp
@@ -270,8 +326,9 @@ poke_tracklike_ptr tp trackp = do
 
 -- ** debugging
 
-show_children :: ViewPtr -> IO String
-show_children (ViewPtr viewp) =
+show_children :: Block.ViewId -> IO String
+show_children view_id = do
+    viewp <- get_ptr view_id
     c_show_children viewp (Util.c_int (-1)) >>= peekCString
 foreign import ccall "i_show_children"
     c_show_children :: Ptr CView -> CInt -> IO CString

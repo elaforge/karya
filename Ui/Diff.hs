@@ -12,12 +12,12 @@ import qualified Ui.State as State
 
 -- | Emit a list of the necessary 'Update's to turn @st1@ into @st2@.
 diff :: State.State -> State.State -> [Update.Update]
-diff st1 st2 = (snd . Writer.runWriter) $ do
+diff st1 st2 = Writer.execWriter $ do
     diff_views (State.state_views st1) (State.state_views st2)
 
     -- Only bother to emit updates for blocks that are actually in a displayed
     -- view.
-    let visible_ids = (List.nub . map Block.view_block . map fst . Map.elems)
+    let visible_ids = (List.nub . map Block.view_block . Map.elems)
             (State.state_views st2)
         visible_blocks = Map.filterWithKey (\k _a -> k `elem` visible_ids)
             (State.state_blocks st2)
@@ -31,7 +31,7 @@ diff_views views1 views2 = do
         Map.keys (Map.difference views2 views1)
     mapM_ (uncurry3 diff_view) (pair_maps views1 views2)
 
-diff_view view_id (view1, _) (view2, _) = do
+diff_view view_id view1 view2 = do
     let view_update = Update.ViewUpdate view_id
     when (Block.view_block view1 /= Block.view_block view2) $
         -- TODO get rid of this, add ErrorT to the monad

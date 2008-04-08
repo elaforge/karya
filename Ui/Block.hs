@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -XEmptyDataDecls #-}
 module Ui.Block where
 import qualified Foreign
 
@@ -9,15 +8,13 @@ import qualified Ui.Ruler as Ruler
 
 -- These would have to be hierarchical names, so if you load
 -- another song you don't get ID collisions.
-newtype BlockId = BlockId String deriving (Eq, Ord, Show)
-newtype ViewId = ViewId String deriving (Eq, Ord, Show)
 
--- These are used by BlockC, but declared here so I don't have to import
--- BlockC to deal with Ui.State.  The real problem is that I can't figure out
--- how to get ghci to load all the various foreign object files the BlockC
--- winds up depending on.
-newtype ViewPtr = ViewPtr (Foreign.Ptr CView) deriving (Show)
-data CView
+-- | Reference to a Block.  Use this to look up Blocks in the State.
+-- Even though the constructor is exported, you should only create them
+-- through the State.StateT interface.
+newtype BlockId = BlockId String deriving (Eq, Ord, Show)
+-- | Reference to a View, as per 'BlockId'.
+newtype ViewId = ViewId String deriving (Eq, Ord, Show)
 
 -- * block model
 
