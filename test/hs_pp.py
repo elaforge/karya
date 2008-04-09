@@ -32,7 +32,7 @@ def main():
     for i, line in enumerate(open(src_fn)):
         for src, dest in macros:
             line = re.sub(r'\b%s\b' % src,
-                '%s "%s" %d' % (dest, orig_fn, i+1), line)
+                '%s (Just ("%s", %d))' % (dest, orig_fn, i+1), line)
         out.write(line)
 
 

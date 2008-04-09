@@ -1,0 +1,27 @@
+The test framework is home-grown and sort of hacked up, but fairly simple.
+
+All haskell src is passed through test/hs_pp.py, which will replace "plain"
+versions of logging and test assertion functions with versions annotated with
+calling filename and line number.
+
+generate_run_tests.py is given a set of test modules.  By convention, these
+have the form *_test.hs.  It extracts functions beginning with 'test_', and
+generates a RunTests program that calls all of them.  RunTests actually takes a
+list of prefixes as arguments, and only runs tests starting with those
+prefixes.
+
+Tests are further divided into init- / direct-, and plain- / interactive-.
+"init" tests require an initialization function e.g. to set up the UI or midi
+subsystem, and "interactive" ones are going to want to talk to the user (e.g.
+for UI tests).
+
+Tests are run by the run_tests script.  It runs each of the init- tests in its
+own process for safety and because of the thread games Ui.Initialize.initialize
+plays.  Test output is put in test.output.
+
+Failing tests print lines beginning with '**->', so failures are reporting by
+grepping test.output for that.  After running the tests, run_tests puts hpc
+coverage data in the hpc/ directory.
+
+Since tests use hpc and profiling, the object files are compiled into test_obj.
+The automatically generated RunTests.hs module also goes there.

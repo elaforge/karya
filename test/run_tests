@@ -1,0 +1,31 @@
+#!/bin/zsh
+
+# Run tests given in prefixes.  If some of them require init, run each in a
+# separate process.
+# Redirect stderr to test.output.
+# Grep for failures.
+
+run_tests=test_obj/RunTests
+test_output=test.output
+prefixes=("$@")
+
+init_tests=($($run_tests -list $prefixes | grep '^init-'))
+direct_tests=($($run_tests -list $prefixes | grep '^direct-'))
+
+rm -f $test_output
+
+if [ "$direct_tests" ]; then
+    $run_tests $direct_tests 2>>$test_output
+fi
+for test in $init_tests; do
+    $run_tests $test 2>>$test_output
+done
+
+grep '^\*\*' $test_output
+failures=$(grep '^\*\*' $test_output | wc -l)
+echo $failures failures
+
+echo Generating hpc markup...
+hpc markup --destdir=hpc RunTests | grep -v Writing
+
+exit $failures

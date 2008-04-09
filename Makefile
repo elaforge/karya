@@ -90,20 +90,23 @@ test_obj/RunTests.hs: $(wildcard */*_test.hs)
 	Test/generate_run_tests.py $@ $^
 
 # Compiles with -odir into test_obj/ because they must be compiled with -fhpc.
-run_tests: test_obj/RunTests.hs
+test_obj/RunTests: test_obj/RunTests.hs
 	$(GHC) $(HFLAGS) -fhpc --make -odir test_obj test_obj/RunTests.hs -o $@ \
 		$(UI_OBJS) fltk/fltk.a \
 		$(MIDI_LIBS) `fltk-config --ldflags`
 	rm -f $@.tix # this sticks around and breaks things
 
 .PHONY: tests
-tests: run_tests
-	-./run_tests plain | tee test.output | grep '^\*\*-'
-	hpc markup --destdir=hpc run_tests >/dev/null
+tests: test_obj/RunTests
+	test/run_tests direct-
+
+.PHONY: interactive
+interactive: test_obj/RunTests
+	test/run_tests init-
 
 ### misc ###
 
+# include GHC_LIB/include since hsc includes HsFFI.h
 %.hs: %.hsc
-	@# include GHC_LIB/include since hsc includes HsFFI.h
 	hsc2hs -c g++ --cflag -Wno-invalid-offsetof $(CINCLUDE) \
 		-I$(GHC_LIB)/include $<
