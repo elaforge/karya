@@ -4,43 +4,31 @@
 Collect tests from the given modules and generate a haskell module that calls
 the tests.
 
-The generated haskell module takes either '-list', which will display the tests
-it knows about, or a set of string prefixes, which will run only tests starting
-with one of those prefixes.
+The generated haskell module takes a set of string prefixes, and will run
+tests starting with one of those prefixes.  If the first argument is '-list',
+it will just print the tests instead of running them.
 
-Tests are divided into "interactive" and "plain", depending on whether they
-use certain interactive assertions.
-
--- TODO: support noisy and quiet tests?
+Tests are divided into init- / direct- and plain- / interactive-, depending on
+whether they define an 'initialize' function, or use certain interactive
+assertions.
 """
 
 import sys, os, re
 import hs_pp
 
+
 def main():
     out_fn = sys.argv[1]
     test_fns = sys.argv[2:]
 
-    test_func = re.compile(r'^(test_[a-z0-9_]+?)( =.*\n(?:\s+.*\n|\n)*)',
-        re.MULTILINE)
-    init_func = re.compile(r'^initialize ', re.MULTILINE)
-
+    init_func = re.compile(r'^initialize .*=', re.MULTILINE)
     test_defs = {}
     init_funcs = {}
     for fn in test_fns:
         src = open(fn).read()
-        line_map = [m.start() for m in re.finditer('\n', src)]
-        def offset_to_line(offset):
-            for i, off in enumerate(line_map):
-                if off > offset:
-                    break
-            return i+1
-
-        test_defs[fn] = []
-        for match in test_func.finditer(src):
-            test_defs[fn].append((match.group(1),
-                offset_to_line(match.start()), match.group(2)))
-        if init_func.search(src):
+        lines = list(open(fn))
+        test_defs[fn] = get_defs(list(enumerate(lines)))
+        if init_func.search(''.join(lines)):
             init_funcs[fn] = '%s.initialize' % path_to_module(fn)
 
     out = open(out_fn, 'w')
@@ -51,6 +39,29 @@ def main():
     })
 
 
+def get_defs(lines):
+    # regexes are not liking me, so functional it is
+    if not lines:
+        return []
+    i, line = lines[0]
+    if line.startswith('test_'):
+        body, rest = span(
+            lambda (_, line): line.startswith(' ') or line == '\n', lines[1:])
+        body = ''.join(line for (_, line) in body)
+        head = line.split(None, 1)
+        return [(i, head[0], head[1]+body)] + get_defs(rest)
+    else:
+        return get_defs(lines[1:])
+
+def span(f, xs):
+    pre = []
+    for i, x in enumerate(xs):
+        if f(x):
+            pre.append(x)
+        else:
+            break
+    return pre, xs[i:]
+
 def make_import(fn):
     return 'import qualified %s' % path_to_module(fn)
 
@@ -60,7 +71,7 @@ def path_to_module(path):
 def make_tests(test_defs, init_funcs):
     out = []
     for fn, defs in test_defs.items():
-        for (test_name, line, body) in defs:
+        for (lineno, test_name, body) in defs:
             name = ''
             if fn in init_funcs:
                 init = '(Just %s)' % init_funcs[fn]
@@ -75,7 +86,7 @@ def make_tests(test_defs, init_funcs):
             sym = '%s.%s' % (path_to_module(fn), test_name)
             name += sym
             out.append('Test %s %s %s %d %s'
-                % (hs_str(name), sym, hs_str(fn), line, init))
+                % (hs_str(name), sym, hs_str(fn), lineno, init))
     return out
 
 def has_interactive(func_body):
@@ -94,7 +105,6 @@ import qualified Data.List as List
 import qualified Data.Maybe as Maybe
 import qualified System.Environment
 import qualified Util.Test as Test
-
 
 %(imports)s
 

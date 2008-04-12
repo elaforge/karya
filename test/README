@@ -10,7 +10,7 @@ generates a RunTests program that calls all of them.  RunTests actually takes a
 list of prefixes as arguments, and only runs tests starting with those
 prefixes.
 
-Tests are further divided into init- / direct-, and plain- / interactive-.
+Tests are divided into init- / direct-, and plain- / interactive-.
 "init" tests require an initialization function e.g. to set up the UI or midi
 subsystem, and "interactive" ones are going to want to talk to the user (e.g.
 for UI tests).

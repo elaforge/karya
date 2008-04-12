@@ -11,10 +11,10 @@ REZ = /Developer/Tools/Rez -t APPL -o $@ /usr/local/include/FL/mac.r
 GHC = ghc-6.8.2
 GHC_LIB = /usr/local/lib/ghc-6.8.2
 
-# hs_pp.py adds filename and lineno to various logging and testing functions.
+# hspp adds filename and lineno to various logging and testing functions.
 HFLAGS = -W $(CINCLUDE) -i../lib -pgmc g++ -pgml g++ -threaded -debug \
 	-optc -ggdb -optl -ggdb \
-	-F -pgmF Test/hs_pp.py
+	-F -pgmF test/hspp
 
 FLTK_OBJS := Block.o TrackTile.o Track.o Ruler.o EventTrack.o MoveTile.o \
 	Event.o P9Scrollbar.o SimpleScroll.o SeqInput.o MsgCollector.o \
@@ -33,6 +33,9 @@ include .depend
 
 fixdeps: fixdeps.hs
 	$(GHC) -o $@ $^
+
+test/hspp: test/hspp.hs
+	$(GHC) -O2 -package regex-compat -o $@ $^
 
 .PHONY: clean
 clean:
@@ -86,15 +89,17 @@ doc:
 
 ### tests ###
 
-test_obj/RunTests.hs: $(wildcard */*_test.hs)
-	Test/generate_run_tests.py $@ $^
+test_obj/RunTests.hs: $(wildcard */*_test.hs) all_hsc
+	test/generate_run_tests.py $@ $(wildcard */*_test.hs)
 
+# TODO a bug in ghc prevents .mix data from being emitted for files with LINE
+# workaround by grep -v out the LINEs into test_obj hierarchy
 # Compiles with -odir into test_obj/ because they must be compiled with -fhpc.
-test_obj/RunTests: test_obj/RunTests.hs
+test_obj/RunTests: test_obj/RunTests.hs all_hsc $(UI_OBJS) fltk/fltk.a
 	$(GHC) $(HFLAGS) -fhpc --make -odir test_obj test_obj/RunTests.hs -o $@ \
 		$(UI_OBJS) fltk/fltk.a \
 		$(MIDI_LIBS) `fltk-config --ldflags`
-	rm -f $@.tix # this sticks around and breaks things
+	rm -f *.tix # this sticks around and breaks things
 
 .PHONY: tests
 tests: test_obj/RunTests

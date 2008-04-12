@@ -5,6 +5,8 @@
 # Redirect stderr to test.output.
 # Grep for failures.
 
+# TODO: display warn and error log msgs
+
 run_tests=test_obj/RunTests
 test_output=test.output
 prefixes=("$@")
@@ -18,7 +20,7 @@ if [ "$direct_tests" ]; then
     $run_tests $direct_tests 2>>$test_output
 fi
 for test in $init_tests; do
-    $run_tests $test 2>>$test_output
+    $run_tests $test
 done
 
 grep '^\*\*' $test_output
