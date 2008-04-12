@@ -12,9 +12,6 @@ import qualified Util.Log as Log
 import qualified Ui.UiMsg as UiMsg
 
 
-ui_thread_id :: MVar.MVar Concurrent.ThreadId
-ui_thread_id = unsafePerformIO MVar.newEmptyMVar
-
 -- Global channel to the ui thread.  I tried passing this as an argument,
 -- but for some reason when I do that it loses its polymorphism, even with a
 -- rank2 type.

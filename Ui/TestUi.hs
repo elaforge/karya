@@ -67,34 +67,7 @@ test = do
     pause
     return ()
 
-test_update_track = do
-    view <- create_empty_view
-    let ruler = mkruler 20 10
-    view <- create_empty_view
-    send $ BlockC.insert_track view 0 (BlockC.R ruler) 30
-    send $ BlockC.insert_track view 1
-        (BlockC.T event_track_1 (overlay_ruler ruler)) 30
-    Test.io_human "ruler gets wider, both events change" $ do
-        send $ BlockC.update_track view 0
-            (BlockC.R (mkruler 20 16))
-            (TrackPos 0) (TrackPos 60)
-        send $ BlockC.update_track view 1
-            (BlockC.T event_track_2 (overlay_ruler ruler))
-            (TrackPos 0) (TrackPos 60)
-    send $ BlockC.destroy_view view
-
 pause = putStr "? " >> IO.hFlush IO.stdout >> getLine >> return ()
-
-test_scroll_zoom = do
-    view <- create_empty_view
-    send $ BlockC.insert_track view 0 (BlockC.R default_ruler) 100
-    Test.io_human "scroll a little to the right" $
-        send $ BlockC.set_track_scroll view 10
-    Test.io_human "all the way to the right" $
-        send $ BlockC.set_track_scroll view 100
-    Test.io_human "all the way back" $
-        send $ BlockC.set_track_scroll view 0
-    -- test zoom and time scroll
 
 create_empty_view = do
     let view_id = Block.ViewId "default"
@@ -127,14 +100,6 @@ setup_view = do
     block <- Block.create default_block_config
     ruler <- empty_ruler
     Block.create_view block default_rect ruler default_view_config
-
-test_view_size = do
-    view <- setup_view
-    print =<< Block.get_size view
-    io_equal (Block.get_size view) default_rect
-    Test.io_human "move and change size" $
-        Block.set_size view (Block.Rect (200, 200) (200, 200))
-    io_equal (Block.get_size view) (Block.Rect (200, 200) (200, 200))
 
 test_set_config = do
     block <- setup_event_track

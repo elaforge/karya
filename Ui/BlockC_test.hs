@@ -1,47 +1,55 @@
+-- | Directly exercise the BlockC functions.
 module Ui.BlockC_test where
-import qualified Control.Monad as Monad
-import qualified Control.Concurrent.STM as STM
-import qualified System.IO as IO
--- import qualified System.IO.Unsafe as Unsafe
-
-import qualified Util.Thread as Thread
-import Ui.Types
--- import qualified Ui.Util as Util
-import qualified Ui.Color as Color
-import qualified Ui.UiMsg as UiMsg
-import qualified Ui.Initialize as Initialize
-
-import qualified Ui.Block as Block
-import qualified Ui.BlockC as BlockC
-import qualified Ui.Ruler as Ruler
-import qualified Ui.Track as Track
-import qualified Ui.Event as Event
-
-import qualified Ui.State as State
-import qualified Ui.Diff as Diff
-import qualified Ui.Sync as Sync
 
 import Util.Test
 
-init op = Initialize.initialize $ \msg_chan -> do
-    msg_th <- Thread.start_thread "print msgs" (msg_thread msg_chan)
-    op
+import qualified Ui.Initialize as Initialize
+import Ui.Types
 
-msg_thread msg_chan = Monad.forever $ do
-    msg <- STM.atomically $ STM.readTChan msg_chan
-    putStrLn $ "msg: " ++ UiMsg.pretty_ui_msg msg
+import qualified Ui.Block as Block
+import qualified Ui.BlockC as BlockC
 
+import Ui.TestSetup
+
+
+initialize f = Initialize.initialize $ \_msg_chan -> f
 send = Initialize.send_action
 
-event pos name dur = (TrackPos pos, Event.event name (TrackPos dur))
+-- tests
 
-test_update_track = do
+test_set_size = do
+    view <- create_empty_view
+    io_equal (BlockC.get_size view) default_rect
+    io_human "move and change size" $
+        BlockC.set_size view (Block.Rect (200, 200) (200, 200))
+    io_equal (BlockC.get_size view) (Block.Rect (200, 200) (200, 200))
+
+-- test_set_view_config
+
+test_scroll_zoom = do
+    view <- create_empty_view
+    send $ BlockC.insert_track view 0 (BlockC.R default_ruler) 100
+    io_human "scroll a little to the right" $
+        send $ BlockC.set_track_scroll view 10
+    io_human "all the way to the right" $
+        send $ BlockC.set_track_scroll view 100
+    io_human "all the way back" $
+        send $ BlockC.set_track_scroll view 0
+    -- test zoom and time scroll
+
+-- test_set_selection
+-- test_set_track_width
+
+-- test_set_model_config
+-- test_set_title
+
+test_track_ops = do
     view <- create_empty_view
     let ruler = mkruler 20 10
-    view <- create_empty_view
     send $ BlockC.insert_track view 0 (BlockC.R ruler) 30
     send $ BlockC.insert_track view 1
         (BlockC.T event_track_1 (overlay_ruler ruler)) 30
+    -- TODO test remove_track
     io_human "ruler gets wider, both events change" $ do
         send $ BlockC.update_track view 0
             (BlockC.R (mkruler 20 16))
@@ -51,239 +59,10 @@ test_update_track = do
             (TrackPos 0) (TrackPos 60)
     send $ BlockC.destroy_view view
 
+-- setup
+
 create_empty_view = do
     let view_id = Block.ViewId "default"
     send $ BlockC.create_view view_id default_rect
-        default_view_config default_block_config default_ruler_track
+        default_view_config default_block_config (BlockC.R default_ruler)
     return view_id
-
-create_default_view = do
-    let ruler = default_ruler
-    view <- create_empty_view
-    send $ BlockC.insert_track view
-        0 (BlockC.T event_track_1 (overlay_ruler ruler)) 30
-    send $ BlockC.insert_track view
-        1 (BlockC.D (Block.Divider Color.blue)) 5
-    send $ BlockC.insert_track view
-        2 (BlockC.T event_track_2 (overlay_ruler ruler)) 30
-    return view
-
-{-
-
-pause = putStr "? " >> IO.hFlush IO.stdout >> getLine >> return ()
-
-_test_scroll_zoom = do
-    view <- create_empty_view
-    send $ BlockC.insert_track view 0 (BlockC.R default_ruler) 100
-    Test.io_human "scroll a little to the right" $
-        send $ BlockC.set_track_scroll view 10
-    Test.io_human "all the way to the right" $
-        send $ BlockC.set_track_scroll view 100
-    Test.io_human "all the way back" $
-        send $ BlockC.set_track_scroll view 0
-    -- test zoom and time scroll
-
-
--- * Cheap tests.  TODO: use HUnit?
-empty_ruler = Ruler.create (mkruler 0)
-io_equal :: (Eq a, Show a) => IO a -> a -> IO ()
-io_equal = Test.io_check_equal
-
--- ** view tests
-
-setup_view = do
-    block <- Block.create default_block_config
-    ruler <- empty_ruler
-    Block.create_view block default_rect ruler default_view_config
-
-_test_view_size = do
-    view <- setup_view
-    print =<< Block.get_size view
-    io_equal (Block.get_size view) default_rect
-    Test.io_human "move and change size" $
-        Block.set_size view (Block.Rect (200, 200) (200, 200))
-    io_equal (Block.get_size view) (Block.Rect (200, 200) (200, 200))
-
-_test_set_config = do
-    block <- setup_event_track
-    ruler <- empty_ruler
-    view <- Block.create_view block (Block.Rect (0, 0) (200, 200)) ruler
-        default_view_config
-
-    -- block config
-    Test.io_human "track box turns red" $
-        Block.set_config block
-            (default_block_config { Block.config_track_box_color = Color.rgb 1 0 0 })
-    config <- Block.get_config block
-    Test.io_human "sb box also red" $
-        Block.set_config block
-            (config { Block.config_sb_box_color = Color.rgb 1 0 0 })
-    config <- Block.get_config block
-    Test.io_human "block bg turns red" $
-        Block.set_config block
-            (config { Block.config_bg_color = Color.rgb 1 0 0 })
-    config <- Block.get_config block
-
-    Block.set_selection view 0
-        (Block.Selection 0 (TrackPos 10) 1 (TrackPos 20))
-    Test.io_human "selection turns red" $
-        Block.set_config block
-            (config {Block.config_select_colors
-                = Color.rgb 1 0 0 : tail (Block.config_select_colors config)})
-
-    -- view config
-
--- ** track tests
-
--- Give me a block with one event track.
-setup_event_track = do
-    block <- Block.create default_block_config
-    ruler <- empty_ruler
-    track <- Track.create Color.white
-    Block.insert_track block 0 (Block.T track ruler) 50
-    return block
-
-_test_insert_events = do
-    block <- setup_event_track
-    (Block.T track  _ruler, _width) <- Block.track_at block 0
-    Track.insert_event track (TrackPos 20) (event "brick" 10)
-    Track.insert_event track (TrackPos 40) (event "so" 10)
-    Track.insert_event track (TrackPos 60) (event "bleck" 10)
-
-    let repl pos = Track.insert_event track (TrackPos pos) (event "replace" 10)
-    -- overlap previous, as middle or last event
-    io_equal (repl 25) False
-    io_equal (repl 65) False
-    -- overlap next, as first or middle event
-    io_equal (repl 15) False
-    io_equal (repl 35) False
-    -- exact match replaces
-    io_equal (repl 20) True
-    -- insert as first, middle, or last
-    io_equal (repl 0) True
-    io_equal (repl 30) True
-    io_equal (repl 70) True
-
-    ruler <- empty_ruler
-    view <- Block.create_view block default_rect ruler default_view_config
-    Test.io_human "alternating 'replace' and 'krazy' events, no brick"
-        (return ())
-
-_test_view_selections view = do
-    -- TODO incomplete
-    Test.io_human "insertion point at beginning over 2 tracks " $
-        Block.set_selection view 0
-            (Block.Selection 0 (TrackPos 0) 2 (TrackPos 0))
-    Test.io_human "insertion point moves, only 1 track" $
-        Block.set_selection view 0
-            (Block.Selection 0 (TrackPos 16) 1 (TrackPos 0))
-
-_test_view_track_width view = do
-    -- test set sizes
-    -- TODO incomplete
-    track_ruler <- Ruler.create (ruler 3)
-    Block.insert_track (Block.view_block view) 0 (Block.R track_ruler) 15
-    io_equal (Block.get_track_width view 0) 15
-    Block.set_track_width view 0 10
-    io_equal (Block.get_track_width view 0) 10
-    Block.set_track_width view 0 5
-    -- minimum size is 10
-    io_equal (Block.get_track_width view 0) 10
-
--- ** block tests
-
-_test_block = do
-    block <- Block.create default_block_config
-
-    io_equal (Block.get_config block) default_block_config
-    let config2 = default_block_config { Block.config_bg_color = Color.black }
-    Block.set_config block config2
-    io_equal (Block.get_config block) config2
-
-    Block.set_title block "oh no"
-    io_equal (Block.get_title block) "oh no"
-
-    io_equal (Block.get_attrs block) []
-    let attrs = [("hi", "there")]
-    Block.set_attrs block attrs
-    io_equal (Block.get_attrs block) attrs
-
-_test_block_tracks = do
-    block <- Block.create default_block_config
-    track_ruler <- Ruler.create (ruler 2)
-    overlay_ruler <- Ruler.create (overlay_ruler (ruler 2))
-    t1 <- Track.create Color.white
-
-    io_equal (Block.tracks block) 0
-
-    Block.insert_track block 0 (Block.R track_ruler) 10
-    Block.insert_track block 1 (Block.T t1 overlay_ruler) 70
-    Block.insert_track block 1 (Block.D Color.blue) 10
-
-    io_equal (Block.tracks block) 3
-
-    io_equal (Block.track_at block 0) ((Block.R track_ruler), 10)
-    io_equal (Block.track_at block 1) ((Block.D Color.blue), 10)
-    io_equal (Block.track_at block 2) ((Block.T t1 overlay_ruler), 70)
--}
-
-
--- * setup
-
--- No tracks
-empty_block = Block.Block "title" default_block_config
-    (Block.R (Ruler.RulerId "")) []
-empty_track = Track.track "track1" [] Color.white
-
-
-default_ruler = mkruler 20 10
-default_ruler_track = BlockC.R default_ruler
-
-event_track_1 = Track.modify_events empty_track (Track.insert_events
-    [event 0 "hi" 16, event 30 "there" 32])
-event_track_2 = Track.modify_events empty_track (Track.insert_events
-    [event 16 "ho" 10, event 30 "eyo" 32])
-
--- (10, 50) seems to be the smallest x,y os x will accept.  Apparently
--- fltk's sizes don't take the menu bar into account, which is about 44 pixels
--- high, so a y of 44 is the minimum.
-default_rect = Block.Rect (10, 50) (100, 200)
-
-major n = Ruler.Mark 1 3 (Color.rgba 0.45 0.27 0 0.35) (show n) 0 0
-minor = Ruler.Mark 2 2 (Color.rgba 1 0.39 0.2 0.35) "" 0 0
-marklist n dist = Ruler.marklist (take n $ zip (map TrackPos [0, dist ..]) m44)
-
-
-m44 = concatMap (\n -> [major n, minor, minor, minor]) [0..]
-
-ruler_bg = Color.rgb 1 0.85 0.5
-mkruler marks dist = Ruler.Ruler [marklist marks dist] ruler_bg True False False
--- Convert a ruler config for an overlay ruler.
-overlay_ruler ruler = ruler
-    { Ruler.ruler_show_names = False
-    , Ruler.ruler_use_alpha = True
-    , Ruler.ruler_full_width = True
-    }
-
-default_block_config = Block.Config
-    { Block.config_select_colors =
-        let sel = Color.alpha 0.3 . Color.lighten 0.8 in
-            [sel Color.blue, sel Color.green, sel Color.red]
-    , Block.config_bg_color = Color.gray8
-    , Block.config_track_box_color = Color.rgb 0.25 1 1
-    , Block.config_sb_box_color = Color.rgb 0.25 1 1
-    }
-
-default_view_config = Block.ViewConfig
-    { Block.vconfig_zoom_speed = 1
-    , Block.vconfig_block_title_height = 20
-    , Block.vconfig_track_title_height = 20
-    , Block.vconfig_sb_size = 12
-    , Block.vconfig_ruler_size = 18
-    , Block.vconfig_status_size = 16
-    }
-
-track_bg = Color.white
-
-text_style = TextStyle Helvetica [] 12 Color.black
-

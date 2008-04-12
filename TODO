@@ -1,7 +1,4 @@
-- efficient Map.toDescList
-
 * .depend doesn't have *.hsc -> *.h dependencies
-- remove global vars
 - check use of Ints
 
 fltk
@@ -78,26 +75,52 @@ Ui
   * BlockView.set_track_width, BlockView.get_track_width
   * track_at
   * Event
+  - work old tests from TestUi into a Ui_test
+  Diff
+    - ErrorT
+    - tests
+    - track width, track update (need diff hints?)
+  State
+    - quickcheck Arbitrary to generate States
+    - benchmark large TrackEvents
+    - modify IntMap for Word64s, add toDescList
+      - send patch to libraries@haskell.org
 
-Msg
+Cmd
   * put keydown map in Responder to augment the context with midi note down and
     keydown
   * refactor UiMsg.UiMsg
   * add block_focus / MsgFocus msg type
   * put all stateful keys (kbd, mouse button, midi note) into keydown set
+  - reintegrate handler and responder into new hstate, rename Msg->Cmd
   - keymaps that combine key patterns into a table and create a Handler
   - write basic keymap
   - bug: first modifier event doesn't get emitted.  This appears to be an fltk
   thing?
+  - undo
+  checkpoints
+    - serialize / deserialize for State
+    - figure out how to checkpoint just state diffs
+
+Derive
+  - instrument definitions
+  - simplest possible derivation -> midi render
+  - write some music!
+  Render midi
+    - channel allocator
+    - midi tools: Hz -> midi mapper
+
+patchdb
+  - simple integrated version with just hardcoded midi instruments
+
 
 tests
   + some kind of organized hunit / quickcheck for pure code
   * I should be able to type 'make test' and it compiles and runs all automatic
     tests, make human_test to run interactive tests (with Test.io_human)
-
-app
-  - actions
-  - msg -> action mapping
+  - LINES hack for hsc hpc
+  - speed up hs_pp
+  - non-interactive version of io_human
 
 Midi
   - midi thru: MVar (Port -> Message -> [(Port, Message)])
@@ -108,7 +131,6 @@ Midi
   bandwidth
     - keep stats
     - display widget
-  - midi tools: Hz -> midi mapper, channel allocator
 
 Osc
   - does reaktor support timestamps?
