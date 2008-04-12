@@ -51,14 +51,14 @@ newtype TrackEvents = TrackEvents (Map.Map TrackPos Event.Event)
 
 empty_events = TrackEvents Map.empty
 
--- TODO use Map.union / difference
+
+-- | Right-biased union.  Keys from the right map win.
+union_right :: Ord k => Map.Map k a -> Map.Map k a -> Map.Map k a
+union_right = Map.unionWith (\_ a -> a)
 
 insert_events :: [(TrackPos, Event.Event)] -> TrackEvents -> TrackEvents
-insert_events pos_events (TrackEvents events) = TrackEvents $
-    List.foldl' (\events (pos, event) -> Map.insert pos event events)
-        events pos_events
--- TODO: when does union become more efficient than a series of inserts?
--- TODO: flag to overwrite / clip existing events?
+insert_events pos_events events =
+    merge events (TrackEvents (Map.fromAscList pos_events))
 
 -- | Remove events between @start@ and @end@, not including @end@.
 remove_events :: TrackPos -> TrackPos -> TrackEvents -> TrackEvents
@@ -70,10 +70,12 @@ remove_events start end track_events@(TrackEvents events) = TrackEvents $
 -- | Return the events before the given @pos@, and the events at and after it.
 events_at :: TrackPos -> TrackEvents
     -> ([(TrackPos, Event.Event)], [(TrackPos, Event.Event)])
-events_at pos (TrackEvents events) = (toDescList pre, post')
-    where
-    (pre, at, post) = Map.splitLookup pos events
-    post' = maybe [] (\event -> [(pos, event)]) at ++ Map.toAscList post
+events_at pos (TrackEvents events) = (toDescList pre, Map.toAscList post)
+    where (pre, post) = split pos events
+
+-- | Get all events in ascending order.  Like @snd . events_at (TrackPos 0)@.
+event_list :: TrackEvents -> [(TrackPos, Event.Event)]
+event_list (TrackEvents events) = Map.toAscList events
 
 last_event :: TrackEvents -> Maybe (TrackPos, Event.Event)
 last_event (TrackEvents events)
@@ -82,3 +84,62 @@ last_event (TrackEvents events)
 
 -- this is implemented in Map but not exported for some reason
 toDescList map = reverse (Map.toAscList map)
+
+
+-- | Merge @evts2@ into @evts1@.  Events that overlap other events will be
+-- shortened until they don't overlap.  If events occur simultaneously, the
+-- event from @evts2@ wins.  This is more efficient if @evts2@ is small.
+merge :: TrackEvents -> TrackEvents -> TrackEvents
+merge (TrackEvents evts1) (TrackEvents evts2)
+    | Map.size evts1 < Map.size evts2 = TrackEvents (_merge evts2 evts1)
+    | otherwise = TrackEvents (_merge evts1 evts2)
+
+_merge evts1 evts2
+    | Map.null evts1 = evts2
+    | Map.null evts2 = evts1
+    | otherwise = union_right evts1 (Map.fromAscList clipped)
+    where
+    -- The strategy is to merge the evts from evts1 and evts2, and then clip
+    -- the durations of the merged sequence so they don't overlap.  To improve
+    -- efficiency when evts1 is large and evts2 is small, only the
+    -- possibly overlapping subsets of evts1 and evts2 are merged and clipped.
+    -- So if the two maps don't overlap, very little work should be done.
+    -- However, since there is only one overlapping range, this will be
+    -- inefficient if evts2 straddles evts1.
+    -- TODO: is this overkill for the common case of merging in one event?
+    -- do benchmarks and maybe insert a special case for when evts2 is 1 or 2
+
+    first_pos = max (fst (Map.findMin evts1)) (fst (Map.findMin evts2))
+    last_pos = min
+        (event_end (Map.findMax evts2)) (event_end (Map.findMax evts2))
+    relevant = in_range first_pos last_pos
+    merged = union_right (relevant evts1) (relevant evts2)
+    clipped = Map.foldWithKey fold_clip [] merged
+
+event_end (pos, evt) = pos + dur evt
+
+fold_clip pos evt [] = [(pos, evt)]
+fold_clip pos evt rest@((next_pos, _next_evt) : _) =
+    (pos, set_dur clipped_dur evt) : rest
+    where clipped_dur = min (dur evt) (next_pos - pos)
+
+-- dur (text, dur) = dur
+-- set_dur dur (text, _) = (text, dur)
+dur = Event.event_duration
+set_dur dur evt = evt { Event.event_duration = dur }
+
+-- | Extract a submap whose keys are from one below @low@ to @high@.
+in_range :: (Ord k) => k -> k -> Map.Map k a -> Map.Map k a
+in_range low high fm = one_below
+    where
+    (below, above) = split low fm
+    (within, _way_above) = split high above
+    one_below = if Map.null below then within
+        else let (k, v) = Map.findMax below in Map.insert k v within
+
+-- Like Map.split, except include a matched key in the above map.
+split :: (Ord k) => k -> Map.Map k a -> (Map.Map k a, Map.Map k a)
+split k fm = (pre, post')
+    where
+    (pre, at, post) = Map.splitLookup k fm
+    post' = maybe post (\v -> Map.insert k v post) at

@@ -23,11 +23,12 @@ module Ui.State where
 import Control.Monad
 import qualified Control.Monad.Trans as Trans
 import qualified Control.Monad.State as State
-import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.Error as Error
+import qualified Control.Monad.Writer as Writer
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
+import qualified Ui.Update as Update
 import qualified Ui.Block as Block
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Track as Track
@@ -46,14 +47,24 @@ empty = State Map.empty Map.empty Map.empty Map.empty
 
 -- * StateT monadic access
 
-type StateM m = State.StateT State (Error.ErrorT StateError m)
+-- TrackUpdates are stored directly instead of being calculated from the state
+-- diff.  Is there any way they could get out of sync with the actual change?
+-- I don't see how, since the updates are stored by track_id, which should
+-- always be associated with the same track, and an operation to move event
+-- positions will simply generate another TrackUpdate over the whole track.
+-- This does mean TrackUpdates can overlay, so Sync should collapse them.
+type StateM m = State.StateT State
+    -- State functions can directly write updates.  This is because diffing
+    -- event tracks could be too expensive.
+    (Writer.WriterT [Update.Update]
+        (Error.ErrorT StateError m))
 newtype Monad m => StateT m a = StateT (StateM m a)
     deriving (Functor, Monad, Trans.MonadIO)
 run_state_t (StateT x) = x
 
 instance Trans.MonadTrans StateT where
-    -- lift the op through both monads
-    lift = StateT . Trans.lift . Trans.lift
+    -- lift the op through all monads
+    lift = StateT . Trans.lift . Trans.lift . Trans.lift
 
 data StateError = StateError String deriving (Eq, Show)
 instance Error.Error StateError where
@@ -66,9 +77,13 @@ put :: Monad m => State -> StateT m ()
 put st = StateT (State.put st)
 modify :: Monad m => (State -> State) -> StateT m ()
 modify f = StateT (State.modify f)
+update :: Monad m => Update.Update -> StateT m ()
+update upd = StateT (Writer.tell [upd])
 
-run :: Monad m => State -> StateT m a -> m (Either StateError State)
-run state = Error.runErrorT . flip State.execStateT state . run_state_t
+run :: (Monad m) =>
+    State -> StateT m a -> m (Either StateError (State, [Update.Update]))
+run state = Error.runErrorT . Writer.runWriterT . flip State.execStateT state
+    . run_state_t
 
 test :: IO ()
 test = do
@@ -114,6 +129,20 @@ get_track track_id = get >>= lookup_id track_id . state_tracks
 insert_track :: (Monad m) => String -> Track.Track -> StateT m Track.TrackId
 insert_track id track = get >>= insert (Track.TrackId id) track state_tracks
     (\tracks st -> st { state_tracks = tracks })
+
+modify_track :: (Monad m) =>
+    Track.TrackId -> (Track.Track -> Track.Track) -> StateT m ()
+modify_track track_id f = do
+    get_track track_id -- Throw if track_id is invalid.
+    modify (\st -> st { state_tracks =
+        Map.adjust f track_id (state_tracks st) })
+
+insert_events track_id pos_evts = do
+    update $ Update.TrackUpdate track_id $ Update.UpdateTrack
+        (fst (head pos_evts)) (Track.event_end (last pos_evts))
+    modify_track track_id $ \track ->
+        track { Track.track_events = Track.insert_events pos_evts
+            (Track.track_events track) }
 
 -- ** ruler
 

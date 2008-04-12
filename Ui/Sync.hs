@@ -11,10 +11,13 @@ happen.
 module Ui.Sync where
 import Control.Monad
 import qualified Control.Monad.Trans as Trans
+import qualified Data.Map as Map
+
 import qualified Ui.Initialize as Initialize
 
 import qualified Ui.Block as Block
 import qualified Ui.BlockC as BlockC
+import qualified Ui.Track as Track
 import qualified Ui.State as State
 import qualified Ui.Update as Update
 
@@ -28,7 +31,11 @@ although for the moment redrawing everywhere is fine
 sync :: State.State -> [Update.Update]
     -> IO (Either State.StateError State.State)
 sync state updates = do
-    State.run state (mapM_ run_update updates)
+    -- TODO: TrackUpdates can overlap.  Merge them together here.
+    result <- State.run state (mapM_ run_update updates)
+    return $ case result of
+        Left err -> Left err
+        Right (state, updates) -> Right state
 
 send = Trans.liftIO . Initialize.send_action
 
@@ -74,7 +81,28 @@ run_update (Update.BlockUpdate block_id update) = do
                 (\view_id -> BlockC.insert_track view_id tracknum ctrack width)
                 view_ids
 
-run_update _ = undefined
+run_update (Update.TrackUpdate track_id (Update.UpdateTrack low high)) = do
+    blocks <- blocks_with_track track_id
+    forM_ blocks $ \(block_id, tracknum, tracklike, _width) -> do
+        view_ids <- State.get_view_ids_of block_id
+        forM_ view_ids $ \view_id -> do
+            ctrack <- tracklike_to_ctracklike tracklike
+            send $ BlockC.update_track view_id tracknum ctrack low high
+
+-- | Find 'track_id' in all the blocks it exists in, and return the relevant
+-- info.
+blocks_with_track :: (Monad m) => Track.TrackId -> State.StateT m
+    [(Block.BlockId, Block.TrackNum, Block.Tracklike, Block.Width)]
+blocks_with_track track_id = do
+    st <- State.get
+    return [(block_id, i, tracklike, width) |
+            (block_id, block) <- Map.assocs (State.state_blocks st),
+            (i, (tracklike@(Block.T block_tid block_rid), width))
+                <- enumerate (Block.block_tracks block),
+            track_id == block_tid]
+
+enumerate :: [a] -> [(Int, a)]
+enumerate = zip [0..]
 
 tracklike_to_ctracklike track = case track of
     Block.T track_id ruler_id ->

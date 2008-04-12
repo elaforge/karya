@@ -54,12 +54,11 @@ diff_block block_id block1 block2 = do
         change [block_update $ Update.InsertTrack Block.ruler_tracknum
             (Block.block_ruler_track block2) 0]
 
-    let edits = edit_distance (\a b -> fst a == fst b)
-            (Block.block_tracks block1) (Block.block_tracks block2)
+    let tracks1 = Block.block_tracks block1
+        tracks2 = Block.block_tracks block2
+        edits = edit_distance (\a b -> fst a == fst b) tracks1 tracks2
     forM_ (zip [0..] edits) $ \(i, edit) -> case edit of
-        -- TODO Same should emit updates if necessary.  May have to use
-        -- diff_hints?
-        -- TODO also, if just the width has changed, emit SetTrackWidth
+        -- TODO emit SetTrackWidth
         Same -> return ()
         Delete -> change [block_update $ Update.RemoveTrack i]
         Insert (track, width) ->
@@ -75,6 +74,7 @@ pair_maps map1 map2 =
     [(k, v1, v2) | (k, v1) <- Map.assocs map1, v2 <- Map.lookup k map2]
 
 data Show a => Edit a = Insert a | Delete | Same deriving (Eq, Show)
+-- | Cheap and simple edit distance between two lists.
 edit_distance :: Show a => (a -> a -> Bool) -> [a] -> [a] -> [Edit a]
 edit_distance _ [] ys = map Insert ys
 edit_distance _ xs [] = replicate (length xs) Delete
