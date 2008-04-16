@@ -1,17 +1,18 @@
-{- |
+{- | The C++ level and BlockC have no notion of "blocks" which may be shared
+between block views.  The haskell State does have this notion, so it's this
+module's job to distribute an operation on a block to all of the C++ block
+views that are displaying that block.
 
-The C++ level and BlockC have no notion of "blocks" which may be shared between
-block views.  The haskell State does have this notion, so it's this module's
-job to distribute an operation on a block to all of the C++ block views that
-are displaying that block.  Thus if this module has a bug, two views of one
-block could get out of sync and display different data.  Hopefully that won't
-happen.
+So if this module has a bug, two views of one block could get out of sync and
+display different data.  Hopefully that won't happen.
 
 -}
 module Ui.Sync where
 import Control.Monad
 import qualified Control.Monad.Trans as Trans
 import qualified Data.Map as Map
+
+import qualified Util.Seq as Seq
 
 import qualified Ui.Initialize as Initialize
 
@@ -21,12 +22,6 @@ import qualified Ui.Track as Track
 import qualified Ui.State as State
 import qualified Ui.Update as Update
 
-{-
-create and delete views: create_view, insert/remove track
-redraw in areas where events where added / removed
-although for the moment redrawing everywhere is fine
--}
-
 -- | Sync with the ui by applying the given updates to it.
 sync :: State.State -> [Update.Update]
     -> IO (Either State.StateError State.State)
@@ -35,7 +30,9 @@ sync state updates = do
     result <- State.run state (mapM_ run_update updates)
     return $ case result of
         Left err -> Left err
-        Right (state, updates) -> Right state
+        -- I reuse State.StateT for convenience, but run_update really
+        -- shouldn't produce any updates of its own.
+        Right (state, _updates) -> Right state
 
 send = Trans.liftIO . Initialize.send_action
 
@@ -51,7 +48,8 @@ run_update (Update.ViewUpdate view_id Update.CreateView) = do
         BlockC.create_view view_id (Block.view_rect view)
             (Block.view_config view) (Block.block_config block) ruler_track
         -- add tracks and title
-        forM_ (zip3 [0..] ctracks (map snd (Block.block_tracks block))) $
+        let widths = Block.view_track_widths view
+        forM_ (zip3 [0..] ctracks widths) $
             \(i, ctrack, width) -> BlockC.insert_track view_id i ctrack width
         when (not (null (Block.block_title block))) $
             BlockC.set_title view_id (Block.block_title block)
@@ -61,6 +59,8 @@ run_update (Update.ViewUpdate view_id update) = do
         Update.DestroyView -> send (BlockC.destroy_view view_id)
         Update.ViewSize rect -> send (BlockC.set_size view_id rect)
         Update.ViewConfig config -> send (BlockC.set_view_config view_id config)
+        Update.SetTrackWidth tracknum width -> send $
+            BlockC.set_track_width view_id tracknum width
         -- Previous equation should have gotten this, but ghc warning doesn't
         -- know that.
         Update.CreateView -> error "run_update: notreached"
@@ -97,12 +97,9 @@ blocks_with_track track_id = do
     st <- State.get
     return [(block_id, i, tracklike, width) |
             (block_id, block) <- Map.assocs (State.state_blocks st),
-            (i, (tracklike@(Block.T block_tid block_rid), width))
-                <- enumerate (Block.block_tracks block),
+            (i, (tracklike@(Block.T block_tid _block_rid), width))
+                <- Seq.enumerate (Block.block_tracks block),
             track_id == block_tid]
-
-enumerate :: [a] -> [(Int, a)]
-enumerate = zip [0..]
 
 tracklike_to_ctracklike track = case track of
     Block.T track_id ruler_id ->

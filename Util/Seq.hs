@@ -4,6 +4,9 @@ where
 import qualified Char
 import List
 
+enumerate :: [a] -> [(Int, a)]
+enumerate = zip [0..]
+
 sortOn :: Ord b => (a -> b) -> [a] -> [a]
 sortOn key = sortBy (\a b -> compare (key a) (key b))
 

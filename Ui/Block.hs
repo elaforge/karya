@@ -22,6 +22,7 @@ data Block = Block {
     block_title :: String
     , block_config :: Config
     , block_ruler_track :: Tracklike
+    -- The Width here is the default if a new View is created from this Block.
     , block_tracks :: [(Tracklike, Width)]
     } deriving (Eq, Ord, Show)
 
@@ -51,6 +52,10 @@ data View = View {
     view_block :: BlockId
     , view_rect :: Rect
     , view_config :: ViewConfig
+    -- These are the per-view settings for the tracks.  There should be one
+    -- corresponding to each Tracklike in the Block.  The StateT operations
+    -- should maintain this invariant.
+    , view_track_widths :: [Width]
     } deriving (Eq, Ord, Show)
 
 data Rect = Rect (Int, Int) (Int, Int) deriving (Eq, Ord, Show)

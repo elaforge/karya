@@ -91,10 +91,7 @@ import qualified Ui.TrackC as TrackC () -- just want Storable instance
 
 -- * view creation
 
--- These are used by BlockC, but declared here so I don't have to import
--- BlockC to deal with Ui.State.  The real problem is that I can't figure out
--- how to get ghci to load all the various foreign object files the BlockC
--- winds up depending on.
+-- Phantom type for block view ptrs.
 data CView
 
 -- | Global map of view IDs to their windows.  This is global mutable state

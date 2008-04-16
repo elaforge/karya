@@ -79,7 +79,7 @@ Ui
   Diff
     - ErrorT
     - tests
-    - track width, track update (need diff hints?)
+    * track width, track update (need diff hints?)
   State
     - quickcheck Arbitrary to generate States
     - benchmark large TrackEvents

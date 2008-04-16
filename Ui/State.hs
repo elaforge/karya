@@ -47,12 +47,13 @@ empty = State Map.empty Map.empty Map.empty Map.empty
 
 -- * StateT monadic access
 
--- TrackUpdates are stored directly instead of being calculated from the state
--- diff.  Is there any way they could get out of sync with the actual change?
--- I don't see how, since the updates are stored by track_id, which should
--- always be associated with the same track, and an operation to move event
--- positions will simply generate another TrackUpdate over the whole track.
--- This does mean TrackUpdates can overlay, so Sync should collapse them.
+-- | TrackUpdates are stored directly instead of being calculated from the
+-- state diff.  Is there any way they could get out of sync with the actual
+-- change?  I don't see how, since the updates are stored by track_id, which
+-- should always be associated with the same track, and an operation to move
+-- event positions will simply generate another TrackUpdate over the whole
+-- track.  This does mean TrackUpdates can overlap, so Sync should collapse
+-- them.
 type StateM m = State.StateT State
     -- State functions can directly write updates.  This is because diffing
     -- event tracks could be too expensive.
@@ -80,6 +81,13 @@ modify f = StateT (State.modify f)
 update :: Monad m => Update.Update -> StateT m ()
 update upd = StateT (Writer.tell [upd])
 
+-- | Run the given StateT with the given initial state, and return a new
+-- state along with updates.  Normally updates are produced by Diff.diff, but
+-- for efficiency updates to track data are accumulated when they are actually
+-- made.  All the UI needs is a TrackPos range to redraw in, and redrawing
+-- the whole track isn't that expensive.
+--
+-- See the StateM comment for more.
 run :: (Monad m) =>
     State -> StateT m a -> m (Either StateError (State, [Update.Update]))
 run state = Error.runErrorT . Writer.runWriterT . flip State.execStateT state
@@ -104,9 +112,36 @@ test2 = do
 
 get_view :: (Monad m) => Block.ViewId -> StateT m Block.View
 get_view view_id = get >>= lookup_id view_id . state_views
+-- It's a little messy how this takes a View, because the caller has to create
+-- it with empty track widths and let this function fill them in.
+-- TODO I should abstract this by only exporting a function constructor
 insert_view :: (Monad m) => String -> Block.View -> StateT m Block.ViewId
-insert_view id view = get >>= insert (Block.ViewId id) view state_views
-    (\views st -> st { state_views = views })
+insert_view id view = do
+    block <- get_block (Block.view_block view)
+    let view' = view
+            { Block.view_track_widths = map snd (Block.block_tracks block) }
+    get >>= insert (Block.ViewId id) view' state_views
+        (\views st -> st { state_views = views })
+
+-- | Update @tracknum@ of @view_id@ to have width @width@.
+-- Functional update still sucks.  An imperative language would have:
+-- state.get_view(view_id).tracks[tracknum].width = width
+set_track_width :: Monad m =>
+    Block.ViewId -> Block.TrackNum -> Block.Width -> StateT m ()
+set_track_width view_id tracknum width = do
+    view <- get_view view_id
+    widths <- modify_at (Block.view_track_widths view) tracknum (const width)
+    let view' = view { Block.view_track_widths = widths }
+    modify (\st -> st
+        { state_views = Map.adjust (const view') view_id (state_views st)})
+
+-- | Modify the @i@th element of @xs@ by applying @f@ to it.
+modify_at :: Monad m => [a] -> Int -> (a -> a) -> StateT m [a]
+modify_at xs i f = case post of
+    [] -> throw $ "can't replace index " ++ show i
+        ++ " of list with length " ++ show (length xs)
+    (elt:rest) -> return (pre ++ f elt : rest)
+    where (pre, post) = splitAt i xs
 
 -- ** block
 

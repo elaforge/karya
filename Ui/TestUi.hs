@@ -35,24 +35,25 @@ send = Initialize.send_action
 event pos name dur = (TrackPos pos, Event.event name (TrackPos dur))
 
 test_sync = do
-    st <- State.run State.empty $ do
+    res <- State.run State.empty $ do
         ruler <- State.insert_ruler "r1" (mkruler 20 10)
         t1 <- State.insert_track "b1.t1" event_track_1
         b1 <- State.insert_block "b1" (Block.Block "hi b1" default_block_config
             (Block.R ruler) [(Block.T t1 ruler, 30)])
-        v1 <- State.insert_view "v1" (Block.View
-            b1 default_rect default_view_config)
+        v1 <- State.insert_view "v1"
+            (Block.View b1 default_rect default_view_config [])
         return ()
-    let state = case st of
-            Left err -> error $ "err: " ++ show err
-            Right s -> s
-        updates = Diff.diff State.empty state
-    print updates
-    result <- Sync.sync state updates
-    case result of
+    let (state, updates) = right res
+        diff_updates = Diff.diff State.empty state
+    print (updates, diff_updates)
+    st <- Sync.sync state (diff_updates ++ updates)
+    case res of
         Left err -> putStrLn $ "err: " ++ show err
-        Right s -> putStrLn "synced"
+        Right s -> putStrLn $ "synced"
     pause
+
+right (Left err) = error $ "error: " ++ show err
+right (Right x) = x
 
 test = do
     let ruler = mkruler 20 10
