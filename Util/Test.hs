@@ -10,56 +10,55 @@ import Text.Printf
 -- "Asserts" abort computation if they are false.  "Checks" print an unhappy
 -- msg and keep going.
 
+type SrcPos = Maybe (String, Int) -- file, lineno
+show_srcpos Nothing = ""
+show_srcpos (Just (file, line)) = file ++ ":" ++ show line ++ " "
 
-equal_line file line a b
-    | a == b = good_result_line file line $ "== " ++ show a
-    | otherwise = bad_result_line file line $ show a ++ " /= " ++ show b
-equal a b
-    | a == b = good_result a
-    | otherwise = bad_result $ show a ++ " /= " ++ show b
+equal :: (Show a, Eq a) => a -> a -> IO ()
+equal = equal_line Nothing
 
-catch_line :: String -> Int -> IO () -> IO ()
-catch_line file line op = Exception.catch op
-    (\e -> bad_result_line file line ("threw exception: " ++ show e))
+equal_line :: (Show a, Eq a) => SrcPos -> a -> a -> IO ()
+equal_line srcpos a b
+    | a == b = success srcpos $ "== " ++ show a
+    | otherwise = failure srcpos $ show a ++ " /= " ++ show b
 
--- This goes before printed results when they are as expected.
-good_result val = putStr "++-> " >> print val
-bad_result msg = putStr "**-> " >> putStrLn msg
-
-good_result_line :: String -> Int -> String -> IO ()
-good_result_line file line msg = printf "++-> %s:%d - %s\n" file line msg
-bad_result_line :: String -> Int -> String -> IO ()
-bad_result_line file line msg = printf "**-> %s:%d - %s\n" file line msg
+catch_line :: SrcPos -> IO () -> IO ()
+catch_line srcpos op = Exception.catch op
+    (\e -> failure srcpos ("threw exception: " ++ show e))
 
 -- IO oriented checks, the first value is pulled from IO.
 
-io_check_equal :: (Eq a, Show a) => IO a -> a -> IO ()
-io_check_equal io_val expected = do
+io_equal :: (Eq a, Show a) => IO a -> a -> IO ()
+io_equal = io_equal_line Nothing
+
+io_equal_line :: (Eq a, Show a) => SrcPos -> IO a -> a -> IO ()
+io_equal_line srcpos io_val expected = do
     val <- io_val
     if val == expected
-        then good_result val
-        else error $ "expected: " ++ show expected ++ ", got: " ++ show val
+        then success srcpos ("== " ++ show val)
+        else failure srcpos $
+            "expected: " ++ show expected ++ ", got: " ++ show val
 
 -- Only a human can check these things.
-io_human expected_msg op = do
-    putStr $ "should see: " ++ expected_msg
+io_human expected_msg op = io_human_line Nothing
+io_human_line srcpos expected_msg op = do
+    putStrLn $ "should see: " ++ expected_msg
     getch
     op
     putStr $ "  ... ok? "
     c <- getch
+    putChar '\n'
     if c /= 'y'
-        then bad_result $ "didn't see " ++ expected_msg
-        else return ()
+        then failure srcpos $ "didn't see " ++ expected_msg
+        else success srcpos $ "saw " ++ expected_msg
 
-io_human_line file line expected_msg op = do
-    putStr $ "should see: " ++ expected_msg
-    getch
-    op
-    putStr $ "  ... ok? "
-    c <- getch
-    if c /= 'y'
-        then bad_result_line file line $ "didn't see " ++ expected_msg
-        else return ()
+-- * util
+
+-- This goes before printed results when they are as expected.
+success :: SrcPos -> String -> IO ()
+success srcpos msg = hPrintf IO.stderr "++-> %s- %s\n" (show_srcpos srcpos) msg
+failure :: SrcPos -> String -> IO ()
+failure srcpos msg = hPrintf IO.stderr "**-> %s- %s\n" (show_srcpos srcpos) msg
 
 -- getChar with no buffering
 getch :: IO Char
