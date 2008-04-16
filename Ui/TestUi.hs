@@ -44,7 +44,7 @@ test_sync = do
             (Block.View b1 default_rect default_view_config [])
         return ()
     let (state, updates) = right res
-        diff_updates = Diff.diff State.empty state
+        diff_updates = right $ Diff.diff State.empty state
     print (updates, diff_updates)
     st <- Sync.sync state (diff_updates ++ updates)
     case res of

@@ -77,7 +77,7 @@ Ui
   * Event
   - work old tests from TestUi into a Ui_test
   Diff
-    - ErrorT
+    * ErrorT
     - tests
     * track width, track update (need diff hints?)
   State
@@ -96,7 +96,7 @@ Cmd
   - keymaps that combine key patterns into a table and create a Handler
   - write basic keymap
   - bug: first modifier event doesn't get emitted.  This appears to be an fltk
-  thing?
+    thing?
   - undo
   checkpoints
     - serialize / deserialize for State
@@ -113,13 +113,12 @@ Derive
 patchdb
   - simple integrated version with just hardcoded midi instruments
 
-
 tests
   + some kind of organized hunit / quickcheck for pure code
   * I should be able to type 'make test' and it compiles and runs all automatic
     tests, make human_test to run interactive tests (with Test.io_human)
-  - LINES hack for hsc hpc
-  - speed up hs_pp
+  - grep -v LINES hack for hsc hpc
+  * speed up hs_pp
   - non-interactive version of io_human
 
 Midi

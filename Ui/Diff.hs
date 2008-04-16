@@ -1,5 +1,7 @@
 module Ui.Diff where
 import Control.Monad
+import qualified Control.Monad.Error as Error
+import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.Writer as Writer
 import qualified Data.Map as Map
 import qualified Data.List as List
@@ -11,10 +13,11 @@ import qualified Ui.Block as Block
 import qualified Ui.Update as Update
 import qualified Ui.State as State
 
+type DiffError = String
 
 -- | Emit a list of the necessary 'Update's to turn @st1@ into @st2@.
-diff :: State.State -> State.State -> [Update.Update]
-diff st1 st2 = Writer.execWriter $ do
+diff :: State.State -> State.State -> Either DiffError [Update.Update]
+diff st1 st2 = Identity.runIdentity . Error.runErrorT . Writer.execWriterT $ do
     diff_views st1 st2 (State.state_views st1) (State.state_views st2)
 
     -- Only emit updates for blocks that are actually in a displayed view.
@@ -73,9 +76,6 @@ track_info view_id view st =
             (map fst (Block.block_tracks block)) (Block.view_track_widths view)
     where block_id = Block.view_block view
 
--- TODO should be ErrorT
-throw = error
-
 diff_block block_id block1 block2 = do
     let block_update = Update.BlockUpdate block_id
     when (Block.block_title block1 /= Block.block_title block2) $
@@ -96,7 +96,8 @@ diff_block block_id block1 block2 = do
         Insert (track, width) ->
             change [block_update $ Update.InsertTrack i track width]
 
-change :: [Update.Update] -> Writer.Writer [Update.Update] ()
+throw = Error.throwError
+change :: Monad m => [Update.Update] -> Writer.WriterT [Update.Update] m ()
 change = Writer.tell
 
 -- * util
