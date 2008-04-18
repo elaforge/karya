@@ -1,19 +1,19 @@
+-- | Simple macro substitution.  Add SrcPos (Just (line, lineno)) args to
+-- certain functions.
+--
+-- I don't use cpp because it doesn't like dots in symbols.
 module Main where
 import qualified Data.List as List
 import qualified System.Environment
 import qualified Text.Regex as Regex
-import qualified Data.Monoid
 
 -- These are substituted everywhere.
-global_macros =
-    [ ("Log.debug", "Log.debug_line")
-    ]
+global_macros = map (\s -> (s, s++"_srcpos"))
+    ["Log.debug", "Log.notice", "Log.warn", "Log.error"]
 
 -- These are only substituted in test modules.
-test_macros =
-    [ ("equal", "equal_line")
-    , ("io_human", "io_human_line")
-    ]
+test_macros = map (\s -> (s, s++"_srcpos"))
+    ["equal", "io_human"]
 
 main = do
     [orig_fn, src_fn, dest_fn] <- System.Environment.getArgs
@@ -32,7 +32,6 @@ enumerate = zip [1..]
 global_subs = map make_sub global_macros
 test_subs = map make_sub (global_macros ++ test_macros)
 
--- process_line :: [String->String] -> (Int, String) -> String
 process_line subs (i, line) = foldl (.) id (map ($i) subs) line
 
 make_sub (src, dest) fn i line =

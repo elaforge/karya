@@ -3,10 +3,11 @@ import Control.Monad
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Concurrent.STM.TChan as TChan
+import qualified Data.Word as Word
 import Text.Printf (printf)
 
+import qualified Util.Misc as Misc
 import qualified Util.Seq as Seq
-import qualified Util.Log as Log
 
 import qualified Midi.Midi as Midi
 
@@ -39,5 +40,8 @@ thru (ts, msg) = case msg of
     ts1 = ts + 500
 
 show_msg (Midi.CommonMessage (Midi.SystemExclusive manuf bytes))
-    = printf "Sysex %x: [%s]" manuf (Seq.join ", " (map Log.hex bytes))
+    = printf "Sysex %x: [%s]" manuf (Seq.join ", " (map hex bytes))
 show_msg m = show m
+
+hex :: Word.Word8 -> String
+hex = printf "0x%02x"

@@ -28,6 +28,8 @@ def main():
         src = open(fn).read()
         lines = list(open(fn))
         test_defs[fn] = get_defs(list(enumerate(lines)))
+        if not test_defs[fn]:
+            print >>sys.stderr, 'Warning: no test_* defs in %r' % fn
         if init_func.search(''.join(lines)):
             init_funcs[fn] = '%s.initialize' % path_to_module(fn)
 
@@ -44,7 +46,8 @@ def get_defs(lines):
     if not lines:
         return []
     i, line = lines[0]
-    if line.startswith('test_'):
+    m = re.match(r'^test_[a-zA-Z0-9_]+ \=', line)
+    if m:
         body, rest = span(
             lambda (_, line): line.startswith(' ') or line == '\n', lines[1:])
         body = ''.join(line for (_, line) in body)
@@ -135,7 +138,7 @@ matching_tests prefixes =
     filter (\t -> any (`List.isPrefixOf` test_name t) prefixes) all_tests
 
 run_test test = maybe id id (test_initialize test) $
-    Test.catch_line (Just (test_file test, test_line test)) (test_test test)
+    Test.catch_srcpos (Just (test_file test, test_line test)) (test_test test)
 
 comma_list = concat . List.intersperse ", "
 '''

@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -XGeneralizedNewtypeDeriving #-}
 {- | Functions for logging.
 
 Logs are used to report everything from errors and debug msgs to status
@@ -14,27 +15,30 @@ a given pattern may go to the status bar.
 -}
 
 module Util.Log (
-    Msg, Prio(..), msg, msg_io, log, write
+    -- * msgs
+    Msg, Prio(..)
     , debug, notice, warn, error
-    , hex -- debugging, remove me later
+    , debug_srcpos, notice_srcpos, warn_srcpos, error_srcpos
+    -- * LogT monad
+    , write, run
 ) where
 import Prelude hiding (error, log)
-import qualified Data.Word as Word
+import qualified Control.Monad.Trans as Trans
 import qualified Data.Time as Time
+import qualified Data.Word as Word
 import Text.Printf (printf)
+
+import qualified Util.Logger as Logger
+import qualified Util.Misc as Misc
 
 data Msg = Msg
     { msg_date :: Maybe Time.UTCTime
+    , msg_caller :: Misc.SrcPos
     , msg_prio :: Prio
-    -- Named system, higher level than just the filename.
-    -- , msg_system :: System
-    -- , msg_file_context :: FileContext
     -- | Free form text for humans.
     , msg_text  :: String
-    -- | Higher level context info for the msg.
-    , msg_context :: [Context]
-    -- Additional misc attributes the msg may have.
-    -- , msg_attrs :: [(String, String)]
+    -- -- | Higher level context info for the msg.
+    -- , msg_context :: [Context]
     } deriving (Show, Eq)
 
 data Prio = Debug -- ^ Lots of msgs produced by code level.  Users don't look
@@ -46,44 +50,80 @@ data Prio = Debug -- ^ Lots of msgs produced by code level.  Users don't look
     | Error -- ^ Code error in the app, which may quit after printing this.
     deriving (Show, Enum, Eq, Ord)
 
+-- | Create a msg with the give prio and text.
 msg :: Prio -> String -> Msg
-msg prio text = Msg Nothing prio text []
-msg_io :: Prio -> String -> IO Msg
-msg_io prio text = do
-    utc <- Time.getCurrentTime
-    return ((msg prio text) {msg_date = Just utc})
+msg = msg_srcpos Nothing
+msg_srcpos :: Misc.SrcPos -> Prio -> String -> Msg
+msg_srcpos srcpos prio text = Msg Nothing srcpos prio text
 
--- Later have versions that log context, log to a logging monad, etc.
--- TODO how can I automatically get FileContext?
--- TODO system should be dynamically scoped, 'Log.with_system sys (code)'
-log :: Prio -> String -> IO ()
-log prio text = write (msg prio text)
-default_show msg = printf "%s - %s" (prio_stars (msg_prio msg)) (msg_text msg)
+log :: LogMonad m => Prio -> Misc.SrcPos -> String -> m ()
+log prio srcpos text = write (msg_srcpos srcpos prio text)
 
-write :: Msg -> IO ()
-write msg = putStrLn (default_show msg)
+-- The monomorphism restriction makes these signatures necessary.
 
-debug = log Debug
-notice = log Notice
-warn = log Warn
-error = log Error
+debug_srcpos, notice_srcpos, warn_srcpos, error_srcpos
+    :: LogMonad m => Misc.SrcPos -> String -> m ()
+debug_srcpos = log Debug
+notice_srcpos = log Notice
+warn_srcpos = log Warn
+error_srcpos = log Error
 
-prio_stars prio = replicate (fromEnum prio + 1) '*'
+debug, notice, warn, error :: LogMonad m => String -> m ()
+debug = debug_srcpos Nothing
+notice = notice_srcpos Nothing
+warn = warn_srcpos Nothing
+error = error_srcpos Nothing
+
+-- * LogT
+
+class Monad m => LogMonad m where
+    write :: Msg -> m ()
+
+instance LogMonad IO where
+    write msg = do
+        msg' <- add_time msg
+        putStrLn (default_show msg')
+-- TODO show the date, if any
+default_show (Msg { msg_date = date, msg_caller = srcpos, msg_prio = prio
+        , msg_text = text }) =
+    printf "%-4s %s- %s" (prio_stars prio) (Misc.show_srcpos srcpos) text
+    where prio_stars prio = replicate (fromEnum prio + 1) '*'
+
+-- | Add a time to the msg if it doesn't already have one.  Msgs can be logged
+-- outside of IO, so they don't get a date until they are written.
+add_time :: Msg -> IO Msg
+add_time msg = case msg_date msg of
+    Nothing -> do
+        utc <- Time.getCurrentTime
+        return $ msg {msg_date = Just utc}
+    Just _ -> return msg
+
+instance Monad m => LogMonad (LogT m) where
+    write msg = write_msg msg
+
+write_msg :: Monad m => Msg -> LogT m ()
+write_msg = LogT . Logger.record
+
+type LogM m = Logger.LoggerT Msg m
+newtype Monad m => LogT m a = LogT (LogM m a)
+    deriving (Functor, Monad, Trans.MonadIO)
+run_log_t (LogT x) = x
+
+run :: Monad m => LogT m a -> m (a, [Msg])
+run = Logger.run . run_log_t
+
+
+-- unused
 
 {-
+-- system could be dynamically scoped, 'Log.with_system sys (code)'
+-- but only if I stuck a State into LogT, and wouldn't work for IO logs
 data System
     = App -- ^ app level stuff, goes to stderr
     | Playback
     | Derive
     | UI
     deriving (Show, Eq)
-
--- | Where in what file did the error happen?
-data FileContext = FileContext
-    { file_name :: String
-    , file_lineno :: Int
-    } deriving (Show, Eq)
--}
 
 -- | More specific data for the msg.  A derivation would send Progress
 -- reports at Info, an error in derivation would send Block at Warn, and
@@ -101,5 +141,4 @@ data Context
         }
     deriving (Show, Eq)
 
-hex :: Word.Word8 -> String
-hex = printf "0x%02x"
+-}
