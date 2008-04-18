@@ -22,11 +22,13 @@ automaticly generated IDs.
 module Ui.State where
 import Control.Monad
 import qualified Control.Monad.Trans as Trans
+import Control.Monad.Trans (lift)
 import qualified Control.Monad.State as State
 import qualified Control.Monad.Error as Error
-import qualified Control.Monad.Writer as Writer
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+
+import qualified Util.Logger as Logger
 
 import qualified Ui.Update as Update
 import qualified Ui.Block as Block
@@ -47,6 +49,22 @@ empty = State Map.empty Map.empty Map.empty Map.empty
 
 -- * StateT monadic access
 
+-- | Run the given StateT with the given initial state, and return a new
+-- state along with updates.  Normally updates are produced by Diff.diff, but
+-- for efficiency updates to track data are accumulated when they are actually
+-- made.  All the UI needs is a TrackPos range to redraw in, and redrawing
+-- the whole track isn't that expensive.
+--
+-- See the StateM comment for more.
+run :: (Monad m) =>
+   State -> StateT m a -> m (Either StateError (a, State, [Update.Update]))
+run state m = do
+    res <- (Error.runErrorT . Logger.run . flip State.runStateT state
+        . run_state_t) m
+    return $ case res of
+        Left err -> Left err
+        Right ((val, state), updates) -> Right (val, state, updates)
+
 -- | TrackUpdates are stored directly instead of being calculated from the
 -- state diff.  Is there any way they could get out of sync with the actual
 -- change?  I don't see how, since the updates are stored by track_id, which
@@ -57,7 +75,7 @@ empty = State Map.empty Map.empty Map.empty Map.empty
 type StateM m = State.StateT State
     -- State functions can directly write updates.  This is because diffing
     -- event tracks could be too expensive.
-    (Writer.WriterT [Update.Update]
+    (Logger.LoggerT Update.Update
         (Error.ErrorT StateError m))
 newtype Monad m => StateT m a = StateT (StateM m a)
     deriving (Functor, Monad, Trans.MonadIO)
@@ -65,55 +83,30 @@ run_state_t (StateT x) = x
 
 instance Trans.MonadTrans StateT where
     -- lift the op through all monads
-    lift = StateT . Trans.lift . Trans.lift . Trans.lift
+    lift = StateT . lift . lift . lift
 
 data StateError = StateError String deriving (Eq, Show)
 instance Error.Error StateError where
     strMsg = StateError
-throw msg = StateT (Error.throwError (StateError msg))
 
-get :: Monad m => StateT m State
+throw :: (Monad m) => String -> StateT m a
+throw msg = (StateT . lift . lift) (Error.throwError (StateError msg))
+
+get :: (Monad m) => StateT m State
 get = StateT State.get
-put :: Monad m => State -> StateT m ()
+
+put :: (Monad m) => State -> StateT m ()
 put st = StateT (State.put st)
-modify :: Monad m => (State -> State) -> StateT m ()
+
+modify :: (Monad m) => (State -> State) -> StateT m ()
 modify f = StateT (State.modify f)
-update :: Monad m => Update.Update -> StateT m ()
-update upd = StateT (Writer.tell [upd])
 
--- | Run the given StateT with the given initial state, and return a new
--- state along with updates.  Normally updates are produced by Diff.diff, but
--- for efficiency updates to track data are accumulated when they are actually
--- made.  All the UI needs is a TrackPos range to redraw in, and redrawing
--- the whole track isn't that expensive.
---
--- See the StateM comment for more.
--- run :: (Monad m) =>
---     State -> StateT m a -> m (Either StateError ((a, State), [Update.Update]))
-run state m = do
-    res <- (Error.runErrorT . Writer.runWriterT . flip State.runStateT state
-        . run_state_t) m
-    return $ case res of
-        Left err -> Left err
-        Right ((val, state), updates) -> Right (val, state, updates)
-
-test :: IO ()
-test = do
-    print =<< run empty (get_view (Block.ViewId "hi"))
-    print =<< run empty (get_block (Block.BlockId "there"))
-
-test2 :: IO ()
-test2 = do
-    v <- run empty $ do
-        get_view (Block.ViewId "hi")
-        Trans.liftIO $ print "hi"
-    print v
-    return ()
+update :: (Monad m) => Update.Update -> StateT m ()
+update upd = (StateT . lift) (Logger.record upd)
 
 -- * Resolve IDs to their referents, or throw.
 
 -- ** view
-
 get_view :: (Monad m) => Block.ViewId -> StateT m Block.View
 get_view view_id = get >>= lookup_id view_id . state_views
 -- It's a little messy how this takes a View, because the caller has to create
