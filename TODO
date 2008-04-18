@@ -92,7 +92,7 @@ Cmd
   * refactor UiMsg.UiMsg
   * add block_focus / MsgFocus msg type
   * put all stateful keys (kbd, mouse button, midi note) into keydown set
-  - reintegrate handler and responder into new hstate, rename Msg->Cmd
+  * reintegrate handler and responder into new hstate, rename Msg->Cmd
   - keymaps that combine key patterns into a table and create a Handler
   - write basic keymap
   - bug: first modifier event doesn't get emitted.  This appears to be an fltk

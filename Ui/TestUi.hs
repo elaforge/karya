@@ -43,7 +43,7 @@ test_sync = do
         v1 <- State.insert_view "v1"
             (Block.View b1 default_rect default_view_config [])
         return ()
-    let (state, updates) = right res
+    let (_val, state, updates) = right res
         diff_updates = right $ Diff.diff State.empty state
     print (updates, diff_updates)
     st <- Sync.sync state (diff_updates ++ updates)

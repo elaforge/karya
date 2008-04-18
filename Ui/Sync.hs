@@ -23,16 +23,17 @@ import qualified Ui.State as State
 import qualified Ui.Update as Update
 
 -- | Sync with the ui by applying the given updates to it.
-sync :: State.State -> [Update.Update]
-    -> IO (Either State.StateError State.State)
+sync :: State.State -> [Update.Update] -> IO (Maybe State.StateError)
 sync state updates = do
     -- TODO: TrackUpdates can overlap.  Merge them together here.
     result <- State.run state (mapM_ run_update updates)
     return $ case result of
-        Left err -> Left err
-        -- I reuse State.StateT for convenience, but run_update really
-        -- shouldn't produce any updates of its own.
-        Right (state, _updates) -> Right state
+        Left err -> Just err
+        -- I reuse State.StateT for convenience, but run_update should
+        -- not modify the State and hence shouldn't produce any updates.
+        -- TODO Try to split StateT into ReadStateT and ReadWriteStateT to
+        -- express this in the type?
+        Right _ -> Nothing
 
 send = Trans.liftIO . Initialize.send_action
 

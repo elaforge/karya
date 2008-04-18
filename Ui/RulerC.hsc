@@ -1,5 +1,5 @@
-{-# LANGUAGE ForeignFunctionInterface #-}
 {-# OPTIONS_GHC -XEmptyDataDecls #-}
+{-# LANGUAGE ForeignFunctionInterface #-}
 {-
 A ruler is also a Track, and can be mixed with them freely.  Rulers have Marks
 at various positions.  Marks have width, color, translucency, and an optional

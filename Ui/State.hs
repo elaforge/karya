@@ -88,10 +88,14 @@ update upd = StateT (Writer.tell [upd])
 -- the whole track isn't that expensive.
 --
 -- See the StateM comment for more.
-run :: (Monad m) =>
-    State -> StateT m a -> m (Either StateError (State, [Update.Update]))
-run state = Error.runErrorT . Writer.runWriterT . flip State.execStateT state
-    . run_state_t
+-- run :: (Monad m) =>
+--     State -> StateT m a -> m (Either StateError ((a, State), [Update.Update]))
+run state m = do
+    res <- (Error.runErrorT . Writer.runWriterT . flip State.runStateT state
+        . run_state_t) m
+    return $ case res of
+        Left err -> Left err
+        Right ((val, state), updates) -> Right (val, state, updates)
 
 test :: IO ()
 test = do

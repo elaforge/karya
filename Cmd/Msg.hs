@@ -1,4 +1,4 @@
-module Msg.Msg where
+module Cmd.Msg where
 
 import qualified Ui.UiMsg as UiMsg
 import qualified Midi.Midi as Midi
