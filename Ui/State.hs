@@ -30,10 +30,12 @@ import qualified Data.Maybe as Maybe
 
 import qualified Util.Logger as Logger
 
+import Ui.Types
 import qualified Ui.Update as Update
 import qualified Ui.Block as Block
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Track as Track
+import qualified Ui.Event as Event
 
 
 data State = State {
@@ -73,8 +75,6 @@ run state m = do
 -- track.  This does mean TrackUpdates can overlap, so Sync should collapse
 -- them.
 type StateM m = State.StateT State
-    -- State functions can directly write updates.  This is because diffing
-    -- event tracks could be too expensive.
     (Logger.LoggerT Update.Update
         (Error.ErrorT StateError m))
 newtype Monad m => StateT m a = StateT (StateM m a)
@@ -82,37 +82,35 @@ newtype Monad m => StateT m a = StateT (StateM m a)
 run_state_t (StateT x) = x
 
 instance Trans.MonadTrans StateT where
-    -- lift the op through all monads
     lift = StateT . lift . lift . lift
 
 data StateError = StateError String deriving (Eq, Show)
 instance Error.Error StateError where
     strMsg = StateError
 
-throw :: (Monad m) => String -> StateT m a
-throw msg = (StateT . lift . lift) (Error.throwError (StateError msg))
+class Monad m => UiStateMonad m where
+    get :: m State
+    put :: State -> m ()
+    modify :: (State -> State) -> m ()
+    update :: Update.Update -> m ()
+    throw :: String -> m a
 
-get :: (Monad m) => StateT m State
-get = StateT State.get
-
-put :: (Monad m) => State -> StateT m ()
-put st = StateT (State.put st)
-
-modify :: (Monad m) => (State -> State) -> StateT m ()
-modify f = StateT (State.modify f)
-
-update :: (Monad m) => Update.Update -> StateT m ()
-update upd = (StateT . lift) (Logger.record upd)
+instance Monad m => UiStateMonad (StateT m) where
+    get = StateT State.get
+    put st = StateT (State.put st)
+    modify f = StateT (State.modify f)
+    update upd = (StateT . lift) (Logger.record upd)
+    throw msg = (StateT . lift . lift) (Error.throwError (StateError msg))
 
 -- * Resolve IDs to their referents, or throw.
 
 -- ** view
-get_view :: (Monad m) => Block.ViewId -> StateT m Block.View
+get_view :: (UiStateMonad m) => Block.ViewId -> m Block.View
 get_view view_id = get >>= lookup_id view_id . state_views
 -- It's a little messy how this takes a View, because the caller has to create
 -- it with empty track widths and let this function fill them in.
 -- TODO I should abstract this by only exporting a function constructor
-insert_view :: (Monad m) => String -> Block.View -> StateT m Block.ViewId
+insert_view :: (UiStateMonad m) => String -> Block.View -> m Block.ViewId
 insert_view id view = do
     block <- get_block (Block.view_block view)
     let view' = view
@@ -123,8 +121,8 @@ insert_view id view = do
 -- | Update @tracknum@ of @view_id@ to have width @width@.
 -- Functional update still sucks.  An imperative language would have:
 -- state.get_view(view_id).tracks[tracknum].width = width
-set_track_width :: Monad m =>
-    Block.ViewId -> Block.TrackNum -> Block.Width -> StateT m ()
+set_track_width :: (UiStateMonad m) =>
+    Block.ViewId -> Int -> Block.Width -> m ()
 set_track_width view_id tracknum width = do
     view <- get_view view_id
     widths <- modify_at (Block.view_track_widths view) tracknum (const width)
@@ -133,7 +131,7 @@ set_track_width view_id tracknum width = do
         { state_views = Map.adjust (const view') view_id (state_views st)})
 
 -- | Modify the @i@th element of @xs@ by applying @f@ to it.
-modify_at :: Monad m => [a] -> Int -> (a -> a) -> StateT m [a]
+modify_at :: (UiStateMonad m) => [a] -> Int -> (a -> a) -> m [a]
 modify_at xs i f = case post of
     [] -> throw $ "can't replace index " ++ show i
         ++ " of list with length " ++ show (length xs)
@@ -141,14 +139,13 @@ modify_at xs i f = case post of
     where (pre, post) = splitAt i xs
 
 -- ** block
-
-get_block :: (Monad m) => Block.BlockId -> StateT m Block.Block
+get_block :: (UiStateMonad m) => Block.BlockId -> m Block.Block
 get_block block_id = get >>= lookup_id block_id . state_blocks
-insert_block :: (Monad m) => String -> Block.Block -> StateT m Block.BlockId
+insert_block :: (UiStateMonad m) => String -> Block.Block -> m Block.BlockId
 insert_block id block = get >>= insert (Block.BlockId id) block state_blocks
     (\blocks st -> st { state_blocks = blocks })
 
-get_view_ids_of :: (Monad m) => Block.BlockId -> StateT m [Block.ViewId]
+get_view_ids_of :: (UiStateMonad m) => Block.BlockId -> m [Block.ViewId]
 get_view_ids_of block_id = do
     st <- get
     return [view_id | (view_id, view) <- Map.assocs (state_views st),
@@ -156,19 +153,21 @@ get_view_ids_of block_id = do
 
 -- ** track
 
-get_track :: (Monad m) => Track.TrackId -> StateT m Track.Track
+get_track :: (UiStateMonad m) => Track.TrackId -> m Track.Track
 get_track track_id = get >>= lookup_id track_id . state_tracks
-insert_track :: (Monad m) => String -> Track.Track -> StateT m Track.TrackId
+insert_track :: (UiStateMonad m) => String -> Track.Track -> m Track.TrackId
 insert_track id track = get >>= insert (Track.TrackId id) track state_tracks
     (\tracks st -> st { state_tracks = tracks })
 
-modify_track :: (Monad m) =>
-    Track.TrackId -> (Track.Track -> Track.Track) -> StateT m ()
+modify_track :: (UiStateMonad m) =>
+    Track.TrackId -> (Track.Track -> Track.Track) -> m ()
 modify_track track_id f = do
     get_track track_id -- Throw if track_id is invalid.
     modify (\st -> st { state_tracks =
         Map.adjust f track_id (state_tracks st) })
 
+insert_events :: (UiStateMonad m) =>
+    Track.TrackId -> [(TrackPos, Event.Event)] -> m ()
 insert_events track_id pos_evts = do
     update $ Update.TrackUpdate track_id $ Update.UpdateTrack
         (fst (head pos_evts)) (Track.event_end (last pos_evts))
@@ -178,19 +177,21 @@ insert_events track_id pos_evts = do
 
 -- ** ruler
 
-get_ruler :: (Monad m) => Ruler.RulerId -> StateT m Ruler.Ruler
+get_ruler :: (UiStateMonad m) => Ruler.RulerId -> m Ruler.Ruler
 get_ruler ruler_id = get >>= lookup_id ruler_id . state_rulers
-insert_ruler :: (Monad m) => String -> Ruler.Ruler -> StateT m Ruler.RulerId
+insert_ruler :: (UiStateMonad m) => String -> Ruler.Ruler -> m Ruler.RulerId
 insert_ruler id ruler = get >>= insert (Ruler.RulerId id) ruler state_rulers
     (\rulers st -> st { state_rulers = rulers })
 
 -- ** util
 
-lookup_id :: (Ord k, Monad m, Show k) => k -> Map.Map k a -> StateT m a
+lookup_id :: (Ord k, UiStateMonad m, Show k) => k -> Map.Map k a -> m a
 lookup_id key map = case Map.lookup key map of
     Nothing -> throw $ "unknown " ++ show key
     Just val -> return val
 
+insert :: (UiStateMonad m, Ord k, Show k) =>
+    k -> a -> (t -> Map.Map k a) -> (Map.Map k a -> t -> State) -> t -> m k
 insert key val get_map set_map state = do
     when (key `Map.member` get_map state) $
         throw $ show key ++ " already exists"
