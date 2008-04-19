@@ -153,8 +153,6 @@ void
 BlockView::set_model_config(const BlockModelConfig &config, bool update_all)
 {
     const BlockModelConfig &old = this->model_config;
-    for (int i = 0; i < Config::max_selections; i++)
-        this->set_selection(i, config.selections[i]);
 
     if (update_all || old.bg != config.bg) {
         track_tile.set_bg_color(config.bg);
@@ -200,25 +198,12 @@ BlockView::set_track_scroll(int offset)
 }
 
 
-const Selection &
-BlockView::get_selection(int selnum) const
-{
-    ASSERT(0 <= selnum && selnum < Config::max_selections);
-    return this->model_config.selections[selnum];
-}
-
-
 void
 BlockView::set_selection(int selnum, const Selection &sel)
 {
     ASSERT(0 <= selnum && selnum < Config::max_selections);
-    for (int i = sel.start_track;
-            i < sel.start_track + sel.tracks && i < tracks(); i++)
-    {
-        track_at(i)->set_selection(selnum, sel);
-    }
-
-    this->model_config.selections[selnum] = sel;
+    for (int i = 0; i < tracks(); i++)
+        track_at(i)->set_selection(selnum, i, sel);
 }
 
 

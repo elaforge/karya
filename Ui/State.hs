@@ -107,9 +107,11 @@ instance Monad m => UiStateMonad (StateT m) where
 -- ** view
 get_view :: (UiStateMonad m) => Block.ViewId -> m Block.View
 get_view view_id = get >>= lookup_id view_id . state_views
--- It's a little messy how this takes a View, because the caller has to create
--- it with empty track widths and let this function fill them in.
--- TODO I should abstract this by only exporting a function constructor
+-- Since the tracks are in the block, Block.view doesn't fill those in, leaving
+-- it for this function.  That way the caller doesn't need to go find the block
+-- itself.
+-- It's a little messy, but as long as the caller uses the Block.array
+-- constructor it should be ok.
 insert_view :: (UiStateMonad m) => String -> Block.View -> m Block.ViewId
 insert_view id view = do
     block <- get_block (Block.view_block view)
@@ -126,9 +128,30 @@ set_track_width :: (UiStateMonad m) =>
 set_track_width view_id tracknum width = do
     view <- get_view view_id
     widths <- modify_at (Block.view_track_widths view) tracknum (const width)
-    let view' = view { Block.view_track_widths = widths }
-    modify (\st -> st
-        { state_views = Map.adjust (const view') view_id (state_views st)})
+    update_view view_id (view { Block.view_track_widths = widths })
+
+-- ** selections
+
+-- TODO: I'll need something make creating selections with the color from
+-- block_selection_colors easy.
+
+-- | Get @view_id@'s selection at @selnum@, or Nothing if there is none.
+get_selection :: (UiStateMonad m) => Block.ViewId -> Block.SelNum
+    -> m (Maybe Block.Selection)
+get_selection view_id selnum = do
+    view <- get_view view_id
+    return (Map.lookup selnum (Block.view_selections view))
+
+-- | Replace any selection on @view_id@ at @selnum@ with @sel@.
+set_selection :: (UiStateMonad m) => Block.ViewId -> Block.SelNum
+    -> Block.Selection -> m ()
+set_selection view_id selnum sel = do
+    view <- get_view view_id
+    let sels = Map.insert selnum sel (Block.view_selections view)
+    update_view view_id (view { Block.view_selections = sels })
+
+update_view view_id view = modify (\st -> st
+    { state_views = Map.adjust (const view) view_id (state_views st)})
 
 -- | Modify the @i@th element of @xs@ by applying @f@ to it.
 modify_at :: (UiStateMonad m) => [a] -> Int -> (a -> a) -> m [a]
@@ -139,6 +162,7 @@ modify_at xs i f = case post of
     where (pre, post) = splitAt i xs
 
 -- ** block
+
 get_block :: (UiStateMonad m) => Block.BlockId -> m Block.Block
 get_block block_id = get >>= lookup_id block_id . state_blocks
 insert_block :: (UiStateMonad m) => String -> Block.Block -> m Block.BlockId
@@ -185,11 +209,14 @@ insert_ruler id ruler = get >>= insert (Ruler.RulerId id) ruler state_rulers
 
 -- ** util
 
+-- | Lookup @map!key@, throwing if it doesn't exist.
 lookup_id :: (Ord k, UiStateMonad m, Show k) => k -> Map.Map k a -> m a
 lookup_id key map = case Map.lookup key map of
     Nothing -> throw $ "unknown " ++ show key
     Just val -> return val
 
+-- | Insert @val@ at @key@ in @get_map state@, throwing if it already exists.
+-- Put the map back into @state@ by applying @set_map new_map state@ to it.
 insert :: (UiStateMonad m, Ord k, Show k) =>
     k -> a -> (t -> Map.Map k a) -> (Map.Map k a -> t -> State) -> t -> m k
 insert key val get_map set_map state = do

@@ -30,9 +30,6 @@ BlockViewConfig block_view_config()
 BlockModelConfig block_model_config()
 {
     BlockModelConfig c;
-    c.selections[0] = Selection(selection_colors[0]);
-    c.selections[1] = Selection(selection_colors[1]);
-    c.selections[2] = Selection(selection_colors[2]);
     c.bg = Color(0xdddddd);
     c.track_box = Color(0x44ffff);
     c.sb_box = Color(0x00ffff);
@@ -204,7 +201,7 @@ main(int argc, char **argv)
     // print_children(&view);
     // DEBUG(2);
     // view.resize(0, 0, 300, 300);
-    // print_children(&view);
+    print_children(&view);
 
     view.show(argc, argv);
     Fl::run();

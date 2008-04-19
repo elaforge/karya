@@ -82,7 +82,7 @@ public:
         Fl_Group(0, 0, 1, 1), config(config)
     {}
     void set_zoom(const ZoomInfo &zoom);
-    void set_selection(int selnum, const Selection &sel);
+    void set_selection(int selnum, int tracknum, const Selection &sel);
     TrackPos time_end() const;
     void set_config(const RulerConfig &config, FinalizeCallback finalizer,
             TrackPos start, TrackPos end);
@@ -112,8 +112,8 @@ public:
     RulerTrackView(const RulerConfig &config);
     virtual Fl_Box &title_widget();
     virtual void set_zoom(const ZoomInfo &zoom) { ruler.set_zoom(zoom); }
-    virtual void set_selection(int selnum, const Selection &sel) {
-        ruler.set_selection(selnum, sel);
+    virtual void set_selection(int selnum, int tracknum, const Selection &sel) {
+        ruler.set_selection(selnum, tracknum, sel);
     }
     virtual TrackPos time_end() const { return ruler.time_end(); }
     virtual void update(const Tracklike &track, FinalizeCallback finalizer,

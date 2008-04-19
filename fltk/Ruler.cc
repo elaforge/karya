@@ -30,18 +30,19 @@ OverlayRuler::set_zoom(const ZoomInfo &zoom)
 
 
 void
-OverlayRuler::set_selection(int selnum, const Selection &sel)
+OverlayRuler::set_selection(int selnum, int tracknum, const Selection &sel)
 {
     ASSERT(0 <= selnum && selnum < Config::max_selections);
-    // TODO clear the old selection if there is one
+    // DEBUG("set selection " << selnum << " " << sel.tracks);
     const Selection &old = this->selections[selnum];
     if (old == sel)
         return;
-    // Clear old selection.
-    this->damage_range(old.start_pos, old.start_pos + old.duration);
-    if (!sel.no_selection())
+    // Clear old selection, set new selection if there is one.
+    if (old.start_track <= tracknum && tracknum < old.start_track + old.tracks)
+        this->damage_range(old.start_pos, old.start_pos + old.duration);
+    if (sel.start_track <= tracknum && tracknum < sel.start_track + sel.tracks)
         this->damage_range(sel.start_pos, sel.start_pos + sel.duration);
-    this->selections[selnum ] = sel;
+    this->selections[selnum] = sel;
 }
 
 

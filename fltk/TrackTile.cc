@@ -100,7 +100,7 @@ TrackTile::remove_track(int tracknum)
 TrackView *
 TrackTile::track_at(int tracknum)
 {
-    ASSERT(0 <= tracknum && tracknum <= tracks());
+    ASSERT(0 <= tracknum && tracknum < tracks());
     // Widgets alternate [title0, track0, title1, track1, ... box]
     return dynamic_cast<TrackView *>(child(tracknum*2 + 1));
 }

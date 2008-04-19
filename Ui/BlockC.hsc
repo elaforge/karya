@@ -196,10 +196,11 @@ set_track_scroll view_id offset = do
 foreign import ccall "set_track_scroll"
     c_set_track_scroll :: Ptr CView -> CInt -> IO ()
 
-set_selection :: Block.ViewId -> Block.SelNum -> Block.Selection -> Fltk ()
-set_selection view_id selnum sel = do
+set_selection :: Block.ViewId -> Block.SelNum -> Maybe Block.Selection
+    -> Fltk ()
+set_selection view_id selnum maybe_sel = do
     viewp <- get_ptr view_id
-    with sel $ \selp ->
+    with (maybe Block.null_selection id maybe_sel) $ \selp ->
         c_set_selection viewp (Util.c_int selnum) selp
 foreign import ccall "set_selection"
     c_set_selection :: Ptr CView -> CInt -> Ptr Block.Selection -> IO ()
@@ -341,26 +342,14 @@ max_selections = (#const Config::max_selections)
 instance Storable Block.Config where
     sizeOf _ = #size BlockModelConfig
     alignment _ = undefined
-    peek = peek_block_model_config
     poke = poke_block_model_config
 
-peek_block_model_config configp = do
-    select <- (#peek BlockModelConfig, selections) configp
-        >>= peekArray max_selections
-    bg <- (#peek BlockModelConfig, bg) configp >>= peek
-    track_box <- (#peek BlockModelConfig, track_box) configp >>= peek
-    sb_box <- (#peek BlockModelConfig, sb_box) configp >>= peek
-    return $ Block.Config select bg track_box sb_box
-
 poke_block_model_config configp (Block.Config
-        { Block.config_select_colors = select
-        , Block.config_bg_color = bg
+        { Block.config_bg_color = bg
         , Block.config_track_box_color = track_box
         , Block.config_sb_box_color = sb_box
         })
     = do
-        pokeArray ((#ptr BlockModelConfig, selections) configp)
-            (Util.bounded_list Color.black max_selections select)
         (#poke BlockModelConfig, bg) configp bg
         (#poke BlockModelConfig, track_box) configp track_box
         (#poke BlockModelConfig, sb_box) configp sb_box

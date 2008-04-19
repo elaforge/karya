@@ -41,7 +41,7 @@ test_sync = do
         b1 <- State.insert_block "b1" (Block.Block "hi b1" default_block_config
             (Block.R ruler) [(Block.T t1 ruler, 30)])
         v1 <- State.insert_view "v1"
-            (Block.View b1 default_rect default_view_config [])
+            (Block.view b1 default_rect default_view_config)
         return ()
     let (_val, state, updates) = right res
         diff_updates = right $ Diff.diff State.empty state

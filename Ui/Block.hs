@@ -1,7 +1,10 @@
 module Ui.Block where
 import qualified Foreign
 
+import qualified Data.Map as Map
+
 import Ui.Types
+import qualified Ui.Color as Color
 import qualified Ui.Track as Track
 import qualified Ui.Ruler as Ruler
 
@@ -52,11 +55,15 @@ data View = View {
     view_block :: BlockId
     , view_rect :: Rect
     , view_config :: ViewConfig
+    -- Visible Selections, indexed by their SelNum.
+    , view_selections :: Map.Map SelNum Selection
     -- These are the per-view settings for the tracks.  There should be one
     -- corresponding to each Tracklike in the Block.  The StateT operations
     -- should maintain this invariant.
     , view_track_widths :: [Width]
     } deriving (Eq, Ord, Show)
+
+view block_id rect config = View block_id rect config Map.empty []
 
 data Rect = Rect (Int, Int) (Int, Int) deriving (Eq, Ord, Show)
 
@@ -81,7 +88,9 @@ data Selection = Selection
     , sel_start_pos :: TrackPos
     , sel_tracks :: TrackNum
     , sel_duration :: TrackPos
-    } deriving (Show)
+    } deriving (Eq, Ord, Show)
+-- | A Selection with 0 tracks is considered no selection.
+null_selection = Selection Color.black 0 (TrackPos 0) 0 (TrackPos 0)
 
 -- | Index of the non-scrolling ruler track (it doesn't necessarily have
 -- a ruler, it's just meant for one).

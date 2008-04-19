@@ -46,6 +46,12 @@ diff_view st1 st2 view_id view1 view2 = do
     when (Block.view_config view1 /= Block.view_config view2) $
         change [view_update $ Update.ViewConfig (Block.view_config view2)]
 
+    -- It's important that SetSelections happen after the blocks are diffed,
+    -- since those may add or remove tracks, and the Selection TrackNums will
+    -- be correct for the destination state but not the source state.
+    mapM_ (uncurry3 (diff_selection view_update))
+        (pair_maps (Block.view_selections view1) (Block.view_selections view2))
+
     -- The track view info (widths) is in the View, while the track data itself
     -- (Tracklikes) is in the Block.  Since one track may have been added or
     -- deleted while another's width was changed, I have to run 'edit_distance'
@@ -76,6 +82,9 @@ track_info view_id view st =
             (map fst (Block.block_tracks block)) (Block.view_track_widths view)
     where block_id = Block.view_block view
 
+diff_selection view_update selnum sel1 sel2 = when (sel1 /= sel2) $
+    change [view_update $ Update.SetSelection selnum sel2]
+
 diff_block block_id block1 block2 = do
     let block_update = Update.BlockUpdate block_id
     when (Block.block_title block1 /= Block.block_title block2) $
@@ -103,11 +112,16 @@ change = Writer.tell
 -- * util
 
 uncurry3 f (a, b, c) = f a b c
--- Given two maps, pair up the elements in @map1@ with a samed-keyed element
+-- | Given two maps, pair up the elements in @map1@ with a samed-keyed element
 -- in @map2@, if there is one.  Elements that are only in @map1@ or @map2@ will
 -- not be included in the output.
+zip_maps :: (Ord k) => Map.Map k v1 -> Map.Map k v2 -> [(k, v1, v2)]
 zip_maps map1 map2 =
     [(k, v1, v2) | (k, v1) <- Map.assocs map1, v2 <- Map.lookup k map2]
+
+pair_maps :: (Ord k) => Map.Map k v -> Map.Map k v -> [(k, Maybe v, Maybe v)]
+pair_maps map1 map2 = map (\k -> (k, Map.lookup k map1, Map.lookup k map2))
+    (Map.keys (Map.union map1 map2))
 
 data Show a => Edit a = Insert a | Delete | Same deriving (Eq, Show)
 -- | Cheap and simple edit distance between two lists.

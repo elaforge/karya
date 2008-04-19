@@ -56,7 +56,6 @@ on an scrollbar callback
 #include "Event.h"
 
 struct BlockModelConfig {
-    Selection selections[Config::max_selections];
     Color bg;
     Color track_box;
     Color sb_box;
@@ -94,7 +93,6 @@ public:
     int get_track_scroll() const;
     void set_track_scroll(int offset);
 
-    const Selection &get_selection(int selnum) const;
     void set_selection(int selnum, const Selection &sel);
 
     void set_title(const char *s) { title.value(s); }

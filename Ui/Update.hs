@@ -17,6 +17,7 @@ data ViewUpdate =
     | ViewSize Block.Rect
     | ViewConfig Block.ViewConfig
     | SetTrackWidth Block.TrackNum Block.Width
+    | SetSelection Block.SelNum (Maybe Block.Selection)
     deriving Show
 
 data BlockUpdate =

@@ -38,7 +38,6 @@ sync state updates = do
 send = Trans.liftIO . Initialize.send_action
 
 -- | Apply the update to the UI.
--- CreateView Updates will modify the State to add the ViewPtr
 run_update :: Update.Update -> State.StateT IO ()
 run_update (Update.ViewUpdate view_id Update.CreateView) = do
     view <- State.get_view view_id
@@ -62,6 +61,8 @@ run_update (Update.ViewUpdate view_id update) = do
         Update.ViewConfig config -> send (BlockC.set_view_config view_id config)
         Update.SetTrackWidth tracknum width -> send $
             BlockC.set_track_width view_id tracknum width
+        Update.SetSelection selnum sel -> send $
+            BlockC.set_selection view_id selnum sel
         -- Previous equation should have gotten this, but ghc warning doesn't
         -- know that.
         Update.CreateView -> error "run_update: notreached"
