@@ -36,11 +36,11 @@ event pos name dur = (TrackPos pos, Event.event name (TrackPos dur))
 
 test_sync = do
     res <- State.run State.empty $ do
-        ruler <- State.insert_ruler "r1" (mkruler 20 10)
-        t1 <- State.insert_track "b1.t1" event_track_1
-        b1 <- State.insert_block "b1" (Block.Block "hi b1" default_block_config
+        ruler <- State.create_ruler "r1" (mkruler 20 10)
+        t1 <- State.create_track "b1.t1" event_track_1
+        b1 <- State.create_block "b1" (Block.Block "hi b1" default_block_config
             (Block.R ruler) [(Block.T t1 ruler, 30)])
-        v1 <- State.insert_view "v1"
+        v1 <- State.create_view "v1"
             (Block.view b1 default_rect default_view_config)
         return ()
     let (_val, state, updates) = right res
@@ -138,7 +138,7 @@ setup_event_track = do
     block <- Block.create default_block_config
     ruler <- empty_ruler
     track <- Track.create Color.white
-    Block.insert_track block 0 (Block.T track ruler) 50
+    Block.create_track block 0 (Block.T track ruler) 50
     return block
 
 test_insert_events = do
@@ -180,7 +180,7 @@ test_view_track_width view = do
     -- test set sizes
     -- TODO incomplete
     track_ruler <- Ruler.create (ruler 3)
-    Block.insert_track (Block.view_block view) 0 (Block.R track_ruler) 15
+    Block.create_track (Block.view_block view) 0 (Block.R track_ruler) 15
     io_equal (Block.get_track_width view 0) 15
     Block.set_track_width view 0 10
     io_equal (Block.get_track_width view 0) 10
@@ -214,9 +214,9 @@ test_block_tracks = do
 
     io_equal (Block.tracks block) 0
 
-    Block.insert_track block 0 (Block.R track_ruler) 10
-    Block.insert_track block 1 (Block.T t1 overlay_ruler) 70
-    Block.insert_track block 1 (Block.D Color.blue) 10
+    Block.create_track block 0 (Block.R track_ruler) 10
+    Block.create_track block 1 (Block.T t1 overlay_ruler) 70
+    Block.create_track block 1 (Block.D Color.blue) 10
 
     io_equal (Block.tracks block) 3
 

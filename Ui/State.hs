@@ -10,7 +10,7 @@ Using explicit references introduces all the usual problems with pointers like
 invalid references and unreferenced data.  The latter is actually a feature
 (e.g. having a block with no associated view is perfectly normal), but the
 former is a pain.  To ease the pain, IDs should only be created via the monadic
-insert_* interface in this module, even though I'm forced to export their
+create_* interface in this module, even though I'm forced to export their
 constructors to avoid circular imports.  There may still be problems with IDs
 from one State being applied to a different State (likely an older and newer
 version of the same State), but I'll deal with that when I get there.
@@ -112,8 +112,8 @@ get_view view_id = get >>= lookup_id view_id . state_views
 -- itself.
 -- It's a little messy, but as long as the caller uses the Block.array
 -- constructor it should be ok.
-insert_view :: (UiStateMonad m) => String -> Block.View -> m Block.ViewId
-insert_view id view = do
+create_view :: (UiStateMonad m) => String -> Block.View -> m Block.ViewId
+create_view id view = do
     block <- get_block (Block.view_block view)
     let view' = view
             { Block.view_track_widths = map snd (Block.block_tracks block) }
@@ -165,8 +165,8 @@ modify_at xs i f = case post of
 
 get_block :: (UiStateMonad m) => Block.BlockId -> m Block.Block
 get_block block_id = get >>= lookup_id block_id . state_blocks
-insert_block :: (UiStateMonad m) => String -> Block.Block -> m Block.BlockId
-insert_block id block = get >>= insert (Block.BlockId id) block state_blocks
+create_block :: (UiStateMonad m) => String -> Block.Block -> m Block.BlockId
+create_block id block = get >>= insert (Block.BlockId id) block state_blocks
     (\blocks st -> st { state_blocks = blocks })
 
 get_view_ids_of :: (UiStateMonad m) => Block.BlockId -> m [Block.ViewId]
@@ -179,8 +179,8 @@ get_view_ids_of block_id = do
 
 get_track :: (UiStateMonad m) => Track.TrackId -> m Track.Track
 get_track track_id = get >>= lookup_id track_id . state_tracks
-insert_track :: (UiStateMonad m) => String -> Track.Track -> m Track.TrackId
-insert_track id track = get >>= insert (Track.TrackId id) track state_tracks
+create_track :: (UiStateMonad m) => String -> Track.Track -> m Track.TrackId
+create_track id track = get >>= insert (Track.TrackId id) track state_tracks
     (\tracks st -> st { state_tracks = tracks })
 
 modify_track :: (UiStateMonad m) =>
@@ -193,6 +193,7 @@ modify_track track_id f = do
 insert_events :: (UiStateMonad m) =>
     Track.TrackId -> [(TrackPos, Event.Event)] -> m ()
 insert_events track_id pos_evts = do
+    -- Save stash a track update, see 'run' comment.
     update $ Update.TrackUpdate track_id $ Update.UpdateTrack
         (fst (head pos_evts)) (Track.event_end (last pos_evts))
     modify_track track_id $ \track ->
@@ -203,8 +204,8 @@ insert_events track_id pos_evts = do
 
 get_ruler :: (UiStateMonad m) => Ruler.RulerId -> m Ruler.Ruler
 get_ruler ruler_id = get >>= lookup_id ruler_id . state_rulers
-insert_ruler :: (UiStateMonad m) => String -> Ruler.Ruler -> m Ruler.RulerId
-insert_ruler id ruler = get >>= insert (Ruler.RulerId id) ruler state_rulers
+create_ruler :: (UiStateMonad m) => String -> Ruler.Ruler -> m Ruler.RulerId
+create_ruler id ruler = get >>= insert (Ruler.RulerId id) ruler state_rulers
     (\rulers st -> st { state_rulers = rulers })
 
 -- ** util
