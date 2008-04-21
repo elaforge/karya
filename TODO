@@ -93,10 +93,10 @@ Cmd
   * add block_focus / MsgFocus msg type
   * put all stateful keys (kbd, mouse button, midi note) into keydown set
   * reintegrate handler and responder into new hstate, rename Msg->Cmd
+  - Cmd_test
   - keymaps that combine key patterns into a table and create a Handler
   - write basic keymap
-  - bug: first modifier event doesn't get emitted.  This appears to be an fltk
-    thing?
+  - bug: first modifier event doesn't get emitted.  An fltk thing?
   - undo
   checkpoints
     - serialize / deserialize for State
@@ -127,6 +127,8 @@ Midi
     order and don't allow timestamps on thru?
     no, I still need the scheduler, phooey.
     write WriteStream *OpenMergedOutput(WriteStream *stm, ...)
+  - maybe move Device out of PortMidi and PortMidi out of Midi, this would mean
+    Cmd/ wouldn't depend on foreign imports
   bandwidth
     - keep stats
     - display widget

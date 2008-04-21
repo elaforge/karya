@@ -14,7 +14,7 @@ import qualified Ui.Ruler as Ruler
 
 -- | Reference to a Block.  Use this to look up Blocks in the State.
 -- Even though the constructor is exported, you should only create them
--- through the State.StateT interface.
+-- through the 'State.StateT' interface.
 newtype BlockId = BlockId String deriving (Eq, Ord, Show)
 -- | Reference to a View, as per 'BlockId'.
 newtype ViewId = ViewId String deriving (Eq, Ord, Show)
@@ -60,7 +60,11 @@ data View = View {
     -- These are the per-view settings for the tracks.  There should be one
     -- corresponding to each Tracklike in the Block.  The StateT operations
     -- should maintain this invariant.
-    , view_track_widths :: [Width]
+    , view_tracks :: [TrackView]
+    } deriving (Eq, Ord, Show)
+
+data TrackView = TrackView {
+    track_view_width :: Width
     } deriving (Eq, Ord, Show)
 
 view block_id rect config = View block_id rect config Map.empty []
@@ -81,7 +85,6 @@ data ViewConfig = ViewConfig
 -- | Zoom offset factor
 data Zoom = Zoom TrackPos Double deriving (Show)
 
--- | A selection may span multiple tracks.
 data Selection = Selection
     { sel_color :: Color
     , sel_start_track :: TrackNum
@@ -89,7 +92,9 @@ data Selection = Selection
     , sel_tracks :: TrackNum
     , sel_duration :: TrackPos
     } deriving (Eq, Ord, Show)
+
 -- | A Selection with 0 tracks is considered no selection.
+null_selection :: Selection
 null_selection = Selection Color.black 0 (TrackPos 0) 0 (TrackPos 0)
 
 -- | Index of the non-scrolling ruler track (it doesn't necessarily have

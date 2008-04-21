@@ -93,11 +93,11 @@ protected:
     void draw();
 
 private:
-    void damage_range(TrackPos start, TrackPos end);
+    void damage_range(TrackPos start, TrackPos end, bool point_selection);
     void draw_marklists();
     void draw_mark(int offset, const Mark &mark);
     void draw_selections();
-    Selection selections[Config::max_selections];
+    TrackSelection selections[Config::max_selections];
 
     // This area needs to be redrawn.
     Rect damaged_area;

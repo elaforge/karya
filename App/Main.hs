@@ -63,11 +63,11 @@ main = Initialize.initialize $ \msg_chan -> Midi.initialize $ do
 setup_cmd :: Cmd.CmdT Identity.Identity Cmd.Status
 setup_cmd = do
     Log.debug "setup block"
-    ruler <- State.insert_ruler "r1" (TestSetup.mkruler 20 10)
-    t1 <- State.insert_track "b1.t1" TestSetup.event_track_1
-    b1 <- State.insert_block "b1" (Block.Block "hi b1"
+    ruler <- State.create_ruler "r1" (TestSetup.mkruler 20 10)
+    t1 <- State.create_track "b1.t1" TestSetup.event_track_1
+    b1 <- State.create_block "b1" (Block.Block "hi b1"
         TestSetup.default_block_config
         (Block.R ruler) [(Block.T t1 ruler, 30)])
-    _v1 <- State.insert_view "v1" (Block.View
-        b1 TestSetup.default_rect TestSetup.default_view_config [])
+    _v1 <- State.create_view "v1"
+        (Block.view b1 TestSetup.default_rect TestSetup.default_view_config)
     return Cmd.Done

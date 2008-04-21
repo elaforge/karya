@@ -28,6 +28,7 @@ import qualified Control.Monad.Error as Error
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
+import qualified Util.Seq as Seq
 import qualified Util.Logger as Logger
 
 import Ui.Types
@@ -102,7 +103,7 @@ instance Monad m => UiStateMonad (StateT m) where
     update upd = (StateT . lift) (Logger.record upd)
     throw msg = (StateT . lift . lift) (Error.throwError (StateError msg))
 
--- * Resolve IDs to their referents, or throw.
+-- * StateT operations
 
 -- ** view
 get_view :: (UiStateMonad m) => Block.ViewId -> m Block.View
@@ -115,22 +116,26 @@ get_view view_id = get >>= lookup_id view_id . state_views
 create_view :: (UiStateMonad m) => String -> Block.View -> m Block.ViewId
 create_view id view = do
     block <- get_block (Block.view_block view)
-    let view' = view
-            { Block.view_track_widths = map snd (Block.block_tracks block) }
+    let view' = view { Block.view_tracks = initial_track_views block }
     get >>= insert (Block.ViewId id) view' state_views
         (\views st -> st { state_views = views })
 
+-- Create TrackViews for a Block.
+initial_track_views block = map Block.TrackView widths
+    where widths = map snd (Block.block_tracks block)
+
 -- | Update @tracknum@ of @view_id@ to have width @width@.
--- Functional update still sucks.  An imperative language would have:
--- state.get_view(view_id).tracks[tracknum].width = width
 set_track_width :: (UiStateMonad m) =>
     Block.ViewId -> Int -> Block.Width -> m ()
 set_track_width view_id tracknum width = do
     view <- get_view view_id
-    widths <- modify_at (Block.view_track_widths view) tracknum (const width)
-    update_view view_id (view { Block.view_track_widths = widths })
+    -- Functional update still sucks.  An imperative language would have:
+    -- state.get_view(view_id).tracks[tracknum].width = width
+    track_views <- modify_at (Block.view_tracks view) tracknum $ \tview ->
+        tview { Block.track_view_width = width }
+    update_view view_id (view { Block.view_tracks = track_views })
 
--- ** selections
+-- *** selections
 
 -- TODO: I'll need something make creating selections with the color from
 -- block_selection_colors easy.
@@ -150,16 +155,8 @@ set_selection view_id selnum sel = do
     let sels = Map.insert selnum sel (Block.view_selections view)
     update_view view_id (view { Block.view_selections = sels })
 
-update_view view_id view = modify (\st -> st
-    { state_views = Map.adjust (const view) view_id (state_views st)})
-
--- | Modify the @i@th element of @xs@ by applying @f@ to it.
-modify_at :: (UiStateMonad m) => [a] -> Int -> (a -> a) -> m [a]
-modify_at xs i f = case post of
-    [] -> throw $ "can't replace index " ++ show i
-        ++ " of list with length " ++ show (length xs)
-    (elt:rest) -> return (pre ++ f elt : rest)
-    where (pre, post) = splitAt i xs
+update_view view_id view = modify $ \st -> st
+    { state_views = Map.adjust (const view) view_id (state_views st) }
 
 -- ** block
 
@@ -169,11 +166,69 @@ create_block :: (UiStateMonad m) => String -> Block.Block -> m Block.BlockId
 create_block id block = get >>= insert (Block.BlockId id) block state_blocks
     (\blocks st -> st { state_blocks = blocks })
 
+insert_track :: (UiStateMonad m) => Block.BlockId -> Block.TrackNum
+    -> Block.Tracklike -> Block.Width -> m ()
+insert_track block_id tracknum track width = do
+    block <- get_block block_id
+    views <- get_views_of block_id
+    let tracks = Block.block_tracks block
+        tracks' = Seq.insert_at tracks tracknum (track, width)
+        views' = Map.map (insert_into_view tracknum width) views
+    update_block block_id (block { Block.block_tracks = tracks' })
+    modify $ \st -> st { state_views = Map.union views' (state_views st) }
+
+remove_track :: (UiStateMonad m) => Block.BlockId -> Int -> m ()
+remove_track block_id tracknum = do
+    block <- get_block block_id
+    views <- get_views_of block_id
+    let tracks' = Seq.remove_at (Block.block_tracks block) tracknum
+        views' = Map.map (remove_from_view tracknum) views
+    update_block block_id (block { Block.block_tracks = tracks' })
+    modify $ \st -> st { state_views = Map.union views' (state_views st) }
+
+-- TODO
+remove_from_view tracknum view = view
+-- Add the new track's width into view_track_widths, move selections.
+insert_into_view tracknum width view = view
+    { Block.view_tracks = Seq.insert_at (Block.view_tracks view) tracknum
+        (Block.TrackView width)
+    , Block.view_selections =
+        Map.map (insert_into_selection tracknum) (Block.view_selections view)
+    }
+
+-- The UI also keeps track of the Selections for each SelNum, so that it knows
+-- which bits of the screen to refresh when a selection changes.  Since it also
+-- stores a selection using TrackNums, it has to implement the same algorithms
+-- as insert_into_selection and remove_from_selection or there will be update
+-- issues.
+-- Possibly a cleaner way to do it would be have the UI store selections as
+-- (selnum, color, pos, dur) per track.  Then it's the job of Diff to emit
+-- Updates for each track involved in a selection change...
+
+-- If tracknum is before or at the selection, push it to the right.  If it's
+-- inside, extend it.  If it's to the right, do nothing.
+insert_into_selection tracknum sel
+    | tracknum <= start = sel { Block.sel_start_track = start + 1 }
+    | tracknum < start + tracks = sel { Block.sel_tracks = tracks + 1 }
+    | otherwise = sel
+    where
+    start = Block.sel_start_track sel
+    tracks = Block.sel_tracks sel
+
+get_views_of :: (UiStateMonad m) =>
+    Block.BlockId -> m (Map.Map Block.ViewId Block.View)
+get_views_of block_id = do
+    st <- get
+    return $ Map.filter ((==block_id) . Block.view_block) (state_views st)
+
 get_view_ids_of :: (UiStateMonad m) => Block.BlockId -> m [Block.ViewId]
 get_view_ids_of block_id = do
     st <- get
     return [view_id | (view_id, view) <- Map.assocs (state_views st),
-            Block.view_block view == block_id]
+        Block.view_block view == block_id]
+
+update_block block_id block = modify $ \st -> st
+    { state_blocks = Map.adjust (const block) block_id (state_blocks st) }
 
 -- ** track
 
@@ -193,7 +248,7 @@ modify_track track_id f = do
 insert_events :: (UiStateMonad m) =>
     Track.TrackId -> [(TrackPos, Event.Event)] -> m ()
 insert_events track_id pos_evts = do
-    -- Save stash a track update, see 'run' comment.
+    -- Stash a track update, see 'run' comment.
     update $ Update.TrackUpdate track_id $ Update.UpdateTrack
         (fst (head pos_evts)) (Track.event_end (last pos_evts))
     modify_track track_id $ \track ->
@@ -225,3 +280,11 @@ insert key val get_map set_map state = do
         throw $ show key ++ " already exists"
     put (set_map (Map.insert key val (get_map state)) state)
     return key
+
+-- | Modify the @i@th element of @xs@ by applying @f@ to it.
+modify_at :: (UiStateMonad m) => [a] -> Int -> (a -> a) -> m [a]
+modify_at xs i f = case post of
+    [] -> throw $ "can't replace index " ++ show i
+        ++ " of list with length " ++ show (length xs)
+    (elt:rest) -> return (pre ++ f elt : rest)
+    where (pre, post) = splitAt i xs

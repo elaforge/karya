@@ -65,13 +65,38 @@ struct Selection {
             && duration == o.duration;
     }
     bool operator!=(const Selection &o) const { return !(*this == o); }
-    bool no_selection() const { return tracks == 0; }
+    // bool no_selection() const { return tracks == 0; }
 
     Color color;
     int start_track;
     TrackPos start_pos;
     int tracks;
     TrackPos duration;
+};
+
+struct TrackSelection {
+    TrackSelection() : start(TrackPos(0)), end(TrackPos(-1)) {}
+    TrackSelection(const Selection &sel, int tracknum) {
+        if (sel.start_track <= tracknum
+                && tracknum < sel.start_track + sel.tracks)
+        {
+            color = sel.color;
+            start = sel.start_pos;
+            end = sel.start_pos + sel.duration;
+        } else {
+            start = TrackPos(0);
+            end = TrackPos(-1);
+        }
+    }
+    bool empty() const { return end < start; }
+    /*
+    bool operator==(const Selection &o) const {
+        return color == o.color && start == o.start && duration == o.duration;
+    }
+    bool operator!=(const Selection &o) const { !(*this == o); }
+    */
+    Color color;
+    TrackPos start, end;
 };
 
 // You divide by factor to go from TrackPos -> pixels, so it can't be 0.

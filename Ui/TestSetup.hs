@@ -6,7 +6,6 @@ import qualified Ui.Color as Color
 
 import Ui.Types
 import qualified Ui.Block as Block
-import qualified Ui.BlockC as BlockC
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Track as Track
 import qualified Ui.Event as Event
@@ -17,7 +16,7 @@ pause = putStr "? " >> IO.hFlush IO.stdout >> getLine >> return ()
 -- (10, 50) seems to be the smallest x,y os x will accept.  Apparently
 -- fltk's sizes don't take the menu bar into account, which is about 44 pixels
 -- high, so a y of 44 is the minimum.
-default_rect = Block.Rect (10, 50) (100, 200)
+default_rect = Block.Rect (10, 50) (200, 200)
 
 default_block_config = Block.Config
     { Block.config_select_colors =
@@ -36,6 +35,8 @@ default_view_config = Block.ViewConfig
     , Block.vconfig_ruler_size = 18
     , Block.vconfig_status_size = 16
     }
+
+default_divider = Block.Divider Color.blue
 
 -- track
 

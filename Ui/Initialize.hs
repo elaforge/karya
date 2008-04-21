@@ -1,7 +1,6 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
 module Ui.Initialize (initialize, send_action) where
 import qualified Control.Monad as Monad
-import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception

@@ -44,7 +44,7 @@ toDescList with foldl?
 newtype TrackEvents = TrackEvents (Map.Map TrackPos Event.Event)
     deriving (Show)
     -- alternate efficient version for controller tracks?
-    -- | ControllerTrack (Array (TrackPos, Double))
+    -- ControllerTrack (Array (TrackPos, Double))
 -- This should be opaque, with a few operations to query and modify it,
 -- so I keep freedom to change the implemenctation.  Also needs to expose
 -- the queries to c++.

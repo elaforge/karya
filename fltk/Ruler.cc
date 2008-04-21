@@ -33,16 +33,32 @@ void
 OverlayRuler::set_selection(int selnum, int tracknum, const Selection &sel)
 {
     ASSERT(0 <= selnum && selnum < Config::max_selections);
-    // DEBUG("set selection " << selnum << " " << sel.tracks);
-    const Selection &old = this->selections[selnum];
-    if (old == sel)
-        return;
-    // Clear old selection, set new selection if there is one.
-    if (old.start_track <= tracknum && tracknum < old.start_track + old.tracks)
-        this->damage_range(old.start_pos, old.start_pos + old.duration);
-    if (sel.start_track <= tracknum && tracknum < sel.start_track + sel.tracks)
-        this->damage_range(sel.start_pos, sel.start_pos + sel.duration);
-    this->selections[selnum] = sel;
+    // DEBUG("set selection " << selnum << " - " << sel.start_track << " "
+    //         << sel.tracks);
+    TrackSelection news(sel, tracknum);
+    const TrackSelection &olds = this->selections[selnum];
+
+    if (olds.empty() && !news.empty()) {
+        // DEBUG("news " << news.start << "--" << news.end);
+        this->damage_range(news.start, news.end, true);
+    } else if (!olds.empty() && news.empty()) {
+        // DEBUG("clear old " << olds.start << "--" << olds.end);
+        this->damage_range(olds.start, olds.end, true);
+    } else if (!olds.empty() && !news.empty()) {
+        // DEBUG("start " << std::min(olds.start, news.start) << "--"
+        //         << std::max(olds.start, news.start));
+        // DEBUG("end " << std::min(olds.end, news.end) << "--"
+        //         << std::max(olds.end, news.end));
+        // TODO this isn't accurate if it's non-point going to point or
+        // vice versa, but I don't care right now
+        bool point_selection =
+            olds.start == olds.end || news.start == news.end;
+        this->damage_range(std::min(olds.start, news.start),
+                std::max(olds.start, news.start), point_selection);
+        this->damage_range(std::min(olds.end, news.end),
+                std::max(olds.end, news.end), point_selection);
+    }
+    this->selections[selnum] = news;
 }
 
 
@@ -51,9 +67,8 @@ OverlayRuler::time_end() const
 {
     TrackPos end(0);
     for (int i = 0; i < Config::max_selections; i++) {
-        const Selection &sel = selections[i];
-        if (sel.tracks != 0)
-            end = std::max(end, sel.start_pos + sel.duration);
+        if (!selections[i].empty())
+            end = std::max(end, selections[i].end);
     }
     return end;
 }
@@ -65,7 +80,7 @@ OverlayRuler::set_config(const RulerConfig &config, FinalizeCallback finalizer,
 {
     this->finalize_callbacks(finalizer);
     this->config = config;
-    this->damage_range(start, end); // TODO what about damage everything?
+    this->damage_range(start, end, false);
 }
 
 
@@ -119,13 +134,19 @@ clip_rect(Rect r)
 
 
 void
-OverlayRuler::damage_range(TrackPos start, TrackPos end)
+OverlayRuler::damage_range(TrackPos start, TrackPos end, bool point_selection)
 {
     Rect r = rect(this);
     r.y = this->zoom.to_pixels(start - this->zoom.offset);
-    r.h = std::max(selection_min_size, this->zoom.to_pixels(end));
-    this->damaged_area.union_(r);
-    this->damage(FL_DAMAGE_USER1);
+    r.h = this->zoom.to_pixels(end);
+    if (point_selection && start == end) {
+        r.y -= selection_point_size;
+        r.h += selection_point_size * 2;
+    }
+    if (r.h > 0) {
+        this->damaged_area.union_(r);
+        this->damage(FL_DAMAGE_USER1);
+    }
 }
 
 
@@ -207,15 +228,14 @@ void
 OverlayRuler::draw_selections()
 {
     for (int i = 0; i < Config::max_selections; i++) {
-        const Selection &sel = this->selections[i];
-        if (sel.tracks == 0)
+        const TrackSelection &sel = this->selections[i];
+        if (sel.empty())
             continue;
-        int start = y() + this->zoom.to_pixels(
-                sel.start_pos - this->zoom.offset);
+        int start = y() + this->zoom.to_pixels(sel.start - this->zoom.offset);
         int height = std::max(selection_min_size,
-                this->zoom.to_pixels(sel.duration));
+                this->zoom.to_pixels(sel.end - sel.start));
         alpha_rectf(Rect(x(), start, w(), height), sel.color);
-        if (sel.duration == TrackPos(0)) {
+        if (sel.start == sel.end) {
             // Darken the select color a bit, and make it non-transparent.
             fl_color(color_to_fl(sel.color.scale(0.5)));
             fl_line_style(FL_SOLID, 1);

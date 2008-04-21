@@ -14,7 +14,7 @@ extern "C" {
 void
 initialize()
 {
-    DEBUG("lock");
+    // DEBUG("lock");
     Fl::lock();
 }
 
@@ -28,7 +28,7 @@ ui_wait()
 void
 ui_awake()
 {
-    DEBUG("awake");
+    // DEBUG("awake");
     Fl::awake((void*) 0);
 }
 
@@ -41,6 +41,7 @@ take_ui_msgs(UiMsg **msgs)
     MsgCollector *m = global_msg_collector();
     *msgs = &m->msgs[0];
     int sz = m->msgs.size();
+    // TODO this seems dangerous.  split this into read_ui_msgs / clear_ui_msgs
     m->msgs.clear();
     return sz;
 }
@@ -124,7 +125,10 @@ set_track_scroll(BlockViewWindow *view, int pixels)
 void
 set_selection(BlockViewWindow *view, int selnum, const Selection *sel)
 {
-    view->block.set_selection(selnum, *sel);
+    if (sel)
+        view->block.set_selection(selnum, *sel);
+    else
+        view->block.set_selection(selnum, Selection());
 }
 
 

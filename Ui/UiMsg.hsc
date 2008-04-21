@@ -20,6 +20,7 @@ import qualified Ui.Key as Key
 import qualified Ui.Block as Block
 import qualified Ui.BlockC as BlockC
 
+take_ui_msgs :: IO [UiMsg]
 take_ui_msgs = with nullPtr $ \msgspp -> do
     count <- c_take_ui_msgs msgspp
     msgsp <- peek msgspp

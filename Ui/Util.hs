@@ -48,17 +48,3 @@ withForeignPtrs fps f = withfp [] fps f
     where
     withfp ps [] f = f (reverse ps)
     withfp ps (fp:rest) f = withForeignPtr fp (\p -> withfp (p:ps) rest f)
-
-
--- Treating lists like arrays
--- Throws UI errors for out of bounds
-
--- TODO
-at :: String -> [a] -> Int -> a
-at desc xs i = xs !! in_range desc 0 (length xs) i
-
--- | Insert 'x' into 'xs' at index 'i'.
-list_insert :: [a] -> Int -> a -> [a]
-list_insert xs i x = let (pre, post) = splitAt i xs in pre ++ [x] ++ post
-list_remove :: [a] -> Int -> [a]
-list_remove xs i = let (pre, post) = splitAt i xs in pre ++ drop 1 post

@@ -38,6 +38,7 @@ sync state updates = do
 send = Trans.liftIO . Initialize.send_action
 
 -- | Apply the update to the UI.
+-- CreateView Updates will modify the State to add the ViewPtr
 run_update :: Update.Update -> State.StateT IO ()
 run_update (Update.ViewUpdate view_id Update.CreateView) = do
     view <- State.get_view view_id
@@ -48,7 +49,7 @@ run_update (Update.ViewUpdate view_id Update.CreateView) = do
         BlockC.create_view view_id (Block.view_rect view)
             (Block.view_config view) (Block.block_config block) ruler_track
         -- add tracks and title
-        let widths = Block.view_track_widths view
+        let widths = map Block.track_view_width (Block.view_tracks view)
         forM_ (zip3 [0..] ctracks widths) $
             \(i, ctrack, width) -> BlockC.insert_track view_id i ctrack width
         when (not (null (Block.block_title block))) $
@@ -61,11 +62,11 @@ run_update (Update.ViewUpdate view_id update) = do
         Update.ViewConfig config -> send (BlockC.set_view_config view_id config)
         Update.SetTrackWidth tracknum width -> send $
             BlockC.set_track_width view_id tracknum width
-        Update.SetSelection selnum sel -> send $
-            BlockC.set_selection view_id selnum sel
         -- Previous equation should have gotten this, but ghc warning doesn't
         -- know that.
         Update.CreateView -> error "run_update: notreached"
+        Update.SetSelection selnum maybe_sel -> send $
+            BlockC.set_selection view_id selnum maybe_sel
 
 -- Block ops apply to every view with that block.
 run_update (Update.BlockUpdate block_id update) = do
