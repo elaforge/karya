@@ -10,6 +10,29 @@ enumerate = zip [0..]
 sortOn :: Ord b => (a -> b) -> [a] -> [a]
 sortOn key = sortBy (\a b -> compare (key a) (key b))
 
+-- | Get @xs !! n@, but return Nothing if the index is out of range.
+at :: [a] -> Int -> Maybe a
+at xs n
+    | n < 0 = Nothing
+    | otherwise = _at xs n
+    where
+    _at [] n = Nothing
+    _at (x:_) 0 = Just x
+    _at (_:xs) n = at xs (n-1)
+
+-- | Insert @x@ into @xs@ at index @i@.
+insert_at :: [a] -> Int -> a -> [a]
+insert_at xs i x = let (pre, post) = splitAt i xs in pre ++ (x : post)
+remove_at :: [a] -> Int -> [a]
+remove_at xs i = let (pre, post) = splitAt i xs in pre ++ drop 1 post
+
+-- Safe variants of head and tail.  "m" is for "maybe".
+mhead :: a -> [a] -> a
+mhead def [] = def
+mhead _def (x:xs) = x
+mtail def [] = def
+mtail _def (x:xs) = xs
+
 rDropWhile f = reverse . dropWhile f . reverse
 
 lstrip = dropWhile Char.isSpace

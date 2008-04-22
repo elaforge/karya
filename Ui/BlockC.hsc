@@ -419,3 +419,18 @@ peek_zoom zoomp = do
 poke_zoom zoomp (Block.Zoom offset factor) = do
     (#poke ZoomInfo, offset) zoomp offset
     (#poke ZoomInfo, factor) zoomp (Util.c_double factor)
+
+-- ** rect
+
+instance Storable Block.Rect where
+    sizeOf _ = #size Rect
+    alignment _ = undefined
+    peek = peek_rect
+
+peek_rect rectp = do
+    x <- (#peek Rect, x) rectp :: IO CInt
+    y <- (#peek Rect, y) rectp :: IO CInt
+    w <- (#peek Rect, w) rectp :: IO CInt
+    h <- (#peek Rect, h) rectp :: IO CInt
+    return $ Block.Rect (i x, i y) (i w, i h)
+    where i = fromIntegral

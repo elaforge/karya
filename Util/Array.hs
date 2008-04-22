@@ -4,6 +4,15 @@ import qualified Data.Array.IArray as IArray
 import Data.Array.IArray ((!))
 
 
+-- | Like 'IArray.!', except throw a more informative error, with @msg@
+-- prepended.
+at :: (IArray.IArray a e, IArray.Ix i, Show i) => String -> a i e -> i -> e
+at msg a i
+    | i >= low && i <= high = a!i
+    | otherwise = error $
+        msg ++ ": index " ++ show i ++ " out of range " ++ show (low, high)
+    where (low, high) = IArray.bounds a
+
 -- | Is the given index within the array's bounds?
 in_bounds a i = let (low, high) = IArray.bounds a in low <= i && i <= high
 

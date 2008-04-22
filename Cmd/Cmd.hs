@@ -3,7 +3,7 @@ module Cmd.Cmd where
 
 import Control.Monad
 import qualified Control.Monad.Identity as Identity
-import qualified Control.Monad.State as State
+import qualified Control.Monad.State as MonadState
 import qualified Control.Monad.Trans as Trans
 import Control.Monad.Trans (lift)
 import qualified Control.Monad.Writer as Writer
@@ -18,7 +18,7 @@ import Ui.Types
 import qualified Ui.Key as Key
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.Block as Block
-import qualified Ui.State
+import qualified Ui.State as State
 import qualified Ui.Update as Update
 
 import qualified Util.Log as Log
@@ -27,17 +27,19 @@ import qualified Midi.Midi as Midi
 import qualified Cmd.Msg as Msg
 
 
-type Cmd = Msg.Msg -> CmdT Identity.Identity Status
+type CmdM = CmdT Identity.Identity Status
+type Cmd = Msg.Msg -> CmdM
+
 
 -- | The result of running a Cmd.
 type CmdVal = (Status, State, [MidiMsg], [Log.Msg],
-    Either Ui.State.StateError (Ui.State.State, [Update.Update]))
+    Either State.StateError (State.State, [Update.Update]))
 
-run :: (Monad m) => Ui.State.State -> State -> CmdT m Status -> m CmdVal
+run :: (Monad m) => State.State -> State -> CmdT m Status -> m CmdVal
 run ui_state cmd_state cmd = do
     (((ui_res, cmd_state2), midi), log_msgs) <-
-        (Log.run . Logger.run . flip State.runStateT cmd_state
-            . Ui.State.run ui_state . run_cmd_t) cmd
+        (Log.run . Logger.run . flip MonadState.runStateT cmd_state
+            . State.run ui_state . run_cmd_t) cmd
     -- This defines the policy for exceptions from Ui.StateT.  I choose to
     -- let the ui state alone, but keep changes to the cmd state, midi, and
     -- log msgs.  This is so I don't throw away the work of previous Cmds.
@@ -47,40 +49,49 @@ run ui_state cmd_state cmd = do
                 (status, Right (ui_state2, updates))
     return (status, cmd_state2, midi, log_msgs, ui_result)
 
-run_cmd :: Ui.State.State -> State -> CmdT Identity.Identity Status -> CmdVal
+run_cmd :: State.State -> State -> CmdM -> CmdVal
 run_cmd ui_state cmd_state cmd =
     Identity.runIdentity (run ui_state cmd_state cmd)
 
+-- | Quit is not exported, so that only 'cmd_quit' here has permission to
+-- return it.
 data Status = Done | Continue | Quit deriving (Eq, Show)
 
 -- * CmdT and operations
 
-type CmdM m = Ui.State.StateT
-    (State.StateT State
+type CmdStack m = State.StateT
+    (MonadState.StateT State
         (Logger.LoggerT MidiMsg
             (Log.LogT m)))
 
-newtype Monad m => CmdT m a = CmdT (CmdM m a)
+newtype Monad m => CmdT m a = CmdT (CmdStack m a)
     deriving (Functor, Monad, Trans.MonadIO)
 run_cmd_t (CmdT x) = x
 
 instance Trans.MonadTrans CmdT where
-    -- lift the op through all monads
     lift = CmdT . lift . lift . lift . lift
 
 -- Give CmdT unlifted access to all the logging functions.
 instance Monad m => Log.LogMonad (CmdT m) where
     write = CmdT . lift . lift . lift . Log.write
 
+-- And to the UI state operations.
+instance Monad m => State.UiStateMonad (CmdT m) where
+    get = CmdT State.get
+    put st = CmdT (State.put st)
+    modify f = CmdT (State.modify f)
+    update upd = CmdT (State.update upd)
+    throw msg = CmdT (State.throw msg)
+
 -- | Keys currently held down.
 keys_down :: (Monad m) => CmdT m [Modifier]
 keys_down = do
-    st <- (CmdT . lift) State.get
+    st <- (CmdT . lift) MonadState.get
     return (Set.elems (state_keys_down st))
 
 -- | Modify Cmd 'State'.
 modify_state :: (Monad m) => (State -> State) -> CmdT m ()
-modify_state f = (CmdT . lift) (State.modify f)
+modify_state f = (CmdT . lift) (MonadState.modify f)
 
 type MidiMsg = (Midi.Device, Midi.Message)
 
@@ -92,10 +103,10 @@ midi dev msg = (CmdT . lift . lift) (Logger.record (dev, msg))
 -- * State
 
 data State = State {
-    -- | Map of keys held down.  Maintained by Responder.cmd_record_keys.
+    -- | Map of keys held down.  Maintained by cmd_record_keys and accessed
+    -- with 'keys_down'.
     state_keys_down :: Set.Set Modifier
-    -- | Block that has focus.  Maintained by Responder.cmd_block_focus,
-    -- so non-ui msgs can know what block is active.
+    -- | Block that has focus, so non-ui msgs can know what block is active.
     , state_current_block :: Maybe Block.View
     } deriving (Show)
 initial_state = State Set.empty Nothing
@@ -157,7 +168,7 @@ cmd_record_keys msg = do
         { UiMsg.ctx_track = Just n, UiMsg.ctx_pos = Just pos }) = Just (n, pos)
     mouse_context _ = Nothing
     has_button btn (MouseMod btn2 _) = btn == btn2
-    has_button btn _ = False
+    has_button _btn _ = False
     insert_mod mod = do
         mods <- keys_down
         when (mod `elem` mods) $
@@ -172,3 +183,46 @@ cmd_record_keys msg = do
         Log.debug $ "keyup " ++ show (List.delete mod mods)
     modify_keys f = modify_state $ \st ->
         st { state_keys_down = f (state_keys_down st) }
+
+-- Responds to the UI's request to close a window.
+cmd_close_window :: Cmd
+cmd_close_window (Msg.Ui (UiMsg.UiMsg
+    (UiMsg.Context { UiMsg.ctx_block = Just view_id }) UiMsg.MsgClose)) =
+    State.destroy_view view_id >> return Done
+cmd_close_window _ = return Continue
+
+
+-- | Catch 'UiMsg.UiUpdate's from the UI, and modify the state accordingly to
+-- reflect the UI state.
+--
+-- Unlike all the other Cmds, the state changes this makes are not synced.
+-- UiUpdates report changes that have already occurred directly on the UI, so
+-- syncing them would be redundant.
+cmd_record_ui_updates :: Cmd
+cmd_record_ui_updates (Msg.Ui (UiMsg.UiMsg ctx (UiMsg.UiUpdate update))) =
+    ui_update ctx update >> return Done
+cmd_record_ui_updates _ = return Continue
+
+ui_update :: UiMsg.Context -> UiMsg.UiUpdate -> CmdT Identity.Identity ()
+ui_update ctx@(UiMsg.Context (Just view_id) track _pos) update = case update of
+    UiMsg.UpdateInput text -> do
+        view <- State.get_view view_id
+        update_input ctx (Block.view_block view) text
+    UiMsg.UpdateTrackScroll hpos -> State.set_track_scroll view_id hpos
+    UiMsg.UpdateZoom zoom -> State.set_zoom view_id zoom
+    UiMsg.UpdateViewResize rect -> Log.warn $ "resizing to " ++ show rect
+    -- UiMsg.UpdateViewResize rect -> State.set_view_size view_id rect
+    UiMsg.UpdateTrackWidth width -> case track of
+        Just tracknum -> State.set_track_width view_id tracknum width
+        Nothing -> State.throw $ show update ++ " with no track: " ++ show ctx
+ui_update ctx update =
+    State.throw $ show update ++ " with no view_id: " ++ show ctx
+
+update_input ctx block_id text = case (UiMsg.ctx_track ctx) of
+    Just tracknum -> do
+        track <- State.track_at block_id tracknum
+        case track of
+            Just (Block.T track_id _) -> State.set_track_title track_id text
+            _ -> State.throw $ show (UiMsg.UpdateInput text) ++ " for "
+                ++ show ctx ++ " on non-event track " ++ show track
+    Nothing -> State.set_block_title block_id text

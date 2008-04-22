@@ -1,10 +1,13 @@
+import qualified Control.Exception as Exception
 import qualified Control.Monad as Monad
 import qualified Control.Concurrent.STM as STM
 import qualified System.IO as IO
 -- import qualified System.IO.Unsafe as Unsafe
 
+import qualified Util.Log as Log
 import qualified Util.Test as Test
 import qualified Util.Thread as Thread
+
 import Ui.Types
 -- import qualified Ui.Util as Util
 import qualified Ui.Color as Color
@@ -26,9 +29,11 @@ main = Initialize.initialize $ \msg_chan -> do
     msg_th <- Thread.start_thread "print msgs" (msg_thread msg_chan)
     test_sync
 
-msg_thread msg_chan = Monad.forever $ do
+msg_thread msg_chan = Monad.forever $ Exception.handle log_exc $ do
     msg <- STM.atomically $ STM.readTChan msg_chan
     putStrLn $ "msg: " ++ UiMsg.pretty_ui_msg msg
+
+log_exc exc = Log.error ("msg thread died from  exception: " ++ show exc)
 
 send = Initialize.send_action
 

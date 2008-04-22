@@ -11,6 +11,7 @@ module Ui.UiMsg where
 import Control.Monad
 import Foreign
 import Foreign.C
+import qualified Data.Maybe as Maybe
 import Text.Printf
 
 import qualified Util.Seq as Seq
@@ -20,15 +21,17 @@ import qualified Ui.Key as Key
 import qualified Ui.Block as Block
 import qualified Ui.BlockC as BlockC
 
-take_ui_msgs :: IO [UiMsg]
-take_ui_msgs = with nullPtr $ \msgspp -> do
-    count <- c_take_ui_msgs msgspp
+get_ui_msgs :: IO [UiMsg]
+get_ui_msgs = with nullPtr $ \msgspp -> do
+    count <- c_get_ui_msgs msgspp
     msgsp <- peek msgspp
     msgs <- peekArray (fromIntegral count) msgsp
+    c_clear_ui_msgs
     return msgs
 
-foreign import ccall unsafe "take_ui_msgs"
-    c_take_ui_msgs :: Ptr (Ptr UiMsg) -> IO CInt
+foreign import ccall unsafe "get_ui_msgs"
+    c_get_ui_msgs :: Ptr (Ptr UiMsg) -> IO CInt
+foreign import ccall unsafe "clear_ui_msgs" c_clear_ui_msgs :: IO ()
 
 -- | Technically MsgClose and whatnot don't have ctx_track and ctx_pos, but
 -- it's easier to give everyone Context.
@@ -39,28 +42,27 @@ data UiMsg = UiMsg Context Msg
 data Context = Context
     { ctx_block :: Maybe Block.ViewId
     -- | Index into block tracks.
-    , ctx_track :: Maybe Int
+    , ctx_track :: Maybe Block.TrackNum
     , ctx_pos :: Maybe TrackPos
     } deriving (Show)
 
 -- | Corresponds to UiMsg::MsgType enum.
--- Many of these are just view updates, and are only sent so they can be
--- stored as Actions and go into the undo list.
-data Msg = MsgEvent Data
-    | MsgInput | MsgTrackScroll | MsgZoom | MsgViewResize
-    | MsgTrackWidth | MsgClose
+data Msg = MsgEvent Data | UiUpdate UiUpdate
+    | MsgClose
     deriving (Eq, Ord, Show)
 
-decode_type typ = case typ of
-    -- This one is handled in make_msg, since MsgEvent needs args
-    -- (#const UiMsg::msg_event) -> MsgEvent
-    (#const UiMsg::msg_input) -> MsgInput
-    (#const UiMsg::msg_track_scroll) -> MsgTrackScroll
-    (#const UiMsg::msg_zoom) -> MsgZoom
-    (#const UiMsg::msg_view_resize) -> MsgViewResize
-    (#const UiMsg::msg_track_width) -> MsgTrackWidth
-    (#const UiMsg::msg_close) -> MsgClose
-    _ -> error $ "unknown UiMsg type: " ++ show typ
+-- | These are generated when the UI is manipulated directly and makes changes
+-- to its own state.  They are like Ui.Update except in the opposide direction:
+-- fltk telling haskell what changes occurred.
+
+-- TODO include the arg vals so I don't have to call back into fltk
+data UiUpdate =
+    UpdateInput String
+    | UpdateTrackScroll Block.Width
+    | UpdateZoom Block.Zoom
+    | UpdateViewResize Block.Rect
+    | UpdateTrackWidth Block.Width
+    deriving (Eq, Ord, Show)
 
 data Data = Mouse
     { mouse_state :: MouseState
@@ -92,10 +94,10 @@ pretty_ui_msg (UiMsg ctx (MsgEvent mdata)) = case mdata of
 pretty_ui_msg (UiMsg ctx msg)
     = printf "Other Event: %s %s" (show msg) (pretty_context ctx)
 
-pretty_context (Context block track pos) = "{" ++ contents ++ "}"
+pretty_context (Context block tracknum pos) = "{" ++ contents ++ "}"
     where
     contents = Seq.join " " (filter (not.null) [show_maybe "block" block,
-        show_maybe "track" track, show_maybe "pos" pos])
+        show_maybe "tracknum" tracknum, show_maybe "pos" pos])
     show_maybe _ Nothing = ""
     show_maybe desc (Just x) = desc ++ "=" ++ show x
 
@@ -110,6 +112,7 @@ instance Storable UiMsg where
     poke = error "no poke for UiMsg"
 
 peek_msg msgp = do
+    -- MsgEvent data
     type_num <- (#peek UiMsg, type) msgp :: IO CInt
     event <- (#peek UiMsg, event) msgp :: IO CInt
     button <- (#peek UiMsg, button) msgp :: IO CInt
@@ -118,36 +121,57 @@ peek_msg msgp = do
     x <- (#peek UiMsg, x) msgp :: IO CInt
     y <- (#peek UiMsg, y) msgp :: IO CInt
     key <- (#peek UiMsg, key) msgp :: IO CInt
+    let evt_args = (i event, i button, i clicks, is_click /= 0, i x, i y, i key)
 
+    -- UiUpdate args
+    ctext <- (#peek UiMsg, update_text) msgp :: IO CString
+    text <- maybePeek peekCString ctext
+    width <- (#peek UiMsg, update_width) msgp :: IO CInt
+    czoom <- (#peek UiMsg, update_zoom) msgp :: IO (Ptr Block.Zoom)
+    zoom <- maybePeek peek czoom
+    crect <- (#peek UiMsg, update_rect) msgp :: IO (Ptr Block.Rect)
+    rect <- maybePeek peek crect
+    let update_args = (text, i width, zoom, rect)
+
+    -- UiMsg Context
     viewp <- (#peek UiMsg, view) msgp :: IO (Ptr BlockC.CView)
-    has_track <- (#peek UiMsg, has_track) msgp :: IO CChar
-    track <- (#peek UiMsg, track) msgp :: IO CInt
+    has_tracknum <- (#peek UiMsg, has_tracknum) msgp :: IO CChar
+    tracknum <- (#peek UiMsg, tracknum) msgp :: IO CInt
     has_pos <- (#peek UiMsg, has_pos) msgp :: IO CChar
     pos <- (#peek UiMsg, pos) msgp
 
-    context <- make_context viewp has_track track has_pos pos
-    return $ make_msg type_num context
-        (i event) (i button) (i clicks) (i is_click /= 0)
-        (i x) (i y) (i key)
+    context <- make_context viewp has_tracknum tracknum has_pos pos
+    return $ make_msg type_num context evt_args update_args
     where i = fromIntegral
 
-make_msg type_num context event button clicks is_click x y key
-    = UiMsg context $ case type_num of
-        (#const UiMsg::msg_event) ->
-            MsgEvent (decode_msg_event event button x y clicks is_click key)
-        _ -> decode_type type_num
+make_msg type_num context evt_args update_args =
+    UiMsg context $ case type_num of
+        (#const UiMsg::msg_event) -> MsgEvent (decode_msg_event evt_args)
+        (#const UiMsg::msg_close) -> MsgClose
+        _ -> UiUpdate (decode_update type_num update_args)
 
-make_context viewp has_track track has_pos pos
+decode_update typ (text, width, zoom, rect) = case typ of
+    (#const UiMsg::msg_input) -> UpdateInput (Maybe.fromMaybe "" text)
+    (#const UiMsg::msg_track_scroll) -> UpdateTrackScroll width
+    (#const UiMsg::msg_zoom) -> UpdateZoom
+        (Maybe.fromMaybe (BlockC.throw "UpdateZoom with null zoom") zoom)
+    (#const UiMsg::msg_view_resize) -> UpdateViewResize
+        (Maybe.fromMaybe (BlockC.throw "UpdateViewResize with null rect") rect)
+    (#const UiMsg::msg_track_width) -> UpdateTrackWidth width
+    -- msg_event and msg_close handled above
+    _ -> error $ "unknown UiMsg type: " ++ show typ
+
+make_context viewp has_tracknum tracknum has_pos pos
     | viewp == nullPtr = return $ context Nothing
     | otherwise = do
         view_id <- BlockC.get_id viewp
         return $ context (Just view_id)
     where
-    context view = Context view (to_maybe has_track (fromIntegral track))
+    context view = Context view (to_maybe has_tracknum (fromIntegral tracknum))
         (to_maybe has_pos pos)
     to_maybe b val = if toBool b then Just val else Nothing
 
-decode_msg_event event button x y clicks is_click key = msg
+decode_msg_event (event, button, clicks, is_click, x, y, key) = msg
     where
     mouse state = Mouse state (x, y) 0 False
     kbd state = Kbd state (Key.Unknown 0)

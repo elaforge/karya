@@ -38,19 +38,26 @@ io_equal_srcpos srcpos io_val expected = do
             "expected: " ++ show expected ++ ", got: " ++ show val
 
 -- Only a human can check these things.
-io_human expected_msg op = io_human_srcpos Nothing
+io_human :: String -> IO a -> IO a
+io_human = io_human_srcpos Nothing
 io_human_srcpos srcpos expected_msg op = do
     putStrLn $ "should see: " ++ expected_msg
     getch
-    op
+    result <- op
     putStr $ "  ... ok? "
     c <- getch
     putChar '\n'
     if c /= 'y'
-        then failure srcpos $ "didn't see " ++ expected_msg
-        else success srcpos $ "saw " ++ expected_msg
+        then failure srcpos $ "didn't see " ++ show expected_msg
+        else success srcpos $ "saw " ++ show expected_msg
+    return result
 
 -- * util
+
+-- | Print a list with newlines between its elements.
+plist :: Show a => [a] -> IO ()
+plist xs = mapM_ (\(i, x) -> putStr ("--" ++ show i ++ " ") >> print x)
+    (zip [0..] xs)
 
 -- This goes before printed results when they are as expected.
 success :: Misc.SrcPos -> String -> IO ()

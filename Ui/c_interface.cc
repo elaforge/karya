@@ -33,17 +33,20 @@ ui_awake()
 }
 
 int
-take_ui_msgs(UiMsg **msgs)
+get_ui_msgs(UiMsg **msgs)
 {
     // Turn vector into c-array.  C++ standard says vector is supposed to
     // use a contiguous array:
     // http://www.open-std.org/jtc1/sc22/wg21/docs/lwg-defects.html#69
     MsgCollector *m = global_msg_collector();
-    *msgs = &m->msgs[0];
-    int sz = m->msgs.size();
-    // TODO this seems dangerous.  split this into read_ui_msgs / clear_ui_msgs
-    m->msgs.clear();
-    return sz;
+    *msgs = m->msgs_ptr();
+    return m->msgs_size();
+}
+
+void
+clear_ui_msgs()
+{
+    global_msg_collector()->clear();
 }
 
 

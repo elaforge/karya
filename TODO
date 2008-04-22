@@ -25,6 +25,7 @@ fltk
     it altogether)
 
   UI Msgs
+    - a special "system" window that receives events like "new block"
     - can I capture os x two-finger drag events?
       yes, they're reported as FL_MOUSEWHEEL, so I should scroll on mousewheel
     * convert EventCollectWindow to global EventCollector
@@ -94,11 +95,18 @@ Cmd
   * put all stateful keys (kbd, mouse button, midi note) into keydown set
   * reintegrate handler and responder into new hstate, rename Msg->Cmd
   - Cmd_test
-  - keymaps that combine key patterns into a table and create a Handler
-  - write basic keymap
+  keymap
+    - keymaps that combine key patterns into a table and create a Handler
+    - Cmd.Movement: selection / cursor movement commands
+    - Cmd.Event: event insertion / deletion commands
+    - UI and fltk support for editing event text
+    - Cmd.Block: view and creation / deletion, track insertion / removal
+    * UiMsgs for track drags, resizes, and text changes update State
+    - Cmd.Language: listen on a socket, receive cmd language?
+      or use hs-plugins?
   - bug: first modifier event doesn't get emitted.  An fltk thing?
-  - undo
   checkpoints
+    - undo
     - serialize / deserialize for State
     - figure out how to checkpoint just state diffs
 

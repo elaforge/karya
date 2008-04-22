@@ -77,7 +77,7 @@ BlockView::resize(int X, int Y, int W, int H)
     Fl_Group::resize(X, Y, W, H);
     status_line.size(w() - mac_resizer_width, status_line.h());
     this->update_scrollbars();
-    global_msg_collector()->block_changed(this, UiMsg::msg_view_resize);
+    global_msg_collector()->block_update(this, UiMsg::msg_view_resize);
 }
 
 
@@ -291,7 +291,7 @@ BlockView::scrollbar_cb(Fl_Widget *_unused_w, void *vp)
         self->zoom = new_zoom;
         self->ruler_track->set_zoom(self->zoom);
         self->track_tile.set_zoom(self->zoom);
-        global_msg_collector()->block_changed(self, UiMsg::msg_zoom);
+        global_msg_collector()->block_update(self, UiMsg::msg_zoom);
     }
 
     // This is the same as set_track_scroll, but can reuse track_end, and
@@ -303,7 +303,7 @@ BlockView::scrollbar_cb(Fl_Widget *_unused_w, void *vp)
     Point new_offset(-offset, 0);
     if (self->track_scroll.get_offset() != new_offset) {
         self->track_scroll.set_offset(new_offset);
-        global_msg_collector()->block_changed(self, UiMsg::msg_track_scroll);
+        global_msg_collector()->block_update(self, UiMsg::msg_track_scroll);
     }
 }
 
@@ -322,7 +322,7 @@ BlockView::track_tile_cb(Fl_Widget *w, void *vp)
     BlockView *self = static_cast<BlockView *>(vp);
     self->update_scrollbars();
     int track = self->track_tile.get_dragged_track();
-    global_msg_collector()->block_changed(self, UiMsg::msg_track_width, track);
+    global_msg_collector()->block_update(self, UiMsg::msg_track_width, track);
 }
 
 
@@ -333,7 +333,7 @@ static void
 block_view_window_cb(Fl_Window *win, void *p)
 {
     BlockViewWindow *view = static_cast<BlockViewWindow *>(win);
-    global_msg_collector()->window_changed(view, UiMsg::msg_close);
+    global_msg_collector()->window_update(view, UiMsg::msg_close);
     // TODO remove this, and add a event handling thread to test_block
     if (view->testing)
         Fl_Window::default_callback(win, p);

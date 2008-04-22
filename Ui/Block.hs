@@ -55,6 +55,11 @@ data View = View {
     view_block :: BlockId
     , view_rect :: Rect
     , view_config :: ViewConfig
+
+    -- Scroll and zoom
+    , view_track_scroll :: Width
+    , view_zoom :: Zoom
+
     -- Visible Selections, indexed by their SelNum.
     , view_selections :: Map.Map SelNum Selection
     -- These are the per-view settings for the tracks.  There should be one
@@ -67,7 +72,10 @@ data TrackView = TrackView {
     track_view_width :: Width
     } deriving (Eq, Ord, Show)
 
-view block_id rect config = View block_id rect config Map.empty []
+-- Construct a View, using default values for most of its fields.
+-- Don't construct views using View directly.
+view block_id rect config = View block_id rect config
+    0 default_zoom Map.empty []
 
 data Rect = Rect (Int, Int) (Int, Int) deriving (Eq, Ord, Show)
 
@@ -83,7 +91,8 @@ data ViewConfig = ViewConfig
     } deriving (Eq, Ord, Show)
 
 -- | Zoom offset factor
-data Zoom = Zoom TrackPos Double deriving (Show)
+data Zoom = Zoom TrackPos Double deriving (Eq, Ord, Show)
+default_zoom = Zoom (TrackPos 0) 1
 
 data Selection = Selection
     { sel_color :: Color

@@ -1,6 +1,8 @@
-module Msg.TimeStep where
+module Cmd.TimeStep where
 import Ui.Types
 import qualified Ui.Ruler as Ruler
+
+{-
 
 -- | A variable time step, used to find out how much to advance
 -- the cursor, how long an event should be, etc.
@@ -41,3 +43,5 @@ match_rank rank marks
     | otherwise = Just (fst (head matches))
     where
     matches = filter ((==rank) . Ruler.mark_rank . snd) marks
+
+-}

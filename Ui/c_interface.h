@@ -11,7 +11,8 @@ extern "C" {
 void initialize();
 void ui_wait();
 void ui_awake();
-int take_ui_msgs(UiMsg **msgs);
+int get_ui_msgs(UiMsg **msgs);
+void clear_ui_msgs();
 
 
 // Block view

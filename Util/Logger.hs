@@ -10,7 +10,7 @@ import qualified Data.DList as DList
 
 type LoggerM w m = Writer.WriterT (DList.DList w) m
 newtype Monad m => LoggerT w m a = LoggerT (LoggerM w m a)
-    deriving (Functor, Monad, Trans.MonadIO)
+    deriving (Functor, Monad, Trans.MonadIO, Trans.MonadTrans)
 run_logger_t (LoggerT x) = x
 
 -- | Record a msg to the log.

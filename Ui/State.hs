@@ -58,7 +58,7 @@ empty = State Map.empty Map.empty Map.empty Map.empty
 -- made.  All the UI needs is a TrackPos range to redraw in, and redrawing
 -- the whole track isn't that expensive.
 --
--- See the StateM comment for more.
+-- See the StateStack comment for more.
 run :: (Monad m) =>
    State -> StateT m a -> m (Either StateError (a, State, [Update.Update]))
 run state m = do
@@ -75,10 +75,10 @@ run state m = do
 -- event positions will simply generate another TrackUpdate over the whole
 -- track.  This does mean TrackUpdates can overlap, so Sync should collapse
 -- them.
-type StateM m = State.StateT State
+type StateStack m = State.StateT State
     (Logger.LoggerT Update.Update
         (Error.ErrorT StateError m))
-newtype Monad m => StateT m a = StateT (StateM m a)
+newtype Monad m => StateT m a = StateT (StateStack m a)
     deriving (Functor, Monad, Trans.MonadIO)
 run_state_t (StateT x) = x
 
@@ -106,6 +106,7 @@ instance Monad m => UiStateMonad (StateT m) where
 -- * StateT operations
 
 -- ** view
+
 get_view :: (UiStateMonad m) => Block.ViewId -> m Block.View
 get_view view_id = get >>= lookup_id view_id . state_views
 -- Since the tracks are in the block, Block.view doesn't fill those in, leaving
@@ -124,9 +125,13 @@ create_view id view = do
 initial_track_views block = map Block.TrackView widths
     where widths = map snd (Block.block_tracks block)
 
+destroy_view :: (UiStateMonad m) => Block.ViewId -> m ()
+destroy_view view_id = modify $ \st ->
+    st { state_views = Map.delete view_id (state_views st) }
+
 -- | Update @tracknum@ of @view_id@ to have width @width@.
 set_track_width :: (UiStateMonad m) =>
-    Block.ViewId -> Int -> Block.Width -> m ()
+    Block.ViewId -> Block.TrackNum -> Block.Width -> m ()
 set_track_width view_id tracknum width = do
     view <- get_view view_id
     -- Functional update still sucks.  An imperative language would have:
@@ -134,6 +139,20 @@ set_track_width view_id tracknum width = do
     track_views <- modify_at (Block.view_tracks view) tracknum $ \tview ->
         tview { Block.track_view_width = width }
     update_view view_id (view { Block.view_tracks = track_views })
+
+-- *** zoom and track scroll
+
+set_zoom :: (UiStateMonad m) => Block.ViewId -> Block.Zoom -> m ()
+set_zoom view_id zoom =
+    modify_view view_id (\view -> view { Block.view_zoom = zoom })
+
+set_track_scroll :: (UiStateMonad m) => Block.ViewId -> Block.Width -> m ()
+set_track_scroll view_id offset =
+    modify_view view_id (\view -> view { Block.view_track_scroll = offset })
+
+set_view_size :: (UiStateMonad m) => Block.ViewId -> Block.Rect -> m ()
+set_view_size view_id rect =
+    modify_view view_id (\view -> view { Block.view_rect = rect })
 
 -- *** selections
 
@@ -155,8 +174,13 @@ set_selection view_id selnum sel = do
     let sels = Map.insert selnum sel (Block.view_selections view)
     update_view view_id (view { Block.view_selections = sels })
 
+-- *** util
+
 update_view view_id view = modify $ \st -> st
     { state_views = Map.adjust (const view) view_id (state_views st) }
+modify_view view_id f = do
+    view <- get_view view_id
+    update_view view_id (f view)
 
 -- ** block
 
@@ -165,6 +189,8 @@ get_block block_id = get >>= lookup_id block_id . state_blocks
 create_block :: (UiStateMonad m) => String -> Block.Block -> m Block.BlockId
 create_block id block = get >>= insert (Block.BlockId id) block state_blocks
     (\blocks st -> st { state_blocks = blocks })
+
+-- *** tracks
 
 insert_track :: (UiStateMonad m) => Block.BlockId -> Block.TrackNum
     -> Block.Tracklike -> Block.Width -> m ()
@@ -196,15 +222,6 @@ insert_into_view tracknum width view = view
         Map.map (insert_into_selection tracknum) (Block.view_selections view)
     }
 
--- The UI also keeps track of the Selections for each SelNum, so that it knows
--- which bits of the screen to refresh when a selection changes.  Since it also
--- stores a selection using TrackNums, it has to implement the same algorithms
--- as insert_into_selection and remove_from_selection or there will be update
--- issues.
--- Possibly a cleaner way to do it would be have the UI store selections as
--- (selnum, color, pos, dur) per track.  Then it's the job of Diff to emit
--- Updates for each track involved in a selection change...
-
 -- If tracknum is before or at the selection, push it to the right.  If it's
 -- inside, extend it.  If it's to the right, do nothing.
 insert_into_selection tracknum sel
@@ -215,20 +232,40 @@ insert_into_selection tracknum sel
     start = Block.sel_start_track sel
     tracks = Block.sel_tracks sel
 
+track_at :: (UiStateMonad m) => Block.BlockId -> Block.TrackNum
+    -> m (Maybe Block.Tracklike)
+track_at block_id tracknum = do
+    block <- get_block block_id
+    return $ Seq.at (map fst (Block.block_tracks block)) tracknum
+
+-- *** other
+
 get_views_of :: (UiStateMonad m) =>
     Block.BlockId -> m (Map.Map Block.ViewId Block.View)
 get_views_of block_id = do
     st <- get
     return $ Map.filter ((==block_id) . Block.view_block) (state_views st)
 
+-- TODO remove this, clients can use Map.keys . get_views_of
 get_view_ids_of :: (UiStateMonad m) => Block.BlockId -> m [Block.ViewId]
 get_view_ids_of block_id = do
     st <- get
     return [view_id | (view_id, view) <- Map.assocs (state_views st),
         Block.view_block view == block_id]
 
+-- get_block_title :: (UiStateMonad m) => Block.BlockId -> m String
+-- get_block_title block_id = undefined
+set_block_title :: (UiStateMonad m) => Block.BlockId -> String -> m ()
+set_block_title block_id title =
+    modify_block block_id (\block -> block { Block.block_title = title })
+
+-- *** util
+
 update_block block_id block = modify $ \st -> st
     { state_blocks = Map.adjust (const block) block_id (state_blocks st) }
+modify_block block_id f = do
+    block <- get_block block_id
+    update_block block_id (f block)
 
 -- ** track
 
@@ -238,12 +275,11 @@ create_track :: (UiStateMonad m) => String -> Track.Track -> m Track.TrackId
 create_track id track = get >>= insert (Track.TrackId id) track state_tracks
     (\tracks st -> st { state_tracks = tracks })
 
-modify_track :: (UiStateMonad m) =>
-    Track.TrackId -> (Track.Track -> Track.Track) -> m ()
-modify_track track_id f = do
-    get_track track_id -- Throw if track_id is invalid.
-    modify (\st -> st { state_tracks =
-        Map.adjust f track_id (state_tracks st) })
+-- get_track_title :: (UiStateMonad m) => Track.TrackId -> m String
+-- get_track_title track_id = undefined
+set_track_title :: (UiStateMonad m) => Track.TrackId -> String -> m ()
+set_track_title track_id text = modify_track track_id $ \track ->
+    track { Track.track_title = text }
 
 insert_events :: (UiStateMonad m) =>
     Track.TrackId -> [(TrackPos, Event.Event)] -> m ()
@@ -254,6 +290,14 @@ insert_events track_id pos_evts = do
     modify_track track_id $ \track ->
         track { Track.track_events = Track.insert_events pos_evts
             (Track.track_events track) }
+
+-- *** util
+
+update_track track_id track = modify $ \st -> st
+    { state_tracks = Map.adjust (const track) track_id (state_tracks st) }
+modify_track track_id f = do
+    track <- get_track track_id
+    update_track track_id (f track)
 
 -- ** ruler
 

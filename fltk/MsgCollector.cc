@@ -1,8 +1,28 @@
+#include <string.h>
+
 #include "util.h"
 
 #include "MsgCollector.h"
 
 // UiMsg /////////////////////
+
+UiMsg::UiMsg() :
+    // Update args
+    update_text(0), update_width(0), update_zoom(0), update_rect(0),
+    // Context
+    view(0), has_tracknum(false), has_pos(false), pos(0)
+{}
+
+void
+UiMsg::free()
+{
+    if (update_text)
+        delete[] update_text;
+    if (update_zoom)
+        delete update_zoom;
+    if (update_rect)
+        delete update_rect;
+}
 
 inline std::ostream &
 operator<<(std::ostream &os, const UiMsg &m)
@@ -27,10 +47,19 @@ operator<<(std::ostream &os, const UiMsg &m)
             << ") key='" << keybuf << "'";
         break;
     }
+
+    if (m.update_text)
+        os << " text=\"" << m.update_text << '"';
+    os << " width=" << m.update_width;
+    if (m.update_zoom)
+        os << " zoom=" << *m.update_zoom;
+    if (m.update_rect)
+        os << " rect=" << *m.update_rect;
+
     if (m.view)
         os << " view=\"" << m.view->block.get_title() << '"';
-    if (m.has_track)
-        os << " track=" << m.track;
+    if (m.has_tracknum)
+        os << " tracknum=" << m.tracknum;
     if (m.has_pos)
         os << " pos=" << m.pos;
     os << '>';
@@ -56,12 +85,12 @@ set_msg_context(UiMsg &m)
     for (int i = 0; i < m.view->block.tracks(); i++) {
         t = m.view->block.track_at(i);
         if (Fl::event_inside(t) || Fl::event_inside(&t->title_widget())) {
-            m.has_track = true;
-            m.track = i;
+            m.has_tracknum = true;
+            m.tracknum = i;
             break;
         }
     }
-    if (!m.has_track)
+    if (!m.has_tracknum)
         return;
     if (Fl::event_inside(t)) {
         int y = Fl::event_y() - t->y();
@@ -85,6 +114,44 @@ set_msg_from_event(UiMsg &m, int evt)
 }
 
 
+static void
+set_update_args(UiMsg &m, BlockView *view, UiMsg::MsgType type)
+{
+    switch (type) {
+    case UiMsg::msg_input:
+        {
+            const char *s;
+            if (m.has_tracknum)
+                s = view->track_at(m.tracknum)->title_string();
+            else
+                s = view->get_title();
+            if (s) {
+                char *text = new char[strlen(s) + 1];
+                strcpy(text, s);
+                m.update_text = text;
+            }
+        }
+        break;
+    case UiMsg::msg_track_scroll:
+        m.update_width = view->get_track_scroll();
+        break;
+    case UiMsg::msg_zoom:
+        m.update_zoom = new ZoomInfo(view->get_zoom());
+        break;
+    case UiMsg::msg_view_resize:
+        m.update_rect = new Rect(rect(view));
+        // TODO Is this really the only way to find out the window's position?
+        m.update_rect->x = Fl::event_x_root() - Fl::event_x();
+        m.update_rect->y = Fl::event_y_root() - Fl::event_y();
+        break;
+    case UiMsg::msg_track_width:
+        ASSERT(m.has_tracknum);
+        m.update_width = view->get_track_width(m.tracknum);
+        break;
+    }
+}
+
+
 // MsgCollector //////////////
 
 void
@@ -103,24 +170,42 @@ MsgCollector::event(int evt, BlockViewWindow *view)
 
 
 void
-MsgCollector::block_changed(Fl_Widget *w, UiMsg::MsgType type, int track)
+MsgCollector::block_update(Fl_Widget *w, UiMsg::MsgType type)
 {
     BlockViewWindow *win = static_cast<BlockViewWindow *>(w->window());
-    this->window_changed(win, type, track);
+    this->window_update(win, type);
 }
 
 
 void
-MsgCollector::window_changed(BlockViewWindow *view, UiMsg::MsgType type,
-        int track)
+MsgCollector::block_update(Fl_Widget *w, UiMsg::MsgType type, int tracknum)
+{
+    BlockViewWindow *win = static_cast<BlockViewWindow *>(w->window());
+    this->window_update(win, type, tracknum);
+}
+
+
+void
+MsgCollector::window_update(BlockViewWindow *view, UiMsg::MsgType type)
 {
     UiMsg m;
     m.type = type;
     m.view = view;
-    if (track != -1) {
-        m.has_track = true;
-        m.track = track;
-    }
+    set_update_args(m, &view->block, type);
+    this->push(m);
+}
+
+
+void
+MsgCollector::window_update(BlockViewWindow *view, UiMsg::MsgType type,
+        int tracknum)
+{
+    UiMsg m;
+    m.type = type;
+    m.view = view;
+    m.has_tracknum = true;
+    m.tracknum = tracknum;
+    set_update_args(m, &view->block, type);
     this->push(m);
 }
 
@@ -130,4 +215,19 @@ global_msg_collector()
 {
     static MsgCollector m;
     return &m;
+}
+
+void
+MsgCollector::clear()
+{
+    for (int i = 0; i < this->msgs.size(); i++)
+        msgs[i].free(); // yay pointers
+    msgs.clear();
+}
+
+void
+MsgCollector::push(const UiMsg &m)
+{
+    this->msgs.push_back(m);
+    // DEBUG("collected " << m);
 }

@@ -24,9 +24,6 @@ import qualified Cmd.Cmd as Cmd
 -- tmp
 import qualified Ui.TestSetup as TestSetup
 
-import qualified Control.Monad.Identity as Identity
-
-
 
 {-
     Initialize UI
@@ -60,7 +57,7 @@ main = Initialize.initialize $ \msg_chan -> Midi.initialize $ do
 
     Responder.responder get_msg Midi.write_msg setup_cmd
 
-setup_cmd :: Cmd.CmdT Identity.Identity Cmd.Status
+setup_cmd :: Cmd.CmdM
 setup_cmd = do
     Log.debug "setup block"
     ruler <- State.create_ruler "r1" (TestSetup.mkruler 20 10)

@@ -43,6 +43,7 @@ public:
             const RulerConfig &ruler_config);
     void resize(int x, int y, int w, int h);
     virtual SeqInput &title_widget() { return *this->title_input; }
+    virtual const char *title_string() { return this->title_input->value(); }
     void set_zoom(const ZoomInfo &zoom);
     virtual void set_selection(int selnum, int tracknum, const Selection &sel) {
         overlay_ruler.set_selection(selnum, tracknum, sel);

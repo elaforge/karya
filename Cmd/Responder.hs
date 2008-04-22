@@ -1,8 +1,8 @@
 module Cmd.Responder where
 
+import Control.Monad
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Concurrent.STM.TChan as TChan
-import qualified Control.Monad.Identity as Identity
 import qualified Util.Log as Log
 
 import qualified Ui.State
@@ -18,28 +18,49 @@ import qualified Cmd.Msg as Msg
 type MidiWriter = Midi.CompleteMessage -> IO ()
 type MsgReader = IO Msg.Msg
 
-responder ui_state = loop ui_state Cmd.initial_state
+responder :: MsgReader -> MidiWriter -> Cmd.CmdM -> IO ()
+responder get_msg write_midi setup_cmd = do
+    Log.notice "starting responder"
+    let ui_state = Ui.State.empty
+    (_, ui_state, cmd_state) <- handle_cmd_result True write_midi ui_state
+        (Cmd.run_cmd ui_state Cmd.initial_state setup_cmd)
+    loop ui_state cmd_state get_msg write_midi
 
 loop :: Ui.State.State -> Cmd.State -> MsgReader -> MidiWriter -> IO ()
 loop ui_state1 cmd_state1 get_msg write_midi = do
     msg <- get_msg
-    -- later this is hardcoded list merged with Block and Track mappings
-    let cmd_stack = [Cmd.cmd_record_keys, Cmd.cmd_log, Cmd.cmd_quit]
-    let (cmd_status, cmd_state2, midi, log_msgs, ui_result) =
-            do_cmds ui_state1 cmd_state1 cmd_stack msg
-    sequence_ [write_midi (dev, 0, msg) | (dev, msg) <- midi]
-    mapM_ Log.write log_msgs
-    ui_state2 <- case ui_result of
-        Left err -> do
-            Log.error $ "ui error: " ++ show err
-            return ui_state1
-        Right (ui_state2, cmd_updates) -> do
-            sync ui_state1 ui_state2 cmd_updates
-            return ui_state2
+    -- Apply changes that won't be diffed.  See 'Cmd.cmd_record_ui_updates'
+    -- comment.
+    -- TODO: an error implies the UI is out of sync, maybe I should fail more
+    -- seriously here?
+    (status, ui_state1, cmd_state1) <- handle_cmd_result
+        False write_midi ui_state1
+        (Cmd.run_cmd ui_state1 cmd_state1 (Cmd.cmd_record_ui_updates msg))
+    -- TODO is this going to cause stack growth?
+    when (status /= Cmd.Continue) $
+        loop ui_state1 cmd_state1 get_msg write_midi
 
-    case cmd_status of
+    let cmd_stack = [Cmd.cmd_log, Cmd.cmd_quit, Cmd.cmd_close_window,
+            Cmd.cmd_record_keys]
+    (status, ui_state2, cmd_state2) <- handle_cmd_result
+        True write_midi ui_state1 (do_cmds ui_state1 cmd_state1 cmd_stack msg)
+    case status of
         Cmd.Quit -> return ()
         _ -> loop ui_state2 cmd_state2 get_msg write_midi
+
+handle_cmd_result do_sync write_midi ui_state1
+    (status, cmd_state, midi, log_msgs, ui_result) =
+    do
+        sequence_ [write_midi (dev, 0, msg) | (dev, msg) <- midi]
+        mapM_ Log.write log_msgs
+        ui_state2 <- case ui_result of
+            Left err -> do
+                Log.error $ "ui error: " ++ show err
+                return ui_state1
+            Right (ui_state2, cmd_updates) -> do
+                when do_sync (sync ui_state1 ui_state2 cmd_updates)
+                return ui_state2
+        return (status, ui_state2, cmd_state)
 
 -- | Create the MsgReader to pass to 'loop'.
 create_msg_reader :: TChan.TChan UiMsg.UiMsg
@@ -71,7 +92,7 @@ sync state1 state2 cmd_updates = do
 -- | Like 'sequence_', but stop sequencing when @pred@ is false, and return
 -- that value.  Return @zero@ if @pred@ is never false.
 sequence_while :: (Monad m) => (a -> Bool) -> a -> [m a] -> m a
-sequence_while pred zero [] = return zero
+sequence_while _pred zero [] = return zero
 sequence_while pred zero (op:ops) = do
     val <- op
     if pred val
