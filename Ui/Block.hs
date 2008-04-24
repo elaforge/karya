@@ -94,6 +94,8 @@ data ViewConfig = ViewConfig
 data Zoom = Zoom TrackPos Double deriving (Eq, Ord, Show)
 default_zoom = Zoom (TrackPos 0) 1
 
+-- TODO: remove color and put it in BlockC.SelectionC, which gets its color
+-- from a BlockConfig list
 data Selection = Selection
     { sel_color :: Color
     , sel_start_track :: TrackNum

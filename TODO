@@ -1,6 +1,10 @@
 * .depend doesn't have *.hsc -> *.h dependencies
 - check use of Ints
 
+- always having to specify the color of a Selection is annoying, make SelectionC
+- Cmd.abort
+- 
+
 fltk
   * make TrackPos into an opaque type to let me be more free with impl.
     implement as int64 usec?  or since it's just block relative, I can use
@@ -25,6 +29,7 @@ fltk
     it altogether)
 
   UI Msgs
+    - bug: arrow keys are still doing keynav, remove that
     - a special "system" window that receives events like "new block"
     - can I capture os x two-finger drag events?
       yes, they're reported as FL_MOUSEWHEEL, so I should scroll on mousewheel
