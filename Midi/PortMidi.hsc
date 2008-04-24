@@ -10,8 +10,8 @@ module Midi.PortMidi (
     -- * devices
     , devices
     -- no direct access to the constructor
-    , Device, device_interface, device_name, device_input, device_output
-    , device_id
+    , ReadDevice, WriteDevice
+    , rdev_interface, rdev_name, wdev_interface, wdev_name
     , open_input, open_output, close_input, close_output
 
     -- * reading and writing streams
@@ -55,23 +55,32 @@ foreign import ccall unsafe "Pt_Stop" c_pt_stop :: IO CPtError
 
 -- * devices
 
-data Device = Device
-    { device_interface :: String
-    , device_name :: String
-    , device_input :: Bool
-    , device_output :: Bool
-    , device_id :: CInt
-    } deriving (Show, Eq)
+data ReadDevice = ReadDevice
+    { rdev_interface :: String
+    , rdev_name :: String
+    , rdev_id :: CInt
+    } deriving (Eq, Ord, Show)
 
-devices :: IO [Device]
+data WriteDevice = WriteDevice
+    { wdev_interface :: String
+    , wdev_name :: String
+    , wdev_id :: CInt
+    } deriving (Eq, Ord, Show)
+
+devices :: IO ([ReadDevice], [WriteDevice])
 devices = do
     n <- c_count_devices
-    devs <- mapM (\n -> c_get_device_info n >>= peek) [0..n-1]
-    return $ zipWith (\dev id -> dev { device_id = id}) devs [0..n]
+    devs <- forM [0..n-1] $ \n ->
+        c_get_device_info n >>= peek >>= \dev -> return (n, dev)
+    return (
+        [ReadDevice int name id | (id, Device int name True) <- devs],
+        [WriteDevice int name id | (id, Device int name False) <- devs])
 
 foreign import ccall unsafe "Pm_CountDevices" c_count_devices :: IO CInt
 foreign import ccall unsafe "Pm_GetDeviceInfo"
     c_get_device_info :: CInt -> IO (Ptr Device)
+
+data Device = Device String String Bool
 
 instance Storable Device where
     sizeOf _ = #size PmDeviceInfo
@@ -80,12 +89,13 @@ instance Storable Device where
     poke = undefined
 
 peek_device_info dev = do
-    interf <- (#peek PmDeviceInfo, interf) dev >>= peekCString
+    interface <- (#peek PmDeviceInfo, interf) dev >>= peekCString
     name <- (#peek PmDeviceInfo, name) dev >>= peekCString
     input <- (#peek PmDeviceInfo, input) dev :: IO CInt
-    output <- (#peek PmDeviceInfo, output) dev :: IO CInt
-    -- device_id will be filled in later
-    return $ Device interf name (toBool input) (toBool output) 0
+    -- output <- (#peek PmDeviceInfo, output) dev :: IO CInt
+    -- I don't think PortMidi should ever return (True, True) or (False, False)
+    -- device_id will be filled in by the caller.
+    return (Device interface name (toBool input))
 
 -- | A stream you can read from.
 newtype ReadStream = ReadStream (Ptr CStream)
@@ -101,9 +111,9 @@ streamp_of (Stream (Right (WriteStream streamp))) = streamp
 buffer_size :: Int
 buffer_size = 512
 
-open_input :: Device -> IO ReadStream
+open_input :: ReadDevice -> IO ReadStream
 open_input dev = alloca $ \streampp -> checked
-    (c_open_input streampp (device_id dev) nullPtr (fromIntegral buffer_size)
+    (c_open_input streampp (rdev_id dev) nullPtr (fromIntegral buffer_size)
         nullPtr nullPtr)
     (fmap ReadStream (peek streampp))
 foreign import ccall unsafe "Pm_OpenInput"
@@ -112,11 +122,11 @@ foreign import ccall unsafe "Pm_OpenInput"
         -- bufferSize, time_proc, time_info
         -> CLong -> Ptr () -> Ptr () -> IO CPmError
 
-open_output :: Device -> IO WriteStream
+open_output :: WriteDevice -> IO WriteStream
 open_output dev = alloca $ \streampp -> checked
     -- Pass a latency of 1 because portmidi requires this to obey outgoing
     -- timestamps.  'write_event' should subtract this from outgoing timestamps.
-    (c_open_output streampp (device_id dev) nullPtr (fromIntegral buffer_size)
+    (c_open_output streampp (wdev_id dev) nullPtr (fromIntegral buffer_size)
         nullPtr nullPtr 1)
     (fmap WriteStream (peek streampp))
 foreign import ccall unsafe "Pm_OpenOutput"

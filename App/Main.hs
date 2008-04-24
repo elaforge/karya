@@ -2,6 +2,7 @@ module App.Main where
 
 import Control.Monad
 -- import qualified Control.Concurrent as Concurrent
+import qualified Data.Map as Map
 
 -- import qualified Util.Thread as Thread
 import qualified Util.Seq as Seq
@@ -18,11 +19,13 @@ import qualified Ui.Track as Track
 import qualified Ui.Event as Event
 
 import qualified Midi.Midi as Midi
+import qualified Midi.MidiC as MidiC
 import qualified Cmd.Responder as Responder
 import qualified Cmd.Cmd as Cmd
 
 -- tmp
 import qualified Ui.TestSetup as TestSetup
+import qualified Midi.PortMidi as PortMidi
 
 
 {-
@@ -34,28 +37,43 @@ import qualified Ui.TestSetup as TestSetup
 
     Create an empty block with a few tracks.
 -}
-run_midi app = Midi.initialize (Midi.catch app
-    (\ (Midi.Error err) -> Log.error ("midi error: " ++ err)))
 
-main = Initialize.initialize $ \msg_chan -> Midi.initialize $ do
+main = Initialize.initialize $ \msg_chan -> MidiC.initialize $ \read_chan -> do
     Log.notice "app starting"
-    midi_chan <- Midi.get_read_chan
 
-    let get_msg = Responder.create_msg_reader msg_chan midi_chan
-    devs <- Midi.devices
-    putStrLn "devices:"
-    putStrLn $ "\t" ++ Seq.join "\n\t" (map Midi.device_name devs)
+    let get_msg = Responder.create_msg_reader msg_chan read_chan
 
-    let input_dev = filter Midi.device_input devs
-    when (not (null input_dev)) $ do
-        putStrLn $ "open input " ++ Midi.device_name (head input_dev)
-        Midi.open_read_device (head (filter Midi.device_input devs))
-    let output_dev = filter Midi.device_output devs
-    when (not (null output_dev)) $ do
-        putStrLn $ "open output " ++ Midi.device_name (head output_dev)
-        Midi.open_write_device (head output_dev)
+    -- (rdev_map, wdev_map) <- MidiC.devices
+    let (rdev_map, wdev_map) = (Map.empty, Map.empty)
+            :: (Map.Map Midi.ReadDevice PortMidi.ReadDevice,
+                Map.Map Midi.WriteDevice PortMidi.WriteDevice)
+    print_devs rdev_map wdev_map
 
-    Responder.responder get_msg Midi.write_msg setup_cmd
+    let rdevs = Map.keys rdev_map
+        wdevs = Map.keys wdev_map
+
+    when (not (null rdevs)) $ do
+        putStrLn $ "open input " ++ show (head rdevs)
+        MidiC.open_read_device read_chan (rdev_map Map.! head rdevs)
+    wdev_streams <- case wdevs of
+        [] -> return Map.empty
+        (wdev:_) -> do
+        putStrLn $ "open output " ++ show wdev
+        stream <- MidiC.open_write_device (wdev_map Map.! wdev)
+        return (Map.fromList [(wdev, stream)])
+
+    Responder.responder get_msg (write_msg wdev_streams) setup_cmd
+
+-- write_msg :: Midi.WriteMessage -> IO ()
+write_msg wdev_streams (wdev, ts, msg) =
+    MidiC.write_msg (wdev_streams Map.! wdev, MidiC.from_timestamp ts, msg)
+
+
+print_devs rdev_map wdev_map = do
+    putStrLn "read devs:"
+    mapM_ print (Map.keys rdev_map)
+    putStrLn "write devs:"
+    mapM_ print (Map.keys wdev_map)
 
 setup_cmd :: Cmd.CmdM
 setup_cmd = do
@@ -67,4 +85,7 @@ setup_cmd = do
         (Block.R ruler) [(Block.T t1 ruler, 30)])
     _v1 <- State.create_view "v1"
         (Block.view b1 TestSetup.default_rect TestSetup.default_view_config)
+    _v2 <- State.create_view "v2"
+        (Block.view b1 (Block.Rect (500, 30) (200, 200))
+            TestSetup.default_view_config)
     return Cmd.Done

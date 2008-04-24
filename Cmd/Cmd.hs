@@ -35,7 +35,7 @@ type Cmd = Msg.Msg -> CmdM
 
 
 -- | The result of running a Cmd.
-type CmdVal = (State, [MidiMsg], [Log.Msg],
+type CmdVal = (State, [MidiThru], [Log.Msg],
     Either State.StateError (Status, State.State, [Update.Update]))
 
 run :: (Monad m) => State.State -> State -> CmdT m Status -> m CmdVal
@@ -76,7 +76,7 @@ data Status = Done | Continue | Quit deriving (Eq, Show)
 
 type CmdStack m = State.StateT
     (MonadState.StateT State
-        (Logger.LoggerT MidiMsg
+        (Logger.LoggerT MidiThru
             (Error.ErrorT Abort
                 (Log.LogT m))))
 
@@ -103,10 +103,10 @@ instance Monad m => State.UiStateMonad (CmdT m) where
     update upd = CmdT (State.update upd)
     throw msg = CmdT (State.throw msg)
 
-type MidiMsg = (Midi.Device, Midi.Message)
+type MidiThru = (Midi.WriteDevice, Midi.Message)
 
 -- | Log some midi to send out.
-midi :: (Monad m) => Midi.Device -> Midi.Message -> CmdT m ()
+midi :: (Monad m) => Midi.WriteDevice -> Midi.Message -> CmdT m ()
 midi dev msg = (CmdT . lift . lift) (Logger.record (dev, msg))
 
 -- | An abort is an exception to get out of CmdT, but it's considered the same

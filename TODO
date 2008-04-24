@@ -1,10 +1,6 @@
 * .depend doesn't have *.hsc -> *.h dependencies
 - check use of Ints
 
-- always having to specify the color of a Selection is annoying, make SelectionC
-- Cmd.abort
-- 
-
 fltk
   * make TrackPos into an opaque type to let me be more free with impl.
     implement as int64 usec?  or since it's just block relative, I can use
@@ -82,6 +78,8 @@ Ui
   * track_at
   * Event
   - work old tests from TestUi into a Ui_test
+  - always having to specify the color of a Selection is annoying, make
+    SelectionC
   Diff
     * ErrorT
     - tests
@@ -140,7 +138,7 @@ Midi
     order and don't allow timestamps on thru?
     no, I still need the scheduler, phooey.
     write WriteStream *OpenMergedOutput(WriteStream *stm, ...)
-  - maybe move Device out of PortMidi and PortMidi out of Midi, this would mean
+  * maybe move Device out of PortMidi and PortMidi out of Midi, this would mean
     Cmd/ wouldn't depend on foreign imports
   bandwidth
     - keep stats

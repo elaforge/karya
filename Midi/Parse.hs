@@ -3,6 +3,8 @@ import Data.Word (Word8)
 import Data.Bits
 import Data.List
 
+import Midi.Midi
+
 
 decode :: [Word8] -> Message
 decode (status:d1:d2:bytes)
@@ -50,7 +52,7 @@ is_eox = (== 0xf7)
 is_status = (>= 0x80)
 is_realtime = (>= 0xf8)
 
-take_include f [] = []
+take_include _f [] = []
 take_include f (x:xs)
     | f x = x : take_include f xs
     | otherwise = [x]
@@ -95,49 +97,6 @@ encode (CommonMessage msg) = join4 0xf code : bytes
 
 encode (UnknownMessage st d1 d2)
     = error $ "UnknownMessage: " ++ show (st, d1, d2)
-
-data Message
-    = ChannelMessage Channel ChannelMessage
-    | CommonMessage CommonMessage
-    | RealtimeMessage RealtimeMessage
-    | UnknownMessage Word8 Word8 Word8
-    deriving (Show, Eq)
-
-type Channel = Word8 -- actually 4 bits
-type Key = Word8
-type Velocity = Word8
-type Controller = Word8
-type Program = Word8
-type ControlValue = Word8
-data ChannelMessage =
-    NoteOff Key Velocity
-    | NoteOn Key Velocity
-    | Aftertouch Key Velocity
-    | ControlChange Controller ControlValue
-    | ProgramChange Program
-    | ChannelPressure ControlValue
-    | PitchWheel Int
-    -- channel mode messages (special controller values)
-    | AllSoundOff
-    | ResetAllControllers
-    | LocalControl Bool
-    | AllNotesOff
-    | UndefinedChannelMode Word8 Word8
-    deriving (Show, Eq)
-
-data CommonMessage =
-    -- manufacturer id, data
-    SystemExclusive Word8 [Word8]
-    | SongPositionPointer Int
-    | SongSelect Word8
-    | TuneRequest
-    | EOX
-    | UndefinedCommon Word8
-    deriving (Show, Eq)
-
-data RealtimeMessage = TimingClock | Start | Continue | Stop | ActiveSense
-    | Reset | UndefinedRealtime Word8
-    deriving (Show, Eq)
 
 -- | Split a Word8 into high and low nibbles, and join back.
 split4 :: Word8 -> (Word8, Word8) -- msb, lsb

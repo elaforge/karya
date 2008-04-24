@@ -17,7 +17,7 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.DefaultKeymap as DefaultKeymap
 
 
-type MidiWriter = Midi.CompleteMessage -> IO ()
+type MidiWriter = Midi.WriteMessage -> IO ()
 type MsgReader = IO Msg.Msg
 
 responder :: MsgReader -> MidiWriter -> Cmd.CmdM -> IO ()
@@ -70,7 +70,7 @@ handle_cmd_result do_sync write_midi ui_state1
 
 -- | Create the MsgReader to pass to 'loop'.
 create_msg_reader :: TChan.TChan UiMsg.UiMsg
-    -> TChan.TChan Midi.CompleteMessage -> MsgReader
+    -> TChan.TChan Midi.ReadMessage -> MsgReader
 create_msg_reader ui_chan midi_chan = STM.atomically $
     fmap Msg.Ui (TChan.readTChan ui_chan)
     `STM.orElse` fmap Msg.Midi (TChan.readTChan midi_chan)
