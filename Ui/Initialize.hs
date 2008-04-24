@@ -9,6 +9,7 @@ import System.IO.Unsafe
 import qualified Util.Thread as Thread
 import qualified Util.Log as Log
 import qualified Ui.UiMsg as UiMsg
+import qualified Ui.UiMsgC as UiMsgC
 
 
 -- Global channel to the ui thread.  I tried passing this as an argument,
@@ -50,7 +51,7 @@ poll_loop quit_request acts_mvar msg_chan = do
     -- shouldn't have to worry about another awake call coming in right
     -- here.
     handle_actions acts_mvar
-    ui_msgs <- UiMsg.get_ui_msgs
+    ui_msgs <- UiMsgC.get_ui_msgs
     STM.atomically (mapM_ (STM.writeTChan msg_chan) ui_msgs)
     quit_requested <- MVar.isEmptyMVar quit_request
     Monad.when (not quit_requested) $
