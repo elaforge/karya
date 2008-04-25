@@ -96,7 +96,9 @@ test_obj/RunTests.hs: $(wildcard */*_test.hs) all_hsc
 # workaround by grep -v out the LINEs into test_obj hierarchy
 # Compiles with -odir into test_obj/ because they must be compiled with -fhpc.
 test_obj/RunTests: test_obj/RunTests.hs all_hsc $(UI_OBJS) fltk/fltk.a
-	$(GHC) $(HFLAGS) -fhpc --make -odir test_obj test_obj/RunTests.hs -o $@ \
+	./unline_hack
+	$(GHC) $(HFLAGS) -i -itest_obj:. -fhpc --make -odir test_obj \
+		test_obj/RunTests.hs -o $@ \
 		$(UI_OBJS) fltk/fltk.a \
 		$(MIDI_LIBS) `fltk-config --ldflags`
 	rm -f *.tix # this sticks around and breaks things

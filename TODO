@@ -128,7 +128,7 @@ tests
   + some kind of organized hunit / quickcheck for pure code
   * I should be able to type 'make test' and it compiles and runs all automatic
     tests, make human_test to run interactive tests (with Test.io_human)
-  - grep -v LINES hack for hsc hpc
+  * grep -v LINES hack for hsc hpc
   * speed up hs_pp
   - non-interactive version of io_human
 

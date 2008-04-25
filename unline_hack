@@ -1,0 +1,10 @@
+#!/usr/bin/zsh
+
+test_obj=test_obj
+hscs=([A-Z]**/*.hsc)
+
+for hsc in $hscs; do
+    dir=$test_obj/$(dirname $hsc)
+    mkdir -p $dir
+    fgrep -v '{-# LINE' ${hsc%c} >$test_obj/${hsc%c}
+done
