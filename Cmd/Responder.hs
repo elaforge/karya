@@ -82,13 +82,18 @@ run_cmds ui_state cmd_state (cmd:cmds) msg =
     let (cmd_state1, midi1, logs1, ui_res1) =
             Cmd.run_cmd ui_state cmd_state (cmd msg)
     in case ui_res1 of
-        Left err -> (cmd_state1, midi1, logs1, Left err)
-        Right (Cmd.Continue, ui_state2, updates1) ->
+        Right (Cmd.Continue, ui_state1, updates1) ->
             let (cmd_state2, midi2, logs2, ui_res2) =
-                    run_cmds ui_state2 cmd_state2 cmds msg
-            in (cmd_state2, midi1 ++ midi2, logs1 ++ logs2, ui_res2)
+                    run_cmds ui_state1 cmd_state1 cmds msg
+            in (cmd_state2, midi1 ++ midi2, logs1 ++ logs2,
+                merge_ui_res updates1 ui_res2)
+        Left err -> (cmd_state1, midi1, logs1, Left err)
         -- It's Quit or Done, so return as-is.
         _ -> (cmd_state1, midi1, logs1, ui_res1)
+
+-- Merge updates into a StateT result.
+merge_ui_res updates = fmap
+    (\(status, ui_state, updates2) -> (status, ui_state, updates ++ updates2))
 
 -- | Sync @state2@ to the UI.
 sync :: State.State -> State.State -> [Update.Update] -> IO ()
