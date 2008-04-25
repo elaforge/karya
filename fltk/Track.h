@@ -72,7 +72,8 @@ public:
     // own it.
     virtual Fl_Widget &title_widget() = 0;
     // The text in the title_widget, if there is any.
-    virtual const char *title_string() { return 0; }
+    virtual const char *get_title() const { return 0; }
+    virtual void set_title(const char *title) { /* TODO throw bad_arg */ }
 };
 
 

@@ -16,6 +16,10 @@ red = rgb 1 0 0
 green = rgb 0 1 0
 blue = rgb 0 0 1
 
+yellow = rgb 1 1 0
+purple = rgb 1 0 1
+turquoise = rgb 0 1 1
+
 gray1 = rgb 0.1 0.1 0.1
 gray2 = rgb 0.2 0.2 0.2
 gray3 = rgb 0.3 0.3 0.3

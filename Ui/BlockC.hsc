@@ -1,73 +1,40 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
 {-# OPTIONS_GHC -XEmptyDataDecls #-}
-{-
-The main window is the Block.  Blocks have scroll and zoom controls and 0 or
-more Tracks, running either horizontally or vertically, depending on the
-Block's Orientation.  They have the following controls:
+{- | This layer gives direct wrapped access to the fltk API.
 
-Zoom vertically or horizontally with api or mouse (hold a key + drag, hold
-a key and draw a zoom box, or press a key and zoom around the cursor).
+It maintains a map from ViewIds to window pointers, which represents the on
+screen state.  All functions here take ViewIds, and will throw an exception if
+the view_id isn't in the pointer map.  C++ exceptions coming from FLTK should
+be converted and thrown as haskell exceptions.
 
-Scroll around if you are zoomed in.  Scrollbars are proportional, possibly
-display a mini view, and move with the plan9 style left/right/middle.
-
-Resize tracks by dragging the dividers.  Reorder tracks by dragging.
-
-The Block also tracks selections.  You can select with any button.  A Msg is
-sent on the mousedown, and on the mouseup.
-
-
-Blocks have:
-
-    Block.hsc
-- Block and View data types, along with configs ()
-
-- access methods to EventData and Marklist, must be with the data declaration
-so it can hide it (data)
-
-- Storable instances - should be next to their data? (data, hsc)
-
-    BlockFfi.hs
-foreign function calls to create and manipulate c++ views, + callbacks for
-events (data, ffi)
-
-    BlockState.hs
-monadic access to State (HandlerM, State, block data)
-
-
-
-BlockAttrs (must be serializable if a block is to be serializable)
-
-key responder
-deriver
-cached derivation
-cached realization
+TODO exceptions are not implemented yet
 -}
-module Ui.BlockC where
-{-
-    -- * Block model
-    Config(..), Block -- no constructors for Block
-    , create
-    -- ** Model modification
-    , get_config, set_config
-    , get_title, set_title, get_attrs, set_attrs
+module Ui.BlockC (
+    -- * errors, and ptr access
+    throw, get_id , CView
 
-    -- ** Track management
-    , TrackNum, Width, SelNum, Tracklike(..)
-    , tracks, track_at, insert_track, remove_track
-
-    -- * Block view
-    , View, Rect(..), ViewConfig(..), Zoom(..), Selection(..)
-    , create_view, view_block
-
-    -- ** View modification
+    -- * view creation
+    , create_view, destroy_view
+    -- ** set other attributes
     , get_size, set_size
-    , get_view_config, set_view_config
-    , get_zoom, set_zoom
-    , get_track_scroll, set_track_scroll
-    , get_selection, set_selection
-    , get_track_width, set_track_width
--}
+    , set_view_config
+    , set_zoom
+    , set_track_scroll
+    , set_selection, max_selections
+
+    -- * Block operations
+    , set_model_config
+    , set_title
+
+    -- ** Track operations
+    , CTracklike(..)
+    , insert_track, remove_track, update_track
+    , set_track_width
+    , set_track_title
+
+    -- * debugging
+    , show_children
+) where
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
 import Control.Monad
@@ -89,20 +56,17 @@ import qualified Ui.TrackC as TrackC () -- just want Storable instance
 
 #include "c_interface.h"
 
--- * view creation
+-- * errors
 
--- Phantom type for block view ptrs.
-data CView
+-- TODO have a BlockC exception type
+-- also, turn c++ exceptions into this exception
+throw = error
 
 -- | Global map of view IDs to their windows.  This is global mutable state
 -- because the underlying window system is also global mutable state, and is
 -- not well represented by a persistent functional state.
 view_id_to_ptr :: MVar.MVar (Map.Map Block.ViewId (Ptr CView))
 view_id_to_ptr = unsafePerformIO (MVar.newMVar Map.empty)
-
--- TODO have a BlockC exception type
--- also, turn c++ exceptions into this exception
-throw = error
 
 get_ptr view_id = do
     ptr_map <- MVar.readMVar view_id_to_ptr
@@ -119,6 +83,11 @@ get_id viewp = do
         Nothing -> throw $ show viewp ++ " not in displayed view list: "
             ++ show (Map.assocs ptr_map)
         Just (view_id, _) -> return view_id
+
+-- * view creation
+
+-- Phantom type for block view ptrs.
+data CView
 
 create_view :: Block.ViewId -> Block.Rect -> Block.ViewConfig -> Block.Config
     -> CTracklike -> Fltk ()
@@ -205,12 +174,9 @@ set_selection view_id selnum maybe_sel = do
 foreign import ccall "set_selection"
     c_set_selection :: Ptr CView -> CInt -> Ptr Block.Selection -> IO ()
 
-set_track_width :: Block.ViewId -> Block.TrackNum -> Block.Width -> Fltk ()
-set_track_width view_id tracknum width = do
-    viewp <- get_ptr view_id
-    c_set_track_width viewp (Util.c_int tracknum) (Util.c_int width)
-foreign import ccall "set_track_width"
-    c_set_track_width :: Ptr CView -> CInt -> CInt -> IO ()
+-- | Max number of selections, hardcoded in ui/config.h.
+max_selections :: Int
+max_selections = (#const Config::max_selections)
 
 
 -- * Block operations
@@ -257,6 +223,16 @@ update_track view_id tracknum tracklike start end = do
                 c_update_track viewp (Util.c_int tracknum) tp
                     mlistp len finalize startp endp
 
+foreign import ccall "insert_track"
+    c_insert_track :: Ptr CView -> CInt -> Ptr TracklikePtr -> CInt
+        -> Ptr Ruler.Marklist -> CInt -> IO ()
+foreign import ccall "remove_track"
+    c_remove_track :: Ptr CView -> CInt -> FunPtr (FunPtrFinalizer a) -> IO ()
+foreign import ccall "update_track"
+    c_update_track :: Ptr CView -> CInt -> Ptr TracklikePtr
+        -> Ptr Ruler.Marklist -> CInt -> FunPtr (FunPtrFinalizer a)
+        -> Ptr TrackPos -> Ptr TrackPos -> IO ()
+
 -- When I do anything that will destroy previous callbacks, I have to pass
 -- yet another callback which will be used to mark the old callbacks as done,
 -- so that the haskell GC knows it can collected data those callbacks use.
@@ -277,16 +253,6 @@ with_tracklike tracklike f = case tracklike of
     D div -> with div $ \dividerp -> with (DPtr dividerp) $ \tp ->
         f tp nullPtr 0
 
-foreign import ccall "insert_track"
-    c_insert_track :: Ptr CView -> CInt -> Ptr TracklikePtr -> CInt
-        -> Ptr Ruler.Marklist -> CInt -> IO ()
-foreign import ccall "remove_track"
-    c_remove_track :: Ptr CView -> CInt -> FunPtr (FunPtrFinalizer a) -> IO ()
-foreign import ccall "update_track"
-    c_update_track :: Ptr CView -> CInt -> Ptr TracklikePtr
-        -> Ptr Ruler.Marklist -> CInt -> FunPtr (FunPtrFinalizer a)
-        -> Ptr TrackPos -> Ptr TrackPos -> IO ()
-
 -- | Like Block.Tracklike, except it has actual values instead of IDs.
 data CTracklike =
     T Track.Track Ruler.Ruler
@@ -294,16 +260,44 @@ data CTracklike =
     | D Block.Divider
     deriving (Show)
 
+data TracklikePtr =
+    TPtr (Ptr Track.Track) (Ptr Ruler.Ruler)
+    | RPtr (Ptr Ruler.Ruler)
+    | DPtr (Ptr Block.Divider)
+
+
+set_track_width :: Block.ViewId -> Block.TrackNum -> Block.Width -> Fltk ()
+set_track_width view_id tracknum width = do
+    viewp <- get_ptr view_id
+    c_set_track_width viewp (Util.c_int tracknum) (Util.c_int width)
+foreign import ccall "set_track_width"
+    c_set_track_width :: Ptr CView -> CInt -> CInt -> IO ()
+
+set_track_title :: Block.ViewId -> Block.TrackNum -> String -> Fltk ()
+set_track_title view_id tracknum title = do
+    viewp <- get_ptr view_id
+    withCString title (c_set_track_title viewp (Util.c_int tracknum))
+foreign import ccall "set_track_title"
+    c_set_track_title :: Ptr CView -> CInt -> CString -> IO ()
+
+-- ** debugging
+
+show_children :: Block.ViewId -> IO String
+show_children view_id = do
+    viewp <- get_ptr view_id
+    c_show_children viewp (Util.c_int (-1)) >>= peekCString
+foreign import ccall "i_show_children"
+    c_show_children :: Ptr CView -> CInt -> IO CString
+
+-- * storable
+
+-- ** tracks
+
 instance Storable Block.Divider where
     sizeOf _ = #size DividerConfig
     alignment _ = undefined
     poke dividerp (Block.Divider color) =
         (#poke DividerConfig, color) dividerp color
-
-data TracklikePtr =
-    TPtr (Ptr Track.Track) (Ptr Ruler.Ruler)
-    | RPtr (Ptr Ruler.Ruler)
-    | DPtr (Ptr Block.Divider)
 
 instance Storable TracklikePtr where
     sizeOf _ = #size Tracklike
@@ -322,22 +316,7 @@ poke_tracklike_ptr tp trackp = do
         RPtr rulerp -> (#poke Tracklike, ruler) tp rulerp
         DPtr dividerp -> (#poke Tracklike, divider) tp dividerp
 
--- ** debugging
-
-show_children :: Block.ViewId -> IO String
-show_children view_id = do
-    viewp <- get_ptr view_id
-    c_show_children viewp (Util.c_int (-1)) >>= peekCString
-foreign import ccall "i_show_children"
-    c_show_children :: Ptr CView -> CInt -> IO CString
-
--- * storable
-
 -- ** configs
-
--- | Max number of selections, hardcoded in ui/config.h.
-max_selections :: Int
-max_selections = (#const Config::max_selections)
 
 instance Storable Block.Config where
     sizeOf _ = #size BlockModelConfig

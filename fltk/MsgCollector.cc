@@ -122,7 +122,7 @@ set_update_args(UiMsg &m, BlockView *view, UiMsg::MsgType type)
         {
             const char *s;
             if (m.has_tracknum)
-                s = view->track_at(m.tracknum)->title_string();
+                s = view->track_at(m.tracknum)->get_title();
             else
                 s = view->get_title();
             if (s) {

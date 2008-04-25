@@ -30,7 +30,7 @@ data Block = Block {
     } deriving (Eq, Ord, Show)
 
 data Config = Config {
-    config_select_colors :: [Color]
+    config_selection_colors :: [Color]
     , config_bg_color :: Color
     , config_track_box_color :: Color
     , config_sb_box_color :: Color

@@ -19,9 +19,10 @@ pause = putStr "? " >> IO.hFlush IO.stdout >> getLine >> return ()
 default_rect = Block.Rect (10, 50) (200, 200)
 
 default_block_config = Block.Config
-    { Block.config_select_colors =
+    { Block.config_selection_colors =
         let sel = Color.alpha 0.3 . Color.lighten 0.8 in
-            [sel Color.blue, sel Color.green, sel Color.red]
+            [sel Color.blue, sel Color.green, sel Color.red, sel Color.purple,
+                sel Color.yellow]
     , Block.config_bg_color = Color.gray8
     , Block.config_track_box_color = Color.rgb 0.25 1 1
     , Block.config_sb_box_color = Color.rgb 0.25 1 1
@@ -50,6 +51,7 @@ event pos name dur = (TrackPos pos, Event.event name (TrackPos dur))
 -- ruler
 
 default_ruler = mkruler 20 10
+no_ruler = mkruler 0 0
 
 mkruler marks dist = Ruler.Ruler [marklist marks dist] ruler_bg True False False
 ruler_bg = Color.rgb 1 0.85 0.5

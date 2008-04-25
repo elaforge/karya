@@ -36,7 +36,7 @@ void set_selection(BlockViewWindow *view, int selnum,
         const Selection *sel);
 
 void set_model_config(BlockViewWindow *view, BlockModelConfig *config);
-void set_title(BlockViewWindow *view, char *title);
+void set_title(BlockViewWindow *view, const char *title);
 
 // tracks
 
@@ -49,6 +49,7 @@ void update_track(BlockViewWindow *view, int tracknum,
         Tracklike *track, Marklist *marklists, int nmarklists,
         FinalizeCallback finalizer, TrackPos *start, TrackPos *end);
 void set_track_width(BlockViewWindow *view, int tracknum, int width);
+void set_track_title(BlockViewWindow *view, int tracknum, const char *title);
 
 // debugging
 

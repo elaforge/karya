@@ -77,9 +77,9 @@ Ui
   * BlockView.set_track_width, BlockView.get_track_width
   * track_at
   * Event
-  - work old tests from TestUi into a Ui_test
+  * work old tests from TestUi into BlockC_test
   - always having to specify the color of a Selection is annoying, make
-    SelectionC
+    SelectionC automatically get it from block_selection_colors
   Diff
     * ErrorT
     - tests
