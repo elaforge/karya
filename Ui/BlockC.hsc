@@ -20,6 +20,7 @@ module Ui.BlockC (
     , set_view_config
     , set_zoom
     , set_track_scroll
+    , CSelection(..)
     , set_selection, max_selections
 
     -- * Block operations
@@ -165,14 +166,17 @@ set_track_scroll view_id offset = do
 foreign import ccall "set_track_scroll"
     c_set_track_scroll :: Ptr CView -> CInt -> IO ()
 
-set_selection :: Block.ViewId -> Block.SelNum -> Maybe Block.Selection
-    -> Fltk ()
+set_selection :: Block.ViewId -> Block.SelNum -> Maybe CSelection -> Fltk ()
 set_selection view_id selnum maybe_sel = do
     viewp <- get_ptr view_id
-    with (maybe Block.null_selection id maybe_sel) $ \selp ->
+    with (maybe null_selection id maybe_sel) $ \selp ->
         c_set_selection viewp (Util.c_int selnum) selp
 foreign import ccall "set_selection"
-    c_set_selection :: Ptr CView -> CInt -> Ptr Block.Selection -> IO ()
+    c_set_selection :: Ptr CView -> CInt -> Ptr CSelection -> IO ()
+
+-- | A Selection with 0 tracks is considered no selection.
+null_selection = CSelection Color.black
+    (Block.Selection 0 (TrackPos 0) 0 (TrackPos 0))
 
 -- | Max number of selections, hardcoded in ui/config.h.
 max_selections :: Int
@@ -359,24 +363,20 @@ poke_config configp (Block.ViewConfig
 
 -- ** selection
 
-instance Storable Block.Selection where
+-- C++ Selections have a color, but in haskell the color is separated into
+-- Block.config_selection_colors.
+data CSelection = CSelection Color.Color Block.Selection
+
+instance Storable CSelection where
     sizeOf _ = #size Selection
     alignment _ = undefined
-    peek = peek_selection
+    peek = error "no peek selection"
     poke = poke_selection
 
-peek_selection selp = do
-    color <- (#peek Selection, color) selp :: IO Color
-    start_track <- (#peek Selection, start_track) selp :: IO CInt
-    start_pos <- (#peek Selection, start_pos) selp
-    tracks <- (#peek Selection, tracks) selp :: IO CInt
-    duration <- (#peek Selection, duration) selp
-    return $ Block.Selection color (fromIntegral start_track) start_pos
-        (fromIntegral tracks) duration
-
-poke_selection selp (Block.Selection c start_track start_pos tracks duration) =
+poke_selection selp (CSelection color
+    (Block.Selection start_track start_pos tracks duration)) =
     do
-        (#poke Selection, color) selp c
+        (#poke Selection, color) selp color
         (#poke Selection, start_track) selp (Util.c_int start_track)
         (#poke Selection, start_pos) selp start_pos
         (#poke Selection, tracks) selp (Util.c_int tracks)

@@ -57,16 +57,17 @@ run_update (Update.ViewUpdate view_id Update.CreateView) = do
 
 run_update (Update.ViewUpdate view_id update) = do
     case update of
+        -- The previous equation matches CreateView, but ghc warning doesn't
+        -- figure that out.
+        Update.CreateView -> error "run_update: notreached"
         Update.DestroyView -> send (BlockC.destroy_view view_id)
         Update.ViewSize rect -> send (BlockC.set_size view_id rect)
         Update.ViewConfig config -> send (BlockC.set_view_config view_id config)
         Update.SetTrackWidth tracknum width -> send $
             BlockC.set_track_width view_id tracknum width
-        -- Previous equation should have gotten this, but ghc warning doesn't
-        -- know that.
-        Update.CreateView -> error "run_update: notreached"
-        Update.SetSelection selnum maybe_sel -> send $
-            BlockC.set_selection view_id selnum maybe_sel
+        Update.SetSelection selnum maybe_sel -> do
+            csel <- to_csel view_id selnum maybe_sel
+            send $ BlockC.set_selection view_id selnum csel
 
 -- Block ops apply to every view with that block.
 run_update (Update.BlockUpdate block_id update) = do
@@ -91,6 +92,16 @@ run_update (Update.TrackUpdate track_id (Update.UpdateTrack low high)) = do
         forM_ view_ids $ \view_id -> do
             ctrack <- tracklike_to_ctracklike tracklike
             send $ BlockC.update_track view_id tracknum ctrack low high
+
+to_csel :: Block.ViewId -> Block.SelNum -> Maybe (Block.Selection)
+    -> State.StateT IO (Maybe BlockC.CSelection)
+to_csel view_id selnum maybe_sel = do
+    view <- State.get_view view_id
+    block <- State.get_block (Block.view_block view)
+    let color = Seq.at_err "selection colors"
+            (Block.config_selection_colors (Block.block_config block))
+            selnum
+    return $ fmap (BlockC.CSelection color) maybe_sel
 
 -- | Find 'track_id' in all the blocks it exists in, and return the relevant
 -- info.

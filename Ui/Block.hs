@@ -97,16 +97,17 @@ default_zoom = Zoom (TrackPos 0) 1
 -- TODO: remove color and put it in BlockC.SelectionC, which gets its color
 -- from a BlockConfig list
 data Selection = Selection
-    { sel_color :: Color
-    , sel_start_track :: TrackNum
+    { sel_start_track :: TrackNum
     , sel_start_pos :: TrackPos
     , sel_tracks :: TrackNum
     , sel_duration :: TrackPos
     } deriving (Eq, Ord, Show)
 
--- | A Selection with 0 tracks is considered no selection.
-null_selection :: Selection
-null_selection = Selection Color.black 0 (TrackPos 0) 0 (TrackPos 0)
+selection tracknum start tracks dur = Just (Selection tracknum start tracks dur)
+
+-- | A point is a selection with no duration.
+point_selection :: TrackNum -> TrackPos -> Maybe Selection
+point_selection tracknum pos = Just (Selection tracknum pos 1 (TrackPos 0))
 
 -- | Index of the non-scrolling ruler track (it doesn't necessarily have
 -- a ruler, it's just meant for one).

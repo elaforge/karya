@@ -78,7 +78,7 @@ Ui
   * track_at
   * Event
   * work old tests from TestUi into BlockC_test
-  - always having to specify the color of a Selection is annoying, make
+  * always having to specify the color of a Selection is annoying, make
     SelectionC automatically get it from block_selection_colors
   Diff
     * ErrorT
@@ -99,8 +99,8 @@ Cmd
   * reintegrate handler and responder into new hstate, rename Msg->Cmd
   - Cmd_test
   keymap
-    - keymaps that combine key patterns into a table and create a Handler
-    - Cmd.Movement: selection / cursor movement commands
+    * keymaps that combine key patterns into a table and create a Cmd
+    + Cmd.Movement: selection / cursor movement commands
     - Cmd.Event: event insertion / deletion commands
     - UI and fltk support for editing event text
     - Cmd.Block: view and creation / deletion, track insertion / removal

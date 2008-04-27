@@ -129,6 +129,10 @@ destroy_view :: (UiStateMonad m) => Block.ViewId -> m ()
 destroy_view view_id = modify $ \st ->
     st { state_views = Map.delete view_id (state_views st) }
 
+set_view_config :: (UiStateMonad m) => Block.ViewId -> Block.ViewConfig -> m ()
+set_view_config view_id config =
+    modify_view view_id (\view -> view { Block.view_config = config })
+
 -- | Update @tracknum@ of @view_id@ to have width @width@.
 set_track_width :: (UiStateMonad m) =>
     Block.ViewId -> Block.TrackNum -> Block.Width -> m ()
@@ -168,10 +172,12 @@ get_selection view_id selnum = do
 
 -- | Replace any selection on @view_id@ at @selnum@ with @sel@.
 set_selection :: (UiStateMonad m) => Block.ViewId -> Block.SelNum
-    -> Block.Selection -> m ()
-set_selection view_id selnum sel = do
+    -> Maybe Block.Selection -> m ()
+set_selection view_id selnum maybe_sel = do
     view <- get_view view_id
-    let sels = Map.insert selnum sel (Block.view_selections view)
+    let sels = case maybe_sel of
+            Nothing -> Map.delete selnum (Block.view_selections view)
+            Just sel -> Map.insert selnum sel (Block.view_selections view)
     update_view view_id (view { Block.view_selections = sels })
 
 -- *** util
@@ -189,6 +195,10 @@ get_block block_id = get >>= lookup_id block_id . state_blocks
 create_block :: (UiStateMonad m) => String -> Block.Block -> m Block.BlockId
 create_block id block = get >>= insert (Block.BlockId id) block state_blocks
     (\blocks st -> st { state_blocks = blocks })
+
+set_block_config :: (UiStateMonad m) => Block.BlockId -> Block.Config -> m ()
+set_block_config block_id config =
+    modify_block block_id (\block -> block { Block.block_config = config })
 
 -- *** tracks
 

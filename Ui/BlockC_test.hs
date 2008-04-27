@@ -70,12 +70,15 @@ test_set_selection = do
     let c = Color.lighten 0.5 Color.blue
     io_human "point selection appears" $
         send $ BlockC.set_selection view 0
-            (Just (Block.Selection c 0 (TrackPos 0) 1 (TrackPos 0)))
+            (cselection c 0 (TrackPos 0) 1 (TrackPos 0))
     io_human "replaced by long selection" $
         send $ BlockC.set_selection view 0
-            (Just (Block.Selection c 0 (TrackPos 10) 1 (TrackPos 20)))
+            (cselection c 0 (TrackPos 10) 1 (TrackPos 20))
     io_human "goes away" $
         send $ BlockC.set_selection view 0 Nothing
+
+cselection color track start tracks dur =
+    Just (BlockC.CSelection color (Block.Selection track start tracks dur))
 
 test_set_track_width = do
     view <- create_empty_view
