@@ -10,7 +10,7 @@ import Control.Monad.Trans (lift)
 import qualified Control.Monad.Writer as Writer
 -- import qualified Control.Monad.Error as Error
 import qualified Data.List as List
-import qualified Data.Set as Set
+import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
 import qualified Util.Logger as Logger
@@ -124,7 +124,9 @@ require = maybe abort return
 data State = State {
     -- | Map of keys held down.  Maintained by cmd_record_keys and accessed
     -- with 'keys_down'.
-    state_keys_down :: Set.Set Modifier
+    -- The key is the modifier stripped of extraneous info, like mousedown
+    -- position.
+    state_keys_down :: Map.Map Modifier Modifier
 
     -- | The block and track that have focus.  Commands that address
     -- a particular block or track will address these.
@@ -135,7 +137,7 @@ data State = State {
     -- whatever else.
     , state_current_step :: TimeStep.TimeStep
     } deriving (Show)
-empty_state = State Set.empty Nothing Nothing
+empty_state = State Map.empty Nothing Nothing
     (TimeStep.UntilMark (TimeStep.MatchRank 1))
 
 data Modifier = KeyMod Key.Key
@@ -154,10 +156,8 @@ get_cmd_state :: (Monad m) => CmdT m State
 get_cmd_state = (CmdT . lift) MonadState.get
 
 -- | Keys currently held down.
-keys_down :: (Monad m) => CmdT m [Modifier]
-keys_down = do
-    st <- get_cmd_state
-    return (Set.elems (state_keys_down st))
+keys_down :: (Monad m) => CmdT m (Map.Map Modifier Modifier)
+keys_down = fmap state_keys_down get_cmd_state
 
 get_active_view :: (Monad m) => CmdT m Block.ViewId
 get_active_view = do
@@ -197,50 +197,64 @@ cmd_log msg = do
 -- | Record keydowns into the 'State' modifier map.
 cmd_record_keys :: Cmd
 cmd_record_keys msg = do
-    case msg of
-        Msg.Ui (UiMsg.UiMsg ctx (UiMsg.MsgEvent evt)) -> case evt of
-            UiMsg.Kbd UiMsg.KeyDown key ->
-                insert_mod (KeyMod key)
-            UiMsg.Kbd UiMsg.KeyUp key ->
-                delete_mod (KeyMod key)
-            UiMsg.Mouse { UiMsg.mouse_state = UiMsg.MouseDown btn } ->
-                insert_mod (MouseMod btn (mouse_context ctx))
-            UiMsg.Mouse { UiMsg.mouse_state = UiMsg.MouseUp btn } -> do
-                mods <- keys_down
-                delete_mod $ case List.find (has_button btn) mods of
-                    Just mod -> mod
-                    -- Nothing with this button is in keydown, so the
-                    -- below will log a warning.
-                    Nothing -> MouseMod btn (mouse_context ctx)
-            _ -> return ()
-        Msg.Midi (_dev, _timestamp, msg) -> case msg of
-            Midi.ChannelMessage chan (Midi.NoteOn key _vel) ->
-                insert_mod (MidiMod chan key)
-            Midi.ChannelMessage chan (Midi.NoteOff key _vel) ->
-                delete_mod (MidiMod chan key)
-            _ -> return ()
-        _ -> return ()
+    case msg_to_mod msg of
+        Nothing -> return ()
+        Just (True, mod) -> insert_mod mod
+        Just (False, mod) -> delete_mod mod
     return Continue
+    where
+
+    insert_mod mod = do
+        let key = modifier_key mod
+        mods <- keys_down
+        when (key `Map.member` mods) $
+            Log.warn $ "keydown for " ++ show mod ++ " already in modifiers"
+        modify_keys (Map.insert key mod)
+        mods <- keys_down
+        Log.debug $ "keydown " ++ show (Map.elems mods)
+
+    delete_mod mod = do
+        let key = modifier_key mod
+        mods <- keys_down
+        when (key `Map.notMember` mods) $
+            Log.warn $ "keyup for " ++ show mod ++ " not in modifiers"
+        modify_keys (Map.delete key)
+        mods <- keys_down
+        Log.debug $ "keyup " ++ show (Map.elems mods)
+
+    modify_keys f = modify_state $ \st ->
+        st { state_keys_down = f (state_keys_down st) }
+
+-- | Take a modifier to its key in the modifier map which has extra info like
+-- mouse down position stripped.
+modifier_key :: Modifier -> Modifier
+modifier_key (MouseMod btn _) = MouseMod btn Nothing
+modifier_key mod = mod
+
+-- | Convert a Msg to (is_key_down, Modifier).
+msg_to_mod :: Msg.Msg -> Maybe (Bool, Modifier)
+msg_to_mod msg = case msg of
+    Msg.Ui (UiMsg.UiMsg context (UiMsg.MsgEvent evt)) -> case evt of
+        UiMsg.Kbd state key -> case state of
+            UiMsg.KeyDown -> Just (True, KeyMod key)
+            UiMsg.KeyUp -> Just (False, KeyMod key)
+        UiMsg.Mouse { UiMsg.mouse_state = UiMsg.MouseDown btn } ->
+            Just (True, MouseMod btn (mouse_context context))
+        UiMsg.Mouse { UiMsg.mouse_state = UiMsg.MouseUp btn } ->
+            Just (False, MouseMod btn (mouse_context context))
+        _ -> Nothing
+    Msg.Midi (_dev, _timestamp, msg) -> case msg of
+        Midi.ChannelMessage chan (Midi.NoteOn key _vel) ->
+            Just (True, MidiMod chan key)
+        Midi.ChannelMessage chan (Midi.NoteOff key _vel) ->
+            Just (False, MidiMod chan key)
+        _ -> Nothing
+    _ -> Nothing
     where
     mouse_context (UiMsg.Context
         { UiMsg.ctx_track = Just n, UiMsg.ctx_pos = Just pos }) = Just (n, pos)
     mouse_context _ = Nothing
-    has_button btn (MouseMod btn2 _) = btn == btn2
-    has_button _btn _ = False
-    insert_mod mod = do
-        mods <- keys_down
-        when (mod `elem` mods) $
-            Log.warn $ "keydown for " ++ show mod ++ " already in modifiers"
-        modify_keys (Set.insert mod)
-        Log.debug $ "keydown " ++ show (mod:mods)
-    delete_mod mod = do
-        mods <- keys_down
-        when (mod `notElem` mods) $
-            Log.warn $ "keyup for " ++ show mod ++ " not in modifiers"
-        modify_keys (Set.delete mod)
-        Log.debug $ "keyup " ++ show (List.delete mod mods)
-    modify_keys f = modify_state $ \st ->
-        st { state_keys_down = f (state_keys_down st) }
+
 
 -- | Keep 'state_active_view' and 'state_active_track' up to date.
 cmd_record_active :: Cmd
@@ -284,7 +298,7 @@ ui_update ctx@(UiMsg.Context (Just view_id) track _pos) update = case update of
         update_input ctx (Block.view_block view) text
     UiMsg.UpdateTrackScroll hpos -> State.set_track_scroll view_id hpos
     UiMsg.UpdateZoom zoom -> State.set_zoom view_id zoom
-    UiMsg.UpdateViewResize rect -> State.set_view_size view_id rect
+    UiMsg.UpdateViewResize rect -> State.set_view_rect view_id rect
     UiMsg.UpdateTrackWidth width -> case track of
         Just tracknum -> State.set_track_width view_id tracknum width
         Nothing -> State.throw $ show update ++ " with no track: " ++ show ctx

@@ -42,17 +42,13 @@ step_selection selnum dir = do
         Nothing -> Log.notice $
             "can't advance to " ++ show step ++ " from " ++ show pos
         Just next_pos -> State.set_selection view_id selnum
-            (select_point (Block.sel_start_track sel) next_pos)
+            (Block.point_selection (Block.sel_start_track sel) next_pos)
     return Cmd.Done
 
 cmd_drag_selection :: Block.SelNum -> Int -> Cmd.Cmd
 cmd_drag_selection selnum mouse_btn = undefined
 
 -- * util
-
--- | Select a "point" at the given @pos@.
-select_point tracknum pos = Block.Selection Color.blue
-    tracknum pos 1 (TrackPos 0)
 
 -- | Get the ruler that applies to the given track.  Search left for the
 -- closest ruler.

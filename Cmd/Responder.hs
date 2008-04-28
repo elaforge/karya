@@ -29,29 +29,36 @@ responder get_msg write_midi setup_cmd = do
     loop ui_state cmd_state get_msg write_midi
 
 -- Hardcoded cmds.
-cmd_stack = [Cmd.cmd_log, Cmd.cmd_quit, Cmd.cmd_close_window,
-    Cmd.cmd_record_keys, Cmd.cmd_record_active, DefaultKeymap.default_keymap]
+cmd_stack :: [Cmd.Cmd]
+cmd_stack =
+    -- Special Cmds that record info about the incoming msgs.
+    [ Cmd.cmd_record_keys, Cmd.cmd_record_active
+    -- , Cmd.cmd_log
+    -- Handle a few special case global msgs.
+    , Cmd.cmd_quit, Cmd.cmd_close_window
+    , DefaultKeymap.default_keymap
+    ]
 
 loop :: State.State -> Cmd.State -> MsgReader -> MidiWriter -> IO ()
-loop ui_state1 cmd_state1 get_msg write_midi = do
+loop ui_state cmd_state get_msg write_midi = do
     msg <- get_msg
-    -- Apply changes that won't be diffed.  See 'Cmd.cmd_record_ui_updates'
+    -- Apply changes that won't be diffed.  See the 'Cmd.cmd_record_ui_updates'
     -- comment.
     -- TODO: an error implies the UI is out of sync, maybe I should fail more
     -- seriously here?
-    (status, ui_state1, cmd_state1) <- handle_cmd_result
-        False write_midi ui_state1
-        (Cmd.run_cmd ui_state1 cmd_state1 (Cmd.cmd_record_ui_updates msg))
+    (status, ui_state, cmd_state) <- handle_cmd_result
+        False write_midi ui_state
+        (Cmd.run_cmd ui_state cmd_state (Cmd.cmd_record_ui_updates msg))
 
     -- TODO: prepend cmds for the active Block and Track to cmd_stack.
-    (status, ui_state2, cmd_state2) <- case status of
+    (status, ui_state, cmd_state) <- case status of
         Cmd.Continue -> handle_cmd_result True write_midi
-            ui_state1 (run_cmds ui_state1 cmd_state1 cmd_stack msg)
-        _ -> return (status, ui_state1, cmd_state1)
+            ui_state (run_cmds ui_state cmd_state cmd_stack msg)
+        _ -> return (status, ui_state, cmd_state)
 
     case status of
         Cmd.Quit -> return ()
-        _ -> loop ui_state2 cmd_state2 get_msg write_midi
+        _ -> loop ui_state cmd_state get_msg write_midi
 
 handle_cmd_result :: Bool -> MidiWriter -> State.State -> Cmd.CmdVal
     -> IO (Cmd.Status, State.State, Cmd.State)
@@ -99,8 +106,10 @@ merge_ui_res updates = fmap
 sync :: State.State -> State.State -> [Update.Update] -> IO ()
 sync state1 state2 cmd_updates = do
     case Diff.diff state1 state2 of
-        Left err -> Log.error $ "diff error: " ++ show err
+        Left err -> Log.error $ "diff error: " ++ err
         Right diff_updates -> do
+            Log.debug $ "diff_updates: " ++ show diff_updates
+                ++ " cmd_updates: " ++ show cmd_updates
             err <- Sync.sync state2 (diff_updates ++ cmd_updates)
             case err of
                 Nothing -> return ()

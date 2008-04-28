@@ -23,17 +23,21 @@ playback_selnum = 4
 
 -- Move the insert selection around.
 movement =
-    [ (spec [] (Keymap.UiKey Key.Down),
-        ignore_msg $ Movement.step_selection insert_selnum Movement.Advance)
-    , (spec [] (Keymap.UiKey Key.Up),
-        ignore_msg $ Movement.step_selection insert_selnum Movement.Rewind)
+    [ (spec [] (Keymap.UiKey Key.Down), cmdm "advance selection" $
+        Movement.step_selection insert_selnum Movement.Advance)
+    , (spec [] (Keymap.UiKey Key.Up), cmdm "rewind selection" $
+        Movement.step_selection insert_selnum Movement.Rewind)
     ]
 
 block =
     [
     ]
 
+-- TODO: should take [[Modifier]] and produce a mapping for each
+-- wait and see what's actually useful
 spec = Keymap.KeySpec
+cmdm :: String -> Cmd.CmdM -> Keymap.CmdSpec
+cmdm name cmd = Keymap.CmdSpec name (ignore_msg cmd)
 
 
 -- ** util
