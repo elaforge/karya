@@ -3,7 +3,6 @@ import qualified Data.Array.IArray as IArray
 import Data.Array.IArray ((!))
 
 import qualified Util.Array
-import qualified Util.Test as Test
 
 import Ui.Types
 import qualified Ui.Color as Color

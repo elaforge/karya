@@ -2,6 +2,8 @@ module Ui.Diff_test where
 import Util.Test
 import Ui.Diff
 
+-- The main 'diff' part is indirectly tested by Sync_test.
+
 test_pair_lists = do
     let pair = pair_lists (==)
     equal (pair "abc" "abc")

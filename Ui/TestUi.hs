@@ -4,7 +4,6 @@ import qualified Control.Concurrent.STM as STM
 import qualified System.IO as IO
 
 import qualified Util.Log as Log
-import qualified Util.Test as Test
 import qualified Util.Thread as Thread
 
 import qualified Ui.UiMsg as UiMsg

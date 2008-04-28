@@ -7,11 +7,21 @@ import qualified Data.Map as Map
 import qualified Data.List as List
 
 import qualified Ui.Block as Block
+import qualified Ui.Track as Track
 
 import qualified Ui.Update as Update
 import qualified Ui.State as State
 
+
 type DiffError = String
+
+type DiffM a = Writer.WriterT [Update.Update]
+    (Error.ErrorT DiffError Identity.Identity) a
+
+throw :: String -> DiffM a
+throw = Error.throwError
+change :: Monad m => [Update.Update] -> Writer.WriterT [Update.Update] m ()
+change = Writer.tell
 
 -- | Emit a list of the necessary 'Update's to turn @st1@ into @st2@.
 diff :: State.State -> State.State -> Either DiffError [Update.Update]
@@ -23,10 +33,18 @@ diff st1 st2 = Identity.runIdentity . Error.runErrorT . Writer.execWriterT $ do
             (State.state_blocks st2)
     mapM_ (uncurry3 diff_block)
         (zip_maps (State.state_blocks st1) visible_blocks)
+    mapM_ (uncurry3 diff_track)
+        (zip_maps (State.state_tracks st1) (State.state_tracks st2))
 
     -- The block updates may delete or insert tracks.  View updates that use
     -- TrackNums will refer to the st2 TrackNum, so diff_views goes after
-    -- diff_block.
+    -- diff_block.  This is only Selection
+    --
+    -- You'd think that Block updates wouldn't catch new views created by
+    -- diff_view, but since the sync runs against the new state, they will find
+    -- new views.
+    --
+    -- This is subtle and icky.
     diff_views st1 st2 (State.state_views st1) (State.state_views st2)
 
 -- ** view
@@ -34,8 +52,8 @@ diff st1 st2 = Identity.runIdentity . Error.runErrorT . Writer.execWriterT $ do
 diff_views st1 st2 views1 views2 = do
     change $ map (flip Update.ViewUpdate Update.DestroyView) $
         Map.keys (Map.difference views1 views2)
-    change $ map (flip Update.ViewUpdate Update.CreateView) $
-        Map.keys (Map.difference views2 views1)
+    let new_views = Map.difference views2 views1
+    change $ map (flip Update.ViewUpdate Update.CreateView) (Map.keys new_views)
     mapM_ (uncurry3 (diff_view st1 st2)) (zip_maps views1 views2)
 
 diff_view st1 st2 view_id view1 view2 = do
@@ -74,13 +92,13 @@ diff_view st1 st2 view_id view1 view2 = do
         (pair_maps (Block.view_selections view1) (Block.view_selections view2))
 
 diff_selection view_update selnum sel1 sel2 = when (sel1 /= sel2) $
-    change [view_update $ Update.SetSelection selnum sel2]
+    change [view_update $ Update.Selection selnum sel2]
 
 diff_track_view view_id tracknum tview1 tview2 = do
     let width = Block.track_view_width
     when (width tview1 /= width tview2) $
         change [Update.ViewUpdate view_id
-            (Update.SetTrackWidth tracknum (width tview2))]
+            (Update.TrackWidth tracknum (width tview2))]
 
 -- | Pair the Tracklikes from the Block with the TrackViews from the View.
 track_info view_id view st =
@@ -90,7 +108,6 @@ track_info view_id view st =
         Just block -> return $ zip
             (map fst (Block.block_tracks block)) (Block.view_tracks view)
     where block_id = Block.view_block view
-
 
 -- ** block
 
@@ -113,9 +130,14 @@ diff_block block_id block1 block2 = do
             change [block_update $ Update.InsertTrack i2 track width]
         _ -> return ()
 
-throw = Error.throwError
-change :: Monad m => [Update.Update] -> Writer.WriterT [Update.Update] m ()
-change = Writer.tell
+-- ** track
+
+diff_track track_id track1 track2 = do
+    let track_update = Update.TrackUpdate track_id
+    when (Track.track_title track1 /= Track.track_title track2) $
+        change [track_update $ Update.TrackTitle (Track.track_title track2)]
+    when (Track.track_bg track1 /= Track.track_bg track2) $
+        change [track_update $ Update.TrackBg]
 
 -- * util
 

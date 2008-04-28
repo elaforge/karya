@@ -79,7 +79,7 @@ Ui
   * Event
   * work old tests from TestUi into BlockC_test
   * always having to specify the color of a Selection is annoying, make
-    SelectionC automatically get it from block_selection_colors
+    CSelection automatically get it from block_selection_colors
   Diff
     * ErrorT
     - tests

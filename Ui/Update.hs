@@ -1,6 +1,7 @@
 module Ui.Update where
 
 import Ui.Types
+import qualified Ui.Color as Color
 import qualified Ui.Block as Block
 import qualified Ui.Track as Track
 import Ui.Block (ViewId, BlockId)
@@ -16,8 +17,8 @@ data ViewUpdate =
     | DestroyView
     | ViewSize Block.Rect
     | ViewConfig Block.ViewConfig
-    | SetTrackWidth Block.TrackNum Block.Width
-    | SetSelection Block.SelNum (Maybe Block.Selection)
+    | TrackWidth Block.TrackNum Block.Width
+    | Selection Block.SelNum (Maybe Block.Selection)
     deriving Show
 
 data BlockUpdate =
@@ -28,5 +29,7 @@ data BlockUpdate =
     deriving Show
 
 -- | track, low_pos, high_pos
-data TrackUpdate = UpdateTrack TrackPos TrackPos
+data TrackUpdate = TrackEvents TrackPos TrackPos
+    | TrackTitle String
+    | TrackBg
     deriving Show

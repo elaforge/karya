@@ -32,7 +32,7 @@ instance Storable Track.Track where
 
 poke_track trackp (Track.Track
         { Track.track_events = events
-        , Track.track_bg_color = bg
+        , Track.track_bg = bg
         })
     = do
         find_events <- make_find_events events

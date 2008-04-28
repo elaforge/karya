@@ -1,5 +1,3 @@
-#include <set>
-
 #include "config.h"
 #include "util.h"
 #include "alpha_draw.h"
@@ -71,9 +69,14 @@ EventTrackView::update(const Tracklike &track, FinalizeCallback finalizer,
     finalizer((void *) this->config.find_events);
     finalizer((void* ) this->config.last_track_pos);
     this->overlay_ruler.set_config(*track.ruler, finalizer, start, end);
+    if (this->config.bg_color != track.track->bg_color) {
+        this->bg_box.color(color_to_fl(track.track->bg_color));
+        this->redraw();
+    }
     this->config = *track.track;
     // TODO should have a damage scheme like with ruler
     this->redraw();
+
 }
 
 

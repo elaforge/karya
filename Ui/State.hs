@@ -29,6 +29,7 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
 import qualified Util.Seq as Seq
+import qualified Util.Log as Log
 import qualified Util.Logger as Logger
 
 import Ui.Types
@@ -154,8 +155,8 @@ set_track_scroll :: (UiStateMonad m) => Block.ViewId -> Block.Width -> m ()
 set_track_scroll view_id offset =
     modify_view view_id (\view -> view { Block.view_track_scroll = offset })
 
-set_view_size :: (UiStateMonad m) => Block.ViewId -> Block.Rect -> m ()
-set_view_size view_id rect =
+set_view_rect :: (UiStateMonad m) => Block.ViewId -> Block.Rect -> m ()
+set_view_rect view_id rect =
     modify_view view_id (\view -> view { Block.view_rect = rect })
 
 -- *** selections
@@ -291,11 +292,15 @@ set_track_title :: (UiStateMonad m) => Track.TrackId -> String -> m ()
 set_track_title track_id text = modify_track track_id $ \track ->
     track { Track.track_title = text }
 
+set_track_bg :: (UiStateMonad m) => Track.TrackId -> Color -> m ()
+set_track_bg track_id color = modify_track track_id $ \track ->
+    track { Track.track_bg = color }
+
 insert_events :: (UiStateMonad m) =>
     Track.TrackId -> [(TrackPos, Event.Event)] -> m ()
 insert_events track_id pos_evts = do
     -- Stash a track update, see 'run' comment.
-    update $ Update.TrackUpdate track_id $ Update.UpdateTrack
+    update $ Update.TrackUpdate track_id $ Update.TrackEvents
         (fst (head pos_evts)) (Track.event_end (last pos_evts))
     modify_track track_id $ \track ->
         track { Track.track_events = Track.insert_events pos_evts

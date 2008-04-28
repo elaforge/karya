@@ -11,7 +11,7 @@ newtype TrackId = TrackId String deriving (Eq, Ord, Show)
 data Track = Track {
     track_title :: String
     , track_events :: TrackEvents
-    , track_bg_color :: Color
+    , track_bg :: Color
     -- track attrs
     } deriving (Show)
 

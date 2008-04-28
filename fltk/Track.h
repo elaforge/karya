@@ -71,6 +71,9 @@ public:
     // dynamically allocated because it will be passed to TrackTile who will
     // own it.
     virtual Fl_Widget &title_widget() = 0;
+
+    // TODO only EventTracks support these, so it might be nicer to to have
+    // one method that returns *EventTrackView
     // The text in the title_widget, if there is any.
     virtual const char *get_title() const { return 0; }
     virtual void set_title(const char *title) { /* TODO throw bad_arg */ }
