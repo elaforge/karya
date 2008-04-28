@@ -14,7 +14,6 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 
 import qualified Util.Seq as Seq
-import qualified Util.Log as Log
 
 import Ui.Types
 import qualified Ui.Initialize as Initialize
@@ -53,7 +52,9 @@ run_update (Update.ViewUpdate view_id Update.CreateView) = do
     ruler_track <- tracklike_to_ctracklike (Block.block_ruler_track block)
     ctracks <- mapM (tracklike_to_ctracklike . fst) (Block.block_tracks block)
     titles <- mapM (track_title . fst) (Block.block_tracks block)
-    Trans.liftIO $ Log.debug $ "titles: " ++ show titles
+    let sels = Block.view_selections view
+    csels <- mapM (\(selnum, sel) -> to_csel view_id selnum (Just sel))
+        (Map.assocs sels)
     -- I manually sync the new empty view with its state.  It might reduce
     -- repetition to let Diff.diff do that by diffing against a state with an
     -- empty view, but this way seems less complicated.
@@ -70,6 +71,8 @@ run_update (Update.ViewUpdate view_id Update.CreateView) = do
 
         when (not (null (Block.block_title block))) $
             BlockC.set_title view_id (Block.block_title block)
+        forM_ (zip (Map.keys sels) csels) $ \(selnum, csel) ->
+            BlockC.set_selection view_id selnum csel
 
 run_update (Update.ViewUpdate view_id update) = do
     case update of

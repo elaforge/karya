@@ -12,7 +12,7 @@ import Ui.Types
 import qualified Ui.Initialize as Initialize
 import qualified Ui.State as State
 
--- import qualified Ui.Color as Color
+import qualified Ui.Color as Color
 import qualified Ui.Block as Block
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Track as Track
@@ -83,8 +83,9 @@ setup_cmd = do
     b1 <- State.create_block "b1" (Block.Block "hi b1"
         TestSetup.default_block_config
         (Block.R ruler) [(Block.T t1 ruler, 30)])
-    _v1 <- State.create_view "v1"
+    v1 <- State.create_view "v1"
         (Block.view b1 TestSetup.default_rect TestSetup.default_view_config)
+    State.set_selection v1 0 (Block.point_selection 0 (TrackPos 20))
     _v2 <- State.create_view "v2"
         (Block.view b1 (Block.Rect (500, 30) (200, 200))
             TestSetup.default_view_config)
