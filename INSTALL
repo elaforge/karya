@@ -1,5 +1,8 @@
     ghc
 
+    haskell deps
+DList (dlist on hackage)
+
     fltk
 
 to make fltk usable:

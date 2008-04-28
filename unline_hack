@@ -6,5 +6,9 @@ hscs=([A-Z]**/*.hsc)
 for hsc in $hscs; do
     dir=$test_obj/$(dirname $hsc)
     mkdir -p $dir
-    fgrep -v '{-# LINE' ${hsc%c} >$test_obj/${hsc%c}
+    in=${hsc%c}
+    out=$test_obj/$in
+    if [[ $(stat -f %m $in) -ge $(stat -f %m $out) ]]; then
+        fgrep -v '{-# LINE' $in >$out
+    fi
 done

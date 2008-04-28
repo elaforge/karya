@@ -10,6 +10,14 @@ App/ - Core app logic, to tie it all together.  Also has the player logic, that
     displays the playback position.
 
 
+    Code conventions
+Indents are 4 space tabs only.  Nothing is lined up vertically.
+
+When lines are broken, operators go on the second line.  '=' and '<-' are not
+considered operators and go on the previous line.
+
+
+
     Continuous data (breath controller, pitch)
 
 It would be nice to have a good visualization and way to edit continuous data,

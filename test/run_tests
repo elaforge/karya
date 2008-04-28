@@ -16,11 +16,19 @@ direct_tests=($($run_tests -list $prefixes | grep '^direct-'))
 
 rm -f $test_output
 
+function run() {
+    "$@"
+    local r=$?
+    if [[ $r -ne 0 ]]; then
+        echo __: cmd returned $r: "$@"
+    fi
+}
+
 if [ "$direct_tests" ]; then
-    $run_tests $direct_tests 2>>$test_output
+    run $run_tests $direct_tests 2>>$test_output
 fi
 for test in $init_tests; do
-    $run_tests $test
+    run $run_tests $test
 done
 
 grep '^\*\*' $test_output
