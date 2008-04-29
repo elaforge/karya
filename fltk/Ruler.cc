@@ -6,6 +6,7 @@
 #include "f_util.h"
 #include "alpha_draw.h"
 
+#include "config.h"
 #include "Ruler.h"
 
 // Height in pixels both above and below  of the special indicator that is
@@ -164,7 +165,7 @@ OverlayRuler::draw_marklists()
     TrackPos start = this->zoom.offset;
     TrackPos end = this->zoom.to_trackpos(clip.h) + this->zoom.offset;
 
-    fl_font(FL_HELVETICA, 9);
+    fl_font(FL_HELVETICA, Config::font_size::ruler);
     // Later marklists will draw over earlier ones.
     for (Marklists::const_iterator mlist = config.marklists.begin();
             mlist != config.marklists.end(); ++mlist)

@@ -2,6 +2,7 @@
 #include <FL/Fl_Window.H>
 
 #include "f_util.h"
+#include "config.h"
 
 #include "MsgCollector.h"
 #include "SeqInput.h"
@@ -10,6 +11,7 @@
 SeqInput::SeqInput(int X, int Y, int W, int H) :
     Fl_Input(W, Y, W, H), focus_color(255, 200, 200)
 {
+    this->textsize(Config::font_size::input);
     this->box(FL_THIN_DOWN_BOX);
     this->callback(SeqInput::changed_cb, static_cast<void *>(this));
     this->when(FL_WHEN_RELEASE);

@@ -164,7 +164,7 @@ EventTrackView::draw_upper_layer(int offset, const Event &event)
 
         // TODO
         // if the text is too long it gets blue-blocked off
-        fl_font(fl_font(), 12);
+        fl_font(fl_font(), Config::font_size::event);
         int text_h = fl_height() - fl_descent();
         int textpos = offset + text_h;
         // TODO set according to style

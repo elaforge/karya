@@ -12,6 +12,14 @@ extern Color abbreviation_color;
 
 enum { max_selections = 5 };
 
+namespace font_size {
+    enum {
+        event = 12,
+        input = 12,
+        ruler = 9
+    };
+};
+
 }
 
 #endif

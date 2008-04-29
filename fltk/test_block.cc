@@ -192,12 +192,10 @@ main(int argc, char **argv)
                 1, TrackPos(60), 4, TrackPos(56)));
     view.block.set_selection(0, Selection(selection_colors[0],
                 1, TrackPos(60), 4, TrackPos(46)));
-    /*
     view.block.set_selection(0, Selection(selection_colors[0],
                 1, TrackPos(0), 4, TrackPos(56)));
     view.block.set_selection(1, Selection(selection_colors[1],
                 1, TrackPos(64), 4, TrackPos(0)));
-    */
 
     // print_children(&view);
     // DEBUG(1);

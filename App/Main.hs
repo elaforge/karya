@@ -75,14 +75,24 @@ print_devs rdev_map wdev_map = do
     putStrLn "write devs:"
     mapM_ print (Map.keys wdev_map)
 
+cues_marklist = Ruler.marklist
+    [ (TrackPos 0, TestSetup.tag "start")
+    , (TrackPos 95, TestSetup.tag "head explodes")
+    ]
+
 setup_cmd :: Cmd.CmdM
 setup_cmd = do
     Log.debug "setup block"
-    ruler <- State.create_ruler "r1" (TestSetup.mkruler 20 10)
+    ruler <- State.create_ruler "r1"
+        (TestSetup.ruler [TestSetup.marklist 20 10, cues_marklist])
+    overlay <- State.create_ruler "r1.overlay"
+        =<< fmap TestSetup.overlay_ruler (State.get_ruler ruler)
+
     t1 <- State.create_track "b1.t1" TestSetup.event_track_1
+    t2 <- State.create_track "b1.t2" TestSetup.event_track_2
     b1 <- State.create_block "b1" (Block.Block "hi b1"
         TestSetup.default_block_config
-        (Block.R ruler) [(Block.T t1 ruler, 30)])
+        (Block.R ruler) [(Block.T t1 overlay, 30), (Block.T t2 overlay, 30)])
     v1 <- State.create_view "v1"
         (Block.view b1 TestSetup.default_rect TestSetup.default_view_config)
     State.set_selection v1 0 (Block.point_selection 0 (TrackPos 20))
