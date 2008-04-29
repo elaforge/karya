@@ -1,0 +1,26 @@
+#!/usr/bin/python
+
+import sys, os
+
+def main():
+    hs_files = []
+    hsc_files = []
+    def accum(_arg, dirname, fnames):
+        join = lambda fn: os.path.join(dirname, fn)
+        hs_files.extend([join(fn)
+            for fn in fnames if fn.endswith('.hs') and capword(fn)])
+        hsc_files.extend([join(fn)
+            for fn in fnames if fn.endswith('.hsc') and capword(fn)])
+        fnames[:] = filter(capword, fnames)
+    os.path.walk('.', accum, None)
+
+    hs_files = [fn for fn in hs_files if fn+'c' not in hsc_files]
+    fns = [fn[2:] for fn in hs_files + hsc_files]
+    fns.sort()
+    print ' '.join(fns)
+
+def capword(s):
+    return s and s[0].isupper()
+
+if __name__ == '__main__':
+    main()

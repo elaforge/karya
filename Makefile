@@ -85,7 +85,8 @@ seq: $(UI_HS) $(UI_OBJS) $(MIDI_HS) fltk/fltk.a
 
 .PHONY: doc
 doc:
-	haddock --html -B $(GHC_LIB) -o haddock [A-Z]*/*.hs
+	haddock --html -B $(GHC_LIB) -o haddock \
+		$(filter-out %_test.hs, $(patsubst %.hsc, %.hs, $(shell ./all_hs)))
 
 ### tests ###
 
@@ -112,6 +113,9 @@ interactive: test_obj/RunTests
 	test/run_tests init-
 
 ### misc ###
+
+tags: $(shell ./all_hs)
+	hasktags --ctags $^
 
 # include GHC_LIB/include since hsc includes HsFFI.h
 %.hs: %.hsc
