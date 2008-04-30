@@ -71,7 +71,7 @@ logging
   - haskell and c++ use the same machine readable format
   - log to a file
   - log filtering / visualizing tool
-  - add surrounding function to SrcPos
+  * add surrounding function to SrcPos
 
 Ui
   * rename Interface -> Ui, ui -> fltk
@@ -107,18 +107,17 @@ Cmd
   keymap
     * keymaps that combine key patterns into a table and create a Cmd
     + Cmd.Movement: selection / cursor movement commands
-    - Cmd.Edit
-      - edit mode
-      - event insertion / deletion commands
-    - Cmd.NoteEntry: switch the keymap to tracker-style organ layout
-    - Cmd.Create
+    Cmd.Edit
+      * edit mode
+      + event insertion / deletion commands
+    Cmd.Create
       - view and creation / deletion
       - track insertion / removal
-    - Cmd.TrackOps
+    Cmd.TrackOps
       - collapse track to a divider, expand it back
       - mute / unmute
 
-    - Cmd.Selection
+    Cmd.Selection
       * move insertion point
       * drag insertion point
       - snap to ruler, event beginning/end, ...

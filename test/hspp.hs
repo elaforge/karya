@@ -21,9 +21,14 @@ main = do
     let subs = if "_test.hs" `List.isSuffixOf` orig_fn
             then test_subs else global_subs
         line_pragma = "{-# LINE 1 \"" ++ orig_fn ++ "\" #-}"
-    let subs' = map ($orig_fn) subs
+        subs' = map ($orig_fn) subs
+
+        func_names = annotate_func_names
+        -- Start lines at 0 because of the pragma on line 1.
+        annotate lines = zip3 [0..] (annotate_func_names lines) lines
+
     writeFile dest_fn ((unlines . (line_pragma:)
-        . map (process_line subs') . enumerate . lines) input)
+        . map (process_line subs') . annotate . lines) input)
 
 enumerate = zip [1..]
 
@@ -32,8 +37,23 @@ enumerate = zip [1..]
 global_subs = map make_sub global_macros
 test_subs = map make_sub (global_macros ++ test_macros)
 
-process_line subs (i, line) = foldl (.) id (map ($i) subs) line
+process_line subs (i, func_name, line) =
+    foldl (.) id (map ($ (i, func_name)) subs) line
 
-make_sub (src, dest) fn i line =
-    Regex.subRegex reg line (dest ++ " (" ++ show (Just (fn, i)) ++ ")")
+make_sub (src, dest) fn (i, func_name) line =
+    Regex.subRegex reg line
+        (dest ++ " (" ++ show (Just (fn, func_name, i)) ++ ")")
     where reg = Regex.mkRegex ("[[:<:]]" ++ src ++ "[[:>:]]")
+
+
+annotate_func_names lines = tail (scanl scan Nothing lines)
+
+scan last_func line = case func_name line of
+    Nothing -> last_func
+    Just x -> Just x
+
+func_name line = case Regex.matchRegex reg line of
+        Nothing -> Nothing
+        Just [fname] -> Just fname
+    where
+    reg = Regex.mkRegex "^([a-z0-9_][A-Za-z0-9_]*) .*="
