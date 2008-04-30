@@ -47,10 +47,10 @@ type Matcher = [(TrackPos, Ruler.Mark)] -> Maybe TrackPos
 match :: MarkMatch -> Matcher
 match (MatchRank rank) = match_rank rank
 
--- | Get the pos of the next mark of the given rank.
+-- | Get the pos of the next mark <= the given rank.
 match_rank :: Int -> Matcher
 match_rank rank marks
     | null matches = Nothing
     | otherwise = Just (fst (head matches))
     where
-    matches = filter ((==rank) . Ruler.mark_rank . snd) marks
+    matches = filter ((<=rank) . Ruler.mark_rank . snd) marks

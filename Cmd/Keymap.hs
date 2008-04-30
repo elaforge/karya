@@ -21,6 +21,8 @@ import qualified Cmd.Cmd as Cmd
 
 
 data KeySpec = KeySpec [Cmd.Modifier] Key deriving (Eq, Ord, Show)
+-- | Pair a Cmd with a descriptive string that can be used for logging, undo,
+-- etc.
 data CmdSpec = CmdSpec String Cmd.Cmd
 
 -- | A Key is much like a 'Msg.Msg', but with less detail.

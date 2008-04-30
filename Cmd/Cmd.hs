@@ -110,11 +110,12 @@ midi :: (Monad m) => Midi.WriteDevice -> Midi.Message -> CmdT m ()
 midi dev msg = (CmdT . lift . lift) (Logger.record (dev, msg))
 
 -- | An abort is an exception to get out of CmdT, but it's considered the same
--- as returning Continue.  It's for "oops this cmd doesn't apply after all."
+-- as returning Continue.  It's so a command can back out if e.g. it's selected
+-- by the 'Keymap' but has an additional prerequisite.
 abort :: (Monad m) => CmdT m a
 abort = (CmdT . lift . lift . lift) (Error.throwError Abort)
 
--- | Extract a Just value, or abort.  Generally used to check for Cmd
+-- | Extract a Just value, or 'abort'.  Generally used to check for Cmd
 -- conditions that don't fit into a Keymap.
 require :: (Monad m) => Maybe a -> CmdT m a
 require = maybe abort return
@@ -138,24 +139,27 @@ data State = State {
     , state_current_step :: TimeStep.TimeStep
     } deriving (Show)
 empty_state = State Map.empty Nothing Nothing
-    (TimeStep.UntilMark (TimeStep.MatchRank 1))
+    (TimeStep.UntilMark (TimeStep.MatchRank 2))
 
 data Modifier = KeyMod Key.Key
     -- | Mouse button, and (tracknum, pos) in went down at, if any.
     -- The block is not recorded because you can't drag across blocks.
-    | MouseMod Int (Maybe (Int, TrackPos))
+    | MouseMod Int (Maybe (Block.TrackNum, TrackPos))
     -- | Only chan and key are stored.  While it may be useful to map according
-    -- to the dev, this code doesn't know which devs are available.  Block or
-    -- track level handlers can query the dev themselves.
+    -- to the device, this code doesn't know which devices are available.
+    -- Block or track level handlers can query the device themselves.
     | MidiMod Midi.Channel Midi.Key
     deriving (Eq, Ord, Show)
+
+mouse_mod_btn (MouseMod btn _) = Just btn
+mouse_mod_btn _ = Nothing
 
 -- ** state access
 
 get_cmd_state :: (Monad m) => CmdT m State
 get_cmd_state = (CmdT . lift) MonadState.get
 
--- | Keys currently held down.
+-- | Keys currently held down, as in 'state_keys_down'.
 keys_down :: (Monad m) => CmdT m (Map.Map Modifier Modifier)
 keys_down = fmap state_keys_down get_cmd_state
 
@@ -262,12 +266,12 @@ cmd_record_active msg = case msg of
     Msg.Ui (UiMsg.UiMsg (UiMsg.Context { UiMsg.ctx_block = Just view_id })
         (UiMsg.MsgEvent (UiMsg.AuxMsg UiMsg.Focus))) -> do
             modify_state $ \st -> st { state_active_view = Just view_id }
-            Log.debug $ "active view is " ++ show view_id
+            -- Log.debug $ "active view is " ++ show view_id
             return Done
     Msg.Ui (UiMsg.UiMsg (UiMsg.Context { UiMsg.ctx_track = Just tracknum })
         _) -> do
             modify_state $ \st -> st { state_active_track = Just tracknum }
-            Log.debug $ "active track is " ++ show tracknum
+            -- Log.debug $ "active track is " ++ show tracknum
             return Continue
 
     _ -> return Continue

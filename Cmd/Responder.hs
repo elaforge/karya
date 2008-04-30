@@ -36,8 +36,7 @@ cmd_stack =
     -- , Cmd.cmd_log
     -- Handle a few special case global msgs.
     , Cmd.cmd_quit, Cmd.cmd_close_window
-    , DefaultKeymap.default_keymap
-    ]
+    ] ++ DefaultKeymap.default_cmds
 
 loop :: State.State -> Cmd.State -> MsgReader -> MidiWriter -> IO ()
 loop ui_state cmd_state get_msg write_midi = do
