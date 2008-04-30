@@ -9,7 +9,6 @@ fltk
   * add info line at the bottom
   - zoom
   * selections
-  - organized logging situation
   * bug: one pixel drawing glitch at bottom of tracks
     it has something to do with FL_FLAT_BOX + FL_THIN_DOWN_BOX
   * bug: starting with an x,y offset makes BlockView confused
@@ -68,6 +67,12 @@ fltk
     _ bug: tracks close together seem to have a problem, and the arrow hot point
       isn't obvious.  highlight?  or a handle somehow?
 
+logging
+  - haskell and c++ use the same machine readable format
+  - log to a file
+  - log filtering / visualizing tool
+  - add surrounding function to SrcPos
+
 Ui
   * rename Interface -> Ui, ui -> fltk
   * UiMsg: use Key data type instead of Char for e.g. backspace
@@ -80,9 +85,10 @@ Ui
   * work old tests from TestUi into BlockC_test
   * always having to specify the color of a Selection is annoying, make
     CSelection automatically get it from block_selection_colors
+  - set_block_status
+  - set_track_status
   Diff
     * ErrorT
-    - tests
     * track width, track update (need diff hints?)
   State
     - quickcheck Arbitrary to generate States
@@ -101,13 +107,29 @@ Cmd
   keymap
     * keymaps that combine key patterns into a table and create a Cmd
     + Cmd.Movement: selection / cursor movement commands
-    - Cmd.Event: event insertion / deletion commands
+    - Cmd.Edit
+      - edit mode
+      - event insertion / deletion commands
+    - Cmd.NoteEntry: switch the keymap to tracker-style organ layout
+    - Cmd.Create
+      - view and creation / deletion
+      - track insertion / removal
+    - Cmd.TrackOps
+      - collapse track to a divider, expand it back
+      - mute / unmute
+
+    - Cmd.Selection
+      * move insertion point
+      * drag insertion point
+      - snap to ruler, event beginning/end, ...
+      - Cmd.TimeStep.advance etc. takes [Marklist]
+
     - UI and fltk support for editing event text
-    - Cmd.Block: view and creation / deletion, track insertion / removal
     * UiMsgs for track drags, resizes, and text changes update State
     - Cmd.Language: listen on a socket, receive cmd language?
       or use hs-plugins?
-  - bug: first modifier event doesn't get emitted.  An fltk thing?
+  - bug: if the first event is a modifier, it doesn't get emited.  An fltk
+    thing?
   checkpoints
     - undo
     - serialize / deserialize for State

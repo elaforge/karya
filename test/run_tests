@@ -37,5 +37,7 @@ echo $failures failures
 
 echo Generating hpc markup...
 hpc markup --destdir=hpc RunTests | grep -v Writing
+# I'm more used to typing index.html
+(cd hpc && ln -s hpc_index.html index.html)
 
 exit $failures

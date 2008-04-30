@@ -116,6 +116,8 @@ interactive: test_obj/RunTests
 
 tags: $(shell ./all_hs)
 	hasktags --ctags $^
+	sort tags >tags.sorted
+	mv tags.sorted tags
 
 # include GHC_LIB/include since hsc includes HsFFI.h
 %.hs: %.hsc
