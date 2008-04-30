@@ -137,9 +137,13 @@ data State = State {
     -- | Default time step.  Used for cursor movement, note duration, and
     -- whatever else.
     , state_current_step :: TimeStep.TimeStep
+
+    -- | Edit mode enables various commands that write to tracks.
+    , state_edit_mode :: Bool
     } deriving (Show)
 empty_state = State Map.empty Nothing Nothing
     (TimeStep.UntilMark (TimeStep.MatchRank 2))
+    False
 
 data Modifier = KeyMod Key.Key
     -- | Mouse button, and (tracknum, pos) in went down at, if any.
@@ -156,41 +160,31 @@ mouse_mod_btn _ = Nothing
 
 -- ** state access
 
-get_cmd_state :: (Monad m) => CmdT m State
-get_cmd_state = (CmdT . lift) MonadState.get
-
--- | Keys currently held down, as in 'state_keys_down'.
-keys_down :: (Monad m) => CmdT m (Map.Map Modifier Modifier)
-keys_down = fmap state_keys_down get_cmd_state
-
-get_active_view :: (Monad m) => CmdT m Block.ViewId
-get_active_view = do
-    st <- get_cmd_state
-    case (state_active_view st) of
-        Nothing -> abort
-        Just view_id -> return view_id
-
-get_active_track :: (Monad m) => CmdT m Block.TrackNum
-get_active_track = do
-    st <- get_cmd_state
-    case (state_active_track st) of
-        Nothing -> abort
-        Just tracknum -> return tracknum
-
-get_current_step :: (Monad m) => CmdT m TimeStep.TimeStep
-get_current_step = fmap state_current_step get_cmd_state
+get_state :: (Monad m) => CmdT m State
+get_state = (CmdT . lift) MonadState.get
 
 -- | Modify Cmd 'State'.
 modify_state :: (Monad m) => (State -> State) -> CmdT m ()
 modify_state f = (CmdT . lift) (MonadState.modify f)
 
+-- | Keys currently held down, as in 'state_keys_down'.
+keys_down :: (Monad m) => CmdT m (Map.Map Modifier Modifier)
+keys_down = fmap state_keys_down get_state
+
+get_active_view :: (Monad m) => CmdT m Block.ViewId
+get_active_view = fmap state_active_view get_state >>= require
+
+get_active_track :: (Monad m) => CmdT m Block.TrackNum
+get_active_track = fmap state_active_track get_state >>= require
+
+get_current_step :: (Monad m) => CmdT m TimeStep.TimeStep
+get_current_step = fmap state_current_step get_state
+
 -- * basic cmds
 
 -- | Quit on escape.
-cmd_quit :: Cmd
-cmd_quit msg = return $ case msg of
-    Msg.Ui (UiMsg.UiMsg _ (UiMsg.MsgEvent (UiMsg.Kbd _ Key.Escape))) -> Quit
-    _ -> Continue
+cmd_quit :: CmdM
+cmd_quit = return Quit
 
 -- | Log incoming msgs.
 cmd_log :: Cmd

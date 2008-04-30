@@ -1,4 +1,5 @@
 module Cmd.DefaultKeymap where
+import qualified Data.Map as Map
 
 import qualified Ui.Key as Key
 import qualified Ui.Block as Block
@@ -7,12 +8,15 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Keymap as Keymap
 import qualified Cmd.Selection as Selection
+import qualified Cmd.Edit as Edit
 
-default_cmds :: [Cmd.Cmd]
-default_cmds =
+default_cmds :: Cmd.State -> [Cmd.Cmd]
+default_cmds state =
     [ Selection.cmd_mouse_selection 1 insert_selnum
-    , Keymap.make_cmd selection
+    , Keymap.make_cmd (misc ++ selection ++ edit ++ add_note_entry)
     ]
+    where
+    add_note_entry = if Cmd.state_edit_mode state then note_entry else []
 
 
 -- | SelNum of the insertion point.
@@ -23,17 +27,55 @@ insert_selnum = 0
 playback_selnum :: Block.SelNum
 playback_selnum = 4
 
--- Move the insert selection around.
+misc =
+    [ (Keymap.KeySpec [Cmd.KeyMod Key.ControlL] (Keymap.UiKey Key.Escape),
+        Keymap.CmdSpec "quit" (ignore_msg Cmd.cmd_quit))
+    , single (Key.KeyChar '=') "quit" Cmd.cmd_quit
+    ]
+
 selection =
     [ single Key.Down "advance selection" $
-        Selection.cmdm_step_selection insert_selnum Selection.Advance
+        Selection.cmd_step_selection insert_selnum Selection.Advance
     , single Key.Up "rewind selection" $
-        Selection.cmdm_step_selection insert_selnum Selection.Rewind
+        Selection.cmd_step_selection insert_selnum Selection.Rewind
     , single Key.Right "shift selection right" $
-        Selection.cmdm_shift_selection insert_selnum 1
+        Selection.cmd_shift_selection insert_selnum 1
     , single Key.Left "shift selection left" $
-        Selection.cmdm_shift_selection insert_selnum (-1)
+        Selection.cmd_shift_selection insert_selnum (-1)
     ]
+
+edit =
+    [ single Key.Escape "toggle edit mode" Edit.cmd_toggle_edit
+    ]
+
+lower_notes = zip [0..]
+    [ 'z', 's' -- C
+    , 'x', 'd' -- D
+    , 'c'
+    , 'v', 'g' -- F
+    , 'b', 'h'
+    , 'n', 'j' -- A
+    , 'm'
+    , ',' -- C
+    ]
+
+upper_notes = zip [12..]
+    [ 'q', '2' -- C
+    , 'w', '3'
+    , 'e'
+    , 'r', '5' -- F
+    , 't', '6'
+    , 'y', '7' -- A
+    , 'u'
+    , 'i' -- C
+    ]
+
+note_entry = map make_note_entry (lower_notes ++ upper_notes)
+
+make_note_entry (pitch, char) =
+    (Keymap.KeySpec [] (Keymap.UiKey (Key.KeyChar (keymap Map.! char)))
+    , Keymap.CmdSpec ("note with pitch " ++ show pitch)
+        (ignore_msg $ Edit.cmd_insert_pitch (Edit.PitchClass pitch)))
 
 -- TODO: should take [[Modifier]] and produce a mapping for each
 -- wait and see what's actually useful
@@ -48,3 +90,20 @@ cmdm name cmd = Keymap.CmdSpec name (ignore_msg cmd)
 -- | Cmds that don't actually need the msg can use this.
 ignore_msg :: Cmd.CmdM -> Cmd.Cmd
 ignore_msg = const
+
+
+-- keymaps
+
+qwerty = "1234567890-="
+    ++ "qwertyuiop[]\\"
+    ++ "asdfghjkl;'"
+    ++ "zxcvbnm,./"
+
+-- OS X has this weird thing going on where
+dvorak = "1234567890-="
+    ++ "',.pyfgcrl[]\\"
+    ++ "aoeuidhtns/"
+    ++ ";qjkxbmwvz"
+
+qwerty_to_dvorak = Map.fromList (zip qwerty dvorak)
+keymap = qwerty_to_dvorak

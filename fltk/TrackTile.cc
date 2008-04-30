@@ -132,7 +132,7 @@ TrackTile::set_track_width(int tracknum, int width)
 int
 TrackTile::get_dragged_track() const
 {
-    DEBUG("dragged child " << this->dragged_child);
+    // DEBUG("dragged child " << this->dragged_child);
     if (this->dragged_child == -1)
         return -1;
     else

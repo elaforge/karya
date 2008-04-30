@@ -30,8 +30,8 @@ data TrackDirection = Higher | Lower deriving (Eq, Ord, Show)
 -- The selection will maintain its current track span, be set to a point, and
 -- advance to the next relevant mark.  "next relevant mark" is the next visible
 -- mark in the ruler to the left.
-cmdm_step_selection :: Block.SelNum -> TimeDirection -> Cmd.CmdM
-cmdm_step_selection selnum dir = do
+cmd_step_selection :: Block.SelNum -> TimeDirection -> Cmd.CmdM
+cmd_step_selection selnum dir = do
     -- there must be a way to shorten this
     view_id <- Cmd.get_active_view
     block <- get_view_block view_id
@@ -50,8 +50,8 @@ cmdm_step_selection selnum dir = do
     return Cmd.Done
 
 -- | Move the selection across tracks by @nshift@.
-cmdm_shift_selection :: Block.SelNum -> Int -> Cmd.CmdM
-cmdm_shift_selection selnum nshift = do
+cmd_shift_selection :: Block.SelNum -> Int -> Cmd.CmdM
+cmd_shift_selection selnum nshift = do
     view_id <- Cmd.get_active_view
     block <- get_view_block view_id
     sel <- Cmd.require =<< State.get_selection view_id selnum

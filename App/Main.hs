@@ -5,23 +5,24 @@ import Control.Monad
 import qualified Data.Map as Map
 
 -- import qualified Util.Thread as Thread
-import qualified Util.Seq as Seq
+-- import qualified Util.Seq as Seq
 import qualified Util.Log as Log
 
 import Ui.Types
 import qualified Ui.Initialize as Initialize
 import qualified Ui.State as State
 
-import qualified Ui.Color as Color
 import qualified Ui.Block as Block
 import qualified Ui.Ruler as Ruler
-import qualified Ui.Track as Track
-import qualified Ui.Event as Event
+-- import qualified Ui.Track as Track
+-- import qualified Ui.Event as Event
 
 import qualified Midi.Midi as Midi
 import qualified Midi.MidiC as MidiC
 import qualified Cmd.Responder as Responder
 import qualified Cmd.Cmd as Cmd
+
+import qualified App.Config as Config
 
 -- tmp
 import qualified Ui.TestSetup as TestSetup
@@ -91,10 +92,10 @@ setup_cmd = do
     t1 <- State.create_track "b1.t1" TestSetup.event_track_1
     t2 <- State.create_track "b1.t2" TestSetup.event_track_2
     b1 <- State.create_block "b1" (Block.Block "hi b1"
-        TestSetup.default_block_config
+        Config.default_block_config
         (Block.R ruler) [(Block.T t1 overlay, 30), (Block.T t2 overlay, 30)])
     v1 <- State.create_view "v1"
-        (Block.view b1 TestSetup.default_rect TestSetup.default_view_config)
+        (Block.view b1 TestSetup.default_rect Config.default_view_config)
     State.set_selection v1 0 (Block.point_selection 0 (TrackPos 20))
     _v2 <- State.create_view "v2"
         (Block.view b1 (Block.Rect (500, 30) (200, 200))

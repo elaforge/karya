@@ -28,15 +28,15 @@ responder get_msg write_midi setup_cmd = do
         (Cmd.run_cmd ui_state Cmd.empty_state setup_cmd)
     loop ui_state cmd_state get_msg write_midi
 
--- Hardcoded cmds.
-cmd_stack :: [Cmd.Cmd]
-cmd_stack =
+-- | Everyone always gets these commands.
+hardcoded_cmds :: [Cmd.Cmd]
+hardcoded_cmds =
     -- Special Cmds that record info about the incoming msgs.
     [ Cmd.cmd_record_keys, Cmd.cmd_record_active
-    -- , Cmd.cmd_log
-    -- Handle a few special case global msgs.
-    , Cmd.cmd_quit, Cmd.cmd_close_window
-    ] ++ DefaultKeymap.default_cmds
+    , Cmd.cmd_log
+    -- Handle special case global msgs.
+    , Cmd.cmd_close_window
+    ]
 
 loop :: State.State -> Cmd.State -> MsgReader -> MidiWriter -> IO ()
 loop ui_state cmd_state get_msg write_midi = do
@@ -49,10 +49,11 @@ loop ui_state cmd_state get_msg write_midi = do
         False write_midi ui_state
         (Cmd.run_cmd ui_state cmd_state (Cmd.cmd_record_ui_updates msg))
 
-    -- TODO: prepend cmds for the active Block and Track to cmd_stack.
+    -- TODO: prepend cmds for the active Block and Track to cmds.
+    let cmds = hardcoded_cmds ++ DefaultKeymap.default_cmds cmd_state
     (status, ui_state, cmd_state) <- case status of
         Cmd.Continue -> handle_cmd_result True write_midi
-            ui_state (run_cmds ui_state cmd_state cmd_stack msg)
+            ui_state (run_cmds ui_state cmd_state cmds msg)
         _ -> return (status, ui_state, cmd_state)
 
     case status of

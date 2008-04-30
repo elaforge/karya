@@ -27,10 +27,6 @@ data CmdSpec = CmdSpec String Cmd.Cmd
 
 -- | A Key is much like a 'Msg.Msg', but with less detail.
 data Key = UiKey Key.Key
-    -- | A Qwerty key is given by its position on the qwerty layout.  This is
-    -- so I can specify keys by position and have them be placed properly in
-    -- qwerty and dvorak and whatever other layout.
-    | QwertyKey Key.Key
     -- MidiKey .. nn, controller, or pb
     deriving (Eq, Ord, Show)
 
@@ -52,6 +48,7 @@ make_cmd keyspecs msg = do
             Log.notice $ "running command " ++ show name
             cmd msg
     where
+    -- TODO warn about overlapping mappings.
     keymap = Map.fromList keyspecs
 
 keydown_mod msg = case Cmd.msg_to_mod msg of

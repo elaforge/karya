@@ -110,7 +110,17 @@ set_msg_from_event(UiMsg &m, int evt)
     m.is_click = Fl::event_is_click();
     m.x = Fl::event_x();
     m.y = Fl::event_y();
-    m.key = Fl::event_key();
+    // TODO
+    // This is interesting.  If I use event_key(), some of the keys are from
+    // the qwerty layout.  event_text()[0] always seems to give the proper key.
+    // Keys that event_key gets wrong:
+    // qwe
+    //         '
+    // z
+    if (Fl::event_text()[0])
+        m.key = Fl::event_text()[0];
+    else
+        m.key = Fl::event_key();
 }
 
 
