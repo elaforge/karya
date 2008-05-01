@@ -7,7 +7,7 @@ import Util.Log
 test_io :: IO ()
 test_io = do
     debug "oh noes"
-    debug_srcpos (Just ("hi", 4)) "oh noes"
+    debug_srcpos (Just ("hi", Just "test_io", 4)) "oh noes"
 
 test_logt :: IO ()
 test_logt = do

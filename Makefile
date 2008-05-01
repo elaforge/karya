@@ -21,7 +21,7 @@ FLTK_OBJS := Block.o TrackTile.o Track.o Ruler.o EventTrack.o MoveTile.o \
 	f_util.o alpha_draw.o types.o config.o
 FLTK_OBJS := $(addprefix fltk/, $(FLTK_OBJS))
 
-all: seq test_block test_ui test_midi
+all: seq test_block test_ui test_midi test_obj/RunTests
 
 .PHONY: dep
 dep: fixdeps
@@ -95,10 +95,12 @@ test_obj/RunTests.hs: $(wildcard */*_test.hs) all_hsc
 
 # TODO a bug in ghc prevents .mix data from being emitted for files with LINE
 # workaround by grep -v out the LINEs into test_obj hierarchy
-# Compiles with -odir into test_obj/ because they must be compiled with -fhpc.
+# Compiles with -odir and -hidir into test_obj/ because they must be compiled
+# with -fhpc.
 test_obj/RunTests: test_obj/RunTests.hs all_hsc $(UI_OBJS) fltk/fltk.a
 	./unline_hack
-	$(GHC) $(HFLAGS) -i -itest_obj:. -fhpc --make -odir test_obj \
+	$(GHC) $(HFLAGS) -i -itest_obj:. -fhpc --make \
+		-odir test_obj -hidir test_obj \
 		test_obj/RunTests.hs -o $@ \
 		$(UI_OBJS) fltk/fltk.a \
 		$(MIDI_LIBS) `fltk-config --ldflags`

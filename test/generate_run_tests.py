@@ -138,7 +138,8 @@ matching_tests prefixes =
     filter (\t -> any (`List.isInfixOf` test_name t) prefixes) all_tests
 
 run_test test = maybe id id (test_initialize test) $
-    Test.catch_srcpos (Just (test_file test, test_line test)) (test_test test)
+    Test.catch_srcpos (Just (test_file test, Just "run_test", test_line test))
+        (test_test test)
 
 comma_list = concat . List.intersperse ", "
 '''
