@@ -33,21 +33,16 @@ import Foreign
 import Foreign.C
 
 import Ui.Types
-import qualified Ui.Color as Color
+import qualified Ui.Font as Font
 
 
 data Event = Event
     { event_text :: String
     , event_duration :: TrackPos
-    , event_color :: Color.Color
-    , event_style :: TextStyle
+    , event_color :: Color
+    , event_style :: Font.TextStyle
     , event_align_to_bottom :: Bool
-    -- These will have to be immutable... is that ok?
-    -- and I'll need a stable pointer...
-    -- , event_attrs :: Attrs
     } deriving (Eq, Show)
-
-event text dur = Event text dur (Color.rgb 0.8 0.8 0.6) default_style False
 
 
 -- * storable

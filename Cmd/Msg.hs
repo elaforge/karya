@@ -1,6 +1,5 @@
 module Cmd.Msg where
 
-import qualified Ui.Block as Block
 import qualified Ui.UiMsg as UiMsg
 import qualified Midi.Midi as Midi
 

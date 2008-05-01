@@ -5,6 +5,8 @@ import qualified System.IO as IO
 import qualified Ui.Color as Color
 
 import Ui.Types
+import qualified Ui.Font as Font
+
 import qualified Ui.Block as Block
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Track as Track
@@ -43,10 +45,16 @@ default_divider = Block.Divider Color.blue
 
 empty_track = Track.track "track1" [] Color.white
 event_track_1 = Track.modify_events empty_track (Track.insert_events
-    [event 0 "hi" 16, event 30 "there" 32])
+    [eventpos 0 "hi" 16, eventpos 30 "there" 32])
 event_track_2 = Track.modify_events empty_track (Track.insert_events
-    [event 16 "ho" 10, event 30 "eyo" 32])
-event pos name dur = (TrackPos pos, Event.event name (TrackPos dur))
+    [eventpos 16 "ho" 10, eventpos 30 "eyo" 32])
+eventpos pos name dur = (TrackPos pos, event name (TrackPos dur))
+
+-- event
+
+event text dur =
+    Event.Event text dur (Color.rgb 0.9 0.9 0.7) default_style False
+default_style = Font.TextStyle Font.Helvetica [] 9 Color.black
 
 -- ruler
 

@@ -10,7 +10,6 @@ import qualified Util.Seq as Seq
 import qualified Util.Log as Log
 
 import Ui.Types
-import qualified Ui.Color as Color
 import qualified Ui.Block as Block
 import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State

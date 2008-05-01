@@ -2,10 +2,8 @@ module Cmd.DefaultKeymap where
 import qualified Data.Map as Map
 
 import qualified Ui.Key as Key
-import qualified Ui.Block as Block
 
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Msg as Msg
 import qualified Cmd.Keymap as Keymap
 import qualified Cmd.Selection as Selection
 import qualified Cmd.Edit as Edit

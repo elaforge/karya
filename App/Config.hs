@@ -1,6 +1,10 @@
 module App.Config where
+-- import Ui.Types
+import qualified Ui.Font as Font
 import qualified Ui.Color as Color
 import qualified Ui.Block as Block
+
+import qualified Ui.Event as Event
 
 
 -- * selnums
@@ -19,6 +23,10 @@ playback_selnum = 4
 box_color = Color.rgb 0.25 1 1
 edit_color = Color.rgb 1 0.5 0.5
 
+-- * defaults
+
+event text dur = Event.Event text dur (Color.rgb 0.9 0.9 0.7) default_style False
+default_style = Font.TextStyle Font.Helvetica [] 9 Color.black
 
 default_block_config = Block.Config
     { Block.config_selection_colors =

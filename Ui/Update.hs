@@ -1,7 +1,6 @@
 module Ui.Update where
 
 import Ui.Types
-import qualified Ui.Color as Color
 import qualified Ui.Block as Block
 import qualified Ui.Track as Track
 import Ui.Block (ViewId, BlockId)

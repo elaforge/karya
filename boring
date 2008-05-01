@@ -18,6 +18,7 @@ Midi/PortMidi.hs
 Ui/BlockC.hs
 Ui/Color.hs
 Ui/Event.hs
+Ui/Font.hs
 Ui/Key.hs
 Ui/RulerC.hs
 Ui/TrackC.hs

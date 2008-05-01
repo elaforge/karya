@@ -142,7 +142,7 @@ test_create_remove_update_track = do
 -- setup
 
 long_event_track = Track.modify_events empty_track (Track.insert_events
-    [event 0 "hi" 16, event 400 "there" 32])
+    [eventpos 0 "hi" 16, eventpos 400 "there" 32])
 
 create_empty_view = do
     let view_id = Block.ViewId "default"

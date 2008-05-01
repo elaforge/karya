@@ -7,7 +7,7 @@ import qualified Util.Log as Log
 import Ui.Types
 import qualified Ui.Block as Block
 import qualified Ui.Track as Track
-import qualified Ui.Event as Event
+-- import qualified Ui.Event as Event
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 
@@ -44,7 +44,7 @@ cmd_insert_pitch pitch = do
     let insert_pos = Block.sel_start_pos sel
     Log.debug $ "insert pitch " ++ show pitch ++ " at "
         ++ show (track_id, insert_pos)
-    let event = Event.event (pitch_class_note pitch) (TrackPos 16)
+    let event = Config.event (pitch_class_note pitch) (TrackPos 16)
     State.insert_events track_id [(insert_pos, event)]
     return Cmd.Done
 
