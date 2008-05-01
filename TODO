@@ -92,6 +92,7 @@ Ui
     * track width, track update (need diff hints?)
   State
     - quickcheck Arbitrary to generate States
+  Track
     - benchmark large TrackEvents
     - modify IntMap for Word64s, add toDescList
       - send patch to libraries@haskell.org

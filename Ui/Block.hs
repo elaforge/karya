@@ -68,14 +68,15 @@ data View = View {
     , view_tracks :: [TrackView]
     } deriving (Eq, Ord, Show)
 
+-- | Construct a View, using default values for most of its fields.
+-- Don't construct views using View directly since State.create_view overwrites
+-- view_tracks, and maybe more in the future.
+view block_id rect config = View block_id rect config
+    0 default_zoom Map.empty []
+
 data TrackView = TrackView {
     track_view_width :: Width
     } deriving (Eq, Ord, Show)
-
--- Construct a View, using default values for most of its fields.
--- Don't construct views using View directly.
-view block_id rect config = View block_id rect config
-    0 default_zoom Map.empty []
 
 data Rect = Rect (Int, Int) (Int, Int) deriving (Eq, Ord, Show)
 

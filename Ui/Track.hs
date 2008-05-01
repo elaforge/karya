@@ -56,6 +56,9 @@ empty_events = TrackEvents Map.empty
 union_right :: Ord k => Map.Map k a -> Map.Map k a -> Map.Map k a
 union_right = Map.unionWith (\_ a -> a)
 
+-- | Merge events into the given TrackEvents.  Events that overlap will have
+-- their tails clipped until they don't, and given events that start at the
+-- same place as existing events will replace the existing ones.
 insert_events :: [(TrackPos, Event.Event)] -> TrackEvents -> TrackEvents
 insert_events pos_events events =
     merge events (TrackEvents (Map.fromAscList pos_events))

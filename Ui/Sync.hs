@@ -90,7 +90,7 @@ run_update (Update.ViewUpdate view_id update) = do
 
 -- Block ops apply to every view with that block.
 run_update (Update.BlockUpdate block_id update) = do
-    view_ids <- State.get_view_ids_of block_id
+    view_ids <- fmap Map.keys (State.get_views_of block_id)
     case update of
         Update.BlockTitle title ->
             mapM_ (send . flip BlockC.set_title title) view_ids
@@ -112,7 +112,7 @@ run_update (Update.BlockUpdate block_id update) = do
 run_update (Update.TrackUpdate track_id update) = do
     blocks <- blocks_with_track track_id
     forM_ blocks $ \(block_id, tracknum, tracklike, _width) -> do
-        view_ids <- State.get_view_ids_of block_id
+        view_ids <- fmap Map.keys (State.get_views_of block_id)
         forM_ view_ids $ \view_id -> case update of
             Update.TrackEvents low high -> do
                 ctrack <- tracklike_to_ctracklike tracklike

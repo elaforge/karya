@@ -16,8 +16,7 @@ from one State being applied to a different State (likely an older and newer
 version of the same State), but I'll deal with that when I get there.
 
 A higher level interface may ease this by automatically creating objects with
-automaticly generated IDs.
-
+automatically generated IDs.
 -}
 module Ui.State where
 import Control.Monad
@@ -54,10 +53,10 @@ empty = State Map.empty Map.empty Map.empty Map.empty
 -- * StateT monadic access
 
 -- | Run the given StateT with the given initial state, and return a new
--- state along with updates.  Normally updates are produced by Diff.diff, but
--- for efficiency updates to track data are accumulated when they are actually
--- made.  All the UI needs is a TrackPos range to redraw in, and redrawing
--- the whole track isn't that expensive.
+-- state along with updates.  Normally updates are produced by 'Ui.Diff.diff',
+-- but for efficiency updates to track data are accumulated when they are
+-- actually made.  All the UI needs is a TrackPos range to redraw in, and
+-- redrawing the whole track isn't that expensive.
 --
 -- See the StateStack comment for more.
 run :: (Monad m) =>
@@ -70,12 +69,13 @@ run state m = do
         Right ((val, state), updates) -> Right (val, state, updates)
 
 -- | TrackUpdates are stored directly instead of being calculated from the
--- state diff.  Is there any way they could get out of sync with the actual
--- change?  I don't see how, since the updates are stored by track_id, which
--- should always be associated with the same track, and an operation to move
--- event positions will simply generate another TrackUpdate over the whole
--- track.  This does mean TrackUpdates can overlap, so Sync should collapse
--- them.
+-- state diff.
+--
+-- Is there any way they could get out of sync with the actual change?  I don't
+-- see how, since the updates are stored by track_id, which should always be
+-- associated with the same track, and an operation to move event positions
+-- will simply generate another TrackUpdate over the whole track.  This does
+-- mean TrackUpdates can overlap, so 'Ui.Sync.sync' should collapse them.
 type StateStack m = State.StateT State
     (Logger.LoggerT Update.Update
         (Error.ErrorT StateError m))
@@ -110,19 +110,16 @@ instance Monad m => UiStateMonad (StateT m) where
 
 get_view :: (UiStateMonad m) => Block.ViewId -> m Block.View
 get_view view_id = get >>= lookup_id view_id . state_views
--- Since the tracks are in the block, Block.view doesn't fill those in, leaving
--- it for this function.  That way the caller doesn't need to go find the block
--- itself.
--- It's a little messy, but as long as the caller uses the Block.array
--- constructor it should be ok.
+
+-- | Create a new view.  Block.view_tracks can be left empty, since it will
+-- be replaced by views generated from the the block.  If the caller uses the
+-- 'Block.view' constructor, it won't have to worry about this.
 create_view :: (UiStateMonad m) => String -> Block.View -> m Block.ViewId
 create_view id view = do
     block <- get_block (Block.view_block view)
     let view' = view { Block.view_tracks = initial_track_views block }
     get >>= insert (Block.ViewId id) view' state_views
         (\views st -> st { state_views = views })
-
--- Create TrackViews for a Block.
 initial_track_views block = map Block.TrackView widths
     where widths = map snd (Block.block_tracks block)
 
@@ -160,9 +157,6 @@ set_view_rect view_id rect =
     modify_view view_id (\view -> view { Block.view_rect = rect })
 
 -- *** selections
-
--- TODO: I'll need something make creating selections with the color from
--- block_selection_colors easy.
 
 -- | Get @view_id@'s selection at @selnum@, or Nothing if there is none.
 get_selection :: (UiStateMonad m) => Block.ViewId -> Block.SelNum
@@ -223,7 +217,8 @@ remove_track block_id tracknum = do
     update_block block_id (block { Block.block_tracks = tracks' })
     modify $ \st -> st { state_views = Map.union views' (state_views st) }
 
--- | Add the new track into Block.view_tracks, move selections.
+-- | Insert a new track into Block.view_tracks, moving selections as
+-- appropriate.  @tracknum@ is clipped to be in range.
 insert_into_view tracknum width view = view
     { Block.view_tracks = Seq.insert_at (Block.view_tracks view) tracknum
         (Block.TrackView width)
@@ -231,7 +226,8 @@ insert_into_view tracknum width view = view
         Map.map (insert_into_selection tracknum) (Block.view_selections view)
     }
 
--- | Remove @tracknum@ from Block.view_tracks, move selections.
+-- | Remove @tracknum@ from Block.view_tracks, moving selections as
+-- appropriate.  Ignored if @tracknum@ is out of range.
 remove_from_view tracknum view = view
     { Block.view_tracks = Seq.remove_at (Block.view_tracks view) tracknum
     , Block.view_selections = Map.mapMaybe
@@ -247,7 +243,6 @@ insert_into_selection tracknum sel
     where
     start = Block.sel_start_track sel
     tracks = Block.sel_tracks sel
-
 remove_from_selection tracknum sel
     | tracknum <= start = Just (sel { Block.sel_start_track = start - 1 })
     | tracknum < start + tracks = if tracks == 1
@@ -258,6 +253,7 @@ remove_from_selection tracknum sel
     start = Block.sel_start_track sel
     tracks = Block.sel_tracks sel
 
+-- | Get the Tracklike at @tracknum@, or Nothing if its out of range.
 track_at :: (UiStateMonad m) => Block.BlockId -> Block.TrackNum
     -> m (Maybe Block.Tracklike)
 track_at block_id tracknum = do
@@ -272,15 +268,6 @@ get_views_of block_id = do
     st <- get
     return $ Map.filter ((==block_id) . Block.view_block) (state_views st)
 
--- TODO remove this, clients can use Map.keys . get_views_of
-get_view_ids_of :: (UiStateMonad m) => Block.BlockId -> m [Block.ViewId]
-get_view_ids_of block_id = do
-    st <- get
-    return [view_id | (view_id, view) <- Map.assocs (state_views st),
-        Block.view_block view == block_id]
-
--- get_block_title :: (UiStateMonad m) => Block.BlockId -> m String
--- get_block_title block_id = undefined
 set_block_title :: (UiStateMonad m) => Block.BlockId -> String -> m ()
 set_block_title block_id title =
     modify_block block_id (\block -> block { Block.block_title = title })
@@ -297,12 +284,11 @@ modify_block block_id f = do
 
 get_track :: (UiStateMonad m) => Track.TrackId -> m Track.Track
 get_track track_id = get >>= lookup_id track_id . state_tracks
+
 create_track :: (UiStateMonad m) => String -> Track.Track -> m Track.TrackId
 create_track id track = get >>= insert (Track.TrackId id) track state_tracks
     (\tracks st -> st { state_tracks = tracks })
 
--- get_track_title :: (UiStateMonad m) => Track.TrackId -> m String
--- get_track_title track_id = undefined
 set_track_title :: (UiStateMonad m) => Track.TrackId -> String -> m ()
 set_track_title track_id text = modify_track track_id $ \track ->
     track { Track.track_title = text }
@@ -311,6 +297,7 @@ set_track_bg :: (UiStateMonad m) => Track.TrackId -> Color -> m ()
 set_track_bg track_id color = modify_track track_id $ \track ->
     track { Track.track_bg = color }
 
+-- | Insert events into track_id as per 'Track.insert_events'.
 insert_events :: (UiStateMonad m) =>
     Track.TrackId -> [(TrackPos, Event.Event)] -> m ()
 insert_events track_id pos_evts = do
@@ -320,7 +307,7 @@ insert_events track_id pos_evts = do
         update $ Update.TrackUpdate track_id $ Update.TrackEvents
             (fst (head pos_evts)) (Track.event_end (last pos_evts))
 
--- | Remove any events whose starting position fall within the half-open
+-- | Remove any events whose starting positions fall within the half-open
 -- range given.
 remove_events :: (UiStateMonad m) =>
     Track.TrackId -> TrackPos -> TrackPos -> m ()

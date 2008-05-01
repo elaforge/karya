@@ -85,7 +85,9 @@ seq: $(UI_HS) $(UI_OBJS) $(MIDI_HS) fltk/fltk.a
 
 .PHONY: doc
 doc:
-	haddock --html -B $(GHC_LIB) -o haddock \
+	@# Unless there's some way to tell firefox to go to a certain line in
+	@# a file, I can't use --source-entity without something like hscolour.
+	haddock --html -B $(GHC_LIB) --source-module="../%F" -o haddock \
 		$(filter-out %_test.hs, $(patsubst %.hsc, %.hs, $(shell ./all_hs)))
 
 ### tests ###

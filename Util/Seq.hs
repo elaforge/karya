@@ -27,9 +27,11 @@ at_err msg xs n = Maybe.fromMaybe
         ++ show (length xs))
     (at xs n)
 
--- | Insert @x@ into @xs@ at index @i@.
+-- | Insert @x@ into @xs@ at index @i@.  If @i@ is out of range, insert at the
+-- beginning or end of the list.
 insert_at :: [a] -> Int -> a -> [a]
 insert_at xs i x = let (pre, post) = splitAt i xs in pre ++ (x : post)
+-- | Like 'insert_at', but remove the element, if it's in range.
 remove_at :: [a] -> Int -> [a]
 remove_at xs i = let (pre, post) = splitAt i xs in pre ++ drop 1 post
 
