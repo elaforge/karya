@@ -3,6 +3,17 @@ import qualified Ui.Color as Color
 import qualified Ui.Block as Block
 
 
+-- * selnums
+
+-- | SelNum of the insertion point.
+insert_selnum :: Block.SelNum
+insert_selnum = 0
+
+-- | SelNum of the playback position indicator.
+playback_selnum :: Block.SelNum
+playback_selnum = 4
+
+
 -- * colors
 
 box_color = Color.rgb 0.25 1 1

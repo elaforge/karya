@@ -10,22 +10,16 @@ import qualified Cmd.Keymap as Keymap
 import qualified Cmd.Selection as Selection
 import qualified Cmd.Edit as Edit
 
+import qualified App.Config as Config
+
+
 default_cmds :: Cmd.State -> [Cmd.Cmd]
 default_cmds state =
-    [ Selection.cmd_mouse_selection 1 insert_selnum
+    [ Selection.cmd_mouse_selection 1 Config.insert_selnum
     , Keymap.make_cmd (misc ++ selection ++ edit ++ add_note_entry)
     ]
     where
     add_note_entry = if Cmd.state_edit_mode state then note_entry else []
-
-
--- | SelNum of the insertion point.
-insert_selnum :: Block.SelNum
-insert_selnum = 0
-
--- | SelNum of the playback position indicator.
-playback_selnum :: Block.SelNum
-playback_selnum = 4
 
 misc =
     [ (Keymap.KeySpec [Cmd.KeyMod Key.ControlL] (Keymap.UiKey Key.Escape),
@@ -35,17 +29,22 @@ misc =
 
 selection =
     [ single Key.Down "advance selection" $
-        Selection.cmd_step_selection insert_selnum Selection.Advance
+        Selection.cmd_step_selection Config.insert_selnum Selection.Advance
     , single Key.Up "rewind selection" $
-        Selection.cmd_step_selection insert_selnum Selection.Rewind
+        Selection.cmd_step_selection Config.insert_selnum Selection.Rewind
     , single Key.Right "shift selection right" $
-        Selection.cmd_shift_selection insert_selnum 1
+        Selection.cmd_shift_selection Config.insert_selnum 1
     , single Key.Left "shift selection left" $
-        Selection.cmd_shift_selection insert_selnum (-1)
+        Selection.cmd_shift_selection Config.insert_selnum (-1)
     ]
+
+advance_insert =
+    Selection.cmd_step_selection Config.insert_selnum Selection.Advance
 
 edit =
     [ single Key.Escape "toggle edit mode" Edit.cmd_toggle_edit
+    , single Key.Backspace "erase note"
+        (Edit.cmd_remove_events >> advance_insert)
     ]
 
 lower_notes = zip [0..]
@@ -73,9 +72,11 @@ upper_notes = zip [12..]
 note_entry = map make_note_entry (lower_notes ++ upper_notes)
 
 make_note_entry (pitch, char) =
-    (Keymap.KeySpec [] (Keymap.UiKey (Key.KeyChar (keymap Map.! char)))
-    , Keymap.CmdSpec ("note with pitch " ++ show pitch)
-        (ignore_msg $ Edit.cmd_insert_pitch (Edit.PitchClass pitch)))
+    (Keymap.KeySpec [] (Keymap.UiKey (Key.KeyChar (keymap Map.! char))),
+        Keymap.CmdSpec ("note with pitch " ++ show pitch)
+            (ignore_msg insert_cmd))
+    where
+    insert_cmd = Edit.cmd_insert_pitch (Edit.PitchClass pitch) >> advance_insert
 
 -- TODO: should take [[Modifier]] and produce a mapping for each
 -- wait and see what's actually useful

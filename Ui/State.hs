@@ -300,11 +300,34 @@ insert_events :: (UiStateMonad m) =>
     Track.TrackId -> [(TrackPos, Event.Event)] -> m ()
 insert_events track_id pos_evts = do
     -- Stash a track update, see 'run' comment.
-    update $ Update.TrackUpdate track_id $ Update.TrackEvents
-        (fst (head pos_evts)) (Track.event_end (last pos_evts))
-    modify_track track_id $ \track ->
-        track { Track.track_events = Track.insert_events pos_evts
-            (Track.track_events track) }
+    modify_events track_id (Track.insert_events pos_evts)
+    when (not (null pos_evts)) $
+        update $ Update.TrackUpdate track_id $ Update.TrackEvents
+            (fst (head pos_evts)) (Track.event_end (last pos_evts))
+
+-- | Remove any events whose starting position fall within the half-open
+-- range given.
+remove_events :: (UiStateMonad m) =>
+    Track.TrackId -> TrackPos -> TrackPos -> m ()
+remove_events track_id start end = do
+    track <- get_track track_id
+    let evts = takeWhile ((<end) . fst)
+            (Track.forward (Track.track_events track) start)
+    modify_events track_id (Track.remove_events start end)
+    when (not (null evts)) $
+        update $ Update.TrackUpdate track_id
+            (Update.TrackEvents start (Track.event_end (last evts)))
+
+-- | Remove a single event at @pos@, if there is one.
+remove_event :: (UiStateMonad m) => Track.TrackId -> TrackPos -> m ()
+remove_event track_id pos = do
+    track <- get_track track_id
+    case Track.event_at (Track.track_events track) pos of
+        Nothing -> return ()
+        Just evt -> do
+            let end = Track.event_end (pos, evt)
+            modify_events track_id (Track.remove_events pos end)
+            update $ Update.TrackUpdate track_id (Update.TrackEvents pos end)
 
 -- *** util
 
@@ -313,6 +336,8 @@ update_track track_id track = modify $ \st -> st
 modify_track track_id f = do
     track <- get_track track_id
     update_track track_id (f track)
+modify_events track_id f = modify_track track_id $ \track ->
+    track { Track.track_events = f (Track.track_events track) }
 
 -- ** ruler
 

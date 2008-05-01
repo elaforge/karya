@@ -65,6 +65,7 @@ remove_events :: TrackPos -> TrackPos -> TrackEvents -> TrackEvents
 remove_events start end track_events@(TrackEvents events) = TrackEvents $
     List.foldl' (\events pos -> Map.delete pos events) events del_pos
     where
+    -- TODO Map.difference would be more efficient than deletes
     del_pos = takeWhile (<end) $ map fst $ snd (events_at start track_events)
 
 -- | Return the events before the given @pos@, and the events at and after it.
@@ -81,6 +82,22 @@ last_event :: TrackEvents -> Maybe (TrackPos, Event.Event)
 last_event (TrackEvents events)
     | Map.null events = Nothing
     | otherwise = Just (Map.findMax events)
+
+-- utilities
+
+forward :: TrackEvents -> TrackPos -> [(TrackPos, Event.Event)]
+forward track_events pos = snd (events_at pos track_events)
+
+event_at :: TrackEvents -> TrackPos -> Maybe Event.Event
+event_at track_events pos = case forward track_events pos of
+    ((epos, event):_) | epos == pos -> Just event
+    _ -> Nothing
+
+-- | Return the position at the end of the event.
+event_end :: (TrackPos, Event.Event) -> TrackPos
+event_end (pos, evt) = pos + dur evt
+
+-- implementation
 
 -- this is implemented in Map but not exported for some reason
 toDescList map = reverse (Map.toAscList map)
@@ -115,8 +132,6 @@ _merge evts1 evts2
     relevant = in_range first_pos last_pos
     merged = union_right (relevant evts1) (relevant evts2)
     clipped = Map.foldWithKey fold_clip [] merged
-
-event_end (pos, evt) = pos + dur evt
 
 fold_clip pos evt [] = [(pos, evt)]
 fold_clip pos evt rest@((next_pos, _next_evt) : _) =
