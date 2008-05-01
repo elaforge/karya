@@ -223,14 +223,19 @@ remove_track block_id tracknum = do
     update_block block_id (block { Block.block_tracks = tracks' })
     modify $ \st -> st { state_views = Map.union views' (state_views st) }
 
--- TODO
-remove_from_view tracknum view = view
--- Add the new track's width into view_track_widths, move selections.
+-- | Add the new track into Block.view_tracks, move selections.
 insert_into_view tracknum width view = view
     { Block.view_tracks = Seq.insert_at (Block.view_tracks view) tracknum
         (Block.TrackView width)
     , Block.view_selections =
         Map.map (insert_into_selection tracknum) (Block.view_selections view)
+    }
+
+-- | Remove @tracknum@ from Block.view_tracks, move selections.
+remove_from_view tracknum view = view
+    { Block.view_tracks = Seq.remove_at (Block.view_tracks view) tracknum
+    , Block.view_selections = Map.mapMaybe
+        (remove_from_selection tracknum) (Block.view_selections view)
     }
 
 -- If tracknum is before or at the selection, push it to the right.  If it's
@@ -239,6 +244,16 @@ insert_into_selection tracknum sel
     | tracknum <= start = sel { Block.sel_start_track = start + 1 }
     | tracknum < start + tracks = sel { Block.sel_tracks = tracks + 1 }
     | otherwise = sel
+    where
+    start = Block.sel_start_track sel
+    tracks = Block.sel_tracks sel
+
+remove_from_selection tracknum sel
+    | tracknum <= start = Just (sel { Block.sel_start_track = start - 1 })
+    | tracknum < start + tracks = if tracks == 1
+        then Nothing
+        else Just (sel { Block.sel_tracks = tracks - 1 })
+    | otherwise = Just sel
     where
     start = Block.sel_start_track sel
     tracks = Block.sel_tracks sel
