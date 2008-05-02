@@ -149,6 +149,12 @@ set_title(BlockViewWindow *view, const char *title)
     view->block.set_title(title);
 }
 
+void
+set_status(BlockViewWindow *view, const char *status)
+{
+    view->block.set_status(status);
+}
+
 
 // tracks
 

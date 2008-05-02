@@ -115,6 +115,8 @@ diff_block block_id block1 block2 = do
     let block_update = Update.BlockUpdate block_id
     when (Block.block_title block1 /= Block.block_title block2) $
         change [block_update $ Update.BlockTitle (Block.block_title block2)]
+    when (Block.block_status block1 /= Block.block_status block2) $
+        change [block_update $ Update.BlockStatus (Block.show_status block2)]
     when (Block.block_config block1 /= Block.block_config block2) $
         change [block_update $ Update.BlockConfig (Block.block_config block2)]
 

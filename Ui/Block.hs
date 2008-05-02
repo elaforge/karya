@@ -3,6 +3,8 @@ import qualified Foreign
 
 import qualified Data.Map as Map
 
+import qualified Util.Seq as Seq
+
 import Ui.Types
 import qualified Ui.Color as Color
 import qualified Ui.Track as Track
@@ -23,11 +25,17 @@ newtype ViewId = ViewId String deriving (Eq, Ord, Show)
 
 data Block = Block {
     block_title :: String
+    , block_status :: Map.Map String String
     , block_config :: Config
     , block_ruler_track :: Tracklike
     -- The Width here is the default if a new View is created from this Block.
     , block_tracks :: [(Tracklike, Width)]
     } deriving (Eq, Ord, Show)
+
+block title config ruler tracks = Block title Map.empty config ruler tracks
+show_status :: Block -> [Char]
+show_status = Seq.join " }{ " . map (\(k, v) -> k ++ ": " ++ v)
+    . Map.assocs . block_status
 
 data Config = Config {
     config_selection_colors :: [Color]
@@ -50,19 +58,19 @@ data Divider = Divider Color deriving (Eq, Ord, Show)
 -- * block view
 
 data View = View {
-    -- view_block should never change.  Views that point to a BlockId not
-    -- in state_blocks will be destroyed.
+    -- | view_block should never change.
+    -- TODO Views that point to a BlockId not in state_blocks should be
+    -- destroyed.
     view_block :: BlockId
     , view_rect :: Rect
     , view_config :: ViewConfig
 
-    -- Scroll and zoom
+    -- | Scroll and zoom
     , view_track_scroll :: Width
     , view_zoom :: Zoom
 
-    -- Visible Selections, indexed by their SelNum.
     , view_selections :: Map.Map SelNum Selection
-    -- These are the per-view settings for the tracks.  There should be one
+    -- | These are the per-view settings for the tracks.  There should be one
     -- corresponding to each Tracklike in the Block.  The StateT operations
     -- should maintain this invariant.
     , view_tracks :: [TrackView]

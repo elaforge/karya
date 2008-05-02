@@ -22,6 +22,7 @@ data ViewUpdate =
 
 data BlockUpdate =
     BlockTitle String
+    | BlockStatus String
     | BlockConfig Block.Config
     | RemoveTrack Block.TrackNum
     | InsertTrack Block.TrackNum Block.Tracklike Block.Width

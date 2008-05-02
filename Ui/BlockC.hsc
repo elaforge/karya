@@ -26,6 +26,7 @@ module Ui.BlockC (
     -- * Block operations
     , set_model_config
     , set_title
+    , set_status
 
     -- ** Track operations
     , CTracklike(..)
@@ -200,6 +201,12 @@ set_title view_id title = do
     viewp <- get_ptr view_id
     withCString title (c_set_title viewp)
 foreign import ccall "set_title" c_set_title :: Ptr CView -> CString -> IO ()
+
+set_status :: Block.ViewId -> String -> Fltk ()
+set_status view_id status = do
+    viewp <- get_ptr view_id
+    withCString status (c_set_status viewp)
+foreign import ccall "set_status" c_set_status :: Ptr CView -> CString -> IO ()
 
 -- ** Track operations
 

@@ -32,7 +32,7 @@ test_sync = do
     res <- State.run State.empty $ do
         ruler <- State.create_ruler "r1" (TestSetup.mkruler 20 10)
         t1 <- State.create_track "b1.t1" TestSetup.event_track_1
-        b1 <- State.create_block "b1" (Block.Block "hi b1"
+        b1 <- State.create_block "b1" (Block.block "hi b1"
             TestSetup.default_block_config
             (Block.R ruler) [(Block.T t1 ruler, 30)])
         v1 <- State.create_view "v1"

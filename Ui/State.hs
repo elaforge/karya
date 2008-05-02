@@ -272,6 +272,12 @@ set_block_title :: (UiStateMonad m) => Block.BlockId -> String -> m ()
 set_block_title block_id title =
     modify_block block_id (\block -> block { Block.block_title = title })
 
+set_block_status :: (UiStateMonad m) => Block.BlockId -> String -> Maybe String
+    -> m ()
+set_block_status block_id key val =
+    modify_block block_id $ \block -> block { Block.block_status =
+        Map.alter (const val) key (Block.block_status block) }
+
 -- *** util
 
 update_block block_id block = modify $ \st -> st

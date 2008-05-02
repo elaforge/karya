@@ -94,6 +94,8 @@ run_update (Update.BlockUpdate block_id update) = do
     case update of
         Update.BlockTitle title ->
             mapM_ (send . flip BlockC.set_title title) view_ids
+        Update.BlockStatus status ->
+            mapM_ (send . flip BlockC.set_status status) view_ids
         Update.BlockConfig config ->
             mapM_ (send . flip BlockC.set_model_config config) view_ids
         Update.RemoveTrack tracknum ->

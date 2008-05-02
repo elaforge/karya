@@ -37,6 +37,7 @@ void set_selection(BlockViewWindow *view, int selnum,
 
 void set_model_config(BlockViewWindow *view, BlockModelConfig *config);
 void set_title(BlockViewWindow *view, const char *title);
+void set_status(BlockViewWindow *view, const char *status);
 
 // tracks
 
