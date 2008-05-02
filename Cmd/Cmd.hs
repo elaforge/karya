@@ -113,6 +113,9 @@ data State = State {
     -- position.
     state_keys_down :: Map.Map Modifier Modifier
 
+    -- | Argumentless save commands save to and load from this file.
+    , state_default_save_file :: FilePath
+
     -- | The block and track that have focus.  Commands that address
     -- a particular block or track will address these.
     , state_active_view :: Maybe Block.ViewId
@@ -124,8 +127,8 @@ data State = State {
 
     -- | Edit mode enables various commands that write to tracks.
     , state_edit_mode :: Bool
-    } deriving (Show)
-empty_state = State Map.empty Nothing Nothing
+    } deriving (Show, Read)
+empty_state = State Map.empty "save/default" Nothing Nothing
     (TimeStep.UntilMark TimeStep.AllMarklists (TimeStep.MatchRank 2))
     False
 
@@ -137,7 +140,7 @@ data Modifier = KeyMod Key.Key
     -- to the device, this code doesn't know which devices are available.
     -- Block or track level handlers can query the device themselves.
     | MidiMod Midi.Channel Midi.Key
-    deriving (Eq, Ord, Show)
+    deriving (Eq, Ord, Show, Read)
 
 mouse_mod_btn (MouseMod btn _) = Just btn
 mouse_mod_btn _ = Nothing

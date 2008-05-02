@@ -56,9 +56,18 @@ loop ui_state cmd_state get_msg write_midi = do
             ui_state (run_cmds ui_state cmd_state cmds msg)
         _ -> return (status, ui_state, cmd_state)
 
+    (ui_state, cmd_state) <- run_io_cmd write_midi ui_state cmd_state
+        (DefaultKeymap.cmd_io_keymap msg)
+
     case status of
         Cmd.Quit -> return ()
         _ -> loop ui_state cmd_state get_msg write_midi
+
+run_io_cmd write_midi ui_state cmd_state cmd = do
+    result <- Cmd.run ui_state cmd_state cmd
+    (_status, ui_state, cmd_state) <-
+        handle_cmd_result True write_midi ui_state result
+    return (ui_state, cmd_state)
 
 handle_cmd_result :: Bool -> MidiWriter -> State.State -> Cmd.CmdVal
     -> IO (Cmd.Status, State.State, Cmd.State)

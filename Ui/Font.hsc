@@ -16,10 +16,10 @@ data TextStyle = TextStyle
     , style_face :: [FontFace]
     , style_size :: Int
     , style_color :: Color.Color
-    } deriving (Eq, Show)
+    } deriving (Eq, Show, Read)
 
-data Font = Helvetica | Times | Courier deriving (Eq, Show)
-data FontFace = Bold | Italic deriving (Eq, Show)
+data Font = Helvetica | Times | Courier deriving (Eq, Show, Read)
+data FontFace = Bold | Italic deriving (Eq, Show, Read)
 
 instance Storable TextStyle where
     sizeOf _ = #size TextStyle

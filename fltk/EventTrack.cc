@@ -75,6 +75,7 @@ EventTrackView::update(const Tracklike &track, FinalizeCallback finalizer,
     }
     this->config = *track.track;
     // TODO should have a damage scheme like with ruler
+    // if (start == -1 && end == -1) then update everything
     this->redraw();
 
 }

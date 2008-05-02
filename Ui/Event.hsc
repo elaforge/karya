@@ -42,7 +42,7 @@ data Event = Event
     , event_color :: Color
     , event_style :: Font.TextStyle
     , event_align_to_bottom :: Bool
-    } deriving (Eq, Show)
+    } deriving (Eq, Show, Read)
 
 
 -- * storable

@@ -25,7 +25,7 @@ import Ui.Color (Color)
 -- many units are in one second depends on the tempo.  TrackPos units
 -- can be negative, but once they get to the UI they will be clamped to be
 -- within 0--ULONG_MAX.
-newtype TrackPos = TrackPos Integer deriving (Num, Eq, Ord, Show)
+newtype TrackPos = TrackPos Integer deriving (Num, Eq, Ord, Show, Read)
 
 instance Storable TrackPos where
     sizeOf _ = #size TrackPos

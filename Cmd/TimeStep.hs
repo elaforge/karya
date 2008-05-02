@@ -22,10 +22,10 @@ data TimeStep
     | UntilMark Marklists MarkMatch
     -- | Until next matching mark + offset from previous mark.
     | MarkDistance Marklists MarkMatch
-    deriving (Show)
+    deriving (Show, Read)
 
 data Marklists = AllMarklists | NamedMarklists [Ruler.MarklistName]
-    deriving (Show)
+    deriving (Show, Read)
 
 
 -- | Advance the given pos according to step on the ruler.
@@ -58,7 +58,7 @@ rewind step marklists start_pos = case step of
 
 -- | Given a marklist view, return the TrackPos to advance to.
 data MarkMatch = MatchRank Int
-    deriving (Show)
+    deriving (Show, Read)
 type Matcher = [(TrackPos, Ruler.Mark)] -> Maybe TrackPos
 
 -- Extract @names@ from alist @marklists@, use @to_marks@ to extract marks

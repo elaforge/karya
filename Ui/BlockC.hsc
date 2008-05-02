@@ -30,7 +30,7 @@ module Ui.BlockC (
 
     -- ** Track operations
     , CTracklike(..)
-    , insert_track, remove_track, update_track
+    , insert_track, remove_track, update_track, update_entire_track
     , set_track_width
     , set_track_title
 
@@ -233,6 +233,12 @@ update_track view_id tracknum tracklike start end = do
             with_tracklike tracklike $ \tp mlistp len ->
                 c_update_track viewp (Util.c_int tracknum) tp
                     mlistp len finalize startp endp
+
+-- | Like 'update_track' except update everywhere.
+update_entire_track :: Block.ViewId -> Block.TrackNum -> CTracklike -> Fltk ()
+update_entire_track view_id tracknum tracklike =
+    -- -1 is special cased in c++.
+    update_track view_id tracknum tracklike (TrackPos (-1)) (TrackPos (-1))
 
 foreign import ccall "insert_track"
     c_insert_track :: Ptr CView -> CInt -> Ptr TracklikePtr -> CInt

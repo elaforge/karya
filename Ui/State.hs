@@ -47,7 +47,7 @@ data State = State {
     -- change it here and all of its occurrances change.
     , state_tracks :: Map.Map Track.TrackId Track.Track
     , state_rulers :: Map.Map Ruler.RulerId Ruler.Ruler
-    } deriving Show
+    } deriving (Show, Read)
 empty = State Map.empty Map.empty Map.empty Map.empty
 
 -- * StateT monadic access
@@ -336,6 +336,16 @@ remove_event track_id pos = do
             let end = Track.event_end (pos, evt)
             modify_events track_id (Track.remove_events pos end)
             update $ Update.TrackUpdate track_id (Update.TrackEvents pos end)
+
+-- | Emit track updates for all tracks.  Use this when events have changed but
+-- I don't know which ones, e.g. when loading a file or restoring a previous
+-- state.
+update_all_tracks :: (UiStateMonad m) => m ()
+update_all_tracks = do
+    st <- get
+    let updates = map (flip Update.TrackUpdate Update.TrackAllEvents)
+            (Map.keys (state_tracks st))
+    mapM_ update updates
 
 -- *** util
 

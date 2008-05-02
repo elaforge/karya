@@ -6,7 +6,8 @@ import qualified Ui.Track as Track
 import Ui.Block (ViewId, BlockId)
 
 
-data Update = ViewUpdate ViewId ViewUpdate
+data Update
+    = ViewUpdate ViewId ViewUpdate
     | BlockUpdate BlockId BlockUpdate
     | TrackUpdate Track.TrackId TrackUpdate
     deriving Show
@@ -20,8 +21,8 @@ data ViewUpdate =
     | Selection Block.SelNum (Maybe Block.Selection)
     deriving Show
 
-data BlockUpdate =
-    BlockTitle String
+data BlockUpdate
+    = BlockTitle String
     | BlockStatus String
     | BlockConfig Block.Config
     | RemoveTrack Block.TrackNum
@@ -29,7 +30,10 @@ data BlockUpdate =
     deriving Show
 
 -- | track, low_pos, high_pos
-data TrackUpdate = TrackEvents TrackPos TrackPos
+data TrackUpdate
+    = TrackEvents TrackPos TrackPos
+    -- | Used when there have been unknown updates so I have to play it safe.
+    | TrackAllEvents
     | TrackTitle String
     | TrackBg
     deriving Show

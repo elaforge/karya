@@ -286,7 +286,8 @@ BlockView::scrollbar_cb(Fl_Widget *_unused_w, void *vp)
     // TODO consider putting the repeated code into their own functions.
     // This does the same stuff as BlockView::set_zoom, but naturally doesn't
     // call update_scrollbars, or we don't get anywhere.
-    ZoomInfo new_zoom(end.scale(time_offset), self->get_zoom().factor);
+    ZoomInfo new_zoom(TrackPos(end.scale(time_offset)),
+            self->get_zoom().factor);
     if (new_zoom != self->get_zoom()) {
         self->zoom = new_zoom;
         self->ruler_track->set_zoom(self->zoom);

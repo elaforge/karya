@@ -1,6 +1,5 @@
 module Ui.Ruler where
 import qualified Data.Array.IArray as IArray
-import qualified Data.Map as Map
 import Data.Array.IArray ((!))
 
 import qualified Util.Array
@@ -17,13 +16,13 @@ data Ruler = Ruler {
     , ruler_show_names :: Bool
     , ruler_use_alpha :: Bool
     , ruler_full_width :: Bool
-    } deriving (Eq, Show)
+    } deriving (Eq, Show, Read)
 
-newtype RulerId = RulerId String deriving (Eq, Ord, Show)
+newtype RulerId = RulerId String deriving (Eq, Ord, Show, Read)
 type MarklistName = String
 
 data Marklist = Marklist (IArray.Array Int (TrackPos, Mark))
-    deriving (Eq, Show)
+    deriving (Eq, Show, Read)
 -- If I used a Map here instead of an Array I could reuse functions from
 -- EventList.  On the other hand, there aren't that many to reuse and arrays
 -- are compact, so I'll let it be.
@@ -40,7 +39,7 @@ data Mark = Mark
     , mark_name :: String
     , mark_name_zoom_level :: Double
     , mark_zoom_level :: Double
-    } deriving (Eq, Show)
+    } deriving (Eq, Show, Read)
 null_mark = Mark 0 0 Color.black "" 0 0
 
 

@@ -1,4 +1,6 @@
 # project specific:
+^save$
+^save/
 ^haddock/
 ^scratch
 ^hpc/

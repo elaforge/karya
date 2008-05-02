@@ -50,6 +50,9 @@ fltk
     * bug: scrolling gets little one pixels shifts
     - bug: event tracks flicker when moving horizontally
   Ruler
+    - include selection in time_end
+    - scroll to keep moving edge of selection in view, go to bottom edge if
+      both moved
     * don't clip out the text as soon as the marker scrolls off screen
     * clip markers when they overlap edge of widget
     - bug: looks like overlay is getting drawn twice when called from Interface

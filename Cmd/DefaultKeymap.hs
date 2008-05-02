@@ -5,9 +5,11 @@ import qualified Ui.Key as Key
 
 import Cmd.Types
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Msg as Msg
 import qualified Cmd.Keymap as Keymap
 import qualified Cmd.Selection as Selection
 import qualified Cmd.Edit as Edit
+import qualified Cmd.Save as Save
 
 import qualified App.Config as Config
 
@@ -21,12 +23,26 @@ default_cmds state =
     , Keymap.make_cmd (misc ++ selection ++ edit)
     ]
 
+cmd_io_keymap :: Msg.Msg -> Cmd.CmdT IO Cmd.Status
+cmd_io_keymap = Keymap.make_cmd io_keys
+
+io_keys :: [(Keymap.KeySpec, Keymap.CmdSpec IO)]
+io_keys =
+    [ (Keymap.KeySpec [Cmd.KeyMod Key.MetaL] (Keymap.UiKey (Key.KeyChar 's'))
+        , Keymap.CmdSpec "save" save)
+    , (Keymap.KeySpec [Cmd.KeyMod Key.MetaL] (Keymap.UiKey (Key.KeyChar 'l'))
+        , Keymap.CmdSpec "load" load)
+    ]
+
+save _msg = Save.cmd_save Nothing >> return Cmd.Done
+load _msg = Save.cmd_load Nothing >> return Cmd.Done
+
 cmd_note_entry :: Cmd.Cmd
 cmd_note_entry = Keymap.make_cmd note_entry
 cmd_midi_entry msg = Edit.cmd_insert_midi_note msg >> advance_insert
 
 misc =
-    [ (Keymap.KeySpec [Cmd.KeyMod Key.ControlL] (Keymap.UiKey Key.Escape),
+    [ (Keymap.KeySpec [Cmd.KeyMod Key.MetaL] (Keymap.UiKey Key.Escape),
         Keymap.CmdSpec "quit" (ignore_msg Cmd.cmd_quit))
     , single (Key.KeyChar '=') "quit" Cmd.cmd_quit
     ]
@@ -99,14 +115,13 @@ make_note_entry (pitch, char) =
 -- wait and see what's actually useful
 spec = Keymap.KeySpec
 single key desc cmd = (spec [] (Keymap.UiKey key), cmdm desc cmd)
-cmdm :: String -> Cmd.CmdM -> Keymap.CmdSpec
+cmdm :: String -> Cmd.CmdT m Cmd.Status -> Keymap.CmdSpec m
 cmdm name cmd = Keymap.CmdSpec name (ignore_msg cmd)
 
 
 -- ** util
 
 -- | Cmds that don't actually need the msg can use this.
-ignore_msg :: Cmd.CmdM -> Cmd.Cmd
 ignore_msg = const
 
 

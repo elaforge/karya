@@ -119,6 +119,9 @@ run_update (Update.TrackUpdate track_id update) = do
             Update.TrackEvents low high -> do
                 ctrack <- tracklike_to_ctracklike tracklike
                 send $ BlockC.update_track view_id tracknum ctrack low high
+            Update.TrackAllEvents -> do
+                ctrack <- tracklike_to_ctracklike tracklike
+                send $ BlockC.update_entire_track view_id tracknum ctrack
             Update.TrackTitle title ->
                 send $ BlockC.set_track_title view_id tracknum title
             Update.TrackBg -> do

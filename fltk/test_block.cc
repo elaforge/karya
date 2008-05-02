@@ -47,7 +47,7 @@ void m44_set()
     Color minor = Color(225, 100, 50, 90);
 
     for (int i = 0; i < 100; i++) {
-        TrackPos t = i*8;
+        TrackPos t = TrackPos(i*8);
         if (i % 4 == 0) {
             sprintf(name, "%d", i / 4);
             Mark m(1, 3, major, strdup(name), 0, 0);

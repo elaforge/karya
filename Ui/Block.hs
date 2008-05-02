@@ -17,9 +17,9 @@ import qualified Ui.Ruler as Ruler
 -- | Reference to a Block.  Use this to look up Blocks in the State.
 -- Even though the constructor is exported, you should only create them
 -- through the 'State.StateT' interface.
-newtype BlockId = BlockId String deriving (Eq, Ord, Show)
+newtype BlockId = BlockId String deriving (Eq, Ord, Show, Read)
 -- | Reference to a View, as per 'BlockId'.
-newtype ViewId = ViewId String deriving (Eq, Ord, Show)
+newtype ViewId = ViewId String deriving (Eq, Ord, Show, Read)
 
 -- * block model
 
@@ -30,7 +30,7 @@ data Block = Block {
     , block_ruler_track :: Tracklike
     -- The Width here is the default if a new View is created from this Block.
     , block_tracks :: [(Tracklike, Width)]
-    } deriving (Eq, Ord, Show)
+    } deriving (Eq, Ord, Show, Read)
 
 block title config ruler tracks = Block title Map.empty config ruler tracks
 show_status :: Block -> [Char]
@@ -42,18 +42,18 @@ data Config = Config {
     , config_bg_color :: Color
     , config_track_box_color :: Color
     , config_sb_box_color :: Color
-    } deriving (Eq, Ord, Show)
+    } deriving (Eq, Ord, Show, Read)
 
 -- Tracks may have a Ruler overlay
 data Tracklike =
     T Track.TrackId Ruler.RulerId
     | R Ruler.RulerId
     | D Divider
-    deriving (Eq, Ord, Show)
+    deriving (Eq, Ord, Show, Read)
 
 -- | A divider separating tracks.
 -- Declared here in Block since it's so trivial.
-data Divider = Divider Color deriving (Eq, Ord, Show)
+data Divider = Divider Color deriving (Eq, Ord, Show, Read)
 
 -- * block view
 
@@ -74,7 +74,7 @@ data View = View {
     -- corresponding to each Tracklike in the Block.  The StateT operations
     -- should maintain this invariant.
     , view_tracks :: [TrackView]
-    } deriving (Eq, Ord, Show)
+    } deriving (Eq, Ord, Show, Read)
 
 -- | Construct a View, using default values for most of its fields.
 -- Don't construct views using View directly since State.create_view overwrites
@@ -84,9 +84,9 @@ view block_id rect config = View block_id rect config
 
 data TrackView = TrackView {
     track_view_width :: Width
-    } deriving (Eq, Ord, Show)
+    } deriving (Eq, Ord, Show, Read)
 
-data Rect = Rect (Int, Int) (Int, Int) deriving (Eq, Ord, Show)
+data Rect = Rect (Int, Int) (Int, Int) deriving (Eq, Ord, Show, Read)
 
 -- The defaults for newly created blocks and the trackviews automatically
 -- created.
@@ -97,10 +97,10 @@ data ViewConfig = ViewConfig
     , vconfig_sb_size :: Int
     , vconfig_ruler_size :: Int
     , vconfig_status_size :: Int
-    } deriving (Eq, Ord, Show)
+    } deriving (Eq, Ord, Show, Read)
 
 -- | Zoom offset factor
-data Zoom = Zoom TrackPos Double deriving (Eq, Ord, Show)
+data Zoom = Zoom TrackPos Double deriving (Eq, Ord, Show, Read)
 default_zoom = Zoom (TrackPos 0) 1
 
 -- TODO: remove color and put it in BlockC.SelectionC, which gets its color
@@ -110,7 +110,7 @@ data Selection = Selection
     , sel_start_pos :: TrackPos
     , sel_tracks :: TrackNum
     , sel_duration :: TrackPos
-    } deriving (Eq, Ord, Show)
+    } deriving (Eq, Ord, Show, Read)
 
 selection tracknum start tracks dur = Just (Selection tracknum start tracks dur)
 

@@ -25,7 +25,9 @@ import qualified Cmd.Cmd as Cmd
 data KeySpec = KeySpec [Cmd.Modifier] Key deriving (Eq, Ord, Show)
 -- | Pair a Cmd with a descriptive string that can be used for logging, undo,
 -- etc.
-data CmdSpec = CmdSpec String Cmd.Cmd
+data CmdSpec m = CmdSpec String (MCmd m)
+
+type MCmd m = Msg.Msg -> Cmd.CmdT m Cmd.Status
 
 -- | A Key is much like a 'Msg.Msg', but with less detail.
 data Key = UiKey Key.Key
@@ -39,7 +41,7 @@ data MidiKey = NoteOn Midi.Key | NoteOff Midi.Key
 
 -- | Merge the given KeySpecs into a map for efficient lookup, and return
 -- a combined Cmd that will dispatch on the map.
-make_cmd :: [(KeySpec, CmdSpec)] -> Cmd.Cmd
+make_cmd :: Monad m => [(KeySpec, CmdSpec m)] -> MCmd m
 make_cmd keyspecs msg = do
     mod <- Cmd.require (keydown_mod msg)
     key <- Cmd.require (msg_to_key msg)

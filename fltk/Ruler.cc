@@ -138,11 +138,15 @@ void
 OverlayRuler::damage_range(TrackPos start, TrackPos end, bool point_selection)
 {
     Rect r = rect(this);
-    r.y = this->zoom.to_pixels(start - this->zoom.offset);
-    r.h = this->zoom.to_pixels(end);
-    if (point_selection && start == end) {
-        r.y -= selection_point_size;
-        r.h += selection_point_size * 2;
+    if (start == TrackPos(-1) and end == TrackPos(-1)) {
+        ; // leave it covering the whole widget
+    } else {
+        r.y = this->zoom.to_pixels(start - this->zoom.offset);
+        r.h = this->zoom.to_pixels(end);
+        if (point_selection && start == end) {
+            r.y -= selection_point_size;
+            r.h += selection_point_size * 2;
+        }
     }
     if (r.h > 0) {
         this->damaged_area.union_(r);

@@ -6,14 +6,14 @@ import Ui.Types
 import qualified Ui.Event as Event
 
 
-newtype TrackId = TrackId String deriving (Eq, Ord, Show)
+newtype TrackId = TrackId String deriving (Eq, Ord, Show, Read)
 
 data Track = Track {
     track_title :: String
     , track_events :: TrackEvents
     , track_bg :: Color
     -- track attrs
-    } deriving (Show)
+    } deriving (Show, Read)
 
 -- | Construct an empty Track.
 track title events bg = Track title (insert_events events empty_events) bg
@@ -42,7 +42,7 @@ toDescList with foldl?
 -}
 -- IntMap is more efficient than Map, but only takes Int keys...
 newtype TrackEvents = TrackEvents (Map.Map TrackPos Event.Event)
-    deriving (Show)
+    deriving (Show, Read)
     -- alternate efficient version for controller tracks?
     -- ControllerTrack (Array (TrackPos, Double))
 -- This should be opaque, with a few operations to query and modify it,
