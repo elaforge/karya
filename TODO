@@ -114,8 +114,8 @@ Cmd
     Cmd.Edit
       * edit mode
       + event insertion / deletion commands
-      - set step interval
-      - midi note insertion
+      * set step interval
+      * midi note insertion
       - alternate finale-like note entry: hold down step key to set step and
         turn on edit mode, but only while the key is down
     Cmd.Create

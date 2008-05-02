@@ -23,7 +23,6 @@ import qualified Ui.Block as Block
 import qualified Ui.State as State
 import qualified Ui.Update as Update
 
-import qualified Util.Log as Log
 import qualified Midi.Midi as Midi
 
 import qualified Cmd.Msg as Msg
@@ -48,21 +47,6 @@ run ui_state cmd_state cmd = do
     return $ case res of
         Left Abort -> (cmd_state, [], logs, Right (Continue, ui_state, []))
         Right ((ui_res, cmd_state2), midi) -> (cmd_state2, midi, logs, ui_res)
-
-    {-
-        case ui_res of
-            Left err -> (cmd_state2, midi, log_msgs, Left err)
-            Right (status, ui_state2, updates) ->
-                (cmd_state2, midi, log_msgs, Right (ui_state2, updates))
-    -- This defines the policy for exceptions from Ui.StateT.  I choose to
-    -- let the ui state alone, but keep changes to the cmd state, midi, and
-    -- log msgs.  This is so I don't throw away the work of previous Cmds.
-    let (status, ui_result) = case ui_res of
-            Left err -> (Done, Left err)
-            Right (status, ui_state2, updates) ->
-                (status, Right (ui_state2, updates))
-    return (status, cmd_state2, midi, log_msgs, ui_result)
-    -}
 
 run_cmd :: State.State -> State -> CmdM -> CmdVal
 run_cmd ui_state cmd_state cmd =

@@ -1,3 +1,12 @@
+{- | Event editing commands.
+
+Note entry:
+
+pitch transpose
+Blocks and tracks may override this, of course.  It's better as a state than as
+setting the keymap since that's easier to save.
+
+-}
 module Cmd.Edit where
 import Control.Monad
 import qualified Data.Maybe as Maybe
@@ -10,7 +19,10 @@ import qualified Ui.Track as Track
 -- import qualified Ui.Event as Event
 import qualified Ui.State as State
 
+import qualified Midi.Midi as Midi
+
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Msg as Msg
 import qualified Cmd.TimeStep as TimeStep
 
 import qualified App.Config as Config
@@ -50,6 +62,24 @@ cmd_insert_pitch pitch = do
     State.insert_events track_id [(insert_pos, event)]
     return Cmd.Done
 
+cmd_midi_thru msg = do
+    (dev, chan, msg) <- case msg of
+        Msg.Midi (dev, _ts, Midi.ChannelMessage chan msg) ->
+            return (dev, chan, msg)
+        _ -> Cmd.abort
+    Cmd.midi (read_dev_to_write_dev dev) (Midi.ChannelMessage chan msg)
+    return Cmd.Continue
+
+cmd_insert_midi_note msg = do
+    key <- case msg of
+        Msg.Midi (_dev, _ts, Midi.ChannelMessage chan (Midi.NoteOn key _vel)) ->
+            return key
+        _ -> Cmd.abort
+    cmd_insert_pitch (PitchClass (fromIntegral key))
+    return Cmd.Done
+
+read_dev_to_write_dev (Midi.ReadDevice name) = Midi.WriteDevice name
+
 -- | If the insertion selection is a point, remove any event under it.  If it's
 -- a range, remove all events within its half-open extent.
 cmd_remove_events :: Cmd.CmdM
@@ -68,8 +98,13 @@ cmd_set_current_step step = do
     return Cmd.Done
 
 cmd_meter_step :: Int -> Cmd.CmdM
-cmd_meter_step rank = cmd_set_current_step (TimeStep.UntilMark
-    (TimeStep.NamedMarklists ["meter"]) (TimeStep.MatchRank rank))
+cmd_meter_step rank = do
+    cmd_set_current_step (TimeStep.UntilMark
+        (TimeStep.NamedMarklists ["meter"]) (TimeStep.MatchRank rank))
+    -- TODO this should go to a global state display either in the logviewer
+    -- or seperate
+    Log.notice $ "set step: meter " ++ show rank
+    return Cmd.Done
 
 -- * util
 

@@ -14,11 +14,16 @@ import qualified App.Config as Config
 
 default_cmds :: Cmd.State -> [Cmd.Cmd]
 default_cmds state =
-    [ Selection.cmd_mouse_selection 1 Config.insert_selnum
-    , Keymap.make_cmd (misc ++ selection ++ edit ++ add_note_entry)
+    Edit.cmd_midi_thru
+    : (if Cmd.state_edit_mode state
+        then [cmd_midi_entry, cmd_note_entry] else [])
+    ++ [ Selection.cmd_mouse_selection 1 Config.insert_selnum
+    , Keymap.make_cmd (misc ++ selection ++ edit)
     ]
-    where
-    add_note_entry = if Cmd.state_edit_mode state then note_entry else []
+
+cmd_note_entry :: Cmd.Cmd
+cmd_note_entry = Keymap.make_cmd note_entry
+cmd_midi_entry msg = Edit.cmd_insert_midi_note msg >> advance_insert
 
 misc =
     [ (Keymap.KeySpec [Cmd.KeyMod Key.ControlL] (Keymap.UiKey Key.Escape),
@@ -51,6 +56,11 @@ edit =
     , single (Key.KeyChar '4') "step rank 4" (Edit.cmd_meter_step 4)
     ]
 
+-- ** note entry
+
+note_entry = map make_note_entry (lower_notes ++ upper_notes)
+-- midi_note_entry = map make_midi_note_entry [0..127]
+
 lower_notes = zip [0..]
     [ 'z', 's' -- C
     , 'x', 'd' -- D
@@ -73,14 +83,17 @@ upper_notes = zip [12..]
     , 'i' -- C
     ]
 
-note_entry = map make_note_entry (lower_notes ++ upper_notes)
-
 make_note_entry (pitch, char) =
     (Keymap.KeySpec [] (Keymap.UiKey (Key.KeyChar (keymap Map.! char))),
         Keymap.CmdSpec ("note with pitch " ++ show pitch)
             (ignore_msg insert_cmd))
     where
     insert_cmd = Edit.cmd_insert_pitch (Edit.PitchClass pitch) >> advance_insert
+
+-- make_midi_note_entry nn =
+--     (Keymap.KeySpec [] (Keymap.MidiKey (Keymap.NoteOn nn)),
+--         Keymap.CmdSpec ("midi note with pitch " ++ show nn)
+--             (\msg -> Edit.cmd_insert_midi_note msg >> advance_insert))
 
 -- TODO: should take [[Modifier]] and produce a mapping for each
 -- wait and see what's actually useful

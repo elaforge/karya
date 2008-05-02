@@ -16,6 +16,8 @@ import qualified Util.Log as Log
 import qualified Ui.Key as Key
 import qualified Ui.UiMsg as UiMsg
 
+import qualified Midi.Midi as Midi
+
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Cmd as Cmd
 
@@ -27,7 +29,11 @@ data CmdSpec = CmdSpec String Cmd.Cmd
 
 -- | A Key is much like a 'Msg.Msg', but with less detail.
 data Key = UiKey Key.Key
-    -- MidiKey .. nn, controller, or pb
+    | MidiKey MidiKey
+    deriving (Eq, Ord, Show)
+
+data MidiKey = NoteOn Midi.Key | NoteOff Midi.Key
+    | Controller Midi.Controller Midi.ControlValue
     deriving (Eq, Ord, Show)
 
 
@@ -47,6 +53,8 @@ make_cmd keyspecs msg = do
         Just (CmdSpec name cmd) -> do
             Log.notice $ "running command " ++ show name
             cmd msg
+            -- TODO move quit back into its own cmd and turn this on
+            -- return Cmd.Done
     where
     -- TODO warn about overlapping mappings.
     keymap = Map.fromList keyspecs
@@ -60,4 +68,9 @@ msg_to_key :: Msg.Msg -> Maybe Key
 msg_to_key msg = case msg of
     Msg.Ui (UiMsg.UiMsg _ (UiMsg.MsgEvent (UiMsg.Kbd UiMsg.KeyDown key))) ->
         Just (UiKey key)
+    Msg.Midi (_, _, Midi.ChannelMessage _ msg) -> case msg of
+        Midi.NoteOn key _ -> Just (MidiKey (NoteOn key))
+        Midi.NoteOff key _ -> Just (MidiKey (NoteOff key))
+        Midi.ControlChange c v -> Just (MidiKey (Controller c v))
+        _ -> Nothing
     _ -> Nothing

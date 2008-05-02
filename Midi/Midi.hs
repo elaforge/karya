@@ -6,12 +6,9 @@ type ReadMessage = (ReadDevice, Timestamp, Message)
 
 -- | Implementation independent representation of a MIDI Device.
 --
--- The third parameter is the implementation's runtime representation of
--- a device.  When the Device is stored statically, e.g. in a hardcoded
--- (Device, Instrument) association, the implementation will be Nothing.
---
--- When the Devices are opened, a mapping should be established between Devices
--- and the runtime representation.
+-- This can be saved to and loaded from files without regard for the devices
+-- actually installed or opened.  When the Devices are opened, a mapping should
+-- be established between Devices and the runtime representation.
 
 newtype ReadDevice = ReadDevice String deriving (Eq, Ord, Show)
 newtype WriteDevice = WriteDevice String deriving (Eq, Ord, Show)
