@@ -64,7 +64,8 @@ no_ruler = mkruler 0 0
 mkruler marks dist = Ruler.Ruler [marklist marks dist] ruler_bg True False False
 ruler mlists = Ruler.Ruler mlists ruler_bg True False False
 ruler_bg = Color.rgb 1 0.85 0.5
-marklist n dist = Ruler.marklist (take n $ zip (map TrackPos [0, dist ..]) m44)
+marklist n dist =
+    Ruler.marklist "meter" (take n $ zip (map TrackPos [0, dist ..]) m44)
 m44 = concatMap (\n -> [major n, minor, minor, minor]) [0..]
 major n = Ruler.Mark 1 3 (Color.rgba 0.45 0.27 0 0.35) (show n) 0 0
 minor = Ruler.Mark 2 2 (Color.rgba 1 0.39 0.2 0.35) "" 0 0

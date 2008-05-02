@@ -2,6 +2,8 @@
 - check use of Ints
 
 fltk
+  - bug: if the first event is a modifier, it doesn't get emitted.  An fltk
+    thing?
   * make TrackPos into an opaque type to let me be more free with impl.
     implement as int64 usec?  or since it's just block relative, I can use
     plain unsigned msec?
@@ -105,12 +107,17 @@ Cmd
   * put all stateful keys (kbd, mouse button, midi note) into keydown set
   * reintegrate handler and responder into new hstate, rename Msg->Cmd
   - Cmd_test
+  - cmd_midi_thru - basic hardcoded midi thru command
   keymap
     * keymaps that combine key patterns into a table and create a Cmd
     + Cmd.Movement: selection / cursor movement commands
     Cmd.Edit
       * edit mode
       + event insertion / deletion commands
+      - set step interval
+      - midi note insertion
+      - alternate finale-like note entry: hold down step key to set step and
+        turn on edit mode, but only while the key is down
     Cmd.Create
       - view and creation / deletion
       - track insertion / removal
@@ -121,15 +128,15 @@ Cmd
     Cmd.Selection
       * move insertion point
       * drag insertion point
-      - snap to ruler, event beginning/end, ...
-      - Cmd.TimeStep.advance etc. takes [Marklist]
+      - drag snap to ruler, event beginning/end, ...
+      * Cmd.TimeStep.advance etc. takes [Marklist]
 
     - UI and fltk support for editing event text
     * UiMsgs for track drags, resizes, and text changes update State
-    - Cmd.Language: listen on a socket, receive cmd language?
-      or use hs-plugins?
-  - bug: if the first event is a modifier, it doesn't get emited.  An fltk
-    thing?
+
+  Cmd.Language: listen on a socket, receive cmd language?  or use hs-plugins?
+    - simple commands to manage blocks, and save / restore state
+
   checkpoints
     - undo
     - serialize / deserialize for State

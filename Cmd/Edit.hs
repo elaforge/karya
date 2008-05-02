@@ -70,7 +70,7 @@ selected_tracks selnum = do
     view <- State.get_view view_id
     let start = Block.sel_start_track sel
     tracks <- mapM (event_track_at (Block.view_block view))
-        [start .. start + Block.sel_tracks sel]
+        [start .. start + Block.sel_tracks sel - 1]
     return (Maybe.catMaybes tracks, sel)
 
 pitch_class_note (PitchClass pitch) = show octave ++ pitch_notes !! p

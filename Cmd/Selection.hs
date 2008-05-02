@@ -15,13 +15,10 @@ import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
 import qualified Ui.UiMsg as UiMsg
 
+import Cmd.Types
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.TimeStep as TimeStep
-
-
-data TimeDirection = Advance | Rewind deriving (Eq, Ord, Show)
-data TrackDirection = Higher | Lower deriving (Eq, Ord, Show)
 
 -- | Advance the given selection by the current step.
 -- Require: active block, insert_selection is set
@@ -118,9 +115,6 @@ get_view_block view_id = do
     State.get_block (Block.view_block view)
 
 between low high n = min high (max low n)
-
-cmd_drag_selection :: Block.SelNum -> Int -> Cmd.Cmd
-cmd_drag_selection selnum mouse_btn = undefined
 
 -- * util
 

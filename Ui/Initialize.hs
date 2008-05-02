@@ -35,7 +35,6 @@ ui_handler exc = Log.error ("ui thread died from exception: " ++ show exc)
 app_handler exc = Log.error ("app thread died from  exception: " ++ show exc)
 
 -- | Send the UI to the ui thread and run it, returning its result.
--- send_action :: MVar.MVar [IO ()] -> Send
 send_action :: IO a -> IO a
 send_action act = do
     retbox <- MVar.newEmptyMVar

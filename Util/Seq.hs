@@ -11,6 +11,8 @@ enumerate = zip [0..]
 sortOn :: Ord b => (a -> b) -> [a] -> [a]
 sortOn key = sortBy (\a b -> compare (key a) (key b))
 
+-- * indexing lists
+
 -- | Get @xs !! n@, but return Nothing if the index is out of range.
 at :: [a] -> Int -> Maybe a
 at xs n
@@ -35,18 +37,51 @@ insert_at xs i x = let (pre, post) = splitAt i xs in pre ++ (x : post)
 remove_at :: [a] -> Int -> [a]
 remove_at xs i = let (pre, post) = splitAt i xs in pre ++ drop 1 post
 
--- Safe variants of head and tail.  "m" is for "maybe".
+-- * ordered lists
+
+-- | Merge sorted lists.
+merge :: Ord a => [a] -> [a] -> [a]
+merge = merge_by compare
+
+-- | Non-overloaded version of 'merge'.
+merge_by :: (a -> a -> Ordering) -> [a] -> [a] -> [a]
+merge_by _ [] ys = ys
+merge_by _ xs [] = xs
+merge_by cmp xlist@(x:xs) ylist@(y:ys) = case cmp x y of
+    GT -> y : merge_by cmp xlist ys
+    _ -> x : merge_by cmp xs ylist
+
+-- | Handy to merge or sort a descending list.
+reverse_compare a b = case compare a b of
+    LT -> GT
+    EQ -> EQ
+    GT -> LT
+
+-- * sublists
+
+-- ** extracting sublists
+
+-- | Total variants of head and tail with default values.  "m" is for "maybe".
 mhead :: a -> [a] -> a
 mhead def [] = def
 mhead _def (x:xs) = x
+mtail :: [a] -> [a] -> [a]
 mtail def [] = def
 mtail _def (x:xs) = xs
+
+-- | Drop adjacent elts if the predicate says they are equal.  The first is
+-- kept.
+drop_dups :: (a -> a -> Bool) -> [a] -> [a]
+drop_dups _ [] = []
+drop_dups f (x:xs) = x : map snd (filter (not . uncurry f) (zip (x:xs) xs))
 
 rDropWhile f = reverse . dropWhile f . reverse
 
 lstrip = dropWhile Char.isSpace
 rstrip = rDropWhile Char.isSpace
 strip = lstrip . rstrip
+
+-- ** splitting and joining
 
 -- | Split 'xs' before places where 'f' matches.
 -- So "splitWith (==1) [1,2,1]" is "[[1,2][1]]".

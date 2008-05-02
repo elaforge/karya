@@ -24,7 +24,7 @@ with_ruler :: Ruler.Ruler
 with_ruler ruler f = do
     with ruler $ \rulerp -> withArrayLen marklists $ \len mlists ->
         f rulerp mlists (Util.c_int len)
-    where marklists = Ruler.ruler_marklists ruler
+    where marklists = map snd (Ruler.ruler_marklists ruler)
 
 
 make_find_marks marklist = c_make_find_marks (cb_find_marks marklist)

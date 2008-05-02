@@ -142,7 +142,7 @@ data State = State {
     , state_edit_mode :: Bool
     } deriving (Show)
 empty_state = State Map.empty Nothing Nothing
-    (TimeStep.UntilMark (TimeStep.MatchRank 2))
+    (TimeStep.UntilMark TimeStep.AllMarklists (TimeStep.MatchRank 2))
     False
 
 data Modifier = KeyMod Key.Key
@@ -284,6 +284,9 @@ cmd_close_window _ = return Continue
 -- Unlike all the other Cmds, the state changes this makes are not synced.
 -- UiUpdates report changes that have already occurred directly on the UI, so
 -- syncing them would be redundant.
+--
+-- TODO: except when it's a block update, I have to update the block to update
+-- the other views
 cmd_record_ui_updates :: Cmd
 cmd_record_ui_updates (Msg.Ui (UiMsg.UiMsg ctx (UiMsg.UiUpdate update))) =
     ui_update ctx update >> return Done

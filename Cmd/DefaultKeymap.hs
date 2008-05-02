@@ -3,6 +3,7 @@ import qualified Data.Map as Map
 
 import qualified Ui.Key as Key
 
+import Cmd.Types
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Keymap as Keymap
 import qualified Cmd.Selection as Selection
@@ -27,9 +28,9 @@ misc =
 
 selection =
     [ single Key.Down "advance selection" $
-        Selection.cmd_step_selection Config.insert_selnum Selection.Advance
+        Selection.cmd_step_selection Config.insert_selnum Advance
     , single Key.Up "rewind selection" $
-        Selection.cmd_step_selection Config.insert_selnum Selection.Rewind
+        Selection.cmd_step_selection Config.insert_selnum Rewind
     , single Key.Right "shift selection right" $
         Selection.cmd_shift_selection Config.insert_selnum 1
     , single Key.Left "shift selection left" $
@@ -37,7 +38,7 @@ selection =
     ]
 
 advance_insert =
-    Selection.cmd_step_selection Config.insert_selnum Selection.Advance
+    Selection.cmd_step_selection Config.insert_selnum Advance
 
 edit =
     [ single Key.Escape "toggle edit mode" Edit.cmd_toggle_edit

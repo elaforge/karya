@@ -1,5 +1,6 @@
 module Ui.Ruler where
 import qualified Data.Array.IArray as IArray
+import qualified Data.Map as Map
 import Data.Array.IArray ((!))
 
 import qualified Util.Array
@@ -8,8 +9,10 @@ import Ui.Types
 import qualified Ui.Color as Color
 
 
-data Ruler = Ruler
-    { ruler_marklists :: [Marklist]
+data Ruler = Ruler {
+    -- | It's handy for marklists to have symbolic names, but their order is
+    -- also important.
+    ruler_marklists :: [(MarklistName, Marklist)]
     , ruler_bg :: Color
     , ruler_show_names :: Bool
     , ruler_use_alpha :: Bool
@@ -17,13 +20,18 @@ data Ruler = Ruler
     } deriving (Eq, Show)
 
 newtype RulerId = RulerId String deriving (Eq, Ord, Show)
+type MarklistName = String
 
 data Marklist = Marklist (IArray.Array Int (TrackPos, Mark))
     deriving (Eq, Show)
+-- If I used a Map here instead of an Array I could reuse functions from
+-- EventList.  On the other hand, there aren't that many to reuse and arrays
+-- are compact, so I'll let it be.
 
 -- | Construct a Marklist.
-marklist :: [(TrackPos, Mark)] -> Marklist
-marklist posmarks = Marklist $ IArray.listArray (0, length posmarks-1) posmarks
+marklist :: String -> [(TrackPos, Mark)] -> (MarklistName, Marklist)
+marklist name posmarks =
+    (name, Marklist $ IArray.listArray (0, length posmarks-1) posmarks)
 
 data Mark = Mark
     { mark_rank :: Int
