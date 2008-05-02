@@ -19,8 +19,10 @@ import qualified Ui.Ruler as Ruler
 
 import qualified Midi.Midi as Midi
 import qualified Midi.MidiC as MidiC
-import qualified Cmd.Responder as Responder
+
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Responder as Responder
+import qualified Cmd.TimeStep as TimeStep
 
 import qualified App.Config as Config
 
@@ -76,9 +78,9 @@ print_devs rdev_map wdev_map = do
     putStrLn "write devs:"
     mapM_ print (Map.keys wdev_map)
 
-cues_marklist = Ruler.marklist
+cues_marklist = Ruler.marklist "cues"
     [ (TrackPos 0, TestSetup.tag "start")
-    , (TrackPos 95, TestSetup.tag "head explodes")
+    , (TrackPos 90, TestSetup.tag "head explodes")
     ]
 
 setup_cmd :: Cmd.CmdM
@@ -91,7 +93,7 @@ setup_cmd = do
 
     t1 <- State.create_track "b1.t1" TestSetup.event_track_1
     t2 <- State.create_track "b1.t2" TestSetup.event_track_2
-    b1 <- State.create_block "b1" (Block.Block "hi b1"
+    b1 <- State.create_block "b1" (Block.block "hi b1"
         Config.default_block_config
         (Block.R ruler) [(Block.T t1 overlay, 40), (Block.T t2 overlay, 40)])
     v1 <- State.create_view "v1"
@@ -100,4 +102,10 @@ setup_cmd = do
     _v2 <- State.create_view "v2"
         (Block.view b1 (Block.Rect (500, 30) (200, 200))
             TestSetup.default_view_config)
+
+    -- Cmd state setup
+    Cmd.modify_state $ \st -> st
+        { Cmd.state_current_step = TimeStep.UntilMark
+            (TimeStep.NamedMarklists ["meter"]) (TimeStep.MatchRank 2)
+        }
     return Cmd.Done

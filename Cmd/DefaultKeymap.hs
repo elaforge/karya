@@ -44,6 +44,11 @@ edit =
     [ single Key.Escape "toggle edit mode" Edit.cmd_toggle_edit
     , single Key.Backspace "erase note"
         (Edit.cmd_remove_events >> advance_insert)
+
+    , single (Key.KeyChar '1') "step rank 1" (Edit.cmd_meter_step 1)
+    , single (Key.KeyChar '2') "step rank 2" (Edit.cmd_meter_step 2)
+    , single (Key.KeyChar '3') "step rank 3" (Edit.cmd_meter_step 3)
+    , single (Key.KeyChar '4') "step rank 4" (Edit.cmd_meter_step 4)
     ]
 
 lower_notes = zip [0..]

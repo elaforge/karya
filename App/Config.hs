@@ -3,9 +3,14 @@ module App.Config where
 import qualified Ui.Font as Font
 import qualified Ui.Color as Color
 import qualified Ui.Block as Block
+import qualified Ui.Ruler as Ruler
 
 import qualified Ui.Event as Event
 
+-- * rulers
+
+meter_ruler :: Ruler.MarklistName
+meter_ruler = "meter"
 
 -- * selnums
 

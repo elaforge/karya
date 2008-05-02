@@ -9,7 +9,9 @@ import qualified Ui.Block as Block
 import qualified Ui.Track as Track
 -- import qualified Ui.Event as Event
 import qualified Ui.State as State
+
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.TimeStep as TimeStep
 
 import qualified App.Config as Config
 
@@ -59,6 +61,15 @@ cmd_remove_events = do
         then State.remove_event track_id start
         else State.remove_events track_id start (start + dur)
     return Cmd.Done
+
+cmd_set_current_step :: TimeStep.TimeStep -> Cmd.CmdM
+cmd_set_current_step step = do
+    Cmd.modify_state $ \st -> st { Cmd.state_current_step = step }
+    return Cmd.Done
+
+cmd_meter_step :: Int -> Cmd.CmdM
+cmd_meter_step rank = cmd_set_current_step (TimeStep.UntilMark
+    (TimeStep.NamedMarklists ["meter"]) (TimeStep.MatchRank rank))
 
 -- * util
 
