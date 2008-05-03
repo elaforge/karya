@@ -138,6 +138,7 @@ public:
     void window_update(BlockViewWindow *view, UiMsg::MsgType type);
     void window_update(BlockViewWindow *view, UiMsg::MsgType type,
             int tracknum);
+    void window_update_resize(BlockViewWindow *view, const Rect &rect);
 
     UiMsg *msgs_ptr() {
         // The C++ standard says vector is supposed to use a contiguous array:

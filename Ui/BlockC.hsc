@@ -116,8 +116,10 @@ foreign import ccall "create"
 destroy_view :: Block.ViewId -> Fltk ()
 destroy_view view_id = do
     viewp <- get_ptr view_id
-    Exception.bracket make_free_fun_ptr freeHaskellFunPtr
-        (\finalize -> c_destroy viewp finalize)
+    MVar.modifyMVar_ view_id_to_ptr $ \ptr_map -> do
+        Exception.bracket make_free_fun_ptr freeHaskellFunPtr
+            (\finalize -> c_destroy viewp finalize)
+        return $ Map.delete view_id ptr_map
 foreign import ccall "destroy"
     c_destroy :: Ptr CView -> FunPtr (FunPtrFinalizer a) -> IO ()
 

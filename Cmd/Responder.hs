@@ -32,7 +32,7 @@ responder get_msg write_midi setup_cmd = do
 hardcoded_cmds :: [Cmd.Cmd]
 hardcoded_cmds =
     -- Special Cmds that record info about the incoming msgs.
-    [ Cmd.cmd_record_keys, Cmd.cmd_record_active
+    [ Cmd.cmd_update_ui_state, Cmd.cmd_record_keys, Cmd.cmd_record_active
     , Cmd.cmd_log
     -- Handle special case global msgs.
     , Cmd.cmd_close_window
@@ -117,8 +117,9 @@ sync state1 state2 cmd_updates = do
     case Diff.diff state1 state2 of
         Left err -> Log.error $ "diff error: " ++ err
         Right diff_updates -> do
-            Log.debug $ "diff_updates: " ++ show diff_updates
-                ++ " cmd_updates: " ++ show cmd_updates
+            when (not (null diff_updates) || (not (null cmd_updates))) $
+                Log.debug $ "diff_updates: " ++ show diff_updates
+                    ++ " cmd_updates: " ++ show cmd_updates
             err <- Sync.sync state2 (diff_updates ++ cmd_updates)
             case err of
                 Nothing -> return ()

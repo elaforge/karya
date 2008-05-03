@@ -219,6 +219,15 @@ MsgCollector::window_update(BlockViewWindow *view, UiMsg::MsgType type,
     this->push(m);
 }
 
+void
+MsgCollector::window_update_resize(BlockViewWindow *view, const Rect &rect)
+{
+    UiMsg m;
+    m.view = view;
+    m.type = UiMsg::msg_view_resize;
+    m.update_rect = new Rect(rect);
+    this->push(m);
+}
 
 MsgCollector *
 global_msg_collector()

@@ -169,6 +169,7 @@ public:
             const BlockModelConfig &model_config,
             const BlockViewConfig &view_config,
             const Tracklike &ruler_track);
+    virtual void resize(int X, int Y, int W, int H);
     BlockView block;
 
     // If true, this is running from c++, not haskell.

@@ -24,8 +24,7 @@ main = do
         subs' = map ($orig_fn) subs
 
         func_names = annotate_func_names
-        -- Start lines at 0 because of the pragma on line 1.
-        annotate lines = zip3 [0..] (annotate_func_names lines) lines
+        annotate lines = zip3 [1..] (annotate_func_names lines) lines
 
     writeFile dest_fn ((unlines . (line_pragma:)
         . map (process_line subs') . annotate . lines) input)

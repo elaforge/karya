@@ -260,7 +260,7 @@ cmd_record_active msg = case msg of
 -- Responds to the UI's request to close a window.
 cmd_close_window :: Cmd
 cmd_close_window (Msg.Ui (UiMsg.UiMsg
-    (UiMsg.Context { UiMsg.ctx_block = Just view_id }) UiMsg.MsgClose)) =
+        (UiMsg.Context { UiMsg.ctx_block = Just view_id }) UiMsg.MsgClose)) =
     State.destroy_view view_id >> return Done
 cmd_close_window _ = return Continue
 
@@ -271,25 +271,47 @@ cmd_close_window _ = return Continue
 -- Unlike all the other Cmds, the state changes this makes are not synced.
 -- UiUpdates report changes that have already occurred directly on the UI, so
 -- syncing them would be redundant.
---
--- TODO: except when it's a block update, I have to update the block to update
--- the other views
 cmd_record_ui_updates :: Cmd
-cmd_record_ui_updates (Msg.Ui (UiMsg.UiMsg ctx (UiMsg.UiUpdate update))) =
-    ui_update ctx update >> return Done
-cmd_record_ui_updates _ = return Continue
+cmd_record_ui_updates msg = do
+    (ctx, update) <- require (update_of msg)
+    case update of
+        UiMsg.UpdateInput _ -> abort
+        _ -> ui_update ctx update >> return Done
+
+-- | Except when it's a block update, I have to update the block to update
+-- the other views.  So this Cmd goes in with the normal Cmds.
+cmd_update_ui_state :: Cmd
+cmd_update_ui_state msg = do
+    (ctx, update) <- require (update_of msg)
+    ui_update_state ctx update >> return Done
+
+update_of (Msg.Ui (UiMsg.UiMsg ctx (UiMsg.UiUpdate update))) =
+    Just (ctx, update)
+update_of _ = Nothing
+
+ui_update_state :: UiMsg.Context -> UiMsg.UiUpdate -> CmdT Identity.Identity ()
+ui_update_state ctx@(UiMsg.Context (Just view_id) track _pos) update =
+    case update of
+        UiMsg.UpdateInput text -> do
+            view <- State.get_view view_id
+            update_input ctx (Block.view_block view) text
+        _ -> return ()
+ui_update_state ctx update =
+    State.throw $ show update ++ " with no view_id: " ++ show ctx
 
 ui_update :: UiMsg.Context -> UiMsg.UiUpdate -> CmdT Identity.Identity ()
 ui_update ctx@(UiMsg.Context (Just view_id) track _pos) update = case update of
-    UiMsg.UpdateInput text -> do
-        view <- State.get_view view_id
-        update_input ctx (Block.view_block view) text
     UiMsg.UpdateTrackScroll hpos -> State.set_track_scroll view_id hpos
     UiMsg.UpdateZoom zoom -> State.set_zoom view_id zoom
-    UiMsg.UpdateViewResize rect -> State.set_view_rect view_id rect
+    UiMsg.UpdateViewResize rect -> do
+        view <- State.get_view view_id
+        when (rect /= Block.view_rect view) $ do
+            Log.debug $ "new view rect " ++ show rect
+            State.set_view_rect view_id rect
     UiMsg.UpdateTrackWidth width -> case track of
         Just tracknum -> State.set_track_width view_id tracknum width
         Nothing -> State.throw $ show update ++ " with no track: " ++ show ctx
+    _ -> return ()
 ui_update ctx update =
     State.throw $ show update ++ " with no view_id: " ++ show ctx
 

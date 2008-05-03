@@ -77,7 +77,6 @@ BlockView::resize(int X, int Y, int W, int H)
     Fl_Group::resize(X, Y, W, H);
     status_line.size(w() - mac_resizer_width, status_line.h());
     this->update_scrollbars();
-    global_msg_collector()->block_update(this, UiMsg::msg_view_resize);
 }
 
 
@@ -354,6 +353,13 @@ BlockViewWindow::BlockViewWindow(int X, int Y, int W, int H,
     // turn off some annoying defaults
     Fl::dnd_text_ops(false); // don't do drag and drop text
     // Fl::visible_focus(false); // doesn't seem to do anything
+}
+
+void
+BlockViewWindow::resize(int X, int Y, int W, int H)
+{
+    global_msg_collector()->window_update_resize(this, Rect(X, Y, W, H));
+    Fl_Window::resize(X, Y, W, H);
 }
 
 
