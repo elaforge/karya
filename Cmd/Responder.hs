@@ -11,22 +11,33 @@ import qualified Ui.Diff as Diff
 import qualified Ui.Update as Update
 import qualified Ui.UiMsg as UiMsg
 import qualified Midi.Midi as Midi
+import qualified Derive.Player as Player
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.DefaultKeymap as DefaultKeymap
+import qualified Cmd.Play as Play
 
 
 type MidiWriter = Midi.WriteMessage -> IO ()
 type MsgReader = IO Msg.Msg
 
-responder :: MsgReader -> MidiWriter -> Cmd.CmdM -> IO ()
-responder get_msg write_midi setup_cmd = do
+responder :: MsgReader -> MidiWriter -> Player.Chan -> Cmd.CmdM -> IO ()
+responder get_msg write_midi player_chan setup_cmd = do
     Log.notice "starting responder"
     let ui_state = State.empty
     (_, ui_state, cmd_state) <- handle_cmd_result True write_midi ui_state
         (Cmd.run_cmd ui_state Cmd.empty_state setup_cmd)
     loop ui_state cmd_state get_msg write_midi
+        (Player.Info player_chan write_midi)
+
+-- | Create the MsgReader to pass to 'responder'.
+create_msg_reader :: TChan.TChan UiMsg.UiMsg
+    -> TChan.TChan Midi.ReadMessage -> Player.Chan -> MsgReader
+create_msg_reader ui_chan midi_chan player_chan = STM.atomically $
+    fmap Msg.Ui (TChan.readTChan ui_chan)
+    `STM.orElse` fmap Msg.Midi (TChan.readTChan midi_chan)
+    `STM.orElse` fmap Msg.Player (TChan.readTChan player_chan)
 
 -- | Everyone always gets these commands.
 hardcoded_cmds :: [Cmd.Cmd]
@@ -35,11 +46,12 @@ hardcoded_cmds =
     [ Cmd.cmd_update_ui_state, Cmd.cmd_record_keys, Cmd.cmd_record_active
     , Cmd.cmd_log
     -- Handle special case global msgs.
-    , Cmd.cmd_close_window
+    , Cmd.cmd_close_window, Play.cmd_player_msg
     ]
 
-loop :: State.State -> Cmd.State -> MsgReader -> MidiWriter -> IO ()
-loop ui_state cmd_state get_msg write_midi = do
+loop :: State.State -> Cmd.State -> MsgReader -> MidiWriter -> Player.Info
+    -> IO ()
+loop ui_state cmd_state get_msg write_midi player_info = do
     msg <- get_msg
     -- Apply changes that won't be diffed.  See the 'Cmd.cmd_record_ui_updates'
     -- comment.
@@ -57,11 +69,11 @@ loop ui_state cmd_state get_msg write_midi = do
         _ -> return (status, ui_state, cmd_state)
 
     (ui_state, cmd_state) <- run_io_cmd write_midi ui_state cmd_state
-        (DefaultKeymap.cmd_io_keymap msg)
+        (DefaultKeymap.cmd_io_keymap player_info msg)
 
     case status of
         Cmd.Quit -> return ()
-        _ -> loop ui_state cmd_state get_msg write_midi
+        _ -> loop ui_state cmd_state get_msg write_midi player_info
 
 run_io_cmd write_midi ui_state cmd_state cmd = do
     result <- Cmd.run ui_state cmd_state cmd
@@ -83,13 +95,6 @@ handle_cmd_result do_sync write_midi ui_state1
                 when do_sync (sync ui_state1 ui_state2 cmd_updates)
                 return (status, ui_state2)
         return (status, ui_state2, cmd_state)
-
--- | Create the MsgReader to pass to 'loop'.
-create_msg_reader :: TChan.TChan UiMsg.UiMsg
-    -> TChan.TChan Midi.ReadMessage -> MsgReader
-create_msg_reader ui_chan midi_chan = STM.atomically $
-    fmap Msg.Ui (TChan.readTChan ui_chan)
-    `STM.orElse` fmap Msg.Midi (TChan.readTChan midi_chan)
 
 run_cmds :: State.State -> Cmd.State -> [Cmd.Cmd] -> Msg.Msg -> Cmd.CmdVal
 run_cmds ui_state cmd_state [] _msg =

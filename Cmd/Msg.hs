@@ -2,10 +2,15 @@ module Cmd.Msg where
 
 import qualified Ui.UiMsg as UiMsg
 import qualified Midi.Midi as Midi
+import qualified Derive.Player as Player
 
 
-data Msg = Ui UiMsg.UiMsg | Midi Midi.ReadMessage -- MOsc OscMsg.OscMsg
+data Msg = Ui UiMsg.UiMsg | Midi Midi.ReadMessage -- Osc Osc.OscMsg
+    | Player Player.Status
+    -- Osc Osc.OscMsg
     deriving (Show)
+
+-- * player msgs
 
 -- To reduce dependency on the exact structure of 'Msg', and to avoid long hard
 -- to read cases, use the "view" functions here.

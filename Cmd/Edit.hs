@@ -37,12 +37,9 @@ cmd_toggle_edit :: Cmd.CmdM
 cmd_toggle_edit = do
     view_id <- Cmd.get_active_view
     view <- State.get_view view_id
-    block <- State.get_block (Block.view_block view)
     edit <- fmap Cmd.state_edit_mode Cmd.get_state
-
     Cmd.modify_state $ \st -> st { Cmd.state_edit_mode = not edit }
-    State.set_block_config (Block.view_block view) $ (Block.block_config block)
-        { Block.config_track_box_color = edit_color (not edit) }
+    State.set_edit_box (Block.view_block view) (edit_color (not edit))
     return Cmd.Done
 
 -- | Insert an event with the given pitch at the current insert point.
@@ -72,8 +69,9 @@ cmd_midi_thru msg = do
 
 cmd_insert_midi_note msg = do
     key <- case msg of
-        Msg.Midi (_dev, _ts, Midi.ChannelMessage chan (Midi.NoteOn key _vel)) ->
-            return key
+        Msg.Midi (_dev, _ts, Midi.ChannelMessage _chan
+            (Midi.NoteOn key _vel)) ->
+                return key
         _ -> Cmd.abort
     cmd_insert_pitch (PitchClass (fromIntegral key))
     return Cmd.Done
@@ -131,7 +129,7 @@ pitch_notes =
 event_track_at block_id tracknum = do
     track <- State.track_at block_id tracknum
     case track of
-        Just (Block.T track_id _) -> return (Just track_id)
+        Just (Block.TId track_id _) -> return (Just track_id)
         _ -> return Nothing
 
 edit_color True = Config.edit_color

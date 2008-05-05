@@ -10,7 +10,6 @@ import qualified Ui.Color as Color
 import qualified Ui.Track as Track
 import qualified Ui.Ruler as Ruler
 
-
 -- These would have to be hierarchical names, so if you load
 -- another song you don't get ID collisions.
 
@@ -20,6 +19,9 @@ import qualified Ui.Ruler as Ruler
 newtype BlockId = BlockId String deriving (Eq, Ord, Show, Read)
 -- | Reference to a View, as per 'BlockId'.
 newtype ViewId = ViewId String deriving (Eq, Ord, Show, Read)
+-- | Reference to a Deriver.  Stored here instead of Deriver.Deriver to avoid
+-- a circular import.
+newtype DeriverId = Deriver String deriving (Eq, Ord, Show, Read)
 
 -- * block model
 
@@ -27,12 +29,15 @@ data Block = Block {
     block_title :: String
     , block_status :: Map.Map String String
     , block_config :: Config
-    , block_ruler_track :: Tracklike
+    , block_ruler_track :: TracklikeId
     -- The Width here is the default if a new View is created from this Block.
-    , block_tracks :: [(Tracklike, Width)]
+    , block_tracks :: [(TracklikeId, Width)]
+
+    , block_deriver :: Maybe DeriverId
     } deriving (Eq, Ord, Show, Read)
 
-block title config ruler tracks = Block title Map.empty config ruler tracks
+block title config ruler tracks =
+    Block title Map.empty config ruler tracks Nothing
 show_status :: Block -> [Char]
 show_status = Seq.join " }{ " . map (\(k, v) -> k ++ ": " ++ v)
     . Map.assocs . block_status
@@ -45,11 +50,17 @@ data Config = Config {
     } deriving (Eq, Ord, Show, Read)
 
 -- Tracks may have a Ruler overlay
-data Tracklike =
-    T Track.TrackId Ruler.RulerId
-    | R Ruler.RulerId
-    | D Divider
+data TracklikeId =
+    TId Track.TrackId Ruler.RulerId
+    | RId Ruler.RulerId
+    | DId Divider
     deriving (Eq, Ord, Show, Read)
+
+data Tracklike =
+    T Track.Track Ruler.Ruler
+    | R Ruler.Ruler
+    | D Divider
+    deriving (Show)
 
 -- | A divider separating tracks.
 -- Declared here in Block since it's so trivial.
@@ -71,7 +82,7 @@ data View = View {
 
     , view_selections :: Map.Map SelNum Selection
     -- | These are the per-view settings for the tracks.  There should be one
-    -- corresponding to each Tracklike in the Block.  The StateT operations
+    -- corresponding to each TracklikeId in the Block.  The StateT operations
     -- should maintain this invariant.
     , view_tracks :: [TrackView]
     } deriving (Eq, Ord, Show, Read)

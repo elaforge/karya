@@ -1,6 +1,7 @@
 {-# OPTIONS_GHC -XGeneralizedNewtypeDeriving #-}
 module Cmd.Cmd where
 
+import qualified Control.Concurrent as Concurrent
 import Control.Monad
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Identity as Identity
@@ -27,6 +28,8 @@ import qualified Midi.Midi as Midi
 
 import qualified Cmd.Msg as Msg
 import qualified Cmd.TimeStep as TimeStep
+
+import qualified Derive.Player as Player
 
 
 type CmdM = CmdT Identity.Identity Status
@@ -127,10 +130,13 @@ data State = State {
 
     -- | Edit mode enables various commands that write to tracks.
     , state_edit_mode :: Bool
-    } deriving (Show, Read)
+
+    -- | Control channel for the player, if one is running.
+    , state_player_control :: Maybe Player.Control
+    } deriving (Show)
 empty_state = State Map.empty "save/default" Nothing Nothing
     (TimeStep.UntilMark TimeStep.AllMarklists (TimeStep.MatchRank 2))
-    False
+    False Nothing
 
 data Modifier = KeyMod Key.Key
     -- | Mouse button, and (tracknum, pos) in went down at, if any.
@@ -319,7 +325,7 @@ update_input ctx block_id text = case (UiMsg.ctx_track ctx) of
     Just tracknum -> do
         track <- State.track_at block_id tracknum
         case track of
-            Just (Block.T track_id _) -> State.set_track_title track_id text
+            Just (Block.TId track_id _) -> State.set_track_title track_id text
             _ -> State.throw $ show (UiMsg.UpdateInput text) ++ " for "
                 ++ show ctx ++ " on non-event track " ++ show track
     Nothing -> State.set_block_title block_id text

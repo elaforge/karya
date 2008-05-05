@@ -7,10 +7,13 @@ import Cmd.Types
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Keymap as Keymap
+
 import qualified Cmd.Selection as Selection
 import qualified Cmd.Edit as Edit
 import qualified Cmd.Save as Save
+import qualified Cmd.Play as Play
 
+import qualified Derive.Player as Player
 import qualified App.Config as Config
 
 
@@ -23,15 +26,17 @@ default_cmds state =
     , Keymap.make_cmd (misc ++ selection ++ edit)
     ]
 
-cmd_io_keymap :: Msg.Msg -> Cmd.CmdT IO Cmd.Status
-cmd_io_keymap = Keymap.make_cmd io_keys
+cmd_io_keymap :: Player.Info -> Msg.Msg -> Cmd.CmdT IO Cmd.Status
+cmd_io_keymap player_info = Keymap.make_cmd (io_keys player_info)
 
-io_keys :: [(Keymap.KeySpec, Keymap.CmdSpec IO)]
-io_keys =
+io_keys :: Player.Info -> [(Keymap.KeySpec, Keymap.CmdSpec IO)]
+io_keys player_info =
     [ (Keymap.KeySpec [Cmd.KeyMod Key.MetaL] (Keymap.UiKey (Key.KeyChar 's'))
         , Keymap.CmdSpec "save" save)
     , (Keymap.KeySpec [Cmd.KeyMod Key.MetaL] (Keymap.UiKey (Key.KeyChar 'l'))
         , Keymap.CmdSpec "load" load)
+    , single Key.Enter "play block" (Play.cmd_play_block player_info)
+    , single (Key.KeyChar ' ') "stop play" Play.cmd_stop
     ]
 
 save _msg = Save.cmd_save Nothing >> return Cmd.Done

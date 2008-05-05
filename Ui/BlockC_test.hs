@@ -22,7 +22,7 @@ send = Initialize.send_action
 -- TODO
 -- test_errors = do
 --     view <- create_empty_view
---     send $ BlockC.insert_track view 0 (BlockC.R ruler) 30
+--     send $ BlockC.insert_track view 0 (Block.R ruler) 30
 --     -- fltk errors
 --     io_throws (BlockC.FltkError "tracknum out of bounds") $
 --         send $ BlockC.set_track_width view 1 50
@@ -46,7 +46,7 @@ test_create_set_size = do
 
 test_scroll_zoom = do
     view <- create_empty_view
-    send $ BlockC.insert_track view 0 (BlockC.T long_event_track no_ruler) 200
+    send $ BlockC.insert_track view 0 (Block.T long_event_track no_ruler) 200
     io_human "scroll a little to the right" $
         send $ BlockC.set_track_scroll view 10
     io_human "all the way to the right" $
@@ -66,7 +66,7 @@ test_set_selection = do
     view <- create_empty_view
     let ruler = mkruler 20 10
     send $ BlockC.insert_track view 0
-        (BlockC.T event_track_1 (overlay_ruler ruler)) 30
+        (Block.T event_track_1 (overlay_ruler ruler)) 30
     let c = Color.lighten 0.5 Color.blue
     io_human "point selection appears" $
         send $ BlockC.set_selection view 0
@@ -82,8 +82,8 @@ cselection color track start tracks dur =
 
 test_set_track_width = do
     view <- create_empty_view
-    send $ BlockC.insert_track view 0 (BlockC.T event_track_1 no_ruler) 20
-    send $ BlockC.insert_track view 1 (BlockC.T event_track_2 no_ruler) 30
+    send $ BlockC.insert_track view 0 (Block.T event_track_1 no_ruler) 20
+    send $ BlockC.insert_track view 1 (Block.T event_track_2 no_ruler) 30
     io_human "track 0 gets bigger" $
         send $ BlockC.set_track_width view 0 60
     io_human "track 0 goes to minimum size" $
@@ -106,7 +106,7 @@ test_set_model_config = do
 
 test_set_title = do
     view <- create_empty_view
-    send $ BlockC.insert_track view 0 (BlockC.T event_track_1 no_ruler) 20
+    send $ BlockC.insert_track view 0 (Block.T event_track_1 no_ruler) 20
 
     io_human "block gets hi title" $
         send $ BlockC.set_title view "hi"
@@ -121,19 +121,19 @@ test_set_title = do
 test_create_remove_update_track = do
     view <- create_empty_view
     let ruler = mkruler 20 10
-    send $ BlockC.insert_track view 0 (BlockC.R ruler) 30
+    send $ BlockC.insert_track view 0 (Block.R ruler) 30
     send $ BlockC.insert_track view 1
-        (BlockC.T event_track_1 (overlay_ruler ruler)) 30
-    send $ BlockC.insert_track view 0 (BlockC.D default_divider) 10
+        (Block.T event_track_1 (overlay_ruler ruler)) 30
+    send $ BlockC.insert_track view 0 (Block.D default_divider) 10
 
     io_human "divider is removed" $
         send $ BlockC.remove_track view 0
     io_human "ruler gets wider, both events change" $ do
         send $ BlockC.update_track view 0
-            (BlockC.R (mkruler 20 16))
+            (Block.R (mkruler 20 16))
             (TrackPos 0) (TrackPos 60)
         send $ BlockC.update_track view 1
-            (BlockC.T event_track_2 (overlay_ruler ruler))
+            (Block.T event_track_2 (overlay_ruler ruler))
             (TrackPos 0) (TrackPos 60)
 
 -- TODO
@@ -147,5 +147,5 @@ long_event_track = Track.modify_events empty_track (Track.insert_events
 create_empty_view = do
     let view_id = Block.ViewId "default"
     send $ BlockC.create_view view_id default_rect
-        default_view_config default_block_config (BlockC.R default_ruler)
+        default_view_config default_block_config (Block.R default_ruler)
     return view_id

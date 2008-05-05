@@ -122,11 +122,11 @@ between low high n = min high (max low n)
 -- closest ruler.
 relevant_ruler :: Block.Block -> Block.TrackNum -> Maybe Ruler.RulerId
 relevant_ruler block tracknum = case (ruler, Block.block_ruler_track block) of
-        (Block.R ruler_id : _, _) -> Just ruler_id
-        (_, Block.R ruler_id) -> Just ruler_id
+        (Block.RId ruler_id : _, _) -> Just ruler_id
+        (_, Block.RId ruler_id) -> Just ruler_id
         _ -> Nothing
     where
-    is_ruler (Block.R _) = True
+    is_ruler (Block.RId _) = True
     is_ruler _ = False
     tracks = (reverse . Seq.enumerate . map fst) (Block.block_tracks block)
     ruler = map snd $ dropWhile (not . is_ruler . snd) $

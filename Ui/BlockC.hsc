@@ -29,7 +29,6 @@ module Ui.BlockC (
     , set_status
 
     -- ** Track operations
-    , CTracklike(..)
     , insert_track, remove_track, update_track, update_entire_track
     , set_track_width
     , set_track_title
@@ -92,7 +91,7 @@ get_id viewp = do
 data CView
 
 create_view :: Block.ViewId -> Block.Rect -> Block.ViewConfig -> Block.Config
-    -> CTracklike -> Fltk ()
+    -> Block.Tracklike -> Fltk ()
 create_view view_id rect view_config block_config ruler_track =
     MVar.modifyMVar_ view_id_to_ptr $ \ptr_map -> do
         when (view_id `Map.member` ptr_map) $
@@ -212,7 +211,7 @@ foreign import ccall "set_status" c_set_status :: Ptr CView -> CString -> IO ()
 
 -- ** Track operations
 
-insert_track :: Block.ViewId -> Block.TrackNum -> CTracklike -> Block.Width
+insert_track :: Block.ViewId -> Block.TrackNum -> Block.Tracklike -> Block.Width
     -> Fltk ()
 insert_track view_id tracknum tracklike width = do
     viewp <- get_ptr view_id
@@ -226,7 +225,7 @@ remove_track view_id tracknum = do
     Exception.bracket make_free_fun_ptr freeHaskellFunPtr $ \finalize ->
         c_remove_track viewp (Util.c_int tracknum) finalize
 
-update_track :: Block.ViewId -> Block.TrackNum -> CTracklike -> TrackPos
+update_track :: Block.ViewId -> Block.TrackNum -> Block.Tracklike -> TrackPos
     -> TrackPos -> Fltk ()
 update_track view_id tracknum tracklike start end = do
     viewp <- get_ptr view_id
@@ -237,7 +236,8 @@ update_track view_id tracknum tracklike start end = do
                     mlistp len finalize startp endp
 
 -- | Like 'update_track' except update everywhere.
-update_entire_track :: Block.ViewId -> Block.TrackNum -> CTracklike -> Fltk ()
+update_entire_track :: Block.ViewId -> Block.TrackNum -> Block.Tracklike
+    -> Fltk ()
 update_entire_track view_id tracknum tracklike =
     -- -1 is special cased in c++.
     update_track view_id tracknum tracklike (TrackPos (-1)) (TrackPos (-1))
@@ -263,21 +263,14 @@ foreign import ccall "wrapper"
 make_free_fun_ptr = c_make_free_fun_ptr freeHaskellFunPtr
 
 with_tracklike tracklike f = case tracklike of
-    T track ruler -> RulerC.with_ruler ruler $ \rulerp mlistp len ->
+    Block.T track ruler -> RulerC.with_ruler ruler $ \rulerp mlistp len ->
         with track $ \trackp -> with (TPtr trackp rulerp) $ \tp ->
             f tp mlistp len
-    R ruler -> RulerC.with_ruler ruler $ \rulerp mlistp len ->
+    Block.R ruler -> RulerC.with_ruler ruler $ \rulerp mlistp len ->
         with (RPtr rulerp) $ \tp ->
             f tp mlistp len
-    D div -> with div $ \dividerp -> with (DPtr dividerp) $ \tp ->
+    Block.D div -> with div $ \dividerp -> with (DPtr dividerp) $ \tp ->
         f tp nullPtr 0
-
--- | Like Block.Tracklike, except it has actual values instead of IDs.
-data CTracklike =
-    T Track.Track Ruler.Ruler
-    | R Ruler.Ruler
-    | D Block.Divider
-    deriving (Show)
 
 data TracklikePtr =
     TPtr (Ptr Track.Track) (Ptr Ruler.Ruler)

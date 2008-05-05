@@ -39,7 +39,7 @@ sync state updates = do
 
 send = Trans.liftIO . Initialize.send_action
 
-track_title (Block.T track_id _) =
+track_title (Block.TId track_id _) =
     fmap Track.track_title (State.get_track track_id)
 track_title _ = return ""
 
@@ -49,8 +49,8 @@ run_update :: Update.Update -> State.StateT IO ()
 run_update (Update.ViewUpdate view_id Update.CreateView) = do
     view <- State.get_view view_id
     block <- State.get_block (Block.view_block view)
-    ruler_track <- tracklike_to_ctracklike (Block.block_ruler_track block)
-    ctracks <- mapM (tracklike_to_ctracklike . fst) (Block.block_tracks block)
+    ruler_track <- State.get_tracklike (Block.block_ruler_track block)
+    tracks <- mapM (State.get_tracklike . fst) (Block.block_tracks block)
     titles <- mapM (track_title . fst) (Block.block_tracks block)
     let sels = Block.view_selections view
     csels <- mapM (\(selnum, sel) -> to_csel view_id selnum (Just sel))
@@ -63,7 +63,7 @@ run_update (Update.ViewUpdate view_id Update.CreateView) = do
         BlockC.create_view view_id (Block.view_rect view)
             (Block.view_config view) (Block.block_config block) ruler_track
         let widths = map Block.track_view_width (Block.view_tracks view)
-        forM_ (List.zip4 [0..] ctracks widths titles) $
+        forM_ (List.zip4 [0..] tracks widths titles) $
             \(tracknum, ctrack, width, title) -> do
                 BlockC.insert_track view_id tracknum ctrack width
                 when (not (null title)) $
@@ -100,12 +100,12 @@ run_update (Update.BlockUpdate block_id update) = do
             mapM_ (send . flip BlockC.set_model_config config) view_ids
         Update.RemoveTrack tracknum ->
             mapM_ (send . flip BlockC.remove_track tracknum) view_ids
-        Update.InsertTrack tracknum track width -> do
-            ctrack <- tracklike_to_ctracklike track
+        Update.InsertTrack tracknum tracklike_id width -> do
+            track <- State.get_tracklike tracklike_id
             send $ forM_ view_ids $ \view_id -> do
-                BlockC.insert_track view_id tracknum ctrack width
-                case ctrack of
-                    BlockC.T t _ -> when (not (null (Track.track_title t))) $
+                BlockC.insert_track view_id tracknum track width
+                case track of
+                    Block.T t _ -> when (not (null (Track.track_title t))) $
                         -- Sync the title.  See the CreateView comment.
                         BlockC.set_track_title view_id tracknum
                             (Track.track_title t)
@@ -113,21 +113,19 @@ run_update (Update.BlockUpdate block_id update) = do
 
 run_update (Update.TrackUpdate track_id update) = do
     blocks <- blocks_with_track track_id
-    forM_ blocks $ \(block_id, tracknum, tracklike, _width) -> do
+    forM_ blocks $ \(block_id, tracknum, tracklike_id, _width) -> do
         view_ids <- fmap Map.keys (State.get_views_of block_id)
+        tracklike <- State.get_tracklike tracklike_id
         forM_ view_ids $ \view_id -> case update of
-            Update.TrackEvents low high -> do
-                ctrack <- tracklike_to_ctracklike tracklike
-                send $ BlockC.update_track view_id tracknum ctrack low high
-            Update.TrackAllEvents -> do
-                ctrack <- tracklike_to_ctracklike tracklike
-                send $ BlockC.update_entire_track view_id tracknum ctrack
+            Update.TrackEvents low high ->
+                send $ BlockC.update_track view_id tracknum tracklike low high
+            Update.TrackAllEvents ->
+                send $ BlockC.update_entire_track view_id tracknum tracklike
             Update.TrackTitle title ->
                 send $ BlockC.set_track_title view_id tracknum title
-            Update.TrackBg -> do
-                ctrack <- tracklike_to_ctracklike tracklike
+            Update.TrackBg ->
                 -- update_track also updates the bg color
-                send $ BlockC.update_track view_id tracknum ctrack
+                send $ BlockC.update_track view_id tracknum tracklike
                     (TrackPos 0) (TrackPos 0)
 
 to_csel :: Block.ViewId -> Block.SelNum -> Maybe (Block.Selection)
@@ -143,18 +141,11 @@ to_csel view_id selnum maybe_sel = do
 -- | Find 'track_id' in all the blocks it exists in, and return the relevant
 -- info.
 blocks_with_track :: (Monad m) => Track.TrackId -> State.StateT m
-    [(Block.BlockId, Block.TrackNum, Block.Tracklike, Block.Width)]
+    [(Block.BlockId, Block.TrackNum, Block.TracklikeId, Block.Width)]
 blocks_with_track track_id = do
     st <- State.get
-    return [(block_id, i, tracklike, width) |
+    return [(block_id, i, tracklike_id, width) |
             (block_id, block) <- Map.assocs (State.state_blocks st),
-            (i, (tracklike@(Block.T block_tid _block_rid), width))
+            (i, (tracklike_id@(Block.TId block_tid _block_rid), width))
                 <- Seq.enumerate (Block.block_tracks block),
             track_id == block_tid]
-
-tracklike_to_ctracklike track = case track of
-    Block.T track_id ruler_id ->
-        liftM2 BlockC.T (State.get_track track_id) (State.get_ruler ruler_id)
-    Block.R ruler_id ->
-        liftM BlockC.R (State.get_ruler ruler_id)
-    Block.D divider -> return (BlockC.D divider)

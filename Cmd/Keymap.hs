@@ -50,7 +50,7 @@ make_cmd keyspecs msg = do
     modifiers <- fmap (Map.elems . Map.delete mod) Cmd.keys_down
     case Map.lookup (KeySpec modifiers key) keymap of
         Nothing -> do
-            Log.notice $ "no match for " ++ show (KeySpec modifiers key)
+            -- Log.notice $ "no match for " ++ show (KeySpec modifiers key)
             return Cmd.Continue
         Just (CmdSpec name cmd) -> do
             Log.notice $ "running command " ++ show name

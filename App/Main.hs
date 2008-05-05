@@ -1,7 +1,7 @@
 module App.Main where
 
 import Control.Monad
--- import qualified Control.Concurrent as Concurrent
+import qualified Control.Concurrent.STM as STM
 import qualified Data.Map as Map
 
 -- import qualified Util.Thread as Thread
@@ -9,12 +9,13 @@ import qualified Data.Map as Map
 import qualified Util.Log as Log
 
 import Ui.Types
+import qualified Ui.Color as Color
 import qualified Ui.Initialize as Initialize
 import qualified Ui.State as State
 
 import qualified Ui.Block as Block
 import qualified Ui.Ruler as Ruler
--- import qualified Ui.Track as Track
+import qualified Ui.Track as Track
 -- import qualified Ui.Event as Event
 
 import qualified Midi.Midi as Midi
@@ -44,8 +45,6 @@ import qualified Midi.PortMidi as PortMidi
 main = Initialize.initialize $ \msg_chan -> MidiC.initialize $ \read_chan -> do
     Log.notice "app starting"
 
-    let get_msg = Responder.create_msg_reader msg_chan read_chan
-
     -- (rdev_map, wdev_map) <- MidiC.devices
     let (rdev_map, wdev_map) = (Map.empty, Map.empty)
             :: (Map.Map Midi.ReadDevice PortMidi.ReadDevice,
@@ -65,7 +64,9 @@ main = Initialize.initialize $ \msg_chan -> MidiC.initialize $ \read_chan -> do
         stream <- MidiC.open_write_device (wdev_map Map.! wdev)
         return (Map.fromList [(wdev, stream)])
 
-    Responder.responder get_msg (write_msg wdev_streams) setup_cmd
+    player_chan <- STM.newTChanIO
+    let get_msg = Responder.create_msg_reader msg_chan read_chan player_chan
+    Responder.responder get_msg (write_msg wdev_streams) player_chan setup_cmd
 
 -- write_msg :: Midi.WriteMessage -> IO ()
 write_msg wdev_streams (wdev, ts, msg) =
@@ -83,6 +84,8 @@ cues_marklist = Ruler.marklist "cues"
     , (TrackPos 90, TestSetup.tag "head explodes")
     ]
 
+empty_track = Track.track "" [] Color.white
+
 setup_cmd :: Cmd.CmdM
 setup_cmd = do
     Log.debug "setup block"
@@ -91,17 +94,18 @@ setup_cmd = do
     overlay <- State.create_ruler "r1.overlay"
         =<< fmap TestSetup.overlay_ruler (State.get_ruler ruler)
 
-    t1 <- State.create_track "b1.t1" TestSetup.event_track_1
-    t2 <- State.create_track "b1.t2" TestSetup.event_track_2
+    t1 <- State.create_track "b1.t1" empty_track -- TestSetup.event_track_1
+    t2 <- State.create_track "b1.t2" empty_track -- TestSetup.event_track_2
     b1 <- State.create_block "b1" (Block.block "hi b1"
         Config.default_block_config
-        (Block.R ruler) [(Block.T t1 overlay, 40), (Block.T t2 overlay, 40)])
+        (Block.RId ruler)
+        [(Block.TId t1 overlay, 40), (Block.TId t2 overlay, 40)])
     v1 <- State.create_view "v1"
         (Block.view b1 TestSetup.default_rect Config.default_view_config)
-    State.set_selection v1 0 (Block.point_selection 0 (TrackPos 20))
-    _v2 <- State.create_view "v2"
-        (Block.view b1 (Block.Rect (500, 30) (200, 200))
-            TestSetup.default_view_config)
+    State.set_selection v1 0 (Block.point_selection 0 (TrackPos 0))
+    -- _v2 <- State.create_view "v2"
+    --     (Block.view b1 (Block.Rect (500, 30) (200, 200))
+    --         TestSetup.default_view_config)
 
     -- Cmd state setup
     Cmd.modify_state $ \st -> st

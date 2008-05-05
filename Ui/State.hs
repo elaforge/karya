@@ -28,7 +28,7 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
 import qualified Util.Seq as Seq
-import qualified Util.Log as Log
+-- import qualified Util.Log as Log
 import qualified Util.Logger as Logger
 
 import Ui.Types
@@ -195,10 +195,22 @@ set_block_config :: (UiStateMonad m) => Block.BlockId -> Block.Config -> m ()
 set_block_config block_id config =
     modify_block block_id (\block -> block { Block.block_config = config })
 
+set_edit_box :: (UiStateMonad m) => Block.BlockId -> Color -> m ()
+set_edit_box block_id color = do
+    block <- get_block block_id
+    set_block_config block_id $
+        (Block.block_config block) { Block.config_track_box_color = color }
+
+set_play_box :: (UiStateMonad m) => Block.BlockId -> Color -> m ()
+set_play_box block_id color = do
+    block <- get_block block_id
+    set_block_config block_id $
+        (Block.block_config block) { Block.config_sb_box_color = color }
+
 -- *** tracks
 
 insert_track :: (UiStateMonad m) => Block.BlockId -> Block.TrackNum
-    -> Block.Tracklike -> Block.Width -> m ()
+    -> Block.TracklikeId -> Block.Width -> m ()
 insert_track block_id tracknum track width = do
     block <- get_block block_id
     views <- get_views_of block_id
@@ -253,12 +265,20 @@ remove_from_selection tracknum sel
     start = Block.sel_start_track sel
     tracks = Block.sel_tracks sel
 
--- | Get the Tracklike at @tracknum@, or Nothing if its out of range.
+-- | Get the TracklikeId at @tracknum@, or Nothing if its out of range.
 track_at :: (UiStateMonad m) => Block.BlockId -> Block.TrackNum
-    -> m (Maybe Block.Tracklike)
+    -> m (Maybe Block.TracklikeId)
 track_at block_id tracknum = do
     block <- get_block block_id
     return $ Seq.at (map fst (Block.block_tracks block)) tracknum
+
+get_tracklike :: (UiStateMonad m) => Block.TracklikeId -> m Block.Tracklike
+get_tracklike track = case track of
+    Block.TId track_id ruler_id ->
+        liftM2 Block.T (get_track track_id) (get_ruler ruler_id)
+    Block.RId ruler_id ->
+        liftM Block.R (get_ruler ruler_id)
+    Block.DId divider -> return (Block.D divider)
 
 -- *** other
 

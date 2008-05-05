@@ -27,6 +27,7 @@ playback_selnum = 4
 
 box_color = Color.rgb 0.25 1 1
 edit_color = Color.rgb 1 0.5 0.5
+play_color = Color.rgb 0 0.6 0
 
 -- * defaults
 

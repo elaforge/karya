@@ -26,7 +26,7 @@ data BlockUpdate
     | BlockStatus String
     | BlockConfig Block.Config
     | RemoveTrack Block.TrackNum
-    | InsertTrack Block.TrackNum Block.Tracklike Block.Width
+    | InsertTrack Block.TrackNum Block.TracklikeId Block.Width
     deriving Show
 
 -- | track, low_pos, high_pos
