@@ -45,18 +45,17 @@ import qualified Midi.PortMidi as PortMidi
 main = Initialize.initialize $ \msg_chan -> MidiC.initialize $ \read_chan -> do
     Log.notice "app starting"
 
-    -- (rdev_map, wdev_map) <- MidiC.devices
-    let (rdev_map, wdev_map) = (Map.empty, Map.empty)
-            :: (Map.Map Midi.ReadDevice PortMidi.ReadDevice,
-                Map.Map Midi.WriteDevice PortMidi.WriteDevice)
+    (rdev_map, wdev_map) <- MidiC.devices
     print_devs rdev_map wdev_map
 
     let rdevs = Map.keys rdev_map
         wdevs = Map.keys wdev_map
 
-    when (not (null rdevs)) $ do
-        putStrLn $ "open input " ++ show (head rdevs)
-        MidiC.open_read_device read_chan (rdev_map Map.! head rdevs)
+    -- TODO Don't open IAC ports that I'm opening for writing, otherwise I get
+    -- all my msgs bounced back.
+    -- when (not (null rdevs)) $ do
+    --     putStrLn $ "open input " ++ show (head rdevs)
+    --     MidiC.open_read_device read_chan (rdev_map Map.! head rdevs)
     wdev_streams <- case wdevs of
         [] -> return Map.empty
         (wdev:_) -> do
@@ -71,10 +70,13 @@ main = Initialize.initialize $ \msg_chan -> MidiC.initialize $ \read_chan -> do
     Responder.responder get_msg (write_msg default_stream wdev_streams) get_ts
         player_chan setup_cmd
 
--- write_msg :: Midi.WriteMessage -> IO ()
+write_msg :: PortMidi.WriteStream
+    -> Map.Map Midi.WriteDevice PortMidi.WriteStream
+    -> Midi.WriteMessage
+    -> IO ()
 write_msg default_stream wdev_streams (wdev, ts, msg) = do
     let stream = maybe default_stream id (Map.lookup wdev wdev_streams)
-    -- putStrLn $ "PLAY " ++ show (wdev, ts, msg)
+    putStrLn $ "PLAY " ++ show (wdev, ts, msg)
     MidiC.write_msg (stream, MidiC.from_timestamp ts, msg)
 
 

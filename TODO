@@ -117,6 +117,7 @@ Cmd
     * keymaps that combine key patterns into a table and create a Cmd
     - check for key assignment collisions
     - better functions to make KeySpecs
+    - KeySpecs that don't care about the modifiers
     Cmd.Edit
       * edit mode
       + event insertion / deletion commands
@@ -192,8 +193,11 @@ Derive
     - Hz -> midi nn + pitch bend
     - pitch signal rendering
 
-    - player blocks when it's n seconds ahead, to avoid flooding midi driver
-    - flush midi output when I get a Stop
+    * player blocks when it's n seconds ahead, to avoid flooding midi driver
+    _ flush midi output when I get a Stop
+      flush is complicated and it's easier to just live with n seconds of extra
+      sound
+      - complain to portmidi list?
     - channel allocator
 
 Instrument

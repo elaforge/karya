@@ -14,8 +14,6 @@ type ReadMessage = (ReadDevice, Timestamp.Timestamp, Message)
 newtype ReadDevice = ReadDevice String deriving (Eq, Ord, Show)
 newtype WriteDevice = WriteDevice String deriving (Eq, Ord, Show)
 
-immediately = Timestamp.Timestamp 0
-
 
 data Message
     = ChannelMessage Channel ChannelMessage

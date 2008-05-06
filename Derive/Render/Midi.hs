@@ -36,9 +36,12 @@
     after remapping to a different channel and port.
 -}
 module Derive.Render.Midi where
-import qualified Data.Maybe as Maybe
+import Control.Concurrent as Concurrent
+import Control.Monad
 import Data.Function
 import qualified Data.List as List
+import qualified Data.Maybe as Maybe
+import qualified Data.Set as Set
 
 import qualified Util.Seq as Seq
 import qualified Util.Log as Log
@@ -57,7 +60,7 @@ import qualified Derive.Twelve as Twelve
 
 render :: Player.State -> Derive.Score -> IO ()
 render state (Derive.Score name tracks) = do
-    Log.notice $ "play score " ++ show name ++ " starting at "
+    Log.notice $ "render score " ++ show name ++ " starting at "
         ++ show (Player.state_timestamp_offset state)
     let track_msgs =
             (map (render_midi state . Track.event_list . Track.track_events)
@@ -66,21 +69,53 @@ render state (Derive.Score name tracks) = do
         msgs = foldr (Seq.merge_by (compare `on` msg_ts)) [] track_msgs
     -- TODO block when I get n seconds ahead of now to avoid flooding the midi
     -- TODO stick around and listen for Stop, and flush the output if I get it
-    mapM_ (Player.state_midi_writer state) msgs
+    play_msgs state Set.empty msgs
+    Log.notice $ "render score " ++ show name ++ " complete"
 
+-- 'play_msgs' tries to not get too far ahead of now both to avoid flooding the
+-- midi driver and so a stop will happen fairly quickly.  I could flush the
+-- devices, but PortMidi insists that you close and reopen the device
+-- afterwards.
+write_ahead = Timestamp.seconds 0.5
+
+play_msgs :: Player.State -> Set.Set Midi.WriteDevice -> [Midi.WriteMessage]
+    -> IO ()
+play_msgs state devs msgs = do
+    let new_devs = Set.difference (Set.fromList (map msg_dev msgs)) devs
+        write = Player.state_midi_writer state
+    -- Force 'devs' so I don't drag 'msgs' on forever.
+    -- TODO verify that this is working right
+    devs <- let devs' = Set.union devs new_devs
+        in Set.size devs' `seq` return devs'
+    -- Make sure that I get a consistent play, not affected by previous
+    -- controller states.
+    send_all write new_devs Midi.ResetAllControllers
+
+    now <- Player.state_get_current_timestamp state
+    let (chunk, rest) = span ((< (now + write_ahead)) . msg_ts) msgs
+    -- Log.debug $ "play at " ++ show now ++ " chunk: " ++ show (length chunk)
+    mapM_ write chunk
+    tmsg <- Player.check_transport (Player.state_transport state)
+    case (rest, tmsg) of
+        -- I could send AllNotesOff here, but stuck notes probably indicate an
+        -- error so it's good to hear them.
+        ([], _) -> return ()
+        (_, Player.Stop) -> send_all write devs Midi.AllNotesOff
+        _ -> do
+            Concurrent.threadDelay (Timestamp.to_microseconds write_ahead)
+            play_msgs state devs rest
+
+send_all write_midi devs chan_msg = forM_ (Set.elems devs) $ \dev ->
+    forM_ [0..15] $ \chan -> write_midi
+        (dev, Timestamp.immediately, Midi.ChannelMessage chan chan_msg)
+
+msg_dev (dev, _, _) = dev
 msg_ts (_, ts, _) = ts
 
--- play_midi :: Player.State -> [(TrackPos, Event.Event)] -> IO ()
 render_midi :: Player.State -> [(TrackPos, Event.Event)] -> [Midi.WriteMessage]
 render_midi state pos_events = concatMap (render_note ts_offset) pos_events
     where
     ts_offset = Player.state_timestamp_offset state
-
--- | Bubblesort.  It's lazy.
-sort2 cmp (a:b:zs) = case cmp a b of
-    GT -> b : sort2 cmp (a:zs)
-    _ -> a : sort2 cmp (b:zs)
-sort2 cmp xs = List.sortBy cmp xs
 
 render_note ts_offset (pos, event) =
     [ (wdev, start_ts, msg (Midi.NoteOn (event_key event + 12*5) vel))

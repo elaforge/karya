@@ -79,11 +79,12 @@ data State = State {
     -- | When play started.  Timestamps relative to the block start should be
     -- added to this to get absolute Timestamps.
     , state_timestamp_offset :: Timestamp.Timestamp
+    , state_get_current_timestamp :: IO Timestamp.Timestamp
     }
 state (Info chan writer get_ts) trans block_id = do
     ts <- get_ts
-    return (State chan trans writer block_id ts)
+    return (State chan trans writer block_id ts get_ts)
 
 write_status :: Chan -> PlayerStatus -> Block.BlockId -> IO ()
-write_status chan status block_id = 
+write_status chan status block_id =
     STM.atomically $ STM.writeTChan chan (Status block_id status)
