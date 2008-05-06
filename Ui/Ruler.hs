@@ -2,7 +2,7 @@ module Ui.Ruler where
 import qualified Data.Array.IArray as IArray
 import Data.Array.IArray ((!))
 
-import qualified Util.Array
+import qualified Util.Data
 
 import Ui.Types
 import qualified Ui.Color as Color
@@ -46,7 +46,7 @@ null_mark = Mark 0 0 Color.black "" 0 0
 at :: Marklist -> TrackPos -> ([(TrackPos, Mark)], [(TrackPos, Mark)])
 at (Marklist a) pos = (map (a!) [i-1, i-2..low], map (a!) [i..high])
     where
-    i = Util.Array.bsearch_on fst a pos
+    i = Util.Data.bsearch_on fst a pos
     (low, high) = IArray.bounds a
 
 -- | Marks starting at the first mark >= the given pos, to the end.

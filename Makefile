@@ -46,8 +46,11 @@ clean:
 fltk/fltk.a: $(FLTK_OBJS)
 	ar -rs $@ $^
 
+# Link against libfltk from src dir, for testing libfltk changes.
+DIRECT_LINK = -g /usr/local/src/fltk/lib/libfltk.a \
+	-lpthread -framework Carbon -framework ApplicationServices
 test_block: fltk/test_block.o fltk/fltk.a
-	$(CXX) -o $@ $^ $(LDFLAGS)
+	$(CXX) -o $@ $^ $(LDFLAGS) # $(DIRECT_LINK)
 	$(REZ)
 
 UI_HSC = $(wildcard Ui/*.hsc)

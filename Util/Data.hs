@@ -1,8 +1,20 @@
-module Util.Array where
+module Util.Data where
 
+import qualified Data.Map as Map
 import qualified Data.Array.IArray as IArray
 import Data.Array.IArray ((!))
 
+-- * Map
+
+-- Like Map.split, except include a matched key in the above map.
+split_map :: (Ord k) => k -> Map.Map k a -> (Map.Map k a, Map.Map k a)
+split_map k fm = (above, below')
+    where
+    (above, at, below) = Map.splitLookup k fm
+    below' = maybe below (\v -> Map.insert k v below) at
+
+
+-- * Array
 
 -- | Like 'IArray.!', except throw a more informative error, with @msg@
 -- prepended.
@@ -16,8 +28,7 @@ at msg a i
 -- | Is the given index within the array's bounds?
 in_bounds a i = let (low, high) = IArray.bounds a in low <= i && i <= high
 
-
--- * searching
+-- ** searching
 
 -- | Find the index in 'a'
 bsearch a elt = bsearch_with (<=) a elt

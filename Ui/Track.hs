@@ -2,6 +2,7 @@ module Ui.Track where
 import qualified Data.List as List
 import qualified Data.Map as Map
 
+import qualified Util.Data
 import Ui.Types
 import qualified Ui.Event as Event
 
@@ -75,7 +76,7 @@ remove_events start end track_events@(TrackEvents events) = TrackEvents $
 events_at :: TrackPos -> TrackEvents
     -> ([(TrackPos, Event.Event)], [(TrackPos, Event.Event)])
 events_at pos (TrackEvents events) = (toDescList pre, Map.toAscList post)
-    where (pre, post) = split pos events
+    where (pre, post) = Util.Data.split_map pos events
 
 -- | Get all events in ascending order.  Like @snd . events_at (TrackPos 0)@.
 event_list :: TrackEvents -> [(TrackPos, Event.Event)]
@@ -153,14 +154,7 @@ set_dur dur evt = evt { Event.event_duration = dur }
 in_range :: (Ord k) => k -> k -> Map.Map k a -> Map.Map k a
 in_range low high fm = one_below
     where
-    (below, above) = split low fm
-    (within, _way_above) = split high above
+    (below, above) = Util.Data.split_map low fm
+    (within, _way_above) = Util.Data.split_map high above
     one_below = if Map.null below then within
         else let (k, v) = Map.findMax below in Map.insert k v within
-
--- Like Map.split, except include a matched key in the above map.
-split :: (Ord k) => k -> Map.Map k a -> (Map.Map k a, Map.Map k a)
-split k fm = (pre, post')
-    where
-    (pre, at, post) = Map.splitLookup k fm
-    post' = maybe post (\v -> Map.insert k v post) at
