@@ -2,7 +2,8 @@
 - check use of Ints
 
 fltk
-  - bug: if the first event is a modifier, it doesn't get emitted.  An fltk
+  - set_selection should do nothing if the selection is the same as the last one
+  * bug: if the first event is a modifier, it doesn't get emitted.  An fltk
     thing?
   * make TrackPos into an opaque type to let me be more free with impl.
     implement as int64 usec?  or since it's just block relative, I can use
@@ -53,6 +54,7 @@ fltk
     - include selection in time_end
     - scroll to keep moving edge of selection in view, go to bottom edge if
       both moved
+    - mark text tries to wrap if there isn't enough room
     * don't clip out the text as soon as the marker scrolls off screen
     * clip markers when they overlap edge of widget
     - bug: looks like overlay is getting drawn twice when called from Interface
@@ -113,7 +115,8 @@ Cmd
   - cmd_midi_thru - basic hardcoded midi thru command
   keymap
     * keymaps that combine key patterns into a table and create a Cmd
-    + Cmd.Movement: selection / cursor movement commands
+    - check for key assignment collisions
+    - better functions to make KeySpecs
     Cmd.Edit
       * edit mode
       + event insertion / deletion commands
@@ -121,6 +124,8 @@ Cmd
       * midi note insertion
       - alternate finale-like note entry: hold down step key to set step and
         turn on edit mode, but only while the key is down
+      selection ops
+        - transpose
     Cmd.Create
       - view and creation / deletion
       - track insertion / removal
@@ -133,25 +138,67 @@ Cmd
       * drag insertion point
       - drag snap to ruler, event beginning/end, ...
       * Cmd.TimeStep.advance etc. takes [Marklist]
+      - tempo warp by selection
 
     - UI and fltk support for editing event text
     * UiMsgs for track drags, resizes, and text changes update State
 
   Cmd.Language: listen on a socket, receive cmd language?  or use hs-plugins?
     - simple commands to manage blocks, and save / restore state
+    - pretty print various parts of state
+
+  Cmd.Play
+    * play position display
+    - play loops
+    - play from position
+    - implement pause / resume with play from position
+
+  Cmd.Record
+    - come up with a plan for midi recording
+    - implement simple midi underiver
+
+  block / track keymap
+    - signal track input keymap
+    - track-dependent midi thru framework
 
   checkpoints
-    - undo
-    - serialize / deserialize for State
-    - figure out how to checkpoint just state diffs
+    * serialize / deserialize for State
+    - Data.Binary instance for more efficient save and load
+    - standalone dumper to convert the binary format to pretty-printed show
+    undo
+      - implement undo tree and undo/redo cmds
+      - figure out how to checkpoint just state diffs
+      - add undo history to on-disk format
 
 Derive
-  - instrument definitions
-  - simplest possible derivation -> midi render
+  * simplest possible derivation -> midi render
+  - Player.Position implementation for play selection, reverse tempo deriv
   - write some music!
-  Render midi
+  derive graph
+    - sketch out design, think about typechecking, research phantom types
+    - initial implementation
+  derivers
+    - signal
+    - tempo
+    - control
+
+  - error reporting for deriver and renderer
+  - display intermediate blocks
+  - 3 way merge for intermediate blocks
+
+  Derive.Render.Midi
+    - signal rendering
+    - controller and velocity for notes
+    - Hz -> midi nn + pitch bend
+    - pitch signal rendering
+
+    - player blocks when it's n seconds ahead, to avoid flooding midi driver
+    - flush midi output when I get a Stop
     - channel allocator
-    - midi tools: Hz -> midi mapper
+
+Instrument
+  - some basic midi instrument defs for generic midi (dev, patch)
+  - defs for z1 and vl1
 
 patchdb
   - simple integrated version with just hardcoded midi instruments

@@ -7,6 +7,7 @@ import qualified Data.Word as Word
 import Text.Printf (printf)
 
 import qualified Util.Seq as Seq
+import qualified Derive.Timestamp as Timestamp
 
 import qualified Midi.Midi as Midi
 import qualified Midi.MidiC as MidiC
@@ -25,8 +26,8 @@ main = MidiC.initialize $ \read_chan -> print_err $ do
     wstream <- MidiC.open_write_device (wdevs Map.! out_dev)
 
     let wdev_streams = Map.fromList [(out_dev, wstream)]
-    let write_msg (dev, ts, msg) =
-            MidiC.write_msg (wdev_streams Map.! dev, from_timestamp ts, msg)
+    let write_msg (dev, ts, msg) = MidiC.write_msg
+            (wdev_streams Map.! dev, MidiC.from_timestamp ts, msg)
 
     forever $ do
         (dev, ts, msg) <- STM.atomically (TChan.readTChan read_chan)
@@ -34,10 +35,6 @@ main = MidiC.initialize $ \read_chan -> print_err $ do
         let msgs = thru (ts, msg)
         print ((ts, msg), msgs)
         sequence_ [write_msg (out_dev, ts, msg) | (ts, msg) <- msgs]
-
-
-to_timestamp ts = Midi.Timestamp ts
-from_timestamp (Midi.Timestamp ts) = ts
 
 thru (ts, msg) = case msg of
     Midi.ChannelMessage ch (Midi.NoteOn key vel)
@@ -47,7 +44,7 @@ thru (ts, msg) = case msg of
         -> [(ts1, Midi.ChannelMessage ch (Midi.NoteOff (key+12) vel))]
     m -> []
     where
-    ts1 = Midi.Timestamp $ case ts of Midi.Timestamp ts -> ts + 500
+    ts1 = ts + Timestamp.Timestamp 500
 
 show_msg (Midi.CommonMessage (Midi.SystemExclusive manuf bytes))
     = printf "Sysex %x: [%s]" manuf (Seq.join ", " (map hex bytes))

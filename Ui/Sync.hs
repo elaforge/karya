@@ -15,6 +15,8 @@ import qualified Data.Map as Map
 
 import qualified Util.Seq as Seq
 
+import qualified App.Config as Config
+
 import Ui.Types
 import qualified Ui.Initialize as Initialize
 
@@ -36,6 +38,21 @@ sync state updates = do
         -- TODO Try to split StateT into ReadStateT and ReadWriteStateT to
         -- express this in the type?
         Right _ -> Nothing
+
+-- | The play position selection bypasses all the usual State -> Diff -> Sync
+-- stuff for a direct write to the UI.
+--
+-- This is because it happens asynchronously and would be noisy and inefficient
+-- to work into the responder loop, and isn't part of the usual state that
+-- should be saved anyway.
+set_play_position :: Block.ViewId -> Maybe TrackPos -> IO ()
+set_play_position view_id maybe_pos = do
+    let csel = case maybe_pos of
+            Nothing -> Nothing
+            Just pos -> Just $ BlockC.CSelection Config.play_position_color
+                (Block.Selection 0 pos 99 (TrackPos 0))
+    Initialize.send_action $
+        BlockC.set_selection view_id Config.play_position_selnum csel
 
 send = Trans.liftIO . Initialize.send_action
 

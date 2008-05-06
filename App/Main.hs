@@ -60,17 +60,22 @@ main = Initialize.initialize $ \msg_chan -> MidiC.initialize $ \read_chan -> do
     wdev_streams <- case wdevs of
         [] -> return Map.empty
         (wdev:_) -> do
-        putStrLn $ "open output " ++ show wdev
-        stream <- MidiC.open_write_device (wdev_map Map.! wdev)
-        return (Map.fromList [(wdev, stream)])
+            putStrLn $ "open output " ++ show wdev
+            stream <- MidiC.open_write_device (wdev_map Map.! wdev)
+            return (Map.fromList [(wdev, stream)])
+    let default_stream = head (Map.elems wdev_streams)
 
     player_chan <- STM.newTChanIO
     let get_msg = Responder.create_msg_reader msg_chan read_chan player_chan
-    Responder.responder get_msg (write_msg wdev_streams) player_chan setup_cmd
+        get_ts = fmap MidiC.to_timestamp PortMidi.pt_time
+    Responder.responder get_msg (write_msg default_stream wdev_streams) get_ts
+        player_chan setup_cmd
 
 -- write_msg :: Midi.WriteMessage -> IO ()
-write_msg wdev_streams (wdev, ts, msg) =
-    MidiC.write_msg (wdev_streams Map.! wdev, MidiC.from_timestamp ts, msg)
+write_msg default_stream wdev_streams (wdev, ts, msg) = do
+    let stream = maybe default_stream id (Map.lookup wdev wdev_streams)
+    -- putStrLn $ "PLAY " ++ show (wdev, ts, msg)
+    MidiC.write_msg (stream, MidiC.from_timestamp ts, msg)
 
 
 print_devs rdev_map wdev_map = do

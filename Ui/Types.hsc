@@ -26,6 +26,7 @@ import Ui.Color (Color)
 -- can be negative, but once they get to the UI they will be clamped to be
 -- within 0--ULONG_MAX.
 newtype TrackPos = TrackPos Integer deriving (Num, Eq, Ord, Show, Read)
+zero_trackpos = TrackPos 0
 
 instance Storable TrackPos where
     sizeOf _ = #size TrackPos

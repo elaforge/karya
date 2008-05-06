@@ -86,6 +86,9 @@ last_event (TrackEvents events)
     | Map.null events = Nothing
     | otherwise = Just (Map.findMax events)
 
+time_end :: Track -> TrackPos
+time_end track = maybe (TrackPos 0) event_end (last_event (track_events track))
+
 -- utilities
 
 forward :: TrackEvents -> TrackPos -> [(TrackPos, Event.Event)]

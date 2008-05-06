@@ -1,16 +1,16 @@
 {- | Event editing commands.
 
-Note entry:
+    Local state:
 
-pitch transpose
-Blocks and tracks may override this, of course.  It's better as a state than as
-setting the keymap since that's easier to save.
-
+    - pitch transpose: Constant value to add to entered pitch numbers.
+    Blocks and tracks may override this, of course.  It's better as
+    a state than as setting the keymap since that's easier to save.
 -}
 module Cmd.Edit where
 import Control.Monad
 import qualified Data.Maybe as Maybe
 
+import qualified App.Config as Config
 import qualified Util.Log as Log
 
 import Ui.Types
@@ -21,17 +21,14 @@ import qualified Ui.State as State
 
 import qualified Midi.Midi as Midi
 
+import qualified Derive.Twelve as Twelve
+
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.TimeStep as TimeStep
 
-import qualified App.Config as Config
 
-
-newtype PitchClass = PitchClass Int
-    deriving (Show)
-
--- | Turn edit mode on and off, changing the color of the track_box as
+-- | Turn edit mode on and off, changing the color of the edit_box as
 -- a reminder.
 cmd_toggle_edit :: Cmd.CmdM
 cmd_toggle_edit = do
@@ -43,7 +40,7 @@ cmd_toggle_edit = do
     return Cmd.Done
 
 -- | Insert an event with the given pitch at the current insert point.
-cmd_insert_pitch :: PitchClass -> Cmd.CmdM
+cmd_insert_pitch :: Twelve.Pitch -> Cmd.CmdM
 cmd_insert_pitch pitch = do
     -- edit <- fmap Cmd.state_edit_mode Cmd.get_state
     -- when (not edit) Cmd.abort
@@ -55,7 +52,7 @@ cmd_insert_pitch pitch = do
     let insert_pos = Block.sel_start_pos sel
     Log.debug $ "insert pitch " ++ show pitch ++ " at "
         ++ show (track_id, insert_pos)
-    let event = Config.event (pitch_class_note pitch) (TrackPos 16)
+    let event = Config.event (Twelve.pitch_event pitch) (TrackPos 16)
     State.insert_events track_id [(insert_pos, event)]
     return Cmd.Done
 
@@ -73,7 +70,7 @@ cmd_insert_midi_note msg = do
             (Midi.NoteOn key _vel)) ->
                 return key
         _ -> Cmd.abort
-    cmd_insert_pitch (PitchClass (fromIntegral key))
+    cmd_insert_pitch (Twelve.Pitch (fromIntegral key))
     return Cmd.Done
 
 read_dev_to_write_dev (Midi.ReadDevice name) = Midi.WriteDevice name
@@ -116,15 +113,6 @@ selected_tracks selnum = do
     tracks <- mapM (event_track_at (Block.view_block view))
         [start .. start + Block.sel_tracks sel - 1]
     return (Maybe.catMaybes tracks, sel)
-
-pitch_class_note (PitchClass pitch) = show octave ++ pitch_notes !! p
-    where
-    octave = pitch `div` 12
-    p = pitch `mod` 12
-
-pitch_notes =
-    ["c-", "c#", "d-", "d#", "e-", "f-", "f#", "g-", "g#", "a-", "a#", "b-"]
-
 
 event_track_at block_id tracknum = do
     track <- State.track_at block_id tracknum

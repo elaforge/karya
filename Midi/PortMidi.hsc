@@ -6,6 +6,7 @@
 module Midi.PortMidi (
     ReadStream, WriteStream -- opaque
     , initialize, terminate
+    , pt_time
 
     -- * devices
     , devices
@@ -52,6 +53,10 @@ foreign import ccall unsafe "Pt_Start" c_pt_start :: CInt -> Ptr () -> Ptr ()
 pt_stop = c_pt_stop >> return ()
 foreign import ccall unsafe "Pt_Stop" c_pt_stop :: IO CPtError
 
+-- | Get current time according to midi timer.
+pt_time :: IO Timestamp
+pt_time = fmap from_c_timestamp c_pt_time
+foreign import ccall unsafe "Pt_Time" c_pt_time :: IO CTimestamp
 
 -- * devices
 
@@ -175,11 +180,16 @@ write_event (WriteStream streamp) evt@(Event (bytes, ts))
     | is_sysex bytes = withArray bytes $ \bytesp -> checked_ $
         -- I think it's ok to cast (Ptr Word8) to (Ptr CUChar)
         -- Subtract 1 from timstamp, see 'open_output'.
-        c_write_sysex streamp (to_c_long (ts-1)) (castPtr bytesp)
+        c_write_sysex streamp (to_c_timestamp (ts-1)) (castPtr bytesp)
     | otherwise = checked_ $
-        c_write_short streamp (to_c_long (ts-1)) (encode_message bytes)
+        c_write_short streamp (to_c_timestamp (ts-1)) (encode_message bytes)
 
-to_c_long = fromIntegral
+-- | It's just a long.
+from_c_timestamp :: CTimestamp -> Timestamp
+from_c_timestamp = fromIntegral
+to_c_timestamp :: Timestamp -> CTimestamp
+to_c_timestamp = fromIntegral
+
 is_sysex = (==0xf0) . head
 
 foreign import ccall unsafe "Pm_WriteShort"
@@ -196,7 +206,7 @@ instance Storable Event where
 peek_event evt = do
     msg <- (#peek PmEvent, message) evt :: IO (#type PmMessage)
     time <- (#peek PmEvent, timestamp) evt :: IO CTimestamp
-    return $ Event (decode_message msg, fromIntegral time)
+    return $ Event (decode_message msg, from_c_timestamp time)
 
 -- could probably get hsc2hs to pull the macros, but I don't mind doing this
 -- in haskell

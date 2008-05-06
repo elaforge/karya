@@ -39,6 +39,7 @@ import qualified Midi.PortMidi as PortMidi
 import Midi.PortMidi (Error(..), catch, throw)
 import qualified Midi.Parse as Parse
 import qualified Midi.Midi as Midi
+import qualified Derive.Timestamp as Timestamp
 
 
 -- | TChan that produces ReadMessages.
@@ -90,9 +91,10 @@ to_write_device wdev = Midi.WriteDevice (interface ++ "/" ++ name)
     interface = PortMidi.wdev_interface wdev
     name = PortMidi.wdev_name wdev
 
--- TODO later I'll need a better way to convert timestamps
-from_timestamp (Midi.Timestamp ts) = ts
-to_timestamp = Midi.Timestamp
+from_timestamp :: Timestamp.Timestamp -> PortMidi.Timestamp
+from_timestamp (Timestamp.Timestamp ts) = ts
+to_timestamp :: PortMidi.Timestamp -> Timestamp.Timestamp
+to_timestamp = Timestamp.Timestamp
 
 -- | Start putting msgs from given device into the queue that 'read_msg' reads
 -- from.

@@ -1,8 +1,9 @@
 module Midi.Midi where
+import qualified Derive.Timestamp as Timestamp
 import Data.Word (Word8)
 
-type WriteMessage = (WriteDevice, Timestamp, Message)
-type ReadMessage = (ReadDevice, Timestamp, Message)
+type WriteMessage = (WriteDevice, Timestamp.Timestamp, Message)
+type ReadMessage = (ReadDevice, Timestamp.Timestamp, Message)
 
 -- | Implementation independent representation of a MIDI Device.
 --
@@ -13,10 +14,7 @@ type ReadMessage = (ReadDevice, Timestamp, Message)
 newtype ReadDevice = ReadDevice String deriving (Eq, Ord, Show)
 newtype WriteDevice = WriteDevice String deriving (Eq, Ord, Show)
 
--- This is an arbitrary Integer for now, later I will have to think about
--- integrating it with a system clock.
-newtype Timestamp = Timestamp Integer deriving (Eq, Ord, Show)
-immediately = Timestamp 0
+immediately = Timestamp.Timestamp 0
 
 
 data Message

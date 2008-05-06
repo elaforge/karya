@@ -1,6 +1,8 @@
 module Cmd.DefaultKeymap where
 import qualified Data.Map as Map
 
+import qualified App.Config as Config
+
 import qualified Ui.Key as Key
 
 import Cmd.Types
@@ -14,7 +16,7 @@ import qualified Cmd.Save as Save
 import qualified Cmd.Play as Play
 
 import qualified Derive.Player as Player
-import qualified App.Config as Config
+import qualified Derive.Twelve as Twelve
 
 
 default_cmds :: Cmd.State -> [Cmd.Cmd]
@@ -109,7 +111,7 @@ make_note_entry (pitch, char) =
         Keymap.CmdSpec ("note with pitch " ++ show pitch)
             (ignore_msg insert_cmd))
     where
-    insert_cmd = Edit.cmd_insert_pitch (Edit.PitchClass pitch) >> advance_insert
+    insert_cmd = Edit.cmd_insert_pitch (Twelve.Pitch pitch) >> advance_insert
 
 -- make_midi_note_entry nn =
 --     (Keymap.KeySpec [] (Keymap.MidiKey (Keymap.NoteOn nn)),

@@ -41,13 +41,18 @@ data Msg = Msg
     -- , msg_context :: [Context]
     } deriving (Show, Eq)
 
-data Prio = Debug -- ^ Lots of msgs produced by code level.  Users don't look
-        -- at this during normal use, but can be useful for debugging.
-    | Notice -- ^ Informational msgs that the user will want to see.  Progress
-        -- messages in e.g. derivation and play status are included here.
-    | Warn -- ^ Something went wrong in e.g. derivation.  User definitely wants
-        -- to see this.
-    | Error -- ^ Code error in the app, which may quit after printing this.
+data Prio
+    -- | Lots of msgs produced by code level.  Users don't look at this during
+    -- normal use, but can be useful for debugging.
+    = Debug
+    -- | Informational msgs that the user will want to see.  Progress messages
+    -- in e.g. derivation and play status are included here.
+    | Notice
+    -- | Something went wrong in e.g. derivation.  User definitely wants to see
+    -- this.
+    | Warn
+    -- | Code error in the app, which may quit after printing this.
+    | Error
     deriving (Show, Enum, Eq, Ord)
 
 -- | Create a msg with the give prio and text.

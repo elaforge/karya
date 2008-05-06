@@ -12,6 +12,7 @@ import qualified Ui.Update as Update
 import qualified Ui.UiMsg as UiMsg
 import qualified Midi.Midi as Midi
 import qualified Derive.Player as Player
+import qualified Derive.Timestamp as Timestamp
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
@@ -22,14 +23,15 @@ import qualified Cmd.Play as Play
 type MidiWriter = Midi.WriteMessage -> IO ()
 type MsgReader = IO Msg.Msg
 
-responder :: MsgReader -> MidiWriter -> Player.Chan -> Cmd.CmdM -> IO ()
-responder get_msg write_midi player_chan setup_cmd = do
+responder :: MsgReader -> MidiWriter -> IO Timestamp.Timestamp -> Player.Chan
+    -> Cmd.CmdM -> IO ()
+responder get_msg write_midi get_ts player_chan setup_cmd = do
     Log.notice "starting responder"
     let ui_state = State.empty
     (_, ui_state, cmd_state) <- handle_cmd_result True write_midi ui_state
         (Cmd.run_cmd ui_state Cmd.empty_state setup_cmd)
     loop ui_state cmd_state get_msg write_midi
-        (Player.Info player_chan write_midi)
+        (Player.Info player_chan write_midi get_ts)
 
 -- | Create the MsgReader to pass to 'responder'.
 create_msg_reader :: TChan.TChan UiMsg.UiMsg

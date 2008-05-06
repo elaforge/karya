@@ -117,7 +117,11 @@ set_msg_from_event(UiMsg &m, int evt)
     // qwe
     //         '
     // z
-    if (Fl::event_text()[0])
+    // DEBUG("event_text is '" << Fl::event_text()
+    //         << "' event_key is " << Fl::event_key() << " "
+    //         << char(Fl::event_key()));
+    int k = Fl::event_key();
+    if (k == 'q' || k == 'w' || k == 'e' || k == '\'' || k == 'z')
         m.key = Fl::event_text()[0];
     else
         m.key = Fl::event_key();

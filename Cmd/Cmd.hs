@@ -92,13 +92,14 @@ instance Monad m => State.UiStateMonad (CmdT m) where
 
 type MidiThru = (Midi.WriteDevice, Midi.Message)
 
--- | Log some midi to send out.
+-- | Log some midi to send out immediately.  This is the midi thru mechanism.
 midi :: (Monad m) => Midi.WriteDevice -> Midi.Message -> CmdT m ()
 midi dev msg = (CmdT . lift . lift) (Logger.record (dev, msg))
 
 -- | An abort is an exception to get out of CmdT, but it's considered the same
 -- as returning Continue.  It's so a command can back out if e.g. it's selected
--- by the 'Keymap' but has an additional prerequisite.
+-- by the 'Keymap' but has an additional prerequisite such as having an active
+-- block.
 abort :: (Monad m) => CmdT m a
 abort = (CmdT . lift . lift . lift) (Error.throwError Abort)
 
@@ -131,8 +132,8 @@ data State = State {
     -- | Edit mode enables various commands that write to tracks.
     , state_edit_mode :: Bool
 
-    -- | Control channel for the player, if one is running.
-    , state_player_control :: Maybe Player.Control
+    -- | Transport control channel for the player, if one is running.
+    , state_player_transport :: Maybe Player.Transport
     } deriving (Show)
 empty_state = State Map.empty "save/default" Nothing Nothing
     (TimeStep.UntilMark TimeStep.AllMarklists (TimeStep.MatchRank 2))
@@ -175,7 +176,7 @@ get_current_step = fmap state_current_step get_state
 
 -- * basic cmds
 
--- | Quit on escape.
+-- | Quit the app immediately.
 cmd_quit :: CmdM
 cmd_quit = return Quit
 

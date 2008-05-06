@@ -16,6 +16,9 @@ at msg a i
 -- | Is the given index within the array's bounds?
 in_bounds a i = let (low, high) = IArray.bounds a in low <= i && i <= high
 
+
+-- * searching
+
 -- | Find the index in 'a'
 bsearch a elt = bsearch_with (<=) a elt
 

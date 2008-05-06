@@ -1,3 +1,5 @@
+{- | Global static app defaults.
+-}
 module App.Config where
 -- import Ui.Types
 import qualified Ui.Font as Font
@@ -18,9 +20,11 @@ meter_ruler = "meter"
 insert_selnum :: Block.SelNum
 insert_selnum = 0
 
--- | SelNum of the playback position indicator.
-playback_selnum :: Block.SelNum
-playback_selnum = 4
+-- | SelNum of the play position indicator.
+play_position_selnum :: Block.SelNum
+play_position_selnum = 4
+play_position_color :: Color.Color
+play_position_color = make_selection_color Color.purple
 
 
 -- * colors
@@ -31,14 +35,17 @@ play_color = Color.rgb 0 0.6 0
 
 -- * defaults
 
-event text dur = Event.Event text dur (Color.rgb 0.9 0.9 0.7) default_style False
+event text dur = Event.Event text dur (Color.rgb 0.9 0.9 0.7) default_style
+    False
 default_style = Font.TextStyle Font.Helvetica [] 9 Color.black
+
+make_selection_color = Color.alpha 0.3 . Color.lighten 0.8
 
 default_block_config = Block.Config
     { Block.config_selection_colors =
-        let sel = Color.alpha 0.3 . Color.lighten 0.8 in
-            [sel Color.blue, sel Color.green, sel Color.red, sel Color.purple,
-                sel Color.yellow]
+        let sel = make_selection_color in
+            [sel Color.blue, sel Color.green, sel Color.red, sel Color.yellow,
+                play_position_color]
     , Block.config_bg_color = Color.gray8
     , Block.config_track_box_color = box_color
     , Block.config_sb_box_color = box_color
