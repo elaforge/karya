@@ -60,6 +60,8 @@ UI_OBJS = Ui/c_interface.o
 MIDI_HSC = $(wildcard Midi/*.hsc)
 MIDI_HS = $(MIDI_HSC:hsc=hs)
 
+ALL_HS = $(shell ./all_hs)
+
 all_hsc: $(UI_HS) $(MIDI_HS)
 
 # PHONY convinces make to always run ghc, which figures out deps on its own
@@ -91,12 +93,12 @@ doc:
 	@# Unless there's some way to tell firefox to go to a certain line in
 	@# a file, I can't use --source-entity without something like hscolour.
 	haddock --html -B $(GHC_LIB) --source-module="../%F" -o haddock \
-		$(filter-out %_test.hs, $(patsubst %.hsc, %.hs, $(shell ./all_hs)))
+		$(filter-out %_test.hs, $(patsubst %.hsc, %.hs, $(ALL_HS)))
 
 ### tests ###
 
-test_obj/RunTests.hs: $(wildcard */*_test.hs) all_hsc
-	test/generate_run_tests.py $@ $(wildcard */*_test.hs)
+test_obj/RunTests.hs: $(ALL_HS)
+	test/generate_run_tests.py $@ $(filter %_test.hs, $(ALL_HS))
 
 # TODO a bug in ghc prevents .mix data from being emitted for files with LINE
 # workaround by grep -v out the LINEs into test_obj hierarchy
@@ -121,7 +123,7 @@ interactive: test_obj/RunTests
 
 ### misc ###
 
-tags: $(shell ./all_hs)
+tags: $(ALL_HS)
 	hasktags --ctags $^
 	sort tags >tags.sorted
 	mv tags.sorted tags
