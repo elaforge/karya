@@ -7,7 +7,7 @@ import qualified Data.Word as Word
 import Text.Printf (printf)
 
 import qualified Util.Seq as Seq
-import qualified Derive.Timestamp as Timestamp
+import qualified Perform.Timestamp as Timestamp
 
 import qualified Midi.Midi as Midi
 import qualified Midi.MidiC as MidiC
