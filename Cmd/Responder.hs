@@ -12,7 +12,7 @@ import qualified Ui.Update as Update
 import qualified Ui.UiMsg as UiMsg
 import qualified Midi.Midi as Midi
 import qualified Derive.Player as Player
-import qualified Derive.Timestamp as Timestamp
+import qualified Perform.Timestamp as Timestamp
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg

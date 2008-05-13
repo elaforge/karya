@@ -1,5 +1,5 @@
 module Midi.Midi where
-import qualified Derive.Timestamp as Timestamp
+import qualified Perform.Timestamp as Timestamp
 import Data.Word (Word8)
 
 type WriteMessage = (WriteDevice, Timestamp.Timestamp, Message)
@@ -20,7 +20,7 @@ data Message
     | CommonMessage CommonMessage
     | RealtimeMessage RealtimeMessage
     | UnknownMessage Word8 Word8 Word8
-    deriving (Show, Eq)
+    deriving (Eq, Ord, Show)
 
 type Channel = Word8 -- actually 4 bits
 type Key = Word8
@@ -31,18 +31,19 @@ type ControlValue = Word8
 data ChannelMessage =
     NoteOff Key Velocity
     | NoteOn Key Velocity
-    | Aftertouch Key Velocity
+    | Aftertouch Key ControlValue
     | ControlChange Controller ControlValue
     | ProgramChange Program
     | ChannelPressure ControlValue
-    | PitchWheel Int
+    -- | Number between -0x2000 and +0x2000.
+    | PitchBend Int
     -- channel mode messages (special controller values)
     | AllSoundOff
     | ResetAllControllers
     | LocalControl Bool
     | AllNotesOff
     | UndefinedChannelMode Word8 Word8
-    deriving (Show, Eq)
+    deriving (Eq, Ord, Show)
 
 data CommonMessage =
     -- manufacturer id, data
@@ -52,8 +53,8 @@ data CommonMessage =
     | TuneRequest
     | EOX
     | UndefinedCommon Word8
-    deriving (Show, Eq)
+    deriving (Eq, Ord, Show)
 
 data RealtimeMessage = TimingClock | Start | Continue | Stop | ActiveSense
     | Reset | UndefinedRealtime Word8
-    deriving (Show, Eq)
+    deriving (Eq, Ord, Show)

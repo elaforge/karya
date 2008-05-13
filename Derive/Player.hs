@@ -10,7 +10,7 @@ import qualified Util.Log as Log
 import Ui.Types
 import qualified Ui.Block as Block
 import qualified Midi.Midi as Midi
-import qualified Derive.Timestamp as Timestamp
+import qualified Perform.Timestamp as Timestamp
 
 -- TODO: PlayerM IO: State, Log, ...
 

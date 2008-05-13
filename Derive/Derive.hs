@@ -72,6 +72,17 @@ max :: Signal -> Signal -> Signal
 signal :: Track -> Signal
 tempo :: Signal -> [Track] -> Track
 
+
+one track controls pressure for two tracks (if they are midi the channel
+allocator should take this into account and optimize them into one channel if
+otherwise possible)
+
+An arbitrary function (say "set_midi_interpolate n") within a given tracks,
+from n TrackPos to m TrackPos.
+
+Two "events" in the same event, either seperate them with ';' or support
+simultaneous events, or a way to write them in another track?
+
 -}
 module Derive.Derive where
 import qualified Data.Map as Map
@@ -83,7 +94,7 @@ import qualified Ui.State as State
 import qualified Ui.Block as Block
 import qualified Ui.Track as Track
 
-import qualified Derive.Timestamp as Timestamp
+import qualified Perform.Timestamp as Timestamp
 -- import qualified Derive.Player as Player
 
 

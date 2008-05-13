@@ -54,8 +54,9 @@ import qualified Ui.Event as Event
 import qualified Midi.Midi as Midi
 import qualified Derive.Derive as Derive
 import qualified Derive.Player as Player
-import qualified Derive.Timestamp as Timestamp
 import qualified Derive.Twelve as Twelve
+
+import qualified Perform.Timestamp as Timestamp
 
 
 render :: Player.State -> Derive.Score -> IO ()
@@ -102,7 +103,8 @@ play_msgs state devs msgs = do
         ([], _) -> return ()
         (_, Player.Stop) -> send_all write devs Midi.AllNotesOff
         _ -> do
-            Concurrent.threadDelay (Timestamp.to_microseconds write_ahead)
+            Concurrent.threadDelay (fromIntegral
+                (Timestamp.to_microseconds write_ahead))
             play_msgs state devs rest
 
 send_all write_midi devs chan_msg = forM_ (Set.elems devs) $ \dev ->

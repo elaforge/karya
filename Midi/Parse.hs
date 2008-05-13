@@ -22,7 +22,7 @@ decode (status:d1:d2:bytes)
         0xb -> ControlChange d1 d2
         0xc -> ProgramChange d1
         0xd -> ChannelPressure d1
-        0xe -> PitchWheel (join14 d1 d2 - 0x2000)
+        0xe -> PitchBend (join14 d1 d2 - 0x2000)
         _ -> error $ "not reached: " ++ show st
     channel_mode_msg = case d1 of
         0x78 -> AllSoundOff

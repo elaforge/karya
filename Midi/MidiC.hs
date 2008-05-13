@@ -39,7 +39,7 @@ import qualified Midi.PortMidi as PortMidi
 import Midi.PortMidi (Error(..), catch, throw)
 import qualified Midi.Parse as Parse
 import qualified Midi.Midi as Midi
-import qualified Derive.Timestamp as Timestamp
+import qualified Perform.Timestamp as Timestamp
 
 
 -- | TChan that produces ReadMessages.
