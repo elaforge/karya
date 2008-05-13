@@ -39,7 +39,8 @@ remove_at xs i = let (pre, post) = splitAt i xs in pre ++ drop 1 post
 
 -- * ordered lists
 
--- | Merge sorted lists.
+-- | Merge sorted lists.  If two elements compare equal, the one from the left
+-- list comes first.
 merge :: Ord a => [a] -> [a] -> [a]
 merge = merge_by compare
 
@@ -75,10 +76,10 @@ drop_dups :: (a -> a -> Bool) -> [a] -> [a]
 drop_dups _ [] = []
 drop_dups f (x:xs) = x : map snd (filter (not . uncurry f) (zip (x:xs) xs))
 
-rDropWhile f = reverse . dropWhile f . reverse
+rdrop_while f = reverse . dropWhile f . reverse
 
 lstrip = dropWhile Char.isSpace
-rstrip = rDropWhile Char.isSpace
+rstrip = rdrop_while Char.isSpace
 strip = lstrip . rstrip
 
 -- ** splitting and joining

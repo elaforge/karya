@@ -3,14 +3,16 @@
 -- uses 'DList' for efficient appends.
 module Util.Logger where
 import Prelude hiding (log)
+import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Trans as Trans
 import qualified Control.Monad.Writer as Writer
 import qualified Data.DList as DList
 
 
 type LoggerM w m = Writer.WriterT (DList.DList w) m
-newtype Monad m => LoggerT w m a = LoggerT (LoggerM w m a)
-    deriving (Functor, Monad, Trans.MonadIO, Trans.MonadTrans)
+newtype LoggerT w m a = LoggerT (LoggerM w m a)
+    deriving (Functor, Monad, Trans.MonadIO, Trans.MonadTrans,
+        Error.MonadError e)
 run_logger_t (LoggerT x) = x
 
 -- | Record a msg to the log.

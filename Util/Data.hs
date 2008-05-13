@@ -6,12 +6,12 @@ import Data.Array.IArray ((!))
 
 -- * Map
 
--- Like Map.split, except include a matched key in the above map.
+-- | Like Map.split, except include a matched key in the above map.
 split_map :: (Ord k) => k -> Map.Map k a -> (Map.Map k a, Map.Map k a)
-split_map k fm = (above, below')
+split_map k fm = (pre, post')
     where
-    (above, at, below) = Map.splitLookup k fm
-    below' = maybe below (\v -> Map.insert k v below) at
+    (pre, at, post) = Map.splitLookup k fm
+    post' = maybe post (\v -> Map.insert k v post) at
 
 
 -- * Array
@@ -26,11 +26,13 @@ at msg a i
     where (low, high) = IArray.bounds a
 
 -- | Is the given index within the array's bounds?
+in_bounds :: (IArray.IArray a e, IArray.Ix i) => a i e -> i -> Bool
 in_bounds a i = let (low, high) = IArray.bounds a in low <= i && i <= high
 
 -- ** searching
 
--- | Find the index in 'a'
+-- | Find the index of the first element >= the given element in the sorted
+-- array.
 bsearch a elt = bsearch_with (<=) a elt
 
 bsearch_on key a elt = bsearch_with (\elt e1 -> (elt <= key e1)) a elt

@@ -12,6 +12,10 @@ import qualified Util.Misc as Misc
 -- "Asserts" abort computation if they are false.  "Checks" print an unhappy
 -- msg and keep going.
 
+check = check_srcpos Nothing
+check_srcpos srcpos False = failure srcpos "assertion false"
+check_srcpos srcpos True = success srcpos "assertion true"
+
 equal :: (Show a, Eq a) => a -> a -> IO ()
 equal = equal_srcpos Nothing
 

@@ -24,6 +24,7 @@ module Util.Log (
     , LogT, write, run
 ) where
 import Prelude hiding (error, log)
+import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Trans as Trans
 import qualified Data.Time as Time
 import Text.Printf (printf)
@@ -111,7 +112,8 @@ write_msg = LogT . Logger.record
 
 type LogM m = Logger.LoggerT Msg m
 newtype Monad m => LogT m a = LogT (LogM m a)
-    deriving (Functor, Monad, Trans.MonadIO, Trans.MonadTrans)
+    deriving (Functor, Monad, Trans.MonadIO, Trans.MonadTrans,
+        Error.MonadError e)
 run_log_t (LogT x) = x
 
 run :: Monad m => LogT m a -> m (a, [Msg])
