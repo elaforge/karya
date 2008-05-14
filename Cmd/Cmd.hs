@@ -235,7 +235,7 @@ msg_to_mod msg = case msg of
         UiMsg.Mouse { UiMsg.mouse_state = UiMsg.MouseUp btn } ->
             Just (False, MouseMod btn (mouse_context context))
         _ -> Nothing
-    Msg.Midi (_dev, _timestamp, msg) -> case msg of
+    Msg.Midi (Midi.ReadMessage { Midi.rmsg_msg = msg }) -> case msg of
         Midi.ChannelMessage chan (Midi.NoteOn key _vel) ->
             Just (True, MidiMod chan key)
         Midi.ChannelMessage chan (Midi.NoteOff key _vel) ->

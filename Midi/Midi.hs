@@ -2,8 +2,16 @@ module Midi.Midi where
 import qualified Perform.Timestamp as Timestamp
 import Data.Word (Word8)
 
-type WriteMessage = (WriteDevice, Timestamp.Timestamp, Message)
-type ReadMessage = (ReadDevice, Timestamp.Timestamp, Message)
+data WriteMessage = WriteMessage {
+    wmsg_dev :: WriteDevice
+    , wmsg_ts :: Timestamp.Timestamp
+    , wmsg_msg :: Message
+    } deriving (Eq, Ord, Show)
+data ReadMessage = ReadMessage {
+    rmsg_dev :: ReadDevice
+    , rmsg_ts :: Timestamp.Timestamp
+    , rmsg_msg :: Message
+    } deriving (Eq, Ord, Show)
 
 -- | Implementation independent representation of a MIDI Device.
 --

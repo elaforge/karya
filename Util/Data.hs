@@ -1,7 +1,9 @@
 module Util.Data where
 
-import qualified Data.Map as Map
 import qualified Data.Array.IArray as IArray
+import qualified Data.List as List
+import Data.Function
+import qualified Data.Map as Map
 import Data.Array.IArray ((!))
 
 -- * Map
@@ -13,6 +15,12 @@ split_map k fm = (pre, post')
     (pre, at, post) = Map.splitLookup k fm
     post' = maybe post (\v -> Map.insert k v post) at
 
+invert_map :: (Ord k, Ord a) => Map.Map k a -> Map.Map a [k]
+invert_map = multimap . map (\(x, y) -> (y, x)) . Map.assocs
+
+multimap :: (Ord k, Ord a) => [(k, a)] -> Map.Map k [a]
+multimap = Map.fromAscList . map (\gs -> (fst (head gs), map snd gs))
+    . List.groupBy ((==) `on` fst) . List.sort
 
 -- * Array
 

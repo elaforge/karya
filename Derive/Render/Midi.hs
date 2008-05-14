@@ -43,7 +43,6 @@ import qualified Data.List as List
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
-import qualified Util.Seq as Seq
 import qualified Util.Log as Log
 
 import Ui.Types
@@ -57,6 +56,8 @@ import qualified Derive.Player as Player
 import qualified Derive.Twelve as Twelve
 
 import qualified Perform.Timestamp as Timestamp
+-- borrow merge_messages temporarily
+import qualified Perform.Midi.Perform as Perform
 
 
 render :: Player.State -> Derive.Score -> IO ()
@@ -67,9 +68,7 @@ render state (Derive.Score name tracks) = do
             (map (render_midi state . Track.event_list . Track.track_events)
             . event_tracks_of) tracks
         -- Each track will be in order, so merge them together sorted.
-        msgs = foldr (Seq.merge_by (compare `on` msg_ts)) [] track_msgs
-    -- TODO block when I get n seconds ahead of now to avoid flooding the midi
-    -- TODO stick around and listen for Stop, and flush the output if I get it
+        msgs = Perform.merge_messages track_msgs
     play_msgs state Set.empty msgs
     Log.notice $ "render score " ++ show name ++ " complete"
 
@@ -82,7 +81,7 @@ write_ahead = Timestamp.seconds 0.5
 play_msgs :: Player.State -> Set.Set Midi.WriteDevice -> [Midi.WriteMessage]
     -> IO ()
 play_msgs state devs msgs = do
-    let new_devs = Set.difference (Set.fromList (map msg_dev msgs)) devs
+    let new_devs = Set.difference (Set.fromList (map Midi.wmsg_dev msgs)) devs
         write = Player.state_midi_writer state
     -- Force 'devs' so I don't drag 'msgs' on forever.
     -- TODO verify that this is working right
@@ -93,7 +92,7 @@ play_msgs state devs msgs = do
     send_all write new_devs Midi.ResetAllControllers
 
     now <- Player.state_get_current_timestamp state
-    let (chunk, rest) = span ((< (now + write_ahead)) . msg_ts) msgs
+    let (chunk, rest) = span ((< (now + write_ahead)) . Midi.wmsg_ts) msgs
     -- Log.debug $ "play at " ++ show now ++ " chunk: " ++ show (length chunk)
     mapM_ write chunk
     tmsg <- Player.check_transport (Player.state_transport state)
@@ -103,16 +102,15 @@ play_msgs state devs msgs = do
         ([], _) -> return ()
         (_, Player.Stop) -> send_all write devs Midi.AllNotesOff
         _ -> do
+            -- block to avoid flooding the midi driver
             Concurrent.threadDelay (fromIntegral
                 (Timestamp.to_microseconds write_ahead))
             play_msgs state devs rest
 
 send_all write_midi devs chan_msg = forM_ (Set.elems devs) $ \dev ->
     forM_ [0..15] $ \chan -> write_midi
-        (dev, Timestamp.immediately, Midi.ChannelMessage chan chan_msg)
-
-msg_dev (dev, _, _) = dev
-msg_ts (_, ts, _) = ts
+        (Midi.WriteMessage dev Timestamp.immediately
+            (Midi.ChannelMessage chan chan_msg))
 
 render_midi :: Player.State -> [(TrackPos, Event.Event)] -> [Midi.WriteMessage]
 render_midi state pos_events = concatMap (render_note ts_offset) pos_events
@@ -120,18 +118,18 @@ render_midi state pos_events = concatMap (render_note ts_offset) pos_events
     ts_offset = Player.state_timestamp_offset state
 
 render_note ts_offset (pos, event) =
-    [ (wdev, start_ts, msg (Midi.NoteOn (event_key event + 12*5) vel))
-    , (wdev, end_ts, msg (Midi.NoteOff (event_key event + 12*5) 0))
+    [ mkmsg start_ts (Midi.NoteOn (event_key event + 12*5) vel)
+    , mkmsg end_ts (Midi.NoteOff (event_key event + 12*5) 0)
     ]
     where
+    chan = 0
+    vel = 78
+    mkmsg ts msg = Midi.WriteMessage wdev ts (Midi.ChannelMessage chan msg)
     wdev = Midi.WriteDevice "XXX"
     start_ts = pos_to_timestamp ts_offset pos
     end_ts = pos_to_timestamp ts_offset (pos + Event.event_duration event)
-    msg = Midi.ChannelMessage chan
     event_key event = (Twelve.to_midi_nn . Maybe.fromJust . Twelve.event_pitch
         . Event.event_text) event
-    chan = 0
-    vel = 78
 
 pos_to_timestamp :: Timestamp.Timestamp -> TrackPos -> Timestamp.Timestamp
 pos_to_timestamp ts_offset (TrackPos pos) =

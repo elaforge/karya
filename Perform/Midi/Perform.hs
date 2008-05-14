@@ -5,8 +5,10 @@ module Perform.Midi.Perform where
 import Data.Function
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 
 import qualified Util.Seq as Seq
+import qualified Util.Data
 
 import qualified Midi.Midi as Midi
 
@@ -17,86 +19,56 @@ import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Midi.Controller as Controller
 import qualified Perform.Midi.Instrument as Instrument
 
-import Debug.Trace
-
-{-
-    Can the deriver group by instrument and still remain lazy?  I guess the
-    list of allowed instruments is known in advance since there must be
-    a Instrument -> WriteDevice mapping.  On the other hand, this would make
-    loading other blocks tricky because you need to somehow join the instrument
-    maps.  Also, instrument device mapping really is static... but the channel
-    allocation probably isn't.
-
-    I guess it's ok to decide that channel allocation will be manual and it
-    will throw a warning when it hits an instrument that has no allocation
-    (this could also be a reasonable way to mute an instrument) and not send it
-    to Perform.
-
-    I may want something more flexible where I can change channel allocation
-    within the piece and have initialization sent automatically, but it sounds
-    complicated and I don't need that yet.
-
-    TODO: need a mechanism to emit warnings
-    perform_note does pitch bend, warns if it's out of range
-    perform_instrument has an error if no dev for instrument
-    or I could possibly stick this all at the Derive level
--}
-
 -- | Render instrument tracks down to midi messages, sorted in timestamp order.
 -- This should be non-strict on the event lists, so that it can start producing
 -- MIDI output as soon as it starts processing Events.
-perform :: Instrument.Config -> [(Instrument.Instrument, [Event])]
-    -> [Midi.WriteMessage]
-perform config inst_events = undefined
-
-
-perform_instrument :: Instrument.Config -> Instrument.Instrument
-    -> [Event] -> [Midi.WriteMessage]
-perform_instrument config inst events = [(dev, ts, msg) | (ts, msg) <- msgs]
-    where
-    chans = Map.keys (Map.filter (==inst) (Instrument.config_channels config))
-    event_chans = allot_channels chans (channelize events)
-    msgs = perform_notes (Instrument.inst_pitch_bend_range inst) event_chans
-    -- TODO
-    Just dev = Map.lookup inst (Instrument.config_devices config)
+perform :: Instrument.Config -> [Event] -> [Midi.WriteMessage]
+perform config = perform_notes . allot config . channelize
 
 
 -- * perform notes
 
-type TsMessage = (Timestamp.Timestamp, Midi.Message)
-
 -- | Given an ordered list of note events, produce the apprapriate midi msgs.
 -- The input events are ordered, but may overlap.
-perform_notes :: Instrument.PbRange -> [(Event, Midi.Channel)] -> [TsMessage]
-perform_notes pb events = post_process $
-    _perform_notes pb (Timestamp.Timestamp 0) [] events
+perform_notes :: [(Event, Instrument.Addr)] -> [Midi.WriteMessage]
+perform_notes events = post_process $
+    _perform_notes (Timestamp.Timestamp 0) [] events
 
 -- TODO use DList
-_perform_notes _ _ overlapping [] = overlapping
-_perform_notes pb_range ts overlapping ((event, chan):events) =
-    play ++ _perform_notes pb_range first_ts not_yet events
+_perform_notes _ overlapping [] = overlapping
+_perform_notes ts overlapping ((event, addr):events) =
+    play ++ _perform_notes first_ts not_yet events
     where
-    next_on_ts = case List.find ((==chan) . snd) events of
+    -- This find could demand lots or all of events if the
+    -- (instrument, chan) doesn't play for a long time.  It only happens once
+    -- at gaps though, but if it's a problem I can abort after n seconds, which
+    -- would possibly save generating controllers there, at the cost of
+    -- assuming decays are < n sec.
+    next_on_ts = case List.find ((==addr) . snd) events of
         Nothing -> event_end event -- TODO plus decay_time?
         Just (evt, _chan) -> event_start evt
-    msgs = perform_note pb_range next_on_ts event chan
-    first_ts = ts_of (head msgs)
-    (play, not_yet) = List.partition ((<= first_ts) . ts_of)
+    msgs = perform_note next_on_ts event addr
+    -- TODO unprotected head
+    first_ts = Midi.wmsg_ts (head msgs)
+    (play, not_yet) = List.partition ((<= first_ts) . Midi.wmsg_ts)
         (merge_messages [overlapping, msgs])
-    ts_of = fst
 
-post_process = reorder_control_messages . drop_duplicates (==)
+-- | Some context free post-processing on the midi stream.
+post_process :: [Midi.WriteMessage] -> [Midi.WriteMessage]
+post_process = reorder_control_messages . drop_duplicates
 
-drop_duplicates = Seq.drop_dups
+drop_duplicates = Seq.drop_dups (==)
 
 -- | If a control message and a note message happen at the same time, the
 -- control should go first, just to make sure the synth doesn't make a popping
 -- noise.
-reorder_control_messages :: [TsMessage] -> [TsMessage]
+reorder_control_messages :: [Midi.WriteMessage] -> [Midi.WriteMessage]
 reorder_control_messages = sort2 (compare `on` msg_key)
     where
-    msg_key (ts, (Midi.ChannelMessage _ (Midi.ControlChange _ _))) = (ts, 0)
-    msg_key (ts, _) = (ts, 1)
+    msg_key msg = (Midi.wmsg_ts msg, key msg)
+    key msg = case Midi.wmsg_msg msg of
+        Midi.ChannelMessage _ (Midi.ControlChange _ _) -> 0
+        _ -> 1
 
 -- Bubblesort.  It's lazy and sorts almost-sorted stuff well.
 sort2 cmp (a:b:zs) = case cmp a b of
@@ -105,15 +77,15 @@ sort2 cmp (a:b:zs) = case cmp a b of
 sort2 cmp xs = List.sortBy cmp xs
 
 
-perform_note :: Instrument.PbRange -> Timestamp.Timestamp -> Event
-    -> Midi.Channel -> [TsMessage]
-perform_note pb_range next_on_ts event chan =
+perform_note :: Timestamp.Timestamp -> Event -> Instrument.Addr
+    -> [Midi.WriteMessage]
+perform_note next_on_ts event (dev, chan) =
     -- If a msg and controller have the same ts, the controller goes first.
     merge_messages [controller_msgs2, note_msgs]
     where
-    note_msgs = [(on_ts, chan_msg (Midi.NoteOn midi_nn on_vel)),
-        (off_ts, chan_msg (Midi.NoteOff midi_nn off_vel))]
-    chan_msg = Midi.ChannelMessage chan
+    note_msgs = [chan_msg on_ts (Midi.NoteOn midi_nn on_vel),
+        chan_msg off_ts (Midi.NoteOff midi_nn off_vel)]
+    chan_msg ts msg = Midi.WriteMessage dev ts (Midi.ChannelMessage chan msg)
     on_ts = event_start event
     off_ts = on_ts + event_duration event
     on_vel = 100
@@ -122,29 +94,33 @@ perform_note pb_range next_on_ts event chan =
     -- Cents are always measure upwards from the tempered note.  It would be
     -- slicker to use a negative offset if the note is eventually going above
     -- unity, but that's too much work.
+    pb_range = Instrument.inst_pitch_bend_range (event_instrument event)
     pb_offset = Controller.cents_to_pb_val pb_range
         (Pitch.cents (event_pitch event))
-    controller_msgs = merge_messages $
+
+    mkmsg (ts, msg) = Midi.WriteMessage dev ts msg
+    controller_msgs = merge_messages $ map (map mkmsg) $
         map (perform_controller on_ts next_on_ts chan)
             (Map.assocs (event_controls event))
     controller_msgs2 = map (add_pitch_bend pb_offset) controller_msgs
 
 -- | Add offset to pitch bend msgs, passing others through.
-add_pitch_bend :: Int -> TsMessage -> TsMessage
-add_pitch_bend offset (ts, msg) = (ts, msg')
+add_pitch_bend :: Int -> Midi.WriteMessage -> Midi.WriteMessage
+add_pitch_bend offset msg = msg { Midi.wmsg_msg = msg' }
     where
-    msg' = case msg of
+    msg' = case (Midi.wmsg_msg msg) of
         Midi.ChannelMessage chan (Midi.PitchBend n) ->
             -- TODO warn about overflow
             Midi.ChannelMessage chan (Midi.PitchBend (n+offset))
-        _ -> msg
+        msg -> msg
 
 -- TODO filter duplicate msgs
 -- It would be more general to do this at a higher level, but I have to do it
 -- when I have a definite bound on the output, so I don't wait forever on the
 -- last sample.
 perform_controller :: Timestamp.Timestamp -> Timestamp.Timestamp -> Midi.Channel
-    -> (Controller.Controller, Signal.Signal) -> [TsMessage]
+    -> (Controller.Controller, Signal.Signal)
+    -> [(Timestamp.Timestamp, Midi.Message)]
 perform_controller start_ts end_ts chan (controller, sig) =
     case Controller.controller_constructor controller of
         Nothing -> []
@@ -153,27 +129,37 @@ perform_controller start_ts end_ts chan (controller, sig) =
     where
     ts_vals = Signal.sample sig start_ts end_ts
 
-merge_messages :: [[TsMessage]] -> [TsMessage]
-merge_messages = foldr (Seq.merge_by (compare `on` fst)) []
+-- | Merge the sorted midi messages into a single sorted list.
+merge_messages :: [[Midi.WriteMessage]] -> [Midi.WriteMessage]
+merge_messages = foldr (Seq.merge_by (compare `on` Midi.wmsg_ts)) []
 
 -- * channelize
 
--- | Merge channels where they can be.
+-- | Assign channels.  Events will be merged into the same channel where they
+-- can be.
 channelize :: [Event] -> [(Event, Channel)]
-channelize events = overlap_map channelize_event fst [] events
+channelize events = overlap_map channelize_event events
 
-channelize_event :: [(Event, Channel)] -> Event -> (Event, Channel)
-channelize_event overlapping event = (event, chan)
+channelize_event :: [(Event, Channel)] -> Event -> Channel
+channelize_event overlapping event = chan
     where
     chan_of = snd
-    chan = maybe (maximum (0 : map chan_of overlapping) + 1) id
-        (fmap chan_of (List.find ((can_share_chan event) . fst) overlapping))
+    chan = maybe (maximum ((-1) : map chan_of overlapping) + 1) id
+        (shareable_chan overlapping event)
+
+-- Find a channel, all of whose events can share.
+shareable_chan :: [(Event, Channel)] -> Event -> Maybe Channel
+shareable_chan overlapping event = fmap fst (List.find all_share by_chan)
+    where
+    by_chan = Seq.keyed_group_with snd overlapping
+    all_share (chan, evt_chans) = all (can_share_chan event) (map fst evt_chans)
 
 -- | Can the two events coexist in the same channel without interfering?
 can_share_chan :: Event -> Event -> Bool
 can_share_chan event1 event2 =
+    event_instrument event1 == event_instrument event2
     -- Two events with the same pitch can never go on the same channel.
-    event_pitch event1 /= event_pitch event2
+    && event_pitch event1 /= event_pitch event2
     -- If they have different tunings, they'll be pitch-bent by
     -- perform_note.
     && cents event1 == cents event2
@@ -195,34 +181,59 @@ controls_equal c1 c2 = {- trace ("\n*trace: "++show (c1, c2)++"\n") $-} c1 == c2
 
 -- * allot channels
 
-allot_channels :: [Midi.Channel] -> [(Event, Channel)]
-    -> [(Event, Midi.Channel)]
-allot_channels chans events = map_state allot state events
-    where
-    state = (Map.fromList [(chan, ts0) | chan <- chans], Map.empty)
-    ts0 = Timestamp.Timestamp 0
+-- |
+-- Events with instruments that have no address allocation in the config
+-- will be silently dropped.  A higher level should have warned about those.
+allot :: Instrument.Config -> [(Event, Channel)] -> [(Event, Instrument.Addr)]
+allot config events = Maybe.catMaybes $
+    map_state allot_event (initial_allot_state config) events
 
--- (ochan -> ts, ichan -> ochan)
-type AllotState =
-    (Map.Map Midi.Channel Timestamp.Timestamp, Map.Map Channel Midi.Channel)
-allot :: AllotState -> (Event, Channel) -> (AllotState, (Event, Midi.Channel))
-allot (available, chan_map) (event, ichan) = case Map.lookup ichan chan_map of
-    Just ochan -> ((update_ts ochan, chan_map), (event, ochan))
-    Nothing ->
-        let oldest = fst $ Seq.mhead (error "allot to 0 channels") $
-                List.sortBy (compare `on` snd) (Map.assocs available)
-        in ((update_ts oldest, Map.insert ichan oldest chan_map),
-            (event, oldest))
-    where
-    update_ts chan = Map.insert chan (event_end event) available
+data AllotState = AllotState {
+    -- | Allocated addresses, and when they were last used.
+    ast_available :: Map.Map Instrument.Addr Timestamp.Timestamp
+    -- | Map arbitrary input channels to an instrument address in the allocated
+    -- range.
+    , ast_map :: Map.Map (Instrument.Instrument, Channel) Instrument.Addr
+    -- | Addresses allocated to each instrument.
+    , ast_alloc :: Map.Map Instrument.Instrument [Instrument.Addr]
+    } deriving (Show)
+initial_allot_state config = AllotState Map.empty Map.empty
+    (Util.Data.invert_map (Instrument.config_alloc config))
 
+allot_event :: AllotState -> (Event, Channel)
+    -> (AllotState, Maybe (Event, Instrument.Addr))
+allot_event state (event, ichan) =
+    case Map.lookup (inst, ichan) (ast_map state) of
+        Just addr -> (update_avail addr state, Just (event, addr))
+        Nothing -> case steal_addr inst state of
+            -- nothing allocated to this instrument
+            Nothing -> (state, Nothing)
+            Just addr ->
+                (update_avail addr (update_map addr state), Just (event, addr))
+    where
+    inst = event_instrument event
+    update_avail addr state = state { ast_available =
+        Map.insert addr (event_end event) (ast_available state) }
+    update_map addr state =
+        state { ast_map = Map.insert (inst, ichan) addr (ast_map state) }
+
+-- | Steal the least recently used address for the given instrument.
+steal_addr :: Instrument.Instrument -> AllotState -> Maybe Instrument.Addr
+steal_addr inst state = case Map.lookup inst (ast_alloc state) of
+    Just addrs -> let avail = zip addrs (map mlookup addrs)
+        in if null avail then Nothing -- no addrs assigned to this instrument
+            else let (addr, _) = List.minimumBy (compare `on` snd) avail
+            in Just addr
+    _ -> Nothing
+    where
+    mlookup addr = Map.findWithDefault
+        (Timestamp.Timestamp 0) addr (ast_available state)
 
 -- * data
 
--- TODO: controls are also events, with start and dur
--- TODO: events have IDs
 data Event = Event {
-    event_start :: Timestamp.Timestamp
+    event_instrument :: Instrument.Instrument
+    , event_start :: Timestamp.Timestamp
     , event_duration :: Timestamp.Timestamp
     , event_pitch :: Pitch.Pitch
     , event_controls :: Map.Map Controller.Controller Signal.Signal
@@ -239,14 +250,18 @@ type Channel = Integer
 
 -- * util
 
-overlap_map :: ([a] -> Event -> a) -> (a -> Event) -> [a] -> [Event] -> [a]
-overlap_map _ _ _ [] = []
-overlap_map f event_of prev (event:events) =
-    val : overlap_map f event_of (val:prev) events
+-- | Map the given function across the events, passing it previous events it
+-- overlaps with.  The previous events passed to the function are paired with
+-- its previous return values on those events.
+overlap_map :: ([(Event, a)] -> Event -> a) -> [Event] -> [(Event, a)]
+overlap_map = go []
     where
-    start = event_start event
-    overlapping = takeWhile ((> start) . event_end . event_of) prev
-    val = f prev event
+    go _ _ [] = []
+    go prev f (e:events) = (e, val) : go ((e, val) : overlapping) f events
+        where
+        start = event_start e
+        overlapping = takeWhile ((> start) . event_end . fst) prev
+        val = f overlapping e
 
 map_state :: (st -> a -> (st, b)) -> st -> [a] -> [b]
 map_state _ _ [] = []

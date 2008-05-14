@@ -87,7 +87,7 @@ handle_cmd_result :: Bool -> MidiWriter -> State.State -> Cmd.CmdVal
     -> IO (Cmd.Status, State.State, Cmd.State)
 handle_cmd_result do_sync write_midi ui_state1
     (cmd_state, midi, logs, ui_result) = do
-        sequence_ [write_midi (dev, Timestamp.immediately, msg)
+        sequence_ [write_midi (Midi.WriteMessage dev Timestamp.immediately msg)
             | (dev, msg) <- midi]
         mapM_ Log.write logs
         (status, ui_state2) <- case ui_result of

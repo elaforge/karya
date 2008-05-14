@@ -3,6 +3,7 @@ where
 
 import qualified Data.Char as Char
 import qualified Data.Maybe as Maybe
+import Data.Function
 import Data.List
 
 enumerate :: [a] -> [(Int, a)]
@@ -57,6 +58,14 @@ reverse_compare a b = case compare a b of
     LT -> GT
     EQ -> EQ
     GT -> LT
+
+-- * grouping
+
+-- | Group the unsorted list into @(key x, xs)@ where all @xs@ compare equal
+-- after @key@ is applied to them.
+keyed_group_with :: (Ord b) => (a -> b) -> [a] -> [(b, [a])]
+keyed_group_with key = map (\gs -> (key (head gs), gs))
+    . groupBy ((==) `on` key) . sortBy (compare `on` key)
 
 -- * sublists
 

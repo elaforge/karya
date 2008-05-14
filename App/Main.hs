@@ -74,7 +74,7 @@ write_msg :: PortMidi.WriteStream
     -> Map.Map Midi.WriteDevice PortMidi.WriteStream
     -> Midi.WriteMessage
     -> IO ()
-write_msg default_stream wdev_streams (wdev, ts, msg) = do
+write_msg default_stream wdev_streams (Midi.WriteMessage wdev ts msg) = do
     let stream = maybe default_stream id (Map.lookup wdev wdev_streams)
     putStrLn $ "PLAY " ++ show (wdev, ts, msg)
     MidiC.write_msg (stream, MidiC.from_timestamp ts, msg)

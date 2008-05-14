@@ -112,7 +112,8 @@ open_read_device read_chan rdev = do
     where
     enqueue_event chan rdev (PortMidi.Event (bytes, ts)) =
         STM.atomically $ TChan.writeTChan chan
-            (to_read_device rdev, to_timestamp ts, Parse.decode bytes)
+            (Midi.ReadMessage (to_read_device rdev) (to_timestamp ts)
+                (Parse.decode bytes))
 
 -- | Open the given device for writing.  Subsequent calls to 'write_msg' on
 -- this device will work.

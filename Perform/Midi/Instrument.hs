@@ -26,11 +26,16 @@ data Instrument = Instrument {
 
 type PbRange = (Int, Int)
 
+-- | Midi instruments are addressed by a (device, channel) pair, allocated in
+-- 'Config'.
+type Addr = (Midi.WriteDevice, Midi.Channel)
+
 -- | Per-song instrument configuration.
 data Config  = Config {
-    config_devices :: Map.Map Instrument Midi.WriteDevice
-    -- | Channel allocation.
-    , config_channels :: Map.Map Midi.Channel Instrument
+    -- | An instrument may occur multiple times in this map, which means it
+    -- may be multiplexed across multiple channels.  You can also assign it
+    -- multiple devices the same way, but the use for that seems more limited.
+    config_alloc :: Map.Map Addr Instrument
     } deriving (Show)
 
 -- | Describe how an instrument should be initialized before it can be played.

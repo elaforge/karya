@@ -58,7 +58,7 @@ cmd_insert_pitch pitch = do
 
 cmd_midi_thru msg = do
     (dev, chan, msg) <- case msg of
-        Msg.Midi (dev, _ts, Midi.ChannelMessage chan msg) ->
+        Msg.Midi (Midi.ReadMessage dev _ts (Midi.ChannelMessage chan msg)) ->
             return (dev, chan, msg)
         _ -> Cmd.abort
     Cmd.midi (read_dev_to_write_dev dev) (Midi.ChannelMessage chan msg)
@@ -66,8 +66,8 @@ cmd_midi_thru msg = do
 
 cmd_insert_midi_note msg = do
     key <- case msg of
-        Msg.Midi (_dev, _ts, Midi.ChannelMessage _chan
-            (Midi.NoteOn key _vel)) ->
+        Msg.Midi (Midi.ReadMessage _dev _ts (Midi.ChannelMessage _chan
+            (Midi.NoteOn key _vel))) ->
                 return key
         _ -> Cmd.abort
     cmd_insert_pitch (Twelve.Pitch (fromIntegral key))

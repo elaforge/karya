@@ -70,7 +70,7 @@ msg_to_key :: Msg.Msg -> Maybe Key
 msg_to_key msg = case msg of
     Msg.Ui (UiMsg.UiMsg _ (UiMsg.MsgEvent (UiMsg.Kbd UiMsg.KeyDown key))) ->
         Just (UiKey key)
-    Msg.Midi (_, _, Midi.ChannelMessage _ msg) -> case msg of
+    Msg.Midi (Midi.ReadMessage _ _ (Midi.ChannelMessage _ msg)) -> case msg of
         Midi.NoteOn key _ -> Just (MidiKey (NoteOn key))
         Midi.NoteOff key _ -> Just (MidiKey (NoteOff key))
         Midi.ControlChange c v -> Just (MidiKey (Controller c v))

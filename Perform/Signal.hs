@@ -45,6 +45,7 @@ data Method =
 -- timestamp.  Interpolated samples (Linear, Exp) are generated according to
 -- 'srate'.
 -- TODO: supply srate as a signal
+-- TODO filter dups
 sample :: Signal -> Timestamp.Timestamp -> Timestamp.Timestamp
     -> [(Timestamp.Timestamp, Val)]
 sample sig start_ts end_ts = _sample srate previous (Map.assocs post) end_ts

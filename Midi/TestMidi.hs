@@ -30,7 +30,8 @@ main = MidiC.initialize $ \read_chan -> print_err $ do
             (wdev_streams Map.! dev, MidiC.from_timestamp ts, msg)
 
     forever $ do
-        (dev, ts, msg) <- STM.atomically (TChan.readTChan read_chan)
+        Midi.ReadMessage dev ts msg <- STM.atomically
+            (TChan.readTChan read_chan)
         -- print (MidiC.device_name dev, ts, msg)
         let msgs = thru (ts, msg)
         print ((ts, msg), msgs)
