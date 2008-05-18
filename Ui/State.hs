@@ -19,11 +19,13 @@ A higher level interface may ease this by automatically creating objects with
 automatically generated IDs.
 -}
 module Ui.State where
+import Prelude hiding (catch)
 import Control.Monad
 import qualified Control.Monad.Trans as Trans
 import Control.Monad.Trans (lift)
-import qualified Control.Monad.State as State
 import qualified Control.Monad.Error as Error
+import qualified Control.Monad.Identity as Identity
+import qualified Control.Monad.State as State
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
@@ -48,6 +50,7 @@ data State = State {
     , state_tracks :: Map.Map Track.TrackId Track.Track
     , state_rulers :: Map.Map Ruler.RulerId Ruler.Ruler
     } deriving (Show, Read)
+-- TODO "initial_state" would be more consistent
 empty = State Map.empty Map.empty Map.empty Map.empty
 
 -- * StateT monadic access
@@ -68,6 +71,11 @@ run state m = do
         Left err -> Left err
         Right ((val, state), updates) -> Right (val, state, updates)
 
+run_state state m = case st of
+        Left err -> error $ "state error: " ++ show err
+        Right (_, state', _) -> state'
+    where st = Identity.runIdentity (run state m)
+
 -- | TrackUpdates are stored directly instead of being calculated from the
 -- state diff.
 --
@@ -79,8 +87,8 @@ run state m = do
 type StateStack m = State.StateT State
     (Logger.LoggerT Update.Update
         (Error.ErrorT StateError m))
-newtype Monad m => StateT m a = StateT (StateStack m a)
-    deriving (Functor, Monad, Trans.MonadIO)
+newtype StateT m a = StateT (StateStack m a)
+    deriving (Functor, Monad, Trans.MonadIO, Error.MonadError StateError)
 run_state_t (StateT x) = x
 
 instance Trans.MonadTrans StateT where
@@ -90,12 +98,14 @@ data StateError = StateError String deriving (Eq, Show)
 instance Error.Error StateError where
     strMsg = StateError
 
+-- TODO remove modify and implement in terms of get and put?
 class Monad m => UiStateMonad m where
     get :: m State
     put :: State -> m ()
     modify :: (State -> State) -> m ()
     update :: Update.Update -> m ()
     throw :: String -> m a
+    -- To implement catch: add MonadError deriving to LoggerT and to StateT
 
 instance Monad m => UiStateMonad (StateT m) where
     get = StateT State.get
@@ -110,6 +120,8 @@ instance Monad m => UiStateMonad (StateT m) where
 
 get_view :: (UiStateMonad m) => Block.ViewId -> m Block.View
 get_view view_id = get >>= lookup_id view_id . state_views
+
+catch m handler = (StateT . lift . lift) (Error.catchError m handler)
 
 -- | Create a new view.  Block.view_tracks can be left empty, since it will
 -- be replaced by views generated from the the block.  If the caller uses the

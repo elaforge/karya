@@ -52,11 +52,6 @@ newtype TrackEvents = TrackEvents (Map.Map TrackPos Event.Event)
 
 empty_events = TrackEvents Map.empty
 
-
--- | Right-biased union.  Keys from the right map win.
-union_right :: Ord k => Map.Map k a -> Map.Map k a -> Map.Map k a
-union_right = Map.unionWith (\_ a -> a)
-
 -- | Merge events into the given TrackEvents.  Events that overlap will have
 -- their tails clipped until they don't, and given events that start at the
 -- same place as existing events will replace the existing ones.
@@ -158,3 +153,7 @@ in_range low high fm = one_below
     (within, _way_above) = Util.Data.split_map high above
     one_below = if Map.null below then within
         else let (k, v) = Map.findMax below in Map.insert k v within
+
+-- | Right-biased union.  Keys from the right map win.
+union_right :: Ord k => Map.Map k a -> Map.Map k a -> Map.Map k a
+union_right = Map.unionWith (\_ a -> a)
