@@ -1,7 +1,105 @@
 {-# OPTIONS_GHC -XGeneralizedNewtypeDeriving #-}
 module Derive.Derive3 where
 import qualified Control.Exception as Exception
-current_event_stack get
+import qualified Control.Monad.Error as Error
+import qualified Control.Monad.Identity as Identity
+import qualified Control.Monad.State as Monad.State
+import qualified Control.Monad.Trans as Trans
+import Control.Monad.Trans (lift)
+import Data.Function
+import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
+
+import qualified Util.Control
+import qualified Util.Log as Log
+import qualified Util.Seq as Seq
+
+import Ui.Types
+import qualified Ui.Block as Block
+import qualified Ui.Track as Track
+import qualified Ui.Event as Event
+import qualified Ui.State as State
+
+import qualified Perform.Signal as Signal
+import qualified Perform.Warning as Warning
+
+import qualified Derive.Score as Score
+
+
+-- * DeriveT
+
+newtype DeriveT m a = DeriveT (DeriveStack m a)
+    deriving (Functor, Monad, Trans.MonadIO, Error.MonadError DeriveError)
+run_derive_t (DeriveT m) = m
+
+type DeriveStack m = Error.ErrorT DeriveError
+    (Monad.State.StateT State
+        (Log.LogT m))
+
+data State = State {
+    -- | Derivers can modify it for sub-derivers, or look at it, whether to
+    -- attach to an Event or to handle internally.  Since it's attached to
+    -- the stack it automatically gets popped when the stack does.
+    state_env :: Score.ControllerMap
+    , state_ui :: State.State
+    -- | Modified to reflect current event's stack.
+    , state_current_event_stack :: [Warning.CallPos]
+    } deriving (Show)
+initial_state = State Map.empty State.empty []
+
+data DeriveError = DeriveError String
+    | EventError [Warning.CallPos] String
+    deriving (Eq, Show)
+instance Error.Error DeriveError where
+    strMsg = DeriveError
+
+instance Monad m => Log.LogMonad (DeriveT m) where
+    write = DeriveT . lift . lift . Log.write
+
+
+-- * monadic ops
+
+run :: (Monad m) =>
+    State.State -> DeriveT m a -> m (Either DeriveError a, State, [Log.Msg])
+run ui_state m = do
+    let state = initial_state { state_ui = ui_state }
+    ((err, state2), logs) <- (Log.run . flip Monad.State.runStateT state
+        . Error.runErrorT . run_derive_t) m
+    return (err, state2, logs)
+
+derive ui_state m =
+    let (err, _, logs) = Identity.runIdentity $ run ui_state m
+    in (err, logs)
+
+modify :: (Monad m) => (State -> State) -> DeriveT m ()
+modify f = (DeriveT . lift) (Monad.State.modify f)
+get :: (Monad m) => DeriveT m State
+get = (DeriveT . lift) Monad.State.get
+
+set_event_stack stack =
+    modify $ \st -> st { state_current_event_stack = stack }
+
+-- ** errors
+
+throw :: (Monad m) => String -> DeriveT m a
+throw msg = Error.throwError (DeriveError msg)
+
+throw_event :: (Monad m) => String -> DeriveT m a
+throw_event msg = do
+    stack <- fmap state_current_event_stack get
+    Error.throwError (EventError stack msg)
+
+-- | Catch EventErrors and convert them into warnings.  If an error is caught,
+-- return Nothing, otherwise return Just op's value.
+catch_event op = Error.catchError (fmap Just op) $ \exc -> case exc of
+    DeriveError _ -> Error.throwError exc
+    EventError stack msg -> do
+        Log.warn_stack stack msg
+        return Nothing
+
+warn :: (Monad m) => String -> DeriveT m ()
+warn msg = do
+    event_stack <- fmap state_current_event_stack get
     Log.warn_stack event_stack msg
 
 -- ** environment
@@ -36,8 +134,6 @@ lookup_id key map = case Map.lookup key map of
     Just val -> return val
 
 -- ** merge
-
-merge tracks = Score.Score (merge_events (map Score.score_events tracks))
 
 merge_events :: [[Score.Event]] -> [Score.Event]
 merge_events = foldr (Seq.merge_by (compare `on` Score.event_start)) []
