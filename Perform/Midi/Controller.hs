@@ -17,7 +17,11 @@ import qualified Perform.Midi.Instrument as Instrument
 -- parameters or whatever, while others may affect derivation (e.g. tempo) and
 -- won't be seen by the backend at all.
 data Controller = Controller String deriving (Show, Eq, Ord)
+controller name
+    | Controller name `elem` valid_controllers = Just (Controller name)
+    | otherwise = Nothing
 
+-- | Convert from a controller to a function that creates its MIDI message.
 controller_constructor :: Controller
     -> (Maybe (Signal.Val -> Midi.ChannelMessage))
 controller_constructor cont = lookup cont controller_constructors
@@ -32,10 +36,21 @@ controller_constructors =
 is_channel_controller :: Controller -> Bool
 is_channel_controller cont = not (cont `elem` [c_velocity, c_aftertouch])
 
+controller_range :: Controller -> (Signal.Val, Signal.Val)
+controller_range cont
+    | cont == c_pitch = (-1, 1)
+    | otherwise = (0, 1)
+
+-- TODO
 cents_to_pb_val :: Instrument.PbRange -> Int -> Int
 cents_to_pb_val (low, high) cents = cents
 
 -- * hard coded controllers
+
+valid_controllers =
+    [ c_velocity, c_pitch, c_channel_pressure, c_aftertouch
+    , c_breath, c_volume
+    ] -- TODO some way to include generic cc with number
 
 -- ** special
 c_velocity = Controller "velocity"

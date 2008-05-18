@@ -8,12 +8,12 @@ import qualified Midi.Midi as Midi
 
 
 data Instrument = Instrument {
-    -- | Patch name.
-    inst_name :: String
     -- | Name of the synth or program that the patch lives in.  Could be used
     -- with a synth->device mapping to figure out the device it should be
     -- mapped to in config_devices.
-    , inst_synth :: String
+    inst_synth :: String
+    -- | Patch name.
+    , inst_name :: String
     , inst_initialize :: InitializeInstrument
     -- | Pitchbend range in tempered semitones below and above unity.
     , inst_pitch_bend_range :: PbRange
@@ -23,6 +23,7 @@ data Instrument = Instrument {
     -- At least I can know when there's no point emitting control msgs.
     , inst_decay :: Maybe Double
     } deriving (Eq, Ord, Show)
+instrument = Instrument
 
 type PbRange = (Int, Int)
 
@@ -37,6 +38,7 @@ data Config  = Config {
     -- multiple devices the same way, but the use for that seems more limited.
     config_alloc :: Map.Map Addr Instrument
     } deriving (Show)
+config addr_insts = Config (Map.fromList addr_insts)
 
 -- | Describe how an instrument should be initialized before it can be played.
 data InitializeInstrument =
@@ -44,4 +46,5 @@ data InitializeInstrument =
     InitializeMidi [Midi.Message]
     -- | Display this msg to the user and hope they do what it says.
     | InitializeMessage String
+    | NoInitialization
     deriving (Eq, Ord, Show)

@@ -13,3 +13,6 @@ cents (Pitch _ (NoteNumber nn)) = floor (nn * 100) `mod` 100
 -- TODO do I want the same range as MIDI?
 midi_nn :: Pitch -> Midi.Key
 midi_nn (Pitch _ (NoteNumber nn)) = floor nn
+
+from_midi_nn :: String -> Int -> Pitch
+from_midi_nn name nn = Pitch name (NoteNumber (fromIntegral nn))

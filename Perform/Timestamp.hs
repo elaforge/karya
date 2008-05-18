@@ -12,6 +12,9 @@ import Text.Printf
 
 import qualified Util.Seq as Seq
 
+import Ui.Types
+
+
 -- | An absolute timestamp, measured from some arbitrary starting position.
 -- Since I use the default PortMidi timer, it's from the initialization of the
 -- midi subsystem at the moment.
@@ -29,6 +32,15 @@ to_seconds (Timestamp ts) = fromIntegral ts / 1000
 
 to_microseconds :: Timestamp -> Integer
 to_microseconds (Timestamp ts) = ts
+
+-- | TrackPos is converted 1:1.  This means that a TrackPos, after passing
+-- through all the tempo mapping, should eventually correspond to milliseconds.
+-- This means I can't align to samples, but MIDI timing is not that accurate
+-- anyway.  If I ever need to align samples I may have to change this.
+from_track_pos :: TrackPos -> Timestamp
+from_track_pos (TrackPos pos) = Timestamp pos
+to_track_pos :: Timestamp -> TrackPos
+to_track_pos (Timestamp ts) = TrackPos ts
 
 instance Pretty Timestamp where
     pretty ts = printf "%.3fs" (to_seconds ts)

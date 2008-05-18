@@ -15,12 +15,18 @@ import qualified Midi.Midi as Midi
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 import qualified Perform.Timestamp as Timestamp
+import qualified Perform.Warning as Warning
 
 import qualified Perform.Midi.Controller as Controller
 import qualified Perform.Midi.Instrument as Instrument
 
+
+import Text.Printf
+import Util.Pretty
+
+
 -- | Render instrument tracks down to midi messages, sorted in timestamp order.
--- This should be non-strict on the event lists, so that it can start producing
+-- This should be non-strict on the event list, so that it can start producing
 -- MIDI output as soon as it starts processing Events.
 perform :: Instrument.Config -> [Event] -> [Midi.WriteMessage]
 perform config = perform_notes . allot config . channelize
@@ -31,13 +37,12 @@ perform config = perform_notes . allot config . channelize
 -- | Given an ordered list of note events, produce the apprapriate midi msgs.
 -- The input events are ordered, but may overlap.
 perform_notes :: [(Event, Instrument.Addr)] -> [Midi.WriteMessage]
-perform_notes events = post_process $
-    _perform_notes (Timestamp.Timestamp 0) [] events
+perform_notes events = post_process $ _perform_notes [] events
 
 -- TODO use DList
-_perform_notes _ overlapping [] = overlapping
-_perform_notes ts overlapping ((event, addr):events) =
-    play ++ _perform_notes first_ts not_yet events
+_perform_notes overlapping [] = overlapping
+_perform_notes overlapping ((event, addr):events) =
+    play ++ _perform_notes not_yet events
     where
     -- This find could demand lots or all of events if the
     -- (instrument, chan) doesn't play for a long time.  It only happens once
@@ -48,8 +53,9 @@ _perform_notes ts overlapping ((event, addr):events) =
         Nothing -> event_end event -- TODO plus decay_time?
         Just (evt, _chan) -> event_start evt
     msgs = perform_note next_on_ts event addr
-    -- TODO unprotected head
-    first_ts = Midi.wmsg_ts (head msgs)
+    first_ts = case msgs of
+        [] -> Timestamp.Timestamp 0 -- perform_note decided to play nothing?
+        (msg:_) -> Midi.wmsg_ts msg
     (play, not_yet) = List.partition ((<= first_ts) . Midi.wmsg_ts)
         (merge_messages [overlapping, msgs])
 
@@ -99,10 +105,12 @@ perform_note next_on_ts event (dev, chan) =
         (Pitch.cents (event_pitch event))
 
     mkmsg (ts, msg) = Midi.WriteMessage dev ts msg
-    controller_msgs = merge_messages $ map (map mkmsg) $
+    (controller_ts_msgs, clipped) = unzip $
         map (perform_controller on_ts next_on_ts chan)
             (Map.assocs (event_controls event))
+    controller_msgs = merge_messages (map (map mkmsg) controller_ts_msgs)
     controller_msgs2 = map (add_pitch_bend pb_offset) controller_msgs
+    -- TODO convert clipped to Warnings and return
 
 -- | Add offset to pitch bend msgs, passing others through.
 add_pitch_bend :: Int -> Midi.WriteMessage -> Midi.WriteMessage
@@ -114,20 +122,33 @@ add_pitch_bend offset msg = msg { Midi.wmsg_msg = msg' }
             Midi.ChannelMessage chan (Midi.PitchBend (n+offset))
         msg -> msg
 
--- TODO filter duplicate msgs
--- It would be more general to do this at a higher level, but I have to do it
--- when I have a definite bound on the output, so I don't wait forever on the
--- last sample.
+-- | Return the (ts, msg) pairs, and whether the signal value went out of the
+-- allowed controller range (either 0--1 or -1--1).
 perform_controller :: Timestamp.Timestamp -> Timestamp.Timestamp -> Midi.Channel
     -> (Controller.Controller, Signal.Signal)
-    -> [(Timestamp.Timestamp, Midi.Message)]
+    -> ([(Timestamp.Timestamp, Midi.Message)], Bool)
 perform_controller start_ts end_ts chan (controller, sig) =
     case Controller.controller_constructor controller of
-        Nothing -> []
-        Just ctor -> [(ts, Midi.ChannelMessage chan (ctor val))
-            | (ts, val) <- ts_vals]
+        Nothing -> ([], False)
+        Just ctor ->
+            let msgs = [(ts, Midi.ChannelMessage chan (ctor val))
+                    | (ts, val) <- clipped_vals]
+            in (msgs, clipped)
     where
-    ts_vals = Signal.sample sig start_ts end_ts
+    ts_vals = Signal.sample_timestamp sig start_ts end_ts
+    (low, high) = Controller.controller_range controller
+    (clipped, cvals) = clip_vals low high (map snd ts_vals)
+    clipped_vals = zip (map fst ts_vals) cvals
+
+clip_vals low high = foldr go (False, [])
+    where
+    go val (clipped, vals) = (clipped || c, v:vals)
+        where
+        (c, v) = clip val
+        clip val
+            | val < low = (True, low)
+            | val > high = (True, high)
+            | otherwise = (False, val)
 
 -- | Merge the sorted midi messages into a single sorted list.
 merge_messages :: [[Midi.WriteMessage]] -> [Midi.WriteMessage]
@@ -140,6 +161,7 @@ merge_messages = foldr (Seq.merge_by (compare `on` Midi.wmsg_ts)) []
 channelize :: [Event] -> [(Event, Channel)]
 channelize events = overlap_map channelize_event events
 
+-- TODO: optimization: if the event has 0 or 1 addrs, give a constant channel
 channelize_event :: [(Event, Channel)] -> Event -> Channel
 channelize_event overlapping event = chan
     where
@@ -147,12 +169,14 @@ channelize_event overlapping event = chan
     chan = maybe (maximum ((-1) : map chan_of overlapping) + 1) id
         (shareable_chan overlapping event)
 
--- Find a channel, all of whose events can share.
+-- | Find a channel from the list of overlapping (Event, Channel) all of whose
+-- events can share with the given event.
 shareable_chan :: [(Event, Channel)] -> Event -> Maybe Channel
 shareable_chan overlapping event = fmap fst (List.find all_share by_chan)
     where
     by_chan = Seq.keyed_group_with snd overlapping
-    all_share (chan, evt_chans) = all (can_share_chan event) (map fst evt_chans)
+    all_share (_chan, evt_chans) =
+        all (can_share_chan event) (map fst evt_chans)
 
 -- | Can the two events coexist in the same channel without interfering?
 can_share_chan :: Event -> Event -> Bool
@@ -238,8 +262,17 @@ data Event = Event {
     , event_pitch :: Pitch.Pitch
     , event_controls :: Map.Map Controller.Controller Signal.Signal
     -- original (TrackId, TrackPos) for errors
-    -- event_stack :: [(Track.TrackId, TrackPos)]
+    , event_stack :: [Warning.CallPos]
     } -- deriving (Show)
+
+instance Show Event where
+    show e = printf "<%s--%s: %s>"
+        (pretty (event_start e)) (pretty (event_end e))
+        (pretty_pitch (event_pitch e))
+pretty_pitch (Pitch.Pitch s _) = show s
+
+instance Pretty Instrument.Instrument where
+    pretty inst = "<inst: " ++ Instrument.inst_name inst ++ ">"
 
 event_end event = event_start event + event_duration event
 
