@@ -12,9 +12,11 @@ import qualified Data.List as List
 
 import qualified Midi.Midi as Midi
 
+import qualified Perform.Pitch as Pitch
+
 -- | Represent a note from the tempered 12 note scale.  In integers, starting
 -- at c? (?? hz).
-newtype Pitch = Pitch Int
+newtype Pitch = Pitch { pitch_nn :: Int }
     deriving (Show)
 
 -- | Pitch as a string that can be an event's text.  I use a non-traditional
@@ -34,6 +36,10 @@ event_pitch text = do
         then Just (Char.digitToInt octave) else Nothing
     p <- List.elemIndex pitch (IArray.elems pitch_notes)
     return (Pitch (oct * 12 + p))
+
+-- TODO replace event_pitch when I get rid of the old Render
+event_pitch2 text =
+    fmap (Pitch.from_midi_nn text . pitch_nn) (event_pitch text)
 
 pitch_notes :: IArray.Array Int String
 pitch_notes = IArray.listArray (0, 11)

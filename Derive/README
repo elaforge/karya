@@ -1,3 +1,41 @@
+Controls
+
+to "play" a control, it gets attached to the event
+this is done by a function across the score
+
+controls are created in the first place by adding them to the environment
+this way, the control itself isn't looked at until the attacher function runs
+intermediate layers can modify the controls (e.g. compose tempo maps, cancel
+out transposition), or interpret them (e.g. act as a time dependent parameter
+to a deriver).
+
+
+what I want to be able to do:
+
+transpose (const 5) (tracks)
+(some_instrument tracks)
+
+some_instrument tracks = do
+    setenv transpose (const 5) tracks
+
+other_inst score = map_score score $ \event ->
+    if (getenv "magic" `at` event_start > 0.5)
+        then transpose 10 (alter event) else event
+
+transpose sig op = do
+    modify_env "transpose" (+ sig) op
+
+track track_id = do
+    st <- get
+    track <- get_track track_id
+    return $ (Score.Score . map (Score.from_track_event track_id)
+        . Track.event_list . Track.track_events) track
+
+
+(transpose x y beh) -> (let ((x y)) beh)
+
+
+
 Vocab: derive : Score -> Score, realize : Score -> NoteList
 
 The Derive layer converts the raw block format (Score) to the NoteList format.
