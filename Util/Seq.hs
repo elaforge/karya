@@ -69,6 +69,14 @@ keyed_group_with key = map (\gs -> (key (head gs), gs))
 
 -- * sublists
 
+-- A foldr version is not lazy enough and overflows the stack.
+partition_either [] = ([], [])
+partition_either (x:xs) =
+    let (ls, rs) = partition_either xs
+    in case x of
+        Left l -> (l:ls, rs)
+        Right r -> (ls, r:rs)
+
 -- ** extracting sublists
 
 -- | Total variants of head and tail with default values.  "m" is for "maybe".

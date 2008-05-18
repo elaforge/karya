@@ -19,6 +19,9 @@ module Util.Log (
     Msg, Prio(..)
     , debug, notice, warn, error
     , debug_srcpos, notice_srcpos, warn_srcpos, error_srcpos
+    , debug_stack, notice_stack, warn_stack, error_stack
+    , debug_stack_srcpos, notice_stack_srcpos, warn_stack_srcpos
+        , error_stack_srcpos
     -- * LogT monad
     , LogMonad
     , LogT, write, run
@@ -32,15 +35,26 @@ import Text.Printf (printf)
 import qualified Util.Logger as Logger
 import qualified Util.Misc as Misc
 
+-- This import is a little iffy because Util shouldn't be importing from
+-- elsewhere, but the stack uses TrackIds.  UI doesn't use the logging, so
+-- I'm safe for now...
+import qualified Perform.Warning as Warning
+
 data Msg = Msg
     { msg_date :: Maybe Time.UTCTime
     , msg_caller :: Misc.SrcPos
     , msg_prio :: Prio
     -- | Free form text for humans.
     , msg_text  :: String
+    -- | Msgs which are logged from the deriver may record the position in the
+    -- schema and event being processed.
+    , msg_stack :: Maybe Stack
     -- -- | Higher level context info for the msg.
     -- , msg_context :: [Context]
     } deriving (Show, Eq)
+
+-- | (schema_stack, event_stack)
+type Stack = [Warning.CallPos]
 
 data Prio
     -- | Lots of msgs produced by code level.  Users don't look at this during
@@ -57,13 +71,15 @@ data Prio
     deriving (Show, Enum, Eq, Ord)
 
 -- | Create a msg with the give prio and text.
-msg :: Prio -> String -> Msg
-msg = msg_srcpos Nothing
-msg_srcpos :: Misc.SrcPos -> Prio -> String -> Msg
-msg_srcpos srcpos prio text = Msg Nothing srcpos prio text
+msg_srcpos :: Misc.SrcPos -> Prio -> String -> Maybe Stack -> Msg
+msg_srcpos srcpos prio text stack = Msg Nothing srcpos prio text stack
+
 
 log :: LogMonad m => Prio -> Misc.SrcPos -> String -> m ()
-log prio srcpos text = write (msg_srcpos srcpos prio text)
+log prio srcpos text = write (msg_srcpos srcpos prio text Nothing)
+log_stack :: LogMonad m => Prio -> Misc.SrcPos -> Stack -> String -> m ()
+log_stack prio srcpos stack text =
+    write (msg_srcpos srcpos prio text (Just stack))
 
 -- The monomorphism restriction makes these signatures necessary.
 
@@ -79,6 +95,22 @@ debug = debug_srcpos Nothing
 notice = notice_srcpos Nothing
 warn = warn_srcpos Nothing
 error = error_srcpos Nothing
+
+-- Yay permutation game.  I could probably do a typeclass trick to make 'stack'
+-- an optional arg, but I think I'd wind up with all the same boilerplate here.
+debug_stack_srcpos, notice_stack_srcpos, warn_stack_srcpos, error_stack_srcpos
+    :: LogMonad m => Misc.SrcPos -> Stack -> String -> m ()
+debug_stack_srcpos = log_stack Debug
+notice_stack_srcpos = log_stack Notice
+warn_stack_srcpos = log_stack Warn
+error_stack_srcpos = log_stack Error
+
+debug_stack, notice_stack, warn_stack, error_stack
+    :: LogMonad m => Stack -> String -> m ()
+debug_stack = debug_stack_srcpos Nothing
+notice_stack = notice_stack_srcpos Nothing
+warn_stack = warn_stack_srcpos Nothing
+error_stack = error_stack_srcpos Nothing
 
 -- * LogT
 

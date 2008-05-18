@@ -9,6 +9,7 @@ import qualified Data.Maybe as Maybe
 
 import qualified Util.Seq as Seq
 import qualified Util.Data
+import qualified Util.Control
 
 import qualified Midi.Midi as Midi
 
@@ -210,7 +211,7 @@ controls_equal c1 c2 = {- trace ("\n*trace: "++show (c1, c2)++"\n") $-} c1 == c2
 -- will be silently dropped.  A higher level should have warned about those.
 allot :: Instrument.Config -> [(Event, Channel)] -> [(Event, Instrument.Addr)]
 allot config events = Maybe.catMaybes $
-    map_state allot_event (initial_allot_state config) events
+    Util.Control.map_state allot_event (initial_allot_state config) events
 
 data AllotState = AllotState {
     -- | Allocated addresses, and when they were last used.
@@ -295,8 +296,3 @@ overlap_map = go []
         start = event_start e
         overlapping = takeWhile ((> start) . event_end . fst) prev
         val = f overlapping e
-
-map_state :: (st -> a -> (st, b)) -> st -> [a] -> [b]
-map_state _ _ [] = []
-map_state f state (x:xs) = let (state', v) = f state x
-    in v : map_state f state' xs

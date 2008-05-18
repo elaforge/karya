@@ -60,8 +60,10 @@ io_human_srcpos srcpos expected_msg op = do
 
 -- | Print a list with newlines between its elements.
 plist :: Show a => [a] -> IO ()
-plist xs = mapM_ (\(i, x) -> putStr ("--" ++ show i ++ " ") >> print x)
-    (zip [0..] xs)
+plist xs = mapM_ (\(i, x) -> putStr (show i ++ ": ") >> print x) (zip [0..] xs)
+    >> putChar '\n'
+
+pmlist msg xs = putStrLn (msg++":") >> plist xs
 
 -- This goes before printed results when they are as expected.
 success :: Misc.SrcPos -> String -> IO ()
