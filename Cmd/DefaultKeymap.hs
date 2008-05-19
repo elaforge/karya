@@ -15,7 +15,7 @@ import qualified Cmd.Edit as Edit
 import qualified Cmd.Save as Save
 import qualified Cmd.Play as Play
 
-import qualified Derive.Player as Player
+import qualified Perform.Transport as Transport
 import qualified Derive.Twelve as Twelve
 
 
@@ -28,10 +28,10 @@ default_cmds state =
     , Keymap.make_cmd (misc ++ selection ++ edit)
     ]
 
-cmd_io_keymap :: Player.Info -> Msg.Msg -> Cmd.CmdT IO Cmd.Status
+cmd_io_keymap :: Transport.Info -> Msg.Msg -> Cmd.CmdT IO Cmd.Status
 cmd_io_keymap player_info = Keymap.make_cmd (io_keys player_info)
 
-io_keys :: Player.Info -> [(Keymap.KeySpec, Keymap.CmdSpec IO)]
+io_keys :: Transport.Info -> [(Keymap.KeySpec, Keymap.CmdSpec IO)]
 io_keys player_info =
     [ (Keymap.KeySpec [Cmd.KeyMod Key.MetaL] (Keymap.UiKey (Key.KeyChar 's'))
         , Keymap.CmdSpec "save" save)

@@ -29,7 +29,7 @@ import qualified Midi.Midi as Midi
 import qualified Cmd.Msg as Msg
 import qualified Cmd.TimeStep as TimeStep
 
-import qualified Derive.Player as Player
+import qualified Perform.Transport as Transport
 
 
 type CmdM = CmdT Identity.Identity Status
@@ -133,7 +133,7 @@ data State = State {
     , state_edit_mode :: Bool
 
     -- | Transport control channel for the player, if one is running.
-    , state_player_transport :: Maybe Player.Transport
+    , state_transport :: Maybe Transport.Transport
     } deriving (Show)
 empty_state = State Map.empty "save/default" Nothing Nothing
     (TimeStep.UntilMark TimeStep.AllMarklists (TimeStep.MatchRank 2))

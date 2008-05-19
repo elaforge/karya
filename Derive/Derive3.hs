@@ -1,6 +1,12 @@
 {-# OPTIONS_GHC -XGeneralizedNewtypeDeriving #-}
+{- |
+
+Derivers are always in DeriveT, even if they don't need its facilities.  This
+makes them more regular to compose.  The convention is to prepend deriver names
+with 'd_', so if the deriver is normally implement purely, a d_ version can be
+made simply by composing 'return'.
+-}
 module Derive.Derive3 where
-import qualified Control.Exception as Exception
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State as Monad.State
@@ -14,19 +20,21 @@ import qualified Util.Control
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 
-import Ui.Types
 import qualified Ui.Block as Block
 import qualified Ui.Track as Track
-import qualified Ui.Event as Event
 import qualified Ui.State as State
 
 import qualified Perform.Signal as Signal
+import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Warning as Warning
+import qualified Perform.Transport as Transport
 
 import qualified Derive.Score as Score
 
 
 -- * DeriveT
+
+type Deriver = DeriveT Identity.Identity [Score.Event]
 
 newtype DeriveT m a = DeriveT (DeriveStack m a)
     deriving (Functor, Monad, Trans.MonadIO, Error.MonadError DeriveError)
@@ -67,9 +75,23 @@ run ui_state m = do
         . Error.runErrorT . run_derive_t) m
     return (err, state2, logs)
 
-derive ui_state m =
-    let (err, _, logs) = Identity.runIdentity $ run ui_state m
-    in (err, logs)
+derive :: State.State -> Deriver
+    -> (Either DeriveError [Score.Event], Transport.TempoMap, [Log.Msg])
+derive ui_state m = (result, tempo_map, logs)
+    where
+    (result, _derive_state, logs) = Identity.runIdentity $ run ui_state m
+    tempo_map = simple_tempo_map ui_state
+    -- TODO implement with tempo map
+    -- tempo_map = Map.lookup Score.c_tempo (state_env derive_state)
+
+simple_tempo_map ui_state block_id ts = do
+    block <- Map.lookup block_id (State.state_blocks ui_state)
+    let tids = [tid | (Block.TId tid _, _) <- Block.block_tracks block]
+    tracks <- mapM (flip Map.lookup (State.state_tracks ui_state)) tids
+    let end = maximum (map Track.time_end tracks)
+        pos = Timestamp.to_track_pos ts `div` 20
+    if pos < end then Just pos else Nothing
+    -- TODO 20 also hardcoded in Perform.Midi.Play
 
 modify :: (Monad m) => (State -> State) -> DeriveT m ()
 modify f = (DeriveT . lift) (Monad.State.modify f)
@@ -118,8 +140,8 @@ with_env cont signal op = do
 -- ** track
 
 -- | Get events from a track, applying the enviroment's controllers to it.
-track :: (Monad m) => Track.TrackId -> DeriveT m [Score.Event]
-track track_id = do
+d_track :: (Monad m) => Track.TrackId -> DeriveT m [Score.Event]
+d_track track_id = do
     track <- get_track track_id
     cmap <- fmap state_env get
     return $ (map (Score.from_track_event cmap track_id) . Track.event_list
@@ -135,8 +157,15 @@ lookup_id key map = case Map.lookup key map of
 
 -- ** merge
 
+d_merge :: (Monad m) => [[Score.Event]] -> m [Score.Event]
+d_merge = return . merge_events
+
 merge_events :: [[Score.Event]] -> [Score.Event]
 merge_events = foldr (Seq.merge_by (compare `on` Score.event_start)) []
+
+-- | Set instrument on the given events.
+d_instrument inst events = return $
+    map (\evt -> evt { Score.event_instrument = Just inst }) events
 
 -- * utils
 

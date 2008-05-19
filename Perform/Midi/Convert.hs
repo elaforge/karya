@@ -11,7 +11,6 @@ import qualified Data.Maybe as Maybe
 import qualified Util.Seq as Seq
 
 import qualified Derive.Score as Score
-import qualified Derive.Derive as Derive
 
 import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Warning as Warning
@@ -36,7 +35,7 @@ do_convert_event :: Score.Event
 do_convert_event event = do
     let req = require event
     inst <- req "instrument" (Score.event_instrument event)
-    midi_inst <- req "midi instrument in instrument db"
+    midi_inst <- req ("midi instrument in instrument db: " ++ show inst)
         (InstrumentDb.lookup inst)
     pitch <- req "pitch" (Score.event_pitch event)
     let (cwarns, controls) = convert_controls (Score.event_controls event)
@@ -60,4 +59,4 @@ convert_control (Score.Controller c, sig)  = case Controller.controller c of
 
 require event msg Nothing = Left
     (Warning.warning ("event requires " ++ msg) (Score.event_stack event))
-require _event msg (Just x) = Right x
+require _event _msg (Just x) = Right x

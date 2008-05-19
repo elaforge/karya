@@ -16,7 +16,7 @@ import qualified Perform.Warning as Warning
 
 
 -- actually, this is just one track, but they eventually get merged
-data Score = Score { score_events :: [Event] } deriving (Show)
+-- data Score = Score { score_events :: [Event] } deriving (Show)
 
 data Event = Event {
     -- | These are the core attributes that define an event.  For the moment,

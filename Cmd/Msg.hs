@@ -2,11 +2,11 @@ module Cmd.Msg where
 
 import qualified Ui.UiMsg as UiMsg
 import qualified Midi.Midi as Midi
-import qualified Derive.Player as Player
+import qualified Perform.Transport as Transport
 
 
 data Msg = Ui UiMsg.UiMsg | Midi Midi.ReadMessage -- Osc Osc.OscMsg
-    | Player Player.Status
+    | Transport Transport.Status
     -- Osc Osc.OscMsg
     deriving (Show)
 

@@ -57,49 +57,68 @@ import qualified Ui.Sync as Sync
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 
-import qualified Derive.Derive as Derive
-import qualified Derive.Render as Render
-import qualified Derive.Player as Player
+import qualified Derive.Derive3 as Derive
+import qualified Derive.DeriverDb as DeriverDb
+
+import qualified Perform.Midi.Play as Midi.Play
+import qualified Perform.Transport as Transport
+import qualified Perform.Midi.Convert as Convert
+import qualified Perform.Midi.Perform as Perform
 
 import qualified App.Config as Config
 
 
-cmd_play_block :: Player.Info -> Cmd.CmdT IO Cmd.Status
-cmd_play_block player_info = do
+cmd_play_block :: Transport.Info -> Cmd.CmdT IO Cmd.Status
+cmd_play_block transport_info = do
     cmd_state <- Cmd.get_state
-    case Cmd.state_player_transport cmd_state of
+    case Cmd.state_transport cmd_state of
         Just _ -> Log.warn "player already running" >> Cmd.abort
         _ -> return ()
     view_id <- Cmd.get_active_view
     block_id <- find_play_block view_id
     block <- State.get_block block_id
-    deriver <- get_deriver (Block.block_deriver block)
+    deriver <- DeriverDb.get_deriver block
     ui_state <- State.get
 
-    score <- Derive.get_block_score block
-    let (derived_score, tempo_map) = Derive.derive deriver ui_state score
+    -- TODO all the derivation work could be done asynchronously by
+    -- a background thread
+    let (result, tempo_map, logs) = Derive.derive ui_state deriver
+    mapM_ Log.write logs
+    events <- case result of
+        -- TODO properly convert to log msg
+        Left derive_error -> Log.warn ("derive error: " ++ show derive_error)
+            >> Cmd.abort
+        Right events -> return events
+
+    -- TODO later, instrument backend dispatches on this
+    let (warnings, midi_events) = Convert.convert events
+    -- TODO properly convert to log msg
+    mapM_ (Log.warn . show) warnings
+    inst_config <- DeriverDb.default_inst_config block
+    let midi_msgs = Perform.perform inst_config midi_events
+
     transport <- Trans.liftIO $
-        Render.render player_info block_id derived_score
+        Midi.Play.play transport_info block_id midi_msgs
 
     Trans.liftIO $ Thread.start_thread "play position updater" $
-        update_play_position transport player_info tempo_map ui_state
+        update_play_position transport transport_info tempo_map ui_state
 
     Cmd.modify_state $ \st ->
-        st { Cmd.state_player_transport = Just transport }
+        st { Cmd.state_transport = Just transport }
     return Cmd.Done
 
-update_play_position transport player_info tempo_map ui_state = do
+update_play_position transport transport_info tempo_map ui_state = do
     let view_blocks = Map.assocs (Map.map Block.view_block
                 (State.state_views ui_state))
         block_ids = map snd view_blocks
-        player_chan = Player.info_player_chan player_info
-        get_cur_ts = Player.info_get_current_timestamp player_info
+        trans_chan = Transport.info_transport_chan transport_info
+        get_cur_ts = Transport.info_get_current_timestamp transport_info
     -- This won't be exactly the same as the renderer's ts offset, but it's
     -- probably close enough.
     ts_offset <- get_cur_ts
     Exception.bracket_
-        (mapM_ (Player.write_status player_chan Player.Playing) block_ids)
-        (mapM_ (Player.write_status player_chan Player.Stopped) block_ids)
+        (mapM_ (Transport.write_status trans_chan Transport.Playing) block_ids)
+        (mapM_ (Transport.write_status trans_chan Transport.Stopped) block_ids)
         (updater_loop transport ts_offset get_cur_ts tempo_map view_blocks)
 
 updater_loop transport ts_offset get_cur_ts tempo_map view_blocks = do
@@ -109,11 +128,11 @@ updater_loop transport ts_offset get_cur_ts tempo_map view_blocks = do
     forM_ (zip view_blocks spos) $ \((view_id, _), maybe_pos) ->
         Sync.set_play_position view_id maybe_pos
 
-    tmsg <- Player.check_transport transport
+    tmsg <- Transport.check_transport transport
     -- putStrLn $ "UPDATER at " ++ show cur_ts ++ ": "
     --     ++ show tmsg ++ ", " ++ show spos
     -- Either the transport is stopped or I ran out of tempo map.
-    when (tmsg == Player.Play && not (all Maybe.isNothing spos)) $ do
+    when (tmsg == Transport.Play && not (all Maybe.isNothing spos)) $ do
         -- Concurrent.threadDelay (10^5)
         Concurrent.threadDelay 50000
         updater_loop transport ts_offset get_cur_ts tempo_map view_blocks
@@ -122,41 +141,38 @@ updater_loop transport ts_offset get_cur_ts tempo_map view_blocks = do
 
 cmd_stop :: Cmd.CmdT IO Cmd.Status
 cmd_stop = do
-    maybe_control <- fmap Cmd.state_player_transport Cmd.get_state
+    maybe_control <- fmap Cmd.state_transport Cmd.get_state
     transport <- case maybe_control of
         Nothing -> Log.warn "player thread not running" >> Cmd.abort
         Just transport -> return transport
-    Trans.liftIO $ Player.send_transport transport Player.Stop
+    Trans.liftIO $ Transport.send_transport transport Transport.Stop
     return Cmd.Done
 
--- | Respond to player status msgs coming back from the player thread.
-cmd_player_msg :: (Monad m) => Msg.Msg -> Cmd.CmdT m Cmd.Status
-cmd_player_msg msg = do
+-- | Respond to transport status msgs coming back from the player thread.
+cmd_transport_msg :: (Monad m) => Msg.Msg -> Cmd.CmdT m Cmd.Status
+cmd_transport_msg msg = do
     (block_id, status) <- case msg of
-        Msg.Player (Player.Status block_id status) -> return (block_id, status)
+        Msg.Transport (Transport.Status block_id status) ->
+            return (block_id, status)
         _ -> Cmd.abort
     State.set_play_box block_id (play_state_color status)
     Log.notice $ "player status for " ++ show block_id ++ ": " ++ show status
     case status of
-        Player.Playing -> return ()
+        Transport.Playing -> return ()
         -- Since 'update_play_position' is the only thing that sends Stopped,
         -- and it does that when it exits, the updater thread should be
         -- finished here.
-        Player.Stopped -> Cmd.modify_state $ \st ->
-            st { Cmd.state_player_transport = Nothing }
-        Player.Died exc -> Log.notice ("player died: " ++ show exc)
+        Transport.Stopped -> Cmd.modify_state $ \st ->
+            st { Cmd.state_transport = Nothing }
+        Transport.Died exc -> Log.notice ("player died: " ++ show exc)
     return Cmd.Done
 
 
 -- * util
 
 play_state_color status = case status of
-    Player.Playing -> Config.play_color
+    Transport.Playing -> Config.play_color
     _ -> Config.box_color
-
-get_deriver deriver_id = maybe
-    (State.throw $ "deriver not found: " ++ show deriver_id)
-    return (Derive.get_deriver deriver_id)
 
 -- | Find the block to play, relative to the given view.
 -- find_play_block :: State.State -> Block.ViewId -> Block.BlockId

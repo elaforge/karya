@@ -14,6 +14,19 @@ import qualified Midi.Midi as Midi
 
 import qualified Perform.Pitch as Pitch
 
+import qualified Derive.Derive3 as Derive
+import qualified Derive.Score as Score
+
+-- * deriver
+
+twelve events = Derive.map_events () realize_note id events
+realize_note _ event = case event_pitch2 (Score.event_text event) of
+    Nothing -> Derive.throw $
+        "can't realize event " ++ show (Score.event_text event)
+    Just pitch -> return (event { Score.event_pitch = Just pitch })
+
+-- * implementation
+
 -- | Represent a note from the tempered 12 note scale.  In integers, starting
 -- at c? (?? hz).
 newtype Pitch = Pitch { pitch_nn :: Int }

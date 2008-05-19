@@ -1,7 +1,7 @@
-{- | A module with minimal dependencies that has player oriented types and
+{- | A module with minimal dependencies that has transport oriented types and
 utilities.
 -}
-module Derive.Player where
+module Perform.Transport where
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception
 import qualified Data.IORef as IORef
@@ -15,7 +15,7 @@ import qualified Perform.Timestamp as Timestamp
 -- TODO: PlayerM IO: State, Log, ...
 
 -- | These go back to the responder loop from the render thread to notify it
--- about the player's state.
+-- about the transport's state.
 data Status = Status Block.BlockId PlayerStatus deriving (Eq, Show)
 data PlayerStatus = Playing | Stopped | Died Exception.Exception
     -- TODO later have play status so it can move the selection
@@ -27,7 +27,7 @@ type Chan = STM.TChan Status
 -- started, it's incorporated into the play 'State'.
 data Info = Info {
     -- | Channel to communicate back to the responder loop.
-    info_player_chan :: Chan
+    info_transport_chan :: Chan
     , info_midi_writer :: Midi.WriteMessage -> IO ()
     -- | Get current timestamp according to timing system.
     , info_get_current_timestamp :: IO Timestamp.Timestamp
@@ -70,7 +70,7 @@ type TempoMap = Block.BlockId -> Timestamp.Timestamp -> Maybe TrackPos
 -- This is read-only, and shouldn't need to be modified.
 data State = State {
     -- | Communicate out of the Player.
-    state_player_chan :: Chan
+    state_transport_chan :: Chan
     -- | Communicate into the Player.
     , state_transport :: Transport
     , state_midi_writer :: Midi.WriteMessage -> IO ()
