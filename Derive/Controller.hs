@@ -8,7 +8,7 @@ import qualified Perform.Signal as Signal
 
 import qualified Derive.Score as Score
 import qualified Derive.Parse as Parse
-import qualified Derive.Derive3 as Derive
+import qualified Derive.Derive as Derive
 
 import qualified Data.Maybe as Maybe
 

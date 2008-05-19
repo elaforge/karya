@@ -1,4 +1,4 @@
-module Derive.Derive3_test where
+module Derive.Derive_test where
 
 import Util.Test
 
@@ -14,7 +14,7 @@ import qualified Midi.Midi as Midi
 
 import qualified Derive.Controller as Controller
 import qualified Derive.Score as Score
-import qualified Derive.Derive3 as Derive
+import qualified Derive.Derive as Derive
 
 import qualified Derive.Twelve as Twelve
 
@@ -26,10 +26,10 @@ import qualified Perform.Midi.Perform as Perform
 
 -- simple single instrument
 basic_schema :: (Monad m) => Derive.DeriveT m [Score.Event]
-basic_schema = bass =<< twelve =<< Derive.track track_id
+basic_schema = bass =<< twelve =<< Derive.d_track track_id
 
 test_basic = do
-    let (Right events, msgs) = Derive.derive ui_state basic_schema
+    let (Right events, _tempo, msgs) = Derive.derive ui_state basic_schema
     equal msgs []
     pmlist "score" events
     let (warns, midi_events) = Convert.convert events
@@ -43,11 +43,11 @@ test_basic = do
 -- with velocity track
 controller_schema :: (Monad m) => Derive.DeriveT m [Score.Event]
 controller_schema = Controller.controller "breath"
-    (Controller.signal =<< Derive.track cont_track_id)
-    [bass =<< twelve =<< Derive.track track_id]
+    (Controller.signal =<< Derive.d_track cont_track_id)
+    [bass =<< twelve =<< Derive.d_track track_id]
 
 test_controller = do
-    let (Right events, msgs) = Derive.derive ui_state controller_schema
+    let (Right events, _tempo, msgs) = Derive.derive ui_state controller_schema
     equal msgs []
     pmlist "score" events
     let (warns, midi_events) = Convert.convert events

@@ -57,7 +57,7 @@ import qualified Ui.Sync as Sync
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 
-import qualified Derive.Derive3 as Derive
+import qualified Derive.Derive as Derive
 import qualified Derive.DeriverDb as DeriverDb
 
 import qualified Perform.Midi.Play as Midi.Play

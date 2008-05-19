@@ -175,19 +175,16 @@ Derive
   * simplest possible derivation -> midi render
   * new derive: simplest possible implementation, just enough to produce
     Performer input
-  - merge new derive into Player, remove old Derive and Render
+  * merge new derive into Cmd.Play, remove old Derive and Render
   derivers
-    - signal
     - control
     - tempo
-
-  - error reporting with derivation stack trace
   - display intermediate blocks
   - 3 way merge for intermediate blocks
 
 Perform
   Player
-    - move Derive.Player stuff into Perform
+    * move Derive.Player stuff into Perform
     * player blocks when it's n seconds ahead, to avoid flooding midi driver
     _ flush midi output when I get a Stop
       flush is complicated and it's easier to just live with n seconds of extra
@@ -196,11 +193,13 @@ Perform
 
   Midi
     * signal rendering
+    - eliminate duplicate controller msgs
     - get velocity from signal
     - microtuning, implement cents to pb_offset
     - pitch signal rendering
 
   Instrument
+    - some kind of organized way to manage instruments and instrument config
     - backend-independent instrument def
     - some basic midi instrument defs for generic midi (dev, patch)
     - defs for z1 and vl1

@@ -14,7 +14,7 @@ import qualified Midi.Midi as Midi
 
 import qualified Perform.Pitch as Pitch
 
-import qualified Derive.Derive3 as Derive
+import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
 
 -- * deriver

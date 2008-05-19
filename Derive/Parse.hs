@@ -6,7 +6,7 @@ import qualified Data.Char as Char
 import qualified Numeric
 
 import qualified Derive.Score as Score
-import qualified Derive.Derive3 as Derive
+import qualified Derive.Derive as Derive
 
 -- * split up args
 

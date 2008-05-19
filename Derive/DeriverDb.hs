@@ -9,7 +9,7 @@ import qualified Ui.Track as Track
 import qualified Ui.State as State
 
 import qualified Derive.Score as Score
-import qualified Derive.Derive3 as Derive
+import qualified Derive.Derive as Derive
 import qualified Derive.Twelve as Twelve
 
 -- for the bogus default instrument stuff
