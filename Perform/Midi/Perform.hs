@@ -6,7 +6,9 @@ import Data.Function
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import Text.Printf
 
+import Util.Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Data
 import qualified Util.Control
@@ -21,9 +23,6 @@ import qualified Perform.Warning as Warning
 import qualified Perform.Midi.Controller as Controller
 import qualified Perform.Midi.Instrument as Instrument
 
-
-import Text.Printf
-import Util.Pretty
 
 
 -- | Render instrument tracks down to midi messages, sorted in timestamp order.
@@ -46,10 +45,10 @@ _perform_notes overlapping ((event, addr):events) =
     play ++ _perform_notes not_yet events
     where
     -- This find could demand lots or all of events if the
-    -- (instrument, chan) doesn't play for a long time.  It only happens once
-    -- at gaps though, but if it's a problem I can abort after n seconds, which
-    -- would possibly save generating controllers there, at the cost of
-    -- assuming decays are < n sec.
+    -- (instrument, chan) doesn't play for a long time, or ever.  It only
+    -- happens once at gaps though, but if it's a problem I can abort after
+    -- n seconds, which would possibly save generating controllers there, at
+    -- the cost of assuming decays are < n sec.
     next_on_ts = case List.find ((==addr) . snd) events of
         Nothing -> event_end event -- TODO plus decay_time?
         Just (evt, _chan) -> event_start evt
@@ -77,7 +76,7 @@ reorder_control_messages = sort2 (compare `on` msg_key)
         Midi.ChannelMessage _ (Midi.ControlChange _ _) -> 0
         _ -> 1
 
--- Bubblesort.  It's lazy and sorts almost-sorted stuff well.
+-- | Bubblesort.  It's lazy and sorts almost-sorted stuff well.
 sort2 cmp (a:b:zs) = case cmp a b of
     GT -> b : sort2 cmp (a:zs)
     _ -> a : sort2 cmp (b:zs)
@@ -87,7 +86,6 @@ sort2 cmp xs = List.sortBy cmp xs
 perform_note :: Timestamp.Timestamp -> Event -> Instrument.Addr
     -> [Midi.WriteMessage]
 perform_note next_on_ts event (dev, chan) =
-    -- If a msg and controller have the same ts, the controller goes first.
     merge_messages [controller_msgs2, note_msgs]
     where
     note_msgs = [chan_msg on_ts (Midi.NoteOn midi_nn on_vel),
@@ -95,8 +93,10 @@ perform_note next_on_ts event (dev, chan) =
     chan_msg ts msg = Midi.WriteMessage dev ts (Midi.ChannelMessage chan msg)
     on_ts = event_start event
     off_ts = on_ts + event_duration event
-    on_vel = 100
-    off_vel = 100
+    on_vel = maybe default_velocity id $ fmap Controller.val_to_cc $
+        control_at event Controller.c_velocity on_ts
+    off_vel = maybe 0 id $ fmap Controller.val_to_cc $
+        control_at event Controller.c_velocity off_ts
     midi_nn = Pitch.midi_nn (event_pitch event)
     -- Cents are always measure upwards from the tempered note.  It would be
     -- slicker to use a negative offset if the note is eventually going above
@@ -112,6 +112,13 @@ perform_note next_on_ts event (dev, chan) =
     controller_msgs = merge_messages (map (map mkmsg) controller_ts_msgs)
     controller_msgs2 = map (add_pitch_bend pb_offset) controller_msgs
     -- TODO convert clipped to Warnings and return
+
+default_velocity :: Midi.Velocity
+default_velocity = 100
+
+control_at event controller ts = do
+    sig <- Map.lookup controller (event_controls event)
+    return (Signal.timestamp_at sig ts)
 
 -- | Add offset to pitch bend msgs, passing others through.
 add_pitch_bend :: Int -> Midi.WriteMessage -> Midi.WriteMessage
@@ -264,16 +271,7 @@ data Event = Event {
     , event_controls :: Map.Map Controller.Controller Signal.Signal
     -- original (TrackId, TrackPos) for errors
     , event_stack :: [Warning.CallPos]
-    } -- deriving (Show)
-
-instance Show Event where
-    show e = printf "<%s--%s: %s>"
-        (pretty (event_start e)) (pretty (event_end e))
-        (pretty_pitch (event_pitch e))
-pretty_pitch (Pitch.Pitch s _) = show s
-
-instance Pretty Instrument.Instrument where
-    pretty inst = "<inst: " ++ Instrument.inst_name inst ++ ">"
+    } deriving (Show)
 
 event_end event = event_start event + event_duration event
 
@@ -296,3 +294,8 @@ overlap_map = go []
         start = event_start e
         overlapping = takeWhile ((> start) . event_end . fst) prev
         val = f overlapping e
+
+instance Pretty Event where
+    pretty e = printf "<%s--%s: %s>"
+        (pretty (event_start e)) (pretty (event_end e))
+        (pretty (event_pitch e))

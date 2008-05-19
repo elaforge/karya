@@ -6,6 +6,7 @@ import Util.Pretty
 import Util.Test
 
 import qualified Midi.Midi as Midi
+import Midi.Midi (ChannelMessage(..))
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
@@ -19,33 +20,66 @@ import qualified Perform.Midi.Perform as Perform
 -- TODO this mostly just prints results out for eyeball inspection.  I need to
 -- come up with properties and assert them
 
+-- possible properties:
+-- msgs are ordered
+
 -- * perform
 
-test_perform_instruments = do
+test_perform = do
     let perform events = do
         let msgs = Perform.perform inst_config2 (map mkevent events)
         print_msgs msgs
         putStrLn ""
-        return msgs
+        return (map unpack_msg msgs)
 
     -- channel 0 reused for inst1, inst2 gets its own channel
-    perform
+    msgs <- perform
         [ (inst1, "a", 0, 1, [])
         , (inst1, "b", 0, 1, [])
         , (inst2, "c", 0, 1, [])
         ]
+    equal msgs
+        [ ("dev1", 0.0, 0, NoteOn 60 100)
+        , ("dev1", 0.0, 0, NoteOn 61 100)
+        , ("dev2", 0.0, 2, NoteOn 62 100)
+        , ("dev1", 1.0, 0, NoteOff 60 0)
+        , ("dev1", 1.0, 0, NoteOff 61 0)
+        , ("dev2", 1.0, 2, NoteOff 62 0)
+        ]
 
     -- identical notes get split across channels 0 and 1
-    perform
+    msgs <- perform
         [ (inst1, "a", 0, 2, [])
         , (inst1, "a", 1, 2, [])
         , (inst1, "b", 1, 2, [])
         , (inst1, "b", 1.5, 2, [])
         ]
+    equal msgs
+        [ ("dev1", 0.0, 0, NoteOn 60 100)
+        , ("dev1", 1.0, 1, NoteOn 60 100)
+        , ("dev1", 1.0, 0, NoteOn 61 100)
+        , ("dev1", 1.5, 1, NoteOn 61 100)
+        , ("dev2", 2.0, 0, NoteOff 60 0)
+        , ("dev1", 3.0, 1, NoteOff 60 0)
+        , ("dev1", 3.0, 0, NoteOff 61 0)
+        , ("dev1", 3.5, 1, NoteOff 61 0)
+        ]
 
-    return ()
+    -- velocity curve shows up in NoteOns and NoteOffs
+    msgs <- perform
+        [ (inst1, "a", 0, 2, [c_vel])
+        , (inst1, "b", 2, 2, [c_vel])
+        ]
+    equal msgs
+        [ ("dev1", 0.0, 0, NoteOn 60 127)
+        , ("dev1", 2.0, 0, NoteOff 60 63)
+        , ("dev1", 2.0, 0, NoteOn 61 63)
+        , ("dev1", 4.0, 0, NoteOff 61 0)
+        ]
 
-    -- TODO check that msgs are ordered
+unpack_msg (Midi.WriteMessage (Midi.WriteDevice dev) ts
+        (Midi.ChannelMessage chan msg)) =
+    (dev, Timestamp.to_seconds ts, chan, msg)
 
 test_perform_lazy = do
     let endless = map (\(n, ts) -> (n:"", ts, 4, [c_vol]))
@@ -74,7 +108,7 @@ show_ts_msg (ts, msg) = pretty ts ++ ": " ++ show msg
 secs = Timestamp.seconds
 
 test_perform_controller = do
-    let msgs = Perform.perform_controller (secs 0) (secs 10) 0 c_vol
+    let (msgs, range) = Perform.perform_controller (secs 0) (secs 10) 0 c_vol
     -- controls are not emitted after they reach steady values
     print_ts_msgs msgs
 
@@ -138,7 +172,7 @@ test_allot = do
 
 mkevent (inst, pitch, start, dur, controls) =
     Perform.Event inst (ts start) (ts dur) (mkpitch pitch)
-        (Map.fromList controls)
+        (Map.fromList controls) []
     where ts = Timestamp.seconds
 mkevents = map (\ (p, s, d, c) -> mkevent (inst1, p, s, d, c))
 
@@ -149,10 +183,12 @@ events1 = mkevents
 
 
 mksignal ts_vals = Signal.signal
-    [(secs sec, Signal.Linear, val) | (sec, val) <- ts_vals]
+    [(Timestamp.to_track_pos (secs sec), Signal.Linear, val)
+        | (sec, val) <- ts_vals]
 
 c_vol = (Controller.c_volume, mksignal [(0, 1), (4, 0)])
 c_vol2 = (Controller.c_volume, mksignal [(0, 1), (2, 0), (4, 1)])
+c_vel = (Controller.c_velocity, mksignal [(0, 1), (4, 0)])
 c_pitch = (Controller.c_pitch, mksignal [(0, 0), (8, 1)])
 
 mkpitch s = Pitch.Pitch s (Pitch.NoteNumber p)
@@ -164,20 +200,12 @@ inst name = Instrument.Instrument name "z1" (Instrument.InitializeMidi [])
 
 inst1 = inst "inst1"
 inst2 = inst "inst2"
-dev1 = Midi.WriteDevice "inst1 dev"
+dev1 = Midi.WriteDevice "dev1"
+dev2 = Midi.WriteDevice "dev2"
 inst_config = Instrument.Config
     (Map.fromList [((dev1, 0), inst1), ((dev1, 1), inst1)])
 
 -- Also includes inst2.
 inst_config2 = Instrument.Config
     (Map.fromList [((dev1, 0), inst1), ((dev1, 1), inst1),
-        ((dev1, 2), inst2)])
-
-instance Show Perform.Event where
-    show e = printf "<%s--%s: %s>"
-        (pretty (Perform.event_start e)) (pretty (Perform.event_end e))
-        (pretty_pitch (Perform.event_pitch e))
-pretty_pitch (Pitch.Pitch s _) = show s
-
-instance Pretty Instrument.Instrument where
-    pretty inst = "<inst: " ++ Instrument.inst_name inst ++ ">"
+        ((dev2, 2), inst2)])

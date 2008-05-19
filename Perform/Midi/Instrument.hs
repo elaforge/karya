@@ -4,6 +4,7 @@ device and channel mapping.
 module Perform.Midi.Instrument where
 import qualified Data.Map as Map
 
+import Util.Pretty
 import qualified Midi.Midi as Midi
 
 
@@ -48,3 +49,6 @@ data InitializeInstrument =
     | InitializeMessage String
     | NoInitialization
     deriving (Eq, Ord, Show)
+
+instance Pretty Instrument where
+    pretty inst = "<inst: " ++ inst_name inst ++ ">"

@@ -26,8 +26,8 @@ controller_constructor :: Controller
     -> (Maybe (Signal.Val -> Midi.ChannelMessage))
 controller_constructor cont = lookup cont controller_constructors
 controller_constructors =
-    [ (c_pitch, \val -> Midi.PitchBend (pb_normalize val))
-    , (c_channel_pressure, \val -> Midi.ChannelPressure (cc_normalize val))
+    [ (c_pitch, \val -> Midi.PitchBend (val_to_pb val))
+    , (c_channel_pressure, \val -> Midi.ChannelPressure (val_to_cc val))
     ] ++ [(cont, cc num) | (num, cont) <- channel_controllers]
 
 -- | True for controllers that must have a channel to themselves.
@@ -70,11 +70,11 @@ c_volume = Controller "volume"
 
 -- * util
 
-pb_normalize :: Signal.Val -> Int
-pb_normalize val = floor ((val + 1) * 0x2000 - 0x2000)
+val_to_pb :: Signal.Val -> Int
+val_to_pb val = floor ((val + 1) * 0x2000 - 0x2000)
 
-cc_normalize :: Signal.Val -> Midi.ControlValue
-cc_normalize val = floor (val * 0x7f)
+val_to_cc :: Signal.Val -> Midi.ControlValue
+val_to_cc val = floor (val * 0x7f)
 
 cc :: Midi.Controller -> Signal.Val -> Midi.ChannelMessage
-cc cnum val = Midi.ControlChange cnum (cc_normalize val)
+cc cnum val = Midi.ControlChange cnum (val_to_cc val)

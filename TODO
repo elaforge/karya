@@ -1,5 +1,9 @@
-* .depend doesn't have *.hsc -> *.h dependencies
 - check use of Ints
+
+* velocity support
+- test controllers
+- tempo map
+- hs-plugins
 
 fltk
   - set_selection should do nothing if the selection is the same as the last one
@@ -194,7 +198,7 @@ Perform
   Midi
     * signal rendering
     - eliminate duplicate controller msgs
-    - get velocity from signal
+    * get velocity from signal
     - microtuning, implement cents to pb_offset
     - pitch signal rendering
 
