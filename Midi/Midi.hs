@@ -30,6 +30,9 @@ data Message
     | UnknownMessage Word8 Word8 Word8
     deriving (Eq, Ord, Show)
 
+-- TODO using Word8 here is kind of iffy.  Word8s silently overflow after 0xff.
+-- On the other hand, these all have 7 bit ranges, so I can still check for
+-- out of range values, at least until it wraps.
 type Channel = Word8 -- actually 4 bits
 type Key = Word8
 type Velocity = Word8

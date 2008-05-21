@@ -79,14 +79,15 @@ devices = do
 key_on f xs = zip (map f xs) xs
 
 -- | PortMidi has both interface and device name.  Interface is probably always
--- the same (e.g. CoreMIDI), but prepend it to the device name just for
--- completeness.
-to_read_device rdev = Midi.ReadDevice (interface ++ "/" ++ name)
+-- the same (e.g. CoreMIDI), but append it just for completeness.
+-- Going name/interface instead of the other way around is a micro-optimization
+-- since every midi msg write will compare devices.
+to_read_device rdev = Midi.ReadDevice (name ++ "/" ++ interface)
     where
     interface = PortMidi.rdev_interface rdev
     name = PortMidi.rdev_name rdev
 
-to_write_device wdev = Midi.WriteDevice (interface ++ "/" ++ name)
+to_write_device wdev = Midi.WriteDevice (name ++ "/" ++ interface)
     where
     interface = PortMidi.wdev_interface wdev
     name = PortMidi.wdev_name wdev

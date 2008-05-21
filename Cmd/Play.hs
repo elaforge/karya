@@ -91,11 +91,12 @@ cmd_play_block transport_info = do
         Right events -> return events
 
     -- TODO later, instrument backend dispatches on this
-    let (warnings, midi_events) = Convert.convert events
+    let (convert_warnings, midi_events) = Convert.convert events
     -- TODO properly convert to log msg
-    mapM_ (Log.warn . show) warnings
+    mapM_ (Log.warn . show) convert_warnings
     inst_config <- DeriverDb.default_inst_config block
-    let midi_msgs = Perform.perform inst_config midi_events
+    let (midi_msgs, perform_warnings) = Perform.perform inst_config midi_events
+    mapM_ (Log.warn . show) perform_warnings
 
     transport <- Trans.liftIO $
         Midi.Play.play transport_info block_id midi_msgs

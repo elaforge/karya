@@ -104,6 +104,9 @@ at sig pos = interpolate next_meth (prev_pos, prev_val) (next_pos, next_val) pos
         then (pos, (Set, 0))
         else Map.findMin post
 
+timestamp_at :: Signal -> Timestamp.Timestamp -> Val
+timestamp_at sig ts = at sig (Timestamp.to_track_pos ts)
+
 -- interpolate meth prev next pos =
 --     trace ("\n*->" ++ show (meth, prev, next, pos) ++ "\n")
 --     (interpolate' meth prev next pos)

@@ -8,6 +8,8 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import Text.Printf
 
+import qualified Data.DList as DList
+
 import Util.Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Data
@@ -24,26 +26,39 @@ import qualified Perform.Midi.Controller as Controller
 import qualified Perform.Midi.Instrument as Instrument
 
 
+-- TODO: use default_decay, and use decay for overlaps and max lookahead
+
 
 -- | Render instrument tracks down to midi messages, sorted in timestamp order.
 -- This should be non-strict on the event list, so that it can start producing
 -- MIDI output as soon as it starts processing Events.
-perform :: Instrument.Config -> [Event] -> [Midi.WriteMessage]
-perform config = perform_notes . allot config . channelize
+perform :: Instrument.Config -> [Event]
+    -> ([Midi.WriteMessage], [Warning.Warning])
+perform config = perform_notes . allot config . channelize config
 
 
 -- * perform notes
 
 -- | Given an ordered list of note events, produce the apprapriate midi msgs.
 -- The input events are ordered, but may overlap.
-perform_notes :: [(Event, Instrument.Addr)] -> [Midi.WriteMessage]
-perform_notes events = post_process $ _perform_notes [] events
-
--- TODO use DList
-_perform_notes overlapping [] = overlapping
-_perform_notes overlapping ((event, addr):events) =
-    play ++ _perform_notes not_yet events
+perform_notes :: [(Event, Instrument.Addr)]
+    -> ([Midi.WriteMessage], [Warning.Warning])
+perform_notes events = (post_process (DList.toList msgs), DList.toList warns)
     where
+    (msgs, warns) = _perform_notes [] events
+
+-- This uses DList for efficient appends, since the output list is expected to
+-- get very large.
+-- However, actual testing seemed to indicate that the choice of list or DList
+-- seemed to have no effect.  I think my understanding of (++) in the presence
+-- of streaming is flawed...  TODO figure it out
+_perform_notes overlapping [] = (DList.fromList overlapping, DList.fromList [])
+_perform_notes overlapping ((event, addr):events) =
+    -- DList.fromList play `DList.append` _perform_notes not_yet events
+    (DList.fromList play `DList.append` rest_msgs,
+        DList.fromList warns `DList.append` rest_warns)
+    where
+    (rest_msgs, rest_warns) = _perform_notes not_yet events
     -- This find could demand lots or all of events if the
     -- (instrument, chan) doesn't play for a long time, or ever.  It only
     -- happens once at gaps though, but if it's a problem I can abort after
@@ -52,7 +67,7 @@ _perform_notes overlapping ((event, addr):events) =
     next_on_ts = case List.find ((==addr) . snd) events of
         Nothing -> event_end event -- TODO plus decay_time?
         Just (evt, _chan) -> event_start evt
-    msgs = perform_note next_on_ts event addr
+    (msgs, warns) = perform_note next_on_ts event addr
     first_ts = case msgs of
         [] -> Timestamp.Timestamp 0 -- perform_note decided to play nothing?
         (msg:_) -> Midi.wmsg_ts msg
@@ -84,9 +99,9 @@ sort2 cmp xs = List.sortBy cmp xs
 
 
 perform_note :: Timestamp.Timestamp -> Event -> Instrument.Addr
-    -> [Midi.WriteMessage]
+    -> ([Midi.WriteMessage], [Warning.Warning])
 perform_note next_on_ts event (dev, chan) =
-    merge_messages [controller_msgs2, note_msgs]
+    (merge_messages [controller_msgs2, note_msgs], warns)
     where
     note_msgs = [chan_msg on_ts (Midi.NoteOn midi_nn on_vel),
         chan_msg off_ts (Midi.NoteOff midi_nn off_vel)]
@@ -105,13 +120,20 @@ perform_note next_on_ts event (dev, chan) =
     pb_offset = Controller.cents_to_pb_val pb_range
         (Pitch.cents (event_pitch event))
 
-    mkmsg (ts, msg) = Midi.WriteMessage dev ts msg
-    (controller_ts_msgs, clipped) = unzip $
-        map (perform_controller on_ts next_on_ts chan)
-            (Map.assocs (event_controls event))
+    control_sigs = Map.assocs (event_controls event)
+    (controller_ts_msgs, clip_warns) = unzip $
+        map (perform_controller on_ts next_on_ts chan) control_sigs
     controller_msgs = merge_messages (map (map mkmsg) controller_ts_msgs)
     controller_msgs2 = map (add_pitch_bend pb_offset) controller_msgs
-    -- TODO convert clipped to Warnings and return
+    mkmsg (ts, msg) = Midi.WriteMessage dev ts msg
+
+    warns = concatMap (clip_warnings event)
+        (zip (map fst control_sigs) clip_warns)
+
+clip_warnings event (controller, clip_warns) =
+    [Warning.warning (show controller ++ " clipped")
+            (event_stack event) (Just (start_ts, end_ts))
+        | (start_ts, end_ts) <- clip_warns]
 
 default_velocity :: Midi.Velocity
 default_velocity = 100
@@ -134,29 +156,35 @@ add_pitch_bend offset msg = msg { Midi.wmsg_msg = msg' }
 -- allowed controller range (either 0--1 or -1--1).
 perform_controller :: Timestamp.Timestamp -> Timestamp.Timestamp -> Midi.Channel
     -> (Controller.Controller, Signal.Signal)
-    -> ([(Timestamp.Timestamp, Midi.Message)], Bool)
+    -> ([(Timestamp.Timestamp, Midi.Message)], [ClipWarning])
 perform_controller start_ts end_ts chan (controller, sig) =
     case Controller.controller_constructor controller of
-        Nothing -> ([], False)
+        Nothing -> ([], [])
         Just ctor ->
             let msgs = [(ts, Midi.ChannelMessage chan (ctor val))
-                    | (ts, val) <- clipped_vals]
-            in (msgs, clipped)
+                    | (ts, val) <- ts_cvals]
+            in (msgs, clip_warns)
     where
     ts_vals = Signal.sample_timestamp sig start_ts end_ts
     (low, high) = Controller.controller_range controller
-    (clipped, cvals) = clip_vals low high (map snd ts_vals)
-    clipped_vals = zip (map fst ts_vals) cvals
+    -- arrows?
+    (cvals, clips) = unzip (map (clip_val low high) (map snd ts_vals))
+    clip_warns = extract_clip_warns (zip ts_vals clips)
+    ts_cvals = zip (map fst ts_vals) cvals
 
-clip_vals low high = foldr go (False, [])
+type ClipWarning = (Timestamp.Timestamp, Timestamp.Timestamp)
+
+extract_clip_warns :: [((Timestamp.Timestamp, Signal.Val), Bool)]
+    -> [ClipWarning]
+extract_clip_warns ts_val_clips = [(head ts, last ts) | ts <- clip_ts]
     where
-    go val (clipped, vals) = (clipped || c, v:vals)
-        where
-        (c, v) = clip val
-        clip val
-            | val < low = (True, low)
-            | val > high = (True, high)
-            | otherwise = (False, val)
+    groups = List.groupBy ((==) `on` snd) ts_val_clips
+    clip_ts = [[ts | ((ts, _val), _clipped) <- g ] | g <- groups, snd (head g)]
+
+clip_val low high val
+    | val < low = (low, True)
+    | val > high = (high, True)
+    | otherwise = (val, False)
 
 -- | Merge the sorted midi messages into a single sorted list.
 merge_messages :: [[Midi.WriteMessage]] -> [Midi.WriteMessage]
@@ -166,15 +194,21 @@ merge_messages = foldr (Seq.merge_by (compare `on` Midi.wmsg_ts)) []
 
 -- | Assign channels.  Events will be merged into the same channel where they
 -- can be.
-channelize :: [Event] -> [(Event, Channel)]
-channelize events = overlap_map channelize_event events
+channelize :: Instrument.Config -> [Event] -> [(Event, Channel)]
+channelize config events = overlap_map (channelize_event inst_addrs) events
+    where inst_addrs = Util.Data.invert_map (Instrument.config_alloc config)
 
--- TODO: optimization: if the event has 0 or 1 addrs, give a constant channel
-channelize_event :: [(Event, Channel)] -> Event -> Channel
-channelize_event overlapping event = chan
+channelize_event :: Map.Map Instrument.Instrument [Instrument.Addr]
+    -> [(Event, Channel)] -> Event -> Channel
+channelize_event inst_addrs overlapping event =
+    case Map.lookup (event_instrument event) inst_addrs of
+        -- If the event has 0 or 1 addrs I can just give a constant channel.
+        -- 'allot' will assign the correct addr, or filter the event if there
+        -- are none.
+        Just (_:_:_) -> chan
+        _ -> 0
     where
-    chan_of = snd
-    chan = maybe (maximum ((-1) : map chan_of overlapping) + 1) id
+    chan = maybe (maximum ((-1) : map snd overlapping) + 1) id
         (shareable_chan overlapping event)
 
 -- | Find a channel from the list of overlapping (Event, Channel) all of whose
@@ -292,6 +326,7 @@ overlap_map = go []
     go prev f (e:events) = (e, val) : go ((e, val) : overlapping) f events
         where
         start = event_start e
+        -- TODO add decay
         overlapping = takeWhile ((> start) . event_end . fst) prev
         val = f overlapping e
 

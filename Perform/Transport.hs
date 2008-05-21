@@ -6,7 +6,6 @@ import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception
 import qualified Data.IORef as IORef
 
-import qualified Util.Log as Log
 import Ui.Types
 import qualified Ui.Block as Block
 import qualified Midi.Midi as Midi

@@ -3,10 +3,11 @@ module Perform.Signal_test where
 import Util.Test
 import Util.Pretty
 
+import Ui.Types
 import qualified Perform.Timestamp as Timestamp
 import Perform.Signal
 
-secs = Timestamp.seconds
+secs = Timestamp.to_track_pos . Timestamp.seconds
 
 test_interpolate = do
     print $ map (interpolate Linear (secs 1, 1) (secs 2, 2))
@@ -49,8 +50,9 @@ test_sample_exp = do
     print_samples (sample sig (secs 0) (secs 10))
 
 print_samples = mapM_ (putStrLn . show_sample)
-show_sample (ts, val) = pretty ts ++ ": " ++ show val
+show_sample (pos, val) = pretty_pos pos ++ ": " ++ show val
 
-mksignal ts_vals = signal
-    [(secs sec, Linear, val) | (sec, val) <- ts_vals]
+mksignal posvals = signal
+    [(secs sec, Linear, val) | (sec, val) <- posvals]
 
+pretty_pos = pretty . Timestamp.from_track_pos

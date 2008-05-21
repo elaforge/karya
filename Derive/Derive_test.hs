@@ -36,7 +36,7 @@ test_basic = do
     equal warns []
     equal (length midi_events) 2
     pmlist "midi_events" midi_events
-    let msgs = Perform.perform default_inst_config midi_events
+    let (msgs, _warns) = Perform.perform default_inst_config midi_events
     equal (length msgs) 4 -- (noteon + noteoff) * 2
     pmlist "msgs" msgs
 
@@ -54,7 +54,7 @@ test_controller = do
     equal warns []
     equal (length midi_events) 2
     pmlist "midi_events" midi_events
-    let msgs = Perform.perform default_inst_config midi_events
+    let (msgs, _warns) = Perform.perform default_inst_config midi_events
     equal (length msgs) 4 -- (noteon + noteoff) * 2
     pmlist "msgs" msgs
 

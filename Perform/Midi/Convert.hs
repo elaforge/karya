@@ -40,7 +40,7 @@ do_convert_event event = do
     pitch <- req "pitch" (Score.event_pitch event)
     let (cwarns, controls) = convert_controls (Score.event_controls event)
         controller_warns = map
-            (\w -> w { Warning.warn_stack = Score.event_stack event })
+            (\w -> w { Warning.warn_event = Score.event_stack event })
             cwarns
         start = Timestamp.from_track_pos (Score.event_start event)
         dur = Timestamp.from_track_pos (Score.event_duration event)
@@ -54,9 +54,11 @@ convert_controls controls = (warns, Map.fromList ok)
         (map convert_control (Map.assocs controls))
 
 convert_control (Score.Controller c, sig)  = case Controller.controller c of
-    Nothing -> Left (Warning.warning ("unknown controller: " ++ show c) [])
+    Nothing -> Left $
+        Warning.warning ("unknown controller: " ++ show c) [] Nothing
     Just cont -> Right (cont, sig)
 
-require event msg Nothing = Left
-    (Warning.warning ("event requires " ++ msg) (Score.event_stack event))
+require event msg Nothing = Left $
+    Warning.warning ("event requires " ++ msg) (Score.event_stack event)
+        Nothing
 require _event _msg (Just x) = Right x

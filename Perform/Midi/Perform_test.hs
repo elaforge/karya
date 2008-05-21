@@ -1,5 +1,10 @@
 module Perform.Midi.Perform_test where
+import Control.Monad
+import qualified Control.Concurrent.Chan as Chan
+import qualified Control.Concurrent as Concurrent
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
+import qualified System.IO as IO
 import Text.Printf
 
 import Util.Pretty
@@ -25,11 +30,38 @@ import qualified Perform.Midi.Perform as Perform
 
 -- * perform
 
+test_clip_warns = do
+    let badsig = (Controller.c_volume, mksignal
+            [(0, 0), (1, 1.5), (2, 0), (2.5, 0), (3, 2)])
+        (msgs, warns) = Perform.perform inst_config1 $ map mkevent
+            [ (inst1, "a", 0, 4, [badsig])
+            ]
+    -- TODO check that warnings came at the right places
+    -- check that the clips happen at the same places as the warnings
+    plist warns
+    plist $ Maybe.catMaybes $ map (midi_cc_of . Midi.wmsg_msg) msgs
+    check (all valid_msg (map Midi.wmsg_msg msgs))
+
+-- | Check to make sure midi msg's vals are all in range.
+-- TODO: should go to a more general place?
+valid_msg (Midi.ChannelMessage chan msg) =
+    0 <= chan && chan < 16 && valid_chan_msg msg
+valid_msg _ = True
+val7 v = 0 <= v && v < 128
+valid_chan_msg msg = case msg of
+    Midi.ControlChange cc val -> val7 cc && val7 val
+    Midi.NoteOn key vel -> val7 key && val7 vel
+    Midi.NoteOff key vel -> val7 key && val7 vel
+
+midi_cc_of (Midi.ChannelMessage _ (Midi.ControlChange cc val)) = Just (cc, val)
+midi_cc_of _ = Nothing
+
 test_perform = do
     let perform events = do
-        let msgs = Perform.perform inst_config2 (map mkevent events)
-        print_msgs msgs
-        putStrLn ""
+        let (msgs, warns) = Perform.perform inst_config2 (map mkevent events)
+        -- print_msgs msgs
+        -- putStrLn ""
+        equal warns []
         return (map unpack_msg msgs)
 
     -- channel 0 reused for inst1, inst2 gets its own channel
@@ -59,7 +91,7 @@ test_perform = do
         , ("dev1", 1.0, 1, NoteOn 60 100)
         , ("dev1", 1.0, 0, NoteOn 61 100)
         , ("dev1", 1.5, 1, NoteOn 61 100)
-        , ("dev2", 2.0, 0, NoteOff 60 0)
+        , ("dev1", 2.0, 0, NoteOff 60 0)
         , ("dev1", 3.0, 1, NoteOff 60 0)
         , ("dev1", 3.0, 0, NoteOff 61 0)
         , ("dev1", 3.5, 1, NoteOff 61 0)
@@ -84,13 +116,38 @@ unpack_msg (Midi.WriteMessage (Midi.WriteDevice dev) ts
 test_perform_lazy = do
     let endless = map (\(n, ts) -> (n:"", ts, 4, [c_vol]))
             (zip (cycle ['a'..'g']) [0,4..])
-    let msgs = test_one_chan endless
-    -- TODO check that this doesn't hang
-    print_msgs (take 60 msgs)
+    let (msgs, _warns) = test_one_chan endless
+    (th_id, chan) <- pretend_to_write msgs
+    Concurrent.threadDelay (5 * 1000000)
+    Concurrent.killThread th_id
+    -- forever $ do
+    --     (i, msg) <- Chan.readChan chan
+    --     putStrLn $ show i ++ ": " ++ show_msg msg
+    -- mapM_
+    -- -- TODO check that this doesn't hang
+    -- print_msgs (take 60 msgs)
 
     -- TODO check for dragging by going over a huge list and watching memory
+    -- TODO test with huge list using (++) and then with DList.append
+    -- dlist
+    -- 118000
+    -- 504000
+    --
+    -- ++
+    -- 118000
+    -- 494000
 
-pb_range = (-12, 12)
+pretend_to_write xs = do
+    status_chan <- Chan.newChan
+    th_id <- Concurrent.forkIO $ IO.withFile "/dev/null" IO.WriteMode $ \hdl ->
+        mapM_ (write status_chan hdl) (zip [0..] xs)
+    return (th_id, status_chan)
+    where
+    write status_chan handle (i, msg) = do
+        when (i `mod` 1000 == 0) $ do
+            Chan.writeChan status_chan (i `div` 1000, msg)
+            putStrLn $ show i ++ ": " ++ show_msg msg
+        IO.hPutStr handle (show msg)
 
 test_one_chan events =
     Perform.perform_notes (with_chan 0 (mkevents events))
@@ -116,26 +173,36 @@ test_perform_controller = do
 -- * channelize
 
 test_channelize = do
-    let channelize = map snd . Perform.channelize . mkevents
+    let channelize = map snd . Perform.channelize inst_config2 . mkevents
     -- Re-use channels when the pitch is different, but don't when it's the
     -- same.
-    equal [0, 1, 0, 1, 2] $ channelize
-            [ ("a", 0, 2, [])
-            , ("a", 1, 2, [])
-            , ("b", 1, 2, [])
-            , ("b", 1.5, 2, [])
-            , ("a", 1.75, 2, [])
-            ]
+    equal (channelize
+        [ ("a", 0, 2, [])
+        , ("a", 1, 2, [])
+        , ("b", 1, 2, [])
+        , ("b", 1.5, 2, [])
+        , ("a", 1.75, 2, [])
+        ])
+        [0, 1, 0, 1, 2]
+
+    -- Even though they share pitches, they get the same channel, since inst2
+    -- only has one addr.
+    equal (map snd $ Perform.channelize inst_config2 $ map mkevent
+        [ (inst2, "a", 0, 2, [])
+        , (inst2, "a", 1, 2, [])
+        ])
+        [0, 0]
 
     -- TODO test cents and controls differences
 
     -- All under volume, but "pb" also has a pitchbend, so it gets its own
     -- track.
-    -- print $ Perform.channelize $ mkevents
-    --         [ ("a", 0, 4, [c_vol])
-    --         , ("pb", 2, 4, [c_vol, c_pitch])
-    --         , ("c", 4, 4, [c_vol, c_pitch])
-    --         ]
+    equal (channelize
+        [ ("a", 0, 4, [c_vol])
+        , ("pb", 2, 4, [c_vol, c_pitch])
+        , ("c", 4, 4, [c_vol, c_pitch])
+        ])
+        [0, 1, 1]
 
 test_overlap_map = do
     let f overlapping event = (event, map fst overlapping)
@@ -154,7 +221,7 @@ test_allot = do
     let mk1 = mk inst1
     let in_time mks = zipWith ($) mks [0..]
     let allot_chans events = map snd $
-            map snd (Perform.allot inst_config events)
+            map snd (Perform.allot inst_config1 events)
 
     -- They should alternate channels, according to LRU.
     equal (allot_chans (in_time [mk1 0, mk1 1, mk1 2, mk1 3]))
@@ -202,7 +269,7 @@ inst1 = inst "inst1"
 inst2 = inst "inst2"
 dev1 = Midi.WriteDevice "dev1"
 dev2 = Midi.WriteDevice "dev2"
-inst_config = Instrument.Config
+inst_config1 = Instrument.Config
     (Map.fromList [((dev1, 0), inst1), ((dev1, 1), inst1)])
 
 -- Also includes inst2.
