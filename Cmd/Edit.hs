@@ -21,6 +21,7 @@ import qualified Ui.State as State
 
 import qualified Midi.Midi as Midi
 
+import qualified Perform.Pitch as Pitch
 import qualified Derive.Twelve as Twelve
 
 import qualified Cmd.Cmd as Cmd
@@ -40,11 +41,16 @@ cmd_toggle_edit = do
     return Cmd.Done
 
 -- | Insert an event with the given pitch at the current insert point.
-cmd_insert_pitch :: Twelve.Pitch -> Cmd.CmdM
-cmd_insert_pitch pitch = do
-    -- edit <- fmap Cmd.state_edit_mode Cmd.get_state
-    -- when (not edit) Cmd.abort
+-- This actually takes a pitch_num, which represents the position on the
+-- keyboard and should be mapped to the correct pitch.
+cmd_insert_pitch :: Int -> Cmd.CmdM
+cmd_insert_pitch pitch_num = do
+    octave <- fmap Cmd.state_kbd_entry_octave Cmd.get_state
+    insert_pitch $
+        Pitch.from_midi_nn ("kbd " ++ show pitch_num) (pitch_num + 12*octave)
 
+insert_pitch :: Pitch.Pitch -> Cmd.CmdM
+insert_pitch pitch = do
     (track_ids, sel) <- selected_tracks Config.insert_selnum
     track_id <- Cmd.require $ case track_ids of
         (x:_) -> Just x
@@ -64,16 +70,16 @@ cmd_midi_thru msg = do
     Cmd.midi (read_dev_to_write_dev dev) (Midi.ChannelMessage chan msg)
     return Cmd.Continue
 
+read_dev_to_write_dev (Midi.ReadDevice name) = Midi.WriteDevice name
+
 cmd_insert_midi_note msg = do
     key <- case msg of
         Msg.Midi (Midi.ReadMessage _dev _ts (Midi.ChannelMessage _chan
             (Midi.NoteOn key _vel))) ->
                 return key
         _ -> Cmd.abort
-    cmd_insert_pitch (Twelve.Pitch (fromIntegral key))
+    insert_pitch (Pitch.from_midi_nn ("midi " ++ show key) key)
     return Cmd.Done
-
-read_dev_to_write_dev (Midi.ReadDevice name) = Midi.WriteDevice name
 
 -- | If the insertion selection is a point, remove any event under it.  If it's
 -- a range, remove all events within its half-open extent.

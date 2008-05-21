@@ -120,24 +120,39 @@ data State = State {
     -- | Argumentless save commands save to and load from this file.
     , state_default_save_file :: FilePath
 
+    -- | Transport control channel for the player, if one is running.
+    , state_transport :: Maybe Transport.Transport
+
     -- | The block and track that have focus.  Commands that address
     -- a particular block or track will address these.
     , state_active_view :: Maybe Block.ViewId
     , state_active_track :: Maybe Block.TrackNum
 
-    -- | Default time step.  Used for cursor movement, note duration, and
-    -- whatever else.
-    , state_current_step :: TimeStep.TimeStep
+    -- Editing state
 
     -- | Edit mode enables various commands that write to tracks.
     , state_edit_mode :: Bool
-
-    -- | Transport control channel for the player, if one is running.
-    , state_transport :: Maybe Transport.Transport
+    -- | Default time step.  Used for cursor movement, note duration, and
+    -- whatever else.
+    , state_current_step :: TimeStep.TimeStep
+    -- | Transpose note entry on the keyboard by this many octaves.  It's by
+    -- octave instead of scale degree since scales may have different numbers
+    -- of notes per octave.
+    , state_kbd_entry_octave :: Int
     } deriving (Show)
-empty_state = State Map.empty "save/default" Nothing Nothing
-    (TimeStep.UntilMark TimeStep.AllMarklists (TimeStep.MatchRank 2))
-    False Nothing
+empty_state = State {
+    state_keys_down = Map.empty
+    , state_default_save_file = "save/default"
+    , state_transport = Nothing
+    , state_active_view = Nothing
+    , state_active_track = Nothing
+
+    , state_edit_mode = False
+    , state_current_step =
+        TimeStep.UntilMark TimeStep.AllMarklists (TimeStep.MatchRank 2)
+    -- This should put middle C in the center of the kbd entry keys.
+    , state_kbd_entry_octave = 4
+    }
 
 data Modifier = KeyMod Key.Key
     -- | Mouse button, and (tracknum, pos) in went down at, if any.
