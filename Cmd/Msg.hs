@@ -5,9 +5,15 @@ import qualified Midi.Midi as Midi
 import qualified Perform.Transport as Transport
 
 
-data Msg = Ui UiMsg.UiMsg | Midi Midi.ReadMessage -- Osc Osc.OscMsg
+data Msg =
+    -- | Message from the UI.
+    Ui UiMsg.UiMsg
+    -- | Incoming midi message.
+    | Midi Midi.ReadMessage
+    -- | Message from the transport/play thread.
     | Transport Transport.Status
-    -- Osc Osc.OscMsg
+    -- | Message from the language control socket.
+    | Socket String
     deriving (Show)
 
 -- * player msgs

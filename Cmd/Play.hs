@@ -58,7 +58,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 
 import qualified Derive.Derive as Derive
-import qualified Derive.DeriverDb as DeriverDb
+import qualified Derive.Schema as Schema
 
 import qualified Perform.Midi.Play as Midi.Play
 import qualified Perform.Transport as Transport
@@ -77,7 +77,7 @@ cmd_play_block transport_info = do
     view_id <- Cmd.get_active_view
     block_id <- find_play_block view_id
     block <- State.get_block block_id
-    deriver <- DeriverDb.get_deriver block
+    deriver <- Schema.get_deriver block
     ui_state <- State.get
 
     -- TODO all the derivation work could be done asynchronously by
@@ -94,7 +94,7 @@ cmd_play_block transport_info = do
     let (convert_warnings, midi_events) = Convert.convert events
     -- TODO properly convert to log msg
     mapM_ (Log.warn . show) convert_warnings
-    inst_config <- DeriverDb.default_inst_config block
+    inst_config <- Schema.default_inst_config block
     let (midi_msgs, perform_warnings) = Perform.perform inst_config midi_events
     mapM_ (Log.warn . show) perform_warnings
 

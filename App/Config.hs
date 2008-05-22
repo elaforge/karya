@@ -1,13 +1,22 @@
 {- | Global static app defaults.
 -}
 module App.Config where
--- import Ui.Types
+import qualified Control.Exception as Exception
+import qualified Network
+import qualified System.Directory as Directory
+
 import qualified Ui.Font as Font
 import qualified Ui.Color as Color
 import qualified Ui.Block as Block
 import qualified Ui.Ruler as Ruler
 
 import qualified Ui.Event as Event
+
+
+-- | Port to listen on for language requests.
+lang_port = Network.UnixSocket "seq_language"
+initialize_lang_port =
+    Exception.handle (\exc -> print exc) $ Directory.removeFile "seq_language"
 
 -- * rulers
 

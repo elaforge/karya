@@ -3,9 +3,8 @@ module App.Main where
 import Control.Monad
 import qualified Control.Concurrent.STM as STM
 import qualified Data.Map as Map
+import qualified Network
 
--- import qualified Util.Thread as Thread
--- import qualified Util.Seq as Seq
 import qualified Util.Log as Log
 
 import Ui.Types
@@ -42,7 +41,13 @@ import qualified Midi.PortMidi as PortMidi
     Create an empty block with a few tracks.
 -}
 
-main = Initialize.initialize $ \msg_chan -> MidiC.initialize $ \read_chan -> do
+initialize f = Initialize.initialize $ \msg_chan -> MidiC.initialize
+    $ \read_chan -> Network.withSocketsDo $ do
+        Config.initialize_lang_port
+        socket <- Network.listenOn Config.lang_port
+        f socket msg_chan read_chan
+
+main = initialize $ \lang_socket msg_chan read_chan -> do
     Log.notice "app starting"
 
     (rdev_map, wdev_map) <- MidiC.devices
@@ -65,8 +70,9 @@ main = Initialize.initialize $ \msg_chan -> MidiC.initialize $ \read_chan -> do
     let default_stream = head (Map.elems wdev_streams)
 
     player_chan <- STM.newTChanIO
-    let get_msg = Responder.create_msg_reader msg_chan read_chan player_chan
-        get_ts = fmap MidiC.to_timestamp PortMidi.pt_time
+    get_msg <- Responder.create_msg_reader
+        lang_socket msg_chan read_chan player_chan
+    let get_ts = fmap MidiC.to_timestamp PortMidi.pt_time
     Responder.responder get_msg (write_msg default_stream wdev_streams) get_ts
         player_chan setup_cmd
 

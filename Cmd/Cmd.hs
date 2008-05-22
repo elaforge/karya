@@ -1,7 +1,6 @@
 {-# OPTIONS_GHC -XGeneralizedNewtypeDeriving #-}
 module Cmd.Cmd where
 
-import qualified Control.Concurrent as Concurrent
 import Control.Monad
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Identity as Identity
@@ -30,17 +29,23 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.TimeStep as TimeStep
 
 import qualified Perform.Transport as Transport
+import qualified Perform.Midi.Instrument as Midi.Instrument
 
 
 type CmdM = CmdT Identity.Identity Status
 type Cmd = Msg.Msg -> CmdM
+type CmdIO = Msg.Msg -> CmdT IO Status
 
+-- | Cmds can run in either Identity or IO, but are generally returned in IO,
+-- just to make things uniform.
+type RunCmd cmd_m val_m =
+    State.State -> State -> CmdT cmd_m Status -> val_m CmdVal
 
 -- | The result of running a Cmd.
 type CmdVal = (State, [MidiThru], [Log.Msg],
     Either State.StateError (Status, State.State, [Update.Update]))
 
-run :: (Monad m) => State.State -> State -> CmdT m Status -> m CmdVal
+run :: (Monad m) => RunCmd m m
 run ui_state cmd_state cmd = do
     (res, logs) <- (Log.run . Error.runErrorT . Logger.run
         . flip MonadState.runStateT cmd_state . State.run ui_state . run_cmd_t)
@@ -51,9 +56,9 @@ run ui_state cmd_state cmd = do
         Left Abort -> (cmd_state, [], logs, Right (Continue, ui_state, []))
         Right ((ui_res, cmd_state2), midi) -> (cmd_state2, midi, logs, ui_res)
 
-run_cmd :: State.State -> State -> CmdM -> CmdVal
-run_cmd ui_state cmd_state cmd =
-    Identity.runIdentity (run ui_state cmd_state cmd)
+run_cmd :: RunCmd Identity.Identity IO
+run_cmd ui_state cmd_state cmd = do
+    return $ Identity.runIdentity (run ui_state cmd_state cmd)
 
 -- | Quit is not exported, so that only 'cmd_quit' here has permission to
 -- return it.
@@ -111,22 +116,26 @@ require = maybe abort return
 -- * State
 
 data State = State {
+    -- Internally maintained state.
+
     -- | Map of keys held down.  Maintained by cmd_record_keys and accessed
     -- with 'keys_down'.
     -- The key is the modifier stripped of extraneous info, like mousedown
     -- position.
     state_keys_down :: Map.Map Modifier Modifier
-
-    -- | Argumentless save commands save to and load from this file.
-    , state_default_save_file :: FilePath
-
     -- | Transport control channel for the player, if one is running.
     , state_transport :: Maybe Transport.Transport
-
     -- | The block and track that have focus.  Commands that address
     -- a particular block or track will address these.
     , state_active_view :: Maybe Block.ViewId
     , state_active_track :: Maybe Block.TrackNum
+
+    -- Global user-edited app state.
+
+    -- | Argumentless save commands save to and load from this file.
+    , state_default_save_file :: FilePath
+    -- | Instrument to (device, channel) mapping.
+    , state_midi_instrument_config :: Midi.Instrument.Config
 
     -- Editing state
 
@@ -142,10 +151,12 @@ data State = State {
     } deriving (Show)
 empty_state = State {
     state_keys_down = Map.empty
-    , state_default_save_file = "save/default"
     , state_transport = Nothing
     , state_active_view = Nothing
     , state_active_track = Nothing
+
+    , state_default_save_file = "save/default"
+    , state_midi_instrument_config = Midi.Instrument.config []
 
     , state_edit_mode = False
     , state_current_step =
@@ -327,8 +338,7 @@ ui_update ctx@(UiMsg.Context (Just view_id) track _pos) update = case update of
     UiMsg.UpdateZoom zoom -> State.set_zoom view_id zoom
     UiMsg.UpdateViewResize rect -> do
         view <- State.get_view view_id
-        when (rect /= Block.view_rect view) $ do
-            Log.debug $ "new view rect " ++ show rect
+        when (rect /= Block.view_rect view) $
             State.set_view_rect view_id rect
     UiMsg.UpdateTrackWidth width -> case track of
         Just tracknum -> State.set_track_width view_id tracknum width

@@ -7,7 +7,6 @@ import qualified Ui.Key as Key
 
 import Cmd.Types
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Msg as Msg
 import qualified Cmd.Keymap as Keymap
 
 import qualified Cmd.Selection as Selection
@@ -27,7 +26,7 @@ default_cmds state =
     , Keymap.make_cmd (misc ++ selection ++ edit)
     ]
 
-cmd_io_keymap :: Transport.Info -> Msg.Msg -> Cmd.CmdT IO Cmd.Status
+cmd_io_keymap :: Transport.Info -> Cmd.CmdIO
 cmd_io_keymap player_info = Keymap.make_cmd (io_keys player_info)
 
 io_keys :: Transport.Info -> [(Keymap.KeySpec, Keymap.CmdSpec IO)]
@@ -40,6 +39,7 @@ io_keys player_info =
     , single (Key.KeyChar ' ') "stop play" Play.cmd_stop
     ]
 
+save, load :: Cmd.CmdIO
 save _msg = Save.cmd_save Nothing >> return Cmd.Done
 load _msg = Save.cmd_load Nothing >> return Cmd.Done
 
