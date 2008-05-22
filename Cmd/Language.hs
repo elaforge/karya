@@ -1,112 +1,107 @@
-{- | Process a textual language to perform UI state changes.
+{- | Process a textual language, which may look familiar, to perform UI state
+changes.
 
-It would be nice to get line editing.  I can do this with either readline,
-using a shell directly, or using vi directly.
-
-readline: a custom readline using app that talks on a socket.
-
-shell: a "send" command and then a set of shell aliases / small scripts to make
-it easier.  This means I can also script things with shells or other languages
-with a little more work.  Shell is still a sucky language.
-
-vi / acme: If the language supports more than just command lists, I'll want
-multi-line editing.
-
-What I really want to do, though, is have the language be haskell.  For that
-I need to get hs-plugins working.
-
-
-Use cases:
-
-    send a simple cmd, "create block"
-I should be able to just type the command + args with minimum fuss.
-
-    create a one-off compound command, "create 3 copies of this block"
-Same as above, but it runs in the Cmd monad, and saves as single undo.
-
-    create a compound command and save it, doesn't get run
-I should just edit a plain module, and tell the UI to include it in its
-language namespace.  This way I use any editor, and commands use the module
-namespace, and are easily sharable and distributable by normal means.
-
-    add a custom keybinding
-Modify the keymap, globally, per block, or per track.
-
-    show blocks without views
-
-    attach a derivation to a track, or set of tracks, or block
-
-    reorder tracks, without messing up the derivation rules
-
-
-For saved cmds to work, all cmds need to run in a namespace that includes them.
-The UI keeps a list of directories, and when a one shot command is compiled, it
-imports all modules from those directories.  It can also take a signal to
-recompile and rebind the keymaps.
-
-
-    Block / derivation management
-
-Because each step in derivation may be exposed as a Block, there needs to be
-some kind of framework for organizing them.  Also, the order in which they
-happen is relevant.
-
-tempo track -> multiply times of everything in the block
-note track -> substitute sub-blocks, realize note structures (tuplets), 
-    realize scale
-
-contorller1
-controller2
-    -> combine with controller2, apply static transformation
-
-----
-derived notes
-controller1 + controller2
-    -> NoteList that gets rendered to Midi / score
-
-
-
-
-    Ways to display a derivation
-
-A neighboring track in the same block.
-
-Another block view.
-
-"Hidden" behind the current block / track, press a key to "descend" one level.
-
-Not displayed at all, but played of course.
-
-
+The incoming commands are received via Msg.Socket msgs.
 -}
 module Cmd.Language where
-
+import qualified Control.Exception as Exception
+import Control.Monad
+import qualified Control.Monad.Identity as Identity
+import qualified Control.Monad.Trans as Trans
 import qualified Language.Haskell.Interpreter.GHC as GHC
+import qualified System.IO as IO
 
 import qualified Util.Log as Log
+import qualified Util.Seq as Seq
+import Util.Pretty
+
+import qualified Ui.State as State
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 
+-- This is only used by the interpreter,  but by importing it here I can make
+-- sure it doesn't have any compile errors in advance.
+-- TODO but then I have to remove the .o, cuz otherwise ghc insists on failing
+-- to load the compiled version.
+-- import Cmd.LanguageEnviron ()
+import Cmd.LanguageCmds ()
+
 
 cmd_language :: GHC.InterpreterSession -> Cmd.CmdIO
 cmd_language session msg = do
-    text <- case msg of
-        Msg.Socket s -> return s
+    (response_hdl, text) <- case msg of
+        Msg.Socket hdl s -> return (hdl, s)
         _ -> Cmd.abort
     Log.notice $ "got lang: " ++ show text
+    ui_state <- State.get
+    cmd_state <- Cmd.get_state
+    cmd <- Trans.liftIO $
+            GHC.withSession session (interpret ui_state cmd_state text)
+        `Exception.catchDyn` catch_interpreter_error
+    response <- cmd
+    Trans.liftIO $ catch_io_errors $ do
+        when (not (null response)) $
+            IO.hPutStrLn response_hdl response
+        IO.hClose response_hdl
     return Cmd.Done
 
-{- commands:
-list views, blocks, tracks, rulers
-create ""
-add / remove tracks to a block
+catch_io_errors = Exception.handleJust Exception.ioErrors $ \exc -> do
+    Log.warn $ "caught exception from socket write: " ++ show exc
 
-load / save state
+catch_interpreter_error :: GHC.InterpreterError -> IO (Cmd.CmdT IO String)
+catch_interpreter_error exc = return $ do
+    Log.warn ("interpreter error: " ++ show exc)
+    return $ "error: " ++ pretty exc
 
-set editing state (kbd entry octave, ...)
-set midi_instrument_config
--}
+instance Pretty GHC.InterpreterError where
+    pretty (GHC.WontCompile ghc_errs) =
+        "Won't compile " ++ Seq.join "\n" (map GHC.errMsg ghc_errs)
+    pretty exc = show exc
 
+-- | Interpreted code should be of this type.  However, due to
+-- 'mangle_code', it really runs in CmdT Identity String
+type LangType = State.State -> Cmd.State -> Cmd.CmdVal String
 
+-- | Interpret the given string inside a CmdT Identity monad, and return
+-- the resulting CmdT.
+--
+-- Since I got errors trying to have the type of the code be CmdT directly
+-- ("error loading interface for Cmd"), I do a workaround where I have it
+-- return a function of type LangType instead.  LanguageEnviron contains
+-- a 'run' function to run that in CmdT, and then this function packages it
+-- back up in a CmdT again and returns it.  It's a little roundabout but it
+-- seems to work.
+--
+-- TODO figure out what the original error means, and if I can get around it
+interpret :: State.State -> Cmd.State -> String
+    -> GHC.Interpreter (Cmd.CmdT IO String)
+interpret ui_state cmd_state text = do
+    GHC.loadModules ["Cmd.LanguageEnviron"]
+    GHC.setTopLevelModules ["Cmd.LanguageEnviron"]
+    GHC.setImports ["Prelude", "Cmd.LanguageEnviron"]
+    -- TODO possibly load modules from a user-defined directory
 
+    cmd_func <- GHC.interpret (mangle_code text) (GHC.as :: LangType)
+    let (cmd_state2, _midi, logs, ui_res) = cmd_func ui_state cmd_state
+    return (merge_cmd_state cmd_state2 logs ui_res)
+
+-- | Create a CmdT that merges the given state into itself.
+merge_cmd_state cmd_state logs ui_res = do
+    Cmd.modify_state (const cmd_state)
+    mapM_ Log.write logs
+    case ui_res of
+        Left err -> return $ "ui error: " ++ show err
+        Right (response, ui_state2, updates) -> do
+            -- I trust that they modified the state through the State
+            -- ops, which means the updates should reflect any track
+            -- changes.
+            State.put ui_state2
+            mapM_ State.update updates
+            return response
+
+-- | Automatically put the input code into CmdT by putting it in
+-- LanguageEnviron.run.
+mangle_code :: String -> String
+mangle_code text = Seq.strip $ "run $ do\n" ++ indent text
+    where indent = unlines . map ("    "++) . lines

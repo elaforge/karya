@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -XGeneralizedNewtypeDeriving #-}
+{-# OPTIONS_GHC -XDeriveDataTypeable #-}
 module Cmd.Cmd where
 
 import Control.Monad
@@ -12,6 +13,7 @@ import qualified Control.Monad.Writer as Writer
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Typeable as Typeable
 
 import qualified Util.Logger as Logger
 import qualified Util.Log as Log
@@ -38,31 +40,35 @@ type CmdIO = Msg.Msg -> CmdT IO Status
 
 -- | Cmds can run in either Identity or IO, but are generally returned in IO,
 -- just to make things uniform.
-type RunCmd cmd_m val_m =
-    State.State -> State -> CmdT cmd_m Status -> val_m CmdVal
+type RunCmd cmd_m val_m a =
+    State.State -> State -> CmdT cmd_m a -> val_m (CmdVal a)
 
 -- | The result of running a Cmd.
-type CmdVal = (State, [MidiThru], [Log.Msg],
-    Either State.StateError (Status, State.State, [Update.Update]))
+type CmdVal a = (State, [MidiThru], [Log.Msg],
+    Either State.StateError (a, State.State, [Update.Update]))
 
-run :: (Monad m) => RunCmd m m
-run ui_state cmd_state cmd = do
+run :: (Monad m) => a -> RunCmd m m a
+run abort_val ui_state cmd_state cmd = do
     (res, logs) <- (Log.run . Error.runErrorT . Logger.run
         . flip MonadState.runStateT cmd_state . State.run ui_state . run_cmd_t)
         cmd
     -- An Abort is just like if the cmd immediately returned Continue, except
-    -- that log msgs are kept.
+    -- that log msgs are kept.  Normally 'abort_val' will be Continue, but
+    -- obviously if 'cmd' doesn't return Status it can't be.
     return $ case res of
-        Left Abort -> (cmd_state, [], logs, Right (Continue, ui_state, []))
+        Left Abort -> (cmd_state, [], logs, Right (abort_val, ui_state, []))
         Right ((ui_res, cmd_state2), midi) -> (cmd_state2, midi, logs, ui_res)
 
-run_cmd :: RunCmd Identity.Identity IO
-run_cmd ui_state cmd_state cmd = do
-    return $ Identity.runIdentity (run ui_state cmd_state cmd)
+-- | Run the given command in Identity, but return it in IO, just as
+-- a convenient way to have a uniform return type with 'run' (provided its run
+-- in IO).
+run_cmd_io :: RunCmd Identity.Identity IO Status
+run_cmd_io ui_state cmd_state cmd = do
+    return $ Identity.runIdentity (run Continue ui_state cmd_state cmd)
 
 -- | Quit is not exported, so that only 'cmd_quit' here has permission to
 -- return it.
-data Status = Done | Continue | Quit deriving (Eq, Show)
+data Status = Done | Continue | Quit deriving (Eq, Show, Typeable.Typeable)
 
 -- * CmdT and operations
 
@@ -76,7 +82,7 @@ data Abort = Abort deriving (Show)
 instance Error.Error Abort where
     noMsg = Abort
 
-newtype Monad m => CmdT m a = CmdT (CmdStack m a)
+newtype CmdT m a = CmdT (CmdStack m a)
     deriving (Functor, Monad, Trans.MonadIO)
 run_cmd_t (CmdT x) = x
 
@@ -148,7 +154,7 @@ data State = State {
     -- octave instead of scale degree since scales may have different numbers
     -- of notes per octave.
     , state_kbd_entry_octave :: Int
-    } deriving (Show)
+    } deriving (Show, Typeable.Typeable)
 empty_state = State {
     state_keys_down = Map.empty
     , state_transport = Nothing

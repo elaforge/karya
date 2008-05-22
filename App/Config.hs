@@ -18,6 +18,13 @@ lang_port = Network.UnixSocket "seq_language"
 initialize_lang_port =
     Exception.handle (\exc -> print exc) $ Directory.removeFile "seq_language"
 
+-- | This string coming from the lang socket indicates that the message is
+-- complete and the server should process it and send a response.  It's
+-- necessary because I can't exactly use EOF for this if I want to send
+-- a response.
+message_complete_token :: String
+message_complete_token = "\n\NUL"
+
 -- * rulers
 
 meter_ruler :: Ruler.MarklistName

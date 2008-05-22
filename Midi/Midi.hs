@@ -1,6 +1,9 @@
+{-# OPTIONS_GHC -XDeriveDataTypeable #-}
 module Midi.Midi where
 import qualified Perform.Timestamp as Timestamp
 import Data.Word (Word8)
+import qualified Data.Typeable as Typeable
+
 
 data WriteMessage = WriteMessage {
     wmsg_dev :: WriteDevice
@@ -19,8 +22,10 @@ data ReadMessage = ReadMessage {
 -- actually installed or opened.  When the Devices are opened, a mapping should
 -- be established between Devices and the runtime representation.
 
-newtype ReadDevice = ReadDevice String deriving (Eq, Ord, Show)
-newtype WriteDevice = WriteDevice String deriving (Eq, Ord, Show)
+newtype ReadDevice = ReadDevice String
+    deriving (Eq, Ord, Show, Typeable.Typeable)
+newtype WriteDevice = WriteDevice String
+    deriving (Eq, Ord, Show, Typeable.Typeable)
 
 
 data Message
@@ -28,7 +33,7 @@ data Message
     | CommonMessage CommonMessage
     | RealtimeMessage RealtimeMessage
     | UnknownMessage Word8 Word8 Word8
-    deriving (Eq, Ord, Show)
+    deriving (Eq, Ord, Show, Typeable.Typeable)
 
 -- TODO using Word8 here is kind of iffy.  Word8s silently overflow after 0xff.
 -- On the other hand, these all have 7 bit ranges, so I can still check for

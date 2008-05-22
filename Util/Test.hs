@@ -26,7 +26,7 @@ equal_srcpos srcpos a b
 
 catch_srcpos :: Misc.SrcPos -> IO () -> IO ()
 catch_srcpos srcpos op = Exception.catch op
-    (\e -> failure srcpos ("threw exception: " ++ show e))
+    (\e -> failure srcpos ("test threw exception: " ++ show e))
 
 -- IO oriented checks, the first value is pulled from IO.
 

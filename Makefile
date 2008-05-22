@@ -11,17 +11,19 @@ REZ = /Developer/Tools/Rez -t APPL -o $@ /usr/local/include/FL/mac.r
 GHC = ghc-6.8.2
 GHC_LIB = /usr/local/lib/ghc-6.8.2
 
-# hspp adds filename and lineno to various logging and testing functions.
-HFLAGS = -W $(CINCLUDE) -i../lib -pgmc g++ -pgml g++ -threaded -debug \
+BASIC_HFLAGS = -W $(CINCLUDE) -i../lib -pgmc g++ -pgml g++ \
 	-optc -ggdb -optl -ggdb \
 	-F -pgmF test/hspp
+
+# hspp adds filename and lineno to various logging and testing functions.
+HFLAGS = $(BASIC_HFLAGS) -threaded -debug
 
 FLTK_OBJS := Block.o TrackTile.o Track.o Ruler.o EventTrack.o MoveTile.o \
 	Event.o P9Scrollbar.o SimpleScroll.o SeqInput.o MsgCollector.o \
 	f_util.o alpha_draw.o types.o config.o
 FLTK_OBJS := $(addprefix fltk/, $(FLTK_OBJS))
 
-all: seq test_block test_ui test_midi test_obj/RunTests
+all: seq send test_block test_ui test_midi test_obj/RunTests
 
 .PHONY: dep
 dep: fixdeps
@@ -88,6 +90,10 @@ seq: $(UI_HS) $(UI_OBJS) $(MIDI_HS) fltk/fltk.a
 		-o $@
 	$(REZ)
 
+.PHONY: send
+send: App/Send.hs
+	$(GHC) $(HFLAGS) --make $^ -o $@
+
 .PHONY: doc
 doc:
 	@# Unless there's some way to tell firefox to go to a certain line in
@@ -104,9 +110,12 @@ test_obj/RunTests.hs: $(ALL_HS)
 # workaround by grep -v out the LINEs into test_obj hierarchy
 # Compiles with -odir and -hidir into test_obj/ because they must be compiled
 # with -fhpc.
+# The 'hint' package uses 'Outputtable', which is from the ghc-6.8.2 package,
+# which isn't compiled with profiling.
+# -fprof -auto-all
 test_obj/RunTests: test_obj/RunTests.hs all_hsc $(UI_OBJS) fltk/fltk.a
 	./unline_hack
-	$(GHC) $(HFLAGS) -i -itest_obj:. -fhpc --make \
+	$(GHC) $(BASIC_HFLAGS) -i -itest_obj:. -fhpc --make \
 		-odir test_obj -hidir test_obj \
 		test_obj/RunTests.hs -o $@ \
 		$(UI_OBJS) fltk/fltk.a \

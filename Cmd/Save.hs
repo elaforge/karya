@@ -14,6 +14,7 @@ import qualified Cmd.Cmd as Cmd
 
 version_string = "seq state, 1"
 
+cmd_save :: (Trans.MonadIO m) => Maybe FilePath -> Cmd.CmdT m ()
 cmd_save maybe_fname = do
     cmd_state <- Cmd.get_state
     ui_state <- State.get
@@ -22,6 +23,7 @@ cmd_save maybe_fname = do
     Trans.liftIO $ write fname (version_string ++ "\n"
         ++ serialize_ui_state ui_state ++ "\n")
 
+cmd_load :: (Trans.MonadIO m) => Maybe FilePath -> Cmd.CmdT m ()
 cmd_load maybe_fname = do
     cmd_state <- Cmd.get_state
     let fname = maybe (Cmd.state_default_save_file cmd_state) id maybe_fname

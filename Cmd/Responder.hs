@@ -1,10 +1,11 @@
 module Cmd.Responder where
 
 import Control.Monad
-import qualified Control.Exception as Exception
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Concurrent.STM.TChan as TChan
+import qualified Control.Exception as Exception
+import qualified Data.List as List
 import qualified Language.Haskell.Interpreter.GHC as GHC
 import qualified Network
 import qualified System.IO as IO
@@ -27,20 +28,20 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.DefaultKeymap as DefaultKeymap
 import qualified Cmd.Play as Play
 
+import qualified App.Config as Config
+
 
 type MidiWriter = Midi.WriteMessage -> IO ()
 type MsgReader = IO Msg.Msg
 
-responder :: MsgReader -> MidiWriter -> IO Timestamp.Timestamp -> Transport.Chan
-    -> Cmd.CmdM -> IO ()
+responder :: MsgReader -> MidiWriter -> IO Timestamp.Timestamp
+    -> Transport.Chan -> Cmd.CmdM -> IO ()
 responder get_msg write_midi get_ts player_chan setup_cmd = do
     Log.notice "starting responder"
     let ui_state = State.empty
         cmd_state = Cmd.empty_state
-    -- (_, ui_state, cmd_state) <- handle_cmd_val True write_midi ui_state
-    --     (Cmd.run_cmd ui_state Cmd.empty_state setup_cmd)
     (_status, ui_state, cmd_state) <- do
-        cmd_val <- run_cmds Cmd.run_cmd ui_state cmd_state [setup_cmd]
+        cmd_val <- run_cmds Cmd.run_cmd_io ui_state cmd_state [setup_cmd]
         handle_cmd_val True write_midi ui_state cmd_val
     session <- GHC.newSession
     Log.notice "done"
@@ -58,16 +59,35 @@ create_msg_reader lang_socket ui_chan midi_chan player_chan = do
         fmap Msg.Ui (TChan.readTChan ui_chan)
         `STM.orElse` fmap Msg.Midi (TChan.readTChan midi_chan)
         `STM.orElse` fmap Msg.Transport (TChan.readTChan player_chan)
-        `STM.orElse` fmap Msg.Socket (TChan.readTChan lang_chan)
+        `STM.orElse` fmap (uncurry Msg.Socket) (TChan.readTChan lang_chan)
 
 -- | Accept a connection on the socket, read everything that comes over, then
--- close the socket and place the read data on @output_chan@.
-accept_loop socket output_chan = forever $ Exception.bracket
-    (Network.accept socket)
-    (\(hdl, _, _) -> IO.hClose hdl) $ \(hdl, _host, _port) -> do
-        msg <- get_contents_strictly hdl
-        STM.atomically $ TChan.writeTChan output_chan msg
+-- place the socket and the read data on @output_chan@.  It's the caller's
+-- responsibility to close the handle after it uses it to reply.
+accept_loop socket output_chan = forever $ catch_io_errors $ do
+    (hdl, _host, _port) <- Network.accept socket
+    IO.hSetBuffering hdl IO.NoBuffering
+    msg <- read_until hdl Config.message_complete_token
+    STM.atomically $ TChan.writeTChan output_chan (hdl, msg)
 
+catch_io_errors = Exception.handleJust Exception.ioErrors $ \exc -> do
+    Log.warn $ "caught exception from socket read: " ++ show exc
+
+
+read_until :: IO.Handle -> String -> IO String
+read_until hdl boundary = go ""
+    where
+    rbound = reverse boundary
+    go accum
+        | rbound `List.isPrefixOf` accum =
+            return (reverse (drop (length boundary) accum))
+        | otherwise = do
+            eof <- IO.hIsEOF hdl
+            if eof then return "" else do
+                c <- IO.hGetChar hdl
+                go (c:accum)
+
+{-
 get_contents_strictly hdl = do
     eof <- IO.hIsEOF hdl
     if eof then return ""
@@ -75,12 +95,6 @@ get_contents_strictly hdl = do
             line <- IO.hGetLine hdl
             rest <- get_contents_strictly hdl
             return (line ++ '\n' : rest)
-
-{-
-get_contents_strictly :: IO.Handle -> IO String
-get_contents_strictly hdl = do
-    s <- IO.hGetContents hdl
-    return $ length s `seq` s
 -}
 
 -- | Everyone always gets these commands.
@@ -109,18 +123,18 @@ loop ui_state cmd_state get_msg write_midi transport_info session = do
     -- seriously here?
     let update_cmds = map ($msg) [Cmd.cmd_record_ui_updates]
     (status, ui_state, cmd_state) <- do
-        cmd_val <- run_cmds Cmd.run_cmd ui_state cmd_state update_cmds
+        cmd_val <- run_cmds Cmd.run_cmd_io ui_state cmd_state update_cmds
         handle_cmd_val False write_midi ui_state cmd_val
 
     -- Certain commands require IO.  Rather than make everything IO,
     -- I hardcode them in a special list that gets run in IO.
     let io_cmds = hardcoded_io_cmds transport_info session
     (status, ui_state, cmd_state) <- maybe_run status write_midi
-        ui_state cmd_state Cmd.run io_cmds msg
+        ui_state cmd_state (Cmd.run Cmd.Continue) io_cmds msg
 
     let id_cmds = hardcoded_cmds ++ DefaultKeymap.default_cmds cmd_state
     (status, ui_state, cmd_state) <- maybe_run status write_midi
-        ui_state cmd_state Cmd.run_cmd id_cmds msg
+        ui_state cmd_state Cmd.run_cmd_io id_cmds msg
 
     case status of
         Cmd.Quit -> return ()
@@ -137,10 +151,10 @@ maybe_run status write_midi ui_state cmd_state run cmds msg = case status of
 -- as one doesn't return Continue.  Use the given @run@ function to run the
 -- Cmd, since it may be in either IO or Identity.
 run_cmds :: (Monad cmd_m, Monad val_m) =>
-    Cmd.RunCmd cmd_m val_m -- ^ run the cmd's result monad
+    Cmd.RunCmd cmd_m val_m Cmd.Status -- ^ run the cmd's result monad
     -> State.State -> Cmd.State -- ^ initial states for the cmd
     -> [Cmd.CmdT cmd_m Cmd.Status] -- ^ cmd list
-    -> val_m Cmd.CmdVal
+    -> val_m (Cmd.CmdVal Cmd.Status)
 run_cmds _run ui_state cmd_state [] =
     -- CmdVals are pretty complicated...
     return (cmd_state, [], [], Right (Cmd.Continue, ui_state, []))
@@ -156,7 +170,7 @@ run_cmds run ui_state cmd_state (cmd:cmds) = do
         -- It's Quit or Done, so return as-is.
         _ -> return (cmd_state1, midi1, logs1, ui_res1)
 
-handle_cmd_val :: Bool -> MidiWriter -> State.State -> Cmd.CmdVal
+handle_cmd_val :: Bool -> MidiWriter -> State.State -> Cmd.CmdVal Cmd.Status
     -> IO (Cmd.Status, State.State, Cmd.State)
 handle_cmd_val do_sync write_midi ui_state1
         (cmd_state, midi, logs, ui_result) = do

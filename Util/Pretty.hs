@@ -2,6 +2,7 @@
 complete.
 -}
 module Util.Pretty where
+import qualified Util.Seq as Seq
 
 class Show a => Pretty a where
     pretty :: a -> String
@@ -9,4 +10,6 @@ class Show a => Pretty a where
 
 instance Pretty Int
 instance Pretty Integer
-instance Pretty a => Pretty [a]
+
+instance Pretty a => Pretty [a] where
+    pretty xs = "[" ++ Seq.join ", " (map pretty xs) ++ "]"

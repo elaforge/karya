@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -XGeneralizedNewtypeDeriving #-}
+{-# OPTIONS_GHC -XDeriveDataTypeable #-}
 {- | Functions for logging.
 
 Logs are used to report everything from errors and debug msgs to status
@@ -16,7 +17,7 @@ a given pattern may go to the status bar.
 
 module Util.Log (
     -- * msgs
-    Msg, Prio(..)
+    Msg(..), Prio(..)
     , debug, notice, warn, error
     , debug_srcpos, notice_srcpos, warn_srcpos, error_srcpos
     , debug_stack, notice_stack, warn_stack, error_stack
@@ -30,6 +31,7 @@ import Prelude hiding (error, log)
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Trans as Trans
 import qualified Data.Time as Time
+import qualified Data.Typeable as Typeable
 import Text.Printf (printf)
 
 import qualified Util.Logger as Logger
@@ -51,7 +53,7 @@ data Msg = Msg
     , msg_stack :: Maybe Stack
     -- -- | Higher level context info for the msg.
     -- , msg_context :: [Context]
-    } deriving (Show, Eq)
+    } deriving (Eq, Show, Typeable.Typeable)
 
 -- | (schema_stack, event_stack)
 type Stack = [Warning.CallPos]

@@ -1,4 +1,5 @@
 module Cmd.Msg where
+import qualified System.IO as IO
 
 import qualified Ui.UiMsg as UiMsg
 import qualified Midi.Midi as Midi
@@ -12,8 +13,10 @@ data Msg =
     | Midi Midi.ReadMessage
     -- | Message from the transport/play thread.
     | Transport Transport.Status
-    -- | Message from the language control socket.
-    | Socket String
+    -- | Message from the language control socket, includes the socket handle
+    -- than can be used to write a response.  Whoever responds to Socket should
+    -- close the handle.
+    | Socket IO.Handle String
     deriving (Show)
 
 -- * player msgs

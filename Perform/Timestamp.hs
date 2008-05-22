@@ -10,8 +10,6 @@ module Perform.Timestamp where
 import Util.Pretty
 import Text.Printf
 
-import qualified Util.Seq as Seq
-
 import Ui.Types
 
 
