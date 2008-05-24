@@ -62,8 +62,8 @@ run abort_val ui_state cmd_state cmd = do
 -- | Run the given command in Identity, but return it in IO, just as
 -- a convenient way to have a uniform return type with 'run' (provided its run
 -- in IO).
-run_cmd_io :: RunCmd Identity.Identity IO Status
-run_cmd_io ui_state cmd_state cmd = do
+run_cmd_id :: RunCmd Identity.Identity IO Status
+run_cmd_id ui_state cmd_state cmd = do
     return $ Identity.runIdentity (run Continue ui_state cmd_state cmd)
 
 -- | Quit is not exported, so that only 'cmd_quit' here has permission to
@@ -149,7 +149,7 @@ data State = State {
     , state_edit_mode :: Bool
     -- | Default time step.  Used for cursor movement, note duration, and
     -- whatever else.
-    , state_current_step :: TimeStep.TimeStep
+    , state_step :: TimeStep.TimeStep
     -- | Transpose note entry on the keyboard by this many octaves.  It's by
     -- octave instead of scale degree since scales may have different numbers
     -- of notes per octave.
@@ -165,7 +165,7 @@ empty_state = State {
     , state_midi_instrument_config = Midi.Instrument.config []
 
     , state_edit_mode = False
-    , state_current_step =
+    , state_step =
         TimeStep.UntilMark TimeStep.AllMarklists (TimeStep.MatchRank 2)
     -- This should put middle C in the center of the kbd entry keys.
     , state_kbd_entry_octave = 4
@@ -204,7 +204,7 @@ get_active_track :: (Monad m) => CmdT m Block.TrackNum
 get_active_track = fmap state_active_track get_state >>= require
 
 get_current_step :: (Monad m) => CmdT m TimeStep.TimeStep
-get_current_step = fmap state_current_step get_state
+get_current_step = fmap state_step get_state
 
 -- * basic cmds
 

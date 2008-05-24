@@ -31,6 +31,8 @@ fltk
     it altogether)
 
   UI Msgs
+    - drags should continue to send msgs even after the cursor leaves the track
+      area and window
     - bug: arrow keys are still doing keynav, remove that
     - a special "system" window that receives events like "new block"
     - can I capture os x two-finger drag events?
@@ -149,8 +151,12 @@ Cmd
     * UiMsgs for track drags, resizes, and text changes update State
 
   Cmd.Language: listen on a socket, receive cmd language?  or use hs-plugins?
-    - simple commands to manage blocks, and save / restore state
-    - pretty print various parts of state
+    * simple commands to manage blocks, and save / restore state
+    * pretty print various parts of state
+
+  Cmd.Block
+    - create / destroy views, blocks and tracks
+    - ViewBlock abstraction: collapse/expand tracks, mute tracks
 
   Cmd.Play
     * play position display
@@ -239,7 +245,7 @@ research
   - subscribe to haskell-art
   - download sequencers and see how they ship midi reliably
   - draw antialiased lines and curves on os x
-  - investigate hs-plugins and xmonad to see about hs plugin possibilities
+  * investigate hs-plugins and xmonad to see about hs plugin possibilities
     xmonad just recompiles the whole app
     I could actually do that at first too
   - learn about hs gtk for reference

@@ -93,14 +93,14 @@ cmd_remove_events = do
         else State.remove_events track_id start (start + dur)
     return Cmd.Done
 
-cmd_set_current_step :: TimeStep.TimeStep -> Cmd.CmdM
-cmd_set_current_step step = do
-    Cmd.modify_state $ \st -> st { Cmd.state_current_step = step }
+cmd_set_step :: TimeStep.TimeStep -> Cmd.CmdM
+cmd_set_step step = do
+    Cmd.modify_state $ \st -> st { Cmd.state_step = step }
     return Cmd.Done
 
 cmd_meter_step :: Int -> Cmd.CmdM
 cmd_meter_step rank = do
-    cmd_set_current_step (TimeStep.UntilMark
+    cmd_set_step (TimeStep.UntilMark
         (TimeStep.NamedMarklists ["meter"]) (TimeStep.MatchRank rank))
     -- TODO this should go to a global state display either in the logviewer
     -- or seperate

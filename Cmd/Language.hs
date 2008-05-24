@@ -91,7 +91,7 @@ merge_cmd_state cmd_state logs ui_res = do
     Cmd.modify_state (const cmd_state)
     mapM_ Log.write logs
     case ui_res of
-        Left err -> return $ "ui error: " ++ show err
+        Left (State.StateError err) -> return $ "error: " ++ err
         Right (response, ui_state2, updates) -> do
             -- I trust that they modified the state through the State
             -- ops, which means the updates should reflect any track

@@ -13,6 +13,8 @@ import qualified Ui.Ruler as Ruler
 import qualified Ui.Event as Event
 
 
+-- * lang
+
 -- | Port to listen on for language requests.
 lang_port = Network.UnixSocket "seq_language"
 initialize_lang_port =
@@ -51,13 +53,17 @@ play_color = Color.rgb 0 0.6 0
 
 -- * defaults
 
-event text dur = Event.Event text dur (Color.rgb 0.9 0.9 0.7) default_style
+-- | Default size of new views.
+view_size :: (Int, Int)
+view_size = (300, 300)
+
+event text dur = Event.Event text dur (Color.rgb 0.9 0.9 0.7) style
     False
-default_style = Font.TextStyle Font.Helvetica [] 9 Color.black
+style = Font.TextStyle Font.Helvetica [] 9 Color.black
 
 make_selection_color = Color.alpha 0.3 . Color.lighten 0.8
 
-default_block_config = Block.Config
+block_config = Block.Config
     { Block.config_selection_colors =
         let sel = make_selection_color in
             [sel Color.blue, sel Color.green, sel Color.red, sel Color.yellow,
@@ -67,7 +73,7 @@ default_block_config = Block.Config
     , Block.config_sb_box_color = box_color
     }
 
-default_view_config = Block.ViewConfig
+view_config = Block.ViewConfig
     { Block.vconfig_zoom_speed = 1
     , Block.vconfig_block_title_height = 20
     , Block.vconfig_track_title_height = 20

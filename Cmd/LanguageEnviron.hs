@@ -16,9 +16,15 @@ import qualified Ui.Event as Event
 import qualified Ui.State as State
 import qualified Ui.Update as Update
 
+import qualified Midi.Midi as Midi
+
 import qualified Ui.TestSetup as TestSetup
 
 import qualified Cmd.Cmd as Cmd
+
+import qualified Derive.Score as Score
+import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.InstrumentDb as InstrumentDb
 import Cmd.LanguageCmds
 
 

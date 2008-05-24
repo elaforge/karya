@@ -21,7 +21,7 @@ main = Network.withSocketsDo $ do
     s <- IO.getContents
     IO.hPutStr hdl s
     IO.hPutStr hdl Config.message_complete_token
-    response <- fmap Seq.strip $ IO.hGetContents hdl
+    response <- fmap Seq.rstrip $ IO.hGetContents hdl
     when (not (null response)) $
         putStrLn response
 

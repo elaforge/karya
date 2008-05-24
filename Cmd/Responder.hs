@@ -35,16 +35,14 @@ type MidiWriter = Midi.WriteMessage -> IO ()
 type MsgReader = IO Msg.Msg
 
 responder :: MsgReader -> MidiWriter -> IO Timestamp.Timestamp
-    -> Transport.Chan -> Cmd.CmdM -> IO ()
-responder get_msg write_midi get_ts player_chan setup_cmd = do
-    Log.notice "starting responder"
+    -> Transport.Chan -> Cmd.CmdM -> GHC.InterpreterSession -> IO ()
+responder get_msg write_midi get_ts player_chan setup_cmd session = do
+    Log.debug "start responder"
     let ui_state = State.empty
         cmd_state = Cmd.empty_state
     (_status, ui_state, cmd_state) <- do
-        cmd_val <- run_cmds Cmd.run_cmd_io ui_state cmd_state [setup_cmd]
+        cmd_val <- run_cmds Cmd.run_cmd_id ui_state cmd_state [setup_cmd]
         handle_cmd_val True write_midi ui_state cmd_val
-    session <- GHC.newSession
-    Log.notice "done"
     loop ui_state cmd_state get_msg write_midi
         (Transport.Info player_chan write_midi get_ts)
         session
@@ -123,7 +121,7 @@ loop ui_state cmd_state get_msg write_midi transport_info session = do
     -- seriously here?
     let update_cmds = map ($msg) [Cmd.cmd_record_ui_updates]
     (status, ui_state, cmd_state) <- do
-        cmd_val <- run_cmds Cmd.run_cmd_io ui_state cmd_state update_cmds
+        cmd_val <- run_cmds Cmd.run_cmd_id ui_state cmd_state update_cmds
         handle_cmd_val False write_midi ui_state cmd_val
 
     -- Certain commands require IO.  Rather than make everything IO,
@@ -134,7 +132,7 @@ loop ui_state cmd_state get_msg write_midi transport_info session = do
 
     let id_cmds = hardcoded_cmds ++ DefaultKeymap.default_cmds cmd_state
     (status, ui_state, cmd_state) <- maybe_run status write_midi
-        ui_state cmd_state Cmd.run_cmd_io id_cmds msg
+        ui_state cmd_state Cmd.run_cmd_id id_cmds msg
 
     case status of
         Cmd.Quit -> return ()

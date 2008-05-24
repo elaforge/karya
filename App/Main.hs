@@ -3,6 +3,7 @@ module App.Main where
 import Control.Monad
 import qualified Control.Concurrent.STM as STM
 import qualified Data.Map as Map
+import qualified Language.Haskell.Interpreter.GHC as GHC
 import qualified Network
 
 import qualified Util.Log as Log
@@ -73,8 +74,10 @@ main = initialize $ \lang_socket msg_chan read_chan -> do
     get_msg <- Responder.create_msg_reader
         lang_socket msg_chan read_chan player_chan
     let get_ts = fmap MidiC.to_timestamp PortMidi.pt_time
+    Log.debug "initialize session"
+    session <- GHC.newSession
     Responder.responder get_msg (write_msg default_stream wdev_streams) get_ts
-        player_chan setup_cmd
+        player_chan setup_cmd session
 
 write_msg :: PortMidi.WriteStream
     -> Map.Map Midi.WriteDevice PortMidi.WriteStream
@@ -110,19 +113,18 @@ setup_cmd = do
     t1 <- State.create_track "b1.t1" empty_track -- TestSetup.event_track_1
     t2 <- State.create_track "b1.t2" empty_track -- TestSetup.event_track_2
     b1 <- State.create_block "b1" (Block.block "hi b1"
-        Config.default_block_config
-        (Block.RId ruler)
+        Config.block_config (Block.RId ruler)
         [(Block.TId t1 overlay, 40), (Block.TId t2 overlay, 40)])
     v1 <- State.create_view "v1"
-        (Block.view b1 TestSetup.default_rect Config.default_view_config)
+        (Block.view b1 TestSetup.default_rect Config.view_config)
     State.set_selection v1 0 (Block.point_selection 0 (TrackPos 0))
     -- _v2 <- State.create_view "v2"
     --     (Block.view b1 (Block.Rect (500, 30) (200, 200))
-    --         TestSetup.default_view_config)
+    --         TestSetup.view_config)
 
     -- Cmd state setup
     Cmd.modify_state $ \st -> st
-        { Cmd.state_current_step = TimeStep.UntilMark
+        { Cmd.state_step = TimeStep.UntilMark
             (TimeStep.NamedMarklists ["meter"]) (TimeStep.MatchRank 2)
         }
     return Cmd.Done

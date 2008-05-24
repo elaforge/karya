@@ -13,7 +13,11 @@ _stub.[ch]$
 ^test_(block|midi|ui)$
 test/hspp
 fixdeps
-seq
+^seq$
+^send$
+
+# profile cruft
+^RunTests\.
 
 # .hs generated from .hsc
 Midi/PortMidi.hs
