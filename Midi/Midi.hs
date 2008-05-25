@@ -25,7 +25,7 @@ data ReadMessage = ReadMessage {
 newtype ReadDevice = ReadDevice String
     deriving (Eq, Ord, Show, Typeable.Typeable)
 newtype WriteDevice = WriteDevice String
-    deriving (Eq, Ord, Show, Typeable.Typeable)
+    deriving (Eq, Ord, Show, Read, Typeable.Typeable)
 
 
 data Message
@@ -33,7 +33,7 @@ data Message
     | CommonMessage CommonMessage
     | RealtimeMessage RealtimeMessage
     | UnknownMessage Word8 Word8 Word8
-    deriving (Eq, Ord, Show, Typeable.Typeable)
+    deriving (Eq, Ord, Show, Read, Typeable.Typeable)
 
 -- TODO using Word8 here is kind of iffy.  Word8s silently overflow after 0xff.
 -- On the other hand, these all have 7 bit ranges, so I can still check for
@@ -59,7 +59,7 @@ data ChannelMessage =
     | LocalControl Bool
     | AllNotesOff
     | UndefinedChannelMode Word8 Word8
-    deriving (Eq, Ord, Show)
+    deriving (Eq, Ord, Read, Show)
 
 data CommonMessage =
     -- manufacturer id, data
@@ -69,8 +69,8 @@ data CommonMessage =
     | TuneRequest
     | EOX
     | UndefinedCommon Word8
-    deriving (Eq, Ord, Show)
+    deriving (Eq, Ord, Read, Show)
 
 data RealtimeMessage = TimingClock | Start | Continue | Stop | ActiveSense
     | Reset | UndefinedRealtime Word8
-    deriving (Eq, Ord, Show)
+    deriving (Eq, Ord, Read, Show)

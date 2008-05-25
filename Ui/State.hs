@@ -42,6 +42,8 @@ import qualified Ui.Ruler as Ruler
 import qualified Ui.Track as Track
 import qualified Ui.Event as Event
 
+import qualified Perform.Midi.Instrument as Instrument
+
 
 data State = State {
     state_views :: Map.Map Block.ViewId Block.View
@@ -51,9 +53,12 @@ data State = State {
     -- change it here and all of its occurrances change.
     , state_tracks :: Map.Map Track.TrackId Track.Track
     , state_rulers :: Map.Map Ruler.RulerId Ruler.Ruler
-    } deriving (Show, Read)
+
+    -- | This maps the midi instruments used in this State to their Addrs.
+    , state_midi_config :: Instrument.Config
+    } deriving (Show, Read, Typeable.Typeable)
 -- TODO "initial_state" would be more consistent
-empty = State Map.empty Map.empty Map.empty Map.empty
+empty = State Map.empty Map.empty Map.empty Map.empty (Instrument.config [])
 
 -- * StateT monadic access
 

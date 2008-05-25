@@ -133,6 +133,7 @@ show_list xs = concatMap (\(i, x) -> printf "%d. %s\n" i x) (Seq.enumerate xs)
 
 _cmd_state :: (Cmd.State -> a) -> Cmd.CmdT Identity.Identity a
 _cmd_state = flip fmap Cmd.get_state
+_ui_state = flip fmap State.get
 -- | Various Cmd return types: nothing, pprinted val, and showed val.
 r_ = (>> return "")
 rp m = fmap PPrint.pshow m
@@ -147,8 +148,9 @@ set_save_file s = r_ $
     Cmd.modify_state $ \st -> st { Cmd.state_default_save_file = s }
 
 show_midi_config :: Cmd
-show_midi_config = rp $
-    _cmd_state (Instrument.config_alloc . Cmd.state_midi_instrument_config)
+show_midi_config = rp get_midi_alloc
+get_midi_alloc =
+    _ui_state (Instrument.config_alloc . State.state_midi_config)
 
 assign_instrument :: String -> Instrument.Addr -> Cmd
 assign_instrument inst_name addr = r_ $ do
@@ -159,11 +161,9 @@ assign_instrument inst_name addr = r_ $ do
             ++ show inst
         Nothing ->
             State.throw $ "instrument " ++ show inst_name ++ " not found"
-    alloc <- fmap (Instrument.config_alloc . Cmd.state_midi_instrument_config)
-        Cmd.get_state
-    let alloc2 = Map.insert addr inst alloc
-    Cmd.modify_state $ \st ->
-        st { Cmd.state_midi_instrument_config = Instrument.Config alloc2 }
+    alloc <- fmap (Map.insert addr inst) get_midi_alloc
+    State.modify $ \st ->
+        st { State.state_midi_config = Instrument.Config alloc }
 
 show_step :: Cmd
 show_step = rs $ _cmd_state Cmd.state_step
@@ -199,10 +199,13 @@ tid = Track.TrackId
 
 show_state :: Cmd
 show_state = do
-    (State.State views blocks tracks rulers) <- State.get
+    (State.State views blocks tracks rulers midi_config) <- State.get
     let f m = PPrint.pshow (Map.keys m)
-    return $ show_record [("views", f views), ("blocks", f blocks),
-        ("tracks", f tracks), ("rulers", f rulers)]
+    return $ show_record
+        [ ("views", f views), ("blocks", f blocks)
+        , ("tracks", f tracks), ("rulers", f rulers)
+        , ("midi_config", PPrint.pshow midi_config)
+        ]
 
 -- ** views
 

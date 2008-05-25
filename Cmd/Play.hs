@@ -94,7 +94,7 @@ cmd_play_block transport_info = do
     let (convert_warnings, midi_events) = Convert.convert events
     -- TODO properly convert to log msg
     mapM_ (Log.warn . show) convert_warnings
-    inst_config <- fmap Cmd.state_midi_instrument_config Cmd.get_state
+    inst_config <- fmap State.state_midi_config State.get
     let (midi_msgs, perform_warnings) = Perform.perform inst_config midi_events
     mapM_ (Log.warn . show) perform_warnings
 

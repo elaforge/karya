@@ -31,7 +31,6 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.TimeStep as TimeStep
 
 import qualified Perform.Transport as Transport
-import qualified Perform.Midi.Instrument as Midi.Instrument
 
 
 type CmdM = CmdT Identity.Identity Status
@@ -140,8 +139,6 @@ data State = State {
 
     -- | Argumentless save commands save to and load from this file.
     , state_default_save_file :: FilePath
-    -- | Instrument to (device, channel) mapping.
-    , state_midi_instrument_config :: Midi.Instrument.Config
 
     -- Editing state
 
@@ -162,7 +159,6 @@ empty_state = State {
     , state_active_track = Nothing
 
     , state_default_save_file = "save/default"
-    , state_midi_instrument_config = Midi.Instrument.config []
 
     , state_edit_mode = False
     , state_step =
