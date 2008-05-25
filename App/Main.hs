@@ -112,9 +112,10 @@ setup_cmd = do
 
     t1 <- State.create_track "b1.t1" empty_track -- TestSetup.event_track_1
     t2 <- State.create_track "b1.t2" empty_track -- TestSetup.event_track_2
-    b1 <- State.create_block "b1" (Block.block "hi b1"
+    b1 <- State.create_block "b1" $ Block.block "hi b1"
         Config.block_config (Block.RId ruler)
-        [(Block.TId t1 overlay, 40), (Block.TId t2 overlay, 40)])
+        [(Block.TId t1 overlay, 40), (Block.TId t2 overlay, 40)]
+        Config.schema
     v1 <- State.create_view "v1"
         (Block.view b1 TestSetup.default_rect Config.view_config)
     State.set_selection v1 0 (Block.point_selection 0 (TrackPos 0))

@@ -1,4 +1,6 @@
+{-# OPTIONS_GHC -XDeriveDataTypeable #-}
 module Ui.Update where
+import qualified Data.Typeable as Typeable
 
 import Ui.Types
 import qualified Ui.Block as Block
@@ -10,7 +12,7 @@ data Update
     = ViewUpdate ViewId ViewUpdate
     | BlockUpdate BlockId BlockUpdate
     | TrackUpdate Track.TrackId TrackUpdate
-    deriving Show
+    deriving (Show, Typeable.Typeable)
 
 data ViewUpdate =
     CreateView

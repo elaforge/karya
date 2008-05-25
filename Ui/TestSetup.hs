@@ -12,7 +12,6 @@ import qualified Ui.Ruler as Ruler
 import qualified Ui.Track as Track
 import qualified Ui.Event as Event
 
-
 pause = putStr "? " >> IO.hFlush IO.stdout >> getLine >> return ()
 
 -- (10, 50) seems to be the smallest x,y os x will accept.  Apparently

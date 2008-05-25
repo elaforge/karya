@@ -82,9 +82,8 @@ not necessarily.  It's designed to be for human reading and may drop
 module Cmd.LanguageCmds where
 import qualified Control.Monad.Identity as Identity
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 import Text.Printf
-
--- import Ui.Types
 
 import qualified Util.Seq as Seq
 -- import qualified Util.Log as Log
@@ -103,8 +102,11 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.TimeStep as TimeStep
 
 import qualified Derive.Score as Score
+import qualified Derive.Schema as Schema
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.InstrumentDb as InstrumentDb
+
+import qualified Midi.Midi as Midi
 
 import qualified App.Config as Config
 
@@ -191,6 +193,7 @@ set_octave n = r_ $ Cmd.modify_state $ \st ->
 vid = Block.ViewId
 bid = Block.BlockId
 _bid (Block.BlockId s) = s
+sid = Block.SchemaId
 rid = Ruler.RulerId
 tid = Track.TrackId
 
@@ -237,28 +240,28 @@ show_block maybe_block_id = do
     block_id <- maybe get_active_block return
         (fmap Block.BlockId maybe_block_id)
     Block.Block { Block.block_title = title, Block.block_ruler_track = ruler,
-        Block.block_tracks = tracks, Block.block_deriver = deriver }
+        Block.block_tracks = tracks, Block.block_schema = schema }
             <- State.get_block block_id
     return $ show_record
         [ ("title", title)
         , ("ruler", show ruler)
         , ("tracks", show_list (map (show . fst) tracks))
-        , ("deriver", show deriver)
+        , ("schema", show schema)
         ]
 
 create_block block_id block = r_ $ State.create_block block_id block
-create_block_d block_id ruler_id = create_block
-    block_id (Block.block "" Config.block_config (ruler ruler_id) [])
+create_block_d block_id ruler_id schema_id = create_block
+    block_id (Block.block "" Config.block_config (ruler ruler_id) [] schema_id)
 
-set_deriver :: String -> Maybe String -> Cmd
-set_deriver block_id maybe_deriver_id = r_ $ do
+set_schema :: String -> String -> Cmd
+set_schema block_id schema_id = r_ $ do
     State.modify_block (bid block_id) $ \block ->
-        block { Block.block_deriver = fmap Block.DeriverId maybe_deriver_id }
+        block { Block.block_schema = sid schema_id }
 
-set_deriver_d :: Maybe String -> Cmd
-set_deriver_d maybe_deriver_id = do
+set_schema_d :: String -> Cmd
+set_schema_d schema_id = do
     block_id <- get_active_block
-    set_deriver (_bid block_id) maybe_deriver_id
+    set_schema (_bid block_id) schema_id
 
 -- ** tracks
 
@@ -302,3 +305,23 @@ show_marklist ruler_id marklist_name = do
 
 -- | Run the Cmd that is bound to the given KeySpec, if there is one.
 -- keymap :: Keymap.KeySpec -> Cmd
+
+
+-- * schema
+
+schema_instruments :: (State.UiStateMonad m) =>
+    Block.BlockId -> m [Score.Instrument]
+schema_instruments block_id = do
+    skel <- Schema.get_skeleton =<< State.get_block block_id
+    return (Schema.skeleton_instruments skel)
+
+-- | Try to automatically create an instrument config based on the instruments
+-- found in the given block.
+auto_config :: (State.UiStateMonad m) =>
+    Midi.WriteDevice -> Block.BlockId -> m Instrument.Config
+auto_config write_device block_id = do
+    score_insts <- schema_instruments block_id
+    -- TODO warn about insts not found?
+    let insts = Maybe.catMaybes $ map InstrumentDb.lookup score_insts
+    return $ Instrument.config [((write_device, chan), inst)
+        | (InstrumentDb.Midi inst, chan) <- zip insts [0..]]

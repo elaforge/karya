@@ -29,7 +29,15 @@ cmd_load maybe_fname = do
     let fname = maybe (Cmd.state_default_save_file cmd_state) id maybe_fname
     Log.notice $ "read state from " ++ show fname
     [_ver, ui_str] <- fmap lines (Trans.liftIO (IO.readFile fname))
-    State.modify (const (deserialize_ui_state ui_str))
+
+    either_ui_state <- Trans.liftIO $ Exception.try $
+        Exception.evaluate (deserialize_ui_state ui_str)
+    ui_state <- case either_ui_state of
+        Left exc -> State.throw $
+            "error deserializing " ++ show fname ++ ": " ++ show exc
+        Right st -> return st
+
+    State.modify (const ui_state)
     -- Emit track updates for all tracks, since I don't know where events have
     -- changed.
     State.update_all_tracks

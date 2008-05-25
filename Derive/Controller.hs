@@ -3,7 +3,6 @@ import Prelude hiding (lex)
 import Control.Monad
 import qualified Data.Maybe as Maybe
 
-import Ui.Types
 import qualified Perform.Signal as Signal
 
 import qualified Derive.Score as Score
@@ -12,18 +11,16 @@ import qualified Derive.Derive as Derive
 
 import qualified Data.Maybe as Maybe
 
-type D = Derive.DeriveT
-
-controller :: (Monad m) => String -> D m Signal.Signal -> [D m [Score.Event]]
-    -> D m [Score.Event]
-controller name signalm tracksm = do
+-- | It's necessary for @eventsm@ to be monadic, since it needs to be run
+-- inside the environment modified by d_controller.
+d_controller :: (Monad m) => Score.Controller -> Derive.DeriveT m Signal.Signal
+    -> Derive.DeriveT m [Score.Event] -> Derive.DeriveT m [Score.Event]
+d_controller cont signalm eventsm = do
     signal <- signalm
-    Derive.with_env (Score.Controller name) signal $ do
-        eventses <- sequence tracksm
-        return (Derive.merge_events eventses)
+    Derive.with_env cont signal eventsm
 
-signal :: (Monad m) => [Score.Event] -> Derive.DeriveT m Signal.Signal
-signal events = fmap Signal.signal
+d_signal :: (Monad m) => [Score.Event] -> Derive.DeriveT m Signal.Signal
+d_signal events = fmap Signal.signal
     (Derive.map_events Nothing realize_signal fst (Parse.lex events))
 
 realize_signal _ (event, args) = do

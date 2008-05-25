@@ -2,6 +2,7 @@ module Ui.Ruler where
 import qualified Data.Array.IArray as IArray
 import Data.Array.IArray ((!))
 
+import Util.Pretty
 import qualified Util.Data
 
 import Ui.Types
@@ -32,8 +33,8 @@ marklist :: String -> [(TrackPos, Mark)] -> (MarklistName, Marklist)
 marklist name posmarks =
     (name, Marklist $ IArray.listArray (0, length posmarks-1) posmarks)
 
-data Mark = Mark
-    { mark_rank :: Int
+data Mark = Mark {
+    mark_rank :: Int
     , mark_width :: Int
     , mark_color :: Color
     , mark_name :: String
@@ -42,6 +43,9 @@ data Mark = Mark
     } deriving (Eq, Show, Read)
 null_mark = Mark 0 0 Color.black "" 0 0
 
+instance Pretty Mark where
+    pretty m = "<mark: " ++ show (mark_rank m) ++ name ++ ">"
+        where name = if null (mark_name m) then "" else " " ++ mark_name m
 
 at :: Marklist -> TrackPos -> ([(TrackPos, Mark)], [(TrackPos, Mark)])
 at (Marklist a) pos = (map (a!) [i-1, i-2..low], map (a!) [i..high])

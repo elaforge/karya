@@ -55,7 +55,10 @@ data State = State {
     } deriving (Show)
 initial_state = State Map.empty State.empty []
 
-data DeriveError = DeriveError String
+data DeriveError =
+    -- | A general deriver error.
+    DeriveError String
+    -- | An error deriving a particular event, with its position included.
     | EventError [Warning.CallPos] String
     deriving (Eq, Show)
 instance Error.Error DeriveError where

@@ -57,6 +57,8 @@ play_color = Color.rgb 0 0.6 0
 view_size :: (Int, Int)
 view_size = (300, 300)
 
+schema = Block.SchemaId "default"
+
 event text dur = Event.Event text dur (Color.rgb 0.9 0.9 0.7) style
     False
 style = Font.TextStyle Font.Helvetica [] 9 Color.black

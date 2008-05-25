@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -XGeneralizedNewtypeDeriving #-}
+{-# OPTIONS_GHC -XDeriveDataTypeable #-}
 {- |
 The overall UI state is described here.  This is an immutable data structure
 that contains all the tracks, rulers, note data, and so forth.  It exports
@@ -28,6 +29,7 @@ import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State as State
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Typeable as Typeable
 
 import qualified Util.Seq as Seq
 -- import qualified Util.Log as Log
@@ -71,6 +73,7 @@ run state m = do
         Left err -> Left err
         Right ((val, state), updates) -> Right (val, state, updates)
 
+run_state :: State -> StateT Identity.Identity a -> State
 run_state state m = case st of
         Left err -> error $ "state error: " ++ show err
         Right (_, state', _) -> state'
@@ -94,18 +97,17 @@ run_state_t (StateT x) = x
 instance Trans.MonadTrans StateT where
     lift = StateT . lift . lift . lift
 
-data StateError = StateError String deriving (Eq, Show)
+data StateError = StateError String deriving (Eq, Show, Typeable.Typeable)
 instance Error.Error StateError where
     strMsg = StateError
 
 -- TODO remove modify and implement in terms of get and put?
-class Monad m => UiStateMonad m where
+class (Monad m, Functor m) => UiStateMonad m where
     get :: m State
     put :: State -> m ()
     modify :: (State -> State) -> m ()
     update :: Update.Update -> m ()
     throw :: String -> m a
-    -- To implement catch: add MonadError deriving to LoggerT and to StateT
 
 instance Monad m => UiStateMonad (StateT m) where
     get = StateT State.get
@@ -232,7 +234,7 @@ insert_track block_id tracknum track width = do
     update_block block_id (block { Block.block_tracks = tracks' })
     modify $ \st -> st { state_views = Map.union views' (state_views st) }
 
-remove_track :: (UiStateMonad m) => Block.BlockId -> Int -> m ()
+remove_track :: (UiStateMonad m) => Block.BlockId -> Block.TrackNum -> m ()
 remove_track block_id tracknum = do
     block <- get_block block_id
     views <- get_views_of block_id
@@ -400,7 +402,7 @@ create_ruler id ruler = get >>= insert (Ruler.RulerId id) ruler state_rulers
 -- ** util
 
 -- | Lookup @map!key@, throwing if it doesn't exist.
-lookup_id :: (Ord k, UiStateMonad m, Show k) => k -> Map.Map k a -> m a
+lookup_id :: (Ord k, Show k, UiStateMonad m) => k -> Map.Map k a -> m a
 lookup_id key map = case Map.lookup key map of
     Nothing -> throw $ "unknown " ++ show key
     Just val -> return val

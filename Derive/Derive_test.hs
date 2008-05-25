@@ -63,7 +63,7 @@ test_controller = do
 midi_instrument inst = map (\evt -> evt { Score.event_instrument = Just inst })
 
 twelve events = Derive.map_events () realize_note id events
-realize_note _ event = case Twelve.event_pitch2 (Score.event_text event) of
+realize_note _ event = case Twelve.event_pitch (Score.event_text event) of
     Nothing -> Derive.throw $
         "can't realize event " ++ show (Score.event_text event)
     Just pitch -> return (event { Score.event_pitch = Just pitch })
@@ -76,7 +76,7 @@ bass events = return (midi_instrument default_inst events)
 track_id = Track.TrackId "b1.t1"
 cont_track_id = Track.TrackId "b1.cont"
 
-default_inst = Score.instrument "fm8/bass" Score.Midi
+default_inst = Score.Instrument "fm8/bass"
 default_midi_inst = InstrumentDb.generic "fm8" "bass" 
 default_dev = Midi.WriteDevice "CoreMIDI/IAC Driver Bus 1"
 default_inst_config = Instrument.config [((default_dev, 0), default_midi_inst)]

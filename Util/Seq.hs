@@ -101,15 +101,16 @@ strip = lstrip . rstrip
 
 -- ** splitting and joining
 
--- | Split 'xs' before places where 'f' matches.
--- So "splitWith (==1) [1,2,1]" is "[[1,2][1]]".
-splitWith :: (a -> Bool) -> [a] -> [[a]]
-splitWith f xs = map reverse (doSplit f xs [])
+-- | Split @xs@ before places where @f@ matches.
+-- > split_with (==1) [1,2,1]
+-- [[1, 2], [1]]
+split_with :: (a -> Bool) -> [a] -> [[a]]
+split_with f xs = map reverse (go f xs [])
     where
-    doSplit f [] collect = [collect]
-    doSplit f (x:xs) collect
-        | f x = collect : doSplit f xs [x]
-        | otherwise = doSplit f xs (x:collect)
+    go f [] collect = [collect]
+    go f (x:xs) collect
+        | f x = collect : go f xs [x]
+        | otherwise = go f xs (x:collect)
 
 splitSeqWith :: ([a] -> Maybe Int) -> [a] -> [[a]]
 splitSeqWith f [] = []

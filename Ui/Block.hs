@@ -19,9 +19,9 @@ import qualified Ui.Ruler as Ruler
 newtype BlockId = BlockId String deriving (Eq, Ord, Show, Read)
 -- | Reference to a View, as per 'BlockId'.
 newtype ViewId = ViewId String deriving (Eq, Ord, Show, Read)
--- | Reference to a Deriver.  Stored here instead of Deriver.Deriver to avoid
+-- | Reference to a schema.  Declared here instead of Deriver.Schema to avoid
 -- a circular import.
-newtype DeriverId = Deriver String deriving (Eq, Ord, Show, Read)
+newtype SchemaId = SchemaId String deriving (Eq, Ord, Show, Read)
 
 -- * block model
 
@@ -32,12 +32,11 @@ data Block = Block {
     , block_ruler_track :: TracklikeId
     -- The Width here is the default if a new View is created from this Block.
     , block_tracks :: [(TracklikeId, Width)]
-
-    , block_deriver :: Maybe DeriverId
+    , block_schema :: SchemaId
     } deriving (Eq, Ord, Show, Read)
 
-block title config ruler tracks =
-    Block title Map.empty config ruler tracks Nothing
+block title config ruler tracks schema_id =
+    Block title Map.empty config ruler tracks schema_id
 show_status :: Block -> [Char]
 show_status = Seq.join " }{ " . map (\(k, v) -> k ++ ": " ++ v)
     . Map.assocs . block_status
@@ -97,7 +96,12 @@ data TrackView = TrackView {
     track_view_width :: Width
     } deriving (Eq, Ord, Show, Read)
 
-data Rect = Rect (Int, Int) (Int, Int) deriving (Eq, Ord, Show, Read)
+data Rect = Rect {
+    rect_pos :: (Int, Int)
+    , rect_size :: (Int, Int)
+    } deriving (Eq, Ord, Show, Read)
+rect_right rect = fst (rect_pos rect) + fst (rect_size rect)
+rect_bottom rect = snd (rect_pos rect) + snd (rect_size rect)
 
 -- The defaults for newly created blocks and the trackviews automatically
 -- created.

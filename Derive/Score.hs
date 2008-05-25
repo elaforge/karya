@@ -53,13 +53,10 @@ from_track_event controls track_id (pos, evt) =
 
 type ControllerMap = Map.Map Controller Signal.Signal
 
--- | These later get mapped to the backend-specific Perform versions.
-data Instrument = Instrument {
-    inst_name :: String
-    , inst_backend :: Backend
-    } deriving (Show)
-instrument = Instrument
-
-data Backend = Midi deriving (Show)
+-- | An Instrument is identified by a plain string.  This will be looked up in
+-- the instrument db to get the backend specific Instrument type as well as the
+-- backend itself, but things at the Derive layer and above don't care about
+-- all that.
+data Instrument = Instrument String deriving (Eq, Ord, Show)
 
 newtype Controller = Controller String deriving (Eq, Ord, Show)
