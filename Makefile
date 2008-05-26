@@ -115,7 +115,7 @@ test_obj/RunTests.hs: $(ALL_HS)
 # -fprof -auto-all
 test_obj/RunTests: test_obj/RunTests.hs all_hsc $(UI_OBJS) fltk/fltk.a
 	./unline_hack
-	$(GHC) $(BASIC_HFLAGS) -i -itest_obj:. -fhpc --make \
+	$(GHC) $(BASIC_HFLAGS) -threaded -i -itest_obj:. -fhpc --make \
 		-odir test_obj -hidir test_obj \
 		test_obj/RunTests.hs -o $@ \
 		$(UI_OBJS) fltk/fltk.a \

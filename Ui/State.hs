@@ -404,6 +404,16 @@ create_ruler :: (UiStateMonad m) => String -> Ruler.Ruler -> m Ruler.RulerId
 create_ruler id ruler = get >>= insert (Ruler.RulerId id) ruler state_rulers
     (\rulers st -> st { state_rulers = rulers })
 
+insert_marklist :: (UiStateMonad m) =>
+    Ruler.RulerId -> (Ruler.MarklistName, Ruler.Marklist) -> Int -> m ()
+insert_marklist ruler_id marklist n = modify_ruler ruler_id $ \ruler ->
+    ruler { Ruler.ruler_marklists =
+        Seq.insert_at (Ruler.ruler_marklists ruler) n marklist }
+
+remove_marklist :: (UiStateMonad m) => Ruler.RulerId -> Int -> m ()
+remove_marklist ruler_id n = modify_ruler ruler_id $ \ruler -> ruler
+    { Ruler.ruler_marklists = Seq.remove_at (Ruler.ruler_marklists ruler) n }
+
 modify_ruler ruler_id f = do
     ruler <- get_ruler ruler_id
     modify $ \st ->

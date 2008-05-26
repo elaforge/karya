@@ -7,9 +7,7 @@ import.  It puts various commonly used types into scope, and may re-export
 just the type part from other modules, for easier type signatures.
 -}
 module Ui.Types (
-    Color
-    , TrackPos(..)
-
+    Color, TrackPos(..)
 ) where
 import Foreign
 import Foreign.C
@@ -23,11 +21,9 @@ import Ui.Color (Color)
 
 -- | The position of an Event on a track.  The units are arbitrary, so how
 -- many units are in one second depends on the tempo.  TrackPos units
--- can be negative, but once they get to the UI they will be clamped to be
--- within 0--ULONG_MAX.
+-- can be negative, but blocks only display events at positive TrackPos.
 newtype TrackPos = TrackPos Integer
     deriving (Num, Enum, Real, Integral, Eq, Ord, Show, Read)
-zero_trackpos = TrackPos 0
 
 instance Storable TrackPos where
     sizeOf _ = #size TrackPos
@@ -39,4 +35,5 @@ instance Storable TrackPos where
         where
         cpos :: CLLong
         cpos = fromIntegral
-            (Util.bounded 0 (fromIntegral (maxBound::CLLong)) pos)
+            (Util.bounded (fromIntegral (minBound::CLLong))
+                (fromIntegral (maxBound::CLLong)) pos)

@@ -4,6 +4,7 @@ import qualified Data.Typeable as Typeable
 
 import Ui.Types
 import qualified Ui.Block as Block
+import qualified Ui.Ruler as Ruler
 import qualified Ui.Track as Track
 import Ui.Block (ViewId, BlockId)
 
@@ -12,6 +13,9 @@ data Update
     = ViewUpdate ViewId ViewUpdate
     | BlockUpdate BlockId BlockUpdate
     | TrackUpdate Track.TrackId TrackUpdate
+    -- | Since I expect rulers to be changed infrequently, the only kind of
+    -- ruler update is a full update.
+    | RulerUpdate Ruler.RulerId
     deriving (Show, Typeable.Typeable)
 
 data ViewUpdate =

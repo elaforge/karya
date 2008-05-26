@@ -133,13 +133,6 @@ selection tracknum start tracks dur = Just (Selection tracknum start tracks dur)
 point_selection :: TrackNum -> TrackPos -> Maybe Selection
 point_selection tracknum pos = Just (Selection tracknum pos 1 (TrackPos 0))
 
--- | Index of the non-scrolling ruler track (it doesn't necessarily have
--- a ruler, it's just meant for one).
--- This could be translated by BlockC into BlockView::ruler_tracknum, but for
--- now I'm just going to trust that they're the same.
-ruler_tracknum :: TrackNum
-ruler_tracknum = -1
-
 -- | Index into a block's tracks.
 type TrackNum = Int
 -- | Width of a track in pixels.

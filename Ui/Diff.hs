@@ -35,6 +35,8 @@ diff st1 st2 = Identity.runIdentity . Error.runErrorT . Writer.execWriterT $ do
         (zip_maps (State.state_blocks st1) visible_blocks)
     mapM_ (uncurry3 diff_track)
         (zip_maps (State.state_tracks st1) (State.state_tracks st2))
+    mapM_ (uncurry3 diff_ruler)
+        (zip_maps (State.state_rulers st1) (State.state_rulers st2))
 
     -- The block updates may delete or insert tracks.  View updates that use
     -- TrackNums will refer to the st2 TrackNum, so diff_views goes after
@@ -109,7 +111,7 @@ track_info view_id view st =
             (map fst (Block.block_tracks block)) (Block.view_tracks view)
     where block_id = Block.view_block view
 
--- ** block
+-- ** block / track / ruler
 
 diff_block block_id block1 block2 = do
     let block_update = Update.BlockUpdate block_id
@@ -120,10 +122,6 @@ diff_block block_id block1 block2 = do
     when (Block.block_config block1 /= Block.block_config block2) $
         change [block_update $ Update.BlockConfig (Block.block_config block2)]
 
-    when (Block.block_ruler_track block1 /= Block.block_ruler_track block2) $
-        change [block_update $ Update.InsertTrack Block.ruler_tracknum
-            (Block.block_ruler_track block2) 0]
-
     let pairs = indexed_pairs (\a b -> fst a == fst b)
             (Block.block_tracks block1) (Block.block_tracks block2)
     forM_ pairs $ \(i2, track1, track2) -> case (track1, track2) of
@@ -132,14 +130,20 @@ diff_block block_id block1 block2 = do
             change [block_update $ Update.InsertTrack i2 track width]
         _ -> return ()
 
--- ** track
-
 diff_track track_id track1 track2 = do
     let track_update = Update.TrackUpdate track_id
     when (Track.track_title track1 /= Track.track_title track2) $
         change [track_update $ Update.TrackTitle (Track.track_title track2)]
     when (Track.track_bg track1 /= Track.track_bg track2) $
         change [track_update $ Update.TrackBg]
+
+diff_ruler ruler_id ruler1 ruler2 = do
+    -- This does a complete compare of all the marks in all the rulers after
+    -- each msg receive.  There shouldn't ever be that many rulers, but if this
+    -- gets slow I can do something like insist marklist contents are immutable
+    -- and only check names.
+    when (ruler1 /= ruler2) $
+        change [Update.RulerUpdate ruler_id]
 
 -- * util
 

@@ -6,11 +6,13 @@ import qualified Data.Set as Set
 import Data.Function
 import Data.List
 
+
+-- * transformation
+
 enumerate :: [a] -> [(Int, a)]
 enumerate = zip [0..]
 
-sortOn :: Ord b => (a -> b) -> [a] -> [a]
-sortOn key = sortBy (\a b -> compare (key a) (key b))
+key_with f xs = zip (map f xs) xs
 
 -- * indexing lists
 

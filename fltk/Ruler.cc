@@ -287,7 +287,7 @@ RulerTrackView::update(const Tracklike &track, FinalizeCallback finalizer,
         TrackPos start, TrackPos end)
 {
     ASSERT(track.ruler && !track.track);
-    ruler.set_config(*track.ruler, finalizer, start, end);
+    this->ruler.set_config(*track.ruler, finalizer, start, end);
     if (color_to_fl(track.ruler->bg) != bg_box.color()) {
         bg_box.color(color_to_fl(track.ruler->bg));
         bg_box.redraw();

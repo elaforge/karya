@@ -21,7 +21,9 @@ module Ui.BlockC (
     , set_zoom
     , set_track_scroll
     , CSelection(..)
-    , set_selection, max_selections
+    , set_selection
+    -- ** constants
+    , max_selections, ruler_tracknum
 
     -- * Block operations
     , set_model_config
@@ -183,6 +185,13 @@ null_selection = CSelection Color.black
 -- | Max number of selections, hardcoded in ui/config.h.
 max_selections :: Int
 max_selections = (#const Config::max_selections)
+
+-- | Index of the non-scrolling ruler track (it doesn't necessarily have
+-- a ruler, it's just meant for one).
+-- I pretty much expect this to be -1.  In any case, it shouldn't conflict with
+-- any other valid tracknum.
+ruler_tracknum :: Block.TrackNum
+ruler_tracknum = (#const BlockView::ruler_tracknum)
 
 
 -- * Block operations

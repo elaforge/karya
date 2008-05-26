@@ -130,7 +130,7 @@ run_update (Update.BlockUpdate block_id update) = do
 
 run_update (Update.TrackUpdate track_id update) = do
     blocks <- blocks_with_track track_id
-    forM_ blocks $ \(block_id, tracknum, tracklike_id, _width) -> do
+    forM_ blocks $ \(block_id, tracknum, tracklike_id) -> do
         view_ids <- fmap Map.keys (State.get_views_of block_id)
         tracklike <- State.get_tracklike tracklike_id
         forM_ view_ids $ \view_id -> case update of
@@ -145,6 +145,14 @@ run_update (Update.TrackUpdate track_id update) = do
                 send $ BlockC.update_track view_id tracknum tracklike
                     (TrackPos 0) (TrackPos 0)
 
+run_update (Update.RulerUpdate ruler_id) = do
+    blocks <- blocks_with_ruler ruler_id
+    forM_ blocks $ \(block_id, tracknum, tracklike_id) -> do
+        view_ids <- fmap Map.keys (State.get_views_of block_id)
+        tracklike <- State.get_tracklike tracklike_id
+        forM_ view_ids $ \view_id -> do
+            send $ BlockC.update_entire_track view_id tracknum tracklike
+
 to_csel :: Block.ViewId -> Block.SelNum -> Maybe (Block.Selection)
     -> State.StateT IO (Maybe BlockC.CSelection)
 to_csel view_id selnum maybe_sel = do
@@ -155,14 +163,35 @@ to_csel view_id selnum maybe_sel = do
             selnum
     return $ fmap (BlockC.CSelection color) maybe_sel
 
--- | Find 'track_id' in all the blocks it exists in, and return the relevant
--- info.
+-- | Find @track_id@ in all the blocks it exists in, and return the track info
+-- for each tracknum at which @track_id@ lives.
 blocks_with_track :: (Monad m) => Track.TrackId -> State.StateT m
-    [(Block.BlockId, Block.TrackNum, Block.TracklikeId, Block.Width)]
+    [(Block.BlockId, Block.TrackNum, Block.TracklikeId)]
 blocks_with_track track_id = do
     st <- State.get
-    return [(block_id, i, tracklike_id, width) |
-            (block_id, block) <- Map.assocs (State.state_blocks st),
-            (i, (tracklike_id@(Block.TId block_tid _block_rid), width))
-                <- Seq.enumerate (Block.block_tracks block),
-            track_id == block_tid]
+    return
+        [ (block_id, tracknum, tracklike_id)
+        | (block_id, block) <- Map.assocs (State.state_blocks st)
+        , (tracknum, tracklike_id) <- all_tracks block
+        , track_id_of tracklike_id == Just track_id
+        ]
+    where
+    track_id_of (Block.TId tid _) = Just tid
+    track_id_of _ = Nothing
+    all_tracks block = Seq.enumerate (map fst (Block.block_tracks block))
+
+-- | Just like 'blocks_with_track' except for ruler_id.
+blocks_with_ruler ruler_id = do
+    st <- State.get
+    return
+        [ (block_id, tracknum, tracklike_id)
+        | (block_id, block) <- Map.assocs (State.state_blocks st)
+        , (tracknum, tracklike_id) <- all_tracks block
+        , ruler_id_of tracklike_id == Just ruler_id
+        ]
+    where
+    ruler_id_of (Block.TId _ rid) = Just rid
+    ruler_id_of (Block.RId rid) = Just rid
+    ruler_id_of _ = Nothing
+    all_tracks block = (BlockC.ruler_tracknum, Block.block_ruler_track block)
+        : Seq.enumerate (map fst (Block.block_tracks block))

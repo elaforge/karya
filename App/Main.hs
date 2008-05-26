@@ -95,11 +95,6 @@ print_devs rdev_map wdev_map = do
     putStrLn "write devs:"
     mapM_ print (Map.keys wdev_map)
 
-cues_marklist = Ruler.marklist "cues"
-    [ (TrackPos 0, TestSetup.tag "start")
-    , (TrackPos 90, TestSetup.tag "head explodes")
-    ]
-
 empty_track = Track.track "" [] Color.white
 
 setup_cmd :: Cmd.CmdM

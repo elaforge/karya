@@ -273,16 +273,6 @@ show_marklist ruler_id marklist_name = do
         map (\(pos, m) -> printf "%s - %s" (show pos) (pretty m))
             (Ruler.forward mlist (TrackPos 0))
 
-insert_marklist :: (State.UiStateMonad m) =>
-    Ruler.RulerId -> (Ruler.MarklistName, Ruler.Marklist) -> Int -> m ()
-insert_marklist ruler_id marklist n = State.modify_ruler ruler_id $ \ruler ->
-    ruler { Ruler.ruler_marklists =
-        Seq.insert_at (Ruler.ruler_marklists ruler) n marklist }
-
-remove_marklist :: (State.UiStateMonad m) => Ruler.RulerId -> Int -> m ()
-remove_marklist ruler_id n = State.modify_ruler ruler_id $ \ruler -> ruler
-    { Ruler.ruler_marklists = Seq.remove_at (Ruler.ruler_marklists ruler) n }
-
 -- * show / modify keymap
 
 -- | Run the Cmd that is bound to the given KeySpec, if there is one.
