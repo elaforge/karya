@@ -1,8 +1,8 @@
-module Util.Seq
-where
+module Util.Seq where
 
 import qualified Data.Char as Char
 import qualified Data.Maybe as Maybe
+import qualified Data.Set as Set
 import Data.Function
 import Data.List
 
@@ -34,7 +34,8 @@ at_err msg xs n = Maybe.fromMaybe
 -- beginning or end of the list.
 insert_at :: [a] -> Int -> a -> [a]
 insert_at xs i x = let (pre, post) = splitAt i xs in pre ++ (x : post)
--- | Like 'insert_at', but remove the element, if it's in range.
+-- | Remove the element at the given index.  Do nothing if the index is out
+-- of range.
 remove_at :: [a] -> Int -> [a]
 remove_at xs i = let (pre, post) = splitAt i xs in pre ++ drop 1 post
 
@@ -92,6 +93,18 @@ mtail _def (x:xs) = xs
 drop_dups :: (a -> a -> Bool) -> [a] -> [a]
 drop_dups _ [] = []
 drop_dups f (x:xs) = x : map snd (filter (not . uncurry f) (zip (x:xs) xs))
+
+unique :: Ord a => [a] -> [a]
+unique = unique_with id
+
+unique_with :: Ord b => (a -> b) -> [a] -> [a]
+unique_with f xs = go Set.empty xs
+    where
+    go _set [] = []
+    go set (x:xs)
+        | k `Set.member` set = go set xs
+        | otherwise = x : go (Set.insert k set) xs
+        where k = f x
 
 rdrop_while f = reverse . dropWhile f . reverse
 
