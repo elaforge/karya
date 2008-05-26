@@ -176,7 +176,7 @@ foreign import ccall unsafe "Pm_Read"
     c_read :: Ptr CStream -> Ptr Event -> CLong -> IO CPmError
 
 write_event :: WriteStream -> Event -> IO ()
-write_event (WriteStream streamp) evt@(Event (bytes, ts))
+write_event (WriteStream streamp) (Event (bytes, ts))
     | is_sysex bytes = withArray bytes $ \bytesp -> checked_ $
         -- I think it's ok to cast (Ptr Word8) to (Ptr CUChar)
         -- Subtract 1 from timstamp, see 'open_output'.

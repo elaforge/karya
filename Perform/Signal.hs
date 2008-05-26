@@ -53,7 +53,7 @@ sample sig start_pos end_pos = _sample srate previous (Map.assocs post) end_pos
     (pre, post) = Util.Data.split_map start_pos (signal_map sig)
     previous = if Map.null pre
         then (TrackPos 0, 0)
-        else (\(pos, (meth, val)) -> (pos, val)) (Map.findMax pre)
+        else (\(pos, (_meth, val)) -> (pos, val)) (Map.findMax pre)
     -- TODO hardcoded for the moment, this should be 0.1 second at the
     -- hardcoded pos->ts conversion.
     srate = TrackPos 100

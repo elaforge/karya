@@ -124,7 +124,7 @@ instance LogMonad IO where
         msg' <- add_time msg
         putStrLn (default_show msg')
 -- TODO show the date, if any
-default_show (Msg { msg_date = date, msg_caller = srcpos, msg_prio = prio
+default_show (Msg { msg_date = _date, msg_caller = srcpos, msg_prio = prio
         , msg_text = text }) =
     printf "%-4s %s- %s" (prio_stars prio) (Misc.show_srcpos srcpos) text
     where prio_stars prio = replicate (fromEnum prio + 1) '*'

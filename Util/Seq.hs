@@ -22,7 +22,7 @@ at xs n
     | n < 0 = Nothing
     | otherwise = _at xs n
     where
-    _at [] n = Nothing
+    _at [] _ = Nothing
     _at (x:_) 0 = Just x
     _at (_:xs) n = at xs (n-1)
 
@@ -85,10 +85,10 @@ partition_either (x:xs) =
 -- | Total variants of head and tail with default values.  "m" is for "maybe".
 mhead :: a -> [a] -> a
 mhead def [] = def
-mhead _def (x:xs) = x
+mhead _def (x:_) = x
 mtail :: [a] -> [a] -> [a]
 mtail def [] = def
-mtail _def (x:xs) = xs
+mtail _def (_:xs) = xs
 
 -- | Drop adjacent elts if the predicate says they are equal.  The first is
 -- kept.
@@ -122,19 +122,19 @@ strip = lstrip . rstrip
 split_with :: (a -> Bool) -> [a] -> [[a]]
 split_with f xs = map reverse (go f xs [])
     where
-    go f [] collect = [collect]
+    go _ [] collect = [collect]
     go f (x:xs) collect
         | f x = collect : go f xs [x]
         | otherwise = go f xs (x:collect)
 
 splitSeqWith :: ([a] -> Maybe Int) -> [a] -> [[a]]
-splitSeqWith f [] = []
+splitSeqWith _ [] = []
 splitSeqWith f xs = pre : ap_head (matched++) (splitSeqWith f rest)
     where
     (pre, post, n) = doSplitSeqWith f xs
     (matched, rest) = splitAt n post
 
-doSplitSeqWith f [] = ([], [], 0)
+doSplitSeqWith _ [] = ([], [], 0)
 doSplitSeqWith f elts@(x:xs) = case f elts of
     Just n -> ([], elts, n)
     Nothing -> let (match, rest, n) = doSplitSeqWith f xs
@@ -154,7 +154,7 @@ join sep = concat . intersperse sep
 -- | Replace sublists in 'xs'.  'repl' is given the tails of 'xs' and can
 -- return (replacement, rest_of_xs) or Nothing.
 replaceWith :: ([a] -> Maybe ([a], [a])) -> [a] -> [a]
-replaceWith repl [] = []
+replaceWith _ [] = []
 replaceWith repl xs = case repl xs of
     Just (insert, rest) -> insert ++ replaceWith repl rest
     Nothing -> head xs : replaceWith repl (tail xs)

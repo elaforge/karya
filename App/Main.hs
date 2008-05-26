@@ -14,9 +14,7 @@ import qualified Ui.Initialize as Initialize
 import qualified Ui.State as State
 
 import qualified Ui.Block as Block
-import qualified Ui.Ruler as Ruler
 import qualified Ui.Track as Track
--- import qualified Ui.Event as Event
 
 import qualified Midi.Midi as Midi
 import qualified Midi.MidiC as MidiC

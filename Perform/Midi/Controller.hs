@@ -1,7 +1,4 @@
 {- | Support for MIDI controllers.
-
-Eventually, this will need to be merged in some way with the more general
-notion of control signals, which can affect things other than midi rendering.
 -}
 module Perform.Midi.Controller where
 
@@ -16,6 +13,10 @@ import qualified Perform.Midi.Instrument as Instrument
 -- them affect performance and will be rendered as MIDI controllers or note
 -- parameters or whatever, while others may affect derivation (e.g. tempo) and
 -- won't be seen by the backend at all.
+--
+-- This is the MIDI performer's version of Controller.  The more general
+-- Score.Controller is converted along with Score.Events in
+-- Perform.Midi.Convert.
 data Controller = Controller String deriving (Show, Eq, Ord)
 controller name
     | Controller name `elem` valid_controllers = Just (Controller name)

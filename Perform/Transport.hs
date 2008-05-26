@@ -37,7 +37,7 @@ data Info = Info {
 -- | Send msgs from the responder loop to the player thread.
 newtype Transport = Transport (IORef.IORef TransportMsg)
 instance Show Transport where
-    show trans = "<Transport_Control>"
+    show _trans = "<Transport_Control>"
 
 -- | Msgs to control the player thread.
 --
