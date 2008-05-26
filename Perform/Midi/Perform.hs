@@ -247,9 +247,14 @@ controls_equal c1 c2 = {- trace ("\n*trace: "++show (c1, c2)++"\n") $-} c1 == c2
 
 -- * allot channels
 
--- |
+-- | 'channelize' will assign channels based on whether the notes can coexist
+-- without interfering with each other.  'allot' reduces those channels down
+-- to the real midi channels assigned to the instrument, stealing if necessary.
+--
 -- Events with instruments that have no address allocation in the config
 -- will be silently dropped.  A higher level should have warned about those.
+-- This is because deallocating its Addrs is an easy way to mute an instrument,
+-- so it's not necessarily an error to have no allocation.
 allot :: Instrument.Config -> [(Event, Channel)] -> [(Event, Instrument.Addr)]
 allot config events = Maybe.catMaybes $
     Util.Control.map_state allot_event (initial_allot_state config) events

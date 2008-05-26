@@ -23,7 +23,7 @@ data Instrument = Instrument {
     -- LRU on the channels anyway)
     -- At least I can know when there's no point emitting control msgs.
     , inst_decay :: Maybe Double
-    } deriving (Eq, Ord, Show)
+    } deriving (Eq, Ord, Read, Show)
 instrument = Instrument
 
 type PbRange = (Int, Int)
@@ -38,7 +38,7 @@ data Config  = Config {
     -- may be multiplexed across multiple channels.  You can also assign it
     -- multiple devices the same way, but the use for that seems more limited.
     config_alloc :: Map.Map Addr Instrument
-    } deriving (Show)
+    } deriving (Show, Read)
 config addr_insts = Config (Map.fromList addr_insts)
 
 -- | Describe how an instrument should be initialized before it can be played.
@@ -48,7 +48,7 @@ data InitializeInstrument =
     -- | Display this msg to the user and hope they do what it says.
     | InitializeMessage String
     | NoInitialization
-    deriving (Eq, Ord, Show)
+    deriving (Eq, Ord, Read, Show)
 
 instance Pretty Instrument where
     pretty inst = "<inst: " ++ inst_name inst ++ ">"

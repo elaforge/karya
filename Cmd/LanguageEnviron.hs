@@ -8,6 +8,7 @@ import qualified Control.Monad.Identity as Identity
 import Ui.Types
 
 import qualified Util.Log as Log
+import qualified Util.PPrint as PPrint
 
 import qualified Ui.Block as Block
 import qualified Ui.Ruler as Ruler
@@ -28,9 +29,12 @@ import qualified Perform.InstrumentDb as InstrumentDb
 import Cmd.LanguageCmds
 
 
--- | Automatically added to language text by Language.mangle_text so it can
--- pretend to be running in the "real" CmdT.
-run :: Cmd.CmdT Identity.Identity String -> State.State -> Cmd.State
+-- | Like 'Cmd.run', but pretty-print the return value.  If the value is
+-- already a string, just return it unchanged.
+--
+-- This is automatically added to language text by Language.mangle_text so it
+-- can pretend to be running in the "real" CmdT.
+run :: Show a => Cmd.CmdT Identity.Identity a -> State.State -> Cmd.State
     -> Cmd.CmdVal String
-run cmd ui_state cmd_state =
-    Identity.runIdentity (Cmd.run "" ui_state cmd_state cmd)
+run cmd ui_state cmd_state = Identity.runIdentity $
+    Cmd.run "" ui_state cmd_state (fmap PPrint.str_pshow cmd)

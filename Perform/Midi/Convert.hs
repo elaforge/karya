@@ -7,6 +7,7 @@ located in Perform.Midi.
 module Perform.Midi.Convert where
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Set as Set
 
 import qualified Util.Seq as Seq
 
@@ -16,6 +17,7 @@ import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Warning as Warning
 import qualified Perform.Midi.Controller as Controller
 import qualified Perform.Midi.Perform as Perform
+import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.InstrumentDb as InstrumentDb
 
 
@@ -23,8 +25,20 @@ import qualified Perform.Midi.InstrumentDb as InstrumentDb
 -- returned as Warnings.
 convert :: [Score.Event] -> ([Warning.Warning], [Perform.Event])
 convert events = (concat warns, Maybe.catMaybes midi_events)
+    where (warns, midi_events) = unzip (map convert_event events)
+
+verify :: Instrument.Config -> [Perform.Event] -> [String]
+verify config events =
+    (map show . unique . Maybe.catMaybes . map (verify_event allocated)) events
+    where allocated = Set.fromList (Map.elems (Instrument.config_alloc config))
+
+unique = Set.toList . Set.fromList
+
+verify_event allocated event
+    | inst `Set.notMember` allocated = Just (Instrument.inst_name inst)
+    | otherwise = Nothing
     where
-    (warns, midi_events) = unzip (map convert_event events)
+    inst = Perform.event_instrument event
 
 convert_event event = case do_convert_event event of
     Left warn -> ([warn], Nothing)

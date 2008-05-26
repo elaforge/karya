@@ -106,7 +106,7 @@ setup_cmd :: Cmd.CmdM
 setup_cmd = do
     Log.debug "setup block"
     ruler <- State.create_ruler "r1"
-        (TestSetup.ruler [TestSetup.marklist 64 16, cues_marklist])
+        (TestSetup.ruler [TestSetup.marklist 64 16])
     overlay <- State.create_ruler "r1.overlay"
         =<< fmap TestSetup.overlay_ruler (State.get_ruler ruler)
 

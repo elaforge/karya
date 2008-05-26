@@ -111,12 +111,9 @@ import qualified Midi.Midi as Midi
 import qualified App.Config as Config
 
 
-type Cmd = Cmd.CmdT Identity.Identity String
+type Cmd a = Cmd.CmdT Identity.Identity a
 
 -- * util
-
--- | Showable, with a short name for convenience.
--- data S = forall a. Show a => S a
 
 -- | pprint does ok for records, but it doesn't work so well if I want to print
 -- part of the record, or change the types.  A real record system for haskell
@@ -134,57 +131,34 @@ show_list xs = concatMap (\(i, x) -> printf "%d. %s\n" i x) (Seq.enumerate xs)
 _cmd_state :: (Cmd.State -> a) -> Cmd.CmdT Identity.Identity a
 _cmd_state = flip fmap Cmd.get_state
 _ui_state = flip fmap State.get
--- | Various Cmd return types: nothing, pprinted val, and showed val.
-r_ = (>> return "")
-rp m = fmap PPrint.pshow m
-rs m = fmap show m
 
 -- * show / modify cmd state
 
-show_save_file :: Cmd
+show_save_file :: Cmd String
 show_save_file = _cmd_state (show . Cmd.state_default_save_file)
-set_save_file :: String -> Cmd
-set_save_file s = r_ $
+set_save_file :: String -> Cmd ()
+set_save_file s =
     Cmd.modify_state $ \st -> st { Cmd.state_default_save_file = s }
 
-show_midi_config :: Cmd
-show_midi_config = rp get_midi_alloc
-get_midi_alloc =
-    _ui_state (Instrument.config_alloc . State.state_midi_config)
+show_step :: Cmd TimeStep.TimeStep
+show_step = _cmd_state Cmd.state_step
 
-assign_instrument :: String -> Instrument.Addr -> Cmd
-assign_instrument inst_name addr = r_ $ do
-    inst <- case InstrumentDb.lookup (Score.Instrument inst_name) of
-        Just (InstrumentDb.Midi midi_inst) -> return midi_inst
-        Just inst -> State.throw $
-            "you can't allocate a midi address to non-midi instrument "
-            ++ show inst
-        Nothing ->
-            State.throw $ "instrument " ++ show inst_name ++ " not found"
-    alloc <- fmap (Map.insert addr inst) get_midi_alloc
-    State.modify $ \st ->
-        st { State.state_midi_config = Instrument.Config alloc }
+set_step :: TimeStep.TimeStep -> Cmd ()
+set_step step = Cmd.modify_state $ \st -> st { Cmd.state_step = step }
 
-show_step :: Cmd
-show_step = rs $ _cmd_state Cmd.state_step
-
-set_step :: TimeStep.TimeStep -> Cmd
-set_step step = r_ $ Cmd.modify_state $ \st -> st { Cmd.state_step = step }
-
-show_octave :: Cmd
-show_octave = rs $ _cmd_state Cmd.state_kbd_entry_octave
-set_octave :: Int -> Cmd
-set_octave n = r_ $ Cmd.modify_state $ \st ->
-    st { Cmd.state_kbd_entry_octave = n }
+show_octave :: Cmd Int
+show_octave = _cmd_state Cmd.state_kbd_entry_octave
+set_octave :: Int -> Cmd ()
+set_octave n = Cmd.modify_state $ \st -> st { Cmd.state_kbd_entry_octave = n }
 
 -- * load / save
 
 -- Need to run in IO, not Identity for this.
 -- I think I could have lang run in IO, but is it worth it just for this?
 -- I don't see why not.  TODO
--- load, save :: Maybe String -> Cmd
--- load fn = r_ $ Save.cmd_load fn
--- save fn = r_ $ Save.cmd_save fn
+-- load, save :: Maybe String -> Cmd ()
+-- load fn = Save.cmd_load fn
+-- save fn = Save.cmd_save fn
 
 -- undo, redo
 
@@ -197,26 +171,23 @@ sid = Block.SchemaId
 rid = Ruler.RulerId
 tid = Track.TrackId
 
-show_state :: Cmd
+show_state :: Cmd String
 show_state = do
-    (State.State views blocks tracks rulers midi_config) <- State.get
+    (State.State views blocks tracks rulers _midi_config) <- State.get
+    -- midi config showed by show_midi_config
     let f m = PPrint.pshow (Map.keys m)
     return $ show_record
         [ ("views", f views), ("blocks", f blocks)
         , ("tracks", f tracks), ("rulers", f rulers)
-        , ("midi_config", PPrint.pshow midi_config)
         ]
 
 -- ** views
 
-show_views :: Cmd
-show_views = rp $ fmap (Map.keys . State.state_views) State.get
+get_views :: Cmd [Block.ViewId]
+get_views = fmap (Map.keys . State.state_views) State.get
 
-create_view :: String -> Block.View -> Cmd
-create_view view_id view = r_ $ State.create_view view_id view
-
-create_view_d :: String -> String -> Cmd
-create_view_d view_id block_id = r_ $ do
+create_view :: String -> String -> Cmd Block.ViewId
+create_view view_id block_id = do
     rect <- fmap (find_rect Config.view_size . map Block.view_rect . Map.elems
         . State.state_views) State.get
     State.create_view view_id
@@ -230,15 +201,15 @@ find_rect (w, h) rects = Block.Rect (right, bottom) (w, h)
     right = maximum $ 0 : map Block.rect_right rects
     bottom = 10
 
-destroy_view :: String -> Cmd
-destroy_view view_id = r_ $ State.destroy_view (vid view_id)
+destroy_view :: String -> Cmd ()
+destroy_view view_id = State.destroy_view (vid view_id)
 
 -- ** blocks
 
 get_active_block = fmap Block.view_block
     (State.get_view =<< Cmd.get_active_view)
 
-show_block :: Maybe String -> Cmd
+show_block :: Maybe String -> Cmd String
 show_block maybe_block_id = do
     block_id <- maybe get_active_block return
         (fmap Block.BlockId maybe_block_id)
@@ -252,16 +223,17 @@ show_block maybe_block_id = do
         , ("schema", show schema)
         ]
 
-create_block block_id block = r_ $ State.create_block block_id block
-create_block_d block_id ruler_id schema_id = create_block
-    block_id (Block.block "" Config.block_config (ruler ruler_id) [] schema_id)
+create_block :: (State.UiStateMonad m) =>
+    String -> String -> Block.SchemaId -> m Block.BlockId
+create_block id_name ruler_id schema_id = State.create_block
+    id_name (Block.block "" Config.block_config (ruler ruler_id) [] schema_id)
 
-set_schema :: String -> String -> Cmd
-set_schema block_id schema_id = r_ $ do
+set_schema :: String -> String -> Cmd ()
+set_schema block_id schema_id = do
     State.modify_block (bid block_id) $ \block ->
         block { Block.block_schema = sid schema_id }
 
-set_schema_d :: String -> Cmd
+set_schema_d :: String -> Cmd ()
 set_schema_d schema_id = do
     block_id <- get_active_block
     set_schema (_bid block_id) schema_id
@@ -273,16 +245,13 @@ track track_id ruler_id = Block.TId (tid track_id) (rid ruler_id)
 ruler ruler_id = Block.RId (rid ruler_id)
 divider color = Block.DId (Block.Divider color)
 
-insert_track block_id tracknum track width = r_ $ do
+insert_track block_id tracknum track width = do
     State.insert_track (bid block_id) tracknum track width
 remove_track block_id tracknum = State.remove_track (bid block_id) tracknum
 
 -- ** rulers
 
--- TODO decide on strings or IDs.  IDs are more composable, but strings are
--- more convenient when called directly.
-
-show_ruler :: Ruler.RulerId -> Cmd
+show_ruler :: Ruler.RulerId -> Cmd String
 show_ruler ruler_id = do
     (Ruler.Ruler mlists bg show_names use_alpha full_width) <-
         State.get_ruler ruler_id
@@ -293,7 +262,7 @@ show_ruler ruler_id = do
         , ("marklists", show_list (map fst mlists))
         ]
 
-show_marklist :: Ruler.RulerId -> Ruler.MarklistName -> Cmd
+show_marklist :: Ruler.RulerId -> Ruler.MarklistName -> Cmd String
 show_marklist ruler_id marklist_name = do
     ruler <- State.get_ruler ruler_id
     mlist <- case lookup marklist_name (Ruler.ruler_marklists ruler) of
@@ -304,13 +273,40 @@ show_marklist ruler_id marklist_name = do
         map (\(pos, m) -> printf "%s - %s" (show pos) (pretty m))
             (Ruler.forward mlist (TrackPos 0))
 
+insert_marklist :: (State.UiStateMonad m) =>
+    Ruler.RulerId -> (Ruler.MarklistName, Ruler.Marklist) -> Int -> m ()
+insert_marklist ruler_id marklist n = State.modify_ruler ruler_id $ \ruler ->
+    ruler { Ruler.ruler_marklists =
+        Seq.insert_at (Ruler.ruler_marklists ruler) n marklist }
+
+remove_marklist :: (State.UiStateMonad m) => Ruler.RulerId -> Int -> m ()
+remove_marklist ruler_id n = State.modify_ruler ruler_id $ \ruler -> ruler
+    { Ruler.ruler_marklists = Seq.remove_at (Ruler.ruler_marklists ruler) n }
+
 -- * show / modify keymap
 
 -- | Run the Cmd that is bound to the given KeySpec, if there is one.
 -- keymap :: Keymap.KeySpec -> Cmd
 
 
--- * schema
+-- * midi config
+
+get_midi_alloc =
+    _ui_state (Instrument.config_alloc . State.state_midi_config)
+set_midi_config config = State.modify $ \st ->
+    st { State.state_midi_config = config}
+
+assign_instrument :: String -> Instrument.Addr -> Cmd ()
+assign_instrument inst_name addr = do
+    inst <- case InstrumentDb.lookup (Score.Instrument inst_name) of
+        Just (InstrumentDb.Midi midi_inst) -> return midi_inst
+        Just inst -> State.throw $
+            "you can't allocate a midi address to non-midi instrument "
+            ++ show inst
+        Nothing ->
+            State.throw $ "instrument " ++ show inst_name ++ " not found"
+    alloc <- fmap (Map.insert addr inst) get_midi_alloc
+    set_midi_config (Instrument.Config alloc)
 
 schema_instruments :: (State.UiStateMonad m) =>
     Block.BlockId -> m [Score.Instrument]

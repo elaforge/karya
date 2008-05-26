@@ -129,16 +129,13 @@ Cmd
       + event insertion / deletion commands
       * set step interval
       * midi note insertion
+      - kbd entry mode can do midi-thrus
       - alternate finale-like note entry: hold down step key to set step and
         turn on edit mode, but only while the key is down
+      - change length of existing event
       selection ops
         - transpose
-    Cmd.Create
-      - view and creation / deletion
-      - track insertion / removal
-    Cmd.TrackOps
-      - collapse track to a divider, expand it back
-      - mute / unmute
+        - copy / paste
 
     Cmd.Selection
       * move insertion point

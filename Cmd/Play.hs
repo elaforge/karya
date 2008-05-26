@@ -93,6 +93,9 @@ cmd_play_block transport_info = do
     -- TODO later, instrument backend dispatches on this
     let (convert_warnings, midi_events) = Convert.convert events
     -- TODO properly convert to log msg
+    -- TODO I think this forces the list, I have to not warn so eagerly
+    -- or thread the warnings through 'perform'
+    -- TODO call Convert.verify for more warnings
     mapM_ (Log.warn . show) convert_warnings
     inst_config <- fmap State.state_midi_config State.get
     let (midi_msgs, perform_warnings) = Perform.perform inst_config midi_events
@@ -104,8 +107,7 @@ cmd_play_block transport_info = do
     Trans.liftIO $ Thread.start_thread "play position updater" $
         update_play_position transport transport_info tempo_map ui_state
 
-    Cmd.modify_state $ \st ->
-        st { Cmd.state_transport = Just transport }
+    Cmd.modify_state $ \st -> st { Cmd.state_transport = Just transport }
     return Cmd.Done
 
 update_play_position transport transport_info tempo_map ui_state = do
