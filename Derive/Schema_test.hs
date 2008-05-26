@@ -18,13 +18,13 @@ reduce :: Schema.Skeleton -> String
 reduce (Schema.Controller ctracks itrack) =
     Seq.join " " (map (maybe "_" id . Schema.track_title) ctracks)
     ++ "(" ++ maybe "" reduce itrack ++ ")"
-reduce (Schema.Instrument track) = maybe "_" id (Schema.track_title track)
+reduce (Schema.Instrument _ track) = maybe "_" id (Schema.track_title track)
 reduce (Schema.Merge tracks) = Seq.join " + " (map reduce tracks)
 
 -- TODO test with rulers and dividers
 
 test_parse = do
-    let eq tracks str = equal (reduce (Schema.parse tracks)) str
+    let eq tracks str = equal (reduce (Schema.default_parse tracks)) str
     eq [inst 1] ">inst1"
     eq [inst 1, cont "control1"] "control1(>inst1)"
     eq [cont "tempo", inst 1, cont "tempo"] "tempo(>inst1) + tempo()"

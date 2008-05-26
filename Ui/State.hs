@@ -404,6 +404,11 @@ create_ruler :: (UiStateMonad m) => String -> Ruler.Ruler -> m Ruler.RulerId
 create_ruler id ruler = get >>= insert (Ruler.RulerId id) ruler state_rulers
     (\rulers st -> st { state_rulers = rulers })
 
+modify_ruler ruler_id f = do
+    ruler <- get_ruler ruler_id
+    modify $ \st ->
+        st { state_rulers = Map.insert ruler_id (f ruler) (state_rulers st) }
+
 -- ** util
 
 -- | Lookup @map!key@, throwing if it doesn't exist.

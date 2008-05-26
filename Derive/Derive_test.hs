@@ -42,9 +42,9 @@ test_basic = do
 
 -- with velocity track
 controller_schema :: (Monad m) => Derive.DeriveT m [Score.Event]
-controller_schema = Controller.controller "breath"
-    (Controller.signal =<< Derive.d_track cont_track_id)
-    [bass =<< twelve =<< Derive.d_track track_id]
+controller_schema = Controller.d_controller (Score.Controller "breath")
+    (Controller.d_signal =<< Derive.d_track cont_track_id)
+    (bass =<< twelve =<< Derive.d_track track_id)
 
 test_controller = do
     let (Right events, _tempo, msgs) = Derive.derive ui_state controller_schema
@@ -92,10 +92,11 @@ ui_state = State.run_state State.empty $ do
     t1 <- State.create_track "b1.t1" track1
     t2 <- State.create_track "b1.t2" track1
     t3 <- State.create_track "b1.cont" track_cont
-    b1 <- State.create_block "b1"
-        (Block.block "b1 title" TestSetup.default_block_config
+    b1 <- State.create_block "b1" $
+        Block.block "b1 title" TestSetup.default_block_config
             (Block.RId ruler)
-            [(Block.TId t1 overlay, 40), (Block.TId t2 overlay, 40)])
+            [(Block.TId t1 overlay, 40), (Block.TId t2 overlay, 40)]
+            (Block.SchemaId "no schema")
     return ()
 
 empty_track = Track.track "" [] Color.white
