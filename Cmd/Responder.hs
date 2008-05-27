@@ -124,15 +124,15 @@ loop ui_state cmd_state get_msg write_midi transport_info session = do
         cmd_val <- run_cmds Cmd.run_cmd_id ui_state cmd_state update_cmds
         handle_cmd_val False write_midi ui_state cmd_val
 
+    let id_cmds = hardcoded_cmds ++ DefaultKeymap.default_cmds cmd_state
+    (status, ui_state, cmd_state) <- maybe_run status write_midi
+        ui_state cmd_state Cmd.run_cmd_id id_cmds msg
+
     -- Certain commands require IO.  Rather than make everything IO,
     -- I hardcode them in a special list that gets run in IO.
     let io_cmds = hardcoded_io_cmds transport_info session
     (status, ui_state, cmd_state) <- maybe_run status write_midi
         ui_state cmd_state (Cmd.run Cmd.Continue) io_cmds msg
-
-    let id_cmds = hardcoded_cmds ++ DefaultKeymap.default_cmds cmd_state
-    (status, ui_state, cmd_state) <- maybe_run status write_midi
-        ui_state cmd_state Cmd.run_cmd_id id_cmds msg
 
     case status of
         Cmd.Quit -> return ()

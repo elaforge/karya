@@ -224,9 +224,9 @@ show_block maybe_block_id = do
         ]
 
 create_block :: (State.UiStateMonad m) =>
-    String -> String -> Block.SchemaId -> m Block.BlockId
-create_block id_name ruler_id schema_id = State.create_block
-    id_name (Block.block "" Config.block_config (ruler ruler_id) [] schema_id)
+    String -> String -> String -> m Block.BlockId
+create_block id_name ruler_id schema_id = State.create_block id_name
+    (Block.block "" Config.block_config (ruler ruler_id) [] (sid schema_id))
 
 set_schema :: String -> String -> Cmd ()
 set_schema block_id schema_id = do

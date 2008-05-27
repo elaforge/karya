@@ -375,10 +375,14 @@ BlockViewWindow::handle(int evt)
             // Actually, I get KEYUP even if I don't have focus, and also get
             // the KEYUP half of an event that defocuses.  Eat those up
             // silently.
-            if (!this->keys_down[key])
-                return true;
-            else
-                this->keys_down[key] = false;
+            // if (!this->keys_down[key])
+            //     return true;
+            // Actually, I can't do this because I also get lone KEYUPs when
+            // a new window was given focus during the key down.  I don't see
+            // how I can tell the difference, so just live with the spurious
+            // keyup.  The proper fix would be to put this map into fltk event
+            // delivery so it doesn't split events like that.
+            this->keys_down[key] = false;
         }
         global_msg_collector()->event(evt);
         if (this->testing && Fl::event_key() == FL_Escape)
