@@ -16,8 +16,9 @@ a given pattern may go to the status bar.
 -}
 
 module Util.Log (
+    initialize
     -- * msgs
-    Msg(..), Prio(..)
+    , Msg(..), Prio(..)
     , debug, notice, warn, error
     , debug_srcpos, notice_srcpos, warn_srcpos, error_srcpos
     , debug_stack, notice_stack, warn_stack, error_stack
@@ -28,10 +29,13 @@ module Util.Log (
     , LogT, write, run
 ) where
 import Prelude hiding (error, log)
+import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Trans as Trans
 import qualified Data.Time as Time
 import qualified Data.Typeable as Typeable
+import qualified System.IO as IO
+import qualified System.IO.Unsafe  as Unsafe
 import Text.Printf (printf)
 
 import qualified Util.Logger as Logger
@@ -42,8 +46,9 @@ import qualified Util.Misc as Misc
 -- I'm safe for now...
 import qualified Perform.Warning as Warning
 
-data Msg = Msg
-    { msg_date :: Maybe Time.UTCTime
+
+data Msg = Msg {
+    msg_date :: Maybe Time.UTCTime
     , msg_caller :: Misc.SrcPos
     , msg_prio :: Prio
     -- | Free form text for humans.
@@ -54,6 +59,17 @@ data Msg = Msg
     -- -- | Higher level context info for the msg.
     -- , msg_context :: [Context]
     } deriving (Eq, Show, Typeable.Typeable)
+
+data State = State IO.Handle
+global_state = Unsafe.unsafePerformIO MVar.newEmptyMVar
+
+-- | Configure the log system to write to the given file.  Only call this once,
+-- and call it before any calls to @write@, or to a log function in IO.
+initialize :: IO.FilePath -> IO ()
+initialize file = do
+    hdl <- IO.openFile file IO.AppendMode
+    IO.hSetBuffering hdl IO.LineBuffering
+    MVar.putMVar global_state (State hdl)
 
 -- | (schema_stack, event_stack)
 type Stack = [Warning.CallPos]
@@ -82,8 +98,6 @@ log prio srcpos text = write (msg_srcpos srcpos prio text Nothing)
 log_stack :: LogMonad m => Prio -> Misc.SrcPos -> Stack -> String -> m ()
 log_stack prio srcpos stack text =
     write (msg_srcpos srcpos prio text (Just stack))
-
--- The monomorphism restriction makes these signatures necessary.
 
 debug_srcpos, notice_srcpos, warn_srcpos, error_srcpos
     :: LogMonad m => Misc.SrcPos -> String -> m ()
@@ -122,7 +136,8 @@ class Monad m => LogMonad m where
 instance LogMonad IO where
     write msg = do
         msg' <- add_time msg
-        putStrLn (default_show msg')
+        MVar.withMVar global_state $ \(State hdl) ->
+            IO.hPutStrLn hdl (default_show msg')
 -- TODO show the date, if any
 default_show (Msg { msg_date = _date, msg_caller = srcpos, msg_prio = prio
         , msg_text = text }) =

@@ -40,11 +40,13 @@ import qualified Midi.PortMidi as PortMidi
     Create an empty block with a few tracks.
 -}
 
-initialize f = Initialize.initialize $ \msg_chan -> MidiC.initialize
-    $ \read_chan -> Network.withSocketsDo $ do
-        Config.initialize_lang_port
-        socket <- Network.listenOn Config.lang_port
-        f socket msg_chan read_chan
+initialize f = do
+    Log.initialize "seq.log"
+    Initialize.initialize $ \msg_chan -> MidiC.initialize $ \read_chan ->
+        Network.withSocketsDo $ do
+            Config.initialize_lang_port
+            socket <- Network.listenOn Config.lang_port
+            f socket msg_chan read_chan
 
 main = initialize $ \lang_socket msg_chan read_chan -> do
     Log.notice "app starting"
