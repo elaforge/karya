@@ -348,9 +348,17 @@ BlockViewWindow::BlockViewWindow(int X, int Y, int W, int H,
     block(X, Y, W, H, model_config, view_config, ruler_track),
     testing(false)
 {
-    callback((Fl_Callback *) block_view_window_cb);
-    resizable(this);
-    // turn off some annoying defaults
+    this->callback((Fl_Callback *) block_view_window_cb);
+    this->resizable(this);
+    // Fl_Window::resize makes explicit resize()s set size_range to the given
+    // size, and then the system won't let me make it any bigger.
+    // Explicitly setting it to some big number that fits in a short seems
+    // to work around the problem.
+    // Contrary to the documentation, setting maxw and maxh to 0 does not
+    // automatically pick screen-filling sizes.
+    this->size_range(10, 10, 10000, 10000);
+
+    // Turn off some annoying defaults.
     Fl::dnd_text_ops(false); // don't do drag and drop text
     // Fl::visible_focus(false); // doesn't seem to do anything
 }
