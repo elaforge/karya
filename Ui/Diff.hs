@@ -23,9 +23,16 @@ throw = Error.throwError
 change :: Monad m => [Update.Update] -> Writer.WriterT [Update.Update] m ()
 change = Writer.tell
 
+run = Identity.runIdentity . Error.runErrorT . Writer.execWriterT
+
 -- | Emit a list of the necessary 'Update's to turn @st1@ into @st2@.
 diff :: State.State -> State.State -> Either DiffError [Update.Update]
-diff st1 st2 = Identity.runIdentity . Error.runErrorT . Writer.execWriterT $ do
+diff st1 st2 = run $ do
+    -- View diff needs to happen first, because other updates may want to
+    -- update the new view (technically these updates are redundant, but they
+    -- don't hurt and filtering them would be complicated).
+    diff_views st1 st2 (State.state_views st1) (State.state_views st2)
+
     -- Only emit updates for blocks that are actually in a displayed view.
     let visible_ids = (List.nub . map Block.view_block . Map.elems)
             (State.state_views st2)
@@ -37,17 +44,6 @@ diff st1 st2 = Identity.runIdentity . Error.runErrorT . Writer.execWriterT $ do
         (zip_maps (State.state_tracks st1) (State.state_tracks st2))
     mapM_ (uncurry3 diff_ruler)
         (zip_maps (State.state_rulers st1) (State.state_rulers st2))
-
-    -- The block updates may delete or insert tracks.  View updates that use
-    -- TrackNums will refer to the st2 TrackNum, so diff_views goes after
-    -- diff_block.  This is only Selection
-    --
-    -- You'd think that Block updates wouldn't catch new views created by
-    -- diff_view, but since the sync runs against the new state, they will find
-    -- new views.
-    --
-    -- This is subtle and icky.
-    diff_views st1 st2 (State.state_views st1) (State.state_views st2)
 
 -- ** view
 

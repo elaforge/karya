@@ -51,6 +51,18 @@ test_create_resize_destroy_view = do
         State.destroy_view t_view_id
     return ()
 
+test_create_two_views = do
+    state <- run_setup
+    state <- io_human "another view created" $ run state $ do
+        -- A new view is created, and a track that is in both is modified.
+        b2 <- State.create_block "b2" $ Block.block ""
+            default_block_config (Block.RId t_ruler_id)
+            [(Block.TId t_track1_id t_ruler_id, 30)] t_schema_id
+        v2 <- State.create_view "v2" $
+            Block.view b2 default_rect default_view_config
+        State.set_track_title t_track1_id "hi there"
+    return ()
+
 test_set_status = do
     state <- run_setup
     state <- io_human "status set" $ run state $ do
@@ -67,6 +79,17 @@ test_insert_remove_track = do
     state <- io_human "first track replaced by divider" $ run state $ do
         State.remove_track t_block_id 0
         State.insert_track t_block_id 0 (Block.DId default_divider) 5
+    return ()
+
+test_update_track2 = do
+    state <- run State.empty $ do
+        v1 <- setup_state
+        t2 <- State.create_track "b1.t2" event_track_2
+        State.insert_track t_block_id 1 (Block.TId t2 t_ruler_id) 30
+        return ()
+    io_human "1st track deleted, 2nd track gets wider" $ run state $ do
+        State.remove_track t_block_id 0
+        State.set_track_width t_view_id 0 100
     return ()
 
 test_update_track = do
@@ -151,6 +174,7 @@ t_ruler_id = Ruler.RulerId "r1"
 t_block_id = Block.BlockId "b1"
 t_track1_id = Track.TrackId "b1.t1"
 t_view_id = Block.ViewId "v1"
+t_schema_id = Block.SchemaId "no schema"
 
 run_setup = run State.empty setup_state
 setup_state = do
@@ -159,7 +183,7 @@ setup_state = do
     b1 <- State.create_block "b1" $
         Block.block "hi b1" default_block_config
             (Block.RId ruler) [(Block.TId t1 ruler, 30)]
-            (Block.SchemaId "no schema")
+            t_schema_id
     State.create_view "v1" (Block.view b1 default_rect default_view_config)
 
 run st1 m = do

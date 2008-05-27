@@ -157,8 +157,9 @@ set_track_width view_id tracknum width = do
     view <- get_view view_id
     -- Functional update still sucks.  An imperative language would have:
     -- state.get_view(view_id).tracks[tracknum].width = width
-    track_views <- modify_at (Block.view_tracks view) tracknum $ \tview ->
-        tview { Block.track_view_width = width }
+    track_views <- modify_at "set_track_width"
+        (Block.view_tracks view) tracknum $ \tview ->
+            tview { Block.track_view_width = width }
     update_view view_id (view { Block.view_tracks = track_views })
 
 -- *** zoom and track scroll
@@ -438,9 +439,9 @@ insert key val get_map set_map state = do
     return key
 
 -- | Modify the @i@th element of @xs@ by applying @f@ to it.
-modify_at :: (UiStateMonad m) => [a] -> Int -> (a -> a) -> m [a]
-modify_at xs i f = case post of
-    [] -> throw $ "can't replace index " ++ show i
+modify_at :: (UiStateMonad m) => String -> [a] -> Int -> (a -> a) -> m [a]
+modify_at msg xs i f = case post of
+    [] -> throw $ msg ++ ": can't replace index " ++ show i
         ++ " of list with length " ++ show (length xs)
     (elt:rest) -> return (pre ++ f elt : rest)
     where (pre, post) = splitAt i xs

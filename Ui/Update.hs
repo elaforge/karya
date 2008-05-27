@@ -1,6 +1,8 @@
 {-# OPTIONS_GHC -XDeriveDataTypeable #-}
 module Ui.Update where
 import qualified Data.Typeable as Typeable
+import Data.Function
+import qualified Data.List as List
 
 import Ui.Types
 import qualified Ui.Block as Block
@@ -43,3 +45,21 @@ data TrackUpdate
     | TrackTitle String
     | TrackBg
     deriving Show
+
+-- | Some Updates have to happen before others.
+sort :: [Update] -> [Update]
+sort = List.sortBy (compare `on` sort_key)
+
+sort_key :: Update -> Int
+sort_key update = case update of
+    -- Other updates may refer to the created view.
+    ViewUpdate _ CreateView -> 0
+    -- No sense syncing updates to a view that's going to go away, so destroy
+    -- it right away.
+    ViewUpdate _ DestroyView -> 0
+    -- These may change the meaning of TrackNums.  Update TrackNums refer to
+    -- the TrackNums of the destination state, except the ones for InsertTrack
+    -- and RemoveTrack, of course.
+    BlockUpdate _ (InsertTrack _ _ _) -> 1
+    BlockUpdate _ (RemoveTrack _) -> 1
+    _ -> 2

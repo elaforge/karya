@@ -26,11 +26,14 @@ import qualified Ui.Track as Track
 import qualified Ui.State as State
 import qualified Ui.Update as Update
 
+
 -- | Sync with the ui by applying the given updates to it.
 sync :: State.State -> [Update.Update] -> IO (Maybe State.StateError)
 sync state updates = do
     -- TODO: TrackUpdates can overlap.  Merge them together here.
-    result <- State.run state (mapM_ run_update updates)
+    -- Technically I can also cancel out all TrackUpdates that only apply to
+    -- newly created views, but this optimization is probably not worth it.
+    result <- State.run state (mapM_ run_update (Update.sort updates))
     return $ case result of
         Left err -> Just err
         -- I reuse State.StateT for convenience, but run_update should
