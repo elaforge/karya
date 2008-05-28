@@ -25,6 +25,13 @@ import qualified Cmd.TimeStep as TimeStep
 
 import qualified App.Config as Config
 
+-- This is only used by the interpreter,  but by importing it here I can make
+-- sure it doesn't have any compile errors in advance.
+-- TODO but then I have to remove the .o, cuz otherwise ghc insists on failing
+-- to load the compiled version.
+-- import Cmd.LanguageEnviron ()
+import Cmd.LanguageCmds ()
+
 -- tmp
 import qualified Ui.TestSetup as TestSetup
 import qualified Midi.PortMidi as PortMidi

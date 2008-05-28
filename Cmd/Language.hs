@@ -20,13 +20,6 @@ import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 
--- This is only used by the interpreter,  but by importing it here I can make
--- sure it doesn't have any compile errors in advance.
--- TODO but then I have to remove the .o, cuz otherwise ghc insists on failing
--- to load the compiled version.
--- import Cmd.LanguageEnviron ()
-import Cmd.LanguageCmds ()
-
 
 cmd_language :: GHC.InterpreterSession -> Cmd.CmdIO
 cmd_language session msg = do

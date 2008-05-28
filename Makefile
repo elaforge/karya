@@ -23,7 +23,7 @@ FLTK_OBJS := Block.o TrackTile.o Track.o Ruler.o EventTrack.o MoveTile.o \
 	f_util.o alpha_draw.o types.o config.o
 FLTK_OBJS := $(addprefix fltk/, $(FLTK_OBJS))
 
-all: seq send test_block test_ui test_midi test_obj/RunTests
+all: seq send repl test_block test_ui test_midi test_obj/RunTests
 
 .PHONY: dep
 dep: fixdeps
@@ -49,7 +49,7 @@ fltk/fltk.a: $(FLTK_OBJS)
 	ar -rs $@ $^
 
 # Link against libfltk from src dir, for testing libfltk changes.
-DIRECT_LINK = -g /usr/local/src/fltk/lib/libfltk.a \
+DIRECT_LINK = /usr/local/src/fltk/lib/libfltk.a \
 	-lpthread -framework Carbon -framework ApplicationServices
 test_block: fltk/test_block.o fltk/fltk.a
 	$(CXX) -o $@ $^ $(LDFLAGS) # $(DIRECT_LINK)
@@ -92,6 +92,9 @@ seq: $(UI_HS) $(UI_OBJS) $(MIDI_HS) fltk/fltk.a
 
 .PHONY: send
 send: App/Send.hs
+	$(GHC) $(HFLAGS) --make $^ -o $@
+.PHONY: repl
+repl: App/Repl.hs
 	$(GHC) $(HFLAGS) --make $^ -o $@
 
 .PHONY: doc

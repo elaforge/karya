@@ -155,7 +155,7 @@ Cmd
     * pretty print various parts of state
     - functions to create and insert tracks, views, etc.  automatically create
       IDs, prefixing current project name
-    - readline using repl for send
+    * readline using repl for send
 
   Cmd.Block
     - create / destroy views, blocks and tracks
@@ -164,7 +164,7 @@ Cmd
   Cmd.Play
     * play position display
     - warn about unallocated instruments (Convert.verify)
-    - make sure the whole stack is stil lazy
+    - make sure the whole stack is lazy
     - play loops
     - play from position
     - implement pause / resume with play from position
