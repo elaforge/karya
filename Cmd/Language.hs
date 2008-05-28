@@ -37,7 +37,12 @@ cmd_language session msg = do
         when (not (null response)) $
             IO.hPutStrLn response_hdl response
         IO.hClose response_hdl
-    return Cmd.Done
+    return $ if response == (magic_quit_string++"\n")
+        then Cmd.Quit else Cmd.Done
+
+-- | Hack so that language cmds can quit the app, since they return strings.
+magic_quit_string :: String
+magic_quit_string = "-- * YES, really quit * --"
 
 catch_io_errors = Exception.handleJust Exception.ioErrors $ \exc -> do
     Log.warn $ "caught exception from socket write: " ++ show exc

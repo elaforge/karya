@@ -100,6 +100,7 @@ import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 -- import qualified Cmd.Save as Save
 import qualified Cmd.TimeStep as TimeStep
+import qualified Cmd.Language as Language
 
 import qualified Derive.Score as Score
 import qualified Derive.Schema as Schema
@@ -152,6 +153,9 @@ set_octave :: Int -> Cmd ()
 set_octave n = Cmd.modify_state $ \st -> st { Cmd.state_kbd_entry_octave = n }
 
 -- * load / save
+
+quit :: Cmd String
+quit = return Language.magic_quit_string
 
 -- Need to run in IO, not Identity for this.
 -- I think I could have lang run in IO, but is it worth it just for this?
