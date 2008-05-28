@@ -10,6 +10,8 @@ import Ui.Types
 import qualified Util.Log as Log
 import qualified Util.PPrint as PPrint
 
+import Ui.Types
+import qualified Ui.Color as Color
 import qualified Ui.Block as Block
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Track as Track
@@ -18,8 +20,6 @@ import qualified Ui.State as State
 import qualified Ui.Update as Update
 
 import qualified Midi.Midi as Midi
-
-import qualified Ui.TestSetup as TestSetup
 
 import qualified Cmd.Cmd as Cmd
 

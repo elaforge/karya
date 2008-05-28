@@ -95,7 +95,7 @@ print_devs rdev_map wdev_map = do
     putStrLn "write devs:"
     mapM_ print (Map.keys wdev_map)
 
-empty_track = Track.track "" [] Color.white
+empty_track = Track.track "" [] Config.track_bg
 
 setup_cmd :: Cmd.CmdM
 setup_cmd = do

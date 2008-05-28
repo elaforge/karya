@@ -7,6 +7,7 @@
 
 fltk
   - set_selection should do nothing if the selection is the same as the last one
+  - text entries should scroll back to the beginning when they're unfocused
   * bug: if the first event is a modifier, it doesn't get emitted.  An fltk
     thing?
   * make TrackPos into an opaque type to let me be more free with impl.
@@ -100,6 +101,7 @@ Ui
     CSelection automatically get it from block_selection_colors
   - set_block_status
   - set_track_status
+  - if the app thread dies, kill the rest of the threads
   Diff
     * ErrorT
     * track width, track update (need diff hints?)
@@ -118,18 +120,19 @@ Cmd
   * put all stateful keys (kbd, mouse button, midi note) into keydown set
   * reintegrate handler and responder into new hstate, rename Msg->Cmd
   - Cmd_test
-  - cmd_midi_thru - basic hardcoded midi thru command
   keymap
     * keymaps that combine key patterns into a table and create a Cmd
+    - per-Block and per-Track keymap
     - check for key assignment collisions
-    - better functions to make KeySpecs
-    - KeySpecs that don't care about the modifiers
+    * better functions to make KeySpecs
+    * KeySpecs that don't care about the modifiers
     Cmd.Edit
       * edit mode
       + event insertion / deletion commands
       * set step interval
       * midi note insertion
-      - kbd entry mode can do midi-thrus
+      * kbd entry mode can do midi-thrus
+      - entry mode for signal tracks
       - alternate finale-like note entry: hold down step key to set step and
         turn on edit mode, but only while the key is down
       - change length of existing event
@@ -150,6 +153,9 @@ Cmd
   Cmd.Language: listen on a socket, receive cmd language?  or use hs-plugins?
     * simple commands to manage blocks, and save / restore state
     * pretty print various parts of state
+    - functions to create and insert tracks, views, etc.  automatically create
+      IDs, prefixing current project name
+    - readline using repl for send
 
   Cmd.Block
     - create / destroy views, blocks and tracks
@@ -157,13 +163,15 @@ Cmd
 
   Cmd.Play
     * play position display
+    - warn about unallocated instruments (Convert.verify)
+    - make sure the whole stack is stil lazy
     - play loops
     - play from position
     - implement pause / resume with play from position
 
   Cmd.Record
     - come up with a plan for midi recording
-    - implement simple midi underiver
+    - implement simple midi underiver aka integrator
 
   block / track keymap
     - signal track input keymap
@@ -183,8 +191,9 @@ Derive
   * new derive: simplest possible implementation, just enough to produce
     Performer input
   * merge new derive into Cmd.Play, remove old Derive and Render
+  - velocity signal should default to (const 1) not (const 0)
   derivers
-    - control
+    * control
     - tempo
   - display intermediate blocks
   - 3 way merge for intermediate blocks
@@ -207,7 +216,7 @@ Perform
 
   Instrument
     - some kind of organized way to manage instruments and instrument config
-    - backend-independent instrument def
+    * backend-independent instrument def
     - some basic midi instrument defs for generic midi (dev, patch)
     - defs for z1 and vl1
 

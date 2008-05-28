@@ -28,6 +28,16 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.TimeStep as TimeStep
 
+import qualified Perform.Midi.Instrument as Instrument
+
+
+-- * insert note events
+
+-- | A physically played key, either on the midi keyboard or letter keyboard.
+-- This isn't the same as the midi note number because the midi note number
+-- represents a certaint tempered pitch, and this one is still user input; it
+-- has yet to be mapped to a pitch (and may not be, for unpitched sounds).
+type NoteNumber = Int
 
 -- | Turn edit mode on and off, changing the color of the edit_box as
 -- a reminder.
@@ -41,15 +51,62 @@ cmd_toggle_edit = do
     return Cmd.Done
 
 -- | Insert an event with the given pitch at the current insert point.
--- This actually takes a pitch_num, which represents the position on the
+-- This actually takes a nn, which represents the position on the
 -- keyboard and should be mapped to the correct pitch.
-cmd_insert_pitch :: Int -> Cmd.CmdM
-cmd_insert_pitch pitch_num = do
-    octave <- fmap Cmd.state_kbd_entry_octave Cmd.get_state
-    insert_pitch $
-        Pitch.from_midi_nn ("kbd " ++ show pitch_num) (pitch_num + 12*octave)
+cmd_insert_pitch :: NoteNumber -> Cmd.CmdM
+cmd_insert_pitch nn = pitch_from_kbd nn >>= insert_pitch
+    >> return Cmd.Done
 
-insert_pitch :: Pitch.Pitch -> Cmd.CmdM
+-- | Send a midi thru msg for the given nn.  Intended for midi "thru" for kbd
+-- entry.
+cmd_note_on :: (Monad m) =>
+    Instrument.Addr -> NoteNumber -> Cmd.CmdT m Cmd.Status
+cmd_note_on (wdev, chan) nn = do
+    pitch <- pitch_from_kbd nn
+    let msg = Midi.ChannelMessage chan (Midi.NoteOn (Pitch.midi_nn pitch) 100)
+    Cmd.midi wdev msg
+    return Cmd.Continue
+
+cmd_note_off :: (Monad m) =>
+    Instrument.Addr -> NoteNumber -> Cmd.CmdT m Cmd.Status
+cmd_note_off (wdev, chan) nn = do
+    pitch <- pitch_from_kbd nn
+    let msg = Midi.ChannelMessage chan (Midi.NoteOff (Pitch.midi_nn pitch) 0)
+    Cmd.midi wdev msg
+    return Cmd.Continue
+
+-- | Send midi thru.
+-- TODO: later this will have to be mapped per-track so it can do
+-- track-specific thru mapping.
+cmd_midi_thru :: (Monad m) => Msg.Msg -> Cmd.CmdT m Cmd.Status
+cmd_midi_thru msg = do
+    (dev, chan, msg) <- case msg of
+        Msg.Midi (Midi.ReadMessage dev _ts (Midi.ChannelMessage chan msg)) ->
+            return (dev, chan, msg)
+        _ -> Cmd.abort
+    Cmd.midi (read_dev_to_write_dev dev) (Midi.ChannelMessage chan msg)
+    return Cmd.Continue
+
+cmd_insert_midi_note :: (Monad m) => Msg.Msg -> Cmd.CmdT m Cmd.Status
+cmd_insert_midi_note msg = do
+    key <- case msg of
+        Msg.Midi (Midi.ReadMessage _dev _ts (Midi.ChannelMessage _chan
+            (Midi.NoteOn key _vel))) ->
+                return key
+        _ -> Cmd.abort
+    insert_pitch (Pitch.from_midi_nn ("midi " ++ show key) key)
+    return Cmd.Done
+
+-- ** implementation
+
+read_dev_to_write_dev (Midi.ReadDevice name) = Midi.WriteDevice name
+
+pitch_from_kbd nn = do
+    oct <- fmap Cmd.state_kbd_entry_octave Cmd.get_state
+    return $ Pitch.from_midi_nn ("kbd " ++ show nn) (nn + 12*oct)
+
+-- | Actually convert the given pitch to an event and insert it.
+insert_pitch :: (Monad m) => Pitch.Pitch -> Cmd.CmdT m ()
 insert_pitch pitch = do
     (track_ids, sel) <- selected_tracks Config.insert_selnum
     track_id <- Cmd.require $ case track_ids of
@@ -60,26 +117,8 @@ insert_pitch pitch = do
         ++ show (track_id, insert_pos)
     let event = Config.event (Twelve.pitch_event pitch) (TrackPos 16)
     State.insert_events track_id [(insert_pos, event)]
-    return Cmd.Done
 
-cmd_midi_thru msg = do
-    (dev, chan, msg) <- case msg of
-        Msg.Midi (Midi.ReadMessage dev _ts (Midi.ChannelMessage chan msg)) ->
-            return (dev, chan, msg)
-        _ -> Cmd.abort
-    Cmd.midi (read_dev_to_write_dev dev) (Midi.ChannelMessage chan msg)
-    return Cmd.Continue
-
-read_dev_to_write_dev (Midi.ReadDevice name) = Midi.WriteDevice name
-
-cmd_insert_midi_note msg = do
-    key <- case msg of
-        Msg.Midi (Midi.ReadMessage _dev _ts (Midi.ChannelMessage _chan
-            (Midi.NoteOn key _vel))) ->
-                return key
-        _ -> Cmd.abort
-    insert_pitch (Pitch.from_midi_nn ("midi " ++ show key) key)
-    return Cmd.Done
+-- ** other event cmds
 
 -- | If the insertion selection is a point, remove any event under it.  If it's
 -- a range, remove all events within its half-open extent.

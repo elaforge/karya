@@ -9,7 +9,6 @@ import qualified Control.Monad.State as MonadState
 import qualified Control.Monad.Trans as Trans
 import Control.Monad.Trans (lift)
 import qualified Control.Monad.Writer as Writer
--- import qualified Control.Monad.Error as Error
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -33,6 +32,9 @@ import qualified Cmd.TimeStep as TimeStep
 import qualified Perform.Transport as Transport
 
 
+-- | This makes Cmds more specific than they have to be, and doesn't let them
+-- run in other monads like IO.  It's unlikely to become a problem, but if it
+-- does, I'll have to stop using these aliases.
 type CmdM = CmdT Identity.Identity Status
 type Cmd = Msg.Msg -> CmdM
 type CmdIO = Msg.Msg -> CmdT IO Status
@@ -223,7 +225,6 @@ cmd_record_keys msg = do
         Just (False, mod) -> delete_mod mod
     return Continue
     where
-
     insert_mod mod = do
         let key = modifier_key mod
         mods <- keys_down
@@ -232,7 +233,6 @@ cmd_record_keys msg = do
         modify_keys (Map.insert key mod)
         mods <- keys_down
         Log.debug $ "keydown " ++ show (Map.elems mods)
-
     delete_mod mod = do
         let key = modifier_key mod
         mods <- keys_down
@@ -241,7 +241,6 @@ cmd_record_keys msg = do
         modify_keys (Map.delete key)
         mods <- keys_down
         Log.debug $ "keyup " ++ show (Map.elems mods)
-
     modify_keys f = modify_state $ \st ->
         st { state_keys_down = f (state_keys_down st) }
 
@@ -325,7 +324,7 @@ update_of (Msg.Ui (UiMsg.UiMsg ctx (UiMsg.UiUpdate update))) =
 update_of _ = Nothing
 
 ui_update_state :: UiMsg.Context -> UiMsg.UiUpdate -> CmdT Identity.Identity ()
-ui_update_state ctx@(UiMsg.Context (Just view_id) track _pos) update =
+ui_update_state ctx@(UiMsg.Context (Just view_id) _track _pos) update =
     case update of
         UiMsg.UpdateInput text -> do
             view <- State.get_view view_id

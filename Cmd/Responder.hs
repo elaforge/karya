@@ -71,7 +71,6 @@ accept_loop socket output_chan = forever $ catch_io_errors $ do
 catch_io_errors = Exception.handleJust Exception.ioErrors $ \exc -> do
     Log.warn $ "caught exception from socket read: " ++ show exc
 
-
 read_until :: IO.Handle -> String -> IO String
 read_until hdl boundary = go ""
     where
@@ -85,21 +84,11 @@ read_until hdl boundary = go ""
                 c <- IO.hGetChar hdl
                 go (c:accum)
 
-{-
-get_contents_strictly hdl = do
-    eof <- IO.hIsEOF hdl
-    if eof then return ""
-        else do
-            line <- IO.hGetLine hdl
-            rest <- get_contents_strictly hdl
-            return (line ++ '\n' : rest)
--}
-
 -- | Everyone always gets these commands.
 hardcoded_cmds :: [Cmd.Cmd]
 hardcoded_cmds =
     -- Special Cmds that record info about the incoming msgs.
-    [ Cmd.cmd_update_ui_state, Cmd.cmd_record_keys, Cmd.cmd_record_active
+    [ Cmd.cmd_update_ui_state, Cmd.cmd_record_active
     , Cmd.cmd_log
     -- Handle special case global msgs.
     , Cmd.cmd_close_window, Play.cmd_transport_msg
@@ -133,6 +122,12 @@ loop ui_state cmd_state get_msg write_midi transport_info session = do
     let io_cmds = hardcoded_io_cmds transport_info session
     (status, ui_state, cmd_state) <- maybe_run status write_midi
         ui_state cmd_state (Cmd.run Cmd.Continue) io_cmds msg
+
+    -- Record the keys last, so they show up in the next cycle's keys_down,
+    -- but not this one.  This is so you can tell the difference between a
+    -- key down and a key repeat.
+    (_, ui_state, cmd_state) <- maybe_run Cmd.Continue write_midi
+        ui_state cmd_state Cmd.run_cmd_id [Cmd.cmd_record_keys] msg
 
     case status of
         Cmd.Quit -> return ()

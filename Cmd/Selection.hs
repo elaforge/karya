@@ -26,7 +26,8 @@ import qualified Cmd.TimeStep as TimeStep
 -- The selection will maintain its current track span, be set to a point, and
 -- advance to the next relevant mark.  "next relevant mark" is the next visible
 -- mark in the ruler to the left.
-cmd_step_selection :: Block.SelNum -> TimeDirection -> Cmd.CmdM
+cmd_step_selection :: (Monad m) =>
+    Block.SelNum -> TimeDirection -> Cmd.CmdT m Cmd.Status
 cmd_step_selection selnum dir = do
     -- there must be a way to shorten this
     view_id <- Cmd.get_active_view

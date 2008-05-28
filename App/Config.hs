@@ -65,6 +65,8 @@ style = Font.TextStyle Font.Helvetica [] 9 Color.black
 
 make_selection_color = Color.alpha 0.3 . Color.lighten 0.8
 
+track_bg = Color.white
+
 block_config = Block.Config
     { Block.config_selection_colors =
         let sel = make_selection_color in
