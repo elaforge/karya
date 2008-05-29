@@ -104,7 +104,7 @@ print_devs rdev_map wdev_map = do
 
 empty_track = Track.track "" [] Config.track_bg
 
-setup_cmd :: Cmd.CmdM
+setup_cmd :: Cmd.CmdId
 setup_cmd = do
     Log.debug "setup block"
     ruler <- State.create_ruler "r1"

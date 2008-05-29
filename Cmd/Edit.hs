@@ -41,7 +41,7 @@ type NoteNumber = Int
 
 -- | Turn edit mode on and off, changing the color of the edit_box as
 -- a reminder.
-cmd_toggle_edit :: Cmd.CmdM
+cmd_toggle_edit :: Cmd.CmdId
 cmd_toggle_edit = do
     view_id <- Cmd.get_active_view
     view <- State.get_view view_id
@@ -53,7 +53,7 @@ cmd_toggle_edit = do
 -- | Insert an event with the given pitch at the current insert point.
 -- This actually takes a nn, which represents the position on the
 -- keyboard and should be mapped to the correct pitch.
-cmd_insert_pitch :: NoteNumber -> Cmd.CmdM
+cmd_insert_pitch :: NoteNumber -> Cmd.CmdId
 cmd_insert_pitch nn = pitch_from_kbd nn >>= insert_pitch
     >> return Cmd.Done
 
@@ -122,7 +122,7 @@ insert_pitch pitch = do
 
 -- | If the insertion selection is a point, remove any event under it.  If it's
 -- a range, remove all events within its half-open extent.
-cmd_remove_events :: Cmd.CmdM
+cmd_remove_events :: Cmd.CmdId
 cmd_remove_events = do
     (track_ids, sel) <- selected_tracks Config.insert_selnum
     let start = Block.sel_start_pos sel
@@ -132,12 +132,12 @@ cmd_remove_events = do
         else State.remove_events track_id start (start + dur)
     return Cmd.Done
 
-cmd_set_step :: TimeStep.TimeStep -> Cmd.CmdM
+cmd_set_step :: TimeStep.TimeStep -> Cmd.CmdId
 cmd_set_step step = do
     Cmd.modify_state $ \st -> st { Cmd.state_step = step }
     return Cmd.Done
 
-cmd_meter_step :: Int -> Cmd.CmdM
+cmd_meter_step :: Int -> Cmd.CmdId
 cmd_meter_step rank = do
     cmd_set_step (TimeStep.UntilMark
         (TimeStep.NamedMarklists ["meter"]) (TimeStep.MatchRank rank))

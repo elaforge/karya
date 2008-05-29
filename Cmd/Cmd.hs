@@ -35,9 +35,10 @@ import qualified Perform.Transport as Transport
 -- | This makes Cmds more specific than they have to be, and doesn't let them
 -- run in other monads like IO.  It's unlikely to become a problem, but if it
 -- does, I'll have to stop using these aliases.
-type CmdM = CmdT Identity.Identity Status
-type Cmd = Msg.Msg -> CmdM
-type CmdIO = Msg.Msg -> CmdT IO Status
+type Cmd = Msg.Msg -> CmdId
+type CmdM m = CmdT m Status
+type CmdIO = CmdM IO
+type CmdId = CmdM Identity.Identity
 
 -- | Cmds can run in either Identity or IO, but are generally returned in IO,
 -- just to make things uniform.
@@ -207,8 +208,8 @@ get_current_step = fmap state_step get_state
 -- * basic cmds
 
 -- | Quit the app immediately.
-cmd_quit :: CmdM
-cmd_quit = return Quit
+cmd_quit :: Cmd
+cmd_quit _msg = return Quit
 
 -- | Log incoming msgs.
 cmd_log :: Cmd

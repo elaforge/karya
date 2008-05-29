@@ -26,8 +26,7 @@ import qualified Cmd.TimeStep as TimeStep
 -- The selection will maintain its current track span, be set to a point, and
 -- advance to the next relevant mark.  "next relevant mark" is the next visible
 -- mark in the ruler to the left.
-cmd_step_selection :: (Monad m) =>
-    Block.SelNum -> TimeDirection -> Cmd.CmdT m Cmd.Status
+cmd_step_selection :: Block.SelNum -> TimeDirection -> Cmd.CmdId
 cmd_step_selection selnum dir = do
     -- there must be a way to shorten this
     view_id <- Cmd.get_active_view
@@ -47,7 +46,7 @@ cmd_step_selection selnum dir = do
     return Cmd.Done
 
 -- | Move the selection across tracks by @nshift@.
-cmd_shift_selection :: Block.SelNum -> Int -> Cmd.CmdM
+cmd_shift_selection :: Block.SelNum -> Int -> Cmd.CmdId
 cmd_shift_selection selnum nshift = do
     view_id <- Cmd.get_active_view
     block <- get_view_block view_id

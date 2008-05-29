@@ -21,7 +21,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 
 
-cmd_language :: GHC.InterpreterSession -> Cmd.CmdIO
+cmd_language :: GHC.InterpreterSession -> Msg.Msg -> Cmd.CmdIO
 cmd_language session msg = do
     (response_hdl, text) <- case msg of
         Msg.Socket hdl s -> return (hdl, s)

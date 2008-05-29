@@ -28,9 +28,7 @@ type Binding m = (KeySpec, CmdSpec m)
 data KeySpec = KeySpec Mods Key deriving (Eq, Ord, Show)
 -- | Pair a Cmd with a descriptive string that can be used for logging, undo,
 -- etc.
-data CmdSpec m = CmdSpec String (MCmd m)
-
-type MCmd m = Msg.Msg -> Cmd.CmdT m Cmd.Status
+data CmdSpec m = CmdSpec String (Msg.Msg -> Cmd.CmdM m)
 
 -- | A Key is much like a 'Msg.Msg', but with less detail.
 data Key = UiKey UiMsg.KbdState Key.Key | MidiKey MidiKey
@@ -56,7 +54,7 @@ data MidiKey = NoteOn Midi.Key | NoteOff Midi.Key
 
 -- | Merge the given KeySpecs into a map for efficient lookup, and return
 -- a combined Cmd that will dispatch on the map.
-make_cmd :: Monad m => [Binding m] -> MCmd m
+make_cmd :: Monad m => [Binding m] -> Msg.Msg -> Cmd.CmdM m
 make_cmd keyspecs msg = do
     key <- Cmd.require (msg_to_key msg)
     modifiers <- fmap Map.elems Cmd.keys_down
