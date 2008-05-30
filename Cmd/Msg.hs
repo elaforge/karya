@@ -30,6 +30,10 @@ mouse (Ui (UiMsg.UiMsg _ (UiMsg.MsgEvent mouse@(UiMsg.Mouse {})))) =
     Just mouse
 mouse _ = Nothing
 
+key (Ui (UiMsg.UiMsg _ (UiMsg.MsgEvent (UiMsg.Kbd UiMsg.KeyDown key)))) =
+    Just key
+key _ = Nothing
+
 context (Ui (UiMsg.UiMsg context _)) = Just context
 context _ = Nothing
 

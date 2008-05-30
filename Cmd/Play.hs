@@ -74,7 +74,7 @@ cmd_play_block transport_info = do
     case Cmd.state_transport cmd_state of
         Just _ -> Log.warn "player already running" >> Cmd.abort
         _ -> return ()
-    view_id <- Cmd.get_active_view
+    view_id <- Cmd.get_focused_view
     block_id <- find_play_block view_id
     block <- State.get_block block_id
     deriver <- Schema.get_deriver block

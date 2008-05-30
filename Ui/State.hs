@@ -58,7 +58,8 @@ data State = State {
     , state_midi_config :: Instrument.Config
     } deriving (Show, Read, Typeable.Typeable)
 -- TODO "initial_state" would be more consistent
-empty = State Map.empty Map.empty Map.empty Map.empty (Instrument.config [])
+empty = State Map.empty Map.empty Map.empty Map.empty
+    (Instrument.config [] Nothing)
 
 -- * StateT monadic access
 
@@ -210,6 +211,9 @@ get_block block_id = get >>= lookup_id block_id . state_blocks
 create_block :: (UiStateMonad m) => String -> Block.Block -> m Block.BlockId
 create_block id block = get >>= insert (Block.BlockId id) block state_blocks
     (\blocks st -> st { state_blocks = blocks })
+
+block_of_view :: (UiStateMonad m) => Block.ViewId -> m Block.Block
+block_of_view view_id = get_block . Block.view_block =<< get_view view_id
 
 set_block_config :: (UiStateMonad m) => Block.BlockId -> Block.Config -> m ()
 set_block_config block_id config =
@@ -419,6 +423,14 @@ modify_ruler ruler_id f = do
     ruler <- get_ruler ruler_id
     modify $ \st ->
         st { state_rulers = Map.insert ruler_id (f ruler) (state_rulers st) }
+
+-- * misc
+
+get_midi_config :: (UiStateMonad m) => m Instrument.Config
+get_midi_config = fmap state_midi_config get
+
+set_midi_config :: (UiStateMonad m) => Instrument.Config -> m ()
+set_midi_config config = modify $ \st -> st { state_midi_config = config}
 
 -- ** util
 

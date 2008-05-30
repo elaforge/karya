@@ -94,7 +94,7 @@ import Ui.Types
 import qualified Ui.Block as Block
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Track as Track
--- import qualified Ui.Event as Event
+import qualified Ui.Event as Event
 import qualified Ui.State as State
 
 import qualified Cmd.Cmd as Cmd
@@ -131,7 +131,6 @@ show_list xs = concatMap (\(i, x) -> printf "%d. %s\n" i x) (Seq.enumerate xs)
 
 _cmd_state :: (Cmd.State -> a) -> Cmd.CmdT Identity.Identity a
 _cmd_state = flip fmap Cmd.get_state
-_ui_state = flip fmap State.get
 
 -- * show / modify cmd state
 
@@ -210,12 +209,12 @@ destroy_view view_id = State.destroy_view (vid view_id)
 
 -- ** blocks
 
-get_active_block = fmap Block.view_block
-    (State.get_view =<< Cmd.get_active_view)
+get_focused_block = fmap Block.view_block
+    (State.get_view =<< Cmd.get_focused_view)
 
 show_block :: Maybe String -> Cmd String
 show_block maybe_block_id = do
-    block_id <- maybe get_active_block return
+    block_id <- maybe get_focused_block return
         (fmap Block.BlockId maybe_block_id)
     Block.Block { Block.block_title = title, Block.block_ruler_track = ruler,
         Block.block_tracks = tracks, Block.block_schema = schema }
@@ -226,6 +225,10 @@ show_block maybe_block_id = do
         , ("tracks", show_list (map (show . fst) tracks))
         , ("schema", show schema)
         ]
+
+get_skeleton :: String -> Cmd Schema.Skeleton
+get_skeleton block_id = do
+    Schema.get_skeleton =<< State.get_block (bid block_id)
 
 create_block :: (State.UiStateMonad m) =>
     String -> String -> String -> m Block.BlockId
@@ -239,7 +242,7 @@ set_schema block_id schema_id = do
 
 set_schema_d :: String -> Cmd ()
 set_schema_d schema_id = do
-    block_id <- get_active_block
+    block_id <- get_focused_block
     set_schema (_bid block_id) schema_id
 
 -- ** tracks
@@ -249,8 +252,14 @@ track track_id ruler_id = Block.TId (tid track_id) (rid ruler_id)
 ruler ruler_id = Block.RId (rid ruler_id)
 divider color = Block.DId (Block.Divider color)
 
-insert_track block_id tracknum track width = do
-    State.insert_track (bid block_id) tracknum track width
+show_track :: String -> Cmd String
+show_track track_id = do
+    track <- State.get_track (tid track_id)
+    return $ show_list $ map Track.pretty_track_event $
+        Track.event_list (Track.track_events track)
+
+insert_track block_id tracknum tracklike width = do
+    State.insert_track (bid block_id) tracknum tracklike width
 remove_track block_id tracknum = State.remove_track (bid block_id) tracknum
 
 -- ** rulers
@@ -285,11 +294,6 @@ show_marklist ruler_id marklist_name = do
 
 -- * midi config
 
-get_midi_alloc =
-    _ui_state (Instrument.config_alloc . State.state_midi_config)
-set_midi_config config = State.modify $ \st ->
-    st { State.state_midi_config = config}
-
 assign_instrument :: String -> Instrument.Addr -> Cmd ()
 assign_instrument inst_name addr = do
     inst <- case InstrumentDb.lookup (Score.Instrument inst_name) of
@@ -299,8 +303,9 @@ assign_instrument inst_name addr = do
             ++ show inst
         Nothing ->
             State.throw $ "instrument " ++ show inst_name ++ " not found"
-    alloc <- fmap (Map.insert addr inst) get_midi_alloc
-    set_midi_config (Instrument.Config alloc)
+    config <- State.get_midi_config
+    State.set_midi_config $ config { Instrument.config_alloc =
+        Map.insert addr inst (Instrument.config_alloc config) }
 
 schema_instruments :: (State.UiStateMonad m) =>
     Block.BlockId -> m [Score.Instrument]
@@ -316,5 +321,6 @@ auto_config write_device block_id = do
     score_insts <- schema_instruments block_id
     -- TODO warn about insts not found?
     let insts = Maybe.catMaybes $ map InstrumentDb.lookup score_insts
-    return $ Instrument.config [((write_device, chan), inst)
-        | (InstrumentDb.Midi inst, chan) <- zip insts [0..]]
+        addrs = [((write_device, chan), inst)
+            | (InstrumentDb.Midi inst, chan) <- zip insts [0..]]
+    return $ Instrument.config addrs (Just (write_device, 0))

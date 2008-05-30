@@ -10,13 +10,14 @@ module Cmd.Edit where
 import Control.Monad
 import qualified Data.Maybe as Maybe
 
-import qualified App.Config as Config
 import qualified Util.Log as Log
+import qualified Util.Seq as Seq
 
 import Ui.Types
+import qualified Ui.Key as Key
 import qualified Ui.Block as Block
 import qualified Ui.Track as Track
--- import qualified Ui.Event as Event
+import qualified Ui.Event as Event
 import qualified Ui.State as State
 
 import qualified Midi.Midi as Midi
@@ -29,6 +30,8 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.TimeStep as TimeStep
 
 import qualified Perform.Midi.Instrument as Instrument
+
+import qualified App.Config as Config
 
 
 -- * insert note events
@@ -43,7 +46,7 @@ type NoteNumber = Int
 -- a reminder.
 cmd_toggle_edit :: Cmd.CmdId
 cmd_toggle_edit = do
-    view_id <- Cmd.get_active_view
+    view_id <- Cmd.get_focused_view
     view <- State.get_view view_id
     edit <- fmap Cmd.state_edit_mode Cmd.get_state
     Cmd.modify_state $ \st -> st { Cmd.state_edit_mode = not edit }
@@ -75,16 +78,14 @@ cmd_note_off (wdev, chan) nn = do
     Cmd.midi wdev msg
     return Cmd.Continue
 
--- | Send midi thru.
--- TODO: later this will have to be mapped per-track so it can do
--- track-specific thru mapping.
-cmd_midi_thru :: (Monad m) => Msg.Msg -> Cmd.CmdT m Cmd.Status
-cmd_midi_thru msg = do
-    (dev, chan, msg) <- case msg of
-        Msg.Midi (Midi.ReadMessage dev _ts (Midi.ChannelMessage chan msg)) ->
-            return (dev, chan, msg)
+-- | Send midi thru, remapping notes and controllers to the given Addr.
+cmd_midi_thru :: Instrument.Addr -> Cmd.Cmd
+cmd_midi_thru (wdev, chan) msg = do
+    chan_msg <- case msg of
+        Msg.Midi (Midi.ReadMessage _dev _ts (Midi.ChannelMessage _chan msg)) ->
+            return msg
         _ -> Cmd.abort
-    Cmd.midi (read_dev_to_write_dev dev) (Midi.ChannelMessage chan msg)
+    Cmd.midi wdev (Midi.ChannelMessage chan chan_msg)
     return Cmd.Continue
 
 cmd_insert_midi_note :: (Monad m) => Msg.Msg -> Cmd.CmdT m Cmd.Status
@@ -99,7 +100,7 @@ cmd_insert_midi_note msg = do
 
 -- ** implementation
 
-read_dev_to_write_dev (Midi.ReadDevice name) = Midi.WriteDevice name
+-- read_dev_to_write_dev (Midi.ReadDevice name) = Midi.WriteDevice name
 
 pitch_from_kbd nn = do
     oct <- fmap Cmd.state_kbd_entry_octave Cmd.get_state
@@ -108,17 +109,33 @@ pitch_from_kbd nn = do
 -- | Actually convert the given pitch to an event and insert it.
 insert_pitch :: (Monad m) => Pitch.Pitch -> Cmd.CmdT m ()
 insert_pitch pitch = do
-    (track_ids, sel) <- selected_tracks Config.insert_selnum
-    track_id <- Cmd.require $ case track_ids of
-        (x:_) -> Just x
-        _ -> Nothing
-    let insert_pos = Block.sel_start_pos sel
+    (track_id, insert_pos) <- get_insert_pos
     Log.debug $ "insert pitch " ++ show pitch ++ " at "
         ++ show (track_id, insert_pos)
     let event = Config.event (Twelve.pitch_event pitch) (TrackPos 16)
     State.insert_events track_id [(insert_pos, event)]
 
--- ** other event cmds
+-- * controller entry
+
+cmd_controller_entry :: Msg.Msg -> Cmd.CmdId
+cmd_controller_entry msg = do
+    key <- Cmd.require (Msg.key msg)
+    char <- Cmd.require $ case key of
+        Key.KeyChar char -> Just char
+        _ -> Nothing
+    (track_id, insert_pos) <- get_insert_pos
+    track <- State.get_track track_id
+
+    let text = Maybe.fromMaybe "" $ fmap Event.event_text
+            (Track.event_at (Track.track_events track) insert_pos)
+        event = Config.event (text ++ [char]) (TrackPos 1)
+    Log.debug $ "modify control event at " ++ show insert_pos ++ " "
+        ++ show text ++ " ++ " ++ show char
+    State.insert_events track_id [(insert_pos, event)]
+    return Cmd.Done
+
+
+-- * other event cmds
 
 -- | If the insertion selection is a point, remove any event under it.  If it's
 -- a range, remove all events within its half-open extent.
@@ -148,10 +165,18 @@ cmd_meter_step rank = do
 
 -- * util
 
+-- | Specialized 'selected_tracks' that gets the pos and track of the upper
+-- left corner of the insert selection.
+get_insert_pos :: (Monad m) => Cmd.CmdT m (Track.TrackId, TrackPos)
+get_insert_pos = do
+    (track_ids, sel) <- selected_tracks Config.insert_selnum
+    track_id <- Cmd.require (track_ids `Seq.at` 0)
+    return (track_id, Block.sel_start_pos sel)
+
 selected_tracks :: (Monad m) =>
     Block.SelNum -> Cmd.CmdT m ([Track.TrackId], Block.Selection)
 selected_tracks selnum = do
-    view_id <- Cmd.get_active_view
+    view_id <- Cmd.get_focused_view
     sel <- Cmd.require =<< State.get_selection view_id selnum
     view <- State.get_view view_id
     let start = Block.sel_start_track sel

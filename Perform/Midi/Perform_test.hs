@@ -269,10 +269,10 @@ inst1 = inst "inst1"
 inst2 = inst "inst2"
 dev1 = Midi.WriteDevice "dev1"
 dev2 = Midi.WriteDevice "dev2"
-inst_config1 = Instrument.Config
-    (Map.fromList [((dev1, 0), inst1), ((dev1, 1), inst1)])
+inst_config1 = Instrument.config [((dev1, 0), inst1), ((dev1, 1), inst1)]
+    Nothing
 
 -- Also includes inst2.
-inst_config2 = Instrument.Config
-    (Map.fromList [((dev1, 0), inst1), ((dev1, 1), inst1),
-        ((dev2, 2), inst2)])
+inst_config2 = Instrument.config
+    [((dev1, 0), inst1), ((dev1, 1), inst1), ((dev2, 2), inst2)]
+    Nothing

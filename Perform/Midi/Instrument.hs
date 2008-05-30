@@ -38,8 +38,12 @@ data Config  = Config {
     -- may be multiplexed across multiple channels.  You can also assign it
     -- multiple devices the same way, but the use for that seems more limited.
     config_alloc :: Map.Map Addr Instrument
+    -- | If this is given, it will be used as the Addr for e.g. midi thru
+    -- when it cant't figure out what instrument is involved, or if the
+    -- instrument has no allocation.
+    , config_default_addr :: Maybe Addr
     } deriving (Show, Read)
-config addr_insts = Config (Map.fromList addr_insts)
+config addr_insts default_addr = Config (Map.fromList addr_insts) default_addr
 
 -- | Describe how an instrument should be initialized before it can be played.
 data InitializeInstrument =

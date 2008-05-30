@@ -14,6 +14,7 @@ import qualified Util.Log as Log
 import qualified Util.Thread as Thread
 
 import qualified Ui.State as State
+import qualified Ui.Block as Block
 import qualified Ui.Sync as Sync
 import qualified Ui.Diff as Diff
 import qualified Ui.Update as Update
@@ -28,6 +29,8 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.DefaultKeymap as DefaultKeymap
 import qualified Cmd.Play as Play
 
+import qualified Derive.Schema as Schema
+
 import qualified App.Config as Config
 
 
@@ -35,14 +38,14 @@ type MidiWriter = Midi.WriteMessage -> IO ()
 type MsgReader = IO Msg.Msg
 
 responder :: MsgReader -> MidiWriter -> IO Timestamp.Timestamp
-    -> Transport.Chan -> Cmd.CmdM -> GHC.InterpreterSession -> IO ()
+    -> Transport.Chan -> Cmd.CmdId -> GHC.InterpreterSession -> IO ()
 responder get_msg write_midi get_ts player_chan setup_cmd session = do
     Log.debug "start responder"
     let ui_state = State.empty
         cmd_state = Cmd.empty_state
     (_status, ui_state, cmd_state) <- do
         cmd_val <- run_cmds Cmd.run_cmd_id ui_state cmd_state [setup_cmd]
-        handle_cmd_val True write_midi ui_state cmd_val
+        handle_cmd_val "initial setup" True write_midi ui_state cmd_val
     loop ui_state cmd_state get_msg write_midi
         (Transport.Info player_chan write_midi get_ts)
         session
@@ -111,22 +114,23 @@ loop ui_state cmd_state get_msg write_midi transport_info session = do
     let update_cmds = map ($msg) [Cmd.cmd_record_ui_updates]
     (status, ui_state, cmd_state) <- do
         cmd_val <- run_cmds Cmd.run_cmd_id ui_state cmd_state update_cmds
-        handle_cmd_val False write_midi ui_state cmd_val
+        handle_cmd_val "record ui updates" False write_midi ui_state cmd_val
 
-    let id_cmds = hardcoded_cmds ++ DefaultKeymap.default_cmds cmd_state
-    (status, ui_state, cmd_state) <- maybe_run status write_midi
+    focus_cmds <- eval "get focus cmds" ui_state cmd_state [] get_focus_cmds
+    let id_cmds = hardcoded_cmds ++ focus_cmds ++ DefaultKeymap.default_cmds
+    (status, ui_state, cmd_state) <- maybe_run "run pure cmds" status write_midi
         ui_state cmd_state Cmd.run_cmd_id id_cmds msg
 
     -- Certain commands require IO.  Rather than make everything IO,
     -- I hardcode them in a special list that gets run in IO.
     let io_cmds = hardcoded_io_cmds transport_info session
-    (status, ui_state, cmd_state) <- maybe_run status write_midi
+    (status, ui_state, cmd_state) <- maybe_run "run io cmds" status write_midi
         ui_state cmd_state (Cmd.run Cmd.Continue) io_cmds msg
 
     -- Record the keys last, so they show up in the next cycle's keys_down,
     -- but not this one.  This is so you can tell the difference between a
     -- key down and a key repeat.
-    (_, ui_state, cmd_state) <- maybe_run Cmd.Continue write_midi
+    (_, ui_state, cmd_state) <- maybe_run "record keys" Cmd.Continue write_midi
         ui_state cmd_state Cmd.run_cmd_id [Cmd.cmd_record_keys] msg
 
     case status of
@@ -134,11 +138,12 @@ loop ui_state cmd_state get_msg write_midi transport_info session = do
         _ -> loop ui_state cmd_state get_msg write_midi transport_info session
 
 -- | Run the cmds on msg if @status@ is Continue.
-maybe_run status write_midi ui_state cmd_state run cmds msg = case status of
-    Cmd.Continue -> do
-        cmd_val <- run_cmds run ui_state cmd_state (map ($msg) cmds)
-        handle_cmd_val True write_midi ui_state cmd_val
-    _ -> return (status, ui_state, cmd_state)
+maybe_run err_msg status write_midi ui_state cmd_state run cmds msg =
+    case status of
+        Cmd.Continue -> do
+            cmd_val <- run_cmds run ui_state cmd_state (map ($msg) cmds)
+            handle_cmd_val err_msg True write_midi ui_state cmd_val
+        _ -> return (status, ui_state, cmd_state)
 
 -- | Run the given list of Cmds against the Msg, stopping and returning as soon
 -- as one doesn't return Continue.  Use the given @run@ function to run the
@@ -163,21 +168,44 @@ run_cmds run ui_state cmd_state (cmd:cmds) = do
         -- It's Quit or Done, so return as-is.
         _ -> return (cmd_state1, midi1, logs1, ui_res1)
 
-handle_cmd_val :: Bool -> MidiWriter -> State.State -> Cmd.CmdVal Cmd.Status
-    -> IO (Cmd.Status, State.State, Cmd.State)
-handle_cmd_val do_sync write_midi ui_state1
+handle_cmd_val :: String -> Bool -> MidiWriter -> State.State
+    -> Cmd.CmdVal Cmd.Status -> IO (Cmd.Status, State.State, Cmd.State)
+handle_cmd_val err_msg do_sync write_midi ui_state1
         (cmd_state, midi, logs, ui_result) = do
     sequence_ [write_midi (Midi.WriteMessage dev Timestamp.immediately msg)
         | (dev, msg) <- midi]
     mapM_ Log.write logs
     (status, ui_state2) <- case ui_result of
         Left err -> do
-            Log.error $ "ui error: " ++ show err
+            Log.error $ "ui error in " ++ show err_msg ++ ": " ++ show err
             return (Cmd.Done, ui_state1)
         Right (status, ui_state2, cmd_updates) -> do
             when do_sync (sync ui_state1 ui_state2 cmd_updates)
             return (status, ui_state2)
     return (status, ui_state2, cmd_state)
+
+-- | Get cmds according to the currently focused block and track.
+get_focus_cmds :: Cmd.CmdT Identity.Identity [Cmd.Cmd]
+get_focus_cmds = do
+    block <- State.block_of_view =<< Cmd.get_focused_view
+    tracks <- Schema.block_tracks block
+    midi_config <- State.get_midi_config
+    edit_mode <- fmap Cmd.state_edit_mode Cmd.get_state
+    tracknum <- Cmd.get_insert_tracknum
+
+    let context = Schema.CmdContext midi_config edit_mode tracknum
+    return $ Schema.get_cmds context (Block.block_schema block) tracks
+
+-- | Run the cmd just for its value.
+eval err_msg ui_state cmd_state abort_val cmd = do
+    let (_, _, logs, ui_res) = Identity.runIdentity $
+            Cmd.run abort_val ui_state cmd_state cmd
+    mapM_ Log.write logs
+    case ui_res of
+        Right (val, _, _) -> return val
+        Left err -> do
+            Log.error $ "ui error in " ++ show err_msg ++ ": " ++ show err
+            return abort_val
 
 -- Merge updates into a StateT result.
 merge_ui_res updates = fmap

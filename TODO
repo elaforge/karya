@@ -120,32 +120,36 @@ Cmd
   * put all stateful keys (kbd, mouse button, midi note) into keydown set
   * reintegrate handler and responder into new hstate, rename Msg->Cmd
   - Cmd_test
+  - background derivation and caching
+
+  - bug: zero duration events are not getting found properly
+  - bug: control events simultaneous with note events should go first
   keymap
     * keymaps that combine key patterns into a table and create a Cmd
-    - per-Block and per-Track keymap
+    * per-Block and per-Track keymap
     - check for key assignment collisions
     * better functions to make KeySpecs
     * KeySpecs that don't care about the modifiers
-    Cmd.Edit
-      * edit mode
-      + event insertion / deletion commands
-      * set step interval
-      * midi note insertion
-      * kbd entry mode can do midi-thrus
-      - entry mode for signal tracks
-      - alternate finale-like note entry: hold down step key to set step and
-        turn on edit mode, but only while the key is down
-      - change length of existing event
-      selection ops
-        - transpose
-        - copy / paste
+  Cmd.Edit
+    * edit mode
+    + event insertion / deletion commands
+    * set step interval
+    * midi note insertion
+    * kbd entry mode can do midi-thrus
+    * entry mode for signal tracks
+    - alternate finale-like note entry: hold down step key to set step and
+      turn on edit mode, but only while the key is down
+    - change length of existing event
+    selection ops
+      - transpose
+      - copy / paste
 
-    Cmd.Selection
-      * move insertion point
-      * drag insertion point
-      - drag snap to ruler, event beginning/end, ...
-      * Cmd.TimeStep.advance etc. takes [Marklist]
-      - tempo warp by selection
+  Cmd.Selection
+    * move insertion point
+    * drag insertion point
+    - drag snap to ruler, event beginning/end, ...
+    * Cmd.TimeStep.advance etc. takes [Marklist]
+    - tempo warp by selection
 
     - UI and fltk support for editing event text
     * UiMsgs for track drags, resizes, and text changes update State
@@ -173,12 +177,9 @@ Cmd
     - come up with a plan for midi recording
     - implement simple midi underiver aka integrator
 
-  block / track keymap
-    - signal track input keymap
-    - track-dependent midi thru framework
-
-  checkpoints
+  Cmd.Save
     * serialize / deserialize for State
+    - bug: turn off edit mode box for save, since cmd state is not saved
     - Data.Binary instance for more efficient save and load
     - standalone dumper to convert the binary format to pretty-printed show
     undo

@@ -11,7 +11,9 @@ module Ui.Types (
 ) where
 import Foreign
 import Foreign.C
+import Text.Printf
 
+import Util.Pretty
 import qualified Ui.Util as Util
 import Ui.Color (Color)
 
@@ -37,3 +39,7 @@ instance Storable TrackPos where
         cpos = fromIntegral
             (Util.bounded (fromIntegral (minBound::CLLong))
                 (fromIntegral (maxBound::CLLong)) pos)
+
+instance Pretty TrackPos where
+    pretty (TrackPos pos) = printf "pos:%.3f"
+        ((fromIntegral pos / 1000) :: Double)

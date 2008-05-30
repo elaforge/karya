@@ -27,61 +27,51 @@ import Cmd.Types
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Keymap as Keymap
+import Cmd.Keymap (bind_key, bind_kmod)
 
 import qualified Cmd.Selection as Selection
 import qualified Cmd.Edit as Edit
 import qualified Cmd.Save as Save
 import qualified Cmd.Play as Play
 
-import qualified Midi.Midi as Midi -- for default_addr hack
-
 import qualified Perform.Transport as Transport
 
 
-default_cmds :: Cmd.State -> [Cmd.Cmd]
-default_cmds state =
-    Edit.cmd_midi_thru
-    : (if Cmd.state_edit_mode state
-        then [cmd_midi_entry, cmd_kbd_note_entry] else [])
-    ++ [ Selection.cmd_mouse_selection 1 Config.insert_selnum
+default_cmds :: [Cmd.Cmd]
+default_cmds =
+    [ Selection.cmd_mouse_selection 1 Config.insert_selnum
     , Keymap.make_cmd (misc_bindings ++ selection_bindings ++ edit_bindings)
     ]
 
-cmd_io_keymap :: Transport.Info -> Cmd.CmdIO
+cmd_io_keymap :: Transport.Info -> Msg.Msg -> Cmd.CmdIO
 cmd_io_keymap player_info = Keymap.make_cmd (io_bindings player_info)
 
 io_bindings :: Transport.Info -> [Keymap.Binding IO]
 io_bindings player_info =
-    [ kbd_kmod_cmd [Key.MetaL] (Key.KeyChar 's') "save" cmd_save
-    , kbd_kmod_cmd [Key.MetaL] (Key.KeyChar 'l') "load" cmd_load
-    , kbd_cmd Key.Enter "play block" (Play.cmd_play_block player_info)
-    , kbd_cmd (Key.KeyChar ' ') "stop play" Play.cmd_stop
+    [ bind_kmod [Key.MetaL] (Key.KeyChar 's') "save" cmd_save
+    , bind_kmod [Key.MetaL] (Key.KeyChar 'l') "load" cmd_load
+    , bind_key Key.Enter "play block" (Play.cmd_play_block player_info)
+    , bind_key (Key.KeyChar ' ') "stop play" Play.cmd_stop
     ]
 
-cmd_save, cmd_load :: Cmd.CmdT IO Cmd.Status
+cmd_save, cmd_load :: Cmd.CmdIO
 cmd_save = Save.cmd_save Nothing >> return Cmd.Done
 cmd_load = Save.cmd_load Nothing >> return Cmd.Done
 
-cmd_kbd_note_entry :: Cmd.Cmd
-cmd_kbd_note_entry = Keymap.make_cmd kbd_note_entry
-cmd_midi_entry msg = Edit.cmd_insert_midi_note msg >> cmd_advance_insert
-
 misc_bindings =
-    [ kbd_cmd (Key.KeyChar '=') "quit" Cmd.cmd_quit
+    [ bind_key (Key.KeyChar '=') "quit" Cmd.cmd_quit
     ]
 
 selection_bindings =
-    [ kbd_cmd Key.Down "advance selection" $
+    [ bind_key Key.Down "advance selection" $
         Selection.cmd_step_selection Config.insert_selnum Advance
-    , kbd_cmd Key.Up "rewind selection" $
+    , bind_key Key.Up "rewind selection" $
         Selection.cmd_step_selection Config.insert_selnum Rewind
-    , kbd_cmd Key.Right "shift selection right" $
+    , bind_key Key.Right "shift selection right" $
         Selection.cmd_shift_selection Config.insert_selnum 1
-    , kbd_cmd Key.Left "shift selection left" $
+    , bind_key Key.Left "shift selection left" $
         Selection.cmd_shift_selection Config.insert_selnum (-1)
     ]
-
-cmd_advance_insert = Selection.cmd_step_selection Config.insert_selnum Advance
 
 edit_bindings =
     [ bind_key Key.Escape "toggle edit mode" Edit.cmd_toggle_edit

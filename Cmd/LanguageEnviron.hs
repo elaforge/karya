@@ -24,6 +24,7 @@ import qualified Midi.Midi as Midi
 import qualified Cmd.Cmd as Cmd
 
 import qualified Derive.Score as Score
+import qualified Derive.Schema as Schema
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.InstrumentDb as InstrumentDb
 import Cmd.LanguageCmds

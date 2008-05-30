@@ -9,7 +9,6 @@ import qualified Network
 import qualified Util.Log as Log
 
 import Ui.Types
-import qualified Ui.Color as Color
 import qualified Ui.Initialize as Initialize
 import qualified Ui.State as State
 
@@ -120,7 +119,7 @@ setup_cmd = do
         Config.schema
     v1 <- State.create_view "v1"
         (Block.view b1 TestSetup.default_rect Config.view_config)
-    State.set_selection v1 0 (Block.point_selection 0 (TrackPos 0))
+    -- State.set_selection v1 0 (Block.point_selection 0 (TrackPos 0))
     -- _v2 <- State.create_view "v2"
     --     (Block.view b1 (Block.Rect (500, 30) (200, 200))
     --         TestSetup.view_config)

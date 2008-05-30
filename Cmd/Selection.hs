@@ -20,6 +20,9 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.TimeStep as TimeStep
 
+import qualified App.Config as Config
+
+
 -- | Advance the given selection by the current step.
 -- Require: active block, insert_selection is set
 --
@@ -29,7 +32,7 @@ import qualified Cmd.TimeStep as TimeStep
 cmd_step_selection :: Block.SelNum -> TimeDirection -> Cmd.CmdId
 cmd_step_selection selnum dir = do
     -- there must be a way to shorten this
-    view_id <- Cmd.get_active_view
+    view_id <- Cmd.get_focused_view
     block <- get_view_block view_id
     step <- Cmd.get_current_step
     sel <- Cmd.require =<< State.get_selection view_id selnum
@@ -45,10 +48,15 @@ cmd_step_selection selnum dir = do
             (Block.point_selection (Block.sel_start_track sel) next_pos)
     return Cmd.Done
 
+-- | Advance the insert selection by the current step, which is a popular thing
+-- to do.
+cmd_advance_insert :: Cmd.CmdId
+cmd_advance_insert = cmd_step_selection Config.insert_selnum Advance
+
 -- | Move the selection across tracks by @nshift@.
 cmd_shift_selection :: Block.SelNum -> Int -> Cmd.CmdId
 cmd_shift_selection selnum nshift = do
-    view_id <- Cmd.get_active_view
+    view_id <- Cmd.get_focused_view
     block <- get_view_block view_id
     sel <- Cmd.require =<< State.get_selection view_id selnum
     let sel' = shift_selection nshift (length (Block.block_tracks block)) sel
@@ -71,7 +79,7 @@ cmd_mouse_selection btn selnum msg = do
             Just (Cmd.MouseMod _btn (Just down_at)) -> Just down_at
             _ -> Nothing
 
-    view_id <- Cmd.get_active_view
+    view_id <- Cmd.get_focused_view
     mouse_at <- Cmd.require $ case mod of
         Cmd.MouseMod _ (Just at) -> Just at
         _ -> Nothing

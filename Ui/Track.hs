@@ -1,8 +1,10 @@
 module Ui.Track where
 import qualified Data.List as List
 import qualified Data.Map as Map
+import Text.Printf
 
 import qualified Util.Data
+import Util.Pretty
 import Ui.Types
 import qualified Ui.Event as Event
 
@@ -22,6 +24,15 @@ track title events bg = Track title (insert_events events empty_events) bg
 modify_events :: Track -> (TrackEvents -> TrackEvents) -> Track
 modify_events track@(Track { track_events = events }) f =
     track { track_events = f events }
+
+time_end :: Track -> TrackPos
+time_end track = maybe (TrackPos 0) event_end (last_event (track_events track))
+
+pretty_track_event (pos, event) = printf "%s +%s: %s" (pretty pos)
+    (pretty (Event.event_duration event)) (show (Event.event_text event))
+
+
+-- * TrackEvents implementation
 
 {- TODO I probably need a more efficient data structure here.  Requirements:
 1 Sparse mapping from TrackPos -> Event.
@@ -81,9 +92,6 @@ last_event :: TrackEvents -> Maybe (TrackPos, Event.Event)
 last_event (TrackEvents events)
     | Map.null events = Nothing
     | otherwise = Just (Map.findMax events)
-
-time_end :: Track -> TrackPos
-time_end track = maybe (TrackPos 0) event_end (last_event (track_events track))
 
 -- utilities
 

@@ -31,6 +31,8 @@ import qualified Cmd.TimeStep as TimeStep
 
 import qualified Perform.Transport as Transport
 
+import qualified App.Config as Config
+
 
 -- | This makes Cmds more specific than they have to be, and doesn't let them
 -- run in other monads like IO.  It's unlikely to become a problem, but if it
@@ -135,8 +137,7 @@ data State = State {
     , state_transport :: Maybe Transport.Transport
     -- | The block and track that have focus.  Commands that address
     -- a particular block or track will address these.
-    , state_active_view :: Maybe Block.ViewId
-    , state_active_track :: Maybe Block.TrackNum
+    , state_focused_view :: Maybe Block.ViewId
 
     -- Global user-edited app state.
 
@@ -158,8 +159,7 @@ data State = State {
 empty_state = State {
     state_keys_down = Map.empty
     , state_transport = Nothing
-    , state_active_view = Nothing
-    , state_active_track = Nothing
+    , state_focused_view = Nothing
 
     , state_default_save_file = "save/default"
 
@@ -196,20 +196,33 @@ modify_state f = (CmdT . lift) (MonadState.modify f)
 keys_down :: (Monad m) => CmdT m (Map.Map Modifier Modifier)
 keys_down = fmap state_keys_down get_state
 
-get_active_view :: (Monad m) => CmdT m Block.ViewId
-get_active_view = fmap state_active_view get_state >>= require
+get_focused_view :: (Monad m) => CmdT m Block.ViewId
+get_focused_view = fmap state_focused_view get_state >>= require
 
-get_active_track :: (Monad m) => CmdT m Block.TrackNum
-get_active_track = fmap state_active_track get_state >>= require
+get_focused_block :: (Monad m) => CmdT m Block.Block
+get_focused_block = get_focused_view >>= State.block_of_view
+
+set_focused_view :: (Monad m) => Block.ViewId -> CmdT m ()
+set_focused_view view_id = do
+    Log.debug $ "active view is " ++ show view_id
+    modify_state $ \st -> st { state_focused_view = Just view_id }
 
 get_current_step :: (Monad m) => CmdT m TimeStep.TimeStep
 get_current_step = fmap state_step get_state
 
+-- | Get the leftmost track covered by the insert selection, which is
+-- considered the "focused" track by convention.
+get_insert_tracknum :: (Monad m) => CmdT m (Maybe Block.TrackNum)
+get_insert_tracknum = do
+    view_id <- get_focused_view
+    sel <- State.get_selection view_id Config.insert_selnum
+    return (fmap Block.sel_start_track sel)
+
 -- * basic cmds
 
 -- | Quit the app immediately.
-cmd_quit :: Cmd
-cmd_quit _msg = return Quit
+cmd_quit :: CmdId
+cmd_quit = return Quit
 
 -- | Log incoming msgs.
 cmd_log :: Cmd
@@ -276,20 +289,13 @@ msg_to_mod msg = case msg of
     mouse_context _ = Nothing
 
 
--- | Keep 'state_active_view' and 'state_active_track' up to date.
+-- | Keep 'state_focused_view' up to date.
 cmd_record_active :: Cmd
 cmd_record_active msg = case msg of
     Msg.Ui (UiMsg.UiMsg (UiMsg.Context { UiMsg.ctx_block = Just view_id })
         (UiMsg.MsgEvent (UiMsg.AuxMsg UiMsg.Focus))) -> do
-            modify_state $ \st -> st { state_active_view = Just view_id }
-            -- Log.debug $ "active view is " ++ show view_id
+            set_focused_view view_id
             return Done
-    Msg.Ui (UiMsg.UiMsg (UiMsg.Context { UiMsg.ctx_track = Just tracknum })
-        _) -> do
-            modify_state $ \st -> st { state_active_track = Just tracknum }
-            -- Log.debug $ "active track is " ++ show tracknum
-            return Continue
-
     _ -> return Continue
 
 -- Responds to the UI's request to close a window.

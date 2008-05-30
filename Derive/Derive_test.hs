@@ -79,7 +79,8 @@ cont_track_id = Track.TrackId "b1.cont"
 default_inst = Score.Instrument "fm8/bass"
 default_midi_inst = InstrumentDb.generic "fm8" "bass" 
 default_dev = Midi.WriteDevice "CoreMIDI/IAC Driver Bus 1"
-default_inst_config = Instrument.config [((default_dev, 0), default_midi_inst)]
+default_inst_config =
+    Instrument.config [((default_dev, 0), default_midi_inst)] Nothing
 
 
 -- ** ui stetup
