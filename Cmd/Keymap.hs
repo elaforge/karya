@@ -51,6 +51,29 @@ data MidiKey = NoteOn Midi.Key | NoteOff Midi.Key
     | Controller Midi.Controller Midi.ControlValue
     deriving (Eq, Ord, Show)
 
+-- * building keymaps
+
+-- | Simple cmd with keyboard key and no modifiers.
+bind_key :: Key.Key -> String -> Cmd.CmdM m -> Binding m
+bind_key = bind_mod []
+
+-- | Bind a key with other keys for modifiers.
+bind_kmod key_mods = bind_mod (map Cmd.KeyMod key_mods)
+
+-- | Bind a key with anything as a modifier.
+bind_mod :: [Cmd.Modifier] -> Key.Key -> String -> Cmd.CmdM m -> Binding m
+bind_mod mods key desc cmd =
+    (KeySpec (Mods mods) (UiKey UiMsg.KeyDown key), cspec_ desc cmd)
+
+cspec :: String -> (Msg.Msg -> Cmd.CmdM m) -> CmdSpec m
+cspec desc cmd = CmdSpec desc cmd
+
+-- | Make a CmdSpec for a CmdM, i.e. a Cmd that doesn't take a Msg.
+cspec_ :: String -> Cmd.CmdM m -> CmdSpec m
+cspec_ desc cmd = CmdSpec desc (const cmd)
+
+
+-- * keymap -> Cmd
 
 -- | Merge the given KeySpecs into a map for efficient lookup, and return
 -- a combined Cmd that will dispatch on the map.
@@ -85,3 +108,24 @@ msg_to_key msg = case msg of
         Midi.ControlChange c v -> Just (MidiKey (Controller c v))
         _ -> Nothing
     _ -> Nothing
+
+
+-- * keymaps
+
+-- This way I can set up the mapping relative to key position and have it come
+-- out right for both qwerty and dvorak.  It could make the overlapping-ness of
+-- non-mapped keys kind of hard to predict though.
+
+qwerty = "1234567890-="
+    ++ "qwertyuiop[]\\"
+    ++ "asdfghjkl;'"
+    ++ "zxcvbnm,./"
+
+dvorak = "1234567890-="
+    ++ "',.pyfgcrl[]\\"
+    ++ "aoeuidhtns/"
+    ++ ";qjkxbmwvz"
+
+qwerty_to_dvorak = Map.fromList (zip qwerty dvorak)
+-- TODO presumably this should eventually be easier to change
+hardcoded_kbd_layout = qwerty_to_dvorak
