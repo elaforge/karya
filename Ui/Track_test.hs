@@ -35,6 +35,23 @@ test_merge = do
     print (extract te2)
     print (merge_info te1 te2)
 
+test_remove_events = do
+    let te1 = merge Track.empty_events [(0, "0", 0), (16, "16", 0)]
+    -- remove 0 dur events
+    equal (extract $ Track.remove_events (TrackPos 0) (TrackPos 0) te1)
+        [(16, "16", 0)]
+    equal (extract $ Track.remove_events (TrackPos 16) (TrackPos 16) te1)
+        [(0, "0", 0)]
+    -- doesn't include end of range
+    equal (extract $ Track.remove_events (TrackPos 0) (TrackPos 16) te1)
+        [(16, "16", 0)]
+    -- get it all
+    equal (extract $ Track.remove_events (TrackPos 0) (TrackPos 17) te1)
+        []
+    -- missed entirely
+    equal (extract $ Track.remove_events (TrackPos 4) (TrackPos 10) te1)
+        [(0, "0", 0), (16, "16", 0)]
+
 no_overlaps = check . not . events_overlap
 events_overlap track = any (uncurry overlaps)
     (zip (Track.event_list track) (drop 1 (Track.event_list track)))

@@ -62,6 +62,8 @@ newtype TrackEvents =
     -- ControllerTrack (Array (TrackPos, Double))
 
 event_map (TrackEvents evts) = evts
+-- Not in Functor because this should be private.
+emap f (TrackEvents evts) = TrackEvents (f evts)
 empty_events = TrackEvents Map.empty
 
 -- | Merge events into the given TrackEvents.  Events that overlap will have
@@ -72,12 +74,12 @@ insert_events pos_events events =
     merge events (TrackEvents (Map.fromAscList pos_events))
 
 -- | Remove events between @start@ and @end@, not including @end@.
-remove_events :: TrackPos -> TrackPos -> TrackEvents -> TrackEvents
-remove_events start end track_events@(TrackEvents events) = TrackEvents $
-    List.foldl' (\events pos -> Map.delete pos events) events del_pos
+-- As an exception to the above, events exactly at @start@ are always deleted.
+remove_events start end track_events
+    | start == end = emap (Map.delete start) track_events
+    | otherwise = emap (`Map.difference` deletes) track_events
     where
-    -- TODO Map.difference would be more efficient than deletes
-    del_pos = takeWhile (<end) $ map fst $ snd (events_at start track_events)
+    (_, deletes, _) = Util.Data.split3_map start end (event_map track_events)
 
 -- | Return the events before the given @pos@, and the events at and after it.
 events_at :: TrackPos -> TrackEvents -> ([PosEvent], [PosEvent])
@@ -150,9 +152,8 @@ fold_clip pos evt rest@((next_pos, _next_evt) : _) =
 merge_range :: (Ord k) => k -> k -> Map.Map k a -> Map.Map k a
 merge_range low high fm = expanded
     where
-    (below, above) = Util.Data.split_map low fm
-    (within, way_above) = Util.Data.split_map high above
-    expanded = maybe_add (Util.Data.find_min way_above)
+    (below, within, above) = Util.Data.split3_map low high fm
+    expanded = maybe_add (Util.Data.find_min above)
         (maybe_add (Util.Data.find_max below) within)
 
 maybe_add Nothing fm = fm

@@ -140,9 +140,11 @@ instance LogMonad IO where
             IO.hPutStrLn hdl (default_show msg')
 -- TODO show the date, if any
 default_show (Msg { msg_date = _date, msg_caller = srcpos, msg_prio = prio
-        , msg_text = text }) =
-    printf "%-4s %s- %s" (prio_stars prio) (Misc.show_srcpos srcpos) text
-    where prio_stars prio = replicate (fromEnum prio + 1) '*'
+        , msg_text = text, msg_stack = stack }) =
+    msg ++ maybe "" ((++" ") . show) stack
+    where
+    prio_stars prio = replicate (fromEnum prio + 1) '*'
+    msg = printf "%-4s %s- %s" (prio_stars prio) (Misc.show_srcpos srcpos) text
 
 -- | Add a time to the msg if it doesn't already have one.  Msgs can be logged
 -- outside of IO, so they don't get a date until they are written.

@@ -15,6 +15,16 @@ split_map k fm = (pre, post')
     (pre, at, post) = Map.splitLookup k fm
     post' = maybe post (\v -> Map.insert k v post) at
 
+-- | Split the map into the maps below, within, and above the given range.
+-- @low@ to @high@ is half-open, as usual.
+split3_map :: (Ord k) => k -> k -> Map.Map k a
+    -> (Map.Map k a, Map.Map k a, Map.Map k a)
+split3_map low high fm = (below, within, way_above)
+    where
+    (below, above) = split_map low fm
+    (within, way_above) = split_map high above
+
+
 invert_map :: (Ord k, Ord a) => Map.Map k a -> Map.Map a [k]
 invert_map = multimap . map (\(x, y) -> (y, x)) . Map.assocs
 
