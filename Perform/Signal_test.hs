@@ -7,6 +7,7 @@ import Ui.Types
 import qualified Perform.Timestamp as Timestamp
 import Perform.Signal
 
+
 secs = Timestamp.to_track_pos . Timestamp.seconds
 
 test_interpolate = do
@@ -14,10 +15,11 @@ test_interpolate = do
         (map secs [1.0, 1.1 .. 2.0])
     print $ map (interpolate Linear (secs 1, 2) (secs 2, 1))
         (map secs [1.0, 1.1 .. 2.0])
-    
+
 test_at = do
     let sig = signal [(secs 1, Set, 1), (secs 2, Set, 2), (secs 3, Linear, 3)]
         samples = [0.75, 1 .. 3.25]
+    equal (map (at sig) (map secs [1, 2, 3])) [1, 2, 3]
     equal (zip samples (map (at sig) (map secs samples)))
         [ (0.75, 0.0)
         , (1.0, 1.0), (1.25, 1.0), (1.5, 1.0), (1.75, 1.0)

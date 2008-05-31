@@ -12,9 +12,6 @@ import qualified Perform.Timestamp as Timestamp
 
 -- * construction
 
--- TODO this will probably become TrackPos since derivation also works with
--- signals
-
 data Signal = Signal {
     signal_map :: Map.Map TrackPos (Method, Val)
     } deriving (Show, Eq)
@@ -90,18 +87,20 @@ sample_from srate start_pos end_pos
 at :: Signal -> TrackPos -> Val
 at sig pos = interpolate next_meth (prev_pos, prev_val) (next_pos, next_val) pos
     where
-    (pre_, at, post) = Map.splitLookup pos (signal_map sig)
+    (pre_, at_pos, post) = Map.splitLookup pos (signal_map sig)
     -- Since 'interpolate' interpolates from the previous value, put an exact
     -- match in pre to ensure that I return its value.
-    pre = case at of
+    pre = case at_pos of
         Nothing -> pre_
         Just v -> Map.insert pos v pre_
 
+    -- Signal before the first segment is 0.
     (prev_pos, (_, prev_val)) = if Map.null pre
         then ((TrackPos 0), (Set, 0))
         else Map.findMax pre
+    -- Signal after the last segment keeps the last set value.
     (next_pos, (next_meth, next_val)) = if Map.null post
-        then (pos, (Set, 0))
+        then (pos, (Set, prev_val))
         else Map.findMin post
 
 timestamp_at :: Signal -> Timestamp.Timestamp -> Val
