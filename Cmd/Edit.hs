@@ -128,7 +128,7 @@ cmd_controller_entry msg = do
 
     let text = Maybe.fromMaybe "" $ fmap Event.event_text
             (Track.event_at (Track.track_events track) insert_pos)
-        event = Config.event (text ++ [char]) (TrackPos 1)
+        event = Config.event (text ++ [char]) (TrackPos 0)
     Log.debug $ "modify control event at " ++ show insert_pos ++ " "
         ++ show text ++ " ++ " ++ show char
     State.insert_events track_id [(insert_pos, event)]

@@ -94,7 +94,6 @@ import Ui.Types
 import qualified Ui.Block as Block
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Track as Track
-import qualified Ui.Event as Event
 import qualified Ui.State as State
 
 import qualified Cmd.Cmd as Cmd
@@ -255,7 +254,7 @@ divider color = Block.DId (Block.Divider color)
 show_track :: String -> Cmd String
 show_track track_id = do
     track <- State.get_track (tid track_id)
-    return $ show_list $ map Track.pretty_track_event $
+    return $ show_list $ map Track.pretty_pos_event $
         Track.event_list (Track.track_events track)
 
 insert_track block_id tracknum tracklike width = do

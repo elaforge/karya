@@ -122,7 +122,7 @@ Cmd
   - Cmd_test
   - background derivation and caching
 
-  - bug: zero duration events are not getting found properly
+  * bug: zero duration events are not getting found properly
   - bug: control events simultaneous with note events should go first
   keymap
     * keymaps that combine key patterns into a table and create a Cmd

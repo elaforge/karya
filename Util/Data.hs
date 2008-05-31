@@ -22,6 +22,17 @@ multimap :: (Ord k, Ord a) => [(k, a)] -> Map.Map k [a]
 multimap = Map.fromAscList . map (\gs -> (fst (head gs), map snd gs))
     . List.groupBy ((==) `on` fst) . List.sort
 
+-- | Safe versions of findMin and findMax.
+find_min :: Map.Map k a -> Maybe (k, a)
+find_min fm
+    | Map.null fm = Nothing
+    | otherwise = Just (Map.findMin fm)
+
+find_max :: Map.Map k a -> Maybe (k, a)
+find_max fm
+    | Map.null fm = Nothing
+    | otherwise = Just (Map.findMax fm)
+
 -- * Array
 
 -- | Like 'IArray.!', except throw a more informative error, with @msg@
