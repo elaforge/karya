@@ -1,6 +1,9 @@
-{- | Top-level module for the interpreter in Language.  It has to be
-interpreted, so it should just put useful things into scope but not actually
-define anything itself.  Those definitions go in LanguageCmds.
+{- | Top-level module for the interpreter in Language.  Everything in this
+module is visible to the REPL, so it imports a lot of potentially useful
+modules.
+
+It has to be interpreted, so it should just put useful things into scope but
+not actually define anything itself.  Those definitions go in LanguageCmds.
 -}
 module Cmd.LanguageEnviron where
 import qualified Control.Monad.Identity as Identity
@@ -22,9 +25,11 @@ import qualified Ui.Update as Update
 import qualified Midi.Midi as Midi
 
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Play as Play
 
 import qualified Derive.Score as Score
 import qualified Derive.Schema as Schema
+import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.InstrumentDb as InstrumentDb
 import Cmd.LanguageCmds

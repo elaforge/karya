@@ -23,8 +23,8 @@ import qualified Perform.Midi.InstrumentDb as InstrumentDb
 
 -- | Events that don't have enough info to be converted to MIDI Events will be
 -- returned as Warnings.
-convert :: [Score.Event] -> ([Warning.Warning], [Perform.Event])
-convert events = (concat warns, Maybe.catMaybes midi_events)
+convert :: [Score.Event] -> ([Perform.Event], [Warning.Warning])
+convert events = (Maybe.catMaybes midi_events, concat warns)
     where (warns, midi_events) = unzip (map convert_event events)
 
 verify :: Instrument.Config -> [Perform.Event] -> [String]

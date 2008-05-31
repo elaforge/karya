@@ -100,6 +100,7 @@ import qualified Cmd.Cmd as Cmd
 -- import qualified Cmd.Save as Save
 import qualified Cmd.TimeStep as TimeStep
 import qualified Cmd.Language as Language
+import qualified Cmd.Play as Play
 
 import qualified Derive.Score as Score
 import qualified Derive.Schema as Schema
@@ -211,13 +212,11 @@ destroy_view view_id = State.destroy_view (vid view_id)
 get_focused_block = fmap Block.view_block
     (State.get_view =<< Cmd.get_focused_view)
 
-show_block :: Maybe String -> Cmd String
-show_block maybe_block_id = do
-    block_id <- maybe get_focused_block return
-        (fmap Block.BlockId maybe_block_id)
+show_block :: String -> Cmd String
+show_block block_id = do
     Block.Block { Block.block_title = title, Block.block_ruler_track = ruler,
         Block.block_tracks = tracks, Block.block_schema = schema }
-            <- State.get_block block_id
+            <- State.get_block (bid block_id)
     return $ show_record
         [ ("title", title)
         , ("ruler", show ruler)
@@ -323,3 +322,13 @@ auto_config write_device block_id = do
         addrs = [((write_device, chan), inst)
             | (InstrumentDb.Midi inst, chan) <- zip insts [0..]]
     return $ Instrument.config addrs (Just (write_device, 0))
+
+
+-- * derivation
+
+derive block_id = do
+    block <- State.get_block (bid block_id)
+    (result, _) <- Play.derive block
+    case result of
+        Left err -> State.throw $ "derive error: " ++ show err
+        Right events -> return events

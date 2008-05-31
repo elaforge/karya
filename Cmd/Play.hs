@@ -58,6 +58,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 
 import qualified Derive.Derive as Derive
+import qualified Derive.Score as Score
 import qualified Derive.Schema as Schema
 
 import qualified Perform.Midi.Play as Midi.Play
@@ -77,21 +78,16 @@ cmd_play_block transport_info = do
     view_id <- Cmd.get_focused_view
     block_id <- find_play_block view_id
     block <- State.get_block block_id
-    deriver <- Schema.get_deriver block
-    ui_state <- State.get
 
-    -- TODO all the derivation work could be done asynchronously by
-    -- a background thread
-    let (result, tempo_map, logs) = Derive.derive ui_state deriver
-    mapM_ Log.write logs
-    events <- case result of
+    (derive_result, tempo_map) <- derive block
+    events <- case derive_result of
         -- TODO properly convert to log msg
         Left derive_error -> Log.warn ("derive error: " ++ show derive_error)
             >> Cmd.abort
         Right events -> return events
 
     -- TODO later, instrument backend dispatches on this
-    let (convert_warnings, midi_events) = Convert.convert events
+    let (midi_events, convert_warnings) = Convert.convert events
     -- TODO properly convert to log msg
     -- TODO I think this forces the list, I have to not warn so eagerly
     -- or thread the warnings through 'perform'
@@ -104,11 +100,26 @@ cmd_play_block transport_info = do
     transport <- Trans.liftIO $
         Midi.Play.play transport_info block_id midi_msgs
 
+    ui_state <- State.get
     Trans.liftIO $ Thread.start_thread "play position updater" $
         update_play_position transport transport_info tempo_map ui_state
 
     Cmd.modify_state $ \st -> st { Cmd.state_transport = Just transport }
     return Cmd.Done
+
+-- | Derive the contents of the given block to score events.
+derive :: (Monad m) => Block.Block ->
+    Cmd.CmdT m (Either Derive.DeriveError [Score.Event], Transport.TempoMap)
+derive block = do
+    deriver <- Schema.get_deriver block
+    ui_state <- State.get
+
+    -- TODO all the derivation work could be done asynchronously by
+    -- a background thread
+    let (result, tempo_map, logs) = Derive.derive ui_state deriver
+    mapM_ Log.write logs
+    return (result, tempo_map)
+
 
 update_play_position transport transport_info tempo_map ui_state = do
     let view_blocks = Map.assocs (Map.map Block.view_block

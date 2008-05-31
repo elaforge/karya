@@ -32,7 +32,7 @@ test_basic = do
     let (Right events, _tempo, msgs) = Derive.derive ui_state basic_schema
     equal msgs []
     pmlist "score" events
-    let (warns, midi_events) = Convert.convert events
+    let (midi_events, warns) = Convert.convert events
     equal warns []
     equal (length midi_events) 2
     pmlist "midi_events" midi_events
@@ -50,7 +50,7 @@ test_controller = do
     let (Right events, _tempo, msgs) = Derive.derive ui_state controller_schema
     equal msgs []
     pmlist "score" events
-    let (warns, midi_events) = Convert.convert events
+    let (midi_events, warns) = Convert.convert events
     equal warns []
     equal (length midi_events) 2
     pmlist "midi_events" midi_events

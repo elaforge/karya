@@ -8,12 +8,12 @@ import qualified Control.Exception as Exception
 import Control.Monad
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.Trans as Trans
+
 import qualified Language.Haskell.Interpreter.GHC as GHC
 import qualified System.IO as IO
 
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
-import Util.Pretty
 
 import qualified Ui.State as State
 
@@ -32,6 +32,8 @@ cmd_language session msg = do
     cmd <- Trans.liftIO $
             GHC.withSession session (interpret ui_state cmd_state text)
         `Exception.catchDyn` catch_interpreter_error
+        `Exception.catchDyn` catch_ghc_exc
+        `Exception.catch` catch_all
     response <- cmd
     Trans.liftIO $ catch_io_errors $ do
         when (not (null response)) $
@@ -49,13 +51,22 @@ catch_io_errors = Exception.handleJust Exception.ioErrors $ \exc -> do
 
 catch_interpreter_error :: GHC.InterpreterError -> IO (Cmd.CmdT IO String)
 catch_interpreter_error exc = return $ do
-    Log.warn ("interpreter error: " ++ show exc)
-    return $ "error: " ++ pretty exc
+    Log.warn ("interpreter error: " ++ show_ghc_exc exc)
+    return $ "interpreter error: " ++ show_ghc_exc exc
 
-instance Pretty GHC.InterpreterError where
-    pretty (GHC.WontCompile ghc_errs) =
-        "Won't compile " ++ Seq.join "\n" (map GHC.errMsg ghc_errs)
-    pretty exc = show exc
+catch_ghc_exc :: GHC.GhcException -> IO (Cmd.CmdT IO String)
+catch_ghc_exc exc = return $ do
+    Log.warn ("ghc error: " ++ show exc)
+    return $ "ghc error: " ++ show exc
+
+catch_all :: Exception.Exception -> IO (Cmd.CmdT IO String)
+catch_all exc = return $ do
+    Log.warn ("error: " ++ show exc)
+    return $ "error: " ++ show exc
+
+show_ghc_exc (GHC.WontCompile ghc_errs) =
+    "Won't compile " ++ Seq.join "\n" (map GHC.errMsg ghc_errs)
+show_ghc_exc exc = show exc
 
 -- | Interpreted code should be of this type.  However, due to
 -- 'mangle_code', it really runs in CmdT Identity String
