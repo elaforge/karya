@@ -1,7 +1,8 @@
 module Derive.Derive_test where
+import qualified Control.Monad.Identity as Identity
+import qualified Data.List as List
 
 import Util.Test
-
 import Ui.Types
 import qualified Ui.Color as Color
 import qualified Ui.Block as Block
@@ -13,11 +14,12 @@ import qualified Ui.TestSetup as TestSetup
 import qualified Midi.Midi as Midi
 
 import qualified Derive.Controller as Controller
-import qualified Derive.Score as Score
 import qualified Derive.Derive as Derive
-
+import qualified Derive.Parse as Parse
+import qualified Derive.Score as Score
 import qualified Derive.Twelve as Twelve
 
+import qualified Perform.Signal as Signal
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.InstrumentDb as InstrumentDb
@@ -67,6 +69,27 @@ realize_note _ event = case Twelve.event_pitch (Score.event_text event) of
     Nothing -> Derive.throw $
         "can't realize event " ++ show (Score.event_text event)
     Just pitch -> return (event { Score.event_pitch = Just pitch })
+
+-- * misc other modules
+
+-- I test some other Derive modules here so I don't have to make a whole new
+-- module for each one.
+
+test_controller_parse = do
+    let evt = Score.event (TrackPos 0) (TrackPos 0)
+    let run s = test_run $ Controller.parse_event () (evt s)
+
+    let result = run "hi there"
+    check $ "Left \"parse error on char 1" `List.isPrefixOf` (show result)
+
+    equal (run "-2e.2") (Right (TrackPos 0, Signal.Exp (-2), 0.2))
+    equal (run "-.2") (Right (TrackPos 0, Signal.Linear, -0.2))
+
+test_run :: Derive.DeriveT Identity.Identity a -> Either String a
+test_run m = case Identity.runIdentity (Derive.run State.empty m) of
+    (Left err, _, logs) -> Left (Derive.error_message err)
+    (Right val, _, _) -> Right val
+
 
 -- * setup
 

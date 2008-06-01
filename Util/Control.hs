@@ -1,4 +1,4 @@
-{- | Control flow type utilities.
+{- | Control flow and monadic utilities.
 -}
 module Util.Control where
 
@@ -15,3 +15,12 @@ map_state_m state f (x:xs) = do
     (state', val) <- f state x
     rest <- map_state_m state' f xs
     return (val : rest)
+
+-- This is like Applicate.<*, but doesn't need an Applicative instance (e.g.
+-- Parsec doesn't have one).
+(#>>) :: Monad m => m a -> m b -> m a
+m1 #>> m2 = do
+    v <- m1
+    m2
+    return v
+

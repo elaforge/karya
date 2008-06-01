@@ -37,12 +37,10 @@ data Event = Event {
     , event_instrument :: Maybe Instrument
     , event_pitch :: Maybe Pitch.Pitch
     } deriving (Show)
--- instance Show Event where
---     show evt = "<" ++ event_text evt ++ ">"
 
--- event :: TrackPos -> TrackPos -> String -> Warning.CallPos -> Event
--- event start dur text call_pos =
---     Event start dur text Nothing Nothing Map.empty [call_pos]
+-- | Mostly for testing, since real events will come from 'from_track_event'.
+event :: TrackPos -> TrackPos -> String -> Event
+event start dur text = Event start dur text Map.empty [] Nothing Nothing
 
 from_track_event :: ControllerMap -> Track.TrackId -> (TrackPos, Event.Event)
     -> Event

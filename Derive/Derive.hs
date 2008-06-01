@@ -64,6 +64,9 @@ data DeriveError =
 instance Error.Error DeriveError where
     strMsg = DeriveError
 
+error_message (DeriveError s) = s
+error_message (EventError _ s) = s
+
 instance Monad m => Log.LogMonad (DeriveT m) where
     write = DeriveT . lift . lift . Log.write
 
@@ -142,7 +145,8 @@ with_env cont signal op = do
 
 -- ** track
 
--- | Get events from a track, applying the enviroment's controllers to it.
+-- | Get events from a track, convert them to Score events, and applying the
+-- enviroment's controllers to them.
 d_track :: (Monad m) => Track.TrackId -> DeriveT m [Score.Event]
 d_track track_id = do
     track <- get_track track_id
