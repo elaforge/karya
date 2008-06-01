@@ -46,6 +46,7 @@ import qualified Data.Map as Map
 import Foreign
 import Foreign.C
 
+import qualified Util.Log as Log
 import qualified Ui.Util as Util
 import Ui.Util (Fltk)
 import Ui.Types
@@ -267,9 +268,9 @@ foreign import ccall "update_track"
 type FunPtrFinalizer a = FunPtr a -> IO ()
 foreign import ccall "wrapper"
     c_make_free_fun_ptr :: FunPtrFinalizer a -> IO (FunPtr (FunPtrFinalizer a))
--- make_free_fun_ptr = c_make_free_fun_ptr
---     (\p -> putStrLn ("free: " ++ show p) >> freeHaskellFunPtr p)
-make_free_fun_ptr = c_make_free_fun_ptr freeHaskellFunPtr
+make_free_fun_ptr = c_make_free_fun_ptr
+    (\p -> Log.debug ("free: " ++ show p) >> freeHaskellFunPtr p)
+-- make_free_fun_ptr = c_make_free_fun_ptr freeHaskellFunPtr
 
 with_tracklike tracklike f = case tracklike of
     Block.T track ruler -> RulerC.with_ruler ruler $ \rulerp mlistp len ->

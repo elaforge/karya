@@ -12,6 +12,7 @@ import Control.Monad
 import Foreign
 import Foreign.C
 
+import qualified Util.Log as Log
 import Ui.Types
 import qualified Ui.Util as Util
 
@@ -26,8 +27,6 @@ with_ruler ruler f = do
         f rulerp mlists (Util.c_int len)
     where marklists = map snd (Ruler.ruler_marklists ruler)
 
-
-make_find_marks marklist = c_make_find_marks (cb_find_marks marklist)
 
 -- typedef int (*FindMarks)(TrackPos *start_pos, TrackPos *end_pos,
 --         TrackPos **ret_tps, Mark **ret_marks);
@@ -51,6 +50,11 @@ cb_find_marks marklist startp endp ret_tps ret_marks = do
         poke ret_marks mark_array
     -- putStrLn $ "find marks: " ++ show (length marks)
     return (length marks)
+
+make_find_marks marklist = do
+    cb <- c_make_find_marks (cb_find_marks marklist)
+    Log.debug $ "make find marks callback: " ++ show cb
+    return cb
 
 foreign import ccall "wrapper"
     c_make_find_marks :: FindMarks -> IO (FunPtr FindMarks)

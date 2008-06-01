@@ -18,6 +18,7 @@ module Ui.TrackC where
 import Control.Monad
 import Foreign
 
+import qualified Util.Log as Log
 import Ui.Types
 import qualified Ui.Event as Event
 import qualified Ui.Track as Track
@@ -41,8 +42,14 @@ poke_track trackp (Track.Track
         (#poke EventTrackConfig, find_events) trackp find_events
         (#poke EventTrackConfig, last_track_pos) trackp last_track_pos
 
-make_find_events events = c_make_find_events (cb_find_events events)
-make_last_track_pos events = c_make_last_track_pos (cb_last_track_pos events)
+make_find_events events = do
+    p <- c_make_find_events (cb_find_events events)
+    Log.debug $ "make find events: " ++ show p
+    return p
+make_last_track_pos events = do
+    p <- c_make_last_track_pos (cb_last_track_pos events)
+    Log.debug $ "make last track pos: " ++ show p
+    return p
 
 -- typedef int (*FindEvents)(TrackPos *start_pos, TrackPos *end_pos,
 --         TrackPos **ret_tps, Event **ret_events);
