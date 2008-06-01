@@ -22,6 +22,7 @@ track overlay, and alpha for the ruler track.
 #include "types.h"
 #include "Track.h"
 
+
 struct Mark {
     Mark() {}
     Mark(int rank, int width, Color color, char *name,

@@ -24,7 +24,7 @@ EventTrackView::EventTrackView(const EventTrackConfig &config,
     bg_box.box(FL_THIN_DOWN_BOX);
     bg_box.color(color_to_fl(config.bg_color));
 
-    this->title_input = new SeqInput(0, 0, 1, 1);
+    this->title_input = new SeqInput(0, 0, 1, 1, true);
 }
 
 

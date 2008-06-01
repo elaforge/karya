@@ -45,7 +45,7 @@ public:
     virtual SeqInput &title_widget() { return *this->title_input; }
     virtual const char *get_title() const { return this->title_input->value(); }
     virtual void set_title(const char *title) {
-        this->title_input->value(title);
+        this->title_input->set_text(title);
     }
     void set_zoom(const ZoomInfo &zoom);
     virtual void set_selection(int selnum, int tracknum, const Selection &sel) {

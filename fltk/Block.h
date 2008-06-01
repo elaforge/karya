@@ -95,7 +95,7 @@ public:
 
     void set_selection(int selnum, const Selection &sel);
 
-    void set_title(const char *s) { title.value(s); }
+    void set_title(const char *s) { title.set_text(s); }
     const char *get_title() const { return title.value(); }
     void set_status(const char *s) { status_line.value(s); }
 

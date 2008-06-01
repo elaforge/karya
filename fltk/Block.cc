@@ -17,7 +17,7 @@ BlockView::BlockView(int X, int Y, int W, int H,
         const Tracklike &ruler_track) :
     Fl_Group(X, Y, W, H),
 
-    title(0, 0, 1, 1),
+    title(0, 0, 1, 1, false),
     status_line(0, 0, 1, 1),
     body(0, 0, 1, 1),
         body_resize_group(0, 0, 1, 1, "resize group"),
@@ -328,15 +328,14 @@ BlockView::track_tile_cb(Fl_Widget *w, void *vp)
 
 // BlockViewWindow ///////////
 
-// Don't let escape kill the window.
 static void
 block_view_window_cb(Fl_Window *win, void *p)
 {
     BlockViewWindow *view = static_cast<BlockViewWindow *>(win);
     global_msg_collector()->window_update(view, UiMsg::msg_close);
-    // TODO remove this, and add a event handling thread to test_block
-    if (view->testing)
-        Fl_Window::default_callback(win, p);
+    if (view->testing) {
+        view->hide();
+    }
 }
 
 
@@ -374,6 +373,9 @@ BlockViewWindow::resize(int X, int Y, int W, int H)
 int
 BlockViewWindow::handle(int evt)
 {
+    if (this->testing && evt == FL_KEYDOWN && Fl::event_key() == '=') {
+        this->hide();
+    }
     if (evt == FL_KEYDOWN || evt == FL_KEYUP) {
         // The fact I got it means I have focus.
         int key = Fl::event_key();

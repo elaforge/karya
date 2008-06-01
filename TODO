@@ -34,7 +34,7 @@ fltk
   UI Msgs
     - drags should continue to send msgs even after the cursor leaves the track
       area and window
-    - bug: arrow keys are still doing keynav, remove that
+    * bug: arrow keys are still doing keynav, remove that
     - a special "system" window that receives events like "new block"
     - can I capture os x two-finger drag events?
       yes, they're reported as FL_MOUSEWHEEL, so I should scroll on mousewheel

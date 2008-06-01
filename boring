@@ -2,6 +2,7 @@
 ^save$
 ^save/
 ^haddock/
+^crash
 ^scratch
 ^hpc/
 ^\.hpc

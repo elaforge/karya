@@ -3,6 +3,7 @@
 #include "util.h"
 
 #include "TrackTile.h"
+#include "SeqInput.h"
 
 
 TrackTile::TrackTile(int X, int Y, int W, int H, Color bg_color,
@@ -16,6 +17,85 @@ TrackTile::TrackTile(int X, int Y, int W, int H, Color bg_color,
     track_pad.box(FL_FLAT_BOX);
     resizable(this);
     set_bg_color(bg_color);
+}
+
+
+static bool
+raised_widget(Fl_Widget *w)
+{
+    SeqInput *input = dynamic_cast<SeqInput *>(w);
+    return input && input->is_expanded();
+}
+
+
+// HACK: See comment on SeqInput::is_expanded.
+int
+TrackTile::handle(int evt)
+{
+    // Ahh, the copy-and-pastey goodness.  I have to offer events to any raised
+    // children first.  Since c++ makes it so hard to factor out bits of
+    // code, I just copy and paste.  Good thing my event handling is minimal.
+    switch (evt) {
+    case FL_ENTER:
+    case FL_MOVE:
+        for (int i = 0; i < children(); i++) {
+            if (!raised_widget(child(i)))
+                continue;
+            Fl_Widget *c = child(i);
+            if (c->visible() && Fl::event_inside(c)) {
+                if (c->contains(Fl::belowmouse())) {
+                    return c->handle(FL_MOVE);
+                } else {
+                    Fl::belowmouse(c);
+                    if (c->handle(FL_ENTER))
+                        return 1;
+                }
+            }
+        }
+        for (int i = 0; i < children(); i++) {
+            if (raised_widget(child(i)))
+                continue;
+            Fl_Widget *c = child(i);
+            if (c->visible() && Fl::event_inside(c)) {
+                if (c->contains(Fl::belowmouse())) {
+                    return c->handle(FL_MOVE);
+                } else {
+                    Fl::belowmouse(c);
+                    if (c->handle(FL_ENTER))
+                        return 1;
+                }
+            }
+        }
+        Fl::belowmouse(this);
+        return 1;
+    case FL_PUSH:
+        for (int i = 0; i < children(); i++) {
+            if (!raised_widget(child(i)))
+                continue;
+            Fl_Widget *c = child(i);
+            if (c->takesevents() && Fl::event_inside(c)) {
+                if (c->handle(FL_PUSH)) {
+                    if (Fl::pushed() && !c->contains(Fl::pushed()))
+                        Fl::pushed(c);
+                    return 1;
+                }
+            }
+        }
+        for (int i = 0; i < children(); i++) {
+            if (raised_widget(child(i)))
+                continue;
+            Fl_Widget *c = child(i);
+            if (c->takesevents() && Fl::event_inside(c)) {
+                if (c->handle(FL_PUSH)) {
+                    if (Fl::pushed() && !c->contains(Fl::pushed()))
+                        Fl::pushed(c);
+                    return 1;
+                }
+            }
+        }
+        return 0;
+    }
+    return 0;
 }
 
 
@@ -137,6 +217,37 @@ TrackTile::get_dragged_track() const
         return -1;
     else
         return this->dragged_child / 2; // see track_at()
+}
+
+
+// HACK: See comment on SeqInput::is_expanded.
+void
+TrackTile::draw()
+{
+    // Copied from Fl_Group::draw
+    if (damage() & ~FL_DAMAGE_CHILD) {
+        draw_box();
+        draw_label();
+    }
+    for (int i = 0; i < children(); i++) {
+        if (raised_widget(child(i)))
+            continue;
+        Fl_Widget &c = *child(i);
+        if (damage() & ~FL_DAMAGE_CHILD) {
+            draw_child(c);
+            draw_outside_label(c);
+        } else {
+            update_child(c);
+        }
+    }
+    // Draw the expanded inputs on top.
+    for (int i = 0; i < children(); i++) {
+        if (!raised_widget(child(i)))
+            continue;
+        Fl_Widget &c = *child(i);
+        draw_child(c);
+        draw_outside_label(c);
+    }
 }
 
 

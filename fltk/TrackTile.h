@@ -1,4 +1,5 @@
-/*
+/* This adds track-specific stuff to a MoveTile.
+
 Manage the underlying MoveTile:
 Fill rightmost track edge until the right edge of the window with a pad box of
 the given color.
@@ -10,13 +11,6 @@ Tracks come in pairs of a title and body.
 TrackTile_______
    |             \
 EventTrackTitle EventTrack
-
-TODO:
-MoveTile will also have to report moves (in the callback?) which can then be
-used to resize the left_body.
-
-Only resize the pad when the widget resizes, not the children.  Setting
-resizable or using an Fl_Scroll could solve this.
 */
 
 #ifndef __TRACK_TILE_H
@@ -36,6 +30,7 @@ resizable or using an Fl_Scroll could solve this.
 class TrackTile : public MoveTile {
 public:
     TrackTile(int X, int Y, int W, int H, Color bg_color, int title_height);
+    virtual int handle(int evt);
 
     void set_bg_color(Color c) {
         track_pad.color(color_to_fl(c));
@@ -59,6 +54,9 @@ public:
 
     // Return the track currently being dragged right now, or -1.
     int get_dragged_track() const;
+
+protected:
+    virtual void draw();
 private:
     int title_height;
     Fl_Box track_pad; // box to take up space not covered by tracks

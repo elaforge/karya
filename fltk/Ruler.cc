@@ -9,6 +9,7 @@
 #include "config.h"
 #include "Ruler.h"
 
+
 // Height in pixels both above and below  of the special indicator that is
 // drawn on a 0 size selection.
 const static int selection_point_size = 4;
@@ -169,7 +170,7 @@ OverlayRuler::draw_marklists()
     TrackPos start = this->zoom.offset;
     TrackPos end = this->zoom.to_trackpos(clip.h) + this->zoom.offset;
 
-    fl_font(FL_HELVETICA, Config::font_size::ruler);
+    fl_font(Config::font, Config::font_size::ruler);
     // Later marklists will draw over earlier ones.
     for (Marklists::const_iterator mlist = config.marklists.begin();
             mlist != config.marklists.end(); ++mlist)

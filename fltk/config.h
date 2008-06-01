@@ -3,6 +3,7 @@
 #ifndef __CONFIG_H
 #define __CONFIG_H
 
+#include <FL/Enumerations.H>
 #include "util.h"
 
 namespace Config {
@@ -10,7 +11,10 @@ namespace Config {
 // This color signifies that some content has been omitted due to lack of space.
 extern Color abbreviation_color;
 
-enum { max_selections = 5 };
+enum {
+    max_selections = 5,
+    font = FL_HELVETICA
+};
 
 namespace font_size {
     enum {
