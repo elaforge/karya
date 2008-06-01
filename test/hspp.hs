@@ -2,14 +2,27 @@
 -- certain functions.
 --
 -- I don't use cpp because it doesn't like dots in symbols.
-module Main where
+--
+-- BUG: it substitutes inside strings.  Unfortunately it's hard to avoid this
+-- with regexes, and real parsers are not really good at simple substitution.
 import qualified Data.List as List
 import qualified System.Environment
 import qualified Text.Regex as Regex
 
+
+{- unfortunately using lex is not easy either, because it doesn't understand
+dots.  so write a lex that does dots.
+map_idents s = spaces ++ replace rest ++
+    where
+    (spaces, rest) = span Char.isSpace s
+    (tok, rest) = lex s
+-}
+
 -- These are substituted everywhere.
 global_macros = map (\s -> (s, s++"_srcpos"))
-    ["Log.debug", "Log.notice", "Log.warn", "Log.error"]
+    [ "Log.debug", "Log.notice", "Log.warn", "Log.error"
+    , "Log.debug_stack", "Log.notice_stack", "Log.warn_stack", "Log.error_stack"
+    ]
 
 -- These are only substituted in test modules.
 test_macros = map (\s -> (s, s++"_srcpos"))
