@@ -44,7 +44,7 @@ fltk
       other UI actions
     * send msg_scroll_changed msgs
     * figure out how to go BlockView* -> BlockView in UiMsg
-    - clicking outside of SeqInput should unfocus it
+    * clicking outside of SeqInput should unfocus it
 
   Block
     - BlockView::set_config

@@ -409,7 +409,11 @@ BlockViewWindow::handle(int evt)
     }
     if (!accepted) {
         switch (evt) {
-        case FL_PUSH: case FL_DRAG: case FL_RELEASE:
+        case FL_PUSH:
+            // They didn't want it, so they lose focus.
+            Fl::focus(this);
+            // fall through
+        case FL_DRAG: case FL_RELEASE:
             global_msg_collector()->event(evt);
             break;
         case FL_FOCUS:
