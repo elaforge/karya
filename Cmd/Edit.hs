@@ -9,6 +9,7 @@
 module Cmd.Edit where
 import Control.Monad
 import qualified Data.Maybe as Maybe
+import qualified Data.Map as Map
 
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
@@ -46,12 +47,19 @@ type NoteNumber = Int
 -- a reminder.
 cmd_toggle_edit :: Cmd.CmdId
 cmd_toggle_edit = do
-    view_id <- Cmd.get_focused_view
-    view <- State.get_view view_id
-    edit <- fmap Cmd.state_edit_mode Cmd.get_state
-    Cmd.modify_state $ \st -> st { Cmd.state_edit_mode = not edit }
-    State.set_edit_box (Block.view_block view) (edit_color (not edit))
+    edit_mode <- fmap Cmd.state_edit_mode Cmd.get_state
+    Cmd.modify_state $ \st -> st { Cmd.state_edit_mode = not edit_mode }
+    sync_edit_box
     return Cmd.Done
+
+sync_edit_box :: (Monad m) => Cmd.CmdT m ()
+sync_edit_box = do
+    edit_mode <- fmap Cmd.state_edit_mode Cmd.get_state
+    block_ids <- fmap (Map.keys . State.state_blocks) State.get
+    mapM_ (flip State.set_edit_box (edit_color edit_mode)) block_ids
+
+edit_color True = Config.edit_color
+edit_color False = Config.box_color
 
 -- | Insert an event with the given pitch at the current insert point.
 -- This actually takes a nn, which represents the position on the
@@ -189,6 +197,3 @@ event_track_at block_id tracknum = do
     case track of
         Just (Block.TId track_id _) -> return (Just track_id)
         _ -> return Nothing
-
-edit_color True = Config.edit_color
-edit_color False = Config.box_color

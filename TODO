@@ -121,7 +121,6 @@ Cmd
   * reintegrate handler and responder into new hstate, rename Msg->Cmd
   - Cmd_test
   - background derivation and caching
-
   * bug: zero duration events are not getting found properly
   keymap
     * keymaps that combine key patterns into a table and create a Cmd
@@ -178,7 +177,7 @@ Cmd
 
   Cmd.Save
     * serialize / deserialize for State
-    - bug: turn off edit mode box for save, since cmd state is not saved
+    * bug: turn off edit mode box for save, since cmd state is not saved
     - Data.Binary instance for more efficient save and load
     - standalone dumper to convert the binary format to pretty-printed show
     undo

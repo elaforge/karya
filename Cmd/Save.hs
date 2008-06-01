@@ -11,6 +11,8 @@ import qualified Util.Log as Log
 
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Edit as Edit
+
 
 version_string = "seq state, 1"
 
@@ -38,9 +40,7 @@ cmd_load maybe_fname = do
         Right st -> return st
 
     State.modify (const ui_state)
-    -- Emit track updates for all tracks, since I don't know where events have
-    -- changed.
-    State.update_all_tracks
+    initialize_state
 
 enoent_exc exc = case Exception.ioErrors exc of
     Just io_error | IO.Error.isDoesNotExistError io_error -> Just io_error
@@ -51,6 +51,14 @@ write filename s = do
         (Directory.renameFile filename (filename ++ ".last"))
         (\_exc -> return ())
     IO.writeFile filename s
+
+-- | Sync UI state up with Cmd state and schedule UI updates.
+initialize_state :: (Monad m) => Cmd.CmdT m ()
+initialize_state = do
+    Edit.sync_edit_box
+    -- Emit track updates for all tracks, since I don't know where events have
+    -- changed.
+    State.update_all_tracks
 
 serialize_ui_state :: State.State -> String
 serialize_ui_state st = show st
