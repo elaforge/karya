@@ -8,6 +8,8 @@ import qualified Util.Data
 import Ui.Types
 import qualified Ui.Color as Color
 
+-- TODO I should just use a TrackPosMap like tracks do.  Then I can share some
+-- of the utilities.
 
 data Ruler = Ruler {
     -- | It's handy for marklists to have symbolic names, but their order is
@@ -18,18 +20,20 @@ data Ruler = Ruler {
     , ruler_use_alpha :: Bool
     , ruler_full_width :: Bool
     } deriving (Eq, Show, Read)
+ruler = Ruler
 
 newtype RulerId = RulerId String deriving (Eq, Ord, Show, Read)
 type MarklistName = String
+type PosMark = (TrackPos, Mark)
 
-data Marklist = Marklist (IArray.Array Int (TrackPos, Mark))
+data Marklist = Marklist (IArray.Array Int PosMark)
     deriving (Eq, Show, Read)
 -- If I used a Map here instead of an Array I could reuse functions from
 -- EventList.  On the other hand, there aren't that many to reuse and arrays
 -- are compact, so I'll let it be.
 
 -- | Construct a Marklist.
-marklist :: String -> [(TrackPos, Mark)] -> (MarklistName, Marklist)
+marklist :: String -> [PosMark] -> (MarklistName, Marklist)
 marklist name posmarks =
     (name, Marklist $ IArray.listArray (0, length posmarks-1) posmarks)
 
@@ -47,14 +51,14 @@ instance Pretty Mark where
     pretty m = "<mark: " ++ show (mark_rank m) ++ name ++ ">"
         where name = if null (mark_name m) then "" else " " ++ mark_name m
 
-at :: Marklist -> TrackPos -> ([(TrackPos, Mark)], [(TrackPos, Mark)])
+at :: Marklist -> TrackPos -> ([PosMark], [PosMark])
 at (Marklist a) pos = (map (a!) [i-1, i-2..low], map (a!) [i..high])
     where
     i = Util.Data.bsearch_on fst a pos
     (low, high) = IArray.bounds a
 
 -- | Marks starting at the first mark >= the given pos, to the end.
-forward :: Marklist -> TrackPos -> [(TrackPos, Mark)]
+forward :: Marklist -> TrackPos -> [PosMark]
 forward marklist pos = snd (at marklist pos)
 
 -- | Like 'forward', but don't include a mark equal to @pos@.
@@ -64,5 +68,5 @@ forward_from marklist pos
     where marks = forward marklist pos
 
 -- | Marks starting at the first mark <= the given pos, to the beginning.
-backward :: Marklist -> TrackPos -> [(TrackPos, Mark)]
+backward :: Marklist -> TrackPos -> [PosMark]
 backward marklist pos = fst (at marklist pos)

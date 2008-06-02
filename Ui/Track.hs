@@ -75,6 +75,7 @@ insert_events pos_events events =
 
 -- | Remove events between @start@ and @end@, not including @end@.
 -- As an exception to the above, events exactly at @start@ are always deleted.
+remove_events :: TrackPos -> TrackPos -> TrackEvents -> TrackEvents
 remove_events start end track_events
     | start == end = emap (Map.delete start) track_events
     | otherwise = emap (`Map.difference` deletes) track_events
@@ -106,6 +107,11 @@ event_at track_events pos = case forward track_events pos of
 -- | Return the position at the end of the event.
 event_end :: PosEvent -> TrackPos
 event_end (pos, evt) = pos + Event.event_duration evt
+
+events_in_range :: TrackPos -> TrackPos -> TrackEvents -> [PosEvent]
+events_in_range start end events = Map.toAscList within
+    where
+    (_, within, _) = Util.Data.split3_map start end (event_map events)
 
 -- * private implementation
 

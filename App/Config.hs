@@ -27,11 +27,6 @@ initialize_lang_port =
 message_complete_token :: String
 message_complete_token = "\n\NUL"
 
--- * rulers
-
-meter_ruler :: Ruler.MarklistName
-meter_ruler = "meter"
-
 -- * selnums
 
 -- | SelNum of the insertion point.
@@ -66,6 +61,7 @@ style = Font.TextStyle Font.Helvetica [] 9 Color.black
 make_selection_color = Color.alpha 0.3 . Color.lighten 0.8
 
 track_bg = Color.white
+ruler_bg = Color.rgb 1 0.85 0.5
 
 block_config = Block.Config
     { Block.config_selection_colors =

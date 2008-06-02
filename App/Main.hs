@@ -110,8 +110,8 @@ setup_cmd = do
     overlay <- State.create_ruler "r1.overlay"
         =<< fmap TestSetup.overlay_ruler (State.get_ruler ruler)
 
-    t1 <- State.create_track "b1.t1" empty_track -- TestSetup.event_track_1
-    t2 <- State.create_track "b1.t2" empty_track -- TestSetup.event_track_2
+    t1 <- State.create_track "b1.t1" empty_track
+    t2 <- State.create_track "b1.t2" empty_track
     b1 <- State.create_block "b1" $ Block.block "hi b1"
         Config.block_config (Block.RId ruler)
         [(Block.TId t1 overlay, 40), (Block.TId t2 overlay, 40)]
