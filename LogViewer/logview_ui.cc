@@ -47,8 +47,9 @@ LogView::LogView(int X, int Y, int W, int H, MsgCallback cb) :
 
     status.textsize(default_font_size);
     command.textsize(default_font_size);
-
     command.callback(LogView::command_cb, static_cast<void *>(this));
+    // Wrap at the edge of the widget.
+    display.wrap_mode(true, 0);
     display.scrollbar_width(0);
     display.textfont(FL_HELVETICA);
     display.textsize(8);

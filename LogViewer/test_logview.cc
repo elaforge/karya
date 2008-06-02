@@ -20,9 +20,9 @@ main(int argc, char **argv)
     view.show(argc, argv);
     print_children(&view);
 
-    FILE *fp = fopen("Log/seq.log", "r");
-    char line[256];
-    char style[256];
+    FILE *fp = fopen("LogViewer/seq.log", "r");
+    char line[1024];
+    char style[1024];
     for (int i = 0; fgets(line, sizeof line, fp); i++) {
         int s;
         if (i % 4 == 0)
