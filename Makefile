@@ -55,7 +55,7 @@ test_block: fltk/test_block.o fltk/fltk.a
 	$(CXX) -o $@ $^ $(LDFLAGS) # $(DIRECT_LINK)
 	$(REZ)
 
-test_logview: log/test_logview.o log/logview_ui.o fltk/f_util.o
+test_logview: LogViewer/test_logview.o LogViewer/logview_ui.o fltk/f_util.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 	$(REZ)
 
@@ -87,7 +87,7 @@ test_midi: $(MIDI_HS)
 
 .PHONY: seq
 seq: $(UI_HS) $(UI_OBJS) $(MIDI_HS) fltk/fltk.a
-	$(GHC) $(HFLAGS) --make \
+	$(GHC) $(HFLAGS) -package ghc --make \
 		-main-is App.Main App/Main.hs \
 		$(UI_OBJS) fltk/fltk.a \
 		$(MIDI_LIBS) `fltk-config --ldflags` \
@@ -109,6 +109,7 @@ LOGVIEW_HS = LogViewer/LogViewC.hs
 logview: $(LOGVIEW_OBJ)
 	$(GHC) $(HFLAGS) --make -main-is LogViewer.LogView $^ -o $@ \
 		`fltk-config --ldflags`
+	$(REZ)
 
 .PHONY: doc
 doc:

@@ -24,12 +24,14 @@ data State = State {
     , state_status :: Status
     , state_msgs :: [Log.Msg]
     } deriving (Show)
-initial_state = State "" [] Map.empty []
+initial_state = State (compile_filter "") [] Map.empty []
 
 -- ** filter
 
 -- | Filter language.
-type Filter = String
+data Filter = Filter String (Log.Msg -> String -> Bool)
+instance Show Filter where
+    show (Filter src _) = "compile_filter " ++ show src
 
 -- ** catch
 
@@ -74,8 +76,18 @@ catch_patterns patterns text = Map.fromList $ concatMap match patterns
         Nothing -> []
         Just ms -> map ((,) title) ms
 
--- TODO implement filter language
-eval_filter filter msg text = filter `List.isInfixOf` text
+-- ** filter
+
+-- TODO implement a better language
+compile_filter :: String -> Filter
+compile_filter s = Filter s f
+    where
+    (not_has_, has) = List.partition ("-" `List.isPrefixOf`) (words s)
+    not_has = map (drop 1) not_has_
+    f _msg text = all (`List.isInfixOf` text) has
+        && not (any (`List.isInfixOf` text) not_has)
+
+eval_filter (Filter _ pred) msg text = pred msg text
 
 
 -- * format_msg
@@ -84,16 +96,16 @@ format_msg :: Log.Msg -> StyledText
 format_msg msg = run_formatter $ do
     emit $ replicate (fromEnum (Log.msg_prio msg) + 1) '*'
     emit "\t"
-    maybe (return ()) emit_srcpos (Log.msg_caller msg)
     let style = if Log.msg_prio msg < Log.Warn
             then style_plain else style_warn
+    maybe (return ()) (emit_srcpos style) (Log.msg_caller msg)
     with_style style (Log.msg_text msg)
     emit "\n"
 
 run_formatter = render_styles . Writer.execWriter
 
-emit_srcpos (file, func_name, line) = do
-    emit $ file ++ ":" ++ show line ++ " "
+emit_srcpos style (file, func_name, line) = do
+    with_style style $ file ++ ":" ++ show line ++ " "
     maybe (return ())
         (\func -> with_style style_emphasis ("[" ++ func ++ "] ")) func_name
 

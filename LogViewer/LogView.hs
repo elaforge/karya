@@ -31,7 +31,7 @@ main :: IO ()
 main = do
     -- [filename] <- Environment.getArgs
     let filename = "seq.log.mach"
-    view <- LogViewC.create_logview 20 20 500 200
+    view <- LogViewC.create_logview 20 20 530 300
 
     log_chan <- STM.newTChanIO
     Concurrent.forkIO (Process.tail_file log_chan filename)
@@ -57,7 +57,8 @@ handle_msgs state log_chan view = flip State.evalStateT state $ forever $ do
         FilterChanged expr -> do
             -- clear and redisplay msgs with new filter
             send $ LogViewC.clear_logs view
-            State.modify $ \st -> st { Process.state_filter = expr }
+            State.modify $ \st ->
+                st { Process.state_filter = Process.compile_filter expr }
             all_msgs <- fmap (reverse . Process.state_msgs) State.get
             mapM_ (handle_new_msg view) all_msgs
 

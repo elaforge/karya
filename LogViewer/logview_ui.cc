@@ -45,6 +45,9 @@ LogView::LogView(int X, int Y, int W, int H, MsgCallback cb) :
     status.box(FL_FLAT_BOX);
     display.box(FL_THIN_DOWN_BOX);
 
+    status.textsize(default_font_size);
+    command.textsize(default_font_size);
+
     command.callback(LogView::command_cb, static_cast<void *>(this));
     display.scrollbar_width(0);
     display.textfont(FL_HELVETICA);
