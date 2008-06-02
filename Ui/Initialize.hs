@@ -67,4 +67,5 @@ foreign import ccall "ui_wait" wait :: IO ()
 foreign import ccall "ui_awake" awake :: IO ()
 
 handle_actions acts_mvar = MVar.modifyMVar_ acts_mvar $ \acts ->
-    sequence_ acts >> return []
+    -- Since acts are added to the front, reverse them before executing.
+    sequence_ (reverse acts) >> return []
