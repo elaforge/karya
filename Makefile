@@ -42,7 +42,7 @@ test/hspp: test/hspp.hs
 .PHONY: clean
 clean:
 	rm -f *.o *.hi fixdeps \
-		*/*.o */*.hi fltk/fltk.a $(UI_HS) $(MIDI_HS) haddock/* \
+		*/*.o */*.hi fltk/fltk.a $(UI_HS) $(MIDI_HS) $(LOGVIEW_HS) haddock/* \
 		$(TESTS)
 
 fltk/fltk.a: $(FLTK_OBJS)
@@ -53,6 +53,10 @@ DIRECT_LINK = /usr/local/src/fltk/lib/libfltk.a \
 	-lpthread -framework Carbon -framework ApplicationServices
 test_block: fltk/test_block.o fltk/fltk.a
 	$(CXX) -o $@ $^ $(LDFLAGS) # $(DIRECT_LINK)
+	$(REZ)
+
+test_logview: log/test_logview.o log/logview_ui.o fltk/f_util.o
+	$(CXX) -o $@ $^ $(LDFLAGS)
 	$(REZ)
 
 UI_HSC = $(wildcard Ui/*.hsc)
@@ -96,6 +100,15 @@ send: App/Send.hs
 .PHONY: repl
 repl: App/Repl.hs
 	$(GHC) $(HFLAGS) --make $^ -o $@
+
+LOGVIEW_OBJ = LogViewer/LogView.hs LogViewer/LogViewC.hs \
+	LogViewer/interface.o LogViewer/logview_ui.o
+LOGVIEW_HS = LogViewer/LogViewC.hs
+
+.PHONY: logview
+logview: $(LOGVIEW_OBJ)
+	$(GHC) $(HFLAGS) --make -main-is LogViewer.LogView $^ -o $@ \
+		`fltk-config --ldflags`
 
 .PHONY: doc
 doc:

@@ -24,3 +24,17 @@ m1 #>> m2 = do
     m2
     return v
 
+while :: (Monad m) => m Bool -> m a -> m [a]
+while cond op = do
+    b <- cond
+    case b of
+        True -> do
+            val <- op
+            rest <- while cond op
+            return (val:rest)
+        False -> return []
+
+while_ :: (Monad m) => m Bool -> m a -> m ()
+while_ cond op = do
+    b <- cond
+    if b then op >> while_ cond op else return ()

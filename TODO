@@ -83,8 +83,8 @@ fltk
 
 logging
   - haskell and c++ use the same machine readable format
-  - log to a file
-  - log filtering / visualizing tool
+  * log to a file
+  * log filtering / visualizing tool
   * add surrounding function to SrcPos
 
 Ui

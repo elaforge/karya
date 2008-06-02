@@ -19,6 +19,7 @@ module Util.Log (
     initialize
     -- * msgs
     , Msg(..), Prio(..)
+    , msg, msg_srcpos
     , debug, notice, warn, error
     , debug_srcpos, notice_srcpos, warn_srcpos, error_srcpos
     , debug_stack, notice_stack, warn_stack, error_stack
@@ -27,9 +28,13 @@ module Util.Log (
     -- * LogT monad
     , LogMonad
     , LogT, write, run
+    -- * serialization
+    , format_msg
+    , deserialize_msg
 ) where
 import Prelude hiding (error, log)
 import qualified Control.Concurrent.MVar as MVar
+import qualified Control.Exception as Exception
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Trans as Trans
 import qualified Data.Time as Time
@@ -58,18 +63,22 @@ data Msg = Msg {
     , msg_stack :: Maybe Stack
     -- -- | Higher level context info for the msg.
     -- , msg_context :: [Context]
-    } deriving (Eq, Show, Typeable.Typeable)
+    } deriving (Eq, Show, Typeable.Typeable, Read)
 
-data State = State IO.Handle
+-- | One handle for the machine readable log, and one for the human readable
+-- one.
+data State = State IO.Handle IO.Handle
 global_state = Unsafe.unsafePerformIO MVar.newEmptyMVar
 
 -- | Configure the log system to write to the given file.  Only call this once,
 -- and call it before any calls to @write@, or to a log function in IO.
 initialize :: IO.FilePath -> IO ()
 initialize file = do
-    hdl <- IO.openFile file IO.AppendMode
-    IO.hSetBuffering hdl IO.LineBuffering
-    MVar.putMVar global_state (State hdl)
+    mach_hdl <- IO.openFile (file ++ ".mach") IO.AppendMode
+    IO.hSetBuffering mach_hdl IO.LineBuffering
+    human_hdl <- IO.openFile file IO.AppendMode
+    IO.hSetBuffering human_hdl IO.LineBuffering
+    MVar.putMVar global_state (State mach_hdl human_hdl)
 
 -- | (schema_stack, event_stack)
 type Stack = [Warning.CallPos]
@@ -86,11 +95,12 @@ data Prio
     | Warn
     -- | Code error in the app, which may quit after printing this.
     | Error
-    deriving (Show, Enum, Eq, Ord)
+    deriving (Show, Enum, Eq, Ord, Read)
 
 -- | Create a msg with the give prio and text.
 msg_srcpos :: Misc.SrcPos -> Prio -> String -> Maybe Stack -> Msg
 msg_srcpos srcpos prio text stack = Msg Nothing srcpos prio text stack
+msg = msg_srcpos Nothing
 
 
 log :: LogMonad m => Prio -> Misc.SrcPos -> String -> m ()
@@ -136,10 +146,12 @@ class Monad m => LogMonad m where
 instance LogMonad IO where
     write msg = do
         msg' <- add_time msg
-        MVar.withMVar global_state $ \(State hdl) ->
-            IO.hPutStrLn hdl (default_show msg')
+        MVar.withMVar global_state $ \(State mach_hdl human_hdl) -> do
+            IO.hPutStrLn mach_hdl (serialize_msg msg')
+            IO.hPutStrLn human_hdl (format_msg msg')
 -- TODO show the date, if any
-default_show (Msg { msg_date = _date, msg_caller = srcpos, msg_prio = prio
+format_msg :: Msg -> String
+format_msg (Msg { msg_date = _date, msg_caller = srcpos, msg_prio = prio
         , msg_text = text, msg_stack = stack }) =
     msg ++ maybe "" ((++" ") . show) stack
     where
@@ -169,6 +181,13 @@ run_log_t (LogT x) = x
 
 run :: Monad m => LogT m a -> m (a, [Msg])
 run = Logger.run . run_log_t
+
+-- * serialize
+
+serialize_msg :: Msg -> String
+serialize_msg = show
+deserialize_msg :: String -> IO (Either Exception.Exception Msg)
+deserialize_msg msg = Exception.try (readIO msg)
 
 
 -- unused
