@@ -8,7 +8,6 @@ import qualified Network
 
 import qualified Util.Log as Log
 
-import Ui.Types
 import qualified Ui.Initialize as Initialize
 import qualified Ui.State as State
 

@@ -32,7 +32,7 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Typeable as Typeable
 
 import qualified Util.Seq as Seq
--- import qualified Util.Log as Log
+import qualified Util.Log as Log
 import qualified Util.Logger as Logger
 
 import Ui.Types
@@ -316,6 +316,13 @@ set_block_title :: (UiStateMonad m) => Block.BlockId -> String -> m ()
 set_block_title block_id title =
     modify_block block_id (\block -> block { Block.block_title = title })
 
+-- | Set a status variable on all blocks.
+set_status :: (UiStateMonad m, Log.LogMonad m) => String -> Maybe String -> m ()
+set_status key val = do
+    block_ids <- fmap (Map.keys . state_blocks) get
+    forM_ block_ids $ \block_id -> set_block_status block_id key val
+
+-- | Set a status variable on just one block.
 set_block_status :: (UiStateMonad m) => Block.BlockId -> String -> Maybe String
     -> m ()
 set_block_status block_id key val =

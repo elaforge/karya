@@ -157,19 +157,44 @@ cmd_remove_events = do
         else State.remove_events track_id start (start + dur)
     return Cmd.Done
 
-cmd_set_step :: TimeStep.TimeStep -> Cmd.CmdId
-cmd_set_step step = do
-    Cmd.modify_state $ \st -> st { Cmd.state_step = step }
-    return Cmd.Done
-
 cmd_meter_step :: Int -> Cmd.CmdId
 cmd_meter_step rank = do
-    cmd_set_step (TimeStep.UntilMark
-        (TimeStep.NamedMarklists ["meter"]) (TimeStep.MatchRank rank))
-    -- TODO this should go to a global state display either in the logviewer
-    -- or seperate
-    Log.notice $ "set step: meter " ++ show rank
+    let step = (TimeStep.UntilMark
+            (TimeStep.NamedMarklists ["meter"]) (TimeStep.MatchRank rank))
+    Cmd.modify_state $ \st -> st { Cmd.state_step = step }
+    sync_step
     return Cmd.Done
+
+sync_step :: (Monad m) => Cmd.CmdT m ()
+sync_step = do
+    step <- fmap Cmd.state_step Cmd.get_state
+    State.set_status status_step (Just (show_step step))
+
+show_step (TimeStep.Absolute pos) = "abs:" ++ show pos
+show_step (TimeStep.UntilMark mlists match) =
+    "until:" ++ show_marklists mlists ++ "/" ++ show_match match
+show_step (TimeStep.MarkDistance mlists match) =
+    "dist:" ++ show_marklists mlists ++ "/" ++ show_match match
+
+show_match (TimeStep.MatchRank rank) = "r" ++ show rank
+
+show_marklists TimeStep.AllMarklists = "all"
+show_marklists (TimeStep.NamedMarklists mlists) = Seq.join "," mlists
+
+cmd_modify_octave :: (Monad m) => (Int -> Int) -> Cmd.CmdM m
+cmd_modify_octave f = do
+    Cmd.modify_state $ \st -> st
+        { Cmd.state_kbd_entry_octave = f (Cmd.state_kbd_entry_octave st) }
+    sync_octave_status
+    return Cmd.Done
+
+sync_octave_status :: (Monad m) => Cmd.CmdT m ()
+sync_octave_status = do
+    octave <- fmap Cmd.state_kbd_entry_octave Cmd.get_state
+    State.set_status status_octave (Just (show octave))
+
+status_octave = "octave"
+status_step = "step"
 
 -- * util
 

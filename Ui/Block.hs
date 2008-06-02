@@ -37,8 +37,8 @@ data Block = Block {
 
 block title config ruler tracks schema_id =
     Block title Map.empty config ruler tracks schema_id
-show_status :: Block -> [Char]
-show_status = Seq.join " }{ " . map (\(k, v) -> k ++ ": " ++ v)
+show_status :: Block -> String
+show_status = Seq.join " || " . map (\(k, v) -> k ++ ": " ++ v)
     . Map.assocs . block_status
 
 data Config = Config {

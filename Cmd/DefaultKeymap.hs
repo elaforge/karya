@@ -59,7 +59,7 @@ cmd_save = Save.cmd_save Nothing >> return Cmd.Done
 cmd_load = Save.cmd_load Nothing >> return Cmd.Done
 
 misc_bindings =
-    [ bind_key (Key.KeyChar '=') "quit" Cmd.cmd_quit
+    [ bind_kmod [Key.MetaL] (Key.KeyChar '\'') "quit" Cmd.cmd_quit
     ]
 
 selection_bindings =
@@ -82,4 +82,7 @@ edit_bindings =
     , bind_key (Key.KeyChar '2') "step rank 2" (Edit.cmd_meter_step 2)
     , bind_key (Key.KeyChar '3') "step rank 3" (Edit.cmd_meter_step 3)
     , bind_key (Key.KeyChar '4') "step rank 4" (Edit.cmd_meter_step 4)
+
+    , bind_key (Key.KeyChar '-') "octave -1" (Edit.cmd_modify_octave (+ (-1)))
+    , bind_key (Key.KeyChar '=') "octave +1" (Edit.cmd_modify_octave (+1))
     ]

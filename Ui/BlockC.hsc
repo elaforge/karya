@@ -269,7 +269,7 @@ type FunPtrFinalizer a = FunPtr a -> IO ()
 foreign import ccall "wrapper"
     c_make_free_fun_ptr :: FunPtrFinalizer a -> IO (FunPtr (FunPtrFinalizer a))
 make_free_fun_ptr = c_make_free_fun_ptr
-    (\p -> Log.debug ("free: " ++ show p) >> freeHaskellFunPtr p)
+    (\p -> Log.debug ("free callback: " ++ show p) >> freeHaskellFunPtr p)
 -- make_free_fun_ptr = c_make_free_fun_ptr freeHaskellFunPtr
 
 with_tracklike tracklike f = case tracklike of

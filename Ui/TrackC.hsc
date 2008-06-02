@@ -44,11 +44,11 @@ poke_track trackp (Track.Track
 
 make_find_events events = do
     p <- c_make_find_events (cb_find_events events)
-    Log.debug $ "make find events: " ++ show p
+    Log.debug $ "make find events callback: " ++ show p
     return p
 make_last_track_pos events = do
     p <- c_make_last_track_pos (cb_last_track_pos events)
-    Log.debug $ "make last track pos: " ++ show p
+    Log.debug $ "make last track pos callback: " ++ show p
     return p
 
 -- typedef int (*FindEvents)(TrackPos *start_pos, TrackPos *end_pos,

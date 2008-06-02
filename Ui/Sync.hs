@@ -93,6 +93,7 @@ run_update (Update.ViewUpdate view_id Update.CreateView) = do
             BlockC.set_title view_id (Block.block_title block)
         forM_ (zip (Map.keys sels) csels) $ \(selnum, csel) ->
             BlockC.set_selection view_id selnum csel
+        BlockC.set_status view_id (Block.show_status block)
 
 run_update (Update.ViewUpdate view_id update) = do
     case update of

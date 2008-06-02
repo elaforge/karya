@@ -55,7 +55,12 @@ write filename s = do
 -- | Sync UI state up with Cmd state and schedule UI updates.
 initialize_state :: (Monad m) => Cmd.CmdT m ()
 initialize_state = do
+    -- TODO these scattered sync functions are kinda grody.  Isn't there a
+    -- better way to keep track of state that needs to be synced?  Or avoid
+    -- doing it in the first place?
     Edit.sync_edit_box
+    Edit.sync_octave_status
+    Edit.sync_step
     -- Emit track updates for all tracks, since I don't know where events have
     -- changed.
     State.update_all_tracks
