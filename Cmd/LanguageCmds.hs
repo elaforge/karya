@@ -81,6 +81,7 @@ not necessarily.  It's designed to be for human reading and may drop
 -}
 module Cmd.LanguageCmds where
 import qualified Control.Monad.Identity as Identity
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import Text.Printf
@@ -101,6 +102,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.TimeStep as TimeStep
 import qualified Cmd.Language as Language
 import qualified Cmd.Play as Play
+import qualified Cmd.MakeRuler as MakeRuler
 
 import qualified Derive.Score as Score
 import qualified Derive.Schema as Schema
@@ -260,6 +262,12 @@ insert_track block_id tracknum tracklike width = do
     State.insert_track (bid block_id) tracknum tracklike width
 remove_track block_id tracknum = State.remove_track (bid block_id) tracknum
 
+show_events :: String -> TrackPos -> TrackPos -> Cmd String
+show_events track_id start end = do
+    track <- State.get_track (tid track_id)
+    return $ (show_list . map Track.pretty_pos_event
+        . Track.events_in_range start end . Track.track_events) track
+
 -- ** rulers
 
 show_ruler :: Ruler.RulerId -> Cmd String
@@ -283,6 +291,18 @@ show_marklist ruler_id marklist_name = do
     return $ show_list $
         map (\(pos, m) -> printf "%s - %s" (show pos) (pretty m))
             (Ruler.forward mlist (TrackPos 0))
+
+replace_marklist :: Ruler.RulerId -> Ruler.NameMarklist -> Cmd ()
+replace_marklist ruler_id (name, mlist) = do
+    ruler <- State.get_ruler ruler_id
+    i <- case List.findIndex ((==name) . fst) (Ruler.ruler_marklists ruler) of
+        Nothing -> return 0
+        Just i -> State.remove_marklist ruler_id i >> return i
+    State.insert_marklist ruler_id i (name, mlist)
+
+{-
+replace_marklist (rid "r1") (MakeRuler.regular_meter (TrackPos 2048) [4, 8, 4, 4])
+-}
 
 -- * show / modify keymap
 

@@ -6,6 +6,7 @@ import qualified Control.Exception as Exception
 import qualified System.IO as IO
 import Text.Printf
 
+import qualified Util.Seq as Seq
 import qualified Util.Misc as Misc
 
 
@@ -60,8 +61,12 @@ io_human_srcpos srcpos expected_msg op = do
 
 -- | Print a list with newlines between its elements.
 plist :: Show a => [a] -> IO ()
-plist xs = mapM_ (\(i, x) -> putStr (show i ++ ": ") >> print x) (zip [0..] xs)
-    >> putChar '\n'
+plist xs = do
+    mapM_ (\(i, x) -> putStr (show i ++ ": ") >> print x) (Seq.enumerate xs)
+    putChar '\n'
+pslist :: [String] -> IO ()
+pslist xs = putStr $
+    concatMap (\(i, x) -> printf "%02d. %s\n" i x) (Seq.enumerate xs)
 
 pmlist msg xs = putStrLn (msg++":") >> plist xs
 

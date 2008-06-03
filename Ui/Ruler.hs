@@ -14,7 +14,7 @@ import qualified Ui.Color as Color
 data Ruler = Ruler {
     -- | It's handy for marklists to have symbolic names, but their order is
     -- also important.
-    ruler_marklists :: [(MarklistName, Marklist)]
+    ruler_marklists :: [NameMarklist]
     , ruler_bg :: Color
     , ruler_show_names :: Bool
     , ruler_use_alpha :: Bool
@@ -23,6 +23,7 @@ data Ruler = Ruler {
 ruler = Ruler
 
 newtype RulerId = RulerId String deriving (Eq, Ord, Show, Read)
+type NameMarklist = (MarklistName, Marklist)
 type MarklistName = String
 type PosMark = (TrackPos, Mark)
 
@@ -33,7 +34,7 @@ data Marklist = Marklist (IArray.Array Int PosMark)
 -- are compact, so I'll let it be.
 
 -- | Construct a Marklist.
-marklist :: String -> [PosMark] -> (MarklistName, Marklist)
+marklist :: MarklistName -> [PosMark] -> NameMarklist
 marklist name posmarks =
     (name, Marklist $ IArray.listArray (0, length posmarks-1) posmarks)
 

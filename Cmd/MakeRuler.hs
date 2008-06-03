@@ -1,7 +1,9 @@
 {- | Functions to construct and modify rulers and their marklists.
 -}
 module Cmd.MakeRuler where
+import qualified Data.List as List
 import qualified Data.Map as Map
+
 import Ui.Types
 import qualified Ui.Color as Color
 import qualified Ui.Ruler as Ruler
@@ -42,9 +44,6 @@ meter_marklist = "meter"
 -- (mark_color, (rank, width, zoom_level), divisions)
 type MeasureConfig = (Color.Color, (Integer, Integer, Double), Integer)
 
-m44_configs :: [MeasureConfig]
-m44_configs = [(color, rank, 4) | (color, rank) <- zip meter_colors meter_ranks]
-
 -- | The mark color defaults to mostly transparent so it looks nice on overlay
 -- rulers.
 mcolor r g b = Color.rgba r g b 0.35
@@ -52,7 +51,8 @@ mcolor r g b = Color.rgba r g b 0.35
 -- | Colors used for the meter marklist, in order of increasing rank.
 meter_colors :: [Color.Color]
 meter_colors =
-    [ mcolor 0.4 0.3 0.0 -- whole
+    [ mcolor 0.0 0.0 0.0 -- block section
+    , mcolor 0.4 0.3 0.0 -- whole
     , mcolor 1.0 0.4 0.2 -- quarter
     , mcolor 1.0 0.2 0.7 -- 16th
     , mcolor 0.1 0.5 0.1 -- 64th
@@ -62,7 +62,8 @@ meter_colors =
 -- | Rank descriptions, used with 'meter_colors' to form [MeasureConfig].
 meter_ranks :: [(Integer, Integer, Double)]
 meter_ranks =
-    [ (1, 3, 0.1)
+    [ (0, 3, 0)
+    , (1, 3, 0.1)
     , (2, 2, 1)
     , (3, 1, 4)
     , (4, 1, 16)
@@ -83,17 +84,15 @@ as_overlay ruler = ruler
     , Ruler.ruler_full_width = True
     }
 
--- ** construct a meter
+-- ** construct meters
 
-m44 = make_meter (TrackPos 64) (take 2 m44_configs)
-pretty_marks pos_marks = pslist $
-    map (\(p, m) -> printf "%s:\t%d '%s'"
-        (show p) (Ruler.mark_rank m) (Ruler.mark_name m))
-    pos_marks
+regular_meter :: TrackPos -> [Integer] -> Ruler.NameMarklist
+regular_meter dur divs = Ruler.marklist meter_marklist (make_marks dur configs)
+    where configs = List.zip3 meter_colors meter_ranks divs
 
-make_meter :: TrackPos -> [MeasureConfig] -> [Ruler.PosMark]
-make_meter until configs = Map.toAscList $ Map.fromAscListWith (flip const) $
-    make_measure "" (TrackPos 0) until configs
+make_marks :: TrackPos -> [MeasureConfig] -> [Ruler.PosMark]
+make_marks dur configs = Map.toAscList $ Map.fromAscListWith (flip const) $
+    make_measure "" (TrackPos 0) dur configs
 
 -- | Make a measure and the measure levels beneath it, according to the given
 -- MeasureConfigs.
@@ -103,13 +102,30 @@ make_measure _ _ _ [] = []
 make_measure name pos measure_dur (config:rest_config) =
     concat [(pos_at n, mark_at n) : sub_measure n | n <- [0..divisions-1]]
     where
-    mark_at n = Ruler.Mark (fromIntegral rank) (fromIntegral width)
-        color (name_at n) name_zoom zoom
-    pos_at n = pos + sub_measure_dur * TrackPos n
     sub_measure n =
         make_measure (name_at n) (pos_at n) sub_measure_dur rest_config
 
+    mark_at n = mark_config config (name_at n)
+    pos_at n = pos + sub_measure_dur * TrackPos n
+
     name_at n = name ++ (if null name then "" else ".") ++ show n
-    name_zoom = zoom * 2
-    (color, (rank, width, zoom), divisions) = config
+    (_, _, divisions) = config
     sub_measure_dur = measure_dur `div` TrackPos divisions
+
+mark_config :: MeasureConfig -> String -> Ruler.Mark
+mark_config config name = Ruler.Mark (fromIntegral rank) (fromIntegral width)
+        color name (zoom*2) zoom
+    where
+    (color, (rank, width, zoom), _) = config
+
+
+-- * testing
+
+m44_configs :: [MeasureConfig]
+m44_configs = [(color, rank, 4) | (color, rank) <- zip meter_colors meter_ranks]
+
+m44 = make_marks (TrackPos 64) (take 2 m44_configs)
+pretty_marks pos_marks = pslist $
+    map (\(p, m) -> printf "%s: \t%d '%s'"
+        (show p) (Ruler.mark_rank m) (Ruler.mark_name m))
+    pos_marks

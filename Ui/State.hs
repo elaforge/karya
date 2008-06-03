@@ -417,10 +417,10 @@ create_ruler id ruler = get >>= insert (Ruler.RulerId id) ruler state_rulers
     (\rulers st -> st { state_rulers = rulers })
 
 insert_marklist :: (UiStateMonad m) =>
-    Ruler.RulerId -> (Ruler.MarklistName, Ruler.Marklist) -> Int -> m ()
-insert_marklist ruler_id marklist n = modify_ruler ruler_id $ \ruler ->
+    Ruler.RulerId -> Int -> (Ruler.MarklistName, Ruler.Marklist) -> m ()
+insert_marklist ruler_id i marklist = modify_ruler ruler_id $ \ruler ->
     ruler { Ruler.ruler_marklists =
-        Seq.insert_at (Ruler.ruler_marklists ruler) n marklist }
+        Seq.insert_at (Ruler.ruler_marklists ruler) i marklist }
 
 remove_marklist :: (UiStateMonad m) => Ruler.RulerId -> Int -> m ()
 remove_marklist ruler_id n = modify_ruler ruler_id $ \ruler -> ruler
