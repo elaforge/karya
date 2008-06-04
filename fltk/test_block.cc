@@ -108,9 +108,15 @@ void t1_set()
     TextStyle style;
 
     e.push_back(std::make_pair(TrackPos(0),
-        Event("4c#", TrackPos(16), eventc, style)));
+        Event("4c#@$", TrackPos(16), eventc, style)));
     e.push_back(std::make_pair(TrackPos(32),
-        Event("4d-", TrackPos(64), eventc, style)));
+        Event("4d-", TrackPos(4), eventc, style)));
+    e.push_back(std::make_pair(TrackPos(38),
+        Event("5cb", TrackPos(4), eventc, style)));
+    e.push_back(std::make_pair(TrackPos(44),
+        Event("6--", TrackPos(4), eventc, style)));
+    e.push_back(std::make_pair(TrackPos(50),
+        Event("7--", TrackPos(4), eventc, style)));
 }
 
 int
@@ -185,9 +191,10 @@ main(int argc, char **argv)
 
     view.block.insert_track(0, Tracklike(&divider), 8);
     view.block.insert_track(1, Tracklike(&ruler), 25);
-    view.block.insert_track(2, Tracklike(&track, &truler), 50);
+    view.block.insert_track(2, Tracklike(&track, &truler), 30);
     view.block.insert_track(3, Tracklike(&track2, &truler), 50);
 
+    /*
     view.block.set_selection(0, Selection(selection_colors[0],
                 1, TrackPos(60), 4, TrackPos(56)));
     view.block.set_selection(0, Selection(selection_colors[0],
@@ -196,6 +203,7 @@ main(int argc, char **argv)
                 1, TrackPos(0), 4, TrackPos(56)));
     view.block.set_selection(1, Selection(selection_colors[1],
                 1, TrackPos(64), 4, TrackPos(0)));
+    */
 
     // print_children(&view);
     // DEBUG(1);

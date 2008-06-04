@@ -61,7 +61,7 @@ protected:
 
 private:
     void draw_area(Rect area);
-    void draw_upper_layer(int offset, const Event &event);
+    int draw_upper_layer(int offset, const Event &event, int previous_bottom);
 
     EventTrackConfig config;
     ZoomInfo zoom;

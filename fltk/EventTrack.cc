@@ -137,12 +137,14 @@ EventTrackView::draw_area(Rect area)
 
     this->draw_child(this->overlay_ruler);
 
+    int previous_bottom = -999;
     for (int i = 0; i < count; i++) {
         const Event &event = events[i];
         const TrackPos &pos = event_pos[i];
         int offset = y() + this->zoom.to_pixels(pos - this->zoom.offset);
         int height = this->zoom.to_pixels(event.duration);
-        this->draw_upper_layer(offset, event);
+        previous_bottom = this->draw_upper_layer(
+            offset, event, previous_bottom);
     }
     if (count) {
         for (int i = 0; i < count; i++)
@@ -153,23 +155,42 @@ EventTrackView::draw_area(Rect area)
 }
 
 
-void
-EventTrackView::draw_upper_layer(int offset, const Event &event)
+int
+EventTrackView::draw_upper_layer(int offset, const Event &event,
+        int previous_bottom)
 {
+    fl_font(fl_font(), Config::font_size::event);
+    bool overlapped = offset < previous_bottom;
+    int textpos = offset + (fl_height() - fl_descent());
+    int bottom;
     if (event.align_to_bottom) {
         // TODO draw line at bottom, align text on top of it
+        bottom = offset + fl_height(); // or something
     } else {
-        fl_color(FL_RED);
+        // If it overlaps with text above it, don't display the text, and draw
+        // the mark line in abbreviation_color.
+        if (!overlapped) {
+            // TODO set according to style
+            fl_color(FL_BLACK);
+            fl_draw(event.text, x() + 2, textpos);
+
+            // If the text is too long it gets blue-blocked off.
+            Point text_size(0, 0);
+            fl_measure(event.text, text_size.x, text_size.y, false);
+            if (text_size.x > w() - 1) {
+                fl_color(color_to_fl(Config::abbreviation_color));
+                fl_rectf(x()+w() - 2, offset, 2, fl_height());
+            }
+
+            fl_color(FL_RED);
+            bottom = offset + fl_height();
+        } else {
+            fl_color(color_to_fl(Config::abbreviation_color));
+            bottom = previous_bottom;
+        }
         fl_line_style(FL_SOLID, 1);
         fl_line(x() + 1, offset, x()+w() - 2, offset);
-
-        // TODO
-        // if the text is too long it gets blue-blocked off
-        fl_font(fl_font(), Config::font_size::event);
-        int text_h = fl_height() - fl_descent();
-        int textpos = offset + text_h;
-        // TODO set according to style
-        fl_color(FL_BLACK);
-        fl_draw(event.text, x() + 2, textpos);
     }
+
+    return bottom;
 }
