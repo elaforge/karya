@@ -14,7 +14,14 @@ App/ - Core app logic, to tie it all together.  Also has the player logic, that
 Indents are 4 space tabs only.  Nothing is lined up vertically.
 
 When lines are broken, operators go on the second line.  '=' and '<-' are not
-considered operators and go on the previous line.
+considered operators and go on the previous line.  Also ($) goes on the
+previous line, since it's often used with the layout rule to make "blocks".
+
+Major high level types tend to go in a module with their own name.  Many types
+also often have a functional constructor with the lower cased name of the type
+which may provide default arguments and whatnot.  Even though I don't generally
+restrict the "real" constructor from module export list, you should use the
+functional constructor when possible to insulate against changes to the type.
 
 
 

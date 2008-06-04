@@ -4,79 +4,20 @@ of commands in here.
 
 Of course, lang commands can use anything in scope in LanguageEnviron, not just
 these helpers.  That includes all the various cmd_* functions used by the
-keybindings.  Also, keybindings can be invoked directly with the 'keybinding'
-helper.
+keybindings and everything in State.  Also, keybindings can be invoked directly
+with the 'keybinding' helper.
 
 The difference is that the functions here generally take simpler types like
-strings, if they will just be wrapped up in a newtype, like BlockId.  Also,
-there are sometimes *_d variants that will default some of the values.
+strings, if they will just be wrapped up in a newtype, like BlockId.
 
 The various show_* functions print out state generally in a 'show' format, but
-not necessarily.  It's designed to be for human reading and may drop
+not necessarily.  It's designed to be for human reading and may leave out
 "uninteresting" data.
 
-    --- old notes ---
-    Use cases:
-
-        send a simple cmd, "create block"
-    I should be able to just type the command + args with minimum fuss.
-
-        create a one-off compound command, "create 3 copies of this block"
-    Same as above, but it runs in the Cmd monad, and saves as single undo.
-
-        create a compound command and save it, doesn't get run
-    I should just edit a plain module, and tell the UI to include it in its
-    language namespace.  This way I use any editor, and commands use the module
-    namespace, and are easily sharable and distributable by normal means.
-
-        add a custom keybinding
-    Modify the keymap, globally, per block, or per track.
-
-        show blocks without views
-
-        attach a derivation to a track, or set of tracks, or block
-
-        reorder tracks, without messing up the derivation rules
-
-
-    For saved cmds to work, all cmds need to run in a namespace that includes
-    them.  The UI keeps a list of directories, and when a one shot command is
-    compiled, it imports all modules from those directories.  It can also take
-    a signal to recompile and rebind the keymaps.
-
-
-        Block / derivation management
-
-    Because each step in derivation may be exposed as a Block, there needs to be
-    some kind of framework for organizing them.  Also, the order in which they
-    happen is relevant.
-
-    tempo track -> multiply times of everything in the block
-    note track -> substitute sub-blocks, realize note structures (tuplets),
-        realize scale
-
-    contorller1
-    controller2
-        -> combine with controller2, apply static transformation
-
-    ----
-    derived notes
-    controller1 + controller2
-        -> NoteList that gets rendered to Midi / score
-
-
-
-
-        Ways to display a derivation
-
-    A neighboring track in the same block.
-
-    Another block view.
-
-    "Hidden" behind the current block / track, press a key to "descend" one
-    level.
-
-    Not displayed at all, but played of course.
+TODO:
+- can I use Language.Haskell.Parser or haddock to generate a list of toplevel
+names along with their documentation to give the REPL for completion and
+interactive documentation?
 
 -}
 module Cmd.LanguageCmds where
@@ -92,6 +33,7 @@ import Util.Pretty as Pretty
 import qualified Util.PPrint as PPrint
 
 import Ui.Types
+import qualified Ui.Color as Color
 import qualified Ui.Block as Block
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Track as Track
@@ -107,8 +49,11 @@ import qualified Cmd.MakeRuler as MakeRuler
 
 import qualified Derive.Score as Score
 import qualified Derive.Schema as Schema
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Convert as Midi.Convert
+import qualified Perform.Midi.Instrument as Midi.Instrument
+import qualified Perform.Midi.Perform as Midi.Perform
 import qualified Perform.InstrumentDb as InstrumentDb
+import qualified Perform.Warning as Warning
 
 import qualified Midi.Midi as Midi
 
@@ -212,6 +157,7 @@ destroy_view view_id = State.destroy_view (vid view_id)
 
 -- ** blocks
 
+get_focused_block :: Cmd Block.BlockId
 get_focused_block = fmap Block.view_block
     (State.get_view =<< Cmd.get_focused_view)
 
@@ -241,16 +187,14 @@ set_schema block_id schema_id = do
     State.modify_block (bid block_id) $ \block ->
         block { Block.block_schema = sid schema_id }
 
-set_schema_d :: String -> Cmd ()
-set_schema_d schema_id = do
-    block_id <- get_focused_block
-    set_schema (_bid block_id) schema_id
-
 -- ** tracks
 
 -- | Some helpers to make it easier to make TracklikeIds.
+track :: String -> String -> Block.TracklikeId
 track track_id ruler_id = Block.TId (tid track_id) (rid ruler_id)
+ruler :: String -> Block.TracklikeId
 ruler ruler_id = Block.RId (rid ruler_id)
+divider :: Color.Color -> Block.TracklikeId
 divider color = Block.DId (Block.Divider color)
 
 show_track :: String -> Cmd String
@@ -271,10 +215,16 @@ show_events track_id start end = do
 
 -- ** rulers
 
-show_ruler :: Ruler.RulerId -> Cmd String
+{- Examples:
+replace_marklist (rid "r1")
+    (MakeRuler.regular_meter (TrackPos 2048) [4, 8, 4, 4])
+copy_marklist "meter" (rid "r1") (rid "r1.overlay")
+-}
+
+show_ruler :: String -> Cmd String
 show_ruler ruler_id = do
     (Ruler.Ruler mlists bg show_names use_alpha full_width) <-
-        State.get_ruler ruler_id
+        State.get_ruler (rid ruler_id)
     return $ show_record
         [ ("bg", show bg)
         , ("show_names", show show_names), ("use_alpha", show use_alpha)
@@ -282,16 +232,20 @@ show_ruler ruler_id = do
         , ("marklists", show_list (map fst mlists))
         ]
 
-show_marklist :: Ruler.RulerId -> Ruler.MarklistName -> Cmd String
+show_marklist :: String -> Ruler.MarklistName -> Cmd String
 show_marklist ruler_id marklist_name = do
-    ruler <- State.get_ruler ruler_id
-    mlist <- case lookup marklist_name (Ruler.ruler_marklists ruler) of
-        Nothing -> State.throw $
-            "no marklist " ++ show marklist_name ++ " in " ++ show ruler_id
-        Just mlist -> return mlist
+    mlist <- get_marklist (rid ruler_id) marklist_name
     return $ show_list $
         map (\(pos, m) -> printf "%s - %s" (show pos) (pretty m))
             (Ruler.forward mlist (TrackPos 0))
+
+get_marklist :: Ruler.RulerId -> Ruler.MarklistName -> Cmd Ruler.Marklist
+get_marklist ruler_id marklist_name = do
+    ruler <- State.get_ruler ruler_id
+    case lookup marklist_name (Ruler.ruler_marklists ruler) of
+        Nothing -> State.throw $
+            "no marklist " ++ show marklist_name ++ " in " ++ show ruler_id
+        Just mlist -> return mlist
 
 replace_marklist :: Ruler.RulerId -> Ruler.NameMarklist -> Cmd ()
 replace_marklist ruler_id (name, mlist) = do
@@ -301,19 +255,22 @@ replace_marklist ruler_id (name, mlist) = do
         Just i -> State.remove_marklist ruler_id i >> return i
     State.insert_marklist ruler_id i (name, mlist)
 
-{-
-replace_marklist (rid "r1") (MakeRuler.regular_meter (TrackPos 2048) [4, 8, 4, 4])
--}
+copy_marklist :: Ruler.MarklistName -> Ruler.RulerId -> Ruler.RulerId -> Cmd ()
+copy_marklist marklist_name from_ruler_id to_ruler_id = do
+    mlist <- get_marklist from_ruler_id marklist_name
+    replace_marklist to_ruler_id (marklist_name, mlist)
 
 -- * show / modify keymap
 
 -- | Run the Cmd that is bound to the given KeySpec, if there is one.
 -- keymap :: Keymap.KeySpec -> Cmd
 
+-- Modify global keymap
+-- Modify keymap for given schema_id.
 
 -- * midi config
 
-assign_instrument :: String -> Instrument.Addr -> Cmd ()
+assign_instrument :: String -> Midi.Instrument.Addr -> Cmd ()
 assign_instrument inst_name addr = do
     inst <- case InstrumentDb.lookup (Score.Instrument inst_name) of
         Just (InstrumentDb.Midi midi_inst) -> return midi_inst
@@ -323,8 +280,8 @@ assign_instrument inst_name addr = do
         Nothing ->
             State.throw $ "instrument " ++ show inst_name ++ " not found"
     config <- State.get_midi_config
-    State.set_midi_config $ config { Instrument.config_alloc =
-        Map.insert addr inst (Instrument.config_alloc config) }
+    State.set_midi_config $ config { Midi.Instrument.config_alloc =
+        Map.insert addr inst (Midi.Instrument.config_alloc config) }
 
 schema_instruments :: (State.UiStateMonad m) =>
     Block.BlockId -> m [Score.Instrument]
@@ -335,21 +292,32 @@ schema_instruments block_id = do
 -- | Try to automatically create an instrument config based on the instruments
 -- found in the given block.
 auto_config :: (State.UiStateMonad m) =>
-    Midi.WriteDevice -> Block.BlockId -> m Instrument.Config
+    Midi.WriteDevice -> Block.BlockId -> m Midi.Instrument.Config
 auto_config write_device block_id = do
     score_insts <- schema_instruments block_id
     -- TODO warn about insts not found?
     let insts = Maybe.catMaybes $ map InstrumentDb.lookup score_insts
         addrs = [((write_device, chan), inst)
             | (InstrumentDb.Midi inst, chan) <- zip insts [0..]]
-    return $ Instrument.config addrs (Just (write_device, 0))
+    return $ Midi.Instrument.config addrs (Just (write_device, 0))
 
 
--- * derivation
+-- * schema
 
+-- ** derivation
+
+derive :: String -> Cmd [Score.Event]
 derive block_id = do
     block <- State.get_block (bid block_id)
     (result, _) <- Play.derive block
     case result of
         Left err -> State.throw $ "derive error: " ++ show err
         Right events -> return events
+
+score_to_midi :: [Score.Event] -> Cmd ([Midi.WriteMessage], [Warning.Warning])
+score_to_midi events = do
+    inst_config <- fmap State.state_midi_config State.get
+    let (midi_events, convert_warnings) = Midi.Convert.convert events
+        (midi_msgs, perform_warnings) =
+            Midi.Perform.perform inst_config midi_events
+    return (midi_msgs, convert_warnings ++ perform_warnings)

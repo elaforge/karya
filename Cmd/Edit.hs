@@ -1,10 +1,4 @@
 {- | Event editing commands.
-
-    Local state:
-
-    - pitch transpose: Constant value to add to entered pitch numbers.
-    Blocks and tracks may override this, of course.  It's better as
-    a state than as setting the keymap since that's easier to save.
 -}
 module Cmd.Edit where
 import Control.Monad
@@ -17,7 +11,6 @@ import qualified Util.Seq as Seq
 import Ui.Types
 import qualified Ui.Key as Key
 import qualified Ui.Block as Block
-import qualified Ui.Ruler as Ruler
 import qualified Ui.Track as Track
 import qualified Ui.Event as Event
 import qualified Ui.State as State
@@ -41,7 +34,7 @@ import qualified App.Config as Config
 
 -- | A physically played key, either on the midi keyboard or letter keyboard.
 -- This isn't the same as the midi note number because the midi note number
--- represents a certaint tempered pitch, and this one is still user input; it
+-- represents a certain tempered pitch, while this is still user input.  It
 -- has yet to be mapped to a pitch (and may not be, for unpitched sounds).
 type NoteNumber = Int
 

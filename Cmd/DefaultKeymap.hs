@@ -23,7 +23,6 @@ import qualified App.Config as Config
 
 import qualified Ui.Key as Key
 
-import Cmd.Types
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Keymap as Keymap
@@ -79,6 +78,7 @@ edit_bindings =
     , bind_key Key.Backspace "remove event"
         (Edit.cmd_remove_events >> Selection.cmd_advance_insert)
 
+    , bind_key (Key.KeyChar '0') "step rank 0" (Edit.cmd_meter_step 0)
     , bind_key (Key.KeyChar '1') "step rank 1" (Edit.cmd_meter_step 1)
     , bind_key (Key.KeyChar '2') "step rank 2" (Edit.cmd_meter_step 2)
     , bind_key (Key.KeyChar '3') "step rank 3" (Edit.cmd_meter_step 3)

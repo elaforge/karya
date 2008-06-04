@@ -10,8 +10,6 @@ import qualified Util.Seq as Seq
 import Ui.Types
 import qualified Ui.Ruler as Ruler
 
-import Cmd.Types
-
 
 -- | A variable time step, used to find out how much to advance
 -- the cursor, how long an event should be, etc.

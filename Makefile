@@ -66,7 +66,7 @@ UI_OBJS = Ui/c_interface.o
 MIDI_HSC = $(wildcard Midi/*.hsc)
 MIDI_HS = $(MIDI_HSC:hsc=hs)
 
-ALL_HS = $(shell ./all_hs)
+ALL_HS = $(shell ./all_hs.py)
 
 all_hsc: $(UI_HS) $(MIDI_HS)
 
