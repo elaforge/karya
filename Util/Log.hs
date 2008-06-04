@@ -67,18 +67,20 @@ data Msg = Msg {
 
 -- | One handle for the machine readable log, and one for the human readable
 -- one.
-data State = State IO.Handle IO.Handle
-global_state = Unsafe.unsafePerformIO MVar.newEmptyMVar
+data State = State (Maybe IO.Handle) (Maybe IO.Handle)
+initial_state = State Nothing (Just IO.stdout)
+global_state = Unsafe.unsafePerformIO (MVar.newMVar initial_state)
 
--- | Configure the log system to write to the given file.  Only call this once,
--- and call it before any calls to @write@, or to a log function in IO.
+-- | Configure the log system to write to the given file.  Before you call
+-- this, log output will go to stdout.
 initialize :: IO.FilePath -> IO.FilePath -> IO ()
 initialize mach_file file = do
     mach_hdl <- IO.openFile mach_file IO.AppendMode
     IO.hSetBuffering mach_hdl IO.LineBuffering
     human_hdl <- IO.openFile file IO.AppendMode
     IO.hSetBuffering human_hdl IO.LineBuffering
-    MVar.putMVar global_state (State mach_hdl human_hdl)
+    MVar.swapMVar global_state (State (Just mach_hdl) (Just human_hdl))
+    return ()
 
 -- | (schema_stack, event_stack)
 type Stack = [Warning.CallPos]
@@ -143,12 +145,14 @@ error_stack = error_stack_srcpos Nothing
 class Monad m => LogMonad m where
     write :: Msg -> m ()
 
+maybe_do m maybe_val = maybe (return ()) id (fmap m maybe_val)
+
 instance LogMonad IO where
     write msg = do
         msg' <- add_time msg
         MVar.withMVar global_state $ \(State mach_hdl human_hdl) -> do
-            IO.hPutStrLn mach_hdl (serialize_msg msg')
-            IO.hPutStrLn human_hdl (format_msg msg')
+            maybe_do (flip IO.hPutStrLn (serialize_msg msg')) mach_hdl
+            maybe_do (flip IO.hPutStrLn (format_msg msg')) human_hdl
 -- TODO show the date, if any
 format_msg :: Msg -> String
 format_msg (Msg { msg_date = _date, msg_caller = srcpos, msg_prio = prio
