@@ -1,5 +1,6 @@
 module Util.Seq where
 
+import qualified Control.Monad as Monad
 import qualified Data.Char as Char
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
@@ -13,6 +14,9 @@ enumerate :: [a] -> [(Int, a)]
 enumerate = zip [0..]
 
 key_with f xs = zip (map f xs) xs
+
+first_just :: [Maybe a] -> Maybe a
+first_just = Monad.join . find Maybe.isJust
 
 -- * indexing lists
 

@@ -46,7 +46,7 @@ import qualified Midi.PortMidi as PortMidi
 -}
 
 initialize f = do
-    Log.initialize "seq.log"
+    Log.initialize "seq.mach.log" "seq.log"
     Initialize.initialize $ \msg_chan -> MidiC.initialize $ \read_chan ->
         Network.withSocketsDo $ do
             Config.initialize_lang_port

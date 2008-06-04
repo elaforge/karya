@@ -1,6 +1,5 @@
 {- | Commands dealing with selection / cursor movement.
 
-
 -}
 module Cmd.Selection where
 import Control.Monad
@@ -29,35 +28,27 @@ import qualified App.Config as Config
 -- The selection will maintain its current track span, be set to a point, and
 -- advance to the next relevant mark.  "next relevant mark" is the next visible
 -- mark in the ruler to the left.
-cmd_step_selection :: Block.SelNum -> TimeDirection -> Cmd.CmdId
+cmd_step_selection :: Block.SelNum -> TimeStep.TimeDirection -> Cmd.CmdId
 cmd_step_selection selnum dir = do
-    -- there must be a way to shorten this
     view_id <- Cmd.get_focused_view
-    block <- get_view_block view_id
-    step <- Cmd.get_current_step
     sel <- Cmd.require =<< State.get_selection view_id selnum
-    ruler_id <- Cmd.require (relevant_ruler block (Block.sel_start_track sel))
-    ruler <- State.get_ruler ruler_id
 
-    let pos = Block.sel_start_pos sel
-        next = if dir == Advance then TimeStep.advance else TimeStep.rewind
-    case next step (Ruler.ruler_marklists ruler) pos of
-        Nothing -> Log.notice $
-            "can't advance to " ++ show step ++ " from " ++ show pos
-        Just next_pos -> State.set_selection view_id selnum
-            (Block.point_selection (Block.sel_start_track sel) next_pos)
+    new_pos <- step_from
+        (Block.sel_start_track sel) (Block.sel_start_pos sel) dir
+    State.set_selection view_id selnum
+        (Block.point_selection (Block.sel_start_track sel) new_pos)
     return Cmd.Done
 
 -- | Advance the insert selection by the current step, which is a popular thing
 -- to do.
 cmd_advance_insert :: Cmd.CmdId
-cmd_advance_insert = cmd_step_selection Config.insert_selnum Advance
+cmd_advance_insert = cmd_step_selection Config.insert_selnum TimeStep.Advance
 
 -- | Move the selection across tracks by @nshift@.
 cmd_shift_selection :: Block.SelNum -> Int -> Cmd.CmdId
 cmd_shift_selection selnum nshift = do
     view_id <- Cmd.get_focused_view
-    block <- get_view_block view_id
+    block <- State.block_of_view view_id
     sel <- Cmd.require =<< State.get_selection view_id selnum
     let sel' = shift_selection nshift (length (Block.block_tracks block)) sel
     State.set_selection view_id selnum (Just sel')
@@ -118,24 +109,36 @@ shift_selection nshift ntracks sel = sel
     max_track = ntracks - 1
     start' = between 0 max_track (nshift + start)
 
-get_view_block view_id = do
-    view <- State.get_view view_id
-    State.get_block (Block.view_block view)
-
 between low high n = min high (max low n)
 
 -- * util
 
+step_from :: (Monad m) => Block.TrackNum -> TrackPos -> TimeStep.TimeDirection
+    -> Cmd.CmdT m TrackPos
+step_from tracknum pos direction = do
+    block <- State.block_of_view =<< Cmd.get_focused_view
+    step <- Cmd.get_current_step
+    ruler_id <- Cmd.require (relevant_ruler block tracknum)
+    ruler <- State.get_ruler ruler_id
+    let msg = case direction of
+            TimeStep.Advance -> "advance to "
+            TimeStep.Rewind -> "rewind from "
+    case TimeStep.stepper direction step (Ruler.ruler_marklists ruler) pos of
+        Nothing -> do
+            Log.notice $ "can't " ++ msg ++ show step ++ " from " ++ show pos
+            Cmd.abort
+        Just next_pos -> return next_pos
+
 -- | Get the ruler that applies to the given track.  Search left for the
--- closest ruler.
+-- closest ruler that has all the given marklist names.  This includes ruler
+-- tracks and the rulers of event tracks.
 relevant_ruler :: Block.Block -> Block.TrackNum -> Maybe Ruler.RulerId
-relevant_ruler block tracknum = case (ruler, Block.block_ruler_track block) of
-        (Block.RId ruler_id : _, _) -> Just ruler_id
-        (_, Block.RId ruler_id) -> Just ruler_id
-        _ -> Nothing
+relevant_ruler block tracknum =
+    Seq.first_just (map rid_of in_order)
     where
-    is_ruler (Block.RId _) = True
-    is_ruler _ = False
-    tracks = (reverse . Seq.enumerate . map fst) (Block.block_tracks block)
-    ruler = map snd $ dropWhile (not . is_ruler . snd) $
-        dropWhile ((/=tracknum) . fst) tracks
+    in_order = map snd $ dropWhile ((/=tracknum) . fst) $ reverse $
+        zip [-1..] tracks
+    tracks = Block.block_ruler_track block : map fst (Block.block_tracks block)
+    rid_of (Block.RId rid) = Just rid
+    rid_of (Block.TId _ rid) = Just rid
+    rid_of _ = Nothing

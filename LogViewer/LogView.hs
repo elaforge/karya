@@ -30,7 +30,7 @@ default_catch_patterns =
 main :: IO ()
 main = do
     -- [filename] <- Environment.getArgs
-    let filename = "seq.log.mach"
+    let filename = "seq.mach.log"
     view <- LogViewC.create_logview 20 20 530 300
 
     log_chan <- STM.newTChanIO

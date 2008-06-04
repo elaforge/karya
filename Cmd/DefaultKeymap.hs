@@ -33,6 +33,7 @@ import qualified Cmd.Selection as Selection
 import qualified Cmd.Edit as Edit
 import qualified Cmd.Save as Save
 import qualified Cmd.Play as Play
+import qualified Cmd.TimeStep as TimeStep
 
 import qualified Perform.Transport as Transport
 
@@ -64,9 +65,9 @@ misc_bindings =
 
 selection_bindings =
     [ bind_key Key.Down "advance selection" $
-        Selection.cmd_step_selection Config.insert_selnum Advance
+        Selection.cmd_step_selection Config.insert_selnum TimeStep.Advance
     , bind_key Key.Up "rewind selection" $
-        Selection.cmd_step_selection Config.insert_selnum Rewind
+        Selection.cmd_step_selection Config.insert_selnum TimeStep.Rewind
     , bind_key Key.Right "shift selection right" $
         Selection.cmd_shift_selection Config.insert_selnum 1
     , bind_key Key.Left "shift selection left" $

@@ -72,9 +72,9 @@ global_state = Unsafe.unsafePerformIO MVar.newEmptyMVar
 
 -- | Configure the log system to write to the given file.  Only call this once,
 -- and call it before any calls to @write@, or to a log function in IO.
-initialize :: IO.FilePath -> IO ()
-initialize file = do
-    mach_hdl <- IO.openFile (file ++ ".mach") IO.AppendMode
+initialize :: IO.FilePath -> IO.FilePath -> IO ()
+initialize mach_file file = do
+    mach_hdl <- IO.openFile mach_file IO.AppendMode
     IO.hSetBuffering mach_hdl IO.LineBuffering
     human_hdl <- IO.openFile file IO.AppendMode
     IO.hSetBuffering human_hdl IO.LineBuffering

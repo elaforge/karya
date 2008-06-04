@@ -28,6 +28,7 @@ import qualified Cmd.Language as Language
 import qualified Cmd.Msg as Msg
 import qualified Cmd.DefaultKeymap as DefaultKeymap
 import qualified Cmd.Play as Play
+import qualified Cmd.Save as Save
 
 import qualified Derive.Schema as Schema
 
@@ -43,8 +44,9 @@ responder get_msg write_midi get_ts player_chan setup_cmd session = do
     Log.debug "start responder"
     let ui_state = State.empty
         cmd_state = Cmd.empty_state
+        cmd = setup_cmd >> Save.initialize_state >> return Cmd.Done
     (_status, ui_state, cmd_state) <- do
-        cmd_val <- run_cmds Cmd.run_cmd_id ui_state cmd_state [setup_cmd]
+        cmd_val <- run_cmds Cmd.run_cmd_id ui_state cmd_state [cmd]
         handle_cmd_val "initial setup" True write_midi ui_state cmd_val
     loop ui_state cmd_state get_msg write_midi
         (Transport.Info player_chan write_midi get_ts)

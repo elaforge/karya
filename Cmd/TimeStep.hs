@@ -24,9 +24,15 @@ data TimeStep
     | MarkDistance Marklists MarkMatch
     deriving (Show, Read)
 
+-- TODO rename MarklistMatch
 data Marklists = AllMarklists | NamedMarklists [Ruler.MarklistName]
     deriving (Show, Read)
 
+data TimeDirection = Advance | Rewind deriving (Eq, Show)
+
+
+stepper Advance = advance
+stepper Rewind = rewind
 
 -- | Advance the given pos according to step on the ruler.
 advance :: TimeStep -> [(Ruler.MarklistName, Ruler.Marklist)] -> TrackPos

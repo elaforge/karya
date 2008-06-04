@@ -17,6 +17,7 @@ import qualified Util.Seq as Seq
 import Ui.Types
 import qualified Ui.Key as Key
 import qualified Ui.Block as Block
+import qualified Ui.Ruler as Ruler
 import qualified Ui.Track as Track
 import qualified Ui.Event as Event
 import qualified Ui.State as State
@@ -29,6 +30,7 @@ import qualified Derive.Twelve as Twelve
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.TimeStep as TimeStep
+import qualified Cmd.Selection as Selection
 
 import qualified Perform.Midi.Instrument as Instrument
 
@@ -117,10 +119,13 @@ pitch_from_kbd nn = do
 -- | Actually convert the given pitch to an event and insert it.
 insert_pitch :: (Monad m) => Pitch.Pitch -> Cmd.CmdT m ()
 insert_pitch pitch = do
-    (track_id, insert_pos) <- get_insert_pos
+    (insert_pos, tracknum, track_id) <- get_insert_pos
+    end_pos <- Selection.step_from tracknum insert_pos TimeStep.Advance
+    -- assert (end_pos >= insert_pos)
+
     Log.debug $ "insert pitch " ++ show pitch ++ " at "
         ++ show (track_id, insert_pos)
-    let event = Config.event (Twelve.pitch_event pitch) (TrackPos 16)
+    let event = Config.event (Twelve.pitch_event pitch) (end_pos - insert_pos)
     State.insert_events track_id [(insert_pos, event)]
 
 -- * controller entry
@@ -131,7 +136,7 @@ cmd_controller_entry msg = do
     char <- Cmd.require $ case key of
         Key.KeyChar char -> Just char
         _ -> Nothing
-    (track_id, insert_pos) <- get_insert_pos
+    (insert_pos, _, track_id) <- get_insert_pos
     track <- State.get_track track_id
 
     let text = Maybe.fromMaybe "" $ fmap Event.event_text
@@ -200,11 +205,12 @@ status_step = "step"
 
 -- | Specialized 'selected_tracks' that gets the pos and track of the upper
 -- left corner of the insert selection.
-get_insert_pos :: (Monad m) => Cmd.CmdT m (Track.TrackId, TrackPos)
+get_insert_pos :: (Monad m) =>
+    Cmd.CmdT m (TrackPos, Block.TrackNum, Track.TrackId)
 get_insert_pos = do
     (track_ids, sel) <- selected_tracks Config.insert_selnum
     track_id <- Cmd.require (track_ids `Seq.at` 0)
-    return (track_id, Block.sel_start_pos sel)
+    return (Block.sel_start_pos sel, Block.sel_start_track sel, track_id)
 
 selected_tracks :: (Monad m) =>
     Block.SelNum -> Cmd.CmdT m ([Track.TrackId], Block.Selection)

@@ -99,6 +99,7 @@ import qualified Ui.State as State
 
 import qualified Cmd.Cmd as Cmd
 -- import qualified Cmd.Save as Save
+import qualified Cmd.Edit as Edit
 import qualified Cmd.TimeStep as TimeStep
 import qualified Cmd.Language as Language
 import qualified Cmd.Play as Play
@@ -151,7 +152,7 @@ set_step step = Cmd.modify_state $ \st -> st { Cmd.state_step = step }
 show_octave :: Cmd Int
 show_octave = _cmd_state Cmd.state_kbd_entry_octave
 set_octave :: Int -> Cmd ()
-set_octave n = Cmd.modify_state $ \st -> st { Cmd.state_kbd_entry_octave = n }
+set_octave n = Edit.cmd_modify_octave (const n) >> return ()
 
 -- * load / save
 
