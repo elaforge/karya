@@ -181,7 +181,7 @@ main(int argc, char **argv)
     EventTrackConfig track(track_bg, t1_find_events, t1_last_track_pos);
     EventTrackConfig track2(track_bg, t1_find_events, t1_last_track_pos);
 
-    BlockViewWindow view(300, 250, 200, 200, config, view_config,
+    BlockViewWindow view(300, 250, 200, 200, "view1", config, view_config,
             Tracklike(&ruler));
     // view.border(0);
 

@@ -136,7 +136,7 @@ test_modify_ruler = do
         setup_state
         State.insert_track t_block_id 2 (Block.RId t_ruler_id) 30
     state <- io_human "add head-explodes to all rulers" $ run state $ do
-        State.insert_marklist t_ruler_id cues_marklist 1
+        State.insert_marklist t_ruler_id 1 cues_marklist
     state <- io_human "meter goes away" $ run state $ do
         State.remove_marklist t_ruler_id 0
     return ()

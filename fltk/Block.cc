@@ -340,10 +340,11 @@ block_view_window_cb(Fl_Window *win, void *p)
 
 
 BlockViewWindow::BlockViewWindow(int X, int Y, int W, int H,
+        const char *label,
         const BlockModelConfig &model_config,
         const BlockViewConfig &view_config,
         const Tracklike &ruler_track) :
-    Fl_Double_Window(X, Y, W, H),
+    Fl_Double_Window(X, Y, W, H, label),
     block(X, Y, W, H, model_config, view_config, ruler_track),
     testing(false)
 {

@@ -53,8 +53,8 @@ clear_ui_msgs()
 // Block view
 
 BlockViewWindow *
-create(int x, int y, int w, int h, BlockModelConfig *model_config,
-        BlockViewConfig *view_config,
+create(int x, int y, int w, int h, const char *label,
+        BlockModelConfig *model_config, BlockViewConfig *view_config,
         Tracklike *ruler_track, Marklist *marklists, int nmarklists)
 {
     // This is basically a copy and paste of insert_track.
@@ -70,12 +70,12 @@ create(int x, int y, int w, int h, BlockModelConfig *model_config,
             config.marklists.push_back(marklists[i]);
         track->ruler = &config;
         // Pass 'track' while 'config' is still in scope.
-        win = new BlockViewWindow(x, y, w, h, *model_config,
+        win = new BlockViewWindow(x, y, w, h, label, *model_config,
                 *view_config, *track);
         // Don't leave it pointing to out of scope data.
         track->ruler = old_ruler;
     } else {
-        win = new BlockViewWindow(x, y, w, h, *model_config,
+        win = new BlockViewWindow(x, y, w, h, label, *model_config,
                 *view_config, *track);
     }
     win->show();

@@ -34,7 +34,8 @@ test_sync = do
         t1 <- State.create_track "b1.t1" TestSetup.event_track_1
         b1 <- State.create_block "b1" (Block.block "hi b1"
             TestSetup.default_block_config
-            (Block.RId ruler) [(Block.TId t1 ruler, 30)])
+            (Block.RId ruler) [(Block.TId t1 ruler, 30)]
+            no_schema)
         v1 <- State.create_view "v1"
             (Block.view b1 TestSetup.default_rect TestSetup.default_view_config)
         return ()
@@ -51,3 +52,5 @@ right (Left err) = error $ "error: " ++ show err
 right (Right x) = x
 
 pause = putStr "? " >> IO.hFlush IO.stdout >> getLine >> return ()
+
+no_schema = Block.SchemaId "no schema"

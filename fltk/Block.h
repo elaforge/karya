@@ -166,6 +166,7 @@ private:
 class BlockViewWindow : public Fl_Double_Window {
 public:
     BlockViewWindow(int X, int Y, int W, int H,
+            const char *label,
             const BlockModelConfig &model_config,
             const BlockViewConfig &view_config,
             const Tracklike &ruler_track);

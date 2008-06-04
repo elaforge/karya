@@ -146,6 +146,6 @@ long_event_track = Track.modify_events empty_track (Track.insert_events
 
 create_empty_view = do
     let view_id = Block.ViewId "default"
-    send $ BlockC.create_view view_id default_rect
+    send $ BlockC.create_view view_id "some title" default_rect
         default_view_config default_block_config (Block.R default_ruler)
     return view_id

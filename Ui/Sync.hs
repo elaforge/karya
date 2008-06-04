@@ -63,6 +63,9 @@ track_title (Block.TId track_id _) =
     fmap Track.track_title (State.get_track track_id)
 track_title _ = return ""
 
+block_window_title (Block.ViewId view_id) (Block.BlockId block_id) =
+    view_id ++ " (" ++ block_id ++ ")"
+
 -- | Apply the update to the UI.
 -- CreateView Updates will modify the State to add the ViewPtr
 run_update :: Update.Update -> State.StateT IO ()
@@ -80,7 +83,8 @@ run_update (Update.ViewUpdate view_id Update.CreateView) = do
     -- empty view, but this way seems less complicated.
     -- Sync: title, tracks, selection
     send $ do
-        BlockC.create_view view_id (Block.view_rect view)
+        let title = block_window_title view_id (Block.view_block view)
+        BlockC.create_view view_id title (Block.view_rect view)
             (Block.view_config view) (Block.block_config block) ruler_track
         let widths = map Block.track_view_width (Block.view_tracks view)
         forM_ (List.zip4 [0..] tracks widths titles) $

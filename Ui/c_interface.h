@@ -22,7 +22,7 @@ void clear_ui_msgs();
 // I pass a partially constructed RulerConfig and then fill in the vector from
 // the passed c array.
 // This hack is also in insert_track.
-BlockViewWindow *create(int x, int y, int w, int h,
+BlockViewWindow *create(int x, int y, int w, int h, const char *label,
         BlockModelConfig *model_config, BlockViewConfig *view_config,
         Tracklike *ruler_track, Marklist *marklists, int nmarklists);
 void destroy(BlockViewWindow *view, FinalizeCallback finalizer);

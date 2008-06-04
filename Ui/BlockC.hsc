@@ -93,25 +93,25 @@ get_id viewp = do
 -- Phantom type for block view ptrs.
 data CView
 
-create_view :: Block.ViewId -> Block.Rect -> Block.ViewConfig -> Block.Config
-    -> Block.Tracklike -> Fltk ()
-create_view view_id rect view_config block_config ruler_track =
+create_view :: Block.ViewId -> String -> Block.Rect -> Block.ViewConfig
+    -> Block.Config -> Block.Tracklike -> Fltk ()
+create_view view_id window_title rect view_config block_config ruler_track = do
     MVar.modifyMVar_ view_id_to_ptr $ \ptr_map -> do
         when (view_id `Map.member` ptr_map) $
             throw $ show view_id ++ " already in displayed view list: "
                 ++ show (Map.elems ptr_map)
-        viewp <- with block_config $ \configp ->
-            with view_config $ \view_configp ->
+        viewp <- withCString window_title $ \titlep ->
+            with block_config $ \configp -> with view_config $ \view_configp ->
                 with_tracklike ruler_track $ \trackp mlistp len ->
-                    c_create (i x) (i y) (i w) (i h) configp view_configp
-                        trackp mlistp len
+                    c_create (i x) (i y) (i w) (i h) titlep
+                        configp view_configp trackp mlistp len
         return $ Map.insert view_id viewp ptr_map
     where
     Block.Rect (x, y) (w, h) = rect
     i = Util.c_int
 
 foreign import ccall "create"
-    c_create :: CInt -> CInt -> CInt -> CInt -> Ptr Block.Config
+    c_create :: CInt -> CInt -> CInt -> CInt -> CString -> Ptr Block.Config
         -> Ptr Block.ViewConfig -> Ptr TracklikePtr -> Ptr Ruler.Marklist
         -> CInt -> IO (Ptr CView)
 
