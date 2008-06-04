@@ -32,9 +32,11 @@ raised_widget(Fl_Widget *w)
 int
 TrackTile::handle(int evt)
 {
-    // Ahh, the copy-and-pastey goodness.  I have to offer events to any raised
-    // children first.  Since c++ makes it so hard to factor out bits of
-    // code, I just copy and paste.  Good thing my event handling is minimal.
+    // Ahh, the copy-and-pastey goodness.  Offer the event to any raised
+    // children first, and if they don't want it, pass it on to the superclass
+    // as normal.  Since c++ makes it so hard to factor out bits of code,
+    // I just copy and paste.  Good thing my event handling is minimal.
+
     switch (evt) {
     case FL_ENTER:
     case FL_MOVE:
@@ -52,22 +54,7 @@ TrackTile::handle(int evt)
                 }
             }
         }
-        for (int i = 0; i < children(); i++) {
-            if (raised_widget(child(i)))
-                continue;
-            Fl_Widget *c = child(i);
-            if (c->visible() && Fl::event_inside(c)) {
-                if (c->contains(Fl::belowmouse())) {
-                    return c->handle(FL_MOVE);
-                } else {
-                    Fl::belowmouse(c);
-                    if (c->handle(FL_ENTER))
-                        return 1;
-                }
-            }
-        }
-        Fl::belowmouse(this);
-        return 1;
+        return MoveTile::handle(evt);
     case FL_PUSH:
         for (int i = 0; i < children(); i++) {
             if (!raised_widget(child(i)))
@@ -81,21 +68,9 @@ TrackTile::handle(int evt)
                 }
             }
         }
-        for (int i = 0; i < children(); i++) {
-            if (raised_widget(child(i)))
-                continue;
-            Fl_Widget *c = child(i);
-            if (c->takesevents() && Fl::event_inside(c)) {
-                if (c->handle(FL_PUSH)) {
-                    if (Fl::pushed() && !c->contains(Fl::pushed()))
-                        Fl::pushed(c);
-                    return 1;
-                }
-            }
-        }
-        return 0;
+        return MoveTile::handle(evt);
     }
-    return 0;
+    return MoveTile::handle(evt);
 }
 
 

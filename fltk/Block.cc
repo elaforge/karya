@@ -373,7 +373,7 @@ BlockViewWindow::resize(int X, int Y, int W, int H)
 int
 BlockViewWindow::handle(int evt)
 {
-    if (this->testing && evt == FL_KEYDOWN && Fl::event_key() == '=') {
+    if (this->testing && evt == FL_KEYDOWN && Fl::event_key() == FL_Escape) {
         this->hide();
     }
     if (evt == FL_KEYDOWN || evt == FL_KEYUP) {

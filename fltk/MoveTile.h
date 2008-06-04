@@ -26,6 +26,7 @@ If the grab areas overlap it gets confused.  So minimum size should be
 
 #include <FL/Fl_Group.H>
 
+
 class MoveTile : public Fl_Group {
 public:
     // 'no_move' means you get normal Fl_Tile resizing behaviour.
