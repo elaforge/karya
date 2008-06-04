@@ -63,16 +63,16 @@ misc_bindings =
     [ bind_kmod [Key.MetaL] (Key.KeyChar '\'') "quit" Cmd.cmd_quit
     ]
 
+repeating key desc cmd = [bind_key key desc cmd, bind_kmod [key] key desc cmd]
 selection_bindings =
-    [ bind_key Key.Down "advance selection" $
-        Selection.cmd_step_selection Config.insert_selnum TimeStep.Advance
-    , bind_key Key.Up "rewind selection" $
-        Selection.cmd_step_selection Config.insert_selnum TimeStep.Rewind
-    , bind_key Key.Right "shift selection right" $
-        Selection.cmd_shift_selection Config.insert_selnum 1
-    , bind_key Key.Left "shift selection left" $
-        Selection.cmd_shift_selection Config.insert_selnum (-1)
-    ]
+    repeating Key.Down "advance selection"
+        (Selection.cmd_step_selection Config.insert_selnum TimeStep.Advance)
+    ++ repeating Key.Up "rewind selection"
+        (Selection.cmd_step_selection Config.insert_selnum TimeStep.Rewind)
+    ++ repeating Key.Right "shift selection right"
+        (Selection.cmd_shift_selection Config.insert_selnum 1)
+    ++ repeating Key.Left "shift selection left"
+        (Selection.cmd_shift_selection Config.insert_selnum (-1))
 
 edit_bindings =
     [ bind_key Key.Escape "toggle edit mode" Edit.cmd_toggle_edit
