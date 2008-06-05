@@ -36,13 +36,54 @@ cmd_step_selection selnum dir = do
 
     new_pos <- step_from
         (Block.sel_start_track sel) (Block.sel_start_pos sel) dir
-    set_selection view_id selnum
+    select_and_scroll view_id selnum
         (Block.point_selection (Block.sel_start_track sel) new_pos)
     return Cmd.Done
 
-set_selection view_id selnum sel = do
+-- | All selection setting that wants to automatically scroll the window to
+-- follow the selection should use this function.
+select_and_scroll :: (Monad m) =>
+     Block.ViewId -> Block.SelNum -> Maybe Block.Selection -> Cmd.CmdT m ()
+select_and_scroll view_id selnum sel = do
+    old_sel <- State.get_selection view_id selnum
     State.set_selection view_id selnum sel
     sync_selection_status view_id
+    case (old_sel, sel) of
+        (Just sel1, Just sel2) -> auto_scroll view_id sel1 sel2
+        _ -> return ()
+
+-- | If @sel2@ has scrolled off the edge of the window, automatically scroll
+-- it so that the selection is in view.  @sel1@ is needed to determine the
+-- direction of the scroll.
+-- TODO implement track scrolling
+auto_scroll :: (Monad m) => Block.ViewId -> Block.Selection
+    -> Block.Selection -> Cmd.CmdT m ()
+auto_scroll view_id sel1 sel2 = do
+    view <- State.get_view view_id
+    let zoom = Block.view_zoom view
+        view_start = Block.zoom_offset zoom
+        view_end = view_start + Block.visible_view_area view
+        -- Scroll by 1/4 of the visible screen.
+        extra_space = floor $
+            fromIntegral (Block.visible_view_area view) / 4
+        offset = scroll_with_selection sel1 sel2
+                (Block.zoom_offset zoom) view_end extra_space
+    State.set_zoom view_id (zoom { Block.zoom_offset = offset })
+    Cmd.sync_zoom_status view_id
+
+-- | If the moving edge of the selection is going out of the visible area,
+-- scroll to put it into view plus a little extra space.  If both edges are
+-- moving, don't scroll.
+scroll_with_selection (Block.Selection num1 start1 tracks1 dur1)
+        (Block.Selection num2 start2 tracks2 dur2) view_start view_end extra
+    | start2 >= start1 && end2 > view_end =
+        end2 - (view_end - view_start) + extra -- scroll down
+    | start2 < view_start =
+        start1 - extra -- scroll up
+    | otherwise = view_start -- no scroll
+    where
+    end1 = start1 + dur1
+    end2 = start2 + dur2
 
 sync_selection_status view_id = do
     maybe_sel <- State.get_selection view_id Config.insert_selnum
@@ -68,7 +109,7 @@ cmd_shift_selection selnum nshift = do
     block <- State.block_of_view view_id
     sel <- Cmd.require =<< State.get_selection view_id selnum
     let sel' = shift_selection nshift (length (Block.block_tracks block)) sel
-    set_selection view_id selnum (Just sel')
+    select_and_scroll view_id selnum (Just sel')
     return Cmd.Done
 
 -- | Set the selection based on a click or drag.
@@ -93,7 +134,7 @@ cmd_mouse_selection btn selnum msg = do
         _ -> Nothing
     let sel = selection_from_mouse down_at mouse_at
     Log.debug $ "drag sel from " ++ show down_at ++ " --> " ++ show mouse_at
-    set_selection view_id selnum (Just sel)
+    select_and_scroll view_id selnum (Just sel)
     return Cmd.Done
 
 mouse_mod msg = do

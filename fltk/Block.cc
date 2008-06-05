@@ -173,12 +173,16 @@ void
 BlockView::set_zoom(const ZoomInfo &zoom)
 {
     // As with set_track_scroll, clamp the time scroll to time_end().
-    int track_h = track_tile.h() - view_config.track_title_height;
-    TrackPos height = zoom.to_trackpos(track_h);
-    TrackPos max_pos = std::max(TrackPos(0), track_tile.time_end() - height);
+    // Actually, it's important to be able to scroll down to areas without
+    // events, so I'm going to comment this out for now.
+    // int track_h = track_tile.h() - view_config.track_title_height;
+    // TrackPos height = zoom.to_trackpos(track_h);
+    // TrackPos max_pos = std::max(TrackPos(0), track_tile.time_end() - height);
+    //
+    // this->zoom = ZoomInfo(clamp(TrackPos(0), max_pos, zoom.offset),
+    //         zoom.factor);
 
-    this->zoom = ZoomInfo(clamp(TrackPos(0), max_pos, zoom.offset),
-            zoom.factor);
+    this->zoom = zoom;
     this->track_tile.set_zoom(this->zoom);
     this->ruler_track->set_zoom(this->zoom);
     this->update_scrollbars();
@@ -209,6 +213,8 @@ BlockView::set_selection(int selnum, const Selection &sel)
     ASSERT(0 <= selnum && selnum < Config::max_selections);
     for (int i = 0; i < tracks(); i++)
         track_at(i)->set_selection(selnum, i, sel);
+    // Since the selection counts toward time_end.
+    this->update_scrollbars();
 }
 
 

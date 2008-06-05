@@ -87,6 +87,24 @@ show_status :: View -> String
 show_status = Seq.join " | " . map (\(k, v) -> k ++ ": " ++ v)
     . Map.assocs . view_status
 
+-- | Return how much track is in view.
+visible_view_area :: View -> TrackPos
+visible_view_area view = pixels_to_trackpos (view_zoom view) height
+    where
+    ViewConfig { vconfig_block_title_height = blockth
+        , vconfig_track_title_height = trackth
+        , vconfig_sb_size = sb
+        , vconfig_status_size = status } = view_config view
+    -- TODO
+    -- This relies on knowing how the widgets are layed out.  It would be nicer
+    -- for UpdateViewResize to explicitly give the pixels in the track view,
+    -- and I'd need to make sure a haskell-initiated resize gets reported in an
+    -- UpdateViewResize too.
+    height = snd (rect_size (view_rect view)) - blockth - trackth - sb - status
+
+pixels_to_trackpos :: Zoom -> Int -> TrackPos
+pixels_to_trackpos zoom pixels = floor $ fromIntegral pixels / zoom_factor zoom
+
 -- | Construct a View, using default values for most of its fields.
 -- Don't construct views using View directly since State.create_view overwrites
 -- view_tracks, and maybe more in the future.

@@ -41,7 +41,6 @@ import qualified Cmd.Selection as Selection
 -- * zoom
 
 set_zoom view_id zoom = do
-    Log.notice $ "set zoom: " ++ show view_id ++ ": " ++ show zoom
     State.set_zoom view_id zoom
     Cmd.sync_zoom_status view_id
 

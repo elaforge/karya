@@ -41,8 +41,8 @@ test/hspp: test/hspp.hs
 
 .PHONY: clean
 clean:
-	rm -f *.o *.hi fixdeps \
-		*/*.o */*.hi fltk/fltk.a $(UI_HS) $(MIDI_HS) $(LOGVIEW_HS) haddock/* \
+	rm -f **/*.o **/*.hi fixdeps \
+		fltk/fltk.a $(UI_HS) $(MIDI_HS) $(LOGVIEW_HS) haddock/* \
 		$(TESTS)
 
 fltk/fltk.a: $(FLTK_OBJS)
