@@ -64,6 +64,13 @@ diff_view st1 st2 view_id view1 view2 = do
         change [view_update $ Update.ViewSize (Block.view_rect view2)]
     when (Block.view_config view1 /= Block.view_config view2) $
         change [view_update $ Update.ViewConfig (Block.view_config view2)]
+    when (Block.view_status view1 /= Block.view_status view2) $
+        change [view_update $ Update.Status (Block.show_status view2)]
+    when (Block.view_track_scroll view1 /= Block.view_track_scroll view2) $
+        change [view_update $
+            Update.TrackScroll (Block.view_track_scroll view2)]
+    when (Block.view_zoom view1 /= Block.view_zoom view2) $
+        change [view_update $ Update.Zoom (Block.view_zoom view2)]
 
     -- The track view info (widths) is in the View, while the track data itself
     -- (Tracklikes) is in the Block.  Since one track may have been added or
@@ -113,8 +120,6 @@ diff_block block_id block1 block2 = do
     let block_update = Update.BlockUpdate block_id
     when (Block.block_title block1 /= Block.block_title block2) $
         change [block_update $ Update.BlockTitle (Block.block_title block2)]
-    when (Block.block_status block1 /= Block.block_status block2) $
-        change [block_update $ Update.BlockStatus (Block.show_status block2)]
     when (Block.block_config block1 /= Block.block_config block2) $
         change [block_update $ Update.BlockConfig (Block.block_config block2)]
 

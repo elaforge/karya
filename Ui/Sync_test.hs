@@ -66,10 +66,10 @@ test_create_two_views = do
 test_set_status = do
     state <- run_setup
     state <- io_human "status set" $ run state $ do
-        State.set_block_status t_block_id "lol" (Just "o hai")
-        State.set_block_status t_block_id "brick" (Just "krazy")
-    state <- io_human "status cleared" $ run state $ do
-        State.set_block_status t_block_id "lol" Nothing
+        State.set_view_status t_view_id "lol" (Just "o hai")
+        State.set_view_status t_view_id "brick" (Just "krazy")
+    state <- io_human "'lol' status cleared" $ run state $ do
+        State.set_view_status t_view_id "lol" Nothing
     return ()
 
 test_insert_remove_track = do
@@ -79,17 +79,6 @@ test_insert_remove_track = do
     state <- io_human "first track replaced by divider" $ run state $ do
         State.remove_track t_block_id 0
         State.insert_track t_block_id 0 (Block.DId default_divider) 5
-    return ()
-
-test_update_track2 = do
-    state <- run State.empty $ do
-        v1 <- setup_state
-        t2 <- State.create_track "b1.t2" event_track_2
-        State.insert_track t_block_id 1 (Block.TId t2 t_ruler_id) 30
-        return ()
-    io_human "1st track deleted, 2nd track gets wider" $ run state $ do
-        State.remove_track t_block_id 0
-        State.set_track_width t_view_id 0 100
     return ()
 
 test_update_track = do
@@ -102,6 +91,17 @@ test_update_track = do
             (TrackPos 90, event "last2" 15)]
         State.set_track_width t_view_id 0 50
         State.set_track_bg t_track1_id Color.green
+    return ()
+
+test_update_track2 = do
+    state <- run State.empty $ do
+        v1 <- setup_state
+        t2 <- State.create_track "b1.t2" event_track_2
+        State.insert_track t_block_id 1 (Block.TId t2 t_ruler_id) 30
+        return ()
+    io_human "1st track deleted, 2nd track gets wider" $ run state $ do
+        State.remove_track t_block_id 0
+        State.set_track_width t_view_id 0 100
     return ()
 
 test_create_track = do
@@ -179,7 +179,7 @@ t_schema_id = Block.SchemaId "no schema"
 run_setup = run State.empty setup_state
 setup_state = do
     ruler <- State.create_ruler "r1" (mkruler 20 10)
-    t1 <- State.create_track "b1.t1" event_track_1
+    t1 <- State.create_track "b1.t1" empty_track
     b1 <- State.create_block "b1" $
         Block.block "hi b1" default_block_config
             (Block.RId ruler) [(Block.TId t1 ruler, 30)]

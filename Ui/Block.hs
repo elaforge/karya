@@ -27,7 +27,6 @@ newtype SchemaId = SchemaId String deriving (Eq, Ord, Show, Read)
 
 data Block = Block {
     block_title :: String
-    , block_status :: Map.Map String String
     , block_config :: Config
     , block_ruler_track :: TracklikeId
     -- The Width here is the default if a new View is created from this Block.
@@ -36,10 +35,7 @@ data Block = Block {
     } deriving (Eq, Ord, Show, Read)
 
 block title config ruler tracks schema_id =
-    Block title Map.empty config ruler tracks schema_id
-show_status :: Block -> String
-show_status = Seq.join " || " . map (\(k, v) -> k ++ ": " ++ v)
-    . Map.assocs . block_status
+    Block title config ruler tracks schema_id
 
 data Config = Config {
     config_selection_colors :: [Color]
@@ -74,6 +70,7 @@ data View = View {
     view_block :: BlockId
     , view_rect :: Rect
     , view_config :: ViewConfig
+    , view_status :: Map.Map String String
 
     -- | Scroll and zoom
     , view_track_scroll :: Width
@@ -86,10 +83,14 @@ data View = View {
     , view_tracks :: [TrackView]
     } deriving (Eq, Ord, Show, Read)
 
+show_status :: View -> String
+show_status = Seq.join " | " . map (\(k, v) -> k ++ ": " ++ v)
+    . Map.assocs . view_status
+
 -- | Construct a View, using default values for most of its fields.
 -- Don't construct views using View directly since State.create_view overwrites
 -- view_tracks, and maybe more in the future.
-view block_id rect config = View block_id rect config
+view block_id rect config = View block_id rect config Map.empty
     0 default_zoom Map.empty []
 
 data TrackView = TrackView {
@@ -103,7 +104,7 @@ data Rect = Rect {
 rect_right rect = fst (rect_pos rect) + fst (rect_size rect)
 rect_bottom rect = snd (rect_pos rect) + snd (rect_size rect)
 
--- The defaults for newly created blocks and the trackviews automatically
+-- | The defaults for newly created blocks and the trackviews automatically
 -- created.
 data ViewConfig = ViewConfig
     { vconfig_zoom_speed :: Double
@@ -114,8 +115,11 @@ data ViewConfig = ViewConfig
     , vconfig_status_size :: Int
     } deriving (Eq, Ord, Show, Read)
 
--- | Zoom offset factor
-data Zoom = Zoom TrackPos Double deriving (Eq, Ord, Show, Read)
+-- | View zoom and time scroll offset.
+data Zoom = Zoom {
+    zoom_offset :: TrackPos
+    , zoom_factor :: Double
+    } deriving (Eq, Ord, Show, Read)
 default_zoom = Zoom (TrackPos 0) 1
 
 -- TODO: remove color and put it in BlockC.SelectionC, which gets its color

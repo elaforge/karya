@@ -130,6 +130,7 @@ foreign import ccall "destroy"
 -- Unlike the other view attributes, I have a getter for the size.  This is
 -- because the OS doesn't seem to say when the window gets moved, so I have
 -- to ask.
+-- TODO except it does now... should I remove this function?
 get_size :: Block.ViewId -> Fltk Block.Rect
 get_size view_id = do
     viewp <- get_ptr view_id

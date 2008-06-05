@@ -97,7 +97,7 @@ run_update (Update.ViewUpdate view_id Update.CreateView) = do
             BlockC.set_title view_id (Block.block_title block)
         forM_ (zip (Map.keys sels) csels) $ \(selnum, csel) ->
             BlockC.set_selection view_id selnum csel
-        BlockC.set_status view_id (Block.show_status block)
+        BlockC.set_status view_id (Block.show_status view)
 
 run_update (Update.ViewUpdate view_id update) = do
     case update of
@@ -107,6 +107,10 @@ run_update (Update.ViewUpdate view_id update) = do
         Update.DestroyView -> send (BlockC.destroy_view view_id)
         Update.ViewSize rect -> send (BlockC.set_size view_id rect)
         Update.ViewConfig config -> send (BlockC.set_view_config view_id config)
+        Update.Status status -> send (BlockC.set_status view_id status)
+        Update.TrackScroll offset ->
+            send (BlockC.set_track_scroll view_id offset)
+        Update.Zoom zoom -> send (BlockC.set_zoom view_id zoom)
         Update.TrackWidth tracknum width -> send $
             BlockC.set_track_width view_id tracknum width
         Update.Selection selnum maybe_sel -> do
@@ -119,8 +123,6 @@ run_update (Update.BlockUpdate block_id update) = do
     case update of
         Update.BlockTitle title ->
             mapM_ (send . flip BlockC.set_title title) view_ids
-        Update.BlockStatus status ->
-            mapM_ (send . flip BlockC.set_status status) view_ids
         Update.BlockConfig config ->
             mapM_ (send . flip BlockC.set_model_config config) view_ids
         Update.RemoveTrack tracknum ->

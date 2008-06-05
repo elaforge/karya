@@ -319,15 +319,15 @@ set_block_title block_id title =
 -- | Set a status variable on all blocks.
 set_status :: (UiStateMonad m, Log.LogMonad m) => String -> Maybe String -> m ()
 set_status key val = do
-    block_ids <- fmap (Map.keys . state_blocks) get
-    forM_ block_ids $ \block_id -> set_block_status block_id key val
+    view_ids <- fmap (Map.keys . state_views) get
+    forM_ view_ids $ \view_id -> set_view_status view_id key val
 
--- | Set a status variable on just one block.
-set_block_status :: (UiStateMonad m) => Block.BlockId -> String -> Maybe String
+-- | Set a status variable on just one view.
+set_view_status :: (UiStateMonad m) => Block.ViewId -> String -> Maybe String
     -> m ()
-set_block_status block_id key val =
-    modify_block block_id $ \block -> block { Block.block_status =
-        Map.alter (const val) key (Block.block_status block) }
+set_view_status view_id key val =
+    modify_view view_id $ \view -> view { Block.view_status =
+        Map.alter (const val) key (Block.view_status view) }
 
 -- *** util
 

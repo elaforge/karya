@@ -25,13 +25,15 @@ data ViewUpdate =
     | DestroyView
     | ViewSize Block.Rect
     | ViewConfig Block.ViewConfig
+    | Status String
+    | TrackScroll Block.Width
+    | Zoom Block.Zoom
     | TrackWidth Block.TrackNum Block.Width
     | Selection Block.SelNum (Maybe Block.Selection)
     deriving Show
 
 data BlockUpdate
     = BlockTitle String
-    | BlockStatus String
     | BlockConfig Block.Config
     | RemoveTrack Block.TrackNum
     | InsertTrack Block.TrackNum Block.TracklikeId Block.Width
