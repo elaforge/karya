@@ -23,17 +23,14 @@ struct EventTrackConfig {
     // 'events', and the count.
     typedef int (*FindEvents)(TrackPos *start_pos, TrackPos *end_pos,
             TrackPos **ret_tps, Event **ret_events);
-    // Get last trackpos, return 0 if the track is empty and there is none.
-    typedef int (*LastTrackPos)(TrackPos *last);
 
     EventTrackConfig(Color bg_color, FindEvents find_events,
-            LastTrackPos last_track_pos) :
-        bg_color(bg_color), find_events(find_events),
-        last_track_pos(last_track_pos)
+            TrackPos time_end) :
+        bg_color(bg_color), find_events(find_events), time_end(time_end)
     {}
     Color bg_color;
     FindEvents find_events;
-    LastTrackPos last_track_pos;
+    TrackPos time_end;
 };
 
 

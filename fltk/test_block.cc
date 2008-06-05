@@ -152,14 +152,6 @@ t1_find_events(TrackPos *start_pos, TrackPos *end_pos,
 }
 
 int
-t1_last_track_pos(TrackPos *pos)
-{
-    int i = t1_events.size() - 1;
-    *pos = t1_events[i].first + t1_events[i].second.duration;
-    return 1;
-}
-
-int
 main(int argc, char **argv)
 {
     BlockViewConfig view_config = block_view_config();
@@ -180,8 +172,12 @@ main(int argc, char **argv)
     RulerConfig truler(ruler_bg, false, true, true);
     truler.marklists = mlists;
     DividerConfig divider(Color(0x0000ff));
-    EventTrackConfig track(track_bg, t1_find_events, t1_last_track_pos);
-    EventTrackConfig track2(track_bg, t1_find_events, t1_last_track_pos);
+
+    int i = t1_events.size() - 1;
+    TrackPos t1_time_end = t1_events[i].first + t1_events[i].second.duration;
+
+    EventTrackConfig track(track_bg, t1_find_events, t1_time_end);
+    EventTrackConfig track2(track_bg, t1_find_events, t1_time_end);
 
     BlockViewWindow view(300, 250, 200, 200, "view1", config, view_config,
             Tracklike(&ruler));

@@ -53,11 +53,7 @@ EventTrackView::set_zoom(const ZoomInfo &zoom)
 TrackPos
 EventTrackView::time_end() const
 {
-    TrackPos last;
-    if (this->config.last_track_pos(&last))
-        return std::max(this->overlay_ruler.time_end(), last);
-    else
-        return this->overlay_ruler.time_end();
+    return std::max(this->config.time_end, this->overlay_ruler.time_end());
 }
 
 
@@ -67,7 +63,6 @@ EventTrackView::update(const Tracklike &track, FinalizeCallback finalizer,
 {
     ASSERT(track.track && track.ruler);
     finalizer((void *) this->config.find_events);
-    finalizer((void* ) this->config.last_track_pos);
     this->overlay_ruler.set_config(*track.ruler, finalizer, start, end);
     if (this->config.bg_color != track.track->bg_color) {
         this->bg_box.color(color_to_fl(track.track->bg_color));
@@ -77,7 +72,6 @@ EventTrackView::update(const Tracklike &track, FinalizeCallback finalizer,
     // TODO should have a damage scheme like with ruler
     // if (start == -1 && end == -1) then update everything
     this->redraw();
-
 }
 
 
@@ -85,7 +79,6 @@ void
 EventTrackView::finalize_callbacks(FinalizeCallback finalizer)
 {
     finalizer((void *) this->config.find_events);
-    finalizer((void* ) this->config.last_track_pos);
     this->overlay_ruler.finalize_callbacks(finalizer);
 }
 
