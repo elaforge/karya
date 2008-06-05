@@ -8,6 +8,7 @@ import qualified Network
 
 import qualified Util.Log as Log
 
+import Ui.Types
 import qualified Ui.Initialize as Initialize
 import qualified Ui.State as State
 
@@ -106,11 +107,13 @@ setup_cmd :: Cmd.CmdId
 setup_cmd = do
     Log.debug "setup block"
     ruler <- State.create_ruler "r1"
-        (TestSetup.ruler [TestSetup.marklist 64 16])
+        (TestSetup.ruler [TestSetup.marklist 64 10])
     overlay <- State.create_ruler "r1.overlay"
         =<< fmap TestSetup.overlay_ruler (State.get_ruler ruler)
 
     t1 <- State.create_track "b1.t1" empty_track
+    State.insert_events t1 [(TrackPos p, Config.event (show p) (TrackPos 10))
+        | p <- [0,10..100]]
     t2 <- State.create_track "b1.t2" empty_track
     b1 <- State.create_block "b1" $ Block.block "hi b1"
         Config.block_config (Block.RId ruler)

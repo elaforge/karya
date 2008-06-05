@@ -41,5 +41,4 @@ instance Storable TrackPos where
                 (fromIntegral (maxBound::CLLong)) pos)
 
 instance Pretty TrackPos where
-    pretty (TrackPos pos) = printf "pos:%.3f"
-        ((fromIntegral pos / 1000) :: Double)
+    pretty (TrackPos pos) = printf "pos:%d" pos

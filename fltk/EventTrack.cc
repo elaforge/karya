@@ -185,6 +185,8 @@ EventTrackView::draw_upper_layer(int offset, const Event &event,
             fl_color(FL_RED);
             bottom = offset + fl_height();
         } else {
+            // TODO draw the line under the overlapping text, or just a tick
+            // on the sides, so it doesn't make the text hard to read
             fl_color(color_to_fl(Config::abbreviation_color));
             bottom = previous_bottom;
         }

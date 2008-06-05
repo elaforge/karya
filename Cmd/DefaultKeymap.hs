@@ -32,6 +32,7 @@ import qualified Cmd.Selection as Selection
 import qualified Cmd.Edit as Edit
 import qualified Cmd.Save as Save
 import qualified Cmd.Play as Play
+import qualified Cmd.View as View
 import qualified Cmd.TimeStep as TimeStep
 
 import qualified Perform.Transport as Transport
@@ -40,7 +41,8 @@ import qualified Perform.Transport as Transport
 default_cmds :: [Cmd.Cmd]
 default_cmds =
     [ Selection.cmd_mouse_selection 1 Config.insert_selnum
-    , Keymap.make_cmd (misc_bindings ++ selection_bindings ++ edit_bindings)
+    , Keymap.make_cmd (misc_bindings ++ selection_bindings
+        ++ view_config_bindings ++ edit_bindings)
     ]
 
 cmd_io_keymap :: Transport.Info -> Msg.Msg -> Cmd.CmdIO
@@ -72,6 +74,13 @@ selection_bindings =
         (Selection.cmd_shift_selection Config.insert_selnum 1)
     ++ repeating Key.Left "shift selection left"
         (Selection.cmd_shift_selection Config.insert_selnum (-1))
+
+view_config_bindings =
+    [ bind_key (Key.KeyChar '[') "zoom out *0.8"
+        (View.cmd_zoom_around_insert (*0.8))
+    , bind_key (Key.KeyChar ']') "zoom in *1.25"
+        (View.cmd_zoom_around_insert (*1.25))
+    ]
 
 edit_bindings =
     [ bind_key Key.Escape "toggle edit mode" Edit.cmd_toggle_edit

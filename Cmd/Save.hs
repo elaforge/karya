@@ -12,6 +12,7 @@ import qualified Util.Log as Log
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Edit as Edit
+import qualified Cmd.Selection as Selection
 
 
 version_string = "seq state, 1"
@@ -58,9 +59,11 @@ initialize_state = do
     -- TODO these scattered sync functions are kinda grody.  Isn't there a
     -- better way to keep track of state that needs to be synced?  Or avoid
     -- doing it in the first place?
-    Edit.sync_edit_box
+    Edit.sync_edit_box_status
     Edit.sync_octave_status
-    Edit.sync_step
+    Edit.sync_step_status
+    mapM_ Selection.sync_selection_status =<< State.get_all_view_ids
+    mapM_ Cmd.sync_zoom_status =<< State.get_all_view_ids
     -- Emit track updates for all tracks, since I don't know where events have
     -- changed.
     State.update_all_tracks

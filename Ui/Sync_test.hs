@@ -63,6 +63,27 @@ test_create_two_views = do
         State.set_track_title t_track1_id "hi there"
     return ()
 
+test_zoom_scroll = do
+    state <- run State.empty $ do
+        v1 <- setup_state
+        State.insert_events t_track1_id
+            [ (TrackPos 0, event "one" 10)
+            , (TrackPos 10, event "scrunch" 6)
+            , (TrackPos 20, event "two" 32)
+            , (TrackPos 100, event "last" 64)
+            ]
+    state <- io_human "scrolls to bottom" $ run state $ do
+        State.set_zoom t_view_id (Block.Zoom (TrackPos 128) 1)
+    state <- io_human "scrolls back up" $ run state $ do
+        State.set_zoom t_view_id (Block.Zoom (TrackPos 0) 1)
+    state <- io_human "zoom in to 2" $ run state $ do
+        State.set_zoom t_view_id (Block.Zoom (TrackPos 0) 2)
+    state <- io_human "zoom out to .5" $ run state $ do
+        State.set_zoom t_view_id (Block.Zoom (TrackPos 0) 0.5)
+    state <- io_human "zoom out to 0, should clamp at a low number" $
+        run state $ State.set_zoom t_view_id (Block.Zoom (TrackPos 0) 0)
+    return ()
+
 test_set_status = do
     state <- run_setup
     state <- io_human "status set" $ run state $ do

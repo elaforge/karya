@@ -15,7 +15,7 @@ fltk
     plain unsigned msec?
   * scroll
   * add info line at the bottom
-  - zoom
+  * zoom
   - render signals
   * selections
   * bug: one pixel drawing glitch at bottom of tracks

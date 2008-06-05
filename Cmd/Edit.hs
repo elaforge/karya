@@ -2,8 +2,8 @@
 -}
 module Cmd.Edit where
 import Control.Monad
-import qualified Data.Maybe as Maybe
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
@@ -44,11 +44,11 @@ cmd_toggle_edit :: Cmd.CmdId
 cmd_toggle_edit = do
     edit_mode <- fmap Cmd.state_edit_mode Cmd.get_state
     Cmd.modify_state $ \st -> st { Cmd.state_edit_mode = not edit_mode }
-    sync_edit_box
+    sync_edit_box_status
     return Cmd.Done
 
-sync_edit_box :: (Monad m) => Cmd.CmdT m ()
-sync_edit_box = do
+sync_edit_box_status :: (Monad m) => Cmd.CmdT m ()
+sync_edit_box_status = do
     edit_mode <- fmap Cmd.state_edit_mode Cmd.get_state
     block_ids <- fmap (Map.keys . State.state_blocks) State.get
     mapM_ (flip State.set_edit_box (edit_color edit_mode)) block_ids
@@ -112,7 +112,7 @@ pitch_from_kbd nn = do
 -- | Actually convert the given pitch to an event and insert it.
 insert_pitch :: (Monad m) => Pitch.Pitch -> Cmd.CmdT m ()
 insert_pitch pitch = do
-    (insert_pos, tracknum, track_id) <- get_insert_pos
+    (insert_pos, tracknum, track_id) <- Selection.get_insert_pos
     end_pos <- Selection.step_from tracknum insert_pos TimeStep.Advance
     -- assert (end_pos >= insert_pos)
 
@@ -129,7 +129,7 @@ cmd_controller_entry msg = do
     char <- Cmd.require $ case key of
         Key.KeyChar char -> Just char
         _ -> Nothing
-    (insert_pos, _, track_id) <- get_insert_pos
+    (insert_pos, _, track_id) <- Selection.get_insert_pos
     track <- State.get_track track_id
 
     let text = Maybe.fromMaybe "" $ fmap Event.event_text
@@ -147,7 +147,7 @@ cmd_controller_entry msg = do
 -- a range, remove all events within its half-open extent.
 cmd_remove_events :: Cmd.CmdId
 cmd_remove_events = do
-    (track_ids, sel) <- selected_tracks Config.insert_selnum
+    (track_ids, sel) <- Selection.selected_tracks Config.insert_selnum
     let start = Block.sel_start_pos sel
         dur = Block.sel_duration sel
     forM_ track_ids $ \track_id -> if dur == TrackPos 0
@@ -160,13 +160,13 @@ cmd_meter_step rank = do
     let step = (TimeStep.UntilMark
             (TimeStep.NamedMarklists ["meter"]) (TimeStep.MatchRank rank))
     Cmd.modify_state $ \st -> st { Cmd.state_step = step }
-    sync_step
+    sync_step_status
     return Cmd.Done
 
-sync_step :: (Monad m) => Cmd.CmdT m ()
-sync_step = do
+sync_step_status :: (Monad m) => Cmd.CmdT m ()
+sync_step_status = do
     step <- fmap Cmd.state_step Cmd.get_state
-    State.set_status status_step (Just (show_step step))
+    Cmd.set_status status_step (Just (show_step step))
 
 show_step (TimeStep.Absolute pos) = "abs:" ++ show pos
 show_step (TimeStep.UntilMark mlists match) =
@@ -189,35 +189,9 @@ cmd_modify_octave f = do
 sync_octave_status :: (Monad m) => Cmd.CmdT m ()
 sync_octave_status = do
     octave <- fmap Cmd.state_kbd_entry_octave Cmd.get_state
-    State.set_status status_octave (Just (show octave))
+    Cmd.set_status status_octave (Just (show octave))
 
 status_octave = "octave"
 status_step = "step"
 
 -- * util
-
--- | Specialized 'selected_tracks' that gets the pos and track of the upper
--- left corner of the insert selection.
-get_insert_pos :: (Monad m) =>
-    Cmd.CmdT m (TrackPos, Block.TrackNum, Track.TrackId)
-get_insert_pos = do
-    (track_ids, sel) <- selected_tracks Config.insert_selnum
-    track_id <- Cmd.require (track_ids `Seq.at` 0)
-    return (Block.sel_start_pos sel, Block.sel_start_track sel, track_id)
-
-selected_tracks :: (Monad m) =>
-    Block.SelNum -> Cmd.CmdT m ([Track.TrackId], Block.Selection)
-selected_tracks selnum = do
-    view_id <- Cmd.get_focused_view
-    sel <- Cmd.require =<< State.get_selection view_id selnum
-    view <- State.get_view view_id
-    let start = Block.sel_start_track sel
-    tracks <- mapM (event_track_at (Block.view_block view))
-        [start .. start + Block.sel_tracks sel - 1]
-    return (Maybe.catMaybes tracks, sel)
-
-event_track_at block_id tracknum = do
-    track <- State.track_at block_id tracknum
-    case track of
-        Just (Block.TId track_id _) -> return (Just track_id)
-        _ -> return Nothing

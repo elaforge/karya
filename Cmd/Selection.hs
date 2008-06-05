@@ -4,12 +4,14 @@
 module Cmd.Selection where
 import Control.Monad
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 
 import qualified Util.Seq as Seq
 import qualified Util.Log as Log
 
 import Ui.Types
 import qualified Ui.Block as Block
+import qualified Ui.Track as Track
 import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
 import qualified Ui.UiMsg as UiMsg
@@ -34,9 +36,25 @@ cmd_step_selection selnum dir = do
 
     new_pos <- step_from
         (Block.sel_start_track sel) (Block.sel_start_pos sel) dir
-    State.set_selection view_id selnum
+    set_selection view_id selnum
         (Block.point_selection (Block.sel_start_track sel) new_pos)
     return Cmd.Done
+
+set_selection view_id selnum sel = do
+    State.set_selection view_id selnum sel
+    sync_selection_status view_id
+
+sync_selection_status view_id = do
+    maybe_sel <- State.get_selection view_id Config.insert_selnum
+    Cmd.set_view_status view_id "sel" (fmap selection_status maybe_sel)
+
+selection_status :: Block.Selection -> String
+selection_status sel =
+    showp start ++ if dur == TrackPos 0 then "" else "-" ++ showp (dur + start)
+    where
+    dur = Block.sel_duration sel
+    start = Block.sel_start_pos sel
+    showp pos = show (fromIntegral pos :: Integer)
 
 -- | Advance the insert selection by the current step, which is a popular thing
 -- to do.
@@ -50,7 +68,7 @@ cmd_shift_selection selnum nshift = do
     block <- State.block_of_view view_id
     sel <- Cmd.require =<< State.get_selection view_id selnum
     let sel' = shift_selection nshift (length (Block.block_tracks block)) sel
-    State.set_selection view_id selnum (Just sel')
+    set_selection view_id selnum (Just sel')
     return Cmd.Done
 
 -- | Set the selection based on a click or drag.
@@ -75,7 +93,7 @@ cmd_mouse_selection btn selnum msg = do
         _ -> Nothing
     let sel = selection_from_mouse down_at mouse_at
     Log.debug $ "drag sel from " ++ show down_at ++ " --> " ++ show mouse_at
-    State.set_selection view_id selnum (Just sel)
+    set_selection view_id selnum (Just sel)
     return Cmd.Done
 
 mouse_mod msg = do
@@ -141,3 +159,29 @@ relevant_ruler block tracknum =
     rid_of (Block.RId rid) = Just rid
     rid_of (Block.TId _ rid) = Just rid
     rid_of _ = Nothing
+
+-- | Specialized 'selected_tracks' that gets the pos and track of the upper
+-- left corner of the insert selection.
+get_insert_pos :: (Monad m) =>
+    Cmd.CmdT m (TrackPos, Block.TrackNum, Track.TrackId)
+get_insert_pos = do
+    (track_ids, sel) <- selected_tracks Config.insert_selnum
+    track_id <- Cmd.require (track_ids `Seq.at` 0)
+    return (Block.sel_start_pos sel, Block.sel_start_track sel, track_id)
+
+selected_tracks :: (Monad m) =>
+    Block.SelNum -> Cmd.CmdT m ([Track.TrackId], Block.Selection)
+selected_tracks selnum = do
+    view_id <- Cmd.get_focused_view
+    sel <- Cmd.require =<< State.get_selection view_id selnum
+    view <- State.get_view view_id
+    let start = Block.sel_start_track sel
+    tracks <- mapM (event_track_at (Block.view_block view))
+        [start .. start + Block.sel_tracks sel - 1]
+    return (Maybe.catMaybes tracks, sel)
+
+event_track_at block_id tracknum = do
+    track <- State.track_at block_id tracknum
+    case track of
+        Just (Block.TId track_id _) -> return (Just track_id)
+        _ -> return Nothing

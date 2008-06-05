@@ -172,7 +172,13 @@ BlockView::set_model_config(const BlockModelConfig &config, bool update_all)
 void
 BlockView::set_zoom(const ZoomInfo &zoom)
 {
-    this->zoom = zoom;
+    // As with set_track_scroll, clamp the time scroll to time_end().
+    int track_h = track_tile.h() - view_config.track_title_height;
+    TrackPos height = zoom.to_trackpos(track_h);
+    TrackPos max_pos = std::max(TrackPos(0), track_tile.time_end() - height);
+
+    this->zoom = ZoomInfo(clamp(TrackPos(0), max_pos, zoom.offset),
+            zoom.factor);
     this->track_tile.set_zoom(this->zoom);
     this->ruler_track->set_zoom(this->zoom);
     this->update_scrollbars();

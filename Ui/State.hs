@@ -20,7 +20,6 @@ A higher level interface may ease this by automatically creating objects with
 automatically generated IDs.
 -}
 module Ui.State where
-import Prelude hiding (catch)
 import Control.Monad
 import qualified Control.Monad.Trans as Trans
 import Control.Monad.Trans (lift)
@@ -32,7 +31,6 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Typeable as Typeable
 
 import qualified Util.Seq as Seq
-import qualified Util.Log as Log
 import qualified Util.Logger as Logger
 
 import Ui.Types
@@ -129,7 +127,8 @@ instance Monad m => UiStateMonad (StateT m) where
 get_view :: (UiStateMonad m) => Block.ViewId -> m Block.View
 get_view view_id = get >>= lookup_id view_id . state_views
 
-catch m handler = (StateT . lift . lift) (Error.catchError m handler)
+get_all_view_ids :: (UiStateMonad m) => m [Block.ViewId]
+get_all_view_ids = fmap (Map.keys . state_views) get
 
 -- | Create a new view.  Block.view_tracks can be left empty, since it will
 -- be replaced by views generated from the the block.  If the caller uses the
@@ -167,7 +166,10 @@ set_track_width view_id tracknum width = do
 
 set_zoom :: (UiStateMonad m) => Block.ViewId -> Block.Zoom -> m ()
 set_zoom view_id zoom =
-    modify_view view_id (\view -> view { Block.view_zoom = zoom })
+    modify_view view_id (\view -> view { Block.view_zoom = clamped })
+    where
+    clamped = zoom
+        { Block.zoom_offset = max (TrackPos 0) (Block.zoom_offset zoom) }
 
 set_track_scroll :: (UiStateMonad m) => Block.ViewId -> Block.Width -> m ()
 set_track_scroll view_id offset =
@@ -316,13 +318,7 @@ set_block_title :: (UiStateMonad m) => Block.BlockId -> String -> m ()
 set_block_title block_id title =
     modify_block block_id (\block -> block { Block.block_title = title })
 
--- | Set a status variable on all blocks.
-set_status :: (UiStateMonad m, Log.LogMonad m) => String -> Maybe String -> m ()
-set_status key val = do
-    view_ids <- fmap (Map.keys . state_views) get
-    forM_ view_ids $ \view_id -> set_view_status view_id key val
-
--- | Set a status variable on just one view.
+-- | Set a status variable on a view.
 set_view_status :: (UiStateMonad m) => Block.ViewId -> String -> Maybe String
     -> m ()
 set_view_status view_id key val =

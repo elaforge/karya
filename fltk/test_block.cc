@@ -117,6 +117,8 @@ void t1_set()
         Event("6--", TrackPos(4), eventc, style)));
     e.push_back(std::make_pair(TrackPos(50),
         Event("7--", TrackPos(4), eventc, style)));
+    e.push_back(std::make_pair(TrackPos(128),
+        Event("late!", TrackPos(64), eventc, style)));
 }
 
 int
@@ -193,6 +195,9 @@ main(int argc, char **argv)
     view.block.insert_track(1, Tracklike(&ruler), 25);
     view.block.insert_track(2, Tracklike(&track, &truler), 30);
     view.block.insert_track(3, Tracklike(&track2, &truler), 50);
+
+    view.block.set_zoom(ZoomInfo(TrackPos(128), 1));
+    // view.block.set_zoom(ZoomInfo(TrackPos(64), 1));
 
     /*
     view.block.set_selection(0, Selection(selection_colors[0],
