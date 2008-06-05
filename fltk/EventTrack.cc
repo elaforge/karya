@@ -55,9 +55,9 @@ EventTrackView::time_end() const
 {
     TrackPos last;
     if (this->config.last_track_pos(&last))
-        return last;
+        return std::max(this->overlay_ruler.time_end(), last);
     else
-        return TrackPos(0);
+        return this->overlay_ruler.time_end();
 }
 
 
