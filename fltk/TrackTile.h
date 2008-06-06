@@ -40,6 +40,8 @@ public:
 
     // TrackPos of the end of the last event.
     TrackPos time_end() const;
+    // TrackPos of the bottom of the visible window.
+    TrackPos view_end() const;
     // Right side of the rightmost track.
     int track_end() const;
 
@@ -59,6 +61,7 @@ protected:
     virtual void draw();
 private:
     int title_height;
+    ZoomInfo zoom;
     Fl_Box track_pad; // box to take up space not covered by tracks
 
     void update_sizes();

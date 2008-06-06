@@ -76,6 +76,9 @@ BlockView::resize(int X, int Y, int W, int H)
 {
     Fl_Group::resize(X, Y, W, H);
     status_line.size(w() - mac_resizer_width, status_line.h());
+    // If I'm growing, I will have changed the visible area, so recalculate
+    // the scroll boundaries.
+    this->set_track_scroll(this->get_track_scroll());
     this->update_scrollbars();
 }
 
@@ -182,10 +185,12 @@ BlockView::set_zoom(const ZoomInfo &zoom)
     // this->zoom = ZoomInfo(clamp(TrackPos(0), max_pos, zoom.offset),
     //         zoom.factor);
 
-    this->zoom = zoom;
-    this->track_tile.set_zoom(this->zoom);
-    this->ruler_track->set_zoom(this->zoom);
-    this->update_scrollbars();
+    if (this->zoom != zoom) {
+        this->zoom = zoom;
+        this->track_tile.set_zoom(this->zoom);
+        this->ruler_track->set_zoom(this->zoom);
+        this->update_scrollbars();
+    }
 }
 
 
@@ -271,9 +276,8 @@ BlockView::update_track(int tracknum, const Tracklike &track,
 void
 BlockView::update_scrollbars()
 {
-    // DEBUG("update scrolls " << track_tile.track_end());
-    this->track_sb.set_scroll_zoom(track_tile.track_end(),
-            get_track_scroll(), track_tile.w());
+    this->track_sb.set_scroll_zoom(
+        track_tile.track_end(), get_track_scroll(), track_tile.w());
 
     const ZoomInfo &zoom = this->get_zoom();
     // The scale(1)s just convert a TrackPos to a double.
@@ -294,9 +298,8 @@ BlockView::scrollbar_cb(Fl_Widget *_unused_w, void *vp)
 
     double time_offset = self->time_sb.get_offset();
     TrackPos end = self->track_tile.time_end();
-    // TODO consider putting the repeated code into their own functions.
-    // This does the same stuff as BlockView::set_zoom, but naturally doesn't
-    // call update_scrollbars, or we don't get anywhere.
+    // This does the same stuff as BlockView::set_zoom, but doesn't call
+    // update_scrollbars and collects the msg.
     ZoomInfo new_zoom(TrackPos(end.scale(time_offset)),
             self->get_zoom().factor);
     if (new_zoom != self->get_zoom()) {
@@ -306,8 +309,8 @@ BlockView::scrollbar_cb(Fl_Widget *_unused_w, void *vp)
         global_msg_collector()->block_update(self, UiMsg::msg_zoom);
     }
 
-    // This is the same as set_track_scroll, but can reuse track_end, and
-    // doesn't call update_scrollbars.
+    // This is the same as BlockView::set_track_scroll, but can reuse
+    // track_end, and doesn't call update_scrollbars.
     double track_offset = self->track_sb.get_offset();
     int track_end = self->track_tile.track_end();
     int max_offset = std::max(0, track_end - self->track_tile.w());
@@ -317,6 +320,9 @@ BlockView::scrollbar_cb(Fl_Widget *_unused_w, void *vp)
         self->track_scroll.set_offset(new_offset);
         global_msg_collector()->block_update(self, UiMsg::msg_track_scroll);
     }
+
+    if (Fl::event() == FL_RELEASE)
+        self->update_scrollbars();
 }
 
 

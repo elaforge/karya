@@ -3,16 +3,22 @@
 
 #include "SimpleScroll.h"
 
+
+void
+SimpleScroll::resize(int X, int Y, int W, int H)
+{
+    Point diff(W - w(), H - h());
+    Fl_Widget *c = child(0);
+    c->resize(X + offset.x, Y + offset.y, c->w() + diff.x, c->h() + diff.y);
+    Fl_Widget::resize(X, Y, W, H);
+}
+
 void
 SimpleScroll::set_offset(Point offset)
 {
     Point shift(offset.x - this->offset.x, offset.y - this->offset.y);
     this->offset = offset;
-    // DEBUG("set offset " << offset);
-    for (int i = 0; i < children(); i++) {
-        // DEBUG(i << ": " << show_widget(child(i)) << " -> " << shift);
-        child(i)->position(child(i)->x() + shift.x, child(i)->y() + shift.y);
-    }
+    child(0)->position(child(0)->x() + shift.x, child(0)->y() + shift.y);
     this->damage(FL_DAMAGE_SCROLL);
 }
 

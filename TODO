@@ -6,7 +6,10 @@
 - hs-plugins
 
 fltk
-  - set_selection should do nothing if the selection is the same as the last one
+  - bug: dragging selections is laggy
+    - implement selection redraw optimization
+    - possibly move selections entirely into c++
+    - set_selection should do nothing if the selection hasn't changed
   * text entries should scroll back to the beginning when they're unfocused
   * bug: if the first event is a modifier, it doesn't get emitted.  An fltk
     thing?
@@ -26,8 +29,7 @@ fltk
   - scrolling should add text height to time_end()
 
   * change ZoomInfo to_trackpos and to_pixels to not use offset
-  - resizing when you're scrolled should scroll back if there's nothing
-    interesting
+  * scrolling back from past the end of the track should update the scrollbar
   - bug: moving a track under an expanded SeqInput gets screwed up since the
     input doesn't move
 

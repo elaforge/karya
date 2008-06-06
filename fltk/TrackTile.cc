@@ -77,6 +77,7 @@ TrackTile::handle(int evt)
 void
 TrackTile::set_zoom(const ZoomInfo &zoom)
 {
+    this->zoom = zoom;
     for (int i = 0; i < this->tracks(); i++)
         this->track_at(i)->set_zoom(zoom);
 }
@@ -96,6 +97,12 @@ TrackTile::time_end() const
     return end;
 }
 
+TrackPos
+TrackTile::view_end() const
+{
+    return this->zoom.to_trackpos(this->h() - this->title_height)
+        + this->zoom.offset;
+}
 
 int
 TrackTile::track_end() const

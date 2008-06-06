@@ -28,6 +28,11 @@ public:
     FlSeqScrollbar(int X, int Y, int W, int H) :
         Fl_Scrollbar(X, Y, W, H)
     {}
+    int handle(int evt) {
+        if (evt == FL_RELEASE)
+            this->do_callback();
+        return Fl_Scrollbar::handle(evt);
+    }
     void set_orientation(P9Scrollbar::Orientation o) {
         if (o == P9Scrollbar::horizontal)
             this->type(FL_HORIZONTAL);
@@ -43,7 +48,7 @@ public:
     // double get_size() const { return size; }
     void set_scroll_zoom(double max, double offset, double displayed_area) {
         // DEBUG("set scroll zoom " << max << " " << offset << " "
-        //         << displayed_area);
+        //         << displayed_area << " value " << value());
         offset = ::clamp(0.0, 1.0, offset / max);
         displayed_area = ::clamp(0.0, max, displayed_area) / max;
         // int Fl_Slider::scrollvalue(int p, int W, int t, int l)
@@ -53,7 +58,12 @@ public:
         //  l = length, total number of lines
         // DEBUG("scrollvalue " << int(offset*length()) << " "
         //         << int(displayed_area*length()) << " 0 " << length());
-        scrollvalue(int(offset*length()), int(displayed_area*length()),
+
+        // Without the ceil() here, this scrolls backwards by one pixel
+        // every time you set it (i.e. get_offset() -> set_scroll_zoom() round
+        // trip winds up subtracting off one pixel).  I don't fully understand
+        // why, but I imagine it has to do with int() rounding down...
+        scrollvalue(int(ceil(offset*length())), int(displayed_area*length()),
                 0, length());
     }
 

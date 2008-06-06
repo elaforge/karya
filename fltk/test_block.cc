@@ -187,12 +187,15 @@ main(int argc, char **argv)
     view.block.set_status("no status yet");
     view.block.set_title("hi there");
 
-    view.block.insert_track(0, Tracklike(&divider), 8);
-    view.block.insert_track(1, Tracklike(&ruler), 25);
+    view.block.insert_track(0, Tracklike(&divider), 10);
+    view.block.insert_track(1, Tracklike(&ruler), 30);
     view.block.insert_track(2, Tracklike(&track, &truler), 30);
-    view.block.insert_track(3, Tracklike(&track2, &truler), 50);
+    view.block.insert_track(3, Tracklike(&track2, &truler), 30);
+    print_children(&view);
 
-    view.block.set_zoom(ZoomInfo(TrackPos(128), 1));
+    // print_children(&view);
+
+    // view.block.set_zoom(ZoomInfo(TrackPos(128), 1));
     // view.block.set_zoom(ZoomInfo(TrackPos(64), 1));
 
     /*
@@ -212,7 +215,6 @@ main(int argc, char **argv)
     // print_children(&view);
     // DEBUG(2);
     // view.resize(0, 0, 300, 300);
-    print_children(&view);
 
     view.show(argc, argv);
     Fl::run();
