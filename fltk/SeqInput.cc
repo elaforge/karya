@@ -43,7 +43,8 @@ SeqInput::handle(int evt)
 {
     switch (evt) {
     case FL_KEYDOWN:
-        if (Fl::event_key() == FL_Tab || Fl::event_key() == FL_Enter) {
+        switch (Fl::event_key()) {
+        case FL_Tab: case FL_Enter: case FL_Escape:
             Fl::focus(this->window());
             return 1;
         }
