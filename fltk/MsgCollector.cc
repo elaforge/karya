@@ -67,32 +67,52 @@ operator<<(std::ostream &os, const UiMsg &m)
 
 
 static void
-set_msg_context(UiMsg &m)
+set_msg_context(BlockViewWindow *view, bool track_drag, UiMsg &m)
 {
-    for (Fl_Window *win = Fl::first_window(); win; win = Fl::next_window(win)) {
-        // Events are reported relative to the window.
-        Rect r = rect(win);
-        r.x = r.y = 0;
-        if (Fl::event_inside(r.x, r.y, r.w, r.h)) {
-            m.view = dynamic_cast<BlockViewWindow *>(win);
-            break;
+    if (view) {
+        m.view = view;
+    } else {
+        for (Fl_Window *win = Fl::first_window(); win;
+                win = Fl::next_window(win))
+        {
+            // Events are reported relative to the window.
+            Rect r = rect(win);
+            r.x = r.y = 0;
+            if (Fl::event_inside(r.x, r.y, r.w, r.h)) {
+                m.view = dynamic_cast<BlockViewWindow *>(win);
+                break;
+            }
         }
+        if (!m.view)
+            return;
     }
-    if (!m.view)
-        return;
 
     TrackView *t = 0;
-    for (int i = 0; i < m.view->block.tracks(); i++) {
-        t = m.view->block.track_at(i);
-        if (Fl::event_inside(t) || Fl::event_inside(&t->title_widget())) {
-            m.has_tracknum = true;
-            m.tracknum = i;
-            break;
+    if (track_drag) {
+        m.has_tracknum = true;
+        int xpos = 0;
+        m.tracknum = 0;
+        for (int i = 0; i < m.view->block.tracks(); i++) {
+            t = m.view->block.track_at(i);
+            if (t->x() <= Fl::event_x() && Fl::event_x() > xpos) {
+                m.tracknum = i;
+                xpos = t->x();
+            }
         }
+    } else {
+        for (int i = 0; i < m.view->block.tracks(); i++) {
+            t = m.view->block.track_at(i);
+            if (Fl::event_inside(t) || Fl::event_inside(&t->title_widget())) {
+                m.has_tracknum = true;
+                m.tracknum = i;
+                break;
+            }
+        }
+        if (!m.has_tracknum)
+            return;
     }
-    if (!m.has_tracknum)
-        return;
-    if (Fl::event_inside(t)) {
+
+    if (t && (track_drag || Fl::event_inside(t))) {
         int y = Fl::event_y() - t->y();
         m.has_pos = true;
         const ZoomInfo &zoom = m.view->block.get_zoom();
@@ -169,16 +189,12 @@ set_update_args(UiMsg &m, BlockView *view, UiMsg::MsgType type)
 // MsgCollector //////////////
 
 void
-MsgCollector::event(int evt, BlockViewWindow *view)
+MsgCollector::event(int evt, BlockViewWindow *view, bool track_drag)
 {
     UiMsg m;
     m.type = UiMsg::msg_event;
     set_msg_from_event(m, evt);
-    if (!view) {
-        set_msg_context(m);
-    } else {
-        m.view = view;
-    }
+    set_msg_context(view, track_drag, m);
     this->push(m);
 }
 

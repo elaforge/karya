@@ -56,6 +56,9 @@ select_and_scroll view_id selnum sel = do
 -- it so that the selection is in view.  @sel1@ is needed to determine the
 -- direction of the scroll.
 -- TODO implement track scrolling
+-- TODO this is sort of screwed up for drag scrolling
+-- but don't put much more work into this until I know whether I'm going to
+-- move it to c++ or not
 auto_scroll :: (Monad m) => Block.ViewId -> Block.Selection
     -> Block.Selection -> Cmd.CmdT m ()
 auto_scroll view_id sel1 sel2 = do
@@ -117,16 +120,15 @@ cmd_shift_selection selnum nshift = do
 -- TODO: support snap
 cmd_mouse_selection :: Int -> Block.SelNum -> Cmd.Cmd
 cmd_mouse_selection btn selnum msg = do
-    mod <- Cmd.require (mouse_mod msg)
+    (mod, mouse_at) <- Cmd.require (mouse_mod msg)
     msg_btn <- Cmd.require (Cmd.mouse_mod_btn mod)
     keys_down <- Cmd.keys_down
     Log.debug $ "mod btn " ++ show mod ++ " in " ++ show (Map.elems keys_down)
     when (msg_btn /= btn) Cmd.abort
 
-    down_at <- Cmd.require $
-        case Map.lookup (Cmd.modifier_key mod) keys_down of
-            Just (Cmd.MouseMod _btn (Just down_at)) -> Just down_at
-            _ -> Nothing
+    let down_at = case Map.lookup (Cmd.modifier_key mod) keys_down of
+            Just (Cmd.MouseMod _btn (Just down_at)) -> down_at
+            _ -> mouse_at
 
     view_id <- Cmd.get_focused_view
     mouse_at <- Cmd.require $ case mod of
@@ -137,6 +139,7 @@ cmd_mouse_selection btn selnum msg = do
     select_and_scroll view_id selnum (Just sel)
     return Cmd.Done
 
+mouse_mod :: Msg.Msg -> Maybe (Cmd.Modifier, (Block.TrackNum, TrackPos))
 mouse_mod msg = do
     mouse <- Msg.mouse msg
     btn <- case UiMsg.mouse_state mouse of
@@ -145,7 +148,7 @@ mouse_mod msg = do
         UiMsg.MouseUp btn -> Just btn
         _ -> Nothing
     track_pos <- Msg.context_track_pos msg
-    return $ Cmd.MouseMod btn (Just track_pos)
+    return $ (Cmd.MouseMod btn (Just track_pos), track_pos)
 
 -- | Create a selection between the two points.
 selection_from_mouse ::

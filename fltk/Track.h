@@ -54,6 +54,7 @@ public:
     virtual ~TrackView() {
         DEBUG("deleted track view " << this);
     }
+    virtual int handle(int evt);
 
     virtual void set_zoom(const ZoomInfo &zoom) {}
     virtual void set_selection(int selnum, int tracknum, const Selection &sel)

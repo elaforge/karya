@@ -1,6 +1,21 @@
 #include "Track.h"
 #include "EventTrack.h"
 #include "Ruler.h"
+#include "MsgCollector.h"
+
+
+int
+TrackView::handle(int evt)
+{
+    // Capture drags, so that even if they go out of the bounds of the track
+    // tile or the window I still send drag events from this track.
+    if (evt == FL_PUSH || evt == FL_DRAG || evt == FL_RELEASE) {
+        global_msg_collector()->event(evt,
+            dynamic_cast<BlockViewWindow *>(this->window()), evt == FL_DRAG);
+        return 1;
+    }
+    return Fl_Group::handle(evt);
+}
 
 
 DividerView::DividerView(const DividerConfig &config) :

@@ -39,7 +39,7 @@ fltk
     it doesn't get any kbd input
 
   UI Msgs
-    - drags should continue to send msgs even after the cursor leaves the track
+    * drags should continue to send msgs even after the cursor leaves the track
       area and window
     * bug: arrow keys are still doing keynav, remove that
     - can I capture os x two-finger drag events?
@@ -62,10 +62,9 @@ fltk
     * overlay ruler
     * events
     * bug: scrolling gets little one pixels shifts
-    - bug: event tracks flicker when moving horizontally
   Ruler
-    - include selection in time_end
-    - scroll to keep moving edge of selection in view, go to bottom edge if
+    * include selection in time_end
+    * scroll to keep moving edge of selection in view, go to bottom edge if
       both moved
     - mark text tries to wrap if there isn't enough room
     * don't clip out the text as soon as the marker scrolls off screen

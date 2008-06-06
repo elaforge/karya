@@ -100,6 +100,9 @@ send: App/Send.hs
 .PHONY: repl
 repl: App/Repl.hs
 	$(GHC) $(HFLAGS) --make $^ -o $@
+.PHONY: dump
+dump: App/Dump.hs
+	$(GHC) $(HFLAGS) --make $^ -o $@
 
 LOGVIEW_OBJ = LogViewer/LogView.hs LogViewer/LogViewC.hs \
 	LogViewer/interface.o LogViewer/logview_ui.o

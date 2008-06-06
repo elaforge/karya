@@ -124,7 +124,9 @@ public:
     MsgCollector() {}
     // Normally 'view' will be intuited from the mouse position, but
     // you can override that by passing it explicitly.
-    void event(int evt, BlockViewWindow *view = 0);
+    // 'track_drag' will assume you are dragging from a track and always
+    // set the tracknum and pos.
+    void event(int evt, BlockViewWindow *view = 0, bool track_drag = false);
 
     // There are 'block' and 'window' variants, with and without a tracknum.
     // The 'window' variant is necessary because the Fl_Widget::window() of a
