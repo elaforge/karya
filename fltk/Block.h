@@ -8,9 +8,7 @@
           /                           \
 ruler_group _________________        track_group
    |       \         \       \         |        \
-track_box sb_box     time_sb ruler   track_sb  track_zoom
-                                                  /
-                                             track_scroll
+track_box sb_box     time_sb ruler   track_sb  track_scroll
                                                 /
                                             track_tile
                                             /
@@ -51,7 +49,6 @@ on an scrollbar callback
 #include "types.h"
 #include "Track.h"
 #include "TrackTile.h"
-#include "Zoom.h"
 #include "Ruler.h"
 #include "Event.h"
 
@@ -150,9 +147,8 @@ private:
         Fl_Group track_group;
             FlSeqScrollbar track_sb;
             // P9SeqScrollbar track_sb;
-            Zoom track_zoom;
-                SimpleScroll track_scroll;
-                    TrackTile track_tile;
+            SimpleScroll track_scroll;
+                TrackTile track_tile;
 
     void update_scrollbars();
 

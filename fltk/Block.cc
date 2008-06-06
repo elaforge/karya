@@ -28,10 +28,9 @@ BlockView::BlockView(int X, int Y, int W, int H,
             ruler_track(0), // filled in later by insert_track
         track_group(0, 0, 1, 1),
             track_sb(0, 0, 1, 1),
-            track_zoom(0, 0, 1, 1),
-                track_scroll(0, 0, 1, 1),
-                    track_tile(0, 0, 1, 1, model_config.bg,
-                            view_config.track_title_height)
+            track_scroll(0, 0, 1, 1),
+                track_tile(0, 0, 1, 1, model_config.bg,
+                        view_config.track_title_height)
 {
     // The sizes of 1 are so that groups realize that their children are inside
     // of them.  The real resizing will be done in set_view_config
@@ -58,8 +57,7 @@ BlockView::BlockView(int X, int Y, int W, int H,
 
     resizable(body);
     body.resizable(body_resize_group);
-    track_group.resizable(track_zoom);
-    // track_zoom.resizable(track_scroll);
+    track_group.resizable(track_scroll);
 
     this->set_view_config(view_config, true);
     this->set_model_config(model_config, true);
@@ -131,17 +129,15 @@ BlockView::set_view_config(const BlockViewConfig &vconfig, bool always_update)
 
     p = rect(track_group);
     track_sb.resize(p.x, p.b() - vconfig.sb_size, p.w, vconfig.sb_size);
-    track_zoom.resize(p.x, p.y, p.w, p.h - track_sb.h());
     track_scroll.resize(p.x, p.y, p.w, p.h - track_sb.h());
-    track_tile.resize(track_zoom.x(), track_zoom.y(),
-            track_zoom.w(), track_zoom.h());
+    track_tile.resize(track_scroll.x(), track_scroll.y(),
+            track_scroll.w(), track_scroll.h());
 
     // This is overhead required by fltk when you resize anything manually.
     init_sizes();
     body.init_sizes();
     ruler_group.init_sizes();
     track_group.init_sizes();
-    track_zoom.init_sizes();
     track_scroll.init_sizes();
     track_tile.init_sizes();
 
