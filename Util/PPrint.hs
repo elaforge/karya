@@ -6,9 +6,9 @@ import Language.Haskell.Pretty
 import Language.Haskell.Syntax
 import Text.Read
 
-
 -- gleb.alexeev@gmail.com's ipprint package from hackage
 import qualified IPPrint
+
 
 pshow :: Show a => a -> String
 pshow = dedent . IPPrint.pshow
@@ -21,6 +21,8 @@ is_str (HsModule _ _ _ _ [HsPatBind _ _ (HsUnGuardedRhs rhs) _]) = case rhs of
     _ -> Nothing
 is_str _ = Nothing
 
+-- | Pretty print the given value, unless it's a string, in which case return
+-- it unchanged.
 str_pshow :: Show a => a -> String
 str_pshow v = dedent $ case parseModule ("value = " ++ s) of
         ParseOk m -> case is_str m of

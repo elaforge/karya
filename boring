@@ -18,7 +18,7 @@ _stub.[ch]$
 ^test_[a-z]+$
 test/hspp
 fixdeps
-^(seq|send|repl|logview)$
+^(dump|seq|send|repl|logview)$
 
 # profile cruft
 ^RunTests\.
