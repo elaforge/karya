@@ -96,12 +96,13 @@ hardcoded_cmds =
     [ Cmd.cmd_update_ui_state, Cmd.cmd_record_active
     , Cmd.cmd_log
     -- Handle special case global msgs.
-    , Cmd.cmd_close_window, Play.cmd_transport_msg
+    , Cmd.cmd_close_window
     ]
 
 -- | And these special commands that run in IO.
 hardcoded_io_cmds transport_info session =
     [ Language.cmd_language session
+    , Play.cmd_transport_msg
     , DefaultKeymap.cmd_io_keymap transport_info
     ]
 

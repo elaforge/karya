@@ -1,5 +1,5 @@
-{- | A module with minimal dependencies that has transport oriented types and
-utilities.
+{- | The transport is the communication mechanism between the app and the
+performer.  Extensive description is in the Cmd.Play docstring.
 -}
 module Perform.Transport where
 import qualified Control.Concurrent.STM as STM
@@ -26,7 +26,7 @@ type Chan = STM.TChan Status
 -- started, it's incorporated into the play 'State'.
 data Info = Info {
     -- | Channel to communicate back to the responder loop.
-    info_transport_chan :: Chan
+    info_responder_chan :: Chan
     , info_midi_writer :: Midi.WriteMessage -> IO ()
     -- | Get current timestamp according to timing system.
     , info_get_current_timestamp :: IO Timestamp.Timestamp
@@ -69,7 +69,7 @@ type TempoMap = Block.BlockId -> Timestamp.Timestamp -> Maybe TrackPos
 -- This is read-only, and shouldn't need to be modified.
 data State = State {
     -- | Communicate out of the Player.
-    state_transport_chan :: Chan
+    state_responder_chan :: Chan
     -- | Communicate into the Player.
     , state_transport :: Transport
     , state_midi_writer :: Midi.WriteMessage -> IO ()

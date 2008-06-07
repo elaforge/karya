@@ -27,7 +27,7 @@ play transport_info block_id midi_msgs = do
         ts_midi_msgs = map (add_ts ts_offset) midi_msgs
     Thread.start_thread "render midi" $
         player_thread state ts_midi_msgs `Exception.catch` \exc -> do
-            Transport.write_status (Transport.state_transport_chan state)
+            Transport.write_status (Transport.state_responder_chan state)
                 (Transport.Died exc) (Transport.state_block_id state)
             -- The Renderer died so it doesn't need the Stop, but I still need
             -- to stop the updater.
@@ -56,7 +56,7 @@ player_thread state midi_msgs = do
 write_ahead :: Timestamp.Timestamp
 write_ahead = Timestamp.seconds 0.5
 
--- 'devs' is used to keep track of devices that have received their first
+-- | @devs@ is used to keep track of devices that have received their first
 -- message, so some state-resetting msgs can be sent to make sure the synth is
 -- in a known state.  This has somewhat questionable value, but I'll keep it as
 -- it is for the moment.

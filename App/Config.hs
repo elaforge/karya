@@ -45,6 +45,7 @@ play_position_color = make_selection_color Color.purple
 box_color = Color.rgb 0.25 1 1
 edit_color = Color.rgb 1 0.5 0.5
 play_color = Color.rgb 0 0.6 0
+warning_color = Color.rgb 1 0.2 0.2
 
 -- * defaults
 

@@ -108,8 +108,6 @@ Ui
   Diff
     * ErrorT
     * track width, track update (need diff hints?)
-  State
-    - quickcheck Arbitrary to generate States
   Track
     - benchmark large TrackEvents
     - modify IntMap for Word64s, add toDescList
@@ -172,7 +170,6 @@ Cmd
     - make sure the whole stack is lazy
     - play loops
     - play from position
-    - implement pause / resume with play from position
 
   Cmd.Record
     - come up with a plan for midi recording
@@ -197,8 +194,9 @@ Derive
   derivers
     * control
     - tempo
-  - display intermediate blocks
-  - 3 way merge for intermediate blocks
+    - defaulting parameters for control and note tracks
+  - display derived blocks
+  - 3 way merge for derived blocks
 
 Perform
   Player
