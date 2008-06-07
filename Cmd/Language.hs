@@ -10,7 +10,10 @@ import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.Trans as Trans
 
 import qualified Language.Haskell.Interpreter.GHC as GHC
+import qualified System.Directory as Directory
 import qualified System.IO as IO
+import qualified System.FilePath as FilePath
+import System.FilePath ((</>))
 
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
@@ -21,6 +24,10 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 
 
+-- TODO Later can be configured?  Or is it just cwd?  It might mess up the
+-- importing if it's not '.', unless I can use dynFlags to set -i.
+app_dir = ""
+
 cmd_language :: GHC.InterpreterSession -> Msg.Msg -> Cmd.CmdIO
 cmd_language session msg = do
     (response_hdl, text) <- case msg of
@@ -29,10 +36,11 @@ cmd_language session msg = do
     Log.notice $ "got lang: " ++ show text
     ui_state <- State.get
     cmd_state <- Cmd.get_state
-    cmd <- Trans.liftIO $
-            GHC.withSession session (interpret ui_state cmd_state text)
+    local_modules <- get_local_modules
+
+    cmd <- Trans.liftIO $ GHC.withSession session
+            (interpret local_modules ui_state cmd_state text)
         `Exception.catchDyn` catch_interpreter_error
-        `Exception.catchDyn` catch_ghc_exc
         `Exception.catch` catch_all
     response <- cmd
     Trans.liftIO $ catch_io_errors $ do
@@ -41,6 +49,16 @@ cmd_language session msg = do
         IO.hClose response_hdl
     return $ if response == (magic_quit_string++"\n")
         then Cmd.Quit else Cmd.Done
+
+get_local_modules = do
+    let lang_dir = app_dir </> "Local" </> "Lang"
+    fns <- Trans.liftIO $ Directory.getDirectoryContents lang_dir
+        `Exception.catch` \exc -> do
+            Log.warn $ "error reading local lang dir: " ++ show exc
+            return []
+    let mod_fns = map (lang_dir </>) $ filter ((/=".") . take 1) fns
+    mod_fns <- Trans.liftIO $ filterM Directory.doesFileExist mod_fns
+    return $ map (Seq.replace "/" "." . FilePath.dropExtension) mod_fns
 
 -- | Hack so that language cmds can quit the app, since they return strings.
 magic_quit_string :: String
@@ -53,11 +71,6 @@ catch_interpreter_error :: GHC.InterpreterError -> IO (Cmd.CmdT IO String)
 catch_interpreter_error exc = return $ do
     Log.warn ("interpreter error: " ++ show_ghc_exc exc)
     return $ "interpreter error: " ++ show_ghc_exc exc
-
-catch_ghc_exc :: GHC.GhcException -> IO (Cmd.CmdT IO String)
-catch_ghc_exc exc = return $ do
-    Log.warn ("ghc error: " ++ show exc)
-    return $ "ghc error: " ++ show exc
 
 catch_all :: Exception.Exception -> IO (Cmd.CmdT IO String)
 catch_all exc = return $ do
@@ -83,13 +96,12 @@ type LangType = State.State -> Cmd.State -> Cmd.CmdVal String
 -- seems to work.
 --
 -- TODO figure out what the original error means, and if I can get around it
-interpret :: State.State -> Cmd.State -> String
+interpret :: [GHC.ModuleName] -> State.State -> Cmd.State -> String
     -> GHC.Interpreter (Cmd.CmdT IO String)
-interpret ui_state cmd_state text = do
-    GHC.loadModules ["Cmd.LanguageEnviron"]
+interpret local_mods ui_state cmd_state text = do
+    GHC.loadModules $ ["Cmd.LanguageEnviron"] ++ local_mods
     GHC.setTopLevelModules ["Cmd.LanguageEnviron"]
-    GHC.setImports ["Prelude", "Cmd.LanguageEnviron"]
-    -- TODO possibly load modules from a user-defined directory
+    GHC.setImports $ ["Prelude"] ++ local_mods
 
     cmd_func <- GHC.interpret (mangle_code text) (GHC.as :: LangType)
     let (cmd_state2, _midi, logs, ui_res) = cmd_func ui_state cmd_state

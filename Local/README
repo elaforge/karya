@@ -1,0 +1,10 @@
+This is a place for local additions.
+
+This means custom keymaps, custom schemas and derivers, and custom commands.
+You should probably put the modules in a package with your name, to avoid
+name collisions if anyone ever winds up sharing.
+
+Modules in the Lang/ directory are included in the cmd language's namespace,
+just like Cmd.LanguageEnviron.  They're re-imported on each command, so you can
+develop commands interactively, but you should compile them when you stop
+changing them, to keep command execution from getting too slow.

@@ -34,6 +34,7 @@ import qualified Util.PPrint as PPrint
 
 import Ui.Types
 import qualified Ui.Color as Color
+import qualified Ui.Event as Event
 import qualified Ui.Block as Block
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Track as Track
@@ -60,8 +61,6 @@ import qualified Midi.Midi as Midi
 import qualified App.Config as Config
 
 
-type Cmd a = Cmd.CmdT Identity.Identity a
-
 -- * util
 
 -- | pprint does ok for records, but it doesn't work so well if I want to print
@@ -82,32 +81,32 @@ _cmd_state = flip fmap Cmd.get_state
 
 -- * show / modify cmd state
 
-show_save_file :: Cmd String
+show_save_file :: Cmd.CmdL String
 show_save_file = _cmd_state (show . Cmd.state_default_save_file)
-set_save_file :: String -> Cmd ()
+set_save_file :: String -> Cmd.CmdL ()
 set_save_file s =
     Cmd.modify_state $ \st -> st { Cmd.state_default_save_file = s }
 
-show_step :: Cmd TimeStep.TimeStep
+show_step :: Cmd.CmdL TimeStep.TimeStep
 show_step = _cmd_state Cmd.state_step
 
-set_step :: TimeStep.TimeStep -> Cmd ()
+set_step :: TimeStep.TimeStep -> Cmd.CmdL ()
 set_step step = Cmd.modify_state $ \st -> st { Cmd.state_step = step }
 
-show_octave :: Cmd Int
+show_octave :: Cmd.CmdL Int
 show_octave = _cmd_state Cmd.state_kbd_entry_octave
-set_octave :: Int -> Cmd ()
+set_octave :: Int -> Cmd.CmdL ()
 set_octave n = Edit.cmd_modify_octave (const n) >> return ()
 
 -- * load / save
 
-quit :: Cmd String
+quit :: Cmd.CmdL String
 quit = return Language.magic_quit_string
 
 -- Need to run in IO, not Identity for this.
 -- I think I could have lang run in IO, but is it worth it just for this?
 -- I don't see why not.  TODO
--- load, save :: Maybe String -> Cmd ()
+-- load, save :: Maybe String -> Cmd.CmdL ()
 -- load fn = Save.cmd_load fn
 -- save fn = Save.cmd_save fn
 
@@ -122,7 +121,7 @@ sid = Block.SchemaId
 rid = Ruler.RulerId
 tid = Track.TrackId
 
-show_state :: Cmd String
+show_state :: Cmd.CmdL String
 show_state = do
     (State.State views blocks tracks rulers _midi_config) <- State.get
     -- midi config showed by show_midi_config
@@ -134,10 +133,10 @@ show_state = do
 
 -- ** views
 
-get_views :: Cmd [Block.ViewId]
+get_views :: Cmd.CmdL [Block.ViewId]
 get_views = fmap (Map.keys . State.state_views) State.get
 
-create_view :: String -> String -> Cmd Block.ViewId
+create_view :: String -> String -> Cmd.CmdL Block.ViewId
 create_view view_id block_id = do
     rect <- fmap (find_rect Config.view_size . map Block.view_rect . Map.elems
         . State.state_views) State.get
@@ -152,16 +151,16 @@ find_rect (w, h) rects = Block.Rect (right, bottom) (w, h)
     right = maximum $ 0 : map Block.rect_right rects
     bottom = 10
 
-destroy_view :: String -> Cmd ()
+destroy_view :: String -> Cmd.CmdL ()
 destroy_view view_id = State.destroy_view (vid view_id)
 
 -- ** blocks
 
-get_focused_block :: Cmd Block.BlockId
+get_focused_block :: Cmd.CmdL Block.BlockId
 get_focused_block = fmap Block.view_block
     (State.get_view =<< Cmd.get_focused_view)
 
-show_block :: String -> Cmd String
+show_block :: String -> Cmd.CmdL String
 show_block block_id = do
     Block.Block { Block.block_title = title, Block.block_ruler_track = ruler,
         Block.block_tracks = tracks, Block.block_schema = schema }
@@ -173,7 +172,7 @@ show_block block_id = do
         , ("schema", show schema)
         ]
 
-get_skeleton :: String -> Cmd Schema.Skeleton
+get_skeleton :: String -> Cmd.CmdL Schema.Skeleton
 get_skeleton block_id = do
     Schema.get_skeleton =<< State.get_block (bid block_id)
 
@@ -182,7 +181,7 @@ create_block :: (State.UiStateMonad m) =>
 create_block id_name ruler_id schema_id = State.create_block id_name
     (Block.block "" Config.block_config (ruler ruler_id) [] (sid schema_id))
 
-set_schema :: String -> String -> Cmd ()
+set_schema :: String -> String -> Cmd.CmdL ()
 set_schema block_id schema_id = do
     State.modify_block (bid block_id) $ \block ->
         block { Block.block_schema = sid schema_id }
@@ -197,7 +196,7 @@ ruler ruler_id = Block.RId (rid ruler_id)
 divider :: Color.Color -> Block.TracklikeId
 divider color = Block.DId (Block.Divider color)
 
-show_track :: String -> Cmd String
+show_track :: String -> Cmd.CmdL String
 show_track track_id = do
     track <- State.get_track (tid track_id)
     return $ show_list $ map Track.pretty_pos_event $
@@ -207,11 +206,21 @@ insert_track block_id tracknum tracklike width = do
     State.insert_track (bid block_id) tracknum tracklike width
 remove_track block_id tracknum = State.remove_track (bid block_id) tracknum
 
-show_events :: String -> TrackPos -> TrackPos -> Cmd String
+show_events :: String -> TrackPos -> TrackPos -> Cmd.CmdL String
 show_events track_id start end = do
     track <- State.get_track (tid track_id)
     return $ (show_list . map Track.pretty_pos_event
         . Track.events_in_range start end . Track.track_events) track
+
+-- ** events
+
+-- | Events in the selection.
+selected_events :: Cmd.CmdL [Event.Event]
+selected_events = undefined
+
+-- | Event that overlaps the insert pos, or abort.
+close_event :: Cmd.CmdL Event.Event
+close_event = undefined
 
 -- ** rulers
 
@@ -221,7 +230,7 @@ replace_marklist (rid "r1")
 copy_marklist "meter" (rid "r1") (rid "r1.overlay")
 -}
 
-show_ruler :: String -> Cmd String
+show_ruler :: String -> Cmd.CmdL String
 show_ruler ruler_id = do
     (Ruler.Ruler mlists bg show_names use_alpha full_width) <-
         State.get_ruler (rid ruler_id)
@@ -232,14 +241,14 @@ show_ruler ruler_id = do
         , ("marklists", show_list (map fst mlists))
         ]
 
-show_marklist :: String -> Ruler.MarklistName -> Cmd String
+show_marklist :: String -> Ruler.MarklistName -> Cmd.CmdL String
 show_marklist ruler_id marklist_name = do
     mlist <- get_marklist (rid ruler_id) marklist_name
     return $ show_list $
         map (\(pos, m) -> printf "%s - %s" (show pos) (pretty m))
             (Ruler.forward mlist (TrackPos 0))
 
-get_marklist :: Ruler.RulerId -> Ruler.MarklistName -> Cmd Ruler.Marklist
+get_marklist :: Ruler.RulerId -> Ruler.MarklistName -> Cmd.CmdL Ruler.Marklist
 get_marklist ruler_id marklist_name = do
     ruler <- State.get_ruler ruler_id
     case lookup marklist_name (Ruler.ruler_marklists ruler) of
@@ -247,7 +256,7 @@ get_marklist ruler_id marklist_name = do
             "no marklist " ++ show marklist_name ++ " in " ++ show ruler_id
         Just mlist -> return mlist
 
-replace_marklist :: Ruler.RulerId -> Ruler.NameMarklist -> Cmd ()
+replace_marklist :: Ruler.RulerId -> Ruler.NameMarklist -> Cmd.CmdL ()
 replace_marklist ruler_id (name, mlist) = do
     ruler <- State.get_ruler ruler_id
     i <- case List.findIndex ((==name) . fst) (Ruler.ruler_marklists ruler) of
@@ -255,7 +264,8 @@ replace_marklist ruler_id (name, mlist) = do
         Just i -> State.remove_marklist ruler_id i >> return i
     State.insert_marklist ruler_id i (name, mlist)
 
-copy_marklist :: Ruler.MarklistName -> Ruler.RulerId -> Ruler.RulerId -> Cmd ()
+copy_marklist :: Ruler.MarklistName -> Ruler.RulerId -> Ruler.RulerId
+    -> Cmd.CmdL ()
 copy_marklist marklist_name from_ruler_id to_ruler_id = do
     mlist <- get_marklist from_ruler_id marklist_name
     replace_marklist to_ruler_id (marklist_name, mlist)
@@ -263,14 +273,14 @@ copy_marklist marklist_name from_ruler_id to_ruler_id = do
 -- * show / modify keymap
 
 -- | Run the Cmd that is bound to the given KeySpec, if there is one.
--- keymap :: Keymap.KeySpec -> Cmd
+-- keymap :: Keymap.KeySpec -> Cmd.CmdL ()
 
 -- Modify global keymap
 -- Modify keymap for given schema_id.
 
 -- * midi config
 
-assign_instrument :: String -> Midi.Instrument.Addr -> Cmd ()
+assign_instrument :: String -> Midi.Instrument.Addr -> Cmd.CmdL ()
 assign_instrument inst_name addr = do
     inst <- case InstrumentDb.lookup (Score.Instrument inst_name) of
         Just (InstrumentDb.Midi midi_inst) -> return midi_inst
@@ -306,7 +316,7 @@ auto_config write_device block_id = do
 
 -- ** derivation
 
-derive :: String -> Cmd [Score.Event]
+derive :: String -> Cmd.CmdL [Score.Event]
 derive block_id = do
     block <- State.get_block (bid block_id)
     (result, _) <- Play.derive block
@@ -314,7 +324,8 @@ derive block_id = do
         Left err -> State.throw $ "derive error: " ++ show err
         Right events -> return events
 
-score_to_midi :: [Score.Event] -> Cmd ([Midi.WriteMessage], [Warning.Warning])
+score_to_midi :: [Score.Event]
+    -> Cmd.CmdL ([Midi.WriteMessage], [Warning.Warning])
 score_to_midi events = do
     inst_config <- fmap State.state_midi_config State.get
     let (midi_events, convert_warnings) = Midi.Convert.convert events

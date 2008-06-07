@@ -1,0 +1,252 @@
+Places to plug in code:
+
+    instrument db
+The lookup function should be able to go through dynamically loaded instrument
+defs.
+
+I can do this by compiling the DB statically into the binary.  Just give a way
+to merge DBs so they can be kept seperately, and pass them to main.
+
+    Derivers
+
+There are two cases: the deriver primitives, and the specific derivers for each
+block.  The primitives can be compiled statically and are directly referenced
+in the source, you just need to put them in your own module and put your local
+dir in the search path.
+
+For each block is trickier, since I'd like to be able to reconfigure those
+without restarting the program.  Since there's no distinction between a deriver
+"primitive" and a block deriver, in theory each block of a song would have its
+own deriver.  Also, every time you modify a block (add or remove a track) you
+also modify the deriver.  It should be fairly low overhead to do this stuff.
+It's also important to keep the deriver and UI layout in sync.
+
+Solutions:
+
+1. dynamic loading: creating a block means writing its deriver and UI layout
+together.  They could be combined into a single data structure like the old
+Derive Schema.  Could they?  I'm not sure how easy that would be.
+
+2. Generate deriver from block structure + hints.  Each block would have
+a "schema", which would take the UI layout -> deriver at derivation time, to
+eliminate the sync problem.  I still need a "schema" description, which would
+basically be like DeriverDb.default_deriver.  Since many blocks could use the
+same schema, maybe I could get by with static compilation, in the same way as
+the instrument db and Cmds.  Block-specific things like "transpose this track"
+may still be too heavyweight.
+
+I want to make it really easy to mix code and score.  For example:
+
+make a new block, add tracks, add controller tracks, configure instruments:
+You should be able to do all this with just key commands and editing the
+titles
+
+subtract 5 from a certain controller track
+You could do this either destructively, or in the deriver.  For the former,
+use the repl for something like:
+selected_track >>= map_events $ \evt -> evt { text = parse text + n }
+
+For the latter, you'd need to insert an (add n (signal ...)) into the deriver
+for the block.  For that, you switch to the window with the editor, modify and
+save the file, and hit a reload key.  I think this requires #1, but I also have
+to use this to add a track.  It seems kind of cumbersome.
+
+Other uses:
+add two signal tracks, set them as multiplied -> breath
+change the scale for the instrument track
+set a track as being derived from another
+
+Hybrid approaches:
+
+Describe the differences.  TrackIds that aren't in the deriver have something
+automatic defined for them.  I'm not even sure how this could work...
+
+block
+tempo track.tempo
+    control track0 volume
+        control velocity track.i1.1
+            scale track.i1
+        control breath (track.i1.breath1 * track.i1.breath2 + const 15)
+            control velocity track.i2.1
+                scale track.i2
+
+Real haskell means there's no introspection, so UiLayout must be described
+seperately.  Also, the default deriver type code would be all or nothing, since
+I couldn't introspect the generated code and then edit by hand.  I could have
+the default deriver generate source, which I can then edit, but then you wind
+up with lots of identical generated code.
+
+tempo (sigtrack "track.tempo")
+    [control 
+
+layout = UiLayout
+controller_schema = Controller.controller "breath"
+    (Controller.signal =<< Derive.d_track cont_track_id)
+    [bass =<< twelve =<< Derive.d_track track_id]
+
+Decision:
+Write derivers by hand, but a deriver has the block id prepended to all the
+track ids.  This way I can use the same deriver for multiple blocks.
+
+The block "deriver" is actually the deriver deriver, let's call it schema.
+This can either generate the deriver based on the block, or ignore it and
+return a custom deriver.  Then you hit reload to add it to the schema table,
+and send a language command to set the block's schema.
+
+If you switch to a custom deriver you have to write the code, but it shouldn't
+be too hard with some helpers:
+
+tempo (sigtrack "tempo")
+    map standard_track ["a", "b", "c", "d"]
+    ++ [special_track]
+
+
+
+
+    Key bindings
+
+Use cases:
+
+1. Set keybinding to a command: rebind a given key in a track, block, or
+globally.
+
+2. Make a new command: set selection based on given input, process notes
+according to special transformation, search for something.
+
+3. Process data: Like #2, but intended to be used as a one-off.
+
+
+1 could be done with a simple language, but I'd need a symbol table of
+commands.  It wouldn't be too hard (it would basically be the same as the
+instrument or deriver tables), but it would be easier to compile direct
+references into code and load it.
+
+
+You should be able to set keybindings at runtime, to dynamically loaded code.
+You should also be able to use the same facility to just send a one-shot
+command.  If compiling is too slow, I can have a simple command language for
+common things, like block manipulation etc.  I should make it transpanent by
+using a client library: it does a combination of emitting text commands and
+compiling plugins.
+
+
+
+In general, it seems like these reduce to a vocabulary of commands that should
+definitely be in haskell, and can be statically linked in, though it might be
+more convenient to be able to add new ones at runtime.
+
+
+Simple queries and commands can be done command line style, but more serious
+coding should be done in normal module files.
+
+
+------------------------------------------------------------
+
+Custom actions, derivers, interpolaters, keymaps, and whatever else are
+compiled and inserted into the program.  They can be saved with song files and
+in separate libraries to arbitrarily extend the sequencer for a given song.
+
+TODO: how current is hs-plugins?  how does xmonad do this?
+
+
+Code objects are stored in a namespace that maps (Symbol -> Dynamic).
+Functions in Actions, Scores, and the keymap are referred to by name.  Since
+the symbol table is dynamically typed, each function that looks up a dynamic
+symbol must have a standard way to throw a type error.  Also, all dynamic code
+must be monomorphic.
+
+Symbols have namespaces to avoid name clashes when merging songs, or writing
+general purpose libraries.
+
+hmm, so two approaches:
+Have a namespace, and then send msgs like 'symbol := monomoprhic_code'.
+Serializing Actions and Scores requires symbolic names for the code, along with
+a list of symbol assignments.
+
+But then how do you write polymorphic functions?  And what namespace does
+monomoprhic_code run in?  Then how do you intergrate a normal haskell module?
+
+Maybe a special import declaration 'import ....' that will go in the implicit
+module that monomoprhic_code is run in.  Then you write the plain haskell
+separately.
+
+
+But then wouldn't you write everything that way?  Easier to write a plain
+haskell module than a special language.  But you still need a symbol table.
+
+
+Ok, so the plugin system imports the module you give it (give a filename to the
+UI).  It calls functions in there that you write for the dynamic bits.  Each
+function in there has to put itself in the namespace like:
+
+my_derive = id
+derivers = Namespace
+    [ ("my_derive", my_derive)
+    ]
+
+my_keymap (Msg (KbdMsg state 'h')) = h_action
+my_keymap _ = ?
+keymap = my_keymap
+
+Now each Block has a deriver name like "Module.my_derive", and it will look in
+Module.derivers.  Keys in its focus will be sent to Module.keymap.  Clearly
+there should be an inheritance / overriding kind of thing so you can patch
+specific behaviours in on top of general purpose ones, depending on the
+situation:
+
+    Keymap
+
+Block has [Symbol].  Msg delivery goes through each Module.keymap until one
+returns Just Action, then executes that action.  Actions can have a NextAction
+which will resolve to the next action in the list.  This is so an action can do
+something like "do what's normally bound to this key in addition to..." or "do
+it n times".  Essentially each keymap entry is an around-method.  Newly created
+blocks have prepend their own keymaps, and automatically inherit a standard
+set.
+
+    Deriver
+
+This has many parts, which are extendable.
+
+
+    tempo   inst1   pres    cont    |
+0   40      g-1     1       vib 0   |
+1   30              0       1       |
+
+The interpretation of the tempo track is universal, and applies to the whole
+block.  'inst1' only applies until the divider.
+
+Score
+[ Track "tempo" [(0, 40), (1, 30)]
+, Track "inst1"
+
+
+(tempo (lin [(0, 40), (1, 30)])
+    (note "inst1" "g-1" 0 1
+        [ control "pres" (lin [(0, 1), (1, 0)])
+        , control "vib" (lin [(0, 0), (1, 1)])]))
+
+
+Block level deriver
+Track level deriver
+How to treat the derived-from track (mute it?)
+
+    Derivation use cases
+
+tempo track
+javanese style melody
+merge controller curves
+block macro expansion
+
+
+    Interpolator
+
+
+
+Dynamic bits:
+
+Deriver : Score -> Score or Score -> NoteList
+Interpolator
+    : Array (TrackPos, ControllerValue) -> [TrackPos] -> [ControllerValue]
+Keymap : Msg -> Maybe Action
+    subsets like Map ([KbdState], Char) Action for kbd

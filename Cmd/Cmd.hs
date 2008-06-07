@@ -42,6 +42,9 @@ type CmdM m = CmdT m Status
 type CmdIO = CmdM IO
 type CmdId = CmdM Identity.Identity
 
+-- | Cmds used by the language system, which all run in Identity.
+type CmdL a = CmdT Identity.Identity a
+
 -- | Cmds can run in either Identity or IO, but are generally returned in IO,
 -- just to make things uniform.
 type RunCmd cmd_m val_m a =

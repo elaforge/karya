@@ -1,7 +1,8 @@
     ghc
 
-    haskell deps
-DList (dlist on hackage)
+    haskell deps, from hackage
+binary
+dlist
 hint
 ipprint
 
