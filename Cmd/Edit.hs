@@ -191,7 +191,7 @@ sync_octave_status = do
     octave <- fmap Cmd.state_kbd_entry_octave Cmd.get_state
     Cmd.set_status status_octave (Just (show octave))
 
-status_octave = "octave"
+status_octave = "8ve"
 status_step = "step"
 
 -- * util

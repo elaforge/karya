@@ -101,7 +101,7 @@ print_devs rdev_map wdev_map = do
     putStrLn "write devs:"
     mapM_ print (Map.keys wdev_map)
 
-empty_track = Track.track "" [] Config.track_bg
+empty_track title = Track.track title [] Config.track_bg
 
 setup_cmd :: Cmd.CmdId
 setup_cmd = do
@@ -111,10 +111,10 @@ setup_cmd = do
     overlay <- State.create_ruler "r1.overlay"
         =<< fmap TestSetup.overlay_ruler (State.get_ruler ruler)
 
-    t1 <- State.create_track "b1.t1" empty_track
+    t1 <- State.create_track "b1.t1" (empty_track ">fm8/bass")
     State.insert_events t1 [(TrackPos p, Config.event (show p) (TrackPos 10))
         | p <- [0,10..100]]
-    t2 <- State.create_track "b1.t2" empty_track
+    t2 <- State.create_track "b1.t2" (empty_track "velocity")
     b1 <- State.create_block "b1" $ Block.block "hi b1"
         Config.block_config (Block.RId ruler)
         [(Block.TId t1 overlay, 40), (Block.TId t2 overlay, 40)]

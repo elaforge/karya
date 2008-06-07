@@ -15,10 +15,12 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Edit as Edit
 import qualified Cmd.Keymap as Keymap
 import qualified Cmd.Selection as Selection
+import qualified Derive.Twelve as Twelve
 
 
 cmd_kbd_note_entry :: Cmd.Cmd
 cmd_kbd_note_entry = Keymap.make_cmd kbd_note_entry
+cmd_kbd_note_thru = Keymap.make_cmd kbd_note_thru
 cmd_midi_entry msg =
     Edit.cmd_insert_midi_note msg >> Selection.cmd_advance_insert
 
@@ -26,7 +28,12 @@ cmd_midi_entry msg =
 
 -- | Enter notes from the computer keyboard.
 kbd_note_entry :: [Keymap.Binding Identity.Identity]
-kbd_note_entry = concatMap make_kbd_note_entry (lower_notes ++ upper_notes)
+kbd_note_entry =
+    concatMap (make_kbd_note_entry True) (lower_notes ++ upper_notes)
+
+kbd_note_thru :: [Keymap.Binding Identity.Identity]
+kbd_note_thru =
+    concatMap (make_kbd_note_entry False) (lower_notes ++ upper_notes)
 
 lower_notes = zip [0..]
     [ 'z', 's' -- C
@@ -54,9 +61,9 @@ upper_notes = zip [12..]
 -- instrument.
 default_addr = (Midi.WriteDevice "dummy", 0)
 
-make_kbd_note_entry :: (Edit.NoteNumber, Char)
+make_kbd_note_entry :: Bool -> (Edit.NoteNumber, Char)
     -> [Keymap.Binding Identity.Identity]
-make_kbd_note_entry (pitch_num, unmapped_char) =
+make_kbd_note_entry enter_notes (pitch_num, unmapped_char) =
     [ (spec UiMsg.KeyDown, Keymap.cspec_ (desc ++ " down") keydown_cmd)
     , (spec UiMsg.KeyUp, Keymap.cspec_ (desc ++ " up") keyup_cmd)
     ]
@@ -69,9 +76,14 @@ make_kbd_note_entry (pitch_num, unmapped_char) =
         -- Key repeat makes multiple note ons.  Ignore it for note entry too,
         -- since I can't see wanting to spam out a million notes at once.
         when (Cmd.KeyMod key `Map.notMember` mods) $ do
-            Edit.cmd_insert_pitch pitch_num
+            when enter_notes $ do
+                Edit.cmd_insert_pitch pitch_num
+                Selection.cmd_advance_insert
+                return ()
+            event_text <-
+                fmap Twelve.pitch_event (Edit.pitch_from_kbd pitch_num)
+            Cmd.set_status "note" (Just event_text)
             Edit.cmd_note_on default_addr pitch_num
-            Selection.cmd_advance_insert
             return ()
         return Cmd.Done
     keyup_cmd = Edit.cmd_note_off default_addr pitch_num

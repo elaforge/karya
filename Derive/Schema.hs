@@ -112,10 +112,10 @@ default_cmds parser context tracks = case track_type of
             midi_thru insts ++ cont_edit_cmds
         Nothing -> []
     where
-    inst_edit_cmds = if (ctx_edit_mode context)
+    inst_edit_cmds = if ctx_edit_mode context
         then [NoteEntry.cmd_midi_entry, NoteEntry.cmd_kbd_note_entry]
-        else []
-    cont_edit_cmds = if (ctx_edit_mode context)
+        else [NoteEntry.cmd_kbd_note_thru]
+    cont_edit_cmds = if ctx_edit_mode context
         then [NoteEntry.cmd_midi_entry, Edit.cmd_controller_entry]
         else []
     track_type = case (ctx_focused_tracknum context) of

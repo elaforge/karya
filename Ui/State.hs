@@ -208,6 +208,9 @@ modify_view view_id f = do
 
 -- ** block
 
+get_all_block_ids :: (UiStateMonad m) => m [Block.BlockId]
+get_all_block_ids = fmap (Map.keys . state_blocks) get
+
 get_block :: (UiStateMonad m) => Block.BlockId -> m Block.Block
 get_block block_id = get >>= lookup_id block_id . state_blocks
 create_block :: (UiStateMonad m) => String -> Block.Block -> m Block.BlockId
