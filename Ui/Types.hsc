@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -XGeneralizedNewtypeDeriving #-}
+{-# OPTIONS_GHC -XDeriveDataTypeable #-}
 {- |
 The basic types that the interface modules use.
 
@@ -9,6 +10,7 @@ just the type part from other modules, for easier type signatures.
 module Ui.Types (
     Color, TrackPos(..)
 ) where
+import qualified Data.Generics as Generics
 import Foreign
 import Foreign.C
 import Text.Printf
@@ -25,7 +27,8 @@ import Ui.Color (Color)
 -- many units are in one second depends on the tempo.  TrackPos units
 -- can be negative, but blocks only display events at positive TrackPos.
 newtype TrackPos = TrackPos Integer
-    deriving (Num, Enum, Real, Integral, Eq, Ord, Show, Read)
+    deriving (Num, Enum, Real, Integral, Eq, Ord, Show, Read,
+        Generics.Data, Generics.Typeable)
 
 instance Storable TrackPos where
     sizeOf _ = #size TrackPos

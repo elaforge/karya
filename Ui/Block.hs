@@ -1,6 +1,8 @@
+{-# OPTIONS_GHC -XDeriveDataTypeable #-}
 module Ui.Block where
 import qualified Foreign
 
+import qualified Data.Generics as Generics
 import qualified Data.Map as Map
 
 import qualified Util.Seq as Seq
@@ -16,12 +18,15 @@ import qualified Ui.Ruler as Ruler
 -- | Reference to a Block.  Use this to look up Blocks in the State.
 -- Even though the constructor is exported, you should only create them
 -- through the 'State.StateT' interface.
-newtype BlockId = BlockId String deriving (Eq, Ord, Show, Read)
+newtype BlockId = BlockId String
+    deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
 -- | Reference to a View, as per 'BlockId'.
-newtype ViewId = ViewId String deriving (Eq, Ord, Show, Read)
+newtype ViewId = ViewId String
+    deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
 -- | Reference to a schema.  Declared here instead of Deriver.Schema to avoid
 -- a circular import.
-newtype SchemaId = SchemaId String deriving (Eq, Ord, Show, Read)
+newtype SchemaId = SchemaId String
+    deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
 
 -- * block model
 
@@ -32,7 +37,7 @@ data Block = Block {
     -- The Width here is the default if a new View is created from this Block.
     , block_tracks :: [(TracklikeId, Width)]
     , block_schema :: SchemaId
-    } deriving (Eq, Ord, Show, Read)
+    } deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
 
 block title config ruler tracks schema_id =
     Block title config ruler tracks schema_id
@@ -42,14 +47,14 @@ data Config = Config {
     , config_bg_color :: Color
     , config_track_box_color :: Color
     , config_sb_box_color :: Color
-    } deriving (Eq, Ord, Show, Read)
+    } deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
 
 -- Tracks may have a Ruler overlay
 data TracklikeId =
     TId Track.TrackId Ruler.RulerId
     | RId Ruler.RulerId
     | DId Divider
-    deriving (Eq, Ord, Show, Read)
+    deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
 
 data Tracklike =
     T Track.Track Ruler.Ruler
@@ -59,7 +64,8 @@ data Tracklike =
 
 -- | A divider separating tracks.
 -- Declared here in Block since it's so trivial.
-data Divider = Divider Color deriving (Eq, Ord, Show, Read)
+data Divider = Divider Color
+    deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
 
 -- * block view
 
@@ -81,7 +87,7 @@ data View = View {
     -- corresponding to each TracklikeId in the Block.  The StateT operations
     -- should maintain this invariant.
     , view_tracks :: [TrackView]
-    } deriving (Eq, Ord, Show, Read)
+    } deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
 
 show_status :: View -> String
 show_status = Seq.join " | " . map (\(k, v) -> k ++ ": " ++ v)
@@ -113,12 +119,12 @@ view block_id rect config = View block_id rect config Map.empty
 
 data TrackView = TrackView {
     track_view_width :: Width
-    } deriving (Eq, Ord, Show, Read)
+    } deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
 
 data Rect = Rect {
     rect_pos :: (Int, Int)
     , rect_size :: (Int, Int)
-    } deriving (Eq, Ord, Show, Read)
+    } deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
 rect_right rect = fst (rect_pos rect) + fst (rect_size rect)
 rect_bottom rect = snd (rect_pos rect) + snd (rect_size rect)
 
@@ -131,13 +137,13 @@ data ViewConfig = ViewConfig
     , vconfig_sb_size :: Int
     , vconfig_ruler_size :: Int
     , vconfig_status_size :: Int
-    } deriving (Eq, Ord, Show, Read)
+    } deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
 
 -- | View zoom and time scroll offset.
 data Zoom = Zoom {
     zoom_offset :: TrackPos
     , zoom_factor :: Double
-    } deriving (Eq, Ord, Show, Read)
+    } deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
 default_zoom = Zoom (TrackPos 0) 1
 
 -- TODO: remove color and put it in BlockC.SelectionC, which gets its color
@@ -147,7 +153,7 @@ data Selection = Selection
     , sel_start_pos :: TrackPos
     , sel_tracks :: TrackNum
     , sel_duration :: TrackPos
-    } deriving (Eq, Ord, Show, Read)
+    } deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
 
 selection tracknum start tracks dur = Just (Selection tracknum start tracks dur)
 

@@ -1,7 +1,9 @@
+{-# OPTIONS_GHC -XDeriveDataTypeable #-}
 {- | Description of a midi-specific instrument, as well as the runtime midi
 device and channel mapping.
 -}
 module Perform.Midi.Instrument where
+import qualified Data.Generics as Generics
 import qualified Data.Map as Map
 
 import Util.Pretty
@@ -23,7 +25,7 @@ data Instrument = Instrument {
     -- LRU on the channels anyway)
     -- At least I can know when there's no point emitting control msgs.
     , inst_decay :: Maybe Double
-    } deriving (Eq, Ord, Read, Show)
+    } deriving (Eq, Ord, Read, Show, Generics.Data, Generics.Typeable)
 instrument = Instrument
 
 type PbRange = (Int, Int)
@@ -42,7 +44,7 @@ data Config  = Config {
     -- when it cant't figure out what instrument is involved, or if the
     -- instrument has no allocation.
     , config_default_addr :: Maybe Addr
-    } deriving (Show, Read)
+    } deriving (Show, Read, Generics.Data, Generics.Typeable)
 config addr_insts default_addr = Config (Map.fromList addr_insts) default_addr
 
 -- | Describe how an instrument should be initialized before it can be played.
@@ -52,7 +54,7 @@ data InitializeInstrument =
     -- | Display this msg to the user and hope they do what it says.
     | InitializeMessage String
     | NoInitialization
-    deriving (Eq, Ord, Read, Show)
+    deriving (Eq, Ord, Read, Show, Generics.Data, Generics.Typeable)
 
 instance Pretty Instrument where
     pretty inst = "<inst: " ++ inst_name inst ++ ">"

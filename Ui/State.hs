@@ -28,7 +28,7 @@ import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State as State
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
-import qualified Data.Typeable as Typeable
+import qualified Data.Generics as Generics
 
 import qualified Util.Seq as Seq
 import qualified Util.Logger as Logger
@@ -54,7 +54,7 @@ data State = State {
 
     -- | This maps the midi instruments used in this State to their Addrs.
     , state_midi_config :: Instrument.Config
-    } deriving (Show, Read, Typeable.Typeable)
+    } deriving (Show, Read, Generics.Typeable, Generics.Data)
 -- TODO "initial_state" would be more consistent
 empty = State Map.empty Map.empty Map.empty Map.empty
     (Instrument.config [] Nothing)
@@ -101,7 +101,7 @@ run_state_t (StateT x) = x
 instance Trans.MonadTrans StateT where
     lift = StateT . lift . lift . lift
 
-data StateError = StateError String deriving (Eq, Show, Typeable.Typeable)
+data StateError = StateError String deriving (Eq, Show, Generics.Typeable)
 instance Error.Error StateError where
     strMsg = StateError
 

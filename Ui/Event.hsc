@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -XDeriveDataTypeable #-}
 {-
 An Event has a duration.  The starting time is actually in the Track.  It has
 a title and various subevents.  A subevent is a bit of text at a TrackPos
@@ -29,6 +30,7 @@ No Event may overlap another Event on the same Track.
 -}
 
 module Ui.Event where
+import qualified Data.Generics as Generics
 import Foreign
 import Foreign.C
 
@@ -42,7 +44,7 @@ data Event = Event
     , event_color :: Color
     , event_style :: Font.TextStyle
     , event_align_to_bottom :: Bool
-    } deriving (Eq, Show, Read)
+    } deriving (Eq, Show, Read, Generics.Data, Generics.Typeable)
 
 
 -- * storable

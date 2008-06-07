@@ -1,4 +1,6 @@
+{-# OPTIONS_GHC -XDeriveDataTypeable #-}
 module Ui.Track where
+import qualified Data.Generics as Generics
 import qualified Data.List as List
 import qualified Data.Map as Map
 import Text.Printf
@@ -9,14 +11,15 @@ import Ui.Types
 import qualified Ui.Event as Event
 
 
-newtype TrackId = TrackId String deriving (Eq, Ord, Show, Read)
+newtype TrackId = TrackId String
+    deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
 type PosEvent = (TrackPos, Event.Event)
 
 data Track = Track {
     track_title :: String
     , track_events :: TrackEvents
     , track_bg :: Color
-    } deriving (Show, Read)
+    } deriving (Show, Read, Generics.Data, Generics.Typeable)
 
 -- | Construct an empty Track.
 track :: String -> [PosEvent] -> Color -> Track
@@ -57,7 +60,7 @@ pretty_pos_event (pos, event) = printf "%s +%s: %s" (pretty pos)
 -}
 newtype TrackEvents =
     TrackEvents (Map.Map TrackPos Event.Event)
-    deriving (Show, Read)
+    deriving (Show, Read, Generics.Data, Generics.Typeable)
     -- alternate efficient version for controller tracks?
     -- ControllerTrack (Array (TrackPos, Double))
 

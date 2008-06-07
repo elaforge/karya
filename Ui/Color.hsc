@@ -1,11 +1,14 @@
+{-# OPTIONS_GHC -XDeriveDataTypeable #-}
 module Ui.Color where
 import Foreign
 import Foreign.C
+import qualified Data.Generics as Generics
 
 import qualified Ui.Util as Util
 
 -- r, g, b, alpha, from 0--1
-data Color = Color Double Double Double Double deriving (Eq, Ord, Show, Read)
+data Color = Color Double Double Double Double
+    deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
 -- | An opaque color with the given r, g, and b.
 rgb r g b = rgba r g b 1
 rgba r g b a = let c = clamp 0 1 in Color (c r) (c g) (c b) (c a)
