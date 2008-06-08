@@ -52,7 +52,8 @@ do_convert_event event = do
     midi_inst <- req ("midi instrument in instrument db: " ++ show inst)
         (InstrumentDb.lookup inst)
     pitch <- req "pitch" (Score.event_pitch event)
-    let (cwarns, controls) = convert_controls (Score.event_controls event)
+    let (cwarns, controllers) =
+            convert_controllers (Score.event_controllers event)
         controller_warns = map
             (\w -> w { Warning.warn_event = Score.event_stack event })
             cwarns

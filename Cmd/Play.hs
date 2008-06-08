@@ -81,11 +81,11 @@
     For example:
 
     In a normal situation, the performer will do its thing and the updater will
-    eventually run out of TempoMap (which will return Nothing).  The updater
-    will send Stopped, which will clear the transport from the responder.  The
-    performer is assumed to have completed and exited on its own, probably even
-    before the playback audio is completed, since it likely schedules in
-    advance.
+    eventually run out of InverseTempoMap (which will return Nothing).  The
+    updater will send Stopped, which will clear the transport from the
+    responder.  The performer is assumed to have completed and exited on its
+    own, probably even before the playback audio is completed, since it likely
+    schedules in advance.
 
     If the performer dies on an error, it sends a Died to the responder chan.
     As mentioned above, it will also set the transport to Stop.  The updater
@@ -109,12 +109,14 @@ import qualified Data.Maybe as Maybe
 
 import qualified Util.Log as Log
 import qualified Util.Thread as Thread
+import Ui.Types
 import qualified Ui.Block as Block
 import qualified Ui.State as State
 import qualified Ui.Sync as Sync
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
+import qualified Cmd.Selection as Selection
 
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
@@ -122,6 +124,7 @@ import qualified Derive.Schema as Schema
 
 import qualified Perform.Midi.Play as Midi.Play
 import qualified Perform.Transport as Transport
+import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Perform as Perform
 
@@ -130,17 +133,27 @@ import qualified App.Config as Config
 
 -- * cmds
 
-cmd_play_block :: Transport.Info -> Cmd.CmdT IO Cmd.Status
-cmd_play_block transport_info = do
+cmd_play_focused transport_info = do
+    view_id <- Cmd.get_focused_view
+    block_id <- find_play_block view_id
+    cmd_play transport_info block_id (TrackPos 0)
+
+cmd_play_from_insert transport_info = do
+    view_id <- Cmd.get_focused_view
+    block_id <- find_play_block view_id
+    (pos, _, _) <- Selection.get_insert_pos
+    cmd_play transport_info block_id pos
+
+cmd_play :: Transport.Info -> Block.BlockId -> TrackPos
+    -> Cmd.CmdT IO Cmd.Status
+cmd_play transport_info block_id start_pos = do
     cmd_state <- Cmd.get_state
     case Cmd.state_transport cmd_state of
         Just _ -> Log.warn "player already running" >> Cmd.abort
         _ -> return ()
-    view_id <- Cmd.get_focused_view
-    block_id <- find_play_block view_id
     block <- State.get_block block_id
 
-    (derive_result, tempo_map) <- derive block
+    (derive_result, tempo_map, inv_tempo_map) <- derive block
     events <- case derive_result of
         -- TODO properly convert to log msg
         Left derive_error -> Log.warn ("derive error: " ++ show derive_error)
@@ -148,7 +161,9 @@ cmd_play_block transport_info = do
         Right events -> return events
 
     -- TODO later, instrument backend dispatches on this
-    let (midi_events, convert_warnings) = Convert.convert events
+    let (midi_events, convert_warnings) =
+            Convert.convert (seek_events start_pos events)
+
     -- TODO properly convert to log msg
     -- TODO I think this forces the list, I have to not warn so eagerly
     -- or thread the warnings through 'perform'
@@ -163,10 +178,17 @@ cmd_play_block transport_info = do
 
     ui_state <- State.get
     Trans.liftIO $ Thread.start_thread "play position updater" $
-        updater_thread transport transport_info tempo_map ui_state
+        updater_thread transport transport_info inv_tempo_map
+            (tempo_map start_pos) ui_state
 
     Cmd.modify_state $ \st -> st { Cmd.state_transport = Just transport }
     return Cmd.Done
+
+seek_events :: TrackPos -> [Score.Event] -> [Score.Event]
+seek_events pos events =
+    map sub_start $ dropWhile ((< pos) . Score.event_start) events
+    where
+    sub_start evt = evt { Score.event_start = Score.event_start evt - pos }
 
 cmd_stop :: Cmd.CmdT IO Cmd.Status
 cmd_stop = do
@@ -203,25 +225,27 @@ cmd_transport_msg msg = do
 -- * implementation
 
 -- | Derive the contents of the given block to score events.
-derive :: (Monad m) => Block.Block ->
-    Cmd.CmdT m (Either Derive.DeriveError [Score.Event], Transport.TempoMap)
+derive :: (Monad m) => Block.Block -> Cmd.CmdT m
+    (Either Derive.DeriveError [Score.Event], Transport.TempoMap,
+        Transport.InverseTempoMap)
 derive block = do
     deriver <- Schema.get_deriver block
     ui_state <- State.get
 
     -- TODO all the derivation work could be done asynchronously by
     -- a background thread
-    let (result, tempo_map, logs) = Derive.derive ui_state deriver
+    let (result, tempo_map, inv_tempo_map, logs) =
+            Derive.derive ui_state deriver
     mapM_ Log.write logs
-    return (result, tempo_map)
+    return (result, tempo_map, inv_tempo_map)
 
 
--- | Run along the TempoMap and update the play position selection.  Note that
--- this goes directly to the UI through Sync, bypassing the usual state diff
--- folderol.
+-- | Run along the InverseTempoMap and update the play position selection.
+-- Note that this goes directly to the UI through Sync, bypassing the usual
+-- state diff folderol.
 updater_thread :: Transport.Transport -> Transport.Info
-    -> Transport.TempoMap -> State.State -> IO ()
-updater_thread transport transport_info tempo_map ui_state = do
+    -> Transport.InverseTempoMap -> Timestamp.Timestamp -> State.State -> IO ()
+updater_thread transport transport_info inv_tempo_map start_ts ui_state = do
     let view_blocks = Map.assocs (Map.map Block.view_block
                 (State.state_views ui_state))
         block_ids = map snd view_blocks
@@ -233,12 +257,13 @@ updater_thread transport transport_info tempo_map ui_state = do
     Exception.bracket_
         (mapM_ (Transport.write_status trans_chan Transport.Playing) block_ids)
         (mapM_ (Transport.write_status trans_chan Transport.Stopped) block_ids)
-        (updater_loop transport ts_offset get_cur_ts tempo_map view_blocks)
+        (updater_loop transport (ts_offset - start_ts) get_cur_ts
+            inv_tempo_map view_blocks)
 
-updater_loop transport ts_offset get_cur_ts tempo_map view_blocks = do
+updater_loop transport ts_offset get_cur_ts inv_tempo_map view_blocks = do
     -- Offset from current time back to block start relative time.
-    cur_ts <- fmap (\ts -> ts - ts_offset) get_cur_ts
-    let spos = map (\(_, block_id) -> tempo_map block_id cur_ts) view_blocks
+    cur_ts <- fmap (+ (-ts_offset)) get_cur_ts
+    let spos = map (\(_, block_id) -> inv_tempo_map block_id cur_ts) view_blocks
     forM_ (zip view_blocks spos) $ \((view_id, _), maybe_pos) ->
         Sync.set_play_position view_id maybe_pos
 
@@ -248,7 +273,7 @@ updater_loop transport ts_offset get_cur_ts tempo_map view_blocks = do
     -- Either the transport is stopped or I ran out of tempo map.
     when (tmsg == Transport.Play && not (all Maybe.isNothing spos)) $ do
         Concurrent.threadDelay 30000
-        updater_loop transport ts_offset get_cur_ts tempo_map view_blocks
+        updater_loop transport ts_offset get_cur_ts inv_tempo_map view_blocks
 
 
 -- * util

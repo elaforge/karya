@@ -169,7 +169,7 @@ Cmd
     - warn about unallocated instruments (Convert.verify)
     - make sure the whole stack is lazy
     - play loops
-    - play from position
+    * play from position
 
   Cmd.Record
     - come up with a plan for midi recording

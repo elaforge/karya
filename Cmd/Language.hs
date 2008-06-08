@@ -56,9 +56,11 @@ get_local_modules = do
         `Exception.catch` \exc -> do
             Log.warn $ "error reading local lang dir: " ++ show exc
             return []
-    let mod_fns = map (lang_dir </>) $ filter ((/=".") . take 1) fns
+    let mod_fns = map (lang_dir </>) (filter is_hs fns)
     mod_fns <- Trans.liftIO $ filterM Directory.doesFileExist mod_fns
     return $ map (Seq.replace "/" "." . FilePath.dropExtension) mod_fns
+
+is_hs fn = take 1 fn /= "." && FilePath.takeExtension fn == ".hs"
 
 -- | Hack so that language cmds can quit the app, since they return strings.
 magic_quit_string :: String

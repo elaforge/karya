@@ -45,13 +45,15 @@ default_cmds =
     ]
 
 cmd_io_keymap :: Transport.Info -> Msg.Msg -> Cmd.CmdIO
-cmd_io_keymap player_info = Keymap.make_cmd (io_bindings player_info)
+cmd_io_keymap transport_info = Keymap.make_cmd (io_bindings transport_info)
 
 io_bindings :: Transport.Info -> [Keymap.Binding IO]
-io_bindings player_info =
+io_bindings transport_info =
     [ command (Key.KeyChar 's') "save" cmd_save
     , command (Key.KeyChar 'l') "load" cmd_load
-    , bind_key Key.Enter "play block" (Play.cmd_play_block player_info)
+    , bind_key Key.Enter "play block" (Play.cmd_play_focused transport_info)
+    , bind_kmod [Key.ShiftL] Key.Enter "play from insert"
+        (Play.cmd_play_from_insert transport_info)
     , bind_key (Key.KeyChar ' ') "stop play" Play.cmd_stop
     ]
 

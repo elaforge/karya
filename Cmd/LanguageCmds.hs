@@ -50,11 +50,12 @@ import qualified Cmd.MakeRuler as MakeRuler
 
 import qualified Derive.Score as Score
 import qualified Derive.Schema as Schema
+import qualified Perform.InstrumentDb as InstrumentDb
+import qualified Perform.Transport as Transport
+import qualified Perform.Warning as Warning
 import qualified Perform.Midi.Convert as Midi.Convert
 import qualified Perform.Midi.Instrument as Midi.Instrument
 import qualified Perform.Midi.Perform as Midi.Perform
-import qualified Perform.InstrumentDb as InstrumentDb
-import qualified Perform.Warning as Warning
 
 import qualified Midi.Midi as Midi
 
@@ -316,17 +317,21 @@ auto_config write_device block_id = do
 
 -- ** derivation
 
-derive :: String -> Cmd.CmdL [Score.Event]
+derive_to_midi block_id = do
+    (events, tempo_map) <- derive block_id
+    score_to_midi tempo_map events
+
+derive :: String -> Cmd.CmdL ([Score.Event], Transport.TempoMap)
 derive block_id = do
     block <- State.get_block (bid block_id)
-    (result, _) <- Play.derive block
+    (result, tempo_map, _) <- Play.derive block
     case result of
         Left err -> State.throw $ "derive error: " ++ show err
-        Right events -> return events
+        Right events -> return (events, tempo_map)
 
-score_to_midi :: [Score.Event]
+score_to_midi :: Transport.TempoMap -> [Score.Event]
     -> Cmd.CmdL ([Midi.WriteMessage], [Warning.Warning])
-score_to_midi events = do
+score_to_midi tempo_map events = do
     inst_config <- fmap State.state_midi_config State.get
     let (midi_events, convert_warnings) = Midi.Convert.convert events
         (midi_msgs, perform_warnings) =
