@@ -108,10 +108,8 @@ perform_note next_on_ts event (dev, chan) =
     chan_msg ts msg = Midi.WriteMessage dev ts (Midi.ChannelMessage chan msg)
     on_ts = event_start event
     off_ts = on_ts + event_duration event
-    on_vel = maybe default_velocity id $ fmap Controller.val_to_cc $
-        control_at event Controller.c_velocity on_ts
-    off_vel = maybe 0 id $ fmap Controller.val_to_cc $
-        control_at event Controller.c_velocity off_ts
+    (on_vel, off_vel, vel_clip_warns) = note_velocity event on_ts off_ts
+
     midi_nn = Pitch.midi_nn (event_pitch event)
     -- Cents are always measure upwards from the tempered note.  It would be
     -- slicker to use a negative offset if the note is eventually going above
@@ -128,19 +126,37 @@ perform_note next_on_ts event (dev, chan) =
     mkmsg (ts, msg) = Midi.WriteMessage dev ts msg
 
     warns = concatMap (clip_warnings event)
-        (zip (map fst control_sigs) clip_warns)
+        (zip (map fst control_sigs) clip_warns ++ vel_clip_warns)
+
+note_velocity :: Event -> Timestamp.Timestamp -> Timestamp.Timestamp
+    -> (Midi.Velocity, Midi.Velocity, [(Controller.Controller, [ClipWarning])])
+note_velocity event on_ts off_ts =
+    (clipped_vel on_sig, clipped_vel off_sig, clip_warns)
+    where
+    on_sig = Maybe.fromMaybe default_velocity $
+        control_at event Controller.c_velocity on_ts
+    off_sig = Maybe.fromMaybe default_velocity $
+        control_at event Controller.c_velocity off_ts
+    clipped_vel val = Controller.val_to_cc (fst (clip_val 0 1 val))
+    clip_warns =
+        if snd (clip_val 0 1 on_sig) || snd (clip_val 0 1 off_sig)
+        then [(Controller.c_velocity, [(on_ts, off_ts)])]
+        else []
 
 clip_warnings event (controller, clip_warns) =
     [Warning.warning (show controller ++ " clipped")
             (event_stack event) (Just (start_ts, end_ts))
         | (start_ts, end_ts) <- clip_warns]
 
-default_velocity :: Midi.Velocity
-default_velocity = 100
+-- | This winds up being 100, which is a good default and distinctive-looking.
+default_velocity :: Signal.Val
+default_velocity = 0.79
 
+control_at :: Event -> Controller.Controller -> Timestamp.Timestamp
+    -> Maybe Signal.Val
 control_at event controller ts = do
     sig <- Map.lookup controller (event_controls event)
-    return (Signal.timestamp_at sig ts)
+    return (Signal.at_timestamp sig ts)
 
 -- | Add offset to pitch bend msgs, passing others through.
 add_pitch_bend :: Int -> Midi.WriteMessage -> Midi.WriteMessage

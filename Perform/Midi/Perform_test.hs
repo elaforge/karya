@@ -30,16 +30,21 @@ import qualified Perform.Midi.Perform as Perform
 
 -- * perform
 
+badsig cont = (cont, mksignal [(0, 0), (1, 1.5), (2, 0), (2.5, 0), (3, 2)])
+
 test_clip_warns = do
-    let badsig = (Controller.c_volume, mksignal
-            [(0, 0), (1, 1.5), (2, 0), (2.5, 0), (3, 2)])
-        (msgs, warns) = Perform.perform inst_config1 $ map mkevent
-            [ (inst1, "a", 0, 4, [badsig])
-            ]
+    let events = map mkevent [(inst1, "a", 0, 4, [badsig Controller.c_volume])]
+        (msgs, warns) = Perform.perform inst_config1 events
     -- TODO check that warnings came at the right places
     -- check that the clips happen at the same places as the warnings
     plist warns
     plist $ Maybe.catMaybes $ map (midi_cc_of . Midi.wmsg_msg) msgs
+    check (all valid_msg (map Midi.wmsg_msg msgs))
+
+test_vel_clip_warns = do
+    let (msgs, warns) = Perform.perform inst_config1 $ map mkevent
+            [(inst1, "a", 0, 4, [badsig Controller.c_velocity])]
+    equal (length warns) 1
     check (all valid_msg (map Midi.wmsg_msg msgs))
 
 -- | Check to make sure midi msg's vals are all in range.
