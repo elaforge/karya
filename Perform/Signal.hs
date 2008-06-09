@@ -23,10 +23,12 @@ type Val = Double
 
 data Method =
     Set
-    -- | Given ((meth, val1), val2), approach val1 with the given method and
+    -- | Given ((meth, val2), val1), approach val1 with the given method and
     -- then jump to val2.
     -- TODO this is kind of ugly and not too well tested.  Remove it later if
     -- it turns out to not be useful.
+    -- Other ways to do this would be give up on using a Map (inconvenient),
+    -- or have the values be (Method, Val, Val) (also slightly inconvenient).
     | Jump (Method, Val)
     | Linear
     -- | Approach the point with an exponential curve.  If the exponent is
@@ -38,10 +40,10 @@ data Method =
 
 -- * sampling
 
--- | Generate samples between the given timestamps.  A sample at the starting
--- timestamp is always given, and Set values are always generated at their set
--- timestamp.  Interpolated samples (Linear, Exp) are generated according to
--- 'srate'.
+-- | Generate samples from the @start_pos@ and up to, but not including, the
+-- @end_pos@.  A sample at the starting timestamp is always given, and Set
+-- values are always generated at their set timestamp.  Interpolated samples
+-- (Linear, Exp) are generated according to 'srate'.
 -- TODO: supply srate as a signal
 -- TODO filter dups
 sample :: Signal -> TrackPos -> TrackPos -> [(TrackPos, Val)]
@@ -63,24 +65,26 @@ sample_timestamp sig start_ts end_ts =
             (Timestamp.to_track_pos end_ts)
 
 -- TODO use DList instead of ++
-_sample _ _ [] _ = []
+_sample _ (prev_pos, prev_val) [] end_pos
+    | prev_pos >= end_pos = []
+    | otherwise = [(prev_pos, prev_val)]
 _sample srate (prev_pos, prev_val) ((pos, (meth, val)):rest) end_pos
-    | pos > end_pos = []
+    | prev_pos >= end_pos = []
     -- Discontinuities in the input can make interpolate produce NaNs, and
     -- will produce extra samples, so skip them.
     | prev_pos == pos = _sample srate (pos, val) rest end_pos
     | otherwise = case meth of
         Set -> (pos, val) : _sample srate (pos, val) rest end_pos
-        Jump (jmeth, jval) ->
-            _sample srate (prev_pos, prev_val) [(pos, (jmeth, jval))] pos
-            ++ ( _sample srate (pos, val) rest end_pos)
-        _ -> let smps = sample_from srate prev_pos pos
+        Jump (jmeth, from_val) ->
+            _sample srate (prev_pos, prev_val) [(pos, (jmeth, val))] pos
+            ++ ( _sample srate (pos, from_val) rest end_pos)
+        _ -> let smps = sample_from srate prev_pos (min pos end_pos)
             in zip smps
                 (map (interpolate meth (prev_pos, prev_val) (pos, val)) smps)
             ++ _sample srate (pos, val) rest end_pos
 
 sample_from srate start_pos end_pos
-    | start_pos > end_pos = []
+    | start_pos >= end_pos = []
     | otherwise = start_pos : sample_from srate (start_pos + srate) end_pos
 
 -- | Get the value of a signal at the given timestamp.
@@ -103,8 +107,16 @@ at sig pos = interpolate next_meth (prev_pos, prev_val) (next_pos, next_val) pos
         then (pos, (Set, prev_val))
         else Map.findMin post
 
-timestamp_at :: Signal -> Timestamp.Timestamp -> Val
-timestamp_at sig ts = at sig (Timestamp.to_track_pos ts)
+-- | Map a signal to a TrackPos.
+track_pos_at :: Signal -> TrackPos -> TrackPos
+track_pos_at sig pos = floor (at sig pos)
+
+at_timestamp :: Signal -> Timestamp.Timestamp -> Val
+at_timestamp sig ts = at sig (Timestamp.to_track_pos ts)
+
+-- | Warp a signal by composing it with another signal.
+compose :: Signal -> Signal -> Signal
+compose sig1 sig2 = sig2
 
 -- interpolate meth prev next pos =
 --     trace ("\n*->" ++ show (meth, prev, next, pos) ++ "\n")

@@ -5,16 +5,21 @@ import Util.Pretty
 
 import Ui.Types
 import qualified Perform.Timestamp as Timestamp
-import Perform.Signal
+import Perform.Signal as Signal
+
+import qualified Data.Map as Map
 
 
 secs = Timestamp.to_track_pos . Timestamp.seconds
 
 test_interpolate = do
-    print $ map (interpolate Linear (secs 1, 1) (secs 2, 2))
-        (map secs [1.0, 1.1 .. 2.0])
-    print $ map (interpolate Linear (secs 1, 2) (secs 2, 1))
-        (map secs [1.0, 1.1 .. 2.0])
+    equal (map (interpolate Linear (secs 1, 1) (secs 2, 2))
+            (map secs [1.0, 1.5 .. 2.0]))
+        [1.0, 1.5, 2.0]
+
+    equal (map (interpolate Linear (secs 1, 2) (secs 2, 1))
+            (map secs [1.0, 1.5 .. 2.0]))
+        [2.0, 1.5, 1.0]
 
 test_at = do
     let sig = signal [(secs 1, Set, 1), (secs 2, Set, 2), (secs 3, Linear, 3)]
@@ -35,11 +40,28 @@ test_sample = do
     check $ (secs 2, 2) `elem` res
     print res
 
+test_sample2 = do
+    let sig = signal
+            [(TrackPos 0, Set, 0), (TrackPos 200, Linear, 20)
+            , (TrackPos 400, Linear, 60)]
+    -- 1/1 up to 200, then 2/1 to 400, then stop
+    equal (sample sig (TrackPos 0) (TrackPos 1000))
+        [ (TrackPos 0, 0.0), (TrackPos 100, 10.0), (TrackPos 200, 20.0)
+        , (TrackPos 300, 40.0), (TrackPos 400, 60.0)
+        ]
+    -- end point not included
+    equal (sample sig (TrackPos 0) (TrackPos 200))
+        [ (TrackPos 0, 0.0), (TrackPos 100, 10.0)
+        ]
+    equal (sample sig (TrackPos 0) (TrackPos 5))
+        [(TrackPos 0, 0)]
+
+
 test_sample_complex = do
     let sig = signal
             [ (secs 0, Set, 1)
-            , (secs 2, Jump (Linear, 0), 0.5)
-            , (secs 3, Exp 1, 0)
+            , (secs 2, Jump (Linear, 0.5), 0)
+            , (secs 3, Exp 2, 0)
             ]
     let res = sample sig (secs 0) (secs 10)
     print sig
