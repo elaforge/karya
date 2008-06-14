@@ -1,4 +1,7 @@
 {-# LANGUAGE PatternGuards #-}
+{- |
+TODO support jumps, e.g. "i.4;1" -> (Linear 0.4, 1)
+-}
 module Derive.Controller where
 import Prelude hiding (lex)
 import Control.Monad
@@ -32,11 +35,11 @@ d_signal events = fmap Signal.signal
 
 parse_event _ event = do
     (method, val) <- Parse.parse p_text event
-    return (Score.event_start event, method, val)
+    return (Score.event_start event, method, val, val)
 
 p_text :: P.CharParser st (Signal.Method, Double)
 p_text = do
-    meth <- P.option Signal.Linear (P.try p_method)
+    meth <- P.option Signal.Set (P.try p_method)
     val <- Parse.p_float
     return (meth, val)
 

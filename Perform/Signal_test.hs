@@ -1,82 +1,117 @@
 module Perform.Signal_test where
+import qualified Control.Arrow as Arrow
+import qualified Data.List as List
 
 import Util.Test
-import Util.Pretty
 
 import Ui.Types
-import qualified Perform.Timestamp as Timestamp
-import Perform.Signal as Signal
+import qualified Perform.Signal as Signal
+import Perform.Signal (Segment(..), Method(..), Sample(..))
 
-import qualified Data.Map as Map
-
-
-secs = Timestamp.to_track_pos . Timestamp.seconds
 
 test_interpolate = do
-    equal (map (interpolate Linear (secs 1, 1) (secs 2, 2))
-            (map secs [1.0, 1.5 .. 2.0]))
-        [1.0, 1.5, 2.0]
+    let interpolate seg =
+            map (Signal.interpolate seg (TrackPos 0) (TrackPos 4)) [0..4]
+    equal (interpolate (SegLinear 2 2)) [2, 2, 2, 2, 2]
+    equal (interpolate (SegLinear 0 4)) [0..4]
+    equal (interpolate (SegLinear 4 0)) [4, 3, 2, 1, 0]
+    equal (interpolate (SegLinear (-4) 0)) [-4, -3, -2, -1, 0]
+    equal (interpolate (SegFunction "test" id)) [0, 0.25..1]
 
-    equal (map (interpolate Linear (secs 1, 2) (secs 2, 1))
-            (map secs [1.0, 1.5 .. 2.0]))
-        [2.0, 1.5, 1.0]
+signal tsegs = Signal.signal
+    [(TrackPos pos, meth, val1, val2) | (pos, meth, val1, val2) <- tsegs]
+
+tsig = signal
+    [ (0, Set, 1, 1), (2, Set, 1, 1), (4, Signal.Linear, 3, 8)
+    , (6, Signal.Linear, 4, 10)
+    ]
+no_sig = signal []
 
 test_at = do
-    let sig = signal [(secs 1, Set, 1), (secs 2, Set, 2), (secs 3, Linear, 3)]
-        samples = [0.75, 1 .. 3.25]
-    equal (map (at sig) (map secs [1, 2, 3])) [1, 2, 3]
-    equal (zip samples (map (at sig) (map secs samples)))
-        [ (0.75, 0.0)
-        , (1.0, 1.0), (1.25, 1.0), (1.5, 1.0), (1.75, 1.0)
-        , (2.0, 2.0), (2.25, 2.25), (2.5, 2.5), (2.75, 2.75)
-        , (3.0, 3.0), (3.25, 3.0)
-        ]
+    -- Notice that 'at' right on a jump gives the jumped-to val.
+    equal (map (Signal.at tsig) (map TrackPos [0..7]))
+        [1, 1, 1, 2, 8, 6, 10, 10]
+    equal (Signal.at no_sig (TrackPos 2)) 0
+
+un_pos (TrackPos p) = p
 
 test_sample = do
-    let sig = signal [(secs 1, Set, 1), (secs 2, Set, 2), (secs 3, Linear, 3)]
-        samples = [0.75, 1 .. 3.25]
-    let res = sample sig (secs 0.75) (secs 3.25)
-    check $ (secs 1, 1) `elem` res
-    check $ (secs 2, 2) `elem` res
-    print res
+    equal (map (Arrow.first un_pos) (Signal.sample srate tsig (TrackPos 0)))
+        [(0, 1), (3, 2), (4, 8), (5, 6), (6, 10)]
+    -- assert that 'at' all those points is equal to the samples
 
-test_sample2 = do
+srate = TrackPos 1
+
+test_linear_sample = do
     let sig = signal
-            [(TrackPos 0, Set, 0), (TrackPos 200, Linear, 20)
-            , (TrackPos 400, Linear, 60)]
-    -- 1/1 up to 200, then 2/1 to 400, then stop
-    equal (sample sig (TrackPos 0) (TrackPos 1000))
-        [ (TrackPos 0, 0.0), (TrackPos 100, 10.0), (TrackPos 200, 20.0)
-        , (TrackPos 300, 40.0), (TrackPos 400, 60.0)
-        ]
-    -- end point not included
-    equal (sample sig (TrackPos 0) (TrackPos 200))
-        [ (TrackPos 0, 0.0), (TrackPos 100, 10.0)
-        ]
-    equal (sample sig (TrackPos 0) (TrackPos 5))
-        [(TrackPos 0, 0)]
-
-
-test_sample_complex = do
-    let sig = signal
-            [ (secs 0, Set, 1)
-            , (secs 2, Jump (Linear, 0.5), 0)
-            , (secs 3, Exp 2, 0)
+            [ (0, Set, 1, 1)
+            , (1, Set, 1, 1)
+            , (5, Exp 2, 5, 1)
+            , (8, Linear, 4, 4)
             ]
-    let res = sample sig (secs 0) (secs 10)
-    print sig
-    print_samples res
+    equal (Signal.linear_sample srate sig)
+        [ Sample (TrackPos 0) 1.0 (TrackPos 1) 1.0
+        , Sample (TrackPos 1) 1.0 (TrackPos 2) 1.0
+        , Sample (TrackPos 2) 1.25 (TrackPos 3) 1.25
+        , Sample (TrackPos 3) 2.0 (TrackPos 4) 2.0
+        , Sample (TrackPos 5) 1.0 (TrackPos 8) 4.0
+        , Sample (TrackPos 8) 4.0 (TrackPos 9) 4.0
+        ]
 
-test_sample_exp = do
+test_inverse = do
     let sig = signal
-            [ (secs 1, Set, 0), (secs 2, Exp (-2), 1)
+            [ (0, Set, 1, 1)
+            , (2, Set, 1, 1)
+            , (4, Linear, 3, 3)
+            , (8, Exp 2, 7, 7)
             ]
-    print_samples (sample sig (secs 0) (secs 10))
+        ps = Signal.inverse srate sig [0..6]
+    plist $ Signal.linear_sample srate sig
+    equal ps (map TrackPos [0, 0, 3, 4, 6, 8, 8])
+    throws (exc_like "samples ended") $ Signal.inverse srate sig [8]
 
-print_samples = mapM_ (putStrLn . show_sample)
-show_sample (pos, val) = pretty_pos pos ++ ": " ++ show val
+test_integrate = do
+    let sig = signal
+            [ (0, Set, 1, 1)
+            , (3, Set, 4, 4)
+            , (7, Set, 4, 4)
+            , (10, Linear, 1, 1)
+            , (12, Set, 1, 1)
+            ]
+    -- Signal with no width:
+    equal (Signal.integrate srate (signal [(0, Set, 1, 1)]) [0..3]) [0..3]
 
-mksignal posvals = signal
-    [(secs sec, Linear, val) | (sec, val) <- posvals]
+    let ints = Signal.integrate srate sig (map TrackPos [0..13])
+        diffs = zipWith (-) ints (0:ints)
+    -- plist $ zip ints diffs
+    equal diffs
+        [ 0, 1, 1, 1, 4, 4, 4, 4
+        , 3.5, 2.5, 1.5, 1, 1, 1
+        ]
 
-pretty_pos = pretty . Timestamp.from_track_pos
+test_integrate_linear = do
+    let int = Signal.integrate_linear
+        asc = [0, 0.5, 2, 4.5, 8]
+        desc = [0, 3.5, 6, 7.5, 8]
+
+    -- positive
+    equal (map (int (0, 0) (4, 4) ) [0..4]) asc
+    equal (map (int (1, 1) (5, 5) ) [1..5]) (zipWith (+) [0..] asc)
+    equal (map (int (1, 1) (5, 1) ) [1..5]) [0..4]
+
+    equal (map (int (0, 4) (4, 0) ) [0..4]) desc
+    equal (map (int (1, 5) (5, 1) ) [1..5]) (zipWith (+) [0..] desc)
+
+    -- negative
+    equal (map (int (0, -4) (4, 0) ) [0..4]) (map negate desc)
+    equal (map (int (1, -5) (5, -1) ) [1..5])
+        (zipWith (+) [0, -1..] (map negate desc))
+    equal (map (int (1, -1) (5, -1) ) [1..5]) [0, -1.. -4]
+
+    equal (map (int (0, 0) (4, -4) ) [0..4]) (map negate asc)
+    equal (map (int (1, -1) (5, -5) ) [1..5])
+        (zipWith (+) [0, -1..] (map negate asc))
+
+    -- cross x axis
+    equal (map (int (0, -1) (2, 1) ) [0..2]) [0, -0.5, 0]
+    equal (map (int (0, 1) (2, -1) ) [0..2]) [0, 0.5, 0]

@@ -10,8 +10,8 @@ import qualified System.Environment
 import qualified Text.Regex as Regex
 
 
-{- unfortunately using lex is not easy either, because it doesn't understand
-dots.  so write a lex that does dots.
+{- Unfortunately using lex is not easy either, because it *also* doesn't
+understand dots.  So write a lex that does dots.
 map_idents s = spaces ++ replace rest ++
     where
     (spaces, rest) = span Char.isSpace s
@@ -26,7 +26,7 @@ global_macros = map (\s -> (s, s++"_srcpos"))
 
 -- These are only substituted in test modules.
 test_macros = map (\s -> (s, s++"_srcpos"))
-    ["equal", "io_human"]
+    ["equal", "io_human", "throws"]
 
 main = do
     [orig_fn, src_fn, dest_fn] <- System.Environment.getArgs

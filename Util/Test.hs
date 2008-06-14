@@ -1,8 +1,8 @@
 -- | Basic testing utilities.
 module Util.Test where
 
-import Prelude hiding (catch)
 import qualified Control.Exception as Exception
+import qualified Data.List as List
 import qualified System.IO as IO
 import Text.Printf
 
@@ -19,6 +19,22 @@ check_srcpos srcpos True = success srcpos "assertion true"
 
 equal :: (Show a, Eq a) => a -> a -> IO ()
 equal = equal_srcpos Nothing
+
+-- | The given pure value should throw an exception that matches the predicate.
+throws :: (Show a) => (Exception.Exception -> Bool) -> a -> IO ()
+throws = throws_srcpos Nothing
+
+throws_srcpos :: (Show a) => Misc.SrcPos -> (Exception.Exception -> Bool)
+    -> a -> IO ()
+throws_srcpos srcpos f val =
+    (Exception.evaluate val >> failure srcpos ("didn't throw: " ++ show val))
+    `Exception.catch` \exc ->
+        if f exc
+            then success srcpos ("caught exc: " ++ show exc)
+            else failure srcpos ("exception didn't match: " ++ show exc)
+
+exc_like :: String -> Exception.Exception -> Bool
+exc_like expected exc = expected `List.isInfixOf` show exc
 
 equal_srcpos :: (Show a, Eq a) => Misc.SrcPos -> a -> a -> IO ()
 equal_srcpos srcpos a b

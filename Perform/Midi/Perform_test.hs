@@ -255,7 +255,7 @@ events1 = mkevents
 
 
 mksignal ts_vals = Signal.signal
-    [(Timestamp.to_track_pos (secs sec), Signal.Linear, val)
+    [(Timestamp.to_track_pos (secs sec), Signal.Linear, val, val)
         | (sec, val) <- ts_vals]
 
 c_vol = (Controller.c_volume, mksignal [(0, 1), (4, 0)])

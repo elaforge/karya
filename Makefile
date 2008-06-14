@@ -37,7 +37,7 @@ fixdeps: fixdeps.hs
 	$(GHC) -o $@ $^
 
 test/hspp: test/hspp.hs
-	$(GHC) -O2 -package regex-compat -o $@ $^
+	$(GHC) -O2 --make -o $@ $^
 
 .PHONY: clean
 clean:

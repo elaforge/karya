@@ -181,7 +181,9 @@ perform_controller start_ts end_ts chan (controller, sig) =
                     | (ts, val) <- ts_cvals]
             in (msgs, clip_warns)
     where
-    ts_vals = Signal.sample_timestamp sig start_ts end_ts
+        -- TODO get srate from a controller
+    ts_vals = takeWhile ((<end_ts) . fst) $
+        Signal.sample_timestamp Signal.default_srate_ts sig start_ts
     (low, high) = Controller.controller_range controller
     -- arrows?
     (cvals, clips) = unzip (map (clip_val low high) (map snd ts_vals))
@@ -245,7 +247,9 @@ can_share_chan event1 event2 =
     -- If they have different tunings, they'll be pitch-bent by
     -- perform_note.
     && cents event1 == cents event2
-    && controls_equal (relevant event1) (relevant event2)
+    && controls_equal
+        (event_start event1) (event_start event2 + event_duration event2)
+        (relevant event1) (relevant event2)
     where
     cents = Pitch.cents . event_pitch
     -- Velocity and aftertouch are per-note addressable in midi, but the rest
@@ -256,9 +260,15 @@ can_share_chan event1 event2 =
 -- TODO make this more efficient?  I only actually need to compare the areas
 -- covered by (event_on_ts, next_on_ts)
 -- implement! undefined
-controls_equal :: [(Controller.Controller, Signal.Signal)]
+controls_equal :: Timestamp.Timestamp -> Timestamp.Timestamp
+    -> [(Controller.Controller, Signal.Signal)]
     -> [(Controller.Controller, Signal.Signal)] -> Bool
-controls_equal c1 c2 = {- trace ("\n*trace: "++show (c1, c2)++"\n") $-} c1 == c2
+controls_equal start end c0 c1 = all (uncurry eq) (zip c0 c1)
+    where
+    eq (c0, sig0) (c1, sig1) = c0 == c1
+        && Signal.equal
+            (Timestamp.to_track_pos start) (Timestamp.to_track_pos end)
+            sig0 sig1
 
 
 -- * allot channels
