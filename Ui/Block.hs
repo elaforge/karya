@@ -95,7 +95,7 @@ show_status = Seq.join " | " . map (\(k, v) -> k ++ ": " ++ v)
 
 -- | Return how much track is in view.
 visible_view_area :: View -> TrackPos
-visible_view_area view = pixels_to_trackpos (view_zoom view) height
+visible_view_area view = pixels_to_track_pos (view_zoom view) height
     where
     ViewConfig { vconfig_block_title_height = blockth
         , vconfig_track_title_height = trackth
@@ -108,8 +108,8 @@ visible_view_area view = pixels_to_trackpos (view_zoom view) height
     -- UpdateViewResize too.
     height = snd (rect_size (view_rect view)) - blockth - trackth - sb - status
 
-pixels_to_trackpos :: Zoom -> Int -> TrackPos
-pixels_to_trackpos zoom pixels = floor $ fromIntegral pixels / zoom_factor zoom
+pixels_to_track_pos :: Zoom -> Int -> TrackPos
+pixels_to_track_pos zoom pixels = floor $ fromIntegral pixels / zoom_factor zoom
 
 -- | Construct a View, using default values for most of its fields.
 -- Don't construct views using View directly since State.create_view overwrites
