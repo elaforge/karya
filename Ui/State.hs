@@ -77,10 +77,15 @@ run state m = do
         Left err -> Left err
         Right ((val, state), updates) -> Right (val, state, updates)
 
-run_state :: State -> StateT Identity.Identity a -> State
+run_state :: State -> StateT Identity.Identity a -> (a, State)
 run_state state m = case st of
         Left err -> error $ "state error: " ++ show err
-        Right (_, state', _) -> state'
+        Right (val, state', _) -> (val, state')
+    where st = Identity.runIdentity (run state m)
+
+eval state fail_val m = case st of
+        Left err -> fail_val
+        Right (val, _, _) -> val
     where st = Identity.runIdentity (run state m)
 
 -- | TrackUpdates are stored directly instead of being calculated from the

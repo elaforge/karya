@@ -8,7 +8,6 @@ import qualified System.Directory as Directory
 import qualified Ui.Font as Font
 import qualified Ui.Color as Color
 import qualified Ui.Block as Block
-import qualified Ui.Ruler as Ruler
 
 import qualified Ui.Event as Event
 

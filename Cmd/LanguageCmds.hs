@@ -46,7 +46,7 @@ import qualified Cmd.Edit as Edit
 import qualified Cmd.TimeStep as TimeStep
 import qualified Cmd.Language as Language
 import qualified Cmd.Play as Play
-import qualified Cmd.MakeRuler as MakeRuler
+-- import qualified Cmd.MakeRuler as MakeRuler
 
 import qualified Derive.Score as Score
 import qualified Derive.Schema as Schema
@@ -317,21 +317,18 @@ auto_config write_device block_id = do
 
 -- ** derivation
 
-derive_to_midi block_id = do
-    (events, tempo_map) <- derive block_id
-    score_to_midi tempo_map events
+derive_to_midi block_id = score_to_midi =<< derive block_id
 
-derive :: String -> Cmd.CmdL ([Score.Event], Transport.TempoMap)
+derive :: String -> Cmd.CmdL [Score.Event]
 derive block_id = do
-    block <- State.get_block (bid block_id)
-    (result, tempo_map, _) <- Play.derive block
+    (result, _, _) <- Play.derive (bid block_id)
     case result of
         Left err -> State.throw $ "derive error: " ++ show err
-        Right events -> return (events, tempo_map)
+        Right events -> return events
 
-score_to_midi :: Transport.TempoMap -> [Score.Event]
+score_to_midi :: [Score.Event]
     -> Cmd.CmdL ([Midi.WriteMessage], [Warning.Warning])
-score_to_midi tempo_map events = do
+score_to_midi events = do
     inst_config <- fmap State.state_midi_config State.get
     let (midi_events, convert_warnings) = Midi.Convert.convert events
         (midi_msgs, perform_warnings) =

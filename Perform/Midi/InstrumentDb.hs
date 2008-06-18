@@ -27,4 +27,4 @@ default_pb_range :: Instrument.PbRange
 default_pb_range = (-12, 12)
 
 generic synth patch =
-    Instrument patch synth NoInitialization default_pb_range Nothing
+    Instrument synth patch NoInitialization default_pb_range Nothing

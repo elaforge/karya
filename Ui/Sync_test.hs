@@ -200,7 +200,7 @@ t_schema_id = Block.SchemaId "no schema"
 run_setup = run State.empty setup_state
 setup_state = do
     ruler <- State.create_ruler "r1" (mkruler 20 10)
-    t1 <- State.create_track "b1.t1" empty_track
+    t1 <- State.create_track "b1.t1" (empty_track "t1")
     b1 <- State.create_block "b1" $
         Block.block "hi b1" default_block_config
             (Block.RId ruler) [(Block.TId t1 ruler, 30)]

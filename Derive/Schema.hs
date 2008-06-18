@@ -9,6 +9,10 @@ The SchemaId -> Schema mapping looks in a hardcoded list, a custom list passed
 via static configuration, and a dynamically loaded list.  The assumed usage
 is that you experiment with new Derivers and make minor changes via dynamic
 loading, and later incorporate them into the static configuration.
+
+TODO Since the tempo track is global now, I should lose the tempo scope
+parsing.  Except that I'd like it to not be global, so I'll just leave this
+as-is unless I decide global after all.
 -}
 module Derive.Schema where
 import Control.Monad
@@ -208,8 +212,11 @@ event_tracks tracks =
 track_controller :: (Monad m) => (String, Track.TrackId)
     -> Derive.DeriveT m [Score.Event] -> Derive.DeriveT m [Score.Event]
 track_controller (name, signal_track_id) =
-    Controller.d_controller (Score.Controller name)
-        (Controller.d_signal =<< Derive.d_track signal_track_id)
+    controller_deriver (Controller.d_signal =<< Derive.d_track signal_track_id)
+    where
+    controller_deriver = if name == tempo_track_title
+        then Derive.d_tempo
+        else Controller.d_controller (Score.Controller name)
 
 block_tracks :: (State.UiStateMonad m) => Block.Block -> m [Track]
 block_tracks block = do
@@ -222,6 +229,10 @@ track_name (Block.TId tid _) =
     fmap (Just . Track.track_title) (State.get_track tid)
 track_name _ = return Nothing
 
+-- | This is the track name that turns a track into a tempo track.
+tempo_track_title :: String
+tempo_track_title = "tempo"
+
 -- * parser
 
 -- | A parser turns [Track] into a Skeleton, which describes which tracks
@@ -229,7 +240,7 @@ track_name _ = return Nothing
 -- tracks are instrument tracks, and what Instrument they have.
 default_parser :: Parser
 default_parser tracks = merge $
-    map parse_tempo_group (split (title_matches (=="tempo")) tracks)
+    map parse_tempo_group (split (title_matches (==tempo_track_title)) tracks)
 
 data Skeleton =
     -- | A set of controller tracks have scope over a sub-skeleton.
@@ -249,8 +260,10 @@ data Track = Track {
 
 
 parse_tempo_group tracks = case tracks of
-    tempo@(Track { track_title = Just "tempo" }) : rest ->
-        Controller [tempo] (Just (parse_inst_groups rest))
+    tempo@(Track { track_title = Just title }) : rest
+        | title == tempo_track_title ->
+            Controller [tempo] (Just (parse_inst_groups rest))
+        | otherwise -> parse_inst_groups tracks
     _ -> parse_inst_groups tracks
 
 parse_inst_groups :: [Track] -> Skeleton

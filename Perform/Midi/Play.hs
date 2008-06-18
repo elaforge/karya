@@ -16,6 +16,9 @@ import qualified Perform.Transport as Transport
 import qualified Perform.Timestamp as Timestamp
 
 
+-- | If this is True, send ResetAllControllers before playing to a device.
+reset_controllers = False
+
 -- | Start a thread to stream a list of WriteMessages, and return
 -- a Transport.Control which can be used to stop and restart the player.
 play :: Transport.Info -> Block.BlockId -> [Midi.WriteMessage]
@@ -34,8 +37,8 @@ play transport_info block_id midi_msgs = do
             Transport.send_transport transport Transport.Stop
     return transport
 
--- TODO 20 also hardcoded in Derive
-add_ts ts wmsg = wmsg { Midi.wmsg_ts = Midi.wmsg_ts wmsg * 20 + ts }
+-- Catch this event up to realtime.
+add_ts ts wmsg = wmsg { Midi.wmsg_ts = Midi.wmsg_ts wmsg + ts }
 
 
 player_thread :: Transport.State -> [Midi.WriteMessage] -> IO ()
@@ -71,7 +74,8 @@ play_msgs state devs msgs = do
         in Set.size devs' `seq` return devs'
     -- Make sure that I get a consistent play, not affected by previous
     -- controller states.
-    send_all write new_devs Midi.ResetAllControllers
+    when reset_controllers $
+        send_all write new_devs Midi.ResetAllControllers
 
     now <- Transport.state_get_current_timestamp state
     let (chunk, rest) = span ((< (now + write_ahead)) . Midi.wmsg_ts) msgs

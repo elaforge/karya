@@ -1,11 +1,9 @@
 module Perform.Midi.Perform_test where
 import Control.Monad
-import qualified Control.Concurrent.Chan as Chan
 import qualified Control.Concurrent as Concurrent
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified System.IO as IO
-import Text.Printf
 
 import Util.Pretty
 import Util.Test
@@ -51,12 +49,14 @@ test_vel_clip_warns = do
 -- TODO: should go to a more general place?
 valid_msg (Midi.ChannelMessage chan msg) =
     0 <= chan && chan < 16 && valid_chan_msg msg
+valid_msg msg = error $ "unknown msg: " ++ show msg
 valid_msg _ = True
 val7 v = 0 <= v && v < 128
 valid_chan_msg msg = case msg of
     Midi.ControlChange cc val -> val7 cc && val7 val
     Midi.NoteOn key vel -> val7 key && val7 vel
     Midi.NoteOff key vel -> val7 key && val7 vel
+    _ -> error $ "unknown msg: " ++ show msg
 
 midi_cc_of (Midi.ChannelMessage _ (Midi.ControlChange cc val)) = Just (cc, val)
 midi_cc_of _ = Nothing
@@ -117,6 +117,8 @@ test_perform = do
 unpack_msg (Midi.WriteMessage (Midi.WriteDevice dev) ts
         (Midi.ChannelMessage chan msg)) =
     (dev, Timestamp.to_seconds ts, chan, msg)
+unpack_msg (Midi.WriteMessage (Midi.WriteDevice dev) ts msg) =
+    error $ "unknown msg: " ++ show msg
 
 test_perform_lazy = do
     let endless = map (\(n, ts) -> (n:"", ts, 4, [c_vol]))
@@ -143,14 +145,14 @@ test_perform_lazy = do
     -- 494000
 
 pretend_to_write xs = do
-    status_chan <- Chan.newChan
+    status_chan <- Concurrent.newChan
     th_id <- Concurrent.forkIO $ IO.withFile "/dev/null" IO.WriteMode $ \hdl ->
         mapM_ (write status_chan hdl) (zip [0..] xs)
     return (th_id, status_chan)
     where
     write status_chan handle (i, msg) = do
         when (i `mod` 1000 == 0) $ do
-            Chan.writeChan status_chan (i `div` 1000, msg)
+            Concurrent.writeChan status_chan (i `div` 1000, msg)
             putStrLn $ show i ++ ": " ++ show_msg msg
         IO.hPutStr handle (show msg)
 

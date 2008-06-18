@@ -28,8 +28,6 @@ Not displayed at all, but played of course.
 -}
 module Cmd.View where
 
-import qualified Util.Log as Log
-
 import Ui.Types
 import qualified Ui.Block as Block
 import qualified Ui.State as State

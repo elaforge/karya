@@ -18,7 +18,7 @@ test_interpret = flip Exception.catchDyn catch_interpreter_error $ do
     let ui_state = State.empty
         cmd_state = Cmd.empty_state
     cmd <- GHC.withSession session
-        (Language.interpret ui_state cmd_state text)
+        (Language.interpret [] ui_state cmd_state text)
     (cstate, midi, logs, ui_res) <- Cmd.run "" ui_state cmd_state cmd
     putStrLn (concat (map Log.msg_text logs))
     return ()

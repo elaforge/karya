@@ -18,7 +18,8 @@ import Ui.Types
 -- midi subsystem at the moment.
 --
 -- The resolution is milliseconds.
-newtype Timestamp = Timestamp Integer deriving (Eq, Ord, Show, Num)
+newtype Timestamp = Timestamp Integer
+    deriving (Eq, Ord, Show, Num, Enum, Real, Integral)
 
 immediately :: Timestamp
 immediately = Timestamp 0
@@ -35,10 +36,13 @@ to_microseconds (Timestamp ts) = ts
 -- through all the tempo mapping, should eventually correspond to milliseconds.
 -- This means I can't align to samples, but MIDI timing is not that accurate
 -- anyway.  If I ever need to align samples I may have to change this.
+--
+-- Since both are members of Integral, these are really just more descriptive
+-- names for fromIntegral.
 from_track_pos :: TrackPos -> Timestamp
-from_track_pos (TrackPos pos) = Timestamp pos
+from_track_pos = fromIntegral
 to_track_pos :: Timestamp -> TrackPos
-to_track_pos (Timestamp ts) = TrackPos ts
+to_track_pos = fromIntegral
 
 instance Pretty Timestamp where
     pretty ts = printf "%.3fs" (to_seconds ts)

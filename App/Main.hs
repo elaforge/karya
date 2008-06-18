@@ -34,6 +34,7 @@ import Cmd.LanguageCmds ()
 -- tmp
 import qualified Ui.TestSetup as TestSetup
 import qualified Midi.PortMidi as PortMidi
+import qualified Perform.Midi.Instrument as Instrument
 
 
 {-
@@ -101,34 +102,24 @@ print_devs rdev_map wdev_map = do
     putStrLn "write devs:"
     mapM_ print (Map.keys wdev_map)
 
-empty_track title = Track.track title [] Config.track_bg
 
 setup_cmd :: Cmd.CmdId
 setup_cmd = do
     Log.debug "setup block"
-    ruler <- State.create_ruler "r1"
-        (TestSetup.ruler [TestSetup.marklist 64 10])
-    overlay <- State.create_ruler "r1.overlay"
-        =<< fmap TestSetup.overlay_ruler (State.get_ruler ruler)
-
-    t1 <- State.create_track "b1.t1" (empty_track ">fm8/bass")
-    State.insert_events t1 [(TrackPos p, Config.event (show p) (TrackPos 10))
-        | p <- [0,10..100]]
-    t2 <- State.create_track "b1.t2" (empty_track "velocity")
-    b1 <- State.create_block "b1" $ Block.block "hi b1"
-        Config.block_config (Block.RId ruler)
-        [(Block.TId t1 overlay, 40), (Block.TId t2 overlay, 40)]
-        Config.schema
-    v1 <- State.create_view "v1"
-        (Block.view b1 TestSetup.default_rect Config.view_config)
-    -- State.set_selection v1 0 (Block.point_selection 0 (TrackPos 0))
-    -- _v2 <- State.create_view "v2"
-    --     (Block.view b1 (Block.Rect (500, 30) (200, 200))
-    --         TestSetup.view_config)
-
+    TestSetup.initial_state
     -- Cmd state setup
+    State.set_midi_config inst_config
     Cmd.modify_state $ \st -> st
         { Cmd.state_step = TimeStep.UntilMark
             (TimeStep.NamedMarklists ["meter"]) (TimeStep.MatchRank 2)
         }
     return Cmd.Done
+
+cont text = Config.event text (TrackPos 0)
+
+inst_config = Instrument.config
+        [((Midi.WriteDevice "out", n), inst "fm8" "bass") | n <- [0..2]]
+        Nothing
+
+inst synth name = Instrument.instrument synth name Instrument.NoInitialization
+    (-12, 12) Nothing

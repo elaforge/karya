@@ -37,6 +37,7 @@ cmd_language session msg = do
     ui_state <- State.get
     cmd_state <- Cmd.get_state
     local_modules <- get_local_modules
+    -- Trans.liftIO $ print local_modules
 
     cmd <- Trans.liftIO $ GHC.withSession session
             (interpret local_modules ui_state cmd_state text)

@@ -60,15 +60,15 @@ do_convert_event event = do
         start = Timestamp.from_track_pos (Score.event_start event)
         dur = Timestamp.from_track_pos (Score.event_duration event)
     return (controller_warns,
-        Perform.Event midi_inst start dur pitch controls
+        Perform.Event midi_inst start dur pitch controllers
             (Score.event_stack event))
 
-convert_controls controls = (warns, Map.fromList ok)
+convert_controllers controllers = (warns, Map.fromList ok)
     where
     (warns, ok) = Seq.partition_either
-        (map convert_control (Map.assocs controls))
+        (map convert_controller (Map.assocs controllers))
 
-convert_control (Score.Controller c, sig)  = case Controller.controller c of
+convert_controller (Score.Controller c, sig)  = case Controller.controller c of
     Nothing -> Left $
         Warning.warning ("unknown controller: " ++ show c) [] Nothing
     Just cont -> Right (cont, sig)

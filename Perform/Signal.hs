@@ -1,4 +1,20 @@
-{-
+{- |
+Signals map a TrackPos to a Val (which is a Double, and is normally between
+0 and 1, or -1 and 1).  Unfortunately, this makes them non-composable.
+You can map Vals back into TrackPos by rounding them but you can't do this for
+signals that range between small values like 0 and 1.
+
+You could, however, compose a TrackPos->TrackPos onto the beginning or
+a Val->Val onto the end so maybe I can do that if it becomes an issue.  It's
+still not as easy to work with as a single type.
+
+I wanted TrackPos to be integral because of wanting to avoid floating point
+imprecision, and Vals made sense as Doubles because 0--1 is an easy to work
+with range.  However, I could possibly convert TrackPos to Doubles, or possibly
+Vals to TrackPos and establish a conventional normalized range, like 0--2^16 or
+something.
+
+
 Unfortunately there are four ways to describe an interpolation:
 
 A Method is simply the interpolation type by itself: Set, Linear, etc.  It
@@ -21,6 +37,10 @@ GUI.
 The 'sample' function returns [(TrackPos, Val)], and this is the simplest
 version of all, effectively consisting of only sets.  This is what you use for
 something like MIDI that doesn't even understand linear segments.
+
+
+TODO: clean this up.  I should be able to remove Sample since it's redundant
+with [(x, y)]
 -}
 module Perform.Signal where
 import qualified Control.Arrow as Arrow
@@ -128,7 +148,6 @@ sample_seg srate (pos0, (pos1, seg)) =
     zip smps (map (interpolate seg pos0 pos1) smps)
     where smps = takeWhile (<pos1) [pos0, pos0 + srate..]
 
-
 seg_to_sample srate (pos0, (pos1, seg)) = case seg of
     SegFunction _ _ ->
         let ps = takeWhile (<pos1) [pos0, pos0 + srate..]
@@ -176,40 +195,77 @@ interpolate seg start end pos = case seg of
 equal :: TrackPos -> TrackPos -> Signal -> Signal -> Bool
 equal start end sig0 sig1 = False
 
+map_signal :: String -> (Val -> Val) -> Signal -> Signal
+map_signal name f (Signal smap) =
+    Signal $ flip Map.map smap $ \(pos, seg) -> (pos, map_seg f seg)
+    where
+    map_seg f (SegLinear val0 val1) = SegLinear (f val0) (f val1)
+    map_seg f (SegFunction seg_name seg_f) =
+        SegFunction (seg_name ++ " >>> " ++ name) (seg_f . f)
+
+-- * sample streams
+
+-- | Index into a sample stream, with linear interpolation.  Since this
+-- does a linear search, it's pretty inefficient.
+--
+-- If it needed to be more efficient I could have it return the tail of the
+-- stream for subsequent calls, as 'inverse' does.
+interpolate_samples :: (Ord a, Fractional a) => [(a, a)] -> a -> a
+interpolate_samples samples pos = val
+    where
+    val = case post of
+        ((x0, y0) : (x1, y1) : _) -> y_at (x0, y0) (x1, y1) pos
+        (_x0, y0) : _ -> y0
+        _ -> 0
+    (_pre, post) = Seq.break_tails next samples
+    next (_:(from, _to):_) = from > pos
+    next [_] = True -- have to stick on the last one
+    next _ = False
+
 -- ** inverse
 
-inverse :: TrackPos -> Signal -> [Val] -> [TrackPos]
-inverse srate sig vals = go (linear_sample srate sig) vals
+-- TODO everyone who makes 'Samples x' should filter simultaneous samples
+
+type Samples = [(TrackPos, Val)]
+type PosSamples = [(TrackPos, TrackPos)]
+
+-- | This is basically a generic inverse, but it's specialized for the inverse
+-- tempo map, taking a PosSamples stream and a Timestamp.  It returns the rest
+-- of the samples so it can be called on increasing Timestamps efficiently.
+inverse :: PosSamples -> Timestamp.Timestamp -> (Maybe TrackPos, PosSamples)
+inverse samples@((x0, y0) : rest_samples@((x1, y1) : _)) ts
+    -- Sample must have decreased, they're not supposed to do that.
+    | y0 >= y = (Just x0, samples)
+    | y1 >= y = (Just $
+        round (x_at (val x0, val y0) (val x1, val y1) (val y)), samples)
+    | otherwise = inverse rest_samples ts
     where
-    go _ [] = []
-    go [] (v:_) = error $ "inverse: samples ended before finding " ++ show v
-    go samples@(Sample p0 v0 p1 v1 : rest_samples) vals@(v:vs)
-        -- Since I assume that both samples and vals are monotonically
-        -- nondecreasing, this means either I passed v with a jump, or v
-        -- decreased.
-        | v0 >= v = p0 : go samples vs
-        | v1 >= v = round (x_at (fromIntegral p0, v0) (fromIntegral p1, v1) v)
-            : go samples vs
-        | otherwise = go rest_samples vals
+    val = fromIntegral
+    y = fromIntegral ts
+inverse samples _ = (Nothing, samples)
 
 -- ** integrate
 
+-- | Properly, this should be Signal->Signal, but this is specialized for
+-- the tempo function and it's much more efficient to get samples in order.
 integrate :: TrackPos -> Signal -> [TrackPos] -> [Val]
-integrate srate sig pos = go 0 (linear_sample srate sig) pos
+integrate srate sig pos_lists = go 0 (linear_sample srate sig) pos_lists
     where
     go _ _ [] = []
     go accum [] pos = map (const accum) pos -- null signal is considered 0
     go accum samples@(Sample p0 v0 p1 v1 : rest_samples) pos@(p:rest_ps)
-        | null rest_samples = accum_to p : go accum samples rest_ps
-        | p < p1 = accum_to p : go accum samples rest_ps
+            -- Extend the final segment forever.
+        | null rest_samples || p<p1 = accum_to p : go accum samples rest_ps
         | otherwise = go (accum_to p1) rest_samples pos
-        where
-        accum_to xpos = accum + integrate_linear
-            (fromIntegral p0, v0) (fromIntegral p1, v1) (fromIntegral xpos)
+        where accum_to xpos = accum + sum_linear p0 v0 p1 v1 xpos
+
+    sum_linear p0 v0 p1 v1 xpos = integrate_linear
+        (fromIntegral p0, v0) (fromIntegral p1, v1) (fromIntegral xpos)
 
 -- This is way too complicated.
 integrate_linear (x0, y0) (x1, y1) x
     | y0 == y1 = (x-x0) * y0 -- Shortcut for constant segments.
+    | x0 == x1 = 0 -- Null segments should be filtered, but just in case.
         -- If it crosses y=0, integrate both halves seperately.
     | y0 < 0 && y1 > 0 || y0 > 0 && y1 < 0 =
         let x_cross = x_at (x0, y0) (x1, y1) 0

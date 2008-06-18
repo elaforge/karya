@@ -6,6 +6,7 @@ import Util.Test
 
 import Ui.Types
 import qualified Perform.Signal as Signal
+import qualified Perform.Timestamp as Timestamp
 import Perform.Signal (Segment(..), Method(..), Sample(..))
 
 
@@ -59,16 +60,17 @@ test_linear_sample = do
         ]
 
 test_inverse = do
-    let sig = signal
-            [ (0, Set, 1, 1)
-            , (2, Set, 1, 1)
-            , (4, Linear, 3, 3)
-            , (8, Exp 2, 7, 7)
-            ]
-        ps = Signal.inverse srate sig [0..6]
-    plist $ Signal.linear_sample srate sig
-    equal ps (map TrackPos [0, 0, 3, 4, 6, 8, 8])
-    throws (exc_like "samples ended") $ Signal.inverse srate sig [8]
+    let mksamples = map (Arrow.first TrackPos)
+        inverse samples ts = map (fmap un_pos) $ snd $ List.mapAccumL
+            (\s p -> flipt (Signal.inverse s p))
+            samples (map Timestamp.Timestamp ts)
+    equal (inverse [(0, 1), (2, 1), (4, 3) , (6, 4)] [0..6])
+        [Just 0, Just 0, Just 3, Just 4, Just 6, Nothing, Nothing]
+
+    equal (inverse [(0, 0), (0, 0), (0, 1) , (1, 2)] [0..2])
+        [Just 0, Just 0, Just 1]
+
+flipt (a, b) = (b, a)
 
 test_integrate = do
     let sig = signal
@@ -78,10 +80,11 @@ test_integrate = do
             , (10, Linear, 1, 1)
             , (12, Set, 1, 1)
             ]
+        integ sig pos = Signal.integrate srate sig pos
     -- Signal with no width:
-    equal (Signal.integrate srate (signal [(0, Set, 1, 1)]) [0..3]) [0..3]
+    equal (integ (Signal.constant 1) [0..3]) [0..3]
 
-    let ints = Signal.integrate srate sig (map TrackPos [0..13])
+    let ints = integ sig (map TrackPos [0..13])
         diffs = zipWith (-) ints (0:ints)
     -- plist $ zip ints diffs
     equal diffs

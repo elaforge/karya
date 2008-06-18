@@ -24,7 +24,7 @@ data Event = Event {
     event_start :: TrackPos
     , event_duration :: TrackPos
     , event_text :: String
-    , event_controls :: ControllerMap
+    , event_controllers :: ControllerMap
 
     -- | Keep track of this event's display in various tracks (it may appear
     -- in more than one if it appears in a merged track).  That way, if an
@@ -37,6 +37,8 @@ data Event = Event {
     , event_instrument :: Maybe Instrument
     , event_pitch :: Maybe Pitch.Pitch
     } deriving (Show)
+
+event_end event = event_start event + event_duration event
 
 -- | Mostly for testing, since real events will come from 'from_track_event'.
 event :: TrackPos -> TrackPos -> String -> Event

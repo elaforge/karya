@@ -6,6 +6,7 @@
 - hs-plugins
 
 fltk
+  - bug: inserting a new track doesn't pick up current zoom
   - bug: dragging selections is laggy
     - implement selection redraw optimization
     - possibly move selections entirely into c++
@@ -190,10 +191,9 @@ Derive
   * new derive: simplest possible implementation, just enough to produce
     Performer input
   * merge new derive into Cmd.Play, remove old Derive and Render
-  - velocity signal should default to (const 1) not (const 0)
   derivers
     * control
-    - tempo
+    * tempo
     - defaulting parameters for control and note tracks
   - display derived blocks
   - 3 way merge for derived blocks
