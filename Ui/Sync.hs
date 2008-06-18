@@ -18,7 +18,7 @@ import qualified Util.Seq as Seq
 import qualified App.Config as Config
 
 import Ui.Types
-import qualified Ui.Initialize as Initialize
+import qualified Ui.Ui as Ui
 
 import qualified Ui.Block as Block
 import qualified Ui.BlockC as BlockC
@@ -54,10 +54,10 @@ set_play_position view_id maybe_pos = do
             Nothing -> Nothing
             Just pos -> Just $ BlockC.CSelection Config.play_position_color
                 (Block.Selection 0 pos 99 (TrackPos 0))
-    Initialize.send_action $
+    Ui.send_action $
         BlockC.set_selection view_id Config.play_position_selnum csel
 
-send = Trans.liftIO . Initialize.send_action
+send = Trans.liftIO . Ui.send_action
 
 track_title (Block.TId track_id _) =
     fmap Track.track_title (State.get_track track_id)

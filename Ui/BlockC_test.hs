@@ -1,9 +1,12 @@
 -- | Directly exercise the BlockC functions.
 module Ui.BlockC_test where
+import qualified Control.Concurrent as Concurrent
+import qualified Control.Concurrent.STM as STM
+import qualified Control.Exception as Exception
 
 import Util.Test
 
-import qualified Ui.Initialize as Initialize
+import qualified Ui.Ui as Ui
 import Ui.Types
 import qualified Ui.Color as Color
 
@@ -14,8 +17,12 @@ import qualified Ui.Track as Track
 import Ui.TestSetup
 
 
-initialize f = Initialize.initialize $ \_msg_chan -> f
-send = Initialize.send_action
+initialize f = do
+    quit_request <- Concurrent.newMVar ()
+    msg_chan <- STM.newTChanIO
+    Concurrent.forkIO (f `Exception.finally` Ui.quit_ui_thread quit_request)
+    Ui.event_loop quit_request msg_chan
+send = Ui.send_action
 
 -- tests
 

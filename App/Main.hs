@@ -2,18 +2,18 @@ module App.Main where
 
 import Control.Monad
 import qualified Control.Concurrent.STM as STM
+import qualified Control.Concurrent.MVar as MVar
+import qualified Control.Exception as Exception
 import qualified Data.Map as Map
 import qualified Language.Haskell.Interpreter.GHC as GHC
 import qualified Network
 
 import qualified Util.Log as Log
+import qualified Util.Thread as Thread
 
 import Ui.Types
-import qualified Ui.Initialize as Initialize
+import qualified Ui.Ui as Ui
 import qualified Ui.State as State
-
-import qualified Ui.Block as Block
-import qualified Ui.Track as Track
 
 import qualified Midi.Midi as Midi
 import qualified Midi.MidiC as MidiC
@@ -49,13 +49,14 @@ import qualified Perform.Midi.Instrument as Instrument
 
 initialize f = do
     Log.initialize "seq.mach.log" "seq.log"
-    Initialize.initialize $ \msg_chan -> MidiC.initialize $ \read_chan ->
+    MidiC.initialize $ \read_chan ->
         Network.withSocketsDo $ do
             Config.initialize_lang_port
             socket <- Network.listenOn Config.lang_port
-            f socket msg_chan read_chan
+            f socket read_chan
 
-main = initialize $ \lang_socket msg_chan read_chan -> do
+main :: IO ()
+main = initialize $ \lang_socket read_chan -> do
     Log.notice "app starting"
 
     (rdev_map, wdev_map) <- MidiC.devices
@@ -78,13 +79,29 @@ main = initialize $ \lang_socket msg_chan read_chan -> do
     let default_stream = head (Map.elems wdev_streams)
 
     player_chan <- STM.newTChanIO
+    msg_chan <- STM.newTChanIO
     get_msg <- Responder.create_msg_reader
         lang_socket msg_chan read_chan player_chan
     let get_ts = fmap MidiC.to_timestamp PortMidi.pt_time
     Log.debug "initialize session"
     session <- GHC.newSession
-    Responder.responder get_msg (write_msg default_stream wdev_streams) get_ts
-        player_chan setup_cmd session
+    quit_request <- MVar.newMVar ()
+
+    let write_midi = write_msg default_stream wdev_streams
+
+    Thread.start_thread "responder" $ do
+        Responder.responder get_msg write_midi get_ts player_chan setup_cmd
+            session
+        `Exception.catch` responder_handler
+            -- It would be possible to restart the responder, but chances are
+            -- good it would just die again.
+        `Exception.finally` Ui.quit_ui_thread quit_request
+
+    Ui.event_loop quit_request msg_chan
+
+responder_handler exc = do
+    Log.error ("responder died from exception: " ++ show exc)
+    putStrLn ("responder died from exception: " ++ show exc)
 
 write_msg :: PortMidi.WriteStream
     -> Map.Map Midi.WriteDevice PortMidi.WriteStream

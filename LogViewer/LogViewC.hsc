@@ -11,7 +11,7 @@ import qualified Util.Control
 #include "interface.h"
 
 
--- TODO This is mostly the same as the Ui.Initialize and fltk interface stuff.
+-- TODO This is mostly the same as the Ui.Ui and fltk interface stuff.
 -- Some of it could probably be extracted into a library.
 
 data LogView = LogView {

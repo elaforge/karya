@@ -13,11 +13,14 @@
 -- Unless I can think of a better way to do these tests, they will
 -- unfortunately remain io_human tests in here.
 module Ui.Sync_test where
+import qualified Control.Concurrent as Concurrent
+import qualified Control.Concurrent.STM as STM
+import qualified Control.Exception as Exception
 
 import Util.Test
 
 import Ui.Types
-import qualified Ui.Initialize as Initialize
+import qualified Ui.Ui as Ui
 import qualified Ui.Block as Block
 import qualified Ui.Track as Track
 import qualified Ui.Ruler as Ruler
@@ -36,7 +39,11 @@ import Ui.TestSetup
 -- set_block_config
 -- set_block_ruler
 
-initialize f = Initialize.initialize $ \_msg_chan -> f
+initialize f = do
+    quit_request <- Concurrent.newMVar ()
+    msg_chan <- STM.newTChanIO
+    Concurrent.forkIO (f `Exception.finally` Ui.quit_ui_thread quit_request)
+    Ui.event_loop quit_request msg_chan
 
 test_create_resize_destroy_view = do
     state <- io_human "view with selection and titles" $ run State.empty $ do
