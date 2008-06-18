@@ -30,12 +30,14 @@ cmd_load :: (Trans.MonadIO m) => Maybe FilePath -> Cmd.CmdT m ()
 cmd_load maybe_fname = do
     cmd_state <- Cmd.get_state
     let fname = maybe (Cmd.state_default_save_file cmd_state) id maybe_fname
-    Log.notice $ "read state from " ++ show fname
+
+    Trans.liftIO $ Log.notice $ "load state from " ++ show fname
     try_state <- Trans.liftIO $ Serialize.unserialize fname
     state <- case try_state of
         Left exc -> State.throw $
             "error unserializing " ++ show fname ++ ": " ++ show exc
         Right st -> return st
+    Trans.liftIO $ Log.notice $ "state loaded from " ++ show fname
 
     State.modify (const (Serialize.save_ui_state state))
     initialize_state

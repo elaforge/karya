@@ -36,6 +36,8 @@ import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.InstrumentDb as InstrumentDb
 import Cmd.LanguageCmds
 
+import qualified App.Config as Config
+
 
 -- | Like 'Cmd.run', but pretty-print the return value.  If the value is
 -- already a string, just return it unchanged.

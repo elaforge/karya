@@ -63,7 +63,7 @@ test_create_two_views = do
     state <- io_human "another view created" $ run state $ do
         -- A new view is created, and a track that is in both is modified.
         b2 <- State.create_block "b2" $ Block.block ""
-            default_block_config (Block.RId t_ruler_id)
+            default_block_config ((Block.RId t_ruler_id), 20)
             [(Block.TId t_track1_id t_ruler_id, 30)] t_schema_id
         v2 <- State.create_view "v2" $
             Block.view b2 default_rect default_view_config
@@ -210,7 +210,7 @@ setup_state = do
     t1 <- State.create_track "b1.t1" (empty_track "t1")
     b1 <- State.create_block "b1" $
         Block.block "hi b1" default_block_config
-            (Block.RId ruler) [(Block.TId t1 ruler, 30)]
+            ((Block.RId ruler), 20) [(Block.TId t1 ruler, 30)]
             t_schema_id
     State.create_view "v1" (Block.view b1 default_rect default_view_config)
 

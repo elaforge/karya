@@ -52,6 +52,10 @@ warning_color = Color.rgb 1 0.2 0.2
 view_size :: (Int, Int)
 view_size = (300, 300)
 
+-- | Default width for the ruler track.
+ruler_width :: Block.Width
+ruler_width = 18
+
 schema = Block.SchemaId "default"
 
 event text dur = Event.Event text dur (Color.rgb 0.9 0.9 0.7) style
@@ -78,6 +82,5 @@ view_config = Block.ViewConfig
     , Block.vconfig_block_title_height = 20
     , Block.vconfig_track_title_height = 20
     , Block.vconfig_sb_size = 12
-    , Block.vconfig_ruler_size = 18
     , Block.vconfig_status_size = 16
     }

@@ -13,8 +13,8 @@ import qualified Ui.Util as Util
 #include "c_interface.h"
 
 
-data TextStyle = TextStyle
-    { style_font :: Font
+data TextStyle = TextStyle {
+    style_font :: Font
     , style_face :: [FontFace]
     , style_size :: Int
     , style_color :: Color.Color

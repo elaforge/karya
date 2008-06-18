@@ -38,7 +38,6 @@ default_view_config = Block.ViewConfig
     , Block.vconfig_block_title_height = 20
     , Block.vconfig_track_title_height = 20
     , Block.vconfig_sb_size = 12
-    , Block.vconfig_ruler_size = 18
     , Block.vconfig_status_size = 16
     }
 
@@ -67,7 +66,7 @@ initial_state = do
     t2 <- State.create_track "b1.t2" (empty_track "velocity")
     State.insert_events t2 [(TrackPos 0, cont "1")]
     b1 <- State.create_block "b1" $ Block.block "hi b1"
-        Config.block_config (Block.RId ruler)
+        Config.block_config ((Block.RId ruler), 20)
         [(Block.TId t0 overlay, 40), (Block.TId t1 overlay, 40),
             (Block.TId t2 overlay, 40)]
         Config.schema

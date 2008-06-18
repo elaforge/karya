@@ -199,7 +199,7 @@ relevant_ruler block tracknum =
     where
     in_order = map snd $ dropWhile ((/=tracknum) . fst) $ reverse $
         zip [-1..] tracks
-    tracks = Block.block_ruler_track block : map fst (Block.block_tracks block)
+    tracks = map fst $ Block.block_ruler_track block : Block.block_tracks block
     rid_of (Block.RId rid) = Just rid
     rid_of (Block.TId _ rid) = Just rid
     rid_of _ = Nothing

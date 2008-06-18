@@ -1,9 +1,22 @@
+{-# OPTIONS_GHC -fglasgow-exts #-}
+{- | Serialize and unserialize all the data types used by Ui.State.State.
+
+Types that I think might change have versions.  If the type changes, increment
+the put_version and add a new branch to the get_version case.
+
+Types that I think have the slightest chance of changing have explicit type
+signatures here.  That way, if one of the types is changed, there will be
+a type error over here pointing at the get/put code that needs to be updated.
+-}
 module Cmd.Serialize where
 
 import qualified Control.Exception as Exception
+import Control.Monad
 
+import qualified Data.Array.IArray as IArray
 import qualified Data.Binary as Binary
 import Data.Binary (Binary, get, put, getWord8, putWord8)
+import qualified Data.Map as Map
 import qualified Data.Time as Time
 
 import qualified System.IO as IO
@@ -36,7 +49,13 @@ serialize_text fname state = IO.writeFile fname (show state)
 
 unserialize :: IO.FilePath
     -> IO (Either Exception.Exception SaveState)
-unserialize fname = Exception.try (Binary.decodeFile fname)
+unserialize fname = Exception.try $ do
+    st <- Binary.decodeFile fname
+    -- Data.Binary is lazy, but I want errors parsing to get caught right here.
+    -- The correct thing to do would be to use the binary-strict package, but 
+    -- it's not drop-in and this is expedient.
+    length (show st) `seq` return st
+
 
 unserialize_text fname = do
     [_ver, ui_str] <- fmap lines (IO.readFile fname)
@@ -70,15 +89,20 @@ version_error typ ver = throw $
 
 -- * binary instances
 
+save_state_ = SaveState :: State.State -> Time.UTCTime -> SaveState
 instance Binary SaveState where
     put (SaveState a b) = put_version 0
         >> put a >> put b
     get = do
         v <- get_version
         case v of
-            0 -> get >>= \a -> get >>= \b -> return (SaveState a b)
+            0 -> get >>= \a -> get >>= \b -> return (save_state_ a b)
             _ -> version_error "SaveState" v
 
+state = State.State :: Map.Map Block.ViewId Block.View
+    -> Map.Map Block.BlockId Block.Block -> Map.Map Track.TrackId Track.Track
+    -> Map.Map Ruler.RulerId Ruler.Ruler -> Instrument.Config
+    -> State.State
 instance Binary State.State where
     put (State.State a b c d e) = put_version 0
         >> put a >> put b >> put c >> put d >> put e
@@ -103,21 +127,30 @@ instance Binary Block.SchemaId where
     put (Block.SchemaId a) = put a
     get = get >>= \a -> return (Block.SchemaId a)
 
+block = Block.Block :: String -> Block.Config
+    -> (Block.TracklikeId, Block.Width) -> [(Block.TracklikeId, Block.Width)]
+    -> Block.SchemaId -> Block.Block
 instance Binary Block.Block where
-    put (Block.Block a b c d e) = put_version 0
+    put (Block.Block a b c d e) = put_version 1
         >> put a >> put b >> put c >> put d >> put e
     get = do
         v <- get_version
         case v of
-            0 -> get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
-                get >>= \e -> return (Block.Block a b c d e)
+            0 -> let get_ruler_track = fmap (\ruler -> (ruler, 20)) get
+                in liftM5 block get get get_ruler_track get get
+            1 -> get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
+                get >>= \e -> return (block a b c d e)
             _ -> version_error "Block.Block" v
 
+config = Block.Config :: [Color] -> Color -> Color -> Color -> Block.Config
 instance Binary Block.Config where
     put (Block.Config a b c d) = put a >> put b >> put c >> put d
     get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
-        return (Block.Config a b c d)
+        return (config a b c d)
 
+tid = Block.TId :: Track.TrackId -> Ruler.RulerId -> Block.TracklikeId
+rid = Block.RId :: Ruler.RulerId -> Block.TracklikeId
+did = Block.DId :: Block.Divider -> Block.TracklikeId
 instance Binary Block.TracklikeId where
     put (Block.TId a b) = putWord8 0 >> put a >> put b
     put (Block.RId a) = putWord8 1 >> put a
@@ -125,15 +158,20 @@ instance Binary Block.TracklikeId where
     get = do
         tag_ <- getWord8
         case tag_ of
-            0 -> get >>= \a -> get >>= \b -> return (Block.TId a b)
-            1 -> get >>= \a -> return (Block.RId a)
-            2 -> get >>= \a -> return (Block.DId a)
+            0 -> get >>= \a -> get >>= \b -> return (tid a b)
+            1 -> get >>= \a -> return (rid a)
+            2 -> get >>= \a -> return (did a)
             _ -> fail "no parse for Block.TracklikeId"
 
+divider = Block.Divider :: Color -> Block.Divider
 instance Binary Block.Divider where
     put (Block.Divider a) = put a
-    get = get >>= \a -> return (Block.Divider a)
+    get = get >>= \a -> return (divider a)
 
+view = Block.View :: Block.BlockId -> Block.Rect -> Block.ViewConfig
+    -> Map.Map String String -> Block.Width -> Block.Zoom
+    -> Map.Map Block.SelNum Block.Selection -> [Block.TrackView]
+    -> Block.View
 instance Binary Block.View where
     put (Block.View a b c d e f g h) = put_version 0
         >> put a >> put b >> put c >> put d >> put e >> put f >> put g >> put h
@@ -142,31 +180,42 @@ instance Binary Block.View where
         case v of
             0 -> get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
                 get >>= \e -> get >>= \f -> get >>= \g -> get >>= \h ->
-                return (Block.View a b c d e f g h)
+                return (view a b c d e f g h)
             _ -> version_error "Block.View" v
 
+track_view = Block.TrackView :: Block.Width -> Block.TrackView
 instance Binary Block.TrackView where
     put (Block.TrackView a) = put a
-    get = get >>= \a -> return (Block.TrackView a)
+    get = get >>= \a -> return (track_view a)
 
 instance Binary Block.Rect where
     put (Block.Rect a b) = put a >> put b
     get = get >>= \a -> get >>= \b -> return (Block.Rect a b)
 
+view_config = Block.ViewConfig :: Double -> Int -> Int -> Int -> Int
+    -> Block.ViewConfig
 instance Binary Block.ViewConfig where
-    put (Block.ViewConfig a b c d e f) = put a >> put b >> put c >> put d
-        >> put e >> put f
-    get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d -> get >>= \e ->
-        get >>= \f -> return (Block.ViewConfig a b c d e f)
+    put (Block.ViewConfig a b c d e) = put_version 0
+        >> put a >> put b >> put c >> put d >> put e
+    get = do
+        v <- get_version
+        case v of
+            0 -> get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
+                get >>= \e ->
+                return (view_config a b c d e)
+            _ -> version_error "Block.ViewConfig" v
 
+zoom = Block.Zoom :: TrackPos -> Double -> Block.Zoom
 instance Binary Block.Zoom where
     put (Block.Zoom a b) = put a >> put b
-    get = get >>= \a -> get >>= \b -> return (Block.Zoom a b)
+    get = get >>= \a -> get >>= \b -> return (zoom a b)
 
+selection = Block.Selection :: Block.TrackNum -> TrackPos -> Block.TrackNum
+    -> TrackPos -> Block.Selection
 instance Binary Block.Selection where
     put (Block.Selection a b c d) = put a >> put b >> put c >> put d
     get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
-        return (Block.Selection a b c d)
+        return (selection a b c d)
 
 -- ** Types, Color, Font
 
@@ -179,10 +228,12 @@ instance Binary Color.Color where
     get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
         return (Color.Color a b c d)
 
+text_style = Font.TextStyle :: Font.Font -> [Font.FontFace] -> Int -> Color
+    -> Font.TextStyle
 instance Binary Font.TextStyle where
     put (Font.TextStyle a b c d) = put a >> put b >> put c >> put d
     get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
-        return (Font.TextStyle a b c d)
+        return (text_style a b c d)
 
 -- TODO store as strings?
 instance Binary Font.Font where
@@ -213,6 +264,8 @@ instance Binary Ruler.RulerId where
     put (Ruler.RulerId a) = put a
     get = get >>= \a -> return (Ruler.RulerId a)
 
+ruler = Ruler.Ruler :: [Ruler.NameMarklist] -> Color -> Bool -> Bool -> Bool
+    -> Ruler.Ruler
 instance Binary Ruler.Ruler where
     put (Ruler.Ruler a b c d e) = put_version 0
         >> put a >> put b >> put c >> put d >> put e
@@ -220,18 +273,21 @@ instance Binary Ruler.Ruler where
         v <- get_version
         case v of
             0 -> get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
-                get >>= \e -> return (Ruler.Ruler a b c d e)
+                get >>= \e -> return (ruler a b c d e)
             _ -> version_error "Ruler.Ruler" v
 
+marklist = Ruler.Marklist :: IArray.Array Int Ruler.PosMark -> Ruler.Marklist
 instance Binary Ruler.Marklist where
     put (Ruler.Marklist a) = put a
-    get = get >>= \a -> return (Ruler.Marklist a)
+    get = get >>= \a -> return (marklist a)
 
+mark = Ruler.Mark :: Int -> Int -> Color -> String -> Double -> Double
+    -> Ruler.Mark
 instance Binary Ruler.Mark where
     put (Ruler.Mark a b c d e f) = put a >> put b >> put c >> put d >> put e
         >> put f
     get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d -> get >>= \e ->
-        get >>= \f -> return (Ruler.Mark a b c d e f)
+        get >>= \f -> return (mark a b c d e f)
 
 -- ** Track
 
@@ -239,32 +295,40 @@ instance Binary Track.TrackId where
     put (Track.TrackId a) = put a
     get = get >>= \a -> return (Track.TrackId a)
 
+track = Track.Track :: String -> Track.TrackEvents -> Color -> Track.Track
 instance Binary Track.Track where
     put (Track.Track a b c) = put_version 0 >> put a >> put b >> put c
     get = do
         v <- get_version
         case v of
             0 -> get >>= \a -> get >>= \b -> get >>= \c ->
-                return (Track.Track a b c)
+                return (track a b c)
             _ -> version_error "Track.Track" v
 
+track_events = Track.TrackEvents :: Map.Map TrackPos Event.Event
+    -> Track.TrackEvents
 instance Binary Track.TrackEvents where
     put (Track.TrackEvents a) = put_version 0 >> put a
     get = do
         v <- get_version
         case v of
-            0 -> get >>= \a -> return (Track.TrackEvents a)
+            0 -> get >>= \a -> return (track_events a)
             _ -> version_error "Track.TrackEvents" v
 
 -- ** Event 
 
+event = Event.Event :: String -> TrackPos -> Color -> Font.TextStyle -> Bool
+    -> Event.Event
 instance Binary Event.Event where
     put (Event.Event a b c d e) = put a >> put b >> put c >> put d >> put e
     get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
-        get >>= \e -> return (Event.Event a b c d e)
+        get >>= \e -> return (event a b c d e)
 
 -- ** Midi.Instrument
 
+midi_instrument = Instrument.Instrument :: String -> String
+    -> Instrument.InitializeInstrument -> Instrument.PbRange -> Maybe Double
+    -> Instrument.Instrument
 instance Binary Instrument.Instrument where
     put (Instrument.Instrument a b c d e) = put_version 0
         >> put a >> put b >> put c >> put d >> put e
@@ -272,17 +336,26 @@ instance Binary Instrument.Instrument where
         v <- get_version
         case v of
             0 -> get >>= \a -> get >>= \b -> get >>= \c -> get >>=
-                \d -> get >>= \e -> return (Instrument.Instrument a b c d e)
+                \d -> get >>= \e -> return (midi_instrument a b c d e)
             _ -> version_error "Instrument.Instrument" v
 
+midi_instrument_config = Instrument.Config
+    :: Map.Map Instrument.Addr Instrument.Instrument -> Maybe Instrument.Addr
+    -> Instrument.Config
 instance Binary Instrument.Config where
     put (Instrument.Config a b) = put_version 0 >> put a >> put b
     get = do
         v <- get_version
         case v of
-            0 -> get >>= \a -> get >>= \b -> return (Instrument.Config a b)
+            0 -> get >>= \a -> get >>= \b -> return (midi_instrument_config a b)
             _ -> version_error "Instrument.Config" v
 
+initialize_midi = Instrument.InitializeMidi :: [Midi.Message]
+    -> Instrument.InitializeInstrument
+initialize_message = Instrument.InitializeMessage
+    :: String -> Instrument.InitializeInstrument
+no_initialization = Instrument.NoInitialization
+    :: Instrument.InitializeInstrument
 instance Binary Instrument.InitializeInstrument where
     put (Instrument.InitializeMidi a) = putWord8 0 >> put a
     put (Instrument.InitializeMessage a) = putWord8 1 >> put a
@@ -290,9 +363,9 @@ instance Binary Instrument.InitializeInstrument where
     get = do
         tag_ <- getWord8
         case tag_ of
-            0 -> get >>= \a -> return (Instrument.InitializeMidi a)
-            1 -> get >>= \a -> return (Instrument.InitializeMessage a)
-            2 -> return Instrument.NoInitialization
+            0 -> get >>= \a -> return (initialize_midi a)
+            1 -> get >>= \a -> return (initialize_message a)
+            2 -> return no_initialization
             _ -> fail "no parse for Instrument.InitializeInstrument"
 
 -- ** Midi

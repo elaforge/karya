@@ -153,7 +153,7 @@ EventTrackView::draw_upper_layer(int offset, const Event &event,
         int previous_bottom)
 {
     fl_font(fl_font(), Config::font_size::event);
-    bool overlapped = offset < previous_bottom;
+    bool overlapped = offset < previous_bottom - 4; // a little overlap is ok
     int textpos = offset + (fl_height() - fl_descent());
     int bottom;
     if (event.align_to_bottom) {

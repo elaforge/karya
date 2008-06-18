@@ -51,7 +51,6 @@ import qualified Cmd.Play as Play
 import qualified Derive.Score as Score
 import qualified Derive.Schema as Schema
 import qualified Perform.InstrumentDb as InstrumentDb
-import qualified Perform.Transport as Transport
 import qualified Perform.Warning as Warning
 import qualified Perform.Midi.Convert as Midi.Convert
 import qualified Perform.Midi.Instrument as Midi.Instrument
@@ -180,7 +179,8 @@ get_skeleton block_id = do
 create_block :: (State.UiStateMonad m) =>
     String -> String -> String -> m Block.BlockId
 create_block id_name ruler_id schema_id = State.create_block id_name
-    (Block.block "" Config.block_config (ruler ruler_id) [] (sid schema_id))
+    (Block.block "" Config.block_config ((ruler ruler_id), Config.ruler_width)
+        [] (sid schema_id))
 
 set_schema :: String -> String -> Cmd.CmdL ()
 set_schema block_id schema_id = do

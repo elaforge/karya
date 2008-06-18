@@ -23,8 +23,7 @@ void clear_ui_msgs();
 // the passed c array.
 // This hack is also in insert_track.
 BlockViewWindow *create(int x, int y, int w, int h, const char *label,
-        BlockModelConfig *model_config, BlockViewConfig *view_config,
-        Tracklike *ruler_track, Marklist *marklists, int nmarklists);
+        BlockModelConfig *model_config, BlockViewConfig *view_config);
 void destroy(BlockViewWindow *view, FinalizeCallback finalizer);
 
 void set_size(BlockViewWindow *view, int x, int y, int w, int h);

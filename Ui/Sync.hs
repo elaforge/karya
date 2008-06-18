@@ -72,9 +72,13 @@ run_update :: Update.Update -> State.StateT IO ()
 run_update (Update.ViewUpdate view_id Update.CreateView) = do
     view <- State.get_view view_id
     block <- State.get_block (Block.view_block view)
-    ruler_track <- State.get_tracklike (Block.block_ruler_track block)
+
     tracks <- mapM (State.get_tracklike . fst) (Block.block_tracks block)
+    let widths = map Block.track_view_width (Block.view_tracks view)
     titles <- mapM (track_title . fst) (Block.block_tracks block)
+    ruler_track <- State.get_tracklike (fst (Block.block_ruler_track block))
+    let ruler_width = snd (Block.block_ruler_track block)
+
     let sels = Block.view_selections view
     csels <- mapM (\(selnum, sel) -> to_csel view_id selnum (Just sel))
         (Map.assocs sels)
@@ -85,13 +89,14 @@ run_update (Update.ViewUpdate view_id Update.CreateView) = do
     send $ do
         let title = block_window_title view_id (Block.view_block view)
         BlockC.create_view view_id title (Block.view_rect view)
-            (Block.view_config view) (Block.block_config block) ruler_track
-        let widths = map Block.track_view_width (Block.view_tracks view)
-        forM_ (List.zip4 [0..] tracks widths titles) $
-            \(tracknum, ctrack, width, title) -> do
-                BlockC.insert_track view_id tracknum ctrack width
-                when (not (null title)) $
-                    BlockC.set_track_title view_id tracknum title
+            (Block.view_config view) (Block.block_config block)
+
+        let track_info = (BlockC.ruler_tracknum, ruler_track, ruler_width, "")
+                : List.zip4 [0..] tracks widths titles
+        forM_ track_info $ \(tracknum, ctrack, width, title) -> do
+            BlockC.insert_track view_id tracknum ctrack width
+            when (not (null title)) $
+                BlockC.set_track_title view_id tracknum title
 
         when (not (null (Block.block_title block))) $
             BlockC.set_title view_id (Block.block_title block)
@@ -188,7 +193,9 @@ blocks_with_track track_id = do
     where
     track_id_of (Block.TId tid _) = Just tid
     track_id_of _ = Nothing
-    all_tracks block = Seq.enumerate (map fst (Block.block_tracks block))
+    all_tracks block =
+        (BlockC.ruler_tracknum, fst (Block.block_ruler_track block))
+            : Seq.enumerate (map fst (Block.block_tracks block))
 
 -- | Just like 'blocks_with_track' except for ruler_id.
 blocks_with_ruler ruler_id = do
@@ -203,5 +210,22 @@ blocks_with_ruler ruler_id = do
     ruler_id_of (Block.TId _ rid) = Just rid
     ruler_id_of (Block.RId rid) = Just rid
     ruler_id_of _ = Nothing
-    all_tracks block = (BlockC.ruler_tracknum, Block.block_ruler_track block)
-        : Seq.enumerate (map fst (Block.block_tracks block))
+    all_tracks block =
+        (BlockC.ruler_tracknum, fst (Block.block_ruler_track block))
+            : Seq.enumerate (map fst (Block.block_tracks block))
+
+find_tracks f = do
+    st <- State.get
+    return
+        [ (block_id, tracknum, tracklike_id)
+        | (block_id, block) <- Map.assocs (State.state_blocks st)
+        , (tracknum, tracklike_id) <- all_tracks block
+        , f tracklike_id
+        ]
+    where
+    ruler_id_of (Block.TId _ rid) = Just rid
+    ruler_id_of (Block.RId rid) = Just rid
+    ruler_id_of _ = Nothing
+    all_tracks block =
+        (BlockC.ruler_tracknum, fst (Block.block_ruler_track block))
+            : Seq.enumerate (map fst (Block.block_tracks block))

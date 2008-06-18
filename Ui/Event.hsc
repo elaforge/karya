@@ -38,8 +38,8 @@ import Ui.Types
 import qualified Ui.Font as Font
 
 
-data Event = Event
-    { event_text :: String
+data Event = Event {
+    event_text :: String
     , event_duration :: TrackPos
     , event_color :: Color
     , event_style :: Font.TextStyle

@@ -65,7 +65,6 @@ struct BlockViewConfig {
     int block_title_height;
     int track_title_height;
     int sb_size;
-    int ruler_size;
     int status_size;
 };
 
@@ -74,8 +73,7 @@ class BlockView : public Fl_Group {
 public:
     BlockView(int X, int Y, int W, int H,
             const BlockModelConfig &model_config,
-            const BlockViewConfig &view_config,
-            const Tracklike &ruler_track);
+            const BlockViewConfig &view_config);
 
     void resize(int X, int Y, int W, int H);
     void set_view_config(const BlockViewConfig &view_config,
@@ -113,19 +111,25 @@ public:
             FinalizeCallback finalizer, TrackPos start, TrackPos end);
 
     TrackView *track_at(int tracknum) {
-        if (tracknum == BlockView::ruler_tracknum)
+        if (tracknum == ruler_tracknum)
             return ruler_track;
         else
             return track_tile.track_at(tracknum);
     }
     int tracks() const { return track_tile.tracks(); }
+    // TODO ??
     int get_track_width(int tracknum) { track_tile.get_track_width(tracknum); }
     void set_track_width(int tracknum, int width) {
-        track_tile.set_track_width(tracknum, width);
+        if (tracknum == ruler_tracknum)
+            this->set_ruler_width(width);
+        else
+            track_tile.set_track_width(tracknum, width);
     }
+    /*
     void drag_tile(Point drag_from, Point drag_to) {
         track_tile.drag_tile(drag_from, drag_to);
     }
+    */
 
 private:
     BlockModelConfig model_config;
@@ -135,7 +139,7 @@ private:
     SeqInput title;
     Fl_Output status_line;
     Fl_Tile body;
-        // Dummy group to limit body tile.
+        // Dummy group to limit body tile drag to the ruler track.
         Fl_Group body_resize_group;
         Fl_Group ruler_group;
             Fl_Box track_box;
@@ -150,6 +154,7 @@ private:
             SimpleScroll track_scroll;
                 TrackTile track_tile;
 
+    void set_ruler_width(int width);
     void update_scrollbars();
 
     // Called by scrollbar.
@@ -164,8 +169,7 @@ public:
     BlockViewWindow(int X, int Y, int W, int H,
             const char *label,
             const BlockModelConfig &model_config,
-            const BlockViewConfig &view_config,
-            const Tracklike &ruler_track);
+            const BlockViewConfig &view_config);
     virtual void resize(int X, int Y, int W, int H);
     BlockView block;
 

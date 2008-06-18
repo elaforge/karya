@@ -33,8 +33,8 @@ newtype SchemaId = SchemaId String
 data Block = Block {
     block_title :: String
     , block_config :: Config
-    , block_ruler_track :: TracklikeId
-    -- The Width here is the default if a new View is created from this Block.
+    -- The Widths here are the default if a new View is created from this Block.
+    , block_ruler_track :: (TracklikeId, Width)
     , block_tracks :: [(TracklikeId, Width)]
     , block_schema :: SchemaId
     } deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
@@ -63,7 +63,7 @@ data Tracklike =
     deriving (Show)
 
 -- | A divider separating tracks.
--- Declared here in Block since it's so trivial.
+-- Defined here in Block since it's so trivial.
 data Divider = Divider Color
     deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
 
@@ -130,12 +130,11 @@ rect_bottom rect = snd (rect_pos rect) + snd (rect_size rect)
 
 -- | The defaults for newly created blocks and the trackviews automatically
 -- created.
-data ViewConfig = ViewConfig
-    { vconfig_zoom_speed :: Double
+data ViewConfig = ViewConfig {
+    vconfig_zoom_speed :: Double
     , vconfig_block_title_height :: Int
     , vconfig_track_title_height :: Int
     , vconfig_sb_size :: Int
-    , vconfig_ruler_size :: Int
     , vconfig_status_size :: Int
     } deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
 
@@ -148,8 +147,8 @@ default_zoom = Zoom (TrackPos 0) 1
 
 -- TODO: remove color and put it in BlockC.SelectionC, which gets its color
 -- from a BlockConfig list
-data Selection = Selection
-    { sel_start_track :: TrackNum
+data Selection = Selection {
+    sel_start_track :: TrackNum
     , sel_start_pos :: TrackPos
     , sel_tracks :: TrackNum
     , sel_duration :: TrackPos

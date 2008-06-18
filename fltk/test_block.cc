@@ -22,7 +22,6 @@ BlockViewConfig block_view_config()
     c.block_title_height = 20;
     c.track_title_height = 20;
     c.sb_size = 12;
-    c.ruler_size = 18;
     c.status_size = 16;
     return c;
 }
@@ -179,21 +178,20 @@ main(int argc, char **argv)
     EventTrackConfig track(track_bg, t1_find_events, t1_time_end);
     EventTrackConfig track2(track_bg, t1_find_events, t1_time_end);
 
-    BlockViewWindow view(300, 250, 200, 200, "view1", config, view_config,
-            Tracklike(&ruler));
+    BlockViewWindow view(300, 250, 200, 200, "view1", config, view_config);
     // view.border(0);
 
     view.testing = true;
     view.block.set_status("no status yet");
     view.block.set_title("hi there");
 
+    view.block.insert_track(BlockView::ruler_tracknum, Tracklike(&ruler), 20);
     view.block.insert_track(0, Tracklike(&divider), 10);
     view.block.insert_track(1, Tracklike(&ruler), 30);
     view.block.insert_track(2, Tracklike(&track, &truler), 30);
     view.block.insert_track(3, Tracklike(&track2, &truler), 30);
-    print_children(&view);
 
-    // print_children(&view);
+    print_children(&view);
 
     // view.block.set_zoom(ZoomInfo(TrackPos(128), 1));
     // view.block.set_zoom(ZoomInfo(TrackPos(64), 1));
@@ -208,13 +206,6 @@ main(int argc, char **argv)
     view.block.set_selection(1, Selection(selection_colors[1],
                 1, TrackPos(64), 4, TrackPos(0)));
     */
-
-    // print_children(&view);
-    // DEBUG(1);
-    // view.resize(0, 0, 100, 100);
-    // print_children(&view);
-    // DEBUG(2);
-    // view.resize(0, 0, 300, 300);
 
     view.show(argc, argv);
     Fl::run();

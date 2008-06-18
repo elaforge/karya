@@ -54,30 +54,10 @@ clear_ui_msgs()
 
 BlockViewWindow *
 create(int x, int y, int w, int h, const char *label,
-        BlockModelConfig *model_config, BlockViewConfig *view_config,
-        Tracklike *ruler_track, Marklist *marklists, int nmarklists)
+        BlockModelConfig *model_config, BlockViewConfig *view_config)
 {
-    // This is basically a copy and paste of insert_track.
-    Tracklike *track = ruler_track;
-    RulerConfig *old_ruler = track->ruler;
-    BlockViewWindow *win = 0;
-    if (track->ruler) {
-        // Substitute a complete ruler for the semi-constructed one.
-        RulerConfig &partial = *track->ruler;
-        RulerConfig config(partial.bg, partial.show_names, partial.use_alpha,
-                partial.full_width);
-        for (int i = 0; i < nmarklists; i++)
-            config.marklists.push_back(marklists[i]);
-        track->ruler = &config;
-        // Pass 'track' while 'config' is still in scope.
-        win = new BlockViewWindow(x, y, w, h, label, *model_config,
-                *view_config, *track);
-        // Don't leave it pointing to out of scope data.
-        track->ruler = old_ruler;
-    } else {
-        win = new BlockViewWindow(x, y, w, h, label, *model_config,
-                *view_config, *track);
-    }
+    BlockViewWindow *win = new BlockViewWindow(
+            x, y, w, h, label, *model_config, *view_config);
     win->show();
     return win;
 }

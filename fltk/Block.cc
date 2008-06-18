@@ -13,8 +13,7 @@ static const int mac_resizer_width = 15;
 
 BlockView::BlockView(int X, int Y, int W, int H,
         const BlockModelConfig &model_config,
-        const BlockViewConfig &view_config,
-        const Tracklike &ruler_track) :
+        const BlockViewConfig &view_config) :
     Fl_Group(X, Y, W, H),
 
     title(0, 0, 1, 1, false),
@@ -41,9 +40,9 @@ BlockView::BlockView(int X, int Y, int W, int H,
     body.add(track_group);
     body_resize_group.hide();
 
+    DividerConfig *div = new DividerConfig(Color(0));
     // The size will be set again by set_view_config, but that's ok.
-    this->insert_track(BlockView::ruler_tracknum, ruler_track,
-            view_config.ruler_size);
+    this->insert_track(BlockView::ruler_tracknum, Tracklike(div), 0);
 
     // Remove the status line from the tab focus list.  I bypass that anyway
     // so this doesn't have any effect.
@@ -61,6 +60,9 @@ BlockView::BlockView(int X, int Y, int W, int H,
 
     this->set_view_config(view_config, true);
     this->set_model_config(model_config, true);
+
+    // See dummy_ruler_size in set_view_config.
+    this->set_ruler_width(0);
 
     // Initialize zoom to default.  This will cause zooming children to
     // properly position their widgets.
@@ -102,6 +104,11 @@ BlockView::set_view_config(const BlockViewConfig &vconfig, bool always_update)
     int wx = 0, wy = 0;
     this->position(0, 0);
 
+    // Fl_Tile loses track of the widget and resizes the scrollbar if I set
+    // it to 0, so initialize it to 1 and resize it to 0 after it's done
+    // init_sizes().
+    int dummy_ruler_size = 1;
+
     title.resize(wx, wy, w(), vconfig.block_title_height);
     status_line.resize(wx, h() - vconfig.status_size,
             w() - mac_resizer_width, vconfig.status_size);
@@ -112,7 +119,7 @@ BlockView::set_view_config(const BlockViewConfig &vconfig, bool always_update)
             body.w() - vconfig.sb_size, body.h());
 
     ruler_group.resize(wx, body.y(),
-            vconfig.sb_size + vconfig.ruler_size, body.h());
+            vconfig.sb_size + dummy_ruler_size, body.h());
     Rect p = rect(ruler_group);
     track_group.resize(p.r(), body.y(), body.w() - p.w, body.h());
 
@@ -125,7 +132,7 @@ BlockView::set_view_config(const BlockViewConfig &vconfig, bool always_update)
     time_sb.resize(p.x, p.y + track_box.h(),
             vconfig.sb_size, p.h - track_box.h() - sb_box.h());
     ruler_track->resize(p.x + time_sb.w(), p.y + track_box.h(),
-            vconfig.ruler_size, time_sb.h());
+            dummy_ruler_size, time_sb.h());
 
     p = rect(track_group);
     track_sb.resize(p.x, p.b() - vconfig.sb_size, p.w, vconfig.sb_size);
@@ -142,8 +149,17 @@ BlockView::set_view_config(const BlockViewConfig &vconfig, bool always_update)
     track_tile.init_sizes();
 
     this->update_scrollbars();
-
     this->view_config = vconfig;
+}
+
+
+void
+BlockView::set_ruler_width(int width)
+{
+    ASSERT(0 <= width);
+
+    int x = this->ruler_track->x();
+    this->body.position(x + ruler_track->w(), body.y(), x + width, body.y());
 }
 
 
@@ -233,13 +249,22 @@ BlockView::insert_track(int tracknum, const Tracklike &track, int width)
         t = new DividerView(*track.divider);
     }
     if (tracknum == BlockView::ruler_tracknum) {
+        // Set the width to a known non-zero size, clear the old track,
+        // and replace it with the new one.
         if (this->ruler_track) {
+            this->set_ruler_width(1);
             this->ruler_group.remove(ruler_track);
             delete ruler_track;
         }
         this->ruler_track = t;
+
+        Rect p = rect(this->ruler_group);
+        ruler_track->resize(p.x + time_sb.w(), p.y + track_box.h(),
+                1, time_sb.h());
+
         ruler_group.add(t);
         ruler_group.resizable(ruler_track);
+        this->set_ruler_width(width);
     } else {
         track_tile.insert_track(tracknum, t, width);
     }
@@ -356,10 +381,9 @@ block_view_window_cb(Fl_Window *win, void *p)
 BlockViewWindow::BlockViewWindow(int X, int Y, int W, int H,
         const char *label,
         const BlockModelConfig &model_config,
-        const BlockViewConfig &view_config,
-        const Tracklike &ruler_track) :
+        const BlockViewConfig &view_config) :
     Fl_Double_Window(X, Y, W, H, label),
-    block(X, Y, W, H, model_config, view_config, ruler_track),
+    block(X, Y, W, H, model_config, view_config),
     testing(false)
 {
     this->callback((Fl_Callback *) block_view_window_cb);
@@ -375,6 +399,7 @@ BlockViewWindow::BlockViewWindow(int X, int Y, int W, int H,
     // Turn off some annoying defaults.
     Fl::dnd_text_ops(false); // don't do drag and drop text
     // Fl::visible_focus(false); // doesn't seem to do anything
+    // this->border(false);
 }
 
 void
