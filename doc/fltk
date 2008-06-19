@@ -7,13 +7,41 @@ Comment out .SILENT in makeinclude and possibly delete some of the Compiling
 echos, since I like to see exactly what flags cc is getting.
 
 
-Fl_Group::insert and Fl_Group::remove should be virtual.
-Fl_Input_::value should be virtual.
-
-Fl_Scrollbar::value should be const.
-
-Fl_Scroll overrides "position" to set the position of the children, but not
-itself.  That seems confusing.
 
 
 the undocmunted FL_Sys_Menu_Bar can put things in the OS X main menu
+
+
+
+FLTK STRs:
+
+1952 - first modifier key on mac is lost
+1983 - clarify event delivery documentation
+1984 - provide a hook to override default event delivery
+
+
+
+Signature changes:
+
+    Make members virtual:
+
+Fl_Group::insert and Fl_Group::remove should be virtual, and it should be
+documented that these are always used for adding and removing widgets.  This
+way you can reliably intercept those to preserve your own invariants.
+
+Fl_Input_::value should be virtual.
+
+    Member functions that overlap with their superclass's name:
+
+These are just confusing and error prone.  And if the superclass method becomes
+virtual, they won't work at all.  These are more serious changes since they
+will break code:
+
+Fl_Scroll overrides "position" to set the position of the children, but not
+itself.  Fl_Tile overrides position to mean something entirely different.
+
+Fl_Scrollbar overrides value() to take extra args.
+
+    Other minor signature changes:
+
+Fl_Scrollbar::value should be const (its "superclass" method is).

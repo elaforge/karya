@@ -1,0 +1,8 @@
+module Foo where
+
+fizzickle f = Log.debug
+
+faddle y = do
+    hi
+    Log.error "there"
+    brick

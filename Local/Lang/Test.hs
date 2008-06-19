@@ -27,13 +27,3 @@ import Cmd.LanguageCmds
 
 test_cmd :: Cmd.CmdL ()
 test_cmd = Log.notice "test command"
-
-midi_msgs block_id = do
-    block <- State.get_block block_id
-    (err_events, _) <- Play.derive block
-    events <- case err_events of
-        Left err -> State.throw $ "derive error: " ++ show err
-        Right events -> return events
-
-    let (midi_events, _) = Convert.convert events
-    return midi_events

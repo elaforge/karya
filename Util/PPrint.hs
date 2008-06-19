@@ -1,4 +1,4 @@
-{- | This is stolen from gleb.alexeev@gmail.com's ipprint package on hackage.
+{- | This is stolen from gleb.alexeev\@gmail.com's ipprint package on hackage.
 I'm not just using it directly because I want to pass custom formatting flags
 because my terminal is 80 chars wide.
 -}

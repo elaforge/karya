@@ -20,8 +20,8 @@ _stub.[ch]$
 
 # binary targets
 ^test_[a-z]+$
-test/hspp
-fixdeps
+^test/hspp$
+^fixdeps$
 ^(dump|seq|send|repl|logview)$
 
 # profile cruft
