@@ -3,6 +3,7 @@
 module Cmd.Save where
 import qualified Control.Monad.Trans as Trans
 import qualified System.IO as IO
+import System.FilePath ((</>))
 
 import qualified Util.Log as Log
 
@@ -16,21 +17,23 @@ import qualified Cmd.Serialize as Serialize
 import qualified App.Config as Config
 
 
-cmd_save :: (Trans.MonadIO m) => Maybe FilePath -> Cmd.CmdT m ()
-cmd_save maybe_fname = do
-    cmd_state <- Cmd.get_state
+get_save_file :: (Monad m) => Cmd.CmdT m FilePath
+get_save_file = do
+    dir <- fmap State.state_project_dir State.get
+    project <- State.get_project
+    return $ dir </> project ++ ".state"
+
+
+cmd_save :: (Trans.MonadIO m) => FilePath -> Cmd.CmdT m ()
+cmd_save fname = do
     ui_state <- State.get
-    let fname = maybe (Cmd.state_default_save_file cmd_state) id maybe_fname
     save <- Trans.liftIO $ Serialize.save_state ui_state
     Log.notice $ "write state to " ++ show fname
     Trans.liftIO $ Serialize.serialize_text (fname ++ ".text") save
     Trans.liftIO $ Serialize.serialize fname save
 
-cmd_load :: (Trans.MonadIO m) => Maybe FilePath -> Cmd.CmdT m ()
-cmd_load maybe_fname = do
-    cmd_state <- Cmd.get_state
-    let fname = maybe (Cmd.state_default_save_file cmd_state) id maybe_fname
-
+cmd_load :: (Trans.MonadIO m) => FilePath -> Cmd.CmdT m ()
+cmd_load fname = do
     Trans.liftIO $ Log.notice $ "load state from " ++ show fname
     try_state <- Trans.liftIO $ Serialize.unserialize fname
     state <- case try_state of

@@ -117,9 +117,13 @@ OverlayRuler::draw()
     }
     */
 
+    // DEBUG("draw group");
     Fl_Group::draw();
+    // DEBUG("draw marklists");
     this->draw_marklists();
+    // DEBUG("draw selections " << this);
     this->draw_selections();
+    // DEBUG("done");
     this->damaged_area.w = this->damaged_area.h = 0;
     this->shift = 0;
 }
@@ -175,6 +179,7 @@ OverlayRuler::draw_marklists()
     for (Marklists::const_iterator mlist = config.marklists.begin();
             mlist != config.marklists.end(); ++mlist)
     {
+        // DEBUG("FIND " << &mlist->find_marks);
         int count = mlist->find_marks(&start, &end, &mark_tps, &marks);
         for (int i = 0; i < count; i++) {
             int offset = y() + zoom.to_pixels(mark_tps[i] - zoom.offset);

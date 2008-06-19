@@ -146,7 +146,7 @@ run_update (Update.BlockUpdate block_id update) = do
                     _ -> return ()
 
 run_update (Update.TrackUpdate track_id update) = do
-    blocks <- blocks_with_track track_id
+    blocks <- State.blocks_with_track track_id
     forM_ blocks $ \(block_id, tracknum, tracklike_id) -> do
         view_ids <- fmap Map.keys (State.get_views_of block_id)
         tracklike <- State.get_tracklike tracklike_id
@@ -163,7 +163,7 @@ run_update (Update.TrackUpdate track_id update) = do
                     (TrackPos 0) (TrackPos 0)
 
 run_update (Update.RulerUpdate ruler_id) = do
-    blocks <- blocks_with_ruler ruler_id
+    blocks <- State.blocks_with_ruler ruler_id
     forM_ blocks $ \(block_id, tracknum, tracklike_id) -> do
         view_ids <- fmap Map.keys (State.get_views_of block_id)
         tracklike <- State.get_tracklike tracklike_id
@@ -179,31 +179,3 @@ to_csel view_id selnum maybe_sel = do
             (Block.config_selection_colors (Block.block_config block))
             selnum
     return $ fmap (BlockC.CSelection color) maybe_sel
-
--- | Find @track_id@ in all the blocks it exists in, and return the track info
--- for each tracknum at which @track_id@ lives.
-blocks_with_track :: (Monad m) => Track.TrackId -> State.StateT m
-    [(Block.BlockId, Block.TrackNum, Block.TracklikeId)]
-blocks_with_track track_id = find_tracks ((== Just track_id) . track_id_of)
-    where
-    track_id_of (Block.TId tid _) = Just tid
-    track_id_of _ = Nothing
-
--- | Just like 'blocks_with_track' except for ruler_id.
-blocks_with_ruler :: (Monad m) => Ruler.RulerId -> State.StateT m
-    [(Block.BlockId, Block.TrackNum, Block.TracklikeId)]
-blocks_with_ruler ruler_id = find_tracks ((== Just ruler_id) . ruler_id_of)
-    where
-    ruler_id_of (Block.TId _ rid) = Just rid
-    ruler_id_of (Block.RId rid) = Just rid
-    ruler_id_of _ = Nothing
-
-find_tracks f = do
-    st <- State.get
-    return
-        [ (block_id, tracknum, tracklike_id)
-        | (block_id, block) <- Map.assocs (State.state_blocks st)
-        , (tracknum, tracklike_id) <- all_tracks block
-        , f tracklike_id
-        ]
-    where all_tracks block = Seq.enumerate (map fst (Block.block_tracks block))

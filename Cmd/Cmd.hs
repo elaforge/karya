@@ -142,11 +142,6 @@ data State = State {
     -- a particular block or track will address these.
     , state_focused_view :: Maybe Block.ViewId
 
-    -- Global user-edited app state.
-
-    -- | Argumentless save commands save to and load from this file.
-    , state_default_save_file :: FilePath
-
     -- Editing state
 
     -- | Edit mode enables various commands that write to tracks.
@@ -159,12 +154,11 @@ data State = State {
     -- of notes per octave.
     , state_kbd_entry_octave :: Int
     } deriving (Show, Typeable.Typeable)
+
 empty_state = State {
     state_keys_down = Map.empty
     , state_transport = Nothing
     , state_focused_view = Nothing
-
-    , state_default_save_file = "save/default"
 
     , state_edit_mode = False
     , state_step =
@@ -385,7 +379,8 @@ update_input ctx block_id text = case (UiMsg.ctx_track ctx) of
     Just tracknum -> do
         track <- State.track_at block_id tracknum
         case track of
-            Just (Block.TId track_id _) -> State.set_track_title track_id text
+            Just ((Block.TId track_id _), _width) ->
+                State.set_track_title track_id text
             _ -> State.throw $ show (UiMsg.UpdateInput text) ++ " for "
                 ++ show ctx ++ " on non-event track " ++ show track
     Nothing -> State.set_block_title block_id text

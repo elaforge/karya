@@ -13,6 +13,8 @@ import qualified Ui.Event as Event
 
 newtype TrackId = TrackId String
     deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
+un_track_id (TrackId s) = s
+
 type PosEvent = (TrackPos, Event.Event)
 
 data Track = Track {

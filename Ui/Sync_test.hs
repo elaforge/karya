@@ -104,10 +104,10 @@ test_set_status = do
 test_insert_remove_track = do
     state <- run_setup
     state <- io_human "new wide track at the end" $ run state $ do
-        State.insert_track t_block_id 1 (Block.TId t_track1_id t_ruler_id) 80
+        State.insert_track t_block_id 2 (Block.TId t_track1_id t_ruler_id) 80
     state <- io_human "first track replaced by divider" $ run state $ do
-        State.remove_track t_block_id 0
-        State.insert_track t_block_id 0 (Block.DId default_divider) 5
+        State.remove_track t_block_id 1
+        State.insert_track t_block_id 1 (Block.DId default_divider) 5
     return ()
 
 test_update_track = do

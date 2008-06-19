@@ -46,7 +46,10 @@ import qualified Cmd.Edit as Edit
 import qualified Cmd.TimeStep as TimeStep
 import qualified Cmd.Language as Language
 import qualified Cmd.Play as Play
--- import qualified Cmd.MakeRuler as MakeRuler
+
+-- Just make sure these are compiled.
+import qualified Cmd.MakeRuler as MakeRuler
+import qualified Cmd.Create as Create
 
 import qualified Derive.Score as Score
 import qualified Derive.Schema as Schema
@@ -80,12 +83,6 @@ _cmd_state :: (Cmd.State -> a) -> Cmd.CmdT Identity.Identity a
 _cmd_state = flip fmap Cmd.get_state
 
 -- * show / modify cmd state
-
-show_save_file :: Cmd.CmdL String
-show_save_file = _cmd_state (show . Cmd.state_default_save_file)
-set_save_file :: String -> Cmd.CmdL ()
-set_save_file s =
-    Cmd.modify_state $ \st -> st { Cmd.state_default_save_file = s }
 
 show_step :: Cmd.CmdL TimeStep.TimeStep
 show_step = _cmd_state Cmd.state_step
@@ -123,11 +120,13 @@ tid = Track.TrackId
 
 show_state :: Cmd.CmdL String
 show_state = do
-    (State.State views blocks tracks rulers _midi_config) <- State.get
+    (State.State project dir views blocks tracks rulers _midi_config)
+        <- State.get
     -- midi config showed by show_midi_config
     let f m = PPrint.pshow (Map.keys m)
     return $ show_record
-        [ ("views", f views), ("blocks", f blocks)
+        [ ("project", project), ("dir", dir)
+        , ("views", f views), ("blocks", f blocks)
         , ("tracks", f tracks), ("rulers", f rulers)
         ]
 
@@ -135,21 +134,6 @@ show_state = do
 
 get_views :: Cmd.CmdL [Block.ViewId]
 get_views = fmap (Map.keys . State.state_views) State.get
-
-create_view :: String -> String -> Cmd.CmdL Block.ViewId
-create_view view_id block_id = do
-    rect <- fmap (find_rect Config.view_size . map Block.view_rect . Map.elems
-        . State.state_views) State.get
-    State.create_view view_id
-        (Block.view (bid block_id) rect Config.view_config)
-
--- TODO I also need the screen dimensions to do this right.  Before I go
--- too far here, though, I'll want to think about proper window manager stuff.
--- If I just allow the placement function to be passed as an arg...
-find_rect (w, h) rects = Block.Rect (right, bottom) (w, h)
-    where
-    right = maximum $ 0 : map Block.rect_right rects
-    bottom = 10
 
 destroy_view :: String -> Cmd.CmdL ()
 destroy_view view_id = State.destroy_view (vid view_id)

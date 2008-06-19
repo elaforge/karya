@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -fglasgow-exts #-}
 {- | Serialize and unserialize all the data types used by Ui.State.State.
 
 Types that I think might change have versions.  If the type changes, increment
@@ -99,18 +98,31 @@ instance Binary SaveState where
             0 -> get >>= \a -> get >>= \b -> return (save_state_ a b)
             _ -> version_error "SaveState" v
 
-state = State.State :: Map.Map Block.ViewId Block.View
-    -> Map.Map Block.BlockId Block.Block -> Map.Map Track.TrackId Track.Track
-    -> Map.Map Ruler.RulerId Ruler.Ruler -> Instrument.Config
-    -> State.State
 instance Binary State.State where
-    put (State.State a b c d e) = put_version 0
-        >> put a >> put b >> put c >> put d >> put e
+    put (State.State a b c d e f g) = put_version 1
+        >> put a >> put b >> put c >> put d >> put e >> put f >> put g
     get = do
         v <- get_version
         case v of
-            0 -> get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
-                get >>= \e -> return (State.State a b c d e)
+            0 -> do
+                views <- get :: Get (Map.Map Block.ViewId Block.View)
+                blocks <- get :: Get (Map.Map Block.BlockId Block.Block)
+                tracks <- get :: Get (Map.Map Track.TrackId Track.Track)
+                rulers <- get :: Get (Map.Map Ruler.RulerId Ruler.Ruler)
+                midi_config <- get :: Get Instrument.Config
+                return $ State.State "default" "." views blocks tracks rulers
+                    midi_config
+            1 -> do
+                proj <- get :: Get String
+                dir <- get :: Get String
+                views <- get :: Get (Map.Map Block.ViewId Block.View)
+                blocks <- get :: Get (Map.Map Block.BlockId Block.Block)
+                tracks <- get :: Get (Map.Map Track.TrackId Track.Track)
+                rulers <- get :: Get (Map.Map Ruler.RulerId Ruler.Ruler)
+                midi_config <- get :: Get Instrument.Config
+                return $ State.State proj dir views blocks tracks rulers
+                    midi_config
+
             _ -> version_error "State.State" v
 
 -- ** Block

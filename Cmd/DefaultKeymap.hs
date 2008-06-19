@@ -58,8 +58,8 @@ io_bindings transport_info =
     ]
 
 cmd_save, cmd_load :: Cmd.CmdIO
-cmd_save = Save.cmd_save Nothing >> return Cmd.Done
-cmd_load = Save.cmd_load Nothing >> return Cmd.Done
+cmd_save = Save.get_save_file >>= Save.cmd_save >> return Cmd.Done
+cmd_load = Save.get_save_file >>= Save.cmd_load >> return Cmd.Done
 
 misc_bindings =
     [ bind_kmod [Key.MetaL] (Key.KeyChar '\'') "quit" Cmd.cmd_quit

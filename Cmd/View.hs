@@ -4,12 +4,6 @@ An abstraction layer in between the Block that's stored in the state, and the
 Block that's visible in the UI.  This is so you can collapse / expand tracks,
 mute / unmute tracks, manage deriver views, ...
 
-- Create new view, destroy view.
-
-- Create / destroy blocks.
-
-- Add track, remove track.
-
 - Collapse / expand track into a divider.
 
     Ways to display a derivation

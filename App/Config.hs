@@ -52,9 +52,13 @@ warning_color = Color.rgb 1 0.2 0.2
 view_size :: (Int, Int)
 view_size = (300, 300)
 
--- | Default width for the ruler track.
+-- | Default width for the block ruler track.
 ruler_width :: Block.Width
 ruler_width = 18
+
+-- | Default width for new tracks.
+track_width :: Block.Width
+track_width = 30
 
 schema = Block.SchemaId "default"
 

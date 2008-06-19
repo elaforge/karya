@@ -25,8 +25,11 @@ import qualified Ui.Update as Update
 import qualified Midi.Midi as Midi
 
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Play as Play
 import qualified Cmd.MakeRuler as MakeRuler
+import qualified Cmd.Create as Create
+import qualified Cmd.Play as Play
+import qualified Cmd.Selection as Selection
+import qualified Cmd.TimeStep as TimeStep
 
 import qualified Derive.Score as Score
 import qualified Derive.Schema as Schema

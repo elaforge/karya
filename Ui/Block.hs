@@ -28,6 +28,10 @@ newtype ViewId = ViewId String
 newtype SchemaId = SchemaId String
     deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
 
+un_block_id (BlockId s) = s
+un_view_id (ViewId s) = s
+un_schema_id (SchemaId s) = s
+
 -- * block model
 
 data Block = Block {

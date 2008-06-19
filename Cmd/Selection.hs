@@ -227,5 +227,5 @@ selected_tracks selnum = do
 event_track_at block_id tracknum = do
     track <- State.track_at block_id tracknum
     case track of
-        Just (Block.TId track_id _) -> return (Just track_id)
+        Just ((Block.TId track_id _), _width) -> return (Just track_id)
         _ -> return Nothing

@@ -11,6 +11,7 @@ fltk
     - implement selection redraw optimization
     - possibly move selections entirely into c++
     - set_selection should do nothing if the selection hasn't changed
+  - ui gets really unresponsive when the play position is being updated
   * text entries should scroll back to the beginning when they're unfocused
   * bug: if the first event is a modifier, it doesn't get emitted.  An fltk
     thing?
@@ -104,7 +105,6 @@ Ui
   * work old tests from TestUi into BlockC_test
   * always having to specify the color of a Selection is annoying, make
     CSelection automatically get it from block_selection_colors
-  - set_block_status
   - set_track_status
   - if the app thread dies, kill the rest of the threads
   Diff
@@ -157,12 +157,11 @@ Cmd
   Cmd.Language: listen on a socket, receive cmd language?  or use hs-plugins?
     * simple commands to manage blocks, and save / restore state
     * pretty print various parts of state
-    - functions to create and insert tracks, views, etc.  automatically create
+    * functions to create and insert tracks, views, etc.  automatically create
       IDs, prefixing current project name
     * readline using repl for send
 
   Cmd.View
-    - create / destroy views, blocks and tracks
     - ViewBlock abstraction: collapse/expand tracks, mute tracks
 
   Cmd.Play
