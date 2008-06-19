@@ -71,15 +71,6 @@ ALL_HS = $(shell ./all_hs.py)
 all_hsc: $(UI_HS) $(MIDI_HS)
 
 # PHONY convinces make to always run ghc, which figures out deps on its own
-.PHONY: test_ui
-test_ui: $(UI_HS) $(UI_OBJS) fltk/fltk.a
-	$(GHC) $(HFLAGS) --make \
-		Ui/TestUi.hs \
-		$(UI_OBJS) fltk/fltk.a \
-		`fltk-config --ldflags` \
-		-o $@
-	$(REZ)
-
 .PHONY: test_midi
 test_midi: $(MIDI_HS)
 	$(GHC) $(HFLAGS) --make \

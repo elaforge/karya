@@ -243,8 +243,7 @@ mkstate tracks = State.run_state State.empty $ do
         State.create_track ("b1." ++ show i) (mktrack track)
     State.create_block "b1" $
         Block.block "b1 title" TestSetup.default_block_config
-            ((Block.RId ruler), 20)
-            [(Block.TId tid ruler, 40) | tid <- tids]
+            ((Block.RId ruler, 20) : [(Block.TId tid ruler, 40) | tid <- tids])
             (Block.SchemaId "no schema")
     return tids
 
@@ -258,8 +257,9 @@ ui_state = snd $ State.run_state State.empty $ do
     t3 <- State.create_track "b1.cont" track_cont
     b1 <- State.create_block "b1" $
         Block.block "b1 title" TestSetup.default_block_config
-            ((Block.RId ruler), 20)
-            [(Block.TId t1 overlay, 40), (Block.TId t2 overlay, 40)]
+            [ (Block.RId ruler, 20)
+            , (Block.TId t1 overlay, 40), (Block.TId t2 overlay, 40)
+            ]
             (Block.SchemaId "no schema")
     return ()
 

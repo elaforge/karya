@@ -66,9 +66,9 @@ initial_state = do
     t2 <- State.create_track "b1.t2" (empty_track "velocity")
     State.insert_events t2 [(TrackPos 0, cont "1")]
     b1 <- State.create_block "b1" $ Block.block "hi b1"
-        Config.block_config ((Block.RId ruler), 20)
-        [(Block.TId t0 overlay, 40), (Block.TId t1 overlay, 40),
-            (Block.TId t2 overlay, 40)]
+        Config.block_config
+        [(Block.RId ruler, 20), (Block.TId t0 overlay, 40),
+            (Block.TId t1 overlay, 40), (Block.TId t2 overlay, 40)]
         Config.schema
     v1 <- State.create_view "v1"
         (Block.view b1 default_rect Config.view_config)

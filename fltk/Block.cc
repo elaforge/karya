@@ -40,9 +40,10 @@ BlockView::BlockView(int X, int Y, int W, int H,
     body.add(track_group);
     body_resize_group.hide();
 
+    // Insert a placeholder for the ruler.  The size will be set again by
+    // set_view_config, but that's ok.
     DividerConfig *div = new DividerConfig(Color(0));
-    // The size will be set again by set_view_config, but that's ok.
-    this->insert_track(BlockView::ruler_tracknum, Tracklike(div), 0);
+    this->insert_track(0, Tracklike(div), 0);
 
     // Remove the status line from the tab focus list.  I bypass that anyway
     // so this doesn't have any effect.
@@ -52,6 +53,7 @@ BlockView::BlockView(int X, int Y, int W, int H,
     sb_box.box(FL_FLAT_BOX);
     time_sb.callback(BlockView::scrollbar_cb, static_cast<void *>(this));
     track_sb.callback(BlockView::scrollbar_cb, static_cast<void *>(this));
+    body.callback(BlockView::track_tile_cb, static_cast<void *>(this));
     track_tile.callback(BlockView::track_tile_cb, static_cast<void *>(this));
 
     resizable(body);
@@ -228,8 +230,14 @@ void
 BlockView::set_selection(int selnum, const Selection &sel)
 {
     ASSERT(0 <= selnum && selnum < Config::max_selections);
-    for (int i = 0; i < tracks(); i++)
-        track_at(i)->set_selection(selnum, i, sel);
+
+    // This is a bit tricky because the tile tracks have a -1 view of tracknum.
+    // track_at(0) is the ruler track.
+    track_at(0)->set_selection(selnum, 0, sel);
+    Selection track_sel = sel;
+    track_sel.start_track--;
+    for (int i = 1; i < tracks(); i++)
+        track_at(i)->set_selection(selnum, i-1, track_sel);
     // Since the selection counts toward time_end.
     this->update_scrollbars();
 }
@@ -248,7 +256,7 @@ BlockView::insert_track(int tracknum, const Tracklike &track, int width)
     } else {
         t = new DividerView(*track.divider);
     }
-    if (tracknum == BlockView::ruler_tracknum) {
+    if (tracknum == 0) {
         // Set the width to a known non-zero size, clear the old track,
         // and replace it with the new one.
         if (this->ruler_track) {
@@ -266,7 +274,7 @@ BlockView::insert_track(int tracknum, const Tracklike &track, int width)
         ruler_group.resizable(ruler_track);
         this->set_ruler_width(width);
     } else {
-        track_tile.insert_track(tracknum, t, width);
+        track_tile.insert_track(tracknum - 1, t, width);
     }
     this->update_scrollbars();
 }
@@ -275,10 +283,12 @@ BlockView::insert_track(int tracknum, const Tracklike &track, int width)
 void
 BlockView::remove_track(int tracknum, FinalizeCallback finalizer)
 {
-    TrackView *t = track_tile.remove_track(tracknum);
-    t->finalize_callbacks(finalizer);
-    delete t;
-    this->update_scrollbars();
+    if (tracknum != 0) {
+        TrackView *t = track_tile.remove_track(tracknum-1);
+        t->finalize_callbacks(finalizer);
+        delete t;
+        this->update_scrollbars();
+    }
 }
 
 
@@ -358,9 +368,18 @@ BlockView::update_scrollbars_cb(Fl_Widget *w, void *vp)
 void
 BlockView::track_tile_cb(Fl_Widget *w, void *vp)
 {
+    // Don't bother emitting width changes until mouse up.
+    if (Fl::event() != FL_RELEASE)
+        return;
+
+    // TODO dragging a tile can actually resize multiple columns, so emit
+    // changes for each
+
     BlockView *self = static_cast<BlockView *>(vp);
     self->update_scrollbars();
     int track = self->track_tile.get_dragged_track();
+    // -1 means it must have been the ruler track, which is 0.
+    track++;
     global_msg_collector()->block_update(self, UiMsg::msg_track_width, track);
 }
 

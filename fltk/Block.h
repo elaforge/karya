@@ -69,6 +69,10 @@ struct BlockViewConfig {
 };
 
 
+// The ruler track is a special track that doesn't scroll with set_track_scroll
+// like the other tracks do.  There is always just one ruler track and it's
+// at tracknum 0.  It ignores remove_track, but will be replaced by
+// insert_track.
 class BlockView : public Fl_Group {
 public:
     BlockView(int X, int Y, int W, int H,
@@ -111,25 +115,24 @@ public:
             FinalizeCallback finalizer, TrackPos start, TrackPos end);
 
     TrackView *track_at(int tracknum) {
-        if (tracknum == ruler_tracknum)
+        if (tracknum == 0)
             return ruler_track;
         else
-            return track_tile.track_at(tracknum);
+            return track_tile.track_at(tracknum-1);
     }
-    int tracks() const { return track_tile.tracks(); }
-    // TODO ??
-    int get_track_width(int tracknum) { track_tile.get_track_width(tracknum); }
+    int tracks() const { return track_tile.tracks() + 1; }
+    int get_track_width(int tracknum) {
+        if (tracknum == 0)
+            return this->ruler_track->w();
+        else
+            return track_tile.get_track_width(tracknum-1);
+    }
     void set_track_width(int tracknum, int width) {
-        if (tracknum == ruler_tracknum)
+        if (tracknum == 0)
             this->set_ruler_width(width);
         else
-            track_tile.set_track_width(tracknum, width);
+            track_tile.set_track_width(tracknum-1, width);
     }
-    /*
-    void drag_tile(Point drag_from, Point drag_to) {
-        track_tile.drag_tile(drag_from, drag_to);
-    }
-    */
 
 private:
     BlockModelConfig model_config;

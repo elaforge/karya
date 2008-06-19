@@ -15,7 +15,7 @@ import Control.Monad
 
 import qualified Data.Array.IArray as IArray
 import qualified Data.Binary as Binary
-import Data.Binary (Binary, get, put, getWord8, putWord8)
+import Data.Binary (Binary, Get, get, put, getWord8, putWord8)
 import qualified Data.Map as Map
 import qualified Data.Time as Time
 
@@ -128,18 +128,21 @@ instance Binary Block.SchemaId where
     get = get >>= \a -> return (Block.SchemaId a)
 
 block = Block.Block :: String -> Block.Config
-    -> (Block.TracklikeId, Block.Width) -> [(Block.TracklikeId, Block.Width)]
-    -> Block.SchemaId -> Block.Block
+    -> [(Block.TracklikeId, Block.Width)] -> Block.SchemaId -> Block.Block
 instance Binary Block.Block where
-    put (Block.Block a b c d e) = put_version 1
-        >> put a >> put b >> put c >> put d >> put e
+    put (Block.Block a b c d) = put_version 2
+        >> put a >> put b >> put c >> put d
     get = do
         v <- get_version
         case v of
-            0 -> let get_ruler_track = fmap (\ruler -> (ruler, 20)) get
-                in liftM5 block get get get_ruler_track get get
             1 -> get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
-                get >>= \e -> return (block a b c d e)
+                get >>= \e -> return (block a b (c:d) e)
+            2 -> do
+                title <- get :: Get String
+                config <- get :: Get Block.Config
+                tracks <- get :: Get [(Block.TracklikeId, Block.Width)]
+                schema_id <- get :: Get Block.SchemaId
+                return (Block.Block title config tracks schema_id)
             _ -> version_error "Block.Block" v
 
 config = Block.Config :: [Color] -> Color -> Color -> Color -> Block.Config

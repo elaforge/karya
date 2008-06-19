@@ -7,7 +7,7 @@
 
 fltk
   - bug: inserting a new track doesn't pick up current zoom
-  - bug: dragging selections is laggy
+  bug: dragging selections is laggy
     - implement selection redraw optimization
     - possibly move selections entirely into c++
     - set_selection should do nothing if the selection hasn't changed
@@ -52,6 +52,7 @@ fltk
     * send msg_scroll_changed msgs
     * figure out how to go BlockView* -> BlockView in UiMsg
     * clicking outside of SeqInput should unfocus it
+    - bug: clicking in a track doesn't unfocus the SeqInput
 
   Block
     - BlockView::set_config
@@ -149,7 +150,6 @@ Cmd
     * drag insertion point
     - drag snap to ruler, event beginning/end, ...
     * Cmd.TimeStep.advance etc. takes [Marklist]
-    - tempo warp by selection
 
     - UI and fltk support for editing event text
     * UiMsgs for track drags, resizes, and text changes update State
@@ -161,7 +161,7 @@ Cmd
       IDs, prefixing current project name
     * readline using repl for send
 
-  Cmd.Block
+  Cmd.View
     - create / destroy views, blocks and tracks
     - ViewBlock abstraction: collapse/expand tracks, mute tracks
 
@@ -186,6 +186,9 @@ Cmd
       - figure out how to checkpoint just state diffs
       - add undo history to on-disk format
 
+  Cmd.MakeRuler
+    - implement irregular divisions
+
 Derive
   * simplest possible derivation -> midi render
   * new derive: simplest possible implementation, just enough to produce
@@ -194,7 +197,11 @@ Derive
   derivers
     * control
     * tempo
+      - multiple tempos per block
+    - continuous pitch control
+    - alternate scales
     - defaulting parameters for control and note tracks
+    - subblock derivation
   - display derived blocks
   - 3 way merge for derived blocks
 
@@ -219,6 +226,13 @@ Perform
     * backend-independent instrument def
     - some basic midi instrument defs for generic midi (dev, patch)
     - defs for z1 and vl1
+
+  Signal
+    - implement equal
+    - signal transformation derivers: +, *, /, min, max, ...
+    - after implementing GUI drawing and transformation, reduce the
+      proliferation of signal types
+    - ensure that controllers are warped continuously by tempo
 
 patchdb
   - simple integrated version with just hardcoded midi instruments

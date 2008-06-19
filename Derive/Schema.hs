@@ -238,9 +238,13 @@ tempo_track_title = "tempo"
 -- | A parser turns [Track] into a Skeleton, which describes which tracks
 -- have scope over which other tracks.  As part of this, it also decides which
 -- tracks are instrument tracks, and what Instrument they have.
+--
+-- TODO handle embedded rulers and dividers
 default_parser :: Parser
 default_parser tracks = merge $
-    map parse_tempo_group (split (title_matches (==tempo_track_title)) tracks)
+    map parse_tempo_group
+        -- The 0th track should be the ruler track, which I ignore.
+        (split (title_matches (==tempo_track_title)) (drop 1 tracks))
 
 data Skeleton =
     -- | A set of controller tracks have scope over a sub-skeleton.

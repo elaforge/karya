@@ -31,6 +31,7 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Generics as Generics
 
 import qualified Util.Seq as Seq
+import qualified Util.Log as Log
 import qualified Util.Logger as Logger
 
 import Ui.Types
@@ -84,7 +85,7 @@ run_state state m = case st of
     where st = Identity.runIdentity (run state m)
 
 eval state fail_val m = case st of
-        Left err -> fail_val
+        Left _err -> fail_val
         Right (val, _, _) -> val
     where st = Identity.runIdentity (run state m)
 
@@ -126,6 +127,37 @@ instance Monad m => UiStateMonad (StateT m) where
     throw msg = (StateT . lift . lift) (Error.throwError (StateError msg))
 
 -- * StateT operations
+
+-- | Unfortunately there are some invariants to protect within State.  This
+-- will check the invariants, log warnings and fix them if possible, or
+-- throw an error if not.
+--
+-- The invariants should be protected by the modifiers in this module, but
+-- this is just in case.
+verify :: State -> (Either StateError State, [Log.Msg])
+verify state = (fmap (\(_, s, _) -> s) result, logs)
+    where (result, logs) = Identity.runIdentity (Log.run (run state do_verify))
+
+-- TODO
+-- check that all views refer to valid blocks, and all TracklikeIds have
+-- referents
+-- anything else?
+do_verify = do
+    view_ids <- get_all_view_ids
+    mapM_ verify_view view_ids
+
+verify_view :: Block.ViewId -> StateT (Log.LogT Identity.Identity) ()
+verify_view view_id = do
+    view <- get_view view_id
+    block <- get_block (Block.view_block view)
+    let btracks = length (Block.block_tracks block)
+        vtracks = length (Block.view_tracks view)
+    when (btracks /= vtracks) $
+        Trans.lift $ Log.warn $ "block has " ++ show btracks
+            ++ " tracks while view has " ++ show vtracks ++ ", fixing"
+    -- Add track views for all the block tracks.
+    forM_ [vtracks .. btracks-1] $ \tracknum ->
+        modify_view view_id $ \v -> insert_into_view tracknum 20 v
 
 -- ** view
 

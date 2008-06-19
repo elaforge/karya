@@ -34,13 +34,11 @@ data Block = Block {
     block_title :: String
     , block_config :: Config
     -- The Widths here are the default if a new View is created from this Block.
-    , block_ruler_track :: (TracklikeId, Width)
     , block_tracks :: [(TracklikeId, Width)]
     , block_schema :: SchemaId
     } deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
 
-block title config ruler tracks schema_id =
-    Block title config ruler tracks schema_id
+block title config tracks schema_id = Block title config tracks schema_id
 
 data Config = Config {
     config_selection_colors :: [Color]

@@ -7,7 +7,7 @@ So if this module has a bug, two views of one block could get out of sync and
 display different data.  Hopefully that won't happen.
 
 -}
-module Ui.Sync where
+module Ui.Sync (sync, set_play_position) where
 import Control.Monad
 import qualified Control.Monad.Trans as Trans
 import qualified Data.List as List
@@ -23,6 +23,7 @@ import qualified Ui.Ui as Ui
 import qualified Ui.Block as Block
 import qualified Ui.BlockC as BlockC
 import qualified Ui.Track as Track
+import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
 import qualified Ui.Update as Update
 
@@ -33,7 +34,7 @@ sync state updates = do
     -- TODO: TrackUpdates can overlap.  Merge them together here.
     -- Technically I can also cancel out all TrackUpdates that only apply to
     -- newly created views, but this optimization is probably not worth it.
-    result <- State.run state (mapM_ run_update (Update.sort updates))
+    result <- State.run state (mapM_ do_update (Update.sort updates))
     return $ case result of
         Left err -> Just err
         -- I reuse State.StateT for convenience, but run_update should
@@ -41,6 +42,10 @@ sync state updates = do
         -- TODO Try to split StateT into ReadStateT and ReadWriteStateT to
         -- express this in the type?
         Right _ -> Nothing
+
+do_update update = do
+    -- Trans.liftIO $ putStrLn ("run update: " ++ show update)
+    run_update update
 
 -- | The play position selection bypasses all the usual State -> Diff -> Sync
 -- stuff for a direct write to the UI.
@@ -76,8 +81,6 @@ run_update (Update.ViewUpdate view_id Update.CreateView) = do
     tracks <- mapM (State.get_tracklike . fst) (Block.block_tracks block)
     let widths = map Block.track_view_width (Block.view_tracks view)
     titles <- mapM (track_title . fst) (Block.block_tracks block)
-    ruler_track <- State.get_tracklike (fst (Block.block_ruler_track block))
-    let ruler_width = snd (Block.block_ruler_track block)
 
     let sels = Block.view_selections view
     csels <- mapM (\(selnum, sel) -> to_csel view_id selnum (Just sel))
@@ -91,8 +94,7 @@ run_update (Update.ViewUpdate view_id Update.CreateView) = do
         BlockC.create_view view_id title (Block.view_rect view)
             (Block.view_config view) (Block.block_config block)
 
-        let track_info = (BlockC.ruler_tracknum, ruler_track, ruler_width, "")
-                : List.zip4 [0..] tracks widths titles
+        let track_info = List.zip4 [0..] tracks widths titles
         forM_ track_info $ \(tracknum, ctrack, width, title) -> do
             BlockC.insert_track view_id tracknum ctrack width
             when (not (null title)) $
@@ -165,7 +167,7 @@ run_update (Update.RulerUpdate ruler_id) = do
     forM_ blocks $ \(block_id, tracknum, tracklike_id) -> do
         view_ids <- fmap Map.keys (State.get_views_of block_id)
         tracklike <- State.get_tracklike tracklike_id
-        forM_ view_ids $ \view_id -> do
+        forM_ view_ids $ \view_id ->
             send $ BlockC.update_entire_track view_id tracknum tracklike
 
 to_csel :: Block.ViewId -> Block.SelNum -> Maybe (Block.Selection)
@@ -182,37 +184,19 @@ to_csel view_id selnum maybe_sel = do
 -- for each tracknum at which @track_id@ lives.
 blocks_with_track :: (Monad m) => Track.TrackId -> State.StateT m
     [(Block.BlockId, Block.TrackNum, Block.TracklikeId)]
-blocks_with_track track_id = do
-    st <- State.get
-    return
-        [ (block_id, tracknum, tracklike_id)
-        | (block_id, block) <- Map.assocs (State.state_blocks st)
-        , (tracknum, tracklike_id) <- all_tracks block
-        , track_id_of tracklike_id == Just track_id
-        ]
+blocks_with_track track_id = find_tracks ((== Just track_id) . track_id_of)
     where
     track_id_of (Block.TId tid _) = Just tid
     track_id_of _ = Nothing
-    all_tracks block =
-        (BlockC.ruler_tracknum, fst (Block.block_ruler_track block))
-            : Seq.enumerate (map fst (Block.block_tracks block))
 
 -- | Just like 'blocks_with_track' except for ruler_id.
-blocks_with_ruler ruler_id = do
-    st <- State.get
-    return
-        [ (block_id, tracknum, tracklike_id)
-        | (block_id, block) <- Map.assocs (State.state_blocks st)
-        , (tracknum, tracklike_id) <- all_tracks block
-        , ruler_id_of tracklike_id == Just ruler_id
-        ]
+blocks_with_ruler :: (Monad m) => Ruler.RulerId -> State.StateT m
+    [(Block.BlockId, Block.TrackNum, Block.TracklikeId)]
+blocks_with_ruler ruler_id = find_tracks ((== Just ruler_id) . ruler_id_of)
     where
     ruler_id_of (Block.TId _ rid) = Just rid
     ruler_id_of (Block.RId rid) = Just rid
     ruler_id_of _ = Nothing
-    all_tracks block =
-        (BlockC.ruler_tracknum, fst (Block.block_ruler_track block))
-            : Seq.enumerate (map fst (Block.block_tracks block))
 
 find_tracks f = do
     st <- State.get
@@ -222,10 +206,4 @@ find_tracks f = do
         , (tracknum, tracklike_id) <- all_tracks block
         , f tracklike_id
         ]
-    where
-    ruler_id_of (Block.TId _ rid) = Just rid
-    ruler_id_of (Block.RId rid) = Just rid
-    ruler_id_of _ = Nothing
-    all_tracks block =
-        (BlockC.ruler_tracknum, fst (Block.block_ruler_track block))
-            : Seq.enumerate (map fst (Block.block_tracks block))
+    where all_tracks block = Seq.enumerate (map fst (Block.block_tracks block))

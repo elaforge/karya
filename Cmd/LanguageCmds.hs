@@ -162,12 +162,11 @@ get_focused_block = fmap Block.view_block
 
 show_block :: String -> Cmd.CmdL String
 show_block block_id = do
-    Block.Block { Block.block_title = title, Block.block_ruler_track = ruler,
-        Block.block_tracks = tracks, Block.block_schema = schema }
-            <- State.get_block (bid block_id)
+    Block.Block { Block.block_title = title, Block.block_tracks = tracks,
+            Block.block_schema = schema }
+        <- State.get_block (bid block_id)
     return $ show_record
         [ ("title", title)
-        , ("ruler", show ruler)
         , ("tracks", show_list (map (show . fst) tracks))
         , ("schema", show schema)
         ]
@@ -178,9 +177,9 @@ get_skeleton block_id = do
 
 create_block :: (State.UiStateMonad m) =>
     String -> String -> String -> m Block.BlockId
-create_block id_name ruler_id schema_id = State.create_block id_name
-    (Block.block "" Config.block_config ((ruler ruler_id), Config.ruler_width)
-        [] (sid schema_id))
+create_block id_name ruler_id schema_id = State.create_block id_name $
+    Block.block "" Config.block_config [(ruler ruler_id, Config.ruler_width)]
+        (sid schema_id)
 
 set_schema :: String -> String -> Cmd.CmdL ()
 set_schema block_id schema_id = do

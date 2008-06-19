@@ -183,8 +183,11 @@ handle_cmd_val err_msg do_sync write_midi ui_state1
             Log.error $ "ui error in " ++ show err_msg ++ ": " ++ show err
             return (Cmd.Done, ui_state1)
         Right (status, ui_state2, cmd_updates) -> do
-            when do_sync (sync ui_state1 ui_state2 cmd_updates)
-            return (status, ui_state2)
+            if do_sync
+                then do
+                    ui_state2 <- sync ui_state1 ui_state2 cmd_updates
+                    return (status, ui_state2)
+                else return (status, ui_state2)
     return (status, ui_state2, cmd_state)
 
 -- | Get cmds according to the currently focused block and track.
@@ -214,9 +217,27 @@ eval err_msg ui_state cmd_state abort_val cmd = do
 merge_ui_res updates = fmap
     (\(status, ui_state, updates2) -> (status, ui_state, updates ++ updates2))
 
+-- | Put State.verify into CmdT, so I can include its log msgs and exceptions
+-- with no extra work.  This should be run before every sync, since if errors
+-- get to sync they'll result in bad UI display, a C++ exception, or maybe even
+-- a segfault (but C++ args should be protected by ASSERTs).
+--
+-- If there was any need, Cmd.State verification could go here too.
+-- verify_state :: (Monad m) => Cmd.CmdT m ()
+verify_state state = do
+    let (res, logs) = State.verify state
+    mapM_ Log.write logs
+    case res of
+        Left err -> error $
+            "fatal state inconsistency error: " ++ show err
+        Right state2 -> return state2
+
 -- | Sync @state2@ to the UI.
-sync :: State.State -> State.State -> [Update.Update] -> IO ()
+sync :: State.State -> State.State -> [Update.Update] -> IO State.State
 sync state1 state2 cmd_updates = do
+    -- I'd catch problems closer to their source if I did this from run_cmds,
+    -- but it's nice to see that it's definitely happening before syncs.
+    state2 <- verify_state state2
     case Diff.diff state1 state2 of
         Left err -> Log.error $ "diff error: " ++ err
         Right diff_updates -> do
@@ -227,6 +248,7 @@ sync state1 state2 cmd_updates = do
             case err of
                 Nothing -> return ()
                 Just err -> Log.error $ "syncing updates: " ++ show err
+    return state2
 
 
 -- * util

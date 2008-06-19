@@ -185,8 +185,8 @@ main(int argc, char **argv)
     view.block.set_status("no status yet");
     view.block.set_title("hi there");
 
-    view.block.insert_track(BlockView::ruler_tracknum, Tracklike(&ruler), 20);
-    view.block.insert_track(0, Tracklike(&divider), 10);
+    view.block.insert_track(0, Tracklike(&ruler), 20);
+    // view.block.insert_track(1, Tracklike(&divider), 10);
     view.block.insert_track(1, Tracklike(&ruler), 30);
     view.block.insert_track(2, Tracklike(&track, &truler), 30);
     view.block.insert_track(3, Tracklike(&track2, &truler), 30);
@@ -196,9 +196,9 @@ main(int argc, char **argv)
     // view.block.set_zoom(ZoomInfo(TrackPos(128), 1));
     // view.block.set_zoom(ZoomInfo(TrackPos(64), 1));
 
-    /*
     view.block.set_selection(0, Selection(selection_colors[0],
-                1, TrackPos(60), 4, TrackPos(56)));
+                3, TrackPos(60), 1, TrackPos(56)));
+    /*
     view.block.set_selection(0, Selection(selection_colors[0],
                 1, TrackPos(60), 4, TrackPos(46)));
     view.block.set_selection(0, Selection(selection_colors[0],
