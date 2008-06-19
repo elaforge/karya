@@ -37,6 +37,11 @@ public:
         track_pad.redraw();
     }
     void set_zoom(const ZoomInfo &zoom);
+    void set_title_height(int title_height) {
+        this->title_height = title_height;
+        this->update_sizes();
+        this->redraw();
+    }
 
     // TrackPos of the end of the last event.
     TrackPos time_end() const;

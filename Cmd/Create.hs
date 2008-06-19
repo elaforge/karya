@@ -7,13 +7,11 @@ import qualified Data.Map as Map
 
 import qualified Util.Seq as Seq
 
-import Ui.Types
 import qualified Ui.Block as Block
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.Ruler as Ruler
 
-import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Selection as Selection
 import qualified Cmd.MakeRuler as MakeRuler
 

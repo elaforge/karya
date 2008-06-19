@@ -55,9 +55,6 @@ fltk
     * clicking outside of SeqInput should unfocus it
     - bug: clicking in a track doesn't unfocus the SeqInput
 
-  Block
-    - BlockView::set_config
-
   Track
     / dividers can have separate color for upper part, for collapsable tracks
     - tracks have their own status lines, to report things like mute
@@ -94,11 +91,12 @@ logging
   * add surrounding function to SrcPos
 
 Ui
+  - rethrow c++ exceptions as FltkError
   * rename Interface -> Ui, ui -> fltk
   * UiMsg: use Key data type instead of Char for e.g. backspace
   * use main thread for ui
   * set block config
-  - set block view config
+  * set block view config
   * BlockView.set_track_width, BlockView.get_track_width
   * track_at
   * Event
@@ -180,6 +178,7 @@ Cmd
     * bug: turn off edit mode box for save, since cmd state is not saved
     * Data.Binary instance for more efficient save and load
     * standalone dumper to convert the binary format to pretty-printed show
+    - Data.Binary loading a tuple instead of a val sucks CPU forever
     undo
       - implement undo tree and undo/redo cmds
       - figure out how to checkpoint just state diffs

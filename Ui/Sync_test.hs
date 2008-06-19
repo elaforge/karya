@@ -71,6 +71,40 @@ test_create_two_views = do
         State.set_track_title t_track1_id "hi there"
     return ()
 
+test_set_view_config = do
+    state <- run_setup
+    state <- io_human "block and track titles get tall" $ run state $ do
+        view <- State.get_view t_view_id
+        let vconfig = Block.view_config view
+        State.set_view_config t_view_id $ vconfig
+            { Block.vconfig_block_title_height = 30
+            , Block.vconfig_track_title_height = 30
+            }
+    io_human "sbs and status get big too" $ run state $ do
+        view <- State.get_view t_view_id
+        let vconfig = Block.view_config view
+        State.set_view_config t_view_id $ vconfig
+            { Block.vconfig_sb_size = 30
+            , Block.vconfig_status_size = 30
+            }
+    return ()
+
+test_set_block_config = do
+    state <- run State.empty $ do
+        setup_state
+        State.set_selection t_view_id 0
+            (Block.selection 1 (TrackPos 10) 2 (TrackPos 60))
+    io_human "selections, bg, and boxes go red" $ run state $ do
+        block <- State.get_block t_block_id
+        let config = Block.block_config block
+        State.set_block_config t_block_id $ config
+            { Block.config_selection_colors = [Color.red]
+            , Block.config_bg_color = Color.red
+            , Block.config_track_box_color = Color.red
+            , Block.config_sb_box_color = Color.red
+            }
+    return ()
+
 test_zoom_scroll = do
     state <- run State.empty $ do
         v1 <- setup_state
@@ -110,27 +144,38 @@ test_insert_remove_track = do
         State.insert_track t_block_id 1 (Block.DId default_divider) 5
     return ()
 
+test_update_ruler_track = do
+    state <- run_setup
+    io_human "try to remove ruler, nothing happens" $ run state $ do
+        State.remove_track t_block_id 0
+    io_human "ruler is replaced by track, gets wider" $ run state $ do
+        State.insert_track t_block_id 0 (Block.TId t_track1_id t_ruler_id) 70
+    io_human "ruler gets smaller" $ run state $ do
+        State.set_track_width t_view_id 0 10
+    return ()
+
 test_update_track = do
     -- sync to initial state
-    state <- io_human "create view with one track with two events" run_setup
+    state <- io_human "create view with one track" run_setup
 
     -- add a track, change the old track's width
     state <- io_human "add events, get wider, turn green" $ run state $ do
         State.insert_events t_track1_id [(TrackPos 70, event "last1" 10),
             (TrackPos 90, event "last2" 15)]
-        State.set_track_width t_view_id 0 50
+        State.set_track_width t_view_id 1 50
         State.set_track_bg t_track1_id Color.green
     return ()
 
-test_update_track2 = do
+-- multiple simultaneous updates
+test_update_two_tracks = do
     state <- run State.empty $ do
         v1 <- setup_state
         t2 <- State.create_track "b1.t2" event_track_2
         State.insert_track t_block_id 1 (Block.TId t2 t_ruler_id) 30
         return ()
     io_human "1st track deleted, 2nd track gets wider" $ run state $ do
-        State.remove_track t_block_id 0
-        State.set_track_width t_view_id 0 100
+        State.remove_track t_block_id 1
+        State.set_track_width t_view_id 1 100
     return ()
 
 test_create_track = do
@@ -175,11 +220,11 @@ test_selection_change_tracks = do
     state <- run_setup
     state <- run state $ do
         State.set_selection t_view_id 0
-            (Block.selection 0 (TrackPos 10) 1 (TrackPos 20))
+            (Block.selection 1 (TrackPos 10) 1 (TrackPos 20))
     state <- io_human "sel moves when new track is added" $ run state $ do
-        State.insert_track t_block_id 0 (Block.TId t_track1_id t_ruler_id) 40
+        State.insert_track t_block_id 1 (Block.TId t_track1_id t_ruler_id) 40
     state <- io_human "sel moves back" $ run state $ do
-        State.remove_track t_block_id 0
+        State.remove_track t_block_id 1
     return ()
 
 test_insert_into_selection = do

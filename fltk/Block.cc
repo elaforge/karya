@@ -9,7 +9,8 @@
 #include "Block.h"
 
 // Try to avoid running into the little resize tab on the mac.
-static const int mac_resizer_width = 15;
+// Actually, it's ok if it overlaps, since it's just the status field.
+static const int mac_resizer_width = 0;
 
 BlockView::BlockView(int X, int Y, int W, int H,
         const BlockModelConfig &model_config,
@@ -106,11 +107,6 @@ BlockView::set_view_config(const BlockViewConfig &vconfig, bool always_update)
     int wx = 0, wy = 0;
     this->position(0, 0);
 
-    // Fl_Tile loses track of the widget and resizes the scrollbar if I set
-    // it to 0, so initialize it to 1 and resize it to 0 after it's done
-    // init_sizes().
-    int dummy_ruler_size = 1;
-
     title.resize(wx, wy, w(), vconfig.block_title_height);
     status_line.resize(wx, h() - vconfig.status_size,
             w() - mac_resizer_width, vconfig.status_size);
@@ -120,8 +116,11 @@ BlockView::set_view_config(const BlockViewConfig &vconfig, bool always_update)
     body_resize_group.resize(body.x() + vconfig.sb_size, body.y(),
             body.w() - vconfig.sb_size, body.h());
 
+    // Re-use the existing ruler_track width so it is maintained across calls
+    // to set_view_config.  It has to be at least 1, or else the 'body' Fl_Tile
+    // won't resize properly.
     ruler_group.resize(wx, body.y(),
-            vconfig.sb_size + dummy_ruler_size, body.h());
+            vconfig.sb_size + ruler_track->w(), body.h());
     Rect p = rect(ruler_group);
     track_group.resize(p.r(), body.y(), body.w() - p.w, body.h());
 
@@ -134,13 +133,15 @@ BlockView::set_view_config(const BlockViewConfig &vconfig, bool always_update)
     time_sb.resize(p.x, p.y + track_box.h(),
             vconfig.sb_size, p.h - track_box.h() - sb_box.h());
     ruler_track->resize(p.x + time_sb.w(), p.y + track_box.h(),
-            dummy_ruler_size, time_sb.h());
+            ruler_track->w(), time_sb.h());
 
     p = rect(track_group);
     track_sb.resize(p.x, p.b() - vconfig.sb_size, p.w, vconfig.sb_size);
     track_scroll.resize(p.x, p.y, p.w, p.h - track_sb.h());
     track_tile.resize(track_scroll.x(), track_scroll.y(),
             track_scroll.w(), track_scroll.h());
+
+    this->track_tile.set_title_height(vconfig.track_title_height);
 
     // This is overhead required by fltk when you resize anything manually.
     init_sizes();
@@ -152,6 +153,7 @@ BlockView::set_view_config(const BlockViewConfig &vconfig, bool always_update)
 
     this->update_scrollbars();
     this->view_config = vconfig;
+    this->redraw();
 }
 
 

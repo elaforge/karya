@@ -6,6 +6,8 @@ import qualified Control.Monad.Writer as Writer
 import qualified Data.Map as Map
 import qualified Data.List as List
 
+import qualified Util.Seq as Seq
+
 import qualified Ui.Block as Block
 import qualified Ui.Track as Track
 
@@ -93,11 +95,22 @@ diff_view st1 st2 view_id view1 view2 = do
             diff_track_view view_id i2 tview1 tview2
         _ -> return ()
 
-    mapM_ (uncurry3 (diff_selection view_update))
+    -- If the view doesn't have a block I should have failed long before here.
+    let Just colors1 = view_selection_colors st1 view1
+        Just colors2 = view_selection_colors st2 view2
+    mapM_ (uncurry3 (diff_selection view_update colors1 colors2))
         (pair_maps (Block.view_selections view1) (Block.view_selections view2))
 
-diff_selection view_update selnum sel1 sel2 = when (sel1 /= sel2) $
-    change [view_update $ Update.Selection selnum sel2]
+view_selection_colors state view = do
+    block <- Map.lookup (Block.view_block view) (State.state_blocks state)
+    return $ Block.config_selection_colors (Block.block_config block)
+
+diff_selection view_update colors1 colors2 selnum sel1 sel2 =
+    -- Also update the selections if the selection color config has changed,
+    -- because this isn't covered by Update.BlockConfig, because selection
+    -- colors aren't stored seperately at the c++ level.
+    when (sel1 /= sel2 || Seq.at colors1 selnum /= Seq.at colors2 selnum) $
+        change [view_update $ Update.Selection selnum sel2]
 
 diff_track_view view_id tracknum tview1 tview2 = do
     let width = Block.track_view_width
