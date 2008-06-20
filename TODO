@@ -226,7 +226,7 @@ Perform
     - defs for z1 and vl1
 
   Signal
-    - implement equal
+    * implement Signal.equal
     - signal transformation derivers: +, *, /, min, max, ...
     - after implementing GUI drawing and transformation, reduce the
       proliferation of signal types

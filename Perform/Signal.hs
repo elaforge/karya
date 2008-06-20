@@ -69,9 +69,37 @@ constant val = signal [(TrackPos 0, Set, val, val)]
 newtype Signal = Signal (Map.Map TrackPos (TrackPos, Segment))
     deriving (Show)
 
+data Segment = SegLinear Val Val
+    -- | A function has a name for reference, and a number between 0 and 1 to
+    -- the signal's Val at that point.
+    | SegFunction String (Double -> Val)
+instance Show Segment where
+    show (SegLinear v0 v1) = "SegLinear " ++ show v0 ++ " " ++ show v1
+    show (SegFunction name _) = "SegFunction " ++ show name ++ " <func>"
+
 -- | This is how signal segments are represented on the track.
 type TrackSegment = (TrackPos, Method, Val, Val)
 type Val = Double
+
+data Method = Set | Linear
+    -- | Approach the point with an exponential curve.  If the exponent is
+    -- positive, the value will be pos**n.  If it's negative, it will be
+    -- pos**(1/n).
+    | Exp Double
+    deriving (Show, Eq)
+
+-- | The second TrackPos is redundant because it should always be the same
+-- as the first TrackPos of the next Sample, but it's convenient to be able
+-- to treat Samples alone.  TODO: or is it?  remove it if not
+data Sample = Sample TrackPos Val TrackPos Val deriving (Eq, Show)
+
+
+-- | Are the given signals equal between the given range?
+equal :: TrackPos -> TrackPos -> TrackPos -> Signal -> Signal -> Bool
+equal srate start end sig0 sig1 = s0 == s1
+    where
+    s0 = takeWhile ((<end) . fst) $ sample srate sig0 start
+    s1 = takeWhile ((<end) . fst) $ sample srate sig1 start
 
 signal :: [TrackSegment] -> Signal
 signal track_segs = Signal . Map.fromAscList . filter (not.zero_width) $
@@ -98,26 +126,6 @@ exp_function n val0 val1 amount
     | amount >= 1 = val1
     | otherwise = val0 + amount**exp * (val1 - val0)
     where exp = if n >= 0 then n else (1 / abs n)
-
-data Method = Set | Linear
-    -- | Approach the point with an exponential curve.  If the exponent is
-    -- positive, the value will be pos**n.  If it's negative, it will be
-    -- pos**(1/n).
-    | Exp Double
-    deriving (Show, Eq)
-
-data Segment = SegLinear Val Val
-    -- | A function has a name for reference, and a number between 0 and 1 to
-    -- the signal's Val at that point.
-    | SegFunction String (Double -> Val)
-instance Show Segment where
-    show (SegLinear v0 v1) = "SegLinear " ++ show v0 ++ " " ++ show v1
-    show (SegFunction name _) = "SegFunction " ++ show name ++ " <func>"
-
--- | The second TrackPos is redundant because it should always be the same
--- as the first TrackPos of the next Sample, but it's convenient to be able
--- to treat Samples alone.  TODO: or is it?  remove it if not
-data Sample = Sample TrackPos Val TrackPos Val deriving (Eq, Show)
 
 -- * sample
 
@@ -190,10 +198,6 @@ interpolate seg start end pos = case seg of
 
 
 -- * transformations
-
--- TODO implement
-equal :: TrackPos -> TrackPos -> Signal -> Signal -> Bool
-equal start end sig0 sig1 = False
 
 map_signal :: String -> (Val -> Val) -> Signal -> Signal
 map_signal name f (Signal smap) =

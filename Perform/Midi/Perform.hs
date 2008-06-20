@@ -116,7 +116,7 @@ perform_note next_on_ts event (dev, chan) =
     controller_msgs2 = map (add_pitch_bend pb_offset) controller_msgs
     mkmsg (ts, msg) = Midi.WriteMessage dev ts msg
 
-    warns = concatMap (clip_warnings event)
+    warns = concatMap (make_clip_warnings event)
         (zip (map fst control_sigs) clip_warns ++ vel_clip_warns)
 
 note_velocity :: Event -> Timestamp.Timestamp -> Timestamp.Timestamp
@@ -134,7 +134,10 @@ note_velocity event on_ts off_ts =
         then [(Controller.c_velocity, [(on_ts, off_ts)])]
         else []
 
-clip_warnings event (controller, clip_warns) =
+make_clip_warnings :: Event
+    -> (Controller.Controller, [(Timestamp.Timestamp, Timestamp.Timestamp)])
+    -> [Warning.Warning]
+make_clip_warnings event (controller, clip_warns) =
     [Warning.warning (show controller ++ " clipped")
             (event_stack event) (Just (start_ts, end_ts))
         | (start_ts, end_ts) <- clip_warns]
@@ -257,7 +260,7 @@ controls_equal :: Timestamp.Timestamp -> Timestamp.Timestamp
 controls_equal start end c0 c1 = all (uncurry eq) (zip c0 c1)
     where
     eq (c0, sig0) (c1, sig1) = c0 == c1
-        && Signal.equal
+        && Signal.equal Signal.default_srate
             (Timestamp.to_track_pos start) (Timestamp.to_track_pos end)
             sig0 sig1
 

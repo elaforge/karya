@@ -10,6 +10,18 @@ import qualified Perform.Timestamp as Timestamp
 import Perform.Signal (Segment(..), Method(..), Sample(..))
 
 
+test_equal = do
+    let sig0 = signal [(0, Set, 1, 1), (10, Set, 0, 0), (20, Linear, 1, 1)]
+        sig1 = signal [(0, Set, 0, 0), (10, Set, 0, 0), (20, Linear, 1, 1)]
+        eq start end = Signal.equal (TrackPos 1) (TrackPos start) (TrackPos end)
+
+    check $ eq 0 30 sig0 sig0
+    check $ eq 0 10 sig0 sig0
+
+    check $ not (eq 0 30 sig0 sig1)
+    check $ not (eq 0 10 sig0 sig1)
+    check $ eq 10 20 sig0 sig1
+
 test_interpolate = do
     let interpolate seg =
             map (Signal.interpolate seg (TrackPos 0) (TrackPos 4)) [0..4]
@@ -60,8 +72,7 @@ test_linear_sample = do
         ]
 
 test_inverse = do
-    let mksamples = map (Arrow.first TrackPos)
-        inverse samples ts = map (fmap un_pos) $ snd $ List.mapAccumL
+    let inverse samples ts = map (fmap un_pos) $ snd $ List.mapAccumL
             (\s p -> flipt (Signal.inverse s p))
             samples (map Timestamp.Timestamp ts)
     equal (inverse [(0, 1), (2, 1), (4, 3) , (6, 4)] [0..6])

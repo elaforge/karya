@@ -8,6 +8,9 @@ import qualified System.IO as IO
 import Util.Pretty
 import Util.Test
 
+import Ui.Types
+import qualified Ui.Track as Track
+
 import qualified Midi.Midi as Midi
 import Midi.Midi (ChannelMessage(..))
 
@@ -15,6 +18,7 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 import qualified Perform.Timestamp as Timestamp
 
+import qualified Perform.Warning as Warning
 import qualified Perform.Midi.Controller as Controller
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
@@ -36,9 +40,13 @@ test_clip_warns = do
         (msgs, warns) = Perform.perform inst_config1 events
     -- TODO check that warnings came at the right places
     -- check that the clips happen at the same places as the warnings
+    equal (map Warning.warn_msg warns)
+        (replicate 2 "Controller \"volume\" clipped")
+    check (all_msgs_valid msgs)
+
+    -- ascertain visually that the clip warnings are accurate
     plist warns
     plist $ Maybe.catMaybes $ map (midi_cc_of . Midi.wmsg_msg) msgs
-    check (all_msgs_valid msgs)
 
 test_vel_clip_warns = do
     let (msgs, warns) = Perform.perform inst_config1 $ map mkevent
@@ -48,12 +56,11 @@ test_vel_clip_warns = do
 
 all_msgs_valid wmsgs = all valid_msg (map Midi.wmsg_msg wmsgs)
 
--- | Check to make sure midi msg's vals are all in range.
+-- | Check to make sure midi msg vals are all in range.
 -- TODO: should go to a more general place?
 valid_msg (Midi.ChannelMessage chan msg) =
     0 <= chan && chan < 16 && valid_chan_msg msg
 valid_msg msg = error $ "unknown msg: " ++ show msg
-valid_msg _ = True
 val7 v = 0 <= v && v < 128
 valid_chan_msg msg = case msg of
     Midi.ControlChange cc val -> val7 cc && val7 val
@@ -82,9 +89,9 @@ test_perform = do
         [ ("dev1", 0.0, 0, NoteOn 60 100)
         , ("dev1", 0.0, 0, NoteOn 61 100)
         , ("dev2", 0.0, 2, NoteOn 62 100)
-        , ("dev1", 1.0, 0, NoteOff 60 0)
-        , ("dev1", 1.0, 0, NoteOff 61 0)
-        , ("dev2", 1.0, 2, NoteOff 62 0)
+        , ("dev1", 1.0, 0, NoteOff 60 100)
+        , ("dev1", 1.0, 0, NoteOff 61 100)
+        , ("dev2", 1.0, 2, NoteOff 62 100)
         ]
 
     -- identical notes get split across channels 0 and 1
@@ -99,10 +106,10 @@ test_perform = do
         , ("dev1", 1.0, 1, NoteOn 60 100)
         , ("dev1", 1.0, 0, NoteOn 61 100)
         , ("dev1", 1.5, 1, NoteOn 61 100)
-        , ("dev1", 2.0, 0, NoteOff 60 0)
-        , ("dev1", 3.0, 1, NoteOff 60 0)
-        , ("dev1", 3.0, 0, NoteOff 61 0)
-        , ("dev1", 3.5, 1, NoteOff 61 0)
+        , ("dev1", 2.0, 0, NoteOff 60 100)
+        , ("dev1", 3.0, 1, NoteOff 60 100)
+        , ("dev1", 3.0, 0, NoteOff 61 100)
+        , ("dev1", 3.5, 1, NoteOff 61 100)
         ]
 
     -- velocity curve shows up in NoteOns and NoteOffs
@@ -254,7 +261,7 @@ test_allot = do
 
 mkevent (inst, pitch, start, dur, controls) =
     Perform.Event inst (ts start) (ts dur) (mkpitch pitch)
-        (Map.fromList controls) []
+        (Map.fromList controls) [(Track.TrackId "fakepos", TrackPos 42)]
     where ts = Timestamp.seconds
 mkevents = map (\ (p, s, d, c) -> mkevent (inst1, p, s, d, c))
 

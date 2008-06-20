@@ -2,20 +2,30 @@
 -- certain functions.
 --
 -- I don't use cpp because it doesn't like dots in symbols.
---
--- BUG: it substitutes inside strings.  Unfortunately it's hard to avoid this
--- with regexes, and real parsers are not really good at simple substitution.
+import Prelude hiding (lex)
 import qualified Data.List as List
+import qualified Data.Char as Char
 import qualified System.Environment
 import qualified Text.Regex as Regex
 
+{-
+-- TODO eventually do a real parser that replaces tokens with dots, but not
+-- things in quotes
 
-{- Unfortunately using lex is not easy either, because it *also* doesn't
-understand dots.  So write a lex that does dots.
-map_idents s = spaces ++ replace rest ++
-    where
-    (spaces, rest) = span Char.isSpace s
-    (tok, rest) = lex s
+import qualified Text.ParserCombinators.ReadP as ReadP
+import Text.ParserCombinators.ReadP ((+++))
+import qualified Text.Read.Lex as Lex
+
+t0 = "hello there"
+t1 = "Foo.bar there"
+
+lex = last . ReadP.readP_to_S lex_p
+
+lex_p = do
+    c <- ReadP.satisfy $ \c -> c == '_' || Char.isAlpha c
+    cs <- ReadP.many idchar_p
+    return (c:cs)
+idchar_p = ReadP.satisfy $ \c -> c == '.' || c == '_' || Char.isAlpha c
 -}
 
 -- These are substituted everywhere.
@@ -53,9 +63,11 @@ process_line subs (i, func_name, line) =
     foldl (.) id (map ($ (i, func_name)) subs) line
 
 make_sub (src, dest) fn (i, func_name) line =
+    -- Hack: to avoid substituting Something.equal, insist on spaces
+    -- surrounding the src string.
     Regex.subRegex reg line
-        (dest ++ " (" ++ show (Just (fn, func_name, i)) ++ ")")
-    where reg = Regex.mkRegex ("[[:<:]]" ++ src ++ "[[:>:]]")
+        (" " ++ dest ++ " (" ++ show (Just (fn, func_name, i)) ++ ") ")
+    where reg = Regex.mkRegex (" " ++ src ++ " ")
 
 
 annotate_func_names lines = tail (scanl scan Nothing lines)
