@@ -36,8 +36,7 @@ import Ui.TestSetup
 -- TODO
 -- test_error
 -- set_block_title
--- set_block_config
--- set_block_ruler
+-- set_track_scroll
 
 initialize f = do
     quit_request <- Concurrent.newMVar ()

@@ -8,13 +8,20 @@
 # TODO: display warn and error log msgs
 
 run_tests=test_obj/RunTests
+
+# This is appended to.  It should be reset along with the coverage data every
+# time test_obj/RunTests is built.
 test_output=test.output
+
 prefixes=("$@")
+flags=()
+if [[ $prefixes[0] = '--skip' ]]; then
+    flags=(--skip)
+    shift
+fi
 
-init_tests=($($run_tests -list $prefixes | grep '^init-'))
-direct_tests=($($run_tests -list $prefixes | grep '^direct-'))
-
-rm -f $test_output
+init_tests=($($run_tests --list $prefixes | grep '^init-'))
+direct_tests=($($run_tests --list $prefixes | grep '^direct-'))
 
 function run() {
     "$@"
@@ -25,15 +32,16 @@ function run() {
 }
 
 if [ "$direct_tests" ]; then
-    run $run_tests $direct_tests 2>>$test_output
+    run $run_tests $flags $direct_tests |& tee -a $test_output
 fi
 for test in $init_tests; do
-    run $run_tests $test
+    run $run_tests $flags $test |& tee -a $test_output
 done
 
-grep '^\*\*' $test_output
-failures=$(grep '^\*\*' $test_output | wc -l)
-echo $failures failures
+grep '^__' $test_output
+passes=$(grep '^++' $test_output | wc -l)
+failures=$(grep '^__' $test_output | wc -l)
+echo $failures failed / $passes passes
 
 echo Generating hpc markup...
 hpc markup --destdir=hpc RunTests | grep -v Writing

@@ -2,13 +2,22 @@
 module Util.Test where
 
 import qualified Control.Exception as Exception
+import Control.Monad
 import qualified Data.List as List
+import qualified Data.IORef as IORef
 import qualified System.IO as IO
+import qualified System.IO.Unsafe as Unsafe
 import Text.Printf
 
 import qualified Util.Seq as Seq
 import qualified Util.Misc as Misc
 
+
+-- | If this is True, skip through human-feedback tests.  That way I can at
+-- least get the coverage and check for crashes, even if I can't verify the
+-- results.
+skip_human :: IORef.IORef Bool
+skip_human = Unsafe.unsafePerformIO (IORef.newIORef False)
 
 -- "Asserts" abort computation if they are false.  "Checks" print an unhappy
 -- msg and keep going.
@@ -63,10 +72,10 @@ io_human :: String -> IO a -> IO a
 io_human = io_human_srcpos Nothing
 io_human_srcpos srcpos expected_msg op = do
     putStrLn $ "should see: " ++ expected_msg
-    getch
+    human_getch
     result <- op
     putStr $ "  ... ok? "
-    c <- getch
+    c <- human_getch
     putChar '\n'
     if c /= 'y'
         then failure srcpos $ "didn't see " ++ show expected_msg
@@ -92,13 +101,17 @@ success srcpos msg =
     hPrintf IO.stderr "++-> %s- %s\n" (Misc.show_srcpos srcpos) msg
 failure :: Misc.SrcPos -> String -> IO ()
 failure srcpos msg =
-    hPrintf IO.stderr "**-> %s- %s\n" (Misc.show_srcpos srcpos) msg
+    hPrintf IO.stderr "__-> %s- %s\n" (Misc.show_srcpos srcpos) msg
 
 -- getChar with no buffering
-getch :: IO Char
-getch = do
-    IO.hFlush IO.stdout
-    mode <- IO.hGetBuffering IO.stdin
-    IO.hSetBuffering IO.stdin IO.NoBuffering
-    do { c <- getChar; putChar ' '; return c}
-        `Exception.finally` (IO.hSetBuffering IO.stdin mode)
+human_getch :: IO Char
+human_getch = do
+    skip <- IORef.readIORef skip_human
+    if skip
+        then return 'y'
+        else do
+            IO.hFlush IO.stdout
+            mode <- IO.hGetBuffering IO.stdin
+            IO.hSetBuffering IO.stdin IO.NoBuffering
+            do { c <- getChar; putChar ' '; return c}
+                `Exception.finally` (IO.hSetBuffering IO.stdin mode)

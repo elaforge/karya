@@ -132,6 +132,7 @@ test_obj/RunTests: test_obj/RunTests.hs all_hsc $(UI_OBJS) fltk/fltk.a
 		$(UI_OBJS) fltk/fltk.a \
 		$(MIDI_LIBS) `fltk-config --ldflags`
 	rm -f *.tix # this sticks around and breaks things
+	rm -f test.output # this gets reset on each new test run
 
 .PHONY: tests
 tests: test_obj/RunTests
