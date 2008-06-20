@@ -11,6 +11,7 @@ import Text.Printf
 
 import qualified Util.Seq as Seq
 import qualified Util.Misc as Misc
+import qualified Util.PPrint as PPrint
 
 
 -- | If this is True, skip through human-feedback tests.  That way I can at
@@ -48,7 +49,10 @@ exc_like expected exc = expected `List.isInfixOf` show exc
 equal_srcpos :: (Show a, Eq a) => Misc.SrcPos -> a -> a -> IO ()
 equal_srcpos srcpos a b
     | a == b = success srcpos $ "== " ++ show a
-    | otherwise = failure srcpos $ show a ++ " /= " ++ show b
+    | otherwise = failure srcpos $ pa ++ "\t/=\n" ++ pb
+    where
+    pa = PPrint.pshow a
+    pb = PPrint.pshow b
 
 catch_srcpos :: Misc.SrcPos -> IO () -> IO ()
 catch_srcpos srcpos op = Exception.catch op
@@ -95,13 +99,19 @@ pslist xs = putStr $
 
 pmlist msg xs = putStrLn (msg++":") >> plist xs
 
--- This goes before printed results when they are as expected.
+
+-- These used to write to stderr, but the rest of the diagnostic output goes to
+-- stdout, and it's best these appear in context.
+
+-- | Print a msg with a special tag indicating a passing test.
 success :: Misc.SrcPos -> String -> IO ()
 success srcpos msg =
-    hPrintf IO.stderr "++-> %s- %s\n" (Misc.show_srcpos srcpos) msg
+    hPrintf IO.stdout "++-> %s- %s\n" (Misc.show_srcpos srcpos) msg
+
+-- | Print a msg with a special tag indicating a failing test.
 failure :: Misc.SrcPos -> String -> IO ()
 failure srcpos msg =
-    hPrintf IO.stderr "__-> %s- %s\n" (Misc.show_srcpos srcpos) msg
+    hPrintf IO.stdout "__-> %s- %s\n" (Misc.show_srcpos srcpos) msg
 
 -- getChar with no buffering
 human_getch :: IO Char

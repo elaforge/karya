@@ -71,10 +71,12 @@ test_controller = do
     let (midi_events, warns) = Convert.convert events
     equal warns []
     equal (length midi_events) 2
-    pmlist "midi_events" midi_events
-    let (msgs, _warns) = Perform.perform default_inst_config midi_events
-    equal (length msgs) 4 -- (noteon + noteoff) * 2
-    pmlist "msgs" msgs
+    -- The exact msgs that come out depend on the srate, and besides this stuff
+    -- is tested in Perform_test.
+    -- pmlist "midi_events" midi_events
+    -- let (msgs, _warns) = Perform.perform default_inst_config midi_events
+    -- equal (length msgs) 4 -- (noteon + noteoff) * 2
+    -- pmlist "msgs" msgs
 
 tempo_deriver :: Signal.Signal -> Track.TrackId -> Track.TrackId
     -> Derive.Deriver
@@ -212,7 +214,7 @@ test_controller_parse = do
     check $ "Left \"parse error on char 1" `List.isPrefixOf` (show result)
 
     equal (run "-2e.2") (Right (TrackPos 0, Signal.Exp (-2), 0.2, 0.2))
-    equal (run "-.2") (Right (TrackPos 0, Signal.Linear, -0.2, -0.2))
+    equal (run "-.2") (Right (TrackPos 0, Signal.Set, -0.2, -0.2))
 
 test_run :: Derive.DeriveT Identity.Identity a -> Either String a
 test_run m = case Identity.runIdentity (Derive.run State.empty m) of

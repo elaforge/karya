@@ -28,6 +28,7 @@ import qualified Perform.Midi.Perform as Perform
 
 -- * perform
 
+-- Bad signal that goes over 1 in two places.
 badsig cont = (cont, mksignal [(0, 0), (1, 1.5), (2, 0), (2.5, 0), (3, 2)])
 
 test_clip_warns = do
@@ -37,13 +38,15 @@ test_clip_warns = do
     -- check that the clips happen at the same places as the warnings
     plist warns
     plist $ Maybe.catMaybes $ map (midi_cc_of . Midi.wmsg_msg) msgs
-    check (all valid_msg (map Midi.wmsg_msg msgs))
+    check (all_msgs_valid msgs)
 
 test_vel_clip_warns = do
     let (msgs, warns) = Perform.perform inst_config1 $ map mkevent
             [(inst1, "a", 0, 4, [badsig Controller.c_velocity])]
     equal (length warns) 1
-    check (all valid_msg (map Midi.wmsg_msg msgs))
+    check (all_msgs_valid msgs)
+
+all_msgs_valid wmsgs = all valid_msg (map Midi.wmsg_msg wmsgs)
 
 -- | Check to make sure midi msg's vals are all in range.
 -- TODO: should go to a more general place?
@@ -164,17 +167,22 @@ print_msgs = mapM_ (putStrLn . show_msg)
 show_msg (Midi.WriteMessage dev ts msg) =
     show dev ++ ": " ++ pretty ts ++ ": " ++ show msg
 
-print_ts_msgs = mapM_ (putStrLn . show_ts_msg)
-show_ts_msg (ts, msg) = pretty ts ++ ": " ++ show msg
+-- print_ts_msgs = mapM_ (putStrLn . show_ts_msg)
+-- show_ts_msg (ts, msg) = pretty ts ++ ": " ++ show msg
 
 -- * controller
 
 secs = Timestamp.seconds
 
 test_perform_controller = do
-    let (msgs, range) = Perform.perform_controller (secs 0) (secs 10) 0 c_vol
+    -- Bad signal that goes over 1 in two places.
+    let sig = (Controller.c_volume,
+            mksignal [(0, 0), (1, 1.5), (2, 0), (2.5, 0), (3, 2)])
+    let (msgs, warns) = Perform.perform_controller (secs 0) (secs 10) 0 sig
     -- controls are not emitted after they reach steady values
-    print_ts_msgs msgs
+    check $ all valid_msg (map snd msgs)
+    -- goes over in 2 places
+    equal (length warns) 2
 
 
 -- * channelize
@@ -203,7 +211,7 @@ test_channelize = do
     -- TODO test cents and controls differences
 
     -- All under volume, but "pb" also has a pitchbend, so it gets its own
-    -- track.
+    -- track.  "pb" and "c" share since they have the same controllers.
     equal (channelize
         [ ("a", 0, 4, [c_vol])
         , ("pb", 2, 4, [c_vol, c_pitch])

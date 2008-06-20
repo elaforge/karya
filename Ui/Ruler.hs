@@ -26,6 +26,7 @@ ruler = Ruler
 
 newtype RulerId = RulerId String
     deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
+un_ruler_id (RulerId s) = s
 type NameMarklist = (MarklistName, Marklist)
 type MarklistName = String
 type PosMark = (TrackPos, Mark)

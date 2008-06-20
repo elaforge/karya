@@ -8,7 +8,6 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import Text.Printf
 
-import qualified Data.DList as DList
 
 import Util.Pretty
 import qualified Util.Seq as Seq
@@ -43,20 +42,12 @@ perform config = perform_notes . allot config . channelize config
 -- The input events are ordered, but may overlap.
 perform_notes :: [(Event, Instrument.Addr)]
     -> ([Midi.WriteMessage], [Warning.Warning])
-perform_notes events = (post_process (DList.toList msgs), DList.toList warns)
-    where
-    (msgs, warns) = _perform_notes [] events
+perform_notes events = (post_process msgs, warns)
+    where (msgs, warns) = _perform_notes [] events
 
--- This uses DList for efficient appends, since the output list is expected to
--- get very large.
--- However, actual testing seemed to indicate that the choice of list or DList
--- seemed to have no effect.  I think my understanding of (++) in the presence
--- of streaming is flawed...  TODO figure it out
-_perform_notes overlapping [] = (DList.fromList overlapping, DList.fromList [])
+_perform_notes overlapping [] = (overlapping, [])
 _perform_notes overlapping ((event, addr):events) =
-    -- DList.fromList play `DList.append` _perform_notes not_yet events
-    (DList.fromList play `DList.append` rest_msgs,
-        DList.fromList warns `DList.append` rest_warns)
+    (play ++ rest_msgs, warns ++ rest_warns)
     where
     (rest_msgs, rest_warns) = _perform_notes not_yet events
     -- This find could demand lots or all of events if the
