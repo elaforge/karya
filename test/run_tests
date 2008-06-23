@@ -38,14 +38,15 @@ for test in $init_tests; do
     run $run_tests $flags $test |& tee -a $test_output
 done
 
+echo -n '\nTests complete.  Results:\n'
 grep '^__' $test_output
 passes=$(grep '^++' $test_output | wc -l)
 failures=$(grep '^__' $test_output | wc -l)
-echo $failures failed / $passes passes
+echo $failures failed / $passes passed
 
 echo Generating hpc markup...
 hpc markup --destdir=hpc RunTests | grep -v Writing
 # I'm more used to typing index.html
-(cd hpc && ln -s hpc_index.html index.html)
+(cd hpc && ln -fs hpc_index.html index.html)
 
 exit $failures

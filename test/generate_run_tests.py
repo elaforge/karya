@@ -138,7 +138,7 @@ main = do
     args <- System.Environment.getArgs
     (flags, args) <- case GetOpt.getOpt GetOpt.Permute options args of
         (opts, n, []) -> return (opts, n)
-        (_, _, errs) -> error $ "errors:\n" ++ show errs
+        (_, _, errs) -> error $ "errors:\n" ++ concat errs
     run flags args
 
 run flags args
