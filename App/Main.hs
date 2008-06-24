@@ -12,7 +12,6 @@ import qualified Network
 import qualified Util.Log as Log
 import qualified Util.Thread as Thread
 
-import Ui.Types
 import qualified Ui.Ui as Ui
 import qualified Ui.State as State
 
@@ -40,7 +39,6 @@ import qualified Ui.TestSetup as TestSetup
 import qualified Midi.PortMidi as PortMidi
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
-import qualified Perform.Midi.Controller as Controller
 
 
 load_static_config local_dir = do

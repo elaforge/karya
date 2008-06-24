@@ -1,63 +1,66 @@
--- | Simple macro substitution.  Add SrcPos (Just (line, lineno)) args to
--- certain functions.
+-- | Simple macro substitution.
+-- Add SrcPos (Just (line, Just func_name, lineno)) args to certain functions.
 --
 -- I don't use cpp because it doesn't like dots in symbols.
-import Prelude hiding (lex)
 import qualified Data.List as List
 import qualified Data.Char as Char
 import qualified System.Environment
 import qualified Text.Regex as Regex
 
-{-
--- TODO eventually do a real parser that replaces tokens with dots, but not
--- things in quotes
-
-import qualified Text.ParserCombinators.ReadP as ReadP
-import Text.ParserCombinators.ReadP ((+++))
-import qualified Text.Read.Lex as Lex
-
-t0 = "hello there"
-t1 = "Foo.bar there"
-
-lex = last . ReadP.readP_to_S lex_p
-
-lex_p = do
-    c <- ReadP.satisfy $ \c -> c == '_' || Char.isAlpha c
-    cs <- ReadP.many idchar_p
-    return (c:cs)
-idchar_p = ReadP.satisfy $ \c -> c == '.' || c == '_' || Char.isAlpha c
--}
 
 -- These are substituted everywhere.
-global_macros = map (\s -> (s, s++"_srcpos"))
+global_subs = map (\s -> (s, s++"_srcpos"))
     [ "Log.debug", "Log.notice", "Log.warn", "Log.error"
     , "Log.debug_stack", "Log.notice_stack", "Log.warn_stack", "Log.error_stack"
     ]
 
 -- These are only substituted in test modules.
-test_macros = map (\s -> (s, s++"_srcpos"))
+test_subs = map (\s -> (s, s++"_srcpos"))
     ["equal", "io_human", "throws"]
 
 main = do
-    [orig_fn, src_fn, dest_fn] <- System.Environment.getArgs
+    args <- System.Environment.getArgs
+    [orig_fn, src_fn, dest_fn] <- if length args == 3 then return args
+        else error $ "usage: hspp <orig_fn> <src_fn> <dest_fn>"
     input <- readFile src_fn
     let subs = if "_test.hs" `List.isSuffixOf` orig_fn
             then test_subs else global_subs
-        line_pragma = "{-# LINE 1 \"" ++ orig_fn ++ "\" #-}"
-        subs' = map ($orig_fn) subs
 
-        func_names = annotate_func_names
-        annotate lines = zip3 [1..] (annotate_func_names lines) lines
+    writeFile dest_fn (process orig_fn subs input)
 
-    writeFile dest_fn ((unlines . (line_pragma:)
-        . map (process_line subs') . annotate . lines) input)
 
-enumerate = zip [1..]
+process fn subs = unlines . (line_pragma:)
+    . map (\(i, func, line) -> replace_ids (make_replace fn i func subs) line)
+    . annotate . lines
+    where line_pragma = "{-# LINE 1 \"" ++ fn ++ "\" #-}"
 
--- It would be more efficient to use ByteString and the new regexes, but they
--- seem really complicated and don't appear to support substitution.
-global_subs = map make_sub global_macros
-test_subs = map make_sub (global_macros ++ test_macros)
+annotate :: [String] -> [(Integer, Maybe String, String)]
+annotate lines = zip3 [1..] (annotate_func_names lines) lines
+
+make_replace :: FilePath -> Integer -> Maybe String -> [(String, String)]
+    -> String -> String
+make_replace fn lineno func_name subs tok = case lookup tok subs of
+    Nothing -> tok
+    Just repl -> repl ++ " (" ++ make_srcpos fn func_name lineno ++ ")"
+
+make_srcpos :: FilePath -> Maybe String -> Integer -> String
+make_srcpos fn func_name lineno = show (Just (fn, func_name, lineno))
+
+
+lex_dot s = case lex s of
+    [(tok1, '.':rest1)] ->
+        [(tok1 ++ "." ++ tok2, rest2) | (tok2, rest2) <- lex_dot rest1]
+    val -> val
+
+replace_ids :: (String -> String) -> String -> String
+replace_ids _ "" = ""
+replace_ids replace contents = spaces ++ tok2 ++ replace_ids replace after_tok
+    where
+    (spaces, rest) = span Char.isSpace contents
+    (tok, after_tok) = case lex_dot rest of
+        (tok, rest) : _ -> (tok, rest)
+        _ -> ("", "")
+    tok2 = replace tok
 
 process_line subs (i, func_name, line) =
     foldl (.) id (map ($ (i, func_name)) subs) line

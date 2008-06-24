@@ -11,4 +11,3 @@ do_start_thread fork name th = fork $ Exception.bracket_
     (Log.notice $ "thread start: " ++ name)
     (Log.notice $ "thread exit: " ++ name)
     th
-

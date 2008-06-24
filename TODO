@@ -136,14 +136,19 @@ Cmd
       - transpose
       - copy / paste
 
+    - TimeStep should go to the end of the track
+    - use enter to start and stop, space just gets entered in edit mode
+    - controller edit mode accepts two numbers and moves on, no spaces
+
   Cmd.Selection
     * move insertion point
     * drag insertion point
     - drag snap to ruler, event beginning/end, ...
     * Cmd.TimeStep.advance etc. takes [Marklist]
 
-    - UI and fltk support for editing event text
     * UiMsgs for track drags, resizes, and text changes update State
+    - normal selection move should go past bottom of screen / last note
+    _ UI and fltk support for editing event text
 
   Cmd.Language: listen on a socket, receive cmd language?  or use hs-plugins?
     * simple commands to manage blocks, and save / restore state
@@ -180,6 +185,8 @@ Cmd
 
   Cmd.MakeRuler
     - implement irregular divisions
+    - automatic divisions zoom levels could use some tuning
+    - functions to modify zoom levels and other mark attributes
 
 Derive
   * simplest possible derivation -> midi render

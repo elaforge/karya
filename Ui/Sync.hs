@@ -23,7 +23,6 @@ import qualified Ui.Ui as Ui
 import qualified Ui.Block as Block
 import qualified Ui.BlockC as BlockC
 import qualified Ui.Track as Track
-import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
 import qualified Ui.Update as Update
 
