@@ -31,6 +31,7 @@ import qualified Ui.Ruler as Ruler
 import qualified Ui.Event as Event
 import qualified Ui.Track as Track
 
+import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Midi.Midi as Midi
 
@@ -341,47 +342,23 @@ instance Binary Event.Event where
 
 -- ** Midi.Instrument
 
-midi_instrument = Instrument.Instrument :: String -> String
-    -> Instrument.InitializeInstrument -> Instrument.PbRange -> Maybe Double
-    -> Instrument.Instrument
-instance Binary Instrument.Instrument where
-    put (Instrument.Instrument a b c d e) = put_version 0
-        >> put a >> put b >> put c >> put d >> put e
-    get = do
-        v <- get_version
-        case v of
-            0 -> get >>= \a -> get >>= \b -> get >>= \c -> get >>=
-                \d -> get >>= \e -> return (midi_instrument a b c d e)
-            _ -> version_error "Instrument.Instrument" v
-
-midi_instrument_config = Instrument.Config
-    :: Map.Map Instrument.Addr Instrument.Instrument -> Maybe Instrument.Addr
-    -> Instrument.Config
+-- midi_instrument_config = Instrument.Config
+--     :: Map.Map Instrument.Addr Instrument.Instrument -> Maybe Instrument.Addr
+--     -> Instrument.Config
 instance Binary Instrument.Config where
-    put (Instrument.Config a b) = put_version 0 >> put a >> put b
+    put (Instrument.Config a b) = put_version 1 >> put a >> put b
     get = do
         v <- get_version
         case v of
-            0 -> get >>= \a -> get >>= \b -> return (midi_instrument_config a b)
+            1 -> do
+                alloc <- get :: Get (Map.Map Instrument.Addr Score.Instrument)
+                default_addr <- get :: Get (Maybe Instrument.Addr)
+                return $ Instrument.Config alloc default_addr
             _ -> version_error "Instrument.Config" v
 
-initialize_midi = Instrument.InitializeMidi :: [Midi.Message]
-    -> Instrument.InitializeInstrument
-initialize_message = Instrument.InitializeMessage
-    :: String -> Instrument.InitializeInstrument
-no_initialization = Instrument.NoInitialization
-    :: Instrument.InitializeInstrument
-instance Binary Instrument.InitializeInstrument where
-    put (Instrument.InitializeMidi a) = putWord8 0 >> put a
-    put (Instrument.InitializeMessage a) = putWord8 1 >> put a
-    put Instrument.NoInitialization = putWord8 2
-    get = do
-        tag_ <- getWord8
-        case tag_ of
-            0 -> get >>= \a -> return (initialize_midi a)
-            1 -> get >>= \a -> return (initialize_message a)
-            2 -> return no_initialization
-            _ -> fail "no parse for Instrument.InitializeInstrument"
+instance Binary Score.Instrument where
+    put (Score.Instrument a) = put a
+    get = liftM Score.Instrument get
 
 -- ** Midi
 

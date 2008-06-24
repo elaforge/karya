@@ -30,6 +30,7 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.TimeStep as TimeStep
 
 import qualified Perform.Transport as Transport
+import qualified Instrument.Db
 
 import qualified App.Config as Config
 
@@ -129,13 +130,14 @@ require = maybe abort return
 -- * State
 
 data State = State {
-    -- Internally maintained state.
+    -- App global state.  Unlike Ui.State, this is not saved to disk.
+    state_instrument_db :: Instrument.Db.Db
 
     -- | Map of keys held down.  Maintained by cmd_record_keys and accessed
     -- with 'keys_down'.
     -- The key is the modifier stripped of extraneous info, like mousedown
     -- position.
-    state_keys_down :: Map.Map Modifier Modifier
+    , state_keys_down :: Map.Map Modifier Modifier
     -- | Transport control channel for the player, if one is running.
     , state_transport :: Maybe Transport.Transport
     -- | The block and track that have focus.  Commands that address
@@ -155,8 +157,9 @@ data State = State {
     , state_kbd_entry_octave :: Int
     } deriving (Show, Typeable.Typeable)
 
-empty_state = State {
-    state_keys_down = Map.empty
+initial_state inst_db = State {
+    state_instrument_db = inst_db
+    , state_keys_down = Map.empty
     , state_transport = Nothing
     , state_focused_view = Nothing
 
@@ -226,6 +229,10 @@ set_status :: (Monad m) => String -> Maybe String -> CmdT m ()
 set_status key val = do
     view_ids <- fmap (Map.keys . State.state_views) State.get
     forM_ view_ids $ \view_id -> set_view_status view_id key val
+
+get_lookup_midi_instrument :: (Monad m) => CmdT m Instrument.Db.LookupInstrument
+get_lookup_midi_instrument =
+    fmap (Instrument.Db.inst_lookup_midi . state_instrument_db) get_state
 
 -- * basic cmds
 
@@ -388,3 +395,4 @@ update_input ctx block_id text = case (UiMsg.ctx_track ctx) of
 update_of (Msg.Ui (UiMsg.UiMsg ctx (UiMsg.UiUpdate update))) =
     Just (ctx, update)
 update_of _ = Nothing
+

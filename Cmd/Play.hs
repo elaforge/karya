@@ -129,26 +129,29 @@ import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.Play as Midi.Play
+import qualified Instrument.Db as Instrument.Db
 
 import qualified App.Config as Config
 
 
+-- | Config info needed by the player from the responder.
+type PlayInfo = (Instrument.Db.Db, Transport.Info)
+
 -- * cmds
 
-cmd_play_focused transport_info = do
+cmd_play_focused play_info = do
     view_id <- Cmd.get_focused_view
     block_id <- find_play_block view_id
-    cmd_play transport_info block_id (TrackPos 0)
+    cmd_play play_info block_id (TrackPos 0)
 
-cmd_play_from_insert transport_info = do
+cmd_play_from_insert play_info = do
     view_id <- Cmd.get_focused_view
     block_id <- find_play_block view_id
     (pos, _, _) <- Selection.get_insert_pos
-    cmd_play transport_info block_id pos
+    cmd_play play_info block_id pos
 
-cmd_play :: Transport.Info -> Block.BlockId -> TrackPos
-    -> Cmd.CmdT IO Cmd.Status
-cmd_play transport_info block_id start_pos = do
+cmd_play :: PlayInfo -> Block.BlockId -> TrackPos -> Cmd.CmdT IO Cmd.Status
+cmd_play play_info block_id start_pos = do
     cmd_state <- Cmd.get_state
     case Cmd.state_transport cmd_state of
         Just _ -> Log.warn "player already running" >> Cmd.abort
@@ -161,39 +164,15 @@ cmd_play transport_info block_id start_pos = do
             >> Cmd.abort
         Right events -> return events
 
-    -- Log.warn $
-    --     "start pos: " ++ show start_pos ++ " ts: " ++ show (tempo_map start_pos)
-    -- Log.warn $ "tmap: " ++ (show $ take 30 $
-    --     (\ (Transport.InverseTempoMap p _) -> p) inv_tempo_map)
-    -- TODO later, instrument backend dispatches on this
     let start_ts = tempo_map start_pos
-    let (midi_events, convert_warnings) = Convert.convert
-            (seek_events (Timestamp.to_track_pos start_ts) events)
-
-    -- TODO properly convert to log msg
-    -- TODO I think this forces the list, I have to not warn so eagerly
-    -- or thread the warnings through 'perform'
-    -- TODO call Convert.verify for more warnings
-    mapM_ (Log.warn . show) convert_warnings
-    inst_config <- fmap State.state_midi_config State.get
-    let (midi_msgs, perform_warnings) = Perform.perform inst_config midi_events
-    mapM_ (Log.warn . show) perform_warnings
-
-    transport <- Trans.liftIO $
-        Midi.Play.play transport_info block_id midi_msgs
+    transport <- perform block_id play_info start_ts events
 
     ui_state <- State.get
     Trans.liftIO $ Thread.start_thread "play position updater" $
-        updater_thread transport transport_info inv_tempo_map start_ts ui_state
+        updater_thread transport (snd play_info) inv_tempo_map start_ts ui_state
 
     Cmd.modify_state $ \st -> st { Cmd.state_transport = Just transport }
     return Cmd.Done
-
-seek_events :: TrackPos -> [Score.Event] -> [Score.Event]
-seek_events pos events =
-    map sub_start $ dropWhile ((< pos) . Score.event_start) events
-    where
-    sub_start evt = evt { Score.event_start = Score.event_start evt - pos }
 
 cmd_stop :: Cmd.CmdT IO Cmd.Status
 cmd_stop = do
@@ -244,6 +223,34 @@ derive block_id = do
             Derive.derive ui_state block_id deriver
     mapM_ Log.write logs
     return (result, tempo_map, inv_tempo_map)
+
+perform :: Block.BlockId -> PlayInfo -> Timestamp.Timestamp -> [Score.Event]
+    -> Cmd.CmdT IO Transport.Transport
+perform block_id (inst_db, transport_info) start_ts events = do
+    let lookup_inst = Instrument.Db.inst_lookup_midi inst_db
+    let (midi_events, convert_warnings) = Convert.convert
+            lookup_inst (seek_events (Timestamp.to_track_pos start_ts) events)
+
+    -- TODO split events up by backend and dispatch to each backend
+    -- TODO properly convert to log msg
+    -- TODO I think this forces the list, I have to not warn so eagerly
+    -- or thread the warnings through 'perform'
+    -- TODO call Convert.verify for more warnings
+    mapM_ (Log.warn . show) convert_warnings
+    inst_config <- fmap State.state_midi_config State.get
+    let (midi_msgs, perform_warnings) =
+            Perform.perform lookup_inst inst_config midi_events
+    mapM_ (Log.warn . show) perform_warnings
+
+    -- block_id is almost totally unnecessary, it just sets the play box
+    -- TODO remove it?
+    Trans.liftIO $ Midi.Play.play transport_info block_id midi_msgs
+
+seek_events :: TrackPos -> [Score.Event] -> [Score.Event]
+seek_events pos events =
+    map sub_start $ dropWhile ((< pos) . Score.event_start) events
+    where
+    sub_start evt = evt { Score.event_start = Score.event_start evt - pos }
 
 
 -- | Run along the InverseTempoMap and update the play position selection.

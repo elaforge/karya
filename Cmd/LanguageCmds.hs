@@ -21,6 +21,7 @@ interactive documentation?
 
 -}
 module Cmd.LanguageCmds where
+import Control.Monad
 import qualified Control.Monad.Identity as Identity
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -28,7 +29,7 @@ import qualified Data.Maybe as Maybe
 import Text.Printf
 
 import qualified Util.Seq as Seq
--- import qualified Util.Log as Log
+import qualified Util.Log as Log
 import Util.Pretty as Pretty
 import qualified Util.PPrint as PPrint
 
@@ -53,11 +54,11 @@ import qualified Cmd.Create as Create
 
 import qualified Derive.Score as Score
 import qualified Derive.Schema as Schema
-import qualified Perform.InstrumentDb as InstrumentDb
 import qualified Perform.Warning as Warning
 import qualified Perform.Midi.Convert as Midi.Convert
 import qualified Perform.Midi.Instrument as Midi.Instrument
 import qualified Perform.Midi.Perform as Midi.Perform
+import qualified Instrument.Db as Instrument.Db
 
 import qualified Midi.Midi as Midi
 
@@ -266,16 +267,11 @@ copy_marklist marklist_name from_ruler_id to_ruler_id = do
 
 assign_instrument :: String -> Midi.Instrument.Addr -> Cmd.CmdL ()
 assign_instrument inst_name addr = do
-    inst <- case InstrumentDb.lookup (Score.Instrument inst_name) of
-        Just (InstrumentDb.Midi midi_inst) -> return midi_inst
-        Just inst -> State.throw $
-            "you can't allocate a midi address to non-midi instrument "
-            ++ show inst
-        Nothing ->
-            State.throw $ "instrument " ++ show inst_name ++ " not found"
     config <- State.get_midi_config
-    State.set_midi_config $ config { Midi.Instrument.config_alloc =
-        Map.insert addr inst (Midi.Instrument.config_alloc config) }
+    let inst = Score.Instrument inst_name
+        alloc = Midi.Instrument.config_alloc config
+    State.set_midi_config $ config
+        { Midi.Instrument.config_alloc = Map.insert addr inst alloc }
 
 schema_instruments :: (State.UiStateMonad m) =>
     Block.BlockId -> m [Score.Instrument]
@@ -284,16 +280,30 @@ schema_instruments block_id = do
     return (Schema.skeleton_instruments skel)
 
 -- | Try to automatically create an instrument config based on the instruments
--- found in the given block.
-auto_config :: (State.UiStateMonad m) =>
-    Midi.WriteDevice -> Block.BlockId -> m Midi.Instrument.Config
+-- found in the given block.  It's simply gives each instrument on a device a
+-- single channel increasing from 0.
+auto_config ::
+    Midi.WriteDevice -> Block.BlockId -> Cmd.CmdL Midi.Instrument.Config
 auto_config write_device block_id = do
-    score_insts <- schema_instruments block_id
-    -- TODO warn about insts not found?
-    let insts = Maybe.catMaybes $ map InstrumentDb.lookup score_insts
-        addrs = [((write_device, chan), inst)
-            | (InstrumentDb.Midi inst, chan) <- zip insts [0..]]
-    return $ Midi.Instrument.config addrs (Just (write_device, 0))
+    insts <- schema_instruments block_id
+    devs <- mapM device_of insts
+    let no_dev = [inst | (inst, Nothing) <- zip insts devs]
+        inst_devs = [(inst, dev) | (inst, Just dev) <- zip insts devs]
+        allocs = [((dev, fromIntegral i), inst)
+            | (dev, by_dev) <- Seq.keyed_group_with snd inst_devs
+            , (i, (inst, _dev)) <- Seq.enumerate by_dev]
+        default_addr = case allocs of
+            [] -> Nothing
+            ((dev, chan), inst) : _ -> Just (dev, chan)
+    when (not (null no_dev)) $
+        Log.warn $ "no synth found for instruments: " ++ show insts
+    return $ Midi.Instrument.config allocs default_addr
+
+device_of :: Score.Instrument -> Cmd.CmdL (Maybe Midi.WriteDevice)
+device_of inst = do
+    inst_db <- fmap Cmd.state_instrument_db Cmd.get_state
+    return $ fmap Midi.Instrument.synth_device
+        (Instrument.Db.inst_lookup_synth inst_db inst)
 
 
 -- * schema
@@ -313,7 +323,8 @@ score_to_midi :: [Score.Event]
     -> Cmd.CmdL ([Midi.WriteMessage], [Warning.Warning])
 score_to_midi events = do
     inst_config <- fmap State.state_midi_config State.get
-    let (midi_events, convert_warnings) = Midi.Convert.convert events
+    lookup <- Cmd.get_lookup_midi_instrument
+    let (midi_events, convert_warnings) = Midi.Convert.convert lookup events
         (midi_msgs, perform_warnings) =
-            Midi.Perform.perform inst_config midi_events
+            Midi.Perform.perform lookup inst_config midi_events
     return (midi_msgs, convert_warnings ++ perform_warnings)

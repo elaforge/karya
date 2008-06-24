@@ -1,9 +1,11 @@
+{-# OPTIONS_GHC -XDeriveDataTypeable #-}
 {- | A Score is the unit at which derivers operate, and is just a list of
 Events.  The events here are the derivation-level view of an Event.  They are
 generated from UI Events, and will eventually be transformed into Perform
 Events, which are specific to the performance backend.
 -}
 module Derive.Score where
+import qualified Data.Generics as Generics
 import qualified Data.Map as Map
 
 import Ui.Types
@@ -57,6 +59,8 @@ type ControllerMap = Map.Map Controller Signal.Signal
 -- the instrument db to get the backend specific Instrument type as well as the
 -- backend itself, but things at the Derive layer and above don't care about
 -- all that.
-data Instrument = Instrument String deriving (Eq, Ord, Show)
+data Instrument = Instrument String
+    deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
+inst_name (Instrument s) = s
 
 newtype Controller = Controller String deriving (Eq, Ord, Show)

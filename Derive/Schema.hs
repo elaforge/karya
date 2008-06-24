@@ -36,7 +36,6 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Twelve as Twelve
 
 import qualified Perform.Midi.Instrument as Instrument
-import qualified Perform.Midi.InstrumentDb as InstrumentDb
 
 
 -- TODO convert the others to take SchemaId [Track]
@@ -104,16 +103,28 @@ default_schema = Schema (default_schema_deriver default_parser)
 
 -- | Information needed to decide what cmds should apply.
 data CmdContext = CmdContext {
-    ctx_midi_config :: Instrument.Config
+    ctx_default_addr :: Maybe Instrument.Addr
+    , ctx_inst_addr :: Score.Instrument -> Maybe Instrument.Addr
     , ctx_edit_mode :: Bool
     , ctx_focused_tracknum :: Maybe Block.TrackNum
-    } deriving (Show)
+    }
+
+cmd_context :: Instrument.Config -> Bool -> Maybe Block.TrackNum -> CmdContext
+cmd_context midi_config edit_mode focused_tracknum =
+        CmdContext default_addr inst_addr edit_mode focused_tracknum
+    where
+    default_addr = Instrument.config_default_addr midi_config
+    -- Addr:Instrument -> Instrument:Maybe Addr
+    -- The thru cmd has to pick a single addr for a give inst, so let's just
+    -- pick the lowest one.
+    inst_map = Map.fromListWith min [(inst, addr)
+        | (addr, inst) <- Map.assocs (Instrument.config_alloc midi_config)]
+    inst_addr = flip Map.lookup inst_map
 
 default_cmds :: Parser -> CmdContext -> [Track] -> [Cmd.Cmd]
 default_cmds parser context tracks = case track_type of
         Just (InstrumentTrack inst) -> midi_thru [inst] ++ inst_edit_cmds
-        Just (ControllerTrack insts) ->
-            midi_thru insts ++ cont_edit_cmds
+        Just (ControllerTrack insts) -> midi_thru insts ++ cont_edit_cmds
         Nothing -> []
     where
     inst_edit_cmds = if ctx_edit_mode context
@@ -125,18 +136,12 @@ default_cmds parser context tracks = case track_type of
     track_type = case (ctx_focused_tracknum context) of
         Nothing -> Nothing
         Just tracknum -> track_type_of tracknum (parser tracks)
-    config = ctx_midi_config context
-    midi_thru insts = case Maybe.catMaybes (map (get_addr config) insts) of
-        [] -> []
-        (addr:_) -> [Edit.cmd_midi_thru addr]
-
-get_addr :: Instrument.Config -> Score.Instrument -> Maybe Instrument.Addr
-get_addr config inst = maybe default_addr Just $ do
-    m_inst <- InstrumentDb.lookup inst
-    rlookup (Instrument.config_alloc config) m_inst
-    where
-    default_addr = Instrument.config_default_addr config
-    rlookup fm k = lookup k (map (\(x, y) -> (y, x)) (Map.assocs fm))
+    inst_addr = ctx_inst_addr context
+    default_addr = ctx_default_addr context
+    midi_thru insts =
+        case Seq.first_just (map inst_addr insts ++ [default_addr]) of
+            Nothing -> []
+            Just addr -> [Edit.cmd_midi_thru addr]
 
 data TrackType =
     InstrumentTrack Score.Instrument

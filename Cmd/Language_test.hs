@@ -16,7 +16,7 @@ test_interpret = flip Exception.catchDyn catch_interpreter_error $ do
     -- let text = "\\st -> show (f 10)"
     text <- readFile "test_code"
     let ui_state = State.empty
-        cmd_state = Cmd.empty_state
+        cmd_state = Cmd.initial_state undefined
     cmd <- GHC.withSession session
         (Language.interpret [] ui_state cmd_state text)
     (cstate, midi, logs, ui_res) <- Cmd.run "" ui_state cmd_state cmd

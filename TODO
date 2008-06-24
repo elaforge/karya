@@ -1,10 +1,3 @@
-- check use of Ints
-
-* velocity support
-- test controllers
-- tempo map
-- hs-plugins
-
 fltk
   - bug: inserting a new track doesn't pick up current zoom
   bug: dragging selections is laggy
@@ -168,6 +161,7 @@ Cmd
     - make sure the whole stack is lazy
     - play loops
     * play from position
+    - background derivation
 
   Cmd.Record
     - come up with a plan for midi recording
@@ -232,8 +226,9 @@ Perform
       proliferation of signal types
     - ensure that controllers are warped continuously by tempo
 
-patchdb
-  - simple integrated version with just hardcoded midi instruments
+Instrument DB
+  * simple integrated version with just hardcoded midi instruments
+  - search language + tool
 
 tests
   + some kind of organized hunit / quickcheck for pure code

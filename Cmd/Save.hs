@@ -29,6 +29,8 @@ cmd_save fname = do
     ui_state <- State.get
     save <- Trans.liftIO $ Serialize.save_state ui_state
     Log.notice $ "write state to " ++ show fname
+    -- For the moment, also serialize to plain text, since that's easier to
+    -- read and edit.
     Trans.liftIO $ Serialize.serialize_text (fname ++ ".text") save
     Trans.liftIO $ Serialize.serialize fname save
 

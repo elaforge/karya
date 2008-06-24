@@ -31,7 +31,7 @@ reduce (Schema.Merge tracks) = Seq.join " + " (map reduce tracks)
 reduce_track = reduce_tracklike . Schema.track_id
 
 reduce_tracklike (Block.TId tid _) = Track.un_track_id tid
-reduce_tracklike (Block.DId color) = "DIV"
+reduce_tracklike (Block.DId _color) = "DIV"
 reduce_tracklike (Block.RId rid) = Ruler.un_ruler_id rid
 
 -- TODO test with rulers and dividers
@@ -50,10 +50,6 @@ test_parse = do
     eq [cont "control1" "c1", inst 1] "c1() + i1"
 
 default_config = Instrument.config [] Nothing
-
-test_get_addr = do
-    let inst = Score.Instrument "inst"
-    equal (Schema.get_addr default_config inst) Nothing
 
 test_default_cmds = do
     equal 1 1

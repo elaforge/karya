@@ -6,6 +6,7 @@ import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
 import qualified Data.Map as Map
 import qualified Language.Haskell.Interpreter.GHC as GHC
+import System.FilePath ((</>))
 import qualified Network
 
 import qualified Util.Log as Log
@@ -23,6 +24,9 @@ import qualified Cmd.Responder as Responder
 import qualified Cmd.TimeStep as TimeStep
 
 import qualified App.Config as Config
+import qualified App.StaticConfig as StaticConfig
+
+import qualified Local.Instrument
 
 -- This is only used by the interpreter,  but by importing it here I can make
 -- sure it doesn't have any compile errors in advance.
@@ -34,18 +38,20 @@ import Cmd.LanguageCmds ()
 -- tmp
 import qualified Ui.TestSetup as TestSetup
 import qualified Midi.PortMidi as PortMidi
+import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Controller as Controller
 
 
-{-
-    Initialize UI
-    Initialize MIDI, get midi devs
-
-    Start responder thread.  It has access to: midi devs, midi input chan, ui
-    msg input chan.
-
-    Create an empty block with a few tracks.
--}
+load_static_config local_dir = do
+    instrument_db <- Local.Instrument.load (local_dir </> "Local/Instrument")
+    return $ StaticConfig.StaticConfig {
+        StaticConfig.config_instrument_db = instrument_db
+        , StaticConfig.config_schema_db = const Nothing
+        , StaticConfig.config_local_lang_dirs = [local_dir </> "Local/Lang"]
+        , StaticConfig.config_global_cmds = []
+        , StaticConfig.config_startup_cmd = const (return ())
+        }
 
 initialize f = do
     Log.initialize "seq.mach.log" "seq.log"
@@ -58,6 +64,8 @@ initialize f = do
 main :: IO ()
 main = initialize $ \lang_socket read_chan -> do
     Log.notice "app starting"
+    static_config <- load_static_config "."
+    Log.notice "instrument db loaded"
 
     (rdev_map, wdev_map) <- MidiC.devices
     print_devs rdev_map wdev_map
@@ -90,8 +98,8 @@ main = initialize $ \lang_socket read_chan -> do
     let write_midi = write_msg default_stream wdev_streams
 
     Thread.start_thread "responder" $ do
-        Responder.responder get_msg write_midi get_ts player_chan setup_cmd
-            session
+        Responder.responder static_config get_msg write_midi get_ts
+            player_chan setup_cmd session
         `Exception.catch` responder_handler
             -- It would be possible to restart the responder, but chances are
             -- good it would just die again.
@@ -132,11 +140,7 @@ setup_cmd = do
         }
     return Cmd.Done
 
-cont text = Config.event text (TrackPos 0)
-
 inst_config = Instrument.config
-        [((Midi.WriteDevice "out", n), inst "fm8" "bass") | n <- [0..2]]
+        [((Midi.WriteDevice "out", n), Score.Instrument "fm8/bass")
+            | n <- [0..2]]
         Nothing
-
-inst synth name = Instrument.instrument synth name Instrument.NoInitialization
-    (-12, 12) Nothing

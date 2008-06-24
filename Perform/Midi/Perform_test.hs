@@ -14,11 +14,13 @@ import qualified Ui.Track as Track
 import qualified Midi.Midi as Midi
 import Midi.Midi (ChannelMessage(..))
 
+import qualified Derive.Score as Score
+
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 import qualified Perform.Timestamp as Timestamp
-
 import qualified Perform.Warning as Warning
+
 import qualified Perform.Midi.Controller as Controller
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
@@ -35,9 +37,11 @@ import qualified Perform.Midi.Perform as Perform
 -- Bad signal that goes over 1 in two places.
 badsig cont = (cont, mksignal [(0, 0), (1, 1.5), (2, 0), (2.5, 0), (3, 2)])
 
+vol_cc = Controller.Controller "volume"
+
 test_clip_warns = do
-    let events = map mkevent [(inst1, "a", 0, 4, [badsig Controller.c_volume])]
-        (msgs, warns) = Perform.perform inst_config1 events
+    let events = map mkevent [(inst1, "a", 0, 4, [badsig vol_cc])]
+        (msgs, warns) = Perform.perform test_lookup inst_config1 events
     -- TODO check that warnings came at the right places
     -- check that the clips happen at the same places as the warnings
     equal (map Warning.warn_msg warns)
@@ -47,9 +51,10 @@ test_clip_warns = do
     -- ascertain visually that the clip warnings are accurate
     plist warns
     plist $ Maybe.catMaybes $ map (midi_cc_of . Midi.wmsg_msg) msgs
+    plist events
 
 test_vel_clip_warns = do
-    let (msgs, warns) = Perform.perform inst_config1 $ map mkevent
+    let (msgs, warns) = Perform.perform test_lookup inst_config1 $ map mkevent
             [(inst1, "a", 0, 4, [badsig Controller.c_velocity])]
     equal (length warns) 1
     check (all_msgs_valid msgs)
@@ -73,7 +78,8 @@ midi_cc_of _ = Nothing
 
 test_perform = do
     let perform events = do
-        let (msgs, warns) = Perform.perform inst_config2 (map mkevent events)
+        let (msgs, warns) =
+                Perform.perform test_lookup inst_config2 (map mkevent events)
         -- print_msgs msgs
         -- putStrLn ""
         equal warns []
@@ -183,9 +189,10 @@ secs = Timestamp.seconds
 
 test_perform_controller = do
     -- Bad signal that goes over 1 in two places.
-    let sig = (Controller.c_volume,
-            mksignal [(0, 0), (1, 1.5), (2, 0), (2.5, 0), (3, 2)])
-    let (msgs, warns) = Perform.perform_controller (secs 0) (secs 10) 0 sig
+    let sig = (vol_cc, mksignal [(0, 0), (1, 1.5), (2, 0), (2.5, 0), (3, 2)])
+        cmap = Controller.default_controllers
+        (msgs, warns) = Perform.perform_controller cmap (secs 0) (secs 10) 0 sig
+
     -- controls are not emitted after they reach steady values
     check $ all valid_msg (map snd msgs)
     -- goes over in 2 places
@@ -195,7 +202,8 @@ test_perform_controller = do
 -- * channelize
 
 test_channelize = do
-    let channelize = map snd . Perform.channelize inst_config2 . mkevents
+    let inst_addrs = Perform.config_to_inst_addrs inst_config2 test_lookup
+        channelize = map snd . Perform.channelize inst_addrs . mkevents
     -- Re-use channels when the pitch is different, but don't when it's the
     -- same.
     equal (channelize
@@ -209,7 +217,7 @@ test_channelize = do
 
     -- Even though they share pitches, they get the same channel, since inst2
     -- only has one addr.
-    equal (map snd $ Perform.channelize inst_config2 $ map mkevent
+    equal (map snd $ Perform.channelize inst_addrs $ map mkevent
         [ (inst2, "a", 0, 2, [])
         , (inst2, "a", 1, 2, [])
         ])
@@ -240,10 +248,10 @@ test_overlap_map = do
 
 test_allot = do
     let mk inst chan start = (mkevent (inst, "a", start, 1, []), chan)
-    let mk1 = mk inst1
-    let in_time mks = zipWith ($) mks [0..]
-    let allot_chans events = map snd $
-            map snd (Perform.allot inst_config1 events)
+        mk1 = mk inst1
+        in_time mks = zipWith ($) mks [0..]
+        inst_addrs = Perform.config_to_inst_addrs inst_config1 test_lookup
+        allot_chans events = map snd $ map snd (Perform.allot inst_addrs events)
 
     -- They should alternate channels, according to LRU.
     equal (allot_chans (in_time [mk1 0, mk1 1, mk1 2, mk1 3]))
@@ -275,8 +283,8 @@ mksignal ts_vals = Signal.signal
     [(Timestamp.to_track_pos (secs sec), Signal.Linear, val, val)
         | (sec, val) <- ts_vals]
 
-c_vol = (Controller.c_volume, mksignal [(0, 1), (4, 0)])
-c_vol2 = (Controller.c_volume, mksignal [(0, 1), (2, 0), (4, 1)])
+c_vol = (vol_cc, mksignal [(0, 1), (4, 0)])
+c_vol2 = (vol_cc, mksignal [(0, 1), (2, 0), (4, 1)])
 c_vel = (Controller.c_velocity, mksignal [(0, 1), (4, 0)])
 c_pitch = (Controller.c_pitch, mksignal [(0, 0), (8, 1)])
 
@@ -284,17 +292,27 @@ mkpitch s = Pitch.Pitch s (Pitch.NoteNumber p)
     where
     p = maybe (error ("no pitch " ++ show s)) id (lookup (head s) to_pitch)
 to_pitch = zip ['a'..'z'] [60..]
-inst name = Instrument.Instrument name "z1" (Instrument.InitializeMidi [])
+inst name = Instrument.instrument name Controller.default_controllers
     (-12, 12) Nothing
 
 inst1 = inst "inst1"
 inst2 = inst "inst2"
 dev1 = Midi.WriteDevice "dev1"
 dev2 = Midi.WriteDevice "dev2"
-inst_config1 = Instrument.config [((dev1, 0), inst1), ((dev1, 1), inst1)]
+inst_config1 = Instrument.config
+    [ ((dev1, 0), score_inst inst1)
+    , ((dev1, 1), score_inst inst1) ]
     Nothing
+
+score_inst inst = Score.Instrument (Instrument.inst_name inst)
 
 -- Also includes inst2.
 inst_config2 = Instrument.config
-    [((dev1, 0), inst1), ((dev1, 1), inst1), ((dev2, 2), inst2)]
+    [ ((dev1, 0), score_inst inst1), ((dev1, 1), score_inst inst1)
+    , ((dev2, 2), score_inst inst2) ]
     Nothing
+
+test_lookup (Score.Instrument inst)
+    | inst == "inst1" = Just inst1
+    | inst == "inst2" = Just inst2
+    | otherwise = Nothing

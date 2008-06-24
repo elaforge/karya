@@ -71,6 +71,16 @@ p_rest p = do
     rest <- P.getInput
     return (val, rest)
 
+-- | Parse a possibly signed integer.
+p_int :: P.CharParser st Integer
+p_int = do
+    sign <- P.option 1 (P.char '-' >> return (-1))
+    i <- P.many P.digit
+    case Numeric.readDec i of
+        (n, _):_ -> return (n*sign)
+        _ -> P.pzero -- this should never happen
+    <?> "signed int"
+
 p_float :: P.CharParser st Double
 p_float = do
     sign <- P.option 1 (P.char '-' >> return (-1))

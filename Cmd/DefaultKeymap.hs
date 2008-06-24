@@ -34,8 +34,6 @@ import qualified Cmd.Play as Play
 import qualified Cmd.View as View
 import qualified Cmd.TimeStep as TimeStep
 
-import qualified Perform.Transport as Transport
-
 
 default_cmds :: [Cmd.Cmd]
 default_cmds =
@@ -44,16 +42,18 @@ default_cmds =
         ++ view_config_bindings ++ edit_bindings)
     ]
 
-cmd_io_keymap :: Transport.Info -> Msg.Msg -> Cmd.CmdIO
-cmd_io_keymap transport_info = Keymap.make_cmd (io_bindings transport_info)
+cmd_io_keymap :: Play.PlayInfo -> Msg.Msg -> Cmd.CmdIO
+cmd_io_keymap play_info = Keymap.make_cmd (io_bindings play_info)
 
-io_bindings :: Transport.Info -> [Keymap.Binding IO]
-io_bindings transport_info =
+io_bindings :: Play.PlayInfo -> [Keymap.Binding IO]
+io_bindings play_info =
     [ command (Key.KeyChar 's') "save" cmd_save
     , command (Key.KeyChar 'l') "load" cmd_load
-    , bind_key Key.Enter "play block" (Play.cmd_play_focused transport_info)
+
+    -- player
+    , bind_key Key.Enter "play block" (Play.cmd_play_focused play_info)
     , bind_kmod [Key.ShiftL] Key.Enter "play from insert"
-        (Play.cmd_play_from_insert transport_info)
+        (Play.cmd_play_from_insert play_info)
     , bind_key (Key.KeyChar ' ') "stop play" Play.cmd_stop
     ]
 

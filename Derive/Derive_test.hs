@@ -27,8 +27,8 @@ import qualified Derive.Twelve as Twelve
 import qualified Perform.Signal as Signal
 import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Midi.Convert as Convert
+import qualified Perform.Midi.Controller as Controller
 import qualified Perform.Midi.Instrument as Instrument
-import qualified Perform.Midi.InstrumentDb as InstrumentDb
 import qualified Perform.Midi.Perform as Perform
 
 import qualified Perform.Transport as Transport
@@ -51,11 +51,12 @@ test_basic = do
     let (events, logs) = derive_events ui_state basic_deriver
     equal logs []
     pmlist "score" events
-    let (midi_events, warns) = Convert.convert events
+    let (midi_events, warns) = Convert.convert test_lookup events
     equal warns []
     equal (length midi_events) 2
     pmlist "midi_events" midi_events
-    let (msgs, _warns) = Perform.perform default_inst_config midi_events
+    let (msgs, _warns) = Perform.perform
+            test_lookup default_inst_config midi_events
     equal (length msgs) 4 -- (noteon + noteoff) * 2
     pmlist "msgs" msgs
 
@@ -68,7 +69,7 @@ test_controller = do
     let (events, logs) = derive_events ui_state controller_deriver
     equal logs []
     pmlist "score" events
-    let (midi_events, warns) = Convert.convert events
+    let (midi_events, warns) = Convert.convert test_lookup events
     equal warns []
     equal (length midi_events) 2
     -- The exact msgs that come out depend on the srate, and besides this stuff
@@ -160,32 +161,6 @@ test_tempo = do
 
     plist $ derive_with [(0, Signal.Set, 2), (20, Signal.Linear, 1)]
 
-    {-
-    let events = fst $ derive_events state (mkderiver
-            [(0, Signal.Set, 1), (20, Signal.Linear, 2)])
-    let (midi_events, warns) = Convert.convert events
-
-    pmlist "midi_events" midi_events
-    let (msgs, mwarns) = Perform.perform default_inst_config midi_events
-    pmlist "msgs" msgs
-
-    -- TODO verify that the controllers are lined up
-    -- let (events, logs) = derive_events state (mkderiver
-    --         [(TrackPos 0, Signal.Set, 0.5), (TrackPos 30, Signal.Linear, 1)])
-    -- pmlist "vel" $ extract_controller "velocity" events
-
-
-    pmlist "conts" (extract_controller "velocity" events)
-
-    -- equal warns []
-    -- equal (length midi_events) 2
-    pmlist "warns" warns
-    pmlist "midi_events" midi_events
-    let (msgs, mwarns) = Perform.perform default_inst_config midi_events
-    pmlist "mw" mwarns
-    pmlist "msgs" msgs
-    -}
-
 -- extract_controller name = map $ \event -> Map.assocs $ Signal.signal_map $
 --     Score.event_controllers event Map.! Score.Controller name
 extract_logs = map $ \log -> (Log.msg_text log, Log.msg_stack log)
@@ -231,10 +206,14 @@ track_id = Track.TrackId "b1.t1"
 cont_track_id = Track.TrackId "b1.cont"
 
 default_inst = Score.Instrument "synth/patch"
-default_midi_inst = InstrumentDb.generic "synth" "patch"
 default_dev = Midi.WriteDevice "out"
-default_inst_config =
-    Instrument.config [((default_dev, 0), default_midi_inst)] Nothing
+default_inst_config = Instrument.config
+    [((default_dev, 0), Score.Instrument "synth/patch")] Nothing
+
+test_lookup (Score.Instrument inst)
+    | inst == "synth/patch" = Just $
+        Instrument.instrument "synth/patch" Controller.empty_map (-2, 2) Nothing
+    | otherwise = Nothing
 
 
 -- ** ui stetup

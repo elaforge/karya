@@ -3,32 +3,36 @@
 device and channel mapping.
 -}
 module Perform.Midi.Instrument where
+import qualified Control.Arrow as Arrow
+import qualified Data.Char as Char
 import qualified Data.Generics as Generics
 import qualified Data.Map as Map
 
 import Util.Pretty
 import qualified Midi.Midi as Midi
 
+import qualified Derive.Score as Score
+import qualified Perform.Midi.Controller as Controller
 
+
+-- | The Instrument contains all the data necessary to render
+-- a Midi.Perform.Event to a midi message.  Each Event has an attached
+-- Instrument.
 data Instrument = Instrument {
-    -- | Name of the synth or program that the patch lives in.  Could be used
-    -- with a synth->device mapping to figure out the device it should be
-    -- mapped to in config_devices.
-    inst_synth :: String
-    -- | Patch name.
-    , inst_name :: String
-    , inst_initialize :: InitializeInstrument
-    -- | Pitchbend range in tempered semitones below and above unity.
-    , inst_pitch_bend_range :: PbRange
-    -- | Time from NoteOff to inaudible, in seconds.  Optional, but if it's
-    -- supplied, channel allocation can be smarter (or can it?  it should go
-    -- LRU on the channels anyway)
-    -- At least I can know when there's no point emitting control msgs.
-    , inst_decay :: Maybe Double
-    } deriving (Eq, Ord, Read, Show, Generics.Data, Generics.Typeable)
-instrument = Instrument
+    inst_name :: InstrumentName
+	-- | Map controller names to a controller number.  Some controllers are
+	-- shared by all midi instruments, but some instruments have special
+	-- controllers.
+	, inst_controller_map :: Controller.ControllerMap
 
-type PbRange = (Int, Int)
+    , inst_pitch_bend_range :: Controller.PbRange
+    -- | Time from NoteOff to inaudible, in seconds.  This is used to determine
+    -- note overlap for the purposes of channel allocation.  It could also
+    -- be used to automatically trim control msgs, but I don't do that yet.
+    -- (but I always allocate LRU, so it shouldn't make a difference, right?)
+    , inst_decay :: Maybe Double
+    } deriving (Eq, Ord, Show)
+instrument = Instrument
 
 -- | Midi instruments are addressed by a (device, channel) pair, allocated in
 -- 'Config'.
@@ -39,7 +43,11 @@ data Config  = Config {
     -- | An instrument may occur multiple times in this map, which means it
     -- may be multiplexed across multiple channels.  You can also assign it
     -- multiple devices the same way, but the use for that seems more limited.
-    config_alloc :: Map.Map Addr Instrument
+    --
+    -- TODO it would be more natural to go Instrument -> [Addr] and that's
+    -- what everyone converts this into anyway.  And multiple instruments
+    -- sharing the same Addr is also potentially legitimate.
+    config_alloc :: Map.Map Addr Score.Instrument
     -- | If this is given, it will be used as the Addr for e.g. midi thru
     -- when it cant't figure out what instrument is involved, or if the
     -- instrument has no allocation.
@@ -47,14 +55,55 @@ data Config  = Config {
     } deriving (Show, Read, Generics.Data, Generics.Typeable)
 config addr_insts default_addr = Config (Map.fromList addr_insts) default_addr
 
+instance Pretty Instrument where
+    pretty inst = "<inst: " ++ inst_name inst ++ ">"
+
+
+-- * instrument db types
+
+-- | Patch is information about one specific instrument.  The performance
+-- Instrument and MIDI config are derived from it, via its Synth.
+data Patch = Patch {
+	-- | The Instrument is a subset of the data available in the Patch.
+	-- The patch_instrument is not necessarily the same as the one eventually
+	-- used in performance, because e.g. synth controllers can get added in.
+	patch_instrument :: Instrument
+	-- | Key-value pairs used to index the patch.
+	, patch_tags :: Tags
+    , patch_initialize :: InitializePatch
+	} deriving (Eq, Show)
+
+-- | Tags are all stored in lower case.
+newtype Tags = Tags (Map.Map String String)
+    deriving (Eq, Show)
+tags :: [(String, String)] -> Tags
+tags assocs = Tags (Map.fromList (map (lc Arrow.*** lc) assocs))
+    where lc = map Char.toLower
+
+-- | A Synth defines common features for a set of instruments, like device and
+-- controllers.
+data Synth = Synth {
+    -- | Uniquely defines the synth, and is indexed by the
+    -- Instrument.inst_synth field.
+    synth_name :: SynthName
+    , synth_device :: Midi.WriteDevice
+    -- | Often synths have a set of common controllers in addition to the
+    -- global midi defaults.
+    , synth_controller_map :: Controller.ControllerMap
+    } deriving (Eq, Show)
+
+synth name wdev controllers =
+    Synth name (Midi.WriteDevice wdev) (Controller.controller_map controllers)
+
+type SynthName = String
+type InstrumentName = String
+
 -- | Describe how an instrument should be initialized before it can be played.
-data InitializeInstrument =
-    -- | Send these msgs to initialize the patch.
-    InitializeMidi [Midi.Message]
+data InitializePatch =
+    -- | Send these msgs to initialize the patch.  Probably a patch change or
+    -- a sysex.
+    InitializeMsg [Midi.Message]
     -- | Display this msg to the user and hope they do what it says.
     | InitializeMessage String
     | NoInitialization
-    deriving (Eq, Ord, Read, Show, Generics.Data, Generics.Typeable)
-
-instance Pretty Instrument where
-    pretty inst = "<inst: " ++ inst_name inst ++ ">"
+    deriving (Eq, Show)

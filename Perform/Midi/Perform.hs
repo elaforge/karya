@@ -23,6 +23,7 @@ import qualified Perform.Warning as Warning
 
 import qualified Perform.Midi.Controller as Controller
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Instrument.Db
 
 
 -- TODO: use default_decay, and use decay for overlaps and max lookahead
@@ -31,9 +32,21 @@ import qualified Perform.Midi.Instrument as Instrument
 -- | Render instrument tracks down to midi messages, sorted in timestamp order.
 -- This should be non-strict on the event list, so that it can start producing
 -- MIDI output as soon as it starts processing Events.
-perform :: Instrument.Config -> [Event]
+perform :: Instrument.Db.LookupInstrument -> Instrument.Config -> [Event]
     -> ([Midi.WriteMessage], [Warning.Warning])
-perform config = perform_notes . allot config . channelize config
+perform lookup_inst config =
+    perform_notes . allot inst_addrs . channelize inst_addrs
+    where inst_addrs = config_to_inst_addrs config lookup_inst
+
+config_to_inst_addrs :: Instrument.Config -> Instrument.Db.LookupInstrument
+    -> InstAddrs
+config_to_inst_addrs config lookup_inst =
+    Util.Data.multimap [(inst, addr) | (addr, Just inst)
+        <- Map.assocs (Map.map lookup_inst (Instrument.config_alloc config))]
+
+-- | Map each instrument to its allocated Addrs.
+-- TODO It would be slightly more efficient to just use the instrument name.
+type InstAddrs = Map.Map Instrument.Instrument [Instrument.Addr]
 
 
 -- * perform notes
@@ -110,8 +123,9 @@ perform_note next_on_ts event (dev, chan) =
         (Pitch.cents (event_pitch event))
 
     control_sigs = Map.assocs (event_controls event)
+    cmap = Instrument.inst_controller_map (event_instrument event)
     (controller_ts_msgs, clip_warns) = unzip $
-        map (perform_controller on_ts next_on_ts chan) control_sigs
+        map (perform_controller cmap on_ts next_on_ts chan) control_sigs
     controller_msgs = merge_messages (map (map mkmsg) controller_ts_msgs)
     controller_msgs2 = map (add_pitch_bend pb_offset) controller_msgs
     mkmsg (ts, msg) = Midi.WriteMessage dev ts msg
@@ -164,11 +178,12 @@ add_pitch_bend offset msg = msg { Midi.wmsg_msg = msg' }
 
 -- | Return the (ts, msg) pairs, and whether the signal value went out of the
 -- allowed controller range (either 0--1 or -1--1).
-perform_controller :: Timestamp.Timestamp -> Timestamp.Timestamp -> Midi.Channel
+perform_controller :: Controller.ControllerMap
+    -> Timestamp.Timestamp -> Timestamp.Timestamp -> Midi.Channel
     -> (Controller.Controller, Signal.Signal)
     -> ([(Timestamp.Timestamp, Midi.Message)], [ClipWarning])
-perform_controller start_ts end_ts chan (controller, sig) =
-    case Controller.controller_constructor controller of
+perform_controller cmap start_ts end_ts chan (controller, sig) =
+    case Controller.controller_constructor cmap controller of
         Nothing -> ([], [])
         Just ctor ->
             let msgs = [(ts, Midi.ChannelMessage chan (ctor val))
@@ -206,12 +221,10 @@ merge_messages = foldr (Seq.merge_by (compare `on` Midi.wmsg_ts)) []
 
 -- | Assign channels.  Events will be merged into the same channel where they
 -- can be.
-channelize :: Instrument.Config -> [Event] -> [(Event, Channel)]
-channelize config events = overlap_map (channelize_event inst_addrs) events
-    where inst_addrs = Util.Data.invert_map (Instrument.config_alloc config)
+channelize :: InstAddrs -> [Event] -> [(Event, Channel)]
+channelize inst_addrs events = overlap_map (channelize_event inst_addrs) events
 
-channelize_event :: Map.Map Instrument.Instrument [Instrument.Addr]
-    -> [(Event, Channel)] -> Event -> Channel
+channelize_event :: InstAddrs -> [(Event, Channel)] -> Event -> Channel
 channelize_event inst_addrs overlapping event =
     case Map.lookup (event_instrument event) inst_addrs of
         -- If the event has 0 or 1 addrs I can just give a constant channel.
@@ -275,9 +288,9 @@ controls_equal start end c0 c1 = all (uncurry eq) (zip c0 c1)
 -- will be silently dropped.  A higher level should have warned about those.
 -- This is because deallocating its Addrs is an easy way to mute an instrument,
 -- so it's not necessarily an error to have no allocation.
-allot :: Instrument.Config -> [(Event, Channel)] -> [(Event, Instrument.Addr)]
-allot config events = Maybe.catMaybes $
-    Util.Control.map_state allot_event (initial_allot_state config) events
+allot :: InstAddrs -> [(Event, Channel)] -> [(Event, Instrument.Addr)]
+allot inst_addrs events = Maybe.catMaybes $
+    Util.Control.map_state allot_event (initial_allot_state inst_addrs) events
 
 data AllotState = AllotState {
     -- | Allocated addresses, and when they were last used.
@@ -286,10 +299,9 @@ data AllotState = AllotState {
     -- range.
     , ast_map :: Map.Map (Instrument.Instrument, Channel) Instrument.Addr
     -- | Addresses allocated to each instrument.
-    , ast_alloc :: Map.Map Instrument.Instrument [Instrument.Addr]
+    , ast_inst_addrs :: InstAddrs
     } deriving (Show)
-initial_allot_state config = AllotState Map.empty Map.empty
-    (Util.Data.invert_map (Instrument.config_alloc config))
+initial_allot_state inst_addrs = AllotState Map.empty Map.empty inst_addrs
 
 allot_event :: AllotState -> (Event, Channel)
     -> (AllotState, Maybe (Event, Instrument.Addr))
@@ -310,7 +322,7 @@ allot_event state (event, ichan) =
 
 -- | Steal the least recently used address for the given instrument.
 steal_addr :: Instrument.Instrument -> AllotState -> Maybe Instrument.Addr
-steal_addr inst state = case Map.lookup inst (ast_alloc state) of
+steal_addr inst state = case Map.lookup inst (ast_inst_addrs state) of
     Just addrs -> let avail = zip addrs (map mlookup addrs)
         in if null avail then Nothing -- no addrs assigned to this instrument
             else let (addr, _) = List.minimumBy (compare `on` snd) avail

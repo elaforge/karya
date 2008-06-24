@@ -33,24 +33,29 @@ import qualified Cmd.Save as Save
 import qualified Derive.Schema as Schema
 
 import qualified App.Config as Config
+import qualified App.StaticConfig as StaticConfig
 
 
 type MidiWriter = Midi.WriteMessage -> IO ()
 type MsgReader = IO Msg.Msg
 
-responder :: MsgReader -> MidiWriter -> IO Timestamp.Timestamp
-    -> Transport.Chan -> Cmd.CmdId -> GHC.InterpreterSession -> IO ()
-responder get_msg write_midi get_ts player_chan setup_cmd session = do
+responder :: StaticConfig.StaticConfig -> MsgReader -> MidiWriter
+    -> IO Timestamp.Timestamp -> Transport.Chan -> Cmd.CmdId
+    -> GHC.InterpreterSession -> IO ()
+responder static_config get_msg write_midi get_ts player_chan setup_cmd
+        session = do
     Log.debug "start responder"
     let ui_state = State.empty
-        cmd_state = Cmd.empty_state
+        cmd_state = Cmd.initial_state
+            (StaticConfig.config_instrument_db static_config)
         cmd = setup_cmd >> Save.initialize_state >> return Cmd.Done
     (_status, ui_state, cmd_state) <- do
         cmd_val <- run_cmds Cmd.run_cmd_id ui_state cmd_state [cmd]
         handle_cmd_val "initial setup" True write_midi ui_state cmd_val
-    loop ui_state cmd_state get_msg write_midi
-        (Transport.Info player_chan write_midi get_ts)
-        session
+    let rstate = ResponderState static_config ui_state cmd_state get_msg
+            write_midi (Transport.Info player_chan write_midi get_ts)
+            session
+    loop rstate
 
 -- | Create the MsgReader to pass to 'responder'.
 create_msg_reader :: Network.Socket -> TChan.TChan UiMsg.UiMsg
@@ -106,15 +111,28 @@ hardcoded_io_cmds transport_info session =
     , DefaultKeymap.cmd_io_keymap transport_info
     ]
 
-loop :: State.State -> Cmd.State -> MsgReader -> MidiWriter -> Transport.Info
-    -> GHC.InterpreterSession -> IO ()
-loop ui_state cmd_state get_msg write_midi transport_info session = do
-    msg <- get_msg
+data ResponderState = ResponderState {
+    state_static_config :: StaticConfig.StaticConfig
+    , state_ui :: State.State
+    , state_cmd :: Cmd.State
+    , state_msg_reader :: MsgReader
+    , state_midi_writer :: MidiWriter
+    , state_transport_info :: Transport.Info
+    , state_ghc_session :: GHC.InterpreterSession
+    }
+
+loop :: ResponderState -> IO ()
+-- loop ui_state cmd_state get_msg write_midi transport_info session = do
+loop rstate = do
+    msg <- state_msg_reader rstate
     -- Apply changes that won't be diffed.  See the 'Cmd.cmd_record_ui_updates'
     -- comment.
     -- TODO: an error implies the UI is out of sync, maybe I should fail more
     -- seriously here?
     let update_cmds = map ($msg) [Cmd.cmd_record_ui_updates]
+        ui_state = state_ui rstate
+        cmd_state = state_cmd rstate
+        write_midi = state_midi_writer rstate
     (status, ui_state, cmd_state) <- do
         cmd_val <- run_cmds Cmd.run_cmd_id ui_state cmd_state update_cmds
         handle_cmd_val "record ui updates" False write_midi ui_state cmd_val
@@ -126,7 +144,10 @@ loop ui_state cmd_state get_msg write_midi transport_info session = do
 
     -- Certain commands require IO.  Rather than make everything IO,
     -- I hardcode them in a special list that gets run in IO.
-    let io_cmds = hardcoded_io_cmds transport_info session
+    let play_info =
+            ( StaticConfig.config_instrument_db (state_static_config rstate)
+            , state_transport_info rstate)
+    let io_cmds = hardcoded_io_cmds play_info (state_ghc_session rstate)
     (status, ui_state, cmd_state) <- maybe_run "run io cmds" status write_midi
         ui_state cmd_state (Cmd.run Cmd.Continue) io_cmds msg
 
@@ -136,9 +157,10 @@ loop ui_state cmd_state get_msg write_midi transport_info session = do
     (_, ui_state, cmd_state) <- maybe_run "record keys" Cmd.Continue write_midi
         ui_state cmd_state Cmd.run_cmd_id [Cmd.cmd_record_keys] msg
 
+    let rstate2 = rstate { state_ui = ui_state, state_cmd = cmd_state }
     case status of
         Cmd.Quit -> return ()
-        _ -> loop ui_state cmd_state get_msg write_midi transport_info session
+        _ -> loop rstate2
 
 -- | Run the cmds on msg if @status@ is Continue.
 maybe_run err_msg status write_midi ui_state cmd_state run cmds msg =
@@ -199,8 +221,9 @@ get_focus_cmds = do
     edit_mode <- fmap Cmd.state_edit_mode Cmd.get_state
     tracknum <- Cmd.get_insert_tracknum
 
-    let context = Schema.CmdContext midi_config edit_mode tracknum
+    let context = Schema.cmd_context midi_config edit_mode tracknum
     return $ Schema.get_cmds context (Block.block_schema block) tracks
+
 
 -- | Run the cmd just for its value.
 eval err_msg ui_state cmd_state abort_val cmd = do
