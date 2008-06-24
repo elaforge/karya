@@ -1,20 +1,24 @@
 {- | A schema is a transformation from a block to a deriver.  It may intuit the
 deriver solely from the structure of the block, or it may ignore the block
-entirely if it has a custom deriver.
+entirely if it's specialized to one particular shape of block.
 
-It's done this way so that each block doesn't need to have its own deriver
-ID hardcoded into it.
+The "schema" step is so that each block doesn't need to have its own deriver ID
+hardcoded into it.  Instead, many blocks can share a "schema" as long as they
+have the same general structure.
 
 The SchemaId -> Schema mapping looks in a hardcoded list, a custom list passed
 via static configuration, and a dynamically loaded list.  The assumed usage
 is that you experiment with new Derivers and make minor changes via dynamic
 loading, and later incorporate them into the static configuration.
 
+TODO dynamic loaded schemas are not implemented yet
+
 TODO Since the tempo track is global now, I should lose the tempo scope
 parsing.  Except that I'd like it to not be global, so I'll just leave this
 as-is unless I decide global after all.
 -}
 module Derive.Schema where
+import qualified Control.Monad.Identity as Identity
 import Control.Monad
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -42,19 +46,16 @@ import qualified App.Config as Config
 -- * types
 
 -- | A Schema attaches a number of things to a Block.
-data Schema ui = Schema {
-    schema_deriver :: SchemaDeriver ui
+data Schema = Schema {
+    schema_deriver :: SchemaDeriver
     , schema_parser :: Parser
     -- | Get a set of Cmds that are applicable within the given CmdContext.
     , schema_cmds :: CmdContext -> [Track] -> [Cmd.Cmd]
     }
 
 -- | A SchemaDeriver generates a Deriver from a given Block.
---
--- The SchemaDeriver needs to have a polymorphic UI monad because it's called
--- from both Cmd.play (IO) and LanguageCmds (Identity).  The Deriver doesn't
--- need to be polymorphic because I always run it in Identity.
-type SchemaDeriver ui = Block.Block -> ui Derive.Deriver
+type SchemaDeriver =
+    Block.Block -> State.StateT Identity.Identity Derive.Deriver
 
 -- | The parser generates a skeleton from the block, which is a description of
 -- how the deriver is structuring the tracks in the block.  Since the deriver
@@ -63,7 +64,8 @@ type SchemaDeriver ui = Block.Block -> ui Derive.Deriver
 --
 -- Although the Skeleton is not necessarily complete (e.g. derivers can assign
 -- instruments based on event text, not on track title) and a Schema doesn't
--- even have to have a parser, it's still useful to set certain defaults.
+-- even have to have a parser, it's still useful for introspection, e.g.
+-- automatically allocate instruments.
 type Parser = [Track] -> Skeleton
 
 -- | Information needed to decide what cmds should apply.
@@ -74,9 +76,9 @@ data CmdContext = CmdContext {
     , ctx_focused_tracknum :: Maybe Block.TrackNum
     }
 
-type SchemaMap ui = Map.Map Block.SchemaId (Schema ui)
+type SchemaMap = Map.Map Block.SchemaId Schema
 
-hardcoded_schemas :: (State.UiStateMonad ui) => SchemaMap ui
+hardcoded_schemas :: SchemaMap
 hardcoded_schemas = Map.fromList [(Config.schema, default_schema)]
 
 
@@ -88,7 +90,15 @@ hardcoded_schemas = Map.fromList [(Config.schema, default_schema)]
 get_deriver :: (State.UiStateMonad ui) => Block.Block -> ui Derive.Deriver
 get_deriver block = do
     schema <- State.lookup_id (Block.block_schema block) hardcoded_schemas
-    schema_deriver schema block
+    -- Running the SchemaDeriver right here lets me have SchemaDeriver in
+    -- Identity but have this function remain polymorphic on the monad.
+    -- This way a polymorphic SchemaDeriver type doesn't get out and infect
+    -- signatures everywhere.
+    --
+    -- In addition, this properly expresses that the schema deriver's doesn't
+    -- modify the state.
+    state <- State.get
+    State.eval_rethrow state (schema_deriver schema block)
 
 -- | A block's Schema also implies a set of Cmds, possibly based on the
 -- focused track.  This is so that e.g. control tracks use control editing keys
@@ -99,24 +109,18 @@ get_cmds context schema_id tracks =
     maybe [] (\sch -> schema_cmds sch context tracks) schema
     where
     schema = Map.lookup schema_id hardcoded_schemas
-        -- Haskell forces me to pick a random monad for Schema, even though
-        -- I don't use the value.
-        :: Maybe (Schema (State.StateT Maybe))
 
 get_skeleton :: (State.UiStateMonad ui) => Block.Block -> ui Skeleton
 get_skeleton block = do
     schema <- State.lookup_id (Block.block_schema block) hardcoded_schemas
-        -- "Ambiguous constraint" strikes again.
-        :: (State.UiStateMonad ui) => ui (Schema ui)
     fmap (schema_parser schema) (block_tracks block)
 
 
 -- * default schema
 
--- The default schema is supposed to be simple but useful, and rather
+-- | The default schema is supposed to be simple but useful, and rather
 -- trackerlike.
-
-default_schema :: (State.UiStateMonad ui) => Schema ui
+default_schema :: Schema
 default_schema = Schema (default_schema_deriver default_parser)
     default_parser (default_cmds default_parser)
 
@@ -182,7 +186,7 @@ instruments_of (Merge subs) = concatMap instruments_of subs
 
 -- | Tracks starting with '>' are instrument tracks, the rest are control
 -- tracks.  The control tracks scope over the next instrument track to the
--- left.  A track titled "tempo" scopes over all tracks to its right.
+-- left.  A track titled \"tempo\" scopes over all tracks to its right.
 --
 -- This should take arguments to apply to instrument and control tracks.
 --
@@ -190,7 +194,7 @@ instruments_of (Merge subs) = concatMap instruments_of subs
 -- then convert the skeleton into a deriver.  The intermediate data structure
 -- allows me to compose schemas out of smaller parts, as well as inspect the
 -- skeleton for e.g. instrument tracks named, or to create a view layout.
-default_schema_deriver :: (State.UiStateMonad ui) => Parser -> SchemaDeriver ui
+default_schema_deriver :: Parser -> SchemaDeriver
 default_schema_deriver parser block =
     fmap (compile_skeleton . parser) (block_tracks block)
 
@@ -263,7 +267,7 @@ default_parser tracks = merge $
 
 data Skeleton =
     -- | A set of controller tracks have scope over a sub-skeleton.
-    -- A controller with no "argument" track will have a Nothing sub.
+    -- A controller with no \"argument\" track will have a Nothing sub.
     Controller [Track] (Maybe Skeleton)
     | Instrument Score.Instrument Track
     | Merge [Skeleton]

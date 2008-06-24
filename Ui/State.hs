@@ -91,9 +91,16 @@ run_state state m = case st of
         Right (val, state', _) -> (val, state')
     where st = Identity.runIdentity (run state m)
 
-eval state fail_val m = case st of
-        Left _err -> fail_val
-        Right (val, _, _) -> val
+eval_rethrow :: (UiStateMonad m) => State -> StateT Identity.Identity a -> m a
+eval_rethrow = eval throw return
+
+-- | A form of 'run' that throws away the output state and updates, and applies
+-- either 'failed' or 'succeeded' on the result depending on if the monad threw
+-- or not.
+eval :: (String -> t) -> (a -> t) -> State -> StateT Identity.Identity a -> t
+eval failed succeeded state m = case st of
+        Left (StateError err) -> failed err
+        Right (val, _, _) -> succeeded val
     where st = Identity.runIdentity (run state m)
 
 -- | TrackUpdates are stored directly instead of being calculated from the
