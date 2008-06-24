@@ -16,7 +16,6 @@ as-is unless I decide global after all.
 -}
 module Derive.Schema where
 import Control.Monad
-import qualified Control.Arrow as Arrow
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.List as List
@@ -37,30 +36,56 @@ import qualified Derive.Twelve as Twelve
 
 import qualified Perform.Midi.Instrument as Instrument
 
+import qualified App.Config as Config
 
--- TODO convert the others to take SchemaId [Track]
+
+-- * types
 
 -- | A Schema attaches a number of things to a Block.
-data Schema ui d = Schema {
-    schema_deriver :: SchemaDeriver ui d
+data Schema ui = Schema {
+    schema_deriver :: SchemaDeriver ui
     , schema_parser :: Parser
+    -- | Get a set of Cmds that are applicable within the given CmdContext.
     , schema_cmds :: CmdContext -> [Track] -> [Cmd.Cmd]
     }
 
 -- | A SchemaDeriver generates a Deriver from a given Block.
-type SchemaDeriver ui d = Block.Block -> ui (Derive.DeriveT d [Score.Event])
+--
+-- The SchemaDeriver needs to have a polymorphic UI monad because it's called
+-- from both Cmd.play (IO) and LanguageCmds (Identity).  The Deriver doesn't
+-- need to be polymorphic because I always run it in Identity.
+type SchemaDeriver ui = Block.Block -> ui Derive.Deriver
 
 -- | The parser generates a skeleton from the block, which is a description of
--- how the deriver has is structuring the tracks in the block.  Since the
--- deriver itself is just a function and can't be introspected into, others can
--- use this to determine e.g. what instruments and controls are in the block.
--- Although it's not necessarily complete (e.g. derivers can assign instruments
--- based on event text, not on track title) and a Schema doesn't even have to
--- have a parser, it's still useful to set certain defaults.
+-- how the deriver is structuring the tracks in the block.  Since the deriver
+-- itself is just a function and can't be introspected into, others can use
+-- this to determine e.g. what instruments and controls are in the block.
+--
+-- Although the Skeleton is not necessarily complete (e.g. derivers can assign
+-- instruments based on event text, not on track title) and a Schema doesn't
+-- even have to have a parser, it's still useful to set certain defaults.
 type Parser = [Track] -> Skeleton
 
-get_deriver :: (State.UiStateMonad ui, Monad d) =>
-    Block.Block -> ui (Derive.DeriveT d [Score.Event])
+-- | Information needed to decide what cmds should apply.
+data CmdContext = CmdContext {
+    ctx_default_addr :: Maybe Instrument.Addr
+    , ctx_inst_addr :: Score.Instrument -> Maybe Instrument.Addr
+    , ctx_edit_mode :: Bool
+    , ctx_focused_tracknum :: Maybe Block.TrackNum
+    }
+
+type SchemaMap ui = Map.Map Block.SchemaId (Schema ui)
+
+hardcoded_schemas :: (State.UiStateMonad ui) => SchemaMap ui
+hardcoded_schemas = Map.fromList [(Config.schema, default_schema)]
+
+
+-- * look things up in the schema db
+
+-- TODO get_deriver and get_skeleton could also take SchemaId -> [Track]
+-- instead of Block... is it worth it?
+
+get_deriver :: (State.UiStateMonad ui) => Block.Block -> ui Derive.Deriver
 get_deriver block = do
     schema <- State.lookup_id (Block.block_schema block) hardcoded_schemas
     schema_deriver schema block
@@ -74,26 +99,16 @@ get_cmds context schema_id tracks =
     maybe [] (\sch -> schema_cmds sch context tracks) schema
     where
     schema = Map.lookup schema_id hardcoded_schemas
-        -- "Ambiguous constraint" lossage strikes again.
-        :: Maybe (Schema (State.StateT Maybe) Maybe)
+        -- Haskell forces me to pick a random monad for Schema, even though
+        -- I don't use the value.
+        :: Maybe (Schema (State.StateT Maybe))
 
 get_skeleton :: (State.UiStateMonad ui) => Block.Block -> ui Skeleton
 get_skeleton block = do
     schema <- State.lookup_id (Block.block_schema block) hardcoded_schemas
-        -- Haskell forces me to pick a random monad for Schema, even though
-        -- I don't use the value.  TODO why is this?
-        :: (State.UiStateMonad ui) => ui (Schema ui Maybe)
+        -- "Ambiguous constraint" strikes again.
+        :: (State.UiStateMonad ui) => ui (Schema ui)
     fmap (schema_parser schema) (block_tracks block)
-
-hardcoded_schemas :: (State.UiStateMonad ui, Monad d) =>
-    Map.Map Block.SchemaId (Schema ui d)
-hardcoded_schemas = Map.fromList $ map (Arrow.first Block.SchemaId)
-    [ ("default", default_schema)
-    ]
-
-default_schema :: (State.UiStateMonad ui, Monad d) => Schema ui d
-default_schema = Schema (default_schema_deriver default_parser)
-    default_parser (default_cmds default_parser)
 
 
 -- * default schema
@@ -101,13 +116,9 @@ default_schema = Schema (default_schema_deriver default_parser)
 -- The default schema is supposed to be simple but useful, and rather
 -- trackerlike.
 
--- | Information needed to decide what cmds should apply.
-data CmdContext = CmdContext {
-    ctx_default_addr :: Maybe Instrument.Addr
-    , ctx_inst_addr :: Score.Instrument -> Maybe Instrument.Addr
-    , ctx_edit_mode :: Bool
-    , ctx_focused_tracknum :: Maybe Block.TrackNum
-    }
+default_schema :: (State.UiStateMonad ui) => Schema ui
+default_schema = Schema (default_schema_deriver default_parser)
+    default_parser (default_cmds default_parser)
 
 cmd_context :: Instrument.Config -> Bool -> Maybe Block.TrackNum -> CmdContext
 cmd_context midi_config edit_mode focused_tracknum =
@@ -179,8 +190,7 @@ instruments_of (Merge subs) = concatMap instruments_of subs
 -- then convert the skeleton into a deriver.  The intermediate data structure
 -- allows me to compose schemas out of smaller parts, as well as inspect the
 -- skeleton for e.g. instrument tracks named, or to create a view layout.
-default_schema_deriver :: (State.UiStateMonad ui, Monad d) =>
-    Parser -> SchemaDeriver ui d
+default_schema_deriver :: (State.UiStateMonad ui) => Parser -> SchemaDeriver ui
 default_schema_deriver parser block =
     fmap (compile_skeleton . parser) (block_tracks block)
 
