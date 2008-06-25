@@ -27,19 +27,20 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.Keymap as Keymap
 import Cmd.Keymap (bind_key, bind_kmod)
 
-import qualified Cmd.Selection as Selection
+import qualified Cmd.Create as Create
 import qualified Cmd.Edit as Edit
-import qualified Cmd.Save as Save
 import qualified Cmd.Play as Play
-import qualified Cmd.View as View
+import qualified Cmd.Save as Save
+import qualified Cmd.Selection as Selection
 import qualified Cmd.TimeStep as TimeStep
+import qualified Cmd.View as View
 
 
 default_cmds :: [Cmd.Cmd]
 default_cmds =
     [ Selection.cmd_mouse_selection 1 Config.insert_selnum
     , Keymap.make_cmd (misc_bindings ++ selection_bindings
-        ++ view_config_bindings ++ edit_bindings)
+        ++ view_config_bindings ++ edit_bindings ++ create_bindings)
     ]
 
 cmd_io_keymap :: Play.PlayInfo -> Msg.Msg -> Cmd.CmdIO
@@ -60,6 +61,8 @@ io_bindings play_info =
 cmd_save, cmd_load :: Cmd.CmdIO
 cmd_save = Save.get_save_file >>= Save.cmd_save >> return Cmd.Done
 cmd_load = Save.get_save_file >>= Save.cmd_load >> return Cmd.Done
+
+done = (>> return Cmd.Done)
 
 misc_bindings =
     [ bind_kmod [Key.MetaL] (Key.KeyChar '\'') "quit" Cmd.cmd_quit
@@ -100,4 +103,11 @@ edit_bindings =
 
     , bind_key (Key.KeyChar '-') "octave -1" (Edit.cmd_modify_octave (+ (-1)))
     , bind_key (Key.KeyChar '=') "octave +1" (Edit.cmd_modify_octave (+1))
+    ]
+
+create_bindings =
+    [ command (Key.KeyChar 't') "append track"
+        (done Create.insert_track_after_selection)
+    , command (Key.KeyChar 'd') "remove track"
+        (done Create.remove_selected_tracks)
     ]

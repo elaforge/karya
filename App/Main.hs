@@ -13,6 +13,7 @@ import qualified System.Environment
 import qualified Util.Log as Log
 import qualified Util.Thread as Thread
 
+import Ui.Types
 import qualified Ui.Ui as Ui
 import qualified Ui.State as State
 
@@ -20,6 +21,8 @@ import qualified Midi.Midi as Midi
 import qualified Midi.MidiC as MidiC
 
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Create as Create
+import qualified Cmd.MakeRuler as MakeRuler
 import qualified Cmd.Responder as Responder
 import qualified Cmd.TimeStep as TimeStep
 
@@ -63,6 +66,8 @@ initialize f = do
             socket <- Network.listenOn Config.lang_port
             f socket read_chan
 
+-- Later, 'load_static_config' is passed as an argument to do_main, and main is
+-- defined in Local.hs.
 main :: IO ()
 main = initialize $ \lang_socket read_chan -> do
     Log.notice "app starting"
@@ -134,6 +139,17 @@ print_devs rdev_map wdev_map = do
 
 setup_cmd :: [String] -> Cmd.CmdIO
 setup_cmd _args = do
+    (r, over_r) <- Create.ruler
+        [MakeRuler.regular_meter (TrackPos 400) [4, 4]] "r.meter"
+    b <- Create.block r
+    v <- Create.view b
+    Create.named_track b over_r 1 "tempo" "tempo"
+    Create.track b 2
+    Create.track b 3
+    return Cmd.Done
+
+old_setup_cmd :: [String] -> Cmd.CmdIO
+old_setup_cmd _args = do
     Log.debug "setup block"
     TestSetup.initial_state
     -- Cmd state setup

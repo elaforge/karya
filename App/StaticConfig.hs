@@ -25,6 +25,8 @@ data StaticConfig = StaticConfig {
 
     -- | Run this on startup, given the app's argv.  It can set up an initial
     -- block, load a given file, or do nothing.
+    -- Remember that no block is focused when this is run, so cmds that need
+    -- a focused block will abort.
     , config_setup_cmd :: [String] -> Cmd.CmdIO
     }
 

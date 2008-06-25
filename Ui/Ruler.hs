@@ -24,6 +24,10 @@ data Ruler = Ruler {
     } deriving (Eq, Show, Read, Generics.Data, Generics.Typeable)
 ruler = Ruler
 
+-- | Empty ruler.
+no_ruler :: Ruler
+no_ruler = ruler [] Color.black False False False
+
 newtype RulerId = RulerId String
     deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
 un_ruler_id (RulerId s) = s

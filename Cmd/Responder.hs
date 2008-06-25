@@ -45,14 +45,17 @@ responder :: StaticConfig.StaticConfig -> MsgReader -> MidiWriter
 responder static_config get_msg write_midi get_ts player_chan setup_cmd
         session = do
     Log.debug "start responder"
+
     let ui_state = State.empty
         cmd_state = Cmd.initial_state
             (StaticConfig.config_instrument_db static_config)
             (StaticConfig.config_schema_map static_config)
         cmd = setup_cmd >> Save.initialize_state >> return Cmd.Done
-    (_status, ui_state, cmd_state) <- do
+    (status, ui_state, cmd_state) <- do
         cmd_val <- run_cmds (Cmd.run Cmd.Continue) ui_state cmd_state [cmd]
         handle_cmd_val "initial setup" True write_midi ui_state cmd_val
+    when (status /= Cmd.Done) $
+        Log.warn $ "setup_cmd returned not-Done status, did it abort?"
     let rstate = ResponderState static_config ui_state cmd_state get_msg
             write_midi (Transport.Info player_chan write_midi get_ts)
             session

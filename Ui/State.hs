@@ -64,8 +64,14 @@ data State = State {
     } deriving (Show, Read, Generics.Typeable, Generics.Data)
 
 -- TODO "initial_state" would be more consistent
-empty = State "untitled" "save" Map.empty Map.empty Map.empty Map.empty
+empty = State "untitled" "save" Map.empty Map.empty Map.empty ruler_map
     (Instrument.config [] Nothing)
+    where ruler_map = Map.fromList [(no_ruler, Ruler.no_ruler)]
+
+-- | Since all TracklikeIds must have a ruler, all States have a special empty
+-- ruler that can be used in a \"no ruler\" situation.
+no_ruler :: Ruler.RulerId
+no_ruler = Ruler.RulerId "* no ruler *"
 
 -- * StateT monadic access
 
@@ -330,11 +336,18 @@ remove_track block_id tracknum = do
     modify $ \st -> st { state_views = Map.union views' (state_views st) }
 
 -- | Get the TracklikeId at @tracknum@, or Nothing if its out of range.
+-- This is a little inconsistent with 'insert_track' and 'remove_track' which
+-- automatically clip to range, but is convenient in practice.
 track_at :: (UiStateMonad m) => Block.BlockId -> Block.TrackNum
     -> m (Maybe (Block.TracklikeId, Block.Width))
 track_at block_id tracknum = do
     block <- get_block block_id
     return $ Seq.at (Block.block_tracks block) tracknum
+
+tracks :: (UiStateMonad m) => Block.BlockId -> m Block.TrackNum
+tracks block_id = do
+    block <- get_block block_id
+    return $ length (Block.block_tracks block)
 
 get_tracklike :: (UiStateMonad m) => Block.TracklikeId -> m Block.Tracklike
 get_tracklike track = case track of

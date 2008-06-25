@@ -58,6 +58,7 @@ import qualified Perform.Warning as Warning
 import qualified Perform.Midi.Convert as Midi.Convert
 import qualified Perform.Midi.Instrument as Midi.Instrument
 import qualified Perform.Midi.Perform as Midi.Perform
+import qualified Perform.Midi.Controller as Midi.Controller
 import qualified Instrument.Db as Instrument.Db
 
 import qualified Midi.Midi as Midi
@@ -140,10 +141,6 @@ destroy_view :: String -> Cmd.CmdL ()
 destroy_view view_id = State.destroy_view (vid view_id)
 
 -- ** blocks
-
-get_focused_block :: Cmd.CmdL Block.BlockId
-get_focused_block = fmap Block.view_block
-    (State.get_view =<< Cmd.get_focused_view)
 
 show_block :: String -> Cmd.CmdL String
 show_block block_id = do
@@ -305,6 +302,9 @@ device_of inst = do
     inst_db <- fmap Cmd.state_instrument_db Cmd.get_state
     return $ fmap Midi.Instrument.synth_device
         (Instrument.Db.inst_lookup_synth inst_db inst)
+
+controllers_of :: Score.Instrument -> [Midi.Controller.Controller]
+controllers_of inst = undefined -- TODO
 
 
 -- * schema

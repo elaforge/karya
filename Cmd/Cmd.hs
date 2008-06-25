@@ -205,8 +205,9 @@ keys_down = fmap state_keys_down get_state
 get_focused_view :: (Monad m) => CmdT m Block.ViewId
 get_focused_view = fmap state_focused_view get_state >>= require
 
-get_focused_block :: (Monad m) => CmdT m Block.Block
-get_focused_block = get_focused_view >>= State.block_of_view
+get_focused_block :: (Monad m) => CmdT m Block.BlockId
+get_focused_block =
+    fmap Block.view_block (get_focused_view >>= State.get_view)
 
 set_focused_view :: (Monad m) => Block.ViewId -> CmdT m ()
 set_focused_view view_id = do
