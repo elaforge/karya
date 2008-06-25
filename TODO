@@ -5,6 +5,8 @@ fltk
     - possibly move selections entirely into c++
     - set_selection should do nothing if the selection hasn't changed
   - ui gets really unresponsive when the play position is being updated
+    It's probably contention for the on send_action.  Can I use Fl::lock() to
+    send selections directly?  If not, I might have to put the timer in c++.
   * text entries should scroll back to the beginning when they're unfocused
   * bug: if the first event is a modifier, it doesn't get emitted.  An fltk
     thing?
@@ -25,7 +27,7 @@ fltk
 
   * change ZoomInfo to_trackpos and to_pixels to not use offset
   * scrolling back from past the end of the track should update the scrollbar
-  - bug: moving a track under an expanded SeqInput gets screwed up since the
+  * bug: moving a track under an expanded SeqInput gets screwed up since the
     input doesn't move
 
   - figure out how to have a minimal title bar in os x (win.border(0) removes
@@ -156,6 +158,7 @@ Cmd
     * functions to create and insert tracks, views, etc.  automatically create
       IDs, prefixing current project name
     * readline using repl for send
+    - lang cmd stuff to load string serialized tracks for event cut and paste
 
   Cmd.View
     - ViewBlock abstraction: collapse/expand tracks, mute tracks

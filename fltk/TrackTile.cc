@@ -1,3 +1,5 @@
+#include <FL/Fl.H>
+#include <FL/Fl_Window.H>
 #include <FL/Fl_Widget.H>
 
 #include "util.h"
@@ -68,6 +70,16 @@ TrackTile::handle(int evt)
                 }
             }
         }
+        // HACK: defocus any inputs since there's been a click elsewhere.
+        // Normally BlockViewWindow::handle does this, but it can't tell the
+        // difference between the input taking the event and the TrackTile
+        // taking it.
+        // There's a small bug where the cursor switch back to normal because
+        // the refocus will change the cursor and MoveTile:set_cursor won't
+        // notice, but it's not a big deal.
+        // Fl_Cursor c = this->window()->cursor(); how to get old cursor?
+        Fl::focus(this->window());
+        // this->window()->cursor(c);
         return MoveTile::handle(evt);
     }
     return MoveTile::handle(evt);
