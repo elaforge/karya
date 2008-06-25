@@ -135,7 +135,7 @@ import qualified App.Config as Config
 
 
 -- | Config info needed by the player from the responder.
-type PlayInfo = (Instrument.Db.Db, Transport.Info)
+type PlayInfo = (Instrument.Db.Db, Transport.Info, Schema.SchemaMap)
 
 -- * cmds
 
@@ -151,13 +151,13 @@ cmd_play_from_insert play_info = do
     cmd_play play_info block_id pos
 
 cmd_play :: PlayInfo -> Block.BlockId -> TrackPos -> Cmd.CmdT IO Cmd.Status
-cmd_play play_info block_id start_pos = do
+cmd_play play_info@(_, transport_info, schema_map) block_id start_pos = do
     cmd_state <- Cmd.get_state
     case Cmd.state_transport cmd_state of
         Just _ -> Log.warn "player already running" >> Cmd.abort
         _ -> return ()
 
-    (derive_result, tempo_map, inv_tempo_map) <- derive block_id
+    (derive_result, tempo_map, inv_tempo_map) <- derive schema_map block_id
     events <- case derive_result of
         -- TODO properly convert to log msg
         Left derive_error -> Log.warn ("derive error: " ++ show derive_error)
@@ -169,7 +169,7 @@ cmd_play play_info block_id start_pos = do
 
     ui_state <- State.get
     Trans.liftIO $ Thread.start_thread "play position updater" $
-        updater_thread transport (snd play_info) inv_tempo_map start_ts ui_state
+        updater_thread transport transport_info inv_tempo_map start_ts ui_state
 
     Cmd.modify_state $ \st -> st { Cmd.state_transport = Just transport }
     return Cmd.Done
@@ -209,12 +209,12 @@ cmd_transport_msg msg = do
 -- * implementation
 
 -- | Derive the contents of the given block to score events.
-derive :: (Monad m) => Block.BlockId -> Cmd.CmdT m
+derive :: (Monad m) => Schema.SchemaMap -> Block.BlockId -> Cmd.CmdT m
     (Either Derive.DeriveError [Score.Event], Transport.TempoMap,
         Transport.InverseTempoMap)
-derive block_id = do
+derive schema_map block_id = do
     block <- State.get_block block_id
-    deriver <- Schema.get_deriver block
+    deriver <- Schema.get_deriver schema_map block
     ui_state <- State.get
 
     -- TODO all the derivation work could be done asynchronously by
@@ -226,7 +226,7 @@ derive block_id = do
 
 perform :: Block.BlockId -> PlayInfo -> Timestamp.Timestamp -> [Score.Event]
     -> Cmd.CmdT IO Transport.Transport
-perform block_id (inst_db, transport_info) start_ts events = do
+perform block_id (inst_db, transport_info, _) start_ts events = do
     let lookup_inst = Instrument.Db.inst_lookup_midi inst_db
     let (midi_events, convert_warnings) = Convert.convert
             lookup_inst (seek_events (Timestamp.to_track_pos start_ts) events)
@@ -313,7 +313,7 @@ updater_loop state = do
     --         ++ show tmsg ++ ", " ++ show block_pos ++ ", gone: " ++ show gone
     -- putStrLn updater_status
     when (tmsg == Transport.Play && not (null block_pos)) $ do
-        Concurrent.threadDelay 40000
+        Concurrent.threadDelay 30000
         updater_loop state
 
 

@@ -158,7 +158,8 @@ show_block block_id = do
 
 get_skeleton :: String -> Cmd.CmdL Schema.Skeleton
 get_skeleton block_id = do
-    Schema.get_skeleton =<< State.get_block (bid block_id)
+    schema_map <- Cmd.get_schema_map
+    Schema.get_skeleton schema_map =<< State.get_block (bid block_id)
 
 create_block :: (State.UiStateMonad m) =>
     String -> String -> String -> m Block.BlockId
@@ -210,7 +211,7 @@ close_event = undefined
 -- ** rulers
 
 {- Examples:
-replace_marklist (rid "r1")
+replace_marklist (rid "r1") "meter"
     (MakeRuler.regular_meter (TrackPos 2048) [4, 8, 4, 4])
 copy_marklist "meter" (rid "r1") (rid "r1.overlay")
 -}
@@ -273,10 +274,10 @@ assign_instrument inst_name addr = do
     State.set_midi_config $ config
         { Midi.Instrument.config_alloc = Map.insert addr inst alloc }
 
-schema_instruments :: (State.UiStateMonad m) =>
-    Block.BlockId -> m [Score.Instrument]
+schema_instruments :: Block.BlockId -> Cmd.CmdL [Score.Instrument]
 schema_instruments block_id = do
-    skel <- Schema.get_skeleton =<< State.get_block block_id
+    schema_map <- Cmd.get_schema_map
+    skel <- Schema.get_skeleton schema_map =<< State.get_block block_id
     return (Schema.skeleton_instruments skel)
 
 -- | Try to automatically create an instrument config based on the instruments
@@ -314,7 +315,8 @@ derive_to_midi block_id = score_to_midi =<< derive block_id
 
 derive :: String -> Cmd.CmdL [Score.Event]
 derive block_id = do
-    (result, _, _) <- Play.derive (bid block_id)
+    schema_map <- Cmd.get_schema_map
+    (result, _, _) <- Play.derive schema_map (bid block_id)
     case result of
         Left err -> State.throw $ "derive error: " ++ show err
         Right events -> return events

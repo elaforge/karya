@@ -34,6 +34,10 @@ import qualified Instrument.Db
 
 import qualified App.Config as Config
 
+import qualified Derive.Derive as Derive
+import qualified Derive.Score as Score
+import qualified Perform.Midi.Instrument as Instrument
+
 
 -- | This makes Cmds more specific than they have to be, and doesn't let them
 -- run in other monads like IO.  It's unlikely to become a problem, but if it
@@ -132,6 +136,7 @@ require = maybe abort return
 data State = State {
     -- App global state.  Unlike Ui.State, this is not saved to disk.
     state_instrument_db :: Instrument.Db.Db
+    , state_schema_map :: SchemaMap
 
     -- | Map of keys held down.  Maintained by cmd_record_keys and accessed
     -- with 'keys_down'.
@@ -157,8 +162,9 @@ data State = State {
     , state_kbd_entry_octave :: Int
     } deriving (Show, Typeable.Typeable)
 
-initial_state inst_db = State {
+initial_state inst_db schema_map = State {
     state_instrument_db = inst_db
+    , state_schema_map = schema_map
     , state_keys_down = Map.empty
     , state_transport = Nothing
     , state_focused_view = Nothing
@@ -233,6 +239,9 @@ set_status key val = do
 get_lookup_midi_instrument :: (Monad m) => CmdT m Instrument.Db.LookupInstrument
 get_lookup_midi_instrument =
     fmap (Instrument.Db.inst_lookup_midi . state_instrument_db) get_state
+
+get_schema_map :: (Monad m) => CmdT m SchemaMap
+get_schema_map = fmap state_schema_map get_state
 
 -- * basic cmds
 
@@ -396,3 +405,70 @@ update_of (Msg.Ui (UiMsg.UiMsg ctx (UiMsg.UiUpdate update))) =
     Just (ctx, update)
 update_of _ = Nothing
 
+-- * schema types
+
+-- $schema_doc
+-- These type definitions should be in Derive.Schema, but since they use
+-- Cmd and I need Cmd.State to have a SchemaMap, I have to put the types here
+-- to avoid a circular import.  They are re-exported by Derive.Schema so we
+-- can all just pretend they were defined there in the first place.
+
+-- | A Schema attaches a number of things to a Block.
+data Schema = Schema {
+    schema_deriver :: SchemaDeriver
+    , schema_parser :: Parser
+    -- | Get a set of Cmds that are applicable within the given CmdContext.
+    , schema_cmds :: CmdContext -> [Track] -> [Cmd]
+    }
+
+-- So Cmd.State can be showable, for debugging.
+instance Show Schema where
+    show _ = "<schema>"
+
+-- | A SchemaDeriver generates a Deriver from a given Block.
+type SchemaDeriver =
+    Block.Block -> State.StateT Identity.Identity Derive.Deriver
+
+-- ** parser types
+
+-- | The parser generates a skeleton from the block, which is a description of
+-- how the deriver is structuring the tracks in the block.  Since the deriver
+-- itself is just a function and can't be introspected into, others can use
+-- this to determine e.g. what instruments and controls are in the block.
+--
+-- Although the Skeleton is not necessarily complete (e.g. derivers can assign
+-- instruments based on event text, not on track title) and a Schema doesn't
+-- even have to have a parser, it's still useful for introspection, e.g.
+-- automatically allocate instruments.
+type Parser = [Track] -> Skeleton
+
+data Skeleton =
+    -- | A set of controller tracks have scope over a sub-skeleton.
+    -- A controller with no \"argument\" track will have a Nothing sub.
+    Controller [Track] (Maybe Skeleton)
+    | Instrument Score.Instrument Track
+    | Merge [Skeleton]
+    deriving (Show)
+
+-- | Smart constructor for Skeleton.
+merge :: [Skeleton] -> Skeleton
+merge [track] = track
+merge tracks = Merge tracks
+
+data Track = Track {
+    track_title :: Maybe String
+    , track_id :: Block.TracklikeId
+    , track_tracknum :: Block.TrackNum
+    } deriving (Show)
+
+-- ** cmd types
+
+-- | Information needed to decide what cmds should apply.
+data CmdContext = CmdContext {
+    ctx_default_addr :: Maybe Instrument.Addr
+    , ctx_inst_addr :: Score.Instrument -> Maybe Instrument.Addr
+    , ctx_edit_mode :: Bool
+    , ctx_focused_tracknum :: Maybe Block.TrackNum
+    }
+
+type SchemaMap = Map.Map Block.SchemaId Schema

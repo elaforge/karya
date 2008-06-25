@@ -6,8 +6,9 @@ import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
 import qualified Data.Map as Map
 import qualified Language.Haskell.Interpreter.GHC as GHC
-import System.FilePath ((</>))
+import qualified System.FilePath as FilePath
 import qualified Network
+import qualified System.Environment
 
 import qualified Util.Log as Log
 import qualified Util.Thread as Thread
@@ -41,14 +42,17 @@ import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
 
 
-load_static_config local_dir = do
-    instrument_db <- Local.Instrument.load (local_dir </> "Local/Instrument")
+load_static_config :: FilePath -> IO StaticConfig.StaticConfig
+load_static_config app_dir = do
+    instrument_db <- Local.Instrument.load $
+        FilePath.joinPath [app_dir, "Local", "Instrument"]
     return $ StaticConfig.StaticConfig {
         StaticConfig.config_instrument_db = instrument_db
-        , StaticConfig.config_schema_db = const Nothing
-        , StaticConfig.config_local_lang_dirs = [local_dir </> "Local/Lang"]
+        , StaticConfig.config_schema_map = Map.empty
+        , StaticConfig.config_local_lang_dirs =
+            [FilePath.joinPath [app_dir, "Local", "Lang"]]
         , StaticConfig.config_global_cmds = []
-        , StaticConfig.config_startup_cmd = const (return ())
+        , StaticConfig.config_setup_cmd = setup_cmd
         }
 
 initialize f = do
@@ -93,7 +97,9 @@ main = initialize $ \lang_socket read_chan -> do
     session <- GHC.newSession
     quit_request <- MVar.newMVar ()
 
+    args <- System.Environment.getArgs
     let write_midi = write_msg default_stream wdev_streams
+        setup_cmd = StaticConfig.config_setup_cmd static_config args
 
     Thread.start_thread "responder" $ do
         Responder.responder static_config get_msg write_midi get_ts
@@ -126,8 +132,8 @@ print_devs rdev_map wdev_map = do
     mapM_ print (Map.keys wdev_map)
 
 
-setup_cmd :: Cmd.CmdId
-setup_cmd = do
+setup_cmd :: [String] -> Cmd.CmdIO
+setup_cmd _args = do
     Log.debug "setup block"
     TestSetup.initial_state
     -- Cmd state setup

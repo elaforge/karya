@@ -37,7 +37,7 @@ fixdeps: fixdeps.hs
 	$(GHC) -o $@ $^
 
 test/hspp: test/hspp.hs
-	$(GHC) -O2 --make -o $@ $^
+	$(GHC) -O2 --make -W -o $@ $^
 
 .PHONY: clean
 clean:

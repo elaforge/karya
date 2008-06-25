@@ -1,10 +1,8 @@
 module App.StaticConfig where
-import qualified Control.Monad.Identity as Identity
-
-import qualified Ui.Block as Block
+import qualified Data.Map as Map
 
 import qualified Cmd.Cmd as Cmd
-import qualified Derive.Derive as Derive
+import qualified Cmd.Msg as Msg
 import qualified Derive.Schema as Schema
 
 import qualified Instrument.Db
@@ -14,33 +12,26 @@ import qualified Instrument.Db
 
 data StaticConfig = StaticConfig {
     config_instrument_db :: Instrument.Db.Db
-    , config_schema_db :: LookupSchema
+    , config_schema_map :: Schema.SchemaMap
     -- | Path to directories containing Local.Lang modules.  They will be
     -- included in the lang namespace.
     , config_local_lang_dirs :: [FilePath]
 
     -- | These Cmds are run before any of the usual ones, and can implement
-    -- local global keymaps and whatnot.  Block local Cmds are part of the
-    -- schema db.
-    , config_global_cmds :: [Cmd.Cmd]
+    -- local global keymaps and whatnot.  They're in IO for flexibility.
+    --
+    -- Cmds that are local to a Block are part of the schema db.
+    , config_global_cmds :: [Msg.Msg -> Cmd.CmdIO]
 
     -- | Run this on startup, given the app's argv.  It can set up an initial
     -- block, load a given file, or do nothing.
-    , config_startup_cmd :: [String] -> Cmd.CmdT IO ()
+    , config_setup_cmd :: [String] -> Cmd.CmdIO
     }
-
--- | The Schema leaves the UI and Deriver types polymorphic, but they only
--- wind up being run in Identity, so locking them down here keeps the type
--- signature simpler.
--- TODO maybe do this for Schema too?
-type LookupSchema = Block.SchemaId ->
-    Maybe (Schema.Schema (Cmd.CmdT Identity.Identity)
-        (Derive.DeriveT Identity.Identity))
 
 empty_config = StaticConfig {
     config_instrument_db = Instrument.Db.empty
-    , config_schema_db = const Nothing
+    , config_schema_map = Map.empty
     , config_local_lang_dirs = []
     , config_global_cmds = []
-    , config_startup_cmd = const (return ())
+    , config_setup_cmd = const (return Cmd.Done)
     }

@@ -17,8 +17,19 @@ TODO Since the tempo track is global now, I should lose the tempo scope
 parsing.  Except that I'd like it to not be global, so I'll just leave this
 as-is unless I decide global after all.
 -}
-module Derive.Schema where
-import qualified Control.Monad.Identity as Identity
+module Derive.Schema (
+    -- Re-export schema types from Cmd, to pretend they're defined here.
+    -- * types
+    Schema(..), SchemaDeriver, Parser, Skeleton(..), merge
+    , Track(..), CmdContext(..), SchemaMap
+
+    -- * lookup
+    , get_deriver, get_cmds, get_skeleton
+    , skeleton_instruments
+    -- * util
+    , block_tracks
+    , cmd_context
+) where
 import Control.Monad
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -30,6 +41,8 @@ import qualified Ui.Track as Track
 import qualified Ui.State as State
 
 import qualified Cmd.Cmd as Cmd
+import Cmd.Cmd (Schema(..), SchemaDeriver, Parser, Skeleton(..), merge,
+    Track(..), CmdContext(..), SchemaMap)
 import qualified Cmd.Edit as Edit
 import qualified Cmd.NoteEntry as NoteEntry
 
@@ -43,53 +56,24 @@ import qualified Perform.Midi.Instrument as Instrument
 import qualified App.Config as Config
 
 
--- * types
-
--- | A Schema attaches a number of things to a Block.
-data Schema = Schema {
-    schema_deriver :: SchemaDeriver
-    , schema_parser :: Parser
-    -- | Get a set of Cmds that are applicable within the given CmdContext.
-    , schema_cmds :: CmdContext -> [Track] -> [Cmd.Cmd]
-    }
-
--- | A SchemaDeriver generates a Deriver from a given Block.
-type SchemaDeriver =
-    Block.Block -> State.StateT Identity.Identity Derive.Deriver
-
--- | The parser generates a skeleton from the block, which is a description of
--- how the deriver is structuring the tracks in the block.  Since the deriver
--- itself is just a function and can't be introspected into, others can use
--- this to determine e.g. what instruments and controls are in the block.
---
--- Although the Skeleton is not necessarily complete (e.g. derivers can assign
--- instruments based on event text, not on track title) and a Schema doesn't
--- even have to have a parser, it's still useful for introspection, e.g.
--- automatically allocate instruments.
-type Parser = [Track] -> Skeleton
-
--- | Information needed to decide what cmds should apply.
-data CmdContext = CmdContext {
-    ctx_default_addr :: Maybe Instrument.Addr
-    , ctx_inst_addr :: Score.Instrument -> Maybe Instrument.Addr
-    , ctx_edit_mode :: Bool
-    , ctx_focused_tracknum :: Maybe Block.TrackNum
-    }
-
-type SchemaMap = Map.Map Block.SchemaId Schema
-
 hardcoded_schemas :: SchemaMap
 hardcoded_schemas = Map.fromList [(Config.schema, default_schema)]
+
+merge_schemas :: SchemaMap -> SchemaMap -> SchemaMap
+merge_schemas map1 map2 = Map.union map2 map1
 
 
 -- * look things up in the schema db
 
 -- TODO get_deriver and get_skeleton could also take SchemaId -> [Track]
 -- instead of Block... is it worth it?
+-- type SchemaContext = (Block.SchemaId, [Track], SchemaMap)
 
-get_deriver :: (State.UiStateMonad ui) => Block.Block -> ui Derive.Deriver
-get_deriver block = do
-    schema <- State.lookup_id (Block.block_schema block) hardcoded_schemas
+get_deriver :: (State.UiStateMonad m) => SchemaMap -> Block.Block
+    -> m Derive.Deriver
+get_deriver schema_map block = do
+    schema <- State.lookup_id (Block.block_schema block)
+        (merge_schemas hardcoded_schemas schema_map)
     -- Running the SchemaDeriver right here lets me have SchemaDeriver in
     -- Identity but have this function remain polymorphic on the monad.
     -- This way a polymorphic SchemaDeriver type doesn't get out and infect
@@ -104,26 +88,27 @@ get_deriver block = do
 -- focused track.  This is so that e.g. control tracks use control editing keys
 -- and note tracks use note entry keys, and they can set up the midi thru
 -- mapping appropriately.
-get_cmds :: CmdContext -> Block.SchemaId -> [Track] -> [Cmd.Cmd]
-get_cmds context schema_id tracks =
+get_cmds :: SchemaMap -> CmdContext -> Block.SchemaId -> [Track] -> [Cmd.Cmd]
+get_cmds schema_map context schema_id tracks =
     maybe [] (\sch -> schema_cmds sch context tracks) schema
     where
-    schema = Map.lookup schema_id hardcoded_schemas
+    schema = Map.lookup schema_id (merge_schemas hardcoded_schemas schema_map)
 
-get_skeleton :: (State.UiStateMonad ui) => Block.Block -> ui Skeleton
-get_skeleton block = do
-    schema <- State.lookup_id (Block.block_schema block) hardcoded_schemas
+get_skeleton :: (State.UiStateMonad m) => SchemaMap -> Block.Block -> m Skeleton
+get_skeleton schema_map block = do
+    schema <- State.lookup_id (Block.block_schema block)
+        (merge_schemas hardcoded_schemas schema_map)
     fmap (schema_parser schema) (block_tracks block)
 
 
--- * default schema
+block_tracks :: (State.UiStateMonad m) => Block.Block -> m [Track]
+block_tracks block = do
+    let tracks = map fst (Block.block_tracks block)
+    names <- mapM track_name tracks
+    return [Track name track num
+        | (num, (name, track)) <- zip [0..] (zip names tracks)]
 
--- | The default schema is supposed to be simple but useful, and rather
--- trackerlike.
-default_schema :: Schema
-default_schema = Schema (default_schema_deriver default_parser)
-    default_parser (default_cmds default_parser)
-
+-- | Constructor for CmdContext.
 cmd_context :: Instrument.Config -> Bool -> Maybe Block.TrackNum -> CmdContext
 cmd_context midi_config edit_mode focused_tracknum =
         CmdContext default_addr inst_addr edit_mode focused_tracknum
@@ -135,6 +120,15 @@ cmd_context midi_config edit_mode focused_tracknum =
     inst_map = Map.fromListWith min [(inst, addr)
         | (addr, inst) <- Map.assocs (Instrument.config_alloc midi_config)]
     inst_addr = flip Map.lookup inst_map
+
+
+-- * default schema
+
+-- | The default schema is supposed to be simple but useful, and rather
+-- trackerlike.
+default_schema :: Schema
+default_schema = Schema (default_schema_deriver default_parser)
+    default_parser (default_cmds default_parser)
 
 default_cmds :: Parser -> CmdContext -> [Track] -> [Cmd.Cmd]
 default_cmds parser context tracks = case track_type of
@@ -237,13 +231,6 @@ track_controller (name, signal_track_id) =
         then Derive.d_tempo
         else Controller.d_controller (Score.Controller name)
 
-block_tracks :: (State.UiStateMonad m) => Block.Block -> m [Track]
-block_tracks block = do
-    let tracks = map fst (Block.block_tracks block)
-    names <- mapM track_name tracks
-    return [Track name track num
-        | (num, (name, track)) <- zip [0..] (zip names tracks)]
-
 track_name (Block.TId tid _) =
     fmap (Just . Track.track_title) (State.get_track tid)
 track_name _ = return Nothing
@@ -264,22 +251,6 @@ default_parser tracks = merge $
     map parse_tempo_group
         -- The 0th track should be the ruler track, which I ignore.
         (split (title_matches (==tempo_track_title)) (drop 1 tracks))
-
-data Skeleton =
-    -- | A set of controller tracks have scope over a sub-skeleton.
-    -- A controller with no \"argument\" track will have a Nothing sub.
-    Controller [Track] (Maybe Skeleton)
-    | Instrument Score.Instrument Track
-    | Merge [Skeleton]
-    deriving (Show)
-merge [track] = track
-merge tracks = Merge tracks
-
-data Track = Track {
-    track_title :: Maybe String
-    , track_id :: Block.TracklikeId
-    , track_tracknum :: Block.TrackNum
-    } deriving (Show)
 
 
 parse_tempo_group tracks = case tracks of

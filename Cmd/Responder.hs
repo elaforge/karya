@@ -40,7 +40,7 @@ type MidiWriter = Midi.WriteMessage -> IO ()
 type MsgReader = IO Msg.Msg
 
 responder :: StaticConfig.StaticConfig -> MsgReader -> MidiWriter
-    -> IO Timestamp.Timestamp -> Transport.Chan -> Cmd.CmdId
+    -> IO Timestamp.Timestamp -> Transport.Chan -> Cmd.CmdIO
     -> GHC.InterpreterSession -> IO ()
 responder static_config get_msg write_midi get_ts player_chan setup_cmd
         session = do
@@ -48,9 +48,10 @@ responder static_config get_msg write_midi get_ts player_chan setup_cmd
     let ui_state = State.empty
         cmd_state = Cmd.initial_state
             (StaticConfig.config_instrument_db static_config)
+            (StaticConfig.config_schema_map static_config)
         cmd = setup_cmd >> Save.initialize_state >> return Cmd.Done
     (_status, ui_state, cmd_state) <- do
-        cmd_val <- run_cmds Cmd.run_cmd_id ui_state cmd_state [cmd]
+        cmd_val <- run_cmds (Cmd.run Cmd.Continue) ui_state cmd_state [cmd]
         handle_cmd_val "initial setup" True write_midi ui_state cmd_val
     let rstate = ResponderState static_config ui_state cmd_state get_msg
             write_midi (Transport.Info player_chan write_midi get_ts)
@@ -105,10 +106,10 @@ hardcoded_cmds =
     ]
 
 -- | And these special commands that run in IO.
-hardcoded_io_cmds transport_info session =
-    [ Language.cmd_language session
+hardcoded_io_cmds play_info session lang_dirs =
+    [ Language.cmd_language session lang_dirs
     , Play.cmd_transport_msg
-    , DefaultKeymap.cmd_io_keymap transport_info
+    , DefaultKeymap.cmd_io_keymap play_info
     ]
 
 data ResponderState = ResponderState {
@@ -122,7 +123,6 @@ data ResponderState = ResponderState {
     }
 
 loop :: ResponderState -> IO ()
--- loop ui_state cmd_state get_msg write_midi transport_info session = do
 loop rstate = do
     msg <- state_msg_reader rstate
     -- Apply changes that won't be diffed.  See the 'Cmd.cmd_record_ui_updates'
@@ -137,19 +137,25 @@ loop rstate = do
         cmd_val <- run_cmds Cmd.run_cmd_id ui_state cmd_state update_cmds
         handle_cmd_val "record ui updates" False write_midi ui_state cmd_val
 
-    focus_cmds <- eval "get focus cmds" ui_state cmd_state [] get_focus_cmds
-    let id_cmds = hardcoded_cmds ++ focus_cmds ++ DefaultKeymap.default_cmds
-    (status, ui_state, cmd_state) <- maybe_run "run pure cmds" status write_midi
-        ui_state cmd_state Cmd.run_cmd_id id_cmds msg
+    let config = state_static_config rstate
 
     -- Certain commands require IO.  Rather than make everything IO,
     -- I hardcode them in a special list that gets run in IO.
     let play_info =
-            ( StaticConfig.config_instrument_db (state_static_config rstate)
-            , state_transport_info rstate)
-    let io_cmds = hardcoded_io_cmds play_info (state_ghc_session rstate)
+            ( StaticConfig.config_instrument_db config
+            , state_transport_info rstate
+            , StaticConfig.config_schema_map config
+            )
+    let io_cmds = StaticConfig.config_global_cmds config
+            ++ hardcoded_io_cmds play_info (state_ghc_session rstate)
+                (StaticConfig.config_local_lang_dirs config)
     (status, ui_state, cmd_state) <- maybe_run "run io cmds" status write_midi
         ui_state cmd_state (Cmd.run Cmd.Continue) io_cmds msg
+
+    focus_cmds <- eval "get focus cmds" ui_state cmd_state [] get_focus_cmds
+    let id_cmds = hardcoded_cmds ++ focus_cmds ++ DefaultKeymap.default_cmds
+    (status, ui_state, cmd_state) <- maybe_run "run pure cmds" status write_midi
+        ui_state cmd_state Cmd.run_cmd_id id_cmds msg
 
     -- Record the keys last, so they show up in the next cycle's keys_down,
     -- but not this one.  This is so you can tell the difference between a
@@ -222,7 +228,9 @@ get_focus_cmds = do
     tracknum <- Cmd.get_insert_tracknum
 
     let context = Schema.cmd_context midi_config edit_mode tracknum
-    return $ Schema.get_cmds context (Block.block_schema block) tracks
+    schema_map <- Cmd.get_schema_map
+    return $
+        Schema.get_cmds schema_map context (Block.block_schema block) tracks
 
 
 -- | Run the cmd just for its value.

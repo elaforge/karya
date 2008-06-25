@@ -28,16 +28,15 @@ import qualified Cmd.Msg as Msg
 -- importing if it's not '.', unless I can use dynFlags to set -i.
 app_dir = ""
 
-cmd_language :: GHC.InterpreterSession -> Msg.Msg -> Cmd.CmdIO
-cmd_language session msg = do
+cmd_language :: GHC.InterpreterSession -> [FilePath] -> Msg.Msg -> Cmd.CmdIO
+cmd_language session lang_dirs msg = do
     (response_hdl, text) <- case msg of
         Msg.Socket hdl s -> return (hdl, s)
         _ -> Cmd.abort
     Log.notice $ "got lang: " ++ show text
     ui_state <- State.get
     cmd_state <- Cmd.get_state
-    local_modules <- get_local_modules
-    -- Trans.liftIO $ print local_modules
+    local_modules <- fmap concat (mapM get_local_modules lang_dirs)
 
     cmd <- Trans.liftIO $ GHC.withSession session
             (interpret local_modules ui_state cmd_state text)
@@ -51,16 +50,19 @@ cmd_language session msg = do
     return $ if response == (magic_quit_string++"\n")
         then Cmd.Quit else Cmd.Done
 
-get_local_modules = do
-    let lang_dir = app_dir </> "Local" </> "Lang"
+get_local_modules :: FilePath -> Cmd.CmdT IO [String]
+get_local_modules lang_dir = do
     fns <- Trans.liftIO $ Directory.getDirectoryContents lang_dir
         `Exception.catch` \exc -> do
             Log.warn $ "error reading local lang dir: " ++ show exc
             return []
     let mod_fns = map (lang_dir </>) (filter is_hs fns)
     mod_fns <- Trans.liftIO $ filterM Directory.doesFileExist mod_fns
-    return $ map (Seq.replace "/" "." . FilePath.dropExtension) mod_fns
+    -- Turn /s into dots to get a module name.  It's kind of a hack.
+    return $ map (Seq.replace (FilePath.pathSeparator:"") "."
+        . FilePath.dropExtension . FilePath.normalise) mod_fns
 
+is_hs :: FilePath -> Bool
 is_hs fn = take 1 fn /= "." && FilePath.takeExtension fn == ".hs"
 
 -- | Hack so that language cmds can quit the app, since they return strings.

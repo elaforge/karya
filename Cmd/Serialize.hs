@@ -38,14 +38,20 @@ import qualified Midi.Midi as Midi
 -- import BinaryDerive
 
 
-serialize :: IO.FilePath -> SaveState -> IO ()
+serialize :: FilePath -> SaveState -> IO ()
 serialize fname state = do
-    Exception.catchJust enoent_exc
-        (Directory.renameFile fname (fname ++ ".last"))
-        (\_exc -> return ())
+    backup_file fname
     Binary.encodeFile fname state
 
-serialize_text fname state = IO.writeFile fname (show state)
+serialize_text :: FilePath -> SaveState -> IO ()
+serialize_text fname state = do
+    backup_file fname
+    IO.writeFile fname (show state)
+
+backup_file :: FilePath -> IO ()
+backup_file fname = Exception.catchJust enoent_exc
+    (Directory.renameFile fname (fname ++ ".last"))
+    (\_exc -> return ())
 
 unserialize :: IO.FilePath
     -> IO (Either Exception.Exception SaveState)
