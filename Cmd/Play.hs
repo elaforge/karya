@@ -1,31 +1,17 @@
 {- | Master control for playing blocks.
 
-    - Find the relevant block to play.
-    - Start a thread to start feeding the notelist from the block to its sink.
-    - The process is dependent on the backend, and may need access to the midi
-    device map and writer (midi backend), or IO (language backend), or socket IO
-    (osc backend).
-    - Add absolute time to the note events' times.
-    - Optionally loop a block.
-    - Receive position update msgs and advance the playback selection.
-
-    - On cancel, kill the thread, and invoke a backend specific means to cancel
-    outstanding notes (flush midi port, kill external performer, ...).
-
-
-    Dependent on backend:
-    - send notelist to sink
-    - convert from absolute time to device specific time
-    - for realtime protocols, how far ahead of playback time to stay
-
-
     Here's how it works:
+
+    - Find the relevant block to play.
 
     - Deriver generates a performable Score and an inverse tempo map.
 
-    - The Score is passed on to Render, which starts whatever threads are
-    necessary to play the Score, and returns a transport control mutable that
-    can be used to stop the playback.
+    - The Score is preprocessed by adding the current absolute time to it
+    and skipping notes based on the start offset.
+
+    - The Score is sent to the Performer, which splits it up by backend,
+    starts whatever processes are necessary to play the notes, and returns
+    a transport control mutable that can be used to stop the playback.
 
     - The transport and tempo map are passed to a play display updater, which
     uses the tempo map to display the play position in the various blocks, and
@@ -38,16 +24,19 @@
     process needs to perform the score, the updater sweeps the play position
     along, and the app event handler is waiting for events in the responder.
 
+    - On cancel, kill the thread, and invoke a backend specific means to cancel
+    outstanding notes (flush midi port, kill external performer, ...).
+
     The performer returns a Transport, which is a mutable variable that holds
-    a state value.  The state starts Play, but the performer checks it
-    periodically to see if it has become Stop, which the responder can do if
-    requested.  This is how the responder sends messages to the performer.  The
-    responder uses the presence of the Transport in the Cmd.State to determine
-    if there is a performer running or not, and if there is one, how to control
-    it.
+    a state value.  The state starts at Play, but the performer checks it
+    periodically to see if it has become Stop, which the responder can set it
+    to if requested.  This is how the responder sends messages to the
+    performer.  The responder uses the presence of the Transport in the
+    Cmd.State to determine if there is a performer running or not, and if there
+    is one, how to control it.
 
     The performer sends messages to the responder by writing to the responder
-    chan, which is given to it by the responder in the Transport.Info data
+    chan, which is given to it by the responder in the 'Transport.Info' data
     structure when the performer is started.  The responder chan feeds into the
     responder event loop like other msgs.  The performer uses this to report if
     it dies from an error, but Playing and Stopped are actually reported by the
@@ -56,13 +45,13 @@
     The updater is kicked off simultaneously with the performer, and advances
     the play selection in its own loop, using the tempo map from the deriver.
     It will keep running as long as the transport is at Play and the tempo map
-    tells it there is more score to "play".  While the updater doesn't actually
-    play anything, it's the one that sends Playing and Stopped msgs to indicate
-    performer status.  This is because there may well be multiple simultaneous
-    performers that may complete at different times and the updater will only
-    emit Stopped if all of them have finished.  If all goes well, the updater
-    and the performer will run to completion, the updater will send Stopped,
-    and the performer will exit on its own.
+    tells it there is more score to \"play\".  While the updater doesn't
+    actually play anything, it's the one that sends Playing and Stopped msgs to
+    indicate performer status.  This is because there may well be multiple
+    simultaneous performers that may complete at different times and the
+    updater will only emit Stopped if all of them have finished.  If all goes
+    well, the updater and the performer will run to completion, the updater
+    will send Stopped, and the performer will exit on its own.
 
     So in summary, there are two communication channels: the transport, and the
     responder chan.  The transport represents current state and is used to
@@ -190,7 +179,9 @@ cmd_transport_msg msg = do
         Msg.Transport (Transport.Status block_id status) ->
             return (block_id, status)
         _ -> Cmd.abort
-    State.set_play_box block_id (play_state_color status)
+    block_ids <- fmap (Map.keys . State.state_blocks) State.get
+    mapM_ (flip State.set_play_box (play_state_color status)) block_ids
+
     Log.notice $ "player status for " ++ show block_id ++ ": " ++ show status
     case status of
         Transport.Playing -> return ()
@@ -242,8 +233,7 @@ perform block_id (inst_db, transport_info, _) start_ts events = do
             Perform.perform lookup_inst inst_config midi_events
     mapM_ (Log.warn . show) perform_warnings
 
-    -- block_id is almost totally unnecessary, it just sets the play box
-    -- TODO remove it?
+    -- block_id is only used for log msgs.
     Trans.liftIO $ Midi.Play.play transport_info block_id midi_msgs
 
 seek_events :: TrackPos -> [Score.Event] -> [Score.Event]
