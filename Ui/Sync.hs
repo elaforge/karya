@@ -104,6 +104,8 @@ run_update (Update.ViewUpdate view_id Update.CreateView) = do
         forM_ (zip (Map.keys sels) csels) $ \(selnum, csel) ->
             BlockC.set_selection view_id selnum csel
         BlockC.set_status view_id (Block.show_status view)
+        BlockC.set_zoom view_id (Block.view_zoom view)
+        BlockC.set_track_scroll view_id (Block.view_track_scroll view)
 
 run_update (Update.ViewUpdate view_id update) = do
     case update of
