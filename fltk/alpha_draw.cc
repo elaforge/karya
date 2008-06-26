@@ -29,9 +29,11 @@ void alpha_rectf(Rect r, Color c)
         data[i+1] = c.g;
         data[i+2] = c.b;
         // Just for fun, make the last line more transparent.
+        /*
         if (r.h > 1 && i >= r.w * (r.h-1) * 4)
             data[i+3] = c.a / 3;
         else
+        */
             data[i+3] = c.a;
     }
     Fl_RGB_Image im(data.get(), r.w, r.h, 4);

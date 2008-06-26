@@ -89,19 +89,21 @@ public:
             TrackPos start, TrackPos end);
     void finalize_callbacks(FinalizeCallback finalizer);
 
+    enum { DAMAGE_RANGE = FL_DAMAGE_USER1 };
+    // This area needs to be redrawn.
+    Rect damaged_area;
+
     RulerConfig config;
 protected:
     void draw();
 
 private:
-    void damage_range(TrackPos start, TrackPos end, bool point_selection);
+    void damage_range(TrackPos start, TrackPos end);
     void draw_marklists();
     void draw_mark(int offset, const Mark &mark);
     void draw_selections();
     TrackSelection selections[Config::max_selections];
 
-    // This area needs to be redrawn.
-    Rect damaged_area;
     // Widget should be shifted by this many pixels timewise.  For scrolling.
     int shift;
     ZoomInfo zoom;

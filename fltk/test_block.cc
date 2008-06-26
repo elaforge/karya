@@ -1,3 +1,4 @@
+#include <iostream>
 #include <FL/Fl.H>
 #include <FL/Fl_Double_Window.H>
 
@@ -150,6 +151,36 @@ t1_find_events(TrackPos *start_pos, TrackPos *end_pos,
     return count;
 }
 
+void
+timeout_func(void *vp)
+{
+    BlockViewWindow &view = *((BlockViewWindow *) vp);
+    static int n;
+    std::cout << "------------\n";
+    switch (n) {
+    case 0:
+        view.block.set_selection(0, Selection(selection_colors[0],
+                    2, TrackPos(20), 1, TrackPos(10)));
+        break;
+    case 1:
+        view.block.set_selection(0, Selection(selection_colors[0],
+                    2, TrackPos(20), 1, TrackPos(10)));
+        break;
+    // case 2:
+    //     view.block.set_selection(0, Selection(selection_colors[0],
+    //                 2, TrackPos(20), 1, TrackPos(5)));
+    //     break;
+    // case 3:
+    //     view.block.set_selection(0, Selection(selection_colors[0],
+    //                 2, TrackPos(20), 1, TrackPos(4)));
+    //     break;
+    default:
+        return;
+    }
+    n++;
+    Fl::repeat_timeout(1, timeout_func, vp);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -193,12 +224,18 @@ main(int argc, char **argv)
 
     print_children(&view);
 
+    Fl::add_timeout(1, timeout_func, (void*) &view);
+
+    // view_config.block_title_height = 40;
+    // view_config.track_title_height = 40;
+    // view.block.set_view_config(view_config);
+
     // view.block.set_zoom(ZoomInfo(TrackPos(128), 1));
     // view.block.set_zoom(ZoomInfo(TrackPos(64), 1));
 
+    /*
     view.block.set_selection(0, Selection(selection_colors[0],
                 3, TrackPos(60), 1, TrackPos(56)));
-    /*
     view.block.set_selection(0, Selection(selection_colors[0],
                 1, TrackPos(60), 4, TrackPos(46)));
     view.block.set_selection(0, Selection(selection_colors[0],

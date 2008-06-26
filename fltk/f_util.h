@@ -47,4 +47,14 @@ struct ClipArea {
     ~ClipArea() { fl_pop_clip(); }
 };
 
+
+// Intersect 'r' with the clip area.
+inline Rect
+clip_rect(Rect r)
+{
+    int x, y, w, h;
+    fl_clip_box(r.x, r.y, r.w, r.h, x, y, w, h);
+    return Rect(x, y, w, h);
+}
+
 #endif

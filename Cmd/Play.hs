@@ -303,7 +303,7 @@ updater_loop state = do
     --         ++ show tmsg ++ ", " ++ show block_pos ++ ", gone: " ++ show gone
     -- putStrLn updater_status
     when (tmsg == Transport.Play && not (null block_pos)) $ do
-        Concurrent.threadDelay 30000
+        Concurrent.threadDelay 40000
         updater_loop state
 
 

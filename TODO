@@ -1,12 +1,14 @@
 fltk
   - bug: inserting a new track doesn't pick up current zoom
-  bug: dragging selections is laggy
-    - implement selection redraw optimization
-    - possibly move selections entirely into c++
-    - set_selection should do nothing if the selection hasn't changed
-  - ui gets really unresponsive when the play position is being updated
-    It's probably contention for the on send_action.  Can I use Fl::lock() to
-    send selections directly?  If not, I might have to put the timer in c++.
+  optimize: dragging selections is laggy
+    * implement selection redraw optimization
+    / possibly move selections entirely into c++
+    * set_selection should do nothing if the selection hasn't changed
+    * ui gets really unresponsive when the play position is being updated
+      It's probably contention for the on send_action.  Can I use Fl::lock() to
+      send selections directly?  If not, I might have to put the timer in c++.
+  _ optimize: implement scroll redraw optimization
+  - optimize: cache marks and events from callback
   * text entries should scroll back to the beginning when they're unfocused
   * bug: if the first event is a modifier, it doesn't get emitted.  An fltk
     thing?
@@ -22,7 +24,6 @@ fltk
     it has something to do with FL_FLAT_BOX + FL_THIN_DOWN_BOX
   * bug: starting with an x,y offset makes BlockView confused
   * bug: resizing ruler to 0 crashes
-  _ optimize redraw by implementing scroll and selection damage
   - scrolling should add text height to time_end()
 
   * change ZoomInfo to_trackpos and to_pixels to not use offset

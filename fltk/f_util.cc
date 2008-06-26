@@ -56,11 +56,16 @@ show_damage(uchar d)
         strcat(buf, "child, ");
     if (d & FL_DAMAGE_EXPOSE)
         strcat(buf, "expose, ");
+    if (d & FL_DAMAGE_SCROLL)
+        strcat(buf, "scroll, ");
     if (d & FL_DAMAGE_OVERLAY)
         strcat(buf, "overlay, ");
-    // if (d & DAMAGE_ZOOM)
-    //  strcat(buf, "zoom, ");
-    buf[strlen(buf)-2] = '\0';
+    if (d & FL_DAMAGE_USER1)
+        strcat(buf, "user1, ");
+    if (d & FL_DAMAGE_USER2)
+        strcat(buf, "user2, ");
+    sprintf(buf+strlen(buf), "(%d)", d);
+    buf[strlen(buf)] = '\0';
     return buf;
 }
 
@@ -70,8 +75,9 @@ show_widget(const Fl_Widget *w)
 {
     static char buf[127];
     Rect r = rect(*w);
-    snprintf(buf, sizeof buf, "(%d %d %d %d) %s \"%s\"", r.x, r.y, r.w, r.h,
-        typeid(*w).name(), w->label());
+    snprintf(buf, sizeof buf, "(%d %d %d %d) %s \"%s\" '%s'",
+        r.x, r.y, r.w, r.h,
+        typeid(*w).name(), w->label(), show_damage(w->damage()));
     return buf;
 }
 

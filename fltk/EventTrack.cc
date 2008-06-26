@@ -1,8 +1,10 @@
 #include "config.h"
 #include "util.h"
 #include "alpha_draw.h"
+
 #include "SeqInput.h"
 #include "EventTrack.h"
+
 
 // #define DEBUG(X) ;
 
@@ -47,6 +49,13 @@ EventTrackView::set_zoom(const ZoomInfo &zoom)
     // DEBUG("zoom " << this->zoom << " to " << zoom);
     this->zoom = zoom;
     this->overlay_ruler.set_zoom(zoom);
+    if (this->zoom.factor == zoom.factor) {
+        // TODO this would be for scrolling, but it's not implemented yet
+        // this->shift = this->zoom.to_pixels(zoom.offset - this->zoom.offset);
+        this->damage(FL_DAMAGE_SCROLL);
+    } else {
+        this->damage(FL_DAMAGE_ALL);
+    }
 }
 
 
@@ -69,9 +78,8 @@ EventTrackView::update(const Tracklike &track, FinalizeCallback finalizer,
         this->redraw();
     }
     this->config = *track.track;
-    // TODO should have a damage scheme like with ruler
-    // if (start == -1 && end == -1) then update everything
-    this->redraw();
+    // Use ruler's damage range since both have to be updated at the same time.
+    this->damage(OverlayRuler::DAMAGE_RANGE);
 }
 
 
@@ -86,35 +94,52 @@ EventTrackView::finalize_callbacks(FinalizeCallback finalizer)
 void
 EventTrackView::draw()
 {
-    /*
-    uchar d = this->damage();
-
-    if (d & FL_DAMAGE_ALL) {
-        // draw_area(rect(this));
+    Rect draw_area = rect(this);
+    draw_area.h--; // tiles make a 1 pixel lower border
+    // DEBUG("track damage " << show_damage(damage()));
+    // The damage is a little hacky, because the overlay_ruler overlaps this
+    // widget.  So only having child damage means the overlay will have
+    // DAMAGE_RANGE and this widget also needs to redraw in that range.
+    if (this->damage() & ~FL_DAMAGE_CHILD) {
+        // Leave draw_area with the full size.
+        // TODO handle scroll specially
     } else {
-        if (d & FL_DAMAGE_SCROLL) {
-            // fl_scroll(...)
-            // draw_area(...) // revealed areas
-        }
+        // DEBUG("track intersect: " << draw_area.y << "--"
+        //     << overlay_ruler.draw_area.b() << " with "
+        //     << damaged_area.y << "--" << overlay_ruler.damaged_area.b());
+        draw_area = draw_area.intersect(this->overlay_ruler.damaged_area);
     }
-    */
-
-    Rect area = rect(this);
-    area.h--; // tiles make a 1 pixel lower border
-    ClipArea clip_area(area);
-    this->draw_area(area);
+    // The remaining drawing routines will optimize based on the clip rect.
+    // When overlay_ruler.draw() is called it will redundantly clip again on
+    // damage_range, but that's ok because it needs the clip when called from
+    // RulerTrackView::draw().
+    ClipArea clip_area(draw_area);
+    this->draw_area();
 }
 
 
-// Draw within 'area', which should be clipped.
-// TODO don't pass area and just call clip_rect(this)?
 void
-EventTrackView::draw_area(Rect area)
+EventTrackView::draw_area()
 {
+    Rect clip = clip_rect(rect(this));
+    if (clip.w == 0 || clip.h == 0)
+        return;
+
+    // TODO It might be cleaner to eliminate bg_box and just call fl_rectf
+    // and fl_draw_box myself.
+    // fl_color(bg_box.color());
+    // fl_rectf(clip.x, clip.y, clip.w, clip.h);
+    // DEBUG("DRAW BOX " << clip.y << "--" << clip.b());
     this->draw_child(this->bg_box);
 
-    TrackPos start = this->zoom.offset;
-    TrackPos end = this->zoom.to_trackpos(area.h) + this->zoom.offset;
+    // Code copy and pasted from OverlayRuler::draw_marklists.
+    TrackPos start = this->zoom.to_trackpos(clip.y - this->y());
+    TrackPos end = start + this->zoom.to_trackpos(clip.h);
+    start = start + this->zoom.offset;
+    end = end + this->zoom.offset;
+    // DEBUG("TRACK CLIP: " << start << "--" << end << ", "
+    //         << clip.y << "--" << clip.b());
+
     Event *events;
     TrackPos *event_pos;
     int count = this->config.find_events(&start, &end, &event_pos, &events);
@@ -128,7 +153,11 @@ EventTrackView::draw_area(Rect area)
         fl_rectf(this->x() + 1, offset, this->w() - 2, height);
     }
 
-    this->draw_child(this->overlay_ruler);
+    if (damage() & ~FL_DAMAGE_CHILD) {
+        this->draw_child(this->overlay_ruler);
+    } else {
+        this->update_child(this->overlay_ruler);
+    }
 
     int previous_bottom = -999;
     for (int i = 0; i < count; i++) {

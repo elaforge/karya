@@ -14,7 +14,10 @@
 // drawn on a 0 size selection.
 const static int selection_point_size = 4;
 // Selections are always at least this many pixels.
-const static int selection_min_size = 4;
+const static int selection_min_size = 3;
+
+// Hack for debugging.
+#define SHOW_RANGE(r) (r).y << "--" << (r).b()
 
 void
 OverlayRuler::set_zoom(const ZoomInfo &zoom)
@@ -22,7 +25,8 @@ OverlayRuler::set_zoom(const ZoomInfo &zoom)
     if (this->zoom == zoom)
         return;
     if (this->zoom.factor == zoom.factor) {
-        this->shift = this->zoom.to_pixels(zoom.offset - this->zoom.offset);
+        // TODO shift is for scrolling, but it's not implemented yet
+        // this->shift = this->zoom.to_pixels(zoom.offset - this->zoom.offset);
         this->damage(FL_DAMAGE_SCROLL);
     } else {
         this->damage(FL_DAMAGE_ALL);
@@ -41,24 +45,29 @@ OverlayRuler::set_selection(int selnum, int tracknum, const Selection &sel)
     const TrackSelection &olds = this->selections[selnum];
 
     if (olds.empty() && !news.empty()) {
-        // DEBUG("news " << news.start << "--" << news.end);
-        this->damage_range(news.start, news.end, true);
+        // DEBUG("add new " << news.start << "--" << news.end);
+        damage_range(news.start, news.end);
     } else if (!olds.empty() && news.empty()) {
         // DEBUG("clear old " << olds.start << "--" << olds.end);
-        this->damage_range(olds.start, olds.end, true);
+        damage_range(olds.start, olds.end);
     } else if (!olds.empty() && !news.empty()) {
-        // DEBUG("start " << std::min(olds.start, news.start) << "--"
-        //         << std::max(olds.start, news.start));
-        // DEBUG("end " << std::min(olds.end, news.end) << "--"
-        //         << std::max(olds.end, news.end));
-        // TODO this isn't accurate if it's non-point going to point or
-        // vice versa, but I don't care right now
-        bool point_selection =
-            olds.start == olds.end || news.start == news.end;
-        this->damage_range(std::min(olds.start, news.start),
-                std::max(olds.start, news.start), point_selection);
-        this->damage_range(std::min(olds.end, news.end),
-                std::max(olds.end, news.end), point_selection);
+        if (olds.end <= news.start || news.end <= olds.start) {
+            // Not overlapping
+            // DEBUG("not overlapping");
+            damage_range(olds.start, olds.end);
+            damage_range(news.start, news.end);
+        } else {
+            TrackPos start0 = std::min(olds.start, news.start);
+            TrackPos end0 = std::max(olds.start, news.start);
+            TrackPos start1 = std::min(olds.end, news.end);
+            TrackPos end1 = std::max(olds.end, news.end);
+            if (end0 > start0)
+                damage_range(start0, end0);
+            if (end1 > start1)
+                damage_range(start1, end1);
+            // DEBUG("overlap: 0 " << start0 << "--" << end0
+            //     << ", 1 " << start1 << "--" << end1);
+        }
     }
     this->selections[selnum] = news;
 }
@@ -82,7 +91,7 @@ OverlayRuler::set_config(const RulerConfig &config, FinalizeCallback finalizer,
 {
     this->finalize_callbacks(finalizer);
     this->config = config;
-    this->damage_range(start, end, false);
+    this->damage_range(start, end);
 }
 
 
@@ -101,21 +110,17 @@ OverlayRuler::draw()
     draw_area.h--; // tiles make a 1 pixel left/lower border
     draw_area.w--;
     draw_area.x++;
+
+    // DEBUG("RULER DAMAGE " << show_damage(damage()));
+    if (this->damage() & ~OverlayRuler::DAMAGE_RANGE) {
+    } else {
+        // DEBUG("INTERSECT: " << SHOW_RANGE(draw_area) << " with "
+        //     << SHOW_RANGE(damaged_area) << " = "
+        //     << SHOW_RANGE(draw_area.intersect(this->damaged_area)));
+        draw_area = draw_area.intersect(this->damaged_area);
+    }
     // Prevent marks at the top and bottom from drawing outside the ruler.
     ClipArea clip_area(draw_area);
-
-    /*
-    uchar d = this->damage();
-
-    if (d & FL_DAMAGE_ALL) {
-        // draw_area(rect(this));
-    } else {
-        if (d & FL_DAMAGE_SCROLL) {
-            // fl_scroll(...)
-            // draw_area(...) // revealed areas
-        }
-    }
-    */
 
     // DEBUG("draw group");
     Fl_Group::draw();
@@ -129,34 +134,31 @@ OverlayRuler::draw()
 }
 
 
-// Intersect 'r' with the clip area.
-static Rect
-clip_rect(Rect r)
-{
-    int x, y, w, h;
-    fl_clip_box(r.x, r.y, r.w, r.h, x, y, w, h);
-    return Rect(x, y, w, h);
-}
-
-
 void
-OverlayRuler::damage_range(TrackPos start, TrackPos end, bool point_selection)
+OverlayRuler::damage_range(TrackPos start, TrackPos end)
 {
     Rect r = rect(this);
     if (start == TrackPos(-1) and end == TrackPos(-1)) {
         ; // leave it covering the whole widget
     } else {
-        r.y = this->zoom.to_pixels(start - this->zoom.offset);
-        r.h = this->zoom.to_pixels(end);
-        if (point_selection && start == end) {
+        r.y += this->zoom.to_pixels(start - this->zoom.offset);
+        r.h = this->zoom.to_pixels(end - start);
+        // Since the selection point extends downwards a bit, always extend a
+        // little to cover it if it was there.  This is so when the selection
+        // is no longer a point the extra hanging bit will be cleared properly.
+        // The problem doesn't occur above the selection because it hangs down,
+        // not up.
+        r.h += selection_point_size;
+        if (start == end) {
             r.y -= selection_point_size;
-            r.h += selection_point_size * 2;
+            r.h += selection_point_size;
         }
     }
-    if (r.h > 0) {
-        this->damaged_area.union_(r);
-        this->damage(FL_DAMAGE_USER1);
-    }
+
+    // DEBUG(SHOW_RANGE(damaged_area) << " UNION " << SHOW_RANGE(r)
+    //         << " = " << SHOW_RANGE(damaged_area.union_(r)));
+    this->damaged_area = this->damaged_area.union_(r);
+    this->damage(OverlayRuler::DAMAGE_RANGE);
 }
 
 
@@ -168,11 +170,24 @@ OverlayRuler::draw_marklists()
     if (clip.w == 0 || clip.h == 0)
         return;
 
+    TrackPos start = this->zoom.to_trackpos(clip.y - this->y());
+    TrackPos end = start + this->zoom.to_trackpos(clip.h);
+    start = start + this->zoom.offset;
+    end = end + this->zoom.offset;
+    // DEBUG("RULER CLIP: " << start << "--" << end << ", "
+    //         << SHOW_RANGE(clip));
+
     TrackPos *mark_tps;
     Mark *marks;
     int count = 0;
-    TrackPos start = this->zoom.offset;
-    TrackPos end = this->zoom.to_trackpos(clip.h) + this->zoom.offset;
+
+    // Show updated range, for debugging.
+    // Fl_Color colors[] =
+    //     { FL_RED, FL_GREEN, FL_YELLOW, FL_BLUE, FL_MAGENTA, FL_CYAN };
+    // static int colori;
+    // fl_color(colors[colori]);
+    // colori = (colori+1) % sizeof colors;
+    //  fl_rectf(clip.x + 10, clip.y, 2, clip.h);
 
     fl_font(Config::font, Config::font_size::ruler);
     // Later marklists will draw over earlier ones.
@@ -238,6 +253,7 @@ OverlayRuler::draw_mark(int offset, const Mark &mark)
 void
 OverlayRuler::draw_selections()
 {
+    Rect sel_rect;
     for (int i = 0; i < Config::max_selections; i++) {
         const TrackSelection &sel = this->selections[i];
         if (sel.empty())
@@ -245,13 +261,15 @@ OverlayRuler::draw_selections()
         int start = y() + this->zoom.to_pixels(sel.start - this->zoom.offset);
         int height = std::max(selection_min_size,
                 this->zoom.to_pixels(sel.end - sel.start));
-        alpha_rectf(Rect(x(), start, w(), height), sel.color);
+        sel_rect = clip_rect(Rect(x(), start, w(), height));
+        // DEBUG("SEL rectf " << sel_rect.y << "--" << sel_rect.b());
+        alpha_rectf(sel_rect, sel.color);
         if (sel.start == sel.end) {
             // Darken the select color a bit, and make it non-transparent.
             fl_color(color_to_fl(sel.color.scale(0.5)));
             fl_line_style(FL_SOLID, 1);
             fl_line(x() + 2, start, x() + w() - 2, start);
-            // Draw little bevel thingy.
+            // Draw a little bevel thingy.
             const int sz = selection_point_size;
             fl_polygon(x(), start - sz, x() + 4, start, x(), start + sz);
         }

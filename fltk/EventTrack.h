@@ -57,7 +57,7 @@ protected:
     void draw();
 
 private:
-    void draw_area(Rect area);
+    void draw_area();
     int draw_upper_layer(int offset, const Event &event, int previous_bottom);
 
     EventTrackConfig config;
