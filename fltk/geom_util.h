@@ -43,6 +43,9 @@ typedef PointTmpl<bool> BoolPoint;
 
 // Rect
 
+// Rects are stored as x, y, w, h.  Actually, using this instead of
+// x0, y0, x1, y1 seems like a dumb move because that way the whole question
+// of negative widths wouldn't arise.  But I guess x0>x1 is the same problem.
 template<class T>
 struct RectTmpl {
     T x, y, w, h;
@@ -83,38 +86,29 @@ struct RectTmpl {
         y = std::max(y, o.y);
     }
 
-    // Expand to contain 'o'.
-    void union_(const RectTmpl<T> &o) {
-        if (w == T() || o.w == T()) { // empty dimensions have no effect
-            w = std::max(x, o.w);
-            x = std::max(x, o.x);
-        } else {
-            w = std::max(r(), o.r()) - std::min(x, o.x);
-            x = std::min(x, o.x);
-        }
-        if (h == T() || o.h == T()) {
-            h = std::max(h, o.h);
-            y = std::max(y, o.y);
-        } else {
-            h = std::max(b(), o.b()) - std::min(y, o.y);
-            y = std::min(y, o.y);
+    // Return the union of this and 'o'.
+    RectTmpl<T> union_(const RectTmpl<T> &o) {
+        // Rects with 0 width are ignored.
+        if (o.w==T() || o.h==T())
+            return *this;
+        else if (w==T() || h==T())
+            return o;
+        else {
+            T x_ = std::min(this->x, o.x);
+            T y_ = std::min(this->y, o.y);
+            T r_ = std::max(this->r(), o.r());
+            T b_ = std::max(this->b(), o.b());
+            return RectTmpl<T>(x_, y_, r_ - x_, b_ - y_);
         }
     }
 
-    // clip this to lie within o
-    void clip(const RectTmpl<T> &o) {
-        if (x < o.x) {
-            w -= o.x - x;
-            x = o.x;
-        }
-        if (y < o.y) {
-            h -= o.y - y;
-            y = o.y;
-        }
-        if (r() > o.r())
-            w = o.r() - x;
-        if (b() > o.b())
-            h = o.b() - y;
+    // Return the intersection of this with 'o'.
+    RectTmpl<T> intersect(const RectTmpl<T> &o) {
+        T x_ = std::max(this->x, o.x);
+        T y_ = std::max(this->y, o.y);
+        T r_ = std::min(this->r(), o.r());
+        T b_ = std::min(this->b(), o.b());
+        return RectTmpl<T>(x_, y_, std::max(0, r_ - x_), std::max(0, b_ - y_));
     }
 
     void normalize() {
