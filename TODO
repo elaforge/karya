@@ -58,6 +58,8 @@ fltk
     * overlay ruler
     * events
     * bug: scrolling gets little one pixels shifts
+    - "currently edited" event shouldn't be hidden by previous ones
+    - minimal redraw doesn't display hidden events quite right
   Ruler
     * include selection in time_end
     * scroll to keep moving edge of selection in view, go to bottom edge if
@@ -188,9 +190,10 @@ Cmd
       - add undo history to on-disk format
 
   Cmd.MakeRuler
-    - implement irregular divisions
-    - automatic divisions zoom levels could use some tuning
+    * implement irregular divisions
+    - automatic divisions zoom levels could use some tuning, should be by pixel
     - functions to modify zoom levels and other mark attributes
+    - functions to splice time or a Meter into a ruler
 
 Derive
   * simplest possible derivation -> midi render

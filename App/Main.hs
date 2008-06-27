@@ -15,6 +15,7 @@ import qualified Util.Thread as Thread
 
 import Ui.Types
 import qualified Ui.Ui as Ui
+import qualified Ui.Block as Block
 import qualified Ui.State as State
 
 import qualified Midi.Midi as Midi
@@ -140,12 +141,14 @@ print_devs rdev_map wdev_map = do
 setup_cmd :: [String] -> Cmd.CmdIO
 setup_cmd _args = do
     (r, over_r) <- Create.ruler
-        [MakeRuler.regular_meter (TrackPos 400) [4, 4]] "r.meter"
+        [MakeRuler.meter_ruler 16 MakeRuler.m44] "meter_44"
+
     b <- Create.block r
     v <- Create.view b
     Create.named_track b over_r 1 "tempo" "tempo"
     Create.track b 2
     Create.track b 3
+    State.set_zoom v (Block.Zoom (TrackPos 0) 0.1)
     return Cmd.Done
 
 old_setup_cmd :: [String] -> Cmd.CmdIO

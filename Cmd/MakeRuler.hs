@@ -10,18 +10,14 @@ make_meter (TrackPos 1024) [8, 4, 4, 4]
 -- a block with 8 measures, each in 3/4
 [8, 3, 4]
 
-There are two ways to do irregularly divided groups:
-- irregular division, even spacing
-You can do this flat, e.g.: [3,3,2]
-
-irregular division, irregular spacing
-
 -}
 module Cmd.MakeRuler where
+import Prelude hiding (repeat)
+import Data.Function
 import qualified Data.List as List
-import qualified Data.Map as Map
+import Data.Ratio
 
-import Ui.Types
+import qualified Util.Seq as Seq
 import qualified Ui.Color as Color
 import qualified Ui.Ruler as Ruler
 
@@ -45,46 +41,27 @@ meter_marklist = "meter"
 
 -- ** meter constants
 
--- | Meters are rulers with repeating marks based on even subdivisions.
--- Each subdivided unit is called a measure, and the MeasureConfig describes
--- the marks at that measure's level, and how many sub-measures it's divided
--- into.
---
--- In traditional notation, one measure level would correspond to the barlines,
--- and the next measure below that would correspond to the meter.  E.g. 3/4
--- would be an unspecified number of measures with 3 divisions, followed by
--- 4 divisions, with unspecified further divisions.  9/8 would be n->3->3->n.
---
--- TODO this doesn't support irregular subdivisions, like 3+3+2, I could do
--- that with a list of divisions.
---
--- (mark_color, (rank, width, zoom_level), divisions)
-type MeasureConfig = (Color.Color, (Integer, Integer, Double), Integer)
-
 -- | The mark color defaults to mostly transparent so it looks nice on overlay
 -- rulers.
 mcolor r g b = Color.rgba r g b 0.35
 
--- | Colors used for the meter marklist, in order of increasing rank.
-meter_colors :: [Color.Color]
-meter_colors =
-    [ mcolor 0.0 0.0 0.0 -- block section
-    , mcolor 0.4 0.3 0.0 -- whole
-    , mcolor 1.0 0.4 0.2 -- quarter
-    , mcolor 1.0 0.2 0.7 -- 16th
-    , mcolor 0.1 0.5 0.1 -- 64th
-    , mcolor 0.0 0.0 0.0 -- 256th
-    ]
-
--- | Rank descriptions, used with 'meter_colors' to form [MeasureConfig].
-meter_ranks :: [(Integer, Integer, Double)]
+-- | Configs for marks in order of increasing rank.
+-- (color, width, zoom_level)
+--
+-- TODO zoom_level isn't right because it's absolute zoom amount, which means
+-- it has to be tuned for the distance between each mark.  What I really want
+-- is to give zoom in terms of pixels between each mark before it disappears,
+-- and then the pixels are scaled to a zoom based on the distance between the
+-- marks.
+meter_ranks :: [(Color.Color, Int, Double)]
 meter_ranks =
-    [ (0, 3, 0)
-    , (1, 3, 0.1)
-    , (2, 2, 1)
-    , (3, 1, 4)
-    , (4, 1, 16)
-    , (5, 1, 64)
+    [ (mcolor 0.3 0.3 0.3, 3, 0)    -- block begin and end
+    , (mcolor 0.0 0.0 0.0, 3, 0)    -- block section
+    , (mcolor 0.4 0.3 0.0, 2, 0.01) -- whole
+    , (mcolor 1.0 0.4 0.2, 2, 0.1)  -- quarter
+    , (mcolor 1.0 0.2 0.7, 1, 0.5)  -- 16th
+    , (mcolor 0.1 0.5 0.1, 1, 4)    -- 64th
+    , (mcolor 0.0 0.0 0.0, 1, 8)    -- 256th
     ]
 
 -- * constructors
@@ -103,45 +80,96 @@ as_overlay ruler = ruler
 
 -- ** construct meters
 
-regular_meter :: TrackPos -> [Integer] -> Ruler.NameMarklist
-regular_meter dur divs = Ruler.marklist meter_marklist (make_marks dur configs)
-    where configs = List.zip3 meter_colors meter_ranks divs
+-- | Convert the given meter into a \"meter\" marklist.  The mark positions
+-- are multiplied by @mult@.
+meter_ruler :: Double -> Meter -> Ruler.NameMarklist
+meter_ruler mult meter = marks_to_ruler (meter_marks mult meter)
 
-make_marks :: TrackPos -> [MeasureConfig] -> [Ruler.PosMark]
-make_marks dur configs = Map.toAscList $ Map.fromAscListWith (flip const) $
-    make_measure "" (TrackPos 0) dur configs
+-- | A Meter is a structured description of how a unit of time is broken up
+-- into hiererchical sections.  A 'T' represents a mark with the given
+-- duration, and a 'D' is a group of Meters.  The rank of each mark is
+-- determined by its nesting depth.
+--
+-- A Meter can be created either by declaring it outright, or by declaring
+-- a simpler Meter and further subdividing it.
+data Meter = T (Ratio Integer) | D [Meter]
+    deriving (Eq, Show)
 
--- | Make a measure and the measure levels beneath it, according to the given
--- MeasureConfigs.
-make_measure :: String -> TrackPos -> TrackPos -> [MeasureConfig]
-    -> [Ruler.PosMark]
-make_measure _ _ _ [] = []
-make_measure name pos measure_dur (config:rest_config) =
-    concat [(pos_at n, mark_at n) : sub_measure n | n <- [0..divisions-1]]
+replace_t :: (Ratio Integer -> Meter) -> Meter -> Meter
+replace_t f (D ts) = D (map (replace_t f) ts)
+replace_t f (T x) = f x
+
+subdivide :: Int -> Meter -> Meter
+subdivide n = replace_t (const (D (replicate n (T 1))))
+
+subdivide_dur :: Meter -> Meter
+subdivide_dur = replace_t (\n -> (D (replicate (floor n) (T 1))))
+
+repeat :: Int -> Meter -> Meter
+repeat n meter = D $ replicate n meter
+
+-- | Form a meter based on regular subdivision.  E.g. [4, 4] is 4 groups of 4,
+-- and [3, 3] is like 9/8.
+regular_subdivision :: [Int] -> Meter
+regular_subdivision ns = foldr subdivide (T 1) ns
+
+-- ** predefined meters
+
+m44 = regular_subdivision [4, 4, 4, 4]
+m332 = repeat 4 $ subdivide 4 $ subdivide_dur $ D (map T [3, 3, 2])
+
+mshow = map snd . meter_marks 1
+
+
+-- ** meter implementation
+
+-- | Simplified description of a mark with just (time, rank).
+type MarkRank = (Double, Int)
+
+-- | Convert a Meter into [MarkRank], which can later be turned into [PosMark].
+meter_marks :: Double -> Meter -> [MarkRank]
+meter_marks mult meter = map minimum $ List.groupBy ((==) `on` fst) marks
     where
-    sub_measure n =
-        make_measure (name_at n) (pos_at n) sub_measure_dur rest_config
+    marks = dur_to_pos $ convert_meter 0 (map_t (* realToFrac mult) meter)
 
-    mark_at n = mark_config config (name_at n)
-    pos_at n = pos + sub_measure_dur * TrackPos n
+convert_meter rank (T v) = [(realToFrac v, rank)]
+convert_meter rank (D meter) =
+    (0, rank) : concatMap (convert_meter (rank+1)) meter
 
-    name_at n = name ++ (if null name then "" else ".") ++ show n
-    (_, _, divisions) = config
-    sub_measure_dur = measure_dur `div` TrackPos divisions
+map_t f = replace_t (T . f)
 
-mark_config :: MeasureConfig -> String -> Ruler.Mark
-mark_config config name = Ruler.Mark (fromIntegral rank) (fromIntegral width)
-        color name (zoom*2) zoom
+-- | Convert marks with time durations to ones with absolute times.
+-- A rank 0 mark will be appended to mark the end of the meter.
+dur_to_pos :: [MarkRank] -> [MarkRank]
+dur_to_pos marks = timed ++ [(final, 0)]
     where
-    (color, (rank, width, zoom), _) = config
+    (final, timed) =
+        List.mapAccumL (\pos (d, rank) -> (pos+d, (pos, rank))) 0 marks
+
+marks_to_ruler :: [MarkRank] -> Ruler.NameMarklist
+marks_to_ruler marks = Ruler.marklist meter_marklist pos_marks
+    where
+    pos_marks = [(floor pos, mark rank name)
+        | ((pos, rank), name) <- zip marks (mark_names marks)]
+    mark rank name = let (color, width, zoom) = meter_ranks !! (min rank ranks)
+        in Ruler.Mark rank width color name (zoom*2) zoom
+    ranks = length meter_ranks
+
+mark_names :: [MarkRank] -> [String]
+mark_names marks = map (Seq.join "." . map show . reverse) $ snd $
+    List.mapAccumL mkname (-1, []) marks
+    where
+    mkname (prev_rank, prev_path) (_pos, rank) = ((rank, path), path)
+        where
+        path
+            | rank > prev_rank = (if null prev_path then 0 else 1) : prev_path
+            | otherwise = inc $ drop (min 1 (prev_rank - rank)) prev_path
+        inc xs = case xs of
+            (x:xs) -> x+1 : xs
+            [] -> []
 
 
--- * testing
 
-m44_configs :: [MeasureConfig]
-m44_configs = [(color, rank, 4) | (color, rank) <- zip meter_colors meter_ranks]
-
-m44 = make_marks (TrackPos 64) (take 2 m44_configs)
 pretty_marks pos_marks = pslist $
     map (\(p, m) -> printf "%s: \t%d '%s'"
         (show p) (Ruler.mark_rank m) (Ruler.mark_name m))
