@@ -380,7 +380,7 @@ sync_zoom_status view_id = do
 show_zoom_status :: Block.Zoom -> String
 show_zoom_status (Block.Zoom offset factor) =
     "+" ++ Ui.Types.pretty_pos offset ++ "*" ++ fact
-    where fact = printf "%.3f" factor
+    where fact = printf "%.1f" factor
 
 ui_update_state :: UiMsg.Context -> UiMsg.UiUpdate -> CmdT Identity.Identity ()
 ui_update_state ctx@(UiMsg.Context (Just view_id) _track _pos) update =

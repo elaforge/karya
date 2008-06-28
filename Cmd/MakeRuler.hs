@@ -47,22 +47,19 @@ meter_marklist = "meter"
 mcolor r g b = Color.rgba r g b 0.35
 
 -- | Configs for marks in order of increasing rank.
--- (color, width, zoom_level)
+-- (color, width, zoom_pixels)
 --
--- TODO zoom_level isn't right because it's absolute zoom amount, which means
--- it has to be tuned for the distance between each mark.  What I really want
--- is to give zoom in terms of pixels between each mark before it disappears,
--- and then the pixels are scaled to a zoom based on the distance between the
--- marks.
-meter_ranks :: [(Color.Color, Int, Double)]
+-- @zoom_pixels@ is how many pixels of space a mark at this rank must have
+-- between its neighbors before it appears.
+meter_ranks :: [(Color.Color, Int, Int)]
 meter_ranks =
     [ (mcolor 0.3 0.3 0.3, 3, 0)    -- block begin and end
-    , (mcolor 0.0 0.0 0.0, 3, 1)    -- block section
-    , (mcolor 0.4 0.3 0.0, 2, 4)    -- whole
-    , (mcolor 1.0 0.4 0.2, 2, 16)   -- quarter
-    , (mcolor 1.0 0.2 0.7, 1, 64)   -- 16th
-    , (mcolor 0.1 0.5 0.1, 1, 256)  -- 64th
-    , (mcolor 0.0 0.0 0.0, 1, 1024) -- 256th
+    , (mcolor 0.0 0.0 0.0, 3, 8)    -- block section
+    , (mcolor 0.4 0.3 0.0, 2, 8)    -- whole
+    , (mcolor 1.0 0.4 0.2, 2, 8)    -- quarter
+    , (mcolor 1.0 0.2 0.7, 1, 8)    -- 16th
+    , (mcolor 0.1 0.5 0.1, 1, 8)    -- 64th
+    , (mcolor 0.0 0.0 0.0, 1, 8)    -- 256th
     ]
 
 -- * constructors
@@ -125,13 +122,12 @@ mshow = map snd . meter_marks 1
 -- ** meter implementation
 
 -- | Simplified description of a mark with just (time, rank).
-type MarkRank = (Double, Int)
+type MarkRank = (TrackPos, Int)
 
 -- | Convert a Meter into [MarkRank], which can later be turned into [PosMark].
 meter_marks :: Double -> Meter -> [MarkRank]
 meter_marks mult meter = map minimum $ List.groupBy ((==) `on` fst) marks
-    where
-    marks = dur_to_pos $ convert_meter 0 (map_t (* realToFrac mult) meter)
+    where marks = dur_to_pos $ convert_meter 0 (map_t (* realToFrac mult) meter)
 
 convert_meter rank (T v) = [(realToFrac v, rank)]
 convert_meter rank (D meter) =
@@ -150,11 +146,27 @@ dur_to_pos marks = timed ++ [(final, 0)]
 marks_to_ruler :: [MarkRank] -> Ruler.NameMarklist
 marks_to_ruler marks = Ruler.marklist meter_marklist pos_marks
     where
-    pos_marks = [(track_pos pos, mark rank name)
-        | ((pos, rank), name) <- zip marks (mark_names marks)]
-    mark rank name = let (color, width, zoom) = meter_ranks !! (min rank ranks)
+    pos_marks = [(track_pos pos, mark dur rank name)
+        | ((pos, rank), dur, name) <- zip3 marks durs (mark_names marks)]
+    -- I know I just converted dur_to_pos, but go back to dur again, now that
+    -- they're at their final positions.
+    durs = mark_durs marks
+    mark dur rank name =
+        let (color, width, pixels) = meter_ranks !! (min rank ranks)
+            zoom = if dur == 0
+                then 0
+                else fromIntegral pixels / realToFrac dur
         in Ruler.Mark rank width color name (zoom*2) zoom
     ranks = length meter_ranks
+
+mark_durs = map mark_dur . List.tails
+-- | The duration of a mark is the distance until the next mark of equal or
+-- greater (lower) rank.
+mark_dur :: [MarkRank] -> TrackPos
+mark_dur [] = TrackPos 0
+mark_dur ((pos, rank) : marks) = next_pos - pos
+    where (next_pos, _) = maybe (0, 0) id (List.find ((<=rank) . snd) marks)
+
 
 mark_names :: [MarkRank] -> [String]
 mark_names marks = map (Seq.join "." . map show . drop 1 . reverse) $ snd $

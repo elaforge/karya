@@ -191,7 +191,7 @@ Cmd
 
   Cmd.MakeRuler
     * implement irregular divisions
-    - automatic divisions zoom levels could use some tuning, should be by pixel
+    * automatic divisions zoom levels could use some tuning, should be by pixel
     - functions to modify zoom levels and other mark attributes
     - functions to splice time or a Meter into a ruler
 
