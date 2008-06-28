@@ -57,11 +57,11 @@ cmd_zoom_around view_id pos f = do
     return Cmd.Done
 
 zoom_around (Block.Zoom offset factor) pos f =
-    Block.Zoom (floor (zoom_pos (i offset) (i pos) factor newf)) newf
+    Block.Zoom (zoom_pos offset pos (track_pos factor) (track_pos newf)) newf
     where
-    i = fromIntegral
     newf = f factor
 
+zoom_pos :: TrackPos -> TrackPos -> TrackPos -> TrackPos -> TrackPos
 zoom_pos offset pos oldf newf = (offset - pos) * (oldf/newf) + pos
 
 get_zoom view_id = fmap Block.view_zoom (State.get_view view_id)

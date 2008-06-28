@@ -242,7 +242,8 @@ Perform
 
 Instrument DB
   * simple integrated version with just hardcoded midi instruments
-  - search language + tool
+  - instrument browser
+  - search language
 
 tests
   + some kind of organized hunit / quickcheck for pure code

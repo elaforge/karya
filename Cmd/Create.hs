@@ -19,6 +19,8 @@ import qualified Cmd.MakeRuler as MakeRuler
 import qualified App.Config as Config
 
 
+-- TODO map something across all IDs, to rename the project
+
 -- * block
 
 -- | BlockIds look like \"proj.b0\", \"proj.b1\", etc.

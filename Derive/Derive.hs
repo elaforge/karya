@@ -203,10 +203,10 @@ block_time_end block_id = do
 
 make_tempo_map :: Signal.PosSamples -> Transport.TempoMap
 make_tempo_map pos_map pos = Timestamp.Timestamp $ round $
-        Signal.interpolate_samples val_map (fromIntegral pos)
+        Signal.interpolate_samples val_map (Signal.pos_to_val pos)
     where
     val_map :: [(Signal.Val, Signal.Val)]
-    val_map = [(fromIntegral x, fromIntegral y) | (x, y) <- pos_map]
+    val_map = [(Signal.pos_to_val x, Signal.pos_to_val y) | (x, y) <- pos_map]
 
 make_inverse_tempo_map :: Block.BlockId -> TrackPos -> TrackPos
     -> Transport.InverseTempoFunction
@@ -321,8 +321,7 @@ d_track track_id = do
     let events = map (Score.from_track_event cmap track_id) $
             Track.event_list (Track.track_events track)
         pos_list = concatMap extract_pos events
-        pos_map = zip pos_list
-            (map round $ Signal.integrate tempo_srate tempo pos_list)
+        pos_map = zip pos_list (Signal.integrate tempo_srate tempo pos_list)
     merge_pos_map pos_map
     return (inject_pos pos_map events)
 

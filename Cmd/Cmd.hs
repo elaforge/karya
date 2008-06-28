@@ -13,6 +13,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Typeable as Typeable
+import Text.Printf
 
 import qualified Util.Logger as Logger
 import qualified Util.Log as Log
@@ -377,8 +378,9 @@ sync_zoom_status view_id = do
         (Just (show_zoom_status (Block.view_zoom view)))
 
 show_zoom_status :: Block.Zoom -> String
-show_zoom_status (Block.Zoom offset factor) = "+" ++ off ++ "*" ++ show factor
-    where off = show (fromIntegral offset :: Integer)
+show_zoom_status (Block.Zoom offset factor) =
+    "+" ++ Ui.Types.pretty_pos offset ++ "*" ++ fact
+    where fact = printf "%.3f" factor
 
 ui_update_state :: UiMsg.Context -> UiMsg.UiUpdate -> CmdT Identity.Identity ()
 ui_update_state ctx@(UiMsg.Context (Just view_id) _track _pos) update =

@@ -32,17 +32,14 @@ to_seconds (Timestamp ts) = fromIntegral ts / 1000
 to_microseconds :: Timestamp -> Integer
 to_microseconds (Timestamp ts) = ts
 
--- | TrackPos is converted 1:1.  This means that a TrackPos, after passing
--- through all the tempo mapping, should eventually correspond to milliseconds.
+-- | TrackPos is converted 1:1000.  This means that a TrackPos, after passing
+-- through all the tempo mapping, should eventually correspond to seconds.
 -- This means I can't align to samples, but MIDI timing is not that accurate
 -- anyway.  If I ever need to align samples I may have to change this.
---
--- Since both are members of Integral, these are really just more descriptive
--- names for fromIntegral.
 from_track_pos :: TrackPos -> Timestamp
-from_track_pos = fromIntegral
+from_track_pos = floor . (*1000)
 to_track_pos :: Timestamp -> TrackPos
-to_track_pos = fromIntegral
+to_track_pos = TrackPos . (/1000) . fromIntegral
 
 instance Pretty Timestamp where
     pretty ts = printf "%.3fs" (to_seconds ts)

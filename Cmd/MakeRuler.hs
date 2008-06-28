@@ -18,6 +18,7 @@ import qualified Data.List as List
 import Data.Ratio
 
 import qualified Util.Seq as Seq
+import Ui.Types
 import qualified Ui.Color as Color
 import qualified Ui.Ruler as Ruler
 
@@ -56,12 +57,12 @@ mcolor r g b = Color.rgba r g b 0.35
 meter_ranks :: [(Color.Color, Int, Double)]
 meter_ranks =
     [ (mcolor 0.3 0.3 0.3, 3, 0)    -- block begin and end
-    , (mcolor 0.0 0.0 0.0, 3, 0)    -- block section
-    , (mcolor 0.4 0.3 0.0, 2, 0.01) -- whole
-    , (mcolor 1.0 0.4 0.2, 2, 0.1)  -- quarter
-    , (mcolor 1.0 0.2 0.7, 1, 0.5)  -- 16th
-    , (mcolor 0.1 0.5 0.1, 1, 4)    -- 64th
-    , (mcolor 0.0 0.0 0.0, 1, 8)    -- 256th
+    , (mcolor 0.0 0.0 0.0, 3, 1)    -- block section
+    , (mcolor 0.4 0.3 0.0, 2, 4)    -- whole
+    , (mcolor 1.0 0.4 0.2, 2, 16)   -- quarter
+    , (mcolor 1.0 0.2 0.7, 1, 64)   -- 16th
+    , (mcolor 0.1 0.5 0.1, 1, 256)  -- 64th
+    , (mcolor 0.0 0.0 0.0, 1, 1024) -- 256th
     ]
 
 -- * constructors
@@ -149,21 +150,23 @@ dur_to_pos marks = timed ++ [(final, 0)]
 marks_to_ruler :: [MarkRank] -> Ruler.NameMarklist
 marks_to_ruler marks = Ruler.marklist meter_marklist pos_marks
     where
-    pos_marks = [(floor pos, mark rank name)
+    pos_marks = [(track_pos pos, mark rank name)
         | ((pos, rank), name) <- zip marks (mark_names marks)]
     mark rank name = let (color, width, zoom) = meter_ranks !! (min rank ranks)
         in Ruler.Mark rank width color name (zoom*2) zoom
     ranks = length meter_ranks
 
 mark_names :: [MarkRank] -> [String]
-mark_names marks = map (Seq.join "." . map show . reverse) $ snd $
+mark_names marks = map (Seq.join "." . map show . drop 1 . reverse) $ snd $
     List.mapAccumL mkname (-1, []) marks
     where
     mkname (prev_rank, prev_path) (_pos, rank) = ((rank, path), path)
         where
         path
-            | rank > prev_rank = (if null prev_path then 0 else 1) : prev_path
-            | otherwise = inc $ drop (min 1 (prev_rank - rank)) prev_path
+            | rank > prev_rank =
+                (if null prev_path then 0 else 1) : zeros ++ prev_path
+            | otherwise = inc $ drop (prev_rank - rank) prev_path
+        zeros = replicate (rank - prev_rank - 1) 0
         inc xs = case xs of
             (x:xs) -> x+1 : xs
             [] -> []

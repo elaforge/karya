@@ -141,14 +141,14 @@ print_devs rdev_map wdev_map = do
 setup_cmd :: [String] -> Cmd.CmdIO
 setup_cmd _args = do
     (r, over_r) <- Create.ruler
-        [MakeRuler.meter_ruler 16 MakeRuler.m44] "meter_44"
+        [MakeRuler.meter_ruler (1/16) MakeRuler.m44] "meter_44"
 
     b <- Create.block r
     v <- Create.view b
     Create.named_track b over_r 1 "tempo" "tempo"
     Create.track b 2
     Create.track b 3
-    State.set_zoom v (Block.Zoom (TrackPos 0) 0.1)
+    State.set_zoom v (Block.Zoom (TrackPos 0) 30)
     return Cmd.Done
 
 old_setup_cmd :: [String] -> Cmd.CmdIO

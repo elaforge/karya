@@ -39,8 +39,35 @@ version of all, effectively consisting of only sets.  This is what you use for
 something like MIDI that doesn't even understand linear segments.
 
 
-TODO: clean this up.  I should be able to remove Sample since it's redundant
-with [(x, y)]
+TODO: clean this up:
+
+rename Sample to Line, and Sample becomes [(TrackPos, Val)]
+
+integrate operates on Lines and produces Samples.  It's much more complicated
+than taking Samples to Samples, but theoretically more efficient and accurate
+for the typical tempo signal, which will likely be lots of long straight lines.
+
+inverse operates on Samples since it's used for the inverse tempo map and takes
+the output of integrate.
+
+then there are two strategies for efficient increasing samples: take
+[sample_pos] -> [val], or take sample_pos -> (val, [sample]).  The first is
+less flexible (the updater can't use it because it doesn't know the sample pos
+ahead of time), but the latter is more awkward to use.  'integrate' uses the
+first, and 'inverse' uses the second.
+
+Maybe I could come up with a less awkward way to use the second?
+
+Now that TrackPos is also a double, I could implement everything in terms of
+(Val, Val) which should simplify the conversions (they should be optimized out
+anyway).  I think I like the distinction though because it makes the x and
+y axes clear in the types.
+
+Certainly the (Val, Val) and (TrackPos, Val) distinction should go away here.
+
+I should wait until I have nested tempo transforms and thus continuous signal
+warping implemented before trying to refactor this.
+
 -}
 module Perform.Signal where
 import qualified Control.Arrow as Arrow
@@ -194,7 +221,7 @@ interpolate seg start end pos = case seg of
         | otherwise -> val0 + amount * (val1 - val0)
     SegFunction _ f -> f amount
     where
-    amount = fromIntegral (pos - start) / fromIntegral (end - start)
+    amount = realToFrac $ (pos - start) / (end - start)
 
 
 -- * transformations
@@ -240,20 +267,27 @@ inverse :: PosSamples -> Timestamp.Timestamp -> (Maybe TrackPos, PosSamples)
 inverse samples@((x0, y0) : rest_samples@((x1, y1) : _)) ts
     -- Sample must have decreased, they're not supposed to do that.
     | y0 >= y = (Just x0, samples)
-    | y1 >= y = (Just $
-        round (x_at (val x0, val y0) (val x1, val y1) (val y)), samples)
+    | y1 >= y =
+        (Just $ TrackPos (x_at (val x0, val y0) (val x1, val y1) (val y)),
+            samples)
     | otherwise = inverse rest_samples ts
     where
-    val = fromIntegral
-    y = fromIntegral ts
+    val = pos_to_val
+    y = Timestamp.to_track_pos ts
 inverse samples _ = (Nothing, samples)
+
+pos_to_val :: TrackPos -> Val
+pos_to_val = realToFrac
+val_to_pos :: Val -> TrackPos
+val_to_pos = realToFrac
 
 -- ** integrate
 
 -- | Properly, this should be Signal->Signal, but this is specialized for
 -- the tempo function and it's much more efficient to get samples in order.
-integrate :: TrackPos -> Signal -> [TrackPos] -> [Val]
-integrate srate sig pos_lists = go 0 (linear_sample srate sig) pos_lists
+integrate :: TrackPos -> Signal -> [TrackPos] -> [TrackPos]
+integrate srate sig pos_lists =
+    go (TrackPos 0) (linear_sample srate sig) pos_lists
     where
     go _ _ [] = []
     go accum [] pos = map (const accum) pos -- null signal is considered 0
@@ -263,10 +297,11 @@ integrate srate sig pos_lists = go 0 (linear_sample srate sig) pos_lists
         | otherwise = go (accum_to p1) rest_samples pos
         where accum_to xpos = accum + sum_linear p0 v0 p1 v1 xpos
 
-    sum_linear p0 v0 p1 v1 xpos = integrate_linear
-        (fromIntegral p0, v0) (fromIntegral p1, v1) (fromIntegral xpos)
+    sum_linear p0 v0 p1 v1 xpos = val_to_pos $ integrate_linear
+        (pos_to_val p0, v0) (pos_to_val p1, v1) (pos_to_val xpos)
 
 -- This is way too complicated.
+integrate_linear :: (Ord a, Fractional a) => (a, a) -> (a, a) -> a -> a
 integrate_linear (x0, y0) (x1, y1) x
     | y0 == y1 = (x-x0) * y0 -- Shortcut for constant segments.
     | x0 == x1 = 0 -- Null segments should be filtered, but just in case.

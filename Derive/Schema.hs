@@ -192,8 +192,6 @@ default_schema_deriver :: Parser -> SchemaDeriver
 default_schema_deriver parser block =
     fmap (compile_skeleton . parser) (block_tracks block)
 
-type Compiler m = Skeleton -> Derive.DeriveT m [Score.Event]
-
 -- | Transform a deriver skeleton into a real deriver.  The deriver may throw
 -- if the skeleton was malformed.
 compile_skeleton :: Monad m => Skeleton -> Derive.DeriveT m [Score.Event]

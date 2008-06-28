@@ -1,5 +1,6 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
-module Ui.Ui (event_loop, send_action, quit_ui_thread) where
+module Ui.Ui (event_loop, send_action, with_lock, awake, quit_ui_thread) where
+import qualified Control.Exception as Exception
 import qualified Control.Monad as Monad
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.STM as STM

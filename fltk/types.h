@@ -13,8 +13,6 @@ typedef void (*FinalizeCallback)(void *callback);
 
 enum Orientation { HorizontalTime, VerticalTime };
 
-// typedef double TrackPos;
-
 class TrackPos {
 public:
     TrackPos() : _val(0) {}
@@ -36,8 +34,7 @@ TrackPos operator X(const TrackPos &o) const { \
     OP(==) OP(!=) OP(<) OP(<=) OP(>) OP(>=)
 #undef OP
     // The only reason this isn't private is so the haskell FFI can see it.
-    // Lets have lots of space.
-    long long _val;
+    double _val;
 private:
     friend std::ostream &operator<<(std::ostream &os, const TrackPos &pos);
 };

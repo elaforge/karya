@@ -208,8 +208,9 @@ close_event = undefined
 -- ** rulers
 
 {- Examples:
-replace_marklist (rid "r1") "meter"
-    (MakeRuler.regular_meter (TrackPos 2048) [4, 8, 4, 4])
+Create.ruler [MakeRuler.meter_ruler 16 MakeRuler.m44] "meter_44"
+
+replace_marklist (rid "r1") "meter" (MakeRuler.meter_ruler 16 MakeRuler.m44)
 copy_marklist "meter" (rid "r1") (rid "r1.overlay")
 -}
 
@@ -280,9 +281,11 @@ schema_instruments block_id = do
 -- | Try to automatically create an instrument config based on the instruments
 -- found in the given block.  It's simply gives each instrument on a device a
 -- single channel increasing from 0.
-auto_config ::
-    Midi.WriteDevice -> Block.BlockId -> Cmd.CmdL Midi.Instrument.Config
-auto_config write_device block_id = do
+--
+-- Example: auto_config (bid "b0") >>= State.set_midi_config
+-- TODO: won't work if there are >1 block, need a merge config
+auto_config :: Block.BlockId -> Cmd.CmdL Midi.Instrument.Config
+auto_config block_id = do
     insts <- schema_instruments block_id
     devs <- mapM device_of insts
     let no_dev = [inst | (inst, Nothing) <- zip insts devs]

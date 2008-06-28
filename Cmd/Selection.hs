@@ -67,10 +67,9 @@ auto_scroll view_id sel1 sel2 = do
         view_start = Block.zoom_offset zoom
         view_end = view_start + Block.visible_view_area view
         -- Scroll by 1/4 of the visible screen.
-        extra_space = floor $
-            fromIntegral (Block.visible_view_area view) / 4
+        extra_space = Block.visible_view_area view / 4
         offset = scroll_with_selection sel1 sel2
-                (Block.zoom_offset zoom) view_end extra_space
+            (Block.zoom_offset zoom) view_end extra_space
     State.set_zoom view_id (zoom { Block.zoom_offset = offset })
     Cmd.sync_zoom_status view_id
 
@@ -98,7 +97,7 @@ selection_status sel =
     where
     dur = Block.sel_duration sel
     start = Block.sel_start_pos sel
-    showp pos = show (fromIntegral pos :: Integer)
+    showp = Ui.Types.pretty_pos
 
 -- | Advance the insert selection by the current step, which is a popular thing
 -- to do.

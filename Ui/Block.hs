@@ -111,7 +111,8 @@ visible_view_area view = pixels_to_track_pos (view_zoom view) height
     height = snd (rect_size (view_rect view)) - blockth - trackth - sb - status
 
 pixels_to_track_pos :: Zoom -> Int -> TrackPos
-pixels_to_track_pos zoom pixels = floor $ fromIntegral pixels / zoom_factor zoom
+pixels_to_track_pos zoom pixels =
+    track_pos pixels / track_pos (zoom_factor zoom)
 
 -- | Construct a View, using default values for most of its fields.
 -- Don't construct views using View directly since State.create_view overwrites
