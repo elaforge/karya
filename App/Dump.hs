@@ -22,8 +22,9 @@ default_abbrs = [abbreviate_tracks, abbreviate_rulers]
 abbreviate_tracks = "track"
 abbreviate_rulers = "ruler"
 
-usage = "dump [ -complete ] save_file\n\
-\  -complete - Don't abbreviate the rulers and tracks"
+-- Haskell report says you're supposed to be able to put a newline between
+-- the whacks, but now it suddenly doesn't work?
+usage = "dump [ -complete ] save_file\n\ \  -complete - Don't abbreviate the rulers and tracks"
 
 
 main = do
@@ -44,7 +45,10 @@ fail_with msg = do
     putStrLn msg
     System.Exit.exitWith (System.Exit.ExitFailure 1)
 
-pprint_ui_state abbr (State.State views blocks tracks rulers midi_config) = do
+pprint_ui_state abbr
+        (State.State project dir views blocks tracks rulers midi_config) = do
+    put_field "project" project
+    put_field "project_dir" dir
     put_field "state_midi_config" (PPrint.pshow midi_config)
     put_field "state_views" (PPrint.pshow views)
     put_field "state_blocks" (PPrint.pshow blocks)

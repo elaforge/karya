@@ -84,7 +84,7 @@ import qualified Perform.Timestamp as Timestamp
 -- * constants
 
 -- Later, this should be under deriver control.
-default_srate = TrackPos 100
+default_srate = TrackPos 0.05
 default_srate_ts = Timestamp.from_track_pos default_srate
 
 -- | Make a constant signal.
