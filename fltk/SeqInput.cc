@@ -49,6 +49,9 @@ SeqInput::handle(int evt)
             return 1;
         }
         break;
+    case FL_KEYUP:
+        // Eat keyups if I have focus.
+        return 1;
     case FL_FOCUS:
         this->color(color_to_fl(this->focus_color));
         // TODO select all
