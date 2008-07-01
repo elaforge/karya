@@ -14,7 +14,7 @@ import qualified Ui.Block as Block
 import qualified Ui.BlockC as BlockC
 import qualified Ui.Track as Track
 
-import Ui.TestSetup
+import qualified Ui.TestSetup as TestSetup
 
 
 initialize f = do
@@ -41,11 +41,9 @@ send = Ui.send_action
 
 test_create_set_size = do
     view <- create_empty_view
-    io_equal (BlockC.get_size view) default_rect
     io_human "move and change size" $
         BlockC.set_size view (Block.Rect (200, 200) (200, 200))
-    io_equal (BlockC.get_size view) (Block.Rect (200, 200) (200, 200))
-    io_human "view is destroyed" $ do
+    io_human "view is destroyed" $
         send $ BlockC.destroy_view view
 
 -- TODO
@@ -53,7 +51,8 @@ test_create_set_size = do
 
 test_scroll_zoom = do
     view <- create_empty_view
-    send $ BlockC.insert_track view 0 (Block.T long_event_track no_ruler) 200
+    send $ BlockC.insert_track view 1 (event_track long_event_track)
+        no_samples 200
     io_human "scroll a little to the right" $
         send $ BlockC.set_track_scroll view 10
     io_human "all the way to the right" $
@@ -66,21 +65,25 @@ test_scroll_zoom = do
     io_human "scroll down all the way" $
         send $ BlockC.set_zoom view (Block.Zoom (TrackPos 99999) 1)
     io_human "scroll back" $
-        send $ BlockC.set_zoom view (Block.Zoom (TrackPos (-10)) 1)
-    -- TODO test zoom when it's implemented
+        send $ BlockC.set_zoom view (Block.Zoom (TrackPos (-20)) 1)
+
+    io_human "zoom in to 2" $
+        send $ BlockC.set_zoom view (Block.Zoom (TrackPos 0) 2)
+    io_human "zoom out back to 1" $
+        send $ BlockC.set_zoom view (Block.Zoom (TrackPos 0) 1)
 
 test_set_selection = do
     view <- create_empty_view
-    let ruler = mkruler 20 10
-    send $ BlockC.insert_track view 0
-        (Block.T event_track_1 (overlay_ruler ruler)) 30
+    let ruler = TestSetup.mkruler 20 10
+    send $ BlockC.insert_track view 1
+        (Block.T event_track_1 (TestSetup.overlay_ruler ruler)) no_samples 30
     let c = Color.lighten 0.5 Color.blue
     io_human "point selection appears" $
         send $ BlockC.set_selection view 0
-            (cselection c 0 (TrackPos 0) 1 (TrackPos 0))
+            (cselection c 1 (TrackPos 0) 1 (TrackPos 0))
     io_human "replaced by long selection" $
         send $ BlockC.set_selection view 0
-            (cselection c 0 (TrackPos 10) 1 (TrackPos 20))
+            (cselection c 1 (TrackPos 10) 1 (TrackPos 20))
     io_human "goes away" $
         send $ BlockC.set_selection view 0 Nothing
 
@@ -89,16 +92,16 @@ cselection color track start tracks dur =
 
 test_set_track_width = do
     view <- create_empty_view
-    send $ BlockC.insert_track view 0 (Block.T event_track_1 no_ruler) 20
-    send $ BlockC.insert_track view 1 (Block.T event_track_2 no_ruler) 30
-    io_human "track 0 gets bigger" $
-        send $ BlockC.set_track_width view 0 60
-    io_human "track 0 goes to minimum size" $
-        send $ BlockC.set_track_width view 0 1
+    send $ BlockC.insert_track view 1 (event_track event_track_1) no_samples 20
+    send $ BlockC.insert_track view 2 (event_track event_track_2) no_samples 30
+    io_human "track 1 gets bigger" $
+        send $ BlockC.set_track_width view 1 60
+    io_human "track 1 goes to minimum size" $
+        send $ BlockC.set_track_width view 1 1
 
 test_set_model_config = do
     view <- create_empty_view
-    let config = default_block_config
+    let config = TestSetup.default_block_config
 
     -- block config
     io_human "track box turns red" $
@@ -113,7 +116,7 @@ test_set_model_config = do
 
 test_set_title = do
     view <- create_empty_view
-    send $ BlockC.insert_track view 0 (Block.T event_track_1 no_ruler) 20
+    send $ BlockC.insert_track view 1 (event_track event_track_1) no_samples 20
 
     io_human "block gets hi title" $
         send $ BlockC.set_title view "hi"
@@ -121,38 +124,46 @@ test_set_title = do
         send $ BlockC.set_title view ""
 
     io_human "track title set" $
-        send $ BlockC.set_track_title view 0 "ho"
+        send $ BlockC.set_track_title view 1 "ho"
     io_human "track title cleared" $
-        send $ BlockC.set_track_title view 0 ""
+        send $ BlockC.set_track_title view 1 ""
 
 test_create_remove_update_track = do
     view <- create_empty_view
-    let ruler = mkruler 20 10
-    send $ BlockC.insert_track view 0 (Block.R ruler) 30
-    send $ BlockC.insert_track view 1
-        (Block.T event_track_1 (overlay_ruler ruler)) 30
-    send $ BlockC.insert_track view 0 (Block.D default_divider) 10
+    let ruler = TestSetup.mkruler 20 10
+    send $ BlockC.insert_track view 0 (Block.D TestSetup.default_divider)
+        no_samples 5
+    send $ BlockC.insert_track view 1 (Block.R ruler) no_samples 30
+    send $ BlockC.insert_track view 2
+        (Block.T event_track_1 (TestSetup.overlay_ruler ruler)) no_samples 30
+    send $ BlockC.insert_track view 1 (Block.D TestSetup.default_divider)
+        no_samples 10
 
     io_human "divider is removed" $
-        send $ BlockC.remove_track view 0
+        send $ BlockC.remove_track view 1
     io_human "ruler gets wider, both events change" $ do
-        send $ BlockC.update_track view 0
-            (Block.R (mkruler 20 16))
-            (TrackPos 0) (TrackPos 60)
-        send $ BlockC.update_track view 1
-            (Block.T event_track_2 (overlay_ruler ruler))
-            (TrackPos 0) (TrackPos 60)
+        send $ BlockC.update_entire_track view 1
+            (Block.R (TestSetup.mkruler 20 16)) no_samples
+        send $ BlockC.update_track view 2
+            (Block.T event_track_2 (TestSetup.overlay_ruler ruler))
+            no_samples (TrackPos 0) (TrackPos 60)
 
 -- TODO
 -- test_print_children
 
 -- setup
 
-long_event_track = Track.modify_events (empty_track "long")
-    (Track.insert_events [eventpos 0 "hi" 16, eventpos 400 "there" 32])
+event_track events = Block.T events TestSetup.no_ruler
+
+long_event_track = TestSetup.mktrack
+    ("long", [(0, 16, "hi"), (400, 32, "there")])
+event_track_1 = TestSetup.mktrack ("1", [(0, 16, "hi"), (30, 32, "there")])
+event_track_2 = TestSetup.mktrack ("2", [(16, 10, "ho"), (30, 32, "eyo")])
 
 create_empty_view = do
     let view_id = Block.ViewId "default"
-    send $ BlockC.create_view view_id "some title" default_rect
-        default_view_config default_block_config
+    send $ BlockC.create_view view_id "some title" TestSetup.default_rect
+        TestSetup.default_view_config TestSetup.default_block_config
     return view_id
+
+no_samples = Track.Samples []
