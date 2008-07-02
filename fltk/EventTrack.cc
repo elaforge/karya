@@ -198,6 +198,9 @@ EventTrackView::draw_samples(TrackPos start, TrackPos end)
         fl_line_style(FL_SOLID | FL_CAP_ROUND, 2);
     else
         fl_line_style(FL_SOLID | FL_CAP_ROUND, 0);
+    // Account for both the 1 pixel track border and the width of the line.
+    int min_x = x() + 2;
+    int max_x = x() + w() - 2;
     for (int i = 0; i < sample_count; i++) {
         int offset = y() + this->zoom.to_pixels(sample_pos[i] - zoom.offset);
         int next_offset;
@@ -209,9 +212,9 @@ EventTrackView::draw_samples(TrackPos start, TrackPos end)
             next_offset = y() + h();
             next_sample = samples[i];
         }
-        int xpos = floor(::scale(double(x()), double(x()+w()),
+        int xpos = floor(::scale(double(min_x), double(max_x),
             ::clamp(0.0, 1.0, samples[i])));
-        int next_xpos = floor(::scale(double(x()), double(x()+w()),
+        int next_xpos = floor(::scale(double(min_x), double(max_x),
             ::clamp(0.0, 1.0, next_sample)));
 
         switch (config.render.style) {
@@ -220,7 +223,7 @@ EventTrackView::draw_samples(TrackPos start, TrackPos end)
             break;
         case RenderConfig::render_filled:
             fl_polygon(xpos, offset, next_xpos, next_offset,
-                    x(), next_offset, x(), offset);
+                    min_x, next_offset, min_x, offset);
             break;
         }
     }

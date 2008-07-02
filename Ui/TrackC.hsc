@@ -118,7 +118,7 @@ cb_find_samples (Track.Samples samples) startp endp ret_tps ret_samples = do
     -- From one before start to one after end.
     let start_i = max 0 (Util.Data.bsearch_on fst samples start - 1)
         max_i = snd (IArray.bounds samples)
-        (elts, rest) = break ((>=end) . fst) (map (samples!) [start_i..max_i-1])
+        (elts, rest) = break ((>=end) . fst) (map (samples!) [start_i..max_i])
         found = elts ++ take 1 rest
     -- putStrLn $ "go find " ++ show start_i ++ "--" ++ show max_i
     when (not (null found)) $ do
