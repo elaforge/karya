@@ -39,6 +39,7 @@ BlockModelConfig block_model_config()
 typedef static std::vector<std::pair<TrackPos, Mark> > MarkData;
 static MarkData m44_marks;
 
+static TrackPos m44_last_pos;
 void m44_set()
 {
     MarkData &mlist = m44_marks;
@@ -58,6 +59,7 @@ void m44_set()
             mlist.push_back(std::make_pair(t, m));
         }
     }
+    m44_last_pos = TrackPos(99 * 8);
 }
 
 int
@@ -234,9 +236,9 @@ main(int argc, char **argv)
     t1_set();
     m44_set();
 
-    RulerConfig ruler(ruler_bg, true, false, false);
+    RulerConfig ruler(ruler_bg, true, false, false, m44_last_pos);
     ruler.marklists = mlists;
-    RulerConfig truler(ruler_bg, false, true, true);
+    RulerConfig truler(ruler_bg, false, true, true, m44_last_pos);
     truler.marklists = mlists;
     DividerConfig divider(Color(0x0000ff));
 

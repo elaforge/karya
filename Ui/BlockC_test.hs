@@ -129,7 +129,7 @@ test_set_title = do
     io_human "track title cleared" $
         send $ BlockC.set_track_title view 1 ""
 
-test_create_remove_update_track = do
+test_update_track = do
     view <- create_empty_view
     let ruler = TestSetup.mkruler 20 10
     send $ BlockC.insert_track view 0 (Block.D TestSetup.default_divider)
@@ -140,14 +140,23 @@ test_create_remove_update_track = do
     send $ BlockC.insert_track view 1 (Block.D TestSetup.default_divider)
         no_samples 10
 
-    io_human "divider is removed" $
-        send $ BlockC.remove_track view 1
     io_human "ruler gets wider, both events change" $ do
         send $ BlockC.update_entire_track view 1
             (Block.R (TestSetup.mkruler 20 16)) no_samples
         send $ BlockC.update_track view 2
             (Block.T event_track_2 (TestSetup.overlay_ruler ruler))
             no_samples (TrackPos 0) (TrackPos 60)
+
+test_insert_remove_track = do
+    view <- create_empty_view
+    let ruler = TestSetup.mkruler 20 10
+    io_human "new event track" $
+        send $ BlockC.insert_track view 1
+            (Block.T event_track_1 ruler) no_samples 30
+    send $ BlockC.set_zoom view (Block.Zoom (TrackPos 0) 2)
+    io_human "another new event track also zoomed" $
+        send $ BlockC.insert_track view 2
+            (Block.T event_track_2 ruler) no_samples 30
 
 test_samples = do
     view <- create_empty_view

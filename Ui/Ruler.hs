@@ -46,6 +46,13 @@ marklist :: MarklistName -> [PosMark] -> NameMarklist
 marklist name posmarks =
     (name, Marklist $ IArray.listArray (0, length posmarks-1) posmarks)
 
+-- | Get the position of the last mark.
+last_pos :: Marklist -> TrackPos
+last_pos (Marklist marray)
+    | i == 0 = TrackPos 0
+    | otherwise = fst (marray ! i)
+    where i = snd (IArray.bounds marray) - 1
+
 data Mark = Mark {
     mark_rank :: Int
     , mark_width :: Int

@@ -76,12 +76,17 @@ OverlayRuler::set_selection(int selnum, int tracknum, const Selection &sel)
 TrackPos
 OverlayRuler::time_end() const
 {
+    return this->config.last_mark_pos;
+    // Now that I go to the end of the ruler, I probably don't need to check
+    // the selections any more.
+    /*
     TrackPos end(0);
     for (int i = 0; i < Config::max_selections; i++) {
         if (!selections[i].empty())
             end = std::max(end, selections[i].end);
     }
     return end;
+    */
 }
 
 
@@ -195,7 +200,9 @@ OverlayRuler::draw_marklists()
             mlist != config.marklists.end(); ++mlist)
     {
         // DEBUG("FIND " << &mlist->find_marks);
-        int count = mlist->find_marks(&start, &end, &mark_tps, &marks);
+        // This is unnecessary but may help debugging.
+        Marklist::FindMarks find = mlist->find_marks;
+        int count = find(&start, &end, &mark_tps, &marks);
         for (int i = 0; i < count; i++) {
             int offset = y() + zoom.to_pixels(mark_tps[i] - zoom.offset);
             draw_mark(offset, marks[i]);

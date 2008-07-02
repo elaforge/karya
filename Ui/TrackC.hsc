@@ -60,10 +60,6 @@ make_find_events events = do
     p <- c_make_find_events (cb_find_events events)
     Log.debug $ "make find events callback: " ++ show p
     return p
-make_last_track_pos events = do
-    p <- c_make_last_track_pos (cb_last_track_pos events)
-    Log.debug $ "make last track pos callback: " ++ show p
-    return p
 make_find_samples samples = do
     p <- c_make_find_samples (cb_find_samples samples)
     Log.debug $ "make find samples callback: " ++ show p
@@ -86,10 +82,8 @@ encode_style style = case style of
 
 -- typedef int (*FindEvents)(TrackPos *start_pos, TrackPos *end_pos,
 --         TrackPos **ret_tps, Event **ret_events);
--- typedef int (*LastTrackPos)(TrackPos *last);
 type FindEvents = Ptr TrackPos -> Ptr TrackPos -> Ptr (Ptr TrackPos)
     -> Ptr (Ptr Event.Event) -> IO Int
-type LastTrackPos = Ptr TrackPos -> IO Int
 
 -- typedef int (*FindSamples)(TrackPos *start_pos, TrackPos *end_pos,
 --         TrackPos **ret_tps, double **ret_samples);
@@ -130,15 +124,7 @@ cb_find_samples (Track.Samples samples) startp endp ret_tps ret_samples = do
     --     ++ ": " ++ show (length found)
     return (length found)
 
-cb_last_track_pos :: Track.TrackEvents -> LastTrackPos
-cb_last_track_pos events posp = case Track.last_event events of
-    Nothing -> return 0
-    Just (pos, event) -> poke posp (pos + Event.event_duration event)
-        >> return 1
-
 foreign import ccall "wrapper"
     c_make_find_events :: FindEvents -> IO (FunPtr FindEvents)
-foreign import ccall "wrapper"
-    c_make_last_track_pos :: LastTrackPos -> IO (FunPtr LastTrackPos)
 foreign import ccall "wrapper"
     c_make_find_samples :: FindSamples -> IO (FunPtr FindSamples)

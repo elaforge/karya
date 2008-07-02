@@ -27,7 +27,6 @@ with_ruler ruler f = do
         f rulerp mlists (Util.c_int len)
     where marklists = map snd (Ruler.ruler_marklists ruler)
 
-
 -- typedef int (*FindMarks)(TrackPos *start_pos, TrackPos *end_pos,
 --         TrackPos **ret_tps, Mark **ret_marks);
 type FindMarks = Ptr TrackPos -> Ptr TrackPos -> Ptr (Ptr TrackPos)
@@ -79,12 +78,15 @@ instance Storable Ruler.Ruler where
     poke = poke_ruler
 
 -- Doesn't poke the marklists, since those are passed separately, since the
--- real RulerConfig uses a vector.
-poke_ruler rulerp (Ruler.Ruler _mlists bg show_names use_alpha full_width) = do
+-- real RulerConfig uses an STL vector which has to be serialized in c++.
+poke_ruler rulerp (Ruler.Ruler mlists bg show_names use_alpha full_width) = do
     (#poke RulerConfig, bg) rulerp bg
     (#poke RulerConfig, show_names) rulerp show_names
     (#poke RulerConfig, use_alpha) rulerp use_alpha
     (#poke RulerConfig, full_width) rulerp full_width
+    (#poke RulerConfig, last_mark_pos) rulerp (last_mark_pos (map snd mlists))
+
+last_mark_pos mlists = maximum (TrackPos 0 : map Ruler.last_pos mlists)
 
 instance Storable Ruler.Mark where
     sizeOf _ = #size Mark

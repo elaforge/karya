@@ -57,11 +57,12 @@ typedef std::vector<Marklist> Marklists;
 // Markslists will be drawn in the order they are given, so later marklists
 // will draw over earlier ones.
 struct RulerConfig {
-    // Not passing marklists is less convenient from c++, but more convenient
-    // to serialize from haskell.
-    RulerConfig(Color bg, bool show_names, bool use_alpha, bool full_width) :
+    // Initializing marklists by assignment is less convenient from c++, but
+    // more convenient to serialize from haskell.
+    RulerConfig(Color bg, bool show_names, bool use_alpha, bool full_width,
+            TrackPos last_mark_pos) :
         bg(bg), show_names(show_names), use_alpha(use_alpha),
-        full_width(full_width)
+        full_width(full_width), last_mark_pos(last_mark_pos)
     {}
     Marklists marklists;
 
@@ -74,6 +75,8 @@ struct RulerConfig {
     bool use_alpha;
     // Always draw marks across the full width of the track.
     bool full_width;
+
+    TrackPos last_mark_pos;
 };
 
 

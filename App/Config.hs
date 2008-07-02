@@ -62,7 +62,7 @@ track_width :: Block.Width
 track_width = 30
 
 render_config = Track.RenderConfig Track.NoRender render_color
-render_color = Color.rgba 0.75 0.75 1 0.5
+render_color = Color.rgba 0.65 0.65 0.8 0.5
 
 schema = Block.SchemaId "default"
 
