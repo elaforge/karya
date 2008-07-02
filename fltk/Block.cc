@@ -279,6 +279,10 @@ BlockView::insert_track(int tracknum, const Tracklike &track, int width)
     } else {
         track_tile.insert_track(tracknum - 1, t, width);
     }
+    if (tracknum == 0)
+        this->ruler_track->set_zoom(this->zoom);
+    else
+        this->track_tile.set_zoom(this->zoom);
     this->update_scrollbars();
 }
 
