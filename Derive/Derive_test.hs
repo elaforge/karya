@@ -95,6 +95,7 @@ test_inject_pos = do
             extract_events (Derive.inject_pos pmap (map mkscore score))
         pmap = mkmap
             [(0, 0), (5, 10), (10, 20), (15, 30)]
+    -- TODO real test
     print $ inject [(0, 5, "a"), (5, 5, "b")]
 
 test_inverse_tempo_map = do
@@ -108,10 +109,11 @@ test_block = do
     let (deriver, ui_state) = State.run_state State.empty $ do
         TestSetup.initial_state
         block <- State.get_block (Block.BlockId "b1")
-        Schema.get_deriver block
+        Schema.get_deriver schema_map block
 
     let (result, derive_state, logs) = Identity.runIdentity $
             Derive.run ui_state deriver
+    -- TODO real test
     print $ Derive.state_tempo derive_state
     plist $ Derive.state_pos_map derive_state
 
@@ -145,9 +147,9 @@ test_tempo_map = do
     -- plist $ map (tmap . TrackPos) [0..8]
 
 test_tempo = do
-    let (tids, state) = mkstate
-            [ [(0, 10, "5a-"), (10, 10, "5b-"), (20, 10, "5c-")]
-            , [(0, 10, ".1"), (10, 10, ".2"), (20, 10, ".4")]
+    let (tids, state) = TestSetup.mkstate
+            [ ("0", [(0, 10, "5a-"), (10, 10, "5b-"), (20, 10, "5c-")])
+            , ("1", [(0, 10, ".1"), (10, 10, ".2"), (20, 10, ".4")])
             ]
         sig = mksignal
             [(0, Signal.Set, 0), (40, Signal.Linear, 80)]
@@ -215,18 +217,11 @@ test_lookup (Score.Instrument inst)
         Instrument.instrument "synth/patch" Controller.empty_map (-2, 2) Nothing
     | otherwise = Nothing
 
+schema_map :: Schema.SchemaMap
+schema_map = Map.empty
+
 
 -- ** ui stetup
-
-mkstate tracks = State.run_state State.empty $ do
-    ruler <- State.create_ruler "r1" TestSetup.no_ruler
-    tids <- forM (zip [0..] tracks) $ \(i, track) -> do
-        State.create_track ("b1." ++ show i) (mktrack track)
-    State.create_block "b1" $
-        Block.block "b1 title" TestSetup.default_block_config
-            ((Block.RId ruler, 20) : [(Block.TId tid ruler, 40) | tid <- tids])
-            (Block.SchemaId "no schema")
-    return tids
 
 ui_state = snd $ State.run_state State.empty $ do
     ruler <- State.create_ruler "r1"
@@ -244,18 +239,15 @@ ui_state = snd $ State.run_state State.empty $ do
             (Block.SchemaId "no schema")
     return ()
 
-mkevent (pos, dur, text) =
-    (TrackPos pos, TestSetup.event text dur)
 mkscore (pos, dur, text) = Score.event pos dur text
-mktrack triplets = Track.modify_events (TestSetup.empty_track "mktrack")
-    (Track.insert_events (map mkevent triplets))
 
-track1 = mktrack [(0, 16, "4c-"), (16, 16, "4c#")]
-track_cont = mktrack [(0, 0, "1"), (16, 0, "i.75"), (32, 0, "i0")]
+track1 = TestSetup.mktrack ("1", [(0, 16, "4c-"), (16, 16, "4c#")])
+track_cont = TestSetup.mktrack
+    ("cont", [(0, 0, "1"), (16, 0, "i.75"), (32, 0, "i0")])
 
 mksignal segs = Signal.signal [(TrackPos p, m, v, v) | (p, m, v) <- segs]
 
 extract_events :: [Score.Event] -> [(Integer, Integer, String)]
 extract_events = map $ \event ->
-    (fromIntegral (Score.event_start event),
-        fromIntegral (Score.event_duration event), Score.event_text event)
+    (floor (Score.event_start event),
+        floor (Score.event_duration event), Score.event_text event)

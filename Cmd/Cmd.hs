@@ -418,7 +418,8 @@ update_of _ = Nothing
 
 -- | A Schema attaches a number of things to a Block.
 data Schema = Schema {
-    schema_deriver :: SchemaDeriver
+    schema_deriver :: SchemaDeriver Derive.Deriver
+    , schema_signal_deriver :: SchemaDeriver Derive.SignalDeriver
     , schema_parser :: Parser
     -- | Get a set of Cmds that are applicable within the given CmdContext.
     , schema_cmds :: CmdContext -> [Track] -> [Cmd]
@@ -429,8 +430,8 @@ instance Show Schema where
     show _ = "<schema>"
 
 -- | A SchemaDeriver generates a Deriver from a given Block.
-type SchemaDeriver =
-    Block.Block -> State.StateT Identity.Identity Derive.Deriver
+type SchemaDeriver d =
+    Block.Block -> State.StateT Identity.Identity d
 
 -- ** parser types
 

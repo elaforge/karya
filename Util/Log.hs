@@ -56,13 +56,11 @@ data Msg = Msg {
     msg_date :: Maybe Time.UTCTime
     , msg_caller :: Misc.SrcPos
     , msg_prio :: Prio
-    -- | Free form text for humans.
-    , msg_text  :: String
     -- | Msgs which are logged from the deriver may record the position in the
     -- schema and event being processed.
     , msg_stack :: Maybe Stack
-    -- -- | Higher level context info for the msg.
-    -- , msg_context :: [Context]
+    -- | Free form text for humans.
+    , msg_text  :: String
     } deriving (Eq, Show, Typeable.Typeable, Read)
 
 -- | One handle for the machine readable log, and one for the human readable
@@ -100,16 +98,16 @@ data Prio
     deriving (Show, Enum, Eq, Ord, Read)
 
 -- | Create a msg with the give prio and text.
-msg_srcpos :: Misc.SrcPos -> Prio -> String -> Maybe Stack -> Msg
-msg_srcpos srcpos prio text stack = Msg Nothing srcpos prio text stack
-msg = msg_srcpos Nothing
-
+msg_srcpos :: Misc.SrcPos -> Prio -> Maybe Stack -> String -> Msg
+msg_srcpos srcpos prio stack text = Msg Nothing srcpos prio stack text
+msg :: Prio -> String -> Msg
+msg prio = msg_srcpos Nothing prio Nothing
 
 log :: LogMonad m => Prio -> Misc.SrcPos -> String -> m ()
-log prio srcpos text = write (msg_srcpos srcpos prio text Nothing)
+log prio srcpos text = write (msg_srcpos srcpos prio Nothing text)
 log_stack :: LogMonad m => Prio -> Misc.SrcPos -> Stack -> String -> m ()
 log_stack prio srcpos stack text =
-    write (msg_srcpos srcpos prio text (Just stack))
+    write (msg_srcpos srcpos prio (Just stack) text)
 
 debug_srcpos, notice_srcpos, warn_srcpos, error_srcpos
     :: LogMonad m => Misc.SrcPos -> String -> m ()

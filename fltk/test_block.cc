@@ -98,8 +98,10 @@ m44_find_marks(TrackPos *start_pos, TrackPos *end_pos,
 }
 
 
-typedef static std::vector<std::pair<TrackPos, Event> > TrackData;
+typedef std::vector<std::pair<TrackPos, Event> > TrackData;
 static TrackData t1_events;
+typedef std::vector<std::pair<TrackPos, double> > SampleData;
+static SampleData t1_samples;
 
 void t1_set()
 {
@@ -119,6 +121,12 @@ void t1_set()
         Event("7--", TrackPos(4), eventc, style)));
     e.push_back(std::make_pair(TrackPos(128),
         Event("late!", TrackPos(64), eventc, style)));
+
+    SampleData &s = t1_samples;
+    s.push_back(std::make_pair(TrackPos(0), 1));
+    s.push_back(std::make_pair(TrackPos(32), .5));
+    s.push_back(std::make_pair(TrackPos(32), 1));
+    s.push_back(std::make_pair(TrackPos(64), 0));
 }
 
 int
@@ -147,6 +155,34 @@ t1_find_events(TrackPos *start_pos, TrackPos *end_pos,
         char **textp = &(*ret_events)[i].text;
         if (*textp)
             *textp = strdup(*textp);
+    }
+    return count;
+}
+
+int
+t1_find_samples(TrackPos *start_pos, TrackPos *end_pos,
+        TrackPos **ret_tps, double **ret_samples)
+{
+    int count = 0;
+    int start = 0;
+    SampleData &a = t1_samples;
+    for (; start < a.size(); start++) {
+        TrackPos next = start+1 < a.size() ? a[start+1].first : a[start].first;
+        if (next >= *start_pos)
+            break;
+    }
+    while (start + count < a.size()) {
+        if (a[start+count].first >= *end_pos)
+            break;
+        count++;
+    }
+
+    *ret_tps = (TrackPos *) calloc(count, sizeof(TrackPos));
+    *ret_samples = (double *) calloc(count, sizeof(double));
+    for (int i = 0; i < count; i++) {
+        // Placement new since malloced space is uninitialized.
+        new((*ret_tps) + i) TrackPos(a[start+i].first);
+        (*ret_samples)[i] = a[start+i].second;
     }
     return count;
 }
@@ -193,6 +229,7 @@ main(int argc, char **argv)
 
     Color ruler_bg = Color(255, 230, 160);
     Color track_bg = Color(255, 255, 255);
+    Color render_color = Color(196, 196, 255, 128);
 
     t1_set();
     m44_set();
@@ -206,8 +243,13 @@ main(int argc, char **argv)
     int i = t1_events.size() - 1;
     TrackPos t1_time_end = t1_events[i].first + t1_events[i].second.duration;
 
-    EventTrackConfig track(track_bg, t1_find_events, t1_time_end);
-    EventTrackConfig track2(track_bg, t1_find_events, t1_time_end);
+    RenderConfig render_config(RenderConfig::render_filled,
+        t1_find_samples, render_color);
+
+    EventTrackConfig track1(track_bg, t1_find_events, t1_time_end,
+        render_config);
+    EventTrackConfig track2(track_bg, t1_find_events, t1_time_end,
+        render_config);
 
     BlockViewWindow view(300, 250, 200, 200, "view1", config, view_config);
     // view.border(0);
@@ -219,12 +261,12 @@ main(int argc, char **argv)
     view.block.insert_track(0, Tracklike(&ruler), 20);
     // view.block.insert_track(1, Tracklike(&divider), 10);
     view.block.insert_track(1, Tracklike(&ruler), 30);
-    view.block.insert_track(2, Tracklike(&track, &truler), 30);
+    view.block.insert_track(2, Tracklike(&track1, &truler), 30);
     view.block.insert_track(3, Tracklike(&track2, &truler), 30);
 
     print_children(&view);
 
-    Fl::add_timeout(1, timeout_func, (void*) &view);
+    // Fl::add_timeout(1, timeout_func, (void*) &view);
 
     // view_config.block_title_height = 40;
     // view_config.track_title_height = 40;

@@ -72,6 +72,21 @@ clamp(T min, T max, T v)
     else return v;
 }
 
+// Normalize 'v', which is between 'min' and 'max' inclusive, to be between
+// 0--1.
+template<class T> inline T
+normalize(T min, T max, T v)
+{
+    return (v-min) / (max-min);
+}
+
+// Scale 'v', which is between 0--1 inclusive, to be between 'min' and 'max'.
+template<class T> inline T
+scale(T min, T max, T v)
+{
+    return v * (max-min) + min;
+}
+
 
 #define DEBUG(X) do { std::cout << __FILE__ << ':' << __LINE__ << ' ' \
     << X << '\n'; } while (0)

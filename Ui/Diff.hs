@@ -150,6 +150,8 @@ diff_track track_id track1 track2 = do
         change [track_update $ Update.TrackTitle (Track.track_title track2)]
     when (Track.track_bg track1 /= Track.track_bg track2) $
         change [track_update $ Update.TrackBg]
+    when (Track.track_render track1 /= Track.track_render track2) $
+        change [track_update $ Update.TrackRender]
 
 diff_ruler ruler_id ruler1 ruler2 = do
     -- This does a complete compare of all the marks in all the rulers after

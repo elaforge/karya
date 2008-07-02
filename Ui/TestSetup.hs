@@ -1,5 +1,6 @@
 module Ui.TestSetup where
 
+import Control.Monad
 import qualified System.IO as IO
 
 import qualified Ui.Color as Color
@@ -45,6 +46,7 @@ default_divider = Block.Divider Color.blue
 
 -- state
 
+-- TODO convert to use mkstate
 initial_state :: State.UiStateMonad m => m ()
 initial_state = do
     let cont text = Config.event text (TrackPos 0)
@@ -55,7 +57,7 @@ initial_state = do
 
     t0 <- State.create_track "b1.tempo" (empty_track "tempo")
     State.insert_events t0
-        [(TrackPos 0, cont ".01"), (TrackPos 50, cont "i.1")]
+        [(TrackPos 0, cont ".05"), (TrackPos 50, cont "i.1")]
             -- (TrackPos 100, cont "i.01")]
     t1 <- State.create_track "b1.t1" (empty_track ">fm8/bass")
     let notes = ["6a-", "6b-", "7c-", "7d-", "7e-", "7f-"]
@@ -73,22 +75,34 @@ initial_state = do
     v1 <- State.create_view "v1"
         (Block.view b1 default_rect Config.view_config)
     return ()
-    -- State.set_selection v1 0 (Block.point_selection 0 (TrackPos 0))
-    -- _v2 <- State.create_view "v2"
-    --     (Block.view b1 (Block.Rect (500, 30) (200, 200))
-    --         view_config)
+
+mkstate :: [TrackSpec] -> ([Track.TrackId], State.State)
+mkstate tracks = State.run_state State.empty $ do
+    ruler <- State.create_ruler "r1" no_ruler
+    tids <- forM (zip [0..] tracks) $ \(i, track) -> do
+        State.create_track ("b1." ++ show i) (mktrack track)
+    State.create_block "b1" $
+        Block.block "b1 title" default_block_config
+            ((Block.RId ruler, 20) : [(Block.TId tid ruler, 40) | tid <- tids])
+            (Block.SchemaId "no schema")
+    return tids
 
 -- track
 
-empty_track title = Track.track title [] Color.white
-event_track_1 = Track.modify_events (empty_track "1") (Track.insert_events
-    [eventpos 0 "hi" 16, eventpos 30 "there" 32])
-event_track_2 = Track.modify_events (empty_track "2") (Track.insert_events
-    [eventpos 16 "ho" 10, eventpos 30 "eyo" 32])
-eventpos pos name dur = (TrackPos pos, event name (TrackPos dur))
+type TrackSpec = (String, [(Double, Double, String)])
+
+event_track_1 = mktrack ("1", [(0, 16, "hi"), (30, 32, "there")])
+event_track_2 = mktrack ("2", [(16, 10, "ho"), (30, 32, "eyo")])
+
+mktrack :: TrackSpec -> Track.Track
+mktrack (title, triplets) = Track.modify_events (empty_track title)
+    (Track.insert_events (map mkevent triplets))
+empty_track title = Track.track title [] Config.track_bg Config.render_config
 
 -- event
 
+mkevent (pos, dur, text) =
+    (TrackPos pos, event text (TrackPos dur))
 event text dur =
     Event.Event text dur (Color.rgb 0.9 0.9 0.7) default_style False
 default_style = Font.TextStyle Font.Helvetica [] 9 Color.black

@@ -3,15 +3,20 @@ module Derive.Schema_test where
 import qualified Util.Seq as Seq
 import Util.Test
 
+import qualified Ui.State as State
 import qualified Ui.Block as Block
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Track as Track
+import qualified Ui.TestSetup as TestSetup
 
+import qualified Derive.Derive as Derive
 import qualified Derive.Schema as Schema
 import Derive.Schema (Skeleton(..), TrackType(..))
 import qualified Derive.Score as Score
 
 import qualified Perform.Midi.Instrument as Instrument
+
+import Util.PPrint
 
 
 ruler = Schema.Track Nothing (Block.RId (Ruler.RulerId "ruler")) 0
@@ -48,6 +53,30 @@ test_parse = do
 
     -- orphaned control
     eq [cont "control1" "c1", inst 1] "c1() + i1"
+
+test_compile_to_signals = do
+    let parse tracks = Schema.default_parser tracks
+        (tids, state) = TestSetup.mkstate
+            [ ("tempo", [(0, 0, "2")])
+            , (">inst0", [])
+            , ("c1", [(0, 0, "3"), (10, 0, "2"), (20, 0, "1")])
+            , ("c2", [(0, 0, ".1"), (10, 0, ".2"), (20, 0, ".4")])
+            ]
+        tid_ns = map Track.un_track_id tids
+        tracks = State.eval fail id state $
+            State.get_block (Block.BlockId "b1") >>= Schema.block_tracks
+        skel = parse tracks
+    let d = Schema.compile_to_signals skel
+    -- It's important that the tempo track *doesn't* apply, since these go to
+    -- the UI.
+    let (res, _, _, logs) = Derive.derive state (Block.BlockId "b0") d
+    pprint skel
+    pprint res
+    -- tempo, c1, and c2 tracks get signals.
+    -- I don't verify the signals since it seems to hard at the moment.
+    equal (fmap (map fst) res)
+        (Right $ map Track.TrackId ["b1.0", "b1.2", "b1.3"])
+    equal logs []
 
 default_config = Instrument.config [] Nothing
 

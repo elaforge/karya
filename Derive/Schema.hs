@@ -23,13 +23,20 @@ module Derive.Schema (
     Schema(..), SchemaDeriver, Parser, Skeleton(..), merge
     , Track(..), CmdContext(..), SchemaMap
 
+    -- ** default parser
+    -- Just used by testing
+    , TrackType(..), track_type_of
+    , default_parser
+    , compile_to_signals
+
     -- * lookup
-    , get_deriver, get_cmds, get_skeleton
+    , get_deriver, get_signal_deriver, get_cmds, get_skeleton
     , skeleton_instruments
     -- * util
     , block_tracks
     , cmd_context
 ) where
+-- import qualified Control.Arrow as Arrow
 import Control.Monad
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -51,6 +58,7 @@ import qualified Derive.Controller as Controller
 import qualified Derive.Derive as Derive
 import qualified Derive.Twelve as Twelve
 
+import qualified Perform.Signal as Signal
 import qualified Perform.Midi.Instrument as Instrument
 
 import qualified App.Config as Config
@@ -79,10 +87,18 @@ get_deriver schema_map block = do
     -- This way a polymorphic SchemaDeriver type doesn't get out and infect
     -- signatures everywhere.
     --
-    -- In addition, this properly expresses that the schema deriver's doesn't
+    -- In addition, this properly expresses that the schema deriver doesn't
     -- modify the state.
     state <- State.get
     State.eval_rethrow state (schema_deriver schema block)
+
+get_signal_deriver :: (State.UiStateMonad m) => SchemaMap -> Block.Block
+    -> m Derive.SignalDeriver
+get_signal_deriver schema_map block = do
+    schema <- State.lookup_id (Block.block_schema block)
+        (merge_schemas hardcoded_schemas schema_map)
+    state <- State.get
+    State.eval_rethrow state (schema_signal_deriver schema block)
 
 -- | A block's Schema also implies a set of Cmds, possibly based on the
 -- focused track.  This is so that e.g. control tracks use control editing keys
@@ -108,6 +124,10 @@ block_tracks block = do
     return [Track name track num
         | (num, (name, track)) <- zip [0..] (zip names tracks)]
 
+track_name (Block.TId tid _) =
+    fmap (Just . Track.track_title) (State.get_track tid)
+track_name _ = return Nothing
+
 -- | Constructor for CmdContext.
 cmd_context :: Instrument.Config -> Bool -> Maybe Block.TrackNum -> CmdContext
 cmd_context midi_config edit_mode focused_tracknum =
@@ -127,7 +147,9 @@ cmd_context midi_config edit_mode focused_tracknum =
 -- | The default schema is supposed to be simple but useful, and rather
 -- trackerlike.
 default_schema :: Schema
-default_schema = Schema (default_schema_deriver default_parser)
+default_schema = Schema
+    (default_schema_deriver default_parser)
+    (default_schema_signal_deriver default_parser)
     default_parser (default_cmds default_parser)
 
 default_cmds :: Parser -> CmdContext -> [Track] -> [Cmd.Cmd]
@@ -188,35 +210,44 @@ instruments_of (Merge subs) = concatMap instruments_of subs
 -- then convert the skeleton into a deriver.  The intermediate data structure
 -- allows me to compose schemas out of smaller parts, as well as inspect the
 -- skeleton for e.g. instrument tracks named, or to create a view layout.
-default_schema_deriver :: Parser -> SchemaDeriver
+default_schema_deriver :: Parser -> SchemaDeriver Derive.Deriver
 default_schema_deriver parser block =
     fmap (compile_skeleton . parser) (block_tracks block)
 
--- | Transform a deriver skeleton into a real deriver.  The deriver may throw
--- if the skeleton was malformed.
-compile_skeleton :: Monad m => Skeleton -> Derive.DeriveT m [Score.Event]
-compile_skeleton skel = case skel of
-    Controller ctracks Nothing ->
-        Derive.throw $ "orphaned controller tracks: " ++ show ctracks
-    Controller ctracks (Just sub) ->
-        compile_controllers ctracks sub
-    Instrument inst (Track { track_id = Block.TId track_id _ }) ->
-        Twelve.twelve =<< Derive.d_instrument inst =<< Derive.d_track track_id
-    Instrument _ track ->
-        Derive.throw $ "instrument track not an event track: " ++ show track
-    Merge subs -> Derive.d_merge =<< mapM compile_skeleton subs
+default_schema_signal_deriver :: Parser -> SchemaDeriver Derive.SignalDeriver
+default_schema_signal_deriver parser block =
+    fmap (compile_to_signals . parser) (block_tracks block)
 
 -- | Get the Instruments from a parsed Skeleton.
 skeleton_instruments :: Skeleton -> [Score.Instrument]
 skeleton_instruments skel = case skel of
-    Controller _ (Just sub) -> skeleton_instruments sub
+    Controller _ (Just subskel) -> skeleton_instruments subskel
     Controller _ _ -> []
     Instrument inst _ -> [inst]
     Merge subs -> concatMap skeleton_instruments subs
 
+-- ** compile skeleton
+
+-- | Transform a deriver skeleton into a real deriver.  The deriver may throw
+-- if the skeleton was malformed.
+compile_skeleton :: Skeleton -> Derive.Deriver
+compile_skeleton skel = case skel of
+    Controller ctracks Nothing ->
+        -- TODO or it might be more friendly to just ignore them
+        Derive.throw $ "orphaned controller tracks: " ++ show ctracks
+    Controller ctracks (Just subskel) ->
+        compile_controllers ctracks subskel
+    Instrument inst (Track { track_id = Block.TId track_id _ }) ->
+        Twelve.twelve =<< Derive.d_instrument inst =<< Derive.d_track track_id
+    Instrument _ track ->
+        Derive.throw $
+            "instrument track not an event track, parser is confused: "
+            ++ show track
+    Merge subs -> Derive.d_merge =<< mapM compile_skeleton subs
+
 -- | Generate the Deriver for a Controller Skeleton.
-compile_controllers tracks sub =
-    foldr track_controller (compile_skeleton sub) (event_tracks tracks)
+compile_controllers tracks subskel =
+    foldr track_controller (compile_skeleton subskel) (event_tracks tracks)
 event_tracks tracks =
     [(title, track_id) | Track (Just title) (Block.TId track_id _) _ <- tracks]
 
@@ -229,9 +260,34 @@ track_controller (name, signal_track_id) =
         then Derive.d_tempo
         else Controller.d_controller (Score.Controller name)
 
-track_name (Block.TId tid _) =
-    fmap (Just . Track.track_title) (State.get_track tid)
-track_name _ = return Nothing
+-- *** compile to signals
+
+-- | Compile a Skeleton to its SignalDeriver.  The SignalDeriver is like the
+-- main Deriver except that it derives down to track signals instead of events.
+-- While the events go on to performance, the track signals go to the UI so
+-- it can draw pretty graphs.
+--
+-- TODO Think about this some more in light of more complicated derivers.  It
+-- seems annoying to have to make a whole separate signal deriver.  Getting the
+-- signals from the track could be more hardcoded and less work when writing
+-- a new schema.
+compile_to_signals :: Skeleton -> Derive.SignalDeriver
+compile_to_signals skel = case skel of
+    Controller ctracks maybe_subskel -> compile_signals ctracks maybe_subskel
+    Instrument _ _ -> return []
+    Merge subs -> Derive.d_signal_merge =<< mapM compile_to_signals subs
+
+compile_signals :: [Track] -> Maybe Skeleton -> Derive.SignalDeriver
+compile_signals tracks maybe_subskel = do
+    track_sigs <- mapM signal_controller (event_tracks tracks)
+    rest_sigs <- maybe (return []) compile_to_signals maybe_subskel
+    return (track_sigs ++ rest_sigs)
+
+signal_controller :: (Monad m) => (String, Track.TrackId)
+    -> Derive.DeriveT m (Track.TrackId, Signal.Signal)
+signal_controller (_title, track_id) = do
+    sig <- Controller.d_signal =<< Derive.d_track track_id
+    return (track_id, sig)
 
 -- | This is the track name that turns a track into a tempo track.
 tempo_track_title :: String

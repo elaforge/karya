@@ -27,7 +27,7 @@ struct DividerConfig {
 
 
 struct Tracklike {
-    // cheap variant
+    // cheap variant record
     Tracklike(EventTrackConfig *t, RulerConfig *r)
         : track(t), ruler(r), divider(0) {}
     Tracklike(RulerConfig *r)

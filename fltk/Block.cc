@@ -203,6 +203,7 @@ BlockView::set_zoom(const ZoomInfo &zoom)
 
     if (this->zoom != zoom) {
         this->zoom = zoom;
+        this->zoom.offset = std::max(TrackPos(0), this->zoom.offset);
         this->track_tile.set_zoom(this->zoom);
         this->ruler_track->set_zoom(this->zoom);
         this->update_scrollbars();
@@ -290,6 +291,8 @@ BlockView::remove_track(int tracknum, FinalizeCallback finalizer)
         t->finalize_callbacks(finalizer);
         delete t;
         this->update_scrollbars();
+    } else {
+        DEBUG("attempt to remove tracknum 0");
     }
 }
 

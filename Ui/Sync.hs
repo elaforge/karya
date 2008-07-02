@@ -7,7 +7,7 @@ So if this module has a bug, two views of one block could get out of sync and
 display different data.  Hopefully that won't happen.
 
 -}
-module Ui.Sync (sync, set_play_position) where
+module Ui.Sync (BlockSamples, sync, set_play_position) where
 import Control.Monad
 import qualified Control.Monad.Trans as Trans
 import qualified Data.List as List
@@ -26,14 +26,17 @@ import qualified Ui.Track as Track
 import qualified Ui.State as State
 import qualified Ui.Update as Update
 
+type BlockSamples = [(Block.BlockId, Track.TrackSamples)]
 
 -- | Sync with the ui by applying the given updates to it.
-sync :: State.State -> [Update.Update] -> IO (Maybe State.StateError)
-sync state updates = do
+sync :: State.State -> [Update.Update] -> BlockSamples ->
+    IO (Maybe State.StateError)
+sync state updates block_samples = do
     -- TODO: TrackUpdates can overlap.  Merge them together here.
     -- Technically I can also cancel out all TrackUpdates that only apply to
     -- newly created views, but this optimization is probably not worth it.
-    result <- State.run state (mapM_ do_update (Update.sort updates))
+    result <- State.run state $
+        mapM_ (do_update block_samples) (Update.sort updates)
     return $ case result of
         Left err -> Just err
         -- I reuse State.StateT for convenience, but run_update should
@@ -42,9 +45,9 @@ sync state updates = do
         -- express this in the type?
         Right _ -> Nothing
 
-do_update update = do
+do_update block_samples update = do
     -- Trans.liftIO $ putStrLn ("run update: " ++ show update)
-    run_update update
+    run_update block_samples update
 
 -- | The play position selection bypasses all the usual State -> Diff -> Sync
 -- stuff for a direct write to the UI.
@@ -70,14 +73,25 @@ track_title _ = return ""
 block_window_title (Block.ViewId view_id) (Block.BlockId block_id) =
     view_id ++ " (" ++ block_id ++ ")"
 
+get_samples :: Maybe Track.TrackSamples -> Block.TracklikeId -> Track.Samples
+get_samples maybe_track_samples track = maybe Track.no_samples id $ do
+    track_samples <- maybe_track_samples
+    track_id <- track_id_of track
+    lookup track_id track_samples
+
+track_id_of (Block.TId track_id _) = Just track_id
+track_id_of _ = Nothing
+
 -- | Apply the update to the UI.
 -- CreateView Updates will modify the State to add the ViewPtr
-run_update :: Update.Update -> State.StateT IO ()
-run_update (Update.ViewUpdate view_id Update.CreateView) = do
+run_update :: BlockSamples -> Update.Update -> State.StateT IO ()
+run_update block_samples (Update.ViewUpdate view_id Update.CreateView) = do
     view <- State.get_view view_id
     block <- State.get_block (Block.view_block view)
+    let maybe_track_samples = lookup (Block.view_block view) block_samples
 
-    tracks <- mapM (State.get_tracklike . fst) (Block.block_tracks block)
+    let tracks = map fst (Block.block_tracks block)
+    ctracks <- mapM State.get_tracklike tracks
     let widths = map Block.track_view_width (Block.view_tracks view)
     titles <- mapM (track_title . fst) (Block.block_tracks block)
 
@@ -93,9 +107,12 @@ run_update (Update.ViewUpdate view_id Update.CreateView) = do
         BlockC.create_view view_id title (Block.view_rect view)
             (Block.view_config view) (Block.block_config block)
 
-        let track_info = List.zip4 [0..] tracks widths titles
-        forM_ track_info $ \(tracknum, ctrack, width, title) -> do
-            BlockC.insert_track view_id tracknum ctrack width
+        let track_info = List.zip5 [0..] tracks ctracks widths titles
+        forM_ track_info $ \(tracknum, track, ctrack, width, title) -> do
+            -- The 'get_samples' may imply some work evaluating 'block_samples'
+            -- which will be serialized in the UI thread.  Should be ok though.
+            BlockC.insert_track view_id tracknum ctrack
+                (get_samples maybe_track_samples track) width
             when (not (null title)) $
                 BlockC.set_track_title view_id tracknum title
 
@@ -107,7 +124,7 @@ run_update (Update.ViewUpdate view_id Update.CreateView) = do
         BlockC.set_zoom view_id (Block.view_zoom view)
         BlockC.set_track_scroll view_id (Block.view_track_scroll view)
 
-run_update (Update.ViewUpdate view_id update) = do
+run_update _ (Update.ViewUpdate view_id update) = do
     case update of
         -- The previous equation matches CreateView, but ghc warning doesn't
         -- figure that out.
@@ -126,8 +143,9 @@ run_update (Update.ViewUpdate view_id update) = do
             send $ BlockC.set_selection view_id selnum csel
 
 -- Block ops apply to every view with that block.
-run_update (Update.BlockUpdate block_id update) = do
+run_update block_samples (Update.BlockUpdate block_id update) = do
     view_ids <- fmap Map.keys (State.get_views_of block_id)
+    let maybe_track_samples = lookup block_id block_samples
     case update of
         Update.BlockTitle title ->
             mapM_ (send . flip BlockC.set_title title) view_ids
@@ -136,40 +154,50 @@ run_update (Update.BlockUpdate block_id update) = do
         Update.RemoveTrack tracknum ->
             mapM_ (send . flip BlockC.remove_track tracknum) view_ids
         Update.InsertTrack tracknum tracklike_id width -> do
-            track <- State.get_tracklike tracklike_id
+            ctrack <- State.get_tracklike tracklike_id
             send $ forM_ view_ids $ \view_id -> do
-                BlockC.insert_track view_id tracknum track width
-                case track of
+                BlockC.insert_track view_id tracknum ctrack
+                    (get_samples maybe_track_samples tracklike_id) width
+                case ctrack of
                     Block.T t _ -> when (not (null (Track.track_title t))) $
                         -- Sync the title.  See the CreateView comment.
                         BlockC.set_track_title view_id tracknum
                             (Track.track_title t)
                     _ -> return ()
 
-run_update (Update.TrackUpdate track_id update) = do
+run_update block_samples (Update.TrackUpdate track_id update) = do
     blocks <- State.blocks_with_track track_id
     forM_ blocks $ \(block_id, tracknum, tracklike_id) -> do
         view_ids <- fmap Map.keys (State.get_views_of block_id)
         tracklike <- State.get_tracklike tracklike_id
+        let maybe_track_samples = lookup block_id block_samples
+            samples = get_samples maybe_track_samples tracklike_id
         forM_ view_ids $ \view_id -> case update of
             Update.TrackEvents low high ->
-                send $ BlockC.update_track view_id tracknum tracklike low high
+                send $ BlockC.update_track view_id tracknum tracklike
+                    samples low high
             Update.TrackAllEvents ->
                 send $ BlockC.update_entire_track view_id tracknum tracklike
+                    samples
             Update.TrackTitle title ->
                 send $ BlockC.set_track_title view_id tracknum title
             Update.TrackBg ->
                 -- update_track also updates the bg color
                 send $ BlockC.update_track view_id tracknum tracklike
-                    (TrackPos 0) (TrackPos 0)
+                    samples (TrackPos 0) (TrackPos 0)
+            Update.TrackRender ->
+                send $ BlockC.update_entire_track view_id tracknum tracklike
+                    samples
 
-run_update (Update.RulerUpdate ruler_id) = do
+run_update _ (Update.RulerUpdate ruler_id) = do
     blocks <- State.blocks_with_ruler ruler_id
     forM_ blocks $ \(block_id, tracknum, tracklike_id) -> do
         view_ids <- fmap Map.keys (State.get_views_of block_id)
         tracklike <- State.get_tracklike tracklike_id
+        -- A ruler track doesn't have samples so don't bother to look for them.
+        let samples = get_samples Nothing tracklike_id
         forM_ view_ids $ \view_id ->
-            send $ BlockC.update_entire_track view_id tracknum tracklike
+            send $ BlockC.update_entire_track view_id tracknum tracklike samples
 
 to_csel :: Block.ViewId -> Block.SelNum -> Maybe (Block.Selection)
     -> State.StateT IO (Maybe BlockC.CSelection)

@@ -78,6 +78,7 @@ import qualified Util.Data
 import qualified Util.Seq as Seq
 
 import Ui.Types
+import qualified Ui.Track as Track
 import qualified Perform.Timestamp as Timestamp
 
 
@@ -173,6 +174,11 @@ sample_timestamp srate sig start =
 linear_sample :: TrackPos -> Signal -> [Sample]
 linear_sample srate (Signal smap) =
     concatMap (seg_to_sample srate) (Map.assocs smap)
+
+to_track_samples :: Signal -> Track.Samples
+to_track_samples sig =
+    Track.samples $ concatMap extract (linear_sample default_srate sig)
+    where extract (Sample p0 v0 p1 v1) = [(p0, v0), (p1, v1)]
 
 
 -- Segments that line up with each other can make redundant samples.

@@ -8,6 +8,7 @@ import qualified System.Directory as Directory
 import qualified Ui.Font as Font
 import qualified Ui.Color as Color
 import qualified Ui.Block as Block
+import qualified Ui.Track as Track
 
 import qualified Ui.Event as Event
 
@@ -59,6 +60,9 @@ ruler_width = 18
 -- | Default width for new tracks.
 track_width :: Block.Width
 track_width = 30
+
+render_config = Track.RenderConfig Track.NoRender render_color
+render_color = Color.rgba 0.75 0.75 1 0.5
 
 schema = Block.SchemaId "default"
 

@@ -18,15 +18,6 @@ track_box sb_box     time_sb ruler   track_sb  track_scroll
                          overlay_ruler
                          /
                      event, ...
-
-also, there should be readouts for insertion point pos, zoom box,
-block length, ...
-these should be in both Trackpos units and relative to Mark units
-(controllable from python)
-
-scrolling:
-on an scrollbar callback
-
 */
 
 #include <algorithm>

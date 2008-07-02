@@ -120,6 +120,7 @@ import qualified Derive.Score as Score
 -- * DeriveT
 
 type Deriver = DeriveT Identity.Identity [Score.Event]
+type SignalDeriver = DeriveT Identity.Identity [(Track.TrackId, Signal.Signal)]
 
 newtype DeriveT m a = DeriveT (DeriveStack m a)
     deriving (Functor, Monad, Trans.MonadIO, Error.MonadError DeriveError)
@@ -149,7 +150,7 @@ state_tempo_signal :: State -> Signal.Signal
 state_tempo_signal state =
     Signal.map_signal "(1/) . max min_tempo" ((1/) . max min_tempo) $
         Maybe.fromMaybe default_tempo (state_tempo state)
-default_tempo = Signal.constant 0.2
+default_tempo = Signal.constant 1
 
 data DeriveError =
     -- | A general deriver error.
@@ -177,8 +178,8 @@ run ui_state m = do
         . Error.runErrorT . run_derive_t) m
     return (err, state2, logs)
 
-derive :: State.State -> Block.BlockId -> Deriver
-    -> (Either DeriveError [Score.Event],
+derive :: State.State -> Block.BlockId -> DeriveT Identity.Identity a
+    -> (Either DeriveError a,
         Transport.TempoMap, Transport.InverseTempoMap, [Log.Msg])
 derive ui_state block_id deriver = (result, tempo_map, inv_tempo_map, logs)
     where
@@ -372,6 +373,10 @@ lookup_id key map = case Map.lookup key map of
 
 d_merge :: (Monad m) => [[Score.Event]] -> m [Score.Event]
 d_merge = return . merge_events
+
+d_signal_merge :: (Monad m) => [[(Track.TrackId, Signal.Signal)]]
+    -> m [(Track.TrackId, Signal.Signal)]
+d_signal_merge = return . concat
 
 merge_events :: [[Score.Event]] -> [Score.Event]
 merge_events = foldr (Seq.merge_by (compare `on` Score.event_start)) []

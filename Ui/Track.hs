@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -XDeriveDataTypeable #-}
 module Ui.Track where
+import qualified Data.Array.IArray as IArray
 import qualified Data.Generics as Generics
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -7,7 +8,9 @@ import Text.Printf
 
 import qualified Util.Data
 import Util.Pretty
+
 import Ui.Types
+import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 
 
@@ -21,11 +24,33 @@ data Track = Track {
     track_title :: String
     , track_events :: TrackEvents
     , track_bg :: Color
+    , track_render :: RenderConfig
     } deriving (Show, Read, Generics.Data, Generics.Typeable)
 
 -- | Construct an empty Track.
-track :: String -> [PosEvent] -> Color -> Track
-track title events bg = Track title (insert_events events empty_events) bg
+track :: String -> [PosEvent] -> Color -> RenderConfig -> Track
+track title events bg render =
+    Track title (insert_events events empty_events) bg render
+
+data RenderConfig = RenderConfig {
+    render_style :: RenderStyle
+    , render_color :: Color.Color
+    } deriving (Eq, Show, Read, Generics.Data, Generics.Typeable)
+
+data RenderStyle = NoRender | Line | Filled
+    deriving (Eq, Show, Read, Generics.Data, Generics.Typeable)
+
+type TrackSamples = [(TrackId, Samples)]
+newtype Samples = Samples (IArray.Array Int (TrackPos, Double))
+    deriving (Show)
+samples :: [(TrackPos, Double)] -> Samples
+samples smps = Samples $ IArray.listArray (0, length smps - 1) smps
+
+no_samples = samples []
+
+set_render_style :: RenderStyle -> Track -> Track
+set_render_style style track =
+    track { track_render = (track_render track) { render_style = style } }
 
 modify_events :: Track -> (TrackEvents -> TrackEvents) -> Track
 modify_events track@(Track { track_events = events }) f =

@@ -103,7 +103,7 @@ eval_rethrow = eval throw return
 -- | A form of 'run' that throws away the output state and updates, and applies
 -- either 'failed' or 'succeeded' on the result depending on if the monad threw
 -- or not.
-eval :: (String -> t) -> (a -> t) -> State -> StateT Identity.Identity a -> t
+eval :: (String -> b) -> (a -> b) -> State -> StateT Identity.Identity a -> b
 eval failed succeeded state m = case st of
         Left (StateError err) -> failed err
         Right (val, _, _) -> succeeded val
@@ -440,6 +440,11 @@ set_track_title track_id text = modify_track track_id $ \track ->
 set_track_bg :: (UiStateMonad m) => Track.TrackId -> Color -> m ()
 set_track_bg track_id color = modify_track track_id $ \track ->
     track { Track.track_bg = color }
+
+modify_track_render :: (UiStateMonad m) => Track.TrackId
+    -> (Track.RenderConfig -> Track.RenderConfig) -> m ()
+modify_track_render track_id f = modify_track track_id $ \track ->
+    track { Track.track_render = f (Track.track_render track) }
 
 -- | Insert events into track_id as per 'Track.insert_events'.
 insert_events :: (UiStateMonad m) =>

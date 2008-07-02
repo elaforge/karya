@@ -154,7 +154,7 @@ remove_selected_tracks = do
 
 -- ** util
 
-empty_track title = Track.track title [] Config.track_bg
+empty_track title = Track.track title [] Config.track_bg Config.render_config
 
 tracklike_track (Block.TId tid _) = Just tid
 tracklike_track _ = Nothing

@@ -46,7 +46,8 @@ data TrackUpdate
     | TrackAllEvents
     | TrackTitle String
     | TrackBg
-    deriving Show
+    | TrackRender
+    deriving (Show)
 
 -- | Some Updates have to happen before others.
 sort :: [Update] -> [Update]

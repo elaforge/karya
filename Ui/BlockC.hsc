@@ -16,7 +16,7 @@ module Ui.BlockC (
     -- * view creation
     , create_view, destroy_view
     -- ** set other attributes
-    , get_size, set_size
+    , set_size
     , set_view_config
     , set_zoom
     , set_track_scroll
@@ -56,7 +56,7 @@ import qualified Ui.Block as Block
 import qualified Ui.Ruler as Ruler
 import qualified Ui.RulerC as RulerC
 import qualified Ui.Track as Track
-import qualified Ui.TrackC as TrackC () -- just want Storable instance
+import qualified Ui.TrackC as TrackC
 
 #include "c_interface.h"
 
@@ -93,6 +93,8 @@ get_id viewp = do
 -- Phantom type for block view ptrs.
 data CView
 
+-- | Create an empty block view with the given configs.  Tracks must be
+-- inserted separately.
 create_view :: Block.ViewId -> String -> Block.Rect -> Block.ViewConfig
     -> Block.Config -> Fltk ()
 create_view view_id window_title rect view_config block_config = do
@@ -124,10 +126,8 @@ foreign import ccall "destroy"
 
 -- ** Set other attributes
 
--- Unlike the other view attributes, I have a getter for the size.  This is
--- because the OS doesn't seem to say when the window gets moved, so I have
--- to ask.
--- TODO except it does now... should I remove this function?
+-- TODO unused now that window moves are sent in msgs, remove this?
+{-
 get_size :: Block.ViewId -> Fltk Block.Rect
 get_size view_id = do
     viewp <- get_ptr view_id
@@ -138,6 +138,7 @@ get_size view_id = do
     return (Block.Rect (x, y) (w, h))
 foreign import ccall unsafe "get_size"
     c_get_size :: Ptr CView -> Ptr CInt -> IO ()
+-}
 
 set_size :: Block.ViewId -> Block.Rect -> Fltk ()
 set_size view_id (Block.Rect (x, y) (w, h)) = do
@@ -212,11 +213,11 @@ foreign import ccall "set_status" c_set_status :: Ptr CView -> CString -> IO ()
 
 -- ** Track operations
 
-insert_track :: Block.ViewId -> Block.TrackNum -> Block.Tracklike -> Block.Width
-    -> Fltk ()
-insert_track view_id tracknum tracklike width = do
+insert_track :: Block.ViewId -> Block.TrackNum -> Block.Tracklike
+    -> Track.Samples -> Block.Width -> Fltk ()
+insert_track view_id tracknum tracklike samples width = do
     viewp <- get_ptr view_id
-    with_tracklike tracklike $ \tp mlistp len ->
+    with_tracklike tracklike samples $ \tp mlistp len ->
         c_insert_track viewp (Util.c_int tracknum) tp
             (Util.c_int width) mlistp len
 
@@ -226,22 +227,23 @@ remove_track view_id tracknum = do
     Exception.bracket make_free_fun_ptr freeHaskellFunPtr $ \finalize ->
         c_remove_track viewp (Util.c_int tracknum) finalize
 
-update_track :: Block.ViewId -> Block.TrackNum -> Block.Tracklike -> TrackPos
-    -> TrackPos -> Fltk ()
-update_track view_id tracknum tracklike start end = do
+update_track :: Block.ViewId -> Block.TrackNum -> Block.Tracklike
+    -> Track.Samples -> TrackPos -> TrackPos -> Fltk ()
+update_track view_id tracknum tracklike samples start end = do
     viewp <- get_ptr view_id
     Exception.bracket make_free_fun_ptr freeHaskellFunPtr $ \finalize ->
         with start $ \startp -> with end $ \endp ->
-            with_tracklike tracklike $ \tp mlistp len ->
+            with_tracklike tracklike samples $ \tp mlistp len ->
                 c_update_track viewp (Util.c_int tracknum) tp
                     mlistp len finalize startp endp
 
 -- | Like 'update_track' except update everywhere.
 update_entire_track :: Block.ViewId -> Block.TrackNum -> Block.Tracklike
-    -> Fltk ()
-update_entire_track view_id tracknum tracklike =
+    -> Track.Samples -> Fltk ()
+update_entire_track view_id tracknum tracklike samples =
     -- -1 is special cased in c++.
-    update_track view_id tracknum tracklike (TrackPos (-1)) (TrackPos (-1))
+    update_track view_id tracknum tracklike samples
+        (TrackPos (-1)) (TrackPos (-1))
 
 foreign import ccall "insert_track"
     c_insert_track :: Ptr CView -> CInt -> Ptr TracklikePtr -> CInt
@@ -263,9 +265,9 @@ make_free_fun_ptr = c_make_free_fun_ptr
     (\p -> Log.debug ("free callback: " ++ show p) >> freeHaskellFunPtr p)
 -- make_free_fun_ptr = c_make_free_fun_ptr freeHaskellFunPtr
 
-with_tracklike tracklike f = case tracklike of
+with_tracklike tracklike samples f = case tracklike of
     Block.T track ruler -> RulerC.with_ruler ruler $ \rulerp mlistp len ->
-        with track $ \trackp -> with (TPtr trackp rulerp) $ \tp ->
+        with track $ \trackp -> with (TPtr trackp samples rulerp) $ \tp ->
             f tp mlistp len
     Block.R ruler -> RulerC.with_ruler ruler $ \rulerp mlistp len ->
         with (RPtr rulerp) $ \tp ->
@@ -274,7 +276,7 @@ with_tracklike tracklike f = case tracklike of
         f tp nullPtr 0
 
 data TracklikePtr =
-    TPtr (Ptr Track.Track) (Ptr Ruler.Ruler)
+    TPtr (Ptr Track.Track) Track.Samples (Ptr Ruler.Ruler)
     | RPtr (Ptr Ruler.Ruler)
     | DPtr (Ptr Block.Divider)
 
@@ -323,9 +325,10 @@ poke_tracklike_ptr tp trackp = do
     (#poke Tracklike, ruler) tp nullPtr
     (#poke Tracklike, divider) tp nullPtr
     case trackp of
-        TPtr trackp rulerp -> do
+        TPtr trackp samples rulerp -> do
             (#poke Tracklike, track) tp trackp
             (#poke Tracklike, ruler) tp rulerp
+            TrackC.insert_render_samples trackp samples
         RPtr rulerp -> (#poke Tracklike, ruler) tp rulerp
         DPtr dividerp -> (#poke Tracklike, divider) tp dividerp
 

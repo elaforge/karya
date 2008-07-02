@@ -35,7 +35,7 @@ import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Midi.Midi as Midi
 
--- import BinaryDerive
+import qualified App.Config as Config
 
 
 serialize :: FilePath -> SaveState -> IO ()
@@ -58,7 +58,7 @@ unserialize :: IO.FilePath
 unserialize fname = Exception.try $ do
     st <- Binary.decodeFile fname
     -- Data.Binary is lazy, but I want errors parsing to get caught right here.
-    -- The correct thing to do would be to use the binary-strict package, but 
+    -- The correct thing to do would be to use the binary-strict package, but
     -- it's not drop-in and this is expedient.
     length (show st) `seq` return st
 
@@ -317,15 +317,53 @@ instance Binary Track.TrackId where
     put (Track.TrackId a) = put a
     get = get >>= \a -> return (Track.TrackId a)
 
-track = Track.Track :: String -> Track.TrackEvents -> Color -> Track.Track
 instance Binary Track.Track where
-    put (Track.Track a b c) = put_version 0 >> put a >> put b >> put c
+    put (Track.Track a b c d) = put_version 1 >>
+        put a >> put b >> put c >> put d
     get = do
         v <- get_version
         case v of
-            0 -> get >>= \a -> get >>= \b -> get >>= \c ->
-                return (track a b c)
+            0 -> do
+                title <- get :: Get String
+                events <- get :: Get Track.TrackEvents
+                bg <- get :: Get Color
+                return $ Track.Track title events bg Config.render_config
+            1 -> do
+                title <- get :: Get String
+                events <- get :: Get Track.TrackEvents
+                bg <- get :: Get Color
+                render <- get :: Get Track.RenderConfig
+                return $ Track.Track title events bg render
             _ -> version_error "Track.Track" v
+
+with_version name cases = do
+    v <- get_version
+    case lookup v cases of
+        Just getter -> getter
+        Nothing -> version_error name v
+
+instance Binary Track.RenderConfig where
+    put (Track.RenderConfig a b) = put_version 0 >> put a >> put b
+    get = do
+        v <- get_version
+        case v of
+            0 -> do
+                style <- get :: Get Track.RenderStyle
+                color <- get :: Get Color
+                return $ Track.RenderConfig style color
+            _ -> version_error "Track.RenderConfig" v
+
+instance Binary Track.RenderStyle where
+    put Track.NoRender = putWord8 0
+    put Track.Line = putWord8 1
+    put Track.Filled = putWord8 2
+    get = do
+        tag_ <- getWord8
+        case tag_ of
+            0 -> return Track.NoRender
+            1 -> return Track.Line
+            2 -> return Track.Filled
+            _ -> fail "no parse for Track.RenderStyle"
 
 track_events = Track.TrackEvents :: Map.Map TrackPos Event.Event
     -> Track.TrackEvents
@@ -337,7 +375,7 @@ instance Binary Track.TrackEvents where
             0 -> get >>= \a -> return (track_events a)
             _ -> version_error "Track.TrackEvents" v
 
--- ** Event 
+-- ** Event
 
 event = Event.Event :: String -> TrackPos -> Color -> Font.TextStyle -> Bool
     -> Event.Event

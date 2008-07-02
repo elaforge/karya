@@ -15,6 +15,28 @@ Events don't overlap.
 #include "Event.h"
 
 
+struct RenderConfig {
+    // Get samples from the one before start_pos to the one at or after
+    // end_pos.
+    // TODO start and end are actually const, but it's too much bother to
+    // convert them now.
+    typedef int (*FindSamples)(TrackPos *start_pos, TrackPos *end_pos,
+            TrackPos **ret_tps, double **ret_samples);
+    enum RenderStyle {
+        render_none,
+        render_line,
+        render_filled
+    };
+
+    RenderConfig(RenderStyle style, FindSamples find_samples, Color color) :
+        style(style), color(color), find_samples(find_samples)
+    {}
+    RenderStyle style;
+    Color color;
+    // Samples should be within 0--1 inclusive.
+    FindSamples find_samples;
+};
+
 // TODO: as an optimization, I could cache the last set of found events plus
 // one before start and one after end.  Then if the next draw_area is within
 // that area (as it will be when scrolling smoothly) I can avoid the callback.
@@ -25,12 +47,15 @@ struct EventTrackConfig {
             TrackPos **ret_tps, Event **ret_events);
 
     EventTrackConfig(Color bg_color, FindEvents find_events,
-            TrackPos time_end) :
-        bg_color(bg_color), find_events(find_events), time_end(time_end)
+            TrackPos time_end, RenderConfig render_config) :
+        bg_color(bg_color), find_events(find_events), time_end(time_end),
+        render(render_config)
     {}
     Color bg_color;
     FindEvents find_events;
     TrackPos time_end;
+
+    RenderConfig render;
 };
 
 
@@ -58,6 +83,7 @@ protected:
 
 private:
     void draw_area();
+    void draw_samples(TrackPos start, TrackPos end);
     int draw_upper_layer(int offset, const Event &event, int previous_bottom);
 
     EventTrackConfig config;

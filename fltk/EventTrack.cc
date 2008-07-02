@@ -1,3 +1,4 @@
+#include <math.h>
 #include "config.h"
 #include "util.h"
 #include "alpha_draw.h"
@@ -71,7 +72,10 @@ EventTrackView::update(const Tracklike &track, FinalizeCallback finalizer,
         TrackPos start, TrackPos end)
 {
     ASSERT(track.track && track.ruler);
+    // Doesn't use finalize_callbacks because that finalizes the ruler,
+    // which set_config is going to do.
     finalizer((void *) this->config.find_events);
+    finalizer((void *) this->config.render.find_samples);
     this->overlay_ruler.set_config(*track.ruler, finalizer, start, end);
     if (this->config.bg_color != track.track->bg_color) {
         this->bg_box.color(color_to_fl(track.track->bg_color));
@@ -87,6 +91,7 @@ void
 EventTrackView::finalize_callbacks(FinalizeCallback finalizer)
 {
     finalizer((void *) this->config.find_events);
+    finalizer((void *) this->config.render.find_samples);
     this->overlay_ruler.finalize_callbacks(finalizer);
 }
 
@@ -140,10 +145,10 @@ EventTrackView::draw_area()
     // DEBUG("TRACK CLIP: " << start << "--" << end << ", "
     //         << clip.y << "--" << clip.b());
 
+    // Draw event boxes.
     Event *events;
     TrackPos *event_pos;
     int count = this->config.find_events(&start, &end, &event_pos, &events);
-
     for (int i = 0; i < count; i++) {
         const Event &event = events[i];
         const TrackPos &pos = event_pos[i];
@@ -152,6 +157,9 @@ EventTrackView::draw_area()
         fl_color(color_to_fl(event.color));
         fl_rectf(this->x() + 1, offset, this->w() - 2, height);
     }
+
+    if (config.render.style != RenderConfig::render_none)
+        this->draw_samples(start, end);
 
     if (damage() & ~FL_DAMAGE_CHILD) {
         this->draw_child(this->overlay_ruler);
@@ -173,6 +181,48 @@ EventTrackView::draw_area()
             free(events[i].text);
         free(events);
         free(event_pos);
+    }
+}
+
+void
+EventTrackView::draw_samples(TrackPos start, TrackPos end)
+{
+    TrackPos *sample_pos;
+    double *samples;
+    // DEBUG("CALL find samples " << &config.render.find_samples);
+    int sample_count = this->config.render.find_samples(&start, &end,
+        &sample_pos, &samples);
+    // TODO alpha not supported, I'd need a non-portable drawing routine for it.
+    fl_color(color_to_fl(this->config.render.color));
+    if (config.render.style == RenderConfig::render_line)
+        fl_line_style(FL_SOLID | FL_CAP_ROUND, 2);
+    else
+        fl_line_style(FL_SOLID | FL_CAP_ROUND, 0);
+    for (int i = 0; i < sample_count; i++) {
+        int offset = y() + this->zoom.to_pixels(sample_pos[i] - zoom.offset);
+        int next_offset;
+        double next_sample;
+        if (i+1 < sample_count) {
+            next_offset = y() + zoom.to_pixels(sample_pos[i+1] - zoom.offset);
+            next_sample = samples[i+1];
+        } else {
+            next_offset = y() + h();
+            next_sample = samples[i];
+        }
+        int xpos = floor(::scale(double(x()), double(x()+w()),
+            ::clamp(0.0, 1.0, samples[i])));
+        int next_xpos = floor(::scale(double(x()), double(x()+w()),
+            ::clamp(0.0, 1.0, next_sample)));
+
+        switch (config.render.style) {
+        case RenderConfig::render_line:
+            fl_line(xpos, offset, next_xpos, next_offset);
+            break;
+        case RenderConfig::render_filled:
+            fl_polygon(xpos, offset, next_xpos, next_offset,
+                    x(), next_offset, x(), offset);
+            break;
+        }
     }
 }
 

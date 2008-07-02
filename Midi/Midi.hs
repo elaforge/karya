@@ -28,6 +28,17 @@ newtype WriteDevice = WriteDevice String
     deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
 
 
+-- * predicates
+
+is_cc (ChannelMessage _ (ControlChange _ _)) = True
+is_cc _ = False
+
+is_note (ChannelMessage _ (NoteOn _ _)) = True
+is_note (ChannelMessage _ (NoteOff _ _)) = True
+is_note _ = False
+
+-- * types
+
 data Message
     = ChannelMessage Channel ChannelMessage
     | CommonMessage CommonMessage

@@ -195,6 +195,10 @@ show_events track_id start end = do
     return $ (show_list . map Track.pretty_pos_event
         . Track.events_in_range start end . Track.track_events) track
 
+set_render_style :: Track.RenderStyle -> Track.TrackId -> Cmd.CmdL ()
+set_render_style style track_id = State.modify_track_render track_id $
+    \render -> render { Track.render_style = style }
+
 -- ** events
 
 -- | Events in the selection.
@@ -316,10 +320,10 @@ controllers_of inst = undefined -- TODO
 
 derive_to_midi block_id = score_to_midi =<< derive block_id
 
-derive :: String -> Cmd.CmdL [Score.Event]
+derive :: Block.BlockId -> Cmd.CmdL [Score.Event]
 derive block_id = do
     schema_map <- Cmd.get_schema_map
-    (result, _, _) <- Play.derive schema_map (bid block_id)
+    (result, _, _) <- Play.derive schema_map block_id
     case result of
         Left err -> State.throw $ "derive error: " ++ show err
         Right events -> return events

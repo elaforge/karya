@@ -1,5 +1,6 @@
 -- | Directly exercise the BlockC functions.
 module Ui.BlockC_test where
+import qualified Control.Arrow as Arrow
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception
@@ -148,6 +149,19 @@ test_create_remove_update_track = do
             (Block.T event_track_2 (TestSetup.overlay_ruler ruler))
             no_samples (TrackPos 0) (TrackPos 60)
 
+test_samples = do
+    view <- create_empty_view
+    let track = Track.set_render_style Track.Line event_track_1
+    io_human "track with samples" $
+        send $ BlockC.insert_track view 1 (event_track track) samples 40
+
+    let track2 = Track.set_render_style Track.Filled event_track_1
+    io_human "samples are filled in" $
+        send $ BlockC.update_entire_track view 1 (event_track track2) samples
+
+samples = Track.samples $ map (Arrow.first TrackPos)
+    [(0, 1), (32, 0.5), (32, 1), (64, 0), (500, 0), (510, 1), (520, 0)]
+
 -- TODO
 -- test_print_children
 
@@ -166,4 +180,4 @@ create_empty_view = do
         TestSetup.default_view_config TestSetup.default_block_config
     return view_id
 
-no_samples = Track.Samples []
+no_samples = Track.samples []

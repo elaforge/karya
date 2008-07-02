@@ -1,11 +1,59 @@
+{- | The responder is the main event loop on the haskell side.
+
+It receives msgs (described in Cmd.Msg) multiplexed through a set of channels
+which come from various sources: the UI event loop (in its own thread),
+a socket, the MIDI library, etc.  The Msgs are then dispatched through Cmds to
+treat as they will, stopping when one returns Cmd.Done.
+
+The responder then deals with the results of the Cmds: midi thru output is sent
+and the old state is diffed with the new state to produce Updates, which
+are given to Sync to sync the visible UI with the changes the Cmds made to the
+UI state.
+
+
+This is possibly not the best place to describe the signal display, but until
+I think of a better one:
+
+The signal display mechanism goes from the deriver to the UI, so it's spread
+across Schema, Derive, Responder, to Sync.  Effectively this is a path from the
+deriver to the UI, just as the "play" path is from the deriver to Perform.
+Schema has a special "signal_deriver" field, and the signal deriver is compiled
+from the Skeleton in a way parallel the score event deriver.
+
+While the event deriver is invoked at play time, the signal deriver is invoked
+by the responder before syncing the state to the UI.  The deriver creates
+signal maps for each track for each block.  It's important that the signal maps
+remain lazy because only portions of them may be needed if there are only
+localized track updates (or none at all if there are no track updates).
+
+Technically speaking, tracks display samples, not signals.  I am making the
+terminology distinction that a signal is a higher level curve description as in
+Signal.Signal, while samples only have linear segments.
+
+A track's samples is much like its events in that they are spread across the
+track's entire range but only displayed for the visible subset.  However, while
+events have a special mechanism/hack to capture modified ranges (as described
+in Ui.State) so the display can be refreshed incrementally, samples have no
+such mechanism.  This is because they are expected to only change in reaction
+to events changing, and to only change within the range of the changed events.
+Since an event alteration will emit Update.TrackEvents, the track should be
+redrawn in the given range and refresh the altered sample area.
+
+TODO I'm not entirely satisfied with this, elegance-wise or efficiency-wise.
+I'll wait until I have experience with large tracks and dense samples before
+giving this more thought.  It seems like I should be able to render samples
+directly to a buffer which gets passed by pointer to c++.
+-}
 module Cmd.Responder where
 
+import qualified Control.Arrow as Arrow
 import Control.Monad
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Concurrent.STM.TChan as TChan
 import qualified Control.Exception as Exception
 import qualified Data.List as List
+import qualified Data.Map as Map
 import qualified Language.Haskell.Interpreter.GHC as GHC
 import qualified Network
 import qualified System.IO as IO
@@ -15,6 +63,7 @@ import qualified Util.Thread as Thread
 
 import qualified Ui.State as State
 import qualified Ui.Block as Block
+import qualified Ui.Track as Track
 import qualified Ui.Sync as Sync
 import qualified Ui.Diff as Diff
 import qualified Ui.Update as Update
@@ -30,7 +79,10 @@ import qualified Cmd.DefaultKeymap as DefaultKeymap
 import qualified Cmd.Play as Play
 import qualified Cmd.Save as Save
 
+import qualified Derive.Derive as Derive
 import qualified Derive.Schema as Schema
+
+import qualified Perform.Signal as Signal
 
 import qualified App.Config as Config
 import qualified App.StaticConfig as StaticConfig
@@ -179,6 +231,9 @@ maybe_run err_msg status write_midi ui_state cmd_state run cmds msg =
             handle_cmd_val err_msg True write_midi ui_state cmd_val
         _ -> return (status, ui_state, cmd_state)
 
+-- TODO
+-- type RunInfo = (MidiWriter, State.State, Cmd.State, Track.TrackSamples)
+
 -- | Run the given list of Cmds against the Msg, stopping and returning as soon
 -- as one doesn't return Continue.  Use the given @run@ function to run the
 -- Cmd, since it may be in either IO or Identity.
@@ -216,7 +271,8 @@ handle_cmd_val err_msg do_sync write_midi ui_state1
         Right (status, ui_state2, cmd_updates) -> do
             if do_sync
                 then do
-                    ui_state2 <- sync ui_state1 ui_state2 cmd_updates
+                    ui_state2 <- sync (Cmd.state_schema_map cmd_state)
+                        ui_state1 ui_state2 cmd_updates
                     return (status, ui_state2)
                 else return (status, ui_state2)
     return (status, ui_state2, cmd_state)
@@ -251,10 +307,9 @@ eval err_msg ui_state cmd_state abort_val cmd = do
 merge_ui_res updates = fmap
     (\(status, ui_state, updates2) -> (status, ui_state, updates ++ updates2))
 
--- | Put State.verify into CmdT, so I can include its log msgs and exceptions
--- with no extra work.  This should be run before every sync, since if errors
--- get to sync they'll result in bad UI display, a C++ exception, or maybe even
--- a segfault (but C++ args should be protected by ASSERTs).
+-- | This should be run before every sync, since if errors get to sync they'll
+-- result in bad UI display, a C++ exception, or maybe even a segfault (but C++
+-- args should be protected by ASSERTs).
 --
 -- If there was any need, Cmd.State verification could go here too.
 -- verify_state :: (Monad m) => Cmd.CmdT m ()
@@ -262,27 +317,62 @@ verify_state state = do
     let (res, logs) = State.verify state
     mapM_ Log.write logs
     case res of
-        Left err -> error $
-            "fatal state inconsistency error: " ++ show err
+        Left err -> error $ "fatal state consistency error: " ++ show err
         Right state2 -> return state2
 
 -- | Sync @state2@ to the UI.
-sync :: State.State -> State.State -> [Update.Update] -> IO State.State
-sync state1 state2 cmd_updates = do
+sync :: Schema.SchemaMap -> State.State -> State.State -> [Update.Update]
+    -> IO State.State
+sync schema_map state1 state2 cmd_updates = do
     -- I'd catch problems closer to their source if I did this from run_cmds,
     -- but it's nice to see that it's definitely happening before syncs.
     state2 <- verify_state state2
+    let (block_samples, sig_logs) = derive_signals schema_map state2
+    -- Don't want to force block_samples because it computes a lot of stuff
+    -- that sync may never need.  TODO how can I lazily write log msgs?
+    -- Actually, the expensive part is the sampling, which has no logging,
+    -- so it should remain lazy... I think.  Verify this.
+    mapM_ Log.write sig_logs
+    -- putStrLn $ "block samples: " ++ show block_samples
     case Diff.diff state1 state2 of
         Left err -> Log.error $ "diff error: " ++ err
         Right diff_updates -> do
             when (not (null diff_updates) || (not (null cmd_updates))) $
                 Log.debug $ "diff_updates: " ++ show diff_updates
                     ++ " cmd_updates: " ++ show cmd_updates
-            err <- Sync.sync state2 (diff_updates ++ cmd_updates)
+            err <- Sync.sync state2 (diff_updates ++ cmd_updates) block_samples
             case err of
                 Nothing -> return ()
                 Just err -> Log.error $ "syncing updates: " ++ show err
     return state2
+
+derive_signals :: Schema.SchemaMap -> State.State
+    -> (Sync.BlockSamples, [Log.Msg])
+derive_signals schema_map ui_state = (block_samples, logs)
+    where
+    eval = State.eval Left Right ui_state
+    block_ids = Map.keys (State.state_blocks ui_state)
+    track_results = zip block_ids $
+        map (eval . derive_signal schema_map) block_ids
+
+    block_samples = [(block_id, track_samples)
+        | (block_id, Right (track_samples, _)) <- track_results]
+    logs = [warn block_id err | (block_id, Left err) <- track_results]
+        ++ concat [logs | (_, Right (_, logs)) <- track_results]
+    warn block_id err = Log.msg Log.Warn $
+        "error deriving signal for " ++ show block_id ++ ": " ++ show err
+
+derive_signal :: (State.UiStateMonad m) =>
+    Schema.SchemaMap -> Block.BlockId -> m (Track.TrackSamples, [Log.Msg])
+derive_signal schema_map block_id = do
+    block <- State.get_block block_id
+    deriver <- Schema.get_signal_deriver schema_map block
+    ui_state <- State.get
+    let (result, _, _, logs) = Derive.derive ui_state block_id deriver
+    case result of
+        Left err -> State.throw (show err)
+        Right track_samples -> return
+            (map (Arrow.second Signal.to_track_samples) track_samples, logs)
 
 
 -- * util

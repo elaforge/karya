@@ -18,7 +18,7 @@ fltk
   * scroll
   * add info line at the bottom
   * zoom
-  - render signals
+  * render signals
   * selections
   * bug: one pixel drawing glitch at bottom of tracks
     it has something to do with FL_FLAT_BOX + FL_THIN_DOWN_BOX
