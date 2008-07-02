@@ -30,6 +30,18 @@ newtype WriteDevice = WriteDevice String
 
 -- * predicates
 
+-- | Check to make sure midi msg vals are all in range.
+valid_msg :: Message -> Bool
+valid_msg (ChannelMessage chan msg) =
+    0 <= chan && chan < 16 && valid_chan_msg msg
+valid_msg msg = error $ "unknown msg: " ++ show msg
+val7 v = 0 <= v && v < 128
+valid_chan_msg msg = case msg of
+    ControlChange cc val -> val7 cc && val7 val
+    NoteOn key vel -> val7 key && val7 vel
+    NoteOff key vel -> val7 key && val7 vel
+    _ -> error $ "unknown msg: " ++ show msg
+
 is_cc (ChannelMessage _ (ControlChange _ _)) = True
 is_cc _ = False
 

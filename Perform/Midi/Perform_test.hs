@@ -59,19 +59,7 @@ test_vel_clip_warns = do
     equal (length warns) 1
     check (all_msgs_valid msgs)
 
-all_msgs_valid wmsgs = all valid_msg (map Midi.wmsg_msg wmsgs)
-
--- | Check to make sure midi msg vals are all in range.
--- TODO: should go to a more general place?
-valid_msg (Midi.ChannelMessage chan msg) =
-    0 <= chan && chan < 16 && valid_chan_msg msg
-valid_msg msg = error $ "unknown msg: " ++ show msg
-val7 v = 0 <= v && v < 128
-valid_chan_msg msg = case msg of
-    Midi.ControlChange cc val -> val7 cc && val7 val
-    Midi.NoteOn key vel -> val7 key && val7 vel
-    Midi.NoteOff key vel -> val7 key && val7 vel
-    _ -> error $ "unknown msg: " ++ show msg
+all_msgs_valid wmsgs = all Midi.valid_msg (map Midi.wmsg_msg wmsgs)
 
 midi_cc_of (Midi.ChannelMessage _ (Midi.ControlChange cc val)) = Just (cc, val)
 midi_cc_of _ = Nothing
@@ -187,17 +175,24 @@ show_msg (Midi.WriteMessage dev ts msg) =
 
 secs = Timestamp.seconds
 
-test_perform_controller = do
+test_perform_controller1 = do
     -- Bad signal that goes over 1 in two places.
     let sig = (vol_cc, mksignal [(0, 0), (1, 1.5), (2, 0), (2.5, 0), (3, 2)])
         cmap = Controller.default_controllers
         (msgs, warns) = Perform.perform_controller cmap (secs 0) (secs 10) 0 sig
 
     -- controls are not emitted after they reach steady values
-    check $ all valid_msg (map snd msgs)
+    check $ all Midi.valid_msg (map snd msgs)
     -- goes over in 2 places
     equal (length warns) 2
 
+    -- plist msgs
+
+test_perform_controller2 = do
+    let sig = (vol_cc, mksignal [(0, 0), (4, 1)])
+        cmap = Controller.default_controllers
+        (msgs, warns) = Perform.perform_controller cmap (secs 2) (secs 4) 0 sig
+    plist msgs
 
 -- * channelize
 
