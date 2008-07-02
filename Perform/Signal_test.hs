@@ -35,9 +35,7 @@ signal tsegs = Signal.signal
     [(TrackPos pos, meth, val1, val2) | (pos, meth, val1, val2) <- tsegs]
 
 tsig = signal
-    [ (0, Set, 1, 1), (2, Set, 1, 1), (4, Signal.Linear, 3, 8)
-    , (6, Signal.Linear, 4, 10)
-    ]
+    [(0, Set, 1, 1), (2, Set, 1, 1), (4, Linear, 3, 8), (6, Linear, 4, 10)]
 no_sig = signal []
 
 test_at = do
@@ -52,6 +50,11 @@ test_sample = do
     equal (map (Arrow.first un_pos) (Signal.sample srate tsig (TrackPos 0)))
         [(0, 1), (3, 2), (4, 8), (5, 6), (6, 10)]
     -- assert that 'at' all those points is equal to the samples
+
+    -- Getting a partial segment works.
+    let sig = signal [(0, Set, 1, 1), (5, Linear, 0.5, 0)]
+    equal (Signal.sample srate sig (TrackPos 3))
+        [(TrackPos 3, 0.7), (TrackPos 4, 0.6), (TrackPos 5, 0)]
 
 srate = TrackPos 1
 

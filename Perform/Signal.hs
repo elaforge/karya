@@ -159,9 +159,14 @@ exp_function n val0 val1 amount
 
 -- | Reduce signal to (TrackPos, Val).
 sample :: TrackPos -> Signal -> TrackPos -> [(TrackPos, Val)]
-sample srate (Signal smap) start = Seq.drop_dups dup_val $
-    concatMap (sample_seg srate) assocs
-    where assocs = Map.toAscList (snd (Util.Data.split_map start smap))
+sample srate (Signal smap) start = Seq.drop_dups dup_val samples
+    where
+    (pre, post) = Util.Data.split_map start smap
+    prev = case Util.Data.find_max pre of
+        Just seg -> sample_seg srate seg start
+        Nothing -> []
+    samples = prev ++ concat [sample_seg srate seg seg_start
+        | seg@(seg_start, _) <- Map.toAscList post]
 
 -- | Like 'sample', but return the samples at timestamps.
 sample_timestamp :: Timestamp.Timestamp -> Signal -> Timestamp.Timestamp
@@ -184,10 +189,11 @@ to_track_samples sig =
 -- Segments that line up with each other can make redundant samples.
 dup_val (_pos0, val0) (_pos1, val1) = val0 == val1
 
-sample_seg :: TrackPos -> (TrackPos, (TrackPos, Segment)) -> [(TrackPos, Val)]
-sample_seg srate (pos0, (pos1, seg)) =
+sample_seg :: TrackPos -> (TrackPos, (TrackPos, Segment)) -> TrackPos
+    -> [(TrackPos, Val)]
+sample_seg srate (pos0, (pos1, seg)) start_pos =
     zip smps (map (interpolate seg pos0 pos1) smps)
-    where smps = takeWhile (<pos1) [pos0, pos0 + srate..]
+    where smps = takeWhile (<pos1) [start_pos, start_pos + srate..]
 
 seg_to_sample srate (pos0, (pos1, seg)) = case seg of
     SegFunction _ _ ->
