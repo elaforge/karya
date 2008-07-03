@@ -47,7 +47,7 @@ initialize f = do
 test_create_resize_destroy_view = do
     state <- io_human "view with selection and titles" $ run State.empty $ do
         v1 <- setup_state
-        State.set_selection v1 0 (Block.point_selection 0 (TrackPos 20))
+        State.set_selection v1 0 (Block.point_selection 1 (TrackPos 20))
         view <- State.get_view v1
         State.set_block_title (Block.view_block view) "new block!"
         State.set_track_title t_track1_id "new track"
@@ -59,14 +59,14 @@ test_create_resize_destroy_view = do
 
 test_create_two_views = do
     state <- run_setup
-    state <- io_human "another view created" $ run state $ do
-        -- A new view is created, and a track that is in both is modified.
+    state <- io_human "view created, track title changes" $ run state $ do
         b2 <- State.create_block "b2" $ Block.block ""
             default_block_config
             [(Block.RId t_ruler_id, 20), (Block.TId t_track1_id t_ruler_id, 30)]
             t_schema_id
         v2 <- State.create_view "v2" $
-            Block.view b2 default_rect default_view_config
+            Block.view b2 (default_rect { Block.rect_pos = (300, 20) })
+                default_view_config
         State.set_track_title t_track1_id "hi there"
     return ()
 
@@ -157,7 +157,6 @@ test_update_track = do
     -- sync to initial state
     state <- io_human "create view with one track" run_setup
 
-    -- add a track, change the old track's width
     state <- io_human "add events, get wider, turn green" $ run state $ do
         State.insert_events t_track1_id [(TrackPos 70, event "last1" 10),
             (TrackPos 90, event "last2" 15)]
