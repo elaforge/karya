@@ -162,7 +162,7 @@ matching_tests prefixes =
     filter (\t -> any (`List.isInfixOf` test_name t) prefixes) all_tests
 
 run_test test = do
-    putStrLn $ "-------------------- run test "
+    putStrLn $ "---------- run test "
         ++ test_file test ++ ": " ++ test_name test
     maybe id id (test_initialize test) $
         Test.catch_srcpos

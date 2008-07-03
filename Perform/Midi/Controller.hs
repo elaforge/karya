@@ -20,6 +20,9 @@ controller_map cmap =
 
 empty_map = controller_map []
 
+controller_map_names :: ControllerMap -> [String]
+controller_map_names cmap = [name | Controller name <- Map.keys cmap]
+
 -- | A controller is an abstract parameter that influences derivation.  Some of
 -- them affect performance and will be rendered as MIDI controllers or note
 -- parameters or whatever, while others may affect derivation (e.g. tempo) and

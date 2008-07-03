@@ -4,17 +4,17 @@ module Local.Instrument.Z1 where
 import System.FilePath ((</>))
 
 import qualified Perform.Midi.Instrument as Instrument
-import qualified Instrument.Db as Db
+import qualified Instrument.MidiDb as MidiDb
 import qualified Instrument.Parse as Parse
 
 
-load :: FilePath -> IO Db.SynthDesc
+load :: FilePath -> IO MidiDb.SynthDesc
 load dir = do
     parsed <- Parse.patches (dir </> "z1")
     patches <- case parsed of
         Left err -> error ("parse patches: " ++ show err)
         Right patches -> return patches
-    return $ (z1, Db.patch_map patches)
+    return $ (z1, MidiDb.patch_map patches)
 
 z1 = Instrument.synth "z1" "Z1 midi device" z1_controllers
 

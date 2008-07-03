@@ -3,8 +3,6 @@
 device and channel mapping.
 -}
 module Perform.Midi.Instrument where
-import qualified Control.Arrow as Arrow
-import qualified Data.Char as Char
 import qualified Data.Generics as Generics
 import qualified Data.Map as Map
 
@@ -61,6 +59,9 @@ instance Pretty Instrument where
 
 -- * instrument db types
 
+-- When there are multiple backends, this will have to move to a more general
+-- place.
+
 -- | Patch is information about one specific instrument.  The performance
 -- Instrument and MIDI config are derived from it, via its Synth.
 data Patch = Patch {
@@ -69,16 +70,16 @@ data Patch = Patch {
 	-- used in performance, because e.g. synth controllers can get added in.
 	patch_instrument :: Instrument
 	-- | Key-value pairs used to index the patch.
-	, patch_tags :: Tags
+	, patch_tags :: [Tag]
     , patch_initialize :: InitializePatch
 	} deriving (Eq, Show)
+patch = Patch
 
--- | Tags are all stored in lower case.
-newtype Tags = Tags (Map.Map String String)
-    deriving (Eq, Show)
-tags :: [(String, String)] -> Tags
-tags assocs = Tags (Map.fromList (map (lc Arrow.*** lc) assocs))
-    where lc = map Char.toLower
+type Tag = (TagKey, TagVal)
+tag :: String -> String -> Tag
+tag = (,)
+type TagKey = String
+type TagVal = String
 
 -- | A Synth defines common features for a set of instruments, like device and
 -- controllers.
