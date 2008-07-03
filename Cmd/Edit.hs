@@ -123,12 +123,17 @@ insert_pitch pitch = do
 
 -- * controller entry
 
+-- | Receive keystrokes to edit a controller track.
 cmd_controller_entry :: Msg.Msg -> Cmd.CmdId
 cmd_controller_entry msg = do
     key <- Cmd.require (Msg.key msg)
     char <- Cmd.require $ case key of
         Key.KeyChar char -> Just char
         _ -> Nothing
+    keys_down <- fmap Map.keys Cmd.keys_down
+    when (any (Maybe.isNothing . Cmd.modifier_key) keys_down) $
+        Cmd.abort
+
     (insert_pos, _, track_id) <- Selection.get_insert_pos
     track <- State.get_track track_id
 

@@ -125,7 +125,7 @@ cmd_mouse_selection btn selnum msg = do
     Log.debug $ "mod btn " ++ show mod ++ " in " ++ show (Map.elems keys_down)
     when (msg_btn /= btn) Cmd.abort
 
-    let down_at = case Map.lookup (Cmd.modifier_key mod) keys_down of
+    let down_at = case Map.lookup (Cmd.modifier_map_key mod) keys_down of
             Just (Cmd.MouseMod _btn (Just down_at)) -> down_at
             _ -> mouse_at
 

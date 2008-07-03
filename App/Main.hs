@@ -26,6 +26,7 @@ import qualified Cmd.Create as Create
 import qualified Cmd.MakeRuler as MakeRuler
 import qualified Cmd.Responder as Responder
 import qualified Cmd.TimeStep as TimeStep
+import qualified Cmd.Save as Save
 
 import qualified App.Config as Config
 import qualified App.StaticConfig as StaticConfig
@@ -140,6 +141,13 @@ print_devs rdev_map wdev_map = do
 
 setup_cmd :: [String] -> Cmd.CmdIO
 setup_cmd _args = do
+    Save.cmd_load "save/default.state"
+    State.set_project "untitled"
+    return Cmd.Done
+
+
+old_setup_cmd :: [String] -> Cmd.CmdIO
+old_setup_cmd _args = do
     (r, over_r) <- Create.ruler
         [MakeRuler.meter_ruler (1/16) MakeRuler.m44] "meter_44"
 
@@ -149,18 +157,6 @@ setup_cmd _args = do
     Create.track b 2
     Create.track b 3
     State.set_zoom v (Block.Zoom (TrackPos 0) 46)
-    return Cmd.Done
-
-old_setup_cmd :: [String] -> Cmd.CmdIO
-old_setup_cmd _args = do
-    Log.debug "setup block"
-    TestSetup.initial_state
-    -- Cmd state setup
-    State.set_midi_config inst_config
-    Cmd.modify_state $ \st -> st
-        { Cmd.state_step = TimeStep.UntilMark
-            (TimeStep.NamedMarklists ["meter"]) (TimeStep.MatchRank 2)
-        }
     return Cmd.Done
 
 inst_config = Instrument.config

@@ -142,7 +142,7 @@ data State = State {
     -- | Map of keys held down.  Maintained by cmd_record_keys and accessed
     -- with 'keys_down'.
     -- The key is the modifier stripped of extraneous info, like mousedown
-    -- position.
+    -- position, the value has complete info.
     , state_keys_down :: Map.Map Modifier Modifier
     -- | Transport control channel for the player, if one is running.
     , state_transport :: Maybe Transport.Transport
@@ -267,7 +267,7 @@ cmd_record_keys msg = do
     return Continue
     where
     insert_mod mod = do
-        let key = modifier_key mod
+        let key = modifier_map_key mod
         mods <- keys_down
         when (key `Map.member` mods) $
             Log.warn $ "keydown for " ++ show mod ++ " already in modifiers"
@@ -275,7 +275,7 @@ cmd_record_keys msg = do
         mods <- keys_down
         Log.debug $ "keydown " ++ show (Map.elems mods)
     delete_mod mod = do
-        let key = modifier_key mod
+        let key = modifier_map_key mod
         mods <- keys_down
         when (key `Map.notMember` mods) $
             Log.warn $ "keyup for " ++ show mod ++ " not in modifiers"
@@ -287,9 +287,13 @@ cmd_record_keys msg = do
 
 -- | Take a modifier to its key in the modifier map which has extra info like
 -- mouse down position stripped.
-modifier_key :: Modifier -> Modifier
-modifier_key (MouseMod btn _) = MouseMod btn Nothing
-modifier_key mod = mod
+modifier_map_key :: Modifier -> Modifier
+modifier_map_key (MouseMod btn _) = MouseMod btn Nothing
+modifier_map_key mod = mod
+
+modifier_key :: Modifier -> Maybe Char
+modifier_key (KeyMod (Key.KeyChar c)) = Just c
+modifier_key _ = Nothing
 
 -- | Convert a Msg to (is_key_down, Modifier).
 msg_to_mod :: Msg.Msg -> Maybe (Bool, Modifier)
