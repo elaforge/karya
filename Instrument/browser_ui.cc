@@ -1,0 +1,75 @@
+#include <FL/Fl.H>
+
+#include "util.h"
+
+#include "browser_ui.h"
+
+
+const static int browser_width = 125;
+
+enum { default_font_size = 12 };
+
+Browser::Browser(int X, int Y, int W, int H, MsgCallback cb) :
+    Fl_Tile::Fl_Tile(X, Y, W, H),
+    info_pane(X+browser_width, Y, W-browser_width, H),
+    select_pane(X, Y, browser_width, H),
+        query(X, Y, browser_width, 20),
+        matches(X, Y+20, browser_width, H-20),
+
+    msg_callback(cb)
+{
+    info_pane.box(FL_THIN_DOWN_BOX);
+    info_pane.textsize(default_font_size);
+    info_pane.buffer(this->info_buffer);
+    info_pane.wrap_mode(true, 0); // Wrap at the edges.
+    matches.box(FL_FLAT_BOX);
+    matches.textsize(default_font_size);
+    matches.callback(Browser::matches_cb, static_cast<void *>(this));
+
+    query.textsize(default_font_size);
+    query.when(FL_WHEN_CHANGED);
+    query.callback(Browser::query_cb, static_cast<void *>(this));
+
+    select_pane.resizable(matches);
+
+    Fl::focus(&query);
+}
+
+void
+Browser::set_info(const char *info)
+{
+    this->info_buffer.text(info);
+}
+
+
+void
+Browser::query_cb(Fl_Widget *_w, void *vp)
+{
+    Browser *self = static_cast<Browser *>(vp);
+    self->msg_callback(msg_query, self->query.value());
+}
+
+void
+Browser::matches_cb(Fl_Widget *w, void *vp)
+{
+    Browser *self = static_cast<Browser *>(vp);
+    int n = self->matches.value();
+    if (n != 0) {
+        const char *text = self->matches.text(n);
+        MsgType type;
+        if (Fl::event() == FL_RELEASE && Fl::event_clicks() > 0)
+            type = msg_choose;
+        else
+            type = msg_select;
+        self->msg_callback(type, text);
+    }
+}
+
+
+BrowserWindow::BrowserWindow(int X, int Y, int W, int H, MsgCallback cb) :
+    Fl_Double_Window(0, 0, W, H, "instrument browser"), browser(0, 0, W, H, cb)
+{
+    // Fl::dnd_text_ops(false);
+    Fl::visible_focus(false);
+    this->resizable(this);
+}

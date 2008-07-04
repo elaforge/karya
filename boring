@@ -9,6 +9,8 @@
 ^test_obj/
 ^test.output$
 
+^Local/Instrument/z1_sysex
+
 # scratch files
 ^scratch
 ^haskell-questions$
@@ -23,23 +25,24 @@ _stub.[ch]$
 ^test_[a-z]+$
 ^test/hspp$
 ^fixdeps$
-^(dump|seq|send|repl|logview)$
+^(dump|seq|send|repl|logview|browser)$
 
 # profile cruft
 ^RunTests\.
 
 # .hs generated from .hsc
-Midi/PortMidi.hs
-Ui/BlockC.hs
-Ui/Color.hs
-Ui/Event.hs
-Ui/Font.hs
-Ui/Key.hs
-Ui/RulerC.hs
-Ui/TrackC.hs
-Ui/Types.hs
-Ui/UiMsgC.hs
-LogViewer/LogViewC.hs
+^Midi/PortMidi.hs$
+^Ui/BlockC.hs$
+^Ui/Color.hs$
+^Ui/Event.hs$
+^Ui/Font.hs$
+^Ui/Key.hs$
+^Ui/RulerC.hs$
+^Ui/TrackC.hs$
+^Ui/Types.hs$
+^Ui/UiMsgC.hs$
+^LogViewer/LogViewC.hs$
+^Instrument/BrowserC.hs$
 
 # Boring file regexps:
 \.hi$

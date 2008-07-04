@@ -87,6 +87,9 @@ logging
   * log to a file
   * log filtering / visualizing tool
   * add surrounding function to SrcPos
+  - Util.Misc isn't well named, call it Util.SrcPos or something
+  - rename LogViewer -> LogView just to reduce confusion
+  - LogView should use Util.Fltk
 
 Ui
   - rethrow c++ exceptions as FltkError
@@ -112,6 +115,7 @@ Ui
       - send patch to libraries@haskell.org
 
 Cmd
+  - instrument initialization
   * put keydown map in Responder to augment the context with midi note down and
     keydown
   * refactor UiMsg.UiMsg
@@ -242,8 +246,10 @@ Perform
 
 Instrument DB
   * simple integrated version with just hardcoded midi instruments
-  - instrument browser
-  - search language
+  * instrument browser
+  * search language
+  - Instrument.Parse needs to understand *bank declarations
+  - sysex parser for vl1 and z1
 
 tests
   + some kind of organized hunit / quickcheck for pure code

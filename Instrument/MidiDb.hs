@@ -1,6 +1,7 @@
-{- | The MidiDb type.  Split apart to avoid circular imports.
+{- | The MidiDb type.  Split from Instrument.Db to avoid circular imports.
 -}
 module Instrument.MidiDb where
+import qualified Data.Char as Char
 import qualified Data.Map as Map
 
 import qualified Perform.Midi.Instrument as Instrument
@@ -12,7 +13,7 @@ data MidiDb = MidiDb
 
 midi_db :: [SynthDesc] -> MidiDb
 midi_db synth_map = MidiDb $ Map.fromList
-    [ (Instrument.synth_name synth, (synth, patches))
+    [ (lc (Instrument.synth_name synth), (synth, patches))
     | (synth, patches) <- synth_map]
 
 type SynthDesc = (Instrument.Synth, SynthPatches)
@@ -27,4 +28,14 @@ data SynthPatches =
 
 patch_map :: [Instrument.Patch] -> SynthPatches
 patch_map patches = PatchMap $ Map.fromList
-    [(Instrument.inst_name (Instrument.patch_instrument p), p) | p <- patches]
+    [(lc (Instrument.inst_name (Instrument.patch_instrument p)), p)
+    | p <- patches]
+
+-- | Since instruments are stored in the index as lower case for case
+-- insensitive lookup, they should be stored as lower case here too.
+--
+-- TODO: having two different structures for lookup seems messy, it would be
+-- nicer to put it in the index flat, but not clear how to best to that with
+-- PatchTemplates.
+lc :: String -> String
+lc = map Char.toLower

@@ -3,7 +3,7 @@ PORTMIDI = /usr/local/src/portmedia/portmidi/trunk
 MIDI_LIBS = $(PORTMIDI)/pm_mac/libportmidi.a \
 	$(PORTMIDI)/porttime/libporttime.a \
 	-framework CoreFoundation -framework CoreMIDI -framework CoreAudio
-CINCLUDE = -Ifltk -I$(PORTMIDI)/pm_common -I$(PORTMIDI)/porttime
+CINCLUDE = -Ifltk -I$(PORTMIDI)/pm_common -I$(PORTMIDI)/porttime -I.
 CXXFLAGS = `fltk-config --cxxflags` $(DEBUG) $(CINCLUDE)
 LDFLAGS = `fltk-config --ldflags` $(DEBUG)
 REZ = /Developer/Tools/Rez -t APPL -o $@ /usr/local/include/FL/mac.r
@@ -42,8 +42,9 @@ test/hspp: test/hspp.hs
 .PHONY: clean
 clean:
 	rm -f **/*.o **/*.hi **/*.pyc fixdeps fixdeps.* fltk/fltk.a \
-		$(UI_HS) $(MIDI_HS) $(LOGVIEW_HS) haddock/*  hpc .hpc \
-		test_block test_logview test_midi seq send repl dump logview \
+		$(UI_HS) $(MIDI_HS) $(LOGVIEW_HS) $(BROWSER_HS) haddock/*  hpc .hpc \
+		test_block test_logview test_browser test_midi \
+		seq send repl dump logview \
 		seq_language
 	rm -rf test_obj/*
 
@@ -58,6 +59,10 @@ test_block: fltk/test_block.o fltk/fltk.a
 	$(REZ)
 
 test_logview: LogViewer/test_logview.o LogViewer/logview_ui.o fltk/f_util.o
+	$(CXX) -o $@ $^ $(LDFLAGS)
+	$(REZ)
+
+test_browser: Instrument/test_browser.o Instrument/Browser.o fltk/f_util.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 	$(REZ)
 
@@ -104,6 +109,17 @@ LOGVIEW_HS = LogViewer/LogViewC.hs
 .PHONY: logview
 logview: $(LOGVIEW_OBJ)
 	$(GHC) $(HFLAGS) --make -main-is LogViewer.LogView $^ -o $@ \
+		`fltk-config --ldflags`
+	$(REZ)
+
+BROWSER_OBJ = Instrument/Browser.hs \
+	Instrument/interface.o Instrument/browser_ui.o \
+	Util/fltk_interface.o
+BROWSER_HS = Instrument/BrowserC.hs
+
+.PHONY: browser
+browser: $(BROWSER_OBJ) $(BROWSER_HS)
+	$(GHC) $(HFLAGS) --make -main-is Instrument.Browser $^ -o $@ \
 		`fltk-config --ldflags`
 	$(REZ)
 

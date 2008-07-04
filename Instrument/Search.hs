@@ -17,6 +17,11 @@ import qualified Instrument.MidiDb as MidiDb
 
 
 type Search = Query -> [Score.Instrument]
+
+-- | A simple tag-oriented query language.  Instruments match whose tags match
+-- all of the given TagKeys exactly, and whose corresponding vals have the
+-- queried val as a substring.  All the pairs must match, but pairs that
+-- match nothing won't cause the match to fail.
 type Query = [(Instrument.TagKey, Instrument.TagVal)]
 
 -- | Search the db.  The input string is in the db query language, and the
@@ -25,18 +30,32 @@ search :: Index -> Search
 search idx query
     | null matches = []
     | otherwise = Set.toList (foldl1 Set.intersection matches)
-    where matches = map Set.fromList (query_matches idx query)
+    where
+    matches = filter (not . Set.null) $
+        map Set.fromList (query_matches idx query)
 
-data Index = Index
-    (Map.Map Instrument.TagKey (Map.Map Instrument.TagVal [Score.Instrument]))
-    deriving (Show)
+tags_of :: Index -> Score.Instrument -> Maybe [Instrument.Tag]
+tags_of idx inst = Map.lookup inst (idx_inverted idx)
+
+data Index = Index {
+    idx_by_key :: Map.Map Instrument.TagKey
+        (Map.Map Instrument.TagVal [Score.Instrument])
+    , idx_inverted :: Map.Map Score.Instrument [Instrument.Tag]
+    } deriving (Show)
 
 make_index :: MidiDb.MidiDb -> Index
-make_index midi_db = Index $ Map.map Util.Data.multimap (Util.Data.multimap idx)
+make_index midi_db =
+    Index (Map.map Util.Data.multimap (Util.Data.multimap idx))
+        (Map.fromList inv_idx)
     where
     inv_idx = inverted_index midi_db
     idx = [(key, (val, inst)) | (inst, tags) <- inv_idx, (key, val) <- tags]
 
+-- | The query language looks like "a b= c=d", which means
+-- [("a", ""), ("b", ""), ("c", "d")]
+parse :: String -> Query
+parse = map split . words
+    where split w = let (pre, post) = break (=='=') w in (pre, drop 1 post)
 
 -- * implementation
 
@@ -51,7 +70,7 @@ tag = Instrument.tag
 any_instrument = tag name_tag ""
 
 query_matches :: Index -> Query -> [[Score.Instrument]]
-query_matches (Index idx) query = map with_tag query
+query_matches (Index idx _) query = map with_tag query
     where
     with_tag (key, val) = case Map.lookup key idx of
         Nothing -> []

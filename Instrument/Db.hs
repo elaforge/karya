@@ -1,12 +1,10 @@
 module Instrument.Db where
-import qualified Data.Char as Char
 import qualified Data.Map as Map
 import qualified Data.List as List
 
 import qualified Derive.Score as Score
 import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Instrument as Instrument
-import qualified Perform.Midi.Controller as Controller
 
 import qualified Instrument.MidiDb as MidiDb
 import qualified Instrument.Search as Search
@@ -17,6 +15,7 @@ import qualified Instrument.Search as Search
 data Backend = Midi deriving (Show)
 
 -- | Static config type for the instrument db.
+-- TODO change inst_ to db_
 data Db = Db {
     inst_backend :: LookupBackend
     , inst_search :: Search.Search
@@ -25,6 +24,8 @@ data Db = Db {
     , inst_lookup_midi :: LookupInstrument
     , inst_lookup_synth :: Score.Instrument -> Maybe Instrument.Synth
     , inst_midi_initialize :: Score.Instrument -> Maybe MakeInitialize
+
+    , db_index :: Search.Index
     }
 
 empty = Db {
@@ -33,6 +34,7 @@ empty = Db {
     , inst_lookup_midi = const Nothing
     , inst_lookup_synth = const Nothing
     , inst_midi_initialize = const Nothing
+    , db_index = Search.make_index (MidiDb.midi_db [])
     }
 
 -- So Cmd.State can be showable, for debugging.
@@ -46,10 +48,12 @@ type MakeInitialize = Midi.Channel -> Instrument.InitializePatch
 
 db midi_db = Db
     (const (Just Midi))
-    (Search.search (Search.make_index midi_db))
+    (Search.search index)
     (lookup_instrument midi_db)
     (lookup_synth midi_db)
     (midi_initialize midi_db)
+    index
+    where index = Search.make_index midi_db
 
 lookup_instrument :: MidiDb.MidiDb -> LookupInstrument
 lookup_instrument (MidiDb.MidiDb synths) inst = do
@@ -76,8 +80,8 @@ midi_initialize (MidiDb.MidiDb synths) inst = do
 initialize_with_chan :: Instrument.InitializePatch -> Midi.Channel
     -> Instrument.InitializePatch
 initialize_with_chan init chan = case init of
-        Instrument.InitializeMsg msgs ->
-            Instrument.InitializeMsg (map (replace_channel chan) msgs)
+        Instrument.InitializeMidi msgs ->
+            Instrument.InitializeMidi (map (replace_channel chan) msgs)
         _ -> init
 
 replace_channel chan (Midi.ChannelMessage _ msg) = Midi.ChannelMessage chan msg

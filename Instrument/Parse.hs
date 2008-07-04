@@ -30,7 +30,7 @@ p_patch_file = do
 make_patch :: PatchSpec -> Instrument.Patch
 make_patch (PatchSpec name tags patch_num controllers pb_range decay) =
     Instrument.Patch inst (map (uncurry Instrument.tag) tags)
-        (Instrument.InitializeMsg [program_change patch_num])
+        (Instrument.InitializeMidi [program_change patch_num])
     where
     inst = Instrument.instrument name (Controller.controller_map controllers)
         pb_range decay

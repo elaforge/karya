@@ -12,7 +12,7 @@ import qualified Midi.Midi as Midi
 import qualified Perform.Signal as Signal
 
 
-type ControllerMap = (Map.Map Controller Midi.Controller)
+type ControllerMap = Map.Map Controller Midi.Controller
 
 controller_map :: [(Integer, String)] -> ControllerMap
 controller_map cmap =

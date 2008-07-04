@@ -103,7 +103,7 @@ type InstrumentName = String
 data InitializePatch =
     -- | Send these msgs to initialize the patch.  Probably a patch change or
     -- a sysex.
-    InitializeMsg [Midi.Message]
+    InitializeMidi [Midi.Message]
     -- | Display this msg to the user and hope they do what it says.
     | InitializeMessage String
     | NoInitialization
