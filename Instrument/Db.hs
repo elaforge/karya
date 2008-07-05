@@ -15,25 +15,24 @@ import qualified Instrument.Search as Search
 data Backend = Midi deriving (Show)
 
 -- | Static config type for the instrument db.
--- TODO change inst_ to db_
 data Db = Db {
-    inst_backend :: LookupBackend
-    , inst_search :: Search.Search
+    db_backend :: LookupBackend
+    , db_search :: Search.Search
 
     -- DB for the midi backend
-    , inst_lookup_midi :: LookupInstrument
-    , inst_lookup_synth :: Score.Instrument -> Maybe Instrument.Synth
-    , inst_midi_initialize :: Score.Instrument -> Maybe MakeInitialize
+    , db_lookup_midi :: LookupInstrument
+    , db_lookup_synth :: Score.Instrument -> Maybe Instrument.Synth
+    , db_midi_initialize :: Score.Instrument -> Maybe MakeInitialize
 
     , db_index :: Search.Index
     }
 
 empty = Db {
-    inst_backend = const Nothing
-    , inst_search = const []
-    , inst_lookup_midi = const Nothing
-    , inst_lookup_synth = const Nothing
-    , inst_midi_initialize = const Nothing
+    db_backend = const Nothing
+    , db_search = const []
+    , db_lookup_midi = const Nothing
+    , db_lookup_synth = const Nothing
+    , db_midi_initialize = const Nothing
     , db_index = Search.make_index (MidiDb.midi_db [])
     }
 

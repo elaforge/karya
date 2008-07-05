@@ -218,7 +218,7 @@ derive schema_map block_id = do
 perform :: Block.BlockId -> PlayInfo -> Timestamp.Timestamp -> [Score.Event]
     -> Cmd.CmdT IO Transport.Transport
 perform block_id (inst_db, transport_info, _) start_ts events = do
-    let lookup_inst = Instrument.Db.inst_lookup_midi inst_db
+    let lookup_inst = Instrument.Db.db_lookup_midi inst_db
     let (midi_events, convert_warnings) = Convert.convert
             lookup_inst (seek_events (Timestamp.to_track_pos start_ts) events)
 

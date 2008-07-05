@@ -308,7 +308,7 @@ device_of :: Score.Instrument -> Cmd.CmdL (Maybe Midi.WriteDevice)
 device_of inst = do
     inst_db <- fmap Cmd.state_instrument_db Cmd.get_state
     return $ fmap Midi.Instrument.synth_device
-        (Instrument.Db.inst_lookup_synth inst_db inst)
+        (Instrument.Db.db_lookup_synth inst_db inst)
 
 controllers_of :: Score.Instrument -> [Midi.Controller.Controller]
 controllers_of inst = undefined -- TODO

@@ -64,9 +64,9 @@ show_info win db inst_name = Fltk.send_action $ BrowserC.set_info win info
     where
     info = maybe ("not found: " ++ show inst_name) id $ do
         let score_inst = read_inst inst_name
-        inst <- Db.inst_lookup_midi db score_inst
-        synth <- Db.inst_lookup_synth db score_inst
-        initialize <- Db.inst_midi_initialize db score_inst
+        inst <- Db.db_lookup_midi db score_inst
+        synth <- Db.db_lookup_synth db score_inst
+        initialize <- Db.db_midi_initialize db score_inst
         return $ info_of db synth (initialize 0) inst score_inst
 
 info_of db (Instrument.Synth synth_name (Midi.WriteDevice dev) synth_cmap)
@@ -123,7 +123,7 @@ process_query :: BrowserC.Window -> Db.Db -> [Score.Instrument] -> String
     -> IO [Score.Instrument]
 process_query win db displayed query = do
     -- putStrLn $ "query: " ++ show (Search.parse query)
-    let matches = Db.inst_search db (Search.parse query)
+    let matches = Db.db_search db (Search.parse query)
         diff = Diff.indexed_pairs (==) displayed matches
     forM_ diff $ \(i, old, new) -> case (old, new) of
         (Nothing, Just inst) -> Fltk.send_action $

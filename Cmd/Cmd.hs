@@ -240,7 +240,7 @@ set_status key val = do
 
 get_lookup_midi_instrument :: (Monad m) => CmdT m Instrument.Db.LookupInstrument
 get_lookup_midi_instrument =
-    fmap (Instrument.Db.inst_lookup_midi . state_instrument_db) get_state
+    fmap (Instrument.Db.db_lookup_midi . state_instrument_db) get_state
 
 get_schema_map :: (Monad m) => CmdT m SchemaMap
 get_schema_map = fmap state_schema_map get_state
