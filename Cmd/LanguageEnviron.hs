@@ -47,7 +47,7 @@ import qualified App.Config as Config
 --
 -- This is automatically added to language text by Language.mangle_text so it
 -- can pretend to be running in the "real" CmdT.
-run :: Show a => Cmd.CmdT Identity.Identity a -> State.State -> Cmd.State
-    -> Cmd.CmdVal String
-run cmd ui_state cmd_state = Identity.runIdentity $
+run :: Show a => Cmd.CmdL a -> State.State -> Cmd.State
+    -> IO (Cmd.CmdVal String)
+run cmd ui_state cmd_state =
     Cmd.run "" ui_state cmd_state (fmap PPrint.str_pshow cmd)

@@ -87,10 +87,10 @@ show_ghc_exc (GHC.WontCompile ghc_errs) =
 show_ghc_exc exc = show exc
 
 -- | Interpreted code should be of this type.  However, due to
--- 'mangle_code', it really runs in CmdT Identity String
-type LangType = State.State -> Cmd.State -> Cmd.CmdVal String
+-- 'mangle_code', it really runs in CmdT IO String
+type LangType = State.State -> Cmd.State -> IO (Cmd.CmdVal String)
 
--- | Interpret the given string inside a CmdT Identity monad, and return
+-- | Interpret the given string inside a CmdT IO monad, and return
 -- the resulting CmdT.
 --
 -- Since I got errors trying to have the type of the code be CmdT directly
@@ -109,7 +109,8 @@ interpret local_mods ui_state cmd_state text = do
     GHC.setImports $ ["Prelude"] ++ local_mods
 
     cmd_func <- GHC.interpret (mangle_code text) (GHC.as :: LangType)
-    let (cmd_state2, _midi, logs, ui_res) = cmd_func ui_state cmd_state
+    (cmd_state2, _midi, logs, ui_res) <- Trans.liftIO $
+        cmd_func ui_state cmd_state
     return (merge_cmd_state cmd_state2 logs ui_res)
 
 -- | Create a CmdT that merges the given state into itself.

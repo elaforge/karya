@@ -42,7 +42,7 @@ import qualified Ui.Track as Track
 import qualified Ui.State as State
 
 import qualified Cmd.Cmd as Cmd
--- import qualified Cmd.Save as Save
+import qualified Cmd.Save as Save
 import qualified Cmd.Edit as Edit
 import qualified Cmd.TimeStep as TimeStep
 import qualified Cmd.Language as Language
@@ -81,7 +81,7 @@ show_list :: [String] -> String
 show_list xs = concatMap (\(i, x) -> printf "%d. %s\n" i x) (Seq.enumerate xs)
 
 
-_cmd_state :: (Cmd.State -> a) -> Cmd.CmdT Identity.Identity a
+_cmd_state :: (Cmd.State -> a) -> Cmd.CmdL a
 _cmd_state = flip fmap Cmd.get_state
 
 -- * show / modify cmd state
@@ -102,12 +102,9 @@ set_octave n = Edit.cmd_modify_octave (const n) >> return ()
 quit :: Cmd.CmdL String
 quit = return Language.magic_quit_string
 
--- Need to run in IO, not Identity for this.
--- I think I could have lang run in IO, but is it worth it just for this?
--- I don't see why not.  TODO
--- load, save :: Maybe String -> Cmd.CmdL ()
--- load fn = Save.cmd_load fn
--- save fn = Save.cmd_save fn
+load, save :: FilePath -> Cmd.CmdL ()
+load fn = Save.cmd_load fn
+save fn = Save.cmd_save fn
 
 -- undo, redo
 
