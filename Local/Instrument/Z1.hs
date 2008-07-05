@@ -84,7 +84,7 @@ to_signed = fromIntegral
 
 make_patch (name, cat, pb_range, osc1, osc2) =
     -- Initialization will be filled in later.
-    Instrument.Patch inst tags Instrument.NoInitialization
+    Instrument.patch inst Instrument.NoInitialization tags ""
     where
     inst = Instrument.instrument name Controller.empty_map pb_range Nothing
     tags = maybe_tags

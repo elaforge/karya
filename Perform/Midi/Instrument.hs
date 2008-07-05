@@ -69,9 +69,11 @@ data Patch = Patch {
 	-- The patch_instrument is not necessarily the same as the one eventually
 	-- used in performance, because e.g. synth controllers can get added in.
 	patch_instrument :: Instrument
+    , patch_initialize :: InitializePatch
 	-- | Key-value pairs used to index the patch.
 	, patch_tags :: [Tag]
-    , patch_initialize :: InitializePatch
+    -- | Some free form text about the patch.
+    , patch_text :: String
 	} deriving (Eq, Show)
 patch = Patch
 

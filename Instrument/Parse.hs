@@ -37,8 +37,10 @@ p_patch_file = do
     return $ map (make_patch (-2, 2)) plines
 
 make_patch pb_range (PatchLine name cat bank patch_num) =
-    Instrument.Patch inst tags
+    Instrument.patch inst
         (Instrument.InitializeMidi (Midi.program_change bank patch_num))
+        tags
+        ""
     where
     inst = Instrument.instrument name Controller.empty_map pb_range Nothing
     tags = [Instrument.tag "category" cat]

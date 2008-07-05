@@ -77,9 +77,9 @@ instance Binary MidiDb.SynthPatches where
             _ -> fail "no parse for MidiDb.SynthPatches"
 
 instance Binary Instrument.Patch where
-    put (Instrument.Patch a b c) = put a >> put b >> put c
-    get = get >>= \a -> get >>= \b -> get >>= \c ->
-        return (Instrument.Patch a b c)
+    put (Instrument.Patch a b c d) = put a >> put b >> put c >> put d
+    get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
+        return (Instrument.Patch a b c d)
 
 instance Binary Instrument.Instrument where
     put (Instrument.Instrument a b c d) = put a >> put b >> put c >> put d

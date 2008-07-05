@@ -239,7 +239,8 @@ set_status key val = do
     view_ids <- fmap (Map.keys . State.state_views) State.get
     forM_ view_ids $ \view_id -> set_view_status view_id key val
 
-get_lookup_midi_instrument :: (Monad m) => CmdT m Instrument.Db.LookupInstrument
+get_lookup_midi_instrument :: (Monad m) =>
+    CmdT m Instrument.Db.LookupMidiInstrument
 get_lookup_midi_instrument =
     fmap (Instrument.Db.db_lookup_midi . state_instrument_db) get_state
 

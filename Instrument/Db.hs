@@ -16,24 +16,26 @@ data Backend = Midi deriving (Show)
 
 -- | Static config type for the instrument db.
 data Db = Db {
-    db_backend :: LookupBackend
-    , db_search :: Search.Search
+    -- | Search for Score instruments.
+    db_search :: Search.Search
+    -- | Specialized version of db_lookup that returns a Midi instrument.
+    , db_lookup_midi :: LookupMidiInstrument
+    -- | Lookup a score instrument.
+    , db_lookup :: Score.Instrument -> Maybe Info
 
-    -- DB for the midi backend
-    , db_lookup_midi :: LookupInstrument
-    , db_lookup_synth :: Score.Instrument -> Maybe Instrument.Synth
-    , db_midi_initialize :: Score.Instrument -> Maybe MakeInitialize
-
+    -- | Internal use, these are probably not totally necessary but can be
+    -- handy.
     , db_midi_db :: MidiDb.MidiDb
     , db_index :: Search.Index
     }
 
+data Info = MidiInfo Instrument.Synth Instrument.Patch
+    deriving (Show)
+
 empty = Db {
-    db_backend = const Nothing
-    , db_search = const []
+    db_search = const []
     , db_lookup_midi = const Nothing
-    , db_lookup_synth = const Nothing
-    , db_midi_initialize = const Nothing
+    , db_lookup = const Nothing
     , db_midi_db = MidiDb.empty
     , db_index = Search.make_index (MidiDb.midi_db [])
     }
@@ -42,29 +44,32 @@ empty = Db {
 instance Show Db where
     show _ = "<instrument_db>"
 
-type LookupInstrument = Score.Instrument -> Maybe Instrument.Instrument
+type LookupMidiInstrument = Score.Instrument -> Maybe Instrument.Instrument
 type LookupBackend = Score.Instrument -> Maybe Backend
 type MakeInitialize = Midi.Channel -> Instrument.InitializePatch
 
 
 db midi_db extra_index = Db
-    (const (Just Midi))
     (Search.search index)
+    (lookup_midi midi_db)
     (lookup_instrument midi_db)
-    (lookup_synth midi_db)
-    (midi_initialize midi_db)
     midi_db
     index
     where index = Search.merge_indices (Search.make_index midi_db) extra_index
 
 size db = MidiDb.size (db_midi_db db)
 
-lookup_instrument :: MidiDb.MidiDb -> LookupInstrument
+lookup_instrument :: MidiDb.MidiDb -> Score.Instrument -> Maybe Info
 lookup_instrument (MidiDb.MidiDb synths) inst = do
     let (synth_name, inst_name) = split_inst inst
     (synth, patches) <- Map.lookup synth_name synths
     patch <- lookup_patch inst_name patches
-    return $ make_inst synth patch
+    return $ MidiInfo synth patch
+
+lookup_midi :: MidiDb.MidiDb -> LookupMidiInstrument
+lookup_midi midi_db inst = case lookup_instrument midi_db inst of
+    Nothing -> Nothing
+    Just (MidiInfo synth patch) -> Just (make_inst synth patch)
 
 lookup_patch inst_name (MidiDb.PatchTemplate patch) =
     Just (from_template patch inst_name)

@@ -10,7 +10,7 @@ load _dir = return (fm8, MidiDb.PatchTemplate patch_template)
 
 patch_template = Instrument.patch
     (Instrument.instrument "" Controller.empty_map (-96, 96) Nothing)
-    [] Instrument.NoInitialization
+    Instrument.NoInitialization [] ""
 
 fm8 = Instrument.synth "fm8" "IAC Driver Bus 1/CoreMIDI" fm8_controllers
 

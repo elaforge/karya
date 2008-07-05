@@ -48,7 +48,7 @@ t_patches2 = MidiDb.PatchTemplate (mkpatch ("none", "fm", []))
 t_tags = Search.patch_tags t_patches
 
 mkpatch (name, cat, conts) =
-    Instrument.Patch inst tags Instrument.NoInitialization
+    Instrument.patch inst Instrument.NoInitialization tags ""
     where
     tags = map (uncurry Instrument.tag) [("category", cat)]
     inst = Instrument.instrument name (Controller.controller_map conts)

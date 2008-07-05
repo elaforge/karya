@@ -307,8 +307,10 @@ auto_config block_id = do
 device_of :: Score.Instrument -> Cmd.CmdL (Maybe Midi.WriteDevice)
 device_of inst = do
     inst_db <- fmap Cmd.state_instrument_db Cmd.get_state
-    return $ fmap Midi.Instrument.synth_device
-        (Instrument.Db.db_lookup_synth inst_db inst)
+    return $ case Instrument.Db.db_lookup inst_db inst of
+        Just (Instrument.Db.MidiInfo synth _) ->
+            Just $ Midi.Instrument.synth_device synth
+        Nothing -> Nothing
 
 controllers_of :: Score.Instrument -> [Midi.Controller.Controller]
 controllers_of inst = undefined -- TODO

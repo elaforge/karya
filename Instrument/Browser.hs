@@ -67,23 +67,23 @@ show_info win db inst_name = Fltk.send_action $ BrowserC.set_info win info
     where
     info = maybe ("not found: " ++ show inst_name) id $ do
         let score_inst = read_inst inst_name
-        inst <- Db.db_lookup_midi db score_inst
-        synth <- Db.db_lookup_synth db score_inst
-        initialize <- Db.db_midi_initialize db score_inst
-        return $ info_of db synth (initialize 0) inst score_inst
+        info <- Db.db_lookup db score_inst
+        return $ info_of db score_inst info
 
-info_of db (Instrument.Synth synth_name (Midi.WriteDevice dev) synth_cmap)
-        initialize inst score_inst =
+info_of db score_inst (Db.MidiInfo synth patch) =
     printf "%s -- %s -- %s\n" synth_name name dev
         ++ info_sections
-            [ ("Instrument controllers", (cmap_info cmap))
+            [ ("Instrument controllers", (cmap_info inst_cmap))
             , ("Synth controllers", (cmap_info synth_cmap))
             , ("Initialization", initialize_info initialize)
+            , ("Text", text)
             , ("Tags", tags)
             ]
     where
+    Instrument.Synth synth_name (Midi.WriteDevice dev) synth_cmap = synth
+    Instrument.Patch inst initialize _ text = patch
     name = let n = Instrument.inst_name inst in if null n then "*" else n
-    cmap = Map.difference synth_cmap (Instrument.inst_controller_map inst)
+    inst_cmap = Instrument.inst_controller_map inst
     tags = maybe "" tags_info $
         Search.tags_of (Db.db_index db) score_inst
 

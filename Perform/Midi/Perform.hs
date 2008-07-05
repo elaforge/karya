@@ -32,13 +32,13 @@ import qualified Instrument.Db
 -- | Render instrument tracks down to midi messages, sorted in timestamp order.
 -- This should be non-strict on the event list, so that it can start producing
 -- MIDI output as soon as it starts processing Events.
-perform :: Instrument.Db.LookupInstrument -> Instrument.Config -> [Event]
+perform :: Instrument.Db.LookupMidiInstrument -> Instrument.Config -> [Event]
     -> ([Midi.WriteMessage], [Warning.Warning])
 perform lookup_inst config =
     perform_notes . allot inst_addrs . channelize inst_addrs
     where inst_addrs = config_to_inst_addrs config lookup_inst
 
-config_to_inst_addrs :: Instrument.Config -> Instrument.Db.LookupInstrument
+config_to_inst_addrs :: Instrument.Config -> Instrument.Db.LookupMidiInstrument
     -> InstAddrs
 config_to_inst_addrs config lookup_inst =
     Util.Data.multimap [(inst, addr) | (addr, Just inst)
