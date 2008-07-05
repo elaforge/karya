@@ -13,6 +13,10 @@ load dir = do
     patches <- Parse.patch_file (dir </> "vl1")
     return (vl1, MidiDb.patch_map patches)
 
+load_slow dir = do
+    let sysex_patches = [] -- TODO
+    return (vl1, MidiDb.patch_map sysex_patches)
+
 vl1 = Instrument.synth "vl1" "vl1 dev" vl1_controllers
 
 vl1_controllers =

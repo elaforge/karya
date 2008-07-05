@@ -4,6 +4,7 @@ module App.Config where
 import qualified Control.Exception as Exception
 import qualified Network
 import qualified System.Directory as Directory
+import System.FilePath ((</>))
 
 import qualified Ui.Font as Font
 import qualified Ui.Color as Color
@@ -12,6 +13,30 @@ import qualified Ui.Track as Track
 
 import qualified Ui.Event as Event
 
+
+-- * paths
+
+-- | All paths should be relative to this one.
+-- I may later change this to an env var, a flag, or just leave it hardcoded.
+get_app_dir :: IO FilePath
+get_app_dir = return "."
+
+-- | All code and data local to an installation (i.e. specific to a particular
+-- configuration) should go here.
+local_dir :: FilePath
+local_dir = "Local"
+
+-- | Store instrument db code and data.
+instrument_dir :: FilePath
+instrument_dir = local_dir </> "Instrument"
+
+-- | Local CmdL code goes here.
+lang_dir :: FilePath
+lang_dir = local_dir </> "Lang"
+
+-- | Where to look for the instrument db cache.
+instrument_db_cache :: FilePath
+instrument_db_cache = instrument_dir </> "inst.db"
 
 -- * lang
 

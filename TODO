@@ -249,7 +249,7 @@ Instrument DB
   * instrument browser
   * search language
   * Instrument.Parse needs to understand *bank declarations
-  - serialize instrument with Data.Binary
+  * serialize instrument with Data.Binary
   + sysex parser for vl1 and z1
 
 tests

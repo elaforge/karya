@@ -10,6 +10,7 @@
 ^test.output$
 
 ^Local/Instrument/z1_sysex
+^Local/Instrument/inst\.db
 
 # scratch files
 ^scratch
@@ -25,7 +26,7 @@ _stub.[ch]$
 ^test_[a-z]+$
 ^test/hspp$
 ^fixdeps$
-^(dump|seq|send|repl|logview|browser)$
+^(dump|seq|send|repl|logview|browser|make_db)$
 
 # profile cruft
 ^RunTests\.

@@ -6,7 +6,7 @@ import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
 import qualified Data.Map as Map
 import qualified Language.Haskell.Interpreter.GHC as GHC
-import qualified System.FilePath as FilePath
+import System.FilePath ((</>))
 import qualified Network
 import qualified System.Environment
 
@@ -28,6 +28,8 @@ import qualified Cmd.Responder as Responder
 import qualified Cmd.TimeStep as TimeStep
 import qualified Cmd.Save as Save
 
+import qualified Instrument.Db as Db
+
 import qualified App.Config as Config
 import qualified App.StaticConfig as StaticConfig
 
@@ -41,21 +43,19 @@ import qualified Local.Instrument
 import Cmd.LanguageCmds ()
 
 -- tmp
-import qualified Ui.TestSetup as TestSetup
 import qualified Midi.PortMidi as PortMidi
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
 
 
-load_static_config :: FilePath -> IO StaticConfig.StaticConfig
-load_static_config app_dir = do
-    instrument_db <- Local.Instrument.load $
-        FilePath.joinPath [app_dir, "Local", "Instrument"]
+load_static_config :: IO StaticConfig.StaticConfig
+load_static_config = do
+    app_dir <- Config.get_app_dir
+    instrument_db <- Local.Instrument.load app_dir
     return $ StaticConfig.StaticConfig {
         StaticConfig.config_instrument_db = instrument_db
         , StaticConfig.config_schema_map = Map.empty
-        , StaticConfig.config_local_lang_dirs =
-            [FilePath.joinPath [app_dir, "Local", "Lang"]]
+        , StaticConfig.config_local_lang_dirs = [app_dir </> Config.lang_dir]
         , StaticConfig.config_global_cmds = []
         , StaticConfig.config_setup_cmd = setup_cmd
         }
@@ -73,8 +73,12 @@ initialize f = do
 main :: IO ()
 main = initialize $ \lang_socket read_chan -> do
     Log.notice "app starting"
-    static_config <- load_static_config "."
-    Log.notice "instrument db loaded"
+    static_config <- load_static_config
+    let loaded_msg = "instrument db loaded, "
+            ++ show (Db.size (StaticConfig.config_instrument_db static_config))
+            ++ " instruments loaded"
+    Log.notice loaded_msg
+    putStrLn loaded_msg
 
     (rdev_map, wdev_map) <- MidiC.devices
     print_devs rdev_map wdev_map
@@ -101,6 +105,8 @@ main = initialize $ \lang_socket read_chan -> do
         lang_socket msg_chan read_chan player_chan
     let get_ts = fmap MidiC.to_timestamp PortMidi.pt_time
     Log.debug "initialize session"
+    putStrLn "initialize session"
+
     session <- GHC.newSession
     quit_request <- MVar.newMVar ()
 

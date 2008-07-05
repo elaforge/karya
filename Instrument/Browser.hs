@@ -23,6 +23,7 @@ import qualified Perform.Midi.Controller as Controller
 import qualified Perform.Midi.Instrument as Instrument
 
 import qualified Local.Instrument
+import qualified App.Config as Config
 
 -- import Util.PPrint
 -- import qualified Instrument.Search_test
@@ -30,8 +31,10 @@ import qualified Local.Instrument
 
 main :: IO ()
 main = do
-    db <- Local.Instrument.load "Local/Instrument"
-    -- let db = Db.db Instrument.Search_test.midi_db
+    app_dir <- Config.get_app_dir
+    db <- Local.Instrument.load app_dir
+    putStrLn $ "Loaded " ++ show (Db.size db)
+    -- let db = Db.db Instrument.Search_test.midi_db Search.empty_index
     win <- BrowserC.create 50 50 400 200
     Concurrent.forkIO (handle_msgs win db initial_state)
     Fltk.run

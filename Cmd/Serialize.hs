@@ -19,8 +19,8 @@ import qualified Data.Map as Map
 import qualified Data.Time as Time
 
 import qualified System.IO as IO
-import qualified System.IO.Error as IO.Error
-import qualified System.Directory as Directory
+
+import qualified Util.File as File
 
 import Ui.Types
 import qualified Ui.State as State
@@ -40,26 +40,22 @@ import qualified App.Config as Config
 
 serialize :: FilePath -> SaveState -> IO ()
 serialize fname state = do
-    backup_file fname
+    File.backup_file fname
     Binary.encodeFile fname state
 
 serialize_text :: FilePath -> SaveState -> IO ()
 serialize_text fname state = do
-    backup_file fname
+    File.backup_file fname
     IO.writeFile fname (show state)
 
-backup_file :: FilePath -> IO ()
-backup_file fname = Exception.catchJust enoent_exc
-    (Directory.renameFile fname (fname ++ ".last"))
-    (\_exc -> return ())
-
-unserialize :: IO.FilePath
-    -> IO (Either Exception.Exception SaveState)
+unserialize :: FilePath -> IO (Either Exception.Exception SaveState)
 unserialize fname = Exception.try $ do
     st <- Binary.decodeFile fname
     -- Data.Binary is lazy, but I want errors parsing to get caught right here.
     -- The correct thing to do would be to use the binary-strict package, but
     -- it's not drop-in and this is expedient.
+    -- Come to think of it, this probably kills off most of Data.Binary's
+    -- vaunted blazing speed.
     length (show st) `seq` return st
 
 
@@ -69,10 +65,6 @@ unserialize_text fname = do
     case st of
         Left exc -> return (Left exc)
         Right ui_state -> fmap Right (save_state ui_state)
-
-enoent_exc exc = case Exception.ioErrors exc of
-    Just io_error | IO.Error.isDoesNotExistError io_error -> Just io_error
-    _ -> Nothing
 
 
 -- * data types

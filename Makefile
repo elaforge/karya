@@ -44,7 +44,7 @@ clean:
 	rm -f **/*.o **/*.hi **/*.pyc fixdeps fixdeps.* fltk/fltk.a \
 		$(UI_HS) $(MIDI_HS) $(LOGVIEW_HS) $(BROWSER_HS) haddock/*  hpc .hpc \
 		test_block test_logview test_browser test_midi \
-		seq send repl dump logview \
+		seq send repl dump make_db logview \
 		seq_language
 	rm -rf test_obj/*
 
@@ -100,6 +100,9 @@ repl: App/Repl.hs
 	$(GHC) $(HFLAGS) --make $^ -o $@
 .PHONY: dump
 dump: App/Dump.hs
+	$(GHC) $(HFLAGS) --make $^ -o $@
+.PHONY: make_db
+make_db: Instrument/MakeDb.hs
 	$(GHC) $(HFLAGS) --make $^ -o $@
 
 LOGVIEW_OBJ = LogViewer/LogView.hs LogViewer/LogViewC.hs \

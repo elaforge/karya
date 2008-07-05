@@ -44,6 +44,16 @@ data Index = Index {
     , idx_inverted :: Map.Map Score.Instrument [Instrument.Tag]
     } deriving (Show)
 
+empty_index = Index Map.empty Map.empty
+
+-- | Merge the indices, favoring instruments from the left one.
+merge_indices :: Index -> Index -> Index
+merge_indices (Index keys0 inv0) (Index keys1 inv1) =
+    Index (merge_keys keys0 keys1) (Map.union inv0 inv1)
+    where
+    merge_keys = Map.unionWith merge_vals
+    merge_vals = Map.unionWith (++)
+
 make_index :: MidiDb.MidiDb -> Index
 make_index midi_db =
     Index (Map.map Util.Data.multimap (Util.Data.multimap idx))
@@ -54,6 +64,8 @@ make_index midi_db =
 
 -- | The query language looks like "a b= c=d", which means
 -- [("a", ""), ("b", ""), ("c", "d")]
+-- TODO parse quotes for keys or vals with spaces
+-- TODO parse '-' for negative assertions
 parse :: String -> Query
 parse = map split . words
     where split w = let (pre, post) = break (=='=') w in (pre, drop 1 post)

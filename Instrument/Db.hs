@@ -24,6 +24,7 @@ data Db = Db {
     , db_lookup_synth :: Score.Instrument -> Maybe Instrument.Synth
     , db_midi_initialize :: Score.Instrument -> Maybe MakeInitialize
 
+    , db_midi_db :: MidiDb.MidiDb
     , db_index :: Search.Index
     }
 
@@ -33,6 +34,7 @@ empty = Db {
     , db_lookup_midi = const Nothing
     , db_lookup_synth = const Nothing
     , db_midi_initialize = const Nothing
+    , db_midi_db = MidiDb.empty
     , db_index = Search.make_index (MidiDb.midi_db [])
     }
 
@@ -45,14 +47,17 @@ type LookupBackend = Score.Instrument -> Maybe Backend
 type MakeInitialize = Midi.Channel -> Instrument.InitializePatch
 
 
-db midi_db = Db
+db midi_db extra_index = Db
     (const (Just Midi))
     (Search.search index)
     (lookup_instrument midi_db)
     (lookup_synth midi_db)
     (midi_initialize midi_db)
+    midi_db
     index
-    where index = Search.make_index midi_db
+    where index = Search.merge_indices (Search.make_index midi_db) extra_index
+
+size db = MidiDb.size (db_midi_db db)
 
 lookup_instrument :: MidiDb.MidiDb -> LookupInstrument
 lookup_instrument (MidiDb.MidiDb synths) inst = do

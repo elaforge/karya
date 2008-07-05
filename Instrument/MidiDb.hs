@@ -11,10 +11,26 @@ data MidiDb = MidiDb
     (Map.Map Instrument.SynthName (Instrument.Synth, SynthPatches))
     deriving (Show)
 
+-- | Merge the MidiDbs, favoring instruments in the leftmost one.
+merge :: MidiDb -> MidiDb -> MidiDb
+merge (MidiDb db0) (MidiDb db1) = MidiDb $ Map.unionWith merge_synth db0 db1
+    where
+    merge_synth (synth, pmap0) (_, pmap1) = (synth, merge_patches pmap0 pmap1)
+    merge_patches (PatchMap ps0) (PatchMap ps1) = PatchMap (Map.union ps0 ps1)
+    merge_patches a _ = a
+
 midi_db :: [SynthDesc] -> MidiDb
 midi_db synth_map = MidiDb $ Map.fromList
     [ (lc (Instrument.synth_name synth), (synth, patches))
     | (synth, patches) <- synth_map]
+
+size :: MidiDb -> Int
+size (MidiDb synths) = sum $ map ssize (Map.elems synths)
+    where
+    ssize (_, PatchTemplate _) = 1
+    ssize (_, PatchMap patches) = Map.size patches
+
+empty = MidiDb Map.empty
 
 type SynthDesc = (Instrument.Synth, SynthPatches)
 
