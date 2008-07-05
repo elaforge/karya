@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-unused-imports #-}
 {- | The responder is the main event loop on the haskell side.
 
 It receives msgs (described in Cmd.Msg) multiplexed through a set of channels

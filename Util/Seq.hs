@@ -121,7 +121,7 @@ strip = lstrip . rstrip
 -- ** splitting and joining
 
 break_tails :: ([a] -> Bool) -> [a] -> ([a], [a])
-break_tails f [] = ([], [])
+break_tails _ [] = ([], [])
 break_tails f lst@(x:xs)
     | f lst = ([], lst)
     | otherwise = let (pre, post) = break_tails f xs in (x:pre, post)

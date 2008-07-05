@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-unused-imports #-}
 module Ui.Diff where
 import Control.Monad
 import qualified Control.Monad.Error as Error

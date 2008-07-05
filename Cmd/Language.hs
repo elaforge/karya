@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-unused-imports #-}
 {- | Process a textual language, which may look familiar, to perform UI state
 changes.
 

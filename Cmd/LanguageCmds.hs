@@ -1,3 +1,6 @@
+{-# OPTIONS_GHC -fno-warn-unused-imports #-}
+-- This module imports modules that are possibly used only dynamically by
+-- lang, just to make sure they get compiled.
 {- | Helper functions to be imported into LanguageEnviron.  LanguageEnviron
 must be interpreted since it's the "top level" module, so I put the library
 of commands in here.
@@ -296,7 +299,7 @@ auto_config block_id = do
             , (i, (inst, _dev)) <- Seq.enumerate by_dev]
         default_addr = case allocs of
             [] -> Nothing
-            ((dev, chan), inst) : _ -> Just (dev, chan)
+            ((dev, chan), _inst) : _ -> Just (dev, chan)
     when (not (null no_dev)) $
         Log.warn $ "no synth found for instruments: " ++ show insts
     return $ Midi.Instrument.config allocs default_addr

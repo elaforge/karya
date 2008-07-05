@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -XGeneralizedNewtypeDeriving #-}
 {-# OPTIONS_GHC -XDeriveDataTypeable #-}
+{-# OPTIONS_GHC -fno-warn-unused-imports #-}
 {- |
 The overall UI state is described here.  This is an immutable data structure
 that contains all the tracks, rulers, note data, and so forth.  It exports
@@ -536,7 +537,6 @@ get_views_of block_id = do
 get_tracks_of :: (UiStateMonad m) =>
     Block.BlockId -> m (Map.Map Track.TrackId Track.Track)
 get_tracks_of block_id = do
-    tracks <- fmap state_tracks get
     block <- get_block block_id
     let track_ids = [tid | (Block.TId tid _, _) <- Block.block_tracks block]
     tracks <- mapM get_track track_ids

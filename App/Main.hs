@@ -25,7 +25,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.MakeRuler as MakeRuler
 import qualified Cmd.Responder as Responder
-import qualified Cmd.TimeStep as TimeStep
+-- import qualified Cmd.TimeStep as TimeStep
 import qualified Cmd.Save as Save
 
 import qualified Instrument.Db as Db

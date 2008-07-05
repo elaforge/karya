@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-unused-imports #-}
 {- | Cmds to add notes to an instrument track and send midi thru.  Uses
 Cmd.Edit to do its dirty work.
 -}

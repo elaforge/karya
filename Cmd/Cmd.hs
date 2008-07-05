@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -XGeneralizedNewtypeDeriving #-}
 {-# OPTIONS_GHC -XDeriveDataTypeable #-}
+{-# OPTIONS_GHC -fno-warn-unused-imports #-}
 module Cmd.Cmd where
 
 import Control.Monad
