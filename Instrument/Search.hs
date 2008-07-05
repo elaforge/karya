@@ -9,6 +9,7 @@ import qualified Data.Set as Set
 
 import qualified Util.Data
 
+import qualified Midi.Midi as Midi
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Controller as Controller
@@ -64,6 +65,9 @@ backend_tag = "backend"
 synth_tag = "synth"
 name_tag = "name"
 controller_tag = "controller"
+-- | Indicates that the instrument has a sysex message as its midi
+-- initialization, which probably means it's not built in to the synth.
+sysex_tag = "sysex"
 
 tag = Instrument.tag
 
@@ -91,12 +95,14 @@ inverted_index (MidiDb.MidiDb synths) = inst_tags2
     inst_tags1 = [(inst_of tags, tags) | tags <- map lc_tags all_tags]
     inst_tags2 = [(inst, tags) | (Just inst, tags) <- inst_tags1]
 
+-- | Get tags for the synth, including automatically generated synth tags.
 synth_tags :: Instrument.Synth -> MidiDb.SynthPatches -> [[Instrument.Tag]]
 synth_tags synth patches = map (stags++) (patch_tags patches)
     where
     stags = tag synth_tag (Instrument.synth_name synth)
         : controller_tags (Instrument.synth_controller_map synth)
 
+-- | Get tags for the patch, including automatically generated ones.
 patch_tags :: MidiDb.SynthPatches -> [[Instrument.Tag]]
 patch_tags (MidiDb.PatchTemplate patch) =
     [any_instrument : Instrument.patch_tags patch]
@@ -105,8 +111,14 @@ patch_tags (MidiDb.PatchMap patches) = map ptags (Map.elems patches)
     ptags patch = Instrument.tag name_tag (Instrument.inst_name inst)
             : controller_tags (Instrument.inst_controller_map inst)
             ++ Instrument.patch_tags patch
+            ++ has_sysex
         where
         inst = Instrument.patch_instrument patch
+        has_sysex = case Instrument.patch_initialize patch of
+            Instrument.InitializeMidi msgs
+                | any Midi.is_sysex msgs -> [Instrument.tag sysex_tag ""]
+                | otherwise -> []
+            _ -> []
 
 controller_tags =
     map (Instrument.tag controller_tag) . Controller.controller_map_names

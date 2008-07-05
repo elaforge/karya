@@ -1,9 +1,11 @@
 {-# OPTIONS_GHC -XDeriveDataTypeable #-}
 module Midi.Midi where
+import Data.Bits
 import qualified Data.Generics as Generics
 import qualified Perform.Timestamp as Timestamp
 import Data.Word (Word8)
 
+-- * devices
 
 data WriteMessage = WriteMessage {
     wmsg_dev :: WriteDevice
@@ -28,6 +30,20 @@ newtype WriteDevice = WriteDevice String
     deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
 
 
+-- * constructors
+
+-- | Emit a program change with bank in [msb, lsb, pchange] order.
+program_change :: Integer -> Integer -> [Message]
+program_change bank program = map (ChannelMessage 0)
+    [ ControlChange cc_bank_msb msb, ControlChange cc_bank_lsb lsb
+    , ProgramChange (fromIntegral program)
+    ]
+    where (msb, lsb) = split14 (fromIntegral bank)
+
+cc_bank_msb, cc_bank_lsb :: Controller
+cc_bank_msb = 0
+cc_bank_lsb = 32
+
 -- * predicates
 
 -- | Check to make sure midi msg vals are all in range.
@@ -44,6 +60,9 @@ valid_chan_msg msg = case msg of
 
 is_cc (ChannelMessage _ (ControlChange _ _)) = True
 is_cc _ = False
+
+is_sysex (CommonMessage (SystemExclusive _ _)) = True
+is_sysex _ = False
 
 is_note (ChannelMessage _ (NoteOn _ _)) = True
 is_note (ChannelMessage _ (NoteOff _ _)) = True
@@ -76,7 +95,7 @@ data ChannelMessage =
     | ChannelPressure ControlValue
     -- | Number between -0x2000 and +0x2000.
     | PitchBend Int
-    -- channel mode messages (special controller values)
+    -- | channel mode messages (special controller values)
     | AllSoundOff
     | ResetAllControllers
     | LocalControl Bool
@@ -85,7 +104,7 @@ data ChannelMessage =
     deriving (Eq, Ord, Read, Show, Generics.Data, Generics.Typeable)
 
 data CommonMessage =
-    -- manufacturer id, data
+    -- | manufacturer id, data including eox
     SystemExclusive Word8 [Word8]
     | SongPositionPointer Int
     | SongSelect Word8
@@ -97,3 +116,14 @@ data CommonMessage =
 data RealtimeMessage = TimingClock | Start | Continue | Stop | ActiveSense
     | Reset | UndefinedRealtime Word8
     deriving (Eq, Ord, Read, Show, Generics.Data, Generics.Typeable)
+
+-- * util
+
+-- | Split an Int into (msb, lsb)
+split14 :: Int -> (Word8, Word8)
+split14 i = (fromIntegral (shiftR i 7 .&. 0x7f), fromIntegral (i .&. 0x7f))
+
+-- | Split an Int into two 7-bit Word8s, or go the other way.  MIDI sends
+-- the lsb first, so the args will usually be swapped.
+join14 :: Word8 -> Word8 -> Int
+join14 msb lsb = fromIntegral (shiftL (msb .&. 0x7f) 7 .|. (lsb .&. 0x7f))

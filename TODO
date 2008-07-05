@@ -248,8 +248,9 @@ Instrument DB
   * simple integrated version with just hardcoded midi instruments
   * instrument browser
   * search language
-  - Instrument.Parse needs to understand *bank declarations
-  - sysex parser for vl1 and z1
+  * Instrument.Parse needs to understand *bank declarations
+  - serialize instrument with Data.Binary
+  + sysex parser for vl1 and z1
 
 tests
   + some kind of organized hunit / quickcheck for pure code

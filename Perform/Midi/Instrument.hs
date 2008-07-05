@@ -108,3 +108,10 @@ data InitializePatch =
     | InitializeMessage String
     | NoInitialization
     deriving (Eq, Show)
+
+patch_summary :: Patch -> String
+patch_summary patch = inst_name inst ++ " -- " ++ show (patch_tags patch)
+    where inst = patch_instrument patch
+
+add_tag :: Tag -> Patch -> Patch
+add_tag tag patch = patch { patch_tags = tag : patch_tags patch }

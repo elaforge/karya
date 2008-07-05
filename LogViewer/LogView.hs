@@ -1,4 +1,4 @@
-{-
+{- |
 This module reads lines and streams them to the GUI, which displays them in
 a scrolling box.  Clickable text is marked and will be highlighted in the GUI.
 When it's clicked, the GUI sends the tag back, much like an HTML href.

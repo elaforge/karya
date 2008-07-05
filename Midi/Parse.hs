@@ -22,7 +22,7 @@ decode (status:d1:d2:bytes)
         0xb -> ControlChange d1 d2
         0xc -> ProgramChange d1
         0xd -> ChannelPressure d1
-        0xe -> PitchBend (join14 d1 d2 - 0x2000)
+        0xe -> PitchBend (join14 d2 d1 - 0x2000)
         _ -> error $ "not reached: " ++ show st
     channel_mode_msg = case d1 of
         0x78 -> AllSoundOff
@@ -32,7 +32,7 @@ decode (status:d1:d2:bytes)
         _ -> UndefinedChannelMode d1 d2
     common_msg = case chan of
         0x0 -> SystemExclusive d1 (take_include (not.is_eox) (d2:bytes))
-        0x2 -> SongPositionPointer (join14 d1 d2)
+        0x2 -> SongPositionPointer (join14 d2 d1)
         0x3 -> SongSelect d1
         0x6 -> TuneRequest
         0x7 -> EOX -- this shouldn't happen by itself
@@ -88,8 +88,7 @@ encode (CommonMessage msg) = join4 0xf code : bytes
     where
     (code, bytes) = case msg of
         SystemExclusive manufacturer bytes -> (0x0, manufacturer : bytes)
-        -- TODO midi spec says lsb comes first, so is this backwards?
-        SongPositionPointer d -> let (d1, d2) = split14 d in (0x2, [d1, d2])
+        SongPositionPointer d -> let (msb, lsb) = split14 d in (0x2, [lsb, msb])
         SongSelect d -> (0x3, [d])
         TuneRequest -> (0x6, [])
         EOX -> (0x7, []) -- this should have been in SystemExclusive
@@ -98,15 +97,9 @@ encode (CommonMessage msg) = join4 0xf code : bytes
 encode (UnknownMessage st d1 d2)
     = error $ "UnknownMessage: " ++ show (st, d1, d2)
 
--- | Split a Word8 into high and low nibbles, and join back.
-split4 :: Word8 -> (Word8, Word8) -- msb, lsb
+-- | Split a Word8 into (msb, lsb) nibbles, and join back.
+split4 :: Word8 -> (Word8, Word8)
 split4 word = (shiftR word 4 .&. 0xf, word .&. 0xf)
+-- | Join msb and lsb into a Word8.
 join4 :: Word8 -> Word8 -> Word8
 join4 d1 d2 = (shiftL d1 4 .&. 0xf0) .|. (d2 .&. 0x0f)
-
--- | Split an Int into two 7-bit Word8s, or go the other way.  MIDI puts the
--- MSB first.
-join14 :: Word8 -> Word8 -> Int
-join14 lsb msb = fromIntegral (shiftL (msb .&. 0x7f) 7 .|. (lsb .&. 0x7f))
-split14 :: Int -> (Word8, Word8)
-split14 i = (fromIntegral (shiftR i 7 .&. 0x7f), fromIntegral (i .&. 0x7f))
