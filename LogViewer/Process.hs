@@ -141,7 +141,7 @@ process_line log_chan line = do
     err_msg <- Log.deserialize_msg line
     let msg = case err_msg of
             Left exc ->
-                Log.msg Log.Error ("error parsing: " ++ show exc) Nothing
+                Log.msg Log.Error ("error parsing: " ++ show exc)
             Right msg -> msg
     STM.atomically $ STM.writeTChan log_chan msg
 

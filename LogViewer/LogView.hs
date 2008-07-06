@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-unused-imports #-}
 {- |
 This module reads lines and streams them to the GUI, which displays them in
 a scrolling box.  Clickable text is marked and will be highlighted in the GUI.
@@ -13,7 +14,7 @@ import qualified Control.Concurrent.STM as STM
 import Control.Monad
 import qualified Control.Monad.State as State
 import Control.Monad.State (liftIO)
-import qualified System.Environment as Environment
+-- import qualified System.Environment as Environment
 
 import qualified Util.Log as Log
 

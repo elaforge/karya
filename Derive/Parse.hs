@@ -81,6 +81,14 @@ p_int = do
         _ -> P.pzero -- this should never happen
     <?> "signed int"
 
+p_nat :: P.CharParser st Integer
+p_nat = do
+    i <- P.many P.digit
+    case Numeric.readDec i of
+        (n, _):_ -> return n
+        _ -> P.pzero -- this should never happen
+    <?> "natural int"
+
 p_float :: P.CharParser st Double
 p_float = do
     sign <- P.option 1 (P.char '-' >> return (-1))

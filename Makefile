@@ -11,11 +11,12 @@ REZ = /Developer/Tools/Rez -t APPL -o $@ /usr/local/include/FL/mac.r
 GHC = ghc-6.8.2
 GHC_LIB = /usr/local/lib/ghc-6.8.2
 
+# hspp adds filename and lineno to various logging and testing functions.
 BASIC_HFLAGS = -W $(CINCLUDE) -i../lib -pgmc g++ -pgml g++ \
 	-optc -ggdb -optl -ggdb \
 	-F -pgmF test/hspp
 
-# hspp adds filename and lineno to various logging and testing functions.
+# These flags don't coexist with profiling.
 HFLAGS = $(BASIC_HFLAGS) -threaded -debug
 
 FLTK_OBJS := Block.o TrackTile.o Track.o Ruler.o EventTrack.o MoveTile.o \

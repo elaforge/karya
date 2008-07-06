@@ -74,6 +74,13 @@ keyed_group_with :: (Ord b) => (a -> b) -> [a] -> [(b, [a])]
 keyed_group_with key = map (\gs -> (key (head gs), gs))
     . groupBy ((==) `on` key) . sortBy (compare `on` key)
 
+-- | Pair each element with the following element.  The last element is paired
+-- with @f x@.  Like @zip xs (drop 1 xs ++ f (last xs))@ but more efficient.
+zip_next :: (a->a) -> [a] -> [(a, a)]
+zip_next _ [] = []
+zip_next f [x] = [(x, f x)]
+zip_next f (x:y:zs) = (x, y) : zip_next f (y:zs)
+
 -- * sublists
 
 -- A foldr version is not lazy enough and overflows the stack.
