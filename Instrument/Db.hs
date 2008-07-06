@@ -11,8 +11,6 @@ import qualified Instrument.Search as Search
 
 -- * Db
 
-data Backend = Midi deriving (Show)
-
 -- | Static config type for the instrument db.
 data Db = Db {
     -- | Search for Score instruments.
@@ -41,7 +39,6 @@ instance Show Db where
     show _ = "<instrument_db>"
 
 type LookupMidiInstrument = Score.Instrument -> Maybe Instrument.Instrument
-type LookupBackend = Score.Instrument -> Maybe Backend
 type MakeInitialize = Midi.Channel -> Instrument.InitializePatch
 
 
@@ -58,7 +55,7 @@ size db = MidiDb.size (db_midi_db db)
 lookup_midi :: MidiDb.MidiDb -> LookupMidiInstrument
 lookup_midi midi_db inst = case MidiDb.lookup_instrument midi_db inst of
     Nothing -> Nothing
-    Just (MidiDb.MidiInfo synth patch) -> Just (make_inst synth patch)
+    Just (MidiDb.Info synth patch) -> Just (make_inst synth patch)
 
 -- | Merge a Synth and a Patch to create an Instrument.
 make_inst :: Instrument.Synth -> Instrument.Patch -> Instrument.Instrument

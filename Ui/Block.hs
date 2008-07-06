@@ -61,6 +61,15 @@ data TracklikeId =
     | DId Divider
     deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
 
+track_id_of :: TracklikeId -> Maybe Track.TrackId
+track_id_of (TId tid _) = Just tid
+track_id_of _ = Nothing
+
+ruler_id_of :: TracklikeId -> Maybe Ruler.RulerId
+ruler_id_of (TId _ rid) = Just rid
+ruler_id_of (RId rid) = Just rid
+ruler_id_of _ = Nothing
+
 data Tracklike =
     T Track.Track Ruler.Ruler
     | R Ruler.Ruler

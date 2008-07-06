@@ -16,8 +16,10 @@ import qualified Perform.Midi.Instrument as Instrument
 -- * midi db
 
 -- | Once I have other backends this should move back into Db.
-data Info = MidiInfo Instrument.Synth Instrument.Patch
-    deriving (Show)
+data Info = Info {
+    info_synth :: Instrument.Synth
+    , info_patch :: Instrument.Patch
+    } deriving (Show)
 
 data MidiDb = MidiDb
     (Map.Map Instrument.SynthName (Instrument.Synth, PatchMap))
@@ -52,7 +54,7 @@ lookup_instrument (MidiDb synths) inst = do
     let (synth_name, inst_name) = split_inst inst
     (synth, patches) <- Map.lookup synth_name synths
     patch <- lookup_patch inst_name patches
-    return $ MidiInfo synth patch
+    return $ Info synth patch
 
 -- * patch map
 

@@ -6,6 +6,7 @@ idiosyncratic handling of program change msb, lsb.
 module Instrument.Parse where
 import Control.Monad
 import Data.Bits as Bits
+import qualified Data.ByteString as ByteString
 import qualified Data.Maybe as Maybe
 import qualified Data.Word as Word
 import qualified Numeric
@@ -18,8 +19,6 @@ import qualified Midi.Midi as Midi
 import qualified Derive.Parse as Parse
 import qualified Perform.Midi.Controller as Controller
 import qualified Perform.Midi.Instrument as Instrument
-
-import qualified Data.ByteString as ByteString
 
 
 -- * patch file
@@ -157,10 +156,10 @@ n_bytes n = Parsec.count n any_byte
 one_byte = fmap head (n_bytes 1)
 any_byte = byte_sat (const True)
 
-start_sysex manuf = byte 0xf0 >> byte manuf
-end_sysex = byte 0xf7 >> Parsec.eof
+start_sysex manuf = byte Midi.sox_byte >> byte manuf
+end_sysex = byte Midi.eox_byte >> Parsec.eof
 to_eox :: ByteParser st [Word.Word8]
-to_eox = Parsec.many (byte_sat (/=0xf7))
+to_eox = Parsec.many (byte_sat (/=Midi.eox_byte))
 
 -- * decode sysex bytes
 

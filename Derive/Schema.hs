@@ -35,6 +35,7 @@ module Derive.Schema (
     -- * util
     , block_tracks
     , cmd_context
+    , instrument_to_title, title_to_instrument
 ) where
 -- import qualified Control.Arrow as Arrow
 import Control.Monad
@@ -189,6 +190,7 @@ track_type_of tracknum skel = case skel of
             | otherwise -> Nothing
         Merge skels -> case Maybe.catMaybes (map type_of skels) of
             [] -> Nothing
+            -- TODO this seems arbitrary... how do I justify this?
             (typ:_) -> Just typ
     where
     type_of = track_type_of tracknum
@@ -293,6 +295,20 @@ signal_controller (_title, track_id) = do
 tempo_track_title :: String
 tempo_track_title = "tempo"
 
+-- | Convert a track title into its instrument.  This could be per-schema, but
+-- I'm going to hardcode it for now and assume all schemas will do the same
+-- thing.
+--
+-- TODO also hardcoded in parse_inst_groups and parse_inst_group
+title_to_instrument :: String -> Maybe Score.Instrument
+title_to_instrument ('>':inst_name) =
+    Just $ Score.Instrument (Seq.strip inst_name)
+title_to_instrument _ = Nothing
+
+-- | Convert from an instrument to the title of its instrument track.
+instrument_to_title :: Score.Instrument -> String
+instrument_to_title (Score.Instrument inst) = '>' : inst
+
 -- * parser
 
 -- | A parser turns [Track] into a Skeleton, which describes which tracks
@@ -320,7 +336,7 @@ parse_inst_groups tracks = merge $
 
 parse_inst_group tracks = case tracks of
     track@(Track { track_title = Just ('>':inst_name) }) : rest ->
-        let inst = Score.Instrument (Seq.lstrip inst_name) in case rest of
+        let inst = Score.Instrument (Seq.strip inst_name) in case rest of
             [] -> Instrument inst track
             _ -> Controller rest (Just (Instrument inst track))
     _ -> Controller tracks Nothing

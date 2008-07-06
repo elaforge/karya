@@ -110,14 +110,15 @@ interpret local_mods ui_state cmd_state text = do
     GHC.setImports $ ["Prelude"] ++ local_mods
 
     cmd_func <- GHC.interpret (mangle_code text) (GHC.as :: LangType)
-    (cmd_state2, _midi, logs, ui_res) <- Trans.liftIO $
+    (cmd_state2, midi, logs, ui_res) <- Trans.liftIO $
         cmd_func ui_state cmd_state
-    return (merge_cmd_state cmd_state2 logs ui_res)
+    return (merge_cmd_state cmd_state2 midi logs ui_res)
 
 -- | Create a CmdT that merges the given state into itself.
-merge_cmd_state cmd_state logs ui_res = do
+merge_cmd_state cmd_state midi logs ui_res = do
     Cmd.modify_state (const cmd_state)
     mapM_ Log.write logs
+    mapM_ (uncurry Cmd.midi) midi
     case ui_res of
         Left (State.StateError err) -> return $ "error: " ++ err
         Right (response, ui_state2, updates) -> do

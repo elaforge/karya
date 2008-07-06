@@ -91,13 +91,8 @@ main = initialize $ \lang_socket read_chan -> do
     -- when (not (null rdevs)) $ do
     --     putStrLn $ "open input " ++ show (head rdevs)
     --     MidiC.open_read_device read_chan (rdev_map Map.! head rdevs)
-    wdev_streams <- case wdevs of
-        [] -> return Map.empty
-        (wdev:_) -> do
-            putStrLn $ "open output " ++ show wdev
-            stream <- MidiC.open_write_device (wdev_map Map.! wdev)
-            return (Map.fromList [(wdev, stream)])
-    let default_stream = head (Map.elems wdev_streams)
+    wstream_map <- open_write_devices wdev_map wdevs
+    let default_stream = head (Map.elems wstream_map)
 
     player_chan <- STM.newTChanIO
     msg_chan <- STM.newTChanIO
@@ -111,7 +106,7 @@ main = initialize $ \lang_socket read_chan -> do
     quit_request <- MVar.newMVar ()
 
     args <- System.Environment.getArgs
-    let write_midi = write_msg default_stream wdev_streams
+    let write_midi = write_msg default_stream wstream_map
         setup_cmd = StaticConfig.config_setup_cmd static_config args
 
     Thread.start_thread "responder" $ do
@@ -124,6 +119,12 @@ main = initialize $ \lang_socket read_chan -> do
 
     Ui.event_loop quit_request msg_chan
 
+open_write_devices :: Map.Map Midi.WriteDevice PortMidi.WriteDevice
+    -> [Midi.WriteDevice] -> IO (Map.Map Midi.WriteDevice PortMidi.WriteStream)
+open_write_devices wdev_map devs = do
+    streams <- mapM (MidiC.open_write_device . (wdev_map Map.!)) devs
+    return $ Map.fromList (zip devs streams)
+
 responder_handler exc = do
     Log.error ("responder died from exception: " ++ show exc)
     putStrLn ("responder died from exception: " ++ show exc)
@@ -132,8 +133,8 @@ write_msg :: PortMidi.WriteStream
     -> Map.Map Midi.WriteDevice PortMidi.WriteStream
     -> Midi.WriteMessage
     -> IO ()
-write_msg default_stream wdev_streams (Midi.WriteMessage wdev ts msg) = do
-    let stream = maybe default_stream id (Map.lookup wdev wdev_streams)
+write_msg default_stream wstream_map (Midi.WriteMessage wdev ts msg) = do
+    let stream = maybe default_stream id (Map.lookup wdev wstream_map)
     putStrLn $ "PLAY " ++ show (wdev, ts, msg)
     MidiC.write_msg (stream, MidiC.from_timestamp ts, msg)
 

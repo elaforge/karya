@@ -421,6 +421,16 @@ track_at block_id tracknum = do
     block <- get_block block_id
     return $ Seq.at (Block.block_tracks block) tracknum
 
+-- | Convenience function like 'track_at', but get the track_id if it's an
+-- event track.
+event_track_at :: (UiStateMonad m) =>
+    Block.BlockId -> Block.TrackNum -> m (Maybe Track.TrackId)
+event_track_at block_id tracknum = do
+    maybe_track <- track_at block_id tracknum
+    return $ do
+        (track, _) <- maybe_track
+        Block.track_id_of track
+
 tracks :: (UiStateMonad m) => Block.BlockId -> m Block.TrackNum
 tracks block_id = do
     block <- get_block block_id

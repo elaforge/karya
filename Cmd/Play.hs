@@ -102,6 +102,8 @@ import qualified Util.Thread as Thread
 import Ui.Types
 import qualified Ui.Block as Block
 import qualified Ui.State as State
+-- This causes a bunch of modules to import BlockC.  Can I move the updater
+-- stuff out?
 import qualified Ui.Sync as Sync
 
 import qualified Cmd.Cmd as Cmd

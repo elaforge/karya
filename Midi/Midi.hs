@@ -44,6 +44,20 @@ cc_bank_msb, cc_bank_lsb :: Controller
 cc_bank_msb = 0
 cc_bank_lsb = 32
 
+-- * constants
+
+-- | These aren't used here, but even though I'd like to constrain all midi
+-- parsing to Midi.Parse, other places wind up dealing with raw sysex msgs.
+sox_byte, eox_byte :: Word8
+sox_byte = 0xf0
+eox_byte = 0xf7
+
+-- * modify
+
+set_channel :: Channel -> Message -> Message
+set_channel chan (ChannelMessage _ msg) = ChannelMessage chan msg
+set_channel _ msg = msg
+
 -- * predicates
 
 -- | Check to make sure midi msg vals are all in range.

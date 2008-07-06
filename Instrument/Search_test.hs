@@ -32,7 +32,7 @@ midi_db = MidiDb.midi_db
     [(t_synth, t_patches), (t_synth2, t_patches2)]
 
 t_synth = Instrument.synth "z1" "Z1 dev" [(13, "pe 1")]
-t_patches = MidiDb.patch_map $ map mkpatch
+t_patches = fst $ MidiDb.patch_map $ map mkpatch
     [ ("Mr. Delgado", "Synth-Lead", [(14, "delgado")])
     , ("Studio E.P.", "E.Piano", [])
     , ("Square Hollow", "Synth-Soft", [])
@@ -43,7 +43,7 @@ t_patches = MidiDb.patch_map $ map mkpatch
     ]
 
 t_synth2 = Instrument.synth "fm8" "fm8 dev" []
-t_patches2 = MidiDb.PatchTemplate (mkpatch ("none", "fm", []))
+t_patches2 = MidiDb.wildcard_patch_map (mkpatch ("none", "fm", []))
 
 t_tags = Search.patch_tags t_patches
 

@@ -31,7 +31,7 @@ decode (status:d1:d2:bytes)
         0x7b -> AllNotesOff
         _ -> UndefinedChannelMode d1 d2
     common_msg = case chan of
-        0x0 -> SystemExclusive d1 (take_include (not.is_eox) (d2:bytes))
+        0x0 -> SystemExclusive d1 (take_include (not . (==eox_byte)) (d2:bytes))
         0x2 -> SongPositionPointer (join14 d2 d1)
         0x3 -> SongSelect d1
         0x6 -> TuneRequest
@@ -46,11 +46,6 @@ decode (status:d1:d2:bytes)
         0xf -> Reset
         _ -> UndefinedRealtime chan
 decode _ = UnknownMessage 0 0 0
-
-is_sysex = (== 0x80)
-is_eox = (== 0xf7)
-is_status = (>= 0x80)
-is_realtime = (>= 0xf8)
 
 take_include _f [] = []
 take_include f (x:xs)

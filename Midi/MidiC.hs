@@ -154,10 +154,10 @@ enqueue stream wchan = _enqueue Nothing []
         | otherwise = wchan evt >> _enqueue Nothing rest
 
 evt_bytes (PortMidi.Event (bytes, _)) = bytes
-has_eox = any (==0xf7) . evt_bytes
+has_eox = any (==Midi.eox_byte) . evt_bytes
 is_realtime = (>=0xf8) . head . evt_bytes
 is_status = (>=0x80) . head . evt_bytes
-is_sysex = (==0xf0) . head . evt_bytes
+is_sysex = (==Midi.sox_byte) . head . evt_bytes
 merge_evts [] = error "can't merge 0 Events"
 merge_evts evts@(PortMidi.Event (_, ts):_)
     = PortMidi.Event (concatMap evt_bytes evts, ts)

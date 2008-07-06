@@ -166,6 +166,8 @@ Cmd
       IDs, prefixing current project name
     * readline using repl for send
     - lang cmd stuff to load string serialized tracks for event cut and paste
+    - an aux data input for the lang socket might be useful, to paste in data
+      without having to quote it
 
   Cmd.View
     - ViewBlock abstraction: collapse/expand tracks, mute tracks
@@ -250,7 +252,8 @@ Instrument DB
   * search language
   * Instrument.Parse needs to understand *bank declarations
   * serialize instrument with Data.Binary
-  + sysex parser for vl1 and z1
+  * sysex parser for vl1 and z1
+  - ability to edit tags, esp. add "favorite rating"
 
 tests
   + some kind of organized hunit / quickcheck for pure code

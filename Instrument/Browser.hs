@@ -4,9 +4,10 @@ import Control.Monad
 import qualified Control.Monad.State as State
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
+import qualified Data.ByteString as ByteString
+import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Char as Char
 import qualified Numeric
 import Text.Printf
 
@@ -29,15 +30,14 @@ import qualified Perform.Midi.Instrument as Instrument
 
 import qualified Local.Instrument
 import qualified App.Config as Config
-
-import qualified Data.ByteString as ByteString
+import qualified App.SendCmd as SendCmd
 
 -- import Util.PPrint
 -- import qualified Instrument.Search_test
 
 
 main :: IO ()
-main = do
+main = SendCmd.initialize $ do
     app_dir <- Config.get_app_dir
     putStrLn "Loading instruments..."
     db <- Local.Instrument.load app_dir
@@ -78,7 +78,7 @@ show_info win db inst_name = Fltk.send_action $ BrowserC.set_info win info
         info <- Db.db_lookup db score_inst
         return $ info_of db score_inst info
 
-info_of db score_inst (MidiDb.MidiInfo synth patch) =
+info_of db score_inst (MidiDb.Info synth patch) =
     printf "%s -- %s -- %s\n" synth_name name dev
         ++ info_sections
             [ ("Instrument controllers", (cmap_info inst_cmap))
@@ -131,8 +131,12 @@ groups n xs = pre : groups n post
 
 -- | Send the chosen instrument to the sequencer.
 choose_instrument :: String -> IO ()
-choose_instrument inst_name =
-    putStrLn $ "CHOOSE: " ++ show (Score.Instrument inst_name)
+choose_instrument inst_name = do
+    let cmd = "load_instrument " ++ show inst_name
+    putStrLn $ "send: " ++ cmd
+    response <- SendCmd.send cmd
+    when (not (null response)) $
+        putStrLn $ "response: " ++ response
 
 -- | Find instruments that match the query, and update the UI incrementally.
 process_query :: BrowserC.Window -> Db.Db -> [Score.Instrument] -> String

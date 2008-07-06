@@ -33,6 +33,7 @@ import qualified Cmd.TimeStep as TimeStep
 
 import qualified Perform.Transport as Transport
 import qualified Instrument.Db
+import qualified Instrument.MidiDb as MidiDb
 
 import qualified App.Config as Config
 
@@ -133,6 +134,10 @@ abort = (CmdT . lift . lift . lift) (Error.throwError Abort)
 require :: (Monad m) => Maybe a -> CmdT m a
 require = maybe abort return
 
+-- | Like 'require', but throw an exception with the given msg.
+require_msg :: (Monad m) => String -> Maybe a -> CmdT m a
+require_msg msg = maybe (State.throw msg) return
+
 -- * State
 
 data State = State {
@@ -211,11 +216,6 @@ get_focused_block :: (Monad m) => CmdT m Block.BlockId
 get_focused_block =
     fmap Block.view_block (get_focused_view >>= State.get_view)
 
-set_focused_view :: (Monad m) => Block.ViewId -> CmdT m ()
-set_focused_view view_id = do
-    Log.debug $ "active view is " ++ show view_id
-    modify_state $ \st -> st { state_focused_view = Just view_id }
-
 get_current_step :: (Monad m) => CmdT m TimeStep.TimeStep
 get_current_step = fmap state_step get_state
 
@@ -243,6 +243,12 @@ get_lookup_midi_instrument :: (Monad m) =>
     CmdT m Instrument.Db.LookupMidiInstrument
 get_lookup_midi_instrument =
     fmap (Instrument.Db.db_lookup_midi . state_instrument_db) get_state
+
+lookup_instrument_info :: (Monad m) => Score.Instrument
+    -> CmdT m (Maybe MidiDb.Info)
+lookup_instrument_info inst = do
+    inst_db <- fmap state_instrument_db get_state
+    return $ Instrument.Db.db_lookup inst_db inst
 
 get_schema_map :: (Monad m) => CmdT m SchemaMap
 get_schema_map = fmap state_schema_map get_state
@@ -332,6 +338,11 @@ cmd_record_active msg = case msg of
                UiMsg.MsgEvent (UiMsg.AuxMsg UiMsg.Focus) -> Done
                _ -> Continue
     _ -> return Continue
+
+set_focused_view :: (Monad m) => Block.ViewId -> CmdT m ()
+set_focused_view view_id = do
+    Log.debug $ "active view is " ++ show view_id
+    modify_state $ \st -> st { state_focused_view = Just view_id }
 
 -- Responds to the UI's request to close a window.
 cmd_close_window :: Cmd

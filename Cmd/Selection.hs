@@ -234,12 +234,6 @@ selected_tracks selnum = do
     sel <- Cmd.require =<< State.get_selection view_id selnum
     view <- State.get_view view_id
     let start = Block.sel_start_track sel
-    tracks <- mapM (event_track_at (Block.view_block view))
+    tracks <- mapM (State.event_track_at (Block.view_block view))
         [start .. start + Block.sel_tracks sel - 1]
     return (Maybe.catMaybes tracks, sel)
-
-event_track_at block_id tracknum = do
-    track <- State.track_at block_id tracknum
-    case track of
-        Just ((Block.TId track_id _), _width) -> return (Just track_id)
-        _ -> return Nothing

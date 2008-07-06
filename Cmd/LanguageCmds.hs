@@ -64,7 +64,7 @@ import qualified Perform.Midi.Convert as Midi.Convert
 import qualified Perform.Midi.Instrument as Midi.Instrument
 import qualified Perform.Midi.Perform as Midi.Perform
 import qualified Perform.Midi.Controller as Midi.Controller
-import qualified Instrument.MidiDb as Instrument.MidiDb
+import qualified Instrument.MidiDb as MidiDb
 import qualified Instrument.Db as Instrument.Db
 
 import qualified Midi.Midi as Midi
@@ -177,10 +177,11 @@ show_block block_id = do
         , ("schema", show schema)
         ]
 
-get_skeleton :: String -> Cmd.CmdL Schema.Skeleton
+-- | TODO put this in Cmd?
+get_skeleton :: Block.BlockId -> Cmd.CmdL Schema.Skeleton
 get_skeleton block_id = do
     schema_map <- Cmd.get_schema_map
-    Schema.get_skeleton schema_map =<< State.get_block (bid block_id)
+    Schema.get_skeleton schema_map =<< State.get_block block_id
 
 create_block :: (State.UiStateMonad m) =>
     String -> String -> String -> m Block.BlockId
@@ -284,6 +285,7 @@ copy_marklist marklist_name from_ruler_id to_ruler_id = do
 
 -- * show / modify keymap
 
+-- TODO
 -- | Run the Cmd that is bound to the given KeySpec, if there is one.
 -- keymap :: Keymap.KeySpec -> Cmd.CmdL ()
 
@@ -292,22 +294,93 @@ copy_marklist marklist_name from_ruler_id to_ruler_id = do
 
 -- * midi config
 
-assign_instrument :: String -> Midi.Instrument.Addr -> Cmd.CmdL ()
-assign_instrument inst_name addr = do
-    config <- State.get_midi_config
+track_type :: Block.BlockId -> Block.TrackNum -> Cmd.CmdL Schema.TrackType
+track_type block_id tracknum = do
+    skel <- get_skeleton block_id
+    case Schema.track_type_of tracknum skel of
+        Nothing -> State.throw $ "can't get track type for "
+            ++ show block_id ++ " at " ++ show tracknum
+        Just typ -> return typ
+
+-- | Load a new instrument: deassign instrument from current track,
+-- retitle track with new instrument, give new instrument a channel, and
+-- send midi init for that channel.
+load_instrument :: String -> Cmd.CmdL ()
+load_instrument inst_name = do
     let inst = Score.Instrument inst_name
-        alloc = Midi.Instrument.config_alloc config
+    block_id <- Cmd.get_focused_block
+    tracknum <- Cmd.require =<< Cmd.get_insert_tracknum
+    track_id <- Cmd.require =<< State.event_track_at block_id tracknum
+    old_inst <- Cmd.require =<< fmap inst_type (track_type block_id tracknum)
+
+    dealloc_instrument old_inst
+    dev <- Cmd.require_msg ("no device for " ++ show inst)  =<< device_of inst
+    chan <- find_chan_for dev
+    alloc_instrument inst (dev, chan)
+
+    State.set_track_title track_id (Schema.instrument_to_title inst)
+    send_instrument_init inst chan
+    Log.notice $ "deallocating " ++ show old_inst ++ ", allocating "
+        ++ show (dev, chan) ++ " to " ++ show inst
+    where
+    inst_type (Schema.InstrumentTrack inst) = Just inst
+        -- maybe also accept controller if there is just one inst
+        -- but then I'd need some way to know the track_id
+    inst_type _ = Nothing
+
+find_chan_for :: Midi.WriteDevice -> Cmd.CmdL Midi.Channel
+find_chan_for dev = do
+    alloc <- fmap Midi.Instrument.config_alloc State.get_midi_config
+    let addrs = map ((,) dev) [0..15]
+    let match = fmap snd $ List.find (not . (`Map.member` alloc)) addrs
+    Cmd.require_msg ("couldn't find free channel for " ++ show dev) match
+
+send_instrument_init :: Score.Instrument -> Midi.Channel -> Cmd.CmdL ()
+send_instrument_init inst chan = do
+    info <- Cmd.require_msg ("inst not found: " ++ show inst)
+        =<< Cmd.lookup_instrument_info inst
+    let init = Midi.Instrument.patch_initialize (MidiDb.info_patch info)
+        dev = Midi.Instrument.synth_device (MidiDb.info_synth info)
+    send_initialization init inst dev chan
+
+-- | This feels like it should go in another module... Cmd.Instrument?
+-- I have too many things called Instrument!
+send_initialization :: Midi.Instrument.InitializePatch
+    -> Score.Instrument -> Midi.WriteDevice -> Midi.Channel -> Cmd.CmdL ()
+send_initialization init inst dev chan = case init of
+    Midi.Instrument.InitializeMidi msgs -> do
+        Log.notice $ "sending midi init: " ++ show msgs
+        mapM_ ((Cmd.midi dev) . Midi.set_channel chan) msgs
+    Midi.Instrument.InitializeSysex bytes -> do
+        msg <- Cmd.require_msg ("bogus sysex for " ++ show inst)
+            (Midi.Instrument.sysex_to_msg bytes)
+        Cmd.midi dev msg
+    Midi.Instrument.InitializeMessage msg ->
+        -- TODO warn doesn't seem quite right for this...
+        Log.warn $ "initialize instrument " ++ show inst ++ ": " ++ msg
+    Midi.Instrument.NoInitialization -> return ()
+
+alloc_instrument :: Score.Instrument -> Midi.Instrument.Addr -> Cmd.CmdL ()
+alloc_instrument inst addr = do
+    config <- State.get_midi_config
+    let alloc = Midi.Instrument.config_alloc config
     State.set_midi_config $ config
         { Midi.Instrument.config_alloc = Map.insert addr inst alloc }
 
+dealloc_instrument :: Score.Instrument -> Cmd.CmdL ()
+dealloc_instrument inst = do
+    config <- State.get_midi_config
+    let alloc = Midi.Instrument.config_alloc config
+    State.set_midi_config $ config
+        { Midi.Instrument.config_alloc = Map.filter (/=inst) alloc }
+
 schema_instruments :: Block.BlockId -> Cmd.CmdL [Score.Instrument]
 schema_instruments block_id = do
-    schema_map <- Cmd.get_schema_map
-    skel <- Schema.get_skeleton schema_map =<< State.get_block block_id
+    skel <- get_skeleton block_id
     return (Schema.skeleton_instruments skel)
 
 -- | Try to automatically create an instrument config based on the instruments
--- found in the given block.  It's simply gives each instrument on a device a
+-- found in the given block.  It simply gives each instrument on a device a
 -- single channel increasing from 0.
 --
 -- Example: auto_config (bid "b0") >>= State.set_midi_config
@@ -330,11 +403,8 @@ auto_config block_id = do
 
 device_of :: Score.Instrument -> Cmd.CmdL (Maybe Midi.WriteDevice)
 device_of inst = do
-    inst_db <- fmap Cmd.state_instrument_db Cmd.get_state
-    return $ case Instrument.Db.db_lookup inst_db inst of
-        Just (Instrument.MidiDb.MidiInfo synth _) ->
-            Just $ Midi.Instrument.synth_device synth
-        Nothing -> Nothing
+    maybe_info <- Cmd.lookup_instrument_info inst
+    return $ fmap (Midi.Instrument.synth_device . MidiDb.info_synth) maybe_info
 
 controllers_of :: Score.Instrument -> [Midi.Controller.Controller]
 controllers_of inst = undefined -- TODO
