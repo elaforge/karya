@@ -83,8 +83,6 @@ sysex_tag = "sysex"
 
 tag = Instrument.tag
 
-any_instrument = tag name_tag ""
-
 query_matches :: Index -> Query -> [[Score.Instrument]]
 query_matches (Index idx _) query = map with_tag query
     where
@@ -102,25 +100,23 @@ inverted_index (MidiDb.MidiDb synths) = inst_tags2
     inst_of tags = do
         synth <- lookup synth_tag tags
         name <- lookup name_tag tags
-        return $ join_inst synth name
+        return $ MidiDb.join_inst synth name
 
     inst_tags1 = [(inst_of tags, tags) | tags <- map lc_tags all_tags]
     inst_tags2 = [(inst, tags) | (Just inst, tags) <- inst_tags1]
 
 -- | Get tags for the synth, including automatically generated synth tags.
-synth_tags :: Instrument.Synth -> MidiDb.SynthPatches -> [[Instrument.Tag]]
+synth_tags :: Instrument.Synth -> MidiDb.PatchMap -> [[Instrument.Tag]]
 synth_tags synth patches = map (stags++) (patch_tags patches)
     where
     stags = tag synth_tag (Instrument.synth_name synth)
         : controller_tags (Instrument.synth_controller_map synth)
 
 -- | Get tags for the patch, including automatically generated ones.
-patch_tags :: MidiDb.SynthPatches -> [[Instrument.Tag]]
-patch_tags (MidiDb.PatchTemplate patch) =
-    [any_instrument : Instrument.patch_tags patch]
-patch_tags (MidiDb.PatchMap patches) = map ptags (Map.elems patches)
+patch_tags :: MidiDb.PatchMap -> [[Instrument.Tag]]
+patch_tags (MidiDb.PatchMap patches) = map ptags (Map.assocs patches)
     where
-    ptags patch = Instrument.tag name_tag (Instrument.inst_name inst)
+    ptags (inst_name, patch) = Instrument.tag name_tag inst_name
             : controller_tags (Instrument.inst_controller_map inst)
             ++ Instrument.patch_tags patch
             ++ has_sysex
@@ -134,10 +130,3 @@ patch_tags (MidiDb.PatchMap patches) = map ptags (Map.elems patches)
 
 controller_tags =
     map (Instrument.tag controller_tag) . Controller.controller_map_names
-
-
--- * util
-
-split_inst (Score.Instrument inst) = (pre, drop 1 post)
-    where (pre, post) = break (=='/') inst
-join_inst synth inst_name = Score.Instrument $ synth ++ "/" ++ inst_name

@@ -6,7 +6,7 @@ import qualified Perform.Midi.Controller as Controller
 import qualified Instrument.MidiDb as MidiDb
 
 load :: FilePath -> IO MidiDb.SynthDesc
-load _dir = return (fm8, MidiDb.PatchTemplate patch_template)
+load _dir = return (fm8, MidiDb.wildcard_patch_map patch_template)
 
 patch_template = Instrument.patch
     (Instrument.instrument "" Controller.empty_map (-96, 96) Nothing)

@@ -15,14 +15,9 @@ import qualified Instrument.MidiDb as MidiDb
 import qualified Instrument.Parse as Parse
 
 
-load :: FilePath -> IO MidiDb.SynthDesc
-load dir = do
-    patches <- Parse.patch_file (dir </> "z1")
-    return (z1, MidiDb.patch_map patches)
-
-load_slow dir = do
-    sysex_patches <- Parse.parse_sysex_dir korg_sysex (dir </> "z1_sysex")
-    return (z1, MidiDb.patch_map sysex_patches)
+load dir = Parse.patch_file (dir </> "z1") >>= MidiDb.load_synth_desc z1
+load_slow dir = Parse.parse_sysex_dir korg_sysex (dir </> "z1_sysex")
+    >>= MidiDb.load_synth_desc z1
 
 z1 = Instrument.synth "z1" "Z1 midi device" z1_controllers
 

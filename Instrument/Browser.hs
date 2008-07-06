@@ -21,6 +21,7 @@ import qualified Derive.Score as Score
 import qualified Instrument.BrowserC as BrowserC
 
 import qualified Instrument.Db as Db
+import qualified Instrument.MidiDb as MidiDb
 import qualified Instrument.Parse as Parse
 import qualified Instrument.Search as Search
 import qualified Perform.Midi.Controller as Controller
@@ -77,7 +78,7 @@ show_info win db inst_name = Fltk.send_action $ BrowserC.set_info win info
         info <- Db.db_lookup db score_inst
         return $ info_of db score_inst info
 
-info_of db score_inst (Db.MidiInfo synth patch) =
+info_of db score_inst (MidiDb.MidiInfo synth patch) =
     printf "%s -- %s -- %s\n" synth_name name dev
         ++ info_sections
             [ ("Instrument controllers", (cmap_info inst_cmap))

@@ -1,4 +1,5 @@
 module Local.Instrument where
+import Control.Monad
 import System.FilePath ((</>))
 
 import qualified Util.Log as Log
@@ -9,6 +10,7 @@ import qualified Local.Instrument.Fm8 as Fm8
 import qualified Local.Instrument.Z1 as Z1
 import qualified Local.Instrument.Vl1m as Vl1m
 
+import qualified Derive.Score as Score
 import qualified Instrument.Serialize as Serialize
 import qualified Instrument.Search as Search
 
@@ -26,7 +28,10 @@ load app_dir = do
             Log.warn $ "Error loading instrument db: " ++ show err
             return (MidiDb.empty, Search.empty_index)
         Right (Serialize.SavedDb _ midi_db index) -> return (midi_db, index)
-    let merged = MidiDb.merge (MidiDb.midi_db synth_maps) midi_db
+    let (merged, overlaps) = MidiDb.merge (MidiDb.midi_db synth_maps) midi_db
+    when (not (null overlaps)) $
+        Log.warn $ "overlapping instruments discarded while merging: "
+            ++ show (map (\(Score.Instrument inst) -> inst) overlaps)
     return $ Db.db merged index
 
 -- | Load instruments that take longer, and should be cached by make_db.

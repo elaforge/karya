@@ -66,15 +66,9 @@ instance Binary Controller.Controller where
     put (Controller.Controller a) = put a
     get = get >>= \a -> return (Controller.Controller a)
 
-instance Binary MidiDb.SynthPatches where
-    put (MidiDb.PatchTemplate a) = putWord8 0 >> put a
-    put (MidiDb.PatchMap a) = putWord8 1 >> put a
-    get = do
-        tag_ <- getWord8
-        case tag_ of
-            0 -> get >>= \a -> return (MidiDb.PatchTemplate a)
-            1 -> get >>= \a -> return (MidiDb.PatchMap a)
-            _ -> fail "no parse for MidiDb.SynthPatches"
+instance Binary MidiDb.PatchMap where
+    put (MidiDb.PatchMap a) = put a
+    get = get >>= \a -> return (MidiDb.PatchMap a)
 
 instance Binary Instrument.Patch where
     put (Instrument.Patch a b c d) = put a >> put b >> put c >> put d
@@ -98,4 +92,4 @@ instance Binary Instrument.InitializePatch where
             1 -> get >>= \a -> return (Instrument.InitializeMessage a)
             2 -> return Instrument.NoInitialization
             3 -> get >>= \a -> return (Instrument.InitializeSysex a)
-            _ -> fail "no parse for MidiDb.SynthPatches"
+            _ -> fail "no parse for Instrument.InitializePatch"

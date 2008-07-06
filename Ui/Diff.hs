@@ -8,6 +8,7 @@ import qualified Data.Map as Map
 import qualified Data.List as List
 
 import qualified Util.Seq as Seq
+import qualified Util.Data
 
 import qualified Ui.Block as Block
 import qualified Ui.Track as Track
@@ -42,11 +43,14 @@ diff st1 st2 = run $ do
         visible_blocks = Map.filterWithKey (\k _v -> k `elem` visible_ids)
             (State.state_blocks st2)
     mapM_ (uncurry3 diff_block)
-        (zip_maps (State.state_blocks st1) visible_blocks)
+        (Util.Data.zip_intersection
+            (State.state_blocks st1) visible_blocks)
     mapM_ (uncurry3 diff_track)
-        (zip_maps (State.state_tracks st1) (State.state_tracks st2))
+        (Util.Data.zip_intersection
+            (State.state_tracks st1) (State.state_tracks st2))
     mapM_ (uncurry3 diff_ruler)
-        (zip_maps (State.state_rulers st1) (State.state_rulers st2))
+        (Util.Data.zip_intersection
+            (State.state_rulers st1) (State.state_rulers st2))
 
 -- ** view
 
@@ -55,7 +59,8 @@ diff_views st1 st2 views1 views2 = do
         Map.keys (Map.difference views1 views2)
     let new_views = Map.difference views2 views1
     change $ map (flip Update.ViewUpdate Update.CreateView) (Map.keys new_views)
-    mapM_ (uncurry3 (diff_view st1 st2)) (zip_maps views1 views2)
+    mapM_ (uncurry3 (diff_view st1 st2))
+        (Util.Data.zip_intersection views1 views2)
 
 diff_view st1 st2 view_id view1 view2 = do
     let view_update = Update.ViewUpdate view_id
@@ -165,12 +170,6 @@ diff_ruler ruler_id ruler1 ruler2 = do
 -- * util
 
 uncurry3 f (a, b, c) = f a b c
--- | Given two maps, pair up the elements in @map1@ with a samed-keyed element
--- in @map2@, if there is one.  Elements that are only in @map1@ or @map2@ will
--- not be included in the output.
-zip_maps :: (Ord k) => Map.Map k v1 -> Map.Map k v2 -> [(k, v1, v2)]
-zip_maps map1 map2 =
-    [(k, v1, v2) | (k, v1) <- Map.assocs map1, v2 <- Map.lookup k map2]
 
 pair_maps :: (Ord k) => Map.Map k v -> Map.Map k v -> [(k, Maybe v, Maybe v)]
 pair_maps map1 map2 = map (\k -> (k, Map.lookup k map1, Map.lookup k map2))

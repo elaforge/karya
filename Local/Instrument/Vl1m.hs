@@ -20,14 +20,8 @@ import qualified Instrument.MidiDb as MidiDb
 import qualified Instrument.Parse as Parse
 
 
-load :: FilePath -> IO MidiDb.SynthDesc
-load dir = do
-    patches <- Parse.patch_file (dir </> "vl1")
-    return (vl1, MidiDb.patch_map patches)
-
-load_slow dir = do
-    sysex_patches <- parse_dir (dir </> "vl1_vc")
-    return (vl1, MidiDb.patch_map sysex_patches)
+load dir = Parse.patch_file (dir </> "vl1") >>= MidiDb.load_synth_desc vl1
+load_slow dir = parse_dir (dir </> "vl1_vc") >>= MidiDb.load_synth_desc vl1
 
 vl1 = Instrument.synth "vl1" "vl1 dev" vl1_controllers
 

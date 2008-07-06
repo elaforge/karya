@@ -79,6 +79,9 @@ data Patch = Patch {
 	} deriving (Eq, Show)
 patch = Patch
 
+patch_name :: Patch -> InstrumentName
+patch_name = inst_name . patch_instrument
+
 type Tag = (TagKey, TagVal)
 tag :: String -> String -> Tag
 tag = (,)

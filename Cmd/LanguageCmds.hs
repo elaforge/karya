@@ -62,6 +62,7 @@ import qualified Perform.Midi.Convert as Midi.Convert
 import qualified Perform.Midi.Instrument as Midi.Instrument
 import qualified Perform.Midi.Perform as Midi.Perform
 import qualified Perform.Midi.Controller as Midi.Controller
+import qualified Instrument.MidiDb as Instrument.MidiDb
 import qualified Instrument.Db as Instrument.Db
 
 import qualified Midi.Midi as Midi
@@ -308,7 +309,7 @@ device_of :: Score.Instrument -> Cmd.CmdL (Maybe Midi.WriteDevice)
 device_of inst = do
     inst_db <- fmap Cmd.state_instrument_db Cmd.get_state
     return $ case Instrument.Db.db_lookup inst_db inst of
-        Just (Instrument.Db.MidiInfo synth _) ->
+        Just (Instrument.MidiDb.MidiInfo synth _) ->
             Just $ Midi.Instrument.synth_device synth
         Nothing -> Nothing
 

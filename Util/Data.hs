@@ -27,9 +27,34 @@ split3_map low high fm = (below, within, way_above)
 invert_map :: (Ord k, Ord a) => Map.Map k a -> Map.Map a [k]
 invert_map = multimap . map (\(x, y) -> (y, x)) . Map.assocs
 
+-- Would it be more efficient to do 'fromListWith (++)'?
 multimap :: (Ord k, Ord a) => [(k, a)] -> Map.Map k [a]
 multimap = Map.fromAscList . map (\gs -> (fst (head gs), map snd gs))
     . List.groupBy ((==) `on` fst) . List.sort
+
+-- | Like Map.fromList, but only accept the first of duplicate keys, and also
+-- return the rejected duplicates.
+unique_map :: (Ord a) => [(a, b)] -> (Map.Map a b, [(a, b)])
+unique_map assocs = (Map.fromList pairs, concat rest)
+    where
+    -- List.sort is stable, so only the first keys will make it into the map.
+    separate = unzip . map (\((k, v):rest) -> ((k, v), rest))
+        . List.groupBy ((==) `on` fst) . List.sortBy (compare `on` fst)
+    (pairs, rest) = separate assocs
+
+-- | Given two maps, pair up the elements in @map1@ with a samed-keyed element
+-- in @map2@, if there is one.  Elements that are only in @map1@ or @map2@ will
+-- not be included in the output.
+zip_intersection :: (Ord k) => Map.Map k v1 -> Map.Map k v2 -> [(k, v1, v2)]
+zip_intersection map1 map2 =
+    [(k, v1, v2) | (k, v1) <- Map.assocs map1, v2 <- Map.lookup k map2]
+
+-- | Like Map.union, but also return a map of rejected duplicate keys from the
+-- map on the right.
+unique_union :: (Ord k) =>
+    Map.Map k a -> Map.Map k a -> (Map.Map k a, Map.Map k a)
+unique_union fm0 fm1 = (Map.union fm0 fm1, lost)
+    where lost = Map.intersection fm1 fm0
 
 -- | Safe versions of findMin and findMax.
 find_min :: Map.Map k a -> Maybe (k, a)
