@@ -3,6 +3,7 @@
 module Util.File where
 import qualified Control.Exception as Exception
 import qualified Data.Word as Word
+import qualified Data.ByteString as ByteString
 
 import qualified System.Directory as Directory
 import System.FilePath ((</>))
@@ -16,24 +17,42 @@ lazy_read_binary fn = do
     bytes <- IO.hGetContents hdl
     return (map (fromIntegral . fromEnum) bytes)
 
+read_binary :: FilePath -> IO [Word.Word8]
 read_binary fn = do
-    bytes <- lazy_read_binary fn
-    return $ length bytes `seq` bytes
+    -- ByteString for strictness... would it be better to use plain readFile
+    -- + seq?
+    bytes <- ByteString.readFile fn
+    return (ByteString.unpack bytes)
 
 -- | Like Directory.getDirectoryContents except don't return dotfiles and
 -- prepend the dir.
-read_dir :: FilePath -> IO [FilePath]
-read_dir dir = do
+list_dir :: FilePath -> IO [FilePath]
+list_dir dir = do
     fns <- Directory.getDirectoryContents dir
     return $ map (dir </>) $ filter ((/=".") . take 1) $ fns
+
+recursive_list_dir :: (FilePath -> Bool) -> FilePath -> IO [FilePath]
+recursive_list_dir descend dir = do
+    is_file <- Directory.doesFileExist dir
+    if is_file then return [dir]
+        else maybe_descend (descend dir) descend dir
+    where
+    maybe_descend True descend dir = do
+        fns <- list_dir dir
+        fmap concat $ mapM (recursive_list_dir descend) fns
+    maybe_descend False _ _ = return []
 
 -- | Move the file to file.last.  Do this before writing a new one that may
 -- fail.
 backup_file :: FilePath -> IO ()
-backup_file fname = Exception.catchJust enoent_exc
+backup_file fname = Exception.handleJust enoent_exc (const (return ()))
     (Directory.renameFile fname (fname ++ ".last"))
-    (\_exc -> return ())
 
+catch_enoent op = Exception.handleJust enoent_exc (const (return Nothing))
+    (fmap Just op)
+
+-- | Select ENOENT errors.
+enoent_exc :: Exception.Exception -> Maybe IOError
 enoent_exc exc = case Exception.ioErrors exc of
     Just io_error | IO.Error.isDoesNotExistError io_error -> Just io_error
     _ -> Nothing

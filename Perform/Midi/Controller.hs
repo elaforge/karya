@@ -12,6 +12,8 @@ import qualified Midi.Midi as Midi
 import qualified Perform.Signal as Signal
 
 
+-- TODO This means I can't map to aftertouch or something
+-- so I have 3 levels: symbolic name, general midi controller, specific cc
 type ControllerMap = Map.Map Controller Midi.Controller
 
 controller_map :: [(Integer, String)] -> ControllerMap

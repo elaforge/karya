@@ -5,6 +5,7 @@ idiosyncratic handling of program change msb, lsb.
 -}
 module Instrument.Parse where
 import Control.Monad
+import Data.Bits as Bits
 import qualified Data.Maybe as Maybe
 import qualified Data.Word as Word
 import qualified Numeric
@@ -17,6 +18,8 @@ import qualified Midi.Midi as Midi
 import qualified Derive.Parse as Parse
 import qualified Perform.Midi.Controller as Controller
 import qualified Perform.Midi.Instrument as Instrument
+
+import qualified Data.ByteString as ByteString
 
 
 -- * patch file
@@ -93,17 +96,23 @@ type ByteParser = Parsec.GenParser (Parsec.Pos.SourcePos, Word.Word8)
 parse_sysex_dir :: ByteParser () Instrument.Patch -> FilePath
     -> IO [Instrument.Patch]
 parse_sysex_dir parser dir = do
-    fns <- File.read_dir dir
-    patches <- mapM (parse_sysex_file parser) fns
-    return $ Maybe.catMaybes patches
+    fns <- File.list_dir dir
+    warn_parses =<< mapM (parse_sysex_file parser) fns
+
+warn_parses :: [Either Parsec.ParseError a] -> IO [a]
+warn_parses parses = fmap Maybe.catMaybes $ forM parses $ \p -> case p of
+    Left err -> do
+        -- This is only run by make_db, so I guess prints are ok.
+        putStrLn $ "error parsing sysex: " ++ show err
+        return Nothing
+    Right parse -> return (Just parse)
 
 parse_sysex_file :: ByteParser () Instrument.Patch -> FilePath
-    -> IO (Maybe Instrument.Patch)
+    -> IO (Either Parsec.ParseError Instrument.Patch)
 parse_sysex_file parser fn = do
-    bytes <- File.lazy_read_binary fn
-    case parse_sysex parser fn bytes of
-        Left err -> print err >> return Nothing
-        Right patches -> return $ Just (add_sysex bytes patches)
+    bytes <- File.read_binary fn
+    return $ fmap (add_sysex bytes . add_file_text fn)
+        (parse_sysex parser fn bytes)
 
 parse_sysex :: ByteParser () a -> FilePath -> [Word.Word8]
     -> Either Parsec.ParseError a
@@ -112,15 +121,21 @@ parse_sysex parser fn bytes = Parsec.parse parser fn (annotate bytes)
     annotate bytes =
         [(Parsec.Pos.newPos fn 1 n, byte) | (n, byte) <- zip [1..] bytes]
 
+add_file_text :: FilePath -> Instrument.Patch -> Instrument.Patch
+add_file_text fn patch = patch { Instrument.patch_text =
+    Instrument.patch_text patch ++ "\n\nFile: " ++ fn }
+
 -- | Tack the sysex on to the patch's initialize field.
 add_sysex :: [Word.Word8] -> Instrument.Patch -> Instrument.Patch
-add_sysex bytes patch = patch { Instrument.patch_initialize =
-    Instrument.InitializeMidi [make_sysex bytes] }
-make_sysex bytes = Midi.CommonMessage (Midi.SystemExclusive manuf rest)
-    where
+add_sysex bytes patch =
+    patch { Instrument.patch_initialize = make_sysex_init bytes }
+make_sysex_init bytes = Instrument.InitializeSysex (ByteString.pack bytes)
+    -- Instrument.InitializeMidi
+    --     [Midi.CommonMessage (Midi.SystemExclusive manuf rest)]
+    -- where
     -- If the msg is broken there's not much I can do here.
-    manuf = bytes !! 1
-    rest = drop 2 bytes
+    -- manuf = bytes !! 1
+    -- rest = drop 2 bytes
 
 byte_tok :: (Word.Word8 -> Maybe a) -> ByteParser st a
 byte_tok f = Parsec.token show_tok tok_pos test_tok
@@ -147,10 +162,26 @@ end_sysex = byte 0xf7 >> Parsec.eof
 to_eox :: ByteParser st [Word.Word8]
 to_eox = Parsec.many (byte_sat (/=0xf7))
 
+-- * decode sysex bytes
+
 to_string :: [Word.Word8] -> String
 to_string = map (toEnum . fromIntegral)
 
--- TODO have a table of code<->name?
+from_signed_7bit :: Word.Word8 -> Integer
+from_signed_7bit b = fromIntegral b .&. 0x3f - fromIntegral b .&. 0x40
+from_signed_8bit :: (Integral a) => a -> Integer
+from_signed_8bit b = fromIntegral b .&. 0x7f - fromIntegral b .&. 0x80
+-- 76543210
+-- 10000000 0x80
+-- x1000000 0x40
+-- x0111111 0x3f
+-- x0100000 0x20
+
 korg_code, yamaha_code :: Word.Word8
 korg_code = 0x42
 yamaha_code = 0x43
+
+-- | TODO get a more complete list
+manufacturer_codes :: [(Word.Word8, String)]
+manufacturer_codes =
+    [(korg_code, "korg"), (yamaha_code, "yamaha")]

@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-unused-imports #-}
 module Instrument.Browser where
 import Control.Monad
 import qualified Control.Monad.State as State
@@ -16,14 +17,19 @@ import qualified Ui.Diff as Diff
 import qualified Midi.Midi as Midi
 
 import qualified Derive.Score as Score
-import qualified Instrument.Db as Db
+
 import qualified Instrument.BrowserC as BrowserC
+
+import qualified Instrument.Db as Db
+import qualified Instrument.Parse as Parse
 import qualified Instrument.Search as Search
 import qualified Perform.Midi.Controller as Controller
 import qualified Perform.Midi.Instrument as Instrument
 
 import qualified Local.Instrument
 import qualified App.Config as Config
+
+import qualified Data.ByteString as ByteString
 
 -- import Util.PPrint
 -- import qualified Instrument.Search_test
@@ -32,6 +38,7 @@ import qualified App.Config as Config
 main :: IO ()
 main = do
     app_dir <- Config.get_app_dir
+    putStrLn "Loading instruments..."
     db <- Local.Instrument.load app_dir
     putStrLn $ "Loaded " ++ show (Db.size db)
     -- let db = Db.db Instrument.Search_test.midi_db Search.empty_index
@@ -101,9 +108,14 @@ tags_info tags = unwords [quote k ++ "=" ++ quote v | (k, v) <- tags]
 initialize_info Instrument.NoInitialization = "(none)"
 initialize_info (Instrument.InitializeMessage msg) = "Message: " ++ msg
 initialize_info (Instrument.InitializeMidi msgs) = unlines (map midi_info msgs)
+initialize_info (Instrument.InitializeSysex bytes) =
+    "Sysex for " ++ manufacturer (ByteString.index bytes 1)
+    ++ " (" ++ show (ByteString.length bytes) ++ " bytes)"
+
+manufacturer code = maybe "<unknown>" id $ lookup code Parse.manufacturer_codes
 
 midi_info (Midi.CommonMessage (Midi.SystemExclusive manuf bytes)) =
-    "Sysex for " ++ Numeric.showHex manuf ""
+    "Sysex for " ++ manufacturer manuf
     ++ " (" ++ show (length bytes) ++ " bytes)"
 midi_info (Midi.ChannelMessage _ msg) = show msg
 midi_info msg = show msg

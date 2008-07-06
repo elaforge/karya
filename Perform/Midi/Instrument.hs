@@ -12,6 +12,8 @@ import qualified Midi.Midi as Midi
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Controller as Controller
 
+import qualified Data.ByteString as ByteString
+
 
 -- | The Instrument contains all the data necessary to render
 -- a Midi.Perform.Event to a midi message.  Each Event has an attached
@@ -106,6 +108,9 @@ data InitializePatch =
     -- | Send these msgs to initialize the patch.  Probably a patch change or
     -- a sysex.
     InitializeMidi [Midi.Message]
+    -- | This is redundant with InitializeMidi, but 1000 3K sysex msgs uses
+    -- lots of memory and makes things crawl.
+    | InitializeSysex ByteString.ByteString
     -- | Display this msg to the user and hope they do what it says.
     | InitializeMessage String
     | NoInitialization
