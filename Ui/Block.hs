@@ -47,6 +47,7 @@ data Block = Block {
 
 block title config tracks schema_id = Block title config tracks schema_id
 
+-- | Per-block configuration.
 data Config = Config {
     config_selection_colors :: [Color]
     , config_bg_color :: Color

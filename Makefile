@@ -105,6 +105,9 @@ dump: App/Dump.hs
 .PHONY: make_db
 make_db: Instrument/MakeDb.hs
 	$(GHC) $(HFLAGS) --make $^ -o $@
+.PHONY: sense
+sense:
+	@echo 'Nevairrrr!'
 
 LOGVIEW_OBJ = LogViewer/LogView.hs LogViewer/LogViewC.hs \
 	LogViewer/interface.o LogViewer/logview_ui.o

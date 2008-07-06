@@ -62,6 +62,7 @@ import qualified Derive.Twelve as Twelve
 import qualified Perform.Signal as Signal
 import qualified Perform.Midi.Instrument as Instrument
 
+
 import qualified App.Config as Config
 
 
@@ -107,9 +108,9 @@ get_signal_deriver schema_map block = do
 -- mapping appropriately.
 get_cmds :: SchemaMap -> CmdContext -> Block.SchemaId -> [Track] -> [Cmd.Cmd]
 get_cmds schema_map context schema_id tracks =
-    maybe [] (\sch -> schema_cmds sch context tracks) schema
-    where
-    schema = Map.lookup schema_id (merge_schemas hardcoded_schemas schema_map)
+    case Map.lookup schema_id (merge_schemas hardcoded_schemas schema_map) of
+        Nothing -> []
+        Just schema -> schema_cmds schema context tracks
 
 get_skeleton :: (State.UiStateMonad m) => SchemaMap -> Block.Block -> m Skeleton
 get_skeleton schema_map block = do
@@ -132,7 +133,7 @@ track_name _ = return Nothing
 -- | Constructor for CmdContext.
 cmd_context :: Instrument.Config -> Bool -> Maybe Block.TrackNum -> CmdContext
 cmd_context midi_config edit_mode focused_tracknum =
-        CmdContext default_addr inst_addr edit_mode focused_tracknum
+    CmdContext default_addr inst_addr edit_mode focused_tracknum
     where
     default_addr = Instrument.config_default_addr midi_config
     -- Addr:Instrument -> Instrument:Maybe Addr
@@ -151,29 +152,36 @@ default_schema :: Schema
 default_schema = Schema
     (default_schema_deriver default_parser)
     (default_schema_signal_deriver default_parser)
-    default_parser (default_cmds default_parser)
+    default_parser
+    (default_cmds default_parser)
 
 default_cmds :: Parser -> CmdContext -> [Track] -> [Cmd.Cmd]
 default_cmds parser context tracks = case track_type of
-        Just (InstrumentTrack inst) -> midi_thru [inst] ++ inst_edit_cmds
-        Just (ControllerTrack insts) -> midi_thru insts ++ cont_edit_cmds
+        Just (InstrumentTrack _) -> midi_thru ++ inst_edit_cmds
+        Just (ControllerTrack _) -> midi_thru ++ cont_edit_cmds
         Nothing -> []
     where
+    midi_thru = with_addr Edit.cmd_midi_thru
     inst_edit_cmds = if ctx_edit_mode context
-        then [NoteEntry.cmd_midi_entry, NoteEntry.cmd_kbd_note_entry]
-        else [NoteEntry.cmd_kbd_note_thru]
+        then NoteEntry.cmd_midi_entry : with_addr NoteEntry.cmd_kbd_note_entry
+        else with_addr NoteEntry.cmd_kbd_note_thru
     cont_edit_cmds = if ctx_edit_mode context
         then [NoteEntry.cmd_midi_entry, Edit.cmd_controller_entry]
         else []
+
     track_type = case (ctx_focused_tracknum context) of
         Nothing -> Nothing
         Just tracknum -> track_type_of tracknum (parser tracks)
-    inst_addr = ctx_inst_addr context
-    default_addr = ctx_default_addr context
-    midi_thru insts =
-        case Seq.first_just (map inst_addr insts ++ [default_addr]) of
-            Nothing -> []
-            Just addr -> [Edit.cmd_midi_thru addr]
+
+    maybe_addr = Seq.first_just $ map (ctx_inst_addr context) insts
+        ++ [ctx_default_addr context]
+    with_addr cmd = case maybe_addr of
+        Nothing -> []
+        Just addr -> [cmd addr]
+    insts = case track_type of
+        Just (InstrumentTrack inst) -> [inst]
+        Just (ControllerTrack insts) -> insts
+        Nothing -> []
 
 data TrackType =
     InstrumentTrack Score.Instrument

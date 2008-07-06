@@ -13,7 +13,7 @@ if scheduled time is <= now-write_ahead, send it
 -}
 module Midi.MidiC (
     -- * initialize, open and close
-    initialize
+    initialize, ReadChan
     , devices
     , open_read_device, open_write_device
     , to_timestamp, from_timestamp

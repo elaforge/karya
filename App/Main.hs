@@ -4,6 +4,7 @@ import Control.Monad
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Language.Haskell.Interpreter.GHC as GHC
 import System.FilePath ((</>))
@@ -83,16 +84,9 @@ main = initialize $ \lang_socket read_chan -> do
     (rdev_map, wdev_map) <- MidiC.devices
     print_devs rdev_map wdev_map
 
-    let rdevs = Map.keys rdev_map
-        wdevs = Map.keys wdev_map
-
-    -- TODO Don't open IAC ports that I'm opening for writing, otherwise I get
-    -- all my msgs bounced back.
-    -- when (not (null rdevs)) $ do
-    --     putStrLn $ "open input " ++ show (head rdevs)
-    --     MidiC.open_read_device read_chan (rdev_map Map.! head rdevs)
-    wstream_map <- open_write_devices wdev_map wdevs
+    wstream_map <- open_write_devices wdev_map (Map.keys wdev_map)
     let default_stream = head (Map.elems wstream_map)
+    open_read_devices read_chan rdev_map (Map.keys rdev_map)
 
     player_chan <- STM.newTChanIO
     msg_chan <- STM.newTChanIO
@@ -124,6 +118,16 @@ open_write_devices :: Map.Map Midi.WriteDevice PortMidi.WriteDevice
 open_write_devices wdev_map devs = do
     streams <- mapM (MidiC.open_write_device . (wdev_map Map.!)) devs
     return $ Map.fromList (zip devs streams)
+
+open_read_devices :: MidiC.ReadChan
+    -> Map.Map Midi.ReadDevice PortMidi.ReadDevice
+    -> [Midi.ReadDevice] -> IO ()
+open_read_devices read_chan rdev_map devs = do
+    -- Don't open IAC ports that I'm opening for writing, otherwise I get
+    -- all my msgs bounced back.
+    let ok_devs =
+            filter (not . ("IAC " `List.isPrefixOf`) . Midi.un_read_device) devs
+    mapM_ (MidiC.open_read_device read_chan . (rdev_map Map.!)) ok_devs
 
 responder_handler exc = do
     Log.error ("responder died from exception: " ++ show exc)
