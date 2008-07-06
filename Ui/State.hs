@@ -147,6 +147,82 @@ instance Monad m => UiStateMonad (StateT m) where
     update upd = (StateT . lift) (Logger.record upd)
     throw msg = (StateT . lift . lift) (Error.throwError (StateError msg))
 
+
+-- * global changes
+
+-- | Apply a transformation to all IDs.  Most likely used to rename a project,
+-- see Cmd.Create.
+map_ids :: (State.MonadIO t, UiStateMonad t) => (String -> String) -> t ()
+map_ids f = do
+    map_block_ids f
+    map_track_ids f
+    map_ruler_ids f
+    -- Do this last because it throws an IO exception on failure.
+    map_view_ids f
+
+-- | Rename view ids.  This must be in IO because it modifies the global
+-- view_id pointer map.
+map_view_ids :: (UiStateMonad m, Trans.MonadIO m) => (String -> String) -> m ()
+map_view_ids f = do
+    views <- fmap state_views get
+    let view_f = Block.ViewId . f . Block.un_view_id
+    new_views <- safe_map_keys "state_views" view_f views
+    Trans.liftIO $ Block.map_ids view_f
+    modify $ \st -> st { state_views = new_views }
+
+map_block_ids :: (UiStateMonad m) => (String -> String) -> m ()
+map_block_ids f = do
+    blocks <- fmap state_blocks get
+    let block_f = Block.BlockId . f . Block.un_block_id
+    new_blocks <- safe_map_keys "state_blocks" block_f blocks
+
+    views <- fmap state_views get
+    let new_views = Map.map
+            (\v -> v { Block.view_block = block_f (Block.view_block v) })
+            views
+    modify $ \st -> st { state_blocks = new_blocks, state_views = new_views }
+
+map_track_ids :: (UiStateMonad m) => (String -> String) -> m ()
+map_track_ids f = do
+    tracks <- fmap state_tracks get
+    let track_f = Track.TrackId . f . Track.un_track_id
+    new_tracks <- safe_map_keys "state_tracks" track_f tracks
+
+    blocks <- fmap state_blocks get
+    let new_blocks = Map.map
+            (\b -> b { Block.block_tracks =
+                map (map_track track_f) (Block.block_tracks b) })
+            blocks
+    modify $ \st -> st { state_tracks = new_tracks, state_blocks = new_blocks }
+    where
+    map_track f ((Block.TId tid rid), w) = (Block.TId (f tid) rid, w)
+    map_track _ t = t
+
+map_ruler_ids :: (UiStateMonad m) => (String -> String) -> m ()
+map_ruler_ids f = do
+    rulers <- fmap state_rulers get
+    let ruler_f = Ruler.RulerId . f . Ruler.un_ruler_id
+    new_rulers <- safe_map_keys "state_rulers" ruler_f rulers
+
+    blocks <- fmap state_blocks get
+    let new_blocks = Map.map
+            (\b -> b { Block.block_tracks =
+                map (map_track ruler_f) (Block.block_tracks b) })
+            blocks
+    modify $ \st -> st { state_rulers = new_rulers, state_blocks = new_blocks }
+    where
+    map_track f ((Block.TId tid rid), w) = (Block.TId tid (f rid), w)
+    map_track f ((Block.RId rid), w) = (Block.RId (f rid), w)
+    map_track _ t = t
+
+safe_map_keys :: (UiStateMonad m, Ord k, Show k) =>
+    String -> (k -> k) -> Map.Map k v -> m (Map.Map k v)
+safe_map_keys name f fm0
+    | Map.size fm1 == Map.size fm0 = return fm1
+    | otherwise = throw $ "keys collided in " ++ show name ++ ": "
+        ++ show (Map.keys (Map.difference fm0 fm1))
+    where fm1 = Map.mapKeys f fm0
+
 -- * misc
 
 -- | Unfortunately there are some invariants to protect within State.  This

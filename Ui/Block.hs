@@ -1,5 +1,8 @@
 {-# OPTIONS_GHC -XDeriveDataTypeable #-}
+{-# OPTIONS_GHC -XEmptyDataDecls #-}
 module Ui.Block where
+import Control.Monad
+import qualified Control.Concurrent.MVar as MVar
 import qualified Foreign
 
 import qualified Data.Generics as Generics
@@ -169,3 +172,28 @@ type TrackNum = Int
 type Width = Int
 -- | Index into the the selection list.
 type SelNum = Int
+
+
+-- This stuff belongs in BlockC.  However, Ui.State uses map_ids, and making
+-- State import BlockC makes practically everything import BlockC, which makes
+-- ghci freak out since it wants explicit linking for all FFI-using modules.
+
+-- Phantom type for block view ptrs.
+data CView
+
+-- | Global map of view IDs to their windows.  This is global mutable state
+-- because the underlying window system is also global mutable state, and is
+-- not well represented by a persistent functional state.
+view_id_to_ptr :: MVar.MVar (Map.Map ViewId (Foreign.Ptr CView))
+view_id_to_ptr = Foreign.unsafePerformIO (MVar.newMVar Map.empty)
+
+-- | Rename view ids.  Throws if the views collide, because that would make
+-- things break.
+map_ids :: (ViewId -> ViewId) -> IO ()
+map_ids f = MVar.modifyMVar_ view_id_to_ptr $ \ptrs -> do
+    let new_ptrs = Map.mapKeys f ptrs
+    when (Map.size new_ptrs /= Map.size ptrs) $
+        -- TODO should actually be BlockC exception type, when I have that
+        error $ "keys collided in view_id_to_ptr: "
+            ++ show (Map.keys (Map.difference ptrs new_ptrs))
+    return new_ptrs

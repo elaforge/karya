@@ -25,7 +25,7 @@ interactive documentation?
 -}
 module Cmd.LanguageCmds where
 import Control.Monad
-import qualified Control.Monad.Identity as Identity
+import Control.Monad.Trans (liftIO)
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe

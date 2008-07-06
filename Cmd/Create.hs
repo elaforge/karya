@@ -2,6 +2,7 @@
 -}
 module Cmd.Create where
 import Control.Monad
+import qualified Control.Monad.Trans as Trans
 import qualified Data.List as List
 import qualified Data.Map as Map
 
@@ -19,7 +20,17 @@ import qualified Cmd.MakeRuler as MakeRuler
 import qualified App.Config as Config
 
 
--- TODO map something across all IDs, to rename the project
+-- * global modifications
+
+-- | Rename all IDs beginning with @from.@ to @to.@.
+rename_project :: (State.UiStateMonad m, Trans.MonadIO m) =>
+    String -> String -> m ()
+rename_project from to = do
+    State.map_ids $ \ident -> if get_project ident == from
+        then set_project to ident else ident
+
+set_project project ident = project ++ (dropWhile (/='.') ident)
+get_project = takeWhile (/='.')
 
 -- * block
 

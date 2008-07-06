@@ -6,7 +6,7 @@ It has to be interpreted, so it should just put useful things into scope but
 not actually define anything itself.  Those definitions go in LanguageCmds.
 -}
 module Cmd.LanguageEnviron where
-import qualified Control.Monad.Identity as Identity
+import Control.Monad.Trans (liftIO)
 
 import Ui.Types
 

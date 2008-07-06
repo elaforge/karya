@@ -1,5 +1,4 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
-{-# OPTIONS_GHC -XEmptyDataDecls #-}
 {- | This layer gives direct wrapped access to the fltk API.
 
 It maintains a map from ViewIds to window pointers, which represents the on
@@ -11,7 +10,10 @@ TODO exceptions are not implemented yet
 -}
 module Ui.BlockC (
     -- * errors, and ptr access
-    throw, get_id , CView
+    throw
+    -- | get_id and CView are only exported for Ui.UiMsgC which is a slight
+    -- abstraction breakage.
+    , get_id, CView
 
     -- * view creation
     , create_view, destroy_view
@@ -53,6 +55,8 @@ import Ui.Types
 import qualified Ui.Color as Color
 
 import qualified Ui.Block as Block
+-- They properly belong here but are in Ui.Block for convenience.
+import Ui.Block (CView, view_id_to_ptr)
 import qualified Ui.Ruler as Ruler
 import qualified Ui.RulerC as RulerC
 import qualified Ui.Track as Track
@@ -66,12 +70,7 @@ import qualified Ui.TrackC as TrackC
 -- also, turn c++ exceptions into this exception
 throw = error
 
--- | Global map of view IDs to their windows.  This is global mutable state
--- because the underlying window system is also global mutable state, and is
--- not well represented by a persistent functional state.
-view_id_to_ptr :: MVar.MVar (Map.Map Block.ViewId (Ptr CView))
-view_id_to_ptr = unsafePerformIO (MVar.newMVar Map.empty)
-
+get_ptr :: Block.ViewId -> IO (Ptr CView)
 get_ptr view_id = do
     ptr_map <- MVar.readMVar view_id_to_ptr
     case Map.lookup view_id ptr_map of
@@ -79,6 +78,7 @@ get_ptr view_id = do
             ++ show (Map.elems ptr_map)
         Just viewp -> return viewp
 
+get_id :: Ptr CView -> IO Block.ViewId
 get_id viewp = do
     ptr_map <- MVar.readMVar view_id_to_ptr
     case List.find ((==viewp) . snd) (Map.assocs ptr_map) of
@@ -89,9 +89,6 @@ get_id viewp = do
         Just (view_id, _) -> return view_id
 
 -- * view creation
-
--- Phantom type for block view ptrs.
-data CView
 
 -- | Create an empty block view with the given configs.  Tracks must be
 -- inserted separately.
