@@ -22,7 +22,21 @@ A simple browser with a search box, a list to select from, and an info pane.
 
 enum MsgType { msg_select, msg_choose, msg_query };
 
-class Browser : Fl_Tile {
+class BrowserInput : public Fl_Input {
+public:
+    BrowserInput(int X, int Y, int W, int H, Fl_Hold_Browser *matches,
+            MsgCallback cb) :
+        Fl_Input(X, Y, W, H), matches(matches), msg_callback(cb)
+    {}
+    int handle(int evt);
+
+private:
+    Fl_Hold_Browser *matches;
+    MsgCallback msg_callback;
+};
+
+
+class Browser : public Fl_Tile {
 public:
     Browser(int X, int Y, int W, int H, MsgCallback cb);
 
@@ -37,7 +51,7 @@ private:
     Fl_Text_Buffer info_buffer;
     Fl_Text_Display info_pane;
     Fl_Group select_pane;
-        Fl_Input query;
+        BrowserInput query;
         Fl_Hold_Browser matches;
 
     MsgCallback msg_callback;

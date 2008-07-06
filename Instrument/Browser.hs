@@ -1,6 +1,7 @@
 {-# OPTIONS_GHC -fno-warn-unused-imports #-}
 module Instrument.Browser where
 import Control.Monad
+import qualified Control.Exception as Exception
 import qualified Control.Monad.State as State
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
@@ -44,7 +45,8 @@ main = SendCmd.initialize $ do
     putStrLn $ "Loaded " ++ show (Db.size db)
     -- let db = Db.db Instrument.Search_test.midi_db Search.empty_index
     win <- BrowserC.create 50 50 400 200
-    Concurrent.forkIO (handle_msgs win db initial_state)
+    Concurrent.forkIO $ handle_msgs win db initial_state
+        `Exception.finally` putStrLn "handler thread died"
     Fltk.run
 
 data State = State {
@@ -135,6 +137,7 @@ choose_instrument inst_name = do
     let cmd = "load_instrument " ++ show inst_name
     putStrLn $ "send: " ++ cmd
     response <- SendCmd.send cmd
+        `Exception.catch` \exc -> return ("error: " ++ show exc)
     when (not (null response)) $
         putStrLn $ "response: " ++ response
 
