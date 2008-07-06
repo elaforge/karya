@@ -212,6 +212,21 @@ get_insert_pos = do
     track_id <- Cmd.require (track_ids `Seq.at` 0)
     return (Block.sel_start_pos sel, Block.sel_start_track sel, track_id)
 
+-- | Get the events in the selection, along with their tracks.
+selected_events :: (Monad m) =>
+    Block.SelNum -> Cmd.CmdT m [(Track.TrackId, [Track.PosEvent])]
+selected_events selnum = do
+    (track_ids, sel) <- selected_tracks selnum
+    tracks <- mapM State.get_track track_ids
+    return [(track_id, events_in_sel sel track)
+        | (track_id, track) <- zip track_ids tracks]
+
+events_in_sel sel track =
+    Track.events_in_range start end (Track.track_events track)
+    where
+    start = Block.sel_start_pos sel
+    end = start + Block.sel_duration sel
+
 selected_tracks :: (Monad m) =>
     Block.SelNum -> Cmd.CmdT m ([Track.TrackId], Block.Selection)
 selected_tracks selnum = do

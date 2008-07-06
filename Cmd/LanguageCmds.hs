@@ -8,10 +8,11 @@ of commands in here.
 Of course, lang commands can use anything in scope in LanguageEnviron, not just
 these helpers.  That includes all the various cmd_* functions used by the
 keybindings and everything in State.  Also, keybindings can be invoked directly
-with the 'keybinding' helper.
+with the 'keybinding' helper.  TODO not implemented
 
-The difference is that the functions here generally take simpler types like
-strings, if they will just be wrapped up in a newtype, like BlockId.
+Functions which are not designed to be composed generally take simpler types
+like strings, or get their block from the current focus, so they're easier to
+type.
 
 The various show_* functions print out state generally in a 'show' format, but
 not necessarily.  It's designed to be for human reading and may leave out
@@ -45,11 +46,12 @@ import qualified Ui.Track as Track
 import qualified Ui.State as State
 
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Save as Save
 import qualified Cmd.Edit as Edit
-import qualified Cmd.TimeStep as TimeStep
 import qualified Cmd.Language as Language
 import qualified Cmd.Play as Play
+import qualified Cmd.Save as Save
+import qualified Cmd.Selection as Selection
+import qualified Cmd.TimeStep as TimeStep
 
 -- Just make sure these are compiled.
 import qualified Cmd.MakeRuler as MakeRuler
@@ -109,6 +111,27 @@ quit = return Language.magic_quit_string
 load, save :: FilePath -> Cmd.CmdL ()
 load fn = Save.cmd_load fn
 save fn = Save.cmd_save fn
+
+-- | Load a track serialized as text.
+dump_track :: Track.TrackId -> Cmd.CmdL [SimpleEvent]
+dump_track track_id = do
+    track <- State.get_track track_id
+    let events = Track.event_list (Track.track_events track)
+    return (map simple_event events)
+
+dump_selection :: Cmd.CmdL [(Track.TrackId, [SimpleEvent])]
+dump_selection = do
+    track_events <- Selection.selected_events Config.insert_selnum
+    return [(track_id, map simple_event events)
+        | (track_id, events) <- track_events]
+
+-- | SimpleEvents are supposed to be easy to read, and easy to serialize to
+-- text and load back again.
+type SimpleEvent = (Double, Double, String)
+
+simple_event :: Track.PosEvent -> SimpleEvent
+simple_event (start, event) = (realToFrac start,
+    realToFrac (Event.event_duration event), Event.event_text event)
 
 -- undo, redo
 
