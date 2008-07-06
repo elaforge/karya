@@ -253,6 +253,7 @@ Instrument DB
   * Instrument.Parse needs to understand *bank declarations
   * serialize instrument with Data.Binary
   * sysex parser for vl1 and z1
+  - bug: discarded insts still in index
   - ability to edit tags, esp. add "favorite rating"
 
 tests

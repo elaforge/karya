@@ -1,13 +1,13 @@
 # Yamaha VL1-m
-# Mostly V2, with some custom patches loaded.
+# Mostly V2 factor defaults, with some custom patches loaded.
 
-Vintage VL, analogue
+Vintage VL, analog
 Jazz Sax, sax
 Ana Bottle, wind synth
 Jazz Trumpet, brass
 Stick, bass
 Violin, strings
-Wet Mini, analogue
+Wet Mini, analog
 Pastorale, wind synth
 Warm Dist, guitar
 Super Jam, split
@@ -43,7 +43,7 @@ Fluto Phone, wind synth
 Flugel Horn, brass
 Fretless, bass
 Jet Lip Blow, wind synth
-Old Mini, analogue
+Old Mini, analog
 Japanesque, flute
 Jazz Guitar, guitar
 40's Saxes, sax
@@ -61,7 +61,7 @@ Round Breath, wind synth
 Jazz Bone, brass
 Tube Bass, bass
 Viol Outt, strings
-Mr. Mogue, analogue
+Mr. Mogue, analog
 Bagpipes, other
 Cruncher, guitar
 Mrs. Yang, strings
@@ -73,7 +73,7 @@ Blues Harp, other
 Nz Piccolo, flute
 
 # bank e
-Anorak Synth, analogue
+Anorak Synth, analog
 Bell Miked, sax
 Teped Jet, wind synth
 Mellow Trumpet, brass
@@ -91,13 +91,13 @@ Lead Bows, synth
 Mode X, wind synth
 
 # bank f
-Funny Cat, analogue
+Funny Cat, analog
 Old Tenor, sax
 Steam Lead, wind synth
 Horn, brass
 Thump Bass, bass
 Viowind, wind synth
-50 / 50, analogue
+50 / 50, analog
 Digeritek, wind synth
 Sitar, other
 The Cool, brass
@@ -109,7 +109,7 @@ Bow By Blow, wind synth
 Outback, other
 
 # bank g
-Air Squeezer, analogue
+Air Squeezer, analog
 Nat Tenor, sax
 Sarangi, other
 Cornet, brass
