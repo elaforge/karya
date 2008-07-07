@@ -1,6 +1,7 @@
 module App.StaticConfig where
 import qualified Data.Map as Map
 
+import qualified Midi.Midi as Midi
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Derive.Schema as Schema
@@ -28,6 +29,13 @@ data StaticConfig = StaticConfig {
     -- Remember that no block is focused when this is run, so cmds that need
     -- a focused block will abort.
     , config_setup_cmd :: [String] -> Cmd.CmdIO
+
+    -- | Map the hardware level read and write devices through these maps.
+    -- This centralizes midi routing configuration in one place and lets
+    -- the scattered instrument configs (some saved in the inst.db) use
+    -- symbolic names.
+    , config_read_device_map :: Map.Map Midi.ReadDevice Midi.ReadDevice
+    , config_write_device_map :: Map.Map Midi.WriteDevice Midi.WriteDevice
     }
 
 empty_config = StaticConfig {
@@ -36,4 +44,6 @@ empty_config = StaticConfig {
     , config_local_lang_dirs = []
     , config_global_cmds = []
     , config_setup_cmd = const (return Cmd.Done)
+    , config_read_device_map = Map.empty
+    , config_write_device_map = Map.empty
     }

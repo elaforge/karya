@@ -11,6 +11,7 @@ import System.FilePath ((</>))
 import qualified Network
 import qualified System.Environment
 
+import qualified Util.Data
 import qualified Util.Log as Log
 import qualified Util.Thread as Thread
 
@@ -58,8 +59,30 @@ load_static_config = do
         , StaticConfig.config_schema_map = Map.empty
         , StaticConfig.config_local_lang_dirs = [app_dir </> Config.lang_dir]
         , StaticConfig.config_global_cmds = []
-        , StaticConfig.config_setup_cmd = setup_cmd
+        , StaticConfig.config_setup_cmd = old_setup_cmd
+        , StaticConfig.config_read_device_map = read_device_map
+        , StaticConfig.config_write_device_map = write_device_map
         }
+
+iac n = "IAC Driver Bus " ++ show n ++ "/CoreMIDI"
+tapco n = "Tapco Link MIDI USB Ver 2.2 Port " ++ show n ++ "/CoreMIDI"
+mkmap mkdev pairs = Map.fromList [(mkdev k, mkdev v) | (k, v) <- pairs]
+
+write_device_map = mkmap Midi.WriteDevice
+    [ ("fm8", iac 1)
+    , ("z1", tapco 1)
+    , ("vl1", tapco 2)
+    , ("morph", tapco 2)
+    , ("pc_2496", tapco 3)
+    , ("capybara", tapco 4)
+    ]
+
+read_device_map = mkmap Midi.ReadDevice
+    [ (tapco 1, "z1")
+    , (tapco 2, "vl1")
+    , (tapco 3, "morph")
+    , (tapco 4, "continuum")
+    ]
 
 initialize f = do
     Log.initialize "seq.mach.log" "seq.log"
@@ -74,6 +97,7 @@ initialize f = do
 main :: IO ()
 main = initialize $ \lang_socket read_chan -> do
     Log.notice "app starting"
+    putStrLn "starting"
     static_config <- load_static_config
     let loaded_msg = "instrument db loaded, "
             ++ show (Db.size (StaticConfig.config_instrument_db static_config))
@@ -91,7 +115,8 @@ main = initialize $ \lang_socket read_chan -> do
     player_chan <- STM.newTChanIO
     msg_chan <- STM.newTChanIO
     get_msg <- Responder.create_msg_reader
-        lang_socket msg_chan read_chan player_chan
+        (StaticConfig.config_read_device_map static_config) read_chan
+        lang_socket msg_chan player_chan
     let get_ts = fmap MidiC.to_timestamp PortMidi.pt_time
     Log.debug "initialize session"
     putStrLn "initialize session"
@@ -100,7 +125,9 @@ main = initialize $ \lang_socket read_chan -> do
     quit_request <- MVar.newMVar ()
 
     args <- System.Environment.getArgs
-    let write_midi = write_msg default_stream wstream_map
+    let write_midi = write_msg
+            (StaticConfig.config_write_device_map static_config)
+            default_stream wstream_map
         setup_cmd = StaticConfig.config_setup_cmd static_config args
 
     Thread.start_thread "responder" $ do
@@ -133,12 +160,15 @@ responder_handler exc = do
     Log.error ("responder died from exception: " ++ show exc)
     putStrLn ("responder died from exception: " ++ show exc)
 
-write_msg :: PortMidi.WriteStream
+write_msg :: Map.Map Midi.WriteDevice Midi.WriteDevice
+    -> PortMidi.WriteStream
     -> Map.Map Midi.WriteDevice PortMidi.WriteStream
     -> Midi.WriteMessage
     -> IO ()
-write_msg default_stream wstream_map (Midi.WriteMessage wdev ts msg) = do
-    let stream = maybe default_stream id (Map.lookup wdev wstream_map)
+write_msg wdev_map default_stream wstream_map (Midi.WriteMessage wdev ts msg) =
+    do
+    let real_wdev = Util.Data.get wdev wdev wdev_map
+    let stream = maybe default_stream id (Map.lookup real_wdev wstream_map)
     putStrLn $ "PLAY " ++ show (wdev, ts, msg)
     MidiC.write_msg (stream, MidiC.from_timestamp ts, msg)
 

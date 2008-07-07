@@ -12,7 +12,7 @@ patch_template = Instrument.patch
     (Instrument.instrument "" Controller.empty_map (-96, 96) Nothing)
     Instrument.NoInitialization [] ""
 
-fm8 = Instrument.synth "fm8" "IAC Driver Bus 1/CoreMIDI" fm8_controllers
+fm8 = Instrument.synth "fm8" "fm8" fm8_controllers
 
 fm8_controllers =
     [ (4, "fm8 controller 1"), (11, "fm8 controller 2")

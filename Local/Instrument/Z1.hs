@@ -19,8 +19,7 @@ load dir = Parse.patch_file (dir </> "z1") >>= MidiDb.load_synth_desc z1
 load_slow dir = Parse.parse_sysex_dir korg_sysex (dir </> "z1_sysex")
     >>= MidiDb.load_synth_desc z1
 
-z1 = Instrument.synth "z1" "Tapco Link MIDI USB Ver 2.2 Port 1/CoreMIDI"
-    z1_controllers
+z1 = Instrument.synth "z1" "z1" z1_controllers
 
 z1_controllers =
     [

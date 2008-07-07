@@ -23,14 +23,8 @@ import qualified Instrument.Parse as Parse
 load dir = Parse.patch_file (dir </> "vl1") >>= MidiDb.load_synth_desc vl1
 load_slow dir = parse_dir (dir </> "vl1_vc") >>= MidiDb.load_synth_desc vl1
 
-vl1 = Instrument.synth "vl1" "Tapco Link MIDI USB Ver 2.2 Port 1/CoreMIDI"
-    vl1_controllers
-
+vl1 = Instrument.synth "vl1" "vl1" vl1_controllers
 vl1_controllers = []
-
-t0 = do
-    parse_dir "Local/Instrument/b"
-t1 = fmap (head) t0
 
 parse_dir :: FilePath -> IO [Instrument.Patch]
 parse_dir dir = do

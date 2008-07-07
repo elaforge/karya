@@ -59,6 +59,7 @@ import qualified Language.Haskell.Interpreter.GHC as GHC
 import qualified Network
 import qualified System.IO as IO
 
+import qualified Util.Data
 import qualified Util.Log as Log
 import qualified Util.Thread as Thread
 
@@ -115,14 +116,18 @@ responder static_config get_msg write_midi get_ts player_chan setup_cmd
     loop rstate
 
 -- | Create the MsgReader to pass to 'responder'.
-create_msg_reader :: Network.Socket -> TChan.TChan UiMsg.UiMsg
-    -> TChan.TChan Midi.ReadMessage -> Transport.Chan -> IO MsgReader
-create_msg_reader lang_socket ui_chan midi_chan player_chan = do
+create_msg_reader ::
+    Map.Map Midi.ReadDevice Midi.ReadDevice -> TChan.TChan Midi.ReadMessage
+    -> Network.Socket -> TChan.TChan UiMsg.UiMsg -> Transport.Chan
+    -> IO MsgReader
+create_msg_reader rdev_map midi_chan lang_socket ui_chan player_chan = do
     lang_chan <- TChan.newTChanIO
     Thread.start_thread "accept lang socket" (accept_loop lang_socket lang_chan)
+    let map_dev rmsg@(Midi.ReadMessage { Midi.rmsg_dev = dev }) =
+            rmsg { Midi.rmsg_dev = Util.Data.get dev dev rdev_map }
     return $ STM.atomically $
         fmap Msg.Ui (TChan.readTChan ui_chan)
-        `STM.orElse` fmap Msg.Midi (TChan.readTChan midi_chan)
+        `STM.orElse` fmap (Msg.Midi . map_dev) (TChan.readTChan midi_chan)
         `STM.orElse` fmap Msg.Transport (TChan.readTChan player_chan)
         `STM.orElse` fmap (uncurry Msg.Socket) (TChan.readTChan lang_chan)
 
