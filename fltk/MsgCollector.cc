@@ -34,8 +34,7 @@ operator<<(std::ostream &os, const UiMsg &m)
 
     char keybuf[12];
     os << '<' << msg_type_names[m.type];
-    switch (m.type) {
-    case UiMsg::msg_event:
+    if (m.type == UiMsg::msg_event) {
         if (isprint(m.key))
             sprintf(keybuf, "%c", m.key);
         else
@@ -45,7 +44,6 @@ operator<<(std::ostream &os, const UiMsg &m)
             << " is_click=" << m.is_click
             << " xy=(" << m.x << ", " << m.y
             << ") key='" << keybuf << "'";
-        break;
     }
 
     if (m.update_text)
@@ -63,6 +61,7 @@ operator<<(std::ostream &os, const UiMsg &m)
     if (m.has_pos)
         os << " pos=" << m.pos;
     os << '>';
+    return os;
 }
 
 
@@ -182,6 +181,12 @@ set_update_args(UiMsg &m, BlockView *view, UiMsg::MsgType type)
         ASSERT(m.has_tracknum);
         m.update_width = view->get_track_width(m.tracknum);
         break;
+    case UiMsg::msg_close:
+        ASSERT(m.view); // should have been set by caller
+        break;
+    case UiMsg::msg_event:
+        ASSERT(false); // it's not an update so this shouldn't have been called
+        break;
     }
 }
 
@@ -259,7 +264,7 @@ global_msg_collector()
 void
 MsgCollector::clear()
 {
-    for (int i = 0; i < this->msgs.size(); i++)
+    for (size_t i = 0; i < this->msgs.size(); i++)
         msgs[i].free(); // yay pointers
     msgs.clear();
 }

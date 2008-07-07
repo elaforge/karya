@@ -139,7 +139,8 @@ MoveTile::set_stiff_child(int child)
 bool
 MoveTile::stiff_child(int child)
 {
-    return child < this->stiff_children.size() && this->stiff_children[child];
+    return (size_t) child < this->stiff_children.size()
+        && this->stiff_children[child];
 }
 
 
@@ -172,7 +173,7 @@ children_we_ns(Fl_Group *g)
         sorted[i] = g->child(i);
     std::sort(sorted.begin(), sorted.end(), child_wn_of);
     std::vector<int> indices(sorted.size());
-    for (unsigned i = 0; i < sorted.size(); i++)
+    for (size_t i = 0; i < sorted.size(); i++)
         indices[i] = g->find(sorted[i]);
     return indices;
 }
@@ -183,8 +184,8 @@ MoveTile::sort_children()
 {
     bool moved = false;
     const std::vector<int> ordered = children_we_ns(this);
-    for (int i = 0; i < ordered.size(); i++) {
-        if (i != ordered[i]) {
+    for (size_t i = 0; i < ordered.size(); i++) {
+        if (i != (size_t) ordered[i]) {
             moved = true;
             this->insert(*this->child(i), i);
         }
@@ -222,7 +223,7 @@ jostle(std::vector<Rect> &boxes, const Point &tile_edge,
     //         << dragged_child);
     Point shift(drag_to.x - drag_from.x, drag_to.y - drag_from.y);
     Rect dchild_box = boxes[dragged_child];
-    int i = dragged_child;
+    size_t i = dragged_child;
     // Resize everyone lined up with the dragged child.
     for (; i < boxes.size() && boxes[i].r() == dchild_box.r(); i++) {
         // DEBUG(i << " resize from " << boxes[i].w
@@ -237,7 +238,7 @@ jostle(std::vector<Rect> &boxes, const Point &tile_edge,
     // TODO this is error prone, I can let it reach 0 if I go by the rightmost
     // xpos, not the rightmost r()
     Point edge(0, 0);
-    for (int j = 0; j < boxes.size(); j++)
+    for (size_t j = 0; j < boxes.size(); j++)
         edge.x = std::max(edge.x, boxes[j].r());
     for (; i < boxes.size(); i++) {
         Rect &c = boxes[i];
@@ -279,7 +280,7 @@ MoveTile::handle_drag_tile(const Point drag_from, const Point drag_to,
     // The right most / bottom most widget resizes instead of moving.
     // Stiff children don't resize at all.
     std::vector<Rect> original_boxes(this->children());
-    for (unsigned i = 0; i < children(); i++)
+    for (int i = 0; i < children(); i++)
         original_boxes[i] = this->original_box(i);
     std::vector<Rect> boxes(original_boxes.begin(), original_boxes.end());
 
@@ -324,7 +325,7 @@ MoveTile::handle_drag_tile(const Point drag_from, const Point drag_to,
     }
     // TODO y drag
 
-    for (unsigned i = 0; i < boxes.size(); i++) {
+    for (size_t i = 0; i < boxes.size(); i++) {
         const Rect r = boxes[i];
         // DEBUG(i << ": " << original_boxes[i] << " -> " << boxes[i]);
         this->child(i)->resize(r.x, r.y, r.w, r.h);

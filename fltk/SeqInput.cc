@@ -29,7 +29,7 @@ SeqInput::resize(int x, int y, int w, int h)
 }
 
 
-int
+void
 SeqInput::set_text(const char *text)
 {
     this->value(text);

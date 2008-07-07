@@ -103,7 +103,7 @@ OverlayRuler::set_config(const RulerConfig &config, FinalizeCallback finalizer,
 void
 OverlayRuler::finalize_callbacks(FinalizeCallback finalizer)
 {
-    for (int i = 0; i < this->config.marklists.size(); i++)
+    for (size_t i = 0; i < this->config.marklists.size(); i++)
         finalizer((void *) this->config.marklists[i].find_marks);
 }
 
@@ -184,7 +184,6 @@ OverlayRuler::draw_marklists()
 
     TrackPos *mark_tps;
     Mark *marks;
-    int count = 0;
 
     // Show updated range, for debugging.
     // Fl_Color colors[] =

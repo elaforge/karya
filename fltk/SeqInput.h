@@ -10,7 +10,7 @@ public:
     SeqInput(int X, int Y, int W, int H, bool do_expansion);
     virtual void resize(int x, int y, int w, int h);
     // Fl_Input's value() isn't virtual so I get to make up my own.  Yay fltk!
-    virtual int set_text(const char *text);
+    virtual void set_text(const char *text);
     // HACK:
     // An expanded SeqInput has overgrown its neighbors, so it needs special
     // handling to get events first and redraws last.  The parent can check

@@ -4,7 +4,7 @@ MIDI_LIBS = $(PORTMIDI)/pm_mac/libportmidi.a \
 	$(PORTMIDI)/porttime/libporttime.a \
 	-framework CoreFoundation -framework CoreMIDI -framework CoreAudio
 CINCLUDE = -Ifltk -I$(PORTMIDI)/pm_common -I$(PORTMIDI)/porttime -I.
-CXXFLAGS = `fltk-config --cxxflags` $(DEBUG) $(CINCLUDE)
+CXXFLAGS = `fltk-config --cxxflags` $(DEBUG) $(CINCLUDE) -Wall
 LDFLAGS = `fltk-config --ldflags` $(DEBUG)
 REZ = /Developer/Tools/Rez -t APPL -o $@ /usr/local/include/FL/mac.r
 

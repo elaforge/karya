@@ -172,7 +172,6 @@ EventTrackView::draw_area()
         const Event &event = events[i];
         const TrackPos &pos = event_pos[i];
         int offset = y() + this->zoom.to_pixels(pos - this->zoom.offset);
-        int height = this->zoom.to_pixels(event.duration);
         previous_bottom = this->draw_upper_layer(
             offset, event, previous_bottom);
     }
@@ -224,6 +223,8 @@ EventTrackView::draw_samples(TrackPos start, TrackPos end)
         case RenderConfig::render_filled:
             fl_polygon(xpos, offset, next_xpos, next_offset,
                     min_x, next_offset, min_x, offset);
+            break;
+        case RenderConfig::render_none:
             break;
         }
     }

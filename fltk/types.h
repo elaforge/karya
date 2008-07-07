@@ -42,7 +42,7 @@ private:
 inline std::ostream &
 operator<<(std::ostream &os, const TrackPos &pos)
 {
-    os << "TrackPos(" << pos._val << ")";
+    return os << "TrackPos(" << pos._val << ")";
 }
 
 
@@ -135,7 +135,7 @@ struct ZoomInfo {
 inline std::ostream &
 operator<<(std::ostream &os, const ZoomInfo &z)
 {
-    os << "ZoomInfo(" << z.offset << ", " << z.factor << ")";
+    return os << "ZoomInfo(" << z.offset << ", " << z.factor << ")";
 }
 
 

@@ -67,8 +67,8 @@ m44_find_marks(TrackPos *start_pos, TrackPos *end_pos,
         TrackPos **ret_tps, Mark **ret_marks)
 {
     MarkData &mlist = m44_marks;
-    int count = 0;
-    int start = 0;
+    size_t count = 0;
+    size_t start = 0;
     for (; start < mlist.size(); start++) {
         if (mlist[start].first >= *start_pos)
             break;
@@ -88,7 +88,7 @@ m44_find_marks(TrackPos *start_pos, TrackPos *end_pos,
 
     *ret_tps = (TrackPos *) calloc(count, sizeof(TrackPos));
     *ret_marks = (Mark *) calloc(count, sizeof(Mark));
-    for (int i = 0; i < count; i++) {
+    for (size_t i = 0; i < count; i++) {
         // Placement new since malloced space is uninitialized.
         new((*ret_tps) + i) TrackPos(mlist[start+i].first);
         new((*ret_marks) + i) Mark(mlist[start+i].second);
@@ -135,8 +135,8 @@ int
 t1_find_events(TrackPos *start_pos, TrackPos *end_pos,
         TrackPos **ret_tps, Event **ret_events)
 {
-    int count = 0;
-    int start = 0;
+    size_t count = 0;
+    size_t start = 0;
     for (; start < t1_events.size(); start++) {
         if (t1_events[start].first + t1_events[start].second.duration
                 >= *start_pos)
@@ -150,7 +150,7 @@ t1_find_events(TrackPos *start_pos, TrackPos *end_pos,
 
     *ret_tps = (TrackPos *) calloc(count, sizeof(TrackPos));
     *ret_events = (Event *) calloc(count, sizeof(Event));
-    for (int i = 0; i < count; i++) {
+    for (size_t i = 0; i < count; i++) {
         // Placement new since malloced space is uninitialized.
         new((*ret_tps) + i) TrackPos(t1_events[start+i].first);
         new((*ret_events) + i) Event(t1_events[start+i].second);
@@ -165,8 +165,8 @@ int
 t1_find_samples(TrackPos *start_pos, TrackPos *end_pos,
         TrackPos **ret_tps, double **ret_samples)
 {
-    int count = 0;
-    int start = 0;
+    size_t count = 0;
+    size_t start = 0;
     SampleData &a = t1_samples;
     for (; start < a.size(); start++) {
         TrackPos next = start+1 < a.size() ? a[start+1].first : a[start].first;
@@ -181,7 +181,7 @@ t1_find_samples(TrackPos *start_pos, TrackPos *end_pos,
 
     *ret_tps = (TrackPos *) calloc(count, sizeof(TrackPos));
     *ret_samples = (double *) calloc(count, sizeof(double));
-    for (int i = 0; i < count; i++) {
+    for (size_t i = 0; i < count; i++) {
         // Placement new since malloced space is uninitialized.
         new((*ret_tps) + i) TrackPos(a[start+i].first);
         (*ret_samples)[i] = a[start+i].second;

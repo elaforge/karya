@@ -207,7 +207,7 @@ set_track_title(BlockViewWindow *view, int tracknum, const char *title)
 const char *
 i_show_children(const BlockViewWindow *w, int nlevels)
 {
-    show_children(w, nlevels, 0);
+    return show_children(w, nlevels, 0);
 }
 
 }
