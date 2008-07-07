@@ -181,11 +181,11 @@ update_track(BlockViewWindow *view, int tracknum,
         for (int i = 0; i < nmarklists; i++)
             config.marklists.push_back(marklists[i]);
         track->ruler = &config;
-    }
-    view->block.update_track(tracknum, *track, finalizer, *start, *end);
-    if (track->ruler) {
-        // Put it back the way I found it.
+        view->block.update_track(tracknum, *track, finalizer, *start, *end);
+        // Don't leave it pointing to out of scope data.
         track->ruler = old_ruler;
+    } else {
+        view->block.update_track(tracknum, *track, finalizer, *start, *end);
     }
 }
 

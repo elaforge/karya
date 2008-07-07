@@ -48,7 +48,6 @@ import qualified Data.Map as Map
 import Foreign
 import Foreign.C
 
-import qualified Util.Log as Log
 import qualified Ui.Util as Util
 import Ui.Util (Fltk)
 import Ui.Types
@@ -115,8 +114,7 @@ destroy_view :: Block.ViewId -> Fltk ()
 destroy_view view_id = do
     viewp <- get_ptr view_id
     MVar.modifyMVar_ view_id_to_ptr $ \ptr_map -> do
-        Exception.bracket make_free_fun_ptr freeHaskellFunPtr
-            (\finalize -> c_destroy viewp finalize)
+        with_finalizer $ \finalize -> c_destroy viewp finalize
         return $ Map.delete view_id ptr_map
 foreign import ccall "destroy"
     c_destroy :: Ptr CView -> FunPtr (FunPtrFinalizer a) -> IO ()
@@ -221,14 +219,14 @@ insert_track view_id tracknum tracklike samples width = do
 remove_track :: Block.ViewId -> Block.TrackNum -> Fltk ()
 remove_track view_id tracknum = do
     viewp <- get_ptr view_id
-    Exception.bracket make_free_fun_ptr freeHaskellFunPtr $ \finalize ->
+    with_finalizer $ \finalize ->
         c_remove_track viewp (Util.c_int tracknum) finalize
 
 update_track :: Block.ViewId -> Block.TrackNum -> Block.Tracklike
     -> Track.Samples -> TrackPos -> TrackPos -> Fltk ()
 update_track view_id tracknum tracklike samples start end = do
     viewp <- get_ptr view_id
-    Exception.bracket make_free_fun_ptr freeHaskellFunPtr $ \finalize ->
+    with_finalizer $ \finalize ->
         with start $ \startp -> with end $ \endp ->
             with_tracklike tracklike samples $ \tp mlistp len ->
                 c_update_track viewp (Util.c_int tracknum) tp
@@ -252,15 +250,16 @@ foreign import ccall "update_track"
         -> Ptr Ruler.Marklist -> CInt -> FunPtr (FunPtrFinalizer a)
         -> Ptr TrackPos -> Ptr TrackPos -> IO ()
 
--- When I do anything that will destroy previous callbacks, I have to pass
+-- | When I do anything that will destroy previous callbacks, I have to pass
 -- yet another callback which will be used to mark the old callbacks as done,
--- so that the haskell GC knows it can collected data those callbacks use.
+-- so that the haskell GC knows it can collect the data those callbacks use.
 type FunPtrFinalizer a = FunPtr a -> IO ()
 foreign import ccall "wrapper"
     c_make_free_fun_ptr :: FunPtrFinalizer a -> IO (FunPtr (FunPtrFinalizer a))
-make_free_fun_ptr = c_make_free_fun_ptr
-    (\p -> Log.debug ("free callback: " ++ show p) >> freeHaskellFunPtr p)
--- make_free_fun_ptr = c_make_free_fun_ptr freeHaskellFunPtr
+make_free_fun_ptr = c_make_free_fun_ptr freeHaskellFunPtr
+
+with_finalizer :: (FunPtr (FunPtrFinalizer a) -> IO c) -> IO c
+with_finalizer = Exception.bracket make_free_fun_ptr freeHaskellFunPtr
 
 with_tracklike tracklike samples f = case tracklike of
     Block.T track ruler -> RulerC.with_ruler ruler $ \rulerp mlistp len ->

@@ -21,7 +21,6 @@ import qualified Data.Array.IArray as IArray
 import Foreign
 import Foreign.C
 
-import qualified Util.Log as Log
 import qualified Util.Data
 
 import Ui.Types
@@ -56,14 +55,8 @@ insert_render_samples trackp samples = do
     let renderp = (#ptr EventTrackConfig, render) trackp
     (#poke RenderConfig, find_samples) renderp find_samples
 
-make_find_events events = do
-    p <- c_make_find_events (cb_find_events events)
-    Log.debug $ "make find events callback: " ++ show p
-    return p
-make_find_samples samples = do
-    p <- c_make_find_samples (cb_find_samples samples)
-    Log.debug $ "make find samples callback: " ++ show p
-    return p
+make_find_events events = c_make_find_events (cb_find_events events)
+make_find_samples samples = c_make_find_samples (cb_find_samples samples)
 
 instance Storable Track.RenderConfig where
     sizeOf _ = #size RenderConfig

@@ -12,7 +12,6 @@ import Control.Monad
 import Foreign
 import Foreign.C
 
-import qualified Util.Log as Log
 import Ui.Types
 import qualified Ui.Util as Util
 
@@ -50,10 +49,7 @@ cb_find_marks marklist startp endp ret_tps ret_marks = do
     -- putStrLn $ "find marks: " ++ show (length marks)
     return (length marks)
 
-make_find_marks marklist = do
-    cb <- c_make_find_marks (cb_find_marks marklist)
-    Log.debug $ "make find marks callback: " ++ show cb
-    return cb
+make_find_marks marklist = c_make_find_marks (cb_find_marks marklist)
 
 foreign import ccall "wrapper"
     c_make_find_marks :: FindMarks -> IO (FunPtr FindMarks)
