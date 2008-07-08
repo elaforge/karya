@@ -183,7 +183,7 @@ print_devs rdev_map wdev_map = do
 setup_cmd :: [String] -> Cmd.CmdIO
 setup_cmd _args = do
     Save.cmd_load "save/default.state"
-    State.set_project "untitled"
+    State.set_namespace "untitled"
     return Cmd.Done
 
 

@@ -8,6 +8,7 @@ import Util.Pretty
 import qualified Util.Data
 
 import Ui.Types
+import qualified Ui.Id as Id
 import qualified Ui.Color as Color
 
 -- TODO I should just use a TrackPosMap like tracks do.  Then I can share some
@@ -28,9 +29,12 @@ ruler = Ruler
 no_ruler :: Ruler
 no_ruler = ruler [] Color.black False False False
 
-newtype RulerId = RulerId String
+newtype RulerId = RulerId Id.Id
     deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
+
+un_ruler_id :: RulerId -> Id.Id
 un_ruler_id (RulerId s) = s
+
 type NameMarklist = (MarklistName, Marklist)
 type MarklistName = String
 type PosMark = (TrackPos, Mark)

@@ -11,6 +11,7 @@ import qualified Data.Map as Map
 import qualified Util.Seq as Seq
 
 import Ui.Types
+import qualified Ui.Id as Id
 import qualified Ui.Color as Color
 import qualified Ui.Track as Track
 import qualified Ui.Ruler as Ruler
@@ -21,18 +22,21 @@ import qualified Ui.Ruler as Ruler
 -- | Reference to a Block.  Use this to look up Blocks in the State.
 -- Even though the constructor is exported, you should only create them
 -- through the 'State.StateT' interface.
-newtype BlockId = BlockId String
+newtype BlockId = BlockId Id.Id
     deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
 -- | Reference to a View, as per 'BlockId'.
-newtype ViewId = ViewId String
+newtype ViewId = ViewId Id.Id
     deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
 -- | Reference to a schema.  Declared here instead of Deriver.Schema to avoid
 -- a circular import.
-newtype SchemaId = SchemaId String
+newtype SchemaId = SchemaId Id.Id
     deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
 
+un_block_id :: BlockId -> Id.Id
 un_block_id (BlockId s) = s
+un_view_id :: ViewId -> Id.Id
 un_view_id (ViewId s) = s
+un_schema_id :: SchemaId -> Id.Id
 un_schema_id (SchemaId s) = s
 
 -- * block model

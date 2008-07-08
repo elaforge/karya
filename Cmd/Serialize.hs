@@ -23,6 +23,7 @@ import qualified System.IO as IO
 import qualified Util.File as File
 
 import Ui.Types
+import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Ui.Color as Color
 import qualified Ui.Font as Font
@@ -123,6 +124,10 @@ instance Binary State.State where
                     midi_config
 
             _ -> version_error "State.State" v
+
+instance Binary Id.Id where
+    put ident = put (Id.un_id ident)
+    get = get >>= \(a, b) -> return (Id.id a b)
 
 -- ** Block
 

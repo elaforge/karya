@@ -38,6 +38,7 @@ import Util.Pretty as Pretty
 import qualified Util.PPrint as PPrint
 
 import Ui.Types
+import qualified Ui.Id as Id
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 import qualified Ui.Block as Block
@@ -133,16 +134,15 @@ simple_event :: Track.PosEvent -> SimpleEvent
 simple_event (start, event) = (realToFrac start,
     realToFrac (Event.event_duration event), Event.event_text event)
 
--- undo, redo
+-- * undo, redo
 
 -- * show / modify UI state
 
-vid = Block.ViewId
-bid = Block.BlockId
-_bid (Block.BlockId s) = s
-sid = Block.SchemaId
-rid = Ruler.RulerId
-tid = Track.TrackId
+vid = Block.ViewId . Id.read_id
+bid = Block.BlockId . Id.read_id
+sid = Block.SchemaId . Id.read_id
+rid = Ruler.RulerId . Id.read_id
+tid = Track.TrackId . Id.read_id
 
 show_state :: Cmd.CmdL String
 show_state = do
@@ -184,8 +184,8 @@ get_skeleton block_id = do
     Schema.get_skeleton schema_map =<< State.get_block block_id
 
 create_block :: (State.UiStateMonad m) =>
-    String -> String -> String -> m Block.BlockId
-create_block id_name ruler_id schema_id = State.create_block id_name $
+    Id.Id -> String -> String -> m Block.BlockId
+create_block block_id ruler_id schema_id = State.create_block block_id $
     Block.block "" Config.block_config [(ruler ruler_id, Config.ruler_width)]
         (sid schema_id)
 

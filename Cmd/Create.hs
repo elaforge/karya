@@ -1,4 +1,14 @@
 {- | Cmds to create and destroy blocks, views, tracks, and rulers.
+
+IDs are automatically created from the state_namespace and the other IDs in
+existence.  In general I think it's a bad idea to try to hard to give IDs
+descriptive names because there's nothing keeping them that way.  The
+description should be in the track title.  Even the given numbers will get out
+of date with their position in the block.
+
+However, I do allow some naming beyond simple numbers for things which are
+unlikely to change, like tempo tracks and rulers, which don't have any other
+title.
 -}
 module Cmd.Create where
 import Control.Monad
@@ -6,8 +16,7 @@ import qualified Control.Monad.Trans as Trans
 import qualified Data.List as List
 import qualified Data.Map as Map
 
-import qualified Util.Seq as Seq
-
+import qualified Ui.Id as Id
 import qualified Ui.Block as Block
 import qualified Ui.State as State
 import qualified Ui.Track as Track
@@ -25,29 +34,30 @@ import qualified App.Config as Config
 -- | Rename all IDs beginning with @from.@ to @to.@.
 rename_project :: (State.UiStateMonad m, Trans.MonadIO m) =>
     String -> String -> m ()
-rename_project from to = do
-    State.map_ids $ \ident -> if get_project ident == from
-        then set_project to ident else ident
-
-set_project project ident = project ++ (dropWhile (/='.') ident)
-get_project = takeWhile (/='.')
+rename_project from to = State.map_ids set_ns
+    where
+    set_ns ident
+        | ns == from = Id.id to name
+        | otherwise = ident
+        where (ns, name) = Id.un_id ident
 
 -- * block
 
--- | BlockIds look like \"proj.b0\", \"proj.b1\", etc.
+-- | BlockIds look like \"ns/b0\", \"ns/b1\", etc.
 block :: (State.UiStateMonad m) => Ruler.RulerId -> m Block.BlockId
 block ruler_id = do
-    project <- State.get_project
+    ns <- State.get_namespace
     blocks <- fmap State.state_blocks State.get
-    block_id <- require "block id" $ generate_block_id project blocks
+    block_id <- require "block id" $ generate_block_id ns blocks
     b <- State.create_block block_id $
         Block.block "" Config.block_config [] Config.schema
     State.insert_track b 0 (Block.RId ruler_id) Config.ruler_width
     return b
 
 
-generate_block_id project blocks =
-    generate_id project "" "b" Block.BlockId blocks
+generate_block_id ns blocks =
+    generate_id ns no_parent "b" Block.BlockId blocks
+no_parent = Id.id [] ""
 
 
 -- * view
@@ -63,10 +73,11 @@ view block_id = do
 block_view :: (State.UiStateMonad m) => Ruler.RulerId -> m Block.ViewId
 block_view ruler_id = block ruler_id >>= view
 
--- | ViewIds look like \"proj.b0.v0\", \"proj.b0.v1\", etc.
-generate_view_id views block_id =
-    -- project is "" since it should be inherited from the block id.
-    generate_id "" (Block.un_block_id block_id) "v" Block.ViewId views
+-- | ViewIds look like \"ns/b0.v0\", \"ns/b0.v1\", etc.
+generate_view_id views block_id = generate_id ns ident "v" Block.ViewId views
+    where
+    ident = Block.un_block_id block_id
+    ns = Id.id_namespace ident
 
 -- | Same as State.destroy_view, included here for consistency.
 destroy_view :: (State.UiStateMonad m) => Block.ViewId -> m ()
@@ -74,7 +85,7 @@ destroy_view view_id = State.destroy_view view_id
 
 -- * track
 
--- | Tracks look like \"proj.b0.t0\", etc.
+-- | Tracks look like \"ns/b0.t0\", etc.
 track_ruler :: (State.UiStateMonad m) =>
     Block.BlockId -> Ruler.RulerId -> Block.TrackNum -> Block.Width
     -> m Track.TrackId
@@ -88,19 +99,18 @@ track_ruler block_id ruler_id tracknum width = do
 
 -- | Like 'track_ruler', but copy the ruler and track width from the track to
 -- the left.
+-- If the track to the left is a ruler track, it will assume there is
+-- a ".overlay" version of it.
 track :: (State.UiStateMonad m) =>
     Block.BlockId -> Block.TrackNum -> m Track.TrackId
 track block_id tracknum = do
     -- Clip to valid range to callers can use an out of range tracknum.
     tracknum <- clip_tracknum block_id tracknum
     maybe_track <- State.track_at block_id (tracknum-1)
+
     let (ruler_id, width) = case maybe_track of
             Just ((Block.TId _ rid), width) -> (rid, width)
-            Just ((Block.RId rid), width) ->
-                let s = Ruler.un_ruler_id rid
-                    rid2 = if overlay_suffix `List.isSuffixOf` s then rid
-                        else Ruler.RulerId (s ++ overlay_suffix)
-                in (rid2, width)
+            Just ((Block.RId rid), width) -> (add_overlay_suffix rid, width)
             _ -> (State.no_ruler, Config.track_width)
     -- The above can generate a bad ruler_id if they didn't use 'ruler' to
     -- create the ruler with the overlay version, so abort early if that's the
@@ -108,36 +118,26 @@ track block_id tracknum = do
     State.get_ruler ruler_id
     track_ruler block_id ruler_id tracknum width
 
+add_overlay_suffix ruler_id
+    | overlay_suffix `List.isSuffixOf` ident = ruler_id
+    | otherwise = Ruler.RulerId (Id.id ns (ident ++ overlay_suffix))
+    where (ns, ident) = Id.un_id (Ruler.un_ruler_id ruler_id)
+
 clip_tracknum block_id tracknum = do
     tracks <- State.tracks block_id
     return $ max 0 (min tracks tracknum)
 
--- | Controller tracks are created relative to another track, and look like
--- \"proj.b0.t0_velocity\".
-controller_track :: (State.UiStateMonad m) =>
-    Block.BlockId -> Ruler.RulerId -> Block.TrackNum -> String
-    -> m Track.TrackId
-controller_track block_id ruler_id controlled_tracknum cont = do
-    controlled <- State.track_at block_id controlled_tracknum
-    controlled_track_id <- require ("tracknum " ++ show controlled_tracknum) $
-        (fmap fst controlled) >>= tracklike_track
-
-    let controlled_track_name = last $ Seq.split "."
-            (Track.un_track_id controlled_track_id)
-        track_name = controlled_track_name ++ "_" ++ cont
-    named_track block_id ruler_id (controlled_tracknum+1) track_name cont
-
 -- | Create a track with the given name and title.
--- Looks like \"proj.b0.tempo\".
+-- Looks like \"ns/b0.tempo\".
 named_track :: (State.UiStateMonad m) =>
     Block.BlockId -> Ruler.RulerId -> Block.TrackNum
     -> String -> String -> m Track.TrackId
 named_track block_id ruler_id tracknum name title = do
-    let track_id = Seq.join "." [Block.un_block_id block_id, name]
+    ident <- make_id (Id.id_name (Block.un_block_id block_id) ++ "." ++ name)
     all_tracks <- fmap State.state_tracks State.get
-    when (Track.TrackId track_id `Map.member` all_tracks) $
-        State.throw $ "track " ++ show track_id ++ " already exists"
-    tid <- State.create_track track_id (empty_track title)
+    when (Track.TrackId ident `Map.member` all_tracks) $
+        State.throw $ "track " ++ show ident ++ " already exists"
+    tid <- State.create_track ident (empty_track title)
     State.insert_track block_id tracknum
         (Block.TId tid ruler_id) Config.track_width
     return tid
@@ -201,10 +201,17 @@ ruler :: (State.UiStateMonad m) => [Ruler.NameMarklist] -> String
     -> m (Ruler.RulerId, Ruler.RulerId)
 ruler marklists name = do
     let ruler = MakeRuler.ruler marklists
-    rid <- State.create_ruler name ruler
-    over_rid <- State.create_ruler
-        (name ++ overlay_suffix) (MakeRuler.as_overlay ruler)
+    ident <- make_id name
+    overlay_ident <- make_id (name ++ overlay_suffix)
+    rid <- State.create_ruler ident ruler
+    over_rid <- State.create_ruler overlay_ident (MakeRuler.as_overlay ruler)
     return (rid, over_rid)
+
+
+make_id name = do
+    ns <- State.get_namespace
+    return (Id.id ns name)
+
 
 -- | An overlay versions of a ruler has id ruler_id ++ suffix.
 overlay_suffix :: String
@@ -212,14 +219,14 @@ overlay_suffix = ".overlay"
 
 -- * util
 
-generate_id project parent code typ fm =
+generate_id ns parent_id code typ fm =
     List.find (not . (`Map.member` fm) . typ) candidates
-    where candidates = ids_for project parent code
+    where candidates = ids_for ns (Id.id_name parent_id) code
 
-ids_for :: String -> String -> String -> [String]
-ids_for project parent code =
-    [dot project ++ dot parent ++ code ++ show n | n <- [0..]]
-    where dot s = if null s then "" else s ++ "."
+ids_for :: Id.Namespace -> String -> String -> [Id.Id]
+ids_for ns parent code =
+    [Id.id ns (dotted parent ++ code ++ show n) | n <- [0..]]
+    where dotted s = if null s then "" else s ++ "."
 
 require msg = maybe (State.throw $ "somehow can't find ID for " ++ msg) return
 

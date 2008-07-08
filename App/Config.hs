@@ -6,6 +6,7 @@ import qualified Network
 import qualified System.Directory as Directory
 import System.FilePath ((</>))
 
+import qualified Ui.Id as Id
 import qualified Ui.Font as Font
 import qualified Ui.Color as Color
 import qualified Ui.Block as Block
@@ -89,7 +90,7 @@ track_width = 30
 render_config = Track.RenderConfig Track.NoRender render_color
 render_color = Color.rgba 0.65 0.65 0.8 0.5
 
-schema = Block.SchemaId "default"
+schema = Block.SchemaId (Id.global "default")
 
 event text dur = Event.Event text dur (Color.rgb 0.9 0.9 0.7) style
     False

@@ -36,6 +36,7 @@ import qualified Util.Log as Log
 import qualified Util.Logger as Logger
 
 import Ui.Types
+import qualified Ui.Id as Id
 import qualified Ui.Update as Update
 import qualified Ui.Block as Block
 import qualified Ui.Ruler as Ruler
@@ -46,11 +47,10 @@ import qualified Perform.Midi.Instrument as Instrument
 
 
 data State = State {
-    -- | The project name is prepended to automatically created IDs, so
-    -- each project is effectively in its own namespace, and can import
-    -- other projects without clashes.  The save file is also derived from
-    -- the project name.
-    state_project :: String
+    -- | The project name is used as the namespace of automatically created
+    -- IDs, so each project can import other projects without clashes.  The
+    -- save file is also derived from the project name.
+    state_namespace :: Id.Namespace
     , state_project_dir :: String
     , state_views :: Map.Map Block.ViewId Block.View
     , state_blocks :: Map.Map Block.BlockId Block.Block
@@ -72,7 +72,7 @@ empty = State "untitled" "save" Map.empty Map.empty Map.empty ruler_map
 -- | Since all TracklikeIds must have a ruler, all States have a special empty
 -- ruler that can be used in a \"no ruler\" situation.
 no_ruler :: Ruler.RulerId
-no_ruler = Ruler.RulerId "* no ruler *"
+no_ruler = Ruler.RulerId (Id.global "* no ruler *")
 
 -- * StateT monadic access
 
@@ -152,7 +152,7 @@ instance Monad m => UiStateMonad (StateT m) where
 
 -- | Apply a transformation to all IDs.  Most likely used to rename a project,
 -- see Cmd.Create.
-map_ids :: (State.MonadIO t, UiStateMonad t) => (String -> String) -> t ()
+map_ids :: (State.MonadIO m, UiStateMonad m) => (Id.Id -> Id.Id) -> m ()
 map_ids f = do
     map_block_ids f
     map_track_ids f
@@ -162,7 +162,7 @@ map_ids f = do
 
 -- | Rename view ids.  This must be in IO because it modifies the global
 -- view_id pointer map.
-map_view_ids :: (UiStateMonad m, Trans.MonadIO m) => (String -> String) -> m ()
+map_view_ids :: (UiStateMonad m, Trans.MonadIO m) => (Id.Id -> Id.Id) -> m ()
 map_view_ids f = do
     views <- fmap state_views get
     let view_f = Block.ViewId . f . Block.un_view_id
@@ -170,7 +170,7 @@ map_view_ids f = do
     Trans.liftIO $ Block.map_ids view_f
     modify $ \st -> st { state_views = new_views }
 
-map_block_ids :: (UiStateMonad m) => (String -> String) -> m ()
+map_block_ids :: (UiStateMonad m) => (Id.Id -> Id.Id) -> m ()
 map_block_ids f = do
     blocks <- fmap state_blocks get
     let block_f = Block.BlockId . f . Block.un_block_id
@@ -182,7 +182,7 @@ map_block_ids f = do
             views
     modify $ \st -> st { state_blocks = new_blocks, state_views = new_views }
 
-map_track_ids :: (UiStateMonad m) => (String -> String) -> m ()
+map_track_ids :: (UiStateMonad m) => (Id.Id -> Id.Id) -> m ()
 map_track_ids f = do
     tracks <- fmap state_tracks get
     let track_f = Track.TrackId . f . Track.un_track_id
@@ -198,7 +198,7 @@ map_track_ids f = do
     map_track f ((Block.TId tid rid), w) = (Block.TId (f tid) rid, w)
     map_track _ t = t
 
-map_ruler_ids :: (UiStateMonad m) => (String -> String) -> m ()
+map_ruler_ids :: (UiStateMonad m) => (Id.Id -> Id.Id) -> m ()
 map_ruler_ids f = do
     rulers <- fmap state_rulers get
     let ruler_f = Ruler.RulerId . f . Ruler.un_ruler_id
@@ -256,11 +256,11 @@ verify_view view_id = do
     forM_ [vtracks .. btracks-1] $ \tracknum ->
         modify_view view_id $ \v -> insert_into_view tracknum 20 v
 
-get_project :: (UiStateMonad m) => m String
-get_project = fmap state_project get
+get_namespace :: (UiStateMonad m) => m Id.Namespace
+get_namespace = fmap state_namespace get
 
-set_project :: (UiStateMonad m) => String -> m ()
-set_project name = modify $ \st -> st { state_project = name }
+set_namespace :: (UiStateMonad m) => Id.Namespace -> m ()
+set_namespace ns = modify $ \st -> st { state_namespace = ns }
 
 get_midi_config :: (UiStateMonad m) => m Instrument.Config
 get_midi_config = fmap state_midi_config get
@@ -279,7 +279,7 @@ get_all_view_ids = fmap (Map.keys . state_views) get
 -- | Create a new view.  Block.view_tracks can be left empty, since it will
 -- be replaced by views generated from the the block.  If the caller uses the
 -- 'Block.view' constructor, it won't have to worry about this.
-create_view :: (UiStateMonad m) => String -> Block.View -> m Block.ViewId
+create_view :: (UiStateMonad m) => Id.Id -> Block.View -> m Block.ViewId
 create_view id view = do
     block <- get_block (Block.view_block view)
     let view' = view { Block.view_tracks = initial_track_views block }
@@ -360,7 +360,7 @@ get_all_block_ids = fmap (Map.keys . state_blocks) get
 get_block :: (UiStateMonad m) => Block.BlockId -> m Block.Block
 get_block block_id = get >>= lookup_id block_id . state_blocks
 
-create_block :: (UiStateMonad m) => String -> Block.Block -> m Block.BlockId
+create_block :: (UiStateMonad m) => Id.Id -> Block.Block -> m Block.BlockId
 create_block id block = get >>= insert (Block.BlockId id) block state_blocks
     (\blocks st -> st { state_blocks = blocks })
 
@@ -508,7 +508,7 @@ modify_block block_id f = do
 get_track :: (UiStateMonad m) => Track.TrackId -> m Track.Track
 get_track track_id = get >>= lookup_id track_id . state_tracks
 
-create_track :: (UiStateMonad m) => String -> Track.Track -> m Track.TrackId
+create_track :: (UiStateMonad m) => Id.Id -> Track.Track -> m Track.TrackId
 create_track id track = get >>= insert (Track.TrackId id) track state_tracks
     (\tracks st -> st { state_tracks = tracks })
 
@@ -591,7 +591,7 @@ modify_events track_id f = modify_track track_id $ \track ->
 
 get_ruler :: (UiStateMonad m) => Ruler.RulerId -> m Ruler.Ruler
 get_ruler ruler_id = get >>= lookup_id ruler_id . state_rulers
-create_ruler :: (UiStateMonad m) => String -> Ruler.Ruler -> m Ruler.RulerId
+create_ruler :: (UiStateMonad m) => Id.Id -> Ruler.Ruler -> m Ruler.RulerId
 create_ruler id ruler = get >>= insert (Ruler.RulerId id) ruler state_rulers
     (\rulers st -> st { state_rulers = rulers })
 

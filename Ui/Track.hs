@@ -10,12 +10,15 @@ import qualified Util.Data
 import Util.Pretty
 
 import Ui.Types
+import qualified Ui.Id as Id
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 
 
-newtype TrackId = TrackId String
+newtype TrackId = TrackId Id.Id
     deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
+
+un_track_id :: TrackId -> Id.Id
 un_track_id (TrackId s) = s
 
 type PosEvent = (TrackPos, Event.Event)

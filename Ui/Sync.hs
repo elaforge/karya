@@ -18,6 +18,7 @@ import qualified Util.Seq as Seq
 import qualified App.Config as Config
 
 import Ui.Types
+import qualified Ui.Id as Id
 import qualified Ui.Ui as Ui
 
 import qualified Ui.Block as Block
@@ -71,8 +72,10 @@ track_title (Block.TId track_id _) =
     fmap Track.track_title (State.get_track track_id)
 track_title _ = return ""
 
-block_window_title (Block.ViewId view_id) (Block.BlockId block_id) =
-    view_id ++ " (" ++ block_id ++ ")"
+block_window_title :: Block.ViewId -> Block.BlockId -> String
+block_window_title view_id block_id =
+    Id.show_id (Block.un_view_id view_id)
+        ++ " (" ++ Id.show_id (Block.un_block_id block_id) ++ ")"
 
 get_samples :: Maybe Track.TrackSamples -> Block.TracklikeId -> Track.Samples
 get_samples maybe_track_samples track = maybe Track.no_samples id $ do

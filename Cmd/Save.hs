@@ -20,8 +20,8 @@ import qualified App.Config as Config
 get_save_file :: (Monad m) => Cmd.CmdT m FilePath
 get_save_file = do
     dir <- fmap State.state_project_dir State.get
-    project <- State.get_project
-    return $ dir </> project ++ ".state"
+    ns <- State.get_namespace
+    return $ dir </> ns ++ ".state"
 
 
 cmd_save :: (Trans.MonadIO m) => FilePath -> Cmd.CmdT m ()

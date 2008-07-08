@@ -20,6 +20,7 @@ import qualified Util.Logger as Logger
 import qualified Util.Log as Log
 
 import Ui.Types
+import qualified Ui.Id as Id
 import qualified Ui.Key as Key
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.Block as Block
