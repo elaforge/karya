@@ -63,7 +63,7 @@ test_logview: LogViewer/test_logview.o LogViewer/logview_ui.o fltk/f_util.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 	$(REZ)
 
-test_browser: Instrument/test_browser.o Instrument/Browser.o fltk/f_util.o
+test_browser: Instrument/test_browser.o Instrument/browser_ui.o fltk/f_util.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 	$(REZ)
 

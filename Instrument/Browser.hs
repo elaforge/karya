@@ -130,9 +130,9 @@ quote s
     | any Char.isSpace s = "\"" ++ s ++ "\""
     | otherwise = s
 
-groups _ [] = []
-groups n xs = pre : groups n post
-    where (pre, post) = List.splitAt n xs
+groups n xs
+    | null xs || n <= 0 = []
+    | otherwise = let (pre, post) = List.splitAt n xs in pre : groups n post
 
 -- | Send the chosen instrument to the sequencer.
 choose_instrument :: String -> IO ()

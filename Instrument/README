@@ -44,3 +44,46 @@ The results of the crawl are stored in some kind of quickly loaded and easily
 searched format.  Probably just a Binary serialized data structure that is
 loaded into memory unless that gets too slow, in which case maybe I'll do
 something like sqlite.
+
+
+
+Old doc, integrate into current docs somehow:
+
+Controller mapping:
+The goal is to convert the symbolic controller names into MIDI controller
+numbers.  There are a few controllers with hardcoded special meaning, like
+pitch-bend and channel aftertouch.  The rest are looked up in a map that is
+merged from a set of global controllers, a set of synth-specific controllers,
+and then the instrument-specific controllers.
+
+three data types:
+Synth defines common features for a set of instruments, like device and
+controllers.
+
+Patch is information about one specific instrument.  Every patch has a Synth
+
+Patch and Synth are combined to create the Instrument and the Config.
+Instrument is the data attached to events, and defines only what is needed to
+render notes.  The Config gives the chanel allocation for the instrument, and
+is derived from the Synth (for the midi device) and local song config (for the
+channels).
+
+Also, each Patch defines an initialization procedure, which may depend on the
+channel.  An instrument can be used to look up its originating Patch in order
+to initialize it (send patch change, send sysex, etc.).  There should be
+commands that look in the midi config at the active instruments and their
+channels and do this.
+
+
+At the UI level, an instrument is just a string.  Ultimately, there is one
+large database of String -> Instrument.  When you put a string in an instrument
+track, it goes into the song instrument list.  After derivation, each
+instrument is looked up in the InstrumentDb, which looks through each of the
+backend DBs in turn.  This initial lookup returns BackEnd, which determines the
+converter.  The converter gets ([Score.Event], [Score.Instrument]).  It looks
+up the instruments in the backend specific db, and uses that map to convert to
+the backend specific instrument.
+
+The 'initialize_instrument' command will go through the same procedure, except
+it will use the Score.Instrument to get the InitializePatch and map that
+through the channels in the midi_config (initialize is a midi only concept).
