@@ -3,11 +3,12 @@ module Derive.Schema_test where
 import qualified Util.Seq as Seq
 import Util.Test
 
-import qualified Ui.State as State
 import qualified Ui.Block as Block
+import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
-import qualified Ui.Track as Track
+import qualified Ui.State as State
 import qualified Ui.TestSetup as TestSetup
+import qualified Ui.Track as Track
 
 import qualified Derive.Derive as Derive
 import qualified Derive.Schema as Schema
@@ -18,9 +19,10 @@ import qualified Perform.Midi.Instrument as Instrument
 
 import Util.PPrint
 
+mkid = TestSetup.mkid
 
-ruler = Schema.Track Nothing (Block.RId (Ruler.RulerId "ruler")) 0
-tid id = Block.TId (Track.TrackId id) (Ruler.RulerId "r1")
+ruler = Schema.Track Nothing (Block.RId (Ruler.RulerId (mkid "ruler"))) 0
+tid id = Block.TId (Track.TrackId (mkid id)) (Ruler.RulerId (mkid "r1"))
 inst n = Schema.Track (Just (">inst" ++ show n)) (tid ("i" ++ show n)) 0
 cont name track_id = Schema.Track (Just name) (tid track_id) 0
 
@@ -35,9 +37,9 @@ reduce (Schema.Merge tracks) = Seq.join " + " (map reduce tracks)
 
 reduce_track = reduce_tracklike . Schema.track_id
 
-reduce_tracklike (Block.TId tid _) = Track.un_track_id tid
+reduce_tracklike (Block.TId tid _) = Id.id_name (Track.un_track_id tid)
 reduce_tracklike (Block.DId _color) = "DIV"
-reduce_tracklike (Block.RId rid) = Ruler.un_ruler_id rid
+reduce_tracklike (Block.RId rid) = Id.id_name (Ruler.un_ruler_id rid)
 
 -- TODO test with rulers and dividers
 
@@ -63,19 +65,20 @@ test_compile_to_signals = do
             , ("c2", [(0, 0, ".1"), (10, 0, ".2"), (20, 0, ".4")])
             ]
         tid_ns = map Track.un_track_id tids
-        tracks = State.eval fail id state $
-            State.get_block (Block.BlockId "b1") >>= Schema.block_tracks
+        tracks = State.eval fail id state $ do
+            block <- State.get_block (Block.BlockId (mkid "b1"))
+            Schema.block_tracks block
         skel = parse tracks
     let d = Schema.compile_to_signals skel
     -- It's important that the tempo track *doesn't* apply, since these go to
     -- the UI.
-    let (res, _, _, logs) = Derive.derive state (Block.BlockId "b0") d
+    let (res, _, _, logs) = Derive.derive state (Block.BlockId (mkid "b0")) d
     pprint skel
     pprint res
     -- tempo, c1, and c2 tracks get signals.
     -- I don't verify the signals since it seems to hard at the moment.
     equal (fmap (map fst) res)
-        (Right $ map Track.TrackId ["b1.0", "b1.2", "b1.3"])
+        (Right $ map (Track.TrackId . mkid) ["b1.0", "b1.2", "b1.3"])
     equal logs []
 
 default_config = Instrument.config [] Nothing

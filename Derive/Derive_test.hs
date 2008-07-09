@@ -45,7 +45,7 @@ derive_events ui_state deriver = case result of
         Right val -> (val, logs)
     where
     (result, _tempo, _inv_tempo, logs) =
-        Derive.derive ui_state (Block.BlockId "b1") deriver
+        Derive.derive ui_state block_id deriver
 
 test_basic = do
     let (events, logs) = derive_events ui_state basic_deriver
@@ -102,13 +102,13 @@ test_inverse_tempo_map = do
     let pos_map = map (\(x, y) -> (TrackPos x, TrackPos y))
             [(0, 1), (2, 1), (4, 3) , (6, 4)]
         tmap = Derive.make_inverse_tempo_map
-            (Block.BlockId "b") (TrackPos 0) (TrackPos 30) pos_map
+            block_id (TrackPos 0) (TrackPos 30) pos_map
     plist $ map (tmap . Timestamp.Timestamp) [0..8]
 
 test_block = do
     let (deriver, ui_state) = State.run_state State.empty $ do
         TestSetup.initial_state
-        block <- State.get_block (Block.BlockId "b1")
+        block <- State.get_block block_id
         Schema.get_deriver schema_map block
 
     let (result, derive_state, logs) = Identity.runIdentity $
@@ -131,8 +131,7 @@ derive_events2 ui_state deriver = case result of
         Left err -> error $ "derive error: " ++ show err
         Right val -> (val, tempo, inv_tempo, logs)
     where
-    (result, tempo, inv_tempo, logs) =
-        Derive.derive ui_state (Block.BlockId "b1") deriver
+    (result, tempo, inv_tempo, logs) = Derive.derive ui_state block_id deriver
 
 pos_map (Transport.InverseTempoMap t _) = t
 
@@ -204,8 +203,11 @@ test_run m = case Identity.runIdentity (Derive.run State.empty m) of
 bass events = return (midi_instrument default_inst events)
 
 
-track_id = Track.TrackId "b1.t1"
-cont_track_id = Track.TrackId "b1.cont"
+mkid = TestSetup.mkid
+
+block_id = Block.BlockId (mkid "b0")
+track_id = Track.TrackId (mkid "b0.t0")
+cont_track_id = Track.TrackId (mkid "b0.cont")
 
 default_inst = Score.Instrument "synth/patch"
 default_dev = Midi.WriteDevice "out"
@@ -223,8 +225,15 @@ schema_map = Map.empty
 
 -- ** ui stetup
 
+ui_state = snd $ TestSetup.mkstate
+    [ ("1", [(0, 16, "4c-"), (16, 16, "4c#")])
+    , ("2", [(0, 16, "4c-"), (16, 16, "4c#")])
+    , ("cont", [(0, 0, "1"), (16, 0, "i.75"), (32, 0, "i0")])
+    ]
+
+{-
 ui_state = snd $ State.run_state State.empty $ do
-    ruler <- State.create_ruler "r1"
+    ruler <- State.create_ruler (mkid "r1")
         (TestSetup.ruler [TestSetup.marklist 0 1])
     overlay <- State.create_ruler "r1.overlay"
         =<< fmap TestSetup.overlay_ruler (State.get_ruler ruler)
@@ -238,6 +247,7 @@ ui_state = snd $ State.run_state State.empty $ do
             ]
             (Block.SchemaId "no schema")
     return ()
+-}
 
 mkscore (pos, dur, text) = Score.event pos dur text
 

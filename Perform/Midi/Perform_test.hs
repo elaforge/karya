@@ -9,6 +9,7 @@ import Util.Pretty
 import Util.Test
 
 import Ui.Types
+import qualified Ui.Id as Id
 import qualified Ui.Track as Track
 
 import qualified Midi.Midi as Midi
@@ -264,7 +265,8 @@ test_allot = do
 
 mkevent (inst, pitch, start, dur, controls) =
     Perform.Event inst (ts start) (ts dur) (mkpitch pitch)
-        (Map.fromList controls) [(Track.TrackId "fakepos", TrackPos 42)]
+        (Map.fromList controls)
+        [(Track.TrackId (Id.id "test" "fakepos"), TrackPos 42)]
     where ts = Timestamp.seconds
 mkevents = map (\ (p, s, d, c) -> mkevent (inst1, p, s, d, c))
 

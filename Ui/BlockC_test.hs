@@ -184,7 +184,7 @@ event_track_1 = TestSetup.mktrack ("1", [(0, 16, "hi"), (30, 32, "there")])
 event_track_2 = TestSetup.mktrack ("2", [(16, 10, "ho"), (30, 32, "eyo")])
 
 create_empty_view = do
-    let view_id = Block.ViewId "default"
+    let view_id = Block.ViewId (TestSetup.mkid "default")
     send $ BlockC.create_view view_id "some title" TestSetup.default_rect
         TestSetup.default_view_config TestSetup.default_block_config
     return view_id

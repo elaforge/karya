@@ -22,14 +22,15 @@ test_verify = do
         ["block has 2 tracks while view has 0, fixing"]
     equal (snd (State.verify unbroken)) []
 
+mkid = TestSetup.mkid
 
 simple_state = snd $ State.run_state State.empty $ do
-    t0 <- State.create_track "t0" (TestSetup.empty_track "tempo")
-    ruler <- State.create_ruler "r1" (TestSetup.ruler [])
-    b1 <- State.create_block "b1" $ Block.block "hi b1"
+    t0 <- State.create_track (mkid "t0") (TestSetup.empty_track "tempo")
+    ruler <- State.create_ruler (mkid "r1") (TestSetup.ruler [])
+    b1 <- State.create_block (mkid "b1") $ Block.block "hi b1"
         Config.block_config
         [(Block.RId ruler, 20), (Block.TId t0 ruler, 40)]
         Config.schema
-    v1 <- State.create_view "v1"
-        (Block.view b1 TestSetup.default_rect Config.view_config)
+    v1 <- State.create_view (mkid "v1") $ Block.view b1
+        TestSetup.default_rect TestSetup.default_zoom Config.view_config
     return ()

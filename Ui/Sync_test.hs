@@ -21,17 +21,17 @@ import qualified Control.Exception as Exception
 import Util.Test
 
 import Ui.Types
-import qualified Ui.Ui as Ui
 import qualified Ui.Block as Block
-import qualified Ui.Track as Track
-import qualified Ui.Ruler as Ruler
-
 import qualified Ui.Color as Color
-import qualified Ui.State as State
 import qualified Ui.Diff as Diff
+import qualified Ui.Id as Id
+import qualified Ui.Ruler as Ruler
+import qualified Ui.State as State
 import qualified Ui.Sync as Sync
+import qualified Ui.Track as Track
+import qualified Ui.Ui as Ui
 
-import Ui.TestSetup as TestSetup
+import Ui.TestSetup as TestSetup -- stop doing this
 
 -- TODO
 -- test_error
@@ -60,13 +60,13 @@ test_create_resize_destroy_view = do
 test_create_two_views = do
     state <- run_setup
     state <- io_human "view created, track title changes" $ run state $ do
-        b2 <- State.create_block "b2" $ Block.block ""
+        b2 <- create_block "b2" $ Block.block ""
             default_block_config
             [(Block.RId t_ruler_id, 20), (Block.TId t_track1_id t_ruler_id, 30)]
             t_schema_id
-        v2 <- State.create_view "v2" $
+        v2 <- create_view "v2" $
             Block.view b2 (default_rect { Block.rect_pos = (300, 20) })
-                default_view_config
+                default_zoom default_view_config
         State.set_track_title t_track1_id "hi there"
     return ()
 
@@ -168,7 +168,7 @@ test_update_track = do
 test_update_two_tracks = do
     state <- run State.empty $ do
         v1 <- setup_state
-        t2 <- State.create_track "b1.t2" event_track_2
+        t2 <- create_track "b1.t2" event_track_2
         State.insert_track t_block_id 1 (Block.TId t2 t_ruler_id) 30
         return ()
     io_human "1st track deleted, 2nd track gets wider" $ run state $ do
@@ -228,9 +228,9 @@ test_selection_change_tracks = do
 test_insert_into_selection = do
     state <- run State.empty $ do
         v1 <- setup_state
-        t2 <- State.create_track "b1.t2" event_track_2
+        t2 <- create_track "b1.t2" event_track_2
         State.insert_track t_block_id 1 (Block.TId t2 t_ruler_id) 60
-        t3 <- State.create_track "b1.t3" event_track_2
+        t3 <- create_track "b1.t3" event_track_2
         State.insert_track t_block_id 2 (Block.TId t2 t_ruler_id) 60
         State.set_selection v1 0
             (Block.selection 0 (TrackPos 10) 2 (TrackPos 60))
@@ -242,13 +242,13 @@ test_insert_into_selection = do
 
 test_render_samples = do
     state <- run_setup
-    let t_track2_id = Track.TrackId "b1.t2"
+    let t_track2_id = Track.TrackId (mkid "b1.t2")
         samples1 = Track.samples sample_pairs
         bsamples = [(t_block_id, [(t_track2_id, samples1)])]
     state <- io_human "new track with samples" $ run_samples bsamples state $ do
         let track = Track.set_render_style Track.Line
                 (TestSetup.empty_track "t2")
-        State.create_track "b1.t2" track
+        create_track "b1.t2" track
         State.insert_track t_block_id 2 (Block.TId t_track2_id t_ruler_id) 40
     state <- io_human "track samples filled" $ run_samples bsamples state $ do
         State.modify_track_render t_track2_id $ \config ->
@@ -266,21 +266,27 @@ sample_pairs = map (Arrow.first TrackPos)
 
 -- * util
 
-t_ruler_id = Ruler.RulerId "r1"
-t_block_id = Block.BlockId "b1"
-t_track1_id = Track.TrackId "b1.t1"
-t_view_id = Block.ViewId "v1"
-t_schema_id = Block.SchemaId "no schema"
+t_ruler_id = Ruler.RulerId (mkid "r1")
+t_block_id = Block.BlockId (mkid "b1")
+t_track1_id = Track.TrackId (mkid "b1.t1")
+t_view_id = Block.ViewId (mkid "v1")
+t_schema_id = Block.SchemaId (mkid "no schema")
 
 run_setup = run State.empty setup_state
 setup_state = do
-    ruler <- State.create_ruler "r1" (mkruler 20 10)
-    t1 <- State.create_track "b1.t1" (empty_track "t1")
-    b1 <- State.create_block "b1" $
+    ruler <- create_ruler "r1" (mkruler 20 10)
+    t1 <- create_track "b1.t1" (empty_track "t1")
+    b1 <- create_block "b1" $
         Block.block "hi b1" default_block_config
             [(Block.RId ruler, 20), (Block.TId t1 ruler, 30)]
             t_schema_id
-    State.create_view "v1" (Block.view b1 default_rect default_view_config)
+    create_view "v1"
+        (Block.view b1 default_rect default_zoom default_view_config)
+
+create_view a b = State.create_view (mkid a) b
+create_block a b = State.create_block (mkid a) b
+create_track a b = State.create_track (mkid a) b
+create_ruler a b = State.create_ruler (mkid a) b
 
 run st1 m = do
     res <- State.run st1 m
