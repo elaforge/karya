@@ -52,12 +52,12 @@ import qualified Cmd.Language as Language
 import qualified Cmd.Play as Play
 import qualified Cmd.Save as Save
 import qualified Cmd.Selection as Selection
+import qualified Cmd.Simple as Simple
 import qualified Cmd.TimeStep as TimeStep
 
 -- Just make sure these are compiled.
 import qualified Cmd.MakeRuler ()
 import qualified Cmd.Create ()
-import qualified Cmd.Simple ()
 
 import qualified Derive.Score as Score
 import qualified Derive.Schema as Schema
@@ -146,9 +146,9 @@ destroy_view view_id = State.destroy_view (vid view_id)
 
 -- ** blocks
 
-show_block :: String -> Cmd.CmdL String
+show_block :: Block.BlockId -> Cmd.CmdL String
 show_block block_id = do
-    block <- State.get_block (bid block_id)
+    block <- State.get_block block_id
     return $ show_record
         [ ("title", Block.block_title block)
         , ("tracks", show_list (map show (Block.block_track_widths block)))
@@ -167,10 +167,10 @@ create_block block_id ruler_id schema_id = State.create_block block_id $
     Block.block "" Config.block_config [(ruler ruler_id, Config.ruler_width)]
         (sid schema_id)
 
-set_schema :: String -> String -> Cmd.CmdL ()
+set_schema :: Block.BlockId -> Block.SchemaId -> Cmd.CmdL ()
 set_schema block_id schema_id = do
-    State.modify_block (bid block_id) $ \block ->
-        block { Block.block_schema = sid schema_id }
+    State.modify_block block_id $ \block ->
+        block { Block.block_schema = schema_id }
 
 -- ** tracks
 
@@ -182,20 +182,16 @@ ruler ruler_id = Block.RId (rid ruler_id)
 divider :: Color.Color -> Block.TracklikeId
 divider color = Block.DId (Block.Divider color)
 
-show_track :: String -> Cmd.CmdL String
+show_track :: Track.TrackId -> Cmd.CmdL String
 show_track track_id = do
-    track <- State.get_track (tid track_id)
-    return $ show_list $ map Track.pretty_pos_event $
-        Track.event_list (Track.track_events track)
+    track <- State.get_track track_id
+    return $ PPrint.pshow (track { Track.track_events = Track.empty_events })
+        ++ "Events: " ++ show (Track.events_length (Track.track_events track))
 
-insert_track block_id tracknum tracklike width = do
-    State.insert_track (bid block_id) tracknum tracklike width
-remove_track block_id tracknum = State.remove_track (bid block_id) tracknum
-
-show_events :: String -> TrackPos -> TrackPos -> Cmd.CmdL String
+show_events :: Track.TrackId -> TrackPos -> TrackPos -> Cmd.CmdL [Simple.Event]
 show_events track_id start end = do
-    track <- State.get_track (tid track_id)
-    return $ (show_list . map Track.pretty_pos_event
+    track <- State.get_track track_id
+    return $ (map Simple.event
         . Track.events_in_range start end . Track.track_events) track
 
 set_render_style :: Track.RenderStyle -> Track.TrackId -> Cmd.CmdL ()
@@ -221,10 +217,10 @@ replace_marklist (rid "r1") "meter" (MakeRuler.meter_ruler 16 MakeRuler.m44)
 copy_marklist "meter" (rid "r1") (rid "r1.overlay")
 -}
 
-show_ruler :: String -> Cmd.CmdL String
+show_ruler :: Ruler.RulerId -> Cmd.CmdL String
 show_ruler ruler_id = do
     (Ruler.Ruler mlists bg show_names use_alpha full_width) <-
-        State.get_ruler (rid ruler_id)
+        State.get_ruler ruler_id
     return $ show_record
         [ ("bg", show bg)
         , ("show_names", show show_names), ("use_alpha", show use_alpha)
@@ -232,9 +228,9 @@ show_ruler ruler_id = do
         , ("marklists", show_list (map fst mlists))
         ]
 
-show_marklist :: String -> Ruler.MarklistName -> Cmd.CmdL String
+show_marklist :: Ruler.RulerId -> Ruler.MarklistName -> Cmd.CmdL String
 show_marklist ruler_id marklist_name = do
-    mlist <- get_marklist (rid ruler_id) marklist_name
+    mlist <- get_marklist ruler_id marklist_name
     return $ show_list $
         map (\(pos, m) -> printf "%s - %s" (show pos) (pretty m))
             (Ruler.forward mlist (TrackPos 0))

@@ -4,7 +4,6 @@ import qualified Data.Array.IArray as IArray
 import qualified Data.Generics as Generics
 import qualified Data.List as List
 import qualified Data.Map as Map
-import Text.Printf
 
 import qualified Util.Data
 
@@ -61,11 +60,6 @@ modify_events track@(Track { track_events = events }) f =
 time_end :: Track -> TrackPos
 time_end track = maybe (TrackPos 0) event_end (last_event (track_events track))
 
--- TODO remove this and use SimpleEvent and SimpleTrack
-pretty_pos_event :: PosEvent -> String
-pretty_pos_event (pos, event) = printf "%s +%s: %s" (pretty_pos pos)
-    (pretty_pos (Event.event_duration event)) (show (Event.event_text event))
-
 
 -- * TrackEvents implementation
 
@@ -98,6 +92,9 @@ event_map (TrackEvents evts) = evts
 -- Not in Functor because this should be private.
 emap f (TrackEvents evts) = TrackEvents (f evts)
 empty_events = TrackEvents Map.empty
+
+events_length :: TrackEvents -> Int
+events_length = Map.size . event_map
 
 -- | Merge events into the given TrackEvents.  Events that overlap will have
 -- their tails clipped until they don't, and given events that start at the
