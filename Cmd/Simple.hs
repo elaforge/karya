@@ -41,7 +41,7 @@ dump_block :: Block.BlockId -> Cmd.CmdL Block
 dump_block block_id = do
     block <- State.get_block block_id
     let track_ids = Maybe.catMaybes $
-            map Block.track_id_of (map fst (Block.block_tracks block))
+            map Block.track_id_of (Block.block_tracks block)
     tracks <- mapM dump_track track_ids
     return (Id.show_id (Block.un_block_id block_id), Block.block_title block,
         tracks)
@@ -82,7 +82,7 @@ destroy_namespace ns = do
     block_ids <- fmap (filter ((==ns) . Id.id_namespace . Block.un_block_id))
         State.get_all_block_ids
     blocks <- mapM State.get_block block_ids
-    let tracks = concatMap Block.block_tracks_xx blocks
+    let tracks = concatMap Block.block_tracks blocks
         track_ids = Seq.unique (Maybe.catMaybes (map Block.track_id_of tracks))
         ruler_ids = Seq.unique (Maybe.catMaybes (map Block.ruler_id_of tracks))
     mapM_ State.destroy_block block_ids -- will destroy any views too

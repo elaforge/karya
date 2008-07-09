@@ -223,8 +223,8 @@ map_track_ids f = do
 
     blocks <- fmap state_blocks get
     let new_blocks = Map.map
-            (\b -> b { Block.block_tracks =
-                map (map_track track_f) (Block.block_tracks b) })
+            (\b -> b { Block.block_track_widths =
+                map (map_track track_f) (Block.block_track_widths b) })
             blocks
     modify $ \st -> st { state_tracks = new_tracks, state_blocks = new_blocks }
     where
@@ -239,8 +239,8 @@ map_ruler_ids f = do
 
     blocks <- fmap state_blocks get
     let new_blocks = Map.map
-            (\b -> b { Block.block_tracks =
-                map (map_track ruler_f) (Block.block_tracks b) })
+            (\b -> b { Block.block_track_widths =
+                map (map_track ruler_f) (Block.block_track_widths b) })
             blocks
     modify $ \st -> st { state_rulers = new_rulers, state_blocks = new_blocks }
     where
@@ -343,7 +343,7 @@ create_view id view = do
     get >>= insert (Block.ViewId id) view' state_views
         (\views st -> st { state_views = views })
 initial_track_views block = map Block.TrackView widths
-    where widths = map snd (Block.block_tracks block)
+    where widths = map snd (Block.block_track_widths block)
 
 destroy_view :: (UiStateMonad m) => Block.ViewId -> m ()
 destroy_view view_id = modify $ \st ->
@@ -455,19 +455,19 @@ insert_track :: (UiStateMonad m) => Block.BlockId -> Block.TrackNum
 insert_track block_id tracknum track width = do
     block <- get_block block_id
     views <- get_views_of block_id
-    let tracks = Block.block_tracks block
+    let tracks = Block.block_track_widths block
         tracks' = Seq.insert_at tracks tracknum (track, width)
         views' = Map.map (insert_into_view tracknum width) views
-    update_block block_id (block { Block.block_tracks = tracks' })
+    update_block block_id (block { Block.block_track_widths = tracks' })
     modify $ \st -> st { state_views = Map.union views' (state_views st) }
 
 remove_track :: (UiStateMonad m) => Block.BlockId -> Block.TrackNum -> m ()
 remove_track block_id tracknum = do
     block <- get_block block_id
     views <- get_views_of block_id
-    let tracks' = Seq.remove_at (Block.block_tracks block) tracknum
+    let tracks' = Seq.remove_at (Block.block_track_widths block) tracknum
         views' = Map.map (remove_from_view tracknum) views
-    update_block block_id (block { Block.block_tracks = tracks' })
+    update_block block_id (block { Block.block_track_widths = tracks' })
     modify $ \st -> st { state_views = Map.union views' (state_views st) }
 
 -- | Get the TracklikeId at @tracknum@, or Nothing if its out of range.
@@ -477,7 +477,7 @@ track_at :: (UiStateMonad m) => Block.BlockId -> Block.TrackNum
     -> m (Maybe (Block.TracklikeId, Block.Width))
 track_at block_id tracknum = do
     block <- get_block block_id
-    return $ Seq.at (Block.block_tracks block) tracknum
+    return $ Seq.at (Block.block_track_widths block) tracknum
 
 -- | Convenience function like 'track_at', but get the track_id if it's an
 -- event track.
@@ -690,7 +690,7 @@ get_tracks_of :: (UiStateMonad m) =>
     Block.BlockId -> m (Map.Map Track.TrackId Track.Track)
 get_tracks_of block_id = do
     block <- get_block block_id
-    let track_ids = [tid | (Block.TId tid _, _) <- Block.block_tracks block]
+    let track_ids = [tid | Block.TId tid _ <- Block.block_tracks block]
     tracks <- mapM get_track track_ids
     return $ Map.fromList (zip track_ids tracks)
 
@@ -717,7 +717,7 @@ find_tracks f = do
         , (tracknum, tracklike_id) <- all_tracks block
         , f tracklike_id
         ]
-    where all_tracks block = Seq.enumerate (map fst (Block.block_tracks block))
+    where all_tracks block = Seq.enumerate (Block.block_tracks block)
 
 -- * util
 

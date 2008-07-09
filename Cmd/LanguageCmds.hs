@@ -148,13 +148,11 @@ destroy_view view_id = State.destroy_view (vid view_id)
 
 show_block :: String -> Cmd.CmdL String
 show_block block_id = do
-    Block.Block { Block.block_title = title, Block.block_tracks = tracks,
-            Block.block_schema = schema }
-        <- State.get_block (bid block_id)
+    block <- State.get_block (bid block_id)
     return $ show_record
-        [ ("title", title)
-        , ("tracks", show_list (map (show . fst) tracks))
-        , ("schema", show schema)
+        [ ("title", Block.block_title block)
+        , ("tracks", show_list (map show (Block.block_track_widths block)))
+        , ("schema", show (Block.block_schema block))
         ]
 
 -- | TODO put this in Cmd?

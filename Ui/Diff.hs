@@ -130,7 +130,7 @@ track_info view_id view st =
         Nothing -> throw $ show block_id ++ " of " ++ show view_id
             ++ " has no referent"
         Just block -> return $ zip
-            (map fst (Block.block_tracks block)) (Block.view_tracks view)
+            (Block.block_tracks block) (Block.view_tracks view)
     where block_id = Block.view_block view
 
 -- ** block / track / ruler
@@ -143,7 +143,7 @@ diff_block block_id block1 block2 = do
         change [block_update $ Update.BlockConfig (Block.block_config block2)]
 
     let pairs = indexed_pairs (\a b -> fst a == fst b)
-            (Block.block_tracks block1) (Block.block_tracks block2)
+            (Block.block_track_widths block1) (Block.block_track_widths block2)
     forM_ pairs $ \(i2, track1, track2) -> case (track1, track2) of
         (Just _, Nothing) -> change [block_update $ Update.RemoveTrack i2]
         (Nothing, Just (track, width)) ->

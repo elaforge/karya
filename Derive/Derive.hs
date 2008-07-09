@@ -197,7 +197,7 @@ derive ui_state block_id deriver = (result, tempo_map, inv_tempo_map, logs)
 block_time_end :: (State.UiStateMonad m) => Block.BlockId -> m TrackPos
 block_time_end block_id = do
     block <- State.get_block block_id
-    let track_ids = [tid | (Block.TId tid _, _) <- Block.block_tracks block]
+    let track_ids = [tid | Block.TId tid _ <- Block.block_tracks block]
     tracks <- mapM State.get_track track_ids
     return $ maximum (TrackPos 0 : map Track.time_end tracks)
 
@@ -219,7 +219,7 @@ make_inverse_tempo_map block_id _start _end pos_map ts = (block_pos, samples2)
 -- simple_tempo_map pos = Timestamp.Timestamp (fromIntegral pos * 20)
 -- simple_inv_tempo_map ui_state block_id ts = do
 --     block <- Map.lookup block_id (State.state_blocks ui_state)
---     let tids = [tid | (Block.TId tid _, _) <- Block.block_tracks block]
+--     let tids = [tid | Block.TId tid _ <- Block.block_tracks block]
 --     tracks <- mapM (flip Map.lookup (State.state_tracks ui_state)) tids
 --     let end = maximum (map Track.time_end tracks)
 --         pos = Timestamp.to_track_pos ts `div` 20

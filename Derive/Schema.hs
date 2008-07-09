@@ -121,7 +121,7 @@ get_skeleton schema_map block = do
 
 block_tracks :: (State.UiStateMonad m) => Block.Block -> m [Track]
 block_tracks block = do
-    let tracks = map fst (Block.block_tracks block)
+    let tracks = Block.block_tracks block
     names <- mapM track_name tracks
     return [Track name track num
         | (num, (name, track)) <- zip [0..] (zip names tracks)]

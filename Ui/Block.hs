@@ -45,14 +45,12 @@ data Block = Block {
     block_title :: String
     , block_config :: Config
     -- The Widths here are the default if a new View is created from this Block.
-    , block_tracks :: [(TracklikeId, Width)]
+    , block_track_widths :: [(TracklikeId, Width)]
     , block_schema :: SchemaId
     } deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
 
--- block_track -> block_track_widths
-
--- TODO rename this block_tracks when I move it over
-block_tracks_xx = map fst . block_tracks
+block_tracks :: Block -> [TracklikeId]
+block_tracks = map fst . block_track_widths
 
 block title config tracks schema_id = Block title config tracks schema_id
 

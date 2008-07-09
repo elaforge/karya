@@ -197,8 +197,7 @@ relevant_ruler block tracknum =
     Seq.first_just (map rid_of in_order)
     where
     in_order = map snd $ dropWhile ((/=tracknum) . fst) $ reverse $
-        zip [0..] tracks
-    tracks = map fst (Block.block_tracks block)
+        zip [0..] (Block.block_tracks block)
     rid_of (Block.RId rid) = Just rid
     rid_of (Block.TId _ rid) = Just rid
     rid_of _ = Nothing
