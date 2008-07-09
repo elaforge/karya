@@ -104,16 +104,15 @@ run_state state m = case result of
     where result = Identity.runIdentity (run state m)
 
 eval_rethrow :: (UiStateMonad m) => State -> StateT Identity.Identity a -> m a
-eval_rethrow = eval throw return
+eval_rethrow state = throw_either . eval state
 
 -- | A form of 'run' that throws away the output state and updates, and applies
 -- either 'failed' or 'succeeded' on the result depending on if the monad threw
 -- or not.
--- TODO change this to use either too
-eval :: (String -> b) -> (a -> b) -> State -> StateT Identity.Identity a -> b
-eval failed succeeded state m = case result of
-        Left (StateError err) -> failed err
-        Right (val, _, _) -> succeeded val
+eval :: State -> StateT Identity.Identity a -> Either StateError a
+eval state m = case result of
+        Left err -> Left err
+        Right (val, _, _) -> Right val
     where result = Identity.runIdentity (run state m)
 
 exec :: State -> StateT Identity.Identity a -> Either StateError State

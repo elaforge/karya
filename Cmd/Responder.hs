@@ -356,10 +356,9 @@ derive_signals :: Schema.SchemaMap -> State.State
     -> (Sync.BlockSamples, [Log.Msg])
 derive_signals schema_map ui_state = (block_samples, logs)
     where
-    eval = State.eval Left Right ui_state
     block_ids = Map.keys (State.state_blocks ui_state)
     track_results = zip block_ids $
-        map (eval . derive_signal schema_map) block_ids
+        map (State.eval ui_state . derive_signal schema_map) block_ids
 
     block_samples = [(block_id, track_samples)
         | (block_id, Right (track_samples, _)) <- track_results]

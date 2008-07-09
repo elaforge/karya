@@ -185,8 +185,8 @@ derive ui_state block_id deriver = (result, tempo_map, inv_tempo_map, logs)
     where
     (result, derive_state, logs) = Identity.runIdentity $ run ui_state deriver
 
-    time_end = State.eval (const (TrackPos 0)) id
-        ui_state (block_time_end block_id)
+    time_end = either (const (TrackPos 0)) id $
+        State.eval ui_state (block_time_end block_id)
     pos_map = state_pos_map derive_state
     tempo_map = make_tempo_map pos_map
 

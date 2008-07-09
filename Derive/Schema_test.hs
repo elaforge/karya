@@ -65,7 +65,7 @@ test_compile_to_signals = do
             , ("c2", [(0, 0, ".1"), (10, 0, ".2"), (20, 0, ".4")])
             ]
         tid_ns = map Track.un_track_id tids
-        tracks = State.eval fail id state $ do
+        tracks = either (fail . show) id $ State.eval state $ do
             block <- State.get_block (Block.BlockId (mkid "b1"))
             Schema.block_tracks block
         skel = parse tracks
