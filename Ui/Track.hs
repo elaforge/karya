@@ -7,7 +7,6 @@ import qualified Data.Map as Map
 import Text.Printf
 
 import qualified Util.Data
-import Util.Pretty
 
 import Ui.Types
 import qualified Ui.Id as Id
@@ -62,9 +61,10 @@ modify_events track@(Track { track_events = events }) f =
 time_end :: Track -> TrackPos
 time_end track = maybe (TrackPos 0) event_end (last_event (track_events track))
 
+-- TODO remove this and use SimpleEvent and SimpleTrack
 pretty_pos_event :: PosEvent -> String
-pretty_pos_event (pos, event) = printf "%s +%s: %s" (pretty pos)
-    (pretty (Event.event_duration event)) (show (Event.event_text event))
+pretty_pos_event (pos, event) = printf "%s +%s: %s" (pretty_pos pos)
+    (pretty_pos (Event.event_duration event)) (show (Event.event_text event))
 
 
 -- * TrackEvents implementation

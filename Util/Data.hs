@@ -1,12 +1,16 @@
+{- | This is really more like Util.Map, except the array stuff.
+-}
 module Util.Data where
-
 import qualified Data.Array.IArray as IArray
 import qualified Data.List as List
+import qualified Data.Maybe as Maybe
 import Data.Function
 import qualified Data.Map as Map
 import Data.Array.IArray ((!))
 
 -- * Map
+
+get def k fm = Maybe.fromMaybe def (Map.lookup k fm)
 
 -- | Like Map.split, except include a matched key in the above map.
 split_map :: (Ord k) => k -> Map.Map k a -> (Map.Map k a, Map.Map k a)
@@ -53,6 +57,7 @@ zip_intersection map1 map2 =
 -- map on the right.
 unique_union :: (Ord k) =>
     Map.Map k a -> Map.Map k a -> (Map.Map k a, Map.Map k a)
+    -- Map.union is left biased, so dups will be thrown out.
 unique_union fm0 fm1 = (Map.union fm0 fm1, lost)
     where lost = Map.intersection fm1 fm0
 

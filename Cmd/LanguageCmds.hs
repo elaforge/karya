@@ -55,8 +55,9 @@ import qualified Cmd.Selection as Selection
 import qualified Cmd.TimeStep as TimeStep
 
 -- Just make sure these are compiled.
-import qualified Cmd.MakeRuler as MakeRuler
-import qualified Cmd.Create as Create
+import qualified Cmd.MakeRuler ()
+import qualified Cmd.Create ()
+import qualified Cmd.Simple ()
 
 import qualified Derive.Score as Score
 import qualified Derive.Schema as Schema
@@ -112,27 +113,6 @@ quit = return Language.magic_quit_string
 load, save :: FilePath -> Cmd.CmdL ()
 load fn = Save.cmd_load fn
 save fn = Save.cmd_save fn
-
--- | Load a track serialized as text.
-dump_track :: Track.TrackId -> Cmd.CmdL [SimpleEvent]
-dump_track track_id = do
-    track <- State.get_track track_id
-    let events = Track.event_list (Track.track_events track)
-    return (map simple_event events)
-
-dump_selection :: Cmd.CmdL [(Track.TrackId, [SimpleEvent])]
-dump_selection = do
-    track_events <- Selection.selected_events Config.insert_selnum
-    return [(track_id, map simple_event events)
-        | (track_id, events) <- track_events]
-
--- | SimpleEvents are supposed to be easy to read, and easy to serialize to
--- text and load back again.
-type SimpleEvent = (Double, Double, String)
-
-simple_event :: Track.PosEvent -> SimpleEvent
-simple_event (start, event) = (realToFrac start,
-    realToFrac (Event.event_duration event), Event.event_text event)
 
 -- * undo, redo
 

@@ -31,6 +31,7 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Generics as Generics
 
+import qualified Util.Data
 import qualified Util.Seq as Seq
 import qualified Util.Log as Log
 import qualified Util.Logger as Logger
@@ -74,6 +75,10 @@ empty = State "untitled" "save" Map.empty Map.empty Map.empty ruler_map
 no_ruler :: Ruler.RulerId
 no_ruler = Ruler.RulerId (Id.global "* no ruler *")
 
+-- | A non-existent ruler, ready for inclusion into create_block's track list.
+no_ruler_track :: (Block.TracklikeId, Block.Width)
+no_ruler_track = (Block.RId no_ruler, 0)
+
 -- * StateT monadic access
 
 -- | Run the given StateT with the given initial state, and return a new
@@ -93,10 +98,10 @@ run state m = do
         Right ((val, state), updates) -> Right (val, state, updates)
 
 run_state :: State -> StateT Identity.Identity a -> (a, State)
-run_state state m = case st of
+run_state state m = case result of
         Left err -> error $ "state error: " ++ show err
         Right (val, state', _) -> (val, state')
-    where st = Identity.runIdentity (run state m)
+    where result = Identity.runIdentity (run state m)
 
 eval_rethrow :: (UiStateMonad m) => State -> StateT Identity.Identity a -> m a
 eval_rethrow = eval throw return
@@ -104,11 +109,25 @@ eval_rethrow = eval throw return
 -- | A form of 'run' that throws away the output state and updates, and applies
 -- either 'failed' or 'succeeded' on the result depending on if the monad threw
 -- or not.
+-- TODO change this to use either too
 eval :: (String -> b) -> (a -> b) -> State -> StateT Identity.Identity a -> b
-eval failed succeeded state m = case st of
+eval failed succeeded state m = case result of
         Left (StateError err) -> failed err
         Right (val, _, _) -> succeeded val
-    where st = Identity.runIdentity (run state m)
+    where result = Identity.runIdentity (run state m)
+
+exec :: State -> StateT Identity.Identity a -> Either StateError State
+exec state m = case result of
+        Left err -> Left err
+        Right (_, state', _) -> Right state'
+    where result = Identity.runIdentity (run state m)
+
+exec_rethrow :: (UiStateMonad m) => State -> StateT Identity.Identity a
+    -> m State
+exec_rethrow state = throw_either . exec state
+
+throw_either :: (UiStateMonad m) => Either StateError a -> m a
+throw_either = either (throw . ("state error: " ++) . show) return
 
 -- | TrackUpdates are stored directly instead of being calculated from the
 -- state diff.
@@ -150,24 +169,38 @@ instance Monad m => UiStateMonad (StateT m) where
 
 -- * global changes
 
--- | Apply a transformation to all IDs.  Most likely used to rename a project,
--- see Cmd.Create.
-map_ids :: (State.MonadIO m, UiStateMonad m) => (Id.Id -> Id.Id) -> m ()
-map_ids f = do
+-- | Map a function across the IDs in the given state.  Any collisions are
+-- thrown in Left.
+map_state_ids :: (Id.Id -> Id.Id) -> State -> Either StateError State
+map_state_ids f state = exec state (pure_map_ids f)
+
+-- | Transform IDs, but don't update view_id pointer map.  So only use this
+-- when you are sure there are no visible views ("invisible" views occur after
+-- they are created but before the sync).  This should probably only be used
+-- by 'map_state_ids'.
+pure_map_ids :: (UiStateMonad m) => (Id.Id -> Id.Id) -> m ()
+pure_map_ids f = do
+    map_view_ids f
     map_block_ids f
     map_track_ids f
     map_ruler_ids f
-    -- Do this last because it throws an IO exception on failure.
-    map_view_ids f
 
--- | Rename view ids.  This must be in IO because it modifies the global
--- view_id pointer map.
-map_view_ids :: (UiStateMonad m, Trans.MonadIO m) => (Id.Id -> Id.Id) -> m ()
+-- | Apply a transformation to all IDs.  Most likely used to rename a project,
+-- see Cmd.Create.  Colliding IDs will throw.
+--
+-- This must be in IO because it modifies the global view_id pointer map.
+map_ids :: (State.MonadIO m, UiStateMonad m) => (Id.Id -> Id.Id) -> m ()
+map_ids f = do
+    pure_map_ids f
+    -- Do this last because it throws an IO exception on failure.
+    let view_f = Block.ViewId . f . Block.un_view_id
+    Trans.liftIO $ Block.map_ids view_f
+
+map_view_ids :: (UiStateMonad m) => (Id.Id -> Id.Id) -> m ()
 map_view_ids f = do
     views <- fmap state_views get
     let view_f = Block.ViewId . f . Block.un_view_id
     new_views <- safe_map_keys "state_views" view_f views
-    Trans.liftIO $ Block.map_ids view_f
     modify $ \st -> st { state_views = new_views }
 
 map_block_ids :: (UiStateMonad m) => (Id.Id -> Id.Id) -> m ()
@@ -215,6 +248,24 @@ map_ruler_ids f = do
     map_track f ((Block.RId rid), w) = (Block.RId (f rid), w)
     map_track _ t = t
 
+
+-- | Merge ID maps from the states together.  Collisions will throw.
+merge_states :: State -> State -> Either StateError State
+merge_states st0 st1 = exec st0 $ do
+    views <- safe_union "views" (state_views st0) (state_views st1)
+    blocks <- safe_union "blocks" (state_blocks st0) (state_blocks st1)
+    tracks <- safe_union "tracks" (state_tracks st0) (state_tracks st1)
+    -- Everyone has a no_ruler, so it shouldn't count as a collision.
+    let rulers1 = Map.delete no_ruler (state_rulers st1)
+    rulers <- safe_union "rulers" (state_rulers st0) rulers1
+    modify $ \st -> st
+        { state_views = views, state_blocks = blocks
+        , state_tracks = tracks, state_rulers = rulers
+        }
+
+
+-- ** util
+
 safe_map_keys :: (UiStateMonad m, Ord k, Show k) =>
     String -> (k -> k) -> Map.Map k v -> m (Map.Map k v)
 safe_map_keys name f fm0
@@ -222,6 +273,12 @@ safe_map_keys name f fm0
     | otherwise = throw $ "keys collided in " ++ show name ++ ": "
         ++ show (Map.keys (Map.difference fm0 fm1))
     where fm1 = Map.mapKeys f fm0
+
+safe_union name fm0 fm1
+    | Map.null overlapping = return fm
+    | otherwise = throw $
+        "keys collided in " ++ show name ++ ": " ++ show (Map.keys overlapping)
+    where (fm, overlapping) = Util.Data.unique_union fm0 fm1
 
 -- * misc
 
@@ -365,6 +422,7 @@ create_block id block = get >>= insert (Block.BlockId id) block state_blocks
     (\blocks st -> st { state_blocks = blocks })
 
 -- | Destroy the block and all the views that display it.
+-- Leaves its tracks intact.
 destroy_block :: (UiStateMonad m) => Block.BlockId -> m ()
 destroy_block block_id = do
     views <- get_views_of block_id
@@ -595,6 +653,14 @@ create_ruler :: (UiStateMonad m) => Id.Id -> Ruler.Ruler -> m Ruler.RulerId
 create_ruler id ruler = get >>= insert (Ruler.RulerId id) ruler state_rulers
     (\rulers st -> st { state_rulers = rulers })
 
+-- | Destroy the ruler and remove it from all the blocks it's in.
+destroy_ruler :: (UiStateMonad m) => Ruler.RulerId -> m ()
+destroy_ruler ruler_id = do
+    blocks <- blocks_with_ruler ruler_id
+    forM_ blocks $ \(block_id, tracknum, _) -> do
+        remove_track block_id tracknum
+    modify $ \st -> st { state_rulers = Map.delete ruler_id (state_rulers st) }
+
 insert_marklist :: (UiStateMonad m) =>
     Ruler.RulerId -> Int -> (Ruler.MarklistName, Ruler.Marklist) -> m ()
 insert_marklist ruler_id i marklist = modify_ruler ruler_id $ \ruler ->
@@ -632,19 +698,14 @@ get_tracks_of block_id = do
 -- for each tracknum at which @track_id@ lives.
 blocks_with_track :: (UiStateMonad m) =>
     Track.TrackId -> m [(Block.BlockId, Block.TrackNum, Block.TracklikeId)]
-blocks_with_track track_id = find_tracks ((== Just track_id) . track_id_of)
-    where
-    track_id_of (Block.TId tid _) = Just tid
-    track_id_of _ = Nothing
+blocks_with_track track_id =
+    find_tracks ((== Just track_id) . Block.track_id_of)
 
 -- | Just like 'blocks_with_track' except for ruler_id.
 blocks_with_ruler :: (UiStateMonad m) =>
     Ruler.RulerId -> m [(Block.BlockId, Block.TrackNum, Block.TracklikeId)]
-blocks_with_ruler ruler_id = find_tracks ((== Just ruler_id) . ruler_id_of)
-    where
-    ruler_id_of (Block.TId _ rid) = Just rid
-    ruler_id_of (Block.RId rid) = Just rid
-    ruler_id_of _ = Nothing
+blocks_with_ruler ruler_id =
+    find_tracks ((== Just ruler_id) . Block.ruler_id_of)
 
 find_tracks :: (UiStateMonad m) => (Block.TracklikeId -> Bool)
     -> m [(Block.BlockId, Block.TrackNum, Block.TracklikeId)]

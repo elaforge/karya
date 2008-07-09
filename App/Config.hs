@@ -6,6 +6,7 @@ import qualified Network
 import qualified System.Directory as Directory
 import System.FilePath ((</>))
 
+import Ui.Types
 import qualified Ui.Id as Id
 import qualified Ui.Font as Font
 import qualified Ui.Color as Color
@@ -78,6 +79,10 @@ warning_color = Color.rgb 1 0.2 0.2
 -- | Default size of new views.
 view_size :: (Int, Int)
 view_size = (300, 300)
+
+-- | Create new views at this zoom.
+zoom :: Block.Zoom
+zoom = Block.Zoom (TrackPos 0) 46
 
 -- | Default width for the block ruler track.
 ruler_width :: Block.Width

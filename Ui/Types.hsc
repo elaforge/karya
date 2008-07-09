@@ -15,7 +15,6 @@ import Foreign
 import Foreign.C
 import Text.Printf
 
-import Util.Pretty
 import Ui.Color (Color)
 
 #include "c_interface.h"
@@ -43,6 +42,3 @@ instance Storable TrackPos where
 
 pretty_pos :: TrackPos -> String
 pretty_pos pos = printf "%.3f" (realToFrac pos :: Double)
-
-instance Pretty TrackPos where
-    pretty (TrackPos pos) = printf "pos:%d" pos

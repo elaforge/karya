@@ -49,6 +49,11 @@ data Block = Block {
     , block_schema :: SchemaId
     } deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
 
+-- block_track -> block_track_widths
+
+-- TODO rename this block_tracks when I move it over
+block_tracks_xx = map fst . block_tracks
+
 block title config tracks schema_id = Block title config tracks schema_id
 
 -- | Per-block configuration.
@@ -108,6 +113,12 @@ data View = View {
     , view_tracks :: [TrackView]
     } deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
 
+-- | Construct a View, using default values for most of its fields.
+-- Don't construct views using View directly since State.create_view overwrites
+-- view_tracks, and maybe more in the future.
+view block_id rect zoom config =
+    View block_id rect config Map.empty 0 zoom Map.empty []
+
 show_status :: View -> String
 show_status = Seq.join " | " . map (\(k, v) -> k ++ ": " ++ v)
     . Map.assocs . view_status
@@ -130,12 +141,6 @@ visible_view_area view = pixels_to_track_pos (view_zoom view) height
 pixels_to_track_pos :: Zoom -> Int -> TrackPos
 pixels_to_track_pos zoom pixels =
     track_pos pixels / track_pos (zoom_factor zoom)
-
--- | Construct a View, using default values for most of its fields.
--- Don't construct views using View directly since State.create_view overwrites
--- view_tracks, and maybe more in the future.
-view block_id rect config = View block_id rect config Map.empty
-    0 default_zoom Map.empty []
 
 data TrackView = TrackView {
     track_view_width :: Width
@@ -163,7 +168,6 @@ data Zoom = Zoom {
     zoom_offset :: TrackPos
     , zoom_factor :: Double
     } deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
-default_zoom = Zoom (TrackPos 0) 1
 
 -- TODO: remove color and put it in BlockC.SelectionC, which gets its color
 -- from a BlockConfig list

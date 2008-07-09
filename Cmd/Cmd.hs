@@ -168,6 +168,9 @@ data State = State {
     -- octave instead of scale degree since scales may have different numbers
     -- of notes per octave.
     , state_kbd_entry_octave :: Int
+
+    -- | Copies by default go to a block+tracks with this project.
+    , state_clipboard_namespace :: Id.Namespace
     } deriving (Show, Typeable.Typeable)
 
 initial_state inst_db schema_map = State {
@@ -182,6 +185,7 @@ initial_state inst_db schema_map = State {
         TimeStep.UntilMark TimeStep.AllMarklists (TimeStep.MatchRank 2)
     -- This should put middle C in the center of the kbd entry keys.
     , state_kbd_entry_octave = 4
+    , state_clipboard_namespace = "clip"
     }
 
 data Modifier = KeyMod Key.Key

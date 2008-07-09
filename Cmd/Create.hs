@@ -68,7 +68,8 @@ view block_id = do
     view_id <- require "view id" $ generate_view_id views block_id
     rect <- fmap (find_rect Config.view_size . map Block.view_rect . Map.elems
         . State.state_views) State.get
-    State.create_view view_id $ Block.view block_id rect Config.view_config
+    State.create_view view_id $
+        Block.view block_id rect Config.zoom Config.view_config
 
 block_view :: (State.UiStateMonad m) => Ruler.RulerId -> m Block.ViewId
 block_view ruler_id = block ruler_id >>= view

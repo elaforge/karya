@@ -72,7 +72,7 @@ write_device_map = mkmap Midi.WriteDevice
     [ ("fm8", iac 1)
     , ("z1", tapco 1)
     , ("vl1", tapco 2)
-    , ("morph", tapco 2)
+    , ("morpheus", tapco 2)
     , ("pc_2496", tapco 3)
     , ("capybara", tapco 4)
     ]
@@ -80,7 +80,7 @@ write_device_map = mkmap Midi.WriteDevice
 read_device_map = mkmap Midi.ReadDevice
     [ (tapco 1, "z1")
     , (tapco 2, "vl1")
-    , (tapco 3, "morph")
+    , (tapco 3, "morpheus")
     , (tapco 4, "continuum")
     ]
 
@@ -197,7 +197,7 @@ old_setup_cmd _args = do
     Create.named_track b over_r 1 "tempo" "tempo"
     Create.track b 2
     Create.track b 3
-    State.set_zoom v (Block.Zoom (TrackPos 0) 46)
+    State.set_zoom v Config.zoom
     return Cmd.Done
 
 inst_config = Instrument.config
