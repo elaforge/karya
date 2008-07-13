@@ -21,12 +21,14 @@ test_merge0 = do
     equal (extract te2) [(0, "0b", 0), (16, "16b", 0)]
     print (merge_info te1 te2)
 
-em1 = Track.event_map (merge Track.empty_events [(0, "0", 0), (16, "16", 0)])
-em2 = Track.event_map
+{-
+em1 = Track.un_event_map (merge Track.empty_events [(0, "0", 0), (16, "16", 0)])
+em2 = Track.un_event_map
     (merge (Track.TrackEvents em1) [(0, "0b", 0), (16, "16b", 0)])
 
 tm = Map.fromList [(1, 'a'), (2, 'b'), (3, 'c'), (4, 'd'), (5, 'e')]
 t1 = Track.merge_range 2 3 tm
+-}
 
 test_merge = do
     let te1 = merge Track.empty_events [(0, "0", 8), (16, "16", 8)]

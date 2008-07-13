@@ -97,14 +97,9 @@ run state m = do
         Left err -> Left err
         Right ((val, state), updates) -> Right (val, state, updates)
 
-run_state :: State -> StateT Identity.Identity a -> (a, State)
-run_state state m = case result of
-        Left err -> error $ "state error: " ++ show err
-        Right (val, state', _) -> (val, state')
-    where result = Identity.runIdentity (run state m)
-
-eval_rethrow :: (UiStateMonad m) => State -> StateT Identity.Identity a -> m a
-eval_rethrow state = throw_either . eval state
+eval_rethrow :: (UiStateMonad m) => String -> State
+    -> StateT Identity.Identity a -> m a
+eval_rethrow msg state = throw_either msg . eval state
 
 -- | A form of 'run' that throws away the output state and updates, and applies
 -- either 'failed' or 'succeeded' on the result depending on if the monad threw
@@ -121,12 +116,16 @@ exec state m = case result of
         Right (_, state', _) -> Right state'
     where result = Identity.runIdentity (run state m)
 
-exec_rethrow :: (UiStateMonad m) => State -> StateT Identity.Identity a
-    -> m State
-exec_rethrow state = throw_either . exec state
+exec_rethrow :: (UiStateMonad m) => String -> State
+    -> StateT Identity.Identity a -> m State
+exec_rethrow msg state = throw_either msg . exec state
 
-throw_either :: (UiStateMonad m) => Either StateError a -> m a
-throw_either = either (throw . ("state error: " ++) . show) return
+throw_either :: (UiStateMonad m) => String -> Either StateError a -> m a
+throw_either msg = either (throw . ((msg ++ ": ") ++) . show) return
+
+-- | Like 'throw_either', but throw an IO exception.  Useful for tests.
+error_either :: (Show a, Monad m) => String -> Either StateError a -> m a
+error_either msg = either (error . ((msg ++ ": ") ++) . show) return
 
 -- | TrackUpdates are stored directly instead of being calculated from the
 -- state diff.
@@ -151,6 +150,7 @@ instance Error.Error StateError where
     strMsg = StateError
 
 -- TODO remove modify and implement in terms of get and put?
+-- TODO I also think I can remove throw since it's in Error
 class (Monad m, Functor m) => UiStateMonad m where
     get :: m State
     put :: State -> m ()
@@ -168,6 +168,14 @@ instance Monad m => UiStateMonad (StateT m) where
 
 -- * global changes
 
+structure state = (views, blocks, tracks, rulers)
+    where
+    views = Map.keys (state_views state)
+    blocks = [(block_id, Block.block_tracks block)
+        | (block_id, block) <- Map.assocs (state_blocks state)]
+    tracks = Map.keys (state_tracks state)
+    rulers = Map.keys (state_rulers state)
+
 -- | Map a function across the IDs in the given state.  Any collisions are
 -- thrown in Left.
 map_state_ids :: (Id.Id -> Id.Id) -> State -> Either StateError State
@@ -177,6 +185,8 @@ map_state_ids f state = exec state (pure_map_ids f)
 -- when you are sure there are no visible views ("invisible" views occur after
 -- they are created but before the sync).  This should probably only be used
 -- by 'map_state_ids'.
+--
+-- SchemaIds are not mapped, because they point to a global resource.
 pure_map_ids :: (UiStateMonad m) => (Id.Id -> Id.Id) -> m ()
 pure_map_ids f = do
     map_view_ids f
@@ -282,14 +292,18 @@ safe_union name fm0 fm1
 -- * misc
 
 -- | Unfortunately there are some invariants to protect within State.  This
--- will check the invariants, log warnings and fix them if possible, or
--- throw an error if not.
+-- will check the invariants, log warnings and fix them if possible (that's why
+-- it returns another state), or throw an error if not.
 --
 -- The invariants should be protected by the modifiers in this module, but
 -- this is just in case.
 verify :: State -> (Either StateError State, [Log.Msg])
-verify state = (fmap (\(_, s, _) -> s) result, logs)
-    where (result, logs) = Identity.runIdentity (Log.run (run state do_verify))
+verify state = (fmap (\(_, s, _) -> s) result, error_log ++ logs)
+    where
+    (result, logs) = Identity.runIdentity (Log.run (run state do_verify))
+    error_log = case result of
+        Left err -> [Log.msg Log.Error $ "state error: " ++ show err]
+        _ -> []
 
 -- TODO
 -- check that all views refer to valid blocks, and all TracklikeIds have
@@ -298,6 +312,10 @@ verify state = (fmap (\(_, s, _) -> s) result, logs)
 do_verify = do
     view_ids <- get_all_view_ids
     mapM_ verify_view view_ids
+
+    block_ids <- get_all_block_ids
+    blocks <- mapM get_block block_ids
+    mapM_ verify_block blocks
 
 verify_view :: Block.ViewId -> StateT (Log.LogT Identity.Identity) ()
 verify_view view_id = do
@@ -311,6 +329,10 @@ verify_view view_id = do
     -- Add track views for all the block tracks.
     forM_ [vtracks .. btracks-1] $ \tracknum ->
         modify_view view_id $ \v -> insert_into_view tracknum 20 v
+
+verify_block block = do
+    mapM_ get_track (Block.track_ids_of (Block.block_tracks block))
+    mapM_ get_ruler (Block.ruler_ids_of (Block.block_tracks block))
 
 get_namespace :: (UiStateMonad m) => m Id.Namespace
 get_namespace = fmap state_namespace get
@@ -446,6 +468,21 @@ set_play_box block_id color = do
     block <- get_block block_id
     set_block_config block_id $
         (Block.block_config block) { Block.config_sb_box_color = color }
+
+-- | Get the end of the block.  Defined as the end of the ruler of the first
+-- track.  This means that if the block has no rulers (e.g. a clipboard block)
+-- then ruler_end will be 0.  TODO is this going to be error prone?
+ruler_end :: (UiStateMonad m) => Block.BlockId -> m TrackPos
+ruler_end block_id = do
+    block <- get_block block_id
+    case Block.ruler_ids_of (Block.block_tracks block) of
+        [] -> return $ TrackPos 0
+        ruler_id : _ -> fmap Ruler.time_end (get_ruler ruler_id)
+
+event_end block_id = do
+    block <- get_block block_id
+    tracks <- mapM get_track (Block.track_ids_of (Block.block_tracks block))
+    return $ maximum (TrackPos 0 : map Track.track_time_end tracks)
 
 -- ** tracks
 
@@ -607,11 +644,17 @@ remove_events :: (UiStateMonad m) =>
 remove_events track_id start end = do
     track <- get_track track_id
     let evts = takeWhile ((<end) . fst)
-            (Track.forward (Track.track_events track) start)
+            (Track.forward start (Track.track_events track))
     modify_events track_id (Track.remove_events start end)
     when (not (null evts)) $
         update $ Update.TrackUpdate track_id
             (Update.TrackEvents start (Track.event_end (last evts)))
+
+-- | Set the events of the track.
+set_events :: (UiStateMonad m) => Track.TrackId -> Track.TrackEvents -> m ()
+set_events track_id events = do
+    modify_events track_id (const events)
+    update $ Update.TrackUpdate track_id Update.TrackAllEvents
 
 -- | Remove a single event at @pos@, if there is one.
 remove_event :: (UiStateMonad m) => Track.TrackId -> TrackPos -> m ()
@@ -620,8 +663,8 @@ remove_event track_id pos = do
     case Track.event_at (Track.track_events track) pos of
         Nothing -> return ()
         Just evt -> do
+            modify_events track_id (Track.remove_event pos)
             let end = Track.event_end (pos, evt)
-            modify_events track_id (Track.remove_events pos end)
             update $ Update.TrackUpdate track_id (Update.TrackEvents pos end)
 
 -- | Emit track updates for all tracks.  Use this when events have changed but
@@ -641,6 +684,7 @@ update_track track_id track = modify $ \st -> st
 modify_track track_id f = do
     track <- get_track track_id
     update_track track_id (f track)
+-- This doesn't file TrackUpdates, so don't call this unless you do!
 modify_events track_id f = modify_track track_id $ \track ->
     track { Track.track_events = f (Track.track_events track) }
 
@@ -648,6 +692,7 @@ modify_events track_id f = modify_track track_id $ \track ->
 
 get_ruler :: (UiStateMonad m) => Ruler.RulerId -> m Ruler.Ruler
 get_ruler ruler_id = get >>= lookup_id ruler_id . state_rulers
+
 create_ruler :: (UiStateMonad m) => Id.Id -> Ruler.Ruler -> m Ruler.RulerId
 create_ruler id ruler = get >>= insert (Ruler.RulerId id) ruler state_rulers
     (\rulers st -> st { state_rulers = rulers })

@@ -58,7 +58,7 @@ test_parse = do
 
 test_compile_to_signals = do
     let parse tracks = Schema.default_parser tracks
-        (tids, state) = TestSetup.mkstate
+        (tids, state) = TestSetup.run_mkstate
             [ ("tempo", [(0, 0, "2")])
             , (">inst0", [])
             , ("c1", [(0, 0, "3"), (10, 0, "2"), (20, 0, "1")])

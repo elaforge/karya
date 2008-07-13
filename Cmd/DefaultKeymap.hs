@@ -14,6 +14,9 @@ save, load, undo, redo, etc., and control would be for all the single key
 commands that are displaced by kbd note entry: set step, transpose selection,
 modify note length, ...
 
+TODO I should be able to add "command" and have it create MetaL and MetaR
+versions.  Same with shift.
+
 -}
 module Cmd.DefaultKeymap where
 import qualified Control.Monad.Identity as Identity
@@ -27,6 +30,7 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.Keymap as Keymap
 import Cmd.Keymap (bind_key, bind_kmod)
 
+import qualified Cmd.Clip as Clip
 import qualified Cmd.Create as Create
 import qualified Cmd.Edit as Edit
 import qualified Cmd.Play as Play
@@ -40,7 +44,8 @@ default_cmds :: [Cmd.Cmd]
 default_cmds =
     [ Selection.cmd_mouse_selection 1 Config.insert_selnum
     , Keymap.make_cmd (misc_bindings ++ selection_bindings
-        ++ view_config_bindings ++ edit_bindings ++ create_bindings)
+        ++ view_config_bindings ++ edit_bindings ++ create_bindings
+        ++ clip_bindings)
     ]
 
 cmd_io_keymap :: Play.PlayInfo -> Msg.Msg -> Cmd.CmdIO
@@ -93,7 +98,7 @@ view_config_bindings =
 edit_bindings =
     [ bind_key Key.Escape "toggle edit mode" Edit.cmd_toggle_edit
     , bind_key Key.Backspace "remove event"
-        (Edit.cmd_remove_events >> Selection.cmd_advance_insert)
+        (Edit.cmd_remove_selected >> Selection.cmd_advance_insert)
 
     , command (Key.KeyChar '0') "step rank 0" (Edit.cmd_meter_step 0)
     , command (Key.KeyChar '1') "step rank 1" (Edit.cmd_meter_step 1)
@@ -110,4 +115,13 @@ create_bindings =
         (done Create.insert_track_after_selection)
     , command (Key.KeyChar 'd') "remove track"
         (done Create.remove_selected_tracks)
+    ]
+
+clip_bindings =
+    [ command (Key.KeyChar 'c') "copy selection" Clip.cmd_copy_selection
+    , command (Key.KeyChar 'x') "cut selection" Clip.cmd_cut_selection
+    , command (Key.KeyChar 'v') "paste selection" Clip.cmd_paste_overwrite
+    , command (Key.KeyChar 'm') "merge selection" Clip.cmd_paste_merge
+    , bind_kmod [Key.MetaL, Key.ShiftL] (Key.KeyChar 'v') "insert selection"
+        Clip.cmd_paste_insert
     ]

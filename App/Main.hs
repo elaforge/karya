@@ -45,6 +45,7 @@ import qualified Local.Instrument
 import Cmd.LanguageCmds ()
 
 -- tmp
+import qualified Ui.TestSetup as TestSetup
 import qualified Midi.PortMidi as PortMidi
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
@@ -195,9 +196,11 @@ old_setup_cmd _args = do
     b <- Create.block r
     v <- Create.view b
     Create.named_track b over_r 1 "tempo" "tempo"
-    Create.track b 2
-    Create.track b 3
-    State.set_zoom v Config.zoom
+    t0 <- Create.track b 2
+    State.insert_events t0 $ map TestSetup.mkevent
+        [(0, 1, "5c-"), (1, 1, "5d-"), (2, 1, "5e-"), (3, 1, "5f-")]
+    State.set_track_title t0 ">fm8/bass"
+    t1 <- Create.track b 3
     return Cmd.Done
 
 inst_config = Instrument.config

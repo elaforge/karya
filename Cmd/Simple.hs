@@ -7,14 +7,13 @@ import Control.Monad
 import qualified Control.Monad.Trans as Trans
 import qualified Data.Maybe as Maybe
 
-import qualified Util.Seq as Seq
-
 import qualified Ui.Id as Id
 import qualified Ui.Event as Event
 import qualified Ui.Block as Block
 import qualified Ui.Track as Track
 import qualified Ui.State as State
 
+import qualified Cmd.Clip as Clip
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Selection as Selection
 
@@ -37,7 +36,7 @@ event :: Track.PosEvent -> Event
 event (start, event) = (realToFrac start,
     realToFrac (Event.event_duration event), Event.event_text event)
 
-dump_block :: Block.BlockId -> Cmd.CmdL Block
+dump_block :: (State.UiStateMonad m) => Block.BlockId -> m Block
 dump_block block_id = do
     block <- State.get_block block_id
     let track_ids = Maybe.catMaybes $
@@ -46,12 +45,17 @@ dump_block block_id = do
     return (Id.show_id (Block.un_block_id block_id), Block.block_title block,
         tracks)
 
-dump_track :: Track.TrackId -> Cmd.CmdL Track
+dump_track :: (State.UiStateMonad m) => Track.TrackId -> m Track
 dump_track track_id = do
     track <- State.get_track track_id
-    let events = Track.event_list (Track.track_events track)
-    return (Id.show_id (Track.un_track_id track_id), Track.track_title track,
-        map event events)
+    return (simplify_track track_id track)
+
+simplify_track :: Track.TrackId -> Track.Track -> Track
+simplify_track track_id track =
+    (simple_id, Track.track_title track, map event events)
+    where
+    events = Track.event_list (Track.track_events track)
+    simple_id = Id.show_id (Track.un_track_id track_id)
 
 dump_selection :: Cmd.CmdL [(Track.TrackId, [Event])]
 dump_selection = do
@@ -59,40 +63,10 @@ dump_selection = do
     return [(track_id, map event events)
         | (track_id, events) <- track_events]
 
--- | Replace the clipboard with the given state.
-clip_state :: (Monad m) => State.State -> Cmd.CmdT m ()
-clip_state state = do
-    clip <- fmap Cmd.state_clipboard_namespace Cmd.get_state
-    destroy_namespace clip
-    state' <- State.throw_either (set_namespace clip state)
-    global_st <- State.get
-    merged <- State.throw_either (State.merge_states global_st state')
-    State.put merged
-
--- | Put all the the Ids in the state into a new namespace.
--- Collisions will throw.
-set_namespace :: Id.Namespace -> State.State
-    -> Either State.StateError State.State
-set_namespace ns = State.map_state_ids $ \ident ->
-    let (_, name) = Id.un_id ident in Id.id ns name
-
--- | Destroy all views, blocks, tracks, and rulers with the given namespace.
-destroy_namespace :: (State.UiStateMonad m) => Id.Namespace -> m ()
-destroy_namespace ns = do
-    block_ids <- fmap (filter ((==ns) . Id.id_namespace . Block.un_block_id))
-        State.get_all_block_ids
-    blocks <- mapM State.get_block block_ids
-    let tracks = concatMap Block.block_tracks blocks
-        track_ids = Seq.unique (Maybe.catMaybes (map Block.track_id_of tracks))
-        ruler_ids = Seq.unique (Maybe.catMaybes (map Block.ruler_id_of tracks))
-    mapM_ State.destroy_block block_ids -- will destroy any views too
-    mapM_ State.destroy_track track_ids
-    mapM_ State.destroy_ruler ruler_ids
-
 -- * load
 
 load_block :: FilePath -> Cmd.CmdL ()
-load_block fn = read_block fn >>= clip_state
+load_block fn = read_block fn >>= Clip.state_to_clip
 
 read_block :: FilePath -> Cmd.CmdL State.State
 read_block fn = do
@@ -100,11 +74,12 @@ read_block fn = do
     convert_block simple_block
 
 convert_block :: (State.UiStateMonad m) => Block -> m State.State
-convert_block (id_name, title, tracks) = State.exec_rethrow State.empty $ do
-    tracks <- mapM convert_track tracks
-    State.create_block (Id.read_id id_name) $
-        Block.block title Config.block_config
-            (State.no_ruler_track:tracks) Config.schema
+convert_block (id_name, title, tracks) =
+    State.exec_rethrow "convert block" State.empty $ do
+        tracks <- mapM convert_track tracks
+        State.create_block (Id.read_id id_name) $
+            Block.block title Config.block_config
+                (State.no_ruler_track:tracks) Config.schema
 
 convert_track :: (State.UiStateMonad m) =>
     Track -> m (Block.TracklikeId, Block.Width)

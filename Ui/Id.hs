@@ -6,6 +6,9 @@ module Ui.Id (
     -- * deconstruction
     , un_id, id_name, id_namespace
 
+    -- * modification
+    , set_namespace, set_name
+
     -- * constants
     , global
 ) where
@@ -58,6 +61,9 @@ show_id (Id (ns, ident)) = ns ++ "/" ++ ident
 
 id_name (Id (_, name)) = name
 id_namespace (Id (ns, _)) = ns
+
+set_name name (Id (ns, _)) = id ns name
+set_namespace ns (Id (_, name)) = id ns name
 
 global :: String -> Id
 global = id global_namespace

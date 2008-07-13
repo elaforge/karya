@@ -24,6 +24,7 @@ import qualified Ui.Update as Update
 
 import qualified Midi.Midi as Midi
 
+import qualified Cmd.Clip as Clip
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.MakeRuler as MakeRuler

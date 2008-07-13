@@ -24,8 +24,9 @@ module Derive.Schema (
     , Track(..), CmdContext(..), SchemaMap
 
     -- ** default parser
-    -- Just used by testing
     , TrackType(..), track_type_of
+
+    -- Just used by testing
     , default_parser
     , compile_to_signals
 
@@ -92,7 +93,7 @@ get_deriver schema_map block = do
     -- In addition, this properly expresses that the schema deriver doesn't
     -- modify the state.
     state <- State.get
-    State.eval_rethrow state (schema_deriver schema block)
+    State.eval_rethrow "get deriver" state (schema_deriver schema block)
 
 get_signal_deriver :: (State.UiStateMonad m) => SchemaMap -> Block.Block
     -> m Derive.SignalDeriver
@@ -100,7 +101,8 @@ get_signal_deriver schema_map block = do
     schema <- State.lookup_id (Block.block_schema block)
         (merge_schemas hardcoded_schemas schema_map)
     state <- State.get
-    State.eval_rethrow state (schema_signal_deriver schema block)
+    State.eval_rethrow "get signal deriver" state
+        (schema_signal_deriver schema block)
 
 -- | A block's Schema also implies a set of Cmds, possibly based on the
 -- focused track.  This is so that e.g. control tracks use control editing keys

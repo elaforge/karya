@@ -226,6 +226,8 @@ events_in_sel sel track =
     start = Block.sel_start_pos sel
     end = start + Block.sel_duration sel
 
+-- | Get selected event tracks along with the selection.  The tracks are
+-- returned in the same order that they occur in the block.
 selected_tracks :: (Monad m) =>
     Block.SelNum -> Cmd.CmdT m ([Track.TrackId], Block.Selection)
 selected_tracks selnum = do

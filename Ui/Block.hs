@@ -3,6 +3,7 @@
 module Ui.Block where
 import Control.Monad
 import qualified Control.Concurrent.MVar as MVar
+import qualified Data.Maybe as Maybe
 import qualified Foreign
 
 import qualified Data.Generics as Generics
@@ -73,16 +74,33 @@ track_id_of :: TracklikeId -> Maybe Track.TrackId
 track_id_of (TId tid _) = Just tid
 track_id_of _ = Nothing
 
+track_ids_of = Maybe.catMaybes . map track_id_of
+
 ruler_id_of :: TracklikeId -> Maybe Ruler.RulerId
 ruler_id_of (TId _ rid) = Just rid
 ruler_id_of (RId rid) = Just rid
 ruler_id_of _ = Nothing
+
+ruler_ids_of = Maybe.catMaybes . map ruler_id_of
 
 data Tracklike =
     T Track.Track Ruler.Ruler
     | R Ruler.Ruler
     | D Divider
     deriving (Show)
+
+track_of :: Tracklike -> Maybe Track.Track
+track_of (T track _) = Just track
+track_of _ = Nothing
+
+tracks_of = Maybe.catMaybes . map track_of
+
+ruler_of :: Tracklike -> Maybe Ruler.Ruler
+ruler_of (T _ ruler) = Just ruler
+ruler_of (R ruler) = Just ruler
+ruler_of _ = Nothing
+
+rulers_of = Maybe.catMaybes . map ruler_of
 
 -- | A divider separating tracks.
 -- Defined here in Block since it's so trivial.
@@ -175,6 +193,16 @@ data Selection = Selection {
     , sel_tracks :: TrackNum
     , sel_duration :: TrackPos
     } deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
+
+sel_range :: Selection -> (TrackPos, TrackPos)
+sel_range sel = (start, start + sel_duration sel)
+    where start = sel_start_pos sel
+
+sel_end :: Selection -> TrackPos
+sel_end = snd . sel_range
+
+sel_is_point :: Selection -> Bool
+sel_is_point sel = sel_duration sel == TrackPos 0
 
 selection tracknum start tracks dur = Just (Selection tracknum start tracks dur)
 

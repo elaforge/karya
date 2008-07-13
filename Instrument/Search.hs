@@ -62,8 +62,10 @@ make_index midi_db =
     inv_idx = inverted_index midi_db
     idx = [(key, (val, inst)) | (inst, tags) <- inv_idx, (key, val) <- tags]
 
--- | The query language looks like "a b= c=d", which means
--- [("a", ""), ("b", ""), ("c", "d")]
+-- | The query language looks like \"a b= c=d\", which means
+--
+-- > [("a", ""), ("b", ""), ("c", "d")]
+--
 -- TODO parse quotes for keys or vals with spaces
 -- TODO parse '-' for negative assertions
 parse :: String -> Query

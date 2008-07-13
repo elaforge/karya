@@ -97,6 +97,14 @@ render_color = Color.rgba 0.65 0.65 0.8 0.5
 
 schema = Block.SchemaId (Id.global "default")
 
+-- | The default namespace for the clipboard.
+clip_namespace :: Id.Namespace
+clip_namespace = "clip"
+
+-- | The copied block will be BlockId (Id.id clip_namespace clip_block_name).
+clip_block_name :: String
+clip_block_name = "clip"
+
 event text dur = Event.Event text dur (Color.rgb 0.9 0.9 0.7) style
     False
 style = Font.TextStyle Font.Helvetica [] 9 Color.black

@@ -1,6 +1,7 @@
 module Ui.TestSetup where
 
 import Control.Monad
+import qualified Control.Monad.Identity as Identity
 import qualified System.IO as IO
 
 import qualified Ui.Color as Color
@@ -79,16 +80,42 @@ initial_state = do
         (Block.view b1 default_rect default_zoom Config.view_config)
     return ()
 
-mkstate :: [TrackSpec] -> ([Track.TrackId], State.State)
-mkstate tracks = State.run_state State.empty $ do
+-- * mkstate
+
+default_block_id = Block.BlockId (mkid "b1")
+default_view_id = Block.ViewId (mkid "v1")
+
+-- | Return the val and state, throwing an IO error on an exception.  Intended
+-- for tests that don't expect to fail here.
+run :: State.State -> State.StateT Identity.Identity a -> (a, State.State)
+run state m = case result of
+        Left err -> error $ "state error: " ++ show err
+        Right (val, state', _) -> (val, state')
+    where result = Identity.runIdentity (State.run state m)
+
+run_mkstate track_specs = run State.empty (mkstate default_block_id track_specs)
+
+mkstate :: (State.UiStateMonad m) =>
+    Block.BlockId -> [TrackSpec] -> m [Track.TrackId]
+mkstate block_id tracks = do
     ruler <- State.create_ruler (mkid "r1") no_ruler
     tids <- forM (zip [0..] tracks) $ \(i, track) -> do
         State.create_track (mkid ("b1." ++ show i)) (mktrack track)
-    State.create_block (mkid "b1") $
+    State.create_block (Block.un_block_id block_id) $
         Block.block "b1 title" default_block_config
             ((Block.RId ruler, 20) : [(Block.TId tid ruler, 40) | tid <- tids])
             (Block.SchemaId (mkid "no schema"))
     return tids
+
+mkview :: (State.UiStateMonad m) => m Block.ViewId
+mkview = State.create_view (Block.un_view_id default_view_id) $
+    Block.view default_block_id default_rect default_zoom
+        default_view_config
+
+mkstate_view block_id tracks = do
+    r <- mkstate block_id tracks
+    mkview
+    return r
 
 -- track
 

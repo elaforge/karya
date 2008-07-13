@@ -36,14 +36,14 @@ instance Storable Track.Track where
     alignment _ = undefined
     poke = poke_track
 
-poke_track trackp track@(Track.Track
+poke_track trackp (Track.Track
         { Track.track_events = events
         , Track.track_bg = bg
         , Track.track_render = render
         })
     = do
         find_events <- make_find_events events
-        let time_end = Track.time_end track
+        let time_end = Track.time_end events
         (#poke EventTrackConfig, bg_color) trackp bg
         (#poke EventTrackConfig, find_events) trackp find_events
         (#poke EventTrackConfig, time_end) trackp time_end

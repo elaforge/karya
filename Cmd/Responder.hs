@@ -195,7 +195,7 @@ loop rstate = do
         cmd_state = state_cmd rstate
         write_midi = state_midi_writer rstate
     (status, ui_state, cmd_state) <- do
-        cmd_val <- run_cmds Cmd.run_cmd_id ui_state cmd_state update_cmds
+        cmd_val <- run_cmds Cmd.run_id_io ui_state cmd_state update_cmds
         handle_cmd_val "record ui updates" False write_midi ui_state cmd_val
 
     let config = state_static_config rstate
@@ -216,13 +216,13 @@ loop rstate = do
     focus_cmds <- eval "get focus cmds" ui_state cmd_state [] get_focus_cmds
     let id_cmds = hardcoded_cmds ++ focus_cmds ++ DefaultKeymap.default_cmds
     (status, ui_state, cmd_state) <- maybe_run "run pure cmds" status write_midi
-        ui_state cmd_state Cmd.run_cmd_id id_cmds msg
+        ui_state cmd_state Cmd.run_id_io id_cmds msg
 
     -- Record the keys last, so they show up in the next cycle's keys_down,
     -- but not this one.  This is so you can tell the difference between a
     -- key down and a key repeat.
     (_, ui_state, cmd_state) <- maybe_run "record keys" Cmd.Continue write_midi
-        ui_state cmd_state Cmd.run_cmd_id [Cmd.cmd_record_keys] msg
+        ui_state cmd_state Cmd.run_id_io [Cmd.cmd_record_keys] msg
 
     let rstate2 = rstate { state_ui = ui_state, state_cmd = cmd_state }
     case status of

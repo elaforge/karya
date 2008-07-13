@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -XDeriveDataTypeable #-}
+{-# OPTIONS_GHC -XPatternGuards #-}
 module Ui.Track where
 import qualified Data.Array.IArray as IArray
 import qualified Data.Generics as Generics
@@ -33,6 +34,8 @@ track :: String -> [PosEvent] -> Color -> RenderConfig -> Track
 track title events bg render =
     Track title (insert_events events empty_events) bg render
 
+-- * samples
+
 data RenderConfig = RenderConfig {
     render_style :: RenderStyle
     , render_color :: Color.Color
@@ -53,13 +56,19 @@ set_render_style :: RenderStyle -> Track -> Track
 set_render_style style track =
     track { track_render = (track_render track) { render_style = style } }
 
+-- * track events
+
+set_events :: TrackEvents -> Track -> Track
+set_events events track = modify_events track (const events)
+
 modify_events :: Track -> (TrackEvents -> TrackEvents) -> Track
 modify_events track@(Track { track_events = events }) f =
     track { track_events = f events }
 
-time_end :: Track -> TrackPos
-time_end track = maybe (TrackPos 0) event_end (last_event (track_events track))
+track_time_end :: Track -> TrackPos
+track_time_end track = time_end (track_events track)
 
+time_end events = maybe (TrackPos 0) event_end (last_event events)
 
 -- * TrackEvents implementation
 
@@ -88,13 +97,21 @@ newtype TrackEvents =
     -- alternate efficient version for controller tracks?
     -- ControllerTrack (Array (TrackPos, Double))
 
-event_map (TrackEvents evts) = evts
+-- | Create a TrackEvents.  The input must be in ascending order!
+event_map_asc :: [PosEvent] -> TrackEvents
+event_map_asc pos_events = TrackEvents (Map.fromAscList pos_events)
+
+un_event_map (TrackEvents evts) = evts
 -- Not in Functor because this should be private.
 emap f (TrackEvents evts) = TrackEvents (f evts)
 empty_events = TrackEvents Map.empty
 
 events_length :: TrackEvents -> Int
-events_length = Map.size . event_map
+events_length = Map.size . un_event_map
+
+-- | Map a function across the events in TrackEvents.
+map_events :: (PosEvent -> PosEvent) -> TrackEvents -> TrackEvents
+map_events f events = emap (Map.fromList . map f . Map.toList) events
 
 -- | Merge events into the given TrackEvents.  Events that overlap will have
 -- their tails clipped until they don't, and given events that start at the
@@ -104,22 +121,38 @@ insert_events pos_events events =
     merge events (TrackEvents (Map.fromAscList pos_events))
 
 -- | Remove events between @start@ and @end@, not including @end@.
--- As an exception to the above, events exactly at @start@ are always deleted.
 remove_events :: TrackPos -> TrackPos -> TrackEvents -> TrackEvents
-remove_events start end track_events
-    | start == end = emap (Map.delete start) track_events
-    | otherwise = emap (`Map.difference` deletes) track_events
+remove_events start end track_events =
+    emap (`Map.difference` deletes) track_events
     where
-    (_, deletes, _) = Util.Data.split3_map start end (event_map track_events)
+    (_, deletes, _) = Util.Data.split3_map start end (un_event_map track_events)
+
+-- | Remove an event if it occurs exactly at the given pos.
+remove_event :: TrackPos -> TrackEvents -> TrackEvents
+remove_event pos track_events = emap (Map.delete pos) track_events
 
 -- | Return the events before the given @pos@, and the events at and after it.
 events_at :: TrackPos -> TrackEvents -> ([PosEvent], [PosEvent])
 events_at pos (TrackEvents events) = (toDescList pre, Map.toAscList post)
     where (pre, post) = Util.Data.split_map pos events
 
+event_at :: TrackEvents -> TrackPos -> Maybe Event.Event
+event_at track_events pos = case forward pos track_events of
+    ((epos, event):_) | epos == pos -> Just event
+    _ -> Nothing
+
+-- | Like 'event_at', but return an event that overlaps the given pos.
+event_overlapping :: TrackEvents -> TrackPos -> Maybe PosEvent
+event_overlapping track_events pos
+    | (next:_) <- post, fst next == pos = Just next
+    | (prev:_) <- pre, event_end prev > pos = Just prev
+    | otherwise = Nothing
+    where
+    (pre, post) = events_at pos track_events
+
 -- | All events at or after @pos@.  Implement as snd of events_at.
-forward :: TrackEvents -> TrackPos -> [PosEvent]
-forward track_events pos = snd (events_at pos track_events)
+forward :: TrackPos -> TrackEvents -> [PosEvent]
+forward pos track_events = snd (events_at pos track_events)
 
 -- | Get all events in ascending order.  Like @snd . events_at (TrackPos 0)@.
 event_list :: TrackEvents -> [PosEvent]
@@ -129,11 +162,6 @@ event_list (TrackEvents events) = Map.toAscList events
 last_event :: TrackEvents -> Maybe PosEvent
 last_event (TrackEvents events) = Util.Data.find_max events
 
-event_at :: TrackEvents -> TrackPos -> Maybe Event.Event
-event_at track_events pos = case forward track_events pos of
-    ((epos, event):_) | epos == pos -> Just event
-    _ -> Nothing
-
 -- | Return the position at the end of the event.
 event_end :: PosEvent -> TrackPos
 event_end (pos, evt) = pos + Event.event_duration evt
@@ -141,7 +169,20 @@ event_end (pos, evt) = pos + Event.event_duration evt
 events_in_range :: TrackPos -> TrackPos -> TrackEvents -> [PosEvent]
 events_in_range start end events = Map.toAscList within
     where
-    (_, within, _) = Util.Data.split3_map start end (event_map events)
+    (_, within, _) = Util.Data.split3_map start end (un_event_map events)
+
+-- | Like 'events_in_range', except shorten the last event if it goes past the
+-- end.
+clip_to_range :: TrackPos -> TrackPos -> TrackEvents -> [PosEvent]
+clip_to_range start end events = Map.toAscList clipped
+    where
+    (_, within, _) = Util.Data.split3_map start end (un_event_map events)
+    clipped = case last_event (TrackEvents within) of
+        Nothing -> within
+        Just (pos, evt) -> Map.insert pos (clip_event (end-pos) evt) within
+    clip_event max_dur evt =
+        evt { Event.event_duration = min max_dur (Event.event_duration evt) }
+
 
 -- * private implementation
 

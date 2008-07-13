@@ -8,7 +8,6 @@ import qualified Data.List as List
 import Util.Test
 import qualified Util.Log as Log
 import Ui.Types
-import qualified Ui.Color as Color
 import qualified Ui.Block as Block
 import qualified Ui.Track as Track
 import qualified Ui.State as State
@@ -19,7 +18,6 @@ import qualified Midi.Midi as Midi
 
 import qualified Derive.Controller as Controller
 import qualified Derive.Derive as Derive
-import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
 import qualified Derive.Schema as Schema
 import qualified Derive.Twelve as Twelve
@@ -106,7 +104,7 @@ test_inverse_tempo_map = do
     plist $ map (tmap . Timestamp.Timestamp) [0..8]
 
 test_block = do
-    let (deriver, ui_state) = State.run_state State.empty $ do
+    let (deriver, ui_state) = TestSetup.run State.empty $ do
         TestSetup.initial_state
         block <- State.get_block block_id
         Schema.get_deriver schema_map block
@@ -146,7 +144,7 @@ test_tempo_map = do
     -- plist $ map (tmap . TrackPos) [0..8]
 
 test_tempo = do
-    let (tids, state) = TestSetup.mkstate
+    let (tids, state) = TestSetup.run_mkstate
             [ ("0", [(0, 10, "5a-"), (10, 10, "5b-"), (20, 10, "5c-")])
             , ("1", [(0, 10, ".1"), (10, 10, ".2"), (20, 10, ".4")])
             ]
@@ -225,7 +223,7 @@ schema_map = Map.empty
 
 -- ** ui stetup
 
-ui_state = snd $ TestSetup.mkstate
+ui_state = snd $ TestSetup.run_mkstate
     [ ("1", [(0, 16, "4c-"), (16, 16, "4c#")])
     , ("2", [(0, 16, "4c-"), (16, 16, "4c#")])
     , ("cont", [(0, 0, "1"), (16, 0, "i.75"), (32, 0, "i0")])

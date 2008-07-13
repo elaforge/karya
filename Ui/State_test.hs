@@ -24,7 +24,7 @@ test_verify = do
 
 mkid = TestSetup.mkid
 
-simple_state = snd $ State.run_state State.empty $ do
+simple_state = snd $ TestSetup.run State.empty $ do
     t0 <- State.create_track (mkid "t0") (TestSetup.empty_track "tempo")
     ruler <- State.create_ruler (mkid "r1") (TestSetup.ruler [])
     b1 <- State.create_block (mkid "b1") $ Block.block "hi b1"

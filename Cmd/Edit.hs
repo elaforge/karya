@@ -9,11 +9,11 @@ import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 
 import Ui.Types
-import qualified Ui.Key as Key
 import qualified Ui.Block as Block
-import qualified Ui.Track as Track
 import qualified Ui.Event as Event
+import qualified Ui.Key as Key
 import qualified Ui.State as State
+import qualified Ui.Track as Track
 
 import qualified Midi.Midi as Midi
 
@@ -101,6 +101,8 @@ cmd_insert_midi_note msg = do
     insert_pitch (Pitch.from_midi_nn ("midi " ++ show key) key)
     return Cmd.Done
 
+-- * copy / paste
+
 -- ** implementation
 
 -- read_dev_to_write_dev (Midi.ReadDevice name) = Midi.WriteDevice name
@@ -150,8 +152,8 @@ cmd_controller_entry msg = do
 
 -- | If the insertion selection is a point, remove any event under it.  If it's
 -- a range, remove all events within its half-open extent.
-cmd_remove_events :: Cmd.CmdId
-cmd_remove_events = do
+cmd_remove_selected :: (Monad m) => Cmd.CmdT m Cmd.Status
+cmd_remove_selected = do
     (track_ids, sel) <- Selection.selected_tracks Config.insert_selnum
     let start = Block.sel_start_pos sel
         dur = Block.sel_duration sel

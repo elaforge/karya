@@ -199,7 +199,7 @@ block_time_end block_id = do
     block <- State.get_block block_id
     let track_ids = [tid | Block.TId tid _ <- Block.block_tracks block]
     tracks <- mapM State.get_track track_ids
-    return $ maximum (TrackPos 0 : map Track.time_end tracks)
+    return $ maximum (TrackPos 0 : map Track.track_time_end tracks)
 
 
 make_tempo_map :: Signal.PosSamples -> Transport.TempoMap

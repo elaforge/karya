@@ -31,7 +31,8 @@ import qualified Ui.Sync as Sync
 import qualified Ui.Track as Track
 import qualified Ui.Ui as Ui
 
-import Ui.TestSetup as TestSetup -- stop doing this
+import qualified Ui.TestSetup as TestSetup
+import Ui.TestSetup (mkid, event)
 
 -- TODO
 -- test_error
@@ -61,12 +62,13 @@ test_create_two_views = do
     state <- run_setup
     state <- io_human "view created, track title changes" $ run state $ do
         b2 <- create_block "b2" $ Block.block ""
-            default_block_config
+            TestSetup.default_block_config
             [(Block.RId t_ruler_id, 20), (Block.TId t_track1_id t_ruler_id, 30)]
             t_schema_id
         v2 <- create_view "v2" $
-            Block.view b2 (default_rect { Block.rect_pos = (300, 20) })
-                default_zoom default_view_config
+            Block.view b2
+                (TestSetup.default_rect { Block.rect_pos = (300, 20) })
+                TestSetup.default_zoom TestSetup.default_view_config
         State.set_track_title t_track1_id "hi there"
     return ()
 
@@ -140,7 +142,7 @@ test_insert_remove_track = do
         State.insert_track t_block_id 2 (Block.TId t_track1_id t_ruler_id) 80
     state <- io_human "first track replaced by divider" $ run state $ do
         State.remove_track t_block_id 1
-        State.insert_track t_block_id 1 (Block.DId default_divider) 5
+        State.insert_track t_block_id 1 (Block.DId TestSetup.default_divider) 5
     return ()
 
 test_update_ruler_track = do
@@ -168,7 +170,7 @@ test_update_track = do
 test_update_two_tracks = do
     state <- run State.empty $ do
         v1 <- setup_state
-        t2 <- create_track "b1.t2" event_track_2
+        t2 <- create_track "b1.t2" TestSetup.event_track_2
         State.insert_track t_block_id 1 (Block.TId t2 t_ruler_id) 30
         return ()
     io_human "1st track deleted, 2nd track gets wider" $ run state $ do
@@ -199,8 +201,8 @@ test_selection = do
 
 
 cues_marklist = Ruler.marklist "cues"
-    [ (TrackPos 0, mark "start")
-    , (TrackPos 90, mark "head explodes")
+    [ (TrackPos 0, TestSetup.mark "start")
+    , (TrackPos 90, TestSetup.mark "head explodes")
     ]
 
 test_modify_ruler = do
@@ -228,9 +230,9 @@ test_selection_change_tracks = do
 test_insert_into_selection = do
     state <- run State.empty $ do
         v1 <- setup_state
-        t2 <- create_track "b1.t2" event_track_2
+        t2 <- create_track "b1.t2" TestSetup.event_track_2
         State.insert_track t_block_id 1 (Block.TId t2 t_ruler_id) 60
-        t3 <- create_track "b1.t3" event_track_2
+        t3 <- create_track "b1.t3" TestSetup.event_track_2
         State.insert_track t_block_id 2 (Block.TId t2 t_ruler_id) 60
         State.set_selection v1 0
             (Block.selection 0 (TrackPos 10) 2 (TrackPos 60))
@@ -274,14 +276,15 @@ t_schema_id = Block.SchemaId (mkid "no schema")
 
 run_setup = run State.empty setup_state
 setup_state = do
-    ruler <- create_ruler "r1" (mkruler 20 10)
-    t1 <- create_track "b1.t1" (empty_track "t1")
+    ruler <- create_ruler "r1" (TestSetup.mkruler 20 10)
+    t1 <- create_track "b1.t1" (TestSetup.empty_track "t1")
     b1 <- create_block "b1" $
-        Block.block "hi b1" default_block_config
+        Block.block "hi b1" TestSetup.default_block_config
             [(Block.RId ruler, 20), (Block.TId t1 ruler, 30)]
             t_schema_id
     create_view "v1"
-        (Block.view b1 default_rect default_zoom default_view_config)
+        (Block.view b1 TestSetup.default_rect TestSetup.default_zoom
+            TestSetup.default_view_config)
 
 create_view a b = State.create_view (mkid a) b
 create_block a b = State.create_block (mkid a) b

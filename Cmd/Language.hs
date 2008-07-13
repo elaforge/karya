@@ -3,6 +3,12 @@
 changes.
 
 The incoming commands are received via Msg.Socket msgs.
+
+TODO currently this will reload any updated modules as interpreted.  While
+I want to do this for explicitly named modules (LanguageEnviron and
+Local/Lang/*.hs), it's just annoying and brittle when applied to the main
+src files.  Is there a way to get ghc to load the objects even if the source
+files are newer?
 -}
 module Cmd.Language where
 import qualified Control.Exception as Exception

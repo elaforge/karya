@@ -78,9 +78,14 @@ run abort_val ui_state cmd_state cmd = do
 -- | Run the given command in Identity, but return it in IO, just as
 -- a convenient way to have a uniform return type with 'run' (provided its run
 -- in IO).
-run_cmd_id :: RunCmd Identity.Identity IO Status
-run_cmd_id ui_state cmd_state cmd = do
+run_id_io :: RunCmd Identity.Identity IO Status
+run_id_io ui_state cmd_state cmd = do
     return $ Identity.runIdentity (run Continue ui_state cmd_state cmd)
+
+-- | Run the Cmd in Identity, returning Nothing if it aborted.
+run_id :: State.State -> State -> CmdT Identity.Identity a -> CmdVal (Maybe a)
+run_id ui_state cmd_state cmd =
+    Identity.runIdentity (run Nothing ui_state cmd_state (fmap Just cmd))
 
 -- | Quit is not exported, so that only 'cmd_quit' here has permission to
 -- return it.
@@ -170,7 +175,7 @@ data State = State {
     , state_kbd_entry_octave :: Int
 
     -- | Copies by default go to a block+tracks with this project.
-    , state_clipboard_namespace :: Id.Namespace
+    , state_clip_namespace :: Id.Namespace
     } deriving (Show, Typeable.Typeable)
 
 initial_state inst_db schema_map = State {
@@ -185,8 +190,10 @@ initial_state inst_db schema_map = State {
         TimeStep.UntilMark TimeStep.AllMarklists (TimeStep.MatchRank 2)
     -- This should put middle C in the center of the kbd entry keys.
     , state_kbd_entry_octave = 4
-    , state_clipboard_namespace = "clip"
+    , state_clip_namespace = Config.clip_namespace
     }
+
+empty_state = initial_state Instrument.Db.empty Map.empty
 
 data Modifier = KeyMod Key.Key
     -- | Mouse button, and (tracknum, pos) in went down at, if any.
