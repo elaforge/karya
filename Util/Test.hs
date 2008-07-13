@@ -27,6 +27,13 @@ check = check_srcpos Nothing
 check_srcpos srcpos False = failure srcpos "assertion false"
 check_srcpos srcpos True = success srcpos "assertion true"
 
+check_msg = check_msg_srcpos Nothing
+
+check_msg_srcpos srcpos (False, msg) =
+    failure srcpos ("assertion false: " ++ msg)
+check_msg_srcpos srcpos (True, msg) =
+    success srcpos ("assertion true: " ++ msg)
+
 equal :: (Show a, Eq a) => a -> a -> IO ()
 equal = equal_srcpos Nothing
 

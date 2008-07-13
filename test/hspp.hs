@@ -16,7 +16,7 @@ global_subs = map (\s -> (s, s++"_srcpos"))
 
 -- These are only substituted in test modules.
 test_subs = map (\s -> (s, s++"_srcpos"))
-    ["equal", "io_human", "throws"]
+    ["equal", "io_human", "throws", "check", "check_msg"]
 
 main = do
     args <- System.Environment.getArgs
