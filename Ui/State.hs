@@ -51,7 +51,7 @@ data State = State {
     -- | The project name is used as the namespace of automatically created
     -- IDs, so each project can import other projects without clashes.  The
     -- save file is also derived from the project name.
-    state_namespace :: Id.Namespace
+    state_project :: Id.Namespace
     , state_project_dir :: String
     , state_views :: Map.Map Block.ViewId Block.View
     , state_blocks :: Map.Map Block.BlockId Block.Block
@@ -334,11 +334,11 @@ verify_block block = do
     mapM_ get_track (Block.track_ids_of (Block.block_tracks block))
     mapM_ get_ruler (Block.ruler_ids_of (Block.block_tracks block))
 
-get_namespace :: (UiStateMonad m) => m Id.Namespace
-get_namespace = fmap state_namespace get
+get_project :: (UiStateMonad m) => m Id.Namespace
+get_project = fmap state_project get
 
-set_namespace :: (UiStateMonad m) => Id.Namespace -> m ()
-set_namespace ns = modify $ \st -> st { state_namespace = ns }
+set_project :: (UiStateMonad m) => Id.Namespace -> m ()
+set_project ns = modify $ \st -> st { state_project = ns }
 
 get_midi_config :: (UiStateMonad m) => m Instrument.Config
 get_midi_config = fmap state_midi_config get

@@ -33,7 +33,7 @@ import qualified App.Config as Config
 
 -- | Rename all IDs beginning with @from.@ to @to.@.
 rename_project :: (State.UiStateMonad m, Trans.MonadIO m) =>
-    String -> String -> m ()
+    Id.Namespace -> Id.Namespace -> m ()
 rename_project from to = State.map_ids set_ns
     where
     set_ns ident
@@ -46,7 +46,7 @@ rename_project from to = State.map_ids set_ns
 -- | BlockIds look like \"ns/b0\", \"ns/b1\", etc.
 block :: (State.UiStateMonad m) => Ruler.RulerId -> m Block.BlockId
 block ruler_id = do
-    ns <- State.get_namespace
+    ns <- State.get_project
     blocks <- fmap State.state_blocks State.get
     block_id <- require "block id" $ generate_block_id ns blocks
     b <- State.create_block block_id $
@@ -208,9 +208,9 @@ ruler marklists name = do
     over_rid <- State.create_ruler overlay_ident (MakeRuler.as_overlay ruler)
     return (rid, over_rid)
 
-
+make_id :: (State.UiStateMonad m) => String -> m Id.Id
 make_id name = do
-    ns <- State.get_namespace
+    ns <- State.get_project
     return (Id.id ns name)
 
 

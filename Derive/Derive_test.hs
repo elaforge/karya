@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-unused-imports #-}
 module Derive.Derive_test where
 import Control.Monad
 import qualified Control.Monad.Identity as Identity
@@ -109,7 +110,7 @@ test_block = do
         block <- State.get_block block_id
         Schema.get_deriver schema_map block
 
-    let (result, derive_state, logs) = Identity.runIdentity $
+    let (_result, derive_state, _logs) = Identity.runIdentity $
             Derive.run ui_state deriver
     -- TODO real test
     print $ Derive.state_tempo derive_state
@@ -148,9 +149,6 @@ test_tempo = do
             [ ("0", [(0, 10, "5a-"), (10, 10, "5b-"), (20, 10, "5c-")])
             , ("1", [(0, 10, ".1"), (10, 10, ".2"), (20, 10, ".4")])
             ]
-        sig = mksignal
-            [(0, Signal.Set, 0), (40, Signal.Linear, 80)]
-            -- , (TrackPos 40, Signal.Linear, 600)]
         mkderiver sig = tempo_deriver (mksignal sig) (tids!!0) (tids!!1)
         derive_with sig = extract_events events
             where (events, _logs) = derive_events state (mkderiver sig)
@@ -192,7 +190,7 @@ test_controller_parse = do
 
 test_run :: Derive.DeriveT Identity.Identity a -> Either String a
 test_run m = case Identity.runIdentity (Derive.run State.empty m) of
-    (Left err, _, logs) -> Left (Derive.error_message err)
+    (Left err, _, _logs) -> Left (Derive.error_message err)
     (Right val, _, _) -> Right val
 
 

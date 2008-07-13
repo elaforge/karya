@@ -265,6 +265,11 @@ lookup_instrument_info inst = do
 get_schema_map :: (Monad m) => CmdT m SchemaMap
 get_schema_map = fmap state_schema_map get_state
 
+get_clip_namespace :: (Monad m) => CmdT m Id.Namespace
+get_clip_namespace = fmap state_clip_namespace get_state
+set_clip_namespace :: (Monad m) => Id.Namespace -> CmdT m ()
+set_clip_namespace ns = modify_state $ \st -> st { state_clip_namespace = ns }
+
 -- * basic cmds
 
 -- | Quit the app immediately.
