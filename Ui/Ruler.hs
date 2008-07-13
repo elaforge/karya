@@ -25,6 +25,10 @@ data Ruler = Ruler {
     } deriving (Eq, Show, Read, Generics.Data, Generics.Typeable)
 ruler = Ruler
 
+-- | Get the position of the last mark of the ruler.
+time_end :: Ruler -> TrackPos
+time_end = maximum . (TrackPos 0 :) . map (last_pos . snd) . ruler_marklists
+
 -- | Empty ruler.
 no_ruler :: Ruler
 no_ruler = ruler [] Color.black False False False
@@ -53,9 +57,9 @@ marklist name posmarks =
 -- | Get the position of the last mark.
 last_pos :: Marklist -> TrackPos
 last_pos (Marklist marray)
-    | i == 0 = TrackPos 0
+    | i == -1 = TrackPos 0
     | otherwise = fst (marray ! i)
-    where i = snd (IArray.bounds marray) - 1
+    where i = snd (IArray.bounds marray)
 
 data Mark = Mark {
     mark_rank :: Int
