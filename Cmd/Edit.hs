@@ -155,11 +155,10 @@ cmd_controller_entry msg = do
 cmd_remove_selected :: (Monad m) => Cmd.CmdT m Cmd.Status
 cmd_remove_selected = do
     (track_ids, sel) <- Selection.selected_tracks Config.insert_selnum
-    let start = Block.sel_start_pos sel
-        dur = Block.sel_duration sel
-    forM_ track_ids $ \track_id -> if dur == TrackPos 0
+    let (start, end) = Block.sel_range sel
+    forM_ track_ids $ \track_id -> if start == end
         then State.remove_event track_id start
-        else State.remove_events track_id start (start + dur)
+        else State.remove_events track_id start end
     return Cmd.Done
 
 cmd_meter_step :: Int -> Cmd.CmdId

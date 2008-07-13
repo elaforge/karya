@@ -80,11 +80,8 @@ block_window_title view_id block_id =
 get_samples :: Maybe Track.TrackSamples -> Block.TracklikeId -> Track.Samples
 get_samples maybe_track_samples track = maybe Track.no_samples id $ do
     track_samples <- maybe_track_samples
-    track_id <- track_id_of track
+    track_id <- Block.track_id_of track
     lookup track_id track_samples
-
-track_id_of (Block.TId track_id _) = Just track_id
-track_id_of _ = Nothing
 
 -- | Apply the update to the UI.
 -- CreateView Updates will modify the State to add the ViewPtr
@@ -117,10 +114,10 @@ run_update block_samples (Update.ViewUpdate view_id Update.CreateView) = do
             -- which will be serialized in the UI thread.  Should be ok though.
             BlockC.insert_track view_id tracknum ctrack
                 (get_samples maybe_track_samples track) width
-            when (not (null title)) $
+            unless (null title) $
                 BlockC.set_track_title view_id tracknum title
 
-        when (not (null (Block.block_title block))) $
+        unless (null (Block.block_title block)) $
             BlockC.set_title view_id (Block.block_title block)
         forM_ (zip (Map.keys sels) csels) $ \(selnum, csel) ->
             BlockC.set_selection view_id selnum csel
@@ -164,7 +161,7 @@ run_update block_samples (Update.BlockUpdate block_id update) = do
                 BlockC.insert_track view_id tracknum ctrack
                     (get_samples maybe_track_samples tracklike_id) width
                 case ctrack of
-                    Block.T t _ -> when (not (null (Track.track_title t))) $
+                    Block.T t _ -> unless (null (Track.track_title t)) $
                         -- Sync the title.  See the CreateView comment.
                         BlockC.set_track_title view_id tracknum
                             (Track.track_title t)

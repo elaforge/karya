@@ -29,7 +29,7 @@ load app_dir = do
             return (MidiDb.empty, Search.empty_index)
         Right (Serialize.SavedDb _ midi_db index) -> return (midi_db, index)
     let (merged, overlaps) = MidiDb.merge (MidiDb.midi_db synth_maps) midi_db
-    when (not (null overlaps)) $
+    unless (null overlaps) $
         Log.warn $ "overlapping instruments discarded while merging: "
             ++ show (map (\(Score.Instrument inst) -> inst) overlaps)
     return $ Db.db merged index

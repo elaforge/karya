@@ -90,7 +90,7 @@ cb_find_events events startp endp ret_tps ret_events = do
     let (bwd, fwd) = Track.events_at start events
         (until_end, _rest) = break ((>= end) . fst) fwd
         found_events = take 1 bwd ++ until_end
-    when (not (null found_events)) $ do
+    unless (null found_events) $ do
         -- Calling c++ is responsible for freeing this.
         tp_array <- newArray (map fst found_events)
         event_array <- newArray (map snd found_events)
@@ -108,7 +108,7 @@ cb_find_samples (Track.Samples samples) startp endp ret_tps ret_samples = do
         (elts, rest) = break ((>=end) . fst) (map (samples!) [start_i..max_i])
         found = elts ++ take 1 rest
     -- putStrLn $ "go find " ++ show start_i ++ "--" ++ show max_i
-    when (not (null found)) $ do
+    unless (null found) $ do
         tp_array <- newArray (map fst found)
         sample_array <- newArray (map (Util.c_double . snd) found)
         poke ret_tps tp_array

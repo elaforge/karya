@@ -51,7 +51,7 @@ cmd_language session lang_dirs msg = do
         `Exception.catch` catch_all
     response <- cmd
     Trans.liftIO $ catch_io_errors $ do
-        when (not (null response)) $
+        unless (null response) $
             IO.hPutStrLn response_hdl response
         IO.hClose response_hdl
     return $ if response == (magic_quit_string++"\n")

@@ -371,7 +371,7 @@ auto_config block_id = do
         default_addr = case allocs of
             [] -> Nothing
             ((dev, chan), _inst) : _ -> Just (dev, chan)
-    when (not (null no_dev)) $
+    unless (null no_dev) $
         Log.warn $ "no synth found for instruments: " ++ show insts
     return $ Midi.Instrument.config allocs default_addr
 

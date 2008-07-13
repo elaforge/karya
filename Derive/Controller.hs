@@ -31,7 +31,7 @@ d_controller cont signalm eventsm = do
 
 d_signal :: (Monad m) => [Score.Event] -> Derive.DeriveT m Signal.Signal
 d_signal events = fmap Signal.signal
-    (Derive.map_events Nothing parse_event id events)
+    (Derive.map_events parse_event Nothing id events)
 
 parse_event _ event = do
     (method, val) <- Parse.parse p_text event

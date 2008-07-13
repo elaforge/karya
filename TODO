@@ -143,7 +143,7 @@ Cmd
     - change length of existing event
     selection ops
       - transpose
-      - copy / paste
+      * copy / paste
 
     - TimeStep should go to the end of the track
     - use enter to start and stop, space just gets entered in edit mode

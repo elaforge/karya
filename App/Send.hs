@@ -9,5 +9,5 @@ import qualified App.SendCmd as SendCmd
 main = SendCmd.initialize $ do
     msg <- getContents
     response <- SendCmd.send msg
-    when (not (null response)) $
+    unless (null response) $
         putStrLn response

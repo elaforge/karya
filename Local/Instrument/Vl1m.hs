@@ -97,6 +97,7 @@ vl1_patch name (pb_range1, name1, cc_groups1) (pb_range2, name2, cc_groups2) =
     -- Initialization and text will be filled in later.
     Instrument.patch inst Instrument.NoInitialization tags ""
     where
+        -- Optimistically take the widest range.
     pb_range = if range pb_range1 > range pb_range2
         then pb_range1 else pb_range2
     range (low, high) = max (abs low) (abs high)

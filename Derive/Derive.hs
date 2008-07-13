@@ -197,8 +197,8 @@ derive ui_state block_id deriver = (result, tempo_map, inv_tempo_map, logs)
 block_time_end :: (State.UiStateMonad m) => Block.BlockId -> m TrackPos
 block_time_end block_id = do
     block <- State.get_block block_id
-    let track_ids = [tid | Block.TId tid _ <- Block.block_tracks block]
-    tracks <- mapM State.get_track track_ids
+    tracks <- mapM State.get_track
+        (Block.track_ids_of (Block.block_tracks block))
     return $ maximum (TrackPos 0 : map Track.track_time_end tracks)
 
 
@@ -389,12 +389,12 @@ d_instrument inst events = return $
 
 -- | General purpose iterator over events.
 --
--- It's like 'map_state_m' but sets the current event stack before operating on
--- each event, so that Derive.warn can use it.  In addition, EventErrors are
+-- It's like 'map_accuml_m' but sets the current event stack before operating
+-- on each event, so that Derive.warn can use it.  In addition, EventErrors are
 -- caught and turned into warnings.  Events that threw aren't included in the
 -- output.
-map_events state f event_of xs =
-    fmap Maybe.catMaybes (Util.Control.map_state_m state apply xs)
+map_events f state event_of xs =
+    fmap Maybe.catMaybes (Util.Control.map_accuml_m apply state xs)
     where
     apply st x = with_event (event_of x) $ do
         val <- catch_event (f st x)

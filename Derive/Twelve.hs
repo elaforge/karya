@@ -17,7 +17,7 @@ import qualified Derive.Score as Score
 
 -- * deriver
 
-twelve events = Derive.map_events () realize_note id events
+twelve events = Derive.map_events realize_note () id events
 realize_note _ event = case event_pitch (Score.event_text event) of
     Nothing -> Derive.throw $
         "can't realize event " ++ show (Score.event_text event)

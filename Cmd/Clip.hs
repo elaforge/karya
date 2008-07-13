@@ -42,11 +42,8 @@ import qualified Ui.Track as Track
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Edit as Edit
-import qualified Cmd.Selection as Selection
 
 import qualified App.Config as Config
-
-import Util.Debug
 
 
 -- * clipboard ops
@@ -103,7 +100,7 @@ cmd_paste_overwrite = do
 
 cmd_paste_merge :: (Monad m) => Cmd.CmdT m Cmd.Status
 cmd_paste_merge = do
-    (start, end, track_ids, clip_events) <- paste_info
+    (_start, _end, track_ids, clip_events) <- paste_info
     forM_  (zip track_ids clip_events) $ \(track_id, events) -> do
         State.insert_events track_id events
     return Cmd.Done
@@ -112,7 +109,7 @@ cmd_paste_merge = do
 -- existing ones.
 cmd_paste_soft_merge :: (Monad m) => Cmd.CmdT m Cmd.Status
 cmd_paste_soft_merge = do
-    (start, end, track_ids, clip_events) <- paste_info
+    (_start, _end, track_ids, clip_events) <- paste_info
     forM_  (zip track_ids clip_events) $ \(track_id, events) -> do
         track_events <- fmap Track.track_events (State.get_track track_id)
         State.insert_events track_id $
@@ -191,8 +188,7 @@ events_in_sel sel track =
     track { Track.track_events =
         Track.event_map_asc [(pos-start, evt) | (pos, evt) <- events] }
     where
-    start = Block.sel_start_pos sel
-    end = Block.sel_end sel
+    (start, end) = Block.sel_range sel
     events = Track.events_in_range start end (Track.track_events track)
 
 -- map_tracklike f (Block.TId tid rid) = Block.TId

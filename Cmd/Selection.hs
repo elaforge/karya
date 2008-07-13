@@ -93,10 +93,9 @@ sync_selection_status view_id = do
 
 selection_status :: Block.Selection -> String
 selection_status sel =
-    showp start ++ if dur == TrackPos 0 then "" else "-" ++ showp (dur + start)
+    showp start ++ if start == end then "" else "-" ++ showp end
     where
-    dur = Block.sel_duration sel
-    start = Block.sel_start_pos sel
+    (start, end) = Block.sel_range sel
     showp = Ui.Types.pretty_pos
 
 -- | Advance the insert selection by the current step, which is a popular thing
@@ -193,14 +192,10 @@ step_from tracknum pos direction = do
 -- closest ruler that has all the given marklist names.  This includes ruler
 -- tracks and the rulers of event tracks.
 relevant_ruler :: Block.Block -> Block.TrackNum -> Maybe Ruler.RulerId
-relevant_ruler block tracknum =
-    Seq.first_just (map rid_of in_order)
+relevant_ruler block tracknum = Seq.at (Block.ruler_ids_of in_order) 0
     where
     in_order = map snd $ dropWhile ((/=tracknum) . fst) $ reverse $
         zip [0..] (Block.block_tracks block)
-    rid_of (Block.RId rid) = Just rid
-    rid_of (Block.TId _ rid) = Just rid
-    rid_of _ = Nothing
 
 -- | Specialized 'selected_tracks' that gets the pos and track of the upper
 -- left corner of the insert selection.
@@ -222,9 +217,7 @@ selected_events selnum = do
 
 events_in_sel sel track =
     Track.events_in_range start end (Track.track_events track)
-    where
-    start = Block.sel_start_pos sel
-    end = start + Block.sel_duration sel
+    where (start, end) = Block.sel_range sel
 
 -- | Get selected event tracks along with the selection.  The tracks are
 -- returned in the same order that they occur in the block.

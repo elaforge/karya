@@ -40,7 +40,7 @@ cb_find_marks marklist startp endp ret_tps ret_marks = do
         -- Give extra marks, one before start and one after end, so that marks
         -- scrolled half-off are still displayed.
         marks = take 1 bwd ++ until_end ++ take 1 rest
-    when (not (null marks)) $ do
+    unless (null marks) $ do
         -- Calling c++ is responsible for freeing this.
         tp_array <- newArray (map fst marks)
         mark_array <- newArray (map snd marks)

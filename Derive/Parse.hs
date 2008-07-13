@@ -38,7 +38,7 @@ warn_float fail_str s = do
             [] -> Derive.throw $
                 fail_str ++ " can't parse float from " ++ show s
             (parse:_) -> return parse
-    when (not (null rest)) $
+    unless (null rest) $
         Derive.warn $ fail_str ++ " has trailing junk: " ++ show rest
     return val
 -}
@@ -56,7 +56,7 @@ parse p event = do
             ++ Seq.replace "\n" " "
                 (show_error_msgs (Parsec.Error.errorMessages err))
         Right val -> return val
-    when (not (null rest)) $
+    unless (null rest) $
         Derive.warn $ "trailing junk: " ++ show rest
     return val
 

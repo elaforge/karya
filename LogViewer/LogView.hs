@@ -67,7 +67,7 @@ handle_new_msg view msg = do
     state <- State.get
     let (new_status, styled) = Process.process_msg state msg
         (log_s, style_s) = Process.extract_style styled
-    when (not (null log_s)) $
+    unless (null log_s) $
         send $ LogViewC.append_log view log_s style_s
     when (Process.state_status state /= new_status) $ do
         send $ LogViewC.set_status view (Process.render_status new_status)

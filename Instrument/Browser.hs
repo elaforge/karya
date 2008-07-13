@@ -141,7 +141,7 @@ choose_instrument inst_name = do
     putStrLn $ "send: " ++ cmd
     response <- SendCmd.send cmd
         `Exception.catch` \exc -> return ("error: " ++ show exc)
-    when (not (null response)) $
+    unless (null response) $
         putStrLn $ "response: " ++ response
 
 -- | Find instruments that match the query, and update the UI incrementally.

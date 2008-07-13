@@ -20,6 +20,6 @@ handle_cmd msg prev = do
         Readline.addHistory msg
     response <- SendCmd.send msg
         `Exception.catch` \exc -> return ("error: " ++ show exc)
-    when (not (null response)) $
+    unless (null response) $
         putStrLn response
     return msg

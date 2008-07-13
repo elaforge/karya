@@ -12,7 +12,6 @@ import Text.Printf
 import Util.Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Data
-import qualified Util.Control
 
 import qualified Midi.Midi as Midi
 
@@ -290,7 +289,7 @@ controls_equal start end c0 c1 = all (uncurry eq) (zip c0 c1)
 -- so it's not necessarily an error to have no allocation.
 allot :: InstAddrs -> [(Event, Channel)] -> [(Event, Instrument.Addr)]
 allot inst_addrs events = Maybe.catMaybes $
-    Util.Control.map_state allot_event (initial_allot_state inst_addrs) events
+    snd $ List.mapAccumL allot_event (initial_allot_state inst_addrs) events
 
 data AllotState = AllotState {
     -- | Allocated addresses, and when they were last used.

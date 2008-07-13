@@ -633,7 +633,7 @@ insert_events :: (UiStateMonad m) =>
 insert_events track_id pos_evts = do
     -- Stash a track update, see 'run' comment.
     modify_events track_id (Track.insert_events pos_evts)
-    when (not (null pos_evts)) $
+    unless (null pos_evts) $
         update $ Update.TrackUpdate track_id $ Update.TrackEvents
             (fst (head pos_evts)) (Track.event_end (last pos_evts))
 
@@ -646,7 +646,7 @@ remove_events track_id start end = do
     let evts = takeWhile ((<end) . fst)
             (Track.forward start (Track.track_events track))
     modify_events track_id (Track.remove_events start end)
-    when (not (null evts)) $
+    unless (null evts) $
         update $ Update.TrackUpdate track_id
             (Update.TrackEvents start (Track.event_end (last evts)))
 
@@ -734,7 +734,7 @@ get_tracks_of :: (UiStateMonad m) =>
     Block.BlockId -> m (Map.Map Track.TrackId Track.Track)
 get_tracks_of block_id = do
     block <- get_block block_id
-    let track_ids = [tid | Block.TId tid _ <- Block.block_tracks block]
+    let track_ids = Block.track_ids_of (Block.block_tracks block)
     tracks <- mapM get_track track_ids
     return $ Map.fromList (zip track_ids tracks)
 

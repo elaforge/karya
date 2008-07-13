@@ -343,7 +343,7 @@ sync schema_map state1 state2 cmd_updates = do
     case Diff.diff state1 state2 of
         Left err -> Log.error $ "diff error: " ++ err
         Right diff_updates -> do
-            when (not (null diff_updates) || (not (null cmd_updates))) $
+            unless ((null diff_updates) && (null cmd_updates)) $
                 Log.debug $ "diff_updates: " ++ show diff_updates
                     ++ " cmd_updates: " ++ show cmd_updates
             err <- Sync.sync state2 (diff_updates ++ cmd_updates) block_samples

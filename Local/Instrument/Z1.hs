@@ -99,6 +99,8 @@ osc_types =
     , "organ", "electric piano", "brass", "reed", "plucked", "bowed"
     ]
 
+-- | Z1 sysexes use a scheme where the eighth bits are packed into a single
+-- byte preceeding its 7 7bit bytes.
 dekorgify :: [Word.Word8] -> [Word.Word8]
 dekorgify [] = []
 dekorgify (b7:bytes) =

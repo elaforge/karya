@@ -169,7 +169,7 @@ extract_logs = map $ \log -> (Log.msg_text log, Log.msg_stack log)
 
 midi_instrument inst = map (\evt -> evt { Score.event_instrument = Just inst })
 
-twelve events = Derive.map_events () realize_note id events
+twelve events = Derive.map_events realize_note () id events
 realize_note _ event = case Twelve.event_pitch (Score.event_text event) of
     Nothing -> Derive.throw $
         "can't realize event " ++ show (Score.event_text event)
