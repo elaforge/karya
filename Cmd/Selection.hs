@@ -151,8 +151,8 @@ mouse_mod msg = do
 -- | Create a selection between the two points.
 selection_from_mouse ::
     (Block.TrackNum, TrackPos) -> (Block.TrackNum, TrackPos) -> Block.Selection
-selection_from_mouse (track1, pos1) (track2, pos2) =
-    Block.Selection (min track1 track2) (min pos1 pos2)
+selection_from_mouse (track1, pos1) (track2, pos2) = Block.Selection
+        (max 0 (min track1 track2)) (max (TrackPos 0) (min pos1 pos2))
         (abs (track1 - track2) + 1) (abs (pos1 - pos2))
 
 -- | Shift the selection to the right or left, clipping it if it hits the edges

@@ -167,10 +167,11 @@ selection_sub_state sel = do
             block { Block.block_track_widths = [] }
 
         let ruler_pairs = Seq.unique_with fst $ zip
-                (Block.ruler_ids_of tracklike_ids) (Block.rulers_of
-                tracklikes)
+                (Block.ruler_ids_of tracklike_ids) (Block.rulers_of tracklikes)
         forM_ ruler_pairs $ \(ruler_id, ruler) ->
-            State.create_ruler (Ruler.un_ruler_id ruler_id) ruler
+            unless (ruler_id == State.no_ruler) $ do
+                State.create_ruler (Ruler.un_ruler_id ruler_id) ruler
+                return ()
 
         let track_pairs = Seq.unique_with fst $ zip
                 (Block.track_ids_of tracklike_ids) (Block.tracks_of tracklikes)
