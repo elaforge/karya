@@ -64,7 +64,7 @@ set_play_position view_id maybe_pos = do
     let csel = case maybe_pos of
             Nothing -> Nothing
             Just pos -> Just $ BlockC.CSelection Config.play_position_color
-                (Block.Selection 0 pos 99 (TrackPos 0))
+                (Block.Selection 0 pos 99 pos)
     Ui.send_action $
         BlockC.set_selection view_id Config.play_position_selnum csel
 
