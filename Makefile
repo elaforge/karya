@@ -42,12 +42,12 @@ test/hspp: test/hspp.hs
 
 .PHONY: clean
 clean:
-	rm -f **/*.o **/*.hi **/*.pyc fixdeps fixdeps.* fltk/fltk.a \
-		$(UI_HS) $(MIDI_HS) $(LOGVIEW_HS) $(BROWSER_HS) haddock/*  hpc .hpc \
+	rm -f **/*.o **/*.hi **/*.pyc fixdeps fltk/fltk.a \
+		$(UI_HS) $(MIDI_HS) $(LOGVIEW_HS) $(BROWSER_HS) haddock/*  hpc/* \
 		test_block test_logview test_browser test_midi \
 		seq send repl dump make_db logview \
 		seq_language
-	rm -rf test_obj/*
+	rm -rf test_obj/* .hpc
 
 fltk/fltk.a: $(FLTK_OBJS)
 	ar -rs $@ $^

@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -XGeneralizedNewtypeDeriving #-}
+{-# OPTIONS_GHC -fno-warn-unused-imports #-}
 -- | LoggerT is a specialization of WriterT which only supports 'record', and
 -- uses 'DList' for efficient appends.
 module Util.Logger where

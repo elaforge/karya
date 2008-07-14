@@ -14,7 +14,9 @@ import qualified Util.PPrint as PPrint
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.Ruler as Ruler
+
 import qualified Cmd.Serialize as Serialize
+import qualified Cmd.Simple as Simple
 
 
 default_abbrs = [abbreviate_tracks, abbreviate_rulers]
@@ -70,8 +72,8 @@ put_field name val = do
     putStrLn $ "\n-- * " ++ name
     mapM_ putStr [name, " = ", val, ",\n"]
 
-abbr_track (Track.Track title events bg) = "track_events =\n" ++ "    "
-    ++ Seq.join ",\n    " (map Track.pretty_pos_event (Track.event_list events))
+abbr_track track = "track_events =\n" ++ PPrint.pshow (map Simple.event events)
+    where events = Track.event_list (Track.track_events track)
 
 abbr_ruler ruler = "ruler_marklists = "
     ++ concatMap abbr_marklist (Ruler.ruler_marklists ruler)

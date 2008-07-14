@@ -30,6 +30,31 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Selection as Selection
 
 
+{-
+-- These are combined with Block.View to produce the actual visible Block.View.
+
+data View = View {
+    view_view :: Block.ViewId
+    , view_tracks :: [Track]
+    } deriving (Show)
+
+data Track = Track {
+    track_collapsed :: Maybe (Block.Width, Color.Color)
+    , track_muted :: Bool
+    } deriving (Show)
+empty_track = Track Nothing False
+
+combine :: (State.UiStateMonad m) => View -> m (View, Block.View)
+combine view = do
+    view <- State.get_view (view_view view)
+    block <- State.get_block (Block.view_block view)
+    let (block_tracks, view_tracks) = unzip $  map combine_track $
+        Seq.padded_zip empty_track (Block.block_tracks block) (view_tracks view)
+
+-- modify track_bg, block_tracks, view TrackView width
+-- convert the block
+-}
+
 -- * zoom
 
 set_zoom view_id zoom = do

@@ -28,6 +28,7 @@ _stub.[ch]$
 ^test/hspp$
 ^fixdeps$
 ^(dump|seq|send|repl|logview|browser|make_db)$
+^seq.app$
 
 # profile cruft
 ^RunTests\.

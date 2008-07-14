@@ -31,6 +31,8 @@ module Util.Log (
     -- * serialization
     , format_msg
     , deserialize_msg
+
+    , module Util.PPrint
 ) where
 import Prelude hiding (error, log)
 import qualified Control.Concurrent.MVar as MVar
@@ -45,6 +47,8 @@ import Text.Printf (printf)
 
 import qualified Util.Logger as Logger
 import qualified Util.Misc as Misc
+-- This isn't used here, but tests import this and its handy for them.
+import Util.PPrint
 
 -- This import is a little iffy because Util shouldn't be importing from
 -- elsewhere, but the stack uses TrackIds.  UI doesn't use the logging, so

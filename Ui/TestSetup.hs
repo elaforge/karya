@@ -77,7 +77,7 @@ initial_state = do
         [(Block.RId ruler, 20), (Block.TId t0 overlay, 40),
             (Block.TId t1 overlay, 40), (Block.TId t2 overlay, 40)]
         Config.schema
-    v1 <- State.create_view (mkid "v1")
+    State.create_view (mkid "v1")
         (Block.view b1 default_rect default_zoom Config.view_config)
     return ()
 

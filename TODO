@@ -1,5 +1,4 @@
 misc
-  - turn on -Wall for ghc
   - rumor has it os x leopard wants .app bundles instead of Rez, so build those
 
 fltk

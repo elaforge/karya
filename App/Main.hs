@@ -15,9 +15,7 @@ import qualified Util.Data
 import qualified Util.Log as Log
 import qualified Util.Thread as Thread
 
-import Ui.Types
 import qualified Ui.Ui as Ui
-import qualified Ui.Block as Block
 import qualified Ui.State as State
 
 import qualified Midi.Midi as Midi
@@ -194,13 +192,13 @@ old_setup_cmd _args = do
         [MakeRuler.meter_ruler (1/16) MakeRuler.m44] "meter_44"
 
     b <- Create.block r
-    v <- Create.view b
+    _v <- Create.view b
     Create.named_track b over_r 1 "tempo" "tempo"
     t0 <- Create.track b 2
     State.insert_events t0 $ map TestSetup.mkevent
         [(0, 1, "5c-"), (1, 1, "5d-"), (2, 1, "5e-"), (3, 1, "5f-")]
     State.set_track_title t0 ">fm8/bass"
-    t1 <- Create.track b 3
+    _t1 <- Create.track b 3
     return Cmd.Done
 
 inst_config = Instrument.config

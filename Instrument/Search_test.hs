@@ -1,7 +1,6 @@
 module Instrument.Search_test where
 import qualified Data.Map as Map
 
-import Util.PPrint
 import Util.Test
 
 import qualified Derive.Score as Score
@@ -55,6 +54,6 @@ mkpatch (name, cat, conts) =
         (-2, 2) Nothing
 
 get_z1 = do
-    (synth, (MidiDb.PatchMap patches)) <-
+    (_synth, (MidiDb.PatchMap patches)) <-
         Local.Instrument.Z1.load "Local/Instrument"
     return $ take 10 (Map.assocs patches)

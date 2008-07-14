@@ -2,13 +2,11 @@ module Instrument.Parse_test where
 import Control.Monad
 import qualified Data.Either as Either
 import qualified Text.ParserCombinators.Parsec as Parsec
-import qualified Data.Word as Word
+-- import qualified Data.Word as Word
 
 import Util.Test
-import qualified Util.PPrint as PPrint
 
 import qualified Midi.Midi as Midi
-import qualified Derive.Parse
 import qualified Instrument.Parse as Parse
 import qualified Perform.Midi.Instrument as Instrument
 
