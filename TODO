@@ -1,92 +1,30 @@
+misc
+  - turn on -Wall for ghc
+  - rumor has it os x leopard wants .app bundles instead of Rez, so build those
+
 fltk
-  - bug: inserting a new track doesn't pick up current zoom
-  optimize: dragging selections is laggy
-    * implement selection redraw optimization
-    / possibly move selections entirely into c++
-    * set_selection should do nothing if the selection hasn't changed
-    * ui gets really unresponsive when the play position is being updated
-      It's probably contention for the on send_action.  Can I use Fl::lock() to
-      send selections directly?  If not, I might have to put the timer in c++.
-  _ optimize: implement scroll redraw optimization
+  - optimize: implement scroll redraw optimization
   - optimize: cache marks and events from callback
-  * text entries should scroll back to the beginning when they're unfocused
-  * bug: if the first event is a modifier, it doesn't get emitted.  An fltk
-    thing?
-  * make TrackPos into an opaque type to let me be more free with impl.
-    implement as int64 usec?  or since it's just block relative, I can use
-    plain unsigned msec?
-  * scroll
-  * add info line at the bottom
-  * zoom
-  * render signals
-  * selections
-  * bug: one pixel drawing glitch at bottom of tracks
-    it has something to do with FL_FLAT_BOX + FL_THIN_DOWN_BOX
-  * bug: starting with an x,y offset makes BlockView confused
-  * bug: resizing ruler to 0 crashes
-  - scrolling should add text height to time_end()
-
-  * change ZoomInfo to_trackpos and to_pixels to not use offset
-  * scrolling back from past the end of the track should update the scrollbar
-  * bug: moving a track under an expanded SeqInput gets screwed up since the
-    input doesn't move
-
   - figure out how to have a minimal title bar in os x (win.border(0) removes
     it altogether)
     I can set something like kUtilityWindowClass in Fl_mac.cxx:Fl_X::make, but
     it doesn't get any kbd input
-
   UI Msgs
-    * drags should continue to send msgs even after the cursor leaves the track
-      area and window
-    * bug: arrow keys are still doing keynav, remove that
     - can I capture os x two-finger drag events?
       yes, they're reported as FL_MOUSEWHEEL, so I should scroll on mousewheel
-    * convert EventCollectWindow to global EventCollector
-    * remove the fltk default event handling, except for inputs
-    * custom Msg type that includes events, as well as "new selection" and
-      other UI actions
-    * send msg_scroll_changed msgs
-    * figure out how to go BlockView* -> BlockView in UiMsg
-    * clicking outside of SeqInput should unfocus it
-    - bug: clicking in a track doesn't unfocus the SeqInput
-
   Track
     / dividers can have separate color for upper part, for collapsable tracks
     - tracks have their own status lines, to report things like mute
   event track
-    * overlay ruler
-    * events
-    * bug: scrolling gets little one pixels shifts
     - "currently edited" event shouldn't be hidden by previous ones
     - minimal redraw doesn't display hidden events quite right
   Ruler
-    * include selection in time_end
-    * scroll to keep moving edge of selection in view, go to bottom edge if
-      both moved
     - mark text tries to wrap if there isn't enough room
-    * don't clip out the text as soon as the marker scrolls off screen
-    * clip markers when they overlap edge of widget
-    * text labels
-
   MoveTile
     - only capture drag on a plain drag with no modifiers
-    * bug: upper part of ruler track not getting resize?
-      also not shrinking to the left
-      hard to trigger this one
-      ok, this happens whenever a stiff child is on the far left or far right
-    * bug: I can resize a divider by dragging the right edge
-    * bug: dragging divider jumps to dragging by left edge
-    * dragging tracks should resize rightmost / bottommost widget like resize()
-    * bug: moving a track off the right side chops it off
-    _ bug: tracks close together seem to have a problem, and the arrow hot point
-      isn't obvious.  highlight?  or a handle somehow?
 
 logging
   - haskell and c++ use the same machine readable format
-  * log to a file
-  * log filtering / visualizing tool
-  * add surrounding function to SrcPos
   - Util.Misc isn't well named, call it Util.SrcPos or something
   - rename LogViewer -> LogView just to reduce confusion
   - LogView should use Util.Fltk
@@ -116,55 +54,27 @@ Ui
 
 Cmd
   - instrument initialization
-  * put keydown map in Responder to augment the context with midi note down and
-    keydown
-  * refactor UiMsg.UiMsg
-  * add block_focus / MsgFocus msg type
-  * put all stateful keys (kbd, mouse button, midi note) into keydown set
-  * reintegrate handler and responder into new hstate, rename Msg->Cmd
+  - cmd to give a view focus and bring it to the front
   - Cmd_test
   - background derivation and caching
-  * bug: zero duration events are not getting found properly
   keymap
-    * keymaps that combine key patterns into a table and create a Cmd
-    * per-Block and per-Track keymap
     - check for key assignment collisions
-    * better functions to make KeySpecs
-    * KeySpecs that don't care about the modifiers
   Cmd.Edit
-    * edit mode
-    + event insertion / deletion commands
-    * set step interval
-    * midi note insertion
-    * kbd entry mode can do midi-thrus
-    * entry mode for signal tracks
+    - change note lengths
     - alternate finale-like note entry: hold down step key to set step and
       turn on edit mode, but only while the key is down
     - change length of existing event
-    selection ops
-      - transpose
-      * copy / paste
-
-    - TimeStep should go to the end of the track
-    - use enter to start and stop, space just gets entered in edit mode
+    - map selection through function
+    - transpose selection
     - controller edit mode accepts two numbers and moves on, no spaces
 
   Cmd.Selection
-    * move insertion point
-    * drag insertion point
     - drag snap to ruler, event beginning/end, ...
-    * Cmd.TimeStep.advance etc. takes [Marklist]
-
-    * UiMsgs for track drags, resizes, and text changes update State
+    - extend selection with shift-arrow
     - normal selection move should go past bottom of screen / last note
     _ UI and fltk support for editing event text
 
-  Cmd.Language: listen on a socket, receive cmd language?  or use hs-plugins?
-    * simple commands to manage blocks, and save / restore state
-    * pretty print various parts of state
-    * functions to create and insert tracks, views, etc.  automatically create
-      IDs, prefixing current project name
-    * readline using repl for send
+  Cmd.Language
     - lang cmd stuff to load string serialized tracks for event cut and paste
     - an aux data input for the lang socket might be useful, to paste in data
       without having to quote it
@@ -173,11 +83,9 @@ Cmd
     - ViewBlock abstraction: collapse/expand tracks, mute tracks
 
   Cmd.Play
-    * play position display
     - warn about unallocated instruments (Convert.verify)
     - make sure the whole stack is lazy
     - play loops
-    * play from position
     - background derivation
 
   Cmd.Record
@@ -185,27 +93,17 @@ Cmd
     - implement simple midi underiver aka integrator
 
   Cmd.Save
-    * serialize / deserialize for State
-    * bug: turn off edit mode box for save, since cmd state is not saved
-    * Data.Binary instance for more efficient save and load
-    * standalone dumper to convert the binary format to pretty-printed show
     - Data.Binary loading a tuple instead of a val sucks CPU forever
-    undo
-      - implement undo tree and undo/redo cmds
-      - figure out how to checkpoint just state diffs
-      - add undo history to on-disk format
+  Undo
+    - implement undo tree and undo/redo cmds
+    - figure out how to checkpoint just state diffs
+    - add undo history to on-disk format
 
   Cmd.MakeRuler
-    * implement irregular divisions
-    * automatic divisions zoom levels could use some tuning, should be by pixel
     - functions to modify zoom levels and other mark attributes
     - functions to splice time or a Meter into a ruler
 
 Derive
-  * simplest possible derivation -> midi render
-  * new derive: simplest possible implementation, just enough to produce
-    Performer input
-  * merge new derive into Cmd.Play, remove old Derive and Render
   derivers
     * control
     * tempo
@@ -219,17 +117,12 @@ Derive
 
 Perform
   Player
-    * move Derive.Player stuff into Perform
-    * player blocks when it's n seconds ahead, to avoid flooding midi driver
     _ flush midi output when I get a Stop
       flush is complicated and it's easier to just live with n seconds of extra
       sound
       - complain to portmidi list?
-
   Midi
-    * signal rendering
     - eliminate duplicate controller msgs
-    * get velocity from signal
     - microtuning, implement cents to pb_offset
     - pitch signal rendering
 
@@ -247,22 +140,17 @@ Perform
     - ensure that controllers are warped continuously by tempo
 
 Instrument DB
-  * simple integrated version with just hardcoded midi instruments
-  * instrument browser
-  * search language
-  * Instrument.Parse needs to understand *bank declarations
-  * serialize instrument with Data.Binary
-  * sysex parser for vl1 and z1
+  - search lang supports quotes
+  - search lang supports - to exclude a term
+  - original file goes in a tag, not the text
   - bug: discarded insts still in index
   - ability to edit tags, esp. add "favorite rating"
-
-tests
-  + some kind of organized hunit / quickcheck for pure code
-  * I should be able to type 'make test' and it compiles and runs all automatic
-    tests, make human_test to run interactive tests (with Test.io_human)
-  * grep -v LINES hack for hsc hpc
-  * speed up hs_pp
-  - non-interactive version of io_human
+  - now that PatchTemplate is gone, maybe I can use a simpler storage format
+  - standardized tags
+  - put file in a tag so I can search on it
+    I can also use it to create a *.txt file with custom info
+  - explicitly allow merged patches, so I can get params from syx but send
+    program change
 
 Midi
   - midi thru: MVar (Port -> Message -> [(Port, Message)])
@@ -270,8 +158,6 @@ Midi
     order and don't allow timestamps on thru?
     no, I still need the scheduler, phooey.
     write WriteStream *OpenMergedOutput(WriteStream *stm, ...)
-  * maybe move Device out of PortMidi and PortMidi out of Midi, this would mean
-    Cmd/ wouldn't depend on foreign imports
   bandwidth
     - keep stats
     - display widget
@@ -284,9 +170,6 @@ research
   - subscribe to haskell-art
   - download sequencers and see how they ship midi reliably
   - draw antialiased lines and curves on os x
-  * investigate hs-plugins and xmonad to see about hs plugin possibilities
-    xmonad just recompiles the whole app
-    I could actually do that at first too
   - learn about hs gtk for reference
 
 future
