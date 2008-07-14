@@ -1,4 +1,4 @@
-module Util.Misc where
+module Util.SrcPos where
 
 -- These are created by test/hspp to give caller file and line number to
 -- a function.

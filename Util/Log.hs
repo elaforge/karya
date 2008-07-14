@@ -46,7 +46,7 @@ import qualified System.IO.Unsafe  as Unsafe
 import Text.Printf (printf)
 
 import qualified Util.Logger as Logger
-import qualified Util.Misc as Misc
+import qualified Util.SrcPos as SrcPos
 -- This isn't used here, but tests import this and its handy for them.
 import Util.PPrint
 
@@ -58,7 +58,7 @@ import qualified Perform.Warning as Warning
 
 data Msg = Msg {
     msg_date :: Maybe Time.UTCTime
-    , msg_caller :: Misc.SrcPos
+    , msg_caller :: SrcPos.SrcPos
     , msg_prio :: Prio
     -- | Msgs which are logged from the deriver may record the position in the
     -- schema and event being processed.
@@ -102,19 +102,19 @@ data Prio
     deriving (Show, Enum, Eq, Ord, Read)
 
 -- | Create a msg with the give prio and text.
-msg_srcpos :: Misc.SrcPos -> Prio -> Maybe Stack -> String -> Msg
+msg_srcpos :: SrcPos.SrcPos -> Prio -> Maybe Stack -> String -> Msg
 msg_srcpos srcpos prio stack text = Msg Nothing srcpos prio stack text
 msg :: Prio -> String -> Msg
 msg prio = msg_srcpos Nothing prio Nothing
 
-log :: LogMonad m => Prio -> Misc.SrcPos -> String -> m ()
+log :: LogMonad m => Prio -> SrcPos.SrcPos -> String -> m ()
 log prio srcpos text = write (msg_srcpos srcpos prio Nothing text)
-log_stack :: LogMonad m => Prio -> Misc.SrcPos -> Stack -> String -> m ()
+log_stack :: LogMonad m => Prio -> SrcPos.SrcPos -> Stack -> String -> m ()
 log_stack prio srcpos stack text =
     write (msg_srcpos srcpos prio (Just stack) text)
 
 debug_srcpos, notice_srcpos, warn_srcpos, error_srcpos
-    :: LogMonad m => Misc.SrcPos -> String -> m ()
+    :: LogMonad m => SrcPos.SrcPos -> String -> m ()
 debug_srcpos = log Debug
 notice_srcpos = log Notice
 warn_srcpos = log Warn
@@ -129,7 +129,7 @@ error = error_srcpos Nothing
 -- Yay permutation game.  I could probably do a typeclass trick to make 'stack'
 -- an optional arg, but I think I'd wind up with all the same boilerplate here.
 debug_stack_srcpos, notice_stack_srcpos, warn_stack_srcpos, error_stack_srcpos
-    :: LogMonad m => Misc.SrcPos -> Stack -> String -> m ()
+    :: LogMonad m => SrcPos.SrcPos -> Stack -> String -> m ()
 debug_stack_srcpos = log_stack Debug
 notice_stack_srcpos = log_stack Notice
 warn_stack_srcpos = log_stack Warn
@@ -162,7 +162,8 @@ format_msg (Msg { msg_date = _date, msg_caller = srcpos, msg_prio = prio
     msg ++ maybe "" ((++" ") . show) stack
     where
     prio_stars prio = replicate (fromEnum prio + 1) '*'
-    msg = printf "%-4s %s- %s" (prio_stars prio) (Misc.show_srcpos srcpos) text
+    msg = printf "%-4s %s- %s"
+        (prio_stars prio) (SrcPos.show_srcpos srcpos) text
 
 -- | Add a time to the msg if it doesn't already have one.  Msgs can be logged
 -- outside of IO, so they don't get a date until they are written.

@@ -10,7 +10,7 @@ import qualified System.IO.Unsafe as Unsafe
 import Text.Printf
 
 import qualified Util.Seq as Seq
-import qualified Util.Misc as Misc
+import qualified Util.SrcPos as SrcPos
 import qualified Util.PPrint as PPrint
 
 
@@ -41,7 +41,7 @@ equal = equal_srcpos Nothing
 throws :: (Show a) => (Exception.Exception -> Bool) -> a -> IO ()
 throws = throws_srcpos Nothing
 
-throws_srcpos :: (Show a) => Misc.SrcPos -> (Exception.Exception -> Bool)
+throws_srcpos :: (Show a) => SrcPos.SrcPos -> (Exception.Exception -> Bool)
     -> a -> IO ()
 throws_srcpos srcpos f val =
     (Exception.evaluate val >> failure srcpos ("didn't throw: " ++ show val))
@@ -53,7 +53,7 @@ throws_srcpos srcpos f val =
 exc_like :: String -> Exception.Exception -> Bool
 exc_like expected exc = expected `List.isInfixOf` show exc
 
-equal_srcpos :: (Show a, Eq a) => Misc.SrcPos -> a -> a -> IO ()
+equal_srcpos :: (Show a, Eq a) => SrcPos.SrcPos -> a -> a -> IO ()
 equal_srcpos srcpos a b
     | a == b = success srcpos $ "== " ++ show a
     | otherwise = failure srcpos $ pa ++ "\t/=\n" ++ pb
@@ -61,7 +61,7 @@ equal_srcpos srcpos a b
     pa = PPrint.pshow a
     pb = PPrint.pshow b
 
-catch_srcpos :: Misc.SrcPos -> IO () -> IO ()
+catch_srcpos :: SrcPos.SrcPos -> IO () -> IO ()
 catch_srcpos srcpos op = Exception.catch op
     (\e -> failure srcpos ("test threw exception: " ++ show e))
 
@@ -70,7 +70,7 @@ catch_srcpos srcpos op = Exception.catch op
 io_equal :: (Eq a, Show a) => IO a -> a -> IO ()
 io_equal = io_equal_srcpos Nothing
 
-io_equal_srcpos :: (Eq a, Show a) => Misc.SrcPos -> IO a -> a -> IO ()
+io_equal_srcpos :: (Eq a, Show a) => SrcPos.SrcPos -> IO a -> a -> IO ()
 io_equal_srcpos srcpos io_val expected = do
     val <- io_val
     if val == expected
@@ -111,14 +111,14 @@ pmlist msg xs = putStrLn (msg++":") >> plist xs
 -- stdout, and it's best these appear in context.
 
 -- | Print a msg with a special tag indicating a passing test.
-success :: Misc.SrcPos -> String -> IO ()
+success :: SrcPos.SrcPos -> String -> IO ()
 success srcpos msg =
-    hPrintf IO.stdout "++-> %s- %s\n" (Misc.show_srcpos srcpos) msg
+    hPrintf IO.stdout "++-> %s- %s\n" (SrcPos.show_srcpos srcpos) msg
 
 -- | Print a msg with a special tag indicating a failing test.
-failure :: Misc.SrcPos -> String -> IO ()
+failure :: SrcPos.SrcPos -> String -> IO ()
 failure srcpos msg =
-    hPrintf IO.stdout "__-> %s- %s\n" (Misc.show_srcpos srcpos) msg
+    hPrintf IO.stdout "__-> %s- %s\n" (SrcPos.show_srcpos srcpos) msg
 
 -- getChar with no buffering
 human_getch :: IO Char

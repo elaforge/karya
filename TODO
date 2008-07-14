@@ -26,7 +26,7 @@ fltk
 
 logging
   - haskell and c++ use the same machine readable format
-  - Util.Misc isn't well named, call it Util.SrcPos or something
+  * Util.Misc isn't well named, call it Util.SrcPos or something
   - rename LogViewer -> LogView just to reduce confusion
   - LogView should use Util.Fltk
 
@@ -52,7 +52,6 @@ Cmd
     - change note lengths
     - alternate finale-like note entry: hold down step key to set step and
       turn on edit mode, but only while the key is down
-    - change length of existing event
     - map selection through function
     - transpose selection
     - controller edit mode accepts two numbers and moves on, no spaces
