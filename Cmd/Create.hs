@@ -234,7 +234,7 @@ require msg = maybe (State.throw $ "somehow can't find ID for " ++ msg) return
 -- TODO I also need the screen dimensions to do this right.  Before I go
 -- too far here, though, I'll want to think about proper window manager stuff.
 -- If I just allow the placement function to be passed as an arg...
-find_rect (w, h) rects = Block.Rect (right, bottom) (w, h)
+find_rect (w, h) rects = Block.Rect right bottom w h
     where
-    right = maximum $ 0 : map Block.rect_right rects
+    right = maximum $ 0 : map Block.rect_r rects
     bottom = 10

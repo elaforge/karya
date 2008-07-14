@@ -24,7 +24,7 @@ pause = putStr "? " >> IO.hFlush IO.stdout >> getLine >> return ()
 -- (10, 50) seems to be the smallest x,y os x will accept.  Apparently
 -- fltk's sizes don't take the menu bar into account, which is about 44 pixels
 -- high, so a y of 44 is the minimum.
-default_rect = Block.Rect (10, 50) (200, 200)
+default_rect = Block.Rect 10 50 200 200
 
 default_block_config = Block.Config
     { Block.config_selection_colors =

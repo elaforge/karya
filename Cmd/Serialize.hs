@@ -208,8 +208,9 @@ instance Binary Block.TrackView where
     get = get >>= \a -> return (track_view a)
 
 instance Binary Block.Rect where
-    put (Block.Rect a b) = put a >> put b
-    get = get >>= \a -> get >>= \b -> return (Block.Rect a b)
+    put (Block.Rect a b c d) = put a >> put b >> put c >> put d
+    get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
+        return (Block.Rect a b c d)
 
 view_config = Block.ViewConfig :: Double -> Int -> Int -> Int -> Int
     -> Block.ViewConfig

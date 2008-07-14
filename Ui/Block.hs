@@ -155,14 +155,14 @@ visible_time_area view = pixels_to_track_pos (view_zoom view) height
     -- for UpdateViewResize to explicitly give the pixels in the track view,
     -- and I'd need to make sure a haskell-initiated resize gets reported in an
     -- UpdateViewResize too.
-    height = snd (rect_size (view_rect view)) - blockth - trackth - sb - status
+    height = rect_h (view_rect view) - blockth - trackth - sb - status
 
 visible_track_area :: View -> Width
 visible_track_area view = width - ruler_width - sb
     where
     ViewConfig { vconfig_sb_size = sb } = view_config view
     ruler_width = Seq.mhead 0 (map track_view_width (view_tracks view))
-    width = fst (rect_size (view_rect view))
+    width = rect_w (view_rect view)
 
 pixels_to_track_pos :: Zoom -> Int -> TrackPos
 pixels_to_track_pos zoom pixels =
@@ -173,11 +173,13 @@ data TrackView = TrackView {
     } deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
 
 data Rect = Rect {
-    rect_pos :: (Int, Int)
-    , rect_size :: (Int, Int)
+    rect_x :: Int
+    , rect_y :: Int
+    , rect_w :: Int
+    , rect_h :: Int
     } deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
-rect_right rect = fst (rect_pos rect) + fst (rect_size rect)
-rect_bottom rect = snd (rect_pos rect) + snd (rect_size rect)
+rect_r rect = rect_x rect + rect_w rect
+rect_b rect = rect_y rect + rect_h rect
 
 -- | The defaults for newly created blocks and the trackviews automatically
 -- created.

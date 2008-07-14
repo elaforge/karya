@@ -52,7 +52,7 @@ test_create_resize_destroy_view = do
         State.set_block_title (Block.view_block view) "new block!"
         State.set_track_title t_track1_id "new track"
     state <- io_human "view moves over, gets bigger" $ run state $ do
-        State.set_view_rect t_view_id (Block.Rect (400, 400) (400, 400))
+        State.set_view_rect t_view_id (Block.Rect 400 400 400 400)
     io_human "view is destroyed" $ run state $ do
         State.destroy_view t_view_id
     return ()
@@ -66,7 +66,8 @@ test_create_two_views = do
             t_schema_id
         v2 <- create_view "v2" $
             Block.view b2
-                (TestSetup.default_rect { Block.rect_pos = (300, 20) })
+                (TestSetup.default_rect
+                    { Block.rect_x = 300, Block.rect_y = 20 })
                 TestSetup.default_zoom TestSetup.default_view_config
         State.set_track_title t_track1_id "hi there"
     return ()

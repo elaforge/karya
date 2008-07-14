@@ -103,7 +103,7 @@ create_view view_id window_title rect view_config block_config = do
                 c_create (i x) (i y) (i w) (i h) titlep configp view_configp
         return $ Map.insert view_id viewp ptr_map
     where
-    Block.Rect (x, y) (w, h) = rect
+    Block.Rect x y w h = rect
     i = Util.c_int
 
 foreign import ccall "create"
@@ -136,7 +136,7 @@ foreign import ccall unsafe "get_size"
 -}
 
 set_size :: Block.ViewId -> Block.Rect -> Fltk ()
-set_size view_id (Block.Rect (x, y) (w, h)) = do
+set_size view_id (Block.Rect x y w h) = do
     viewp <- get_ptr view_id
     c_set_size viewp (i x) (i y) (i w) (i h)
     where i = Util.c_int
@@ -417,5 +417,5 @@ peek_rect rectp = do
     y <- (#peek Rect, y) rectp :: IO CInt
     w <- (#peek Rect, w) rectp :: IO CInt
     h <- (#peek Rect, h) rectp :: IO CInt
-    return $ Block.Rect (i x, i y) (i w, i h)
+    return $ Block.Rect (i x) (i y) (i w) (i h)
     where i = fromIntegral

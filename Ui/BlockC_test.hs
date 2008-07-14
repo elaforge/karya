@@ -43,7 +43,7 @@ send = Ui.send_action
 test_create_set_size = do
     view <- create_empty_view
     io_human "move and change size" $
-        BlockC.set_size view (Block.Rect (200, 200) (200, 200))
+        BlockC.set_size view (Block.Rect 200 200 200 200)
     io_human "view is destroyed" $
         send $ BlockC.destroy_view view
 
