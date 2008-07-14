@@ -155,7 +155,7 @@ selection_sub_state sel = do
     block <- State.get_block block_id
 
     tracklike_id_widths <- fmap Maybe.catMaybes $
-        mapM (State.track_at block_id) (sel_tracknums sel)
+        mapM (State.track_at block_id) (Block.sel_tracknums sel)
     let tracklike_ids = map fst tracklike_id_widths
     tracklikes <- mapM State.get_tracklike tracklike_ids
 
@@ -196,10 +196,6 @@ events_in_sel sel track =
 -- map_tracklike f (Block.RId rid) =
 --     Block.RId ((Ruler.RulerId . f . Ruler.un_ruler_id) rid)
 -- map_tracklike _ div@(Block.DId _) = div
-
--- Move to Block?
-sel_tracknums sel = [start .. start + Block.sel_tracks sel - 1]
-    where start = Block.sel_start_track sel
 
 -- *** namespace
 
@@ -282,12 +278,13 @@ get_paste_area = do
     sel <- Cmd.require =<< State.get_selection view_id Config.insert_selnum
     clip_block_id <- get_clip_block_id
     clip_block <- State.get_block clip_block_id
+
     -- If the clip block has any rulers or anything, I skip them.
-    let clip_track_ids = take (Block.sel_tracks sel)
+    let clip_track_ids = take (length (Block.sel_tracknums sel))
             (Block.track_ids_of (Block.block_tracks clip_block))
     clip_end <- State.event_end clip_block_id
     sel <- return $ if Block.sel_is_point sel
-        then sel { Block.sel_duration = clip_end }
+        then Block.sel_set_duration clip_end sel
         else sel
 
     block_id <- Cmd.get_focused_block

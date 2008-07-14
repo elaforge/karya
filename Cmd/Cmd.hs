@@ -162,6 +162,9 @@ data State = State {
     -- a particular block or track will address these.
     , state_focused_view :: Maybe Block.ViewId
 
+    -- | Copies by default go to a block+tracks with this project.
+    , state_clip_namespace :: Id.Namespace
+
     -- Editing state
 
     -- | Edit mode enables various commands that write to tracks.
@@ -173,9 +176,6 @@ data State = State {
     -- octave instead of scale degree since scales may have different numbers
     -- of notes per octave.
     , state_kbd_entry_octave :: Int
-
-    -- | Copies by default go to a block+tracks with this project.
-    , state_clip_namespace :: Id.Namespace
     } deriving (Show, Typeable.Typeable)
 
 initial_state inst_db schema_map = State {
@@ -184,13 +184,13 @@ initial_state inst_db schema_map = State {
     , state_keys_down = Map.empty
     , state_transport = Nothing
     , state_focused_view = Nothing
+    , state_clip_namespace = Config.clip_namespace
 
     , state_edit_mode = False
     , state_step =
         TimeStep.UntilMark TimeStep.AllMarklists (TimeStep.MatchRank 2)
     -- This should put middle C in the center of the kbd entry keys.
     , state_kbd_entry_octave = 4
-    , state_clip_namespace = Config.clip_namespace
     }
 
 empty_state = initial_state Instrument.Db.empty Map.empty

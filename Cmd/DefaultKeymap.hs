@@ -77,16 +77,31 @@ misc_bindings =
 -- platforms.
 command = bind_kmod [Key.MetaL]
 
-repeating key desc cmd = [bind_key key desc cmd, bind_kmod [key] key desc cmd]
-selection_bindings =
-    repeating Key.Down "advance selection"
-        (Selection.cmd_step_selection Config.insert_selnum TimeStep.Advance)
-    ++ repeating Key.Up "rewind selection"
-        (Selection.cmd_step_selection Config.insert_selnum TimeStep.Rewind)
-    ++ repeating Key.Right "shift selection right"
-        (Selection.cmd_shift_selection Config.insert_selnum 1)
-    ++ repeating Key.Left "shift selection left"
-        (Selection.cmd_shift_selection Config.insert_selnum (-1))
+repeating mods key desc cmd =
+    [bind_kmod mods key desc cmd, bind_kmod (key:mods) key desc cmd]
+
+selection_bindings = concat
+    [ repeating [] Key.Down "advance selection"
+        (Selection.cmd_step_selection selnum TimeStep.Advance False)
+    , repeating [Key.ShiftL] Key.Down "extend advance selection"
+        (Selection.cmd_step_selection selnum TimeStep.Advance True)
+
+    , repeating [] Key.Up "rewind selection"
+        (Selection.cmd_step_selection selnum TimeStep.Rewind False)
+    , repeating [Key.ShiftL] Key.Up "extend rewind selection"
+        (Selection.cmd_step_selection selnum TimeStep.Rewind True)
+
+    , repeating [] Key.Right "shift selection right"
+        (Selection.cmd_shift_selection selnum 1 False)
+    , repeating [Key.ShiftL] Key.Right "extend shift selection right"
+        (Selection.cmd_shift_selection selnum 1 True)
+
+    , repeating [] Key.Left "shift selection left"
+        (Selection.cmd_shift_selection selnum (-1) False)
+    , repeating [Key.ShiftL] Key.Left "extend shift selection left"
+        (Selection.cmd_shift_selection selnum (-1) True)
+    ]
+    where selnum = Config.insert_selnum
 
 view_config_bindings =
     [ bind_key (Key.KeyChar '[') "zoom out *0.8"

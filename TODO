@@ -2,6 +2,8 @@ misc
   - rumor has it os x leopard wants .app bundles instead of Rez, so build those
 
 fltk
+  - convert Selection to use the same format as hs, so it can show the cursor
+    end specially
   - optimize: implement scroll redraw optimization
   - optimize: cache marks and events from callback
   - figure out how to have a minimal title bar in os x (win.border(0) removes
@@ -42,8 +44,10 @@ Cmd
   - cmd to give a view focus and bring it to the front
   - Cmd_test
   - background derivation and caching
-  keymap
+  Keymap
     - check for key assignment collisions
+    - support generic modifiers like any Shift, any Control, and Command
+      (which becomes alt on a PC keyboard)
   Cmd.Edit
     - change note lengths
     - alternate finale-like note entry: hold down step key to set step and
@@ -54,10 +58,12 @@ Cmd
     - controller edit mode accepts two numbers and moves on, no spaces
 
   Cmd.Selection
-    - drag snap to ruler, event beginning/end, ...
+    - drag snap to timestep
     - extend selection with shift-arrow
     - normal selection move should go past bottom of screen / last note
     _ UI and fltk support for editing event text
+  Cmd.TimeStep
+    - snap to event begin/end
 
   Cmd.Language
     - lang cmd stuff to load string serialized tracks for event cut and paste

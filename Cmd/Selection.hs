@@ -23,24 +23,77 @@ import qualified Cmd.TimeStep as TimeStep
 import qualified App.Config as Config
 
 
+-- * cmds
+
 -- | Advance the given selection by the current step.
 -- Require: active block, insert_selection is set
 --
 -- The selection will maintain its current track span, be set to a point, and
 -- advance to the next relevant mark.  "next relevant mark" is the next visible
--- mark in the ruler to the left.
-cmd_step_selection :: Block.SelNum -> TimeStep.TimeDirection -> Cmd.CmdId
-cmd_step_selection selnum dir = do
+-- mark in the ruler to the left.  If @extend@ is true, extend the current
+-- selection instead of setting a new point selection.
+cmd_step_selection :: Block.SelNum -> TimeStep.TimeDirection -> Bool
+    -> Cmd.CmdId
+cmd_step_selection selnum dir extend = do
     view_id <- Cmd.get_focused_view
-    sel <- Cmd.require =<< State.get_selection view_id selnum
+    Block.Selection start_track start_pos cur_track cur_pos <-
+        Cmd.require =<< State.get_selection view_id selnum
 
-    new_pos <- step_from
-        (Block.sel_start_track sel) (Block.sel_start_pos sel) dir
-    select_and_scroll view_id selnum
-        (Block.point_selection (Block.sel_start_track sel) new_pos)
+    new_pos <- step_from cur_track cur_pos dir
+    let new_sel = if extend
+            then Block.selection start_track start_pos cur_track new_pos
+            else Block.point_selection start_track new_pos
+    select_and_scroll view_id selnum new_sel
     return Cmd.Done
 
--- | All selection setting that wants to automatically scroll the window to
+-- | Advance the insert selection by the current step, which is a popular thing
+-- to do.
+cmd_advance_insert :: Cmd.CmdId
+cmd_advance_insert =
+    cmd_step_selection Config.insert_selnum TimeStep.Advance False
+
+-- | Move the selection across tracks by @nshift@.
+--
+-- If @extend@ is true, extend the current selection instead of setting a new
+-- selection.
+cmd_shift_selection :: Block.SelNum -> Block.SelNum -> Bool -> Cmd.CmdId
+cmd_shift_selection selnum nshift extend = do
+    view_id <- Cmd.get_focused_view
+    block <- State.block_of_view view_id
+    sel <- Cmd.require =<< State.get_selection view_id selnum
+    let sel' = shift_selection nshift (length (Block.block_tracks block)) sel
+    select_and_scroll view_id selnum
+        (Just (if extend then sel_merge sel sel' else sel'))
+    return Cmd.Done
+
+sel_merge (Block.Selection strack spos _ _) (Block.Selection _ _ ctrack cpos) =
+    Block.Selection strack spos ctrack cpos
+
+-- | Set the selection based on a click or drag.
+--
+-- TODO: support snap
+cmd_mouse_selection :: Int -> Block.SelNum -> Cmd.Cmd
+cmd_mouse_selection btn selnum msg = do
+    (mod, (mouse_tracknum, mouse_pos)) <- Cmd.require (mouse_mod msg)
+    msg_btn <- Cmd.require (Cmd.mouse_mod_btn mod)
+    keys_down <- Cmd.keys_down
+    when (msg_btn /= btn) Cmd.abort
+
+    let (down_tracknum, down_pos) =
+            case Map.lookup (Cmd.modifier_map_key mod) keys_down of
+                Just (Cmd.MouseMod _btn (Just down_at)) -> down_at
+                _ -> (mouse_tracknum, mouse_pos)
+
+    let sel = Block.selection down_tracknum down_pos mouse_tracknum mouse_pos
+    view_id <- Cmd.get_focused_view
+    select_and_scroll view_id selnum sel
+    return Cmd.Done
+
+-- * implementation
+
+-- ** auto scroll
+
+-- | Anyone who wants to set a selection and automatically scroll the window to
 -- follow the selection should use this function.
 select_and_scroll :: (Monad m) =>
      Block.ViewId -> Block.SelNum -> Maybe Block.Selection -> Cmd.CmdT m ()
@@ -111,13 +164,14 @@ track_scroll_with_selection old_sel new_sel view_start view_end widths
     | otherwise = view_start
     where
     track_range sel = (sum (take start widths), sum (take end widths))
-        where
-        start = Block.sel_start_track sel
-        end = start + Block.sel_tracks sel
+        where (start, end) = Block.sel_track_range sel
     (old_start, old_end) = track_range old_sel
     (new_start, new_end) = track_range new_sel
     scroll_right = new_end > old_end && new_end > view_end
     scroll_left = new_start < old_start && new_start < view_start
+
+
+-- ** status
 
 sync_selection_status view_id = do
     maybe_sel <- State.get_selection view_id Config.insert_selnum
@@ -130,44 +184,7 @@ selection_status sel =
     (start, end) = Block.sel_range sel
     showp = Ui.Types.pretty_pos
 
--- | Advance the insert selection by the current step, which is a popular thing
--- to do.
-cmd_advance_insert :: Cmd.CmdId
-cmd_advance_insert = cmd_step_selection Config.insert_selnum TimeStep.Advance
-
--- | Move the selection across tracks by @nshift@.
-cmd_shift_selection :: Block.SelNum -> Int -> Cmd.CmdId
-cmd_shift_selection selnum nshift = do
-    view_id <- Cmd.get_focused_view
-    block <- State.block_of_view view_id
-    sel <- Cmd.require =<< State.get_selection view_id selnum
-    let sel' = shift_selection nshift (length (Block.block_tracks block)) sel
-    select_and_scroll view_id selnum (Just sel')
-    return Cmd.Done
-
--- | Set the selection based on a click or drag.
---
--- TODO: support snap
-cmd_mouse_selection :: Int -> Block.SelNum -> Cmd.Cmd
-cmd_mouse_selection btn selnum msg = do
-    (mod, mouse_at) <- Cmd.require (mouse_mod msg)
-    msg_btn <- Cmd.require (Cmd.mouse_mod_btn mod)
-    keys_down <- Cmd.keys_down
-    Log.debug $ "mod btn " ++ show mod ++ " in " ++ show (Map.elems keys_down)
-    when (msg_btn /= btn) Cmd.abort
-
-    let down_at = case Map.lookup (Cmd.modifier_map_key mod) keys_down of
-            Just (Cmd.MouseMod _btn (Just down_at)) -> down_at
-            _ -> mouse_at
-
-    view_id <- Cmd.get_focused_view
-    mouse_at <- Cmd.require $ case mod of
-        Cmd.MouseMod _ (Just at) -> Just at
-        _ -> Nothing
-    let sel = selection_from_mouse down_at mouse_at
-    Log.debug $ "drag sel from " ++ show down_at ++ " --> " ++ show mouse_at
-    select_and_scroll view_id selnum (Just sel)
-    return Cmd.Done
+-- ** mouse
 
 mouse_mod :: Msg.Msg -> Maybe (Cmd.Modifier, (Block.TrackNum, TrackPos))
 mouse_mod msg = do
@@ -180,29 +197,14 @@ mouse_mod msg = do
     track_pos <- Msg.context_track_pos msg
     return $ (Cmd.MouseMod btn (Just track_pos), track_pos)
 
--- | Create a selection between the two points.
-selection_from_mouse ::
-    (Block.TrackNum, TrackPos) -> (Block.TrackNum, TrackPos) -> Block.Selection
-selection_from_mouse (track0, pos0) (track1, pos1) = Block.Selection
-        (max 0 (min track0 track1)) (max (TrackPos 0) (min p0 p1))
-        (abs (track0 - track1) + 1) (abs (p0 - p1))
-    where
-    p0 = max 0 pos0
-    p1 = max 0 pos1
-
 -- | Shift the selection to the right or left, clipping it if it hits the edges
 -- of the displayed tracks.
 shift_selection :: Block.TrackNum -> Block.TrackNum -> Block.Selection
     -> Block.Selection
-shift_selection nshift ntracks sel = sel
-        { Block.sel_start_track = start'
-        , Block.sel_tracks = min (Block.sel_tracks sel) (ntracks - start')
-        }
-    where
-    start = Block.sel_start_track sel
-    max_track = ntracks - 1
-    start' = between 0 max_track (nshift + start)
+shift_selection nshift ntracks sel =
+    Block.sel_modify_tracks (between 0 (ntracks-1) . (+nshift)) sel
 
+-- TODO put this in a more general spot... but I don't have one!  Util.Num?
 between low high n = min high (max low n)
 
 -- * util
@@ -262,7 +264,6 @@ selected_tracks selnum = do
     view_id <- Cmd.get_focused_view
     sel <- Cmd.require =<< State.get_selection view_id selnum
     view <- State.get_view view_id
-    let start = Block.sel_start_track sel
     tracks <- mapM (State.event_track_at (Block.view_block view))
-        [start .. start + Block.sel_tracks sel - 1]
+        (Block.sel_tracknums sel)
     return (Maybe.catMaybes tracks, sel)

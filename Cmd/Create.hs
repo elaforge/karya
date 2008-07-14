@@ -160,9 +160,7 @@ remove_selected_tracks :: (Monad m) => Cmd.CmdT m ()
 remove_selected_tracks = do
     block_id <- Cmd.get_focused_block
     sel <- fmap snd $ Selection.selected_tracks Config.insert_selnum
-    mapM_ (State.remove_track block_id) (reverse
-        [ Block.sel_start_track sel
-        .. Block.sel_start_track sel + (Block.sel_tracks sel - 1)])
+    mapM_ (State.remove_track block_id) (reverse (Block.sel_tracknums sel))
 
 -- ** util
 

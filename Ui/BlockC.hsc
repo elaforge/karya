@@ -380,13 +380,18 @@ instance Storable CSelection where
     poke = poke_selection
 
 poke_selection selp (CSelection color
-    (Block.Selection start_track start_pos tracks duration)) =
-    do
-        (#poke Selection, color) selp color
-        (#poke Selection, start_track) selp (Util.c_int start_track)
-        (#poke Selection, start_pos) selp start_pos
-        (#poke Selection, tracks) selp (Util.c_int tracks)
-        (#poke Selection, duration) selp duration
+        (Block.Selection track0 pos0 track1 pos1)) = do
+    -- TODO convert c++ selections to hs style
+    let start_pos = min pos0 pos1
+        dur = max pos0 pos1 - min pos0 pos1
+        start_track = min track0 track1
+        -- Tracks are an inclusive range.
+        tracks = max track0 track1 - min track0 track1 + 1
+    (#poke Selection, color) selp color
+    (#poke Selection, start_track) selp (Util.c_int start_track)
+    (#poke Selection, start_pos) selp start_pos
+    (#poke Selection, tracks) selp (Util.c_int tracks)
+    (#poke Selection, duration) selp dur
 
 -- ** zoom
 

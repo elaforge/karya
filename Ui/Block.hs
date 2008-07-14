@@ -200,27 +200,64 @@ data Zoom = Zoom {
 -- TODO: remove color and put it in BlockC.SelectionC, which gets its color
 -- from a BlockConfig list
 data Selection = Selection {
+    -- | The position the selection was established at.
     sel_start_track :: TrackNum
     , sel_start_pos :: TrackPos
-    , sel_tracks :: TrackNum
-    , sel_duration :: TrackPos
+
+    -- | The position the selection is now at.  The tracks are an inclusive
+    -- range, the pos are half-open.  This is because these pairs are meant to
+    -- be symmetrical, but the c++ layer only supports half-open pos ranges.
+    -- I don't think there's much I can do about this.
+    , sel_cur_track :: TrackNum
+    , sel_cur_pos :: TrackPos
     } deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
 
-sel_range :: Selection -> (TrackPos, TrackPos)
-sel_range sel = (start, start + sel_duration sel)
-    where start = sel_start_pos sel
-
-sel_end :: Selection -> TrackPos
-sel_end = snd . sel_range
-
-sel_is_point :: Selection -> Bool
-sel_is_point sel = sel_duration sel == TrackPos 0
-
-selection tracknum start tracks dur = Just (Selection tracknum start tracks dur)
+-- | These constructors return Maybe because that's what set_selection expects.
+selection :: TrackNum -> TrackPos -> TrackNum -> TrackPos -> Maybe Selection
+selection start_track start_pos cur_track cur_pos =
+    Just (Selection start_track start_pos cur_track cur_pos)
 
 -- | A point is a selection with no duration.
 point_selection :: TrackNum -> TrackPos -> Maybe Selection
-point_selection tracknum pos = Just (Selection tracknum pos 1 (TrackPos 0))
+point_selection tracknum pos = selection tracknum pos tracknum pos
+
+sel_is_point :: Selection -> Bool
+sel_is_point sel = sel_start_pos sel == sel_cur_pos sel
+
+sel_modify_tracks :: (TrackNum -> TrackNum) -> Selection -> Selection
+sel_modify_tracks f sel = sel
+    { sel_start_track = f (sel_start_track sel)
+    , sel_cur_track = f (sel_cur_track sel)
+    }
+
+sel_expand_tracks :: TrackNum -> Selection -> Selection
+sel_expand_tracks n sel
+    | cur > start = sel { sel_cur_track = cur + n }
+    | otherwise = sel { sel_start_track = start + n }
+    where
+    start = sel_start_track sel
+    cur = sel_cur_track sel
+
+-- | Start and end tracks, from small to large.
+sel_track_range :: Selection -> (TrackNum, TrackNum)
+sel_track_range sel = (min track0 track1, max track0 track1)
+    where (track0, track1) = (sel_start_track sel, sel_cur_track sel)
+
+sel_tracknums :: Selection -> [TrackNum]
+sel_tracknums sel = let (start, end) = sel_track_range sel in [start..end]
+
+-- | Start and end points, from small to large.
+sel_range :: Selection -> (TrackPos, TrackPos)
+sel_range sel = (min pos0 pos1, max pos0 pos1)
+    where (pos0, pos1) = (sel_start_pos sel, sel_cur_pos sel)
+
+sel_set_duration :: TrackPos -> Selection -> Selection
+sel_set_duration dur sel
+    | cur > start = sel { sel_cur_pos = start + (max (TrackPos 0) dur) }
+    | otherwise = sel { sel_start_pos = cur + (max (TrackPos 0) dur) }
+    where
+    start = sel_start_pos sel
+    cur = sel_cur_pos sel
 
 -- | Index into a block's tracks.
 type TrackNum = Int

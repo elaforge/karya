@@ -560,21 +560,18 @@ remove_from_view tracknum view = view
 -- If tracknum is before or at the selection, push it to the right.  If it's
 -- inside, extend it.  If it's to the right, do nothing.
 insert_into_selection tracknum sel
-    | tracknum <= start = sel { Block.sel_start_track = start + 1 }
-    | tracknum < start + tracks = sel { Block.sel_tracks = tracks + 1 }
+    | tracknum <= min track0 track1 = Block.sel_modify_tracks (+1) sel
+    | tracknum <= max track0 track1 = Block.sel_expand_tracks 1 sel
     | otherwise = sel
-    where
-    start = Block.sel_start_track sel
-    tracks = Block.sel_tracks sel
+    where (track0, track1) = Block.sel_track_range sel
+
 remove_from_selection tracknum sel
-    | tracknum <= start = Just (sel { Block.sel_start_track = start - 1 })
-    | tracknum < start + tracks = if tracks == 1
-        then Nothing
-        else Just (sel { Block.sel_tracks = tracks - 1 })
+    | tracknum <= min track0 track1  =
+        Just $ Block.sel_modify_tracks (+(-1)) sel
+    | tracknum == track0 && tracknum == track1 = Nothing
+    | tracknum <= max track0 track1 = Just $ Block.sel_expand_tracks (-1) sel
     | otherwise = Just sel
-    where
-    start = Block.sel_start_track sel
-    tracks = Block.sel_tracks sel
+    where (track0, track1) = Block.sel_track_range sel
 
 -- ** other
 

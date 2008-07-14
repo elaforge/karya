@@ -97,14 +97,14 @@ test_cmd_copy_selection = do
     let state = events_state
     let run = run_copy state
 
-    io_equal (run (mksel 1 4 1 4) Clip.cmd_copy_selection)
+    io_equal (run (mksel 1 4 1 8) Clip.cmd_copy_selection)
         [[(0, 2, "e12")]]
     -- I get the same event, but also the empty space before it.
     -- Events are not clipped.
-    io_equal (run (mksel 1 1 1 4) Clip.cmd_copy_selection)
+    io_equal (run (mksel 1 1 1 5) Clip.cmd_copy_selection)
         [[(3, 2, "e12")]]
 
-    io_equal (run (mksel 1 1 2 4) Clip.cmd_copy_selection)
+    io_equal (run (mksel 1 1 2 5) Clip.cmd_copy_selection)
         [ [(3, 2, "e12")]
         , [(0, 2, "e21")]
         ]
@@ -115,6 +115,8 @@ test_namespace_ops = do
     state <- run events_state $ do
         set_sel $ mksel 1 1 2 4
         Clip.cmd_copy_selection
+    -- TODO it's too hard at the moment to make sure they have been set, so
+    -- I'll just make sure the state is at least valid
     pprint (State.structure state)
     pprint (snd (State.verify state))
     check_msg $ valid_state state
@@ -137,7 +139,7 @@ test_cmd_paste_overwrite = do
     let run = run_paste state
 
     -- From sel onwards replaced by clipboard.
-    res <- run (mksel 1 1 1 0) Clip.cmd_paste_overwrite
+    res <- run (mksel 1 1 1 1) Clip.cmd_paste_overwrite
     equal res
         [ [(0, 1, "e11"), (1, 2, "c1"), (5, 2, "c2"), (8, 2, "e13")]
         , track2_events
@@ -145,21 +147,21 @@ test_cmd_paste_overwrite = do
 
     -- Second track isn't overwritten because clip has no second track.
     -- So this is the same as above.
-    res <- run (mksel 1 1 2 0) Clip.cmd_paste_overwrite
+    res <- run (mksel 1 1 2 1) Clip.cmd_paste_overwrite
     equal res
         [ [(0, 1, "e11"), (1, 2, "c1"), (5, 2, "c2"), (8, 2, "e13")]
         , track2_events
         ]
 
     -- Only replace the second event, since clipboard is clipped to sel.
-    res <- run (mksel 1 1 1 3) Clip.cmd_paste_overwrite
+    res <- run (mksel 1 1 1 4) Clip.cmd_paste_overwrite
     equal res
         [ [(0, 1, "e11"), (1, 2, "c1"), (4, 2, "e12"), (8, 2, "e13")]
         , track2_events
         ]
 
     -- Pasted events are clipped to the selection.
-    res <- run (mksel 1 2 1 5) Clip.cmd_paste_overwrite
+    res <- run (mksel 1 2 1 7) Clip.cmd_paste_overwrite
     equal res
         [ [(0, 2, "e11"), (2, 2, "c1"), (6, 1, "c2"), (8, 2, "e13")]
         , track2_events
@@ -169,7 +171,7 @@ test_cmd_paste_merge = do
     state <- with_clip events_state clip_state
     let run = run_paste state
 
-    res <- run (mksel 1 1 1 0) Clip.cmd_paste_merge
+    res <- run (mksel 1 1 1 1) Clip.cmd_paste_merge
     equal res
         [ [(0, 1, "e11"), (1, 2, "c1"), (4, 1, "e12"), (5, 2, "c2"),
             (8, 2, "e13")]
@@ -179,11 +181,11 @@ test_cmd_paste_merge = do
     -- cmd_paste_overwrite.
 
     -- They all overlap.
-    res <- run (mksel 1 1 1 0) Clip.cmd_paste_soft_merge
+    res <- run (mksel 1 1 1 1) Clip.cmd_paste_soft_merge
     equal res [track1_events, track2_events]
 
     -- This time they make it in.
-    res <- run (mksel 1 2 1 0) Clip.cmd_paste_soft_merge
+    res <- run (mksel 1 2 1 2) Clip.cmd_paste_soft_merge
     equal res
         [ [(0, 2, "e11"), (2, 2, "c1"), (4, 2, "e12"), (6, 2, "c2"),
             (8, 2, "e13")]
@@ -195,7 +197,7 @@ test_cmd_paste_insert = do
     let run = run_paste state
 
     -- Point selection pushes by inserted length.
-    res <- run (mksel 1 1 1 0) Clip.cmd_paste_insert
+    res <- run (mksel 1 1 1 1) Clip.cmd_paste_insert
     equal res
         [ [(0, 1, "e11"), (1, 2, "c1"), (5, 2, "c2"),
             (10, 2, "e12"), (14, 2, "e13")]
@@ -203,7 +205,7 @@ test_cmd_paste_insert = do
         ]
 
     -- selection pushes by selection length
-    res <- run (mksel 1 1 1 2) Clip.cmd_paste_insert
+    res <- run (mksel 1 1 1 3) Clip.cmd_paste_insert
     equal res
         [ [(0, 1, "e11"), (1, 2, "c1"), (6, 2, "e12"), (10, 2, "e13")]
         , track2_events
