@@ -49,43 +49,75 @@ select_and_scroll view_id selnum sel = do
     State.set_selection view_id selnum sel
     sync_selection_status view_id
     case (old_sel, sel) of
-        (Just sel1, Just sel2) -> auto_scroll view_id sel1 sel2
+        (Just sel0, Just sel1) -> auto_scroll view_id sel0 sel1
         _ -> return ()
 
--- | If @sel2@ has scrolled off the edge of the window, automatically scroll
--- it so that the selection is in view.  @sel1@ is needed to determine the
+-- | If @sel1@ has scrolled off the edge of the window, automatically scroll
+-- it so that the selection is in view.  @sel0@ is needed to determine the
 -- direction of the scroll.
--- TODO implement track scrolling
--- TODO this is sort of screwed up for drag scrolling
--- but don't put much more work into this until I know whether I'm going to
--- move it to c++ or not
 auto_scroll :: (Monad m) => Block.ViewId -> Block.Selection
     -> Block.Selection -> Cmd.CmdT m ()
-auto_scroll view_id sel1 sel2 = do
+auto_scroll view_id sel0 sel1 = do
     view <- State.get_view view_id
     let zoom = Block.view_zoom view
-        view_start = Block.zoom_offset zoom
-        view_end = view_start + Block.visible_view_area view
-        -- Scroll by 1/4 of the visible screen.
-        extra_space = Block.visible_view_area view / 4
-        offset = scroll_with_selection sel1 sel2
-            (Block.zoom_offset zoom) view_end extra_space
-    State.set_zoom view_id (zoom { Block.zoom_offset = offset })
+    let zoom_offset = calc_time_offset view sel0 sel1
+    let track_offset = calc_track_offset view sel0 sel1
+    State.set_zoom view_id (zoom { Block.zoom_offset = zoom_offset })
+    State.set_track_scroll view_id track_offset
     Cmd.sync_zoom_status view_id
+
+calc_time_offset view sel0 sel1 = time_scroll_with_selection
+        sel0 sel1 (Block.zoom_offset zoom) view_end extra_space
+    where
+    zoom = Block.view_zoom view
+    visible_area = Block.visible_time_area view
+    view_start = Block.zoom_offset zoom
+    view_end = view_start + visible_area
+    -- Scroll by 1/4 of the visible screen.
+    -- TODO handle out of range drag by scrolling at a constant rate
+    extra_space = visible_area / 4
+
+calc_track_offset view sel0 sel1 = max 0 (offset - ruler_width)
+    where
+    widths = map Block.track_view_width (Block.view_tracks view)
+    -- Pesky ruler track doesn't count towards the track scroll.
+    ruler_width = Seq.mhead 0 widths
+    offset = track_scroll_with_selection sel0 sel1
+        (Block.view_track_scroll view + ruler_width)
+        (Block.visible_track_area view) widths
 
 -- | If the moving edge of the selection is going out of the visible area,
 -- scroll to put it into view plus a little extra space.  If both edges are
 -- moving, don't scroll.
-scroll_with_selection (Block.Selection num1 start1 tracks1 dur1)
-        (Block.Selection num2 start2 tracks2 dur2) view_start view_end extra
-    | start2 >= start1 && end2 > view_end =
-        end2 - (view_end - view_start) + extra -- scroll down
-    | start2 < view_start =
-        start1 - extra -- scroll up
-    | otherwise = view_start -- no scroll
+time_scroll_with_selection :: Block.Selection -> Block.Selection
+    -> TrackPos -> TrackPos -- ^ bounds of the visible track area
+    -> TrackPos -- ^ amount an out of range selection should scroll
+    -> TrackPos -- ^ time offset should be this much
+time_scroll_with_selection old_sel new_sel view_start view_end extra
+    | scroll_down && scroll_up = view_start
+    | scroll_down = view_start + (new_end - view_end) + extra
+    | scroll_up = new_start - extra
+    | otherwise = view_start
     where
-    end1 = start1 + dur1
-    end2 = start2 + dur2
+    (old_start, old_end) = Block.sel_range old_sel
+    (new_start, new_end) = Block.sel_range new_sel
+    scroll_down = new_end > old_end && new_end > view_end
+    scroll_up = new_start < old_start && new_start < view_start
+
+track_scroll_with_selection old_sel new_sel view_start view_end widths
+    | scroll_right && scroll_left = view_start
+    | scroll_right = view_start + (new_end - view_end)
+    | scroll_left = new_start
+    | otherwise = view_start
+    where
+    track_range sel = (sum (take start widths), sum (take end widths))
+        where
+        start = Block.sel_start_track sel
+        end = start + Block.sel_tracks sel
+    (old_start, old_end) = track_range old_sel
+    (new_start, new_end) = track_range new_sel
+    scroll_right = new_end > old_end && new_end > view_end
+    scroll_left = new_start < old_start && new_start < view_start
 
 sync_selection_status view_id = do
     maybe_sel <- State.get_selection view_id Config.insert_selnum

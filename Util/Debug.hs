@@ -4,4 +4,5 @@ import qualified Debug.Trace as Trace
 
 trace = Trace.trace
 tracev x = Trace.trace ("**trace: " ++ show x) x
+tracem msg x = Trace.trace ("**" ++ msg ++ ": " ++ show x) x
 

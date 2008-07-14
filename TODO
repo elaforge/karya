@@ -30,22 +30,8 @@ logging
 
 Ui
   - rethrow c++ exceptions as FltkError
-  * rename Interface -> Ui, ui -> fltk
-  * UiMsg: use Key data type instead of Char for e.g. backspace
-  * use main thread for ui
-  * set block config
-  * set block view config
-  * BlockView.set_track_width, BlockView.get_track_width
-  * track_at
-  * Event
-  * work old tests from TestUi into BlockC_test
-  * always having to specify the color of a Selection is annoying, make
-    CSelection automatically get it from block_selection_colors
   - set_track_status
   - if the app thread dies, kill the rest of the threads
-  Diff
-    * ErrorT
-    * track width, track update (need diff hints?)
   Track
     - benchmark large TrackEvents
     - modify IntMap for Word64s, add toDescList

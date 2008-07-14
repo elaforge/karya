@@ -143,11 +143,11 @@ show_status = Seq.join " | " . map (\(k, v) -> k ++ ": " ++ v)
     . Map.assocs . view_status
 
 -- | Return how much track is in view.
-visible_view_area :: View -> TrackPos
-visible_view_area view = pixels_to_track_pos (view_zoom view) height
+visible_time_area :: View -> TrackPos
+visible_time_area view = pixels_to_track_pos (view_zoom view) height
     where
     ViewConfig { vconfig_block_title_height = blockth
-        , vconfig_track_title_height = trackth
+        , vconfig_track_title_height = trackth -- yeth a I have lithp
         , vconfig_sb_size = sb
         , vconfig_status_size = status } = view_config view
     -- TODO
@@ -156,6 +156,13 @@ visible_view_area view = pixels_to_track_pos (view_zoom view) height
     -- and I'd need to make sure a haskell-initiated resize gets reported in an
     -- UpdateViewResize too.
     height = snd (rect_size (view_rect view)) - blockth - trackth - sb - status
+
+visible_track_area :: View -> Width
+visible_track_area view = width - ruler_width - sb
+    where
+    ViewConfig { vconfig_sb_size = sb } = view_config view
+    ruler_width = Seq.mhead 0 (map track_view_width (view_tracks view))
+    width = fst (rect_size (view_rect view))
 
 pixels_to_track_pos :: Zoom -> Int -> TrackPos
 pixels_to_track_pos zoom pixels =
