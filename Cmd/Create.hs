@@ -77,7 +77,7 @@ block_view ruler_id = block ruler_id >>= view
 -- | ViewIds look like \"ns/b0.v0\", \"ns/b0.v1\", etc.
 generate_view_id views block_id = generate_id ns ident "v" Block.ViewId views
     where
-    ident = Block.un_block_id block_id
+    ident = Id.unpack_id block_id
     ns = Id.id_namespace ident
 
 -- | Same as State.destroy_view, included here for consistency.
@@ -122,7 +122,7 @@ track block_id tracknum = do
 add_overlay_suffix ruler_id
     | overlay_suffix `List.isSuffixOf` ident = ruler_id
     | otherwise = Ruler.RulerId (Id.id ns (ident ++ overlay_suffix))
-    where (ns, ident) = Id.un_id (Ruler.un_ruler_id ruler_id)
+    where (ns, ident) = Id.un_id (Id.unpack_id ruler_id)
 
 clip_tracknum block_id tracknum = do
     tracks <- State.tracks block_id
@@ -134,7 +134,7 @@ named_track :: (State.UiStateMonad m) =>
     Block.BlockId -> Ruler.RulerId -> Block.TrackNum
     -> String -> String -> m Track.TrackId
 named_track block_id ruler_id tracknum name title = do
-    ident <- make_id (Id.id_name (Block.un_block_id block_id) ++ "." ++ name)
+    ident <- make_id (Id.id_name (Id.unpack_id block_id) ++ "." ++ name)
     all_tracks <- fmap State.state_tracks State.get
     when (Track.TrackId ident `Map.member` all_tracks) $
         State.throw $ "track " ++ show ident ++ " already exists"
@@ -172,7 +172,7 @@ tracklike_track (Block.TId tid _) = Just tid
 tracklike_track _ = Nothing
 
 generate_track_id block_id code tracks =
-    generate_id "" (Block.un_block_id block_id) code Track.TrackId tracks
+    generate_id "" (Id.unpack_id block_id) code Track.TrackId tracks
 
 
 -- | Swap the tracks at the given tracknums.  If one of the tracknums is out

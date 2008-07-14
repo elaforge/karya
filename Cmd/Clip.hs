@@ -36,7 +36,6 @@ import qualified Util.Seq as Seq
 import Ui.Types
 import qualified Ui.Block as Block
 import qualified Ui.Id as Id
-import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 
@@ -163,21 +162,20 @@ selection_sub_state sel = do
     clip_block_id <- get_clip_block_id
     State.exec_rethrow "build clip state" State.empty $ do
         -- Inherit everything from the copied block, except the tracks.
-        b <- State.create_block (Block.un_block_id clip_block_id) $
+        b <- State.create_block (Id.unpack_id clip_block_id) $
             block { Block.block_track_widths = [] }
 
         let ruler_pairs = Seq.unique_with fst $ zip
                 (Block.ruler_ids_of tracklike_ids) (Block.rulers_of tracklikes)
         forM_ ruler_pairs $ \(ruler_id, ruler) ->
             unless (ruler_id == State.no_ruler) $ do
-                State.create_ruler (Ruler.un_ruler_id ruler_id) ruler
+                State.create_ruler (Id.unpack_id ruler_id) ruler
                 return ()
 
         let track_pairs = Seq.unique_with fst $ zip
                 (Block.track_ids_of tracklike_ids) (Block.tracks_of tracklikes)
         forM_ track_pairs $ \(track_id, track) ->
-            State.create_track (Track.un_track_id track_id)
-                (events_in_sel sel track)
+            State.create_track (Id.unpack_id track_id) (events_in_sel sel track)
         forM_ (zip [1..] tracklike_id_widths) $ \(n, (tracklike_id, width)) ->
             State.insert_track b n tracklike_id width
 
@@ -241,7 +239,7 @@ get_clip_namespace = fmap Cmd.state_clip_namespace Cmd.get_state
 destroy_namespace :: (State.UiStateMonad m) => Id.Namespace -> m ()
 destroy_namespace ns = do
     let in_ns = ((==ns) . Id.id_namespace)
-    block_ids <- fmap (filter (in_ns . Block.un_block_id))
+    block_ids <- fmap (filter (in_ns . Id.unpack_id))
         State.get_all_block_ids
     blocks <- mapM State.get_block block_ids
     let tracks = concatMap Block.block_tracks blocks
@@ -249,8 +247,8 @@ destroy_namespace ns = do
         ruler_ids = Seq.unique (Maybe.catMaybes (map Block.ruler_id_of tracks))
     -- Will destroy any views too.
     mapM_ State.destroy_block block_ids
-    mapM_ State.destroy_track (filter (in_ns . Track.un_track_id) track_ids)
-    mapM_ State.destroy_ruler (filter (in_ns . Ruler.un_ruler_id) ruler_ids)
+    mapM_ State.destroy_track (filter (in_ns . Id.unpack_id) track_ids)
+    mapM_ State.destroy_ruler (filter (in_ns . Id.unpack_id) ruler_ids)
 
 -- ** paste
 

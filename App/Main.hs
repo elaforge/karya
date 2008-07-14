@@ -58,7 +58,7 @@ load_static_config = do
         , StaticConfig.config_schema_map = Map.empty
         , StaticConfig.config_local_lang_dirs = [app_dir </> Config.lang_dir]
         , StaticConfig.config_global_cmds = []
-        , StaticConfig.config_setup_cmd = old_setup_cmd
+        , StaticConfig.config_setup_cmd = setup_cmd
         , StaticConfig.config_read_device_map = read_device_map
         , StaticConfig.config_write_device_map = write_device_map
         }

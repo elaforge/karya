@@ -17,8 +17,9 @@ import qualified Ui.Event as Event
 newtype TrackId = TrackId Id.Id
     deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
 
-un_track_id :: TrackId -> Id.Id
-un_track_id (TrackId s) = s
+instance Id.Ident TrackId where
+    unpack_id (TrackId a) = a
+    id_con _ = "tid"
 
 type PosEvent = (TrackPos, Event.Event)
 

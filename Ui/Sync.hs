@@ -74,8 +74,7 @@ track_title _ = return ""
 
 block_window_title :: Block.ViewId -> Block.BlockId -> String
 block_window_title view_id block_id =
-    Id.show_id (Block.un_view_id view_id)
-        ++ " (" ++ Id.show_id (Block.un_block_id block_id) ++ ")"
+    Id.show_ident view_id ++ " -- " ++ Id.show_ident block_id
 
 get_samples :: Maybe Track.TrackSamples -> Block.TracklikeId -> Track.Samples
 get_samples maybe_track_samples track = maybe Track.no_samples id $ do

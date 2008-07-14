@@ -102,14 +102,14 @@ mkstate block_id tracks = do
     ruler <- State.create_ruler (mkid "r1") no_ruler
     tids <- forM (zip [0..] tracks) $ \(i, track) -> do
         State.create_track (mkid ("b1." ++ show i)) (mktrack track)
-    State.create_block (Block.un_block_id block_id) $
+    State.create_block (Id.unpack_id block_id) $
         Block.block "b1 title" default_block_config
             ((Block.RId ruler, 20) : [(Block.TId tid ruler, 40) | tid <- tids])
             (Block.SchemaId (mkid "no schema"))
     return tids
 
 mkview :: (State.UiStateMonad m) => m Block.ViewId
-mkview = State.create_view (Block.un_view_id default_view_id) $
+mkview = State.create_view (Id.unpack_id default_view_id) $
     Block.view default_block_id default_rect default_zoom
         default_view_config
 

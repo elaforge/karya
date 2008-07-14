@@ -202,20 +202,20 @@ map_ids :: (State.MonadIO m, UiStateMonad m) => (Id.Id -> Id.Id) -> m ()
 map_ids f = do
     pure_map_ids f
     -- Do this last because it throws an IO exception on failure.
-    let view_f = Block.ViewId . f . Block.un_view_id
+    let view_f = Block.ViewId . f . Id.unpack_id
     Trans.liftIO $ Block.map_ids view_f
 
 map_view_ids :: (UiStateMonad m) => (Id.Id -> Id.Id) -> m ()
 map_view_ids f = do
     views <- fmap state_views get
-    let view_f = Block.ViewId . f . Block.un_view_id
+    let view_f = Block.ViewId . f . Id.unpack_id
     new_views <- safe_map_keys "state_views" view_f views
     modify $ \st -> st { state_views = new_views }
 
 map_block_ids :: (UiStateMonad m) => (Id.Id -> Id.Id) -> m ()
 map_block_ids f = do
     blocks <- fmap state_blocks get
-    let block_f = Block.BlockId . f . Block.un_block_id
+    let block_f = Block.BlockId . f . Id.unpack_id
     new_blocks <- safe_map_keys "state_blocks" block_f blocks
 
     views <- fmap state_views get
@@ -227,7 +227,7 @@ map_block_ids f = do
 map_track_ids :: (UiStateMonad m) => (Id.Id -> Id.Id) -> m ()
 map_track_ids f = do
     tracks <- fmap state_tracks get
-    let track_f = Track.TrackId . f . Track.un_track_id
+    let track_f = Track.TrackId . f . Id.unpack_id
     new_tracks <- safe_map_keys "state_tracks" track_f tracks
 
     blocks <- fmap state_blocks get
@@ -243,7 +243,7 @@ map_track_ids f = do
 map_ruler_ids :: (UiStateMonad m) => (Id.Id -> Id.Id) -> m ()
 map_ruler_ids f = do
     rulers <- fmap state_rulers get
-    let ruler_f = Ruler.RulerId . f . Ruler.un_ruler_id
+    let ruler_f = Ruler.RulerId . f . Id.unpack_id
     new_rulers <- safe_map_keys "state_rulers" ruler_f rulers
 
     blocks <- fmap state_blocks get

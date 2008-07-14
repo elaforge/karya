@@ -42,8 +42,7 @@ dump_block block_id = do
     let track_ids = Maybe.catMaybes $
             map Block.track_id_of (Block.block_tracks block)
     tracks <- mapM dump_track track_ids
-    return (Id.show_id (Block.un_block_id block_id), Block.block_title block,
-        tracks)
+    return (Id.show_ident block_id, Block.block_title block, tracks)
 
 dump_track :: (State.UiStateMonad m) => Track.TrackId -> m Track
 dump_track track_id = do
@@ -52,10 +51,8 @@ dump_track track_id = do
 
 simplify_track :: Track.TrackId -> Track.Track -> Track
 simplify_track track_id track =
-    (simple_id, Track.track_title track, map event events)
-    where
-    events = Track.event_list (Track.track_events track)
-    simple_id = Id.show_id (Track.un_track_id track_id)
+    (Id.show_ident track_id, Track.track_title track, map event events)
+    where events = Track.event_list (Track.track_events track)
 
 dump_selection :: Cmd.CmdL [(Track.TrackId, [Event])]
 dump_selection = do

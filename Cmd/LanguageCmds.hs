@@ -129,7 +129,7 @@ show_state = do
     (State.State project dir views blocks tracks rulers _midi_config)
         <- State.get
     -- midi config showed by show_midi_config
-    let f m = PPrint.pshow (Map.keys m)
+    let f fm = show_list (map Id.show_ident (Map.keys fm))
     return $ show_record
         [ ("project", project), ("dir", dir)
         , ("views", f views), ("blocks", f blocks)
@@ -149,11 +149,23 @@ destroy_view view_id = State.destroy_view (vid view_id)
 show_block :: Block.BlockId -> Cmd.CmdL String
 show_block block_id = do
     block <- State.get_block block_id
+    track_descs <- mapM show_tracklike (Block.block_tracks block)
     return $ show_record
         [ ("title", Block.block_title block)
-        , ("tracks", show_list (map show (Block.block_track_widths block)))
-        , ("schema", show (Block.block_schema block))
+        , ("tracks", show_list track_descs)
+        , ("schema", Id.show_ident (Block.block_schema block))
         ]
+    where
+
+show_tracklike (Block.TId tid rid) = do
+    track <- State.get_track tid
+    ruler_desc <- show_tracklike (Block.RId rid)
+    let (id, title, _) = Simple.simplify_track tid track
+    return $ id ++ " (title " ++ show title ++ ")"
+        ++ " (len " ++ show (Track.events_length (Track.track_events track))
+        ++ ") " ++ ruler_desc
+show_tracklike (Block.RId rid) = return (Id.show_ident rid)
+show_tracklike (Block.DId color) = return $ "Div " ++ show color
 
 -- | TODO put this in Cmd?
 get_skeleton :: Block.BlockId -> Cmd.CmdL Schema.Skeleton

@@ -33,12 +33,15 @@ newtype ViewId = ViewId Id.Id
 newtype SchemaId = SchemaId Id.Id
     deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
 
-un_block_id :: BlockId -> Id.Id
-un_block_id (BlockId s) = s
-un_view_id :: ViewId -> Id.Id
-un_view_id (ViewId s) = s
-un_schema_id :: SchemaId -> Id.Id
-un_schema_id (SchemaId s) = s
+instance Id.Ident BlockId where
+    unpack_id (BlockId a) = a
+    id_con _ = "bid"
+instance Id.Ident ViewId where
+    unpack_id (ViewId a) = a
+    id_con _ = "vid"
+instance Id.Ident SchemaId where
+    unpack_id (SchemaId a) = a
+    id_con _ = "sid"
 
 -- * block model
 

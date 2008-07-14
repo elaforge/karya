@@ -37,9 +37,9 @@ reduce (Schema.Merge tracks) = Seq.join " + " (map reduce tracks)
 
 reduce_track = reduce_tracklike . Schema.track_id
 
-reduce_tracklike (Block.TId tid _) = Id.id_name (Track.un_track_id tid)
+reduce_tracklike (Block.TId tid _) = Id.id_name (Id.unpack_id tid)
 reduce_tracklike (Block.DId _color) = "DIV"
-reduce_tracklike (Block.RId rid) = Id.id_name (Ruler.un_ruler_id rid)
+reduce_tracklike (Block.RId rid) = Id.id_name (Id.unpack_id rid)
 
 -- TODO test with rulers and dividers
 
@@ -58,13 +58,12 @@ test_parse = do
 
 test_compile_to_signals = do
     let parse tracks = Schema.default_parser tracks
-        (tids, state) = TestSetup.run_mkstate
+        (_tids, state) = TestSetup.run_mkstate
             [ ("tempo", [(0, 0, "2")])
             , (">inst0", [])
             , ("c1", [(0, 0, "3"), (10, 0, "2"), (20, 0, "1")])
             , ("c2", [(0, 0, ".1"), (10, 0, ".2"), (20, 0, ".4")])
             ]
-        tid_ns = map Track.un_track_id tids
         tracks = either (fail . show) id $ State.eval state $ do
             block <- State.get_block (Block.BlockId (mkid "b1"))
             Schema.block_tracks block

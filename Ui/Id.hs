@@ -1,7 +1,9 @@
 {-# OPTIONS_GHC -XDeriveDataTypeable #-}
 module Ui.Id (
+    Ident(..)
+
     -- * construction
-    Id, Namespace, id, read_id, show_id
+    , Id, Namespace, id, read_id, show_id
 
     -- * deconstruction
     , un_id, id_name, id_namespace
@@ -29,6 +31,19 @@ type Namespace = String
 newtype Id = Id (Namespace, String)
     deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
 un_id (Id ident) = ident
+
+-- | BlockIds, RulerIds, etc. are just wrappers around Ids.  Giving them a
+-- consistent display format lets me copy and paste them on the lang socket,
+-- which puts the constructors in scope.
+class Ident a where
+    show_ident :: a -> String
+    show_ident ident = "(" ++ con ++ " " ++ show (show_id id) ++ ")"
+        where
+        id = unpack_id ident
+        con = id_con ident
+
+    unpack_id :: a -> Id
+    id_con :: a -> String
 
 {-
 instance Show Id where
