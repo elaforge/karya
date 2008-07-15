@@ -664,6 +664,31 @@ remove_event track_id pos = do
             let end = Track.event_end (pos, evt)
             update $ Update.TrackUpdate track_id (Update.TrackEvents pos end)
 
+-- | An EventTransformer applies a given transformation to the events in
+-- a track.  TODO make sure this can also be used as a deriver, so I can
+-- use the same functions in derivers as in edit commands.
+--
+-- This will be called from the event at or previous (if there is no event at)
+-- to the selection.
+--
+-- Will this be efficient for a large number of events?  Track.merge_events
+-- will have to take care of efficiently merging a large input.
+type EventTransformer = [Track.PosEvent] -- ^ previous events
+    -> [Track.PosEvent] -- ^ subsequent events
+    -> Track.PosEvent -- ^ event in question
+    -> [Track.PosEvent] -- ^ produces these events
+
+-- | Map a function across events in track_id from the range start to end.
+-- If start doesn't fall on an event, this maps from the event /before/ the
+-- start.
+-- TODO this behaviour turns out to be handy in practice, but I'm not satisfied
+-- with it in general.
+modify_event_range :: (UiStateMonad m) => Track.TrackId
+    -> EventTransformer -> TrackPos -> TrackPos -> m ()
+modify_event_range track_id f start end = do
+    modify_events track_id (map_events f start end)
+    update $ Update.TrackUpdate track_id Update.TrackAllEvents
+
 -- | Emit track updates for all tracks.  Use this when events have changed but
 -- I don't know which ones, e.g. when loading a file or restoring a previous
 -- state.
@@ -681,9 +706,23 @@ update_track track_id track = modify $ \st -> st
 modify_track track_id f = do
     track <- get_track track_id
     update_track track_id (f track)
+
 -- This doesn't file TrackUpdates, so don't call this unless you do!
 modify_events track_id f = modify_track track_id $ \track ->
     track { Track.track_events = f (Track.track_events track) }
+
+map_events :: EventTransformer -> TrackPos -> TrackPos -> Track.TrackEvents
+    -> Track.TrackEvents
+map_events f start end track_events = process track_events
+    where
+    (pre, post) = Track.events_at_before start track_events
+    events = concat $ zipper_map f ((>=end) . fst) pre post
+    process = Track.insert_events events . Track.remove_events start end
+
+zipper_map _ _ _ [] = []
+zipper_map f stop prev (val:next)
+    | stop val = []
+    | otherwise = f prev next val : zipper_map f stop (val:prev) next
 
 -- * ruler
 

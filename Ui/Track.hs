@@ -59,11 +59,14 @@ set_render_style style track =
 
 -- * track events
 
-set_events :: TrackEvents -> Track -> Track
-set_events events track = modify_events track (const events)
+make_track_events :: [PosEvent] -> TrackEvents
+make_track_events = TrackEvents . Map.fromList
 
-modify_events :: Track -> (TrackEvents -> TrackEvents) -> Track
-modify_events track@(Track { track_events = events }) f =
+set_events :: TrackEvents -> Track -> Track
+set_events events track = modify_events (const events) track
+
+modify_events :: (TrackEvents -> TrackEvents) -> Track -> Track
+modify_events f track@(Track { track_events = events }) =
     track { track_events = f events }
 
 track_time_end :: Track -> TrackPos
@@ -136,6 +139,15 @@ remove_event pos track_events = emap (Map.delete pos) track_events
 events_at :: TrackPos -> TrackEvents -> ([PosEvent], [PosEvent])
 events_at pos (TrackEvents events) = (toDescList pre, Map.toAscList post)
     where (pre, post) = Util.Data.split_map pos events
+
+-- | This is like 'events_at', but if there isn't an event exactly at the pos,
+-- start at the event right before it.
+events_at_before :: TrackPos -> TrackEvents -> ([PosEvent], [PosEvent])
+events_at_before pos events
+    | (epos, _) : _ <- post, epos == pos = (pre, post)
+    | before : prepre <- pre = (prepre, before:post)
+    | otherwise = (pre, post)
+    where (pre, post) = events_at pos events
 
 event_at :: TrackEvents -> TrackPos -> Maybe Event.Event
 event_at track_events pos = case forward pos track_events of

@@ -1,4 +1,12 @@
 {- | Event editing commands.
+
+The distinction between Edit and NoteEntry is a little vague.
+
+- Cmd.Edit should just be generic event editing cmds: delete, ...
+- Note should be instrument track operations, independent of the scale
+- Controller should be controller track entry
+
+If NoteEntry is for circular import reasons, that should be documented.
 -}
 module Cmd.Edit where
 import Control.Monad
@@ -101,11 +109,9 @@ cmd_insert_midi_note msg = do
     insert_pitch (Pitch.from_midi_nn ("midi " ++ show key) key)
     return Cmd.Done
 
--- * copy / paste
+-- * event modification
 
 -- ** implementation
-
--- read_dev_to_write_dev (Midi.ReadDevice name) = Midi.WriteDevice name
 
 pitch_from_kbd nn = do
     oct <- fmap Cmd.state_kbd_entry_octave Cmd.get_state
@@ -149,6 +155,35 @@ cmd_controller_entry msg = do
 
 
 -- * other event cmds
+
+-- | Extend the events in the selection to either the end of the selection or
+-- the beginning of the next note.
+cmd_extend_events :: (Monad m) => Cmd.CmdT m ()
+cmd_extend_events = do
+    (track_ids, sel) <- Selection.selected_tracks Config.insert_selnum
+    let (start, end) = Block.sel_range sel
+    forM_ track_ids $ \track_id ->
+        State.modify_event_range track_id (trans_legato end) start end
+
+trans_legato :: TrackPos -> State.EventTransformer
+trans_legato sel_end _prev next (pos, event) = [(pos, extended)]
+    where
+    dur = case next of
+        ((next_pos, _):_) -> (min sel_end next_pos) - pos
+        [] -> Event.event_duration event
+    extended = event { Event.event_duration = dur }
+
+-- | An event overlapping the selection's point will be clipped to end there.
+cmd_clip_event :: (Monad m) => Cmd.CmdT m ()
+cmd_clip_event = do
+    (pos, _, track_id) <- Selection.get_insert_pos
+    track <- State.get_track track_id
+    (event_pos, event) <- Cmd.require $
+        Track.event_overlapping (Track.track_events track) pos
+    let max_dur = pos - event_pos
+    let clipped = event
+            { Event.event_duration = min max_dur (Event.event_duration event) }
+    State.insert_events track_id [(event_pos, clipped)]
 
 -- | If the insertion selection is a point, remove any event under it.  If it's
 -- a range, remove all events within its half-open extent.
@@ -199,5 +234,3 @@ sync_octave_status = do
 
 status_octave = "8ve"
 status_step = "step"
-
--- * util

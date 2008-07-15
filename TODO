@@ -40,18 +40,21 @@ Ui
       - send patch to libraries@haskell.org
 
 Cmd
-  - instrument initialization
   - cmd to give a view focus and bring it to the front
   - Cmd_test
   - background derivation and caching
+  - the cmds that return anything other than Done are rare, have a special case
+    for them and make most cmds return ()
   Keymap
     - check for key assignment collisions
     - support generic modifiers like any Shift, any Control, and Command
       (which becomes alt on a PC keyboard)
   Cmd.Edit
-    - change note lengths
+    * change note lengths
     - alternate finale-like note entry: hold down step key to set step and
       turn on edit mode, but only while the key is down
+    - trackerlike note entry: entered events are all as long as the block
+      (merge will clip them to the next event)
     - map selection through function
     - transpose selection
     - controller edit mode accepts two numbers and moves on, no spaces

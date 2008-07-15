@@ -53,8 +53,8 @@ cmd_io_keymap play_info = Keymap.make_cmd (io_bindings play_info)
 
 io_bindings :: Play.PlayInfo -> [Keymap.Binding IO]
 io_bindings play_info =
-    [ command (Key.KeyChar 's') "save" cmd_save
-    , command (Key.KeyChar 'l') "load" cmd_load
+    [ bind_kmod [Key.MetaL, Key.ShiftL] (Key.KeyChar 's') "save" cmd_save
+    , bind_kmod [Key.MetaL, Key.ShiftL] (Key.KeyChar 'l') "load" cmd_load
 
     -- player
     , bind_key Key.Enter "play block" (Play.cmd_play_focused play_info)
@@ -123,6 +123,9 @@ edit_bindings =
 
     , bind_key (Key.KeyChar '-') "octave -1" (Edit.cmd_modify_octave (+ (-1)))
     , bind_key (Key.KeyChar '=') "octave +1" (Edit.cmd_modify_octave (+1))
+
+    , command (Key.KeyChar 'l') "extend events" (done Edit.cmd_extend_events)
+    , command (Key.KeyChar 's') "clip event" (done Edit.cmd_clip_event)
     ]
 
 create_bindings =

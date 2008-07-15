@@ -10,6 +10,23 @@ import qualified Ui.TestSetup as TestSetup
 
 -- TODO improve tests
 
+track_events = Track.make_track_events . events
+
+test_events_at_before = do
+    let e1 = track_events [(0, "0", 1), (1, "1", 1), (2, "2", 1)]
+    let f pos = let (pre, post) = Track.events_at_before pos e1
+            in (map extract_text pre, map extract_text post)
+    equal (f 0) ([], ["0", "1", "2"])
+    equal (f 0.5) ([], ["0", "1", "2"])
+    equal (f 1) (["0"], ["1", "2"])
+    equal (f 1.5) (["0"], ["1", "2"])
+
+extract_text :: Track.PosEvent -> String
+extract_text (_, event) = Event.event_text event
+
+
+-- * cruft
+
 test_merge0 = do
     -- 0 dur events
     let te1 = merge Track.empty_events [(0, "0", 0), (16, "16", 0)]
@@ -79,7 +96,6 @@ extract (Track.TrackEvents fm) = extractm fm
 extractm event_map = [(pos, Event.event_text evt, dur)
     | (TrackPos pos, evt@(Event.Event { Event.event_duration = TrackPos dur }))
         <- Map.toAscList event_map]
-
 
 
 events =

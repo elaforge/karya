@@ -27,6 +27,7 @@ import qualified Midi.Midi as Midi
 import qualified Cmd.Clip as Clip
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
+import qualified Cmd.Edit as Edit
 import qualified Cmd.MakeRuler as MakeRuler
 import qualified Cmd.Play as Play
 import qualified Cmd.Selection as Selection
