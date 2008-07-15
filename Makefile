@@ -24,7 +24,18 @@ FLTK_OBJS := Block.o TrackTile.o Track.o Ruler.o EventTrack.o MoveTile.o \
 	f_util.o alpha_draw.o types.o config.o
 FLTK_OBJS := $(addprefix fltk/, $(FLTK_OBJS))
 
-all: seq send repl test_block test_ui test_midi test_obj/RunTests
+BINARIES := seq send repl browser make_db dump logview
+TEST_BINARIES := test_block test_logview test_browser test_midi \
+	test_obj/RunTests
+
+# If -j is given, this runs the ghcs in parallel, which results in endless
+# recompilation as the ghcs walk on each other.  So explicitly disable
+# jobs.
+.PHONY: all
+all:
+	for target in $(BINARIES) $(TEST_BINARIES); do \
+		if ! $(MAKE) -j1 $$target; then break; fi \
+	done
 
 .PHONY: dep
 dep: fixdeps
@@ -44,8 +55,7 @@ test/hspp: test/hspp.hs
 clean:
 	rm -f **/*.o **/*.hi **/*.pyc fixdeps fltk/fltk.a \
 		$(UI_HS) $(MIDI_HS) $(LOGVIEW_HS) $(BROWSER_HS) haddock/*  hpc/* \
-		test_block test_logview test_browser test_midi \
-		seq send repl dump make_db logview \
+		$(BINARIES) $(TEST_BINARIES) \
 		seq_language
 	rm -rf test_obj/* .hpc
 
