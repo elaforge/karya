@@ -1,5 +1,22 @@
 -- | Basic testing utilities.
-module Util.Test where
+module Util.Test (
+    skip_human
+    -- * tests
+    -- ** pure checks
+    , check, check_srcpos, check_msg, check_msg_srcpos
+    , equal, equal_srcpos
+    -- ** exception checks
+    , throws, throws_srcpos, catch_srcpos
+    , exc_like
+
+    -- ** io checks
+    , io_equal, io_equal_srcpos
+    , io_human
+
+    -- * pretty printing
+    , plist, pmlist
+    , module PPrint
+) where
 
 import qualified Control.Exception as Exception
 import Control.Monad
@@ -11,7 +28,7 @@ import Text.Printf
 
 import qualified Util.Seq as Seq
 import qualified Util.SrcPos as SrcPos
-import qualified Util.PPrint as PPrint
+import Util.PPrint as PPrint
 
 
 -- | If this is True, skip through human-feedback tests.  That way I can at
@@ -37,6 +54,14 @@ check_msg_srcpos srcpos (True, msg) =
 equal :: (Show a, Eq a) => a -> a -> IO ()
 equal = equal_srcpos Nothing
 
+equal_srcpos :: (Show a, Eq a) => SrcPos.SrcPos -> a -> a -> IO ()
+equal_srcpos srcpos a b
+    | a == b = success srcpos $ "== " ++ show a
+    | otherwise = failure srcpos $ pa ++ "\t/=\n" ++ pb
+    where
+    pa = PPrint.pshow a
+    pb = PPrint.pshow b
+
 -- | The given pure value should throw an exception that matches the predicate.
 throws :: (Show a) => (Exception.Exception -> Bool) -> a -> IO ()
 throws = throws_srcpos Nothing
@@ -50,20 +75,12 @@ throws_srcpos srcpos f val =
             then success srcpos ("caught exc: " ++ show exc)
             else failure srcpos ("exception didn't match: " ++ show exc)
 
-exc_like :: String -> Exception.Exception -> Bool
-exc_like expected exc = expected `List.isInfixOf` show exc
-
-equal_srcpos :: (Show a, Eq a) => SrcPos.SrcPos -> a -> a -> IO ()
-equal_srcpos srcpos a b
-    | a == b = success srcpos $ "== " ++ show a
-    | otherwise = failure srcpos $ pa ++ "\t/=\n" ++ pb
-    where
-    pa = PPrint.pshow a
-    pb = PPrint.pshow b
-
 catch_srcpos :: SrcPos.SrcPos -> IO () -> IO ()
 catch_srcpos srcpos op = Exception.catch op
     (\e -> failure srcpos ("test threw exception: " ++ show e))
+
+exc_like :: String -> Exception.Exception -> Bool
+exc_like expected exc = expected `List.isInfixOf` show exc
 
 -- IO oriented checks, the first value is pulled from IO.
 
