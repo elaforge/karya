@@ -24,9 +24,6 @@ import qualified Ui.Ruler as Ruler
 
 import qualified App.Config as Config
 
-import Util.Test
-import Text.Printf
-
 
 -- * constants
 
@@ -182,10 +179,3 @@ mark_names marks = map (Seq.join "." . map show . drop 1 . reverse) $ snd $
         inc xs = case xs of
             (x:xs) -> x+1 : xs
             [] -> []
-
-
-
-pretty_marks pos_marks = pslist $
-    map (\(p, m) -> printf "%s: \t%d '%s'"
-        (show p) (Ruler.mark_rank m) (Ruler.mark_name m))
-    pos_marks

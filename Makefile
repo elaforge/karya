@@ -53,7 +53,8 @@ test/hspp: test/hspp.hs
 
 .PHONY: clean
 clean:
-	rm -f **/*.o **/*.hi **/*.pyc fixdeps fltk/fltk.a \
+	rm -f `find . -name '*.o' -or -name '*.hi' -or -name '*.pyc'` \
+		fixdeps fltk/fltk.a \
 		$(UI_HS) $(MIDI_HS) $(LOGVIEW_HS) $(BROWSER_HS) haddock/*  hpc/* \
 		$(BINARIES) $(TEST_BINARIES) \
 		seq_language

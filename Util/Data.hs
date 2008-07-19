@@ -28,6 +28,8 @@ split3_map low high fm = (below, within, way_above)
     (below, above) = split_map low fm
     (within, way_above) = split_map high above
 
+within low high fm = let (_, m, _) = split3_map low high fm in m
+
 invert_map :: (Ord k, Ord a) => Map.Map k a -> Map.Map a [k]
 invert_map = multimap . map (\(x, y) -> (y, x)) . Map.assocs
 

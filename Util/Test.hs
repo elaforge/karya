@@ -11,10 +11,10 @@ module Util.Test (
 
     -- ** io checks
     , io_equal, io_equal_srcpos
-    , io_human
+    , io_human, io_human_srcpos
 
     -- * pretty printing
-    , plist, pmlist
+    , plist, pslist, pmlist
     , module PPrint
 ) where
 

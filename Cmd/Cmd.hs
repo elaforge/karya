@@ -495,7 +495,7 @@ merge tracks = Merge tracks
 
 data Track = Track {
     track_title :: Maybe String
-    , track_id :: Block.TracklikeId
+    , track_id :: Block.TracklikeId -- TODO make this TrackId?
     , track_tracknum :: Block.TrackNum
     } deriving (Show)
 
