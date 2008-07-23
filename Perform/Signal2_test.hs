@@ -80,3 +80,8 @@ test_find_samples = do
         , ((1, 1), (2, 1))
         ]
 
+test_clip = do
+    let sig = Signal.signal [(0, 0), (2, 2), (4, 0)]
+    print sig
+    equal (Signal.unpack $ Signal.clip_max 1 sig)
+        [(0, 0), (1, 1), (3, 1), (4, 0)]

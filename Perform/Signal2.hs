@@ -21,12 +21,6 @@ gc the head?)
 - equal - compare ranges for midi performance
 
 
-Need storable vector with chunks
-c++ asks for a range, hs returns ptrs to blocks that cover the range
-
-or a strict vector?  I'll try that first
-
-don't start unless I'm sure of the storage
 Since I'll wind up computing everything anyway, strict may not be such
 a problem.  Also, control signals are sparse compared to audio:
 
@@ -68,7 +62,6 @@ import qualified Util.Data
 
 import Ui.Types
 import qualified Perform.Timestamp as Timestamp
-
 
 -- * construction
 
@@ -162,6 +155,9 @@ at :: TrackPos -> Signal -> Val
 at pos sig = interpolate_linear pos0 val0 pos1 val1 pos
     where ((pos0, val0), (pos1, val1)) = find_samples pos sig
 
+at_timestamp :: Timestamp.Timestamp -> Signal -> Val
+at_timestamp ts sig = at (Timestamp.to_track_pos ts) sig
+
 -- Before the first sample: (zero, first)
 -- at the first until the second: (first, second)
 -- at the last until whenever: (last, extend last in a straight line)
@@ -206,37 +202,6 @@ interpolate_linear x0 y0 x1 y1 x = y0 + amount * (y1-y0)
 
 -- * functions
 
--- | Integrate the signal.
-integrate :: TrackPos -> Signal -> Signal
-integrate srate (SignalVector vec) =
-    SignalVector (V.pack (DList.toList integral))
-    where
-    -- What I really want here is concatMapAccumL, but it doesn't have that.
-    -- DList shouldn't be too bad though.
-    integral = (\(_, _, x) -> x) $ V.foldl' go (0, (0, 0), DList.empty) vec
-    -- integral = V.mapAccumL go (0, (0, 0)) vec
-    go (accum, (pos0, val0), lst) (pos1, val1) =
-        (accum2, (pos1, val1), lst `DList.append` DList.fromList samples)
-        where (accum2, samples) = sample_segment accum pos0 val0 pos1 val1
-    sample_segment accum pos0 val0 pos1 val1 = integrate_segment
-        (pos_to_val srate) accum pos0 val0 pos1 val1
-
-
-integrate_segment :: Val -> Val -> Val -> Val -> Val -> Val
-    -> (Val, [(Val, Val)])
-integrate_segment srate accum x0 y0 x1 y1
-    | x0 == x1 = (accum, [])
-        -- Line with slope y0, take a shortcut.
-    | y0 == y1 =
-        let x = x1 - srate
-            y = accum + x * y0
-        in (y, [(x0, accum), (x, y)])
-    | otherwise = List.mapAccumL go accum samples
-    where
-    samples = takeWhile (<x1) [x0, x0 + srate ..]
-    go accum x = let val = accum + y_at x * srate in (val, (x, val))
-    y_at x = interpolate_linear x0 y0 x1 y1 x
-
 -- | Find the TrackPos at which the signal will attain the given Val.  Assumes
 -- the Val is non-decreasing.
 --
@@ -260,7 +225,66 @@ inverse_at (SignalVector vec) ts
     (x0, y0) = if i-1 < 0 then (0, 0) else V.index vec (i-1)
     (x1, y1) = V.index vec i
 
+-- | Integrate the signal.
+integrate :: TrackPos -> Signal -> Signal
+integrate srate = map_signal_accum go 0
+    where
+    go accum x0 y0 x1 y1 =
+        integrate_segment (pos_to_val srate) accum x0 y0 x1 y1
+
+-- | Clip signal to never go over the given val.  This is different from
+-- mapping 'max' because it will split segments at the point they go out of
+-- bounds and insert a flat segment.
+clip_max :: Val -> Signal -> Signal
+clip_max max_val = clip_with max_val (>)
+
+clip_min :: Val -> Signal -> Signal
+clip_min min_val = clip_with min_val (<)
+
+-- ** implementation
+
+clip_with val f = map_signal_accum go False
+    where
+    go True x0 y0 x1 y1
+        | f y1 val = (True, [])
+        | otherwise = (False, [(x, val), (x1, y1)])
+            where x = x_at (x0, y0) (x1, y1) val
+    go False x0 y0 x1 y1
+        | f y1 val = (True, [(x, val)])
+        | otherwise = (False, [(x1, y1)])
+            where x = x_at (x0, y0) (x1, y1) val
+
+integrate_segment :: Val -> Val -> Val -> Val -> Val -> Val
+    -> (Val, [(Val, Val)])
+integrate_segment srate accum x0 y0 x1 y1
+    | x0 == x1 = (accum, [])
+        -- Line with slope y0, take a shortcut.
+    | y0 == y1 =
+        let x = x1 - srate
+            y = accum + x * y0
+        in (y, [(x0, accum), (x, y)])
+    | otherwise = List.mapAccumL go accum samples
+    where
+    samples = takeWhile (<x1) [x0, x0 + srate ..]
+    go accum x = let val = accum + y_at x * srate in (val, (x, val))
+    y_at x = interpolate_linear x0 y0 x1 y1 x
+
+
 -- * util
+
+map_signal_accum :: (accum -> Val -> Val -> Val -> Val -> (accum, [(Val, Val)]))
+    -> accum -> Signal -> Signal
+map_signal_accum f accum (SignalVector vec) =
+    SignalVector (V.pack (DList.toList result))
+    where
+    result = (\(_, _, x) -> x) $ V.foldl' go (accum, (0, 0), DList.empty) vec
+    go (accum, (x0, y0), lst) (x1, y1) =
+        (accum2, (x1, y1), lst `DList.append` DList.fromList samples)
+        where (accum2, samples) = f accum x0 y0 x1 y1
+
+map_signal :: (Val -> Val -> Val -> Val -> [(Val, Val)]) -> Signal -> Signal
+map_signal f = map_signal_accum go False
+    where go _ x0 y0 x1 y1 = (False, f x0 y0 x1 y1)
 
 -- | Given a line defined by the two points, find the y at the given x.
 y_at :: (Ord a, Fractional a) => (a, a) -> (a, a) -> a -> a
@@ -275,6 +299,7 @@ pos_to_val = realToFrac
 val_to_pos :: Val -> TrackPos
 val_to_pos = realToFrac
 
+{-
 lookup_around_loose def k fm = case lookup_around k fm of
     (Just kv0, Just kv1) -> (kv0, kv1)
     (Nothing, Nothing) -> (def, def)
@@ -289,3 +314,4 @@ lookup_around k fm = case at of
         Nothing -> (Util.Data.find_max pre, Util.Data.find_min post)
         Just v -> (Just (k, v), Util.Data.find_min post)
     where (pre, at, post) = Map.splitLookup k fm
+-}
