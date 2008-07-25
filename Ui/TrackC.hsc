@@ -115,6 +115,7 @@ cb_find_samples (Track.Samples samples) startp endp ret_tps ret_samples = do
         poke ret_samples sample_array
     -- putStrLn $ "find samples " ++ show start ++ "--" ++ show end
     --     ++ ": " ++ show (length found)
+    --     ++ "\n" ++ show found
     return (length found)
 
 foreign import ccall "wrapper"

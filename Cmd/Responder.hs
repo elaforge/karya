@@ -27,11 +27,7 @@ signal maps for each track for each block.  It's important that the signal maps
 remain lazy because only portions of them may be needed if there are only
 localized track updates (or none at all if there are no track updates).
 
-Technically speaking, tracks display samples, not signals.  I am making the
-terminology distinction that a signal is a higher level curve description as in
-Signal.Signal, while samples only have linear segments.
-
-A track's samples is much like its events in that they are spread across the
+A track's samples are much like its events in that they are spread across the
 track's entire range but only displayed for the visible subset.  However, while
 events have a special mechanism/hack to capture modified ranges (as described
 in Ui.State) so the display can be refreshed incrementally, samples have no
@@ -84,7 +80,7 @@ import qualified Cmd.Save as Save
 import qualified Derive.Derive as Derive
 import qualified Derive.Schema as Schema
 
-import qualified Perform.Signal as Signal
+import qualified Perform.Signal2 as Signal
 
 import qualified App.Config as Config
 import qualified App.StaticConfig as StaticConfig
@@ -376,8 +372,8 @@ derive_signal schema_map block_id = do
     let (result, _, _, logs) = Derive.derive ui_state block_id deriver
     case result of
         Left err -> State.throw (show err)
-        Right track_samples -> return
-            (map (Arrow.second Signal.to_track_samples) track_samples, logs)
+        Right sig ->
+            return (map (Arrow.second Signal.to_track_samples) sig, logs)
 
 
 -- * util

@@ -10,7 +10,6 @@ import Ui.Types
 import qualified Ui.Block as Block
 import qualified Midi.Midi as Midi
 import qualified Perform.Timestamp as Timestamp
-import qualified Perform.Signal as Signal
 
 
 -- | These go back to the responder loop from the render thread to notify it
@@ -52,19 +51,17 @@ check_transport (Transport trans) = IORef.readIORef trans
 
 -- * play timing
 
-type TempoMap = TrackPos -> Timestamp.Timestamp
+type TempoFunction = TrackPos -> Timestamp.Timestamp
 
--- | Return the TrackPos play position is at on the given block at the given
--- time.  The updater thread polls this at a given resolution for all displayed
--- blocks and update the play selection accordingly.  If the given Timestamp is
--- beyond the end of the block, return Nothing.
+-- | Return the TrackPos play position in the various playing blocks at the
+-- given physical time.  If the Timestamp is past the end of all playing
+-- blocks, return [].  The updater thread polls this at a given resolution for
+-- all displayed blocks and updates the play selection accordingly.
 --
 -- This is generated as the inverse of the tempo, i.e. at the "bottom" block
 -- it's 1:1, and at above blocks it's warped according to the inverse of the
 -- tempo warped from there.
-data InverseTempoMap = InverseTempoMap Signal.PosSamples InverseTempoFunction
-type InverseTempoFunction = Signal.PosSamples -> Timestamp.Timestamp
-        -> ([(Block.BlockId, TrackPos)], Signal.PosSamples)
+type InverseTempoFunction = Timestamp.Timestamp -> [(Block.BlockId, TrackPos)]
 
 
 -- * state

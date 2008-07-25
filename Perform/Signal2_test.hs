@@ -37,6 +37,23 @@ test_sample_function = do
     equal (f 0 2) [(TrackPos 0, 1), (TrackPos 1, 1.25)]
     equal (f 10 12) [(TrackPos 10, 1), (TrackPos 11, 1.25)]
 
+-- * access
+
+test_sample = do
+    let sig = Signal.signal [(0, 0), (2, 2), (4, 2), (6, 0)]
+    equal (Signal.sample (TrackPos 1) (TrackPos 0) sig)
+        [(0, 0), (1, 1), (2, 2), (5, 1), (6, 0)]
+    equal (Signal.sample (TrackPos 1) (TrackPos 2) sig)
+        [(2, 2), (5, 1), (6, 0)]
+    equal (Signal.sample (TrackPos 1) (TrackPos 3) sig)
+        [(3, 2), (5, 1), (6, 0)]
+
+    let discont = Signal.signal [(0, 1), (2, 1), (2, 0)]
+    equal (Signal.sample (TrackPos 1) (TrackPos 0) discont)
+        [(0, 1), (2, 0)]
+
+-- * functions
+
 test_integrate = do
     let f sig = Signal.unpack $ Signal.integrate (TrackPos 1) sig
     equal (f (tsig [(0, Set, 0), (3, Linear, 3)]))
@@ -85,3 +102,8 @@ test_clip = do
     print sig
     equal (Signal.unpack $ Signal.clip_max 1 sig)
         [(0, 0), (1, 1), (3, 1), (4, 0)]
+
+test_clip2 = do
+    let sig = Signal.signal [(0, 0), (0, 2), (4, 2)]
+    print sig
+    print $ Signal.clip_min 1 sig

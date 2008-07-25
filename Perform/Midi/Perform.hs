@@ -16,7 +16,7 @@ import qualified Util.Data
 import qualified Midi.Midi as Midi
 
 import qualified Perform.Pitch as Pitch
-import qualified Perform.Signal as Signal
+import qualified Perform.Signal2 as Signal
 import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Warning as Warning
 
@@ -163,7 +163,7 @@ control_at :: Event -> Controller.Controller -> Timestamp.Timestamp
     -> Maybe Signal.Val
 control_at event controller ts = do
     sig <- Map.lookup controller (event_controls event)
-    return (Signal.at_timestamp sig ts)
+    return (Signal.at_timestamp ts sig)
 
 -- | Add offset to pitch bend msgs, passing others through.
 add_pitch_bend :: Int -> Midi.WriteMessage -> Midi.WriteMessage
@@ -191,7 +191,7 @@ perform_controller cmap start_ts end_ts chan (controller, sig) =
     where
         -- TODO get srate from a controller
     ts_vals = takeWhile ((<end_ts) . fst) $
-        Signal.sample_timestamp Signal.default_srate_ts sig start_ts
+        Signal.sample_timestamp Signal.default_srate_ts start_ts sig
     (low, high) = Controller.controller_range controller
     -- arrows?
     (cvals, clips) = unzip (map (clip_val low high) (map snd ts_vals))
@@ -263,9 +263,7 @@ can_share_chan event1 event2 =
     relevant event = filter (Controller.is_channel_controller . fst)
         (Map.assocs (event_controls event))
 
--- TODO make this more efficient?  I only actually need to compare the areas
--- covered by (event_on_ts, next_on_ts)
--- implement! undefined
+-- | Are the controllers equal in the given range?
 controls_equal :: Timestamp.Timestamp -> Timestamp.Timestamp
     -> [(Controller.Controller, Signal.Signal)]
     -> [(Controller.Controller, Signal.Signal)] -> Bool

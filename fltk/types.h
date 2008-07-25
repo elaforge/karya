@@ -100,6 +100,11 @@ struct TrackSelection {
 #define MINIMUM_FACTOR .0001
 
 struct ZoomInfo {
+    // TrackPos are bigger than ints, so they have to be clipped.  If they
+    // are clipped to INT_MIN/INT_MAX, overflow happens easily when they have
+    // pixel offsets added to them.  So make it something with plenty of room
+    // but still probably bigger than your monitor.
+    enum { max_pixels = INT_MAX / 2 };
     ZoomInfo() : offset(0), factor(1) {}
     ZoomInfo(TrackPos offset, double factor) :
         offset(offset), factor(std::max(MINIMUM_FACTOR, factor))
@@ -115,8 +120,8 @@ struct ZoomInfo {
     int to_pixels(const TrackPos pos) const {
         // A TrackPos is not guaranteed to fit in an int.
         double scaled = pos.scale(this->factor);
-        return int(floor(std::max(double(INT_MIN), std::min(double(INT_MAX),
-                            scaled))));
+        return int(floor(std::max(double(-max_pixels),
+                                  std::min(double(max_pixels), scaled))));
     }
 
     // Given the current offset and zoom, this many pixels corresponds to

@@ -13,7 +13,7 @@ import qualified Ui.Event as Event
 import qualified Ui.Track as Track
 
 import qualified Perform.Pitch as Pitch
-import qualified Perform.Signal as Signal
+import qualified Perform.Signal2 as Signal
 import qualified Perform.Warning as Warning
 
 

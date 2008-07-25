@@ -23,7 +23,7 @@ import qualified Derive.Score as Score
 import qualified Derive.Schema as Schema
 import qualified Derive.Twelve as Twelve
 
-import qualified Perform.Signal as Signal
+import qualified Perform.Signal2 as Signal
 import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Controller as Controller
@@ -50,12 +50,12 @@ test_basic = do
     let (events, logs) = derive_events ui_state basic_deriver
     equal logs []
     pmlist "score" events
-    let (midi_events, warns) = Convert.convert test_lookup events
+    let (midi_events, warns) = Convert.convert default_lookup events
     equal warns []
     equal (length midi_events) 2
     pmlist "midi_events" midi_events
     let (msgs, _warns) = Perform.perform
-            test_lookup default_inst_config midi_events
+            default_lookup default_inst_config midi_events
     equal (length msgs) 4 -- (noteon + noteoff) * 2
     pmlist "msgs" msgs
 
@@ -68,7 +68,7 @@ test_controller = do
     let (events, logs) = derive_events ui_state controller_deriver
     equal logs []
     pmlist "score" events
-    let (midi_events, warns) = Convert.convert test_lookup events
+    let (midi_events, warns) = Convert.convert default_lookup events
     equal warns []
     equal (length midi_events) 2
     -- The exact msgs that come out depend on the srate, and besides this stuff
@@ -77,13 +77,6 @@ test_controller = do
     -- let (msgs, _warns) = Perform.perform default_inst_config midi_events
     -- equal (length msgs) 4 -- (noteon + noteoff) * 2
     -- pmlist "msgs" msgs
-
-tempo_deriver :: Signal.Signal -> Track.TrackId -> Track.TrackId
-    -> Derive.Deriver
-tempo_deriver tempo note_tid vel_tid = do
-    Derive.d_tempo (return tempo) $
-        cont_deriver "velocity" vel_tid
-            (bass =<< twelve =<< Derive.d_track note_tid)
 
 cont_deriver name tid = Controller.d_controller (Score.Controller name)
     (Controller.d_signal =<< Derive.d_track tid)
@@ -94,15 +87,15 @@ test_inject_pos = do
             extract_events (Derive.inject_pos pmap (map mkscore score))
         pmap = mkmap
             [(0, 0), (5, 10), (10, 20), (15, 30)]
-    -- TODO real test
-    print $ inject [(0, 5, "a"), (5, 5, "b")]
+    equal (inject [(0, 5, "a"), (5, 5, "b")])
+        [(0, 10, "a"), (10, 10, "b")]
 
-test_inverse_tempo_map = do
-    let pos_map = map (\(x, y) -> (TrackPos x, TrackPos y))
-            [(0, 1), (2, 1), (4, 3) , (6, 4)]
-        tmap = Derive.make_inverse_tempo_map
-            block_id (TrackPos 0) (TrackPos 30) pos_map
-    plist $ map (tmap . Timestamp.Timestamp) [0..8]
+test_make_inverse_tempo_func = do
+    let warp = Derive.tempo_to_warp (Signal.constant 1)
+    let f = Derive.make_inverse_tempo_func
+            block_id (TrackPos 0) (TrackPos 3) warp
+    equal (map f (map Timestamp.seconds [0..3]))
+        [[(block_id, 0)], [(block_id, 1)], [(block_id, 2)], []]
 
 test_block = do
     let (deriver, ui_state) = TestSetup.run State.empty $ do
@@ -113,36 +106,15 @@ test_block = do
     let (_result, derive_state, _logs) = Identity.runIdentity $
             Derive.run ui_state deriver
     -- TODO real test
-    print $ Derive.state_tempo derive_state
-    plist $ Derive.state_pos_map derive_state
+    print $ Derive.state_warp derive_state
+    -- derive events?
 
-    -- let (events, tempo, inv_tempo, logs) = derive_events2 ui_state deriver
-    -- plist (extract_events events)
-    -- -- plist $ inverse inv_tempo (map Timestamp.Timestamp [0, 100..3000])
-    -- print $ inverse inv_tempo [(Timestamp.Timestamp 2600)]
-    -- print pmap
-    -- print (head events)
-
-inverse (Transport.InverseTempoMap samples tfunc) ts =
-    map (tfunc samples) ts
-
-derive_events2 ui_state deriver = case result of
-        Left err -> error $ "derive error: " ++ show err
-        Right val -> (val, tempo, inv_tempo, logs)
-    where
-    (result, tempo, inv_tempo, logs) = Derive.derive ui_state block_id deriver
-
-pos_map (Transport.InverseTempoMap t _) = t
-
-test_tempo_map = do
-    let pmap2 = [(TrackPos 0,TrackPos 0),(TrackPos 0,TrackPos 0)]
-    print $ (Derive.make_tempo_map pmap2) (TrackPos 0)
-    print $ Signal.interpolate_samples [(0, 0), (0, 0)] 0
-
-    -- let pos_map = map (\(x, y) -> (TrackPos x, TrackPos y))
-    --         [(0, 1), (2, 1), (4, 3) , (6, 4)]
-    --     tmap = Derive.make_tempo_map pos_map
-    -- plist $ map (tmap . TrackPos) [0..8]
+tempo_deriver :: Signal.Signal -> Track.TrackId -> Track.TrackId
+    -> Derive.Deriver
+tempo_deriver tempo note_tid vel_tid = do
+    Derive.d_tempo (return tempo) $
+        cont_deriver "velocity" vel_tid
+            (bass =<< twelve =<< Derive.d_track note_tid)
 
 test_tempo = do
     let (tids, state) = TestSetup.run_mkstate
@@ -156,7 +128,9 @@ test_tempo = do
     equal (derive_with [(0, Signal.Set, 2)])
         [(0, 5, "5a-"), (5, 5, "5b-"), (10, 5, "5c-")]
 
-    plist $ derive_with [(0, Signal.Set, 2), (20, Signal.Linear, 1)]
+    -- Slowing down.
+    equal (derive_with [(0, Signal.Set, 2), (20, Signal.Linear, 1)])
+        [(0, 6, "5a-"), (6, 8, "5b-"), (14, 10, "5c-")]
 
 -- extract_controller name = map $ \event -> Map.assocs $ Signal.signal_map $
 --     Score.event_controllers event Map.! Score.Controller name
@@ -185,8 +159,8 @@ test_controller_parse = do
     let result = run "hi there"
     check $ "Left \"parse error on char 1" `List.isPrefixOf` (show result)
 
-    equal (run "-2e.2") (Right (TrackPos 0, Signal.Exp (-2), 0.2, 0.2))
-    equal (run "-.2") (Right (TrackPos 0, Signal.Set, -0.2, -0.2))
+    equal (run "-2e.2") (Right (TrackPos 0, Signal.Exp (-2), 0.2))
+    equal (run "-.2") (Right (TrackPos 0, Signal.Set, -0.2))
 
 test_run :: Derive.DeriveT Identity.Identity a -> Either String a
 test_run m = case Identity.runIdentity (Derive.run State.empty m) of
@@ -201,7 +175,7 @@ bass events = return (midi_instrument default_inst events)
 
 mkid = TestSetup.mkid
 
-block_id = Block.BlockId (mkid "b0")
+block_id = TestSetup.default_block_id
 track_id = Track.TrackId (mkid "b0.t0")
 cont_track_id = Track.TrackId (mkid "b0.cont")
 
@@ -210,7 +184,7 @@ default_dev = Midi.WriteDevice "out"
 default_inst_config = Instrument.config
     [((default_dev, 0), Score.Instrument "synth/patch")] Nothing
 
-test_lookup (Score.Instrument inst)
+default_lookup (Score.Instrument inst)
     | inst == "synth/patch" = Just $
         Instrument.instrument "synth/patch" Controller.empty_map (-2, 2) Nothing
     | otherwise = Nothing
@@ -251,7 +225,8 @@ track1 = TestSetup.mktrack ("1", [(0, 16, "4c-"), (16, 16, "4c#")])
 track_cont = TestSetup.mktrack
     ("cont", [(0, 0, "1"), (16, 0, "i.75"), (32, 0, "i0")])
 
-mksignal segs = Signal.signal [(TrackPos p, m, v, v) | (p, m, v) <- segs]
+mksignal segs = Signal.track_signal (TrackPos 1)
+    [(TrackPos p, m, v) | (p, m, v) <- segs]
 
 extract_events :: [Score.Event] -> [(Integer, Integer, String)]
 extract_events = map $ \event ->

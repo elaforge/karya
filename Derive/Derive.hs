@@ -10,7 +10,7 @@
 
     Signals are described on the track as [TrackSegment], and are transformed
     to Signal, which can be sampled at any srate.  The tempo signal is sampled
-    at tempo_srate
+    at tempo_srate.
 
     This is a special controller given in tempo_controller.  d_track realizes
     it by dividing each event's start and end positions by it.
@@ -109,7 +109,7 @@ import qualified Ui.Block as Block
 import qualified Ui.Track as Track
 import qualified Ui.State as State
 
-import qualified Perform.Signal as Signal
+import qualified Perform.Signal2 as Signal
 import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Warning as Warning
 import qualified Perform.Transport as Transport
@@ -132,25 +132,20 @@ type DeriveStack m = Error.ErrorT DeriveError
 
 data State = State {
     -- | Derivers can modify it for sub-derivers, or look at it, whether to
-    -- attach to an Event or to handle internally.  Since it's attached to
-    -- the stack it automatically gets popped when the stack does.
+    -- attach to an Event or to handle internally.
     state_env :: Score.ControllerMap
     -- | The tempo signal governing the currently derived block.
     -- I don't yet see how composed tempos could be returned as a single
     -- tempo signal for the updater.
-    , state_tempo :: Maybe Signal.Signal
-    , state_pos_map :: [(TrackPos, TrackPos)]
+    , state_maybe_warp :: Maybe Signal.Signal
     , state_ui :: State.State
     -- | Modified to reflect current event's stack.
     , state_current_event_stack :: [Warning.CallPos]
     } deriving (Show)
-initial_state = State Map.empty Nothing [] State.empty []
+initial_state = State Map.empty Nothing State.empty []
 
-state_tempo_signal :: State -> Signal.Signal
-state_tempo_signal state =
-    Signal.map_signal "(1/) . max min_tempo" ((1/) . max min_tempo) $
-        Maybe.fromMaybe default_tempo (state_tempo state)
-default_tempo = Signal.constant 1
+state_warp :: State -> Signal.Signal
+state_warp = Maybe.fromMaybe default_warp . state_maybe_warp
 
 data DeriveError =
     -- | A general deriver error.
@@ -180,20 +175,18 @@ run ui_state m = do
 
 derive :: State.State -> Block.BlockId -> DeriveT Identity.Identity a
     -> (Either DeriveError a,
-        Transport.TempoMap, Transport.InverseTempoMap, [Log.Msg])
-derive ui_state block_id deriver = (result, tempo_map, inv_tempo_map, logs)
+        Transport.TempoFunction, Transport.InverseTempoFunction, [Log.Msg])
+derive ui_state block_id deriver = (result, tempo_func, inv_tempo_func, logs)
     where
     (result, derive_state, logs) = Identity.runIdentity $ run ui_state deriver
 
     time_end = either (const (TrackPos 0)) id $
         State.eval ui_state (block_time_end block_id)
-    pos_map = state_pos_map derive_state
-    tempo_map = make_tempo_map pos_map
+    warp = state_warp derive_state
+    tempo_func = make_tempo_func warp
+    inv_tempo_func = make_inverse_tempo_func block_id (TrackPos 0) time_end warp
 
-    -- inv_tempo_map = simple_inv_tempo_map ui_state
-    inv_tempo_map = Transport.InverseTempoMap pos_map
-        (make_inverse_tempo_map block_id (TrackPos 0) time_end)
-
+-- TODO duplicated in State?
 block_time_end :: (State.UiStateMonad m) => Block.BlockId -> m TrackPos
 block_time_end block_id = do
     block <- State.get_block block_id
@@ -202,29 +195,18 @@ block_time_end block_id = do
     return $ maximum (TrackPos 0 : map Track.track_time_end tracks)
 
 
-make_tempo_map :: Signal.PosSamples -> Transport.TempoMap
-make_tempo_map pos_map pos = Timestamp.Timestamp $ round $
-        Signal.interpolate_samples val_map (Signal.pos_to_val pos)
-    where
-    val_map :: [(Signal.Val, Signal.Val)]
-    val_map = [(Signal.pos_to_val x, Signal.pos_to_val y) | (x, y) <- pos_map]
+make_tempo_func :: Signal.Signal -> Transport.TempoFunction
+make_tempo_func warp pos = Timestamp.from_track_pos warped
+    where warped = Signal.val_to_pos (Signal.at pos warp)
 
-make_inverse_tempo_map :: Block.BlockId -> TrackPos -> TrackPos
-    -> Transport.InverseTempoFunction
-make_inverse_tempo_map block_id _start _end pos_map ts = (block_pos, samples2)
-    where
-    (maybe_pos, samples2) = Signal.inverse pos_map ts
-    block_pos = maybe [] (\p -> [(block_id, p)]) maybe_pos
-
--- simple_tempo_map pos = Timestamp.Timestamp (fromIntegral pos * 20)
--- simple_inv_tempo_map ui_state block_id ts = do
---     block <- Map.lookup block_id (State.state_blocks ui_state)
---     let tids = [tid | Block.TId tid _ <- Block.block_tracks block]
---     tracks <- mapM (flip Map.lookup (State.state_tracks ui_state)) tids
---     let end = maximum (map Track.time_end tracks)
---         pos = Timestamp.to_track_pos ts `div` 20
---     if pos < end then Just pos else Nothing
---     -- TODO 20 also hardcoded in Perform.Midi.Play
+make_inverse_tempo_func :: Block.BlockId -> TrackPos -> TrackPos
+    -> Signal.Signal -> Transport.InverseTempoFunction
+make_inverse_tempo_func block_id _start end warp ts =
+    case Signal.inverse_at warp ts of
+        Nothing -> []
+        Just pos
+            | pos >= end -> []
+            | otherwise -> [(block_id, pos)]
 
 modify :: (Monad m) => (State -> State) -> DeriveT m ()
 modify f = (DeriveT . lift) (Monad.State.modify f)
@@ -278,6 +260,16 @@ with_env cont signal op = do
 
 -- ** tempo
 
+-- Tempo is the tempo signal, which is the standard musical definition of
+-- tempo: trackpos over time.  Warp is the time warping that the tempo implies,
+-- which is integral (1/tempo).
+
+default_warp = Signal.signal
+    [(0, 0), (Signal.max_track_pos, Signal.pos_to_val Signal.max_track_pos)]
+tempo_srate = Signal.default_srate
+min_tempo :: Signal.Val
+min_tempo = 0.001
+
 -- | Associate a tempo signal with the current derivation.  It will govern the
 -- current block because the sub-block deriver clears it from the State for
 -- the sub-block.
@@ -291,20 +283,21 @@ with_env cont signal op = do
 -- block tempo, but I'll wait until I do sub-block derivation for that.
 d_tempo :: (Monad m) => DeriveT m Signal.Signal -> DeriveT m a -> DeriveT m a
 d_tempo signalm deriver = do
-    tempo <- fmap state_tempo get
+    old_warp <- fmap state_maybe_warp get
 
     -- Special hack so that the tempo track itself isn't warped by the
-    -- (default) tempo signal.  Also, clear out the bogus entries it'll put
-    -- in the pos_map.
-    modify $ \st -> st { state_tempo = Just (Signal.constant 1) }
+    -- (default) warp.
+    modify $ \st -> st { state_maybe_warp = Just default_warp }
     signal <- signalm
-    modify $ \st -> st { state_tempo = tempo, state_pos_map = [] }
-
-    case tempo of
-        Nothing -> modify $ \st -> st { state_tempo = Just signal }
+    case old_warp of
+        Nothing -> modify $ \st ->
+            st { state_maybe_warp = Just (tempo_to_warp signal) }
         Just sig -> throw $
             "tried to add a tempo to a block that already has one: " ++ show sig
     deriver
+
+tempo_to_warp = Signal.integrate tempo_srate . Signal.map_samples (1/)
+    . Signal.clip_min min_tempo
 
 -- ** track
 
@@ -314,7 +307,7 @@ d_track :: (Monad m) => Track.TrackId -> DeriveT m [Score.Event]
 d_track track_id = do
     track <- get_track track_id
     cmap <- fmap state_env get
-    tempo <- fmap state_tempo_signal get
+    warp <- fmap state_warp get
     -- TODO how could I get effects like "overlap with next note by 16 pos"?
     -- If I handle the tempo higher up, the event doesn't get to handle tempo
     -- itself.  I think I could do this by making each event a deriver instead
@@ -322,10 +315,12 @@ d_track track_id = do
     let events = map (Score.from_track_event cmap track_id) $
             Track.event_list (Track.track_events track)
         pos_list = concatMap extract_pos events
-        pos_map = zip pos_list (Signal.integrate tempo_srate tempo pos_list)
-    merge_pos_map pos_map
+        pos_map = zip pos_list
+            (map (Signal.val_to_pos . flip Signal.at warp) pos_list)
+    -- merge_pos_map pos_map
     return (inject_pos pos_map events)
 
+{-
 merge_pos_map :: (Monad m) => [(TrackPos, TrackPos)] -> DeriveT m ()
 merge_pos_map pos_map =
     modify $ \st -> st { state_pos_map = merge (state_pos_map st) pos_map }
@@ -334,8 +329,7 @@ merge_pos_map pos_map =
     -- simultaneously.
     merge xs ys = Seq.drop_dups ((==) `on` fst) $
         Seq.merge_by (compare `on` fst) xs ys
-
-tempo_srate = Signal.default_srate
+-}
 
 extract_pos event = [Score.event_start event, Score.event_end event]
 
@@ -358,9 +352,6 @@ inject_pos = go Map.empty
         inject start end event = event
             { Score.event_start = start, Score.event_duration = end - start }
 
-min_tempo :: Signal.Val
-min_tempo = 0.001
-
 get_block block_id = get >>= lookup_id block_id . State.state_blocks . state_ui
 get_track track_id = get >>= lookup_id track_id . State.state_tracks . state_ui
 
@@ -382,6 +373,8 @@ merge_events :: [[Score.Event]] -> [Score.Event]
 merge_events = foldr (Seq.merge_by (compare `on` Score.event_start)) []
 
 -- | Set instrument on the given events.
+d_instrument :: (Monad m) =>
+    Score.Instrument -> [Score.Event] -> m [Score.Event]
 d_instrument inst events = return $
     map (\evt -> evt { Score.event_instrument = Just inst }) events
 

@@ -12,7 +12,7 @@ import Text.ParserCombinators.Parsec ((<|>), (<?>))
 
 import Util.Control ((#>>))
 
-import qualified Perform.Signal as Signal
+import qualified Perform.Signal2 as Signal
 
 import qualified Derive.Score as Score
 import qualified Derive.Parse as Parse
@@ -30,12 +30,13 @@ d_controller cont signalm eventsm = do
     Derive.with_env cont signal eventsm
 
 d_signal :: (Monad m) => [Score.Event] -> Derive.DeriveT m Signal.Signal
-d_signal events = fmap Signal.signal
+    -- TODO Should the srate be controllable?
+d_signal events = fmap (Signal.track_signal Signal.default_srate)
     (Derive.map_events parse_event Nothing id events)
 
 parse_event _ event = do
     (method, val) <- Parse.parse p_text event
-    return (Score.event_start event, method, val, val)
+    return (Score.event_start event, method, val)
 
 p_text :: P.CharParser st (Signal.Method, Double)
 p_text = do

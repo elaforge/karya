@@ -18,7 +18,7 @@ import Midi.Midi (ChannelMessage(..))
 import qualified Derive.Score as Score
 
 import qualified Perform.Pitch as Pitch
-import qualified Perform.Signal as Signal
+import qualified Perform.Signal2 as Signal
 import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Warning as Warning
 
@@ -276,8 +276,8 @@ events1 = mkevents
     ]
 
 
-mksignal ts_vals = Signal.signal
-    [(Timestamp.to_track_pos (secs sec), Signal.Linear, val, val)
+mksignal ts_vals = Signal.track_signal (TrackPos 1)
+    [(Timestamp.to_track_pos (secs sec), Signal.Linear, val)
         | (sec, val) <- ts_vals]
 
 c_vol = (vol_cc, mksignal [(0, 1), (4, 0)])

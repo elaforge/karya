@@ -216,6 +216,9 @@ EventTrackView::draw_samples(TrackPos start, TrackPos end)
         int next_xpos = floor(::scale(double(min_x), double(max_x),
             ::clamp(0.0, 1.0, next_sample)));
 
+        // DEBUG("p0 (" << xpos << ", " << offset << "), p1 ("
+        //         << next_xpos << ", " << next_offset << ")");
+
         switch (config.render.style) {
         case RenderConfig::render_line:
             fl_line(xpos, offset, next_xpos, next_offset);
