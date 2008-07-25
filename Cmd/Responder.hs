@@ -80,7 +80,7 @@ import qualified Cmd.Save as Save
 import qualified Derive.Derive as Derive
 import qualified Derive.Schema as Schema
 
-import qualified Perform.Signal2 as Signal
+import qualified Perform.Signal as Signal
 
 import qualified App.Config as Config
 import qualified App.StaticConfig as StaticConfig

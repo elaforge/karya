@@ -9,7 +9,7 @@ import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
 
-import qualified Perform.Signal2 as Signal
+import qualified Perform.Signal as Signal
 
 
 -- TODO This means I can't map to aftertouch or something

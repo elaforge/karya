@@ -1,342 +1,397 @@
-{- |
-Signals map a TrackPos to a Val (which is a Double, and is normally between
-0 and 1, or -1 and 1).  Unfortunately, this makes them non-composable.
-You can map Vals back into TrackPos by rounding them but you can't do this for
-signals that range between small values like 0 and 1.
+{-# OPTIONS_GHC -XFlexibleInstances #-}
+{- | This module implements signals as sparse arrays of Val->Val.  The
+points are interpolated linearly, so the signal array represents a series of
+straight line segments.
 
-You could, however, compose a TrackPos->TrackPos onto the beginning or
-a Val->Val onto the end so maybe I can do that if it becomes an issue.  It's
-still not as easy to work with as a single type.
-
-I wanted TrackPos to be integral because of wanting to avoid floating point
-imprecision, and Vals made sense as Doubles because 0--1 is an easy to work
-with range.  However, I could possibly convert TrackPos to Doubles, or possibly
-Vals to TrackPos and establish a conventional normalized range, like 0--2^16 or
-something.
+By convention, the final segment of a signal is interpreted as extending
+infinitely to the right, at a 0 slope.
 
 
-Unfortunately there are four ways to describe an interpolation:
-
-A Method is simply the interpolation type by itself: Set, Linear, etc.  It
-directly corresponds to the notation on the track, and is used with
-TrackSegments, which are convenient to write on the track but not convenient to
-use for interpolation, since each segment's beginning point is the last
-segment's end point.  There is one Method for each kind of hardcoded
-interpolation type supported by the track deriver.
-
-A Segment is how segments are stored in the Signal.  There are only two kinds
-of segments: SegLinear, and SegFunction.  Linear segments are preserved because
-they can be implemented and drawn efficiently, and SegFunction encompasses all
-the other kinds of interpolation.
-
-A Sample is a further simplification of Segment down to only linear line
-segments.  The SegFunctions have been sampled out, and this yields a signal that
-can be easily integrated, inverted, rendered to a pwl function, or drawn on the
-GUI.
-
-The 'sample' function returns [(TrackPos, Val)], and this is the simplest
-version of all, effectively consisting of only sets.  This is what you use for
-something like MIDI that doesn't even understand linear segments.
+operations:
+- map a function pointwise (e.g. (/1) or (+n)... this is actually composition
+- clip (I can't map (min x) because I want to split a line into line + flat
+segment
+- compose, implemented incrementally for efficiency (also could theoretically
+gc the head?)
+- integrate
+- invert
 
 
-TODO: clean this up:
+- sample (for midi performance)
+- equal - compare ranges for midi performance
 
-rename Sample to Line, and Sample becomes [(TrackPos, Val)]
 
-integrate operates on Lines and produces Samples.  It's much more complicated
-than taking Samples to Samples, but theoretically more efficient and accurate
-for the typical tempo signal, which will likely be lots of long straight lines.
+Since I'll wind up computing everything anyway, strict may not be such
+a problem.  Also, control signals are sparse compared to audio:
 
-inverse operates on Samples since it's used for the inverse tempo map and takes
-the output of integrate.
+srate of 1000 * (Double, Double) = 128 = 128000 = 125k/sec = 45mb hour, hmm
+that is a lot
 
-then there are two strategies for efficient increasing samples: take
-[sample_pos] -> [val], or take sample_pos -> (val, [sample]).  The first is
-less flexible (the updater can't use it because it doesn't know the sample pos
-ahead of time), but the latter is more awkward to use.  'integrate' uses the
-first, and 'inverse' uses the second.
+Laziness actually is usable because segment rendering is a red herring, it
+only happens to the track signals.  Meanwhile there are intermediate signals.
+I actually don't have many of those, just tempo.  So far.
 
-Maybe I could come up with a less awkward way to use the second?
+And the important thing is that if I use the same interface, I can swap out
+the implementation for a lazy one later.
 
-Now that TrackPos is also a double, I could implement everything in terms of
-(Val, Val) which should simplify the conversions (they should be optimized out
-anyway).  I think I like the distinction though because it makes the x and
-y axes clear in the types.
 
-Certainly the (Val, Val) and (TrackPos, Val) distinction should go away here.
+data Signal = SignalFunction (TrackPos -> Val)
+    | Vector TrackPos Val
+    -- Compose Signal Signal ?
 
-I should wait until I have nested tempo transforms and thus continuous signal
-warping implemented before trying to refactor this.
+data Vector a b = Vector (SVector a) (SVector b)
+
+The problem with SignalFunction is that I lose the sample positions, so
+(compose (+1) sig) wouldn't work as well during midi performance.  So
+how about just using map.
+
+do some speed tests for large vectors, i.e. integrate a large signal
 
 -}
+
 module Perform.Signal where
 import qualified Control.Arrow as Arrow
+import qualified Data.DList as DList
 import qualified Data.List as List
-import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
+import qualified Data.StorableVector as V
+import qualified Foreign.Storable as Storable
 
-import qualified Util.Data
-import qualified Util.Seq as Seq
+-- import qualified Util.Data
 
 import Ui.Types
 import qualified Ui.Track as Track
+
 import qualified Perform.Timestamp as Timestamp
 
+-- * construction / deconstruction
 
--- * constants
+data Signal =
+    -- | The samples in this vector are spaced irregularly, and expected to
+    -- be interpolated linearly.
+    --
+    -- This is a strict vector for now, eventually I may want to switch this
+    -- to a lazy one.
+    SignalVector (V.Vector (Double, Double))
 
--- Later, this should be under deriver control.
-default_srate = TrackPos 0.05
-default_srate_ts = Timestamp.from_track_pos default_srate
+instance Storable.Storable (Double, Double) where
+    sizeOf _ = Storable.sizeOf (undefined :: Double) * 2
+    alignment _ = 8
+    poke cp (a, b) = Storable.pokeByteOff cp 0 a >> Storable.pokeByteOff cp 8 b
+    peek cp = do
+        a <- Storable.peekByteOff cp 0 :: IO Double
+        b <- Storable.peekByteOff cp 8 :: IO Double
+        return ((realToFrac) a, (realToFrac) b)
 
--- | Make a constant signal.
+instance Show Signal where
+    show (SignalVector vec) = "Signal <" ++ show (V.unpack vec) ++ ">"
+
+type Val = Double
+type Sample = (TrackPos, Val)
+
+signal :: [(TrackPos, Val)] -> Signal
+signal vals =
+    SignalVector (V.pack (map (\(a, b) -> (pos_to_val a, b)) vals))
+
 constant :: Val -> Signal
-constant val = signal [(TrackPos 0, Set, val, val)]
+constant n = signal [(0, n), (max_track_pos, n)]
 
--- * construction
+unpack :: Signal -> [(TrackPos, Val)]
+unpack (SignalVector vec) = map (Arrow.first val_to_pos) (V.unpack vec)
 
-newtype Signal = Signal (Map.Map TrackPos (TrackPos, Segment))
-    deriving (Show)
+to_track_samples :: Signal -> Track.Samples
+to_track_samples = Track.samples . unpack
 
-data Segment = SegLinear Val Val
-    -- | A function has a name for reference, and a number between 0 and 1 to
-    -- the signal's Val at that point.
-    | SegFunction String (Double -> Val)
-instance Show Segment where
-    show (SegLinear v0 v1) = "SegLinear " ++ show v0 ++ " " ++ show v1
-    show (SegFunction name _) = "SegFunction " ++ show name ++ " <func>"
+
+-- ** track signals
 
 -- | This is how signal segments are represented on the track.
-type TrackSegment = (TrackPos, Method, Val, Val)
-type Val = Double
+--
+-- Each segment describes a point and how to /approach/ it from the previous
+-- point.
+type TrackSegment = (TrackPos, Method, Val)
 
-data Method = Set | Linear
+data Method =
+    -- | Set the value at the given point in time.  The "to Val" is ignored.
+    Set
+    -- | Approach the point with a straight line.
+    | Linear
     -- | Approach the point with an exponential curve.  If the exponent is
     -- positive, the value will be pos**n.  If it's negative, it will be
     -- pos**(1/n).
     | Exp Double
     deriving (Show, Eq)
 
--- | The second TrackPos is redundant because it should always be the same
--- as the first TrackPos of the next Sample, but it's convenient to be able
--- to treat Samples alone.  TODO: or is it?  remove it if not
-data Sample = Sample TrackPos Val TrackPos Val deriving (Eq, Show)
-
-
--- | Are the given signals equal between the given range?
-equal :: TrackPos -> TrackPos -> TrackPos -> Signal -> Signal -> Bool
-equal srate start end sig0 sig1 = s0 == s1
+-- | Convert the track-level representation of a signal to a Signal.
+track_signal :: TrackPos -> [TrackSegment] -> Signal
+track_signal srate segs =
+    SignalVector $ V.pack (map first_to_val (concat pairs ++ [last_sample]))
     where
-    s0 = takeWhile ((<end) . fst) $ sample srate sig0 start
-    s1 = takeWhile ((<end) . fst) $ sample srate sig1 start
+    ((_, last_val), pairs) = List.mapAccumL go (TrackPos 0, 0) segs
+    last_sample = (max_track_pos, last_val)
+    go (pos0, val0) (pos1, meth, val1) = ((pos1, val1), samples)
+        where samples = sample_track_seg srate pos0 val0 pos1 val1 meth
 
-signal :: [TrackSegment] -> Signal
-signal track_segs = Signal . Map.fromAscList . filter (not.zero_width) $
-    segs ++ [last_seg]
-    -- The initial (TrackPos 0, 0) will create a leading 0 segment that will
-    -- be replaced if there's already a segment at 0.
+sample_track_seg :: TrackPos -> TrackPos -> Val -> TrackPos -> Val -> Method
+    -> [Sample]
+sample_track_seg srate pos0 val0 pos1 val1 meth = case meth of
+    Set | val0 == val1 -> [(pos1, val1)]
+        | otherwise -> [(pos1, val0), (pos1, val1)]
+    Linear -> [(pos0, val0), (pos1, val1)]
+    Exp n -> sample_function (exp_function n val0 val1) srate pos0 pos1
+
+sample_function :: (Double -> Double) -> TrackPos -> TrackPos -> TrackPos
+    -> [Sample]
+sample_function f srate start end = zip samples (map f points)
     where
-    ((last_pos, last_val), segs) = List.mapAccumL go (TrackPos 0, 0) track_segs
-    -- The convention is that Signals stay constant after the last segment, so
-    -- attach a short flat segment to zero the slope.  The various
-    -- interpolation functions will extend it indefinitely.
-    last_seg = (last_pos, (last_pos + TrackPos 1, SegLinear last_val last_val))
-    go (pos0, val0) (pos1, meth, to_val1, from_val1) =
-            ((pos1, from_val1), (pos0, (pos1, seg)))
-        where
-        seg = case meth of
-            Set -> SegLinear val0 val0
-            Linear -> SegLinear val0 to_val1
-            Exp n -> SegFunction ("exp " ++ show n)
-                (exp_function n val0 to_val1)
-    zero_width (p0, (p1, _)) = p0 == p1
+    samples = takeWhile (<end) [start, start + srate ..]
+    points = map (\p -> realToFrac ((p-start) / (end-start))) samples
+
+-- *** interpolation functions
 
 exp_function n val0 val1 amount
     | amount >= 1 = val1
     | otherwise = val0 + amount**exp * (val1 - val0)
     where exp = if n >= 0 then n else (1 / abs n)
 
--- * sample
 
--- | Reduce signal to (TrackPos, Val).
-sample :: TrackPos -> Signal -> TrackPos -> [(TrackPos, Val)]
-sample srate (Signal smap) start = Seq.drop_dups dup_val samples
+-- * constants
+
+-- | This is used to extend the last segment "forever" and to make endless
+-- constant slope signals.  A little icky, but seems simpler than special
+-- logic.
+max_track_pos :: TrackPos
+max_track_pos = TrackPos (2^52 - 1) -- 52 bits of mantissa only should be enough
+
+-- Later, this should be under deriver control.
+default_srate = TrackPos 0.05
+default_srate_ts = Timestamp.from_track_pos default_srate
+
+-- * equal
+
+-- | Are the given signals equal within the given range?
+equal :: TrackPos -> TrackPos -> TrackPos -> Signal -> Signal -> Bool
+equal srate start end sig0 sig1 = s0 == s1
     where
-    (pre, post) = Util.Data.split_map start smap
-    prev = case Util.Data.find_max pre of
-        Just seg -> sample_seg srate seg start
-        Nothing -> []
-    samples = prev ++ concat [sample_seg srate seg seg_start
-        | seg@(seg_start, _) <- Map.toAscList post]
+    s0 = takeWhile ((<end) . fst) $ sample srate start sig0
+    s1 = takeWhile ((<end) . fst) $ sample srate start sig1
 
--- | Like 'sample', but return the samples at timestamps.
-sample_timestamp :: Timestamp.Timestamp -> Signal -> Timestamp.Timestamp
-    -> [(Timestamp.Timestamp, Val)]
-sample_timestamp srate sig start =
-    map (Arrow.first Timestamp.from_track_pos) $
-        sample (Timestamp.to_track_pos srate) sig (Timestamp.to_track_pos start)
+-- * access
 
--- | Reduce signal to samples, which are straight line segments.
-linear_sample :: TrackPos -> Signal -> [Sample]
-linear_sample srate (Signal smap) =
-    concatMap (seg_to_sample srate) (Map.assocs smap)
+at :: TrackPos -> Signal -> Val
+at pos sig = interpolate_linear pos0 val0 pos1 val1 pos
+    where ((pos0, val0), (pos1, val1)) = find_samples pos sig
 
-to_track_samples :: Signal -> Track.Samples
-to_track_samples sig =
-    Track.samples $ concatMap extract (linear_sample default_srate sig)
-    where extract (Sample p0 v0 p1 v1) = [(p0, v0), (p1, v1)]
+at_timestamp :: Timestamp.Timestamp -> Signal -> Val
+at_timestamp ts sig = at (Timestamp.to_track_pos ts) sig
 
-
--- Segments that line up with each other can make redundant samples.
-dup_val (_pos0, val0) (_pos1, val1) = val0 == val1
-
-sample_seg :: TrackPos -> (TrackPos, (TrackPos, Segment)) -> TrackPos
-    -> [(TrackPos, Val)]
-sample_seg srate (pos0, (pos1, seg)) start_pos =
-    zip smps (map (interpolate seg pos0 pos1) smps)
-    where smps = takeWhile (<pos1) [start_pos, start_pos + srate..]
-
-seg_to_sample srate (pos0, (pos1, seg)) = case seg of
-    SegFunction _ _ ->
-        let ps = takeWhile (<pos1) [pos0, pos0 + srate..]
-            -- TODO It would be more accurate to make this linear with the
-            -- sample in the middle.
-            mksample p0 p1 val = Sample p0 val p1 val
-        in List.zipWith3 mksample
-            -- The drop loses the last sample, but that's ok because it would
-            -- overlap with the next one anyway.
-            ps (drop 1 ps) (map (interpolate seg pos0 pos1) ps)
-    SegLinear val0 val1 -> [Sample pos0 val0 pos1 val1]
-
--- * at
-
--- | Get the value of a signal at the given timestamp.
-at :: Signal -> TrackPos -> Val
-at (Signal smap) pos = interpolate seg pos0 pos1 pos
-    where
-    (pos0, (pos1, seg)) = maybe (TrackPos 0, (TrackPos 0, SegLinear 0 0)) id $
-        lookup_at_below pos smap
-
-at_timestamp :: Signal -> Timestamp.Timestamp -> Val
-at_timestamp sig ts = at sig (Timestamp.to_track_pos ts)
-
--- | Return an element at @k@ or one before it, or Nothing.
-lookup_at_below k fm = case at of
-    Nothing -> Util.Data.find_max below
-    Just a -> Just (k, a)
-    where
-    (below, at, _) = Map.splitLookup k fm
-
-interpolate :: Segment -> TrackPos -> TrackPos -> TrackPos -> Val
-interpolate seg start end pos = case seg of
-    SegLinear val0 val1
-        | pos >= end -> val1
-        | otherwise -> val0 + amount * (val1 - val0)
-    SegFunction _ f -> f amount
-    where
-    amount = realToFrac $ (pos - start) / (end - start)
-
-
--- * transformations
-
-map_signal :: String -> (Val -> Val) -> Signal -> Signal
-map_signal name f (Signal smap) =
-    Signal $ flip Map.map smap $ \(pos, seg) -> (pos, map_seg f seg)
-    where
-    map_seg f (SegLinear val0 val1) = SegLinear (f val0) (f val1)
-    map_seg f (SegFunction seg_name seg_f) =
-        SegFunction (seg_name ++ " >>> " ++ name) (seg_f . f)
-
--- * sample streams
-
--- | Index into a sample stream, with linear interpolation.  Since this
--- does a linear search, it's pretty inefficient.
+-- | Sample the signal to generate samples.  This is for MIDI, which doesn't
+-- have linear segments, so they have to be interpolated to flat samples.
 --
--- If it needed to be more efficient I could have it return the tail of the
--- stream for subsequent calls, as 'inverse' does.
-interpolate_samples :: (Ord a, Fractional a) => [(a, a)] -> a -> a
-interpolate_samples samples pos = val
+-- This won't emit consecutive samples with the same value.  This might
+-- cause problems if there some MIDI instrument treats them as significant,
+-- but I'll worry about that if I find one.
+sample :: TrackPos -> TrackPos -> Signal -> [Sample]
+sample srate start sig@(SignalVector vec) =
+    -- The interpolation doesn't include the sample coming from, so it will
+    -- be missing the first one, and always interpolates the entire segment,
+    -- so it'll have extra stuff on the beginning.
+    (start, at start sig) : dropWhile ((<=start) . fst) samples
     where
-    val = case post of
-        ((x0, y0) : (x1, y1) : _) -> y_at (x0, y0) (x1, y1) pos
-        (_x0, y0) : _ -> y0
-        _ -> 0
-    (_pre, post) = Seq.break_tails next samples
-    next (_:(from, _to):_) = from > pos
-    next [_] = True -- have to stick on the last one
-    next _ = False
+    samples = map first_to_pos $ concat $ snd $
+        List.mapAccumL go (0, 0) (V.unpack (V.drop start_i vec))
+    start_i = max 0 (find_above (pos_to_val start) vec - 1)
+    go (x0, y0) (x1, y1) = ((x1, y1), samples)
+        where
+        samples
+            | y0 == y1 = []
+            | otherwise = interpolate_samples (pos_to_val srate) x0 y0 x1 y1
 
--- ** inverse
+sample_timestamp :: Timestamp.Timestamp -> Timestamp.Timestamp -> Signal
+    -> [(Timestamp.Timestamp, Val)]
+sample_timestamp srate start sig = map (Arrow.first Timestamp.from_track_pos) $
+    sample (Timestamp.to_track_pos srate) (Timestamp.to_track_pos start) sig
 
--- TODO everyone who makes 'Samples x' should filter simultaneous samples
 
-type Samples = [(TrackPos, Val)]
-type PosSamples = [(TrackPos, TrackPos)]
+interpolate_samples :: Val -> Val -> Val -> Val -> Val -> [(Val, Val)]
+interpolate_samples srate x0 y0 x1 y1 =
+    zip xs (map (y_at x0 y0 x1 y1) xs)
+        -- Skip the first sample, because that will have been set by the final
+        -- sample of the previous segment.
+    where xs = range (x0+srate) x1 srate
 
--- | This is basically a generic inverse, but it's specialized for the inverse
--- tempo map, taking a PosSamples stream and a Timestamp.  It returns the rest
--- of the samples so it can be called on increasing Timestamps efficiently.
-inverse :: PosSamples -> Timestamp.Timestamp -> (Maybe TrackPos, PosSamples)
-inverse samples@((x0, y0) : rest_samples@((x1, y1) : _)) ts
-    -- Sample must have decreased, they're not supposed to do that.
-    | y0 >= y = (Just x0, samples)
-    | y1 >= y =
-        (Just $ TrackPos (x_at (val x0, val y0) (val x1, val y1) (val y)),
-            samples)
-    | otherwise = inverse rest_samples ts
+-- | Like enumFromTo except always include the final value.
+range start end step
+    | start >= end = [end]
+    | otherwise = start : range (start+step) end step
+
+-- ** implementation
+
+-- Before the first sample: (zero, first)
+-- at the first until the second: (first, second)
+-- at the last until whenever: (last, extend last in a straight line)
+find_samples :: TrackPos -> Signal -> ((TrackPos, Val), (TrackPos, Val))
+find_samples pos (SignalVector vec)
+    | len == 0 = (zero, (TrackPos 1, 0))
+    | otherwise = (ix (i-1), ix i)
     where
-    val = pos_to_val
-    y = Timestamp.to_track_pos ts
-inverse samples _ = (Nothing, samples)
+    (!) = V.index
+    len = V.length vec
+    ix i
+        | i < 0 = zero
+        -- The convention is that Signals stay constant after the last segment,
+        -- so attach a short flat segment to zero the slope.  The various
+        -- interpolation functions will extend it indefinitely.
+        | i >= len = Arrow.first (val_to_pos . (+1)) (vec ! (len-1))
+        | otherwise = first_to_pos (vec!i)
+    zero = (TrackPos 0, 0)
+    i = find_above (pos_to_val pos) vec
+
+-- | Find the index of the first element > the given pos.  It's the length of
+-- the vector if there is no such element.
+find_above :: Val -> V.Vector (Val, Val) -> Int
+find_above pos vec = Maybe.fromMaybe len $
+        List.find (\n -> fst (vec `V.index` n) > pos) [i..len-1]
+    where
+    len = V.length vec
+    i = bsearch_on vec fst pos
+
+-- | Find the index of the first element >= the key of the given element.
+bsearch_on vec key v = go vec 0 (V.length vec)
+    where
+    go vec low high
+        | low == high = low
+        | v <= key (vec `V.index` mid) = go vec low mid
+        | otherwise = go vec (mid+1) high
+        where mid = (low + high) `div` 2
+
+interpolate_linear x0 y0 x1 y1 x = y0 + amount * (y1-y0)
+    where amount = realToFrac $ (x-x0) / (x1-x0)
+
+-- * functions
+
+-- | Find the TrackPos at which the signal will attain the given Val.  Assumes
+-- the Val is non-decreasing.
+--
+-- Unlike the other signal functions, this takes a single sample instead of
+-- a signal, and as a Timestamp.  This is because it's used by the play updater
+-- for the inverse tempo map, and the play updater doesn't necessarily poll at
+-- totally regular intervals.
+--
+-- This uses a bsearch on the vector, which is only reasonable as long as
+-- its strict.  When I switch to lazy vectors, I'll have to thread the tails.
+inverse_at :: Signal -> Timestamp.Timestamp -> Maybe TrackPos
+inverse_at (SignalVector vec) ts
+    | i >= len = Nothing
+    | y1 == y = Just (TrackPos x1)
+    | otherwise = Just $ TrackPos $ x_at x0 y0 x1 y1 y
+    where
+    len = V.length vec
+    y = pos_to_val (Timestamp.to_track_pos ts)
+    i = bsearch_on vec snd y
+        -- This can create x0==x1, but y1 should == y in that case.
+    (x0, y0) = if i-1 < 0 then (0, 0) else V.index vec (i-1)
+    (x1, y1) = V.index vec i
+
+-- | Integrate the signal.
+integrate :: TrackPos -> Signal -> Signal
+integrate srate = map_signal_accum go 0
+    where
+    go accum x0 y0 x1 y1 =
+        integrate_segment (pos_to_val srate) accum x0 y0 x1 y1
+
+-- | Clip signal to never go over the given val.  This is different from
+-- mapping 'max' because it will split segments at the point they go out of
+-- bounds and insert a flat segment.
+clip_max :: Val -> Signal -> Signal
+clip_max max_val = clip_with max_val (>)
+
+clip_min :: Val -> Signal -> Signal
+clip_min min_val = clip_with min_val (<)
+
+map_samples :: (Val -> Val) -> Signal -> Signal
+map_samples f = vmap (V.map (\(x, y) -> (x, f y)))
+
+-- ** implementation
+
+clip_with val f = map_signal_accum go False
+    where
+    go True x0 y0 x1 y1
+        | f y1 val = (True, [])
+        | x == x1 = (False, [(x1, y1)])
+        | otherwise = (False, [(x, val), (x1, y1)])
+            where x = x_at x0 y0 x1 y1 val
+    go False x0 y0 x1 y1
+        | f y1 val = (True, [(x, val)])
+        | otherwise = (False, [(x1, y1)])
+            where x = x_at x0 y0 x1 y1 val
+
+integrate_segment :: Val -> Val -> Val -> Val -> Val -> Val
+    -> (Val, [(Val, Val)])
+integrate_segment srate accum x0 y0 x1 y1
+    | x0 == x1 = (accum, [])
+        -- Line with slope y0, take a shortcut.
+    | y0 == y1 =
+        let x = x1 - srate
+            y = accum + x * y0
+        in (y, [(x0, accum), (x, y)])
+    | otherwise = List.mapAccumL go accum samples
+    where
+    samples = takeWhile (<x1) [x0, x0 + srate ..]
+    go accum x = let val = accum + y_at x0 y0 x1 y1 x * srate in (val, (x, val))
+
+
+-- * util
+
+first_to_pos (a, b) = (val_to_pos a, b)
+first_to_val (a, b) = (pos_to_val a, b)
+vmap f (SignalVector vec) = SignalVector (f vec)
+
+map_signal_accum :: (accum -> Val -> Val -> Val -> Val -> (accum, [(Val, Val)]))
+    -> accum -> Signal -> Signal
+map_signal_accum f accum (SignalVector vec) =
+    SignalVector (V.pack (DList.toList result))
+    where
+    result = (\(_, _, x) -> x) $ V.foldl' go (accum, (0, 0), DList.empty) vec
+    go (accum, (x0, y0), lst) (x1, y1) =
+        (accum2, (x1, y1), lst `DList.append` DList.fromList samples)
+        where (accum2, samples) = f accum x0 y0 x1 y1
+
+map_signal :: (Val -> Val -> Val -> Val -> [(Val, Val)]) -> Signal -> Signal
+map_signal f = map_signal_accum go False
+    where go _ x0 y0 x1 y1 = (False, f x0 y0 x1 y1)
+
+-- | Given a line defined by the two points, find the y at the given x.
+y_at :: Val -> Val -> Val -> Val -> Val -> Val
+y_at x0 y0 x1 y1 x
+    | x == x1 = y1 -- avoid zero length segments
+    | otherwise = (y1 - y0) / (x1 - x0) * (x - x0) + y0
+
+-- | Given a line defined by the two points, find the x at the given y.
+x_at :: Val -> Val -> Val -> Val -> Val -> Val
+x_at x0 y0 x1 y1 y
+    | x0 == x1 = x1 -- zero width means vertical, which means it crosses here
+    | y0 == y1 = error $ "x_at on flat line " ++ show y0
+    | otherwise = (y - y0) / ((y1 - y0) / (x1 - x0)) + x0
 
 pos_to_val :: TrackPos -> Val
 pos_to_val = realToFrac
 val_to_pos :: Val -> TrackPos
 val_to_pos = realToFrac
 
--- ** integrate
+{-
+lookup_around_loose def k fm = case lookup_around k fm of
+    (Just kv0, Just kv1) -> (kv0, kv1)
+    (Nothing, Nothing) -> (def, def)
+    (Nothing, Just kv1) -> (def, kv1)
+    (Just kv0@(k0, v0), Nothing) ->
+        (Maybe.fromMaybe def (lookup_before k0 fm), kv0)
 
--- | Properly, this should be Signal->Signal, but this is specialized for
--- the tempo function and it's much more efficient to get samples in order.
-integrate :: TrackPos -> Signal -> [TrackPos] -> [TrackPos]
-integrate srate sig pos_lists =
-    go (TrackPos 0) (linear_sample srate sig) pos_lists
-    where
-    go _ _ [] = []
-    go accum [] pos = map (const accum) pos -- null signal is considered 0
-    go accum samples@(Sample p0 v0 p1 v1 : rest_samples) pos@(p:rest_ps)
-            -- Extend the final segment forever.
-        | null rest_samples || p<p1 = accum_to p : go accum samples rest_ps
-        | otherwise = go (accum_to p1) rest_samples pos
-        where accum_to xpos = accum + sum_linear p0 v0 p1 v1 xpos
+lookup_before :: (Ord k) => k -> Map.Map k a -> Maybe (k, a)
+lookup_before k fm = Util.Data.find_max (fst (Map.split k fm))
 
-    sum_linear p0 v0 p1 v1 xpos = val_to_pos $ integrate_linear
-        (pos_to_val p0, v0) (pos_to_val p1, v1) (pos_to_val xpos)
-
--- This is way too complicated.
-integrate_linear :: (Ord a, Fractional a) => (a, a) -> (a, a) -> a -> a
-integrate_linear (x0, y0) (x1, y1) x
-    | y0 == y1 = (x-x0) * y0 -- Shortcut for constant segments.
-    | x0 == x1 = 0 -- Null segments should be filtered, but just in case.
-        -- If it crosses y=0, integrate both halves seperately.
-    | y0 < 0 && y1 > 0 || y0 > 0 && y1 < 0 =
-        let x_cross = x_at (x0, y0) (x1, y1) 0
-        in integrate_linear (x0, y0) (x_cross, 0) (min x_cross x)
-            + if x <= x_cross then 0
-                else integrate_linear (x_cross, 0) (x1, y1) x
-    | otherwise = rect_h*w + tri_h*w / 2
-    where
-    tri_h = if positive then abs (y-y0) else -abs (y-y0)
-    rect_h = if positive && y0 <= y1 || not positive && y0 >= y1
-        then y - tri_h else y
-    y = y_at (x0, y0) (x1, y1) x
-    w = x - x0
-    -- If it crosses zero, the top level guard should have caught it.
-    positive = y0 > 0 && y1 > 0
-
--- | Given a line defined by the two points, find the y at the given x.
-y_at :: (Ord a, Fractional a) => (a, a) -> (a, a) -> a -> a
-y_at (x0, y0) (x1, y1) x = (y1 - y0) / (x1 - x0) * (x - x0) + y0
-
--- | Given a line defined by the two points, find the x at the given y.
-x_at :: (Ord a, Fractional a) => (a, a) -> (a, a) -> a -> a
-x_at (x0, y0) (x1, y1) y = (y - y0) / ((y1-y0) / (x1-x0)) + x0
+lookup_around k fm = case at of
+        Nothing -> (Util.Data.find_max pre, Util.Data.find_min post)
+        Just v -> (Just (k, v), Util.Data.find_min post)
+    where (pre, at, post) = Map.splitLookup k fm
+-}

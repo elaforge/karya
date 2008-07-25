@@ -1,134 +1,109 @@
 module Perform.Signal_test where
-import qualified Control.Arrow as Arrow
-import qualified Data.List as List
 
 import Util.Test
 
 import Ui.Types
-import qualified Perform.Signal as Signal
+
 import qualified Perform.Timestamp as Timestamp
-import Perform.Signal (Segment(..), Method(..), Sample(..))
+import qualified Perform.Signal as Signal
+import Perform.Signal (Method(..))
 
 
-test_equal = do
-    let sig0 = signal [(0, Set, 1, 1), (10, Set, 0, 0), (20, Linear, 1, 1)]
-        sig1 = signal [(0, Set, 0, 0), (10, Set, 0, 0), (20, Linear, 1, 1)]
-        eq start end = Signal.equal (TrackPos 1) (TrackPos start) (TrackPos end)
+tsig segs = Signal.track_signal (TrackPos 1) (map mkseg segs)
+mkseg (pos, meth, val) = (TrackPos pos, meth, val)
 
-    check $ eq 0 30 sig0 sig0
-    check $ eq 0 10 sig0 sig0
+-- Also tests 'at'.
+test_track_signal = do
+    let range low high sig =
+                map (\p -> Signal.at p (tsig sig)) (map TrackPos [low..high-1])
 
-    check $ not (eq 0 30 sig0 sig1)
-    check $ not (eq 0 10 sig0 sig1)
-    check $ eq 10 20 sig0 sig1
+    equal (range 0 4 []) [0, 0, 0, 0]
+    equal (range 0 4 [(2, Set, 1)]) [0, 0, 1, 1]
+    equal (range 0 4 [(0, Set, 1), (3, Set, 1)]) [1, 1, 1, 1]
 
-test_interpolate = do
-    let interpolate seg =
-            map (Signal.interpolate seg (TrackPos 0) (TrackPos 4)) [0..4]
-    equal (interpolate (SegLinear 2 2)) [2, 2, 2, 2, 2]
-    equal (interpolate (SegLinear 0 4)) [0..4]
-    equal (interpolate (SegLinear 4 0)) [4, 3, 2, 1, 0]
-    equal (interpolate (SegLinear (-4) 0)) [-4, -3, -2, -1, 0]
-    equal (interpolate (SegFunction "test" id)) [0, 0.25..1]
+    equal (range 0 5 [(0, Set, 0), (4, Linear, 1)])
+        [0, 0.25, 0.5, 0.75, 1]
+    equal (range 0 6 [(0, Set, 0), (4, Linear, 1), (4, Set, 0)])
+        [0, 0.25, 0.5, 0.75, 0, 0]
 
-signal tsegs = Signal.signal
-    [(TrackPos pos, meth, val1, val2) | (pos, meth, val1, val2) <- tsegs]
+test_sample_function = do
+    let f start end = Signal.sample_function
+            (Signal.exp_function 2 1 2) (TrackPos 1)
+            (TrackPos start) (TrackPos end)
 
-tsig = signal
-    [(0, Set, 1, 1), (2, Set, 1, 1), (4, Linear, 3, 8), (6, Linear, 4, 10)]
-no_sig = signal []
+    equal (f 0 0) []
+    -- Doesn't include the end.
+    equal (f 0 1) [(TrackPos 0, 1)]
+    equal (f 0 2) [(TrackPos 0, 1), (TrackPos 1, 1.25)]
+    equal (f 10 12) [(TrackPos 10, 1), (TrackPos 11, 1.25)]
 
-test_at = do
-    -- Notice that 'at' right on a jump gives the jumped-to val.
-    equal (map (Signal.at tsig) (map TrackPos [0..7]))
-        [1, 1, 1, 2, 8, 6, 10, 10]
-    equal (Signal.at no_sig (TrackPos 2)) 0
-
-un_pos (TrackPos p) = p
+-- * access
 
 test_sample = do
-    equal (map (Arrow.first un_pos) (Signal.sample srate tsig (TrackPos 0)))
-        [(0, 1), (3, 2), (4, 8), (5, 6), (6, 10)]
-    -- assert that 'at' all those points is equal to the samples
+    let sig = Signal.signal [(0, 0), (2, 2), (4, 2), (6, 0)]
+    equal (Signal.sample (TrackPos 1) (TrackPos 0) sig)
+        [(0, 0), (1, 1), (2, 2), (5, 1), (6, 0)]
+    equal (Signal.sample (TrackPos 1) (TrackPos 2) sig)
+        [(2, 2), (5, 1), (6, 0)]
+    equal (Signal.sample (TrackPos 1) (TrackPos 3) sig)
+        [(3, 2), (5, 1), (6, 0)]
 
-    -- Getting a partial segment works.
-    let sig = signal [(0, Set, 1, 1), (5, Linear, 0.5, 0)]
-    equal (Signal.sample srate sig (TrackPos 3))
-        [(TrackPos 3, 0.7), (TrackPos 4, 0.6), (TrackPos 5, 0)]
+    let discont = Signal.signal [(0, 1), (2, 1), (2, 0)]
+    equal (Signal.sample (TrackPos 1) (TrackPos 0) discont)
+        [(0, 1), (2, 0)]
 
-srate = TrackPos 1
-
-test_linear_sample = do
-    let sig = signal
-            [ (0, Set, 1, 1)
-            , (1, Set, 1, 1)
-            , (5, Exp 2, 5, 1)
-            , (8, Linear, 4, 4)
-            ]
-    equal (Signal.linear_sample srate sig)
-        [ Sample (TrackPos 0) 1.0 (TrackPos 1) 1.0
-        , Sample (TrackPos 1) 1.0 (TrackPos 2) 1.0
-        , Sample (TrackPos 2) 1.25 (TrackPos 3) 1.25
-        , Sample (TrackPos 3) 2.0 (TrackPos 4) 2.0
-        , Sample (TrackPos 5) 1.0 (TrackPos 8) 4.0
-        , Sample (TrackPos 8) 4.0 (TrackPos 9) 4.0
-        ]
-
-test_inverse = do
-    let inverse samples ts = map (fmap un_pos) $ snd $ List.mapAccumL
-            (\s p -> flipt (Signal.inverse s p))
-            samples (map Timestamp.Timestamp ts)
-    equal (inverse [(0, 1), (2, 1), (4, 3) , (6, 4)] [0..6])
-        [Just 0, Just 0, Just 3, Just 4, Just 6, Nothing, Nothing]
-
-    equal (inverse [(0, 0), (0, 0), (0, 1) , (1, 2)] [0..2])
-        [Just 0, Just 0, Just 1]
-
-flipt (a, b) = (b, a)
+-- * functions
 
 test_integrate = do
-    let sig = signal
-            [ (0, Set, 1, 1)
-            , (3, Set, 4, 4)
-            , (7, Set, 4, 4)
-            , (10, Linear, 1, 1)
-            , (12, Set, 1, 1)
-            ]
-        integ sig pos = Signal.integrate srate sig pos
-    -- Signal with no width:
-    equal (integ (Signal.constant 1) [0..3]) [0..3]
+    let f sig = Signal.unpack $ Signal.integrate (TrackPos 1) sig
+    equal (f (tsig [(0, Set, 0), (3, Linear, 3)]))
+        [(0, 0), (1, 1), (2, 3)]
+    equal (f (tsig [(0, Set, 0), (3, Linear, -3)]))
+        [(0, 0), (1, -1), (2, -3)]
 
-    let ints = integ sig (map TrackPos [0..13])
-        diffs = zipWith (-) ints (0:ints)
-    -- plist $ zip ints diffs
-    equal diffs
-        [ 0, 1, 1, 1, 4, 4, 4, 4
-        , 3.5, 2.5, 1.5, 1, 1, 1
+test_inverse_at = do
+    let mksig = Signal.signal
+    let f sig ts = Signal.inverse_at (mksig sig) (Timestamp.seconds ts)
+
+    equal (map (f [(0, 0), (2, 2)]) [0..3])
+        [Just 0, Just 1, Just 2, Nothing]
+    equal (map (f [(1, 1), (2, 2)]) [0..3])
+        [Just 0, Just 1, Just 2, Nothing]
+    -- Flat curve.
+    equal (map (f [(1, 1), (2, 1), (3, 2)]) [0..3])
+        [Just 0, Just 1, Just 3, Nothing]
+    -- Vertical discontinuity.
+    equal (map (f [(1, 1), (1, 2), (2, 3)]) [0..4])
+        [Just 0, Just 1, Just 1, Just 2, Nothing]
+
+test_find_samples = do
+    let mksig = Signal.signal
+    let f = Signal.find_samples
+    let [zero, one, two] = map (\n -> (TrackPos n, n)) [0..2]
+    let three = (TrackPos 3, 2)
+    let sig = mksig [one, two]
+    -- Fake up a zero segment that has some length.
+    equal (f 0 (mksig [])) (zero, (TrackPos 1, 0))
+    equal (f 0 sig) (zero, one)
+    equal (f 1 sig) (one, two)
+    equal (f 2 sig) (two, three)
+    equal (f 3 sig) (two, three)
+
+    -- Make sure the simultaneous samples are skipped.
+    let sig2 = mksig [(0, 0), (1, 0), (1, 1)]
+    equal (map (\n -> f n sig2) [0..2])
+        [ ((0, 0), (1, 0))
+        , ((1, 1), (2, 1))
+        , ((1, 1), (2, 1))
         ]
 
-test_integrate_linear = do
-    let int = Signal.integrate_linear
-        asc = [0, 0.5, 2, 4.5, 8]
-        desc = [0, 3.5, 6, 7.5, 8]
+test_clip = do
+    let sig = Signal.signal [(0, 0), (2, 2), (4, 0)]
+    print sig
+    equal (Signal.unpack $ Signal.clip_max 1 sig)
+        [(0, 0), (1, 1), (3, 1), (4, 0)]
 
-    -- positive
-    equal (map (int (0, 0) (4, 4) ) [0..4]) asc
-    equal (map (int (1, 1) (5, 5) ) [1..5]) (zipWith (+) [0..] asc)
-    equal (map (int (1, 1) (5, 1) ) [1..5]) [0..4]
-
-    equal (map (int (0, 4) (4, 0) ) [0..4]) desc
-    equal (map (int (1, 5) (5, 1) ) [1..5]) (zipWith (+) [0..] desc)
-
-    -- negative
-    equal (map (int (0, -4) (4, 0) ) [0..4]) (map negate desc)
-    equal (map (int (1, -5) (5, -1) ) [1..5])
-        (zipWith (+) [0, -1..] (map negate desc))
-    equal (map (int (1, -1) (5, -1) ) [1..5]) [0, -1.. -4]
-
-    equal (map (int (0, 0) (4, -4) ) [0..4]) (map negate asc)
-    equal (map (int (1, -1) (5, -5) ) [1..5])
-        (zipWith (+) [0, -1..] (map negate asc))
-
-    -- cross x axis
-    equal (map (int (0, -1) (2, 1) ) [0..2]) [0, -0.5, 0]
-    equal (map (int (0, 1) (2, -1) ) [0..2]) [0, 0.5, 0]
+test_clip2 = do
+    let sig = Signal.signal [(0, 0), (0, 2), (4, 2)]
+    print sig
+    print $ Signal.clip_min 1 sig

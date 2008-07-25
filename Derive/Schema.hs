@@ -60,7 +60,7 @@ import qualified Derive.Controller as Controller
 import qualified Derive.Derive as Derive
 import qualified Derive.Twelve as Twelve
 
-import qualified Perform.Signal2 as Signal
+import qualified Perform.Signal as Signal
 import qualified Perform.Midi.Instrument as Instrument
 
 

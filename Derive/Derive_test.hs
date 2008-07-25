@@ -23,7 +23,7 @@ import qualified Derive.Score as Score
 import qualified Derive.Schema as Schema
 import qualified Derive.Twelve as Twelve
 
-import qualified Perform.Signal2 as Signal
+import qualified Perform.Signal as Signal
 import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Controller as Controller

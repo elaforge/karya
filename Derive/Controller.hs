@@ -12,7 +12,7 @@ import Text.ParserCombinators.Parsec ((<|>), (<?>))
 
 import Util.Control ((#>>))
 
-import qualified Perform.Signal2 as Signal
+import qualified Perform.Signal as Signal
 
 import qualified Derive.Score as Score
 import qualified Derive.Parse as Parse

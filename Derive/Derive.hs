@@ -109,12 +109,14 @@ import qualified Ui.Block as Block
 import qualified Ui.Track as Track
 import qualified Ui.State as State
 
-import qualified Perform.Signal2 as Signal
+import qualified Perform.Signal as Signal
 import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Warning as Warning
 import qualified Perform.Transport as Transport
 
 import qualified Derive.Score as Score
+
+import Util.Debug
 
 
 -- * DeriveT
