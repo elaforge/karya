@@ -304,11 +304,7 @@ updater_loop state = do
 
     let active_sels = Set.fromList
             [(view_id, map fst num_pos) | (view_id, num_pos) <- play_pos]
-        gone = Set.toList $
-            Set.difference (updater_active_sels state) active_sels
-    Sync.set_play_position
-            [(view_id, map (flip (,) Nothing) nums) | (view_id, nums) <- gone]
-
+    clear_play_position (Set.difference (updater_active_sels state) active_sels)
     state <- return $ state { updater_active_sels = active_sels }
 
     tmsg <- Transport.check_transport (updater_transport state)
@@ -316,9 +312,15 @@ updater_loop state = do
     -- pprint play_pos
     -- ++ show tmsg ++ ", " ++ show block_pos ++ ", gone: " ++ show gone
     -- putStrLn updater_status
-    when (tmsg == Transport.Play && not (null block_pos)) $ do
-        Concurrent.threadDelay 40000
-        updater_loop state
+    if tmsg /= Transport.Play || null block_pos
+        then clear_play_position (updater_active_sels state)
+        else do
+            Concurrent.threadDelay 40000
+            updater_loop state
+    where
+    clear_play_position view_nums = Sync.set_play_position
+        [ (view_id, map (flip (,) Nothing) nums)
+        | (view_id, nums) <- Set.toList view_nums ]
 
 
 -- | Do all the annoying shuffling around to convert the deriver-oriented
