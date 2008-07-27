@@ -33,6 +33,8 @@ void set_zoom(BlockViewWindow *view, const ZoomInfo *zoom);
 void set_track_scroll(BlockViewWindow *view, int pixels);
 void set_selection(BlockViewWindow *view, int selnum,
         const Selection *sel);
+void set_track_selection(BlockViewWindow *view, int selnum, int tracknum,
+        const Selection *sel);
 
 void set_model_config(BlockViewWindow *view, BlockModelConfig *config);
 void set_title(BlockViewWindow *view, const char *title);

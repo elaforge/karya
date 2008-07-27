@@ -105,7 +105,7 @@ mkstate block_id tracks = do
     State.create_block (Id.unpack_id block_id) $
         Block.block "b1 title" default_block_config
             ((Block.RId ruler, 20) : [(Block.TId tid ruler, 40) | tid <- tids])
-            (Block.SchemaId (mkid "no schema"))
+            Config.schema
     return tids
 
 mkview :: (State.UiStateMonad m) => m Block.ViewId

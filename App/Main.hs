@@ -168,7 +168,7 @@ write_msg wdev_map default_stream wstream_map (Midi.WriteMessage wdev ts msg) =
     do
     let real_wdev = Util.Data.get wdev wdev wdev_map
     let stream = maybe default_stream id (Map.lookup real_wdev wstream_map)
-    putStrLn $ "PLAY " ++ show (wdev, ts, msg)
+    -- putStrLn $ "PLAY " ++ show (wdev, ts, msg)
     MidiC.write_msg (stream, MidiC.from_timestamp ts, msg)
 
 

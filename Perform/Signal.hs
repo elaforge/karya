@@ -293,6 +293,20 @@ inverse_at (SignalVector vec) ts
     (x0, y0) = if i-1 < 0 then (0, 0) else V.index vec (i-1)
     (x1, y1) = V.index vec i
 
+-- | Compose the first signal with the second.
+compose :: Signal -> Signal -> Signal
+compose f g = map_val go g
+    where go y = at (val_to_pos y) f
+    -- TODO Walking down f would be more efficient, especially once Signal is
+    -- lazy.
+
+-- | Shift the signal in time.
+shift :: TrackPos -> Signal -> Signal
+shift offset = map_pos (+offset)
+
+stretch :: TrackPos -> Signal -> Signal
+stretch mult = map_pos (*mult)
+
 -- | Integrate the signal.
 integrate :: TrackPos -> Signal -> Signal
 integrate srate = map_signal_accum go 0
@@ -309,8 +323,11 @@ clip_max max_val = clip_with max_val (>)
 clip_min :: Val -> Signal -> Signal
 clip_min min_val = clip_with min_val (<)
 
-map_samples :: (Val -> Val) -> Signal -> Signal
-map_samples f = vmap (V.map (\(x, y) -> (x, f y)))
+map_val :: (Val -> Val) -> Signal -> Signal
+map_val f = vmap (V.map (Arrow.second f))
+
+map_pos :: (TrackPos -> TrackPos) -> Signal -> Signal
+map_pos f = vmap (V.map (Arrow.first (pos_to_val . f . val_to_pos)))
 
 -- ** implementation
 

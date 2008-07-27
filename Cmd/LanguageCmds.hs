@@ -61,11 +61,14 @@ import qualified Cmd.Create ()
 
 import qualified Derive.Score as Score
 import qualified Derive.Schema as Schema
+import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Warning as Warning
 import qualified Perform.Midi.Convert as Midi.Convert
 import qualified Perform.Midi.Instrument as Midi.Instrument
 import qualified Perform.Midi.Perform as Midi.Perform
 import qualified Perform.Midi.Controller as Midi.Controller
+
+
 import qualified Instrument.MidiDb as MidiDb
 import qualified Instrument.Db as Instrument.Db
 
@@ -409,6 +412,11 @@ derive block_id = do
     case result of
         Left err -> State.throw $ "derive error: " ++ show err
         Right events -> return events
+
+derive_tempo block_id ts = do
+    schema_map <- Cmd.get_schema_map
+    (_, tempo, inv_tempo) <- Play.derive schema_map block_id
+    return $ map inv_tempo (map Timestamp.seconds [0..10])
 
 score_to_midi :: [Score.Event]
     -> Cmd.CmdL ([Midi.WriteMessage], [Warning.Warning])

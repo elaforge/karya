@@ -39,11 +39,7 @@ private:
     friend std::ostream &operator<<(std::ostream &os, const TrackPos &pos);
 };
 
-inline std::ostream &
-operator<<(std::ostream &os, const TrackPos &pos)
-{
-    return os << "TrackPos(" << pos._val << ")";
-}
+std::ostream &operator<<(std::ostream &os, const TrackPos &pos);
 
 
 // "No selection" is if 'tracks' is 0.
@@ -70,6 +66,8 @@ struct Selection {
     int tracks;
     TrackPos duration;
 };
+
+std::ostream &operator<<(std::ostream &os, const Selection &sel);
 
 struct TrackSelection {
     TrackSelection() : start(TrackPos(0)), end(TrackPos(-1)) {}
@@ -137,11 +135,7 @@ struct ZoomInfo {
     double factor;
 };
 
-inline std::ostream &
-operator<<(std::ostream &os, const ZoomInfo &z)
-{
-    return os << "ZoomInfo(" << z.offset << ", " << z.factor << ")";
-}
+std::ostream &operator<<(std::ostream &os, const ZoomInfo &z);
 
 
 struct TextStyle {

@@ -39,8 +39,7 @@ void
 OverlayRuler::set_selection(int selnum, int tracknum, const Selection &sel)
 {
     ASSERT(0 <= selnum && selnum < Config::max_selections);
-    // DEBUG("set selection " << selnum << " - " << sel.start_track << " "
-    //         << sel.tracks);
+    // DEBUG("set selection " << selnum << ": " << sel);
     TrackSelection news(sel, tracknum);
     const TrackSelection &olds = this->selections[selnum];
 

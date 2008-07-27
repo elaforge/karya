@@ -101,9 +101,7 @@ eval_rethrow :: (UiStateMonad m) => String -> State
     -> StateT Identity.Identity a -> m a
 eval_rethrow msg state = throw_either msg . eval state
 
--- | A form of 'run' that throws away the output state and updates, and applies
--- either 'failed' or 'succeeded' on the result depending on if the monad threw
--- or not.
+-- | A form of 'run' that returns only the val.
 eval :: State -> StateT Identity.Identity a -> Either StateError a
 eval state m = case result of
         Left err -> Left err
@@ -479,6 +477,8 @@ ruler_end block_id = do
         [] -> return $ TrackPos 0
         ruler_id : _ -> fmap Ruler.time_end (get_ruler ruler_id)
 
+-- | Get the end of the last event of the block.
+event_end :: (UiStateMonad m) => Block.BlockId -> m TrackPos
 event_end block_id = do
     block <- get_block block_id
     tracks <- mapM get_track (Block.track_ids_of (Block.block_tracks block))

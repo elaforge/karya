@@ -95,6 +95,9 @@ track_width = 30
 render_config = Track.RenderConfig Track.NoRender render_color
 render_color = Color.rgba 0.65 0.65 0.8 0.5
 
+-- | SchemaId of the default hardcoded schema.  This should probably go in
+-- Schema, but being here modules can get it without depending on Schema.
+schema :: Block.SchemaId
 schema = Block.SchemaId (Id.global "default")
 
 -- | The default namespace for the clipboard.

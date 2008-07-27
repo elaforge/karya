@@ -23,7 +23,7 @@ module Ui.BlockC (
     , set_zoom
     , set_track_scroll
     , CSelection(..)
-    , set_selection
+    , set_selection, set_track_selection
     -- ** constants
     , max_selections
 
@@ -168,14 +168,21 @@ foreign import ccall "set_track_scroll"
 set_selection :: Block.ViewId -> Block.SelNum -> Maybe CSelection -> Fltk ()
 set_selection view_id selnum maybe_sel = do
     viewp <- get_ptr view_id
-    with (maybe null_selection id maybe_sel) $ \selp ->
+    maybeWith with maybe_sel $ \selp ->
         c_set_selection viewp (Util.c_int selnum) selp
 foreign import ccall "set_selection"
     c_set_selection :: Ptr CView -> CInt -> Ptr CSelection -> IO ()
 
--- | A Selection with 0 tracks is considered no selection.
-null_selection = CSelection Color.black
-    (Block.Selection 0 (TrackPos 0) 0 (TrackPos 0))
+set_track_selection :: Block.ViewId -> Block.SelNum -> Block.TrackNum
+    -> Maybe CSelection -> Fltk ()
+set_track_selection view_id selnum tracknum maybe_sel = do
+    viewp <- get_ptr view_id
+    maybeWith with maybe_sel $ \selp ->
+        c_set_multi_selection viewp (Util.c_int selnum)
+            (Util.c_int tracknum) selp
+foreign import ccall "set_track_selection"
+    c_set_multi_selection :: Ptr CView -> CInt -> CInt -> Ptr CSelection
+        -> IO ()
 
 -- | Max number of selections, hardcoded in ui/config.h.
 max_selections :: Int
@@ -369,9 +376,9 @@ poke_config configp (Block.ViewConfig
 
 -- ** selection
 
--- C++ Selections have a color, but in haskell the color is separated into
+-- | C++ Selections have a color, but in haskell the color is separated into
 -- Block.config_selection_colors.
-data CSelection = CSelection Color.Color Block.Selection
+data CSelection = CSelection Color.Color Block.Selection deriving (Show)
 
 instance Storable CSelection where
     sizeOf _ = #size Selection

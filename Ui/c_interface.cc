@@ -115,6 +115,17 @@ set_selection(BlockViewWindow *view, int selnum, const Selection *sel)
 }
 
 
+void
+set_track_selection(BlockViewWindow *view, int selnum, int tracknum,
+        const Selection *sel)
+{
+    if (sel)
+        view->block.set_track_selection(selnum, tracknum, *sel);
+    else
+        view->block.set_track_selection(selnum, tracknum, Selection());
+}
+
+
 // block
 
 void

@@ -54,13 +54,6 @@ test_sample = do
 
 -- * functions
 
-test_integrate = do
-    let f sig = Signal.unpack $ Signal.integrate (TrackPos 1) sig
-    equal (f (tsig [(0, Set, 0), (3, Linear, 3)]))
-        [(0, 0), (1, 1), (2, 3)]
-    equal (f (tsig [(0, Set, 0), (3, Linear, -3)]))
-        [(0, 0), (1, -1), (2, -3)]
-
 test_inverse_at = do
     let mksig = Signal.signal
     let f sig ts = Signal.inverse_at (mksig sig) (Timestamp.seconds ts)
@@ -75,6 +68,31 @@ test_inverse_at = do
     -- Vertical discontinuity.
     equal (map (f [(1, 1), (1, 2), (2, 3)]) [0..4])
         [Just 0, Just 1, Just 1, Just 2, Nothing]
+
+test_compose = do
+    let f = Signal.signal [(0, 0), (10, 20)]
+        g = Signal.signal [(0, 0), (1, 0.5), (2, 1)]
+    -- They cancel each other out.
+    equal (Signal.unpack (Signal.compose f g))
+        [(0, 0), (1, 1), (2, 2)]
+
+test_integrate = do
+    let f sig = Signal.unpack $ Signal.integrate (TrackPos 1) sig
+    equal (f (tsig [(0, Set, 0), (3, Linear, 3)]))
+        [(0, 0), (1, 1), (2, 3)]
+    equal (f (tsig [(0, Set, 0), (3, Linear, -3)]))
+        [(0, 0), (1, -1), (2, -3)]
+
+test_shift_stretch = do
+    let sig = Signal.signal [(0, 1), (1, 0)]
+
+    equal (Signal.unpack (Signal.shift (TrackPos 2) sig))
+        [(2, 1), (3, 0)]
+
+    equal (Signal.unpack (Signal.stretch (TrackPos 1) sig))
+        [(0, 1), (1, 0)]
+    equal (Signal.unpack (Signal.stretch (TrackPos 2) sig))
+        [(0, 1), (2, 0)]
 
 test_find_samples = do
     let mksig = Signal.signal

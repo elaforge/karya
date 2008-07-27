@@ -59,14 +59,18 @@ do_updates block_samples updates = do
 -- This is because it happens asynchronously and would be noisy and inefficient
 -- to work into the responder loop, and isn't part of the usual state that
 -- should be saved anyway.
-set_play_position :: Block.ViewId -> Maybe TrackPos -> IO ()
-set_play_position view_id maybe_pos = do
-    let csel = case maybe_pos of
-            Nothing -> Nothing
-            Just pos -> Just $ BlockC.CSelection Config.play_position_color
-                (Block.Selection 0 pos 99 pos)
-    Ui.send_action $
-        BlockC.set_selection view_id Config.play_position_selnum csel
+set_play_position :: [(Block.ViewId, [(Block.TrackNum, Maybe TrackPos)])]
+    -> IO ()
+set_play_position block_sels = Ui.send_action $ sequence_
+    [ BlockC.set_track_selection view_id
+        Config.play_position_selnum tracknum (sel_at pos)
+    | (view_id, track_pos) <- block_sels, (tracknum, pos) <- track_pos
+    ]
+    where
+    sel_at maybe_pos = case maybe_pos of
+        Nothing -> Nothing
+        Just pos -> Just $ BlockC.CSelection Config.play_position_color
+            (Block.Selection 0 pos 0 pos)
 
 track_title (Block.TId track_id _) =
     fmap Track.track_title (State.get_track track_id)

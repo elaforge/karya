@@ -247,6 +247,21 @@ BlockView::set_selection(int selnum, const Selection &sel)
 
 
 void
+BlockView::set_track_selection(int selnum, int tracknum, const Selection &sel)
+{
+    ASSERT(0 <= selnum && selnum < Config::max_selections);
+    Selection track_sel = sel;
+    track_sel.start_track = tracknum;
+    if (tracknum == 0) {
+        track_at(0)->set_selection(selnum, 0, track_sel);
+    } else {
+        track_sel.start_track--;
+        track_at(tracknum)->set_selection(selnum, tracknum-1, track_sel);
+    }
+}
+
+
+void
 BlockView::insert_track(int tracknum, const Tracklike &track, int width)
 {
     TrackView *t;

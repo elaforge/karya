@@ -98,9 +98,12 @@ import qualified Data.Set as Set
 import qualified Data.Maybe as Maybe
 
 import qualified Util.Log as Log
+import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
+
 import Ui.Types
 import qualified Ui.Block as Block
+import qualified Ui.Track as Track
 import qualified Ui.State as State
 -- This causes a bunch of modules to import BlockC.  Can I move the updater
 -- stuff out?
@@ -132,16 +135,24 @@ type PlayInfo = (Instrument.Db.Db, Transport.Info, Schema.SchemaMap)
 cmd_play_focused play_info = do
     view_id <- Cmd.get_focused_view
     block_id <- find_play_block view_id
-    cmd_play play_info block_id (TrackPos 0)
+
+    -- cmd_play wants to start with a track, so pick the first one.
+    block <- State.get_block block_id
+    track_id <- Cmd.require $
+        Seq.at (Block.track_ids_of (Block.block_tracks block)) 0
+
+    cmd_play play_info block_id (track_id, TrackPos 0)
 
 cmd_play_from_insert play_info = do
     view_id <- Cmd.get_focused_view
     block_id <- find_play_block view_id
-    (pos, _, _) <- Selection.get_insert_pos
-    cmd_play play_info block_id pos
+    (pos, _, track_id) <- Selection.get_insert_pos
+    cmd_play play_info block_id (track_id, pos)
 
-cmd_play :: PlayInfo -> Block.BlockId -> TrackPos -> Cmd.CmdT IO Cmd.Status
-cmd_play play_info@(_, transport_info, schema_map) block_id start_pos = do
+cmd_play :: PlayInfo -> Block.BlockId -> (Track.TrackId, TrackPos)
+    -> Cmd.CmdT IO Cmd.Status
+cmd_play play_info block_id (start_track, start_pos) = do
+    let (_, transport_info, schema_map) = play_info
     cmd_state <- Cmd.get_state
     case Cmd.state_transport cmd_state of
         Just _ -> Log.warn "player already running" >> Cmd.abort
@@ -154,7 +165,10 @@ cmd_play play_info@(_, transport_info, schema_map) block_id start_pos = do
             >> Cmd.abort
         Right events -> return events
 
-    let start_ts = tempo_map start_pos
+    start_ts <- case tempo_map block_id start_track start_pos of
+        Nothing -> State.throw $ "unknown play start pos: "
+            ++ show (start_track, start_pos)
+        Just ts -> return ts
     transport <- perform block_id play_info start_ts events
 
     ui_state <- State.get
@@ -251,19 +265,16 @@ updater_thread :: Transport.Transport -> Transport.Info
     -> Transport.InverseTempoFunction -> Timestamp.Timestamp -> State.State
     -> IO ()
 updater_thread transport transport_info inv_tempo_func start_ts ui_state = do
-    let view_blocks = Map.assocs (Map.map Block.view_block
-                (State.state_views ui_state))
-        views_of block_id = [view_id | (view_id, vblock) <- view_blocks,
-            vblock == block_id]
-
-        block_ids = map snd view_blocks
+    -- Send Playing and Stopped msgs to the responder for all visible blocks.
+    let block_ids = Seq.unique $ Map.elems (Map.map Block.view_block
+            (State.state_views ui_state))
         trans_chan = Transport.info_responder_chan transport_info
         get_cur_ts = Transport.info_get_current_timestamp transport_info
     -- This won't be exactly the same as the renderer's ts offset, but it's
     -- probably close enough.
     ts_offset <- get_cur_ts
     let state = UpdaterState transport (ts_offset - start_ts) get_cur_ts
-            inv_tempo_func views_of Set.empty
+            inv_tempo_func Set.empty ui_state
     Exception.bracket_
         (mapM_ (Transport.write_status trans_chan Transport.Playing) block_ids)
         (mapM_ (Transport.write_status trans_chan Transport.Stopped) block_ids)
@@ -274,8 +285,8 @@ data UpdaterState = UpdaterState {
     , updater_ts_offset :: Timestamp.Timestamp
     , updater_get_cur_ts :: IO Timestamp.Timestamp
     , updater_inv_tempo_func :: Transport.InverseTempoFunction
-    , updater_views_of :: Block.BlockId -> [Block.ViewId]
-    , updater_active_sels :: Set.Set Block.ViewId
+    , updater_active_sels :: Set.Set (Block.ViewId, [Block.TrackNum])
+    , updater_ui_state :: State.State
     }
 
 updater_loop :: UpdaterState -> IO ()
@@ -283,24 +294,55 @@ updater_loop state = do
     cur_ts <- fmap (+ (- updater_ts_offset state)) (updater_get_cur_ts state)
 
     let block_pos = updater_inv_tempo_func state cur_ts
-        views_of = updater_views_of state
-    forM block_pos $ \(block_id, pos) -> forM (views_of block_id) $ \view_id ->
-        Sync.set_play_position view_id (Just pos)
-    let active_sels = Set.fromList $ concatMap views_of (map fst block_pos)
+    play_pos <- either
+        (\err -> Log.error ("state error in updater: " ++ show err)
+            >> return [])
+        return
+        (State.eval (updater_ui_state state)
+            $ block_pos_to_play_pos block_pos)
+    Sync.set_play_position play_pos
+
+    let active_sels = Set.fromList
+            [(view_id, map fst num_pos) | (view_id, num_pos) <- play_pos]
         gone = Set.toList $
             Set.difference (updater_active_sels state) active_sels
-    forM gone $ \view_id ->
-        Sync.set_play_position view_id Nothing
+    Sync.set_play_position
+            [(view_id, map (flip (,) Nothing) nums) | (view_id, nums) <- gone]
 
     state <- return $ state { updater_active_sels = active_sels }
 
     tmsg <- Transport.check_transport (updater_transport state)
-    -- let updater_status = "UPDATER at " ++ show cur_ts ++ ": "
-    --         ++ show tmsg ++ ", " ++ show block_pos ++ ", gone: " ++ show gone
+    -- putStrLn $ "UPDATER at " ++ show cur_ts ++ ": "
+    -- pprint play_pos
+    -- ++ show tmsg ++ ", " ++ show block_pos ++ ", gone: " ++ show gone
     -- putStrLn updater_status
     when (tmsg == Transport.Play && not (null block_pos)) $ do
         Concurrent.threadDelay 40000
         updater_loop state
+
+
+-- | Do all the annoying shuffling around to convert the deriver-oriented
+-- blocks and tracks to the view-oriented views and tracknums.
+block_pos_to_play_pos :: (State.UiStateMonad m) =>
+    [(Block.BlockId, [(Track.TrackId, TrackPos)])]
+    -> m [(Block.ViewId, [(Block.TrackNum, Maybe TrackPos)])]
+block_pos_to_play_pos block_pos = fmap concat (mapM convert block_pos)
+
+convert :: (State.UiStateMonad m) =>
+    (Block.BlockId, [(Track.TrackId, TrackPos)])
+    -> m [(Block.ViewId, [(Block.TrackNum, Maybe TrackPos)])]
+convert (block_id, track_pos) = do
+    view_ids <- fmap Map.keys (State.get_views_of block_id)
+    block <- State.get_block block_id
+    let tracknum_pos = concatMap (tracknums_of block) track_pos
+    return [(view_id, tracknum_pos) | view_id <- view_ids]
+
+tracknums_of :: Block.Block -> (Track.TrackId, TrackPos)
+    -> [(Block.TrackNum, Maybe TrackPos)]
+tracknums_of block (track_id, pos) =
+    [ (tracknum, Just pos)
+    | (tracknum, Block.TId tid _) <- zip [0..] (Block.block_tracks block)
+    , tid == track_id ]
 
 
 -- * util
