@@ -63,7 +63,6 @@ import qualified Derive.Twelve as Twelve
 import qualified Perform.Signal as Signal
 import qualified Perform.Midi.Instrument as Instrument
 
-
 import qualified App.Config as Config
 
 
@@ -268,9 +267,9 @@ track_controller :: (Monad m) => (String, Track.TrackId)
 track_controller (name, signal_track_id) =
     controller_deriver (Controller.d_signal =<< Derive.d_track signal_track_id)
     where
-    controller_deriver = if name == tempo_track_title
-        then Derive.d_tempo
-        else Controller.d_controller (Score.Controller name)
+    controller_deriver
+        | name == tempo_track_title = Derive.d_tempo signal_track_id
+        | otherwise = Controller.d_controller (Score.Controller name)
 
 -- *** compile to signals
 

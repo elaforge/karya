@@ -10,6 +10,7 @@ fltk
     it altogether)
     I can set something like kUtilityWindowClass in Fl_mac.cxx:Fl_X::make, but
     it doesn't get any kbd input
+  - can I get the windows into an os x windows menu?
   UI Msgs
     - can I capture os x two-finger drag events?
       yes, they're reported as FL_MOUSEWHEEL, so I should scroll on mousewheel
@@ -32,9 +33,12 @@ logging
 
 Ui
   - rethrow c++ exceptions as FltkError
-  - set_track_status
-  - if the app thread dies, kill the rest of the threads
+  Controllers
+    - pass signals as pointers, not copies
+    - make sure very dense (e.g. sampled) signals are displayed and stored
+      efficiently, but are still editable normally when you zoom in.
   Track
+    - patch Data.Map to include toDescList
     - benchmark large TrackEvents
     - modify IntMap for Word64s, add toDescList
       - send patch to libraries@haskell.org
@@ -61,9 +65,7 @@ Cmd
 
   Cmd.Selection
     - drag snap to timestep
-    - extend selection with shift-arrow
-    - normal selection move should go past bottom of screen / last note
-    _ UI and fltk support for editing event text
+    * extend selection with shift-arrow
   Cmd.TimeStep
     - snap to event begin/end
 
@@ -129,9 +131,10 @@ Perform
     - defs for z1 and vl1
 
   Signal
+    - lazy implementation
     * implement Signal.equal
     - signal transformation derivers: +, *, /, min, max, ...
-    - after implementing GUI drawing and transformation, reduce the
+    * after implementing GUI drawing and transformation, reduce the
       proliferation of signal types
     - ensure that controllers are warped continuously by tempo
 

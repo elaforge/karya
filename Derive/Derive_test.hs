@@ -35,16 +35,35 @@ import qualified Perform.Transport as Transport
 -- TODO convert to use mkstate
 
 
--- simple single instrument
+-- Inspect the final state after running a derivation.
+test_derive_state = do
+    let ui_state = snd $ TestSetup.run_mkstate
+            [ ("tempo", [(0, 0, "2")])
+            , (">1", [(0, 16, "4c-"), (16, 16, "4c#")])
+            , ("cont", [(0, 0, "1"), (16, 0, "i.75"), (32, 0, "i0")])
+            -- , ("tempo", [(0, 0, "2")])
+            ]
+    let (skel, deriver) = fst $ TestSetup.run ui_state $ do
+            block <- State.get_block block_id
+            skel <- Schema.get_skeleton schema_map block
+            d <- Schema.get_deriver schema_map block
+            return (skel, d)
+    pprint skel
+    -- pprint (State.state_tracks ui_state)
+    let (_, state, logs) = either (error . show) id (run ui_state deriver)
+    -- pprint logs
+    -- TODO real test
+    -- pprint $ Derive.state_warp state
+    plist $ Derive.state_track_warps state
+    -- pprint $ Derive.state_stack state
+
+    let (_, tempo, inv_tempo, _) = derive ui_state deriver
+    pprint $ map inv_tempo (map Timestamp.seconds [0..10])
+
+
+-- Simple deriver with one track and one instrument.
 basic_deriver :: (Monad m) => Derive.DeriveT m [Score.Event]
 basic_deriver = bass =<< twelve =<< Derive.d_track track_id
-
-derive_events ui_state deriver = case result of
-        Left err -> error $ "derive error: " ++ show err
-        Right val -> (val, logs)
-    where
-    (result, _tempo, _inv_tempo, logs) =
-        Derive.derive ui_state block_id deriver
 
 test_basic = do
     let (events, logs) = derive_events ui_state basic_deriver
@@ -59,6 +78,8 @@ test_basic = do
     equal (length msgs) 4 -- (noteon + noteoff) * 2
     pmlist "msgs" msgs
 
+
+-- Slightly more complicated with a controller track.
 controller_deriver :: (Monad m) => Derive.DeriveT m [Score.Event]
 controller_deriver = Controller.d_controller (Score.Controller "breath")
     (Controller.d_signal =<< Derive.d_track cont_track_id)
@@ -78,9 +99,6 @@ test_controller = do
     -- equal (length msgs) 4 -- (noteon + noteoff) * 2
     -- pmlist "msgs" msgs
 
-cont_deriver name tid = Controller.d_controller (Score.Controller name)
-    (Controller.d_signal =<< Derive.d_track tid)
-
 test_inject_pos = do
     let mkmap m = [(TrackPos p0, TrackPos p1) | (p0, p1) <- m]
         inject score =
@@ -91,37 +109,31 @@ test_inject_pos = do
         [(0, 10, "a"), (10, 10, "b")]
 
 test_make_inverse_tempo_func = do
-    let warp = Derive.tempo_to_warp (Signal.constant 1)
+    let warp = Derive.make_warp (Derive.tempo_to_warp (Signal.constant 2))
+        track_warps = [(block_id, [track_id], warp)]
     let f = Derive.make_inverse_tempo_func
-            block_id (TrackPos 0) (TrackPos 3) warp
-    equal (map f (map Timestamp.seconds [0..3]))
-        [[(block_id, 0)], [(block_id, 1)], [(block_id, 2)], []]
+            block_id (TrackPos 0) [(block_id, TrackPos 3)] track_warps
+        with_block pos = [(block_id, [(track_id, pos)])]
+    -- Fast tempo means TrackPos pass quickly relative to Timestamps.
+    equal (map f (map Timestamp.seconds [0..2]))
+        [with_block 0, with_block 2, with_block 4]
 
-test_block = do
-    let (deriver, ui_state) = TestSetup.run State.empty $ do
-        TestSetup.initial_state
-        block <- State.get_block block_id
-        Schema.get_deriver schema_map block
-
-    let (_result, derive_state, _logs) = Identity.runIdentity $
-            Derive.run ui_state deriver
-    -- TODO real test
-    print $ Derive.state_warp derive_state
-    -- derive events?
-
-tempo_deriver :: Signal.Signal -> Track.TrackId -> Track.TrackId
-    -> Derive.Deriver
-tempo_deriver tempo note_tid vel_tid = do
-    Derive.d_tempo (return tempo) $
+tempo_deriver :: Track.TrackId -> Signal.Signal -> Track.TrackId
+    -> Track.TrackId -> Derive.Deriver
+tempo_deriver sig_tid tempo note_tid vel_tid = do
+    Derive.d_tempo sig_tid (return tempo) $
         cont_deriver "velocity" vel_tid
             (bass =<< twelve =<< Derive.d_track note_tid)
+cont_deriver name tid = Controller.d_controller (Score.Controller name)
+    (Controller.d_signal =<< Derive.d_track tid)
 
 test_tempo = do
     let (tids, state) = TestSetup.run_mkstate
             [ ("0", [(0, 10, "5a-"), (10, 10, "5b-"), (20, 10, "5c-")])
             , ("1", [(0, 10, ".1"), (10, 10, ".2"), (20, 10, ".4")])
             ]
-        mkderiver sig = tempo_deriver (mksignal sig) (tids!!0) (tids!!1)
+        mkderiver sig = tempo_deriver (Track.TrackId (mkid "b0.tempo"))
+            (mksignal sig) (tids!!0) (tids!!1)
         derive_with sig = extract_events events
             where (events, _logs) = derive_events state (mkderiver sig)
 
@@ -132,6 +144,12 @@ test_tempo = do
     equal (derive_with [(0, Signal.Set, 2), (20, Signal.Linear, 1)])
         [(0, 6, "5a-"), (6, 8, "5b-"), (14, 10, "5c-")]
 
+    let (_, tempo, inv_tempo, _) = derive state
+            (mkderiver [(0, Signal.Set, 2)])
+    pprint $ map (tempo block_id (head tids)) [0, 1 .. 10]
+    pprint $ map inv_tempo (map Timestamp.seconds [0..10])
+    -- print tempo
+
 -- extract_controller name = map $ \event -> Map.assocs $ Signal.signal_map $
 --     Score.event_controllers event Map.! Score.Controller name
 extract_logs = map $ \log -> (Log.msg_text log, Log.msg_stack log)
@@ -139,13 +157,14 @@ extract_logs = map $ \log -> (Log.msg_text log, Log.msg_stack log)
 
 -- * derivers
 
-midi_instrument inst = map (\evt -> evt { Score.event_instrument = Just inst })
-
 twelve events = Derive.map_events realize_note () id events
 realize_note _ event = case Twelve.event_pitch (Score.event_text event) of
     Nothing -> Derive.throw $
         "can't realize event " ++ show (Score.event_text event)
     Just pitch -> return (event { Score.event_pitch = Just pitch })
+
+bass events = return (midi_instrument default_inst events)
+midi_instrument inst = map (\evt -> evt { Score.event_instrument = Just inst })
 
 -- * misc other modules
 
@@ -154,23 +173,37 @@ realize_note _ event = case Twelve.event_pitch (Score.event_text event) of
 
 test_controller_parse = do
     let evt = Score.event (TrackPos 0) (TrackPos 0)
-    let run s = test_run $ Controller.parse_event () (evt s)
+    let t_eval s = eval ui_state $ Controller.parse_event () (evt s)
 
-    let result = run "hi there"
+    let result = t_eval "hi there"
     check $ "Left \"parse error on char 1" `List.isPrefixOf` (show result)
 
-    equal (run "-2e.2") (Right (TrackPos 0, Signal.Exp (-2), 0.2))
-    equal (run "-.2") (Right (TrackPos 0, Signal.Set, -0.2))
-
-test_run :: Derive.DeriveT Identity.Identity a -> Either String a
-test_run m = case Identity.runIdentity (Derive.run State.empty m) of
-    (Left err, _, _logs) -> Left (Derive.error_message err)
-    (Right val, _, _) -> Right val
+    equal (t_eval "-2e.2") (Right (TrackPos 0, Signal.Exp (-2), 0.2))
+    equal (t_eval "-.2") (Right (TrackPos 0, Signal.Set, -0.2))
 
 
 -- * setup
 
-bass events = return (midi_instrument default_inst events)
+derive ui_state deriver = case result of
+        Left err -> error $ "derive error: " ++ show err
+        Right val -> (val, tempo, inv_tempo, logs)
+    where
+    (result, tempo, inv_tempo, logs) = Derive.derive ui_state block_id deriver
+
+derive_events ui_state deriver =
+    (\(val, _, _, logs) -> (val, logs)) (derive ui_state deriver)
+
+run :: State.State -> Derive.DeriveT Identity.Identity a
+    -> Either String (a, Derive.State, [Log.Msg])
+run ui_state m = case Identity.runIdentity (Derive.run derive_state m) of
+    (Left err, _, _logs) -> Left (Derive.error_message err)
+    (Right val, state, logs) -> Right (val, state, logs)
+    where
+    derive_state = Derive.initial_state
+        { Derive.state_ui = ui_state
+        , Derive.state_stack = [(block_id, Nothing, Nothing)] }
+
+eval ui_state m = fmap (\(val, _, _) -> val) (run ui_state m)
 
 
 mkid = TestSetup.mkid
@@ -200,24 +233,6 @@ ui_state = snd $ TestSetup.run_mkstate
     , ("2", [(0, 16, "4c-"), (16, 16, "4c#")])
     , ("cont", [(0, 0, "1"), (16, 0, "i.75"), (32, 0, "i0")])
     ]
-
-{-
-ui_state = snd $ State.run_state State.empty $ do
-    ruler <- State.create_ruler (mkid "r1")
-        (TestSetup.ruler [TestSetup.marklist 0 1])
-    overlay <- State.create_ruler "r1.overlay"
-        =<< fmap TestSetup.overlay_ruler (State.get_ruler ruler)
-    t1 <- State.create_track "b1.t1" track1
-    t2 <- State.create_track "b1.t2" track1
-    t3 <- State.create_track "b1.cont" track_cont
-    b1 <- State.create_block "b1" $
-        Block.block "b1 title" TestSetup.default_block_config
-            [ (Block.RId ruler, 20)
-            , (Block.TId t1 overlay, 40), (Block.TId t2 overlay, 40)
-            ]
-            (Block.SchemaId "no schema")
-    return ()
--}
 
 mkscore (pos, dur, text) = Score.event pos dur text
 

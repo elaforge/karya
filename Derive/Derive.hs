@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -XGeneralizedNewtypeDeriving #-}
+{-# OPTIONS_GHC -XPatternGuards #-}
 {- |
 
     Derivers are always in DeriveT, even if they don't need its facilities.
@@ -91,6 +92,7 @@
 
 -}
 module Derive.Derive where
+import Control.Monad
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State as Monad.State
@@ -136,18 +138,53 @@ data State = State {
     -- | Derivers can modify it for sub-derivers, or look at it, whether to
     -- attach to an Event or to handle internally.
     state_env :: Score.ControllerMap
-    -- | The tempo signal governing the currently derived block.
-    -- I don't yet see how composed tempos could be returned as a single
-    -- tempo signal for the updater.
-    , state_maybe_warp :: Maybe Signal.Signal
-    , state_ui :: State.State
+    -- | The time warp currently in effect.
+    , state_warp :: Warp
+    -- | Remember the warp signal for each track.  A warp usually a applies to
+    -- a set of tracks, so remembering them together will make the updater more
+    -- efficient when it inverts them to get playback position.
+    , state_track_warps :: TrackWarps
+    -- | This is the \"call stack\".
+    , state_stack ::
+        [(Block.BlockId, Maybe Track.TrackId, Maybe TrackPos)]
     -- | Modified to reflect current event's stack.
+    -- TODO remove this in favor of state_stack?
     , state_current_event_stack :: [Warning.CallPos]
-    } deriving (Show)
-initial_state = State Map.empty Nothing State.empty []
 
-state_warp :: State -> Signal.Signal
-state_warp = Maybe.fromMaybe default_warp . state_maybe_warp
+    -- | Constant throughout the derivation.  Used to look up tracks and
+    -- blocks.
+    , state_ui :: State.State
+    } deriving (Show)
+
+initial_state = State {
+    state_env = Map.empty
+    , state_warp = initial_warp
+    , state_track_warps = []
+    , state_stack = []
+    , state_current_event_stack = []
+    , state_ui = State.empty
+    }
+
+type TrackWarps = [(Block.BlockId, [Track.TrackId], Warp)]
+
+-- | A tempo warp signal.  The shift and stretch are at optimization stolen
+-- from nyquist.  The idea is to make composed shifts and stretches more
+-- efficient since only the shift and stretch are changed.  They have to be
+-- flattened out when the warp is composed though (in 'd_warp').
+--
+-- TODO Is this really that much of a win?
+data Warp = Warp {
+    warp_signal :: Signal.Signal
+    , warp_shift :: TrackPos
+    , warp_stretch :: TrackPos
+    } deriving (Show)
+
+initial_warp = make_warp (Signal.signal [(0, 0),
+    (Signal.max_track_pos, Signal.pos_to_val Signal.max_track_pos)])
+
+-- | Convert a Signal to a Warp.
+make_warp :: Signal.Signal -> Warp
+make_warp sig = Warp sig (TrackPos 0) (TrackPos 1)
 
 data DeriveError =
     -- | A general deriver error.
@@ -167,48 +204,63 @@ instance Monad m => Log.LogMonad (DeriveT m) where
 
 -- * monadic ops
 
-run :: (Monad m) =>
-    State.State -> DeriveT m a -> m (Either DeriveError a, State, [Log.Msg])
-run ui_state m = do
-    let state = initial_state { state_ui = ui_state }
-    ((err, state2), logs) <- (Log.run . flip Monad.State.runStateT state
-        . Error.runErrorT . run_derive_t) m
-    return (err, state2, logs)
-
 derive :: State.State -> Block.BlockId -> DeriveT Identity.Identity a
     -> (Either DeriveError a,
         Transport.TempoFunction, Transport.InverseTempoFunction, [Log.Msg])
 derive ui_state block_id deriver = (result, tempo_func, inv_tempo_func, logs)
     where
-    (result, derive_state, logs) = Identity.runIdentity $ run ui_state deriver
+    initial_derive_state = initial_state
+        { state_ui = ui_state, state_stack = [(block_id, Nothing, Nothing)] }
+    (result, derive_state, logs) = Identity.runIdentity $
+        run initial_derive_state deriver
 
-    time_end = either (const (TrackPos 0)) id $
-        State.eval ui_state (block_time_end block_id)
-    warp = state_warp derive_state
-    tempo_func = make_tempo_func warp
-    inv_tempo_func = make_inverse_tempo_func block_id (TrackPos 0) time_end warp
+    time_end = either (const []) id $ State.eval ui_state $ do
+        end <- State.event_end block_id
+        return [(block_id, end)]
+    track_warps = state_track_warps derive_state
+    tempo_func = make_tempo_func track_warps
+    inv_tempo_func = make_inverse_tempo_func block_id (TrackPos 0) time_end
+        track_warps
 
--- TODO duplicated in State?
-block_time_end :: (State.UiStateMonad m) => Block.BlockId -> m TrackPos
-block_time_end block_id = do
-    block <- State.get_block block_id
-    tracks <- mapM State.get_track
-        (Block.track_ids_of (Block.block_tracks block))
-    return $ maximum (TrackPos 0 : map Track.track_time_end tracks)
+run :: (Monad m) =>
+    State -> DeriveT m a -> m (Either DeriveError a, State, [Log.Msg])
+run derive_state m = do
+    ((err, state2), logs) <- (Log.run . flip Monad.State.runStateT derive_state
+        . Error.runErrorT . run_derive_t) m
+    return (err, state2, logs)
 
+lookup_track_warp :: Block.BlockId -> Track.TrackId -> TrackWarps -> Maybe Warp
+lookup_track_warp block_id track_id track_warps = case matches of
+        [] -> Nothing
+        (w:_) -> Just w
+    where
+    matches = [warp
+        | (w_block, w_tracks, warp) <- track_warps, w_block == block_id
+        , w_track <- w_tracks, w_track == track_id]
 
-make_tempo_func :: Signal.Signal -> Transport.TempoFunction
-make_tempo_func warp pos = Timestamp.from_track_pos warped
-    where warped = Signal.val_to_pos (Signal.at pos warp)
+make_tempo_func :: TrackWarps -> Transport.TempoFunction
+make_tempo_func track_warps block_id track_id pos = do
+    warp <- lookup_track_warp block_id track_id track_warps
+    -- TODO shift/stretch?
+    let warped = Signal.val_to_pos (Signal.at pos (warp_signal warp))
+    return $ Timestamp.from_track_pos warped
 
-make_inverse_tempo_func :: Block.BlockId -> TrackPos -> TrackPos
-    -> Signal.Signal -> Transport.InverseTempoFunction
-make_inverse_tempo_func block_id _start end warp ts =
-    case Signal.inverse_at warp ts of
-        Nothing -> []
-        Just pos
-            | pos >= end -> []
-            | otherwise -> [(block_id, pos)]
+make_inverse_tempo_func :: Block.BlockId -> TrackPos
+    -> [(Block.BlockId, TrackPos)] -> TrackWarps
+    -> Transport.InverseTempoFunction
+make_inverse_tempo_func block_id _start block_ends track_warps ts = do
+    (block_id, track_ids, Just pos) <- track_pos
+    guard $ case lookup block_id block_ends of
+        Nothing -> False
+        Just end -> pos <= end
+    return (block_id, map (flip (,) pos) track_ids)
+    where
+    -- TODO either lose 'end' and have the warp know it, or pass
+    -- (BlockId, TrackId, Pos) for the ends
+    -- TODO use trace to figure out if this gets called on every fun call
+    -- TODO take shift/stretch into account?
+    track_pos = [(block, tracks, Signal.inverse_at (warp_signal warp) ts)
+            | (block, tracks, warp) <- track_warps]
 
 modify :: (Monad m) => (State -> State) -> DeriveT m ()
 modify f = (DeriveT . lift) (Monad.State.modify f)
@@ -218,7 +270,7 @@ get = (DeriveT . lift) Monad.State.get
 with_event :: (Monad m) => Score.Event -> DeriveT m a -> DeriveT m a
 with_event event op = do
     old <- fmap state_current_event_stack get
-    modify $ \st -> st { state_current_event_stack = (Score.event_stack event) }
+    modify $ \st -> st { state_current_event_stack = Score.event_stack event }
     v <- op
     modify $ \st -> st { state_current_event_stack = old }
     return v
@@ -258,6 +310,54 @@ with_env cont signal op = do
     modify $ \st -> st { state_env = old_env }
     return result
 
+-- ** stack
+
+get_current_block_id :: (Monad m) => DeriveT m Block.BlockId
+get_current_block_id = do
+    stack <- fmap state_stack get
+    case stack of
+        [] -> throw "empty state_stack"
+        ((block_id, _, _):_) -> return block_id
+
+add_to_stack :: (Monad m) => Block.BlockId -> DeriveT m ()
+add_to_stack block_id = modify $ \st ->
+    st { state_stack = (block_id, Nothing, Nothing) : state_stack st }
+
+-- ** track warps
+
+add_track_warp :: (Monad m) => Track.TrackId -> Warp -> DeriveT m ()
+add_track_warp track_id warp = do
+    block_id <- get_current_block_id
+    modify $ \st ->
+        st { state_track_warps = update_warps block_id (state_track_warps st) }
+    where
+    -- This is a hack to avoid having to compare tempo warps to see group
+    -- tracks under the same warp.  This should work as long as
+    -- 'start_new_warp' is called when the tempo is changed as d_warp does.
+    -- Otherwise, tracks will be grouped with the wrong tempo, which will cause
+    -- the playback cursor to not track properly.
+    update_warps block_id track_warps
+        | ((wblock, track_ids, warp):rest) <- track_warps, wblock == block_id =
+            (block_id, track_id : track_ids, warp) : rest
+        | otherwise = (block_id, [track_id], warp) : track_warps
+
+replace_track_warp :: (Monad m) => Track.TrackId -> Warp -> DeriveT m ()
+replace_track_warp track_id warp = do
+    modify $ \st ->
+        st { state_track_warps = filter_track (state_track_warps st) }
+    add_track_warp track_id warp
+    where
+    filter_track track_warps =
+        filter (\(_, track_ids, _) -> not (null track_ids)) $
+        map (\(block_id, track_ids, warp) ->
+            (block_id, filter (/=track_id) track_ids, warp)) track_warps
+
+start_new_warp :: (Monad m) => DeriveT m ()
+start_new_warp = do
+    block_id <- get_current_block_id
+    modify $ \st -> st { state_track_warps =
+        (block_id, [], state_warp st) : state_track_warps st }
+
 -- * basic derivers
 
 -- ** tempo
@@ -266,60 +366,71 @@ with_env cont signal op = do
 -- tempo: trackpos over time.  Warp is the time warping that the tempo implies,
 -- which is integral (1/tempo).
 
+local_to_global :: Warp -> TrackPos -> TrackPos
+local_to_global (Warp sig shift stretch) pos =
+    Signal.val_to_pos (Signal.at (pos * stretch + shift) sig)
+
 default_warp = Signal.signal
     [(0, 0), (Signal.max_track_pos, Signal.pos_to_val Signal.max_track_pos)]
 tempo_srate = Signal.default_srate
 min_tempo :: Signal.Val
 min_tempo = 0.001
 
--- | Associate a tempo signal with the current derivation.  It will govern the
--- current block because the sub-block deriver clears it from the State for
--- the sub-block.
+-- | Warp the given deriver with the given signal.
 --
--- The extra @deriver@ argument is technically unnecessary, but it makes
--- this look like a d_controller, which it is, except the restriction that
--- you can only set it once.
---
--- TODO this should probably go back to being like a plain controller so they
--- can be nested.  I haven't thought about how to merge that into the overall
--- block tempo, but I'll wait until I do sub-block derivation for that.
-d_tempo :: (Monad m) => DeriveT m Signal.Signal -> DeriveT m a -> DeriveT m a
-d_tempo signalm deriver = do
-    old_warp <- fmap state_maybe_warp get
-
-    -- Special hack so that the tempo track itself isn't warped by the
-    -- (default) warp.
-    modify $ \st -> st { state_maybe_warp = Just default_warp }
+-- The track_id passed is a hack so that the track that emitted the signal can
+-- be marked as having the tempo that it emits, so the tempo track's play
+-- position will move at the tempo track's tempo.
+d_tempo :: (Monad m) => Track.TrackId -> DeriveT m Signal.Signal
+    -> DeriveT m a -> DeriveT m a
+d_tempo track_id signalm deriver = do
     signal <- signalm
-    case old_warp of
-        Nothing -> modify $ \st ->
-            st { state_maybe_warp = Just (tempo_to_warp signal) }
-        Just sig -> throw $
-            "tried to add a tempo to a block that already has one: " ++ show sig
-    deriver
+    d_warp (tempo_to_warp signal) $ do
+        warp <- fmap state_warp get
+        replace_track_warp track_id warp
+        deriver
 
-tempo_to_warp = Signal.integrate tempo_srate . Signal.map_samples (1/)
+tempo_to_warp = Signal.integrate tempo_srate . Signal.map_val (1/)
     . Signal.clip_min min_tempo
+
+d_warp :: (Monad m) => Signal.Signal -> DeriveT m a -> DeriveT m a
+d_warp sig deriver = do
+    old_warp <- fmap state_warp get
+    -- let new_warp = compose_warp (state_warp st) sig
+    modify $ \st -> st { state_warp = compose_warp (state_warp st) sig }
+    start_new_warp
+    result <- deriver
+    modify $ \st -> st { state_warp = old_warp }
+    return result
+
+-- | Warp a Warp with a warp signal.
+--
+-- From the nyquist warp function:
+-- f(stretch * g(t) + shift)
+-- f(scale(stretch, g) + offset)
+-- (shift f -offset)(scale(stretch, g))
+-- (compose (shift-time f (- offset)) (scale stretch g))
+compose_warp :: Warp -> Signal.Signal -> Warp
+compose_warp (Warp warpsig shift stretch) sig = make_warp
+    (Signal.shift (-shift) warpsig `Signal.compose` Signal.stretch stretch sig)
+
 
 -- ** track
 
--- | Get events from a track, convert them to Score events, and applying the
--- enviroment's controllers to them.
+-- | Get events from a track, convert them to Score events, warp them with the
+-- tempo warp, and apply the enviroment's controllers to them.
 d_track :: (Monad m) => Track.TrackId -> DeriveT m [Score.Event]
 d_track track_id = do
     track <- get_track track_id
     cmap <- fmap state_env get
     warp <- fmap state_warp get
-    -- TODO how could I get effects like "overlap with next note by 16 pos"?
-    -- If I handle the tempo higher up, the event doesn't get to handle tempo
-    -- itself.  I think I could do this by making each event a deriver instead
-    -- of getting them all with d_track.
+    add_track_warp track_id warp
     let events = map (Score.from_track_event cmap track_id) $
             Track.event_list (Track.track_events track)
         pos_list = concatMap extract_pos events
-        pos_map = zip pos_list
-            (map (Signal.val_to_pos . flip Signal.at warp) pos_list)
-    -- merge_pos_map pos_map
+        pos_map = zip pos_list (map (local_to_global warp) pos_list)
+    -- Log.debug $ "deriving track " ++ show track_id ++ " events "
+    --     ++ show (map Score.event_text events)
     return (inject_pos pos_map events)
 
 {-
