@@ -249,13 +249,10 @@ perform block_id (inst_db, transport_info, _) start_ts events = do
     mapM_ (Log.warn . show) perform_warnings
 
     -- block_id is only used for log msgs.
-    Trans.liftIO $ Midi.Play.play transport_info block_id midi_msgs
+    Trans.liftIO $ Midi.Play.play transport_info block_id start_ts midi_msgs
 
 seek_events :: TrackPos -> [Score.Event] -> [Score.Event]
-seek_events pos events =
-    map sub_start $ dropWhile ((< pos) . Score.event_start) events
-    where
-    sub_start evt = evt { Score.event_start = Score.event_start evt - pos }
+seek_events pos events = dropWhile ((< pos) . Score.event_start) events
 
 
 -- | Run along the InverseTempoMap and update the play position selection.

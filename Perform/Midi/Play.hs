@@ -21,13 +21,13 @@ reset_controllers = False
 
 -- | Start a thread to stream a list of WriteMessages, and return
 -- a Transport.Control which can be used to stop and restart the player.
-play :: Transport.Info -> Block.BlockId -> [Midi.WriteMessage]
-    -> IO Transport.Transport
-play transport_info block_id midi_msgs = do
+play :: Transport.Info -> Block.BlockId -> Timestamp.Timestamp
+    -> [Midi.WriteMessage] -> IO Transport.Transport
+play transport_info block_id start_ts midi_msgs = do
     transport <- fmap Transport.Transport (IORef.newIORef Transport.Play)
     state <- Transport.state transport_info transport block_id
     let ts_offset = Transport.state_timestamp_offset state
-        ts_midi_msgs = map (add_ts ts_offset) midi_msgs
+        ts_midi_msgs = map (add_ts (ts_offset - start_ts)) midi_msgs
     Thread.start_thread "render midi" $
         player_thread state ts_midi_msgs `Exception.catch` \exc -> do
             Transport.write_status (Transport.state_responder_chan state)
