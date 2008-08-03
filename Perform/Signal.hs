@@ -4,8 +4,8 @@ points are interpolated linearly, so the signal array represents a series of
 straight line segments.
 
 By convention, the final segment of a signal is interpreted as extending
-infinitely to the right, at a 0 slope.
-
+infinitely to the right, at a 0 slope.  There is an implicit initial sample at
+(0, 0).
 
 operations:
 - map a function pointwise (e.g. (/1) or (+n)... this is actually composition
@@ -16,10 +16,8 @@ gc the head?)
 - integrate
 - invert
 
-
 - sample (for midi performance)
 - equal - compare ranges for midi performance
-
 
 Since I'll wind up computing everything anyway, strict may not be such
 a problem.  Also, control signals are sparse compared to audio:
@@ -44,6 +42,10 @@ data Vector a b = Vector (SVector a) (SVector b)
 The problem with SignalFunction is that I lose the sample positions, so
 (compose (+1) sig) wouldn't work as well during midi performance.  So
 how about just using map.
+
+TODO
+make Signal polymorphic in Val so I can have [Float] for most things, [Double]
+for tempo warps, and [Pitch] for pitches.
 
 do some speed tests for large vectors, i.e. integrate a large signal
 
@@ -72,7 +74,9 @@ data Signal =
     --
     -- This is a strict vector for now, eventually I may want to switch this
     -- to a lazy one.
-    SignalVector (V.Vector (Double, Double))
+    SignalVector SigVec
+
+type SigVec = V.Vector (Double, Double)
 
 instance Storable.Storable (Double, Double) where
     sizeOf _ = Storable.sizeOf (undefined :: Double) * 2
@@ -167,14 +171,95 @@ max_track_pos = TrackPos (2^52 - 1) -- 52 bits of mantissa only should be enough
 default_srate = TrackPos 0.05
 default_srate_ts = Timestamp.from_track_pos default_srate
 
--- * equal
+-- * comparison
 
 -- | Are the given signals equal within the given range?
-equal :: TrackPos -> TrackPos -> TrackPos -> Signal -> Signal -> Bool
-equal srate start end sig0 sig1 = s0 == s1
+--
+-- Equal signals with samples in different places will compare not equal, but
+-- oh well.  I could resample them, but for the moment I won't bother because
+-- I think they're only likely to be equal if they are the exact same curve.
+equal :: TrackPos -> TrackPos -> Signal -> Signal -> Bool
+equal start end sig0 sig1 =
+    at start sig0 == at start sig1 && at end sig0 == at end sig1
+    && sig_within start end sig0 == sig_within start end sig1
+
+-- | Can the pitch signals share a channel within the given range?
+--
+-- Pitch is complicated.  Like other controllers, if the pitch curves are
+-- different they may not share a channel.  However, if the pitch curves
+-- are integral transpositions of each other, and the transposition is not
+-- 0, they should definitely share.
+pitches_share :: TrackPos -> TrackPos -> Signal -> Signal -> Bool
+pitches_share start end sig0 sig1 =
+    pitch_share (at start sig0) (at start sig1)
+        && pitch_share (at end sig0) (at end sig1)
+        && V.foldr (&&) True (V.zipWith pitch_eq sig0' sig1')
     where
-    s0 = takeWhile ((<end) . fst) $ sample srate start sig0
-    s1 = takeWhile ((<end) . fst) $ sample srate start sig1
+    -- Unlike 'equal' I do resample, because there's a high chance of notes
+    -- matching but not lining up in time.
+    (sig0', sig1') = resample
+        (sig_within start end sig0) (sig_within start end sig1)
+    pitch_eq (x0, y0) (x1, y1) = x0 == x1 && pitch_share y0 y1
+
+-- | Only compare out to cents, since differences below that aren't really
+-- audible.
+pitch_share :: Double -> Double -> Bool
+pitch_share v0 v1 =
+    fst (properFraction v0) /= fst (properFraction v1) && f v0 == f v1
+    where f v = floor (snd (properFraction v) * 1000)
+
+sig_within start end (SignalVector vec) = inside
+    where
+    (_, above) = V.splitAt (bsearch_on vec fst (pos_to_val start)) vec
+    (inside, _) = V.splitAt (bsearch_on above fst (pos_to_val end)) vec
+
+-- * resample
+
+-- | Resample the signals to have conincident sample points.
+resample :: SigVec -> SigVec -> (SigVec, SigVec)
+resample vec0 vec1 = (V.pack s0, V.pack s1)
+    where
+    merged = resample_list (,) (V.unpack vec0) (V.unpack vec1)
+    (s0, s1) = unzip [((x, ay), (x, by)) | (x, (ay, by)) <- merged]
+
+-- | '_do_resample' works on the second sample of pairs of samples, so some
+-- fiddly setup is needed to handle the leading samples.
+--
+-- TODO Wow this is a lot of work and probably inefficient.  I can probably
+-- rewrite this in C.
+resample_list f as@((ax0, ay0) : a_rest) bs@((bx0, by0) : b_rest)
+    | ax0 == bx0 = (ax0, f ay0 by0) : resample_list f a_rest b_rest
+    | ax0 < bx0 =
+        let (pre, post) = span ((<bx0) . fst) as
+            -- Find the y for bx0, since _do_resample will start at bx1.
+            (last_ax, last_ay) = last pre
+            (first_ax, first_ay) = if null post then (bx0, ay0) else head post
+            ay = y_at last_ax last_ay first_ax first_ay bx0
+        in [(ax, f ay (y_at 0 0 bx0 by0 ax)) | (ax, ay) <- pre]
+            ++ (bx0, f ay by0) : _do_resample f post bs
+    | bx0 < ax0 =
+        let (pre, post) = span ((<ax0) . fst) bs
+            (last_bx, last_by) = last pre
+            (first_bx, first_by) = if null post then (ax0, by0) else head post
+            by = y_at last_bx last_by first_bx first_by ax0
+        in [(bx, f (y_at 0 0 ax0 ay0 bx) by) | (bx, by) <- pre]
+            ++ (ax0, f ay0 by) : _do_resample f as post
+resample_list f [] bs = [(bx, f 0 by) | (bx, by) <- bs]
+resample_list f as [] = [(ax, f ay 0) | (ax, ay) <- as]
+
+_do_resample f as@((ax0, ay0) : a_rest) bs@((bx0, by0) : b_rest)
+    | null a_rest && null b_rest = []
+    | ax1 == bx1 = (ax1, f ay1 by1) : _do_resample f a_rest b_rest
+    | ax1 < bx1 = (ax1, f ay1 (y_at bx0 by0 bx1 by1 ax1))
+        : _do_resample f a_rest bs
+    | otherwise = (bx1, f (y_at ax0 ay0 ax1 ay1 bx1) by1)
+        : _do_resample f as b_rest
+    where
+    (ax1, ay1) = if null a_rest then (max_val, ay0) else head a_rest
+    (bx1, by1) = if null b_rest then (max_val, by0) else head b_rest
+    max_val = pos_to_val max_track_pos
+_do_resample f [] bs = _do_resample f [(0, 0)] bs
+_do_resample f as [] = _do_resample f as [(0, 0)]
 
 -- * access
 
@@ -364,6 +449,15 @@ first_to_pos (a, b) = (val_to_pos a, b)
 first_to_val (a, b) = (pos_to_val a, b)
 vmap f (SignalVector vec) = SignalVector (f vec)
 
+-- | Map a function across pairs of samples, threading an additional
+-- accumulator through for state.  The function is passed the *previous* sample
+-- along with the current one, so it should return samples based on the second
+-- sample it receives (the sample "previous" to the first sample will be (0,
+-- 0)).  Also, the function returns a list of samples, so this is also like
+-- concatMap.
+--
+-- TODO I should be able to do a faster version of this by working directly
+-- with the pointers.
 map_signal_accum :: (accum -> Val -> Val -> Val -> Val -> (accum, [(Val, Val)]))
     -> accum -> Signal -> Signal
 map_signal_accum f accum (SignalVector vec) =

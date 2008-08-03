@@ -37,6 +37,40 @@ test_sample_function = do
     equal (f 0 2) [(TrackPos 0, 1), (TrackPos 1, 1.25)]
     equal (f 10 12) [(TrackPos 10, 1), (TrackPos 11, 1.25)]
 
+-- * comparison
+
+test_pitches_share = do
+    let sig = Signal.signal
+    let f = Signal.pitches_share
+    -- Different signals.
+    equal (f 0 1 (sig [(0, 0), (1, 1)]) (sig [(1, 1), (0, 0)])) False
+    -- Separated by an integer.
+    equal (f 0 1 (sig [(0, 0), (1, 1)]) (sig [(0, 1), (1, 2)])) True
+    equal (f 0 1 (sig [(0, 0), (2, 2)]) (sig [(0, 1), (1, 2)])) True
+    equal (f 1 2 (sig [(0, 0), (2, 2)]) (sig [(0, 1), (10, 11)])) True
+    -- Separated by 0.
+    equal (f 0 1 (sig [(0, 0), (1, 1)]) (sig [(0, 0), (1, 1)])) False
+    equal (f 0 1 (sig [(0, 0), (1, 1)]) (sig [(0, 0), (2, 2)])) False
+
+    -- Must be separated by an integer.
+    equal (f 0 1 (sig [(0, 0), (1, 1)]) (sig [(0, 0.5), (1, 1.5)])) False
+    equal (f 0 1 (sig [(0, 0), (1, 1)]) (sig [(0, 1.5), (1, 2.5)])) False
+
+test_resample_list = do
+    let f = Signal.resample_list (,)
+    equal (f [(1, 1), (2, 2)] [])
+        [(1, (1, 0)), (2, (2, 0))]
+    equal (f [(1, 1), (2, 2)] [(1, 2), (2, 1)])
+        [(1, (1, 2)), (2, (2, 1))]
+
+    let sig0 = [(1, 4), (4, 1), (6, 4)]
+        sig1 = [(2, 2), (4, 4), (8, 2), (9, 3)]
+        merged =
+            [ (1, (4, 1)), (2, (3, 2)), (4, (1, 4)), (6, (4, 3))
+            , (8, (4, 2)), (9, (4, 3))]
+    equal (f sig0 sig1) merged
+    equal (f sig1 sig0) [(x, (by, ay)) | (x, (ay, by)) <- merged]
+
 -- * access
 
 test_sample = do
