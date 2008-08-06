@@ -452,7 +452,7 @@ update_of _ = Nothing
 
 -- | A Schema attaches a number of things to a Block.
 data Schema = Schema {
-    schema_deriver :: SchemaDeriver Derive.Deriver
+    schema_deriver :: SchemaDeriver Derive.EventDeriver
     , schema_signal_deriver :: SchemaDeriver Derive.SignalDeriver
     , schema_parser :: Parser
     -- | Get a set of Cmds that are applicable within the given CmdContext.

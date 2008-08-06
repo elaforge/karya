@@ -105,7 +105,7 @@ Derive
   derivers
     * control
     * tempo
-      - multiple tempos per block
+      * multiple tempos per block
     - continuous pitch control
     - alternate scales
     - defaulting parameters for control and note tracks

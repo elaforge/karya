@@ -103,6 +103,8 @@ type Velocity = Word8
 type Controller = Word8
 type Program = Word8
 type ControlValue = Word8
+-- | Between -0x2000 and +0x2000.
+type PitchBendValue = Int
 data ChannelMessage =
     NoteOff Key Velocity
     | NoteOn Key Velocity
@@ -110,8 +112,7 @@ data ChannelMessage =
     | ControlChange Controller ControlValue
     | ProgramChange Program
     | ChannelPressure ControlValue
-    -- | Number between -0x2000 and +0x2000.
-    | PitchBend Int
+    | PitchBend PitchBendValue
     -- | channel mode messages (special controller values)
     | AllSoundOff
     | ResetAllControllers

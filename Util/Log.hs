@@ -81,7 +81,7 @@ initialize mach_file file = do
     return ()
 
 -- | (schema_stack, event_stack)
-type Stack = [Warning.CallPos]
+type Stack = [Warning.StackPos]
 
 data Prio
     -- | Lots of msgs produced by code level.  Users don't look at this during

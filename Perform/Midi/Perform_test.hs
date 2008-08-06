@@ -9,6 +9,7 @@ import Util.Pretty
 import Util.Test
 
 import Ui.Types
+import qualified Ui.Block as Block
 import qualified Ui.Id as Id
 import qualified Ui.Track as Track
 
@@ -37,8 +38,6 @@ import qualified Perform.Midi.Perform as Perform
 
 -- Bad signal that goes over 1 in two places.
 badsig cont = (cont, mksignal [(0, 0), (1, 1.5), (2, 0), (2.5, 0), (3, 2)])
-
-vol_cc = Controller.Controller "volume"
 
 test_clip_warns = do
     let events = map mkevent [(inst1, "a", 0, 4, [badsig vol_cc])]
@@ -125,13 +124,13 @@ unpack_msg (Midi.WriteMessage (Midi.WriteDevice dev) ts
 unpack_msg (Midi.WriteMessage (Midi.WriteDevice dev) ts msg) =
     error $ "unknown msg: " ++ show msg
 
-test_perform_lazy = do
-    let endless = map (\(n, ts) -> (n:"", ts, 4, [c_vol]))
-            (zip (cycle ['a'..'g']) [0,4..])
-    let (msgs, _warns) = test_one_chan endless
-    (th_id, chan) <- pretend_to_write msgs
-    Concurrent.threadDelay (5 * 1000000)
-    Concurrent.killThread th_id
+-- test_perform_lazy = do
+--     let endless = map (\(n, ts) -> (n:"", ts, 4, [c_vol]))
+--             (zip (cycle ['a'..'g']) [0,4..])
+--     let (msgs, _warns) = perform_one_chan endless
+--     (th_id, chan) <- pretend_to_write msgs
+--     Concurrent.threadDelay (5 * 1000000)
+--     Concurrent.killThread th_id
     -- forever $ do
     --     (i, msg) <- Chan.readChan chan
     --     putStrLn $ show i ++ ": " ++ show_msg msg
@@ -161,7 +160,7 @@ pretend_to_write xs = do
             putStrLn $ show i ++ ": " ++ show_msg msg
         IO.hPutStr handle (show msg)
 
-test_one_chan events =
+perform_one_chan events =
     Perform.perform_notes (with_chan 0 (mkevents events))
     where with_chan chan = map (\evt -> (evt, (dev1, chan)))
 
@@ -221,14 +220,18 @@ test_channelize = do
 
     -- TODO test cents and controls differences
 
-    -- All under volume, but "pb" also has a pitchbend, so it gets its own
-    -- track.  "pb" and "c" share since they have the same controllers.
+    -- All under volume, but "p" also has a pitchbend, so it gets its own
+    -- track.  "p" and "c" share since they have the same controllers.
     equal (channelize
         [ ("a", 0, 4, [c_vol])
-        , ("pb", 2, 4, [c_vol, c_pitch])
-        , ("c", 4, 4, [c_vol, c_pitch])
+        , ("p", 2, 4, [c_vol, c_pres])
+        , ("c", 4, 4, [c_vol, c_pres])
         ])
         [0, 1, 1]
+
+test_can_share_chan = do
+    let f = Perform.can_share_chan
+    print $ f (mkevent (inst1, "a", 0, 1, [])) (mkevent (inst1, "b", 0, 1, []))
 
 test_overlap_map = do
     let f overlapping event = (event, map fst overlapping)
@@ -264,10 +267,16 @@ test_allot = do
 -- * setup
 
 mkevent (inst, pitch, start, dur, controls) =
-    Perform.Event inst (ts start) (ts dur) (mkpitch pitch)
-        (Map.fromList controls)
-        [(Track.TrackId (Id.id "test" "fakepos"), TrackPos 42)]
-    where ts = Timestamp.seconds
+    Perform.Event inst (ts start) (ts dur)
+        (Map.fromList (pitch_control : controls)) fakestack
+    where
+    fakestack = [(Block.BlockId (Id.id "test" "fakeblock"),
+        Just (Track.TrackId (Id.id "test" "faketrack")), Just (TrackPos 42))]
+    ts = Timestamp.seconds
+    pitch_control = (Controller.c_pitch, Signal.signal [(start, p)])
+    p = Maybe.fromMaybe (error ("no pitch " ++ show pitch))
+        (lookup pitch to_pitch)
+    to_pitch = zip (map (:"") ['a'..'z']) [60..]
 mkevents = map (\ (p, s, d, c) -> mkevent (inst1, p, s, d, c))
 
 events1 = mkevents
@@ -280,15 +289,12 @@ mksignal ts_vals = Signal.track_signal (TrackPos 1)
     [(Timestamp.to_track_pos (secs sec), Signal.Linear, val)
         | (sec, val) <- ts_vals]
 
+vol_cc = Controller.Controller "volume"
 c_vol = (vol_cc, mksignal [(0, 1), (4, 0)])
 c_vol2 = (vol_cc, mksignal [(0, 1), (2, 0), (4, 1)])
 c_vel = (Controller.c_velocity, mksignal [(0, 1), (4, 0)])
-c_pitch = (Controller.c_pitch, mksignal [(0, 0), (8, 1)])
+c_pres = (Controller.c_channel_pressure, mksignal [(0, 0), (8, 1)])
 
-mkpitch s = Pitch.Pitch s (Pitch.NoteNumber p)
-    where
-    p = maybe (error ("no pitch " ++ show s)) id (lookup (head s) to_pitch)
-to_pitch = zip ['a'..'z'] [60..]
 inst name = Instrument.instrument name Controller.default_controllers
     (-12, 12) Nothing
 

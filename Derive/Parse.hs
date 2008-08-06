@@ -10,7 +10,6 @@ import qualified Text.ParserCombinators.Parsec.Error as Parsec.Error
 import Text.ParserCombinators.Parsec ((<?>))
 
 import qualified Util.Seq as Seq
-import qualified Derive.Score as Score
 import qualified Derive.Derive as Derive
 
 
@@ -44,10 +43,8 @@ warn_float fail_str s = do
 -}
 
 -- | Parse the text of an event with the given parser @p@.
--- It just needs a string, not an Event, but this is more convenient for now.
-parse :: (Monad m) => P.CharParser () a -> Score.Event -> Derive.DeriveT m a
-parse p event = do
-    let text = Score.event_text event
+parse :: (Monad m) => P.CharParser () a -> String -> Derive.DeriveT m a
+parse p text = do
     (val, rest) <- case P.parse (p_rest p) "" text of
         Left err -> Derive.throw_event $
             "parse error on char "
@@ -60,6 +57,10 @@ parse p event = do
         Derive.warn $ "trailing junk: " ++ show rest
     return val
 
+-- | Convert a parser into a lexeme parser by skipping whitespace afterwards.
+lexeme :: P.CharParser st a -> P.CharParser st a
+lexeme p = p >>= \v -> P.skipMany P.space >> return v
+
 -- Contrary to its documentation, showErrorMessages takes a set of strings
 -- for translation, which makes it hard to use.
 show_error_msgs = Parsec.Error.showErrorMessages
@@ -70,6 +71,12 @@ p_rest p = do
     val <- p
     rest <- P.getInput
     return (val, rest)
+
+p_word :: P.CharParser st String
+p_word = do
+    w <- P.many1 (P.noneOf " ")
+    P.spaces
+    return w
 
 -- | Parse a possibly signed integer.
 p_int :: P.CharParser st Integer

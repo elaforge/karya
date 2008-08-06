@@ -673,10 +673,10 @@ remove_event track_id pos = do
 --
 -- Will this be efficient for a large number of events?  Track.merge_events
 -- will have to take care of efficiently merging a large input.
-type EventTransformer = [Track.PosEvent] -- ^ previous events
-    -> [Track.PosEvent] -- ^ subsequent events
-    -> Track.PosEvent -- ^ event in question
-    -> [Track.PosEvent] -- ^ produces these events
+type EventTransformer = [Track.PosEvent] -- previous events
+    -> [Track.PosEvent] -- subsequent events
+    -> Track.PosEvent -- event in question
+    -> [Track.PosEvent] -- produces these events
 
 -- | Map a function across events in track_id from the range start to end.
 -- If start doesn't fall on an event, this maps from the event /before/ the

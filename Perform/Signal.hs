@@ -169,7 +169,6 @@ max_track_pos = TrackPos (2^52 - 1) -- 52 bits of mantissa only should be enough
 
 -- Later, this should be under deriver control.
 default_srate = TrackPos 0.05
-default_srate_ts = Timestamp.from_track_pos default_srate
 
 -- * comparison
 
@@ -267,9 +266,6 @@ at :: TrackPos -> Signal -> Val
 at pos sig = interpolate_linear pos0 val0 pos1 val1 pos
     where ((pos0, val0), (pos1, val1)) = find_samples pos sig
 
-at_timestamp :: Timestamp.Timestamp -> Signal -> Val
-at_timestamp ts sig = at (Timestamp.to_track_pos ts) sig
-
 -- | Sample the signal to generate samples.  This is for MIDI, which doesn't
 -- have linear segments, so they have to be interpolated to flat samples.
 --
@@ -292,11 +288,6 @@ sample srate start sig@(SignalVector vec) =
             | y0 == y1 = []
             | otherwise = interpolate_samples (pos_to_val srate) x0 y0 x1 y1
 
-sample_timestamp :: Timestamp.Timestamp -> Timestamp.Timestamp -> Signal
-    -> [(Timestamp.Timestamp, Val)]
-sample_timestamp srate start sig = map (Arrow.first Timestamp.from_track_pos) $
-    sample (Timestamp.to_track_pos srate) (Timestamp.to_track_pos start) sig
-
 
 interpolate_samples :: Val -> Val -> Val -> Val -> Val -> [(Val, Val)]
 interpolate_samples srate x0 y0 x1 y1 =
@@ -312,9 +303,11 @@ range start end step
 
 -- ** implementation
 
--- Before the first sample: (zero, first)
--- at the first until the second: (first, second)
--- at the last until whenever: (last, extend last in a straight line)
+-- | Find a relevant sample range.
+-- - Before the first sample: (zero, first)
+-- - at the first until the second: (first, second)
+-- - at the last until whenever: (last, extend last in a straight line)
+--
 find_samples :: TrackPos -> Signal -> ((TrackPos, Val), (TrackPos, Val))
 find_samples pos (SignalVector vec)
     | len == 0 = (zero, (TrackPos 1, 0))
@@ -342,6 +335,8 @@ find_above pos vec = Maybe.fromMaybe len $
     i = bsearch_on vec fst pos
 
 -- | Find the index of the first element >= the key of the given element.
+-- Signature is specialized to SigVec though it doesn't need to be.
+bsearch_on :: SigVec -> ((Val, Val) -> Val) -> Val -> Int
 bsearch_on vec key v = go vec 0 (V.length vec)
     where
     go vec low high

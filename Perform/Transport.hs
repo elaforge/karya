@@ -62,9 +62,9 @@ type TempoFunction = Block.BlockId -> Track.TrackId -> TrackPos
 -- blocks, return [].  The updater thread polls this at a given resolution for
 -- all displayed blocks and updates the play selection accordingly.
 --
--- This is generated as the inverse of the tempo, i.e. at the "bottom" block
--- it's 1:1, and at above blocks it's warped according to the inverse of the
--- tempo warped from there.
+-- Since a given block may be playing in multiple places at the same time (e.g.
+-- for a block that is played like an instrument, if the notes overlap), the
+-- same BlockId may occur more than once in the output list.
 type InverseTempoFunction = Timestamp.Timestamp
     -> [(Block.BlockId, [(Track.TrackId, TrackPos)])]
 

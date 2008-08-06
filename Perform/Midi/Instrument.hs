@@ -6,7 +6,6 @@ module Perform.Midi.Instrument where
 import qualified Data.Generics as Generics
 import qualified Data.Map as Map
 
-import Util.Pretty
 import qualified Midi.Midi as Midi
 
 import qualified Derive.Score as Score
@@ -34,10 +33,6 @@ data Instrument = Instrument {
     } deriving (Eq, Ord, Show)
 instrument = Instrument
 
--- | Midi instruments are addressed by a (device, channel) pair, allocated in
--- 'Config'.
-type Addr = (Midi.WriteDevice, Midi.Channel)
-
 -- | Per-song instrument configuration.
 data Config  = Config {
     -- | An instrument may occur multiple times in this map, which means it
@@ -55,8 +50,9 @@ data Config  = Config {
     } deriving (Show, Read, Generics.Data, Generics.Typeable)
 config addr_insts default_addr = Config (Map.fromList addr_insts) default_addr
 
-instance Pretty Instrument where
-    pretty inst = "<inst: " ++ inst_name inst ++ ">"
+-- | Midi instruments are addressed by a (device, channel) pair, allocated in
+-- 'Config'.
+type Addr = (Midi.WriteDevice, Midi.Channel)
 
 
 -- * instrument db types

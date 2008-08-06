@@ -1,21 +1,23 @@
 {- | Main entry point for Perform.Midi.  Render Deriver output down to actual
 midi events.
+
+TODO Implement key switches.  How about an integral signal, and then
+a per-instrument map from signal to keyswitch keys.  The signal is rendered as
+key switch keys when it changes, and the signal makes the channel unshareable.
 -}
 module Perform.Midi.Perform where
 import Data.Function
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
-import Text.Printf
 
-
-import Util.Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Data
 
+import Ui.Types
+
 import qualified Midi.Midi as Midi
 
-import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Warning as Warning
@@ -67,10 +69,10 @@ _perform_notes overlapping ((event, addr):events) =
     -- happens once at gaps though, but if it's a problem I can abort after
     -- n seconds, which would possibly save generating controllers there, at
     -- the cost of assuming decays are < n sec.
-    next_on_ts = case List.find ((==addr) . snd) events of
+    next_note_on = case List.find ((==addr) . snd) events of
         Nothing -> event_end event -- TODO plus decay_time?
         Just (evt, _chan) -> event_start evt
-    (msgs, warns) = perform_note next_on_ts event addr
+    (msgs, warns) = perform_note next_note_on event addr
     first_ts = case msgs of
         [] -> Timestamp.Timestamp 0 -- perform_note decided to play nothing?
         (msg:_) -> Midi.wmsg_ts msg
@@ -94,118 +96,113 @@ reorder_control_messages = sort2 (compare `on` msg_key)
         Midi.ChannelMessage _ (Midi.ControlChange _ _) -> 0
         _ -> 1
 
--- | Bubblesort.  It's lazy and sorts almost-sorted stuff well.
+-- | A single bubblesort pass.  It's lazy and sorts almost-sorted stuff well.
 sort2 cmp (a:b:zs) = case cmp a b of
     GT -> b : sort2 cmp (a:zs)
     _ -> a : sort2 cmp (b:zs)
 sort2 cmp xs = List.sortBy cmp xs
 
 
-perform_note :: Timestamp.Timestamp -> Event -> Instrument.Addr
+perform_note :: TrackPos -> Event -> Instrument.Addr
     -> ([Midi.WriteMessage], [Warning.Warning])
-perform_note next_on_ts event (dev, chan) =
-    (merge_messages [controller_msgs2, note_msgs], warns)
+perform_note next_note_on event (dev, chan)
+    | midi_nn == 0 = ([], [Warning.warning "no pitch signal"
+        (event_stack event) (Just (note_on, note_off))])
+    | otherwise = (merge_messages [controller_msgs, note_msgs], warns)
     where
-    note_msgs = [chan_msg on_ts (Midi.NoteOn midi_nn on_vel),
-        chan_msg off_ts (Midi.NoteOff midi_nn off_vel)]
-    chan_msg ts msg = Midi.WriteMessage dev ts (Midi.ChannelMessage chan msg)
-    on_ts = event_start event
-    off_ts = on_ts + event_duration event
-    (on_vel, off_vel, vel_clip_warns) = note_velocity event on_ts off_ts
+    note_msgs = [chan_msg note_on (Midi.NoteOn midi_nn on_vel),
+        chan_msg note_off (Midi.NoteOff midi_nn off_vel)]
+    chan_msg pos msg = Midi.WriteMessage dev (Timestamp.from_track_pos pos)
+        (Midi.ChannelMessage chan msg)
+    note_on = event_start event
+    note_off = event_end event
+    (on_vel, off_vel, vel_clip_warns) = note_velocity event note_on note_off
 
-    midi_nn = Pitch.midi_nn (event_pitch event)
-    -- Cents are always measure upwards from the tempered note.  It would be
-    -- slicker to use a negative offset if the note is eventually going above
-    -- unity, but that's too much work.
-    pb_range = Instrument.inst_pitch_bend_range (event_instrument event)
-    pb_offset = Controller.cents_to_pb_val pb_range
-        (Pitch.cents (event_pitch event))
+    -- pb_range = Instrument.inst_pitch_bend_range (event_instrument event)
+    midi_nn = Maybe.fromMaybe 0 (event_pitch_at event note_on)
 
     control_sigs = Map.assocs (event_controls event)
     cmap = Instrument.inst_controller_map (event_instrument event)
-    (controller_ts_msgs, clip_warns) = unzip $
-        map (perform_controller cmap on_ts next_on_ts chan) control_sigs
-    controller_msgs = merge_messages (map (map mkmsg) controller_ts_msgs)
-    controller_msgs2 = map (add_pitch_bend pb_offset) controller_msgs
-    mkmsg (ts, msg) = Midi.WriteMessage dev ts msg
+    (controller_pos_msgs, clip_warns) = unzip $
+        map (perform_controller cmap note_on next_note_on chan) control_sigs
+    controller_msgs = merge_messages (map (map mkmsg) controller_pos_msgs)
+    mkmsg (pos, msg) = Midi.WriteMessage dev (Timestamp.from_track_pos pos) msg
 
     warns = concatMap (make_clip_warnings event)
         (zip (map fst control_sigs) clip_warns ++ vel_clip_warns)
 
-note_velocity :: Event -> Timestamp.Timestamp -> Timestamp.Timestamp
+-- | Get pitch at the given point of the signal.
+--
+-- The pitch bend always tunes upwards from the tempered note.  It would be
+-- slicker to use a negative offset if the note is eventually going above
+-- unity, but that's too much work.
+event_pitch_at :: Event -> TrackPos -> Maybe Midi.Key
+event_pitch_at event pos =
+    fmap Controller.pitch_to_midi_key (control_at event Controller.c_pitch pos)
+
+note_velocity :: Event -> TrackPos -> TrackPos
     -> (Midi.Velocity, Midi.Velocity, [(Controller.Controller, [ClipWarning])])
-note_velocity event on_ts off_ts =
+note_velocity event note_on note_off =
     (clipped_vel on_sig, clipped_vel off_sig, clip_warns)
     where
     on_sig = Maybe.fromMaybe default_velocity $
-        control_at event Controller.c_velocity on_ts
+        control_at event Controller.c_velocity note_on
     off_sig = Maybe.fromMaybe default_velocity $
-        control_at event Controller.c_velocity off_ts
+        control_at event Controller.c_velocity note_off
     clipped_vel val = Controller.val_to_cc (fst (clip_val 0 1 val))
     clip_warns =
         if snd (clip_val 0 1 on_sig) || snd (clip_val 0 1 off_sig)
-        then [(Controller.c_velocity, [(on_ts, off_ts)])]
+        then [(Controller.c_velocity, [(note_on, note_off)])]
         else []
 
-make_clip_warnings :: Event
-    -> (Controller.Controller, [(Timestamp.Timestamp, Timestamp.Timestamp)])
+make_clip_warnings :: Event -> (Controller.Controller, [(TrackPos, TrackPos)])
     -> [Warning.Warning]
 make_clip_warnings event (controller, clip_warns) =
-    [Warning.warning (show controller ++ " clipped")
-            (event_stack event) (Just (start_ts, end_ts))
-        | (start_ts, end_ts) <- clip_warns]
+    [ Warning.warning (show controller ++ " clipped")
+        (event_stack event) (Just (start, end))
+    | (start, end) <- clip_warns ]
 
 -- | This winds up being 100, which is a good default and distinctive-looking.
 default_velocity :: Signal.Val
 default_velocity = 0.79
 
-control_at :: Event -> Controller.Controller -> Timestamp.Timestamp
+control_at :: Event -> Controller.Controller -> TrackPos
     -> Maybe Signal.Val
-control_at event controller ts = do
+control_at event controller pos = do
     sig <- Map.lookup controller (event_controls event)
-    return (Signal.at_timestamp ts sig)
+    return (Signal.at pos sig)
 
--- | Add offset to pitch bend msgs, passing others through.
-add_pitch_bend :: Int -> Midi.WriteMessage -> Midi.WriteMessage
-add_pitch_bend offset msg = msg { Midi.wmsg_msg = msg' }
-    where
-    msg' = case (Midi.wmsg_msg msg) of
-        Midi.ChannelMessage chan (Midi.PitchBend n) ->
-            -- TODO warn about overflow
-            Midi.ChannelMessage chan (Midi.PitchBend (n+offset))
-        msg -> msg
-
--- | Return the (ts, msg) pairs, and whether the signal value went out of the
--- allowed controller range (either 0--1 or -1--1).
+-- | Return the (pos, msg) pairs, and whether the signal value went out of the
+-- allowed controller range, 0--1.
 perform_controller :: Controller.ControllerMap
-    -> Timestamp.Timestamp -> Timestamp.Timestamp -> Midi.Channel
+    -> TrackPos -> TrackPos -> Midi.Channel
     -> (Controller.Controller, Signal.Signal)
-    -> ([(Timestamp.Timestamp, Midi.Message)], [ClipWarning])
-perform_controller cmap start_ts end_ts chan (controller, sig) =
+    -> ([(TrackPos, Midi.Message)], [ClipWarning])
+perform_controller cmap start end chan (controller, sig) =
     case Controller.controller_constructor cmap controller of
-        Nothing -> ([], [])
+        Nothing -> ([], []) -- TODO warn about a controller not in the cmap
         Just ctor ->
-            let msgs = [(ts, Midi.ChannelMessage chan (ctor val))
-                    | (ts, val) <- ts_cvals]
+            let msgs = [(pos, Midi.ChannelMessage chan (ctor val))
+                    | (pos, val) <- pos_cvals]
             in (msgs, clip_warns)
     where
         -- TODO get srate from a controller
-    ts_vals = takeWhile ((<end_ts) . fst) $
-        Signal.sample_timestamp Signal.default_srate_ts start_ts sig
-    (low, high) = Controller.controller_range controller
+    pos_vals = takeWhile ((<end) . fst) $
+        Signal.sample Signal.default_srate start sig
+    (low, high) = Controller.controller_range
     -- arrows?
-    (cvals, clips) = unzip (map (clip_val low high) (map snd ts_vals))
-    clip_warns = extract_clip_warns (zip ts_vals clips)
-    ts_cvals = zip (map fst ts_vals) cvals
+    (cvals, clips) = unzip (map (clip_val low high) (map snd pos_vals))
+    clip_warns = extract_clip_warns (zip pos_vals clips)
+    pos_cvals = zip (map fst pos_vals) cvals
 
-type ClipWarning = (Timestamp.Timestamp, Timestamp.Timestamp)
+type ClipWarning = (TrackPos, TrackPos)
 
-extract_clip_warns :: [((Timestamp.Timestamp, Signal.Val), Bool)]
-    -> [ClipWarning]
-extract_clip_warns ts_val_clips = [(head ts, last ts) | ts <- clip_ts]
+extract_clip_warns :: [((TrackPos, Signal.Val), Bool)] -> [ClipWarning]
+extract_clip_warns pos_val_clips = [(head pos, last pos) | pos <- clip_pos]
     where
-    groups = List.groupBy ((==) `on` snd) ts_val_clips
-    clip_ts = [[ts | ((ts, _val), _clipped) <- g ] | g <- groups, snd (head g)]
+    groups = List.groupBy ((==) `on` snd) pos_val_clips
+    clip_pos = [[pos | ((pos, _val), _clipped) <- g ]
+        | g <- groups, snd (head g)]
 
 clip_val low high val
     | val < low = (low, True)
@@ -232,7 +229,7 @@ channelize_event inst_addrs overlapping event =
         Just (_:_:_) -> chan
         _ -> 0
     where
-    chan = maybe (maximum ((-1) : map snd overlapping) + 1) id
+    chan = maybe (maximum (-1 : map snd overlapping) + 1) id
         (shareable_chan overlapping event)
 
 -- | Find a channel from the list of overlapping (Event, Channel) all of whose
@@ -248,32 +245,33 @@ shareable_chan overlapping event = fmap fst (List.find all_share by_chan)
 can_share_chan :: Event -> Event -> Bool
 can_share_chan event1 event2 =
     event_instrument event1 == event_instrument event2
-    -- Two events with the same pitch can never go on the same channel.
-    && event_pitch event1 /= event_pitch event2
-    -- If they have different tunings, they'll be pitch-bent by
-    -- perform_note.
-    && cents event1 == cents event2
-    && controls_equal
-        (event_start event1) (event_start event2 + event_duration event2)
-        (relevant event1) (relevant event2)
+    && pitches_share start end (pitch_control event1) (pitch_control event2)
+    && controls_equal start end (relevant event1) (relevant event2)
     where
-    cents = Pitch.cents . event_pitch
+    start = event_start event1
+    end = event_end event2
     -- Velocity and aftertouch are per-note addressable in midi, but the rest
     -- of the controllers require their own channel.
     relevant event = filter (Controller.is_channel_controller . fst)
         (Map.assocs (event_controls event))
+    pitch_control event = Map.lookup Controller.c_pitch (event_controls event)
 
 -- | Are the controllers equal in the given range?
-controls_equal :: Timestamp.Timestamp -> Timestamp.Timestamp
+controls_equal :: TrackPos -> TrackPos
     -> [(Controller.Controller, Signal.Signal)]
     -> [(Controller.Controller, Signal.Signal)] -> Bool
 controls_equal start end c0 c1 = all (uncurry eq) (zip c0 c1)
     where
+    -- Since the controllers are compared in sorted order, if the events don't
+    -- have the same controllers, they won't be equal.
     eq (c0, sig0) (c1, sig1) = c0 == c1
-        && Signal.equal Signal.default_srate
-            (Timestamp.to_track_pos start) (Timestamp.to_track_pos end)
-            sig0 sig1
+        && Signal.equal start end sig0 sig1
 
+pitches_share start end (Just sig0) (Just sig1) =
+    Signal.pitches_share start end sig0 sig1
+-- 0 pitch events should get filtered, but in case they aren't, they can go
+-- with anyone.
+pitches_share _ _ _ _ = True
 
 -- * allot channels
 
@@ -291,7 +289,7 @@ allot inst_addrs events = Maybe.catMaybes $
 
 data AllotState = AllotState {
     -- | Allocated addresses, and when they were last used.
-    ast_available :: Map.Map Instrument.Addr Timestamp.Timestamp
+    ast_available :: Map.Map Instrument.Addr TrackPos
     -- | Map arbitrary input channels to an instrument address in the allocated
     -- range.
     , ast_map :: Map.Map (Instrument.Instrument, Channel) Instrument.Addr
@@ -326,19 +324,17 @@ steal_addr inst state = case Map.lookup inst (ast_inst_addrs state) of
             in Just addr
     _ -> Nothing
     where
-    mlookup addr = Map.findWithDefault
-        (Timestamp.Timestamp 0) addr (ast_available state)
+    mlookup addr = Map.findWithDefault (TrackPos 0) addr (ast_available state)
 
 -- * data
 
 data Event = Event {
     event_instrument :: Instrument.Instrument
-    , event_start :: Timestamp.Timestamp
-    , event_duration :: Timestamp.Timestamp
-    , event_pitch :: Pitch.Pitch
+    , event_start :: TrackPos
+    , event_duration :: TrackPos
     , event_controls :: Map.Map Controller.Controller Signal.Signal
     -- original (TrackId, TrackPos) for errors
-    , event_stack :: [Warning.CallPos]
+    , event_stack :: [Warning.StackPos]
     } deriving (Show)
 
 event_end event = event_start event + event_duration event
@@ -363,8 +359,3 @@ overlap_map = go []
         -- TODO add decay
         overlapping = takeWhile ((> start) . event_end . fst) prev
         val = f overlapping e
-
-instance Pretty Event where
-    pretty e = printf "<%s--%s: %s>"
-        (pretty (event_start e)) (pretty (event_end e))
-        (pretty (event_pitch e))

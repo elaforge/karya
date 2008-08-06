@@ -1,21 +1,22 @@
 {- | A schema is a transformation from a block to a deriver.  It may intuit the
-deriver solely from the structure of the block, or it may ignore the block
-entirely if it's specialized to one particular shape of block.
+    deriver solely from the structure of the block, or it may ignore the block
+    entirely if it's specialized to one particular shape of block.
 
-The "schema" step is so that each block doesn't need to have its own deriver ID
-hardcoded into it.  Instead, many blocks can share a "schema" as long as they
-have the same general structure.
+    The \"schema\" step is so that each block doesn't need to have its own
+    deriver ID hardcoded into it.  Instead, many blocks can share a \"schema\"
+    as long as they have the same general structure.
 
-The SchemaId -> Schema mapping looks in a hardcoded list, a custom list passed
-via static configuration, and a dynamically loaded list.  The assumed usage
-is that you experiment with new Derivers and make minor changes via dynamic
-loading, and later incorporate them into the static configuration.
+    The @SchemaId -> Schema@ mapping looks in a hardcoded list, a custom list
+    passed via static configuration, and a dynamically loaded list.  The
+    assumed usage is that you experiment with new Derivers and make minor
+    changes via dynamic loading, and later incorporate them into the static
+    configuration.
 
-TODO dynamic loaded schemas are not implemented yet
+    TODO dynamic loaded schemas are not implemented yet
 
-TODO Since the tempo track is global now, I should lose the tempo scope
-parsing.  Except that I'd like it to not be global, so I'll just leave this
-as-is unless I decide global after all.
+    TODO Since the tempo track is global now, I should lose the tempo scope
+    parsing.  Except that I'd like it to not be global, so I'll just leave this
+    as-is unless I decide global after all.
 -}
 module Derive.Schema (
     -- Re-export schema types from Cmd, to pretend they're defined here.
@@ -55,9 +56,10 @@ import Cmd.Cmd (Schema(..), SchemaDeriver, Parser, Skeleton(..), merge,
 import qualified Cmd.Edit as Edit
 import qualified Cmd.NoteEntry as NoteEntry
 
-import qualified Derive.Score as Score
 import qualified Derive.Controller as Controller
 import qualified Derive.Derive as Derive
+import qualified Derive.Note as Note
+import qualified Derive.Score as Score
 import qualified Derive.Twelve as Twelve
 
 import qualified Perform.Signal as Signal
@@ -80,7 +82,7 @@ merge_schemas map1 map2 = Map.union map2 map1
 -- type SchemaContext = (Block.SchemaId, [Track], SchemaMap)
 
 get_deriver :: (State.UiStateMonad m) => SchemaMap -> Block.Block
-    -> m Derive.Deriver
+    -> m Derive.EventDeriver
 get_deriver schema_map block = do
     schema <- State.lookup_id (Block.block_schema block)
         (merge_schemas hardcoded_schemas schema_map)
@@ -221,7 +223,7 @@ instruments_of (Merge subs) = concatMap instruments_of subs
 -- then convert the skeleton into a deriver.  The intermediate data structure
 -- allows me to compose schemas out of smaller parts, as well as inspect the
 -- skeleton for e.g. instrument tracks named, or to create a view layout.
-default_schema_deriver :: Parser -> SchemaDeriver Derive.Deriver
+default_schema_deriver :: Parser -> SchemaDeriver Derive.EventDeriver
 default_schema_deriver parser block =
     fmap (compile_skeleton . parser) (block_tracks block)
 
@@ -241,7 +243,7 @@ skeleton_instruments skel = case skel of
 
 -- | Transform a deriver skeleton into a real deriver.  The deriver may throw
 -- if the skeleton was malformed.
-compile_skeleton :: Skeleton -> Derive.Deriver
+compile_skeleton :: Skeleton -> Derive.EventDeriver
 compile_skeleton skel = case skel of
     Controller ctracks Nothing ->
         -- TODO or it might be more friendly to just ignore them
@@ -249,14 +251,16 @@ compile_skeleton skel = case skel of
     Controller ctracks (Just subskel) ->
         compile_controllers ctracks subskel
     Instrument inst (Track { track_id = Block.TId track_id _ }) ->
-        Twelve.twelve =<< Derive.d_instrument inst =<< Derive.d_track track_id
+        Derive.with_instrument inst $ Derive.with_track_warp
+            (Note.d_note_track (Note.scale_parser Twelve.twelve_scale))
+            track_id
     Instrument _ track ->
         Derive.throw $
             "instrument track not an event track, parser is confused: "
             ++ show track
     Merge subs -> Derive.d_merge =<< mapM compile_skeleton subs
 
--- | Generate the Deriver for a Controller Skeleton.
+-- | Generate the EventDeriver for a Controller Skeleton.
 compile_controllers tracks subskel =
     foldr track_controller (compile_skeleton subskel) (event_tracks tracks)
 event_tracks tracks =
@@ -264,11 +268,12 @@ event_tracks tracks =
 
 track_controller :: (Monad m) => (String, Track.TrackId)
     -> Derive.DeriveT m [Score.Event] -> Derive.DeriveT m [Score.Event]
-track_controller (name, signal_track_id) =
-    controller_deriver (Controller.d_signal =<< Derive.d_track signal_track_id)
+track_controller (name, track_id) =
+    controller_deriver $ Controller.d_signal
+        =<< Derive.with_track_warp Controller.d_controller_track track_id
     where
     controller_deriver
-        | name == tempo_track_title = Derive.d_tempo signal_track_id
+        | name == tempo_track_title = Derive.d_tempo track_id
         | otherwise = Controller.d_controller (Score.Controller name)
 
 -- *** compile to signals
@@ -297,7 +302,8 @@ compile_signals tracks maybe_subskel = do
 signal_controller :: (Monad m) => (String, Track.TrackId)
     -> Derive.DeriveT m (Track.TrackId, Signal.Signal)
 signal_controller (_title, track_id) = do
-    sig <- Controller.d_signal =<< Derive.d_track track_id
+    sig <- Controller.d_signal
+        =<< Derive.with_track_warp Controller.d_controller_track track_id
     return (track_id, sig)
 
 -- | This is the track name that turns a track into a tempo track.

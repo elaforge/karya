@@ -12,16 +12,6 @@ import qualified Data.List as List
 
 import qualified Perform.Pitch as Pitch
 
-import qualified Derive.Derive as Derive
-import qualified Derive.Score as Score
-
--- * deriver
-
-twelve events = Derive.map_events realize_note () id events
-realize_note _ event = case event_pitch (Score.event_text event) of
-    Nothing -> Derive.throw $
-        "can't realize event " ++ show (Score.event_text event)
-    Just pitch -> return (event { Score.event_pitch = Just pitch })
 
 -- * implementation
 
@@ -48,3 +38,12 @@ event_pitch text = do
 pitch_notes :: IArray.Array Int String
 pitch_notes = IArray.listArray (0, 11)
     ["c-", "c#", "d-", "d#", "e-", "f-", "f#", "g-", "g#", "a-", "a#", "b-"]
+
+-- TODO this should go to a general place like Derive.Scale
+data Scale = Scale {
+    scale_name :: String
+    , scale_to_pitch :: String -> Maybe Pitch.Pitch
+    , scale_from_pitch :: Pitch.Pitch -> String
+    }
+
+twelve_scale = Scale "twelve: [0-8][a-g][#-]" event_pitch pitch_event

@@ -1,3 +1,54 @@
+The basic idea is fairly simple:
+
+Each block has an attached schema.  The schema is used with the block to
+produce a deriver, which is simply a function (in the DeriverT monad) that
+produces [Score.Event].
+
+Now the deriver can work any way it wants, but the default setup is that
+the schema parses the block into a hierarchy of note tracks and controller
+tracks called a skeleton, where the controller tracks have scope over certain
+note tracks.
+
+The skeleton is used to generate a single deriver, which consists of nested
+derivers for each track, which may interpret a track, merge multiple event
+streams, or whatever.
+
+Controller tracks are interpreted (by a deriver function) as a simple language
+with primitives to describe points and interpolation between them: flat,
+linear, curved, etc.  These control curves go into an environment of
+(Controller, Signal) pairs.
+
+The note tracks are evaluated in the environment established by the controller
+tracks, and like any deriver they have access to the controllers and their
+signals.  The note tracks are expected to produce [Score.Event], but can do
+so in a non-trivial manner, depending on the text of the event on the track and
+its context.
+
+How this happens is that there is yet another environment which is used to look
+up a deriver for that particular event.  The returned deriver is then run as
+a sub-derivation, so each event effectively acts as a function call.  The
+sub-derivation may immediately return events based on the event text, or may
+turn around and derive a whole other block, and so on recursively.
+
+All the important aspects of the events are derived from the environment.  The
+most important signal from the environment is the warp.  This is a signal
+typically derived from controller tracks titled "tempo" which is
+a transformation from score time to real time.  Derivers that produce events
+by convention will look up the event's starting and ending times (as in the
+track itself) in the warp to produce the event's starting time and duration.
+Events by convention all begin at time 0 and have a duration of 1, and are
+given their eventual start and duration by manipulating the tempo warp they are
+evaluated in.
+
+The warp signals themselves may be combined via composition (i.e. a relative
+tempo transformation) or by just replacing one with another (i.e. an absolute
+tempo transformation, for events that have the same duration regardless of the
+tempo of their surroundings).
+
+Another important signal is pitch.
+... TODO
+
+
 Controls
 
 to "play" a control, it gets attached to the event

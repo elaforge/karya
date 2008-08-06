@@ -11,7 +11,6 @@ import qualified Data.Set as Set
 
 import qualified Derive.Score as Score
 
-import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Warning as Warning
 import qualified Perform.Midi.Controller as Controller
 import qualified Perform.Midi.Perform as Perform
@@ -62,17 +61,14 @@ do_convert_event lookup_inst event = do
     inst <- req "instrument" (Score.event_instrument event)
     midi_inst <- req ("midi instrument in instrument db: " ++ show inst)
         (lookup_inst inst)
-    pitch <- req "pitch" (Score.event_pitch event)
     let (cwarns, controllers) =
             convert_controllers (Score.event_controllers event)
         controller_warns = map
             (\w -> w { Warning.warn_event = Score.event_stack event })
             cwarns
-        start = Timestamp.from_track_pos (Score.event_start event)
-        dur = Timestamp.from_track_pos (Score.event_duration event)
-    return (controller_warns,
-        Perform.Event midi_inst start dur pitch controllers
-            (Score.event_stack event))
+        mevt = Perform.Event midi_inst (Score.event_start event)
+            (Score.event_duration event) controllers (Score.event_stack event)
+    return (controller_warns, mevt)
 
 convert_controllers controllers = ([], Map.fromList mconts)
     where mconts = map convert_controller (Map.assocs controllers)

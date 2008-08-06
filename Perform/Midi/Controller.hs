@@ -9,6 +9,8 @@ import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
 
+import qualified Derive.Score as Score
+
 import qualified Perform.Signal as Signal
 
 
@@ -51,41 +53,54 @@ make_midi_cc :: Midi.Controller -> Signal.Val -> Midi.ChannelMessage
 make_midi_cc cnum val = Midi.ControlChange cnum (val_to_cc val)
 
 special_controllers = Map.fromList
-    [ (c_pitch, \val -> Midi.PitchBend (val_to_pb val))
-    , (c_channel_pressure, \val -> Midi.ChannelPressure (val_to_cc val))
+    [ (c_channel_pressure, \val -> Midi.ChannelPressure (val_to_cc val))
+    -- Don't include pitch becase it's handled separately.
     -- doing c_aftertouch is a bit trickier because it needs a note number
     ]
 
 -- | True for controllers that must have a channel to themselves.
--- Midi controllers are a substet of what I consider controllers, since
+-- Midi controllers are a subset of what I consider controllers, since
 -- I include all variable note parameters.
 is_channel_controller :: Controller -> Bool
-is_channel_controller cont = not (cont `elem` [c_velocity, c_aftertouch])
+    -- Don't include c_pitch because that is checked for sharing separately.
+is_channel_controller cont = cont `notElem` [c_velocity, c_aftertouch, c_pitch]
 
-controller_range :: Controller -> (Signal.Val, Signal.Val)
-controller_range cont
-    | cont == c_pitch = (-1, 1)
-    | otherwise = (0, 1)
+controller_range :: (Signal.Val, Signal.Val)
+controller_range = (0, 1)
 
--- TODO
-cents_to_pb_val :: PbRange -> Int -> Int
-cents_to_pb_val (low, high) cents = cents
+pitch_to_midi :: Signal.Val -> PbRange -> Maybe (Midi.Key, Midi.PitchBendValue)
+pitch_to_midi val (low, high)
+    | val == 0 = Nothing
+    | otherwise = Just (floor val, 0) -- TODO
+
+pitch_to_midi_key :: Signal.Val -> Midi.Key
+pitch_to_midi_key val = floor (max 1 (min 127 val))
+
+pitch_to_pb :: PbRange -> Signal.Val -> Midi.PitchBendValue
+pitch_to_pb (low, high) val = undefined -- TODO
 
 -- * built in controllers
 
 -- ** special
 
 c_velocity = Controller "velocity"
-c_pitch = Controller "pitch"
 c_channel_pressure = Controller "channel_pressure"
 c_aftertouch = Controller "aftertouch"
+
+-- | The pitch controller is even more special, because it doesn't directly
+-- correspond to any midi controller.  Instead it's decomposed into
+-- (midi_nn, pb_val) by 'pitch_to_midi'.
+c_pitch :: Controller
+c_pitch = Controller $ (\(Score.Controller s) -> s) Score.pitch
 
 -- ** ccs
 
 default_controllers :: ControllerMap
 default_controllers = controller_map
-    [ (1, "mod"), (2, "breath"), (5, "port time"), (7, "volume") ]
+    [ (1, c_mod), (2, "breath"), (5, "port time"), (7, "volume") ]
 
+-- Pull one out as a symbol for tests.
+c_mod = "mod"
 
 -- * util
 
