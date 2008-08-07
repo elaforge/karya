@@ -22,7 +22,7 @@ decode (status:d1:d2:bytes)
         0xb -> ControlChange d1 d2
         0xc -> ProgramChange d1
         0xd -> ChannelPressure d1
-        0xe -> PitchBend (join14 d2 d1 - 0x2000)
+        0xe -> PitchBend (fromIntegral (join14 d2 d1 - 0x2000) / 0x2000)
         _ -> error $ "not reached: " ++ show st
     channel_mode_msg = case d1 of
         0x78 -> AllSoundOff
@@ -61,6 +61,9 @@ encode (ChannelMessage chan msg) = [join4 st chan, d1, d2]
         Aftertouch n v -> (0xa, n, v)
         ControlChange c v -> (0xb, c, v)
         ProgramChange v -> (0xc, v, 0)
+        ChannelPressure v -> (0xd, v, 0)
+        PitchBend v -> let (d1, d2) = split14 (floor (v*0x2000))
+            in (0xe, d2, d1)
         -- channel mode msgs
         AllSoundOff -> (0xb, 0x78, 0)
         ResetAllControllers -> (0xb, 0x79, 0)

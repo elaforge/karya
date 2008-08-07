@@ -103,8 +103,8 @@ type Velocity = Word8
 type Controller = Word8
 type Program = Word8
 type ControlValue = Word8
--- | Between -0x2000 and +0x2000.
-type PitchBendValue = Int
+-- | This is converted to and from the -0x2000 and +0x2000 range by the parser.
+type PitchBendValue = Float
 data ChannelMessage =
     NoteOff Key Velocity
     | NoteOn Key Velocity
