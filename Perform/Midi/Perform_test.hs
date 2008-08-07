@@ -168,18 +168,14 @@ print_msgs = mapM_ (putStrLn . show_msg)
 show_msg (Midi.WriteMessage dev ts msg) =
     show dev ++ ": " ++ pretty ts ++ ": " ++ show msg
 
--- print_ts_msgs = mapM_ (putStrLn . show_ts_msg)
--- show_ts_msg (ts, msg) = pretty ts ++ ": " ++ show msg
-
 -- * controller
-
-secs = Timestamp.seconds
 
 test_perform_controller1 = do
     -- Bad signal that goes over 1 in two places.
     let sig = (vol_cc, mksignal [(0, 0), (1, 1.5), (2, 0), (2.5, 0), (3, 2)])
         cmap = Controller.default_controllers
-        (msgs, warns) = Perform.perform_controller cmap (secs 0) (secs 10) 0 sig
+        (msgs, warns) = Perform.perform_controller cmap
+            (TrackPos 0) (TrackPos 4) 0 sig
 
     -- controls are not emitted after they reach steady values
     check $ all Midi.valid_msg (map snd msgs)
@@ -191,7 +187,8 @@ test_perform_controller1 = do
 test_perform_controller2 = do
     let sig = (vol_cc, mksignal [(0, 0), (4, 1)])
         cmap = Controller.default_controllers
-        (msgs, warns) = Perform.perform_controller cmap (secs 2) (secs 4) 0 sig
+        (msgs, warns) = Perform.perform_controller cmap
+            (TrackPos 2) (TrackPos 4) 0 sig
     plist msgs
 
 -- * channelize
@@ -266,14 +263,16 @@ test_allot = do
 
 -- * setup
 
+mkevent :: (Instrument.Instrument, String, Double, Double,
+        [(Controller.Controller, Signal.Signal)])
+    -> Perform.Event
 mkevent (inst, pitch, start, dur, controls) =
-    Perform.Event inst (ts start) (ts dur)
+    Perform.Event inst (TrackPos start) (TrackPos dur)
         (Map.fromList (pitch_control : controls)) fakestack
     where
     fakestack = [(Block.BlockId (Id.id "test" "fakeblock"),
         Just (Track.TrackId (Id.id "test" "faketrack")), Just (TrackPos 42))]
-    ts = Timestamp.seconds
-    pitch_control = (Controller.c_pitch, Signal.signal [(start, p)])
+    pitch_control = (Controller.c_pitch, Signal.signal [(TrackPos start, p)])
     p = Maybe.fromMaybe (error ("no pitch " ++ show pitch))
         (lookup pitch to_pitch)
     to_pitch = zip (map (:"") ['a'..'z']) [60..]
@@ -286,8 +285,7 @@ events1 = mkevents
 
 
 mksignal ts_vals = Signal.track_signal (TrackPos 1)
-    [(Timestamp.to_track_pos (secs sec), Signal.Linear, val)
-        | (sec, val) <- ts_vals]
+    [(TrackPos pos, Signal.Linear, val) | (pos, val) <- ts_vals]
 
 vol_cc = Controller.Controller "volume"
 c_vol = (vol_cc, mksignal [(0, 1), (4, 0)])
