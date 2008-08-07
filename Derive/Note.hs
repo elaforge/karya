@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fno-warn-unused-imports #-}
+-- Control.Monad
 {- | Derive a block \"called\" from another block.
 
     This is the GUI level \"function call\" abstraction mechanism.  An event in
@@ -11,10 +13,11 @@
     calling range... how does this work in nyquist?
 
     Note abstraction:
-
 -}
 module Derive.Note where
+import Control.Monad
 import qualified Control.Monad.Identity as Identity
+import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Text.ParserCombinators.Parsec as P
 
@@ -32,20 +35,19 @@ import qualified Derive.Score as Score
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
-import qualified Derive.Twelve as Twelve
-
 
 type NoteParser m = Track.PosEvent
     -> Derive.DeriveT m (Maybe (Signal.Method, Pitch.Pitch), Maybe String)
 
 -- * instrument track
 
-d_note_track :: (Monad m) => NoteParser m -> Derive.TrackDeriver m
-d_note_track note_parser track_id = do
+d_note_track :: (Monad m) => Pitch.ScaleMap -> NoteParser m
+    -> Derive.TrackDeriver m
+d_note_track scales note_parser track_id = do
     track <- Derive.get_track track_id
     let events = Track.event_list (Track.track_events track)
     parsed <- parse_events note_parser events
-    pitch_signal <- extract_pitch_signal parsed
+    pitch_signal <- extract_pitch_signal scales parsed
     Derive.with_controller Score.pitch pitch_signal (derive_notes parsed)
 
 data ParsedEvent = ParsedEvent {
@@ -83,25 +85,34 @@ parse_events note_parser events = do
             (Event.event_duration event) pitch sub
         | ((start, event), Just (pitch, sub)) <- zip events maybe_parsed]
 
-extract_pitch_signal :: (Monad m) => [ParsedEvent]
+extract_pitch_signal :: (Monad m) => Pitch.ScaleMap -> [ParsedEvent]
     -> Derive.DeriveT m Signal.Signal
-extract_pitch_signal parsed = do
+extract_pitch_signal scales parsed = do
     let pitch_points =
-            [(start, method, pitch) | ParsedEvent { parsed_start = start,
-                parsed_pitch = Just (method, pitch) } <- parsed]
+            [ (start, method, pitch, pitch_to_val scales pitch)
+            | ParsedEvent { parsed_start = start,
+                parsed_pitch = Just (method, pitch) } <- parsed ]
         pos_list = map parsed_start parsed
+        errors = [(pos, pitch) | (pos, _, pitch, Nothing) <- pitch_points]
+    unless (null errors) $
+        -- This should never happen.
+        Log.warn $ "notes not part of their scales: " ++ show errors
     -- TODO this won't be efficient with a lazy signal because I need to
     -- compute it incrementally.
     warped <- mapM Derive.local_to_global pos_list
     return $ Signal.track_signal Signal.default_srate
-        [(pos, method, pitch_to_val pitch)
-            | (pos, (_, method, pitch)) <- zip warped pitch_points]
+        [ (pos, method, val)
+        | (pos, (_, method, _, Just val)) <- zip warped pitch_points ]
 
 -- | Convert the Pitch to a signal val.  This loses information, such as scale.
 -- I think I'll need to get it back to e.g. transpose by scale degree, but
 -- I'll worry about that later.
-pitch_to_val :: Pitch.Pitch -> Signal.Val
-pitch_to_val (Pitch.Pitch _ (Pitch.NoteNumber nn)) = nn
+-- TODO
+pitch_to_val :: Pitch.ScaleMap -> Pitch.Pitch -> Maybe Signal.Val
+pitch_to_val scales pitch = do
+    scale <-  Map.lookup (Pitch.pitch_scale pitch) scales
+    Pitch.NoteNumber nn <- Pitch.scale_to_nn scale (Pitch.pitch_note pitch)
+    return nn
 
 derive_event :: (Monad m) => Derive.DeriveT m a -> Derive.DeriveT m (Maybe a)
 derive_event deriver = Derive.catch_event deriver
@@ -110,7 +121,7 @@ derive_event deriver = Derive.catch_event deriver
 
 -- | The idea is that a more complicated note parser may get scale values out
 -- of the environment or something.
-scale_parser :: (Monad m) => Twelve.Scale -> NoteParser m
+scale_parser :: (Monad m) => Pitch.Scale -> NoteParser m
 scale_parser scale (_pos, event) =
     case parse_note scale (Event.event_text event) of
         Left err -> Derive.throw_event err
@@ -129,7 +140,7 @@ scale_parser scale (_pos, event) =
 -- - scl -> ((Set, scl), Nothing)
 --
 -- - block -> (Nothing, block)
-parse_note :: Twelve.Scale -> String
+parse_note :: Pitch.Scale -> String
     -> Either String (Maybe (Signal.Method, Pitch.Pitch), Maybe String)
 parse_note scale text = case words text of
     [w0] -> case pitch w0 of
@@ -147,7 +158,7 @@ parse_note scale text = case words text of
         _ -> Left $ "expected [method, scale], got " ++ show [w0, w1]
     ws -> Left $ "can't parse note event from " ++ show ws
     where
-    pitch = Twelve.scale_to_pitch scale
+    pitch = Pitch.pitch scale
     method = either (const Nothing) Just
         . P.parse (Controller.p_method #>> P.eof) ""
 

@@ -23,6 +23,7 @@ import qualified Midi.Midi as Midi
 import qualified Derive.Controller as Controller
 import qualified Derive.Derive as Derive
 import qualified Derive.Note as Note
+import qualified Derive.Scale as Scale
 import qualified Derive.Schema as Schema
 import qualified Derive.Score as Score
 import qualified Derive.Twelve as Twelve
@@ -69,7 +70,7 @@ test_derive_state = do
 basic_deriver :: (Monad m) => Derive.TrackDeriver m
 basic_deriver track_id =
     Derive.with_instrument default_inst $ Derive.with_track_warp
-        (Note.d_note_track (Note.scale_parser Twelve.twelve_scale))
+        (Note.d_note_track Scale.scale_map (Note.scale_parser Twelve.scale))
         track_id
 
 test_basic = do
@@ -121,7 +122,7 @@ test_make_inverse_tempo_func = do
         warp = Derive.make_warp (Derive.tempo_to_warp (Signal.constant 2))
         track_warps = [(block_id, [track_id], warp)]
     let f = Derive.make_inverse_tempo_func
-            block_id (TrackPos 0) [(block_id, TrackPos 3)] track_warps
+            (TrackPos 0) [(block_id, TrackPos 3)] track_warps
         with_block pos = [(block_id, [(track_id, pos)])]
     -- Fast tempo means TrackPos pass quickly relative to Timestamps.
     -- Second 2 at tempo 2 is trackpos 4, which is past the end of the block.

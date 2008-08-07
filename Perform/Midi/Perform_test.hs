@@ -18,7 +18,6 @@ import Midi.Midi (ChannelMessage(..))
 
 import qualified Derive.Score as Score
 
-import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Warning as Warning

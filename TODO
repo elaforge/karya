@@ -107,6 +107,8 @@ Derive
     * tempo
       * multiple tempos per block
     - continuous pitch control
+    - pitch signal should be Signal (Method, Pitch) so that they can be
+      transposed
     - alternate scales
     - defaulting parameters for control and note tracks
     - subblock derivation

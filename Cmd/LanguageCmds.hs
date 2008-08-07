@@ -59,14 +59,15 @@ import qualified Cmd.TimeStep as TimeStep
 import qualified Cmd.MakeRuler ()
 import qualified Cmd.Create ()
 
-import qualified Derive.Score as Score
 import qualified Derive.Schema as Schema
-import qualified Perform.Timestamp as Timestamp
-import qualified Perform.Warning as Warning
+import qualified Derive.Score as Score
+import qualified Perform.Midi.Controller as Midi.Controller
 import qualified Perform.Midi.Convert as Midi.Convert
 import qualified Perform.Midi.Instrument as Midi.Instrument
 import qualified Perform.Midi.Perform as Midi.Perform
-import qualified Perform.Midi.Controller as Midi.Controller
+import qualified Perform.Signal as Signal
+import qualified Perform.Timestamp as Timestamp
+import qualified Perform.Warning as Warning
 
 
 import qualified Instrument.MidiDb as MidiDb
@@ -312,7 +313,7 @@ load_instrument inst_name = do
     Log.notice $ "deallocating " ++ show old_inst ++ ", allocating "
         ++ show (dev, chan) ++ " to " ++ show inst
     where
-    inst_type (Schema.InstrumentTrack inst) = Just inst
+    inst_type (Schema.NoteTrack inst) = Just inst
         -- maybe also accept controller if there is just one inst
         -- but then I'd need some way to know the track_id
     inst_type _ = Nothing

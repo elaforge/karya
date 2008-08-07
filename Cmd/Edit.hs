@@ -1,50 +1,25 @@
-{- | Event editing commands.
-
-The distinction between Edit and NoteEntry is a little vague.
-
-- Cmd.Edit should just be generic event editing cmds: delete, ...
-- Note should be instrument track operations, independent of the scale
-- Controller should be controller track entry
-
-If NoteEntry is for circular import reasons, that should be documented.
+{- | Event editing commands.  This is where generic event editing commands go.
+    More specialized ones, like copy and paste and controller or note track
+    commands, go in their own modules.
 -}
 module Cmd.Edit where
 import Control.Monad
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 
-import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 
 import Ui.Types
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
-import qualified Ui.Key as Key
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 
-import qualified Midi.Midi as Midi
-
-import qualified Perform.Pitch as Pitch
-import qualified Derive.Twelve as Twelve
-
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Msg as Msg
 import qualified Cmd.TimeStep as TimeStep
 import qualified Cmd.Selection as Selection
 
-import qualified Perform.Midi.Instrument as Instrument
-
 import qualified App.Config as Config
 
-
--- * insert note events
-
--- | A physically played key, either on the midi keyboard or letter keyboard.
--- This isn't the same as the midi note number because the midi note number
--- represents a certain tempered pitch, while this is still user input.  It
--- has yet to be mapped to a pitch (and may not be, for unpitched sounds).
-type NoteNumber = Int
 
 -- | Turn edit mode on and off, changing the color of the edit_box as
 -- a reminder.
@@ -64,100 +39,12 @@ sync_edit_box_status = do
 edit_color True = Config.edit_color
 edit_color False = Config.box_color
 
--- | Insert an event with the given pitch at the current insert point.
--- This actually takes a nn, which represents the position on the
--- keyboard and should be mapped to the correct pitch.
-cmd_insert_pitch :: NoteNumber -> Cmd.CmdId
-cmd_insert_pitch nn = pitch_from_kbd nn >>= insert_pitch
-    >> return Cmd.Done
-
--- | Send a midi thru msg for the given nn.  Intended for midi "thru" for kbd
--- entry.
-cmd_note_on :: (Monad m) =>
-    Instrument.Addr -> NoteNumber -> Cmd.CmdT m Cmd.Status
-cmd_note_on (wdev, chan) nn = do
-    pitch <- pitch_from_kbd nn
-    let msg = Midi.ChannelMessage chan (Midi.NoteOn (Pitch.midi_nn pitch) 100)
-    Cmd.midi wdev msg
-    return Cmd.Continue
-
-cmd_note_off :: (Monad m) =>
-    Instrument.Addr -> NoteNumber -> Cmd.CmdT m Cmd.Status
-cmd_note_off (wdev, chan) nn = do
-    pitch <- pitch_from_kbd nn
-    let msg = Midi.ChannelMessage chan (Midi.NoteOff (Pitch.midi_nn pitch) 0)
-    Cmd.midi wdev msg
-    return Cmd.Continue
-
--- | Send midi thru, remapping notes and controllers to the given Addr.
-cmd_midi_thru :: Instrument.Addr -> Cmd.Cmd
-cmd_midi_thru (wdev, chan) msg = do
-    chan_msg <- case msg of
-        Msg.Midi (Midi.ReadMessage _dev _ts (Midi.ChannelMessage _chan msg)) ->
-            return msg
-        _ -> Cmd.abort
-    Cmd.midi wdev (Midi.ChannelMessage chan chan_msg)
-    return Cmd.Continue
-
-cmd_insert_midi_note :: (Monad m) => Msg.Msg -> Cmd.CmdT m Cmd.Status
-cmd_insert_midi_note msg = do
-    key <- case msg of
-        Msg.Midi (Midi.ReadMessage _dev _ts (Midi.ChannelMessage _chan
-            (Midi.NoteOn key _vel))) ->
-                return key
-        _ -> Cmd.abort
-    insert_pitch (Pitch.from_midi_nn ("midi " ++ show key) key)
-    return Cmd.Done
-
--- * event modification
-
--- ** implementation
-
-pitch_from_kbd nn = do
-    oct <- fmap Cmd.state_kbd_entry_octave Cmd.get_state
-    return $ Pitch.from_midi_nn ("kbd " ++ show nn) (nn + 12*oct)
-
--- | Actually convert the given pitch to an event and insert it.
-insert_pitch :: (Monad m) => Pitch.Pitch -> Cmd.CmdT m ()
-insert_pitch pitch = do
-    (insert_pos, tracknum, track_id) <- Selection.get_insert_pos
-    end_pos <- Selection.step_from tracknum insert_pos TimeStep.Advance
-    -- assert (end_pos >= insert_pos)
-
-    Log.debug $ "insert pitch " ++ show pitch ++ " at "
-        ++ show (track_id, insert_pos)
-    let event = Config.event (Twelve.pitch_event pitch) (end_pos - insert_pos)
-    State.insert_events track_id [(insert_pos, event)]
-
--- * controller entry
-
--- | Receive keystrokes to edit a controller track.
-cmd_controller_entry :: Msg.Msg -> Cmd.CmdId
-cmd_controller_entry msg = do
-    key <- Cmd.require (Msg.key msg)
-    char <- Cmd.require $ case key of
-        Key.KeyChar char -> Just char
-        _ -> Nothing
-    keys_down <- fmap Map.keys Cmd.keys_down
-    when (any (Maybe.isNothing . Cmd.modifier_key) keys_down) $
-        Cmd.abort
-
-    (insert_pos, _, track_id) <- Selection.get_insert_pos
-    track <- State.get_track track_id
-
-    let text = Maybe.fromMaybe "" $ fmap Event.event_text
-            (Track.event_at (Track.track_events track) insert_pos)
-        event = Config.event (text ++ [char]) (TrackPos 0)
-    Log.debug $ "modify control event at " ++ show insert_pos ++ " "
-        ++ show text ++ " ++ " ++ show char
-    State.insert_events track_id [(insert_pos, event)]
-    return Cmd.Done
-
-
--- * other event cmds
+-- * universal event cmds
 
 -- | Extend the events in the selection to either the end of the selection or
--- the beginning of the next note.
+-- the beginning of the next note.  Of course, this should only be in scope in
+-- note tracks.
+-- TODO make sure that's true
 cmd_extend_events :: (Monad m) => Cmd.CmdT m ()
 cmd_extend_events = do
     (track_ids, sel) <- Selection.selected_tracks Config.insert_selnum

@@ -100,9 +100,9 @@ test_track_type_of = do
         [Just (ControllerTrack []), Just (ControllerTrack [])]
     print $ types [inst 1, cont "vel" "c1", inst 2, cont "vel" "c2"]
     eq [inst 1, cont "vel" "c1", inst 2, cont "vel" "c2"]
-        [ Just (InstrumentTrack (Score.Instrument "inst1"))
+        [ Just (NoteTrack (Score.Instrument "inst1"))
         , Just (ControllerTrack [Score.Instrument "inst1"])
-        , Just (InstrumentTrack (Score.Instrument "inst2"))
+        , Just (NoteTrack (Score.Instrument "inst2"))
         , Just (ControllerTrack [Score.Instrument "inst2"])
         ]
 

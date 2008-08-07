@@ -1,5 +1,7 @@
 {-# OPTIONS_GHC -XGeneralizedNewtypeDeriving #-}
 {-# OPTIONS_GHC -XPatternGuards #-}
+{-# OPTIONS_GHC -fno-warn-unused-imports #-}
+-- Control.Monad
 {- |
 
     Derivers are always in DeriveT, even if they don't need its facilities.
@@ -176,9 +178,6 @@ newtype WarpMap = WarpMap (Map.Map (TrackPos, TrackPos) [TrackWarps])
 -- | Each track warp is a warp indexed by the block and tracks in covers.
 type TrackWarps = [(Block.BlockId, [Track.TrackId], Warp)]
 
-type LookupDeriver = Track.TrackId -> TrackPos -> Event.Event
-    -> Maybe EventDeriver
-
 -- | A tempo warp signal.  The shift and stretch are an optimization hack
 -- stolen from nyquist.  The idea is to make composed shifts and stretches more
 -- efficient since only the shift and stretch are changed.  They have to be
@@ -231,8 +230,7 @@ derive ui_state block_id deriver = (result, tempo_func, inv_tempo_func, logs)
         return [(block_id, end)]
     track_warps = state_track_warps derive_state
     tempo_func = make_tempo_func track_warps
-    inv_tempo_func = make_inverse_tempo_func block_id (TrackPos 0) time_end
-        track_warps
+    inv_tempo_func = make_inverse_tempo_func (TrackPos 0) time_end track_warps
 
 run :: (Monad m) =>
     State -> DeriveT m a -> m (Either DeriveError a, State, [Log.Msg])
@@ -257,10 +255,9 @@ make_tempo_func track_warps block_id track_id pos = do
     let warped = Signal.val_to_pos (Signal.at pos (warp_signal warp))
     return $ Timestamp.from_track_pos warped
 
-make_inverse_tempo_func :: Block.BlockId -> TrackPos
-    -> [(Block.BlockId, TrackPos)] -> TrackWarps
-    -> Transport.InverseTempoFunction
-make_inverse_tempo_func block_id _start block_ends track_warps ts = do
+make_inverse_tempo_func :: TrackPos -> [(Block.BlockId, TrackPos)]
+    -> TrackWarps -> Transport.InverseTempoFunction
+make_inverse_tempo_func _start block_ends track_warps ts = do
     (block_id, track_ids, Just pos) <- track_pos
     guard $ case lookup block_id block_ends of
         Nothing -> False

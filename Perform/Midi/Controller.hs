@@ -12,6 +12,7 @@ import qualified Midi.Midi as Midi
 import qualified Derive.Score as Score
 
 import qualified Perform.Signal as Signal
+import qualified Perform.Pitch as Pitch
 
 
 -- TODO This means I can't map to aftertouch or something
@@ -38,7 +39,8 @@ controller_map_names cmap = [name | Controller name <- Map.keys cmap]
 newtype Controller = Controller String
     deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
 
--- | Pitchbend range in tempered semitones below and above unity.
+-- | Pitchbend range in tempered semitones below and above unity.  The second
+-- integer should be negative.
 type PbRange = (Integer, Integer)
 
 -- | Convert from a controller to a function that creates its MIDI message.
@@ -78,6 +80,14 @@ pitch_to_midi_key val = floor (max 1 (min 127 val))
 
 pitch_to_pb :: PbRange -> Signal.Val -> Midi.PitchBendValue
 pitch_to_pb (low, high) val = undefined -- TODO
+
+nn_to_midi :: PbRange -> Pitch.NoteNumber -> (Midi.Key, Midi.PitchBendValue)
+nn_to_midi pb_range (Pitch.NoteNumber nn) =
+    (max 0 (min 127 (fromIntegral key)), tune_pb pb_range (fromIntegral cents))
+    where (key, cents) = floor (nn*100) `divMod` 100 :: (Int, Int)
+
+tune_pb :: PbRange -> Integer -> Midi.PitchBendValue
+tune_pb (_, high) cents = min 1 (fromIntegral cents / 100 / fromIntegral high)
 
 -- * built in controllers
 

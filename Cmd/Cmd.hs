@@ -135,6 +135,9 @@ midi dev msg = (CmdT . lift . lift) (Logger.record (dev, msg))
 abort :: (Monad m) => CmdT m a
 abort = (CmdT . lift . lift . lift) (Error.throwError Abort)
 
+throw :: (Monad m) => String -> CmdT m a
+throw = State.throw
+
 -- | Extract a Just value, or 'abort'.  Generally used to check for Cmd
 -- conditions that don't fit into a Keymap.
 require :: (Monad m) => Maybe a -> CmdT m a

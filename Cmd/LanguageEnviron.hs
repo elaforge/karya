@@ -39,6 +39,7 @@ import qualified Derive.Schema as Schema
 import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Perform as Perform
 import qualified Instrument.Db as Db
 import Cmd.LanguageCmds
 

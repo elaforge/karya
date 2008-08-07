@@ -53,12 +53,13 @@ import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import Cmd.Cmd (Schema(..), SchemaDeriver, Parser, Skeleton(..), merge,
     Track(..), CmdContext(..), SchemaMap)
-import qualified Cmd.Edit as Edit
-import qualified Cmd.NoteEntry as NoteEntry
+import qualified Cmd.NoteTrack as NoteTrack
+import qualified Cmd.ControllerTrack as ControllerTrack
 
 import qualified Derive.Controller as Controller
 import qualified Derive.Derive as Derive
 import qualified Derive.Note as Note
+import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.Twelve as Twelve
 
@@ -70,6 +71,11 @@ import qualified App.Config as Config
 
 hardcoded_schemas :: SchemaMap
 hardcoded_schemas = Map.fromList [(Config.schema, default_schema)]
+
+-- TODO Scale should be stored with the instrument, and pb_range should be
+-- looked up.
+hardcoded_scale = Twelve.scale
+dummy_pb_range = (-2, 2)
 
 merge_schemas :: SchemaMap -> SchemaMap -> SchemaMap
 merge_schemas map1 map2 = Map.union map2 map1
@@ -160,34 +166,37 @@ default_schema = Schema
 
 default_cmds :: Parser -> CmdContext -> [Track] -> [Cmd.Cmd]
 default_cmds parser context tracks = case track_type of
-        Just (InstrumentTrack _) -> midi_thru ++ inst_edit_cmds
+        Just (NoteTrack _) -> midi_thru ++ inst_edit_cmds
         Just (ControllerTrack _) -> midi_thru ++ cont_edit_cmds
         Nothing -> []
     where
-    midi_thru = with_addr Edit.cmd_midi_thru
+    midi_thru = with_info NoteTrack.cmd_midi_thru
     inst_edit_cmds = if ctx_edit_mode context
-        then NoteEntry.cmd_midi_entry : with_addr NoteEntry.cmd_kbd_note_entry
-        else with_addr NoteEntry.cmd_kbd_note_thru
+        then NoteTrack.cmd_midi_entry hardcoded_scale
+            : with_info NoteTrack.cmd_kbd_note_entry
+        else with_info NoteTrack.cmd_kbd_note_thru
     cont_edit_cmds = if ctx_edit_mode context
-        then [NoteEntry.cmd_midi_entry, Edit.cmd_controller_entry]
+        then [NoteTrack.cmd_midi_entry hardcoded_scale,
+            ControllerTrack.cmd_controller_entry]
         else []
 
     track_type = case (ctx_focused_tracknum context) of
         Nothing -> Nothing
         Just tracknum -> track_type_of tracknum (parser tracks)
 
-    maybe_addr = Seq.first_just $ map (ctx_inst_addr context) insts
+    -- TODO lookup inst (for pb_range) and inst scale
+    maybe_addr = msum $ map (ctx_inst_addr context) insts
         ++ [ctx_default_addr context]
-    with_addr cmd = case maybe_addr of
+    with_info cmd = case maybe_addr of
         Nothing -> []
-        Just addr -> [cmd addr]
+        Just addr -> [cmd (NoteTrack.Info hardcoded_scale addr dummy_pb_range)]
     insts = case track_type of
-        Just (InstrumentTrack inst) -> [inst]
+        Just (NoteTrack inst) -> [inst]
         Just (ControllerTrack insts) -> insts
         Nothing -> []
 
 data TrackType =
-    InstrumentTrack Score.Instrument
+    NoteTrack Score.Instrument
     | ControllerTrack [Score.Instrument]
     deriving (Eq, Show)
 
@@ -197,7 +206,7 @@ track_type_of tracknum skel = case skel of
             Nothing -> type_of =<< maybe_sub
             Just _ -> Just $ ControllerTrack (maybe [] instruments_of maybe_sub)
         Instrument inst track
-            | track_tracknum track == tracknum -> Just (InstrumentTrack inst)
+            | track_tracknum track == tracknum -> Just (NoteTrack inst)
             | otherwise -> Nothing
         Merge skels -> case Maybe.catMaybes (map type_of skels) of
             [] -> Nothing
@@ -252,7 +261,8 @@ compile_skeleton skel = case skel of
         compile_controllers ctracks subskel
     Instrument inst (Track { track_id = Block.TId track_id _ }) ->
         Derive.with_instrument inst $ Derive.with_track_warp
-            (Note.d_note_track (Note.scale_parser Twelve.twelve_scale))
+            (Note.d_note_track Scale.scale_map
+                (Note.scale_parser hardcoded_scale))
             track_id
     Instrument _ track ->
         Derive.throw $

@@ -4,7 +4,6 @@ import qualified Control.Monad.Error as Error
 import qualified Ui.Track as Track
 import Ui.Types
 import qualified Ui.Block as Block
-import qualified Perform.Timestamp as Timestamp
 
 
 data Warning = Warning {

@@ -1,89 +1,83 @@
-{- |
+{- | Representation for scales, pitches, and frequencies (note numbers).
 
-Pitch handling may have to be a little more fancy than the usual controller
-signals, which are just Vals.  This is because I want to represent them in
-a higher level form, like (pitch_class, octave), so derivers can transpose by
-scale degree or octave in a generic way.
+    Pitches have a scale, and can be transposed via their scale.  However, they
+    can't be interpolated since the scale may be irregular.
 
-I think I should make Signal polymorphic.
-
+    To create smooth pitch interpolations and of course to perform the pitch,
+    you need a NoteNumber, which is just a logarithmic representation of
+    a frequency.  However, once the pitch becomes a NoteNumber it can no
+    longer be diatonically transposed since the scale information is lost.
 -}
 module Perform.Pitch where
-import Util.Pretty
-import qualified Midi.Midi as Midi
+import qualified Data.Map as Map
 
-{-
--- | Name for logging and whatnot, and Octave PitchClass are so
-data Pitch = Pitch Scale String Octave PitchClass deriving (Eq, Ord, Show)
-type Octave = Int
-type PitchClass = Double
 
-Then I have to turn it into hz...
-- Typeclass, but then I can't have different scales in one Signal.  I'd like
-to be able to mix scales freely.
-- existential, but I don't think I can make that storable
-- a Scale enumeration, but then I have to edit the Pitch module to add another
-- a ScaleId and some way to look them up.  It's more complicated but seems to
-be the only one that works.
+-- | The main representation for a pitch.  Scale sharing is enforced by keeping
+-- the scale as an ID, which must be looked up in a map.
+data Pitch = Pitch {
+    pitch_scale :: ScaleId
+    , pitch_note :: Note
+    } deriving (Eq, Ord, Show)
 
-I think efficient signals of pitches are important for good pitch handling, but
-I'm not sure they should be in the scale.  Maybe I should convert pitches to hz
-and then interpolate?
+-- | Verify that the string is a valid note in the scale, and return the Pitch.
+pitch :: Scale -> String -> Maybe Pitch
+pitch scale note_str =
+    fmap (const (Pitch (scale_id scale) note)) (scale_to_nn scale note)
+    where note = Note note_str
 
-The thing is, while I want to be able to slide between two scale degrees,
-I usually will want to do it "evenly" which means logarithmically.  If I do it
-linear by the scale degrees, the slide will sound funny since it'll go faster
-where the scale is wider.  However, it's also important to be able to go
-between scale notes in a set time.  That's still linear, actually.
-
-I also want to be able to
-
-data Scale = forall a. Scale a (a -> (Int, Double)) ((Int, Double) -> a)
-Signal should be [(
-
-But really, what I want to transpose is the high level points, the actual
-sampled points should be from final pitch to final pitch.
-
-3+10hz +1 should become 4+10hz
-
-+5 - i+0 plus transpose +1: it should become just like +6 - i+1
-but if it gets sampled to
-5, 4.5, etc.
-then I would have to be able to add an interval to an arbitrary frequency, and
-I can't do that if the intervals are irregular.
-
-this implies that I have to keep the high level signal as written by the user,
-I can't sample out curves.
-
-Say vibrato, it should be in logarithmic but absolute units.
-
-3 kinds of units: absolute hz, absolute log (ratios), scale (irregular distance)
-
-hz and log (equal tempered) is easy because they are both regular, so I can
-add intervals, but I still need to keep them separate, so 64+10hz can stay at
-+10hz.
-
--}
-
--- frequency = 440 * 2^((pitch - 69)/12)
-data Pitch = Pitch String NoteNumber deriving (Eq, Ord, Show)
-
--- newtype Hz = Hz Double deriving (Eq, Ord, Show)
-
--- | This is the same note range as MIDI, so MIDI note 0 is NoteNumber 0,
--- at 8.176 Hz.  Middle C is octave NoteNumber 60, octave 5.
+-- | This is in tempered scale notes with the same note range as MIDI, so
+-- MIDI note 0 is NoteNumber 0, at 8.176 Hz.  Middle C is NoteNumber 60.
+--
+-- It would be less tempered-centric to use hz, but for the moment this seems
+-- practical since note numbers are easier to read.
 newtype NoteNumber = NoteNumber Double deriving (Eq, Ord, Show)
 
--- | Convert NoteNumber to a MIDI key number.  Rounds down.
-midi_nn :: Pitch -> Midi.Key
-midi_nn (Pitch _ (NoteNumber nn)) = floor nn
+nn :: (Real a) => a -> NoteNumber
+nn = NoteNumber . realToFrac
 
--- | Number of cents the given Pitch is above its equal tempered pitch.
-cents :: Pitch -> Int
-cents (Pitch _ (NoteNumber nn)) = floor (nn * 100) `mod` 100
+-- | A physically played key, either on the midi keyboard or letter keyboard.
+-- This isn't the same as the midi note number because the midi note number
+-- represents a certain tempered pitch, while this is still user input.  It
+-- has yet to be mapped to a pitch (and may not be, for unpitched sounds).
+--
+-- (octave, note)
+type KeyNumber = (Int, Int)
 
-from_midi_nn :: Integral a => String -> a -> Pitch
-from_midi_nn name nn = Pitch name (NoteNumber (fromIntegral nn))
 
-instance Pretty Pitch where
-    pretty (Pitch s _) = show s
+-- * scale
+
+-- | A Note belongs to a scale and describes a certain note in that scale.
+newtype Note = Note String deriving (Eq, Ord, Show)
+note_text (Note s) = s
+
+-- | Tie together Pitches and their Scales.
+type ScaleMap = Map.Map ScaleId Scale
+
+type ScaleId = String
+
+data Scale = Scale {
+    scale_id :: ScaleId
+    -- | A pattern describing what the scale notes look like.  Used only for
+    -- error msgs (i.e. parse errors).
+    , scale_pattern :: String
+    -- | Transpose the given note by the given scale steps, or octaves.
+    -- Return an error if it couldn't be transposed for some reason.
+    , scale_transpose :: Int -> Note -> Either String Note
+    , scale_transpose_octave :: Int -> Note -> Either String Note
+
+    -- | Convert the scale note to a pitch with frequency.  Returns Nothing
+    -- if the note isn't part of the scale.
+    , scale_to_nn :: Note -> Maybe NoteNumber
+    -- | Convert back to a scale note from the pitch.  to_pitch -> from_pitch
+    -- may lose information if the scale has enhormonics.  It will also round
+    -- the pitch off if it doesn't exactly correspond to a scale note.
+    , scale_from_nn :: NoteNumber -> Either String Note
+    , scale_key_to_note :: KeyNumber -> Either String Note
+
+    -- | A special hack for midi, since it needs additional pitch bend msgs
+    -- to play a non-tempered scale (well, there is a midi tuning standard, but
+    -- it's not widely supported).  If this is false, never emit pitch bends,
+    -- which assumes the scale is tempered, but won't mess with an existing
+    -- pitch bend setting.
+    , scale_set_pitch_bend :: Bool
+    }
