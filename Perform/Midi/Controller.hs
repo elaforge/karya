@@ -2,10 +2,9 @@
 {- | Support for MIDI controllers.
 -}
 module Perform.Midi.Controller where
+import Control.Monad
 import qualified Data.Generics as Generics
 import qualified Data.Map as Map
-
-import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
 
@@ -46,7 +45,7 @@ type PbRange = (Integer, Integer)
 -- | Convert from a controller to a function that creates its MIDI message.
 controller_constructor :: ControllerMap -> Controller
     -> (Maybe (Signal.Val -> Midi.ChannelMessage))
-controller_constructor cmap cont = Seq.first_just
+controller_constructor cmap cont = msum
     [ Map.lookup cont special_controllers
     , fmap make_midi_cc (Map.lookup cont cmap)
     ]

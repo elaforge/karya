@@ -1,6 +1,5 @@
 {-# OPTIONS_GHC -fno-warn-unused-imports #-}
-{- | Cmds to add notes to a note track and send midi thru.  Uses Cmd.Edit to do
-    its dirty work.
+{- | Cmds to add notes to a note track and send midi thru.
 
     - Midi keys send midi thru, and enter the scale degree (based on the octave
     offset) if edit mode is on.  Later this will go through a scale mapping
