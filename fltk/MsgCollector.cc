@@ -1,4 +1,5 @@
 #include <string.h>
+#include <ctype.h>
 
 #include "util.h"
 
@@ -142,8 +143,14 @@ set_msg_from_event(UiMsg &m, int evt)
     int k = Fl::event_key();
     if (k == 'q' || k == 'w' || k == 'e' || k == '\'' || k == 'z')
         m.key = Fl::event_text()[0];
+    else if (k == '\b')
+        m.key = FL_BackSpace;
     else
         m.key = Fl::event_key();
+    // OSX usually sends shifted keys as lowercase + shift, but randomly sends
+    // a few as uppercase.
+    if (isupper(m.key))
+        m.key = tolower(m.key);
 }
 
 
