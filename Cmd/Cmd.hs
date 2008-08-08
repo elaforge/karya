@@ -171,7 +171,7 @@ data State = State {
     -- Editing state
 
     -- | Edit mode enables various commands that write to tracks.
-    , state_edit_mode :: Bool
+    , state_edit_mode :: EditMode
     -- | Default time step.  Used for cursor movement, note duration, and
     -- whatever else.
     , state_step :: TimeStep.TimeStep
@@ -189,7 +189,7 @@ initial_state inst_db schema_map = State {
     , state_focused_view = Nothing
     , state_clip_namespace = Config.clip_namespace
 
-    , state_edit_mode = False
+    , state_edit_mode = NoEdit
     , state_step =
         TimeStep.UntilMark TimeStep.AllMarklists (TimeStep.MatchRank 2)
     -- This should put middle C in the center of the kbd entry keys.
@@ -197,6 +197,8 @@ initial_state inst_db schema_map = State {
     }
 
 empty_state = initial_state Instrument.Db.empty Map.empty
+
+data EditMode = NoEdit | EditMidi | EditKbd deriving (Eq, Show)
 
 data Modifier = KeyMod Key.Key
     -- | Mouse button, and (tracknum, pos) in went down at, if any.
@@ -508,7 +510,7 @@ data Track = Track {
 data CmdContext = CmdContext {
     ctx_default_addr :: Maybe Instrument.Addr
     , ctx_inst_addr :: Score.Instrument -> Maybe Instrument.Addr
-    , ctx_edit_mode :: Bool
+    , ctx_edit_mode :: EditMode
     , ctx_focused_tracknum :: Maybe Block.TrackNum
     }
 

@@ -1,39 +1,53 @@
 {-# OPTIONS_GHC -fno-warn-unused-imports #-}
 {- | Cmds to add notes to a note track and send midi thru.
 
+    This module is sister to 'Derive.Note' since it edits events that
+    Derive.Note parses.
+
+    A note track event has three fields: the interpolation method, the pitch,
+    and the call.  The method and pitch are just as an indexed control track
+    except that the pitch is interpreted relative to a given scale.  The call
+    is used in sub-derivation, as documented in Derive.Note.
+
     - Midi keys send midi thru, and enter the scale degree (based on the octave
     offset) if edit mode is on.  Later this will go through a scale mapping
     layer, but for now it's hardcoded to Twelve.
 
-    - Letter keys do the same as midi keys.  Once I have a small usb keyboard
-    I may remove this to have letter keys available.
+    - In kbd_entry mode, letter keys do the same as midi keys, according to an
+    organ-like layout.
 
-    - Interpolation methods are set by shifted keys.  This won't work for
-    arbitrary #e, but I can think about that later.  In any case, the way to
-    edit control track methods and values should be the same as note track
-    ones.
+    - But in non kbd_entry mode, letter keys edit the call text.
 
-    - For block calls, holding down option and typing will insert characters.
+    - Interpolation methods are edited when shift is held down.
+    TODO This might eat too much keyboard space, but we'll see.
 -}
 module Cmd.NoteTrack where
 import Control.Monad
 import qualified Control.Monad.Identity as Identity
+import qualified Data.Char as Char
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 
 import qualified Midi.Midi as Midi
 
 import qualified Util.Log as Log
+import qualified Util.Seq as Seq
 
+import qualified Ui.Event as Event
+import qualified Ui.Id as Id
 import qualified Ui.Key as Key
 import qualified Ui.State as State
 import qualified Ui.UiMsg as UiMsg
 
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.ControllerTrack as ControllerTrack
 import qualified Cmd.Edit as Edit
 import qualified Cmd.Keymap as Keymap
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Selection as Selection
 import qualified Cmd.TimeStep as TimeStep
+
+import qualified Derive.Note as Note
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Midi.Instrument as Instrument
@@ -64,7 +78,7 @@ cmd_midi_entry scale msg = cmd_insert_midi_note scale msg
     >> Selection.cmd_advance_insert
 
 
--- ** kbd note entry
+-- * kbd note entry
 
 -- | Enter notes from the computer keyboard.
 kbd_note_entry :: Info -> [Keymap.Binding Identity.Identity]
@@ -177,7 +191,47 @@ insert_note note = do
     let event = Config.event (Pitch.note_text note) (end_pos - pos)
     State.insert_events track_id [(pos, event)]
 
--- ** midi thru
+
+-- * method and call
+
+cmd_edit_call :: Cmd.Cmd
+cmd_edit_call msg = do
+    key <- Cmd.require (Msg.key msg)
+    unless (is_edit_key key) Cmd.abort
+    Log.debug $ "edit call: " ++ show key
+    modify_note (edit_call key)
+    return Cmd.Done
+
+edit_call key (method, note, call) = (method, note, modify_text call key)
+
+cmd_edit_method :: Cmd.Cmd
+cmd_edit_method msg = do
+    Keymap.require_mods (Keymap.Mods [Cmd.KeyMod Key.ShiftL])
+    key <- Cmd.require (Msg.key msg)
+    unless (is_edit_key key) Cmd.abort
+    modify_note (edit_method key)
+    return Cmd.Done
+
+edit_method key (method, note, call) = (modify_text method key, note, call)
+
+modify_note f = do
+    (pos, tracknum, track_id) <- Selection.get_insert_pos
+    end_pos <- Selection.step_from tracknum pos TimeStep.Advance
+    event <- ControllerTrack.get_event track_id pos (pos - end_pos)
+    tokens <- either (Cmd.throw . ("tokenizing note: "++)) return $
+        Note.tokenize_note (Event.event_text event)
+    let new_text = Note.untokenize_note (f tokens)
+    State.insert_events track_id [(pos, event { Event.event_text = new_text })]
+
+modify_text s Key.Backspace = Seq.rdrop 1 s
+modify_text s (Key.KeyChar c) | Char.isPrint c = s ++ [c]
+modify_text s _ = s
+
+is_edit_key Key.Backspace = True
+is_edit_key (Key.KeyChar c) | Id.is_identifier c = True
+is_edit_key _ = False
+
+-- * midi thru
 
 -- | Send a midi thru msg for the given keynum.  Intended for midi \"thru\" for
 -- kbd entry.

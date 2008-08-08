@@ -2,8 +2,7 @@
 -}
 module Cmd.Save where
 import qualified Control.Monad.Trans as Trans
-import qualified System.IO as IO
-import System.FilePath ((</>))
+import qualified System.FilePath as FilePath
 
 import qualified Util.Log as Log
 
@@ -21,8 +20,8 @@ get_save_file :: (Monad m) => Cmd.CmdT m FilePath
 get_save_file = do
     dir <- fmap State.state_project_dir State.get
     ns <- State.get_project
-    return $ dir </> ns ++ ".state"
-
+    return $ FilePath.combine dir (map sanitize ns ++ ".state")
+    where sanitize c = if FilePath.isPathSeparator c then '_' else c
 
 cmd_save :: (Trans.MonadIO m) => FilePath -> Cmd.CmdT m ()
 cmd_save fname = do

@@ -1,6 +1,8 @@
 module Cmd.Msg where
+import qualified Data.Char as Char
 import qualified System.IO as IO
 
+import qualified Ui.Key as Key
 import qualified Ui.UiMsg as UiMsg
 import qualified Midi.Midi as Midi
 import qualified Perform.Transport as Transport
@@ -33,6 +35,11 @@ mouse _ = Nothing
 key (Ui (UiMsg.UiMsg _ (UiMsg.MsgEvent (UiMsg.Kbd UiMsg.KeyDown key)))) =
     Just key
 key _ = Nothing
+
+alphanum (Key.KeyChar c)
+    | Char.isAlphaNum c = Just c
+    | otherwise = Nothing
+alphanum _ = Nothing
 
 context (Ui (UiMsg.UiMsg context _)) = Just context
 context _ = Nothing

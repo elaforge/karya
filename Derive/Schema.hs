@@ -140,7 +140,8 @@ track_name (Block.TId tid _) =
 track_name _ = return Nothing
 
 -- | Constructor for CmdContext.
-cmd_context :: Instrument.Config -> Bool -> Maybe Block.TrackNum -> CmdContext
+cmd_context :: Instrument.Config -> Cmd.EditMode -> Maybe Block.TrackNum
+    -> CmdContext
 cmd_context midi_config edit_mode focused_tracknum =
     CmdContext default_addr inst_addr edit_mode focused_tracknum
     where
@@ -171,16 +172,20 @@ default_cmds parser context tracks = case track_type of
         Nothing -> []
     where
     midi_thru = with_info NoteTrack.cmd_midi_thru
-    inst_edit_cmds = if ctx_edit_mode context
-        then NoteTrack.cmd_midi_entry hardcoded_scale
+    inst_edit_cmds = case ctx_edit_mode context of
+        Cmd.NoEdit -> with_info NoteTrack.cmd_kbd_note_thru
+        Cmd.EditKbd -> NoteTrack.cmd_midi_entry hardcoded_scale
             : with_info NoteTrack.cmd_kbd_note_entry
-        else with_info NoteTrack.cmd_kbd_note_thru
-    cont_edit_cmds = if ctx_edit_mode context
-        then [NoteTrack.cmd_midi_entry hardcoded_scale,
-            ControllerTrack.cmd_controller_entry]
-        else []
+            ++ [NoteTrack.cmd_edit_method]
+        Cmd.EditMidi -> NoteTrack.cmd_midi_entry hardcoded_scale
+            : [NoteTrack.cmd_edit_method, NoteTrack.cmd_edit_call]
 
-    track_type = case (ctx_focused_tracknum context) of
+    cont_edit_cmds = case ctx_edit_mode context of
+        Cmd.NoEdit -> []
+        _ -> [NoteTrack.cmd_midi_entry hardcoded_scale,
+            ControllerTrack.cmd_controller_entry]
+
+    track_type = case ctx_focused_tracknum context of
         Nothing -> Nothing
         Just tracknum -> track_type_of tracknum (parser tracks)
 

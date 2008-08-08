@@ -1,18 +1,20 @@
 {-# OPTIONS_GHC -fno-warn-unused-imports #-}
 -- Control.Monad
-{- | Derive a block \"called\" from another block.
+{- | Derive events on a note track.  This is the Derive equivalent of
+    'Cmd.NoteTrack', but has a different name to avoid clashes.
 
-    This is the GUI level \"function call\" abstraction mechanism.  An event in
+    Note tracks have a \"function call\" abstraction mechanism.  An event in
     one block is expanded into the events derived from the block it names, and
-    so on recursively.  The event may pass arguments which will be substituted
-    into the sub-block.
+    so on recursively.
 
     The sub-block is passed its parent's tempo map (along with all the other
     controllers in the environment) to interpret as it will, so that it may,
-    for example, set absolute tempo.  However, the notes should be within the
-    calling range... how does this work in nyquist?
+    for example, set absolute tempo.  The generated events should begin with
+    the given start time, but are not guaranteed to last for the given
+    duration.
 
-    Note abstraction:
+    The parse section parses note track events as manipulated by
+    'Cmd.NoteTrack'.
 -}
 module Derive.Note where
 import Control.Monad
@@ -21,8 +23,9 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Text.ParserCombinators.Parsec as P
 
-import qualified Util.Log as Log
 import Util.Control ((#>>))
+import qualified Util.Log as Log
+import Util.Seq as Seq
 
 import Ui.Types
 import qualified Ui.Event as Event
@@ -128,39 +131,53 @@ scale_parser scale (_pos, event) =
         Right parsed -> return parsed
 
 -- | Try to parse a note track event.  It's a little finicky because
--- interpolation methods can look like scale degrees, which can look like
--- calls, so I just see what matches.
+-- I want to be unambiguous but also not ugly.  I think I can manage that by
+-- using < to disambiguate a call and not allowing (method, "", call).
 --
--- - i scl \<block -> ((i, scl), block))
+-- TODO Unfortunately I still have a problem with shift since I can't type _,
+-- but I'll deal with that later if it becomes a problem.
 --
--- - i scl -> ((i, scl), Nothing)
---
--- - 2.4e 7c#
---
--- - scl -> ((Set, scl), Nothing)
---
--- - block -> (Nothing, block)
+-- > i, scl, block -> ((i, scl), block))
+-- > i, scl -> ((i, scl), Nothing)
+-- > 2.4e, 7c#
+-- > scl -> ((Set, scl), Nothing)
+-- > \<block -> (Nothing, block)
+-- > , , block -> (Nothing, block)
 parse_note :: Pitch.Scale -> String
     -> Either String (Maybe (Signal.Method, Pitch.Pitch), Maybe String)
-parse_note scale text = case words text of
-    [w0] -> case pitch w0 of
-        Nothing -> Right (Nothing, Just w0)
-        Just p -> Right (Just (Signal.Set, p), Nothing)
-    [w0, w1] -> case method w0 of
-        Nothing -> case pitch w0 of
-            Nothing -> Left $ "expected scale degree, got " ++ show w0
-            Just p -> Right (Just (Signal.Set, p), Just w1)
-        Just meth -> case pitch w1 of
-            Nothing -> Left $ "expected scale degree, got " ++ show w1
-            Just p -> Right (Just (meth, p), Nothing)
-    [w0, w1, w2] -> case (method w0, pitch w1) of
-        (Just meth, Just p) -> Right (Just (meth, p), Just w2)
-        _ -> Left $ "expected [method, scale], got " ++ show [w0, w1]
-    ws -> Left $ "can't parse note event from " ++ show ws
+parse_note scale text = do
+    (method_s, pitch_s, call) <- tokenize_note text
+    if null pitch_s then return (Nothing, to_maybe call) else do
+    method <- if null method_s
+        then Right Signal.Set else parse_method method_s
+    pitch <- maybe (Left ("note not in scale: " ++ show pitch_s)) Right
+        (Pitch.pitch scale pitch_s)
+    return (Just (method, pitch), to_maybe call)
     where
-    pitch = Pitch.pitch scale
-    method = either (const Nothing) Just
-        . P.parse (Controller.p_method #>> P.eof) ""
+    to_maybe s = if null s then Nothing else Just s
+    parse_method s = case P.parse (Controller.p_method #>> P.eof) "" s of
+        Left _ -> Left $ "couldn't parse method: " ++ show s
+        Right v -> Right v
+
+tokenize_note :: String -> Either String (String, String, String)
+tokenize_note text = fmap drop_third $ case Seq.split ", " text of
+    [w0]
+        | is_call w0 -> Right ("", "", w0)
+        | otherwise -> Right ("", w0, "")
+    [w0, w1]
+        | is_call w1 -> Right ("", w0, w1)
+        | otherwise -> Right (w0, w1, "")
+    [w0, w1, w2] -> Right (w0, w1, w2)
+    _ -> Left "too many words in note"
+    where
+    is_call = (=="<") . take 1
+    drop_third (a, b, c) = (a, b, drop 1 c) -- drop off the '<'
+
+untokenize_note ("", "", "") = ""
+untokenize_note ("", "", call) = '<':call
+untokenize_note (note_s, pitch_s, "") = join_note [note_s, pitch_s]
+untokenize_note (note_s, pitch_s, call) = join_note [note_s, pitch_s, '<':call]
+join_note = Seq.join ", " . filter (not . null)
 
 
 -- * sub-derive

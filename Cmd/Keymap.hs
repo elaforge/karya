@@ -35,6 +35,7 @@ data Key = UiKey UiMsg.KbdState Key.Key | MidiKey MidiKey
     deriving (Eq, Ord, Show)
 
 -- | Which modifiers have to be down for this to match?
+-- TODO support higher-level modifiers like Shift (either shift key)
 data Mods =
     -- | Match regardless of whether any other modifiers are down.
     AnyMod
@@ -46,6 +47,18 @@ data Mods =
     deriving (Eq, Ord, Show)
 is_char_mod (Cmd.KeyMod (Key.KeyChar _)) = True
 is_char_mod _ = False
+
+mods_match :: Mods -> Map.Map Cmd.Modifier Cmd.Modifier -> Bool
+mods_match AnyMod _ = True
+mods_match AnyCharMod mod_map = all is_char_mod (Map.keys mod_map)
+mods_match (Mods mods) mod_map = mods == Map.keys mod_map
+
+-- | This isn't used here, but other cmds may want to use keymap Mods.
+-- TODO maybe it shoud move to Cmd.Cmd then?
+require_mods :: (Monad m) => Mods -> Cmd.CmdT m ()
+require_mods mods = do
+    keys <- Cmd.keys_down
+    if mods_match mods keys then return () else Cmd.abort
 
 data MidiKey = NoteOn Midi.Key | NoteOff Midi.Key
     | Controller Midi.Controller Midi.ControlValue

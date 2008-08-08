@@ -21,12 +21,20 @@ import qualified Cmd.Selection as Selection
 import qualified App.Config as Config
 
 
--- | Turn edit mode on and off, changing the color of the edit_box as
--- a reminder.
-cmd_toggle_edit :: Cmd.CmdId
-cmd_toggle_edit = do
-    edit_mode <- fmap Cmd.state_edit_mode Cmd.get_state
-    Cmd.modify_state $ \st -> st { Cmd.state_edit_mode = not edit_mode }
+-- | Change the edit mode, changing the color of the edit_box as a reminder.
+cmd_toggle_kbd_entry :: Cmd.CmdId
+cmd_toggle_kbd_entry = modify_edit_mode $ \m -> case m of
+    Cmd.EditKbd -> Cmd.NoEdit
+    _ -> Cmd.EditKbd
+
+cmd_toggle_midi_entry :: Cmd.CmdId
+cmd_toggle_midi_entry = modify_edit_mode $ \m -> case m of
+    Cmd.EditMidi -> Cmd.NoEdit
+    _ -> Cmd.EditMidi
+
+modify_edit_mode f = do
+    Cmd.modify_state $ \st ->
+        st { Cmd.state_edit_mode = f (Cmd.state_edit_mode st) }
     sync_edit_box_status
     return Cmd.Done
 
@@ -36,8 +44,9 @@ sync_edit_box_status = do
     block_ids <- fmap (Map.keys . State.state_blocks) State.get
     mapM_ (flip State.set_edit_box (edit_color edit_mode)) block_ids
 
-edit_color True = Config.edit_color
-edit_color False = Config.box_color
+edit_color Cmd.NoEdit = Config.box_color
+edit_color Cmd.EditMidi = Config.midi_entry_color
+edit_color Cmd.EditKbd = Config.kbd_entry_color
 
 -- * universal event cmds
 

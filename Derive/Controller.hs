@@ -1,7 +1,19 @@
 {-# LANGUAGE PatternGuards #-}
 {- | Derivers for controller tracks.
 
-    TODO support jumps, e.g. "i.4;1" -> (Linear 0.4, 1)
+    Interpolation methods:
+
+    - s - Set value at the point.  This is the default if there is no method.
+
+    - i - Approach with linear interpolation.
+
+    - #e - Approach with exponential interpolation with #.  # defaults to 2.
+
+    TODO
+    - #a - Take # TrackPos to reach the value, starting at the point.  It's
+    like @[(p, "v"), (p+#, "iv")]@.
+
+    - method;val - Approach val with method, then jump to val.
 -}
 module Derive.Controller where
 import Prelude hiding (lex)
@@ -68,3 +80,9 @@ p_method = (P.char 'i' >> return Signal.Linear)
     <|> (P.try
         (P.option 2 (Parse.p_float) #>> P.char 'e' >>= return . Signal.Exp))
     <?> "method: 'i' 's', or '#e'"
+
+unparse_method :: Signal.Method -> String
+unparse_method meth = case meth of
+    Signal.Set -> ""
+    Signal.Linear -> "i"
+    Signal.Exp n -> show n ++ "e"

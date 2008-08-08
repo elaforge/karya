@@ -111,7 +111,9 @@ view_config_bindings =
     ]
 
 edit_bindings =
-    [ bind_key Key.Escape "toggle edit mode" Edit.cmd_toggle_edit
+    [ bind_key Key.Escape "toggle kbd entry" Edit.cmd_toggle_kbd_entry
+    , bind_kmod [Key.ShiftL] Key.Escape "toggle midi entry"
+        Edit.cmd_toggle_midi_entry
     , bind_key Key.Backspace "remove event"
         (Edit.cmd_remove_selected >> Selection.cmd_advance_insert)
 
