@@ -116,11 +116,20 @@ unique_with f xs = go Set.empty xs
         | otherwise = x : go (Set.insert k set) xs
         where k = f x
 
-rdrop_while f = reverse . dropWhile f . reverse
+rdrop :: Int -> [a] -> [a]
+rdrop n = either (const []) id . foldr f (Left n)
+    where
+    f x (Left left)
+        | left <= 0 = Right [x]
+        | otherwise = Left (left-1)
+    f x (Right xs) = Right (x:xs)
+
+rdrop_while :: (a -> Bool) -> [a] -> [a]
+rdrop_while f = foldr (\x xs -> if null xs && f x then [] else x:xs) []
 
 lstrip = dropWhile Char.isSpace
 rstrip = rdrop_while Char.isSpace
-strip = lstrip . rstrip
+strip = rstrip . lstrip
 
 -- ** splitting and joining
 
