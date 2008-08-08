@@ -1,11 +1,6 @@
-{- |
-As much functionality as possible is implemented at the app level, not the C++
-UI level.  Except some hardcoded actions like selections and zooming, keyboard
-and mouse events are dropped into a block-specific event queue.  The app must
-receive those events and make the appropriate API calls.  This is so I can
-dynamically change mouse and keyboard mapping at the haskell level.
+{- | Receive events from the C++ UI layer, package them up nicely, and forward
+    them on to the event handling mechanism (the responder).
 -}
-
 module Ui.UiMsg where
 import Foreign
 import Text.Printf

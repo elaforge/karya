@@ -1,30 +1,33 @@
 {- | Implement a clipboard, and copy and paste from a selection.
 
-Who knew copy and paste was so complicated?  Copying is complicated because the
-structure isn't flat, i.e. a block has references to tracks and rulers.
-Pasting is complicated because the clipboard events have to be shifted and
-clipped according to the destination selection.
+    Who knew copy and paste was so complicated?  Copying is complicated because
+    the structure isn't flat, i.e. a block has references to tracks and rulers.
+    Pasting is complicated because the clipboard events have to be shifted and
+    clipped according to the destination selection.
 
-Also, the tracks are typed in that it's not appropriate to paste controller
-events into a note track.  However, I'm going to ignore that and assume the
-user won't paste them if he didn't mean it.
+    Also, the tracks are typed in that it's not appropriate to paste controller
+    events into a note track.  However, I'm going to ignore that and assume the
+    user won't paste them if he didn't mean it.
 
-Instead of having a special case clipboard, the clipboard is implemented as
-a set of normal blocks and tracks (rulers are not copied), in a clipboard
-namespace.  That way, you can have multiple clipboards by copying them to
-different clipboard namespaces, edit clipboards in place, and the paste code is
-the same as the code that merges another project from disk.
+    Instead of having a special case clipboard, the clipboard is implemented as
+    a set of normal blocks and tracks (rulers are not copied), in a clipboard
+    namespace.  That way, you can have multiple clipboards by copying them to
+    different clipboard namespaces, edit clipboards in place, and the paste
+    code is the same as the code that merges another project from disk.
 
-Further ideas:
+    Further ideas:
 
-- use two selections and a "swap" command
-- mouse chording for copy paste
-- different mouse buttons are hard to do on the mac, so use standard for now
-- merge with function... I think I can just do it in LanguageCmds
+    - use two selections and a "swap" command
 
-More complicated pastes should be implemented as derivers, which are more
-flexible than editing operations.  However, there could be a "derive in place"
-cmd to flatten deriver structure.
+    - mouse chording for copy paste
+
+    - different mouse buttons are hard to do on the mac, so use standard for now
+
+    - merge with function... I think I can just do it in LanguageCmds
+
+    More complicated pastes should be implemented as derivers, which are more
+    flexible than editing operations.  However, there could be a "derive in
+    place" cmd to flatten deriver structure.
 -}
 module Cmd.Clip where
 import Control.Monad

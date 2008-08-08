@@ -1,5 +1,5 @@
 {- | Like Show, but designed to be easy to read rather than unambiguous and
-complete.
+    complete.
 -}
 module Util.Pretty (Pretty, pretty) where
 import qualified Data.Map as Map

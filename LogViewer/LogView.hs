@@ -1,12 +1,12 @@
 {-# OPTIONS_GHC -fno-warn-unused-imports #-}
-{- |
-This module reads lines and streams them to the GUI, which displays them in
-a scrolling box.  Clickable text is marked and will be highlighted in the GUI.
-When it's clicked, the GUI sends the tag back, much like an HTML href.
+{- | This module reads lines and streams them to the GUI, which displays them
+    in a scrolling box.  Clickable text is marked and will be highlighted in
+    the GUI.  When it's clicked, the GUI sends the tag back, much like an HTML
+    href.
 
-This also maintains a filter.  It to the GUI for a simple language that
-modifies the filter.  When the filter is changed, it refilters the msgs, clears
-the GUI, and sends the new msgs over.
+    This also maintains a filter.  It to the GUI for a simple language that
+    modifies the filter.  When the filter is changed, it refilters the msgs,
+    clears the GUI, and sends the new msgs over.
 -}
 module LogViewer.LogView where
 import qualified Control.Concurrent as Concurrent

@@ -1,11 +1,10 @@
 {-# OPTIONS_GHC -XGeneralizedNewtypeDeriving #-}
 {-# OPTIONS_GHC -XDeriveDataTypeable #-}
-{- |
-The basic types that the interface modules use.
+{- | The basic types that the interface modules use.
 
-Unlike the other modules, this is designed to be used with a non-qualified
-import.  It puts various commonly used types into scope, and may re-export
-just the type part from other modules, for easier type signatures.
+    Unlike the other modules, this is designed to be used with a non-qualified
+    import.  It puts various commonly used types into scope, and may re-export
+    just the type part from other modules, for easier type signatures.
 -}
 module Ui.Types (
     Color, TrackPos(..), track_pos, pretty_pos

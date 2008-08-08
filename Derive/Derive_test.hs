@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -fno-warn-unused-imports #-}
 {- | This also tests Derive.Note and Derive.Controller since it uses them to
-piece together a complete deriver.
+    piece together a complete deriver.
 -}
 module Derive.Derive_test where
 import Control.Monad

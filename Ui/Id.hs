@@ -3,7 +3,7 @@ module Ui.Id (
     Ident(..)
 
     -- * construction
-    , Id, Namespace, id, read_id, show_id
+    , Id, Namespace, id, is_identifier, read_id, show_id
 
     -- * deconstruction
     , un_id, id_name, id_namespace
@@ -15,6 +15,7 @@ module Ui.Id (
     , global
 ) where
 import Prelude hiding (id)
+import qualified Data.Char as Char
 import qualified Data.Generics as Generics
 
 -- import qualified Text.Read as Read
@@ -59,12 +60,14 @@ read_id = ReadP.between (ReadP.char '<') (ReadP.char '>') $ do
     return (id ns name)
 -}
 
--- | Construct an Id.
---
--- Sine the Namespace is used as filename, I strip /s and use that as the
--- delimiter.
+-- | Construct an Id.  Non-identifier characters are stripped out.
 id :: Namespace -> String -> Id
-id ns ident = Id (filter (/= '/') ns, ident)
+id ns ident = Id (filter is_identifier ns, filter is_identifier ident)
+
+-- | To make naming them in events easier, IDs and namespaces have a restricted
+-- character set.
+is_identifier :: Char -> Bool
+is_identifier c = Char.isAlphaNum c || c `elem` "-_."
 
 -- For display convenience, IDs have a string display format.
 

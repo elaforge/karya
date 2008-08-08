@@ -1,54 +1,17 @@
 {-# OPTIONS_GHC -XFlexibleInstances #-}
 {- | This module implements signals as sparse arrays of Val->Val.  The
-points are interpolated linearly, so the signal array represents a series of
-straight line segments.
+    points are interpolated linearly, so the signal array represents a series
+    of straight line segments.
 
-By convention, the final segment of a signal is interpreted as extending
-infinitely to the right, at a 0 slope.  There is an implicit initial sample at
-(0, 0).
+    By convention, the final segment of a signal is interpreted as extending
+    infinitely to the right, with a 0 slope.  There is an implicit initial
+    sample at (0, 0).
 
-operations:
-- map a function pointwise (e.g. (/1) or (+n)... this is actually composition
-- clip (I can't map (min x) because I want to split a line into line + flat
-segment
-- compose, implemented incrementally for efficiency (also could theoretically
-gc the head?)
-- integrate
-- invert
+    TODO
+    make Signal polymorphic in Val so I can have [Float] for most things,
+    [Double] for tempo warps, and [Pitch] for pitches.
 
-- sample (for midi performance)
-- equal - compare ranges for midi performance
-
-Since I'll wind up computing everything anyway, strict may not be such
-a problem.  Also, control signals are sparse compared to audio:
-
-srate of 1000 * (Double, Double) = 128 = 128000 = 125k/sec = 45mb hour, hmm
-that is a lot
-
-Laziness actually is usable because segment rendering is a red herring, it
-only happens to the track signals.  Meanwhile there are intermediate signals.
-I actually don't have many of those, just tempo.  So far.
-
-And the important thing is that if I use the same interface, I can swap out
-the implementation for a lazy one later.
-
-
-data Signal = SignalFunction (TrackPos -> Val)
-    | Vector TrackPos Val
-    -- Compose Signal Signal ?
-
-data Vector a b = Vector (SVector a) (SVector b)
-
-The problem with SignalFunction is that I lose the sample positions, so
-(compose (+1) sig) wouldn't work as well during midi performance.  So
-how about just using map.
-
-TODO
-make Signal polymorphic in Val so I can have [Float] for most things, [Double]
-for tempo warps, and [Pitch] for pitches.
-
-do some speed tests for large vectors, i.e. integrate a large signal
-
+    do some speed tests for large vectors, i.e. integrate a large signal
 -}
 
 module Perform.Signal where

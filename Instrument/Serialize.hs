@@ -1,7 +1,7 @@
 {- | Functions to save and load the midi db.
 
-Unlike in Cmd.Serialize, I don't bother with versions here, because this is
-intended to be just a cache.
+    Unlike in 'Cmd.Serialize', I don't bother with versions here, because this
+    is intended to be just a cache.
 -}
 module Instrument.Serialize where
 import qualified Control.Exception as Exception

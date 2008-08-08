@@ -1,12 +1,13 @@
 {- | Support for efficient keymaps.
 
-The sequece of Cmds which return Continue or Done is flexible, but probably
-inefficient in the presence of hundreds of commands.  In addition, it can't
-warn about Cmds that respond to overlapping Msgs, i.e. respond to the same key.
+    The sequece of Cmds which return Continue or Done is flexible, but probably
+    inefficient in the presence of hundreds of commands.  In addition, it can't
+    warn about Cmds that respond to overlapping Msgs, i.e. respond to the same
+    key.
 
-Keymaps provide an efficient way to respond to a useful subset of Msgs, i.e.
-those which are considered "key down" msgs or "controller change" type msgs.
-The exact definition is in 'Key'.
+    Keymaps provide an efficient way to respond to a useful subset of Msgs,
+    i.e.  those which are considered "key down" msgs or "controller change"
+    type msgs.  The exact definition is in 'Key'.
 -}
 module Cmd.Keymap where
 import qualified Data.Map as Map

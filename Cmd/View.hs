@@ -1,24 +1,23 @@
 {- | Block, track, and event related cmds.
 
-An abstraction layer in between the Block that's stored in the state, and the
-Block that's visible in the UI.  This is so you can collapse / expand tracks,
-mute / unmute tracks, manage deriver views, ...
+    An abstraction layer in between the Block that's stored in the state, and
+    the Block that's visible in the UI.  This is so you can collapse / expand
+    tracks, mute / unmute tracks, manage deriver views, ...
 
-- Collapse / expand track into a divider.
+    - Collapse / expand track into a divider.
 
-    Ways to display a derivation
+        Ways to display a derivation
 
-reorder tracks, without messing up the derivation rules
+    - reorder tracks, without messing up the derivation rules
 
-A neighboring track in the same block.
+    - A neighboring track in the same block.
 
-Another block view.
+    - Another block view.
 
-"Hidden" behind the current block / track, press a key to "descend" one
-level.
+    - "Hidden" behind the current block / track, press a key to "descend" one
+    level.
 
-Not displayed at all, but played of course.
-
+    - Not displayed at all, but played of course.
 -}
 module Cmd.View where
 

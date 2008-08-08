@@ -1,12 +1,10 @@
 {-# OPTIONS_GHC -XEmptyDataDecls #-}
 {-# LANGUAGE ForeignFunctionInterface #-}
-{-
-A ruler is also a Track, and can be mixed with them freely.  Rulers have Marks
-at various positions.  Marks have width, color, translucency, and an optional
-name.  They also have a display at zoom value.  Marks are only displayed if
-the zoom level is >= the display at zoom.
+{- | A ruler is also a Track, and can be mixed with them freely.  Rulers have
+    Marks at various positions.  Marks have width, color, translucency, and an
+    optional name.  They also have a display at zoom value.  Marks are only
+    displayed if the zoom level is >= the display at zoom.
 -}
-
 module Ui.RulerC where
 import Control.Monad
 import Foreign

@@ -1,5 +1,4 @@
 {- | Commands dealing with selection / cursor movement.
-
 -}
 module Cmd.Selection where
 import Control.Monad

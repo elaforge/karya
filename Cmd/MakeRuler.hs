@@ -1,15 +1,16 @@
 {- | Functions to construct and modify rulers and their marklists.
 
-Since having a single mark at the beginning of the block isn't too useful,
-I use a "zero" config for that, and then replace the first mark with a mark
-from the first config.
+    Since having a single mark at the beginning of the block isn't too useful,
+    I use a "zero" config for that, and then replace the first mark with a mark
+    from the first config.
 
--- a block with 8 measures, each in 4/4
-make_meter (TrackPos 1024) [8, 4, 4, 4]
+    - a block with 8 measures, each in 4/4
 
--- a block with 8 measures, each in 3/4
-[8, 3, 4]
+    > make_meter (TrackPos 1024) [8, 4, 4, 4]
 
+    - a block with 8 measures, each in 3/4
+
+    > [8, 3, 4]
 -}
 module Cmd.MakeRuler where
 import Prelude hiding (repeat)

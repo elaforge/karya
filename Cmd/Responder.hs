@@ -1,45 +1,49 @@
 {-# OPTIONS_GHC -fno-warn-unused-imports #-}
 {- | The responder is the main event loop on the haskell side.
 
-It receives msgs (described in Cmd.Msg) multiplexed through a set of channels
-which come from various sources: the UI event loop (in its own thread),
-a socket, the MIDI library, etc.  The Msgs are then dispatched through Cmds to
-treat as they will, stopping when one returns Cmd.Done.
+    It receives msgs (described in Cmd.Msg) multiplexed through a set of
+    channels which come from various sources: the UI event loop (in its own
+    thread), a socket, the MIDI library, etc.  The Msgs are then dispatched
+    through Cmds to treat as they will, stopping when one returns Cmd.Done.
 
-The responder then deals with the results of the Cmds: midi thru output is sent
-and the old state is diffed with the new state to produce Updates, which
-are given to Sync to sync the visible UI with the changes the Cmds made to the
-UI state.
+    The responder then deals with the results of the Cmds: midi thru output is
+    sent and the old state is diffed with the new state to produce Updates,
+    which are given to Sync to sync the visible UI with the changes the Cmds
+    made to the UI state.
 
 
-This is possibly not the best place to describe the signal display, but until
-I think of a better one:
+    This is possibly not the best place to describe the signal display, but
+    until I think of a better one:
 
-The signal display mechanism goes from the deriver to the UI, so it's spread
-across Schema, Derive, Responder, to Sync.  Effectively this is a path from the
-deriver to the UI, just as the "play" path is from the deriver to Perform.
-Schema has a special "signal_deriver" field, and the signal deriver is compiled
-from the Skeleton in a way parallel the score event deriver.
+    The signal display mechanism goes from the deriver to the UI, so it's
+    spread across Schema, Derive, Responder, to Sync.  Effectively this is
+    a path from the deriver to the UI, just as the "play" path is from the
+    deriver to Perform.  Schema has a special "signal_deriver" field, and the
+    signal deriver is compiled from the Skeleton in a way parallel the score
+    event deriver.
 
-While the event deriver is invoked at play time, the signal deriver is invoked
-by the responder before syncing the state to the UI.  The deriver creates
-signal maps for each track for each block.  It's important that the signal maps
-remain lazy because only portions of them may be needed if there are only
-localized track updates (or none at all if there are no track updates).
+    While the event deriver is invoked at play time, the signal deriver is
+    invoked by the responder before syncing the state to the UI.  The deriver
+    creates signal maps for each track for each block.  It's important that the
+    signal maps remain lazy because only portions of them may be needed if
+    there are only localized track updates (or none at all if there are no
+    track updates).
 
-A track's samples are much like its events in that they are spread across the
-track's entire range but only displayed for the visible subset.  However, while
-events have a special mechanism/hack to capture modified ranges (as described
-in Ui.State) so the display can be refreshed incrementally, samples have no
-such mechanism.  This is because they are expected to only change in reaction
-to events changing, and to only change within the range of the changed events.
-Since an event alteration will emit Update.TrackEvents, the track should be
-redrawn in the given range and refresh the altered sample area.
+    A track's samples are much like its events in that they are spread across
+    the track's entire range but only displayed for the visible subset.
+    However, while events have a special mechanism/hack to capture modified
+    ranges (as described in Ui.State) so the display can be refreshed
+    incrementally, samples have no such mechanism.  This is because they are
+    expected to only change in reaction to events changing, and to only change
+    within the range of the changed events.  Since an event alteration will
+    emit Update.TrackEvents, the track should be redrawn in the given range and
+    refresh the altered sample area.
 
-TODO I'm not entirely satisfied with this, elegance-wise or efficiency-wise.
-I'll wait until I have experience with large tracks and dense samples before
-giving this more thought.  It seems like I should be able to render samples
-directly to a buffer which gets passed by pointer to c++.
+    TODO I'm not entirely satisfied with this, elegance-wise or
+    efficiency-wise.  I'll wait until I have experience with large tracks and
+    dense samples before giving this more thought.  It seems like I should be
+    able to render samples directly to a buffer which gets passed by pointer to
+    c++.
 -}
 module Cmd.Responder where
 

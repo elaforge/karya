@@ -1,8 +1,8 @@
 {- | Convert from the Derive events to MIDI performer specific events.
 
-Since this module depends on both the Derive and Perform.Midi layers, it should
-be called from Derive or Cmd, not Perform.Midi, even though it's physically
-located in Perform.Midi.
+    Since this module depends on both the Derive and Perform.Midi layers, it
+    should be called from Derive or Cmd, not Perform.Midi, even though it's
+    physically located in Perform.Midi.
 -}
 module Perform.Midi.Convert where
 import qualified Data.Map as Map

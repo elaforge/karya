@@ -1,22 +1,11 @@
 {- The default keyboard layout.
 
-TODO:
-Most of the keyboard is taken up by note entry when you're on an instrument
-track, but this isn't too useful when you are using a MIDI keyboard.  I could
-have switchable keymaps and a state to turn kbd entry on or off, but it would
-be confusing to move all the commands around.  Unless I do something consistent
-like say that it's ^X with keymap on, and just X with keymap off.
-
-TODO I should also be careful how I use the modifiers.  If I must use both
-control and command, I should be consistent about their meaning.  If I do
-the above scheme, command is for uncommon and possibly dangerous things like
-save, load, undo, redo, etc., and control would be for all the single key
-commands that are displaced by kbd note entry: set step, transpose selection,
-modify note length, ...
-
-TODO I should be able to add "command" and have it create MetaL and MetaR
-versions.  Same with shift.
-
+    TODO I should also be careful how I use the modifiers.  If I must use both
+    control and command, I should be consistent about their meaning.  If I do
+    the above scheme, command is for uncommon and possibly dangerous things
+    like save, load, undo, redo, etc., and control would be for all the single
+    key commands that are displaced by kbd note entry: set step, transpose
+    selection, modify note length, ...
 -}
 module Cmd.DefaultKeymap where
 import qualified Control.Monad.Identity as Identity

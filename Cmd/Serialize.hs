@@ -1,11 +1,12 @@
 {- | Serialize and unserialize all the data types used by Ui.State.State.
 
-Types that I think might change have versions.  If the type changes, increment
-the put_version and add a new branch to the get_version case.
+    Types that I think might change have versions.  If the type changes,
+    increment the put_version and add a new branch to the get_version case.
 
-Types that I think have the slightest chance of changing have explicit type
-signatures here.  That way, if one of the types is changed, there will be
-a type error over here pointing at the get/put code that needs to be updated.
+    Types that I think have the slightest chance of changing have explicit type
+    signatures here.  That way, if one of the types is changed, there will be
+    a type error over here pointing at the get/put code that needs to be
+    updated.
 -}
 module Cmd.Serialize where
 

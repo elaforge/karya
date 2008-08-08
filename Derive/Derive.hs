@@ -2,96 +2,18 @@
 {-# OPTIONS_GHC -XPatternGuards #-}
 {-# OPTIONS_GHC -fno-warn-unused-imports #-}
 -- Control.Monad
-{- |
+{- | Main module for the deriver monad.
 
     Derivers are always in DeriveT, even if they don't need its facilities.
     This makes them more regular to compose.  The convention is to prepend
-    deriver names with 'd_', so if the deriver is normally implement purely,
+    deriver names with 'd_', so if the deriver is normally implemented purely,
     a d_ version can be made simply by composing 'return'.
-
-    tempo:
-
-    Signals are described on the track as [TrackSegment], and are transformed
-    to Signal, which can be sampled at any srate.  The tempo signal is sampled
-    at tempo_srate.
-
-    This is a special controller given in tempo_controller.  d_track realizes
-    it by dividing each event's start and end positions by it.
-
-    'derive' needs to produce a forward tempo map that maps (BlockId, TrackPos)
-    -> Timestamp, so that playing from a certain trackpos on a certain block
-    knows where to seek in the midi stream, and
-
-    BlockId -> Timestamp -> Maybe TrackPos
-
-    or maybe
-
-    Timestamp -> Maybe [(BlockId, TrackPos)] -- Nothing indicates no blocks
-    left
-
-    so the play updater knows where to put the play selections
-
-    so it seems like I need to convert the whole nested set of tempos into
-    a single tempo map and invert it.  It needs to keep track of block_ids in
-    there somehow too.
-
-    Blocks get translated and stretched according to the calling event pos and
-    dur.
-
-
-    Each block has a tempo signal associated.  When you derive the sub-block,
-    you get its tempo track, and then integrate it into your own: translate,
-    stretch it, and insert it into the block list.
-
-    I think this means tempo can't be a plain controller anymore.  I need to
-    enforce anyway that there is only one tempo signal per block.  Actually...
-    everything in the environment is global.  But if I do with_env it will get
-    reset afterwards.  Just have it be a special set-once variable?
-
-    tempo_map = integral (Signal.div tempo_sig 1)
 
     I have a similar sort of setup to nyquist, with a "transformation
     environment" that functions can look at to implement behavioral
     abstraction.  The main differences are that I don't actually generate audio
     signal, but my "ugens" eventually render down to MIDI or OSC (or nyquist
-    source!), and that my Signals (the equivalent to nyquist's "sounds") are
-    functions Time->Val rather than being sample streams.  Of course the
-    function could be *implemented* as a sample stream, but the idea was that
-    I don't have to worry about a sampling rates:. I just compose the signal
-    with the tempo warp (which is a Time->Time signal).
-
-    The problem is the representation of the tempo warp.  In addition to MIDI
-    or OSC or whatever rendered with certain timestamps, I want to get from the
-    process a global tempo function ScoreTime->Time and then an inverse one
-    Time->ScoreTime.
-
-    I don't think I can use arbitrary functions any more at this point, because
-    if I take the time function as the integral of the reciprical of the tempo
-    function, I don't think I can integrate any function without knowing
-    anything about it.  And after that, I can't find the inverse of just any
-    old function, even if I do know that it's a proper injection (is that the
-    term?), which I think should be guaranteed if I say the tempo signal >0.
-
-    So I can see two ways around that: either require that I do know the
-    structure of the function, or take what I believe is nyquist's approach and
-    pick a sampling rate, sample the function.  Then the integral is easy: just
-    sum the samples, and for the inverse I just scan the samples for the
-    correct value.
-
-    Taking the first approach for the moment, I know that the signals are built
-    up of a few envelope breakpoint type primitives: a discontinuity that jumps
-    to some value, a linear interpolation between two points, and an
-    exponential t^n type interpolation between two points.  All I have to do is
-    find the integral for each segment and then sum them.  If I introduce new
-    functions (e.g. sine), I can introduce them as a pair (f, integral of f).
-    I can represent a typical sampled signal by just using a lot of regularly
-    spaced segments.
-
-    The complexity of this approach and the ability of the sampling approach to
-    simulate it are making me favor the
-
-    do integrals for set and linear
-
+    source!).
 -}
 module Derive.Derive where
 import Control.Monad

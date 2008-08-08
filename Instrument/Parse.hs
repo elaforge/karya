@@ -1,7 +1,4 @@
 {- | Functions to help parse MIDI patch files.
-
-TODO the program change stuff will have to get more complicated to account for
-idiosyncratic handling of program change msb, lsb.
 -}
 module Instrument.Parse where
 import Control.Monad

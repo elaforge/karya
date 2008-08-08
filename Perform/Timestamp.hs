@@ -1,10 +1,8 @@
 {-# OPTIONS_GHC -XGeneralizedNewtypeDeriving #-}
 {- | Timetstamp is used by the various rendering subsystems as well as
-Derive.Player.
+    'Derive.Player'.
 
-Basically, everyone who deals with times that go directly to the midi scheduler
-uses Timestamps.  This is more concrete than TrackPos, which may still be
-warped through the tempo map, before eventually being mapped to a Timestamp.
+    TrackPos are converted to these as the final stage of performance.
 -}
 module Perform.Timestamp where
 import Util.Pretty

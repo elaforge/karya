@@ -1,6 +1,6 @@
 {- | A TimeStep is an abstract description of a TrackPos interval.
 
-It's used to advance a cursor, snap a selection, set a note duration, etc.
+    It's used to advance a cursor, snap a selection, set a note duration, etc.
 -}
 module Cmd.TimeStep where
 import Data.Function

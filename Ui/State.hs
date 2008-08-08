@@ -1,24 +1,24 @@
 {-# OPTIONS_GHC -XGeneralizedNewtypeDeriving #-}
 {-# OPTIONS_GHC -XDeriveDataTypeable #-}
 {-# OPTIONS_GHC -fno-warn-unused-imports #-}
-{- |
-The overall UI state is described here.  This is an immutable data structure
-that contains all the tracks, rulers, note data, and so forth.  It exports
-a StateT monad for modification and access.
+{- | The overall UI state is described here.  This is an immutable data
+    structure that contains all the tracks, rulers, note data, and so forth.
+    It exports a StateT monad for modification and access.
 
-Since the same block may have >=0 views, and a single track may appear in >=0
-blocks, these are stored as IDs rather than directly in their containers.
-Using explicit references introduces all the usual problems with pointers like
-invalid references and unreferenced data.  The latter is actually a feature
-(e.g. having a block with no associated view is perfectly normal), but the
-former is a pain.  To ease the pain, IDs should only be created via the monadic
-create_* interface in this module, even though I'm forced to export their
-constructors to avoid circular imports.  There may still be problems with IDs
-from one State being applied to a different State (likely an older and newer
-version of the same State), but I'll deal with that when I get there.
+    Since the same block may have \>=0 views, and a single track may appear in
+    \>=0 blocks, these are stored as IDs rather than directly in their
+    containers.  Using explicit references introduces all the usual problems
+    with pointers like invalid references and unreferenced data.  The latter is
+    actually a feature (e.g. having a block with no associated view is
+    perfectly normal), but the former is a pain.  To ease the pain, IDs should
+    only be created via the monadic create_* interface in this module, even
+    though I'm forced to export their constructors to avoid circular imports.
+    There may still be problems with IDs from one State being applied to
+    a different State (likely an older and newer version of the same State),
+    but I'll deal with that when I get there.
 
-A higher level interface may ease this by automatically creating objects with
-automatically generated IDs.
+    A higher level interface (e.g. 'Cmd.Create') may ease this by automatically
+    creating objects with automatically generated IDs.
 -}
 module Ui.State where
 import Control.Monad

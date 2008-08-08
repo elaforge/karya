@@ -1,9 +1,10 @@
 {- | Top-level module for the interpreter in Language.  Everything in this
-module is visible to the REPL, so it imports a lot of potentially useful
-modules.
+    module is visible to the REPL, so it imports a lot of potentially useful
+    modules.
 
-It has to be interpreted, so it should just put useful things into scope but
-not actually define anything itself.  Those definitions go in LanguageCmds.
+    It has to be interpreted, so it should just put useful things into scope
+    but not actually define anything itself.  Those definitions go in
+    LanguageCmds.
 -}
 module Cmd.LanguageEnviron where
 import Control.Monad.Trans (liftIO)

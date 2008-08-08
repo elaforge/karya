@@ -2,17 +2,18 @@
 {-# OPTIONS_GHC -XDeriveDataTypeable #-}
 {- | Functions for logging.
 
-Logs are used to report everything from errors and debug msgs to status
-reports.  They are collected in a central place that writes them to a file
-in a machine-readable serialized format, and also passes them to various
-registered log actions.
+    Log msgs are used to report everything from errors and debug msgs to status
+    reports.  They are collected in a central place that writes them to a file
+    in a machine-readable serialized format.
 
-So a progress bar would register a function that looks for Progress msgs from
-the relevant system and updates itself when it sees them.  Blocks register
-a function that watches for Block errors and highlights the part of the block
-that had the error (probably emitted by Derive).  Informational msgs matching
-a given pattern may go to the status bar.
+    Unimplemented:
+    Various subsystems could register an interest in log msgs.
 
+    So a progress bar would register a function that looks for Progress msgs
+    from the relevant system and updates itself when it sees them.  Blocks
+    register a function that watches for Block errors and highlights the part
+    of the block that had the error (probably emitted by Derive).
+    Informational msgs matching a given pattern may go to the status bar.
 -}
 
 module Util.Log (

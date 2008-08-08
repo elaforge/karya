@@ -1,8 +1,9 @@
 {-# OPTIONS_GHC -XDeriveDataTypeable #-}
-{- | A Score is the unit at which derivers operate, and is just a list of
-Events.  The events here are the derivation-level view of an Event.  They are
-generated from UI Events, and will eventually be transformed into Perform
-Events, which are specific to the performance backend.
+{- | This has the basic data structures for the deriver level.
+
+    The events here are generated from UI Events, and will eventually be
+    transformed into Perform Events, which are specific to the performance
+    backend.
 -}
 module Derive.Score where
 import qualified Data.Generics as Generics

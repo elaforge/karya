@@ -132,7 +132,7 @@ scale_parser scale (_pos, event) =
 
 -- | Try to parse a note track event.  It's a little finicky because
 -- I want to be unambiguous but also not ugly.  I think I can manage that by
--- using < to disambiguate a call and not allowing (method, "", call).
+-- using \< to disambiguate a call and not allowing (method, \"\", call).
 --
 -- TODO Unfortunately I still have a problem with shift since I can't type _,
 -- but I'll deal with that later if it becomes a problem.
@@ -143,6 +143,7 @@ scale_parser scale (_pos, event) =
 -- > scl -> ((Set, scl), Nothing)
 -- > \<block -> (Nothing, block)
 -- > , , block -> (Nothing, block)
+--
 parse_note :: Pitch.Scale -> String
     -> Either String (Maybe (Signal.Method, Pitch.Pitch), Maybe String)
 parse_note scale text = do

@@ -1,17 +1,18 @@
--- | In addition to Sync, this tests the whole State -> Diff -> Sync -> BlockC
--- sequence.
---
--- Sync is hard to test functionally because its whole point is to run IO
--- actions.
---
--- It's also hard to test Diff functionally.  I could test that the expected
--- Updates are emitted, but that doesn't mean much; what I really care about is
--- that the UI is updated in the expected manner.  I could build a model of the
--- UI and apply the Updates to that, but it would be complicated and have bugs
--- itself.
---
--- Unless I can think of a better way to do these tests, they will
--- unfortunately remain io_human tests in here.
+{- | In addition to Sync, this tests the whole State -> Diff -> Sync -> BlockC
+    sequence.
+
+    Sync is hard to test functionally because its whole point is to run IO
+    actions.
+
+    It's also hard to test Diff functionally.  I could test that the expected
+    Updates are emitted, but that doesn't mean much; what I really care about
+    is that the UI is updated in the expected manner.  I could build a model of
+    the UI and apply the Updates to that, but it would be complicated and have
+    bugs itself.
+
+    Unless I can think of a better way to do these tests, they will
+    unfortunately remain io_human tests in here.
+-}
 module Ui.Sync_test where
 import qualified Control.Arrow as Arrow
 import qualified Control.Concurrent as Concurrent

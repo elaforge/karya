@@ -1,8 +1,10 @@
-{- Utilities for the XImpl layer.
+{- | Utilities for the SomethingC layer.
 
-- Fltk monad
-- Functions to convert between haskell and c types.
-- Generic UI debugging functions.
+    - Fltk monad
+
+    - Functions to convert between haskell and c types.
+
+    - Generic UI debugging functions.
 -}
 {-# LANGUAGE ForeignFunctionInterface #-}
 {-# OPTIONS_GHC -fglasgow-exts #-}

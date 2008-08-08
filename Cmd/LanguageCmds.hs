@@ -2,27 +2,25 @@
 -- This module imports modules that are possibly used only dynamically by
 -- lang, just to make sure they get compiled.
 {- | Helper functions to be imported into LanguageEnviron.  LanguageEnviron
-must be interpreted since it's the "top level" module, so I put the library
-of commands in here.
+    must be interpreted since it's the "top level" module, so I put the library
+    of commands in here.
 
-Of course, lang commands can use anything in scope in LanguageEnviron, not just
-these helpers.  That includes all the various cmd_* functions used by the
-keybindings and everything in State.  Also, keybindings can be invoked directly
-with the 'keybinding' helper.  TODO not implemented
+    Of course, lang commands can use anything in scope in LanguageEnviron, not
+    just these helpers.  That includes all the various cmd_* functions used by
+    the keybindings and everything in State.  Also, keybindings can be invoked
+    directly with the 'keybinding' helper.  TODO not implemented
 
-Functions which are not designed to be composed generally take simpler types
-like strings, or get their block from the current focus, so they're easier to
-type.
+    Functions which are not designed to be composed generally take simpler
+    types like strings, or get their block from the current focus, so they're
+    easier to type.
 
-The various show_* functions print out state generally in a 'show' format, but
-not necessarily.  It's designed to be for human reading and may leave out
-"uninteresting" data.
+    The various show_* functions print out state generally in a 'show' format,
+    but not necessarily.  It's designed to be for human reading and may leave
+    out "uninteresting" data.
 
-TODO:
-- can I use Language.Haskell.Parser or haddock to generate a list of toplevel
-names along with their documentation to give the REPL for completion and
-interactive documentation?
-
+    TODO Can I use Language.Haskell.Parser or haddock to generate a list of
+    toplevel names along with their documentation to give the REPL for
+    completion and interactive documentation?
 -}
 module Cmd.LanguageCmds where
 import Control.Monad

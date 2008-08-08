@@ -1,19 +1,12 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
 {-# OPTIONS_GHC -XEmptyDataDecls #-}
-{-
-A Track is a container for Events.  A track goes from TrackPos 0 until
-the end of the last Event.
+{- | A Track is a container for Events.  A track goes from TrackPos 0 until
+    the end of the last Event.
 
-Should be able to lazily fetch events starting at any TrackPos, going forwards
-or backwards.
-
-TrackAttrs:
-
-cached derivation and realization (depending on deriver scope)
-modified event map, for derivation (old trackpos -> new trackpos)
-
+    TODO
+    cached derivation and realization (depending on deriver scope)
+    modified event map, for derivation (old trackpos -> new trackpos)
 -}
-
 module Ui.TrackC where
 import Control.Monad
 import Data.Array.IArray ((!))

@@ -1,12 +1,12 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
 {- | This layer gives direct wrapped access to the fltk API.
 
-It maintains a map from ViewIds to window pointers, which represents the on
-screen state.  All functions here take ViewIds, and will throw an exception if
-the view_id isn't in the pointer map.  C++ exceptions coming from FLTK should
-be converted and thrown as haskell exceptions.
+    It maintains a map from ViewIds to window pointers, which represents the on
+    screen state.  All functions here take ViewIds, and will throw an exception
+    if the view_id isn't in the pointer map.  C++ exceptions coming from FLTK
+    should be converted and thrown as haskell exceptions.
 
-TODO exceptions are not implemented yet
+    TODO exceptions are not implemented yet
 -}
 module Ui.BlockC (
     -- * errors, and ptr access

@@ -1,14 +1,14 @@
 {- | Cmds to create and destroy blocks, views, tracks, and rulers.
 
-IDs are automatically created from the state_namespace and the other IDs in
-existence.  In general I think it's a bad idea to try to hard to give IDs
-descriptive names because there's nothing keeping them that way.  The
-description should be in the track title.  Even the given numbers will get out
-of date with their position in the block.
+    IDs are automatically created from the state_namespace and the other IDs in
+    existence.  In general I think it's a bad idea to try to hard to give IDs
+    descriptive names because there's nothing keeping them that way.  The
+    description should be in the track title.  Even the given numbers will get
+    out of date with their position in the block.
 
-However, I do allow some naming beyond simple numbers for things which are
-unlikely to change, like tempo tracks and rulers, which don't have any other
-title.
+    However, I do allow some naming beyond simple numbers for things which are
+    unlikely to change, like tempo tracks and rulers, which don't have any
+    other title.
 -}
 module Cmd.Create where
 import Control.Monad

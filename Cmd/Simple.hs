@@ -1,6 +1,6 @@
 {- | Simple Events are supposed to be easy to read, and easy to serialize to
-text and load back again.  Functions here convert them to and from text form,
-stashing converted simple blocks in the clipboard.
+    text and load back again.  Functions here convert them to and from text
+    form, stashing converted simple blocks in the clipboard.
 -}
 module Cmd.Simple where
 import Control.Monad

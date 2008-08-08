@@ -1,5 +1,5 @@
 {- | The transport is the communication mechanism between the app and the
-performer.  Extensive description is in the Cmd.Play docstring.
+    performer.  Extensive description is in the Cmd.Play docstring.
 -}
 module Perform.Transport where
 import qualified Control.Concurrent.STM as STM

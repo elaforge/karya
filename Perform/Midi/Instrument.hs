@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -XDeriveDataTypeable #-}
 {- | Description of a midi-specific instrument, as well as the runtime midi
-device and channel mapping.
+    device and channel mapping.
 -}
 module Perform.Midi.Instrument where
 import qualified Data.Generics as Generics

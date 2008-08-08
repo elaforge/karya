@@ -1,9 +1,10 @@
 {- | Main entry point for Perform.Midi.  Render Deriver output down to actual
-midi events.
+    midi events.
 
-TODO Implement key switches.  How about an integral signal, and then
-a per-instrument map from signal to keyswitch keys.  The signal is rendered as
-key switch keys when it changes, and the signal makes the channel unshareable.
+    TODO Implement key switches.  How about an integral signal, and then
+    a per-instrument map from signal to keyswitch keys.  The signal is rendered
+    as key switch keys when it changes, and the signal makes the channel
+    unshareable.
 -}
 module Perform.Midi.Perform where
 import Data.Function

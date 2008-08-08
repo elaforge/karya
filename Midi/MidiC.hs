@@ -1,15 +1,18 @@
 {-# OPTIONS_GHC -XDeriveDataTypeable #-}
 {- | Midi interface.
-Read
-Write
-Thru
-Bandwidth monitoring
+    - Read
 
-TODO
-see if I'll need to write out of order msgs, if so write scheduler:
-write: write msgs to heap in an array
-read: wait for now-newest - write_ahead secs or there has been a write,
-if scheduled time is <= now-write_ahead, send it
+    - Write
+
+    - Thru
+
+    - Bandwidth monitoring
+
+    TODO
+    see if I'll need to write out of order msgs, if so write scheduler:
+    write: write msgs to heap in an array
+    read: wait for now-newest - write_ahead secs or there has been a write,
+    if scheduled time is <= now-write_ahead, send it
 -}
 module Midi.MidiC (
     -- * initialize, open and close
