@@ -21,18 +21,22 @@ load :: FilePath -> IO Db.Db
 load app_dir = do
     let dir = app_dir </> Config.instrument_dir
     synth_maps <- mapM ($dir) [Fm8.load, Z1.load, Vl1m.load]
-    saved <- Serialize.unserialize
-        (app_dir </> Config.instrument_db_cache)
-    (midi_db, index) <- case saved of
-        Left err -> do
-            Log.warn $ "Error loading instrument db: " ++ show err
-            return (MidiDb.empty, Search.empty_index)
-        Right (Serialize.SavedDb _ midi_db index) -> return (midi_db, index)
+    -- (midi_db, index) <- load_db app_dir
+    let (midi_db, index) = (MidiDb.midi_db [], Search.empty_index)
     let (merged, overlaps) = MidiDb.merge (MidiDb.midi_db synth_maps) midi_db
     unless (null overlaps) $
         Log.warn $ "overlapping instruments discarded while merging: "
             ++ show (map (\(Score.Instrument inst) -> inst) overlaps)
     return $ Db.db merged index
+
+load_db app_dir = do
+    saved <- Serialize.unserialize
+        (app_dir </> Config.instrument_db_cache)
+    case saved of
+        Left err -> do
+            Log.warn $ "Error loading instrument db: " ++ show err
+            return (MidiDb.empty, Search.empty_index)
+        Right (Serialize.SavedDb _ midi_db index) -> return (midi_db, index)
 
 -- | Load instruments that take longer, and should be cached by make_db.
 load_slow :: FilePath -> IO MidiDb.MidiDb
