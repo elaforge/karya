@@ -10,7 +10,7 @@ import qualified Text.Regex as Regex
 
 -- These are substituted everywhere.
 global_subs = map (\s -> (s, s++"_srcpos"))
-    [ "Log.debug", "Log.notice", "Log.warn", "Log.error"
+    [ "Log.msg", "Log.debug", "Log.notice", "Log.warn", "Log.error"
     , "Log.debug_stack", "Log.notice_stack", "Log.warn_stack", "Log.error_stack"
     ]
 
@@ -82,5 +82,6 @@ scan last_func line = case func_name line of
 func_name line = case Regex.matchRegex reg line of
         Nothing -> Nothing
         Just [fname] -> Just fname
+        Just groups -> error $ "unexpected groups: " ++ show groups
     where
     reg = Regex.mkRegex "^([a-z0-9_][A-Za-z0-9_]*) .*="

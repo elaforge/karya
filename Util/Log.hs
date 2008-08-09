@@ -99,16 +99,18 @@ data Prio
     deriving (Show, Enum, Eq, Ord, Read)
 
 -- | Create a msg with the give prio and text.
-msg_srcpos :: SrcPos.SrcPos -> Prio -> Maybe Stack -> String -> Msg
-msg_srcpos srcpos prio stack text = Msg Nothing srcpos prio stack text
+msg_srcpos :: SrcPos.SrcPos -> Prio -> String -> Msg
+msg_srcpos srcpos prio text = Msg Nothing srcpos prio Nothing text
 msg :: Prio -> String -> Msg
-msg prio = msg_srcpos Nothing prio Nothing
+msg prio = msg_srcpos Nothing prio
+
+make_msg srcpos prio stack text = Msg Nothing srcpos prio stack text
 
 log :: LogMonad m => Prio -> SrcPos.SrcPos -> String -> m ()
-log prio srcpos text = write (msg_srcpos srcpos prio Nothing text)
+log prio srcpos text = write (make_msg srcpos prio Nothing text)
 log_stack :: LogMonad m => Prio -> SrcPos.SrcPos -> Stack -> String -> m ()
 log_stack prio srcpos stack text =
-    write (msg_srcpos srcpos prio (Just stack) text)
+    write (make_msg srcpos prio (Just stack) text)
 
 debug_srcpos, notice_srcpos, warn_srcpos, error_srcpos
     :: LogMonad m => SrcPos.SrcPos -> String -> m ()
