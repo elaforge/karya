@@ -1,8 +1,6 @@
 /*
     Fancy alpha-channel using draw routines.
 */
-#include <boost/scoped_array.hpp>
-
 #include <FL/Fl_Image.H>
 #include <FL/Fl_draw.H>
 
@@ -23,7 +21,7 @@ void alpha_rectf(Rect r, Color c)
     // Don't crash if the caller wants a negative sized rect.
     if (nbytes <= 0)
         return;
-    boost::scoped_array<unsigned char> data(new unsigned char[nbytes]);
+    unsigned char *data = new unsigned char[nbytes];
     for (int i = 0; i < nbytes; i+=4) {
         data[i] = c.r;
         data[i+1] = c.g;
@@ -36,6 +34,7 @@ void alpha_rectf(Rect r, Color c)
         */
             data[i+3] = c.a;
     }
-    Fl_RGB_Image im(data.get(), r.w, r.h, 4);
+    Fl_RGB_Image im(data, r.w, r.h, 4);
     im.draw(r.x, r.y);
+    delete[] data;
 }

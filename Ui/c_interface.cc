@@ -3,7 +3,6 @@ C procedural interface to the UI level.
 */
 
 #include <utility>
-#include <boost/shared_ptr.hpp>
 #include "c_interface.h"
 #include "util.h"
 
