@@ -1,9 +1,11 @@
     ghc
 
     haskell deps, from hackage
+storablevector
 binary
 dlist
 hint
+haddock
 
     fltk
 

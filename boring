@@ -23,12 +23,9 @@
 _stub.[ch]$
 \.tix$
 
-# binary targets
-^test_[a-z]+$
-^test/hspp$
-^fixdeps$
-^(dump|seq|send|repl|logview|browser|make_db)$
-^seq.app$
+^build/
+^tools/hspp$
+^tools/fixdeps$
 
 # profile cruft
 ^RunTests\.

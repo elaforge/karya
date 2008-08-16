@@ -1,0 +1,46 @@
+#!/bin/sh
+# based on a script michael sweet posted to the fltk mailing list
+
+if test $# != 1; then
+    echo Usage: $0 filename
+    exit 1
+fi
+
+path="$1"
+name=$(basename "$path")
+id=elaforge.seq.$(echo "$name" | tr ' ' _)
+bindir="$path.app/Contents/MacOS"
+
+# Make a shell script that runs the bundled executable
+echo "#!/bin/sh" >"$path.run"
+echo "exec '$path.app/Contents/MacOS/$name'" '$*' >>"$path.run"
+chmod +x "$path.run"
+
+# Make sure the script is idempotent since make likes to run it due to .PHONY.
+if cmp --silent "$path.run" "$bindir/$name"; then
+    rm "$path.run"
+else
+    rm -rf "$bindir"
+    mkdir -p "$bindir"
+    mv "$path" "$bindir"
+    mv "$path.run" "$path"
+fi
+
+# Make the simplest Info.plist needed for an application
+cat >"$path.app/Contents/Info.plist" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<plist version="0.9">
+    <dict>
+       <key>CFBundleInfoDictionaryVersion</key>
+       <string>6.0</string>
+       <key>CFBundleExecutable</key>
+       <string>$name</string>
+       <key>CFBundleIdentifier</key>
+       <string>$id</string>
+       <key>CFBundleName</key>
+       <string>$name</string>
+       <key>CFBundlePackageType</key>
+       <string>APPL</string>
+    </dict>
+</plist>
+EOF

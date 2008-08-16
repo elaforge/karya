@@ -1,5 +1,5 @@
 misc
-  - rumor has it os x leopard wants .app bundles instead of Rez, so build those
+  * rumor has it os x leopard wants .app bundles instead of Rez, so build those
 
 fltk
   - convert Selection to use the same format as hs, so it can show the cursor
@@ -123,8 +123,8 @@ Perform
       - complain to portmidi list?
   Midi
     - eliminate duplicate controller msgs
-    - microtuning, implement cents to pb_offset
     - pitch signal rendering
+    - support key switches
 
   Instrument
     - some kind of organized way to manage instruments and instrument config
