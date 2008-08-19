@@ -54,11 +54,9 @@ block ruler_id = do
     State.insert_track b 0 (Block.RId ruler_id) Config.ruler_width
     return b
 
-
 generate_block_id ns blocks =
     generate_id ns no_parent "b" Block.BlockId blocks
 no_parent = Id.id [] ""
-
 
 -- * view
 
@@ -75,10 +73,9 @@ block_view :: (State.UiStateMonad m) => Ruler.RulerId -> m Block.ViewId
 block_view ruler_id = block ruler_id >>= view
 
 -- | ViewIds look like \"ns/b0.v0\", \"ns/b0.v1\", etc.
-generate_view_id views block_id = generate_id ns ident "v" Block.ViewId views
-    where
-    ident = Id.unpack_id block_id
-    ns = Id.id_namespace ident
+generate_view_id views block_id =
+    generate_id (Id.id_namespace ident) ident "v" Block.ViewId views
+    where ident = Id.unpack_id block_id
 
 -- | Same as State.destroy_view, included here for consistency.
 destroy_view :: (State.UiStateMonad m) => Block.ViewId -> m ()
@@ -170,8 +167,8 @@ tracklike_track (Block.TId tid _) = Just tid
 tracklike_track _ = Nothing
 
 generate_track_id block_id code tracks =
-    generate_id "" (Id.unpack_id block_id) code Track.TrackId tracks
-
+    generate_id (Id.id_namespace ident) ident code Track.TrackId tracks
+    where ident = Id.unpack_id block_id
 
 -- | Swap the tracks at the given tracknums.  If one of the tracknums is out
 -- of range, the track at the other tracknum will be moved to the beginning or
@@ -210,7 +207,6 @@ make_id :: (State.UiStateMonad m) => String -> m Id.Id
 make_id name = do
     ns <- State.get_project
     return (Id.id ns name)
-
 
 -- | An overlay versions of a ruler has id ruler_id ++ suffix.
 overlay_suffix :: String
