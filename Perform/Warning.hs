@@ -20,4 +20,4 @@ warning = Warning
 instance Error.Error Warning where
     strMsg msg = Warning msg [] Nothing
 
-type StackPos = (Block.BlockId, Maybe Track.TrackId, Maybe TrackPos)
+type StackPos = (Block.BlockId, Maybe Track.TrackId, Maybe (TrackPos, TrackPos))

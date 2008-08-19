@@ -56,6 +56,11 @@ marklist :: MarklistName -> [PosMark] -> NameMarklist
 marklist name posmarks =
     (name, Marklist $ IArray.listArray (0, length posmarks-1) posmarks)
 
+-- | Clip the marklist before the given pos.
+clip_marklist :: TrackPos -> NameMarklist -> NameMarklist
+clip_marklist pos (name, mlist) =
+    marklist name (takeWhile ((<pos) . fst) (forward mlist (TrackPos 0)))
+
 -- | Get the position of the last mark.
 last_pos :: Marklist -> TrackPos
 last_pos (Marklist marray)

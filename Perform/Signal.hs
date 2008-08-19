@@ -51,7 +51,7 @@ instance Storable.Storable (Double, Double) where
         return ((realToFrac) a, (realToFrac) b)
 
 instance Show Signal where
-    show (SignalVector vec) = "Signal <" ++ show (V.unpack vec) ++ ">"
+    show (SignalVector vec) = "Signal " ++ show (V.unpack vec)
 
 type Val = Double
 type Sample = (TrackPos, Val)
