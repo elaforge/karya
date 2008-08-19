@@ -183,7 +183,7 @@ keynum_to_nn scale keynum = do
 -- | Actually convert the given note to an event and insert it.
 insert_note :: (Monad m) => Pitch.Note -> Cmd.CmdT m ()
 insert_note note = do
-    (pos, tracknum, track_id) <- Selection.get_insert_pos
+    (track_id, tracknum, pos) <- Selection.get_insert_track
     end_pos <- Selection.step_from tracknum pos TimeStep.Advance
     -- assert (end_pos >= pos)
 
@@ -215,7 +215,7 @@ cmd_edit_method msg = do
 edit_method key (method, note, call) = (modify_text method key, note, call)
 
 modify_note f = do
-    (pos, tracknum, track_id) <- Selection.get_insert_pos
+    (track_id, tracknum, pos) <- Selection.get_insert_track
     end_pos <- Selection.step_from tracknum pos TimeStep.Advance
     event <- ControllerTrack.get_event track_id pos (pos - end_pos)
     tokens <- either (Cmd.throw . ("tokenizing note: "++)) return $

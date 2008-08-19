@@ -233,14 +233,25 @@ relevant_ruler block tracknum = Seq.at (Block.ruler_ids_of in_order) 0
     in_order = map snd $ dropWhile ((/=tracknum) . fst) $ reverse $
         zip [0..] (Block.block_tracks block)
 
+-- | Return the leftmost tracknum and trackpos, even if it's not an event
+-- track.  TODO unless it's a divider?
+get_insert_pos :: (Monad m) =>
+    Cmd.CmdT m (Block.ViewId, Block.TrackNum, TrackPos)
+get_insert_pos = do
+    (view_id, sel) <- get_selection Config.insert_selnum
+    return (view_id, Block.sel_start_track sel, Block.sel_start_pos sel)
+
 -- | Specialized 'selected_tracks' that gets the pos and track of the upper
 -- left corner of the insert selection.
-get_insert_pos :: (Monad m) =>
-    Cmd.CmdT m (TrackPos, Block.TrackNum, Track.TrackId)
-get_insert_pos = do
+--
+-- Since this returns a track_id, it will return the leftmost event track, or
+-- abort if there is none.
+get_insert_track :: (Monad m) =>
+    Cmd.CmdT m (Track.TrackId, Block.TrackNum, TrackPos)
+get_insert_track = do
     (track_ids, sel) <- selected_tracks Config.insert_selnum
     track_id <- Cmd.require (track_ids `Seq.at` 0)
-    return (Block.sel_start_pos sel, Block.sel_start_track sel, track_id)
+    return (track_id, Block.sel_start_track sel, Block.sel_start_pos sel)
 
 -- | Get the events in the selection, along with their tracks.
 selected_events :: (Monad m) =>
@@ -260,9 +271,15 @@ events_in_sel sel track =
 selected_tracks :: (Monad m) =>
     Block.SelNum -> Cmd.CmdT m ([Track.TrackId], Block.Selection)
 selected_tracks selnum = do
-    view_id <- Cmd.get_focused_view
-    sel <- Cmd.require =<< State.get_selection view_id selnum
+    (view_id, sel) <- get_selection selnum
     view <- State.get_view view_id
     tracks <- mapM (State.event_track_at (Block.view_block view))
         (Block.sel_tracknums sel)
     return (Maybe.catMaybes tracks, sel)
+
+get_selection :: (Monad m) =>
+    Block.SelNum -> Cmd.CmdT m (Block.ViewId, Block.Selection)
+get_selection selnum = do
+    view_id <- Cmd.get_focused_view
+    sel <- Cmd.require =<< State.get_selection view_id selnum
+    return (view_id, sel)

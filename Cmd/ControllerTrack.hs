@@ -23,7 +23,7 @@ cmd_controller_entry msg = do
     keys_down <- fmap Map.keys Cmd.keys_down
     when (any (Maybe.isNothing . Cmd.modifier_key) keys_down) Cmd.abort
 
-    (pos, _, track_id) <- Selection.get_insert_pos
+    (track_id, _, pos) <- Selection.get_insert_track
     event <- get_event track_id pos (TrackPos 0)
     let event2 = event { Event.event_text = Event.event_text event ++ [char] }
     State.insert_events track_id [(pos, event2)]

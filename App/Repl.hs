@@ -6,7 +6,6 @@ import qualified System.Console.Readline as Readline
 
 import qualified App.SendCmd as SendCmd
 
-
 main = SendCmd.initialize $ do
     putStrLn "^D to quit"
     while (Readline.readline "> ") handle_cmd ""

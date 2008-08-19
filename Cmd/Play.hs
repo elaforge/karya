@@ -103,8 +103,9 @@ import qualified Util.Thread as Thread
 
 import Ui.Types
 import qualified Ui.Block as Block
-import qualified Ui.Track as Track
+import qualified Ui.Id as Id
 import qualified Ui.State as State
+import qualified Ui.Track as Track
 -- This causes a bunch of modules to import BlockC.  Can I move the updater
 -- stuff out?
 import qualified Ui.Sync as Sync
@@ -146,7 +147,7 @@ cmd_play_focused play_info = do
 cmd_play_from_insert play_info = do
     view_id <- Cmd.get_focused_view
     block_id <- find_play_block view_id
-    (pos, _, track_id) <- Selection.get_insert_pos
+    (track_id, _, pos) <- Selection.get_insert_track
     cmd_play play_info block_id (track_id, pos)
 
 cmd_play :: PlayInfo -> Block.BlockId -> (Track.TrackId, TrackPos)

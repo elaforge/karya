@@ -72,7 +72,7 @@ trans_legato sel_end _prev next (pos, event) = [(pos, extended)]
 -- | An event overlapping the selection's point will be clipped to end there.
 cmd_clip_event :: (Monad m) => Cmd.CmdT m ()
 cmd_clip_event = do
-    (pos, _, track_id) <- Selection.get_insert_pos
+    (track_id, _, pos) <- Selection.get_insert_track
     track <- State.get_track track_id
     (event_pos, event) <- Cmd.require $
         Track.event_overlapping (Track.track_events track) pos

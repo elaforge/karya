@@ -69,7 +69,7 @@ cmd_modify_zoom f view_id = do
 cmd_zoom_around_insert :: (Double -> Double) -> Cmd.CmdId
 cmd_zoom_around_insert f = do
     view_id <- Cmd.get_focused_view
-    (pos, _, _) <- Selection.get_insert_pos
+    (_, _, pos) <- Selection.get_insert_pos
     cmd_zoom_around view_id pos f
 
 cmd_zoom_around :: Block.ViewId -> TrackPos -> (Double -> Double) -> Cmd.CmdId
