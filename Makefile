@@ -11,6 +11,10 @@ MIDI_LIBS := $(PORTMIDI)/pm_mac/libportmidi.a \
 CINCLUDE := -Ifltk -I$(PORTMIDI)/pm_common -I$(PORTMIDI)/porttime -I. -I/usr/local/src/boost
 CXXFLAGS := `fltk-config --cxxflags` $(DEBUG) $(CINCLUDE) -Wall
 LDFLAGS := `fltk-config --ldflags` $(DEBUG)
+
+# ghc doesn't like -ggdb, yay!
+# I use /usr/local/lib because that's where readline is installed.
+HLDFLAGS := `fltk-config --ldflags` -L/usr/local/lib
 # Directory for built binaries.
 BUILD := build
 BUNDLE = tools/make_bundle $@
@@ -108,8 +112,8 @@ $(BUILD)/test_midi: $(MIDI_HS) $(UI_HS)
 $(BUILD)/seq: $(UI_HS) $(UI_OBJS) $(MIDI_HS) fltk/fltk.a
 	$(GHC) $(HFLAGS) -package ghc --make \
 		-main-is App.Main App/Main.hs \
-		$(UI_OBJS) fltk/fltk.a \
-		$(MIDI_LIBS) `fltk-config --ldflags` \
+		$(UI_OBJS) fltk/fltk.a $(MIDI_LIBS) \
+		$(HLDFLAGS) \
 		-o $@
 	$(BUNDLE)
 
@@ -136,7 +140,7 @@ LOGVIEW_HS = LogViewer/LogViewC.hs
 .PHONY: logview
 $(BUILD)/logview: $(LOGVIEW_OBJ)
 	$(GHC) $(HFLAGS) --make -main-is LogViewer.LogView $^ -o $@ \
-		`fltk-config --ldflags`
+		$(HLDFLAGS)
 	$(BUNDLE)
 
 BROWSER_OBJ = Instrument/Browser.hs \
@@ -147,7 +151,7 @@ BROWSER_HS = Instrument/BrowserC.hs
 .PHONY: browser
 $(BUILD)/browser: $(BROWSER_OBJ) $(BROWSER_HS)
 	$(GHC) $(HFLAGS) --make -main-is Instrument.Browser $^ -o $@ \
-		`fltk-config --ldflags`
+		$(HLDFLAGS)
 	$(BUNDLE)
 
 .PHONY: doc
@@ -175,7 +179,7 @@ test_obj/RunTests: test_obj/RunTests.hs all_hsc $(UI_OBJS) fltk/fltk.a
 		-odir test_obj -hidir test_obj \
 		test_obj/RunTests.hs -o $@ \
 		$(UI_OBJS) fltk/fltk.a \
-		$(MIDI_LIBS) `fltk-config --ldflags`
+		$(MIDI_LIBS) $(HLDFLAGS)
 	rm -f *.tix # this sticks around and breaks things
 	rm -f test.output # this gets reset on each new test run
 
