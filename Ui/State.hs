@@ -72,8 +72,12 @@ empty = State "untitled" "save" Map.empty Map.empty Map.empty ruler_map
 
 -- | Since all TracklikeIds must have a ruler, all States have a special empty
 -- ruler that can be used in a \"no ruler\" situation.
+--
+-- To enforce its global nature, this should never be renamed or deleted, which
+-- is enforced by 'map_ids' and 'destroy_ruler', but it's still possible.  So
+-- don't do that.
 no_ruler :: Ruler.RulerId
-no_ruler = Ruler.RulerId (Id.global "* no ruler *")
+no_ruler = Ruler.RulerId (Id.global "_no_ruler_")
 
 -- | A non-existent ruler, ready for inclusion into create_block's track list.
 no_ruler_track :: (Block.TracklikeId, Block.Width)
@@ -241,7 +245,7 @@ map_track_ids f = do
 map_ruler_ids :: (UiStateMonad m) => (Id.Id -> Id.Id) -> m ()
 map_ruler_ids f = do
     rulers <- fmap state_rulers get
-    let ruler_f = Ruler.RulerId . f . Id.unpack_id
+    let ruler_f = Ruler.RulerId . trans . Id.unpack_id
     new_rulers <- safe_map_keys "state_rulers" ruler_f rulers
 
     blocks <- fmap state_blocks get
@@ -254,6 +258,9 @@ map_ruler_ids f = do
     map_track f ((Block.TId tid rid), w) = (Block.TId tid (f rid), w)
     map_track f ((Block.RId rid), w) = (Block.RId (f rid), w)
     map_track _ t = t
+    trans ident
+        | ident == Id.unpack_id no_ruler = ident
+        | otherwise = f ident
 
 
 -- | Merge ID maps from the states together.  Collisions will throw.
@@ -735,7 +742,7 @@ create_ruler id ruler = get >>= insert (Ruler.RulerId id) ruler state_rulers
 
 -- | Destroy the ruler and remove it from all the blocks it's in.
 destroy_ruler :: (UiStateMonad m) => Ruler.RulerId -> m ()
-destroy_ruler ruler_id = do
+destroy_ruler ruler_id = when (ruler_id /= no_ruler) $ do
     blocks <- blocks_with_ruler ruler_id
     forM_ blocks $ \(block_id, tracknum, _) -> do
         remove_track block_id tracknum
