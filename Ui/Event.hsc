@@ -40,7 +40,8 @@ data Event = Event {
     , event_style :: Font.TextStyle
     , event_align_to_bottom :: Bool
     } deriving (Eq, Show, Read, Generics.Data, Generics.Typeable)
-
+event text dur color style align =
+    Event text (max (TrackPos 0) dur) color style align
 
 -- * storable
 
