@@ -151,26 +151,14 @@ split_with f xs = map reverse (go f xs [])
         | f x = collect : go f xs [x]
         | otherwise = go f xs (x:collect)
 
-splitSeqWith :: ([a] -> Maybe Int) -> [a] -> [[a]]
-splitSeqWith _ [] = []
-splitSeqWith f xs = pre : ap_head (matched++) (splitSeqWith f rest)
-    where
-    (pre, post, n) = doSplitSeqWith f xs
-    (matched, rest) = splitAt n post
-
-doSplitSeqWith _ [] = ([], [], 0)
-doSplitSeqWith f elts@(x:xs) = case f elts of
-    Just n -> ([], elts, n)
-    Nothing -> let (match, rest, n) = doSplitSeqWith f xs
-        in (x : match, rest, n)
-
-match val xs
-    | val `isPrefixOf` xs = Just (length val)
-    | otherwise = Nothing
-
 -- | Split 'xs' on 'sep', dropping 'sep' from the result.
-split :: Eq a => [a] -> [a] -> [[a]]
-split sep xs = ap_tail (map (drop (length sep))) (splitSeqWith (match sep) xs)
+split "" _ = error $ "Util.Seq.split: empty separator"
+split sep xs = go sep xs
+    where
+    go sep xs
+        | null post = [pre]
+        | otherwise = pre : split sep (drop (length sep) post)
+        where (pre, post) = break_tails (sep `isPrefixOf`) xs
 
 -- | Concat a list with 'sep' in between.
 join sep = concat . intersperse sep
@@ -190,9 +178,3 @@ replace val repl = replaceWith (replaceVal val repl)
 replaceVal val repl xs
     | val `isPrefixOf` xs = Just (repl, drop (length val) xs)
     | otherwise = Nothing
-
--- | maybe for lists
-decons def f xs = if null xs then def else f (head xs) (tail xs)
-
-ap_head f = decons [] (\x xs -> f x : xs)
-ap_tail f = decons [] (\x xs -> x : f xs)
