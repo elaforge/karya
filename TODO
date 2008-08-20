@@ -32,6 +32,7 @@ logging
   - LogView should use Util.Fltk
 
 Ui
+  - some kind of special highlight to indicate the active block
   - rethrow c++ exceptions as FltkError
   Controllers
     - pass signals as pointers, not copies
@@ -111,7 +112,7 @@ Derive
       transposed
     - alternate scales
     - defaulting parameters for control and note tracks
-    - subblock derivation
+    * subblock derivation
   - display derived blocks
   - 3 way merge for derived blocks
 

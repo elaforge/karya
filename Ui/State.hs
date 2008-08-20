@@ -147,9 +147,11 @@ run_state_t (StateT x) = x
 instance Trans.MonadTrans StateT where
     lift = StateT . lift . lift . lift
 
-data StateError = StateError String deriving (Eq, Show, Generics.Typeable)
+data StateError = StateError String deriving (Generics.Typeable)
 instance Error.Error StateError where
     strMsg = StateError
+instance Show StateError where
+    show (StateError msg) = "StateError " ++ msg
 
 -- TODO remove modify and implement in terms of get and put?
 -- TODO I also think I can remove throw since it's in Error
@@ -488,8 +490,8 @@ ruler_end block_id = do
 event_end :: (UiStateMonad m) => Block.BlockId -> m TrackPos
 event_end block_id = do
     block <- get_block block_id
-    tracks <- mapM get_track (Block.track_ids_of (Block.block_tracks block))
-    return $ maximum (TrackPos 0 : map Track.track_time_end tracks)
+    track_ends <- mapM track_end (Block.track_ids_of (Block.block_tracks block))
+    return $ maximum (TrackPos 0 : track_ends)
 
 -- ** tracks
 
@@ -671,6 +673,10 @@ remove_event track_id pos = do
             let end = Track.event_end (pos, evt)
             update $ Update.TrackUpdate track_id (Update.TrackEvents pos end)
 
+-- | Get the end of the last event of the block.
+track_end :: (UiStateMonad m) => Track.TrackId -> m TrackPos
+track_end track_id = fmap Track.track_time_end (get_track track_id)
+
 -- | An EventTransformer applies a given transformation to the events in
 -- a track.  TODO make sure this can also be used as a deriver, so I can
 -- use the same functions in derivers as in edit commands.
@@ -809,9 +815,9 @@ find_tracks f = do
 -- * util
 
 -- | Lookup @map!key@, throwing if it doesn't exist.
-lookup_id :: (Ord k, Show k, UiStateMonad m) => k -> Map.Map k a -> m a
+lookup_id :: (Ord k, Id.Ident k, UiStateMonad m) => k -> Map.Map k a -> m a
 lookup_id key map = case Map.lookup key map of
-    Nothing -> throw $ "unknown " ++ show key
+    Nothing -> throw $ "unknown " ++ Id.show_ident key
     Just val -> return val
 
 -- | Insert @val@ at @key@ in @get_map state@, throwing if it already exists.

@@ -46,7 +46,7 @@ warn_float fail_str s = do
 parse :: (Monad m) => P.CharParser () a -> String -> Derive.DeriveT m a
 parse p text = do
     (val, rest) <- case P.parse (p_rest p) "" text of
-        Left err -> Derive.throw_event $
+        Left err -> Derive.throw $
             "parse error on char "
             ++ show (P.sourceColumn (P.errorPos err))
             ++ " of " ++ show text ++ ": "

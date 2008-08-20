@@ -28,7 +28,10 @@ import qualified Util.Log as Log
 import Util.Seq as Seq
 
 import Ui.Types
+import qualified Ui.Block as Block
 import qualified Ui.Event as Event
+import qualified Ui.Id as Id
+import qualified Ui.State as State
 import qualified Ui.Track as Track
 
 import qualified Derive.Controller as Controller
@@ -37,6 +40,8 @@ import qualified Derive.Score as Score
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
+
+import Util.Debug
 
 
 type NoteParser m = Track.PosEvent
@@ -58,11 +63,14 @@ data ParsedEvent = ParsedEvent {
     , parsed_start :: TrackPos
     , parsed_dur :: TrackPos
     , parsed_pitch :: Maybe (Signal.Method, Pitch.Pitch)
-    , parsed_sub :: Maybe String
+    , parsed_call :: Maybe String
     } deriving (Show)
 
 derive_notes :: (Monad m) => [ParsedEvent] -> Derive.DeriveT m [Score.Event]
-derive_notes parsed = fmap concat (mapM derive_note parsed)
+derive_notes parsed = fmap concat (mapM note parsed)
+    where
+    note parsed = Derive.with_stack_pos
+        (parsed_start parsed) (parsed_dur parsed) (derive_note parsed)
 
 derive_note :: (Monad m) => ParsedEvent -> Derive.DeriveT m [Score.Event]
 derive_note parsed = do
@@ -72,12 +80,48 @@ derive_note parsed = do
     start <- Derive.local_to_global (parsed_start parsed)
     end <- Derive.local_to_global (parsed_start parsed + parsed_dur parsed)
     st <- Derive.get
-    case parsed_sub parsed of
+    case parsed_call parsed of
         Nothing -> return [Score.Event start (end-start) (parsed_text parsed)
             (Derive.state_controllers st) (Derive.state_stack st)
             (Derive.state_instrument st)]
-        Just ('<':block_name) -> error "block subderive unimplemented"
-        Just sub -> error $ "call subderive unimplemented for " ++ show sub
+        -- d_call will set shift and stretch which is in local time, so pass
+        -- local rather than global.
+        Just call -> Derive.d_sub_derive []
+            (d_call (parsed_start parsed) (parsed_dur parsed) call)
+
+d_call :: TrackPos -> TrackPos -> String -> Derive.EventDeriver
+d_call start dur ident = do
+    -- TODO also I'll want to support generic calls
+    default_ns <- fmap (State.state_project . Derive.state_ui) Derive.get
+    let block_id = Block.BlockId (make_id default_ns ident)
+    stack <- fmap Derive.state_stack Derive.get
+    -- Since there is no branching, any recursion will be endless.
+    when (block_id `elem` [bid | (bid, _, _) <- stack]) $
+        Derive.throw $ "recursive block derivation: " ++ show block_id
+    -- Stretch call to fit in duration, based on the block length.
+    -- An alternate approach would be no stretch, but just clip, but I'm
+    -- not sure how to indicate that kind of derivation.
+    -- This is actually the only thing that requires block_id name a real
+    -- block.
+    ui_state <- fmap Derive.state_ui Derive.get
+    block_dur <- either (Derive.throw . ("getting block end: "++) . show)
+        return (State.eval ui_state (State.ruler_end block_id))
+    if block_dur > TrackPos 0
+        then Derive.d_at start (Derive.d_stretch (dur/block_dur)
+            (Derive.d_block block_id))
+        else do
+            Log.warn $ "block with zero duration: " ++ Id.show_ident block_id
+            return []
+
+-- | Make an Id from a string, relative to the current ns if it doesn't already
+-- have one.
+--
+-- TODO move this to a more generic place since LanguageCmds may want it to?
+make_id :: String -> String -> Id.Id
+make_id default_ns ident_str = Id.id ns ident
+    where
+    (w0, w1) = break (=='/') ident_str
+    (ns, ident) = if null w1 then (default_ns, w0) else (w0, drop 1 w1)
 
 parse_events :: (Monad m) => NoteParser m -> [Track.PosEvent]
     -> Derive.DeriveT m [ParsedEvent]
@@ -85,8 +129,8 @@ parse_events note_parser events = do
     maybe_parsed <- mapM derive_event (map note_parser events)
     return
         [ ParsedEvent (Event.event_text event) start
-            (Event.event_duration event) pitch sub
-        | ((start, event), Just (pitch, sub)) <- zip events maybe_parsed]
+            (Event.event_duration event) pitch call
+        | ((start, event), Just (pitch, call)) <- zip events maybe_parsed]
 
 extract_pitch_signal :: (Monad m) => Pitch.ScaleMap -> [ParsedEvent]
     -> Derive.DeriveT m Signal.Signal
@@ -118,7 +162,8 @@ pitch_to_val scales pitch = do
     return nn
 
 derive_event :: (Monad m) => Derive.DeriveT m a -> Derive.DeriveT m (Maybe a)
-derive_event deriver = Derive.catch_event deriver
+derive_event deriver = Derive.catch_warn deriver
+
 
 -- * parser
 
@@ -127,7 +172,7 @@ derive_event deriver = Derive.catch_event deriver
 scale_parser :: (Monad m) => Pitch.Scale -> NoteParser m
 scale_parser scale (_pos, event) =
     case parse_note scale (Event.event_text event) of
-        Left err -> Derive.throw_event err
+        Left err -> Derive.throw err
         Right parsed -> return parsed
 
 -- | Try to parse a note track event.  It's a little finicky because
@@ -179,34 +224,6 @@ untokenize_note ("", "", call) = '<':call
 untokenize_note (note_s, pitch_s, "") = join_note [note_s, pitch_s]
 untokenize_note (note_s, pitch_s, call) = join_note [note_s, pitch_s, '<':call]
 join_note = Seq.join ", " . filter (not . null)
-
-
--- * sub-derive
-
-sub_derive :: (Monad m) => Derive.EventDeriver -> Derive.DeriveT m [Score.Event]
-sub_derive deriver = do
-    state <- Derive.get
-    let (res, state2, logs) = Identity.runIdentity $ Derive.run state deriver
-    case res of
-            -- TODO Maybe I should save exceptions as-is.
-        Left err -> do
-            Log.warn $ "error sub-deriving: " ++ show err
-            return []
-        Right events -> do
-            let pos_range = get_track_pos_range events
-            Derive.modify (merge_states pos_range state2)
-            return events
-
-get_track_pos_range [] = (TrackPos 0, TrackPos 0)
-get_track_pos_range events =
-    (Score.event_start (head events), Score.event_end (last events))
-
-merge_states :: (TrackPos, TrackPos) -> Derive.State -> Derive.State
-    -> Derive.State
-merge_states pos_range src dest = dest
-    -- TODO use pos_range to insert into the WarpMap
-    { Derive.state_track_warps = Derive.state_track_warps src
-    }
 
 
 -- One of the early proponents of this style during the renaissance was

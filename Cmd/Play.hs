@@ -168,7 +168,7 @@ cmd_play play_info block_id (start_track, start_pos) = do
 
     start_ts <- case tempo_map block_id start_track start_pos of
         Nothing -> State.throw $ "unknown play start pos: "
-            ++ show (start_track, start_pos)
+            ++ Id.show_ident start_track ++ ", " ++ show start_pos
         Just ts -> return ts
     transport <- perform block_id play_info start_ts events
 
@@ -220,14 +220,10 @@ derive :: (Monad m) => Schema.SchemaMap -> Block.BlockId -> Cmd.CmdT m
     (Either Derive.DeriveError [Score.Event], Transport.TempoFunction,
         Transport.InverseTempoFunction)
 derive schema_map block_id = do
-    block <- State.get_block block_id
-    deriver <- Schema.get_deriver schema_map block
     ui_state <- State.get
-
-    -- TODO all the derivation work could be done asynchronously by
-    -- a background thread
-    let (result, tempo_func, inv_tempo_func, logs) =
-            Derive.derive ui_state block_id deriver
+    let (result, tempo_func, inv_tempo_func, logs, _) =
+            Derive.derive (Schema.lookup_deriver schema_map ui_state)
+                ui_state False (Derive.d_block block_id)
     mapM_ Log.write logs
     return (result, tempo_func, inv_tempo_func)
 

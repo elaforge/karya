@@ -15,6 +15,8 @@ import qualified Derive.Schema as Schema
 import Derive.Schema (Skeleton(..), TrackType(..))
 import qualified Derive.Score as Score
 
+import qualified Derive.Derive_test as Derive_test
+
 import qualified Perform.Midi.Instrument as Instrument
 
 import Util.PPrint
@@ -71,7 +73,8 @@ test_compile_to_signals = do
     let d = Schema.compile_to_signals skel
     -- It's important that the tempo track *doesn't* apply, since these go to
     -- the UI.
-    let (res, _, _, logs) = Derive.derive state (Block.BlockId (mkid "b0")) d
+    let (res, _, _, logs) = Derive.derive Derive.empty_lookup_deriver state
+            (Derive_test.setup_deriver d)
     pprint skel
     pprint res
     -- tempo, c1, and c2 tracks get signals.

@@ -32,7 +32,7 @@ module Derive.Schema (
     , compile_to_signals
 
     -- * lookup
-    , get_deriver, get_signal_deriver, get_cmds, get_skeleton
+    , lookup_deriver, get_signal_deriver, get_cmds, get_skeleton
     , skeleton_instruments
     -- * util
     , block_tracks
@@ -87,6 +87,36 @@ merge_schemas map1 map2 = Map.union map2 map1
 -- instead of Block... is it worth it?
 -- type SchemaContext = (Block.SchemaId, [Track], SchemaMap)
 
+-- | Create a LookupDeriver function.
+lookup_deriver :: SchemaMap -> State.State -> Derive.LookupDeriver
+lookup_deriver schema_map ui_state block_id = State.eval ui_state $ do
+    block <- State.get_block block_id
+    schema <- State.lookup_id (Block.block_schema block)
+        (merge_schemas hardcoded_schemas schema_map)
+    schema_deriver schema block
+
+-- | Get the signal deriver for the given block.  Unlike the event deriver,
+-- the signal deriver is only ever local to one block, so it doesn't need
+-- a lookup mechanism.
+get_signal_deriver :: (State.UiStateMonad m) => SchemaMap -> Block.Block
+    -> m Derive.SignalDeriver
+get_signal_deriver schema_map block = do
+    schema <- State.lookup_id (Block.block_schema block)
+        (merge_schemas hardcoded_schemas schema_map)
+    state <- State.get
+    State.eval_rethrow "get signal deriver" state
+        (schema_signal_deriver schema block)
+
+
+{-
+lookup_signal_deriver :: SchemaMap -> State.State -> Block.BlockId
+    -> Either State.StateError Derive.SignalDeriver
+lookup_signal_deriver schema_map ui_state block_id = State.eval ui_state $ do
+    block <- State.get_block block_id
+    schema <- State.lookup_id (Block.block_schema block)
+        (merge_schemas hardcoded_schemas schema_map)
+    schema_signal_deriver schema block
+
 get_deriver :: (State.UiStateMonad m) => SchemaMap -> Block.Block
     -> m Derive.EventDeriver
 get_deriver schema_map block = do
@@ -101,15 +131,7 @@ get_deriver schema_map block = do
     -- modify the state.
     state <- State.get
     State.eval_rethrow "get deriver" state (schema_deriver schema block)
-
-get_signal_deriver :: (State.UiStateMonad m) => SchemaMap -> Block.Block
-    -> m Derive.SignalDeriver
-get_signal_deriver schema_map block = do
-    schema <- State.lookup_id (Block.block_schema block)
-        (merge_schemas hardcoded_schemas schema_map)
-    state <- State.get
-    State.eval_rethrow "get signal deriver" state
-        (schema_signal_deriver schema block)
+-}
 
 -- | A block's Schema also implies a set of Cmds, possibly based on the
 -- focused track.  This is so that e.g. control tracks use control editing keys
@@ -283,13 +305,18 @@ event_tracks tracks =
 
 track_controller :: (Monad m) => (String, Track.TrackId)
     -> Derive.DeriveT m [Score.Event] -> Derive.DeriveT m [Score.Event]
-track_controller (name, track_id) =
-    controller_deriver $ Controller.d_signal
-        =<< Derive.with_track_warp Controller.d_controller_track track_id
-    where
-    controller_deriver
-        | name == tempo_track_title = Derive.d_tempo track_id
-        | otherwise = Controller.d_controller (Score.Controller name)
+track_controller (name, track_id) deriver
+    | name == tempo_track_title = do
+        -- A tempo track is derived like other signals, but gets special
+        -- treatment because of the track warps chicanery.
+        sig_events <- Derive.with_track_warp_tempo
+            Controller.d_controller_track track_id
+        Derive.d_tempo track_id (Controller.d_signal sig_events) deriver
+    | otherwise = do
+        sig_events <- Derive.with_track_warp
+            Controller.d_controller_track track_id
+        Controller.d_controller (Score.Controller name)
+            (Controller.d_signal sig_events) deriver
 
 -- *** compile to signals
 

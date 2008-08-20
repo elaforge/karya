@@ -5,6 +5,7 @@ module Util.Test (
     -- ** pure checks
     , check, check_srcpos, check_msg, check_msg_srcpos
     , equal, equal_srcpos
+    , strings_like, strings_like_srcpos
     -- ** exception checks
     , throws, throws_srcpos, catch_srcpos
     , exc_like
@@ -20,11 +21,13 @@ module Util.Test (
 
 import qualified Control.Exception as Exception
 import Control.Monad
-import qualified Data.List as List
 import qualified Data.IORef as IORef
+import qualified Data.List as List
+import qualified Data.Maybe as Maybe
 import qualified System.IO as IO
 import qualified System.IO.Unsafe as Unsafe
 import Text.Printf
+import qualified Text.Regex as Regex
 
 import qualified Util.Seq as Seq
 import qualified Util.SrcPos as SrcPos
@@ -61,6 +64,18 @@ equal_srcpos srcpos a b
     where
     pa = PPrint.pshow a
     pb = PPrint.pshow b
+
+strings_like :: [String] -> [String] -> IO ()
+strings_like = strings_like_srcpos Nothing
+
+strings_like_srcpos :: SrcPos.SrcPos -> [String] -> [String] -> IO ()
+strings_like_srcpos srcpos gotten expected =
+    mapM_ (uncurry string_like) (zip gotten expected)
+    where
+    string_like a b
+        | Maybe.isJust (Regex.matchRegex (Regex.mkRegex b) a) =
+            success srcpos $ show a ++ " =~ " ++ show b
+        | otherwise = failure srcpos $ show a ++ " !~ " ++ show b
 
 -- | The given pure value should throw an exception that matches the predicate.
 throws :: (Show a) => (Exception.Exception -> Bool) -> a -> IO ()

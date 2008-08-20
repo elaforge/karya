@@ -63,13 +63,14 @@ import qualified Util.Data
 import qualified Util.Log as Log
 import qualified Util.Thread as Thread
 
-import qualified Ui.State as State
 import qualified Ui.Block as Block
-import qualified Ui.Track as Track
-import qualified Ui.Sync as Sync
 import qualified Ui.Diff as Diff
-import qualified Ui.Update as Update
+import qualified Ui.Id as Id
+import qualified Ui.State as State
+import qualified Ui.Sync as Sync
+import qualified Ui.Track as Track
 import qualified Ui.UiMsg as UiMsg
+import qualified Ui.Update as Update
 import qualified Midi.Midi as Midi
 import qualified Perform.Transport as Transport
 import qualified Perform.Timestamp as Timestamp
@@ -365,15 +366,17 @@ derive_signals schema_map ui_state = (block_samples, logs)
     logs = [warn block_id err | (block_id, Left err) <- track_results]
         ++ concat [logs | (_, Right (_, logs)) <- track_results]
     warn block_id err = Log.msg Log.Warn $
-        "error deriving signal for " ++ show block_id ++ ": " ++ show err
+        "exception deriving signal for " ++ Id.show_ident block_id ++ ": "
+        ++ show err
 
 derive_signal :: (State.UiStateMonad m) =>
     Schema.SchemaMap -> Block.BlockId -> m (Track.TrackSamples, [Log.Msg])
 derive_signal schema_map block_id = do
-    block <- State.get_block block_id
-    deriver <- Schema.get_signal_deriver schema_map block
     ui_state <- State.get
-    let (result, _, _, logs) = Derive.derive ui_state block_id deriver
+    deriver <- Schema.get_signal_deriver schema_map =<< State.get_block block_id
+    let (result, _, _, logs, _) = Derive.derive
+            Derive.empty_lookup_deriver ui_state True
+            (Derive.with_stack_block block_id deriver)
     case result of
         Left err -> State.throw (show err)
         Right sig ->

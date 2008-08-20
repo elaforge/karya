@@ -48,7 +48,12 @@ default_divider = Block.Divider Color.blue
 
 -- state
 
-mkid = Id.id "test"
+test_ns = "test"
+mkid = Id.id test_ns
+bid = Block.BlockId . mkid
+vid = Block.ViewId . mkid
+tid = Track.TrackId . mkid
+
 default_zoom = Config.zoom
 
 -- TODO convert to use mkstate
@@ -83,8 +88,8 @@ initial_state = do
 
 -- * mkstate
 
-default_block_id = Block.BlockId (mkid "b1")
-default_view_id = Block.ViewId (mkid "v1")
+default_block_id = (bid "b1")
+default_view_id = (vid "v1")
 
 -- | Return the val and state, throwing an IO error on an exception.  Intended
 -- for tests that don't expect to fail here.
@@ -94,15 +99,21 @@ run state m = case result of
         Right (val, state', _) -> (val, state')
     where result = Identity.runIdentity (State.run state m)
 
-run_mkstate track_specs = run State.empty (mkstate default_block_id track_specs)
+run_mkstate track_specs = run State.empty (mkstate "b1" track_specs)
 
 mkstate :: (State.UiStateMonad m) =>
-    Block.BlockId -> [TrackSpec] -> m [Track.TrackId]
-mkstate block_id tracks = do
-    ruler <- State.create_ruler (mkid "r1") no_ruler
+    String -> [TrackSpec] -> m [Track.TrackId]
+mkstate block_name tracks = do
+    State.set_project test_ns
     tids <- forM (zip [0..] tracks) $ \(i, track) -> do
-        State.create_track (mkid ("b1." ++ show i)) (mktrack track)
-    State.create_block (Id.unpack_id block_id) $
+        State.create_track (mkid (block_name ++ ".t" ++ show i)) (mktrack track)
+
+    -- Make the ruler go up to the last event, so State.ruler_end will be
+    -- non-zero.
+    track_ends <- mapM State.track_end tids
+    let end = maximum (TrackPos 0 : track_ends)
+    ruler <- State.create_ruler (mkid (block_name ++ ".r0")) (ruler_until end)
+    State.create_block (mkid block_name) $
         Block.block "b1 title" default_block_config
             ((Block.RId ruler, 20) : [(Block.TId tid ruler, 40) | tid <- tids])
             Config.schema
@@ -142,6 +153,7 @@ default_style = Font.TextStyle Font.Helvetica [] 9 Color.black
 
 default_ruler = mkruler 20 10
 no_ruler = mkruler 0 0
+ruler_until pos = ruler [Ruler.marklist "until" [(pos, Ruler.null_mark)]]
 
 mkruler marks dist = Ruler.Ruler [marklist marks dist] ruler_bg True False False
 ruler mlists = Ruler.Ruler mlists ruler_bg True False False

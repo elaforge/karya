@@ -46,6 +46,9 @@ d_controller cont signalm eventsm = do
     signal <- signalm
     Derive.with_controller cont signal eventsm
 
+-- | Get the signal events from a controller track.  They are meant to be
+-- fed to 'd_signal', which will convert them into a signal, and the whole
+-- thing passed as the signal deriver to 'd_controller'.
 d_controller_track :: (Monad m) => Derive.TrackDeriver m
 d_controller_track track_id = do
     track <- Derive.get_track track_id
