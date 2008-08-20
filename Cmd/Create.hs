@@ -8,13 +8,15 @@
 
     However, I do allow some naming beyond simple numbers for things which are
     unlikely to change, like tempo tracks and rulers, which don't have any
-    other title.
+    other title.  And block IDs are used by the sub-derive mechanism, so those
+    should be nameable.
 -}
 module Cmd.Create where
 import Control.Monad
 import qualified Control.Monad.Trans as Trans
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 import qualified Ui.Id as Id
 import qualified Ui.Block as Block
@@ -41,6 +43,33 @@ rename_project from to = State.map_ids set_ns
         | otherwise = ident
         where (ns, name) = Id.un_id ident
 
+-- | Find tracks which are not found in any block.  Probably used to pass them
+-- to State.destroy_track for \"gc\".
+orphan_tracks :: (State.UiStateMonad m) => m [Track.TrackId]
+orphan_tracks = do
+    blocks <- fmap (Map.elems . State.state_blocks) State.get
+    let ref_tracks = Set.fromList $
+            concatMap (Block.track_ids_of . Block.block_tracks) blocks
+    tracks <- fmap (Set.fromAscList . Map.keys . State.state_tracks) State.get
+    return $ Set.toList (tracks `Set.difference` ref_tracks)
+
+-- | Find rulers which are not found in any block.
+orphan_rulers :: (State.UiStateMonad m) => m [Ruler.RulerId]
+orphan_rulers = do
+    blocks <- fmap (Map.elems . State.state_blocks) State.get
+    let ref_rulers = Set.fromList $
+            concatMap (Block.ruler_ids_of . Block.block_tracks) blocks
+    rulers <- fmap (Set.fromAscList . Map.keys . State.state_rulers) State.get
+    return $ Set.toList (rulers `Set.difference` ref_rulers)
+
+-- | Find blocks with no associated views.
+orphan_blocks :: (State.UiStateMonad m) => m [Block.BlockId]
+orphan_blocks = do
+    views <- fmap (Map.elems . State.state_views) State.get
+    let ref_blocks = Set.fromList (map Block.view_block views)
+    blocks <- fmap (Set.fromAscList . Map.keys . State.state_blocks) State.get
+    return $ Set.toList (blocks `Set.difference` ref_blocks)
+
 -- * block
 
 -- | BlockIds look like \"ns/b0\", \"ns/b1\", etc.
@@ -50,6 +79,17 @@ block ruler_id = do
     blocks <- fmap State.state_blocks State.get
     block_id <- require "block id" $ generate_block_id ns blocks
     b <- State.create_block block_id $
+        Block.block "" Config.block_config [] Config.schema
+    State.insert_track b 0 (Block.RId ruler_id) Config.ruler_width
+    return b
+
+-- | Create a block with the given ID name.  Useful for blocks meant to be
+-- sub-derived.
+named_block :: (State.UiStateMonad m) =>
+    String -> Ruler.RulerId -> m Block.BlockId
+named_block name ruler_id = do
+    ns <- State.get_project
+    b <- State.create_block (Id.id ns name) $
         Block.block "" Config.block_config [] Config.schema
     State.insert_track b 0 (Block.RId ruler_id) Config.ruler_width
     return b
