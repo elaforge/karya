@@ -17,7 +17,7 @@ echo "exec '$path.app/Contents/MacOS/$name'" '$*' >>"$path.run"
 chmod +x "$path.run"
 
 # Make sure the script is idempotent since make likes to run it due to .PHONY.
-if cmp --silent "$path.run" "$bindir/$name"; then
+if cmp --silent "$path.run" "$path"; then
     rm "$path.run"
 else
     rm -rf "$bindir"
