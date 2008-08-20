@@ -5,6 +5,7 @@ import qualified Data.Array.IArray as IArray
 import qualified Data.Generics as Generics
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Text.Read as Read
 
 import qualified Util.Data
 
@@ -13,13 +14,15 @@ import qualified Ui.Id as Id
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 
-
 newtype TrackId = TrackId Id.Id
-    deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
+    deriving (Eq, Ord, Generics.Data, Generics.Typeable)
 
+instance Show TrackId where show = Id.show_ident
+instance Read TrackId where readPrec = Id.read_ident undefined
 instance Id.Ident TrackId where
     unpack_id (TrackId a) = a
-    id_con _ = "tid"
+    cons_name _ = "tid"
+    cons = TrackId
 
 type PosEvent = (TrackPos, Event.Event)
 

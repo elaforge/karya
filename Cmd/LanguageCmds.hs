@@ -131,7 +131,7 @@ show_state = do
     (State.State project dir views blocks tracks rulers _midi_config)
         <- State.get
     -- midi config showed by show_midi_config
-    let f fm = show_list (map Id.show_ident (Map.keys fm))
+    let f fm = show_list (map show (Map.keys fm))
     return $ show_record
         [ ("project", project), ("dir", dir)
         , ("views", f views), ("blocks", f blocks)
@@ -155,7 +155,7 @@ show_block block_id = do
     return $ show_record
         [ ("title", Block.block_title block)
         , ("tracks", show_list track_descs)
-        , ("schema", Id.show_ident (Block.block_schema block))
+        , ("schema", show (Block.block_schema block))
         ]
     where
 
@@ -166,7 +166,7 @@ show_tracklike (Block.TId tid rid) = do
     return $ id ++ " (title " ++ show title ++ ")"
         ++ " (len " ++ show (Track.events_length (Track.track_events track))
         ++ ") " ++ ruler_desc
-show_tracklike (Block.RId rid) = return (Id.show_ident rid)
+show_tracklike (Block.RId rid) = return (show rid)
 show_tracklike (Block.DId color) = return $ "Div " ++ show color
 
 -- | TODO put this in Cmd?

@@ -3,6 +3,7 @@ module Ui.Ruler where
 import qualified Data.Array.IArray as IArray
 import Data.Array.IArray ((!))
 import qualified Data.Generics as Generics
+import qualified Text.Read as Read
 
 import Util.Pretty
 import qualified Util.Data
@@ -35,11 +36,14 @@ no_ruler :: Ruler
 no_ruler = ruler [] Color.black False False False
 
 newtype RulerId = RulerId Id.Id
-    deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
+    deriving (Eq, Ord, Generics.Data, Generics.Typeable)
 
+instance Show RulerId where show = Id.show_ident
+instance Read RulerId where readPrec = Id.read_ident undefined
 instance Id.Ident RulerId where
     unpack_id (RulerId a) = a
-    id_con _ = "rid"
+    cons_name _ = "rid"
+    cons = RulerId
 
 type NameMarklist = (MarklistName, Marklist)
 type MarklistName = String

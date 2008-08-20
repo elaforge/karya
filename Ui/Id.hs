@@ -4,6 +4,7 @@ module Ui.Id (
 
     -- * construction
     , Id, Namespace, id, is_identifier, read_id, show_id
+    , read_ident, show_ident
 
     -- * deconstruction
     , un_id, id_name, id_namespace
@@ -15,12 +16,12 @@ module Ui.Id (
     , global
 ) where
 import Prelude hiding (id)
+import Control.Monad
 import qualified Data.Char as Char
 import qualified Data.Generics as Generics
 
--- import qualified Text.Read as Read
--- import qualified Text.ParserCombinators.ReadPrec as ReadPrec
--- import qualified Text.ParserCombinators.ReadP as ReadP
+import qualified Text.Read as Read
+import qualified Text.ParserCombinators.ReadPrec as ReadPrec
 
 -- * project
 
@@ -37,28 +38,24 @@ un_id (Id ident) = ident
 -- consistent display format lets me copy and paste them on the lang socket,
 -- which puts the constructors in scope.
 class Ident a where
-    show_ident :: a -> String
-    show_ident ident = "(" ++ con ++ " " ++ show (show_id id) ++ ")"
-        where
-        id = unpack_id ident
-        con = id_con ident
-
     unpack_id :: a -> Id
-    id_con :: a -> String
+    cons_name :: a -> String
+    cons :: Id -> a
 
-{-
-instance Show Id where
-    show (Id (ns, name)) = "<" ++ ns ++ "/" ++ name ++ ">"
-instance Read.Read Id where
-    readPrec = ReadPrec.lift read_id
-    readListPrec = Read.readListPrecDefault
+show_ident :: Ident a => a -> String
+show_ident ident = "(" ++ con ++ " " ++ show (show_id id) ++ ")"
+    where
+    id = unpack_id ident
+    con = cons_name ident
 
-read_id = ReadP.between (ReadP.char '<') (ReadP.char '>') $ do
-    ns <- ReadP.munch (/= '/')
-    ReadP.char '/'
-    name <- ReadP.munch (/= '>')
-    return (id ns name)
--}
+read_ident :: Ident a => a -> ReadPrec.ReadPrec a
+read_ident witness = do
+    Read.Punc "(" <- Read.lexP
+    Read.Ident sym <- Read.lexP
+    guard (sym == cons_name witness)
+    Read.String str <- Read.lexP
+    Read.Punc ")" <- Read.lexP
+    return (cons (read_id str))
 
 -- | Construct an Id.  Non-identifier characters are stripped out.
 id :: Namespace -> String -> Id

@@ -103,7 +103,6 @@ import qualified Util.Thread as Thread
 
 import Ui.Types
 import qualified Ui.Block as Block
-import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 -- This causes a bunch of modules to import BlockC.  Can I move the updater
@@ -168,7 +167,7 @@ cmd_play play_info block_id (start_track, start_pos) = do
 
     start_ts <- case tempo_map block_id start_track start_pos of
         Nothing -> State.throw $ "unknown play start pos: "
-            ++ Id.show_ident start_track ++ ", " ++ show start_pos
+            ++ show start_track ++ ", " ++ show start_pos
         Just ts -> return ts
     transport <- perform block_id play_info start_ts events
 

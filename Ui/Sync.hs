@@ -19,7 +19,6 @@ import qualified Util.Seq as Seq
 import qualified App.Config as Config
 
 import Ui.Types
-import qualified Ui.Id as Id
 import qualified Ui.Ui as Ui
 
 import qualified Ui.Block as Block
@@ -78,8 +77,7 @@ track_title (Block.TId track_id _) =
 track_title _ = return ""
 
 block_window_title :: Block.ViewId -> Block.BlockId -> String
-block_window_title view_id block_id =
-    Id.show_ident view_id ++ " -- " ++ Id.show_ident block_id
+block_window_title view_id block_id = show view_id ++ " -- " ++ show block_id
 
 get_samples :: Maybe Track.TrackSamples -> Block.TracklikeId -> Track.Samples
 get_samples maybe_track_samples track = maybe Track.no_samples id $ do

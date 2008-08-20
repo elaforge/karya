@@ -149,8 +149,8 @@ instance Show DeriveError where
 
 show_stack stack = Seq.join " -> " (map f stack)
     where
-    f (block_id, track_id, pos) = Id.show_ident block_id
-        ++ "/" ++ maybe "*" Id.show_ident track_id
+    f (block_id, track_id, pos) = show block_id
+        ++ "/" ++ maybe "*" show track_id
         ++ "/" ++ maybe "*" show pos
 
 error_message (DeriveError _ s) = s
@@ -177,7 +177,7 @@ derive lookup_deriver ui_state ignore_tempo deriver =
 d_block :: Block.BlockId -> EventDeriver
 d_block block_id = do
     state <- get
-    let rethrow exc = throw $ "lookup deriver for " ++ Id.show_ident block_id
+    let rethrow exc = throw $ "lookup deriver for " ++ show block_id
             ++ ": " ++ show exc
     deriver <- either rethrow return (state_lookup_deriver state block_id)
     with_stack_block block_id deriver

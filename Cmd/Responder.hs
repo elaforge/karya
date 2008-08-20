@@ -366,8 +366,7 @@ derive_signals schema_map ui_state = (block_samples, logs)
     logs = [warn block_id err | (block_id, Left err) <- track_results]
         ++ concat [logs | (_, Right (_, logs)) <- track_results]
     warn block_id err = Log.msg Log.Warn $
-        "exception deriving signal for " ++ Id.show_ident block_id ++ ": "
-        ++ show err
+        "exception deriving signal for " ++ show block_id ++ ": " ++ show err
 
 derive_signal :: (State.UiStateMonad m) =>
     Schema.SchemaMap -> Block.BlockId -> m (Track.TrackSamples, [Log.Msg])

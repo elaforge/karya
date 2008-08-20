@@ -5,9 +5,9 @@ import Control.Monad
 import qualified Control.Concurrent.MVar as MVar
 import qualified Data.Maybe as Maybe
 import qualified Foreign
-
 import qualified Data.Generics as Generics
 import qualified Data.Map as Map
+import qualified Text.Read as Read
 
 import qualified Util.Seq as Seq
 
@@ -24,24 +24,35 @@ import qualified Ui.Ruler as Ruler
 -- Even though the constructor is exported, you should only create them
 -- through the 'State.StateT' interface.
 newtype BlockId = BlockId Id.Id
-    deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
+    deriving (Eq, Ord, Generics.Data, Generics.Typeable)
 -- | Reference to a View, as per 'BlockId'.
 newtype ViewId = ViewId Id.Id
-    deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
+    deriving (Eq, Ord, Generics.Data, Generics.Typeable)
 -- | Reference to a schema.  Declared here instead of Deriver.Schema to avoid
 -- a circular import.
 newtype SchemaId = SchemaId Id.Id
-    deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
+    deriving (Eq, Ord, Generics.Data, Generics.Typeable)
+
+instance Show BlockId where show = Id.show_ident
+instance Show ViewId where show = Id.show_ident
+instance Show SchemaId where show = Id.show_ident
+
+instance Read BlockId where readPrec = Id.read_ident undefined
+instance Read ViewId where readPrec = Id.read_ident undefined
+instance Read SchemaId where readPrec = Id.read_ident undefined
 
 instance Id.Ident BlockId where
     unpack_id (BlockId a) = a
-    id_con _ = "bid"
+    cons_name _ = "bid"
+    cons = BlockId
 instance Id.Ident ViewId where
     unpack_id (ViewId a) = a
-    id_con _ = "vid"
+    cons_name _ = "vid"
+    cons = ViewId
 instance Id.Ident SchemaId where
     unpack_id (SchemaId a) = a
-    id_con _ = "sid"
+    cons_name _ = "sid"
+    cons = SchemaId
 
 -- * block model
 

@@ -815,9 +815,9 @@ find_tracks f = do
 -- * util
 
 -- | Lookup @map!key@, throwing if it doesn't exist.
-lookup_id :: (Ord k, Id.Ident k, UiStateMonad m) => k -> Map.Map k a -> m a
+lookup_id :: (Ord k, Show k, UiStateMonad m) => k -> Map.Map k a -> m a
 lookup_id key map = case Map.lookup key map of
-    Nothing -> throw $ "unknown " ++ Id.show_ident key
+    Nothing -> throw $ "unknown " ++ show key
     Just val -> return val
 
 -- | Insert @val@ at @key@ in @get_map state@, throwing if it already exists.

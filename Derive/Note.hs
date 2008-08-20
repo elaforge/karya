@@ -110,7 +110,7 @@ d_call start dur ident = do
         then Derive.d_at start (Derive.d_stretch (dur/block_dur)
             (Derive.d_block block_id))
         else do
-            Log.warn $ "block with zero duration: " ++ Id.show_ident block_id
+            Log.warn $ "block with zero duration: " ++ show block_id
             return []
 
 -- | Make an Id from a string, relative to the current ns if it doesn't already
