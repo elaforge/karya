@@ -52,10 +52,10 @@ instance Storable Event where
     poke = poke_event
 
 poke_event eventp (Event text dur color style align_to_bottom) = do
-        -- Must be freed by the caller, EventTrackView::draw_area.
-        textp <- if null text then return nullPtr else newCString text
-        (#poke Event, text) eventp textp
-        (#poke Event, duration) eventp dur
-        (#poke Event, color) eventp color
-        (#poke Event, style) eventp style
-        (#poke Event, align_to_bottom) eventp align_to_bottom
+    -- Must be freed by the caller, EventTrackView::draw_area.
+    textp <- newCString text
+    (#poke Event, text) eventp textp
+    (#poke Event, duration) eventp dur
+    (#poke Event, color) eventp color
+    (#poke Event, style) eventp style
+    (#poke Event, align_to_bottom) eventp align_to_bottom
