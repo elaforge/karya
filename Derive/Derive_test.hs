@@ -38,7 +38,6 @@ import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Transport as Transport
 
 -- TODO convert to use mkstate
--- uncomment stuff!
 
 
 -- Inspect the final state after running a derivation.
@@ -151,19 +150,18 @@ test_controller = do
     -- TODO better test?
     pmlist "msgs" msgs
 
-{-
 test_make_inverse_tempo_func = do
+    -- This is actually also tested in test_subderive.
     let track_id = Track.TrackId (TestSetup.mkid "warp")
         warp = Derive.make_warp (Derive.tempo_to_warp (Signal.constant 2))
         track_warps = [Derive.TrackWarp
-            (TrackPos 0) (TrackPos 3) block_id [track_id] warp]
+            (TrackPos 0) (TrackPos 2) block_id [track_id] warp]
     let f = Derive.make_inverse_tempo_func track_warps
         with_block pos = [(block_id, [(track_id, pos)])]
     -- Fast tempo means TrackPos pass quickly relative to Timestamps.
     -- Second 2 at tempo 2 is trackpos 4, which is past the end of the block.
     equal (map f (map Timestamp.seconds [0..2]))
         [with_block 0, with_block 2, []]
--}
 
 tempo_deriver :: Track.TrackId -> Signal.Signal -> Track.TrackId
     -> Track.TrackId -> Derive.EventDeriver
@@ -171,7 +169,6 @@ tempo_deriver sig_tid tempo note_tid vel_tid = do
     Derive.d_tempo sig_tid (return tempo) $
         controller_deriver vel_tid "velocity" note_tid
 
-{-
 test_tempo = do
     let (tids, state) = TestSetup.run_mkstate
             [ ("0", [(0, 10, "5a-"), (10, 10, "5b-"), (20, 10, "5c-")])
@@ -180,6 +177,7 @@ test_tempo = do
         mkderiver sig = tempo_deriver
             (Track.TrackId (TestSetup.mkid "b0.tempo"))
             (mksignal sig) (tids!!0) (tids!!1)
+        floor_event (start, dur, text) = (floor start, floor dur, text)
         derive_with sig = extract_events events
             where (events, _logs) = derive_events_e state (mkderiver sig)
 
@@ -187,15 +185,9 @@ test_tempo = do
         [(0, 5, "5a-"), (5, 5, "5b-"), (10, 5, "5c-")]
 
     -- Slowing down.
-    equal (derive_with [(0, Signal.Set, 2), (20, Signal.Linear, 1)])
+    equal (map floor_event
+            (derive_with [(0, Signal.Set, 2), (20, Signal.Linear, 1)]))
         [(0, 6, "5a-"), (6, 8, "5b-"), (14, 10, "5c-")]
-
-    let (_, tempo, inv_tempo, _) = derive Derive.empty_lookup_deriver state
-            (mkderiver [(0, Signal.Set, 2)])
-    pprint $ map (tempo block_id (head tids)) [0, 1 .. 10]
-    pprint $ map inv_tempo (map Timestamp.seconds [0..10])
-    -- print tempo
--}
 
 -- extract_controller name = map $ \event -> Map.assocs $ Signal.signal_map $
 --     Score.event_controllers event Map.! Score.Controller name

@@ -269,8 +269,11 @@ mkevent (inst, pitch, start, dur, controls) =
     Perform.Event inst (TrackPos start) (TrackPos dur)
         (Map.fromList (pitch_control : controls)) fakestack
     where
-    fakestack = [(Block.BlockId (Id.id "test" "fakeblock"),
-        Just (Track.TrackId (Id.id "test" "faketrack")), Just (TrackPos 42))]
+    fakestack =
+        [ (Block.BlockId (Id.id "test" "fakeblock")
+        , Just (Track.TrackId (Id.id "test" "faketrack"))
+        , Just (TrackPos 42, TrackPos 42))
+        ]
     pitch_control = (Controller.c_pitch, Signal.signal [(TrackPos start, p)])
     p = Maybe.fromMaybe (error ("no pitch " ++ show pitch))
         (lookup pitch to_pitch)

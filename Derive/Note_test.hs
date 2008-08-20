@@ -64,32 +64,23 @@ lookup_deriver deriver block_id
 scale = Twelve.scale
 mkpitch note = Pitch.Pitch (Pitch.scale_id scale) (Pitch.Note note)
 
-test_parse = do
+test_parse_note = do
     -- let parse = either (const Nothing) Just . P.parse (Note.p_note scale) ""
     let parse = Note.parse_note scale
         sid = Pitch.scale_id scale
 
-    -- Not a scale, so it looks like a block.
-    equal (parse "7q#") $ Right (Nothing, Just "7q#")
-    -- But in this case the abc is already a block...
-    equal (parse "7q# abc") (Left "expected scale degree, got \"7q#\"")
+    equal (parse "7q#") $ Left "note not in scale: \"7q#\""
+    equal (parse "blor, 7c#") $ Left "couldn't parse method: \"blor\""
 
-    equal (parse "i 7c#") $ Right
+    equal (parse "i, 7c#") $ Right
         ( Just (Signal.Linear, Pitch.Pitch sid (Pitch.Note "7c#"))
         , Nothing)
-    equal (parse "2.1e 7c#") $ Right
+    equal (parse "2.1e, 7c#") $ Right
         ( Just (Signal.Exp 2.1, Pitch.Pitch sid (Pitch.Note "7c#"))
         , Nothing)
-
-    equal (parse "i 7c# <block") $ Right
+    equal (parse "i, 7c#, <block") $ Right
         ( Just (Signal.Linear, Pitch.Pitch sid (Pitch.Note "7c#"))
-        , Just "<block")
-
-    -- But if it has a method, it must match the scale:
-    equal (parse "i block") (Left "expected scale degree, got \"block\"")
-
-    equal (parse "i 7q block")
-        (Left "expected [method, scale], got [\"i\",\"7q\"]")
+        , Just "block")
 
 test_tokenize = do
     let prop toks =

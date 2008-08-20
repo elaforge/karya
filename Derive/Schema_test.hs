@@ -73,8 +73,8 @@ test_compile_to_signals = do
     let d = Schema.compile_to_signals skel
     -- It's important that the tempo track *doesn't* apply, since these go to
     -- the UI.
-    let (res, _, _, logs) = Derive.derive Derive.empty_lookup_deriver state
-            (Derive_test.setup_deriver d)
+    let (res, _, _, logs, _) = Derive.derive Derive.empty_lookup_deriver state
+            True (Derive_test.setup_deriver d)
     pprint skel
     pprint res
     -- tempo, c1, and c2 tracks get signals.

@@ -88,8 +88,9 @@ initial_state = do
 
 -- * mkstate
 
-default_block_id = (bid "b1")
-default_view_id = (vid "v1")
+default_block_id = bid default_block_name
+default_block_name = "b1"
+default_view_id = vid "v1"
 
 -- | Return the val and state, throwing an IO error on an exception.  Intended
 -- for tests that don't expect to fail here.
@@ -103,8 +104,14 @@ run_mkstate track_specs = run State.empty (mkstate "b1" track_specs)
 
 mkstate :: (State.UiStateMonad m) =>
     String -> [TrackSpec] -> m [Track.TrackId]
-mkstate block_name tracks = do
+mkstate block_name tracks = mkstate_id (bid block_name) tracks
+
+mkstate_id :: (State.UiStateMonad m) =>
+    Block.BlockId -> [TrackSpec] -> m [Track.TrackId]
+mkstate_id block_id tracks = do
     State.set_project test_ns
+    let (ns, block_name) = Id.un_id (Id.unpack_id block_id)
+        mkid = Id.id ns
     tids <- forM (zip [0..] tracks) $ \(i, track) -> do
         State.create_track (mkid (block_name ++ ".t" ++ show i)) (mktrack track)
 

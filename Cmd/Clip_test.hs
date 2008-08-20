@@ -22,11 +22,11 @@ import qualified Data.Maybe as Maybe
 run = TestSetup.run State.empty
 
 (empty_track_ids, empty_state) = run $ TestSetup.mkstate_view
-    TestSetup.default_block_id
+    TestSetup.default_block_name
     [("t1", []), ("t2", [])]
 
 (events_track_ids, events_state) = run $ TestSetup.mkstate_view
-    TestSetup.default_block_id
+    TestSetup.default_block_name
     [ ("t1", track1_events)
     , ("t2", track2_events)
     ]
@@ -34,7 +34,7 @@ run = TestSetup.run State.empty
 track1_events = [(0, 2, "e11"), (4, 2, "e12"), (8, 2, "e13")]
 track2_events = [(1, 2, "e21"), (5, 2, "e22")]
 
-(clip_track_ids, clip_state) = run $ TestSetup.mkstate
+(clip_track_ids, clip_state) = run $ TestSetup.mkstate_id
     clip_id
     [ ("t1", [(0, 2, "c1"), (4, 2, "c2")]) ]
 
