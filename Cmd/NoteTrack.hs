@@ -185,6 +185,7 @@ insert_note :: (Monad m) => Pitch.Note -> Cmd.CmdT m ()
 insert_note note = do
     (track_id, tracknum, pos) <- Selection.get_insert_track
     end_pos <- Selection.step_from tracknum pos TimeStep.Advance
+    -- TODO just add note part, don't overwrite
     -- assert (end_pos >= pos)
 
     Log.debug $ "insert note " ++ show note ++ " at " ++ show (track_id, pos)
@@ -214,10 +215,14 @@ cmd_edit_method msg = do
 
 edit_method key (method, note, call) = (modify_text method key, note, call)
 
+modify_note :: (Monad m) =>
+    (Note.NoteTokens -> Note.NoteTokens) -> Cmd.CmdT m ()
 modify_note f = do
     (track_id, tracknum, pos) <- Selection.get_insert_track
     end_pos <- Selection.step_from tracknum pos TimeStep.Advance
-    event <- ControllerTrack.get_event track_id pos (pos - end_pos)
+    event <- ControllerTrack.get_event track_id pos (end_pos - pos)
+    track <- State.get_track track_id
+
     tokens <- either (Cmd.throw . ("tokenizing note: "++)) return $
         Note.tokenize_note (Event.event_text event)
     let new_text = Note.untokenize_note (f tokens)

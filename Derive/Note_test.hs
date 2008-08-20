@@ -31,7 +31,7 @@ test_d_instrument_track = do
             ]
     print tids
     let (val, _tempo, _inv_tempo, logs) =
-            derive state Derive.empty_lookup_deriver (d (head tids))
+            derive Derive.empty_lookup_deriver state (d (head tids))
     mapM_ pprint val
 
 test_derive_note = do
@@ -42,7 +42,7 @@ test_derive_note = do
         both_evt = mkevt evt_pitch (Just sub_name)
 
         (tids, ui_state) = TestSetup.run State.empty
-            (TestSetup.mkstate sub_block [("0", [(1, 1, "5a-")])])
+            (TestSetup.mkstate sub_name [("0", [(1, 1, "5a-")])])
         lookup = lookup_deriver (Note.derive_note note_evt)
         run deriver = (Derive_test.extract_events evts, map Log.msg_text logs)
             where
@@ -90,6 +90,11 @@ test_parse = do
 
     equal (parse "i 7q block")
         (Left "expected [method, scale], got [\"i\",\"7q\"]")
+
+test_tokenize = do
+    let prop toks =
+            equal (Note.tokenize_note (Note.untokenize_note toks)) (Right toks)
+    sequence_ [prop (a, b, c) | a <- ["", "i"], b <- ["", "n"], c <- ["", "c"]]
 
 
 -- * util

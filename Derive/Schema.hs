@@ -107,32 +107,6 @@ get_signal_deriver schema_map block = do
     State.eval_rethrow "get signal deriver" state
         (schema_signal_deriver schema block)
 
-
-{-
-lookup_signal_deriver :: SchemaMap -> State.State -> Block.BlockId
-    -> Either State.StateError Derive.SignalDeriver
-lookup_signal_deriver schema_map ui_state block_id = State.eval ui_state $ do
-    block <- State.get_block block_id
-    schema <- State.lookup_id (Block.block_schema block)
-        (merge_schemas hardcoded_schemas schema_map)
-    schema_signal_deriver schema block
-
-get_deriver :: (State.UiStateMonad m) => SchemaMap -> Block.Block
-    -> m Derive.EventDeriver
-get_deriver schema_map block = do
-    schema <- State.lookup_id (Block.block_schema block)
-        (merge_schemas hardcoded_schemas schema_map)
-    -- Running the SchemaDeriver right here lets me have SchemaDeriver in
-    -- Identity but have this function remain polymorphic on the monad.
-    -- This way a polymorphic SchemaDeriver type doesn't get out and infect
-    -- signatures everywhere.
-    --
-    -- In addition, this properly expresses that the schema deriver doesn't
-    -- modify the state.
-    state <- State.get
-    State.eval_rethrow "get deriver" state (schema_deriver schema block)
--}
-
 -- | A block's Schema also implies a set of Cmds, possibly based on the
 -- focused track.  This is so that e.g. control tracks use control editing keys
 -- and note tracks use note entry keys, and they can set up the midi thru

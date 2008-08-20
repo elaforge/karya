@@ -164,8 +164,7 @@ instance Monad m => Log.LogMonad (DeriveT m) where
 derive :: LookupDeriver -> State.State -> Bool -> DeriveT Identity.Identity a
     -> (Either DeriveError a,
         Transport.TempoFunction, Transport.InverseTempoFunction, [Log.Msg],
-        -- | This is not actually needed, but handy for testing.
-        State)
+        State) -- ^ This is not actually needed, but handy for testing.
 derive lookup_deriver ui_state ignore_tempo deriver =
     (result, tempo_func, inv_tempo_func, logs, state)
     where
@@ -433,6 +432,7 @@ d_warp sig deriver = do
 -- | Warp a Warp with a warp signal.
 --
 -- From the nyquist warp function:
+--
 -- > f(stretch * g(t) + shift)
 -- > f(scale(stretch, g) + offset)
 -- > (shift f -offset)(scale(stretch, g))

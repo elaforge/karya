@@ -177,18 +177,17 @@ scale_parser scale (_pos, event) =
 
 -- | Try to parse a note track event.  It's a little finicky because
 -- I want to be unambiguous but also not ugly.  I think I can manage that by
--- using \< to disambiguate a call and not allowing (method, \"\", call).
+-- using \< to disambiguate a call when it occurs alone, and always insert the
+-- commas otherwise.
 --
 -- TODO Unfortunately I still have a problem with shift since I can't type _,
 -- but I'll deal with that later if it becomes a problem.
 --
--- > i, scl, block -> ((i, scl), block))
--- > i, scl -> ((i, scl), Nothing)
--- > 2.4e, 7c#
--- > scl -> ((Set, scl), Nothing)
--- > \<block -> (Nothing, block)
--- > , , block -> (Nothing, block)
---
+-- > note -> ((Set, note), Nothing)
+-- > \<call -> (Nothing, block)
+-- > i, note, \<call -> ((i, note), call))
+-- > i, note -> ((i, note), Nothing)
+-- > i, , \<call -> (Nothing, call)
 parse_note :: Pitch.Scale -> String
     -> Either String (Maybe (Signal.Method, Pitch.Pitch), Maybe String)
 parse_note scale text = do
@@ -205,25 +204,33 @@ parse_note scale text = do
         Left _ -> Left $ "couldn't parse method: " ++ show s
         Right v -> Right v
 
-tokenize_note :: String -> Either String (String, String, String)
+
+-- | Tokenization is separate from parsing so Cmd.NoteTrack can edit incomplete
+-- and unparseable note events.
+--
+-- (method, pitch, call)
+type NoteTokens = (String, String, String)
+
+tokenize_note :: String -> Either String NoteTokens
 tokenize_note text = fmap drop_third $ case Seq.split ", " text of
+    [] -> Right ("", "", "")
     [w0]
         | is_call w0 -> Right ("", "", w0)
         | otherwise -> Right ("", w0, "")
-    [w0, w1]
-        | is_call w1 -> Right ("", w0, w1)
-        | otherwise -> Right (w0, w1, "")
+    [w0, w1] -> Right (w0, w1, "")
     [w0, w1, w2] -> Right (w0, w1, w2)
-    _ -> Left "too many words in note"
+    ws -> Left $ "too many words in note: " ++ show ws
     where
     is_call = (=="<") . take 1
     drop_third (a, b, c) = (a, b, drop 1 c) -- drop off the '<'
 
-untokenize_note ("", "", "") = ""
-untokenize_note ("", "", call) = '<':call
-untokenize_note (note_s, pitch_s, "") = join_note [note_s, pitch_s]
-untokenize_note (note_s, pitch_s, call) = join_note [note_s, pitch_s, '<':call]
-join_note = Seq.join ", " . filter (not . null)
+untokenize_note :: NoteTokens -> String
+untokenize_note (a, b, c) = case (a, b, if null c then c else '<':c) of
+    ("", "", "") -> ""
+    ("", "", call) -> call
+    ("", note, "") -> note
+    (meth, pitch, call) -> let toks = Seq.rdrop_while null [meth, pitch, call]
+        in Seq.join ", " (if length toks == 1 then toks ++ [""] else toks)
 
 
 -- One of the early proponents of this style during the renaissance was
