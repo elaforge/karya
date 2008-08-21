@@ -302,16 +302,16 @@ cmd_record_keys msg = do
         when (key `Map.member` mods) $
             Log.warn $ "keydown for " ++ show mod ++ " already in modifiers"
         modify_keys (Map.insert key mod)
-        mods <- keys_down
-        Log.debug $ "keydown " ++ show (Map.elems mods)
+        -- mods <- keys_down
+        -- Log.debug $ "keydown " ++ show (Map.elems mods)
     delete_mod mod = do
         let key = modifier_map_key mod
         mods <- keys_down
         when (key `Map.notMember` mods) $
             Log.warn $ "keyup for " ++ show mod ++ " not in modifiers"
         modify_keys (Map.delete key)
-        mods <- keys_down
-        Log.debug $ "keyup " ++ show (Map.elems mods)
+        -- mods <- keys_down
+        -- Log.debug $ "keyup " ++ show (Map.elems mods)
     modify_keys f = modify_state $ \st ->
         st { state_keys_down = f (state_keys_down st) }
 
@@ -363,7 +363,7 @@ cmd_record_active msg = case msg of
 
 set_focused_view :: (Monad m) => Block.ViewId -> CmdT m ()
 set_focused_view view_id = do
-    Log.debug $ "active view is " ++ show view_id
+    -- Log.debug $ "active view is " ++ show view_id
     modify_state $ \st -> st { state_focused_view = Just view_id }
 
 -- Responds to the UI's request to close a window.

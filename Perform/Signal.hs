@@ -209,6 +209,10 @@ resample_list f as@((ax0, ay0) : a_rest) bs@((bx0, by0) : b_rest)
 resample_list f [] bs = [(bx, f 0 by) | (bx, by) <- bs]
 resample_list f as [] = [(ax, f ay 0) | (ax, ay) <- as]
 
+-- Huh?  This seems identical to the first equation but still ghc complains.
+resample_list _ ((_, _) : _) ((_, _) : _) =
+    error "Signal.resample_list: unreached"
+
 _do_resample f as@((ax0, ay0) : a_rest) bs@((bx0, by0) : b_rest)
     | null a_rest && null b_rest = []
     | ax1 == bx1 = (ax1, f ay1 by1) : _do_resample f a_rest b_rest

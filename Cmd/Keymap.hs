@@ -12,6 +12,7 @@
 module Cmd.Keymap where
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Set as Set
 
 import qualified Util.Log as Log
 
@@ -44,7 +45,7 @@ data Mods =
     -- shift, control, or a midi key is down.
     | AnyCharMod
     -- | Match only if the specified list of modifiers is down.
-    | Mods [Cmd.Modifier]
+    | Mods (Set.Set Cmd.Modifier)
     deriving (Eq, Ord, Show)
 is_char_mod (Cmd.KeyMod (Key.KeyChar _)) = True
 is_char_mod _ = False
@@ -52,7 +53,7 @@ is_char_mod _ = False
 mods_match :: Mods -> Map.Map Cmd.Modifier Cmd.Modifier -> Bool
 mods_match AnyMod _ = True
 mods_match AnyCharMod mod_map = all is_char_mod (Map.keys mod_map)
-mods_match (Mods mods) mod_map = mods == Map.keys mod_map
+mods_match (Mods mods) mod_map = mods == Map.keysSet mod_map
 
 -- | This isn't used here, but other cmds may want to use keymap Mods.
 -- TODO maybe it shoud move to Cmd.Cmd then?
@@ -77,7 +78,8 @@ bind_kmod key_mods = bind_mod (map Cmd.KeyMod key_mods)
 -- | Bind a key with anything as a modifier.
 bind_mod :: [Cmd.Modifier] -> Key.Key -> String -> Cmd.CmdM m -> Binding m
 bind_mod mods key desc cmd =
-    (KeySpec (Mods mods) (UiKey UiMsg.KeyDown key), cspec_ desc cmd)
+    (KeySpec (Mods (Set.fromList mods)) (UiKey UiMsg.KeyDown key),
+        cspec_ desc cmd)
 
 cspec :: String -> (Msg.Msg -> Cmd.CmdM m) -> CmdSpec m
 cspec desc cmd = CmdSpec desc cmd
@@ -95,7 +97,7 @@ make_cmd :: Monad m => [Binding m] -> Msg.Msg -> Cmd.CmdM m
 make_cmd keyspecs msg = do
     key <- Cmd.require (msg_to_key msg)
     modifiers <- fmap Map.elems Cmd.keys_down
-    let check_mods = [Mods modifiers]
+    let check_mods = [Mods (Set.fromList modifiers)]
             ++ if all is_char_mod modifiers then [AnyCharMod] else []
             ++ [AnyMod]
         look mods = Map.lookup (KeySpec mods key) keymap

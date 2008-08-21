@@ -27,6 +27,7 @@ import qualified Control.Monad.Identity as Identity
 import qualified Data.Char as Char
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Set as Set
 
 import qualified Midi.Midi as Midi
 
@@ -201,7 +202,7 @@ edit_call key (method, note, call) = (method, note, modify_text call key)
 
 cmd_edit_method :: Cmd.Cmd
 cmd_edit_method msg = do
-    Keymap.require_mods (Keymap.Mods [Cmd.KeyMod Key.ShiftL])
+    Keymap.require_mods (Keymap.Mods (Set.fromList [Cmd.KeyMod Key.ShiftL]))
     key <- Cmd.require (Msg.key msg)
     unless (is_edit_key key) Cmd.abort
     modify_note (edit_method key)
