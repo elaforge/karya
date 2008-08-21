@@ -166,7 +166,7 @@ cmd_play play_info block_id (start_track, start_pos) = do
         Right events -> return events
 
     start_ts <- case tempo_map block_id start_track start_pos of
-        Nothing -> State.throw $ "unknown play start pos: "
+        Nothing -> Cmd.throw $ "unknown play start pos: "
             ++ show start_track ++ ", " ++ show start_pos
         Just ts -> return ts
     transport <- perform block_id play_info start_ts events

@@ -135,6 +135,8 @@ midi dev msg = (CmdT . lift . lift) (Logger.record (dev, msg))
 abort :: (Monad m) => CmdT m a
 abort = (CmdT . lift . lift . lift) (Error.throwError Abort)
 
+-- | This is the same as State.throw, but it feels like things in Cmd may not
+-- always want to reuse State's exceptions, so they should call this one.
 throw :: (Monad m) => String -> CmdT m a
 throw = State.throw
 

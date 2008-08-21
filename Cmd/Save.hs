@@ -38,7 +38,7 @@ cmd_load fname = do
     Trans.liftIO $ Log.notice $ "load state from " ++ show fname
     try_state <- Trans.liftIO $ Serialize.unserialize fname
     state <- case try_state of
-        Left exc -> State.throw $
+        Left exc -> Cmd.throw $
             "error unserializing " ++ show fname ++ ": " ++ show exc
         Right st -> return st
     Trans.liftIO $ Log.notice $ "state loaded from " ++ show fname

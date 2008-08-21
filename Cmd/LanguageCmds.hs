@@ -253,7 +253,7 @@ get_marklist :: Ruler.RulerId -> Ruler.MarklistName -> Cmd.CmdL Ruler.Marklist
 get_marklist ruler_id marklist_name = do
     ruler <- State.get_ruler ruler_id
     case lookup marklist_name (Ruler.ruler_marklists ruler) of
-        Nothing -> State.throw $
+        Nothing -> Cmd.throw $
             "no marklist " ++ show marklist_name ++ " in " ++ show ruler_id
         Just mlist -> return mlist
 
@@ -286,7 +286,7 @@ track_type :: Block.BlockId -> Block.TrackNum -> Cmd.CmdL Schema.TrackType
 track_type block_id tracknum = do
     skel <- get_skeleton block_id
     case Schema.track_type_of tracknum skel of
-        Nothing -> State.throw $ "can't get track type for "
+        Nothing -> Cmd.throw $ "can't get track type for "
             ++ show block_id ++ " at " ++ show tracknum
         Just typ -> return typ
 
@@ -409,7 +409,7 @@ derive block_id = do
     schema_map <- Cmd.get_schema_map
     (result, _, _) <- Play.derive schema_map block_id
     case result of
-        Left err -> State.throw $ "derive error: " ++ show err
+        Left err -> Cmd.throw $ "derive error: " ++ show err
         Right events -> return events
 
 derive_tempo block_id ts = do
