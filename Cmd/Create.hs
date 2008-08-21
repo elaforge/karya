@@ -233,10 +233,9 @@ swap_tracks block_id num0 num1 = do
 
 -- | This creates both a ruler with the given name, and an overlay version
 -- named with .overlay.
-ruler :: (State.UiStateMonad m) => [Ruler.NameMarklist] -> String
+ruler :: (State.UiStateMonad m) => String -> Ruler.Ruler
     -> m (Ruler.RulerId, Ruler.RulerId)
-ruler marklists name = do
-    let ruler = MakeRuler.ruler marklists
+ruler name ruler = do
     ident <- make_id name
     overlay_ident <- make_id (name ++ overlay_suffix)
     rid <- State.create_ruler ident ruler

@@ -27,14 +27,6 @@ data Ruler = Ruler {
     } deriving (Eq, Show, Read, Generics.Data, Generics.Typeable)
 ruler = Ruler
 
--- | Get the position of the last mark of the ruler.
-time_end :: Ruler -> TrackPos
-time_end = maximum . (TrackPos 0 :) . map (last_pos . snd) . ruler_marklists
-
--- | Empty ruler.
-no_ruler :: Ruler
-no_ruler = ruler [] Color.black False False False
-
 newtype RulerId = RulerId Id.Id
     deriving (Eq, Ord, Generics.Data, Generics.Typeable)
 
@@ -45,9 +37,23 @@ instance Id.Ident RulerId where
     cons_name _ = "rid"
     cons = RulerId
 
-type NameMarklist = (MarklistName, Marklist)
-type MarklistName = String
-type PosMark = (TrackPos, Mark)
+-- | Get the position of the last mark of the ruler.
+time_end :: Ruler -> TrackPos
+time_end = maximum . (TrackPos 0 :) . map (last_pos . snd) . ruler_marklists
+
+-- | Empty ruler.
+no_ruler :: Ruler
+no_ruler = ruler [] Color.black False False False
+
+-- | Transform all the marklists in a ruler.
+map_marklists :: (NameMarklist -> NameMarklist) -> Ruler -> Ruler
+map_marklists f ruler =
+    ruler { ruler_marklists = map f (ruler_marklists ruler) }
+
+clip :: TrackPos -> Ruler -> Ruler
+clip pos = map_marklists (clip_marklist pos)
+
+-- * marklist
 
 data Marklist = Marklist (IArray.Array Int PosMark)
     deriving (Eq, Show, Read, Generics.Data, Generics.Typeable)
@@ -55,15 +61,22 @@ data Marklist = Marklist (IArray.Array Int PosMark)
 -- EventList.  On the other hand, there aren't that many to reuse and arrays
 -- are compact, so I'll let it be.
 
+type NameMarklist = (MarklistName, Marklist)
+type MarklistName = String
+type PosMark = (TrackPos, Mark)
+
 -- | Construct a Marklist.
 marklist :: MarklistName -> [PosMark] -> NameMarklist
 marklist name posmarks =
     (name, Marklist $ IArray.listArray (0, length posmarks-1) posmarks)
 
 -- | Clip the marklist before the given pos.
+--
+-- Unlike most functions that take ranges, the output will *include* the end
+-- pos.  This is because it's convenient for rulers to have a mark at the end.
 clip_marklist :: TrackPos -> NameMarklist -> NameMarklist
 clip_marklist pos (name, mlist) =
-    marklist name (takeWhile ((<pos) . fst) (forward mlist (TrackPos 0)))
+    marklist name (takeWhile ((<=pos) . fst) (forward mlist (TrackPos 0)))
 
 -- | Get the position of the last mark.
 last_pos :: Marklist -> TrackPos

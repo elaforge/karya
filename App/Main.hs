@@ -188,8 +188,8 @@ setup_cmd _args = do
 
 old_setup_cmd :: [String] -> Cmd.CmdIO
 old_setup_cmd _args = do
-    (r, over_r) <- Create.ruler
-        [MakeRuler.meter_ruler (1/16) MakeRuler.m44] "meter_44"
+    (r, over_r) <- Create.ruler "meter_44"
+        (MakeRuler.ruler [MakeRuler.meter_ruler (1/16) MakeRuler.m44])
 
     b <- Create.block r
     _v <- Create.view b
