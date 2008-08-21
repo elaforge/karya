@@ -341,9 +341,8 @@ add_track_warp track_id = do
     block_id <- get_current_block_id
     track_warps <- fmap state_track_warps get
     case track_warps of
-        [] -> error $ "can't add a track warp when there are no warps "
-            ++ show track_id
-        -- [] -> Log.warn $ "can't add " ++ show track_id
+            -- This happens on blocks without tempo tracks.
+        [] -> start_new_warp >> add_track_warp track_id
         (tw:tws)
             | tw_block tw == block_id -> do
                 let new_tws = tw { tw_tracks = track_id : tw_tracks tw } : tws
