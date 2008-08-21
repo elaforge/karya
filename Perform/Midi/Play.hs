@@ -85,8 +85,13 @@ play_msgs state devs msgs = do
     case (rest, tmsg) of
         -- I could send AllNotesOff here, but stuck notes probably indicate an
         -- error so it's good to hear them.
-        ([], _) -> return ()
+        -- I leave other controllers be, but pitch bend is too annoying to
+        -- leave.  If the last note is bent it will make a sproing.  Another
+        -- solution would be to get rid of Pitch.scale_set_pitch_bend so that
+        -- the bend will be fixed the next time you play a note.
+        ([], _) -> send_all write devs (Midi.PitchBend 0)
         (_, Transport.Stop) -> send_all write devs Midi.AllNotesOff
+            >> send_all write devs (Midi.PitchBend 0)
         _ -> do
             -- block to avoid flooding the midi driver
             Concurrent.threadDelay (fromIntegral

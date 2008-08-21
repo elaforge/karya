@@ -35,9 +35,11 @@ Ui
   - some kind of special highlight to indicate the active block
   - rethrow c++ exceptions as FltkError
   Controllers
-    - pass signals as pointers, not copies
+    * pass signals as pointers, not copies
     - make sure very dense (e.g. sampled) signals are displayed and stored
       efficiently, but are still editable normally when you zoom in.
+    - signal render support for indexed signal type, especially pitch
+    - events store style as a uchar ID for consistency and memory savings
   Track
     - patch Data.Map to include toDescList
     - benchmark large TrackEvents
@@ -107,12 +109,16 @@ Derive
     * control
     * tempo
       * multiple tempos per block
-    - continuous pitch control
+    * subblock derivation
+  pitch
+    * pitch signal rendered to midi
     - pitch signal should be Signal (Method, Pitch) so that they can be
       transposed
     - alternate scales
-    - defaulting parameters for control and note tracks
-    * subblock derivation
+
+  - indexed signal type, for keyswitches.  pitch as a type of indexed signal
+
+  - set instrument within note track, controller within control track
   - display derived blocks
   - 3 way merge for derived blocks
 

@@ -45,7 +45,7 @@ import Util.Debug
 
 
 type NoteParser m = Track.PosEvent
-    -> Derive.DeriveT m (Maybe (Signal.Method, Pitch.Pitch), Maybe String)
+    -> Derive.DeriveT m (Maybe Signal.Method, Maybe Pitch.Pitch, Maybe String)
 
 -- * instrument track
 
@@ -54,17 +54,21 @@ d_note_track :: (Monad m) => Pitch.ScaleMap -> NoteParser m
 d_note_track scales note_parser track_id = do
     track <- Derive.get_track track_id
     let events = Track.event_list (Track.track_events track)
-    parsed <- parse_events note_parser events
-    pitch_signal <- extract_pitch_signal scales parsed
-    Derive.with_controller Score.pitch pitch_signal (derive_notes parsed)
+    parsed_psig <- fmap splice_notes (parse_events note_parser events)
+    pitch_signal <- extract_pitch_signal scales parsed_psig
+    Derive.with_controller Score.pitch pitch_signal
+        (derive_notes (map fst parsed_psig))
 
 data ParsedEvent = ParsedEvent {
     parsed_text :: String
     , parsed_start :: TrackPos
     , parsed_dur :: TrackPos
-    , parsed_pitch :: Maybe (Signal.Method, Pitch.Pitch)
+    , parsed_method :: Maybe Signal.Method
+    , parsed_pitch :: Maybe Pitch.Pitch
     , parsed_call :: Maybe String
     } deriving (Show)
+
+type PitchSignal = [(TrackPos, Signal.Method, Pitch.Pitch)]
 
 derive_notes :: (Monad m) => [ParsedEvent] -> Derive.DeriveT m [Score.Event]
 derive_notes parsed = fmap concat (mapM note parsed)
@@ -72,12 +76,43 @@ derive_notes parsed = fmap concat (mapM note parsed)
     note parsed = Derive.with_stack_pos
         (parsed_start parsed) (parsed_dur parsed) (derive_note parsed)
 
+-- | A note is spliced with all following notes that have methods set.  This is
+-- so they will describe a pitch curve and not retrigger a new note at each
+-- point in the curve.
+--
+-- This will happen even if there's a lot of silence in between the notes.
+-- I'm not sure if that's a good thing or not, but it's simpler to splice
+-- unconditionally.
+splice_notes :: [ParsedEvent] -> [(ParsedEvent, PitchSignal)]
+splice_notes [] = []
+splice_notes (parsed:rest) =
+    (parsed { parsed_dur = dur }, psig) : splice_notes post
+    where
+    (splice, post) = span has_method rest
+    dur = if null splice then parsed_dur parsed else let final = last splice
+        in parsed_start final + parsed_dur final - parsed_start parsed
+    psig = case parsed of
+        ParsedEvent { parsed_start = start, parsed_pitch = Just pitch } ->
+            (start, Maybe.fromMaybe Signal.Set (parsed_method parsed), pitch)
+                : [(pos, meth, pitch) | (ParsedEvent { parsed_start = pos,
+                    parsed_method = Just meth, parsed_pitch = Just pitch })
+                        <- splice]
+            -- Uknonwn initial pitch, so don't bother creating any signal.
+        _ -> []
+    has_method (ParsedEvent { parsed_method = Just _ }) = True
+    has_method _ = False
+
 derive_note :: (Monad m) => ParsedEvent -> Derive.DeriveT m [Score.Event]
 derive_note parsed = do
     -- TODO when signals are lazy this will be inefficient.  I need to come
     -- up with a way to guarantee such accesses are increasing and let me gc
     -- the head.
     start <- Derive.local_to_global (parsed_start parsed)
+    -- Log.debug $ show (parsed_text parsed) ++ ": local global "
+    --     ++ show (parsed_start parsed, start)
+    -- warp <- fmap Derive.state_warp Derive.get
+    -- Log.debug $ "warp " ++ show warp
+
     end <- Derive.local_to_global (parsed_start parsed + parsed_dur parsed)
     st <- Derive.get
     case parsed_call parsed of
@@ -129,22 +164,20 @@ parse_events note_parser events = do
     maybe_parsed <- mapM derive_event (map note_parser events)
     return
         [ ParsedEvent (Event.event_text event) start
-            (Event.event_duration event) pitch call
-        | ((start, event), Just (pitch, call)) <- zip events maybe_parsed]
+            (Event.event_duration event) meth pitch call
+        | ((start, event), Just (meth, pitch, call)) <- zip events maybe_parsed]
 
-extract_pitch_signal :: (Monad m) => Pitch.ScaleMap -> [ParsedEvent]
-    -> Derive.DeriveT m Signal.Signal
-extract_pitch_signal scales parsed = do
-    let pitch_points =
-            [ (start, method, pitch, pitch_to_val scales pitch)
-            | ParsedEvent { parsed_start = start,
-                parsed_pitch = Just (method, pitch) } <- parsed ]
-        pos_list = map parsed_start parsed
+extract_pitch_signal :: (Monad m) => Pitch.ScaleMap
+    -> [(ParsedEvent, PitchSignal)] -> Derive.DeriveT m Signal.Signal
+extract_pitch_signal scales parsed_psig = do
+    let pitch_points = [ (pos, meth, pitch, pitch_to_val scales pitch)
+            | (_, psig) <- parsed_psig, (pos, meth, pitch) <- psig ]
         errors = [(pos, pitch) | (pos, _, pitch, Nothing) <- pitch_points]
+        pos_list = [pos | (pos, _, _, Just _) <- pitch_points]
     unless (null errors) $
         -- This should never happen.
         Log.warn $ "notes not part of their scales: " ++ show errors
-    -- TODO this won't be efficient with a lazy signal because I need to
+    -- TODO this won't be efficient with a lazy signal because I would need to
     -- compute it incrementally.
     warped <- mapM Derive.local_to_global pos_list
     return $ Signal.track_signal Signal.default_srate
@@ -171,7 +204,7 @@ derive_event deriver = Derive.catch_warn deriver
 -- of the environment or something.
 scale_parser :: (Monad m) => Pitch.Scale -> NoteParser m
 scale_parser scale (_pos, event) =
-    case parse_note scale (Event.event_text event) of
+    case default_parse_note scale (Event.event_text event) of
         Left err -> Derive.throw err
         Right parsed -> return parsed
 
@@ -188,16 +221,16 @@ scale_parser scale (_pos, event) =
 -- > i, note, \<call -> ((i, note), call))
 -- > i, note -> ((i, note), Nothing)
 -- > i, , \<call -> (Nothing, call)
-parse_note :: Pitch.Scale -> String
-    -> Either String (Maybe (Signal.Method, Pitch.Pitch), Maybe String)
-parse_note scale text = do
+default_parse_note :: Pitch.Scale -> String
+    -> Either String (Maybe Signal.Method, Maybe Pitch.Pitch, Maybe String)
+default_parse_note scale text = do
     (method_s, pitch_s, call) <- tokenize_note text
-    if null pitch_s then return (Nothing, to_maybe call) else do
     method <- if null method_s
-        then Right Signal.Set else parse_method method_s
-    pitch <- maybe (Left ("note not in scale: " ++ show pitch_s)) Right
-        (Pitch.pitch scale pitch_s)
-    return (Just (method, pitch), to_maybe call)
+        then Right Nothing else fmap Just (parse_method method_s)
+    pitch <- if null pitch_s then Right Nothing else
+        maybe (Left ("note not in scale: " ++ show pitch_s)) (Right . Just)
+            (Pitch.pitch scale pitch_s)
+    return (method, pitch, to_maybe call)
     where
     to_maybe s = if null s then Nothing else Just s
     parse_method s = case P.parse (Controller.p_method #>> P.eof) "" s of
