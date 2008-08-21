@@ -7,6 +7,7 @@ import qualified System.IO as IO
 
 import Util.Pretty
 import Util.Test
+import qualified Util.Seq as Seq
 
 import Ui.Types
 import qualified Ui.Block as Block
@@ -70,7 +71,7 @@ test_perform = do
         -- print_msgs msgs
         -- putStrLn ""
         equal warns []
-        return (map unpack_msg msgs)
+        return (map unpack_msg (filter (Midi.is_note . Midi.wmsg_msg) msgs))
 
     -- channel 0 reused for inst1, inst2 gets its own channel
     msgs <- perform
@@ -167,6 +168,24 @@ print_msgs = mapM_ (putStrLn . show_msg)
 show_msg (Midi.WriteMessage dev ts msg) =
     show dev ++ ": " ++ pretty ts ++ ": " ++ show msg
 
+test_pitch_curve = do
+    let event pitch = Perform.Event inst1 (TrackPos 0) (TrackPos 0.5)
+            (Map.fromList [(Controller.c_pitch, Signal.signal pitch)]) []
+    let f evt = (Seq.drop_dups (==) (map Midi.wmsg_msg msgs), warns)
+            where
+            (msgs, warns) = Perform.perform_note (TrackPos 1) evt (dev1, 1)
+        chan msgs = (map (Midi.ChannelMessage 1) msgs, [])
+
+    equal (f (event [(0, 42.12)]))
+        (chan [Midi.PitchBend 0.01, Midi.NoteOn 42 100, Midi.NoteOff 42 100])
+
+    -- This is a little tedious, but pb 0 goes first, then it goes to 1.
+    equal (f (event [(0, 42), (1, 42+24)]))
+        (chan $ [Midi.PitchBend 0, Midi.NoteOn 42 100]
+            ++ map Midi.PitchBend
+                [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]
+            ++ [Midi.NoteOff 42 100, Midi.PitchBend 1])
+
 -- * controller
 
 test_perform_controller1 = do
@@ -174,10 +193,10 @@ test_perform_controller1 = do
     let sig = (vol_cc, mksignal [(0, 0), (1, 1.5), (2, 0), (2.5, 0), (3, 2)])
         cmap = Controller.default_controllers
         (msgs, warns) = Perform.perform_controller cmap
-            (TrackPos 0) (TrackPos 4) 0 sig
+            (TrackPos 0) (TrackPos 4) sig
 
     -- controls are not emitted after they reach steady values
-    check $ all Midi.valid_msg (map snd msgs)
+    check $ all Midi.valid_chan_msg (map snd msgs)
     -- goes over in 2 places
     equal (length warns) 2
 
@@ -187,7 +206,7 @@ test_perform_controller2 = do
     let sig = (vol_cc, mksignal [(0, 0), (4, 1)])
         cmap = Controller.default_controllers
         (msgs, warns) = Perform.perform_controller cmap
-            (TrackPos 2) (TrackPos 4) 0 sig
+            (TrackPos 2) (TrackPos 4) sig
     plist msgs
 
 -- * channelize

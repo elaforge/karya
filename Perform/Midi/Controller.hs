@@ -11,7 +11,6 @@ import qualified Midi.Midi as Midi
 import qualified Derive.Score as Score
 
 import qualified Perform.Signal as Signal
-import qualified Perform.Pitch as Pitch
 
 
 -- TODO This means I can't map to aftertouch or something
@@ -69,24 +68,18 @@ is_channel_controller cont = cont `notElem` [c_velocity, c_aftertouch, c_pitch]
 controller_range :: (Signal.Val, Signal.Val)
 controller_range = (0, 1)
 
-pitch_to_midi :: Signal.Val -> PbRange -> Maybe (Midi.Key, Midi.PitchBendValue)
-pitch_to_midi val (low, high)
-    | val == 0 = Nothing
-    | otherwise = Just (floor val, 0) -- TODO
+-- | Given a pitch val, return the midi note number and pitch bend amount to
+-- sound at the pitch.
+pitch_to_midi :: PbRange -> Signal.Val -> (Midi.Key, Midi.PitchBendValue)
+pitch_to_midi pb_range val = (nn, pb_from_nn pb_range nn val)
+    where nn = floor (max 1 (min 127 val))
 
-pitch_to_midi_key :: Signal.Val -> Midi.Key
-pitch_to_midi_key val = floor (max 1 (min 127 val))
-
-pitch_to_pb :: PbRange -> Signal.Val -> Midi.PitchBendValue
-pitch_to_pb (low, high) val = undefined -- TODO
-
-nn_to_midi :: PbRange -> Pitch.NoteNumber -> (Midi.Key, Midi.PitchBendValue)
-nn_to_midi pb_range (Pitch.NoteNumber nn) =
-    (max 0 (min 127 (fromIntegral key)), tune_pb pb_range (fromIntegral cents))
-    where (key, cents) = floor (nn*100) `divMod` 100 :: (Int, Int)
-
-tune_pb :: PbRange -> Integer -> Midi.PitchBendValue
-tune_pb (_, high) cents = min 1 (fromIntegral cents / 100 / fromIntegral high)
+pb_from_nn :: PbRange -> Midi.Key -> Signal.Val -> Midi.PitchBendValue
+pb_from_nn pb_range nn val =
+    realToFrac $ if bend >= 0 then bend / high else bend / (-low)
+    where
+    (low, high) = (fromIntegral (fst pb_range), fromIntegral (snd pb_range))
+    bend = max low (min high (val - fromIntegral nn))
 
 -- * built in controllers
 

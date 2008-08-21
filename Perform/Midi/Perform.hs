@@ -86,6 +86,23 @@ post_process = reorder_control_messages . drop_duplicates
 
 drop_duplicates = Seq.drop_dups (==)
 
+-- | Keep a running state for each channel and drop duplicate msgs.
+-- Ugh, too complicated.  Only put this in if MIDI bandwidth is a problem.
+{-
+drop_dup_controllers chan_state (wmsg:rest) = case Midi.wmsg_msg wmsg of
+    Midi.ChannelMessage chan msg ->
+        let (cstate, pb_state) = chan_state `IArray.!` chan in case msg of
+            Midi.ControlChange c v
+                | IntMap.lookup (fromIntegral c) cstate /= Just v ->
+                    (True, chan_state // [(chan, (cstate2, pb_state))])
+                | otherwise -> (False, chan_state)
+            Midi.ChannelMessage _ (Midi.PitchBend v)
+                | pb_state /= v -> (True, chan_state // [(chan, (cstate, v))])
+                | otherwise -> (False, chan_state)
+            _ -> (True, chan_state)
+    _ -> (True, chan_state)
+-}
+
 -- | If a control message and a note message happen at the same time, the
 -- control should go first, just to make sure the synth doesn't make a popping
 -- noise.
@@ -111,23 +128,32 @@ perform_note next_note_on event (dev, chan)
         (event_stack event) (Just (note_on, note_off))])
     | otherwise = (merge_messages [controller_msgs, note_msgs], warns)
     where
-    note_msgs = [chan_msg note_on (Midi.NoteOn midi_nn on_vel),
-        chan_msg note_off (Midi.NoteOff midi_nn off_vel)]
+    note_msgs =
+        [ chan_msg note_on (Midi.PitchBend pb)
+        , chan_msg note_on (Midi.NoteOn midi_nn on_vel)
+        , chan_msg note_off (Midi.NoteOff midi_nn off_vel)
+        ]
     chan_msg pos msg = Midi.WriteMessage dev (Timestamp.from_track_pos pos)
         (Midi.ChannelMessage chan msg)
     note_on = event_start event
     note_off = event_end event
     (on_vel, off_vel, vel_clip_warns) = note_velocity event note_on note_off
 
-    -- pb_range = Instrument.inst_pitch_bend_range (event_instrument event)
-    midi_nn = Maybe.fromMaybe 0 (event_pitch_at event note_on)
+    pb_range = Instrument.inst_pitch_bend_range (event_instrument event)
+    (midi_nn, pb) = Maybe.fromMaybe (0, 0)
+        (event_pitch_at pb_range event note_on)
 
     control_sigs = Map.assocs (event_controls event)
     cmap = Instrument.inst_controller_map (event_instrument event)
     (controller_pos_msgs, clip_warns) = unzip $
-        map (perform_controller cmap note_on next_note_on chan) control_sigs
-    controller_msgs = merge_messages (map (map mkmsg) controller_pos_msgs)
-    mkmsg (pos, msg) = Midi.WriteMessage dev (Timestamp.from_track_pos pos) msg
+        map (perform_controller cmap note_on next_note_on) control_sigs
+    pitch_pos_msgs = maybe []
+        (perform_pitch pb_range midi_nn note_on next_note_on)
+        (Map.lookup Controller.c_pitch (event_controls event))
+    controller_msgs = merge_messages $
+        map (map mkmsg) (pitch_pos_msgs : controller_pos_msgs)
+    mkmsg (pos, msg) = Midi.WriteMessage dev (Timestamp.from_track_pos pos)
+        (Midi.ChannelMessage chan msg)
 
     warns = concatMap (make_clip_warnings event)
         (zip (map fst control_sigs) clip_warns ++ vel_clip_warns)
@@ -137,9 +163,10 @@ perform_note next_note_on event (dev, chan)
 -- The pitch bend always tunes upwards from the tempered note.  It would be
 -- slicker to use a negative offset if the note is eventually going above
 -- unity, but that's too much work.
-event_pitch_at :: Event -> TrackPos -> Maybe Midi.Key
-event_pitch_at event pos =
-    fmap Controller.pitch_to_midi_key (control_at event Controller.c_pitch pos)
+event_pitch_at :: Controller.PbRange -> Event -> TrackPos
+    -> Maybe (Midi.Key, Midi.PitchBendValue)
+event_pitch_at pb_range event pos = fmap (Controller.pitch_to_midi pb_range)
+    (control_at event Controller.c_pitch pos)
 
 note_velocity :: Event -> TrackPos -> TrackPos
     -> (Midi.Velocity, Midi.Velocity, [(Controller.Controller, [ClipWarning])])
@@ -173,19 +200,24 @@ control_at event controller pos = do
     sig <- Map.lookup controller (event_controls event)
     return (Signal.at pos sig)
 
+perform_pitch :: Controller.PbRange -> Midi.Key -> TrackPos -> TrackPos
+    -> Signal.Signal -> [(TrackPos, Midi.ChannelMessage)]
+perform_pitch pb_range nn start end sig =
+    [ (pos, Midi.PitchBend (Controller.pb_from_nn pb_range nn val))
+    | (pos, val) <- pos_vals ]
+    where
+    pos_vals = takeWhile ((<end) . fst) $
+        Signal.sample Signal.default_srate start sig
+
 -- | Return the (pos, msg) pairs, and whether the signal value went out of the
 -- allowed controller range, 0--1.
-perform_controller :: Controller.ControllerMap
-    -> TrackPos -> TrackPos -> Midi.Channel
+perform_controller :: Controller.ControllerMap -> TrackPos -> TrackPos
     -> (Controller.Controller, Signal.Signal)
-    -> ([(TrackPos, Midi.Message)], [ClipWarning])
-perform_controller cmap start end chan (controller, sig) =
+    -> ([(TrackPos, Midi.ChannelMessage)], [ClipWarning])
+perform_controller cmap start end (controller, sig) =
     case Controller.controller_constructor cmap controller of
         Nothing -> ([], []) -- TODO warn about a controller not in the cmap
-        Just ctor ->
-            let msgs = [(pos, Midi.ChannelMessage chan (ctor val))
-                    | (pos, val) <- pos_cvals]
-            in (msgs, clip_warns)
+        Just cons -> ([(pos, cons val) | (pos, val) <- pos_cvals], clip_warns)
     where
         -- TODO get srate from a controller
     pos_vals = takeWhile ((<end) . fst) $

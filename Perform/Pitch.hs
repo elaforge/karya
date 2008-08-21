@@ -31,6 +31,7 @@ pitch scale note_str =
 -- It would be less tempered-centric to use hz, but for the moment this seems
 -- practical since note numbers are easier to read.
 newtype NoteNumber = NoteNumber Double deriving (Eq, Ord, Show)
+un_nn (NoteNumber nn) = nn
 
 nn :: (Real a) => a -> NoteNumber
 nn = NoteNumber . realToFrac

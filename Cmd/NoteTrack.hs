@@ -268,7 +268,7 @@ keynum_to_midi :: (Monad m) => Pitch.Scale -> Controller.PbRange -> Bool
     -> Midi.Velocity -> Pitch.KeyNumber -> Cmd.CmdT m [Midi.ChannelMessage]
 keynum_to_midi scale pb_range note_on vel keynum = do
     nn <- keynum_to_nn scale keynum
-    let (key, pb) = Controller.nn_to_midi pb_range nn
+    let (key, pb) = Controller.pitch_to_midi pb_range (Pitch.un_nn nn)
     return $ if note_on
         then Midi.NoteOn key vel : if Pitch.scale_set_pitch_bend scale
             then [Midi.PitchBend pb] else []
