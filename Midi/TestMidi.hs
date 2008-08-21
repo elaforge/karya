@@ -32,10 +32,10 @@ main = MidiC.initialize $ \read_chan -> print_err $ do
     forever $ do
         Midi.ReadMessage dev ts msg <- STM.atomically
             (TChan.readTChan read_chan)
-        -- print (MidiC.device_name dev, ts, msg)
-        let msgs = thru (ts, msg)
-        print ((ts, msg), msgs)
-        sequence_ [write_msg (out_dev, ts, msg) | (ts, msg) <- msgs]
+        print (dev, ts, msg)
+        -- let msgs = thru (ts, msg)
+        -- print ((ts, msg), msgs)
+        -- sequence_ [write_msg (out_dev, ts, msg) | (ts, msg) <- msgs]
 
 thru (ts, msg) = case msg of
     Midi.ChannelMessage ch (Midi.NoteOn key vel)

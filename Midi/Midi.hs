@@ -41,7 +41,7 @@ program_change bank program = map (ChannelMessage 0)
     [ ControlChange cc_bank_msb msb, ControlChange cc_bank_lsb lsb
     , ProgramChange (fromIntegral program)
     ]
-    where (msb, lsb) = split14 (fromIntegral bank)
+    where (lsb, msb) = split14 (fromIntegral bank)
 
 cc_bank_msb, cc_bank_lsb :: Controller
 cc_bank_msb = 0
@@ -137,11 +137,12 @@ data RealtimeMessage = TimingClock | Start | Continue | Stop | ActiveSense
 
 -- * util
 
--- | Split an Int into (msb, lsb)
+-- | Split an Int into (lsb, msb)
 split14 :: Int -> (Word8, Word8)
-split14 i = (fromIntegral (shiftR i 7 .&. 0x7f), fromIntegral (i .&. 0x7f))
+split14 i = (fromIntegral (i .&. 0x7f), fromIntegral (shiftR i 7 .&. 0x7f))
 
 -- | Split an Int into two 7-bit Word8s, or go the other way.  MIDI sends
 -- the lsb first, so the args will usually be swapped.
 join14 :: Word8 -> Word8 -> Int
-join14 msb lsb = fromIntegral (shiftL (msb .&. 0x7f) 7 .|. (lsb .&. 0x7f))
+join14 lsb msb =
+    shiftL (fromIntegral msb .&. 0x7f) 7 .|. (fromIntegral lsb .&. 0x7f)

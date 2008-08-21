@@ -22,7 +22,7 @@ decode (status:d1:d2:bytes)
         0xb -> ControlChange d1 d2
         0xc -> ProgramChange d1
         0xd -> ChannelPressure d1
-        0xe -> PitchBend (fromIntegral (join14 d2 d1 - 0x2000) / 0x2000)
+        0xe -> PitchBend (decode_pb d1 d2)
         _ -> error $ "not reached: " ++ show st
     channel_mode_msg = case d1 of
         0x78 -> AllSoundOff
@@ -32,7 +32,7 @@ decode (status:d1:d2:bytes)
         _ -> UndefinedChannelMode d1 d2
     common_msg = case chan of
         0x0 -> SystemExclusive d1 (take_include (not . (==eox_byte)) (d2:bytes))
-        0x2 -> SongPositionPointer (join14 d2 d1)
+        0x2 -> SongPositionPointer (join14 d1 d2)
         0x3 -> SongSelect d1
         0x6 -> TuneRequest
         0x7 -> EOX -- this shouldn't happen by itself
@@ -62,8 +62,7 @@ encode (ChannelMessage chan msg) = [join4 st chan, d1, d2]
         ControlChange c v -> (0xb, c, v)
         ProgramChange v -> (0xc, v, 0)
         ChannelPressure v -> (0xd, v, 0)
-        PitchBend v -> let (d1, d2) = split14 (floor (v*0x2000))
-            in (0xe, d2, d1)
+        PitchBend v -> let (d1, d2) = encode_pb v in (0xe, d1, d2)
         -- channel mode msgs
         AllSoundOff -> (0xb, 0x78, 0)
         ResetAllControllers -> (0xb, 0x79, 0)
@@ -86,7 +85,7 @@ encode (CommonMessage msg) = join4 0xf code : bytes
     where
     (code, bytes) = case msg of
         SystemExclusive manufacturer bytes -> (0x0, manufacturer : bytes)
-        SongPositionPointer d -> let (msb, lsb) = split14 d in (0x2, [lsb, msb])
+        SongPositionPointer d -> let (d1, d2) = split14 d in (0x2, [d1, d2])
         SongSelect d -> (0x3, [d])
         TuneRequest -> (0x6, [])
         EOX -> (0x7, []) -- this should have been in SystemExclusive
@@ -94,6 +93,18 @@ encode (CommonMessage msg) = join4 0xf code : bytes
 
 encode (UnknownMessage st d1 d2)
     = error $ "UnknownMessage: " ++ show (st, d1, d2)
+
+-- | I map a 2s complement range to inclusive -1--1, so this is a little
+-- tricky.
+decode_pb :: Word8 -> Word8 -> PitchBendValue
+decode_pb d1 d2
+    | v < 0x2000 = (v - 0x2000) / 0x2000
+    | otherwise = (v - 0x2000) / (0x2000-1)
+    where v = fromIntegral (join14 d1 d2)
+
+encode_pb :: PitchBendValue -> (Word8, Word8)
+encode_pb v = split14 (floor (v*m + 0x2000))
+    where m = if v < 0 then 0x2000 else 0x2000 - 1
 
 -- | Split a Word8 into (msb, lsb) nibbles, and join back.
 split4 :: Word8 -> (Word8, Word8)
