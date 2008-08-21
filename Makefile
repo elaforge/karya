@@ -103,7 +103,7 @@ ALL_HS = $(shell tools/all_hs.py)
 all_hsc: $(UI_HS) $(MIDI_HS)
 
 # PHONY convinces make to always run ghc, which figures out deps on its own
-.PHONY: test_midi
+.PHONY: $(BUILD)/test_midi
 $(BUILD)/test_midi: $(MIDI_HS) $(UI_HS)
 	$(GHC) $(HFLAGS) --make \
 		-main-is Midi.TestMidi Midi/TestMidi.hs $(MIDI_LIBS) -o $@
@@ -117,16 +117,16 @@ $(BUILD)/seq: $(UI_HS) $(UI_OBJS) $(MIDI_HS) fltk/fltk.a
 		-o $@
 	$(BUNDLE)
 
-.PHONY: send
+.PHONY: $(BUILD)/send
 $(BUILD)/send: App/Send.hs
 	$(GHC) $(HFLAGS) --make $^ -o $@
-.PHONY: repl
+.PHONY: $(BUILD)/repl
 $(BUILD)/repl: App/Repl.hs
 	$(GHC) $(HFLAGS) --make $^ -o $@
-.PHONY: dump
+.PHONY: $(BUILD)/dump
 $(BUILD)/dump: App/Dump.hs
 	$(GHC) $(HFLAGS) --make $^ -o $@
-.PHONY: make_db
+.PHONY: $(BUILD)/make_db
 $(BUILD)/make_db: Instrument/MakeDb.hs
 	$(GHC) $(HFLAGS) --make $^ -o $@
 .PHONY: sense
@@ -137,7 +137,7 @@ LOGVIEW_OBJ = LogViewer/LogView.hs LogViewer/LogViewC.hs \
 	LogViewer/interface.o LogViewer/logview_ui.o
 LOGVIEW_HS = LogViewer/LogViewC.hs
 
-.PHONY: logview
+.PHONY: $(BUILD)/logview
 $(BUILD)/logview: $(LOGVIEW_OBJ)
 	$(GHC) $(HFLAGS) --make -main-is LogViewer.LogView $^ -o $@ \
 		$(HLDFLAGS)
@@ -148,7 +148,7 @@ BROWSER_OBJ = Instrument/Browser.hs \
 	Util/fltk_interface.o
 BROWSER_HS = Instrument/BrowserC.hs
 
-.PHONY: browser
+.PHONY: $(BUILD)/browser
 $(BUILD)/browser: $(BROWSER_OBJ) $(BROWSER_HS)
 	$(GHC) $(HFLAGS) --make -main-is Instrument.Browser $^ -o $@ \
 		$(HLDFLAGS)
