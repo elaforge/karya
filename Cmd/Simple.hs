@@ -56,7 +56,7 @@ simplify_track track_id track =
 
 dump_selection :: Cmd.CmdL [(Track.TrackId, [Event])]
 dump_selection = do
-    track_events <- Selection.selected_events Config.insert_selnum
+    (_, _, track_events) <- Selection.selected_events True Config.insert_selnum
     return [(track_id, map event events)
         | (track_id, events) <- track_events]
 

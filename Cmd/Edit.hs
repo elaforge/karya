@@ -51,35 +51,28 @@ edit_color Cmd.EditKbd = Config.kbd_entry_color
 -- * universal event cmds
 
 -- | Extend the events in the selection to either the end of the selection or
--- the beginning of the next note.  Of course, this should only be in scope in
--- note tracks.
--- TODO make sure that's true
-cmd_extend_events :: (Monad m) => Cmd.CmdT m ()
-cmd_extend_events = do
-    (track_ids, sel) <- Selection.selected_tracks Config.insert_selnum
-    let (start, end) = Block.sel_range sel
-    forM_ track_ids $ \track_id ->
-        State.modify_event_range track_id (trans_legato end) start end
+-- the beginning of the next note.
+-- TODO control tracks that are covered by the selection should be skipped
+cmd_set_duration :: (Monad m) => Cmd.CmdT m ()
+cmd_set_duration = modify_events $ \_start end (pos, event) ->
+    (pos, event { Event.event_duration = end - pos })
 
-trans_legato :: TrackPos -> State.EventTransformer
-trans_legato sel_end _prev next (pos, event) = [(pos, extended)]
-    where
-    dur = case next of
-        ((next_pos, _):_) -> (min sel_end next_pos) - pos
-        [] -> Event.event_duration event
-    extended = event { Event.event_duration = dur }
+cmd_modify_dur :: (Monad m) => (TrackPos -> TrackPos) -> Cmd.CmdT m ()
+cmd_modify_dur f = modify_events $ \_ _ (pos, evt) ->
+    (pos, evt { Event.event_duration = f (Event.event_duration evt) })
 
--- | An event overlapping the selection's point will be clipped to end there.
-cmd_clip_event :: (Monad m) => Cmd.CmdT m ()
-cmd_clip_event = do
-    (track_id, _, pos) <- Selection.get_insert_track
-    track <- State.get_track track_id
-    (event_pos, event) <- Cmd.require $
-        Track.event_overlapping (Track.track_events track) pos
-    let max_dur = pos - event_pos
-    let clipped = event
-            { Event.event_duration = min max_dur (Event.event_duration event) }
-    State.insert_events track_id [(event_pos, clipped)]
+-- | Modify previous event if the selection is a point, and all events under
+-- the selection if it's a range.
+modify_events :: (Monad m) =>
+    (TrackPos -> TrackPos -> Track.PosEvent -> Track.PosEvent) -> Cmd.CmdT m ()
+modify_events f = do
+    (start, end, track_events) <-
+        Selection.selected_events True Config.insert_selnum
+    forM_ track_events $ \(track_id, pos_events) -> do
+        let pos_events2 = map (f start end) pos_events
+        if start == end then State.remove_event track_id start
+            else State.remove_events track_id start end
+        State.insert_events track_id pos_events2
 
 -- | If the insertion selection is a point, remove any event under it.  If it's
 -- a range, remove all events within its half-open extent.

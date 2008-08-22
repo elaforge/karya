@@ -253,18 +253,28 @@ get_insert_track = do
     track_id <- Cmd.require (track_ids `Seq.at` 0)
     return (track_id, Block.sel_start_track sel, Block.sel_start_pos sel)
 
--- | Get the events in the selection, along with their tracks.
+-- | Get the start and end of the selection, along with the events that fall
+-- within it, by track.
 selected_events :: (Monad m) =>
-    Block.SelNum -> Cmd.CmdT m [(Track.TrackId, [Track.PosEvent])]
-selected_events selnum = do
+    Bool -- ^ If true, a point selection will get the event on or before it.
+    -> Block.SelNum
+    -> Cmd.CmdT m (TrackPos, TrackPos, [(Track.TrackId, [Track.PosEvent])])
+selected_events point_prev selnum = do
     (track_ids, sel) <- selected_tracks selnum
     tracks <- mapM State.get_track track_ids
-    return [(track_id, events_in_sel sel track)
-        | (track_id, track) <- zip track_ids tracks]
+    let (start, end) = Block.sel_range sel
+        get_events = if point_prev && Block.sel_is_point sel
+            then event_before else events_in_sel
+        track_events = [(track_id, get_events sel track)
+            | (track_id, track) <- zip track_ids tracks]
+    return (start, end, track_events)
 
 events_in_sel sel track =
     Track.events_in_range start end (Track.track_events track)
     where (start, end) = Block.sel_range sel
+
+event_before sel track = maybe [] (:[]) $
+    Track.event_before (Block.sel_start_pos sel) (Track.track_events track)
 
 -- | Get selected event tracks along with the selection.  The tracks are
 -- returned in the same order that they occur in the block.

@@ -115,8 +115,10 @@ edit_bindings =
     , bind_key (Key.KeyChar '-') "octave -1" (Edit.cmd_modify_octave (+ (-1)))
     , bind_key (Key.KeyChar '=') "octave +1" (Edit.cmd_modify_octave (+1))
 
-    , command (Key.KeyChar 'l') "extend events" (done Edit.cmd_extend_events)
-    , command (Key.KeyChar 's') "clip event" (done Edit.cmd_clip_event)
+    -- TODO These should probably go in the note track bindings.
+    , command (Key.KeyChar 's') "set dur" (done Edit.cmd_set_duration)
+    , command (Key.KeyChar '.') "dur * 1.5" (done (Edit.cmd_modify_dur (*1.5)))
+    , command (Key.KeyChar ',') "dur / 1.5" (done (Edit.cmd_modify_dur (/1.5)))
     ]
 
 create_bindings =

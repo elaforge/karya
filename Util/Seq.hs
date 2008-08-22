@@ -72,11 +72,11 @@ keyed_group_with key = map (\gs -> (key (head gs), gs))
     . groupBy ((==) `on` key) . sortBy (compare `on` key)
 
 -- | Pair each element with the following element.  The last element is paired
--- with @f x@.  Like @zip xs (drop 1 xs ++ f (last xs))@ but more efficient.
-zip_next :: (a->a) -> [a] -> [(a, a)]
-zip_next _ [] = []
-zip_next f [x] = [(x, f x)]
-zip_next f (x:y:zs) = (x, y) : zip_next f (y:zs)
+-- with Nothing.  Like @zip xs (drop 1 xs ++ f (last xs))@ but more efficient.
+zip_next :: [a] -> [(a, Maybe a)]
+zip_next [] = []
+zip_next [x] = [(x, Nothing)]
+zip_next (x : rest@(y:_)) = (x, Just y) : zip_next rest
 
 -- * sublists
 

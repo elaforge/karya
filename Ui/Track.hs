@@ -8,6 +8,7 @@ import qualified Data.Map as Map
 import qualified Text.Read as Read
 
 import qualified Util.Data
+import qualified Util.Seq as Seq
 
 import Ui.Types
 import qualified Ui.Id as Id
@@ -125,7 +126,14 @@ map_events f events = emap (Map.fromList . map f . Map.toList) events
 -- same place as existing events will replace the existing ones.
 insert_events :: [PosEvent] -> TrackEvents -> TrackEvents
 insert_events pos_events events =
-    merge events (TrackEvents (Map.fromAscList pos_events))
+    merge events (TrackEvents (Map.fromAscList clipped))
+    where
+    clipped = map clip (Seq.zip_next pos_events)
+    clip ((pos, event), Nothing) = (pos,
+        event { Event.event_duration = max 0 (Event.event_duration event) })
+    clip ((pos, event), Just (next_pos, _)) =
+        (pos, event { Event.event_duration = dur })
+        where dur = max 0 $ min (Event.event_duration event) (next_pos - pos)
 
 -- | Remove events between @start@ and @end@, not including @end@.
 remove_events :: TrackPos -> TrackPos -> TrackEvents -> TrackEvents
@@ -157,9 +165,12 @@ event_at track_events pos = case forward pos track_events of
     ((epos, event):_) | epos == pos -> Just event
     _ -> Nothing
 
+event_before pos events = let es = snd (events_at_before pos events)
+    in if null es then Nothing else Just (head es)
+
 -- | Like 'event_at', but return an event that overlaps the given pos.
-event_overlapping :: TrackEvents -> TrackPos -> Maybe PosEvent
-event_overlapping track_events pos
+event_overlapping :: TrackPos -> TrackEvents -> Maybe PosEvent
+event_overlapping pos track_events
     | (next:_) <- post, fst next == pos = Just next
     | (prev:_) <- pre, event_end prev > pos = Just prev
     | otherwise = Nothing

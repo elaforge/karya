@@ -118,7 +118,7 @@ cmd_paste_soft_merge = do
             filter (not . overlaps track_events) events
     return Cmd.Done
     where
-    overlaps events (pos, _) = Maybe.isJust (Track.event_overlapping events pos)
+    overlaps events (pos, _) = Maybe.isJust (Track.event_overlapping pos events)
 
 -- | Insert the events after pushing events after the selection down by
 -- the inserted length, which is the minimum of the insert selection and the
