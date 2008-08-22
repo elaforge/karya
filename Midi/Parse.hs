@@ -17,7 +17,9 @@ decode (status:d1:d2:bytes)
     (st, chan) = split4 status
     channel_msg = case st of
         0x8 -> NoteOff d1 d2
-        0x9 -> NoteOn d1 d2
+            -- Hide this bit of midi irregularity from clients.
+        0x9 | d2 == 0 -> NoteOff d1 d2
+            | otherwise -> NoteOn d1 d2
         0xa -> Aftertouch d1 d2
         0xb -> ControlChange d1 d2
         0xc -> ProgramChange d1
