@@ -221,6 +221,8 @@ scale_parser scale (_pos, event) =
 -- > i, note, \<call -> ((i, note), call))
 -- > i, note -> ((i, note), Nothing)
 -- > i, , \<call -> (Nothing, call)
+--
+-- TODO relative pitches: +4, -1/0 (oct/degree), +1/2+3 +1/2-3 (oct/degree+hz)
 default_parse_note :: Pitch.Scale -> String
     -> Either String (Maybe Signal.Method, Maybe Pitch.Pitch, Maybe String)
 default_parse_note scale text = do

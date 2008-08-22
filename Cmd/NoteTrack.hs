@@ -117,19 +117,20 @@ upper_notes = map (oct_key 1) $ zip [0..]
 
 make_kbd_note_entry :: Info -> Bool -> (Pitch.KeyNumber, Char)
     -> [Keymap.Binding Identity.Identity]
-make_kbd_note_entry info enter_notes (keynum, unmapped_char) =
+make_kbd_note_entry info enter_notes (k_keynum, unmapped_char) =
     [ (spec UiMsg.KeyDown, Keymap.cspec_ (desc ++ " down") keydown_cmd)
     , (spec UiMsg.KeyUp, Keymap.cspec_ (desc ++ " up") keyup_cmd)
     ]
     where
     key = Key.KeyChar (Keymap.hardcoded_kbd_layout Map.! unmapped_char)
     spec state = Keymap.KeySpec Keymap.AnyCharMod (Keymap.UiKey state key)
-    desc = "note pitch " ++ show keynum
+    desc = "note pitch " ++ show k_keynum
     keydown_cmd = do
         mods <- Cmd.keys_down
         -- Key repeat makes multiple note ons.  Ignore it for note entry too,
         -- since I can't see wanting to spam out a million notes at once.
         when (Cmd.KeyMod key `Map.notMember` mods) $ do
+            keynum <- transpose_keynum k_keynum
             when enter_notes $ do
                 cmd_insert_pitch (info_scale info) keynum
                 Selection.cmd_advance_insert
@@ -139,7 +140,7 @@ make_kbd_note_entry info enter_notes (keynum, unmapped_char) =
             cmd_note_on info keynum
             return ()
         return Cmd.Done
-    keyup_cmd = cmd_note_off info keynum
+    keyup_cmd = cmd_note_off info =<< transpose_keynum k_keynum
 
 
 -- * note entry
@@ -159,15 +160,14 @@ cmd_insert_midi_note scale msg = do
     insert_note =<< keynum_to_note scale (fromIntegral key `divMod` 12)
     return Cmd.Done
 
-get_keynum :: (Monad m) => Pitch.KeyNumber -> Cmd.CmdT m Pitch.KeyNumber
-get_keynum (oct, num) = do
+transpose_keynum :: (Monad m) => Pitch.KeyNumber -> Cmd.CmdT m Pitch.KeyNumber
+transpose_keynum (oct, num) = do
     oct_transpose <- fmap Cmd.state_kbd_entry_octave Cmd.get_state
     return (oct + oct_transpose, num)
 
 keynum_to_note :: (Monad m) => Pitch.Scale -> Pitch.KeyNumber
     -> Cmd.CmdT m Pitch.Note
-keynum_to_note scale keynum0 = do
-    keynum <- get_keynum keynum0
+keynum_to_note scale keynum = do
     case Pitch.scale_key_to_note scale keynum of
         Left err -> Cmd.throw $ "couldn't convert keynum " ++ show keynum
             ++ ": " ++ err
