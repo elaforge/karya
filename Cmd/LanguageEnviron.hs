@@ -8,6 +8,8 @@
 -}
 module Cmd.LanguageEnviron where
 import Control.Monad.Trans (liftIO)
+import qualified Data.Map as Map
+import qualified Data.List as List
 
 import Ui.Types
 
@@ -15,6 +17,7 @@ import qualified Util.Log as Log
 import qualified Util.PPrint as PPrint
 
 import Ui.Types
+import qualified Ui.Id as Id
 import qualified Ui.Color as Color
 import qualified Ui.Block as Block
 import qualified Ui.Ruler as Ruler

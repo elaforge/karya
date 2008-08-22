@@ -112,9 +112,11 @@ set_octave n = Edit.cmd_modify_octave (const n) >> return ()
 quit :: Cmd.CmdL String
 quit = return Language.magic_quit_string
 
-load, save :: FilePath -> Cmd.CmdL ()
+save :: Cmd.CmdL ()
+load, save_as :: FilePath -> Cmd.CmdL ()
 load fn = Save.cmd_load fn
-save fn = Save.cmd_save fn
+save = Save.cmd_save =<< Save.get_save_file
+save_as fn = Save.cmd_save fn
 
 -- * undo, redo
 

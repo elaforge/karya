@@ -162,7 +162,7 @@ hardcoded_cmds :: [Cmd.Cmd]
 hardcoded_cmds =
     -- Special Cmds that record info about the incoming msgs.
     [ Cmd.cmd_update_ui_state, Cmd.cmd_record_active
-    , Cmd.cmd_log
+    -- , Cmd.cmd_log
     -- Handle special case global msgs.
     , Cmd.cmd_close_window
     ]
