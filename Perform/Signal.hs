@@ -22,12 +22,11 @@ import qualified Data.Maybe as Maybe
 import qualified Data.StorableVector as V
 import qualified Foreign.Storable as Storable
 
--- import qualified Util.Data
-
 import Ui.Types
 import qualified Ui.Track as Track
 
 import qualified Perform.Timestamp as Timestamp
+
 
 -- * construction / deconstruction
 
@@ -380,15 +379,19 @@ map_pos f = vmap (V.map (Arrow.first (pos_to_val . f . val_to_pos)))
 
 clip_with val f = map_signal_accum go False
     where
+        -- True if I'm in a clipped segment, False otherwise.
     go True x0 y0 x1 y1
         | f y1 val = (True, [])
         | x == x1 = (False, [(x1, y1)])
         | otherwise = (False, [(x, val), (x1, y1)])
-            where x = x_at x0 y0 x1 y1 val
+        where x = x_at x0 y0 x1 y1 val
     go False x0 y0 x1 y1
-        | f y1 val = (True, [(x, val)])
+            -- y0==y1 means a flat line started past the limit, like say a zero
+            -- signal.
+        | f y1 val = if y0 == y1 then (True, [(x0, val), (x1, val)])
+            else (True, [(x, val)])
         | otherwise = (False, [(x1, y1)])
-            where x = x_at x0 y0 x1 y1 val
+        where x = x_at x0 y0 x1 y1 val
 
 integrate_segment :: Val -> Val -> Val -> Val -> Val -> Val
     -> (Val, [(Val, Val)])
@@ -444,27 +447,10 @@ y_at x0 y0 x1 y1 x
 x_at :: Val -> Val -> Val -> Val -> Val -> Val
 x_at x0 y0 x1 y1 y
     | x0 == x1 = x1 -- zero width means vertical, which means it crosses here
-    | y0 == y1 = error $ "x_at on flat line " ++ show y0
+    | y0 == y1 = error $ "x_at on flat line " ++ show ((x0, y0), (x1, y1), y)
     | otherwise = (y - y0) / ((y1 - y0) / (x1 - x0)) + x0
 
 pos_to_val :: TrackPos -> Val
 pos_to_val = realToFrac
 val_to_pos :: Val -> TrackPos
 val_to_pos = realToFrac
-
-{-
-lookup_around_loose def k fm = case lookup_around k fm of
-    (Just kv0, Just kv1) -> (kv0, kv1)
-    (Nothing, Nothing) -> (def, def)
-    (Nothing, Just kv1) -> (def, kv1)
-    (Just kv0@(k0, v0), Nothing) ->
-        (Maybe.fromMaybe def (lookup_before k0 fm), kv0)
-
-lookup_before :: (Ord k) => k -> Map.Map k a -> Maybe (k, a)
-lookup_before k fm = Util.Data.find_max (fst (Map.split k fm))
-
-lookup_around k fm = case at of
-        Nothing -> (Util.Data.find_max pre, Util.Data.find_min post)
-        Just v -> (Just (k, v), Util.Data.find_min post)
-    where (pre, at, post) = Map.splitLookup k fm
--}

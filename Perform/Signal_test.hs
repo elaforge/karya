@@ -1,4 +1,5 @@
 module Perform.Signal_test where
+import qualified Data.List as List
 
 import Util.Test
 
@@ -149,13 +150,17 @@ test_find_samples = do
         , ((1, 1), (2, 1))
         ]
 
-test_clip = do
-    let sig = Signal.signal [(0, 0), (2, 2), (4, 0)]
-    print sig
-    equal (Signal.unpack $ Signal.clip_max 1 sig)
-        [(0, 0), (1, 1), (3, 1), (4, 0)]
+test_clip_max = do
+    let f samples = check $ List.all ((<=1) . snd)
+            (Signal.unpack (Signal.clip_max 1 (Signal.signal samples)))
+    f [(0, 0), (0, 2), (4, 2)]
+    f [(1, 0)]
+    f []
 
-test_clip2 = do
-    let sig = Signal.signal [(0, 0), (0, 2), (4, 2)]
-    print sig
-    print $ Signal.clip_min 1 sig
+test_clip_min = do
+    let f samples = check $ List.all ((>=1) . snd)
+            (Signal.unpack (Signal.clip_min 1 (Signal.signal samples)))
+    f [(0, 0), (0, 2), (4, 2)]
+    f [(1, 0)]
+    f []
+    -- print $ Signal.clip_min 1 (Signal.signal [(1, 0)])
