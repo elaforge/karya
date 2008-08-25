@@ -72,8 +72,7 @@
     timestamps, which are later passed to the integrator to convert into
     events.
 -}
--- TODO rename this GlobalKeymap?
-module Cmd.DefaultKeymap where
+module Cmd.GlobalKeymap where
 import qualified Control.Monad.Identity as Identity
 
 import qualified App.Config as Config
@@ -94,8 +93,8 @@ import qualified Cmd.TimeStep as TimeStep
 import qualified Cmd.View as View
 
 
-default_cmds :: [Cmd.Cmd]
-default_cmds =
+global_cmds :: [Cmd.Cmd]
+global_cmds =
     [ Selection.cmd_mouse_selection 1 Config.insert_selnum
     , Keymap.make_cmd (misc_bindings ++ selection_bindings
         ++ view_config_bindings ++ edit_bindings ++ create_bindings

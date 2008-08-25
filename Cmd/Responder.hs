@@ -78,7 +78,7 @@ import qualified Perform.Timestamp as Timestamp
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Language as Language
 import qualified Cmd.Msg as Msg
-import qualified Cmd.DefaultKeymap as DefaultKeymap
+import qualified Cmd.GlobalKeymap as GlobalKeymap
 import qualified Cmd.Play as Play
 import qualified Cmd.Save as Save
 
@@ -171,7 +171,7 @@ hardcoded_cmds =
 hardcoded_io_cmds play_info session lang_dirs =
     [ Language.cmd_language session lang_dirs
     , Play.cmd_transport_msg
-    , DefaultKeymap.cmd_io_keymap play_info
+    , GlobalKeymap.cmd_io_keymap play_info
     ]
 
 data ResponderState = ResponderState {
@@ -215,7 +215,7 @@ loop rstate = do
         ui_state cmd_state (Cmd.run Cmd.Continue) io_cmds msg
 
     focus_cmds <- eval "get focus cmds" ui_state cmd_state [] get_focus_cmds
-    let id_cmds = hardcoded_cmds ++ focus_cmds ++ DefaultKeymap.default_cmds
+    let id_cmds = hardcoded_cmds ++ focus_cmds ++ GlobalKeymap.global_cmds
     (status, ui_state, cmd_state) <- maybe_run "run pure cmds" status write_midi
         ui_state cmd_state Cmd.run_id_io id_cmds msg
 
