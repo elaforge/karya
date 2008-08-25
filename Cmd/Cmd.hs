@@ -173,7 +173,9 @@ data State = State {
     -- Editing state
 
     -- | Edit mode enables various commands that write to tracks.
-    , state_edit_mode :: EditMode
+    , state_edit_mode :: Maybe EditMode
+    -- | Use the alphanumeric keys to enter notes instead of midi input.
+    , state_kbd_entry :: Bool
     -- | Default time step.  Used for cursor movement, note duration, and
     -- whatever else.
     , state_step :: TimeStep.TimeStep
@@ -191,7 +193,8 @@ initial_state inst_db schema_map = State {
     , state_focused_view = Nothing
     , state_clip_namespace = Config.clip_namespace
 
-    , state_edit_mode = NoEdit
+    , state_edit_mode = Nothing
+    , state_kbd_entry = False
     , state_step =
         TimeStep.UntilMark TimeStep.AllMarklists (TimeStep.MatchRank 2)
     -- This should put middle C in the center of the kbd entry keys.
@@ -200,7 +203,10 @@ initial_state inst_db schema_map = State {
 
 empty_state = initial_state Instrument.Db.empty Map.empty
 
-data EditMode = NoEdit | EditMidi | EditKbd deriving (Eq, Show)
+-- | These enable various commands to edit event text.  What exactly val, call,
+-- and method mean are dependent on the deriver, but I expect the definitions
+-- in Cmd.NoteTrack and Cmd.ControllerTrack will be universal.
+data EditMode = RawEdit | ValEdit | CallEdit | MethodEdit deriving (Eq, Show)
 
 data Modifier = KeyMod Key.Key
     -- | Mouse button, and (tracknum, pos) in went down at, if any.
@@ -512,7 +518,8 @@ data Track = Track {
 data CmdContext = CmdContext {
     ctx_default_addr :: Maybe Instrument.Addr
     , ctx_inst_addr :: Score.Instrument -> Maybe Instrument.Addr
-    , ctx_edit_mode :: EditMode
+    , ctx_edit_mode :: Maybe EditMode
+    , ctx_kbd_entry :: Bool
     , ctx_focused_tracknum :: Maybe Block.TrackNum
     }
 

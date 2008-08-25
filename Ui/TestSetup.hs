@@ -26,15 +26,7 @@ pause = putStr "? " >> IO.hFlush IO.stdout >> getLine >> return ()
 -- high, so a y of 44 is the minimum.
 default_rect = Block.Rect 10 50 200 200
 
-default_block_config = Block.Config
-    { Block.config_selection_colors =
-        let sel = Color.alpha 0.3 . Color.lighten 0.8 in
-            [sel Color.blue, sel Color.green, sel Color.red, sel Color.purple,
-                sel Color.yellow]
-    , Block.config_bg_color = Color.gray8
-    , Block.config_track_box_color = Color.rgb 0.25 1 1
-    , Block.config_sb_box_color = Color.rgb 0.25 1 1
-    }
+default_block_config = Config.block_config
 
 default_view_config = Block.ViewConfig
     { Block.vconfig_zoom_speed = 1

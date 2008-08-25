@@ -464,17 +464,18 @@ set_block_config :: (UiStateMonad m) => Block.BlockId -> Block.Config -> m ()
 set_block_config block_id config =
     modify_block block_id (\block -> block { Block.block_config = config })
 
-set_edit_box :: (UiStateMonad m) => Block.BlockId -> Color -> m ()
-set_edit_box block_id color = do
+set_edit_box :: (UiStateMonad m) => Block.BlockId -> Color -> Char -> m ()
+set_edit_box block_id color char = do
     block <- get_block block_id
     set_block_config block_id $
-        (Block.block_config block) { Block.config_track_box_color = color }
+        (Block.block_config block) { Block.config_track_box = (color, char) }
 
+-- | The play box doesn't use a char, so I leave that out.
 set_play_box :: (UiStateMonad m) => Block.BlockId -> Color -> m ()
 set_play_box block_id color = do
     block <- get_block block_id
     set_block_config block_id $
-        (Block.block_config block) { Block.config_sb_box_color = color }
+        (Block.block_config block) { Block.config_sb_box = (color, ' ') }
 
 -- | Get the end of the block.  Defined as the end of the ruler of the first
 -- track.  This means that if the block has no rulers (e.g. a clipboard block)

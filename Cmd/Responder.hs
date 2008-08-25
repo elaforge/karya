@@ -290,10 +290,12 @@ get_focus_cmds = do
     block <- State.block_of_view =<< Cmd.get_focused_view
     tracks <- Schema.block_tracks block
     midi_config <- State.get_midi_config
-    edit_mode <- fmap Cmd.state_edit_mode Cmd.get_state
     tracknum <- Cmd.get_insert_tracknum
+    cmd_state <- Cmd.get_state
 
-    let context = Schema.cmd_context midi_config edit_mode tracknum
+    let context = Schema.cmd_context midi_config
+            (Cmd.state_edit_mode cmd_state) (Cmd.state_kbd_entry cmd_state)
+            tracknum
     schema_map <- Cmd.get_schema_map
     return $
         Schema.get_cmds schema_map context (Block.block_schema block) tracks

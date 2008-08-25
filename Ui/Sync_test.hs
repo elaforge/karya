@@ -102,8 +102,8 @@ test_set_block_config = do
         State.set_block_config t_block_id $ config
             { Block.config_selection_colors = [Color.red]
             , Block.config_bg_color = Color.red
-            , Block.config_track_box_color = Color.red
-            , Block.config_sb_box_color = Color.red
+            , Block.config_track_box = (Color.red, ' ')
+            , Block.config_sb_box = (Color.red, ' ')
             }
     return ()
 

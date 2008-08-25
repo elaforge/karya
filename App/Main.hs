@@ -58,7 +58,7 @@ load_static_config = do
         , StaticConfig.config_schema_map = Map.empty
         , StaticConfig.config_local_lang_dirs = [app_dir </> Config.lang_dir]
         , StaticConfig.config_global_cmds = []
-        , StaticConfig.config_setup_cmd = setup_cmd
+        , StaticConfig.config_setup_cmd = old_setup_cmd
         , StaticConfig.config_read_device_map = read_device_map
         , StaticConfig.config_write_device_map = write_device_map
         }
@@ -193,15 +193,17 @@ old_setup_cmd _args = do
 
     b <- Create.block r
     _v <- Create.view b
-    Create.named_track b over_r 1 "tempo" "tempo"
+    t_tempo <- Create.named_track b over_r 1 "tempo" "tempo"
+    State.insert_events t_tempo $ map TestSetup.mkevent [(0, 0, "1")]
     t0 <- Create.track b 2
     State.insert_events t0 $ map TestSetup.mkevent
         [(0, 1, "5c-"), (1, 1, "5d-"), (2, 1, "5e-"), (3, 1, "5f-")]
     State.set_track_title t0 ">fm8/bass"
     _t1 <- Create.track b 3
+    State.set_midi_config inst_config
     return Cmd.Done
 
 inst_config = Instrument.config
-        [((Midi.WriteDevice "out", n), Score.Instrument "fm8/bass")
+        [((Midi.WriteDevice "fm8", n), Score.Instrument "fm8/bass")
             | n <- [0..2]]
         Nothing

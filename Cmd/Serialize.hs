@@ -144,16 +144,12 @@ instance Binary Block.SchemaId where
     put (Block.SchemaId a) = put a
     get = get >>= \a -> return (Block.SchemaId a)
 
-block = Block.Block :: String -> Block.Config
-    -> [(Block.TracklikeId, Block.Width)] -> Block.SchemaId -> Block.Block
 instance Binary Block.Block where
     put (Block.Block a b c d) = put_version 2
         >> put a >> put b >> put c >> put d
     get = do
         v <- get_version
         case v of
-            1 -> get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
-                get >>= \e -> return (block a b (c:d) e)
             2 -> do
                 title <- get :: Get String
                 config <- get :: Get Block.Config
@@ -162,11 +158,13 @@ instance Binary Block.Block where
                 return (Block.Block title config tracks schema_id)
             _ -> version_error "Block.Block" v
 
-config = Block.Config :: [Color] -> Color -> Color -> Color -> Block.Config
+-- Everything in the block config is either derived from the Cmd.State or is
+-- hardcoded.
 instance Binary Block.Config where
-    put (Block.Config a b c d) = put a >> put b >> put c >> put d
-    get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
-        return (config a b c d)
+    put _ = put ()
+    get = do
+        _ <- get :: Get ()
+        return Config.block_config
 
 tid = Block.TId :: Track.TrackId -> Ruler.RulerId -> Block.TracklikeId
 rid = Block.RId :: Ruler.RulerId -> Block.TracklikeId

@@ -136,10 +136,10 @@ track_name (Block.TId tid _) =
 track_name _ = return Nothing
 
 -- | Constructor for CmdContext.
-cmd_context :: Instrument.Config -> Cmd.EditMode -> Maybe Block.TrackNum
-    -> CmdContext
-cmd_context midi_config edit_mode focused_tracknum =
-    CmdContext default_addr inst_addr edit_mode focused_tracknum
+cmd_context :: Instrument.Config -> Maybe Cmd.EditMode -> Bool
+    -> Maybe Block.TrackNum -> CmdContext
+cmd_context midi_config edit_mode kbd_entry focused_tracknum =
+    CmdContext default_addr inst_addr edit_mode kbd_entry focused_tracknum
     where
     default_addr = Instrument.config_default_addr midi_config
     -- Addr:Instrument -> Instrument:Maybe Addr
@@ -163,23 +163,34 @@ default_schema = Schema
 
 default_cmds :: Parser -> CmdContext -> [Track] -> [Cmd.Cmd]
 default_cmds parser context tracks = case track_type of
-        Just (NoteTrack _) -> midi_thru ++ inst_edit_cmds
+        Just (NoteTrack _) -> midi_thru ++ kbd_entry ++ inst_edit_cmds
         Just (ControllerTrack _) -> midi_thru ++ cont_edit_cmds
         Nothing -> []
     where
     midi_thru = with_info NoteTrack.cmd_midi_thru
+
+    -- It might be cleaner for kbd_entry to intercept keys and re-emit
+    -- them as midi msgs, but that would require cmds to be able to do that,
+    -- which is just more complication.  And this way I can disable kbd_entry
+    -- when I'm in some other edit mode.
+    kbd_entry = case (ctx_kbd_entry context, ctx_edit_mode context) of
+        (False, _) -> []
+        (_, Nothing) -> with_info NoteTrack.cmd_kbd_note_thru
+        (_, Just Cmd.ValEdit) -> with_info NoteTrack.cmd_kbd_note_entry
+        _ -> [] -- Don't steal keys from other edit modes.
+
     inst_edit_cmds = case ctx_edit_mode context of
-        Cmd.NoEdit -> with_info NoteTrack.cmd_kbd_note_thru
-        Cmd.EditKbd -> NoteTrack.cmd_midi_entry hardcoded_scale
-            : with_info NoteTrack.cmd_kbd_note_entry
-            ++ [NoteTrack.cmd_edit_method]
-        Cmd.EditMidi -> NoteTrack.cmd_midi_entry hardcoded_scale
-            : [NoteTrack.cmd_edit_method, NoteTrack.cmd_edit_call]
+        Nothing -> []
+        Just Cmd.RawEdit -> [] -- TODO
+        Just Cmd.ValEdit -> [NoteTrack.cmd_midi_entry hardcoded_scale]
+        Just Cmd.CallEdit -> [NoteTrack.cmd_edit_call]
+        Just Cmd.MethodEdit -> [NoteTrack.cmd_edit_method]
 
     cont_edit_cmds = case ctx_edit_mode context of
-        Cmd.NoEdit -> []
-        _ -> [NoteTrack.cmd_midi_entry hardcoded_scale,
-            ControllerTrack.cmd_controller_entry]
+        Nothing -> []
+        Just Cmd.MethodEdit -> [] -- TODO special method edit mode
+        Just _ -> [ControllerTrack.cmd_controller_entry]
+        -- TODO support for enum vals
 
     track_type = case ctx_focused_tracknum context of
         Nothing -> Nothing

@@ -4,7 +4,6 @@
 -}
 module Cmd.Edit where
 import Control.Monad
-import qualified Data.Map as Map
 
 import qualified Util.Seq as Seq
 
@@ -21,16 +20,38 @@ import qualified Cmd.Selection as Selection
 import qualified App.Config as Config
 
 
--- | Change the edit mode, changing the color of the edit_box as a reminder.
-cmd_toggle_kbd_entry :: Cmd.CmdId
-cmd_toggle_kbd_entry = modify_edit_mode $ \m -> case m of
-    Cmd.EditKbd -> Cmd.NoEdit
-    _ -> Cmd.EditKbd
+cmd_toggle_raw_edit, cmd_toggle_val_edit, cmd_toggle_call_edit,
+    cmd_toggle_method_edit, cmd_toggle_kbd_entry :: Cmd.CmdId
 
-cmd_toggle_midi_entry :: Cmd.CmdId
-cmd_toggle_midi_entry = modify_edit_mode $ \m -> case m of
-    Cmd.EditMidi -> Cmd.NoEdit
-    _ -> Cmd.EditMidi
+cmd_toggle_raw_edit = modify_edit_mode $ \m -> case m of
+    Just Cmd.RawEdit -> Nothing
+    _ -> Just Cmd.RawEdit
+
+-- | Unlike the other toggle commands, val edit, being the \"default\" toggle,
+-- always turns other modes off.  So you can't switch directly from some other
+-- kind of edit to val edit.
+cmd_toggle_val_edit = modify_edit_mode $ \m -> case m of
+    Nothing -> Just Cmd.ValEdit
+    Just _ -> Nothing
+
+cmd_toggle_call_edit = modify_edit_mode $ \m -> case m of
+    Just Cmd.CallEdit -> Nothing
+    _ -> Just Cmd.CallEdit
+
+cmd_toggle_method_edit = modify_edit_mode $ \m -> case m of
+    Just Cmd.MethodEdit -> Just Cmd.ValEdit
+    Just Cmd.ValEdit -> Just Cmd.MethodEdit
+    _ -> m
+
+-- | Turn on kbd entry mode, putting a K in the edit box as a reminder.  This
+-- is orthogonal to the previous edit modes.
+cmd_toggle_kbd_entry = do
+    Cmd.modify_state $ \st ->
+        st { Cmd.state_kbd_entry = not (Cmd.state_kbd_entry st) }
+    sync_edit_box_status
+    return Cmd.Done
+
+-- ** util
 
 modify_edit_mode f = do
     Cmd.modify_state $ \st ->
@@ -41,18 +62,24 @@ modify_edit_mode f = do
 sync_edit_box_status :: (Monad m) => Cmd.CmdT m ()
 sync_edit_box_status = do
     edit_mode <- fmap Cmd.state_edit_mode Cmd.get_state
-    block_ids <- fmap (Map.keys . State.state_blocks) State.get
-    mapM_ (flip State.set_edit_box (edit_color edit_mode)) block_ids
+    kbd_entry <- fmap Cmd.state_kbd_entry Cmd.get_state
+    block_ids <- State.get_all_block_ids
+    let c = if kbd_entry then 'K' else ' '
+    forM_ block_ids $ \bid -> State.set_edit_box bid (edit_color edit_mode) c
 
-edit_color Cmd.NoEdit = Config.box_color
-edit_color Cmd.EditMidi = Config.midi_entry_color
-edit_color Cmd.EditKbd = Config.kbd_entry_color
+edit_color mode = case mode of
+    Nothing -> Config.box_color
+    Just Cmd.RawEdit -> Config.raw_edit_color
+    Just Cmd.ValEdit -> Config.val_edit_color
+    Just Cmd.CallEdit -> Config.call_edit_color
+    Just Cmd.MethodEdit -> Config.method_edit_color
 
 -- * universal event cmds
 
 -- | Extend the events in the selection to either the end of the selection or
 -- the beginning of the next note.
 -- TODO control tracks that are covered by the selection should be skipped
+-- TODO do this by ignoring dur 0 events
 cmd_set_duration :: (Monad m) => Cmd.CmdT m ()
 cmd_set_duration = modify_events $ \_start end (pos, event) ->
     (pos, event { Event.event_duration = end - pos })

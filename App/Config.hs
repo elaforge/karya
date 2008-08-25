@@ -69,9 +69,13 @@ play_position_color = make_selection_color Color.purple
 
 -- * colors
 
-box_color = Color.rgb 0.25 1 1
-kbd_entry_color = Color.rgb 1 0.5 0.5
-midi_entry_color = Color.rgb 0 0.6 0
+box_color = Color.rgb 0.7 0.7 0.7
+raw_edit_color = Color.rgb 0.25 0.25 1
+val_edit_color = Color.rgb 1 0.5 0.5
+call_edit_color = Color.rgb 0 0.6 0
+-- Similar to val color because you toggle between val and method.
+method_edit_color = Color.rgb 0.6 0 0
+
 play_color = Color.rgb 0 0.6 0
 warning_color = Color.rgb 1 0.2 0.2
 
@@ -123,8 +127,8 @@ block_config = Block.Config
             [sel Color.blue, sel Color.green, sel Color.red, sel Color.yellow,
                 play_position_color]
     , Block.config_bg_color = Color.gray8
-    , Block.config_track_box_color = box_color
-    , Block.config_sb_box_color = box_color
+    , Block.config_track_box = (box_color, ' ')
+    , Block.config_sb_box = (box_color, ' ')
     }
 
 view_config = Block.ViewConfig

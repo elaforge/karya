@@ -344,13 +344,15 @@ instance Storable Block.Config where
 
 poke_block_model_config configp (Block.Config
         { Block.config_bg_color = bg
-        , Block.config_track_box_color = track_box
-        , Block.config_sb_box_color = sb_box
+        , Block.config_track_box = (track_box, track_char)
+        , Block.config_sb_box = (sb_box, sb_char)
         })
     = do
         (#poke BlockModelConfig, bg) configp bg
         (#poke BlockModelConfig, track_box) configp track_box
         (#poke BlockModelConfig, sb_box) configp sb_box
+        (#poke BlockModelConfig, track_char) configp track_char
+        (#poke BlockModelConfig, sb_char) configp sb_char
 
 instance Storable Block.ViewConfig where
     sizeOf _ = #size BlockViewConfig

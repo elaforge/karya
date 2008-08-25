@@ -180,9 +180,25 @@ BlockView::set_model_config(const BlockModelConfig &config, bool update_all)
         track_box.color(color_to_fl(config.track_box));
         track_box.redraw();
     }
+    if (update_all || old.track_char != config.track_char) {
+        if (config.track_char == ' ')
+            track_box.copy_label(NULL);
+        else {
+            char s[2] = {config.track_char, '\0'};
+            track_box.copy_label(s);
+        }
+    }
     if (update_all || old.sb_box != config.sb_box) {
         sb_box.color(color_to_fl(config.sb_box));
         sb_box.redraw();
+    }
+    if (update_all || old.sb_char != config.sb_char) {
+        if (config.sb_char == ' ')
+            sb_box.copy_label(NULL);
+        else {
+            char s[2] = {config.sb_char, '\0'};
+            sb_box.copy_label(s);
+        }
     }
     this->model_config = config;
 }

@@ -36,10 +36,10 @@ test_d_instrument_track = do
 
 test_derive_note = do
     let mkevt = Note.ParsedEvent "5a-" (TrackPos 1) (TrackPos 1)
-        evt_pitch = Just (Signal.Set, mkpitch "5a-")
-        note_evt = mkevt evt_pitch Nothing
-        call_evt = mkevt Nothing (Just sub_name)
-        both_evt = mkevt evt_pitch (Just sub_name)
+        note_evt = mkevt (Just Signal.Set) (Just (mkpitch "5a-")) Nothing
+        call_evt = mkevt Nothing Nothing (Just sub_name)
+        both_evt = mkevt (Just Signal.Set) (Just (mkpitch "5a-"))
+                (Just sub_name)
 
         (tids, ui_state) = TestSetup.run State.empty
             (TestSetup.mkstate sub_name [("0", [(1, 1, "5a-")])])
@@ -66,20 +66,20 @@ mkpitch note = Pitch.Pitch (Pitch.scale_id scale) (Pitch.Note note)
 
 test_parse_note = do
     -- let parse = either (const Nothing) Just . P.parse (Note.p_note scale) ""
-    let parse = Note.parse_note scale
+    let parse = Note.default_parse_note scale
         sid = Pitch.scale_id scale
 
     equal (parse "7q#") $ Left "note not in scale: \"7q#\""
     equal (parse "blor, 7c#") $ Left "couldn't parse method: \"blor\""
 
     equal (parse "i, 7c#") $ Right
-        ( Just (Signal.Linear, Pitch.Pitch sid (Pitch.Note "7c#"))
+        ( Just Signal.Linear, Just (Pitch.Pitch sid (Pitch.Note "7c#"))
         , Nothing)
     equal (parse "2.1e, 7c#") $ Right
-        ( Just (Signal.Exp 2.1, Pitch.Pitch sid (Pitch.Note "7c#"))
+        ( Just (Signal.Exp 2.1), Just (Pitch.Pitch sid (Pitch.Note "7c#"))
         , Nothing)
     equal (parse "i, 7c#, <block") $ Right
-        ( Just (Signal.Linear, Pitch.Pitch sid (Pitch.Note "7c#"))
+        ( Just Signal.Linear, Just (Pitch.Pitch sid (Pitch.Note "7c#"))
         , Just "block")
 
 test_tokenize = do

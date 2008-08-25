@@ -47,6 +47,8 @@ struct BlockModelConfig {
     Color bg;
     Color track_box;
     Color sb_box;
+    char track_char;
+    char sb_char;
 };
 
 

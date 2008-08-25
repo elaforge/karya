@@ -13,8 +13,6 @@ import qualified Cmd.Edit as Edit
 import qualified Cmd.Selection as Selection
 import qualified Cmd.Serialize as Serialize
 
-import qualified App.Config as Config
-
 
 get_save_file :: (Monad m) => Cmd.CmdT m FilePath
 get_save_file = do
@@ -53,7 +51,6 @@ initialize_state = do
     -- better way to keep track of state that needs to be synced?  Or avoid
     -- doing it in the first place?
     Edit.sync_edit_box_status
-    mapM_ (flip State.set_edit_box Config.box_color) =<< State.get_all_block_ids
     Edit.sync_octave_status
     Edit.sync_step_status
     mapM_ Selection.sync_selection_status =<< State.get_all_view_ids

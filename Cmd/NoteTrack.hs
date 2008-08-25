@@ -202,7 +202,6 @@ edit_call key (method, note, call) = (method, note, modify_text call key)
 
 cmd_edit_method :: Cmd.Cmd
 cmd_edit_method msg = do
-    Keymap.require_mods (Keymap.Mods (Set.fromList [Cmd.KeyMod Key.ShiftL]))
     key <- Cmd.require (Msg.key msg)
     unless (is_edit_key key) Cmd.abort
     modify_note (edit_method key)

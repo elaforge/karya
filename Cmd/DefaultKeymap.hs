@@ -1,12 +1,78 @@
-{- The default keyboard layout.
+{- | The default keyboard layout.
 
-    TODO I should also be careful how I use the modifiers.  If I must use both
-    control and command, I should be consistent about their meaning.  If I do
-    the above scheme, command is for uncommon and possibly dangerous things
-    like save, load, undo, redo, etc., and control would be for all the single
-    key commands that are displaced by kbd note entry: set step, transpose
-    selection, modify note length, ...
+    I group commands by their function:
+
+    There should be deriver independent generic editing, and then deriver
+    specific shortcuts built on that.  So generic level looks like:
+
+    -1 State level operations, like load, save, undo.  Set timestep mode, set
+    edit mode.  Play, stop.  Move the selection.
+
+    0 Modify text independent attributes, like start position and duration.
+    This includes copy and paste, remove, modify duration, nudge, ...
+
+    1 Create event with length as per timestep, then type to edit it.  Uses
+    alphanum keys.
+
+    Deriver specific commands are enabled in Schema.schema_cmds:
+
+    2 Modify events depending on track type, and hence requiring a deriver that
+    uses skeletons: transpose, modify vals, ...
+
+    2.5 Send midi thru, which is remapped according to the nearest note track
+    and its active scale.
+
+    3 Edit the method part of an event.  Takes alphanum keys.
+
+    4 Edit the value part.  For numeric values, this is alphanum keys.  For enum
+    values (like notes) I'll want an adjustable key->text mapping.  Notes
+    take KeyNum -> Scale -> String -> String, while enums take Instrument ->
+    Controller -> String -> String.  A scale is like a special case of an enum.
+    TODO Enums are not implemented yet, and scales are hardcoded.  The scale
+    should be configured globally, as an insert mode, and enum vals are stored
+    in the instrument.
+
+    5 Edit the call part.  Takes alphanum keys.
+
+    Since a fair number of these want full alphanum keys, they have to be
+    organized with a system of modes.  -1 and 0 are always in scope.  They may
+    be shadowed by other modes, but generally globally available commands
+    should not be.
+
+    1 is raw edit mode.  It may be useful for entering deriver commands, like
+    scale, random seed, or something else.
+
+    2 is active in command mode, shouldn't overlap with -1 and 0.
+
+    3 is active in method edit mode, which should be easily accessible from val
+    edit mode.
+
+    4 is active in val edit mode.  On controller tracks, it takes alphanum or
+    midi controller, and on note tracks it only takes midi notes (so I can
+    still use 0 commands).  If I turn off the number typing in favor of midi
+    controller, or make it so it doesn't shadow useful keys (numbers, dot,
+    minus), it's more convenient.
+
+    5 is active in call edit mode, which can be via an escape combo.
+
+    Furthermore, there is kbd entry mode, which should behave exactly like
+    a midi kbd entry.
+
+    -1 and 0 commands generally get a command- variant, so you can run them
+    even when the alphanums are taken over.
+
+    All the edit modes are exclusive.  There is a set of -1 level commands to
+    toggle between edit modes and no edit (command mode).  Toggling kbd note
+    entry is orthogonal to the rest: cmd-shift-esc, and puts a K in the edit
+    box.
+
+    TODO then there's midi recording:
+
+    In record mode, the block is played while recording midi msgs and their
+    timestamps, which are later passed to the integrator to convert into
+    events.
 -}
+-- TODO rename this GlobalKeymap?
 module Cmd.DefaultKeymap where
 import qualified Control.Monad.Identity as Identity
 
@@ -17,7 +83,6 @@ import qualified Ui.Key as Key
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Keymap as Keymap
-import Cmd.Keymap (bind_key, bind_kmod)
 
 import qualified Cmd.Clip as Clip
 import qualified Cmd.Create as Create
@@ -41,7 +106,7 @@ cmd_io_keymap :: Play.PlayInfo -> Msg.Msg -> Cmd.CmdIO
 cmd_io_keymap play_info = Keymap.make_cmd (io_bindings play_info)
 
 io_bindings :: Play.PlayInfo -> [Keymap.Binding IO]
-io_bindings play_info =
+io_bindings play_info = concat
     [ bind_kmod [Key.MetaL, Key.ShiftL] (Key.KeyChar 's') "save" cmd_save
     , bind_kmod [Key.MetaL, Key.ShiftL] (Key.KeyChar 'l') "load" cmd_load
 
@@ -58,16 +123,28 @@ cmd_load = Save.get_save_file >>= Save.cmd_load >> return Cmd.Done
 
 done = (>> return Cmd.Done)
 
-misc_bindings =
-    [ bind_kmod [Key.MetaL] (Key.KeyChar '\'') "quit" Cmd.cmd_quit
+-- | Most command keys are mapped to both a plain keystroke and command-key
+-- (this should presumably becoume control-key on linux).  That way the command
+-- can still be invoked when an edit mode has taken over the alphanumeric keys.
+command key desc cmd =
+    [ Keymap.bind_key key desc cmd
+    , Keymap.bind_kmod [Key.MetaL] key desc cmd
+    , Keymap.bind_kmod [Key.MetaR] key desc cmd
     ]
 
--- This is command on a mac, I might have to generalize this for other
--- platforms.
-command = bind_kmod [Key.MetaL]
+bind_key key desc cmd = [Keymap.bind_key key desc cmd]
+bind_kmod mods key desc cmd = [Keymap.bind_kmod mods key desc cmd]
 
+-- | But some commands are too dangerous to get a plain keystroke version.
+command_only key desc cmd = bind_kmod [Key.MetaL] key desc cmd
+
+-- | Normally commands won't be re-invoked by key repeat, but sometimes it's
+-- useful.
 repeating mods key desc cmd =
-    [bind_kmod mods key desc cmd, bind_kmod (key:mods) key desc cmd]
+    [ Keymap.bind_kmod mods key desc cmd
+    , Keymap.bind_kmod (key:mods) key desc cmd ]
+
+misc_bindings = command_only (Key.KeyChar '\'') "quit" Cmd.cmd_quit
 
 selection_bindings = concat
     [ repeating [] Key.Down "advance selection"
@@ -92,18 +169,29 @@ selection_bindings = concat
     ]
     where selnum = Config.insert_selnum
 
-view_config_bindings =
-    [ bind_key (Key.KeyChar '[') "zoom out *0.8"
+-- All the edit modes are exclusive.  Go to raw edit: cmd-esc, go to call
+-- edit: shift-esc, go to val edit or turn of edit: esc.  Toggle val and
+-- method edit: tab.
+
+view_config_bindings = concat
+    [ command (Key.KeyChar '[') "zoom out *0.8"
         (View.cmd_zoom_around_insert (*0.8))
-    , bind_key (Key.KeyChar ']') "zoom in *1.25"
+    , command (Key.KeyChar ']') "zoom in *1.25"
         (View.cmd_zoom_around_insert (*1.25))
     ]
 
-edit_bindings =
-    [ bind_key Key.Escape "toggle kbd entry" Edit.cmd_toggle_kbd_entry
-    , bind_kmod [Key.ShiftL] Key.Escape "toggle midi entry"
-        Edit.cmd_toggle_midi_entry
-    , bind_key Key.Backspace "remove event"
+edit_bindings = concat
+    [ bind_key Key.Escape "toggle edit" Edit.cmd_toggle_val_edit
+    , bind_kmod [Key.MetaL] Key.Escape "toggle raw edit"
+        Edit.cmd_toggle_raw_edit
+    , bind_kmod [Key.ShiftL] Key.Escape "toggle call edit"
+        Edit.cmd_toggle_call_edit
+    , bind_kmod [] Key.Tab "toggle method edit" Edit.cmd_toggle_method_edit
+
+    , bind_kmod [Key.ShiftL, Key.MetaL] Key.Escape "toggle kbd entry mode"
+        Edit.cmd_toggle_kbd_entry
+
+    , command Key.Backspace "remove event"
         (Edit.cmd_remove_selected >> Selection.cmd_advance_insert)
 
     , command (Key.KeyChar '0') "step rank 0" (Edit.cmd_meter_step 0)
@@ -121,18 +209,18 @@ edit_bindings =
     , command (Key.KeyChar ',') "dur / 1.5" (done (Edit.cmd_modify_dur (/1.5)))
     ]
 
-create_bindings =
+create_bindings = concat
     [ command (Key.KeyChar 't') "append track"
         (done Create.insert_track_after_selection)
     , command (Key.KeyChar 'd') "remove track"
         (done Create.remove_selected_tracks)
     ]
 
-clip_bindings =
-    [ command (Key.KeyChar 'c') "copy selection" Clip.cmd_copy_selection
-    , command (Key.KeyChar 'x') "cut selection" Clip.cmd_cut_selection
-    , command (Key.KeyChar 'v') "paste selection" Clip.cmd_paste_overwrite
-    , command (Key.KeyChar 'm') "merge selection" Clip.cmd_paste_merge
+clip_bindings = concat
+    [ command_only (Key.KeyChar 'c') "copy selection" Clip.cmd_copy_selection
+    , command_only (Key.KeyChar 'x') "cut selection" Clip.cmd_cut_selection
+    , command_only (Key.KeyChar 'v') "paste selection" Clip.cmd_paste_overwrite
+    , command_only (Key.KeyChar 'm') "merge selection" Clip.cmd_paste_merge
     , bind_kmod [Key.MetaL, Key.ShiftL] (Key.KeyChar 'v') "insert selection"
         Clip.cmd_paste_insert
     ]

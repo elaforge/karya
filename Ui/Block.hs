@@ -73,8 +73,8 @@ block title config tracks schema_id = Block title config tracks schema_id
 data Config = Config {
     config_selection_colors :: [Color]
     , config_bg_color :: Color
-    , config_track_box_color :: Color
-    , config_sb_box_color :: Color
+    , config_track_box :: (Color, Char)
+    , config_sb_box :: (Color, Char)
     } deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
 
 -- Tracks may have a Ruler overlay

@@ -33,6 +33,8 @@ BlockModelConfig block_model_config()
     c.bg = Color(0xdddddd);
     c.track_box = Color(0x44ffff);
     c.sb_box = Color(0x00ffff);
+    c.track_char = 'K';
+    c.sb_char = ' ';
     return c;
 }
 
