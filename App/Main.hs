@@ -15,8 +15,10 @@ import qualified Util.Data
 import qualified Util.Log as Log
 import qualified Util.Thread as Thread
 
-import qualified Ui.Ui as Ui
+import Ui.Types
+import qualified Ui.Block as Block
 import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 
 import qualified Midi.Midi as Midi
 import qualified Midi.MidiC as MidiC
@@ -192,7 +194,7 @@ old_setup_cmd _args = do
         (MakeRuler.ruler [MakeRuler.meter_ruler (1/16) MakeRuler.m44])
 
     b <- Create.block r
-    _v <- Create.view b
+    view <- Create.view b
     t_tempo <- Create.named_track b over_r 1 "tempo" "tempo"
     State.insert_events t_tempo $ map TestSetup.mkevent [(0, 0, "1")]
     t0 <- Create.track b 2
@@ -200,10 +202,12 @@ old_setup_cmd _args = do
         [(0, 1, "5c-"), (1, 1, "5d-"), (2, 1, "5e-"), (3, 1, "5f-")]
     State.set_track_title t0 ">fm8/bass"
     _t1 <- Create.track b 3
+
     State.set_midi_config inst_config
+    State.set_selection view Config.insert_selnum
+        (Block.point_selection 0 (TrackPos 0))
     return Cmd.Done
 
 inst_config = Instrument.config
-        [((Midi.WriteDevice "fm8", n), Score.Instrument "fm8/bass")
-            | n <- [0..2]]
-        Nothing
+    [((Midi.WriteDevice "fm8", n), Score.Instrument "fm8/bass") | n <- [0..2]]
+    Nothing

@@ -24,7 +24,6 @@
 module Cmd.NoteTrack where
 import Control.Monad
 import qualified Control.Monad.Identity as Identity
-import qualified Data.Char as Char
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
@@ -32,10 +31,8 @@ import qualified Data.Set as Set
 import qualified Midi.Midi as Midi
 
 import qualified Util.Log as Log
-import qualified Util.Seq as Seq
 
 import qualified Ui.Event as Event
-import qualified Ui.Id as Id
 import qualified Ui.Key as Key
 import qualified Ui.State as State
 import qualified Ui.UiMsg as UiMsg
@@ -192,22 +189,22 @@ edit_note note (method, _, call) = (method, Pitch.note_text note, call)
 
 cmd_edit_call :: Cmd.Cmd
 cmd_edit_call msg = do
-    key <- Cmd.require (Msg.key msg)
-    unless (is_edit_key key) Cmd.abort
+    key <- ControllerTrack.edit_key msg
     Log.debug $ "edit call: " ++ show key
     modify_note (edit_call key)
     return Cmd.Done
 
-edit_call key (method, note, call) = (method, note, modify_text call key)
+edit_call key (method, note, call) =
+    (method, note, ControllerTrack.modify_text call key)
 
 cmd_edit_method :: Cmd.Cmd
 cmd_edit_method msg = do
-    key <- Cmd.require (Msg.key msg)
-    unless (is_edit_key key) Cmd.abort
+    key <- ControllerTrack.edit_key msg
     modify_note (edit_method key)
     return Cmd.Done
 
-edit_method key (method, note, call) = (modify_text method key, note, call)
+edit_method key (method, note, call) =
+    (ControllerTrack.modify_text method key, note, call)
 
 modify_note :: (Monad m) =>
     (Note.NoteTokens -> Note.NoteTokens) -> Cmd.CmdT m ()
@@ -220,14 +217,6 @@ modify_note f = do
         Note.tokenize_note (Event.event_text event)
     let new_text = Note.untokenize_note (f tokens)
     State.insert_events track_id [(pos, event { Event.event_text = new_text })]
-
-modify_text s Key.Backspace = Seq.rdrop 1 s
-modify_text s (Key.KeyChar c) | Char.isPrint c = s ++ [c]
-modify_text s _ = s
-
-is_edit_key Key.Backspace = True
-is_edit_key (Key.KeyChar c) | Id.is_identifier c = True
-is_edit_key _ = False
 
 -- * midi thru
 

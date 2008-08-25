@@ -188,8 +188,9 @@ default_cmds parser context tracks = case track_type of
 
     cont_edit_cmds = case ctx_edit_mode context of
         Nothing -> []
-        Just Cmd.MethodEdit -> [] -- TODO special method edit mode
-        Just _ -> [ControllerTrack.cmd_controller_entry]
+        -- TODO Once I have enums, implement MethodEdit as its own command.
+        Just Cmd.MethodEdit -> [ControllerTrack.cmd_raw_edit]
+        Just _ -> [ControllerTrack.cmd_raw_edit]
         -- TODO support for enum vals
 
     track_type = case ctx_focused_tracknum context of
