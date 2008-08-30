@@ -8,7 +8,7 @@ PORTMIDI := /usr/local/src/portmedia/portmidi/trunk
 MIDI_LIBS := $(PORTMIDI)/pm_mac/libportmidi.a \
 	$(PORTMIDI)/porttime/libporttime.a \
 	-framework CoreFoundation -framework CoreMIDI -framework CoreAudio
-CINCLUDE := -Ifltk -I$(PORTMIDI)/pm_common -I$(PORTMIDI)/porttime -I. -I/usr/local/src/boost
+CINCLUDE := -Ifltk -I$(PORTMIDI)/pm_common -I$(PORTMIDI)/porttime -I.
 CXXFLAGS := `fltk-config --cxxflags` $(DEBUG) $(CINCLUDE) -Wall
 LDFLAGS := `fltk-config --ldflags` $(DEBUG)
 
@@ -122,7 +122,7 @@ $(BUILD)/send: App/Send.hs
 	$(GHC) $(HFLAGS) --make $^ -o $@
 .PHONY: $(BUILD)/repl
 $(BUILD)/repl: App/Repl.hs
-	$(GHC) $(HFLAGS) --make $^ -o $@
+	$(GHC) $(HFLAGS) --make $^ -o $@ $(HLDFLAGS)
 .PHONY: $(BUILD)/dump
 $(BUILD)/dump: App/Dump.hs
 	$(GHC) $(HFLAGS) --make $^ -o $@

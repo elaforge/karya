@@ -65,7 +65,7 @@ load_static_config = do
         , StaticConfig.config_write_device_map = write_device_map
         }
 
-iac n = "IAC Driver Bus " ++ show n ++ "/CoreMIDI"
+iac n = "IAC Driver IAC Bus " ++ show n ++ "/CoreMIDI"
 tapco n = "Tapco Link MIDI USB Ver 2.2 Port " ++ show n ++ "/CoreMIDI"
 mkmap mkdev pairs = Map.fromList [(mkdev k, mkdev v) | (k, v) <- pairs]
 
