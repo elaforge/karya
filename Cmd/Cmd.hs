@@ -151,9 +151,13 @@ require_msg msg = maybe (State.throw msg) return
 
 -- * State
 
+-- | App global state.  Unlike Ui.State, this is not saved to disk.
 data State = State {
-    -- App global state.  Unlike Ui.State, this is not saved to disk.
-    state_instrument_db :: Instrument.Db.Db
+    state_history :: ([HistoryEntry], [HistoryEntry])
+    -- | Set to True to disable history recording.  Useful so undo and
+    -- save/load cmds aren't recorded.  TODO should go in cmd return val.
+    , state_skip_history_record :: Bool
+    , state_instrument_db :: Instrument.Db.Db
     , state_schema_map :: SchemaMap
 
     -- | Map of keys held down.  Maintained by cmd_record_keys and accessed
@@ -186,7 +190,9 @@ data State = State {
     } deriving (Show, Typeable.Typeable)
 
 initial_state inst_db schema_map = State {
-    state_instrument_db = inst_db
+    state_history = ([], [])
+    , state_skip_history_record = False
+    , state_instrument_db = inst_db
     , state_schema_map = schema_map
     , state_keys_down = Map.empty
     , state_transport = Nothing
@@ -202,6 +208,12 @@ initial_state inst_db schema_map = State {
     }
 
 empty_state = initial_state Instrument.Db.empty Map.empty
+clear_history cmd_state = cmd_state { state_history = ([], []) }
+
+data HistoryEntry = HistoryEntry {
+    hist_name :: String
+    , hist_state :: State.State
+    } deriving (Show, Typeable.Typeable)
 
 -- | These enable various commands to edit event text.  What exactly val, call,
 -- and method mean are dependent on the deriver, but I expect the definitions

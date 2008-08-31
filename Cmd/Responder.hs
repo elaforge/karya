@@ -50,6 +50,8 @@ module Cmd.Responder where
 import qualified Control.Arrow as Arrow
 import Control.Monad
 import qualified Control.Monad.Identity as Identity
+import qualified Control.Monad.Cont as Cont
+import qualified Control.Monad.Trans as Trans
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Concurrent.STM.TChan as TChan
 import qualified Control.Exception as Exception
@@ -59,6 +61,7 @@ import qualified Language.Haskell.Interpreter.GHC as GHC
 import qualified Network
 import qualified System.IO as IO
 
+import qualified Util.Logger as Logger
 import qualified Util.Data
 import qualified Util.Log as Log
 import qualified Util.Thread as Thread
@@ -76,9 +79,10 @@ import qualified Perform.Transport as Transport
 import qualified Perform.Timestamp as Timestamp
 
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Edit as Edit
+import qualified Cmd.GlobalKeymap as GlobalKeymap
 import qualified Cmd.Language as Language
 import qualified Cmd.Msg as Msg
-import qualified Cmd.GlobalKeymap as GlobalKeymap
 import qualified Cmd.Play as Play
 import qualified Cmd.Save as Save
 
@@ -105,15 +109,15 @@ responder static_config get_msg write_midi get_ts player_chan setup_cmd
         cmd_state = Cmd.initial_state
             (StaticConfig.config_instrument_db static_config)
             (StaticConfig.config_schema_map static_config)
-        cmd = setup_cmd >> Save.initialize_state >> return Cmd.Done
+        cmd = setup_cmd >> Edit.initialize_state >> return Cmd.Done
     (status, ui_state, cmd_state) <- do
         cmd_val <- run_cmds (Cmd.run Cmd.Continue) ui_state cmd_state [cmd]
         handle_cmd_val "initial setup" True write_midi ui_state cmd_val
     when (status /= Cmd.Done) $
         Log.warn $ "setup_cmd returned not-Done status, did it abort?"
-    let rstate = ResponderState static_config ui_state cmd_state get_msg
-            write_midi (Transport.Info player_chan write_midi get_ts)
-            session
+    let rstate = ResponderState static_config ui_state
+            (Cmd.clear_history cmd_state) get_msg write_midi
+            (Transport.Info player_chan write_midi get_ts) session
     loop rstate
 
 -- | Create the MsgReader to pass to 'responder'.
@@ -187,6 +191,19 @@ data ResponderState = ResponderState {
 loop :: ResponderState -> IO ()
 loop rstate = do
     msg <- state_msg_reader rstate
+    -- Log.debug $ "got msg " ++ show msg
+    -- TODO This is ugly.  Cmds are supposed to stop running as soon as one
+    -- either throws or returns something other than Cmd.Continue.  So I feed
+    -- each status to to 'maybe_run' which only runs cmds if its Continue.
+    -- Then the sync is handled by maybe_run.
+    --
+    -- It would be nicer to do a real non-local return and do the sync at the
+    -- top level.  Unfortunately, the situation is complicated because the
+    -- changes from the update cmd aren't synced, the record keys cmd is always
+    -- run, and updates are collected.  I tried something with ContT + LoggerT
+    -- + IO, but gave up after a while.  Someday I should take another crack at
+    -- it.
+
     -- Apply changes that won't be diffed.  See the 'Cmd.cmd_record_ui_updates'
     -- comment.
     -- TODO: an error implies the UI is out of sync, maybe I should fail more
@@ -200,7 +217,6 @@ loop rstate = do
         handle_cmd_val "record ui updates" False write_midi ui_state cmd_val
 
     let config = state_static_config rstate
-
     -- Certain commands require IO.  Rather than make everything IO,
     -- I hardcode them in a special list that gets run in IO.
     let play_info =
@@ -225,10 +241,19 @@ loop rstate = do
     (_, ui_state, cmd_state) <- maybe_run "record keys" Cmd.Continue write_midi
         ui_state cmd_state Cmd.run_id_io [Cmd.cmd_record_keys] msg
 
-    let rstate2 = rstate { state_ui = ui_state, state_cmd = cmd_state }
+    let rstate2 = rstate { state_ui = ui_state,
+            state_cmd = sync_cmd_state ui_state cmd_state }
     case status of
         Cmd.Quit -> return ()
         _ -> loop rstate2
+
+-- | If the focused view is removed, cmd state should stop pointing to it.
+sync_cmd_state :: State.State -> Cmd.State -> Cmd.State
+sync_cmd_state ui_state cmd_state = case Cmd.state_focused_view cmd_state of
+        Just focus -> if focus `Map.notMember` State.state_views ui_state
+            then cmd_state { Cmd.state_focused_view = Nothing }
+            else cmd_state
+        Nothing -> cmd_state
 
 -- | Run the cmds on msg if @status@ is Continue.
 maybe_run err_msg status write_midi ui_state cmd_state run cmds msg =
@@ -271,23 +296,31 @@ handle_cmd_val err_msg do_sync write_midi ui_state1
     sequence_ [write_midi (Midi.WriteMessage dev Timestamp.immediately msg)
         | (dev, msg) <- midi]
     mapM_ Log.write logs
-    (status, ui_state2) <- case ui_result of
+    (status, ui_state2, cmd_state2) <- case ui_result of
         Left err -> do
             Log.error $ "ui error in " ++ show err_msg ++ ": " ++ show err
-            return (Cmd.Done, ui_state1)
+            return (Cmd.Done, ui_state1, cmd_state)
         Right (status, ui_state2, cmd_updates) -> do
             if do_sync
                 then do
-                    ui_state2 <- sync (Cmd.state_schema_map cmd_state)
+                    (ui_state2, cmd_state2) <- sync cmd_state
                         ui_state1 ui_state2 cmd_updates
-                    return (status, ui_state2)
-                else return (status, ui_state2)
-    return (status, ui_state2, cmd_state)
+                    return (status, ui_state2, cmd_state2)
+                else return (status, ui_state2, cmd_state)
+    return (status, ui_state2, cmd_state2)
 
 -- | Get cmds according to the currently focused block and track.
 get_focus_cmds :: Cmd.CmdT Identity.Identity [Cmd.Cmd]
 get_focus_cmds = do
-    block <- State.block_of_view =<< Cmd.get_focused_view
+    -- Because this function is run even when the cmds are Done, it may get
+    -- a focus on a deleted view.  If 'loop' used a real exceptional escape,
+    -- the cmd that deletes a view will probably also be Done and skip to the
+    -- end.
+    -- TODO Just make get_focused_view return View and abort if it's bogus?
+    view_id <- Cmd.get_focused_view
+    views <- fmap State.state_views State.get
+    view <- Cmd.require $ Map.lookup view_id views
+    block <- State.get_block (Block.view_block view)
     tracks <- Schema.block_tracks block
     midi_config <- State.get_midi_config
     tracknum <- Cmd.get_insert_tracknum
@@ -330,21 +363,24 @@ verify_state state = do
         Right state2 -> return state2
 
 -- | Sync @state2@ to the UI.
-sync :: Schema.SchemaMap -> State.State -> State.State -> [Update.Update]
-    -> IO State.State
-sync schema_map state1 state2 cmd_updates = do
+-- Returns both UI state and cmd state since verification may clean up the UI
+-- state, and this is where the undo history is stored in Cmd.State.
+sync :: Cmd.State -> State.State -> State.State
+    -> [Update.Update] -> IO (State.State, Cmd.State)
+sync cmd_state state1 state2 cmd_updates = do
     -- I'd catch problems closer to their source if I did this from run_cmds,
     -- but it's nice to see that it's definitely happening before syncs.
     state2 <- verify_state state2
-    let (block_samples, sig_logs) = derive_signals schema_map state2
+    let (block_samples, sig_logs) = derive_signals
+            (Cmd.state_schema_map cmd_state) state2
     -- Don't want to force block_samples because it computes a lot of stuff
     -- that sync may never need.  TODO how can I lazily write log msgs?
     -- Actually, the expensive part is the sampling, which has no logging,
     -- so it should remain lazy... I think.  Verify this.
     mapM_ Log.write sig_logs
     -- putStrLn $ "block samples: " ++ show block_samples
-    case Diff.diff state1 state2 of
-        Left err -> Log.error $ "diff error: " ++ err
+    diff_updates <- case Diff.diff state1 state2 of
+        Left err -> Log.error ("diff error: " ++ err) >> return []
         Right diff_updates -> do
             unless ((null diff_updates) && (null cmd_updates)) $
                 Log.debug $ "diff_updates: " ++ show diff_updates
@@ -353,7 +389,34 @@ sync schema_map state1 state2 cmd_updates = do
             case err of
                 Nothing -> return ()
                 Just err -> Log.error $ "syncing updates: " ++ show err
-    return state2
+            return diff_updates
+    cmd_state2 <- record_history (diff_updates ++ cmd_updates) state1 cmd_state
+    return (state2, cmd_state2)
+
+-- Do the traditional thing where an action deletes the redo buffer.
+-- At some point I could think about a real branching history, but not now.
+record_history updates old_state cmd_state = do
+    let cmd_name = "none yet"
+        hist = fst (Cmd.state_history cmd_state)
+    let record = not (Cmd.state_skip_history_record cmd_state)
+            && should_record_history updates
+        new_hist = if record
+            then (Cmd.HistoryEntry cmd_name old_state : hist, [])
+            else Cmd.state_history cmd_state
+        msg = (if record then "record " else "don't record ")
+            ++ show (length (fst new_hist), length (snd new_hist))
+    when record $
+        Log.debug msg
+    return $ cmd_state
+        { Cmd.state_history = new_hist, Cmd.state_skip_history_record = False }
+
+-- TODO I'd like to be able to undo only non-view changes, leaving the view
+-- where it is.  Or undo only the view changes, which means zoom and selection.
+-- Or rather, view changes could be recorded in a separate undo history.
+-- It would also be nice to only undo within a selected area.
+should_record_history :: [Update.Update] -> Bool
+should_record_history = any (not . Update.is_view_update)
+
 
 derive_signals :: Schema.SchemaMap -> State.State
     -> (Sync.BlockSamples, [Log.Msg])

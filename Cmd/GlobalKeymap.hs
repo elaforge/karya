@@ -193,6 +193,9 @@ edit_bindings = concat
     , command Key.Backspace "remove event"
         (Edit.cmd_remove_selected >> Selection.cmd_advance_insert)
 
+    , command (Key.KeyChar 'u') "undo" (done Edit.undo)
+    , command (Key.KeyChar 'r') "redo" (done Edit.redo)
+
     , command (Key.KeyChar '0') "step rank 0" (Edit.cmd_meter_step 0)
     , command (Key.KeyChar '1') "step rank 1" (Edit.cmd_meter_step 1)
     , command (Key.KeyChar '2') "step rank 2" (Edit.cmd_meter_step 2)

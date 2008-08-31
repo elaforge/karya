@@ -49,6 +49,21 @@ data TrackUpdate
     | TrackRender
     deriving (Show)
 
+is_view_update :: Update -> Bool
+is_view_update update = case update of
+    ViewUpdate _ view_update -> case view_update of
+        CreateView -> False
+        DestroyView -> False
+        _ -> True
+    BlockUpdate _ block_update -> case block_update of
+        BlockConfig _ -> True
+        _ -> False
+    TrackUpdate _ track_update -> case track_update of
+        TrackBg -> True
+        TrackRender -> True
+        _ -> False
+    _ -> False
+
 -- | Some Updates have to happen before others.
 sort :: [Update] -> [Update]
 sort = List.sortBy (compare `on` sort_key)

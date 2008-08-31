@@ -10,7 +10,6 @@ import qualified Ui.State as State
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Edit as Edit
-import qualified Cmd.Selection as Selection
 import qualified Cmd.Serialize as Serialize
 
 
@@ -42,19 +41,5 @@ cmd_load fname = do
     Trans.liftIO $ Log.notice $ "state loaded from " ++ show fname
 
     State.modify (const (Serialize.save_ui_state state))
-    initialize_state
-
--- | Sync UI state up with Cmd state and schedule UI updates.
-initialize_state :: (Monad m) => Cmd.CmdT m ()
-initialize_state = do
-    -- TODO these scattered sync functions are kinda grody.  Isn't there a
-    -- better way to keep track of state that needs to be synced?  Or avoid
-    -- doing it in the first place?
-    Edit.sync_edit_box_status
-    Edit.sync_octave_status
-    Edit.sync_step_status
-    mapM_ Selection.sync_selection_status =<< State.get_all_view_ids
-    mapM_ Cmd.sync_zoom_status =<< State.get_all_view_ids
-    -- Emit track updates for all tracks, since I don't know where events have
-    -- changed.
-    State.update_all_tracks
+    Edit.initialize_state
+    Edit.clear_history
