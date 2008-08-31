@@ -25,6 +25,7 @@ import Ui.Types
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Diff as Diff
+import qualified Ui.Event as Event
 import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
 import qualified Ui.Sync as Sync
@@ -32,7 +33,7 @@ import qualified Ui.Track as Track
 import qualified Ui.Ui as Ui
 
 import qualified Ui.TestSetup as TestSetup
-import Ui.TestSetup (mkid, event)
+import Ui.TestSetup (mkid)
 
 -- TODO
 -- test_error
@@ -111,10 +112,10 @@ test_zoom_scroll = do
     state <- run State.empty $ do
         v1 <- setup_state
         State.insert_events t_track1_id
-            [ (TrackPos 0, event "one" 10)
-            , (TrackPos 10, event "scrunch" 6)
-            , (TrackPos 20, event "two" 32)
-            , (TrackPos 100, event "last" 64)
+            [ (TrackPos 0, Event.event "one" 10)
+            , (TrackPos 10, Event.event "scrunch" 6)
+            , (TrackPos 20, Event.event "two" 32)
+            , (TrackPos 100, Event.event "last" 64)
             ]
     state <- io_human "scrolls to bottom" $ run state $ do
         State.set_zoom t_view_id (Block.Zoom (TrackPos 128) 1)
@@ -161,8 +162,8 @@ test_update_track = do
     state <- io_human "create view with one track" run_setup
 
     state <- io_human "add events, get wider, turn green" $ run state $ do
-        State.insert_events t_track1_id [(TrackPos 70, event "last1" 10),
-            (TrackPos 90, event "last2" 15)]
+        State.insert_events t_track1_id [(TrackPos 70, Event.event "last1" 10),
+            (TrackPos 90, Event.event "last2" 15)]
         State.set_track_width t_view_id 1 50
         State.set_track_bg t_track1_id Color.green
     return ()

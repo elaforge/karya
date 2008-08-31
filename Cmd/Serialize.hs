@@ -374,18 +374,20 @@ instance Binary Track.TrackEvents where
 
 -- ** Event
 
-event = Event.Event :: String -> TrackPos -> Color -> Font.TextStyle -> Bool
-    -> Event.Event
 instance Binary Event.Event where
-    put (Event.Event a b c d e) = put a >> put b >> put c >> put d >> put e
-    get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
-        get >>= \e -> return (event a b c d e)
+    put (Event.Event a b c) = put a >> put b >> put c
+    get = do
+        text <- get :: Get String
+        dur <- get :: Get TrackPos
+        style <- get :: Get Event.StyleId
+        return $ Event.Event text dur style
+
+instance Binary Event.StyleId where
+    put (Event.StyleId a) = put a
+    get = liftM Event.StyleId get
 
 -- ** Midi.Instrument
 
--- midi_instrument_config = Instrument.Config
---     :: Map.Map Instrument.Addr Instrument.Instrument -> Maybe Instrument.Addr
---     -> Instrument.Config
 instance Binary Instrument.Config where
     put (Instrument.Config a b) = put_version 1 >> put a >> put b
     get = do

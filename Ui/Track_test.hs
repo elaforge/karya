@@ -55,7 +55,7 @@ test_remove_events = do
 
 track_events = Track.make_track_events . mkevents
 mkevents =
-    map (\(pos, dur, text) -> (TrackPos pos, TestSetup.event text dur))
+    map (\(pos, dur, text) -> (TrackPos pos, Event.event text dur))
 
 extract_text (_, event) = Event.event_text event
 extract_event (pos, evt) = (pos, Event.event_duration evt, Event.event_text evt)

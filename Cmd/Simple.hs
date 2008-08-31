@@ -88,4 +88,4 @@ convert_track (id_name, title, events) = do
 
 convert_event :: Event -> Track.PosEvent
 convert_event (start, dur, text) =
-    (realToFrac start, Config.event text (realToFrac dur))
+    (realToFrac start, Event.event text (realToFrac dur))

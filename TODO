@@ -96,7 +96,7 @@ Cmd
   Cmd.Save
     - Data.Binary loading a tuple instead of a val sucks CPU forever
   Undo
-    - implement undo tree and undo/redo cmds
+    * implement undo and undo/redo cmds
     - figure out how to checkpoint just state diffs
     - add undo history to on-disk format
 
@@ -112,6 +112,7 @@ Derive
     * subblock derivation
   pitch
     * pitch signal rendered to midi
+    - relative pitches, e.g. +5
     - pitch signal should be Signal (Method, Pitch) so that they can be
       transposed
     - alternate scales

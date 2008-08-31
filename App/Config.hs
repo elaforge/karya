@@ -8,12 +8,9 @@ import System.FilePath ((</>))
 
 import Ui.Types
 import qualified Ui.Id as Id
-import qualified Ui.Font as Font
 import qualified Ui.Color as Color
 import qualified Ui.Block as Block
 import qualified Ui.Track as Track
-
-import qualified Ui.Event as Event
 
 
 -- * paths
@@ -112,9 +109,6 @@ clip_namespace = "clip"
 -- | The copied block will be BlockId (Id.id clip_namespace clip_block_name).
 clip_block_name :: String
 clip_block_name = "clip"
-
-event text dur = Event.event text dur (Color.rgb 0.9 0.9 0.7) style False
-style = Font.TextStyle Font.Helvetica [] 9 Color.black
 
 make_selection_color = Color.alpha 0.3 . Color.lighten 0.8
 

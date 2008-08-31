@@ -17,8 +17,6 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Selection as Selection
 
-import qualified App.Config as Config
-
 
 -- | Receive keystrokes to edit a controller track.
 cmd_raw_edit :: Msg.Msg -> Cmd.CmdId
@@ -40,7 +38,7 @@ get_event :: (State.UiStateMonad m) =>
     Track.TrackId -> TrackPos -> TrackPos -> m Event.Event
 get_event track_id pos dur = do
     track <- State.get_track track_id
-    return $ Maybe.fromMaybe (Config.event "" dur)
+    return $ Maybe.fromMaybe (Event.event "" dur)
         (Track.event_at (Track.track_events track) pos)
 
 -- | Get a keystroke from a Msg.  Abort on non-alphabetic keys or if there are

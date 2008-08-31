@@ -25,25 +25,56 @@
 -}
 
 module Ui.Event where
+import qualified Data.Array.IArray as IArray
 import qualified Data.Generics as Generics
 import Foreign
 import Foreign.C
 
 import Ui.Types
+import qualified Ui.Color as Color
 import qualified Ui.Font as Font
 
 
 data Event = Event {
     event_text :: String
     , event_duration :: TrackPos
-    , event_color :: Color
-    , event_style :: Font.TextStyle
-    , event_align_to_bottom :: Bool
+    , event_style :: StyleId
     } deriving (Eq, Show, Read, Generics.Data, Generics.Typeable)
-event text dur color style align =
-    Event text (max (TrackPos 0) dur) color style align
+event text dur = Event text (max (TrackPos 0) dur) default_style
+
+default_style :: StyleId
+default_style = StyleId 0
+
+-- | Static table of styles.  I'd rather store this in App.Config or something,
+-- but that would lead to circular imports.  If I want to include it in the
+-- static config, I'll have to figure out a way to pass the table down to poke
+-- anyway.
+style_table :: [(StyleId, Style)]
+style_table =
+    [ (default_style, Style (Color.rgb 0.9 0.9 0.7) default_font False)
+    ]
+default_font = Font.TextStyle Font.Helvetica [] 9 Color.black
+
+-- | To save space, event styles are explicitly shared by storing them in
+-- a table.
+newtype StyleId = StyleId Word8
+    deriving (Eq, Show, Read, Generics.Data, Generics.Typeable)
+
+data Style = Style {
+    style_color :: Color
+    , style_text :: Font.TextStyle
+    , style_align_to_bottom :: Bool
+    } deriving (Eq, Show, Read, Generics.Data, Generics.Typeable)
 
 -- * storable
+
+style_array :: IArray.Array Word8 Style
+style_array = IArray.array (0, maxBound) ([(i, no_style) | i <- [0..maxBound]])
+    IArray.// [(sid, style) | (StyleId sid, style) <- style_table]
+    where no_style = Style Color.black default_font False
+
+lookup_style :: StyleId -> Style
+lookup_style (StyleId style) = style_array IArray.! style
 
 #include "c_interface.h"
 
@@ -52,11 +83,12 @@ instance Storable Event where
     alignment _ = undefined
     poke = poke_event
 
-poke_event eventp (Event text dur color style align_to_bottom) = do
+poke_event eventp (Event text dur style_id) = do
+    let (Style color text_style align) = lookup_style style_id
     -- Must be freed by the caller, EventTrackView::draw_area.
     textp <- newCString text
     (#poke Event, text) eventp textp
     (#poke Event, duration) eventp dur
     (#poke Event, color) eventp color
-    (#poke Event, style) eventp style
-    (#poke Event, align_to_bottom) eventp align_to_bottom
+    (#poke Event, style) eventp text_style
+    (#poke Event, align_to_bottom) eventp align

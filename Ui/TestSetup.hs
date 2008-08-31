@@ -51,7 +51,7 @@ default_zoom = Config.zoom
 -- TODO convert to use mkstate
 initial_state :: State.UiStateMonad m => m ()
 initial_state = do
-    let cont text = Config.event text (TrackPos 0)
+    let cont text = Event.event text (TrackPos 0)
 
     ruler <- State.create_ruler (mkid "r1") (ruler [marklist 64 10])
     overlay <- State.create_ruler (mkid "r1.overlay")
@@ -65,7 +65,7 @@ initial_state = do
     let notes = ["6a-", "6b-", "7c-", "7d-", "7e-", "7f-"]
         -- note_events = zip (notes ++ tail (reverse notes)) [0, 10..]
         note_events = zip notes [0, 10..]
-    State.insert_events t1 [(TrackPos p, Config.event e (TrackPos 10))
+    State.insert_events t1 [(TrackPos p, Event.event e (TrackPos 10))
         | (e, p) <- note_events]
     t2 <- State.create_track (mkid "b1.t2") (empty_track "velocity")
     State.insert_events t2 [(TrackPos 0, cont "1")]
@@ -143,10 +143,7 @@ empty_track title = Track.track title [] Config.track_bg Config.render_config
 -- event
 
 mkevent (pos, dur, text) =
-    (TrackPos pos, event text (TrackPos dur))
-event text dur =
-    Event.Event text dur (Color.rgb 0.9 0.9 0.7) default_style False
-default_style = Font.TextStyle Font.Helvetica [] 9 Color.black
+    (TrackPos pos, Event.event text (TrackPos dur))
 
 -- ruler
 
