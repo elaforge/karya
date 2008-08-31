@@ -19,7 +19,6 @@ Color selection_colors[] = {
 BlockViewConfig block_view_config()
 {
     BlockViewConfig c;
-    c.zoom_speed = 1;
     c.block_title_height = 20;
     c.track_title_height = 20;
     c.sb_size = 12;

@@ -361,14 +361,12 @@ instance Storable Block.ViewConfig where
     poke = poke_config
 
 poke_config configp (Block.ViewConfig
-        { Block.vconfig_zoom_speed = zoom_speed
-        , Block.vconfig_block_title_height = block_title_height
+        { Block.vconfig_block_title_height = block_title_height
         , Block.vconfig_track_title_height = track_title_height
         , Block.vconfig_sb_size = sb_size
         , Block.vconfig_status_size = status_size
         })
     = do
-        (#poke BlockViewConfig, zoom_speed) configp zoom_speed
         (#poke BlockViewConfig, block_title_height) configp
             (Util.c_int block_title_height)
         (#poke BlockViewConfig, track_title_height) configp

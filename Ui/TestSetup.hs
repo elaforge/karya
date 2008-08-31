@@ -27,14 +27,7 @@ pause = putStr "? " >> IO.hFlush IO.stdout >> getLine >> return ()
 default_rect = Block.Rect 10 50 200 200
 
 default_block_config = Config.block_config
-
-default_view_config = Block.ViewConfig
-    { Block.vconfig_zoom_speed = 1
-    , Block.vconfig_block_title_height = 20
-    , Block.vconfig_track_title_height = 20
-    , Block.vconfig_sb_size = 12
-    , Block.vconfig_status_size = 16
-    }
+default_view_config = Config.view_config
 
 default_divider = Block.Divider Color.blue
 

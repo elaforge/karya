@@ -211,17 +211,19 @@ instance Binary Block.Rect where
     get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
         return (Block.Rect a b c d)
 
-view_config = Block.ViewConfig :: Double -> Int -> Int -> Int -> Int
-    -> Block.ViewConfig
 instance Binary Block.ViewConfig where
-    put (Block.ViewConfig a b c d e) = put_version 0
-        >> put a >> put b >> put c >> put d >> put e
+    put (Block.ViewConfig a b c d) = put_version 1
+        >> put a >> put b >> put c >> put d
     get = do
         v <- get_version
         case v of
-            0 -> get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
-                get >>= \e ->
-                return (view_config a b c d e)
+            1 -> do
+                block_title <- get :: Get Int
+                track_title <- get :: Get Int
+                sb_size <- get :: Get Int
+                status_size <- get :: Get Int
+                return $ Block.ViewConfig block_title track_title sb_size
+                    status_size
             _ -> version_error "Block.ViewConfig" v
 
 zoom = Block.Zoom :: TrackPos -> Double -> Block.Zoom

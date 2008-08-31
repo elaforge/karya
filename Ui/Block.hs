@@ -195,8 +195,7 @@ rect_b rect = rect_y rect + rect_h rect
 -- | The defaults for newly created blocks and the trackviews automatically
 -- created.
 data ViewConfig = ViewConfig {
-    vconfig_zoom_speed :: Double
-    , vconfig_block_title_height :: Int
+    vconfig_block_title_height :: Int
     , vconfig_track_title_height :: Int
     , vconfig_sb_size :: Int
     , vconfig_status_size :: Int

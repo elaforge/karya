@@ -53,8 +53,6 @@ struct BlockModelConfig {
 
 
 struct BlockViewConfig {
-    double zoom_speed;
-
     int block_title_height;
     int track_title_height;
     int sb_size;
