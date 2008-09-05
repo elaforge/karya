@@ -22,6 +22,7 @@ module Midi.MidiC (
     , to_timestamp, from_timestamp
     -- * read and write
     , write_msg
+    , abort
     -- * thru handling
     -- * bandwidth monitoring
     -- * errors
@@ -130,6 +131,9 @@ write_msg :: (PortMidi.WriteStream, PortMidi.Timestamp, Midi.Message) -> IO ()
 write_msg (stream, ts, msg) = do
     PortMidi.write_event stream (PortMidi.Event (Parse.encode msg, ts))
     -- put it in the bw monitor
+
+abort :: PortMidi.WriteStream -> IO ()
+abort = PortMidi.abort
 
 
 -- * util

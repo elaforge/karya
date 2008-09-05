@@ -90,8 +90,10 @@ play_msgs state devs msgs = do
         -- solution would be to get rid of Pitch.scale_set_pitch_bend so that
         -- the bend will be fixed the next time you play a note.
         ([], _) -> send_all write devs (Midi.PitchBend 0)
-        (_, Transport.Stop) -> send_all write devs Midi.AllNotesOff
-            >> send_all write devs (Midi.PitchBend 0)
+        (_, Transport.Stop) -> do
+            Transport.state_midi_abort state
+            send_all write devs Midi.AllNotesOff
+            send_all write devs (Midi.PitchBend 0)
         _ -> do
             -- block to avoid flooding the midi driver
             Concurrent.threadDelay (fromIntegral

@@ -130,9 +130,10 @@ main = initialize $ \lang_socket read_chan -> do
             (StaticConfig.config_write_device_map static_config)
             default_stream wstream_map
         setup_cmd = StaticConfig.config_setup_cmd static_config args
+    let abort_midi = mapM_ MidiC.abort (Map.elems wstream_map)
 
     Thread.start_thread "responder" $ do
-        Responder.responder static_config get_msg write_midi get_ts
+        Responder.responder static_config get_msg write_midi abort_midi get_ts
             player_chan setup_cmd session
         `Exception.catch` responder_handler
             -- It would be possible to restart the responder, but chances are

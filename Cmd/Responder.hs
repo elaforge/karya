@@ -99,10 +99,10 @@ type MidiWriter = Midi.WriteMessage -> IO ()
 type MsgReader = IO Msg.Msg
 
 responder :: StaticConfig.StaticConfig -> MsgReader -> MidiWriter
-    -> IO Timestamp.Timestamp -> Transport.Chan -> Cmd.CmdIO
+    -> IO () -> IO Timestamp.Timestamp -> Transport.Chan -> Cmd.CmdIO
     -> GHC.InterpreterSession -> IO ()
-responder static_config get_msg write_midi get_ts player_chan setup_cmd
-        session = do
+responder static_config get_msg write_midi abort_midi get_ts player_chan
+        setup_cmd session = do
     Log.debug "start responder"
 
     let ui_state = State.empty
@@ -117,7 +117,7 @@ responder static_config get_msg write_midi get_ts player_chan setup_cmd
         Log.warn $ "setup_cmd returned not-Done status, did it abort?"
     let rstate = ResponderState static_config ui_state
             (Cmd.clear_history cmd_state) get_msg write_midi
-            (Transport.Info player_chan write_midi get_ts) session
+            (Transport.Info player_chan write_midi abort_midi get_ts) session
     loop rstate
 
 -- | Create the MsgReader to pass to 'responder'.

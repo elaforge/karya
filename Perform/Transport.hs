@@ -28,6 +28,9 @@ data Info = Info {
     -- | Channel to communicate back to the responder loop.
     info_responder_chan :: Chan
     , info_midi_writer :: Midi.WriteMessage -> IO ()
+    -- | Action that will abort any pending midi msgs written with the midi
+    -- writer.
+    , info_midi_abort :: IO ()
     -- | Get current timestamp according to timing system.
     , info_get_current_timestamp :: IO Timestamp.Timestamp
     }
@@ -79,6 +82,7 @@ data State = State {
     -- | Communicate into the Player.
     , state_transport :: Transport
     , state_midi_writer :: Midi.WriteMessage -> IO ()
+    , state_midi_abort :: IO ()
     , state_block_id :: Block.BlockId
 
     -- | When play started.  Timestamps relative to the block start should be
@@ -86,9 +90,9 @@ data State = State {
     , state_timestamp_offset :: Timestamp.Timestamp
     , state_get_current_timestamp :: IO Timestamp.Timestamp
     }
-state (Info chan writer get_ts) trans block_id = do
+state (Info chan writer abort get_ts) trans block_id = do
     ts <- get_ts
-    return (State chan trans writer block_id ts get_ts)
+    return (State chan trans writer abort block_id ts get_ts)
 
 write_status :: Chan -> PlayerStatus -> Block.BlockId -> IO ()
 write_status chan status block_id =

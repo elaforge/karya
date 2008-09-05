@@ -18,6 +18,7 @@ module Midi.PortMidi (
     -- * reading and writing streams
     , Event(..), Timestamp
     , read_events, write_event
+    , abort
 
     -- * errors
     , Error(..), catch, throw
@@ -207,6 +208,12 @@ peek_event evt = do
     msg <- (#peek PmEvent, message) evt :: IO (#type PmMessage)
     time <- (#peek PmEvent, timestamp) evt :: IO CTimestamp
     return $ Event (decode_message msg, from_c_timestamp time)
+
+abort :: WriteStream -> IO ()
+abort (WriteStream streamp) = checked_ (c_abort streamp)
+
+foreign import ccall unsafe "Pm_Abort"
+    c_abort :: Ptr CStream -> IO CPmError
 
 -- could probably get hsc2hs to pull the macros, but I don't mind doing this
 -- in haskell
