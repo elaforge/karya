@@ -20,6 +20,8 @@ import qualified Ui.TestSetup as TestSetup
 
 import qualified Midi.Midi as Midi
 
+import qualified Cmd.Cmd as Cmd
+
 import qualified Derive.Controller as Controller
 import qualified Derive.Derive as Derive
 import qualified Derive.Note as Note
@@ -241,21 +243,24 @@ run ui_state schema_map m =
 eval ui_state m = fmap (\(val, _, _) -> val) $
     run ui_state default_schema_map m
 
-perform = Perform.perform default_lookup default_inst_config
+perform = Perform.perform default_chan_map default_lookup default_inst_config
 
 block_id = TestSetup.default_block_id
 
 c_mod = Controller.c_mod
 
 default_inst = Score.Instrument "synth/patch"
+default_synth = Instrument.synth "synth" "wdev" []
 default_dev = Midi.WriteDevice "out"
 default_inst_config = Instrument.config
-    [((default_dev, 0), Score.Instrument "synth/patch")] Nothing
+    [(default_inst, [(default_dev, 0)])] Nothing
+default_chan_map = fst $ Cmd.inst_addr_to_chan_map default_lookup
+    (Instrument.config_alloc default_inst_config)
 
 default_lookup (Score.Instrument inst)
     | inst == "synth/patch" = Just $
-        Instrument.instrument "synth/patch" Controller.default_controllers
-        (-2, 2) Nothing
+        Instrument.instrument default_synth "patch" Nothing
+            Controller.default_controllers (-2, 2)
     | otherwise = Nothing
 
 default_schema_map :: Schema.SchemaMap

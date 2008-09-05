@@ -11,7 +11,7 @@ import qualified Perform.Midi.Instrument as Instrument
 
 
 test_parse_file = do
-    patches <- Parse.patch_file "Instrument/test_patch_file"
+    patches <- Parse.patch_file "synth" "Instrument/test_patch_file"
     let inits = map Instrument.patch_initialize patches
         init_msgs = [[m | Midi.ChannelMessage _ m <- msgs]
             | Instrument.InitializeMidi msgs <- inits]

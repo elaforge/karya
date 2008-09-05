@@ -142,11 +142,11 @@ cmd_context midi_config edit_mode kbd_entry focused_tracknum =
     CmdContext default_addr inst_addr edit_mode kbd_entry focused_tracknum
     where
     default_addr = Instrument.config_default_addr midi_config
-    -- Addr:Instrument -> Instrument:Maybe Addr
     -- The thru cmd has to pick a single addr for a give inst, so let's just
     -- pick the lowest one.
-    inst_map = Map.fromListWith min [(inst, addr)
-        | (addr, inst) <- Map.assocs (Instrument.config_alloc midi_config)]
+    inst_map = Map.fromList [ (inst, minimum addrs)
+        | (inst, addrs) <- Map.toList (Instrument.config_alloc midi_config)
+        , not (null addrs) ]
     inst_addr = flip Map.lookup inst_map
 
 

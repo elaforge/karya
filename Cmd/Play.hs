@@ -240,8 +240,9 @@ perform block_id (inst_db, transport_info, _) start_ts events = do
     -- TODO call Convert.verify for more warnings
     mapM_ (Log.warn . show) convert_warnings
     inst_config <- fmap State.state_midi_config State.get
+    chan_map <- fmap Cmd.state_chan_map Cmd.get_state
     let (midi_msgs, perform_warnings) =
-            Perform.perform lookup_inst inst_config midi_events
+            Perform.perform chan_map lookup_inst inst_config midi_events
     mapM_ (Log.warn . show) perform_warnings
 
     -- block_id is only used for log msgs.

@@ -15,7 +15,8 @@ import qualified Instrument.MidiDb as MidiDb
 import qualified Instrument.Parse as Parse
 
 
-load dir = Parse.patch_file (dir </> "z1") >>= MidiDb.load_synth_desc z1
+load dir = Parse.patch_file (Instrument.synth_name z1) (dir </> "z1")
+    >>= MidiDb.load_synth_desc z1
 load_slow dir = Parse.parse_sysex_dir korg_sysex (dir </> "z1_sysex")
     >>= MidiDb.load_synth_desc z1
 
@@ -79,9 +80,9 @@ to_signed = fromIntegral
 
 make_patch (name, cat, pb_range, osc1, osc2) =
     -- Initialization will be filled in later.
-    Instrument.patch inst Instrument.NoInitialization tags ""
+    (Instrument.patch inst) { Instrument.patch_tags = tags }
     where
-    inst = Instrument.instrument name Controller.empty_map pb_range Nothing
+    inst = Instrument.instrument z1 name Nothing Controller.empty_map pb_range
     tags = maybe_tags
         [("z1_category", cat), ("z1_osc", osc1), ("z1_osc", osc2)]
 

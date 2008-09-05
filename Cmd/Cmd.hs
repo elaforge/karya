@@ -173,6 +173,7 @@ data State = State {
 
     -- | Copies by default go to a block+tracks with this project.
     , state_clip_namespace :: Id.Namespace
+    , state_chan_map :: Instrument.ChannelMap
 
     -- Editing state
 
@@ -198,6 +199,7 @@ initial_state inst_db schema_map = State {
     , state_transport = Nothing
     , state_focused_view = Nothing
     , state_clip_namespace = Config.clip_namespace
+    , state_chan_map = Map.empty
 
     , state_edit_mode = Nothing
     , state_kbd_entry = False
@@ -276,8 +278,7 @@ set_status key val = do
     view_ids <- fmap (Map.keys . State.state_views) State.get
     forM_ view_ids $ \view_id -> set_view_status view_id key val
 
-get_lookup_midi_instrument :: (Monad m) =>
-    CmdT m Instrument.Db.LookupMidiInstrument
+get_lookup_midi_instrument :: (Monad m) => CmdT m MidiDb.LookupMidiInstrument
 get_lookup_midi_instrument =
     fmap (Instrument.Db.db_lookup_midi . state_instrument_db) get_state
 
@@ -294,6 +295,34 @@ get_clip_namespace :: (Monad m) => CmdT m Id.Namespace
 get_clip_namespace = fmap state_clip_namespace get_state
 set_clip_namespace :: (Monad m) => Id.Namespace -> CmdT m ()
 set_clip_namespace ns = modify_state $ \st -> st { state_clip_namespace = ns }
+
+-- | Set State.state_midi_config, but also update the state_chan_map.  This
+-- assumes that the instrument is already initialized on its addresses, which
+-- should be done explicitly with 'send_initialization'.
+set_midi_config :: (Monad m) => Instrument.Config -> CmdT m ()
+set_midi_config new_config = do
+    old_config <- State.get_midi_config
+    lookup_inst <- get_lookup_midi_instrument
+    let alloc = Instrument.config_alloc
+        new_allocs = alloc new_config `Map.difference` alloc old_config
+        (new_map, failed) = inst_addr_to_chan_map lookup_inst new_allocs
+    if not (null failed)
+        then Log.warn $ "inst lookup failed for: " ++ show failed
+        else do
+            modify_state $ \st -> st
+                { state_chan_map = Map.union new_map (state_chan_map st) }
+            State.set_midi_config new_config
+
+inst_addr_to_chan_map :: MidiDb.LookupMidiInstrument
+    -> Map.Map Score.Instrument [Instrument.Addr]
+    -> (Instrument.ChannelMap, [Score.Instrument])
+inst_addr_to_chan_map lookup_inst inst_addr = (chan_map, failed)
+    where
+    insts = [(lookup_inst score_inst, score_inst, addrs)
+        | (score_inst, addrs) <- Map.toList inst_addr]
+    chan_map = Map.fromList [(addr, inst)
+        | (Just inst, _, addrs) <- insts, addr <- addrs]
+    failed = [inst | (Nothing, inst, _) <- insts]
 
 -- * basic cmds
 

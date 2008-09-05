@@ -15,12 +15,12 @@ import qualified Perform.Warning as Warning
 import qualified Perform.Midi.Controller as Controller
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.Instrument as Instrument
-import qualified Instrument.Db as Instrument.Db
+import qualified Instrument.MidiDb as MidiDb
 
 
 -- | Events that don't have enough info to be converted to MIDI Events will be
 -- returned as Warnings.
-convert :: Instrument.Db.LookupMidiInstrument -> [Score.Event]
+convert :: MidiDb.LookupMidiInstrument -> [Score.Event]
     -> ([Perform.Event], [Warning.Warning])
 convert lookup_inst events = (Maybe.catMaybes midi_events, concat warns)
     where (warns, midi_events) = unzip (map (convert_event lookup_inst) events)
@@ -34,7 +34,7 @@ verify :: Instrument.Config -> [Perform.Event] -> [String]
 verify config events =
     (map show . unique . Maybe.catMaybes . map (verify_event allocated)) events
     where
-    allocated = (Set.fromList . map Score.inst_name . Map.elems
+    allocated = (Set.fromList . map Score.inst_name . Map.keys
         . Instrument.config_alloc) config
 
 unique = Set.toList . Set.fromList
@@ -54,7 +54,7 @@ convert_event lookup_inst event = case do_convert_event lookup_inst event of
     Left warn -> ([warn], Nothing)
     Right (warns, evt) -> (warns, Just evt)
 
-do_convert_event :: Instrument.Db.LookupMidiInstrument -> Score.Event
+do_convert_event :: MidiDb.LookupMidiInstrument -> Score.Event
     -> Either Warning.Warning ([Warning.Warning], Perform.Event)
 do_convert_event lookup_inst event = do
     let req = require event

@@ -204,11 +204,11 @@ old_setup_cmd _args = do
     State.set_track_title t0 ">fm8/bass"
     _t1 <- Create.track b 3
 
-    State.set_midi_config inst_config
+    Cmd.set_midi_config inst_config
     State.set_selection view Config.insert_selnum
         (Block.point_selection 0 (TrackPos 0))
     return Cmd.Done
 
-inst_config = Instrument.config
-    [((Midi.WriteDevice "fm8", n), Score.Instrument "fm8/bass") | n <- [0..2]]
-    Nothing
+inst_config =
+    Instrument.config [(Score.Instrument "fm8/bass", addrs)] Nothing
+    where addrs = [(Midi.WriteDevice "fm8", n) | n <- [0..2]]

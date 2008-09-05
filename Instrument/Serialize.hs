@@ -71,14 +71,16 @@ instance Binary MidiDb.PatchMap where
     get = get >>= \a -> return (MidiDb.PatchMap a)
 
 instance Binary Instrument.Patch where
-    put (Instrument.Patch a b c d) = put a >> put b >> put c >> put d
-    get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
-        return (Instrument.Patch a b c d)
+    put (Instrument.Patch a b c d e) = put a >> put b >> put c >> put d >> put e
+    get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d -> get >>= \e ->
+        return (Instrument.Patch a b c d e)
 
 instance Binary Instrument.Instrument where
-    put (Instrument.Instrument a b c d) = put a >> put b >> put c >> put d
+    put (Instrument.Instrument a b c d e f g) = put a >> put b >> put c
+        >> put d >> put e >> put f >> put g
     get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
-        return (Instrument.Instrument a b c d)
+        get >>= \e -> get >>= \f -> get >>= \g ->
+            return (Instrument.Instrument a b c d e f g)
 
 instance Binary Instrument.InitializePatch where
     put (Instrument.InitializeMidi a) = putWord8 0 >> put a
@@ -93,3 +95,7 @@ instance Binary Instrument.InitializePatch where
             2 -> return Instrument.NoInitialization
             3 -> get >>= \a -> return (Instrument.InitializeSysex a)
             _ -> fail "no parse for Instrument.InitializePatch"
+
+instance Binary Instrument.Keyswitch where
+    put (Instrument.Keyswitch a b) = put a >> put b
+    get = get >>= \a -> get >>= \b -> return (Instrument.Keyswitch a b)

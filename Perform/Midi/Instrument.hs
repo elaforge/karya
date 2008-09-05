@@ -18,7 +18,12 @@ import qualified Data.ByteString as B
 -- a Midi.Perform.Event to a midi message.  Each Event has an attached
 -- Instrument.
 data Instrument = Instrument {
-    inst_name :: InstrumentName
+    inst_synth :: SynthName
+    , inst_name :: InstrumentName
+    , inst_keyswitch :: Maybe Keyswitch
+    -- | Instrument name as given in the Score.Instrument.  It's just used
+    -- to print msgs, but it should be the same to avoid confusion.
+    , inst_score_name :: String
 	-- | Map controller names to a controller number.  Some controllers are
 	-- shared by all midi instruments, but some instruments have special
 	-- controllers.
@@ -31,29 +36,55 @@ data Instrument = Instrument {
     -- (but I always allocate LRU, so it shouldn't make a difference, right?)
     , inst_decay :: Maybe Double
     } deriving (Eq, Ord, Show)
-instrument = Instrument
+
+instrument :: Synth -> InstrumentName -> Maybe Keyswitch
+    -> Controller.ControllerMap -> Controller.PbRange -> Instrument
+instrument synth name keyswitch cmap pb_range =
+    set_instrument_name synth name keyswitch
+        (Instrument "" "" Nothing "" cmap pb_range Nothing)
+
+set_instrument_name synth name keyswitch inst = inst
+    { inst_synth = synth_name synth
+    , inst_name = name
+    , inst_keyswitch = keyswitch
+    , inst_score_name = synth_name synth ++ "/" ++ name ++ ks_str
+    }
+    where
+    ks_str = case keyswitch of
+        Just (Keyswitch ks_name _) -> "/" ++ ks_name
+        _ -> ""
+
 
 -- | Per-song instrument configuration.
-data Config  = Config {
-    -- | An instrument may occur multiple times in this map, which means it
-    -- may be multiplexed across multiple channels.  You can also assign it
-    -- multiple devices the same way, but the use for that seems more limited.
-    --
-    -- TODO it would be more natural to go Instrument -> [Addr] and that's
-    -- what everyone converts this into anyway.  And multiple instruments
-    -- sharing the same Addr is also potentially legitimate.
-    config_alloc :: Map.Map Addr Score.Instrument
+data Config = Config {
+    -- | An instrument may have multiple addresses assigned to it, which means
+    -- that it can be multiplexed across multiple channels.  In addition,
+    -- multiple instruments can be allocated to overlapping addresses.  An
+    -- instrument wishing to use an address will emit an appropriate message to
+    -- configure it (probably a keyswitch, possibly a program change).
+    config_alloc :: Map.Map Score.Instrument [Addr]
     -- | If this is given, it will be used as the Addr for e.g. midi thru
     -- when it cant't figure out what instrument is involved, or if the
     -- instrument has no allocation.
     , config_default_addr :: Maybe Addr
     } deriving (Show, Read, Generics.Data, Generics.Typeable)
-config addr_insts default_addr = Config (Map.fromList addr_insts) default_addr
+config inst_addrs default_addr = Config (Map.fromList inst_addrs) default_addr
 
 -- | Midi instruments are addressed by a (device, channel) pair, allocated in
 -- 'Config'.
 type Addr = (Midi.WriteDevice, Midi.Channel)
 
+-- | Remember the current state of each midi addr in use.  This is because
+-- more than one instrument can share the same channel, so I need to emit the
+-- requisite program change or keyswitch to get the channel into the right
+-- state.  For synths that can't switch programs instantly, any program change
+-- should probably be done by hand in advance, but keyswitches all happen
+-- instantly and don't need that.
+type ChannelMap = Map.Map Addr Instrument
+
+-- | Keyswitch name and key to activate it.
+data Keyswitch = Keyswitch String Midi.Key
+    deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
 
 -- * instrument db types
 
@@ -68,12 +99,18 @@ data Patch = Patch {
 	-- used in performance, because e.g. synth controllers can get added in.
 	patch_instrument :: Instrument
     , patch_initialize :: InitializePatch
+    -- | Keyswitches available to this instrument, if any.  Each of these is
+    -- considered its own instrument, like synth/inst/ks.  A keyswitch key may
+    -- occur more than once, and a name of "" is used when the instrument is
+    -- looked up without a keyswitch.
+    , patch_keyswitches :: [Keyswitch]
 	-- | Key-value pairs used to index the patch.
 	, patch_tags :: [Tag]
     -- | Some free form text about the patch.
     , patch_text :: String
 	} deriving (Eq, Show)
-patch = Patch
+-- | Create a Patch with empty vals, to set them as needed.
+patch inst = Patch inst NoInitialization [] [] ""
 
 patch_name :: Patch -> InstrumentName
 patch_name = inst_name . patch_instrument

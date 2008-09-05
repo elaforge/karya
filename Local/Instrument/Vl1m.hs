@@ -20,7 +20,8 @@ import qualified Instrument.MidiDb as MidiDb
 import qualified Instrument.Parse as Parse
 
 
-load dir = Parse.patch_file (dir </> "vl1") >>= MidiDb.load_synth_desc vl1
+load dir = Parse.patch_file (Instrument.synth_name vl1) (dir </> "vl1")
+    >>= MidiDb.load_synth_desc vl1
 load_slow dir = parse_dir (dir </> "vl1_vc") >>= MidiDb.load_synth_desc vl1
 
 vl1 = Instrument.synth "vl1" "vl1" vl1_controllers
@@ -95,13 +96,13 @@ vl1_sysex = do
 
 vl1_patch name (pb_range1, name1, cc_groups1) (pb_range2, name2, cc_groups2) =
     -- Initialization and text will be filled in later.
-    Instrument.patch inst Instrument.NoInitialization tags ""
+    (Instrument.patch inst) { Instrument.patch_tags = tags }
     where
         -- Optimistically take the widest range.
     pb_range = if range pb_range1 > range pb_range2
         then pb_range1 else pb_range2
     range (low, high) = max (abs low) (abs high)
-    inst = Instrument.instrument name cmap pb_range Nothing
+    inst = Instrument.instrument vl1 name Nothing cmap pb_range
     tags = maybe_tags [("vl1_elt1", name1), ("vl1_elt2", name2)]
     cmap = Controller.controller_map $ Map.assocs $ Map.mapMaybe highest_prio $
         Map.unionWith (++) (Map.fromList cc_groups1) (Map.fromList cc_groups2)

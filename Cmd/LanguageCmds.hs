@@ -284,6 +284,11 @@ copy_marklist marklist_name from_ruler_id to_ruler_id = do
 
 -- * midi config
 
+lookup_instrument :: String -> Cmd.CmdL (Maybe Midi.Instrument.Instrument)
+lookup_instrument inst_name = do
+    lookup_inst <- Cmd.get_lookup_midi_instrument
+    return $ lookup_inst (Score.Instrument inst_name)
+
 track_type :: Block.BlockId -> Block.TrackNum -> Cmd.CmdL Schema.TrackType
 track_type block_id tracknum = do
     skel <- get_skeleton block_id
@@ -292,9 +297,18 @@ track_type block_id tracknum = do
             ++ show block_id ++ " at " ++ show tracknum
         Just typ -> return typ
 
--- | Load a new instrument: deassign instrument from current track,
--- retitle track with new instrument, give new instrument a channel, and
--- send midi init for that channel.
+-- | Steps to load a new instrument.  All of them are optional, depending on
+-- the circumstances.
+-- - Deallocate address asignments for the old instrument, if one is being
+-- replaced.
+-- - Allocate addresses for the new instrument.
+-- - Set Cmd.state_chan_map for the addresses.
+-- - Title track with new instrument.
+-- - Send midi init.
+--
+-- For example, typing a new instrument in a track title should only set the
+-- chan_map, and complain if there is no allocation, but not necessarily
+-- deallocate the replaced instrument or send midi init.
 load_instrument :: String -> Cmd.CmdL ()
 load_instrument inst_name = do
     let inst = Score.Instrument inst_name
@@ -306,7 +320,7 @@ load_instrument inst_name = do
     dealloc_instrument old_inst
     dev <- Cmd.require_msg ("no device for " ++ show inst)  =<< device_of inst
     chan <- find_chan_for dev
-    alloc_instrument inst (dev, chan)
+    alloc_instrument inst [(dev, chan)]
 
     State.set_track_title track_id (Schema.instrument_to_title inst)
     send_instrument_init inst chan
@@ -322,7 +336,8 @@ find_chan_for :: Midi.WriteDevice -> Cmd.CmdL Midi.Channel
 find_chan_for dev = do
     alloc <- fmap Midi.Instrument.config_alloc State.get_midi_config
     let addrs = map ((,) dev) [0..15]
-    let match = fmap snd $ List.find (not . (`Map.member` alloc)) addrs
+        taken = concat (Map.elems alloc)
+    let match = fmap snd $ List.find (not . (`elem` taken)) addrs
     Cmd.require_msg ("couldn't find free channel for " ++ show dev) match
 
 send_instrument_init :: Score.Instrument -> Midi.Channel -> Cmd.CmdL ()
@@ -350,19 +365,19 @@ send_initialization init inst dev chan = case init of
         Log.warn $ "initialize instrument " ++ show inst ++ ": " ++ msg
     Midi.Instrument.NoInitialization -> return ()
 
-alloc_instrument :: Score.Instrument -> Midi.Instrument.Addr -> Cmd.CmdL ()
-alloc_instrument inst addr = do
+alloc_instrument :: Score.Instrument -> [Midi.Instrument.Addr] -> Cmd.CmdL ()
+alloc_instrument inst addrs = do
     config <- State.get_midi_config
     let alloc = Midi.Instrument.config_alloc config
-    State.set_midi_config $ config
-        { Midi.Instrument.config_alloc = Map.insert addr inst alloc }
+    Cmd.set_midi_config $ config
+        { Midi.Instrument.config_alloc = Map.insert inst addrs alloc }
 
 dealloc_instrument :: Score.Instrument -> Cmd.CmdL ()
 dealloc_instrument inst = do
     config <- State.get_midi_config
     let alloc = Midi.Instrument.config_alloc config
-    State.set_midi_config $ config
-        { Midi.Instrument.config_alloc = Map.filter (/=inst) alloc }
+    Cmd.set_midi_config $ config
+        { Midi.Instrument.config_alloc = Map.delete inst alloc }
 
 schema_instruments :: Block.BlockId -> Cmd.CmdL [Score.Instrument]
 schema_instruments block_id = do
@@ -373,20 +388,21 @@ schema_instruments block_id = do
 -- found in the given block.  It simply gives each instrument on a device a
 -- single channel increasing from 0.
 --
--- Example: auto_config (bid "b0") >>= State.set_midi_config
+-- Example: auto_config (bid "b0") >>= Cmd.set_midi_config
 -- TODO: won't work if there are >1 block, need a merge config
+-- TODO: same inst with different keyswitches should get the same addrs
 auto_config :: Block.BlockId -> Cmd.CmdL Midi.Instrument.Config
 auto_config block_id = do
     insts <- schema_instruments block_id
     devs <- mapM device_of insts
     let no_dev = [inst | (inst, Nothing) <- zip insts devs]
         inst_devs = [(inst, dev) | (inst, Just dev) <- zip insts devs]
-        allocs = [((dev, fromIntegral i), inst)
+        allocs = [(inst, [(dev, fromIntegral i)])
             | (dev, by_dev) <- Seq.keyed_group_with snd inst_devs
             , (i, (inst, _dev)) <- Seq.enumerate by_dev]
         default_addr = case allocs of
-            [] -> Nothing
-            ((dev, chan), _inst) : _ -> Just (dev, chan)
+            (_, (addr:_)) : _ -> Just addr
+            _ -> Nothing
     unless (null no_dev) $
         Log.warn $ "no synth found for instruments: " ++ show insts
     return $ Midi.Instrument.config allocs default_addr
@@ -424,7 +440,8 @@ score_to_midi :: [Score.Event]
 score_to_midi events = do
     inst_config <- fmap State.state_midi_config State.get
     lookup <- Cmd.get_lookup_midi_instrument
+    chan_map <- fmap Cmd.state_chan_map Cmd.get_state
     let (midi_events, convert_warnings) = Midi.Convert.convert lookup events
         (midi_msgs, perform_warnings) =
-            Midi.Perform.perform lookup inst_config midi_events
+            Midi.Perform.perform chan_map lookup inst_config midi_events
     return (midi_msgs, convert_warnings ++ perform_warnings)

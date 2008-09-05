@@ -20,28 +20,37 @@ import qualified Perform.Midi.Instrument as Instrument
 
 -- * patch file
 
-patch_file :: FilePath -> IO [Instrument.Patch]
-patch_file fn = do
-    parsed <- parse_patch_file fn
+patch_file :: Instrument.SynthName -> FilePath -> IO [Instrument.Patch]
+patch_file synth fn = do
+    parsed <- parse_patch_file synth fn
     case parsed of
         Left err -> error $ "parse patches: " ++ show err
         Right patches -> return patches
 
-parse_patch_file fn = do
+parse_patch_file synth fn = do
     contents <- readFile fn
-    return $ Parsec.runParser p_patch_file initial_state fn contents
+    return $ Parsec.runParser (p_patch_file synth) initial_state fn contents
 
-p_patch_file = do
+p_patch_file synth = do
     plines <- p_patch_lines
-    return $ map (make_patch (-2, 2)) plines
+    return $ map (make_patch synth (-2, 2)) plines
 
-make_patch pb_range (PatchLine name cat bank patch_num) =
-    Instrument.patch inst
-        (Instrument.InitializeMidi (Midi.program_change bank patch_num))
-        tags
-        ""
+make_patch synth pb_range (PatchLine name cat bank patch_num) =
+    (Instrument.patch inst)
+        { Instrument.patch_initialize =
+            Instrument.InitializeMidi (Midi.program_change bank patch_num)
+        , Instrument.patch_tags = tags
+        }
     where
-    inst = Instrument.instrument name Controller.empty_map pb_range Nothing
+    inst = Instrument.Instrument {
+        Instrument.inst_synth = synth
+        , Instrument.inst_name = name
+        , Instrument.inst_keyswitch = Nothing
+        , Instrument.inst_score_name = synth ++ "/" ++ name
+        , Instrument.inst_controller_map = Controller.empty_map
+        , Instrument.inst_pitch_bend_range = pb_range
+        , Instrument.inst_decay = Nothing
+        }
     tags = [Instrument.tag "category" cat]
 
 p_patch_lines = fmap Maybe.catMaybes $ Parsec.many p_line

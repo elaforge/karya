@@ -9,8 +9,7 @@ load :: FilePath -> IO MidiDb.SynthDesc
 load _dir = return (fm8, MidiDb.wildcard_patch_map patch_template)
 
 patch_template = Instrument.patch
-    (Instrument.instrument "" Controller.empty_map (-96, 96) Nothing)
-    Instrument.NoInitialization [] ""
+    (Instrument.instrument fm8 "" Nothing Controller.empty_map (-96, 96))
 
 fm8 = Instrument.synth "fm8" "fm8" fm8_controllers
 

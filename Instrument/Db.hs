@@ -1,5 +1,12 @@
+{- | Instrument DB, for converting Score.Instruments, which are just names, to
+the detailed instrument in whatever backend.
+
+TODO
+- Midi instruments are probably tangled with non-midi instruments, but I can
+figure that out when I have non-midi instruments.
+- Parsing of score instruments into synth/inst[/keyswitch] is scattered around.
+-}
 module Instrument.Db where
-import qualified Data.Map as Map
 
 import qualified Derive.Score as Score
 import qualified Midi.Midi as Midi
@@ -16,7 +23,7 @@ data Db = Db {
     -- | Search for Score instruments.
     db_search :: Search.Search
     -- | Specialized version of db_lookup that returns a Midi instrument.
-    , db_lookup_midi :: LookupMidiInstrument
+    , db_lookup_midi :: MidiDb.LookupMidiInstrument
     -- | Lookup a score instrument.
     , db_lookup :: Score.Instrument -> Maybe MidiDb.Info
 
@@ -38,29 +45,14 @@ empty = Db {
 instance Show Db where
     show _ = "<instrument_db>"
 
-type LookupMidiInstrument = Score.Instrument -> Maybe Instrument.Instrument
 type MakeInitialize = Midi.Channel -> Instrument.InitializePatch
-
 
 db midi_db extra_index = Db
     (Search.search index)
-    (lookup_midi midi_db)
-    (MidiDb.lookup_instrument midi_db)
+    (MidiDb.lookup_midi midi_db)
+    (fmap fst . MidiDb.lookup_instrument midi_db)
     midi_db
     index
     where index = Search.merge_indices (Search.make_index midi_db) extra_index
 
 size db = MidiDb.size (db_midi_db db)
-
-lookup_midi :: MidiDb.MidiDb -> LookupMidiInstrument
-lookup_midi midi_db inst = case MidiDb.lookup_instrument midi_db inst of
-    Nothing -> Nothing
-    Just (MidiDb.Info synth patch) -> Just (make_inst synth patch)
-
--- | Merge a Synth and a Patch to create an Instrument.
-make_inst :: Instrument.Synth -> Instrument.Patch -> Instrument.Instrument
-make_inst synth patch = inst { Instrument.inst_controller_map =
-        Map.union (Instrument.inst_controller_map inst) cmap }
-    where
-    inst = Instrument.patch_instrument patch
-    cmap = Instrument.synth_controller_map synth

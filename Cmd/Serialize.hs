@@ -3,8 +3,8 @@
     Types that I think might change have versions.  If the type changes,
     increment the put_version and add a new branch to the get_version case.
 
-    Types that I think have the slightest chance of changing have explicit type
-    signatures here.  That way, if one of the types is changed, there will be
+    Generally, the various parts of ADTs are unpacked with explicit type
+    signatures.  That way, if one of the types is changed, there will be
     a type error over here pointing at the get/put code that needs to be
     updated.
 -}
@@ -396,7 +396,7 @@ instance Binary Instrument.Config where
         v <- get_version
         case v of
             1 -> do
-                alloc <- get :: Get (Map.Map Instrument.Addr Score.Instrument)
+                alloc <- get :: Get (Map.Map Score.Instrument [Instrument.Addr])
                 default_addr <- get :: Get (Maybe Instrument.Addr)
                 return $ Instrument.Config alloc default_addr
             _ -> version_error "Instrument.Config" v

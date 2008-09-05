@@ -403,10 +403,9 @@ record_history updates old_state cmd_state = do
         new_hist = if record
             then (Cmd.HistoryEntry cmd_name old_state : hist, [])
             else Cmd.state_history cmd_state
-        msg = (if record then "record " else "don't record ")
-            ++ show (length (fst new_hist), length (snd new_hist))
-    when record $
-        Log.debug msg
+    -- let msg = (if record then "record " else "don't record ")
+    --         ++ show (length (fst new_hist), length (snd new_hist))
+    -- when record (Log.debug $ "history " ++ msg)
     return $ cmd_state
         { Cmd.state_history = new_hist, Cmd.state_skip_history_record = False }
 

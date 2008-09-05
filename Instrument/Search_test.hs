@@ -17,13 +17,13 @@ test_search = do
     let idx = Search.make_index midi_db
     equal (Search.search idx []) []
     equal (Search.search idx [("category", "key"), ("controller", "comb")])
-        (insts ["z1/comb clav"])
+        (insts ["z1/comb_clav"])
     equal (Search.search idx [("category", "key"), ("controller", "")])
-        (insts ["z1/comb clav", "z1/pulse clav"])
+        (insts ["z1/comb_clav", "z1/pulse_clav"])
     equal (Search.search idx [("name", "delg"), ("name", "comb")])
         []
     equal (Search.search idx [("synth", "fm8")])
-        (insts ["fm8/"])
+        (insts ["fm8/*"])
 
 insts = map Score.Instrument
 
@@ -46,12 +46,12 @@ t_patches2 = MidiDb.wildcard_patch_map (mkpatch ("none", "fm", []))
 
 t_tags = Search.patch_tags t_patches
 
-mkpatch (name, cat, conts) =
-    Instrument.patch inst Instrument.NoInitialization tags ""
+mkpatch (name, cat, conts) = (Instrument.patch inst)
+    { Instrument.patch_tags = tags }
     where
     tags = map (uncurry Instrument.tag) [("category", cat)]
-    inst = Instrument.instrument name (Controller.controller_map conts)
-        (-2, 2) Nothing
+    inst = Instrument.instrument t_synth name Nothing
+        (Controller.controller_map conts) (-2, 2)
 
 get_z1 = do
     (_synth, (MidiDb.PatchMap patches)) <-

@@ -11,6 +11,7 @@ fltk
     I can set something like kUtilityWindowClass in Fl_mac.cxx:Fl_X::make, but
     it doesn't get any kbd input
   - can I get the windows into an os x windows menu?
+  - bug: doesn't redraw after switching monitors
   UI Msgs
     - can I capture os x two-finger drag events?
       yes, they're reported as FL_MOUSEWHEEL, so I should scroll on mousewheel
@@ -117,22 +118,23 @@ Derive
       transposed
     - alternate scales
 
-  - indexed signal type, for keyswitches.  pitch as a type of indexed signal
-
+  - keyswitch support in midi thru
   - set instrument within note track, controller within control track
+  - separate instrument track, as a kind of controller track
+  - instrument aliases to make a shorthand for setting instrument, and also
+    setting keyswitch on current instrument
+
   - display derived blocks
   - 3 way merge for derived blocks
 
 Perform
   Player
-    _ flush midi output when I get a Stop
-      flush is complicated and it's easier to just live with n seconds of extra
-      sound
-      - complain to portmidi list?
+    * flush midi output when I get a Stop
+      - send portmidi patches
   Midi
     - eliminate duplicate controller msgs
-    - pitch signal rendering
-    - support key switches
+    * pitch signal rendering
+    * support key switches
 
   Instrument
     - some kind of organized way to manage instruments and instrument config
@@ -162,11 +164,10 @@ Instrument DB
     program change
 
 Midi
-  - midi thru: MVar (Port -> Message -> [(Port, Message)])
-  - scheduler for out of order writes + thru?  how about I always write in
+  * scheduler for out of order writes + thru?  how about I always write in
     order and don't allow timestamps on thru?
-    no, I still need the scheduler, phooey.
-    write WriteStream *OpenMergedOutput(WriteStream *stm, ...)
+    - send portmidi patch for thru merging
+  - a single msg input thread instead of one thread per input port
   bandwidth
     - keep stats
     - display widget

@@ -1,10 +1,13 @@
+{-# OPTIONS_GHC -XPatternGuards #-}
 {- | Main entry point for Perform.Midi.  Render Deriver output down to actual
     midi events.
 
-    TODO Implement key switches.  How about an integral signal, and then
-    a per-instrument map from signal to keyswitch keys.  The signal is rendered
-    as key switch keys when it changes, and the signal makes the channel
-    unshareable.
+    Keyswitches are implemented as separate instruments.  They should be
+    allocated the same channels, and the note performer will keep track of
+    the current state of each channel, and send the keyswitch key if necessary
+    to switch the state.  Simultaneous notes with different keyswitches will
+    get a random one.  TODO Though it would be nicer for them to try to take
+    different channels.
 -}
 module Perform.Midi.Perform where
 import Data.Function
@@ -13,7 +16,6 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
 import qualified Util.Seq as Seq
-import qualified Util.Data
 
 import Ui.Types
 
@@ -25,7 +27,7 @@ import qualified Perform.Warning as Warning
 
 import qualified Perform.Midi.Controller as Controller
 import qualified Perform.Midi.Instrument as Instrument
-import qualified Instrument.Db
+import qualified Instrument.MidiDb as MidiDb
 
 
 -- TODO: use default_decay, and use decay for overlaps and max lookahead
@@ -34,37 +36,41 @@ import qualified Instrument.Db
 -- | Render instrument tracks down to midi messages, sorted in timestamp order.
 -- This should be non-strict on the event list, so that it can start producing
 -- MIDI output as soon as it starts processing Events.
-perform :: Instrument.Db.LookupMidiInstrument -> Instrument.Config -> [Event]
-    -> ([Midi.WriteMessage], [Warning.Warning])
-perform lookup_inst config =
-    perform_notes . allot inst_addrs . channelize inst_addrs
+perform :: Instrument.ChannelMap -> MidiDb.LookupMidiInstrument
+    -> Instrument.Config -> [Event] -> ([Midi.WriteMessage], [Warning.Warning])
+perform chan_map lookup_inst config =
+    perform_notes chan_map . allot inst_addrs . channelize inst_addrs
     where inst_addrs = config_to_inst_addrs config lookup_inst
 
-config_to_inst_addrs :: Instrument.Config -> Instrument.Db.LookupMidiInstrument
+config_to_inst_addrs :: Instrument.Config -> MidiDb.LookupMidiInstrument
     -> InstAddrs
-config_to_inst_addrs config lookup_inst =
-    Util.Data.multimap [(inst, addr) | (addr, Just inst)
-        <- Map.assocs (Map.map lookup_inst (Instrument.config_alloc config))]
+config_to_inst_addrs config lookup_inst = Map.fromList
+    [(Instrument.inst_name inst, addrs) | (Just inst, addrs) <- inst_addrs]
+    where
+    inst_addrs = [(lookup_inst inst, addrs)
+        | (inst, addrs) <- Map.assocs (Instrument.config_alloc config)]
 
 -- | Map each instrument to its allocated Addrs.
--- TODO It would be slightly more efficient to just use the instrument name.
-type InstAddrs = Map.Map Instrument.Instrument [Instrument.Addr]
+type InstAddrs = Map.Map Instrument.InstrumentName [Instrument.Addr]
 
 
 -- * perform notes
 
 -- | Given an ordered list of note events, produce the apprapriate midi msgs.
 -- The input events are ordered, but may overlap.
-perform_notes :: [(Event, Instrument.Addr)]
+perform_notes :: Instrument.ChannelMap -> [(Event, Instrument.Addr)]
     -> ([Midi.WriteMessage], [Warning.Warning])
-perform_notes events = (post_process msgs, warns)
-    where (msgs, warns) = _perform_notes [] events
+perform_notes chan_map events = (post_process msgs, warns)
+    where (msgs, warns) = _perform_notes chan_map [] events
 
-_perform_notes overlapping [] = (overlapping, [])
-_perform_notes overlapping ((event, addr):events) =
-    (play ++ rest_msgs, warns ++ rest_warns)
+_perform_notes :: Instrument.ChannelMap -> [Midi.WriteMessage]
+    -> [(Event, Instrument.Addr)]
+    -> ([Midi.WriteMessage], [Warning.Warning])
+_perform_notes _ overlapping [] = (overlapping, [])
+_perform_notes chan_map overlapping ((event, addr):events) =
+    (play ++ rest_msgs, chan_state_warns ++ warns ++ rest_warns)
     where
-    (rest_msgs, rest_warns) = _perform_notes not_yet events
+    (rest_msgs, rest_warns) = _perform_notes chan_map2 not_yet events
     -- This find could demand lots or all of events if the
     -- (instrument, chan) doesn't play for a long time, or ever.  It only
     -- happens once at gaps though, but if it's a problem I can abort after
@@ -77,8 +83,54 @@ _perform_notes overlapping ((event, addr):events) =
     first_ts = case msgs of
         [] -> Timestamp.Timestamp 0 -- perform_note decided to play nothing?
         (msg:_) -> Midi.wmsg_ts msg
+    (chan_state_msgs, chan_state_warns, chan_map2) =
+        chan_state chan_map addr event
     (play, not_yet) = List.partition ((<= first_ts) . Midi.wmsg_ts)
-        (merge_messages [overlapping, msgs])
+        (merge_messages [overlapping, chan_state_msgs ++ msgs])
+
+-- | Figure out of any msgs need to be emitted to convert the channel state to
+-- the given event on the given addr.
+--
+-- If there's no chan state, complain and use the old state.  This means
+-- subsequent notes with this addr will also have a problem.  The other
+-- approach would be to assume the channel is in the correct state if there is
+-- none.  Doing it this way means a bit of state that has to be gotten right
+-- or no sound, but relying on the instrument of the first event to happen to
+-- hit the channel seems like it would yield inconsistent results.
+chan_state :: Instrument.ChannelMap -> Instrument.Addr -> Event
+    -> ([Midi.WriteMessage], [Warning.Warning], Instrument.ChannelMap)
+chan_state chan_map addr event = case chan_state_msgs addr ts old_inst inst of
+        Nothing  -> ([], [state_warning], chan_map)
+        Just msgs ->
+            (msgs, [], Map.insert addr (event_instrument event) chan_map)
+    where
+    inst = event_instrument event
+    old_inst = Map.lookup addr chan_map
+    ts = Timestamp.from_track_pos (event_start event)
+    state_warning = event_warning event ("can't change inst from "
+        ++ show (fmap Instrument.inst_score_name old_inst)
+        ++ " to " ++ show (Instrument.inst_score_name inst)
+        ++ " with addr " ++ show addr)
+
+chan_state_msgs :: Instrument.Addr -> Timestamp.Timestamp
+    -> Maybe Instrument.Instrument -> Instrument.Instrument
+    -> Maybe [Midi.WriteMessage]
+chan_state_msgs (wdev, chan) ts m_old new
+    | Just old <- m_old, Instrument.inst_synth old == Instrument.inst_synth new
+        && Instrument.inst_name old == Instrument.inst_name new =
+            case (keyswitch old, keyswitch new) of
+                (old, new) | old == new -> Just []
+                (Just _, Just (Instrument.Keyswitch _ ks)) -> Just (ks_msgs ks)
+                _ -> Nothing
+    | otherwise = Nothing
+    where
+    keyswitch = Instrument.inst_keyswitch
+    -- Stick the state change msgs in right before the note on.
+    ks_msgs key =
+        [ Midi.WriteMessage wdev (ts - (ts1+ts1)) (wchan (Midi.NoteOn key 10))
+        , Midi.WriteMessage wdev (ts - ts1) (wchan (Midi.NoteOff key 10)) ]
+    wchan = Midi.ChannelMessage chan
+    ts1 = Timestamp.Timestamp 1
 
 -- | Some context free post-processing on the midi stream.
 post_process :: [Midi.WriteMessage] -> [Midi.WriteMessage]
@@ -124,8 +176,7 @@ sort2 cmp xs = List.sortBy cmp xs
 perform_note :: TrackPos -> Event -> Instrument.Addr
     -> ([Midi.WriteMessage], [Warning.Warning])
 perform_note next_note_on event (dev, chan)
-    | midi_nn == 0 = ([], [Warning.warning "no pitch signal"
-        (event_stack event) (Just (note_on, note_off))])
+    | midi_nn == 0 = ([], [event_warning event "no pitch signal"])
     | otherwise = (merge_messages [controller_msgs, note_msgs], warns)
     where
     note_msgs =
@@ -254,8 +305,8 @@ channelize :: InstAddrs -> [Event] -> [(Event, Channel)]
 channelize inst_addrs events = overlap_map (channelize_event inst_addrs) events
 
 channelize_event :: InstAddrs -> [(Event, Channel)] -> Event -> Channel
-channelize_event inst_addrs overlapping event =
-    case Map.lookup (event_instrument event) inst_addrs of
+channelize_event i_addrs overlapping event =
+    case Map.lookup (Instrument.inst_name (event_instrument event)) i_addrs of
         -- If the event has 0 or 1 addrs I can just give a constant channel.
         -- 'allot' will assign the correct addr, or filter the event if there
         -- are none.
@@ -350,12 +401,13 @@ allot_event state (event, ichan) =
 
 -- | Steal the least recently used address for the given instrument.
 steal_addr :: Instrument.Instrument -> AllotState -> Maybe Instrument.Addr
-steal_addr inst state = case Map.lookup inst (ast_inst_addrs state) of
-    Just addrs -> let avail = zip addrs (map mlookup addrs)
-        in if null avail then Nothing -- no addrs assigned to this instrument
-            else let (addr, _) = List.minimumBy (compare `on` snd) avail
-            in Just addr
-    _ -> Nothing
+steal_addr inst state =
+    case Map.lookup (Instrument.inst_name inst) (ast_inst_addrs state) of
+        Just addrs -> let avail = zip addrs (map mlookup addrs)
+            in if null avail then Nothing -- no addrs assigned
+                else let (addr, _) = List.minimumBy (compare `on` snd) avail
+                in Just addr
+        _ -> Nothing
     where
     mlookup addr = Map.findWithDefault (TrackPos 0) addr (ast_available state)
 
@@ -392,3 +444,7 @@ overlap_map = go []
         -- TODO add decay
         overlapping = takeWhile ((> start) . event_end . fst) prev
         val = f overlapping e
+
+event_warning :: Event -> String -> Warning.Warning
+event_warning event msg = Warning.warning msg (event_stack event)
+    (Just (event_start event, event_end event))

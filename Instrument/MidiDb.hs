@@ -3,7 +3,9 @@
 module Instrument.MidiDb where
 import Control.Monad
 import qualified Data.Char as Char
+import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 
 import qualified Util.Data
 import qualified Util.Log as Log
@@ -14,12 +16,6 @@ import qualified Perform.Midi.Instrument as Instrument
 
 
 -- * midi db
-
--- | Once I have other backends this should move back into Db.
-data Info = Info {
-    info_synth :: Instrument.Synth
-    , info_patch :: Instrument.Patch
-    } deriving (Show)
 
 data MidiDb = MidiDb
     (Map.Map Instrument.SynthName (Instrument.Synth, PatchMap))
@@ -49,12 +45,48 @@ empty = MidiDb Map.empty
 
 -- ** lookup
 
-lookup_instrument :: MidiDb -> Score.Instrument -> Maybe Info
+type LookupMidiInstrument = Score.Instrument -> Maybe Instrument.Instrument
+
+-- | Once I have other backends this should move back into Db.
+data Info = Info {
+    info_synth :: Instrument.Synth
+    , info_patch :: Instrument.Patch
+    } deriving (Show)
+
+lookup_midi :: MidiDb -> LookupMidiInstrument
+lookup_midi midi_db inst =
+    case lookup_instrument midi_db inst of
+        Nothing -> Nothing
+        Just ((Info synth patch), ks) -> Just $ make_inst synth inst ks patch
+
+-- | Merge a Synth and a Patch to create an Instrument.
+make_inst :: Instrument.Synth -> Score.Instrument -> Maybe Instrument.Keyswitch
+    -> Instrument.Patch -> Instrument.Instrument
+make_inst synth (Score.Instrument score_inst) keyswitch patch = inst
+        { Instrument.inst_controller_map = Map.union inst_cmap synth_cmap
+        , Instrument.inst_score_name = score_inst
+        , Instrument.inst_keyswitch = keyswitch
+        }
+    where
+    inst = Instrument.patch_instrument patch
+    synth_cmap = Instrument.synth_controller_map synth
+    inst_cmap = Instrument.inst_controller_map inst
+
+lookup_instrument :: MidiDb -> Score.Instrument
+    -> Maybe (Info, Maybe Instrument.Keyswitch)
 lookup_instrument (MidiDb synths) inst = do
-    let (synth_name, inst_name) = split_inst inst
+    let (synth_name, inst_name, ks_name) = split_inst inst
     (synth, patches) <- Map.lookup synth_name synths
     patch <- lookup_patch inst_name patches
-    return $ Info synth patch
+    let patch_ks = Instrument.patch_keyswitches patch
+    let keyswitch = List.find
+            (\(Instrument.Keyswitch inst_ks _) -> inst_ks == ks_name)
+            patch_ks
+        -- If there's a ks name or the patch as keyswitches, insist it has
+        -- a match, otherwise use a ks of "" or Nothing.
+    when ((not (null ks_name) || not (null patch_ks))
+        && Maybe.isNothing keyswitch) Nothing
+    return (Info synth patch, keyswitch)
 
 -- * patch map
 
@@ -91,6 +123,9 @@ load_synth_desc synth patches = do
 wildcard_patch_map :: Instrument.Patch -> PatchMap
 wildcard_patch_map patch = PatchMap $ Map.singleton wildcard_inst_name patch
 
+merge_patch_maps (PatchMap pmap0) (PatchMap pmap1) =
+    PatchMap $ Map.union pmap1 pmap0
+
 -- ** lookup
 
 lookup_patch ::
@@ -124,8 +159,10 @@ valid_chars = ['0'..'9'] ++ ['a'..'z'] ++ " _-"
 
 
 join_inst synth inst_name = Score.Instrument (synth ++ "/" ++ inst_name)
-split_inst (Score.Instrument inst) = (pre, drop 1 post)
-    where (pre, post) = break (=='/') inst
+split_inst (Score.Instrument inst) = (synth, inst_name, drop 1 keyswitch)
+    where
+    (synth, rest) = break (=='/') inst
+    (inst_name, keyswitch) = break (=='/') (drop 1 rest)
 
 -- | Modify the patch template to have the given name.
 set_patch_name :: Instrument.InstrumentName -> Instrument.Patch

@@ -17,6 +17,8 @@ import qualified Ui.Track as Track
 import qualified Midi.Midi as Midi
 import Midi.Midi (ChannelMessage(..))
 
+import qualified Cmd.Cmd as Cmd
+
 import qualified Derive.Score as Score
 
 import qualified Perform.Signal as Signal
@@ -41,7 +43,7 @@ badsig cont = (cont, mksignal [(0, 0), (1, 1.5), (2, 0), (2.5, 0), (3, 2)])
 
 test_clip_warns = do
     let events = map mkevent [(inst1, "a", 0, 4, [badsig vol_cc])]
-        (msgs, warns) = Perform.perform test_lookup inst_config1 events
+        (msgs, warns) = perform inst_config1 events
     -- TODO check that warnings came at the right places
     -- check that the clips happen at the same places as the warnings
     equal (map Warning.warn_msg warns)
@@ -54,7 +56,7 @@ test_clip_warns = do
     plist events
 
 test_vel_clip_warns = do
-    let (msgs, warns) = Perform.perform test_lookup inst_config1 $ map mkevent
+    let (msgs, warns) = perform inst_config1 $ map mkevent
             [(inst1, "a", 0, 4, [badsig Controller.c_velocity])]
     equal (length warns) 1
     check (all_msgs_valid msgs)
@@ -65,16 +67,16 @@ midi_cc_of (Midi.ChannelMessage _ (Midi.ControlChange cc val)) = Just (cc, val)
 midi_cc_of _ = Nothing
 
 test_perform = do
-    let perform events = do
+    let t_perform events = do
         let (msgs, warns) =
-                Perform.perform test_lookup inst_config2 (map mkevent events)
+                perform inst_config2 (map mkevent events)
         -- print_msgs msgs
         -- putStrLn ""
         equal warns []
         return (map unpack_msg (filter (Midi.is_note . Midi.wmsg_msg) msgs))
 
     -- channel 0 reused for inst1, inst2 gets its own channel
-    msgs <- perform
+    msgs <- t_perform
         [ (inst1, "a", 0, 1, [])
         , (inst1, "b", 0, 1, [])
         , (inst2, "c", 0, 1, [])
@@ -89,7 +91,7 @@ test_perform = do
         ]
 
     -- identical notes get split across channels 0 and 1
-    msgs <- perform
+    msgs <- t_perform
         [ (inst1, "a", 0, 2, [])
         , (inst1, "a", 1, 2, [])
         , (inst1, "b", 1, 2, [])
@@ -107,7 +109,7 @@ test_perform = do
         ]
 
     -- velocity curve shows up in NoteOns and NoteOffs
-    msgs <- perform
+    msgs <- t_perform
         [ (inst1, "a", 0, 2, [c_vel])
         , (inst1, "b", 2, 2, [c_vel])
         ]
@@ -121,7 +123,7 @@ test_perform = do
 unpack_msg (Midi.WriteMessage (Midi.WriteDevice dev) ts
         (Midi.ChannelMessage chan msg)) =
     (dev, Timestamp.to_seconds ts, chan, msg)
-unpack_msg (Midi.WriteMessage (Midi.WriteDevice dev) ts msg) =
+unpack_msg (Midi.WriteMessage (Midi.WriteDevice _) _ msg) =
     error $ "unknown msg: " ++ show msg
 
 -- test_perform_lazy = do
@@ -161,7 +163,7 @@ pretend_to_write xs = do
         IO.hPutStr handle (show msg)
 
 perform_one_chan events =
-    Perform.perform_notes (with_chan 0 (mkevents events))
+    Perform.perform_notes chan_map1 (with_chan 0 (mkevents events))
     where with_chan chan = map (\evt -> (evt, (dev1, chan)))
 
 print_msgs = mapM_ (putStrLn . show_msg)
@@ -186,6 +188,30 @@ test_pitch_curve = do
                 [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]
             ++ [Midi.NoteOff 42 100, Midi.PitchBend 1])
 
+test_keyswitch = do
+    let ks_inst name ks = Instrument.instrument synth1 name ks
+            Controller.default_controllers (-12, 12)
+    let ks1 = ks_inst "i1" (Just (Instrument.Keyswitch "ks1" 1))
+        ks2 = ks_inst "i1" (Just (Instrument.Keyswitch "ks2" 2))
+    let chan_map = Map.fromList [((dev1, 0), ks1)]
+    let ks_event (inst, start, dur) = mkevent (inst, "a", start, dur, [])
+        with_chan chan evt = (evt, (dev1, chan))
+        ks_events = map (with_chan 0 . ks_event)
+    let perform_notes evts = (extract msgs, warns)
+            where
+            (msgs, warns) = Perform.perform_notes chan_map (ks_events evts)
+            extract msgs = [(ts, key) | Midi.WriteMessage { Midi.wmsg_ts = ts,
+                Midi.wmsg_msg = Midi.ChannelMessage _ (Midi.NoteOn key _) }
+                    <- msgs]
+        ts = Timestamp.Timestamp
+    equal (perform_notes [(ks1, 0, 1), (ks1, 1, 1)])
+        ([(ts 0, 60), (ts 1000, 60)], [])
+    equal (perform_notes [(ks1, 0, 1), (ks2, 1, 1), (ks1, 1.5, 1)])
+        ([ (ts 0, 60)
+        , (ts 998, 2), (ts 1000, 60)
+        , (ts 1498, 1), (ts 1500, 60)
+        ], [])
+
 -- * controller
 
 test_perform_controller1 = do
@@ -207,6 +233,7 @@ test_perform_controller2 = do
         cmap = Controller.default_controllers
         (msgs, warns) = Perform.perform_controller cmap
             (TrackPos 2) (TrackPos 4) sig
+    plist warns
     plist msgs
 
 -- * channelize
@@ -281,6 +308,11 @@ test_allot = do
 
 -- * setup
 
+perform inst_config = Perform.perform chan_map test_lookup inst_config
+    where
+    chan_map = fst $ Cmd.inst_addr_to_chan_map test_lookup
+        (Instrument.config_alloc inst_config)
+
 mkevent :: (Instrument.Instrument, String, Double, Double,
         [(Controller.Controller, Signal.Signal)])
     -> Perform.Event
@@ -314,24 +346,25 @@ c_vol2 = (vol_cc, mksignal [(0, 1), (2, 0), (4, 1)])
 c_vel = (Controller.c_velocity, mksignal [(0, 1), (4, 0)])
 c_pres = (Controller.c_channel_pressure, mksignal [(0, 0), (8, 1)])
 
-inst name = Instrument.instrument name Controller.default_controllers
-    (-12, 12) Nothing
+inst name = Instrument.instrument synth1 name Nothing
+    Controller.default_controllers (-12, 12)
 
 inst1 = inst "inst1"
 inst2 = inst "inst2"
 dev1 = Midi.WriteDevice "dev1"
 dev2 = Midi.WriteDevice "dev2"
-inst_config1 = Instrument.config
-    [ ((dev1, 0), score_inst inst1)
-    , ((dev1, 1), score_inst inst1) ]
+synth1 = Instrument.synth "synth1" "synth1" []
+inst_config1 = Instrument.config [(score_inst inst1, [(dev1, 0), (dev1, 1)])]
     Nothing
+chan_map1 = fst $ Cmd.inst_addr_to_chan_map test_lookup
+    (Instrument.config_alloc inst_config1)
 
 score_inst inst = Score.Instrument (Instrument.inst_name inst)
 
 -- Also includes inst2.
 inst_config2 = Instrument.config
-    [ ((dev1, 0), score_inst inst1), ((dev1, 1), score_inst inst1)
-    , ((dev2, 2), score_inst inst2) ]
+    [ (score_inst inst1, [(dev1, 0), (dev1, 1)])
+    , (score_inst inst2, [(dev2, 2)]) ]
     Nothing
 
 test_lookup (Score.Instrument inst)
