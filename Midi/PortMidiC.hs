@@ -14,7 +14,7 @@
     read: wait for now-newest - write_ahead secs or there has been a write,
     if scheduled time is <= now-write_ahead, send it
 -}
-module Midi.MidiC (
+module Midi.PortMidiC (
     -- * initialize, open and close
     initialize, ReadChan
     , devices
@@ -51,7 +51,7 @@ import qualified Perform.Timestamp as Timestamp
 type ReadChan = TChan.TChan Midi.ReadMessage
 
 -- | Run the given computation with the midi library initialized.
-initialize :: (Midi.MidiC.ReadChan -> IO a) -> IO a
+initialize :: (ReadChan -> IO a) -> IO a
 initialize = Exception.bracket
     (PortMidi.initialize >> TChan.newTChanIO) midi_terminate
 

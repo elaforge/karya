@@ -101,7 +101,7 @@ type MsgReader = IO Msg.Msg
 responder :: StaticConfig.StaticConfig -> MsgReader -> MidiWriter
     -> IO () -> IO Timestamp.Timestamp -> Transport.Chan -> Cmd.CmdIO
     -> GHC.InterpreterSession -> IO ()
-responder static_config get_msg write_midi abort_midi get_ts player_chan
+responder static_config get_msg write_midi abort_midi get_now_ts player_chan
         setup_cmd session = do
     Log.debug "start responder"
 
@@ -117,22 +117,21 @@ responder static_config get_msg write_midi abort_midi get_ts player_chan
         Log.warn $ "setup_cmd returned not-Done status, did it abort?"
     let rstate = ResponderState static_config ui_state
             (Cmd.clear_history cmd_state) get_msg write_midi
-            (Transport.Info player_chan write_midi abort_midi get_ts) session
+            (Transport.Info player_chan write_midi abort_midi get_now_ts)
+            session
     loop rstate
 
 -- | Create the MsgReader to pass to 'responder'.
 create_msg_reader ::
-    Map.Map Midi.ReadDevice Midi.ReadDevice -> TChan.TChan Midi.ReadMessage
+    (Midi.ReadMessage -> Midi.ReadMessage) -> TChan.TChan Midi.ReadMessage
     -> Network.Socket -> TChan.TChan UiMsg.UiMsg -> Transport.Chan
     -> IO MsgReader
-create_msg_reader rdev_map midi_chan lang_socket ui_chan player_chan = do
+create_msg_reader remap_rmsg midi_chan lang_socket ui_chan player_chan = do
     lang_chan <- TChan.newTChanIO
     Thread.start_thread "accept lang socket" (accept_loop lang_socket lang_chan)
-    let map_dev rmsg@(Midi.ReadMessage { Midi.rmsg_dev = dev }) =
-            rmsg { Midi.rmsg_dev = Util.Data.get dev dev rdev_map }
     return $ STM.atomically $
         fmap Msg.Ui (TChan.readTChan ui_chan)
-        `STM.orElse` fmap (Msg.Midi . map_dev) (TChan.readTChan midi_chan)
+        `STM.orElse` fmap (Msg.Midi . remap_rmsg) (TChan.readTChan midi_chan)
         `STM.orElse` fmap Msg.Transport (TChan.readTChan player_chan)
         `STM.orElse` fmap (uncurry Msg.Socket) (TChan.readTChan lang_chan)
 

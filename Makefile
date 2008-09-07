@@ -5,9 +5,10 @@
 
 DEBUG := -ggdb
 PORTMIDI := /usr/local/src/portmedia/portmidi/trunk
-MIDI_LIBS := $(PORTMIDI)/pm_mac/libportmidi.a \
-	$(PORTMIDI)/porttime/libporttime.a \
-	-framework CoreFoundation -framework CoreMIDI -framework CoreAudio
+# MIDI_LIBS := $(PORTMIDI)/pm_mac/libportmidi.a \
+# 	$(PORTMIDI)/porttime/libporttime.a \
+# 	-framework CoreFoundation -framework CoreMIDI -framework CoreAudio
+MIDI_LIBS := -framework CoreFoundation -framework CoreMIDI -framework CoreAudio
 CINCLUDE := -Ifltk -I$(PORTMIDI)/pm_common -I$(PORTMIDI)/porttime -I.
 CXXFLAGS := `fltk-config --cxxflags` $(DEBUG) $(CINCLUDE) -Wall
 LDFLAGS := `fltk-config --ldflags` $(DEBUG)
@@ -91,12 +92,13 @@ $(BUILD)/test_browser: Instrument/test_browser.o Instrument/browser_ui.o fltk/f_
 	$(CXX) -o $@ $^ $(LDFLAGS)
 	$(BUNDLE)
 
-UI_HSC = $(wildcard Ui/*.hsc)
-UI_HS = $(UI_HSC:hsc=hs)
-UI_OBJS = Ui/c_interface.o
+UI_HSC := $(wildcard Ui/*.hsc)
+UI_HS := $(UI_HSC:hsc=hs)
+UI_OBJS := Ui/c_interface.o
 
-MIDI_HSC = $(wildcard Midi/*.hsc)
-MIDI_HS = $(MIDI_HSC:hsc=hs)
+MIDI_HSC := $(wildcard Midi/*.hsc)
+MIDI_HS := $(MIDI_HSC:hsc=hs)
+MIDI_OBJS := Midi/core_midi.o
 
 ALL_HS = $(shell tools/all_hs.py)
 
@@ -108,11 +110,17 @@ $(BUILD)/test_midi: $(MIDI_HS) $(UI_HS)
 	$(GHC) $(HFLAGS) --make \
 		-main-is Midi.TestMidi Midi/TestMidi.hs $(MIDI_LIBS) -o $@
 
+.PHONY: $(BUILD)/test_cmidi
+$(BUILD)/test_cmidi: $(UI_HS) $(MIDI_OBJS)
+	$(GHC) $(HFLAGS) --make \
+		-main-is Midi.TestCoreMidi Midi/TestCoreMidi.hs -o $@ \
+		$(MIDI_OBJS) $(MIDI_LIBS) \
+
 .PHONY: $(BUILD)/seq
-$(BUILD)/seq: $(UI_HS) $(UI_OBJS) $(MIDI_HS) fltk/fltk.a
+$(BUILD)/seq: $(UI_HS) $(UI_OBJS) $(MIDI_OBJS) $(MIDI_HS) fltk/fltk.a
 	$(GHC) $(HFLAGS) -package ghc --make \
 		-main-is App.Main App/Main.hs \
-		$(UI_OBJS) fltk/fltk.a $(MIDI_LIBS) \
+		$(UI_OBJS) $(MIDI_OBJS) fltk/fltk.a $(MIDI_LIBS) \
 		$(HLDFLAGS) \
 		-o $@
 	$(BUNDLE)

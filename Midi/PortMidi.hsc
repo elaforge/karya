@@ -193,6 +193,8 @@ to_c_timestamp = fromIntegral
 
 is_sysex = (==0xf0) . head
 
+-- These should not be called re-entrantly.  The "unsafe" will serialize calls,
+-- I think.
 foreign import ccall unsafe "Pm_WriteShort"
     c_write_short :: Ptr CStream -> CTimestamp -> CLong -> IO CPmError
 foreign import ccall unsafe "Pm_WriteSysEx"

@@ -21,7 +21,9 @@ import qualified Ui.State as State
 import qualified Ui.Ui as Ui
 
 import qualified Midi.Midi as Midi
-import qualified Midi.MidiC as MidiC
+-- This is the actual midi implementation.  This is the only module that should
+-- depend on the implementation, so switching backends is relatively easy.
+import qualified Midi.CoreMidi as MidiImp
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
@@ -29,6 +31,8 @@ import qualified Cmd.MakeRuler as MakeRuler
 import qualified Cmd.Responder as Responder
 -- import qualified Cmd.TimeStep as TimeStep
 import qualified Cmd.Save as Save
+
+import qualified Perform.Timestamp as Timestamp
 
 import qualified Instrument.Db as Db
 
@@ -46,7 +50,6 @@ import Cmd.LanguageCmds ()
 
 -- tmp
 import qualified Ui.TestSetup as TestSetup
-import qualified Midi.PortMidi as PortMidi
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
 
@@ -65,8 +68,8 @@ load_static_config = do
         , StaticConfig.config_write_device_map = write_device_map
         }
 
-iac n = "IAC Driver IAC Bus " ++ show n ++ "/CoreMIDI"
-tapco n = "Tapco Link MIDI USB Ver 2.2 Port " ++ show n ++ "/CoreMIDI"
+iac n = "IAC Driver IAC Bus " ++ show n
+tapco n = "Tapco Link MIDI USB Ver 2.2 Port " ++ show n
 mkmap mkdev pairs = Map.fromList [(mkdev k, mkdev v) | (k, v) <- pairs]
 
 write_device_map = mkmap Midi.WriteDevice
@@ -87,16 +90,16 @@ read_device_map = mkmap Midi.ReadDevice
 
 initialize f = do
     Log.initialize "seq.mach.log" "seq.log"
-    MidiC.initialize $ \read_chan ->
+    MidiImp.initialize $ \midi_chan ->
         Network.withSocketsDo $ do
             Config.initialize_lang_port
             socket <- Network.listenOn Config.lang_port
-            f socket read_chan
+            f socket midi_chan
 
 -- Later, 'load_static_config' is passed as an argument to do_main, and main is
 -- defined in Local.hs.
 main :: IO ()
-main = initialize $ \lang_socket read_chan -> do
+main = initialize $ \lang_socket midi_chan -> do
     Log.notice "app starting"
     putStrLn "starting"
     static_config <- load_static_config
@@ -106,35 +109,39 @@ main = initialize $ \lang_socket read_chan -> do
     Log.notice loaded_msg
     putStrLn loaded_msg
 
-    (rdev_map, wdev_map) <- MidiC.devices
+    (rdev_map, wdev_map) <- MidiImp.get_devices
     print_devs rdev_map wdev_map
+    open_read_devices rdev_map (Map.keys rdev_map)
 
-    wstream_map <- open_write_devices wdev_map (Map.keys wdev_map)
-    let default_stream = head (Map.elems wstream_map)
-    open_read_devices read_chan rdev_map (Map.keys rdev_map)
-
-    player_chan <- STM.newTChanIO
-    msg_chan <- STM.newTChanIO
-    get_msg <- Responder.create_msg_reader
-        (StaticConfig.config_read_device_map static_config) read_chan
-        lang_socket msg_chan player_chan
-    let get_ts = fmap MidiC.to_timestamp PortMidi.pt_time
     Log.debug "initialize session"
     putStrLn "initialize session"
-
     session <- GHC.newSession
     quit_request <- MVar.newMVar ()
 
     args <- System.Environment.getArgs
-    let write_midi = write_msg
-            (StaticConfig.config_write_device_map static_config)
-            default_stream wstream_map
+    let write_midi = make_write_midi
+            (StaticConfig.config_write_device_map static_config) wdev_map
         setup_cmd = StaticConfig.config_setup_cmd static_config args
-    let abort_midi = mapM_ MidiC.abort (Map.elems wstream_map)
+        abort_midi = MidiImp.abort
+        remap_rmsg = remap_read_message
+            (StaticConfig.config_read_device_map static_config)
+        get_now_ts = MidiImp.now
+
+    -- TODO Sending midi through the whole responder thing is too laggy for
+    -- thru.  So give it a shortcut here, but I'll need to give a way to insert
+    -- the thru function.  I'll do some responder optimizations first.
+    -- thru_chan <- STM.atomically (STM.dupTChan midi_chan)
+    -- Thread.start_thread "midi thru" $
+    --     midi_thru remap_rmsg thru_chan write_midi
+
+    player_chan <- STM.newTChanIO
+    msg_chan <- STM.newTChanIO
+    get_msg <- Responder.create_msg_reader
+        remap_rmsg midi_chan lang_socket msg_chan player_chan
 
     Thread.start_thread "responder" $ do
-        Responder.responder static_config get_msg write_midi abort_midi get_ts
-            player_chan setup_cmd session
+        Responder.responder static_config get_msg write_midi abort_midi
+            get_now_ts player_chan setup_cmd session
         `Exception.catch` responder_handler
             -- It would be possible to restart the responder, but chances are
             -- good it would just die again.
@@ -142,37 +149,43 @@ main = initialize $ \lang_socket read_chan -> do
 
     Ui.event_loop quit_request msg_chan
 
-open_write_devices :: Map.Map Midi.WriteDevice PortMidi.WriteDevice
-    -> [Midi.WriteDevice] -> IO (Map.Map Midi.WriteDevice PortMidi.WriteStream)
-open_write_devices wdev_map devs = do
-    streams <- mapM (MidiC.open_write_device . (wdev_map Map.!)) devs
-    return $ Map.fromList (zip devs streams)
+midi_thru remap_rmsg midi_chan write_midi = forever $ do
+    rmsg <- fmap remap_rmsg (STM.atomically (STM.readTChan midi_chan))
+    let wmsgs = [Midi.WriteMessage dev Timestamp.immediately msg
+            | (dev, msg) <- process_thru rmsg]
+    print rmsg
+    mapM_ write_midi wmsgs
 
-open_read_devices :: MidiC.ReadChan
-    -> Map.Map Midi.ReadDevice PortMidi.ReadDevice
+process_thru :: Midi.ReadMessage -> [(Midi.WriteDevice, Midi.Message)]
+process_thru rmsg = [(Midi.WriteDevice "fm8", Midi.rmsg_msg rmsg)]
+
+remap_read_message dev_map rmsg@(Midi.ReadMessage { Midi.rmsg_dev = dev }) =
+    rmsg { Midi.rmsg_dev = Util.Data.get dev dev dev_map }
+
+open_read_devices :: Map.Map Midi.ReadDevice MidiImp.ReadDeviceId
     -> [Midi.ReadDevice] -> IO ()
-open_read_devices read_chan rdev_map devs = do
+open_read_devices rdev_map rdevs = do
     -- Don't open IAC ports that I'm opening for writing, otherwise I get
     -- all my msgs bounced back.
-    let ok_devs =
-            filter (not . ("IAC " `List.isPrefixOf`) . Midi.un_read_device) devs
-    mapM_ (MidiC.open_read_device read_chan . (rdev_map Map.!)) ok_devs
+    let ok_devs = filter
+            (not . ("IAC " `List.isPrefixOf`) . Midi.un_read_device) rdevs
+    sequence_ [MidiImp.connect_read_device rdev (rdev_map Map.! rdev)
+        | rdev <- ok_devs ]
 
 responder_handler exc = do
     Log.error ("responder died from exception: " ++ show exc)
     putStrLn ("responder died from exception: " ++ show exc)
 
-write_msg :: Map.Map Midi.WriteDevice Midi.WriteDevice
-    -> PortMidi.WriteStream
-    -> Map.Map Midi.WriteDevice PortMidi.WriteStream
-    -> Midi.WriteMessage
-    -> IO ()
-write_msg wdev_map default_stream wstream_map (Midi.WriteMessage wdev ts msg) =
-    do
+make_write_midi :: Map.Map Midi.WriteDevice Midi.WriteDevice
+    -> MidiImp.WriteMap -> Midi.WriteMessage -> IO ()
+make_write_midi wdev_map write_map (Midi.WriteMessage wdev ts msg) = do
     let real_wdev = Util.Data.get wdev wdev wdev_map
-    let stream = maybe default_stream id (Map.lookup real_wdev wstream_map)
-    putStrLn $ "PLAY " ++ show (wdev, ts, msg)
-    MidiC.write_msg (stream, MidiC.from_timestamp ts, msg)
+    case Map.lookup real_wdev write_map of
+        Nothing -> Log.error $ show real_wdev ++ " not in devs: "
+            ++ show (Map.keys write_map)
+        Just dev_id -> do
+            putStrLn $ "PLAY " ++ show (wdev, ts, msg)
+            MidiImp.write_message dev_id ts msg
 
 
 print_devs rdev_map wdev_map = do
