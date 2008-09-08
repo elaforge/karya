@@ -99,7 +99,7 @@ c_pitch = Controller $ (\(Score.Controller s) -> s) Score.pitch
 
 default_controllers :: ControllerMap
 default_controllers = controller_map
-    [ (1, c_mod), (2, "breath"), (5, "port time"), (7, "volume") ]
+    [ (1, c_mod), (2, "breath"), (5, "port"), (7, "volume") ]
 
 -- Pull one out as a symbol for tests.
 c_mod = "mod"

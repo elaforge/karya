@@ -12,6 +12,7 @@ import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 
 import qualified Derive.Score as Score
+import qualified Perform.Midi.Controller as Controller
 import qualified Perform.Midi.Instrument as Instrument
 
 
@@ -63,7 +64,8 @@ lookup_midi midi_db inst =
 make_inst :: Instrument.Synth -> Score.Instrument -> Maybe Instrument.Keyswitch
     -> Instrument.Patch -> Instrument.Instrument
 make_inst synth (Score.Instrument score_inst) keyswitch patch = inst
-        { Instrument.inst_controller_map = Map.union inst_cmap synth_cmap
+        { Instrument.inst_controller_map =
+            Map.unions [inst_cmap, synth_cmap, Controller.default_controllers]
         , Instrument.inst_score_name = score_inst
         , Instrument.inst_keyswitch = keyswitch
         }

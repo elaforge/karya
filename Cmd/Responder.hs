@@ -43,6 +43,7 @@ import qualified Cmd.Edit as Edit
 import qualified Cmd.GlobalKeymap as GlobalKeymap
 import qualified Cmd.Language as Language
 import qualified Cmd.Msg as Msg
+import qualified Cmd.Play as Play
 import qualified Cmd.ResponderSync as ResponderSync
 
 import qualified Derive.Schema as Schema
@@ -274,7 +275,7 @@ hardcoded_cmds =
 -- | And these special commands that run in IO.
 hardcoded_io_cmds play_info session lang_dirs =
     [ Language.cmd_language session lang_dirs
-    -- , Play.cmd_transport_msg
+    , Play.cmd_transport_msg
     , GlobalKeymap.cmd_io_keymap play_info
     ]
 
