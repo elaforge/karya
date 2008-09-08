@@ -80,10 +80,12 @@ show_info win db inst_name = Fltk.send_action $ BrowserC.set_info win info
         info <- Db.db_lookup db score_inst
         return $ info_of db score_inst info
 
+info_of :: Db.Db -> Score.Instrument -> MidiDb.Info -> String
 info_of db score_inst (MidiDb.Info synth patch) =
     printf "%s -- %s -- %s\n\n" synth_name name dev
         ++ info_sections
             [ ("Instrument controllers", cmap_info inst_cmap)
+            , ("Keyswitches", show keyswitches)
             , ("Synth controllers", cmap_info synth_cmap)
             , ("Pitchbend range", show (Instrument.inst_pitch_bend_range inst))
             , ("Initialization", initialize_info initialize)
@@ -92,7 +94,7 @@ info_of db score_inst (MidiDb.Info synth patch) =
             ]
     where
     Instrument.Synth synth_name (Midi.WriteDevice dev) synth_cmap = synth
-    Instrument.Patch inst initialize _ text = patch
+    Instrument.Patch inst initialize keyswitches _ text = patch
     name = let n = Instrument.inst_name inst in if null n then "*" else n
     inst_cmap = Instrument.inst_controller_map inst
     tags = maybe "" tags_info $
