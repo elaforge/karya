@@ -171,22 +171,31 @@ show_msg (Midi.WriteMessage dev ts msg) =
     show dev ++ ": " ++ pretty ts ++ ": " ++ show msg
 
 test_pitch_curve = do
-    let event pitch = Perform.Event inst1 (TrackPos 0) (TrackPos 0.5)
+    let event pitch = Perform.Event inst1 (TrackPos 1) (TrackPos 0.5)
             (Map.fromList [(Controller.c_pitch, Signal.signal pitch)]) []
     let f evt = (Seq.drop_dups (==) (map Midi.wmsg_msg msgs), warns)
             where
-            (msgs, warns) = Perform.perform_note (TrackPos 1) evt (dev1, 1)
+            (msgs, warns, _) = Perform.perform_note
+                (TrackPos 0) (TrackPos 2) evt (dev1, 1)
         chan msgs = (map (Midi.ChannelMessage 1) msgs, [])
 
-    equal (f (event [(0, 42.12)]))
+    equal (f (event [(1, 42.12)]))
         (chan [Midi.PitchBend 0.01, Midi.NoteOn 42 100, Midi.NoteOff 42 100])
 
     -- This is a little tedious, but pb 0 goes first, then it goes to 1.
-    equal (f (event [(0, 42), (1, 42+24)]))
+    equal (f (event [(1, 42), (2, 42+24)]))
         (chan $ [Midi.PitchBend 0, Midi.NoteOn 42 100]
             ++ map Midi.PitchBend
                 [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]
             ++ [Midi.NoteOff 42 100, Midi.PitchBend 1])
+
+    let notes prev evt = [(Midi.wmsg_ts msg, Midi.wmsg_msg msg) | msg <- msgs]
+            where
+            (msgs, _, _) = Perform.perform_note prev (TrackPos 2) evt (dev1, 1)
+    equal (head (notes (TrackPos 0) (event [(1, 42.12)])))
+        (Timestamp.Timestamp 990, Midi.ChannelMessage 1 (Midi.PitchBend 0.01))
+    equal (head (notes (TrackPos 1) (event [(1, 42.12)])))
+        (Timestamp.Timestamp 1000, Midi.ChannelMessage 1 (Midi.PitchBend 0.01))
 
 test_keyswitch = do
     let ks_inst name ks = Instrument.instrument synth1 name ks
@@ -211,6 +220,11 @@ test_keyswitch = do
         , (ts 998, 2), (ts 1000, 60)
         , (ts 1498, 1), (ts 1500, 60)
         ], [])
+
+-- * post process
+
+test_drop_duplicates = do
+    equal 1 1 -- TODO
 
 -- * controller
 

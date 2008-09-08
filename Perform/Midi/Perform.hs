@@ -61,16 +61,16 @@ type InstAddrs = Map.Map Instrument.InstrumentName [Instrument.Addr]
 perform_notes :: Instrument.ChannelMap -> [(Event, Instrument.Addr)]
     -> ([Midi.WriteMessage], [Warning.Warning])
 perform_notes chan_map events = (post_process msgs, warns)
-    where (msgs, warns) = _perform_notes chan_map [] events
+    where (msgs, warns) = _perform_notes chan_map [] (TrackPos 0) events
 
 _perform_notes :: Instrument.ChannelMap -> [Midi.WriteMessage]
-    -> [(Event, Instrument.Addr)]
+    -> TrackPos -> [(Event, Instrument.Addr)]
     -> ([Midi.WriteMessage], [Warning.Warning])
-_perform_notes _ overlapping [] = (overlapping, [])
-_perform_notes chan_map overlapping ((event, addr):events) =
+_perform_notes _ overlapping _ [] = (overlapping, [])
+_perform_notes chan_map overlapping prev_note_off ((event, addr):events) =
     (play ++ rest_msgs, chan_state_warns ++ warns ++ rest_warns)
     where
-    (rest_msgs, rest_warns) = _perform_notes chan_map2 not_yet events
+    (rest_msgs, rest_warns) = _perform_notes chan_map2 not_yet note_off events
     -- This find could demand lots or all of events if the
     -- (instrument, chan) doesn't play for a long time, or ever.  It only
     -- happens once at gaps though, but if it's a problem I can abort after
@@ -79,7 +79,7 @@ _perform_notes chan_map overlapping ((event, addr):events) =
     next_note_on = case List.find ((==addr) . snd) events of
         Nothing -> event_end event -- TODO plus decay_time?
         Just (evt, _chan) -> event_start evt
-    (msgs, warns) = perform_note next_note_on event addr
+    (msgs, warns, note_off) = perform_note prev_note_off next_note_on event addr
     first_ts = case msgs of
         [] -> Timestamp.Timestamp 0 -- perform_note decided to play nothing?
         (msg:_) -> Midi.wmsg_ts msg
@@ -189,19 +189,27 @@ sort2 cmp (a:b:zs) = case cmp a b of
 sort2 cmp xs = List.sortBy cmp xs
 
 
-perform_note :: TrackPos -> Event -> Instrument.Addr
-    -> ([Midi.WriteMessage], [Warning.Warning])
-perform_note next_note_on event (dev, chan)
-    | midi_nn == 0 = ([], [event_warning event "no pitch signal"])
-    | otherwise = (merge_messages [controller_msgs, note_msgs], warns)
+-- | Most synths don't respond to pitch bend instantly, but smooth it out, so
+-- if you set pitch bend immediately before playing the note you will get
+-- a little sproing.  Try to put pitch bends before their notes by this amount,
+-- unless there's another note there.
+pitch_bend_lead_time = Timestamp.to_track_pos (Timestamp.seconds 0.01)
+
+perform_note :: TrackPos -> TrackPos -> Event -> Instrument.Addr
+    -> ([Midi.WriteMessage], [Warning.Warning], TrackPos)
+perform_note prev_note_off next_note_on event (dev, chan)
+    | midi_nn == 0 =
+        ([], [event_warning event "no pitch signal"], prev_note_off)
+    | otherwise = (merge_messages [controller_msgs, note_msgs], warns, note_off)
     where
     note_msgs =
-        [ chan_msg note_on (Midi.PitchBend pb)
+        [ chan_msg pb_time (Midi.PitchBend pb)
         , chan_msg note_on (Midi.NoteOn midi_nn on_vel)
         , chan_msg note_off (Midi.NoteOff midi_nn off_vel)
         ]
     chan_msg pos msg = Midi.WriteMessage dev (Timestamp.from_track_pos pos)
         (Midi.ChannelMessage chan msg)
+    pb_time = min note_on $ max prev_note_off (note_on - pitch_bend_lead_time)
     note_on = event_start event
     note_off = event_end event
     (on_vel, off_vel, vel_clip_warns) = note_velocity event note_on note_off
