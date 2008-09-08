@@ -40,7 +40,7 @@ FLTK_OBJS := $(addprefix fltk/, $(FLTK_OBJS))
 
 BINARIES := $(addprefix $(BUILD)/, seq send repl browser make_db dump logview)
 TEST_BINARIES := \
-	$(addprefix $(BUILD)/, test_block test_logview test_browser test_midi) \
+	$(addprefix $(BUILD)/, test_block test_logview test_browser test_cmidi) \
 	test_obj/RunTests
 
 # If -j is given, this runs the ghcs in parallel, which results in endless
@@ -105,10 +105,10 @@ ALL_HS = $(shell tools/all_hs.py)
 all_hsc: $(UI_HS) $(MIDI_HS)
 
 # PHONY convinces make to always run ghc, which figures out deps on its own
-.PHONY: $(BUILD)/test_midi
-$(BUILD)/test_midi: $(MIDI_HS) $(UI_HS)
-	$(GHC) $(HFLAGS) --make \
-		-main-is Midi.TestMidi Midi/TestMidi.hs $(MIDI_LIBS) -o $@
+# .PHONY: $(BUILD)/test_midi
+# $(BUILD)/test_midi: $(MIDI_HS) $(UI_HS)
+# 	$(GHC) $(HFLAGS) --make \
+# 		-main-is Midi.TestMidi Midi/TestMidi.hs $(MIDI_LIBS) -o $@
 
 .PHONY: $(BUILD)/test_cmidi
 $(BUILD)/test_cmidi: $(UI_HS) $(MIDI_OBJS)

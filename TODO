@@ -94,8 +94,6 @@ Cmd
     - come up with a plan for midi recording
     - implement simple midi underiver aka integrator
 
-  Cmd.Save
-    - Data.Binary loading a tuple instead of a val sucks CPU forever
   Undo
     * implement undo and undo/redo cmds
     - figure out how to checkpoint just state diffs
@@ -104,6 +102,22 @@ Cmd
   Cmd.MakeRuler
     - functions to modify zoom levels and other mark attributes
     - functions to splice time or a Meter into a ruler
+
+  Cmd.Freeze
+    Play also enables record on the plugin host.  The host needs to agree with
+    me about synth names, and have one recorder for each synth, so I can tell
+    it which synths to record by name.
+
+    After I hit stop, I remember the recorded time range and which instruments
+    were active at the time.  On playback, I suppress the playing of synths
+    that fall within a recorded range.  Also, when playback enters a recorded
+    range, it has to send a msg to the host, saying where it is.  The host will
+    have to be smart enough to select from the recorded clips and playback any
+    cached audio in that range.
+
+    To thaw a range, I remove it from the freeze map, stop suppressing the
+    msgs, and stop sending the host msgs for it (or tell it to delete that
+    range).
 
 Derive
   derivers
@@ -130,7 +144,7 @@ Derive
 Perform
   Player
     * flush midi output when I get a Stop
-      - send portmidi patches
+      * send patches upstream
   Midi
     - eliminate duplicate controller msgs
     * pitch signal rendering
@@ -164,10 +178,8 @@ Instrument DB
     program change
 
 Midi
-  * scheduler for out of order writes + thru?  how about I always write in
-    order and don't allow timestamps on thru?
-    - send portmidi patch for thru merging
-  - a single msg input thread instead of one thread per input port
+  * implement midi merging for midi thru
+  * a single msg input thread instead of one thread per input port
   bandwidth
     - keep stats
     - display widget

@@ -91,8 +91,8 @@ data Keyswitch = Keyswitch String Midi.Key
 -- When there are multiple backends, this will have to move to a more general
 -- place.
 
--- | Patch is information about one specific instrument.  The performance
--- Instrument and MIDI config are derived from it, via its Synth.
+-- | A Patch has information about one specific instrument.  The performance
+-- 'Instrument' and MIDI config are derived from it, via its 'Synth'.
 data Patch = Patch {
 	-- | The Instrument is a subset of the data available in the Patch.
 	-- The patch_instrument is not necessarily the same as the one eventually
@@ -100,8 +100,8 @@ data Patch = Patch {
 	patch_instrument :: Instrument
     , patch_initialize :: InitializePatch
     -- | Keyswitches available to this instrument, if any.  Each of these is
-    -- considered its own instrument, like synth/inst/ks.  A keyswitch key may
-    -- occur more than once, and a name of "" is used when the instrument is
+    -- considered its own instrument, like synth\/inst\/ks.  A keyswitch key may
+    -- occur more than once, and a name of \"\" is used when the instrument is
     -- looked up without a keyswitch.
     , patch_keyswitches :: [Keyswitch]
 	-- | Key-value pairs used to index the patch.
@@ -145,7 +145,7 @@ data InitializePatch =
     -- a sysex.
     InitializeMidi [Midi.Message]
     -- | This is redundant with InitializeMidi, but 1000 3K sysex msgs uses
-    -- lots of memory and makes things crawl.
+    -- lots of memory and makes the browser crawl.
     | InitializeSysex B.ByteString
     -- | Display this msg to the user and hope they do what it says.
     | InitializeMessage String

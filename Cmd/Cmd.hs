@@ -82,6 +82,9 @@ run_id_io :: RunCmd Identity.Identity IO Status
 run_id_io ui_state cmd_state cmd = do
     return $ Identity.runIdentity (run Continue ui_state cmd_state cmd)
 
+run_io :: RunCmd IO IO Status
+run_io = run Continue
+
 -- | Run the Cmd in Identity, returning Nothing if it aborted.
 run_id :: State.State -> State -> CmdT Identity.Identity a -> CmdVal (Maybe a)
 run_id ui_state cmd_state cmd =
