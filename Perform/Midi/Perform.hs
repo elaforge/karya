@@ -136,24 +136,40 @@ chan_state_msgs (wdev, chan) ts m_old new
 post_process :: [Midi.WriteMessage] -> [Midi.WriteMessage]
 post_process = reorder_control_messages . drop_duplicates
 
-drop_duplicates = Seq.drop_dups (==)
+drop_duplicates :: [Midi.WriteMessage] -> [Midi.WriteMessage]
+drop_duplicates = drop_dup_controllers Map.empty
 
 -- | Keep a running state for each channel and drop duplicate msgs.
--- Ugh, too complicated.  Only put this in if MIDI bandwidth is a problem.
-{-
-drop_dup_controllers chan_state (wmsg:rest) = case Midi.wmsg_msg wmsg of
-    Midi.ChannelMessage chan msg ->
-        let (cstate, pb_state) = chan_state `IArray.!` chan in case msg of
-            Midi.ControlChange c v
-                | IntMap.lookup (fromIntegral c) cstate /= Just v ->
-                    (True, chan_state // [(chan, (cstate2, pb_state))])
-                | otherwise -> (False, chan_state)
-            Midi.ChannelMessage _ (Midi.PitchBend v)
-                | pb_state /= v -> (True, chan_state // [(chan, (cstate, v))])
-                | otherwise -> (False, chan_state)
-            _ -> (True, chan_state)
-    _ -> (True, chan_state)
--}
+type AddrState =
+    (Maybe Midi.PitchBendValue, Map.Map Midi.Controller Midi.ControlValue)
+type RunningState = Map.Map Instrument.Addr AddrState
+
+drop_dup_controllers :: RunningState -> [Midi.WriteMessage]
+    -> [Midi.WriteMessage]
+drop_dup_controllers _ [] = []
+drop_dup_controllers running (wmsg:wmsgs) = case wmsg of
+    Midi.WriteMessage dev _ (Midi.ChannelMessage chan cmsg) ->
+        let addr = (dev, chan)
+            state = Map.lookup addr running
+            (keep, state2) = analyze_msg state cmsg
+            running2 = maybe running (\s -> Map.insert addr s running) state2
+            rest = drop_dup_controllers running2 wmsgs
+        in if keep then wmsg : rest else rest
+    _ -> drop_dup_controllers running wmsgs
+
+analyze_msg :: Maybe AddrState -> Midi.ChannelMessage -> (Bool, Maybe AddrState)
+analyze_msg Nothing msg = case msg of
+    Midi.PitchBend v -> (True, Just (Just v, Map.empty))
+    Midi.ControlChange c v -> (True, Just (Nothing, Map.singleton c v))
+    _ -> (True, Nothing)
+analyze_msg (Just (pb_val, cmap)) msg = case msg of
+    Midi.PitchBend v
+        | Just v == pb_val -> (False, Nothing)
+        | otherwise -> (True, Just (Just v, cmap))
+    Midi.ControlChange c v
+        | Just v == Map.lookup c cmap -> (False, Nothing)
+        | otherwise -> (True, Just (pb_val, Map.insert c v cmap))
+    _ -> (True, Nothing)
 
 -- | If a control message and a note message happen at the same time, the
 -- control should go first, just to make sure the synth doesn't make a popping
