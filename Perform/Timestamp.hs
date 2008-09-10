@@ -28,7 +28,7 @@ to_seconds :: Timestamp -> Double
 to_seconds (Timestamp ts) = fromIntegral ts / 1000
 
 to_microseconds :: Timestamp -> Integer
-to_microseconds (Timestamp ts) = ts
+to_microseconds (Timestamp ts) = ts * 1000
 
 -- | TrackPos is converted 1:1000.  This means that a TrackPos, after passing
 -- through all the tempo mapping, should eventually correspond to seconds.

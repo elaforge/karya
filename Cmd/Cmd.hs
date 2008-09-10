@@ -169,7 +169,7 @@ data State = State {
     -- position, the value has complete info.
     , state_keys_down :: Map.Map Modifier Modifier
     -- | Transport control channel for the player, if one is running.
-    , state_transport :: Maybe Transport.Transport
+    , state_play_control :: Maybe Transport.PlayControl
     -- | The block and track that have focus.  Commands that address
     -- a particular block or track will address these.
     , state_focused_view :: Maybe Block.ViewId
@@ -199,7 +199,7 @@ initial_state inst_db schema_map = State {
     , state_instrument_db = inst_db
     , state_schema_map = schema_map
     , state_keys_down = Map.empty
-    , state_transport = Nothing
+    , state_play_control = Nothing
     , state_focused_view = Nothing
     , state_clip_namespace = Config.clip_namespace
     , state_chan_map = Map.empty

@@ -84,7 +84,7 @@ _perform_notes chan_map overlapping prev_note_off ((event, addr):events) =
         [] -> Timestamp.Timestamp 0 -- perform_note decided to play nothing?
         (msg:_) -> Midi.wmsg_ts msg
     (chan_state_msgs, chan_state_warns, chan_map2) =
-        chan_state chan_map addr event
+        adjust_chan_state chan_map addr event
     (play, not_yet) = List.partition ((<= first_ts) . Midi.wmsg_ts)
         (merge_messages [overlapping, chan_state_msgs ++ msgs])
 
@@ -97,9 +97,10 @@ _perform_notes chan_map overlapping prev_note_off ((event, addr):events) =
 -- none.  Doing it this way means a bit of state that has to be gotten right
 -- or no sound, but relying on the instrument of the first event to happen to
 -- hit the channel seems like it would yield inconsistent results.
-chan_state :: Instrument.ChannelMap -> Instrument.Addr -> Event
+adjust_chan_state :: Instrument.ChannelMap -> Instrument.Addr -> Event
     -> ([Midi.WriteMessage], [Warning.Warning], Instrument.ChannelMap)
-chan_state chan_map addr event = case chan_state_msgs addr ts old_inst inst of
+adjust_chan_state chan_map addr event =
+    case chan_state_msgs addr ts old_inst inst of
         Nothing  -> ([], [state_warning], chan_map)
         Just msgs ->
             (msgs, [], Map.insert addr (event_instrument event) chan_map)

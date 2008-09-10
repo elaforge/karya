@@ -181,12 +181,13 @@ test_obj/RunTests.hs: $(ALL_HS)
 # The 'hint' package uses 'Outputtable', which is from the ghc-6.8.2 package,
 # which isn't compiled with profiling.
 # -fprof -auto-all
-test_obj/RunTests: test_obj/RunTests.hs all_hsc $(UI_OBJS) fltk/fltk.a
+test_obj/RunTests: test_obj/RunTests.hs all_hsc $(UI_OBJS) $(MIDI_OBJS) \
+		fltk/fltk.a
 	tools/unline_hack
 	$(GHC) $(BASIC_HFLAGS) -threaded -i -itest_obj:. -fhpc --make \
 		-odir test_obj -hidir test_obj \
 		test_obj/RunTests.hs -o $@ \
-		$(UI_OBJS) fltk/fltk.a \
+		$(UI_OBJS) $(MIDI_OBJS) fltk/fltk.a \
 		$(MIDI_LIBS) $(HLDFLAGS)
 	rm -f *.tix # this sticks around and breaks things
 	rm -f test.output # this gets reset on each new test run

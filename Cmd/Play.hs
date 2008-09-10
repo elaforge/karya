@@ -27,66 +27,53 @@
     - On cancel, kill the thread, and invoke a backend specific means to cancel
     outstanding notes (flush midi port, kill external performer, ...).
 
-    The performer returns a Transport, which is a mutable variable that holds
-    a state value.  The state starts at Play, but the performer checks it
-    periodically to see if it has become Stop, which the responder can set it
-    to if requested.  This is how the responder sends messages to the
-    performer.  The responder uses the presence of the Transport in the
-    Cmd.State to determine if there is a performer running or not, and if there
-    is one, how to control it.
+    The player returns controls to communicate with the player and the updater.
+    If the responder sets the player control, the player will quit.  The player
+    stopping causes it to set the updater control, which causes the updater to
+    quit (if there are multiple players, the updater should wait for them all
+    to quit).
 
-    The performer sends messages to the responder by writing to the responder
-    chan, which is given to it by the responder in the 'Transport.Info' data
-    structure when the performer is started.  The responder chan feeds into the
-    responder event loop like other msgs.  The performer uses this to report if
-    it dies from an error, but Playing and Stopped are actually reported by the
-    updater.
+    There's a third control, which is a channel given to the player by the
+    responder.  Both the player and the updater use it to send transport msgs
+    to the responder.  All the player sends is a Died msg which can be logged
+    when the player as started and stopped.  Transport msgs wind up in
+    'cmd_transport_msg', which can use them to set UI state like changing the
+    play box color and logging.
 
     The updater is kicked off simultaneously with the performer, and advances
     the play selection in its own loop, using the tempo map from the deriver.
-    It will keep running as long as the transport is at Play and the tempo map
-    tells it there is more score to \"play\".  While the updater doesn't
-    actually play anything, it's the one that sends Playing and Stopped msgs to
-    indicate performer status.  This is because there may well be multiple
-    simultaneous performers that may complete at different times and the
-    updater will only emit Stopped if all of them have finished.  If all goes
-    well, the updater and the performer will run to completion, the updater
-    will send Stopped, and the performer will exit on its own.
+    It will keep running until it gets a stop msg from the control or the tempo
+    map tells it there is no more score to \"play\".  While the updater doesn't
+    actually play anything, it's the one that sends Playing and Stopped
+    transport msgs to indicate performer status.  This is because there may
+    be multiple simultaneous performers that may complete at different times
+    and the updater will only emit Stopped if all of them have finished.  If
+    all goes well, the updater and the performer will run to completion, the
+    updater will send Stopped, and the performer will exit on its own.
 
-    So in summary, there are two communication channels: the transport, and the
-    responder chan.  The transport represents current state and is used to
-    communicate from the responder to the performer and the updater, to tell
-    them to stop.  The responder chan is used to communicate from the performer
-    to the responder (only used to say that the performer died), and from the
-    updater to the responder (to tell it when play has started and stopped).
-    In addition, the performer will set Stop on the transport if it died.
-    Really, only the responder should write to the transport, but a Died will
-    definitely trigger a Stop and the performer already has the correct
-    Transport, so it's more expedient if it does it directly.
-
-    With multiple backends, there will be multiple transports, and the updater
-    will need to monitor them all.
+    With multiple backends, there will be multiple update controls, and the
+    updater will need to monitor them all.
 
     For example:
 
     In a normal situation, the performer will do its thing and the updater will
     eventually run out of InverseTempoMap (which will return Nothing).  The
-    updater will send Stopped, which will clear the transport from the
-    responder.  The performer is assumed to have completed and exited on its
+    updater will send Stopped, which will clear the player control from the
+    responder Cmd.State, which is how the UI knows whether playing is in
+    progress.  The performer is assumed to have completed and exited on its
     own, probably even before the playback audio is completed, since it likely
     schedules in advance.
 
     If the performer dies on an error, it sends a Died to the responder chan.
-    As mentioned above, it will also set the transport to Stop.  The updater
+    As mentioned above, it will also tell the updater to stop.  The updater
     will notice this, and may stop itself, emitting a Stopped msg.  The Stopped
-    msg will then cause the responder to clear the transport out of its state,
-    which lets it know that play has stopped and it's ok to start another play
-    thread.
+    msg will then cause the responder to clear the player control out of its
+    state, which lets it know that play has stopped and it's ok to start
+    another play thread.
 
-    If the user requests a stop, the responder sets the transport to Stop.
-    Both the performer and updater notice this and quit, the updater emitting
-    a Stopped as it does so.  As usual, the Stopped causes the responder to
-    clear the transport.
+    If the user requests a stop, the responder sets the player control to Stop.
+    The player stops, telling the updater to stop, which emits Stopped, which
+    clears the updater control.
 -}
 module Cmd.Play where
 import qualified Control.Concurrent as Concurrent
@@ -154,8 +141,8 @@ cmd_play :: PlayInfo -> Block.BlockId -> (Track.TrackId, TrackPos)
 cmd_play play_info block_id (start_track, start_pos) = do
     let (_, transport_info, schema_map) = play_info
     cmd_state <- Cmd.get_state
-    case Cmd.state_transport cmd_state of
-        Just _ -> Log.warn "player already running" >> Cmd.abort
+    case Cmd.state_play_control cmd_state of
+        Just _ -> Cmd.throw "player already running"
         _ -> return ()
 
     (derive_result, tempo_map, inv_tempo_map) <- derive schema_map block_id
@@ -169,22 +156,21 @@ cmd_play play_info block_id (start_track, start_pos) = do
         Nothing -> Cmd.throw $ "unknown play start pos: "
             ++ show start_track ++ ", " ++ show start_pos
         Just ts -> return ts
-    transport <- perform block_id play_info start_ts events
+    (play_ctl, updater_ctl) <- perform block_id play_info start_ts events
 
     ui_state <- State.get
     Trans.liftIO $ Thread.start_thread "play position updater" $
-        updater_thread transport transport_info inv_tempo_map start_ts ui_state
+        updater_thread updater_ctl transport_info inv_tempo_map start_ts
+            ui_state
 
-    Cmd.modify_state $ \st -> st { Cmd.state_transport = Just transport }
+    Cmd.modify_state $ \st -> st { Cmd.state_play_control = Just play_ctl }
     return Cmd.Done
 
 cmd_stop :: Cmd.CmdT IO Cmd.Status
 cmd_stop = do
-    maybe_control <- fmap Cmd.state_transport Cmd.get_state
-    transport <- case maybe_control of
-        Nothing -> Log.warn "player thread not running" >> Cmd.abort
-        Just transport -> return transport
-    Trans.liftIO $ Transport.send_transport transport Transport.Stop
+    ctl <- Cmd.get_state >>= maybe (Cmd.throw "player thread not running")
+        return . Cmd.state_play_control
+    Trans.liftIO $ Transport.stop_player ctl
     return Cmd.Done
 
 -- | Respond to transport status msgs coming back from the player thread.
@@ -204,12 +190,8 @@ cmd_transport_msg msg = do
         -- has declared it stopped.  In any case, I don't need a transport
         -- to tell it what to do anymore.
         Transport.Stopped -> Cmd.modify_state $ \st ->
-            st { Cmd.state_transport = Nothing }
-        Transport.Died exc -> do
-            Log.warn ("player died: " ++ show exc)
-            -- Let the updater know this performer has stopped.
-            cmd_stop
-            return ()
+            st { Cmd.state_play_control = Nothing }
+        Transport.Died exc -> Log.warn ("player died: " ++ show exc)
     return Cmd.Done
 
 -- * implementation
@@ -223,11 +205,12 @@ derive schema_map block_id = do
     let (result, tempo_func, inv_tempo_func, logs, _) =
             Derive.derive (Schema.lookup_deriver schema_map ui_state)
                 ui_state False (Derive.d_block block_id)
+    -- TODO does this force the derivation?
     mapM_ Log.write logs
     return (result, tempo_func, inv_tempo_func)
 
 perform :: Block.BlockId -> PlayInfo -> Timestamp.Timestamp -> [Score.Event]
-    -> Cmd.CmdT IO Transport.Transport
+    -> Cmd.CmdT IO (Transport.PlayControl, Transport.UpdaterControl)
 perform block_id (inst_db, transport_info, _) start_ts events = do
     let lookup_inst = Instrument.Db.db_lookup_midi inst_db
     let (midi_events, convert_warnings) = Convert.convert
@@ -255,10 +238,10 @@ seek_events pos events = dropWhile ((< pos) . Score.event_start) events
 -- | Run along the InverseTempoMap and update the play position selection.
 -- Note that this goes directly to the UI through Sync, bypassing the usual
 -- state diff folderol.
-updater_thread :: Transport.Transport -> Transport.Info
+updater_thread :: Transport.UpdaterControl -> Transport.Info
     -> Transport.InverseTempoFunction -> Timestamp.Timestamp -> State.State
     -> IO ()
-updater_thread transport transport_info inv_tempo_func start_ts ui_state = do
+updater_thread ctl transport_info inv_tempo_func start_ts ui_state = do
     -- Send Playing and Stopped msgs to the responder for all visible blocks.
     let block_ids = Seq.unique $ Map.elems (Map.map Block.view_block
             (State.state_views ui_state))
@@ -267,7 +250,7 @@ updater_thread transport transport_info inv_tempo_func start_ts ui_state = do
     -- This won't be exactly the same as the renderer's ts offset, but it's
     -- probably close enough.
     ts_offset <- get_cur_ts
-    let state = UpdaterState transport (ts_offset - start_ts) get_cur_ts
+    let state = UpdaterState ctl (ts_offset - start_ts) get_cur_ts
             inv_tempo_func Set.empty ui_state
     Exception.bracket_
         (mapM_ (Transport.write_status trans_chan Transport.Playing) block_ids)
@@ -275,7 +258,7 @@ updater_thread transport transport_info inv_tempo_func start_ts ui_state = do
         (updater_loop state)
 
 data UpdaterState = UpdaterState {
-    updater_transport :: Transport.Transport
+    updater_ctl :: Transport.UpdaterControl
     , updater_ts_offset :: Timestamp.Timestamp
     , updater_get_cur_ts :: IO Timestamp.Timestamp
     , updater_inv_tempo_func :: Transport.InverseTempoFunction
@@ -301,12 +284,12 @@ updater_loop state = do
     clear_play_position (Set.difference (updater_active_sels state) active_sels)
     state <- return $ state { updater_active_sels = active_sels }
 
-    tmsg <- Transport.check_transport (updater_transport state)
+    stopped <- Transport.check_player_stopped (updater_ctl state)
     -- putStrLn $ "UPDATER at " ++ show cur_ts ++ ": "
     -- pprint play_pos
     -- ++ show tmsg ++ ", " ++ show block_pos ++ ", gone: " ++ show gone
     -- putStrLn updater_status
-    if tmsg /= Transport.Play || null block_pos
+    if stopped || null block_pos
         then clear_play_position (updater_active_sels state)
         else do
             Concurrent.threadDelay 40000

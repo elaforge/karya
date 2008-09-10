@@ -184,7 +184,7 @@ make_write_midi wdev_map write_map (Midi.WriteMessage wdev ts msg) = do
         Nothing -> Log.error $ show real_wdev ++ " not in devs: "
             ++ show (Map.keys write_map)
         Just dev_id -> do
-            putStrLn $ "PLAY " ++ show (wdev, ts, msg)
+            -- putStrLn $ "PLAY " ++ show (wdev, ts, msg)
             MidiImp.write_message dev_id ts msg
 
 
