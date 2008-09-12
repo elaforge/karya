@@ -25,7 +25,7 @@ BlockView::BlockView(int X, int Y, int W, int H,
             track_box(0, 0, 1, 1),
             sb_box(0, 0, 1, 1),
             time_sb(0, 0, 1, 1),
-            ruler_track(0), // filled in later by insert_track
+            ruler_track(NULL), // filled in later by insert_track
         track_group(0, 0, 1, 1),
             track_sb(0, 0, 1, 1),
             track_scroll(0, 0, 1, 1),
@@ -43,8 +43,8 @@ BlockView::BlockView(int X, int Y, int W, int H,
 
     // Insert a placeholder for the ruler.  The size will be set again by
     // set_view_config, but that's ok.
-    DividerConfig *div = new DividerConfig(Color(0));
-    this->insert_track(0, Tracklike(div), 0);
+    this->no_ruler = new DividerView(DividerConfig(Color(0)));
+    this->replace_ruler_track(no_ruler, 0);
 
     // Remove the status line from the tab focus list.  I bypass that anyway
     // so this doesn't have any effect.
@@ -290,33 +290,14 @@ BlockView::insert_track(int tracknum, const Tracklike &track, int width)
     } else {
         t = new DividerView(*track.divider);
     }
-    if (tracknum == 0) {
-        // Set the width to a known non-zero size, clear the old track,
-        // and replace it with the new one.
-        if (this->ruler_track) {
-            this->set_ruler_width(1);
-            this->ruler_group.remove(ruler_track);
-            delete ruler_track;
-        }
-        this->ruler_track = t;
-
-        Rect p = rect(this->ruler_group);
-        ruler_track->resize(p.x + time_sb.w(), p.y + track_box.h(),
-                1, time_sb.h());
-
-        ruler_group.add(t);
-        ruler_group.resizable(ruler_track);
-        this->set_ruler_width(width);
-    } else {
-        track_tile.insert_track(tracknum - 1, t, width);
-    }
-    if (tracknum == 0)
-        this->ruler_track->set_zoom(this->zoom);
-    else
-        this->track_tile.set_zoom(this->zoom);
-    this->update_scrollbars();
+    this->insert_track_view(tracknum, t, width);
 }
 
+
+// Even though the ruler track is not in the TrackTile, I go to some effort
+// to create the illusion that it's just another track, which means some extra
+// work to push other tracks over when another track is inserted into or
+// removed from the ruler track.
 
 void
 BlockView::remove_track(int tracknum, FinalizeCallback finalizer)
@@ -326,9 +307,59 @@ BlockView::remove_track(int tracknum, FinalizeCallback finalizer)
         t->finalize_callbacks(finalizer);
         delete t;
         this->update_scrollbars();
+    } else if (this->tracks() == 1) {
+        if (this->ruler_track != this->no_ruler) {
+            TrackView *t = this->replace_ruler_track(this->no_ruler, 0);
+            delete t;
+        }
     } else {
-        DEBUG("attempt to remove tracknum 0");
+        TrackView *t = track_tile.remove_track(0);
+        TrackView *removed = this->replace_ruler_track(t, t->w());
+        if (removed != this->no_ruler)
+            delete removed;
     }
+}
+
+
+void
+BlockView::insert_track_view(int tracknum, TrackView *track, int width)
+{
+    if (tracknum == 0) {
+        TrackView *replaced = this->replace_ruler_track(track, width);
+        if (replaced != this->no_ruler)
+            track_tile.insert_track(0, replaced, replaced->w());
+    } else {
+        track_tile.insert_track(tracknum - 1, track, width);
+    }
+    if (tracknum == 0)
+        this->ruler_track->set_zoom(this->zoom);
+    else
+        this->track_tile.set_zoom(this->zoom);
+    this->update_scrollbars();
+}
+
+
+TrackView *
+BlockView::replace_ruler_track(TrackView *track, int width)
+{
+    TrackView *removed = NULL;
+    if (this->ruler_track) {
+        // 0 width is ok for the ruler track, but causes problems elsewhere.
+        if (ruler_track->w() < 1)
+            this->set_ruler_width(1);
+        this->ruler_group.remove(ruler_track);
+        removed = ruler_track;
+    }
+    this->ruler_track = track;
+    // Initially the widths match, so the inserted track is layed out
+    // correctly.
+    Rect p = rect(this->ruler_group);
+    ruler_track->resize(p.x + time_sb.w(), p.y + track_box.h(),
+            removed ? removed->w() : 1, time_sb.h());
+    ruler_group.add(track);
+    ruler_group.resizable(ruler_track);
+    this->set_ruler_width(width);
+    return removed;
 }
 
 

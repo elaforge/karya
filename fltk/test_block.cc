@@ -190,6 +190,9 @@ t1_find_samples(TrackPos *start_pos, TrackPos *end_pos,
     return count;
 }
 
+// Of course I don't actually need to finalize any FunPtrs here...
+void t1_finalizer(void *p) {}
+
 void
 timeout_func(void *vp)
 {

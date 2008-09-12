@@ -97,13 +97,12 @@ public:
     const char *get_title() const { return title.value(); }
     void set_status(const char *s) { status_line.value(s); }
 
-    // The track in the special non-scrolling ruler space is represented by
-    // this tracknum.  'insert_track' on this tracknum replaces it, and
-    // 'update_track' updates it.
-    enum { ruler_tracknum = -1 };
     void insert_track(int tracknum, const Tracklike &track, int width);
     void remove_track(int tracknum, FinalizeCallback finalizer);
-
+private:
+    void insert_track_view(int tracknum, TrackView *track, int width);
+    TrackView *replace_ruler_track(TrackView *track, int width);
+public:
     // Update the given track.  Update scrollbars.
     // 'track' should be the same kind of track as the one at 'tracknum' or this
     // throws.  Update colors and whatnot if they have changed (pointers
@@ -137,6 +136,8 @@ private:
     BlockModelConfig model_config;
     BlockViewConfig view_config;
     ZoomInfo zoom;
+    // The ruler track gets this when there's "nothing" in it.
+    TrackView *no_ruler;
 
     SeqInput title;
     Fl_Output status_line;

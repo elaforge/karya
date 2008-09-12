@@ -147,6 +147,17 @@ test_insert_remove_track = do
         State.insert_track t_block_id 1 (Block.DId TestSetup.default_divider) 5
     return ()
 
+-- Make sure removing and inserting the ruler track makes the others move over.
+test_insert_remove_ruler_track = do
+    state <- run_setup
+    io_human "both tracks are replaced" $ run state $ do
+        t2 <- create_track "b1.t2" (TestSetup.empty_track "t2")
+        State.remove_track t_block_id 0
+        State.remove_track t_block_id 0
+        State.insert_track t_block_id 0 (Block.TId t2 t_ruler_id) 20
+        State.insert_track t_block_id 1 (Block.DId TestSetup.default_divider) 5
+    return ()
+
 test_update_ruler_track = do
     state <- run_setup
     io_human "try to remove ruler, nothing happens" $ run state $ do
