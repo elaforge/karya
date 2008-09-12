@@ -74,6 +74,11 @@ as_overlay ruler = ruler
     , Ruler.ruler_full_width = True
     }
 
+-- | A shortcut utility to construct a ruler directly from a Meter.
+meter_to_ruler :: Double -> Meter -> Ruler.Ruler
+meter_to_ruler stretch meter =
+    ruler [marks_to_ruler (meter_marks stretch meter)]
+
 -- ** construct meters
 
 -- | Convert the given meter into a \"meter\" marklist.  The mark positions
@@ -105,9 +110,11 @@ repeat :: Int -> Meter -> Meter
 repeat n meter = D $ replicate n meter
 
 -- | Form a meter based on regular subdivision.  E.g. [4, 4] is 4 groups of 4,
--- and [3, 3] is like 9/8.
+-- [3, 3] is like 9/8, and [4, 3] is 4 groups of 3 (12/8).
 regular_subdivision :: [Int] -> Meter
-regular_subdivision ns = foldr subdivide (T 1) ns
+    -- It's most natural to think of the list as big divisions on the left to
+    -- small divisions on the right, so reverse the list.
+regular_subdivision ns = foldr subdivide (T 1) (reverse ns)
 
 -- ** predefined meters
 
@@ -124,8 +131,9 @@ type MarkRank = (TrackPos, Int)
 
 -- | Convert a Meter into [MarkRank], which can later be turned into [PosMark].
 meter_marks :: Double -> Meter -> [MarkRank]
-meter_marks mult meter = map minimum $ List.groupBy ((==) `on` fst) marks
-    where marks = dur_to_pos $ convert_meter 0 (map_t (* realToFrac mult) meter)
+meter_marks stretch meter = map minimum $ List.groupBy ((==) `on` fst) marks
+    where
+    marks = dur_to_pos $ convert_meter 0 (map_t (* realToFrac stretch) meter)
 
 convert_meter rank (T v) = [(realToFrac v, rank)]
 convert_meter rank (D meter) =

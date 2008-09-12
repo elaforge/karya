@@ -156,6 +156,7 @@ track block_id tracknum = do
     State.get_ruler ruler_id
     track_ruler block_id ruler_id tracknum width
 
+add_overlay_suffix :: Ruler.RulerId -> Ruler.RulerId
 add_overlay_suffix ruler_id
     | overlay_suffix `List.isSuffixOf` ident = ruler_id
     | otherwise = Ruler.RulerId (Id.id ns (ident ++ overlay_suffix))

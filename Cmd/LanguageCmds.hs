@@ -45,6 +45,7 @@ import qualified Ui.Track as Track
 import qualified Ui.State as State
 
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Create as Create
 import qualified Cmd.Edit as Edit
 import qualified Cmd.Language as Language
 import qualified Cmd.Play as Play
@@ -55,7 +56,6 @@ import qualified Cmd.TimeStep as TimeStep
 
 -- Just make sure these are compiled.
 import qualified Cmd.MakeRuler ()
-import qualified Cmd.Create ()
 
 import qualified Derive.Schema as Schema
 import qualified Derive.Score as Score
@@ -272,6 +272,27 @@ copy_marklist :: Ruler.MarklistName -> Ruler.RulerId -> Ruler.RulerId
 copy_marklist marklist_name from_ruler_id to_ruler_id = do
     mlist <- get_marklist from_ruler_id marklist_name
     replace_marklist to_ruler_id (marklist_name, mlist)
+
+-- | Replace the rulers in the block with the given ruler_id.  If there is an
+-- overlay version, it will be given to all but the first track.
+replace_ruler :: Ruler.RulerId -> Block.BlockId -> Cmd.CmdL ()
+replace_ruler ruler_id block_id = do
+    _ <- State.get_ruler ruler_id -- Just make sure it exists.
+    let overlay_id = Create.add_overlay_suffix ruler_id
+    overlay_id <- fmap (maybe ruler_id (const overlay_id)) $
+        State.lookup_ruler overlay_id
+    State.modify_block block_id $ \block -> block
+        { Block.block_track_widths = map_head_tail
+            (set_r ruler_id) (set_r overlay_id) (Block.block_track_widths block)
+        }
+    where
+    map_head_tail _ _ [] = []
+    map_head_tail f g (x:xs) = f x : map g xs
+    set_r ruler_id (tid, width) = (set_rid ruler_id tid, width)
+
+set_rid rid (Block.TId tid _) = Block.TId tid rid
+set_rid rid (Block.RId _) = Block.RId rid
+set_rid _ t = t
 
 -- * show / modify keymap
 
