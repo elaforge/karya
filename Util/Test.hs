@@ -60,10 +60,13 @@ equal = equal_srcpos Nothing
 equal_srcpos :: (Show a, Eq a) => SrcPos.SrcPos -> a -> a -> IO ()
 equal_srcpos srcpos a b
     | a == b = success srcpos $ "== " ++ show a
-    | otherwise = failure srcpos $ pa ++ "\t/=\n" ++ pb
+    | otherwise = failure srcpos msg
     where
-    pa = PPrint.pshow a
-    pb = PPrint.pshow b
+    pa = Seq.strip $ PPrint.pshow a
+    pb = Seq.strip $ PPrint.pshow b
+    msg = if '\n' `elem` pa || '\n' `elem` pb || length pa + length pb >= 60
+        then "\n" ++ pa ++ "\n\t/=\n" ++ pb
+        else pa ++ " /= " ++ pb
 
 strings_like :: [String] -> [String] -> IO ()
 strings_like = strings_like_srcpos Nothing

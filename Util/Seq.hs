@@ -63,6 +63,7 @@ reverse_compare a b = case compare a b of
     EQ -> EQ
     GT -> LT
 
+
 -- * grouping
 
 -- | Group the unsorted list into @(key x, xs)@ where all @xs@ compare equal

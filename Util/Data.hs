@@ -10,6 +10,7 @@ import Data.Array.IArray ((!))
 
 -- * Map
 
+get :: (Ord k) => a -> k -> Map.Map k a -> a
 get def k fm = Maybe.fromMaybe def (Map.lookup k fm)
 
 -- | Like Map.split, except include a matched key in the above map.
