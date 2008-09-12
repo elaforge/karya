@@ -358,6 +358,9 @@ set_midi_config config = modify $ \st -> st { state_midi_config = config}
 get_view :: (UiStateMonad m) => Block.ViewId -> m Block.View
 get_view view_id = get >>= lookup_id view_id . state_views
 
+lookup_view :: (UiStateMonad m) => Block.ViewId -> m (Maybe Block.View)
+lookup_view view_id = get >>= return . Map.lookup view_id . state_views
+
 get_all_view_ids :: (UiStateMonad m) => m [Block.ViewId]
 get_all_view_ids = fmap (Map.keys . state_views) get
 
@@ -444,6 +447,9 @@ get_all_block_ids = fmap (Map.keys . state_blocks) get
 
 get_block :: (UiStateMonad m) => Block.BlockId -> m Block.Block
 get_block block_id = get >>= lookup_id block_id . state_blocks
+
+lookup_block :: (UiStateMonad m) => Block.BlockId -> m (Maybe Block.Block)
+lookup_block block_id = get >>= return . Map.lookup block_id . state_blocks
 
 create_block :: (UiStateMonad m) => Id.Id -> Block.Block -> m Block.BlockId
 create_block id block = get >>= insert (Block.BlockId id) block state_blocks
@@ -609,6 +615,9 @@ modify_block block_id f = do
 get_track :: (UiStateMonad m) => Track.TrackId -> m Track.Track
 get_track track_id = get >>= lookup_id track_id . state_tracks
 
+lookup_track :: (UiStateMonad m) => Track.TrackId -> m (Maybe Track.Track)
+lookup_track track_id = get >>= return . Map.lookup track_id . state_tracks
+
 create_track :: (UiStateMonad m) => Id.Id -> Track.Track -> m Track.TrackId
 create_track id track = get >>= insert (Track.TrackId id) track state_tracks
     (\tracks st -> st { state_tracks = tracks })
@@ -742,6 +751,9 @@ zipper_map f stop prev (val:next)
 
 get_ruler :: (UiStateMonad m) => Ruler.RulerId -> m Ruler.Ruler
 get_ruler ruler_id = get >>= lookup_id ruler_id . state_rulers
+
+lookup_ruler :: (UiStateMonad m) => Ruler.RulerId -> m (Maybe Ruler.Ruler)
+lookup_ruler ruler_id = get >>= return . Map.lookup ruler_id . state_rulers
 
 create_ruler :: (UiStateMonad m) => Id.Id -> Ruler.Ruler -> m Ruler.RulerId
 create_ruler id ruler = get >>= insert (Ruler.RulerId id) ruler state_rulers
