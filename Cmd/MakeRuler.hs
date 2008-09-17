@@ -74,17 +74,12 @@ as_overlay ruler = ruler
     , Ruler.ruler_full_width = True
     }
 
--- | A shortcut utility to construct a ruler directly from a Meter.
-meter_to_ruler :: Double -> Meter -> Ruler.Ruler
-meter_to_ruler stretch meter =
-    ruler [marks_to_ruler (meter_marks stretch meter)]
-
 -- ** construct meters
 
 -- | Convert the given meter into a \"meter\" marklist.  The mark positions
--- are multiplied by @mult@.
+-- are multiplied by @stretch@.
 meter_ruler :: Double -> Meter -> Ruler.NameMarklist
-meter_ruler mult meter = marks_to_ruler (meter_marks mult meter)
+meter_ruler stretch meter = marks_to_ruler (meter_marks stretch meter)
 
 -- | A Meter is a structured description of how a unit of time is broken up
 -- into hiererchical sections.  A 'T' represents a mark with the given
