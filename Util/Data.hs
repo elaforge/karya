@@ -54,7 +54,7 @@ unique_map assocs = (Map.fromList pairs, concat rest)
 -- not be included in the output.
 zip_intersection :: (Ord k) => Map.Map k v1 -> Map.Map k v2 -> [(k, v1, v2)]
 zip_intersection map1 map2 =
-    [(k, v1, v2) | (k, v1) <- Map.assocs map1, v2 <- Map.lookup k map2]
+    [(k, v1, v2) | (k, v1) <- Map.assocs map1, Just v2 <- [Map.lookup k map2]]
 
 -- | Like Map.union, but also return a map of rejected duplicate keys from the
 -- map on the right.

@@ -214,7 +214,8 @@ clip_to_range start end events = Map.toAscList clipped
 -- * private implementation
 
 -- this is implemented in Map but not exported for some reason
-toDescList map = reverse (Map.toAscList map)
+-- toDescList map = reverse (Map.toAscList map)
+toDescList = Map.toDescList
 
 
 -- | Merge @evts2@ into @evts1@.  Events that overlap other events will be

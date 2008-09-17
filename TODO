@@ -5,19 +5,19 @@ bugs
   - destroy_ruler doesn't remove the ruler from its views
   - plain numbers to set step is error prone in kbd mode
   - parse errors don't give position
-  - nudge events by timestep
   - paste deletes events before the paste area
   - it's easy to create empty events which then give parse errors.  There's
     a conflict between delete and move and remove letter.  So don't move.
-  - a legato command that always goes to the next note would still be useful
 
 misc
   * rumor has it os x leopard wants .app bundles instead of Rez, so build those
 
 fltk
+  - consistent drawing of abbreviated events so drawing isn't dependent on
+    damaged area.  also, allow a little bit of overlap.
+  - optimize: implement scroll redraw optimization
   - convert Selection to use the same format as hs, so it can show the cursor
     end specially
-  - optimize: implement scroll redraw optimization
   - optimize: cache marks and events from callback
   - figure out how to have a minimal title bar in os x (win.border(0) removes
     it altogether)
@@ -55,7 +55,7 @@ Ui
     - signal render support for indexed signal type, especially pitch
     - events store style as a uchar ID for consistency and memory savings
   Track
-    - patch Data.Map to include toDescList
+    * patch Data.Map to include toDescList
     - benchmark large TrackEvents
     - modify IntMap for Word64s, add toDescList
       - send patch to libraries@haskell.org
@@ -79,6 +79,9 @@ Cmd
     - map selection through function
     - transpose selection
     - controller edit mode accepts two numbers and moves on, no spaces
+    - nudge events by timestep
+    - a legato command that always goes to the next note would still be useful
+    - method edit works in controller tracks
 
   Cmd.Selection
     - drag snap to timestep
@@ -102,6 +105,8 @@ Cmd
     - make sure the whole stack is lazy
     - play loops
     - background derivation
+    - start playing from top of displayed area
+    - start playing from TimeStep before insert point
 
   Cmd.Record
     - come up with a plan for midi recording
