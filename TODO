@@ -13,8 +13,8 @@ misc
   * rumor has it os x leopard wants .app bundles instead of Rez, so build those
 
 fltk
-  - consistent drawing of abbreviated events so drawing isn't dependent on
-    damaged area.  also, allow a little bit of overlap.
+  * consistent drawing of abbreviated events so drawing isn't dependent on
+    damaged area.
   - optimize: implement scroll redraw optimization
   - convert Selection to use the same format as hs, so it can show the cursor
     end specially

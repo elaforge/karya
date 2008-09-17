@@ -51,6 +51,8 @@ import Cmd.LanguageCmds ()
 -- tmp
 import qualified Ui.TestSetup as TestSetup
 import qualified Derive.Score as Score
+import qualified Derive.Twelve as Twelve
+import qualified Perform.Pitch as Pitch
 import qualified Perform.Midi.Instrument as Instrument
 
 
@@ -63,7 +65,7 @@ load_static_config = do
         , StaticConfig.config_schema_map = Map.empty
         , StaticConfig.config_local_lang_dirs = [app_dir </> Config.lang_dir]
         , StaticConfig.config_global_cmds = []
-        , StaticConfig.config_setup_cmd = old_setup_cmd
+        , StaticConfig.config_setup_cmd = setup_big
         , StaticConfig.config_read_device_map = read_device_map
         , StaticConfig.config_write_device_map = write_device_map
         }
@@ -204,13 +206,7 @@ setup_cmd _args = do
 
 old_setup_cmd :: [String] -> Cmd.CmdIO
 old_setup_cmd _args = do
-    (r, over_r) <- Create.ruler "meter_44"
-        (MakeRuler.ruler [MakeRuler.meter_ruler (1/16) MakeRuler.m44])
-
-    b <- Create.block r
-    view <- Create.view b
-    t_tempo <- Create.named_track b over_r 1 "tempo" "tempo"
-    State.insert_events t_tempo $ map TestSetup.mkevent [(0, 0, "1")]
+    (b, view) <- empty_block
     t0 <- Create.track b 2
     State.insert_events t0 $ map TestSetup.mkevent
         [(0, 1, "5c-"), (1, 1, "5d-"), (2, 1, "5e-"), (3, 1, "5f-")]
@@ -221,6 +217,50 @@ old_setup_cmd _args = do
     State.set_selection view Config.insert_selnum
         (Block.point_selection 0 (TrackPos 0))
     return Cmd.Done
+
+setup_big :: [String] -> Cmd.CmdIO
+setup_big _ = do
+    (b, view) <- empty_block
+    t0 <- Create.track b 2
+    State.set_track_title t0 ">fm8/bass"
+    t0_vel <- Create.track b 3
+    State.set_track_title t0_vel "velocity"
+
+    let notes = [0, 3, 2, 5, 3, 6, 4, 7]
+        vels = [1, 0.9, 0.8, 0.7, 0.6, 0.4, 0.3, 0.2]
+        mknotes notes = map TestSetup.mkevent
+            [(i*0.25, 0.2, to_str (oct, n)) | (i, (oct, n)) <- zip [0..] notes]
+        to_str n = case Twelve.key_to_note n of
+            Right (Pitch.Note s) -> s
+            Left err -> error err
+        mkvels vels = map TestSetup.mkevent
+            [(i*0.25, 0, show vel) | (i, vel) <- zip [0..] vels]
+
+    State.insert_events t0 (take 100 (mknotes (cycle (map ((,) 5) notes))))
+    State.insert_events t0_vel (take 100 (mkvels (cycle vels)))
+
+    t1 <- Create.track b 4
+    State.set_track_title t1 ">fm8/bass"
+    t1_vel <- Create.track b 5
+    State.set_track_title t1_vel "velocity"
+    State.insert_events t1
+        (take 100 (mknotes (cycle (reverse (map ((,) 6) notes)))))
+    State.insert_events t1_vel (take 100 (mkvels (cycle (reverse vels))))
+
+    Cmd.set_midi_config inst_config
+    State.set_selection view Config.insert_selnum
+        (Block.point_selection 0 (TrackPos 0))
+    return Cmd.Done
+
+empty_block = do
+    (r, over_r) <- Create.ruler "meter_44"
+        (MakeRuler.ruler [MakeRuler.meter_ruler (1/16) MakeRuler.m44])
+
+    b <- Create.block r
+    view <- Create.view b
+    t_tempo <- Create.named_track b over_r 1 "tempo" "tempo"
+    State.insert_events t_tempo $ map TestSetup.mkevent [(0, 0, "1")]
+    return (b, view)
 
 inst_config =
     Instrument.config [(Score.Instrument "fm8/bass", addrs)] Nothing

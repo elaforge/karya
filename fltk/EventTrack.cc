@@ -123,6 +123,20 @@ EventTrackView::draw()
 }
 
 
+/*
+static void
+show_found_events(TrackPos start, TrackPos end,
+        TrackPos *event_pos, Event *events, int count)
+{
+    printf("%.2f-%.2f: %d events:", start.scale(1), end.scale(1), count);
+    for (int i = 0; i < count; i++) {
+        printf(" (%.2f %s)", event_pos[i].scale(1), events[i].text);
+    }
+    printf("\n");
+}
+*/
+
+
 void
 EventTrackView::draw_area()
 {
@@ -141,6 +155,11 @@ EventTrackView::draw_area()
     TrackPos start = this->zoom.to_trackpos(clip.y - this->y());
     TrackPos end = start + this->zoom.to_trackpos(clip.h);
     start = start + this->zoom.offset;
+    // Go back far enough to get an event whose text would overlap the damaged
+    // area.  This won't work so well if I have different font sizes...
+    // but I think I don't have to do that.
+    fl_font(fl_font(), Config::font_size::event);
+    start = std::max(TrackPos(0), start - this->zoom.to_trackpos(fl_height()));
     end = end + this->zoom.offset;
     // DEBUG("TRACK CLIP: " << start << "--" << end << ", "
     //         << clip.y << "--" << clip.b());
@@ -149,6 +168,7 @@ EventTrackView::draw_area()
     Event *events;
     TrackPos *event_pos;
     int count = this->config.find_events(&start, &end, &event_pos, &events);
+    // show_found_events(start, end, event_pos, events, count);
     for (int i = 0; i < count; i++) {
         const Event &event = events[i];
         const TrackPos &pos = event_pos[i];
@@ -238,17 +258,36 @@ int
 EventTrackView::draw_upper_layer(int offset, const Event &event,
         int previous_bottom)
 {
+    // So the overlap stuff is actually pretty tricky.  I want to not display
+    // text when it would overlap with the previous text, so it doesn't get
+    // into an unreadable jumble.  So I hide the text if this event overlaps
+    // the previous one.  This is simple, but will hide all text when it could
+    // actually display every other one.  It also means that whenever I am
+    // redrawing, the callback needs to give me the previous event, so I know
+    // if the current one overlaps.
+    // I can display as much text as possible by only hiding text if it
+    // overlaps the previously displayed text.  However, to make drawing
+    // consistent, I need to be consistent about where the previously displayed
+    // text is, and in common situations this can require going all the way
+    // back to the first event since each event can depend on its predecessor.
+    // There's probably some way to get around this by caching whether an event
+    // has displayed text.  I think I might want to do this, but should
+    // wait until I am caching events from the callback in general.
     fl_font(fl_font(), Config::font_size::event);
-    bool overlapped = offset < previous_bottom - 4; // a little overlap is ok
+    bool overlapped = offset < previous_bottom - 6; // a little overlap is ok
     int textpos = offset + (fl_height() - fl_descent());
-    int bottom;
     if (event.align_to_bottom) {
         // TODO draw line at bottom, align text on top of it
-        bottom = offset + fl_height(); // or something
+        // bottom = offset + fl_height(); // or something
     } else {
         // If it overlaps with text above it, don't display the text, and draw
         // the mark line in abbreviation_color.
-        if (!overlapped) {
+        if (overlapped) {
+            // TODO draw the line under the overlapping text, or just a tick
+            // on the sides, so it doesn't make the text hard to read
+            fl_color(color_to_fl(Config::abbreviation_color));
+            // bottom = previous_bottom;
+        } else {
             // TODO set according to style
             fl_color(FL_BLACK);
             fl_draw(event.text, x() + 2, textpos);
@@ -262,16 +301,10 @@ EventTrackView::draw_upper_layer(int offset, const Event &event,
             }
 
             fl_color(FL_RED);
-            bottom = offset + fl_height();
-        } else {
-            // TODO draw the line under the overlapping text, or just a tick
-            // on the sides, so it doesn't make the text hard to read
-            fl_color(color_to_fl(Config::abbreviation_color));
-            bottom = previous_bottom;
         }
         fl_line_style(FL_SOLID, 1);
         fl_line(x() + 1, offset, x()+w() - 2, offset);
     }
 
-    return bottom;
+    return offset + fl_height();
 }

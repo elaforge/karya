@@ -82,6 +82,7 @@ cb_find_events events startp endp ret_tps ret_events = do
     end <- peek endp
     let (bwd, fwd) = Track.events_at start events
         (until_end, _rest) = break ((>= end) . fst) fwd
+        -- Get the event overlapping the beginning of the damaged area.
         found_events = take 1 bwd ++ until_end
     unless (null found_events) $ do
         -- Calling c++ is responsible for freeing this.
