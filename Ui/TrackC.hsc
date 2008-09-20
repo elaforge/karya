@@ -100,6 +100,7 @@ cb_find_samples (Track.Samples samples) startp endp ret_tps ret_samples = do
     let start_i = max 0 (Util.Data.bsearch_on fst samples start - 1)
         max_i = snd (IArray.bounds samples)
         (elts, rest) = break ((>=end) . fst) (map (samples!) [start_i..max_i])
+        -- Get one sample past the cutoff so it can draw the slope properly.
         found = elts ++ take 1 rest
     -- putStrLn $ "go find " ++ show start_i ++ "--" ++ show max_i
     unless (null found) $ do

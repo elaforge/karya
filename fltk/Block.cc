@@ -218,12 +218,24 @@ BlockView::set_zoom(const ZoomInfo &zoom)
     //         zoom.factor);
 
     if (this->zoom != zoom) {
-        this->zoom = zoom;
-        this->zoom.offset = std::max(TrackPos(0), this->zoom.offset);
-        this->track_tile.set_zoom(this->zoom);
-        this->ruler_track->set_zoom(this->zoom);
+        this->set_zoom_attr(zoom);
         this->update_scrollbars();
     }
+}
+
+
+void
+BlockView::set_zoom_attr(const ZoomInfo &new_zoom)
+{
+    this->zoom = new_zoom;
+    // Clip offset to be positive, and quantize it to conform exactly to
+    // a pixel boundary.  Otherwise, some events may move 1 pixel while others
+    // move 2 pixels, which messes up the blit-oriented scrolling.
+    zoom.offset = std::max(TrackPos(0), zoom.offset);
+    zoom.offset = zoom.to_trackpos(zoom.to_pixels(zoom.offset));
+    // DEBUG("offset " << new_zoom.offset << " -> " << zoom.offset);
+    this->track_tile.set_zoom(zoom);
+    this->ruler_track->set_zoom(zoom);
 }
 
 
@@ -405,9 +417,7 @@ BlockView::scrollbar_cb(Fl_Widget *_unused_w, void *vp)
     ZoomInfo new_zoom(TrackPos(end.scale(time_offset)),
             self->get_zoom().factor);
     if (new_zoom != self->get_zoom()) {
-        self->zoom = new_zoom;
-        self->ruler_track->set_zoom(self->zoom);
-        self->track_tile.set_zoom(self->zoom);
+        self->set_zoom_attr(new_zoom);
         global_msg_collector()->block_update(self, UiMsg::msg_zoom);
     }
 

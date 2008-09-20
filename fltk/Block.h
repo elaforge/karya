@@ -157,6 +157,7 @@ private:
             SimpleScroll track_scroll;
                 TrackTile track_tile;
 
+    void set_zoom_attr(const ZoomInfo &zoom);
     void set_ruler_width(int width);
     void update_scrollbars();
 

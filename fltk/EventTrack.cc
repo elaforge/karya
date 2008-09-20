@@ -14,8 +14,8 @@
 EventTrackView::EventTrackView(const EventTrackConfig &config,
             const RulerConfig &ruler_config) :
     TrackView("events"),
-    config(config),
-    title_input(0),
+    config(config), last_offset(0),
+    title_input(NULL),
     bg_box(0, 0, 1, 1),
     overlay_ruler(ruler_config)
 {
@@ -43,20 +43,15 @@ EventTrackView::resize(int x, int y, int w, int h)
 
 
 void
-EventTrackView::set_zoom(const ZoomInfo &zoom)
+EventTrackView::set_zoom(const ZoomInfo &new_zoom)
 {
-    // TODO: if just the offset changed and the move is < h(), I can use the
-    // Fl_Scroll blit to do it quickly.
-    // DEBUG("zoom " << this->zoom << " to " << zoom);
-    this->zoom = zoom;
-    this->overlay_ruler.set_zoom(zoom);
-    if (this->zoom.factor == zoom.factor) {
-        // TODO this would be for scrolling, but it's not implemented yet
-        // this->shift = this->zoom.to_pixels(zoom.offset - this->zoom.offset);
+    // DEBUG("zoom " << this->zoom << " to " << new_zoom);
+    if (this->zoom.factor == new_zoom.factor)
         this->damage(FL_DAMAGE_SCROLL);
-    } else {
+    else
         this->damage(FL_DAMAGE_ALL);
-    }
+    this->zoom = new_zoom;
+    this->overlay_ruler.set_zoom(new_zoom);
 }
 
 
@@ -96,30 +91,55 @@ EventTrackView::finalize_callbacks(FinalizeCallback finalizer)
 }
 
 
+// I redraw the scroll revealed area separately, so pass a dummy to fl_scroll.
+static void dummy_scroll_draw(void *, int, int, int, int) {}
+
 void
 EventTrackView::draw()
 {
     Rect draw_area = rect(this);
     draw_area.h--; // tiles make a 1 pixel lower border
     // DEBUG("track damage " << show_damage(damage()));
+    if (this->damage() & FL_DAMAGE_SCROLL) {
+        int scroll = zoom.to_pixels(zoom.offset) - zoom.to_pixels(last_offset);
+        // int scroll2 = zoom.to_pixels(zoom.offset - last_offset);
+        // DEBUG("scroll diff: " << zoom.offset - last_offset
+        //         << " pixels: " << -scroll << " or " << -scroll2);
+        // DEBUG("offset pix: " << zoom.to_pixels(zoom.offset)
+        //         << " last pix: " << zoom.to_pixels(last_offset));
+        TrackPos shift_pos = std::max(
+                zoom.offset - last_offset, last_offset - zoom.offset);
+        fl_scroll(draw_area.x, draw_area.y, draw_area.w, draw_area.h,
+                0, -scroll, dummy_scroll_draw, NULL);
+        if (scroll > 0) { // Contents moved up, bottom is damaged.
+            TrackPos bottom = zoom.offset + zoom.to_trackpos(draw_area.h);
+            this->overlay_ruler.damage_range(bottom - shift_pos, bottom);
+        } else if (scroll < 0) { // Contents moved down, top is damaged.
+            this->overlay_ruler.damage_range(
+                    zoom.offset, zoom.offset + shift_pos);
+        }
+    }
     // The damage is a little hacky, because the overlay_ruler overlaps this
     // widget.  So only having child damage means the overlay will have
     // DAMAGE_RANGE and this widget also needs to redraw in that range.
-    if (this->damage() & ~FL_DAMAGE_CHILD) {
-        // Leave draw_area with the full size.
-        // TODO handle scroll specially
-    } else {
+    if (damage() == FL_DAMAGE_CHILD || damage() == FL_DAMAGE_SCROLL
+            || damage() == (FL_DAMAGE_CHILD | FL_DAMAGE_SCROLL))
+    {
         // DEBUG("track intersect: " << draw_area.y << "--"
         //     << overlay_ruler.draw_area.b() << " with "
         //     << damaged_area.y << "--" << overlay_ruler.damaged_area.b());
         draw_area = draw_area.intersect(this->overlay_ruler.damaged_area);
+    } else {
+        // DEBUG("draw all");
     }
+
     // The remaining drawing routines will optimize based on the clip rect.
     // When overlay_ruler.draw() is called it will redundantly clip again on
     // damage_range, but that's ok because it needs the clip when called from
     // RulerTrackView::draw().
     ClipArea clip_area(draw_area);
     this->draw_area();
+    this->last_offset = this->zoom.offset;
 }
 
 
@@ -169,6 +189,7 @@ EventTrackView::draw_area()
     TrackPos *event_pos;
     int count = this->config.find_events(&start, &end, &event_pos, &events);
     // show_found_events(start, end, event_pos, events, count);
+
     for (int i = 0; i < count; i++) {
         const Event &event = events[i];
         const TrackPos &pos = event_pos[i];
@@ -208,7 +229,6 @@ EventTrackView::draw_samples(TrackPos start, TrackPos end)
 {
     TrackPos *sample_pos;
     double *samples;
-    // DEBUG("CALL find samples " << &config.render.find_samples);
     int sample_count = this->config.render.find_samples(&start, &end,
         &sample_pos, &samples);
     // TODO alpha not supported, I'd need a non-portable drawing routine for it.
@@ -274,7 +294,7 @@ EventTrackView::draw_upper_layer(int offset, const Event &event,
     // has displayed text.  I think I might want to do this, but should
     // wait until I am caching events from the callback in general.
     fl_font(fl_font(), Config::font_size::event);
-    bool overlapped = offset < previous_bottom - 6; // a little overlap is ok
+    bool overlapped = offset < previous_bottom - 4; // a little overlap is ok
     int textpos = offset + (fl_height() - fl_descent());
     if (event.align_to_bottom) {
         // TODO draw line at bottom, align text on top of it

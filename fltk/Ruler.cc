@@ -20,18 +20,15 @@ const static int selection_min_size = 3;
 #define SHOW_RANGE(r) (r).y << "--" << (r).b()
 
 void
-OverlayRuler::set_zoom(const ZoomInfo &zoom)
+OverlayRuler::set_zoom(const ZoomInfo &new_zoom)
 {
-    if (this->zoom == zoom)
+    if (this->zoom == new_zoom)
         return;
-    if (this->zoom.factor == zoom.factor) {
-        // TODO shift is for scrolling, but it's not implemented yet
-        // this->shift = this->zoom.to_pixels(zoom.offset - this->zoom.offset);
+    if (this->zoom.factor == new_zoom.factor)
         this->damage(FL_DAMAGE_SCROLL);
-    } else {
+    else
         this->damage(FL_DAMAGE_ALL);
-    }
-    this->zoom = zoom;
+    this->zoom = new_zoom;
 }
 
 
@@ -107,34 +104,53 @@ OverlayRuler::finalize_callbacks(FinalizeCallback finalizer)
 }
 
 
+
+// I redraw the scroll revealed area separately, so pass a dummy to fl_scroll.
+static void dummy_scroll_draw(void *, int, int, int, int) {}
+
 void
 OverlayRuler::draw()
 {
     Rect draw_area = rect(this);
-    draw_area.h--; // tiles make a 1 pixel left/lower border
+    // Tiles make a 1 pixel border.
+    draw_area.y++;
+    draw_area.h -= 2;
     draw_area.w--;
     draw_area.x++;
 
-    // DEBUG("RULER DAMAGE " << show_damage(damage()));
-    if (this->damage() & ~OverlayRuler::DAMAGE_RANGE) {
-    } else {
+    if (damage() == FL_DAMAGE_SCROLL) {
+        // This only happens if this is a ruler track and scrolled.  If it's
+        // an overlay ruler, the event track will handle the scrolling and
+        // draw the ruler with FL_DAMAGE_ALL.
+        // I'm sure there's a better way to scroll than this copy and pastage,
+        // but there are only two cases, so whatever.
+        int scroll = zoom.to_pixels(zoom.offset) - zoom.to_pixels(last_offset);
+        fl_scroll(draw_area.x, draw_area.y, draw_area.w, draw_area.h,
+                0, -scroll, dummy_scroll_draw, NULL);
+        if (scroll > 0) { // Contents moved up, bottom is damaged.
+            draw_area.y = draw_area.b() - scroll;
+            draw_area.h = scroll;
+        } else if (scroll < 0) { // Contents moved down, top is damaged.
+            draw_area.h = -scroll;
+        }
+    } else if (damage() == OverlayRuler::DAMAGE_RANGE) {
         // DEBUG("INTERSECT: " << SHOW_RANGE(draw_area) << " with "
         //     << SHOW_RANGE(damaged_area) << " = "
         //     << SHOW_RANGE(draw_area.intersect(this->damaged_area)));
         draw_area = draw_area.intersect(this->damaged_area);
+    } else {
+        // Redraw everything.
     }
     // Prevent marks at the top and bottom from drawing outside the ruler.
     ClipArea clip_area(draw_area);
+    // DEBUG("RULER DAMAGE " << show_damage(damage())
+    //         << " clip: " << clip_rect(rect(this)));
 
-    // DEBUG("draw group");
     Fl_Group::draw();
-    // DEBUG("draw marklists");
     this->draw_marklists();
-    // DEBUG("draw selections " << this);
     this->draw_selections();
-    // DEBUG("done");
     this->damaged_area.w = this->damaged_area.h = 0;
-    this->shift = 0;
+    this->last_offset = this->zoom.offset;
 }
 
 

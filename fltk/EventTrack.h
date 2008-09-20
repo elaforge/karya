@@ -69,7 +69,7 @@ public:
     virtual void set_title(const char *title) {
         this->title_input->set_text(title);
     }
-    void set_zoom(const ZoomInfo &zoom);
+    void set_zoom(const ZoomInfo &new_zoom);
     virtual void set_selection(int selnum, int tracknum, const Selection &sel) {
         overlay_ruler.set_selection(selnum, tracknum, sel);
     }
@@ -88,6 +88,9 @@ private:
 
     EventTrackConfig config;
     ZoomInfo zoom;
+    // Remember how much I've scrolled, to do fl_scroll() optimization.
+    TrackPos last_offset;
+
     SeqInput *title_input;
     Fl_Box bg_box;
     OverlayRuler overlay_ruler;

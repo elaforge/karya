@@ -85,12 +85,15 @@ public:
     OverlayRuler(const RulerConfig &config) :
         Fl_Group(0, 0, 1, 1), config(config)
     {}
-    void set_zoom(const ZoomInfo &zoom);
+    void set_zoom(const ZoomInfo &new_zoom);
     void set_selection(int selnum, int tracknum, const Selection &sel);
     TrackPos time_end() const;
     void set_config(const RulerConfig &config, FinalizeCallback finalizer,
             TrackPos start, TrackPos end);
     void finalize_callbacks(FinalizeCallback finalizer);
+    // Mark a segment of the track as needing to be redrawn.
+    // Only public so that EventTrack::draw can call it.
+    void damage_range(TrackPos start, TrackPos end);
 
     enum { DAMAGE_RANGE = FL_DAMAGE_USER1 };
     // This area needs to be redrawn.
@@ -101,14 +104,13 @@ protected:
     void draw();
 
 private:
-    void damage_range(TrackPos start, TrackPos end);
     void draw_marklists();
     void draw_mark(int offset, const Mark &mark);
     void draw_selections();
     TrackSelection selections[Config::max_selections];
 
-    // Widget should be shifted by this many pixels timewise.  For scrolling.
-    int shift;
+    // Remember how much I've scrolled, to do fl_scroll() optimization.
+    TrackPos last_offset;
     ZoomInfo zoom;
 };
 

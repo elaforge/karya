@@ -48,7 +48,7 @@ void m44_set()
     Color major = Color(116, 70, 0, 90);
     Color minor = Color(225, 100, 50, 90);
 
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 200; i++) {
         TrackPos t = TrackPos(i*8);
         if (i % 4 == 0) {
             sprintf(name, "%d", i / 4);
@@ -60,7 +60,7 @@ void m44_set()
             mlist.push_back(std::make_pair(t, m));
         }
     }
-    m44_last_pos = TrackPos(99 * 8);
+    m44_last_pos = TrackPos(199 * 8);
 }
 
 int
@@ -112,6 +112,7 @@ void t1_set()
     Color eventc = Color(200, 200, 170);
     TextStyle style;
 
+    /*
     e.push_back(std::make_pair(TrackPos(0),
         Event("4c#@$", TrackPos(16), eventc, style)));
     e.push_back(std::make_pair(TrackPos(32),
@@ -130,6 +131,13 @@ void t1_set()
     s.push_back(std::make_pair(TrackPos(32), .5));
     s.push_back(std::make_pair(TrackPos(32), 1));
     s.push_back(std::make_pair(TrackPos(64), 0));
+    */
+    for (int i = 0; i < 100; i++) {
+        char buf[32];
+        sprintf(buf, "e%d", i);
+        e.push_back(std::make_pair(TrackPos(i*8),
+                Event(strdup(buf), TrackPos(8), eventc, style)));
+    }
 }
 
 int
@@ -163,6 +171,13 @@ t1_find_events(TrackPos *start_pos, TrackPos *end_pos,
 }
 
 int
+t1_no_events(TrackPos *start_pos, TrackPos *end_pos,
+        TrackPos **ret_tps, Event **ret_events)
+{
+    return 0;
+}
+
+int
 t1_find_samples(TrackPos *start_pos, TrackPos *end_pos,
         TrackPos **ret_tps, double **ret_samples)
 {
@@ -179,6 +194,8 @@ t1_find_samples(TrackPos *start_pos, TrackPos *end_pos,
             break;
         count++;
     }
+    if (start + count < a.size())
+        count++; // should get until one sample after the cutoff
 
     *ret_tps = (TrackPos *) calloc(count, sizeof(TrackPos));
     *ret_samples = (double *) calloc(count, sizeof(double));
@@ -197,7 +214,15 @@ void
 timeout_func(void *vp)
 {
     BlockViewWindow &view = *((BlockViewWindow *) vp);
+    // view.block.set_zoom(ZoomInfo(TrackPos(64), 1));
     static int n;
+    double scroll_dist = 2.53165;
+
+    if (n > 3)
+        return;
+    view.block.set_zoom(ZoomInfo(TrackPos(scroll_dist * n), 1));
+
+    /*
     std::cout << "------------\n";
     switch (n) {
     case 0:
@@ -219,8 +244,9 @@ timeout_func(void *vp)
     default:
         return;
     }
+    */
     n++;
-    Fl::repeat_timeout(1, timeout_func, vp);
+    Fl::repeat_timeout(.2, timeout_func, vp);
 }
 
 int
@@ -252,12 +278,14 @@ main(int argc, char **argv)
     RenderConfig render_config(RenderConfig::render_filled,
         t1_find_samples, render_color);
 
+    EventTrackConfig empty_track(track_bg, t1_no_events, t1_time_end,
+            render_config);
     EventTrackConfig track1(track_bg, t1_find_events, t1_time_end,
         render_config);
     EventTrackConfig track2(track_bg, t1_find_events, t1_time_end,
         render_config);
 
-    BlockViewWindow view(300, 250, 200, 200, "view1", config, view_config);
+    BlockViewWindow view(100, 100, 200, 500, "view1", config, view_config);
     // view.border(0);
 
     view.testing = true;
@@ -266,13 +294,14 @@ main(int argc, char **argv)
 
     view.block.insert_track(0, Tracklike(&ruler), 20);
     // view.block.insert_track(1, Tracklike(&divider), 10);
-    view.block.insert_track(1, Tracklike(&ruler), 30);
-    view.block.insert_track(2, Tracklike(&track1, &truler), 30);
-    view.block.insert_track(3, Tracklike(&track2, &truler), 30);
+    // view.block.insert_track(1, Tracklike(&ruler), 30);
+    view.block.insert_track(1, Tracklike(&track1, &truler), 30);
+    // view.block.insert_track(3, Tracklike(&track2, &truler), 30);
+    // view.block.insert_track(4, Tracklike(&empty_track, &truler), 120);
 
-    print_children(&view);
+    // print_children(&view);
 
-    // Fl::add_timeout(1, timeout_func, (void*) &view);
+    Fl::add_timeout(1, timeout_func, (void*) &view);
 
     // view_config.block_title_height = 40;
     // view_config.track_title_height = 40;

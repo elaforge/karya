@@ -24,6 +24,12 @@ struct PointTmpl {
         return o.x == x && o.y == y;
     }
     bool operator!=(const PointTmpl<T> &o) const { return !(*this == o); }
+    PointTmpl<T> operator+(const PointTmpl<T> &o) const {
+        return PointTmpl<T>(x + o.x, y + o.y);
+    }
+    PointTmpl<T> operator-(const PointTmpl<T> &o) const {
+        return PointTmpl<T>(x - o.x, y - o.y);
+    }
     double dist(const PointTmpl<T> &o) const {
         return sqrt(pow(x - o.x, 2) + pow(y - o.y, 2));
     }
