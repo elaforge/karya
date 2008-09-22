@@ -192,8 +192,9 @@ edit_bindings = concat
     , bind_kmod [Key.ShiftL, Key.MetaL] Key.Escape "toggle kbd entry mode"
         Edit.cmd_toggle_kbd_entry
 
-    , command Key.Backspace "remove event"
-        (Edit.cmd_remove_selected >> Selection.cmd_advance_insert)
+    -- Unlike other event editing commands, you don't have to be in insert mode
+    -- to remove events.  Maybe I'll change that later.
+    , command Key.Backspace "remove event" Edit.cmd_remove_selected
 
     , command (Key.KeyChar 'u') "undo" (done Edit.undo)
     , command (Key.KeyChar 'r') "redo" (done Edit.redo)

@@ -10,6 +10,7 @@ import qualified Language.Haskell.Interpreter.GHC as GHC
 import System.FilePath ((</>))
 import qualified Network
 import qualified System.Environment
+import qualified System.IO as IO
 
 import qualified Util.Data
 import qualified Util.Log as Log
@@ -102,6 +103,8 @@ initialize f = do
 -- defined in Local.hs.
 main :: IO ()
 main = initialize $ \lang_socket midi_chan -> do
+    -- Handy to filter debugging output.
+    IO.hSetBuffering IO.stdout IO.LineBuffering
     Log.notice "app starting"
     putStrLn "starting"
     static_config <- load_static_config

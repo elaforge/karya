@@ -216,7 +216,9 @@ modify_note f = do
     tokens <- either (Cmd.throw . ("tokenizing note: "++)) return $
         Note.tokenize_note (Event.event_text event)
     let new_text = Note.untokenize_note (f tokens)
-    State.insert_events track_id [(pos, event { Event.event_text = new_text })]
+    if null new_text then State.remove_event track_id pos
+        else State.insert_events track_id
+            [(pos, event { Event.event_text = new_text })]
 
 -- * midi thru
 

@@ -6,7 +6,7 @@ bugs
   - plain numbers to set step is error prone in kbd mode
   - parse errors don't give position
   - paste deletes events before the paste area
-  - it's easy to create empty events which then give parse errors.  There's
+  * it's easy to create empty events which then give parse errors.  There's
     a conflict between delete and move and remove letter.  So don't move.
 
 performance

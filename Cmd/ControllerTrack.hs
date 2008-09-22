@@ -28,7 +28,9 @@ cmd_raw_edit msg = do
         Cmd.abort -- pass the backspace on to the remove event command
     let event2 = event
             { Event.event_text = modify_text (Event.event_text event) key }
-    State.insert_events track_id [(pos, event2)]
+    if null (Event.event_text event2)
+        then State.remove_event track_id pos
+        else State.insert_events track_id [(pos, event2)]
     return Cmd.Done
 
 
