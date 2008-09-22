@@ -21,7 +21,7 @@ def main():
     hs_files = [fn for fn in hs_files if fn+'c' not in hsc_files]
     fns = [fn[2:] for fn in hs_files + hsc_files]
     fns.sort()
-    fns = filter(lambda fn: not is_main(fn), fns)
+    fns = filter(lambda fn: fn != 'Data/Map.hs' and not is_main(fn), fns)
     print ' '.join(fns)
 
 def capword(s):

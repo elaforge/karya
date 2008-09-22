@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/zsh
 # based on a script michael sweet posted to the fltk mailing list
 
 if test $# != 1; then
@@ -6,31 +6,35 @@ if test $# != 1; then
     exit 1
 fi
 
-path="$1"
-name=$(basename "$path")
+binpath="$1"
+name=$(basename "$binpath")
 id=elaforge.seq.$(echo "$name" | tr ' ' _)
-bindir="$path.app/Contents/MacOS"
+bindir="$binpath.app/Contents/MacOS"
+
+if [[ $name = seq ]]; then
+    extra_args=(+RTS -N2 -RTS)
+fi
 
 # Make a shell script that runs the bundled executable
-cat >"$path.run" <<EOF
+cat >"$binpath.run" <<EOF
 #!/bin/sh
 dir=\$(dirname "\$0")
-exec "\$dir/$name.app/Contents/MacOS/$name" "\$@"
+exec "\$dir/$name.app/Contents/MacOS/$name" $extra_args "\$@"
 EOF
-chmod +x "$path.run"
+chmod +x "$binpath.run"
 
 # Make sure the script is idempotent since make likes to run it due to .PHONY.
-if cmp --silent "$path.run" "$path"; then
-    rm "$path.run"
+if cmp --silent "$binpath.run" "$binpath"; then
+    rm "$binpath.run"
 else
     rm -rf "$bindir"
     mkdir -p "$bindir"
-    mv "$path" "$bindir"
-    mv "$path.run" "$path"
+    mv "$binpath" "$bindir"
+    mv "$binpath.run" "$binpath"
 fi
 
 # Make the simplest Info.plist needed for an application
-cat >"$path.app/Contents/Info.plist" <<EOF
+cat >"$binpath.app/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <plist version="0.9">
     <dict>
