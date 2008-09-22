@@ -626,7 +626,7 @@ create_track id track = get >>= insert (Track.TrackId id) track state_tracks
 destroy_track :: (UiStateMonad m) => Track.TrackId -> m ()
 destroy_track track_id = do
     blocks <- blocks_with_track track_id
-    forM_ blocks $ \(block_id, tracknum, _) -> do
+    forM_ blocks $ \(block_id, tracks) -> forM_ tracks $ \(tracknum, _) -> do
         remove_track block_id tracknum
     modify $ \st -> st { state_tracks = Map.delete track_id (state_tracks st) }
 
@@ -763,8 +763,12 @@ create_ruler id ruler = get >>= insert (Ruler.RulerId id) ruler state_rulers
 destroy_ruler :: (UiStateMonad m) => Ruler.RulerId -> m ()
 destroy_ruler ruler_id = when (ruler_id /= no_ruler) $ do
     blocks <- blocks_with_ruler ruler_id
-    forM_ blocks $ \(block_id, tracknum, _) -> do
-        remove_track block_id tracknum
+    forM_ blocks $ \(block_id, tracks) -> do
+        let tracknums = map fst tracks
+            setr i = if i `elem` tracknums then Block.set_rid no_ruler else id
+            deruler (i, (tid, width)) = (setr i tid, width)
+        modify_block block_id $ \block -> block { Block.block_track_widths =
+            map deruler (Seq.enumerate (Block.block_track_widths block)) }
     modify $ \st -> st { state_rulers = Map.delete ruler_id (state_rulers st) }
 
 insert_marklist :: (UiStateMonad m) =>
@@ -803,27 +807,26 @@ get_tracks_of block_id = do
 -- | Find @track_id@ in all the blocks it exists in, and return the track info
 -- for each tracknum at which @track_id@ lives.
 blocks_with_track :: (UiStateMonad m) =>
-    Track.TrackId -> m [(Block.BlockId, Block.TrackNum, Block.TracklikeId)]
+    Track.TrackId -> m [(Block.BlockId, [(Block.TrackNum, Block.TracklikeId)])]
 blocks_with_track track_id =
     find_tracks ((== Just track_id) . Block.track_id_of)
 
 -- | Just like 'blocks_with_track' except for ruler_id.
 blocks_with_ruler :: (UiStateMonad m) =>
-    Ruler.RulerId -> m [(Block.BlockId, Block.TrackNum, Block.TracklikeId)]
+    Ruler.RulerId -> m [(Block.BlockId, [(Block.TrackNum, Block.TracklikeId)])]
 blocks_with_ruler ruler_id =
     find_tracks ((== Just ruler_id) . Block.ruler_id_of)
 
 find_tracks :: (UiStateMonad m) => (Block.TracklikeId -> Bool)
-    -> m [(Block.BlockId, Block.TrackNum, Block.TracklikeId)]
+    -> m [(Block.BlockId, [(Block.TrackNum, Block.TracklikeId)])]
 find_tracks f = do
     st <- get
-    return
-        [ (block_id, tracknum, tracklike_id)
-        | (block_id, block) <- Map.assocs (state_blocks st)
-        , (tracknum, tracklike_id) <- all_tracks block
-        , f tracklike_id
-        ]
-    where all_tracks block = Seq.enumerate (Block.block_tracks block)
+    let all_tracks block = Seq.enumerate (Block.block_tracks block)
+    let get_tracks block = [(tracknum, tracklike_id)
+            | (tracknum, tracklike_id) <- all_tracks block
+            , f tracklike_id]
+    return [(block_id, get_tracks block)
+        | (block_id, block) <- Map.assocs (state_blocks st)]
 
 -- * util
 

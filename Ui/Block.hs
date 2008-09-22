@@ -97,6 +97,10 @@ ruler_id_of _ = Nothing
 
 ruler_ids_of = Maybe.catMaybes . map ruler_id_of
 
+set_rid rid (TId tid _) = TId tid rid
+set_rid rid (RId _) = RId rid
+set_rid _ t = t
+
 data Tracklike =
     T Track.Track Ruler.Ruler
     | R Ruler.Ruler

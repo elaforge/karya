@@ -288,11 +288,7 @@ replace_ruler ruler_id block_id = do
     where
     map_head_tail _ _ [] = []
     map_head_tail f g (x:xs) = f x : map g xs
-    set_r ruler_id (tid, width) = (set_rid ruler_id tid, width)
-
-set_rid rid (Block.TId tid _) = Block.TId tid rid
-set_rid rid (Block.RId _) = Block.RId rid
-set_rid _ t = t
+    set_r ruler_id (tid, width) = (Block.set_rid ruler_id tid, width)
 
 -- * show / modify keymap
 

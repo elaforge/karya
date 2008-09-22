@@ -147,7 +147,7 @@ updated_blocks :: (State.UiStateMonad m) => [Update.Update] -> m [Block.BlockId]
 updated_blocks updates = do
     let track_ids = Maybe.catMaybes (map Update.events_changed updates)
     block_info <- mapM State.blocks_with_track track_ids
-    return $ map (\(block_ids, _, _) -> block_ids) (concat block_info)
+    return $ map fst (concat block_info)
 
 evaluate_performance :: Block.BlockId -> Cmd.Performance -> IO ()
 evaluate_performance block_id perf = do

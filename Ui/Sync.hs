@@ -171,7 +171,9 @@ run_update block_samples (Update.BlockUpdate block_id update) = do
 
 run_update block_samples (Update.TrackUpdate track_id update) = do
     blocks <- State.blocks_with_track track_id
-    fmap sequence_ $ forM blocks $ \(block_id, tracknum, tracklike_id) -> do
+    let track_info = [(block_id, tracknum, tid)
+            | (block_id, tracks) <- blocks, (tracknum, tid) <- tracks]
+    fmap sequence_ $ forM track_info $ \(block_id, tracknum, tracklike_id) -> do
         view_ids <- fmap Map.keys (State.get_views_of block_id)
         tracklike <- State.get_tracklike tracklike_id
         let maybe_track_samples = lookup block_id block_samples
@@ -195,7 +197,9 @@ run_update block_samples (Update.TrackUpdate track_id update) = do
 
 run_update _ (Update.RulerUpdate ruler_id) = do
     blocks <- State.blocks_with_ruler ruler_id
-    fmap sequence_ $ forM blocks $ \(block_id, tracknum, tracklike_id) -> do
+    let track_info = [(block_id, tracknum, tid)
+            | (block_id, tracks) <- blocks, (tracknum, tid) <- tracks]
+    fmap sequence_ $ forM track_info $ \(block_id, tracknum, tracklike_id) -> do
         view_ids <- fmap Map.keys (State.get_views_of block_id)
         tracklike <- State.get_tracklike tracklike_id
         -- A ruler track doesn't have samples so don't bother to look for them.
