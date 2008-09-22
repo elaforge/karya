@@ -47,10 +47,8 @@ parse :: (Monad m) => P.CharParser () a -> String -> Derive.DeriveT m a
 parse p text = do
     (val, rest) <- case P.parse (p_rest p) "" text of
         Left err -> Derive.throw $
-            "parse error on char "
-            ++ show (P.sourceColumn (P.errorPos err))
-            ++ " of " ++ show text ++ ": "
-            ++ Seq.replace "\n" " "
+            "parse error on char " ++ show (P.sourceColumn (P.errorPos err))
+            ++ " of " ++ show text ++ ": " ++ Seq.replace "\n" "; "
                 (show_error_msgs (Parsec.Error.errorMessages err))
         Right val -> return val
     unless (null rest) $

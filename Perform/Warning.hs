@@ -13,6 +13,7 @@ data Warning = Warning {
     -- range.  It's in global time, so it needs to be converted back to
     -- local time, and it's (start, end) rather than (start, dur).
     -- TODO: convert these back to TrackPos with the tempo map
+    -- TODO convert to (start, dur) for consistency.
     , warn_pos :: Maybe (TrackPos, TrackPos)
     } deriving (Eq, Show)
 warning = Warning
@@ -20,4 +21,6 @@ warning = Warning
 instance Error.Error Warning where
     strMsg msg = Warning msg [] Nothing
 
+-- | The location of an event that had a problem.
+-- (block_id, track_id, (event_start, event_dur))
 type StackPos = (Block.BlockId, Maybe Track.TrackId, Maybe (TrackPos, TrackPos))

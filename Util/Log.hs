@@ -30,7 +30,7 @@ module Util.Log (
     , LogMonad
     , LogT, write, run
     -- * serialization
-    , format_msg
+    , format_msg, show_stack
     , deserialize_msg
 ) where
 import Prelude hiding (error, log)
@@ -45,6 +45,7 @@ import qualified System.IO.Unsafe  as Unsafe
 import Text.Printf (printf)
 
 import qualified Util.Logger as Logger
+import qualified Util.Seq as Seq
 import qualified Util.SrcPos as SrcPos
 
 -- This import is a little iffy because Util shouldn't be importing from
@@ -154,15 +155,23 @@ instance LogMonad IO where
         MVar.withMVar global_state $ \(State mach_hdl human_hdl) -> do
             maybe_do (flip IO.hPutStrLn (serialize_msg msg')) mach_hdl
             maybe_do (flip IO.hPutStrLn (format_msg msg')) human_hdl
+
 -- TODO show the date, if any
 format_msg :: Msg -> String
 format_msg (Msg { msg_date = _date, msg_caller = srcpos, msg_prio = prio
         , msg_text = text, msg_stack = stack }) =
-    msg ++ maybe "" ((++" ") . show) stack
+    msg ++ maybe "" ((' ':) . show_stack) stack
     where
     prio_stars prio = replicate (fromEnum prio + 1) '*'
     msg = printf "%-4s %s- %s"
         (prio_stars prio) (SrcPos.show_srcpos srcpos) text
+
+show_stack :: [Warning.StackPos] -> String
+show_stack stack = "[[" ++ Seq.join " -> " (map f stack) ++ "]]"
+    where
+    f (block_id, track_id, pos) = show block_id
+        ++ "/" ++ maybe "*" show track_id
+        ++ "/" ++ maybe "*" show pos
 
 -- | Add a time to the msg if it doesn't already have one.  Msgs can be logged
 -- outside of IO, so they don't get a date until they are written.

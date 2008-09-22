@@ -4,7 +4,7 @@ bugs
   - when replacing rulers, the track widths are lost
   * destroy_ruler doesn't remove the ruler from its views
   - plain numbers to set step is error prone in kbd mode
-  - parse errors don't give position
+  * parse errors don't give position
   - paste deletes events before the paste area
   * it's easy to create empty events which then give parse errors.  There's
     a conflict between delete and move and remove letter.  So don't move.

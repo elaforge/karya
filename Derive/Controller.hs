@@ -52,14 +52,18 @@ d_controller cont signalm eventsm = do
 d_controller_track :: (Monad m) => Derive.TrackDeriver m
 d_controller_track track_id = do
     track <- Derive.get_track track_id
-    -- TODO set the stack per event.
     stack <- fmap Derive.state_stack Derive.get
     let (pos_list, events) = unzip $ Track.event_list (Track.track_events track)
     warped <- mapM Derive.local_to_global pos_list
     return $ map (uncurry (control_event stack)) (zip warped events)
 
 control_event stack pos event = Score.Event pos 0 (Event.event_text event)
-    Map.empty stack Nothing
+        Map.empty event_stack Nothing
+    where
+    event_stack = case stack of
+        (block_id, track_id, _) : rest ->
+            (block_id, track_id, Just (pos, Event.event_duration event)) : rest
+        [] -> []
 
 d_signal :: (Monad m) => [Score.Event] -> Derive.DeriveT m Signal.Signal
     -- TODO Should the srate be controllable?

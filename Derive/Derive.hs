@@ -143,15 +143,8 @@ make_warp sig = Warp sig (TrackPos 0) (TrackPos 1)
 data DeriveError = DeriveError [Warning.StackPos] String deriving (Eq)
 instance Error.Error DeriveError where
     strMsg = DeriveError []
-
 instance Show DeriveError where
-    show (DeriveError stack msg) = "at [" ++ show_stack stack ++ "]: " ++ msg
-
-show_stack stack = Seq.join " -> " (map f stack)
-    where
-    f (block_id, track_id, pos) = show block_id
-        ++ "/" ++ maybe "*" show track_id
-        ++ "/" ++ maybe "*" show pos
+    show (DeriveError stack msg) = "at " ++ Log.show_stack stack ++ ": " ++ msg
 
 error_message (DeriveError _ s) = s
 
@@ -225,7 +218,6 @@ make_inverse_tempo_func track_warps ts = do
     return (block_id, [(track_id, pos) | track_id <- track_ids])
     where
     pos = Timestamp.to_track_pos ts
-    -- TODO take shift/stretch into account?
     track_pos =
         [ (tw_block tw, tw_tracks tw, dewarp (tw_warp tw) ts)
         | tw <- track_warps, tw_start tw <= pos && pos < tw_end tw
@@ -239,11 +231,13 @@ modify f = (DeriveT . lift) (Monad.State.modify f)
 get :: (Monad m) => DeriveT m State
 get = (DeriveT . lift) Monad.State.get
 
+-- | So this is kind of confusing.  When events are created, they are assigned
+-- their stack based on the current event_stack, which is set by the
+-- with_stack_* functions.  Then, when they are processed, the stack is used
+-- to *set* event_stack, which is what 'warn' and 'throw' will look at.
 with_event :: (Monad m) => Score.Event -> DeriveT m a -> DeriveT m a
 with_event event op = do
     old <- fmap state_stack get
-    -- TODO this is broken, but will go away when I work controllers into the
-    -- new subderive thing
     modify $ \st -> st { state_stack = Score.event_stack event }
     v <- op
     modify $ \st -> st { state_stack = old }
@@ -311,8 +305,8 @@ with_stack_track track_id = modify_stack $ \(block_id, _, _) ->
 
 with_stack_pos :: (Monad m) => TrackPos -> TrackPos -> DeriveT m a
     -> DeriveT m a
-with_stack_pos p0 p1 = modify_stack $ \(block_id, track_id, _) ->
-    (block_id, track_id, Just (p0, p1))
+with_stack_pos start dur = modify_stack $ \(block_id, track_id, _) ->
+    (block_id, track_id, Just (start, dur))
 
 modify_stack f op = do
     old_stack <- fmap state_stack get
