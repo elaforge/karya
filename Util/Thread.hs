@@ -6,13 +6,18 @@ import qualified Control.Exception as Exception
 import qualified Util.Log as Log
 
 start_thread, start_os_thread :: String -> IO () -> IO Concurrent.ThreadId
-start_thread = do_start_thread Concurrent.forkIO
-start_os_thread = do_start_thread Concurrent.forkOS
+start_thread name op = Concurrent.forkIO (handle_thread name op)
+start_os_thread name op = Concurrent.forkOS (handle_thread name op)
 
-do_start_thread fork name th = fork $ Exception.bracket_
-    (Log.notice $ "thread start: " ++ name)
-    (Log.notice $ "thread exit: " ++ name)
-    th
+handle_thread :: String -> IO a -> IO ()
+handle_thread name op = do
+    thread_id <- Concurrent.myThreadId
+    let thread_name = show thread_id ++ " " ++ name ++ ": "
+    Log.notice $ thread_name ++ "started"
+    result <- Exception.try op
+    case result of
+        Right _ -> Log.notice $ thread_name ++ "completed"
+        Left err -> Log.warn $ thread_name ++ "died: " ++ show err
 
 -- | Isn't there a simpler way to do this?  All I really want to do is return
 -- when a shared value has changed, or it's timed out.

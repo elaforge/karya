@@ -4,6 +4,7 @@
 module Cmd.Cmd where
 
 import Control.Monad
+import qualified Control.Concurrent as Concurrent
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State as MonadState
@@ -155,6 +156,7 @@ require_msg msg = maybe (State.throw msg) return
 -- * State
 
 -- | App global state.  Unlike Ui.State, this is not saved to disk.
+-- TODO break this up into a couple sections
 data State = State {
     state_history :: ([HistoryEntry], [HistoryEntry])
     -- | Set to True to disable history recording.  Useful so undo and
@@ -170,12 +172,20 @@ data State = State {
     , state_keys_down :: Map.Map Modifier Modifier
     -- | Transport control channel for the player, if one is running.
     , state_play_control :: Maybe Transport.PlayControl
+    -- | As soon as any event changes are made to a block, its performance is
+    -- recalculated (in the background) and stored here, so play can be started
+    -- without latency.
+    , state_performance :: Map.Map Block.BlockId Performance
+    -- | IDs of background derivation threads, so they can be killed if
+    -- a new derivation is needed before they finish.
+    , state_derive_threads :: Map.Map Block.BlockId Concurrent.ThreadId
     -- | The block and track that have focus.  Commands that address
     -- a particular block or track will address these.
     , state_focused_view :: Maybe Block.ViewId
 
     -- | Copies by default go to a block+tracks with this project.
     , state_clip_namespace :: Id.Namespace
+    -- | Running midi state.
     , state_chan_map :: Instrument.ChannelMap
 
     -- Editing state
@@ -200,6 +210,8 @@ initial_state inst_db schema_map = State {
     , state_schema_map = schema_map
     , state_keys_down = Map.empty
     , state_play_control = Nothing
+    , state_performance = Map.empty
+    , state_derive_threads = Map.empty
     , state_focused_view = Nothing
     , state_clip_namespace = Config.clip_namespace
     , state_chan_map = Map.empty
@@ -214,6 +226,16 @@ initial_state inst_db schema_map = State {
 
 empty_state = initial_state Instrument.Db.empty Map.empty
 clear_history cmd_state = cmd_state { state_history = ([], []) }
+
+data Performance = Performance {
+    perf_msgs :: [Midi.WriteMessage]
+    , perf_logs :: [Log.Msg]
+    , perf_tempo :: Transport.TempoFunction
+    , perf_inv_tempo :: Transport.InverseTempoFunction
+    }
+instance Show Performance where
+    show perf = "<Performance: " ++ show (take 10 (perf_msgs perf))
+        ++ ", " ++ show (take 10 (perf_logs perf)) ++ ">"
 
 data HistoryEntry = HistoryEntry {
     hist_name :: String
@@ -243,7 +265,9 @@ mouse_mod_btn _ = Nothing
 get_state :: (Monad m) => CmdT m State
 get_state = (CmdT . lift) MonadState.get
 
--- | Modify Cmd 'State'.
+put_state :: (Monad m) => State -> CmdT m ()
+put_state st = (CmdT . lift) (MonadState.put st)
+
 modify_state :: (Monad m) => (State -> State) -> CmdT m ()
 modify_state f = (CmdT . lift) (MonadState.modify f)
 

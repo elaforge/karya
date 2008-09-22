@@ -32,11 +32,17 @@
     c++.
 -}
 module Cmd.ResponderSync where
-import qualified Control.Arrow as Arrow
 import Control.Monad
+import qualified Control.Arrow as Arrow
+import qualified Control.Concurrent as Concurrent
+import qualified Control.Monad.Trans as Trans
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 
+import qualified Util.Data
 import qualified Util.Log as Log
+import qualified Util.Seq as Seq
+import qualified Util.Thread as Thread
 
 import qualified Ui.Block as Block
 import qualified Ui.Track as Track
@@ -46,6 +52,7 @@ import qualified Ui.Sync as Sync
 import qualified Ui.Diff as Diff
 
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Play as Play
 
 import qualified Derive.Derive as Derive
 import qualified Derive.Schema as Schema
@@ -56,12 +63,13 @@ import qualified Perform.Signal as Signal
 -- | Sync @state2@ to the UI.
 -- Returns both UI state and cmd state since verification may clean up the UI
 -- state, and this is where the undo history is stored in Cmd.State.
-sync :: Cmd.State -> State.State -> State.State
-    -> [Update.Update] -> IO ([Update.Update], State.State)
-sync cmd_state ui_from ui_to cmd_updates = do
+sync :: State.State -> State.State -> Cmd.State
+    -> [Update.Update] -> IO ([Update.Update], State.State, Cmd.State)
+sync ui_from ui_to cmd_state cmd_updates = do
     -- I'd catch problems closer to their source if I did this from run_cmds,
     -- but it's nice to see that it's definitely happening before syncs.
     ui_to <- verify_state ui_to
+
     let (block_samples, sig_logs) = derive_signals
             (Cmd.state_schema_map cmd_state) ui_to
     -- Don't want to force block_samples because it computes a lot of stuff
@@ -81,7 +89,11 @@ sync cmd_state ui_from ui_to cmd_updates = do
                 Nothing -> return ()
                 Just err -> Log.error $ "syncing updates: " ++ show err
             return diff_updates
-    return (diff_updates ++ cmd_updates, ui_to)
+
+    let updates = diff_updates ++ cmd_updates
+    -- Kick off the background derivation threads.
+    cmd_state <- run_derive ui_to cmd_state updates
+    return (updates, ui_to, cmd_state)
 
 -- | This should be run before every sync, since if errors get to sync they'll
 -- result in bad UI display, a C++ exception, or maybe even a segfault (but C++
@@ -97,6 +109,57 @@ verify_state state = do
         Right state2 -> return state2
 
 
+-- * derive events
+
+run_derive :: State.State -> Cmd.State -> [Update.Update] -> IO Cmd.State
+run_derive ui_state cmd_state updates = do
+    (cmd_state, _, logs, result) <- Cmd.run_io
+        ui_state cmd_state (derive_events updates >> return Cmd.Done)
+    mapM_ Log.write logs
+    case result of
+        Left err -> Log.error $ "ui error deriving: " ++ show err
+        _ -> return ()
+    return cmd_state
+
+derive_events :: [Update.Update] -> Cmd.CmdT IO ()
+derive_events updates = do
+    old_threads <- fmap Cmd.state_derive_threads Cmd.get_state
+    block_ids <- fmap Seq.unique (updated_blocks updates)
+    -- In case they aren't done, their work is about to be obsolete.
+    Trans.liftIO $ mapM_ Concurrent.killThread $
+        Maybe.catMaybes (map (flip Map.lookup old_threads) block_ids)
+    threads <- mapM background_derive block_ids
+    let new_threads = Map.fromList (zip block_ids threads)
+    Cmd.modify_state $ \st -> st { Cmd.state_derive_threads =
+        Map.union new_threads (Util.Data.delete_keys block_ids old_threads) }
+
+background_derive :: Block.BlockId -> Cmd.CmdT IO Concurrent.ThreadId
+background_derive block_id = do
+    st <- Cmd.get_state
+    perf <- Play.perform
+        block_id (Cmd.state_instrument_db st) (Cmd.state_schema_map st)
+    Cmd.put_state $ st { Cmd.state_performance =
+        Map.insert block_id perf (Cmd.state_performance st) }
+    Trans.liftIO $ Thread.start_thread ("derive " ++ show block_id) $
+        evaluate_performance block_id perf
+
+updated_blocks :: (State.UiStateMonad m) => [Update.Update] -> m [Block.BlockId]
+updated_blocks updates = do
+    let track_ids = Maybe.catMaybes (map Update.events_changed updates)
+    block_info <- mapM State.blocks_with_track track_ids
+    return $ map (\(block_ids, _, _) -> block_ids) (concat block_info)
+
+evaluate_performance :: Block.BlockId -> Cmd.Performance -> IO ()
+evaluate_performance block_id perf = do
+    -- Force the performance to actually be evaluated.  Writing out the logs
+    -- should do it.
+    let prefix = "deriving " ++ show block_id ++ ": "
+    let logs = map (\log -> log { Log.msg_text = prefix ++ Log.msg_text log })
+            (Cmd.perf_logs perf)
+    mapM_ Log.write logs
+
+
+-- * derive signals
 
 derive_signals :: Schema.SchemaMap -> State.State
     -> (Sync.BlockSamples, [Log.Msg])

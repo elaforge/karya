@@ -64,6 +64,13 @@ is_view_update update = case update of
         _ -> False
     _ -> False
 
+events_changed :: Update -> Maybe Track.TrackId
+events_changed (TrackUpdate track_id update) = case update of
+    TrackEvents _ _ -> Just track_id
+    TrackAllEvents -> Just track_id
+    _ -> Nothing
+events_changed _ = Nothing
+
 -- | Some Updates have to happen before others.
 sort :: [Update] -> [Update]
 sort = List.sortBy (compare `on` sort_key)

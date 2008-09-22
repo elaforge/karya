@@ -92,6 +92,8 @@ import qualified Cmd.Selection as Selection
 import qualified Cmd.TimeStep as TimeStep
 import qualified Cmd.View as View
 
+import qualified Perform.Transport as Transport
+
 
 global_cmds :: [Cmd.Cmd]
 global_cmds =
@@ -101,18 +103,18 @@ global_cmds =
         ++ clip_bindings)
     ]
 
-cmd_io_keymap :: Play.PlayInfo -> Msg.Msg -> Cmd.CmdIO
-cmd_io_keymap play_info = Keymap.make_cmd (io_bindings play_info)
+cmd_io_keymap :: Transport.Info -> Msg.Msg -> Cmd.CmdIO
+cmd_io_keymap transport_info = Keymap.make_cmd (io_bindings transport_info)
 
-io_bindings :: Play.PlayInfo -> [Keymap.Binding IO]
-io_bindings play_info = concat
+io_bindings :: Transport.Info -> [Keymap.Binding IO]
+io_bindings transport_info = concat
     [ bind_kmod [Key.MetaL, Key.ShiftL] (Key.KeyChar 's') "save" cmd_save
     , bind_kmod [Key.MetaL, Key.ShiftL] (Key.KeyChar 'l') "load" cmd_load
 
     -- player
-    , bind_key Key.Enter "play block" (Play.cmd_play_focused play_info)
+    , bind_key Key.Enter "play block" (Play.cmd_play_focused transport_info)
     , bind_kmod [Key.ShiftL] Key.Enter "play from insert"
-        (Play.cmd_play_from_insert play_info)
+        (Play.cmd_play_from_insert transport_info)
     , bind_key (Key.KeyChar ' ') "stop play" Play.cmd_stop
     ]
 

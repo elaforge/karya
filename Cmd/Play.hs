@@ -88,6 +88,8 @@ import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
+import qualified Midi.Midi as Midi
+
 import Ui.Types
 import qualified Ui.Block as Block
 import qualified Ui.State as State
@@ -106,6 +108,7 @@ import qualified Derive.Schema as Schema
 
 import qualified Perform.Transport as Transport
 import qualified Perform.Timestamp as Timestamp
+import qualified Perform.Warning as Warning
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.Play as Midi.Play
@@ -114,12 +117,10 @@ import qualified Instrument.Db as Instrument.Db
 import qualified App.Config as Config
 
 
--- | Config info needed by the player from the responder.
-type PlayInfo = (Instrument.Db.Db, Transport.Info, Schema.SchemaMap)
-
 -- * cmds
 
-cmd_play_focused play_info = do
+cmd_play_focused :: Transport.Info -> Cmd.CmdT IO Cmd.Status
+cmd_play_focused transport_info = do
     view_id <- Cmd.get_focused_view
     block_id <- find_play_block view_id
 
@@ -127,41 +128,35 @@ cmd_play_focused play_info = do
     block <- State.get_block block_id
     track_id <- Cmd.require $
         Seq.at (Block.track_ids_of (Block.block_tracks block)) 0
+    cmd_play transport_info block_id (track_id, TrackPos 0)
 
-    cmd_play play_info block_id (track_id, TrackPos 0)
-
-cmd_play_from_insert play_info = do
+cmd_play_from_insert :: Transport.Info -> Cmd.CmdT IO Cmd.Status
+cmd_play_from_insert transport_info = do
     view_id <- Cmd.get_focused_view
     block_id <- find_play_block view_id
     (track_id, _, pos) <- Selection.get_insert_track
-    cmd_play play_info block_id (track_id, pos)
+    cmd_play transport_info block_id (track_id, pos)
 
-cmd_play :: PlayInfo -> Block.BlockId -> (Track.TrackId, TrackPos)
+cmd_play :: Transport.Info -> Block.BlockId -> (Track.TrackId, TrackPos)
     -> Cmd.CmdT IO Cmd.Status
-cmd_play play_info block_id (start_track, start_pos) = do
-    let (_, transport_info, schema_map) = play_info
+cmd_play transport_info block_id (start_track, start_pos) = do
     cmd_state <- Cmd.get_state
     case Cmd.state_play_control cmd_state of
         Just _ -> Cmd.throw "player already running"
         _ -> return ()
+    perf <- get_performance block_id
 
-    (derive_result, tempo_map, inv_tempo_map) <- derive schema_map block_id
-    events <- case derive_result of
-        -- TODO properly convert to log msg
-        Left derive_error -> Log.warn ("derive error: " ++ show derive_error)
-            >> Cmd.abort
-        Right events -> return events
-
-    start_ts <- case tempo_map block_id start_track start_pos of
+    start_ts <- case Cmd.perf_tempo perf block_id start_track start_pos of
         Nothing -> Cmd.throw $ "unknown play start pos: "
             ++ show start_track ++ ", " ++ show start_pos
         Just ts -> return ts
-    (play_ctl, updater_ctl) <- perform block_id play_info start_ts events
+    let msgs = seek_msgs start_ts (Cmd.perf_msgs perf)
+    (play_ctl, updater_ctl) <- Trans.liftIO $
+        Midi.Play.play transport_info block_id msgs
 
     ui_state <- State.get
-    Trans.liftIO $ Thread.start_thread "play position updater" $
-        updater_thread updater_ctl transport_info inv_tempo_map start_ts
-            ui_state
+    Trans.liftIO $ Thread.start_thread "play position updater" $ updater_thread
+        updater_ctl transport_info (Cmd.perf_inv_tempo perf) start_ts ui_state
 
     Cmd.modify_state $ \st -> st { Cmd.state_play_control = Just play_ctl }
     return Cmd.Done
@@ -196,6 +191,48 @@ cmd_transport_msg msg = do
 
 -- * implementation
 
+seek_msgs :: Timestamp.Timestamp -> [Midi.WriteMessage] -> [Midi.WriteMessage]
+seek_msgs start_ts midi_msgs = map (Midi.add_timestamp (-start_ts)) $
+    dropWhile ((<start_ts) . Midi.wmsg_ts) midi_msgs
+    -- TODO This would be inefficient starting in the middle of a big block,
+    -- but it's simple and maybe fast enough.  Otherwise, maybe I put the msgs
+    -- in an array and bsearch?  Or a list of chunks?
+
+get_performance :: (Monad m) => Block.BlockId -> Cmd.CmdT m Cmd.Performance
+get_performance block_id = do
+    by_block <- fmap Cmd.state_performance Cmd.get_state
+    maybe (State.throw $ "no performance for block " ++ show block_id) return
+        (Map.lookup block_id by_block)
+
+-- ** perform
+
+-- | Convert a block ID into MIDI msgs and log msgs.  The logs are not
+-- immediately written to preserve laziness on the returned MIDI msgs.
+-- This is actually called from ResponderSync, when it kicks off background
+-- derivation.  By the time 'cmd_play' pulls out the Performance, it should be
+-- at least partially evaluated.
+perform :: (Monad m) => Block.BlockId -> Instrument.Db.Db -> Schema.SchemaMap
+    -> Cmd.CmdT m Cmd.Performance
+perform block_id inst_db schema_map = do
+    (derive_result, tempo, inv_tempo) <- derive schema_map block_id
+    events <- case derive_result of
+        -- TODO properly convert to log msg
+        Left derive_error -> Log.warn ("derive error: " ++ show derive_error)
+            >> Cmd.abort
+        Right events -> return events
+
+    let lookup_inst = Instrument.Db.db_lookup_midi inst_db
+    let (midi_events, convert_warnings) = Convert.convert lookup_inst events
+
+    -- TODO call Convert.verify for more warnings
+    inst_config <- fmap State.state_midi_config State.get
+    chan_map <- fmap Cmd.state_chan_map Cmd.get_state
+    let (midi_msgs, perform_warnings) =
+            Perform.perform chan_map lookup_inst inst_config midi_events
+    let logs = map (warn_to_msg "event conversion") convert_warnings
+            ++ map (warn_to_msg "performance") perform_warnings
+    return $ Cmd.Performance midi_msgs logs tempo inv_tempo
+
 -- | Derive the contents of the given block to score events.
 derive :: (Monad m) => Schema.SchemaMap -> Block.BlockId -> Cmd.CmdT m
     (Either Derive.DeriveError [Score.Event], Transport.TempoFunction,
@@ -209,31 +246,17 @@ derive schema_map block_id = do
     mapM_ Log.write logs
     return (result, tempo_func, inv_tempo_func)
 
-perform :: Block.BlockId -> PlayInfo -> Timestamp.Timestamp -> [Score.Event]
-    -> Cmd.CmdT IO (Transport.PlayControl, Transport.UpdaterControl)
-perform block_id (inst_db, transport_info, _) start_ts events = do
-    let lookup_inst = Instrument.Db.db_lookup_midi inst_db
-    let (midi_events, convert_warnings) = Convert.convert
-            lookup_inst (seek_events (Timestamp.to_track_pos start_ts) events)
+-- | Convert a Warning into an appropriate log msg.
+-- TODO: The special formatting for the event_stack should let the log viewer
+-- know it can be clicked on and highlighted.
+warn_to_msg :: String -> Warning.Warning -> Log.Msg
+warn_to_msg context (Warning.Warning msg event_stack range) =
+    Log.msg Log.Warn $ context ++ ": " ++ msg
+        ++ " [" ++ show event_stack ++ "] "
+        ++ maybe "" (("pos: " ++) . show) range
 
-    -- TODO split events up by backend and dispatch to each backend
-    -- TODO properly convert to log msg
-    -- TODO I think this forces the list, I have to not warn so eagerly
-    -- or thread the warnings through 'perform'
-    -- TODO call Convert.verify for more warnings
-    mapM_ (Log.warn . show) convert_warnings
-    inst_config <- fmap State.state_midi_config State.get
-    chan_map <- fmap Cmd.state_chan_map Cmd.get_state
-    let (midi_msgs, perform_warnings) =
-            Perform.perform chan_map lookup_inst inst_config midi_events
-    mapM_ (Log.warn . show) perform_warnings
 
-    -- block_id is only used for log msgs.
-    Trans.liftIO $ Midi.Play.play transport_info block_id start_ts midi_msgs
-
-seek_events :: TrackPos -> [Score.Event] -> [Score.Event]
-seek_events pos events = dropWhile ((< pos) . Score.event_start) events
-
+-- ** updater
 
 -- | Run along the InverseTempoMap and update the play position selection.
 -- Note that this goes directly to the UI through Sync, bypassing the usual

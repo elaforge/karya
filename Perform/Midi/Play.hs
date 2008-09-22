@@ -19,20 +19,16 @@ import qualified Perform.Midi.Instrument as Instrument
 
 -- | Start a thread to stream a list of WriteMessages, and return
 -- a Transport.Control which can be used to stop and restart the player.
-play :: Transport.Info -> Block.BlockId -> Timestamp.Timestamp
-    -> [Midi.WriteMessage]
+play :: Transport.Info -> Block.BlockId -> [Midi.WriteMessage]
     -> IO (Transport.PlayControl, Transport.UpdaterControl)
-play transport_info block_id start_ts midi_msgs = do
+play transport_info block_id midi_msgs = do
     state <- Transport.state transport_info block_id
     let ts_offset = Transport.state_timestamp_offset state
-        ts_midi_msgs = map (add_ts (ts_offset - start_ts)) midi_msgs
+        -- Catch msgs up to realtime.
+        ts_midi_msgs = map (Midi.add_timestamp ts_offset) midi_msgs
     Thread.start_thread "render midi" (player_thread state ts_midi_msgs)
     return (Transport.state_play_control state,
         Transport.state_updater_control state)
-
--- Catch this event up to realtime.
-add_ts ts wmsg = wmsg { Midi.wmsg_ts = Midi.wmsg_ts wmsg + ts }
-
 
 player_thread :: Transport.State -> [Midi.WriteMessage] -> IO ()
 player_thread state midi_msgs = do
@@ -72,7 +68,6 @@ play_msgs state addrs_seen msgs = do
     let (chunk, rest) = span ((< (now + (write_ahead*2))) . Midi.wmsg_ts) msgs
     -- Log.debug $ "play at " ++ show now ++ " chunk: " ++ show (length chunk)
     mapM_ write_midi chunk
-    -- timer $ "wrote chunk: " ++ show (take 2 chunk)
     addrs_seen <- return (update_addrs addrs_seen chunk)
 
     let timeout = if null rest then write_ahead * 2 else write_ahead

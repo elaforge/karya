@@ -87,7 +87,7 @@ responder static_config get_msg write_midi abort_midi get_now_ts player_chan
 run_setup_cmd :: State.State -> Cmd.State -> Cmd.CmdIO
     -> IO (State.State, Cmd.State)
 run_setup_cmd ui_state cmd_state cmd = do
-    (cmd_state2, _, logs, result) <- Cmd.run_io ui_state cmd_state cmd
+    (cmd_state, _, logs, result) <- Cmd.run_io ui_state cmd_state cmd
     mapM_ Log.write logs
     (ui_to, updates) <- case result of
         Left err -> do
@@ -97,8 +97,9 @@ run_setup_cmd ui_state cmd_state cmd = do
             when (status /= Cmd.Done) $
                 Log.warn $ "setup_cmd returned not-Done status, did it abort?"
             return (ui_state, updates)
-    (_, ui_state) <- ResponderSync.sync cmd_state2 ui_state ui_to updates
-    return (ui_state, cmd_state2)
+    (_, ui_state, cmd_state) <-
+        ResponderSync.sync ui_state ui_to cmd_state updates
+    return (ui_state, cmd_state)
 
 respond_loop :: ResponderState -> IO ()
 respond_loop rstate = do
@@ -162,8 +163,8 @@ respond rstate = do
             return (Cmd.Continue, rstate)
         Right (status, ui_from, ui_to, cmd_state) -> do
             cmd_state <- return $ fix_cmd_state ui_to cmd_state
-            (updates, ui_state) <-
-                ResponderSync.sync cmd_state ui_from ui_to updates
+            (updates, ui_state, cmd_state) <-
+                ResponderSync.sync ui_from ui_to cmd_state updates
             cmd_state <- record_history updates ui_from cmd_state
             return (status,
                 rstate { state_ui = ui_state, state_cmd = cmd_state })
@@ -201,8 +202,6 @@ record_history updates old_state cmd_state = do
 -- It would also be nice to only undo within a selected area.
 should_record_history :: [Update.Update] -> Bool
 should_record_history = any (not . Update.is_view_update)
-
---
 
 run_responder :: ResponderM RType -> IO (RType, [Update.Update])
 run_responder = Logger.run . flip Cont.runContT return
@@ -243,13 +242,9 @@ run_core_cmds rstate msg exit = do
     let config = state_static_config rstate
     -- Certain commands require IO.  Rather than make everything IO,
     -- I hardcode them in a special list that gets run in IO.
-    let play_info =
-            ( StaticConfig.config_instrument_db config
-            , state_transport_info rstate
-            , StaticConfig.config_schema_map config
-            )
     let io_cmds = StaticConfig.config_global_cmds config
-            ++ hardcoded_io_cmds play_info (state_ghc_session rstate)
+            ++ hardcoded_io_cmds (state_transport_info rstate)
+                (state_ghc_session rstate)
                 (StaticConfig.config_local_lang_dirs config)
     (ui_to, cmd_state) <- do_run exit Cmd.run_io rstate msg ui_from
         ui_to cmd_state io_cmds
@@ -273,10 +268,10 @@ hardcoded_cmds =
     ]
 
 -- | And these special commands that run in IO.
-hardcoded_io_cmds play_info session lang_dirs =
+hardcoded_io_cmds transport_info session lang_dirs =
     [ Language.cmd_language session lang_dirs
     , Play.cmd_transport_msg
-    , GlobalKeymap.cmd_io_keymap play_info
+    , GlobalKeymap.cmd_io_keymap transport_info
     ]
 
 

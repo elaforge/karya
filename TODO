@@ -9,6 +9,10 @@ bugs
   - it's easy to create empty events which then give parse errors.  There's
     a conflict between delete and move and remove letter.  So don't move.
 
+performance
+  - random little hangs are annoying.  figure out what's going on.  GC?
+  * pause before playing.  printing logs make playing too strict?
+
 misc
   * rumor has it os x leopard wants .app bundles instead of Rez, so build those
 
@@ -18,6 +22,7 @@ fltk
   * optimize: implement scroll redraw optimization
   - convert Selection to use the same format as hs, so it can show the cursor
     end specially
+  - bug: selection redraw leaves gaps when dragging downwards
   - optimize: cache marks and events from callback
   - figure out how to have a minimal title bar in os x (win.border(0) removes
     it altogether)
@@ -63,7 +68,6 @@ Ui
 Cmd
   - cmd to give a view focus and bring it to the front
   - Cmd_test
-  - background derivation and caching
   - the cmds that return anything other than Done are rare, have a special case
     for them and make most cmds return ()
   Keymap
@@ -104,7 +108,7 @@ Cmd
     - warn about unallocated instruments (Convert.verify)
     - make sure the whole stack is lazy
     - play loops
-    - background derivation
+    * background derivation
     - start playing from top of displayed area
     - start playing from TimeStep before insert point
 
@@ -150,6 +154,7 @@ Derive
       transposed
     - alternate scales
 
+  - block derivation memoization / caching
   - keyswitch support in midi thru
   - set instrument within note track, controller within control track
   - separate instrument track, as a kind of controller track

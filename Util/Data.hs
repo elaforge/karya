@@ -13,6 +13,9 @@ import Data.Array.IArray ((!))
 get :: (Ord k) => a -> k -> Map.Map k a -> a
 get def k fm = Maybe.fromMaybe def (Map.lookup k fm)
 
+delete_keys :: (Ord k) => [k] -> Map.Map k a -> Map.Map k a
+delete_keys keys fm = Map.difference fm (Map.fromList [(k, ()) | k <- keys])
+
 -- | Like Map.split, except include a matched key in the above map.
 split_map :: (Ord k) => k -> Map.Map k a -> (Map.Map k a, Map.Map k a)
 split_map k fm = (pre, post')
