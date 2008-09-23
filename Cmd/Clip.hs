@@ -140,18 +140,18 @@ get_clip_block_id = do
     clip_ns <- get_clip_namespace
     return $ Block.BlockId (Id.id clip_ns Config.clip_block_name)
 
--- get_clip_block :: (Monad m) => Cmd.CmdT m (Maybe Block.Block)
--- get_clip_block = do
---     block_id <- get_clip_block_id
---     blocks <- fmap State.state_blocks State.get
---     return $ Map.lookup block_id blocks
-
 -- ** copy
 
 -- | Convert the area under the selection into its own State, consisting of
 -- no views, one block, and the tracks under the selection containing only the
 -- events in the selection.  The tracks are shifted to start at 1 and the
--- events shifted to start at 0.  The rulers are not copied.
+-- events shifted to start at 0.
+--
+-- The rulers are not copied because it doesn't really make sense to paste
+-- them, and when the events get shifted they probably won't line up anyway.
+-- TODO On the other hand, it can be convenient to edit the clipboard in-place,
+-- and it's nice to have a ruler for that.  But it's not too hard to just copy
+-- a ruler over, so I'll wait and see what experience shows.
 selection_sub_state :: (Monad m) => Block.Selection -> Cmd.CmdT m State.State
 selection_sub_state sel = do
     block_id <- Cmd.get_focused_block
@@ -168,23 +168,14 @@ selection_sub_state sel = do
         b <- State.create_block (Id.unpack_id clip_block_id) $
             block { Block.block_track_widths = [] }
 
-        let ruler_pairs = Seq.unique_with fst $ zip
-                (Block.ruler_ids_of tracklike_ids) (Block.rulers_of tracklikes)
-        forM_ ruler_pairs $ \(ruler_id, ruler) ->
-            unless (ruler_id == State.no_ruler) $ do
-                State.create_ruler (Id.unpack_id ruler_id) ruler
-                return ()
-
+        -- Copy over the tracks, but without their rulers.
         let track_pairs = Seq.unique_with fst $ zip
                 (Block.track_ids_of tracklike_ids) (Block.tracks_of tracklikes)
         forM_ track_pairs $ \(track_id, track) ->
             State.create_track (Id.unpack_id track_id) (events_in_sel sel track)
         forM_ (zip [1..] tracklike_id_widths) $ \(n, (tracklike_id, width)) ->
-            State.insert_track b n tracklike_id width
-
--- set_ruler_id rid (Block.TId tid _) = Block.TId tid rid
--- set_ruler_id rid (Block.RId _) = Block.RId rid
--- set_ruler_id _ t = t
+            State.insert_track b n
+                (Block.set_rid State.no_ruler tracklike_id) width
 
 events_in_sel sel track =
     track { Track.track_events =
@@ -192,13 +183,6 @@ events_in_sel sel track =
     where
     (start, end) = Block.sel_range sel
     events = Track.events_in_range start end (Track.track_events track)
-
--- map_tracklike f (Block.TId tid rid) = Block.TId
---     ((Track.TrackId . f . Track.un_track_id) tid)
---     ((Ruler.RulerId . f . Ruler.un_ruler_id) rid)
--- map_tracklike f (Block.RId rid) =
---     Block.RId ((Ruler.RulerId . f . Ruler.un_ruler_id) rid)
--- map_tracklike _ div@(Block.DId _) = div
 
 -- *** namespace
 
@@ -212,11 +196,9 @@ state_to_namespace state ns = do
         (State.merge_states global_st state')
     State.put merged
 
--- | Set all the IDs in the state to be in the given namespace.  Collisions
--- will throw.
---
--- This is smarter than a State.map_state_ids because it doesn't map the global
--- 'State.no_ruler'.
+-- | Set all the IDs in the state to be in the given namespace, except rulers.
+-- Collisions will throw.  Rulers are omitted because copy and paste doesn't
+-- mess with rulers.
 set_namespace :: (State.UiStateMonad m) => Id.Namespace -> State.State
     -> m State.State
 set_namespace ns state = do
@@ -227,8 +209,6 @@ set_namespace ns state = do
         State.map_view_ids set
         State.map_block_ids set
         State.map_track_ids set
-        -- (State.merge_states global_st state')
-        -- State.map_ruler_ids $ set_rid
 
 get_clip_namespace :: (Monad m) => Cmd.CmdT m Id.Namespace
 get_clip_namespace = fmap Cmd.state_clip_namespace Cmd.get_state

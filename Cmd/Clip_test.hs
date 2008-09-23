@@ -15,9 +15,6 @@ import qualified Cmd.Simple as Simple
 
 import qualified App.Config as Config
 
-import Util.PPrint
-import qualified Data.Maybe as Maybe
-
 
 run = TestSetup.run State.empty
 

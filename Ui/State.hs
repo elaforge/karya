@@ -701,6 +701,7 @@ type EventTransformer = [Track.PosEvent] -- previous events
     -> Track.PosEvent -- event in question
     -> [Track.PosEvent] -- produces these events
 
+{-
 -- | Map a function across events in track_id from the range start to end.
 -- If start doesn't fall on an event, this maps from the event /before/ the
 -- start.
@@ -711,6 +712,20 @@ modify_event_range :: (UiStateMonad m) => Track.TrackId
 modify_event_range track_id f start end = do
     modify_events track_id (map_events f start end)
     update $ Update.TrackUpdate track_id Update.TrackAllEvents
+
+map_events :: EventTransformer -> TrackPos -> TrackPos -> Track.TrackEvents
+    -> Track.TrackEvents
+map_events f start end track_events = process track_events
+    where
+    (pre, post) = Track.events_at_before start track_events
+    events = concat $ zipper_map f ((>=end) . fst) pre post
+    process = Track.insert_events events . Track.remove_events start end
+
+zipper_map _ _ _ [] = []
+zipper_map f stop prev (val:next)
+    | stop val = []
+    | otherwise = f prev next val : zipper_map f stop (val:prev) next
+-}
 
 -- | Emit track updates for all tracks.  Use this when events have changed but
 -- I don't know which ones, e.g. when loading a file or restoring a previous
@@ -734,19 +749,6 @@ modify_track track_id f = do
 modify_events track_id f = modify_track track_id $ \track ->
     track { Track.track_events = f (Track.track_events track) }
 
-map_events :: EventTransformer -> TrackPos -> TrackPos -> Track.TrackEvents
-    -> Track.TrackEvents
-map_events f start end track_events = process track_events
-    where
-    (pre, post) = Track.events_at_before start track_events
-    events = concat $ zipper_map f ((>=end) . fst) pre post
-    process = Track.insert_events events . Track.remove_events start end
-
-zipper_map _ _ _ [] = []
-zipper_map f stop prev (val:next)
-    | stop val = []
-    | otherwise = f prev next val : zipper_map f stop (val:prev) next
-
 -- * ruler
 
 get_ruler :: (UiStateMonad m) => Ruler.RulerId -> m Ruler.Ruler
@@ -756,8 +758,11 @@ lookup_ruler :: (UiStateMonad m) => Ruler.RulerId -> m (Maybe Ruler.Ruler)
 lookup_ruler ruler_id = get >>= return . Map.lookup ruler_id . state_rulers
 
 create_ruler :: (UiStateMonad m) => Id.Id -> Ruler.Ruler -> m Ruler.RulerId
-create_ruler id ruler = get >>= insert (Ruler.RulerId id) ruler state_rulers
-    (\rulers st -> st { state_rulers = rulers })
+create_ruler id ruler
+        -- no_ruler is global and assumed to always exist.
+    | id == Id.unpack_id no_ruler = return no_ruler
+    | otherwise = get >>= insert (Ruler.RulerId id) ruler state_rulers
+        (\rulers st -> st { state_rulers = rulers })
 
 -- | Destroy the ruler and remove it from all the blocks it's in.
 destroy_ruler :: (UiStateMonad m) => Ruler.RulerId -> m ()
