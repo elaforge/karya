@@ -1,9 +1,7 @@
-{-# OPTIONS_GHC -XDeriveDataTypeable #-}
 {- | Support for MIDI controllers.
 -}
 module Perform.Midi.Controller where
 import Control.Monad
-import qualified Data.Generics as Generics
 import qualified Data.Map as Map
 
 import qualified Midi.Midi as Midi
@@ -35,7 +33,7 @@ controller_map_names cmap = [name | Controller name <- Map.keys cmap]
 -- Score.Controller is converted along with Score.Events in
 -- Perform.Midi.Convert.
 newtype Controller = Controller String
-    deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
+    deriving (Eq, Ord, Show, Read)
 
 -- | Pitchbend range in tempered semitones below and above unity.  The second
 -- integer should be negative.

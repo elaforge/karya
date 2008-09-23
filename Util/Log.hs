@@ -38,8 +38,8 @@ import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Trans as Trans
+import qualified Data.Generics as Generics
 import qualified Data.Time as Time
-import qualified Data.Typeable as Typeable
 import qualified System.IO as IO
 import qualified System.IO.Unsafe  as Unsafe
 import Text.Printf (printf)
@@ -63,7 +63,7 @@ data Msg = Msg {
     , msg_stack :: Maybe Stack
     -- | Free form text for humans.
     , msg_text  :: String
-    } deriving (Eq, Show, Typeable.Typeable, Read)
+    } deriving (Eq, Show, Read, Generics.Typeable)
 
 -- | One handle for the machine readable log, and one for the human readable
 -- one.

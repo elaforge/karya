@@ -1,9 +1,7 @@
-{-# OPTIONS_GHC -XDeriveDataTypeable #-}
 {- | Description of a midi-specific instrument, as well as the runtime midi
     device and channel mapping.
 -}
 module Perform.Midi.Instrument where
-import qualified Data.Generics as Generics
 import qualified Data.Map as Map
 
 import qualified Midi.Midi as Midi
@@ -67,7 +65,7 @@ data Config = Config {
     -- when it cant't figure out what instrument is involved, or if the
     -- instrument has no allocation.
     , config_default_addr :: Maybe Addr
-    } deriving (Show, Read, Generics.Data, Generics.Typeable)
+    } deriving (Show, Read)
 config inst_addrs default_addr = Config (Map.fromList inst_addrs) default_addr
 
 -- | Midi instruments are addressed by a (device, channel) pair, allocated in
@@ -84,7 +82,7 @@ type ChannelMap = Map.Map Addr Instrument
 
 -- | Keyswitch name and key to activate it.
 data Keyswitch = Keyswitch String Midi.Key
-    deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
+    deriving (Eq, Ord, Show, Read)
 
 -- * instrument db types
 

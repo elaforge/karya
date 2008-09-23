@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -XDeriveDataTypeable #-}
 {- | The main attributes of an event are its duration and text.  The starting
     time is actually in the Track.
 
@@ -26,7 +25,6 @@
 
 module Ui.Event where
 import qualified Data.Array.IArray as IArray
-import qualified Data.Generics as Generics
 import Foreign
 import Foreign.C
 
@@ -39,7 +37,7 @@ data Event = Event {
     event_text :: String
     , event_duration :: TrackPos
     , event_style :: StyleId
-    } deriving (Eq, Show, Read, Generics.Data, Generics.Typeable)
+    } deriving (Eq, Show, Read)
 event text dur = Event text (max (TrackPos 0) dur) default_style
 
 default_style :: StyleId
@@ -58,13 +56,13 @@ default_font = Font.TextStyle Font.Helvetica [] 9 Color.black
 -- | To save space, event styles are explicitly shared by storing them in
 -- a table.
 newtype StyleId = StyleId Word8
-    deriving (Eq, Show, Read, Generics.Data, Generics.Typeable)
+    deriving (Eq, Show, Read)
 
 data Style = Style {
     style_color :: Color
     , style_text :: Font.TextStyle
     , style_align_to_bottom :: Bool
-    } deriving (Eq, Show, Read, Generics.Data, Generics.Typeable)
+    } deriving (Eq, Show, Read)
 
 -- * storable
 

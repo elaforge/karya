@@ -11,10 +11,10 @@ import qualified Control.Monad.State as MonadState
 import qualified Control.Monad.Trans as Trans
 import Control.Monad.Trans (lift)
 import qualified Control.Monad.Writer as Writer
+import qualified Data.Generics as Generics
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
-import qualified Data.Typeable as Typeable
 import Text.Printf
 
 import qualified Util.Logger as Logger
@@ -93,7 +93,7 @@ run_id ui_state cmd_state cmd =
 
 -- | Quit is not exported, so that only 'cmd_quit' here has permission to
 -- return it.
-data Status = Done | Continue | Quit deriving (Eq, Show, Typeable.Typeable)
+data Status = Done | Continue | Quit deriving (Eq, Show, Generics.Typeable)
 
 -- * CmdT and operations
 
@@ -201,7 +201,7 @@ data State = State {
     -- octave instead of scale degree since scales may have different numbers
     -- of notes per octave.
     , state_kbd_entry_octave :: Int
-    } deriving (Show, Typeable.Typeable)
+    } deriving (Show, Generics.Typeable)
 
 initial_state inst_db schema_map = State {
     state_history = ([], [])
@@ -240,7 +240,7 @@ instance Show Performance where
 data HistoryEntry = HistoryEntry {
     hist_name :: String
     , hist_state :: State.State
-    } deriving (Show, Typeable.Typeable)
+    } deriving (Show, Generics.Typeable)
 
 -- | These enable various commands to edit event text.  What exactly val, call,
 -- and method mean are dependent on the deriver, but I expect the definitions

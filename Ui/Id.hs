@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -XDeriveDataTypeable #-}
 module Ui.Id (
     Ident(..)
 
@@ -18,7 +17,6 @@ module Ui.Id (
 import Prelude hiding (id)
 import Control.Monad
 import qualified Data.Char as Char
-import qualified Data.Generics as Generics
 
 import qualified Text.Read as Read
 import qualified Text.ParserCombinators.ReadPrec as ReadPrec
@@ -31,7 +29,7 @@ import qualified Text.ParserCombinators.ReadPrec as ReadPrec
 -- it's easier to put it here than make a whole new module.
 type Namespace = String
 newtype Id = Id (Namespace, String)
-    deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
+    deriving (Eq, Ord, Show, Read)
 un_id (Id ident) = ident
 
 -- | BlockIds, RulerIds, etc. are just wrappers around Ids.  Giving them a

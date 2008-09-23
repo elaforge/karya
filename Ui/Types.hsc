@@ -1,5 +1,4 @@
 {-# OPTIONS_GHC -XGeneralizedNewtypeDeriving #-}
-{-# OPTIONS_GHC -XDeriveDataTypeable #-}
 {- | The basic types that the interface modules use.
 
     Unlike the other modules, this is designed to be used with a non-qualified
@@ -9,7 +8,6 @@
 module Ui.Types (
     Color, TrackPos(..), track_pos, pretty_pos
 ) where
-import qualified Data.Generics as Generics
 import Foreign
 import Foreign.C
 import Text.Printf
@@ -24,8 +22,7 @@ import Ui.Color (Color)
 -- many units are in one second depends on the tempo.  TrackPos units
 -- can be negative, but blocks only display events at positive TrackPos.
 newtype TrackPos = TrackPos Double
-    deriving (Num, Enum, Real, Fractional, RealFrac, Eq, Ord, Show, Read,
-        Generics.Data, Generics.Typeable)
+    deriving (Num, Enum, Real, Fractional, RealFrac, Eq, Ord, Show, Read)
 
 track_pos :: (Real a) => a -> TrackPos
 track_pos n = TrackPos (realToFrac n)

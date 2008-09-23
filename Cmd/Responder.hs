@@ -156,6 +156,7 @@ type ResponderM a = Cont.ContT RType (Logger.LoggerT Update.Update IO) a
 respond :: ResponderState -> IO (Bool, ResponderState)
 respond rstate = do
     msg <- state_msg_reader rstate
+    -- Trans.liftIO $ putStrLn $ "msg: " ++ show msg
     (res, updates) <- run_responder (run_cmds rstate msg)
     (status, rstate) <- case res of
         Left err -> do

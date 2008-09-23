@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -XDeriveDataTypeable #-}
 {- | This has the basic data structures for the deriver level.
 
     The events here are generated from UI Events, and will eventually be
@@ -6,7 +5,6 @@
     backend.
 -}
 module Derive.Score where
-import qualified Data.Generics as Generics
 import qualified Data.Map as Map
 
 import Ui.Types
@@ -47,7 +45,7 @@ type ControllerMap = Map.Map Controller Signal.Signal
 -- backend itself, but things at the Derive layer and above don't care about
 -- all that.
 data Instrument = Instrument String
-    deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
+    deriving (Eq, Ord, Show, Read)
 inst_name (Instrument s) = s
 
 newtype Controller = Controller String deriving (Eq, Ord, Show)

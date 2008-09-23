@@ -1,8 +1,6 @@
-{-# OPTIONS_GHC -XDeriveDataTypeable #-}
 {-# OPTIONS_GHC -XPatternGuards #-}
 module Ui.Track where
 import qualified Data.Array.IArray as IArray
-import qualified Data.Generics as Generics
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Text.Read as Read
@@ -16,7 +14,7 @@ import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 
 newtype TrackId = TrackId Id.Id
-    deriving (Eq, Ord, Generics.Data, Generics.Typeable)
+    deriving (Eq, Ord)
 
 instance Show TrackId where show = Id.show_ident
 instance Read TrackId where readPrec = Id.read_ident undefined
@@ -32,7 +30,7 @@ data Track = Track {
     , track_events :: TrackEvents
     , track_bg :: Color
     , track_render :: RenderConfig
-    } deriving (Show, Read, Generics.Data, Generics.Typeable)
+    } deriving (Show, Read)
 
 -- | Construct an empty Track.
 track :: String -> [PosEvent] -> Color -> RenderConfig -> Track
@@ -44,10 +42,10 @@ track title events bg render =
 data RenderConfig = RenderConfig {
     render_style :: RenderStyle
     , render_color :: Color.Color
-    } deriving (Eq, Show, Read, Generics.Data, Generics.Typeable)
+    } deriving (Eq, Show, Read)
 
 data RenderStyle = NoRender | Line | Filled
-    deriving (Eq, Show, Read, Generics.Data, Generics.Typeable)
+    deriving (Eq, Show, Read)
 
 type TrackSamples = [(TrackId, Samples)]
 newtype Samples = Samples (IArray.Array Int (TrackPos, Double))
@@ -101,7 +99,7 @@ time_end events = maybe (TrackPos 0) event_end (last_event events)
 -}
 newtype TrackEvents =
     TrackEvents (Map.Map TrackPos Event.Event)
-    deriving (Show, Read, Generics.Data, Generics.Typeable)
+    deriving (Show, Read)
     -- alternate efficient version for controller tracks?
     -- ControllerTrack (Array (TrackPos, Double))
 

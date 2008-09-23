@@ -1,8 +1,6 @@
-{-# OPTIONS_GHC -XDeriveDataTypeable #-}
 module Ui.Font (
     TextStyle(..), Font(..), FontFace(..)
 ) where
-import qualified Data.Generics as Generics
 import qualified Data.List as List
 import qualified Ui.Color as Color
 import Foreign
@@ -18,12 +16,12 @@ data TextStyle = TextStyle {
     , style_face :: [FontFace]
     , style_size :: Int
     , style_color :: Color.Color
-    } deriving (Eq, Show, Read, Generics.Data, Generics.Typeable)
+    } deriving (Eq, Show, Read)
 
 data Font = Helvetica | Times | Courier
-    deriving (Eq, Show, Read, Generics.Data, Generics.Typeable)
+    deriving (Eq, Show, Read)
 data FontFace = Bold | Italic
-    deriving (Eq, Show, Read, Generics.Data, Generics.Typeable)
+    deriving (Eq, Show, Read)
 
 instance Storable TextStyle where
     sizeOf _ = #size TextStyle

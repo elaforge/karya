@@ -1,8 +1,6 @@
-{-# OPTIONS_GHC -XDeriveDataTypeable #-}
 module Ui.Ruler where
 import qualified Data.Array.IArray as IArray
 import Data.Array.IArray ((!))
-import qualified Data.Generics as Generics
 import qualified Text.Read as Read
 
 import Util.Pretty
@@ -24,11 +22,11 @@ data Ruler = Ruler {
     , ruler_show_names :: Bool
     , ruler_use_alpha :: Bool
     , ruler_full_width :: Bool
-    } deriving (Eq, Show, Read, Generics.Data, Generics.Typeable)
+    } deriving (Eq, Show, Read)
 ruler = Ruler
 
 newtype RulerId = RulerId Id.Id
-    deriving (Eq, Ord, Generics.Data, Generics.Typeable)
+    deriving (Eq, Ord)
 
 instance Show RulerId where show = Id.show_ident
 instance Read RulerId where readPrec = Id.read_ident undefined
@@ -56,7 +54,7 @@ clip pos = map_marklists (clip_marklist pos)
 -- * marklist
 
 data Marklist = Marklist (IArray.Array Int PosMark)
-    deriving (Eq, Show, Read, Generics.Data, Generics.Typeable)
+    deriving (Eq, Show, Read)
 -- If I used a Map here instead of an Array I could reuse functions from
 -- EventList.  On the other hand, there aren't that many to reuse and arrays
 -- are compact, so I'll let it be.
@@ -92,7 +90,7 @@ data Mark = Mark {
     , mark_name :: String
     , mark_name_zoom_level :: Double
     , mark_zoom_level :: Double
-    } deriving (Eq, Show, Read, Generics.Data, Generics.Typeable)
+    } deriving (Eq, Show, Read)
 null_mark = Mark 0 0 Color.black "" 0 0
 
 instance Pretty Mark where

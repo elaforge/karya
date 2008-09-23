@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -XDeriveDataTypeable #-}
 module Ui.Update where
-import qualified Data.Typeable as Typeable
+import qualified Data.Generics as Generics
 import Data.Function
 import qualified Data.List as List
 
@@ -18,7 +18,7 @@ data Update
     -- | Since I expect rulers to be changed infrequently, the only kind of
     -- ruler update is a full update.
     | RulerUpdate Ruler.RulerId
-    deriving (Show, Typeable.Typeable)
+    deriving (Show, Generics.Typeable)
 
 data ViewUpdate =
     CreateView

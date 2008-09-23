@@ -1,11 +1,9 @@
-{-# OPTIONS_GHC -XDeriveDataTypeable #-}
 {-# OPTIONS_GHC -XEmptyDataDecls #-}
 module Ui.Block where
 import Control.Monad
 import qualified Control.Concurrent.MVar as MVar
 import qualified Data.Maybe as Maybe
 import qualified Foreign
-import qualified Data.Generics as Generics
 import qualified Data.Map as Map
 import qualified Text.Read as Read
 
@@ -24,14 +22,14 @@ import qualified Ui.Ruler as Ruler
 -- Even though the constructor is exported, you should only create them
 -- through the 'State.StateT' interface.
 newtype BlockId = BlockId Id.Id
-    deriving (Eq, Ord, Generics.Data, Generics.Typeable)
+    deriving (Eq, Ord)
 -- | Reference to a View, as per 'BlockId'.
 newtype ViewId = ViewId Id.Id
-    deriving (Eq, Ord, Generics.Data, Generics.Typeable)
+    deriving (Eq, Ord)
 -- | Reference to a schema.  Declared here instead of Deriver.Schema to avoid
 -- a circular import.
 newtype SchemaId = SchemaId Id.Id
-    deriving (Eq, Ord, Generics.Data, Generics.Typeable)
+    deriving (Eq, Ord)
 
 instance Show BlockId where show = Id.show_ident
 instance Show ViewId where show = Id.show_ident
@@ -62,7 +60,7 @@ data Block = Block {
     -- The Widths here are the default if a new View is created from this Block.
     , block_track_widths :: [(TracklikeId, Width)]
     , block_schema :: SchemaId
-    } deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
+    } deriving (Eq, Ord, Show, Read)
 
 block_tracks :: Block -> [TracklikeId]
 block_tracks = map fst . block_track_widths
@@ -75,14 +73,14 @@ data Config = Config {
     , config_bg_color :: Color
     , config_track_box :: (Color, Char)
     , config_sb_box :: (Color, Char)
-    } deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
+    } deriving (Eq, Ord, Show, Read)
 
 -- Tracks may have a Ruler overlay
 data TracklikeId =
     TId Track.TrackId Ruler.RulerId
     | RId Ruler.RulerId
     | DId Divider
-    deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
+    deriving (Eq, Ord, Show, Read)
 
 track_id_of :: TracklikeId -> Maybe Track.TrackId
 track_id_of (TId tid _) = Just tid
@@ -123,7 +121,7 @@ rulers_of = Maybe.catMaybes . map ruler_of
 -- | A divider separating tracks.
 -- Defined here in Block since it's so trivial.
 data Divider = Divider Color
-    deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
+    deriving (Eq, Ord, Show, Read)
 
 -- * block view
 
@@ -145,7 +143,7 @@ data View = View {
     -- corresponding to each TracklikeId in the Block.  The StateT operations
     -- should maintain this invariant.
     , view_tracks :: [TrackView]
-    } deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
+    } deriving (Eq, Ord, Show, Read)
 
 -- | Construct a View, using default values for most of its fields.
 -- Don't construct views using View directly since State.create_view overwrites
@@ -185,14 +183,14 @@ pixels_to_track_pos zoom pixels =
 
 data TrackView = TrackView {
     track_view_width :: Width
-    } deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
+    } deriving (Eq, Ord, Show, Read)
 
 data Rect = Rect {
     rect_x :: Int
     , rect_y :: Int
     , rect_w :: Int
     , rect_h :: Int
-    } deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
+    } deriving (Eq, Ord, Show, Read)
 rect_r rect = rect_x rect + rect_w rect
 rect_b rect = rect_y rect + rect_h rect
 
@@ -203,13 +201,13 @@ data ViewConfig = ViewConfig {
     , vconfig_track_title_height :: Int
     , vconfig_sb_size :: Int
     , vconfig_status_size :: Int
-    } deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
+    } deriving (Eq, Ord, Show, Read)
 
 -- | View zoom and time scroll offset.
 data Zoom = Zoom {
     zoom_offset :: TrackPos
     , zoom_factor :: Double
-    } deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
+    } deriving (Eq, Ord, Show, Read)
 
 -- TODO: remove color and put it in BlockC.SelectionC, which gets its color
 -- from a BlockConfig list
@@ -224,7 +222,7 @@ data Selection = Selection {
     -- I don't think there's much I can do about this.
     , sel_cur_track :: TrackNum
     , sel_cur_pos :: TrackPos
-    } deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
+    } deriving (Eq, Ord, Show, Read)
 
 -- | These constructors return Maybe because that's what set_selection expects.
 selection :: TrackNum -> TrackPos -> TrackNum -> TrackPos -> Maybe Selection

@@ -25,9 +25,9 @@ data ReadMessage = ReadMessage {
 -- be established between Devices and the runtime representation.
 
 newtype ReadDevice = ReadDevice String
-    deriving (Eq, Ord, Show, Generics.Data, Generics.Typeable)
+    deriving (Eq, Ord, Show, Generics.Typeable)
 newtype WriteDevice = WriteDevice String
-    deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
+    deriving (Eq, Ord, Show, Read, Generics.Typeable)
 
 un_read_device (ReadDevice dev) = dev
 un_write_device (WriteDevice dev) = dev
@@ -95,7 +95,7 @@ data Message
     | CommonMessage CommonMessage
     | RealtimeMessage RealtimeMessage
     | UnknownMessage Word8 Word8 Word8
-    deriving (Eq, Ord, Show, Read, Generics.Data, Generics.Typeable)
+    deriving (Eq, Ord, Show, Read, Generics.Typeable)
 
 -- TODO using Word8 here is kind of iffy.  Word8s silently overflow after 0xff.
 -- On the other hand, these all have 7 bit ranges, so I can still check for
@@ -122,7 +122,7 @@ data ChannelMessage =
     | LocalControl Bool
     | AllNotesOff
     | UndefinedChannelMode Word8 Word8
-    deriving (Eq, Ord, Read, Show, Generics.Data, Generics.Typeable)
+    deriving (Eq, Ord, Show, Read, Generics.Typeable)
 
 data CommonMessage =
     -- | manufacturer id, data including eox
@@ -132,11 +132,11 @@ data CommonMessage =
     | TuneRequest
     | EOX
     | UndefinedCommon Word8
-    deriving (Eq, Ord, Read, Show, Generics.Data, Generics.Typeable)
+    deriving (Eq, Ord, Show, Read, Generics.Typeable)
 
 data RealtimeMessage = TimingClock | Start | Continue | Stop | ActiveSense
     | Reset | UndefinedRealtime Word8
-    deriving (Eq, Ord, Read, Show, Generics.Data, Generics.Typeable)
+    deriving (Eq, Ord, Show, Read, Generics.Typeable)
 
 -- * util
 

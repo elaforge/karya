@@ -63,7 +63,7 @@ data State = State {
 
     -- | This maps the midi instruments used in this State to their Addrs.
     , state_midi_config :: Instrument.Config
-    } deriving (Show, Read, Generics.Typeable, Generics.Data)
+    } deriving (Show, Read, Generics.Typeable)
 
 -- TODO "initial_state" would be more consistent
 empty = State "untitled" "save" Map.empty Map.empty Map.empty ruler_map
