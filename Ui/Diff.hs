@@ -31,7 +31,7 @@ run = Identity.runIdentity . Error.runErrorT . Writer.execWriterT
 
 -- | Emit a list of the necessary 'Update's to turn @st1@ into @st2@.
 diff :: State.State -> State.State -> Either DiffError [Update.Update]
-diff st1 st2 = run $ do
+diff st1 st2 = fmap (munge_updates st2) $ run $ do
     -- View diff needs to happen first, because other updates may want to
     -- update the new view (technically these updates are redundant, but they
     -- don't hurt and filtering them would be complicated).
@@ -51,6 +51,30 @@ diff st1 st2 = run $ do
     mapM_ (uncurry3 diff_ruler)
         (Util.Data.zip_intersection
             (State.state_rulers st1) (State.state_rulers st2))
+
+
+-- | This is a nasty little case that falls out of how I'm doing diffs:
+-- First the view diff runs, which detects changed track widths.
+-- Then the block diff runs, which detects changed tracks.  Totally changed
+-- tracks (remove old track, insert new one with default width) are not
+-- distinguishable from minorly changed tracks (remove old track, insert new
+-- one with the same width).  So what I do is assume that if there's an
+-- InsertTrack and a corresponding TrackView in view_tracks of the new state,
+-- it should get the width given in the view.
+munge_updates :: State.State -> [Update.Update] -> [Update.Update]
+munge_updates state updates = updates ++ munged
+    where
+    width_info = [(width, block_id, tracknum)
+        | Update.BlockUpdate block_id (Update.InsertTrack tracknum _ width)
+            <- updates]
+    munged = concatMap set_width width_info
+    set_width (old_width, block_id, tracknum) = do
+        (view_id, view) <- filter ((==block_id) . Block.view_block . snd)
+            (Map.assocs (State.state_views state))
+        new_width <- maybe [old_width] ((:[]) . Block.track_view_width) $
+            Seq.at (Block.view_tracks view) tracknum
+        return $
+            Update.ViewUpdate view_id (Update.TrackWidth tracknum new_width)
 
 -- ** view
 
@@ -82,7 +106,7 @@ diff_view st1 st2 view_id view1 view2 = do
 
     -- The track view info (widths) is in the View, while the track data itself
     -- (Tracklikes) is in the Block.  Since one track may have been added or
-    -- deleted while another's width was changed, I have to run 'edit_distance'
+    -- deleted while another's width was changed, I have to run 'indexed_pairs'
     -- here with the Blocks' Tracklikes to pair up the the same Tracklikes
     -- before comparing their widths.  'i' will be the TrackNum index for the
     -- tracks pre insertion/deletion, which is correct since the view is diffed
@@ -90,7 +114,7 @@ diff_view st1 st2 view_id view1 view2 = do
     -- actually matters that updates are run in order.  This is a lot of
     -- subtlety just to detect width changes!
     --
-    -- 'edit_distance' is run again on the Blocks to actually delete or insert
+    -- 'indexed_pairs' is run again on the Blocks to actually delete or insert
     -- tracks.
 
     tracks1 <- track_info view_id view1 st1
@@ -125,6 +149,8 @@ diff_track_view view_id tracknum tview1 tview2 = do
             (Update.TrackWidth tracknum (width tview2))]
 
 -- | Pair the Tracklikes from the Block with the TrackViews from the View.
+track_info :: Block.ViewId ->  Block.View -> State.State
+    -> DiffM [(Block.TracklikeId, Block.TrackView)]
 track_info view_id view st =
     case Map.lookup block_id (State.state_blocks st) of
         Nothing -> throw $ show block_id ++ " of " ++ show view_id

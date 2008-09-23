@@ -157,6 +157,8 @@ test_insert_remove_track = do
     io_human "another new event track also zoomed" $
         send $ BlockC.insert_track view 2
             (Block.T event_track_2 ruler) no_samples 30
+    io_human "remove ruler track, others move over" $
+        send $ BlockC.remove_track view 0
 
 test_samples = do
     view <- create_empty_view

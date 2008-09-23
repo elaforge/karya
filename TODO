@@ -1,17 +1,21 @@
 ****
 
 bugs
-  - when replacing rulers, the track widths are lost
+  * when replacing rulers, the track widths are lost
   * destroy_ruler doesn't remove the ruler from its views
   - plain numbers to set step is error prone in kbd mode
   * parse errors don't give position
   - paste deletes events before the paste area
+    can't reproduce this
   * it's easy to create empty events which then give parse errors.  There's
     a conflict between delete and move and remove letter.  So don't move.
 
 performance
   - random little hangs are annoying.  figure out what's going on.  GC?
   * pause before playing.  printing logs make playing too strict?
+  - the full event loop is too laggy for midi thru, implement a fast path
+  - cache marks and events from callback
+  - will removing the style speed up event copying?
 
 misc
   * rumor has it os x leopard wants .app bundles instead of Rez, so build those
@@ -23,7 +27,6 @@ fltk
   - convert Selection to use the same format as hs, so it can show the cursor
     end specially
   - bug: selection redraw leaves gaps when dragging downwards
-  - optimize: cache marks and events from callback
   - figure out how to have a minimal title bar in os x (win.border(0) removes
     it altogether)
     I can set something like kUtilityWindowClass in Fl_mac.cxx:Fl_X::make, but
@@ -38,7 +41,6 @@ fltk
     - tracks have their own status lines, to report things like mute
   event track
     - "currently edited" event shouldn't be hidden by previous ones
-    - minimal redraw doesn't display hidden events quite right
   Ruler
     - mark text tries to wrap if there isn't enough room
   MoveTile
@@ -106,7 +108,7 @@ Cmd
 
   Cmd.Play
     - warn about unallocated instruments (Convert.verify)
-    - make sure the whole stack is lazy
+    * make sure the whole stack is lazy
     - play loops
     * background derivation
     - start playing from top of displayed area

@@ -20,6 +20,7 @@ import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception
 
 import Util.Test
+import qualified Util.Seq as Seq
 
 import Ui.Types
 import qualified Ui.Block as Block
@@ -201,6 +202,19 @@ test_create_track = do
         State.set_track_title t_track1_id "new track"
         State.set_track_bg t_track1_id Color.green
     return ()
+
+test_alter_track = do
+    state <- run_setup
+    state <- io_human "track should get wider" $ run state $ do
+        State.set_track_width t_view_id 1 100
+    state <- io_human "track should get a new ruler" $ run state $ do
+        ruler <- create_ruler "r2" (TestSetup.mkruler 0 0)
+        let set_ruler (tid, width) = (Block.set_rid ruler tid, width)
+        State.modify_block t_block_id $ \block -> block
+            { Block.block_track_widths =
+                Seq.modify_at (Block.block_track_widths block) 1 set_ruler }
+    return ()
+
 
 test_selection = do
     state <- run_setup

@@ -37,10 +37,19 @@ at_err msg xs n = Maybe.fromMaybe
 -- beginning or end of the list.
 insert_at :: [a] -> Int -> a -> [a]
 insert_at xs i x = let (pre, post) = splitAt i xs in pre ++ (x : post)
+
 -- | Remove the element at the given index.  Do nothing if the index is out
 -- of range.
 remove_at :: [a] -> Int -> [a]
 remove_at xs i = let (pre, post) = splitAt i xs in pre ++ drop 1 post
+
+-- | Modify element at an index by applying a function to it.  If the index is
+-- out of range, nothing happens.
+modify_at :: [a] -> Int -> (a -> a) -> [a]
+modify_at xs i f = case post of
+        [] -> pre
+        (elt:rest) -> (pre ++ f elt : rest)
+    where (pre, post) = splitAt i xs
 
 -- * ordered lists
 
