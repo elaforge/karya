@@ -262,8 +262,15 @@ OverlayRuler::draw_mark(int offset, const Mark &mark)
         int xmin = x() + 2;
         int xmax = x() + w() - text_width;
         // Try to be right to the left of the mark, but align with the left
-        // site if I must.
+        // side if I must.
         int xpos = ::clamp(xmin, xmax, x() + w() - int(width) - text_width);
+        // Unless there really isn't enough room, then clip on the left.
+        if (xpos + text_width > x() + w()) {
+            fl_color(color_to_fl(Config::abbreviation_color));
+            fl_line_style(FL_SOLID, 2);
+            fl_line(x() + 1, offset - fl_height(), x() + 1, offset);
+            xpos = xmax;
+        }
 
         fl_color(FL_BLACK);
         fl_draw(mark.name, xpos, offset);

@@ -55,8 +55,8 @@ void m44_set()
             Mark m(1, 3, major, strdup(name), 0, 0);
             mlist.push_back(std::make_pair(t, m));
         } else {
-            // sprintf(name, "%d.%d", i / 4, i % 4);
-            Mark m(2, 2, minor, 0, 0, 0);
+            sprintf(name, "long %d.%d", i / 4, i % 4);
+            Mark m(2, 2, minor, strdup(name), 0, 0);
             mlist.push_back(std::make_pair(t, m));
         }
     }
@@ -112,7 +112,6 @@ void t1_set()
     Color eventc = Color(200, 200, 170);
     TextStyle style;
 
-    /*
     e.push_back(std::make_pair(TrackPos(0),
         Event("4c#@$", TrackPos(16), eventc, style)));
     e.push_back(std::make_pair(TrackPos(32),
@@ -131,13 +130,14 @@ void t1_set()
     s.push_back(std::make_pair(TrackPos(32), .5));
     s.push_back(std::make_pair(TrackPos(32), 1));
     s.push_back(std::make_pair(TrackPos(64), 0));
-    */
+    /*
     for (int i = 0; i < 100; i++) {
         char buf[32];
         sprintf(buf, "e%d", i);
         e.push_back(std::make_pair(TrackPos(i*8),
                 Event(strdup(buf), TrackPos(8), eventc, style)));
     }
+    */
 }
 
 int
@@ -301,14 +301,13 @@ main(int argc, char **argv)
 
     // print_children(&view);
 
-    Fl::add_timeout(1, timeout_func, (void*) &view);
+    // Fl::add_timeout(1, timeout_func, (void*) &view);
 
     // view_config.block_title_height = 40;
     // view_config.track_title_height = 40;
     // view.block.set_view_config(view_config);
 
-    // view.block.set_zoom(ZoomInfo(TrackPos(128), 1));
-    // view.block.set_zoom(ZoomInfo(TrackPos(64), 1));
+    view.block.set_zoom(ZoomInfo(TrackPos(0), 2));
 
     /*
     view.block.set_selection(0, Selection(selection_colors[0],

@@ -42,7 +42,7 @@ fltk
   event track
     - "currently edited" event shouldn't be hidden by previous ones
   Ruler
-    - mark text tries to wrap if there isn't enough room
+    * mark text is abbreviated if there isn't enough room
   MoveTile
     - only capture drag on a plain drag with no modifiers
 
