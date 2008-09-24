@@ -85,7 +85,7 @@ Cmd
     - map selection through function
     - transpose selection
     - controller edit mode accepts two numbers and moves on, no spaces
-    - nudge events by timestep
+    * nudge events
     - a legato command that always goes to the next note would still be useful
     - method edit works in controller tracks
 

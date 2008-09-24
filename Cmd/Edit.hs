@@ -80,15 +80,50 @@ edit_color mode = case mode of
 
 -- | Extend the events in the selection to either the end of the selection or
 -- the beginning of the next note.
--- TODO control tracks that are covered by the selection should be skipped
--- TODO do this by ignoring dur 0 events
 cmd_set_duration :: (Monad m) => Cmd.CmdT m ()
 cmd_set_duration = modify_events $ \_start end (pos, event) ->
     (pos, event { Event.event_duration = end - pos })
 
+-- | Insert empty space at the beginning of the selection for the length of
+-- the selection, pushing subsequent events forwards.
+cmd_insert_selection :: (Monad m) => Cmd.CmdT m ()
+cmd_insert_selection = do
+    (track_ids, sel) <- Selection.selected_tracks Config.insert_selnum
+    let (low, high) = Block.sel_range sel
+    mapM_ (move_track_events low (high - low)) track_ids
+
+-- | Remove the notes under the selection, and move everything else back.
+cmd_delete_selection :: (Monad m) => Cmd.CmdT m ()
+cmd_delete_selection = do
+    cmd_remove_selected
+    (track_ids, sel) <- Selection.selected_tracks Config.insert_selnum
+    let (low, high) = Block.sel_range sel
+    mapM_ (move_track_events low (-(high - low))) track_ids
+
+move_track_events :: (State.UiStateMonad m) =>
+    TrackPos -> TrackPos -> Track.TrackId -> m ()
+move_track_events start shift track_id = do
+    track <- State.get_track track_id
+    let shifted = move_events start shift (Track.track_events track)
+    State.set_events track_id shifted
+
+-- | All events starting at a point to the end are shifted by the given amount.
+move_events :: TrackPos -> TrackPos -> Track.TrackEvents -> Track.TrackEvents
+move_events start shift events = merged
+    where
+    -- If the last event has 0 duration, the selection will not include it.
+    -- Ick.  Maybe I need a less error-prone way to say "select until the end
+    -- of the track"?
+    end = Track.time_end events + TrackPos 1
+    shifted = map (\(pos, evt) -> (pos+shift, evt)) (Track.forward start events)
+    merged = Track.insert_events shifted (Track.remove_events start end events)
+
+-- | Modify event durations by applying a function to them.  0 durations
+-- are passed through, so you can't accidentally give control events duration.
 cmd_modify_dur :: (Monad m) => (TrackPos -> TrackPos) -> Cmd.CmdT m ()
 cmd_modify_dur f = modify_events $ \_ _ (pos, evt) ->
-    (pos, evt { Event.event_duration = f (Event.event_duration evt) })
+    (pos, evt { Event.event_duration = apply (Event.event_duration evt) })
+    where apply dur = if dur == TrackPos 0 then dur else f dur
 
 -- | Modify previous event if the selection is a point, and all events under
 -- the selection if it's a range.

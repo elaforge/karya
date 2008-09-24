@@ -127,7 +127,8 @@ cmd_paste_insert :: (Monad m) => Cmd.CmdT m Cmd.Status
 cmd_paste_insert = do
     (start, end, track_ids, clip_events) <- paste_info
     -- Only shift the tracks that are in clip_events.
-    mapM_ (shift_track start (end-start)) (map fst (zip track_ids clip_events))
+    mapM_ (Edit.move_track_events start (end-start))
+        (map fst (zip track_ids clip_events))
     forM_  (zip track_ids clip_events) $ \(track_id, events) -> do
         State.insert_events track_id events
     return Cmd.Done
@@ -275,16 +276,3 @@ get_paste_area = do
     let track_ids = Block.track_ids_of
             (drop (Block.sel_start_track sel) (Block.block_tracks block))
     return (track_ids, clip_track_ids, sel)
-
-shift_track start shift track_id = do
-    track <- State.get_track track_id
-    let shifted = shift_from start shift (Track.track_events track)
-    State.set_events track_id shifted
-
--- | All events starting at a point to the end are shifted by the given amount.
-shift_from :: TrackPos -> TrackPos -> Track.TrackEvents -> Track.TrackEvents
-shift_from start shift events = merged
-    where
-    end = Track.time_end events
-    shifted = map (\(pos, evt) -> (pos+shift, evt)) (Track.forward start events)
-    merged = Track.insert_events shifted (Track.remove_events start end events)
