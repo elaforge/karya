@@ -77,9 +77,10 @@ bind_kmod key_mods = bind_mod (map Cmd.KeyMod key_mods)
 
 -- | Bind a key with anything as a modifier.
 bind_mod :: [Cmd.Modifier] -> Key.Key -> String -> Cmd.CmdM m -> Binding m
-bind_mod mods key desc cmd =
-    (KeySpec (Mods (Set.fromList mods)) (UiKey UiMsg.KeyDown key),
-        cspec_ desc cmd)
+bind_mod mods key desc cmd = (kspec mods key, cspec_ desc cmd)
+
+kspec mods key = KeySpec (Mods (Set.fromList mods)) (UiKey UiMsg.KeyDown key)
+kspec_any_mod key = KeySpec AnyCharMod (UiKey UiMsg.KeyDown key)
 
 cspec :: String -> (Msg.Msg -> Cmd.CmdM m) -> CmdSpec m
 cspec desc cmd = CmdSpec desc cmd

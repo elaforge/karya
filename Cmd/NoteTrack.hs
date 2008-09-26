@@ -17,9 +17,6 @@
     organ-like layout.
 
     - But in non kbd_entry mode, letter keys edit the call text.
-
-    - Interpolation methods are edited when shift is held down.
-    TODO This might eat too much keyboard space, but we'll see.
 -}
 module Cmd.NoteTrack where
 import Control.Monad
@@ -80,12 +77,29 @@ cmd_midi_entry scale msg = cmd_insert_midi_note scale msg
 
 -- | Enter notes from the computer keyboard.
 kbd_note_entry :: Info -> [Keymap.Binding Identity.Identity]
-kbd_note_entry info = concatMap (make_kbd_note_entry info True)
-    (lower_notes ++ upper_notes)
+kbd_note_entry info = binds ++ ignore_unbound_letters binds
+    where binds = concatMap (make_kbd_note_entry info True)
+            (lower_notes ++ upper_notes)
 
 kbd_note_thru :: Info -> [Keymap.Binding Identity.Identity]
-kbd_note_thru info = concatMap (make_kbd_note_entry info False)
-    (lower_notes ++ upper_notes)
+kbd_note_thru info = binds ++ ignore_unbound_letters binds
+    where binds = concatMap (make_kbd_note_entry info False)
+            (lower_notes ++ upper_notes)
+
+-- | Kbd entry doesn't map all the keys, and it's annoying when you
+-- accidentally hit a key that falls through and does some function you don't
+-- want.  So find all the alphanumeric keys that aren't mapped and give them
+-- a dummy command.
+ignore_unbound_letters :: (Monad m) => [Keymap.Binding m] -> [Keymap.Binding m]
+ignore_unbound_letters binds = ignore_cmds
+    where
+    key_of (Keymap.KeySpec _ (Keymap.UiKey _ (Key.KeyChar c)), _) = Just c
+    key_of _ = Nothing
+    bound = Set.fromList (Maybe.catMaybes (map key_of binds))
+    ignore = Set.fromList "abcdefghijklmnopqrstuvwxyz01234567890"
+    mkbind c = (Keymap.kspec_any_mod (Key.KeyChar c),
+        Keymap.cspec_ ("ignore non-kbd entry " ++ show c) (return Cmd.Done))
+    ignore_cmds = map mkbind (Set.toList (ignore `Set.difference` bound))
 
 oct_key oct0 (n0, c) = ((oct0 + oct1, n1), c)
     where (oct1, n1) = (n0 `divMod` 12)
