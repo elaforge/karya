@@ -14,6 +14,7 @@ import qualified Ui.Track as Track
 import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
 import qualified Ui.UiMsg as UiMsg
+import qualified Ui.Key as Key
 
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Cmd as Cmd
@@ -68,25 +69,60 @@ cmd_shift_selection selnum nshift extend = do
 sel_merge (Block.Selection strack spos _ _) (Block.Selection _ _ ctrack cpos) =
     Block.Selection strack spos ctrack cpos
 
--- | Set the selection based on a click or drag.
---
--- TODO: support snap
-cmd_mouse_selection :: Int -> Block.SelNum -> Cmd.Cmd
-cmd_mouse_selection btn selnum msg = do
-    (mod, (mouse_tracknum, mouse_pos)) <- Cmd.require (mouse_mod msg)
-    msg_btn <- Cmd.require (Cmd.mouse_mod_btn mod)
+cmd_mouse_drag :: (Monad m) => Msg.Msg -> Cmd.CmdT m ()
+cmd_mouse_drag msg = do
     keys_down <- Cmd.keys_down
-    when (msg_btn /= btn) Cmd.abort
+    let cmd = if Cmd.KeyMod Key.MetaL `Map.member` keys_down
+            then cmd_mouse_selection else cmd_snap_selection
+    cmd 1 Config.insert_selnum msg
 
-    let (down_tracknum, down_pos) =
-            case Map.lookup (Cmd.modifier_map_key mod) keys_down of
-                Just (Cmd.MouseMod _btn (Just down_at)) -> down_at
-                _ -> (mouse_tracknum, mouse_pos)
-
+-- | Set the selection based on a click or drag.
+cmd_mouse_selection :: (Monad m) =>
+    Int -> Block.SelNum -> Msg.Msg -> Cmd.CmdT m ()
+cmd_mouse_selection btn selnum msg = do
+    (down_tracknum, down_pos, mouse_tracknum, mouse_pos) <- mouse_drag btn msg
     let sel = Block.selection down_tracknum down_pos mouse_tracknum mouse_pos
     view_id <- Cmd.get_focused_view
     select_and_scroll view_id selnum sel
-    return Cmd.Done
+
+-- | Like 'cmd_mouse_selection', but snap the selection to the current time
+-- step.
+cmd_snap_selection :: (Monad m) => Int -> Block.SelNum -> Msg.Msg
+    -> Cmd.CmdT m ()
+cmd_snap_selection btn selnum msg = do
+    (down_tracknum, _, mouse_tracknum, mouse_pos) <- mouse_drag btn msg
+    block_id <- Cmd.get_focused_block
+    step <- Cmd.get_current_step
+    snap_pos <- TimeStep.snap step block_id mouse_tracknum mouse_pos
+    view_id <- Cmd.get_focused_view
+    this_sel <- State.get_selection view_id selnum
+    let mouse_down = case Msg.mouse msg of
+            Just (UiMsg.Mouse { UiMsg.mouse_state = UiMsg.MouseDown _ }) ->
+                True
+            _ -> False
+        sel = case (mouse_down, this_sel) of
+            _ | mouse_down || this_sel == Nothing ->
+                Block.selection down_tracknum snap_pos mouse_tracknum snap_pos
+            (_, Just (Block.Selection start_track start_pos _ _)) ->
+                Block.selection start_track start_pos mouse_tracknum snap_pos
+            _ -> error "not reached" -- ghc doesn't realize it is exhaustive
+    select_and_scroll view_id selnum sel
+
+-- | Get the dragged range, or abort if this isn't a drag Msg.
+mouse_drag :: (Monad m) => Int -> Msg.Msg
+    -> Cmd.CmdT m (Block.TrackNum, TrackPos, Block.TrackNum, TrackPos)
+mouse_drag btn msg = do
+    (mod, (mouse_tracknum, mouse_pos)) <- Cmd.require (mouse_mod msg)
+    msg_btn <- Cmd.require (Cmd.mouse_mod_btn mod)
+    keys_down <- Cmd.keys_down
+    -- The button down should be the same one as expected.
+    when (msg_btn /= btn) Cmd.abort
+    let (down_tracknum, down_pos) =
+            case Map.lookup (Cmd.modifier_map_key mod) keys_down of
+                Just (Cmd.MouseMod _btn (Just down_at)) -> down_at
+                -- If it's not already held down, it starts here.
+                _ -> (mouse_tracknum, mouse_pos)
+    return (down_tracknum, down_pos, mouse_tracknum, mouse_pos)
 
 -- * implementation
 
@@ -211,18 +247,17 @@ between low high n = min high (max low n)
 step_from :: (Monad m) => Block.TrackNum -> TrackPos -> TimeStep.TimeDirection
     -> Cmd.CmdT m TrackPos
 step_from tracknum pos direction = do
-    block <- State.block_of_view =<< Cmd.get_focused_view
+    block_id <- Cmd.get_focused_block
     step <- Cmd.get_current_step
-    ruler_id <- Cmd.require (relevant_ruler block tracknum)
-    ruler <- State.get_ruler ruler_id
+    next <- TimeStep.step_from step direction block_id tracknum pos
     let msg = case direction of
             TimeStep.Advance -> "advance to "
             TimeStep.Rewind -> "rewind from "
-    case TimeStep.stepper direction step (Ruler.ruler_marklists ruler) pos of
+    case next of
         Nothing -> do
             Log.notice $ "can't " ++ msg ++ show step ++ " from " ++ show pos
             Cmd.abort
-        Just next_pos -> return next_pos
+        Just p -> return p
 
 -- | Get the ruler that applies to the given track.  Search left for the
 -- closest ruler that has all the given marklist names.  This includes ruler

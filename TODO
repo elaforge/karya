@@ -90,7 +90,7 @@ Cmd
     - method edit works in controller tracks
 
   Cmd.Selection
-    - drag snap to timestep
+    * drag snap to timestep
     * extend selection with shift-arrow
   Cmd.TimeStep
     - snap to event begin/end

@@ -7,8 +7,11 @@ import Data.Function
 import qualified Data.Maybe as Maybe
 
 import qualified Util.Seq as Seq
+
 import Ui.Types
+import qualified Ui.Block as Block
 import qualified Ui.Ruler as Ruler
+import qualified Ui.State as State
 
 
 -- | A variable time step, used to find out how much to advance
@@ -17,17 +20,49 @@ data TimeStep
      -- | Absolute time step.
     = Absolute TrackPos
     -- | Until the next mark that matches.
-    | UntilMark Marklists MarkMatch
+    | UntilMark MarklistMatch MarkMatch
     -- | Until next matching mark + offset from previous mark.
-    | MarkDistance Marklists MarkMatch
+    | MarkDistance MarklistMatch MarkMatch
     deriving (Show, Read)
 
--- TODO rename MarklistMatch
-data Marklists = AllMarklists | NamedMarklists [Ruler.MarklistName]
+data MarklistMatch = AllMarklists | NamedMarklists [Ruler.MarklistName]
     deriving (Show, Read)
+
+-- | Given a marklist view, return the TrackPos to advance to.
+data MarkMatch = MatchRank Int
+    deriving (Show, Read)
+type Matcher = [(TrackPos, Ruler.Mark)] -> Maybe TrackPos
 
 data TimeDirection = Advance | Rewind deriving (Eq, Show)
 
+
+-- | Given a pos, return the nearest point on a timestep.
+snap :: (State.UiStateMonad m) =>
+    TimeStep -> Block.BlockId -> Block.TrackNum -> TrackPos -> m TrackPos
+    -- Absolute steps don't have any absolute alignment, so you can't snap.
+snap (Absolute _) _ _ pos = return pos
+snap time_step block_id tracknum pos = fmap (Maybe.fromMaybe pos) $
+    step_from time_step Rewind block_id tracknum pos
+
+step_from :: (State.UiStateMonad m) => TimeStep -> TimeDirection
+    -> Block.BlockId -> Block.TrackNum -> TrackPos -> m (Maybe TrackPos)
+step_from time_step direction block_id tracknum pos = do
+    block <- State.get_block block_id
+    case relevant_ruler block tracknum of
+        Nothing -> return Nothing
+        Just ruler_id -> do
+            ruler <- State.get_ruler ruler_id
+            return $
+                stepper direction time_step (Ruler.ruler_marklists ruler) pos
+
+-- | Get the ruler that applies to the given track.  Search left for the
+-- closest ruler that has all the given marklist names.  This includes ruler
+-- tracks and the rulers of event tracks.
+relevant_ruler :: Block.Block -> Block.TrackNum -> Maybe Ruler.RulerId
+relevant_ruler block tracknum = Seq.at (Block.ruler_ids_of in_order) 0
+    where
+    in_order = map snd $ dropWhile ((/=tracknum) . fst) $ reverse $
+        zip [0..] (Block.block_tracks block)
 
 stepper Advance = advance
 stepper Rewind = rewind
@@ -59,11 +94,6 @@ rewind step marklists start_pos = case step of
         prev_prev_pos <- match matcher
             (relevant_marks marklists names Rewind prev_pos)
         return (prev_prev_pos + (start_pos - prev_pos))
-
--- | Given a marklist view, return the TrackPos to advance to.
-data MarkMatch = MatchRank Int
-    deriving (Show, Read)
-type Matcher = [(TrackPos, Ruler.Mark)] -> Maybe TrackPos
 
 -- Extract @names@ from alist @marklists@, use @to_marks@ to extract marks
 -- from @start_pos@, and return the merged result.

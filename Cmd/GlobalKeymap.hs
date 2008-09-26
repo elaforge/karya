@@ -97,7 +97,7 @@ import qualified Perform.Transport as Transport
 
 global_cmds :: [Cmd.Cmd]
 global_cmds =
-    [ Selection.cmd_mouse_selection 1 Config.insert_selnum
+    [ msg_done Selection.cmd_mouse_drag
     , Keymap.make_cmd (misc_bindings ++ selection_bindings
         ++ view_config_bindings ++ edit_bindings ++ create_bindings
         ++ clip_bindings)
@@ -123,6 +123,7 @@ cmd_save = Save.get_save_file >>= Save.cmd_save >> return Cmd.Done
 cmd_load = Save.get_save_file >>= Save.cmd_load >> return Cmd.Done
 
 done = (>> return Cmd.Done)
+msg_done cmd msg = done (cmd msg)
 
 -- | Most command keys are mapped to both a plain keystroke and command-key
 -- (this should presumably becoume control-key on linux).  That way the command
