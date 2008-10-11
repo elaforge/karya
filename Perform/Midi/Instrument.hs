@@ -7,10 +7,15 @@ import qualified Data.Map as Map
 import qualified Midi.Midi as Midi
 
 import qualified Derive.Score as Score
+import qualified Derive.Twelve as Twelve
+import qualified Perform.Pitch as Pitch
 import qualified Perform.Midi.Controller as Controller
 
 import qualified Data.ByteString as B
 
+
+default_scale :: Pitch.ScaleId
+default_scale = Twelve.scale_id
 
 -- | The Instrument contains all the data necessary to render
 -- a Midi.Perform.Event to a midi message.  Each Event has an attached
@@ -33,13 +38,17 @@ data Instrument = Instrument {
     -- be used to automatically trim control msgs, but I don't do that yet.
     -- (but I always allocate LRU, so it shouldn't make a difference, right?)
     , inst_decay :: Maybe Double
+    -- | Scale associated with this instrument, which also includes the drum
+    -- map for a drum kit instrument.  This can be overridden per-project by
+    -- State.state_scale_config.
+    , inst_scale :: Pitch.ScaleId
     } deriving (Eq, Ord, Show)
 
 instrument :: Synth -> InstrumentName -> Maybe Keyswitch
     -> Controller.ControllerMap -> Controller.PbRange -> Instrument
 instrument synth name keyswitch cmap pb_range =
     set_instrument_name synth name keyswitch
-        (Instrument "" "" Nothing "" cmap pb_range Nothing)
+        (Instrument "" "" Nothing "" cmap pb_range Nothing default_scale)
 
 set_instrument_name synth name keyswitch inst = inst
     { inst_synth = synth_name synth

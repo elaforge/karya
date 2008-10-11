@@ -50,6 +50,7 @@ make_patch synth pb_range (PatchLine name cat bank patch_num) =
         , Instrument.inst_controller_map = Controller.empty_map
         , Instrument.inst_pitch_bend_range = pb_range
         , Instrument.inst_decay = Nothing
+        , Instrument.inst_scale = Instrument.default_scale
         }
     tags = [Instrument.tag "category" cat]
 

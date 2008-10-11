@@ -33,9 +33,11 @@ import qualified Ui.Ruler as Ruler
 import qualified Ui.Event as Event
 import qualified Ui.Track as Track
 
-import qualified Derive.Score as Score
-import qualified Perform.Midi.Instrument as Instrument
 import qualified Midi.Midi as Midi
+
+import qualified Derive.Score as Score
+import qualified Perform.Pitch as Pitch
+import qualified Perform.Midi.Instrument as Instrument
 
 import qualified App.Config as Config
 
@@ -96,30 +98,24 @@ instance (Ord k, Binary k, Binary e) => Binary (Map.Map k e) where
     put = put . Map.toAscList
     get = liftM Map.fromDistinctAscList get
 
-save_state_ = SaveState :: State.State -> Time.UTCTime -> SaveState
 instance Binary SaveState where
     put (SaveState a b) = put_version 0
         >> put a >> put b
     get = do
         v <- get_version
         case v of
-            0 -> get >>= \a -> get >>= \b -> return (save_state_ a b)
+            0 -> do
+                ui_state <- get :: Get State.State
+                date <- get :: Get Time.UTCTime
+                return (SaveState ui_state date)
             _ -> version_error "SaveState" v
 
 instance Binary State.State where
-    put (State.State a b c d e f g) = put_version 1
-        >> put a >> put b >> put c >> put d >> put e >> put f >> put g
+    put (State.State a b c d e f g h) = put_version 2
+        >> put a >> put b >> put c >> put d >> put e >> put f >> put g >> put h
     get = do
         v <- get_version
         case v of
-            0 -> do
-                views <- get :: Get (Map.Map Block.ViewId Block.View)
-                blocks <- get :: Get (Map.Map Block.BlockId Block.Block)
-                tracks <- get :: Get (Map.Map Track.TrackId Track.Track)
-                rulers <- get :: Get (Map.Map Ruler.RulerId Ruler.Ruler)
-                midi_config <- get :: Get Instrument.Config
-                return $ State.State "default" "." views blocks tracks rulers
-                    midi_config
             1 -> do
                 proj <- get :: Get String
                 dir <- get :: Get String
@@ -129,7 +125,18 @@ instance Binary State.State where
                 rulers <- get :: Get (Map.Map Ruler.RulerId Ruler.Ruler)
                 midi_config <- get :: Get Instrument.Config
                 return $ State.State proj dir views blocks tracks rulers
-                    midi_config
+                    midi_config Map.empty
+            2 -> do
+                proj <- get :: Get String
+                dir <- get :: Get String
+                views <- get :: Get (Map.Map Block.ViewId Block.View)
+                blocks <- get :: Get (Map.Map Block.BlockId Block.Block)
+                tracks <- get :: Get (Map.Map Track.TrackId Track.Track)
+                rulers <- get :: Get (Map.Map Ruler.RulerId Ruler.Ruler)
+                midi_config <- get :: Get Instrument.Config
+                scales <- get :: Get (Map.Map Score.Instrument Pitch.ScaleId)
+                return $ State.State proj dir views blocks tracks rulers
+                    midi_config scales
 
             _ -> version_error "State.State" v
 

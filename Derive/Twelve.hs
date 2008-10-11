@@ -16,7 +16,7 @@ import qualified Perform.Pitch as Pitch
 
 
 scale = Pitch.Scale {
-    Pitch.scale_id = "twelve"
+    Pitch.scale_id = scale_id
     , Pitch.scale_pattern = "[0-9][a-g][#-]"
     , Pitch.scale_transpose = transpose
     , Pitch.scale_transpose_octave = transpose . (*12)
@@ -25,6 +25,9 @@ scale = Pitch.Scale {
     , Pitch.scale_key_to_note = key_to_note
     , Pitch.scale_set_pitch_bend = False
     }
+
+scale_id :: Pitch.ScaleId
+scale_id = "twelve"
 
 note_to_nn :: Pitch.Note -> Maybe Pitch.NoteNumber
 note_to_nn (Pitch.Note note) = do

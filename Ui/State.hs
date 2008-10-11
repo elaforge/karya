@@ -44,6 +44,8 @@ import qualified Ui.Ruler as Ruler
 import qualified Ui.Track as Track
 import qualified Ui.Event as Event
 
+import qualified Derive.Score as Score
+import qualified Perform.Pitch as Pitch
 import qualified Perform.Midi.Instrument as Instrument
 
 
@@ -63,11 +65,14 @@ data State = State {
 
     -- | This maps the midi instruments used in this State to their Addrs.
     , state_midi_config :: Instrument.Config
+    -- | Custom scale associations for this project.  These override the
+    -- instrument's default scale.
+    , state_scale_config :: Map.Map Score.Instrument Pitch.ScaleId
     } deriving (Show, Read, Generics.Typeable)
 
 -- TODO "initial_state" would be more consistent
 empty = State "untitled" "save" Map.empty Map.empty Map.empty ruler_map
-    (Instrument.config [] Nothing)
+    (Instrument.config [] Nothing) Map.empty
     where ruler_map = Map.fromList [(no_ruler, Ruler.no_ruler)]
 
 -- | Since all TracklikeIds must have a ruler, all States have a special empty
