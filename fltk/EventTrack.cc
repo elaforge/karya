@@ -318,6 +318,10 @@ EventTrackView::draw_upper_layer(int offset, const Event &event,
             if (text_size.x > w() - 1) {
                 fl_color(color_to_fl(Config::abbreviation_color));
                 fl_rectf(x()+w() - 2, offset, 2, fl_height());
+            } else if (isspace(event.text[strlen(event.text)-1])) {
+                // Hightlight a trailing space.
+                fl_color(FL_RED);
+                fl_rectf(x() + text_size.x, offset, 2, fl_height());
             }
 
             fl_color(FL_RED);
