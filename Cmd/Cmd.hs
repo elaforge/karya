@@ -242,10 +242,10 @@ data HistoryEntry = HistoryEntry {
     , hist_state :: State.State
     } deriving (Show, Generics.Typeable)
 
--- | These enable various commands to edit event text.  What exactly val, call,
+-- | These enable various commands to edit event text.  What exactly val,
 -- and method mean are dependent on the deriver, but I expect the definitions
 -- in Cmd.NoteTrack and Cmd.ControllerTrack will be universal.
-data EditMode = RawEdit | ValEdit | CallEdit | MethodEdit deriving (Eq, Show)
+data EditMode = RawEdit | ValEdit | MethodEdit deriving (Eq, Show)
 
 data Modifier = KeyMod Key.Key
     -- | Mouse button, and (tracknum, pos) in went down at, if any.

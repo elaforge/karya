@@ -22,7 +22,7 @@ import qualified Cmd.Selection as Selection
 import qualified App.Config as Config
 
 
-cmd_toggle_raw_edit, cmd_toggle_val_edit, cmd_toggle_call_edit,
+cmd_toggle_raw_edit, cmd_toggle_val_edit,
     cmd_toggle_method_edit, cmd_toggle_kbd_entry :: Cmd.CmdId
 
 cmd_toggle_raw_edit = modify_edit_mode $ \m -> case m of
@@ -35,10 +35,6 @@ cmd_toggle_raw_edit = modify_edit_mode $ \m -> case m of
 cmd_toggle_val_edit = modify_edit_mode $ \m -> case m of
     Nothing -> Just Cmd.ValEdit
     Just _ -> Nothing
-
-cmd_toggle_call_edit = modify_edit_mode $ \m -> case m of
-    Just Cmd.CallEdit -> Nothing
-    _ -> Just Cmd.CallEdit
 
 cmd_toggle_method_edit = modify_edit_mode $ \m -> case m of
     Just Cmd.MethodEdit -> Just Cmd.ValEdit
@@ -73,7 +69,6 @@ edit_color mode = case mode of
     Nothing -> Config.box_color
     Just Cmd.RawEdit -> Config.raw_edit_color
     Just Cmd.ValEdit -> Config.val_edit_color
-    Just Cmd.CallEdit -> Config.call_edit_color
     Just Cmd.MethodEdit -> Config.method_edit_color
 
 -- * universal event cmds

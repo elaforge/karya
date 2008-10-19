@@ -58,6 +58,42 @@ data Info = Info {
     , info_pb_range :: Controller.PbRange
     }
 
+-- In raw mode, edits just work on text.
+
+-- * raw mode commands
+
+cmd_raw_edit :: Cmd.Cmd
+cmd_raw_edit msg = do
+    key <- ControllerTrack.raw_edit_key msg
+    modify_event (return . ControllerTrack.modify_text key)
+    return Cmd.Done
+
+-- * note mode commands
+
+-- | Apply a modification function to the event enter the insertion point
+-- (possibly creating one).  Edits always work on (method, note), which will be
+-- the last one, or a newly created empty one.
+modify_note :: (Monad m) =>
+    (Note.NoteTokens -> Note.NoteTokens) -> Cmd.CmdT m ()
+modify_note f = modify_event $ \text -> do
+    tokens <- either (Cmd.throw . ("tokenizing note: "++))
+        return (Note.tokenize_note text)
+    return $ Note.untokenize_note (f tokens)
+
+modify_event :: (Monad m) => (String -> Cmd.CmdT m String) -> Cmd.CmdT m ()
+modify_event f = do
+    (track_id, tracknum, pos) <- Selection.get_insert_track
+    end_pos <- Selection.step_from tracknum pos TimeStep.Advance
+    event <- ControllerTrack.get_event track_id pos (end_pos - pos)
+    new_text <- f (Event.event_text event)
+    if null new_text then State.remove_event track_id pos
+        else State.insert_events track_id
+            [(pos, event { Event.event_text = new_text })]
+
+-- ** EditVal (aka edit note)
+
+-- *** kbd entry
+
 -- | Note that 'cmd_kbd_note_entry' does a midi thru on an entry.  This is
 -- unlike 'cmd_midi_entry', which doesn't.  Midi thru is handled separately by
 -- 'cmd_midi_thru' because midi notes always go through no matter what
@@ -65,21 +101,14 @@ data Info = Info {
 cmd_kbd_note_entry :: Info -> Cmd.Cmd
 cmd_kbd_note_entry = Keymap.make_cmd . kbd_note_entry
 
-cmd_kbd_note_thru :: Info -> Cmd.Cmd
-cmd_kbd_note_thru = Keymap.make_cmd . kbd_note_thru
-
-cmd_midi_entry :: Pitch.Scale -> Cmd.Cmd
-cmd_midi_entry scale msg = cmd_insert_midi_note scale msg
-    >> Selection.cmd_advance_insert
-
-
--- * kbd note entry
-
 -- | Enter notes from the computer keyboard.
 kbd_note_entry :: Info -> [Keymap.Binding Identity.Identity]
 kbd_note_entry info = binds ++ ignore_unbound_letters binds
     where binds = concatMap (make_kbd_note_entry info True)
             (lower_notes ++ upper_notes)
+
+cmd_kbd_note_thru :: Info -> Cmd.Cmd
+cmd_kbd_note_thru = Keymap.make_cmd . kbd_note_thru
 
 kbd_note_thru :: Info -> [Keymap.Binding Identity.Identity]
 kbd_note_thru info = binds ++ ignore_unbound_letters binds
@@ -89,7 +118,8 @@ kbd_note_thru info = binds ++ ignore_unbound_letters binds
 -- | Kbd entry doesn't map all the keys, and it's annoying when you
 -- accidentally hit a key that falls through and does some function you don't
 -- want.  So find all the alphanumeric keys that aren't mapped and give them
--- a dummy command.
+-- a dummy command.  It's only alphanum because zoom, play, etc. are still
+-- useful.
 ignore_unbound_letters :: (Monad m) => [Keymap.Binding m] -> [Keymap.Binding m]
 ignore_unbound_letters binds = ignore_cmds
     where
@@ -153,13 +183,11 @@ make_kbd_note_entry info enter_notes (k_keynum, unmapped_char) =
         return Cmd.Done
     keyup_cmd = cmd_note_off info =<< transpose_keynum k_keynum
 
+-- *** midi entry
 
--- * note entry
-
--- | Insert an event with the given pitch at the current insert point.
-cmd_insert_pitch :: Pitch.Scale -> Pitch.KeyNumber -> Cmd.CmdId
-cmd_insert_pitch scale keynum = keynum_to_note scale keynum >>= insert_note
-    >> return Cmd.Done
+cmd_midi_entry :: Pitch.Scale -> Cmd.Cmd
+cmd_midi_entry scale msg = cmd_insert_midi_note scale msg
+    >> Selection.cmd_advance_insert
 
 cmd_insert_midi_note :: (Monad m) => Pitch.Scale -> Msg.Msg
     -> Cmd.CmdT m Cmd.Status
@@ -168,8 +196,24 @@ cmd_insert_midi_note scale msg = do
         Msg.Midi (Midi.ReadMessage _ _
             (Midi.ChannelMessage _ (Midi.NoteOn key _))) -> return key
         _ -> Cmd.abort
-    insert_note =<< keynum_to_note scale (fromIntegral key `divMod` 12)
-    return Cmd.Done
+    -- Midi entry bypasses the transpose.
+    cmd_insert_pitch scale (fromIntegral key `divMod` 12)
+    -- replace_note =<< keynum_to_note scale (fromIntegral key `divMod` 12)
+    -- return Cmd.Done
+
+
+-- *** edit note events
+
+-- | Insert an event with the given pitch at the current insert point.
+cmd_insert_pitch :: (Monad m) => Pitch.Scale -> Pitch.KeyNumber
+    -> Cmd.CmdT m Cmd.Status
+cmd_insert_pitch scale keynum = keynum_to_note scale keynum >>= replace_note
+    >> return Cmd.Done
+
+-- | Actually convert the given note to an event and insert it.
+replace_note :: (Monad m) => Pitch.Note -> Cmd.CmdT m ()
+replace_note note = modify_note (edit_note note)
+    where edit_note note (method, _) = (method, Pitch.note_text note)
 
 transpose_keynum :: (Monad m) => Pitch.KeyNumber -> Cmd.CmdT m Pitch.KeyNumber
 transpose_keynum (oct, num) = do
@@ -193,46 +237,17 @@ keynum_to_nn scale keynum = do
         Just nn -> return nn
 
 
--- * edit note events
+-- ** EditMethod
 
--- | Actually convert the given note to an event and insert it.
-insert_note :: (Monad m) => Pitch.Note -> Cmd.CmdT m ()
-insert_note note = modify_note (edit_note note)
-
-edit_note note (method, _, call) = (method, Pitch.note_text note, call)
-
-cmd_edit_call :: Cmd.Cmd
-cmd_edit_call msg = do
-    key <- ControllerTrack.edit_key msg
-    Log.debug $ "edit call: " ++ show key
-    modify_note (edit_call key)
-    return Cmd.Done
-
-edit_call key (method, note, call) =
-    (method, note, ControllerTrack.modify_text call key)
-
-cmd_edit_method :: Cmd.Cmd
-cmd_edit_method msg = do
+cmd_method_edit :: Cmd.Cmd
+cmd_method_edit msg = do
     key <- ControllerTrack.edit_key msg
     modify_note (edit_method key)
     return Cmd.Done
+    where
+    edit_method key (method, note) =
+        (ControllerTrack.modify_text key method, note)
 
-edit_method key (method, note, call) =
-    (ControllerTrack.modify_text method key, note, call)
-
-modify_note :: (Monad m) =>
-    (Note.NoteTokens -> Note.NoteTokens) -> Cmd.CmdT m ()
-modify_note f = do
-    (track_id, tracknum, pos) <- Selection.get_insert_track
-    end_pos <- Selection.step_from tracknum pos TimeStep.Advance
-    event <- ControllerTrack.get_event track_id pos (end_pos - pos)
-
-    tokens <- either (Cmd.throw . ("tokenizing note: "++)) return $
-        Note.tokenize_note (Event.event_text event)
-    let new_text = Note.untokenize_note (f tokens)
-    if null new_text then State.remove_event track_id pos
-        else State.insert_events track_id
-            [(pos, event { Event.event_text = new_text })]
 
 -- * midi thru
 

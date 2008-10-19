@@ -186,11 +186,9 @@ edit_bindings = concat
     [ bind_key Key.Escape "toggle edit" Edit.cmd_toggle_val_edit
     , bind_kmod [Key.MetaL] Key.Escape "toggle raw edit"
         Edit.cmd_toggle_raw_edit
-    , bind_kmod [Key.ShiftL] Key.Escape "toggle call edit"
-        Edit.cmd_toggle_call_edit
     , bind_kmod [] Key.Tab "toggle method edit" Edit.cmd_toggle_method_edit
 
-    , bind_kmod [Key.ShiftL, Key.MetaL] Key.Escape "toggle kbd entry mode"
+    , bind_kmod [Key.ShiftL] Key.Escape "toggle kbd entry mode"
         Edit.cmd_toggle_kbd_entry
 
     -- Unlike other event editing commands, you don't have to be in insert mode

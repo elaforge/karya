@@ -69,7 +69,6 @@ play_position_color = make_selection_color Color.purple
 box_color = Color.rgb 0.7 0.7 0.7
 raw_edit_color = Color.rgb 0.25 0.25 1
 val_edit_color = Color.rgb 1 0.5 0.5
-call_edit_color = Color.rgb 0 0.6 0
 -- Similar to val color because you toggle between val and method.
 method_edit_color = Color.rgb 0.6 0 0
 
