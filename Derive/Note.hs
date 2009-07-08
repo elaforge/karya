@@ -167,6 +167,14 @@ parse_events note_parser events = do
             (Event.event_duration event) meth pitch call
         | ((start, event), Just (meth, pitch, call)) <- zip events maybe_parsed]
 
+-- Turn a sequence of events and their 'PitchSignal's into a plain Signal
+-- reprelenting the note number of the combined sequence.  This is where the
+-- Scale abstraction is eliminated.
+-- TODO: If I'm going to look up the scale in the instrument, I'll also need
+-- the instrument here.
+-- TODO: This currently happens too early.  Since I store the pitch signal as
+-- nns, a sub-block with a relative pitch signal can only be nns, so non
+-- tempered scales will not transpose properly.
 extract_pitch_signal :: (Monad m) => Pitch.ScaleMap
     -> [(ParsedEvent, PitchSignal)] -> Derive.DeriveT m Signal.Signal
 extract_pitch_signal scales parsed_psig = do
@@ -200,8 +208,9 @@ derive_event deriver = Derive.catch_warn deriver
 
 -- * parser
 
--- | The idea is that a more complicated note parser may get scale values out
--- of the environment or something.
+-- | Parse scale degrees for a given scale.  This one just matches the scale
+-- degrees directly, but a more complicated one may get scale values out of the
+-- environment or something.
 scale_parser :: (Monad m) => Pitch.Scale -> NoteParser m
 scale_parser scale (_pos, event) =
     case default_parse_note scale (Event.event_text event) of
