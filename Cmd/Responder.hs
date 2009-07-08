@@ -240,6 +240,16 @@ run_core_cmds rstate msg exit = do
         ui_from cmd_state [Cmd.cmd_record_ui_updates]
     let ui_to = ui_from
 
+    -- Focus commands and the rest of the pure commands come first so text
+    -- entry can override io bound commands.
+    focus_cmds <- Trans.liftIO $
+        eval "get focus cmds" ui_to cmd_state [] get_focus_cmds
+    Trans.liftIO $ timer ("ran get focus cmds: " ++ show (length focus_cmds))
+    let id_cmds = focus_cmds ++ hardcoded_cmds ++ GlobalKeymap.global_cmds
+    (ui_to, cmd_state) <- do_run exit Cmd.run_id_io rstate msg ui_from
+        ui_to cmd_state id_cmds
+    Trans.liftIO $ timer "ran pure cmds"
+
     let config = state_static_config rstate
     -- Certain commands require IO.  Rather than make everything IO,
     -- I hardcode them in a special list that gets run in IO.
@@ -249,12 +259,7 @@ run_core_cmds rstate msg exit = do
                 (StaticConfig.config_local_lang_dirs config)
     (ui_to, cmd_state) <- do_run exit Cmd.run_io rstate msg ui_from
         ui_to cmd_state io_cmds
-
-    focus_cmds <- Trans.liftIO $
-        eval "get focus cmds" ui_to cmd_state [] get_focus_cmds
-    let id_cmds = hardcoded_cmds ++ focus_cmds ++ GlobalKeymap.global_cmds
-    (ui_to, cmd_state) <- do_run exit Cmd.run_id_io rstate msg ui_from
-        ui_to cmd_state id_cmds
+    Trans.liftIO $ timer "ran io cmds"
 
     return $ Right (Cmd.Continue, ui_from, ui_to, cmd_state)
 
