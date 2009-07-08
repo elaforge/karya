@@ -178,20 +178,21 @@ default_cmds parser context tracks = case track_type of
         (_, Nothing) -> with_info NoteTrack.cmd_kbd_note_thru
         (_, Just Cmd.ValEdit) -> with_info NoteTrack.cmd_kbd_note_entry
         _ -> [] -- Don't steal keys from other edit modes.
+        -- RawEdit in kbd entry mode doesn't really make sense, since they both
+        -- want the entire keyboard.  So let it fall through to non-kbd raw
+        -- edit.
 
     inst_edit_cmds = case ctx_edit_mode context of
         Nothing -> []
-        Just Cmd.RawEdit -> [] -- TODO
+        Just Cmd.RawEdit -> [NoteTrack.cmd_raw_edit]
         Just Cmd.ValEdit -> [NoteTrack.cmd_midi_entry hardcoded_scale]
-        Just Cmd.CallEdit -> [NoteTrack.cmd_edit_call]
-        Just Cmd.MethodEdit -> [NoteTrack.cmd_edit_method]
+        Just Cmd.MethodEdit -> [NoteTrack.cmd_method_edit]
 
     cont_edit_cmds = case ctx_edit_mode context of
         Nothing -> []
-        -- TODO Once I have enums, implement MethodEdit as its own command.
+        -- TODO should be cmd_method_edit
         Just Cmd.MethodEdit -> [ControllerTrack.cmd_raw_edit]
         Just _ -> [ControllerTrack.cmd_raw_edit]
-        -- TODO support for enum vals
 
     track_type = case ctx_focused_tracknum context of
         Nothing -> Nothing
@@ -203,12 +204,20 @@ default_cmds parser context tracks = case track_type of
     with_info cmd = case maybe_addr of
         Nothing -> []
         Just addr -> [cmd (NoteTrack.Info hardcoded_scale addr dummy_pb_range)]
+    -- TODO use a function to find out the instrument at a given (tracknum, pos)
+    -- which looks for a governing instrument track and then the note track
+    -- title.  It'll need the skeleton.
     insts = case track_type of
         Just (NoteTrack inst) -> [inst]
         Just (ControllerTrack insts) -> insts
         Nothing -> []
 
+-- | Like Skeleton, but describe the type of a single track.
 data TrackType =
+    -- | This is just so that I can easily figure out what instruments a block
+    -- mentions, e.g. in LanguageCmds, which uses it to deallocate an old
+    -- instrument.  This is kinda sketchy anyway since this doesn't account for
+    -- the instrument track.
     NoteTrack Score.Instrument
     | ControllerTrack [Score.Instrument]
     deriving (Eq, Show)
@@ -260,6 +269,7 @@ skeleton_instruments skel = case skel of
     Controller _ _ -> []
     Instrument inst _ -> [inst]
     Merge subs -> concatMap skeleton_instruments subs
+    _ -> []
 
 -- ** compile skeleton
 
