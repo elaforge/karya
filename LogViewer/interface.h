@@ -12,5 +12,6 @@ void append_log(LogViewWindow *view, const char *msg, const char *style);
 void clear_logs(LogViewWindow *view);
 
 void set_status(LogViewWindow *view, const char *status);
+void set_filter(LogViewWindow *view, const char *filter);
 
 };

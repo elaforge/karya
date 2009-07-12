@@ -21,8 +21,8 @@ module Util.Log (
     -- * msgs
     , Msg(..), Prio(..)
     , msg, msg_srcpos
-    , debug, notice, warn, error
-    , debug_srcpos, notice_srcpos, warn_srcpos, error_srcpos
+    , debug, notice, warn, error, timer, is_timer_msg
+    , debug_srcpos, notice_srcpos, warn_srcpos, error_srcpos, timer_srcpos
     , debug_stack, notice_stack, warn_stack, error_stack
     , debug_stack_srcpos, notice_stack_srcpos, warn_stack_srcpos
         , error_stack_srcpos
@@ -38,6 +38,7 @@ import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Trans as Trans
+import qualified Data.List as List
 import qualified Data.Generics as Generics
 import qualified Data.Time as Time
 import qualified System.IO as IO
@@ -55,7 +56,7 @@ import qualified Perform.Warning as Warning
 
 
 data Msg = Msg {
-    msg_date :: Maybe Time.UTCTime
+    msg_date :: Time.UTCTime
     , msg_caller :: SrcPos.SrcPos
     , msg_prio :: Prio
     -- | Msgs which are logged from the deriver may record the position in the
@@ -64,6 +65,11 @@ data Msg = Msg {
     -- | Free form text for humans.
     , msg_text  :: String
     } deriving (Eq, Show, Read, Generics.Typeable)
+
+-- | Pure code can't give a date, but making msg_date Maybe makes it awkward
+-- for everyone who processes Msgs, so cheat with this.
+no_date_yet :: Time.UTCTime
+no_date_yet = Time.UTCTime (Time.ModifiedJulianDay 0) 0
 
 -- | One handle for the machine readable log, and one for the human readable
 -- one.
@@ -101,11 +107,11 @@ data Prio
 
 -- | Create a msg with the give prio and text.
 msg_srcpos :: SrcPos.SrcPos -> Prio -> String -> Msg
-msg_srcpos srcpos prio text = Msg Nothing srcpos prio Nothing text
+msg_srcpos srcpos prio text = Msg no_date_yet srcpos prio Nothing text
 msg :: Prio -> String -> Msg
 msg prio = msg_srcpos Nothing prio
 
-make_msg srcpos prio stack text = Msg Nothing srcpos prio stack text
+make_msg srcpos prio stack text = Msg no_date_yet srcpos prio stack text
 
 log :: LogMonad m => Prio -> SrcPos.SrcPos -> String -> m ()
 log prio srcpos text = write (make_msg srcpos prio Nothing text)
@@ -113,18 +119,27 @@ log_stack :: LogMonad m => Prio -> SrcPos.SrcPos -> Stack -> String -> m ()
 log_stack prio srcpos stack text =
     write (make_msg srcpos prio (Just stack) text)
 
-debug_srcpos, notice_srcpos, warn_srcpos, error_srcpos
+debug_srcpos, notice_srcpos, warn_srcpos, error_srcpos, timer_srcpos
     :: LogMonad m => SrcPos.SrcPos -> String -> m ()
 debug_srcpos = log Debug
 notice_srcpos = log Notice
 warn_srcpos = log Warn
 error_srcpos = log Error
 
-debug, notice, warn, error :: LogMonad m => String -> m ()
+-- | Emit msgs specifically intended to gather timing.  Obviously this only
+-- works with the LogMonad IO instance, but it's kind of hard to get timings
+-- for non-sequenced functional code.
+timer_srcpos srcpos text = log Debug srcpos ("timer: " ++ text)
+
+debug, notice, warn, error, timer :: LogMonad m => String -> m ()
 debug = debug_srcpos Nothing
 notice = notice_srcpos Nothing
 warn = warn_srcpos Nothing
 error = error_srcpos Nothing
+timer = timer_srcpos Nothing
+
+is_timer_msg :: Msg -> Bool
+is_timer_msg msg = "timer: " `List.isPrefixOf` msg_text msg
 
 -- Yay permutation game.  I could probably do a typeclass trick to make 'stack'
 -- an optional arg, but I think I'd wind up with all the same boilerplate here.
@@ -176,11 +191,11 @@ show_stack stack = "[[" ++ Seq.join " -> " (map f stack) ++ "]]"
 -- | Add a time to the msg if it doesn't already have one.  Msgs can be logged
 -- outside of IO, so they don't get a date until they are written.
 add_time :: Msg -> IO Msg
-add_time msg = case msg_date msg of
-    Nothing -> do
+add_time msg
+    | msg_date msg == no_date_yet = do
         utc <- Time.getCurrentTime
-        return $ msg {msg_date = Just utc}
-    Just _ -> return msg
+        return $ msg {msg_date = utc}
+    | otherwise = return msg
 
 instance Monad m => LogMonad (LogT m) where
     write msg = write_msg msg

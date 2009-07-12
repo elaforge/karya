@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fno-warn-unused-imports #-}
+-- Control.Monad
 module LogViewer.Process where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
@@ -6,6 +8,7 @@ import qualified Control.Monad.Writer as Writer
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Time as Time
 import qualified System.IO as IO
 import qualified Text.Regex as Regex
 
@@ -22,9 +25,12 @@ data State = State {
     -- status line.
     , state_catch_patterns :: [CatchPattern]
     , state_status :: Status
+    -- TODO This will take too much space, remove this.
     , state_msgs :: [Log.Msg]
+    -- | Last timing message.
+    , state_last_timing :: Maybe Log.Msg
     } deriving (Show)
-initial_state = State (compile_filter "") [] Map.empty []
+initial_state filt = State (compile_filter filt) [] Map.empty [] Nothing
 
 -- ** filter
 
@@ -55,19 +61,41 @@ data StyledText = StyledText {
     style_text :: String
     , style_style :: String
     } deriving (Show)
-no_text = StyledText "" ""
 extract_style (StyledText text style) = (text, style)
 
--- (status, log_str, style_str)
-process_msg :: State -> Log.Msg -> (Status, StyledText)
-process_msg state msg = (status, msg_styled)
+process_msg :: State -> Log.Msg -> (State, Maybe StyledText)
+process_msg state msg = (new_state { state_status = status }, msg_styled)
     where
-    styled = format_msg msg
-    msg_styled = if eval_filter (state_filter state) msg (style_text styled)
-        then styled
-        else no_text
+    (new_state, new_msg) = timer_filter state msg
+    msg_styled = case new_msg of
+        Just msg -> let styled = format_msg msg
+            in if eval_filter (state_filter new_state) msg (style_text styled)
+                then Just styled
+                else Nothing
+        Nothing -> Nothing
     caught = catch_patterns (state_catch_patterns state) (Log.msg_text msg)
     status = Map.union caught (state_status state)
+
+-- | Only display timing msgs that take longer than this.
+timing_diff_threshold :: Time.NominalDiffTime
+timing_diff_threshold = 0.05
+
+-- | Filter out timer msgs that don't have a minimum time from the previous
+-- timing, and prepend the interval if they do.
+timer_filter :: State -> Log.Msg -> (State, Maybe Log.Msg)
+timer_filter state msg
+    | Log.is_timer_msg msg = case state_last_timing state of
+        Nothing -> (new_state, Nothing)
+        Just last_msg -> (new_state, timing_msg last_msg)
+    | otherwise = (state, Just msg)
+    where
+    new_state = if Log.is_timer_msg msg
+        then state { state_last_timing = Just msg } else state
+    timing_msg last_msg
+        | diff >= timing_diff_threshold = Just $
+            msg { Log.msg_text = show diff ++ " " ++ Log.msg_text msg }
+        | otherwise = Nothing
+        where diff = Log.msg_date msg `Time.diffUTCTime` Log.msg_date last_msg
 
 catch_patterns :: [CatchPattern] -> String -> Status
 catch_patterns patterns text = Map.fromList $ concatMap match patterns
@@ -128,22 +156,25 @@ style_emphasis = 'D'
 
 -- * tail file
 
-tail_file log_chan filename = do
+tail_file :: STM.TChan Log.Msg -> FilePath -> Bool -> IO ()
+tail_file log_chan filename seek = do
     -- ReadWriteMode makes it create the file if it doesn't exist, and not
     -- die here.
     hdl <- IO.openFile filename IO.ReadWriteMode
-    IO.hSetBuffering hdl IO.LineBuffering
+    IO.hSetBuffering hdl IO.LineBuffering -- See tail_getline.
+    when seek $
+        IO.hSeek hdl IO.SeekFromEnd 0
     forever $ do
         line <- tail_getline hdl
-        process_line log_chan line
+        msg <- deserialize_line line
+        STM.atomically $ STM.writeTChan log_chan msg
 
-process_line log_chan line = do
+deserialize_line :: String -> IO Log.Msg
+deserialize_line line = do
     err_msg <- Log.deserialize_msg line
-    let msg = case err_msg of
-            Left exc ->
-                Log.msg Log.Error ("error parsing: " ++ show exc)
-            Right msg -> msg
-    STM.atomically $ STM.writeTChan log_chan msg
+    return $ case err_msg of
+        Left exc -> Log.msg Log.Error ("error parsing: " ++ show exc)
+        Right msg -> msg
 
 tail_getline :: IO.Handle -> IO String
 tail_getline hdl = do

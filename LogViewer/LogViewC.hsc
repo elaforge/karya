@@ -52,22 +52,38 @@ create_logview :: Int -> Int -> Int -> Int -> IO LogView
 create_logview x y w h = do
     chan <- STM.newTChanIO
     cb <- c_make_msg_callback (cb_msg_callback chan)
-    putStrLn "create"
     viewp <- c_create_logview (c x) (c y) (c w) (c h) cb
     return (LogView viewp chan)
     where c = fromIntegral
+foreign import ccall "create_logview"
+    c_create_logview :: CInt -> CInt -> CInt -> CInt -> FunPtr MsgCallback
+        -> IO (Ptr LogView)
+foreign import ccall "wrapper"
+    c_make_msg_callback :: MsgCallback -> IO (FunPtr MsgCallback)
 
 append_log :: LogView -> String -> String -> IO ()
 append_log view msg style =
     withCString msg $ \msgp -> withCString style $ \stylep ->
         c_append_log (view_p view) msgp stylep
+foreign import ccall "append_log"
+    c_append_log :: Ptr LogView -> CString -> CString -> IO ()
 
 clear_logs :: LogView -> IO ()
 clear_logs view = c_clear_logs (view_p view)
+foreign import ccall "clear_logs"
+    c_clear_logs :: Ptr LogView -> IO ()
 
 set_status :: LogView -> String -> IO ()
 set_status view status = withCString status $ \statusp ->
     c_set_status (view_p view) statusp
+foreign import ccall "set_status"
+    c_set_status :: Ptr LogView -> CString -> IO ()
+
+set_filter :: LogView -> String -> IO ()
+set_filter view filt = withCString filt $ \filtp ->
+    c_set_filter (view_p view) filtp
+foreign import ccall "set_filter"
+    c_set_filter :: Ptr LogView -> CString -> IO ()
 
 
 -- * implementation
@@ -83,17 +99,3 @@ decode_type msg_type = case msg_type of
     (#const cb_click) -> Click
     (#const cb_command) -> Command
     _ -> Unknown msg_type
-
-foreign import ccall "wrapper"
-    c_make_msg_callback :: MsgCallback -> IO (FunPtr MsgCallback)
-
-foreign import ccall "create_logview"
-    c_create_logview :: CInt -> CInt -> CInt -> CInt -> FunPtr MsgCallback
-        -> IO (Ptr LogView)
-foreign import ccall "append_log"
-    c_append_log :: Ptr LogView -> CString -> CString -> IO ()
-foreign import ccall "clear_logs"
-    c_clear_logs :: Ptr LogView -> IO ()
-
-foreign import ccall "set_status"
-    c_set_status :: Ptr LogView -> CString -> IO ()

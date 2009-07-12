@@ -10,7 +10,7 @@ import qualified Text.Regex as Regex
 
 -- These are substituted everywhere.
 global_subs = map (\s -> (s, s++"_srcpos"))
-    [ "Log.msg", "Log.debug", "Log.notice", "Log.warn", "Log.error"
+    [ "Log.msg", "Log.debug", "Log.notice", "Log.warn", "Log.error", "Log.timer"
     , "Log.debug_stack", "Log.notice_stack", "Log.warn_stack", "Log.error_stack"
     ]
 

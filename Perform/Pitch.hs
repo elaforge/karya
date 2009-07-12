@@ -61,7 +61,9 @@ type ScaleId = String
 data Scale = Scale {
     scale_id :: ScaleId
     -- | A pattern describing what the scale notes look like.  Used only for
-    -- error msgs (i.e. parse errors).
+    -- error msgs (i.e. parse errors) so it should be human readable and
+    -- doesn't have to follow any particular syntax.  A regex is recommended
+    -- though.
     , scale_pattern :: String
     -- | Transpose the given note by the given scale steps, or octaves.
     -- Return an error if it couldn't be transposed for some reason.

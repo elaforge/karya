@@ -27,6 +27,8 @@ import qualified Ui.Track as Track
 import qualified Ui.State as State
 import qualified Ui.Update as Update
 
+import qualified Util.Log as Log
+
 
 type BlockSamples = [(Block.BlockId, Track.TrackSamples)]
 
@@ -39,6 +41,7 @@ sync state updates block_samples = do
     -- newly created views, but this optimization is probably not worth it.
     result <- State.run state $
         do_updates block_samples (Update.sort updates)
+    Log.timer $ "synced updates: " ++ show (length updates)
     return $ case result of
         Left err -> Just err
         -- I reuse State.StateT for convenience, but run_update should

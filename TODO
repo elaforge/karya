@@ -46,9 +46,12 @@ fltk
   MoveTile
     - only capture drag on a plain drag with no modifiers
 
-logging
+logging logview
+  - logview needs scrollbars
+  - don't store msgs in memory, don't refilter from begining
+  - colorize (tid ..) (bid ..) (vid ..) etc.
+  - implement clickable srcpos and StackPos
   - haskell and c++ use the same machine readable format
-  * Util.Misc isn't well named, call it Util.SrcPos or something
   - rename LogViewer -> LogView just to reduce confusion
   - LogView should use Util.Fltk
 

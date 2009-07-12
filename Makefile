@@ -72,7 +72,7 @@ clean:
 		fixdeps fltk/fltk.a \
 		$(UI_HS) $(MIDI_HS) $(LOGVIEW_HS) $(BROWSER_HS) haddock/*  hpc/* \
 		seq_language
-	rm -rf test_obj/* build/* .hpc
+	rm -rf test_obj/* $(BUILD)/* .hpc
 
 fltk/fltk.a: $(FLTK_OBJS)
 	ar -rs $@ $^

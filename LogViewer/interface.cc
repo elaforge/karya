@@ -35,4 +35,10 @@ set_status(LogViewWindow *view, const char *status)
     view->view.set_status(status);
 }
 
+void
+set_filter(LogViewWindow *view, const char *filter)
+{
+    view->view.set_filter(filter);
+}
+
 };

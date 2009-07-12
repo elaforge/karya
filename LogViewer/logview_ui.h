@@ -17,8 +17,9 @@ enum CallbackType {
 class TextDisplay : public Fl_Text_Display {
 public:
     TextDisplay(int X, int Y, int W, int H) : Fl_Text_Display(X, Y, W, H) {}
+    // Make this public.
     int xy_to_position(int x, int y) {
-        Fl_Text_Display::xy_to_position(x, y);
+        return Fl_Text_Display::xy_to_position(x, y);
     }
 };
 
@@ -29,6 +30,7 @@ public:
     void append_log(const char *msg, const char *style);
     void clear_logs();
     void set_status(const char *s) { status.value(s); }
+    void set_filter(const char *s) { command.value(s); }
 
 protected:
     virtual int handle(int evt);

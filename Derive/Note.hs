@@ -321,7 +321,3 @@ untokenize_note toks = case toks of
     ("", "") -> ""
     ("", note) -> note
     (meth, note) -> meth ++ "," ++ note
-
--- One of the early proponents of this style during the renaissance was
--- Johannes Fux, who was surpassed in unfortunateness only by the much-loved
--- Count Fux Dux.

@@ -77,6 +77,7 @@ sync ui_from ui_to cmd_state cmd_updates = do
     -- Actually, the expensive part is the sampling, which has no logging,
     -- so it should remain lazy... I think.  Verify this.
     mapM_ Log.write sig_logs
+    Log.timer "wrote signal logs"
     -- putStrLn $ "block samples: " ++ show block_samples
     diff_updates <- case Diff.diff ui_from ui_to of
         Left err -> Log.error ("diff error: " ++ err) >> return []
@@ -84,6 +85,7 @@ sync ui_from ui_to cmd_state cmd_updates = do
             unless ((null diff_updates) && (null cmd_updates)) $
                 Log.debug $ "diff_updates: " ++ show diff_updates
                     ++ " cmd_updates: " ++ show cmd_updates
+            Log.timer "got diff updates"
             err <- Sync.sync ui_to (diff_updates ++ cmd_updates) block_samples
             case err of
                 Nothing -> return ()

@@ -103,6 +103,7 @@ run_setup_cmd ui_state cmd_state cmd = do
 
 respond_loop :: ResponderState -> IO ()
 respond_loop rstate = do
+    Log.timer "---------- responder loop"
     (quit, rstate) <- respond rstate
     when quit (respond_loop rstate)
 
@@ -156,13 +157,14 @@ type ResponderM a = Cont.ContT RType (Logger.LoggerT Update.Update IO) a
 respond :: ResponderState -> IO (Bool, ResponderState)
 respond rstate = do
     msg <- state_msg_reader rstate
-    -- Trans.liftIO $ putStrLn $ "msg: " ++ show msg
+    Log.timer ("received msg: " ++ show msg)
     (res, updates) <- run_responder (run_cmds rstate msg)
     (status, rstate) <- case res of
         Left err -> do
             Log.warn $ "responder: " ++ show err
             return (Cmd.Continue, rstate)
         Right (status, ui_from, ui_to, cmd_state) -> do
+            Log.timer "syncing"
             cmd_state <- return $ fix_cmd_state ui_to cmd_state
             (updates, ui_state, cmd_state) <-
                 ResponderSync.sync ui_from ui_to cmd_state updates
@@ -234,21 +236,23 @@ run_cmds rstate msg = do
 run_core_cmds :: ResponderState -> Msg.Msg
     -> (RType -> ResponderM (State.State, Cmd.State)) -> ResponderM RType
 run_core_cmds rstate msg exit = do
+    Trans.liftIO $ Log.timer "run core cmds"
     let ui_from = state_ui rstate
         cmd_state = state_cmd rstate
     (ui_from, cmd_state) <- do_run exit Cmd.run_id_io rstate msg ui_from
         ui_from cmd_state [Cmd.cmd_record_ui_updates]
+    Trans.liftIO $ Log.timer "ran record updates"
     let ui_to = ui_from
 
     -- Focus commands and the rest of the pure commands come first so text
     -- entry can override io bound commands.
     focus_cmds <- Trans.liftIO $
         eval "get focus cmds" ui_to cmd_state [] get_focus_cmds
-    Trans.liftIO $ timer ("ran get focus cmds: " ++ show (length focus_cmds))
+    Trans.liftIO $ Log.timer ("ran get focus cmds: " ++ show (length focus_cmds))
     let id_cmds = focus_cmds ++ hardcoded_cmds ++ GlobalKeymap.global_cmds
     (ui_to, cmd_state) <- do_run exit Cmd.run_id_io rstate msg ui_from
         ui_to cmd_state id_cmds
-    Trans.liftIO $ timer "ran pure cmds"
+    Trans.liftIO $ Log.timer "ran pure cmds"
 
     let config = state_static_config rstate
     -- Certain commands require IO.  Rather than make everything IO,
@@ -259,7 +263,7 @@ run_core_cmds rstate msg exit = do
                 (StaticConfig.config_local_lang_dirs config)
     (ui_to, cmd_state) <- do_run exit Cmd.run_io rstate msg ui_from
         ui_to cmd_state io_cmds
-    Trans.liftIO $ timer "ran io cmds"
+    Trans.liftIO $ Log.timer "ran io cmds"
 
     return $ Right (Cmd.Continue, ui_from, ui_to, cmd_state)
 
