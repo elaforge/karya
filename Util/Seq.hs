@@ -170,6 +170,10 @@ split sep xs = go sep xs
         | otherwise = pre : split sep (drop (length sep) post)
         where (pre, post) = break_tails (sep `isPrefixOf`) xs
 
+-- | Split on commas and strip whitespace.
+split_commas :: String -> [String]
+split_commas = map strip . split ","
+
 -- | Concat a list with 'sep' in between.
 join sep = concat . intersperse sep
 

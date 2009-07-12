@@ -1,5 +1,7 @@
 module Derive.Note_test where
 
+import qualified Data.Maybe as Maybe
+
 import Util.Test
 import qualified Util.Log as Log
 
@@ -35,11 +37,11 @@ test_d_instrument_track = do
     mapM_ pprint val
 
 test_derive_note = do
-    let mkevt = Note.ParsedEvent "5a-" (TrackPos 1) (TrackPos 1)
-        note_evt = mkevt (Just Signal.Set) (Just (mkpitch "5a-")) Nothing
-        call_evt = mkevt Nothing Nothing (Just sub_name)
-        both_evt = mkevt (Just Signal.Set) (Just (mkpitch "5a-"))
-                (Just sub_name)
+    let mkevt text parsed = Note.ParsedEvent text parsed
+            (TrackPos 1) (TrackPos 1)
+        note_evt =
+            mkevt "5a-" (Note.ParsedNote (Just Signal.Set) (mkpitch "5a-"))
+        call_evt = mkevt sub_name (Note.ParsedCall sub_name)
 
         (tids, ui_state) = TestSetup.run State.empty
             (TestSetup.mkstate sub_name [("0", [(1, 1, "5a-")])])
@@ -67,25 +69,21 @@ mkpitch note = Pitch.Pitch (Pitch.scale_id scale) (Pitch.Note note)
 test_parse_note = do
     -- let parse = either (const Nothing) Just . P.parse (Note.p_note scale) ""
     let parse = Note.default_parse_note scale
-        sid = Pitch.scale_id scale
 
     equal (parse "7q#") $ Left "note not in scale: \"7q#\""
     equal (parse "blor, 7c#") $ Left "couldn't parse method: \"blor\""
 
-    equal (parse "i, 7c#") $ Right
-        ( Just Signal.Linear, Just (Pitch.Pitch sid (Pitch.Note "7c#"))
-        , Nothing)
-    equal (parse "2.1e, 7c#") $ Right
-        ( Just (Signal.Exp 2.1), Just (Pitch.Pitch sid (Pitch.Note "7c#"))
-        , Nothing)
-    equal (parse "i, 7c#, <block") $ Right
-        ( Just Signal.Linear, Just (Pitch.Pitch sid (Pitch.Note "7c#"))
-        , Just "block")
+    let p = mkpitch "7c#"
+    equal (parse "i, 7c#") $ Right $ Note.ParsedNote (Just Signal.Linear) p
+    equal (parse "2.1e, 7c#") $ Right $
+        Note.ParsedNote (Just (Signal.Exp 2.1)) p
+    equal (parse "i, 7c#, <block") $ Left $
+        "too many words in note: [\"i\",\"7c#\",\"<block\"]"
 
 test_tokenize = do
     let prop toks =
             equal (Note.tokenize_note (Note.untokenize_note toks)) (Right toks)
-    sequence_ [prop (a, b, c) | a <- ["", "i"], b <- ["", "n"], c <- ["", "c"]]
+    sequence_ [prop (a, b) | a <- ["", "i"], b <- ["", "n"]]
 
 
 -- * util

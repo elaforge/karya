@@ -269,7 +269,6 @@ skeleton_instruments skel = case skel of
     Controller _ _ -> []
     Instrument inst _ -> [inst]
     Merge subs -> concatMap skeleton_instruments subs
-    _ -> []
 
 -- ** compile skeleton
 

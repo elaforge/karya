@@ -15,10 +15,56 @@
 
     The parse section parses note track events as manipulated by
     'Cmd.NoteTrack'.
+
+    Note track language:
+    There are two kinds of statements: pitch, and call.  Pitch is separate
+    because it's so common and should be minimal, and it consists of (Method,
+    ScaleDegree).  Call is for the rest, and is distinguished by starting with
+    a symbol (i.e. non-alphanumeric printable character).  Calls are looked up
+    in a Deriver namespace based on the symbol, and the Deriver is run.  For
+    instance, the &xyz deriver can call xyz, and the < deriver can subderive
+    the named block.  I'll probably have a simple value system with numbers,
+    strings (perhaps barewords?), variables (come from the controller
+    environ?), and scale degrees (specially marked so it doesn't look like
+    a bareword).
+
+    More than one statement can be put in an event by separating them with
+    semicolons.
+
+    Editing, use cases:
+    just enter notes: "5a-"
+    edit the method of a note: "i,5a-"
+    call a function that takes notes: "&t *5a- *5b- *5c-"
+    sub-block: "<ns/block" "<block"
+
+    Examples:
+    5a-     <-- simple note
+    i, 5a-  <-- linear approach to 5a-
+    3e, 5a- <-- exp**3 approach
+    &t *5a- *5b- *5c-   <-- call "&t" (tuple) with three Notes, triplet
+
+    5a- pizz            <-- pizz should actually go in the instrument track
+    5a- +trem +sfz      <-- so instrument has a set of attributes, as sibelius
+    &grace *5a- *5c-    <-- two note args to function "&grace"
+    <pattern *a- *5c-   <-- pass two args to block deriver?
+
+    It seems bogus to differentiate between block and function derivation,
+    but I do want to be explicit about which namespace I'm looking in for the
+    function.
+
+    Edit:
+    In raw mode, note inserts the relevant degree, backspace deletes a char or
+    a degree.
+    In note mode, a note replaces the last 'note' event after splitting ';',
+    or adds one if there isn't one already.  Backspace removes the last note
+    event.  If it was the only note expression, remove the event.
+    In method mode, it edits the last note event or adds one, just like note
+    mode.
 -}
 module Derive.Note where
 import Control.Monad
 import qualified Control.Monad.Identity as Identity
+import qualified Data.Char as Char
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Text.ParserCombinators.Parsec as P
@@ -44,8 +90,12 @@ import qualified Perform.Signal as Signal
 import Util.Debug
 
 
-type NoteParser m = Track.PosEvent
-    -> Derive.DeriveT m (Maybe Signal.Method, Maybe Pitch.Pitch, Maybe String)
+type NoteParser m = Track.PosEvent -> Derive.DeriveT m [Parsed]
+
+data Parsed =
+    ParsedNote (Maybe Signal.Method) Pitch.Pitch
+    | ParsedCall String
+    deriving (Eq, Show)
 
 -- * instrument track
 
@@ -61,12 +111,10 @@ d_note_track scales note_parser track_id = do
 
 data ParsedEvent = ParsedEvent {
     parsed_text :: String
+    , parsed_val :: Parsed
     , parsed_start :: TrackPos
     , parsed_dur :: TrackPos
-    , parsed_method :: Maybe Signal.Method
-    , parsed_pitch :: Maybe Pitch.Pitch
-    , parsed_call :: Maybe String
-    } deriving (Show)
+    } deriving (Eq, Show)
 
 type PitchSignal = [(TrackPos, Signal.Method, Pitch.Pitch)]
 
@@ -92,14 +140,14 @@ splice_notes (parsed:rest) =
     dur = if null splice then parsed_dur parsed else let final = last splice
         in parsed_start final + parsed_dur final - parsed_start parsed
     psig = case parsed of
-        ParsedEvent { parsed_start = start, parsed_pitch = Just pitch } ->
-            (start, Maybe.fromMaybe Signal.Set (parsed_method parsed), pitch)
-                : [(pos, meth, pitch) | (ParsedEvent { parsed_start = pos,
-                    parsed_method = Just meth, parsed_pitch = Just pitch })
-                        <- splice]
-            -- Uknonwn initial pitch, so don't bother creating any signal.
+        ParsedEvent { parsed_val = ParsedNote maybe_method pitch } ->
+            (parsed_start parsed, from_meth maybe_method, pitch)
+                : [(pos, meth, pitch) | ParsedEvent { parsed_start = pos,
+                    parsed_val = ParsedNote (Just meth) pitch } <- splice]
+        -- Uknonwn initial pitch, so don't bother creating any signal.
         _ -> []
-    has_method (ParsedEvent { parsed_method = Just _ }) = True
+    from_meth = Maybe.fromMaybe Signal.Set
+    has_method (ParsedEvent { parsed_val = ParsedNote (Just _) _ }) = True
     has_method _ = False
 
 derive_note :: (Monad m) => ParsedEvent -> Derive.DeriveT m [Score.Event]
@@ -115,13 +163,16 @@ derive_note parsed = do
 
     end <- Derive.local_to_global (parsed_start parsed + parsed_dur parsed)
     st <- Derive.get
-    case parsed_call parsed of
-        Nothing -> return [Score.Event start (end-start) (parsed_text parsed)
-            (Derive.state_controllers st) (Derive.state_stack st)
-            (Derive.state_instrument st)]
+    case parsed_val parsed of
+            -- The (meth, pitch) is ignored here because it's already in the
+            -- pitch signal.
+        ParsedNote _ _ -> return [Score.Event start (end-start)
+            (parsed_text parsed) (Derive.state_controllers st)
+            (Derive.state_stack st) (Derive.state_instrument st)]
         -- d_call will set shift and stretch which is in local time, so pass
         -- local rather than global.
-        Just call -> Derive.d_sub_derive []
+        -- TODO look in namespace for calls other than subderive
+        ParsedCall call -> Derive.d_sub_derive []
             (d_call (parsed_start parsed) (parsed_dur parsed) call)
 
 d_call :: TrackPos -> TrackPos -> String -> Derive.EventDeriver
@@ -152,6 +203,7 @@ d_call start dur ident = do
 -- have one.
 --
 -- TODO move this to a more generic place since LanguageCmds may want it to?
+
 make_id :: String -> String -> Id.Id
 make_id default_ns ident_str = Id.id ns ident
     where
@@ -161,11 +213,13 @@ make_id default_ns ident_str = Id.id ns ident
 parse_events :: (Monad m) => NoteParser m -> [Track.PosEvent]
     -> Derive.DeriveT m [ParsedEvent]
 parse_events note_parser events = do
-    maybe_parsed <- mapM derive_event (map note_parser events)
+    maybe_parsed <- mapM Derive.catch_warn (map note_parser events)
     return
-        [ ParsedEvent (Event.event_text event) start
-            (Event.event_duration event) meth pitch call
-        | ((start, event), Just (meth, pitch, call)) <- zip events maybe_parsed]
+        [ ParsedEvent (Event.event_text event) parsed start
+            (Event.event_duration event)
+        | ((start, event), Just event_parsed) <- zip events maybe_parsed
+        , parsed <- event_parsed
+        ]
 
 -- Turn a sequence of events and their 'PitchSignal's into a plain Signal
 -- reprelenting the note number of the combined sequence.  This is where the
@@ -202,9 +256,6 @@ pitch_to_val scales pitch = do
     Pitch.NoteNumber nn <- Pitch.scale_to_nn scale (Pitch.pitch_note pitch)
     return nn
 
-derive_event :: (Monad m) => Derive.DeriveT m a -> Derive.DeriveT m (Maybe a)
-derive_event deriver = Derive.catch_warn deriver
-
 
 -- * parser
 
@@ -212,70 +263,64 @@ derive_event deriver = Derive.catch_warn deriver
 -- degrees directly, but a more complicated one may get scale values out of the
 -- environment or something.
 scale_parser :: (Monad m) => Pitch.Scale -> NoteParser m
-scale_parser scale (_pos, event) =
-    case default_parse_note scale (Event.event_text event) of
-        Left err -> Derive.throw err
-        Right parsed -> return parsed
+scale_parser scale (_pos, event) = case either_parsed of
+        Left err -> Derive.throw $ "parsing note: " ++ err
+        Right parsed -> return [parsed]
+    where
+    either_parsed = default_parse_note scale (Event.event_text event)
+
+default_parse_note:: Pitch.Scale -> String -> Either String Parsed
+default_parse_note scale text = default_parse_note_val scale (Seq.strip text)
 
 -- | Try to parse a note track event.  It's a little finicky because
 -- I want to be unambiguous but also not ugly.  I think I can manage that by
 -- using \< to disambiguate a call when it occurs alone, and always insert the
 -- commas otherwise.
 --
--- TODO Unfortunately I still have a problem with shift since I can't type _,
--- but I'll deal with that later if it becomes a problem.
---
--- > note -> ((Set, note), Nothing)
--- > \<call -> (Nothing, block)
--- > i, note, \<call -> ((i, note), call))
--- > i, note -> ((i, note), Nothing)
--- > i, , \<call -> (Nothing, call)
+-- > \<call -> ParsedCall "<call"
+-- > note -> ParsedNote (Just Set) note
+-- > i, note -> ParsedNote (Just Linear) note
+-- > i, -> Left error
 --
 -- TODO relative pitches: +4, -1/0 (oct/degree), +1/2+3 +1/2-3 (oct/degree+hz)
-default_parse_note :: Pitch.Scale -> String
-    -> Either String (Maybe Signal.Method, Maybe Pitch.Pitch, Maybe String)
-default_parse_note scale text = do
-    (method_s, pitch_s, call) <- tokenize_note text
-    method <- if null method_s
-        then Right Nothing else fmap Just (parse_method method_s)
-    pitch <- if null pitch_s then Right Nothing else
-        maybe (Left ("note not in scale: " ++ show pitch_s)) (Right . Just)
-            (Pitch.pitch scale pitch_s)
-    return (method, pitch, to_maybe call)
+default_parse_note_val :: Pitch.Scale -> String -> Either String Parsed
+default_parse_note_val scale text
+    | is_call text = Right (ParsedCall text)
+    | otherwise = do
+        (method_s, pitch_s) <- tokenize_note text
+        method <- if null method_s
+            then Right Nothing else fmap Just (parse_method method_s)
+        pitch <- if null pitch_s then Left "no pitch" else
+            maybe (Left ("note not in scale: " ++ show pitch_s)) Right
+                (Pitch.pitch scale pitch_s)
+        return (ParsedNote method pitch)
     where
-    to_maybe s = if null s then Nothing else Just s
     parse_method s = case P.parse (Controller.p_method #>> P.eof) "" s of
         Left _ -> Left $ "couldn't parse method: " ++ show s
         Right v -> Right v
 
+is_call (c:_) =
+    Char.isPrint c && not (Char.isSpace c) && not (Char.isAlphaNum c)
+is_call "" = False
 
 -- | Tokenization is separate from parsing so Cmd.NoteTrack can edit incomplete
 -- and unparseable note events.
---
--- (method, pitch, call)
-type NoteTokens = (String, String, String)
+
+-- | (method, note)
+type NoteTokens = (String, String)
 
 tokenize_note :: String -> Either String NoteTokens
-tokenize_note text = fmap drop_third $ case Seq.split ", " text of
-    [] -> Right ("", "", "")
-    [w0]
-        | is_call w0 -> Right ("", "", w0)
-        | otherwise -> Right ("", w0, "")
-    [w0, w1] -> Right (w0, w1, "")
-    [w0, w1, w2] -> Right (w0, w1, w2)
+tokenize_note text = case Seq.split_commas text of
+    [] -> Right ("", "")
+    [w0] -> Right ("", w0)
+    [w0, w1] -> Right (w0, w1)
     ws -> Left $ "too many words in note: " ++ show ws
-    where
-    is_call = (=="<") . take 1
-    drop_third (a, b, c) = (a, b, drop 1 c) -- drop off the '<'
 
 untokenize_note :: NoteTokens -> String
-untokenize_note (a, b, c) = case (a, b, if null c then c else '<':c) of
-    ("", "", "") -> ""
-    ("", "", call) -> call
-    ("", note, "") -> note
-    (meth, pitch, call) -> let toks = Seq.rdrop_while null [meth, pitch, call]
-        in Seq.join ", " (if length toks == 1 then toks ++ [""] else toks)
-
+untokenize_note toks = case toks of
+    ("", "") -> ""
+    ("", note) -> note
+    (meth, note) -> meth ++ "," ++ note
 
 -- One of the early proponents of this style during the renaissance was
 -- Johannes Fux, who was surpassed in unfortunateness only by the much-loved
