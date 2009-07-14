@@ -12,6 +12,7 @@ import Data.Binary (Binary, get, put, getWord8, putWord8)
 import qualified Util.File as File
 
 import qualified Cmd.Serialize () -- get the Binary instances
+import qualified Perform.Pitch as Pitch
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Controller as Controller
 
@@ -99,3 +100,7 @@ instance Binary Instrument.InitializePatch where
 instance Binary Instrument.Keyswitch where
     put (Instrument.Keyswitch a b) = put a >> put b
     get = get >>= \a -> get >>= \b -> return (Instrument.Keyswitch a b)
+
+instance Binary Pitch.ScaleId where
+    put (Pitch.ScaleId a) = put a
+    get = get >>= \a -> return (Pitch.ScaleId a)

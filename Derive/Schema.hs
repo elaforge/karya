@@ -29,7 +29,7 @@ module Derive.Schema (
 
     -- Just used by testing
     , default_parser
-    , compile_to_signals
+    , compile_skeleton, compile_to_signals
 
     -- * lookup
     , lookup_deriver, get_signal_deriver, get_cmds, get_skeleton
@@ -64,6 +64,7 @@ import qualified Derive.Score as Score
 import qualified Derive.Twelve as Twelve
 
 import qualified Perform.Signal as Signal
+import qualified Perform.Pitch as Pitch
 import qualified Perform.Midi.Instrument as Instrument
 
 import qualified App.Config as Config
@@ -293,6 +294,7 @@ compile_skeleton skel = case skel of
     Merge subs -> Derive.d_merge =<< mapM compile_skeleton subs
 
 -- | Generate the EventDeriver for a Controller Skeleton.
+compile_controllers :: [Track] -> Skeleton -> Derive.EventDeriver
 compile_controllers tracks subskel =
     foldr track_controller (compile_skeleton subskel) (event_tracks tracks)
 event_tracks tracks =
@@ -301,7 +303,7 @@ event_tracks tracks =
 track_controller :: (Monad m) => (String, Track.TrackId)
     -> Derive.DeriveT m [Score.Event] -> Derive.DeriveT m [Score.Event]
 track_controller (name, track_id) deriver
-    | name == tempo_track_title = do
+    | is_tempo_track name = do
         -- A tempo track is derived like other signals, but gets special
         -- treatment because of the track warps chicanery.
         sig_events <- Derive.with_track_warp_tempo
@@ -310,8 +312,10 @@ track_controller (name, track_id) deriver
     | otherwise = do
         sig_events <- Derive.with_track_warp
             Controller.d_controller_track track_id
-        Controller.d_controller (Score.Controller name)
-            (Controller.d_signal sig_events) deriver
+        let signal = if is_pitch_track name
+                then Controller.d_pitch_signal (scale_of_track name) sig_events
+                else Controller.d_signal sig_events
+        Controller.d_controller (Score.Controller name) signal deriver
 
 -- *** compile to signals
 
@@ -343,19 +347,21 @@ signal_controller (_title, track_id) = do
         =<< Derive.with_track_warp Controller.d_controller_track track_id
     return (track_id, sig)
 
--- | This is the track name that turns a track into a tempo track.
-tempo_track_title :: String
-tempo_track_title = "tempo"
+-- | Tracks are treated differently depending on their titles.
+is_tempo_track, is_pitch_track, is_inst_track :: String -> Bool
+is_tempo_track = (=="tempo")
+is_pitch_track = ("*" `List.isPrefixOf`)
+is_inst_track = (">" `List.isPrefixOf`)
+scale_of_track = Pitch.ScaleId . Seq.strip . drop 1
+inst_of_track = Seq.strip . drop 1
 
 -- | Convert a track title into its instrument.  This could be per-schema, but
 -- I'm going to hardcode it for now and assume all schemas will do the same
 -- thing.
---
--- TODO also hardcoded in parse_inst_groups and parse_inst_group
 title_to_instrument :: String -> Maybe Score.Instrument
-title_to_instrument ('>':inst_name) =
-    Just $ Score.Instrument (Seq.strip inst_name)
-title_to_instrument _ = Nothing
+title_to_instrument name
+    | is_inst_track name = Just $ Score.Instrument (inst_of_track name)
+    | otherwise = Nothing
 
 -- | Convert from an instrument to the title of its instrument track.
 instrument_to_title :: Score.Instrument -> String
@@ -372,23 +378,23 @@ default_parser :: Parser
 default_parser tracks = merge $
     map parse_tempo_group
         -- The 0th track should be the ruler track, which I ignore.
-        (split (title_matches (==tempo_track_title)) (drop 1 tracks))
+        (split (title_matches is_tempo_track) (drop 1 tracks))
 
 
 parse_tempo_group tracks = case tracks of
     tempo@(Track { track_title = Just title }) : rest
-        | title == tempo_track_title ->
+        | is_tempo_track title ->
             Controller [tempo] (Just (parse_inst_groups rest))
         | otherwise -> parse_inst_groups tracks
     _ -> parse_inst_groups tracks
 
 parse_inst_groups :: [Track] -> Skeleton
 parse_inst_groups tracks = merge $
-    map parse_inst_group (split (title_matches (">" `List.isPrefixOf`)) tracks)
+    map parse_inst_group (split (title_matches is_inst_track) tracks)
 
 parse_inst_group tracks = case tracks of
-    track@(Track { track_title = Just ('>':inst_name) }) : rest ->
-        let inst = Score.Instrument (Seq.strip inst_name) in case rest of
+    track@(Track { track_title = Just name }) : rest | is_inst_track name ->
+        let inst = Score.Instrument (inst_of_track name) in case rest of
             [] -> Instrument inst track
             _ -> Controller rest (Just (Instrument inst track))
     _ -> Controller tracks Nothing

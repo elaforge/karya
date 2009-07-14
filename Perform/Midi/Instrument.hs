@@ -36,11 +36,12 @@ data Instrument = Instrument {
     -- | Time from NoteOff to inaudible, in seconds.  This is used to determine
     -- note overlap for the purposes of channel allocation.  It could also
     -- be used to automatically trim control msgs, but I don't do that yet.
-    -- (but I always allocate LRU, so it shouldn't make a difference, right?)
+    -- TODO but I allocate LRU, so it shouldn't make a difference, right?
     , inst_decay :: Maybe Double
     -- | Scale associated with this instrument, which also includes the drum
-    -- map for a drum kit instrument.  This can be overridden per-project by
-    -- State.state_scale_config.
+    -- map for a drum kit instrument.  The scale really used is determined by
+    -- the pitch track, but this can be used to set a default for the pitch
+    -- track.
     , inst_scale :: Pitch.ScaleId
     } deriving (Eq, Ord, Show)
 

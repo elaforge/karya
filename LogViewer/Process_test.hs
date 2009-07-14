@@ -8,7 +8,7 @@ import qualified LogViewer.Process as Process
 
 
 test_process_msg = do
-    let state = Process.initial_state
+    let state = Process.initial_state ""
         f state msg =
             ( Process.render_status (Process.state_status new_state)
             , Process.state_last_timing new_state
@@ -26,7 +26,6 @@ test_process_msg = do
         msg2 = timing (day 1)
 
     -- first timer is suppressed
-    let msg = Log.msg Log.Debug "timer: hello"
     equal (f state msg0)
         ("", Just msg0, Nothing)
     -- below threshold

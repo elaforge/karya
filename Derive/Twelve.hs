@@ -27,7 +27,7 @@ scale = Pitch.Scale {
     }
 
 scale_id :: Pitch.ScaleId
-scale_id = "twelve"
+scale_id = Pitch.ScaleId "twelve"
 
 note_to_nn :: Pitch.Note -> Maybe Pitch.NoteNumber
 note_to_nn (Pitch.Note note) = do

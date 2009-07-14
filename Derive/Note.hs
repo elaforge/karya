@@ -222,7 +222,7 @@ parse_events note_parser events = do
         ]
 
 -- Turn a sequence of events and their 'PitchSignal's into a plain Signal
--- reprelenting the note number of the combined sequence.  This is where the
+-- representing the note number of the combined sequence.  This is where the
 -- Scale abstraction is eliminated.
 -- TODO: If I'm going to look up the scale in the instrument, I'll also need
 -- the instrument here.

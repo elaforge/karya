@@ -17,8 +17,17 @@ performance
   - cache marks and events from callback
   - will removing the style speed up event copying?
 
-misc
-  * rumor has it os x leopard wants .app bundles instead of Rez, so build those
+new pitch lang
+  * implement pitch track as a separate control track
+  - implement instrument track and lookup, put inst in environment
+  - remove the old instrument track stuff
+  - instrument attributes
+  - modify note entry commands to write to both inst and pitch tracks
+
+  - track collapsing
+  - track muting
+  - track merging
+
 
 fltk
   * consistent drawing of abbreviated events so drawing isn't dependent on

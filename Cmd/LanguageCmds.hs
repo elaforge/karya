@@ -130,7 +130,7 @@ tid = Track.TrackId . Id.read_id
 
 show_state :: Cmd.CmdL String
 show_state = do
-    (State.State project dir views blocks tracks rulers _midi_conf _scale_conf)
+    (State.State project dir views blocks tracks rulers _midi_conf)
         <- State.get
     -- midi config showed by show_midi_config
     let f fm = show_list (map show (Map.keys fm))

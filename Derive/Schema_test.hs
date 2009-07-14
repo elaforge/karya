@@ -1,5 +1,6 @@
 module Derive.Schema_test where
 
+import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import Util.Test
 
@@ -17,6 +18,7 @@ import qualified Derive.Score as Score
 
 import qualified Derive.Derive_test as Derive_test
 
+import qualified Perform.Signal as Signal
 import qualified Perform.Midi.Instrument as Instrument
 
 import Util.PPrint
@@ -28,7 +30,7 @@ tid id = Block.TId (Track.TrackId (mkid id)) (Ruler.RulerId (mkid "r1"))
 inst n = Schema.Track (Just (">inst" ++ show n)) (tid ("i" ++ show n)) 0
 cont name track_id = Schema.Track (Just name) (tid track_id) 0
 
--- Reduce a skeleton down to a string which is easier to read than the nested
+-- | Reduce a skeleton down to a string which is easier to read than the nested
 -- data structure.
 reduce :: Schema.Skeleton -> String
 reduce (Schema.Controller ctracks itrack) =
@@ -46,17 +48,54 @@ reduce_tracklike (Block.RId rid) = Id.id_name (Id.unpack_id rid)
 -- TODO test with rulers and dividers
 
 test_parse = do
-    let eq tracks str = do
-            equal (reduce (Schema.default_parser (ruler:tracks))) str
+    let reducet tracks = reduce (Schema.default_parser (ruler:tracks))
     -- They're both controllers, with no instrument track.
-    eq [cont "" "c1", cont "" "c2"] "c1,c2()"
-    eq [inst 1] "i1"
-    eq [inst 1, cont "control1" "c1"] "c1(i1)"
-    eq [cont "tempo" "tempo1", inst 1, cont "tempo" "tempo2"]
+    equal (reducet [cont "" "c1", cont "" "c2"]) "c1,c2()"
+    equal (reducet [inst 1]) "i1"
+    equal (reducet [inst 1, cont "control1" "c1"]) "c1(i1)"
+    equal (reducet [cont "tempo" "tempo1", inst 1, cont "tempo" "tempo2"])
         "tempo1(i1) + tempo2()"
 
     -- orphaned control
-    eq [cont "control1" "c1", inst 1] "c1() + i1"
+    equal (reducet [cont "control1" "c1", inst 1]) "c1() + i1"
+
+tracks_from_state state = either (fail . show) id $ State.eval state $ do
+    block <- State.get_block (Block.BlockId (mkid "b1"))
+    Schema.block_tracks block
+
+test_compile_skeleton = do
+    let get_skel state = Schema.default_parser (tracks_from_state state)
+        mk pitch_track = (state, get_skel state)
+            where
+            (_tids, state) = TestSetup.run_mkstate
+                [ ("tempo", [(0, 0, "2")])
+                , (">inst0", [(0, 5, "4a-"), (10, 5, "4a-"), (20, 5, "4a-")])
+                , ("c1", [(0, 0, "3"), (10, 0, "2"), (20, 0, "1")])
+                , pitch_track
+                ]
+        derive pitch_track = (extract res, map Log.msg_text logs)
+            where
+            extract = either (Left . Derive.error_message)
+                (Right . (map Score.event_controllers))
+            (state, skel) = mk pitch_track
+            d = Schema.compile_skeleton skel
+            (res, _, _, logs, _) = Derive.derive Derive.empty_lookup_deriver
+                state True (Derive_test.setup_deriver d)
+
+    let (res, logs) = derive ("*c2", [(0, 0, ".1")])
+    equal logs []
+    equal res $ Left ("unknown scale ScaleId \"c2\"")
+
+    let (res, logs) = derive ("*twelve", [(0, 0, ".1")])
+    equal logs ["note Note \".1\" not in scale ScaleId \"twelve\""]
+    equal res (Right [])
+
+    -- TODO so here they all have the *scale controller, but I can't test
+    -- further until I remove the pitch stuff from the note parser
+    let (res, logs) = derive
+            ("*twelve", [(0, 0, "4c-"), (10, 0, "4d-"), (20, 0, "i, 4e-")])
+    pprint logs
+    -- pprint res
 
 test_compile_to_signals = do
     let parse tracks = Schema.default_parser tracks
@@ -64,23 +103,28 @@ test_compile_to_signals = do
             [ ("tempo", [(0, 0, "2")])
             , (">inst0", [])
             , ("c1", [(0, 0, "3"), (10, 0, "2"), (20, 0, "1")])
-            , ("c2", [(0, 0, ".1"), (10, 0, ".2"), (20, 0, ".4")])
+            , ("*c2", [(0, 0, ".1"), (10, 0, ".2"), (20, 0, ".4")])
             ]
-        tracks = either (fail . show) id $ State.eval state $ do
-            block <- State.get_block (Block.BlockId (mkid "b1"))
-            Schema.block_tracks block
-        skel = parse tracks
+        skel = Schema.default_parser (tracks_from_state state)
     let d = Schema.compile_to_signals skel
-    -- It's important that the tempo track *doesn't* apply, since these go to
-    -- the UI.
     let (res, _, _, logs, _) = Derive.derive Derive.empty_lookup_deriver state
             True (Derive_test.setup_deriver d)
     pprint skel
-    pprint res
+    
     -- tempo, c1, and c2 tracks get signals.
-    -- I don't verify the signals since it seems to hard at the moment.
+    -- I don't verify the signals since it seems too hard at the moment.
     equal (fmap (map fst) res)
-        (Right $ map (Track.TrackId . mkid) ["b1.0", "b1.2", "b1.3"])
+        (Right $ map (Track.TrackId . mkid) ["b1.t0", "b1.t2", "b1.t3"])
+
+    -- It's important that the tempo track *doesn't* apply, since these go to
+    -- the UI.
+    let set = Signal.Set
+        mksig = Signal.track_signal Signal.default_srate
+    equal (fmap (map snd) res) $ Right
+        [ mksig [(0, set, 2)]
+        , mksig [(0, set, 3), (10, set, 2), (20, set, 1)]
+        , mksig [(0, set, 0.1), (10, set, 0.2), (20, set, 0.4)]
+        ]
     equal logs []
 
 default_config = Instrument.config [] Nothing

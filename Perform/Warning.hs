@@ -8,7 +8,7 @@ import qualified Ui.Block as Block
 
 data Warning = Warning {
     warn_msg :: String
-    , warn_event :: [StackPos]
+    , warn_event :: Stack
     -- | Range that the warning covers.  It should be within the event's
     -- range.  It's in global time, so it needs to be converted back to
     -- local time, and it's (start, end) rather than (start, dur).
@@ -24,3 +24,4 @@ instance Error.Error Warning where
 -- | The location of an event that had a problem.
 -- (block_id, track_id, (event_start, event_dur))
 type StackPos = (Block.BlockId, Maybe Track.TrackId, Maybe (TrackPos, TrackPos))
+type Stack = [StackPos]

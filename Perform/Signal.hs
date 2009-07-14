@@ -37,6 +37,16 @@ data Signal =
     -- This is a strict vector for now, eventually I may want to switch this
     -- to a lazy one.
     SignalVector SigVec
+    deriving (Eq)
+    -- The Eq instance is only for tests, since it may be quite expensive on
+    -- a real signal.
+
+-- | A pitch signal.  For the moment this is the same as a normal Signal since
+-- scale degrees are reduced to absolute numbers during signal derivation, but
+-- ifI want to be able to handle relative pitch generically (i.e.
+-- scale-independent transpositions and transpose non-tempered scales) this
+-- will have to be something like [(TrackPos, Method, Perform.Pitch)].
+type PitchSignal = Signal
 
 type SigVec = V.Vector (Double, Double)
 

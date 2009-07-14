@@ -194,11 +194,11 @@ test_obj/RunTests: test_obj/RunTests.hs all_hsc $(UI_OBJS) $(MIDI_OBJS) \
 
 .PHONY: tests
 tests: test_obj/RunTests
-	test/run_tests direct-
+	-test/run_tests direct-
 
 .PHONY: interactive
 interactive: test_obj/RunTests
-	test/run_tests init-
+	-test/run_tests init-
 
 ### misc ###
 

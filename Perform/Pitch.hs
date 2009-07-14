@@ -56,7 +56,7 @@ note_text (Note s) = s
 -- | Tie together Pitches and their Scales.
 type ScaleMap = Map.Map ScaleId Scale
 
-type ScaleId = String
+newtype ScaleId = ScaleId String deriving (Eq, Ord, Read, Show)
 
 data Scale = Scale {
     scale_id :: ScaleId

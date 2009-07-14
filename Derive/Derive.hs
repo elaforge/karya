@@ -144,7 +144,8 @@ data DeriveError = DeriveError [Warning.StackPos] String deriving (Eq)
 instance Error.Error DeriveError where
     strMsg = DeriveError []
 instance Show DeriveError where
-    show (DeriveError stack msg) = "at " ++ Log.show_stack stack ++ ": " ++ msg
+    show (DeriveError stack msg) =
+        "<DeriveError at " ++ Log.show_stack stack ++ ": " ++ msg ++ ">"
 
 error_message (DeriveError _ s) = s
 
@@ -157,7 +158,7 @@ instance Monad m => Log.LogMonad (DeriveT m) where
 derive :: LookupDeriver -> State.State -> Bool -> DeriveT Identity.Identity a
     -> (Either DeriveError a,
         Transport.TempoFunction, Transport.InverseTempoFunction, [Log.Msg],
-        State) -- ^ This is not actually needed, but handy for testing.
+        State) -- ^ State is not actually needed, but is handy for testing.
 derive lookup_deriver ui_state ignore_tempo deriver =
     (result, tempo_func, inv_tempo_func, logs, state)
     where
@@ -482,6 +483,8 @@ merge_events = foldr (Seq.merge_by (compare `on` Score.event_start)) []
 -- on each event, so that Derive.warn can use it.  In addition, EventErrors are
 -- caught and turned into warnings.  Events that threw aren't included in the
 -- output.
+map_events :: (Monad m) => (state -> x -> DeriveT m a) -> state
+    -> (x -> Score.Event) -> [x] -> DeriveT m [a]
 map_events f state event_of xs =
     fmap Maybe.catMaybes (Util.Control.map_accuml_m apply state xs)
     where

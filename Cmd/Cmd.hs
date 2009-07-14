@@ -563,7 +563,7 @@ type Parser = [Track] -> Skeleton
 
 data Skeleton =
     -- | A set of controller tracks have scope over a sub-skeleton.
-    -- A controller with no \"argument\" track will have a Nothing sub.
+    -- A controller with no controlled tracks will have a Nothing sub.
     Controller [Track] (Maybe Skeleton)
     | Instrument Score.Instrument Track
     | Merge [Skeleton]

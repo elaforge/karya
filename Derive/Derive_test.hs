@@ -57,7 +57,7 @@ test_derive_state = do
     -- pprint skel
     -- pprint (State.state_tracks ui_state)
     let (_, state, logs) = either (error . show) id
-            (run ui_state default_schema_map (Derive.d_block block_id))
+            (run ui_state (Derive.d_block block_id))
     -- pmlist "logs" (map Log.msg_text logs)
     -- TODO real test
     -- pprint $ Derive.state_warp state
@@ -230,18 +230,20 @@ derive_events ui_state lookup_deriver deriver =
 derive_events_e ui_state deriver =
     derive_events ui_state Derive.empty_lookup_deriver deriver
 
-run :: State.State -> Schema.SchemaMap -> Derive.DeriveT Identity.Identity a
+run :: State.State -> Derive.DeriveT Identity.Identity a
     -> Either String (a, Derive.State, [Log.Msg])
-run ui_state schema_map m =
+run ui_state m =
     case Identity.runIdentity (Derive.run derive_state m) of
         (Left err, _, _logs) -> Left (Derive.error_message err)
         (Right val, state, logs) -> Right (val, state, logs)
     where
-    derive_state = Derive.initial_state ui_state
-        (Schema.lookup_deriver schema_map ui_state) False
+    -- Good to have a minimal fake stack so there someplace to put trackpos.
+    fake_stack = [(TestSetup.bid "blck", Just (TestSetup.tid "trck"), Nothing)]
+    derive_state = (Derive.initial_state ui_state
+        (Schema.lookup_deriver default_schema_map ui_state) False)
+            { Derive.state_stack = fake_stack }
 
-eval ui_state m = fmap (\(val, _, _) -> val) $
-    run ui_state default_schema_map m
+eval ui_state m = fmap (\(val, _, _) -> val) (run ui_state m)
 
 perform = Perform.perform default_chan_map default_lookup default_inst_config
 
