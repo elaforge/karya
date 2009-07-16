@@ -1,3 +1,91 @@
+  current
+- implement pitch track as a separate control track
+  * pitch control track
+  * remove Cmd.Instrument instrument arg
+  * unittests for new derive2 stuff
+  + remove derive1
+  - fix Derive/Derive_test.hs
+  - Perform.Midi should understand the new pitch track
+
+  implement attrs
+    - add attrs to Midi.Instrument
+    - add attr priority to Midi.Instrument
+    - hook up attrs and keyswitches
+    - test
+    - library of standard attrs?
+
+  cmd support
+    - note entry commands add both event and pitch track
+    - event edit commands enter text or notes
+
+- relative controller tracks, combined with an operator, so e.g. "+, *scale"
+  adds to the pitch track, and "*, volume" multiplies with the volume track
+  operators: +, *, min, max
+- relative pitch track, but to do this properly I need to support PitchSignal
+
+should be a documented extensible way to add new track types without modifying
+core ADTs
+
+
+----
+
+- set controller within the track?
+cmds
+  - just plain "i" means the previous val, to make timed slides easier
+  - delete sections of ruler, or insert new sections
+
+- remove State.modify_event_range?
+- either ruler is binary or step goes in binary steps
+
+- optimization: if a msg aborts or doesn't run any cmds, don't bother to run
+diff.  except that hardly ever happens if I do shortcut thru
+
+- cmd_record_keys not getting run when play throws?
+
+- instrument track
+- instrument aliases
+
+- cmds return (status, record_undo).  Also can Cmds include a name so it can be
+logged or attached to an exception?  I guess the keymap thing is probably
+enough.
+
+- midi record, call it the Integrator
+- caching
+  on sync, check cache validity against updates, and regenerate signals and
+  events on blocks if necessary.
+- pass signal by pointer
+
+- test merge paste
+
+- Cmd.View abstraction layer for collapse and mute
+
+- "approach val" method to make pitch bend easier, or just insert two notes?
+  the former is higher-level...
+  g0 - approach 0 time, equivalent to s
+  gi.1 - approach linear taking 0.1 trackpos
+  g.1 - as above
+  g2e.1 - approach exp2 taking 0.1
+
+  Ok, so this is more complicated than that, I need something like:
+  a5- g2e1 b5-
+
+- implement midi bandwidth display
+
+DESIGN
+  - chord input... think about some kind of compact representation
+  - if derivation needs event IDs, maybe I can use the value-supply package
+  - safecopy package does version controlled serialization
+  - check out loch package instead of hspp
+
+display signal:
+  cmd makes a change to a controller track
+  diff (and cmd) generate TrackEvents update
+  sync processes TrackEvents and TrackAllEvents and merges it with samples
+
+  so where does sync get the samples?  I can pass it [(TrackId, Samples)]
+  that comes from (Track, Signal), which comes from a partial derivation
+  most derivers should be able to get that from the Skeleton
+
 ****
 
 bugs
@@ -19,10 +107,12 @@ performance
 
 new pitch lang
   * implement pitch track as a separate control track
-  - implement instrument track and lookup, put inst in environment
-  - remove the old instrument track stuff
+  * implement note track and lookup, put inst in environment
+    remove pitch parsing from Derive/Note.hs
+  + remove the old note track stuff
+  - Perform.Midi should understand the new pitch track
   - instrument attributes
-  - modify note entry commands to write to both inst and pitch tracks
+  - cmd support: note entry commands write to both inst and pitch tracks
 
   - track collapsing
   - track muting
@@ -140,20 +230,7 @@ Cmd
     - functions to splice time or a Meter into a ruler
 
   Cmd.Freeze
-    Play also enables record on the plugin host.  The host needs to agree with
-    me about synth names, and have one recorder for each synth, so I can tell
-    it which synths to record by name.
-
-    After I hit stop, I remember the recorded time range and which instruments
-    were active at the time.  On playback, I suppress the playing of synths
-    that fall within a recorded range.  Also, when playback enters a recorded
-    range, it has to send a msg to the host, saying where it is.  The host will
-    have to be smart enough to select from the recorded clips and playback any
-    cached audio in that range.
-
-    To thaw a range, I remove it from the freeze map, stop suppressing the
-    msgs, and stop sending the host msgs for it (or tell it to delete that
-    range).
+    - details in doc/freeze_tracks
 
 Derive
   derivers

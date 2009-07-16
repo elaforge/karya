@@ -6,6 +6,7 @@
 -}
 module Derive.Score where
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 import Ui.Types
 
@@ -14,10 +15,13 @@ import qualified Perform.Warning as Warning
 
 
 data Event = Event {
-    -- | These are the core attributes that define an event.  For the moment,
-    -- UI display attributes like font style are not preserved here.
+    -- | These are the core attributes that define an event.  UI display
+    -- attributes like font style are not preserved here.
     event_start :: TrackPos
     , event_duration :: TrackPos
+    -- | Once events are fully derived, all the needed information should be in
+    -- the controllers and instrument and the event text should no longer be
+    -- needed, but it's handy to keep it around for error reporting.
     , event_text :: String
     , event_controllers :: ControllerMap
 
@@ -30,13 +34,14 @@ data Event = Event {
     -- | These are optional parameters that may or may not be required by the
     -- performer.
     , event_instrument :: Maybe Instrument
+    , event_attributes :: Attributes
     } deriving (Show)
 
 event_end event = event_start event + event_duration event
 
--- | Mostly for testing, since real events will come from 'from_track_event'.
+-- | Probably for testing, since real events will have more stuff in them.
 event :: TrackPos -> TrackPos -> String -> Event
-event start dur text = Event start dur text Map.empty [] Nothing
+event start dur text = Event start dur text Map.empty [] Nothing Set.empty
 
 type ControllerMap = Map.Map Controller Signal.Signal
 
@@ -47,6 +52,12 @@ type ControllerMap = Map.Map Controller Signal.Signal
 data Instrument = Instrument String
     deriving (Eq, Ord, Show, Read)
 inst_name (Instrument s) = s
+
+-- | Instruments can have a set of attributes along with them.  These are
+-- propagated dynamically down the derivation stack.  They function like
+-- arguments to an instrument, and will typically select an articulation, or
+-- a drum from a drumset, or something like that.
+type Attributes = Set.Set String
 
 newtype Controller = Controller String deriving (Eq, Ord, Show)
 

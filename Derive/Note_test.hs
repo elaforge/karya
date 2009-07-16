@@ -1,91 +1,136 @@
 module Derive.Note_test where
 
+import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Set as Set
 
 import Util.Test
 import qualified Util.Log as Log
 
 import Ui.Types
 import qualified Ui.Block as Block
+import qualified Ui.Event as Event
 import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Ui.TestSetup as TestSetup
 
 import qualified Derive.Note as Note
 import qualified Derive.Scale as Scale
+import qualified Derive.Score as Score
 
 import qualified Derive.Derive_test as Derive_test
 
 import qualified Perform.Signal as Signal
 import qualified Perform.Pitch as Pitch
+import qualified Perform.Warning as Warning
 
 import qualified Derive.Derive as Derive
 import qualified Derive.Twelve as Twelve
 
 
--- * derivers
-
-test_d_instrument_track = do
-    let d tid = Note.d_note_track Scale.scale_map (Note.scale_parser scale) tid
-    let (tids, state) = TestSetup.run_mkstate
-            [ ("0", [(0, 10, "5a-"), (10, 10, "5b-"), (20, 10, "5c-")])
-            , ("1", [(0, 10, ".1"), (10, 10, ".2"), (20, 10, ".4")])
-            ]
-    print tids
-    let (val, _tempo, _inv_tempo, logs) =
-            derive Derive.empty_lookup_deriver state (d (head tids))
-    mapM_ pprint val
-
-test_derive_note = do
-    let mkevt text parsed = Note.ParsedEvent text parsed
-            (TrackPos 1) (TrackPos 1)
-        note_evt =
-            mkevt "5a-" (Note.ParsedNote (Just Signal.Set) (mkpitch "5a-"))
-        call_evt = mkevt sub_name (Note.ParsedCall sub_name)
-
-        (tids, ui_state) = TestSetup.run State.empty
-            (TestSetup.mkstate sub_name [("0", [(1, 1, "5a-")])])
-        lookup = lookup_deriver (Note.derive_note note_evt)
-        run deriver = (Derive_test.extract_events evts, map Log.msg_text logs)
-            where
-            (evts, logs) = Derive_test.derive_events ui_state lookup deriver
-
-    equal (run (Note.derive_note note_evt)) ([(1.0, 1.0, "5a-")], [])
-    -- Shifted by 1, stretched to fit in event dur 1.
-    equal (run (Note.derive_note call_evt)) ([(1.5, 0.5, "5a-")], [])
-
-sub_name = "sub"
-sub_block = Block.BlockId $ Id.id (State.state_project State.empty) sub_name
-
-lookup_deriver deriver block_id
-    | block_id == sub_block = Right deriver
-    | otherwise = Left (State.StateError "not found")
-
 -- * parse
 
-scale = Twelve.scale
-mkpitch note = Pitch.Pitch (Pitch.scale_id scale) (Pitch.Note note)
-
 test_parse_note = do
-    -- let parse = either (const Nothing) Just . P.parse (Note.p_note scale) ""
-    let parse = Note.default_parse_note scale
+    let f = Note.parse_note
+    equal (f (inst "k") Set.empty ">i" "1x 1y 2 b")
+        (Note.Parsed "1x" [Note.Number 2, Note.String "b"] (inst "i") no_attrs
+        ,["event word 1: can't parse number \"1y\"",
+            "call \"1x\" starts with non-letter '1'"])
 
-    equal (parse "7q#") $ Left "note not in scale: \"7q#\""
-    equal (parse "blor, 7c#") $ Left "couldn't parse method: \"blor\""
+test_preprocess_words = do
+    let f inst attrs s = (inst2, attrs2, map snd rest)
+            where
+            (inst2, attrs2, rest) = Note.preprocess_words
+                inst attrs (zip (map show [0..]) (words s))
 
-    let p = mkpitch "7c#"
-    equal (parse "i, 7c#") $ Right $ Note.ParsedNote (Just Signal.Linear) p
-    equal (parse "2.1e, 7c#") $ Right $
-        Note.ParsedNote (Just (Signal.Exp 2.1)) p
-    equal (parse "i, 7c#, <block") $ Left $
-        "too many words in note: [\"i\",\"7c#\",\"<block\"]"
+    equal (f Nothing no_attrs "") (Nothing, no_attrs, [])
+    equal (f Nothing (attrs ["a4"]) "+a1 +a2 -a1 x")
+        (Nothing, attrs ["a2", "a4"], ["x"])
+    equal (f Nothing (attrs ["a4"]) "+a1 +a2 =a3 x")
+        (Nothing, attrs ["a3"], ["x"])
+    equal (f Nothing (attrs ["a4"]) "+a1 +a2 = x")
+        (Nothing, no_attrs, ["x"])
+    equal (f (inst "i1") no_attrs "+a1")
+        (inst "i1", attrs ["a1"], [])
+    equal (f (inst "i1") no_attrs ">i2 x >i3 +a1")
+        (inst "i3", attrs ["a1"], ["x"])
 
-test_tokenize = do
-    let prop toks =
-            equal (Note.tokenize_note (Note.untokenize_note toks)) (Right toks)
-    sequence_ [prop (a, b) | a <- ["", "i"], b <- ["", "n"]]
+test_parse_args = do
+    let f s = Note.parse_args (zip (map show [0..]) (words s))
+    equal (f "x y 1 *a")
+        ("x", [Note.String "y", Note.Number 1, Note.Note (Pitch.Note "a")], [])
+    equal (f "x 1y z")
+        ("x", [Note.String "z"], ["1: can't parse number \"1y\""])
+    equal (f "1x")
+        ("1x", [], ["call \"1x\" starts with non-letter '1'"])
+    equal (f "") ("", [], [])
 
+no_attrs = Set.empty
+inst = Just . Score.Instrument
+attrs = Set.fromList :: [String] -> Score.Attributes
 
--- * util
+test_parse_arg = do
+    let f s = Note.parse_arg ("desc", s)
+    equal (f "") $ Left "desc: empty word, this shouldn't happen!"
+    equal (f ".1") $ Right (Note.Number 0.1)
+    equal (f ".") $ Left "desc: can't parse number \".\""
+    equal (f "1s") $ Left "desc: can't parse number \"1s\""
+    equal (f "*ho") $ Right (Note.Note (Pitch.Note "ho"))
+    equal (f "hoho") $ Right (Note.String "hoho")
 
-derive = Derive_test.derive
+-- * derivers
+
+test_derive_notes = do
+    let mkevt (pos, dur, text) = ((pos, Event.event text dur), parsed)
+            where (parsed, _) = Note.parse_note Nothing no_attrs "" text
+        run evts = (map extract_event sevts, map extract_log logs)
+            where
+            (sevts, logs) = Derive_test.derive_events ui_state lookup deriver
+            deriver = Note.derive_notes (map mkevt evts)
+            lookup = lookup_deriver d_fake_sub
+            (_, ui_state) = TestSetup.run State.empty $ do
+                TestSetup.mkstate sub_name [(">", [(0, 1, "")])]
+                TestSetup.mkstate "b1" [(">", evts)]
+            extract_log msg = (Log.msg_text msg, Log.msg_stack msg)
+
+    equal (run []) ([], [])
+    equal (run [(0, 1, ">i +a")])
+        ([(0, 1, ">i +a", mkstack [("b1", Just (0, 1))], inst "i",
+            attrs ["a"])], [])
+
+    let (evts, logs) = run [(0, 1, "nosuch")]
+    equal evts []
+    strings_like (map fst logs)
+        ["error sub-deriving.* unknown \\(bid \"test/nosuch\""]
+    equal (map snd logs) [Just (mkstack [("b1", Just (0, 1))])]
+
+    -- subderived stuff is stretched and placed, inherits instrument
+    let (evts, logs) = run [(0, 1, sub_name), (1, 2, ">i +a " ++ sub_name)]
+    equal logs []
+    equal evts
+        [ (0, 1, "hi", mkstack [("sub", Nothing), ("b1", Just (0, 1))],
+            Nothing, no_attrs)
+        , (1, 2, "hi", mkstack [("sub", Nothing), ("b1", Just (1, 2))],
+            inst "i", attrs ["a"])
+        ]
+
+d_fake_sub = do
+    st <- Derive.get
+    start <- Derive.local_to_global 0
+    end <- Derive.local_to_global 1
+    return [Score.Event start (end-start) "hi" Map.empty (Derive.state_stack st)
+        (Derive.state_instrument st) (Derive.state_attributes st)]
+
+mkstack :: [(String, Maybe (TrackPos, TrackPos))] -> Warning.Stack
+mkstack = map $ \(bid, pos) -> (TestSetup.bid bid, Nothing, pos)
+
+-- | Events aren't in Eq, so extract the bits I want to test.
+extract_event e = (Score.event_start e, Score.event_duration e,
+    Score.event_text e, Score.event_stack e, Score.event_instrument e,
+    Score.event_attributes e)
+
+sub_name = "sub"
+
+lookup_deriver deriver block_id
+    | block_id == TestSetup.bid sub_name = Right deriver
+    | otherwise = Left (State.StateError "not found")

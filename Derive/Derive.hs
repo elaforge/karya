@@ -9,11 +9,27 @@
     deriver names with 'd_', so if the deriver is normally implemented purely,
     a d_ version can be made simply by composing 'return'.
 
-    I have a similar sort of setup to nyquist, with a "transformation
-    environment" that functions can look at to implement behavioral
+    I have a similar sort of setup to nyquist, with a \"transformation
+    environment\" that functions can look at to implement behavioral
     abstraction.  The main differences are that I don't actually generate audio
-    signal, but my "ugens" eventually render down to MIDI or OSC (or nyquist
-    source!).
+    signal, but my \"ugens\" eventually render down to MIDI or OSC (or even
+    nyquist or csound source!).
+
+    \"Stack\" handling here is kind of confusing.
+
+    The end goal is that log messages and exceptions are tagged with the place
+    they occurred.  This is called the stack, and is described in
+    'Perform.Warning.Stack'.  Since the stack elements indicate positions on
+    the screen, they should be in local unwarped time, not global time.
+
+    The current stack is stored in 'state_stack' and will be added to by
+    'with_stack_block', 'with_stack_track', and 'with_stack_pos' as the deriver
+    processes a block, a track, and individual events respectively.
+    'warn' and 'throw' will pick the current stack out of 'state_stack'.
+
+    When 'Derive.Score.Event's are emitted they are also given the stack at the
+    time of their derivation.  If there is a problem in performance, log msgs
+    still have access to the stack.
 -}
 module Derive.Derive where
 import Control.Monad
@@ -25,6 +41,7 @@ import Control.Monad.Trans (lift)
 import Data.Function
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Set as Set
 
 import qualified Util.Control
 import qualified Util.Log as Log
@@ -68,6 +85,7 @@ data State = State {
     -- attach to an Event or to handle internally.
     state_controllers :: Score.ControllerMap
     , state_instrument :: Maybe Score.Instrument
+    , state_attributes :: Score.Attributes
     , state_warp :: Warp
     -- | This is the call stack for events.  It's used for error reporting,
     -- and attached to events in case they want to emit errors later (say
@@ -93,6 +111,7 @@ data State = State {
 initial_state ui_state lookup_deriver ignore_tempo = State {
     state_controllers = Map.empty
     , state_instrument = Nothing
+    , state_attributes = Set.empty
     , state_warp = initial_warp
     , state_stack = []
 
@@ -101,6 +120,7 @@ initial_state ui_state lookup_deriver ignore_tempo = State {
     , state_lookup_deriver = lookup_deriver
     , state_ignore_tempo = ignore_tempo
     }
+
 
 -- | Since the deriver may vary based on the block, this is needed to find
 -- the appropriate deriver.  It's created by 'Schema.lookup_deriver'.
@@ -183,7 +203,7 @@ d_sub_derive fail_val deriver = do
     mapM_ Log.write logs
     case res of
         Left err -> do
-            Log.warn $ "error sub-deriving: " ++ show err
+            warn $ "error sub-deriving: " ++ show err
             return fail_val
         Right val -> do
             modify (const state2)
@@ -274,14 +294,16 @@ with_controller cont signal op = do
     modify $ \st -> st { state_controllers = old_env }
     return result
 
-with_instrument :: (Monad m) => Score.Instrument -> DeriveT m t -> DeriveT m t
-with_instrument inst op = do
-    old <- fmap state_instrument get
-    modify $ \st -> st { state_instrument = Just inst}
+with_instrument :: (Monad m) => Maybe Score.Instrument -> Score.Attributes
+    -> DeriveT m t -> DeriveT m t
+with_instrument inst attrs op = do
+    old_inst <- fmap state_instrument get
+    old_attrs <- fmap state_attributes get
+    modify $ \st -> st { state_instrument = inst, state_attributes = attrs }
     result <- op
-    modify $ \st -> st { state_instrument = old }
+    modify $ \st -> st
+        { state_instrument = old_inst, state_attributes = old_attrs }
     return result
-
 
 -- ** stack
 
@@ -439,7 +461,8 @@ compose_warp (Warp warpsig shift stretch) sig = make_warp
 -- ** track
 
 -- | This does setup common to all track derivation, namely recording the tempo
--- warp, and then calls the specific track deriver.
+-- warp and putting the track in the stack, and then calls the specific track
+-- deriver.
 with_track_warp :: (Monad m) => TrackDeriver m -> TrackDeriver m
 with_track_warp track_deriver track_id = do
     ignore_tempo <- fmap state_ignore_tempo get
@@ -453,7 +476,7 @@ with_track_warp_tempo :: (Monad m) =>
 with_track_warp_tempo track_deriver track_id =
     with_stack_track track_id (track_deriver track_id)
 
--- * util
+-- * utils
 
 get_track track_id = get >>= lookup_id track_id . State.state_tracks . state_ui
 get_block block_id = get >>= lookup_id block_id . State.state_blocks . state_ui
@@ -462,20 +485,6 @@ get_block block_id = get >>= lookup_id block_id . State.state_blocks . state_ui
 lookup_id key map = case Map.lookup key map of
     Nothing -> throw $ "unknown " ++ show key
     Just val -> return val
-
--- ** merge
-
-d_merge :: (Monad m) => [[Score.Event]] -> m [Score.Event]
-d_merge = return . merge_events
-
-d_signal_merge :: (Monad m) => [[(Track.TrackId, Signal.Signal)]]
-    -> m [(Track.TrackId, Signal.Signal)]
-d_signal_merge = return . concat
-
-merge_events :: [[Score.Event]] -> [Score.Event]
-merge_events = foldr (Seq.merge_by (compare `on` Score.event_start)) []
-
--- * utils
 
 -- | General purpose iterator over events.
 --
@@ -493,3 +502,15 @@ map_events f state event_of xs =
         return $ case val of
             Nothing -> (st, Nothing)
             Just val -> (st, Just val)
+
+-- ** merge
+
+d_merge :: (Monad m) => [[Score.Event]] -> m [Score.Event]
+d_merge = return . merge_events
+
+d_signal_merge :: (Monad m) => [[(Track.TrackId, Signal.Signal)]]
+    -> m [(Track.TrackId, Signal.Signal)]
+d_signal_merge = return . concat
+
+merge_events :: [[Score.Event]] -> [Score.Event]
+merge_events = foldr (Seq.merge_by (compare `on` Score.event_start)) []

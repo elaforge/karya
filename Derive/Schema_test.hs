@@ -33,11 +33,11 @@ cont name track_id = Schema.Track (Just name) (tid track_id) 0
 -- | Reduce a skeleton down to a string which is easier to read than the nested
 -- data structure.
 reduce :: Schema.Skeleton -> String
-reduce (Schema.Controller ctracks itrack) =
+reduce (Schema.SkelController ctracks itrack) =
     Seq.join "," (map reduce_track ctracks)
     ++ "(" ++ maybe "" reduce itrack ++ ")"
-reduce (Schema.Instrument _ track) = reduce_track track
-reduce (Schema.Merge tracks) = Seq.join " + " (map reduce tracks)
+reduce (Schema.SkelNote track) = reduce_track track
+reduce (Schema.SkelMerge tracks) = Seq.join " + " (map reduce tracks)
 
 reduce_track = reduce_tracklike . Schema.track_id
 
@@ -110,7 +110,7 @@ test_compile_to_signals = do
     let (res, _, _, logs, _) = Derive.derive Derive.empty_lookup_deriver state
             True (Derive_test.setup_deriver d)
     pprint skel
-    
+
     -- tempo, c1, and c2 tracks get signals.
     -- I don't verify the signals since it seems too hard at the moment.
     equal (fmap (map fst) res)

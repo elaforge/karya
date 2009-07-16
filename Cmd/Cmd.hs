@@ -564,19 +564,22 @@ type Parser = [Track] -> Skeleton
 data Skeleton =
     -- | A set of controller tracks have scope over a sub-skeleton.
     -- A controller with no controlled tracks will have a Nothing sub.
-    Controller [Track] (Maybe Skeleton)
-    | Instrument Score.Instrument Track
-    | Merge [Skeleton]
+    SkelController [Track] (Maybe Skeleton)
+    | SkelNote Track
+    | SkelMerge [Skeleton]
     deriving (Show)
 
 -- | Smart constructor for Skeleton.
-merge :: [Skeleton] -> Skeleton
-merge [track] = track
-merge tracks = Merge tracks
+skel_merge :: [Skeleton] -> Skeleton
+skel_merge [track] = track
+skel_merge tracks = SkelMerge tracks
 
 data Track = Track {
+    -- | It's Maybe because rulers and dividers don't have titles.
     track_title :: Maybe String
-    , track_id :: Block.TracklikeId -- TODO make this TrackId?
+    -- TODO I don't think I ever usefully have non-event tracks in the
+    -- skeleton, so can I make this TrackId?
+    , track_id :: Block.TracklikeId
     , track_tracknum :: Block.TrackNum
     } deriving (Show)
 

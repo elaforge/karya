@@ -3,6 +3,7 @@ import qualified Control.Monad.Identity as Identity
 
 import Util.Test
 import qualified Util.Log as Log
+import Ui.Types
 
 import qualified Ui.Block as Block
 import qualified Ui.Id as Id
@@ -30,6 +31,12 @@ run = TestSetup.run State.empty
 
 track1_events = [(0, 2, "e11"), (4, 2, "e12"), (8, 2, "e13")]
 track2_events = [(1, 2, "e21"), (5, 2, "e22")]
+
+track2_simple = to_simple track2_events
+track1_simple = to_simple track1_events
+
+to_simple :: [(TrackPos, TrackPos, String)] -> [Simple.Event]
+to_simple = map (\(pos, dur, text) -> (realToFrac pos, realToFrac dur, text))
 
 (clip_track_ids, clip_state) = run $ TestSetup.mkstate_id
     clip_id
@@ -139,7 +146,7 @@ test_cmd_paste_overwrite = do
     res <- run (mksel 1 1 1 1) Clip.cmd_paste_overwrite
     equal res
         [ [(0, 1, "e11"), (1, 2, "c1"), (5, 2, "c2"), (8, 2, "e13")]
-        , track2_events
+        , track2_simple
         ]
 
     -- Second track isn't overwritten because clip has no second track.
@@ -147,21 +154,21 @@ test_cmd_paste_overwrite = do
     res <- run (mksel 1 1 2 1) Clip.cmd_paste_overwrite
     equal res
         [ [(0, 1, "e11"), (1, 2, "c1"), (5, 2, "c2"), (8, 2, "e13")]
-        , track2_events
+        , track2_simple
         ]
 
     -- Only replace the second event, since clipboard is clipped to sel.
     res <- run (mksel 1 1 1 4) Clip.cmd_paste_overwrite
     equal res
         [ [(0, 1, "e11"), (1, 2, "c1"), (4, 2, "e12"), (8, 2, "e13")]
-        , track2_events
+        , track2_simple
         ]
 
     -- Pasted events are clipped to the selection.
     res <- run (mksel 1 2 1 7) Clip.cmd_paste_overwrite
     equal res
         [ [(0, 2, "e11"), (2, 2, "c1"), (6, 1, "c2"), (8, 2, "e13")]
-        , track2_events
+        , track2_simple
         ]
 
 test_cmd_paste_merge = do
@@ -172,21 +179,21 @@ test_cmd_paste_merge = do
     equal res
         [ [(0, 1, "e11"), (1, 2, "c1"), (4, 1, "e12"), (5, 2, "c2"),
             (8, 2, "e13")]
-        , track2_events
+        , track2_simple
         ]
     -- Not much more to test here since it's all the same as
     -- cmd_paste_overwrite.
 
     -- They all overlap.
     res <- run (mksel 1 1 1 1) Clip.cmd_paste_soft_merge
-    equal res [track1_events, track2_events]
+    equal res [track1_simple, track2_simple]
 
     -- This time they make it in.
     res <- run (mksel 1 2 1 2) Clip.cmd_paste_soft_merge
     equal res
         [ [(0, 2, "e11"), (2, 2, "c1"), (4, 2, "e12"), (6, 2, "c2"),
             (8, 2, "e13")]
-        , track2_events
+        , track2_simple
         ]
 
 test_cmd_paste_insert = do
@@ -198,12 +205,12 @@ test_cmd_paste_insert = do
     equal res
         [ [(0, 1, "e11"), (1, 2, "c1"), (5, 2, "c2"),
             (10, 2, "e12"), (14, 2, "e13")]
-        , track2_events
+        , track2_simple
         ]
 
     -- selection pushes by selection length
     res <- run (mksel 1 1 1 3) Clip.cmd_paste_insert
     equal res
         [ [(0, 1, "e11"), (1, 2, "c1"), (6, 2, "e12"), (10, 2, "e13")]
-        , track2_events
+        , track2_simple
         ]

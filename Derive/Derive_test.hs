@@ -6,6 +6,7 @@ module Derive.Derive_test where
 import Control.Monad
 import qualified Control.Monad.Identity as Identity
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Data.Maybe as Maybe
 import qualified Data.List as List
 
@@ -48,7 +49,6 @@ test_derive_state = do
             [ ("tempo", [(0, 0, "2")])
             , (">1", [(0, 16, "4c-"), (16, 16, "4c#")])
             , ("cont", [(0, 0, "1"), (16, 0, "i.75"), (32, 0, "i0")])
-            -- , ("tempo", [(0, 0, "2")])
             ]
     let skel = fst $ TestSetup.run ui_state $ do
             block <- State.get_block block_id
@@ -104,9 +104,8 @@ test_subderive = do
 -- | Simple deriver with one track and one instrument.
 basic_deriver :: (Monad m) => Derive.TrackDeriver m
 basic_deriver track_id =
-    Derive.with_instrument default_inst $ Derive.with_track_warp
-        (Note.d_note_track Scale.scale_map (Note.scale_parser Twelve.scale))
-        track_id
+    Derive.with_instrument (Just default_inst) Set.empty $
+        Derive.with_track_warp Note.d_note_track track_id
 
 test_basic = do
     let (tids, ui_state) = TestSetup.run_mkstate
@@ -227,6 +226,7 @@ setup_deriver d = Derive.with_stack_block block_id (Derive.start_new_warp >> d)
 derive_events ui_state lookup_deriver deriver =
     (\(val, _, _, logs) -> (val, logs)) (derive lookup_deriver ui_state deriver)
 
+-- | Derive with lookup defaulted to empty_lookup_deriver.
 derive_events_e ui_state deriver =
     derive_events ui_state Derive.empty_lookup_deriver deriver
 

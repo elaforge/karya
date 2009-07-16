@@ -21,7 +21,7 @@
 module Derive.Schema (
     -- Re-export schema types from Cmd, to pretend they're defined here.
     -- * types
-    Schema(..), SchemaDeriver, Parser, Skeleton(..), merge
+    Schema(..), SchemaDeriver, Parser, Skeleton(..), skel_merge
     , Track(..), CmdContext(..), SchemaMap
 
     -- ** default parser
@@ -51,7 +51,7 @@ import qualified Ui.Track as Track
 import qualified Ui.State as State
 
 import qualified Cmd.Cmd as Cmd
-import Cmd.Cmd (Schema(..), SchemaDeriver, Parser, Skeleton(..), merge,
+import Cmd.Cmd (Schema(..), SchemaDeriver, Parser, Skeleton(..), skel_merge,
     Track(..), CmdContext(..), SchemaMap)
 import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.ControllerTrack as ControllerTrack
@@ -59,7 +59,6 @@ import qualified Cmd.ControllerTrack as ControllerTrack
 import qualified Derive.Controller as Controller
 import qualified Derive.Derive as Derive
 import qualified Derive.Note as Note
-import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.Twelve as Twelve
 
@@ -213,25 +212,28 @@ default_cmds parser context tracks = case track_type of
         Just (ControllerTrack insts) -> insts
         Nothing -> []
 
--- | Like Skeleton, but describe the type of a single track.
+-- | Like Skeleton, but describe the type of a single track.  This is used to
+-- figure out what set of cmds should apply to a given track.
 data TrackType =
-    -- | This is just so that I can easily figure out what instruments a block
-    -- mentions, e.g. in LanguageCmds, which uses it to deallocate an old
-    -- instrument.  This is kinda sketchy anyway since this doesn't account for
-    -- the instrument track.
+    -- | The Instrument args are just so that I can easily figure out what
+    -- instruments a block mentions, e.g. in LanguageCmds, which uses it to
+    -- deallocate an old instrument.  This is kinda sketchy anyway since
+    -- individual events can set instruments too.  TODO kill this
     NoteTrack Score.Instrument
     | ControllerTrack [Score.Instrument]
     deriving (Eq, Show)
 
 track_type_of :: Block.TrackNum -> Skeleton -> Maybe TrackType
 track_type_of tracknum skel = case skel of
-        Controller tracks maybe_sub -> case find tracks of
+        SkelController tracks maybe_sub -> case find tracks of
             Nothing -> type_of =<< maybe_sub
-            Just _ -> Just $ ControllerTrack (maybe [] instruments_of maybe_sub)
-        Instrument inst track
-            | track_tracknum track == tracknum -> Just (NoteTrack inst)
+            Just _ -> Just $ ControllerTrack
+                (maybe [] skeleton_instruments maybe_sub)
+        SkelNote track
+            | track_tracknum track == tracknum -> Just
+                (NoteTrack (title_to_inst (track_title track)))
             | otherwise -> Nothing
-        Merge skels -> case Maybe.catMaybes (map type_of skels) of
+        SkelMerge skels -> case Maybe.catMaybes (map type_of skels) of
             [] -> Nothing
             -- TODO this seems arbitrary... how do I justify this?
             (typ:_) -> Just typ
@@ -239,10 +241,6 @@ track_type_of tracknum skel = case skel of
     type_of = track_type_of tracknum
     has_tracknum track = track_tracknum track == tracknum
     find = List.find has_tracknum
-
-instruments_of (Controller _ maybe_sub) = maybe [] instruments_of maybe_sub
-instruments_of (Instrument inst _) = [inst]
-instruments_of (Merge subs) = concatMap instruments_of subs
 
 
 -- | Tracks starting with '>' are instrument tracks, the rest are control
@@ -263,13 +261,20 @@ default_schema_signal_deriver :: Parser -> SchemaDeriver Derive.SignalDeriver
 default_schema_signal_deriver parser block =
     fmap (compile_to_signals . parser) (block_tracks block)
 
--- | Get the Instruments from a parsed Skeleton.
+-- | Get the Instruments from a parsed Skeleton.  See 'TrackType' for why this
+-- is sketchy.
 skeleton_instruments :: Skeleton -> [Score.Instrument]
-skeleton_instruments skel = case skel of
-    Controller _ (Just subskel) -> skeleton_instruments subskel
-    Controller _ _ -> []
-    Instrument inst _ -> [inst]
-    Merge subs -> concatMap skeleton_instruments subs
+skeleton_instruments (SkelController _ maybe_sub) =
+    maybe [] skeleton_instruments maybe_sub
+skeleton_instruments (SkelNote track) = [title_to_inst (track_title track)]
+skeleton_instruments (SkelMerge subs) = concatMap skeleton_instruments subs
+
+-- | TODO should be killed when skeleton_instruments is.
+title_to_inst :: Maybe String -> Score.Instrument
+title_to_inst Nothing = Score.Instrument ""
+title_to_inst (Just title)
+    | is_inst_track title = Score.Instrument (inst_of_track title)
+    | otherwise = Score.Instrument ""
 
 -- ** compile skeleton
 
@@ -277,23 +282,24 @@ skeleton_instruments skel = case skel of
 -- if the skeleton was malformed.
 compile_skeleton :: Skeleton -> Derive.EventDeriver
 compile_skeleton skel = case skel of
-    Controller ctracks Nothing ->
+    SkelController ctracks Nothing ->
         -- TODO or it might be more friendly to just ignore them
         Derive.throw $ "orphaned controller tracks: " ++ show ctracks
-    Controller ctracks (Just subskel) ->
+    SkelController ctracks (Just subskel) ->
         compile_controllers ctracks subskel
-    Instrument inst (Track { track_id = Block.TId track_id _ }) ->
-        Derive.with_instrument inst $ Derive.with_track_warp
-            (Note.d_note_track Scale.scale_map
-                (Note.scale_parser hardcoded_scale))
-            track_id
-    Instrument _ track ->
-        Derive.throw $
-            "instrument track not an event track, parser is confused: "
-            ++ show track
-    Merge subs -> Derive.d_merge =<< mapM compile_skeleton subs
+    SkelNote (Track { track_id = Block.TId track_id _ }) ->
+        Derive.with_track_warp Note.d_note_track track_id
+    -- Instrument inst (Track { track_id = Block.TId track_id _ }) ->
+    --     Derive.with_instrument inst $ Derive.with_track_warp
+    --         (Note.d_note_track Scale.scale_map
+    --             (Note.scale_parser hardcoded_scale))
+    --         track_id
+    SkelNote track -> Derive.throw $
+        "instrument track is not an event track, parser is confused: "
+        ++ show track
+    SkelMerge subs -> Derive.d_merge =<< mapM compile_skeleton subs
 
--- | Generate the EventDeriver for a Controller Skeleton.
+-- | Generate the EventDeriver for a SkelController Skeleton.
 compile_controllers :: [Track] -> Skeleton -> Derive.EventDeriver
 compile_controllers tracks subskel =
     foldr track_controller (compile_skeleton subskel) (event_tracks tracks)
@@ -330,9 +336,10 @@ track_controller (name, track_id) deriver
 -- a new schema.
 compile_to_signals :: Skeleton -> Derive.SignalDeriver
 compile_to_signals skel = case skel of
-    Controller ctracks maybe_subskel -> compile_signals ctracks maybe_subskel
-    Instrument _ _ -> return []
-    Merge subs -> Derive.d_signal_merge =<< mapM compile_to_signals subs
+    SkelController ctracks maybe_subskel ->
+        compile_signals ctracks maybe_subskel
+    SkelNote _ -> return []
+    SkelMerge subs -> Derive.d_signal_merge =<< mapM compile_to_signals subs
 
 compile_signals :: [Track] -> Maybe Skeleton -> Derive.SignalDeriver
 compile_signals tracks maybe_subskel = do
@@ -375,7 +382,7 @@ instrument_to_title (Score.Instrument inst) = '>' : inst
 --
 -- TODO handle embedded rulers and dividers
 default_parser :: Parser
-default_parser tracks = merge $
+default_parser tracks = skel_merge $
     map parse_tempo_group
         -- The 0th track should be the ruler track, which I ignore.
         (split (title_matches is_tempo_track) (drop 1 tracks))
@@ -384,20 +391,20 @@ default_parser tracks = merge $
 parse_tempo_group tracks = case tracks of
     tempo@(Track { track_title = Just title }) : rest
         | is_tempo_track title ->
-            Controller [tempo] (Just (parse_inst_groups rest))
+            SkelController [tempo] (Just (parse_inst_groups rest))
         | otherwise -> parse_inst_groups tracks
     _ -> parse_inst_groups tracks
 
 parse_inst_groups :: [Track] -> Skeleton
-parse_inst_groups tracks = merge $
+parse_inst_groups tracks = skel_merge $
     map parse_inst_group (split (title_matches is_inst_track) tracks)
 
 parse_inst_group tracks = case tracks of
     track@(Track { track_title = Just name }) : rest | is_inst_track name ->
-        let inst = Score.Instrument (inst_of_track name) in case rest of
-            [] -> Instrument inst track
-            _ -> Controller rest (Just (Instrument inst track))
-    _ -> Controller tracks Nothing
+        if (null rest)
+            then SkelNote track
+            else SkelController rest (Just (SkelNote track))
+    _ -> SkelController tracks Nothing
 
 -- ** util
 

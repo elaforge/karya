@@ -24,4 +24,6 @@ instance Error.Error Warning where
 -- | The location of an event that had a problem.
 -- (block_id, track_id, (event_start, event_dur))
 type StackPos = (Block.BlockId, Maybe Track.TrackId, Maybe (TrackPos, TrackPos))
+
+-- | Stack order is most recent call first.
 type Stack = [StackPos]

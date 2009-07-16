@@ -123,7 +123,7 @@ mkstate_view block_id tracks = do
 
 -- track
 
-type TrackSpec = (String, [(Double, Double, String)])
+type TrackSpec = (String, [(TrackPos, TrackPos, String)])
 
 event_track_1 = mktrack ("1", [(0, 16, "hi"), (30, 32, "there")])
 event_track_2 = mktrack ("2", [(16, 10, "ho"), (30, 32, "eyo")])
@@ -135,8 +135,8 @@ empty_track title = Track.track title [] Config.track_bg Config.render_config
 
 -- event
 
-mkevent (pos, dur, text) =
-    (TrackPos pos, Event.event text (TrackPos dur))
+mkevent :: (TrackPos, TrackPos, String) -> Track.PosEvent
+mkevent (pos, dur, text) = (pos, Event.event text dur)
 
 -- ruler
 

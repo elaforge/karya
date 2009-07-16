@@ -20,6 +20,7 @@ import Prelude hiding (lex)
 import Control.Monad
 import qualified Data.Char as Char
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 import qualified Text.ParserCombinators.Parsec as P
 import Text.ParserCombinators.Parsec ((<|>), (<?>))
@@ -57,6 +58,10 @@ d_controller_track track_id = do
     track <- Derive.get_track track_id
     stack <- fmap Derive.state_stack Derive.get
     let (pos_list, events) = unzip $ Track.event_list (Track.track_events track)
+    -- TODO when signals are lazy this will be inefficient.  See TODO in
+    -- Note.hs.
+    -- Unlike the note deriver, I can do the warping all in one go here,
+    -- because control events never trigger subderivation.
     warped <- mapM Derive.local_to_global pos_list
     return $ map (uncurry (control_event stack)) (zip warped events)
 
@@ -64,8 +69,8 @@ d_controller_track track_id = do
 
 -- | Construct a control event from warped position.
 control_event :: Warning.Stack -> TrackPos -> Event.Event -> Score.Event
-control_event stack pos event =
-    Score.Event pos 0 (Event.event_text event) Map.empty evt_stack Nothing
+control_event stack pos event = Score.Event pos 0 (Event.event_text event)
+        Map.empty evt_stack Nothing Set.empty
     where
     evt_stack = case stack of
         (block_id, track_id, _) : rest ->
