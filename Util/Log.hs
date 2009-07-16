@@ -61,7 +61,7 @@ data Msg = Msg {
     , msg_prio :: Prio
     -- | Msgs which are logged from the deriver may record the position in the
     -- schema and event being processed.
-    , msg_stack :: Maybe Stack
+    , msg_stack :: Maybe Warning.Stack
     -- | Free form text for humans.
     , msg_text  :: String
     } deriving (Eq, Show, Read, Generics.Typeable)
@@ -88,9 +88,6 @@ initialize mach_file file = do
     MVar.swapMVar global_state (State (Just mach_hdl) (Just human_hdl))
     return ()
 
--- | (schema_stack, event_stack)
-type Stack = [Warning.StackPos]
-
 data Prio
     -- | Lots of msgs produced by code level.  Users don't look at this during
     -- normal use, but can be useful for debugging.
@@ -115,7 +112,8 @@ make_msg srcpos prio stack text = Msg no_date_yet srcpos prio stack text
 
 log :: LogMonad m => Prio -> SrcPos.SrcPos -> String -> m ()
 log prio srcpos text = write (make_msg srcpos prio Nothing text)
-log_stack :: LogMonad m => Prio -> SrcPos.SrcPos -> Stack -> String -> m ()
+log_stack :: LogMonad m => Prio -> SrcPos.SrcPos -> Warning.Stack -> String
+    -> m ()
 log_stack prio srcpos stack text =
     write (make_msg srcpos prio (Just stack) text)
 
@@ -144,14 +142,14 @@ is_timer_msg msg = "timer: " `List.isPrefixOf` msg_text msg
 -- Yay permutation game.  I could probably do a typeclass trick to make 'stack'
 -- an optional arg, but I think I'd wind up with all the same boilerplate here.
 debug_stack_srcpos, notice_stack_srcpos, warn_stack_srcpos, error_stack_srcpos
-    :: LogMonad m => SrcPos.SrcPos -> Stack -> String -> m ()
+    :: LogMonad m => SrcPos.SrcPos -> Warning.Stack -> String -> m ()
 debug_stack_srcpos = log_stack Debug
 notice_stack_srcpos = log_stack Notice
 warn_stack_srcpos = log_stack Warn
 error_stack_srcpos = log_stack Error
 
 debug_stack, notice_stack, warn_stack, error_stack
-    :: LogMonad m => Stack -> String -> m ()
+    :: LogMonad m => Warning.Stack -> String -> m ()
 debug_stack = debug_stack_srcpos Nothing
 notice_stack = notice_stack_srcpos Nothing
 warn_stack = warn_stack_srcpos Nothing
@@ -181,7 +179,7 @@ format_msg (Msg { msg_date = _date, msg_caller = srcpos, msg_prio = prio
     msg = printf "%-4s %s- %s"
         (prio_stars prio) (SrcPos.show_srcpos srcpos) text
 
-show_stack :: [Warning.StackPos] -> String
+show_stack :: Warning.Stack -> String
 show_stack stack = "[[" ++ Seq.join " -> " (map f stack) ++ "]]"
     where
     f (block_id, track_id, pos) = show block_id
