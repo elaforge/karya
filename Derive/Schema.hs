@@ -289,11 +289,6 @@ compile_skeleton skel = case skel of
         compile_controllers ctracks subskel
     SkelNote (Track { track_id = Block.TId track_id _ }) ->
         Derive.with_track_warp Note.d_note_track track_id
-    -- Instrument inst (Track { track_id = Block.TId track_id _ }) ->
-    --     Derive.with_instrument inst $ Derive.with_track_warp
-    --         (Note.d_note_track Scale.scale_map
-    --             (Note.scale_parser hardcoded_scale))
-    --         track_id
     SkelNote track -> Derive.throw $
         "instrument track is not an event track, parser is confused: "
         ++ show track

@@ -43,16 +43,16 @@ test_preprocess_words = do
             (inst2, attrs2, rest) = Note.preprocess_words
                 inst attrs (zip (map show [0..]) (words s))
 
-    equal (f Nothing no_attrs "") (Nothing, no_attrs, [])
+    equal (f Nothing no_attrs "--blah +a1 >i1") (Nothing, no_attrs, [])
     equal (f Nothing (attrs ["a4"]) "+a1 +a2 -a1 x")
         (Nothing, attrs ["a2", "a4"], ["x"])
     equal (f Nothing (attrs ["a4"]) "+a1 +a2 =a3 x")
         (Nothing, attrs ["a3"], ["x"])
     equal (f Nothing (attrs ["a4"]) "+a1 +a2 = x")
         (Nothing, no_attrs, ["x"])
-    equal (f (inst "i1") no_attrs "+a1")
+    equal (f (inst "i1") no_attrs "+a1 > ")
         (inst "i1", attrs ["a1"], [])
-    equal (f (inst "i1") no_attrs ">i2 x >i3 +a1")
+    equal (f (inst "i1") no_attrs ">i2 x >i3 +a1 --blah blah")
         (inst "i3", attrs ["a1"], ["x"])
 
 test_parse_args = do
@@ -85,7 +85,8 @@ test_derive_notes = do
             where (parsed, _) = Note.parse_note Nothing no_attrs "" text
         run evts = (map extract_event sevts, map extract_log logs)
             where
-            (sevts, logs) = Derive_test.derive_events ui_state lookup deriver
+            (sevts, logs) =
+                Derive_test.derive_events_lookup lookup ui_state deriver
             deriver = Note.derive_notes (map mkevt evts)
             lookup = lookup_deriver d_fake_sub
             (_, ui_state) = TestSetup.run State.empty $ do

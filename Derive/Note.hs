@@ -22,6 +22,10 @@
     The track title is simply prepended to the contents of each event in that
     track.  There are several kinds of words:
 
+    - A word starting with @--@ is a comment, and that word and every
+    subsequent word is ignored.  At the least this is useful for tests to
+    keep track of events.
+
     - Attributes are prepended by @+@, @-@, or @=@ are collected into a set,
     which is placed in the environment.  @+@ adds to the set, @-@ subtracts,
     and @=@ sets it.
@@ -131,15 +135,17 @@ d_note_track track_id = do
 parse_events :: (Monad m) => String -> [Track.PosEvent]
     -> Derive.DeriveT m [(Track.PosEvent, Parsed)]
 parse_events track_title pos_events = do
-    maybe_parsed <- mapM (Derive.catch_warn . (parse_event track_title))
+    inst <- fmap Derive.state_instrument Derive.get
+    attrs <- fmap Derive.state_attributes Derive.get
+    maybe_parsed <- mapM
+        (Derive.catch_warn . (parse_event inst attrs track_title))
         pos_events
     return [(pos_event, parsed)
         | (pos_event, Just parsed) <- zip pos_events maybe_parsed]
 
-parse_event :: Monad m => String -> Track.PosEvent -> Derive.DeriveT m Parsed
-parse_event track_title (pos, event) = do
-    inst <- fmap Derive.state_instrument Derive.get
-    attrs <- fmap Derive.state_attributes Derive.get
+parse_event :: Monad m => Maybe Score.Instrument -> Score.Attributes
+    -> String -> Track.PosEvent -> Derive.DeriveT m Parsed
+parse_event inst attrs track_title (pos, event) = do
     let (parsed, errs) =
             parse_note inst attrs track_title (Event.event_text event)
     if (null errs)
@@ -165,7 +171,7 @@ preprocess_words env_inst env_attrs ws = (inst, attrs, reverse ws2_rev)
     where
     -- foldl is most convenient for left-to-right set processing but it gets
     -- the output backwards.
-    (attrs, ws1_rev) = List.foldl' parse_attr (env_attrs, []) ws
+    (attrs, ws1_rev) = List.foldl' parse_attr (env_attrs, []) (strip_comment ws)
     (inst, ws2_rev) = List.foldl' parse_inst (env_inst, []) (reverse ws1_rev)
     parse_attr (attrs, rest) desc_word = case snd desc_word of
         '+':attr -> (Set.insert attr attrs, rest)
@@ -174,8 +180,16 @@ preprocess_words env_inst env_attrs ws = (inst, attrs, reverse ws2_rev)
         '=':attr -> (Set.singleton attr, rest)
         _ -> (attrs, desc_word:rest)
     parse_inst (inst, rest) desc_word = case snd desc_word of
+        -- Bare '>' is probably a track title, and I don't want that to
+        -- override the inst from the environment.
+        ">" -> (inst, rest)
         '>':inst_name -> (Just (Score.Instrument inst_name), rest)
         _ -> (inst, desc_word:rest)
+
+strip_comment [] = []
+strip_comment (w@(desc, word):ws)
+    | "--" `List.isPrefixOf` word = []
+    | otherwise = w : strip_comment ws
 
 parse_args :: [(String, String)] -> (String, [CallArg], [String])
 parse_args ws = (call, args, errs1 ++ errs2)

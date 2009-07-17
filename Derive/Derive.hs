@@ -331,6 +331,8 @@ with_stack_pos :: (Monad m) => TrackPos -> TrackPos -> DeriveT m a
 with_stack_pos start dur = modify_stack $ \(block_id, track_id, _) ->
     (block_id, track_id, Just (start, dur))
 
+modify_stack :: (Monad m) => (Warning.StackPos -> Warning.StackPos)
+    -> DeriveT m a -> DeriveT m a
 modify_stack f op = do
     old_stack <- fmap state_stack get
     new_stack <- case old_stack of

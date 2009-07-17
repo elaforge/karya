@@ -40,21 +40,20 @@ import qualified Perform.Midi.Perform as Perform
 
 import qualified Perform.Transport as Transport
 
--- TODO convert to use mkstate
-
 
 -- Inspect the final state after running a derivation.
+-- TODO what useful tests is this performing?
 test_derive_state = do
     let ui_state = snd $ TestSetup.run_mkstate
             [ ("tempo", [(0, 0, "2")])
-            , (">1", [(0, 16, "4c-"), (16, 16, "4c#")])
+            , (">1", [(0, 16, ""), (16, 16, "")])
             , ("cont", [(0, 0, "1"), (16, 0, "i.75"), (32, 0, "i0")])
             ]
     let skel = fst $ TestSetup.run ui_state $ do
             block <- State.get_block block_id
             skel <- Schema.get_skeleton default_schema_map block
             return skel
-    -- pprint skel
+    pprint skel
     -- pprint (State.state_tracks ui_state)
     let (_, state, logs) = either (error . show) id
             (run ui_state (Derive.d_block block_id))
@@ -73,10 +72,10 @@ test_subderive = do
     let bid = TestSetup.bid "b0"
     let ui_state = snd $ TestSetup.run State.empty $ do
             tids1 <- TestSetup.mkstate "sub"
-                [ (">2", [(1, 1, "7c-")]) ]
+                [ (">i2", [(1, 1, "--sub1")]) ]
             tids2 <- TestSetup.mkstate "b0"
                 [ ("tempo", [(0, 0, "2")])
-                , (">1", [(0, 8, "4c-"), (8, 8, "<sub"), (16, 1, "<blub")])
+                , (">i1", [(0, 8, "--b1"), (8, 8, "sub"), (16, 1, "blub")])
                 , ("cont", [(0, 0, "1"), (16, 0, "i0")])
                 ]
             return ()
@@ -88,10 +87,10 @@ test_subderive = do
             [(TestSetup.tid ("b0.t"++show n), TrackPos pos) | n <- [ 1, 2, 0]])
         sub pos =
             (TestSetup.bid "sub", [(TestSetup.tid "sub.t0", TrackPos pos)])
-    equal (extract_events events) [(0, 4, "4c-"), (6, 2, "7c-")]
+    equal (extract_events events) [(0, 4, "--b1"), (6, 2, "--sub1")]
+    strings_like (map Log.msg_text logs) ["error sub-deriving.*test/blub"]
     equal (map inv_tempo (map Timestamp.seconds [0, 2 .. 10]))
         [ [b0 0], [b0 4], [sub 0, b0 8], [sub 1, b0 12], [b0 16], [] ]
-    strings_like (map Log.msg_text logs) ["error sub-deriving.*test/blub"]
 
     -- TODO test when the subblock has a tempo too
 
@@ -108,48 +107,74 @@ basic_deriver track_id =
         Derive.with_track_warp Note.d_note_track track_id
 
 test_basic = do
+    -- verify the three phases of derivation
+    -- 1: derivation to score events
     let (tids, ui_state) = TestSetup.run_mkstate
-            [ ("1", [(0, 16, "4c-"), (16, 16, "5e-")]) ]
-    let (events, logs) = derive_events_e ui_state (basic_deriver (head tids))
+            [ ("> +a0", [(0, 16, "+a1"), (16, 16, "+a2")]) ]
+    let (events, logs) = derive_events ui_state (basic_deriver (head tids))
     equal logs []
-    pmlist "score" events
+    equal (extract_events events) [(0, 16, "+a1"), (16, 16, "+a2")]
+
+    -- 2: conversion to midi perf events
     let (midi_events, warns) = Convert.convert default_lookup events
     equal warns []
-    -- equal (length midi_events) 2
-    -- pmlist "midi_events" midi_events
-    -- let (msgs, _warns) = Perform.perform
-    --         default_lookup default_inst_config midi_events
+    let evt = (,,,,) default_perf_inst
+    equal (map extract_perf_event midi_events)
+        [ evt 0 16 Map.empty (mkstack [("b1", "b1.t0", (0, 16))])
+        , evt 16 16 Map.empty (mkstack [("b1", "b1.t0", (16, 16))])
+        ]
+
+    -- 3: performance to midi protocol events
+    -- TOOD once it's implemented
+    let (msgs, warns) = perform midi_events
+    pprint msgs
+    pprint warns
     -- equal (length msgs) 4 -- (noteon + noteoff) * 2
     -- pmlist "msgs" msgs
 
+extract_perf_event (Perform.Event inst start dur controls stack) =
+    (inst, start, dur, controls, stack)
+mkstack = map (\(bid, tid, pos) ->
+    (TestSetup.bid bid, Just (TestSetup.tid tid), Just pos))
 
--- | Slightly more complicated with a controller track.
-controller_deriver :: (Monad m) => Track.TrackId -> String
-    -> Derive.TrackDeriver m
-controller_deriver cont_track_id cont_name track_id =
+
+-- | Slightly more complicated with pitch and mod controller tracks.
+controller_deriver :: (Monad m) => Track.TrackId -> Track.TrackId
+    -> Track.TrackId -> String -> Derive.DeriveT m [Score.Event]
+controller_deriver note_tid pitch_tid cont_tid cont_name =
     Controller.d_controller (Score.Controller cont_name)
         (Controller.d_signal =<<
-            Derive.with_track_warp Controller.d_controller_track cont_track_id)
-        (basic_deriver track_id)
+            Derive.with_track_warp d_cont_track cont_tid)
+        (Controller.d_controller (Score.Controller "*twelve")
+            (Controller.d_pitch_signal Twelve.scale_id =<<
+                Derive.with_track_warp d_cont_track pitch_tid)
+            (basic_deriver note_tid))
+    where
+    d_cont_track = Controller.d_controller_track
 
 test_controller = do
     let (tids, ui_state) = TestSetup.run_mkstate
-            [ ("1", [(0, 1, "4c-"), (1, 1, "4c#")])
+            [ (">", [(0, 1, "+a1"), (1, 1, "+a2")])
+            , ("*twelve", [(0, 1, "4c-"), (1, 1, "4c#")])
             , (c_mod, [(0, 0, "1"), (1, 0, "i.75"), (2, 0, "i0")])
             ]
-    let (events, logs) = derive_events_e ui_state
-            (controller_deriver (tids!!1) c_mod (tids!!0))
+    let (events, logs) = derive_events ui_state
+            (controller_deriver (tids!!0) (tids!!1) (tids!!2) c_mod)
+    -- Cursory checks, more detailed checks are in more Note_test and
+    -- Controller_test.
     equal logs []
-    pmlist "score" events
+    equal (extract_events events) [(0, 1, "+a1"), (1, 1, "+a2")]
+    equal (map (Set.toList . Score.event_attributes) events) [["a1"], ["a2"]]
+
     let (midi_events, warns) = Convert.convert default_lookup events
     equal warns []
     equal (length midi_events) 2
-    pmlist "midi_events" midi_events
+    equal (map Perform.event_instrument midi_events)
+        [default_perf_inst, default_perf_inst]
+
     let (msgs, warns) = perform midi_events
     equal warns []
-    -- Should have a bunch of controller signals, but they depend on the srate.
-    -- TODO better test?
-    pmlist "msgs" msgs
+    pprint msgs
 
 test_make_inverse_tempo_func = do
     -- This is actually also tested in test_subderive.
@@ -164,54 +189,38 @@ test_make_inverse_tempo_func = do
     equal (map f (map Timestamp.seconds [0..2]))
         [with_block 0, with_block 2, []]
 
-tempo_deriver :: Track.TrackId -> Signal.Signal -> Track.TrackId
-    -> Track.TrackId -> Derive.EventDeriver
-tempo_deriver sig_tid tempo note_tid vel_tid = do
+tempo_deriver :: (Monad m) => Track.TrackId -> Signal.Signal -> Track.TrackId
+    -> Track.TrackId -> Track.TrackId -> Derive.DeriveT m [Score.Event]
+tempo_deriver sig_tid tempo note_tid pitch_tid vel_tid = do
     Derive.d_tempo sig_tid (return tempo) $
-        controller_deriver vel_tid "velocity" note_tid
+        controller_deriver note_tid pitch_tid vel_tid "velocity"
 
 test_tempo = do
     let (tids, state) = TestSetup.run_mkstate
-            [ ("0", [(0, 10, "5a-"), (10, 10, "5b-"), (20, 10, "5c-")])
+            [ (">", [(0, 10, "--1"), (10, 10, "--2"), (20, 10, "--3")])
+            , ("*twelve", [(0, 10, "5a-"), (10, 10, "5b-"), (20, 10, "5c-")])
             , ("1", [(0, 10, ".1"), (10, 10, ".2"), (20, 10, ".4")])
             ]
         mkderiver sig = tempo_deriver
-            (Track.TrackId (TestSetup.mkid "b0.tempo"))
-            (mksignal sig) (tids!!0) (tids!!1)
+            (Track.TrackId (TestSetup.mkid "b0.tempo")) (mksignal sig)
+            (tids!!0) (tids!!1) (tids!!2)
         floor_event (start, dur, text) = (floor start, floor dur, text)
         derive_with sig = extract_events events
-            where (events, _logs) = derive_events_e state (mkderiver sig)
+            where (events, _logs) = derive_events state (mkderiver sig)
 
     equal (derive_with [(0, Signal.Set, 2)])
-        [(0, 5, "5a-"), (5, 5, "5b-"), (10, 5, "5c-")]
+        [(0, 5, "--1"), (5, 5, "--2"), (10, 5, "--3")]
 
     -- Slowing down.
     equal (map floor_event
             (derive_with [(0, Signal.Set, 2), (20, Signal.Linear, 1)]))
-        [(0, 6, "5a-"), (6, 8, "5b-"), (14, 10, "5c-")]
-
--- extract_controller name = map $ \event -> Map.assocs $ Signal.signal_map $
---     Score.event_controllers event Map.! Score.Controller name
-extract_logs = map $ \log -> (Log.msg_text log, Log.msg_stack log)
-
--- * misc other modules
-
--- I test some other Derive modules here so I don't have to make a whole new
--- module for each one.
-
-test_controller_parse = do
-    let evt = Score.event (TrackPos 0) (TrackPos 0)
-        (_, state) = TestSetup.run_mkstate []
-        t_eval s = eval state $ Controller.parse_event () (evt s)
-
-    let result = t_eval "hi there"
-    check $ "Left \"parse error on char 1" `List.isPrefixOf` (show result)
-
-    equal (t_eval "-2e.2") (Right (TrackPos 0, Signal.Exp (-2), 0.2))
-    equal (t_eval "-.2") (Right (TrackPos 0, Signal.Set, -0.2))
+        [(0, 6, "--1"), (6, 8, "--2"), (14, 10, "--3")]
 
 -- * setup
 
+derive :: Derive.LookupDeriver -> State.State
+    -> Derive.DeriveT Identity.Identity a
+    -> (a, Transport.TempoFunction, Transport.InverseTempoFunction, [Log.Msg])
 derive lookup_deriver ui_state deriver = case result of
         Left err -> error $ "derive error: " ++ show err
         Right val -> (val, tempo, inv_tempo, logs)
@@ -223,12 +232,13 @@ derive lookup_deriver ui_state deriver = case result of
 -- d_warp.
 setup_deriver d = Derive.with_stack_block block_id (Derive.start_new_warp >> d)
 
-derive_events ui_state lookup_deriver deriver =
-    (\(val, _, _, logs) -> (val, logs)) (derive lookup_deriver ui_state deriver)
+derive_events_lookup lookup_deriver ui_state deriver = (val, logs)
+    where (val, _, _, logs) = derive lookup_deriver ui_state deriver
 
 -- | Derive with lookup defaulted to empty_lookup_deriver.
-derive_events_e ui_state deriver =
-    derive_events ui_state Derive.empty_lookup_deriver deriver
+derive_events :: State.State -> Derive.DeriveT Identity.Identity a
+    -> (a, [Log.Msg])
+derive_events = derive_events_lookup Derive.empty_lookup_deriver
 
 run :: State.State -> Derive.DeriveT Identity.Identity a
     -> Either String (a, Derive.State, [Log.Msg])
@@ -243,8 +253,6 @@ run ui_state m =
         (Schema.lookup_deriver default_schema_map ui_state) False)
             { Derive.state_stack = fake_stack }
 
-eval ui_state m = fmap (\(val, _, _) -> val) (run ui_state m)
-
 perform = Perform.perform default_chan_map default_lookup default_inst_config
 
 block_id = TestSetup.default_block_id
@@ -258,24 +266,15 @@ default_inst_config = Instrument.config
     [(default_inst, [(default_dev, 0)])] Nothing
 default_chan_map = fst $ Cmd.inst_addr_to_chan_map default_lookup
     (Instrument.config_alloc default_inst_config)
+default_perf_inst = Instrument.instrument default_synth "patch" Nothing
+            Controller.default_controllers (-2, 2)
 
 default_lookup (Score.Instrument inst)
-    | inst == "synth/patch" = Just $
-        Instrument.instrument default_synth "patch" Nothing
-            Controller.default_controllers (-2, 2)
+    | inst == "synth/patch" = Just default_perf_inst
     | otherwise = Nothing
 
 default_schema_map :: Schema.SchemaMap
 default_schema_map = Map.empty
-
-
--- ** ui stetup
-
-mkscore (pos, dur, text) = Score.event pos dur text
-
-track1 = TestSetup.mktrack ("1", [(0, 16, "4c-"), (16, 16, "4c#")])
-track_cont = TestSetup.mktrack
-    ("cont", [(0, 0, "1"), (16, 0, "i.75"), (32, 0, "i0")])
 
 mksignal segs = Signal.track_signal (TrackPos 1)
     [(TrackPos p, m, v) | (p, m, v) <- segs]
