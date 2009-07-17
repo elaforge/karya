@@ -333,11 +333,13 @@ channelize_event :: InstAddrs -> [(Event, Channel)] -> Event -> Channel
 channelize_event i_addrs overlapping event =
     case Map.lookup (Instrument.inst_name (event_instrument event)) i_addrs of
         -- If the event has 0 or 1 addrs I can just give a constant channel.
-        -- 'allot' will assign the correct addr, or filter the event if there
+        -- 'allot' will assign the correct addr, or drop the event if there
         -- are none.
         Just (_:_:_) -> chan
         _ -> 0
     where
+    -- Pick the first overlapping channel or make up a channel one higher than
+    -- the maximum channel in use.
     chan = maybe (maximum (-1 : map snd overlapping) + 1) id
         (shareable_chan overlapping event)
 
@@ -389,9 +391,7 @@ pitches_share _ _ _ _ = True
 -- to the real midi channels assigned to the instrument, stealing if necessary.
 --
 -- Events with instruments that have no address allocation in the config
--- will be silently dropped.  A higher level should have warned about those.
--- This is because deallocating its Addrs is an easy way to mute an instrument,
--- so it's not necessarily an error to have no allocation.
+-- will be dropped.
 allot :: InstAddrs -> [(Event, Channel)] -> [(Event, Instrument.Addr)]
 allot inst_addrs events = Maybe.catMaybes $
     snd $ List.mapAccumL allot_event (initial_allot_state inst_addrs) events
@@ -414,6 +414,8 @@ allot_event state (event, ichan) =
         Just addr -> (update_avail addr state, Just (event, addr))
         Nothing -> case steal_addr inst state of
             -- nothing allocated to this instrument
+            -- TODO if I'm going to log about insts without allocation this
+            -- is the spot
             Nothing -> (state, Nothing)
             Just addr ->
                 (update_avail addr (update_map addr state), Just (event, addr))
@@ -442,9 +444,9 @@ data Event = Event {
     event_instrument :: Instrument.Instrument
     , event_start :: TrackPos
     , event_duration :: TrackPos
-    , event_controls :: Map.Map Controller.Controller Signal.Signal
+    , event_controls :: ControllerMap
     -- original (TrackId, TrackPos) for errors
-    , event_stack :: [Warning.StackPos]
+    , event_stack :: Warning.Stack
     } deriving (Show)
 
 event_end event = event_start event + event_duration event
@@ -452,6 +454,7 @@ event_end event = event_start event + event_duration event
 -- | This isn't directly the midi channel, since it goes higher than 15, but
 -- will later be mapped to midi channels.
 type Channel = Integer
+type ControllerMap = Map.Map Controller.Controller Signal.Signal
 
 
 -- * util
