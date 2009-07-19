@@ -6,8 +6,6 @@ import qualified Data.Map as Map
 
 import qualified Midi.Midi as Midi
 
-import qualified Derive.Score as Score
-
 import qualified Perform.Signal as Signal
 
 
@@ -91,7 +89,7 @@ c_aftertouch = Controller "aftertouch"
 -- correspond to any midi controller.  Instead it's decomposed into
 -- (midi_nn, pb_val) by 'pitch_to_midi'.
 c_pitch :: Controller
-c_pitch = Controller $ (\(Score.Controller s) -> s) Score.pitch
+c_pitch = Controller "pitch"
 
 -- ** ccs
 
