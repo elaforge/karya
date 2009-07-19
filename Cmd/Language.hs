@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -fno-warn-unused-imports #-}
+{-# LANGUAGE ScopedTypeVariables #-} -- for pattern type sig in catch
 {- | Process a textual language, which may look familiar, to perform UI state
     changes.
 
@@ -60,7 +61,7 @@ cmd_language session lang_dirs msg = do
 get_local_modules :: FilePath -> Cmd.CmdT IO [String]
 get_local_modules lang_dir = do
     fns <- Trans.liftIO $ Directory.getDirectoryContents lang_dir
-        `Exception.catch` \exc -> do
+        `Exception.catch` \(exc :: IOError) -> do
             Log.warn $ "error reading local lang dir: " ++ show exc
             return []
     let mod_fns = map (lang_dir </>) (filter is_hs fns)
@@ -76,15 +77,15 @@ is_hs fn = take 1 fn /= "." && FilePath.takeExtension fn == ".hs"
 magic_quit_string :: String
 magic_quit_string = "-- * YES, really quit * --"
 
-catch_io_errors = Exception.handleJust Exception.ioErrors $ \exc -> do
+catch_io_errors = Exception.handle $ \(exc :: IOError) -> do
     Log.warn $ "caught exception from socket write: " ++ show exc
 
-catch_interpreter_error :: GHC.InterpreterError -> IO (Cmd.CmdT IO String)
+catch_interpreter_error :: Interpreter.InterpreterError -> IO (Cmd.CmdT IO String)
 catch_interpreter_error exc = return $ do
     Log.warn ("interpreter error: " ++ show_ghc_exc exc)
     return $ "interpreter error: " ++ show_ghc_exc exc
 
-catch_all :: Exception.Exception -> IO (Cmd.CmdT IO String)
+catch_all :: Exception.SomeException -> IO (Cmd.CmdT IO String)
 catch_all exc = return $ do
     Log.warn ("error: " ++ show exc)
     return $ "error: " ++ show exc

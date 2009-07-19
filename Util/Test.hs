@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-} -- for pattern type sig in catch
 -- | Basic testing utilities.
 module Util.Test (
     skip_human
@@ -86,10 +87,10 @@ strings_like_srcpos srcpos gotten expected = do
         | otherwise = failure srcpos $ show a ++ " !~ " ++ show b
 
 -- | The given pure value should throw an exception that matches the predicate.
-throws :: (Show a) => (Exception.Exception -> Bool) -> a -> IO ()
+throws :: (Show a) => (Exception.SomeException -> Bool) -> a -> IO ()
 throws = throws_srcpos Nothing
 
-throws_srcpos :: (Show a) => SrcPos.SrcPos -> (Exception.Exception -> Bool)
+throws_srcpos :: (Show a) => SrcPos.SrcPos -> (Exception.SomeException -> Bool)
     -> a -> IO ()
 throws_srcpos srcpos f val =
     (Exception.evaluate val >> failure srcpos ("didn't throw: " ++ show val))
@@ -99,10 +100,11 @@ throws_srcpos srcpos f val =
             else failure srcpos ("exception didn't match: " ++ show exc)
 
 catch_srcpos :: SrcPos.SrcPos -> IO () -> IO ()
-catch_srcpos srcpos op = Exception.catch op
-    (\e -> failure srcpos ("test threw exception: " ++ show e))
+catch_srcpos srcpos op = op `Exception.catch`
+    \(exc :: Exception.SomeException) ->
+        failure srcpos ("test threw exception: " ++ show exc)
 
-exc_like :: String -> Exception.Exception -> Bool
+exc_like :: String -> Exception.SomeException -> Bool
 exc_like expected exc = expected `List.isInfixOf` show exc
 
 -- IO oriented checks, the first value is pulled from IO.

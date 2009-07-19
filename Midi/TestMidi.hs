@@ -3,6 +3,7 @@ import Control.Monad
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Concurrent.STM.TChan as TChan
+import qualified Control.Exception as Exception
 import qualified Data.Map as Map
 import qualified Data.Word as Word
 import Text.Printf (printf)
@@ -16,7 +17,8 @@ import qualified Midi.PortMidiC as MidiC
 
 import qualified Midi.PortMidi
 
-print_err = flip MidiC.catch (\err -> putStrLn $ "err got out: " ++ show err)
+print_err = Exception.handle $
+    \err -> putStrLn $ "err got out: " ++ show (err :: MidiC.Error)
 main = MidiC.initialize $ \read_chan -> print_err $ do
     (rdevs, wdevs) <- MidiC.devices
     putStrLn "read devs:"

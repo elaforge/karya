@@ -40,7 +40,7 @@ parse_file fn = do
         ".txt" -> return []
         _ -> putStrLn ("Vl1m: skipping " ++ show fn) >> return []
     txt <- fmap (maybe "" id) $
-        File.catch_enoent (readFile (FilePath.replaceExtension fn ".txt"))
+        File.ignore_enoent (readFile (FilePath.replaceExtension fn ".txt"))
     return $ map (parse fn txt) syxs
 
 parse fn txt syx = case Parse.parse_sysex vl1_sysex fn syx of

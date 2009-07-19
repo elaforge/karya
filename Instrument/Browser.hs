@@ -1,4 +1,5 @@
-{-# OPTIONS_GHC -fno-warn-unused-imports #-}
+{-# OPTIONS_GHC -fno-warn-unused-imports #-} -- ghc confused about Control.Monad
+{-# LANGUAGE ScopedTypeVariables #-} -- for pattern type sig in catch
 module Instrument.Browser where
 import Control.Monad
 import qualified Control.Exception as Exception
@@ -142,7 +143,8 @@ choose_instrument inst_name = do
     let cmd = "load_instrument " ++ show inst_name
     putStrLn $ "send: " ++ cmd
     response <- SendCmd.send cmd
-        `Exception.catch` \exc -> return ("error: " ++ show exc)
+        `Exception.catch` \(exc :: Exception.SomeException) ->
+            return ("error: " ++ show exc)
     unless (null response) $
         putStrLn $ "response: " ++ response
 

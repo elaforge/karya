@@ -20,10 +20,9 @@ HLDFLAGS := `fltk-config --ldflags` -L/usr/local/lib
 BUILD := build
 BUNDLE = tools/make_bundle $@
 
-GHC := ghc-6.8.3
+GHC := ghc-6.10.4
 # This is unfortunately needed by hsc2hs, which seems kinda broken.
-# GHC_LIB = /usr/local/lib/ghc-6.8.3
-GHC_LIB := /Library/Frameworks/GHC.framework/Versions/Current/usr/lib/ghc-6.8.3
+GHC_LIB := /Library/Frameworks/GHC.framework/Versions/Current/usr/lib/ghc-6.10.4
 
 # hspp adds filename and lineno to various logging and testing functions.
 BASIC_HFLAGS := -W $(CINCLUDE) -i../lib -pgmc g++ -pgml g++ \

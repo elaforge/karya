@@ -62,6 +62,9 @@ import qualified Ui.Track as Track
 import qualified Ui.TrackC as TrackC
 
 #include "c_interface.h"
+-- This is from http://haskell.org/haskellwiki/FFI_cook_book.  Is there a
+-- better way?  I dunno, but this is clever and looks like it should work.
+#let alignment t = "%lu", (unsigned long)offsetof(struct {char x__; t (y__); }, y__)
 
 -- * errors
 
@@ -313,13 +316,13 @@ foreign import ccall "i_show_children"
 
 instance Storable Block.Divider where
     sizeOf _ = #size DividerConfig
-    alignment _ = undefined
+    alignment _ = #{alignment DividerConfig}
     poke dividerp (Block.Divider color) =
         (#poke DividerConfig, color) dividerp color
 
 instance Storable TracklikePtr where
     sizeOf _ = #size Tracklike
-    alignment _ = undefined
+    alignment _ = #{alignment Tracklike}
     poke = poke_tracklike_ptr
 
 poke_tracklike_ptr tp trackp = do
@@ -339,7 +342,7 @@ poke_tracklike_ptr tp trackp = do
 
 instance Storable Block.Config where
     sizeOf _ = #size BlockModelConfig
-    alignment _ = undefined
+    alignment _ = #{alignment BlockModelConfig}
     poke = poke_block_model_config
 
 poke_block_model_config configp (Block.Config
@@ -356,7 +359,7 @@ poke_block_model_config configp (Block.Config
 
 instance Storable Block.ViewConfig where
     sizeOf _ = #size BlockViewConfig
-    alignment _ = undefined
+    alignment _ = #{alignment BlockViewConfig}
     peek = error "no peek for ViewConfig"
     poke = poke_config
 
@@ -382,7 +385,7 @@ data CSelection = CSelection Color.Color Block.Selection deriving (Show)
 
 instance Storable CSelection where
     sizeOf _ = #size Selection
-    alignment _ = undefined
+    alignment _ = #{alignment Selection}
     peek = error "no peek selection"
     poke = poke_selection
 
@@ -404,7 +407,7 @@ poke_selection selp (CSelection color
 
 instance Storable Block.Zoom where
     sizeOf _ = #size ZoomInfo
-    alignment _ = undefined
+    alignment _ = #{alignment ZoomInfo}
     peek = peek_zoom
     poke = poke_zoom
 
@@ -421,7 +424,7 @@ poke_zoom zoomp (Block.Zoom offset factor) = do
 
 instance Storable Block.Rect where
     sizeOf _ = #size Rect
-    alignment _ = undefined
+    alignment _ = #{alignment Rect}
     peek = peek_rect
 
 peek_rect rectp = do

@@ -9,6 +9,8 @@ import qualified Ui.Util as Util
 
 
 #include "c_interface.h"
+-- See comment in BlockC.hsc.
+#let alignment t = "%lu", (unsigned long)offsetof(struct {char x__; t (y__); }, y__)
 
 
 data TextStyle = TextStyle {
@@ -25,8 +27,8 @@ data FontFace = Bold | Italic
 
 instance Storable TextStyle where
     sizeOf _ = #size TextStyle
-    alignment _ = undefined
-    peek = undefined
+    alignment _ = #{alignment TextStyle}
+    peek = error "TextStyle peek unimplemented"
     poke = poke_text_style
 
 poke_text_style stylep (TextStyle font face size color) = do

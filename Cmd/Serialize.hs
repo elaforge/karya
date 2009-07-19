@@ -51,7 +51,7 @@ serialize_text fname state = do
     File.backup_file fname
     IO.writeFile fname (show state)
 
-unserialize :: FilePath -> IO (Either Exception.Exception SaveState)
+unserialize :: FilePath -> IO (Either Exception.SomeException SaveState)
 unserialize fname = Exception.try $ do
     st <- Binary.decodeFile fname
     -- Data.Binary is lazy, but I want errors parsing to get caught right here.

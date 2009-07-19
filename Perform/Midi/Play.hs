@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-} -- for pattern type sig in catch
 module Perform.Midi.Play where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Exception as Exception
@@ -36,9 +37,9 @@ player_thread state midi_msgs = do
     Log.notice $ "play block " ++ name ++ " starting at "
         ++ show (Transport.state_timestamp_offset state)
     play_msgs state Set.empty midi_msgs
-        `Exception.catch` \exc -> do
+        `Exception.catch` \(exc :: Exception.SomeException) -> do
             Transport.write_status (Transport.state_responder_chan state)
-                (Transport.Died exc) (Transport.state_block_id state)
+                (Transport.Died (show exc)) (Transport.state_block_id state)
     Transport.player_stopped (Transport.state_updater_control state)
     Log.notice $ "render score " ++ show name ++ " complete"
 
@@ -46,9 +47,7 @@ player_thread state midi_msgs = do
 -- * implementation
 
 -- | 'play_msgs' tries to not get too far ahead of now both to avoid flooding
--- the midi driver and so a stop will happen fairly quickly.  I could flush the
--- devices, but PortMidi insists that you close and reopen the device
--- afterwards.
+-- the midi driver and so a stop will happen fairly quickly.
 write_ahead :: Timestamp.Timestamp
 write_ahead = Timestamp.seconds 1
 

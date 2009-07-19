@@ -115,11 +115,10 @@ foreign import ccall "core_midi_get_now" c_get_now :: IO CTimestamp
 -- * util
 
 newtype Error = Error String deriving (Show, Typeable.Typeable)
+instance Exception.Exception Error
 
-catch :: IO a -> (Error -> IO a) -> IO a
-catch = Exception.catchDyn
 throw :: String -> a
-throw err = Exception.throwDyn (Error err)
+throw = Exception.throw . Error
 
 check val err
     | err == no_error = val

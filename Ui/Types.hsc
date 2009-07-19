@@ -15,6 +15,8 @@ import Text.Printf
 import Ui.Color (Color)
 
 #include "c_interface.h"
+-- See comment in BlockC.hsc.
+#let alignment t = "%lu", (unsigned long)offsetof(struct {char x__; t (y__); }, y__)
 
 -- * trackpos
 
@@ -29,7 +31,7 @@ track_pos n = TrackPos (realToFrac n)
 
 instance Storable TrackPos where
     sizeOf _ = #size TrackPos
-    alignment _ = undefined
+    alignment _ = #{alignment TrackPos}
     peek posp = do
         v <- (#peek TrackPos, _val) posp :: IO CDouble
         return (TrackPos (realToFrac v))

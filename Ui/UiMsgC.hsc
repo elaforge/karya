@@ -27,12 +27,14 @@ foreign import ccall unsafe "clear_ui_msgs" c_clear_ui_msgs :: IO ()
 -- * Storable
 
 #include "c_interface.h"
+-- See comment in BlockC.hsc.
+#let alignment t = "%lu", (unsigned long)offsetof(struct {char x__; t (y__); }, y__)
 
 instance Storable UiMsg.UiMsg where
     sizeOf _ = #size UiMsg
-    alignment _ = undefined
+    alignment _ = #{alignment UiMsg}
     peek = peek_msg
-    poke = error "no poke for UiMsg"
+    poke = error "UiMsg poke unimplemented"
 
 peek_msg msgp = do
     -- MsgEvent data

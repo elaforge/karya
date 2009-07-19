@@ -186,7 +186,7 @@ cmd_transport_msg msg = do
         -- to tell it what to do anymore.
         Transport.Stopped -> Cmd.modify_state $ \st ->
             st { Cmd.state_play_control = Nothing }
-        Transport.Died exc -> Log.warn ("player died: " ++ show exc)
+        Transport.Died err_msg -> Log.warn ("player died: " ++ err_msg)
     return Cmd.Done
 
 -- * implementation

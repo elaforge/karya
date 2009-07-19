@@ -17,7 +17,8 @@ handle_thread name op = do
     result <- Exception.try op
     case result of
         Right _ -> Log.notice $ thread_name ++ "completed"
-        Left err -> Log.warn $ thread_name ++ "died: " ++ show err
+        Left err -> Log.warn $ thread_name ++ "died: "
+            ++ show (err :: Exception.SomeException)
 
 -- | Isn't there a simpler way to do this?  All I really want to do is return
 -- when a shared value has changed, or it's timed out.

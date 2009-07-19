@@ -214,7 +214,7 @@ run = Logger.run . run_log_t
 
 serialize_msg :: Msg -> String
 serialize_msg = show
-deserialize_msg :: String -> IO (Either Exception.Exception Msg)
+deserialize_msg :: String -> IO (Either Exception.SomeException Msg)
 deserialize_msg msg = Exception.try (readIO msg)
 
 

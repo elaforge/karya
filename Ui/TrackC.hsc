@@ -23,10 +23,13 @@ import qualified Ui.Util as Util
 
 
 #include "c_interface.h"
+-- See comment in BlockC.hsc.
+#let alignment t = "%lu", (unsigned long)offsetof(struct {char x__; t (y__); }, y__)
 
 instance Storable Track.Track where
     sizeOf _ = #size EventTrackConfig
-    alignment _ = undefined
+    alignment _ = #{alignment EventTrackConfig}
+    peek = error "Track peek unimplemented"
     poke = poke_track
 
 poke_track trackp (Track.Track
@@ -53,7 +56,8 @@ make_find_samples samples = c_make_find_samples (cb_find_samples samples)
 
 instance Storable Track.RenderConfig where
     sizeOf _ = #size RenderConfig
-    alignment _ = undefined
+    alignment _ = #{alignment RenderConfig}
+    peek = error "RenderConfig peek unimplemented"
     poke = poke_render_config
 
 poke_render_config configp (Track.RenderConfig style color) = do

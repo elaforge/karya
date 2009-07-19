@@ -35,7 +35,7 @@ serialize fname midi_db index = do
     File.backup_file fname
     Binary.encodeFile fname saved
 
-unserialize :: FilePath -> IO (Either Exception.Exception SavedDb)
+unserialize :: FilePath -> IO (Either Exception.SomeException SavedDb)
 unserialize fname = Exception.try $ do
     st <- Binary.decodeFile fname
     -- Cheap strict decode, as in Cmd.Serialize.

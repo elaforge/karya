@@ -3,7 +3,6 @@
 -}
 module Perform.Transport where
 import qualified Control.Concurrent.STM as STM
-import qualified Control.Exception as Exception
 import qualified Data.IORef as IORef
 
 import qualified Util.Thread as Thread
@@ -18,7 +17,7 @@ import qualified Perform.Timestamp as Timestamp
 -- | These go back to the responder loop from the render thread to notify it
 -- about the transport's state.
 data Status = Status Block.BlockId PlayerStatus deriving (Eq, Show)
-data PlayerStatus = Playing | Stopped | Died Exception.Exception
+data PlayerStatus = Playing | Stopped | Died String
     -- TODO later have play status so it can move the selection
     deriving (Eq, Show)
 type Chan = STM.TChan Status

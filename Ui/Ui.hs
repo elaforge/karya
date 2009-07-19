@@ -30,6 +30,7 @@ event_loop quit_request msg_chan = Exception.handle ui_handler $ do
     Control.while_ (fmap not (MVar.isEmptyMVar quit_request)) $
         poll_loop acts_mvar msg_chan
 
+ui_handler :: Exception.SomeException -> IO ()
 ui_handler exc = Log.error ("ui thread died from exception: " ++ show exc)
 
 -- | Send the UI to the ui thread and run it, returning its result.

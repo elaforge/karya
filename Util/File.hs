@@ -1,6 +1,7 @@
 {- | Do things with files.
 -}
 module Util.File where
+import Control.Monad
 import qualified Control.Exception as Exception
 import qualified Data.Word as Word
 import qualified Data.ByteString as ByteString
@@ -45,14 +46,11 @@ recursive_list_dir descend dir = do
 -- | Move the file to file.last.  Do this before writing a new one that may
 -- fail.
 backup_file :: FilePath -> IO ()
-backup_file fname = Exception.handleJust enoent_exc (const (return ()))
-    (Directory.renameFile fname (fname ++ ".last"))
+backup_file fname = do
+    ignore_enoent (Directory.renameFile fname (fname ++ ".last"))
+    return ()
 
-catch_enoent op = Exception.handleJust enoent_exc (const (return Nothing))
-    (fmap Just op)
-
--- | Select ENOENT errors.
-enoent_exc :: Exception.Exception -> Maybe IOError
-enoent_exc exc = case Exception.ioErrors exc of
-    Just io_error | IO.Error.isDoesNotExistError io_error -> Just io_error
-    _ -> Nothing
+-- | If @op@ raised ENOENT, return Nothing.
+ignore_enoent :: IO a -> IO (Maybe a)
+ignore_enoent op = Exception.handleJust (guard . IO.Error.isDoesNotExistError)
+    (const (return Nothing)) (fmap Just op)

@@ -75,11 +75,14 @@ lookup_style :: StyleId -> Style
 lookup_style (StyleId style) = style_array IArray.! style
 
 #include "c_interface.h"
+-- See comment in BlockC.hsc.
+#let alignment t = "%lu", (unsigned long)offsetof(struct {char x__; t (y__); }, y__)
 
 instance Storable Event where
     sizeOf _ = #size Event
-    alignment _ = undefined
+    alignment _ = #{alignment Event}
     poke = poke_event
+    peek = error "Event peek unimplemented"
 
 poke_event eventp (Event text dur style_id) = do
     let (Style color text_style align) = lookup_style style_id

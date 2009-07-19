@@ -1,4 +1,5 @@
-{-# OPTIONS_GHC -fno-warn-unused-imports #-}
+{-# OPTIONS_GHC -fno-warn-unused-imports #-} -- ghc confused about Control.Monad
+{-# LANGUAGE ScopedTypeVariables #-} -- for pattern type sig in catch
 {- | The responder is the main event loop on the haskell side.
 
     It receives msgs (described in Cmd.Msg) multiplexed through a set of
@@ -130,7 +131,7 @@ accept_loop socket output_chan = forever $ catch_io_errors $ do
     msg <- read_until hdl Config.message_complete_token
     STM.atomically $ TChan.writeTChan output_chan (hdl, msg)
 
-catch_io_errors = Exception.handleJust Exception.ioErrors $ \exc -> do
+catch_io_errors = Exception.handle $ \(exc :: IOError) -> do
     Log.warn $ "caught exception from socket read: " ++ show exc
 
 read_until :: IO.Handle -> String -> IO String

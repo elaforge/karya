@@ -55,10 +55,13 @@ foreign import ccall "wrapper"
 -- Storable
 
 #include "c_interface.h"
+-- See comment in BlockC.hsc.
+#let alignment t = "%lu", (unsigned long)offsetof(struct {char x__; t (y__); }, y__)
 
 instance Storable Ruler.Marklist where
     sizeOf _ = #size Marklist
-    alignment _ = undefined
+    alignment _ = #{alignment Marklist}
+    peek = error "Marklist peek unimplemented"
     poke = poke_marklist
 
 poke_marklist marklistp marklist = do
@@ -67,8 +70,8 @@ poke_marklist marklistp marklist = do
 
 instance Storable Ruler.Ruler where
     sizeOf _ = #size RulerConfig
-    alignment _ = undefined
-    peek = undefined
+    alignment _ = #{alignment RulerConfig}
+    peek = error "Ruler peek unimplemented"
     poke = poke_ruler
 
 -- Doesn't poke the marklists, since those are passed separately, since the
@@ -84,8 +87,8 @@ last_mark_pos mlists = maximum (TrackPos 0 : map Ruler.last_pos mlists)
 
 instance Storable Ruler.Mark where
     sizeOf _ = #size Mark
-    alignment _ = undefined
-    peek = undefined
+    alignment _ = #{alignment Mark}
+    peek = error "Mark peek unimplemented"
     poke = poke_mark
 
 poke_mark markp (Ruler.Mark

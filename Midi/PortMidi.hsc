@@ -21,10 +21,9 @@ module Midi.PortMidi (
     , abort
 
     -- * errors
-    , Error(..), catch, throw
+    , Error(..), throw
 ) where
 
-import Prelude hiding (catch)
 import Control.Monad
 import qualified Control.Exception as Exception
 import qualified Data.Word as Word
@@ -34,6 +33,8 @@ import Foreign.C
 
 #include "portmidi.h"
 #include "porttime.h"
+-- See comment in BlockC.hsc.
+#let alignment t = "%lu", (unsigned long)offsetof(struct {char x__; t (y__); }, y__)
 
 -- * initialization
 
@@ -90,9 +91,9 @@ data Device = Device String String Bool
 
 instance Storable Device where
     sizeOf _ = #size PmDeviceInfo
-    alignment _ = undefined
+    alignment _ = #{alignment PmDeviceInfo}
     peek = peek_device_info
-    poke = undefined
+    poke = error "Device poke unimplemented"
 
 peek_device_info dev = do
     interface <- (#peek PmDeviceInfo, interf) dev >>= peekCString
@@ -202,9 +203,9 @@ foreign import ccall unsafe "Pm_WriteSysEx"
 
 instance Storable Event where
     sizeOf _ = #size PmEvent
-    alignment _ = undefined
+    alignment _ = #{alignment PmEvent}
     peek = peek_event
-    poke = undefined
+    poke = error "Event poke unimplemented"
 
 peek_event evt = do
     msg <- (#peek PmEvent, message) evt :: IO (#type PmMessage)
@@ -235,14 +236,13 @@ encode_message bytes
 
 -- | A PortMidi exception just has an error string.
 newtype Error = Error String deriving (Show, Typeable)
+instance Exception.Exception Error
 
 type CPmError = CInt -- internal
 
 -- | Catch PortMidi exceptions.
-catch :: IO a -> (Error -> IO a) -> IO a
-catch = Exception.catchDyn
 throw :: String -> a
-throw err = Exception.throwDyn (Error err)
+throw err = Exception.throw (Error err)
 
 
 -- | run 'op' and throw if there's a problem, otherwise return if_ok

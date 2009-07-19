@@ -26,10 +26,9 @@ module Midi.PortMidiC (
     -- * thru handling
     -- * bandwidth monitoring
     -- * errors
-    , Error(..), catch, throw
+    , Error(..), throw
 ) where
 
-import Prelude hiding (catch)
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Concurrent.STM.TChan as TChan
@@ -40,7 +39,7 @@ import qualified System.IO.Unsafe as Unsafe
 
 import qualified Util.Thread as Thread
 import qualified Midi.PortMidi as PortMidi
-import Midi.PortMidi (Error(..), catch, throw)
+import Midi.PortMidi (Error(..), throw)
 import qualified Midi.Parse as Parse
 import qualified Midi.Midi as Midi
 import qualified Perform.Timestamp as Timestamp

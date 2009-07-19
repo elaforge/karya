@@ -1,10 +1,11 @@
 {- | Global static app defaults.
 -}
 module App.Config where
-import qualified Control.Exception as Exception
 import qualified Network
 import qualified System.Directory as Directory
 import System.FilePath ((</>))
+
+import qualified Util.File as File
 
 import Ui.Types
 import qualified Ui.Id as Id
@@ -41,8 +42,7 @@ instrument_db_cache = instrument_dir </> "inst.db"
 
 -- | Port to listen on for language requests.
 lang_port = Network.UnixSocket "seq_language"
-initialize_lang_port =
-    Exception.handle (\exc -> print exc) $ Directory.removeFile "seq_language"
+initialize_lang_port = File.ignore_enoent  $ Directory.removeFile "seq_language"
 
 -- | This string coming from the lang socket indicates that the message is
 -- complete and the server should process it and send a response.  It's
