@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -XFlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 {- | This module implements signals as sparse arrays of Val->Val.  The
     points are interpolated linearly, so the signal array represents a series
     of straight line segments.
@@ -120,7 +120,9 @@ sample_function :: (Double -> Double) -> TrackPos -> TrackPos -> TrackPos
     -> [Sample]
 sample_function f srate start end = zip samples (map f points)
     where
-    samples = takeWhile (<end) [start, start + srate ..]
+    -- Multiplication instead of successive addition to avoid loss of
+    -- precision.
+    samples = takeWhile (<end) (map ((start+) . (srate*)) [0,2..])
     points = map (\p -> realToFrac ((p-start) / (end-start))) samples
 
 -- *** interpolation functions
@@ -273,9 +275,14 @@ interpolate_samples srate x0 y0 x1 y1 =
     where xs = range (x0+srate) x1 srate
 
 -- | Like enumFromTo except always include the final value.
-range start end step
-    | start >= end = [end]
-    | otherwise = start : range (start+step) end step
+-- Use multiplication instead of successive addition to avoid loss of precision.
+range :: (Num a, Ord a) => a -> a -> a -> [a]
+range start end step = go 0
+    where
+    go i
+        | val >= end = [end]
+        | otherwise = val : go (i+1)
+        where val = start + (i*step)
 
 -- ** implementation
 
