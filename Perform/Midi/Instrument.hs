@@ -2,7 +2,12 @@
     device and channel mapping.
 -}
 module Perform.Midi.Instrument where
+import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
+import qualified Data.Set as Set
+
+import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
 
@@ -20,6 +25,10 @@ default_scale = Twelve.scale_id
 -- | The Instrument contains all the data necessary to render
 -- a Midi.Perform.Event to a midi message.  Each Event has an attached
 -- Instrument.
+--
+-- Don't put data unnecessary to derivation in here because they are compared
+-- to each other a lot when trying to merge channels.  All that stuff should go
+-- into the Patch.
 data Instrument = Instrument {
     inst_synth :: SynthName
     , inst_name :: InstrumentName
@@ -38,10 +47,8 @@ data Instrument = Instrument {
     -- be used to automatically trim control msgs, but I don't do that yet.
     -- TODO but I allocate LRU, so it shouldn't make a difference, right?
     , inst_decay :: Maybe Double
-    -- | Scale associated with this instrument, which also includes the drum
-    -- map for a drum kit instrument.  The scale really used is determined by
-    -- the pitch track, but this can be used to set a default for the pitch
-    -- track.
+    -- | Scale used by this instrument.  This determines what adjustments need
+    -- to be made, if any, to get a frequency indicated by the pitch track.
     , inst_scale :: Pitch.ScaleId
     } deriving (Eq, Ord, Show)
 
@@ -83,16 +90,16 @@ config inst_addrs default_addr = Config (Map.fromList inst_addrs) default_addr
 type Addr = (Midi.WriteDevice, Midi.Channel)
 
 -- | Remember the current state of each midi addr in use.  This is because
--- more than one instrument can share the same channel, so I need to emit the
--- requisite program change or keyswitch to get the channel into the right
--- state.  For synths that can't switch programs instantly, any program change
--- should probably be done by hand in advance, but keyswitches all happen
--- instantly and don't need that.
+-- more than one instrument or keyswitch can share the same channel, so I
+-- need to keep track which one is active to minimize switches.
+-- (inst, current_ks)
 type ChannelMap = Map.Map Addr Instrument
 
 -- | Keyswitch name and key to activate it.
-data Keyswitch = Keyswitch String Midi.Key
-    deriving (Eq, Ord, Show, Read)
+data Keyswitch = Keyswitch
+    { ks_name :: String
+    , ks_key :: Midi.Key
+    } deriving (Eq, Ord, Show, Read)
 
 -- * instrument db types
 
@@ -111,14 +118,65 @@ data Patch = Patch {
     -- considered its own instrument, like synth\/inst\/ks.  A keyswitch key may
     -- occur more than once, and a name of \"\" is used when the instrument is
     -- looked up without a keyswitch.
-    , patch_keyswitches :: [Keyswitch]
+    , patch_keyswitches :: KeyswitchMap
 	-- | Key-value pairs used to index the patch.
 	, patch_tags :: [Tag]
     -- | Some free form text about the patch.
     , patch_text :: String
 	} deriving (Eq, Show)
+
 -- | Create a Patch with empty vals, to set them as needed.
-patch inst = Patch inst NoInitialization [] [] ""
+patch inst = Patch inst NoInitialization (KeyswitchMap []) [] ""
+
+-- | A KeyswitchMap maps a set of attributes to a keyswitch and gives
+-- a piority for those mapping.  For example, if {pizz} is before {cresc}, then
+-- {pizz, cresc} will map to {pizz}, unless, of course, {pizz, cresc} comes
+-- before either.  So if a previous attr set is a subset of a later one, the
+-- later one will never be selected.  'validate_keyswithes' will check for that.
+--
+-- Two keyswitches with the same key will act as aliases for each other.
+--
+-- TODO implement qualified attributes, like cresc.fast.  Do the matching by
+-- succesively stripping off trailing attributes and only try the next
+-- when all permutations are exhausted.
+newtype KeyswitchMap = KeyswitchMap [(Score.Attributes, Keyswitch)]
+    deriving (Eq, Show)
+
+-- | Implement attribute priorities as described in 'KeyswitchMap'.
+get_keyswitch :: KeyswitchMap -> Score.Attributes -> Maybe Keyswitch
+get_keyswitch (KeyswitchMap attr_ks) attrs =
+    fmap snd (List.find is_subset attr_ks)
+    where is_subset (inst_attrs, _) = inst_attrs `Set.isSubsetOf` attrs
+
+keys_of :: KeyswitchMap -> Set.Set Midi.Key
+keys_of (KeyswitchMap attr_ks) = Set.fromList $ map (ks_key . snd) attr_ks
+
+-- | Make a 'KeyswitchMap' from strings.
+-- > [("trem+cresc", 38)]
+-- >      -> KeyswitchMap [({trem, cresc}, Keyswitch "trem+cresc" 38)]
+--
+-- An empty string will be the empty set keyswitch, which is used for notes
+-- with no attrs.
+make_keyswitches :: [(String, Midi.Key)] -> KeyswitchMap
+make_keyswitches attr_keys
+    | null errs = ks_map
+    | otherwise = error $ "errors constructing KeyswitchMap: "
+        ++ Seq.join "; " errs
+    where
+    ks_map = KeyswitchMap
+        [(split attr, Keyswitch attr key) | (attr, key) <- attr_keys]
+        where split = Set.fromList . filter (not.null) . Seq.split "+"
+    errs = validate_keyswithes ks_map
+
+validate_keyswithes :: KeyswitchMap -> [String]
+validate_keyswithes (KeyswitchMap attr_ks) =
+    Maybe.catMaybes $ zipWith check (List.inits attrs) attrs
+    where
+    attrs = map fst attr_ks
+    check prev attr = case List.find (`Set.isSubsetOf` attr) prev of
+        Just other_attr -> Just $ "attr " ++ show (Set.toList attr)
+            ++ " is shadowed by " ++ show (Set.toList other_attr)
+        Nothing -> Nothing
 
 patch_name :: Patch -> InstrumentName
 patch_name = inst_name . patch_instrument

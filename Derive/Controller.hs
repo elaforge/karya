@@ -20,7 +20,6 @@ import Prelude hiding (lex)
 import Control.Monad
 import qualified Data.Char as Char
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 
 import qualified Text.ParserCombinators.Parsec as P
 import Text.ParserCombinators.Parsec ((<|>), (<?>))
@@ -70,7 +69,7 @@ d_controller_track track_id = do
 -- | Construct a control event from warped position.
 control_event :: Warning.Stack -> TrackPos -> Event.Event -> Score.Event
 control_event stack pos event = Score.Event pos 0 (Event.event_text event)
-        Map.empty evt_stack Nothing Set.empty
+        Map.empty evt_stack Nothing Score.no_attrs
     where
     evt_stack = case stack of
         (block_id, track_id, _) : rest ->

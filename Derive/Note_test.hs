@@ -32,7 +32,7 @@ import qualified Derive.Twelve as Twelve
 
 test_parse_note = do
     let f = Note.parse_note
-    equal (f (inst "k") Set.empty ">i" "1x 1y 2 b")
+    equal (f (inst "k") no_attrs ">i" "1x 1y 2 b")
         (Note.Parsed "1x" [Note.Number 2, Note.String "b"] (inst "i") no_attrs
         ,["event word 1: can't parse number \"1y\"",
             "call \"1x\" starts with non-letter '1'"])
@@ -65,7 +65,7 @@ test_parse_args = do
         ("1x", [], ["call \"1x\" starts with non-letter '1'"])
     equal (f "") ("", [], [])
 
-no_attrs = Set.empty
+no_attrs = Score.no_attrs
 inst = Just . Score.Instrument
 attrs = Set.fromList :: [String] -> Score.Attributes
 

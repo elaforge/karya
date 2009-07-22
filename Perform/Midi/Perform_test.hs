@@ -2,6 +2,7 @@ module Perform.Midi.Perform_test where
 import Control.Monad
 import qualified Control.Concurrent as Concurrent
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Data.Maybe as Maybe
 import qualified System.IO as IO
 
@@ -16,6 +17,7 @@ import qualified Ui.Track as Track
 
 import qualified Midi.Midi as Midi
 import Midi.Midi (ChannelMessage(..))
+import qualified Instrument.MidiDb as MidiDb
 
 import qualified Cmd.Cmd as Cmd
 
@@ -30,35 +32,33 @@ import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
 
 
--- TODO this mostly just prints results out for eyeball inspection.  I need to
--- come up with properties and assert them
-
--- possible properties:
--- msgs are ordered
-
 -- * perform
 
--- Bad signal that goes over 1 in two places.
-badsig cont = (cont, mksignal [(0, 0), (1, 1.5), (2, 0), (2.5, 0), (3, 2)])
+-- Bad signal that goes over 1 at 1 and 3.
+badsig cont = (cont, mksignal [(0, 0), (1.5, 1.5), (2.5, 0.5), (4, 2)])
+-- badsig cont = (cont, mksignal [(0, 0), (2, 2), (4, 0), (6, 2)])
 
 test_clip_warns = do
     let events = map mkevent [(inst1, "a", 0, 4, [badsig vol_cc])]
         (msgs, warns) = perform inst_config1 events
     -- TODO check that warnings came at the right places
     -- check that the clips happen at the same places as the warnings
-    equal (map Warning.warn_msg warns)
-        (replicate 2 "Controller \"volume\" clipped")
+
+    equal (extract_warns warns)
+        -- yeah matching floats is silly but it's quick and easy...
+        [ ("Controller \"volume\" clipped", Just (1.05, 1.9500000000000002))
+        , ("Controller \"volume\" clipped", Just (3.05, 3.95))
+        ]
+
     check (all_msgs_valid msgs)
 
-    -- ascertain visually that the clip warnings are accurate
-    plist warns
-    plist $ Maybe.catMaybes $ map (midi_cc_of . Midi.wmsg_msg) msgs
-    plist events
+extract_warns = map (\w -> (Warning.warn_msg w, Warning.warn_pos w))
 
 test_vel_clip_warns = do
     let (msgs, warns) = perform inst_config1 $ map mkevent
             [(inst1, "a", 0, 4, [badsig Controller.c_velocity])]
-    equal (length warns) 1
+    equal (extract_warns warns)
+        [("Controller \"velocity\" clipped", Just (0, 4))]
     check (all_msgs_valid msgs)
 
 all_msgs_valid wmsgs = all Midi.valid_msg (map Midi.wmsg_msg wmsgs)
@@ -198,32 +198,52 @@ test_pitch_curve = do
         (Timestamp.Timestamp 1000, Midi.ChannelMessage 1 (Midi.PitchBend 0.01))
 
 test_keyswitch = do
-    let ks_inst name ks = Instrument.instrument synth1 name ks
-            Controller.default_controllers (-12, 12)
-    let ks1 = ks_inst "i1" (Just (Instrument.Keyswitch "ks1" 1))
-        ks2 = ks_inst "i1" (Just (Instrument.Keyswitch "ks2" 2))
-    let chan_map = Map.fromList [((dev1, 0), ks1)]
-    let ks_event (inst, start, dur) = mkevent (inst, "a", start, dur, [])
-        with_chan chan evt = (evt, (dev1, chan))
-        ks_events = map (with_chan 0 . ks_event)
+    let extract msgs = [(ts, key) | Midi.WriteMessage { Midi.wmsg_ts = ts,
+            Midi.wmsg_msg = Midi.ChannelMessage _ (Midi.NoteOn key _) } <- msgs]
+        ks_inst ks = inst1 { Instrument.inst_keyswitch = ks }
+        with_addr (ks, note, start, dur) =
+            (mkevent (ks_inst ks, note, start, dur, []), (dev1, 0))
+        ks1 = Just (Instrument.Keyswitch "ks1" 1)
+        ks2 = Just (Instrument.Keyswitch "ks2" 2)
     let perform_notes evts = (extract msgs, warns)
             where
-            (msgs, warns) = Perform.perform_notes chan_map (ks_events evts)
-            extract msgs = [(ts, key) | Midi.WriteMessage { Midi.wmsg_ts = ts,
-                Midi.wmsg_msg = Midi.ChannelMessage _ (Midi.NoteOn key _) }
-                    <- msgs]
-        ts = Timestamp.Timestamp
-    equal (perform_notes [(ks1, 0, 1), (ks1, 1, 1)])
-        ([(ts 0, 60), (ts 1000, 60)], [])
-    equal (perform_notes [(ks1, 0, 1), (ks2, 1, 1), (ks1, 1.5, 1)])
-        ([ (ts 0, 60)
-        , (ts 998, 2), (ts 1000, 60)
-        , (ts 1498, 1), (ts 1500, 60)
-        ], [])
+            (msgs, warns) = Perform.perform_notes chan_map1 (map with_addr evts)
+
+    -- ts clips at 0, redundant ks suppressed.
+    equal (perform_notes [(ks1, "a", 0, 1), (ks1, "b", 10, 10)])
+        ([(0, 1), (0, 60), (10000, 61)], [])
+    equal (perform_notes [(ks1, "a", 0, 1), (ks2, "b", 10, 10)])
+        ([(0, 1), (0, 60), (9996, 2), (10000, 61)], [])
+
+    equal (perform_notes [(Nothing, "a", 0, 1), (ks1, "b", 10, 10)])
+        ([(0, 60), (9996, 1), (10000, 61)], [])
 
 -- * post process
 
 test_drop_duplicates = do
+    let mkcc chan cc val = Midi.ChannelMessage chan (Midi.ControlChange cc val)
+        mkpb chan val = Midi.ChannelMessage chan (Midi.PitchBend val)
+        mkwmsgs msgs =
+            [Midi.WriteMessage dev1 ts msg | (ts, msg) <- zip [0..] msgs]
+        extract wmsg = (Midi.wmsg_ts wmsg, Midi.wmsg_msg wmsg)
+    let f = map extract . Perform.drop_duplicates
+    let msgs = [mkcc 0 1 10, mkcc 1 1 10, mkcc 0 1 11, mkcc 0 2 10]
+    -- no drops
+    equal (f (mkwmsgs msgs)) (zip [0..] msgs)
+    let with_dev dmsgs =
+            [Midi.WriteMessage dev ts msg | (ts, (dev, msg)) <- zip [0..] dmsgs]
+    equal (f (with_dev [(dev1, mkcc 0 1 10), (dev2, mkcc 0 1 10)]))
+        [(0, mkcc 0 1 10), (1, mkcc 0 1 10)]
+    -- dup is dropped
+    equal (f (mkwmsgs [mkcc 0 1 10, mkcc 0 2 10, mkcc 0 1 10]))
+        [(0, mkcc 0 1 10), (1, mkcc 0 2 10)]
+    -- dup is dropped
+    equal (f (mkwmsgs [mkpb 0 1, mkpb 1 1, mkpb 0 1]))
+        [(0, mkpb 0 1), (1, mkpb 1 1)]
+
+    -- keyswitches
+
+test_reorder_control_messages = do
     equal 1 1 -- TODO
 
 -- * controller
@@ -239,8 +259,6 @@ test_perform_controller1 = do
     check $ all Midi.valid_chan_msg (map snd msgs)
     -- goes over in 2 places
     equal (length warns) 2
-
-    -- plist msgs
 
 test_perform_controller2 = do
     let sig = (vol_cc, mksignal [(0, 0), (4, 1)])
@@ -380,8 +398,13 @@ inst_config2 = Instrument.config
     [ (score_inst inst1, [(dev1, 0), (dev1, 1)])
     , (score_inst inst2, [(dev2, 2)]) ]
     Nothing
+default_ksmap = Instrument.make_keyswitches
+    [("a1+a2", 0), ("a0", 1), ("a1", 2), ("a2", 3)]
 
-test_lookup (Score.Instrument inst)
-    | inst == "inst1" = Just inst1
+test_lookup :: MidiDb.LookupMidiInstrument
+test_lookup (Score.Instrument inst) attrs
+    | inst == "inst1" = Just $ inst1
+        { Instrument.inst_keyswitch =
+            Instrument.get_keyswitch default_ksmap attrs }
     | inst == "inst2" = Just inst2
     | otherwise = Nothing

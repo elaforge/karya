@@ -9,7 +9,6 @@ module Util.Test (
     , strings_like, strings_like_srcpos
     -- ** exception checks
     , throws, throws_srcpos, catch_srcpos
-    , exc_like
 
     -- ** io checks
     , io_equal, io_equal_srcpos
@@ -87,25 +86,22 @@ strings_like_srcpos srcpos gotten expected = do
         | otherwise = failure srcpos $ show a ++ " !~ " ++ show b
 
 -- | The given pure value should throw an exception that matches the predicate.
-throws :: (Show a) => (Exception.SomeException -> Bool) -> a -> IO ()
+throws :: (Show a) => String -> a -> IO ()
 throws = throws_srcpos Nothing
 
-throws_srcpos :: (Show a) => SrcPos.SrcPos -> (Exception.SomeException -> Bool)
-    -> a -> IO ()
-throws_srcpos srcpos f val =
+throws_srcpos :: (Show a) => SrcPos.SrcPos -> String -> a -> IO ()
+throws_srcpos srcpos exc_like val =
     (Exception.evaluate val >> failure srcpos ("didn't throw: " ++ show val))
-    `Exception.catch` \exc ->
-        if f exc
+    `Exception.catch` \(exc :: Exception.SomeException) ->
+        if exc_like `List.isInfixOf` show exc
             then success srcpos ("caught exc: " ++ show exc)
-            else failure srcpos ("exception didn't match: " ++ show exc)
+            else failure srcpos $
+                "exception <" ++ show exc ++ "> didn't match " ++ show exc_like
 
 catch_srcpos :: SrcPos.SrcPos -> IO () -> IO ()
 catch_srcpos srcpos op = op `Exception.catch`
     \(exc :: Exception.SomeException) ->
         failure srcpos ("test threw exception: " ++ show exc)
-
-exc_like :: String -> Exception.SomeException -> Bool
-exc_like expected exc = expected `List.isInfixOf` show exc
 
 -- IO oriented checks, the first value is pulled from IO.
 

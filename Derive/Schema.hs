@@ -31,6 +31,11 @@ module Derive.Schema (
     , default_parser
     , compile_skeleton, compile_to_signals
 
+    -- * query
+    , is_tempo_track
+    , is_pitch_track, scale_of_track, pitch_track_prefix
+    , is_inst_track, inst_of_track
+
     -- * lookup
     , lookup_deriver, get_signal_deriver, get_cmds, get_skeleton
     , skeleton_instruments
@@ -352,9 +357,12 @@ signal_controller (_title, track_id) = do
 -- | Tracks are treated differently depending on their titles.
 is_tempo_track, is_pitch_track, is_inst_track :: String -> Bool
 is_tempo_track = (=="tempo")
-is_pitch_track = ("*" `List.isPrefixOf`)
-is_inst_track = (">" `List.isPrefixOf`)
+
+is_pitch_track = (pitch_track_prefix `List.isPrefixOf`)
 scale_of_track = Pitch.ScaleId . Seq.strip . drop 1
+pitch_track_prefix = "*"
+
+is_inst_track = (">" `List.isPrefixOf`)
 inst_of_track = Seq.strip . drop 1
 
 -- | Convert a track title into its instrument.  This could be per-schema, but

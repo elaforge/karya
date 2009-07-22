@@ -7,15 +7,16 @@
   * fix Derive/Derive_test.hs
   - Perform.Midi should understand the new pitch track
     - function to get pitch tracks of a given track from skel
-    - checker throws a warning if an instrument has >1 pitch track
-    - instead of Score.pitch, performer looks for first pitch (*...) track
+    * checker throws a warning if an instrument has >1 pitch track
+    * instead of Score.pitch, performer looks for first pitch (*...) track
 
   implement attrs
-    - add attrs to Midi.Instrument
-    - add attr priority to Midi.Instrument
-    - hook up attrs and keyswitches
-    - test
-    - library of standard attrs?
+    * add attrs to Midi.Instrument
+    * add attr priority to Midi.Instrument
+    * hook up attrs and keyswitches
+    * filter out excess keyswitches
+    * test
+    + library of standard attrs?
 
   cmd support
     - note entry commands add both event and pitch track

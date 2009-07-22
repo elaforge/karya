@@ -20,6 +20,7 @@ import qualified Ui.State as State
 import qualified Ui.TestSetup as TestSetup
 
 import qualified Midi.Midi as Midi
+import qualified Instrument.MidiDb as MidiDb
 
 import qualified Cmd.Cmd as Cmd
 
@@ -33,12 +34,12 @@ import qualified Derive.Twelve as Twelve
 
 import qualified Perform.Signal as Signal
 import qualified Perform.Timestamp as Timestamp
+import qualified Perform.Transport as Transport
+import qualified Perform.Warning as Warning
+import qualified Perform.Midi.Controller as Midi.Controller
 import qualified Perform.Midi.Convert as Convert
-import qualified Perform.Midi.Controller as Controller
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
-
-import qualified Perform.Transport as Transport
 
 
 -- Inspect the final state after running a derivation.
@@ -101,39 +102,54 @@ test_subderive = do
 
 
 -- | Simple deriver with one track and one instrument.
-basic_deriver :: (Monad m) => Derive.TrackDeriver m
-basic_deriver track_id =
-    Derive.with_instrument (Just default_inst) Set.empty $
-        Derive.with_track_warp Note.d_note_track track_id
+basic_deriver :: (Monad m) => Track.TrackId -> Track.TrackId
+    -> Derive.DeriveT m [Score.Event]
+basic_deriver note_tid pitch_tid =
+    Controller.d_controller (Score.Controller "*twelve")
+        (Controller.d_pitch_signal Twelve.scale_id =<<
+            Derive.with_track_warp Controller.d_controller_track pitch_tid)
+        (Derive.with_instrument (Just default_inst) Score.no_attrs $
+            Derive.with_track_warp Note.d_note_track note_tid)
 
 test_basic = do
     -- verify the three phases of derivation
     -- 1: derivation to score events
     let (tids, ui_state) = TestSetup.run_mkstate
-            [ ("> +a0", [(0, 16, "+a1"), (16, 16, "+a2")]) ]
-    let (events, logs) = derive_events ui_state (basic_deriver (head tids))
+            [ ("> +a1", [(0, 16, "+a0"), (16, 16, "+a2")])
+            , ("*twelve", [(0, 16, "4c-"), (16, 16, "4c#")])
+            ]
+    let (events, logs) = derive_events ui_state
+            (basic_deriver (tids!!0) (tids!!1))
     equal logs []
-    equal (extract_events events) [(0, 16, "+a1"), (16, 16, "+a2")]
+    equal (extract_events events) [(0, 16, "+a0"), (16, 16, "+a2")]
 
     -- 2: conversion to midi perf events
     let (midi_events, warns) = Convert.convert default_lookup events
     equal warns []
-    let evt = (,,,,) default_perf_inst
+    let evt = (,,,,,) (Instrument.inst_name default_perf_inst)
+        pitch_sig = Signal.track_signal Signal.default_srate
+                [(0, Signal.Set, 48), (16, Signal.Set, 49)]
+        pitch_cont = Map.singleton Midi.Controller.c_pitch pitch_sig
     equal (map extract_perf_event midi_events)
-        [ evt 0 16 Map.empty (mkstack [("b1", "b1.t0", (0, 16))])
-        , evt 16 16 Map.empty (mkstack [("b1", "b1.t0", (16, 16))])
+        [ evt (Just "a0") 0 16 pitch_cont (mkstack [("b1", "b1.t0", (0, 16))])
+        , evt (Just "a1+a2") 16 16 pitch_cont
+            (mkstack [("b1", "b1.t0", (16, 16))])
         ]
 
     -- 3: performance to midi protocol events
     -- TOOD once it's implemented
     let (msgs, warns) = perform midi_events
-    pprint msgs
-    pprint warns
-    -- equal (length msgs) 4 -- (noteon + noteoff) * 2
-    -- pmlist "msgs" msgs
+        mmsgs = map Midi.wmsg_msg msgs
+    equal [nn | Midi.ChannelMessage _ (Midi.NoteOn nn _) <- mmsgs]
+        [1, 48, 0, 49]
+    equal warns []
 
+ks_name (Instrument.Keyswitch name _) = name
+set_ks inst ks nn = inst
+    { Instrument.inst_keyswitch = Just (Instrument.Keyswitch ks nn) }
 extract_perf_event (Perform.Event inst start dur controls stack) =
-    (inst, start, dur, controls, stack)
+    ( Instrument.inst_name inst, fmap ks_name (Instrument.inst_keyswitch inst)
+    , start, dur, controls, stack)
 mkstack = map (\(bid, tid, pos) ->
     (TestSetup.bid bid, Just (TestSetup.tid tid), Just pos))
 
@@ -145,10 +161,7 @@ controller_deriver note_tid pitch_tid cont_tid cont_name =
     Controller.d_controller (Score.Controller cont_name)
         (Controller.d_signal =<<
             Derive.with_track_warp d_cont_track cont_tid)
-        (Controller.d_controller (Score.Controller "*twelve")
-            (Controller.d_pitch_signal Twelve.scale_id =<<
-                Derive.with_track_warp d_cont_track pitch_tid)
-            (basic_deriver note_tid))
+        (basic_deriver note_tid pitch_tid)
     where
     d_cont_track = Controller.d_controller_track
 
@@ -170,11 +183,12 @@ test_controller = do
     equal warns []
     equal (length midi_events) 2
     equal (map Perform.event_instrument midi_events)
-        [default_perf_inst, default_perf_inst]
+        [set_ks default_perf_inst "a1" 2, set_ks default_perf_inst "a2" 3]
 
     let (msgs, warns) = perform midi_events
+    -- Just make sure it did in fact emit ccs.
+    check $ any (Midi.is_cc . Midi.wmsg_msg) msgs
     equal warns []
-    pprint msgs
 
 test_make_inverse_tempo_func = do
     -- This is actually also tested in test_subderive.
@@ -257,7 +271,7 @@ perform = Perform.perform default_chan_map default_lookup default_inst_config
 
 block_id = TestSetup.default_block_id
 
-c_mod = Controller.c_mod
+c_mod = Midi.Controller.c_mod
 
 default_inst = Score.Instrument "synth/patch"
 default_synth = Instrument.synth "synth" "wdev" []
@@ -267,10 +281,20 @@ default_inst_config = Instrument.config
 default_chan_map = fst $ Cmd.inst_addr_to_chan_map default_lookup
     (Instrument.config_alloc default_inst_config)
 default_perf_inst = Instrument.instrument default_synth "patch" Nothing
-            Controller.default_controllers (-2, 2)
+            Midi.Controller.default_controllers (-2, 2)
+default_ksmap = Instrument.KeyswitchMap $
+    map (\(attr, name, nn) -> (Set.fromList attr, Instrument.Keyswitch name nn))
+        [ (["a1", "a2"], "a1+a2", 0)
+        , (["a0"], "a0", 1)
+        , (["a1"], "a1", 2)
+        , (["a2"], "a2", 3)
+        ]
 
-default_lookup (Score.Instrument inst)
-    | inst == "synth/patch" = Just default_perf_inst
+default_lookup :: MidiDb.LookupMidiInstrument
+default_lookup (Score.Instrument inst) attrs
+    | inst == "synth/patch" = Just (default_perf_inst
+        { Instrument.inst_keyswitch =
+            Instrument.get_keyswitch default_ksmap attrs })
     | otherwise = Nothing
 
 default_schema_map :: Schema.SchemaMap

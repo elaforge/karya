@@ -2,12 +2,19 @@
 {- | Main entry point for Perform.Midi.  Render Deriver output down to actual
     midi events.
 
-    Keyswitches are implemented as separate instruments.  They should be
-    allocated the same channels, and the note performer will keep track of
-    the current state of each channel, and send the keyswitch key if necessary
-    to switch the state.  Simultaneous notes with different keyswitches will
-    get a random one.  TODO Though it would be nicer for them to try to take
-    different channels.
+    Keyswitch implementation:
+
+    Keyswitches are implemented as separate instruments that are allocated
+    the same channels.  That way the normal channel sharing stuff in
+    'can_share_chan' will try to give each instrument on its own channel to
+    minimize keyswitches.  Every note with a keyswitch will emit the keyswitch
+    slightly before the note, relying on postprocessing to strip out the
+    redundant ones.
+
+    Score.Event level Attributes are mapped to keyswitches.  This happens at
+    Convert time so that the Perform.Events can get their slightly different
+    Instruments.  It's up to the conversion code to convert an arbitrary set
+    of attributes into a keyswitch.
 -}
 module Perform.Midi.Perform where
 import Data.Function
@@ -21,6 +28,8 @@ import Ui.Types
 
 import qualified Midi.Midi as Midi
 
+import qualified Derive.Score as Score
+
 import qualified Perform.Signal as Signal
 import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Warning as Warning
@@ -32,22 +41,44 @@ import qualified Instrument.MidiDb as MidiDb
 
 -- TODO: use default_decay, and use decay for overlaps and max lookahead
 
+-- * constants
+
+-- | This winds up being 100, which is loud but not too loud and
+-- distinctive-looking.
+default_velocity :: Signal.Val
+default_velocity = 0.79
+
+-- | A keyswitch gets this much lead time before the note it is meant to
+-- apply to.
+keyswitch_interval :: Timestamp.Timestamp
+keyswitch_interval = 4
+
+-- | Most synths don't respond to pitch bend instantly, but smooth it out, so
+-- if you set pitch bend immediately before playing the note you will get
+-- a little sproing.  Try to put pitch bends before their notes by this amount,
+-- unless there's another note there.
+pitch_bend_lead_time :: TrackPos
+pitch_bend_lead_time = Timestamp.to_track_pos (Timestamp.seconds 0.01)
+
+-- * perform
 
 -- | Render instrument tracks down to midi messages, sorted in timestamp order.
 -- This should be non-strict on the event list, so that it can start producing
 -- MIDI output as soon as it starts processing Events.
 perform :: Instrument.ChannelMap -> MidiDb.LookupMidiInstrument
     -> Instrument.Config -> [Event] -> ([Midi.WriteMessage], [Warning.Warning])
-perform chan_map lookup_inst config =
-    perform_notes chan_map . allot inst_addrs . channelize inst_addrs
-    where inst_addrs = config_to_inst_addrs config lookup_inst
+perform chan_map lookup_inst config events = (post_process msgs, warns)
+    where
+    inst_addrs = config_to_inst_addrs config lookup_inst
+    (msgs, warns) = (perform_notes chan_map . allot inst_addrs
+        . channelize inst_addrs) events
 
 config_to_inst_addrs :: Instrument.Config -> MidiDb.LookupMidiInstrument
     -> InstAddrs
 config_to_inst_addrs config lookup_inst = Map.fromList
     [(Instrument.inst_name inst, addrs) | (Just inst, addrs) <- inst_addrs]
     where
-    inst_addrs = [(lookup_inst inst, addrs)
+    inst_addrs = [(lookup_inst inst Score.no_attrs, addrs)
         | (inst, addrs) <- Map.assocs (Instrument.config_alloc config)]
 
 -- | Map each instrument to its allocated Addrs.
@@ -60,8 +91,7 @@ type InstAddrs = Map.Map Instrument.InstrumentName [Instrument.Addr]
 -- The input events are ordered, but may overlap.
 perform_notes :: Instrument.ChannelMap -> [(Event, Instrument.Addr)]
     -> ([Midi.WriteMessage], [Warning.Warning])
-perform_notes chan_map events = (post_process msgs, warns)
-    where (msgs, warns) = _perform_notes chan_map [] (TrackPos 0) events
+perform_notes chan_map events = _perform_notes chan_map [] (TrackPos 0) events
 
 _perform_notes :: Instrument.ChannelMap -> [Midi.WriteMessage]
     -> TrackPos -> [(Event, Instrument.Addr)]
@@ -83,6 +113,9 @@ _perform_notes chan_map overlapping prev_note_off ((event, addr):events) =
     first_ts = case msgs of
         [] -> Timestamp.Timestamp 0 -- perform_note decided to play nothing?
         (msg:_) -> Midi.wmsg_ts msg
+    -- These will be in the \"past\", so messages may get slightly out of order
+    -- if they are before 'overlapping', which means that a pchange with a long
+    -- lead time may lose its lead time.  TODO fix this if it becomes a problem
     (chan_state_msgs, chan_state_warns, chan_map2) =
         adjust_chan_state chan_map addr event
     (play, not_yet) = List.partition ((<= first_ts) . Midi.wmsg_ts)
@@ -116,22 +149,26 @@ adjust_chan_state chan_map addr event =
 chan_state_msgs :: Instrument.Addr -> Timestamp.Timestamp
     -> Maybe Instrument.Instrument -> Instrument.Instrument
     -> Maybe [Midi.WriteMessage]
-chan_state_msgs (wdev, chan) ts m_old new
-    | Just old <- m_old, Instrument.inst_synth old == Instrument.inst_synth new
-        && Instrument.inst_name old == Instrument.inst_name new =
-            case (keyswitch old, keyswitch new) of
-                (old, new) | old == new -> Just []
-                (Just _, Just (Instrument.Keyswitch _ ks)) -> Just (ks_msgs ks)
-                _ -> Nothing
+chan_state_msgs (wdev, chan) ts maybe_old_inst new_inst
+    | Just old_inst <- maybe_old_inst, same_inst old_inst new_inst =
+        case (keyswitch old_inst, keyswitch new_inst) of
+            (old, new) | old == new || new == Nothing -> Just []
+            (_, Just ks) -> Just (ks_msgs (Instrument.ks_key ks))
+            _ -> error "chan_state_mgs: unreachable"
+    -- TODO Program change not supported yet.
     | otherwise = Nothing
     where
+    same_inst i1 i2 = Instrument.inst_synth i1 == Instrument.inst_synth i2
+        && Instrument.inst_name i1 == Instrument.inst_name i2
     keyswitch = Instrument.inst_keyswitch
-    -- Stick the state change msgs in right before the note on.
-    ks_msgs key =
-        [ Midi.WriteMessage wdev (ts - (ts1+ts1)) (wchan (Midi.NoteOn key 10))
-        , Midi.WriteMessage wdev (ts - ts1) (wchan (Midi.NoteOff key 10)) ]
-    wchan = Midi.ChannelMessage chan
-    ts1 = Timestamp.Timestamp 1
+    start = max 0 (ts - keyswitch_interval)
+    mkmsg ts msg = Midi.WriteMessage wdev ts (Midi.ChannelMessage chan msg)
+    -- The velocity is arbitrary, but this is loud enough to hear if you got
+    -- the keyswitches wrong.
+    ks_msgs nn =
+        [mkmsg start (Midi.NoteOn nn 64), mkmsg (start+1) (Midi.NoteOff nn 64)]
+
+-- * post process
 
 -- | Some context free post-processing on the midi stream.
 post_process :: [Midi.WriteMessage] -> [Midi.WriteMessage]
@@ -190,11 +227,7 @@ sort2 cmp (a:b:zs) = case cmp a b of
 sort2 cmp xs = List.sortBy cmp xs
 
 
--- | Most synths don't respond to pitch bend instantly, but smooth it out, so
--- if you set pitch bend immediately before playing the note you will get
--- a little sproing.  Try to put pitch bends before their notes by this amount,
--- unless there's another note there.
-pitch_bend_lead_time = Timestamp.to_track_pos (Timestamp.seconds 0.01)
+-- * perform note
 
 perform_note :: TrackPos -> TrackPos -> Event -> Instrument.Addr
     -> ([Midi.WriteMessage], [Warning.Warning], TrackPos)
@@ -265,10 +298,6 @@ make_clip_warnings event (controller, clip_warns) =
     [ Warning.warning (show controller ++ " clipped")
         (event_stack event) (Just (start, end))
     | (start, end) <- clip_warns ]
-
--- | This winds up being 100, which is a good default and distinctive-looking.
-default_velocity :: Signal.Val
-default_velocity = 0.79
 
 control_at :: Event -> Controller.Controller -> TrackPos
     -> Maybe Signal.Val

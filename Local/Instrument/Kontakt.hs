@@ -23,15 +23,16 @@ patches =
     , mkpatch "hang2" hang_keyswitches
     ]
 
-hang_keyswitches =
-    [ ("", 36), ("center", 36)
-    , ("edge", 37), ("slap", 38), ("mid", 39), ("knuckle", 40) ]
+hang_keyswitches = Instrument.make_keyswitches
+    [ ("center", 36)
+    , ("edge", 37), ("slap", 38), ("mid", 39), ("knuckle", 40)
+    , ("", 36)
+    ]
 
-mkpatch inst_name keyswitches = patch_template
+mkpatch inst_name ks_map = patch_template
     { Instrument.patch_instrument =
         Instrument.set_instrument_name synth inst_name Nothing inst
-    , Instrument.patch_keyswitches = ks
+    , Instrument.patch_keyswitches = ks_map
     }
     where
     inst = Instrument.patch_instrument patch_template
-    ks = map (uncurry Instrument.Keyswitch) keyswitches

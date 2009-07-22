@@ -111,7 +111,7 @@ data State = State {
 initial_state ui_state lookup_deriver ignore_tempo = State {
     state_controllers = Map.empty
     , state_instrument = Nothing
-    , state_attributes = Set.empty
+    , state_attributes = Score.no_attrs
     , state_warp = initial_warp
     , state_stack = []
 

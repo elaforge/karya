@@ -41,7 +41,7 @@ event_end event = event_start event + event_duration event
 
 -- | Probably for testing, since real events will have more stuff in them.
 event :: TrackPos -> TrackPos -> String -> Event
-event start dur text = Event start dur text Map.empty [] Nothing Set.empty
+event start dur text = Event start dur text Map.empty [] Nothing no_attrs
 
 type ControllerMap = Map.Map Controller Signal.Signal
 
@@ -57,11 +57,22 @@ inst_name (Instrument s) = s
 -- propagated dynamically down the derivation stack.  They function like
 -- arguments to an instrument, and will typically select an articulation, or
 -- a drum from a drumset, or something like that.
-type Attributes = Set.Set String
+type Attribute = String
+type Attributes = Set.Set Attribute
+no_attrs :: Attributes
+no_attrs = Set.empty
 
 newtype Controller = Controller String deriving (Eq, Ord, Show)
 
--- * constants
+-- * attributes
 
-pitch :: Controller
-pitch = Controller "pitch"
+-- ** articulations
+
+pizz = "pizz"
+trem = "trem"
+
+-- ** dynamics
+
+cresc = "cresc"
+dim = "dim"
+sfz = "sfz"

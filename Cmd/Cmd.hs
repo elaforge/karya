@@ -345,7 +345,7 @@ inst_addr_to_chan_map :: MidiDb.LookupMidiInstrument
     -> (Instrument.ChannelMap, [Score.Instrument])
 inst_addr_to_chan_map lookup_inst inst_addr = (chan_map, failed)
     where
-    insts = [(lookup_inst score_inst, score_inst, addrs)
+    insts = [(lookup_inst score_inst Score.no_attrs, score_inst, addrs)
         | (score_inst, addrs) <- Map.toList inst_addr]
     chan_map = Map.fromList [(addr, inst)
         | (Just inst, _, addrs) <- insts, addr <- addrs]
