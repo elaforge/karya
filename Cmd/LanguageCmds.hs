@@ -304,7 +304,7 @@ replace_ruler ruler_id block_id = do
 lookup_instrument :: String -> Cmd.CmdL (Maybe Midi.Instrument.Instrument)
 lookup_instrument inst_name = do
     lookup_inst <- Cmd.get_lookup_midi_instrument
-    return $ lookup_inst (Score.Instrument inst_name)
+    return $ lookup_inst (Score.Instrument inst_name) Score.no_attrs
 
 track_type :: Block.BlockId -> Block.TrackNum -> Cmd.CmdL Schema.TrackType
 track_type block_id tracknum = do

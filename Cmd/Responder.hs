@@ -23,7 +23,6 @@ import qualified Control.Concurrent.STM.TChan as TChan
 import qualified Control.Exception as Exception
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Language.Haskell.Interpreter.GHC as GHC
 import qualified Network
 import qualified System.IO as IO
 
@@ -60,7 +59,7 @@ data ResponderState = ResponderState {
     , state_msg_reader :: MsgReader
     , state_midi_writer :: MidiWriter
     , state_transport_info :: Transport.Info
-    , state_ghc_session :: GHC.InterpreterSession
+    , state_interpreter_chan :: Language.InterpreterChan
     }
 
 type MidiWriter = Midi.WriteMessage -> IO ()
@@ -68,9 +67,9 @@ type MsgReader = IO Msg.Msg
 
 responder :: StaticConfig.StaticConfig -> MsgReader -> MidiWriter
     -> IO () -> IO Timestamp.Timestamp -> Transport.Chan -> Cmd.CmdIO
-    -> GHC.InterpreterSession -> IO ()
+    -> Language.InterpreterChan -> IO ()
 responder static_config get_msg write_midi abort_midi get_now_ts player_chan
-        setup_cmd session = do
+        setup_cmd interpreter_chan = do
     Log.debug "start responder"
 
     let cmd_state = Cmd.initial_state
@@ -81,7 +80,7 @@ responder static_config get_msg write_midi abort_midi get_now_ts player_chan
     let rstate = ResponderState static_config ui_state cmd_state
             get_msg write_midi
             (Transport.Info player_chan write_midi abort_midi get_now_ts)
-            session
+            interpreter_chan
     respond_loop rstate
 
 -- | A special run-and-sync that runs before the respond loop gets started.
@@ -260,7 +259,7 @@ run_core_cmds rstate msg exit = do
     -- I hardcode them in a special list that gets run in IO.
     let io_cmds = StaticConfig.config_global_cmds config
             ++ hardcoded_io_cmds (state_transport_info rstate)
-                (state_ghc_session rstate)
+                (state_interpreter_chan rstate)
                 (StaticConfig.config_local_lang_dirs config)
     (ui_to, cmd_state) <- do_run exit Cmd.run_io rstate msg ui_from
         ui_to cmd_state io_cmds
@@ -279,8 +278,8 @@ hardcoded_cmds =
     ]
 
 -- | And these special commands that run in IO.
-hardcoded_io_cmds transport_info session lang_dirs =
-    [ Language.cmd_language session lang_dirs
+hardcoded_io_cmds transport_info interpreter_chan lang_dirs =
+    [ Language.cmd_language interpreter_chan lang_dirs
     , Play.cmd_transport_msg
     , GlobalKeymap.cmd_io_keymap transport_info
     ]

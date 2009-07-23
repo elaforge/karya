@@ -97,6 +97,10 @@ instance Binary Instrument.InitializePatch where
             3 -> get >>= \a -> return (Instrument.InitializeSysex a)
             _ -> fail "no parse for Instrument.InitializePatch"
 
+instance Binary Instrument.KeyswitchMap where
+    put (Instrument.KeyswitchMap a) = put a
+    get = get >>= \a -> return (Instrument.KeyswitchMap a)
+
 instance Binary Instrument.Keyswitch where
     put (Instrument.Keyswitch a b) = put a >> put b
     get = get >>= \a -> get >>= \b -> return (Instrument.Keyswitch a b)

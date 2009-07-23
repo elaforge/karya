@@ -49,6 +49,14 @@ import Cmd.LanguageCmds
 
 import qualified App.Config as Config
 
+-- hint is now insisting these be in scope or the types from 'run' aren't
+-- found.  It smells like a bug to me...
+import qualified Cmd.Cmd
+import qualified Midi.Midi
+import qualified Util.Log
+import qualified Ui.State
+import qualified Ui.Update
+
 
 -- | Like 'Cmd.run', but pretty-print the return value.  If the value is
 -- already a string, just return it unchanged.

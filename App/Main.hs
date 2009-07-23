@@ -1,3 +1,7 @@
+-- | Sequencer.
+--
+-- Dumadak tan wenten alangan.
+-- 希望沒有錯誤。
 module App.Main where
 
 import Control.Monad
@@ -6,7 +10,6 @@ import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Language.Haskell.Interpreter.GHC as GHC
 import System.FilePath ((</>))
 import qualified Network
 import qualified System.Environment
@@ -32,6 +35,7 @@ import qualified Cmd.MakeRuler as MakeRuler
 import qualified Cmd.Responder as Responder
 -- import qualified Cmd.TimeStep as TimeStep
 import qualified Cmd.Save as Save
+import qualified Cmd.Language as Language
 
 import qualified Perform.Timestamp as Timestamp
 
@@ -118,9 +122,6 @@ main = initialize $ \lang_socket midi_chan -> do
     print_devs rdev_map wdev_map
     open_read_devices rdev_map (Map.keys rdev_map)
 
-    Log.debug "initialize session"
-    putStrLn "initialize session"
-    session <- GHC.newSession
     quit_request <- MVar.newMVar ()
 
     args <- System.Environment.getArgs
@@ -144,9 +145,10 @@ main = initialize $ \lang_socket midi_chan -> do
     get_msg <- Responder.create_msg_reader
         remap_rmsg midi_chan lang_socket msg_chan player_chan
 
+    (interpreter_chan, _) <- Language.start_interpreter_thread
     Thread.start_thread "responder" $ do
         Responder.responder static_config get_msg write_midi abort_midi
-            get_now_ts player_chan setup_cmd session
+            get_now_ts player_chan setup_cmd interpreter_chan
         `Exception.catch` responder_handler
             -- It would be possible to restart the responder, but chances are
             -- good it would just die again.
@@ -177,6 +179,7 @@ open_read_devices rdev_map rdevs = do
     sequence_ [MidiImp.connect_read_device rdev (rdev_map Map.! rdev)
         | rdev <- ok_devs ]
 
+responder_handler :: Exception.SomeException -> IO ()
 responder_handler exc = do
     Log.error ("responder died from exception: " ++ show exc)
     putStrLn ("responder died from exception: " ++ show exc)

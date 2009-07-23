@@ -2,7 +2,6 @@ module Perform.Midi.Perform_test where
 import Control.Monad
 import qualified Control.Concurrent as Concurrent
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 import qualified Data.Maybe as Maybe
 import qualified System.IO as IO
 

@@ -12,12 +12,16 @@
     source files are newer?
 -}
 module Cmd.Language where
+import qualified Control.Concurrent as Concurrent
+import qualified Control.Concurrent.MVar as MVar
+import qualified Control.Concurrent.Chan as Chan
 import qualified Control.Exception as Exception
 import Control.Monad
+import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.Trans as Trans
 
-import qualified Language.Haskell.Interpreter.GHC as GHC
+import qualified Language.Haskell.Interpreter as Interpreter
 import qualified System.Directory as Directory
 import qualified System.IO as IO
 import qualified System.FilePath as FilePath
@@ -25,6 +29,7 @@ import System.FilePath ((</>))
 
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
+import qualified Util.Thread as Thread
 
 import qualified Ui.State as State
 
@@ -32,12 +37,18 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 
 
--- TODO Later can be configured?  Or is it just cwd?  It might mess up the
--- importing if it's not '.', unless I can use dynFlags to set -i.
-app_dir = ""
+type LangCmd = Cmd.CmdT IO String
+type InterpreterChan =
+    Chan.Chan (MVar.MVar LangCmd, Interpreter.Interpreter LangCmd)
 
-cmd_language :: GHC.InterpreterSession -> [FilePath] -> Msg.Msg -> Cmd.CmdIO
-cmd_language session lang_dirs msg = do
+start_interpreter_thread :: IO (InterpreterChan, Concurrent.ThreadId)
+start_interpreter_thread = do
+    chan <- Chan.newChan
+    th <- Thread.start_thread "interpreter" (interpreter chan >> return ())
+    return (chan, th)
+
+cmd_language :: InterpreterChan -> [FilePath] -> Msg.Msg -> Cmd.CmdIO
+cmd_language interpreter_chan lang_dirs msg = do
     (response_hdl, text) <- case msg of
         Msg.Socket hdl s -> return (hdl, s)
         _ -> Cmd.abort
@@ -46,17 +57,26 @@ cmd_language session lang_dirs msg = do
     cmd_state <- Cmd.get_state
     local_modules <- fmap concat (mapM get_local_modules lang_dirs)
 
-    cmd <- Trans.liftIO $ GHC.withSession session
-            (interpret local_modules ui_state cmd_state text)
-        `Exception.catchDyn` catch_interpreter_error
-        `Exception.catch` catch_all
-    response <- cmd
+    cmd <- Trans.liftIO $ send interpreter_chan
+        (interpret local_modules ui_state cmd_state text)
+    response <- cmd -- TODO what if cmd aborts?  won't I skip the response?
     Trans.liftIO $ catch_io_errors $ do
         unless (null response) $
             IO.hPutStrLn response_hdl response
         IO.hClose response_hdl
     return $ if response == (magic_quit_string++"\n")
         then Cmd.Quit else Cmd.Done
+    where
+    catch_io_errors = Exception.handle $ \(exc :: IOError) -> do
+        Log.warn $ "caught exception from socket write: " ++ show exc
+
+-- * implementation
+
+send :: InterpreterChan -> Interpreter.Interpreter LangCmd -> IO LangCmd
+send chan cmd = do
+    return_mvar <- MVar.newEmptyMVar
+    Chan.writeChan chan (return_mvar, cmd)
+    MVar.takeMVar return_mvar
 
 get_local_modules :: FilePath -> Cmd.CmdT IO [String]
 get_local_modules lang_dir = do
@@ -77,22 +97,23 @@ is_hs fn = take 1 fn /= "." && FilePath.takeExtension fn == ".hs"
 magic_quit_string :: String
 magic_quit_string = "-- * YES, really quit * --"
 
-catch_io_errors = Exception.handle $ \(exc :: IOError) -> do
-    Log.warn $ "caught exception from socket write: " ++ show exc
+-- ** interpreter
 
-catch_interpreter_error :: Interpreter.InterpreterError -> IO (Cmd.CmdT IO String)
-catch_interpreter_error exc = return $ do
-    Log.warn ("interpreter error: " ++ show_ghc_exc exc)
-    return $ "interpreter error: " ++ show_ghc_exc exc
-
-catch_all :: Exception.SomeException -> IO (Cmd.CmdT IO String)
-catch_all exc = return $ do
-    Log.warn ("error: " ++ show exc)
-    return $ "error: " ++ show exc
-
-show_ghc_exc (GHC.WontCompile ghc_errs) =
-    "Won't compile " ++ Seq.join "\n" (map GHC.errMsg ghc_errs)
-show_ghc_exc exc = show exc
+interpreter :: InterpreterChan -> IO ()
+interpreter chan = (>> return ()) $ Interpreter.runInterpreter $ do
+    Interpreter.set [Interpreter.installedModulesInScope Interpreter.:= False]
+    forever $ do
+        (return_mvar, cmd) <- Trans.liftIO $ Chan.readChan chan
+        result <- cmd `Error.catchError` catch
+        Trans.liftIO $ MVar.putMVar return_mvar result
+    where
+    catch :: Interpreter.InterpreterError -> Interpreter.Interpreter LangCmd
+    catch exc = return $ do
+        Log.warn ("interpreter error: " ++ show_exc exc)
+        return $ "error: " ++ show_exc exc
+    show_exc (Interpreter.WontCompile errs) = "won't compile: "
+        ++ Seq.join "\n\n" (map Interpreter.errMsg errs)
+    show_exc exc = show exc
 
 -- | Interpreted code should be of this type.  However, due to
 -- 'mangle_code', it really runs in CmdT IO String
@@ -103,20 +124,21 @@ type LangType = State.State -> Cmd.State -> IO (Cmd.CmdVal String)
 --
 -- Since I got errors trying to have the type of the code be CmdT directly
 -- ("error loading interface for Cmd"), I do a workaround where I have it
--- return a function of type LangType instead.  LanguageEnviron contains
+-- return a function of type 'LangType' instead.  LanguageEnviron contains
 -- a 'run' function to run that in CmdT, and then this function packages it
 -- back up in a CmdT again and returns it.  It's a little roundabout but it
 -- seems to work.
 --
 -- TODO figure out what the original error means, and if I can get around it
-interpret :: [GHC.ModuleName] -> State.State -> Cmd.State -> String
-    -> GHC.Interpreter (Cmd.CmdT IO String)
+interpret :: [Interpreter.ModuleName] -> State.State -> Cmd.State -> String
+    -> Interpreter.Interpreter (Cmd.CmdT IO String)
 interpret local_mods ui_state cmd_state text = do
-    GHC.loadModules $ ["Cmd.LanguageEnviron"] ++ local_mods
-    GHC.setTopLevelModules ["Cmd.LanguageEnviron"]
-    GHC.setImports $ ["Prelude"] ++ local_mods
+    Interpreter.loadModules $ ["Cmd.LanguageEnviron"] ++ local_mods
+    Interpreter.setTopLevelModules ["Cmd.LanguageEnviron"]
+    Interpreter.setImports $ ["Prelude"] ++ local_mods
 
-    cmd_func <- GHC.interpret (mangle_code text) (GHC.as :: LangType)
+    cmd_func <- Interpreter.interpret (mangle_code text)
+        (Interpreter.as :: LangType)
     (cmd_state2, midi, logs, ui_res) <- Trans.liftIO $
         cmd_func ui_state cmd_state
     return (merge_cmd_state cmd_state2 midi logs ui_res)
