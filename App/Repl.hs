@@ -1,25 +1,33 @@
-{- Simple readline-using repl to talk to seq.
+{- | Simple repl to talk to seq.
 -}
 import Control.Monad
+import Control.Monad.Trans (liftIO)
 import qualified Control.Exception as Exception
-import qualified System.Console.Readline as Readline
+import qualified System.Console.Haskeline as Haskeline
 
 import qualified App.SendCmd as SendCmd
 
 
-main = SendCmd.initialize $ do
-    putStrLn "^D to quit"
-    while (Readline.readline "> ") handle_cmd ""
-    putChar '\n'
+settings = Haskeline.defaultSettings
+    { Haskeline.historyFile = Just "repl.history"
+    , Haskeline.autoAddHistory = True
+    }
 
-while cond op state =
-    maybe (return ()) (\x -> while cond op =<< op x state) =<< cond
+main :: IO ()
+main = SendCmd.initialize $ Haskeline.runInputT settings $ do
+    liftIO $ putStrLn "^D to quit"
+    repl
 
-handle_cmd msg prev = do
-    when (not (null msg) && msg /= prev) $
-        Readline.addHistory msg
-    response <- SendCmd.send msg
-        `Exception.catch` \exc -> return ("error: " ++ show exc)
-    unless (null response) $
-        putStrLn response
-    return msg
+repl :: Haskeline.InputT IO ()
+repl = do
+    maybe_line <- Haskeline.getInputLine "> "
+    case maybe_line of
+        Just line -> do
+            response <- liftIO $ SendCmd.send line `Exception.catch` catch_all
+            unless (null response) $
+                liftIO $ putStrLn response
+            repl
+        Nothing -> return ()
+
+catch_all :: Exception.SomeException -> IO String
+catch_all exc = return ("error: " ++ show exc)
