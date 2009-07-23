@@ -1,4 +1,5 @@
 module Derive.Schema_test where
+import qualified Data.Map as Map
 
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
@@ -69,10 +70,15 @@ test_compile_skeleton = do
             where
             (_tids, state) = TestSetup.run_mkstate
                 [ ("tempo", [(0, 0, "2")])
-                , (">inst0", [(0, 5, "4a-"), (10, 5, "4a-"), (20, 5, "4a-")])
+                , (">inst0", [(0, 5, ""), (10, 5, ""), (20, 5, "")])
                 , ("c1", [(0, 0, "3"), (10, 0, "2"), (20, 0, "1")])
                 , pitch_track
                 ]
+        set = Signal.Set
+        mksig = Signal.track_signal Signal.default_srate
+        cont_signal = (Score.Controller "c1",
+            mksig [(0, set, 3), (5, set, 2), (10, set, 1)])
+        no_pitch = (Score.Controller "*twelve", mksig [])
         derive pitch_track = (extract res, map Log.msg_text logs)
             where
             extract = either (Left . Derive.error_message)
@@ -88,18 +94,19 @@ test_compile_skeleton = do
 
     let (res, logs) = derive ("*twelve", [(0, 0, ".1")])
     equal logs ["note Note \".1\" not in scale ScaleId \"twelve\""]
-    equal res (Right [])
+    equal res $ Right (replicate 3 (Map.fromList [no_pitch, cont_signal]))
 
     -- TODO so here they all have the *scale controller, but I can't test
     -- further until I remove the pitch stuff from the note parser
     let (res, logs) = derive
             ("*twelve", [(0, 0, "4c-"), (10, 0, "4d-"), (20, 0, "i, 4e-")])
-    pprint logs
-    -- pprint res
+    let pitch_signal = (Score.Controller "*twelve",
+            mksig [(0, set, 48), (5, set, 50), (10, Signal.Linear, 52)])
+    equal logs []
+    equal res $ Right (replicate 3 (Map.fromList [pitch_signal, cont_signal]))
 
 test_compile_to_signals = do
-    let parse tracks = Schema.default_parser tracks
-        (_tids, state) = TestSetup.run_mkstate
+    let (_tids, state) = TestSetup.run_mkstate
             [ ("tempo", [(0, 0, "2")])
             , (">inst0", [])
             , ("c1", [(0, 0, "3"), (10, 0, "2"), (20, 0, "1")])
@@ -109,7 +116,6 @@ test_compile_to_signals = do
     let d = Schema.compile_to_signals skel
     let (res, _, _, logs, _) = Derive.derive Derive.empty_lookup_deriver state
             True (Derive_test.setup_deriver d)
-    pprint skel
 
     -- tempo, c1, and c2 tracks get signals.
     -- I don't verify the signals since it seems too hard at the moment.
