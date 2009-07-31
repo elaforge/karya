@@ -52,7 +52,7 @@ type SigVec = V.Vector (Double, Double)
 
 instance Storable.Storable (Double, Double) where
     sizeOf _ = Storable.sizeOf (undefined :: Double) * 2
-    alignment _ = 8
+    alignment _ = Storable.alignment (undefined :: Double)
     poke cp (a, b) = Storable.pokeByteOff cp 0 a >> Storable.pokeByteOff cp 8 b
     peek cp = do
         a <- Storable.peekByteOff cp 0 :: IO Double
