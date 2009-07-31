@@ -142,19 +142,22 @@ track_ruler block_id ruler_id tracknum width = do
 track :: (State.UiStateMonad m) =>
     Block.BlockId -> Block.TrackNum -> m Track.TrackId
 track block_id tracknum = do
-    -- Clip to valid range to callers can use an out of range tracknum.
+    -- Clip to valid range so callers can use an out of range tracknum.
     tracknum <- clip_tracknum block_id tracknum
-    maybe_track <- State.track_at block_id (tracknum-1)
+    prev_track <- State.track_at block_id (tracknum-1)
 
-    let (ruler_id, width) = case maybe_track of
+    let (ruler_id, width) = case prev_track of
             Just ((Block.TId _ rid), width) -> (rid, width)
             Just ((Block.RId rid), width) -> (add_overlay_suffix rid, width)
             _ -> (State.no_ruler, Config.track_width)
     -- The above can generate a bad ruler_id if they didn't use 'ruler' to
-    -- create the ruler with the overlay version, so abort early if that's the
-    -- case.
-    State.get_ruler ruler_id
-    track_ruler block_id ruler_id tracknum width
+    -- create the ruler with the overlay version, so fall back on
+    -- State.no_ruler if it doesn't exist.
+    maybe_ruler <- State.lookup_ruler ruler_id
+    let ruler_id2 = case maybe_ruler of
+            Nothing -> State.no_ruler
+            Just _ -> ruler_id
+    track_ruler block_id ruler_id2 tracknum width
 
 add_overlay_suffix :: Ruler.RulerId -> Ruler.RulerId
 add_overlay_suffix ruler_id
