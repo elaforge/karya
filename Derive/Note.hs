@@ -187,7 +187,7 @@ preprocess_words env_inst env_attrs ws = (inst, attrs, reverse ws2_rev)
         _ -> (inst, desc_word:rest)
 
 strip_comment [] = []
-strip_comment (w@(desc, word):ws)
+strip_comment (w@(_, word):ws)
     | "--" `List.isPrefixOf` word = []
     | otherwise = w : strip_comment ws
 
@@ -266,13 +266,20 @@ d_call start dur ident = do
     -- block.
     ui_state <- fmap Derive.state_ui Derive.get
     block_dur <- either (Derive.throw . ("getting block end: "++) . show)
-        return (State.eval ui_state (State.ruler_end block_id))
+        return (State.eval ui_state (get_block_dur block_id))
     if block_dur > TrackPos 0
         then Derive.d_at start (Derive.d_stretch (dur/block_dur)
             (Derive.d_block block_id))
         else do
             Derive.warn $ "block with zero duration: " ++ show block_id
             return []
+
+-- | Sub-derived blocks are stretched according to their length, and this
+-- function defines the length of a block.  'event_end' seems the most
+-- intuitive, but then you can't make blocks with trailing space.  You can
+-- work around it though by appending a comment dummy event.
+get_block_dur :: (State.UiStateMonad m) => Block.BlockId -> m TrackPos
+get_block_dur = State.event_end
 
 
 -- | Make an Id from a string, relative to the current ns if it doesn't already

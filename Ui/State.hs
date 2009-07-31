@@ -65,7 +65,7 @@ data State = State {
 
     -- | This maps the midi instruments used in this State to their Addrs.
     , state_midi_config :: Instrument.Config
-    } deriving (Show, Read, Generics.Typeable)
+    } deriving (Read, Show, Generics.Typeable)
 
 -- TODO "initial_state" would be more consistent
 empty = State "untitled" "save" Map.empty Map.empty Map.empty ruler_map
@@ -485,9 +485,8 @@ set_play_box block_id color = do
     set_block_config block_id $
         (Block.block_config block) { Block.config_sb_box = (color, ' ') }
 
--- | Get the end of the block.  Defined as the end of the ruler of the first
--- track.  This means that if the block has no rulers (e.g. a clipboard block)
--- then ruler_end will be 0.  TODO is this going to be error prone?
+-- | Get the end of the block according to the ruler.  This means that if the
+-- block has no rulers (e.g. a clipboard block) then ruler_end will be 0.
 ruler_end :: (UiStateMonad m) => Block.BlockId -> m TrackPos
 ruler_end block_id = do
     block <- get_block block_id
@@ -495,7 +494,7 @@ ruler_end block_id = do
         [] -> return $ TrackPos 0
         ruler_id : _ -> fmap Ruler.time_end (get_ruler ruler_id)
 
--- | Get the end of the last event of the block.
+-- | Get the end of the block according to the last event of the block.
 event_end :: (UiStateMonad m) => Block.BlockId -> m TrackPos
 event_end block_id = do
     block <- get_block block_id
@@ -511,6 +510,7 @@ insert_track block_id tracknum track width = do
     views <- get_views_of block_id
     let tracks = Block.block_track_widths block
         tracks' = Seq.insert_at tracks tracknum (track, width)
+        -- Make sure the views are up to date.
         views' = Map.map (insert_into_view tracknum width) views
     update_block block_id (block { Block.block_track_widths = tracks' })
     modify $ \st -> st { state_views = Map.union views' (state_views st) }
