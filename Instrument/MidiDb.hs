@@ -46,7 +46,7 @@ empty = MidiDb Map.empty
 
 -- ** lookup
 
-type LookupMidiInstrument = Score.Instrument -> Score.Attributes
+type LookupMidiInstrument = Score.Attributes -> Score.Instrument
     -> Maybe Instrument.Instrument
 
 -- | Once I have other backends this should move back into Db.
@@ -56,7 +56,7 @@ data Info = Info {
     } deriving (Show)
 
 lookup_midi :: MidiDb -> LookupMidiInstrument
-lookup_midi midi_db inst attrs = case lookup_instrument midi_db inst of
+lookup_midi midi_db attrs inst = case lookup_instrument midi_db inst of
     Nothing -> Nothing
     Just (Info synth patch) -> Just $ make_inst synth patch inst attrs
 

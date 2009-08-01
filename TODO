@@ -1,3 +1,28 @@
+- rename Msg.Note -> Msg.KeyNumber
+- make sure pitch terminology is consistent:
+  KeyNumber = scale independent note, Note = note in scale,
+  Pitch = freq easily mapped to and from nn, same as NoteNumber,
+  NoteNumber = Midi.Key + decimal
++ unittests for new mods: PitchTrack
+bugs:
+  - when I do just space, I get "keyup not in modifiers"
+
+- hspp for Derive.warn and Derive.throw
+- support for Schema.default_scale, esp since it gets automatically added
+- kill skeleton instruments
+
+- turn OPTIONS_GHC into LANGUAGE pragmas
+- ^C should quit everything
+- cmd-q should also quit entirely not just close the windows
+- fix logview
+- rename Ui.TestSetup -> Ui.UiTest
+- fix Signal_test
+
+bug haskell-cafe:
+  - buggy ghci debugger
+  - haddock problems
+  - hint trouble
+
   current
 - implement pitch track as a separate control track
   * pitch control track
@@ -5,8 +30,7 @@
   * unittests for new derive2 stuff
   + remove derive1 (rest depends on Cmd.NoteTrack)
   * fix Derive/Derive_test.hs
-  - Perform.Midi should understand the new pitch track
-    - function to get pitch tracks of a given track from skel
+  * Perform.Midi should understand the new pitch track
     * checker throws a warning if an instrument has >1 pitch track
     * instead of Score.pitch, performer looks for first pitch (*...) track
 

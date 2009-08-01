@@ -40,8 +40,10 @@ import qualified Instrument.MidiDb as MidiDb
 import qualified App.Config as Config
 
 import qualified Derive.Derive as Derive
+import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Pitch as Pitch
 
 
 -- | This makes Cmds more specific than they have to be, and doesn't let them
@@ -191,7 +193,7 @@ data State = State {
     -- Editing state
 
     -- | Edit mode enables various commands that write to tracks.
-    , state_edit_mode :: Maybe EditMode
+    , state_edit_mode :: EditMode
     -- | Use the alphanumeric keys to enter notes instead of midi input.
     , state_kbd_entry :: Bool
     -- | Default time step.  Used for cursor movement, note duration, and
@@ -200,7 +202,7 @@ data State = State {
     -- | Transpose note entry on the keyboard by this many octaves.  It's by
     -- octave instead of scale degree since scales may have different numbers
     -- of notes per octave.
-    , state_kbd_entry_octave :: Int
+    , state_kbd_entry_octave :: Octave
     } deriving (Show, Generics.Typeable)
 
 initial_state inst_db schema_map = State {
@@ -216,7 +218,7 @@ initial_state inst_db schema_map = State {
     , state_clip_namespace = Config.clip_namespace
     , state_chan_map = Map.empty
 
-    , state_edit_mode = Nothing
+    , state_edit_mode = NoEdit
     , state_kbd_entry = False
     , state_step =
         TimeStep.UntilMark TimeStep.AllMarklists (TimeStep.MatchRank 2)
@@ -226,6 +228,8 @@ initial_state inst_db schema_map = State {
 
 empty_state = initial_state Instrument.Db.empty Map.empty
 clear_history cmd_state = cmd_state { state_history = ([], []) }
+
+type Octave = Int
 
 data Performance = Performance {
     perf_msgs :: [Midi.WriteMessage]
@@ -245,7 +249,7 @@ data HistoryEntry = HistoryEntry {
 -- | These enable various commands to edit event text.  What exactly val,
 -- and method mean are dependent on the deriver, but I expect the definitions
 -- in Cmd.NoteTrack and Cmd.ControllerTrack will be universal.
-data EditMode = RawEdit | ValEdit | MethodEdit deriving (Eq, Show)
+data EditMode = NoEdit | RawEdit | ValEdit | MethodEdit deriving (Eq, Show)
 
 data Modifier = KeyMod Key.Key
     -- | Mouse button, and (tracknum, pos) in went down at, if any.
@@ -345,11 +349,18 @@ inst_addr_to_chan_map :: MidiDb.LookupMidiInstrument
     -> (Instrument.ChannelMap, [Score.Instrument])
 inst_addr_to_chan_map lookup_inst inst_addr = (chan_map, failed)
     where
-    insts = [(lookup_inst score_inst Score.no_attrs, score_inst, addrs)
+    insts = [(lookup_inst Score.no_attrs score_inst, score_inst, addrs)
         | (score_inst, addrs) <- Map.toList inst_addr]
     chan_map = Map.fromList [(addr, inst)
         | (Just inst, _, addrs) <- insts, addr <- addrs]
     failed = [inst | (Nothing, inst, _) <- insts]
+
+-- | Lookup a scale_id or throw.
+-- TODO merge in the static config scales.
+get_scale :: (Monad m) => String -> Pitch.ScaleId -> CmdT m Pitch.Scale
+get_scale caller scale_id = maybe
+    (throw (caller ++ ": unknown " ++ show scale_id)) return
+    (Map.lookup scale_id Scale.scale_map)
 
 -- * basic cmds
 
@@ -554,11 +565,6 @@ type SchemaDeriver d =
 -- how the deriver is structuring the tracks in the block.  Since the deriver
 -- itself is just a function and can't be introspected into, others can use
 -- this to determine e.g. what instruments and controls are in the block.
---
--- Although the Skeleton is not necessarily complete (e.g. derivers can assign
--- instruments based on event text, not on track title) and a Schema doesn't
--- even have to have a parser, it's still useful for introspection, e.g.
--- automatically allocate instruments.
 type Parser = [Track] -> Skeleton
 
 data Skeleton =
@@ -576,20 +582,22 @@ skel_merge tracks = SkelMerge tracks
 
 data Track = Track {
     -- | It's Maybe because rulers and dividers don't have titles.
-    track_title :: Maybe String
+    _track_title :: Maybe String
     -- TODO I don't think I ever usefully have non-event tracks in the
     -- skeleton, so can I make this TrackId?
     , track_id :: Block.TracklikeId
     , track_tracknum :: Block.TrackNum
     } deriving (Show)
+track_title = maybe "" id . _track_title
 
 -- ** cmd types
 
 -- | Information needed to decide what cmds should apply.
 data CmdContext = CmdContext {
-    ctx_default_addr :: Maybe Instrument.Addr
+    ctx_default_inst :: Maybe Score.Instrument
     , ctx_inst_addr :: Score.Instrument -> Maybe Instrument.Addr
-    , ctx_edit_mode :: Maybe EditMode
+    , ctx_lookup_midi :: MidiDb.LookupMidiInstrument
+    , ctx_edit_mode :: EditMode
     , ctx_kbd_entry :: Bool
     , ctx_focused_tracknum :: Maybe Block.TrackNum
     }

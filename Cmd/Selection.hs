@@ -276,17 +276,19 @@ get_insert_pos = do
     (view_id, sel) <- get_selection Config.insert_selnum
     return (view_id, Block.sel_start_track sel, Block.sel_start_pos sel)
 
+type TrackSel = (Track.TrackId, Block.TrackNum, TrackPos)
+
 -- | Specialized 'selected_tracks' that gets the pos and track of the upper
 -- left corner of the insert selection.
 --
 -- Since this returns a track_id, it will return the leftmost event track, or
 -- abort if there is none.
-get_insert_track :: (Monad m) =>
-    Cmd.CmdT m (Track.TrackId, Block.TrackNum, TrackPos)
+get_insert_track :: (Monad m) => Cmd.CmdT m TrackSel
 get_insert_track = do
     (track_ids, sel) <- selected_tracks Config.insert_selnum
     track_id <- Cmd.require (track_ids `Seq.at` 0)
     return (track_id, Block.sel_start_track sel, Block.sel_start_pos sel)
+
 
 -- | Get the start and end of the selection, along with the events that fall
 -- within it, by track.

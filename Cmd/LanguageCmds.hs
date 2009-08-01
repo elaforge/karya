@@ -63,6 +63,7 @@ import qualified Perform.Midi.Controller as Midi.Controller
 import qualified Perform.Midi.Convert as Midi.Convert
 import qualified Perform.Midi.Instrument as Midi.Instrument
 import qualified Perform.Midi.Perform as Midi.Perform
+import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Warning as Warning
@@ -304,15 +305,16 @@ replace_ruler ruler_id block_id = do
 lookup_instrument :: String -> Cmd.CmdL (Maybe Midi.Instrument.Instrument)
 lookup_instrument inst_name = do
     lookup_inst <- Cmd.get_lookup_midi_instrument
-    return $ lookup_inst (Score.Instrument inst_name) Score.no_attrs
+    return $ lookup_inst Score.no_attrs (Score.Instrument inst_name)
 
-track_type :: Block.BlockId -> Block.TrackNum -> Cmd.CmdL Schema.TrackType
+track_type :: Block.BlockId -> Block.TrackNum
+    -> Cmd.CmdL (Schema.TrackType, Maybe Score.Instrument, Maybe Pitch.ScaleId)
 track_type block_id tracknum = do
     skel <- get_skeleton block_id
-    case Schema.track_type_of tracknum skel of
-        Nothing -> Cmd.throw $ "can't get track type for "
+    case Schema.get_track_type (Just tracknum) skel of
+        (Nothing, _, _) -> Cmd.throw $ "can't get track type for "
             ++ show block_id ++ " at " ++ show tracknum
-        Just typ -> return typ
+        (Just typ, inst, scale) -> return (typ, inst, scale)
 
 -- | Steps to load a new instrument.  All of them are optional, depending on
 -- the circumstances.
@@ -344,7 +346,7 @@ load_instrument inst_name = do
     Log.notice $ "deallocating " ++ show old_inst ++ ", allocating "
         ++ show (dev, chan) ++ " to " ++ show inst
     where
-    inst_type (Schema.NoteTrack inst) = Just inst
+    inst_type (Schema.NoteTrack _, inst, _) = inst
         -- maybe also accept controller if there is just one inst
         -- but then I'd need some way to know the track_id
     inst_type _ = Nothing
@@ -417,12 +419,12 @@ auto_config block_id = do
         allocs = [(inst, [(dev, fromIntegral i)])
             | (dev, by_dev) <- Seq.keyed_group_with snd inst_devs
             , (i, (inst, _dev)) <- Seq.enumerate by_dev]
-        default_addr = case allocs of
-            (_, (addr:_)) : _ -> Just addr
+        default_inst = case allocs of
+            (inst, _):_ -> Just inst
             _ -> Nothing
     unless (null no_dev) $
         Log.warn $ "no synth found for instruments: " ++ show insts
-    return $ Midi.Instrument.config allocs default_addr
+    return $ Midi.Instrument.config allocs default_inst
 
 device_of :: Score.Instrument -> Cmd.CmdL (Maybe Midi.WriteDevice)
 device_of inst = do

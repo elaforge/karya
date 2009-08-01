@@ -89,6 +89,7 @@ test_subderive = do
         sub pos =
             (TestSetup.bid "sub", [(TestSetup.tid "sub.t0", TrackPos pos)])
     equal (extract_events events) [(0, 4, "--b1"), (6, 2, "--sub1")]
+
     strings_like (map Log.msg_text logs) ["error sub-deriving.*test/blub"]
     equal (map inv_tempo (map Timestamp.seconds [0, 2 .. 10]))
         [ [b0 0], [b0 4], [sub 0, b0 8], [sub 1, b0 12], [b0 16], [] ]
@@ -137,7 +138,6 @@ test_basic = do
         ]
 
     -- 3: performance to midi protocol events
-    -- TOOD once it's implemented
     let (msgs, warns) = perform midi_events
         mmsgs = map Midi.wmsg_msg msgs
     equal [nn | Midi.ChannelMessage _ (Midi.NoteOn nn _) <- mmsgs]
@@ -291,7 +291,7 @@ default_ksmap = Instrument.KeyswitchMap $
         ]
 
 default_lookup :: MidiDb.LookupMidiInstrument
-default_lookup (Score.Instrument inst) attrs
+default_lookup attrs (Score.Instrument inst)
     | inst == "synth/patch" = Just (default_perf_inst
         { Instrument.inst_keyswitch =
             Instrument.get_keyswitch default_ksmap attrs })

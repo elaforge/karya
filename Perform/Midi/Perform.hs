@@ -78,7 +78,7 @@ config_to_inst_addrs :: Instrument.Config -> MidiDb.LookupMidiInstrument
 config_to_inst_addrs config lookup_inst = Map.fromList
     [(Instrument.inst_name inst, addrs) | (Just inst, addrs) <- inst_addrs]
     where
-    inst_addrs = [(lookup_inst inst Score.no_attrs, addrs)
+    inst_addrs = [(lookup_inst Score.no_attrs inst, addrs)
         | (inst, addrs) <- Map.assocs (Instrument.config_alloc config)]
 
 -- | Map each instrument to its allocated Addrs.

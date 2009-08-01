@@ -102,7 +102,7 @@ p_segment = do
 d_pitch_signal :: (Monad m) => Pitch.ScaleId -> [Score.Event]
     -> Derive.DeriveT m Signal.PitchSignal
 d_pitch_signal scale_id events = do
-    scale <- maybe (Derive.throw ("unknown scale " ++ show scale_id)) return
+    scale <- maybe (Derive.throw ("unknown " ++ show scale_id)) return
         (Map.lookup scale_id Scale.scale_map)
     fmap (Signal.track_signal Signal.default_srate)
         (Derive.map_events (parse_pitch_event scale) () id events)
@@ -123,7 +123,7 @@ parse_note :: (Monad m) => Pitch.Scale -> Pitch.Note
     -> Derive.DeriveT m Signal.Val
 parse_note scale note = case Pitch.scale_to_nn scale note of
     Nothing -> Derive.throw $
-        "note " ++ show note ++ " not in scale " ++ show (Pitch.scale_id scale)
+        show note ++ " not in " ++ show (Pitch.scale_id scale)
     Just (Pitch.NoteNumber nn) -> return nn
 
 p_note_segment :: P.CharParser st (Signal.Method, Pitch.Note)

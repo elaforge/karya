@@ -78,12 +78,13 @@ data Config = Config {
     -- instrument wishing to use an address will emit an appropriate message to
     -- configure it (probably a keyswitch, possibly a program change).
     config_alloc :: Map.Map Score.Instrument [Addr]
-    -- | If this is given, it will be used as the Addr for e.g. midi thru
-    -- when it cant't figure out what instrument is involved, or if the
-    -- instrument has no allocation.
-    , config_default_addr :: Maybe Addr
-    } deriving (Show, Read)
-config inst_addrs default_addr = Config (Map.fromList inst_addrs) default_addr
+    -- | This will be used if e.g. midi thru when it cant't figure out what
+    -- instrument is involved, or if the instrument has no allocation.  Of
+    -- course, if this instrument doesn't exist or has no allocation, nothing
+    -- will happen.
+    , config_default_inst :: Maybe Score.Instrument
+    } deriving (Read, Show)
+config inst_addrs default_inst = Config (Map.fromList inst_addrs) default_inst
 
 -- | Midi instruments are addressed by a (device, channel) pair, allocated in
 -- 'Config'.
@@ -152,8 +153,11 @@ keys_of :: KeyswitchMap -> Set.Set Midi.Key
 keys_of (KeyswitchMap attr_ks) = Set.fromList $ map (ks_key . snd) attr_ks
 
 -- | Make a 'KeyswitchMap' from strings.
--- > [("trem+cresc", 38)]
--- >      -> KeyswitchMap [({trem, cresc}, Keyswitch "trem+cresc" 38)]
+--
+-- @
+-- [(\"trem+cresc\", 38)]
+--      -> KeyswitchMap [({trem, cresc}, Keyswitch \"trem+cresc\" 38)]
+-- @
 --
 -- An empty string will be the empty set keyswitch, which is used for notes
 -- with no attrs.

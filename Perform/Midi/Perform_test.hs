@@ -401,7 +401,7 @@ default_ksmap = Instrument.make_keyswitches
     [("a1+a2", 0), ("a0", 1), ("a1", 2), ("a2", 3)]
 
 test_lookup :: MidiDb.LookupMidiInstrument
-test_lookup (Score.Instrument inst) attrs
+test_lookup attrs (Score.Instrument inst)
     | inst == "inst1" = Just $ inst1
         { Instrument.inst_keyswitch =
             Instrument.get_keyswitch default_ksmap attrs }

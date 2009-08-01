@@ -51,7 +51,7 @@ convert_event lookup_inst event = do
     score_inst <- require "instrument" (Score.event_instrument event)
     midi_inst <- require
         ("midi instrument in instrument db: " ++ show score_inst)
-        (lookup_inst score_inst (Score.event_attributes event))
+        (lookup_inst (Score.event_attributes event) score_inst)
 
     (pitch_sig, controllers) <- get_pitch (Score.event_controllers event)
     let perf_cs = Map.insert Controller.c_pitch pitch_sig

@@ -86,6 +86,7 @@ run state m = case result of
     where result = Identity.runIdentity (State.run state m)
 
 run_mkstate track_specs = run State.empty (mkstate "b1" track_specs)
+run_mkview track_specs = run State.empty (mkstate_view "b1" track_specs)
 
 mkstate :: (State.UiStateMonad m) =>
     String -> [TrackSpec] -> m [Track.TrackId]
@@ -100,11 +101,14 @@ mkstate_id block_id tracks = do
     tids <- forM (zip [0..] tracks) $ \(i, track) -> do
         State.create_track (mkid (block_name ++ ".t" ++ show i)) (mktrack track)
 
-    -- Make the ruler go up to the last event, so State.ruler_end will be
-    -- non-zero.
-    track_ends <- mapM State.track_end tids
-    let end = maximum (TrackPos 0 : track_ends)
-    ruler <- State.create_ruler (mkid (block_name ++ ".r0")) (ruler_until end)
+    -- -- Make the ruler go up to the last event, so State.ruler_end will be
+    -- -- non-zero.
+    -- track_ends <- mapM State.track_end tids
+    -- let end = maximum (TrackPos 0 : track_ends)
+    -- ruler <- State.create_ruler (mkid (block_name ++ ".r0")) (ruler_until end)
+    -- TODO the above seems weird and error prone, it's nicer to always have
+    -- the ruler just like real life
+    ruler <- State.create_ruler (mkid (block_name ++ ".r0")) default_ruler
     State.create_block (mkid block_name) $
         Block.block "b1 title" default_block_config
             ((Block.RId ruler, 20) : [(Block.TId tid ruler, 40) | tid <- tids])
@@ -123,7 +127,7 @@ mkstate_view block_id tracks = do
 
 -- track
 
-type TrackSpec = (String, [(TrackPos, TrackPos, String)])
+type TrackSpec = (String, [(Double, Double, String)])
 
 event_track_1 = mktrack ("1", [(0, 16, "hi"), (30, 32, "there")])
 event_track_2 = mktrack ("2", [(16, 10, "ho"), (30, 32, "eyo")])
@@ -135,12 +139,12 @@ empty_track title = Track.track title [] Config.track_bg Config.render_config
 
 -- event
 
-mkevent :: (TrackPos, TrackPos, String) -> Track.PosEvent
-mkevent (pos, dur, text) = (pos, Event.event text dur)
+mkevent :: (Double, Double, String) -> Track.PosEvent
+mkevent (pos, dur, text) = (realToFrac pos, Event.event text (realToFrac dur))
 
 -- ruler
 
-default_ruler = mkruler 20 10
+default_ruler = mkruler 10 10
 no_ruler = mkruler 0 0
 ruler_until pos = ruler [Ruler.marklist "until" [(pos, Ruler.null_mark)]]
 

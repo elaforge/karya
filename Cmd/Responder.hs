@@ -154,6 +154,8 @@ type RType = Either State.StateError
     (Cmd.Status, State.State, State.State, Cmd.State)
 type ResponderM a = Cont.ContT RType (Logger.LoggerT Update.Update IO) a
 
+-- | The flow control makes this all way more complicated than I want it to be.
+-- There must be a simpler awy.
 respond :: ResponderState -> IO (Bool, ResponderState)
 respond rstate = do
     msg <- state_msg_reader rstate
@@ -248,7 +250,8 @@ run_core_cmds rstate msg exit = do
     -- entry can override io bound commands.
     focus_cmds <- Trans.liftIO $
         eval "get focus cmds" ui_to cmd_state [] get_focus_cmds
-    Trans.liftIO $ Log.timer ("ran get focus cmds: " ++ show (length focus_cmds))
+    Trans.liftIO $
+        Log.timer ("ran get focus cmds: " ++ show (length focus_cmds))
     let id_cmds = focus_cmds ++ hardcoded_cmds ++ GlobalKeymap.global_cmds
     (ui_to, cmd_state) <- do_run exit Cmd.run_id_io rstate msg ui_from
         ui_to cmd_state id_cmds
@@ -292,9 +295,10 @@ get_focus_cmds = do
     tracks <- Schema.block_tracks block
     midi_config <- State.get_midi_config
     tracknum <- Cmd.get_insert_tracknum
+    lookup_midi <- Cmd.get_lookup_midi_instrument
     cmd_state <- Cmd.get_state
 
-    let context = Schema.cmd_context midi_config
+    let context = Schema.cmd_context midi_config lookup_midi
             (Cmd.state_edit_mode cmd_state) (Cmd.state_kbd_entry cmd_state)
             tracknum
     schema_map <- Cmd.get_schema_map

@@ -14,8 +14,8 @@ test_lookup_instrument = do
     synth_descs <- mapM ($"") [Kontakt.load]
     let midi_db = MidiDb.midi_db synth_descs
     let f inst attrs =
-            MidiDb.lookup_midi midi_db (Score.Instrument inst)
-            (Set.fromList attrs)
+            MidiDb.lookup_midi midi_db
+                (Set.fromList attrs) (Score.Instrument inst)
 
     let ks name key = Just (Instrument.Keyswitch name key)
         kkt_inst name = Instrument.Instrument "kkt" name Nothing

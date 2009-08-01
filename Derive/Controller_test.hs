@@ -42,8 +42,8 @@ test_d_pitch_signal = do
 
     let Right (sig, msgs) = run [mkevent 0 "0 blah", mkevent 1 "i, bad"]
     equal sig (track_signal [])
-    strings_like msgs ["trailing junk: \" blah\"", "Note \"0\" not in scale",
-        "Note \"bad\" not in scale"]
+    strings_like msgs ["trailing junk: \" blah\"", "Note \"0\" not in ScaleId",
+        "Note \"bad\" not in ScaleId"]
 
     let sig = track_signal
             [(0, Signal.Set, 48), (1, Signal.Set, 50), (2, Signal.Linear, 52)]

@@ -404,14 +404,18 @@ instance Binary Event.StyleId where
 -- ** Midi.Instrument
 
 instance Binary Instrument.Config where
-    put (Instrument.Config a b) = put_version 1 >> put a >> put b
+    put (Instrument.Config a b) = put_version 2 >> put a >> put b
     get = do
         v <- get_version
         case v of
             1 -> do
                 alloc <- get :: Get (Map.Map Score.Instrument [Instrument.Addr])
-                default_addr <- get :: Get (Maybe Instrument.Addr)
-                return $ Instrument.Config alloc default_addr
+                _ <- get :: Get (Maybe Instrument.Addr)
+                return $ Instrument.Config alloc Nothing
+            2 -> do
+                alloc <- get :: Get (Map.Map Score.Instrument [Instrument.Addr])
+                default_inst <- get :: Get (Maybe Score.Instrument)
+                return $ Instrument.Config alloc default_inst
             _ -> version_error "Instrument.Config" v
 
 instance Binary Score.Instrument where

@@ -182,8 +182,10 @@ view_config_bindings = concat
         (View.cmd_zoom_around_insert (*1.25))
     ]
 
+-- delete = remove events and move following events back
+-- remove = just remove events
 edit_bindings = concat
-    [ bind_key Key.Escape "toggle edit" Edit.cmd_toggle_val_edit
+    [ bind_key Key.Escape "toggle val edit" Edit.cmd_toggle_val_edit
     , bind_kmod [Key.MetaL] Key.Escape "toggle raw edit"
         Edit.cmd_toggle_raw_edit
     , bind_kmod [] Key.Tab "toggle method edit" Edit.cmd_toggle_method_edit
@@ -193,11 +195,12 @@ edit_bindings = concat
 
     -- Unlike other event editing commands, you don't have to be in insert mode
     -- to remove events.  Maybe I'll change that later.
-    , command Key.Backspace "remove event" Edit.cmd_remove_selected
+    -- , command Key.Backspace "remove event" Edit.cmd_remove_selected
     , bind_kmod [Key.ShiftL] Key.Backspace "delete selection"
         (done Edit.cmd_delete_selection)
     , bind_kmod [Key.ShiftL] (Key.KeyChar '=') "insert selection"
         (done Edit.cmd_insert_selection)
+    -- TODO delete by timestep, insert by timestep
 
     , command (Key.KeyChar 'u') "undo" (done Edit.undo)
     , command (Key.KeyChar 'r') "redo" (done Edit.redo)

@@ -26,19 +26,19 @@ cmd_toggle_raw_edit, cmd_toggle_val_edit,
     cmd_toggle_method_edit, cmd_toggle_kbd_entry :: Cmd.CmdId
 
 cmd_toggle_raw_edit = modify_edit_mode $ \m -> case m of
-    Just Cmd.RawEdit -> Nothing
-    _ -> Just Cmd.RawEdit
+    Cmd.RawEdit -> Cmd.NoEdit
+    _ -> Cmd.RawEdit
 
 -- | Unlike the other toggle commands, val edit, being the \"default\" toggle,
 -- always turns other modes off.  So you can't switch directly from some other
 -- kind of edit to val edit.
 cmd_toggle_val_edit = modify_edit_mode $ \m -> case m of
-    Nothing -> Just Cmd.ValEdit
-    Just _ -> Nothing
+    Cmd.NoEdit -> Cmd.ValEdit
+    _ -> Cmd.NoEdit
 
 cmd_toggle_method_edit = modify_edit_mode $ \m -> case m of
-    Just Cmd.MethodEdit -> Just Cmd.ValEdit
-    Just Cmd.ValEdit -> Just Cmd.MethodEdit
+    Cmd.MethodEdit -> Cmd.ValEdit
+    Cmd.ValEdit -> Cmd.MethodEdit
     _ -> m
 
 -- | Turn on kbd entry mode, putting a K in the edit box as a reminder.  This
@@ -66,10 +66,10 @@ sync_edit_box_status = do
     forM_ block_ids $ \bid -> State.set_edit_box bid (edit_color edit_mode) c
 
 edit_color mode = case mode of
-    Nothing -> Config.box_color
-    Just Cmd.RawEdit -> Config.raw_edit_color
-    Just Cmd.ValEdit -> Config.val_edit_color
-    Just Cmd.MethodEdit -> Config.method_edit_color
+    Cmd.NoEdit -> Config.box_color
+    Cmd.RawEdit -> Config.raw_edit_color
+    Cmd.ValEdit -> Config.val_edit_color
+    Cmd.MethodEdit -> Config.method_edit_color
 
 -- * universal event cmds
 

@@ -8,24 +8,16 @@ import Util.Test
 import qualified Util.Log as Log
 
 import Ui.Types
-import qualified Ui.Block as Block
-import qualified Ui.Event as Event
-import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Ui.TestSetup as TestSetup
 
-import qualified Derive.Note as Note
-import qualified Derive.Scale as Scale
-import qualified Derive.Score as Score
-
 import qualified Derive.Derive_test as Derive_test
-
-import qualified Perform.Signal as Signal
+import qualified Derive.Note as Note
+import qualified Derive.Score as Score
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Warning as Warning
 
 import qualified Derive.Derive as Derive
-import qualified Derive.Twelve as Twelve
 
 
 -- * parse
@@ -81,8 +73,10 @@ test_parse_arg = do
 -- * derivers
 
 test_derive_notes = do
-    let mkevt (pos, dur, text) = ((pos, Event.event text dur), parsed)
-            where (parsed, _) = Note.parse_note Nothing no_attrs "" text
+    let mkevt (pos, dur, text) = (event, parsed)
+            where
+            (parsed, _) = Note.parse_note Nothing no_attrs "" text
+            event = TestSetup.mkevent (pos, dur, text)
         run evts = (map extract_event sevts, map extract_log logs)
             where
             (sevts, logs) =

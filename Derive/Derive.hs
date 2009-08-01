@@ -91,6 +91,7 @@ data State = State {
     -- and attached to events in case they want to emit errors later (say
     -- during performance).
     , state_stack :: [Warning.StackPos]
+    , state_log_context :: [String]
 
     -- | Remember the warp signal for each track.  A warp usually a applies to
     -- a set of tracks, so remembering them together will make the updater more
@@ -114,6 +115,7 @@ initial_state ui_state lookup_deriver ignore_tempo = State {
     , state_attributes = Score.no_attrs
     , state_warp = initial_warp
     , state_stack = []
+    , state_log_context = []
 
     , state_track_warps = []
     , state_ui = ui_state
@@ -252,17 +254,27 @@ modify f = (DeriveT . lift) (Monad.State.modify f)
 get :: (Monad m) => DeriveT m State
 get = (DeriveT . lift) Monad.State.get
 
+-- | This is a little different from Reader.local because only a portion of
+-- the state is used Reader-style, i.e. 'state_track_warps' always collects.
+-- TODO split State into dynamically scoped portion and use Reader for that.
+-- this should also properly restore state after an exception
+local :: (Monad m) => (State -> b) -> (State -> State) -> (b -> State -> State)
+    -> DeriveT m a -> DeriveT m a
+local from_state modify_state to_state m = do
+    old <- fmap from_state get
+    modify modify_state
+    result <- m
+    modify (to_state old)
+    return result
+
 -- | So this is kind of confusing.  When events are created, they are assigned
 -- their stack based on the current event_stack, which is set by the
 -- with_stack_* functions.  Then, when they are processed, the stack is used
 -- to *set* event_stack, which is what 'warn' and 'throw' will look at.
 with_event :: (Monad m) => Score.Event -> DeriveT m a -> DeriveT m a
-with_event event op = do
-    old <- fmap state_stack get
-    modify $ \st -> st { state_stack = Score.event_stack event }
-    v <- op
-    modify $ \st -> st { state_stack = old }
-    return v
+with_event event = local state_stack
+    (\st -> st { state_stack = Score.event_stack event })
+    (\old st -> st { state_stack = old })
 
 
 -- ** errors
@@ -270,7 +282,13 @@ with_event event op = do
 throw :: (Monad m) => String -> DeriveT m a
 throw msg = do
     stack <- fmap state_stack get
-    Error.throwError (DeriveError stack msg)
+    context <- fmap state_log_context get
+    Error.throwError (DeriveError stack (_add_context context msg))
+
+with_msg :: (Monad m) => String -> DeriveT m a -> DeriveT m a
+with_msg msg = local state_log_context
+    (\st -> st { state_log_context = msg : state_log_context st })
+    (\old st -> st { state_log_context = old })
 
 -- | Catch DeriveErrors and convert them into warnings.  If an error is caught,
 -- return Nothing, otherwise return Just op's value.
@@ -281,7 +299,11 @@ catch_warn op = Error.catchError (fmap Just op) $ \(DeriveError stack msg) ->
 warn :: (Monad m) => String -> DeriveT m ()
 warn msg = do
     stack <- fmap state_stack get
-    Log.warn_stack stack msg
+    context <- fmap state_log_context get
+    Log.warn_stack stack (_add_context context msg)
+
+_add_context [] s = s
+_add_context context s = Seq.join "/" context ++ ": " ++ s
 
 -- ** environment
 
