@@ -10,7 +10,6 @@ import Text.Printf (printf)
 
 import qualified Util.Seq as Seq
 import qualified Perform.Timestamp as Timestamp
-import Util.PPrint
 
 import qualified Midi.Midi as Midi
 import qualified Midi.PortMidiC as MidiC

@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -XDeriveDataTypeable #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 module Midi.Midi where
 import Data.Bits
 import qualified Data.Generics as Generics

@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -XGeneralizedNewtypeDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {- | Timetstamp is used by the various rendering subsystems as well as
     'Derive.Player'.
 

@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -XGeneralizedNewtypeDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {- | The basic types that the interface modules use.
 
     Unlike the other modules, this is designed to be used with a non-qualified

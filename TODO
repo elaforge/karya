@@ -11,7 +11,6 @@ bugs:
 - support for Schema.default_scale, esp since it gets automatically added
 - kill skeleton instruments
 
-- turn OPTIONS_GHC into LANGUAGE pragmas
 - ^C should quit everything
 - cmd-q should also quit entirely not just close the windows
 - fix logview

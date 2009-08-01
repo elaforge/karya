@@ -1,3 +1,4 @@
+{-# LANGUAGE ForeignFunctionInterface #-}
 {- | Utilities for the SomethingC layer.
 
     - Fltk monad
@@ -6,8 +7,6 @@
 
     - Generic UI debugging functions.
 -}
-{-# LANGUAGE ForeignFunctionInterface #-}
-{-# OPTIONS_GHC -fglasgow-exts #-}
 module Ui.Util where
 import Foreign
 import Foreign.C

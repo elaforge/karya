@@ -1,7 +1,5 @@
-{-# OPTIONS_GHC -XGeneralizedNewtypeDeriving #-}
-{-# OPTIONS_GHC -XPatternGuards #-}
-{-# OPTIONS_GHC -fno-warn-unused-imports #-}
--- Control.Monad
+{-# LANGUAGE GeneralizedNewtypeDeriving, PatternGuards #-}
+{-# OPTIONS_GHC -fno-warn-unused-imports #-} -- ghc confused about Control.Monad
 {- | Main module for the deriver monad.
 
     Derivers are always in DeriveT, even if they don't need its facilities.

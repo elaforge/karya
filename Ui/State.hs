@@ -1,5 +1,4 @@
-{-# OPTIONS_GHC -XGeneralizedNewtypeDeriving #-}
-{-# OPTIONS_GHC -XDeriveDataTypeable #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, DeriveDataTypeable #-}
 {-# OPTIONS_GHC -fno-warn-unused-imports #-}
 {- | The overall UI state is described here.  This is an immutable data
     structure that contains all the tracks, rulers, note data, and so forth.

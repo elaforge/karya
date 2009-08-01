@@ -1,5 +1,4 @@
-{-# LANGUAGE ForeignFunctionInterface #-}
-{-# OPTIONS_GHC -XEmptyDataDecls #-}
+{-# LANGUAGE ForeignFunctionInterface, EmptyDataDecls #-}
 module LogViewer.LogViewC where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM

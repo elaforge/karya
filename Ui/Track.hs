@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -XPatternGuards #-}
+{-# LANGUAGE PatternGuards #-}
 module Ui.Track where
 import qualified Data.Array.IArray as IArray
 import qualified Data.List as List

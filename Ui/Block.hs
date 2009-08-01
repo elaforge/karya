@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -XEmptyDataDecls #-}
+{-# LANGUAGE EmptyDataDecls #-}
 module Ui.Block where
 import Control.Monad
 import qualified Control.Concurrent.MVar as MVar

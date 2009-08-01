@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -XDeriveDataTypeable #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 {- | Midi interface.
     - Read
 

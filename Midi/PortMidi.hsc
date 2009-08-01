@@ -1,6 +1,4 @@
-{-# LANGUAGE ForeignFunctionInterface #-}
-{-# OPTIONS_GHC -XEmptyDataDecls #-}
-{-# OPTIONS_GHC -XDeriveDataTypeable #-}
+{-# LANGUAGE ForeignFunctionInterface, EmptyDataDecls, DeriveDataTypeable #-}
 {- | Wrapper for the portmidi library.
 -}
 module Midi.PortMidi (

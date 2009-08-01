@@ -1,5 +1,4 @@
-{-# LANGUAGE ForeignFunctionInterface #-}
-{-# OPTIONS_GHC -XEmptyDataDecls #-}
+{-# LANGUAGE ForeignFunctionInterface, EmptyDataDecls #-}
 {- | A Track is a container for Events.  A track goes from TrackPos 0 until
     the end of the last Event.
 

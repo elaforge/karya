@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -XPatternGuards #-}
+{-# LANGUAGE PatternGuards #-}
 {- | Main entry point for Perform.Midi.  Render Deriver output down to actual
     midi events.
 

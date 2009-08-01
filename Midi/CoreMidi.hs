@@ -1,7 +1,8 @@
-{-# LANGUAGE ForeignFunctionInterface #-}
-{-# OPTIONS_GHC -XDeriveDataTypeable #-}
-{-
-Interface to CoreMIDI:
+{-# LANGUAGE ForeignFunctionInterface, DeriveDataTypeable #-}
+{- |
+Interface to CoreMIDI.
+
+TODO documentation
 -}
 module Midi.CoreMidi where
 import qualified Control.Exception as Exception

@@ -1,5 +1,4 @@
-{-# OPTIONS_GHC -XGeneralizedNewtypeDeriving #-}
-{-# OPTIONS_GHC -XDeriveDataTypeable #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, DeriveDataTypeable #-}
 {- | Functions for logging.
 
     Log msgs are used to report everything from errors and debug msgs to status

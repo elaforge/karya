@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -XDeriveDataTypeable #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 module Ui.Update where
 import qualified Data.Generics as Generics
 import Data.Function
