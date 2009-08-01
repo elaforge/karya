@@ -21,7 +21,6 @@ scale = Pitch.Scale {
     , Pitch.scale_transpose = transpose
     , Pitch.scale_transpose_octave = transpose . (*12)
     , Pitch.scale_to_nn = note_to_nn
-    , Pitch.scale_from_nn = nn_to_note
     , Pitch.scale_key_to_note = key_to_note
     , Pitch.scale_set_pitch_bend = False
     }
@@ -39,7 +38,9 @@ note_to_nn (Pitch.Note note) = do
 
 nn_to_note :: Pitch.NoteNumber -> Either String Pitch.Note
 nn_to_note (Pitch.NoteNumber nn)
-    | octave > 9 = Left $ "note number " ++ show nn ++ " is out of range"
+    | 0 > octave || octave > 9 =
+        -- This range could be expanded if necessary.
+        Left $ "note number " ++ show nn ++ " is out of range 0--9"
     | otherwise = Right $ Pitch.Note (show octave ++ notes !! p)
     where (octave, p) = floor nn `divMod` 12
 

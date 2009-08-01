@@ -12,6 +12,7 @@
 -}
 module Perform.Pitch where
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 
 
 -- | The main representation for a pitch.  Scale sharing is enforced by keeping
@@ -40,8 +41,8 @@ nn = NoteNumber . realToFrac
 
 -- | A physically played key, either on the midi keyboard or letter keyboard.
 -- This isn't the same as the midi note number because the midi note number
--- represents a certain tempered pitch, while this is still user input.  It
--- has yet to be mapped to a pitch (and may not be, for unpitched sounds).
+-- represents a certain tempered pitch, while this is an abstract
+-- representation of a pitch in any scale.
 --
 -- (octave, note)
 type KeyNumber = (Int, Int)
@@ -73,10 +74,9 @@ data Scale = Scale {
     -- | Convert the scale note to a pitch with frequency.  Returns Nothing
     -- if the note isn't part of the scale.
     , scale_to_nn :: Note -> Maybe NoteNumber
-    -- | Convert back to a scale note from the pitch.  to_pitch -> from_pitch
+    -- | Convert from a pitch to an error or a note.  to_pitch -> from_pitch
     -- may lose information if the scale has enhormonics.  It will also round
     -- the pitch off if it doesn't exactly correspond to a scale note.
-    , scale_from_nn :: NoteNumber -> Either String Note
     , scale_key_to_note :: KeyNumber -> Either String Note
 
     -- | A special hack for midi, since it needs additional pitch bend msgs
@@ -92,3 +92,6 @@ data Scale = Scale {
     -- think I'll use the wheel much anyway.
     , scale_set_pitch_bend :: Bool
     }
+
+note_in_scale :: Scale -> Note -> Bool
+note_in_scale scale = Maybe.isJust . scale_to_nn scale
