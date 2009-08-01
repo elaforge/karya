@@ -1,0 +1,36 @@
+Individual block derivations can only be cached if they have the same
+environment.  Tempo can be different if only the offset is different (then you
+just add the offset difference to the events).
+
+The important thing is detecting what needs to be regenerated.  In general it
+can't be done, because a derivation may decide what to do based on any other
+event, but in the vast majority of cases each event has no external dependency.
+
+1 So if you edit a block derived from a parent, the parent should only
+re-derive the sections covered by your block.  2 Similarly, if you edit
+a region in a block, it only needs to rederive the edited region.  There also
+needs to be a way for a deriver to signal that you can't do this though.
+
+
+1 Each block has a memo table: {(ControllerMap, Tempo) : [Event]} as well as
+Set BlockId for children.  When a parent wants to derive, the subderive first
+looks at the memo table.  If there is already an entry, it just uses the events
+directly.  If there isn't one, it calls the deriver, and if there are enough
+events, puts them in the memo table.
+
+When a block changes, its memo table is cleared.
+
+If you make a lot of changes to the parent's controllers and don't change the
+child, it could build up a big memo table.  Maybe I could clear old ones.
+
+2 I may not need this, because 1:1 events is pretty cheap, and subderivations
+are handled by #1.  I could do something like rederive the changed part and
+just splice in the changed section.  I'd have to do this for everything in the
+memo tabe though.
+
+Given a change on a certain BlockId, that block's
+[Events] must be rederived, and every block that has it as a child must
+rederive.  Hmm, except that how can you derive a block in isolation unless it's
+the top one?
+
+So the parent keeps {(Range, BlockId) : [Event]}.

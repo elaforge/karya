@@ -1,0 +1,15 @@
+08-01-06 - initial checkin
+08-02-13 - initial haskell checkin
+08-03-07 - initial portmidi checkin
+08-03-19 - msg collector implementation
+08-03-29 - start hstate rewrite
+08-04-08 - initial test framework checkin
+08-04-24 - initial checkin for real Cmds
+08-04-28 - keymap works: move insertion point by major marks with arrow keys
+08-05-05 - initial basic deriver and dummy play implementation
+08-05-18 - final (?) iteration of deriver + perform checkin
+08-05-22 - Cmd.Language initial implementation
+08-06-01 - logviewer initial add
+08-06-17 - tempo track working
+08-08-20 - subderive working
+09-08-01 - separate pitch track implemented

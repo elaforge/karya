@@ -1,0 +1,25 @@
+
+    Editing recorded recorded continuous control data
+
+Record some note data on the touchstream, or with a pitch tracker.  Select the
+data, then type in a function to determine the average pitch, and pitch
+derivation from equal temperment.  Type another function to warp pitches to be
+closer to in tune.  Play back just the section multiple times while fiddling
+with the parameters.
+
+
+    Generation from other sources
+
+Put a sample through partial extraction and generate notes from it.
+
+Impose "bell-ness" on recorded notes by warping them to a bell spectrum: import
+partials as notes, select a chord and then select the recorded sequence, and
+set the recorded sequence to warp to the other selection.  For this, I need
+multiple selections and the ability to operate across blocks: selection1 in
+block1, selection2 in block2, and then invoke a 2 parameter function.
+
+
+    dunno how to do this
+
+Ability to handle very large chords, some more compact representation than one
+per track.

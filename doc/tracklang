@@ -1,0 +1,92 @@
+Instruments:
+I'd like to make "instruments" indistiguishable from calls.  I need to find
+instrument quickly to figure out the scale, and besides I shouldn't combine
+into one track.  So, pitch is in its own track.  Then a separate instrument
+/ block call track.  What about tuplets then?
+
+Logically, pitch track should be like a controller and the instrument track
+should control note on/off.  However, a very common use is to put in a new note
+and duration and the instrument is the same as the previous.  Or have one
+instrument controller multiple tracks.  So I need a way to abbreviate set pitch
++ previous instrument + duration.
+
+
+
+A pitch track is a controller track, just like other controller tracks, except
+that it has scale degrees instead of just being 0--1.
+
+Notes are actually played by the instrument track, whose events have duration.
+The instrument is constructed from the text in the event and the track title:
+
+title       event           result
+
+""          inst +attr      inst +attr
+inst        +attr           inst +attr
+inst        inst2           inst2
+inst +attr  +attr2          inst +attr1 +attr2
+inst +attr  -attr +attr2    inst +attr2
+
+inst        ""              inst
+""          ""              error
++attr       inst            inst +attr
+
+
+combine title event = case foldl' parse (Nothing, []) ws of
+        (Nothing, _) -> Nothing
+        (Just inst, attrs) -> Just (Call inst attrs)
+    where ws = words title ++ words event
+
+parse (inst, attrs) word = case word of
+    '+':attr -> (inst, attrs `List.union` [attr])
+    '-':attr -> (inst, attrs List.\\ [attr])
+    _ -> (Just word, attrs)
+
+However, it seems like instruments should also be in the envirnonment,
+otherwise say a tuplet doesn't know what instrument it is.  How about, a track
+title with inst acts like a set, +attr just combines.  So when you see "xyz"
+in instrument position, if it's a call it just does the call, but if it's
+a "real instrument" it overrides the instrument in the environment.
+- add 'Instrument Name (Set Attr)' to environment
+
+So how do I get to scale from here?  Instrument -> scale doesn't work so well
+if the instrument is a call, which could after all involve instruments with
+different scales.  It doesn't make sense to put a pitch curve on those anyway.
+Ok, so scale goes in the track title of the pitch track.  If you want to enter
+scale degrees in the instrument track (instruments with note args like
+tuplets) the scale comes from the accompanying pitch track, if any.
+- come up with title for "main" pitch track, and form for pitch tracks, with
+  scale name
+
+A common use is to have the note simply be the track instrument, in which case
+a whole track consisting soley of empty note durations lined up with pitch
+sets is awkward.  So there should be an editing mode that edits the notes and
+their pitches as a unit, and a display mode that can collapse them into one
+track.  In fact, a mode that combines any control track (or multiple control
+tracks) could be useful.  A command expands or collapses combined tracks, and
+they are marked on the UI.  If you expand an instrument track it creates
+a pitch track if need be.
+- "nonflat" track structure, which is flattened before sync, has bits for how
+to merge with whom.  this also has info like mute and collapse.
+- visual cue to indicate a mergeable group
+
+So you create an instrument track, and when you enter a note, it finds the
+pitch track, adds the pitch, and adds the note with the current instrument.
+The pitch track is created if none exists.
+
+So the commands will depend on being able to easily get from the instrument
+track to its pitch track and back again, and that means it should be enforced
+that there only be one pitch track per note track or at least one "main" one
+(what about one for pitch and one for vibrato?).
+
+TODO:
+- remove the parsing stuff, revert to state where you enter plain notes
+- implement pitch track as a separate control track
+- implement instrument track and lookup, put inst in environment
+- remove the old instrument track stuff
+- modify note entry commands to write to both inst and pitch tracks
+at this point I should be back where I started, with the ability to put in
+notes, except more awkwardly because of two tracks
+
+- track collapsing
+- track muting
+- track merging

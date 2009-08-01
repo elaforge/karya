@@ -1,0 +1,60 @@
+Integrator creates a stream of (Set, Val).  Samples that fit in a straight line
+are reduced to (Linear, Val).
+
+Since there are a large amount of samples, they can't be represented in the
+normal way on the track.  So if there are three or more samples in close
+proximity (i.e. less than say 3 pixels apart) the blue line is suppressed.
+Also, sample points that are too close are ignore for line rendering.
+
+If incremental redraw during selection or something is a problem, maybe I can
+cache the render as a bitmap?
+
+
+Only render signals once:
+
+Eliminate the separate signal deriver.  Instead, collect track signals and
+return them from the deriver in the same way I collect track warps.
+
+Now, full derivation gets run before every sync.  The signal pointers are
+passed to the UI, which redraws them according to the updates.
+
+So this means a full rederivation on every command, which seems wasteful.
+I can probably look at the updates, and only invalidate the cached derivation
+if events or tracks were altered, and only for the blocks they were altered on.
+
+However, it's also worrisome if derivation takes a long time.  For events, it
+can be in the backgrounded, and aborted if a new change comes in.  Signals,
+however, are synchronous with UI display.  Also getting them is much simpler
+than a real derivation.
+
+So maybe I run a signal derivation, then pass the TrackId->Signal map to the
+real derivation, which short-circuits the control track derivation.  But if
+derivation is sufficiently lazy, couldn't I get this same effect with the
+normal derivation?  Demanding the signals wouldn't force the derivation of any
+note events.
+
+
+Another idea: store samples in signal form.  Integrator records sample stream
+(Pos, Val).  Then, instead of converting that to events and storing them in
+a TrackEvents, store them in SignalEvents which just has the raw signal.  No
+costly Events <-> Signal conversions needed.
+
+However, this is much more limited that what I can put in an event.  I can
+either try to extend SignalEvents to get the important stuff, or have some way
+to intersperse SignalEvents with TrackEvents.
+
+Extending SignalEvents would be simpler.  I could include a char for method.
+Methods with args like exp4.2 would have to have a hardcoded set of args I can
+choose.  A "g3.2e2" type method would be a bigger problem.  This would also
+restrict the allowable methods.  Anyway, the UI wouldn't be able to render
+anything but set and linear, so I couldn't really pass the whole thing by
+pointer anyway.
+
+Ok, so split it is.  The problem is that I have to be careful to not lose the
+vector.  I can say any time there are >n adjacent Set or Linear events, they
+get collapsed to a vector.  So a different method would force a split.  I can
+encode Set or Linear in the bottom bit of the value (yay bit hackery) since
+a double is way more than enough headroom already.
+
+If I did it this way, I think signal derivation would be cheap enough that
+I woudn't mind doing it again for note derivation.

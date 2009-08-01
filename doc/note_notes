@@ -1,0 +1,151 @@
+
+{-
+Skeleton creates the environment by TrackId.  So when it sees an instrument
+track, it inserts an association from that track to a lookup for Twelve.
+
+I can either have the instrument in the skeleton as currently and applied
+through d_instrument, or I can have it in the deriver, where the deriver looks
+at the track title first.  I'll go with the skeleton for now.
+
+(event_text,
+
+
+I want to separate pitch derivation so that I can have generic operations that
+work on scale degrees or octaves independent of what the actual scale is.  So
+I have two stages, one that maps a symbol to (pclass, oct) and another that
+takes that to hz.  If I also express pitch curves in that notation, then I can
+scale the curves based on the curve... presumably this is if I go
+pclass.fraction.  I should be able to say "start at +5 degrees, slide to +0".
+
+note
+"c#7", get inst from track title
+reduce to (pclass, octave) (1, 7)
+set "pitch" env var to val
+
+now if it derives a block, the block will have the given pitch, which can be
+either overridden, or modified with events like +1 -1 that add to pclass or
+octave
+
+when the note is actually derived, it has to turn (pclass, octave) into a Pitch
+and emit the Event
+
+should have a regular language:
+event start dur sets warp at streatch
+"text; text" is like two events overlapping
+
+<scale-degree> sets the pitch control absolute
+
+-- just a note
+c#7 -> abs_pitch "c#7" >> note
+
+-- note with articulation
+c#7; stac -> abs_pitch "c#7" >> set_env "staccato" 1 >> note
+
+-- note with instrument
+c#7; >a -> abs_pitch "c#7" >> set_inst "a" >> note
+
+-- subderive block (note pitch passed in environment)
+c#7; <block -> abs_pitch "c#7" >> block "block_id"
+
+-- just set articulation, applies to subsequent notes
+stac -> set_env "staccato" 1
+
+-- pitch curve
+i c#7 -> generate pitch curve from previous pitch to linearly approach this one
+-- Unlike other events, this one doesn't retrigger a new event, but extends the
+-- previous one.  How does this interact with a derived sub-block?  It means
+-- the pitch curve gets an interpolation from the previous event, but the event
+-- is derived normally, so it will affect a sub-block.  As a special case, if
+-- the the end of the last event lines up with this one, and it's a simple
+-- <scale-degree>, then the previous event is extended to the end of this one,
+-- i.e. the event isn't retriggered.
+d-7
+i c#7 ->
+
+-- This implies that I should separate the pitch curve out and treat it like
+-- any other controller track.  Then run a separate derivation on the note
+-- starting and stopping times.
+
+-- set pitch from environ to +5
++5 -> relative_pitch (+ scale_degree 5) >> note
+
++3
+i +0 -> relative pitch slide
+
+So they all end with 'note', which derives an actual note based on the start
+and dur, except <block which doesn't generate an event because the block does,
+and the ones that just set a controller.  What are the criteria to say if an
+event should be generated (i.e. d_note should be called)?  I guess I have
+a definition for "is a plain note" which is like "has an explicit pitch setting
+and doesn't have <block".
+
+So the derivation happens in two passes:
+
+    Generate the pitch curve
+Each event is parsed.  If it has pitch aspect, that becomes a point on the
+pitch curve.  Also, other controller setting like "staccato" go into the
+environment, though at a certain point it seems like I should stick those into
+their own controller track.  Maybe an "articulation" controller which is really
+indexed on discrete values can make an exception?  Or not, it's not like it's
+that much hard to set them on an articulation track.  But now I'm needing
+"Signal Articulation" where Articulation is defined per instrument... or maybe
+just Signal String will do.  Of course you can't really transition between most
+articulations, especially if they're keyswitches.  But I should be able to
+implement it as a crossfade for some instruments.  Or indeed as a true
+transition.  Anyway, sketch out how articulations work somewhere else.
+
+So the first pass produces a pitch signal.  Then the second pass parses the
+actual derivers.  They are parsed into
+
+pitch :: Maybe (Signal.Method, Pitch.Pitch)
+block :: Maybe Block.BlockId
+call :: Maybe String -- call some arbitrary string-keyed function deriver
+
+Setting instruments and articulations should be handled in a separate
+controller track.  It means I need support for "indexed" controllers... but
+actually, pitch is one of those too, indexed by the pitch name.
+
+Indexed controllers:
+
+instrument - No interpolation.  This sets the instrument that the events
+produce.
+
+articulation - No interpolation (continuous articulations should be non-indexed
+"normal" controllers).  They're different from continuous controllers because
+you can only be one at a time.  Intended for exclusive named articulations,
+like tip/knuckle/slap or arco/pizz, which are implemented as keyswitches.
+Since they set a state for the midi channel they need special support at that
+level.
+
+pitch - Interpolated, but it's complicated.  The interpolation should happen
+independent of the scale logarithmically, but I still want to know the scale so
+I can transpose scale-wise.  It has to be able to happen
+
+Midi channel state:
+c#7; stac - set env, set articulation to staccato, say via a keyswitch.  This
+should be treated like a separate instrument in the same way that program
+change is.  Hmm, but I don't support program change in the middle.  Currently
+the channel has state saying what instrument is active there, so I'd need
+additional state saying what keyswitch is active (of course, keyswitch can be
+switched much faster than pchange, but I think that's up to the composer).
+
+Channel state is static though, expressed in the midi config.
+
+Also, one instrument should be able to map to >1 distinct addrs, e.g. switch to
+pizz by sending on a different channel.  This is easy because I just have separate instruments and get the instrument from the articulation.
+
+
+Ok, so to parse the parts:
+i c#7 <block
+
+option method
+pitch <- option (oneOf scale_words)
+call <- word
+if head call == '<' ...
+
+Why not have pitch as its own track, and make a block subderiv be in another
+track?  For the same reason I don't do that for normal notes: it's nicer to
+think of them as one track, and easier to write too.  The difference is that
+normal notes without the pitch would be blank, but calls aren't.
+
+-}

@@ -1,0 +1,134 @@
+There should be a few flavors of sub-blocks for different uses:
+
+- pattern list ala trackers: just a block name
+- instruments: like instrument macros, these should be scale-independent (i.e.
+express pitch in relative scale degrees, taking the exact scale and instrument
+from the environment).  They do things like add ornaments to notes, derive note
+patterns based on templates, etc.
+
+Each sub-block also needs to return its tempo map so it can be included in the
+tempo map of the caller, for inclusion in the playback tempo map.
+
+Each must also be run in its own deriver so if it throws it just generates no
+output.
+
+
+to get tempo: sample tempo function at start and stop times
+for an event at time p: (at p (stretch dur (event)))
+
+check out implementation of sustain, I should be able to implement that too
+so notes can overlap
+
+all block params, including pitch, are passed in the environment
+
+to make
+
+primitives:
+
+local_to_global :: TrackPos -> TrackPos
+warp :: m Signal -> m [Event] -> m [Event]
+
+instrument sets in environ
+c# sets pitch in environ
+
+then there needs to be some way the deriver bottoms out and actually emits an
+Event
+
+nyquist:
+(defun e1 ()
+  (at 1 (e11))
+  (at 2 (e12)))
+
+(defun e11 ()
+  (pitch "c5" (note)))
+(defun e12 ()
+  (pitch "d5" (note)))
+
+(define note ()
+  scale_num = (getenv "pitch-map") ! (getenv "pitch")
+  pitch = (getenv "scale") ! scale_num
+
+env t1 t2 t4 duration = do
+    dur = get-duration
+    min_dur = t1 + t2 + t4 + 0.002
+    if dur < min_dur
+        ...
+    else
+        t3 = dur - t1 - t2 - t4
+
+    set-logical-stop (env t1 t2 t3 t4) duration
+
+osc pitch
+    (start, dur) = get_duration
+    hz = pitch + get_transpose
+    snd_osc ... hz start dur
+
+
+derive_block block = do
+    skel <- parse block
+    tempo <- getenv tempo
+    with_tempo (compose tempo (skel_tempo skel))
+        (interpret_skel skel)
+
+interpret_skel (Controller ctracks Nothing) = return []
+interpret_skel (Controller ctracks (Just subskel)) = do_controllers =<< subskel
+
+data Skeleton =
+    -- | A set of controller tracks have scope over a sub-skeleton.
+    -- A controller with no \"argument\" track will have a Nothing sub.
+    Controller [Track] (Maybe Skeleton)
+    | Instrument Score.Instrument Track
+    | Merge [Skeleton]
+    deriving (Show)
+
+derive_track track
+    setenv "track" track.title
+    events <- for track $ \(pos, event) ->
+        at pos (stretch event.duration (derive_event event.text))
+    return (concat events)
+
+derive_event text = do
+    track_title <- getenv "track"
+    f <- lookup_deriver text track_title
+    f
+
+note
+    pitch <- get_pitch
+    (start, dur) <- get_duration
+    controllers <- get_controllers
+    return [Event start dur pitch controllers]
+
+block
+    (start, dur) <- get_duration
+    derive (at start (stretch dur sub))
+
+envelopes with absolute attack times:
+Set absolute time sections in the tempo track.  The non-absolute sections will
+be stretched with the block, relative to their size.  Therefore the block has
+a minimum duration of the sum of the absolute sections.
+
+In other words, the absolute sections pass their absolute tempo map to their
+children while the relative ones are composed with the existing tempo map.
+Except shifts, right?
+
+
+environment or successive processing?
+environ can easily flag name clashes, or unprocessed events
+
+
+-- | Get events from a track, convert them to Score events, warp them with the
+-- tempo warp, and apply the enviroment's controllers to them.
+d_track :: (Monad m) => Track.TrackId -> DeriveT m [Score.Event]
+d_track track_id = do
+    track <- get_track track_id
+    cmap <- fmap state_env get
+    warp <- fmap state_warp get
+    add_track_warp track_id warp
+    let events = map (Score.from_track_event cmap track_id) $
+            Track.event_list (Track.track_events track)
+        pos_list = concatMap extract_pos events
+        pos_map = zip pos_list (map (local_to_global warp) pos_list)
+    -- Log.debug $ "deriving track " ++ show track_id ++ " events "
+    --     ++ show (map Score.event_text events)
+    return (inject_pos pos_map events)
+

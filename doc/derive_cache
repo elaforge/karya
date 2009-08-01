@@ -1,0 +1,33 @@
+Derivation can be expensive, especially if there is a lot of data to derive.
+Clearly rederiving the entire song on every edit is not going to very well.
+
+Ideally, I rederive the minimum amount necessary to reflect the change that was
+just made.  In the presence of fully general derivation, I can't really know
+this since any event may generate some arbitrary amount of notes.
+
+However, I should be able to make some simplifying assumptions and restrictions
+to make the common case efficient.
+
+
+    Memoize subderivations
+
+This won't help you if you put the whole song in one giant block, but it's
+probably reasonable to break things up into small-ish blocks, tracker style.
+In that case, if I cache the result of deriving unchanged blocks then
+rederiving the whole song only means rederiving the changed block and its
+parents.  It would mean merging all the events which could mean a lot of
+copying, but if this turns out to be a problem maybe I can come up with some
+sort of tree-ish data structure that would remove the copying.
+
+A subderivation depends on its controller environment, so the memo table would
+look like: {(ControllerMap, Tempo) : [Event]}.  I can optimize the common case
+of many derivatinos identical except for tempo offset by memoizing with an
+offset of 0 and just adding the offset to the cached result.  Of course it does
+mean they all have to be copied.
+
+Unfortunately this still seems like it would involve a lot of expensive
+comparisons looking things up in the table (e.g. dense controller curves).
+
+Since I know the region that was edited, maybe I don't need to look in any memo
+tables, I just rederive the modified section and merge it with the existing
+data.

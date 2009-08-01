@@ -1,0 +1,113 @@
+deriver:
+determine scope of controls, and attach notes to the relevant controls
+
+physical:
+(block
+    (vol (sig1))
+    (track1 (note) (note))
+    (vel (sig2))
+    (track2 (note))
+    (vel (sig3) (pitch (sig4)))
+    (track3 (note i1) (note i2)))
+
+graph:
+(block
+    (vol (sig1)
+        (vel (sig2)
+            (track1 notes))
+        (vel (sig3)
+            (track2 notes))
+        (track3 notes)))
+
+split multi-controller tracks, and multi-instrument tracks:
+(block
+    (vol (sig1)
+        (vel (sig2)
+            (track1 notes))
+        (vel (sig3)
+            (pitch (sig4)
+                (track2 pitch-notes))
+            (track2 nonpitch-notes))
+        (track3.i1 notes)
+        (track3.i2 notes)))
+
+
+The deriver gives me a stream of events that have controllers attached
+
+to render: notes in the channel should be non-overlapping
+channel_merge should have
+
+
+channel assignment:
+channels come from the instruments, so
+
+events need IDs anyway!
+control events must be duplicated for each
+
+once events have channels
+
+type Perf = (Instrument.Instrument, Part)
+notes associated with an instrument
+
+(control "pitch"
+    (control "pressure"
+        (track1)
+        (track2)))
+
+every note has its own velocity control
+but many notes may share a single control
+
+also notes may have different sets of controls, e.g. two notes decrescendo, but
+one gets pitch bend
+
+what I should do is say: if two overlapping notes have the same controls, minus
+velocity and keyed aftertouch, merge them into the same channel
+
+so the problem is to determine "same" control
+
+An inefficient but accurate way is to render them down to samples, and compare
+all the samples.
+
+An unclean way is to assign them IDs on creation, and compare IDs, though
+I might be able to accomplish this easily with a number supply in DeriveM,
+it would force everything to be run in the same DeriveM... would it cause
+problems with cached results?
+
+A possibly ok way is to keep the high level curve description and compare the
+breakpoints.  Downsides are that recorded controller data is back to comparing
+samples and any user-supplied interpolators would have to be in Eq.
+
+The nicest way would be to somehow construct the data structure so that shared
+controls are only expressed once.  They're only expressed once in the score, so
+it seems it should be possible.  That would mean controls containing the notes
+or something like ([Note], [Control]), and multiple ones if they don't share
+controls.  E.g., velocity, decresc, but pb on one:
+
+[([notes1], [vel, decresc]), ([notes2], [vel, decresc, pb])]
+
+Note that since decresc is shared but pb is not, the decresc controller must be
+split out.  This seems like kind of an unnatural thing to force on the deriver,
+which would really like to pretend each note has its own address and not be
+dependent on midi limitations.  But is it so hard?  Yes, I don't think this can
+express that velocities should not be shared even though the notes are shared.
+
+Render and compare:
+
+For each note, render out the overlapping controllers.  So now each note is
+(Note, [(Controller, [Sample])]).  Now for each overlapping note, check to see
+if the controllers are equal, and if so, merge the channels and remove the
+controllers from one.  This avoids rendering the samples every time a note
+needs to be compared, but to make comparing [Sample] more efficient I should
+stop comparing (or rendering!) after the note + decay is over.  So every
+instrument needs a decay... and what about instruments with variable decay?
+
+If I compare Signals directly, I can do a cheaper comparison... or not, because
+of recorded controllers.
+
+I think this necessarily involves not emitting controllers for parts where
+I don't think a note is playing, and thus requiring decay_time.  The
+alternative is to render the entire
+
+The signal should control the sampling rate, so Sets get sampled at their exact
+positions, and srate change effects can be applied locally.  But they should
+also have access to the environment's srate to allow for global control.

@@ -77,7 +77,7 @@ the default deriver generate source, which I can then edit, but then you wind
 up with lots of identical generated code.
 
 tempo (sigtrack "track.tempo")
-    [control 
+    [control
 
 layout = UiLayout
 controller_schema = Controller.controller "breath"

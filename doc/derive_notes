@@ -1,0 +1,233 @@
+Internally, the derivation is represented as a "derivation schema" which is
+basically an AST.  It has placeholders for tracks, and at derivation time, each
+placeholder has the track data substituted into it.  Of course, unreferenced
+variables cause an error, and orphaned tracks cause a warning.
+
+If the schema includes rulers then I can generate the track layout from the
+schema, using heuristics to place the dividers consistently.  Rulers could have
+a usable output just like tracks, but I can't really think of any uses for
+rulers in derivation at the moment.  Generating track layout from the schema
+would also be useful for derived blocks.
+
+I could also have functions to generate the schema from a track layout, for
+a basic simple schema.  Presumably you'd use GUI controls to create the tracks,
+generate the schema, print it out, and edit it if you want to add more
+complicated processing.  Of course schema generating functions could also
+generate them from other schemas as templates, or just from arguments as usual.
+
+
+    derivation
+
+The various nodes in the schema are converted into the functions they represent
+and typechecked.  The uppermost node is the "block" and gives the eventual
+output a name, like assigning a variable.  Since blocks can take parameters,
+it's more like defining a function.
+
+The various deriver functions expect a certain number of arguments of certain
+types, and return a set of values.  Many of them (the "behavioural abstraction"
+ones) simply add values to the environment which will affect further derivation
+or rendering.
+
+Instrument nodes take Score type tracks and produce Performance, which is just
+a Score with an associated backend.  Only Performance tracks can be played; the
+data will be passed to the given backend.
+
+Visible derived blocks are implemented as a merge node with an associated
+TrackId.  The output will be merged with the changes in the track and returned.
+
+    types
+
+I'm not sure to what degree types will be formal, or possibly reified into
+haskell.  Static checking would provide errors as soon as the expression is
+submitted (hardcoding into the source at first, and via hs-plugins later), but
+since derivations are evaluated immediately, I don't know if that provides much
+benefit.
+
+Error msgs should be precise, and pinpoint the track area that generated them
+when possible, so hopefully most of the debugging will happen in the haskell
+functions that implement the nodes.
+
+Once I have more info I'll look into applying  GADTs, phantom types, or class
+constraints ala WASH.  I don't want to restrict the nodes to type constructors,
+though, they should be ordinary haskell functions (running in a certain monad).
+
+Pluggable derivations and the closure property requires that newly added types
+and nodes are the same as "built in" ones and require no changes to system
+modules.
+
+Types:
+
+[TrackData] Unevaluated unparsed raw data, basically [(TrackPos, Event)]
+
+[Score] Semi-parsed?  Most data is of the general Score type.  The reason it's
+not more specific is that derivers that don't recognize certain events may pass
+them through, e.g. someone deriving a triplet produces the given notes with no
+further interpretation, and passes through events that don't match its
+syntactic pattern.
+
+If I do have an opportunity for type annotation, it would be to say that it
+fulfills certain properties, such as having all events turned into pitches for
+an instrument track.  I don't know if this is doable or even useful, because
+the renderer will just trip over things it doesn't recognize and throw an error
+anyway.  But "track must be Pitch derived" is a better error than "don't know
+what '4c#' is".
+
+I want to avoid getting order of application problems though, where it's not
+clear who should be interpreted before who (i.e. (twelve . rhythm) or (rhythm
+. twelve)?), or worse, called blocks leading to situations where you have to
+apply the same deriver twice to get everything, i.e. (call (twelve x))
+generates further notes and must wrapped in another twelve.  Perhaps this is
+not such a problem though... I'm just worried about the macro expansion problem
+and shell-ish 7 levels of expansion with random reparsing stuck in the middle.
+
+Also, visible derived tracks require either an inverter function that can take
+e.g. pitches back into events to display, or it can only operate on tracks that
+are purely events.  Midi record requires a similar kind of inverter though.
+
+[Signal] A special kind of Score that only has signal value.  It's conceptually
+a function "TrackPos -> SignalVal" and is interpreted by the backend which will
+sample it.  It'll probably actually be a data structure though, so it can be
+printed nicely, and possibly so it can be rendered more intelligently by
+backends that support it, though I think any tempo map would destroy this
+property.
+
+You would often write a Signal without a track, such as (const x) for many
+functions.
+
+[Performance] Score with an instrument that can be rendered.  It should be
+fully derived at this point, with no remaining uninterpreted events.  I would
+think the instrument would determine the rendering function, but maybe there's
+a reason to render depending on the piece, not the instrument.  Generally all
+the piece-specific stuff would be done during Score derivation.
+
+    derivers
+
+--- Score operation derivers: these operate on "note" tracks, and produce more
+Scores or possibly a Performance.
+
+[instrument :: Instrument -> Score -> Performance]
+Instrument has instrument-specific args and the backend.
+
+[twelve :: Score -> Score {Pitch} ]
+Interpret events like "4c#" and generate pitches in the 12 tone tempered scale.
+In general, "scale" derivers will interpret events in an instrument track and
+convert them into more generic pitches.  Pitches are conceptually frequencies,
+but I keep their scale degrees for accuracy (you can render a tempered pitch as
+an exact midi note with no irrational inexact doubles) and for error reporting
+(it's nicer to get scale-specific msgs than hz for everything).
+
+Perhaps I can say that pitch substitution is the last deriver before the
+instrument, and only pitch events should be left when it sees it, and there
+should be no uninterpreted events after it's done.  If I want to compose pitch
+derivers, I can do so below the deriver level (i.e.  compose the raw
+substitution functions).
+
+Not clear how this works with pitch signal though.
+
+[rhythm :: Score -> Score]
+Interpret a vocabulary of simple rhythmic derivations, such as tuplets: three
+arbitrary events are spaced in equal time.
+
+[call :: Score -> Score]
+Call sub-blocks.  Events marked with another block's name are substituted with
+the given block, stretched according to the event's duration.  Arguments may be
+passed to the block, which substituted into its environment.  This is the way
+larger scale arrangement ("pattern lists") are implemented, as well as
+parameterized sequences like notes with specific envelopes or arpeggiators.
+
+The called "block" doesn't have to be a BlockId, it can also be a function that
+returns Score.
+
+--- Signal derivers.  These work with Signal tracks.
+
+[signal :: TrackData -> Signal]
+Convert raw track data into a Signal.
+
+[add :: Signal -> Signal -> Signal]
+Add two signals.  There is a class of signal modification functions that are
+much like those found in synthesis languages.  The difference is that these
+don't operate on samples, but on functions.  That means that by the time they
+reach the backend they can be rendered at any resolution, and intervening time
+warps won't mess up the sample spacing.
+
+Other members of this class include the usual math operators like subtract,
+multiply, divide, max, min, derivative, integral and so on, and then more
+specific ones like waveshaping (usable for "pitch warp mapping") and whatever
+else I can think of.
+
+
+--- Environment derivers.  These operate on the derivation environment, so they
+apply Scores and Performances uniformly.  They generally take a Signal and
+multiple tracks.  It's important that they apply to both Scores and
+Performances so you can e.g. apply crescendo both within an instrument track
+and to set of instruments.
+
+They tend to have relative and absolute variants.  Relative ones combine with
+signal in the environment, if any, and absolute ones replace the signal in the
+environment.
+
+[controller :: Controller -> Signal -> Score -> Score]
+Modifies the derivation environment.  "Controller" is some abstract parameter
+that often gets mapped to something by the renderer, but can also be
+interpretedby a deriver, e.g. transpose affecting the pitch deriver so it
+transposes by scale degrees.  And of course some Controllers are meant to be
+interpreted by a called function, e.g. random-seed.
+
+[tempo :: Signal -> [Score] -> [Score]]
+Also modifies the derivation environment, to apply a TrackPos warping.  It
+actually multiplies the given Signal with the environment's tempo Signal, so
+it's really a signal processor, as below.
+
+
+--- Performance derivers only operate on Performances.  They do more primitive
+things that require a simple structure.
+
+[par :: Performance -> Performance -> Performance]
+Both Performances are played at once.  Blocks tend to have this around each
+instrument track.
+
+
+    case studies
+
+block "simple single instrument"
+    (midi_instrument "z1" "pluck" (twelve track_id))
+
+pluck = midi_instrument "z1" "pluck"
+block "with velocity track"
+    (controller "velocity" (signal track_id)
+        (pluck (twelve track_id)))
+
+pluck_track = pluck (twelve track_id)
+block "with vel, transpose and tempo"
+    (tempo (signal track_id)
+        (transpose (const 12)
+            (controller "velocity" (signal track_id)
+                pluck)))
+
+block "derived track"
+    (pluck (twelve (merge track_id (rhythm track_id))))
+
+-- Note: (merge pluck_track something) should be a type error, since pluck is
+-- a Performance and you can't turn that back into a Score.
+-- (rhythm (twelve ...)) should also be a problem, since rhythm may produce
+-- additional events that were missed by twelve.
+
+
+    MISC
+
+So with the schema model there's no particular need for the block title or
+track titles.  However, I still think they would be useful in practice.  It
+would be nice to set up a schema skeleton and then add tracks into it
+specifying their function with their name, and have the schema automatically
+rebuilt.  For common usage, that would be easier than editing the schema and
+recompiling... but then I have to merge machine generated and hand generated
+src, which is not simple or pretty.  Maybe I can treat them the same way as
+TrackIds, and make them constant args for derivers.
+
+And what about the default arg ideas?  How do I support multiple instruments in
+a track, multiple controllers in a track, etc.?
+
+I still don't have a good idea of pitch control.  It should presumably go into
+the pitch / instrument track.  Come up with a good notation, and then how to
+work that into the deriver.  The results are also different if the signal
+interpolation is done to the scale pitch, or to the hz.

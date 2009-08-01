@@ -1,0 +1,22 @@
+The patchdb is a keyword oriented database for finding instruments quickly.
+
+It has a crawl part and a search part:
+
+    Crawl
+
+The crawl reads from files of various types: seq instrument descriptions, maybe
+wav samples + metadata, NI sound files, etc.  It extracts metadata from the
+file in the form of (k, v) pairs, and adds it to the db.  It uses rsync style
+checksums to avoid extracting from unchanged files.
+
+    Search
+
+This has a simple query language to do a fast search on the db.  It gives you
+a list of results, and when you select one, emits a result-specific "show"
+action, which may just be text descriptions ("set up the synth like this"), or
+emit midi sysex / patch changes, or whatever.
+
+
+It could equally well index mp3s or pictures or whatever.
+
+The DB is sqlite, if I can get away with it.

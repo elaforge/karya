@@ -127,4 +127,4 @@ track represent notes played on that instrument.  Tracks to the right of the
 note track represent controllers that affect (or effect) the notes to their
 left.
 
-The intention is to use 
+The intention is to use

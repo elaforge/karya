@@ -1,0 +1,125 @@
+The ScaleMap is defined in Derive.Scale, and as with other namespaces like the
+SchemaMap, it's a hardcoded map merged with a local static config one.
+
+
+    0 Parse a note event into a Pitch (ScaleId, Degree)
+
+Scale degrees can't be globally unique, since many scales use numbers.
+But they also can't be qualified in the event since it would be too cluttered.
+
+Should be able to:
+- take a standard midi instrument and play it in whatever scale
+- switch between scales
+- call drums by their names
+
+If I say each instrument has one scale, then I can do this by switching
+instruments.  It means I need a local config for instruments, but I want that
+anyway for aliases.  An ad-hoc way would be
+{alias: (Maybe ScaleId, Instrument)}.  If the ScaleId is Nothing, then the
+default scale of the Instrument is used.
+
+
+    1 Entering the events
+
+I need to know which scale, so I can map KeyNumber -> Pitch on entry.  If
+each instrument has one scale, this means I need to be able to quickly find the
+instrument at a given TrackPos, which in turn means I need to either have only
+one instrument per track and look in the track header, or I need a special
+instrument track which will make it quick to look for the previous instrument
+set.
+
+Is all of this worth a whole new track type?  In favor, it seems likely that
+there are other reasons to want to know the current instrument.  For instance,
+sending MIDI thru, I need the scale and pitch bend range.  It would also be
+easier to edit than lots of ;s when I am switching instruments a lot, which is
+quite useful in trackers.
+
+Also it seems like it should be not too hard to add a new track type, since
+there may be other uses for a special track.  Maybe I can look up their schema
+based on the header.  Well, I already do that, but in a more regular and
+extendable way.
+
+So yes to adding an instrument track type.  To support this I should also have
+a per-song instrument alias table.  Since instruments have to be globally
+unique, they have long names, but within a song it's nice to have short names
+for them.
+
+
+    2 Relative note transposition
+
+If I set a pitch in a certain scale and call an ornament that uses a relative
+pitch curve, they should be added according to the rules of the scale.
+
+Currently, NoteNumbers are looked up when the pitch controller is created.
+This means transposition on non-tempered scales doesn't work.  In the future, I
+should keep the pitch signal as [(TrackPos, Method, Pitch)].  I think this is orthogonal to all of the above though, it would just shift extract_pitch_signal
+down to right before conversion.
+
+How to combine such signals?  A relative pitch curve should use relative units,
+which would look like (octave::Int, degree::Double).  These can be applied to
+any scale by calling its transpose methods.
+
+
+    3 Map Pitches to NoteNumbers
+
+This is backend-specific, and I'm only thinking about MIDI at the moment.  This
+depends on the Scale of course, but also on the instrument.  E.g. an instrument
+sampled in a scale.  Instruments with pengumbang or pengisep can use this to
+apply an absolute offset to the scale's NoteNumber.
+
+Scales have a scale_to_nn function, but this also depends on the instrument:
+
+> Instrument -> Scale -> (Note -> Maybe NoteNumber)
+
+So to support this, I put an inst_to_nn field in Instrument:
+
+> inst_to_nn :: ScaleId -> Maybe ToNN
+
+> to_nn inst scale = case inst_to_nn (scale_id scale) of
+>   Nothing -> scale_to_nn scale
+>   Just to_nn -> to_nn
+
+Now extract_pitch_signal needs to know the current instrument, but I think this
+shouldn't be too hard.
+
+
+scratch
+----------------------------------------------------------------------
+
+
+-- Should every scale degree be unique, or should I have scale areas?
+-- Unique would make mixed scales clearer... but will I be doing that?
+-- 0p1 0p5 5p4
+-- It means an additional check at the beginning for overlapping scale names.
+--
+-- Some instruments should have different meaning for the same scale, e.g.
+-- pengisep / pengumbang.
+--
+-- Or I could always attach the scale to the instrument and then have separate
+-- instruments, but it seems more flexible to have the scale distinct.
+--
+-- But then some instruments definitely have a scale attached: e.g. drumsets
+--
+-- Ok, so how about each instrument has a scale, which can be attached via
+-- the song config (I have to either require static config for each song, or
+-- have a scale override map in ui state).  An instrument can have "multiple"
+-- scales by just having a merged scale.  That way unique degrees are enforced
+-- by the merge function.
+--
+-- So how this is actually implemented is instruments have their own event
+-- parser.  ;s are split by the track deriver, but then the parts are passed to
+-- the instrument parser.  Most will use the default parser, which takes
+-- a degree parser arg.  Most of the degree parsers will be the default, which
+-- takes a list of scales and looks up the degree in one of those.
+-- Editing also needs to know what a scale degree is, for backspace.  So the
+-- instrument also has an "is scale degree" predicate.
+-- Derivers and Cmds need to be able to look up the instrument in effect even
+-- if the current event changes the instrument.
+--
+-- Ok, so that's kind of icky.  How about degrees are always like *5#- so the
+-- Cmd doesn't need to look up degrees.  Except it still does to enter the
+-- things.  Ok, so how about degree is determined by the instrument in the track
+-- header, period.
+--
+-- Otherwise, I need track "commands" to set scale (pretty sure I need this
+-- anyway).  I need a default for instruments anyway for drumsets.

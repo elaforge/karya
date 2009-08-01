@@ -1,18 +1,17 @@
-suggestions for renoise:
+I actually wrote up these suggestions a year or so ago when I first looked at
+renoise.
+
+Getting rid of ticks, easier access to sub-line resolution,
 
     Pitch Bend
 
-Let the normal pitch effects send midi pitch bend.  What's more, you
-can make "portamento" (05) work in midi if you know the pitch bend range of the
-midi instrument.  Unfortunately many synths max out at 12 semitones, but some
-go up to 48 or even 96.  The rationale is that the tracker style pitch bend is
-much easier to use than entering a stream of 14-bit numbers!  What's more, I
-think tracker portamento is one of the most expressive techniques out there,
-and the midi equivalent (turn on the "mono synth mode" and mess with the
-portamento speed CC) is made so awkward by sequencers.  Non-retriggering
-trills, swoopy leads, 
+Let the normal pitch effects send midi pitch bend.  What's more, you can make
+"portamento" (05) work in midi if you know the pitch bend range of the midi
+instrument.  Just type it in the midi instrument panel.  Unfortunately many
+synths max out at 12 semitones, but some go up to 48 or even 96.  Tracker style
+pitch bend is much easier to use than entering a stream of 14-bit numbers!
 
-A midi note with a 05xx on it would not send a new note on, but send pitch bend 
+A midi note with a 05xx on it would not send a new note on, but send pitch bend
 to approach the target note at rate xx.  If that goes out of the 14-bit range
 according to the pitch-bend range setting for this instrument, it just clips.
 This also means that the first note without a 05xx effect on it will have to
@@ -21,13 +20,40 @@ send a pitch-bend reset right before the note.
 As an alternate implementation which would work for synths with narrow pitch
 bend range would be that 05xx sends a portamento speed CC of xx and sends the
 previous note off slightly after this note's note on, for that fingered
-portamento thing.
+portamento thing.  The problem is that each synth has its own idea of how fast
+05 values are so you'd have to fiddle with the numbers to get the right speed.
+
+My tracker does the first one so I know it's not too hard to do.  In addition,
+mine does a thing where you can multiplex a single instrument across multiple
+midi channels, and it will distribute them based on whether or not they share
+controller curves.  This way you can pitch bend a single note out of a chord
+without having to keep track of the midi channel allocation manually.
+
+I would actually suggest generalizing this to
+
+    Zoom
+
+The line-oriented tracker resolution is outdated, and becomes awkward when you
+want to mix high and low speeds, have natural rythms, or polyrhythms.  Having
+to make *everything* stretched out just because one track needs high
+resolution is bogus.  You can improve this a lot relatively easily with a zoom
+feature.  You would have to be able to zoom at various ratios, so 2x would
+"split" every line into two, and 3x into three, etc.  When you zoom back out
+they turn into delay column values.  What about multiple notes per line?
+I suggest displaying the first one with a red highlight to indicate that there
+are multiple notes in this row.  This would also obsolete awkward hacks like
+sub-line retrigger.
+
+    bugs?
+
+In OS X symlinks aren't visible in the file browser.  This makes it pretty
+awkward for people who organize their stuff with symlinks.
 
 
     Controllers
 
 Editing controller data in the track.  If this were implemented, you could put
-the automation curves directly into the tracks.  You could also implement the 
+the automation curves directly into the tracks.  You could also implement the
 volume and pitch slide effects with it.
 
 A special command sets the controller track to control given parameter.  The
@@ -143,7 +169,7 @@ implement "render this selection in csound, reload as a sample, in a new
 column, mute original notes.
 
 If this was, say, XML RPC over a socket, you could implement these plugins in
-any language you choose.  You've already got a start on this with the 
+any language you choose.  You've already got a start on this with the
 
 From there it's an easy step to bind an arbitrary keystroke to an RPC call, and
 this would obsolete all the traditional ad hoc tracker commands like
