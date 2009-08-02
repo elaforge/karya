@@ -6,7 +6,6 @@
 bugs:
   - when I do just space, I get "keyup not in modifiers"
 
-- hspp for Derive.warn and Derive.throw
 - support for Schema.default_scale, esp since it gets automatically added
 - kill skeleton instruments
 

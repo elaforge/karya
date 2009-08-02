@@ -44,6 +44,7 @@ import qualified Data.Set as Set
 import qualified Util.Control
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
+import qualified Util.SrcPos as SrcPos
 
 import Ui.Types
 import qualified Ui.Block as Block
@@ -160,14 +161,16 @@ initial_warp = make_warp (Signal.signal [(0, 0),
 make_warp :: Signal.Signal -> Warp
 make_warp sig = Warp sig (TrackPos 0) (TrackPos 1)
 
-data DeriveError = DeriveError [Warning.StackPos] String deriving (Eq)
+data DeriveError = DeriveError SrcPos.SrcPos [Warning.StackPos] String
+    deriving (Eq)
 instance Error.Error DeriveError where
-    strMsg = DeriveError []
+    strMsg = DeriveError Nothing []
 instance Show DeriveError where
-    show (DeriveError stack msg) =
-        "<DeriveError at " ++ Log.show_stack stack ++ ": " ++ msg ++ ">"
+    show (DeriveError srcpos stack msg) =
+        "<DeriveError " ++ SrcPos.show_srcpos srcpos ++ " "
+        ++ Log.show_stack stack ++ ": " ++ msg ++ ">"
 
-error_message (DeriveError _ s) = s
+error_message (DeriveError _ _ s) = s
 
 instance Monad m => Log.LogMonad (DeriveT m) where
     write = DeriveT . lift . lift . Log.write
@@ -278,10 +281,13 @@ with_event event = local state_stack
 -- ** errors
 
 throw :: (Monad m) => String -> DeriveT m a
-throw msg = do
+throw = throw_srcpos Nothing
+
+throw_srcpos :: (Monad m) => SrcPos.SrcPos -> String -> DeriveT m a
+throw_srcpos srcpos msg = do
     stack <- fmap state_stack get
     context <- fmap state_log_context get
-    Error.throwError (DeriveError stack (_add_context context msg))
+    Error.throwError (DeriveError srcpos stack (_add_context context msg))
 
 with_msg :: (Monad m) => String -> DeriveT m a -> DeriveT m a
 with_msg msg = local state_log_context
@@ -291,14 +297,18 @@ with_msg msg = local state_log_context
 -- | Catch DeriveErrors and convert them into warnings.  If an error is caught,
 -- return Nothing, otherwise return Just op's value.
 catch_warn :: (Monad m) => DeriveT m a -> DeriveT m (Maybe a)
-catch_warn op = Error.catchError (fmap Just op) $ \(DeriveError stack msg) ->
-        Log.warn_stack stack msg >> return Nothing
+catch_warn op = Error.catchError (fmap Just op) $
+    \(DeriveError srcpos stack msg) ->
+        Log.warn_stack_srcpos srcpos stack msg >> return Nothing
 
 warn :: (Monad m) => String -> DeriveT m ()
-warn msg = do
+warn = warn_srcpos Nothing
+
+warn_srcpos :: (Monad m) => SrcPos.SrcPos -> String -> DeriveT m ()
+warn_srcpos srcpos msg = do
     stack <- fmap state_stack get
     context <- fmap state_log_context get
-    Log.warn_stack stack (_add_context context msg)
+    Log.warn_stack_srcpos srcpos stack (_add_context context msg)
 
 _add_context [] s = s
 _add_context context s = Seq.join "/" context ++ ": " ++ s

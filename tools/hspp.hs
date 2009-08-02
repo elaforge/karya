@@ -12,11 +12,12 @@ import qualified Text.Regex as Regex
 global_subs = map (\s -> (s, s++"_srcpos"))
     [ "Log.msg", "Log.debug", "Log.notice", "Log.warn", "Log.error", "Log.timer"
     , "Log.debug_stack", "Log.notice_stack", "Log.warn_stack", "Log.error_stack"
+    , "Derive.throw", "Derive.warn"
     ]
 
 -- These are only substituted in test modules.
 test_subs = map (\s -> (s, s++"_srcpos"))
-    ["equal", "io_human", "throws", "check", "check_msg"]
+    ["equal", "strings_like", "io_human", "throws", "check", "check_msg"]
 
 main = do
     args <- System.Environment.getArgs

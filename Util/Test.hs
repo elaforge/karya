@@ -151,12 +151,12 @@ pmlist msg xs = putStrLn (msg++":") >> plist xs
 -- | Print a msg with a special tag indicating a passing test.
 success :: SrcPos.SrcPos -> String -> IO ()
 success srcpos msg =
-    hPrintf IO.stdout "++-> %s- %s\n" (SrcPos.show_srcpos srcpos) msg
+    hPrintf IO.stdout "++-> %s - %s\n" (SrcPos.show_srcpos srcpos) msg
 
 -- | Print a msg with a special tag indicating a failing test.
 failure :: SrcPos.SrcPos -> String -> IO ()
 failure srcpos msg =
-    hPrintf IO.stdout "__-> %s- %s\n" (SrcPos.show_srcpos srcpos) msg
+    hPrintf IO.stdout "__-> %s - %s\n" (SrcPos.show_srcpos srcpos) msg
 
 -- getChar with no buffering
 human_getch :: IO Char

@@ -143,8 +143,6 @@ import qualified Cmd.Msg as Msg
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Timestamp as Timestamp
 
-import qualified Util.Log as Log
-
 {- TODO
 with_midi generates ReadMessages, which go to thru
 with_note generates Notes, which go to PitchTrack editing stuff

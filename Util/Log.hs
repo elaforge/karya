@@ -175,7 +175,7 @@ format_msg (Msg { msg_date = _date, msg_caller = srcpos, msg_prio = prio
     msg ++ maybe "" ((' ':) . show_stack) stack
     where
     prio_stars prio = replicate (fromEnum prio + 1) '*'
-    msg = printf "%-4s %s- %s"
+    msg = printf "%-4s %s - %s"
         (prio_stars prio) (SrcPos.show_srcpos srcpos) text
 
 show_stack :: Warning.Stack -> String

@@ -8,8 +8,6 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.Midi.Controller as Controller
 import qualified Perform.Midi.Instrument as Instrument
 
-import qualified Util.Log as Log
-
 
 -- | Send midi thru, remapping notes and controllers to the given Addr.
 -- NoteOns and NoteOffs are remapped based on the scale.
