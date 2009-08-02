@@ -8,7 +8,7 @@ import Ui.Types
 import qualified Ui.Block as Block
 import qualified Ui.Id as Id
 import qualified Ui.State as State
-import qualified Ui.TestSetup as TestSetup
+import qualified Ui.UiTest as UiTest
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Clip as Clip
@@ -18,14 +18,14 @@ import qualified Cmd.CmdTest as CmdTest
 import qualified App.Config as Config
 
 
-run = TestSetup.run State.empty
+run = UiTest.run State.empty
 
-(empty_track_ids, empty_state) = run $ TestSetup.mkstate_view
-    TestSetup.default_block_name
+(empty_track_ids, empty_state) = run $ UiTest.mkstate_view
+    UiTest.default_block_name
     [("t1", []), ("t2", [])]
 
-(events_track_ids, events_state) = run $ TestSetup.mkstate_view
-    TestSetup.default_block_name
+(events_track_ids, events_state) = run $ UiTest.mkstate_view
+    UiTest.default_block_name
     [ ("t1", track1_events)
     , ("t2", track2_events)
     ]
@@ -36,7 +36,7 @@ track2_events = [(1, 2, "e21"), (5, 2, "e22")]
 to_simple :: [(TrackPos, TrackPos, String)] -> [Simple.Event]
 to_simple = map (\(pos, dur, text) -> (realToFrac pos, realToFrac dur, text))
 
-(clip_track_ids, clip_state) = run $ TestSetup.mkstate_id
+(clip_track_ids, clip_state) = run $ UiTest.mkstate_id
     clip_id
     [ ("t1", [(0, 2, "c1"), (4, 2, "c2")]) ]
 
@@ -55,7 +55,7 @@ state_val (_, state, _) = state
 
 default_cmd_state = Cmd.empty_state
     { Cmd.state_clip_namespace = clip_ns
-    , Cmd.state_focused_view = Just TestSetup.default_view_id
+    , Cmd.state_focused_view = Just UiTest.default_view_id
     }
 
 -- TODO there's no reason for this to be in IO
@@ -72,11 +72,11 @@ extract_events (_, _, tracks) = map (\(_, _, a) -> a) tracks
 mksel a b c d = Just (Block.Selection a b c d)
 
 run_sel ustate sel cmd = run_io ustate $ do
-    State.set_selection TestSetup.default_view_id Config.insert_selnum sel
+    State.set_selection UiTest.default_view_id Config.insert_selnum sel
     cmd
 
 set_sel sel = State.set_selection
-    TestSetup.default_view_id Config.insert_selnum sel
+    UiTest.default_view_id Config.insert_selnum sel
 
 -- * copy
 
@@ -122,7 +122,7 @@ valid_state state = (null msgs, show msgs)
 -- * paste
 
 run_paste state sel cmd = fmap
-    (extract_events . state_val . extract_block TestSetup.default_block_id)
+    (extract_events . state_val . extract_block UiTest.default_block_id)
     (run_sel state sel cmd)
 
 test_cmd_paste_overwrite = do

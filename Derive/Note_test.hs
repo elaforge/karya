@@ -9,7 +9,7 @@ import qualified Util.Log as Log
 
 import Ui.Types
 import qualified Ui.State as State
-import qualified Ui.TestSetup as TestSetup
+import qualified Ui.UiTest as UiTest
 
 import qualified Derive.Derive_test as Derive_test
 import qualified Derive.Note as Note
@@ -76,16 +76,16 @@ test_derive_notes = do
     let mkevt (pos, dur, text) = (event, parsed)
             where
             (parsed, _) = Note.parse_note Nothing no_attrs "" text
-            event = TestSetup.mkevent (pos, dur, text)
+            event = UiTest.mkevent (pos, dur, text)
         run evts = (map extract_event sevts, map extract_log logs)
             where
             (sevts, logs) =
                 Derive_test.derive_events_lookup lookup ui_state deriver
             deriver = Note.derive_notes (map mkevt evts)
             lookup = lookup_deriver d_fake_sub
-            (_, ui_state) = TestSetup.run State.empty $ do
-                TestSetup.mkstate sub_name [(">", [(0, 1, "")])]
-                TestSetup.mkstate "b1" [(">", evts)]
+            (_, ui_state) = UiTest.run State.empty $ do
+                UiTest.mkstate sub_name [(">", [(0, 1, "")])]
+                UiTest.mkstate "b1" [(">", evts)]
             extract_log msg = (Log.msg_text msg, Log.msg_stack msg)
 
     equal (run []) ([], [])
@@ -117,7 +117,7 @@ d_fake_sub = do
         (Derive.state_instrument st) (Derive.state_attributes st)]
 
 mkstack :: [(String, Maybe (TrackPos, TrackPos))] -> Warning.Stack
-mkstack = map $ \(bid, pos) -> (TestSetup.bid bid, Nothing, pos)
+mkstack = map $ \(bid, pos) -> (UiTest.bid bid, Nothing, pos)
 
 -- | Events aren't in Eq, so extract the bits I want to test.
 extract_event e = (Score.event_start e, Score.event_duration e,
@@ -127,5 +127,5 @@ extract_event e = (Score.event_start e, Score.event_duration e,
 sub_name = "sub"
 
 lookup_deriver deriver block_id
-    | block_id == TestSetup.bid sub_name = Right deriver
+    | block_id == UiTest.bid sub_name = Right deriver
     | otherwise = Left (State.StateError "not found")

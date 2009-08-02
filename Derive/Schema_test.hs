@@ -10,7 +10,7 @@ import qualified Ui.Block as Block
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
-import qualified Ui.TestSetup as TestSetup
+import qualified Ui.UiTest as UiTest
 import qualified Ui.Track as Track
 
 import qualified Derive.Derive as Derive
@@ -23,7 +23,7 @@ import qualified Perform.Signal as Signal
 import qualified Perform.Midi.Instrument as Instrument
 
 
-mkid = TestSetup.mkid
+mkid = UiTest.mkid
 
 ruler = Schema.Track Nothing (Block.RId (Ruler.RulerId (mkid "ruler"))) 0
 tid id = Block.TId (Track.TrackId (mkid id)) (Ruler.RulerId (mkid "r1"))
@@ -126,7 +126,7 @@ derive_with_pitch compiler pitch_track = (res, map Log.msg_text logs)
         state True (Derive_test.setup_deriver (compiler skel))
     mkstate_with_pitch pitch_track = (state, get_skel state)
         where
-        (_tids, state) = TestSetup.run_mkstate
+        (_tids, state) = UiTest.run_mkstate
             [ ("tempo", [(0, 0, "2")])
             , (">inst0", [(0, 5, ""), (10, 5, ""), (20, 5, "")])
             , ("c1", [(0, 0, "3"), (10, 0, "2"), (20, 0, "1")])

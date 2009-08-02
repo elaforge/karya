@@ -15,7 +15,7 @@ import qualified Ui.Block as Block
 import qualified Ui.BlockC as BlockC
 import qualified Ui.Track as Track
 
-import qualified Ui.TestSetup as TestSetup
+import qualified Ui.UiTest as UiTest
 
 
 initialize f = do
@@ -75,9 +75,9 @@ test_scroll_zoom = do
 
 test_set_selection = do
     view <- create_empty_view
-    let ruler = TestSetup.mkruler 20 10
+    let ruler = UiTest.mkruler 20 10
     send $ BlockC.insert_track view 1
-        (Block.T event_track_1 (TestSetup.overlay_ruler ruler)) no_samples 30
+        (Block.T event_track_1 (UiTest.overlay_ruler ruler)) no_samples 30
     let c = Color.lighten 0.5 Color.blue
     io_human "point selection appears" $
         send $ BlockC.set_selection view 0
@@ -102,7 +102,7 @@ test_set_track_width = do
 
 test_set_model_config = do
     view <- create_empty_view
-    let config = TestSetup.default_block_config
+    let config = UiTest.default_block_config
 
     -- block config
     io_human "track box turns red" $
@@ -131,25 +131,25 @@ test_set_title = do
 
 test_update_track = do
     view <- create_empty_view
-    let ruler = TestSetup.mkruler 20 10
-    send $ BlockC.insert_track view 0 (Block.D TestSetup.default_divider)
+    let ruler = UiTest.mkruler 20 10
+    send $ BlockC.insert_track view 0 (Block.D UiTest.default_divider)
         no_samples 5
     send $ BlockC.insert_track view 1 (Block.R ruler) no_samples 30
     send $ BlockC.insert_track view 2
-        (Block.T event_track_1 (TestSetup.overlay_ruler ruler)) no_samples 30
-    send $ BlockC.insert_track view 1 (Block.D TestSetup.default_divider)
+        (Block.T event_track_1 (UiTest.overlay_ruler ruler)) no_samples 30
+    send $ BlockC.insert_track view 1 (Block.D UiTest.default_divider)
         no_samples 10
 
     io_human "ruler gets wider, both events change" $ do
         send $ BlockC.update_entire_track view 1
-            (Block.R (TestSetup.mkruler 20 16)) no_samples
+            (Block.R (UiTest.mkruler 20 16)) no_samples
         send $ BlockC.update_track view 2
-            (Block.T event_track_2 (TestSetup.overlay_ruler ruler))
+            (Block.T event_track_2 (UiTest.overlay_ruler ruler))
             no_samples (TrackPos 0) (TrackPos 60)
 
 test_insert_remove_track = do
     view <- create_empty_view
-    let ruler = TestSetup.mkruler 20 10
+    let ruler = UiTest.mkruler 20 10
     io_human "new event track" $
         send $ BlockC.insert_track view 1
             (Block.T event_track_1 ruler) no_samples 30
@@ -178,17 +178,17 @@ samples = Track.samples $ map (Arrow.first TrackPos)
 
 -- setup
 
-event_track events = Block.T events TestSetup.no_ruler
+event_track events = Block.T events UiTest.no_ruler
 
-long_event_track = TestSetup.mktrack
+long_event_track = UiTest.mktrack
     ("long", [(0, 16, "hi"), (400, 32, "there")])
-event_track_1 = TestSetup.mktrack ("1", [(0, 16, "hi"), (30, 32, "there")])
-event_track_2 = TestSetup.mktrack ("2", [(16, 10, "ho"), (30, 32, "eyo")])
+event_track_1 = UiTest.mktrack ("1", [(0, 16, "hi"), (30, 32, "there")])
+event_track_2 = UiTest.mktrack ("2", [(16, 10, "ho"), (30, 32, "eyo")])
 
 create_empty_view = do
-    let view_id = Block.ViewId (TestSetup.mkid "default")
-    send $ BlockC.create_view view_id "some title" TestSetup.default_rect
-        TestSetup.default_view_config TestSetup.default_block_config
+    let view_id = Block.ViewId (UiTest.mkid "default")
+    send $ BlockC.create_view view_id "some title" UiTest.default_rect
+        UiTest.default_view_config UiTest.default_block_config
     return view_id
 
 no_samples = Track.samples []

@@ -3,7 +3,6 @@ import Util.Test
 
 import qualified Ui.Block as Block
 import qualified Ui.Key as Key
-import qualified Ui.State as State
 
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Msg as Msg

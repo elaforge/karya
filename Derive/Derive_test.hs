@@ -17,7 +17,7 @@ import qualified Ui.Block as Block
 import qualified Ui.Track as Track
 import qualified Ui.State as State
 
-import qualified Ui.TestSetup as TestSetup
+import qualified Ui.UiTest as UiTest
 
 import qualified Midi.Midi as Midi
 import qualified Instrument.MidiDb as MidiDb
@@ -45,12 +45,12 @@ import qualified Perform.Midi.Perform as Perform
 -- Inspect the final state after running a derivation.
 -- TODO what useful tests is this performing?
 test_derive_state = do
-    let ui_state = snd $ TestSetup.run_mkstate
+    let ui_state = snd $ UiTest.run_mkstate
             [ ("tempo", [(0, 0, "2")])
             , (">1", [(0, 16, ""), (16, 16, "")])
             , ("cont", [(0, 0, "1"), (16, 0, "i.75"), (32, 0, "i0")])
             ]
-    let skel = fst $ TestSetup.run ui_state $ do
+    let skel = fst $ UiTest.run ui_state $ do
             block <- State.get_block block_id
             skel <- Schema.get_skeleton default_schema_map block
             return skel
@@ -70,11 +70,11 @@ test_derive_state = do
 
 
 test_subderive = do
-    let bid = TestSetup.bid "b0"
-    let ui_state = snd $ TestSetup.run State.empty $ do
-            tids1 <- TestSetup.mkstate "sub"
+    let bid = UiTest.bid "b0"
+    let ui_state = snd $ UiTest.run State.empty $ do
+            tids1 <- UiTest.mkstate "sub"
                 [ (">i2", [(1, 1, "--sub1")]) ]
-            tids2 <- TestSetup.mkstate "b0"
+            tids2 <- UiTest.mkstate "b0"
                 [ ("tempo", [(0, 0, "2")])
                 , (">i1", [(0, 8, "--b1"), (8, 8, "sub"), (16, 1, "blub")])
                 , ("cont", [(0, 0, "1"), (16, 0, "i0")])
@@ -84,10 +84,10 @@ test_subderive = do
     let (Right events, tempo, inv_tempo, logs, state) =
             Derive.derive look ui_state False (Derive.d_block bid)
 
-    let b0 pos = (TestSetup.bid "b0",
-            [(TestSetup.tid ("b0.t"++show n), TrackPos pos) | n <- [ 1, 2, 0]])
+    let b0 pos = (UiTest.bid "b0",
+            [(UiTest.tid ("b0.t"++show n), TrackPos pos) | n <- [ 1, 2, 0]])
         sub pos =
-            (TestSetup.bid "sub", [(TestSetup.tid "sub.t0", TrackPos pos)])
+            (UiTest.bid "sub", [(UiTest.tid "sub.t0", TrackPos pos)])
     equal (extract_events events) [(0, 4, "--b1"), (6, 2, "--sub1")]
 
     strings_like (map Log.msg_text logs) ["error sub-deriving.*test/blub"]
@@ -115,7 +115,7 @@ basic_deriver note_tid pitch_tid =
 test_basic = do
     -- verify the three phases of derivation
     -- 1: derivation to score events
-    let (tids, ui_state) = TestSetup.run_mkstate
+    let (tids, ui_state) = UiTest.run_mkstate
             [ ("> +a1", [(0, 16, "+a0"), (16, 16, "+a2")])
             , ("*twelve", [(0, 16, "4c-"), (16, 16, "4c#")])
             ]
@@ -151,7 +151,7 @@ extract_perf_event (Perform.Event inst start dur controls stack) =
     ( Instrument.inst_name inst, fmap ks_name (Instrument.inst_keyswitch inst)
     , start, dur, controls, stack)
 mkstack = map (\(bid, tid, pos) ->
-    (TestSetup.bid bid, Just (TestSetup.tid tid), Just pos))
+    (UiTest.bid bid, Just (UiTest.tid tid), Just pos))
 
 
 -- | Slightly more complicated with pitch and mod controller tracks.
@@ -166,7 +166,7 @@ controller_deriver note_tid pitch_tid cont_tid cont_name =
     d_cont_track = Controller.d_controller_track
 
 test_controller = do
-    let (tids, ui_state) = TestSetup.run_mkstate
+    let (tids, ui_state) = UiTest.run_mkstate
             [ (">", [(0, 1, "+a1"), (1, 1, "+a2")])
             , ("*twelve", [(0, 1, "4c-"), (1, 1, "4c#")])
             , (c_mod, [(0, 0, "1"), (1, 0, "i.75"), (2, 0, "i0")])
@@ -192,7 +192,7 @@ test_controller = do
 
 test_make_inverse_tempo_func = do
     -- This is actually also tested in test_subderive.
-    let track_id = Track.TrackId (TestSetup.mkid "warp")
+    let track_id = Track.TrackId (UiTest.mkid "warp")
         warp = Derive.make_warp (Derive.tempo_to_warp (Signal.constant 2))
         track_warps = [Derive.TrackWarp
             (TrackPos 0) (TrackPos 2) block_id [track_id] warp]
@@ -210,13 +210,13 @@ tempo_deriver sig_tid tempo note_tid pitch_tid vel_tid = do
         controller_deriver note_tid pitch_tid vel_tid "velocity"
 
 test_tempo = do
-    let (tids, state) = TestSetup.run_mkstate
+    let (tids, state) = UiTest.run_mkstate
             [ (">", [(0, 10, "--1"), (10, 10, "--2"), (20, 10, "--3")])
             , ("*twelve", [(0, 10, "5a-"), (10, 10, "5b-"), (20, 10, "5c-")])
             , ("1", [(0, 10, ".1"), (10, 10, ".2"), (20, 10, ".4")])
             ]
         mkderiver sig = tempo_deriver
-            (Track.TrackId (TestSetup.mkid "b0.tempo")) (mksignal sig)
+            (Track.TrackId (UiTest.mkid "b0.tempo")) (mksignal sig)
             (tids!!0) (tids!!1) (tids!!2)
         floor_event (start, dur, text) = (floor start, floor dur, text)
         derive_with sig = extract_events events
@@ -262,14 +262,14 @@ run ui_state m =
         (Right val, state, logs) -> Right (val, state, logs)
     where
     -- Good to have a minimal fake stack so there someplace to put trackpos.
-    fake_stack = [(TestSetup.bid "blck", Just (TestSetup.tid "trck"), Nothing)]
+    fake_stack = [(UiTest.bid "blck", Just (UiTest.tid "trck"), Nothing)]
     derive_state = (Derive.initial_state ui_state
         (Schema.lookup_deriver default_schema_map ui_state) False)
             { Derive.state_stack = fake_stack }
 
 perform = Perform.perform default_chan_map default_lookup default_inst_config
 
-block_id = TestSetup.default_block_id
+block_id = UiTest.default_block_id
 
 c_mod = Midi.Controller.c_mod
 

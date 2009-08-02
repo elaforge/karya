@@ -13,7 +13,6 @@ bugs:
 - ^C should quit everything
 - cmd-q should also quit entirely not just close the windows
 - fix logview
-- rename Ui.TestSetup -> Ui.UiTest
 - fix Signal_test
 
 bug haskell-cafe:
@@ -112,6 +111,7 @@ display signal:
   most derivers should be able to get that from the Skeleton
 
 ****
+- switch to darcs hashed repo format
 
 bugs
   * when replacing rulers, the track widths are lost

@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -fno-warn-unused-imports #-}
-module Ui.TestSetup where
+module Ui.UiTest where
 
 import Control.Monad
 import qualified Control.Monad.Identity as Identity

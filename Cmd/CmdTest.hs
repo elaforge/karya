@@ -8,7 +8,7 @@ import qualified Midi.Midi as Midi
 import qualified Ui.Key as Key
 import qualified Ui.State as State
 import qualified Ui.UiMsg as UiMsg
-import qualified Ui.TestSetup as TestSetup
+import qualified Ui.UiTest as UiTest
 
 import qualified Cmd.Simple as Simple
 import qualified Cmd.Cmd as Cmd
@@ -18,8 +18,8 @@ import qualified Perform.Timestamp as Timestamp
 
 import qualified App.Config as Config
 
-default_block_id = TestSetup.default_block_id
-default_view_id = TestSetup.default_view_id
+default_block_id = UiTest.default_block_id
+default_view_id = UiTest.default_view_id
 
 -- | Run a cmd and return everything you could possibly be interested in.
 -- Will be Nothing if the cmd aborted.
@@ -33,27 +33,27 @@ run ustate cstate cmd = case Cmd.run_id ustate cstate cmd of
             Right (val, ui_state2, cmd_state2, logs)
 
 with_sel sel cmd = do
-    State.set_selection TestSetup.default_view_id Config.insert_selnum sel
+    State.set_selection UiTest.default_view_id Config.insert_selnum sel
     Cmd.modify_state $ \st ->
-        st { Cmd.state_focused_view = Just TestSetup.default_view_id }
+        st { Cmd.state_focused_view = Just UiTest.default_view_id }
     cmd
 
 -- | Run cmd with the given tracks, and return the resulting tracks.
-run_tracks :: [TestSetup.TrackSpec] -> Cmd.CmdT Identity.Identity a
+run_tracks :: [UiTest.TrackSpec] -> Cmd.CmdT Identity.Identity a
     -> Either String (Maybe a, [(String, [Simple.Event])], [String])
 run_tracks track_specs cmd =
     case run ustate cstate cmd of
-        Right (val, ustate2, cstate2, logs) ->
+        Right (val, ustate2, _cstate2, logs) ->
             Right (val, extract_tracks ustate2, map Log.msg_text logs)
         Left err -> Left (show err)
     where
     cstate = cmd_state
-    (_, ustate) = TestSetup.run_mkview track_specs
+    (_, ustate) = UiTest.run_mkview track_specs
 
 extract_tracks ustate = map (\(_, title, events) -> (title, events)) tracks
     where
     ((_, _, tracks), _) =
-        TestSetup.run ustate (Simple.dump_block default_block_id)
+        UiTest.run ustate (Simple.dump_block default_block_id)
 
 cmd_state = Cmd.empty_state
     { Cmd.state_focused_view = Just default_view_id
