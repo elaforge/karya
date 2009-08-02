@@ -96,7 +96,7 @@ note_key scale_id msg =
     either State.throw return =<< Cmd.require (get_note scale_id msg)
 
 get_note :: Pitch.ScaleId -> Msg.Msg -> Maybe (Either String (Maybe Pitch.Note))
-get_note scale_id (Msg.Note keynum) = Just $ do
+get_note scale_id (Msg.KeyNumber keynum) = Just $ do
     scale <- maybe (Left $ "scale not found for " ++ show scale_id) Right $
         Map.lookup scale_id Scale.scale_map
     fmap Just $ Pitch.scale_key_to_note scale keynum

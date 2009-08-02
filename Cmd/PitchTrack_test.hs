@@ -22,9 +22,9 @@ test_cmd_val_edit = do
     let run track_specs cmd = extract $ run_sel track_specs cmd
         f = PitchTrack.cmd_val_edit Twelve.scale_id
 
-    equal (run [("*", [])] (f (Msg.Note (1, 2))))
+    equal (run [("*", [])] (f (Msg.KeyNumber (1, 2))))
         [("*", [(0, 0, "1d-")])]
-    equal (run [("*", [(0, 0, "5e-")])] (f (Msg.Note (1, 2))))
+    equal (run [("*", [(0, 0, "5e-")])] (f (Msg.KeyNumber (1, 2))))
         [("*", [(0, 0, "1d-")])]
     equal (run [("*", [(0, 0, "5e-")])] (f CmdTest.backspace))
         [("*", [])]

@@ -18,7 +18,7 @@ data Msg =
     -- a MIDI NoteOn, though NoteOns may very well be translated into these.
     -- These are not generated from any subsystem, but instead translated from
     -- other msgs (such as NoteOn).
-    | Note Pitch.KeyNumber
+    | KeyNumber Pitch.KeyNumber
     -- | Message from the transport/play thread.
     | Transport Transport.Status
     -- | Message from the language control socket, includes the socket handle

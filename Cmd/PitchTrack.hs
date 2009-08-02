@@ -46,7 +46,7 @@ cmd_method_edit_at tracksel key = do
 cmd_record_note_status :: Pitch.ScaleId -> Cmd.Cmd
 cmd_record_note_status scale_id msg = do
     keynum <- case msg of
-        Msg.Note keynum -> return keynum
+        Msg.KeyNumber keynum -> return keynum
         _ -> Cmd.abort
     let status = case EditUtil.get_note scale_id msg of
             Just (Right (Just note)) -> Pitch.note_text note

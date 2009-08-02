@@ -25,7 +25,7 @@ test_cmd_raw_edit = do
     let f = NoteTrack.cmd_raw_edit Twelve.scale_id
         run track_specs cmd = extract $ run_sel track_specs cmd
     -- Created event has dur according to ruler.
-    equal (run [(">i", [])] (f (Msg.Note (1, 2))))
+    equal (run [(">i", [])] (f (Msg.KeyNumber (1, 2))))
         [(">i", [(0, 10, "*1d-")])]
     equal (run [(">i", [])] (f (mkkey (Key.KeyChar ' '))))
         [(">i", [(0, 10, "")])]
@@ -44,9 +44,9 @@ test_cmd_val_edit = do
     let f = NoteTrack.cmd_val_edit (NoteTrack.PitchTrack True 2) Twelve.scale_id
         run track_specs cmd = extract $ run_sel track_specs cmd
     -- create new track
-    equal (run [(">i", [])] (f (Msg.Note (1, 2))))
+    equal (run [(">i", [])] (f (Msg.KeyNumber (1, 2))))
         [(">i", [(0, 10, "")]), ("*", [(0, 0, "1d-")])]
-    equal (run [(">i", []), ("mod", [])] (f (Msg.Note (1, 2))))
+    equal (run [(">i", []), ("mod", [])] (f (Msg.KeyNumber (1, 2))))
         [(">i", [(0, 10, "")]), ("*", [(0, 0, "1d-")]), ("mod", [])]
 
     -- modify existing track
@@ -55,7 +55,7 @@ test_cmd_val_edit = do
         note_track = [(">i", [(0, 10, "")]), ("*", [(0, 0, "4d-")])]
     equal (run note_track (f (mkkey Key.Backspace)))
         [(">i", []), ("*", [])]
-    equal (run note_track (f (Msg.Note (1, 4))))
+    equal (run note_track (f (Msg.KeyNumber (1, 4))))
         [(">i", [(0, 10, "")]), ("*", [(0, 0, "1e-")])]
 
 test_cmd_method_edit = do

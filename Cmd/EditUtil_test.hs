@@ -13,8 +13,8 @@ import qualified Cmd.EditUtil as EditUtil
 
 test_get_note = do
     let f = EditUtil.get_note Twelve.scale_id
-    equal (f (Msg.Note (1, 2))) (Just (Right (Just (Pitch.Note "1d-"))))
-    equal (f (Msg.Note (100, 0)))
+    equal (f (Msg.KeyNumber (1, 2))) (Just (Right (Just (Pitch.Note "1d-"))))
+    equal (f (Msg.KeyNumber (100, 0)))
         (Just (Left "note number 1200.0 is out of range 0--9"))
     equal (f (CmdTest.make_key True Key.Backspace)) (Just (Right Nothing))
     equal (f (CmdTest.make_key True (Key.KeyChar 'c'))) Nothing

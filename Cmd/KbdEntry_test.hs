@@ -24,7 +24,7 @@ test_with_note = do
     let cmd_dummy msg = Log.warn (show msg) >> return Cmd.Done
     let f kbd_entry msg = KbdEntry.with_note kbd_entry cmd_dummy msg
         key = CmdTest.key_down ','
-        note_key = Msg.Note (5, 2)
+        note_key = Msg.KeyNumber (5, 2)
         run cstate cmd = extract_logs $ CmdTest.run State.empty cstate cmd
         -- key passed through to cmd_dummy
         through msg = Right (Just [show msg])
@@ -36,13 +36,13 @@ test_with_note = do
     let st = Cmd.empty_state
     equal (run st (f True key)) (through note_key)
     equal (run (st { Cmd.state_kbd_entry_octave = 5 }) (f True key))
-        (through (Msg.Note (6, 2)))
+        (through (Msg.KeyNumber (6, 2)))
     equal (run st (f False key)) (through key)
     equal (run st (f True (CmdTest.key_up ',')))
         (Right (Just [show (CmdTest.key_up ',')]))
 
     equal (run st (f True (CmdTest.make_midi (Midi.NoteOn 25 20))))
-        (Right (Just ["Note (2,1)"]))
+        (Right (Just ["KeyNumber (2,1)"]))
     equal (run st (f True (CmdTest.make_midi (Midi.NoteOff 25 20))))
         (through (CmdTest.make_midi (Midi.NoteOff 25 20)))
 

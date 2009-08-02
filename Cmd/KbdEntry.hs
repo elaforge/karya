@@ -199,14 +199,14 @@ note_from_kbd :: [Cmd.Modifier] -> Cmd.Octave -> Translator
 note_from_kbd mods octave (Msg.key -> Just key)
     | not (null mods) = Nothing
     | otherwise = case key_to_keynum octave key of
-        Just (Just keynum) -> Just (Just (Msg.Note keynum))
+        Just (Just keynum) -> Just (Just (Msg.KeyNumber keynum))
         Just Nothing -> Just Nothing
         Nothing -> Nothing
 note_from_kbd _ _ _ = Nothing
 
 note_from_midi :: Translator
 note_from_midi (Msg.midi -> Just (Midi.ChannelMessage _ (Midi.NoteOn nn _))) =
-    Just $ Just $ Msg.Note (nn_to_keynum nn)
+    Just $ Just $ Msg.KeyNumber (nn_to_keynum nn)
 note_from_midi _ = Nothing
 
 -- * with_midi
