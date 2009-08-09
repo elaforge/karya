@@ -2,22 +2,23 @@
 #define __BLOCK_H
 
 /*
-        block (Group) ---\
-        /    \          status_line (Output)
-    title   __ body __________________  (Tile)
-          /                           \
-ruler_group _________________        track_group
-   |       \         \       \         |        \
-track_box sb_box     time_sb ruler   track_sb  track_scroll
-                                                /
-                                            track_tile
-                                            /
-                                        track | ruler | divider, ...
-                                       /    \
-                              track_body    track_title
-                         overlay_ruler
-                         /
-                     event, ...
+      _________ block (Group) ___
+     /              |            \
+    /               |           status_line (Output)
+title ________ body (Tile) ___________________________________
+     /           |           \                                \
+skel_box  skel_display  ruler_group _____________        track_group
+                       /       \         \       \         |        \
+                    track_box sb_box   time_sb  ruler track_sb  track_scroll
+                                                                  /
+                                                              track_tile
+                                                              /
+                                                track | ruler | divider, ...
+                                               /    \
+                                      track_body    track_title
+                                 overlay_ruler
+                                 /
+                             event, ...
 */
 
 #include <algorithm>
@@ -42,6 +43,8 @@ track_box sb_box     time_sb ruler   track_sb  track_scroll
 #include "TrackTile.h"
 #include "Ruler.h"
 #include "Event.h"
+#include "SkeletonDisplay.h"
+
 
 struct BlockModelConfig {
     Color bg;
@@ -55,6 +58,7 @@ struct BlockModelConfig {
 struct BlockViewConfig {
     int block_title_height;
     int track_title_height;
+    int skel_height;
     int sb_size;
     int status_size;
 };
@@ -72,9 +76,10 @@ public:
 
     void resize(int X, int Y, int W, int H);
     void set_view_config(const BlockViewConfig &view_config,
-            bool always_update=false);
+            bool update_all=false);
     void set_model_config(const BlockModelConfig &config,
-            bool always_update=false);
+            bool update_all=false);
+    void set_skeleton(const SkeletonConfig &skel);
 
     // Set the zoom, which is the view rectangle in the timewise direction.
     const ZoomInfo &get_zoom() const { return zoom; }
@@ -99,6 +104,7 @@ public:
 
     void insert_track(int tracknum, const Tracklike &track, int width);
     void remove_track(int tracknum, FinalizeCallback finalizer);
+
 private:
     void insert_track_view(int tracknum, TrackView *track, int width);
     TrackView *replace_ruler_track(TrackView *track, int width);
@@ -144,6 +150,9 @@ private:
     Fl_Tile body;
         // Dummy group to limit body tile drag to the ruler track.
         Fl_Group body_resize_group;
+        Fl_Box skel_box;
+        SimpleScroll skel_display_scroll;
+            SkeletonDisplay skel_display;
         Fl_Group ruler_group;
             Fl_Box track_box;
             Fl_Box sb_box;

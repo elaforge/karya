@@ -96,7 +96,7 @@ template <class T> inline std::ostream &
 operator<<(std::ostream &os, const std::vector<T> &a)
 {
     os << '[';
-    for (int i = 0; i < a.size(); i++) {
+    for (size_t i = 0; i < a.size(); i++) {
         if (i)
             os << ", ";
         os << a[i];

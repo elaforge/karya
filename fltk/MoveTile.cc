@@ -104,8 +104,8 @@ MoveTile::handle(int evt)
         else if (evt == FL_RELEASE) {
             this->init_sizes();
             // Unlike Fl_Tile, I only callback at the end of a drag.  This
-            // means scrollbars don't get updated continuously then, but
-            // only generates one event for a drag.
+            // means scrollbars don't get updated continuously, but I
+            // only generate one event for a drag.
             do_callback();
             this->dragged_child = -1;
         }

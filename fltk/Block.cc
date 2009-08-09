@@ -21,6 +21,9 @@ BlockView::BlockView(int X, int Y, int W, int H,
     status_line(0, 0, 1, 1),
     body(0, 0, 1, 1),
         body_resize_group(0, 0, 1, 1, "resize group"),
+        skel_box(0, 0, 1, 1),
+        skel_display_scroll(0, 0, 1, 1),
+            skel_display(0, 0, 1, 1),
         ruler_group(0, 0, 1, 1),
             track_box(0, 0, 1, 1),
             sb_box(0, 0, 1, 1),
@@ -37,6 +40,8 @@ BlockView::BlockView(int X, int Y, int W, int H,
     current(0); // done adding widgets
     // fltk's automatic group stuff gets most of the hierarchy above, but not
     // all of it.
+    body.add(skel_box);
+    body.add(skel_display_scroll);
     body.add(ruler_group);
     body.add(track_group);
     body_resize_group.hide();
@@ -49,6 +54,7 @@ BlockView::BlockView(int X, int Y, int W, int H,
     // Remove the status line from the tab focus list.  I bypass that anyway
     // so this doesn't have any effect.
     // status_line.visible_focus(false);
+    skel_box.box(FL_FLAT_BOX);
     status_line.box(FL_FLAT_BOX);
     track_box.box(FL_FLAT_BOX);
     sb_box.box(FL_FLAT_BOX);
@@ -87,9 +93,9 @@ BlockView::resize(int X, int Y, int W, int H)
 
 
 void
-BlockView::set_view_config(const BlockViewConfig &vconfig, bool always_update)
+BlockView::set_view_config(const BlockViewConfig &vconfig, bool _update_all)
 {
-    // I update everything, even if always_update is false.  It's probably not
+    // I update everything, even if update_all is false.  It's probably not
     // worth trying to skip things that haven't changed for this.
 
     // If I resize from parent to child, then children get a lot of spurious
@@ -116,13 +122,21 @@ BlockView::set_view_config(const BlockViewConfig &vconfig, bool always_update)
     body_resize_group.resize(body.x() + vconfig.sb_size, body.y(),
             body.w() - vconfig.sb_size, body.h());
 
+    int ruler_group_w = vconfig.sb_size + ruler_track->w();
+    skel_box.resize(body.x(), body.y(),
+            ruler_group_w, vconfig.skel_height);
+    skel_display_scroll.resize(skel_box.x() + skel_box.w(), skel_box.y(),
+            body.w() - ruler_group_w, vconfig.skel_height);
+    Rect p = rect(skel_display_scroll);
+    skel_display.resize(p.x, p.y, p.w, p.h);
+
     // Re-use the existing ruler_track width so it is maintained across calls
     // to set_view_config.  It has to be at least 1, or else the 'body' Fl_Tile
     // won't resize properly.
-    ruler_group.resize(wx, body.y(),
-            vconfig.sb_size + ruler_track->w(), body.h());
-    Rect p = rect(ruler_group);
-    track_group.resize(p.r(), body.y(), body.w() - p.w, body.h());
+    ruler_group.resize(wx, body.y() + vconfig.skel_height,
+            ruler_group_w, body.h() - vconfig.skel_height);
+    p = rect(ruler_group);
+    track_group.resize(p.r(), p.y, body.w() - p.w, p.h);
 
     track_box.resize(p.x, p.y, p.w, vconfig.block_title_height);
     sb_box.resize(p.x, p.b() - vconfig.sb_size, p.w, vconfig.sb_size);
@@ -175,10 +189,14 @@ BlockView::set_model_config(const BlockModelConfig &config, bool update_all)
     if (update_all || old.bg != config.bg) {
         track_tile.set_bg_color(config.bg);
         track_tile.redraw();
+        skel_display.color(color_to_fl(config.bg));
+        skel_display.redraw();
     }
     if (update_all || old.track_box != config.track_box) {
         track_box.color(color_to_fl(config.track_box));
         track_box.redraw();
+        skel_box.color(color_to_fl(config.track_box));
+        skel_box.redraw();
     }
     if (update_all || old.track_char != config.track_char) {
         if (config.track_char == ' ')
@@ -201,6 +219,17 @@ BlockView::set_model_config(const BlockModelConfig &config, bool update_all)
         }
     }
     this->model_config = config;
+}
+
+
+void
+BlockView::set_skeleton(const SkeletonConfig &skel)
+{
+    std::vector<int> widths(track_tile.tracks());
+    for (int i = 0; i < track_tile.tracks(); i++) {
+        widths[i] = track_tile.get_track_width(i);
+    }
+    skel_display.set_config(skel, widths);
 }
 
 
@@ -252,7 +281,11 @@ BlockView::set_track_scroll(int offset)
     int track_end = this->track_tile.track_end();
     int max_offset = std::max(0, track_end - this->track_tile.w());
     offset = std::min(max_offset, offset);
-    this->track_scroll.set_offset(Point(-offset, 0));
+
+    // If you update this, also update scrollbar_cb!
+    Point scroll_offset(-offset, 0);
+    this->track_scroll.set_offset(scroll_offset);
+    this->skel_display_scroll.set_offset(scroll_offset);
     this->update_scrollbars();
 }
 
@@ -330,6 +363,7 @@ BlockView::remove_track(int tracknum, FinalizeCallback finalizer)
         if (removed != this->no_ruler)
             delete removed;
     }
+    this->skel_display.reset();
 }
 
 
@@ -340,13 +374,12 @@ BlockView::insert_track_view(int tracknum, TrackView *track, int width)
         TrackView *replaced = this->replace_ruler_track(track, width);
         if (replaced != this->no_ruler)
             track_tile.insert_track(0, replaced, replaced->w());
+        this->ruler_track->set_zoom(this->zoom);
     } else {
         track_tile.insert_track(tracknum - 1, track, width);
-    }
-    if (tracknum == 0)
-        this->ruler_track->set_zoom(this->zoom);
-    else
         this->track_tile.set_zoom(this->zoom);
+        this->skel_display.reset();
+    }
     this->update_scrollbars();
 }
 
@@ -421,6 +454,7 @@ BlockView::scrollbar_cb(Fl_Widget *_unused_w, void *vp)
         global_msg_collector()->block_update(self, UiMsg::msg_zoom);
     }
 
+    // If you update this, also update set_track_scroll!
     // This is the same as BlockView::set_track_scroll, but can reuse
     // track_end, and doesn't call update_scrollbars.
     double track_offset = self->track_sb.get_offset();
@@ -430,6 +464,7 @@ BlockView::scrollbar_cb(Fl_Widget *_unused_w, void *vp)
     Point new_offset(-offset, 0);
     if (self->track_scroll.get_offset() != new_offset) {
         self->track_scroll.set_offset(new_offset);
+        self->skel_display_scroll.set_offset(new_offset);
         global_msg_collector()->block_update(self, UiMsg::msg_track_scroll);
     }
 
@@ -449,19 +484,27 @@ BlockView::update_scrollbars_cb(Fl_Widget *w, void *vp)
 void
 BlockView::track_tile_cb(Fl_Widget *w, void *vp)
 {
-    // Don't bother emitting width changes until mouse up.
-    if (Fl::event() != FL_RELEASE)
-        return;
-
-    // TODO dragging a tile can actually resize multiple columns, so emit
-    // changes for each
-
     BlockView *self = static_cast<BlockView *>(vp);
     self->update_scrollbars();
     int track = self->track_tile.get_dragged_track();
-    // -1 means it must have been the ruler track, which is 0.
+    // get_dragged_track is -1 if there is none, which means it must have been
+    // the ruler, which is 0.
     track++;
-    global_msg_collector()->block_update(self, UiMsg::msg_track_width, track);
+
+    // TODO cache last track widths and only emit changes?
+    // A track resize can affect all tracks to the left of it.
+    for (int i = 0; i <= track; i++) {
+        // This causes skel_display to call recalculate_centers a bunch of
+        // times but it's fast.
+        if (i != 0)
+            self->skel_display.set_width(i-1, self->get_track_width(i));
+        // Don't spam out updates until a release.
+        // Actually, MoveTile only calls back on release anyway, but I might
+        // change that someday.
+        if (Fl::event() == FL_RELEASE)
+            global_msg_collector()->block_update(
+                    self, UiMsg::msg_track_width, i);
+    }
 }
 
 

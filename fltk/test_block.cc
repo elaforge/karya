@@ -5,9 +5,9 @@
 #include "f_util.h"
 
 #include "Block.h"
-
 #include "EventTrack.h"
 #include "Ruler.h"
+#include "SkeletonDisplay.h"
 
 
 Color selection_colors[] = {
@@ -21,6 +21,7 @@ BlockViewConfig block_view_config()
     BlockViewConfig c;
     c.block_title_height = 20;
     c.track_title_height = 20;
+    c.skel_height = 16;
     c.sb_size = 12;
     c.status_size = 16;
     return c;
@@ -33,8 +34,23 @@ BlockModelConfig block_model_config()
     c.track_box = Color(0x44ffff);
     c.sb_box = Color(0x00ffff);
     c.track_char = 'K';
-    c.sb_char = ' ';
+    c.sb_char = 'S';
     return c;
+}
+
+SkeletonConfig skeleton_config(int *pairs, int len)
+{
+    SkeletonConfig skel;
+    skel.len = len;
+    skel.parents = (int *) calloc(len, sizeof(int));
+    skel.children = (int *) calloc(len, sizeof(int));
+    for (int i = 0; i < len; i++) {
+        skel.parents[i] = *pairs;
+        pairs++;
+        skel.children[i] = *pairs;
+        pairs++;
+    }
+    return skel;
 }
 
 typedef static std::vector<std::pair<TrackPos, Mark> > MarkData;
@@ -296,10 +312,16 @@ main(int argc, char **argv)
     // view.block.insert_track(1, Tracklike(&divider), 10);
     // view.block.insert_track(1, Tracklike(&ruler), 30);
     view.block.insert_track(1, Tracklike(&track1, &truler), 30);
-    // view.block.insert_track(3, Tracklike(&track2, &truler), 30);
-    // view.block.insert_track(4, Tracklike(&empty_track, &truler), 120);
+    view.block.insert_track(2, Tracklike(&divider), 10);
+    view.block.insert_track(3, Tracklike(&track2, &truler), 30);
+    view.block.insert_track(4, Tracklike(&empty_track, &truler), 20);
+    view.block.insert_track(5, Tracklike(&empty_track, &truler), 20);
+    view.block.insert_track(6, Tracklike(&track2, &truler), 80);
 
-    // print_children(&view);
+    int pairs[] = {0, 5, 2, 4, 3, 4};
+    SkeletonConfig skel = skeleton_config(pairs, 3);
+    view.block.set_skeleton(skel);
+    print_children(&view);
 
     // Fl::add_timeout(1, timeout_func, (void*) &view);
 
