@@ -140,7 +140,7 @@ new pitch lang
 explicit skeleton
   * fltk support
   * add to Block
-  - Diff and Sync support (extract attrs)
+  * Diff and Sync support
   - Schema support
   - track collapsing
   - track muting

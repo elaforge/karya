@@ -172,6 +172,9 @@ diff_block block_id block1 block2 = do
         change [block_update $ Update.BlockTitle (Block.block_title block2)]
     when (Block.block_config block1 /= Block.block_config block2) $
         change [block_update $ Update.BlockConfig (Block.block_config block2)]
+    when (Block.block_skeleton block1 /= Block.block_skeleton block2) $
+        change
+            [block_update $ Update.BlockSkeleton (Block.block_skeleton block2)]
 
     let pairs = indexed_pairs (\a b -> fst a == fst b)
             (diffable_tracks block1) (diffable_tracks block2)

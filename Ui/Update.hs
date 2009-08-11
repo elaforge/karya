@@ -35,6 +35,7 @@ data ViewUpdate =
 data BlockUpdate
     = BlockTitle String
     | BlockConfig Block.Config
+    | BlockSkeleton (Maybe Block.Skeleton)
     | RemoveTrack Block.TrackNum
     | InsertTrack Block.TrackNum Block.TracklikeId Block.Width
     deriving Show

@@ -484,6 +484,11 @@ set_block_config :: (UiStateMonad m) => Block.BlockId -> Block.Config -> m ()
 set_block_config block_id config =
     modify_block block_id (\block -> block { Block.block_config = config })
 
+set_skeleton :: (UiStateMonad m) => Block.BlockId -> Maybe Block.Skeleton
+    -> m ()
+set_skeleton block_id skel =
+    modify_block block_id (\block -> block { Block.block_skeleton = skel })
+
 set_edit_box :: (UiStateMonad m) => Block.BlockId -> Color -> Char -> m ()
 set_edit_box block_id color char = do
     block <- get_block block_id

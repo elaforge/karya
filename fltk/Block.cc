@@ -189,7 +189,7 @@ BlockView::set_model_config(const BlockModelConfig &config, bool update_all)
     if (update_all || old.bg != config.bg) {
         track_tile.set_bg_color(config.bg);
         track_tile.redraw();
-        skel_display.color(color_to_fl(config.bg));
+        skel_display.color(color_to_fl(config.bg.scale(.90)));
         skel_display.redraw();
     }
     if (update_all || old.track_box != config.track_box) {
@@ -554,6 +554,9 @@ BlockViewWindow::BlockViewWindow(int X, int Y, int W, int H,
     Fl::dnd_text_ops(false); // don't do drag and drop text
     // Fl::visible_focus(false); // doesn't seem to do anything
     // this->border(false);
+
+    // Send an initial resize to inform the haskell layer about dimensions.
+    global_msg_collector()->window_update(this, UiMsg::msg_view_resize);
 }
 
 void

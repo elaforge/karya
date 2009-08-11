@@ -108,6 +108,23 @@ test_set_block_config = do
             }
     return ()
 
+test_set_skeleton = do
+    let (tids, state) =
+            UiTest.run_mkview [("t1", []), ("t2", []), ("t3", [])]
+    sync_states State.empty state
+    state <- io_human "skel set" $ run state $ do
+        State.set_skeleton t_block_id $
+            Just (mkskel 1 [mkskel 2 [], mkskel 3 []])
+    state <- io_human "skel set to something else" $ run state $ do
+        State.set_skeleton t_block_id $
+            Just (mkskel 1 [mkskel 2 [mkskel 3 []]])
+    _state <- io_human "skel cleared" $ run state $ do
+        State.set_skeleton t_block_id Nothing
+    return ()
+
+mkskel tracknum subs =
+    Block.Skeleton tracknum Block.TrackControl subs
+
 test_zoom_scroll = do
     state <- run State.empty $ do
         v1 <- setup_state
@@ -330,6 +347,8 @@ run_samples block_samples st1 m = do
     sync st1 st2 updates block_samples
     return st2
 
+
+sync_states st1 st2 = sync st1 st2 [] []
 
 sync st1 st2 hint_updates block_samples = do
     let updates = right $ Diff.diff st1 st2

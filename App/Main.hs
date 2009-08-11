@@ -211,18 +211,22 @@ setup_cmd _args = do
 
 old_setup_cmd :: [String] -> Cmd.CmdIO
 old_setup_cmd _args = do
-    (b, view) <- empty_block
-    t0 <- Create.track b 2
+    (bid, vid) <- empty_block
+    t0 <- Create.track bid 2
     State.insert_events t0 $ map UiTest.mkevent
         [(0, 1, ""), (1, 1, ""), (2, 1, ""), (3, 1, "")]
     State.set_track_title t0 ">fm8/bass"
-    t1 <- Create.track b 3
+    t1 <- Create.track bid 3
     State.insert_events t1 $ map UiTest.mkevent
         [(0, 0, "5c-"), (1, 0, "5d-"), (2, 0, "5e-"), (3, 0, "5f-")]
     State.set_track_title t1 "*twelve"
+    State.set_track_width vid 3 50
+    State.set_skeleton bid $ Just $ Block.Skeleton 1 Block.TrackControl
+        [Block.Skeleton 3 Block.TrackPitch
+            [Block.Skeleton 2 Block.TrackNote []]]
 
     Cmd.set_midi_config inst_config
-    State.set_selection view Config.insert_selnum
+    State.set_selection vid Config.insert_selnum
         (Block.point_selection 0 (TrackPos 0))
     return Cmd.Done
 
@@ -261,14 +265,15 @@ setup_big _ = do
     return Cmd.Done
 
 empty_block = do
-    (r, over_r) <- Create.ruler "meter_44"
+    (rid, over_rid) <- Create.ruler "meter_44"
         (MakeRuler.ruler [MakeRuler.meter_ruler (1/16) MakeRuler.m44])
 
-    b <- Create.block r
-    view <- Create.view b
-    t_tempo <- Create.named_track b over_r 1 "tempo" "tempo"
+    bid <- Create.block rid
+    vid <- Create.view bid
+    t_tempo <- Create.named_track bid over_rid 1 "tempo" "tempo"
+    State.set_track_width vid 1 40
     State.insert_events t_tempo $ map UiTest.mkevent [(0, 0, "1")]
-    return (b, view)
+    return (bid, vid)
 
 inst_config =
     Instrument.config [(Score.Instrument "fm8/bass", addrs)] Nothing

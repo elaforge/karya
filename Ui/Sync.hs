@@ -106,8 +106,8 @@ run_update block_samples (Update.ViewUpdate view_id Update.CreateView) = do
         (Map.assocs sels)
     -- I manually sync the new empty view with its state.  It might reduce
     -- repetition to let Diff.diff do that by diffing against a state with an
-    -- empty view, but this way seems less complicated.
-    -- Sync: title, tracks, selection
+    -- empty view, but this way seems less complicated if more error-prone.
+    -- Sync: title, tracks, selection, skeleton
     return $ do
         let title = block_window_title view_id (Block.view_block view)
         BlockC.create_view view_id title (Block.view_rect view)
@@ -124,6 +124,7 @@ run_update block_samples (Update.ViewUpdate view_id Update.CreateView) = do
 
         unless (null (Block.block_title block)) $
             BlockC.set_title view_id (Block.block_title block)
+        BlockC.set_skeleton view_id (Block.block_skeleton block)
         forM_ (zip (Map.keys sels) csels) $ \(selnum, csel) ->
             BlockC.set_selection view_id selnum csel
         BlockC.set_status view_id (Block.show_status view)
@@ -158,6 +159,8 @@ run_update block_samples (Update.BlockUpdate block_id update) = do
             mapM_ (flip BlockC.set_title title) view_ids
         Update.BlockConfig config -> return $
             mapM_ (flip BlockC.set_model_config config) view_ids
+        Update.BlockSkeleton skel -> return $
+            mapM_ (flip BlockC.set_skeleton skel) view_ids
         Update.RemoveTrack tracknum -> return $
             mapM_ (flip BlockC.remove_track tracknum) view_ids
         Update.InsertTrack tracknum tracklike_id width -> do

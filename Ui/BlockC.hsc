@@ -28,9 +28,7 @@ module Ui.BlockC (
     , max_selections
 
     -- * Block operations
-    , set_model_config
-    , set_title
-    , set_status
+    , set_model_config, set_skeleton, set_title, set_status
 
     -- ** Track operations
     , insert_track, remove_track, update_track, update_entire_track
@@ -358,12 +356,8 @@ instance Storable Block.Config where
     alignment _ = #{alignment BlockModelConfig}
     poke = poke_block_model_config
 
-poke_block_model_config configp (Block.Config
-        { Block.config_bg_color = bg
-        , Block.config_track_box = (track_box, track_char)
-        , Block.config_sb_box = (sb_box, sb_char)
-        })
-    = do
+poke_block_model_config configp
+    (Block.Config _sel_colors bg (track_box, track_char) (sb_box, sb_char)) = do
         (#poke BlockModelConfig, bg) configp bg
         (#poke BlockModelConfig, track_box) configp track_box
         (#poke BlockModelConfig, sb_box) configp sb_box
@@ -401,7 +395,10 @@ poke_skeleton skelp len parentsp childrenp = do
 -- | Flatten a skeleton into [(parent, child)].
 flatten_skeleton :: Block.Skeleton -> [(Block.TrackNum, Block.TrackNum)]
 flatten_skeleton skel =
-    [(num skel, num sub) | sub <- Block.skel_subs skel]
+    -- The -1s are because the fltk set_skeleton doesn't the ruler track, while
+    -- of course the tracknums here do.
+    -- TODO would it be better to put this in BlockView::set_skeleton?
+    [(num skel - 1, num sub - 1) | sub <- Block.skel_subs skel]
     ++ concatMap flatten_skeleton (Block.skel_subs skel)
     where num = Block.skel_tracknum
 
