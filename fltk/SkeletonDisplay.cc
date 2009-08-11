@@ -98,7 +98,7 @@ SkeletonDisplay::draw()
     for (size_t i = 0; i < this->parent_child.size(); i++) {
         int parent = parent_child[i].first;
         int child = parent_child[i].second;
-        if (!(0 <= parent || parent<tracks) || !(0 <= child || child<tracks)) {
+        if (!(0 <= parent && parent<tracks) || !(0 <= child && child<tracks)) {
             DEBUG("parent->child out of range: " << parent << "->" << child);
             continue;
         }
