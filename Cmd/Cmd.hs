@@ -477,14 +477,18 @@ ui_update :: UiMsg.Context -> UiMsg.UiUpdate -> CmdT Identity.Identity ()
 ui_update ctx@(UiMsg.Context (Just view_id) track _pos) update = case update of
     UiMsg.UpdateTrackScroll hpos -> State.set_track_scroll view_id hpos
     UiMsg.UpdateZoom zoom -> State.set_zoom view_id zoom
-    UiMsg.UpdateViewResize rect -> do
+    UiMsg.UpdateViewResize rect track_size -> do
         view <- State.get_view view_id
         when (rect /= Block.view_rect view) $
             State.set_view_rect view_id rect
+        when (track_size /= view_track_size view) $
+            State.set_track_size view_id track_size
     UiMsg.UpdateTrackWidth width -> case track of
         Just tracknum -> State.set_track_width view_id tracknum width
         Nothing -> State.throw $ show update ++ " with no track: " ++ show ctx
     _ -> return ()
+    where
+    view_track_size v = (Block.view_visible_track v, Block.view_visible_time v)
 ui_update ctx update =
     State.throw $ show update ++ " with no view_id: " ++ show ctx
 
@@ -519,11 +523,11 @@ ui_update_state ctx@(UiMsg.Context (Just view_id) _track _pos) update =
 ui_update_state ctx update =
     State.throw $ show update ++ " with no view_id: " ++ show ctx
 
-update_input ctx block_id text = case (UiMsg.ctx_track ctx) of
+update_input ctx block_id text = case UiMsg.ctx_track ctx of
     Just tracknum -> do
         track <- State.track_at block_id tracknum
-        case track of
-            Just ((Block.TId track_id _), _width) ->
+        case fmap (Block.track_id_of . Block.tracklike_id) track of
+            Just (Just track_id) ->
                 State.set_track_title track_id text
             _ -> State.throw $ show (UiMsg.UpdateInput text) ++ " for "
                 ++ show ctx ++ " on non-event track " ++ show track

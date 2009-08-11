@@ -81,8 +81,8 @@ no_ruler :: Ruler.RulerId
 no_ruler = Ruler.RulerId (Id.global "_no_ruler_")
 
 -- | A non-existent ruler, ready for inclusion into create_block's track list.
-no_ruler_track :: (Block.TracklikeId, Block.Width)
-no_ruler_track = (Block.RId no_ruler, 0)
+no_ruler_track :: Block.BlockTrack
+no_ruler_track = Block.block_track (Block.RId no_ruler) 0
 
 -- * StateT monadic access
 
@@ -237,13 +237,15 @@ map_track_ids f = do
 
     blocks <- fmap state_blocks get
     let new_blocks = Map.map
-            (\b -> b { Block.block_track_widths =
-                map (map_track track_f) (Block.block_track_widths b) })
+            (\b -> b { Block.block_tracks =
+                map (map_track track_f) (Block.block_tracks b) })
             blocks
     modify $ \st -> st { state_tracks = new_tracks, state_blocks = new_blocks }
     where
-    map_track f ((Block.TId tid rid), w) = (Block.TId (f tid) rid, w)
-    map_track _ t = t
+    map_track f track = case Block.tracklike_id track of
+        Block.TId tid rid -> Block.modify_id track $
+            const (Block.TId (f tid) rid)
+        _ -> track
 
 map_ruler_ids :: (UiStateMonad m) => (Id.Id -> Id.Id) -> m ()
 map_ruler_ids f = do
@@ -253,14 +255,17 @@ map_ruler_ids f = do
 
     blocks <- fmap state_blocks get
     let new_blocks = Map.map
-            (\b -> b { Block.block_track_widths =
-                map (map_track ruler_f) (Block.block_track_widths b) })
+            (\b -> b { Block.block_tracks =
+                map (map_track ruler_f) (Block.block_tracks b) })
             blocks
     modify $ \st -> st { state_rulers = new_rulers, state_blocks = new_blocks }
     where
-    map_track f ((Block.TId tid rid), w) = (Block.TId tid (f rid), w)
-    map_track f ((Block.RId rid), w) = (Block.RId (f rid), w)
-    map_track _ t = t
+    map_track f track = case Block.tracklike_id track of
+        Block.TId tid rid -> Block.modify_id track $
+            const (Block.TId tid (f rid))
+        Block.RId rid -> Block.modify_id track $
+            const (Block.RId (f rid))
+        _ -> track
     trans ident
         | ident == Id.unpack_id no_ruler = ident
         | otherwise = f ident
@@ -339,8 +344,8 @@ verify_view view_id = do
         modify_view view_id $ \v -> insert_into_view tracknum 20 v
 
 verify_block block = do
-    mapM_ get_track (Block.track_ids_of (Block.block_tracks block))
-    mapM_ get_ruler (Block.ruler_ids_of (Block.block_tracks block))
+    mapM_ get_track (Block.block_track_ids block)
+    mapM_ get_ruler (Block.block_ruler_ids block)
 
 get_project :: (UiStateMonad m) => m Id.Namespace
 get_project = fmap state_project get
@@ -375,7 +380,7 @@ create_view id view = do
     get >>= insert (Block.ViewId id) view' state_views
         (\views st -> st { state_views = views })
 initial_track_views block = map Block.TrackView widths
-    where widths = map snd (Block.block_track_widths block)
+    where widths = map Block.track_width (Block.block_tracks block)
 
 destroy_view :: (UiStateMonad m) => Block.ViewId -> m ()
 destroy_view view_id = modify $ \st ->
@@ -413,6 +418,14 @@ set_track_scroll view_id offset =
 set_view_rect :: (UiStateMonad m) => Block.ViewId -> Block.Rect -> m ()
 set_view_rect view_id rect =
     modify_view view_id (\view -> view { Block.view_rect = rect })
+
+-- | Only 'Cmd.Cmd.ui_update' is supposed to call this, because track_size is
+-- only set from the UI.
+set_track_size :: (UiStateMonad m) => Block.ViewId -> (Int, Int) -> m ()
+set_track_size view_id (visible_track, visible_time) =
+    modify_view view_id $ \view -> view {
+        Block.view_visible_track = visible_track
+        , Block.view_visible_time = visible_time }
 
 -- ** selections
 
@@ -489,7 +502,7 @@ set_play_box block_id color = do
 ruler_end :: (UiStateMonad m) => Block.BlockId -> m TrackPos
 ruler_end block_id = do
     block <- get_block block_id
-    case Block.ruler_ids_of (Block.block_tracks block) of
+    case Block.block_ruler_ids block of
         [] -> return $ TrackPos 0
         ruler_id : _ -> fmap Ruler.time_end (get_ruler ruler_id)
 
@@ -497,40 +510,42 @@ ruler_end block_id = do
 event_end :: (UiStateMonad m) => Block.BlockId -> m TrackPos
 event_end block_id = do
     block <- get_block block_id
-    track_ends <- mapM track_end (Block.track_ids_of (Block.block_tracks block))
+    track_ends <- mapM track_end (Block.block_track_ids block)
     return $ maximum (TrackPos 0 : track_ends)
 
 -- ** tracks
 
 insert_track :: (UiStateMonad m) => Block.BlockId -> Block.TrackNum
-    -> Block.TracklikeId -> Block.Width -> m ()
-insert_track block_id tracknum track width = do
+    -> Block.BlockTrack -> m ()
+insert_track block_id tracknum track = do
     block <- get_block block_id
     views <- get_views_of block_id
-    let tracks = Block.block_track_widths block
-        tracks' = Seq.insert_at tracks tracknum (track, width)
+    let tracks = Block.block_tracks block
+        tracks' = Seq.insert_at tracks tracknum track
         -- Make sure the views are up to date.
-        views' = Map.map (insert_into_view tracknum width) views
-    update_block block_id (block { Block.block_track_widths = tracks' })
+        views' = Map.map
+            (insert_into_view tracknum (Block.track_width track)) views
+    update_block block_id (block { Block.block_tracks = tracks' })
     modify $ \st -> st { state_views = Map.union views' (state_views st) }
 
 remove_track :: (UiStateMonad m) => Block.BlockId -> Block.TrackNum -> m ()
 remove_track block_id tracknum = do
     block <- get_block block_id
     views <- get_views_of block_id
-    let tracks' = Seq.remove_at (Block.block_track_widths block) tracknum
+    let tracks' = Seq.remove_at (Block.block_tracks block) tracknum
         views' = Map.map (remove_from_view tracknum) views
-    update_block block_id (block { Block.block_track_widths = tracks' })
+    update_block block_id (block { Block.block_tracks = tracks' })
     modify $ \st -> st { state_views = Map.union views' (state_views st) }
 
 -- | Get the TracklikeId at @tracknum@, or Nothing if its out of range.
--- This is a little inconsistent with 'insert_track' and 'remove_track' which
--- automatically clip to range, but is convenient in practice.
+-- This is inconsistent with 'insert_track' and 'remove_track' which clip to
+-- range, but is convenient in practice.
+-- TODO why?
 track_at :: (UiStateMonad m) => Block.BlockId -> Block.TrackNum
-    -> m (Maybe (Block.TracklikeId, Block.Width))
+    -> m (Maybe Block.BlockTrack)
 track_at block_id tracknum = do
     block <- get_block block_id
-    return $ Seq.at (Block.block_track_widths block) tracknum
+    return $ Seq.at (Block.block_tracks block) tracknum
 
 -- | Convenience function like 'track_at', but get the track_id if it's an
 -- event track.
@@ -539,8 +554,8 @@ event_track_at :: (UiStateMonad m) =>
 event_track_at block_id tracknum = do
     maybe_track <- track_at block_id tracknum
     return $ do
-        (track, _) <- maybe_track
-        Block.track_id_of track
+        track <- maybe_track
+        Block.track_id_of (Block.tracklike_id track)
 
 tracks :: (UiStateMonad m) => Block.BlockId -> m Block.TrackNum
 tracks block_id = do
@@ -772,9 +787,9 @@ destroy_ruler ruler_id = when (ruler_id /= no_ruler) $ do
     forM_ blocks $ \(block_id, tracks) -> do
         let tracknums = map fst tracks
             setr i = if i `elem` tracknums then Block.set_rid no_ruler else id
-            deruler (i, (tid, width)) = (setr i tid, width)
-        modify_block block_id $ \block -> block { Block.block_track_widths =
-            map deruler (Seq.enumerate (Block.block_track_widths block)) }
+            deruler (i, track) = Block.modify_id track (setr i)
+        modify_block block_id $ \block -> block { Block.block_tracks =
+            map deruler (Seq.enumerate (Block.block_tracks block)) }
     modify $ \st -> st { state_rulers = Map.delete ruler_id (state_rulers st) }
 
 insert_marklist :: (UiStateMonad m) =>
@@ -806,7 +821,7 @@ get_tracks_of :: (UiStateMonad m) =>
     Block.BlockId -> m (Map.Map Track.TrackId Track.Track)
 get_tracks_of block_id = do
     block <- get_block block_id
-    let track_ids = Block.track_ids_of (Block.block_tracks block)
+    let track_ids = Block.block_track_ids block
     tracks <- mapM get_track track_ids
     return $ Map.fromList (zip track_ids tracks)
 
@@ -828,9 +843,9 @@ find_tracks :: (UiStateMonad m) => (Block.TracklikeId -> Bool)
 find_tracks f = do
     st <- get
     let all_tracks block = Seq.enumerate (Block.block_tracks block)
-    let get_tracks block = [(tracknum, tracklike_id)
-            | (tracknum, tracklike_id) <- all_tracks block
-            , f tracklike_id]
+    let get_tracks block = [(tracknum, Block.tracklike_id track)
+            | (tracknum, track) <- all_tracks block
+            , f (Block.tracklike_id track)]
     return [(block_id, get_tracks block)
         | (block_id, block) <- Map.assocs (state_blocks st)]
 

@@ -52,7 +52,7 @@ gets focus and pushed on FL_PUSH.
 So I thought if I overrode Fl_Group::handle to only handle FL_PUSH
 
 
-todo this:
+TODO:
 blur() function sets focus to the window
 window has a handle that collects KBD
 
@@ -87,6 +87,8 @@ struct UiMsg {
         msg_track_scroll, msg_zoom, msg_view_resize,
         msg_track_width, msg_close
     };
+    // Keep this up to date with UiMsg::MsgType
+
 
     MsgType type;
 
@@ -98,10 +100,13 @@ struct UiMsg {
     // Update msg args.  They're pointers to make haskell happy, but that means
     // I need to delete them in the destructor.
     char *update_text;
-    // This is both the new width for msg_track_width and the scroll amount for
-    // msg_track_scroll.
-    int update_width;
+    // Set by msg_track_width, msg_track_scroll, and msg_view_resize.  This
+    // should be a union but it's easier on the haskell side if it's not.
+    int width_scroll_visible_track;
+    // Also set by msg_view_resize.
+    int visible_time;
     ZoomInfo *update_zoom;
+    // Set by msg_view_resize.
     Rect *update_rect;
 
     // Every msg may have context.
@@ -140,7 +145,6 @@ public:
     void window_update(BlockViewWindow *view, UiMsg::MsgType type);
     void window_update(BlockViewWindow *view, UiMsg::MsgType type,
             int tracknum);
-    void window_update_resize(BlockViewWindow *view, const Rect &rect);
 
     UiMsg *msgs_ptr() {
         // The C++ standard says vector is supposed to use a contiguous array:

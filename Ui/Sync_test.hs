@@ -63,10 +63,9 @@ test_create_resize_destroy_view = do
 test_create_two_views = do
     state <- run_setup
     state <- io_human "view created, track title changes" $ run state $ do
-        b2 <- create_block "b2" $ Block.block ""
+        b2 <- create_block "b2" $ UiTest.mkblock ""
             UiTest.default_block_config
             [(Block.RId t_ruler_id, 20), (Block.TId t_track1_id t_ruler_id, 30)]
-            t_schema_id
         v2 <- create_view "v2" $
             Block.view b2
                 (UiTest.default_rect
@@ -142,10 +141,10 @@ test_set_status = do
 test_insert_remove_track = do
     state <- run_setup
     state <- io_human "new wide track at the end" $ run state $ do
-        State.insert_track t_block_id 2 (Block.TId t_track1_id t_ruler_id) 80
+        insert_track t_block_id 2 (Block.TId t_track1_id t_ruler_id) 80
     state <- io_human "first track replaced by divider" $ run state $ do
         State.remove_track t_block_id 1
-        State.insert_track t_block_id 1 (Block.DId UiTest.default_divider) 5
+        insert_track t_block_id 1 (Block.DId UiTest.default_divider) 5
     return ()
 
 -- Make sure removing and inserting the ruler track makes the others move over.
@@ -155,8 +154,8 @@ test_insert_remove_ruler_track = do
         t2 <- create_track "b1.t2" (UiTest.empty_track "t2")
         State.remove_track t_block_id 0
         State.remove_track t_block_id 0
-        State.insert_track t_block_id 0 (Block.TId t2 t_ruler_id) 20
-        State.insert_track t_block_id 1 (Block.DId UiTest.default_divider) 5
+        insert_track t_block_id 0 (Block.TId t2 t_ruler_id) 20
+        insert_track t_block_id 1 (Block.DId UiTest.default_divider) 5
     return ()
 
 test_update_ruler_track = do
@@ -164,7 +163,7 @@ test_update_ruler_track = do
     io_human "try to remove ruler, nothing happens" $ run state $ do
         State.remove_track t_block_id 0
     io_human "ruler is replaced by track, gets wider" $ run state $ do
-        State.insert_track t_block_id 0 (Block.TId t_track1_id t_ruler_id) 70
+        insert_track t_block_id 0 (Block.TId t_track1_id t_ruler_id) 70
     io_human "ruler gets smaller" $ run state $ do
         State.set_track_width t_view_id 0 10
     return ()
@@ -185,7 +184,7 @@ test_update_two_tracks = do
     state <- run State.empty $ do
         v1 <- setup_state
         t2 <- create_track "b1.t2" UiTest.event_track_2
-        State.insert_track t_block_id 1 (Block.TId t2 t_ruler_id) 30
+        insert_track t_block_id 1 (Block.TId t2 t_ruler_id) 30
         return ()
     io_human "1st track deleted, 2nd track gets wider" $ run state $ do
         State.remove_track t_block_id 1
@@ -196,7 +195,7 @@ test_create_track = do
     state <- run_setup
     let msg = "new track with selectio and new title, all bgs green"
     state <- io_human msg $ run state $ do
-        State.insert_track t_block_id 1 (Block.TId t_track1_id t_ruler_id) 50
+        insert_track t_block_id 1 (Block.TId t_track1_id t_ruler_id) 50
         State.set_selection t_view_id 0
             (Block.selection 1 (TrackPos 10) 1 (TrackPos 60))
         State.set_track_title t_track1_id "new track"
@@ -208,11 +207,11 @@ test_alter_track = do
     state <- io_human "track should get wider" $ run state $ do
         State.set_track_width t_view_id 1 100
     state <- io_human "track should get a new ruler" $ run state $ do
-        ruler <- create_ruler "r2" (UiTest.mkruler 0 0)
-        let set_ruler (tid, width) = (Block.set_rid ruler tid, width)
+        rid <- create_ruler "r2" (UiTest.mkruler 0 0)
+        let set_ruler track = Block.modify_id track (Block.set_rid rid)
         State.modify_block t_block_id $ \block -> block
-            { Block.block_track_widths =
-                Seq.modify_at (Block.block_track_widths block) 1 set_ruler }
+            { Block.block_tracks =
+                Seq.modify_at (Block.block_tracks block) 1 set_ruler }
     return ()
 
 
@@ -235,7 +234,7 @@ cues_marklist = Ruler.marklist "cues"
 test_modify_ruler = do
     state <- run State.empty $ do
         setup_state
-        State.insert_track t_block_id 2 (Block.RId t_ruler_id) 30
+        insert_track t_block_id 2 (Block.RId t_ruler_id) 30
     state <- io_human "add head-explodes to all rulers" $ run state $ do
         State.insert_marklist t_ruler_id 1 cues_marklist
     state <- io_human "meter goes away" $ run state $ do
@@ -249,7 +248,7 @@ test_selection_change_tracks = do
         State.set_selection t_view_id 0
             (Block.selection 1 (TrackPos 10) 1 (TrackPos 20))
     state <- io_human "sel moves when new track is added" $ run state $ do
-        State.insert_track t_block_id 1 (Block.TId t_track1_id t_ruler_id) 40
+        insert_track t_block_id 1 (Block.TId t_track1_id t_ruler_id) 40
     state <- io_human "sel moves back" $ run state $ do
         State.remove_track t_block_id 1
     return ()
@@ -258,16 +257,19 @@ test_insert_into_selection = do
     state <- run State.empty $ do
         v1 <- setup_state
         t2 <- create_track "b1.t2" UiTest.event_track_2
-        State.insert_track t_block_id 1 (Block.TId t2 t_ruler_id) 60
+        insert_track t_block_id 1 (Block.TId t2 t_ruler_id) 60
         t3 <- create_track "b1.t3" UiTest.event_track_2
-        State.insert_track t_block_id 2 (Block.TId t2 t_ruler_id) 60
+        insert_track t_block_id 2 (Block.TId t2 t_ruler_id) 60
         State.set_selection v1 0
             (Block.selection 0 (TrackPos 10) 2 (TrackPos 60))
     state <- io_human "insert into sel, gets bigger" $ run state $ do
-        State.insert_track t_block_id 1 (Block.TId t_track1_id t_ruler_id) 20
+        insert_track t_block_id 1 (Block.TId t_track1_id t_ruler_id) 20
     state <- io_human "remove from sel, gets smaller" $ run state $ do
         State.remove_track t_block_id 1
     return ()
+
+insert_track bid tracknum tracklike_id width =
+    State.insert_track bid tracknum (Block.block_track tracklike_id width)
 
 test_render_samples = do
     state <- run_setup
@@ -278,7 +280,7 @@ test_render_samples = do
         let track = Track.set_render_style Track.Line
                 (UiTest.empty_track "t2")
         create_track "b1.t2" track
-        State.insert_track t_block_id 2 (Block.TId t_track2_id t_ruler_id) 40
+        insert_track t_block_id 2 (Block.TId t_track2_id t_ruler_id) 40
     state <- io_human "track samples filled" $ run_samples bsamples state $ do
         State.modify_track_render t_track2_id $ \config ->
             config { Track.render_style = Track.Filled }
@@ -299,16 +301,14 @@ t_ruler_id = Ruler.RulerId (mkid "r1")
 t_block_id = Block.BlockId (mkid "b1")
 t_track1_id = Track.TrackId (mkid "b1.t1")
 t_view_id = Block.ViewId (mkid "v1")
-t_schema_id = Block.SchemaId (mkid "no schema")
 
 run_setup = run State.empty setup_state
 setup_state = do
     ruler <- create_ruler "r1" (UiTest.mkruler 20 10)
     t1 <- create_track "b1.t1" (UiTest.empty_track "t1")
     b1 <- create_block "b1" $
-        Block.block "hi b1" UiTest.default_block_config
+        UiTest.mkblock "hi b1" UiTest.default_block_config
             [(Block.RId ruler, 20), (Block.TId t1 ruler, 30)]
-            t_schema_id
     create_view "v1"
         (Block.view b1 UiTest.default_rect UiTest.default_zoom
             UiTest.default_view_config)

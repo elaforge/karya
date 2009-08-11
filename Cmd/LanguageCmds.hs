@@ -154,7 +154,7 @@ destroy_view view_id = State.destroy_view (vid view_id)
 show_block :: Block.BlockId -> Cmd.CmdL String
 show_block block_id = do
     block <- State.get_block block_id
-    track_descs <- mapM show_tracklike (Block.block_tracks block)
+    track_descs <- mapM show_tracklike (Block.block_tracklike_ids block)
     return $ show_record
         [ ("title", Block.block_title block)
         , ("tracks", show_list track_descs)
@@ -181,8 +181,8 @@ get_skeleton block_id = do
 create_block :: (State.UiStateMonad m) =>
     Id.Id -> String -> String -> m Block.BlockId
 create_block block_id ruler_id schema_id = State.create_block block_id $
-    Block.block "" Config.block_config [(ruler ruler_id, Config.ruler_width)]
-        (sid schema_id)
+    Block.block "" Config.block_config [track] (sid schema_id)
+    where track = Block.block_track (ruler ruler_id) Config.ruler_width
 
 set_schema :: Block.BlockId -> Block.SchemaId -> Cmd.CmdL ()
 set_schema block_id schema_id = do
@@ -283,13 +283,13 @@ replace_ruler ruler_id block_id = do
     overlay_id <- fmap (maybe ruler_id (const overlay_id)) $
         State.lookup_ruler overlay_id
     State.modify_block block_id $ \block -> block
-        { Block.block_track_widths = map_head_tail
-            (set_r ruler_id) (set_r overlay_id) (Block.block_track_widths block)
+        { Block.block_tracks = map_head_tail
+            (set_r ruler_id) (set_r overlay_id) (Block.block_tracks block)
         }
     where
     map_head_tail _ _ [] = []
     map_head_tail f g (x:xs) = f x : map g xs
-    set_r ruler_id (tid, width) = (Block.set_rid ruler_id tid, width)
+    set_r ruler_id track = Block.modify_id track (Block.set_rid ruler_id)
 
 -- * show / modify keymap
 

@@ -9,7 +9,8 @@
 
 UiMsg::UiMsg() :
     // Update args
-    update_text(0), update_width(0), update_zoom(0), update_rect(0),
+    update_text(0), width_scroll_visible_track(0), visible_time(0),
+    update_zoom(0), update_rect(0),
     // Context
     view(0), has_tracknum(false), has_pos(false), pos(0)
 {}
@@ -49,7 +50,12 @@ operator<<(std::ostream &os, const UiMsg &m)
 
     if (m.update_text)
         os << " text=\"" << m.update_text << '"';
-    os << " width=" << m.update_width;
+    if (m.type == UiMsg::msg_view_resize) {
+        os << " track=(" << m.width_scroll_visible_track
+            << ", " << m.visible_time << ")";
+    } else {
+        os << " width=" << m.width_scroll_visible_track;
+    }
     if (m.update_zoom)
         os << " zoom=" << *m.update_zoom;
     if (m.update_rect)
@@ -173,7 +179,7 @@ set_update_args(UiMsg &m, BlockView *view, UiMsg::MsgType type)
         }
         break;
     case UiMsg::msg_track_scroll:
-        m.update_width = view->get_track_scroll();
+        m.width_scroll_visible_track = view->get_track_scroll();
         break;
     case UiMsg::msg_zoom:
         m.update_zoom = new ZoomInfo(view->get_zoom());
@@ -183,10 +189,15 @@ set_update_args(UiMsg &m, BlockView *view, UiMsg::MsgType type)
         // TODO Is this really the only way to find out the window's position?
         m.update_rect->x = Fl::event_x_root() - Fl::event_x();
         m.update_rect->y = Fl::event_y_root() - Fl::event_y();
+        {
+            Point track_size = view->get_track_size();
+            m.width_scroll_visible_track = track_size.x;
+            m.visible_time = track_size.y;
+        }
         break;
     case UiMsg::msg_track_width:
         ASSERT(m.has_tracknum);
-        m.update_width = view->get_track_width(m.tracknum);
+        m.width_scroll_visible_track = view->get_track_width(m.tracknum);
         break;
     case UiMsg::msg_close:
         ASSERT(m.view); // should have been set by caller
@@ -248,16 +259,6 @@ MsgCollector::window_update(BlockViewWindow *view, UiMsg::MsgType type,
     m.has_tracknum = true;
     m.tracknum = tracknum;
     set_update_args(m, &view->block, type);
-    this->push(m);
-}
-
-void
-MsgCollector::window_update_resize(BlockViewWindow *view, const Rect &rect)
-{
-    UiMsg m;
-    m.view = view;
-    m.type = UiMsg::msg_view_resize;
-    m.update_rect = new Rect(rect);
     this->push(m);
 }
 

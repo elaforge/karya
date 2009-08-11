@@ -100,7 +100,7 @@ create_view view_id window_title rect view_config block_config = do
     MVar.modifyMVar_ view_id_to_ptr $ \ptr_map -> do
         when (view_id `Map.member` ptr_map) $
             throw $ show view_id ++ " already in displayed view list: "
-                ++ show (Map.elems ptr_map)
+                ++ show (Map.assocs ptr_map)
         viewp <- withCString window_title $ \titlep ->
             with block_config $ \configp -> with view_config $ \view_configp ->
                 c_create (i x) (i y) (i w) (i h) titlep configp view_configp
@@ -203,6 +203,19 @@ set_model_config view_id config = do
     with config $ \configp -> c_set_model_config viewp configp
 foreign import ccall "set_model_config"
     c_set_model_config :: Ptr CView -> Ptr Block.Config -> IO ()
+
+set_skeleton :: Block.ViewId -> Maybe Block.Skeleton -> Fltk ()
+set_skeleton view_id skel = do
+    viewp <- get_ptr view_id
+    withArrayLen ps $ \len pp -> withArray cs $ \cp -> do
+        alloca $ \skelp -> do
+            poke_skeleton skelp (Util.c_int len) pp cp
+            c_set_skeleton viewp skelp
+    where
+    (parents, children) = unzip $ maybe [] flatten_skeleton skel
+    (ps, cs) = (map Util.c_int parents, map Util.c_int children)
+foreign import ccall "set_skeleton"
+    c_set_skeleton :: Ptr CView -> Ptr Block.Skeleton -> IO ()
 
 set_title :: Block.ViewId -> String -> Fltk ()
 set_title view_id title = do
@@ -363,19 +376,34 @@ instance Storable Block.ViewConfig where
     peek = error "no peek for ViewConfig"
     poke = poke_config
 
-poke_config configp (Block.ViewConfig
-        { Block.vconfig_block_title_height = block_title_height
-        , Block.vconfig_track_title_height = track_title_height
-        , Block.vconfig_sb_size = sb_size
-        , Block.vconfig_status_size = status_size
-        })
-    = do
-        (#poke BlockViewConfig, block_title_height) configp
-            (Util.c_int block_title_height)
-        (#poke BlockViewConfig, track_title_height) configp
-            (Util.c_int track_title_height)
-        (#poke BlockViewConfig, sb_size) configp (Util.c_int sb_size)
-        (#poke BlockViewConfig, status_size) configp (Util.c_int status_size)
+poke_config configp (Block.ViewConfig block track skel sb status) = do
+    (#poke BlockViewConfig, block_title_height) configp (Util.c_int block)
+    (#poke BlockViewConfig, track_title_height) configp (Util.c_int track)
+    (#poke BlockViewConfig, skel_height) configp (Util.c_int skel)
+    (#poke BlockViewConfig, sb_size) configp (Util.c_int sb)
+    (#poke BlockViewConfig, status_size) configp (Util.c_int status)
+
+-- ** skeleton
+
+instance Storable Block.Skeleton where
+    sizeOf _ = #size SkeletonConfig
+    alignment _ = #{alignment SkeletonConfig}
+    -- | Because I have to dynamically allocate arrays and pass their pointers,
+    -- the real work is done by 'poke_skeleton'.
+    poke _ _ = return ()
+
+poke_skeleton :: Ptr Block.Skeleton -> CInt -> Ptr CInt -> Ptr CInt -> IO ()
+poke_skeleton skelp len parentsp childrenp = do
+    (#poke SkeletonConfig, len) skelp len
+    (#poke SkeletonConfig, parents) skelp parentsp
+    (#poke SkeletonConfig, children) skelp childrenp
+
+-- | Flatten a skeleton into [(parent, child)].
+flatten_skeleton :: Block.Skeleton -> [(Block.TrackNum, Block.TrackNum)]
+flatten_skeleton skel =
+    [(num skel, num sub) | sub <- Block.skel_subs skel]
+    ++ concatMap flatten_skeleton (Block.skel_subs skel)
+    where num = Block.skel_tracknum
 
 -- ** selection
 

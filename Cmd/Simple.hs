@@ -5,7 +5,6 @@
 module Cmd.Simple where
 import Control.Monad
 import qualified Control.Monad.Trans as Trans
-import qualified Data.Maybe as Maybe
 
 import qualified Ui.Id as Id
 import qualified Ui.Event as Event
@@ -39,8 +38,7 @@ event (start, event) = (realToFrac start,
 dump_block :: (State.UiStateMonad m) => Block.BlockId -> m Block
 dump_block block_id = do
     block <- State.get_block block_id
-    let track_ids = Maybe.catMaybes $
-            map Block.track_id_of (Block.block_tracks block)
+    let track_ids = Block.block_track_ids block
     tracks <- mapM dump_track track_ids
     return (show block_id, Block.block_title block, tracks)
 
@@ -79,12 +77,13 @@ convert_block (id_name, title, tracks) =
                 (State.no_ruler_track:tracks) Config.schema
 
 convert_track :: (State.UiStateMonad m) =>
-    Track -> m (Block.TracklikeId, Block.Width)
+    Track -> m Block.BlockTrack
 convert_track (id_name, title, events) = do
     let pos_events = map convert_event events
     track_id <- State.create_track (Id.read_id id_name) $
         Track.track title pos_events Config.track_bg Config.render_config
-    return (Block.TId track_id State.no_ruler, Config.track_width)
+    return $ Block.block_track
+        (Block.TId track_id State.no_ruler) Config.track_width
 
 convert_event :: Event -> Track.PosEvent
 convert_event (start, dur, text) =

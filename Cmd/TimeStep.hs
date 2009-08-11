@@ -62,7 +62,7 @@ relevant_ruler :: Block.Block -> Block.TrackNum -> Maybe Ruler.RulerId
 relevant_ruler block tracknum = Seq.at (Block.ruler_ids_of in_order) 0
     where
     in_order = map snd $ dropWhile ((/=tracknum) . fst) $ reverse $
-        zip [0..] (Block.block_tracks block)
+        zip [0..] (Block.block_tracklike_ids block)
 
 stepper Advance = advance
 stepper Rewind = rewind

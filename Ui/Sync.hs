@@ -96,7 +96,7 @@ run_update block_samples (Update.ViewUpdate view_id Update.CreateView) = do
     block <- State.get_block (Block.view_block view)
     let maybe_track_samples = lookup (Block.view_block view) block_samples
 
-    let tracks = Block.block_tracks block
+    let tracks = Block.block_tracklike_ids block
     ctracks <- mapM State.get_tracklike tracks
     let widths = map Block.track_view_width (Block.view_tracks view)
     titles <- mapM track_title tracks

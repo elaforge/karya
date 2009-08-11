@@ -51,12 +51,14 @@ peek_msg msgp = do
     -- UiUpdate args
     ctext <- (#peek UiMsg, update_text) msgp :: IO CString
     text <- maybePeek peekCString ctext
-    width <- (#peek UiMsg, update_width) msgp :: IO CInt
+    -- Big grody union, described in MsgCollector.h.
+    wsvt <- (#peek UiMsg, width_scroll_visible_track) msgp :: IO CInt
+    visible_time <- (#peek UiMsg, visible_time) msgp :: IO CInt
     czoom <- (#peek UiMsg, update_zoom) msgp :: IO (Ptr Block.Zoom)
     zoom <- maybePeek peek czoom
     crect <- (#peek UiMsg, update_rect) msgp :: IO (Ptr Block.Rect)
     rect <- maybePeek peek crect
-    let update_args = (text, i width, zoom, rect)
+    let update_args = (text, i wsvt, i visible_time, zoom, rect)
 
     -- UiMsg Context
     viewp <- (#peek UiMsg, view) msgp :: IO (Ptr BlockC.CView)
@@ -75,14 +77,15 @@ make_msg type_num context evt_args update_args =
         (#const UiMsg::msg_close) -> UiMsg.MsgClose
         _ -> UiMsg.UiUpdate (decode_update type_num update_args)
 
-decode_update typ (text, width, zoom, rect) = case typ of
+decode_update typ (text, wsvt, visible_time, zoom, rect) = case typ of
     (#const UiMsg::msg_input) -> UiMsg.UpdateInput (Maybe.fromMaybe "" text)
-    (#const UiMsg::msg_track_scroll) -> UiMsg.UpdateTrackScroll width
+    (#const UiMsg::msg_track_scroll) -> UiMsg.UpdateTrackScroll wsvt
     (#const UiMsg::msg_zoom) -> UiMsg.UpdateZoom
         (Maybe.fromMaybe (BlockC.throw "UpdateZoom with null zoom") zoom)
     (#const UiMsg::msg_view_resize) -> UiMsg.UpdateViewResize
         (Maybe.fromMaybe (BlockC.throw "UpdateViewResize with null rect") rect)
-    (#const UiMsg::msg_track_width) -> UiMsg.UpdateTrackWidth width
+        (wsvt, visible_time)
+    (#const UiMsg::msg_track_width) -> UiMsg.UpdateTrackWidth wsvt
     -- msg_event and msg_close handled above
     _ -> error $ "unknown UiMsg type: " ++ show typ
 

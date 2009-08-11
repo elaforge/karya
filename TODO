@@ -5,6 +5,7 @@
 + unittests for new mods: PitchTrack
 bugs:
   - when I do just space, I get "keyup not in modifiers"
+  - in test_block, resizing tracks, leftmost track title is confused
 
 - support for Schema.default_scale, esp since it gets automatically added
 - kill skeleton instruments
@@ -80,8 +81,6 @@ enough.
 
 - test merge paste
 
-- Cmd.View abstraction layer for collapse and mute
-
 - "approach val" method to make pitch bend easier, or just insert two notes?
   the former is higher-level...
   g0 - approach 0 time, equivalent to s
@@ -133,11 +132,16 @@ new pitch lang
   * implement pitch track as a separate control track
   * implement note track and lookup, put inst in environment
     remove pitch parsing from Derive/Note.hs
-  + remove the old note track stuff
-  - Perform.Midi should understand the new pitch track
-  - instrument attributes
-  - cmd support: note entry commands write to both inst and pitch tracks
+  * remove the old note track stuff
+  * Perform.Midi should understand the new pitch track
+  * instrument attributes
+  * cmd support: note entry commands write to both inst and pitch tracks
 
+explicit skeleton
+  * fltk support
+  * add to Block
+  - Diff and Sync support (extract attrs)
+  - Schema support
   - track collapsing
   - track muting
   - track merging

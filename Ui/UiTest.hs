@@ -62,11 +62,9 @@ initial_state = do
         | (e, p) <- note_events]
     t2 <- State.create_track (mkid "b1.t2") (empty_track "velocity")
     State.insert_events t2 [(TrackPos 0, cont "1")]
-    b1 <- State.create_block (mkid "b1") $ Block.block "hi b1"
-        Config.block_config
-        [(Block.RId ruler, 20), (Block.TId t0 overlay, 40),
+    b1 <- State.create_block (mkid "b1") $ mkblock "hi b1"
+        Config.block_config [(Block.RId ruler, 20), (Block.TId t0 overlay, 40),
             (Block.TId t1 overlay, 40), (Block.TId t2 overlay, 40)]
-        Config.schema
     State.create_view (mkid "v1")
         (Block.view b1 default_rect default_zoom Config.view_config)
     return ()
@@ -101,18 +99,10 @@ mkstate_id block_id tracks = do
     tids <- forM (zip [0..] tracks) $ \(i, track) -> do
         State.create_track (mkid (block_name ++ ".t" ++ show i)) (mktrack track)
 
-    -- -- Make the ruler go up to the last event, so State.ruler_end will be
-    -- -- non-zero.
-    -- track_ends <- mapM State.track_end tids
-    -- let end = maximum (TrackPos 0 : track_ends)
-    -- ruler <- State.create_ruler (mkid (block_name ++ ".r0")) (ruler_until end)
-    -- TODO the above seems weird and error prone, it's nicer to always have
-    -- the ruler just like real life
     ruler <- State.create_ruler (mkid (block_name ++ ".r0")) default_ruler
     State.create_block (mkid block_name) $
-        Block.block "b1 title" default_block_config
+        mkblock "b1 title" default_block_config
             ((Block.RId ruler, 20) : [(Block.TId tid ruler, 40) | tid <- tids])
-            Config.schema
     return tids
 
 mkview :: (State.UiStateMonad m) => m Block.ViewId
@@ -125,7 +115,14 @@ mkstate_view block_id tracks = do
     mkview
     return r
 
--- track
+-- ** block
+
+mkblock :: String -> Block.Config -> [(Block.TracklikeId, Block.Width)]
+    -> Block.Block
+mkblock title config tracks = Block.block
+    title config (map (uncurry Block.block_track) tracks) Config.schema
+
+-- ** track
 
 type TrackSpec = (String, [(Double, Double, String)])
 
@@ -137,12 +134,12 @@ mktrack (title, triplets) = Track.modify_events
     (Track.insert_events (map mkevent triplets)) (empty_track title)
 empty_track title = Track.track title [] Config.track_bg Config.render_config
 
--- event
+-- ** event
 
 mkevent :: (Double, Double, String) -> Track.PosEvent
 mkevent (pos, dur, text) = (realToFrac pos, Event.event text (realToFrac dur))
 
--- ruler
+-- ** ruler
 
 default_ruler = mkruler 10 10
 no_ruler = mkruler 0 0

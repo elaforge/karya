@@ -48,8 +48,7 @@ rename_project from to = State.map_ids set_ns
 orphan_tracks :: (State.UiStateMonad m) => m [Track.TrackId]
 orphan_tracks = do
     blocks <- fmap (Map.elems . State.state_blocks) State.get
-    let ref_tracks = Set.fromList $
-            concatMap (Block.track_ids_of . Block.block_tracks) blocks
+    let ref_tracks = Set.fromList (concatMap Block.block_track_ids blocks)
     tracks <- fmap (Set.fromAscList . Map.keys . State.state_tracks) State.get
     return $ Set.toList (tracks `Set.difference` ref_tracks)
 
@@ -57,8 +56,7 @@ orphan_tracks = do
 orphan_rulers :: (State.UiStateMonad m) => m [Ruler.RulerId]
 orphan_rulers = do
     blocks <- fmap (Map.elems . State.state_blocks) State.get
-    let ref_rulers = Set.fromList $
-            concatMap (Block.ruler_ids_of . Block.block_tracks) blocks
+    let ref_rulers = Set.fromList (concatMap Block.block_ruler_ids blocks)
     rulers <- fmap (Set.fromAscList . Map.keys . State.state_rulers) State.get
     return $ Set.toList (rulers `Set.difference` ref_rulers)
 
@@ -80,7 +78,8 @@ block ruler_id = do
     block_id <- require "block id" $ generate_block_id ns blocks
     b <- State.create_block block_id $
         Block.block "" Config.block_config [] Config.schema
-    State.insert_track b 0 (Block.RId ruler_id) Config.ruler_width
+    State.insert_track b 0
+        (Block.block_track (Block.RId ruler_id) Config.ruler_width)
     return b
 
 -- | Create a block with the given ID name.  Useful for blocks meant to be
@@ -91,7 +90,8 @@ named_block name ruler_id = do
     ns <- State.get_project
     b <- State.create_block (Id.id ns name) $
         Block.block "" Config.block_config [] Config.schema
-    State.insert_track b 0 (Block.RId ruler_id) Config.ruler_width
+    State.insert_track b 0
+        (Block.block_track (Block.RId ruler_id) Config.ruler_width)
     return b
 
 generate_block_id ns blocks =
@@ -132,7 +132,8 @@ track_ruler block_id ruler_id tracknum width = do
     track_id <- require "track id" $
         generate_track_id block_id "t" tracks
     tid <- State.create_track track_id (empty_track "")
-    State.insert_track block_id tracknum (Block.TId tid ruler_id) width
+    State.insert_track block_id tracknum
+        (Block.block_track (Block.TId tid ruler_id) width)
     return tid
 
 -- | Like 'track_ruler', but copy the ruler and track width from the track to
@@ -146,10 +147,12 @@ track block_id tracknum = do
     tracknum <- clip_tracknum block_id tracknum
     prev_track <- State.track_at block_id (tracknum-1)
 
-    let (ruler_id, width) = case prev_track of
-            Just ((Block.TId _ rid), width) -> (rid, width)
-            Just ((Block.RId rid), width) -> (add_overlay_suffix rid, width)
-            _ -> (State.no_ruler, Config.track_width)
+    let ruler_id = case fmap Block.tracklike_id prev_track of
+            Just (Block.TId _ rid) -> rid
+            Just (Block.RId rid) -> add_overlay_suffix rid
+            _ -> State.no_ruler
+        -- TODO is there any real good reason to do this?
+        width = maybe Config.track_width Block.track_width prev_track
     -- The above can generate a bad ruler_id if they didn't use 'ruler' to
     -- create the ruler with the overlay version, so fall back on
     -- State.no_ruler if it doesn't exist.
@@ -181,7 +184,7 @@ named_track block_id ruler_id tracknum name title = do
         State.throw $ "track " ++ show ident ++ " already exists"
     tid <- State.create_track ident (empty_track title)
     State.insert_track block_id tracknum
-        (Block.TId tid ruler_id) Config.track_width
+        (Block.block_track (Block.TId tid ruler_id) Config.track_width)
     return tid
 
 -- ** cmds
@@ -224,11 +227,11 @@ swap_tracks block_id num0 num1 = do
     track1 <- State.track_at block_id num1
     case (track0, track1) of
         (Nothing, Nothing) -> return ()
-        (Just (t0, w0), Nothing) -> remove num0 >> insert num1 t0 w0
-        (Nothing, Just (t1, w1)) -> remove num1 >> insert num0 t1 w1
-        (Just (t0, w0), Just (t1, w1)) -> do
-            remove num0 >> insert num0 t1 w1
-            remove num1 >> insert num1 t0 w0
+        (Just t0, Nothing) -> remove num0 >> insert num1 t0
+        (Nothing, Just t1) -> remove num1 >> insert num0 t1
+        (Just t0, Just t1) -> do
+            remove num0 >> insert num0 t1
+            remove num1 >> insert num1 t0
     where
     remove = State.remove_track block_id
     insert = State.insert_track block_id

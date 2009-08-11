@@ -126,8 +126,7 @@ cmd_play_focused transport_info = do
 
     -- cmd_play wants to start with a track, so pick the first one.
     block <- State.get_block block_id
-    track_id <- Cmd.require $
-        Seq.at (Block.track_ids_of (Block.block_tracks block)) 0
+    track_id <- Cmd.require $ Seq.at (Block.block_track_ids block) 0
     cmd_play transport_info block_id (track_id, TrackPos 0)
 
 cmd_play_from_insert :: Transport.Info -> Cmd.CmdT IO Cmd.Status
@@ -343,7 +342,7 @@ tracknums_of :: Block.Block -> (Track.TrackId, TrackPos)
     -> [(Block.TrackNum, Maybe TrackPos)]
 tracknums_of block (track_id, pos) =
     [ (tracknum, Just pos)
-    | (tracknum, Block.TId tid _) <- zip [0..] (Block.block_tracks block)
+    | (tracknum, Block.TId tid _) <- zip [0..] (Block.block_tracklike_ids block)
     , tid == track_id ]
 
 

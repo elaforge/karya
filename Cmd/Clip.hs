@@ -153,30 +153,33 @@ get_clip_block_id = do
 -- TODO On the other hand, it can be convenient to edit the clipboard in-place,
 -- and it's nice to have a ruler for that.  But it's not too hard to just copy
 -- a ruler over, so I'll wait and see what experience shows.
+--
+-- Also strip out the other track attributes, like hidden, muted, etc.
 selection_sub_state :: (Monad m) => Block.Selection -> Cmd.CmdT m State.State
 selection_sub_state sel = do
     block_id <- Cmd.get_focused_block
     block <- State.get_block block_id
 
-    tracklike_id_widths <- fmap Maybe.catMaybes $
+    tracks <- fmap Maybe.catMaybes $
         mapM (State.track_at block_id) (Block.sel_tracknums sel)
-    let tracklike_ids = map fst tracklike_id_widths
+    let tracklike_ids = map Block.tracklike_id tracks
     tracklikes <- mapM State.get_tracklike tracklike_ids
 
     clip_block_id <- get_clip_block_id
     State.exec_rethrow "build clip state" State.empty $ do
         -- Inherit everything from the copied block, except the tracks.
         b <- State.create_block (Id.unpack_id clip_block_id) $
-            block { Block.block_track_widths = [] }
+            block { Block.block_tracks = [] }
 
         -- Copy over the tracks, but without their rulers.
         let track_pairs = Seq.unique_with fst $ zip
                 (Block.track_ids_of tracklike_ids) (Block.tracks_of tracklikes)
         forM_ track_pairs $ \(track_id, track) ->
             State.create_track (Id.unpack_id track_id) (events_in_sel sel track)
-        forM_ (zip [1..] tracklike_id_widths) $ \(n, (tracklike_id, width)) ->
-            State.insert_track b n
-                (Block.set_rid State.no_ruler tracklike_id) width
+        forM_ (zip [1..] tracks) $ \(n, track) ->
+            State.insert_track b n $ Block.block_track
+                (Block.set_rid State.no_ruler (Block.tracklike_id track))
+                (Block.track_width track)
 
 events_in_sel sel track =
     track { Track.track_events =
@@ -222,9 +225,8 @@ destroy_namespace ns = do
     block_ids <- fmap (filter (in_ns . Id.unpack_id))
         State.get_all_block_ids
     blocks <- mapM State.get_block block_ids
-    let tracks = concatMap Block.block_tracks blocks
-        track_ids = Seq.unique (Maybe.catMaybes (map Block.track_id_of tracks))
-        ruler_ids = Seq.unique (Maybe.catMaybes (map Block.ruler_id_of tracks))
+    let track_ids = Seq.unique $ concatMap Block.block_track_ids blocks
+        ruler_ids = Seq.unique $ concatMap Block.block_ruler_ids blocks
     -- Will destroy any views too.
     mapM_ State.destroy_block block_ids
     mapM_ State.destroy_track (filter (in_ns . Id.unpack_id) track_ids)
@@ -265,7 +267,7 @@ get_paste_area = do
 
     -- If the clip block has any rulers or anything, I skip them.
     let clip_track_ids = take (length (Block.sel_tracknums sel))
-            (Block.track_ids_of (Block.block_tracks clip_block))
+            (Block.block_track_ids clip_block)
     clip_end <- State.event_end clip_block_id
     sel <- return $ if Block.sel_is_point sel
         then Block.sel_set_duration clip_end sel
@@ -273,6 +275,6 @@ get_paste_area = do
 
     block_id <- Cmd.get_focused_block
     block <- State.get_block block_id
-    let track_ids = Block.track_ids_of
-            (drop (Block.sel_start_track sel) (Block.block_tracks block))
+    let track_ids = Block.track_ids_of $ map Block.tracklike_id $
+            drop (Block.sel_start_track sel) (Block.block_tracks block)
     return (track_ids, clip_track_ids, sel)

@@ -134,6 +134,12 @@ set_model_config(BlockViewWindow *view, BlockModelConfig *config)
 }
 
 void
+set_skeleton(BlockViewWindow *view, SkeletonConfig *skel)
+{
+    view->block.set_skeleton(*skel);
+}
+
+void
 set_title(BlockViewWindow *view, const char *title)
 {
     view->block.set_title(title);

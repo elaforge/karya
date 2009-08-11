@@ -39,7 +39,8 @@ data UiUpdate =
     UpdateInput String
     | UpdateTrackScroll Block.Width
     | UpdateZoom Block.Zoom
-    | UpdateViewResize Block.Rect
+    -- | Size of entire block window, and (visible_track, visible_time).
+    | UpdateViewResize Block.Rect (Int, Int)
     | UpdateTrackWidth Block.Width
     deriving (Eq, Ord, Show)
 

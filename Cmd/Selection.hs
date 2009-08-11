@@ -158,12 +158,12 @@ calc_time_offset view sel0 sel1 = time_scroll_with_selection
         sel0 sel1 (Block.zoom_offset zoom) view_end extra_space
     where
     zoom = Block.view_zoom view
-    visible_area = Block.visible_time_area view
+    visible_time = Block.visible_time view
     view_start = Block.zoom_offset zoom
-    view_end = view_start + visible_area
+    view_end = view_start + visible_time
     -- Scroll by 1/4 of the visible screen.
     -- TODO handle out of range drag by scrolling at a constant rate
-    extra_space = visible_area / 4
+    extra_space = visible_time / 4
 
 calc_track_offset view sel0 sel1 = max 0 (offset - ruler_width)
     where
@@ -172,7 +172,7 @@ calc_track_offset view sel0 sel1 = max 0 (offset - ruler_width)
     ruler_width = Seq.mhead 0 widths
     offset = track_scroll_with_selection sel0 sel1
         (Block.view_track_scroll view + ruler_width)
-        (Block.visible_track_area view) widths
+        (Block.visible_track view) widths
 
 -- | If the moving edge of the selection is going out of the visible area,
 -- scroll to put it into view plus a little extra space.  If both edges are
@@ -265,8 +265,8 @@ step_from tracknum pos direction = do
 relevant_ruler :: Block.Block -> Block.TrackNum -> Maybe Ruler.RulerId
 relevant_ruler block tracknum = Seq.at (Block.ruler_ids_of in_order) 0
     where
-    in_order = map snd $ dropWhile ((/=tracknum) . fst) $ reverse $
-        zip [0..] (Block.block_tracks block)
+    in_order = map (Block.tracklike_id . snd) $ dropWhile ((/=tracknum) . fst) $
+        reverse $ zip [0..] (Block.block_tracks block)
 
 -- | Return the leftmost tracknum and trackpos, even if it's not an event
 -- track.  TODO unless it's a divider?

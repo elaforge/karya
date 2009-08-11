@@ -3,6 +3,7 @@
 #include "Block.h"
 #include "Track.h"
 #include "EventTrack.h"
+#include "SkeletonDisplay.h"
 
 extern "C" {
 
@@ -37,6 +38,7 @@ void set_track_selection(BlockViewWindow *view, int selnum, int tracknum,
         const Selection *sel);
 
 void set_model_config(BlockViewWindow *view, BlockModelConfig *config);
+void set_skeleton(BlockViewWindow *view, SkeletonConfig *skel);
 void set_title(BlockViewWindow *view, const char *title);
 void set_status(BlockViewWindow *view, const char *status);
 

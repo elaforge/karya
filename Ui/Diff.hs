@@ -1,4 +1,7 @@
 {-# OPTIONS_GHC -fno-warn-unused-imports #-}
+{- | Diff two states to produce a list of Updates, which must be sent to the UI
+to make it display the second state.
+-}
 module Ui.Diff where
 import Control.Monad
 import qualified Control.Monad.Error as Error
@@ -15,6 +18,8 @@ import qualified Ui.Track as Track
 
 import qualified Ui.Update as Update
 import qualified Ui.State as State
+
+-- TODO deal with other attrs, maybe they can be applied before diffing
 
 
 type DiffError = String
@@ -156,7 +161,7 @@ track_info view_id view st =
         Nothing -> throw $ show block_id ++ " of " ++ show view_id
             ++ " has no referent"
         Just block -> return $ zip
-            (Block.block_tracks block) (Block.view_tracks view)
+            (Block.block_tracklike_ids block) (Block.view_tracks view)
     where block_id = Block.view_block view
 
 -- ** block / track / ruler
@@ -169,12 +174,18 @@ diff_block block_id block1 block2 = do
         change [block_update $ Update.BlockConfig (Block.block_config block2)]
 
     let pairs = indexed_pairs (\a b -> fst a == fst b)
-            (Block.block_track_widths block1) (Block.block_track_widths block2)
+            (diffable_tracks block1) (diffable_tracks block2)
     forM_ pairs $ \(i2, track1, track2) -> case (track1, track2) of
         (Just _, Nothing) -> change [block_update $ Update.RemoveTrack i2]
         (Nothing, Just (track, width)) ->
             change [block_update $ Update.InsertTrack i2 track width]
         _ -> return ()
+
+-- | Get the diffable parts of a block's tracks.  The other attributes
+-- are applied to the track before diffing by XXX TODO
+diffable_tracks :: Block.Block -> [(Block.TracklikeId, Block.Width)]
+diffable_tracks = map (\t -> (Block.tracklike_id t, Block.track_width t))
+    . Block.block_tracks
 
 diff_track track_id track1 track2 = do
     let track_update = Update.TrackUpdate track_id

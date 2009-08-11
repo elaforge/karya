@@ -15,9 +15,6 @@ import qualified Ui.Color as Color
 import qualified Ui.Track as Track
 import qualified Ui.Ruler as Ruler
 
--- These would have to be hierarchical names, so if you load
--- another song you don't get ID collisions.
-
 -- | Reference to a Block.  Use this to look up Blocks in the State.
 -- Even though the constructor is exported, you should only create them
 -- through the 'State.StateT' interface.
@@ -57,15 +54,22 @@ instance Id.Ident SchemaId where
 data Block = Block {
     block_title :: String
     , block_config :: Config
-    -- The Widths here are the default if a new View is created from this Block.
-    , block_track_widths :: [(TracklikeId, Width)]
+    , block_tracks :: [BlockTrack]
+    , block_skeleton :: Maybe Skeleton
     , block_schema :: SchemaId
-    } deriving (Eq, Ord, Show, Read)
+    } deriving (Eq, Show, Read)
 
-block_tracks :: Block -> [TracklikeId]
-block_tracks = map fst . block_track_widths
+block_tracklike_ids :: Block -> [TracklikeId]
+block_tracklike_ids = map tracklike_id . block_tracks
 
-block title config tracks schema_id = Block title config tracks schema_id
+block_track_ids :: Block -> [Track.TrackId]
+block_track_ids = track_ids_of . block_tracklike_ids
+
+block_ruler_ids :: Block -> [Ruler.RulerId]
+block_ruler_ids = ruler_ids_of . block_tracklike_ids
+
+block title config tracks schema_id =
+    Block title config tracks Nothing schema_id
 
 -- | Per-block configuration.
 data Config = Config {
@@ -73,14 +77,52 @@ data Config = Config {
     , config_bg_color :: Color
     , config_track_box :: (Color, Char)
     , config_sb_box :: (Color, Char)
-    } deriving (Eq, Ord, Show, Read)
+    } deriving (Eq, Show, Read)
 
--- Tracks may have a Ruler overlay
+-- | The skeleton describes a hierarchical relationship between tracks.  It's
+-- used at the UI level only to display the hierarchy visually, but the
+-- deriver level can use it.  A given track may appear multiple times or not at
+-- all.
+data Skeleton = Skeleton {
+    skel_tracknum :: TrackNum
+    , skel_type :: TrackType
+    , skel_subs :: [Skeleton]
+    } deriving (Eq, Show, Read)
+
+data TrackType = TrackControl | TrackPitch | TrackNote deriving (Eq, Show, Read)
+
+data BlockTrack = BlockTrack {
+    tracklike_id :: TracklikeId
+    -- | The real width is in the View, but this width is a default if a new
+    -- View is created from this Block.
+    , track_width :: Width
+    -- | Don't display this track at all.
+    , track_hidden :: Bool
+    -- | Don't display this track, but render its signal behind another track.
+    -- Only makes sense for event tracks.
+    , track_merged :: Maybe TrackNum
+    -- | UI shows muted indication, deriver should skip this track.  Only makes
+    -- sense for event tracks.
+    , track_muted :: Bool
+    -- | Track is replaced by a divider.  Doesn't make much sense if it already
+    -- is one.
+    , track_collapsed :: Bool
+    } deriving (Eq, Show, Read)
+
+-- | Construct a 'BlockTrack' with defaults.
+block_track :: TracklikeId -> Width -> BlockTrack
+block_track tracklike_id width =
+    BlockTrack tracklike_id width False Nothing False False
+
+modify_id :: BlockTrack -> (TracklikeId -> TracklikeId) -> BlockTrack
+modify_id track f = track { tracklike_id = f (tracklike_id track) }
+
 data TracklikeId =
+    -- | Tracks may have a Ruler overlay
     TId Track.TrackId Ruler.RulerId
     | RId Ruler.RulerId
     | DId Divider
-    deriving (Eq, Ord, Show, Read)
+    deriving (Eq, Show, Read)
 
 track_id_of :: TracklikeId -> Maybe Track.TrackId
 track_id_of (TId tid _) = Just tid
@@ -131,6 +173,12 @@ data View = View {
     -- destroyed.
     view_block :: BlockId
     , view_rect :: Rect
+
+    -- | These two are derived from view_rect, but cached here so pure code
+    -- doesn't have to call to the UI and import BlockC.
+    , view_visible_track :: Int
+    , view_visible_time :: Int
+
     , view_config :: ViewConfig
     , view_status :: Map.Map String String
 
@@ -149,33 +197,21 @@ data View = View {
 -- Don't construct views using View directly since State.create_view overwrites
 -- view_tracks, and maybe more in the future.
 view block_id rect zoom config =
-    View block_id rect config Map.empty 0 zoom Map.empty []
+    -- view_visible_track and view_visible_time are unknown, but will
+    -- be filled in when the new view emits its initial resize msg.
+    View block_id rect 0 0 config Map.empty 0 zoom Map.empty []
 
 show_status :: View -> String
 show_status = Seq.join " | " . map (\(k, v) -> k ++ ": " ++ v)
     . Map.assocs . view_status
 
 -- | Return how much track is in view.
-visible_time_area :: View -> TrackPos
-visible_time_area view = pixels_to_track_pos (view_zoom view) height
-    where
-    ViewConfig { vconfig_block_title_height = blockth
-        , vconfig_track_title_height = trackth -- yeth a I have lithp
-        , vconfig_sb_size = sb
-        , vconfig_status_size = status } = view_config view
-    -- TODO
-    -- This relies on knowing how the widgets are layed out.  It would be nicer
-    -- for UpdateViewResize to explicitly give the pixels in the track view,
-    -- and I'd need to make sure a haskell-initiated resize gets reported in an
-    -- UpdateViewResize too.
-    height = rect_h (view_rect view) - blockth - trackth - sb - status
+visible_time :: View -> TrackPos
+visible_time view =
+    pixels_to_track_pos (view_zoom view) (view_visible_time view)
 
-visible_track_area :: View -> Width
-visible_track_area view = width - ruler_width - sb
-    where
-    ViewConfig { vconfig_sb_size = sb } = view_config view
-    ruler_width = Seq.mhead 0 (map track_view_width (view_tracks view))
-    width = rect_w (view_rect view)
+visible_track :: View -> Width
+visible_track = view_visible_track
 
 pixels_to_track_pos :: Zoom -> Int -> TrackPos
 pixels_to_track_pos zoom pixels =
@@ -194,11 +230,11 @@ data Rect = Rect {
 rect_r rect = rect_x rect + rect_w rect
 rect_b rect = rect_y rect + rect_h rect
 
--- | The defaults for newly created blocks and the trackviews automatically
--- created.
+-- | These are defaults for newly created blocks.
 data ViewConfig = ViewConfig {
     vconfig_block_title_height :: Int
     , vconfig_track_title_height :: Int
+    , vconfig_skel_height :: Int
     , vconfig_sb_size :: Int
     , vconfig_status_size :: Int
     } deriving (Eq, Ord, Show, Read)

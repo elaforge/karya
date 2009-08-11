@@ -158,17 +158,25 @@ instance Binary Block.SchemaId where
     get = get >>= \a -> return (Block.SchemaId a)
 
 instance Binary Block.Block where
-    put (Block.Block a b c d) = put_version 2
-        >> put a >> put b >> put c >> put d
+    put (Block.Block a b c d e) = put_version 3
+        >> put a >> put b >> put c >> put d >> put e
     get = do
         v <- get_version
         case v of
             2 -> do
                 title <- get :: Get String
                 config <- get :: Get Block.Config
-                tracks <- get :: Get [(Block.TracklikeId, Block.Width)]
+                track_widths <- get :: Get [(Block.TracklikeId, Block.Width)]
                 schema_id <- get :: Get Block.SchemaId
-                return (Block.Block title config tracks schema_id)
+                let tracks = map (uncurry Block.block_track) track_widths
+                return $ Block.Block title config tracks Nothing schema_id
+            3 -> do
+                title <- get :: Get String
+                config <- get :: Get Block.Config
+                tracks <- get :: Get [Block.BlockTrack]
+                skel <- get :: Get (Maybe Block.Skeleton)
+                schema_id <- get :: Get Block.SchemaId
+                return $ Block.Block title config tracks skel schema_id
             _ -> version_error "Block.Block" v
 
 -- Everything in the block config is either derived from the Cmd.State or is
@@ -178,6 +186,46 @@ instance Binary Block.Config where
     get = do
         _ <- get :: Get ()
         return Config.block_config
+
+instance Binary Block.Skeleton where
+    put (Block.Skeleton a b c) = put_version 0 >> put a >> put b >> put c
+    get = do
+        v <- get_version
+        case v of
+            0 -> do
+                tracknum <- get :: Get Block.TrackNum
+                typ <- get :: Get Block.TrackType
+                subs <- get :: Get [Block.Skeleton]
+                return $ Block.Skeleton tracknum typ subs
+            _ -> version_error "Block.Skeleton" v
+
+instance Binary Block.TrackType where
+    put Block.TrackControl = putWord8 0
+    put Block.TrackPitch = putWord8 1
+    put Block.TrackNote = putWord8 2
+    get = do
+        tag_ <- getWord8
+        case tag_ of
+            0 -> return Block.TrackControl
+            1 -> return Block.TrackPitch
+            2 -> return Block.TrackNote
+            _ -> fail "no parse for Block.TrackType"
+
+instance Binary Block.BlockTrack where
+    put (Block.BlockTrack a b c d e f) = put_version 0
+        >> put a >> put b >> put c >> put d >> put e >> put f
+    get = do
+        v <- get_version
+        case v of
+            0 -> do
+                id <- get :: Get Block.TracklikeId
+                width <- get :: Get Block.Width
+                hidden <- get :: Get Bool
+                merged <- get :: Get (Maybe Block.TrackNum)
+                muted <- get :: Get Bool
+                collapsed <- get :: Get Bool
+                return $ Block.BlockTrack id width hidden merged muted collapsed
+            _ -> version_error "Block.BlockTrack" v
 
 tid = Block.TId :: Track.TrackId -> Ruler.RulerId -> Block.TracklikeId
 rid = Block.RId :: Ruler.RulerId -> Block.TracklikeId
@@ -199,19 +247,29 @@ instance Binary Block.Divider where
     put (Block.Divider a) = put a
     get = get >>= \a -> return (divider a)
 
-view = Block.View :: Block.BlockId -> Block.Rect -> Block.ViewConfig
-    -> Map.Map String String -> Block.Width -> Block.Zoom
-    -> Map.Map Block.SelNum Block.Selection -> [Block.TrackView]
-    -> Block.View
 instance Binary Block.View where
-    put (Block.View a b c d e f g h) = put_version 0
+    put (Block.View a b c d e f g h i j) = put_version 1
         >> put a >> put b >> put c >> put d >> put e >> put f >> put g >> put h
+        >> put i >> put j
     get = do
         v <- get_version
         case v of
             0 -> get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
                 get >>= \e -> get >>= \f -> get >>= \g -> get >>= \h ->
-                return (view a b c d e f g h)
+                return (Block.View a b 0 0 c d e f g h)
+            1 -> do
+                block <- get :: Get Block.BlockId
+                rect <- get :: Get Block.Rect
+                visible_track <- get :: Get Int
+                visible_time <- get :: Get Int
+                config <- get :: Get Block.ViewConfig
+                status <- get :: Get (Map.Map String String)
+                track_scroll <- get :: Get Block.Width
+                zoom <- get :: Get Block.Zoom
+                selections <- get :: Get (Map.Map Block.SelNum Block.Selection)
+                tracks <- get :: Get [Block.TrackView]
+                return $ Block.View block rect visible_track visible_time
+                    config status track_scroll zoom selections tracks
             _ -> version_error "Block.View" v
 
 track_view = Block.TrackView :: Block.Width -> Block.TrackView
@@ -225,8 +283,8 @@ instance Binary Block.Rect where
         return (Block.Rect a b c d)
 
 instance Binary Block.ViewConfig where
-    put (Block.ViewConfig a b c d) = put_version 1
-        >> put a >> put b >> put c >> put d
+    put (Block.ViewConfig a b c d e) = put_version 1
+        >> put a >> put b >> put c >> put d >> put e
     get = do
         v <- get_version
         case v of
@@ -235,8 +293,17 @@ instance Binary Block.ViewConfig where
                 track_title <- get :: Get Int
                 sb_size <- get :: Get Int
                 status_size <- get :: Get Int
-                return $ Block.ViewConfig block_title track_title sb_size
-                    status_size
+                let skel_height = Block.vconfig_skel_height Config.view_config
+                return $ Block.ViewConfig block_title track_title skel_height
+                    sb_size status_size
+            2 -> do
+                block_title <- get :: Get Int
+                track_title <- get :: Get Int
+                skel_height <- get :: Get Int
+                sb_size <- get :: Get Int
+                status_size <- get :: Get Int
+                return $ Block.ViewConfig block_title track_title skel_height
+                    sb_size status_size
             _ -> version_error "Block.ViewConfig" v
 
 zoom = Block.Zoom :: TrackPos -> Double -> Block.Zoom

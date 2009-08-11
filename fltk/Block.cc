@@ -290,6 +290,13 @@ BlockView::set_track_scroll(int offset)
 }
 
 
+Point
+BlockView::get_track_size() const
+{
+    return Point(this->track_tile.w(), this->track_tile.h());
+}
+
+
 void
 BlockView::set_selection(int selnum, const Selection &sel)
 {
@@ -481,6 +488,8 @@ BlockView::update_scrollbars_cb(Fl_Widget *w, void *vp)
     self->update_scrollbars();
 }
 
+// This is called by both body and track_tile.  track_tile calls only on
+// FL_RELEASE (TODO which I should probably fix).
 void
 BlockView::track_tile_cb(Fl_Widget *w, void *vp)
 {
@@ -499,12 +508,14 @@ BlockView::track_tile_cb(Fl_Widget *w, void *vp)
         if (i != 0)
             self->skel_display.set_width(i-1, self->get_track_width(i));
         // Don't spam out updates until a release.
-        // Actually, MoveTile only calls back on release anyway, but I might
-        // change that someday.
         if (Fl::event() == FL_RELEASE)
             global_msg_collector()->block_update(
                     self, UiMsg::msg_track_width, i);
     }
+    // body tile drags could resize the skel_display, which will change the
+    // visible track area.
+    if (w == &self->body && Fl::event() == FL_RELEASE)
+        global_msg_collector()->block_update(self, UiMsg::msg_view_resize);
 }
 
 
@@ -548,8 +559,8 @@ BlockViewWindow::BlockViewWindow(int X, int Y, int W, int H,
 void
 BlockViewWindow::resize(int X, int Y, int W, int H)
 {
-    global_msg_collector()->window_update_resize(this, Rect(X, Y, W, H));
     Fl_Window::resize(X, Y, W, H);
+    global_msg_collector()->window_update(this, UiMsg::msg_view_resize);
 }
 
 

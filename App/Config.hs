@@ -127,6 +127,7 @@ block_config = Block.Config
 view_config = Block.ViewConfig
     { Block.vconfig_block_title_height = 20
     , Block.vconfig_track_title_height = 20
+    , Block.vconfig_skel_height = 16
     , Block.vconfig_sb_size = 12
     , Block.vconfig_status_size = 16
     }
