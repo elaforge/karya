@@ -39,7 +39,13 @@ operator<<(std::ostream &os, const Color &c)
 // I use exceptions so c++ errors won't necessarily crash the whole program.
 
 #define ASSERT(x) if (!(x)) do { \
-    AssertionError a(#x, __FILE__, __func__, __LINE__); \
+    AssertionError a(#x, __FILE__, __func__, __LINE__, ""); \
+    std::cerr << "assertion: " << a << '\n'; \
+    throw a; \
+} while (0)
+
+#define ASSERT_MSG(x, msg) if (!(x)) do { \
+    AssertionError a(#x, __FILE__, __func__, __LINE__, msg); \
     std::cerr << "assertion: " << a << '\n'; \
     throw a; \
 } while (0)
@@ -47,18 +53,22 @@ operator<<(std::ostream &os, const Color &c)
 
 struct AssertionError : std::exception {
     AssertionError(const char *expr, const char *file, const char *func,
-            int line) :
-        expr(expr), file(file), func(func), line(line)
+            int line, const char *msg) :
+        expr(expr), file(file), func(func), line(line), msg(msg)
     {}
     const char *expr, *file, *func;
     const int line;
+    const char *msg;
 };
 
 inline std::ostream &
 operator<<(std::ostream &os, const AssertionError &a)
 {
-    return os << "<assertion failed at " << a.file << ':' << a.line << ' '
-        << a.func << "(): '" << a.expr << "'>";
+    os << "<assertion failed at " << a.file << ':' << a.line << ' '
+        << a.func << "(): '" << a.expr;
+    if (strlen(a.msg))
+        os << "(" << a.msg << ")";
+    return os << "'>";
 }
 
 
