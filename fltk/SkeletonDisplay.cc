@@ -20,6 +20,7 @@ SkeletonDisplay::reset()
     this->track_widths.clear();
     this->track_centers.clear();
     this->parent_child.clear();
+    this->redraw();
 }
 
 

@@ -4,16 +4,18 @@ import Control.Monad
 import qualified Control.Concurrent.MVar as MVar
 import qualified Data.Maybe as Maybe
 import qualified Foreign
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Text.Read as Read
 
 import qualified Util.Seq as Seq
 
 import Ui.Types
-import qualified Ui.Id as Id
 import qualified Ui.Color as Color
-import qualified Ui.Track as Track
+import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
+import qualified Ui.Skeleton as Skeleton
+import qualified Ui.Track as Track
 
 -- | Reference to a Block.  Use this to look up Blocks in the State.
 -- Even though the constructor is exported, you should only create them
@@ -55,7 +57,7 @@ data Block = Block {
     block_title :: String
     , block_config :: Config
     , block_tracks :: [BlockTrack]
-    , block_skeleton :: Maybe Skeleton
+    , block_skeleton :: Skeleton.Skeleton
     , block_schema :: SchemaId
     } deriving (Eq, Show, Read)
 
@@ -69,7 +71,7 @@ block_ruler_ids :: Block -> [Ruler.RulerId]
 block_ruler_ids = ruler_ids_of . block_tracklike_ids
 
 block title config tracks schema_id =
-    Block title config tracks Nothing schema_id
+    Block title config tracks Skeleton.empty schema_id
 
 -- | Per-block configuration.
 data Config = Config {
@@ -78,18 +80,6 @@ data Config = Config {
     , config_track_box :: (Color, Char)
     , config_sb_box :: (Color, Char)
     } deriving (Eq, Show, Read)
-
--- | The skeleton describes a hierarchical relationship between tracks.  It's
--- used at the UI level only to display the hierarchy visually, but the
--- deriver level can use it.  A given track may appear multiple times or not at
--- all.
-data Skeleton = Skeleton {
-    skel_tracknum :: TrackNum
-    , skel_type :: TrackType
-    , skel_subs :: [Skeleton]
-    } deriving (Eq, Show, Read)
-
-data TrackType = TrackControl | TrackPitch | TrackNote deriving (Eq, Show, Read)
 
 data BlockTrack = BlockTrack {
     tracklike_id :: TracklikeId

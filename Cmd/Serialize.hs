@@ -29,6 +29,7 @@ import qualified Ui.State as State
 import qualified Ui.Color as Color
 import qualified Ui.Font as Font
 import qualified Ui.Block as Block
+import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Event as Event
 import qualified Ui.Track as Track
@@ -169,12 +170,13 @@ instance Binary Block.Block where
                 track_widths <- get :: Get [(Block.TracklikeId, Block.Width)]
                 schema_id <- get :: Get Block.SchemaId
                 let tracks = map (uncurry Block.block_track) track_widths
-                return $ Block.Block title config tracks Nothing schema_id
+                return $ Block.Block title config tracks Skeleton.empty
+                    schema_id
             3 -> do
                 title <- get :: Get String
                 config <- get :: Get Block.Config
                 tracks <- get :: Get [Block.BlockTrack]
-                skel <- get :: Get (Maybe Block.Skeleton)
+                skel <- get :: Get Skeleton.Skeleton
                 schema_id <- get :: Get Block.SchemaId
                 return $ Block.Block title config tracks skel schema_id
             _ -> version_error "Block.Block" v
@@ -187,29 +189,9 @@ instance Binary Block.Config where
         _ <- get :: Get ()
         return Config.block_config
 
-instance Binary Block.Skeleton where
-    put (Block.Skeleton a b c) = put_version 0 >> put a >> put b >> put c
-    get = do
-        v <- get_version
-        case v of
-            0 -> do
-                tracknum <- get :: Get Block.TrackNum
-                typ <- get :: Get Block.TrackType
-                subs <- get :: Get [Block.Skeleton]
-                return $ Block.Skeleton tracknum typ subs
-            _ -> version_error "Block.Skeleton" v
-
-instance Binary Block.TrackType where
-    put Block.TrackControl = putWord8 0
-    put Block.TrackPitch = putWord8 1
-    put Block.TrackNote = putWord8 2
-    get = do
-        tag_ <- getWord8
-        case tag_ of
-            0 -> return Block.TrackControl
-            1 -> return Block.TrackPitch
-            2 -> return Block.TrackNote
-            _ -> fail "no parse for Block.TrackType"
+instance Binary Skeleton.Skeleton where
+    put (Skeleton.Skeleton a) = put a
+    get = get >>= \a -> return (Skeleton.Skeleton a)
 
 instance Binary Block.BlockTrack where
     put (Block.BlockTrack a b c d e f) = put_version 0

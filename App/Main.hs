@@ -21,6 +21,7 @@ import qualified Util.Thread as Thread
 
 import Ui.Types
 import qualified Ui.Block as Block
+import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.Ui as Ui
 
@@ -221,9 +222,8 @@ old_setup_cmd _args = do
         [(0, 0, "5c-"), (1, 0, "5d-"), (2, 0, "5e-"), (3, 0, "5f-")]
     State.set_track_title t1 "*twelve"
     State.set_track_width vid 3 50
-    State.set_skeleton bid $ Just $ Block.Skeleton 1 Block.TrackControl
-        [Block.Skeleton 3 Block.TrackPitch
-            [Block.Skeleton 2 Block.TrackNote []]]
+    -- tempo 1 -> *twelve 3 -> >fm8/bass 2
+    State.set_skeleton bid $ Skeleton.make [(1, 3), (3, 2)]
 
     Cmd.set_midi_config inst_config
     State.set_selection vid Config.insert_selnum

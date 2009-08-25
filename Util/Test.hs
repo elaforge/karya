@@ -14,6 +14,8 @@ module Util.Test (
     , io_equal, io_equal_srcpos
     , io_human, io_human_srcpos
 
+    , success, failure
+
     -- * pretty printing
     , plist, pslist, pmlist
     , module PPrint

@@ -54,6 +54,7 @@ import qualified Ui.Color as Color
 import qualified Ui.Block as Block
 -- They properly belong here but are in Ui.Block for convenience.
 import Ui.Block (CView, view_id_to_ptr)
+import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Ruler as Ruler
 import qualified Ui.RulerC as RulerC
 import qualified Ui.Track as Track
@@ -202,18 +203,12 @@ set_model_config view_id config = do
 foreign import ccall "set_model_config"
     c_set_model_config :: Ptr CView -> Ptr Block.Config -> IO ()
 
-set_skeleton :: Block.ViewId -> Maybe Block.Skeleton -> Fltk ()
+set_skeleton :: Block.ViewId -> Skeleton.Skeleton -> Fltk ()
 set_skeleton view_id skel = do
     viewp <- get_ptr view_id
-    withArrayLen ps $ \len pp -> withArray cs $ \cp -> do
-        alloca $ \skelp -> do
-            poke_skeleton skelp (Util.c_int len) pp cp
-            c_set_skeleton viewp skelp
-    where
-    (parents, children) = unzip $ maybe [] flatten_skeleton skel
-    (ps, cs) = (map Util.c_int parents, map Util.c_int children)
+    with_skeleton skel $ \skelp -> c_set_skeleton viewp skelp
 foreign import ccall "set_skeleton"
-    c_set_skeleton :: Ptr CView -> Ptr Block.Skeleton -> IO ()
+    c_set_skeleton :: Ptr CView -> Ptr Skeleton.Skeleton -> IO ()
 
 set_title :: Block.ViewId -> String -> Fltk ()
 set_title view_id title = do
@@ -379,28 +374,30 @@ poke_config configp (Block.ViewConfig block track skel sb status) = do
 
 -- ** skeleton
 
-instance Storable Block.Skeleton where
+instance Storable Skeleton.Skeleton where
     sizeOf _ = #size SkeletonConfig
     alignment _ = #{alignment SkeletonConfig}
     -- | Because I have to dynamically allocate arrays and pass their pointers,
     -- the real work is done by 'poke_skeleton'.
     poke _ _ = return ()
 
-poke_skeleton :: Ptr Block.Skeleton -> CInt -> Ptr CInt -> Ptr CInt -> IO ()
+with_skeleton skel f =
+    withArrayLen ps $ \len pp -> withArray cs $ \cp -> alloca $ \skelp -> do
+        poke_skeleton skelp (Util.c_int len) pp cp
+        f skelp
+    where
+    (parents, children) = unzip (Skeleton.flatten skel)
+    -- The -1s are because the fltk set_skeleton doesn't the ruler track, while
+    -- of course the tracknums here do.
+    -- TODO would it be better to put this in BlockView::set_skeleton?
+    (ps, cs) = (map (Util.c_int . subtract 1) parents,
+        map (Util.c_int . subtract 1) children)
+
+poke_skeleton :: Ptr Skeleton.Skeleton -> CInt -> Ptr CInt -> Ptr CInt -> IO ()
 poke_skeleton skelp len parentsp childrenp = do
     (#poke SkeletonConfig, len) skelp len
     (#poke SkeletonConfig, parents) skelp parentsp
     (#poke SkeletonConfig, children) skelp childrenp
-
--- | Flatten a skeleton into [(parent, child)].
-flatten_skeleton :: Block.Skeleton -> [(Block.TrackNum, Block.TrackNum)]
-flatten_skeleton skel =
-    -- The -1s are because the fltk set_skeleton doesn't the ruler track, while
-    -- of course the tracknums here do.
-    -- TODO would it be better to put this in BlockView::set_skeleton?
-    [(num skel - 1, num sub - 1) | sub <- Block.skel_subs skel]
-    ++ concatMap flatten_skeleton (Block.skel_subs skel)
-    where num = Block.skel_tracknum
 
 -- ** selection
 

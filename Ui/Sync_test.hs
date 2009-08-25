@@ -24,6 +24,7 @@ import qualified Util.Seq as Seq
 
 import Ui.Types
 import qualified Ui.Block as Block
+import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Color as Color
 import qualified Ui.Diff as Diff
 import qualified Ui.Event as Event
@@ -113,17 +114,12 @@ test_set_skeleton = do
             UiTest.run_mkview [("t1", []), ("t2", []), ("t3", [])]
     sync_states State.empty state
     state <- io_human "skel set" $ run state $ do
-        State.set_skeleton t_block_id $
-            Just (mkskel 1 [mkskel 2 [], mkskel 3 []])
+        State.set_skeleton t_block_id (Skeleton.make [(1, 2), (1, 3)])
     state <- io_human "skel set to something else" $ run state $ do
-        State.set_skeleton t_block_id $
-            Just (mkskel 1 [mkskel 2 [mkskel 3 []]])
+        State.set_skeleton t_block_id (Skeleton.make [(1, 2), (2, 3)])
     _state <- io_human "skel cleared" $ run state $ do
-        State.set_skeleton t_block_id Nothing
+        State.set_skeleton t_block_id (Skeleton.make [])
     return ()
-
-mkskel tracknum subs =
-    Block.Skeleton tracknum Block.TrackControl subs
 
 test_zoom_scroll = do
     state <- run State.empty $ do

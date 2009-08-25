@@ -114,6 +114,19 @@ drop_dups :: (a -> a -> Bool) -> [a] -> [a]
 drop_dups _ [] = []
 drop_dups f (x:xs) = x : map snd (filter (not . uncurry f) (zip (x:xs) xs))
 
+drop_dups2 _ [] = []
+drop_dups2 f (x:xs) = x : map snd (filter (not . equal) (zip (x:xs) xs))
+    where equal (x, y) = f x == f y
+
+-- | Like 'drop_dups', but keep the last adjacent equal elt.
+drop_initial_dups :: (Eq b) => (a -> b) -> [a] -> [a]
+drop_initial_dups _ [] = []
+drop_initial_dups _ [x] = [x]
+drop_initial_dups f (x:xs@(next:_))
+    | f x == f next = rest
+    | otherwise = x:rest
+    where rest = drop_initial_dups f xs
+
 unique :: Ord a => [a] -> [a]
 unique = unique_with id
 
@@ -176,6 +189,9 @@ split_commas = map strip . split ","
 
 -- | Concat a list with 'sep' in between.
 join sep = concat . intersperse sep
+
+replace1 :: (Eq a) => a -> [a] -> [a] -> [a]
+replace1 from to xs = concatMap (\v -> if v == from then to else [v]) xs
 
 -- | Replace sublists in 'xs'.  'repl' is given the tails of 'xs' and can
 -- return (replacement, rest_of_xs) or Nothing.

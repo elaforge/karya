@@ -83,11 +83,14 @@ find_max fm
 -- | Like 'IArray.!', except throw a more informative error, with @msg@
 -- prepended.
 at :: (IArray.IArray a e, IArray.Ix i, Show i) => String -> a i e -> i -> e
-at msg a i
-    | i >= low && i <= high = a!i
-    | otherwise = error $
-        msg ++ ": index " ++ show i ++ " out of range " ++ show (low, high)
-    where (low, high) = IArray.bounds a
+at msg a i = a ! (assert_in_bounds msg a i)
+
+assert_in_bounds :: (IArray.IArray a e, IArray.Ix i, Show i) =>
+    String -> a i e -> i -> i
+assert_in_bounds msg a i
+    | in_bounds a i = i
+    | otherwise = error $ msg ++ ": index " ++ show i
+        ++ " out of range " ++ show (IArray.bounds a)
 
 -- | Is the given index within the array's bounds?
 in_bounds :: (IArray.IArray a e, IArray.Ix i) => a i e -> i -> Bool

@@ -39,6 +39,7 @@ import Ui.Types
 import qualified Ui.Id as Id
 import qualified Ui.Update as Update
 import qualified Ui.Block as Block
+import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Track as Track
 import qualified Ui.Event as Event
@@ -484,7 +485,7 @@ set_block_config :: (UiStateMonad m) => Block.BlockId -> Block.Config -> m ()
 set_block_config block_id config =
     modify_block block_id (\block -> block { Block.block_config = config })
 
-set_skeleton :: (UiStateMonad m) => Block.BlockId -> Maybe Block.Skeleton
+set_skeleton :: (UiStateMonad m) => Block.BlockId -> Skeleton.Skeleton
     -> m ()
 set_skeleton block_id skel =
     modify_block block_id (\block -> block { Block.block_skeleton = skel })
@@ -530,7 +531,11 @@ insert_track block_id tracknum track = do
         -- Make sure the views are up to date.
         views' = Map.map
             (insert_into_view tracknum (Block.track_width track)) views
-    update_block block_id (block { Block.block_tracks = tracks' })
+    update_block block_id $ block
+        { Block.block_tracks = tracks'
+        , Block.block_skeleton =
+            Skeleton.insert tracknum (Block.block_skeleton block)
+        }
     modify $ \st -> st { state_views = Map.union views' (state_views st) }
 
 remove_track :: (UiStateMonad m) => Block.BlockId -> Block.TrackNum -> m ()
@@ -539,7 +544,11 @@ remove_track block_id tracknum = do
     views <- get_views_of block_id
     let tracks' = Seq.remove_at (Block.block_tracks block) tracknum
         views' = Map.map (remove_from_view tracknum) views
-    update_block block_id (block { Block.block_tracks = tracks' })
+    update_block block_id $ block
+        { Block.block_tracks = tracks'
+        , Block.block_skeleton =
+            Skeleton.remove tracknum (Block.block_skeleton block)
+        }
     modify $ \st -> st { state_views = Map.union views' (state_views st) }
 
 -- | Get the TracklikeId at @tracknum@, or Nothing if its out of range.

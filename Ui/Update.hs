@@ -7,6 +7,7 @@ import qualified Data.List as List
 import Ui.Types
 import qualified Ui.Block as Block
 import qualified Ui.Ruler as Ruler
+import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Track as Track
 import Ui.Block (ViewId, BlockId)
 
@@ -35,7 +36,7 @@ data ViewUpdate =
 data BlockUpdate
     = BlockTitle String
     | BlockConfig Block.Config
-    | BlockSkeleton (Maybe Block.Skeleton)
+    | BlockSkeleton Skeleton.Skeleton
     | RemoveTrack Block.TrackNum
     | InsertTrack Block.TrackNum Block.TracklikeId Block.Width
     deriving Show
