@@ -108,24 +108,22 @@ mtail :: [a] -> [a] -> [a]
 mtail def [] = def
 mtail _def (_:xs) = xs
 
--- | Drop adjacent elts if the predicate says they are equal.  The first is
--- kept.
-drop_dups :: (a -> a -> Bool) -> [a] -> [a]
+-- | Drop adjacent elts if they are equal after applying the key function.  The
+-- first elt is kept.
+drop_dups :: (Eq b) => (a -> b) -> [a] -> [a]
 drop_dups _ [] = []
-drop_dups f (x:xs) = x : map snd (filter (not . uncurry f) (zip (x:xs) xs))
+drop_dups key (x:xs) = x : map snd (filter (not . equal) (zip (x:xs) xs))
+    where equal (x, y) = key x == key y
 
-drop_dups2 _ [] = []
-drop_dups2 f (x:xs) = x : map snd (filter (not . equal) (zip (x:xs) xs))
-    where equal (x, y) = f x == f y
-
--- | Like 'drop_dups', but keep the last adjacent equal elt.
+-- | Like 'drop_dups', but keep the last adjacent equal elt instead of the
+-- first.
 drop_initial_dups :: (Eq b) => (a -> b) -> [a] -> [a]
 drop_initial_dups _ [] = []
 drop_initial_dups _ [x] = [x]
-drop_initial_dups f (x:xs@(next:_))
-    | f x == f next = rest
+drop_initial_dups key (x:xs@(next:_))
+    | key x == key next = rest
     | otherwise = x:rest
-    where rest = drop_initial_dups f xs
+    where rest = drop_initial_dups key xs
 
 unique :: Ord a => [a] -> [a]
 unique = unique_with id

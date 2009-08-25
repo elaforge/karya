@@ -172,7 +172,7 @@ show_msg (Midi.WriteMessage dev ts msg) =
 test_pitch_curve = do
     let event pitch = Perform.Event inst1 (TrackPos 1) (TrackPos 0.5)
             (Map.fromList [(Controller.c_pitch, Signal.signal pitch)]) []
-    let f evt = (Seq.drop_dups (==) (map Midi.wmsg_msg msgs), warns)
+    let f evt = (Seq.drop_dups id (map Midi.wmsg_msg msgs), warns)
             where
             (msgs, warns, _) = Perform.perform_note
                 (TrackPos 0) (TrackPos 2) evt (dev1, 1)
