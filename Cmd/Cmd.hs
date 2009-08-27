@@ -254,7 +254,7 @@ data Modifier = KeyMod Key.Key
     -- | Mouse button, and (tracknum, pos) in went down at, if any.
     -- The block is not recorded.  You can't drag across blocks so you know any
     -- click must apply to the focused block.
-    | MouseMod Int (Maybe (Block.TrackNum, TrackPos))
+    | MouseMod UiMsg.MouseButton (Maybe (Block.TrackNum, TrackPos))
     -- | Only chan and key are stored.  While it may be useful to map according
     -- to the device, this code doesn't know which devices are available.
     -- Block or track level handlers can query the device themselves.
@@ -384,7 +384,7 @@ cmd_record_keys msg = do
     return Continue
     where
     insert_mod mod = do
-        let key = modifier_map_key mod
+        let key = strip_modifier mod
         mods <- keys_down
         when (key `Map.member` mods) $
             Log.warn $ "keydown for " ++ show mod ++ " already in modifiers"
@@ -392,7 +392,7 @@ cmd_record_keys msg = do
         -- mods <- keys_down
         -- Log.debug $ "keydown " ++ show (Map.elems mods)
     delete_mod mod = do
-        let key = modifier_map_key mod
+        let key = strip_modifier mod
         mods <- keys_down
         when (key `Map.notMember` mods) $
             Log.warn $ "keyup for " ++ show mod ++ " not in modifiers"
@@ -404,9 +404,9 @@ cmd_record_keys msg = do
 
 -- | Take a modifier to its key in the modifier map which has extra info like
 -- mouse down position stripped.
-modifier_map_key :: Modifier -> Modifier
-modifier_map_key (MouseMod btn _) = MouseMod btn Nothing
-modifier_map_key mod = mod
+strip_modifier :: Modifier -> Modifier
+strip_modifier (MouseMod btn _) = MouseMod btn Nothing
+strip_modifier mod = mod
 
 modifier_key :: Modifier -> Maybe Char
 modifier_key (KeyMod (Key.KeyChar c)) = Just c

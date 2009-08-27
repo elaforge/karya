@@ -69,12 +69,17 @@ cmd_shift_selection selnum nshift extend = do
 sel_merge (Block.Selection strack spos _ _) (Block.Selection _ _ ctrack cpos) =
     Block.Selection strack spos ctrack cpos
 
-cmd_mouse_drag :: (Monad m) => Msg.Msg -> Cmd.CmdT m ()
-cmd_mouse_drag msg = do
+cmd_mouse_drag :: (Monad m) => UiMsg.MouseButton -> Msg.Msg -> Cmd.CmdT m ()
+cmd_mouse_drag btn msg = do
     keys_down <- Cmd.keys_down
-    let cmd = if Cmd.KeyMod Key.MetaL `Map.member` keys_down
-            then cmd_mouse_selection else cmd_snap_selection
-    cmd 1 Config.insert_selnum msg
+    cmd <- case filter is_key (Map.keys keys_down) of
+        [Cmd.KeyMod Key.MetaL] -> return cmd_mouse_selection
+        [] -> return cmd_snap_selection
+        _ -> Cmd.abort
+    cmd btn Config.insert_selnum msg
+    where
+    is_key (Cmd.KeyMod _) = True
+    is_key _ = False
 
 -- | Set the selection based on a click or drag.
 cmd_mouse_selection :: (Monad m) =>
@@ -118,7 +123,7 @@ mouse_drag btn msg = do
     -- The button down should be the same one as expected.
     when (msg_btn /= btn) Cmd.abort
     let (down_tracknum, down_pos) =
-            case Map.lookup (Cmd.modifier_map_key mod) keys_down of
+            case Map.lookup (Cmd.strip_modifier mod) keys_down of
                 Just (Cmd.MouseMod _btn (Just down_at)) -> down_at
                 -- If it's not already held down, it starts here.
                 _ -> (mouse_tracknum, mouse_pos)

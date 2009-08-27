@@ -84,6 +84,7 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.Keymap as Keymap
 import Cmd.Keymap (SimpleMod(..))
 
+import qualified Cmd.BlockConfig as BlockConfig
 import qualified Cmd.Clip as Clip
 import qualified Cmd.Create as Create
 import qualified Cmd.Edit as Edit
@@ -98,7 +99,7 @@ import qualified Perform.Transport as Transport
 
 global_cmds :: [Cmd.Cmd]
 global_cmds =
-    [ msg_done Selection.cmd_mouse_drag
+    [ msg_done (Selection.cmd_mouse_drag Config.mouse_select)
     , Keymap.make_cmd cmd_map
     ]
 
@@ -135,8 +136,9 @@ player_bindings transport_info = fst $ Keymap.make_cmd_map $ concat
 -- * pure cmds
 
 (cmd_map, cmd_map_errors) = Keymap.make_cmd_map $
-    misc_bindings ++ selection_bindings ++ view_config_bindings ++
-    edit_bindings ++ create_bindings ++ clip_bindings
+    misc_bindings ++ selection_bindings ++ view_config_bindings
+    ++ block_config_bindings ++ edit_bindings ++ create_bindings
+    ++ clip_bindings
 
 misc_bindings = command_only '\'' "quit" Cmd.cmd_quit
 
@@ -163,13 +165,14 @@ selection_bindings = concat
     ]
     where selnum = Config.insert_selnum
 
--- All the edit modes are exclusive.  Go to raw edit: cmd-esc, go to call
--- edit: shift-esc, go to val edit or turn of edit: esc.  Toggle val and
--- method edit: tab.
-
 view_config_bindings = concat
     [ command_char '[' "zoom out *0.8" (View.cmd_zoom_around_insert (*0.8))
     , command_char ']' "zoom in *1.25" (View.cmd_zoom_around_insert (*1.25))
+    ]
+
+block_config_bindings = concat
+    [ bind_mouse [Shift, PrimaryCommand] Config.mouse_select
+        "toggle skeleton edge" BlockConfig.cmd_toggle_edge
     ]
 
 -- delete = remove events and move following events back
@@ -190,7 +193,6 @@ edit_bindings = concat
         (done Edit.cmd_delete_selection)
     , bind_mod [Shift] (Key.KeyChar '=') "insert selection"
         (done Edit.cmd_insert_selection)
-    -- TODO delete by timestep, insert by timestep
 
     , command_char 'u' "undo" (done Edit.undo)
     , command_char 'r' "redo" (done Edit.redo)
@@ -239,6 +241,7 @@ command_char char = command (Key.KeyChar char)
 bind_char char = Keymap.bind_key (Key.KeyChar char)
 bind_key = Keymap.bind_key
 bind_mod = Keymap.bind_mod
+bind_mouse = Keymap.bind_mouse
 
 -- | But some commands are too dangerous to get a plain keystroke version.
 command_only char = bind_mod [PrimaryCommand] (Key.KeyChar char)

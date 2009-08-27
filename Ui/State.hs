@@ -490,6 +490,19 @@ set_skeleton :: (UiStateMonad m) => Block.BlockId -> Skeleton.Skeleton
 set_skeleton block_id skel =
     modify_block block_id (\block -> block { Block.block_skeleton = skel })
 
+-- | Toggle the given edge in the block's skeleton.  If a cycle would be
+-- created, refuse to add the edge and return False.
+toggle_skeleton_edge :: (UiStateMonad m) => Block.BlockId
+    -> (Block.TrackNum, Block.TrackNum) -> m Bool
+toggle_skeleton_edge block_id edge = do
+    block <- get_block block_id
+    let skel = Block.block_skeleton block
+    case Skeleton.toggle_edge edge skel of
+        Nothing -> return False
+        Just new_skel -> do
+            set_block block_id $ block { Block.block_skeleton = new_skel }
+            return True
+
 set_edit_box :: (UiStateMonad m) => Block.BlockId -> Color -> Char -> m ()
 set_edit_box block_id color char = do
     block <- get_block block_id
@@ -531,7 +544,7 @@ insert_track block_id tracknum track = do
         -- Make sure the views are up to date.
         views' = Map.map
             (insert_into_view tracknum (Block.track_width track)) views
-    update_block block_id $ block
+    set_block block_id $ block
         { Block.block_tracks = tracks'
         , Block.block_skeleton =
             Skeleton.insert tracknum (Block.block_skeleton block)
@@ -544,7 +557,7 @@ remove_track block_id tracknum = do
     views <- get_views_of block_id
     let tracks' = Seq.remove_at (Block.block_tracks block) tracknum
         views' = Map.map (remove_from_view tracknum) views
-    update_block block_id $ block
+    set_block block_id $ block
         { Block.block_tracks = tracks'
         , Block.block_skeleton =
             Skeleton.remove tracknum (Block.block_skeleton block)
@@ -634,11 +647,11 @@ set_view_status view_id key val =
 
 -- ** util
 
-update_block block_id block = modify $ \st -> st
+set_block block_id block = modify $ \st -> st
     { state_blocks = Map.adjust (const block) block_id (state_blocks st) }
 modify_block block_id f = do
     block <- get_block block_id
-    update_block block_id (f block)
+    set_block block_id (f block)
 
 -- * track
 

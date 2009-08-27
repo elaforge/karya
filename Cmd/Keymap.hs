@@ -7,7 +7,7 @@
 
     Keymaps provide an efficient way to respond to a useful subset of Msgs,
     i.e.  those which are considered "key down" msgs or "controller change"
-    type msgs.  The exact definition is in 'Key'.
+    type msgs.  The exact definition is in 'Cmd.Modifier'.
 -}
 module Cmd.Keymap where
 import Control.Monad
@@ -22,10 +22,9 @@ import qualified Util.Seq as Seq
 import qualified Ui.Key as Key
 import qualified Ui.UiMsg as UiMsg
 
-import qualified Midi.Midi as Midi
-
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Cmd as Cmd
+
 
 -- * building
 
@@ -35,8 +34,20 @@ bind_key = bind_mod []
 
 -- | Bind a key with the given modifiers.
 bind_mod :: [SimpleMod] -> Key.Key -> String -> Cmd.CmdM m -> [Binding m]
-bind_mod smods key desc cmd =
-    [(key_spec mods key, cspec_ desc cmd) | mods <- all_mods]
+bind_mod smods key desc cmd = bind smods (Cmd.KeyMod key) desc (const cmd)
+
+-- | 'bind_mouse' passes the Msg to the cmd, since mouse cmds are more likely
+-- to want the msg to find out exactly where the click was.
+bind_mouse :: [SimpleMod] -> UiMsg.MouseButton -> String
+    -> (Msg.Msg -> Cmd.CmdM m) -> [Binding m]
+bind_mouse smods btn desc cmd =
+    bind smods (Cmd.MouseMod btn Nothing) desc cmd
+
+-- | Bind a key with the given modifiers.
+bind :: [SimpleMod] -> Cmd.Modifier -> String
+    -> (Msg.Msg -> Cmd.CmdM m) -> [Binding m]
+bind smods key desc cmd =
+    [(key_spec mods key, cspec desc cmd) | mods <- all_mods]
     where
     all_mods = if null smods then [[]]
         else Seq.cartesian (map simple_to_mods smods)
@@ -53,12 +64,12 @@ make_cmd_map bindings = (Map.fromList bindings, warns)
 
 -- | Create a cmd that dispatches into the given CmdMap.
 --
--- To lookup a cmd, the Msg is restricted to a Key.  Then non-modifiers are
--- stripped out of the mods and both are looked up in the keymap.  That way,
--- if keys overlap when you strike them the cmd still fires.
+-- To lookup a cmd, the Msg is restricted to a Cmd.Modifier.  Then non-modifiers
+-- are stripped out of the mods and both are looked up in the keymap.  That
+-- way, if keys overlap when you strike them the cmd still fires.
 make_cmd :: (Monad m) => CmdMap m -> Msg.Msg -> Cmd.CmdM m
 make_cmd cmd_map msg = do
-    key <- Cmd.require (msg_to_key msg)
+    key <- Cmd.require (msg_to_mod msg)
     mods <- mods_down
     case Map.lookup (KeySpec mods key) cmd_map of
         Nothing -> do
@@ -90,6 +101,8 @@ data SimpleMod =
     -- windows.  I'm not sure what this should be used for, but it should be
     -- different than Mod1 stuff.  Maybe static config user-added commands.
     | SecondaryCommand
+    -- | Having mouse here allows for fancy chording.
+    | Mouse UiMsg.MouseButton
     deriving (Eq, Ord, Show)
 
 -- * implementation
@@ -103,17 +116,19 @@ simple_mod_map =
     , (SecondaryCommand, [Key.ControlL, Key.ControlR])
     ]
 
-simple_to_mods :: SimpleMod -> [Key.Key]
-simple_to_mods simple = maybe [] id (lookup simple simple_mod_map)
+simple_to_mods :: SimpleMod -> [Cmd.Modifier]
+simple_to_mods (Mouse btn) = [Cmd.MouseMod btn Nothing]
+simple_to_mods simple = maybe [] (map Cmd.KeyMod) (lookup simple simple_mod_map)
 
 -- ** Binding
 
 type Binding m = (KeySpec, CmdSpec m)
 
-data KeySpec = KeySpec (Set.Set Key.Key) Key deriving (Eq, Ord, Show)
+data KeySpec = KeySpec (Set.Set Cmd.Modifier) Cmd.Modifier
+    deriving (Eq, Ord, Show)
 
-key_spec :: [Key.Key] -> Key.Key -> KeySpec
-key_spec mods key = KeySpec (Set.fromList mods) (UiKey UiMsg.KeyDown key)
+key_spec :: [Cmd.Modifier] -> Cmd.Modifier -> KeySpec
+key_spec mods key = KeySpec (Set.fromList mods) key
 
 -- | Pair a Cmd with a descriptive string that can be used for logging, undo,
 -- etc.
@@ -126,16 +141,6 @@ cspec = CmdSpec
 cspec_ :: String -> Cmd.CmdM m -> CmdSpec m
 cspec_ desc cmd = CmdSpec desc (const cmd)
 
--- | A Key is the subset of 'Msg.Msg' that can be bound to a Cmd in a keymap.
-data Key = UiKey UiMsg.KbdState Key.Key | MidiKey MidiKey
-    deriving (Eq, Ord, Show)
-
--- | Currently not used, but could be bound too.  I probably want to include
--- a "control channel" so I can restrict this to certain controllers.
-data MidiKey = NoteOn Midi.Key | NoteOff Midi.Key
-    | Controller Midi.Controller Midi.ControlValue
-    deriving (Eq, Ord, Show)
-
 -- ** CmdMap
 
 type CmdMap m = Map.Map KeySpec (CmdSpec m)
@@ -145,23 +150,23 @@ overlaps bindings =
     [map cmd_name grp | grp <- Seq.group_with fst bindings, length grp > 1]
     where cmd_name (kspec, CmdSpec name _) = show kspec ++ ": " ++ name
 
--- | Return the mods currently down, stripping out anything else.
-mods_down :: (Monad m) => Cmd.CmdT m (Set.Set Key.Key)
+-- | Return the mods currently down, stripping out non-modifier keys and notes,
+-- so that overlapping keys will still match.  Mouse mods are not filtered, so
+-- each mouse chord can be bound individually.
+mods_down :: (Monad m) => Cmd.CmdT m (Set.Set Cmd.Modifier)
 mods_down = do
-    mods <- fmap Map.elems Cmd.keys_down
-    let keys = [key | Cmd.KeyMod key <- mods]
-    return $ Set.fromList keys `Set.intersection` Key.modifiers
+    mods <- fmap (filter is_mod . Map.keys) Cmd.keys_down
+    return $ Set.fromList mods
+    where
+    is_mod (Cmd.KeyMod key) = Set.member key Key.modifiers
+    is_mod (Cmd.MidiMod _ _) = False
+    is_mod (Cmd.MouseMod _ _) = True
 
-msg_to_key :: Msg.Msg -> Maybe Key
-msg_to_key msg = case msg of
-    Msg.Ui (UiMsg.UiMsg _ (UiMsg.MsgEvent (UiMsg.Kbd state key))) ->
-        Just (UiKey state key)
-    Msg.Midi (Midi.ReadMessage _ _ (Midi.ChannelMessage _ msg)) -> case msg of
-        Midi.NoteOn key _ -> Just (MidiKey (NoteOn key))
-        Midi.NoteOff key _ -> Just (MidiKey (NoteOff key))
-        Midi.ControlChange c v -> Just (MidiKey (Controller c v))
-        _ -> Nothing
-    _ -> Nothing
+msg_to_mod :: Msg.Msg -> Maybe Cmd.Modifier
+msg_to_mod msg = case Cmd.msg_to_mod msg of
+    Nothing -> Nothing
+    Just (False, _) -> Nothing
+    Just (True, m) -> Just (Cmd.strip_modifier m)
 
 
 -- * key layout

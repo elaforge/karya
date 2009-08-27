@@ -12,6 +12,7 @@ import qualified Ui.Id as Id
 import qualified Ui.Color as Color
 import qualified Ui.Block as Block
 import qualified Ui.Track as Track
+import qualified Ui.UiMsg as UiMsg
 
 
 -- * paths
@@ -51,9 +52,15 @@ initialize_lang_port = File.ignore_enoent  $ Directory.removeFile "seq_language"
 message_complete_token :: String
 message_complete_token = "\n\NUL"
 
+-- * input
+
+-- | This is the primary mouse button, used to set the insertion selection.
+mouse_select :: UiMsg.MouseButton
+mouse_select = 1
+
 -- * selnums
 
--- | SelNum of the insertion point.
+-- | SelNum of the insertion selection.
 insert_selnum :: Block.SelNum
 insert_selnum = 0
 

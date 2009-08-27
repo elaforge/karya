@@ -60,9 +60,12 @@ data AuxMsg = Enter | Leave | Focus | Unfocus | Shortcut | Deactivate
     | Activate | Hide | Show
     deriving (Eq, Ord, Show)
 
-data MouseState = MouseMove | MouseDrag Int | MouseDown Int | MouseUp Int
+data MouseState = MouseMove | MouseDrag MouseButton
+    | MouseDown MouseButton | MouseUp MouseButton
     deriving (Eq, Ord, Show)
 data KbdState = KeyDown | KeyUp deriving (Eq, Ord, Show)
+
+type MouseButton = Int
 
 pretty_ui_msg :: UiMsg -> String
 pretty_ui_msg (UiMsg ctx (MsgEvent mdata)) = case mdata of

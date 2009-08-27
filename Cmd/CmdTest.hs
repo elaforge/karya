@@ -78,6 +78,10 @@ key_down = make_key True . Key.KeyChar
 key_up = make_key False . Key.KeyChar
 backspace = make_key True Key.Backspace
 
+mouse down btn = Msg.Ui $ UiMsg.UiMsg empty_context $
+    UiMsg.MsgEvent (UiMsg.Mouse state (42, 2) 0 True)
+    where state = if down then UiMsg.MouseDown btn else UiMsg.MouseUp btn
+
 make_midi :: Midi.ChannelMessage -> Msg.Msg
 make_midi chan_msg = Msg.Midi $
     Midi.ReadMessage (Midi.ReadDevice "test") Timestamp.immediately

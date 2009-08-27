@@ -20,24 +20,40 @@ test_make_cmd_map = do
 test_make_cmd = do
     let (cmd_map, _) = Keymap.make_cmd_map binds
     let cmd = Keymap.make_cmd cmd_map
-    let run mods char = CmdTest.extract_logs $
-            CmdTest.run State.empty cstate (cmd (CmdTest.key_down char))
+    let run mods msg = CmdTest.extract_logs $
+            CmdTest.run State.empty cstate (cmd msg)
             where
             cstate = Cmd.empty_state { Cmd.state_keys_down = state_mods }
-            state_mods = Map.fromList [(Cmd.KeyMod m, Cmd.KeyMod m) | m <- mods]
+            state_mods = Map.fromList [(m, m) | m <- mods]
         no_run = Right (Just [])
+        aborted = Right Nothing
         did_run cname cmdlog =
             Right (Just ["running command " ++ show cname, cmdlog])
-    equal (run [] 'a') no_run
-    equal (run [] '1') (did_run "12" "cmd1")
-    equal (run [] '2') (did_run "2" "cmd2")
-    equal (run [] '3') no_run
+    let run_char mods char = run (map Cmd.KeyMod mods) (CmdTest.key_down char)
+    pprint $ zip (Map.keys cmd_map)
+        (map (\(Keymap.CmdSpec name _) -> name) (Map.elems cmd_map))
+    equal (run_char [] 'a') no_run
+    equal (run_char [] '1') (did_run "12" "cmd1")
+    equal (run_char [] '2') (did_run "2" "cmd2")
+    equal (run_char [] '3') no_run
 
-    equal (run [Key.ShiftL] '1') no_run
-    equal (run [Key.ShiftL] '3') (did_run "s-3" "cmd1")
-    equal (run [Key.ShiftR] '3') (did_run "s-3" "cmd1")
-    equal (run [Key.MetaL] '1') (did_run "c-1" "cmd1")
-    equal (run [Key.MetaL, Key.ShiftR] '1') (did_run "cs-1" "cmd1")
+    equal (run_char [Key.ShiftL] '1') no_run
+    equal (run_char [Key.ShiftL] '3') (did_run "s-3" "cmd1")
+    equal (run_char [Key.ShiftR] '3') (did_run "s-3" "cmd1")
+    equal (run_char [Key.MetaL] '1') (did_run "c-1" "cmd1")
+    equal (run_char [Key.MetaL, Key.ShiftR] '1') (did_run "cs-1" "cmd1")
+
+    -- overlapping keys
+    equal (run_char [Key.KeyChar '1'] '2') (did_run "2" "cmd2")
+
+    -- key up aborts
+    equal (run [] (CmdTest.key_up '1')) aborted
+
+    -- mouse modifier?
+    equal (run [] (CmdTest.mouse True 2)) no_run
+    equal (run [Cmd.MouseMod 1 Nothing] (CmdTest.mouse True 2))
+        (did_run "chord-12" "cmd1")
+    equal (run [Cmd.MouseMod 1 Nothing] (CmdTest.mouse False 2)) aborted
 
 cmd1, cmd2 :: Cmd.CmdId
 cmd1 = Log.notice "cmd1" >> return Cmd.Done
@@ -51,4 +67,5 @@ binds = concat
     , Keymap.bind_mod [Keymap.PrimaryCommand] (Key.KeyChar '1') "c-1" cmd1
     , Keymap.bind_mod [Keymap.PrimaryCommand, Keymap.Shift]
         (Key.KeyChar '1') "cs-1" cmd1
+    , Keymap.bind_mouse [Keymap.Mouse 1] 2 "chord-12" (const cmd1)
     ]
