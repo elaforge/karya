@@ -324,6 +324,7 @@ selected_tracks selnum = do
         (Block.sel_tracknums sel)
     return (Maybe.catMaybes tracks, sel)
 
+-- | Get the requested selnum in the focused view.
 get_selection :: (Monad m) =>
     Block.SelNum -> Cmd.CmdT m (Block.ViewId, Block.Selection)
 get_selection selnum = do

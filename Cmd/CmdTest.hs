@@ -32,6 +32,11 @@ run ustate cstate cmd = case Cmd.run_id ustate cstate cmd of
         Right (val, ui_state2, _updates) ->
             Right (val, ui_state2, cmd_state2, logs)
 
+extract_logs result = case result of
+    Right (Just _, _, _, logs) -> Right (Just (map Log.msg_text logs))
+    Right (Nothing, _, _, _) -> Right Nothing
+    Left err -> Left (show err)
+
 with_sel sel cmd = do
     State.set_selection UiTest.default_view_id Config.insert_selnum sel
     Cmd.modify_state $ \st ->

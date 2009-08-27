@@ -15,6 +15,15 @@ enumerate = zip [0..]
 key_with :: (a -> k) -> [a] -> [(k, a)]
 key_with f xs = zip (map f xs) xs
 
+-- * permutations
+
+-- | The cartesian product of a list of lists.  E.g.
+-- @[[1, 2], [3, 4]]@ -> @[[1, 3], [1, 4], [2, 3], [2, 4]]@.
+cartesian :: [[a]] -> [[a]]
+cartesian [] = []
+cartesian [xs] = [[x] | x <- xs]
+cartesian (xs:rest) = [x:ps | x <- xs, ps <- cartesian rest]
+
 -- * indexing lists
 
 -- | Get @xs !! n@, but return Nothing if the index is out of range.
@@ -76,10 +85,15 @@ reverse_compare a b = case compare a b of
 -- * grouping
 
 -- | Group the unsorted list into @(key x, xs)@ where all @xs@ compare equal
--- after @key@ is applied to them.
+-- after @key@ is applied to them.  List is returned in sorted order.
 keyed_group_with :: (Ord b) => (a -> b) -> [a] -> [(b, [a])]
 keyed_group_with key = map (\gs -> (key (head gs), gs))
     . groupBy ((==) `on` key) . sortBy (compare `on` key)
+
+-- | Like 'groupBy', but the list doesn't need to be sorted, and use a key
+-- function instead of equality.  List is returned in sorted order.
+group_with :: (Ord b) => (a -> b) -> [a] -> [[a]]
+group_with key = groupBy ((==) `on` key) . sortBy (compare `on` key)
 
 -- | Pair each element with the following element.  The last element is paired
 -- with Nothing.  Like @zip xs (drop 1 xs ++ f (last xs))@ but more efficient.

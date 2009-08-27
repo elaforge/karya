@@ -82,6 +82,7 @@ import qualified Ui.Key as Key
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Keymap as Keymap
+import Cmd.Keymap (SimpleMod(..))
 
 import qualified Cmd.Clip as Clip
 import qualified Cmd.Create as Create
@@ -98,75 +99,66 @@ import qualified Perform.Transport as Transport
 global_cmds :: [Cmd.Cmd]
 global_cmds =
     [ msg_done Selection.cmd_mouse_drag
-    , Keymap.make_cmd (misc_bindings ++ selection_bindings
-        ++ view_config_bindings ++ edit_bindings ++ create_bindings
-        ++ clip_bindings)
+    , Keymap.make_cmd cmd_map
     ]
 
-cmd_io_keymap :: Transport.Info -> Msg.Msg -> Cmd.CmdIO
-cmd_io_keymap transport_info = Keymap.make_cmd (io_bindings transport_info)
+io_cmds :: Transport.Info -> [Msg.Msg -> Cmd.CmdIO]
+io_cmds transport_info =
+    [ Keymap.make_cmd io_cmd_map
+    , Keymap.make_cmd (player_bindings transport_info)
+    ]
 
-io_bindings :: Transport.Info -> [Keymap.Binding IO]
-io_bindings transport_info = concat
-    [ bind_kmod [Key.MetaL, Key.ShiftL] (Key.KeyChar 's') "save" cmd_save
-    , bind_kmod [Key.MetaL, Key.ShiftL] (Key.KeyChar 'l') "load" cmd_load
+-- * io cmds
 
-    -- player
-    , bind_key Key.Enter "play block" (Play.cmd_play_focused transport_info)
-    , bind_kmod [Key.ShiftL] Key.Enter "play from insert"
-        (Play.cmd_play_from_insert transport_info)
-    , bind_key (Key.KeyChar ' ') "stop play" Play.cmd_stop
+(io_cmd_map, io_cmd_map_errors) = Keymap.make_cmd_map $ concat
+    [ bind_mod [Shift, PrimaryCommand] (Key.KeyChar 's') "save" cmd_save
+    , bind_mod [Shift, PrimaryCommand] (Key.KeyChar 'l') "load" cmd_load
+    , bind_char ' ' "stop play" Play.cmd_stop
     ]
 
 cmd_save, cmd_load :: Cmd.CmdIO
 cmd_save = Save.get_save_file >>= Save.cmd_save >> return Cmd.Done
 cmd_load = Save.get_save_file >>= Save.cmd_load >> return Cmd.Done
 
-done = (>> return Cmd.Done)
-msg_done cmd msg = done (cmd msg)
-
--- | Most command keys are mapped to both a plain keystroke and command-key
--- (this should presumably becoume control-key on linux).  That way the command
--- can still be invoked when an edit mode has taken over the alphanumeric keys.
-command key desc cmd =
-    [ Keymap.bind_key key desc cmd
-    , Keymap.bind_kmod [Key.MetaL] key desc cmd
-    , Keymap.bind_kmod [Key.MetaR] key desc cmd
+-- | This is unfortunate.  In order to construct the cmd map only once, I
+-- want it to be a CAF.  However, these Cmds take an argument, which means
+-- I need to either have the CmdMap map to Cmds that take an argument, or
+-- recreate the map on each call.  Since there are only two commands, I opt
+-- for the latter.
+player_bindings :: Transport.Info -> Keymap.CmdMap IO
+player_bindings transport_info = fst $ Keymap.make_cmd_map $ concat
+    [ bind_key Key.Enter "play block" (Play.cmd_play_focused transport_info)
+    , bind_mod [Shift] Key.Enter "play from insert"
+        (Play.cmd_play_from_insert transport_info)
     ]
 
-bind_key key desc cmd = [Keymap.bind_key key desc cmd]
-bind_kmod mods key desc cmd = [Keymap.bind_kmod mods key desc cmd]
+-- * pure cmds
 
--- | But some commands are too dangerous to get a plain keystroke version.
-command_only key desc cmd = bind_kmod [Key.MetaL] key desc cmd
+(cmd_map, cmd_map_errors) = Keymap.make_cmd_map $
+    misc_bindings ++ selection_bindings ++ view_config_bindings ++
+    edit_bindings ++ create_bindings ++ clip_bindings
 
--- | Normally commands won't be re-invoked by key repeat, but sometimes it's
--- useful.
-repeating mods key desc cmd =
-    [ Keymap.bind_kmod mods key desc cmd
-    , Keymap.bind_kmod (key:mods) key desc cmd ]
-
-misc_bindings = command_only (Key.KeyChar '\'') "quit" Cmd.cmd_quit
+misc_bindings = command_only '\'' "quit" Cmd.cmd_quit
 
 selection_bindings = concat
-    [ repeating [] Key.Down "advance selection"
+    [ bind_mod [] Key.Down "advance selection"
         (Selection.cmd_step_selection selnum TimeStep.Advance False)
-    , repeating [Key.ShiftL] Key.Down "extend advance selection"
+    , bind_mod [Shift] Key.Down "extend advance selection"
         (Selection.cmd_step_selection selnum TimeStep.Advance True)
 
-    , repeating [] Key.Up "rewind selection"
+    , bind_mod [] Key.Up "rewind selection"
         (Selection.cmd_step_selection selnum TimeStep.Rewind False)
-    , repeating [Key.ShiftL] Key.Up "extend rewind selection"
+    , bind_mod [Shift] Key.Up "extend rewind selection"
         (Selection.cmd_step_selection selnum TimeStep.Rewind True)
 
-    , repeating [] Key.Right "shift selection right"
+    , bind_mod [] Key.Right "shift selection right"
         (Selection.cmd_shift_selection selnum 1 False)
-    , repeating [Key.ShiftL] Key.Right "extend shift selection right"
+    , bind_mod [Shift] Key.Right "extend shift selection right"
         (Selection.cmd_shift_selection selnum 1 True)
 
-    , repeating [] Key.Left "shift selection left"
+    , bind_mod [] Key.Left "shift selection left"
         (Selection.cmd_shift_selection selnum (-1) False)
-    , repeating [Key.ShiftL] Key.Left "extend shift selection left"
+    , bind_mod [Shift] Key.Left "extend shift selection left"
         (Selection.cmd_shift_selection selnum (-1) True)
     ]
     where selnum = Config.insert_selnum
@@ -176,62 +168,77 @@ selection_bindings = concat
 -- method edit: tab.
 
 view_config_bindings = concat
-    [ command (Key.KeyChar '[') "zoom out *0.8"
-        (View.cmd_zoom_around_insert (*0.8))
-    , command (Key.KeyChar ']') "zoom in *1.25"
-        (View.cmd_zoom_around_insert (*1.25))
+    [ command_char '[' "zoom out *0.8" (View.cmd_zoom_around_insert (*0.8))
+    , command_char ']' "zoom in *1.25" (View.cmd_zoom_around_insert (*1.25))
     ]
 
 -- delete = remove events and move following events back
 -- remove = just remove events
 edit_bindings = concat
     [ bind_key Key.Escape "toggle val edit" Edit.cmd_toggle_val_edit
-    , bind_kmod [Key.MetaL] Key.Escape "toggle raw edit"
+    , bind_mod [PrimaryCommand] Key.Escape "toggle raw edit"
         Edit.cmd_toggle_raw_edit
-    , bind_kmod [] Key.Tab "toggle method edit" Edit.cmd_toggle_method_edit
+    , bind_mod [] Key.Tab "toggle method edit" Edit.cmd_toggle_method_edit
 
-    , bind_kmod [Key.ShiftL] Key.Escape "toggle kbd entry mode"
+    , bind_mod [Shift] Key.Escape "toggle kbd entry mode"
         Edit.cmd_toggle_kbd_entry
 
     -- Unlike other event editing commands, you don't have to be in insert mode
     -- to remove events.  Maybe I'll change that later.
     -- , command Key.Backspace "remove event" Edit.cmd_remove_selected
-    , bind_kmod [Key.ShiftL] Key.Backspace "delete selection"
+    , bind_mod [Shift] Key.Backspace "delete selection"
         (done Edit.cmd_delete_selection)
-    , bind_kmod [Key.ShiftL] (Key.KeyChar '=') "insert selection"
+    , bind_mod [Shift] (Key.KeyChar '=') "insert selection"
         (done Edit.cmd_insert_selection)
     -- TODO delete by timestep, insert by timestep
 
-    , command (Key.KeyChar 'u') "undo" (done Edit.undo)
-    , command (Key.KeyChar 'r') "redo" (done Edit.redo)
+    , command_char 'u' "undo" (done Edit.undo)
+    , command_char 'r' "redo" (done Edit.redo)
 
-    , command (Key.KeyChar '0') "step rank 0" (Edit.cmd_meter_step 0)
-    , command (Key.KeyChar '1') "step rank 1" (Edit.cmd_meter_step 1)
-    , command (Key.KeyChar '2') "step rank 2" (Edit.cmd_meter_step 2)
-    , command (Key.KeyChar '3') "step rank 3" (Edit.cmd_meter_step 3)
-    , command (Key.KeyChar '4') "step rank 4" (Edit.cmd_meter_step 4)
+    , command_char '0' "step rank 0" (Edit.cmd_meter_step 0)
+    , command_char '1' "step rank 1" (Edit.cmd_meter_step 1)
+    , command_char '2' "step rank 2" (Edit.cmd_meter_step 2)
+    , command_char '3' "step rank 3" (Edit.cmd_meter_step 3)
+    , command_char '4' "step rank 4" (Edit.cmd_meter_step 4)
 
-    , bind_key (Key.KeyChar '-') "octave -1" (Edit.cmd_modify_octave (+ (-1)))
-    , bind_key (Key.KeyChar '=') "octave +1" (Edit.cmd_modify_octave (+1))
+    , bind_char '-' "octave -1" (Edit.cmd_modify_octave (+ (-1)))
+    , bind_char '=' "octave +1" (Edit.cmd_modify_octave (+1))
 
     -- TODO These should probably go in the note track bindings.
-    , command (Key.KeyChar 's') "set dur" (done Edit.cmd_set_duration)
-    , command (Key.KeyChar '.') "dur * 1.5" (done (Edit.cmd_modify_dur (*1.5)))
-    , command (Key.KeyChar ',') "dur / 1.5" (done (Edit.cmd_modify_dur (/1.5)))
+    , command_char 's' "set dur" (done Edit.cmd_set_duration)
+    , command_char '.' "dur * 1.5" (done (Edit.cmd_modify_dur (*1.5)))
+    , command_char ',' "dur / 1.5" (done (Edit.cmd_modify_dur (/1.5)))
     ]
 
 create_bindings = concat
-    [ command (Key.KeyChar 't') "append track"
-        (done Create.insert_track_after_selection)
-    , command (Key.KeyChar 'd') "remove track"
-        (done Create.remove_selected_tracks)
+    [ command_char 't' "append track" (done Create.insert_track_after_selection)
+    , command_char 'd' "remove track" (done Create.remove_selected_tracks)
     ]
 
 clip_bindings = concat
-    [ command_only (Key.KeyChar 'c') "copy selection" Clip.cmd_copy_selection
-    , command_only (Key.KeyChar 'x') "cut selection" Clip.cmd_cut_selection
-    , command_only (Key.KeyChar 'v') "paste selection" Clip.cmd_paste_overwrite
-    , command_only (Key.KeyChar 'm') "merge selection" Clip.cmd_paste_merge
-    , bind_kmod [Key.MetaL, Key.ShiftL] (Key.KeyChar 'v') "insert selection"
+    [ command_only 'c' "copy selection" Clip.cmd_copy_selection
+    , command_only 'x' "cut selection" Clip.cmd_cut_selection
+    , command_only 'v' "paste selection" Clip.cmd_paste_overwrite
+    , command_only 'm' "merge selection" Clip.cmd_paste_merge
+    , bind_mod [Shift, PrimaryCommand] (Key.KeyChar 'v') "insert selection"
         Clip.cmd_paste_insert
     ]
+
+-- * util
+
+done = (>> return Cmd.Done)
+msg_done cmd msg = done (cmd msg)
+
+-- | Most command keys are mapped to both a plain keystroke and command key.
+-- This is a little unusual, but it means the command can still be invoked when
+-- an edit mode has taken over the alphanumeric keys.
+command key desc cmd =
+    bind_key key desc cmd ++ bind_mod [PrimaryCommand] key desc cmd
+command_char char = command (Key.KeyChar char)
+
+bind_char char = Keymap.bind_key (Key.KeyChar char)
+bind_key = Keymap.bind_key
+bind_mod = Keymap.bind_mod
+
+-- | But some commands are too dangerous to get a plain keystroke version.
+command_only char = bind_mod [PrimaryCommand] (Key.KeyChar char)

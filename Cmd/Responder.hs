@@ -71,6 +71,9 @@ responder :: StaticConfig.StaticConfig -> MsgReader -> MidiWriter
 responder static_config get_msg write_midi abort_midi get_now_ts player_chan
         setup_cmd interpreter_chan = do
     Log.debug "start responder"
+    -- Report keymap overlaps.
+    mapM_ Log.warn
+        (GlobalKeymap.io_cmd_map_errors ++ GlobalKeymap.cmd_map_errors)
 
     let cmd_state = Cmd.initial_state
             (StaticConfig.config_instrument_db static_config)
@@ -147,15 +150,51 @@ read_until hdl boundary = go ""
                 go (c:accum)
 
 
--- | Cmds run until they stop returning Continue, at which point they abort.
--- Since the actual running of cmds happens several function calls down, it's
--- convenient to use call/cc to provide an early return.
+{- | The flow control makes this all way more complicated than I want it to be.
+    There must be a simpler way.
+
+    The responder is conceptually simple: get a new msg, then call each cmd
+    with it.  If the cmd returns Abort or Continue, go to the next, if it
+    returns Done, repeat the loop, and if it returns Quit, break out of the
+    loop.  Then pass the ui state before all of this along with the final ui
+    state to Sync so the UI can be updated.  The old ui state is also passed to
+    'record_history' for undo recording.
+
+    The complications:
+
+    1. Ui state and cmd state should be threaded through the calls if they
+    return Continue but not Abort: Continue means it modified the state and
+    wants to keep it, Abort means it doesn't want to keep it.
+
+    2. There are a set of Cmds which must be run in IO, the rest can be run in
+    Identity.
+
+    3. There is also a Cmd which records change notifications from the UI, and
+    therefore the changes it makes to the ui state should *not* be included in
+    the final sync.
+
+    4. The key down recording Cmd should be run at the end regardless of
+    whether a previous Cmd was Done or Aborted.
+
+    5. Auxiliary Cmd output, like logs, should be written after the Cmd
+    returns.
+
+    Implementing everything (ui syncs, key recording, midi_thru, etc.) as a Cmd
+    is conceptually simple, but leads to complications here because they still
+    have to be called differently.  I think even if I hardcoded some of those
+    things it wouldn't make calling any simpler, because I would still have to
+    call with them and deal with their results.
+
+    To try to control some of this, I split the responder into multiple
+    functions, but to control *that* I need continuations for early escape from
+    nested calls.
+
+    TODO: Give this some serious thought some day.  Also profile it.
+-}
 type RType = Either State.StateError
     (Cmd.Status, State.State, State.State, Cmd.State)
 type ResponderM a = Cont.ContT RType (Logger.LoggerT Update.Update IO) a
 
--- | The flow control makes this all way more complicated than I want it to be.
--- There must be a simpler awy.
 respond :: ResponderState -> IO (Bool, ResponderState)
 respond rstate = do
     msg <- state_msg_reader rstate
@@ -284,8 +323,7 @@ hardcoded_cmds =
 hardcoded_io_cmds transport_info interpreter_chan lang_dirs =
     [ Language.cmd_language interpreter_chan lang_dirs
     , Play.cmd_transport_msg
-    , GlobalKeymap.cmd_io_keymap transport_info
-    ]
+    ] ++ GlobalKeymap.io_cmds transport_info
 
 
 -- | Get cmds according to the currently focused block and track.

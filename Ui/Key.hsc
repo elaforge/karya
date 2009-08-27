@@ -1,5 +1,6 @@
 module Ui.Key where
 import Prelude hiding (Left, Right)
+import qualified Data.Set as Set
 
 -- | A keystroke, which is not just a character but also back
 data Key = KeyChar Char
@@ -11,6 +12,10 @@ data Key = KeyChar Char
     | Keypad Char
     | Unknown Int
     deriving (Eq, Ord, Show, Read)
+
+modifiers :: Set.Set Key
+modifiers = Set.fromList [ShiftL, ShiftR, ControlL, ControlR, CapsLock,
+    AltL, AltR, MetaL, MetaR, Menu]
 
 -- Actually just need FL/Fl_Enumerations.H
 #include "c_interface.h"

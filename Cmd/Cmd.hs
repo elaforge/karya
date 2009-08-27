@@ -246,13 +246,14 @@ data HistoryEntry = HistoryEntry {
     } deriving (Show, Generics.Typeable)
 
 -- | These enable various commands to edit event text.  What exactly val,
--- and method mean are dependent on the deriver, but I expect the definitions
+-- and method mean are dependent on the schema, but I expect the definitions
 -- in Cmd.NoteTrack and Cmd.ControllerTrack will be universal.
 data EditMode = NoEdit | RawEdit | ValEdit | MethodEdit deriving (Eq, Show)
 
 data Modifier = KeyMod Key.Key
     -- | Mouse button, and (tracknum, pos) in went down at, if any.
-    -- The block is not recorded because you can't drag across blocks.
+    -- The block is not recorded.  You can't drag across blocks so you know any
+    -- click must apply to the focused block.
     | MouseMod Int (Maybe (Block.TrackNum, TrackPos))
     -- | Only chan and key are stored.  While it may be useful to map according
     -- to the device, this code doesn't know which devices are available.

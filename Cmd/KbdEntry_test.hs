@@ -58,7 +58,7 @@ test_with_midi = do
             >> return Cmd.Done
         cmd_dummy msg = error (show msg)
     let f = KbdEntry.with_midi cmd_dummy
-        key = CmdTest.make_key True (Key.KeyChar ',')
+        key = CmdTest.key_down ','
         run cstate cmd = extract_logs $ CmdTest.run State.empty cstate cmd
     let st = Cmd.empty_state
 
