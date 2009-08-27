@@ -42,7 +42,7 @@ make_replace :: FilePath -> Integer -> Maybe String -> [(String, String)]
     -> String -> String
 make_replace fn lineno func_name subs tok = case lookup tok subs of
     Nothing -> tok
-    Just repl -> repl ++ " (" ++ make_srcpos fn func_name lineno ++ ")"
+    Just repl -> "(" ++ repl ++ " (" ++ make_srcpos fn func_name lineno ++ "))"
 
 make_srcpos :: FilePath -> Maybe String -> Integer -> String
 make_srcpos fn func_name lineno = show (Just (fn, func_name, lineno))
