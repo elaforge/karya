@@ -67,14 +67,14 @@ edit_key scale_id msg = do
     keys_down <- fmap Map.keys Cmd.keys_down
     -- Abort if there are modifiers down, so commands still work.
     -- Except shift, of course.
-    let non_modifier mod = case mod of
+    let is_mod mod = case mod of
             Cmd.KeyMod k -> case k of
                 Key.KeyChar _ -> False
                 Key.ShiftL -> False
                 Key.ShiftR -> False
                 _ -> True
             _ -> True
-    when (not (is_printable key) || any non_modifier keys_down) Cmd.abort
+    when (not (is_printable key) || any is_mod keys_down) Cmd.abort
     return key
 
 -- | Like 'edit_key' except only accept identifier characters, for editing

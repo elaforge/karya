@@ -19,8 +19,8 @@ cmd_toggle_edge msg = do
     clicked_track_num <- get_clicked_track msg
     block_id <- Cmd.get_focused_block
     let edge = (clicked_track_num, sel_track_num)
-    failed <- State.toggle_skeleton_edge block_id edge
-    when failed $
+    success <- State.toggle_skeleton_edge block_id edge
+    when (not success) $
         Log.warn $ "refused to add cycle-creating edge: " ++ show edge
     -- TODO: set selection so you can chain these
 
