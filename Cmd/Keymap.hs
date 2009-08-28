@@ -3,7 +3,7 @@
 
     The sequece of Cmds which return Continue or Done is flexible, but probably
     inefficient in the presence of hundreds of commands.  In addition, it can't
-    warn about Cmds that respond to overlapping Msgs, i.e. respond to the same
+    warn about Cmds that respond to overlapping Msgs, e.g. respond to the same
     key.
 
     Keymaps provide an efficient way to respond to a useful subset of Msgs,
@@ -31,39 +31,42 @@ import qualified Cmd.Cmd as Cmd
 -- * building
 
 -- | Simple cmd with no modifiers.
-bind_key :: Key.Key -> String -> Cmd.CmdM m -> [Binding m]
+bind_key :: (Monad m) => Key.Key -> String -> Cmd.CmdT m a -> [Binding m]
 bind_key = bind_mod []
 
-bind_char :: Char -> String -> Cmd.CmdM m -> [Binding m]
+bind_char :: (Monad m) => Char -> String -> Cmd.CmdT m a -> [Binding m]
 bind_char char = bind_key (Key.KeyChar char)
 
 -- | Bind a key with the given modifiers.
-bind_mod :: [SimpleMod] -> Key.Key -> String -> Cmd.CmdM m -> [Binding m]
+bind_mod :: (Monad m) => [SimpleMod] -> Key.Key -> String -> Cmd.CmdT m a
+    -> [Binding m]
 bind_mod smods bindable desc cmd = bind smods (Key bindable) desc (const cmd)
 
 -- | 'bind_click' passes the Msg to the cmd, since mouse cmds are more likely
 -- to want the msg to find out where the click was.  @clicks@ is 0 for a single
 -- click, 1 for a double click, etc.
-bind_click :: [SimpleMod] -> UiMsg.MouseButton -> Int -> String
-    -> (Msg.Msg -> Cmd.CmdM m) -> [Binding m]
+bind_click :: (Monad m) => [SimpleMod] -> UiMsg.MouseButton -> Int -> String
+    -> (Msg.Msg -> Cmd.CmdT m a) -> [Binding m]
 bind_click smods btn clicks desc cmd = bind smods (Click btn clicks) desc cmd
 
 -- | A 'bind_drag' binds both the click and the drag.  It's conceivable to have
 -- click and drag bound to different commands, but I don't have any yet.
-bind_drag :: [SimpleMod] -> UiMsg.MouseButton -> String
-    -> (Msg.Msg -> Cmd.CmdM m) -> [Binding m]
+bind_drag :: (Monad m) => [SimpleMod] -> UiMsg.MouseButton -> String
+    -> (Msg.Msg -> Cmd.CmdT m a) -> [Binding m]
 bind_drag smods btn desc cmd = bind smods (Click btn 0) desc cmd
     -- You can't have a drag without having that button down!
     ++ bind (Mouse btn : smods) (Drag btn) desc cmd
 
 -- | Bind a key with the given modifiers.
-bind :: [SimpleMod] -> Bindable -> String
-    -> (Msg.Msg -> Cmd.CmdM m) -> [Binding m]
-bind smods bindable desc cmd =
-    [(key_spec mods bindable, cspec desc cmd) | mods <- all_mods]
-    where
-    all_mods = if null smods then [[]]
-        else Seq.cartesian (map simple_to_mods smods)
+bind :: (Monad m) => [SimpleMod] -> Bindable -> String
+    -> (Msg.Msg -> Cmd.CmdT m a) -> [Binding m]
+bind smods bindable desc bcmd =
+    [(key_spec mods bindable, cspec desc cmd) | mods <- expand_mods smods]
+    where cmd msg = bcmd msg >> return Cmd.Done
+
+expand_mods :: [SimpleMod] -> [[Cmd.Modifier]]
+expand_mods [] = [[]]
+expand_mods smods = Seq.cartesian (map simple_to_mods smods)
 
 -- ** CmdMap
 
@@ -92,8 +95,6 @@ make_cmd cmd_map msg = do
         Just (CmdSpec name cmd) -> do
             Log.notice $ "running command " ++ show name
             cmd msg
-            -- TODO move quit back into its own cmd and turn this on
-            -- return Cmd.Done
 
 
 -- | The Msg contains the low level key information, but most commands should
@@ -190,6 +191,7 @@ msg_to_bindable msg = case msg of
     _ -> Nothing
 
 data Bindable = Key Key.Key
+    -- | Click MouseButton Clicks
     | Click UiMsg.MouseButton Int
     | Drag UiMsg.MouseButton
     -- | Channel can be used to restrict bindings to a certain keyboard.  This

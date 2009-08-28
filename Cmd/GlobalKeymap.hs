@@ -115,9 +115,9 @@ io_cmds transport_info =
     , bind_char ' ' "stop play" Play.cmd_stop
     ]
 
-cmd_save, cmd_load :: Cmd.CmdIO
-cmd_save = Save.get_save_file >>= Save.cmd_save >> return Cmd.Done
-cmd_load = Save.get_save_file >>= Save.cmd_load >> return Cmd.Done
+cmd_save, cmd_load :: Cmd.CmdT IO ()
+cmd_save = Save.get_save_file >>= Save.cmd_save
+cmd_load = Save.get_save_file >>= Save.cmd_load
 
 -- | This is unfortunate.  In order to construct the cmd map only once, I
 -- want it to be a CAF.  However, these Cmds take an argument, which means
@@ -138,13 +138,21 @@ player_bindings transport_info = fst $ Keymap.make_cmd_map $ concat
     ++ block_config_bindings ++ edit_bindings ++ create_bindings
     ++ clip_bindings
 
-misc_bindings = command_only '\'' "quit" Cmd.cmd_quit
+-- Quit is special because it's the only Cmd that returns Cmd.Quit.
+-- See how annoying it is to make a keymap by hand?
+misc_bindings = [(kspec, cspec) | kspec <- kspecs]
+    where
+    kspecs = [Keymap.key_spec mods (Keymap.Key (Key.KeyChar '\''))
+        | mods <- Keymap.expand_mods [PrimaryCommand]]
+    cspec = Keymap.cspec "quit" (const Cmd.cmd_quit)
 
 selection_bindings = concat
     [ bind_drag [] Config.mouse_select "snap drag selection"
         (Selection.cmd_snap_selection Config.mouse_select Config.insert_selnum)
     , bind_drag [PrimaryCommand] Config.mouse_select "free drag selection"
         (Selection.cmd_mouse_selection Config.mouse_select Config.insert_selnum)
+    -- TODO extend selection with drag + shift
+    -- can I use shift+secondary or something to subtract the selection?
 
     , bind_mod [] Key.Down "advance selection"
         (Selection.cmd_step_selection selnum TimeStep.Advance False)
@@ -193,12 +201,12 @@ edit_bindings = concat
     -- to remove events.  Maybe I'll change that later.
     -- , command Key.Backspace "remove event" Edit.cmd_remove_selected
     , bind_mod [Shift] Key.Backspace "delete selection"
-        (done Edit.cmd_delete_selection)
+        Edit.cmd_delete_selection
     , bind_mod [Shift] (Key.KeyChar '=') "insert selection"
-        (done Edit.cmd_insert_selection)
+        Edit.cmd_insert_selection
 
-    , command_char 'u' "undo" (done Edit.undo)
-    , command_char 'r' "redo" (done Edit.redo)
+    , command_char 'u' "undo" Edit.undo
+    , command_char 'r' "redo" Edit.redo
 
     , command_char '0' "step rank 0" (Edit.cmd_meter_step 0)
     , command_char '1' "step rank 1" (Edit.cmd_meter_step 1)
@@ -210,14 +218,14 @@ edit_bindings = concat
     , bind_char '=' "octave +1" (Edit.cmd_modify_octave (+1))
 
     -- TODO These should probably go in the note track bindings.
-    , command_char 's' "set dur" (done Edit.cmd_set_duration)
-    , command_char '.' "dur * 1.5" (done (Edit.cmd_modify_dur (*1.5)))
-    , command_char ',' "dur / 1.5" (done (Edit.cmd_modify_dur (/1.5)))
+    , command_char 's' "set dur" Edit.cmd_set_duration
+    , command_char '.' "dur * 1.5" (Edit.cmd_modify_dur (*1.5))
+    , command_char ',' "dur / 1.5" (Edit.cmd_modify_dur (/1.5))
     ]
 
 create_bindings = concat
-    [ command_char 't' "append track" (done Create.insert_track_after_selection)
-    , command_char 'd' "remove track" (done Create.remove_selected_tracks)
+    [ command_char 't' "append track" Create.insert_track_after_selection
+    , command_char 'd' "remove track" Create.remove_selected_tracks
     ]
 
 clip_bindings = concat
@@ -230,9 +238,6 @@ clip_bindings = concat
     ]
 
 -- * util
-
-done = (>> return Cmd.Done)
-msg_done cmd msg = done (cmd msg)
 
 -- | Most command keys are mapped to both a plain keystroke and command key.
 -- This is a little unusual, but it means the command can still be invoked when

@@ -13,7 +13,7 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.Selection as Selection
 
 
-cmd_toggle_edge :: (Monad m) => Msg.Msg -> Cmd.CmdT m Cmd.Status
+cmd_toggle_edge :: (Monad m) => Msg.Msg -> Cmd.CmdT m ()
 cmd_toggle_edge msg = do
     (_, sel_track_num, _) <- Selection.get_insert_track
     clicked_track_num <- get_clicked_track msg
@@ -23,7 +23,6 @@ cmd_toggle_edge msg = do
     when failed $
         Log.warn $ "refused to add cycle-creating edge: " ++ show edge
     -- TODO: set selection so you can chain these
-    return Cmd.Done
 
 get_clicked_track :: (Monad m) => Msg.Msg
     -> Cmd.CmdT m Block.TrackNum

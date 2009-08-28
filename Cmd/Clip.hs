@@ -64,16 +64,15 @@ clear_clip = destroy_namespace =<< get_clip_namespace
 -- * copy
 
 -- | Copy events under the current selection into the buffer.
-cmd_copy_selection :: (Monad m) => Cmd.CmdT m Cmd.Status
+cmd_copy_selection :: (Monad m) => Cmd.CmdT m ()
 cmd_copy_selection = do
     sel <- copy_selection Config.insert_selnum
     state <- selection_sub_state sel
     state_to_clip state
-    return Cmd.Done
 
 -- | Like 'cmd_copy_selection', but shift the following events back by the
 -- selection duration.
-cmd_cut_selection :: (Monad m) => Cmd.CmdT m Cmd.Status
+cmd_cut_selection :: (Monad m) => Cmd.CmdT m ()
 cmd_cut_selection = do
     cmd_copy_selection
     Edit.cmd_remove_selected
@@ -92,38 +91,35 @@ copy_selection selnum = do
 -- is a point it's the same as if it extended to the end of the block.
 
 -- | The normal variety of paste that replaces the destination data.
-cmd_paste_overwrite :: (Monad m) => Cmd.CmdT m Cmd.Status
+cmd_paste_overwrite :: (Monad m) => Cmd.CmdT m ()
 cmd_paste_overwrite = do
     (start, end, track_ids, clip_events) <- paste_info
     forM_  (zip track_ids clip_events) $ \(track_id, events) -> do
         State.remove_events track_id start end
         State.insert_events track_id events
-    return Cmd.Done
 
-cmd_paste_merge :: (Monad m) => Cmd.CmdT m Cmd.Status
+cmd_paste_merge :: (Monad m) => Cmd.CmdT m ()
 cmd_paste_merge = do
     (_start, _end, track_ids, clip_events) <- paste_info
     forM_  (zip track_ids clip_events) $ \(track_id, events) -> do
         State.insert_events track_id events
-    return Cmd.Done
 
 -- | Like 'cmd_paste_merge', except don't merge events that overlap with
 -- existing ones.
-cmd_paste_soft_merge :: (Monad m) => Cmd.CmdT m Cmd.Status
+cmd_paste_soft_merge :: (Monad m) => Cmd.CmdT m ()
 cmd_paste_soft_merge = do
     (_start, _end, track_ids, clip_events) <- paste_info
     forM_  (zip track_ids clip_events) $ \(track_id, events) -> do
         track_events <- fmap Track.track_events (State.get_track track_id)
         State.insert_events track_id $
             filter (not . overlaps track_events) events
-    return Cmd.Done
     where
     overlaps events (pos, _) = Maybe.isJust (Track.event_overlapping pos events)
 
 -- | Insert the events after pushing events after the selection down by
 -- the inserted length, which is the minimum of the insert selection and the
 -- length of the buffer.
-cmd_paste_insert :: (Monad m) => Cmd.CmdT m Cmd.Status
+cmd_paste_insert :: (Monad m) => Cmd.CmdT m ()
 cmd_paste_insert = do
     (start, end, track_ids, clip_events) <- paste_info
     -- Only shift the tracks that are in clip_events.
@@ -131,7 +127,6 @@ cmd_paste_insert = do
         (map fst (zip track_ids clip_events))
     forM_  (zip track_ids clip_events) $ \(track_id, events) -> do
         State.insert_events track_id events
-    return Cmd.Done
 
 
 -- * implementation

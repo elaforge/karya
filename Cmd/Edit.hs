@@ -23,7 +23,7 @@ import qualified App.Config as Config
 
 
 cmd_toggle_raw_edit, cmd_toggle_val_edit,
-    cmd_toggle_method_edit, cmd_toggle_kbd_entry :: Cmd.CmdId
+    cmd_toggle_method_edit, cmd_toggle_kbd_entry :: (Monad m) => Cmd.CmdT m ()
 
 cmd_toggle_raw_edit = modify_edit_mode $ \m -> case m of
     Cmd.RawEdit -> Cmd.NoEdit
@@ -47,7 +47,6 @@ cmd_toggle_kbd_entry = do
     Cmd.modify_state $ \st ->
         st { Cmd.state_kbd_entry = not (Cmd.state_kbd_entry st) }
     sync_edit_box_status
-    return Cmd.Done
 
 -- ** util
 
@@ -55,7 +54,6 @@ modify_edit_mode f = do
     Cmd.modify_state $ \st ->
         st { Cmd.state_edit_mode = f (Cmd.state_edit_mode st) }
     sync_edit_box_status
-    return Cmd.Done
 
 sync_edit_box_status :: (Monad m) => Cmd.CmdT m ()
 sync_edit_box_status = do
@@ -135,22 +133,20 @@ modify_events f = do
 
 -- | If the insertion selection is a point, remove any event under it.  If it's
 -- a range, remove all events within its half-open extent.
-cmd_remove_selected :: (Monad m) => Cmd.CmdT m Cmd.Status
+cmd_remove_selected :: (Monad m) => Cmd.CmdT m ()
 cmd_remove_selected = do
     (track_ids, sel) <- Selection.selected_tracks Config.insert_selnum
     let (start, end) = Block.sel_range sel
     forM_ track_ids $ \track_id -> if start == end
         then State.remove_event track_id start
         else State.remove_events track_id start end
-    return Cmd.Done
 
-cmd_meter_step :: Int -> Cmd.CmdId
+cmd_meter_step :: (Monad m) => Int -> Cmd.CmdT m ()
 cmd_meter_step rank = do
     let step = (TimeStep.UntilMark
             (TimeStep.NamedMarklists ["meter"]) (TimeStep.MatchRank rank))
     Cmd.modify_state $ \st -> st { Cmd.state_step = step }
     sync_step_status
-    return Cmd.Done
 
 sync_step_status :: (Monad m) => Cmd.CmdT m ()
 sync_step_status = do
@@ -168,12 +164,11 @@ show_match (TimeStep.MatchRank rank) = "r" ++ show rank
 show_marklists TimeStep.AllMarklists = "all"
 show_marklists (TimeStep.NamedMarklists mlists) = Seq.join "," mlists
 
-cmd_modify_octave :: (Monad m) => (Int -> Int) -> Cmd.CmdM m
+cmd_modify_octave :: (Monad m) => (Cmd.Octave -> Cmd.Octave) -> Cmd.CmdT m ()
 cmd_modify_octave f = do
     Cmd.modify_state $ \st -> st
         { Cmd.state_kbd_entry_octave = f (Cmd.state_kbd_entry_octave st) }
     sync_octave_status
-    return Cmd.Done
 
 sync_octave_status :: (Monad m) => Cmd.CmdT m ()
 sync_octave_status = do

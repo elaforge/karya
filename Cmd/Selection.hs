@@ -32,8 +32,8 @@ import qualified App.Config as Config
 -- advance to the next relevant mark.  "next relevant mark" is the next visible
 -- mark in the ruler to the left.  If @extend@ is true, extend the current
 -- selection instead of setting a new point selection.
-cmd_step_selection :: Block.SelNum -> TimeStep.TimeDirection -> Bool
-    -> Cmd.CmdId
+cmd_step_selection :: (Monad m) => Block.SelNum -> TimeStep.TimeDirection
+    -> Bool -> Cmd.CmdT m ()
 cmd_step_selection selnum dir extend = do
     view_id <- Cmd.get_focused_view
     Block.Selection start_track start_pos cur_track cur_pos <-
@@ -44,11 +44,10 @@ cmd_step_selection selnum dir extend = do
             then Block.selection start_track start_pos cur_track new_pos
             else Block.point_selection start_track new_pos
     select_and_scroll view_id selnum new_sel
-    return Cmd.Done
 
 -- | Advance the insert selection by the current step, which is a popular thing
 -- to do.
-cmd_advance_insert :: Cmd.CmdId
+cmd_advance_insert :: (Monad m) => Cmd.CmdT m ()
 cmd_advance_insert =
     cmd_step_selection Config.insert_selnum TimeStep.Advance False
 
@@ -56,7 +55,8 @@ cmd_advance_insert =
 --
 -- If @extend@ is true, extend the current selection instead of setting a new
 -- selection.
-cmd_shift_selection :: Block.SelNum -> Block.TrackNum -> Bool -> Cmd.CmdId
+cmd_shift_selection :: (Monad m) =>
+    Block.SelNum -> Block.TrackNum -> Bool -> Cmd.CmdT m ()
 cmd_shift_selection selnum nshift extend = do
     view_id <- Cmd.get_focused_view
     block <- State.block_of_view view_id
@@ -64,25 +64,23 @@ cmd_shift_selection selnum nshift extend = do
     let sel' = shift_selection nshift (length (Block.block_tracks block)) sel
     select_and_scroll view_id selnum
         (Just (if extend then sel_merge sel sel' else sel'))
-    return Cmd.Done
 
 sel_merge (Block.Selection strack spos _ _) (Block.Selection _ _ ctrack cpos) =
     Block.Selection strack spos ctrack cpos
 
 -- | Set the selection based on a click or drag.
 cmd_mouse_selection :: (Monad m) =>
-    Int -> Block.SelNum -> Msg.Msg -> Cmd.CmdT m Cmd.Status
+    Int -> Block.SelNum -> Msg.Msg -> Cmd.CmdT m ()
 cmd_mouse_selection btn selnum msg = do
     (down_tracknum, down_pos, mouse_tracknum, mouse_pos) <- mouse_drag btn msg
     let sel = Block.selection down_tracknum down_pos mouse_tracknum mouse_pos
     view_id <- Cmd.get_focused_view
     select_and_scroll view_id selnum sel
-    return Cmd.Done
 
 -- | Like 'cmd_mouse_selection', but snap the selection to the current time
 -- step.
 cmd_snap_selection :: (Monad m) => Int -> Block.SelNum -> Msg.Msg
-    -> Cmd.CmdT m Cmd.Status
+    -> Cmd.CmdT m ()
 cmd_snap_selection btn selnum msg = do
     (down_tracknum, _, mouse_tracknum, mouse_pos) <- mouse_drag btn msg
     block_id <- Cmd.get_focused_block
@@ -101,7 +99,6 @@ cmd_snap_selection btn selnum msg = do
                 Block.selection start_track start_pos mouse_tracknum snap_pos
             _ -> error "not reached" -- ghc doesn't realize it is exhaustive
     select_and_scroll view_id selnum sel
-    return Cmd.Done
 
 -- | Get the dragged range, or abort if this isn't a drag Msg.
 mouse_drag :: (Monad m) => Int -> Msg.Msg

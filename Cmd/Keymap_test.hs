@@ -59,9 +59,9 @@ test_make_cmd = do
     equal (run [Cmd.MouseMod 3 Nothing] (CmdTest.drag 3))
         (did_run "drag-3" "cmd1")
 
-cmd1, cmd2 :: Cmd.CmdId
-cmd1 = Log.notice "cmd1" >> return Cmd.Done
-cmd2 = Log.notice "cmd2" >> return Cmd.Done
+cmd1, cmd2 :: (Monad m) => Cmd.CmdT m ()
+cmd1 = Log.notice "cmd1"
+cmd2 = Log.notice "cmd2"
 
 binds = concat
     [ Keymap.bind_key (Key.KeyChar '1') "1" cmd1
