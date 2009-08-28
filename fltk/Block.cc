@@ -370,7 +370,6 @@ BlockView::remove_track(int tracknum, FinalizeCallback finalizer)
         if (removed != this->no_ruler)
             delete removed;
     }
-    this->skel_display.reset();
 }
 
 
@@ -385,7 +384,6 @@ BlockView::insert_track_view(int tracknum, TrackView *track, int width)
     } else {
         track_tile.insert_track(tracknum - 1, track, width);
         this->track_tile.set_zoom(this->zoom);
-        this->skel_display.reset();
     }
     this->update_scrollbars();
 }

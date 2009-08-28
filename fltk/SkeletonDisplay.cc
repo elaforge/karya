@@ -11,16 +11,7 @@ SkeletonDisplay::SkeletonDisplay(int X, int Y, int W, int H)
     : Fl_Box(X, Y, W, H)
 {
     box(FL_FLAT_BOX);
-}
-
-
-void
-SkeletonDisplay::reset()
-{
-    this->track_widths.clear();
-    this->track_centers.clear();
-    this->parent_child.clear();
-    this->redraw();
+    // box(FL_THIN_DOWN_BOX);
 }
 
 

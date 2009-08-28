@@ -321,7 +321,8 @@ main(int argc, char **argv)
     int pairs[] = {0, 5, 2, 4, 3, 4};
     SkeletonConfig skel = skeleton_config(pairs, 3);
     view.block.set_skeleton(skel);
-    print_children(&view);
+    view.block.insert_track(7, Tracklike(&track2, &truler), 80);
+    // print_children(&view);
 
     // Fl::add_timeout(1, timeout_func, (void*) &view);
 

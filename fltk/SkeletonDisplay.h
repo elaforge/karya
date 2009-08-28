@@ -21,10 +21,6 @@ struct SkeletonConfig {
 class SkeletonDisplay : public Fl_Box {
 public:
     SkeletonDisplay(int X, int Y, int W, int H);
-    // Clear everything.  This is called when a track is added or removed
-    // and set_config needs to be called again.  It's not worth trying to keep
-    // 'parent_child' up to date.
-    void reset();
     void set_config(
             const SkeletonConfig &config, const std::vector<int> &widths);
     void set_width(int tracknum, int width);
