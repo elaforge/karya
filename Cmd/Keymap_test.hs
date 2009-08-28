@@ -30,10 +30,10 @@ test_make_cmd = do
         did_run cname cmdlog =
             Right (Just ["running command " ++ show cname, cmdlog])
     let run_char mods char = run (map Cmd.KeyMod mods) (CmdTest.key_down char)
-    pprint $ zip (Map.keys cmd_map)
-        (map (\(Keymap.CmdSpec name _) -> name) (Map.elems cmd_map))
+    -- pprint $ zip (Map.keys cmd_map)
+    --     (map (\(Keymap.CmdSpec name _) -> name) (Map.elems cmd_map))
     equal (run_char [] 'a') no_run
-    equal (run_char [] '1') (did_run "12" "cmd1")
+    equal (run_char [] '1') (did_run "12" "cmd1") -- last cmd wins
     equal (run_char [] '2') (did_run "2" "cmd2")
     equal (run_char [] '3') no_run
 
@@ -49,11 +49,15 @@ test_make_cmd = do
     -- key up aborts
     equal (run [] (CmdTest.key_up '1')) aborted
 
-    -- mouse modifier?
+    -- mouse chording and dragging
     equal (run [] (CmdTest.mouse True 2)) no_run
     equal (run [Cmd.MouseMod 1 Nothing] (CmdTest.mouse True 2))
         (did_run "chord-12" "cmd1")
     equal (run [Cmd.MouseMod 1 Nothing] (CmdTest.mouse False 2)) aborted
+    -- bind_drag binds both the click and the drag
+    equal (run [] (CmdTest.mouse True 3)) (did_run "drag-3" "cmd1")
+    equal (run [Cmd.MouseMod 3 Nothing] (CmdTest.drag 3))
+        (did_run "drag-3" "cmd1")
 
 cmd1, cmd2 :: Cmd.CmdId
 cmd1 = Log.notice "cmd1" >> return Cmd.Done
@@ -67,5 +71,6 @@ binds = concat
     , Keymap.bind_mod [Keymap.PrimaryCommand] (Key.KeyChar '1') "c-1" cmd1
     , Keymap.bind_mod [Keymap.PrimaryCommand, Keymap.Shift]
         (Key.KeyChar '1') "cs-1" cmd1
-    , Keymap.bind_mouse [Keymap.Mouse 1] 2 "chord-12" (const cmd1)
+    , Keymap.bind_click [Keymap.Mouse 1] 2 0 "chord-12" (const cmd1)
+    , Keymap.bind_drag [] 3 "drag-3" (const cmd1)
     ]

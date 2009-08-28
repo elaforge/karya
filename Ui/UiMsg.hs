@@ -45,12 +45,14 @@ data UiUpdate =
     deriving (Eq, Ord, Show)
 
 -- TODO this makes partial selectors... would it be better to split this up?
-data Data = Mouse
-    { mouse_state :: MouseState
-    , mouse_coords :: (Int, Int)
-    , mouse_clicks :: Int
-    , mouse_is_click :: Bool
-    }
+data Data =
+    Mouse
+        { mouse_state :: MouseState
+        , mouse_coords :: (Int, Int)
+        -- | As per fltk, 0 is the first click, 1 is a double click, etc.
+        , mouse_clicks :: Int
+        , mouse_is_click :: Bool
+        }
     | Kbd KbdState Key.Key
     | AuxMsg AuxMsg
     | Unhandled Int

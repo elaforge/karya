@@ -82,6 +82,9 @@ mouse down btn = Msg.Ui $ UiMsg.UiMsg empty_context $
     UiMsg.MsgEvent (UiMsg.Mouse state (42, 2) 0 True)
     where state = if down then UiMsg.MouseDown btn else UiMsg.MouseUp btn
 
+drag btn = Msg.Ui $ UiMsg.UiMsg empty_context $
+    UiMsg.MsgEvent (UiMsg.Mouse (UiMsg.MouseDrag btn) (42, 2) 0 False)
+
 make_midi :: Midi.ChannelMessage -> Msg.Msg
 make_midi chan_msg = Msg.Midi $
     Midi.ReadMessage (Midi.ReadDevice "test") Timestamp.immediately

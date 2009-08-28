@@ -82,6 +82,7 @@ import qualified Ui.Key as Key
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Keymap as Keymap
+import Cmd.Keymap (bind_key, bind_char, bind_mod, bind_click, bind_drag)
 import Cmd.Keymap (SimpleMod(..))
 
 import qualified Cmd.BlockConfig as BlockConfig
@@ -98,10 +99,7 @@ import qualified Perform.Transport as Transport
 
 
 global_cmds :: [Cmd.Cmd]
-global_cmds =
-    [ msg_done (Selection.cmd_mouse_drag Config.mouse_select)
-    , Keymap.make_cmd cmd_map
-    ]
+global_cmds = [Keymap.make_cmd cmd_map]
 
 io_cmds :: Transport.Info -> [Msg.Msg -> Cmd.CmdIO]
 io_cmds transport_info =
@@ -143,7 +141,12 @@ player_bindings transport_info = fst $ Keymap.make_cmd_map $ concat
 misc_bindings = command_only '\'' "quit" Cmd.cmd_quit
 
 selection_bindings = concat
-    [ bind_mod [] Key.Down "advance selection"
+    [ bind_drag [] Config.mouse_select "snap drag selection"
+        (Selection.cmd_snap_selection Config.mouse_select Config.insert_selnum)
+    , bind_drag [PrimaryCommand] Config.mouse_select "free drag selection"
+        (Selection.cmd_mouse_selection Config.mouse_select Config.insert_selnum)
+
+    , bind_mod [] Key.Down "advance selection"
         (Selection.cmd_step_selection selnum TimeStep.Advance False)
     , bind_mod [Shift] Key.Down "extend advance selection"
         (Selection.cmd_step_selection selnum TimeStep.Advance True)
@@ -171,7 +174,7 @@ view_config_bindings = concat
     ]
 
 block_config_bindings = concat
-    [ bind_mouse [Shift, PrimaryCommand] Config.mouse_select
+    [ bind_click [Shift, PrimaryCommand] Config.mouse_select 0
         "toggle skeleton edge" BlockConfig.cmd_toggle_edge
     ]
 
@@ -237,11 +240,6 @@ msg_done cmd msg = done (cmd msg)
 command key desc cmd =
     bind_key key desc cmd ++ bind_mod [PrimaryCommand] key desc cmd
 command_char char = command (Key.KeyChar char)
-
-bind_char char = Keymap.bind_key (Key.KeyChar char)
-bind_key = Keymap.bind_key
-bind_mod = Keymap.bind_mod
-bind_mouse = Keymap.bind_mouse
 
 -- | But some commands are too dangerous to get a plain keystroke version.
 command_only char = bind_mod [PrimaryCommand] (Key.KeyChar char)

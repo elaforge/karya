@@ -1,3 +1,4 @@
+{-# LANGUAGE ViewPatterns #-}
 {- | Support for efficient keymaps.
 
     The sequece of Cmds which return Continue or Done is flexible, but probably
@@ -6,8 +7,8 @@
     key.
 
     Keymaps provide an efficient way to respond to a useful subset of Msgs,
-    i.e.  those which are considered "key down" msgs or "controller change"
-    type msgs.  The exact definition is in 'Cmd.Modifier'.
+    i.e.  those which are considered 'key down' type msgs.  The exact
+    definition is in 'Bindable'.
 -}
 module Cmd.Keymap where
 import Control.Monad
@@ -19,6 +20,7 @@ import qualified Data.Set as Set
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 
+import qualified Midi.Midi as Midi
 import qualified Ui.Key as Key
 import qualified Ui.UiMsg as UiMsg
 
@@ -32,22 +34,33 @@ import qualified Cmd.Cmd as Cmd
 bind_key :: Key.Key -> String -> Cmd.CmdM m -> [Binding m]
 bind_key = bind_mod []
 
+bind_char :: Char -> String -> Cmd.CmdM m -> [Binding m]
+bind_char char = bind_key (Key.KeyChar char)
+
 -- | Bind a key with the given modifiers.
 bind_mod :: [SimpleMod] -> Key.Key -> String -> Cmd.CmdM m -> [Binding m]
-bind_mod smods key desc cmd = bind smods (Cmd.KeyMod key) desc (const cmd)
+bind_mod smods bindable desc cmd = bind smods (Key bindable) desc (const cmd)
 
--- | 'bind_mouse' passes the Msg to the cmd, since mouse cmds are more likely
--- to want the msg to find out exactly where the click was.
-bind_mouse :: [SimpleMod] -> UiMsg.MouseButton -> String
+-- | 'bind_click' passes the Msg to the cmd, since mouse cmds are more likely
+-- to want the msg to find out where the click was.  @clicks@ is 0 for a single
+-- click, 1 for a double click, etc.
+bind_click :: [SimpleMod] -> UiMsg.MouseButton -> Int -> String
     -> (Msg.Msg -> Cmd.CmdM m) -> [Binding m]
-bind_mouse smods btn desc cmd =
-    bind smods (Cmd.MouseMod btn Nothing) desc cmd
+bind_click smods btn clicks desc cmd = bind smods (Click btn clicks) desc cmd
+
+-- | A 'bind_drag' binds both the click and the drag.  It's conceivable to have
+-- click and drag bound to different commands, but I don't have any yet.
+bind_drag :: [SimpleMod] -> UiMsg.MouseButton -> String
+    -> (Msg.Msg -> Cmd.CmdM m) -> [Binding m]
+bind_drag smods btn desc cmd = bind smods (Click btn 0) desc cmd
+    -- You can't have a drag without having that button down!
+    ++ bind (Mouse btn : smods) (Drag btn) desc cmd
 
 -- | Bind a key with the given modifiers.
-bind :: [SimpleMod] -> Cmd.Modifier -> String
+bind :: [SimpleMod] -> Bindable -> String
     -> (Msg.Msg -> Cmd.CmdM m) -> [Binding m]
-bind smods key desc cmd =
-    [(key_spec mods key, cspec desc cmd) | mods <- all_mods]
+bind smods bindable desc cmd =
+    [(key_spec mods bindable, cspec desc cmd) | mods <- all_mods]
     where
     all_mods = if null smods then [[]]
         else Seq.cartesian (map simple_to_mods smods)
@@ -59,21 +72,21 @@ bind smods key desc cmd =
 make_cmd_map :: (Monad m) => [Binding m] -> (CmdMap m, [String])
 make_cmd_map bindings = (Map.fromList bindings, warns)
     where
-    warns = ["cmds overlap, picking the first one: " ++ Seq.join ", " cmds
+    warns = ["cmds overlap, picking the last one: " ++ Seq.join ", " cmds
         | cmds <- overlaps bindings]
 
 -- | Create a cmd that dispatches into the given CmdMap.
 --
--- To lookup a cmd, the Msg is restricted to a Cmd.Modifier.  Then non-modifiers
--- are stripped out of the mods and both are looked up in the keymap.  That
--- way, if keys overlap when you strike them the cmd still fires.
+-- To look up a cmd, the Msg is restricted to a 'Bindable'.  Then modifiers
+-- that are allowed to overlap (such as keys) are stripped out of the mods and
+-- the KeySpec is looked up in the keymap.
 make_cmd :: (Monad m) => CmdMap m -> Msg.Msg -> Cmd.CmdM m
 make_cmd cmd_map msg = do
-    key <- Cmd.require (msg_to_mod msg)
+    bindable <- Cmd.require (msg_to_bindable msg)
     mods <- mods_down
-    case Map.lookup (KeySpec mods key) cmd_map of
+    case Map.lookup (KeySpec mods bindable) cmd_map of
         Nothing -> do
-            -- Log.notice $ "no match for " ++ show (KeySpec mods key)
+            -- Log.notice $ "no match for " ++ show (KeySpec mods bindable)
             --     ++ " in " ++ show (Map.keys cmd_map)
             return Cmd.Continue
         Just (CmdSpec name cmd) -> do
@@ -89,8 +102,11 @@ make_cmd cmd_map msg = do
 -- as customary on linux.
 --
 -- Things you have to inspect the Msg directly for:
+--
 -- - differentiate ShiftL and ShiftR
+--
 -- - chorded keys
+--
 -- - use option on the mac
 data SimpleMod =
     Shift
@@ -101,7 +117,7 @@ data SimpleMod =
     -- windows.  I'm not sure what this should be used for, but it should be
     -- different than Mod1 stuff.  Maybe static config user-added commands.
     | SecondaryCommand
-    -- | Having mouse here allows for fancy chording.
+    -- | Having mouse here allows for mouse button chording.
     | Mouse UiMsg.MouseButton
     deriving (Eq, Ord, Show)
 
@@ -113,7 +129,8 @@ simple_mod_map :: [(SimpleMod, [Key.Key])]
 simple_mod_map =
     [ (Shift, [Key.ShiftL, Key.ShiftR])
     , (PrimaryCommand, [Key.MetaL, Key.MetaR])
-    , (SecondaryCommand, [Key.ControlL, Key.ControlR])
+    -- AltL is the mac's option key.
+    , (SecondaryCommand, [Key.ControlL, Key.ControlR, Key.AltL, Key.AltR])
     ]
 
 simple_to_mods :: SimpleMod -> [Cmd.Modifier]
@@ -124,11 +141,10 @@ simple_to_mods simple = maybe [] (map Cmd.KeyMod) (lookup simple simple_mod_map)
 
 type Binding m = (KeySpec, CmdSpec m)
 
-data KeySpec = KeySpec (Set.Set Cmd.Modifier) Cmd.Modifier
-    deriving (Eq, Ord, Show)
+data KeySpec = KeySpec (Set.Set Cmd.Modifier) Bindable deriving (Eq, Ord, Show)
 
-key_spec :: [Cmd.Modifier] -> Cmd.Modifier -> KeySpec
-key_spec mods key = KeySpec (Set.fromList mods) key
+key_spec :: [Cmd.Modifier] -> Bindable -> KeySpec
+key_spec mods bindable = KeySpec (Set.fromList mods) bindable
 
 -- | Pair a Cmd with a descriptive string that can be used for logging, undo,
 -- etc.
@@ -162,11 +178,25 @@ mods_down = do
     is_mod (Cmd.MidiMod _ _) = False
     is_mod (Cmd.MouseMod _ _) = True
 
-msg_to_mod :: Msg.Msg -> Maybe Cmd.Modifier
-msg_to_mod msg = case Cmd.msg_to_mod msg of
-    Nothing -> Nothing
-    Just (False, _) -> Nothing
-    Just (True, m) -> Just (Cmd.strip_modifier m)
+msg_to_bindable :: Msg.Msg -> Maybe Bindable
+msg_to_bindable msg = case msg of
+    (Msg.key -> Just key) -> Just $ Key key
+    (Msg.mouse -> Just mouse) -> case UiMsg.mouse_state mouse of
+        UiMsg.MouseDown btn -> Just $ Click btn (UiMsg.mouse_clicks mouse)
+        UiMsg.MouseDrag btn -> Just $ Drag btn
+        _ -> Nothing
+    (Msg.midi -> Just (Midi.ChannelMessage chan (Midi.NoteOn key _))) ->
+        Just $ Note chan key
+    _ -> Nothing
+
+data Bindable = Key Key.Key
+    | Click UiMsg.MouseButton Int
+    | Drag UiMsg.MouseButton
+    -- | Channel can be used to restrict bindings to a certain keyboard.  This
+    -- should probably be something more abstract though, such as a device
+    -- which can be set by the static config.
+    | Note Midi.Channel Midi.Key
+    deriving (Eq, Ord, Show, Read)
 
 
 -- * key layout
