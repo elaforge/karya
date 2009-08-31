@@ -1,76 +1,43 @@
+CURRENT
+  - ^C thing
+  - cleanup TestCoreMidi
+  - fix Signal_test
+  - fix hint stuff
+  - cleanup build/timer thing
+  - love for logview
+  - TODO / haddock sweep
+
+MILESTONES
+  0.1
+    + scales and keyswitches
+    - efficient thru
+    - dense / efficient control signals
+    - memoize deriver output, to avoid unnecessary rederivation
+    - midi record / integrator
+    - save undo history
+  future
+    - freeze tracks / audio memoization: doc/freeze_track
+    - vst host
+    - jack / rewrite
+    - non-midi instruments
+
 - TrackNum, Width, etc. go into Ui.Types, or maybe just Ui?
 - remove unqualified Types imports
 - update Cmd.GlobalKeymap comment
-
-- grepping tests gets multiple lines
-- tests count number of tests in addition to checks within each test
-
-misc ideas
-  - legato filter makes adjacent notes overlap a little, for keyed portamento
-  - more complicated track names: "< legato < synth/inst" to pipe inst output
-    through legato deriver
-  - use "<" for tracks that generate data, ">" for ones that accept it, e.g.
-    to display and merge a derived version
 
 - make sure pitch terminology is consistent:
   KeyNumber = scale independent note, Note = note in scale,
   Pitch = freq easily mapped to and from nn, same as NoteNumber,
   NoteNumber = Midi.Key + decimal
-bugs:
-  - when I do just space, I get "keyup not in modifiers"
-  - in test_block, resizing tracks, leftmost track title is confused
 
 - support for Schema.default_scale, esp since it gets automatically added
-
-- ^C should quit everything
-- cmd-q should also quit entirely not just close the windows
-- fix logview
-- fix Signal_test
 
 bug haskell-cafe:
   - buggy ghci debugger
   - haddock problems
   - hint trouble
 
-  current
-- implement pitch track as a separate control track
-  * pitch control track
-  * remove Cmd.Instrument instrument arg
-  * unittests for new derive2 stuff
-  + remove derive1 (rest depends on Cmd.NoteTrack)
-  * fix Derive/Derive_test.hs
-  * Perform.Midi should understand the new pitch track
-    * checker throws a warning if an instrument has >1 pitch track
-    * instead of Score.pitch, performer looks for first pitch (*...) track
-
-  implement attrs
-    * add attrs to Midi.Instrument
-    * add attr priority to Midi.Instrument
-    * hook up attrs and keyswitches
-    * filter out excess keyswitches
-    * test
-    + library of standard attrs?
-
-  cmd support
-    - move CmdContext crap into Cmd.SchemaTypes?
-    - note entry commands add both event and pitch track
-    - event edit commands enter text or notes
-
-- relative controller tracks, combined with an operator, so e.g. "+, *scale"
-  adds to the pitch track, and "*, volume" multiplies with the volume track
-  operators: +, *, min, max
-- relative pitch track, but to do this properly I need to support PitchSignal
-
-should be a documented extensible way to add new track types without modifying
-core ADTs
-
-
 ----
-
-- set controller within the track?
-cmds
-  - just plain "i" means the previous val, to make timed slides easier
-  - delete sections of ruler, or insert new sections
 
 - remove State.modify_event_range?
 - either ruler is binary or step goes in binary steps
@@ -78,39 +45,16 @@ cmds
 - optimization: if a msg aborts or doesn't run any cmds, don't bother to run
 diff.  except that hardly ever happens if I do shortcut thru
 
-- cmd_record_keys not getting run when play throws?
-
 - per-project short aliases for inst names so you can fit them in tracks easily
 
 - cmds return (status, record_undo).  Also can Cmds include a name so it can be
 logged or attached to an exception?  I guess the keymap thing is probably
 enough.
 
-- midi record, call it the Integrator
 - caching
   on sync, check cache validity against updates, and regenerate signals and
   events on blocks if necessary.
 - pass signal by pointer
-
-- test merge paste
-
-- "approach val" method to make pitch bend easier, or just insert two notes?
-  the former is higher-level...
-  g0 - approach 0 time, equivalent to s
-  gi.1 - approach linear taking 0.1 trackpos
-  g.1 - as above
-  g2e.1 - approach exp2 taking 0.1
-
-  Ok, so this is more complicated than that, I need something like:
-  a5- g2e1 b5-
-
-- implement midi bandwidth display
-
-DESIGN
-  - chord input... think about some kind of compact representation
-  - if derivation needs event IDs, maybe I can use the value-supply package
-  - safecopy package does version controlled serialization
-  - check out loch package instead of hspp
 
 display signal:
   cmd makes a change to a controller track
@@ -124,36 +68,25 @@ display signal:
 ****
 - switch to darcs hashed repo format
 
-bugs
-  * when replacing rulers, the track widths are lost
-  * destroy_ruler doesn't remove the ruler from its views
-  * plain numbers to set step is error prone in kbd mode
-  * parse errors don't give position
-  - paste deletes events before the paste area
-    can't reproduce this
-  * it's easy to create empty events which then give parse errors.  There's
-    a conflict between delete and move and remove letter.  So don't move.
+bugs:
+  - when I do just space, I get "keyup not in modifiers"
+    cmd_record_keys not getting run when play throws?
+  - ^C should quit instead of killing ui thread and hanging
+  - cmd-q should also quit entirely not just close the windows
 
-performance
+performance:
   - random little hangs are annoying.  figure out what's going on.  GC?
   * pause before playing.  printing logs make playing too strict?
   - the full event loop is too laggy for midi thru, implement a fast path
   - cache marks and events from callback
   - will removing the style speed up event copying?
 
-explicit skeleton
-  * fltk support
-  * add to Block
-  * Diff and Sync support
-  * Schema support
-
-fltk
-  * consistent drawing of abbreviated events so drawing isn't dependent on
-    damaged area.
-  * optimize: implement scroll redraw optimization
+fltk:
+  - draw arrows in SkeletonDisplay.cc properly
   - convert Selection to use the same format as hs, so it can show the cursor
     end specially
   - bug: selection redraw leaves gaps when dragging downwards
+  - bug: in test_block, resizing tracks, leftmost track title is confused
   - figure out how to have a minimal title bar in os x (win.border(0) removes
     it altogether)
     I can set something like kUtilityWindowClass in Fl_mac.cxx:Fl_X::make, but
@@ -173,7 +106,7 @@ fltk
   MoveTile
     - only capture drag on a plain drag with no modifiers
 
-logging logview
+logging logview:
   - logview needs scrollbars
   - don't store msgs in memory, don't refilter from begining
   - colorize (tid ..) (bid ..) (vid ..) etc.
@@ -182,7 +115,7 @@ logging logview
   - rename LogViewer -> LogView just to reduce confusion
   - LogView should use Util.Fltk
 
-Ui
+Ui:
   - some kind of special highlight to indicate the active block
   - rethrow c++ exceptions as FltkError
   Controllers
@@ -200,11 +133,18 @@ Ui
     - track mute
     - track merge
 
-skeleton
+skeleton:
   - splice track: adding a new track automatically links into the skeleton
   - parse skeleton in LanguageCmds
 
-Cmd
+test:
+  - grepping tests gets multiple lines
+  - tests count number of tests in addition to checks within each test
+
+integrator / midi record:
+  - implement
+
+Cmd:
   - cmd to give a view focus and bring it to the front
   - Cmd_test
   - the cmds that return anything other than Done are rare, have a special case
@@ -258,23 +198,32 @@ Cmd
 
   Cmd.MakeRuler
     - functions to modify zoom levels and other mark attributes
-    - functions to splice time or a Meter into a ruler
+    - functions to splice or delete time or a Meter into a ruler
 
   Cmd.Freeze
-    - details in doc/freeze_tracks
+    - details in doc/freeze_track
 
-Derive
+Derive:
   derivers
     * control
     * tempo
       * multiple tempos per block
     * subblock derivation
-  pitch
-    * pitch signal rendered to midi
-    - relative pitches, e.g. +5
+  PitchTrack pitch
     - pitch signal should be Signal (Method, Pitch) so that they can be
       transposed
     - alternate scales
+    - relative pitches, e.g. +5
+  NoteTrack note
+  ControlTrack control
+    - relative controller tracks, combined with an operator, so e.g. "+, *scale"
+      adds to the pitch track, and "*, volume" multiplies with the volume track
+      operators: +, *, min, max
+    - just plain "i" means the previous val, to make timed slides easier
+      "approach val" method to make pitch bend easier, or just insert two
+      notes?  the former is higher-level...
+      something like: a5- g2e1 b5-
+      or "a5- ;; i ;; 2e, b5-", much better!
 
   - block derivation memoization / caching
   - keyswitch support in midi thru
@@ -286,12 +235,12 @@ Derive
   - display derived blocks
   - 3 way merge for derived blocks
 
-Perform
+Perform:
   Player
     * flush midi output when I get a Stop
       * send patches upstream
   Midi
-    - eliminate duplicate controller msgs
+    * eliminate duplicate controller msgs
     * pitch signal rendering
     * support key switches
 
@@ -299,7 +248,7 @@ Perform
     - some kind of organized way to manage instruments and instrument config
     * backend-independent instrument def
     - some basic midi instrument defs for generic midi (dev, patch)
-    - defs for z1 and vl1
+    * defs for z1 and vl1
 
   Signal
     - lazy implementation
@@ -309,7 +258,7 @@ Perform
       proliferation of signal types
     - ensure that controllers are warped continuously by tempo
 
-Instrument DB
+Instrument DB:
   - search lang supports quotes
   - search lang supports - to exclude a term
   - original file goes in a tag, not the text
@@ -322,24 +271,34 @@ Instrument DB
   - explicitly allow merged patches, so I can get params from syx but send
     program change
 
-Midi
+Midi:
   * implement midi merging for midi thru
   * a single msg input thread instead of one thread per input port
   bandwidth
     - keep stats
     - display widget
 
-Osc
-  - does reaktor support timestamps?
+misc ideas:
+  - legato filter makes adjacent notes overlap a little, for keyed portamento
+  - more complicated track names: "< legato < synth/inst" to pipe inst output
+    through legato deriver
+  - use "<" for tracks that generate data, ">" for ones that accept it, e.g.
+    to display and merge a derived version
+  - should be a documented extensible way to add new track types without
+    modifying core ADTs
 
-research
+  - chord input... think about some kind of compact representation
+  - if derivation needs event IDs, maybe I can use the value-supply package
+  - safecopy package does version controlled serialization
+  - check out loch package instead of hspp
+
+research:
   - loading fonts in fltk, and drawing new fonts
   - subscribe to haskell-art
   - download sequencers and see how they ship midi reliably
-  - draw antialiased lines and curves on os x
   - learn about hs gtk for reference
 
-future
+future:
   - check out jack some more.  I don't necessarily support it in the beginning
     but should have an idea at least.
     Looks like I could use it for midi i/o, but what's the advantage over

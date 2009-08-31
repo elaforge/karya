@@ -34,6 +34,7 @@ HFLAGS := $(BASIC_HFLAGS) -threaded -debug
 
 FLTK_OBJS := Block.o TrackTile.o Track.o Ruler.o EventTrack.o MoveTile.o \
 	Event.o P9Scrollbar.o SimpleScroll.o SeqInput.o MsgCollector.o \
+	SkeletonDisplay.o \
 	f_util.o alpha_draw.o types.o config.o
 FLTK_OBJS := $(addprefix fltk/, $(FLTK_OBJS))
 
@@ -204,7 +205,8 @@ interactive: test_obj/RunTests
 tags: $(ALL_HS)
 	hasktags --ctags $^
 	sort tags >tags.sorted
-	mv tags.sorted tags
+	(echo -e '!_TAG_FILE_SORTED\t1\t ~'; cat tags.sorted) >tags
+	rm tags.sorted
 
 # include GHC_LIB/include since hsc includes HsFFI.h
 %.hs: %.hsc
