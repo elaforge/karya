@@ -182,7 +182,7 @@ derive_signal :: (State.UiStateMonad m) =>
     Schema.SchemaMap -> Block.BlockId -> m (Track.TrackSamples, [Log.Msg])
 derive_signal schema_map block_id = do
     ui_state <- State.get
-    deriver <- Schema.get_signal_deriver schema_map =<< State.get_block block_id
+    deriver <- Schema.get_signal_deriver schema_map block_id
     let (result, _, _, logs, _) = Derive.derive
             Derive.empty_lookup_deriver ui_state True
             (Derive.with_stack_block block_id deriver)

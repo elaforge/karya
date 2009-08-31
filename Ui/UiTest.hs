@@ -16,6 +16,8 @@ import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 
+import qualified Derive.Schema as Schema
+
 import qualified App.Config as Config
 
 
@@ -103,7 +105,12 @@ mkstate_id block_id tracks = do
     State.create_block (mkid block_name) $
         mkblock "b1 title" default_block_config
             ((Block.RId ruler, 20) : [(Block.TId tid ruler, 40) | tid <- tids])
+    State.set_skeleton block_id =<< parse_skeleton block_id
     return tids
+
+parse_skeleton block_id = do
+    tracks <- State.get_track_info block_id
+    return $ Schema.default_parser tracks
 
 mkview :: (State.UiStateMonad m) => m Block.ViewId
 mkview = State.create_view (Id.unpack_id default_view_id) $

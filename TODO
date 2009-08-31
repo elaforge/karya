@@ -1,14 +1,26 @@
+- TrackNum, Width, etc. go into Ui.Types, or maybe just Ui?
+- remove unqualified Types imports
+- update Cmd.GlobalKeymap comment
+
+- grepping tests gets multiple lines
+- tests count number of tests in addition to checks within each test
+
+misc ideas
+  - legato filter makes adjacent notes overlap a little, for keyed portamento
+  - more complicated track names: "< legato < synth/inst" to pipe inst output
+    through legato deriver
+  - use "<" for tracks that generate data, ">" for ones that accept it, e.g.
+    to display and merge a derived version
+
 - make sure pitch terminology is consistent:
   KeyNumber = scale independent note, Note = note in scale,
   Pitch = freq easily mapped to and from nn, same as NoteNumber,
   NoteNumber = Midi.Key + decimal
-+ unittests for new mods: PitchTrack
 bugs:
   - when I do just space, I get "keyup not in modifiers"
   - in test_block, resizing tracks, leftmost track title is confused
 
 - support for Schema.default_scale, esp since it gets automatically added
-- kill skeleton instruments
 
 - ^C should quit everything
 - cmd-q should also quit entirely not just close the windows
@@ -40,6 +52,7 @@ bug haskell-cafe:
     + library of standard attrs?
 
   cmd support
+    - move CmdContext crap into Cmd.SchemaTypes?
     - note entry commands add both event and pitch track
     - event edit commands enter text or notes
 
@@ -128,26 +141,11 @@ performance
   - cache marks and events from callback
   - will removing the style speed up event copying?
 
-new pitch lang
-  * implement pitch track as a separate control track
-  * implement note track and lookup, put inst in environment
-    remove pitch parsing from Derive/Note.hs
-  * remove the old note track stuff
-  * Perform.Midi should understand the new pitch track
-  * instrument attributes
-  * cmd support: note entry commands write to both inst and pitch tracks
-
 explicit skeleton
   * fltk support
   * add to Block
   * Diff and Sync support
-  - Schema support
-  - track collapsing
-  - track muting
-  - track merging
-
-cleanup
-  - make Schema.Track only event tracks
+  * Schema support
 
 fltk
   * consistent drawing of abbreviated events so drawing isn't dependent on
@@ -198,6 +196,13 @@ Ui
     - benchmark large TrackEvents
     - modify IntMap for Word64s, add toDescList
       - send patch to libraries@haskell.org
+    - track collapse
+    - track mute
+    - track merge
+
+skeleton
+  - splice track: adding a new track automatically links into the skeleton
+  - parse skeleton in LanguageCmds
 
 Cmd
   - cmd to give a view focus and bring it to the front
@@ -220,7 +225,6 @@ Cmd
     * nudge events
     - a legato command that always goes to the next note would still be useful
     - method edit works in controller tracks
-
   Cmd.Selection
     * drag snap to timestep
     * extend selection with shift-arrow
@@ -234,9 +238,6 @@ Cmd
   Cmd.LanguageCmd
     - some way to more easily type IDs, either the mangler adds a let for pbid,
       pvid, etc., or the mangler turns <foo> into <current/foo>
-
-  Cmd.View
-    - ViewBlock abstraction: collapse/expand tracks, mute tracks
 
   Cmd.Play
     - warn about unallocated instruments (Convert.verify)

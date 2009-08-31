@@ -53,7 +53,7 @@ import qualified App.Config as Config
 
 -- | Indicate the pitch track of a note track.  If the Bool is True,
 -- the track doesn't exist and should be created at the given TrackNum.
-data PitchTrack = PitchTrack Bool Block.TrackNum deriving (Show)
+data PitchTrack = PitchTrack Bool Block.TrackNum deriving (Show, Eq)
 
 cmd_raw_edit :: Pitch.ScaleId -> Cmd.Cmd
 cmd_raw_edit scale_id msg = do

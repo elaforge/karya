@@ -172,12 +172,6 @@ show_tracklike (Block.TId tid rid) = do
 show_tracklike (Block.RId rid) = return (show rid)
 show_tracklike (Block.DId color) = return $ "Div " ++ show color
 
--- | TODO put this in Cmd?
-get_skeleton :: Block.BlockId -> Cmd.CmdL Schema.Skeleton
-get_skeleton block_id = do
-    schema_map <- Cmd.get_schema_map
-    Schema.get_skeleton schema_map =<< State.get_block block_id
-
 create_block :: (State.UiStateMonad m) =>
     Id.Id -> String -> String -> m Block.BlockId
 create_block block_id ruler_id schema_id = State.create_block block_id $
@@ -307,11 +301,11 @@ lookup_instrument inst_name = do
     lookup_inst <- Cmd.get_lookup_midi_instrument
     return $ lookup_inst Score.no_attrs (Score.Instrument inst_name)
 
-track_type :: Block.BlockId -> Block.TrackNum
+track_info :: Block.BlockId -> Block.TrackNum
     -> Cmd.CmdL (Schema.TrackType, Maybe Score.Instrument, Maybe Pitch.ScaleId)
-track_type block_id tracknum = do
-    skel <- get_skeleton block_id
-    case Schema.get_track_type (Just tracknum) skel of
+track_info block_id tracknum = do
+    track_tree <- State.get_track_tree block_id
+    case Schema.get_track_info track_tree (Just tracknum) of
         (Nothing, _, _) -> Cmd.throw $ "can't get track type for "
             ++ show block_id ++ " at " ++ show tracknum
         (Just typ, inst, scale) -> return (typ, inst, scale)
@@ -334,7 +328,7 @@ load_instrument inst_name = do
     block_id <- Cmd.get_focused_block
     tracknum <- Cmd.require =<< Cmd.get_insert_tracknum
     track_id <- Cmd.require =<< State.event_track_at block_id tracknum
-    old_inst <- Cmd.require =<< fmap inst_type (track_type block_id tracknum)
+    old_inst <- Cmd.require =<< fmap inst_type (track_info block_id tracknum)
 
     dealloc_instrument old_inst
     dev <- Cmd.require_msg ("no device for " ++ show inst)  =<< device_of inst
@@ -400,8 +394,8 @@ dealloc_instrument inst = do
 
 schema_instruments :: Block.BlockId -> Cmd.CmdL [Score.Instrument]
 schema_instruments block_id = do
-    skel <- get_skeleton block_id
-    return (Schema.skeleton_instruments skel)
+    titles <- fmap (map State.track_title) (State.get_track_info block_id)
+    return $ Maybe.catMaybes (map Schema.title_to_instrument titles)
 
 -- | Try to automatically create an instrument config based on the instruments
 -- found in the given block.  It simply gives each instrument on a device a

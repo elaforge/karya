@@ -14,7 +14,6 @@ import qualified Ui.Track as Track
 import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
 import qualified Ui.UiMsg as UiMsg
-import qualified Ui.Key as Key
 
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Cmd as Cmd

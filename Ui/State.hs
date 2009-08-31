@@ -26,9 +26,10 @@ import Control.Monad.Trans (lift)
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State as State
+import qualified Data.Generics as Generics
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
-import qualified Data.Generics as Generics
+import qualified Data.Tree as Tree
 
 import qualified Util.Data
 import qualified Util.Seq as Seq
@@ -485,24 +486,6 @@ set_block_config :: (UiStateMonad m) => Block.BlockId -> Block.Config -> m ()
 set_block_config block_id config =
     modify_block block_id (\block -> block { Block.block_config = config })
 
-set_skeleton :: (UiStateMonad m) => Block.BlockId -> Skeleton.Skeleton
-    -> m ()
-set_skeleton block_id skel =
-    modify_block block_id (\block -> block { Block.block_skeleton = skel })
-
--- | Toggle the given edge in the block's skeleton.  If a cycle would be
--- created, refuse to add the edge and return False.
-toggle_skeleton_edge :: (UiStateMonad m) => Block.BlockId
-    -> (Block.TrackNum, Block.TrackNum) -> m Bool
-toggle_skeleton_edge block_id edge = do
-    block <- get_block block_id
-    let skel = Block.block_skeleton block
-    case Skeleton.toggle_edge edge skel of
-        Nothing -> return False
-        Just new_skel -> do
-            set_block block_id $ block { Block.block_skeleton = new_skel }
-            return True
-
 set_edit_box :: (UiStateMonad m) => Block.BlockId -> Color -> Char -> m ()
 set_edit_box block_id color char = do
     block <- get_block block_id
@@ -531,6 +514,84 @@ event_end block_id = do
     block <- get_block block_id
     track_ends <- mapM track_end (Block.block_track_ids block)
     return $ maximum (TrackPos 0 : track_ends)
+
+-- ** skeleton
+
+get_skeleton :: (UiStateMonad m) => Block.BlockId -> m Skeleton.Skeleton
+get_skeleton block_id = fmap Block.block_skeleton (get_block block_id)
+
+set_skeleton :: (UiStateMonad m) => Block.BlockId -> Skeleton.Skeleton
+    -> m ()
+set_skeleton block_id skel =
+    modify_block block_id (\block -> block { Block.block_skeleton = skel })
+
+-- | Toggle the given edge in the block's skeleton.  If a cycle would be
+-- created, refuse to add the edge and return False.
+toggle_skeleton_edge :: (UiStateMonad m) => Block.BlockId
+    -> (Block.TrackNum, Block.TrackNum) -> m Bool
+toggle_skeleton_edge block_id edge = do
+    block <- get_block block_id
+    let skel = Block.block_skeleton block
+    case Skeleton.toggle_edge edge skel of
+        Nothing -> return False
+        Just new_skel -> do
+            set_block block_id $ block { Block.block_skeleton = new_skel }
+            return True
+
+-- *** TrackTree
+
+-- | A TrackTree is the Skeleton resolved to the tracks it references.
+type TrackTree = Tree.Forest TrackInfo
+
+-- | Summary information on a Track.
+data TrackInfo = TrackInfo {
+    track_title :: String
+    , track_id :: Track.TrackId
+    , track_tracknum :: Block.TrackNum
+    } deriving (Show)
+
+get_track_info :: (UiStateMonad m) => Block.BlockId -> m [TrackInfo]
+get_track_info block_id = do
+    block <- get_block block_id
+    state <- get
+    return [TrackInfo (Track.track_title track) tid i
+        | (i, tid, track) <- _tracks_of block (state_tracks state)]
+
+get_track_tree :: (UiStateMonad m) => Block.BlockId -> m TrackTree
+get_track_tree block_id = do
+    skel <- get_skeleton block_id
+    tracks <- get_track_info block_id
+    ntracks <- fmap (length . Block.block_tracklike_ids) (get_block block_id)
+    let by_tracknum = Map.fromList $ zip (map track_tracknum tracks) tracks
+    let (resolved, missing) = _resolve by_tracknum
+            (Skeleton.to_forest ntracks skel)
+    -- Rulers and dividers should show up as missing.  They're ok as long as
+    -- they have no edges.
+    let really_missing = filter (not . (Skeleton.lonely_vertex skel)) missing
+    when (not (null really_missing)) $
+        throw $ "skeleton of " ++ show block_id
+            ++ " names missing tracknums: " ++ show really_missing
+    return resolved
+
+_tracks_of :: Block.Block -> Map.Map Track.TrackId Track.Track
+    -> [(Block.TrackNum, Track.TrackId, Track.Track)]
+_tracks_of block tracks = do
+    (i, Block.TId tid _) <- Seq.enumerate (Block.block_tracklike_ids block)
+    track <- maybe mzero (:[]) (Map.lookup tid tracks)
+    return (i, tid, track)
+
+_resolve :: Map.Map Block.TrackNum TrackInfo -> Tree.Forest Block.TrackNum
+    -> (Tree.Forest TrackInfo, [Block.TrackNum])
+_resolve tracknums trees = foldr cat_tree ([], []) $ map go trees
+    where
+    go (Tree.Node tracknum subs) = case Map.lookup tracknum tracknums of
+        Nothing -> (Nothing, [tracknum])
+        Just track_info ->
+            let (subforest, missing) = _resolve tracknums subs
+            in (Just (Tree.Node track_info subforest), missing)
+    cat_tree (maybe_tree, missing) (forest, all_missing) = case maybe_tree of
+        Nothing -> (forest, missing ++ all_missing)
+        Just tree -> (tree : forest, missing ++ all_missing)
 
 -- ** tracks
 

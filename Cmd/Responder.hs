@@ -329,19 +329,19 @@ hardcoded_io_cmds transport_info interpreter_chan lang_dirs =
 -- | Get cmds according to the currently focused block and track.
 get_focus_cmds :: Cmd.CmdT Identity.Identity [Cmd.Cmd]
 get_focus_cmds = do
-    block <- State.get_block =<< Cmd.get_focused_block
-    tracks <- Schema.block_tracks block
+    block_id <- Cmd.get_focused_block
     midi_config <- State.get_midi_config
     tracknum <- Cmd.get_insert_tracknum
     lookup_midi <- Cmd.get_lookup_midi_instrument
     cmd_state <- Cmd.get_state
+    track_tree <- State.get_track_tree block_id
 
     let context = Schema.cmd_context midi_config lookup_midi
             (Cmd.state_edit_mode cmd_state) (Cmd.state_kbd_entry cmd_state)
-            tracknum
+            tracknum track_tree
     schema_map <- Cmd.get_schema_map
-    return $
-        Schema.get_cmds schema_map context (Block.block_schema block) tracks
+    block <- State.get_block block_id
+    return $ Schema.get_cmds schema_map context (Block.block_schema block)
 
 -- | Run the cmd just for its value.
 eval err_msg ui_state cmd_state abort_val cmd = do

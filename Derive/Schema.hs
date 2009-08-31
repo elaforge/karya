@@ -22,15 +22,8 @@
 module Derive.Schema (
     -- Re-export schema types from Cmd, to pretend they're defined here.
     -- * types
-    Schema(..), SchemaDeriver, Parser, Skeleton(..), skel_merge
-    , Track(..), CmdContext(..), SchemaMap
-
-    -- ** default parser
-    , TrackType(..), get_track_type
-
-    -- Just used by testing
-    , default_parser
-    , compile_skeleton, compile_to_signals
+    Schema(..), SchemaDeriver
+    , CmdContext(..), SchemaMap
 
     -- * query
     , is_tempo_track
@@ -38,27 +31,36 @@ module Derive.Schema (
     , is_inst_track, inst_of_track
 
     -- * lookup
-    , lookup_deriver, get_signal_deriver, get_cmds, get_skeleton
-    , skeleton_instruments
+    , lookup_deriver, get_signal_deriver, get_cmds
+
+    -- * parser
+    , default_parser
+
     -- * util
-    , block_tracks
     , cmd_context
     , instrument_to_title, title_to_instrument
+
+    -- * exported for testing
+    , get_defaults, get_track_info, TrackType(..)
+    , compile, compile_to_signals
 ) where
 -- import qualified Control.Arrow as Arrow
 import Control.Monad
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.List as List
+import qualified Data.Tree as Tree
 
 import qualified Util.Seq as Seq
+import qualified Util.Log as Log
+import qualified Util.Tree
 import qualified Ui.Block as Block
 import qualified Ui.Track as Track
+import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 
 import qualified Cmd.Cmd as Cmd
-import Cmd.Cmd (Schema(..), SchemaDeriver, Parser, Skeleton(..), skel_merge,
-    Track(..), track_title, CmdContext(..), SchemaMap)
+import Cmd.Cmd (Schema(..), SchemaDeriver, CmdContext(..), SchemaMap)
 import qualified Cmd.ControlTrack as ControlTrack
 import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.PitchTrack as PitchTrack
@@ -86,11 +88,7 @@ merge_schemas :: SchemaMap -> SchemaMap -> SchemaMap
 merge_schemas map1 map2 = Map.union map2 map1
 
 
--- * look things up in the schema db
-
--- TODO get_deriver and get_skeleton could also take SchemaId -> [Track]
--- instead of Block... is it worth it?
--- type SchemaContext = (Block.SchemaId, [Track], SchemaMap)
+-- * lookup
 
 -- | Create a LookupDeriver function.
 lookup_deriver :: SchemaMap -> State.State -> Derive.LookupDeriver
@@ -98,53 +96,38 @@ lookup_deriver schema_map ui_state block_id = State.eval ui_state $ do
     block <- State.get_block block_id
     schema <- State.lookup_id (Block.block_schema block)
         (merge_schemas hardcoded_schemas schema_map)
-    schema_deriver schema block
+    schema_deriver schema block_id
 
 -- | Get the signal deriver for the given block.  Unlike the event deriver,
 -- the signal deriver is only ever local to one block, so it doesn't need
 -- a lookup mechanism.
-get_signal_deriver :: (State.UiStateMonad m) => SchemaMap -> Block.Block
+get_signal_deriver :: (State.UiStateMonad m) => SchemaMap -> Block.BlockId
     -> m Derive.SignalDeriver
-get_signal_deriver schema_map block = do
+get_signal_deriver schema_map block_id = do
+    block <- State.get_block block_id
     schema <- State.lookup_id (Block.block_schema block)
         (merge_schemas hardcoded_schemas schema_map)
     state <- State.get
     State.eval_rethrow "get signal deriver" state
-        (schema_signal_deriver schema block)
+        (schema_signal_deriver schema block_id)
 
 -- | A block's Schema also implies a set of Cmds, possibly based on the
 -- focused track.  This is so that e.g. control tracks use control editing keys
 -- and note tracks use note entry keys, and they can set up the midi thru
 -- mapping appropriately.
-get_cmds :: SchemaMap -> CmdContext -> Block.SchemaId -> [Track] -> [Cmd.Cmd]
-get_cmds schema_map context schema_id tracks =
+get_cmds :: SchemaMap -> CmdContext -> Block.SchemaId -> [Cmd.Cmd]
+get_cmds schema_map context schema_id =
     case Map.lookup schema_id (merge_schemas hardcoded_schemas schema_map) of
         Nothing -> []
-        Just schema -> schema_cmds schema context tracks
+        Just schema -> schema_cmds schema context
 
-get_skeleton :: (State.UiStateMonad m) => SchemaMap -> Block.Block -> m Skeleton
-get_skeleton schema_map block = do
-    schema <- State.lookup_id (Block.block_schema block)
-        (merge_schemas hardcoded_schemas schema_map)
-    fmap (schema_parser schema) (block_tracks block)
-
-block_tracks :: (State.UiStateMonad m) => Block.Block -> m [Track]
-block_tracks block = do
-    let tracks = Block.block_tracklike_ids block
-    names <- mapM track_name tracks
-    return [Track name track num
-        | (num, (name, track)) <- zip [0..] (zip names tracks)]
-
-track_name (Block.TId tid _) =
-    fmap (Just . Track.track_title) (State.get_track tid)
-track_name _ = return Nothing
-
--- | Constructor for CmdContext.
+-- | Constructor for 'CmdContext'.
 cmd_context :: Instrument.Config -> MidiDb.LookupMidiInstrument
-    -> Cmd.EditMode -> Bool -> Maybe Block.TrackNum -> CmdContext
-cmd_context midi_config lookup_midi edit_mode kbd_entry focused_tracknum =
+    -> Cmd.EditMode -> Bool -> Maybe Block.TrackNum -> State.TrackTree
+    -> CmdContext
+cmd_context midi_config lookup_midi edit_mode kbd_entry focused_tracknum ttree =
     CmdContext default_inst inst_addr lookup_midi edit_mode kbd_entry
-        focused_tracknum
+        focused_tracknum ttree
     where
     default_inst = Instrument.config_default_inst midi_config
     -- The thru cmd has to pick a single addr for a give inst, so let's just
@@ -160,18 +143,15 @@ cmd_context midi_config lookup_midi edit_mode kbd_entry focused_tracknum =
 -- | The default schema is supposed to be simple but useful, and rather
 -- trackerlike.
 default_schema :: Schema
-default_schema = Schema
-    (default_schema_deriver default_parser)
-    (default_schema_signal_deriver default_parser)
-    default_parser
-    (default_cmds default_parser)
+default_schema =
+    Schema default_schema_deriver default_schema_signal_deriver default_cmds
 
 -- ** cmds
 
 -- | This decides what track-specific commands are in scope based on the
--- current focus and other data from the CmdContext.
-default_cmds :: Parser -> CmdContext -> [Track] -> [Cmd.Cmd]
-default_cmds parser context tracks = wrap $ case maybe_track_type of
+-- current focus and information in the CmdContext.
+default_cmds :: CmdContext -> [Cmd.Cmd]
+default_cmds context = wrap $ case maybe_track_type of
         Nothing -> []
         Just (NoteTrack pitch_track) -> case edit_mode of
             Cmd.NoEdit -> []
@@ -199,19 +179,19 @@ default_cmds parser context tracks = wrap $ case maybe_track_type of
     edit_mode = ctx_edit_mode context
     kbd_entry = ctx_kbd_entry context
 
-    (maybe_track_type, maybe_inst, scale_id, maybe_addr) =
-        get_defaults context (parser tracks)
+    (maybe_track_type, maybe_inst, scale_id, maybe_addr) = get_defaults context
     midi_thru = case (maybe_inst, maybe_addr) of
         (Just inst, Just addr) -> [with_midi $ MidiThru.cmd_midi_thru
             scale_id addr (Instrument.inst_pitch_bend_range inst)]
         _ -> []
 
-get_defaults :: CmdContext -> Skeleton -> (Maybe TrackType,
-    Maybe Instrument.Instrument, Pitch.ScaleId, Maybe Instrument.Addr)
-get_defaults context skel = (maybe_track_type, inst, scale_id, addr)
+get_defaults :: CmdContext
+    -> (Maybe TrackType, Maybe Instrument.Instrument, Pitch.ScaleId,
+        Maybe Instrument.Addr)
+get_defaults context = (maybe_track_type, inst, scale_id, addr)
     where
     (maybe_track_type, track_inst, track_scale) =
-        get_track_type (ctx_focused_tracknum context) skel
+        get_track_info (ctx_track_tree context) (ctx_focused_tracknum context)
     -- Track inst, fall back to default inst.
     score_inst = track_inst `mplus` ctx_default_inst context
     inst = join $ fmap (ctx_lookup_midi context Score.no_attrs) score_inst
@@ -221,117 +201,88 @@ get_defaults context skel = (maybe_track_type, inst, scale_id, addr)
         track_scale `mplus` fmap Instrument.inst_scale inst
     addr = join $ fmap (ctx_inst_addr context) score_inst
 
+-- | Find the type of a track and the instrument and scale in scope.
+--
+-- First search up the call stack, since this will yield a track that has scope
+-- over the current one.  Otherwise search down, which may yield multiple
+-- possibilities, but in many cases will find an appropriate one.
+--
+-- TODO: if this leads to weird guesses, maybe return Nothing if there are
+-- two or more matches?
+get_track_info :: State.TrackTree -> Maybe Block.TrackNum
+    -> (Maybe TrackType, Maybe Score.Instrument, Maybe Pitch.ScaleId)
+get_track_info _ Nothing = (Nothing, Nothing, Nothing)
+get_track_info track_tree (Just tracknum) = case paths of
+        Nothing -> (Nothing, Nothing, Nothing)
+        Just (track, parents, children) ->
+            let inst = find_inst (track : parents ++ children)
+                scale_id = find_scale (track : parents ++ children)
+            in (Just (track_type track parents), inst, scale_id)
+    where
+    paths = List.find ((==tracknum) . State.track_tracknum . (\(a, _, _) -> a))
+        (Util.Tree.paths track_tree)
+    find_inst = msum . map (title_to_instrument . State.track_title)
+    find_scale = msum . map (title_to_scale . State.track_title)
+
 -- | Describe the type of a single track.  This is used to figure out what set
 -- of cmds should apply to a given track.
 data TrackType =
+    -- | NoteTrack is paired with the first pitch track found for it.
     NoteTrack NoteTrack.PitchTrack | PitchTrack | ControlTrack
-    deriving (Show)
+    deriving (Show, Eq)
 
-get_track_type :: Maybe Block.TrackNum -> Skeleton
-    -> (Maybe TrackType, Maybe Score.Instrument, Maybe Pitch.ScaleId)
-get_track_type Nothing _ = (Nothing, Nothing, Nothing)
-get_track_type (Just tracknum) skel =
-    case concatMap (_find_track_type tracknum) track_pairs of
-        [] -> (Nothing, Nothing, Nothing)
-        (ttype, inst, scale_id):_ -> (Just ttype, inst, scale_id)
-    where track_pairs = _get_track_type [] skel
-
-_find_track_type :: Block.TrackNum -> ([Track], Track)
-    -> [(TrackType, Maybe Score.Instrument, Maybe Pitch.ScaleId)]
-_find_track_type tracknum (conts, note)
-    | track_tracknum note == tracknum = [(NoteTrack ptrack, inst, scale_id)]
-    | Just track <- found_c = if is_pitch_track (track_title track)
-        then [(PitchTrack, inst, scale_id)]
-        else [(ControlTrack, inst, scale_id)]
-    | otherwise = []
+track_type :: State.TrackInfo -> [State.TrackInfo] -> TrackType
+track_type track parents
+    | is_inst_track title = NoteTrack pitch_track
+    | is_pitch_track title = PitchTrack
+    | otherwise = ControlTrack
     where
-    found_c = List.find ((==tracknum) . track_tracknum) conts
-    (ptrack, scale_id) = case List.find (is_pitch_track . track_title) conts of
-        Nothing -> (NoteTrack.PitchTrack True (track_tracknum note + 1),
-            Nothing)
-        Just track -> (NoteTrack.PitchTrack False (track_tracknum track),
-            Just (scale_of_track (track_title track)))
-    inst = let i = inst_of_track (track_title note)
-        in if null (Score.inst_name i) then Nothing else Just i
+    title = State.track_title track
+    pitch_track = case List.find (is_pitch_track . State.track_title) parents of
+        Nothing -> NoteTrack.PitchTrack True (State.track_tracknum track + 1)
+        Just ptrack -> NoteTrack.PitchTrack False (State.track_tracknum ptrack)
 
-_get_track_type :: [Track] -> Skeleton -> [([Track], Track)]
-_get_track_type controllers skel = case skel of
-        SkelController tracks (Just sub) ->
-            _get_track_type (controllers ++ tracks) sub
-        SkelController _ Nothing -> []
-        SkelNote track -> [(controllers, track)]
-        SkelMerge subs -> concatMap (_get_track_type controllers) subs
 
--- ** skeleton
+-- ** compile
 
--- | Tracks starting with '>' are instrument tracks, the rest are control
--- tracks.  The control tracks scope over the next instrument track to the
--- left.  A track titled \"tempo\" scopes over all tracks to its right.
---
--- This should take arguments to apply to instrument and control tracks.
---
--- A schema is split into two parts: parse the tracks into a skeleton, and
+-- | A schema is split into two parts: parse the tracks into a skeleton, and
 -- then convert the skeleton into a deriver.  The intermediate data structure
 -- allows me to compose schemas out of smaller parts, as well as inspect the
 -- skeleton for e.g. instrument tracks named, or to create a view layout.
-default_schema_deriver :: Parser -> SchemaDeriver Derive.EventDeriver
-default_schema_deriver parser block =
-    fmap (compile_skeleton . parser) (block_tracks block)
+default_schema_deriver :: SchemaDeriver Derive.EventDeriver
+default_schema_deriver block_id =
+    fmap compile (State.get_track_tree block_id)
 
-default_schema_signal_deriver :: Parser -> SchemaDeriver Derive.SignalDeriver
-default_schema_signal_deriver parser block =
-    fmap (compile_to_signals . parser) (block_tracks block)
-
--- | Get the Instruments from a parsed Skeleton.  See 'TrackType' for why this
--- is sketchy.
-skeleton_instruments :: Skeleton -> [Score.Instrument]
-skeleton_instruments (SkelController _ maybe_sub) =
-    maybe [] skeleton_instruments maybe_sub
-skeleton_instruments (SkelNote track) = [title_to_inst (track_title track)]
-skeleton_instruments (SkelMerge subs) = concatMap skeleton_instruments subs
-
--- | TODO should be killed when skeleton_instruments is.
-title_to_inst :: String -> Score.Instrument
-title_to_inst title
-    | is_inst_track title = inst_of_track title
-    | otherwise = Score.Instrument ""
-
--- ** compile skeleton
+default_schema_signal_deriver :: SchemaDeriver Derive.SignalDeriver
+default_schema_signal_deriver block_id =
+    fmap compile_to_signals (State.get_track_tree block_id)
 
 -- | Transform a deriver skeleton into a real deriver.  The deriver may throw
 -- if the skeleton was malformed.
-compile_skeleton :: Skeleton -> Derive.EventDeriver
-compile_skeleton skel =
-    Derive.with_msg "compile_skeleton" (_compile_skeleton skel)
-_compile_skeleton skel = case skel of
-    SkelController ctracks Nothing ->
-        -- TODO or it might be more friendly to just ignore them
-        Derive.throw $ "orphaned controller tracks: " ++ show ctracks
-    SkelController ctracks (Just subskel) ->
-        compile_controllers ctracks subskel
-    SkelNote (Track { track_id = Block.TId track_id _ }) ->
-        Derive.with_track_warp Note.d_note_track track_id
-    SkelNote track -> Derive.throw $
-        "instrument track is not an event track, parser is confused: "
-        ++ show track
-    SkelMerge subs -> Derive.d_merge =<< mapM _compile_skeleton subs
+compile :: State.TrackTree -> Derive.EventDeriver
+compile tree = Derive.with_msg "compile" $
+    Derive.d_merge =<< mapM _compile tree
+_compile :: Tree.Tree State.TrackInfo -> Derive.EventDeriver
+_compile (Tree.Node track@(State.TrackInfo title track_id _) subs)
+    | is_inst_track title = if not (null subs)
+        then Derive.throw $ "inst track " ++ show track ++ " has sub tracks "
+            ++ show subs
+        else Derive.with_track_warp Note.d_note_track track_id
+    | otherwise = do
+        when (null subs) $
+            Log.warn $ "controller " ++ show track ++ " has no sub tracks"
+        compile_controller title track_id
+            (Derive.d_merge =<< mapM _compile subs)
 
--- | Generate the EventDeriver for a SkelController Skeleton.
-compile_controllers :: [Track] -> Skeleton -> Derive.EventDeriver
-compile_controllers tracks subskel =
-    foldr track_controller (_compile_skeleton subskel) (event_tracks tracks)
-event_tracks tracks =
-    [(title, track_id) | Track (Just title) (Block.TId track_id _) _ <- tracks]
-
-track_controller :: (Monad m) => (String, Track.TrackId)
-    -> Derive.DeriveT m [Score.Event] -> Derive.DeriveT m [Score.Event]
-track_controller (title, track_id) deriver
+compile_controller :: String -> Track.TrackId
+    -> Derive.EventDeriver -> Derive.EventDeriver
+compile_controller title track_id subderiver
     | is_tempo_track title = do
         -- A tempo track is derived like other signals, but gets special
         -- treatment because of the track warps chicanery.
         sig_events <- Derive.with_track_warp_tempo
             Controller.d_controller_track track_id
-        Derive.d_tempo track_id (Controller.d_signal sig_events) deriver
+        Derive.d_tempo track_id (Controller.d_signal sig_events) subderiver
     | otherwise = do
         sig_events <- Derive.with_track_warp
             Controller.d_controller_track track_id
@@ -339,9 +290,8 @@ track_controller (title, track_id) deriver
         let signal = if is_pitch_track title
                 then Controller.d_pitch_signal (scale_of_track title) sig_events
                 else Controller.d_signal sig_events
-        Controller.d_controller (Score.Controller title) signal deriver
+        Controller.d_controller (Score.Controller title) signal subderiver
 
--- *** compile to signals
 
 -- | Compile a Skeleton to its SignalDeriver.  The SignalDeriver is like the
 -- main Deriver except that it derives down to track signals instead of events.
@@ -352,32 +302,32 @@ track_controller (title, track_id) deriver
 -- seems annoying to have to make a whole separate signal deriver.  Getting the
 -- signals from the track could be more hardcoded and less work when writing
 -- a new schema.
-compile_to_signals :: Skeleton -> Derive.SignalDeriver
-compile_to_signals skel =
-    Derive.with_msg "compile_to_signals" (_compile_to_signals skel)
+compile_to_signals :: State.TrackTree -> Derive.SignalDeriver
+compile_to_signals tree = Derive.with_msg "compile_to_signals" $
+    Derive.d_signal_merge =<< mapM _compile_to_signals tree
 
-_compile_to_signals skel = case skel of
-    SkelController ctracks maybe_subskel ->
-        compile_signals ctracks maybe_subskel
-    SkelNote _ -> return []
-    SkelMerge subs -> Derive.d_signal_merge =<< mapM _compile_to_signals subs
+_compile_to_signals :: Tree.Tree State.TrackInfo -> Derive.SignalDeriver
+_compile_to_signals (Tree.Node (State.TrackInfo title track_id _) subs)
+    | is_inst_track title = return []
+    | otherwise = do
+        -- Note no special treatment for tempo, since signal output shouldn't
+        -- be warped.
+        track_sigs <- signal_controller title track_id
+        rest_sigs <- Derive.d_signal_merge =<< mapM _compile_to_signals subs
+        return (track_sigs : rest_sigs)
 
-compile_signals :: [Track] -> Maybe Skeleton -> Derive.SignalDeriver
-compile_signals tracks maybe_subskel = do
-    track_sigs <- mapM signal_controller (event_tracks tracks)
-    rest_sigs <- maybe (return []) _compile_to_signals maybe_subskel
-    return (track_sigs ++ rest_sigs)
-
-signal_controller :: (Monad m) => (String, Track.TrackId)
+signal_controller :: (Monad m) => String -> Track.TrackId
     -> Derive.DeriveT m (Track.TrackId, Signal.Signal)
-signal_controller (title, track_id) = do
+signal_controller title track_id = do
     sig_events <- Derive.with_track_warp Controller.d_controller_track track_id
     sig <- if is_pitch_track title
         then Controller.d_pitch_signal (scale_of_track title) sig_events
         else Controller.d_signal sig_events
     return (track_id, sig)
 
--- | Tracks are treated differently depending on their titles.
+-- ** track title
+
+-- | The type of a track is derived from its title.
 is_tempo_track, is_pitch_track, is_inst_track :: String -> Bool
 is_tempo_track = (=="tempo")
 
@@ -401,45 +351,55 @@ title_to_instrument name
     | is_inst_track name = Just $ inst_of_track name
     | otherwise = Nothing
 
+title_to_scale :: String -> Maybe Pitch.ScaleId
+title_to_scale name
+    | is_pitch_track name = Just $ scale_of_track name
+    | otherwise = Nothing
+
 -- | Convert from an instrument to the title of its instrument track.
 instrument_to_title :: Score.Instrument -> String
 instrument_to_title (Score.Instrument inst) = '>' : inst
 
 -- * parser
 
--- | A parser turns [Track] into a Skeleton, which describes which tracks
--- have scope over which other tracks.  As part of this, it also decides which
--- tracks are instrument tracks, and what Instrument they have.
+-- | A parser figures out a skeleton based on track titles and position.
 --
--- TODO handle embedded rulers and dividers
-default_parser :: Parser
-default_parser tracks = skel_merge $
-    map parse_tempo_group
-        -- The 0th track should be the ruler track, which I ignore.
-        (split (title_matches is_tempo_track) (drop 1 tracks))
+-- Tracks starting with '>' are instrument tracks, the rest are control tracks.
+-- The control tracks scope over the next instrument track to the left.
+-- A track titled \"tempo\" scopes over all tracks to its right.
+--
+-- This should take arguments to apply to instrument and control tracks.
+--
+-- TODO do something special with embedded rulers and dividers
+default_parser :: [State.TrackInfo] -> Skeleton.Skeleton
+default_parser = Skeleton.make
+    . Util.Tree.edges . map (fmap State.track_tracknum) . parse_to_tree
 
+-- | [c0 tempo1 i1 c1 tempo2 c2 i2 c3] ->
+-- [c0, tempo1 (c1 . i1), tempo2 (c2 . c3 . i2)]
+parse_to_tree :: [State.TrackInfo] -> Tree.Forest State.TrackInfo
+parse_to_tree tracks = concatMap parse_tempo_group $
+    Seq.split_with (is_tempo_track . State.track_title) tracks
 
-parse_tempo_group tracks = case tracks of
-    tempo@(Track { _track_title = Just title }) : rest
-        | is_tempo_track title ->
-            SkelController [tempo] (Just (parse_inst_groups rest))
-        | otherwise -> parse_inst_groups tracks
-    _ -> parse_inst_groups tracks
+parse_tempo_group :: [State.TrackInfo] -> Tree.Forest State.TrackInfo
+parse_tempo_group [] = []
+parse_tempo_group (track:tracks)
+    | is_tempo_track (State.track_title track) =
+        [Tree.Node track (parse_inst_groups tracks)]
+    | otherwise = parse_inst_groups (track:tracks)
 
-parse_inst_groups :: [Track] -> Skeleton
-parse_inst_groups tracks = skel_merge $
-    map parse_inst_group (split (title_matches is_inst_track) tracks)
+-- | [c1 i1 c2 c3] -> c1 . c3 . c2 . i1
+parse_inst_groups :: [State.TrackInfo] -> Tree.Forest State.TrackInfo
+parse_inst_groups tracks = case inst_groups of
+        [] -> []
+        global : rest -> descend (concatMap parse_inst_group rest) global
+    where
+    inst_groups = Seq.split_with (is_inst_track . State.track_title) tracks
 
-parse_inst_group tracks = case tracks of
-    track@(Track { _track_title = Just name }) : rest | is_inst_track name ->
-        if (null rest)
-            then SkelNote track
-            else SkelController rest (Just (SkelNote track))
-    _ -> SkelController tracks Nothing
+parse_inst_group :: [State.TrackInfo] -> Tree.Forest State.TrackInfo
+parse_inst_group [] = []
+parse_inst_group (track:tracks) = descend [Tree.Node track []] (reverse tracks)
 
--- ** util
-
-title_matches f = f . track_title
-split f xs = case Seq.split_with f xs of
-    [] : rest -> rest
-    grps -> grps
+descend :: Tree.Forest a -> [a] -> Tree.Forest a
+descend bottom [] = bottom
+descend bottom (track:tracks) = [Tree.Node track (descend bottom tracks)]

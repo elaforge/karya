@@ -46,6 +46,11 @@ would_make_cycle (from, to) graph =
 has_edge :: Edge -> Graph -> Bool
 has_edge (from, to) graph = Data.in_bounds graph from && to `elem` graph!from
 
+-- | A lonely vertex has no edges.
+lonely_vertex :: Graph -> Vertex -> Bool
+lonely_vertex graph vertex =
+    not (Data.in_bounds graph vertex) || null (graph!vertex)
+
 add_edge :: Edge -> Graph -> Graph
 add_edge (from, to) graph
     | Data.in_bounds graph from = IArray.accum (flip (:)) graph [(from, to)]

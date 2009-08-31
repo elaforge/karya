@@ -25,6 +25,7 @@ import qualified Ui.Key as Key
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.Block as Block
 import qualified Ui.State as State
+import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Update as Update
 
 import qualified Midi.Midi as Midi
@@ -541,58 +542,28 @@ update_of _ = Nothing
 -- * schema types
 
 -- $schema_doc
--- These type definitions should be in Derive.Schema, but since they use
--- Cmd and I need Cmd.State to have a SchemaMap, I have to put the types here
--- to avoid a circular import.  They are re-exported by Derive.Schema so we
--- can all just pretend they were defined there in the first place.
+-- These types should be in Derive.Schema, but since they use Cmd and I need
+-- Cmd.State to have a SchemaMap, I have to put the types here to avoid
+-- a circular import.  They are re-exported by Derive.Schema so we can all just
+-- pretend they were defined there in the first place.
+
+type SchemaMap = Map.Map Block.SchemaId Schema
 
 -- | A Schema attaches a number of things to a Block.
 data Schema = Schema {
     schema_deriver :: SchemaDeriver Derive.EventDeriver
     , schema_signal_deriver :: SchemaDeriver Derive.SignalDeriver
-    , schema_parser :: Parser
     -- | Get a set of Cmds that are applicable within the given CmdContext.
-    , schema_cmds :: CmdContext -> [Track] -> [Cmd]
+    , schema_cmds :: CmdContext -> [Cmd]
     }
 
--- So Cmd.State can be showable, for debugging.
+-- | So Cmd.State can be showable, for debugging.
 instance Show Schema where
     show _ = "<schema>"
 
 -- | A SchemaDeriver generates a Deriver from a given Block.
 type SchemaDeriver d =
-    Block.Block -> State.StateT Identity.Identity d
-
--- ** parser types
-
--- | The parser generates a skeleton from the block, which is a description of
--- how the deriver is structuring the tracks in the block.  Since the deriver
--- itself is just a function and can't be introspected into, others can use
--- this to determine e.g. what instruments and controls are in the block.
-type Parser = [Track] -> Skeleton
-
-data Skeleton =
-    -- | A set of controller tracks have scope over a sub-skeleton.
-    -- A controller with no controlled tracks will have a Nothing sub.
-    SkelController [Track] (Maybe Skeleton)
-    | SkelNote Track
-    | SkelMerge [Skeleton]
-    deriving (Show)
-
--- | Smart constructor for Skeleton.
-skel_merge :: [Skeleton] -> Skeleton
-skel_merge [track] = track
-skel_merge tracks = SkelMerge tracks
-
-data Track = Track {
-    -- | It's Maybe because rulers and dividers don't have titles.
-    _track_title :: Maybe String
-    -- TODO I don't think I ever usefully have non-event tracks in the
-    -- skeleton, so can I make this TrackId?
-    , track_id :: Block.TracklikeId
-    , track_tracknum :: Block.TrackNum
-    } deriving (Show)
-track_title = maybe "" id . _track_title
+    Block.BlockId -> State.StateT Identity.Identity d
 
 -- ** cmd types
 
@@ -604,6 +575,5 @@ data CmdContext = CmdContext {
     , ctx_edit_mode :: EditMode
     , ctx_kbd_entry :: Bool
     , ctx_focused_tracknum :: Maybe Block.TrackNum
+    , ctx_track_tree :: State.TrackTree
     }
-
-type SchemaMap = Map.Map Block.SchemaId Schema

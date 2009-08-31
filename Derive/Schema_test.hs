@@ -1,6 +1,7 @@
 module Derive.Schema_test where
 import qualified Control.Arrow as Arrow
 import qualified Data.Map as Map
+import qualified Data.Tree as Tree
 
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
@@ -9,77 +10,128 @@ import Util.Test
 import qualified Ui.Block as Block
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
+import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
-import qualified Ui.UiTest as UiTest
 import qualified Ui.Track as Track
+import qualified Ui.UiTest as UiTest
+
+import qualified Midi.Midi as Midi
+import qualified Cmd.Cmd as Cmd
+import qualified Cmd.NoteTrack as NoteTrack
 
 import qualified Derive.Derive as Derive
 import qualified Derive.Schema as Schema
 import qualified Derive.Score as Score
 
-import qualified Derive.Derive_test as Derive_test
+import qualified Instrument.MidiDb as MidiDb
 
 import qualified Perform.Signal as Signal
+import qualified Perform.Pitch as Pitch
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Controller as Controller
+
+import qualified Derive.Derive_test as Derive_test
+import qualified Util.Graph_test as Graph_test
+
+import qualified Util.Tree
 
 
-mkid = UiTest.mkid
+-- * cmds
 
-ruler = Schema.Track Nothing (Block.RId (Ruler.RulerId (mkid "ruler"))) 0
-tid id = Block.TId (Track.TrackId (mkid id)) (Ruler.RulerId (mkid "r1"))
-inst n = Schema.Track (Just (">inst" ++ show n)) (tid ("i" ++ show n)) 0
-cont name track_id = Schema.Track (Just name) (tid track_id) 0
+node = Tree.Node
+tid id = Track.TrackId (UiTest.mkid id)
+fake_tid = tid "fake"
+mk_track_info title tracknum = State.TrackInfo title fake_tid tracknum
 
--- | Reduce a skeleton down to a string which is easier to read than the nested
--- data structure.
-reduce :: Schema.Skeleton -> String
-reduce (Schema.SkelController ctracks itrack) =
-    Seq.join "," (map reduce_track ctracks)
-    ++ "(" ++ maybe "" reduce itrack ++ ")"
-reduce (Schema.SkelNote track) = reduce_track track
-reduce (Schema.SkelMerge tracks) = Seq.join " + " (map reduce tracks)
+mk_track_tree :: Tree.Forest (String, Int) -> State.TrackTree
+mk_track_tree = map (fmap (uncurry mk_track_info))
 
-reduce_track = reduce_tracklike . Schema.track_id
+mkalloc insts = Map.fromList
+    [ (Score.Instrument inst, [(Midi.WriteDevice inst, fromIntegral chan)])
+    | (chan, inst) <- Seq.enumerate insts]
 
-reduce_tracklike (Block.TId tid _) = Id.id_name (Id.unpack_id tid)
-reduce_tracklike (Block.DId _color) = "DIV"
-reduce_tracklike (Block.RId rid) = Id.id_name (Id.unpack_id rid)
+midi_default_inst = Instrument.instrument
+    synth "default" Nothing Controller.default_controllers (-12, 12)
+midi_inst1 = (Instrument.instrument
+    synth "inst1" Nothing Controller.default_controllers (-12, 12))
+    { Instrument.inst_scale = i1scale }
+inst1 = Score.Instrument "inst1"
+inst2 = Score.Instrument "inst2"
+default_inst = Score.Instrument "default_inst"
+synth = Instrument.synth "synth" "synth" []
+empty_scale = Pitch.ScaleId ""
+i1scale = Pitch.ScaleId "i1"
 
--- TODO test with rulers and dividers
+lookup_midi :: MidiDb.LookupMidiInstrument
+lookup_midi attrs inst
+    | inst == default_inst = Just midi_default_inst
+    | inst == inst1 = Just midi_inst1
+    | otherwise = Nothing
 
-test_parse = do
-    let reducet tracks = reduce (Schema.default_parser (ruler:tracks))
-    -- They're both controllers, with no instrument track.
-    equal (reducet [cont "" "c1", cont "" "c2"]) "c1,c2()"
-    equal (reducet [inst 1]) "i1"
-    equal (reducet [inst 1, cont "control1" "c1"]) "c1(i1)"
-    equal (reducet [cont "tempo" "tempo1", inst 1, cont "tempo" "tempo2"])
-        "tempo1(i1) + tempo2()"
+test_get_defaults = do
+    let iconfig = Instrument.Config (mkalloc ["default", "inst1"])
+                (Just (Score.Instrument "default"))
+        tree = mk_track_tree -- [">inst2", "*", ">inst1"]
+                [ node ("*", 1) [node (">inst2", 0) []]
+                , node (">inst1", 2) []
+                ]
+        mkcontext focused = Schema.cmd_context iconfig lookup_midi Cmd.NoEdit
+            False focused tree
+    let tracknums = map Just [0..3] ++ [Nothing]
+    let res = map Schema.get_defaults (map mkcontext tracknums)
+    equal (res!!0) (Just (Schema.NoteTrack (NoteTrack.PitchTrack False 1))
+        , Nothing, empty_scale, Nothing)
+    equal (res!!1) (Just Schema.PitchTrack, Nothing, empty_scale, Nothing)
+    equal (res!!2) (Just (Schema.NoteTrack (NoteTrack.PitchTrack True 3))
+        , Just midi_inst1, i1scale, Just (Midi.WriteDevice "inst1", 1))
+    -- no tracknum, and out of range tracknum
+    let def_inst = Just (Midi.WriteDevice "default", 0)
+    equal (res!!3) (Nothing, Nothing, Instrument.default_scale, def_inst)
+    equal (res!!4) (Nothing, Nothing, Instrument.default_scale, def_inst)
 
-    -- orphaned control
-    equal (reducet [cont "control1" "c1", inst 1]) "c1() + i1"
+test_get_track_info = do
+    let tree = mk_track_tree -- ["c0", ">inst1", "*", "c1", ">inst2", "c2"]
+                [ node ("c0", 0)
+                    [ node ("c1", 3) [node ("*", 2) [node (">inst1", 1) []]]
+                    , node ("c2", 5) [node (">inst2", 4) []]
+                    ]
+                ]
+    let tracknums = map Just [0..6] ++ [Nothing]
+    let res = map (Schema.get_track_info tree) tracknums
+    equal (res!!0) (Just Schema.ControlTrack, Just inst1, Just empty_scale)
+    equal (res!!1) (Just (Schema.NoteTrack (NoteTrack.PitchTrack False 2))
+        , Just inst1, Just empty_scale)
+    equal (res!!2) (Just Schema.PitchTrack, Just inst1, Just empty_scale)
+    equal (res!!3) (Just Schema.ControlTrack, Just inst1, Just empty_scale)
+    equal (res!!4) (Just (Schema.NoteTrack (NoteTrack.PitchTrack True 5))
+        , Just inst2, Nothing)
+    equal (res!!5) (Just Schema.ControlTrack, Just inst2, Nothing)
+    -- Nothing tracknum, and invalid tracknum
+    equal (res!!6) (Nothing, Nothing, Nothing)
+    equal (res!!7) (Nothing, Nothing, Nothing)
 
-tracks_from_state state = either (fail . show) id $ State.eval state $ do
-    block <- State.get_block (Block.BlockId (mkid "b1"))
-    Schema.block_tracks block
 
-test_compile_skeleton = do
+-- * compile
+
+mksig = Signal.track_signal Signal.default_srate
+
+test_compile = do
     let set = Signal.Set
         derive track = Arrow.first extract $
-            derive_with_pitch Schema.compile_skeleton track
+            derive_with_pitch Schema.compile track
         extract = either (Left . Derive.error_message)
             (Right . (map Score.event_controllers))
 
     let (res, logs) = derive ("*c2", [(0, 0, ".1")])
     equal logs []
-    equal res $ Left ("compile_skeleton: unknown ScaleId \"c2\"")
+    equal res $ Left ("compile: unknown ScaleId \"c2\"")
 
     let cont_signal = (Score.Controller "c1",
             mksig [(0, set, 3), (5, set, 2), (10, set, 1)])
         no_pitch = (Score.Controller "*twelve", mksig [])
 
     let (res, logs) = derive ("*twelve", [(0, 0, ".1")])
-    equal logs ["compile_skeleton: Note \".1\" not in ScaleId \"twelve\""]
+    equal logs ["compile: Note \".1\" not in ScaleId \"twelve\""]
     equal res $ Right (replicate 3 (Map.fromList [no_pitch, cont_signal]))
 
     -- TODO so here they all have the *scale controller, but I can't test
@@ -108,60 +160,57 @@ test_compile_to_signals = do
     equal logs []
     -- tempo, c1, and pitch tracks get signals.
     equal (fmap (map fst) res)
-        (Right $ map (Track.TrackId . mkid) ["b1.t0", "b1.t2", "b1.t3"])
+        (Right $ map (Track.TrackId . mkid) ["b1.t0", "b1.t3", "b1.t2"])
 
     -- It's important that the tempo track *doesn't* apply, since these go to
     -- the UI.
     let set = Signal.Set
     equal (fmap (map snd) res) $ Right
         [ mksig [(0, set, 2)]
-        , mksig [(0, set, 3), (10, set, 2), (20, set, 1)]
         , mksig [(0, set, 48), (10, set, 50), (20, Signal.Linear, 52)]
+        , mksig [(0, set, 3), (10, set, 2), (20, set, 1)]
         ]
 
 derive_with_pitch compiler pitch_track = (res, map Log.msg_text logs)
     where
-    (state, skel) = mkstate_with_pitch pitch_track
+    (state, track_tree) = mkstate_with_pitch pitch_track
     (res, _, _, logs, _) = Derive.derive Derive.empty_lookup_deriver
-        state True (Derive_test.setup_deriver (compiler skel))
-    mkstate_with_pitch pitch_track = (state, get_skel state)
+        state True (Derive_test.setup_deriver (compiler track_tree))
+    mkstate_with_pitch pitch_track = (state, track_tree)
         where
-        (_tids, state) = UiTest.run_mkstate
+        (tids, state) = UiTest.run_mkstate
             [ ("tempo", [(0, 0, "2")])
             , (">inst0", [(0, 5, ""), (10, 5, ""), (20, 5, "")])
             , ("c1", [(0, 0, "3"), (10, 0, "2"), (20, 0, "1")])
             , pitch_track
             ]
-        get_skel state = Schema.default_parser (tracks_from_state state)
+        track title tracknum = State.TrackInfo title (tids!!tracknum) tracknum
+        track_tree =
+            [ node (track "tempo" 0)
+                [ node (track (fst pitch_track) 3)
+                    [ node (track "c1" 2) [node (track ">inst0" 1) []]]
+                ]
+            ]
 
-mksig = Signal.track_signal Signal.default_srate
+mkid = UiTest.mkid
 
-default_config = Instrument.config [] Nothing
+-- * parse
 
-test_default_cmds = do
-    equal 1 1
-    return ()
+skel_equal (Skeleton.Skeleton g1) (Skeleton.Skeleton g2) =
+    Graph_test.graph_equal g1 g2
 
+test_parse = do
+    let mktracks titles =
+            [mk_track_info name n | (n, name) <- Seq.enumerate titles]
+    let n = Tree.Node
+        mkskel = Skeleton.make
+    let f = Schema.default_parser . mktracks
 
-tracknums tracks =
-    [t { Schema.track_tracknum = n } | (n, t) <- Seq.enumerate tracks]
-
-{- TODO fix up when skel overhaul is complete
--- test_get_track_type = do
-    -- Make sure to properly ignore the 0th ruler track.
-    let types tracks =
-            map (\n -> Schema.get_track_type n skel) [1..length tracks - 1]
-            where skel = Schema.default_parser (tracknums tracks)
-        eq tracks expected = equal (types (ruler:tracks)) expected
-    eq [cont "" "c1", cont "" "c2"]
-        [Just (ControlTrack []), Just (ControlTrack [])]
-    print $ types [inst 1, cont "vel" "c1", inst 2, cont "vel" "c2"]
-    eq [inst 1, cont "vel" "c1", inst 2, cont "vel" "c2"]
-        [ Just (NoteTrack (Score.Instrument "inst1"))
-        , Just (ControlTrack [Score.Instrument "inst1"])
-        , Just (NoteTrack (Score.Instrument "inst2"))
-        , Just (ControlTrack [Score.Instrument "inst2"])
-        ]
-
-    return ()
--}
+    -- They're both controllers, with no instrument track.
+    skel_equal (f ["", ""]) (mkskel [(0, 1)])
+    skel_equal (f [">i1"]) (mkskel [])
+    skel_equal (f [">i1", "c1", "c2"]) (mkskel [(2, 1), (1, 0)])
+    skel_equal (f ["c1", ">i1", "c2"]) (mkskel [(0, 2), (2, 1)])
+    skel_equal
+        (f ["c1", "tempo", "c2", ">i1", "c3", "tempo", ">i2", "c4"])
+        (mkskel [(1, 2), (2, 4), (4, 3), (5, 7), (7, 6)])

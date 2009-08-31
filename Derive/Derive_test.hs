@@ -42,9 +42,10 @@ import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
 
 
+{-
 -- Inspect the final state after running a derivation.
 -- TODO what useful tests is this performing?
-test_derive_state = do
+-- test_derive_state = do
     let ui_state = snd $ UiTest.run_mkstate
             [ ("tempo", [(0, 0, "2")])
             , (">1", [(0, 16, ""), (16, 16, "")])
@@ -67,6 +68,7 @@ test_derive_state = do
     let inv_tempo = Derive.make_inverse_tempo_func tw
     -- pprint $ (Derive.make_inverse_tempo_func tw) (Timestamp.seconds 1)
     pprint $ map inv_tempo (map Timestamp.seconds [0..3])
+-}
 
 
 test_subderive = do
@@ -81,6 +83,7 @@ test_subderive = do
                 ]
             return ()
     let look = Schema.lookup_deriver default_schema_map ui_state
+    -- pprint $ State.state_blocks ui_state
     let (Right events, tempo, inv_tempo, logs, state) =
             Derive.derive look ui_state False (Derive.d_block bid)
 

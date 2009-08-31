@@ -77,7 +77,7 @@ strings_like = strings_like_srcpos Nothing
 strings_like_srcpos :: SrcPos.SrcPos -> [String] -> [String] -> IO ()
 strings_like_srcpos srcpos gotten expected = do
     when (length gotten /= length expected) $
-        failure srcpos $ "gotten length " ++ show (length gotten)
+        failure srcpos $ "got length " ++ show (length gotten)
             ++ " /= expected length " ++ show (length expected) ++ ": "
             ++ show gotten
     mapM_ (uncurry string_like) (zip gotten expected)
