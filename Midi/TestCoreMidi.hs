@@ -1,87 +1,199 @@
+-- | Test core midi bindings, automatically and manually.
 module Midi.TestCoreMidi where
 import Control.Monad
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
 import qualified Data.Map as Map
+import qualified Data.Time as Time
+import qualified System.Environment
 
 import qualified Midi.Midi as Midi
 import qualified Midi.CoreMidi as CoreMidi
 
-import Util.PPrint
+-- this is not run by the test runner, but the functions are useful anyway
+import Util.Test
 import qualified Perform.Timestamp as Timestamp
 
 
+test_rdev = Midi.ReadDevice "IAC Driver IAC Bus 1"
+test_wdev = Midi.WriteDevice "IAC Driver IAC Bus 1"
+
 main = CoreMidi.initialize test
 
-test chan = do
-    (rdevs, wdevs) <- CoreMidi.get_devices
-    pprint rdevs
-    pprint wdevs
-    let out_dev = (Map.keys wdevs) !! 1
+type ReadMsg = IO (Maybe Midi.ReadMessage)
+type WriteMsg = (Timestamp.Timestamp, Midi.Message) -> IO ()
 
-    putStrLn "connect"
-    mapM_ (uncurry CoreMidi.connect_read_device) (drop 2 (Map.toList rdevs))
+test :: CoreMidi.ReadChan -> IO ()
+test read_chan = do
+    (rdev_map, wdev_map) <- CoreMidi.get_devices
+    putStrLn "read devs:"
+    pprint (Map.assocs rdev_map)
+    putStrLn "write devs:"
+    pprint (Map.assocs wdev_map)
 
-    let write_msg = make_write_msg wdevs
+    let open_devs blocking rdevs maybe_wdev = do
+        forM_ rdevs $ \rdev -> case Map.lookup rdev rdev_map of
+            Nothing -> error $ "required rdev " ++ show rdev ++ " not found"
+            Just devid -> CoreMidi.connect_read_device rdev devid
+        let read_msg = (if blocking then blocking_get else nonblocking_get)
+                read_chan
+        case maybe_wdev of
+            Nothing -> return
+                (const (error "write device not opened"), read_msg)
+            Just wdev -> do
+                when (wdev `Map.notMember` wdev_map) $
+                    error $ "required wdev " ++ show wdev ++ " not found"
+                return (make_write_msg wdev wdev_map, read_msg)
 
-    -- CoreMidi.write_message out_dev Timestamp.immediately
-    --     (Midi.ChannelMessage 0 (Midi.NoteOn 74 66))
-    -- write_sysex (iac 4) write_msg
-    -- test_merge write_msg out_dev chan
-    thru_loop write_msg out_dev chan
+    let all_rdevs = Map.keys rdev_map
+    args <- System.Environment.getArgs
+    case args of
+        [] -> do
+            putStrLn "monitoring (pass arg 'help' for help)"
+            (_, read_msg) <- open_devs True all_rdevs Nothing
+            monitor read_msg
+        ["help"] -> putStrLn usage
+        ["thru", out_dev] -> do
+            putStrLn "playing thru"
+            (write_msg, read_msg) <- open_devs True
+                all_rdevs (Just (Midi.WriteDevice out_dev))
+            thru_loop write_msg read_msg
+        ["melody", out_dev] -> do
+            putStrLn "playing melody + thru"
+            (write_msg, read_msg) <- open_devs True
+                all_rdevs (Just (Midi.WriteDevice out_dev))
+            thru_melody write_msg read_msg
+        ["test"] -> do
+            putStrLn "testing"
+            (write_msg, read_msg) <- open_devs False
+                [test_rdev] (Just test_wdev)
+            run_tests write_msg read_msg
+        _ -> do
+            putStrLn "unknown command"
+            putStrLn usage
 
-iac n = Midi.WriteDevice ("IAC Driver IAC Bus " ++ show n)
+usage = unlines
+    [ "(no arg)     monitor all inputs"
+    , "help         print this usage"
+    , "thru <out>   msgs from any input are relayed to <out>"
+    , "melody <out> play a melody on <out>, also relaying msgs thru"
+    , "test         run some semi-automatic tests"
+    ]
 
-test_merge write_msg out_dev read_chan = do
-    Midi.ReadMessage _ (Timestamp.Timestamp ts) _
-        <- STM.atomically (STM.readTChan read_chan)
-    play_melody ts write_msg out_dev
-    thru_melody write_msg out_dev
 
-make_write_msg wdevs (dev, ts, msg) = do
-    putStrLn $ "wr: " ++ show (dev, ts, msg)
-    CoreMidi.write_message (wdevs Map.! dev) ts msg
+-- * monitor
 
-thru_loop write_msg wdev read_chan = forever $ do
-    Midi.ReadMessage dev ts msg <- STM.atomically (STM.readTChan read_chan)
+monitor :: ReadMsg -> IO ()
+monitor read_msg = forever $ do
+    Just (Midi.ReadMessage (Midi.ReadDevice dev) (Timestamp.Timestamp ts) msg)
+        <- read_msg
     print (ts, dev, msg)
-    let msgs = thru (ts, msg)
-    sequence_ [write_msg (wdev, ts, msg) | (ts, msg) <- msgs]
-
-thru (ts, msg) = case msg of
-    Midi.ChannelMessage ch (Midi.NoteOn key vel)
-        -> [(ts1, Midi.ChannelMessage ch (Midi.NoteOn key vel))]
-
-    Midi.ChannelMessage ch (Midi.NoteOff key vel)
-        -> [(ts1, Midi.ChannelMessage ch (Midi.NoteOff key vel))]
-    _ -> []
-    where
-    ts1 = ts -- + Timestamp.Timestamp 500
-
-write_sysex wdev write_msg = do
-    write_msg (wdev, Timestamp.immediately, big_sysex)
-
-big_sysex = Midi.CommonMessage
-    (Midi.SystemExclusive 42 (take 10000 (cycle [0..9]) ++ [0xf7]))
 
 
-thru_melody write_msg out_dev = do
-    let play msg = write_msg (mknote out_dev (0, msg))
-    let notes = [70, 68 .. 60]
-    forM_ (zip (notes++[0]) (head notes : notes)) $ \(key, last) -> do
-        play (Midi.NoteOff last 0)
-        when (key /= 0) $
-            play (Midi.NoteOn key 100)
-        Concurrent.threadDelay (4 * 100000)
+-- * thru
 
-play_melody ts_offset write_msg wdev = mapM_ write_msg (melody ts_offset wdev)
+thru_loop :: WriteMsg -> ReadMsg -> IO ()
+thru_loop write_msg read_msg = forever $ do
+    Just (Midi.ReadMessage dev ts msg) <- read_msg
+    putStrLn $ "thru: " ++ show (ts, dev, msg)
+    write_msg (Timestamp.immediately, msg)
 
-melody ts_offset wdev = map (mknote wdev) $ concat
-    [[(ts, Midi.NoteOn key vel), (ts+400, Midi.NoteOff key vel)]
-    | (ts, key) <- zip (map (+ts_offset) [0, 500..]) score]
-    where
-    vel = 70
-    score = [53, 55 .. 61]
 
-mknote wdev (ts, msg) =
-    (wdev, Timestamp.Timestamp ts, Midi.ChannelMessage 0 msg)
+-- * melody
+
+thru_melody :: WriteMsg -> ReadMsg -> IO ()
+thru_melody write_msg read_msg = do
+    now <- CoreMidi.now
+    mapM_ write_msg (melody now)
+    thru_loop write_msg read_msg
+
+melody start_ts = concat [[(ts, note_on nn), (ts+400, note_off nn)]
+        | (ts, nn) <- zip [start_ts, start_ts+500..] score]
+    where score = [53, 55 .. 61]
+
+
+-- * tests
+
+run_tests :: WriteMsg -> ReadMsg -> IO ()
+run_tests write_msg read_msg = do
+    test_abort write_msg read_msg
+    test_merge write_msg read_msg
+    test_sysex write_msg read_msg
+
+test_abort write_msg read_msg = do
+    now <- CoreMidi.now
+    let msgs = [note_on 10, note_on 20, chan_msg (Midi.PitchBend 42)]
+    mapM_ write_msg [(now + (i*100), msg) | (i, msg) <- zip [5..] msgs]
+    sleep 0.2
+    CoreMidi.abort
+    sleep 1
+    msgs <- read_all read_msg
+    equal msgs []
+    -- TODO: is the pitchbend bug gone?
+    putStr "msgs after abort: "
+    pprint msgs
+
+test_merge write_msg read_msg = do
+    now <- CoreMidi.now
+    let notes1 = [(10, note_on 10), (20, note_on 11), (30, note_on 12)]
+    let notes2 = [(15, note_on 20), (25, note_on 21), (35, note_on 22)]
+    mapM_ write_msg [(now + (ts*10), msg) | (ts, msg) <- notes1]
+    mapM_ write_msg [(now + (ts*10), msg) | (ts, msg) <- notes2]
+    sleep 1
+    msgs <- read_all read_msg
+    equal (map Midi.rmsg_msg msgs)
+        [note_on 10, note_on 20, note_on 11, note_on 21, note_on 12, note_on 22]
+    putStrLn "interleaved msgs:"
+    pprint [(Midi.rmsg_ts rmsg - now, Midi.rmsg_msg rmsg) | rmsg <- msgs]
+
+test_sysex write_msg read_msg = do
+    let size = 20
+    let msg = Midi.CommonMessage $
+            Midi.SystemExclusive 42 (take (size*1024) (cycle [0..9]) ++ [0xf7])
+    write_msg (Timestamp.immediately, msg)
+    putStrLn "waiting for sysex to arrive..."
+    Just (out, secs) <- read_until 10 read_msg
+    putStrLn $ show secs ++ " seconds for " ++ show size ++ "k"
+    let out_msg = Midi.rmsg_msg out
+    if out_msg == msg then success Nothing "sysex equal"
+        else failure Nothing $ "got sysex: " ++ show out_msg
+
+
+-- * util
+
+chan_msg = Midi.ChannelMessage 0
+note_on nn = chan_msg (Midi.NoteOn nn 70)
+note_off nn = chan_msg (Midi.NoteOff nn 70)
+
+sleep = Concurrent.threadDelay . floor . (*1000000)
+
+read_until timeout read_msg = do
+    started <- Time.getCurrentTime
+    let abort_at = timeout `Time.addUTCTime` started
+    let go = do
+            msg <- read_msg
+            now <- Time.getCurrentTime
+            case msg of
+                Just m -> return (Just (m, now `Time.diffUTCTime` started))
+                Nothing -> do
+                    if now > abort_at
+                        then return Nothing
+                        else sleep 0.25 >> go
+    go
+
+read_all read_msg = do
+    msg <- read_msg
+    case msg of
+        Just m -> do
+            rest <- read_all read_msg
+            return (m:rest)
+        Nothing -> return []
+
+make_write_msg wdev wdev_map (ts, msg) = do
+    -- putStrLn $ "write: " ++ show (wdev, ts, msg)
+    CoreMidi.write_message dev_id ts msg
+    where dev_id = wdev_map Map.! wdev
+
+nonblocking_get read_chan = STM.atomically $
+    fmap Just (STM.readTChan read_chan) `STM.orElse` return Nothing
+blocking_get read_chan = STM.atomically $ fmap Just (STM.readTChan read_chan)

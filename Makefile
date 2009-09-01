@@ -39,8 +39,8 @@ FLTK_OBJS := Block.o TrackTile.o Track.o Ruler.o EventTrack.o MoveTile.o \
 FLTK_OBJS := $(addprefix fltk/, $(FLTK_OBJS))
 
 BINARIES := $(addprefix $(BUILD)/, seq send repl browser make_db dump logview)
-TEST_BINARIES := \
-	$(addprefix $(BUILD)/, test_block test_logview test_browser test_cmidi) \
+TEST_BINARIES := $(addprefix $(BUILD)/, test_block test_logview test_browser \
+		test_core_midi) \
 	test_obj/RunTests
 
 # If -j is given, this runs the ghcs in parallel, which results in endless
@@ -110,8 +110,8 @@ all_hsc: $(UI_HS) $(MIDI_HS)
 # 	$(GHC) $(HFLAGS) --make \
 # 		-main-is Midi.TestMidi Midi/TestMidi.hs $(MIDI_LIBS) -o $@
 
-.PHONY: $(BUILD)/test_cmidi
-$(BUILD)/test_cmidi: $(UI_HS) $(MIDI_OBJS)
+.PHONY: $(BUILD)/test_core_midi
+$(BUILD)/test_core_midi: $(UI_HS) $(MIDI_OBJS)
 	$(GHC) $(HFLAGS) --make \
 		-main-is Midi.TestCoreMidi Midi/TestCoreMidi.hs -o $@ \
 		$(MIDI_OBJS) $(MIDI_LIBS) \
