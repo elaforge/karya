@@ -1,5 +1,4 @@
 CURRENT
-  - ^C thing
   - cleanup TestCoreMidi
   - fix Signal_test
   - fix hint stuff
@@ -71,7 +70,7 @@ display signal:
 bugs:
   - when I do just space, I get "keyup not in modifiers"
     cmd_record_keys not getting run when play throws?
-  - ^C should quit instead of killing ui thread and hanging
+  * ^C should quit instead of killing ui thread and hanging
   - cmd-q should also quit entirely not just close the windows
 
 performance:

@@ -41,12 +41,6 @@ type LangCmd = Cmd.CmdT IO String
 type InterpreterChan =
     Chan.Chan (MVar.MVar LangCmd, Interpreter.Interpreter LangCmd)
 
-start_interpreter_thread :: IO (InterpreterChan, Concurrent.ThreadId)
-start_interpreter_thread = do
-    chan <- Chan.newChan
-    th <- Thread.start_thread "interpreter" (interpreter chan >> return ())
-    return (chan, th)
-
 cmd_language :: InterpreterChan -> [FilePath] -> Msg.Msg -> Cmd.CmdIO
 cmd_language interpreter_chan lang_dirs msg = do
     (response_hdl, text) <- case msg of

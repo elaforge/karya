@@ -5,8 +5,9 @@
 module App.Main where
 
 import Control.Monad
-import qualified Control.Concurrent.STM as STM
+import qualified Control.Concurrent.Chan as Chan
 import qualified Control.Concurrent.MVar as MVar
+import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -145,7 +146,15 @@ main = initialize $ \lang_socket midi_chan -> do
     get_msg <- Responder.create_msg_reader
         remap_rmsg midi_chan lang_socket msg_chan player_chan
 
-    (interpreter_chan, _) <- Language.start_interpreter_thread
+    interpreter_chan <- Chan.newChan
+    Thread.start_thread "interpreter" $ do
+        Language.interpreter interpreter_chan
+        `Exception.finally` Ui.quit_ui_thread quit_request
+        -- ^C is killing this thread now.  The interaction between signals and
+        -- OS threads managed by the GHC RTS is probably unpredictable.
+        -- I gather the recommended way is to start a thread for signal
+        -- handling, I'll do that if this causes more trouble.
+
     Thread.start_thread "responder" $ do
         Responder.responder static_config get_msg write_midi abort_midi
             get_now_ts player_chan setup_cmd interpreter_chan
