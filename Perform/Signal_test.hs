@@ -77,15 +77,15 @@ test_resample_list = do
 
 test_sample = do
     let sig = Signal.signal [(0, 0), (2, 2), (4, 2), (6, 0)]
-    equal (Signal.sample (TrackPos 1) (TrackPos 0) sig)
+    equal (Signal.sample 1 0 sig)
         [(0, 0), (1, 1), (2, 2), (5, 1), (6, 0)]
-    equal (Signal.sample (TrackPos 1) (TrackPos 2) sig)
+    equal (Signal.sample 1 2 sig)
         [(2, 2), (5, 1), (6, 0)]
-    equal (Signal.sample (TrackPos 1) (TrackPos 3) sig)
+    equal (Signal.sample 1 3 sig)
         [(3, 2), (5, 1), (6, 0)]
 
     let discont = Signal.signal [(0, 1), (2, 1), (2, 0)]
-    equal (Signal.sample (TrackPos 1) (TrackPos 0) discont)
+    equal (Signal.sample 1 0 discont)
         [(0, 1), (2, 0)]
 
 -- * functions

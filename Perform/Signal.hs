@@ -6,7 +6,8 @@
     To avoid having to write special cases for the ends of signals, the
     'track_signal' constructor will append an \"infinite\" flat segment holding
     the signal at its last value.  This is logical for control and tempo
-    signals.  There is also an implicit
+    signals.  This means I have to make sure not to shorten signals, but that's
+    an easier special case to worry about.
 
     There is an implicit initial sample at (0, 0).
 
@@ -294,32 +295,27 @@ at pos sig = interpolate_linear pos0 val0 pos1 val1 pos
 -- but I'll worry about that if I find one.
 sample :: TrackPos -> TrackPos -> Signal -> [Sample]
 sample srate start sig@(SignalVector vec) =
-    -- The interpolation doesn't include the sample coming from, so it will
-    -- be missing the first one, and always interpolates the entire segment,
-    -- so it'll have extra stuff on the beginning.
+    -- Atypically, 'interpolate_samples' draws segments in the half open range
+    -- that excludes the beginning and includes the end.  This is convenient
+    -- for samples which set their value and then hold until the next sample.
     (start, at start sig) : dropWhile ((<=start) . fst) samples
     where
     samples = map first_to_pos $ concat $ snd $
         List.mapAccumL go (0, 0) (V.unpack (V.drop start_i vec))
     start_i = max 0 (find_above (pos_to_val start) vec - 1)
-    go (x0, y0) (x1, y1) = ((x1, y1), samples)
-        where
-        samples
-            | y0 == y1 = []
-            | otherwise = interpolate_samples (pos_to_val srate) x0 y0 x1 y1
-
+    go (x0, y0) (x1, y1) =
+        ((x1, y1), interpolate_samples (pos_to_val srate) x0 y0 x1 y1)
 
 interpolate_samples :: Val -> Val -> Val -> Val -> Val -> [(Val, Val)]
-interpolate_samples srate x0 y0 x1 y1 =
-    zip xs (map (y_at x0 y0 x1 y1) xs)
+interpolate_samples srate x0 y0 x1 y1
+    | y0 == y1 = []
+    | otherwise = zip xs (map (y_at x0 y0 x1 y1) xs)
         -- Skip the first sample, because that will have been set by the final
         -- sample of the previous segment.
     where xs = range (x0+srate) x1 srate
 
 -- | Like enumFromTo except always include the final value.
 -- Use multiplication instead of successive addition to avoid loss of precision.
--- TODO oops I rewrote this with sample_stream, rewrite 'sample' to have a more
--- normal half-open range interpolation per segment and drop this function
 range :: (Num a, Ord a) => a -> a -> a -> [a]
 range start end step = go 0
     where
