@@ -1,6 +1,4 @@
 CURRENT
-  - cleanup TestCoreMidi
-  - fix Signal_test
   - fix hint stuff
   - cleanup build/timer thing
   - love for logview

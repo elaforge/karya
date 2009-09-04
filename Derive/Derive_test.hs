@@ -221,17 +221,25 @@ test_tempo = do
         mkderiver sig = tempo_deriver
             (Track.TrackId (UiTest.mkid "b0.tempo")) (mksignal sig)
             (tids!!0) (tids!!1) (tids!!2)
+        floor_event :: (Double, Double, String) -> (Integer, Integer, String)
         floor_event (start, dur, text) = (floor start, floor dur, text)
         derive_with sig = extract_events events
             where (events, _logs) = derive_events state (mkderiver sig)
+    let f = map floor_event . derive_with
 
-    equal (derive_with [(0, Signal.Set, 2)])
+    equal (f [(0, Signal.Set, 2)])
         [(0, 5, "--1"), (5, 5, "--2"), (10, 5, "--3")]
 
-    -- Slowing down.
-    equal (map floor_event
-            (derive_with [(0, Signal.Set, 2), (20, Signal.Linear, 1)]))
-        [(0, 6, "--1"), (6, 8, "--2"), (14, 10, "--3")]
+    -- Slow down.
+    equal (f [(0, Signal.Set, 2), (20, Signal.Linear, 1)])
+        [(0, 6, "--1"), (6, 8, "--2"), (15, 10, "--3")]
+    equal (f [(0, Signal.Set, 2), (20, Signal.Linear, 0)])
+        [(0, 2505, "--1"), (2505, 7495, "--2"), (10000, 9, "--3")]
+    -- Speed up.
+    equal (f [(0, Signal.Set, 1), (20, Signal.Linear, 2)])
+        [(0, 8, "--1"), (8, 6, "--2"), (15, 5, "--3")]
+    equal (f [(0, Signal.Set, 0), (20, Signal.Linear, 2)])
+        [(0, 7509, "--1"), (7509, 2500, "--2"), (10009, 5, "--3")]
 
 -- * setup
 

@@ -3,15 +3,59 @@
     points are interpolated linearly, so the signal array represents a series
     of straight line segments.
 
-    By convention, the final segment of a signal is interpreted as extending
-    infinitely to the right, with a 0 slope.  There is an implicit initial
-    sample at (0, 0).
+    To avoid having to write special cases for the ends of signals, the
+    'track_signal' constructor will append an \"infinite\" flat segment holding
+    the signal at its last value.  This is logical for control and tempo
+    signals.  There is also an implicit
+
+    There is an implicit initial sample at (0, 0).
+
+    There are a few design trade offs here:
+
+    1. Samples are stored as (x, y) pairs instead of having a constant sample
+    rate.  This makes a lot of the functions in here much more complicated,
+    but should result in a drastic reduction of data for the common case of
+    long flat segments (e.g. constant tempo, constant controls esp. velocity).
+    Also, a constant sample rate would restrict note resolution to the sample
+    rate or you wouldn't be able to line them up.  A 1k sampling rate is
+    already past human perception (and the midi driver's timing accuracy), but
+    notes may be stretched in time, which will exacerbate any timing
+    quantization.  Signal processing functions may resample the signal to raise
+    the sampling rate, but shouldn't lower it, so if a signal is recorded with
+    certain points, they should be played exactly as recorded even if they
+    don't line up with the sampling rate.  TODO currently integrate doesn't do
+    that, but I don't think it's too bad...
+
+    2. Sample points are interpolated linearly rather than setting flat
+    segments.  This means long linear ramps (such as the integral of a constant
+    tempo) don't have to be sampled, which should be a big bonus.  However, it
+    means that the common case of recorded midi controllers takes twice as much
+    data, since a flat segment must be expressed as [(x0, y0), (x1, y0), (x2,
+    y1), ...].  This will be bad for recorded midi controllers, but I may wind
+    up with a special storage hack for those anyway.  Or maybe linear
+    interpolation is ok for dense signal, if it's above the sampling rate then
+    it doesn't matter anyway.
+
+    3. Sample values are doubles, which means each point in the signal is 8*2
+    bytes.  The double resolution is overkill for the value, but float would be
+    too small for time given the time stretching mentioned above.
+
+    Originally Signals were simply functions (Val -> Val).  This is much more
+    elegant and things like composition are simply functional composition and
+    hacks like shift and stretch go away.  Unfortunately, I need access to the
+    points to draw graphs without resorting to sampling and things like
+    integrate must be evaluated incrementally anyway, and I want to GC the
+    heads of the signals when they are no longer needed, so...
 
     TODO
-    make Signal polymorphic in Val so I can have [Float] for most things,
-    [Double] for tempo warps, and [Pitch] for pitches.
 
-    do some speed tests for large vectors, i.e. integrate a large signal
+    - Make Signal polymorphic in Val so I can have Float for most things,
+    Double for tempo warps, and (Octave, Degree, Offset) for pitches.  If
+    a store as a pair of arrays then Float will take up 2/3 the space.
+
+    - do some performance tests for large signals
+
+    - implement a more efficient map_signal_accum and see if it helps
 -}
 
 module Perform.Signal where
@@ -57,7 +101,7 @@ instance Storable.Storable (Double, Double) where
     peek cp = do
         a <- Storable.peekByteOff cp 0 :: IO Double
         b <- Storable.peekByteOff cp 8 :: IO Double
-        return ((realToFrac) a, (realToFrac) b)
+        return (realToFrac a, realToFrac b)
 
 instance Show Signal where
     show (SignalVector vec) = "Signal " ++ show (V.unpack vec)
@@ -120,9 +164,7 @@ sample_function :: (Double -> Double) -> TrackPos -> TrackPos -> TrackPos
     -> [Sample]
 sample_function f srate start end = zip samples (map f points)
     where
-    -- Multiplication instead of successive addition to avoid loss of
-    -- precision.
-    samples = takeWhile (<end) (map ((start+) . (srate*)) [0,2..])
+    samples = takeWhile (<end) (sample_stream start srate)
     points = map (\p -> realToFrac ((p-start) / (end-start))) samples
 
 -- *** interpolation functions
@@ -276,6 +318,8 @@ interpolate_samples srate x0 y0 x1 y1 =
 
 -- | Like enumFromTo except always include the final value.
 -- Use multiplication instead of successive addition to avoid loss of precision.
+-- TODO oops I rewrote this with sample_stream, rewrite 'sample' to have a more
+-- normal half-open range interpolation per segment and drop this function
 range :: (Num a, Ord a) => a -> a -> a -> [a]
 range start end step = go 0
     where
@@ -290,7 +334,6 @@ range start end step = go 0
 -- - Before the first sample: (zero, first)
 -- - at the first until the second: (first, second)
 -- - at the last until whenever: (last, extend last in a straight line)
---
 find_samples :: TrackPos -> Signal -> ((TrackPos, Val), (TrackPos, Val))
 find_samples pos (SignalVector vec)
     | len == 0 = (zero, (TrackPos 1, 0))
@@ -371,11 +414,27 @@ stretch :: TrackPos -> Signal -> Signal
 stretch mult = map_pos (*mult)
 
 -- | Integrate the signal.
+-- For samples from 0 until end of signal, accumulate y_at.
 integrate :: TrackPos -> Signal -> Signal
-integrate srate = map_signal_accum go 0
+integrate srate = map_signal_accum go final 0
     where
     go accum x0 y0 x1 y1 =
         integrate_segment (pos_to_val srate) accum x0 y0 x1 y1
+    final ((x, _y), accum) = [(x, accum)]
+
+integrate_segment :: Val -> Val -> Val -> Val -> Val -> Val
+    -> (Val, [(Val, Val)])
+integrate_segment srate accum x0 y0 x1 y1
+    | x0 >= x1 = (accum, [])
+        -- A line with slope 0 can be integrated without sampling.
+        -- The final point is left for the beginning of the next segment.
+    | y0 == y1 = (accum + (x1-x0)*y0, [(x0, accum)])
+    | otherwise = (y_at x1, [(x, y_at x) | x <- samples])
+    where
+    samples = takeWhile (<x1) (sample_stream x0 srate)
+    -- math is hard let's go shopping
+    y_at x = accum + (x**2 / (2/slope)) + (y0 * x)
+    slope = (y1-y0) / (x1-x0)
 
 -- | Clip signal to never go over the given val.  This is different from
 -- mapping 'max' because it will split segments at the point they go out of
@@ -394,8 +453,10 @@ map_pos f = vmap (V.map (Arrow.first (pos_to_val . f . val_to_pos)))
 
 -- ** implementation
 
-clip_with val f = map_signal_accum go False
+clip_with :: Val -> (Val -> Val -> Bool) -> Signal -> Signal
+clip_with val f = map_signal_accum go final False
     where
+    final ((x, y), _) = [(x, if f y val then val else y)]
         -- True if I'm in a clipped segment, False otherwise.
     go True x0 y0 x1 y1
         | f y1 val = (True, [])
@@ -410,20 +471,10 @@ clip_with val f = map_signal_accum go False
         | otherwise = (False, [(x1, y1)])
         where x = x_at x0 y0 x1 y1 val
 
-integrate_segment :: Val -> Val -> Val -> Val -> Val -> Val
-    -> (Val, [(Val, Val)])
-integrate_segment srate accum x0 y0 x1 y1
-    | x0 == x1 = (accum, [])
-        -- Line with slope y0, take a shortcut.
-    | y0 == y1 =
-        let x = x1 - srate
-            y = accum + x * y0
-        in (y, [(x0, accum), (x, y)])
-    | otherwise = List.mapAccumL go accum samples
-    where
-    samples = takeWhile (<x1) [x0, x0 + srate ..]
-    go accum x = let val = accum + y_at x0 y0 x1 y1 x * srate in (val, (x, val))
-
+-- | Generate sample points from @start@ at @srate@.  This uses multiplication
+-- instead of successive addition to avoid loss of precision.
+sample_stream :: (Enum a, Num a) => a -> a -> [a]
+sample_stream start srate = map ((start+) . (srate*)) [0..]
 
 -- * util
 
@@ -440,19 +491,24 @@ vmap f (SignalVector vec) = SignalVector (f vec)
 --
 -- TODO I should be able to do a faster version of this by working directly
 -- with the pointers.
-map_signal_accum :: (accum -> Val -> Val -> Val -> Val -> (accum, [(Val, Val)]))
-    -> accum -> Signal -> Signal
-map_signal_accum f accum (SignalVector vec) =
+map_signal_accum ::
+    -- | Take the previous accum, previous x and y, and current x and y.
+    (accum -> Val -> Val -> Val -> Val -> (accum, [(Val, Val)]))
+    -- | Optionally reduce the final ((x, y), accum) to samples to append.
+    -> (((Val, Val), accum) -> [(Val, Val)]) -> accum -> Signal -> Signal
+map_signal_accum f final accum (SignalVector vec) =
     SignalVector (V.pack (DList.toList result))
     where
-    result = (\(_, _, x) -> x) $ V.foldl' go (accum, (0, 0), DList.empty) vec
+    (last_accum, _, dlist) = V.foldl' go (accum, (0, 0), DList.empty) vec
+    end = if V.null vec then [] else final (V.last vec, last_accum)
+    result = dlist `DList.append` DList.fromList end
     go (accum, (x0, y0), lst) (x1, y1) =
         (accum2, (x1, y1), lst `DList.append` DList.fromList samples)
         where (accum2, samples) = f accum x0 y0 x1 y1
 
 map_signal :: (Val -> Val -> Val -> Val -> [(Val, Val)]) -> Signal -> Signal
-map_signal f = map_signal_accum go False
-    where go _ x0 y0 x1 y1 = (False, f x0 y0 x1 y1)
+map_signal f = map_signal_accum go (const []) ()
+    where go _ x0 y0 x1 y1 = ((), f x0 y0 x1 y1)
 
 -- | Given a line defined by the two points, find the y at the given x.
 y_at :: Val -> Val -> Val -> Val -> Val -> Val

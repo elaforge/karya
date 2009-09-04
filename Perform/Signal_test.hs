@@ -2,6 +2,7 @@ module Perform.Signal_test where
 import qualified Data.List as List
 
 import Util.Test
+import qualified Util.Seq as Seq
 
 import Ui.Types
 
@@ -112,11 +113,27 @@ test_compose = do
         [(0, 0), (1, 1), (2, 2)]
 
 test_integrate = do
-    let f sig = Signal.unpack $ Signal.integrate (TrackPos 1) sig
-    equal (f (tsig [(0, Set, 0), (3, Linear, 3)]))
-        [(0, 0), (1, 1), (2, 3)]
+    -- The last sample is the max_track_pos sentinel.
+    let f sig = Seq.rdrop 1 $ Signal.unpack $ Signal.integrate (TrackPos 1) sig
+    equal (f (tsig [(0, Set, 0), (2, Linear, 2), (4, Linear, 2)]))
+        [(0, 0), (1, 0.5), (2, 2), (4, 6)]
     equal (f (tsig [(0, Set, 0), (3, Linear, -3)]))
-        [(0, 0), (1, -1), (2, -3)]
+        [(0, 0), (1, -0.5), (2, -2), (3, -4.5)]
+
+test_integrate_segment = do
+    let f = Signal.integrate_segment 1 0
+    equal (f 0 2 0 2) (0, [])
+    equal (f 0 2 1 2) (2, [(0, 0)])
+    equal (f 0 2 4 2) (8, [(0, 0)])
+
+    equal (f 0 0 2 2) (2, [(0, 0), (1, 0.5)])
+    equal (f 0 0 3 3) (4.5, [(0, 0), (1, 0.5), (2, 2)])
+    equal (f 0 0 3 (-3)) (-4.5, [(0, 0), (1, -0.5), (2, -2)])
+
+    -- with offset
+    equal (f 0 2 4 0) (4, [(0, 0), (1, 1.75), (2, 3), (3, 3.75)])
+    -- crossing 0
+    equal (f 0 2 4 (-2)) (0, [(0, 0), (1, 1.5), (2, 2), (3, 1.5)])
 
 test_shift_stretch = do
     let sig = Signal.signal [(0, 1), (1, 0)]
@@ -151,16 +168,19 @@ test_find_samples = do
         ]
 
 test_clip_max = do
-    let f samples = check $ List.all ((<=1) . snd)
-            (Signal.unpack (Signal.clip_max 1 (Signal.signal samples)))
-    f [(0, 0), (0, 2), (4, 2)]
-    f [(1, 0)]
-    f []
+    let f = Signal.unpack . Signal.clip_max 1 . Signal.signal
+    let below samples = check $ List.all ((<=1) . snd) (f samples)
+
+    below [(0, 0), (0, 2), (4, 2)]
+    below [(1, 0)]
+    below []
+
+    -- signal isn't shortened
+    equal (f [(0, 0), (2, 2), (4, 2)]) [(0, 0), (1, 1), (4, 1)]
 
 test_clip_min = do
-    let f samples = check $ List.all ((>=1) . snd)
-            (Signal.unpack (Signal.clip_min 1 (Signal.signal samples)))
-    f [(0, 0), (0, 2), (4, 2)]
-    f [(1, 0)]
-    f []
-    -- print $ Signal.clip_min 1 (Signal.signal [(1, 0)])
+    let f = Signal.unpack . Signal.clip_min 1 . Signal.signal
+        above samples = check $ List.all ((>=1) . snd) (f samples)
+    above [(0, 0), (0, 2), (4, 2)]
+    above [(1, 0)]
+    above []
