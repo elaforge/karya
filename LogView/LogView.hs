@@ -8,7 +8,7 @@
     modifies the filter.  When the filter is changed, it refilters the msgs,
     clears the GUI, and sends the new msgs over.
 -}
-module LogViewer.LogView where
+module LogView.LogView where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
 import Control.Monad
@@ -21,8 +21,8 @@ import qualified System.Console.GetOpt as GetOpt
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 
-import qualified LogViewer.LogViewC as LogViewC
-import qualified LogViewer.Process as Process
+import qualified LogView.LogViewC as LogViewC
+import qualified LogView.Process as Process
 
 
 mach_log_filename :: String

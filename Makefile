@@ -85,7 +85,7 @@ $(BUILD)/test_block: fltk/test_block.o fltk/fltk.a
 	$(CXX) -o $@ $^ $(LDFLAGS) # $(DIRECT_LINK)
 	$(BUNDLE)
 
-$(BUILD)/test_logview: LogViewer/test_logview.o LogViewer/logview_ui.o fltk/f_util.o
+$(BUILD)/test_logview: LogView/test_logview.o LogView/logview_ui.o fltk/f_util.o
 	$(CXX) -o $@ $^ $(LDFLAGS)
 	$(BUNDLE)
 
@@ -142,19 +142,19 @@ $(BUILD)/make_db: Instrument/MakeDb.hs
 sense:
 	@echo 'Nevairrrr!'
 
-LOGVIEW_OBJ = LogViewer/LogView.hs LogViewer/LogViewC.hs \
-	LogViewer/interface.o LogViewer/logview_ui.o
-LOGVIEW_HS = LogViewer/LogViewC.hs
+LOGVIEW_OBJ = LogView/LogView.hs LogView/LogViewC.hs \
+	LogView/interface.o LogView/logview_ui.o
+LOGVIEW_HS = LogView/LogViewC.hs
 
 .PHONY: $(BUILD)/logview
 $(BUILD)/logview: $(LOGVIEW_OBJ)
-	$(GHC) $(HFLAGS) --make -main-is LogViewer.LogView $^ -o $@ \
+	$(GHC) $(HFLAGS) --make -main-is LogView.LogView $^ -o $@ \
 		$(HLDFLAGS)
 	$(BUNDLE)
 
 .PHONY: $(BUILD)/timer
-$(BUILD)/timer: LogViewer/Timer.hs
-	$(GHC) $(HFLAGS) --make -main-is LogViewer.Timer $^ -o $@
+$(BUILD)/timer: LogView/Timer.hs
+	$(GHC) $(HFLAGS) --make -main-is LogView.Timer $^ -o $@
 
 BROWSER_OBJ = Instrument/Browser.hs \
 	Instrument/interface.o Instrument/browser_ui.o \

@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -fno-warn-unused-imports #-}
 -- Control.Monad
-module LogViewer.Process where
+module LogView.Process where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
 import Control.Monad

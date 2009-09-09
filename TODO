@@ -2,6 +2,9 @@ CURRENT
   + fix hint stuff
   - love for logview
   - TODO / haddock sweep
+  - sample reyong
+  - pelog scale for reyong samples
+  - transcribe kebyar duduk
 
   - i control track thing
   - editing for "pattern list" block
@@ -11,6 +14,7 @@ CURRENT
 on demand instead of insisting Cmd.set_midi_config be called?
 - show_inst_info shows keyswitches, alloc, etc.  automatically happen when you
 click it and go into logview?
+- save and load midi_config separately
 
 MILESTONES
   0.1
@@ -114,11 +118,16 @@ fltk:
 logging logview:
   - logview needs scrollbars
   - don't store msgs in memory, don't refilter from begining
+  - use bytestrings?
   - colorize (tid ..) (bid ..) (vid ..) etc.
   - implement clickable srcpos and StackPos
   - haskell and c++ use the same machine readable format
   - rename LogViewer -> LogView just to reduce confusion
   - LogView should use Util.Fltk
+  - tabs are not lining up properly
+  - option to wrap lines or not?
+  - hide or display various attrs: date, file, function, ...
+  - collapse duplicate lines
 
 Ui:
   - some kind of special highlight to indicate the active block

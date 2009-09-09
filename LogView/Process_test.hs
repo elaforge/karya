@@ -1,10 +1,10 @@
-module LogViewer.Process_test where
+module LogView.Process_test where
 
 import Util.Test
 import qualified Util.Log as Log
 import qualified Data.Time as Time
 
-import qualified LogViewer.Process as Process
+import qualified LogView.Process as Process
 
 
 test_process_msg = do

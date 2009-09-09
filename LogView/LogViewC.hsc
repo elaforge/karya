@@ -1,5 +1,5 @@
 {-# LANGUAGE ForeignFunctionInterface, EmptyDataDecls #-}
-module LogViewer.LogViewC where
+module LogView.LogViewC where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
 import Foreign
