@@ -2,6 +2,7 @@
 -}
 module Cmd.Save where
 import qualified Control.Monad.Trans as Trans
+import qualified Data.List as List
 import qualified System.FilePath as FilePath
 
 import qualified Util.Log as Log
@@ -32,8 +33,10 @@ cmd_save fname = do
 
 cmd_load :: (Trans.MonadIO m) => FilePath -> Cmd.CmdT m ()
 cmd_load fname = do
-    Trans.liftIO $ Log.notice $ "load state from " ++ show fname
-    try_state <- Trans.liftIO $ Serialize.unserialize fname
+    Log.notice $ "load state from " ++ show fname
+    let unserialize = if ".text" `List.isSuffixOf` fname
+            then Serialize.unserialize_text else Serialize.unserialize
+    try_state <- Trans.liftIO $ unserialize fname
     state <- case try_state of
         Left exc -> Cmd.throw $
             "error unserializing " ++ show fname ++ ": " ++ show exc

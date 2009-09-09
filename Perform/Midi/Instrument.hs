@@ -83,7 +83,7 @@ data Config = Config {
     -- course, if this instrument doesn't exist or has no allocation, nothing
     -- will happen.
     , config_default_inst :: Maybe Score.Instrument
-    } deriving (Read, Show)
+    } deriving (Eq, Read, Show)
 config inst_addrs default_inst = Config (Map.fromList inst_addrs) default_inst
 
 -- | Midi instruments are addressed by a (device, channel) pair, allocated in

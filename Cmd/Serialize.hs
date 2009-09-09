@@ -50,7 +50,7 @@ serialize fname state = do
 serialize_text :: FilePath -> SaveState -> IO ()
 serialize_text fname state = do
     File.backup_file fname
-    IO.writeFile fname (show state)
+    IO.writeFile fname (show state ++ "\n")
 
 unserialize :: FilePath -> IO (Either Exception.SomeException SaveState)
 unserialize fname = Exception.try $ do
@@ -62,13 +62,10 @@ unserialize fname = Exception.try $ do
     -- vaunted blazing speed.
     length (show st) `seq` return st
 
-
+unserialize_text :: FilePath -> IO (Either Exception.SomeException SaveState)
 unserialize_text fname = do
-    [_ver, ui_str] <- fmap lines (IO.readFile fname)
-    st <- Exception.try $ readIO ui_str
-    case st of
-        Left exc -> return (Left exc)
-        Right ui_state -> fmap Right (save_state ui_state)
+    ui_str <- IO.readFile fname
+    Exception.try $ readIO ui_str
 
 
 -- * data types
@@ -77,7 +74,7 @@ data SaveState = SaveState {
     save_ui_state :: State.State
     , save_date :: Time.UTCTime
     -- undo-related metadata?
-    } deriving (Show)
+    } deriving (Read, Show)
 save_state ui_state = do
     utc <- Time.getCurrentTime
     return (SaveState ui_state utc)
@@ -265,7 +262,7 @@ instance Binary Block.Rect where
         return (Block.Rect a b c d)
 
 instance Binary Block.ViewConfig where
-    put (Block.ViewConfig a b c d e) = put_version 1
+    put (Block.ViewConfig a b c d e) = put_version 2
         >> put a >> put b >> put c >> put d >> put e
     get = do
         v <- get_version
@@ -396,12 +393,6 @@ instance Binary Track.Track where
                 render <- get :: Get Track.RenderConfig
                 return $ Track.Track title events bg render
             _ -> version_error "Track.Track" v
-
-with_version name cases = do
-    v <- get_version
-    case lookup v cases of
-        Just getter -> getter
-        Nothing -> version_error name v
 
 instance Binary Track.RenderConfig where
     put (Track.RenderConfig a b) = put_version 0 >> put a >> put b
