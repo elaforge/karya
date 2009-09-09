@@ -154,7 +154,7 @@ data StateError = StateError String deriving (Generics.Typeable)
 instance Error.Error StateError where
     strMsg = StateError
 instance Show StateError where
-    show (StateError msg) = "StateError " ++ msg
+    show (StateError msg) = "StateError: " ++ msg
 
 -- TODO remove modify and implement in terms of get and put?
 -- TODO I also think I can remove throw since it's in Error

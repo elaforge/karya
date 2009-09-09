@@ -1,8 +1,11 @@
 CURRENT
-  - fix hint stuff
-  - cleanup build/timer thing
+  + fix hint stuff
   - love for logview
   - TODO / haddock sweep
+
+  - i control track thing
+  - editing for "pattern list" block
+  - double click call to jump to its block?
 
 MILESTONES
   0.1
@@ -32,7 +35,7 @@ MILESTONES
 bug haskell-cafe:
   - buggy ghci debugger
   - haddock problems
-  - hint trouble
+  + hint trouble
 
 ----
 
@@ -66,7 +69,7 @@ display signal:
 - switch to darcs hashed repo format
 
 bugs:
-  - when I do just space, I get "keyup not in modifiers"
+  * when I do just space, I get "keyup not in modifiers"
     cmd_record_keys not getting run when play throws?
   * ^C should quit instead of killing ui thread and hanging
   - cmd-q should also quit entirely not just close the windows

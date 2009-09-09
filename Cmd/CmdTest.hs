@@ -1,6 +1,7 @@
 -- | Utilities for cmd tests.
 module Cmd.CmdTest where
 import qualified Control.Monad.Identity as Identity
+import qualified Data.Map as Map
 
 import qualified Util.Log as Log
 import qualified Midi.Midi as Midi
@@ -13,10 +14,17 @@ import qualified Ui.UiTest as UiTest
 import qualified Cmd.Simple as Simple
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
+import qualified Derive.Score as Score
 
 import qualified Perform.Timestamp as Timestamp
+import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Controller as Midi.Controller
+
+import qualified Instrument.Db
+import qualified Instrument.MidiDb as MidiDb
 
 import qualified App.Config as Config
+
 
 default_block_id = UiTest.default_block_id
 default_view_id = UiTest.default_view_id
@@ -63,6 +71,32 @@ extract_tracks ustate = map (\(_, title, events) -> (title, events)) tracks
 cmd_state = Cmd.empty_state
     { Cmd.state_focused_view = Just default_view_id
     }
+
+
+-- | Configure ustate and cstate with the given instruments.
+set_insts inst_names ustate cstate =
+    (ustate { State.state_midi_config = default_midi_config inst_names},
+        cstate { Cmd.state_instrument_db = make_inst_db inst_names })
+
+make_inst_db inst_names = Instrument.Db.empty
+    { Instrument.Db.db_lookup_midi = make_lookup inst_names }
+
+default_midi_config inst_names =
+    Instrument.Config (Map.fromList (zip insts addrs)) (Just (head insts))
+    where
+    insts = map Score.Instrument inst_names
+    addrs = [[(default_wdev, chan)] | (inst, chan) <- zip insts [0..]]
+default_wdev = Midi.WriteDevice "test"
+
+make_lookup :: [String] -> MidiDb.LookupMidiInstrument
+make_lookup inst_names attrs (Score.Instrument inst) = Map.lookup inst inst_map
+    where inst_map = Map.fromList $ zip inst_names (map make_inst inst_names)
+
+make_inst name = default_perf_inst { Instrument.inst_name = name }
+default_perf_inst = Instrument.instrument default_synth "i0" Nothing
+            Midi.Controller.default_controllers (-2, 2)
+default_synth = Instrument.Synth "synth" default_wdev
+    (Midi.Controller.controller_map [])
 
 
 -- * msg

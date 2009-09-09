@@ -150,6 +150,14 @@ read_until hdl boundary = go ""
                 go (c:accum)
 
 
+-- | (cstate, Either error (status, ui_from, ui_to))
+type RType = (Either State.StateError (Cmd.Status, State.State, State.State),
+    Cmd.State)
+type ResponderM a = Cont.ContT RType (Logger.LoggerT Update.Update IO) a
+
+run_responder :: ResponderM RType -> IO (RType, [Update.Update])
+run_responder = Logger.run . flip Cont.runContT return
+
 {- | The flow control makes this all way more complicated than I want it to be.
     There must be a simpler way.
 
@@ -191,36 +199,32 @@ read_until hdl boundary = go ""
 
     TODO: Give this some serious thought some day.  Also profile it.
 -}
-type RType = Either State.StateError
-    (Cmd.Status, State.State, State.State, Cmd.State)
-type ResponderM a = Cont.ContT RType (Logger.LoggerT Update.Update IO) a
-
 respond :: ResponderState -> IO (Bool, ResponderState)
 respond rstate = do
     msg <- state_msg_reader rstate
-    Log.timer ("received msg: " ++ show msg)
-    (res, updates) <- run_responder (run_cmds rstate msg)
+    Log.timer $ "received msg: " ++ show msg
+    ((res, cmd_state), updates) <- run_responder (run_cmds rstate msg)
+    rstate <- return $ rstate { state_cmd = cmd_state }
     (status, rstate) <- case res of
         Left err -> do
             Log.warn $ "responder: " ++ show err
             return (Cmd.Continue, rstate)
-        Right (status, ui_from, ui_to, cmd_state) -> do
+        Right (status, ui_from, ui_to) -> do
             Log.timer "syncing"
             cmd_state <- return $ fix_cmd_state ui_to cmd_state
             (updates, ui_state, cmd_state) <-
                 ResponderSync.sync ui_from ui_to cmd_state updates
             cmd_state <- record_history updates ui_from cmd_state
             return (status,
-                rstate { state_ui = ui_state, state_cmd = cmd_state })
+                rstate { state_cmd = cmd_state, state_ui = ui_state })
     return (status /= Cmd.Quit, rstate)
 
 -- | If the focused view is removed, cmd state should stop pointing to it.
 fix_cmd_state :: State.State -> Cmd.State -> Cmd.State
 fix_cmd_state ui_state cmd_state = case Cmd.state_focused_view cmd_state of
-        Just focus -> if focus `Map.notMember` State.state_views ui_state
-            then cmd_state { Cmd.state_focused_view = Nothing }
-            else cmd_state
-        Nothing -> cmd_state
+    Just focus | focus `Map.notMember` State.state_views ui_state ->
+        cmd_state { Cmd.state_focused_view = Nothing }
+    _ -> cmd_state
 
 -- ** undo
 
@@ -247,22 +251,20 @@ record_history updates old_state cmd_state = do
 should_record_history :: [Update.Update] -> Bool
 should_record_history = any (not . Update.is_view_update)
 
-run_responder :: ResponderM RType -> IO (RType, [Update.Update])
-run_responder = Logger.run . flip Cont.runContT return
-
 run_cmds :: ResponderState -> Msg.Msg -> ResponderM RType
 run_cmds rstate msg = do
-    result <- Cont.callCC $ \exit -> run_core_cmds rstate msg exit
+    (result, cmd_state) <- Cont.callCC $ \exit -> run_core_cmds rstate msg exit
     -- Record the keys last, so they show up in the next cycle's keys_down,
     -- but not this one.  This is so you can tell the difference between a
     -- key down and a key repeat.
     -- To save me from stuck keys, this gets run even if the cmd throws.
-    let cmd_state = case result of
-            Left _ -> state_cmd rstate
-            Right (_, _, _, st) -> st
+    -- Changes made to cmd_state are discarded after an exception.
+    -- This matches the behaviour of the ui state.
+    cmd_state <- return $
+        either (const (state_cmd rstate)) (const cmd_state) result
     -- Yeah, I pass the old ui state, but cmd_record_keys shouldn't be touching
     -- that anyway.
-    let (post_rec, _, rec_logs, rec_result) = Cmd.run_id
+    let (recorded_cstate, _, rec_logs, rec_result) = Cmd.run_id
             (state_ui rstate) cmd_state (Cmd.cmd_record_keys msg)
     Trans.liftIO $ do
         mapM_ Log.write rec_logs
@@ -270,9 +272,9 @@ run_cmds rstate msg = do
             Left err -> Log.error ("record keys error: " ++ show err)
             _ -> return ()
     return $ case result of
-        Left _ -> result
-        Right (status, ui_from, ui_to, _) ->
-            Right (status, ui_from, ui_to, post_rec)
+        Left _ -> (result, recorded_cstate)
+        Right (status, ui_from, ui_to) ->
+            (Right (status, ui_from, ui_to), recorded_cstate)
 
 run_core_cmds :: ResponderState -> Msg.Msg
     -> (RType -> ResponderM (State.State, Cmd.State)) -> ResponderM RType
@@ -307,7 +309,7 @@ run_core_cmds rstate msg exit = do
         ui_to cmd_state io_cmds
     Trans.liftIO $ Log.timer "ran io cmds"
 
-    return $ Right (Cmd.Continue, ui_from, ui_to, cmd_state)
+    return (Right (Cmd.Continue, ui_from, ui_to), cmd_state)
 
 -- | Everyone always gets these commands.
 hardcoded_cmds :: [Cmd.Cmd]
@@ -369,8 +371,8 @@ do_run exit runner rstate msg ui_from ui_state cmd_state cmds = do
             return (ui_state, cmd_state)
         Right (status, ui_state, cmd_state, updates) -> do
             Trans.lift $ Logger.record_list updates
-            exit $ Right (status, ui_from, ui_state, cmd_state)
-        Left err -> exit (Left err)
+            exit (Right (status, ui_from, ui_state), cmd_state)
+        Left err -> exit (Left err, cmd_state)
 
 run_cmd_list :: (Monad m) => [Update.Update] -> MidiWriter -> State.State
     -> Cmd.State -> Cmd.RunCmd m IO Cmd.Status -> [Cmd.CmdM m]
