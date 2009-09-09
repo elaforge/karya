@@ -128,6 +128,13 @@
         performer when it turns a pitch signal into nn+pb.
       - 5 requires the ChannelMap to thread through midi_thru and the same
         logic as the performer
+
+    Midi and kbd filters convert into Note msgs.
+    Notes are turned into track edits, have to keep track of note_id
+    Notes are also turned into midi via thru
+
+    If this is too slow: as above, but insert a filter on get_msg that
+    converts midi in directly into midi thru.
 -}
 module Cmd.KbdEntry where
 import Control.Monad

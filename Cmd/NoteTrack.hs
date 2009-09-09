@@ -58,7 +58,7 @@ data PitchTrack = PitchTrack Bool Block.TrackNum deriving (Show, Eq)
 cmd_raw_edit :: Pitch.ScaleId -> Cmd.Cmd
 cmd_raw_edit scale_id msg = do
     key <- EditUtil.edit_key scale_id msg
-    EditUtil.modify_event (EditUtil.modify_text key)
+    EditUtil.modify_event False (EditUtil.modify_text key)
     return Cmd.Done
 
 cmd_val_edit :: PitchTrack -> Pitch.ScaleId -> Cmd.Cmd
@@ -101,7 +101,7 @@ create_pitch_track block_id tracknum = do
 -- * implementation
 
 ensure_exists :: (Monad m) => Cmd.CmdT m ()
-ensure_exists = EditUtil.modify_event Just
+ensure_exists = EditUtil.modify_event False Just
 
 remove :: (Monad m) => Cmd.CmdT m ()
-remove = EditUtil.modify_event (const Nothing)
+remove = EditUtil.modify_event False (const Nothing)

@@ -35,11 +35,12 @@ get_event track_id pos dur = do
     return $ Maybe.fromMaybe (Event.event "" dur)
         (Track.event_at (Track.track_events track) pos)
 
-modify_event :: (Monad m) => (String -> Maybe String)
+modify_event :: (Monad m) => Bool -- ^ create zero duration event
+    -> (String -> Maybe String)
     -> Cmd.CmdT m ()
-modify_event f = do
+modify_event zero_dur f = do
     at <- Selection.get_insert_track
-    modify_event_at at False f
+    modify_event_at at zero_dur f
 
 modify_event_at :: (Monad m) => Selection.TrackSel
     -> Bool -- ^ Created event has 0 dur, otherwise until next time step.

@@ -7,9 +7,6 @@ import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import Util.Test
 
-import qualified Ui.Block as Block
-import qualified Ui.Id as Id
-import qualified Ui.Ruler as Ruler
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.Track as Track
@@ -32,8 +29,6 @@ import qualified Perform.Midi.Controller as Controller
 
 import qualified Derive.Derive_test as Derive_test
 import qualified Util.Graph_test as Graph_test
-
-import qualified Util.Tree
 
 
 -- * cmds

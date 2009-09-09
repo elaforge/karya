@@ -29,7 +29,7 @@ cmd_method_edit msg = do
 
 modify_event :: (Monad m) => ((String, String) -> (Maybe String, Maybe String))
     -> Cmd.CmdT m ()
-modify_event f = EditUtil.modify_event (unparse . f . parse)
+modify_event f = EditUtil.modify_event True (unparse . f . parse)
 
 parse :: String -> (String, String)
 parse s

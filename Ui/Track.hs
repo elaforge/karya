@@ -30,7 +30,7 @@ data Track = Track {
     , track_events :: TrackEvents
     , track_bg :: Color
     , track_render :: RenderConfig
-    } deriving (Show, Read)
+    } deriving (Eq, Show, Read)
 
 -- | Construct an empty Track.
 track :: String -> [PosEvent] -> Color -> RenderConfig -> Track
@@ -99,7 +99,7 @@ time_end events = maybe (TrackPos 0) event_end (last_event events)
 -}
 newtype TrackEvents =
     TrackEvents (Map.Map TrackPos Event.Event)
-    deriving (Show, Read)
+    deriving (Eq, Show, Read)
     -- alternate efficient version for controller tracks?
     -- ControllerTrack (Array (TrackPos, Double))
 
