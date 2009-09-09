@@ -1,11 +1,17 @@
 CURRENT
   + fix hint stuff
+  - adding an event to tempo has duration
   - love for logview
   - TODO / haddock sweep
 
   - i control track thing
   - editing for "pattern list" block
   - double click call to jump to its block?
+
+- what happens if an inst isn't in chan map?  wouldn't it be easier to lookup
+on demand instead of insisting Cmd.set_midi_config be called?
+- show_inst_info shows keyswitches, alloc, etc.  automatically happen when you
+click it and go into logview?
 
 MILESTONES
   0.1

@@ -202,7 +202,7 @@ run_responder = Logger.run . flip Cont.runContT return
 respond :: ResponderState -> IO (Bool, ResponderState)
 respond rstate = do
     msg <- state_msg_reader rstate
-    Log.timer $ "received msg: " ++ show msg
+    Log.timer $ "received msg: " ++ Msg.pretty_msg msg
     ((res, cmd_state), updates) <- run_responder (run_cmds rstate msg)
     rstate <- return $ rstate { state_cmd = cmd_state }
     (status, rstate) <- case res of

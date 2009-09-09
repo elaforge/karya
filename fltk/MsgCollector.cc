@@ -136,27 +136,9 @@ set_msg_from_event(UiMsg &m, int evt)
     m.is_click = Fl::event_is_click();
     m.x = Fl::event_x();
     m.y = Fl::event_y();
-    // TODO
-    // This is interesting.  If I use event_key(), some of the keys are from
-    // the qwerty layout.  event_text()[0] always seems to give the proper key.
-    // Keys that event_key gets wrong:
-    // qwe
-    //         '
-    // z
-    // DEBUG("event_text is '" << Fl::event_text()
-    //         << "' event_key is " << Fl::event_key() << " "
-    //         << char(Fl::event_key()));
-    int k = Fl::event_key();
-    if (k == 'q' || k == 'w' || k == 'e' || k == '\'' || k == 'z')
-        m.key = Fl::event_text()[0];
-    else if (k == '\b')
-        m.key = FL_BackSpace;
-    else
+    m.key = Fl::event_text()[0];
+    if (!isprint(m.key)) // shift or backspace or some such
         m.key = Fl::event_key();
-    // OSX usually sends shifted keys as lowercase + shift, but randomly sends
-    // a few as uppercase.
-    if (isupper(m.key))
-        m.key = tolower(m.key);
 }
 
 

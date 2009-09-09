@@ -27,6 +27,10 @@ data Msg =
     | Socket IO.Handle String
     deriving (Show)
 
+pretty_msg :: Msg -> String
+pretty_msg (Ui msg) = "Ui: " ++ UiMsg.pretty_ui_msg msg
+pretty_msg msg = show msg
+
 -- * views
 
 -- To reduce dependency on the exact structure of 'Msg', and to avoid long hard
