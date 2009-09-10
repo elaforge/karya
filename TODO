@@ -116,7 +116,7 @@ fltk:
     - only capture drag on a plain drag with no modifiers
 
 logging logview:
-  - logview needs scrollbars
+  * logview needs scrollbars
   * don't store msgs in memory, don't refilter from begining
   - use bytestrings?
   - colorize (tid ..) (bid ..) (vid ..) etc.
