@@ -33,13 +33,14 @@ enum {
     command_height = 20
 };
 
-LogView::LogView(int X, int Y, int W, int H, MsgCallback cb) :
+LogView::LogView(int X, int Y, int W, int H, MsgCallback cb, int max_bytes) :
     Fl_Group(X, Y, W, H),
     msg_callback(cb),
     status(X, Y, W, status_height),
     command(X, Y + status_height, W, command_height),
     display(X, Y + status_height + command_height,
-            W, H - status_height - command_height)
+            W, H - status_height - command_height),
+    max_bytes(max_bytes)
 {
     this->resizable(display);
     status.box(FL_FLAT_BOX);
@@ -67,6 +68,12 @@ LogView::append_log(const char *msg, const char *style)
     ASSERT(strlen(msg) == strlen(style));
     style_buffer.insert(0, style);
     buffer.insert(0, msg);
+    // This won't work well with UTF8... on the other hand, chopping a UTF8
+    // char in half will just make it not display, which is no big deal.
+    if (buffer.length() > this->max_bytes) {
+        buffer.remove(max_bytes, buffer.length());
+        style_buffer.remove(max_bytes, style_buffer.length());
+    }
 }
 
 
@@ -127,8 +134,9 @@ LogView::command_cb(Fl_Widget *_w, void *vp)
 }
 
 
-LogViewWindow::LogViewWindow(int X, int Y, int W, int H, MsgCallback cb) :
-    Fl_Double_Window(0, 0, W, H), view(0, 0, W, H, cb)
+LogViewWindow::LogViewWindow(int X, int Y, int W, int H, MsgCallback cb,
+        int max_bytes) :
+    Fl_Double_Window(0, 0, W, H), view(0, 0, W, H, cb, max_bytes)
 {
     this->resizable(this);
 }

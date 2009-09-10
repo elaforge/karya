@@ -117,10 +117,14 @@ partition_either (x:xs) =
 -- | Total variants of head and tail with default values.  "m" is for "maybe".
 mhead :: a -> [a] -> a
 mhead def [] = def
-mhead _def (x:_) = x
+mhead _ (x:_) = x
 mtail :: [a] -> [a] -> [a]
 mtail def [] = def
-mtail _def (_:xs) = xs
+mtail _ (_:xs) = xs
+
+mlast :: a -> [a] -> a
+mlast def [] = def
+mlast _ xs = last xs
 
 -- | Drop adjacent elts if they are equal after applying the key function.  The
 -- first elt is kept.

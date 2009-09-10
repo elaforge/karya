@@ -26,7 +26,7 @@ public:
 
 class LogView : public Fl_Group {
 public:
-    LogView(int X, int Y, int W, int H, MsgCallback cb);
+    LogView(int X, int Y, int W, int H, MsgCallback cb, int max_bytes);
     void append_log(const char *msg, const char *style);
     void clear_logs();
     void set_status(const char *s) { status.value(s); }
@@ -43,13 +43,15 @@ private:
     TextDisplay display;
 
     static void command_cb(Fl_Widget *w, void *vp);
+
+    // Keep a maximm of this many lines.
+    int max_bytes;
 };
 
 class LogViewWindow : public Fl_Double_Window {
 public:
-    LogViewWindow(int X, int Y, int W, int H, MsgCallback cb);
+    LogViewWindow(int X, int Y, int W, int H, MsgCallback cb, int max_bytes);
     LogView view;
-private:
 };
 
 #endif

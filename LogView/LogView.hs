@@ -4,9 +4,13 @@
     the GUI.  When it's clicked, the GUI sends the tag back, much like an HTML
     href.
 
-    This also maintains a filter.  It to the GUI for a simple language that
-    modifies the filter.  When the filter is changed, it refilters the msgs,
-    clears the GUI, and sends the new msgs over.
+    This also maintains a filter.  The filter is a custom little language that
+    will filter out messages that don't match.
+
+    In addition, there is a concept of "catch patterns".  These are regexes
+    which are matched against msg text.  When one matches, the matched groups
+    are kept in a status line.  That way, events reported in the log can be
+    collected together.
 -}
 module LogView.LogView where
 import qualified Control.Concurrent as Concurrent
@@ -40,12 +44,25 @@ default_catch_patterns =
     [ ("octave", Process.make_regex "octave: ([0-9]+)")
     ]
 
+-- | Remember this many log msgs.
+default_history :: Int
+default_history = 200
 
-data Flag = Help | NoSeek deriving (Eq, Show)
+-- | UI will remember this many bytes.  This is not the same as
+-- 'default_history' because the history will remember filtered out msgs, and
+-- the UI doesn't bother to preserve msg boundaries so it uses bytes.
+default_max_bytes :: Int
+default_max_bytes = default_history * 100
+
+data Flag = Help | NoSeek | History Int deriving (Eq, Show)
 options :: [GetOpt.OptDescr Flag]
 options =
     [ GetOpt.Option [] ["help"] (GetOpt.NoArg Help) "display usage"
-    , GetOpt.Option [] ["noseek"] (GetOpt.NoArg NoSeek) "don't seek to end"
+    , GetOpt.Option [] ["noseek"] (GetOpt.NoArg NoSeek)
+        "scan log file from beginning instead of seeking to the end"
+    , GetOpt.Option [] ["history"]
+        (GetOpt.ReqArg (History . read) (show default_history))
+        "remember this many lines"
     ]
 usage msg = putStr (GetOpt.usageInfo msg options) >> System.Exit.exitFailure
 
@@ -60,29 +77,31 @@ main = do
     when (Help `elem` flags) (usage "usage:")
 
     let seek = NoSeek `notElem` flags
+    let history = Seq.mlast default_history [n | History n <- flags]
 
     view <- LogViewC.create_logview 20 20 (fst initial_size) (snd initial_size)
+        default_max_bytes
     LogViewC.set_filter view initial_filter
 
     log_chan <- STM.newTChanIO
     Concurrent.forkIO (Process.tail_file log_chan mach_log_filename seek)
     let state = (Process.initial_state initial_filter)
             { Process.state_catch_patterns = default_catch_patterns }
-    Concurrent.forkIO (handle_msgs state log_chan view)
+    Concurrent.forkIO (handle_msgs state history log_chan view)
     LogViewC.run
 
 
 data Msg = NewLog Log.Msg | ClickedWord String | FilterChanged String
     deriving (Show)
 
-handle_msgs :: Process.State -> STM.TChan Log.Msg -> LogViewC.LogView -> IO ()
-handle_msgs state log_chan view = flip State.evalStateT state $ forever $ do
+handle_msgs :: Process.State -> Int -> STM.TChan Log.Msg -> LogViewC.LogView
+    -> IO ()
+handle_msgs st history log_chan view = flip State.evalStateT st $ forever $ do
     msg <- liftIO $ get_msg log_chan view
     case msg of
-        NewLog log -> do
-            State.modify $ \st ->
-                st { Process.state_msgs = log : Process.state_msgs st }
-            handle_new_msg view log
+        NewLog log_msg -> do
+            State.modify (Process.add_msg history log_msg)
+            handle_new_msg view log_msg
         ClickedWord word -> do
             liftIO $ putStrLn $ "clicked: " ++ show word
         FilterChanged expr -> do

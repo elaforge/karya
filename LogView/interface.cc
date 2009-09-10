@@ -10,9 +10,9 @@ void ui_awake() { Fl::awake((void*) 0); }
 int has_windows() { return Fl_X::first != NULL; }
 
 LogViewWindow *
-create_logview(int x, int y, int w, int h, MsgCallback cb)
+create_logview(int x, int y, int w, int h, MsgCallback cb, int max_bytes)
 {
-    LogViewWindow *view = new LogViewWindow(x, y, w, h, cb);
+    LogViewWindow *view = new LogViewWindow(x, y, w, h, cb, max_bytes);
     view->show();
     return view;
 }

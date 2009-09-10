@@ -5,9 +5,11 @@ import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
 import Control.Monad
 import qualified Control.Monad.Writer as Writer
+import qualified Data.Foldable as Foldable
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Sequence as Sequence
 import qualified Data.Time as Time
 import qualified System.IO as IO
 import qualified Text.Regex as Regex
@@ -25,12 +27,22 @@ data State = State {
     -- status line.
     , state_catch_patterns :: [CatchPattern]
     , state_status :: Status
-    -- TODO This will take too much space, remove this.
-    , state_msgs :: [Log.Msg]
+    -- | A cache of the most recent msgs.  When the filter is changed they can
+    -- be displayed.  This way memory use is bounded but you can display recent
+    -- msgs you missed because of the filter.
+    , state_cached_msgs :: Sequence.Seq Log.Msg
     -- | Last timing message.
     , state_last_timing :: Maybe Log.Msg
     } deriving (Show)
-initial_state filt = State (compile_filter filt) [] Map.empty [] Nothing
+initial_state filt = State
+    (compile_filter filt) [] Map.empty Sequence.empty Nothing
+
+add_msg :: Int -> Log.Msg -> State -> State
+add_msg history msg state = state { state_cached_msgs = seq }
+    where seq = Sequence.take history (msg Sequence.<| state_cached_msgs state)
+
+state_msgs :: State -> [Log.Msg]
+state_msgs = Foldable.toList . state_cached_msgs
 
 -- ** filter
 
@@ -63,6 +75,9 @@ data StyledText = StyledText {
     } deriving (Show)
 extract_style (StyledText text style) = (text, style)
 
+-- | Process an incoming log msg.  If the msg isn't filtered out, returned
+-- a colorized version.  Also possibly modify the app state for things like
+-- catch and timing.
 process_msg :: State -> Log.Msg -> (State, Maybe StyledText)
 process_msg state msg = (new_state { state_status = status }, msg_styled)
     where
