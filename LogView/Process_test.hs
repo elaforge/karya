@@ -34,3 +34,8 @@ test_process_msg = do
     -- above threshold, and timing prepended
     equal (f (state { Process.state_last_timing = Just msg0 }) msg2)
         ("", Just msg2, Just "*\t1s timer: hello\n")
+
+test_regex_style = do
+    let f = Process.run_formatter
+            . Process.regex_style Process.style_plain Process.msg_text_regexes
+    pprint $ f "bah (bid \"name\") bah (vid \"2\") q"

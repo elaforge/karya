@@ -29,8 +29,8 @@ import qualified Data.Maybe as Maybe
 import qualified System.IO as IO
 import qualified System.IO.Unsafe as Unsafe
 import Text.Printf
-import qualified Text.Regex as Regex
 
+import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
 import qualified Util.SrcPos as SrcPos
 import Util.PPrint as PPrint
@@ -83,9 +83,9 @@ strings_like_srcpos srcpos gotten expected = do
     mapM_ (uncurry string_like) (zip gotten expected)
     where
     string_like a b
-        | Maybe.isJust (Regex.matchRegex (Regex.mkRegex b) a) =
-            success srcpos $ show a ++ " =~ " ++ show b
-        | otherwise = failure srcpos $ show a ++ " !~ " ++ show b
+        | null (Regex.findall (Regex.make b) a) =
+            failure srcpos $ show a ++ " !~ " ++ show b
+        | otherwise = success srcpos $ show a ++ " =~ " ++ show b
 
 -- | The given pure value should throw an exception that matches the predicate.
 throws :: (Show a) => String -> a -> IO ()

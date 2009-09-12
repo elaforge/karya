@@ -1,6 +1,6 @@
 CURRENT
   + fix hint stuff
-  - love for logview
+  * love for logview
   - TODO / haddock sweep
   - sample reyong
   - pelog scale for reyong samples
@@ -119,7 +119,7 @@ logging logview:
   * logview needs scrollbars
   * don't store msgs in memory, don't refilter from begining
   - use bytestrings?
-  - colorize (tid ..) (bid ..) (vid ..) etc.
+  * colorize (tid ..) (bid ..) (vid ..) etc.
   - implement clickable srcpos and StackPos
   - haskell and c++ use the same machine readable format
   * rename LogViewer -> LogView just to reduce confusion

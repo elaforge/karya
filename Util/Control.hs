@@ -1,6 +1,7 @@
 {- | Control flow and monadic utilities.
 -}
 module Util.Control where
+import Control.Monad.Error () -- get instance Monad (Either e)
 
 -- | Like mapAccumL but lifted into a monad.
 map_accuml_m :: (Monad m) => (acc -> x -> m (acc, y)) -> acc -> [x] -> m [y]

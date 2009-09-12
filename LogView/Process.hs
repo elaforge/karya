@@ -4,6 +4,7 @@ module LogView.Process where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
 import Control.Monad
+import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.Writer as Writer
 import qualified Data.Foldable as Foldable
 import qualified Data.List as List
@@ -12,10 +13,10 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Sequence as Sequence
 import qualified Data.Time as Time
 import qualified System.IO as IO
-import qualified Text.Regex as Regex
 
 import qualified Util.Control
 import qualified Util.Log as Log
+import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
 
 
@@ -54,14 +55,7 @@ instance Show Filter where
 -- ** catch
 
 -- | (title, regex)
-type CatchPattern = (String, Regex)
-
--- | Yay for Regex.Regex not being in Show!
-data Regex = Regex String Regex.Regex
-
-instance Show Regex where
-    show (Regex reg _) = "make_regex " ++ show reg
-make_regex reg = Regex reg (Regex.mkRegex reg)
+type CatchPattern = (String, Regex.Regex)
 
 -- ** status
 
@@ -114,10 +108,7 @@ timer_filter state msg
 
 catch_patterns :: [CatchPattern] -> String -> Status
 catch_patterns patterns text = Map.fromList $ concatMap match patterns
-    where
-    match (title, (Regex _ reg)) = case Regex.matchRegex reg text of
-        Nothing -> []
-        Just ms -> map ((,) title) ms
+    where match (title, reg) = map ((,) title) (Regex.findall reg text)
 
 -- ** filter
 
@@ -137,32 +128,52 @@ eval_filter (Filter _ pred) msg text = pred msg text
 
 format_msg :: Log.Msg -> StyledText
 format_msg msg = run_formatter $ do
-    emit $ replicate (fromEnum (Log.msg_prio msg) + 1) '*'
-    emit "\t"
+    with_plain $ replicate (fromEnum (Log.msg_prio msg) + 1) '*'
+    with_plain "\t"
     let style = if Log.msg_prio msg < Log.Warn
             then style_plain else style_warn
     maybe (return ()) (emit_srcpos style) (Log.msg_caller msg)
-    with_style style (Log.msg_text msg)
-    emit "\n"
+    regex_style style msg_text_regexes (Log.msg_text msg)
+    with_plain "\n"
 
+type Formatter = Writer.Writer [(String, [Style])] ()
+
+run_formatter :: Formatter -> StyledText
 run_formatter = render_styles . Writer.execWriter
+
+emit_msg_text :: Style -> String -> Formatter
+emit_msg_text style text = with_style style text
 
 emit_srcpos style (file, func_name, line) = do
     with_style style $ file ++ ":" ++ show line ++ " "
     maybe (return ())
         (\func -> with_style style_emphasis ("[" ++ func ++ "] ")) func_name
 
-emit = with_style style_plain
-with_style style text = Writer.tell [(text, style)]
+msg_text_regexes :: [(Regex.Regex, Style)]
+msg_text_regexes = map (\(reg, style) -> (Regex.make reg, style))
+    [ ("\\([bvt]id \".*?\"\\)", style_emphasis)
+    ]
+
+regex_style :: Style -> [(Regex.Regex, Style)] -> String -> Formatter
+regex_style default_style regex_styles txt =
+    literal_style (map go [0..length txt - 1]) txt
+    where
+    ranges = [(range, style) | (reg, style) <- regex_styles,
+        range <- Regex.find_ranges reg txt]
+    go i = maybe default_style snd $ List.find ((i `within`) . fst) ranges
+    within i (lo, hi) = lo <= i && i < hi
+
+with_plain = with_style style_plain
+with_style style text = Writer.tell [(text, replicate (length text) style)]
+literal_style style text = Writer.tell [(text, style)]
 
 type Style = Char
 
-render_styles :: [(String, Style)] -> StyledText
-render_styles styles = StyledText text style
-    where
-    f (s, style) (s', style') = (s ++ s', replicate (length s) style ++ style')
-    (text, style) = foldr f ("", "") styles
+render_styles :: [(String, [Style])] -> StyledText
+render_styles styles =
+    StyledText (concat (map fst styles)) (concat (map snd styles))
 
+style_plain, style_warn, style_clickable, style_emphasis :: Style
 style_plain = 'A'
 style_warn = 'B'
 style_clickable = 'C'

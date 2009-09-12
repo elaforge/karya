@@ -23,6 +23,7 @@ import qualified System.Exit
 import qualified System.Console.GetOpt as GetOpt
 
 import qualified Util.Log as Log
+import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
 
 import qualified LogView.LogViewC as LogViewC
@@ -41,7 +42,7 @@ initial_size = (500, 700)
 
 default_catch_patterns :: [Process.CatchPattern]
 default_catch_patterns =
-    [ ("octave", Process.make_regex "octave: ([0-9]+)")
+    [ ("octave", Regex.make "octave: ([0-9]+)")
     ]
 
 -- | Remember this many log msgs.
