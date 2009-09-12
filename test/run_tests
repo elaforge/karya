@@ -39,7 +39,7 @@ for test in $init_tests; do
 done
 
 echo -n '\nTests complete.  Results:\n'
-grep '^__' $test_output
+test/extract_failures.py <$test_output
 passes=$(grep '^++' $test_output | wc -l)
 failures=$(grep '^__' $test_output | wc -l)
 echo $failures failed / $passes passed
