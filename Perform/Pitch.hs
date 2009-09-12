@@ -11,6 +11,7 @@
     C1 = 36
 -}
 module Perform.Pitch where
+import qualified Control.Monad.Error as Error
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
@@ -68,16 +69,15 @@ data Scale = Scale {
     , scale_pattern :: String
     -- | Transpose the given note by the given scale steps, or octaves.
     -- Return an error if it couldn't be transposed for some reason.
-    , scale_transpose :: Int -> Note -> Either String Note
-    , scale_transpose_octave :: Int -> Note -> Either String Note
+    , scale_transpose :: Int -> Note -> Either Error Note
+    , scale_transpose_octave :: Int -> Note -> Either Error Note
 
     -- | Convert the scale note to a pitch with frequency.  Returns Nothing
     -- if the note isn't part of the scale.
     , scale_to_nn :: Note -> Maybe NoteNumber
-    -- | Convert from a pitch to an error or a note.  to_pitch -> from_pitch
-    -- may lose information if the scale has enhormonics.  It will also round
-    -- the pitch off if it doesn't exactly correspond to a scale note.
-    , scale_key_to_note :: KeyNumber -> Either String Note
+    -- | Convert from a keynum to a Note, or Nothing if the keynum is out of
+    -- range for this scale.
+    , scale_key_to_note :: KeyNumber -> Maybe Note
 
     -- | A special hack for midi, since it needs additional pitch bend msgs
     -- to play a non-tempered scale (well, there is a midi tuning standard, but
@@ -95,3 +95,7 @@ data Scale = Scale {
 
 note_in_scale :: Scale -> Note -> Bool
 note_in_scale scale = Maybe.isJust . scale_to_nn scale
+
+data Error = NotInScale | OutOfRange deriving (Eq, Read, Show)
+instance Error.Error Error where
+    strMsg = const NotInScale -- this is stupid but necessary

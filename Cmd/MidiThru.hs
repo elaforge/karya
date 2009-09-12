@@ -42,10 +42,10 @@ keynum_to_nn :: (Monad m) => Pitch.Scale -> Pitch.KeyNumber
     -> Cmd.CmdT m Pitch.NoteNumber
 keynum_to_nn scale keynum = do
     -- keynum -> note in scale -> nn
+    let msg = show (Pitch.scale_id scale) ++ ": "
     note <- case Pitch.scale_key_to_note scale keynum of
-        Left err -> Cmd.throw $ "couldn't convert keynum " ++ show keynum
-            ++ ": " ++ err
-        Right note -> return note
+        Nothing -> Cmd.throw $ msg ++ "keynum out of range: " ++ show keynum
+        Just note -> return note
     case Pitch.scale_to_nn scale note of
-        Nothing -> Cmd.throw $ "can't convert note to nn from " ++ show keynum
+        Nothing -> Cmd.throw $ msg ++ "can't convert to nn: " ++ show keynum
         Just nn -> return nn

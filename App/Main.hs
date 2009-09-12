@@ -252,8 +252,8 @@ setup_big _ = do
         mknotes notes = map UiTest.mkevent
             [(i*0.25, 0.2, to_str (oct, n)) | (i, (oct, n)) <- zip [0..] notes]
         to_str n = case Twelve.key_to_note n of
-            Right (Pitch.Note s) -> s
-            Left err -> error err
+            Just (Pitch.Note s) -> s
+            Nothing -> error $ "converting " ++ show n
         mkvels vels = map UiTest.mkevent
             [(i*0.25, 0, show vel) | (i, vel) <- zip [0..] vels]
 

@@ -98,9 +98,12 @@ note_key scale_id msg =
 
 get_note :: Pitch.ScaleId -> Msg.Msg -> Maybe (Either String (Maybe Pitch.Note))
 get_note scale_id (Msg.KeyNumber keynum) = Just $ do
-    scale <- maybe (Left $ "scale not found for " ++ show scale_id) Right $
+    let msg = show scale_id ++ ": "
+    scale <- maybe (Left $ msg ++ "not found") Right $
         Map.lookup scale_id Scale.scale_map
-    fmap Just $ Pitch.scale_key_to_note scale keynum
+    note <- maybe (Left $ msg ++ "keynum out of range: " ++ show keynum) Right
+        (Pitch.scale_key_to_note scale keynum)
+    return (Just note)
 get_note _ (Msg.key -> Just Key.Backspace) = Just (Right Nothing)
 get_note _ _ = Nothing
 
