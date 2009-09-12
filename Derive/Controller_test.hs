@@ -8,7 +8,7 @@ import qualified Ui.State as State
 import qualified Perform.Signal as Signal
 
 import qualified Derive.Score as Score
-import qualified Derive.Twelve as Twelve
+import qualified Derive.Scale.Twelve as Twelve
 
 import qualified Derive.Derive_test as Derive_test
 import qualified Derive.Controller as Controller

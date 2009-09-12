@@ -6,8 +6,7 @@
     TODO: this doesn't have any support for enharmonics, but I do want to
     support them for scale sensitive instruments and tunings.
 -}
-module Derive.Twelve where
-import Control.Monad.Error () -- Either instance
+module Derive.Scale.Twelve where
 import qualified Data.Char as Char
 import qualified Data.List as List
 

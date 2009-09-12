@@ -3,7 +3,7 @@
 module Derive.Scale where
 import qualified Data.Map as Map
 
-import qualified Derive.Twelve as Twelve
+import qualified Derive.Scale.Twelve as Twelve
 
 import qualified Perform.Pitch as Pitch
 

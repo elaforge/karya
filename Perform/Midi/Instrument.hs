@@ -12,7 +12,7 @@ import qualified Util.Seq as Seq
 import qualified Midi.Midi as Midi
 
 import qualified Derive.Score as Score
-import qualified Derive.Twelve as Twelve
+import qualified Derive.Scale.Twelve as Twelve
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Midi.Controller as Controller
 

@@ -58,7 +58,7 @@ import Cmd.LanguageCmds ()
 -- tmp
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Score as Score
-import qualified Derive.Twelve as Twelve
+import qualified Derive.Scale.Twelve as Twelve
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Midi.Instrument as Instrument
 

@@ -17,7 +17,10 @@ def main():
 
         if line.startswith('A'):
             # darcs doesn't show lines for new files
-            diff = len(list(open(path)))
+            if os.path.isdir(path):
+                diff = 0
+            else:
+                diff = len(list(open(path)))
         else:
             diff = sum(map(int, filter(None, m.groups()[1:])))
         nontest_total, test_total = totals.get(dir, (0, 0))

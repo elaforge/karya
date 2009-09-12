@@ -5,7 +5,7 @@ import Util.Test
 import qualified Ui.Key as Key
 import qualified Cmd.Msg as Msg
 import qualified Cmd.CmdTest as CmdTest
-import qualified Derive.Twelve as Twelve
+import qualified Derive.Scale.Twelve as Twelve
 import qualified Perform.Pitch as Pitch
 
 import qualified Cmd.EditUtil as EditUtil

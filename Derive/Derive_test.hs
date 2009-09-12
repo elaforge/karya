@@ -30,7 +30,7 @@ import qualified Derive.Note as Note
 import qualified Derive.Scale as Scale
 import qualified Derive.Schema as Schema
 import qualified Derive.Score as Score
-import qualified Derive.Twelve as Twelve
+import qualified Derive.Scale.Twelve as Twelve
 
 import qualified Perform.Signal as Signal
 import qualified Perform.Timestamp as Timestamp

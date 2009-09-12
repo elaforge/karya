@@ -7,7 +7,7 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.PitchTrack as PitchTrack
 
-import qualified Derive.Twelve as Twelve
+import qualified Derive.Scale.Twelve as Twelve
 
 import qualified Ui.Key as Key
 
