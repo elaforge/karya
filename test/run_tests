@@ -42,7 +42,8 @@ echo -n '\nTests complete.  Results:\n'
 test/extract_failures.py <$test_output
 passes=$(grep '^++' $test_output | wc -l)
 failures=$(grep '^__' $test_output | wc -l)
-echo $failures failed / $passes passed
+tests=$(grep '^-----' $test_output | wc -l)
+echo $failures failed / $passes passed / $tests tests
 
 echo Generating hpc markup...
 hpc markup --destdir=hpc RunTests | grep -v Writing

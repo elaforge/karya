@@ -37,13 +37,13 @@ note_numbers = map Pitch.nn
     , 63.35 -- reyong begin
     , 67.7
     , 68.2 -- pemade begin
-    
+
     , 72.46
     , 73.9
     , 75.5
     , 79.4 -- trompong end
     , 80.5 -- kantilan begin
-    
+
     , 84.46 -- rambat end, pemade end
     , 86
     , 87.67
