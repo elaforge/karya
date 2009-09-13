@@ -19,6 +19,8 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.TimeStep as TimeStep
 import qualified Cmd.Selection as Selection
 
+import qualified Perform.Pitch as Pitch
+
 import qualified App.Config as Config
 
 
@@ -164,7 +166,8 @@ show_match (TimeStep.MatchRank rank) = "r" ++ show rank
 show_marklists TimeStep.AllMarklists = "all"
 show_marklists (TimeStep.NamedMarklists mlists) = Seq.join "," mlists
 
-cmd_modify_octave :: (Monad m) => (Cmd.Octave -> Cmd.Octave) -> Cmd.CmdT m ()
+cmd_modify_octave :: (Monad m) => (Pitch.Octave -> Pitch.Octave)
+    -> Cmd.CmdT m ()
 cmd_modify_octave f = do
     Cmd.modify_state $ \st -> st
         { Cmd.state_kbd_entry_octave = f (Cmd.state_kbd_entry_octave st) }

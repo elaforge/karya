@@ -190,7 +190,7 @@ with_note kbd_entry cmd msg = do
         Just new_msg -> cmd new_msg
         Nothing -> cmd msg
 
-note_from_kbd :: Cmd.Octave -> Translator
+note_from_kbd :: Pitch.Octave -> Translator
 note_from_kbd octave (Msg.key -> Just key) =
     fmap Msg.InputKey (key_to_input octave key)
 note_from_kbd _ _ = Nothing
@@ -214,7 +214,7 @@ with_midi scale_id cmd msg = do
         Nothing -> Cmd.abort
         Just msg -> cmd msg
 
-midi_from_kbd :: Pitch.Scale -> Cmd.Octave -> Msg.Msg -> Maybe Msg.Msg
+midi_from_kbd :: Pitch.Scale -> Pitch.Octave -> Msg.Msg -> Maybe Msg.Msg
 midi_from_kbd scale octave msg = do
     (state, key) <- key_char msg
     input <- key_to_input octave key
@@ -280,7 +280,7 @@ lower_notes, upper_notes :: [(Char, Pitch.InputKey)]
 lower_notes = make_key_map 0 "azsxdcfvgbhnjmk,l.;/"
 upper_notes = make_key_map 1 "1q2w3e4r5t6y7u8i9o0p"
 
-make_key_map :: Cmd.Octave -> [Char] -> [(Char, Pitch.InputKey)]
+make_key_map :: Pitch.Octave -> [Char] -> [(Char, Pitch.InputKey)]
 make_key_map oct = map mk_input . zip [-1..]
     where
     mk_input (n, c) =

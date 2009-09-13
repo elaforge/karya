@@ -202,7 +202,7 @@ data State = State {
     -- | Transpose note entry on the keyboard by this many octaves.  It's by
     -- octave instead of scale degree since scales may have different numbers
     -- of notes per octave.
-    , state_kbd_entry_octave :: Octave
+    , state_kbd_entry_octave :: Pitch.Octave
     } deriving (Show, Generics.Typeable)
 
 initial_state inst_db schema_map = State {
@@ -228,8 +228,6 @@ initial_state inst_db schema_map = State {
 
 empty_state = initial_state Instrument.Db.empty Map.empty
 clear_history cmd_state = cmd_state { state_history = ([], []) }
-
-type Octave = Int
 
 data Performance = Performance {
     perf_msgs :: [Midi.WriteMessage]
