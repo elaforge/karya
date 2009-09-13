@@ -196,7 +196,7 @@ responder_handler exc = do
 make_write_midi :: Map.Map Midi.WriteDevice Midi.WriteDevice
     -> MidiImp.WriteMap -> Midi.WriteMessage -> IO ()
 make_write_midi wdev_map write_map (Midi.WriteMessage wdev ts msg) = do
-    putStrLn $ "PLAY " ++ show (wdev, ts, msg)
+    -- putStrLn $ "PLAY " ++ show (wdev, ts, msg)
     let real_wdev = Util.Data.get wdev wdev wdev_map
     case Map.lookup real_wdev write_map of
         Nothing -> Log.error $ show real_wdev ++ " not in devs: "

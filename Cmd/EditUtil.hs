@@ -101,8 +101,8 @@ get_note scale_id (Msg.InputKey input) = Just $ do
     let msg = show scale_id ++ ": "
     scale <- maybe (Left $ msg ++ "not found") Right $
         Map.lookup scale_id Scale.scale_map
-    note <- maybe (Left $ msg ++ "input out of range: " ++ show input) Right
-        (Pitch.scale_input_to_note scale input)
+    note <- maybe (Left $ msg ++ "get_note input out of range: " ++ show input)
+        Right (Pitch.scale_input_to_note scale input)
     return (Just note)
 get_note _ (Msg.key -> Just Key.Backspace) = Just (Right Nothing)
 get_note _ _ = Nothing

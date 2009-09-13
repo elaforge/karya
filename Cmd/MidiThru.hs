@@ -18,15 +18,18 @@ cmd_midi_thru scale_id (wdev, chan) pb_range msg = do
         Just (Midi.ChannelMessage _ m) -> Just m
         _ -> Nothing
     scale <- Cmd.get_scale "cmd_midi_thru" scale_id
-    tuned_msgs <- case chan_msg of
-        Midi.NoteOn key vel -> input_to_midi scale pb_range True vel
-            (Pitch.InputKey (fromIntegral key `divMod` 12))
-        Midi.NoteOff key vel -> input_to_midi scale pb_range False vel
-            (Pitch.InputKey (fromIntegral key `divMod` 12))
-        _ -> return [chan_msg]
-    mapM_ (Cmd.midi wdev) (map (Midi.ChannelMessage chan) tuned_msgs)
+    -- tuned_msgs <- case chan_msg of
+    --     Midi.NoteOn key vel -> input_to_midi scale pb_range True vel
+    --         (Pitch.InputKey (fromIntegral key `divMod` 12))
+    --     Midi.NoteOff key vel -> input_to_midi scale pb_range False vel
+    --         (Pitch.InputKey (fromIntegral key `divMod` 12))
+    --     _ -> return [chan_msg]
+    -- mapM_ (Cmd.midi wdev) (map (Midi.ChannelMessage chan) tuned_msgs)
+    Cmd.midi wdev (Midi.ChannelMessage chan chan_msg)
     return Cmd.Continue
 
+-- This can't work because it can't tell the difference between genuine midi
+-- input and midi faked by KbdEntry.  This is all due to be replaced anyway.
 input_to_midi :: (Monad m) => Pitch.Scale -> Controller.PbRange -> Bool
     -> Midi.Velocity -> Pitch.InputKey -> Cmd.CmdT m [Midi.ChannelMessage]
 input_to_midi scale pb_range note_on vel input = do
@@ -44,7 +47,8 @@ input_to_nn scale input = do
     -- input -> note in scale -> nn
     let msg = show (Pitch.scale_id scale) ++ ": "
     note <- case Pitch.scale_input_to_note scale input of
-        Nothing -> Cmd.throw $ msg ++ "input out of range: " ++ show input
+        Nothing -> Cmd.throw $ msg ++ "input_to_nn input out of range: "
+            ++ show input
         Just note -> return note
     case Pitch.scale_note_to_nn scale note of
         Nothing -> Cmd.throw $ msg ++ "can't convert to nn: " ++ show input

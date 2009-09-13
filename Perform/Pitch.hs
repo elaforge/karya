@@ -111,7 +111,8 @@ instance Error.Error Error where
 -- | Construct data structures to implement a scale.
 --
 -- @input_to_generic@ is separate because multiple input keys may map to the
--- same note.
+-- same note.  If it maps to generics that don't exist in @note_map@, those
+-- inputs will be ignored.
 make_scale_map :: [(GenericPitch, Note, NoteNumber)]
     -> [(InputKey, GenericPitch)]
     -> (Int -> GenericPitch -> GenericPitch)
@@ -124,10 +125,11 @@ make_scale_map note_map input_to_generic transpose_generic =
     note_to_generic = Map.fromList $ zip notes generics
     note_to_nn = Map.fromList (zip notes note_numbers)
 
-    input_to_note = Map.fromList (map get input_to_generic)
+    input_to_note = Map.fromList (concatMap get input_to_generic)
         where
-        get (input, generic) = (input, note)
-            where Just note = Map.lookup generic generic_to_note
+        get (input, generic) = case Map.lookup generic generic_to_note of
+            Nothing -> []
+            Just note -> [(input, note)]
 
     transpose n note = do
         generic <- maybe (Left NotInScale) Right

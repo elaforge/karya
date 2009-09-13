@@ -14,7 +14,8 @@ test_get_note = do
     let f = EditUtil.get_note Twelve.scale_id
     equal (f (CmdTest.input (1, 2))) (Just (Right (Just (Pitch.Note "1d-"))))
     equal (f (CmdTest.input (100, 0)))
-        (Just (Left "ScaleId \"twelve\": input out of range: InputKey (100,0)"))
+        (Just (Left $ "ScaleId \"twelve\": get_note input out of range: "
+            ++ "InputKey (100,0)"))
     equal (f (CmdTest.make_key True Key.Backspace)) (Just (Right Nothing))
     equal (f (CmdTest.make_key True (Key.KeyChar 'c'))) Nothing
 

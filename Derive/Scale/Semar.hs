@@ -62,7 +62,8 @@ input_to_generic :: [(Pitch.InputKey, Pitch.GenericPitch)]
 input_to_generic = do
     oct <- [-2..2]
     (degree, (oct_offset, key)) <- input_degrees
-    return (Pitch.InputKey (oct, degree),
+    -- +5 puts nding 0 up where middle c is for Twelve
+    return (Pitch.InputKey (oct + 5, degree),
         Pitch.GenericPitch (oct + oct_offset, key))
 
 input_degrees :: [(Int, (Pitch.Octave, Int))]

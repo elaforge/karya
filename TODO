@@ -3,12 +3,21 @@ CURRENT
   * love for logview
   - TODO / haddock sweep
   - sample reyong
-  - pelog scale for reyong samples
+  + pelog scale for reyong samples
   - transcribe kebyar duduk
 
   - i control track thing
   - editing for "pattern list" block
   - double click call to jump to its block?
+
+- current kbd entry is flawed since for midi thru it turns InputKeys into
+midi, which 
+- I'm getting "can't change inst" errors, I guess because chan_map is empty,
+but even Cmd.set_midi_config isn't setting it, figure out what's going on
+and revisit chan_map setup
+- verify twelve ->midi mapping and range checking
+- when kbd mode is on it shouldn't fall through to other cmds
+- when an fltk input has focus, it should let control chars through
 
 - what happens if an inst isn't in chan map?  wouldn't it be easier to lookup
 on demand instead of insisting Cmd.set_midi_config be called?
