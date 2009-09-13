@@ -234,7 +234,7 @@ old_setup_cmd _args = do
     -- tempo 1 -> *twelve 3 -> >fm8/bass 2
     State.set_skeleton bid $ Skeleton.make [(1, 3), (3, 2)]
 
-    Cmd.set_midi_config inst_config
+    State.set_midi_config inst_config
     State.set_selection vid Config.insert_selnum
         (Block.point_selection 0 (TrackPos 0))
     return Cmd.Done
@@ -268,7 +268,7 @@ setup_big _ = do
         (take 100 (mknotes (cycle (reverse (map ((,) 6) notes)))))
     State.insert_events t1_vel (take 100 (mkvels (cycle (reverse vels))))
 
-    Cmd.set_midi_config inst_config
+    State.set_midi_config inst_config
     State.set_selection view Config.insert_selnum
         (Block.point_selection 0 (TrackPos 0))
     return Cmd.Done

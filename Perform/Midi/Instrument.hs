@@ -211,11 +211,11 @@ type InstrumentName = String
 
 -- | Describe how an instrument should be initialized before it can be played.
 data InitializePatch =
-    -- | Send these msgs to initialize the patch.  Probably a patch change or
-    -- a sysex.
+    -- | Send these msgs to initialize the patch.  Should be a patch change.
     InitializeMidi [Midi.Message]
     -- | This is redundant with InitializeMidi, but 1000 3K sysex msgs uses
     -- lots of memory and makes the browser crawl.
+    -- TODO make Midi.Message use ByteString
     | InitializeSysex B.ByteString
     -- | Display this msg to the user and hope they do what it says.
     | InitializeMessage String

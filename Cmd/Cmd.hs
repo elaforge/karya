@@ -326,23 +326,6 @@ get_clip_namespace = fmap state_clip_namespace get_state
 set_clip_namespace :: (Monad m) => Id.Namespace -> CmdT m ()
 set_clip_namespace ns = modify_state $ \st -> st { state_clip_namespace = ns }
 
--- | Set State.state_midi_config, but also update the state_chan_map.  This
--- assumes that the instrument is already initialized on its addresses, which
--- should be done explicitly with 'send_initialization'.
-set_midi_config :: (Monad m) => Instrument.Config -> CmdT m ()
-set_midi_config new_config = do
-    old_config <- State.get_midi_config
-    lookup_inst <- get_lookup_midi_instrument
-    let alloc = Instrument.config_alloc
-        new_allocs = alloc new_config `Map.difference` alloc old_config
-        (new_map, failed) = inst_addr_to_chan_map lookup_inst new_allocs
-    if not (null failed)
-        then Log.warn $ "inst lookup failed for: " ++ show failed
-        else do
-            modify_state $ \st -> st
-                { state_chan_map = Map.union new_map (state_chan_map st) }
-            State.set_midi_config new_config
-
 inst_addr_to_chan_map :: MidiDb.LookupMidiInstrument
     -> Map.Map Score.Instrument [Instrument.Addr]
     -> (Instrument.ChannelMap, [Score.Instrument])

@@ -124,49 +124,59 @@ _perform_notes chan_map overlapping prev_note_off ((event, addr):events) =
 -- | Figure out of any msgs need to be emitted to convert the channel state to
 -- the given event on the given addr.
 --
--- If there's no chan state, complain and use the old state.  This means
--- subsequent notes with this addr will also have a problem.  The other
--- approach would be to assume the channel is in the correct state if there is
--- none.  Doing it this way means a bit of state that has to be gotten right
--- or no sound, but relying on the instrument of the first event to happen to
--- hit the channel seems like it would yield inconsistent results.
+-- If there's no chan state always emit msgs, since in general there's no way
+-- to know what state the synth is in.  If I do know (e.g. playback will
+-- pass the current chan_map) I can filter out expensive messages like
+-- program change.
+-- TODO implement playback with chan_map when I implement pchange
+--
+-- Another strategy would be to always emit msgs and rely on playback filter,
+-- but that would triple the number of msgs, which seems excessive.
 adjust_chan_state :: Instrument.ChannelMap -> Instrument.Addr -> Event
     -> ([Midi.WriteMessage], [Warning.Warning], Instrument.ChannelMap)
 adjust_chan_state chan_map addr event =
     case chan_state_msgs addr ts old_inst inst of
-        Nothing  -> ([], [state_warning], chan_map)
-        Just msgs ->
-            (msgs, [], Map.insert addr (event_instrument event) chan_map)
+        Left err -> ([], [event_warning event err], new_chan_map)
+        Right msgs -> (msgs, [], new_chan_map)
     where
+    new_chan_map = Map.insert addr inst chan_map
     inst = event_instrument event
     old_inst = Map.lookup addr chan_map
     ts = Timestamp.from_track_pos (event_start event)
-    state_warning = event_warning event ("can't change inst from "
-        ++ show (fmap Instrument.inst_score_name old_inst)
-        ++ " to " ++ show (Instrument.inst_score_name inst)
-        ++ " with addr " ++ show addr)
 
+-- | TODO support program change, I'll have to get ahold of patch_initialize.
 chan_state_msgs :: Instrument.Addr -> Timestamp.Timestamp
     -> Maybe Instrument.Instrument -> Instrument.Instrument
-    -> Maybe [Midi.WriteMessage]
-chan_state_msgs (wdev, chan) ts maybe_old_inst new_inst
-    | Just old_inst <- maybe_old_inst, same_inst old_inst new_inst =
-        case (keyswitch old_inst, keyswitch new_inst) of
-            (old, new) | old == new || new == Nothing -> Just []
-            (_, Just ks) -> Just (ks_msgs (Instrument.ks_key ks))
-            _ -> error "chan_state_mgs: unreachable"
-    -- TODO Program change not supported yet.
-    | otherwise = Nothing
+    -> Either String [Midi.WriteMessage]
+chan_state_msgs addr@(wdev, chan) ts maybe_old_inst new_inst
+    | not same_synth = Left $ "two synths on " ++ show addr ++ ": " ++ inst_desc
+    | not same_inst = Left $ "program change not supported yet on "
+        ++ show addr ++ ": " ++ inst_desc
+    | not same_ks = Right ks_msgs
+    | otherwise = Right []
     where
-    same_inst i1 i2 = Instrument.inst_synth i1 == Instrument.inst_synth i2
-        && Instrument.inst_name i1 == Instrument.inst_name i2
-    keyswitch = Instrument.inst_keyswitch
-    start = max 0 (ts - keyswitch_interval)
-    mkmsg ts msg = Midi.WriteMessage wdev ts (Midi.ChannelMessage chan msg)
+    inst_desc = show (fmap extract maybe_old_inst, extract new_inst)
+    extract inst = (Instrument.inst_synth inst, Instrument.inst_name inst)
+
+    same_synth = case maybe_old_inst of
+        Nothing -> True
+        Just o -> Instrument.inst_synth o == Instrument.inst_synth new_inst
+    same_inst = same_synth && case maybe_old_inst of
+        Nothing -> True -- when pchange is supported I can assume false
+        Just o -> Instrument.inst_name o == Instrument.inst_name new_inst
+    same_ks = same_inst && case maybe_old_inst of
+        Nothing -> False
+        Just o -> Maybe.isNothing (Instrument.inst_keyswitch new_inst)
+            || Instrument.inst_keyswitch o == Instrument.inst_keyswitch new_inst
+
+    ks_msgs = maybe [] (mk_ks . Instrument.ks_key)
+        (Instrument.inst_keyswitch new_inst)
     -- The velocity is arbitrary, but this is loud enough to hear if you got
     -- the keyswitches wrong.
-    ks_msgs nn =
-        [mkmsg start (Midi.NoteOn nn 64), mkmsg (start+1) (Midi.NoteOff nn 64)]
+    mk_ks nn =
+        [mkmsg start (Midi.NoteOn nn 64), mkmsg (start+2) (Midi.NoteOff nn 64)]
+    mkmsg ts msg = Midi.WriteMessage wdev ts (Midi.ChannelMessage chan msg)
+    start = max 0 (ts - keyswitch_interval)
 
 -- * post process
 

@@ -382,14 +382,14 @@ alloc_instrument :: Score.Instrument -> [Midi.Instrument.Addr] -> Cmd.CmdL ()
 alloc_instrument inst addrs = do
     config <- State.get_midi_config
     let alloc = Midi.Instrument.config_alloc config
-    Cmd.set_midi_config $ config
+    State.set_midi_config $ config
         { Midi.Instrument.config_alloc = Map.insert inst addrs alloc }
 
 dealloc_instrument :: Score.Instrument -> Cmd.CmdL ()
 dealloc_instrument inst = do
     config <- State.get_midi_config
     let alloc = Midi.Instrument.config_alloc config
-    Cmd.set_midi_config $ config
+    State.set_midi_config $ config
         { Midi.Instrument.config_alloc = Map.delete inst alloc }
 
 schema_instruments :: Block.BlockId -> Cmd.CmdL [Score.Instrument]
@@ -401,7 +401,7 @@ schema_instruments block_id = do
 -- found in the given block.  It simply gives each instrument on a device a
 -- single channel increasing from 0.
 --
--- Example: auto_config (bid "b0") >>= Cmd.set_midi_config
+-- Example: auto_config (bid "b0") >>= State.set_midi_config
 -- TODO: won't work if there are >1 block, need a merge config
 -- TODO: same inst with different keyswitches should get the same addrs
 auto_config :: Block.BlockId -> Cmd.CmdL Midi.Instrument.Config
