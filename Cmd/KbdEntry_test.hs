@@ -12,6 +12,8 @@ import qualified Cmd.KbdEntry as KbdEntry
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Cmd as Cmd
 
+import qualified Derive.Scale.Twelve as Twelve
+
 with_key :: Msg.Msg -> Cmd.State
 with_key key =
     extract $ CmdTest.run State.empty CmdTest.cmd_state
@@ -24,25 +26,25 @@ test_with_note = do
     let cmd_dummy msg = Log.warn (show msg) >> return Cmd.Done
     let f kbd_entry msg = KbdEntry.with_note kbd_entry cmd_dummy msg
         key = CmdTest.key_down ','
-        note_key = Msg.KeyNumber (5, 2)
+        note_key = CmdTest.input (5, 2)
         run cstate cmd = extract_logs $ CmdTest.run State.empty cstate cmd
         -- key passed through to cmd_dummy
         through msg = Right (Just [show msg])
 
-    -- abort when keys held down
-    let st = with_key (CmdTest.make_key True Key.ControlL)
-    equal (run st (f True key)) (through key)
+    -- abort when a modifier is down
+    equal (run (with_key (CmdTest.make_key True Key.ControlL)) (f True key))
+        (through key)
 
     let st = Cmd.empty_state
     equal (run st (f True key)) (through note_key)
     equal (run (st { Cmd.state_kbd_entry_octave = 5 }) (f True key))
-        (through (Msg.KeyNumber (6, 2)))
+        (through (CmdTest.input (6, 2)))
     equal (run st (f False key)) (through key)
     equal (run st (f True (CmdTest.key_up ',')))
         (Right (Just [show (CmdTest.key_up ',')]))
 
     equal (run st (f True (CmdTest.make_midi (Midi.NoteOn 25 20))))
-        (Right (Just ["KeyNumber (2,1)"]))
+        (Right (Just ["InputKey (InputKey (2,1))"]))
     equal (run st (f True (CmdTest.make_midi (Midi.NoteOff 25 20))))
         (through (CmdTest.make_midi (Midi.NoteOff 25 20)))
 
@@ -57,7 +59,7 @@ test_with_midi = do
     let cmd_dummy (Msg.Midi rmsg) = Log.warn (show (Midi.rmsg_msg rmsg))
             >> return Cmd.Done
         cmd_dummy msg = error (show msg)
-    let f = KbdEntry.with_midi cmd_dummy
+    let f = KbdEntry.with_midi Twelve.scale_id cmd_dummy
         key = CmdTest.key_down ','
         run cstate cmd = extract_logs $ CmdTest.run State.empty cstate cmd
     let st = Cmd.empty_state
@@ -73,8 +75,8 @@ test_with_midi = do
     equal (run st (f key)) (Right Nothing)
 
 test_midi_from_kbd = do
-    let f octave down key = extract $
-            KbdEntry.midi_from_kbd octave (CmdTest.make_key down key)
+    let f octave down key = extract $ KbdEntry.midi_from_kbd
+            Twelve.scale octave (CmdTest.make_key down key)
         extract (Just (Msg.Midi rmsg)) = Just (Midi.rmsg_msg rmsg)
         extract _ = Nothing
         mkmsg = Midi.ChannelMessage 0
@@ -87,5 +89,10 @@ test_midi_from_kbd = do
     equal (f 0 True (Key.KeyChar '\'')) $
         Just (mkmsg (Midi.NoteOn 12 100))
 
+    equal (f 0 True (Key.KeyChar '\'')) $
+        Just (mkmsg (Midi.NoteOn 12 100))
+    equal (f 0 True (Key.KeyChar '1')) $
+        Just (mkmsg (Midi.NoteOn 11 100)) -- 23
+
     equal (f 0 True Key.Backspace) Nothing
-    equal (f 0 True (Key.KeyChar '1')) Nothing
+    equal (f 0 True (Key.KeyChar '[')) Nothing

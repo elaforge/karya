@@ -3,7 +3,6 @@ module Cmd.EditUtil_test where
 import Util.Test
 
 import qualified Ui.Key as Key
-import qualified Cmd.Msg as Msg
 import qualified Cmd.CmdTest as CmdTest
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Perform.Pitch as Pitch
@@ -13,9 +12,9 @@ import qualified Cmd.EditUtil as EditUtil
 
 test_get_note = do
     let f = EditUtil.get_note Twelve.scale_id
-    equal (f (Msg.KeyNumber (1, 2))) (Just (Right (Just (Pitch.Note "1d-"))))
-    equal (f (Msg.KeyNumber (100, 0)))
-        (Just (Left "ScaleId \"twelve\": keynum out of range: (100,0)"))
+    equal (f (CmdTest.input (1, 2))) (Just (Right (Just (Pitch.Note "1d-"))))
+    equal (f (CmdTest.input (100, 0)))
+        (Just (Left "ScaleId \"twelve\": input out of range: InputKey (100,0)"))
     equal (f (CmdTest.make_key True Key.Backspace)) (Just (Right Nothing))
     equal (f (CmdTest.make_key True (Key.KeyChar 'c'))) Nothing
 

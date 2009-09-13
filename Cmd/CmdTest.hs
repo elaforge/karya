@@ -16,6 +16,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Derive.Score as Score
 
+import qualified Perform.Pitch as Pitch
 import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Controller as Midi.Controller
@@ -123,3 +124,6 @@ make_midi :: Midi.ChannelMessage -> Msg.Msg
 make_midi chan_msg = Msg.Midi $
     Midi.ReadMessage (Midi.ReadDevice "test") Timestamp.immediately
         (Midi.ChannelMessage 0 chan_msg)
+
+input :: (Pitch.Octave, Int) -> Msg.Msg
+input = Msg.InputKey . Pitch.InputKey

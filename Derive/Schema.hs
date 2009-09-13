@@ -170,12 +170,11 @@ default_cmds context = wrap $ case maybe_track_type of
             Cmd.ValEdit -> [ControlTrack.cmd_val_edit]
             Cmd.MethodEdit -> [ControlTrack.cmd_method_edit]
     where
-    wrap cmds = universal ++ cmds ++ if kbd_entry
-        then [KbdEntry.cmd_eat_keys] else []
+    wrap cmds = universal ++ cmds
     universal =
         with_note (PitchTrack.cmd_record_note_status scale_id) : midi_thru
     with_note = KbdEntry.with_note kbd_entry
-    with_midi = if kbd_entry then KbdEntry.with_midi else id
+    with_midi = if kbd_entry then KbdEntry.with_midi scale_id else id
     edit_mode = ctx_edit_mode context
     kbd_entry = ctx_kbd_entry context
 

@@ -26,7 +26,7 @@ data Pitch = Pitch {
 -- | Verify that the string is a valid note in the scale, and return the Pitch.
 pitch :: Scale -> String -> Maybe Pitch
 pitch scale note_str =
-    fmap (const (Pitch (scale_id scale) note)) (scale_to_nn scale note)
+    fmap (const (Pitch (scale_id scale) note)) (scale_note_to_nn scale note)
     where note = Note note_str
 
 -- | This is in tempered scale notes with the same note range as MIDI, so
@@ -40,13 +40,15 @@ un_nn (NoteNumber nn) = nn
 nn :: (Real a) => a -> NoteNumber
 nn = NoteNumber . realToFrac
 
+-- A scale independent pitch.  The definitions of the octave and the degree
+-- offset are up to the scale.
+newtype GenericPitch = GenericPitch (Octave, Int) deriving (Eq, Ord, Show)
+
 -- | A physically played key, either on the midi keyboard or letter keyboard.
--- This isn't the same as the midi note number because the midi note number
--- represents a certain tempered pitch, while this is an abstract
--- representation of a pitch in any scale.
---
--- (octave, note)
-type KeyNumber = (Int, Int)
+newtype InputKey = InputKey (Octave, Int) deriving (Eq, Ord, Show)
+
+
+type Octave = Int
 
 
 -- * scale
@@ -67,17 +69,18 @@ data Scale = Scale {
     -- doesn't have to follow any particular syntax.  A regex is recommended
     -- though.
     , scale_pattern :: String
-    -- | Transpose the given note by the given scale steps, or octaves.
-    -- Return an error if it couldn't be transposed for some reason.
-    , scale_transpose :: Int -> Note -> Either Error Note
-    , scale_transpose_octave :: Int -> Note -> Either Error Note
 
     -- | Convert the scale note to a pitch with frequency.  Returns Nothing
     -- if the note isn't part of the scale.
-    , scale_to_nn :: Note -> Maybe NoteNumber
-    -- | Convert from a keynum to a Note, or Nothing if the keynum is out of
+    , scale_note_to_nn :: Note -> Maybe NoteNumber
+    -- | Convert from an InputKey to a Note, or Nothing if the it's out of
     -- range for this scale.
-    , scale_key_to_note :: KeyNumber -> Maybe Note
+    , scale_input_to_note :: InputKey -> Maybe Note
+
+    -- | Transpose the given note by the given scale steps, or octaves.
+    -- Return an error if it couldn't be transposed for some reason.
+    , scale_transpose :: Transposer
+    , scale_transpose_octave :: Transposer
 
     -- | A special hack for midi, since it needs additional pitch bend msgs
     -- to play a non-tempered scale (well, there is a midi tuning standard, but
@@ -93,9 +96,41 @@ data Scale = Scale {
     , scale_set_pitch_bend :: Bool
     }
 
+type Transposer = Int -> Note -> Either Error Note
+
 note_in_scale :: Scale -> Note -> Bool
-note_in_scale scale = Maybe.isJust . scale_to_nn scale
+note_in_scale scale = Maybe.isJust . scale_note_to_nn scale
 
 data Error = NotInScale | OutOfRange deriving (Eq, Read, Show)
 instance Error.Error Error where
     strMsg = const NotInScale -- this is stupid but necessary
+
+
+-- * scale utils
+
+-- | Construct data structures to implement a scale.
+--
+-- @input_to_generic@ is separate because multiple input keys may map to the
+-- same note.
+make_scale_map :: [(GenericPitch, Note, NoteNumber)]
+    -> [(InputKey, GenericPitch)]
+    -> (Int -> GenericPitch -> GenericPitch)
+    -> (Map.Map Note NoteNumber, Map.Map InputKey Note, Transposer)
+make_scale_map note_map input_to_generic transpose_generic =
+    (note_to_nn, input_to_note, transpose)
+    where
+    (generics, notes, note_numbers) = unzip3 note_map
+    generic_to_note = Map.fromList $ zip generics notes
+    note_to_generic = Map.fromList $ zip notes generics
+    note_to_nn = Map.fromList (zip notes note_numbers)
+
+    input_to_note = Map.fromList (map get input_to_generic)
+        where
+        get (input, generic) = (input, note)
+            where Just note = Map.lookup generic generic_to_note
+
+    transpose n note = do
+        generic <- maybe (Left NotInScale) Right
+            (Map.lookup note note_to_generic)
+        maybe (Left OutOfRange) Right
+            (Map.lookup (transpose_generic n generic) generic_to_note)

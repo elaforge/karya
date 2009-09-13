@@ -121,7 +121,7 @@ parse_pitch_event scale _ event = do
 -- This converts from Pitch to Signal.Val, which loses scale information.
 parse_note :: (Monad m) => Pitch.Scale -> Pitch.Note
     -> Derive.DeriveT m Signal.Val
-parse_note scale note = case Pitch.scale_to_nn scale note of
+parse_note scale note = case Pitch.scale_note_to_nn scale note of
     Nothing -> Derive.throw $
         show note ++ " not in " ++ show (Pitch.scale_id scale)
     Just (Pitch.NoteNumber nn) -> return nn

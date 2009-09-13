@@ -38,9 +38,9 @@
     If responder stack speedup isn't enough, then I can run thru on a separate
     short-circuit threod:
 
-    midi >> to_keynum >> keynum_to_note >> note_to_midi
-    - midi -> keynum (scale-independent representation)
-    - keynum -> note (lookup current inst, lookup note in scale)
+    midi >> to_input >> input_to_note >> note_to_midi
+    - midi -> input (scale-independent representation)
+    - input -> note (lookup current inst, lookup note in scale)
     - note -> nn (lookup note in scale)
 
     The nice thing about this is it unifies the "(note_c, vel_c)->midi" backend
@@ -57,12 +57,12 @@
     device and sending it back out.  A single NoteOn turns into three msgs
     (pitch, vel, note) and turns back into a single NoteOn.
 
-    to_keynum (NoteOn nn vel) =
+    to_input (NoteOn nn vel) =
         [KeyNum oct degree offset, Control "vel" vel, NoteOn]
         where
-        (oct, degree, offset) = nn_to_keynum controller_pb_range nn
+        (oct, degree, offset) = nn_to_input controller_pb_range nn
 
-    keynum_to_note cur_inst_scale keynum = ...
+    input_to_note cur_inst_scale input = ...
     note_to_midi note_c vel_c = note_to_nn note_c
 
     Requirements:
@@ -84,10 +84,10 @@
         where
             -- some multiplication
             -- (oct, degree, offset)
-        keynum = pitch_from_midi (c_pb_range controller) (chan_pb chan_state) nn
-            -- lookup keynum in scale, twelve should be fast since keynum is
+        input = pitch_from_midi (c_pb_range controller) (chan_pb chan_state) nn
+            -- lookup input in scale, twelve should be fast since input is
             -- already even tempered
-        note = keynum_to_note (inst_scale inst) keynum
+        note = input_to_note (inst_scale inst) input
         note_to_midi (inst_pb_range inst)
 
     3 scales: controller scale, ptrack scale, inst scale
@@ -111,8 +111,8 @@
     account.  For note entry, controller and ptrack scales are needed.  For
     performance, ptrack and inst scales are needed.
 
-    midi/kbd -> to_keynum c_scale -> keynum_to_note ptrack_scale -> track
-                                  -> keynum_to_midi inst_scale -> midi out
+    midi/kbd -> to_input c_scale -> input_to_note ptrack_scale -> track
+                                 -> input_to_midi inst_scale -> midi out
 
     TODO
     - complete current hybrid Note / ReadMessage approach with only simple thru
@@ -124,7 +124,7 @@
       - 3 requires NoteOn NoteOff and Control msgs, also Twelve etc. should
         support fractional notes.  I also need to know the scale and pb_range
         of the controller, so implement ControllerInfo in the static config.
-      - 4 requires keynum_to_midi, this should use the same code as the
+      - 4 requires input_to_midi, this should use the same code as the
         performer when it turns a pitch signal into nn+pb.
       - 5 requires the ChannelMap to thread through midi_thru and the same
         logic as the performer
@@ -174,18 +174,7 @@ settled.
 
 -- * with_note
 
--- | Eat kbd_entry keys so they don't fall through to other cmds.
-cmd_eat_keys :: Cmd.Cmd
-cmd_eat_keys msg = do
-    has_mods <- are_modifiers_down
-    when has_mods Cmd.abort -- keys with mods go through
-    case Msg.key msg of
-        Just (Key.KeyChar c) | c `Map.member` note_map -> return Cmd.Done
-        _ -> return Cmd.Continue
-
--- | @Nothing@ means no match, @Just Nothing@ means matched, but no Note should
--- be emitted, and @Just (Just Note)@ means to emit the given Note.
-type Translator = Msg.Msg -> Maybe (Maybe Msg.Msg)
+type Translator = Msg.Msg -> Maybe Msg.Msg
 
 -- | Take a Key (if @kbd_entry@ is True) or a ReadMessage to a Ui.Note.
 with_note :: Bool -> Cmd.Cmd -> Cmd.Cmd
@@ -196,69 +185,69 @@ with_note kbd_entry cmd msg = do
             octave <- fmap Cmd.state_kbd_entry_octave Cmd.get_state
             return (note_from_kbd octave msg)
         else return Nothing
-    let midi_note = note_from_midi msg
-    let maybe_new_msg = kbd_note `mplus` midi_note
+    let maybe_new_msg = kbd_note `mplus` note_from_midi msg
     case maybe_new_msg of
-        Just (Just new_msg) -> cmd new_msg
-        Just Nothing -> Cmd.abort
+        Just new_msg -> cmd new_msg
         Nothing -> cmd msg
 
 note_from_kbd :: Cmd.Octave -> Translator
-note_from_kbd octave (Msg.key -> Just key) = case key_to_keynum octave key of
-    Just (Just keynum) -> Just (Just (Msg.KeyNumber keynum))
-    Just Nothing -> Just Nothing
-    Nothing -> Nothing
+note_from_kbd octave (Msg.key -> Just key) =
+    fmap Msg.InputKey (key_to_input octave key)
 note_from_kbd _ _ = Nothing
 
 note_from_midi :: Translator
 note_from_midi (Msg.midi -> Just (Midi.ChannelMessage _ (Midi.NoteOn nn _))) =
-    Just $ Just $ Msg.KeyNumber (nn_to_keynum nn)
+    Just $ Msg.InputKey (nn_to_input nn)
 note_from_midi _ = Nothing
 
 -- * with_midi
 
 -- | Take a Key to a ReadMessage, for midi thru.
-with_midi :: Cmd.Cmd -> Cmd.Cmd
-with_midi cmd msg = do
+with_midi :: Pitch.ScaleId -> Cmd.Cmd -> Cmd.Cmd
+with_midi scale_id cmd msg = do
     has_mods <- are_modifiers_down
     when has_mods Cmd.abort
+    scale <- Cmd.get_scale "with_midi" scale_id
     octave <- fmap Cmd.state_kbd_entry_octave Cmd.get_state
-    let new_msg = midi_from_kbd octave msg
+    let new_msg = midi_from_kbd scale octave msg
     case new_msg of
         Nothing -> Cmd.abort
         Just msg -> cmd msg
 
+midi_from_kbd :: Pitch.Scale -> Cmd.Octave -> Msg.Msg -> Maybe Msg.Msg
+midi_from_kbd scale octave msg = do
+    (state, key) <- key_char msg
+    input <- key_to_input octave key
+    chan_msg <- midi_of scale state input
+    return $ kbd_read_message chan_msg
+
 key_char (Msg.Ui (UiMsg.UiMsg _ (UiMsg.MsgEvent (UiMsg.Kbd state key)))) =
     Just (state, key)
 key_char _ = Nothing
-
-midi_from_kbd :: Cmd.Octave -> Msg.Msg -> Maybe Msg.Msg
-midi_from_kbd octave msg = case key_char msg of
-    Just (state, key) -> case key_to_keynum octave key of
-        Just (Just keynum) -> Just (kbd_read_message (midi_of state keynum))
-        Just Nothing -> Nothing
-        Nothing -> Nothing
-    Nothing -> Nothing
 
 kbd_read_message :: Midi.ChannelMessage -> Msg.Msg
 kbd_read_message chan_msg = Msg.Midi $
     Midi.ReadMessage (Midi.ReadDevice "kbd_entry") Timestamp.immediately
         (Midi.ChannelMessage 0 chan_msg)
 
-midi_of :: UiMsg.KbdState -> Pitch.KeyNumber -> Midi.ChannelMessage
-midi_of state keynum = case state of
-    UiMsg.KeyDown -> Midi.NoteOn nn vel
-    UiMsg.KeyUp -> Midi.NoteOff nn vel
-    where
-    nn = keynum_to_nn keynum
-    vel = 100
+midi_of :: Pitch.Scale -> UiMsg.KbdState -> Pitch.InputKey
+    -> Maybe Midi.ChannelMessage
+midi_of scale state input = do
+    nn <- input_to_nn scale input
+    return $ case state of
+        UiMsg.KeyDown -> Midi.NoteOn nn 100
+        UiMsg.KeyUp -> Midi.NoteOff nn 100
 
--- TODO deal with out of range KeyNumbers
-keynum_to_nn :: Pitch.KeyNumber -> Midi.Key
-keynum_to_nn (octave, degree) = fromIntegral (octave * 12 + degree)
+input_to_nn :: Pitch.Scale -> Pitch.InputKey -> Maybe Midi.Key
+input_to_nn scale input = do
+    note <- Pitch.scale_input_to_note scale input
+    Pitch.NoteNumber nn <- Pitch.scale_note_to_nn scale note
+    -- TODO send PitchBend, but this will eventually be unified with MidiThru
+    -- anyway
+    return $ floor nn
 
-nn_to_keynum :: Midi.Key -> Pitch.KeyNumber
-nn_to_keynum nn = (fromIntegral oct, fromIntegral degree)
+nn_to_input :: Midi.Key -> Pitch.InputKey
+nn_to_input nn = Pitch.InputKey (fromIntegral oct, fromIntegral degree)
     where (oct, degree) = nn `divMod` 12
 
 are_modifiers_down :: (Monad m) => Cmd.CmdT m Bool
@@ -266,45 +255,33 @@ are_modifiers_down = fmap (not . Set.null) Keymap.mods_down
 
 -- * implementation
 
-key_to_keynum :: Cmd.Octave -> Key.Key -> Maybe (Maybe Pitch.KeyNumber)
-key_to_keynum octave (Key.KeyChar c) =
-    (fmap . fmap) (\(oct, n) -> (oct+octave, n)) $ Map.lookup c note_map
-key_to_keynum _ _ = Nothing
-note_map = Map.fromList (ignore_keys ++ upper_notes ++ lower_notes)
+key_to_input :: Pitch.Octave -> Key.Key -> Maybe Pitch.InputKey
+key_to_input oct_transpose (Key.KeyChar c) =
+    fmap (add_oct oct_transpose) (Map.lookup c note_map)
+key_to_input _ _ = Nothing
 
--- | Kbd entry doesn't map all the keys, and it's annoying when you
--- accidentally hit a key that falls through and does some function you don't
--- want.  So find all the alphanumeric keys that aren't mapped and give them
--- a dummy command.  It's only alphanum because zoom, play, etc. are still
--- useful.
-ignore_keys, lower_notes, upper_notes :: [(Char, Maybe Pitch.KeyNumber)]
-ignore_keys = zip "abcdefghijklmnopqrstuvwxyz01234567890" (repeat Nothing)
+add_oct :: Pitch.Octave -> Pitch.InputKey -> Pitch.InputKey
+add_oct oct (Pitch.InputKey (o, n)) = Pitch.InputKey (oct+o, n)
 
-lower_notes = make_key_map 0
-    [ 'z', 's' -- C
-    , 'x', 'd' -- D
-    , 'c'
-    , 'v', 'g' -- F
-    , 'b', 'h'
-    , 'n', 'j' -- A
-    , 'm'
-    , ',' -- C
-    ]
+note_map :: Map.Map Char Pitch.InputKey
+note_map = Map.fromList (upper_notes ++ lower_notes)
 
-upper_notes = make_key_map 1
-    [ 'q', '2' -- C
-    , 'w', '3' -- D
-    , 'e'
-    , 'r', '5' -- F
-    , 't', '6'
-    , 'y', '7' -- A
-    , 'u'
-    , 'i' -- C
-    ]
+-- | These are the 10 keys from left to right, not including @[]-=@ etc. since
+-- those don't appear on the lower \"manual\" and they're useful for other
+-- things anyway.
+--
+-- Qwerty's @z@ and @q@ should be the "middle C" of the scale in two different
+-- octaves, whatever that means.
+--
+-- This maps @a@ and @1@ to degree -1.  Even if the scale doesn't understand
+-- that, it keeps those keys from leaking through to trigger some other
+-- command.
+lower_notes, upper_notes :: [(Char, Pitch.InputKey)]
+lower_notes = make_key_map 0 "azsxdcfvgbhnjmk,l.;/"
+upper_notes = make_key_map 1 "1q2w3e4r5t6y7u8i9o0p"
 
-make_key_map :: Cmd.Octave -> [Char] -> [(Char, Maybe Pitch.KeyNumber)]
-make_key_map base_oct = map mk_keynum . zip [0..]
+make_key_map :: Cmd.Octave -> [Char] -> [(Char, Pitch.InputKey)]
+make_key_map oct = map mk_input . zip [-1..]
     where
-    mk_keynum (n0, c) =
-        (Keymap.hardcoded_kbd_layout Map.! c, Just (base_oct + oct, n1))
-        where (oct, n1) = (n0 `divMod` 12)
+    mk_input (n, c) =
+        (Keymap.hardcoded_kbd_layout Map.! c, Pitch.InputKey (oct, n))

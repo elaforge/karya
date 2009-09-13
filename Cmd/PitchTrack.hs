@@ -45,12 +45,12 @@ cmd_method_edit_at tracksel key = do
 -- | Record the last note entered.  Should be called by 'with_note'.
 cmd_record_note_status :: Pitch.ScaleId -> Cmd.Cmd
 cmd_record_note_status scale_id msg = do
-    keynum <- case msg of
-        Msg.KeyNumber keynum -> return keynum
+    input <- case msg of
+        Msg.InputKey input -> return input
         _ -> Cmd.abort
     let status = case EditUtil.get_note scale_id msg of
             Just (Right (Just note)) -> Pitch.note_text note
-            _ -> show keynum
+            _ -> show input
     Cmd.set_status "note" (Just status)
     return Cmd.Continue
 

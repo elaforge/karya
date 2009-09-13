@@ -47,6 +47,7 @@ import qualified App.Config as Config
 import qualified App.StaticConfig as StaticConfig
 
 import qualified Local.Instrument
+import qualified Local.Instrument.Fm8 as Fm8
 
 -- This is only used by the interpreter,  but by importing it here I can make
 -- sure it doesn't have any compile errors in advance.
@@ -72,7 +73,7 @@ load_static_config = do
         , StaticConfig.config_schema_map = Map.empty
         , StaticConfig.config_local_lang_dirs = [app_dir </> Config.lang_dir]
         , StaticConfig.config_global_cmds = []
-        , StaticConfig.config_setup_cmd = old_setup_cmd
+        , StaticConfig.config_setup_cmd = setup_cmd
         , StaticConfig.config_read_device_map = read_device_map
         , StaticConfig.config_write_device_map = write_device_map
         }
@@ -82,8 +83,7 @@ tapco n = "Tapco Link MIDI USB Ver 2.2 Port " ++ show n
 mkmap mkdev pairs = Map.fromList [(mkdev k, mkdev v) | (k, v) <- pairs]
 
 write_device_map = mkmap Midi.WriteDevice
-    [ ("fm8", iac 1)
-    , ("z1", tapco 1)
+    [ ("z1", tapco 1)
     , ("vl1", tapco 2)
     , ("morpheus", tapco 2)
     , ("pc_2496", tapco 3)
@@ -196,12 +196,12 @@ responder_handler exc = do
 make_write_midi :: Map.Map Midi.WriteDevice Midi.WriteDevice
     -> MidiImp.WriteMap -> Midi.WriteMessage -> IO ()
 make_write_midi wdev_map write_map (Midi.WriteMessage wdev ts msg) = do
+    putStrLn $ "PLAY " ++ show (wdev, ts, msg)
     let real_wdev = Util.Data.get wdev wdev wdev_map
     case Map.lookup real_wdev write_map of
         Nothing -> Log.error $ show real_wdev ++ " not in devs: "
             ++ show (Map.keys write_map)
         Just dev_id -> do
-            -- putStrLn $ "PLAY " ++ show (wdev, ts, msg)
             MidiImp.write_message dev_id ts msg
 
 
@@ -214,7 +214,7 @@ print_devs rdev_map wdev_map = do
 
 setup_cmd :: [String] -> Cmd.CmdIO
 setup_cmd _args = do
-    Save.cmd_load "save/blank.state"
+    Save.cmd_load "save/blank"
     State.set_project "untitled"
     return Cmd.Done
 
@@ -251,7 +251,7 @@ setup_big _ = do
         vels = [1, 0.9, 0.8, 0.7, 0.6, 0.4, 0.3, 0.2]
         mknotes notes = map UiTest.mkevent
             [(i*0.25, 0.2, to_str (oct, n)) | (i, (oct, n)) <- zip [0..] notes]
-        to_str n = case Twelve.key_to_note n of
+        to_str n = case Map.lookup (Pitch.InputKey n) Twelve.input_to_note of
             Just (Pitch.Note s) -> s
             Nothing -> error $ "converting " ++ show n
         mkvels vels = map UiTest.mkevent
@@ -286,4 +286,4 @@ empty_block = do
 
 inst_config =
     Instrument.config [(Score.Instrument "fm8/bass", addrs)] Nothing
-    where addrs = [(Midi.WriteDevice "fm8", n) | n <- [0..2]]
+    where addrs = [(Instrument.synth_device Fm8.fm8, n) | n <- [0..2]]
