@@ -104,16 +104,16 @@ get_note scale_id (Msg.InputKey input) = Just $ do
     note <- maybe (Left $ msg ++ "get_note input out of range: " ++ show input)
         Right (Pitch.scale_input_to_note scale input)
     return (Just note)
-get_note _ (Msg.key -> Just Key.Backspace) = Just (Right Nothing)
+get_note _ (Msg.key_down -> Just Key.Backspace) = Just (Right Nothing)
 get_note _ _ = Nothing
 
 get_key :: Msg.Msg -> Maybe Key.Key
-get_key (Msg.key -> Just key) = Just key
+get_key (Msg.key_down -> Just key) = Just key
 get_key _ = Nothing
 
 edit_key_of :: Pitch.ScaleId -> Msg.Msg -> Either String (Maybe EditKey)
     -- No, these are not overlapped, ghc is wrong.
-edit_key_of _ (Msg.key -> Just key) = Right (Just (Key key))
+edit_key_of _ (Msg.key_down -> Just key) = Right (Just (Key key))
 edit_key_of scale_id (get_note scale_id -> Just err_note) = case err_note of
     Left err -> Left err
     Right (Just note) -> Right (Just (Note note))

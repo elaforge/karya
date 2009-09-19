@@ -43,10 +43,15 @@ mouse (Ui (UiMsg.UiMsg _ (UiMsg.MsgEvent mouse@(UiMsg.Mouse {})))) =
     Just mouse
 mouse _ = Nothing
 
-key :: Msg -> Maybe Key.Key
-key (Ui (UiMsg.UiMsg _ (UiMsg.MsgEvent (UiMsg.Kbd UiMsg.KeyDown key)))) =
-    Just key
+key :: Msg -> Maybe (Bool, Key.Key)
+key (Ui (UiMsg.UiMsg _ (UiMsg.MsgEvent (UiMsg.Kbd state key)))) =
+    Just (state == UiMsg.KeyDown, key)
 key _ = Nothing
+
+key_down :: Msg -> Maybe Key.Key
+key_down msg = case key msg of
+    Just (True, k) -> Just k
+    _ -> Nothing
 
 midi :: Msg -> Maybe Midi.Message
 midi (Midi (Midi.ReadMessage { Midi.rmsg_msg = msg })) = Just msg

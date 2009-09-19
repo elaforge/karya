@@ -181,7 +181,7 @@ mods_down = do
 
 msg_to_bindable :: Msg.Msg -> Maybe Bindable
 msg_to_bindable msg = case msg of
-    (Msg.key -> Just key) -> Just $ Key key
+    (Msg.key_down -> Just key) -> Just $ Key key
     (Msg.mouse -> Just mouse) -> case UiMsg.mouse_state mouse of
         UiMsg.MouseDown btn -> Just $ Click btn (UiMsg.mouse_clicks mouse)
         UiMsg.MouseDrag btn -> Just $ Drag btn
