@@ -89,6 +89,7 @@ import qualified Text.ParserCombinators.Parsec as P
 
 import Util.Control ((#>>))
 import qualified Util.Log as Log
+import qualified Util.Parse as Parse
 import Util.Seq as Seq
 
 import Ui.Types
@@ -101,7 +102,6 @@ import qualified Ui.Track as Track
 import qualified Derive.Controller as Controller
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
-import qualified Derive.Parse as Parse
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
@@ -206,9 +206,9 @@ parse_args ws = (call, args, errs1 ++ errs2)
 parse_arg :: (String, String) -> Either String CallArg
 parse_arg (desc, "") = Left $ desc ++ ": empty word, this shouldn't happen!"
 parse_arg (desc, word@(c:rest))
-    | Char.isDigit c || c == '.' = case Parse.parse_float word of
-        (Just val, "") -> Right (Number val)
-        _ -> Left $ desc ++ ": can't parse number " ++ show word
+    | Char.isDigit c || c == '.' = case Parse.float word of
+        Just val -> Right (Number val)
+        Nothing -> Left $ desc ++ ": can't parse number " ++ show word
     | c == '*' = Right (Note (Pitch.Note rest))
     | otherwise = Right (String word)
 

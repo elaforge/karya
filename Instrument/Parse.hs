@@ -11,9 +11,10 @@ import qualified Text.ParserCombinators.Parsec as Parsec
 import qualified Text.ParserCombinators.Parsec.Pos as Parsec.Pos
 import Text.ParserCombinators.Parsec ((<|>), (<?>))
 
+import qualified Util.Parse as Parse
+
 import qualified Util.File as File
 import qualified Midi.Midi as Midi
-import qualified Derive.Parse as Parse
 import qualified Perform.Midi.Controller as Controller
 import qualified Perform.Midi.Instrument as Instrument
 

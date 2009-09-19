@@ -25,6 +25,7 @@ import qualified Text.ParserCombinators.Parsec as P
 import Text.ParserCombinators.Parsec ((<|>), (<?>))
 
 import Util.Control ((#>>))
+import qualified Util.Parse as Parse
 
 import qualified Ui.Event as Event
 import qualified Ui.Track as Track
@@ -35,7 +36,7 @@ import qualified Perform.Signal as Signal
 import qualified Perform.Warning as Warning
 
 import qualified Derive.Derive as Derive
-import qualified Derive.Parse as Parse
+import qualified Derive.Parse as Derive.Parse
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 
@@ -87,7 +88,7 @@ d_signal events = fmap (Signal.track_signal Signal.default_srate)
 parse_event :: (Monad m) => () -> Score.Event
     -> Derive.DeriveT m (TrackPos, Signal.Method, Signal.Val)
 parse_event _ event = do
-    (method, val) <- Parse.parse p_segment (Score.event_text event)
+    (method, val) <- Derive.Parse.parse p_segment (Score.event_text event)
     return (Score.event_start event, method, val)
 
 p_segment :: P.CharParser st (Signal.Method, Signal.Val)
@@ -110,7 +111,7 @@ d_pitch_signal scale_id events = do
 parse_pitch_event :: (Monad m) => Pitch.Scale -> () -> Score.Event
     -> Derive.DeriveT m (TrackPos, Signal.Method, Signal.Val)
 parse_pitch_event scale _ event = do
-    (method, note) <- Parse.parse p_note_segment (Score.event_text event)
+    (method, note) <- Derive.Parse.parse p_note_segment (Score.event_text event)
     val <- parse_note scale note
     return (Score.event_start event, method, val)
 
