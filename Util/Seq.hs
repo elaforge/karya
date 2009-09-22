@@ -60,6 +60,18 @@ modify_at xs i f = case post of
         (elt:rest) -> (pre ++ f elt : rest)
     where (pre, post) = splitAt i xs
 
+-- * min max
+
+minimum_with :: (Ord ord) => (a -> ord) -> a -> [a] -> a
+minimum_with _ ifnull [] = ifnull
+minimum_with key _ xs = foldl1' f xs
+    where f low x = if key x < key low then x else low
+
+maximum_with :: (Ord ord) => (a -> ord) -> a -> [a] -> a
+maximum_with _ ifnull [] = ifnull
+maximum_with key _ xs = foldl1' f xs
+    where f high x = if key x > key high then x else high
+
 -- * ordered lists
 
 -- | Merge sorted lists.  If two elements compare equal, the one from the left
@@ -96,11 +108,21 @@ group_with :: (Ord b) => (a -> b) -> [a] -> [[a]]
 group_with key = groupBy ((==) `on` key) . sortBy (compare `on` key)
 
 -- | Pair each element with the following element.  The last element is paired
--- with Nothing.  Like @zip xs (drop 1 xs ++ f (last xs))@ but more efficient.
+-- with Nothing.  Like @zip xs (drop 1 xs ++ f (last xs))@ but only traverses
+-- @xs@ once.
 zip_next :: [a] -> [(a, Maybe a)]
 zip_next [] = []
 zip_next [x] = [(x, Nothing)]
-zip_next (x : rest@(y:_)) = (x, Just y) : zip_next rest
+zip_next (x : xs@(y:_)) = (x, Just y) : zip_next xs
+
+-- | Like 'zip_next' but with preceeding and folowwing elements.
+zip_neighbors :: [a] -> [(Maybe a, a, Maybe a)]
+zip_neighbors [] = []
+zip_neighbors (x:xs) = (Nothing, x, mhead Nothing (map Just xs)) : go x xs
+    where
+    go _ [] = []
+    go prev [x] = [(Just prev, x, Nothing)]
+    go prev (x : xs@(y:_)) = (Just prev, x, Just y) : go x xs
 
 -- * sublists
 

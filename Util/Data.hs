@@ -34,8 +34,8 @@ split3_map low high fm = (below, within, way_above)
 
 within low high fm = let (_, m, _) = split3_map low high fm in m
 
-invert_map :: (Ord k, Ord a) => Map.Map k a -> Map.Map a [k]
-invert_map = multimap . map (\(x, y) -> (y, x)) . Map.assocs
+invert_map :: (Ord k, Ord a) => Map.Map k a -> Map.Map a k
+invert_map = Map.fromList . map (\(x, y) -> (y, x)) . Map.assocs
 
 -- Would it be more efficient to do 'fromListWith (++)'?
 multimap :: (Ord k, Ord a) => [(k, a)] -> Map.Map k [a]

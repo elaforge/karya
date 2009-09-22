@@ -1,3 +1,4 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {- | Representation for scales, pitches, and frequencies (note numbers).
 
     Pitches have a scale, and can be transposed via their scale.  However, they
@@ -29,24 +30,53 @@ pitch scale note_str =
     fmap (const (Pitch (scale_id scale) note)) (scale_note_to_nn scale note)
     where note = Note note_str
 
--- | This is in tempered scale notes with the same note range as MIDI, so
+-- * nn
+
+-- | This is in equal tempered scale notes with the same definition as MIDI, so
 -- MIDI note 0 is NoteNumber 0, at 8.176 Hz.  Middle C is NoteNumber 60.
 --
 -- It would be less tempered-centric to use hz, but for the moment this seems
 -- practical since note numbers are easier to read.
-newtype NoteNumber = NoteNumber Double deriving (Eq, Ord, Show)
-un_nn (NoteNumber nn) = nn
+newtype NoteNumber = NoteNumber Double deriving (Eq, Ord, Show, Fractional, Num)
 
 nn :: (Real a) => a -> NoteNumber
 nn = NoteNumber . realToFrac
 
+-- * hz
+
+type Hz = Double
+
+add_hz :: Hz -> NoteNumber -> NoteNumber
+add_hz 0 nn = nn -- hz_to_nn . nn_to_hz adds a tiny bit of inaccuracy TODO fix?
+add_hz hz nn = hz_to_nn (hz + nn_to_hz nn)
+
+nn_to_hz :: NoteNumber -> Hz
+nn_to_hz (NoteNumber nn) = exp (nn * _equal1 + _equal2)
+
+hz_to_nn :: Hz -> NoteNumber
+hz_to_nn hz = NoteNumber $ (log hz - _equal2) / _equal1
+
+-- | Constants to calculate equal tempered conversions.
+_equal1 = log 2 / 12
+_equal2 = log a_hz - (a_nn * _equal1)
+    where
+    -- NoteNumber is defined with these values.  Ultimately it's because midi
+    -- synthesizers are by default defined with these values.
+    a_hz = 440
+    a_nn = 69
+
+-- * misc
+
+-- | A physically played key that hasn't been mapped to a scale yet.
+newtype InputKey = InputKey Double deriving (Eq, Ord, Show)
+
+-- | Useful to orient scales around a common center.
+middle_c :: InputKey
+middle_c = InputKey 60
+
 -- A scale independent pitch.  The definitions of the octave and the degree
 -- offset are up to the scale.
-newtype GenericPitch = GenericPitch (Octave, Int) deriving (Eq, Ord, Show)
-
--- | A physically played key, either on the midi keyboard or letter keyboard.
-newtype InputKey = InputKey (Octave, Int) deriving (Eq, Ord, Show)
-
+newtype GenericPitch = GenericPitch (Octave, Double) deriving (Eq, Ord, Show)
 
 type Octave = Int
 
@@ -77,6 +107,10 @@ data Scale = Scale {
     -- range for this scale.
     , scale_input_to_note :: InputKey -> Maybe Note
 
+    -- | This could be implemented as @input_to_note >>= note_to_nn@ but
+    -- it will be more efficient to bypass the Note.  Used by midi thru.
+    , scale_input_to_nn :: InputKey -> Maybe NoteNumber
+
     -- | Transpose the given note by the given scale steps, or octaves.
     -- Return an error if it couldn't be transposed for some reason.
     , scale_transpose :: Transposer
@@ -96,7 +130,7 @@ data Scale = Scale {
     , scale_set_pitch_bend :: Bool
     }
 
-type Transposer = Int -> Note -> Either Error Note
+type Transposer = Double -> Note -> Either Error Note
 
 note_in_scale :: Scale -> Note -> Bool
 note_in_scale scale = Maybe.isJust . scale_note_to_nn scale
@@ -104,35 +138,3 @@ note_in_scale scale = Maybe.isJust . scale_note_to_nn scale
 data Error = NotInScale | OutOfRange deriving (Eq, Read, Show)
 instance Error.Error Error where
     strMsg = const NotInScale -- this is stupid but necessary
-
-
--- * scale utils
-
--- | Construct data structures to implement a scale.
---
--- @input_to_generic@ is separate because multiple input keys may map to the
--- same note.  If it maps to generics that don't exist in @note_map@, those
--- inputs will be ignored.
-make_scale_map :: [(GenericPitch, Note, NoteNumber)]
-    -> [(InputKey, GenericPitch)]
-    -> (Int -> GenericPitch -> GenericPitch)
-    -> (Map.Map Note NoteNumber, Map.Map InputKey Note, Transposer)
-make_scale_map note_map input_to_generic transpose_generic =
-    (note_to_nn, input_to_note, transpose)
-    where
-    (generics, notes, note_numbers) = unzip3 note_map
-    generic_to_note = Map.fromList $ zip generics notes
-    note_to_generic = Map.fromList $ zip notes generics
-    note_to_nn = Map.fromList (zip notes note_numbers)
-
-    input_to_note = Map.fromList (concatMap get input_to_generic)
-        where
-        get (input, generic) = case Map.lookup generic generic_to_note of
-            Nothing -> []
-            Just note -> [(input, note)]
-
-    transpose n note = do
-        generic <- maybe (Left NotInScale) Right
-            (Map.lookup note note_to_generic)
-        maybe (Left OutOfRange) Right
-            (Map.lookup (transpose_generic n generic) generic_to_note)

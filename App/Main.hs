@@ -228,7 +228,7 @@ old_setup_cmd _args = do
     State.set_track_title t0 ">fm8/bass"
     t1 <- Create.track bid 3
     State.insert_events t1 $ map UiTest.mkevent
-        [(0, 0, "5c-"), (1, 0, "5d-"), (2, 0, "5e-"), (3, 0, "5f-")]
+        [(0, 0, "5c"), (1, 0, "5d"), (2, 0, "5e"), (3, 0, "5f")]
     State.set_track_title t1 "*twelve"
     State.set_track_width vid 3 50
     -- tempo 1 -> *twelve 3 -> >fm8/bass 2
@@ -250,8 +250,9 @@ setup_big _ = do
     let notes = [0, 3, 2, 5, 3, 6, 4, 7]
         vels = [1, 0.9, 0.8, 0.7, 0.6, 0.4, 0.3, 0.2]
         mknotes notes = map UiTest.mkevent
-            [(i*0.25, 0.2, to_str (oct, n)) | (i, (oct, n)) <- zip [0..] notes]
-        to_str n = case Map.lookup (Pitch.InputKey n) Twelve.input_to_note of
+            [(i*0.25, 0.2, to_str (oct*12 + n))
+                | (i, (oct, n)) <- zip [0..] notes]
+        to_str n = case Twelve.input_to_note (Pitch.InputKey n) of
             Just (Pitch.Note s) -> s
             Nothing -> error $ "converting " ++ show n
         mkvels vels = map UiTest.mkevent

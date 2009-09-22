@@ -120,6 +120,8 @@ parse_pitch_event scale _ event = do
 -- environment or something.
 --
 -- This converts from Pitch to Signal.Val, which loses scale information.
+-- TODO so if I want to have a pitch signal be GenericPitch, here is the place
+-- to change
 parse_note :: (Monad m) => Pitch.Scale -> Pitch.Note
     -> Derive.DeriveT m Signal.Val
 parse_note scale note = case Pitch.scale_note_to_nn scale note of

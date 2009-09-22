@@ -315,13 +315,12 @@ track_info block_id tracknum = do
 -- - Deallocate address asignments for the old instrument, if one is being
 -- replaced.
 -- - Allocate addresses for the new instrument.
--- - Set Cmd.state_chan_map for the addresses.
 -- - Title track with new instrument.
 -- - Send midi init.
 --
--- For example, typing a new instrument in a track title should only set the
--- chan_map, and complain if there is no allocation, but not necessarily
--- deallocate the replaced instrument or send midi init.
+-- For example, typing a new instrument in a track title should only complain
+-- if there is no allocation, but not necessarily deallocate the replaced
+-- instrument or send midi init.
 load_instrument :: String -> Cmd.CmdL ()
 load_instrument inst_name = do
     let inst = Score.Instrument inst_name
@@ -453,8 +452,7 @@ score_to_midi :: [Score.Event]
 score_to_midi events = do
     inst_config <- fmap State.state_midi_config State.get
     lookup <- Cmd.get_lookup_midi_instrument
-    chan_map <- fmap Cmd.state_chan_map Cmd.get_state
     let (midi_events, convert_warnings) = Midi.Convert.convert lookup events
         (midi_msgs, perform_warnings) =
-            Midi.Perform.perform chan_map lookup inst_config midi_events
+            Midi.Perform.perform lookup inst_config midi_events
     return (midi_msgs, convert_warnings ++ perform_warnings)

@@ -30,6 +30,7 @@ import qualified Ui.Update as Update
 
 import qualified Midi.Midi as Midi
 
+import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Msg as Msg
 import qualified Cmd.TimeStep as TimeStep
 
@@ -42,6 +43,7 @@ import qualified App.Config as Config
 import qualified Derive.Derive as Derive
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
+import qualified Perform.Midi.Controller as Controller
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
 
@@ -184,11 +186,14 @@ data State = State {
     -- | The block and track that have focus.  Commands that address
     -- a particular block or track will address these.
     , state_focused_view :: Maybe Block.ViewId
-
     -- | Copies by default go to a block+tracks with this project.
     , state_clip_namespace :: Id.Namespace
-    -- | Running midi state.
-    , state_chan_map :: Instrument.ChannelMap
+
+    -- | Midi state of WriteDevices.
+    , state_wdev_state :: WriteDeviceState
+    -- | Midi state of ReadDevices, including configuration like pitch bend
+    -- range.
+    , state_rdev_state :: ReadDeviceState
 
     -- Editing state
 
@@ -216,7 +221,9 @@ initial_state inst_db schema_map = State {
     , state_derive_threads = Map.empty
     , state_focused_view = Nothing
     , state_clip_namespace = Config.clip_namespace
-    , state_chan_map = Map.empty
+
+    , state_wdev_state = empty_wdev_state
+    , state_rdev_state = Map.empty
 
     , state_edit_mode = NoEdit
     , state_kbd_entry = False
@@ -228,6 +235,30 @@ initial_state inst_db schema_map = State {
 
 empty_state = initial_state Instrument.Db.empty Map.empty
 clear_history cmd_state = cmd_state { state_history = ([], []) }
+
+data WriteDeviceState = WriteDeviceState {
+    -- | Last pb val for each Addr.
+    wdev_pb :: Map.Map Instrument.Addr Midi.PitchBendValue
+    -- | NoteId currently playing in each Addr.  An Addr may have >1 NoteId.
+    , wdev_note_addr :: Map.Map InputNote.NoteId Instrument.Addr
+    -- | Map an addr to a number that increases when it's assigned a note.
+    -- This is used along with 'wdev_serial' to implement addr round-robin.
+    , wdev_addr_serial :: Map.Map Instrument.Addr Integer
+    , wdev_serial :: Integer
+    -- | NoteIds being entered into which pitch tracks.  When entering a chord,
+    -- a PitchChange uses this to know which pitch track to update.
+    , wdev_note_track :: Map.Map InputNote.NoteId Block.TrackNum
+    -- | Remember the current inst of each addr.  More than one instrument or
+    -- keyswitch can share the same addr, so I need to keep track which one is
+    -- active to minimize switches.
+    , wdev_addr_inst :: Map.Map Instrument.Addr Instrument.Instrument
+    } deriving (Eq, Show, Generics.Typeable)
+
+empty_wdev_state :: WriteDeviceState
+empty_wdev_state = WriteDeviceState
+    Map.empty Map.empty Map.empty 0 Map.empty Map.empty
+
+type ReadDeviceState = Map.Map Midi.ReadDevice InputNote.ControllerState
 
 data Performance = Performance {
     perf_msgs :: [Midi.WriteMessage]
@@ -326,23 +357,39 @@ get_clip_namespace = fmap state_clip_namespace get_state
 set_clip_namespace :: (Monad m) => Id.Namespace -> CmdT m ()
 set_clip_namespace ns = modify_state $ \st -> st { state_clip_namespace = ns }
 
-inst_addr_to_chan_map :: MidiDb.LookupMidiInstrument
-    -> Map.Map Score.Instrument [Instrument.Addr]
-    -> (Instrument.ChannelMap, [Score.Instrument])
-inst_addr_to_chan_map lookup_inst inst_addr = (chan_map, failed)
-    where
-    insts = [(lookup_inst Score.no_attrs score_inst, score_inst, addrs)
-        | (score_inst, addrs) <- Map.toList inst_addr]
-    chan_map = Map.fromList [(addr, inst)
-        | (Just inst, _, addrs) <- insts, addr <- addrs]
-    failed = [inst | (Nothing, inst, _) <- insts]
-
 -- | Lookup a scale_id or throw.
 -- TODO merge in the static config scales.
 get_scale :: (Monad m) => String -> Pitch.ScaleId -> CmdT m Pitch.Scale
 get_scale caller scale_id = maybe
     (throw (caller ++ ": unknown " ++ show scale_id)) return
     (Map.lookup scale_id Scale.scale_map)
+
+get_rdev_state :: (Monad m) => Midi.ReadDevice
+    -> CmdT m InputNote.ControllerState
+get_rdev_state rdev = do
+    cmap <- fmap state_rdev_state get_state
+    return $ maybe (InputNote.empty_state Config.controller_pb_range) id
+        (Map.lookup rdev cmap)
+
+set_rdev_state :: (Monad m) => Midi.ReadDevice
+    -> InputNote.ControllerState -> CmdT m ()
+set_rdev_state rdev state = do
+    st <- get_state
+    put_state $ st { state_rdev_state =
+        Map.insert rdev state (state_rdev_state st) }
+
+set_pitch_bend_range :: (Monad m) => Controller.PbRange -> Midi.ReadDevice
+    -> CmdT m ()
+set_pitch_bend_range range rdev = do
+    state <- get_rdev_state rdev
+    set_rdev_state rdev (state { InputNote.state_pb_range = range })
+
+get_wdev_state :: (Monad m) => CmdT m WriteDeviceState
+get_wdev_state = fmap state_wdev_state get_state
+
+set_wdev_state :: (Monad m) => WriteDeviceState -> CmdT m ()
+set_wdev_state wdev_state =
+    modify_state $ \st -> st { state_wdev_state = wdev_state }
 
 -- * basic cmds
 

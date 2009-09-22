@@ -5,7 +5,6 @@ import qualified Ui.Key as Key
 import qualified Cmd.ControlTrack as ControlTrack
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.EditUtil as EditUtil
-import qualified Cmd.Msg as Msg
 import qualified Cmd.Selection as Selection
 
 import qualified Perform.Pitch as Pitch
@@ -45,12 +44,9 @@ cmd_method_edit_at tracksel key = do
 -- | Record the last note entered.  Should be called by 'with_note'.
 cmd_record_note_status :: Pitch.ScaleId -> Cmd.Cmd
 cmd_record_note_status scale_id msg = do
-    input <- case msg of
-        Msg.InputKey input -> return input
+    status <- case EditUtil.get_note scale_id msg of
+        Just (Right (Just note)) -> return $ Pitch.note_text note
         _ -> Cmd.abort
-    let status = case EditUtil.get_note scale_id msg of
-            Just (Right (Just note)) -> Pitch.note_text note
-            _ -> show input
     Cmd.set_status "note" (Just status)
     return Cmd.Continue
 

@@ -19,7 +19,7 @@ test_lookup_instrument = do
 
     let ks name key = Just (Instrument.Keyswitch name key)
         kkt_inst name = Instrument.Instrument "kkt" name Nothing
-            ("kkt/" ++ name) Controller.default_controllers (-96, 96) Nothing
+            ("kkt/" ++ name) Controller.empty_map (-96, 96) Nothing
             Instrument.default_scale
         hang = kkt_inst "hang1"
     equal (f "kkt/hang1" ["slap"]) $ Just $

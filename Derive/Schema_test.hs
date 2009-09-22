@@ -46,13 +46,13 @@ mkalloc insts = Map.fromList
     | (chan, inst) <- Seq.enumerate insts]
 
 midi_default_inst = Instrument.instrument
-    synth "default" Nothing Controller.default_controllers (-12, 12)
+    synth "default" Nothing Controller.empty_map (-12, 12)
 midi_inst1 = (Instrument.instrument
-    synth "inst1" Nothing Controller.default_controllers (-12, 12))
+    synth "inst1" Nothing Controller.empty_map (-12, 12))
     { Instrument.inst_scale = i1scale }
 inst1 = Score.Instrument "inst1"
 inst2 = Score.Instrument "inst2"
-default_inst = Score.Instrument "default_inst"
+default_inst = Score.Instrument "default"
 synth = Instrument.synth "synth" "synth" []
 empty_scale = Pitch.ScaleId ""
 i1scale = Pitch.ScaleId "i1"
@@ -75,14 +75,13 @@ test_get_defaults = do
     let tracknums = map Just [0..3] ++ [Nothing]
     let res = map Schema.get_defaults (map mkcontext tracknums)
     equal (res!!0) (Just (Schema.NoteTrack (NoteTrack.PitchTrack False 1))
-        , Nothing, empty_scale, Nothing)
-    equal (res!!1) (Just Schema.PitchTrack, Nothing, empty_scale, Nothing)
+        , Just inst2, empty_scale)
+    equal (res!!1) (Just Schema.PitchTrack, Just inst2, empty_scale)
     equal (res!!2) (Just (Schema.NoteTrack (NoteTrack.PitchTrack True 3))
-        , Just midi_inst1, i1scale, Just (Midi.WriteDevice "inst1", 1))
+        , Just inst1, i1scale)
     -- no tracknum, and out of range tracknum
-    let def_inst = Just (Midi.WriteDevice "default", 0)
-    equal (res!!3) (Nothing, Nothing, Instrument.default_scale, def_inst)
-    equal (res!!4) (Nothing, Nothing, Instrument.default_scale, def_inst)
+    equal (res!!3) (Nothing, Just default_inst, Instrument.default_scale)
+    equal (res!!4) (Nothing, Just default_inst, Instrument.default_scale)
 
 test_get_track_info = do
     let tree = mk_track_tree -- ["c0", ">inst1", "*", "c1", ">inst2", "c2"]
@@ -132,9 +131,9 @@ test_compile = do
     -- TODO so here they all have the *scale controller, but I can't test
     -- further until I remove the pitch stuff from the note parser
     let (res, logs) = derive
-            ("*twelve", [(0, 0, "4c-"), (10, 0, "4d-"), (20, 0, "i, 4e-")])
+            ("*twelve", [(0, 0, "4c"), (10, 0, "4d"), (20, 0, "i, 4e")])
     let pitch_signal = (Score.Controller "*twelve",
-            mksig [(0, set, 48), (5, set, 50), (10, Signal.Linear, 52)])
+            mksig [(0, set, 60), (5, set, 62), (10, Signal.Linear, 64)])
     equal logs []
     equal res $ Right (replicate 3 (Map.fromList [pitch_signal, cont_signal]))
 
@@ -151,7 +150,7 @@ test_compile_to_signals = do
     equal logs ["compile_to_signals: Note \".2\" not in ScaleId \"twelve\""]
 
     let (res, logs) = derive
-            ("*twelve", [(0, 0, "4c-"), (10, 0, "4d-"), (20, 0, "i, 4e-")])
+            ("*twelve", [(0, 0, "4c"), (10, 0, "4d"), (20, 0, "i, 4e")])
     equal logs []
     -- tempo, c1, and pitch tracks get signals.
     equal (fmap (map fst) res)
@@ -162,7 +161,7 @@ test_compile_to_signals = do
     let set = Signal.Set
     equal (fmap (map snd) res) $ Right
         [ mksig [(0, set, 2)]
-        , mksig [(0, set, 48), (10, set, 50), (20, Signal.Linear, 52)]
+        , mksig [(0, set, 60), (10, set, 62), (20, Signal.Linear, 64)]
         , mksig [(0, set, 3), (10, set, 2), (20, set, 1)]
         ]
 

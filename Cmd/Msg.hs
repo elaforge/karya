@@ -5,8 +5,8 @@ import qualified System.IO as IO
 import qualified Ui.Key as Key
 import qualified Ui.UiMsg as UiMsg
 import qualified Midi.Midi as Midi
-import qualified Perform.Pitch as Pitch
 import qualified Perform.Transport as Transport
+import qualified Cmd.InputNote as InputNote
 
 
 data Msg =
@@ -17,9 +17,8 @@ data Msg =
     -- | Incoming abstract note.  This is meant to enter a note and is not
     -- a MIDI NoteOn, though NoteOns may very well be translated into these.
     -- These are not generated from any subsystem, but instead translated from
-    -- other msgs (such as NoteOn).
-    -- TODO this will have to be extended for continuous input and controllers
-    | InputKey Pitch.InputKey
+    -- other msgs (such as Midi).
+    | InputNote InputNote.Input
     -- | Message from the transport/play thread.
     | Transport Transport.Status
     -- | Message from the language control socket, includes the socket handle

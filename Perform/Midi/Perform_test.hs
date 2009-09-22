@@ -161,8 +161,7 @@ pretend_to_write xs = do
             putStrLn $ show i ++ ": " ++ show_msg msg
         IO.hPutStr handle (show msg)
 
-perform_one_chan events =
-    Perform.perform_notes chan_map1 (with_chan 0 (mkevents events))
+perform_one_chan events = Perform.perform_notes (with_chan 0 (mkevents events))
     where with_chan chan = map (\evt -> (evt, (dev1, chan)))
 
 print_msgs = mapM_ (putStrLn . show_msg)
@@ -205,8 +204,7 @@ test_keyswitch = do
         ks1 = Just (Instrument.Keyswitch "ks1" 1)
         ks2 = Just (Instrument.Keyswitch "ks2" 2)
     let perform_notes evts = (extract msgs, warns)
-            where
-            (msgs, warns) = Perform.perform_notes chan_map1 (map with_addr evts)
+            where (msgs, warns) = Perform.perform_notes (map with_addr evts)
 
     -- ts clips at 0, redundant ks suppressed.
     equal (perform_notes [(ks1, "a", 0, 1), (ks1, "b", 10, 10)])
@@ -250,8 +248,7 @@ test_reorder_control_messages = do
 test_perform_controller1 = do
     -- Bad signal that goes over 1 in two places.
     let sig = (vol_cc, mksignal [(0, 0), (1, 1.5), (2, 0), (2.5, 0), (3, 2)])
-        cmap = Controller.default_controllers
-        (msgs, warns) = Perform.perform_controller cmap
+        (msgs, warns) = Perform.perform_controller Controller.empty_map
             (TrackPos 0) (TrackPos 4) sig
 
     -- controls are not emitted after they reach steady values
@@ -261,8 +258,7 @@ test_perform_controller1 = do
 
 test_perform_controller2 = do
     let sig = (vol_cc, mksignal [(0, 0), (4, 1)])
-        cmap = Controller.default_controllers
-        (msgs, warns) = Perform.perform_controller cmap
+        (msgs, warns) = Perform.perform_controller Controller.empty_map
             (TrackPos 2) (TrackPos 4) sig
     plist warns
     plist msgs
@@ -297,8 +293,8 @@ test_channelize = do
     -- track.  "p" and "c" share since they have the same controllers.
     equal (channelize
         [ ("a", 0, 4, [c_vol])
-        , ("p", 2, 4, [c_vol, c_pres])
-        , ("c", 4, 4, [c_vol, c_pres])
+        , ("p", 2, 4, [c_vol, c_aftertouch])
+        , ("c", 4, 4, [c_vol, c_aftertouch])
         ])
         [0, 1, 1]
 
@@ -339,10 +335,7 @@ test_allot = do
 
 -- * setup
 
-perform inst_config = Perform.perform chan_map test_lookup inst_config
-    where
-    chan_map = fst $ Cmd.inst_addr_to_chan_map test_lookup
-        (Instrument.config_alloc inst_config)
+perform inst_config = Perform.perform test_lookup inst_config
 
 mkevent :: (Instrument.Instrument, String, Double, Double,
         [(Controller.Controller, Signal.Signal)])
@@ -375,10 +368,10 @@ vol_cc = Controller.Controller "volume"
 c_vol = (vol_cc, mksignal [(0, 1), (4, 0)])
 c_vol2 = (vol_cc, mksignal [(0, 1), (2, 0), (4, 1)])
 c_vel = (Controller.c_velocity, mksignal [(0, 1), (4, 0)])
-c_pres = (Controller.c_channel_pressure, mksignal [(0, 0), (8, 1)])
+c_aftertouch = (Controller.c_aftertouch, mksignal [(0, 0), (8, 1)])
 
 inst name = Instrument.instrument synth1 name Nothing
-    Controller.default_controllers (-12, 12)
+    Controller.empty_map (-12, 12)
 
 inst1 = inst "inst1"
 inst2 = inst "inst2"
@@ -387,8 +380,6 @@ dev2 = Midi.WriteDevice "dev2"
 synth1 = Instrument.synth "synth1" "synth1" []
 inst_config1 = Instrument.config [(score_inst inst1, [(dev1, 0), (dev1, 1)])]
     Nothing
-chan_map1 = fst $ Cmd.inst_addr_to_chan_map test_lookup
-    (Instrument.config_alloc inst_config1)
 
 score_inst inst = Score.Instrument (Instrument.inst_name inst)
 

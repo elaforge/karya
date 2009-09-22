@@ -57,7 +57,7 @@ initial_state = do
         [(TrackPos 0, cont ".05"), (TrackPos 50, cont "i.1")]
             -- (TrackPos 100, cont "i.01")]
     t1 <- State.create_track (mkid "b1.t1") (empty_track ">fm8/bass")
-    let notes = ["6a-", "6b-", "7c-", "7d-", "7e-", "7f-"]
+    let notes = ["6a", "6b", "7c", "7d", "7e", "7f"]
         -- note_events = zip (notes ++ tail (reverse notes)) [0, 10..]
         note_events = zip notes [0, 10..]
     State.insert_events t1 [(TrackPos p, Event.event e (TrackPos 10))

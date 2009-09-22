@@ -46,8 +46,8 @@ test_d_pitch_signal = do
         "Note \"bad\" not in ScaleId"]
 
     let sig = track_signal
-            [(0, Signal.Set, 48), (1, Signal.Set, 50), (2, Signal.Linear, 52)]
-    equal (run [mkevent 0 "4c-", mkevent 1 "4d-", mkevent 2 "i, 4e-"]) $
+            [(0, Signal.Set, 60), (1, Signal.Set, 62), (2, Signal.Linear, 64)]
+    equal (run [mkevent 0 "4c", mkevent 1 "4d", mkevent 2 "i, 4e"]) $
         Right (sig, [])
 
 track_signal = Signal.track_signal Signal.default_srate

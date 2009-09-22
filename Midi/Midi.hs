@@ -91,8 +91,8 @@ is_note _ = False
 
 -- * types
 
-data Message
-    = ChannelMessage Channel ChannelMessage
+data Message =
+    ChannelMessage Channel ChannelMessage
     | CommonMessage CommonMessage
     | RealtimeMessage RealtimeMessage
     | UnknownMessage Word8 Word8 Word8

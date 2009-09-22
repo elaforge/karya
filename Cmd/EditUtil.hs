@@ -16,6 +16,7 @@ import qualified Ui.Track as Track
 import Ui.Types
 
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Selection as Selection
 import qualified Cmd.TimeStep as TimeStep
@@ -97,7 +98,7 @@ note_key scale_id msg =
     either State.throw return =<< Cmd.require (get_note scale_id msg)
 
 get_note :: Pitch.ScaleId -> Msg.Msg -> Maybe (Either String (Maybe Pitch.Note))
-get_note scale_id (Msg.InputKey input) = Just $ do
+get_note scale_id (Msg.InputNote (InputNote.NoteOn _ input _)) = Just $ do
     let msg = show scale_id ++ ": "
     scale <- maybe (Left $ msg ++ "not found") Right $
         Map.lookup scale_id Scale.scale_map

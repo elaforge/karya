@@ -174,20 +174,17 @@ default_cmds context = wrap $ case maybe_track_type of
     universal =
         with_note (PitchTrack.cmd_record_note_status scale_id) : midi_thru
     with_note = KbdEntry.with_note kbd_entry
-    with_midi = if kbd_entry then KbdEntry.with_midi scale_id else id
     edit_mode = ctx_edit_mode context
     kbd_entry = ctx_kbd_entry context
 
-    (maybe_track_type, maybe_inst, scale_id, maybe_addr) = get_defaults context
-    midi_thru = case (maybe_inst, maybe_addr) of
-        (Just inst, Just addr) -> [with_midi $ MidiThru.cmd_midi_thru
-            scale_id addr (Instrument.inst_pitch_bend_range inst)]
-        _ -> []
+    (maybe_track_type, maybe_inst, scale_id) = get_defaults context
+    midi_thru = case maybe_inst of
+        Just inst -> [with_note $ MidiThru.cmd_midi_thru inst]
+        Nothing -> []
 
 get_defaults :: CmdContext
-    -> (Maybe TrackType, Maybe Instrument.Instrument, Pitch.ScaleId,
-        Maybe Instrument.Addr)
-get_defaults context = (maybe_track_type, inst, scale_id, addr)
+    -> (Maybe TrackType, Maybe Score.Instrument, Pitch.ScaleId)
+get_defaults context = (maybe_track_type, score_inst, scale_id)
     where
     (maybe_track_type, track_inst, track_scale) =
         get_track_info (ctx_track_tree context) (ctx_focused_tracknum context)
@@ -198,7 +195,6 @@ get_defaults context = (maybe_track_type, inst, scale_id, addr)
     -- and then to the global default scale.
     scale_id = maybe Instrument.default_scale id $
         track_scale `mplus` fmap Instrument.inst_scale inst
-    addr = join $ fmap (ctx_inst_addr context) score_inst
 
 -- | Find the type of a track and the instrument and scale in scope.
 --

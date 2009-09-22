@@ -11,9 +11,10 @@ import qualified Ui.State as State
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.UiTest as UiTest
 
-import qualified Cmd.Simple as Simple
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Msg as Msg
+import qualified Cmd.Simple as Simple
 import qualified Derive.Score as Score
 
 import qualified Perform.Pitch as Pitch
@@ -95,7 +96,7 @@ make_lookup inst_names attrs (Score.Instrument inst) = Map.lookup inst inst_map
 
 make_inst name = default_perf_inst { Instrument.inst_name = name }
 default_perf_inst = Instrument.instrument default_synth "i0" Nothing
-            Midi.Controller.default_controllers (-2, 2)
+            Midi.Controller.empty_map (-2, 2)
 default_synth = Instrument.Synth "synth" default_wdev
     (Midi.Controller.controller_map [])
 
@@ -125,5 +126,15 @@ make_midi chan_msg = Msg.Midi $
     Midi.ReadMessage (Midi.ReadDevice "test") Timestamp.immediately
         (Midi.ChannelMessage 0 chan_msg)
 
-input :: (Pitch.Octave, Int) -> Msg.Msg
-input = Msg.InputKey . Pitch.InputKey
+note_on note_id nn vel =
+    InputNote.NoteOn (nid note_id) (Pitch.InputKey nn) (vel / 127)
+note_off note_id vel = InputNote.NoteOff (nid note_id) (vel / 127)
+control note_id cont val =
+    InputNote.Control (nid note_id) (Score.Controller cont) (val / 127)
+pitch note_id nn = InputNote.PitchChange (nid note_id) (Pitch.InputKey nn)
+nid = InputNote.NoteId
+
+m_note_on note_id nn vel = Msg.InputNote (note_on note_id nn vel)
+m_note_off note_id vel = Msg.InputNote (note_off note_id vel)
+m_control note_id cont val = Msg.InputNote (control note_id cont val)
+m_pitch note_id nn = Msg.InputNote (pitch note_id nn)

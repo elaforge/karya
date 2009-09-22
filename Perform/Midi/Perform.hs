@@ -65,12 +65,12 @@ pitch_bend_lead_time = Timestamp.to_track_pos (Timestamp.seconds 0.01)
 -- | Render instrument tracks down to midi messages, sorted in timestamp order.
 -- This should be non-strict on the event list, so that it can start producing
 -- MIDI output as soon as it starts processing Events.
-perform :: Instrument.ChannelMap -> MidiDb.LookupMidiInstrument
+perform :: MidiDb.LookupMidiInstrument
     -> Instrument.Config -> [Event] -> ([Midi.WriteMessage], [Warning.Warning])
-perform chan_map lookup_inst config events = (post_process msgs, warns)
+perform lookup_inst config events = (post_process msgs, warns)
     where
     inst_addrs = config_to_inst_addrs config lookup_inst
-    (msgs, warns) = (perform_notes chan_map . allot inst_addrs
+    (msgs, warns) = (perform_notes . allot inst_addrs
         . channelize inst_addrs) events
 
 config_to_inst_addrs :: Instrument.Config -> MidiDb.LookupMidiInstrument
@@ -84,23 +84,30 @@ config_to_inst_addrs config lookup_inst = Map.fromList
 -- | Map each instrument to its allocated Addrs.
 type InstAddrs = Map.Map Instrument.InstrumentName [Instrument.Addr]
 
+-- | As in 'Cmd.Cmd.WriteDeviceState', map an Addr to the Instrument active
+-- at that address.
+type AddrInst = Map.Map Instrument.Addr Instrument.Instrument
+
 
 -- * perform notes
 
 -- | Given an ordered list of note events, produce the apprapriate midi msgs.
 -- The input events are ordered, but may overlap.
-perform_notes :: Instrument.ChannelMap -> [(Event, Instrument.Addr)]
+perform_notes :: [(Event, Instrument.Addr)]
     -> ([Midi.WriteMessage], [Warning.Warning])
-perform_notes chan_map events = _perform_notes chan_map [] (TrackPos 0) events
+    -- Pass an empty AddrInst because I can't make any assumptions about the
+    -- state of the synthesizer.  The one from the wdev state might be out of
+    -- date by the time this performance is played.
+perform_notes events = _perform_notes Map.empty [] (TrackPos 0) events
 
-_perform_notes :: Instrument.ChannelMap -> [Midi.WriteMessage]
+_perform_notes :: AddrInst -> [Midi.WriteMessage]
     -> TrackPos -> [(Event, Instrument.Addr)]
     -> ([Midi.WriteMessage], [Warning.Warning])
 _perform_notes _ overlapping _ [] = (overlapping, [])
-_perform_notes chan_map overlapping prev_note_off ((event, addr):events) =
+_perform_notes addr_inst overlapping prev_note_off ((event, addr):events) =
     (play ++ rest_msgs, chan_state_warns ++ warns ++ rest_warns)
     where
-    (rest_msgs, rest_warns) = _perform_notes chan_map2 not_yet note_off events
+    (rest_msgs, rest_warns) = _perform_notes addr_inst2 not_yet note_off events
     -- This find could demand lots or all of events if the
     -- (instrument, chan) doesn't play for a long time, or ever.  It only
     -- happens once at gaps though, but if it's a problem I can abort after
@@ -116,8 +123,8 @@ _perform_notes chan_map overlapping prev_note_off ((event, addr):events) =
     -- These will be in the \"past\", so messages may get slightly out of order
     -- if they are before 'overlapping', which means that a pchange with a long
     -- lead time may lose its lead time.  TODO fix this if it becomes a problem
-    (chan_state_msgs, chan_state_warns, chan_map2) =
-        adjust_chan_state chan_map addr event
+    (chan_state_msgs, chan_state_warns, addr_inst2) =
+        adjust_chan_state addr_inst addr event
     (play, not_yet) = List.partition ((<= first_ts) . Midi.wmsg_ts)
         (merge_messages [overlapping, chan_state_msgs ++ msgs])
 
@@ -126,22 +133,22 @@ _perform_notes chan_map overlapping prev_note_off ((event, addr):events) =
 --
 -- If there's no chan state always emit msgs, since in general there's no way
 -- to know what state the synth is in.  If I do know (e.g. playback will
--- pass the current chan_map) I can filter out expensive messages like
+-- pass the current addr_inst) I can filter out expensive messages like
 -- program change.
--- TODO implement playback with chan_map when I implement pchange
+-- TODO implement playback with addr_inst when I implement pchange
 --
 -- Another strategy would be to always emit msgs and rely on playback filter,
 -- but that would triple the number of msgs, which seems excessive.
-adjust_chan_state :: Instrument.ChannelMap -> Instrument.Addr -> Event
-    -> ([Midi.WriteMessage], [Warning.Warning], Instrument.ChannelMap)
-adjust_chan_state chan_map addr event =
+adjust_chan_state :: AddrInst -> Instrument.Addr -> Event
+    -> ([Midi.WriteMessage], [Warning.Warning], AddrInst)
+adjust_chan_state addr_inst addr event =
     case chan_state_msgs addr ts old_inst inst of
-        Left err -> ([], [event_warning event err], new_chan_map)
-        Right msgs -> (msgs, [], new_chan_map)
+        Left err -> ([], [event_warning event err], new_addr_inst)
+        Right msgs -> (msgs, [], new_addr_inst)
     where
-    new_chan_map = Map.insert addr inst chan_map
+    new_addr_inst = Map.insert addr inst addr_inst
     inst = event_instrument event
-    old_inst = Map.lookup addr chan_map
+    old_inst = Map.lookup addr addr_inst
     ts = Timestamp.from_track_pos (event_start event)
 
 -- | TODO support program change, I'll have to get ahold of patch_initialize.

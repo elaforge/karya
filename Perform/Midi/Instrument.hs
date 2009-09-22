@@ -74,7 +74,8 @@ set_instrument_name synth name keyswitch inst = inst
 data Config = Config {
     -- | An instrument may have multiple addresses assigned to it, which means
     -- that it can be multiplexed across multiple channels.  In addition,
-    -- multiple instruments can be allocated to overlapping addresses.  An
+    -- multiple instruments can be allocated to overlapping addresses, which is
+    -- how keyswitches word; each one is considered a separate instrument.  An
     -- instrument wishing to use an address will emit an appropriate message to
     -- configure it (probably a keyswitch, possibly a program change).
     config_alloc :: Map.Map Score.Instrument [Addr]
@@ -89,12 +90,6 @@ config inst_addrs default_inst = Config (Map.fromList inst_addrs) default_inst
 -- | Midi instruments are addressed by a (device, channel) pair, allocated in
 -- 'Config'.
 type Addr = (Midi.WriteDevice, Midi.Channel)
-
--- | Remember the current state of each midi addr in use.  This is because
--- more than one instrument or keyswitch can share the same channel, so I
--- need to keep track which one is active to minimize switches.
--- (inst, current_ks)
-type ChannelMap = Map.Map Addr Instrument
 
 -- | Keyswitch name and key to activate it.
 data Keyswitch = Keyswitch

@@ -94,6 +94,8 @@ vl1_sysex = do
     return $ vl1_patch common elt1 elt2
     -- Parse.end_sysex
 
+vl1_patch :: Instrument.InstrumentName -> ElementInfo -> ElementInfo
+    -> Instrument.Patch
 vl1_patch name (pb_range1, name1, cc_groups1) (pb_range2, name2, cc_groups2) =
     -- Initialization and text will be filled in later.
     (Instrument.patch inst) { Instrument.patch_tags = tags }
@@ -114,7 +116,9 @@ common_data bytes = name
     where
     name = Seq.strip $ Parse.to_string (take 10 bytes)
 
-element :: [Word.Word8] -> (Controller.PbRange, String, [(Integer, [String])])
+type ElementInfo = (Controller.PbRange, String, [(Midi.Controller, [String])])
+
+element :: [Word.Word8] -> ElementInfo
 element bytes = ((pb_up, pb_down), name, c_groups)
     where
     (pb_up, pb_down) =
@@ -125,7 +129,7 @@ element bytes = ((pb_up, pb_down), name, c_groups)
     c_groups = [(cc, map fst grp)
         | (cc, grp) <- Seq.keyed_group_with snd controls]
 
-get_controller :: [Word.Word8] -> Vl1Control -> Maybe (String, Integer)
+get_controller :: [Word.Word8] -> Vl1Control -> Maybe (String, Midi.Controller)
 get_controller bytes (name, offset, depth, upper_lower) = do
     midi_control <- require valid_control control
     require (>=32) $ maximum $ map abs depth_bytes

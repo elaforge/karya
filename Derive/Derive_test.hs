@@ -120,7 +120,7 @@ test_basic = do
     -- 1: derivation to score events
     let (tids, ui_state) = UiTest.run_mkstate
             [ ("> +a1", [(0, 16, "+a0"), (16, 16, "+a2")])
-            , ("*twelve", [(0, 16, "4c-"), (16, 16, "4c#")])
+            , ("*twelve", [(0, 16, "4c"), (16, 16, "4c#")])
             ]
     let (events, logs) = derive_events ui_state
             (basic_deriver (tids!!0) (tids!!1))
@@ -132,7 +132,7 @@ test_basic = do
     equal warns []
     let evt = (,,,,,) (Instrument.inst_name default_perf_inst)
         pitch_sig = Signal.track_signal Signal.default_srate
-                [(0, Signal.Set, 48), (16, Signal.Set, 49)]
+                [(0, Signal.Set, 60), (16, Signal.Set, 61)]
         pitch_cont = Map.singleton Midi.Controller.c_pitch pitch_sig
     equal (map extract_perf_event midi_events)
         [ evt (Just "a0") 0 16 pitch_cont (mkstack [("b1", "b1.t0", (0, 16))])
@@ -144,7 +144,7 @@ test_basic = do
     let (msgs, warns) = perform midi_events
         mmsgs = map Midi.wmsg_msg msgs
     equal [nn | Midi.ChannelMessage _ (Midi.NoteOn nn _) <- mmsgs]
-        [1, 48, 0, 49]
+        [1, 60, 0, 61]
     equal warns []
 
 ks_name (Instrument.Keyswitch name _) = name
@@ -171,7 +171,7 @@ controller_deriver note_tid pitch_tid cont_tid cont_name =
 test_controller = do
     let (tids, ui_state) = UiTest.run_mkstate
             [ (">", [(0, 1, "+a1"), (1, 1, "+a2")])
-            , ("*twelve", [(0, 1, "4c-"), (1, 1, "4c#")])
+            , ("*twelve", [(0, 1, "4c"), (1, 1, "4c#")])
             , (c_mod, [(0, 0, "1"), (1, 0, "i.75"), (2, 0, "i0")])
             ]
     let (events, logs) = derive_events ui_state
@@ -215,7 +215,7 @@ tempo_deriver sig_tid tempo note_tid pitch_tid vel_tid = do
 test_tempo = do
     let (tids, state) = UiTest.run_mkstate
             [ (">", [(0, 10, "--1"), (10, 10, "--2"), (20, 10, "--3")])
-            , ("*twelve", [(0, 10, "5a-"), (10, 10, "5b-"), (20, 10, "5c-")])
+            , ("*twelve", [(0, 10, "5a"), (10, 10, "5b"), (20, 10, "5c")])
             , ("1", [(0, 10, ".1"), (10, 10, ".2"), (20, 10, ".4")])
             ]
         mkderiver sig = tempo_deriver
@@ -278,7 +278,7 @@ run ui_state m =
         (Schema.lookup_deriver default_schema_map ui_state) False)
             { Derive.state_stack = fake_stack }
 
-perform = Perform.perform default_chan_map default_lookup default_inst_config
+perform = Perform.perform default_lookup default_inst_config
 
 block_id = UiTest.default_block_id
 
@@ -289,10 +289,8 @@ default_synth = Instrument.synth "synth" "wdev" []
 default_dev = Midi.WriteDevice "out"
 default_inst_config = Instrument.config
     [(default_inst, [(default_dev, 0)])] Nothing
-default_chan_map = fst $ Cmd.inst_addr_to_chan_map default_lookup
-    (Instrument.config_alloc default_inst_config)
 default_perf_inst = Instrument.instrument default_synth "patch" Nothing
-            Midi.Controller.default_controllers (-2, 2)
+            Midi.Controller.empty_map (-2, 2)
 default_ksmap = Instrument.KeyswitchMap $
     map (\(attr, name, nn) -> (Set.fromList attr, Instrument.Keyswitch name nn))
         [ (["a1", "a2"], "a1+a2", 0)

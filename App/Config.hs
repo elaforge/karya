@@ -14,6 +14,8 @@ import qualified Ui.Block as Block
 import qualified Ui.Track as Track
 import qualified Ui.UiMsg as UiMsg
 
+import qualified Perform.Midi.Controller as Controller
+
 
 -- * paths
 
@@ -83,6 +85,10 @@ play_color = Color.rgb 0 0.6 0
 warning_color = Color.rgb 1 0.2 0.2
 
 -- * defaults
+
+-- | Controllers start out with this range.
+controller_pb_range :: Controller.PbRange
+controller_pb_range = (-2, 2)
 
 -- | Default size of new views.
 view_size :: (Int, Int)

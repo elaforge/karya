@@ -19,12 +19,13 @@ extract val = error $ "unexpected: " ++ show val
 
 test_cmd_val_edit = do
     let run track_specs cmd = extract $ run_sel track_specs cmd
+        note = CmdTest.m_note_on 60 60 127
         f = PitchTrack.cmd_val_edit Twelve.scale_id
 
-    equal (run [("*", [])] (f (CmdTest.input (1, 2))))
-        [("*", [(0, 0, "1d-")])]
-    equal (run [("*", [(0, 0, "5e-")])] (f (CmdTest.input (1, 2))))
-        [("*", [(0, 0, "1d-")])]
+    equal (run [("*", [])] (f note))
+        [("*", [(0, 0, "4c")])]
+    equal (run [("*", [(0, 0, "5e-")])] (f note))
+        [("*", [(0, 0, "4c")])]
     equal (run [("*", [(0, 0, "5e-")])] (f CmdTest.backspace))
         [("*", [])]
 

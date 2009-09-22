@@ -225,9 +225,8 @@ perform block_id inst_db schema_map = do
 
     -- TODO call Convert.verify for more warnings
     inst_config <- fmap State.state_midi_config State.get
-    chan_map <- fmap Cmd.state_chan_map Cmd.get_state
     let (midi_msgs, perform_warnings) =
-            Perform.perform chan_map lookup_inst inst_config midi_events
+            Perform.perform lookup_inst inst_config midi_events
     let logs = map (warn_to_msg "event conversion") convert_warnings
             ++ map (warn_to_msg "performance") perform_warnings
     return $ Cmd.Performance midi_msgs logs tempo inv_tempo
