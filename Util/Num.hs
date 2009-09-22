@@ -2,7 +2,7 @@ module Util.Num where
 
 -- | Restrict a value to be between @low@ and @high@.
 clamp :: (Ord a) => a -> a -> a -> a
-clamp low high = max high . min low
+clamp low high = min high . max low
 
 -- | Scale @v@, which is between 0 and 1 inclusive, to be between @low@ and
 -- @high@.
