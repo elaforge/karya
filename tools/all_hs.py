@@ -7,6 +7,10 @@ declaration, or a declaration of "Main".
 import sys, os
 
 def main():
+    if len(sys.argv) > 1 and sys.argv[1] == 'notest':
+        notest = True
+    else:
+        notest = False
     hs_files = []
     hsc_files = []
     def accum(_arg, dirname, fnames):
@@ -22,6 +26,10 @@ def main():
     fns = [fn[2:] for fn in hs_files + hsc_files]
     fns.sort()
     fns = filter(lambda fn: fn != 'Data/Map.hs' and not is_main(fn), fns)
+    if notest:
+        fns = filter(
+            lambda fn: not (fn.endswith('_test.hs') or fn.endswith('Test.hs')),
+            fns)
     print ' '.join(fns)
 
 def capword(s):

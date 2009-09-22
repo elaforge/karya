@@ -1,6 +1,10 @@
 CURRENT
   + fix hint stuff
   * love for logview
+  - complete InputNote implementation for pitch entry
+    - advance on NoteOff
+    - continuous adjustment by keeping track of NoteId
+
   - TODO / haddock sweep
   - sample reyong
   + pelog scale for reyong samples
