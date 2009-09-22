@@ -87,7 +87,7 @@ display signal:
 - switch to darcs hashed repo format
 
 note input / thru:
-  - fractional InputKey and GenericNote
+  * fractional InputKey and GenericNote
   - keyswitch support in midi thru
   - profile midi->midi thru and implement a fast path if necessary
 
