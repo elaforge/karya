@@ -43,12 +43,15 @@ SeqInput::handle(int evt)
 {
     int key = Fl::event_key();
     if (evt == FL_KEYDOWN || evt == FL_KEYUP) {
-        if (Fl::event_state() == FL_SHIFT || key == FL_Shift_L
-                || key == FL_Shift_R || key == FL_Enter || key == FL_Escape) {
-            // let shifts through
-        } else if (Fl::event_state() || !isprint(Fl::event_key())) {
+        switch (key) {
+        case FL_Shift_L: case FL_Shift_R: case FL_Enter: case FL_Escape:
+        case FL_Right: case FL_Left: case FL_BackSpace:
+            // let editing keys through
+            break;
+        default:
             // but control chars and the like should be passed out
-            return 0;
+            if (!isprint(Fl::event_key()))
+                return 0;
         }
     }
     switch (evt) {
