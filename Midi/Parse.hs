@@ -1,4 +1,5 @@
 module Midi.Parse where
+import qualified Data.ByteString as B
 import Data.Word (Word8)
 import Data.Bits
 import Data.List
@@ -6,8 +7,9 @@ import Data.List
 import Midi.Midi
 
 
-decode :: [Word8] -> Message
-decode (status:d1:d2:bytes)
+decode :: B.ByteString -> Message
+decode bytes
+    | B.length bytes < 3 = UnknownMessage 0 0 0
     | st == 0xf && chan < 0x8 = CommonMessage common_msg
     | st == 0xf = RealtimeMessage realtime_msg
     | st == 0xb && d1 >= 0x78 = ChannelMessage chan channel_mode_msg
@@ -15,6 +17,9 @@ decode (status:d1:d2:bytes)
     | otherwise = UnknownMessage status d1 d2
     where
     (st, chan) = split4 status
+    status = B.index bytes 0
+    d1 = B.index bytes 1
+    d2 = B.index bytes 2
     channel_msg = case st of
         0x8 -> NoteOff d1 d2
             -- Hide this bit of midi irregularity from clients.
@@ -33,7 +38,8 @@ decode (status:d1:d2:bytes)
         0x7b -> AllNotesOff
         _ -> UndefinedChannelMode d1 d2
     common_msg = case chan of
-        0x0 -> SystemExclusive d1 (take_include (not . (==eox_byte)) (d2:bytes))
+        -- It's the caller's responsibility to end it with EOX.
+        0x0 -> SystemExclusive d1 (B.drop 2 bytes)
         0x2 -> SongPositionPointer (join14 d1 d2)
         0x3 -> SongSelect d1
         0x6 -> TuneRequest
@@ -47,15 +53,9 @@ decode (status:d1:d2:bytes)
         0xe -> ActiveSense
         0xf -> Reset
         _ -> UndefinedRealtime chan
-decode _ = UnknownMessage 0 0 0
 
-take_include _f [] = []
-take_include f (x:xs)
-    | f x = x : take_include f xs
-    | otherwise = [x]
-
-encode :: Message -> [Word8]
-encode (ChannelMessage chan msg) = [join4 st chan, d1, d2]
+encode :: Message -> B.ByteString
+encode (ChannelMessage chan msg) = B.pack [join4 st chan, d1, d2]
     where
     (st, d1, d2) = case msg of
         NoteOff n v -> (0x8, n, v)
@@ -72,7 +72,7 @@ encode (ChannelMessage chan msg) = [join4 st chan, d1, d2]
         AllNotesOff -> (0xb, 0x7b, 0)
         _ -> error $ "unknown ChannelMessage " ++ show msg
 
-encode (RealtimeMessage msg) = [join4 0xf st]
+encode (RealtimeMessage msg) = B.pack [join4 0xf st]
     where
     st = case msg of
         TimingClock -> 0x8
@@ -83,15 +83,14 @@ encode (RealtimeMessage msg) = [join4 0xf st]
         Reset -> 0xf
         _ -> error $ "unknown RealtimeMessage " ++ show msg
 
-encode (CommonMessage msg) = join4 0xf code : bytes
-    where
-    (code, bytes) = case msg of
-        SystemExclusive manufacturer bytes -> (0x0, manufacturer : bytes)
-        SongPositionPointer d -> let (d1, d2) = split14 d in (0x2, [d1, d2])
-        SongSelect d -> (0x3, [d])
-        TuneRequest -> (0x6, [])
-        EOX -> (0x7, []) -- this should have been in SystemExclusive
-        _ -> error $ "unknown CommonMessage " ++ show msg
+encode (CommonMessage msg) = case msg of
+    SystemExclusive manuf bytes -> B.append (B.pack [0xf0, manuf]) bytes
+    SongPositionPointer d ->
+        let (d1, d2) = split14 d in B.pack [0xf2, d1, d2]
+    SongSelect d -> B.pack [0xf3, d]
+    TuneRequest -> B.pack [0xf6]
+    EOX -> B.pack [0xf7] -- this should have been in SystemExclusive
+    _ -> error $ "unknown CommonMessage " ++ show msg
 
 encode (UnknownMessage st d1 d2)
     = error $ "UnknownMessage: " ++ show (st, d1, d2)

@@ -87,14 +87,12 @@ instance Binary Instrument.InitializePatch where
     put (Instrument.InitializeMidi a) = putWord8 0 >> put a
     put (Instrument.InitializeMessage a) = putWord8 1 >> put a
     put Instrument.NoInitialization = putWord8 2
-    put (Instrument.InitializeSysex a) = putWord8 3 >> put a
     get = do
         tag_ <- getWord8
         case tag_ of
             0 -> get >>= \a -> return (Instrument.InitializeMidi a)
             1 -> get >>= \a -> return (Instrument.InitializeMessage a)
             2 -> return Instrument.NoInitialization
-            3 -> get >>= \a -> return (Instrument.InitializeSysex a)
             _ -> fail "no parse for Instrument.InitializePatch"
 
 instance Binary Instrument.KeyswitchMap where

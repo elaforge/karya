@@ -3,6 +3,7 @@ module Midi.TestCoreMidi where
 import Control.Monad
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
+import qualified Data.ByteString as ByteString
 import qualified Data.Map as Map
 import qualified Data.Time as Time
 import qualified System.Environment
@@ -148,8 +149,8 @@ test_merge write_msg read_msg = do
 
 test_sysex write_msg read_msg = do
     let size = 20
-    let msg = Midi.CommonMessage $
-            Midi.SystemExclusive 42 (take (size*1024) (cycle [0..9]) ++ [0xf7])
+    let msg = Midi.CommonMessage $ Midi.SystemExclusive 42
+            (ByteString.pack (take (size*1024) (cycle [0..9]) ++ [0xf7]))
     write_msg (Timestamp.immediately, msg)
     putStrLn "waiting for sysex to arrive..."
     Just (out, secs) <- read_until 10 read_msg

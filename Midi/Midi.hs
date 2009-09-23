@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 module Midi.Midi where
 import Data.Bits
+import qualified Data.ByteString as ByteString
 import qualified Data.Generics as Generics
 import qualified Perform.Timestamp as Timestamp
 import Data.Word (Word8)
@@ -98,6 +99,13 @@ data Message =
     | UnknownMessage Word8 Word8 Word8
     deriving (Eq, Ord, Show, Read, Generics.Typeable)
 
+-- | Like show, but don't display sysexs which may be huge.
+show_message :: Message -> String
+show_message (CommonMessage (SystemExclusive manuf bytes)) =
+    "CommonMessage (SystemExclusive " ++ show manuf
+        ++ " <" ++ show (ByteString.length bytes) ++ " bytes>)"
+show_message msg = show msg
+
 -- TODO using Word8 here is kind of iffy.  Word8s silently overflow after 0xff.
 -- On the other hand, these all have 7 bit ranges, so I can still check for
 -- out of range values, at least until it wraps.
@@ -127,7 +135,7 @@ data ChannelMessage =
 
 data CommonMessage =
     -- | manufacturer id, data including eox
-    SystemExclusive Word8 [Word8]
+    SystemExclusive Word8 ByteString.ByteString
     | SongPositionPointer Int
     | SongSelect Word8
     | TuneRequest

@@ -1,12 +1,12 @@
 {-# LANGUAGE ForeignFunctionInterface, DeriveDataTypeable #-}
-{- |
-Interface to CoreMIDI.
+{- | Interface to CoreMIDI.
 
 TODO documentation
 -}
 module Midi.CoreMidi where
 import qualified Control.Exception as Exception
 import qualified Control.Concurrent.STM as STM
+import qualified Data.ByteString as ByteString
 import qualified Data.Map as Map
 import qualified Data.Typeable as Typeable
 
@@ -49,7 +49,9 @@ foreign import ccall "wrapper"
 
 chan_callback :: ReadChan -> ReadCallback
 chan_callback chan sourcep ctimestamp len bytesp = do
-    bytes <- peekArray (fromIntegral len) bytesp
+    -- Oddly enough, even though ByteString is Word8, the ptr packing function
+    -- wants CChar.
+    bytes <- ByteString.packCStringLen (castPtr bytesp, fromIntegral len)
     rdev <- deRefStablePtr sourcep
     let rmsg = Midi.ReadMessage
                 rdev (decode_timestamp ctimestamp) (Parse.decode bytes)
@@ -94,10 +96,13 @@ foreign import ccall "core_midi_connect_read_device"
 
 -- | Timestamp will be ignored for sysex msgs.
 write_message :: WriteDeviceId -> Timestamp.Timestamp -> Midi.Message -> IO ()
-write_message (WriteDeviceId wdev_id) ts msg =
-    withArrayLen (Parse.encode msg) $ \len bytesp ->
+write_message (WriteDeviceId wdev_id) ts msg = do
+    -- I could probably avoid this copy by using unsafe unpack and then a
+    -- ForeignPtr or something to keep the gc off it, but any sizable sysex
+    -- will take forever to send anyway.
+    ByteString.useAsCStringLen (Parse.encode msg) $ \(bytesp, len) ->
         check_ =<< c_write_message wdev_id
-            (encode_timestamp ts) (fromIntegral len) bytesp
+            (encode_timestamp ts) (fromIntegral len) (castPtr bytesp)
 
 foreign import ccall "core_midi_write_message"
     c_write_message :: CInt -> CTimestamp -> CInt -> Ptr Word8 -> IO CError

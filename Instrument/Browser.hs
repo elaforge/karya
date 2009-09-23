@@ -117,15 +117,12 @@ tags_info tags = unwords [quote k ++ "=" ++ quote v | (k, v) <- tags]
 initialize_info Instrument.NoInitialization = "(none)"
 initialize_info (Instrument.InitializeMessage msg) = "Message: " ++ msg
 initialize_info (Instrument.InitializeMidi msgs) = unlines (map midi_info msgs)
-initialize_info (Instrument.InitializeSysex bytes) =
-    "Sysex for " ++ manufacturer (ByteString.index bytes 1)
-    ++ " (" ++ show (ByteString.length bytes) ++ " bytes)"
 
 manufacturer code = maybe "<unknown>" id $ lookup code Parse.manufacturer_codes
 
 midi_info (Midi.CommonMessage (Midi.SystemExclusive manuf bytes)) =
     "Sysex for " ++ manufacturer manuf
-    ++ " (" ++ show (length bytes) ++ " bytes)"
+    ++ " (" ++ show (ByteString.length bytes) ++ " bytes)"
 midi_info (Midi.ChannelMessage _ msg) = show msg
 midi_info msg = show msg
 

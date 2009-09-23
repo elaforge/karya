@@ -16,8 +16,6 @@ import qualified Derive.Scale.Twelve as Twelve
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Midi.Controller as Controller
 
-import qualified Data.ByteString as B
-
 
 default_scale :: Pitch.ScaleId
 default_scale = Twelve.scale_id
@@ -206,23 +204,13 @@ type InstrumentName = String
 
 -- | Describe how an instrument should be initialized before it can be played.
 data InitializePatch =
-    -- | Send these msgs to initialize the patch.  Should be a patch change.
+    -- | Send these msgs to initialize the patch.  Should be a patch change or
+    -- a sysex.
     InitializeMidi [Midi.Message]
-    -- | This is redundant with InitializeMidi, but 1000 3K sysex msgs uses
-    -- lots of memory and makes the browser crawl.
-    -- TODO make Midi.Message use ByteString
-    | InitializeSysex B.ByteString
     -- | Display this msg to the user and hope they do what it says.
     | InitializeMessage String
     | NoInitialization
     deriving (Eq, Show)
-
-sysex_to_msg :: B.ByteString -> Maybe Midi.Message
-sysex_to_msg bytes
-    | B.length bytes < 3 || B.index bytes 0 /= Midi.sox_byte = Nothing
-    | otherwise = Just $ Midi.CommonMessage $
-        -- Should be [SOX, manufacturer_code, ..., EOX]
-        Midi.SystemExclusive (B.index bytes 1) (B.unpack (B.drop 2 bytes))
 
 patch_summary :: Patch -> String
 patch_summary patch = inst_name inst ++ " -- " ++ show (patch_tags patch)

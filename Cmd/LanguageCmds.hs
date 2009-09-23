@@ -366,12 +366,8 @@ send_initialization :: Midi.Instrument.InitializePatch
     -> Score.Instrument -> Midi.WriteDevice -> Midi.Channel -> Cmd.CmdL ()
 send_initialization init inst dev chan = case init of
     Midi.Instrument.InitializeMidi msgs -> do
-        Log.notice $ "sending midi init: " ++ show msgs
+        Log.notice $ "sending midi init: " ++ concatMap Midi.show_message msgs
         mapM_ ((Cmd.midi dev) . Midi.set_channel chan) msgs
-    Midi.Instrument.InitializeSysex bytes -> do
-        msg <- Cmd.require_msg ("bogus sysex for " ++ show inst)
-            (Midi.Instrument.sysex_to_msg bytes)
-        Cmd.midi dev msg
     Midi.Instrument.InitializeMessage msg ->
         -- TODO warn doesn't seem quite right for this...
         Log.warn $ "initialize instrument " ++ show inst ++ ": " ++ msg

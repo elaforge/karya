@@ -136,13 +136,12 @@ add_file_text fn patch = patch { Instrument.patch_text =
 add_sysex :: [Word.Word8] -> Instrument.Patch -> Instrument.Patch
 add_sysex bytes patch =
     patch { Instrument.patch_initialize = make_sysex_init bytes }
-make_sysex_init bytes = Instrument.InitializeSysex (ByteString.pack bytes)
-    -- Instrument.InitializeMidi
-    --     [Midi.CommonMessage (Midi.SystemExclusive manuf rest)]
-    -- where
+make_sysex_init bytes = Instrument.InitializeMidi
+        [Midi.CommonMessage (Midi.SystemExclusive manuf rest)]
+    where
     -- If the msg is broken there's not much I can do here.
-    -- manuf = bytes !! 1
-    -- rest = drop 2 bytes
+    manuf = bytes !! 1
+    rest = ByteString.pack (drop 2 bytes)
 
 byte_tok :: (Word.Word8 -> Maybe a) -> ByteParser st a
 byte_tok f = Parsec.token show_tok tok_pos test_tok
