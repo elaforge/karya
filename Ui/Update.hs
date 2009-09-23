@@ -70,6 +70,8 @@ events_changed :: Update -> Maybe Track.TrackId
 events_changed (TrackUpdate track_id update) = case update of
     TrackEvents _ _ -> Just track_id
     TrackAllEvents -> Just track_id
+    -- It could have changed the interpretation of the events.
+    TrackTitle _ -> Just track_id
     _ -> Nothing
 events_changed _ = Nothing
 

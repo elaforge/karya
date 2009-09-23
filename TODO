@@ -4,18 +4,19 @@ CURRENT
   - complete InputNote implementation for pitch entry
     - advance on NoteOff
     - continuous adjustment by keeping track of NoteId
+      suspend automatic derivation while there's a note down?  use Cmd.Mod
+      instead of the note_id map since it should be more reliable.
 
   - TODO / haddock sweep
   - sample reyong
-  + pelog scale for reyong samples
   - transcribe kebyar duduk
 
   - i control track thing
   - editing for "pattern list" block
   - double click call to jump to its block?
 
-still getting "enter not in keydown"
-changing track title doesn't trigger a rederive?
+still getting "enter not in keydown", I think it's Input emitting only the
+keyup
 
 * current kbd entry is flawed since for midi thru it turns InputKeys into
 midi, which can't be distinguished from real midi
@@ -60,7 +61,8 @@ bug haskell-cafe:
 ----
 
 - remove State.modify_event_range?
-- either ruler is binary or step goes in binary steps
+- either ruler is binary or step goes in binary steps.  otherwise there are
+durations that I can't reach with any step.
 
 - optimization: if a msg aborts or doesn't run any cmds, don't bother to run
 diff.  except that hardly ever happens if I do shortcut thru

@@ -47,7 +47,6 @@ import Cmd.InputNote (NoteId)
 import qualified Cmd.Msg as Msg
 
 import qualified Derive.Score as Score
-import qualified Derive.Scale as Scale
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Midi.Controller as Controller
