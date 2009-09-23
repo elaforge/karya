@@ -29,30 +29,30 @@ transpose = Util.transpose degree_to_num num_to_degree
 
 note_numbers :: [Pitch.NoteNumber]
 note_numbers = map Pitch.nn
-    [ 50.8 -- ugal begin
-    , 51.82 -- rambat begin
+    [ 50.8 -- 2.., ugal begin
+    , 51.82 -- 3.., rambat begin
     , 55.7
-    , 56.82 -- trompong begin
+    , 56.82 -- 6.., trompong begin
 
     , 60.73
-    , 62.8 -- pemade begin
-    , 63.35 -- reyong begin
+    , 62.8 -- 2., pemade begin
+    , 63.35 -- 3., reyong begin
     , 67.7
     , 68.2
 
-    , 72.46 -- "middle nding", should be played by kbd middle c
-    , 73.9 -- kantilan begin
+    , 72.46 -- 1
+    , 73.9 -- 2, kantilan begin
     , 75.5
-    , 79.4 -- trompong end
+    , 79.4 -- 5, trompong end
     , 80.5
 
-    , 84.46 -- rambat end, pemade end
+    , 84.46 -- 1^, rambat end, pemade end
     , 86
     , 87.67
-    , 91.74 -- reyong end
+    , 91.74 -- 5^, reyong end
     , 92.5
 
-    , 96.46 -- kantilan end
+    , 96.46 -- 1^^, kantilan end
     ]
 
 -- Line a list starting with nding up with 'note_numbers'.

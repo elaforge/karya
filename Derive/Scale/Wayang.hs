@@ -24,36 +24,52 @@ scale_id = Pitch.ScaleId "wayang"
 transpose :: Pitch.Transposer
 transpose = Util.transpose degree_to_num num_to_degree
 
-note_numbers2 = map Pitch.nn
-    [ 53
+note_numbers_umbang :: [Pitch.NoteNumber]
+note_numbers_umbang = map Pitch.nn
+    [ 53 -- 6.., pemade begin
+
     , 55.15
     , 57.73
     , 60.4
     , 62.95
+    , 64.7 -- 6., kantilan begin
+
+    , 67.57 -- 1
+    , 69.45
+    , 72.1
+    , 74.83 -- 5, pemade end
+    , 76.85
+
+    , 79.48
+    , 81.63
+    , 84.12
+    , 86.88 -- 5^, kantilan end
     ]
 
--- TODO: get the real pitches
+note_numbers_isep :: [Pitch.NoteNumber]
+note_numbers_isep = map Pitch.nn
+    [ 52.3
+
+    , 54.55
+    , 57.35
+    , 59.85
+    , 62.5
+    , 64.45 -- 6., kantilan begin
+
+    , 67.26
+    , 69.25
+    , 71.81
+    , 74.63 -- 5, pemade end
+    , 76.73
+
+    , 79.35
+    , 81.51
+    , 84
+    , 86.78 -- 5^, kantilan end
+    ]
+
 note_numbers :: [Pitch.NoteNumber]
-note_numbers = map Pitch.nn
-    [ 50.0 -- pemade begin
-
-    , 53
-    , 55
-    , 57
-    , 60
-    , 62 -- kantilan begin
-
-    , 65 -- "middle nding", should be played by kbd middle c
-    , 67
-    , 69
-    , 72 -- pemade end
-    , 74
-
-    , 77
-    , 79
-    , 81
-    , 84 -- kantilan end
-    ]
+note_numbers = note_numbers_umbang
 
 -- Line a list starting with nding up with 'note_numbers'.
 align = take (length note_numbers) . drop 4
