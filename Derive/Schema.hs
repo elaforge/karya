@@ -150,6 +150,8 @@ default_schema =
 
 -- | This decides what track-specific commands are in scope based on the
 -- current focus and information in the CmdContext.
+--
+-- TODO lookup scale here and return an error if it can't be found?
 default_cmds :: CmdContext -> [Cmd.Cmd]
 default_cmds context = wrap $ case maybe_track_type of
         Nothing -> []
@@ -179,7 +181,7 @@ default_cmds context = wrap $ case maybe_track_type of
 
     (maybe_track_type, maybe_inst, scale_id) = get_defaults context
     midi_thru = case maybe_inst of
-        Just inst -> [with_note $ MidiThru.cmd_midi_thru inst]
+        Just inst -> [with_note $ MidiThru.cmd_midi_thru scale_id inst]
         Nothing -> []
 
 get_defaults :: CmdContext

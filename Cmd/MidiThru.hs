@@ -47,15 +47,17 @@ import Cmd.InputNote (NoteId)
 import qualified Cmd.Msg as Msg
 
 import qualified Derive.Score as Score
+import qualified Derive.Scale as Scale
 
+import qualified Perform.Pitch as Pitch
 import qualified Perform.Midi.Controller as Controller
 import qualified Perform.Midi.Instrument as Instrument
 import Perform.Midi.Instrument (Addr)
 
 
 -- | Send midi thru, addressing it to the given Instrument.
-cmd_midi_thru :: Score.Instrument -> Cmd.Cmd
-cmd_midi_thru score_inst msg = do
+cmd_midi_thru :: Pitch.ScaleId -> Score.Instrument -> Cmd.Cmd
+cmd_midi_thru scale_id score_inst msg = do
     input <- case msg of
         Msg.InputNote input -> return input
         _ -> Cmd.abort
@@ -64,6 +66,10 @@ cmd_midi_thru score_inst msg = do
     -- how useful that will be.
     inst <- Cmd.require $ lookup_inst Score.no_attrs score_inst
     let pb_range = Instrument.inst_pitch_bend_range inst
+
+    scale <- Cmd.get_scale "cmd_midi_thu" scale_id
+    input <- maybe (Cmd.throw $ show scale_id ++ " doesn't have " ++ show input)
+        return (map_scale scale input)
 
     -- TODO if the wdev is in a certain scale, then I'll have to map the
     -- pitch here
@@ -77,6 +83,17 @@ cmd_midi_thru score_inst msg = do
         Nothing -> return ()
     mapM_ (uncurry Cmd.midi) thru_msgs
     return Cmd.Continue
+
+map_scale :: Pitch.Scale -> InputNote.Input -> Maybe InputNote.Input
+map_scale scale input = case input of
+        InputNote.NoteOn note_id key vel ->
+            fmap (\k -> InputNote.NoteOn note_id k vel) (convert key)
+        InputNote.PitchChange note_id key ->
+            fmap (\k -> InputNote.PitchChange note_id k) (convert key)
+        _ -> Just input
+    where
+    convert input_key = fmap (\(Pitch.NoteNumber nn) -> Pitch.InputKey nn)
+        (Pitch.scale_input_to_nn scale input_key)
 
 input_to_midi :: Controller.PbRange -> Cmd.WriteDeviceState
     -> [Addr] -> InputNote.Input

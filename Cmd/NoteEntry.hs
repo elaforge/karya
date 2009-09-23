@@ -28,6 +28,13 @@ import qualified Perform.Pitch as Pitch
 --
 -- TODO this does the conversion multiple times, I could do it only once by
 -- taking a list of cmds to cmds.
+--
+-- TODO it might be nicer to do the scale mapping here.  It would mean one
+-- extra mapping here and one less mapping in MidiThru.  The scale lookup would
+-- become a little messier since I'd need to lookup input to mapped input and
+-- then mapped input to note.  PitchTrack would still need the scale.  I could
+-- reduce the scope of InputKey or eliminate it entirely for the more universal
+-- NoteNumber.  It seems like a wash at the moment.
 with_note :: Bool -> Cmd.Cmd -> Cmd.Cmd
 with_note kbd_entry cmd msg = do
     has_mods <- are_modifiers_down
