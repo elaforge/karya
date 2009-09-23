@@ -1,4 +1,4 @@
-module Cmd.KbdEntry_test where
+module Cmd.NoteEntry_test where
 import Util.Test
 
 import qualified Midi.Midi as Midi
@@ -8,7 +8,7 @@ import qualified Ui.Key as Key
 import qualified Ui.State as State
 
 import qualified Cmd.CmdTest as CmdTest
-import qualified Cmd.KbdEntry as KbdEntry
+import qualified Cmd.NoteEntry as NoteEntry
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Cmd as Cmd
 
@@ -19,7 +19,7 @@ import qualified Derive.Scale.Twelve as Twelve
 
 test_key_to_input = do
     let k = Key.KeyChar
-    let f = KbdEntry.key_to_input
+    let f = NoteEntry.key_to_input
     equal (f 4 True (k '\'')) (Just (Just (CmdTest.note_on 60 60 100)))
     equal (f 4 True (k ',')) (Just (Just (CmdTest.note_on 62 62 100)))
     equal (f 4 True (k ';')) (Just (Just (CmdTest.note_on 48 48 100)))
@@ -33,7 +33,7 @@ test_key_to_input = do
 
 test_with_note = do
     let cmd_dummy msg = Log.warn (show msg) >> return Cmd.Done
-    let f kbd_entry msg = KbdEntry.with_note kbd_entry cmd_dummy msg
+    let f kbd_entry msg = NoteEntry.with_note kbd_entry cmd_dummy msg
         key = CmdTest.key_down ','
         run cstate cmd = extract_logs $ CmdTest.run State.empty cstate cmd
         -- key passed through to cmd_dummy

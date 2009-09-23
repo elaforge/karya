@@ -64,7 +64,7 @@ import Cmd.Cmd (Schema(..), SchemaDeriver, CmdContext(..), SchemaMap)
 import qualified Cmd.ControlTrack as ControlTrack
 import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.PitchTrack as PitchTrack
-import qualified Cmd.KbdEntry as KbdEntry
+import qualified Cmd.NoteEntry as NoteEntry
 import qualified Cmd.MidiThru as MidiThru
 
 import qualified Derive.Controller as Controller
@@ -173,7 +173,7 @@ default_cmds context = wrap $ case maybe_track_type of
     wrap cmds = universal ++ cmds
     universal =
         with_note (PitchTrack.cmd_record_note_status scale_id) : midi_thru
-    with_note = KbdEntry.with_note kbd_entry
+    with_note = NoteEntry.with_note kbd_entry
     edit_mode = ctx_edit_mode context
     kbd_entry = ctx_kbd_entry context
 

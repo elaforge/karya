@@ -3,7 +3,7 @@
     re-emitting them as InputNotes.  These then go to the track-specific edit
     cmds to enter notes and to "Cmd.MidiThru" which re-emits them as MIDI.
 -}
-module Cmd.KbdEntry where
+module Cmd.NoteEntry where
 import Control.Monad
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe

@@ -5,7 +5,7 @@
     with:
 
     - Remap input pitch according to scale and controller pitch bend range
-    (done by KbdEntry) and instrument pb range.  This means keeping track of
+    (done by NoteEntry) and instrument pb range.  This means keeping track of
     previous note id and pb val.
 
     - Remap addr based on addrs assign to instrument, assigning round-robin.
