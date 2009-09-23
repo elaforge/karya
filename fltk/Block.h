@@ -191,10 +191,6 @@ public:
     bool testing;
 protected:
     int handle(int evt);
-
-private:
-    // Keep track of which keys are down, to suppress spurious key ups.
-    std::map<int, bool> keys_down;
 };
 
 #endif

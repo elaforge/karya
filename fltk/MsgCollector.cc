@@ -262,6 +262,18 @@ MsgCollector::clear()
 void
 MsgCollector::push(const UiMsg &m)
 {
+    if (m.type == UiMsg::msg_event) {
+        // Supppress keyups that have no keydown.  This can happen when focus
+        // switches: the focused widget will eat the keydown to switch focus,
+        // and whoever gets the focus (Block) will get a lone keyup.
+        if (m.event == FL_KEYDOWN)
+            this->keys_down.insert(m.key);
+        else if (m.event == FL_KEYUP) {
+            if (this->keys_down.find(m.key) == this->keys_down.end())
+                return;
+            this->keys_down.erase(m.key);
+        }
+    }
     this->msgs.push_back(m);
     // DEBUG("collected " << m);
 }

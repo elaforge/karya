@@ -1,4 +1,5 @@
 #include <vector>
+#include <set>
 
 #include "Block.h"
 #include "Track.h"
@@ -157,6 +158,9 @@ public:
 private:
     void push(const UiMsg &m);
     std::vector<UiMsg> msgs;
+
+    // Keep track of which keys are down, to suppress spurious key ups.
+    std::set<int> keys_down;
 };
 
 MsgCollector *global_msg_collector();

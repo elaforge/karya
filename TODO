@@ -15,9 +15,6 @@ CURRENT
   - editing for "pattern list" block
   - double click call to jump to its block?
 
-still getting "enter not in keydown", I think it's Input emitting only the
-keyup
-
 * current kbd entry is flawed since for midi thru it turns InputKeys into
 midi, which can't be distinguished from real midi
 - verify twelve ->midi mapping and range checking
