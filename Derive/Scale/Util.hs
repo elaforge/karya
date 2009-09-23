@@ -54,8 +54,8 @@ lookup_input input input_map
             dist = Num.normalize (i prev_input) (i next_input) (i input)
             scaled_nn = Num.scale prev_nn next_nn dist
         in if dist > 0.5
-            then Just (scaled_nn, next_degree, (dist-1) * 100)
-            else Just (scaled_nn, prev_degree, dist * 100)
+            then Just (scaled_nn, next_degree, dist - 1)
+            else Just (scaled_nn, prev_degree, dist)
     | otherwise = Nothing
     where
     (pre, at, post) = Map.splitLookup input input_map
