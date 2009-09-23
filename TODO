@@ -14,8 +14,6 @@ CURRENT
   - editing for "pattern list" block
   - double click call to jump to its block?
 
-- rename Util.Data to Util.Map
-
 still getting "enter not in keydown"
 changing track title doesn't trigger a rederive?
 

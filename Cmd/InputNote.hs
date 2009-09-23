@@ -29,6 +29,7 @@
 -}
 module Cmd.InputNote where
 import qualified Data.Map as Map
+import qualified Util.Map as Map
 import qualified Midi.Midi as Midi
 
 import qualified Derive.Score as Score
@@ -80,7 +81,7 @@ from_midi state rdev (Midi.ChannelMessage chan chan_msg) = case maybe_input of
         Just input -> Just (input, update_state addr chan_msg state)
     where
     addr = (rdev, chan)
-    last_pb = maybe 0 id (Map.lookup addr (state_pb state))
+    last_pb = Map.get 0 addr (state_pb state)
     with_last_id f = fmap f (Map.lookup addr (state_note_id state))
     maybe_input = case chan_msg of
         Midi.NoteOn key vel -> Just $

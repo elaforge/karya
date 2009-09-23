@@ -24,7 +24,7 @@ import qualified Data.Map as Map
 import qualified Data.Char as Char
 import qualified Data.List as List
 
-import qualified Util.Data as Data
+import qualified Util.Map as Map
 
 import qualified Derive.Scale.Util as Util
 
@@ -54,7 +54,7 @@ note_to_nn note = do
 degree_to_nn :: Map.Map String Pitch.NoteNumber
 degree_to_nn = Map.fromList $ zip degrees (map Pitch.NoteNumber [0..127])
     where degrees = [show o ++ d | o <- [-1..9], d <- note_degrees]
-nn_to_degree = Data.invert_map degree_to_nn
+nn_to_degree = Map.invert degree_to_nn
 
 note_degrees :: [String]
 note_degrees =

@@ -5,7 +5,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Text.Read as Read
 
-import qualified Util.Data
+import qualified Util.Map as Map
 import qualified Util.Seq as Seq
 
 import Ui.Types
@@ -138,7 +138,7 @@ remove_events :: TrackPos -> TrackPos -> TrackEvents -> TrackEvents
 remove_events start end track_events =
     emap (`Map.difference` deletes) track_events
     where
-    (_, deletes, _) = Util.Data.split3_map start end (un_event_map track_events)
+    (_, deletes, _) = Map.split3 start end (un_event_map track_events)
 
 -- | Remove an event if it occurs exactly at the given pos.
 remove_event :: TrackPos -> TrackEvents -> TrackEvents
@@ -147,7 +147,7 @@ remove_event pos track_events = emap (Map.delete pos) track_events
 -- | Return the events before the given @pos@, and the events at and after it.
 events_at :: TrackPos -> TrackEvents -> ([PosEvent], [PosEvent])
 events_at pos (TrackEvents events) = (toDescList pre, Map.toAscList post)
-    where (pre, post) = Util.Data.split_map pos events
+    where (pre, post) = Map.split2 pos events
 
 -- | This is like 'events_at', but if there isn't an event exactly at the pos,
 -- start at the event right before it.
@@ -185,7 +185,7 @@ event_list (TrackEvents events) = Map.toAscList events
 
 -- | Final event, if there is one.
 last_event :: TrackEvents -> Maybe PosEvent
-last_event (TrackEvents events) = Util.Data.find_max events
+last_event (TrackEvents events) = Map.find_max events
 
 -- | Return the position at the end of the event.
 event_end :: PosEvent -> TrackPos
@@ -194,14 +194,14 @@ event_end (pos, evt) = pos + Event.event_duration evt
 events_in_range :: TrackPos -> TrackPos -> TrackEvents -> [PosEvent]
 events_in_range start end events = Map.toAscList within
     where
-    (_, within, _) = Util.Data.split3_map start end (un_event_map events)
+    (_, within, _) = Map.split3 start end (un_event_map events)
 
 -- | Like 'events_in_range', except shorten the last event if it goes past the
 -- end.
 clip_to_range :: TrackPos -> TrackPos -> TrackEvents -> [PosEvent]
 clip_to_range start end events = Map.toAscList clipped
     where
-    (_, within, _) = Util.Data.split3_map start end (un_event_map events)
+    (_, within, _) = Map.split3 start end (un_event_map events)
     clipped = case last_event (TrackEvents within) of
         Nothing -> within
         Just (pos, evt) -> Map.insert pos (clip_event (end-pos) evt) within
@@ -255,9 +255,9 @@ fold_clip pos evt rest@((next_pos, _next_evt) : _) =
 merge_range :: (Ord k) => k -> k -> Map.Map k a -> Map.Map k a
 merge_range low high fm = expanded
     where
-    (below, within, above) = Util.Data.split3_map low high fm
-    expanded = maybe_add (Util.Data.find_min above)
-        (maybe_add (Util.Data.find_max below) within)
+    (below, within, above) = Map.split3 low high fm
+    expanded = maybe_add (Map.find_min above)
+        (maybe_add (Map.find_max below) within)
 
 maybe_add Nothing fm = fm
 maybe_add (Just (k, v)) fm = Map.insert k v fm

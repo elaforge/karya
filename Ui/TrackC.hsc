@@ -13,7 +13,7 @@ import qualified Data.Array.IArray as IArray
 import Foreign
 import Foreign.C
 
-import qualified Util.Data
+import qualified Util.Array as Array
 
 import Ui.Types
 import qualified Ui.Event as Event
@@ -100,7 +100,7 @@ cb_find_samples (Track.Samples samples) startp endp ret_tps ret_samples = do
     start <- peek startp
     end <- peek endp
     -- From one before start to one after end.
-    let start_i = max 0 (Util.Data.bsearch_on fst samples start - 1)
+    let start_i = max 0 (Array.bsearch_on fst samples start - 1)
         max_i = snd (IArray.bounds samples)
         (elts, rest) = break ((>=end) . fst) (map (samples!) [start_i..max_i])
         -- Get one sample past the cutoff so it can draw the slope properly.

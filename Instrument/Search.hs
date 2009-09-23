@@ -7,7 +7,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
-import qualified Util.Data
+import qualified Util.Map as Map
 
 import qualified Midi.Midi as Midi
 import qualified Derive.Score as Score
@@ -56,8 +56,7 @@ merge_indices (Index keys0 inv0) (Index keys1 inv1) =
 
 make_index :: MidiDb.MidiDb -> Index
 make_index midi_db =
-    Index (Map.map Util.Data.multimap (Util.Data.multimap idx))
-        (Map.fromList inv_idx)
+    Index (Map.map Map.multimap (Map.multimap idx)) (Map.fromList inv_idx)
     where
     inv_idx = inverted_index midi_db
     idx = [(key, (val, inst)) | (inst, tags) <- inv_idx, (key, val) <- tags]

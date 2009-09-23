@@ -39,7 +39,7 @@ import qualified Control.Monad.Trans as Trans
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
-import qualified Util.Data
+import qualified Util.Map as Map
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
@@ -133,7 +133,7 @@ derive_events updates = do
     threads <- mapM background_derive block_ids
     let new_threads = Map.fromList (zip block_ids threads)
     Cmd.modify_state $ \st -> st { Cmd.state_derive_threads =
-        Map.union new_threads (Util.Data.delete_keys block_ids old_threads) }
+        Map.union new_threads (Map.delete_keys block_ids old_threads) }
 
 background_derive :: Block.BlockId -> Cmd.CmdT IO Concurrent.ThreadId
 background_derive block_id = do

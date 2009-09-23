@@ -4,7 +4,7 @@ import Data.Array.IArray ((!))
 import qualified Text.Read as Read
 
 import Util.Pretty
-import qualified Util.Data
+import qualified Util.Array as Array
 
 import Ui.Types
 import qualified Ui.Id as Id
@@ -100,7 +100,7 @@ instance Pretty Mark where
 at :: Marklist -> TrackPos -> ([PosMark], [PosMark])
 at (Marklist a) pos = (map (a!) [i-1, i-2..low], map (a!) [i..high])
     where
-    i = Util.Data.bsearch_on fst a pos
+    i = Array.bsearch_on fst a pos
     (low, high) = IArray.bounds a
 
 -- | Marks starting at the first mark >= the given pos, to the end.

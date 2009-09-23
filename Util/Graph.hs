@@ -7,7 +7,7 @@ import Data.Array.IArray ( (!), (//) )
 import Data.Graph
 import qualified Data.Tree as Tree
 
-import qualified Util.Data as Data
+import qualified Util.Array as Array
 import qualified Util.Seq as Seq
 
 build :: [Edge] -> Graph
@@ -41,19 +41,19 @@ toggle_edge edge graph
 
 would_make_cycle :: Edge -> Graph -> Bool
 would_make_cycle (from, to) graph =
-    Data.in_bounds graph from && path graph to from
+    Array.in_bounds graph from && path graph to from
 
 has_edge :: Edge -> Graph -> Bool
-has_edge (from, to) graph = Data.in_bounds graph from && to `elem` graph!from
+has_edge (from, to) graph = Array.in_bounds graph from && to `elem` graph!from
 
 -- | A lonely vertex has no edges.
 lonely_vertex :: Graph -> Vertex -> Bool
 lonely_vertex graph vertex =
-    not (Data.in_bounds graph vertex) || null (graph!vertex)
+    not (Array.in_bounds graph vertex) || null (graph!vertex)
 
 add_edge :: Edge -> Graph -> Graph
 add_edge (from, to) graph
-    | Data.in_bounds graph from = IArray.accum (flip (:)) graph [(from, to)]
+    | Array.in_bounds graph from = IArray.accum (flip (:)) graph [(from, to)]
     | otherwise = IArray.accumArray (flip const) [] new_bounds
         ((from, [to]) : IArray.assocs graph)
     where
@@ -62,7 +62,8 @@ add_edge (from, to) graph
 
 remove_edge :: Edge -> Graph -> Graph
 remove_edge (from, to) graph
-    | Data.in_bounds graph from = graph // [(from, List.delete to (graph!from))]
+    | Array.in_bounds graph from =
+        graph // [(from, List.delete to (graph!from))]
     | otherwise = graph
 
 -- | Increment all vertices at and above, insert new empty vertex.
@@ -81,7 +82,7 @@ remove_vertex vertex graph = map_vertices decr (unlink_vertex vertex graph)
 unlink_vertex :: Int -> Graph -> Graph
 unlink_vertex vertex graph =
     IArray.amap (Seq.replace1 v (graph IArray.! v)) graph // [(v, [])]
-    where v = Data.assert_in_bounds "unlink_vertex" graph vertex
+    where v = Array.assert_in_bounds "unlink_vertex" graph vertex
 
 
 -- | Transform all the vertices by the given function.  If multiple vertices

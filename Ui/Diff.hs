@@ -11,7 +11,7 @@ import qualified Data.Map as Map
 import qualified Data.List as List
 
 import qualified Util.Seq as Seq
-import qualified Util.Data
+import qualified Util.Map as Map
 
 import qualified Ui.Block as Block
 import qualified Ui.Track as Track
@@ -48,14 +48,11 @@ diff st1 st2 = fmap (munge_updates st2) $ run $ do
         visible_blocks = Map.filterWithKey (\k _v -> k `elem` visible_ids)
             (State.state_blocks st2)
     mapM_ (uncurry3 diff_block)
-        (Util.Data.zip_intersection
-            (State.state_blocks st1) visible_blocks)
+        (Map.zip_intersection (State.state_blocks st1) visible_blocks)
     mapM_ (uncurry3 diff_track)
-        (Util.Data.zip_intersection
-            (State.state_tracks st1) (State.state_tracks st2))
+        (Map.zip_intersection (State.state_tracks st1) (State.state_tracks st2))
     mapM_ (uncurry3 diff_ruler)
-        (Util.Data.zip_intersection
-            (State.state_rulers st1) (State.state_rulers st2))
+        (Map.zip_intersection (State.state_rulers st1) (State.state_rulers st2))
 
 
 -- | This is a nasty little case that falls out of how I'm doing diffs:
@@ -89,7 +86,7 @@ diff_views st1 st2 views1 views2 = do
     let new_views = Map.difference views2 views1
     change $ map (flip Update.ViewUpdate Update.CreateView) (Map.keys new_views)
     mapM_ (uncurry3 (diff_view st1 st2))
-        (Util.Data.zip_intersection views1 views2)
+        (Map.zip_intersection views1 views2)
 
 diff_view st1 st2 view_id view1 view2 = do
     let view_update = Update.ViewUpdate view_id

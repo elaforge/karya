@@ -7,7 +7,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
-import qualified Util.Data
+import qualified Util.Map as Map
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 
@@ -28,7 +28,7 @@ merge (MidiDb db0) (MidiDb db1) =
     where
     merge_synth (synth, pmap0) (_, pmap1) = (synth, merge_patches pmap0 pmap1)
     merge_patches (PatchMap ps0) (PatchMap ps1) = PatchMap (Map.union ps0 ps1)
-    rejects = concatMap find_dups (Util.Data.zip_intersection db0 db1)
+    rejects = concatMap find_dups (Map.zip_intersection db0 db1)
     find_dups (synth, (_, PatchMap ps0), (_, PatchMap ps1)) =
         map (join_inst synth) (Map.keys (Map.intersection ps1 ps0))
 
@@ -96,7 +96,7 @@ wildcard_inst_name = "*"
 patch_map :: [Instrument.Patch] -> (PatchMap, [(String, Instrument.Patch)])
 patch_map patches = (PatchMap pmap, rejects)
     where
-    (pmap, rejects) = Util.Data.unique_map
+    (pmap, rejects) = Map.unique
         [(clean_inst_name (Instrument.inst_name
             (Instrument.patch_instrument p)), p) | p <- patches]
 

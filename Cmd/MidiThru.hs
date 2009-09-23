@@ -35,7 +35,7 @@ module Cmd.MidiThru where
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
-import qualified Util.Data as Data
+import qualified Util.Map as Map
 import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
@@ -68,7 +68,7 @@ cmd_midi_thru score_inst msg = do
     -- TODO if the wdev is in a certain scale, then I'll have to map the
     -- pitch here
     config <- State.get_midi_config
-    let addrs = Data.get [] score_inst (Instrument.config_alloc config)
+    let addrs = Map.get [] score_inst (Instrument.config_alloc config)
     wdev_state <- Cmd.get_wdev_state
     let (thru_msgs, maybe_wdev_state) =
             input_to_midi pb_range wdev_state addrs input
@@ -84,7 +84,7 @@ input_to_midi :: Controller.PbRange -> Cmd.WriteDeviceState
 input_to_midi pb_range wdev_state addrs input = case alloc addrs input of
     (Nothing, _) -> ([], Nothing)
     (Just addr, new_state) ->
-        let pb = Data.get 0 addr (Cmd.wdev_pb wdev_state)
+        let pb = Map.get 0 addr (Cmd.wdev_pb wdev_state)
             msgs = InputNote.to_midi pb_range pb input
         in (map (with_addr addr) msgs,
             Just (merge_state new_state addr (last_pb pb msgs) wdev_state))

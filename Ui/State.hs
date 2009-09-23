@@ -31,10 +31,10 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Tree as Tree
 
-import qualified Util.Data
-import qualified Util.Seq as Seq
 import qualified Util.Log as Log
 import qualified Util.Logger as Logger
+import qualified Util.Map as Map
+import qualified Util.Seq as Seq
 
 import Ui.Types
 import qualified Ui.Id as Id
@@ -302,7 +302,7 @@ safe_union name fm0 fm1
     | Map.null overlapping = return fm
     | otherwise = throw $
         "keys collided in " ++ show name ++ ": " ++ show (Map.keys overlapping)
-    where (fm, overlapping) = Util.Data.unique_union fm0 fm1
+    where (fm, overlapping) = Map.unique_union fm0 fm1
 
 -- * misc
 

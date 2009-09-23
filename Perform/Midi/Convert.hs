@@ -13,7 +13,7 @@ import qualified Control.Monad.Reader as Reader
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
-import qualified Util.Data as Data
+import qualified Util.Map as Map
 import qualified Util.Logger as Logger
 import qualified Util.Seq as Seq
 
@@ -78,7 +78,7 @@ get_pitch controllers = do
 
 get_pitch_cs :: Score.ControllerMap -> [(Score.Controller, Signal.Signal)]
 get_pitch_cs = takeWhile (is_pitch_c . fst) . Map.toAscList
-    . snd . Data.split_map (Score.Controller Schema.pitch_track_prefix)
+    . snd . Map.split2 (Score.Controller Schema.pitch_track_prefix)
 
 is_pitch_c (Score.Controller c) = Schema.is_pitch_track c
 
