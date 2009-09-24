@@ -64,6 +64,14 @@ test read_chan = do
             (write_msg, read_msg) <- open_devs True
                 all_rdevs (Just (Midi.WriteDevice out_dev))
             thru_melody write_msg read_msg
+        ["spam", out_dev, n_str] -> do
+            putStrLn $ "spamming " ++ n_str ++ " msgs"
+            (write_msg, _) <- open_devs True
+                all_rdevs (Just (Midi.WriteDevice out_dev))
+            n <- readIO n_str
+            spam write_msg n
+            getChar
+            return ()
         ["test"] -> do
             putStrLn "testing"
             (write_msg, read_msg) <- open_devs False
@@ -78,6 +86,7 @@ usage = unlines
     , "help         print this usage"
     , "thru <out>   msgs from any input are relayed to <out>"
     , "melody <out> play a melody on <out>, also relaying msgs thru"
+    , "spam <out> n spam <out> with 'n' msgs in rapid succession"
     , "test         run some semi-automatic tests"
     ]
 
@@ -112,6 +121,16 @@ melody start_ts = concat [[(ts, note_on nn), (ts+400, note_off nn)]
         | (ts, nn) <- zip [start_ts, start_ts+500..] score]
     where score = [53, 55 .. 61]
 
+
+-- * spam
+
+spam :: WriteMsg -> Int -> IO ()
+spam write_msg n = do
+    now <- CoreMidi.now
+    mapM_ write_msg [(now+(i*10), msg) | (i, msg) <- zip [0..] msgs]
+    where
+    msgs = take n [Midi.ChannelMessage 0 msg | nn <- cycle [0..127],
+        msg <- [Midi.NoteOn nn 127, Midi.NoteOff nn 127]]
 
 -- * tests
 
