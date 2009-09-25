@@ -150,11 +150,15 @@ run_state_t (StateT x) = x
 instance Trans.MonadTrans StateT where
     lift = StateT . lift . lift . lift
 
-data StateError = StateError String deriving (Generics.Typeable)
+-- | Abort is used by Cmd, so don't throw it from here.  This isn't exactly
+-- modular, but ErrorT can't be composed and extensible exceptions are too
+-- much bother at the moment.
+data StateError = StateError String | Abort deriving (Generics.Typeable)
 instance Error.Error StateError where
     strMsg = StateError
 instance Show StateError where
     show (StateError msg) = "StateError: " ++ msg
+    show Abort = "Abort"
 
 -- TODO remove modify and implement in terms of get and put?
 -- TODO I also think I can remove throw since it's in Error

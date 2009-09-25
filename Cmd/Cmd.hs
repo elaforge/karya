@@ -69,20 +69,21 @@ type CmdVal a = (State, [MidiThru], [Log.Msg],
     Either State.StateError (a, State.State, [Update.Update]))
 
 run :: (Monad m) => a -> RunCmd m m a
-run abort_val ui_state cmd_state cmd = do
-    (res, logs) <- (Log.run . Error.runErrorT . Logger.run
-        . flip MonadState.runStateT cmd_state . State.run ui_state . run_cmd_t)
+run abort_val ustate cstate cmd = do
+    (((ui_result, cstate2), midi), logs) <-
+        (Log.run . Logger.run . flip MonadState.runStateT cstate
+            . State.run ustate . run_cmd_t)
         cmd
     -- An Abort is just like if the cmd immediately returned Continue, except
     -- that log msgs are kept.  Normally 'abort_val' will be Continue, but
     -- obviously if 'cmd' doesn't return Status it can't be.
-    return $ case res of
-        Left Abort -> (cmd_state, [], logs, Right (abort_val, ui_state, []))
-        Right ((ui_res, cmd_state2), midi) -> (cmd_state2, midi, logs, ui_res)
+    return $ case ui_result of
+        Left State.Abort -> (cstate, [], logs, Right (abort_val, ustate, []))
+        _ -> (cstate2, midi, logs, ui_result)
 
 -- | Run the given command in Identity, but return it in IO, just as
--- a convenient way to have a uniform return type with 'run' (provided its run
--- in IO).
+-- a convenient way to have a uniform return type with 'run' (provided it is
+-- run in IO).
 run_id_io :: RunCmd Identity.Identity IO Status
 run_id_io ui_state cmd_state cmd = do
     return $ Identity.runIdentity (run Continue ui_state cmd_state cmd)
@@ -104,23 +105,18 @@ data Status = Done | Continue | Quit deriving (Eq, Show, Generics.Typeable)
 type CmdStack m = State.StateT
     (MonadState.StateT State
         (Logger.LoggerT MidiThru
-            (Error.ErrorT Abort
-                (Log.LogT m))))
-
-data Abort = Abort deriving (Show)
-instance Error.Error Abort where
-    noMsg = Abort
+            (Log.LogT m)))
 
 newtype CmdT m a = CmdT (CmdStack m a)
-    deriving (Functor, Monad, Trans.MonadIO)
+    deriving (Functor, Monad, Trans.MonadIO, Error.MonadError State.StateError)
 run_cmd_t (CmdT x) = x
 
 instance Trans.MonadTrans CmdT where
-    lift = CmdT . lift . lift . lift . lift . lift -- whee!!
+    lift = CmdT . lift . lift . lift . lift -- whee!!
 
 -- Give CmdT unlifted access to all the logging functions.
 instance Monad m => Log.LogMonad (CmdT m) where
-    write = CmdT . lift . lift . lift . lift . Log.write
+    write = CmdT . lift . lift . lift . Log.write
 
 -- And to the UI state operations.
 instance Monad m => State.UiStateMonad (CmdT m) where
@@ -134,14 +130,17 @@ type MidiThru = (Midi.WriteDevice, Midi.Message)
 
 -- | Log some midi to send out immediately.  This is the midi thru mechanism.
 midi :: (Monad m) => Midi.WriteDevice -> Midi.Message -> CmdT m ()
-midi dev msg = (CmdT . lift . lift) (Logger.record (dev, msg))
+midi dev msg = (CmdT . lift) (Logger.record (dev, msg))
 
 -- | An abort is an exception to get out of CmdT, but it's considered the same
 -- as returning Continue.  It's so a command can back out if e.g. it's selected
 -- by the 'Keymap' but has an additional prerequisite such as having an active
 -- block.
 abort :: (Monad m) => CmdT m a
-abort = (CmdT . lift . lift . lift) (Error.throwError Abort)
+abort = Error.throwError State.Abort
+
+catch_abort :: (Monad m) => CmdT m a -> CmdT m (Maybe a)
+catch_abort m = Error.catchError (fmap Just m) (\_ -> return Nothing)
 
 -- | This is the same as State.throw, but it feels like things in Cmd may not
 -- always want to reuse State's exceptions, so they should call this one.
@@ -155,7 +154,7 @@ require = maybe abort return
 
 -- | Like 'require', but throw an exception with the given msg.
 require_msg :: (Monad m) => String -> Maybe a -> CmdT m a
-require_msg msg = maybe (State.throw msg) return
+require_msg msg = maybe (throw msg) return
 
 -- * State
 
