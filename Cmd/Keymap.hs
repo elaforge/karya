@@ -179,6 +179,13 @@ mods_down = do
     is_mod (Cmd.MidiMod _ _) = False
     is_mod (Cmd.MouseMod _ _) = True
 
+-- | True if this msg is a repeat keydown.
+is_repeat :: (Monad m) => Msg.Msg -> Cmd.CmdT m Bool
+is_repeat (Msg.key -> Just (True, key)) = do
+    keys_down <- Cmd.keys_down
+    return $ Cmd.KeyMod key `Map.member` keys_down
+is_repeat _ = return False
+
 msg_to_bindable :: Msg.Msg -> Maybe Bindable
 msg_to_bindable msg = case msg of
     (Msg.key_down -> Just key) -> Just $ Key key

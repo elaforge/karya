@@ -2,7 +2,6 @@ CURRENT
   + fix hint stuff
   * love for logview
   - complete InputNote implementation for pitch entry
-    - suppress key repeat in kbd mode
     - advance on NoteOff
     - continuous adjustment by keeping track of NoteId
       suspend automatic derivation while there's a note down?  use Cmd.Mod

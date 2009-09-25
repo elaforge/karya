@@ -42,7 +42,11 @@ cmds_with_note kbd_entry cmds msg = do
     kbd_note <- if kbd_entry && not has_mods
         then do
             octave <- fmap Cmd.state_kbd_entry_octave Cmd.get_state
-            return (kbd_input octave msg)
+            repeat <- Keymap.is_repeat msg
+            -- Just Nothing makes them get eaten here.
+            if repeat
+                then return (Just Nothing)
+                else return (kbd_input octave msg)
         else return Nothing
     midi_note <- get_midi_input msg
     let maybe_new_msg = kbd_note `mplus` midi_note
