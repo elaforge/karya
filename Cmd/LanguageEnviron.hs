@@ -10,11 +10,13 @@ module Cmd.LanguageEnviron where
 import Control.Monad.Trans (liftIO)
 import qualified Data.Map as Map
 import qualified Data.List as List
+import qualified Data.Set as Set
 
-import Ui.Types
-
+import qualified Util.Map as Map
 import qualified Util.Log as Log
 import qualified Util.PPrint as PPrint
+
+import Ui.Types
 
 import Ui.Types
 import qualified Ui.Id as Id
@@ -32,6 +34,7 @@ import qualified Cmd.Clip as Clip
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Edit as Edit
+import qualified Cmd.Info as Info
 import qualified Cmd.MakeRuler as MakeRuler
 import qualified Cmd.Play as Play
 import qualified Cmd.Selection as Selection

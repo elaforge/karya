@@ -32,6 +32,7 @@ import Text.Printf
 
 import qualified Util.Seq as Seq
 import qualified Util.Log as Log
+import qualified Util.Map as Map
 import Util.Pretty as Pretty
 import qualified Util.PPrint as PPrint
 
@@ -47,6 +48,7 @@ import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Edit as Edit
+import qualified Cmd.Info as Info
 import qualified Cmd.Language as Language
 import qualified Cmd.Play as Play
 import qualified Cmd.Save as Save
@@ -61,7 +63,7 @@ import qualified Derive.Schema as Schema
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Controller as Midi.Controller
 import qualified Perform.Midi.Convert as Midi.Convert
-import qualified Perform.Midi.Instrument as Midi.Instrument
+import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Midi.Perform
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
@@ -296,10 +298,19 @@ replace_ruler ruler_id block_id = do
 
 -- * midi config
 
-lookup_instrument :: String -> Cmd.CmdL (Maybe Midi.Instrument.Instrument)
+lookup_instrument :: String -> Cmd.CmdL (Maybe Instrument.Instrument)
 lookup_instrument inst_name = do
     lookup_inst <- Cmd.get_lookup_midi_instrument
     return $ lookup_inst Score.no_attrs (Score.Instrument inst_name)
+
+inst_info :: String -> Cmd.CmdL String
+inst_info inst_name = Info.inst_info (Score.Instrument inst_name)
+
+all_inst_info :: Cmd.CmdL String
+all_inst_info = do
+    config <- State.get_midi_config
+    info <- mapM Info.inst_info (Map.keys (Instrument.config_alloc config))
+    return $ show (length info) ++ " instruments:\n" ++ Seq.join "\n\n" info
 
 track_info :: Block.BlockId -> Block.TrackNum
     -> Cmd.CmdL (Schema.TrackType, Maybe Score.Instrument, Maybe Pitch.ScaleId)
@@ -346,7 +357,7 @@ load_instrument inst_name = do
 
 find_chan_for :: Midi.WriteDevice -> Cmd.CmdL Midi.Channel
 find_chan_for dev = do
-    alloc <- fmap Midi.Instrument.config_alloc State.get_midi_config
+    alloc <- fmap Instrument.config_alloc State.get_midi_config
     let addrs = map ((,) dev) [0..15]
         taken = concat (Map.elems alloc)
     let match = fmap snd $ List.find (not . (`elem` taken)) addrs
@@ -356,36 +367,36 @@ send_instrument_init :: Score.Instrument -> Midi.Channel -> Cmd.CmdL ()
 send_instrument_init inst chan = do
     info <- Cmd.require_msg ("inst not found: " ++ show inst)
         =<< Cmd.lookup_instrument_info inst
-    let init = Midi.Instrument.patch_initialize (MidiDb.info_patch info)
-        dev = Midi.Instrument.synth_device (MidiDb.info_synth info)
+    let init = Instrument.patch_initialize (MidiDb.info_patch info)
+        dev = Instrument.synth_device (MidiDb.info_synth info)
     send_initialization init inst dev chan
 
 -- | This feels like it should go in another module... Cmd.Instrument?
 -- I have too many things called Instrument!
-send_initialization :: Midi.Instrument.InitializePatch
+send_initialization :: Instrument.InitializePatch
     -> Score.Instrument -> Midi.WriteDevice -> Midi.Channel -> Cmd.CmdL ()
 send_initialization init inst dev chan = case init of
-    Midi.Instrument.InitializeMidi msgs -> do
+    Instrument.InitializeMidi msgs -> do
         Log.notice $ "sending midi init: " ++ concatMap Midi.show_message msgs
         mapM_ ((Cmd.midi dev) . Midi.set_channel chan) msgs
-    Midi.Instrument.InitializeMessage msg ->
+    Instrument.InitializeMessage msg ->
         -- TODO warn doesn't seem quite right for this...
         Log.warn $ "initialize instrument " ++ show inst ++ ": " ++ msg
-    Midi.Instrument.NoInitialization -> return ()
+    Instrument.NoInitialization -> return ()
 
-alloc_instrument :: Score.Instrument -> [Midi.Instrument.Addr] -> Cmd.CmdL ()
+alloc_instrument :: Score.Instrument -> [Instrument.Addr] -> Cmd.CmdL ()
 alloc_instrument inst addrs = do
     config <- State.get_midi_config
-    let alloc = Midi.Instrument.config_alloc config
+    let alloc = Instrument.config_alloc config
     State.set_midi_config $ config
-        { Midi.Instrument.config_alloc = Map.insert inst addrs alloc }
+        { Instrument.config_alloc = Map.insert inst addrs alloc }
 
 dealloc_instrument :: Score.Instrument -> Cmd.CmdL ()
 dealloc_instrument inst = do
     config <- State.get_midi_config
-    let alloc = Midi.Instrument.config_alloc config
+    let alloc = Instrument.config_alloc config
     State.set_midi_config $ config
-        { Midi.Instrument.config_alloc = Map.delete inst alloc }
+        { Instrument.config_alloc = Map.delete inst alloc }
 
 schema_instruments :: Block.BlockId -> Cmd.CmdL [Score.Instrument]
 schema_instruments block_id = do
@@ -399,7 +410,7 @@ schema_instruments block_id = do
 -- Example: auto_config (bid "b0") >>= State.set_midi_config
 -- TODO: won't work if there are >1 block, need a merge config
 -- TODO: same inst with different keyswitches should get the same addrs
-auto_config :: Block.BlockId -> Cmd.CmdL Midi.Instrument.Config
+auto_config :: Block.BlockId -> Cmd.CmdL Instrument.Config
 auto_config block_id = do
     insts <- schema_instruments block_id
     devs <- mapM device_of insts
@@ -413,12 +424,12 @@ auto_config block_id = do
             _ -> Nothing
     unless (null no_dev) $
         Log.warn $ "no synth found for instruments: " ++ show insts
-    return $ Midi.Instrument.config allocs default_inst
+    return $ Instrument.config allocs default_inst
 
 device_of :: Score.Instrument -> Cmd.CmdL (Maybe Midi.WriteDevice)
 device_of inst = do
     maybe_info <- Cmd.lookup_instrument_info inst
-    return $ fmap (Midi.Instrument.synth_device . MidiDb.info_synth) maybe_info
+    return $ fmap (Instrument.synth_device . MidiDb.info_synth) maybe_info
 
 controllers_of :: Score.Instrument -> [Midi.Controller.Controller]
 controllers_of inst = undefined -- TODO
