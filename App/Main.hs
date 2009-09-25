@@ -78,7 +78,7 @@ load_static_config = do
         , StaticConfig.config_write_device_map = write_device_map
         }
 
-iac n = "IAC Driver IAC Bus " ++ show n
+iac n = "IAC Out " ++ show n
 tapco n = "Tapco Link MIDI USB Ver 2.2 Port " ++ show n
 mkmap mkdev pairs = Map.fromList [(mkdev k, mkdev v) | (k, v) <- pairs]
 
@@ -121,7 +121,11 @@ main = initialize $ \lang_socket midi_chan -> do
 
     (rdev_map, wdev_map) <- MidiImp.get_devices
     print_devs rdev_map wdev_map
-    open_read_devices rdev_map (Map.keys rdev_map)
+    -- Don't open out IAC ports for read, otherwise any msgs written to them
+    -- will bounce back.
+    let is_rdev = not . ("IAC Out" `List.isPrefixOf`) . Midi.un_read_device
+    open_read_devices rdev_map (filter is_rdev (Map.keys rdev_map))
+    putStrLn $ "read devs opened " ++ show (filter is_rdev (Map.keys rdev_map))
 
     quit_request <- MVar.newMVar ()
 
@@ -180,13 +184,8 @@ remap_read_message dev_map rmsg@(Midi.ReadMessage { Midi.rmsg_dev = dev }) =
 
 open_read_devices :: Map.Map Midi.ReadDevice MidiImp.ReadDeviceId
     -> [Midi.ReadDevice] -> IO ()
-open_read_devices rdev_map rdevs = do
-    -- Don't open IAC ports that I'm opening for writing, otherwise I get
-    -- all my msgs bounced back.
-    let ok_devs = filter
-            (not . ("IAC " `List.isPrefixOf`) . Midi.un_read_device) rdevs
-    sequence_ [MidiImp.connect_read_device rdev (rdev_map Map.! rdev)
-        | rdev <- ok_devs ]
+open_read_devices rdev_map rdevs = forM_ rdevs $ \rdev ->
+    MidiImp.connect_read_device rdev (rdev_map Map.! rdev)
 
 responder_handler :: Exception.SomeException -> IO ()
 responder_handler exc = do

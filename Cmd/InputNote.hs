@@ -168,22 +168,25 @@ from_key oct down (Pitch.InputKey nn)
 -- knows what key the NoteOn used.  Actually, this will also lead to poor
 -- results if a scale maps pitches further than a half-step, which is very
 -- likely.  TODO fix this
-to_midi :: Controller.PbRange -> Midi.PitchBendValue -> Input
-    -> [Midi.ChannelMessage]
-to_midi pb_range prev_pb input = case input of
-        NoteOn note_id input vel->
-            let key = id_to_key note_id
-                pb = to_midi key input
-                note = Midi.NoteOn key (from_val vel)
-            in if prev_pb == pb then [note] else [Midi.PitchBend pb, note]
-        NoteOff note_id vel ->
-            [Midi.NoteOff (id_to_key note_id) (from_val vel)]
-        PitchChange note_id input ->
-            let pb = to_midi (id_to_key note_id) input
-            in if prev_pb == pb then [] else [Midi.PitchBend pb]
+to_midi :: Controller.PbRange -> Midi.PitchBendValue
+    -> Map.Map NoteId Midi.Key  -> Input
+    -> ([Midi.ChannelMessage], Map.Map NoteId Midi.Key)
+to_midi pb_range prev_pb id_to_key input = case input of
+        NoteOn note_id (Pitch.InputKey nn) vel ->
+            let (key, pb) = Controller.pitch_to_midi pb_range nn
+                n = Midi.NoteOn key (from_val vel)
+                msgs = if prev_pb == pb then [n] else [Midi.PitchBend pb, n]
+            in (msgs, Map.insert note_id key id_to_key)
+        NoteOff note_id vel -> with_key note_id $ \key ->
+            ([Midi.NoteOff key (from_val vel)], Map.delete note_id id_to_key)
+        PitchChange note_id (Pitch.InputKey nn) -> with_key note_id $ \key ->
+            let pb = Controller.pb_from_nn pb_range key nn
+            in (if prev_pb == pb then [] else [Midi.PitchBend pb], id_to_key)
         Control _ controller val -> case controller_to_cc controller of
-            Nothing -> []
-            Just cc -> [Midi.ControlChange cc (from_val val)]
+            Nothing -> ([], id_to_key)
+            Just cc -> ([Midi.ControlChange cc (from_val val)], id_to_key)
     where
+    with_key note_id f = case Map.lookup note_id id_to_key of
+        Nothing -> ([], id_to_key)
+        Just key -> f key
     from_val val = floor (val * 127)
-    to_midi key (Pitch.InputKey nn) = Controller.pb_from_nn pb_range key nn

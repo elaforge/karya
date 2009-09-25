@@ -100,13 +100,16 @@ input_to_midi :: Controller.PbRange -> Cmd.WriteDeviceState
 input_to_midi pb_range wdev_state addrs input = case alloc addrs input of
     (Nothing, _) -> ([], Nothing)
     (Just addr, new_state) ->
-        let pb = Map.get 0 addr (Cmd.wdev_pb wdev_state)
-            msgs = InputNote.to_midi pb_range pb input
-        in (map (with_addr addr) msgs,
-            Just (merge_state new_state addr (last_pb pb msgs) wdev_state))
+        let last_pb = Map.get 0 addr (Cmd.wdev_pb wdev_state)
+            (msgs, note_key) = InputNote.to_midi pb_range last_pb
+                (Cmd.wdev_note_key wdev_state) input
+            state = merge_state new_state addr (pb_of last_pb msgs)
+                (wdev_state { Cmd.wdev_note_key = note_key })
+        in (map (with_addr addr) msgs, Just state)
     where
     alloc = alloc_addr (Cmd.wdev_note_addr wdev_state)
         (Cmd.wdev_addr_serial wdev_state) (Cmd.wdev_serial wdev_state)
+
 
 merge_state :: Maybe (Map.Map NoteId Addr, Map.Map Addr Integer)
     -> Addr -> Midi.PitchBendValue -> Cmd.WriteDeviceState
@@ -150,8 +153,8 @@ alloc_addr note_addr addr_serial serial addrs input
         else Just $ Seq.minimum_with (flip Map.lookup addr_serial)
             (error "unreached") allocated
 
-last_pb :: Midi.PitchBendValue -> [Midi.ChannelMessage] -> Midi.PitchBendValue
-last_pb = List.foldl' f
+pb_of :: Midi.PitchBendValue -> [Midi.ChannelMessage] -> Midi.PitchBendValue
+pb_of = List.foldl' f
     where
     f _ (Midi.PitchBend pb) = pb
     f pb _ = pb

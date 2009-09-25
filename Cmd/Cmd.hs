@@ -236,17 +236,25 @@ empty_state = initial_state Instrument.Db.empty Map.empty
 clear_history cmd_state = cmd_state { state_history = ([], []) }
 
 data WriteDeviceState = WriteDeviceState {
+    -- Used by Cmd.MidiThru:
     -- | Last pb val for each Addr.
     wdev_pb :: Map.Map Instrument.Addr Midi.PitchBendValue
     -- | NoteId currently playing in each Addr.  An Addr may have >1 NoteId.
     , wdev_note_addr :: Map.Map InputNote.NoteId Instrument.Addr
+    -- | The note id is not guaranteed to have any relationship to the key,
+    -- so the MIDI NoteOff needs to know what key the MIDI NoteOn used.
+    , wdev_note_key :: Map.Map InputNote.NoteId Midi.Key
     -- | Map an addr to a number that increases when it's assigned a note.
     -- This is used along with 'wdev_serial' to implement addr round-robin.
     , wdev_addr_serial :: Map.Map Instrument.Addr Integer
     , wdev_serial :: Integer
+
+    -- Used by Cmd.PitchTrack:
     -- | NoteIds being entered into which pitch tracks.  When entering a chord,
     -- a PitchChange uses this to know which pitch track to update.
     , wdev_note_track :: Map.Map InputNote.NoteId Block.TrackNum
+
+    -- Used by no one, yet:
     -- | Remember the current inst of each addr.  More than one instrument or
     -- keyswitch can share the same addr, so I need to keep track which one is
     -- active to minimize switches.
@@ -255,7 +263,7 @@ data WriteDeviceState = WriteDeviceState {
 
 empty_wdev_state :: WriteDeviceState
 empty_wdev_state = WriteDeviceState
-    Map.empty Map.empty Map.empty 0 Map.empty Map.empty
+    Map.empty Map.empty Map.empty Map.empty 0 Map.empty Map.empty
 
 type ReadDeviceState = Map.Map Midi.ReadDevice InputNote.ControllerState
 
