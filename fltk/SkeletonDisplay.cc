@@ -47,8 +47,10 @@ SkeletonDisplay::set_config(
 void
 SkeletonDisplay::set_width(int tracknum, int width)
 {
-    // If set_config hasn't been called yet, there will be no track widths.
-    if (track_widths.size()) {
+    ASSERT(tracknum >= 0);
+    // If a track has been added and the skeleton not yet updated, tracknum
+    // could be out of range.
+    if ((size_t) tracknum < track_widths.size()) {
         ASSERT(0 <= tracknum && (size_t) tracknum < track_widths.size());
         this->track_widths.at(tracknum) = width;
         this->recalculate_centers();
