@@ -12,10 +12,6 @@ import qualified Cmd.NoteEntry as NoteEntry
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Cmd as Cmd
 
-import qualified Cmd.InputNote as InputNote
-
-import qualified Derive.Scale.Twelve as Twelve
-
 
 test_key_to_input = do
     let k = Key.KeyChar

@@ -19,7 +19,6 @@ CURRENT
 * current kbd entry is flawed since for midi thru it turns InputKeys into
 midi, which can't be distinguished from real midi
 - verify twelve ->midi mapping and range checking
-- when kbd mode is on it shouldn't fall through to other cmds
 * make sysex Midi.Message use ByteString
 
 - show_inst_info shows keyswitches, alloc, etc.  automatically happen when you

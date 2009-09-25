@@ -18,8 +18,6 @@ import qualified Midi.Midi as Midi
 import Midi.Midi (ChannelMessage(..))
 import qualified Instrument.MidiDb as MidiDb
 
-import qualified Cmd.Cmd as Cmd
-
 import qualified Derive.Score as Score
 
 import qualified Perform.Signal as Signal

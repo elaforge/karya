@@ -23,11 +23,12 @@ import qualified Perform.Pitch as Pitch
 -- * with_note
 
 -- | Take a Key (if @kbd_entry@ is True) or a ReadMessage to a Msg.InputNote
--- and pass it to @cmd@.  As a minor optimization, @cmd@ is not called if no
--- InputNote was produced.
+-- and pass it to each of @cmds@.  As a minor optimization, @cmd@ is not called
+-- if no InputNote was produced.
 --
--- TODO this does the conversion multiple times, I could do it only once by
--- taking a list of cmds to cmds.
+-- It's a little less graceful than calling it many times applied to a single
+-- cmd, but only has to convert the input once and doesn't need tricks to
+-- make sure a converted key winds up with Done.
 --
 -- TODO it might be nicer to do the scale mapping here.  It would mean one
 -- extra mapping here and one less mapping in MidiThru.  The scale lookup would
@@ -35,8 +36,8 @@ import qualified Perform.Pitch as Pitch
 -- then mapped input to note.  PitchTrack would still need the scale.  I could
 -- reduce the scope of InputKey or eliminate it entirely for the more universal
 -- NoteNumber.  It seems like a wash at the moment.
-with_note :: Bool -> Cmd.Cmd -> Cmd.Cmd
-with_note kbd_entry cmd msg = do
+cmds_with_note :: Bool -> [Cmd.Cmd] -> Cmd.Cmd
+cmds_with_note kbd_entry cmds msg = do
     has_mods <- are_modifiers_down
     kbd_note <- if kbd_entry && not has_mods
         then do
@@ -46,7 +47,9 @@ with_note kbd_entry cmd msg = do
     midi_note <- get_midi_input msg
     let maybe_new_msg = kbd_note `mplus` midi_note
     case maybe_new_msg of
-        Just (Just new_msg) -> cmd new_msg
+        Just (Just new_msg) -> do
+            forM_ cmds (\cmd -> Cmd.catch_abort (cmd new_msg))
+            return Cmd.Done -- I mapped a key, so I must be done
         Just Nothing -> return Cmd.Done
         -- I'm assuming this is only applied to those who want the InputNotes.
         Nothing -> return Cmd.Continue
