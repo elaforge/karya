@@ -64,7 +64,7 @@ struct BlockViewConfig {
 };
 
 // Track config local to each BlockView.
-struct BlockTrackConfig {
+struct DisplayTrack {
     char status;
     Color status_color;
     double event_brightness;
@@ -112,7 +112,7 @@ public:
 
     void insert_track(int tracknum, const Tracklike &track, int width);
     void remove_track(int tracknum, FinalizeCallback finalizer);
-    void set_block_track_config(int tracknum, const BlockTrackConfig &config);
+    void set_display_track(int tracknum, const DisplayTrack &dtrack);
 
 private:
     void insert_track_view(int tracknum, TrackView *track, int width);
