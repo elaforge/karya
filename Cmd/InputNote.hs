@@ -160,14 +160,6 @@ from_key oct down (Pitch.InputKey nn)
 -- * to midi
 
 -- | Convert an Input to MIDI.
---
--- This uses the note_ids as midi key numbers and tries to get to the desired
--- pitch with pitchbend, since 'from_midi' takes note_id from key.  This will
--- produce poor results if the Inputs have another way of assigning note_ids,
--- in which case I'll have to keep a note_id to midi key map so the NoteOff
--- knows what key the NoteOn used.  Actually, this will also lead to poor
--- results if a scale maps pitches further than a half-step, which is very
--- likely.  TODO fix this
 to_midi :: Controller.PbRange -> Midi.PitchBendValue
     -> Map.Map NoteId Midi.Key  -> Input
     -> ([Midi.ChannelMessage], Map.Map NoteId Midi.Key)

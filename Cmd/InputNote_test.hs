@@ -1,4 +1,5 @@
 module Cmd.InputNote_test where
+import qualified Data.Map as Map
 
 import Util.Test
 
@@ -19,7 +20,7 @@ test_from_midi = do
         thread st (msg:msgs) = case f st msg of
             Just (input, state) -> Just input : thread state msgs
             Nothing -> Nothing : thread state msgs
-        thread st [] = []
+        thread _ [] = []
 
     equal (f state (Midi.RealtimeMessage Midi.Start)) Nothing
     let msgs = [Midi.NoteOn 10 127, Midi.PitchBend 1, Midi.PitchBend (-1),
@@ -52,16 +53,19 @@ test_from_midi = do
         ]
 
 test_to_midi = do
-    let f = InputNote.to_midi (-2, 2)
+    let id_to_key ns = Map.fromList
+            [(InputNote.NoteId nid, key) | (nid, key) <- ns]
+    let f pb = InputNote.to_midi (-1, 1) pb Map.empty
 
     let n = Midi.NoteOn 64 127
-    equal (f 0 (CmdTest.note_on 64 64 127)) [n]
-    equal (f 0 (CmdTest.note_on 64 65 127)) [Midi.PitchBend 0.5, n]
-    equal (f 0.5 (CmdTest.note_on 64 65 127)) [n]
-    equal (f 0 (CmdTest.note_on 64 90 127)) [Midi.PitchBend 1, n]
-    equal (f 0 (CmdTest.note_on 64 63 127)) [Midi.PitchBend (-0.5), n]
-    equal (f 0 (CmdTest.pitch 64 65)) [Midi.PitchBend 0.5]
-    equal (f 0 (CmdTest.pitch 64 90)) [Midi.PitchBend 1]
-    equal (f 0 (CmdTest.pitch 64 64)) []
-    equal (f 0 (CmdTest.control 64 "cc1" 127)) [Midi.ControlChange 1 127]
-    equal (f 0 (CmdTest.control 64 "blahblah" 127)) []
+    equal (f 0 (CmdTest.note_on 60 64 127)) ([n], id_to_key [(60, 64)])
+    equal (f 0 (CmdTest.note_on 64 64.5 127))
+        ([Midi.PitchBend 0.5, n], id_to_key [(64, 64)])
+    equal (f 0.5 (CmdTest.note_on 64 64.5 127)) ([n], id_to_key [(64, 64)])
+    equal (f 0 (CmdTest.pitch 64 64)) ([], Map.empty)
+    equal (InputNote.to_midi (-1, 1) 0 (id_to_key [(60, 70)])
+            (CmdTest.note_off 60 127))
+        ([Midi.NoteOff 70 127], Map.empty)
+    equal (f 0 (CmdTest.control 64 "cc1" 127))
+        ([Midi.ControlChange 1 127], Map.empty)
+    equal (f 0 (CmdTest.control 64 "blahblah" 127)) ([], Map.empty)
