@@ -63,6 +63,13 @@ struct BlockViewConfig {
     int status_size;
 };
 
+// Track config local to each BlockView.
+struct BlockTrackConfig {
+    char status;
+    Color status_color;
+    double event_brightness;
+};
+
 
 // The ruler track is a special track that doesn't scroll with set_track_scroll
 // like the other tracks do.  There is always just one ruler track and it's
@@ -105,6 +112,7 @@ public:
 
     void insert_track(int tracknum, const Tracklike &track, int width);
     void remove_track(int tracknum, FinalizeCallback finalizer);
+    void set_block_track_config(int tracknum, const BlockTrackConfig &config);
 
 private:
     void insert_track_view(int tracknum, TrackView *track, int width);

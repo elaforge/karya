@@ -322,6 +322,13 @@ main(int argc, char **argv)
     SkeletonConfig skel = skeleton_config(pairs, 3);
     view.block.set_skeleton(skel);
     view.block.insert_track(7, Tracklike(&track2, &truler), 80);
+
+    BlockTrackConfig tconfig;
+    tconfig.status = 'M';
+    // tconfig.status_color = Color(255, 150, 150);
+    tconfig.status_color = Color(150, 150, 150);
+    tconfig.event_brightness = .75;
+    view.block.set_block_track_config(3, tconfig);
     // print_children(&view);
 
     // Fl::add_timeout(1, timeout_func, (void*) &view);
@@ -345,5 +352,4 @@ main(int argc, char **argv)
 
     view.show(argc, argv);
     Fl::run();
-    printf("complete\n");
 }

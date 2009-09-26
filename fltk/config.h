@@ -20,7 +20,8 @@ namespace font_size {
     enum {
         event = 12,
         input = 12,
-        ruler = 9
+        ruler = 9,
+        track_status = 12
     };
 };
 

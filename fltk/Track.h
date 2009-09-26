@@ -49,10 +49,10 @@ public:
     TrackView(const char *label=0) : Fl_Group(0, 0, 1, 1, label) {
         this->labeltype(FL_NO_LABEL);
         end(); // This is a Group, but I don't want anything else to fall in.
-        DEBUG("created track view " << this);
+        // DEBUG("created track view " << this);
     }
     virtual ~TrackView() {
-        DEBUG("deleted track view " << this);
+        // DEBUG("deleted track view " << this);
     }
     virtual int handle(int evt);
 
@@ -60,6 +60,7 @@ public:
     virtual void set_selection(int selnum, int tracknum, const Selection &sel)
     {}
     virtual bool track_resizable() const { return true; }
+    virtual void set_event_brightness(double d) {}
     // Return the end of the last event.
     virtual TrackPos time_end() const { return TrackPos(0); }
     virtual void update(const Tracklike &track, FinalizeCallback finalizer,

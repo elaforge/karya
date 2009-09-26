@@ -73,6 +73,7 @@ public:
     virtual void set_selection(int selnum, int tracknum, const Selection &sel) {
         overlay_ruler.set_selection(selnum, tracknum, sel);
     }
+    virtual void set_event_brightness(double d);
     virtual TrackPos time_end() const;
     virtual void update(const Tracklike &track, FinalizeCallback finalizer,
             TrackPos start, TrackPos end);
@@ -90,6 +91,8 @@ private:
     ZoomInfo zoom;
     // Remember how much I've scrolled, to do fl_scroll() optimization.
     TrackPos last_offset;
+    double brightness;
+    Color bg_color;
 
     SeqInput *title_input;
     Fl_Box bg_box;

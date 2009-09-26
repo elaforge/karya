@@ -6,34 +6,7 @@
 using namespace geom_util;
 
 
-struct Color {
-    Color(unsigned char r, unsigned char g, unsigned char b,
-            unsigned char a=0xff)
-        : r(r), g(g), b(b), a(a) {}
-    Color(unsigned long rgb) :
-        r(0xff & (rgb >> 16)), g(0xff & (rgb >> 8)), b(0xff & rgb), a(0xff) {}
-    bool operator==(const Color &o) const {
-        return r==o.r && g==o.g && b==o.b && a==o.a;
-    }
-    bool operator!=(const Color &o) const { return !(*this == o); }
-
-    Color() : r(0), g(0), b(0), a(0) {}
-    unsigned char r, g, b, a;
-
-    Color scale(double d) const { return Color(r * d, g * d, b * d, a); }
-};
-
-inline std::ostream &
-operator<<(std::ostream &os, const Color &c)
-{
-    return os << "Color(" << (int) c.r << ", " << (int) c.g << ", "
-        << (int) c.b << ", " << (int) c.a << ")";
-}
-
-// Color(unsigned long rgba) :
-//     r(0xff & (rgba >> 24)), g(0xff & (rgba >> 16)), b(0xff & (rgba >> 8)),
-//         a(0xff & rgba) {}
-
+// Assert //////////////////////////////
 
 // assertions
 // I use exceptions so c++ errors won't necessarily crash the whole program.
@@ -71,6 +44,8 @@ operator<<(std::ostream &os, const AssertionError &a)
     return os << "'>";
 }
 
+
+// Numeric /////////////////////////////
 
 // Restrict 'v' to be in the given range, like composed min and max.
 // If 'v' is less than 'min' *and* greater than 'max', it will be 'min'.
@@ -114,5 +89,39 @@ operator<<(std::ostream &os, const std::vector<T> &a)
     os << ']';
     return os;
 }
+
+
+// Color ///////////////////////////////
+
+struct Color {
+    Color(unsigned char r, unsigned char g, unsigned char b,
+            unsigned char a=0xff)
+        : r(r), g(g), b(b), a(a) {}
+    Color(unsigned long rgb) :
+        r(0xff & (rgb >> 16)), g(0xff & (rgb >> 8)), b(0xff & rgb), a(0xff) {}
+    bool operator==(const Color &o) const {
+        return r==o.r && g==o.g && b==o.b && a==o.a;
+    }
+    bool operator!=(const Color &o) const { return !(*this == o); }
+
+    Color() : r(0), g(0), b(0), a(0) {}
+    unsigned char r, g, b, a;
+
+    Color scale(double d) const {
+        return Color(clamp(0.0, 255.0, r * d), clamp(0.0, 255.0, g * d),
+                clamp(0.0, 255.0, b * d), a);
+    }
+};
+
+inline std::ostream &
+operator<<(std::ostream &os, const Color &c)
+{
+    return os << "Color(" << (int) c.r << ", " << (int) c.g << ", "
+        << (int) c.b << ", " << (int) c.a << ")";
+}
+
+// Color(unsigned long rgba) :
+//     r(0xff & (rgba >> 24)), g(0xff & (rgba >> 16)), b(0xff & (rgba >> 8)),
+//         a(0xff & rgba) {}
 
 #endif

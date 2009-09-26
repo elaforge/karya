@@ -14,7 +14,7 @@
 EventTrackView::EventTrackView(const EventTrackConfig &config,
             const RulerConfig &ruler_config) :
     TrackView("events"),
-    config(config), last_offset(0),
+    config(config), last_offset(0), brightness(1), bg_color(config.bg_color),
     title_input(NULL),
     bg_box(0, 0, 1, 1),
     overlay_ruler(ruler_config)
@@ -25,7 +25,7 @@ EventTrackView::EventTrackView(const EventTrackConfig &config,
     this->add(this->overlay_ruler);
     // create event widgets
     bg_box.box(FL_THIN_DOWN_BOX);
-    bg_box.color(color_to_fl(config.bg_color));
+    bg_box.color(color_to_fl(config.bg_color.scale(this->brightness)));
 
     this->title_input = new SeqInput(0, 0, 1, 1, true);
 }
@@ -55,6 +55,15 @@ EventTrackView::set_zoom(const ZoomInfo &new_zoom)
 }
 
 
+void
+EventTrackView::set_event_brightness(double d)
+{
+    this->brightness = d;
+    this->bg_box.color(color_to_fl(this->bg_color.scale(this->brightness)));
+    this->redraw();
+}
+
+
 TrackPos
 EventTrackView::time_end() const
 {
@@ -73,8 +82,8 @@ EventTrackView::update(const Tracklike &track, FinalizeCallback finalizer,
     finalizer((void *) this->config.render.find_samples);
     this->overlay_ruler.set_config(*track.ruler, finalizer, start, end);
     if (this->config.bg_color != track.track->bg_color) {
-        this->bg_box.color(color_to_fl(track.track->bg_color));
-        this->redraw();
+        this->bg_color = track.track->bg_color;
+        this->set_event_brightness(this->brightness);
     }
     this->config = *track.track;
     // Use ruler's damage range since both have to be updated at the same time.
@@ -97,8 +106,8 @@ static void dummy_scroll_draw(void *, int, int, int, int) {}
 void
 EventTrackView::draw()
 {
-    Rect draw_area = rect(this);
-    draw_area.h--; // tiles make a 1 pixel lower border
+    Rect draw_rect = rect(this);
+    draw_rect.h--; // tiles make a 1 pixel lower border
     // DEBUG("track damage " << show_damage(damage()));
     if (this->damage() & FL_DAMAGE_SCROLL) {
         int scroll = zoom.to_pixels(zoom.offset) - zoom.to_pixels(last_offset);
@@ -109,10 +118,10 @@ EventTrackView::draw()
         //         << " last pix: " << zoom.to_pixels(last_offset));
         TrackPos shift_pos = std::max(
                 zoom.offset - last_offset, last_offset - zoom.offset);
-        fl_scroll(draw_area.x, draw_area.y, draw_area.w, draw_area.h,
+        fl_scroll(draw_rect.x, draw_rect.y, draw_rect.w, draw_rect.h,
                 0, -scroll, dummy_scroll_draw, NULL);
         if (scroll > 0) { // Contents moved up, bottom is damaged.
-            TrackPos bottom = zoom.offset + zoom.to_trackpos(draw_area.h);
+            TrackPos bottom = zoom.offset + zoom.to_trackpos(draw_rect.h);
             this->overlay_ruler.damage_range(bottom - shift_pos, bottom);
         } else if (scroll < 0) { // Contents moved down, top is damaged.
             this->overlay_ruler.damage_range(
@@ -125,10 +134,10 @@ EventTrackView::draw()
     if (damage() == FL_DAMAGE_CHILD || damage() == FL_DAMAGE_SCROLL
             || damage() == (FL_DAMAGE_CHILD | FL_DAMAGE_SCROLL))
     {
-        // DEBUG("track intersect: " << draw_area.y << "--"
-        //     << overlay_ruler.draw_area.b() << " with "
+        // DEBUG("track intersect: " << draw_rect.y << "--"
+        //     << overlay_ruler.draw_rect.b() << " with "
         //     << damaged_area.y << "--" << overlay_ruler.damaged_area.b());
-        draw_area = draw_area.intersect(this->overlay_ruler.damaged_area);
+        draw_rect = draw_rect.intersect(this->overlay_ruler.damaged_area);
     } else {
         // DEBUG("draw all");
     }
@@ -137,7 +146,7 @@ EventTrackView::draw()
     // When overlay_ruler.draw() is called it will redundantly clip again on
     // damage_range, but that's ok because it needs the clip when called from
     // RulerTrackView::draw().
-    ClipArea clip_area(draw_area);
+    ClipArea clip_area(draw_rect);
     this->draw_area();
     this->last_offset = this->zoom.offset;
 }
@@ -195,7 +204,7 @@ EventTrackView::draw_area()
         const TrackPos &pos = event_pos[i];
         int offset = y() + this->zoom.to_pixels(pos - this->zoom.offset);
         int height = this->zoom.to_pixels(event.duration);
-        fl_color(color_to_fl(event.color));
+        fl_color(color_to_fl(event.color.scale(this->brightness)));
         fl_rectf(this->x() + 1, offset, this->w() - 2, height);
     }
 
@@ -232,7 +241,7 @@ EventTrackView::draw_samples(TrackPos start, TrackPos end)
     int sample_count = this->config.render.find_samples(&start, &end,
         &sample_pos, &samples);
     // TODO alpha not supported, I'd need a non-portable drawing routine for it.
-    fl_color(color_to_fl(this->config.render.color));
+    fl_color(color_to_fl(this->config.render.color.scale(this->brightness)));
     if (config.render.style == RenderConfig::render_line)
         fl_line_style(FL_SOLID | FL_CAP_ROUND, 2);
     else

@@ -3,7 +3,9 @@
 #include <FL/Fl_Box.H>
 #include <FL/fl_draw.H>
 
+#include "config.h"
 #include "util.h"
+#include "f_util.h"
 #include <iostream>
 
 
@@ -45,12 +47,23 @@ SkeletonDisplay::set_config(
 
 
 void
+SkeletonDisplay::set_status(int tracknum, char status, Color color)
+{
+    while (this->status_color.size() <= static_cast<size_t>(tracknum)) {
+        this->status_color.push_back(std::make_pair('\0', FL_BLACK));
+    }
+    this->status_color[tracknum] = std::make_pair(status, color_to_fl(color));
+    this->redraw();
+}
+
+
+void
 SkeletonDisplay::set_width(int tracknum, int width)
 {
     ASSERT(tracknum >= 0);
     // If a track has been added and the skeleton not yet updated, tracknum
     // could be out of range.
-    if ((size_t) tracknum < track_widths.size()) {
+    if (static_cast<size_t>(tracknum) < track_widths.size()) {
         ASSERT(0 <= tracknum && (size_t) tracknum < track_widths.size());
         this->track_widths.at(tracknum) = width;
         this->recalculate_centers();
@@ -93,6 +106,17 @@ SkeletonDisplay::draw()
 {
     Fl_Box::draw();
     int tracks = this->track_widths.size();
+    int top = this->y();
+    int bottom = this->y() + this->h();
+    size_t status_size = std::min(status_color.size(), track_centers.size());
+    for (size_t i = 0; i < status_size; i++) {
+        char c = status_color[i].first;
+        if (c) {
+            fl_color(status_color[i].second);
+            int w = track_widths[i];
+            fl_rectf(this->x()+track_centers[i] - w/2, this->y(), w, this->h());
+        }
+    }
     for (size_t i = 0; i < this->parent_child.size(); i++) {
         int parent = parent_child[i].first;
         int child = parent_child[i].second;
@@ -102,11 +126,24 @@ SkeletonDisplay::draw()
         }
         int cx = track_centers[child] + this->x();
         int px = track_centers[parent] + this->x();
-        int top = this->y();
-        int bottom = this->y() + this->h();
 
         // printf("draw %d->%d: (%d->%d) (%d, %d)\n", child, parent,
         //         cx, px, bottom, top);
         draw_arrow(cx, px, bottom-1, top);
+    }
+    fl_font(Config::font + FL_BOLD, Config::font_size::track_status);
+    for (size_t i = 0; i < status_size; i++) {
+        char c = status_color[i].first;
+        // DEBUG("center " << i << " " << track_centers[i]);
+        if (c) {
+            // DEBUG("draw " << i << " " << this->status_color[i]);
+            int cw = fl_width(c);
+            int ch = fl_height() + fl_descent();
+            int xpos = this->x() + track_centers[i] - cw/2;
+            fl_color(status_color[i].second);
+            fl_rectf(xpos-1, bottom - ch, cw + 2, ch);
+            fl_color(FL_BLACK);
+            fl_draw(&c, 1, xpos, bottom - fl_descent());
+        }
     }
 }

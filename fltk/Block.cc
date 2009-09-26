@@ -372,6 +372,17 @@ BlockView::remove_track(int tracknum, FinalizeCallback finalizer)
     }
 }
 
+void
+BlockView::set_block_track_config(int tracknum, const BlockTrackConfig &config)
+{
+    ASSERT(0 <= tracknum && tracknum < this->tracks());
+    if (tracknum > 0) {
+        this->skel_display.set_status(tracknum-1, config.status,
+                config.status_color);
+    }
+    this->track_at(tracknum)->set_event_brightness(config.event_brightness);
+}
+
 
 void
 BlockView::insert_track_view(int tracknum, TrackView *track, int width)
