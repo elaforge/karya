@@ -88,7 +88,7 @@ def make_tests(test_defs, init_funcs):
                 name += 'plain-'
             sym = '%s.%s' % (path_to_module(fn), test_name)
             name += sym
-            out.append('Test %s %s %s %d %s'
+            out.append('Test %s (%s >> return ()) %s %d %s'
                 % (hs_str(name), sym, hs_str(fn), lineno, init))
     return out
 
