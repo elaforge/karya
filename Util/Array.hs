@@ -8,18 +8,18 @@ import Data.Array.IArray ((!))
 -- | Like 'IArray.!', except throw a more informative error, with @msg@
 -- prepended.
 at :: (IArray.IArray a e, IArray.Ix i, Show i) => String -> a i e -> i -> e
-at msg a i = a ! (assert_in_bounds msg a i)
+at msg a i = a ! assert_in_bounds msg i a
 
 assert_in_bounds :: (IArray.IArray a e, IArray.Ix i, Show i) =>
-    String -> a i e -> i -> i
-assert_in_bounds msg a i
-    | in_bounds a i = i
+    String -> i -> a i e -> i
+assert_in_bounds msg i a
+    | in_bounds i a = i
     | otherwise = error $ msg ++ ": index " ++ show i
         ++ " out of range " ++ show (IArray.bounds a)
 
 -- | Is the given index within the array's bounds?
-in_bounds :: (IArray.IArray a e, IArray.Ix i) => a i e -> i -> Bool
-in_bounds a i = let (low, high) = IArray.bounds a in low <= i && i <= high
+in_bounds :: (IArray.IArray a e, IArray.Ix i) => i -> a i e -> Bool
+in_bounds i a = let (low, high) = IArray.bounds a in low <= i && i <= high
 
 -- ** searching
 

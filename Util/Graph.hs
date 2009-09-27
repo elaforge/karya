@@ -41,19 +41,19 @@ toggle_edge edge graph
 
 would_make_cycle :: Edge -> Graph -> Bool
 would_make_cycle (from, to) graph =
-    Array.in_bounds graph from && path graph to from
+    Array.in_bounds from graph && path graph to from
 
 has_edge :: Edge -> Graph -> Bool
-has_edge (from, to) graph = Array.in_bounds graph from && to `elem` graph!from
+has_edge (from, to) graph = Array.in_bounds from graph && to `elem` graph!from
 
 -- | A lonely vertex has no edges.
 lonely_vertex :: Graph -> Vertex -> Bool
 lonely_vertex graph vertex =
-    not (Array.in_bounds graph vertex) || null (graph!vertex)
+    not (Array.in_bounds vertex graph) || null (graph!vertex)
 
 add_edge :: Edge -> Graph -> Graph
 add_edge (from, to) graph
-    | Array.in_bounds graph from = IArray.accum (flip (:)) graph [(from, to)]
+    | Array.in_bounds from graph = IArray.accum (flip (:)) graph [(from, to)]
     | otherwise = IArray.accumArray (flip const) [] new_bounds
         ((from, [to]) : IArray.assocs graph)
     where
@@ -62,7 +62,7 @@ add_edge (from, to) graph
 
 remove_edge :: Edge -> Graph -> Graph
 remove_edge (from, to) graph
-    | Array.in_bounds graph from =
+    | Array.in_bounds from graph =
         graph // [(from, List.delete to (graph!from))]
     | otherwise = graph
 
@@ -74,7 +74,10 @@ insert_vertex vertex graph = map_vertices incr graph
 -- | Remove a vertex.  All vertices pointing to the removed vertex instead
 -- point to what pointed to it.
 remove_vertex :: Int -> Graph -> Graph
-remove_vertex vertex graph = map_vertices decr (unlink_vertex vertex graph)
+remove_vertex vertex graph
+    | vertex `Array.in_bounds` graph =
+        map_vertices decr (unlink_vertex vertex graph)
+    | otherwise = graph
     where decr v = if v > vertex then v-1 else v
 
 -- | All vertices pointing to the removed vertex instead point to what pointed
@@ -82,7 +85,7 @@ remove_vertex vertex graph = map_vertices decr (unlink_vertex vertex graph)
 unlink_vertex :: Int -> Graph -> Graph
 unlink_vertex vertex graph =
     IArray.amap (Seq.replace1 v (graph IArray.! v)) graph // [(v, [])]
-    where v = Array.assert_in_bounds "unlink_vertex" graph vertex
+    where v = Array.assert_in_bounds "unlink_vertex" vertex graph
 
 
 -- | Transform all the vertices by the given function.  If multiple vertices
