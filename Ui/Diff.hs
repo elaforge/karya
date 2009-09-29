@@ -1,6 +1,8 @@
 {-# OPTIONS_GHC -fno-warn-unused-imports #-}
 {- | Diff two states to produce a list of Updates, which must be sent to the UI
 to make it display the second state.
+
+This is unpleasantly complicated and subtle.  I wish I knew a better way!
 -}
 module Ui.Diff where
 import Control.Monad
@@ -18,8 +20,6 @@ import qualified Ui.Track as Track
 
 import qualified Ui.Update as Update
 import qualified Ui.State as State
-
--- TODO deal with other attrs, maybe they can be applied before diffing
 
 
 type DiffError = String
@@ -57,24 +57,29 @@ diff st1 st2 = fmap (munge_updates st2) $ run $ do
 
 -- | This is a nasty little case that falls out of how I'm doing diffs:
 -- First the view diff runs, which detects changed track widths.
--- Then the block diff runs, which detects changed tracks.  Totally changed
--- tracks (remove old track, insert new one with default width) are not
--- distinguishable from minorly changed tracks (remove old track, insert new
--- one with the same width).  So what I do is assume that if there's an
--- InsertTrack and a corresponding TrackView in view_tracks of the new state,
--- it should get the width given in the view.
+-- Then the block diff runs, which detects changed tracks.  Replaced
+-- tracks (remove old track, insert new one with default width, which as a new
+-- track should get the default width in all views) are not distinguishable
+-- from a merely altered track (which can look like remove old track, insert
+-- new one with the same width, and should keep its width in each view).  So
+-- what I do is assume that if there's an InsertTrack and a corresponding
+-- TrackView in view_tracks of the new state, it should get the width given in
+-- the view.
+--
+-- This is yet more crap to support view-local track width...
 munge_updates :: State.State -> [Update.Update] -> [Update.Update]
 munge_updates state updates = updates ++ munged
     where
     width_info = [(width, block_id, tracknum)
-        | Update.BlockUpdate block_id (Update.InsertTrack tracknum _ width)
+        | Update.BlockUpdate block_id (Update.InsertTrack tracknum width _)
             <- updates]
     munged = concatMap set_width width_info
+    -- TODO instead of adding a TrackWidth, modify the InsertTrack?
     set_width (old_width, block_id, tracknum) = do
         (view_id, view) <- filter ((==block_id) . Block.view_block . snd)
             (Map.assocs (State.state_views state))
-        new_width <- maybe [old_width] ((:[]) . Block.track_view_width) $
-            Seq.at (Block.view_tracks view) tracknum
+        let new_width = maybe old_width Block.track_view_width $
+                Seq.at (Block.view_tracks view) tracknum
         return $
             Update.ViewUpdate view_id (Update.TrackWidth tracknum new_width)
 
@@ -121,7 +126,7 @@ diff_view st1 st2 view_id view1 view2 = do
 
     tracks1 <- track_info view_id view1 st1
     tracks2 <- track_info view_id view2 st2
-    let pairs = indexed_pairs (\a b -> fst a == fst b) tracks1 tracks2
+    let pairs = indexed_pairs_on fst tracks1 tracks2
     forM_ pairs $ \(i2, track1, track2) -> case (track1, track2) of
         (Just (_, tview1), Just (_, tview2)) ->
             diff_track_view view_id i2 tview1 tview2
@@ -173,19 +178,19 @@ diff_block block_id block1 block2 = do
         change
             [block_update $ Update.BlockSkeleton (Block.block_skeleton block2)]
 
-    let pairs = indexed_pairs (\a b -> fst a == fst b)
-            (diffable_tracks block1) (diffable_tracks block2)
+    let (dtracks1, dtracks2) = (Block.block_display_tracks block1,
+            Block.block_display_tracks block2)
+    let pairs = indexed_pairs_on (Block.dtrack_tracklike_id . fst)
+            dtracks1 dtracks2
     forM_ pairs $ \(i2, track1, track2) -> case (track1, track2) of
         (Just _, Nothing) -> change [block_update $ Update.RemoveTrack i2]
-        (Nothing, Just (track, width)) ->
-            change [block_update $ Update.InsertTrack i2 track width]
+        -- I only need the default creation width when I new track is being
+        -- created, oddly enough.
+        (Nothing, Just (dtrack, width)) ->
+            change [block_update $ Update.InsertTrack i2 width dtrack]
+        (Just (dtrack1, _), Just (dtrack2, _)) | dtrack1 /= dtrack2 -> change
+            [block_update $ Update.DisplayTrack i2 dtrack2]
         _ -> return ()
-
--- | Get the diffable parts of a block's tracks.  The other attributes
--- are applied to the track before diffing by XXX TODO
-diffable_tracks :: Block.Block -> [(Block.TracklikeId, Block.Width)]
-diffable_tracks = map (\t -> (Block.tracklike_id t, Block.track_width t))
-    . Block.block_tracks
 
 diff_track track_id track1 track2 = do
     let track_update = Update.TrackUpdate track_id
@@ -207,6 +212,9 @@ diff_ruler ruler_id ruler1 ruler2 = do
 -- * util
 
 uncurry3 f (a, b, c) = f a b c
+
+unequal_on :: (Eq eq) => (a -> eq) -> a -> a -> Bool
+unequal_on key a b = key a /= key b
 
 pair_maps :: (Ord k) => Map.Map k v -> Map.Map k v -> [(k, Maybe v, Maybe v)]
 pair_maps map1 map2 = map (\k -> (k, Map.lookup k map1, Map.lookup k map2))
@@ -232,6 +240,11 @@ pair_lists eq (x:xs) (y:ys)
 indexed_pairs :: (a -> b -> Bool) -> [a] -> [b] -> [(Int, Maybe a, Maybe b)]
 indexed_pairs eq xs ys = zip3 (indexed pairs) (map fst pairs) (map snd pairs)
     where pairs = pair_lists eq xs ys
+
+indexed_pairs_on :: (Eq eq) => (a -> eq) -> [a] -> [a]
+    -> [(Int, Maybe a, Maybe a)]
+indexed_pairs_on key xs ys = indexed_pairs (\a b -> key a == key b) xs ys
+
 indexed pairs = scanl f 0 pairs
     where
     f i (_, Nothing) = i

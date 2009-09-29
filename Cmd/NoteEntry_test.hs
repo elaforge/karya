@@ -27,9 +27,9 @@ test_key_to_input = do
     equal (f 4 True Key.Backspace) Nothing
 
 
-test_with_note = do
+test_cmds_with_note = do
     let cmd_dummy msg = Log.warn (show msg) >> return Cmd.Done
-    let f kbd_entry msg = NoteEntry.with_note kbd_entry cmd_dummy msg
+    let f kbd_entry msg = NoteEntry.cmds_with_note kbd_entry [cmd_dummy] msg
         key = CmdTest.key_down ','
         run cstate cmd = extract_logs $ CmdTest.run State.empty cstate cmd
         -- key passed through to cmd_dummy

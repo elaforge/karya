@@ -1,6 +1,7 @@
 CURRENT
+  Ui.Diff - use unequal_on
+  * track mute
   + fix hint stuff
-  * love for logview
   - complete InputNote implementation for pitch entry
     - advance on NoteOff
     - continuous adjustment by keeping track of NoteId
@@ -20,8 +21,6 @@ midi, which can't be distinguished from real midi
 - verify twelve ->midi mapping and range checking
 * make sysex Midi.Message use ByteString
 
-- show_inst_info shows keyswitches, alloc, etc.  automatically happen when you
-click it and go into logview?
 - save and load midi_config separately
 
 MILESTONES
@@ -96,6 +95,11 @@ bugs:
     cmd_record_keys not getting run when play throws?
   * ^C should quit instead of killing ui thread and hanging
   - cmd-q should also quit entirely not just close the windows
+  - backspace to delete events doesn't work
+  - note on track keeps adding new tracks
+  - new track after scale change doesn't play scale properly
+  - mute doesn't trigger rederive
+  - tracks with different tempos play correctly, but playback follows tempo
 
 performance:
   - random little hangs are annoying.  figure out what's going on.  GC?
@@ -120,7 +124,7 @@ fltk:
       yes, they're reported as FL_MOUSEWHEEL, so I should scroll on mousewheel
   Track
     / dividers can have separate color for upper part, for collapsable tracks
-    - tracks have their own status lines, to report things like mute
+    * tracks have their own status lines, to report things like mute
   event track
     - "currently edited" event shouldn't be hidden by previous ones
   Ruler
@@ -157,7 +161,8 @@ Ui:
     - modify IntMap for Word64s, add toDescList
       - send patch to libraries@haskell.org
     - track collapse
-    - track mute
+    * track mute
+      - visual indication when both solo and mute is on
     - track merge
 
 skeleton:

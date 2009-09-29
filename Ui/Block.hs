@@ -17,6 +17,7 @@ import qualified Ui.Ruler as Ruler
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Track as Track
 
+
 -- | Reference to a Block.  Use this to look up Blocks in the State.
 -- Even though the constructor is exported, you should only create them
 -- through the 'State.StateT' interface.
@@ -53,13 +54,16 @@ instance Id.Ident SchemaId where
 
 -- * block model
 
-data Block = Block {
+data GenericBlock track = Block {
     block_title :: String
     , block_config :: Config
-    , block_tracks :: [BlockTrack]
+    , block_tracks :: [track]
     , block_skeleton :: Skeleton.Skeleton
     , block_schema :: SchemaId
     } deriving (Eq, Show, Read)
+
+type Block = GenericBlock BlockTrack
+type DisplayBlock = GenericBlock DisplayTrack
 
 block_tracklike_ids :: Block -> [TracklikeId]
 block_tracklike_ids = map tracklike_id . block_tracks
@@ -83,26 +87,61 @@ data Config = Config {
 
 data BlockTrack = BlockTrack {
     tracklike_id :: TracklikeId
-    -- | The real width is in the View, but this width is a default if a new
-    -- View is created from this Block.
+    -- | The current width is in the View, but this width is a default if
+    -- a new View is created from this Block.
     , track_width :: Width
-    -- | Don't display this track at all.
-    , track_hidden :: Bool
-    -- | Don't display this track, but render its signal behind another track.
-    -- Only makes sense for event tracks.
-    , track_merged :: Maybe TrackNum
-    -- | UI shows muted indication, deriver should skip this track.  Only makes
-    -- sense for event tracks.
-    , track_muted :: Bool
-    -- | Track is replaced by a divider.  Doesn't make much sense if it already
-    -- is one.
-    , track_collapsed :: Bool
+    -- | Track display state flags.
+    , track_flags :: [TrackFlag]
+    -- | Other tracks are displayed behind this one.  Useful to merge a pitch
+    -- track into its note track.
+    , track_merged :: [Track.TrackId]
     } deriving (Eq, Show, Read)
 
 -- | Construct a 'BlockTrack' with defaults.
 block_track :: TracklikeId -> Width -> BlockTrack
-block_track tracklike_id width =
-    BlockTrack tracklike_id width False Nothing False False
+block_track tracklike_id width = BlockTrack tracklike_id width [] []
+
+-- | Similar to Track.Track, except this data can vary per-block.
+data DisplayTrack = DisplayTrack {
+    dtrack_tracklike_id :: TracklikeId
+    , dtrack_merged :: [Track.TrackId]
+    , dtrack_status :: Maybe (Char, Color)
+    , dtrack_event_brightness :: Double
+    } deriving (Eq, Show, Read)
+
+-- | Most of these only make sense for event tracks.
+data TrackFlag =
+    -- | Don't display this track at all.
+    Hide
+    -- | UI shows solo indication.  If any tracks are soloed on a block, only
+    -- those tracks are derived.
+    | Solo
+    -- | UI shows muted indication, deriver should skip this track.
+    | Mute
+    deriving (Eq, Show, Read)
+
+-- | Convert logical block level tracks to display tracks.  Return the
+-- track creation width since it doesn't belong in DisplayTrack.
+block_display_tracks :: Block -> [(DisplayTrack, Width)]
+block_display_tracks block =
+    [(block_track_config t, track_width t) | t <- block_tracks block,
+        Hide `notElem` track_flags t]
+
+block_track_config :: BlockTrack -> DisplayTrack
+block_track_config btrack =
+    DisplayTrack (tracklike_id btrack) (track_merged btrack) status brightness
+    where (status, brightness) = flags_to_status (track_flags btrack)
+
+flags_to_status :: [TrackFlag] -> (Maybe (Char, Color), Double)
+flags_to_status flags
+    | Solo `elem` flags = (Just ('S', solo_color), 1)
+    | Mute `elem` flags = (Just ('M', mute_color), 0.75)
+    | otherwise = (Nothing, 1)
+    where
+    -- TODO can't be imported from App.Config because of circular imports
+    -- I should remove the Config->Block import
+    mute_color = Color.gray6
+    solo_color = Color.rgb 1 0.75 0.75
 
 modify_id :: BlockTrack -> (TracklikeId -> TracklikeId) -> BlockTrack
 modify_id track f = track { tracklike_id = f (tracklike_id track) }
@@ -209,6 +248,7 @@ pixels_to_track_pos zoom pixels =
 
 data TrackView = TrackView {
     track_view_width :: Width
+    -- TODO add track_view_collapsed here
     } deriving (Eq, Ord, Show, Read)
 
 data Rect = Rect {

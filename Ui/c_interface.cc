@@ -151,6 +151,13 @@ set_status(BlockViewWindow *view, const char *status)
     view->block.set_status(status);
 }
 
+void
+set_display_track(BlockViewWindow *view, int tracknum,
+        DisplayTrack *dtrack)
+{
+    view->block.set_display_track(tracknum, *dtrack);
+}
+
 
 // tracks
 

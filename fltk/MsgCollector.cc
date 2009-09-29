@@ -136,7 +136,10 @@ set_msg_from_event(UiMsg &m, int evt)
     m.is_click = Fl::event_is_click();
     m.x = Fl::event_x();
     m.y = Fl::event_y();
-    m.key = Fl::event_text()[0];
+    // Modifiers go over separately, so I shouldn't send capital letters.
+    // Don't bother with non-alphabetic characters.  The effect of shift on
+    // those is dependent on keymap anyway.
+    m.key = tolower(Fl::event_text()[0]);
     if (!isprint(m.key)) // shift or backspace or some such
         m.key = Fl::event_key();
 }

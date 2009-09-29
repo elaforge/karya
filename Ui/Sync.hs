@@ -163,17 +163,24 @@ run_update block_samples (Update.BlockUpdate block_id update) = do
             mapM_ (flip BlockC.set_skeleton skel) view_ids
         Update.RemoveTrack tracknum -> return $
             mapM_ (flip BlockC.remove_track tracknum) view_ids
-        Update.InsertTrack tracknum tracklike_id width -> do
-            ctrack <- State.get_tracklike tracklike_id
+        Update.InsertTrack tracknum width dtrack -> do
+            let tid = Block.dtrack_tracklike_id dtrack
+            ctrack <- State.get_tracklike tid
             return $ forM_ view_ids $ \view_id -> do
                 BlockC.insert_track view_id tracknum ctrack
-                    (get_samples maybe_track_samples tracklike_id) width
+                    (get_samples maybe_track_samples tid) width
                 case ctrack of
-                    Block.T t _ -> unless (null (Track.track_title t)) $
-                        -- Sync the title.  See the CreateView comment.
-                        BlockC.set_track_title view_id tracknum
-                            (Track.track_title t)
+                    -- Configure new track.  This is analogous to the initial
+                    -- config in CreateView.
+                    Block.T t _ -> do
+                        unless (null (Track.track_title t)) $
+                            BlockC.set_track_title view_id tracknum
+                                (Track.track_title t)
+                        BlockC.set_display_track view_id tracknum dtrack
                     _ -> return ()
+        Update.DisplayTrack tracknum dtrack -> return $
+            forM_ view_ids $ \view_id ->
+                BlockC.set_display_track view_id tracknum dtrack
 
 run_update block_samples (Update.TrackUpdate track_id update) = do
     blocks <- State.blocks_with_track track_id

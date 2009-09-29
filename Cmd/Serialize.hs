@@ -1,3 +1,5 @@
+{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
+-- Extensions needed for the Binary Block.Block instance.
 {- | Serialize and unserialize all the data types used by Ui.State.State.
 
     Types that I think might change have versions.  If the type changes,
@@ -191,20 +193,38 @@ instance Binary Skeleton.Skeleton where
     get = get >>= \a -> return (Skeleton.Skeleton a)
 
 instance Binary Block.BlockTrack where
-    put (Block.BlockTrack a b c d e f) = put_version 0
-        >> put a >> put b >> put c >> put d >> put e >> put f
+    put (Block.BlockTrack a b c d) = put_version 1
+        >> put a >> put b >> put c >> put d
     get = do
         v <- get_version
         case v of
             0 -> do
                 id <- get :: Get Block.TracklikeId
                 width <- get :: Get Block.Width
-                hidden <- get :: Get Bool
-                merged <- get :: Get (Maybe Block.TrackNum)
-                muted <- get :: Get Bool
-                collapsed <- get :: Get Bool
-                return $ Block.BlockTrack id width hidden merged muted collapsed
+                _ <- get :: Get Bool
+                _ <- get :: Get (Maybe Block.TrackNum)
+                _ <- get :: Get Bool
+                _ <- get :: Get Bool
+                return $ Block.BlockTrack id width [] []
+            1 -> do
+                id <- get :: Get Block.TracklikeId
+                width <- get :: Get Block.Width
+                flags <- get :: Get [Block.TrackFlag]
+                merged <- get :: Get [Track.TrackId]
+                return $ Block.BlockTrack id width flags merged
             _ -> version_error "Block.BlockTrack" v
+
+instance Binary Block.TrackFlag where
+    put (Block.Hide) = putWord8 0
+    put (Block.Solo) = putWord8 1
+    put (Block.Mute) = putWord8 2
+    get = do
+        tag_ <- getWord8
+        case tag_ of
+            0 -> return Block.Hide
+            1 -> return Block.Solo
+            2 -> return Block.Mute
+            _ -> fail "no parse for Block.TrackFlag"
 
 tid = Block.TId :: Track.TrackId -> Ruler.RulerId -> Block.TracklikeId
 rid = Block.RId :: Ruler.RulerId -> Block.TracklikeId

@@ -85,6 +85,11 @@ run state m = case result of
         Right (val, state', _) -> (val, state')
     where result = Identity.runIdentity (State.run state m)
 
+eval :: State.State -> State.StateT Identity.Identity a -> a
+eval state m = case State.eval state m of
+    Left err -> error $ "state error: " ++ show err
+    Right val -> val
+
 run_mkstate track_specs = run State.empty (mkstate "b1" track_specs)
 run_mkview track_specs = run State.empty (mkstate_view "b1" track_specs)
 

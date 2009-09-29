@@ -151,6 +151,25 @@ test_set_status = do
         State.set_view_status t_view_id "lol" Nothing
     return ()
 
+test_set_track_flags = do
+    state <- run State.empty $ do
+        setup_state
+        t2 <- create_track "b1.t2" UiTest.event_track_2
+        insert_track t_block_id 1 (Block.TId t2 t_ruler_id) 30
+    state <- io_human "track1 is muted" $ run state $ do
+        State.toggle_track_flag t_block_id 1 Block.Mute
+    state <- io_human "track1 is soloed" $ run state $ do
+        State.toggle_track_flag t_block_id 1 Block.Solo
+    state <- io_human "unsolo" $ run state $ do
+        State.toggle_track_flag t_block_id 1 Block.Solo
+    state <- io_human "unmute" $ run state $ do
+        State.toggle_track_flag t_block_id 1 Block.Mute
+    state <- io_human "hide" $ run state $ do
+        State.toggle_track_flag t_block_id 1 Block.Hide
+    state <- io_human "unhide" $ run state $ do
+        State.toggle_track_flag t_block_id 1 Block.Hide
+    return ()
+
 test_insert_remove_track = do
     state <- run_setup
     state <- io_human "new wide track at the end" $ run state $ do
@@ -219,7 +238,7 @@ test_alter_track = do
     state <- run_setup
     state <- io_human "track should get wider" $ run state $ do
         State.set_track_width t_view_id 1 100
-    state <- io_human "track should get a new ruler" $ run state $ do
+    state <- io_human "lose ruler and stay wide" $ run state $ do
         rid <- create_ruler "r2" (UiTest.mkruler 0 0)
         let set_ruler track = Block.modify_id track (Block.set_rid rid)
         State.modify_block t_block_id $ \block -> block

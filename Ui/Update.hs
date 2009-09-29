@@ -38,7 +38,10 @@ data BlockUpdate
     | BlockConfig Block.Config
     | BlockSkeleton Skeleton.Skeleton
     | RemoveTrack Block.TrackNum
-    | InsertTrack Block.TrackNum Block.TracklikeId Block.Width
+    | InsertTrack Block.TrackNum Block.Width Block.DisplayTrack
+    -- | Unlike a TrackUpdate, these settings are local to the block, not
+    -- global to this track in all its blocks.
+    | DisplayTrack Block.TrackNum Block.DisplayTrack
     deriving Show
 
 -- | track, low_pos, high_pos

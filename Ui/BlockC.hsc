@@ -29,6 +29,7 @@ module Ui.BlockC (
 
     -- * Block operations
     , set_model_config, set_skeleton, set_title, set_status
+    , set_display_track
 
     -- ** Track operations
     , insert_track, remove_track, update_track, update_entire_track
@@ -222,6 +223,17 @@ set_status view_id status = do
     withCString status (c_set_status viewp)
 foreign import ccall "set_status" c_set_status :: Ptr CView -> CString -> IO ()
 
+-- | Set block-local track status.
+set_display_track :: Block.ViewId -> Block.TrackNum
+    -> Block.DisplayTrack -> Fltk ()
+set_display_track view_id tracknum dtrack = do
+    viewp <- get_ptr view_id
+    with dtrack $ \dtrackp ->
+        c_set_display_track viewp (Util.c_int tracknum) dtrackp
+
+foreign import ccall "set_display_track"
+    c_set_display_track :: Ptr CView -> CInt -> Ptr Block.DisplayTrack -> IO ()
+
 -- ** Track operations
 
 insert_track :: Block.ViewId -> Block.TrackNum -> Block.Tracklike
@@ -371,6 +383,18 @@ poke_config configp (Block.ViewConfig block track skel sb status) = do
     (#poke BlockViewConfig, skel_height) configp (Util.c_int skel)
     (#poke BlockViewConfig, sb_size) configp (Util.c_int sb)
     (#poke BlockViewConfig, status_size) configp (Util.c_int status)
+
+instance Storable Block.DisplayTrack where
+    sizeOf _ = #size DisplayTrack
+    alignment _ = #{alignment DisplayTrack}
+    peek = error "no peek for DisplayTrack"
+    poke = poke_display_track
+
+poke_display_track dtrackp (Block.DisplayTrack _ _merged status brightness) = do
+    let (statusc, status_color) = maybe ('\NUL', Color.black) id status
+    (#poke DisplayTrack, status) dtrackp statusc
+    (#poke DisplayTrack, status_color) dtrackp status_color
+    (#poke DisplayTrack, event_brightness) dtrackp brightness
 
 -- ** skeleton
 

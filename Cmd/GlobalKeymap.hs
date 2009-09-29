@@ -77,6 +77,7 @@ import qualified Control.Monad.Identity as Identity
 
 import qualified App.Config as Config
 
+import qualified Ui.Block as Block
 import qualified Ui.Key as Key
 
 import qualified Cmd.Cmd as Cmd
@@ -134,13 +135,13 @@ player_bindings transport_info = fst $ Keymap.make_cmd_map $ concat
 -- * pure cmds
 
 (cmd_map, cmd_map_errors) = Keymap.make_cmd_map $
-    misc_bindings ++ selection_bindings ++ view_config_bindings
+    quit_bindings ++ selection_bindings ++ view_config_bindings
     ++ block_config_bindings ++ edit_bindings ++ create_bindings
     ++ clip_bindings
 
 -- Quit is special because it's the only Cmd that returns Cmd.Quit.
 -- See how annoying it is to make a keymap by hand?
-misc_bindings = [(kspec, cspec) | kspec <- kspecs]
+quit_bindings = [(kspec, cspec) | kspec <- kspecs]
     where
     kspecs = [Keymap.key_spec mods (Keymap.Key (Key.KeyChar '\''))
         | mods <- Keymap.expand_mods [PrimaryCommand]]
@@ -184,6 +185,10 @@ view_config_bindings = concat
 block_config_bindings = concat
     [ bind_click [Shift, PrimaryCommand] Config.mouse_select 0
         "toggle skeleton edge" BlockConfig.cmd_toggle_edge
+    , bind_mod [Shift] (Key.KeyChar 'm') "toggle mute"
+        (BlockConfig.cmd_toggle_flag Block.Mute)
+    , bind_mod [Shift] (Key.KeyChar 's') "toggle solo"
+        (BlockConfig.cmd_toggle_flag Block.Solo)
     ]
 
 -- delete = remove events and move following events back

@@ -15,5 +15,3 @@ paths trees = concatMap (go []) trees
     go parents (Node val subs) =
         (val, parents, children) : concatMap (go (val:parents)) subs
         where children = concatMap flatten subs
-
-t0 = [Node 0 [Node 1 [Node 2 [], Node 3 []]], Node 4 [Node 5 []]]

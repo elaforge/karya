@@ -1,11 +1,9 @@
 module Cmd.Serialize_test where
 import qualified Data.Binary as Binary
-import qualified Data.Map as Map
 
 import Util.Test
 
 import qualified Ui.UiTest as UiTest
-import qualified Ui.Block as Block
 import qualified Ui.State as State
 import qualified Cmd.Serialize as Serialize
 

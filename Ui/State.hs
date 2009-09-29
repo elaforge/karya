@@ -27,6 +27,7 @@ import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State as State
 import qualified Data.Generics as Generics
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Tree as Tree
@@ -35,6 +36,7 @@ import qualified Util.Log as Log
 import qualified Util.Logger as Logger
 import qualified Util.Map as Map
 import qualified Util.Seq as Seq
+import qualified Util.Tree as Tree
 
 import Ui.Types
 import qualified Ui.Id as Id
@@ -108,7 +110,8 @@ eval_rethrow :: (UiStateMonad m) => String -> State
     -> StateT Identity.Identity a -> m a
 eval_rethrow msg state = throw_either msg . eval state
 
--- | A form of 'run' that returns only the val.
+-- | A form of 'run' that returns only the val and automatically runs in
+-- Identity.
 eval :: State -> StateT Identity.Identity a -> Either StateError a
 eval state m = case result of
         Left err -> Left err
@@ -577,6 +580,33 @@ get_track_tree block_id = do
             ++ " names missing tracknums: " ++ show really_missing
     return resolved
 
+get_unmuted_track_tree :: (UiStateMonad m) => Block.BlockId -> m TrackTree
+get_unmuted_track_tree block_id = do
+    tree <- get_track_tree block_id
+    block <- get_block block_id
+    return $ filter_tracknums (muted_tracknums block tree) tree
+
+muted_tracknums :: Block.Block -> TrackTree -> [Block.TrackNum]
+muted_tracknums block tree
+    | null solo = mute
+    | otherwise = map fst tracks List.\\ soloed
+    where
+    tracks = Seq.enumerate (Block.block_tracks block)
+    solo = [i | (i, t) <- tracks, Block.Solo `elem` Block.track_flags t]
+    mute = [i | (i, t) <- tracks, Block.Mute `elem` Block.track_flags t]
+    -- A soloed track will keep all its parents and children unmuted.
+    soloed = List.nub $ concat
+        [ track_tracknum t : map track_tracknum (ps ++ cs)
+        | (t, ps, cs) <- Tree.paths tree, track_tracknum t `elem` solo ]
+
+filter_tracknums :: [Block.TrackNum] -> TrackTree -> TrackTree
+filter_tracknums muted forest = concatMap f forest
+    where
+    f (Tree.Node info cs)
+        | track_tracknum info `elem` muted = []
+        | otherwise = [Tree.Node info (filter_tracknums muted cs)]
+
+
 _tracks_of :: Block.Block -> Map.Map Track.TrackId Track.Track
     -> [(Block.TrackNum, Track.TrackId, Track.Track)]
 _tracks_of block tracks = do
@@ -661,6 +691,32 @@ get_tracklike track = case track of
     Block.RId ruler_id ->
         liftM Block.R (get_ruler ruler_id)
     Block.DId divider -> return (Block.D divider)
+
+-- *** block track
+
+toggle_track_flag :: (UiStateMonad m) => Block.BlockId -> Block.TrackNum
+    -> Block.TrackFlag -> m ()
+toggle_track_flag block_id tracknum flag =
+    modify_block_track block_id tracknum $ \btrack ->
+        btrack { Block.track_flags = toggle (Block.track_flags btrack) }
+    where
+    toggle flags
+        | flag `elem` flags = List.delete flag flags
+        | otherwise = flag : flags
+
+set_merged_tracks :: (UiStateMonad m) => Block.BlockId -> Block.TrackNum
+    -> [Track.TrackId] -> m ()
+set_merged_tracks block_id tracknum merged =
+    modify_block_track block_id tracknum $ \btrack ->
+        btrack { Block.track_merged = merged }
+
+modify_block_track :: (UiStateMonad m) => Block.BlockId -> Block.TrackNum
+    -> (Block.BlockTrack -> Block.BlockTrack) -> m ()
+modify_block_track block_id tracknum modify = do
+    block <- get_block block_id
+    btracks <- modify_at "modify_block_track"
+        (Block.block_tracks block) tracknum modify
+    modify_block block_id $ \b -> b { Block.block_tracks = btracks }
 
 -- *** track util
 

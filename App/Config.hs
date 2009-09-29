@@ -83,6 +83,7 @@ method_edit_color = Color.rgb 0.6 0 0
 
 play_color = Color.rgb 0 0.6 0
 warning_color = Color.rgb 1 0.2 0.2
+abbreviation_color = Color.rgb 0 0 1
 
 -- * defaults
 
@@ -124,8 +125,12 @@ clip_block_name = "clip"
 
 make_selection_color = Color.alpha 0.3 . Color.lighten 0.8
 
+-- ** colors
+
 track_bg = Color.white
 ruler_bg = Color.rgb 1 0.85 0.5
+muted_track_bg = Color.gray6
+solo_track_bg = Color.rgb 1 0.75 0.75
 
 block_config = Block.Config
     { Block.config_selection_colors =

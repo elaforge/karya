@@ -22,6 +22,9 @@ empty = Skeleton (Graph.buildG (0, -1) [])
 make :: [(TrackNum, TrackNum)] -> Skeleton
 make edges = Skeleton (Graph.build edges)
 
+draw :: Skeleton -> String
+draw (Skeleton graph) = Graph.draw graph
+
 lonely_vertex :: Skeleton -> TrackNum -> Bool
 lonely_vertex (Skeleton graph) tracknum = Graph.lonely_vertex graph tracknum
 

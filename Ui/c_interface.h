@@ -41,6 +41,8 @@ void set_model_config(BlockViewWindow *view, BlockModelConfig *config);
 void set_skeleton(BlockViewWindow *view, SkeletonConfig *skel);
 void set_title(BlockViewWindow *view, const char *title);
 void set_status(BlockViewWindow *view, const char *status);
+void set_display_track(BlockViewWindow *view, int tracknum,
+        DisplayTrack *dtrack);
 
 // tracks
 
