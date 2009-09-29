@@ -95,20 +95,21 @@ diff_views st1 st2 views1 views2 = do
 
 diff_view st1 st2 view_id view1 view2 = do
     let view_update = Update.ViewUpdate view_id
-    when (Block.view_block view1 /= Block.view_block view2) $
+    let unequal f = unequal_on f view1 view2
+    when (unequal Block.view_block) $
         throw $ show view_id ++ " changed from "
             ++ show (Block.view_block view1) ++ " to "
             ++ show (Block.view_block view2)
-    when (Block.view_rect view1 /= Block.view_rect view2) $
+    when (unequal Block.view_rect) $
         change [view_update $ Update.ViewSize (Block.view_rect view2)]
-    when (Block.view_config view1 /= Block.view_config view2) $
+    when (unequal Block.view_config) $
         change [view_update $ Update.ViewConfig (Block.view_config view2)]
-    when (Block.view_status view1 /= Block.view_status view2) $
+    when (unequal Block.view_status) $
         change [view_update $ Update.Status (Block.show_status view2)]
-    when (Block.view_track_scroll view1 /= Block.view_track_scroll view2) $
+    when (unequal Block.view_track_scroll) $
         change [view_update $
             Update.TrackScroll (Block.view_track_scroll view2)]
-    when (Block.view_zoom view1 /= Block.view_zoom view2) $
+    when (unequal Block.view_zoom) $
         change [view_update $ Update.Zoom (Block.view_zoom view2)]
 
     -- The track view info (widths) is in the View, while the track data itself
@@ -150,10 +151,9 @@ diff_selection view_update colors1 colors2 selnum sel1 sel2 =
         change [view_update $ Update.Selection selnum sel2]
 
 diff_track_view view_id tracknum tview1 tview2 = do
-    let width = Block.track_view_width
-    when (width tview1 /= width tview2) $
+    when (unequal_on Block.track_view_width tview1 tview2) $
         change [Update.ViewUpdate view_id
-            (Update.TrackWidth tracknum (width tview2))]
+            (Update.TrackWidth tracknum (Block.track_view_width tview2))]
 
 -- | Pair the Tracklikes from the Block with the TrackViews from the View.
 track_info :: Block.ViewId ->  Block.View -> State.State
@@ -170,11 +170,12 @@ track_info view_id view st =
 
 diff_block block_id block1 block2 = do
     let block_update = Update.BlockUpdate block_id
-    when (Block.block_title block1 /= Block.block_title block2) $
+    let unequal f = unequal_on f block1 block2
+    when (unequal Block.block_title) $
         change [block_update $ Update.BlockTitle (Block.block_title block2)]
-    when (Block.block_config block1 /= Block.block_config block2) $
+    when (unequal Block.block_config) $
         change [block_update $ Update.BlockConfig (Block.block_config block2)]
-    when (Block.block_skeleton block1 /= Block.block_skeleton block2) $
+    when (unequal Block.block_skeleton) $
         change
             [block_update $ Update.BlockSkeleton (Block.block_skeleton block2)]
 
@@ -194,11 +195,12 @@ diff_block block_id block1 block2 = do
 
 diff_track track_id track1 track2 = do
     let track_update = Update.TrackUpdate track_id
-    when (Track.track_title track1 /= Track.track_title track2) $
+    let unequal f = unequal_on f track1 track2
+    when (unequal Track.track_title) $
         change [track_update $ Update.TrackTitle (Track.track_title track2)]
-    when (Track.track_bg track1 /= Track.track_bg track2) $
+    when (unequal Track.track_bg) $
         change [track_update $ Update.TrackBg]
-    when (Track.track_render track1 /= Track.track_render track2) $
+    when (unequal Track.track_render) $
         change [track_update $ Update.TrackRender]
 
 diff_ruler ruler_id ruler1 ruler2 = do

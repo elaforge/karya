@@ -1,6 +1,4 @@
 CURRENT
-  Ui.Diff - use unequal_on
-  * track mute
   + fix hint stuff
   - complete InputNote implementation for pitch entry
     - advance on NoteOff
@@ -16,10 +14,7 @@ CURRENT
   - editing for "pattern list" block
   - double click call to jump to its block?
 
-* current kbd entry is flawed since for midi thru it turns InputKeys into
-midi, which can't be distinguished from real midi
 - verify twelve ->midi mapping and range checking
-* make sysex Midi.Message use ByteString
 
 - save and load midi_config separately
 
