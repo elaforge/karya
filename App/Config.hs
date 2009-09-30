@@ -7,11 +7,11 @@ import System.FilePath ((</>))
 
 import qualified Util.File as File
 
-import Ui.Types
 import qualified Ui.Id as Id
 import qualified Ui.Color as Color
 import qualified Ui.Block as Block
 import qualified Ui.Track as Track
+import qualified Ui.Types as Types
 import qualified Ui.UiMsg as UiMsg
 
 import qualified Perform.Midi.Controller as Controller
@@ -63,11 +63,11 @@ mouse_select = 1
 -- * selnums
 
 -- | SelNum of the insertion selection.
-insert_selnum :: Block.SelNum
+insert_selnum :: Types.SelNum
 insert_selnum = 0
 
 -- | SelNum of the play position indicator.
-play_position_selnum :: Block.SelNum
+play_position_selnum :: Types.SelNum
 play_position_selnum = 4
 play_position_color :: Color.Color
 play_position_color = make_selection_color Color.purple
@@ -100,15 +100,15 @@ view_size :: (Int, Int)
 view_size = (300, 300)
 
 -- | Create new views at this zoom.
-zoom :: Block.Zoom
-zoom = Block.Zoom (TrackPos 0) 46
+zoom :: Types.Zoom
+zoom = Types.Zoom 0 46
 
 -- | Default width for the block ruler track.
-ruler_width :: Block.Width
+ruler_width :: Types.Width
 ruler_width = 18
 
 -- | Default width for new tracks.
-track_width :: Block.Width
+track_width :: Types.Width
 track_width = 30
 
 render_config = Track.RenderConfig Track.NoRender render_color
@@ -116,8 +116,8 @@ render_color = Color.rgba 0.65 0.65 0.8 0.5
 
 -- | SchemaId of the default hardcoded schema.  This should probably go in
 -- Schema, but being here modules can get it without depending on Schema.
-schema :: Block.SchemaId
-schema = Block.SchemaId (Id.global "default")
+schema :: Types.SchemaId
+schema = Types.SchemaId (Id.global "default")
 
 -- | The default namespace for the clipboard.
 clip_namespace :: Id.Namespace

@@ -9,11 +9,12 @@ import qualified Data.Map as Map
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 
-import Ui.Types
+import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.State as State
 import qualified Ui.Track as Track
+import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.TimeStep as TimeStep
@@ -84,7 +85,7 @@ cmd_set_duration = modify_events $ \_start end (pos, event) ->
 cmd_insert_selection :: (Monad m) => Cmd.CmdT m ()
 cmd_insert_selection = do
     (track_ids, sel) <- Selection.selected_tracks Config.insert_selnum
-    let (low, high) = Block.sel_range sel
+    let (low, high) = Types.sel_range sel
     mapM_ (move_track_events low (high - low)) track_ids
 
 -- | Remove the notes under the selection, and move everything else back.
@@ -92,11 +93,11 @@ cmd_delete_selection :: (Monad m) => Cmd.CmdT m ()
 cmd_delete_selection = do
     cmd_remove_selected
     (track_ids, sel) <- Selection.selected_tracks Config.insert_selnum
-    let (low, high) = Block.sel_range sel
+    let (low, high) = Types.sel_range sel
     mapM_ (move_track_events low (-(high - low))) track_ids
 
 move_track_events :: (State.UiStateMonad m) =>
-    TrackPos -> TrackPos -> Track.TrackId -> m ()
+    TrackPos -> TrackPos -> TrackId -> m ()
 move_track_events start shift track_id = do
     track <- State.get_track track_id
     let shifted = move_events start shift (Track.track_events track)
@@ -138,7 +139,7 @@ modify_events f = do
 cmd_remove_selected :: (Monad m) => Cmd.CmdT m ()
 cmd_remove_selected = do
     (track_ids, sel) <- Selection.selected_tracks Config.insert_selnum
-    let (start, end) = Block.sel_range sel
+    let (start, end) = Types.sel_range sel
     forM_ track_ids $ \track_id -> if start == end
         then State.remove_event track_id start
         else State.remove_events track_id start end
@@ -232,14 +233,13 @@ hist_status = do
     Log.debug $ "past length: " ++ show (length past)
         ++ ", future length: " ++ show (length future)
 
-merge_view :: Map.Map Block.ViewId Block.View
-    -> Block.ViewId -> Block.View -> Block.View
+merge_view :: Map.Map ViewId Block.View -> ViewId -> Block.View -> Block.View
 merge_view old_views view_id new = case Map.lookup view_id old_views of
     Nothing -> new
     Just old -> new { Block.view_config = Block.view_config old }
 
-merge_block :: Map.Map Block.BlockId Block.Block
-    -> Block.BlockId -> Block.Block -> Block.Block
+merge_block :: Map.Map BlockId Block.Block
+    -> BlockId -> Block.Block -> Block.Block
 merge_block old_blocks block_id new = case Map.lookup block_id old_blocks of
     Nothing -> new
     Just old -> new { Block.block_config = Block.block_config old }

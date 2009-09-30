@@ -8,10 +8,11 @@ import qualified Data.Maybe as Maybe
 
 import qualified Util.Seq as Seq
 
-import Ui.Types
+import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
+import qualified Ui.Types as Types
 
 
 -- | A variable time step, used to find out how much to advance
@@ -38,14 +39,14 @@ data TimeDirection = Advance | Rewind deriving (Eq, Show)
 
 -- | Given a pos, return the nearest point on a timestep.
 snap :: (State.UiStateMonad m) =>
-    TimeStep -> Block.BlockId -> Block.TrackNum -> TrackPos -> m TrackPos
+    TimeStep -> BlockId -> Types.TrackNum -> TrackPos -> m TrackPos
     -- Absolute steps don't have any absolute alignment, so you can't snap.
 snap (Absolute _) _ _ pos = return pos
 snap time_step block_id tracknum pos = fmap (Maybe.fromMaybe pos) $
     step_from time_step Rewind block_id tracknum pos
 
 step_from :: (State.UiStateMonad m) => TimeStep -> TimeDirection
-    -> Block.BlockId -> Block.TrackNum -> TrackPos -> m (Maybe TrackPos)
+    -> BlockId -> Types.TrackNum -> TrackPos -> m (Maybe TrackPos)
 step_from time_step direction block_id tracknum pos = do
     block <- State.get_block block_id
     case relevant_ruler block tracknum of
@@ -58,7 +59,7 @@ step_from time_step direction block_id tracknum pos = do
 -- | Get the ruler that applies to the given track.  Search left for the
 -- closest ruler that has all the given marklist names.  This includes ruler
 -- tracks and the rulers of event tracks.
-relevant_ruler :: Block.Block -> Block.TrackNum -> Maybe Ruler.RulerId
+relevant_ruler :: Block.Block -> Types.TrackNum -> Maybe RulerId
 relevant_ruler block tracknum = Seq.at (Block.ruler_ids_of in_order) 0
     where
     in_order = map snd $ dropWhile ((/=tracknum) . fst) $ reverse $

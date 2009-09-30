@@ -6,8 +6,7 @@ import qualified Text.Read as Read
 import Util.Pretty
 import qualified Util.Array as Array
 
-import Ui.Types
-import qualified Ui.Id as Id
+import Ui
 import qualified Ui.Color as Color
 
 
@@ -24,16 +23,6 @@ data Ruler = Ruler {
     , ruler_full_width :: Bool
     } deriving (Eq, Show, Read)
 ruler = Ruler
-
-newtype RulerId = RulerId Id.Id
-    deriving (Eq, Ord)
-
-instance Show RulerId where show = Id.show_ident
-instance Read RulerId where readPrec = Id.read_ident undefined
-instance Id.Ident RulerId where
-    unpack_id (RulerId a) = a
-    cons_name _ = "rid"
-    cons = RulerId
 
 -- | Get the position of the last mark of the ruler.
 time_end :: Ruler -> TrackPos

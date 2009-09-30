@@ -8,7 +8,7 @@ module Derive.Score where
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
-import Ui.Types
+import Ui
 
 import qualified Perform.Signal as Signal
 import qualified Perform.Warning as Warning

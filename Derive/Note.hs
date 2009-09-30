@@ -92,12 +92,12 @@ import qualified Util.Log as Log
 import qualified Util.Parse as Parse
 import Util.Seq as Seq
 
-import Ui.Types
-import qualified Ui.Block as Block
+import Ui
 import qualified Ui.Event as Event
 import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Ui.Track as Track
+import qualified Ui.Types as Types
 
 import qualified Derive.Controller as Controller
 import qualified Derive.Derive as Derive
@@ -254,7 +254,7 @@ d_call :: TrackPos -> TrackPos -> String -> Derive.EventDeriver
 d_call start dur ident = do
     -- TODO also I'll want to support generic calls
     default_ns <- fmap (State.state_project . Derive.state_ui) Derive.get
-    let block_id = Block.BlockId (make_id default_ns ident)
+    let block_id = Types.BlockId (make_id default_ns ident)
     stack <- fmap Derive.state_stack Derive.get
     -- Since there is no branching, any recursion will be endless.
     when (block_id `elem` [bid | (bid, _, _) <- stack]) $
@@ -278,7 +278,7 @@ d_call start dur ident = do
 -- function defines the length of a block.  'event_end' seems the most
 -- intuitive, but then you can't make blocks with trailing space.  You can
 -- work around it though by appending a comment dummy event.
-get_block_dur :: (State.UiStateMonad m) => Block.BlockId -> m TrackPos
+get_block_dur :: (State.UiStateMonad m) => BlockId -> m TrackPos
 get_block_dur = State.event_end
 
 

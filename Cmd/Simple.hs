@@ -6,11 +6,12 @@ module Cmd.Simple where
 import Control.Monad
 import qualified Control.Monad.Trans as Trans
 
-import qualified Ui.Id as Id
-import qualified Ui.Event as Event
+import Ui
 import qualified Ui.Block as Block
-import qualified Ui.Track as Track
+import qualified Ui.Event as Event
+import qualified Ui.Id as Id
 import qualified Ui.State as State
+import qualified Ui.Track as Track
 
 import qualified Cmd.Clip as Clip
 import qualified Cmd.Cmd as Cmd
@@ -35,24 +36,24 @@ event :: Track.PosEvent -> Event
 event (start, event) = (realToFrac start,
     realToFrac (Event.event_duration event), Event.event_text event)
 
-dump_block :: (State.UiStateMonad m) => Block.BlockId -> m Block
+dump_block :: (State.UiStateMonad m) => BlockId -> m Block
 dump_block block_id = do
     block <- State.get_block block_id
     let track_ids = Block.block_track_ids block
     tracks <- mapM dump_track track_ids
     return (show block_id, Block.block_title block, tracks)
 
-dump_track :: (State.UiStateMonad m) => Track.TrackId -> m Track
+dump_track :: (State.UiStateMonad m) => TrackId -> m Track
 dump_track track_id = do
     track <- State.get_track track_id
     return (simplify_track track_id track)
 
-simplify_track :: Track.TrackId -> Track.Track -> Track
+simplify_track :: TrackId -> Track.Track -> Track
 simplify_track track_id track =
     (show track_id, Track.track_title track, map event events)
     where events = Track.event_list (Track.track_events track)
 
-dump_selection :: Cmd.CmdL [(Track.TrackId, [Event])]
+dump_selection :: Cmd.CmdL [(TrackId, [Event])]
 dump_selection = do
     (_, _, track_events) <- Selection.selected_events True Config.insert_selnum
     return [(track_id, map event events)

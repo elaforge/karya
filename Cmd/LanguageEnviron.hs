@@ -16,16 +16,15 @@ import qualified Util.Map as Map
 import qualified Util.Log as Log
 import qualified Util.PPrint as PPrint
 
-import Ui.Types
-
-import Ui.Types
-import qualified Ui.Id as Id
-import qualified Ui.Color as Color
+import Ui
 import qualified Ui.Block as Block
-import qualified Ui.Ruler as Ruler
-import qualified Ui.Track as Track
+import qualified Ui.Color as Color
 import qualified Ui.Event as Event
+import qualified Ui.Id as Id
+import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
+import qualified Ui.Track as Track
+import qualified Ui.Types as Types
 import qualified Ui.Update as Update
 
 import qualified Midi.Midi as Midi

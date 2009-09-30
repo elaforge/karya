@@ -3,11 +3,11 @@ import qualified Control.Monad.Identity as Identity
 
 import Util.Test
 import qualified Util.Log as Log
-import Ui.Types
 
-import qualified Ui.Block as Block
+import Ui
 import qualified Ui.Id as Id
 import qualified Ui.State as State
+import qualified Ui.Types as Types
 import qualified Ui.UiTest as UiTest
 
 import qualified Cmd.Cmd as Cmd
@@ -41,7 +41,7 @@ to_simple = map (\(pos, dur, text) -> (realToFrac pos, realToFrac dur, text))
     [ ("t1", [(0, 2, "c1"), (4, 2, "c2")]) ]
 
 clip_ns = Config.clip_namespace
-clip_id = Block.BlockId (Id.id clip_ns Config.clip_block_name)
+clip_id = Types.BlockId (Id.id clip_ns Config.clip_block_name)
 
 with_clip state cstate = State.error_either "with_clip" $
     State.exec state (Clip.state_to_namespace cstate clip_ns)
@@ -69,7 +69,7 @@ run_io ustate m = do
         Left err -> error $ "state error: " ++ show err
 
 extract_events (_, _, tracks) = map (\(_, _, a) -> a) tracks
-mksel a b c d = Just (Block.Selection a b c d)
+mksel a b c d = Just (Types.Selection a b c d)
 
 run_sel ustate sel cmd = run_io ustate $ do
     State.set_selection UiTest.default_view_id Config.insert_selnum sel

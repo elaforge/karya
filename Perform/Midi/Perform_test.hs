@@ -9,10 +9,9 @@ import Util.Pretty
 import Util.Test
 import qualified Util.Seq as Seq
 
-import Ui.Types
-import qualified Ui.Block as Block
+import Ui
 import qualified Ui.Id as Id
-import qualified Ui.Track as Track
+import qualified Ui.Types as Types
 
 import qualified Midi.Midi as Midi
 import Midi.Midi (ChannelMessage(..))
@@ -343,8 +342,8 @@ mkevent (inst, pitch, start, dur, controls) =
         (Map.fromList (pitch_control : controls)) fakestack
     where
     fakestack =
-        [ (Block.BlockId (Id.id "test" "fakeblock")
-        , Just (Track.TrackId (Id.id "test" "faketrack"))
+        [ (Types.BlockId (Id.id "test" "fakeblock")
+        , Just (Types.TrackId (Id.id "test" "faketrack"))
         , Just (TrackPos 42, TrackPos 42))
         ]
     pitch_control = (Controller.c_pitch, Signal.signal [(TrackPos start, p)])

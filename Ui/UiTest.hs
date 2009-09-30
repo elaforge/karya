@@ -7,14 +7,14 @@ import qualified System.IO as IO
 
 import qualified Ui.Color as Color
 
-import Ui.Types
+import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
-import qualified Ui.Font as Font
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
 import qualified Ui.Track as Track
+import qualified Ui.Types as Types
 
 import qualified Derive.Schema as Schema
 
@@ -26,7 +26,7 @@ pause = putStr "? " >> IO.hFlush IO.stdout >> getLine >> return ()
 -- (10, 50) seems to be the smallest x,y os x will accept.  Apparently
 -- fltk's sizes don't take the menu bar into account, which is about 44 pixels
 -- high, so a y of 44 is the minimum.
-default_rect = Block.Rect 10 50 200 200
+default_rect = Types.Rect 10 50 200 200
 
 default_block_config = Config.block_config
 default_view_config = Config.view_config
@@ -37,9 +37,9 @@ default_divider = Block.Divider Color.blue
 
 test_ns = "test"
 mkid = Id.id test_ns
-bid = Block.BlockId . mkid
-vid = Block.ViewId . mkid
-tid = Track.TrackId . mkid
+bid = Types.BlockId . mkid
+vid = Types.ViewId . mkid
+tid = Types.TrackId . mkid
 
 default_zoom = Config.zoom
 
@@ -94,11 +94,11 @@ run_mkstate track_specs = run State.empty (mkstate "b1" track_specs)
 run_mkview track_specs = run State.empty (mkstate_view "b1" track_specs)
 
 mkstate :: (State.UiStateMonad m) =>
-    String -> [TrackSpec] -> m [Track.TrackId]
+    String -> [TrackSpec] -> m [TrackId]
 mkstate block_name tracks = mkstate_id (bid block_name) tracks
 
 mkstate_id :: (State.UiStateMonad m) =>
-    Block.BlockId -> [TrackSpec] -> m [Track.TrackId]
+    BlockId -> [TrackSpec] -> m [TrackId]
 mkstate_id block_id tracks = do
     State.set_project test_ns
     let (ns, block_name) = Id.un_id (Id.unpack_id block_id)
@@ -117,7 +117,7 @@ parse_skeleton block_id = do
     tracks <- State.get_track_info block_id
     return $ Schema.default_parser tracks
 
-mkview :: (State.UiStateMonad m) => m Block.ViewId
+mkview :: (State.UiStateMonad m) => m ViewId
 mkview = State.create_view (Id.unpack_id default_view_id) $
     Block.view default_block_id default_rect default_zoom
         default_view_config
@@ -129,7 +129,7 @@ mkstate_view block_id tracks = do
 
 -- ** block
 
-mkblock :: String -> Block.Config -> [(Block.TracklikeId, Block.Width)]
+mkblock :: String -> Block.Config -> [(Block.TracklikeId, Types.Width)]
     -> Block.Block
 mkblock title config tracks = Block.block
     title config (map (uncurry Block.block_track) tracks) Config.schema

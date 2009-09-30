@@ -47,10 +47,11 @@ import qualified Data.Map as Map
 import Foreign
 import Foreign.C
 
+import Ui
+import qualified Ui.Color as Color
+import qualified Ui.Types as Types
 import qualified Ui.Util as Util
 import Ui.Util (Fltk)
-import Ui.Types
-import qualified Ui.Color as Color
 
 import qualified Ui.Block as Block
 -- They properly belong here but are in Ui.Block for convenience.
@@ -72,7 +73,7 @@ import qualified Ui.TrackC as TrackC
 -- also, turn c++ exceptions into this exception
 throw = error
 
-get_ptr :: Block.ViewId -> IO (Ptr CView)
+get_ptr :: ViewId -> IO (Ptr CView)
 get_ptr view_id = do
     ptr_map <- MVar.readMVar view_id_to_ptr
     case Map.lookup view_id ptr_map of
@@ -80,7 +81,7 @@ get_ptr view_id = do
             ++ show (Map.elems ptr_map)
         Just viewp -> return viewp
 
-get_id :: Ptr CView -> IO Block.ViewId
+get_id :: Ptr CView -> IO ViewId
 get_id viewp = do
     ptr_map <- MVar.readMVar view_id_to_ptr
     case List.find ((==viewp) . snd) (Map.assocs ptr_map) of
@@ -94,7 +95,7 @@ get_id viewp = do
 
 -- | Create an empty block view with the given configs.  Tracks must be
 -- inserted separately.
-create_view :: Block.ViewId -> String -> Block.Rect -> Block.ViewConfig
+create_view :: ViewId -> String -> Types.Rect -> Block.ViewConfig
     -> Block.Config -> Fltk ()
 create_view view_id window_title rect view_config block_config = do
     MVar.modifyMVar_ view_id_to_ptr $ \ptr_map -> do
@@ -106,14 +107,14 @@ create_view view_id window_title rect view_config block_config = do
                 c_create (i x) (i y) (i w) (i h) titlep configp view_configp
         return $ Map.insert view_id viewp ptr_map
     where
-    Block.Rect x y w h = rect
+    Types.Rect x y w h = rect
     i = Util.c_int
 
 foreign import ccall "create"
     c_create :: CInt -> CInt -> CInt -> CInt -> CString -> Ptr Block.Config
         -> Ptr Block.ViewConfig -> IO (Ptr CView)
 
-destroy_view :: Block.ViewId -> Fltk ()
+destroy_view :: ViewId -> Fltk ()
 destroy_view view_id = do
     viewp <- get_ptr view_id
     MVar.modifyMVar_ view_id_to_ptr $ \ptr_map -> do
@@ -126,49 +127,49 @@ foreign import ccall "destroy"
 
 -- TODO unused now that window moves are sent in msgs, remove this?
 {-
-get_size :: Block.ViewId -> Fltk Block.Rect
+get_size :: ViewId -> Fltk Types.Rect
 get_size view_id = do
     viewp <- get_ptr view_id
     sz <- allocaArray 4 $ \sizep -> do
         c_get_size viewp sizep
         peekArray 4 sizep
     let [x, y, w, h] = map fromIntegral sz
-    return (Block.Rect (x, y) (w, h))
+    return (Types.Rect (x, y) (w, h))
 foreign import ccall unsafe "get_size"
     c_get_size :: Ptr CView -> Ptr CInt -> IO ()
 -}
 
-set_size :: Block.ViewId -> Block.Rect -> Fltk ()
-set_size view_id (Block.Rect x y w h) = do
+set_size :: ViewId -> Types.Rect -> Fltk ()
+set_size view_id (Types.Rect x y w h) = do
     viewp <- get_ptr view_id
     c_set_size viewp (i x) (i y) (i w) (i h)
     where i = Util.c_int
 foreign import ccall "set_size"
     c_set_size :: Ptr CView -> CInt -> CInt -> CInt -> CInt -> IO ()
 
-set_view_config :: Block.ViewId -> Block.ViewConfig -> Fltk ()
+set_view_config :: ViewId -> Block.ViewConfig -> Fltk ()
 set_view_config view_id config = do
     viewp <- get_ptr view_id
     with config $ \configp -> c_set_view_config viewp configp
 foreign import ccall "set_view_config"
     c_set_view_config :: Ptr CView -> Ptr Block.ViewConfig -> IO ()
 
-set_zoom :: Block.ViewId -> Block.Zoom -> Fltk ()
+set_zoom :: ViewId -> Types.Zoom -> Fltk ()
 set_zoom view_id zoom = do
     viewp <- get_ptr view_id
     with zoom $ \zoomp -> c_set_zoom viewp zoomp
 foreign import ccall "set_zoom"
-    c_set_zoom :: Ptr CView -> Ptr Block.Zoom -> IO ()
+    c_set_zoom :: Ptr CView -> Ptr Types.Zoom -> IO ()
 
 -- | Set the scroll along the track dimension, in pixels.
-set_track_scroll :: Block.ViewId -> Block.Width -> Fltk ()
+set_track_scroll :: ViewId -> Types.Width -> Fltk ()
 set_track_scroll view_id offset = do
     viewp <- get_ptr view_id
     c_set_track_scroll viewp (Util.c_int offset)
 foreign import ccall "set_track_scroll"
     c_set_track_scroll :: Ptr CView -> CInt -> IO ()
 
-set_selection :: Block.ViewId -> Block.SelNum -> Maybe CSelection -> Fltk ()
+set_selection :: ViewId -> Types.SelNum -> Maybe CSelection -> Fltk ()
 set_selection view_id selnum maybe_sel = do
     viewp <- get_ptr view_id
     maybeWith with maybe_sel $ \selp ->
@@ -176,7 +177,7 @@ set_selection view_id selnum maybe_sel = do
 foreign import ccall "set_selection"
     c_set_selection :: Ptr CView -> CInt -> Ptr CSelection -> IO ()
 
-set_track_selection :: Block.ViewId -> Block.SelNum -> Block.TrackNum
+set_track_selection :: ViewId -> Types.SelNum -> Types.TrackNum
     -> Maybe CSelection -> Fltk ()
 set_track_selection view_id selnum tracknum maybe_sel = do
     viewp <- get_ptr view_id
@@ -197,34 +198,34 @@ max_selections = (#const Config::max_selections)
 -- These operate on ViewIds too because there is no block/view distinction at
 -- this layer.
 
-set_model_config :: Block.ViewId -> Block.Config -> Fltk ()
+set_model_config :: ViewId -> Block.Config -> Fltk ()
 set_model_config view_id config = do
     viewp <- get_ptr view_id
     with config $ \configp -> c_set_model_config viewp configp
 foreign import ccall "set_model_config"
     c_set_model_config :: Ptr CView -> Ptr Block.Config -> IO ()
 
-set_skeleton :: Block.ViewId -> Skeleton.Skeleton -> Fltk ()
+set_skeleton :: ViewId -> Skeleton.Skeleton -> Fltk ()
 set_skeleton view_id skel = do
     viewp <- get_ptr view_id
     with_skeleton skel $ \skelp -> c_set_skeleton viewp skelp
 foreign import ccall "set_skeleton"
     c_set_skeleton :: Ptr CView -> Ptr Skeleton.Skeleton -> IO ()
 
-set_title :: Block.ViewId -> String -> Fltk ()
+set_title :: ViewId -> String -> Fltk ()
 set_title view_id title = do
     viewp <- get_ptr view_id
     withCString title (c_set_title viewp)
 foreign import ccall "set_title" c_set_title :: Ptr CView -> CString -> IO ()
 
-set_status :: Block.ViewId -> String -> Fltk ()
+set_status :: ViewId -> String -> Fltk ()
 set_status view_id status = do
     viewp <- get_ptr view_id
     withCString status (c_set_status viewp)
 foreign import ccall "set_status" c_set_status :: Ptr CView -> CString -> IO ()
 
 -- | Set block-local track status.
-set_display_track :: Block.ViewId -> Block.TrackNum
+set_display_track :: ViewId -> Types.TrackNum
     -> Block.DisplayTrack -> Fltk ()
 set_display_track view_id tracknum dtrack = do
     viewp <- get_ptr view_id
@@ -236,21 +237,21 @@ foreign import ccall "set_display_track"
 
 -- ** Track operations
 
-insert_track :: Block.ViewId -> Block.TrackNum -> Block.Tracklike
-    -> Track.Samples -> Block.Width -> Fltk ()
+insert_track :: ViewId -> Types.TrackNum -> Block.Tracklike
+    -> Track.Samples -> Types.Width -> Fltk ()
 insert_track view_id tracknum tracklike samples width = do
     viewp <- get_ptr view_id
     with_tracklike tracklike samples $ \tp mlistp len ->
         c_insert_track viewp (Util.c_int tracknum) tp
             (Util.c_int width) mlistp len
 
-remove_track :: Block.ViewId -> Block.TrackNum -> Fltk ()
+remove_track :: ViewId -> Types.TrackNum -> Fltk ()
 remove_track view_id tracknum = do
     viewp <- get_ptr view_id
     with_finalizer $ \finalize ->
         c_remove_track viewp (Util.c_int tracknum) finalize
 
-update_track :: Block.ViewId -> Block.TrackNum -> Block.Tracklike
+update_track :: ViewId -> Types.TrackNum -> Block.Tracklike
     -> Track.Samples -> TrackPos -> TrackPos -> Fltk ()
 update_track view_id tracknum tracklike samples start end = do
     viewp <- get_ptr view_id
@@ -261,7 +262,7 @@ update_track view_id tracknum tracklike samples start end = do
                     mlistp len finalize startp endp
 
 -- | Like 'update_track' except update everywhere.
-update_entire_track :: Block.ViewId -> Block.TrackNum -> Block.Tracklike
+update_entire_track :: ViewId -> Types.TrackNum -> Block.Tracklike
     -> Track.Samples -> Fltk ()
 update_entire_track view_id tracknum tracklike samples =
     -- -1 is special cased in c++.
@@ -305,14 +306,14 @@ data TracklikePtr =
     | DPtr (Ptr Block.Divider)
 
 
-set_track_width :: Block.ViewId -> Block.TrackNum -> Block.Width -> Fltk ()
+set_track_width :: ViewId -> Types.TrackNum -> Types.Width -> Fltk ()
 set_track_width view_id tracknum width = do
     viewp <- get_ptr view_id
     c_set_track_width viewp (Util.c_int tracknum) (Util.c_int width)
 foreign import ccall "set_track_width"
     c_set_track_width :: Ptr CView -> CInt -> CInt -> IO ()
 
-set_track_title :: Block.ViewId -> Block.TrackNum -> String -> Fltk ()
+set_track_title :: ViewId -> Types.TrackNum -> String -> Fltk ()
 set_track_title view_id tracknum title = do
     viewp <- get_ptr view_id
     withCString title (c_set_track_title viewp (Util.c_int tracknum))
@@ -321,7 +322,7 @@ foreign import ccall "set_track_title"
 
 -- ** debugging
 
-show_children :: Block.ViewId -> IO String
+show_children :: ViewId -> IO String
 show_children view_id = do
     viewp <- get_ptr view_id
     c_show_children viewp (Util.c_int (-1)) >>= peekCString
@@ -427,7 +428,7 @@ poke_skeleton skelp len parentsp childrenp = do
 
 -- | C++ Selections have a color, but in haskell the color is separated into
 -- Block.config_selection_colors.
-data CSelection = CSelection Color.Color Block.Selection deriving (Show)
+data CSelection = CSelection Color.Color Types.Selection deriving (Show)
 
 instance Storable CSelection where
     sizeOf _ = #size Selection
@@ -436,7 +437,7 @@ instance Storable CSelection where
     poke = poke_selection
 
 poke_selection selp (CSelection color
-        (Block.Selection track0 pos0 track1 pos1)) = do
+        (Types.Selection track0 pos0 track1 pos1)) = do
     -- TODO convert c++ selections to hs style
     let start_pos = min pos0 pos1
         dur = max pos0 pos1 - min pos0 pos1
@@ -448,35 +449,3 @@ poke_selection selp (CSelection color
     (#poke Selection, start_pos) selp start_pos
     (#poke Selection, tracks) selp (Util.c_int tracks)
     (#poke Selection, duration) selp dur
-
--- ** zoom
-
-instance Storable Block.Zoom where
-    sizeOf _ = #size ZoomInfo
-    alignment _ = #{alignment ZoomInfo}
-    peek = peek_zoom
-    poke = poke_zoom
-
-peek_zoom zoomp = do
-    offset <- (#peek ZoomInfo, offset) zoomp
-    factor <- (#peek ZoomInfo, factor) zoomp :: IO CDouble
-    return $ Block.Zoom offset (realToFrac factor)
-
-poke_zoom zoomp (Block.Zoom offset factor) = do
-    (#poke ZoomInfo, offset) zoomp offset
-    (#poke ZoomInfo, factor) zoomp (Util.c_double factor)
-
--- ** rect
-
-instance Storable Block.Rect where
-    sizeOf _ = #size Rect
-    alignment _ = #{alignment Rect}
-    peek = peek_rect
-
-peek_rect rectp = do
-    x <- (#peek Rect, x) rectp :: IO CInt
-    y <- (#peek Rect, y) rectp :: IO CInt
-    w <- (#peek Rect, w) rectp :: IO CInt
-    h <- (#peek Rect, h) rectp :: IO CInt
-    return $ Block.Rect (i x) (i y) (i w) (i h)
-    where i = fromIntegral

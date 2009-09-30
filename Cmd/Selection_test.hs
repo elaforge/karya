@@ -2,14 +2,14 @@ module Cmd.Selection_test where
 
 import Util.Test
 
-import Ui.Types
-import qualified Ui.Block as Block
+import Ui
+import qualified Ui.Types as Types
 
 import qualified Cmd.Selection as Selection
 
 
 test_time_scroll_with_selection = do
-    let mksel start end = Block.Selection 0 (TrackPos start) 1 (TrackPos end)
+    let mksel start end = Types.Selection 0 (TrackPos start) 1 (TrackPos end)
     let f a b c d = Selection.time_scroll_with_selection a b c d (TrackPos 1)
 
     equal (f (mksel 0 4) (mksel 0 4) 0 4) (TrackPos 0)
@@ -25,7 +25,7 @@ test_time_scroll_with_selection = do
 
 test_track_scroll_with_selection = do
     let mksel start end =
-            Block.Selection start (TrackPos 0) end (TrackPos 0)
+            Types.Selection start (TrackPos 0) end (TrackPos 0)
     let widths = replicate 8 1
     let f a b c d = Selection.track_scroll_with_selection a b c d widths
 

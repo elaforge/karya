@@ -9,7 +9,7 @@ import Util.Test
 
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
-import qualified Ui.Track as Track
+import qualified Ui.Types as Types
 import qualified Ui.UiTest as UiTest
 
 import qualified Midi.Midi as Midi
@@ -33,7 +33,7 @@ import qualified Util.Graph_test as Graph_test
 -- * cmds
 
 node = Tree.Node
-tid id = Track.TrackId (UiTest.mkid id)
+tid id = Types.TrackId (UiTest.mkid id)
 fake_tid = tid "fake"
 mk_track_info title tracknum = State.TrackInfo title fake_tid tracknum
 
@@ -133,7 +133,7 @@ test_compile_to_signals = do
     equal logs []
     -- tempo, c1, and pitch tracks get signals.
     equal (fmap (map fst) res)
-        (Right $ map (Track.TrackId . mkid) ["b1.t0", "b1.t3", "b1.t2"])
+        (Right $ map (Types.TrackId . mkid) ["b1.t0", "b1.t3", "b1.t2"])
 
     -- It's important that the tempo track *doesn't* apply, since these go to
     -- the UI.

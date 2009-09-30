@@ -4,44 +4,42 @@ import qualified Data.Generics as Generics
 import Data.Function
 import qualified Data.List as List
 
-import Ui.Types
+import Ui
 import qualified Ui.Block as Block
-import qualified Ui.Ruler as Ruler
 import qualified Ui.Skeleton as Skeleton
-import qualified Ui.Track as Track
-import Ui.Block (ViewId, BlockId)
+import qualified Ui.Types as Types
 
 
 data Update
     = ViewUpdate ViewId ViewUpdate
     | BlockUpdate BlockId BlockUpdate
-    | TrackUpdate Track.TrackId TrackUpdate
+    | TrackUpdate TrackId TrackUpdate
     -- | Since I expect rulers to be changed infrequently, the only kind of
     -- ruler update is a full update.
-    | RulerUpdate Ruler.RulerId
+    | RulerUpdate RulerId
     deriving (Show, Generics.Typeable)
 
 data ViewUpdate =
     CreateView
     | DestroyView
-    | ViewSize Block.Rect
+    | ViewSize Types.Rect
     | ViewConfig Block.ViewConfig
     | Status String
-    | TrackScroll Block.Width
-    | Zoom Block.Zoom
-    | TrackWidth Block.TrackNum Block.Width
-    | Selection Block.SelNum (Maybe Block.Selection)
+    | TrackScroll Types.Width
+    | Zoom Types.Zoom
+    | TrackWidth Types.TrackNum Types.Width
+    | Selection Types.SelNum (Maybe Types.Selection)
     deriving Show
 
 data BlockUpdate
     = BlockTitle String
     | BlockConfig Block.Config
     | BlockSkeleton Skeleton.Skeleton
-    | RemoveTrack Block.TrackNum
-    | InsertTrack Block.TrackNum Block.Width Block.DisplayTrack
+    | RemoveTrack Types.TrackNum
+    | InsertTrack Types.TrackNum Types.Width Block.DisplayTrack
     -- | Unlike a TrackUpdate, these settings are local to the block, not
     -- global to this track in all its blocks.
-    | DisplayTrack Block.TrackNum Block.DisplayTrack
+    | DisplayTrack Types.TrackNum Block.DisplayTrack
     deriving Show
 
 -- | track, low_pos, high_pos
@@ -69,7 +67,7 @@ is_view_update update = case update of
         _ -> False
     _ -> False
 
-events_changed :: Update -> Maybe Track.TrackId
+events_changed :: Update -> Maybe TrackId
 events_changed (TrackUpdate track_id update) = case update of
     TrackEvents _ _ -> Just track_id
     TrackAllEvents -> Just track_id

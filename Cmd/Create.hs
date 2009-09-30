@@ -18,11 +18,13 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
-import qualified Ui.Id as Id
+import Ui
 import qualified Ui.Block as Block
+import qualified Ui.Id as Id
+import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
 import qualified Ui.Track as Track
-import qualified Ui.Ruler as Ruler
+import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Selection as Selection
@@ -45,7 +47,7 @@ rename_project from to = State.map_ids set_ns
 
 -- | Find tracks which are not found in any block.  Probably used to pass them
 -- to State.destroy_track for \"gc\".
-orphan_tracks :: (State.UiStateMonad m) => m [Track.TrackId]
+orphan_tracks :: (State.UiStateMonad m) => m [TrackId]
 orphan_tracks = do
     blocks <- fmap (Map.elems . State.state_blocks) State.get
     let ref_tracks = Set.fromList (concatMap Block.block_track_ids blocks)
@@ -53,7 +55,7 @@ orphan_tracks = do
     return $ Set.toList (tracks `Set.difference` ref_tracks)
 
 -- | Find rulers which are not found in any block.
-orphan_rulers :: (State.UiStateMonad m) => m [Ruler.RulerId]
+orphan_rulers :: (State.UiStateMonad m) => m [RulerId]
 orphan_rulers = do
     blocks <- fmap (Map.elems . State.state_blocks) State.get
     let ref_rulers = Set.fromList (concatMap Block.block_ruler_ids blocks)
@@ -61,7 +63,7 @@ orphan_rulers = do
     return $ Set.toList (rulers `Set.difference` ref_rulers)
 
 -- | Find blocks with no associated views.
-orphan_blocks :: (State.UiStateMonad m) => m [Block.BlockId]
+orphan_blocks :: (State.UiStateMonad m) => m [BlockId]
 orphan_blocks = do
     views <- fmap (Map.elems . State.state_views) State.get
     let ref_blocks = Set.fromList (map Block.view_block views)
@@ -71,7 +73,7 @@ orphan_blocks = do
 -- * block
 
 -- | BlockIds look like \"ns/b0\", \"ns/b1\", etc.
-block :: (State.UiStateMonad m) => Ruler.RulerId -> m Block.BlockId
+block :: (State.UiStateMonad m) => RulerId -> m BlockId
 block ruler_id = do
     ns <- State.get_project
     blocks <- fmap State.state_blocks State.get
@@ -85,7 +87,7 @@ block ruler_id = do
 -- | Create a block with the given ID name.  Useful for blocks meant to be
 -- sub-derived.
 named_block :: (State.UiStateMonad m) =>
-    String -> Ruler.RulerId -> m Block.BlockId
+    String -> RulerId -> m BlockId
 named_block name ruler_id = do
     ns <- State.get_project
     b <- State.create_block (Id.id ns name) $
@@ -95,12 +97,12 @@ named_block name ruler_id = do
     return b
 
 generate_block_id ns blocks =
-    generate_id ns no_parent "b" Block.BlockId blocks
+    generate_id ns no_parent "b" Types.BlockId blocks
 no_parent = Id.id [] ""
 
 -- * view
 
-view :: (State.UiStateMonad m) => Block.BlockId -> m Block.ViewId
+view :: (State.UiStateMonad m) => BlockId -> m ViewId
 view block_id = do
     views <- State.get_views_of block_id
     view_id <- require "view id" $ generate_view_id views block_id
@@ -109,24 +111,24 @@ view block_id = do
     State.create_view view_id $
         Block.view block_id rect Config.zoom Config.view_config
 
-block_view :: (State.UiStateMonad m) => Ruler.RulerId -> m Block.ViewId
+block_view :: (State.UiStateMonad m) => RulerId -> m ViewId
 block_view ruler_id = block ruler_id >>= view
 
 -- | ViewIds look like \"ns/b0.v0\", \"ns/b0.v1\", etc.
 generate_view_id views block_id =
-    generate_id (Id.id_namespace ident) ident "v" Block.ViewId views
+    generate_id (Id.id_namespace ident) ident "v" Types.ViewId views
     where ident = Id.unpack_id block_id
 
 -- | Same as State.destroy_view, included here for consistency.
-destroy_view :: (State.UiStateMonad m) => Block.ViewId -> m ()
+destroy_view :: (State.UiStateMonad m) => ViewId -> m ()
 destroy_view view_id = State.destroy_view view_id
 
 -- * track
 
 -- | Tracks look like \"ns/b0.t0\", etc.
 track_ruler :: (State.UiStateMonad m) =>
-    Block.BlockId -> Ruler.RulerId -> Block.TrackNum -> Block.Width
-    -> m Track.TrackId
+    BlockId -> RulerId -> Types.TrackNum -> Types.Width
+    -> m TrackId
 track_ruler block_id ruler_id tracknum width = do
     tracks <- State.get_tracks_of block_id
     track_id <- require "track id" $
@@ -141,7 +143,7 @@ track_ruler block_id ruler_id tracknum width = do
 -- If the track to the left is a ruler track, it will assume there is
 -- a ".overlay" version of it.
 track :: (State.UiStateMonad m) =>
-    Block.BlockId -> Block.TrackNum -> m Track.TrackId
+    BlockId -> Types.TrackNum -> m TrackId
 track block_id tracknum = do
     -- Clip to valid range so callers can use an out of range tracknum.
     tracknum <- clip_tracknum block_id tracknum
@@ -162,10 +164,10 @@ track block_id tracknum = do
             Just _ -> ruler_id
     track_ruler block_id ruler_id2 tracknum width
 
-add_overlay_suffix :: Ruler.RulerId -> Ruler.RulerId
+add_overlay_suffix :: RulerId -> RulerId
 add_overlay_suffix ruler_id
     | overlay_suffix `List.isSuffixOf` ident = ruler_id
-    | otherwise = Ruler.RulerId (Id.id ns (ident ++ overlay_suffix))
+    | otherwise = Types.RulerId (Id.id ns (ident ++ overlay_suffix))
     where (ns, ident) = Id.un_id (Id.unpack_id ruler_id)
 
 clip_tracknum block_id tracknum = do
@@ -175,12 +177,12 @@ clip_tracknum block_id tracknum = do
 -- | Create a track with the given name and title.
 -- Looks like \"ns/b0.tempo\".
 named_track :: (State.UiStateMonad m) =>
-    Block.BlockId -> Ruler.RulerId -> Block.TrackNum
-    -> String -> String -> m Track.TrackId
+    BlockId -> RulerId -> Types.TrackNum
+    -> String -> String -> m TrackId
 named_track block_id ruler_id tracknum name title = do
     ident <- make_id (Id.id_name (Id.unpack_id block_id) ++ "." ++ name)
     all_tracks <- fmap State.state_tracks State.get
-    when (Track.TrackId ident `Map.member` all_tracks) $
+    when (Types.TrackId ident `Map.member` all_tracks) $
         State.throw $ "track " ++ show ident ++ " already exists"
     tid <- State.create_track ident (empty_track title)
     State.insert_track block_id tracknum
@@ -189,12 +191,12 @@ named_track block_id ruler_id tracknum name title = do
 
 -- ** cmds
 
-append_track :: (Monad m) => Cmd.CmdT m Track.TrackId
+append_track :: (Monad m) => Cmd.CmdT m TrackId
 append_track = do
     block_id <- Cmd.get_focused_block
     track block_id 99999
 
-insert_track_after_selection :: (Monad m) => Cmd.CmdT m Track.TrackId
+insert_track_after_selection :: (Monad m) => Cmd.CmdT m TrackId
 insert_track_after_selection = do
     (_, tracknum, _) <- Selection.get_insert_pos
     block_id <- Cmd.get_focused_block
@@ -204,7 +206,7 @@ remove_selected_tracks :: (Monad m) => Cmd.CmdT m ()
 remove_selected_tracks = do
     block_id <- Cmd.get_focused_block
     sel <- fmap snd $ Selection.selected_tracks Config.insert_selnum
-    mapM_ (State.remove_track block_id) (reverse (Block.sel_tracknums sel))
+    mapM_ (State.remove_track block_id) (reverse (Types.sel_tracknums sel))
 
 -- ** util
 
@@ -214,14 +216,14 @@ tracklike_track (Block.TId tid _) = Just tid
 tracklike_track _ = Nothing
 
 generate_track_id block_id code tracks =
-    generate_id (Id.id_namespace ident) ident code Track.TrackId tracks
+    generate_id (Id.id_namespace ident) ident code Types.TrackId tracks
     where ident = Id.unpack_id block_id
 
 -- | Swap the tracks at the given tracknums.  If one of the tracknums is out
 -- of range, the track at the other tracknum will be moved to the beginning or
 -- end, i.e. swapped with empty space.
-swap_tracks :: (State.UiStateMonad m) => Block.BlockId
-    -> Block.TrackNum -> Block.TrackNum -> m ()
+swap_tracks :: (State.UiStateMonad m) => BlockId
+    -> Types.TrackNum -> Types.TrackNum -> m ()
 swap_tracks block_id num0 num1 = do
     track0 <- State.track_at block_id num0
     track1 <- State.track_at block_id num1
@@ -240,8 +242,7 @@ swap_tracks block_id num0 num1 = do
 
 -- | This creates both a ruler with the given name, and an overlay version
 -- named with .overlay.
-ruler :: (State.UiStateMonad m) => String -> Ruler.Ruler
-    -> m (Ruler.RulerId, Ruler.RulerId)
+ruler :: (State.UiStateMonad m) => String -> Ruler.Ruler -> m (RulerId, RulerId)
 ruler name ruler = do
     ident <- make_id name
     overlay_ident <- make_id (name ++ overlay_suffix)
@@ -274,7 +275,7 @@ require msg = maybe (State.throw $ "somehow can't find ID for " ++ msg) return
 -- TODO I also need the screen dimensions to do this right.  Before I go
 -- too far here, though, I'll want to think about proper window manager stuff.
 -- If I just allow the placement function to be passed as an arg...
-find_rect (w, h) rects = Block.Rect right bottom w h
+find_rect (w, h) rects = Types.Rect right bottom w h
     where
-    right = maximum $ 0 : map Block.rect_r rects
+    right = maximum $ 0 : map Types.rect_r rects
     bottom = 10

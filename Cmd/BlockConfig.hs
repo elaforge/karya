@@ -7,6 +7,7 @@ import qualified Util.Log as Log
 
 import qualified Ui.Block as Block
 import qualified Ui.State as State
+import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
@@ -27,7 +28,7 @@ cmd_toggle_edge msg = do
     -- TODO: set selection so you can chain these
 
 get_clicked_track :: (Monad m) => Msg.Msg
-    -> Cmd.CmdT m Block.TrackNum
+    -> Cmd.CmdT m Types.TrackNum
 get_clicked_track msg = case Cmd.msg_to_mod msg of
     Just (True, Cmd.MouseMod _ (Just (tracknum, _))) -> return tracknum
     _ -> Cmd.abort

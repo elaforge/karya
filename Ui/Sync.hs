@@ -18,19 +18,19 @@ import qualified Util.Seq as Seq
 
 import qualified App.Config as Config
 
-import Ui.Types
+import Ui
 import qualified Ui.Ui as Ui
-
 import qualified Ui.Block as Block
 import qualified Ui.BlockC as BlockC
 import qualified Ui.Track as Track
 import qualified Ui.State as State
 import qualified Ui.Update as Update
+import qualified Ui.Types as Types
 
 import qualified Util.Log as Log
 
 
-type BlockSamples = [(Block.BlockId, Track.TrackSamples)]
+type BlockSamples = [(BlockId, Track.TrackSamples)]
 
 -- | Sync with the ui by applying the given updates to it.
 sync :: State.State -> [Update.Update] -> BlockSamples ->
@@ -62,7 +62,7 @@ do_updates block_samples updates = do
 -- This is because it happens asynchronously and would be noisy and inefficient
 -- to work into the responder loop, and isn't part of the usual state that
 -- should be saved anyway.
-set_play_position :: [(Block.ViewId, [(Block.TrackNum, Maybe TrackPos)])]
+set_play_position :: [(ViewId, [(Types.TrackNum, Maybe TrackPos)])]
     -> IO ()
 set_play_position block_sels = Ui.send_action $ sequence_
     [ BlockC.set_track_selection view_id
@@ -73,13 +73,13 @@ set_play_position block_sels = Ui.send_action $ sequence_
     sel_at maybe_pos = case maybe_pos of
         Nothing -> Nothing
         Just pos -> Just $ BlockC.CSelection Config.play_position_color
-            (Block.Selection 0 pos 0 pos)
+            (Types.Selection 0 pos 0 pos)
 
 track_title (Block.TId track_id _) =
     fmap Track.track_title (State.get_track track_id)
 track_title _ = return ""
 
-block_window_title :: Block.ViewId -> Block.BlockId -> String
+block_window_title :: ViewId -> BlockId -> String
 block_window_title view_id block_id = show view_id ++ " -- " ++ show block_id
 
 get_samples :: Maybe Track.TrackSamples -> Block.TracklikeId -> Track.Samples
@@ -220,7 +220,7 @@ run_update _ (Update.RulerUpdate ruler_id) = do
         fmap sequence_ $ forM view_ids $ \view_id -> return $
             BlockC.update_entire_track view_id tracknum tracklike samples
 
-to_csel :: Block.ViewId -> Block.SelNum -> Maybe (Block.Selection)
+to_csel :: ViewId -> Types.SelNum -> Maybe (Types.Selection)
     -> State.StateT IO (Maybe BlockC.CSelection)
 to_csel view_id selnum maybe_sel = do
     view <- State.get_view view_id

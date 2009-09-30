@@ -22,16 +22,17 @@ import qualified Control.Exception as Exception
 import Util.Test
 import qualified Util.Seq as Seq
 
-import Ui.Types
+import Ui
 import qualified Ui.Block as Block
-import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Color as Color
 import qualified Ui.Diff as Diff
 import qualified Ui.Event as Event
 import qualified Ui.Ruler as Ruler
+import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.Sync as Sync
 import qualified Ui.Track as Track
+import qualified Ui.Types as Types
 import qualified Ui.Ui as Ui
 
 import qualified Ui.UiTest as UiTest
@@ -51,12 +52,12 @@ initialize f = do
 test_create_resize_destroy_view = do
     state <- io_human "view with selection and titles" $ run State.empty $ do
         v1 <- setup_state
-        State.set_selection v1 0 (Block.point_selection 1 (TrackPos 20))
+        State.set_selection v1 0 (Types.point_selection 1 (TrackPos 20))
         view <- State.get_view v1
         State.set_block_title (Block.view_block view) "new block!"
         State.set_track_title t_track1_id "new track"
     state <- io_human "view moves over, gets bigger" $ run state $ do
-        State.set_view_rect t_view_id (Block.Rect 400 400 400 400)
+        State.set_view_rect t_view_id (Types.Rect 400 400 400 400)
     io_human "view is destroyed" $ run state $ do
         State.destroy_view t_view_id
     return ()
@@ -70,7 +71,7 @@ test_create_two_views = do
         v2 <- create_view "v2" $
             Block.view b2
                 (UiTest.default_rect
-                    { Block.rect_x = 300, Block.rect_y = 20 })
+                    { Types.rect_x = 300, Types.rect_y = 20 })
                 UiTest.default_zoom UiTest.default_view_config
         State.set_track_title t_track1_id "hi there"
     return ()
@@ -97,7 +98,7 @@ test_set_block_config = do
     state <- run State.empty $ do
         setup_state
         State.set_selection t_view_id 0
-            (Block.selection 1 (TrackPos 10) 2 (TrackPos 60))
+            (Types.selection 1 (TrackPos 10) 2 (TrackPos 60))
     io_human "selections, bg, and boxes go red" $ run state $ do
         block <- State.get_block t_block_id
         let config = Block.block_config block
@@ -131,15 +132,15 @@ test_zoom_scroll = do
             , (TrackPos 100, Event.event "last" 64)
             ]
     state <- io_human "scrolls to bottom" $ run state $ do
-        State.set_zoom t_view_id (Block.Zoom (TrackPos 128) 1)
+        State.set_zoom t_view_id (Types.Zoom (TrackPos 128) 1)
     state <- io_human "scrolls back up" $ run state $ do
-        State.set_zoom t_view_id (Block.Zoom (TrackPos 0) 1)
+        State.set_zoom t_view_id (Types.Zoom (TrackPos 0) 1)
     state <- io_human "zoom in to 2" $ run state $ do
-        State.set_zoom t_view_id (Block.Zoom (TrackPos 0) 2)
+        State.set_zoom t_view_id (Types.Zoom (TrackPos 0) 2)
     state <- io_human "zoom out to .5" $ run state $ do
-        State.set_zoom t_view_id (Block.Zoom (TrackPos 0) 0.5)
+        State.set_zoom t_view_id (Types.Zoom (TrackPos 0) 0.5)
     state <- io_human "zoom out to 0, should clamp at a low number" $
-        run state $ State.set_zoom t_view_id (Block.Zoom (TrackPos 0) 0)
+        run state $ State.set_zoom t_view_id (Types.Zoom (TrackPos 0) 0)
     return ()
 
 test_set_status = do
@@ -229,7 +230,7 @@ test_create_track = do
     state <- io_human msg $ run state $ do
         insert_track t_block_id 1 (Block.TId t_track1_id t_ruler_id) 50
         State.set_selection t_view_id 0
-            (Block.selection 1 (TrackPos 10) 1 (TrackPos 60))
+            (Types.selection 1 (TrackPos 10) 1 (TrackPos 60))
         State.set_track_title t_track1_id "new track"
         State.set_track_bg t_track1_id Color.green
     return ()
@@ -251,10 +252,10 @@ test_selection = do
     state <- run_setup
     state <- io_human "selection is set" $ run state $ do
         State.set_selection t_view_id 0
-            (Block.selection 0 (TrackPos 10) 1 (TrackPos 20))
+            (Types.selection 0 (TrackPos 10) 1 (TrackPos 20))
     state <- io_human "selection is cleared" $ run state $ do
         State.set_selection t_view_id 0
-            (Block.selection 0 (TrackPos 10) 0 (TrackPos 20))
+            (Types.selection 0 (TrackPos 10) 0 (TrackPos 20))
     return ()
 
 
@@ -278,7 +279,7 @@ test_selection_change_tracks = do
     state <- run_setup
     state <- run state $ do
         State.set_selection t_view_id 0
-            (Block.selection 1 (TrackPos 10) 1 (TrackPos 20))
+            (Types.selection 1 (TrackPos 10) 1 (TrackPos 20))
     state <- io_human "sel moves when new track is added" $ run state $ do
         insert_track t_block_id 1 (Block.TId t_track1_id t_ruler_id) 40
     state <- io_human "sel moves back" $ run state $ do
@@ -293,7 +294,7 @@ test_insert_into_selection = do
         t3 <- create_track "b1.t3" UiTest.event_track_2
         insert_track t_block_id 2 (Block.TId t2 t_ruler_id) 60
         State.set_selection v1 0
-            (Block.selection 0 (TrackPos 10) 2 (TrackPos 60))
+            (Types.selection 0 (TrackPos 10) 2 (TrackPos 60))
     state <- io_human "insert into sel, gets bigger" $ run state $ do
         insert_track t_block_id 1 (Block.TId t_track1_id t_ruler_id) 20
     state <- io_human "remove from sel, gets smaller" $ run state $ do
@@ -305,7 +306,7 @@ insert_track bid tracknum tracklike_id width =
 
 test_render_samples = do
     state <- run_setup
-    let t_track2_id = Track.TrackId (mkid "b1.t2")
+    let t_track2_id = Types.TrackId (mkid "b1.t2")
         samples1 = Track.samples sample_pairs
         bsamples = [(t_block_id, [(t_track2_id, samples1)])]
     state <- io_human "new track with samples" $ run_samples bsamples state $ do
@@ -329,10 +330,10 @@ sample_pairs = map (Arrow.first TrackPos)
 
 -- * util
 
-t_ruler_id = Ruler.RulerId (mkid "r1")
-t_block_id = Block.BlockId (mkid "b1")
-t_track1_id = Track.TrackId (mkid "b1.t1")
-t_view_id = Block.ViewId (mkid "v1")
+t_ruler_id = Types.RulerId (mkid "r1")
+t_block_id = Types.BlockId (mkid "b1")
+t_track1_id = Types.TrackId (mkid "b1.t1")
+t_view_id = Types.ViewId (mkid "v1")
 
 run_setup = run State.empty setup_state
 setup_state = do

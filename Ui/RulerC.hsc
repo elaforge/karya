@@ -9,10 +9,9 @@ import Control.Monad
 import Foreign
 import Foreign.C
 
-import Ui.Types
-import qualified Ui.Util as Util
-
+import Ui
 import qualified Ui.Ruler as Ruler
+import qualified Ui.Util as Util
 
 
 with_ruler :: Ruler.Ruler

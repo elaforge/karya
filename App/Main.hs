@@ -20,10 +20,10 @@ import qualified Util.Map as Map
 import qualified Util.Log as Log
 import qualified Util.Thread as Thread
 
-import Ui.Types
-import qualified Ui.Block as Block
+import Ui
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
+import qualified Ui.Types as Types
 import qualified Ui.Ui as Ui
 
 import qualified Midi.Midi as Midi
@@ -235,7 +235,7 @@ old_setup_cmd _args = do
 
     State.set_midi_config inst_config
     State.set_selection vid Config.insert_selnum
-        (Block.point_selection 0 (TrackPos 0))
+        (Types.point_selection 0 (TrackPos 0))
     return Cmd.Done
 
 setup_big :: [String] -> Cmd.CmdIO
@@ -270,7 +270,7 @@ setup_big _ = do
 
     State.set_midi_config inst_config
     State.set_selection view Config.insert_selnum
-        (Block.point_selection 0 (TrackPos 0))
+        (Types.point_selection 0 (TrackPos 0))
     return Cmd.Done
 
 empty_block = do

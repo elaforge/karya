@@ -44,12 +44,12 @@ import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
-import qualified Ui.Block as Block
-import qualified Ui.Track as Track
-import qualified Ui.State as State
-import qualified Ui.Update as Update
-import qualified Ui.Sync as Sync
+import Ui
 import qualified Ui.Diff as Diff
+import qualified Ui.State as State
+import qualified Ui.Sync as Sync
+import qualified Ui.Track as Track
+import qualified Ui.Update as Update
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Play as Play
@@ -135,7 +135,7 @@ derive_events updates = do
     Cmd.modify_state $ \st -> st { Cmd.state_derive_threads =
         Map.union new_threads (Map.delete_keys block_ids old_threads) }
 
-background_derive :: Block.BlockId -> Cmd.CmdT IO Concurrent.ThreadId
+background_derive :: BlockId -> Cmd.CmdT IO Concurrent.ThreadId
 background_derive block_id = do
     st <- Cmd.get_state
     perf <- Play.perform
@@ -145,13 +145,13 @@ background_derive block_id = do
     Trans.liftIO $ Thread.start_thread ("derive " ++ show block_id) $
         evaluate_performance block_id perf
 
-updated_blocks :: (State.UiStateMonad m) => [Update.Update] -> m [Block.BlockId]
+updated_blocks :: (State.UiStateMonad m) => [Update.Update] -> m [BlockId]
 updated_blocks updates = do
     let track_ids = Maybe.catMaybes (map Update.events_changed updates)
     block_info <- mapM State.blocks_with_track track_ids
     return $ map fst (concat block_info)
 
-evaluate_performance :: Block.BlockId -> Cmd.Performance -> IO ()
+evaluate_performance :: BlockId -> Cmd.Performance -> IO ()
 evaluate_performance block_id perf = do
     -- Force the performance to actually be evaluated.  Writing out the logs
     -- should do it.
@@ -179,7 +179,7 @@ derive_signals schema_map ui_state = (block_samples, logs)
         "exception deriving signal for " ++ show block_id ++ ": " ++ show err
 
 derive_signal :: (State.UiStateMonad m) =>
-    Schema.SchemaMap -> Block.BlockId -> m (Track.TrackSamples, [Log.Msg])
+    Schema.SchemaMap -> BlockId -> m (Track.TrackSamples, [Log.Msg])
 derive_signal schema_map block_id = do
     ui_state <- State.get
     deriver <- Schema.get_signal_deriver schema_map block_id

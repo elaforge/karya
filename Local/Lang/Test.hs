@@ -1,9 +1,7 @@
 module Local.Lang.Test where
-import Ui.Types
-
 import qualified Util.Log as Log
 
-import Ui.Types
+import Ui
 import qualified Ui.Color as Color
 import qualified Ui.Block as Block
 import qualified Ui.Ruler as Ruler

@@ -87,11 +87,11 @@ default_midi_config inst_names =
     Instrument.Config (Map.fromList (zip insts addrs)) (Just (head insts))
     where
     insts = map Score.Instrument inst_names
-    addrs = [[(default_wdev, chan)] | (inst, chan) <- zip insts [0..]]
+    addrs = [[(default_wdev, chan)] | chan <- [0..]]
 default_wdev = Midi.WriteDevice "test"
 
 make_lookup :: [String] -> MidiDb.LookupMidiInstrument
-make_lookup inst_names attrs (Score.Instrument inst) = Map.lookup inst inst_map
+make_lookup inst_names _attrs (Score.Instrument inst) = Map.lookup inst inst_map
     where inst_map = Map.fromList $ zip inst_names (map make_inst inst_names)
 
 make_inst name = default_perf_inst { Instrument.inst_name = name }

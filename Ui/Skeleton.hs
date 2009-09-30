@@ -52,3 +52,6 @@ toggle_edge :: (TrackNum, TrackNum) -> Skeleton -> Maybe Skeleton
 toggle_edge edge (Skeleton graph) = case Graph.toggle_edge edge graph of
     Nothing -> Nothing
     Just graph -> Just (Skeleton graph)
+
+splice :: (TrackNum, TrackNum) -> Skeleton -> Skeleton
+splice edge = map_skel (Graph.splice edge)

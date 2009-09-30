@@ -1,7 +1,7 @@
 module Cmd.NoteTrack_test where
 import Util.Test
 
-import qualified Ui.Block as Block
+import qualified Ui.Types as Types
 import qualified Ui.Key as Key
 
 import qualified Cmd.CmdTest as CmdTest
@@ -14,7 +14,7 @@ import qualified Cmd.NoteTrack as NoteTrack
 mkkey = CmdTest.make_key True
 
 run_sel track_specs cmd = CmdTest.run_tracks track_specs
-    (CmdTest.with_sel (Block.point_selection 1 0) cmd)
+    (CmdTest.with_sel (Types.point_selection 1 0) cmd)
 
 extract (Right (Just Cmd.Done, tracks, [])) = tracks
 extract val = error $ "unexpected: " ++ show val

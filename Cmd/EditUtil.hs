@@ -8,12 +8,12 @@ import qualified Data.Maybe as Maybe
 
 import qualified Util.Seq as Seq
 
+import Ui
 import qualified Ui.Event as Event
 import qualified Ui.Id as Id
 import qualified Ui.Key as Key
 import qualified Ui.State as State
 import qualified Ui.Track as Track
-import Ui.Types
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.InputNote as InputNote
@@ -30,7 +30,7 @@ import qualified Perform.Pitch as Pitch
 -- | Get the event under insertion point, creating an empty one if there is
 -- none.
 get_event :: (State.UiStateMonad m) =>
-    Track.TrackId -> TrackPos -> TrackPos -> m Event.Event
+    TrackId -> TrackPos -> TrackPos -> m Event.Event
 get_event track_id pos dur = do
     track <- State.get_track track_id
     return $ Maybe.fromMaybe (Event.event "" dur)

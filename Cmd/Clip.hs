@@ -36,11 +36,12 @@ import qualified Data.Maybe as Maybe
 
 import qualified Util.Seq as Seq
 
-import Ui.Types
+import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Ui.Track as Track
+import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Edit as Edit
@@ -78,11 +79,11 @@ cmd_cut_selection = do
     Edit.cmd_remove_selected
 
 -- | During copies, a point selection is a no-op.
-copy_selection :: (Monad m) => Block.SelNum -> Cmd.CmdT m Block.Selection
+copy_selection :: (Monad m) => Types.SelNum -> Cmd.CmdT m Types.Selection
 copy_selection selnum = do
     view_id <- Cmd.get_focused_view
     sel <- Cmd.require =<< State.get_selection view_id selnum
-    when (Block.sel_is_point sel) Cmd.abort
+    when (Types.sel_is_point sel) Cmd.abort
     return sel
 
 -- * paste
@@ -131,10 +132,10 @@ cmd_paste_insert = do
 
 -- * implementation
 
-get_clip_block_id :: (Monad m) => Cmd.CmdT m Block.BlockId
+get_clip_block_id :: (Monad m) => Cmd.CmdT m BlockId
 get_clip_block_id = do
     clip_ns <- get_clip_namespace
-    return $ Block.BlockId (Id.id clip_ns Config.clip_block_name)
+    return $ Types.BlockId (Id.id clip_ns Config.clip_block_name)
 
 -- ** copy
 
@@ -150,13 +151,13 @@ get_clip_block_id = do
 -- a ruler over, so I'll wait and see what experience shows.
 --
 -- Also strip out the other track attributes, like hidden, muted, etc.
-selection_sub_state :: (Monad m) => Block.Selection -> Cmd.CmdT m State.State
+selection_sub_state :: (Monad m) => Types.Selection -> Cmd.CmdT m State.State
 selection_sub_state sel = do
     block_id <- Cmd.get_focused_block
     block <- State.get_block block_id
 
     tracks <- fmap Maybe.catMaybes $
-        mapM (State.track_at block_id) (Block.sel_tracknums sel)
+        mapM (State.track_at block_id) (Types.sel_tracknums sel)
     let tracklike_ids = map Block.tracklike_id tracks
     tracklikes <- mapM State.get_tracklike tracklike_ids
 
@@ -180,7 +181,7 @@ events_in_sel sel track =
     track { Track.track_events =
         Track.event_map_asc [(pos-start, evt) | (pos, evt) <- events] }
     where
-    (start, end) = Block.sel_range sel
+    (start, end) = Types.sel_range sel
     events = Track.events_in_range start end (Track.track_events track)
 
 -- *** namespace
@@ -233,10 +234,10 @@ destroy_namespace ns = do
 -- the tracks in the destination selection, and the events from the clipboard
 -- grouped by track.  The clipboard events are clipped to start--end.
 paste_info :: (Monad m) =>
-    Cmd.CmdT m (TrackPos, TrackPos, [Track.TrackId], [[Track.PosEvent]])
+    Cmd.CmdT m (TrackPos, TrackPos, [TrackId], [[Track.PosEvent]])
 paste_info = do
     (track_ids, clip_track_ids, sel) <- get_paste_area
-    let (start, end) = Block.sel_range sel
+    let (start, end) = Types.sel_range sel
     clip_events <- mapM (clip_track_events start end) clip_track_ids
     return (start, end, track_ids, clip_events)
 
@@ -253,7 +254,7 @@ clip_track_events start end track_id = do
 -- During pastes, a point selection extends to the end of the last pasted
 -- event.
 get_paste_area :: (Monad m) =>
-    Cmd.CmdT m ([Track.TrackId], [Track.TrackId], Block.Selection)
+    Cmd.CmdT m ([TrackId], [TrackId], Types.Selection)
 get_paste_area = do
     view_id <- Cmd.get_focused_view
     sel <- Cmd.require =<< State.get_selection view_id Config.insert_selnum
@@ -261,15 +262,15 @@ get_paste_area = do
     clip_block <- State.get_block clip_block_id
 
     -- If the clip block has any rulers or anything, I skip them.
-    let clip_track_ids = take (length (Block.sel_tracknums sel))
+    let clip_track_ids = take (length (Types.sel_tracknums sel))
             (Block.block_track_ids clip_block)
     clip_end <- State.event_end clip_block_id
-    sel <- return $ if Block.sel_is_point sel
-        then Block.sel_set_duration clip_end sel
+    sel <- return $ if Types.sel_is_point sel
+        then Types.sel_set_duration clip_end sel
         else sel
 
     block_id <- Cmd.get_focused_block
     block <- State.get_block block_id
     let track_ids = Block.track_ids_of $ map Block.tracklike_id $
-            drop (Block.sel_start_track sel) (Block.block_tracks block)
+            drop (Types.sel_start_track sel) (Block.block_tracks block)
     return (track_ids, clip_track_ids, sel)

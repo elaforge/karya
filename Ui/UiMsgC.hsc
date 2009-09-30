@@ -6,10 +6,9 @@ import Foreign.C
 import qualified Data.Maybe as Maybe
 
 import qualified Ui.BlockC as BlockC
-
 import qualified Ui.Key as Key
-import qualified Ui.Block as Block
 import qualified Ui.UiMsg as UiMsg
+import qualified Ui.Types as Types
 
 
 get_ui_msgs :: IO [UiMsg.UiMsg]
@@ -54,9 +53,9 @@ peek_msg msgp = do
     -- Big grody union, described in MsgCollector.h.
     wsvt <- (#peek UiMsg, width_scroll_visible_track) msgp :: IO CInt
     visible_time <- (#peek UiMsg, visible_time) msgp :: IO CInt
-    czoom <- (#peek UiMsg, update_zoom) msgp :: IO (Ptr Block.Zoom)
+    czoom <- (#peek UiMsg, update_zoom) msgp :: IO (Ptr Types.Zoom)
     zoom <- maybePeek peek czoom
-    crect <- (#peek UiMsg, update_rect) msgp :: IO (Ptr Block.Rect)
+    crect <- (#peek UiMsg, update_rect) msgp :: IO (Ptr Types.Rect)
     rect <- maybePeek peek crect
     let update_args = (text, i wsvt, i visible_time, zoom, rect)
 

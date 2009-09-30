@@ -27,9 +27,9 @@ import Text.ParserCombinators.Parsec ((<|>), (<?>))
 import Util.Control ((#>>))
 import qualified Util.Parse as Parse
 
+import Ui
 import qualified Ui.Event as Event
 import qualified Ui.Track as Track
-import Ui.Types
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal

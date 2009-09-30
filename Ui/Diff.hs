@@ -15,11 +15,11 @@ import qualified Data.List as List
 import qualified Util.Seq as Seq
 import qualified Util.Map as Map
 
+import Ui
 import qualified Ui.Block as Block
-import qualified Ui.Track as Track
-
-import qualified Ui.Update as Update
 import qualified Ui.State as State
+import qualified Ui.Track as Track
+import qualified Ui.Update as Update
 
 
 type DiffError = String
@@ -156,7 +156,7 @@ diff_track_view view_id tracknum tview1 tview2 = do
             (Update.TrackWidth tracknum (Block.track_view_width tview2))]
 
 -- | Pair the Tracklikes from the Block with the TrackViews from the View.
-track_info :: Block.ViewId ->  Block.View -> State.State
+track_info :: ViewId ->  Block.View -> State.State
     -> DiffM [(Block.TracklikeId, Block.TrackView)]
 track_info view_id view st =
     case Map.lookup block_id (State.state_blocks st) of

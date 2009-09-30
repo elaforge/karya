@@ -7,16 +7,14 @@ import qualified Data.IORef as IORef
 
 import qualified Util.Thread as Thread
 
-import Ui.Types
-import qualified Ui.Block as Block
-import qualified Ui.Track as Track
+import Ui
 import qualified Midi.Midi as Midi
 import qualified Perform.Timestamp as Timestamp
 
 
 -- | These go back to the responder loop from the render thread to notify it
 -- about the transport's state.
-data Status = Status Block.BlockId PlayerStatus deriving (Eq, Show)
+data Status = Status BlockId PlayerStatus deriving (Eq, Show)
 data PlayerStatus = Playing | Stopped | Died String
     -- TODO later have play status so it can move the selection
     deriving (Eq, Show)
@@ -61,7 +59,7 @@ check_player_stopped (UpdaterControl ref) = IORef.readIORef ref
 
 -- | Given a pos on a certain track in a certain block, give the real time
 -- that it corresponds to.  Nothing if I don't know for that block and track.
-type TempoFunction = Block.BlockId -> Track.TrackId -> TrackPos
+type TempoFunction = BlockId -> TrackId -> TrackPos
     -> Maybe Timestamp.Timestamp
 
 -- | Return the TrackPos play position in the various playing blocks at the
@@ -73,7 +71,7 @@ type TempoFunction = Block.BlockId -> Track.TrackId -> TrackPos
 -- for a block that is played like an instrument, if the notes overlap), the
 -- same BlockId may occur more than once in the output list.
 type InverseTempoFunction = Timestamp.Timestamp
-    -> [(Block.BlockId, [(Track.TrackId, TrackPos)])]
+    -> [(BlockId, [(TrackId, TrackPos)])]
 
 
 -- * state
@@ -88,7 +86,7 @@ data State = State {
     , state_updater_control :: UpdaterControl
     , state_midi_writer :: Midi.WriteMessage -> IO ()
     , state_midi_abort :: IO ()
-    , state_block_id :: Block.BlockId
+    , state_block_id :: BlockId
 
     -- | When play started.  Timestamps relative to the block start should be
     -- added to this to get absolute Timestamps.
@@ -102,6 +100,6 @@ state (Info chan writer abort get_ts) block_id = do
     return $
         State chan play_control updater_control writer abort block_id ts get_ts
 
-write_status :: Chan -> PlayerStatus -> Block.BlockId -> IO ()
+write_status :: Chan -> PlayerStatus -> BlockId -> IO ()
 write_status chan status block_id =
     STM.atomically $ STM.writeTChan chan (Status block_id status)

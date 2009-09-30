@@ -19,7 +19,8 @@ import qualified Data.List as List
 import Data.Ratio
 
 import qualified Util.Seq as Seq
-import Ui.Types
+
+import Ui
 import qualified Ui.Color as Color
 import qualified Ui.Ruler as Ruler
 
@@ -147,7 +148,7 @@ dur_to_pos marks = timed ++ [(final, 0)]
 marks_to_ruler :: [MarkRank] -> Ruler.NameMarklist
 marks_to_ruler marks = Ruler.marklist meter_marklist pos_marks
     where
-    pos_marks = [(track_pos pos, mark dur rank name)
+    pos_marks = [(pos, mark dur rank name)
         | ((pos, rank), dur, name) <- zip3 marks durs (mark_names marks)]
     -- I know I just converted dur_to_pos, but go back to dur again, now that
     -- they're at their final positions.

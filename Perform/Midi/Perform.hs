@@ -24,7 +24,7 @@ import qualified Data.Maybe as Maybe
 
 import qualified Util.Seq as Seq
 
-import Ui.Types
+import Ui
 
 import qualified Midi.Midi as Midi
 

@@ -9,8 +9,7 @@ import qualified Data.Maybe as Maybe
 import qualified Util.Log as Log
 import qualified Util.Thread as Thread
 
-import qualified Ui.Block as Block
-
+import Ui
 import qualified Midi.Midi as Midi
 
 import qualified Perform.Transport as Transport
@@ -20,7 +19,7 @@ import qualified Perform.Midi.Instrument as Instrument
 
 -- | Start a thread to stream a list of WriteMessages, and return
 -- a Transport.Control which can be used to stop and restart the player.
-play :: Transport.Info -> Block.BlockId -> [Midi.WriteMessage]
+play :: Transport.Info -> BlockId -> [Midi.WriteMessage]
     -> IO (Transport.PlayControl, Transport.UpdaterControl)
 play transport_info block_id midi_msgs = do
     state <- Transport.state transport_info block_id

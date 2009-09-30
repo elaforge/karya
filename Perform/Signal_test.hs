@@ -4,7 +4,7 @@ import qualified Data.List as List
 import Util.Test
 import qualified Util.Seq as Seq
 
-import Ui.Types
+import Ui
 
 import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Signal as Signal

@@ -7,7 +7,7 @@ import qualified Data.Set as Set
 import Util.Test
 import qualified Util.Log as Log
 
-import Ui.Types
+import Ui
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 

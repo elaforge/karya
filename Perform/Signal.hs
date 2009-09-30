@@ -67,7 +67,7 @@ import qualified Data.Maybe as Maybe
 import qualified Data.StorableVector as V
 import qualified Foreign.Storable as Storable
 
-import Ui.Types
+import Ui
 import qualified Ui.Track as Track
 
 import qualified Perform.Timestamp as Timestamp

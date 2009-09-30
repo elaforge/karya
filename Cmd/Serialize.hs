@@ -25,16 +25,17 @@ import qualified System.IO as IO
 
 import qualified Util.File as File
 
-import Ui.Types
-import qualified Ui.Id as Id
-import qualified Ui.State as State
-import qualified Ui.Color as Color
-import qualified Ui.Font as Font
+import Ui
 import qualified Ui.Block as Block
-import qualified Ui.Skeleton as Skeleton
-import qualified Ui.Ruler as Ruler
+import qualified Ui.Color as Color
 import qualified Ui.Event as Event
+import qualified Ui.Font as Font
+import qualified Ui.Id as Id
+import qualified Ui.Ruler as Ruler
+import qualified Ui.Skeleton as Skeleton
+import qualified Ui.State as State
 import qualified Ui.Track as Track
+import qualified Ui.Types as Types
 
 import qualified Midi.Midi as Midi
 
@@ -119,20 +120,20 @@ instance Binary State.State where
             1 -> do
                 proj <- get :: Get String
                 dir <- get :: Get String
-                views <- get :: Get (Map.Map Block.ViewId Block.View)
-                blocks <- get :: Get (Map.Map Block.BlockId Block.Block)
-                tracks <- get :: Get (Map.Map Track.TrackId Track.Track)
-                rulers <- get :: Get (Map.Map Ruler.RulerId Ruler.Ruler)
+                views <- get :: Get (Map.Map Types.ViewId Block.View)
+                blocks <- get :: Get (Map.Map Types.BlockId Block.Block)
+                tracks <- get :: Get (Map.Map Types.TrackId Track.Track)
+                rulers <- get :: Get (Map.Map Types.RulerId Ruler.Ruler)
                 midi_config <- get :: Get Instrument.Config
                 return $ State.State proj dir views blocks tracks rulers
                     midi_config (Pitch.ScaleId Config.project_scale_id)
             2 -> do
                 proj <- get :: Get String
                 dir <- get :: Get String
-                views <- get :: Get (Map.Map Block.ViewId Block.View)
-                blocks <- get :: Get (Map.Map Block.BlockId Block.Block)
-                tracks <- get :: Get (Map.Map Track.TrackId Track.Track)
-                rulers <- get :: Get (Map.Map Ruler.RulerId Ruler.Ruler)
+                views <- get :: Get (Map.Map Types.ViewId Block.View)
+                blocks <- get :: Get (Map.Map Types.BlockId Block.Block)
+                tracks <- get :: Get (Map.Map Types.TrackId Track.Track)
+                rulers <- get :: Get (Map.Map Types.RulerId Ruler.Ruler)
                 midi_config <- get :: Get Instrument.Config
                 project_scale <- get :: Get Pitch.ScaleId
                 return $ State.State proj dir views blocks tracks rulers
@@ -149,17 +150,17 @@ instance Binary Id.Id where
 
 -- ** Block
 
-instance Binary Block.BlockId where
-    put (Block.BlockId a) = put a
-    get = get >>= \a -> return (Block.BlockId a)
+instance Binary Types.BlockId where
+    put (Types.BlockId a) = put a
+    get = get >>= \a -> return (Types.BlockId a)
 
-instance Binary Block.ViewId where
-    put (Block.ViewId a) = put a
-    get = get >>= \a -> return (Block.ViewId a)
+instance Binary Types.ViewId where
+    put (Types.ViewId a) = put a
+    get = get >>= \a -> return (Types.ViewId a)
 
-instance Binary Block.SchemaId where
-    put (Block.SchemaId a) = put a
-    get = get >>= \a -> return (Block.SchemaId a)
+instance Binary Types.SchemaId where
+    put (Types.SchemaId a) = put a
+    get = get >>= \a -> return (Types.SchemaId a)
 
 instance Binary Block.Block where
     put (Block.Block a b c d e) = put_version 3
@@ -170,8 +171,8 @@ instance Binary Block.Block where
             2 -> do
                 title <- get :: Get String
                 config <- get :: Get Block.Config
-                track_widths <- get :: Get [(Block.TracklikeId, Block.Width)]
-                schema_id <- get :: Get Block.SchemaId
+                track_widths <- get :: Get [(Block.TracklikeId, Types.Width)]
+                schema_id <- get :: Get Types.SchemaId
                 let tracks = map (uncurry Block.block_track) track_widths
                 return $ Block.Block title config tracks Skeleton.empty
                     schema_id
@@ -180,7 +181,7 @@ instance Binary Block.Block where
                 config <- get :: Get Block.Config
                 tracks <- get :: Get [Block.BlockTrack]
                 skel <- get :: Get Skeleton.Skeleton
-                schema_id <- get :: Get Block.SchemaId
+                schema_id <- get :: Get Types.SchemaId
                 return $ Block.Block title config tracks skel schema_id
             _ -> version_error "Block.Block" v
 
@@ -204,17 +205,17 @@ instance Binary Block.BlockTrack where
         case v of
             0 -> do
                 id <- get :: Get Block.TracklikeId
-                width <- get :: Get Block.Width
+                width <- get :: Get Types.Width
                 _ <- get :: Get Bool
-                _ <- get :: Get (Maybe Block.TrackNum)
+                _ <- get :: Get (Maybe Types.TrackNum)
                 _ <- get :: Get Bool
                 _ <- get :: Get Bool
                 return $ Block.BlockTrack id width [] []
             1 -> do
                 id <- get :: Get Block.TracklikeId
-                width <- get :: Get Block.Width
+                width <- get :: Get Types.Width
                 flags <- get :: Get [Block.TrackFlag]
-                merged <- get :: Get [Track.TrackId]
+                merged <- get :: Get [Types.TrackId]
                 return $ Block.BlockTrack id width flags merged
             _ -> version_error "Block.BlockTrack" v
 
@@ -230,8 +231,8 @@ instance Binary Block.TrackFlag where
             2 -> return Block.Mute
             _ -> fail "no parse for Block.TrackFlag"
 
-tid = Block.TId :: Track.TrackId -> Ruler.RulerId -> Block.TracklikeId
-rid = Block.RId :: Ruler.RulerId -> Block.TracklikeId
+tid = Block.TId :: Types.TrackId -> Types.RulerId -> Block.TracklikeId
+rid = Block.RId :: Types.RulerId -> Block.TracklikeId
 did = Block.DId :: Block.Divider -> Block.TracklikeId
 instance Binary Block.TracklikeId where
     put (Block.TId a b) = putWord8 0 >> put a >> put b
@@ -261,29 +262,29 @@ instance Binary Block.View where
                 get >>= \e -> get >>= \f -> get >>= \g -> get >>= \h ->
                 return (Block.View a b 0 0 c d e f g h)
             1 -> do
-                block <- get :: Get Block.BlockId
-                rect <- get :: Get Block.Rect
+                block <- get :: Get Types.BlockId
+                rect <- get :: Get Types.Rect
                 visible_track <- get :: Get Int
                 visible_time <- get :: Get Int
                 config <- get :: Get Block.ViewConfig
                 status <- get :: Get (Map.Map String String)
-                track_scroll <- get :: Get Block.Width
-                zoom <- get :: Get Block.Zoom
-                selections <- get :: Get (Map.Map Block.SelNum Block.Selection)
+                track_scroll <- get :: Get Types.Width
+                zoom <- get :: Get Types.Zoom
+                selections <- get :: Get (Map.Map Types.SelNum Types.Selection)
                 tracks <- get :: Get [Block.TrackView]
                 return $ Block.View block rect visible_track visible_time
                     config status track_scroll zoom selections tracks
             _ -> version_error "Block.View" v
 
-track_view = Block.TrackView :: Block.Width -> Block.TrackView
+track_view = Block.TrackView :: Types.Width -> Block.TrackView
 instance Binary Block.TrackView where
     put (Block.TrackView a) = put a
     get = get >>= \a -> return (track_view a)
 
-instance Binary Block.Rect where
-    put (Block.Rect a b c d) = put a >> put b >> put c >> put d
+instance Binary Types.Rect where
+    put (Types.Rect a b c d) = put a >> put b >> put c >> put d
     get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
-        return (Block.Rect a b c d)
+        return (Types.Rect a b c d)
 
 instance Binary Block.ViewConfig where
     put (Block.ViewConfig a b c d e) = put_version 2
@@ -309,15 +310,15 @@ instance Binary Block.ViewConfig where
                     sb_size status_size
             _ -> version_error "Block.ViewConfig" v
 
-zoom = Block.Zoom :: TrackPos -> Double -> Block.Zoom
-instance Binary Block.Zoom where
-    put (Block.Zoom a b) = put a >> put b
+zoom = Types.Zoom :: TrackPos -> Double -> Types.Zoom
+instance Binary Types.Zoom where
+    put (Types.Zoom a b) = put a >> put b
     get = get >>= \a -> get >>= \b -> return (zoom a b)
 
-selection = Block.Selection :: Block.TrackNum -> TrackPos -> Block.TrackNum
-    -> TrackPos -> Block.Selection
-instance Binary Block.Selection where
-    put (Block.Selection a b c d) = put a >> put b >> put c >> put d
+selection = Types.Selection :: Types.TrackNum -> TrackPos -> Types.TrackNum
+    -> TrackPos -> Types.Selection
+instance Binary Types.Selection where
+    put (Types.Selection a b c d) = put a >> put b >> put c >> put d
     get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
         return (selection a b c d)
 
@@ -364,9 +365,9 @@ instance Binary Font.FontFace where
 
 -- ** Ruler
 
-instance Binary Ruler.RulerId where
-    put (Ruler.RulerId a) = put a
-    get = get >>= \a -> return (Ruler.RulerId a)
+instance Binary Types.RulerId where
+    put (Types.RulerId a) = put a
+    get = get >>= \a -> return (Types.RulerId a)
 
 ruler = Ruler.Ruler :: [Ruler.NameMarklist] -> Color -> Bool -> Bool -> Bool
     -> Ruler.Ruler
@@ -395,9 +396,9 @@ instance Binary Ruler.Mark where
 
 -- ** Track
 
-instance Binary Track.TrackId where
-    put (Track.TrackId a) = put a
-    get = get >>= \a -> return (Track.TrackId a)
+instance Binary Types.TrackId where
+    put (Types.TrackId a) = put a
+    get = get >>= \a -> return (Types.TrackId a)
 
 instance Binary Track.Track where
     put (Track.Track a b c d) = put_version 1 >>

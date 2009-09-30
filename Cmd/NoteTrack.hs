@@ -21,42 +21,27 @@
 module Cmd.NoteTrack where
 import Control.Monad
 import qualified Control.Monad.Identity as Identity
-import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
-import qualified Data.Set as Set
 
-import qualified Midi.Midi as Midi
-
-import qualified Ui.Block as Block
-import qualified Ui.Event as Event
+import Ui
 import qualified Ui.State as State
-import qualified Ui.Track as Track
-import qualified Ui.UiMsg as UiMsg
+import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
-import qualified Cmd.Edit as Edit
 import qualified Cmd.EditUtil as EditUtil
-import qualified Cmd.Keymap as Keymap
-import qualified Cmd.Msg as Msg
 import qualified Cmd.PitchTrack as PitchTrack
 import qualified Cmd.Selection as Selection
 
-import qualified Derive.Note as Note
-
 import qualified Perform.Pitch as Pitch
-import qualified Perform.Midi.Instrument as Instrument
-import qualified Perform.Midi.Controller as Controller
-
-import qualified App.Config as Config
 
 
 -- | Indicate the pitch track of a note track.  If the Bool is True,
 -- the track doesn't exist and should be created at the given TrackNum.
 data PitchTrack =
     -- | Create a pitch track with (note_tracknum, title, pitch_tracknum).
-    CreateTrack Block.TrackNum String Block.TrackNum
-    | ExistingTrack Block.TrackNum
+    CreateTrack Types.TrackNum String Types.TrackNum
+    | ExistingTrack Types.TrackNum
     deriving (Show, Eq)
 
 cmd_raw_edit :: Pitch.ScaleId -> Cmd.Cmd
@@ -85,7 +70,7 @@ cmd_method_edit pitch_track msg = do
     ensure_exists
     return Cmd.Done
 
-get_pitch_track :: (Monad m) => PitchTrack -> Cmd.CmdT m Track.TrackId
+get_pitch_track :: (Monad m) => PitchTrack -> Cmd.CmdT m TrackId
 get_pitch_track pitch_track = do
     block_id <- Cmd.get_focused_block
     case pitch_track of
@@ -96,10 +81,10 @@ get_pitch_track pitch_track = do
             =<< State.event_track_at block_id tracknum
 
 -- | Create a pitch track for a note track.
-create_pitch_track :: (State.UiStateMonad m) => Block.BlockId
-    -> Block.TrackNum -- ^ tracknum of corresponding note track
+create_pitch_track :: (State.UiStateMonad m) => BlockId
+    -> Types.TrackNum -- ^ tracknum of corresponding note track
     -> String -- ^ created track has this title
-    -> Block.TrackNum -> m Track.TrackId
+    -> Types.TrackNum -> m TrackId
 create_pitch_track block_id note_tracknum title tracknum = do
     tid <- Create.track block_id tracknum
     -- Link note track underneath newly created pitch track.

@@ -44,7 +44,6 @@ module Derive.Schema (
     , get_defaults, get_track_info, TrackType(..)
     , compile, compile_to_signals
 ) where
--- import qualified Control.Arrow as Arrow
 import Control.Monad
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -54,10 +53,12 @@ import qualified Data.Tree as Tree
 import qualified Util.Seq as Seq
 import qualified Util.Log as Log
 import qualified Util.Tree
+
+import Ui
 import qualified Ui.Block as Block
-import qualified Ui.Track as Track
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
+import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
 import Cmd.Cmd (Schema(..), SchemaDeriver, CmdContext(..), SchemaMap)
@@ -101,7 +102,7 @@ lookup_deriver schema_map ui_state block_id = State.eval ui_state $ do
 -- | Get the signal deriver for the given block.  Unlike the event deriver,
 -- the signal deriver is only ever local to one block, so it doesn't need
 -- a lookup mechanism.
-get_signal_deriver :: (State.UiStateMonad m) => SchemaMap -> Block.BlockId
+get_signal_deriver :: (State.UiStateMonad m) => SchemaMap -> BlockId
     -> m Derive.SignalDeriver
 get_signal_deriver schema_map block_id = do
     block <- State.get_block block_id
@@ -115,7 +116,7 @@ get_signal_deriver schema_map block_id = do
 -- focused track.  This is so that e.g. control tracks use control editing keys
 -- and note tracks use note entry keys, and they can set up the midi thru
 -- mapping appropriately.
-get_cmds :: SchemaMap -> CmdContext -> Block.SchemaId -> [Cmd.Cmd]
+get_cmds :: SchemaMap -> CmdContext -> SchemaId -> [Cmd.Cmd]
 get_cmds schema_map context schema_id =
     case Map.lookup schema_id (merge_schemas hardcoded_schemas schema_map) of
         Nothing -> []
@@ -123,7 +124,7 @@ get_cmds schema_map context schema_id =
 
 -- | Constructor for 'CmdContext'.
 cmd_context :: Instrument.Config -> Pitch.ScaleId -> MidiDb.LookupMidiInstrument
-    -> Cmd.EditMode -> Bool -> Maybe Block.TrackNum -> State.TrackTree
+    -> Cmd.EditMode -> Bool -> Maybe Types.TrackNum -> State.TrackTree
     -> CmdContext
 cmd_context midi_config proj_scale lookup_midi edit_mode kbd_entry
         focused_tracknum ttree =
@@ -201,7 +202,7 @@ get_defaults context = (maybe_track_type, score_inst, scale_id)
 --
 -- TODO: if this leads to weird guesses, maybe return Nothing if there are
 -- two or more matches?
-get_track_info :: Pitch.ScaleId -> State.TrackTree -> Maybe Block.TrackNum
+get_track_info :: Pitch.ScaleId -> State.TrackTree -> Maybe Types.TrackNum
     -> (Maybe TrackType, Maybe Score.Instrument, Pitch.ScaleId)
 get_track_info proj_scale _ Nothing = (Nothing, Nothing, proj_scale)
 get_track_info proj_scale track_tree (Just tracknum) = case paths of
@@ -265,7 +266,7 @@ _compile (Tree.Node track@(State.TrackInfo title track_id _) subs)
         compile_controller title track_id
             (Derive.d_merge =<< mapM _compile subs)
 
-compile_controller :: String -> Track.TrackId
+compile_controller :: String -> TrackId
     -> Derive.EventDeriver -> Derive.EventDeriver
 compile_controller title track_id subderiver
     | is_tempo_track title = do
@@ -307,8 +308,8 @@ _compile_to_signals (Tree.Node (State.TrackInfo title track_id _) subs)
         rest_sigs <- Derive.d_signal_merge =<< mapM _compile_to_signals subs
         return (track_sigs : rest_sigs)
 
-signal_controller :: (Monad m) => String -> Track.TrackId
-    -> Derive.DeriveT m (Track.TrackId, Signal.Signal)
+signal_controller :: (Monad m) => String -> TrackId
+    -> Derive.DeriveT m (TrackId, Signal.Signal)
 signal_controller title track_id = do
     sig_events <- Derive.with_track_warp Controller.d_controller_track track_id
     sig <- if is_pitch_track title

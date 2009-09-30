@@ -19,13 +19,14 @@ import Text.Printf
 import qualified Util.Logger as Logger
 import qualified Util.Log as Log
 
-import Ui.Types
+import Ui
+import qualified Ui.Block as Block
 import qualified Ui.Id as Id
 import qualified Ui.Key as Key
-import qualified Ui.UiMsg as UiMsg
-import qualified Ui.Block as Block
-import qualified Ui.State as State
 import qualified Ui.Skeleton as Skeleton
+import qualified Ui.State as State
+import qualified Ui.Types as Types
+import qualified Ui.UiMsg as UiMsg
 import qualified Ui.Update as Update
 
 import qualified Midi.Midi as Midi
@@ -178,13 +179,13 @@ data State = State {
     -- | As soon as any event changes are made to a block, its performance is
     -- recalculated (in the background) and stored here, so play can be started
     -- without latency.
-    , state_performance :: Map.Map Block.BlockId Performance
+    , state_performance :: Map.Map BlockId Performance
     -- | IDs of background derivation threads, so they can be killed if
     -- a new derivation is needed before they finish.
-    , state_derive_threads :: Map.Map Block.BlockId Concurrent.ThreadId
+    , state_derive_threads :: Map.Map BlockId Concurrent.ThreadId
     -- | The block and track that have focus.  Commands that address
     -- a particular block or track will address these.
-    , state_focused_view :: Maybe Block.ViewId
+    , state_focused_view :: Maybe ViewId
     -- | Copies by default go to a block+tracks with this project.
     , state_clip_namespace :: Id.Namespace
 
@@ -252,7 +253,7 @@ data WriteDeviceState = WriteDeviceState {
     -- Used by Cmd.PitchTrack:
     -- | NoteIds being entered into which pitch tracks.  When entering a chord,
     -- a PitchChange uses this to know which pitch track to update.
-    , wdev_note_track :: Map.Map InputNote.NoteId Block.TrackNum
+    , wdev_note_track :: Map.Map InputNote.NoteId Types.TrackNum
 
     -- Used by no one, yet:
     -- | Remember the current inst of each addr.  More than one instrument or
@@ -291,7 +292,7 @@ data Modifier = KeyMod Key.Key
     -- | Mouse button, and (tracknum, pos) in went down at, if any.
     -- The block is not recorded.  You can't drag across blocks so you know any
     -- click must apply to the focused block.
-    | MouseMod UiMsg.MouseButton (Maybe (Block.TrackNum, TrackPos))
+    | MouseMod UiMsg.MouseButton (Maybe (Types.TrackNum, TrackPos))
     -- | Only chan and key are stored.  While it may be useful to map according
     -- to the device, this code doesn't know which devices are available.
     -- Block or track level handlers can query the device themselves.
@@ -316,10 +317,10 @@ modify_state f = (CmdT . lift) (MonadState.modify f)
 keys_down :: (Monad m) => CmdT m (Map.Map Modifier Modifier)
 keys_down = fmap state_keys_down get_state
 
-get_focused_view :: (Monad m) => CmdT m Block.ViewId
+get_focused_view :: (Monad m) => CmdT m ViewId
 get_focused_view = fmap state_focused_view get_state >>= require
 
-get_focused_block :: (Monad m) => CmdT m Block.BlockId
+get_focused_block :: (Monad m) => CmdT m BlockId
 get_focused_block =
     fmap Block.view_block (get_focused_view >>= State.get_view)
 
@@ -328,15 +329,15 @@ get_current_step = fmap state_step get_state
 
 -- | Get the leftmost track covered by the insert selection, which is
 -- considered the "focused" track by convention.
-get_insert_tracknum :: (Monad m) => CmdT m (Maybe Block.TrackNum)
+get_insert_tracknum :: (Monad m) => CmdT m (Maybe Types.TrackNum)
 get_insert_tracknum = do
     view_id <- get_focused_view
     sel <- State.get_selection view_id Config.insert_selnum
-    return (fmap Block.sel_start_track sel)
+    return (fmap Types.sel_start_track sel)
 
 -- | This just calls 'State.set_view_status', but all status setting should
 -- go through here so they can be uniformly filtered or logged or something.
-set_view_status :: (Monad m) => Block.ViewId -> String -> Maybe String
+set_view_status :: (Monad m) => ViewId -> String -> Maybe String
     -> CmdT m ()
 set_view_status view_id key val = State.set_view_status view_id key val
 
@@ -484,7 +485,7 @@ cmd_record_active msg = case msg of
                _ -> Continue
     _ -> return Continue
 
-set_focused_view :: (Monad m) => Block.ViewId -> CmdT m ()
+set_focused_view :: (Monad m) => ViewId -> CmdT m ()
 set_focused_view view_id = do
     -- Log.debug $ "active view is " ++ show view_id
     modify_state $ \st -> st { state_focused_view = Just view_id }
@@ -537,15 +538,15 @@ cmd_update_ui_state msg = do
     ui_update_state ctx update
     return Done
 
-sync_zoom_status :: (Monad m) => Block.ViewId -> CmdT m ()
+sync_zoom_status :: (Monad m) => ViewId -> CmdT m ()
 sync_zoom_status view_id = do
     view <- State.get_view view_id
     set_view_status view_id "view"
         (Just (show_zoom_status (Block.view_zoom view)))
 
-show_zoom_status :: Block.Zoom -> String
-show_zoom_status (Block.Zoom offset factor) =
-    "+" ++ Ui.Types.pretty_pos offset ++ "*" ++ fact
+show_zoom_status :: Types.Zoom -> String
+show_zoom_status (Types.Zoom offset factor) =
+    "+" ++ Types.pretty_pos offset ++ "*" ++ fact
     where fact = printf "%.1f" factor
 
 ui_update_state :: UiMsg.Context -> UiMsg.UiUpdate -> CmdT Identity.Identity ()
@@ -582,7 +583,7 @@ update_of _ = Nothing
 -- a circular import.  They are re-exported by Derive.Schema so we can all just
 -- pretend they were defined there in the first place.
 
-type SchemaMap = Map.Map Block.SchemaId Schema
+type SchemaMap = Map.Map SchemaId Schema
 
 -- | A Schema attaches a number of things to a Block.
 data Schema = Schema {
@@ -597,8 +598,7 @@ instance Show Schema where
     show _ = "<schema>"
 
 -- | A SchemaDeriver generates a Deriver from a given Block.
-type SchemaDeriver d =
-    Block.BlockId -> State.StateT Identity.Identity d
+type SchemaDeriver d = BlockId -> State.StateT Identity.Identity d
 
 -- ** cmd types
 
@@ -610,6 +610,6 @@ data CmdContext = CmdContext {
     , ctx_lookup_midi :: MidiDb.LookupMidiInstrument
     , ctx_edit_mode :: EditMode
     , ctx_kbd_entry :: Bool
-    , ctx_focused_tracknum :: Maybe Block.TrackNum
+    , ctx_focused_tracknum :: Maybe Types.TrackNum
     , ctx_track_tree :: State.TrackTree
     }

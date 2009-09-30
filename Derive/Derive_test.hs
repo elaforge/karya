@@ -12,22 +12,18 @@ import qualified Data.List as List
 
 import Util.Test
 import qualified Util.Log as Log
-import Ui.Types
-import qualified Ui.Block as Block
-import qualified Ui.Track as Track
-import qualified Ui.State as State
 
+import Ui
+import qualified Ui.State as State
+import qualified Ui.Types as Types
 import qualified Ui.UiTest as UiTest
 
 import qualified Midi.Midi as Midi
 import qualified Instrument.MidiDb as MidiDb
 
-import qualified Cmd.Cmd as Cmd
-
 import qualified Derive.Controller as Controller
 import qualified Derive.Derive as Derive
 import qualified Derive.Note as Note
-import qualified Derive.Scale as Scale
 import qualified Derive.Schema as Schema
 import qualified Derive.Score as Score
 import qualified Derive.Scale.Twelve as Twelve
@@ -35,7 +31,6 @@ import qualified Derive.Scale.Twelve as Twelve
 import qualified Perform.Signal as Signal
 import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Transport as Transport
-import qualified Perform.Warning as Warning
 import qualified Perform.Midi.Controller as Midi.Controller
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Instrument as Instrument
@@ -106,7 +101,7 @@ test_subderive = do
 
 
 -- | Simple deriver with one track and one instrument.
-basic_deriver :: (Monad m) => Track.TrackId -> Track.TrackId
+basic_deriver :: (Monad m) => TrackId -> TrackId
     -> Derive.DeriveT m [Score.Event]
 basic_deriver note_tid pitch_tid =
     Controller.d_controller (Score.Controller "*twelve")
@@ -158,8 +153,8 @@ mkstack = map (\(bid, tid, pos) ->
 
 
 -- | Slightly more complicated with pitch and mod controller tracks.
-controller_deriver :: (Monad m) => Track.TrackId -> Track.TrackId
-    -> Track.TrackId -> String -> Derive.DeriveT m [Score.Event]
+controller_deriver :: (Monad m) => TrackId -> TrackId
+    -> TrackId -> String -> Derive.DeriveT m [Score.Event]
 controller_deriver note_tid pitch_tid cont_tid cont_name =
     Controller.d_controller (Score.Controller cont_name)
         (Controller.d_signal =<<
@@ -195,7 +190,7 @@ test_controller = do
 
 test_make_inverse_tempo_func = do
     -- This is actually also tested in test_subderive.
-    let track_id = Track.TrackId (UiTest.mkid "warp")
+    let track_id = Types.TrackId (UiTest.mkid "warp")
         warp = Derive.make_warp (Derive.tempo_to_warp (Signal.constant 2))
         track_warps = [Derive.TrackWarp
             (TrackPos 0) (TrackPos 2) block_id [track_id] warp]
@@ -206,8 +201,8 @@ test_make_inverse_tempo_func = do
     equal (map f (map Timestamp.seconds [0..2]))
         [with_block 0, with_block 2, []]
 
-tempo_deriver :: (Monad m) => Track.TrackId -> Signal.Signal -> Track.TrackId
-    -> Track.TrackId -> Track.TrackId -> Derive.DeriveT m [Score.Event]
+tempo_deriver :: (Monad m) => TrackId -> Signal.Signal -> TrackId
+    -> TrackId -> TrackId -> Derive.DeriveT m [Score.Event]
 tempo_deriver sig_tid tempo note_tid pitch_tid vel_tid = do
     Derive.d_tempo sig_tid (return tempo) $
         controller_deriver note_tid pitch_tid vel_tid "velocity"
@@ -219,7 +214,7 @@ test_tempo = do
             , ("1", [(0, 10, ".1"), (10, 10, ".2"), (20, 10, ".4")])
             ]
         mkderiver sig = tempo_deriver
-            (Track.TrackId (UiTest.mkid "b0.tempo")) (mksignal sig)
+            (Types.TrackId (UiTest.mkid "b0.tempo")) (mksignal sig)
             (tids!!0) (tids!!1) (tids!!2)
         floor_event :: (Double, Double, String) -> (Integer, Integer, String)
         floor_event (start, dur, text) = (floor start, floor dur, text)

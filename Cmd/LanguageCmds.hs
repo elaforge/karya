@@ -36,14 +36,15 @@ import qualified Util.Map as Map
 import Util.Pretty as Pretty
 import qualified Util.PPrint as PPrint
 
-import Ui.Types
-import qualified Ui.Id as Id
+import Ui
+import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
-import qualified Ui.Block as Block
+import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
-import qualified Ui.Track as Track
 import qualified Ui.State as State
+import qualified Ui.Track as Track
+import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
@@ -125,11 +126,11 @@ save_as fn = Save.cmd_save fn
 
 -- * show / modify UI state
 
-vid = Block.ViewId . Id.read_id
-bid = Block.BlockId . Id.read_id
-sid = Block.SchemaId . Id.read_id
-rid = Ruler.RulerId . Id.read_id
-tid = Track.TrackId . Id.read_id
+vid = Types.ViewId . Id.read_id
+bid = Types.BlockId . Id.read_id
+sid = Types.SchemaId . Id.read_id
+rid = Types.RulerId . Id.read_id
+tid = Types.TrackId . Id.read_id
 
 show_state :: Cmd.CmdL String
 show_state = do
@@ -146,7 +147,7 @@ show_state = do
 
 -- ** views
 
-get_views :: Cmd.CmdL [Block.ViewId]
+get_views :: Cmd.CmdL [ViewId]
 get_views = fmap (Map.keys . State.state_views) State.get
 
 destroy_view :: String -> Cmd.CmdL ()
@@ -154,7 +155,7 @@ destroy_view view_id = State.destroy_view (vid view_id)
 
 -- ** blocks
 
-show_block :: Block.BlockId -> Cmd.CmdL String
+show_block :: BlockId -> Cmd.CmdL String
 show_block block_id = do
     block <- State.get_block block_id
     track_descs <- mapM show_tracklike (Block.block_tracklike_ids block)
@@ -176,12 +177,12 @@ show_tracklike (Block.RId rid) = return (show rid)
 show_tracklike (Block.DId color) = return $ "Div " ++ show color
 
 create_block :: (State.UiStateMonad m) =>
-    Id.Id -> String -> String -> m Block.BlockId
+    Id.Id -> String -> String -> m BlockId
 create_block block_id ruler_id schema_id = State.create_block block_id $
     Block.block "" Config.block_config [track] (sid schema_id)
     where track = Block.block_track (ruler ruler_id) Config.ruler_width
 
-set_schema :: Block.BlockId -> Block.SchemaId -> Cmd.CmdL ()
+set_schema :: BlockId -> SchemaId -> Cmd.CmdL ()
 set_schema block_id schema_id = do
     State.modify_block block_id $ \block ->
         block { Block.block_schema = schema_id }
@@ -196,19 +197,19 @@ ruler ruler_id = Block.RId (rid ruler_id)
 divider :: Color.Color -> Block.TracklikeId
 divider color = Block.DId (Block.Divider color)
 
-show_track :: Track.TrackId -> Cmd.CmdL String
+show_track :: TrackId -> Cmd.CmdL String
 show_track track_id = do
     track <- State.get_track track_id
     return $ PPrint.pshow (track { Track.track_events = Track.empty_events })
         ++ "Events: " ++ show (Track.events_length (Track.track_events track))
 
-show_events :: Track.TrackId -> TrackPos -> TrackPos -> Cmd.CmdL [Simple.Event]
+show_events :: TrackId -> TrackPos -> TrackPos -> Cmd.CmdL [Simple.Event]
 show_events track_id start end = do
     track <- State.get_track track_id
     return $ (map Simple.event
         . Track.events_in_range start end . Track.track_events) track
 
-set_render_style :: Track.RenderStyle -> Track.TrackId -> Cmd.CmdL ()
+set_render_style :: Track.RenderStyle -> TrackId -> Cmd.CmdL ()
 set_render_style style track_id = State.modify_track_render track_id $
     \render -> render { Track.render_style = style }
 
@@ -231,7 +232,7 @@ replace_marklist (rid "r1") "meter" (MakeRuler.meter_ruler 16 MakeRuler.m44)
 copy_marklist "meter" (rid "r1") (rid "r1.overlay")
 -}
 
-show_ruler :: Ruler.RulerId -> Cmd.CmdL String
+show_ruler :: RulerId -> Cmd.CmdL String
 show_ruler ruler_id = do
     (Ruler.Ruler mlists bg show_names use_alpha full_width) <-
         State.get_ruler ruler_id
@@ -242,14 +243,14 @@ show_ruler ruler_id = do
         , ("marklists", show_list (map fst mlists))
         ]
 
-show_marklist :: Ruler.RulerId -> Ruler.MarklistName -> Cmd.CmdL String
+show_marklist :: RulerId -> Ruler.MarklistName -> Cmd.CmdL String
 show_marklist ruler_id marklist_name = do
     mlist <- get_marklist ruler_id marklist_name
     return $ show_list $
         map (\(pos, m) -> printf "%s - %s" (show pos) (pretty m))
             (Ruler.forward mlist (TrackPos 0))
 
-get_marklist :: Ruler.RulerId -> Ruler.MarklistName -> Cmd.CmdL Ruler.Marklist
+get_marklist :: RulerId -> Ruler.MarklistName -> Cmd.CmdL Ruler.Marklist
 get_marklist ruler_id marklist_name = do
     ruler <- State.get_ruler ruler_id
     case lookup marklist_name (Ruler.ruler_marklists ruler) of
@@ -257,7 +258,7 @@ get_marklist ruler_id marklist_name = do
             "no marklist " ++ show marklist_name ++ " in " ++ show ruler_id
         Just mlist -> return mlist
 
-replace_marklist :: Ruler.RulerId -> Ruler.NameMarklist -> Cmd.CmdL ()
+replace_marklist :: RulerId -> Ruler.NameMarklist -> Cmd.CmdL ()
 replace_marklist ruler_id (name, mlist) = do
     ruler <- State.get_ruler ruler_id
     i <- case List.findIndex ((==name) . fst) (Ruler.ruler_marklists ruler) of
@@ -265,7 +266,7 @@ replace_marklist ruler_id (name, mlist) = do
         Just i -> State.remove_marklist ruler_id i >> return i
     State.insert_marklist ruler_id i (name, mlist)
 
-copy_marklist :: Ruler.MarklistName -> Ruler.RulerId -> Ruler.RulerId
+copy_marklist :: Ruler.MarklistName -> RulerId -> RulerId
     -> Cmd.CmdL ()
 copy_marklist marklist_name from_ruler_id to_ruler_id = do
     mlist <- get_marklist from_ruler_id marklist_name
@@ -273,7 +274,7 @@ copy_marklist marklist_name from_ruler_id to_ruler_id = do
 
 -- | Replace the rulers in the block with the given ruler_id.  If there is an
 -- overlay version, it will be given to all but the first track.
-replace_ruler :: Ruler.RulerId -> Block.BlockId -> Cmd.CmdL ()
+replace_ruler :: RulerId -> BlockId -> Cmd.CmdL ()
 replace_ruler ruler_id block_id = do
     _ <- State.get_ruler ruler_id -- Just make sure it exists.
     let overlay_id = Create.add_overlay_suffix ruler_id
@@ -313,7 +314,7 @@ all_inst_info = do
     info <- mapM Info.inst_info (Map.keys (Instrument.config_alloc config))
     return $ show (length info) ++ " instruments:\n" ++ Seq.join "\n\n" info
 
-track_info :: Block.BlockId -> Block.TrackNum
+track_info :: BlockId -> Types.TrackNum
     -> Cmd.CmdL (Schema.TrackType, Maybe Score.Instrument, Pitch.ScaleId)
 track_info block_id tracknum = do
     track_tree <- State.get_track_tree block_id
@@ -400,7 +401,7 @@ dealloc_instrument inst = do
     State.set_midi_config $ config
         { Instrument.config_alloc = Map.delete inst alloc }
 
-schema_instruments :: Block.BlockId -> Cmd.CmdL [Score.Instrument]
+schema_instruments :: BlockId -> Cmd.CmdL [Score.Instrument]
 schema_instruments block_id = do
     titles <- fmap (map State.track_title) (State.get_track_info block_id)
     return $ Maybe.catMaybes (map Schema.title_to_instrument titles)
@@ -412,7 +413,7 @@ schema_instruments block_id = do
 -- Example: auto_config (bid "b0") >>= State.set_midi_config
 -- TODO: won't work if there are >1 block, need a merge config
 -- TODO: same inst with different keyswitches should get the same addrs
-auto_config :: Block.BlockId -> Cmd.CmdL Instrument.Config
+auto_config :: BlockId -> Cmd.CmdL Instrument.Config
 auto_config block_id = do
     insts <- schema_instruments block_id
     devs <- mapM device_of insts
@@ -443,7 +444,7 @@ controllers_of inst = undefined -- TODO
 
 derive_to_midi block_id = score_to_midi =<< derive block_id
 
-derive :: Block.BlockId -> Cmd.CmdL [Score.Event]
+derive :: BlockId -> Cmd.CmdL [Score.Event]
 derive block_id = do
     schema_map <- Cmd.get_schema_map
     (result, _, _) <- Play.derive schema_map block_id

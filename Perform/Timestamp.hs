@@ -8,7 +8,7 @@ module Perform.Timestamp where
 import Util.Pretty
 import Text.Printf
 
-import Ui.Types
+import Ui
 
 
 -- | An absolute timestamp, measured from some arbitrary starting position.

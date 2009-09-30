@@ -70,7 +70,6 @@ add_edges edges graph =
     IArray.accumArray add [] new_bounds
         (edges ++ [(p, c) | (p, cs) <- IArray.assocs graph, c <- cs])
     where
-    in_bounds = filter ((\p -> Array.in_bounds p graph) . fst) edges
     (low, high) = IArray.bounds graph
     flattened = [v | (p, c) <- edges, v <- [p, c]]
     new_bounds = (minimum (low : flattened), maximum (high : flattened))

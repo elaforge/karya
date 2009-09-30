@@ -8,20 +8,10 @@ import qualified Text.Read as Read
 import qualified Util.Map as Map
 import qualified Util.Seq as Seq
 
-import Ui.Types
-import qualified Ui.Id as Id
+import Ui
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 
-newtype TrackId = TrackId Id.Id
-    deriving (Eq, Ord)
-
-instance Show TrackId where show = Id.show_ident
-instance Read TrackId where readPrec = Id.read_ident undefined
-instance Id.Ident TrackId where
-    unpack_id (TrackId a) = a
-    cons_name _ = "tid"
-    cons = TrackId
 
 type PosEvent = (TrackPos, Event.Event)
 

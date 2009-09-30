@@ -1,7 +1,7 @@
 module Cmd.Create_test where
 import Util.Test
 
-import qualified Ui.Block as Block
+import qualified Ui.Types as Types
 import qualified Ui.State as State
 
 import qualified Cmd.CmdTest as CmdTest
@@ -11,7 +11,7 @@ import qualified Cmd.Create as Create
 
 
 
-mksel = Block.point_selection
+mksel = Types.point_selection
 mkkey = CmdTest.make_key True
 
 cstate = Cmd.empty_state

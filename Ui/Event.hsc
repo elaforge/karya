@@ -28,7 +28,7 @@ import qualified Data.Array.IArray as IArray
 import Foreign
 import Foreign.C
 
-import Ui.Types
+import Ui
 import qualified Ui.Color as Color
 import qualified Ui.Font as Font
 

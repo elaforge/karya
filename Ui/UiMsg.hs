@@ -7,9 +7,9 @@ import Text.Printf
 
 import qualified Util.Seq as Seq
 
-import Ui.Types
+import Ui
+import qualified Ui.Types as Types
 import qualified Ui.Key as Key
-import qualified Ui.Block as Block
 
 
 -- | Technically MsgClose and whatnot don't have ctx_track and ctx_pos, but
@@ -19,9 +19,9 @@ data UiMsg = UiMsg Context Msg
     deriving (Show)
 
 data Context = Context
-    { ctx_block :: Maybe Block.ViewId
+    { ctx_block :: Maybe ViewId
     -- | Index into block tracks.
-    , ctx_track :: Maybe Block.TrackNum
+    , ctx_track :: Maybe Types.TrackNum
     , ctx_pos :: Maybe TrackPos
     } deriving (Show)
 
@@ -37,11 +37,11 @@ data Msg = MsgEvent Data | UiUpdate UiUpdate
 -- TODO include the arg vals so I don't have to call back into fltk
 data UiUpdate =
     UpdateInput String
-    | UpdateTrackScroll Block.Width
-    | UpdateZoom Block.Zoom
+    | UpdateTrackScroll Types.Width
+    | UpdateZoom Types.Zoom
     -- | Size of entire block window, and (visible_track, visible_time).
-    | UpdateViewResize Block.Rect (Int, Int)
-    | UpdateTrackWidth Block.Width
+    | UpdateViewResize Types.Rect (Int, Int)
+    | UpdateTrackWidth Types.Width
     deriving (Eq, Ord, Show)
 
 -- TODO this makes partial selectors... would it be better to split this up?

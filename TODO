@@ -1,5 +1,6 @@
 - hint refuses to compile when Cmd.NoteEntry emits a warning
 - Seq.keyed_group_with -> keyed_group_on
+- Cmd.BlockConfig -> Block?  or View -> ViewConfig
 CURRENT
   + insert new track skeleton splice
   - reduce imports of App.Config so Ui.Block can use it
@@ -36,7 +37,6 @@ MILESTONES
     - jack / rewrite
     - non-midi instruments
 
-- TrackNum, Width, etc. go into Ui.Types, or maybe just Ui?
 - remove unqualified Types imports
 - update Cmd.GlobalKeymap comment
 

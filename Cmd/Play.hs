@@ -90,13 +90,13 @@ import qualified Util.Thread as Thread
 
 import qualified Midi.Midi as Midi
 
-import Ui.Types
+import Ui
 import qualified Ui.Block as Block
 import qualified Ui.State as State
-import qualified Ui.Track as Track
 -- This causes a bunch of modules to import BlockC.  Can I move the updater
 -- stuff out?
 import qualified Ui.Sync as Sync
+import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
@@ -136,7 +136,7 @@ cmd_play_from_insert transport_info = do
     (track_id, _, pos) <- Selection.get_insert_track
     cmd_play transport_info block_id (track_id, pos)
 
-cmd_play :: Transport.Info -> Block.BlockId -> (Track.TrackId, TrackPos)
+cmd_play :: Transport.Info -> BlockId -> (TrackId, TrackPos)
     -> Cmd.CmdT IO Cmd.Status
 cmd_play transport_info block_id (start_track, start_pos) = do
     cmd_state <- Cmd.get_state
@@ -197,7 +197,7 @@ seek_msgs start_ts midi_msgs = map (Midi.add_timestamp (-start_ts)) $
     -- but it's simple and maybe fast enough.  Otherwise, maybe I put the msgs
     -- in an array and bsearch?  Or a list of chunks?
 
-get_performance :: (Monad m) => Block.BlockId -> Cmd.CmdT m Cmd.Performance
+get_performance :: (Monad m) => BlockId -> Cmd.CmdT m Cmd.Performance
 get_performance block_id = do
     by_block <- fmap Cmd.state_performance Cmd.get_state
     maybe (State.throw $ "no performance for block " ++ show block_id) return
@@ -210,7 +210,7 @@ get_performance block_id = do
 -- This is actually called from ResponderSync, when it kicks off background
 -- derivation.  By the time 'cmd_play' pulls out the Performance, it should be
 -- at least partially evaluated.
-perform :: (Monad m) => Block.BlockId -> Instrument.Db.Db -> Schema.SchemaMap
+perform :: (Monad m) => BlockId -> Instrument.Db.Db -> Schema.SchemaMap
     -> Cmd.CmdT m Cmd.Performance
 perform block_id inst_db schema_map = do
     (derive_result, tempo, inv_tempo) <- derive schema_map block_id
@@ -232,7 +232,7 @@ perform block_id inst_db schema_map = do
     return $ Cmd.Performance midi_msgs logs tempo inv_tempo
 
 -- | Derive the contents of the given block to score events.
-derive :: (Monad m) => Schema.SchemaMap -> Block.BlockId -> Cmd.CmdT m
+derive :: (Monad m) => Schema.SchemaMap -> BlockId -> Cmd.CmdT m
     (Either Derive.DeriveError [Score.Event], Transport.TempoFunction,
         Transport.InverseTempoFunction)
 derive schema_map block_id = do
@@ -283,7 +283,7 @@ data UpdaterState = UpdaterState {
     , updater_ts_offset :: Timestamp.Timestamp
     , updater_get_cur_ts :: IO Timestamp.Timestamp
     , updater_inv_tempo_func :: Transport.InverseTempoFunction
-    , updater_active_sels :: Set.Set (Block.ViewId, [Block.TrackNum])
+    , updater_active_sels :: Set.Set (ViewId, [Types.TrackNum])
     , updater_ui_state :: State.State
     }
 
@@ -324,21 +324,21 @@ updater_loop state = do
 -- | Do all the annoying shuffling around to convert the deriver-oriented
 -- blocks and tracks to the view-oriented views and tracknums.
 block_pos_to_play_pos :: (State.UiStateMonad m) =>
-    [(Block.BlockId, [(Track.TrackId, TrackPos)])]
-    -> m [(Block.ViewId, [(Block.TrackNum, Maybe TrackPos)])]
+    [(BlockId, [(TrackId, TrackPos)])]
+    -> m [(ViewId, [(Types.TrackNum, Maybe TrackPos)])]
 block_pos_to_play_pos block_pos = fmap concat (mapM convert block_pos)
 
 convert :: (State.UiStateMonad m) =>
-    (Block.BlockId, [(Track.TrackId, TrackPos)])
-    -> m [(Block.ViewId, [(Block.TrackNum, Maybe TrackPos)])]
+    (BlockId, [(TrackId, TrackPos)])
+    -> m [(ViewId, [(Types.TrackNum, Maybe TrackPos)])]
 convert (block_id, track_pos) = do
     view_ids <- fmap Map.keys (State.get_views_of block_id)
     block <- State.get_block block_id
     let tracknum_pos = concatMap (tracknums_of block) track_pos
     return [(view_id, tracknum_pos) | view_id <- view_ids]
 
-tracknums_of :: Block.Block -> (Track.TrackId, TrackPos)
-    -> [(Block.TrackNum, Maybe TrackPos)]
+tracknums_of :: Block.Block -> (TrackId, TrackPos)
+    -> [(Types.TrackNum, Maybe TrackPos)]
 tracknums_of block (track_id, pos) =
     [ (tracknum, Just pos)
     | (tracknum, Block.TId tid _) <- zip [0..] (Block.block_tracklike_ids block)
@@ -353,7 +353,7 @@ play_state_color status = case status of
     _ -> Config.box_color
 
 -- | Find the block to play, relative to the given view.
--- find_play_block :: State.State -> Block.ViewId -> Block.BlockId
+-- find_play_block :: State.State -> ViewId -> BlockId
 find_play_block view_id = do
     view <- State.get_view view_id
     return (Block.view_block view)

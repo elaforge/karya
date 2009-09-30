@@ -15,7 +15,7 @@ import Foreign.C
 
 import qualified Util.Array as Array
 
-import Ui.Types
+import Ui
 import qualified Ui.Event as Event
 import qualified Ui.Track as Track
 import qualified Ui.Util as Util

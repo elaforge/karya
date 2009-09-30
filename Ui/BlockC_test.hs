@@ -7,9 +7,10 @@ import qualified Control.Exception as Exception
 
 import Util.Test
 
-import qualified Ui.Ui as Ui
-import Ui.Types
+import Ui
 import qualified Ui.Color as Color
+import qualified Ui.Types as Types
+import qualified Ui.Ui as Ui
 
 import qualified Ui.Block as Block
 import qualified Ui.BlockC as BlockC
@@ -38,12 +39,12 @@ send = Ui.send_action
 --         send $ BlockC.set_track_title 0 "hi ruler"
 --     -- haskell errors
 --     io_throws (BlockC.FltkError "view_id has no referent") $
---         send $ BlockC.set_track_width (Block.ViewId "bogus!") 50
+--         send $ BlockC.set_track_width (Types.ViewId "bogus!") 50
 
 test_create_set_size = do
     view <- create_empty_view
     io_human "move and change size" $
-        BlockC.set_size view (Block.Rect 200 200 200 200)
+        BlockC.set_size view (Types.Rect 200 200 200 200)
     io_human "view is destroyed" $
         send $ BlockC.destroy_view view
 
@@ -62,16 +63,16 @@ test_scroll_zoom = do
         send $ BlockC.set_track_scroll view 0
 
     io_human "scroll down a little" $
-        send $ BlockC.set_zoom view (Block.Zoom (TrackPos 20) 1)
+        send $ BlockC.set_zoom view (Types.Zoom (TrackPos 20) 1)
     io_human "scroll down all the way" $
-        send $ BlockC.set_zoom view (Block.Zoom (TrackPos 99999) 1)
+        send $ BlockC.set_zoom view (Types.Zoom (TrackPos 99999) 1)
     io_human "scroll back" $
-        send $ BlockC.set_zoom view (Block.Zoom (TrackPos (-20)) 1)
+        send $ BlockC.set_zoom view (Types.Zoom (TrackPos (-20)) 1)
 
     io_human "zoom in to 2" $
-        send $ BlockC.set_zoom view (Block.Zoom (TrackPos 0) 2)
+        send $ BlockC.set_zoom view (Types.Zoom (TrackPos 0) 2)
     io_human "zoom out back to 1" $
-        send $ BlockC.set_zoom view (Block.Zoom (TrackPos 0) 1)
+        send $ BlockC.set_zoom view (Types.Zoom (TrackPos 0) 1)
 
 test_set_selection = do
     view <- create_empty_view
@@ -89,7 +90,7 @@ test_set_selection = do
         send $ BlockC.set_selection view 0 Nothing
 
 cselection color track start tracks dur =
-    Just (BlockC.CSelection color (Block.Selection track start tracks dur))
+    Just (BlockC.CSelection color (Types.Selection track start tracks dur))
 
 test_set_track_width = do
     view <- create_empty_view
@@ -153,7 +154,7 @@ test_insert_remove_track = do
     io_human "new event track" $
         send $ BlockC.insert_track view 1
             (Block.T event_track_1 ruler) no_samples 30
-    send $ BlockC.set_zoom view (Block.Zoom (TrackPos 0) 2)
+    send $ BlockC.set_zoom view (Types.Zoom (TrackPos 0) 2)
     io_human "another new event track also zoomed" $
         send $ BlockC.insert_track view 2
             (Block.T event_track_2 ruler) no_samples 30
@@ -186,7 +187,7 @@ event_track_1 = UiTest.mktrack ("1", [(0, 16, "hi"), (30, 32, "there")])
 event_track_2 = UiTest.mktrack ("2", [(16, 10, "ho"), (30, 32, "eyo")])
 
 create_empty_view = do
-    let view_id = Block.ViewId (UiTest.mkid "default")
+    let view_id = Types.ViewId (UiTest.mkid "default")
     send $ BlockC.create_view view_id "some title" UiTest.default_rect
         UiTest.default_view_config UiTest.default_block_config
     return view_id

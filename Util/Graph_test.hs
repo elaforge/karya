@@ -1,6 +1,5 @@
 module Util.Graph_test where
 import qualified Data.Array.IArray as IArray
-import qualified Data.Graph as Graph
 import qualified Data.List as List
 import qualified Util.Graph
 import Util.Graph (build)

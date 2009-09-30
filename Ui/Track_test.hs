@@ -1,7 +1,7 @@
 module Ui.Track_test where
 import Util.Test
 
-import Ui.Types
+import Ui
 import qualified Ui.Event as Event
 import qualified Ui.Track as Track
 
