@@ -73,7 +73,7 @@ data Config = Config {
     -- | An instrument may have multiple addresses assigned to it, which means
     -- that it can be multiplexed across multiple channels.  In addition,
     -- multiple instruments can be allocated to overlapping addresses, which is
-    -- how keyswitches word; each one is considered a separate instrument.  An
+    -- how keyswitches work; each one is considered a separate instrument.  An
     -- instrument wishing to use an address will emit an appropriate message to
     -- configure it (probably a keyswitch, possibly a program change).
     config_alloc :: Map.Map Score.Instrument [Addr]

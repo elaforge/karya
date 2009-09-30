@@ -13,7 +13,6 @@ import qualified Ui.Track as Track
 import qualified Ui.UiTest as UiTest
 
 import qualified Midi.Midi as Midi
-import qualified Cmd.Cmd as Cmd
 import qualified Cmd.NoteTrack as NoteTrack
 
 import qualified Derive.Derive as Derive
@@ -49,60 +48,40 @@ midi_default_inst = Instrument.instrument
     synth "default" Nothing Controller.empty_map (-12, 12)
 midi_inst1 = (Instrument.instrument
     synth "inst1" Nothing Controller.empty_map (-12, 12))
-    { Instrument.inst_scale = i1scale }
 inst1 = Score.Instrument "inst1"
 inst2 = Score.Instrument "inst2"
 default_inst = Score.Instrument "default"
 synth = Instrument.synth "synth" "synth" []
-empty_scale = Pitch.ScaleId ""
-i1scale = Pitch.ScaleId "i1"
 
 lookup_midi :: MidiDb.LookupMidiInstrument
-lookup_midi attrs inst
+lookup_midi _attrs inst
     | inst == default_inst = Just midi_default_inst
     | inst == inst1 = Just midi_inst1
     | otherwise = Nothing
 
-test_get_defaults = do
-    let iconfig = Instrument.Config (mkalloc ["default", "inst1"])
-                (Just (Score.Instrument "default"))
-        tree = mk_track_tree -- [">inst2", "*", ">inst1"]
-                [ node ("*", 1) [node (">inst2", 0) []]
-                , node (">inst1", 2) []
-                ]
-        mkcontext focused = Schema.cmd_context iconfig lookup_midi Cmd.NoEdit
-            False focused tree
-    let tracknums = map Just [0..3] ++ [Nothing]
-    let res = map Schema.get_defaults (map mkcontext tracknums)
-    equal (res!!0) (Just (Schema.NoteTrack (NoteTrack.PitchTrack False 1))
-        , Just inst2, empty_scale)
-    equal (res!!1) (Just Schema.PitchTrack, Just inst2, empty_scale)
-    equal (res!!2) (Just (Schema.NoteTrack (NoteTrack.PitchTrack True 3))
-        , Just inst1, i1scale)
-    -- no tracknum, and out of range tracknum
-    equal (res!!3) (Nothing, Just default_inst, Instrument.default_scale)
-    equal (res!!4) (Nothing, Just default_inst, Instrument.default_scale)
 
 test_get_track_info = do
-    let tree = mk_track_tree -- ["c0", ">inst1", "*", "c1", ">inst2", "c2"]
-                [ node ("c0", 0)
-                    [ node ("c1", 3) [node ("*", 2) [node (">inst1", 1) []]]
-                    , node ("c2", 5) [node (">inst2", 4) []]
-                    ]
+    let tree = mk_track_tree -- ["c0", ">inst1", "*s1", "c1", ">inst2", "c2"]
+            [ node ("c0", 0)
+                [ node ("c1", 3) [node ("*s1", 2) [node (">inst1", 1) []]]
+                , node ("c2", 5) [node (">inst2", 4) []]
                 ]
+            ]
+        proj_scale = Pitch.ScaleId "proj"
+        s1 = Pitch.ScaleId "s1"
     let tracknums = map Just [0..6] ++ [Nothing]
-    let res = map (Schema.get_track_info tree) tracknums
-    equal (res!!0) (Just Schema.ControlTrack, Just inst1, Just empty_scale)
-    equal (res!!1) (Just (Schema.NoteTrack (NoteTrack.PitchTrack False 2))
-        , Just inst1, Just empty_scale)
-    equal (res!!2) (Just Schema.PitchTrack, Just inst1, Just empty_scale)
-    equal (res!!3) (Just Schema.ControlTrack, Just inst1, Just empty_scale)
-    equal (res!!4) (Just (Schema.NoteTrack (NoteTrack.PitchTrack True 5))
-        , Just inst2, Nothing)
-    equal (res!!5) (Just Schema.ControlTrack, Just inst2, Nothing)
+    let res = map (Schema.get_track_info proj_scale tree) tracknums
+    equal (res!!0) (Just Schema.ControlTrack, Just inst1, proj_scale)
+    equal (res!!1) (Just (Schema.NoteTrack (NoteTrack.ExistingTrack 2))
+        , Just inst1, s1)
+    equal (res!!2) (Just Schema.PitchTrack, Just inst1, s1)
+    equal (res!!3) (Just Schema.ControlTrack, Just inst1, proj_scale)
+    equal (res!!4) (Just (Schema.NoteTrack (NoteTrack.CreateTrack 4 "*proj" 5))
+        , Just inst2, proj_scale)
+    equal (res!!5) (Just Schema.ControlTrack, Just inst2, proj_scale)
     -- Nothing tracknum, and invalid tracknum
-    equal (res!!6) (Nothing, Nothing, Nothing)
-    equal (res!!7) (Nothing, Nothing, Nothing)
+    equal (res!!6) (Nothing, Nothing, proj_scale)
+    equal (res!!7) (Nothing, Nothing, proj_scale)
 
 
 -- * compile
@@ -196,8 +175,7 @@ skel_equal (Skeleton.Skeleton g1) (Skeleton.Skeleton g2) =
 test_parse = do
     let mktracks titles =
             [mk_track_info name n | (n, name) <- Seq.enumerate titles]
-    let n = Tree.Node
-        mkskel = Skeleton.make
+    let mkskel = Skeleton.make
     let f = Schema.default_parser . mktracks
 
     -- They're both controllers, with no instrument track.

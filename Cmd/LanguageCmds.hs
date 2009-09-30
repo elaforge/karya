@@ -133,7 +133,7 @@ tid = Track.TrackId . Id.read_id
 
 show_state :: Cmd.CmdL String
 show_state = do
-    (State.State project dir views blocks tracks rulers _midi_conf)
+    (State.State project dir views blocks tracks rulers _midi_conf proj_scale)
         <- State.get
     -- midi config showed by show_midi_config
     let f fm = show_list (map show (Map.keys fm))
@@ -141,6 +141,7 @@ show_state = do
         [ ("project", project), ("dir", dir)
         , ("views", f views), ("blocks", f blocks)
         , ("tracks", f tracks), ("rulers", f rulers)
+        , ("scale", show proj_scale)
         ]
 
 -- ** views
@@ -313,10 +314,11 @@ all_inst_info = do
     return $ show (length info) ++ " instruments:\n" ++ Seq.join "\n\n" info
 
 track_info :: Block.BlockId -> Block.TrackNum
-    -> Cmd.CmdL (Schema.TrackType, Maybe Score.Instrument, Maybe Pitch.ScaleId)
+    -> Cmd.CmdL (Schema.TrackType, Maybe Score.Instrument, Pitch.ScaleId)
 track_info block_id tracknum = do
     track_tree <- State.get_track_tree block_id
-    case Schema.get_track_info track_tree (Just tracknum) of
+    proj_scale <- State.get_project_scale
+    case Schema.get_track_info proj_scale track_tree (Just tracknum) of
         (Nothing, _, _) -> Cmd.throw $ "can't get track type for "
             ++ show block_id ++ " at " ++ show tracknum
         (Just typ, inst, scale) -> return (typ, inst, scale)

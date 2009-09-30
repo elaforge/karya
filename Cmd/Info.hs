@@ -4,7 +4,6 @@
 -- by built in cmds.  Since they are intended for human consumption, many
 -- of them return strings.
 module Cmd.Info where
-import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Util.Seq as Seq
 import qualified Util.Map as Map
@@ -25,7 +24,7 @@ inst_info inst = do
     return $ show_inst inst ++ ": " ++ maybe "<not found>" show_info maybe_info
 
 show_instrument_info :: [Instrument.Addr] -> MidiDb.Info -> String
-show_instrument_info addrs (MidiDb.Info synth patch) = unlines
+show_instrument_info addrs (MidiDb.Info _synth patch) = unlines
     [ "keyswitches: " ++ show_keyswitch_map (Instrument.patch_keyswitches patch)
     , "addrs: " ++ show_addrs addrs
     ]

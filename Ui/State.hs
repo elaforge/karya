@@ -51,6 +51,8 @@ import qualified Derive.Score as Score
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Midi.Instrument as Instrument
 
+import qualified App.Config as Config
+
 
 data State = State {
     -- | The project name is used as the namespace of automatically created
@@ -68,11 +70,14 @@ data State = State {
 
     -- | This maps the midi instruments used in this State to their Addrs.
     , state_midi_config :: Instrument.Config
+    -- | Automatically created pitch tracks will have this scale.  MIDI thru
+    -- will also use it when a scale can't be derived from focus.
+    , state_project_scale :: Pitch.ScaleId
     } deriving (Read, Show, Generics.Typeable)
 
 -- TODO "initial_state" would be more consistent
 empty = State "untitled" "save" Map.empty Map.empty Map.empty ruler_map
-    (Instrument.config [] Nothing)
+    (Instrument.config [] Nothing) (Pitch.ScaleId Config.project_scale_id)
     where ruler_map = Map.fromList [(no_ruler, Ruler.no_ruler)]
 
 -- | Since all TracklikeIds must have a ruler, all States have a special empty
@@ -368,6 +373,13 @@ get_midi_config = fmap state_midi_config get
 set_midi_config :: (UiStateMonad m) => Instrument.Config -> m ()
 set_midi_config config = modify $ \st -> st { state_midi_config = config}
 
+get_project_scale :: (UiStateMonad m) => m Pitch.ScaleId
+get_project_scale = fmap state_project_scale get
+
+set_project_scale :: (UiStateMonad m) => Pitch.ScaleId -> m ()
+set_project_scale scale_id = modify $ \st ->
+    st { state_project_scale = scale_id }
+
 -- * view
 
 get_view :: (UiStateMonad m) => Block.ViewId -> m Block.View
@@ -533,7 +545,8 @@ set_skeleton block_id skel =
     modify_block block_id (\block -> block { Block.block_skeleton = skel })
 
 -- | Toggle the given edge in the block's skeleton.  If a cycle would be
--- created, refuse to add the edge and return False.
+-- created, refuse to add the edge and return False.  The edge is in (parent,
+-- child) order.
 toggle_skeleton_edge :: (UiStateMonad m) => Block.BlockId
     -> (Block.TrackNum, Block.TrackNum) -> m Bool
 toggle_skeleton_edge block_id edge = do
@@ -544,6 +557,18 @@ toggle_skeleton_edge block_id edge = do
         Just new_skel -> do
             set_block block_id $ block { Block.block_skeleton = new_skel }
             return True
+
+-- | Splice the given edge into the skeleton.  That means the given child will
+-- be unlinked from its parent and relinked to the given parent, and the given
+-- parent will be linked to the old child's parent.
+-- This is not a toggle, so it should be idempotent.
+splice_skeleton :: (UiStateMonad m) => Block.BlockId
+    -> (Block.TrackNum, Block.TrackNum) -> m ()
+splice_skeleton block_id edge = do
+    block <- get_block block_id
+    let skel = Block.block_skeleton block
+    set_block block_id $
+        block { Blcok.block_skeleton = Skeleton.splice edge skel }
 
 -- *** TrackTree
 

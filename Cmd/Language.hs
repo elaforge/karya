@@ -144,6 +144,7 @@ merge_cmd_state cmd_state midi logs ui_res = do
     mapM_ (uncurry Cmd.midi) midi
     case ui_res of
         Left (State.StateError err) -> return $ "error: " ++ err
+        Left State.Abort -> Cmd.abort
         Right (response, ui_state2, updates) -> do
             -- I trust that they modified the state through the State
             -- ops, which means the updates should reflect any track

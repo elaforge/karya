@@ -1,4 +1,8 @@
+- hint refuses to compile when Cmd.NoteEntry emits a warning
+- Seq.keyed_group_with -> keyed_group_on
 CURRENT
+  + insert new track skeleton splice
+  - reduce imports of App.Config so Ui.Block can use it
   + fix hint stuff
   - complete InputNote implementation for pitch entry
     - advance on NoteOff
@@ -90,7 +94,7 @@ bugs:
     cmd_record_keys not getting run when play throws?
   * ^C should quit instead of killing ui thread and hanging
   - cmd-q should also quit entirely not just close the windows
-  - backspace to delete events doesn't work
+  * backspace to delete events doesn't work
   - note on track keeps adding new tracks
   - new track after scale change doesn't play scale properly
   - mute doesn't trigger rederive
@@ -161,7 +165,7 @@ Ui:
     - track merge
 
 skeleton:
-  - splice track: adding a new track automatically links into the skeleton
+  + splice track: adding a new track automatically links into the skeleton
   - parse skeleton in LanguageCmds
 
 test:

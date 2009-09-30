@@ -122,12 +122,13 @@ get_cmds schema_map context schema_id =
         Just schema -> schema_cmds schema context
 
 -- | Constructor for 'CmdContext'.
-cmd_context :: Instrument.Config -> MidiDb.LookupMidiInstrument
+cmd_context :: Instrument.Config -> Pitch.ScaleId -> MidiDb.LookupMidiInstrument
     -> Cmd.EditMode -> Bool -> Maybe Block.TrackNum -> State.TrackTree
     -> CmdContext
-cmd_context midi_config lookup_midi edit_mode kbd_entry focused_tracknum ttree =
-    CmdContext default_inst inst_addr lookup_midi edit_mode kbd_entry
-        focused_tracknum ttree
+cmd_context midi_config proj_scale lookup_midi edit_mode kbd_entry
+        focused_tracknum ttree =
+    CmdContext default_inst proj_scale inst_addr lookup_midi edit_mode
+        kbd_entry focused_tracknum ttree
     where
     default_inst = Instrument.config_default_inst midi_config
     -- The thru cmd has to pick a single addr for a give inst, so let's just
@@ -187,15 +188,10 @@ get_defaults :: CmdContext
     -> (Maybe TrackType, Maybe Score.Instrument, Pitch.ScaleId)
 get_defaults context = (maybe_track_type, score_inst, scale_id)
     where
-    (maybe_track_type, track_inst, track_scale) =
-        get_track_info (ctx_track_tree context) (ctx_focused_tracknum context)
-    -- Track inst, fall back to default inst.
+    (maybe_track_type, track_inst, scale_id) = get_track_info
+        (ctx_project_scale context) (ctx_track_tree context)
+        (ctx_focused_tracknum context)
     score_inst = track_inst `mplus` ctx_default_inst context
-    inst = join $ fmap (ctx_lookup_midi context Score.no_attrs) score_inst
-    -- Track scale, fall back to track inst scale, then default inst scale,
-    -- and then to the global default scale.
-    scale_id = maybe Instrument.default_scale id $
-        track_scale `mplus` fmap Instrument.inst_scale inst
 
 -- | Find the type of a track and the instrument and scale in scope.
 --
@@ -205,15 +201,18 @@ get_defaults context = (maybe_track_type, score_inst, scale_id)
 --
 -- TODO: if this leads to weird guesses, maybe return Nothing if there are
 -- two or more matches?
-get_track_info :: State.TrackTree -> Maybe Block.TrackNum
-    -> (Maybe TrackType, Maybe Score.Instrument, Maybe Pitch.ScaleId)
-get_track_info _ Nothing = (Nothing, Nothing, Nothing)
-get_track_info track_tree (Just tracknum) = case paths of
-        Nothing -> (Nothing, Nothing, Nothing)
+get_track_info :: Pitch.ScaleId -> State.TrackTree -> Maybe Block.TrackNum
+    -> (Maybe TrackType, Maybe Score.Instrument, Pitch.ScaleId)
+get_track_info proj_scale _ Nothing = (Nothing, Nothing, proj_scale)
+get_track_info proj_scale track_tree (Just tracknum) = case paths of
+        Nothing -> (Nothing, Nothing, proj_scale)
         Just (track, parents, children) ->
             let inst = find_inst (track : parents ++ children)
-                scale_id = find_scale (track : parents ++ children)
-            in (Just (track_type track parents), inst, scale_id)
+                -- Only search parents for scale, since that would make one
+                -- set scale override the project scale for higher level
+                -- tracks.
+                scale_id = maybe proj_scale id $ find_scale (track : parents)
+            in (Just (track_type scale_id track parents), inst, scale_id)
     where
     paths = List.find ((==tracknum) . State.track_tracknum . (\(a, _, _) -> a))
         (Util.Tree.paths track_tree)
@@ -227,16 +226,16 @@ data TrackType =
     NoteTrack NoteTrack.PitchTrack | PitchTrack | ControlTrack
     deriving (Show, Eq)
 
-track_type :: State.TrackInfo -> [State.TrackInfo] -> TrackType
-track_type track parents
+track_type :: Pitch.ScaleId -> State.TrackInfo -> [State.TrackInfo] -> TrackType
+track_type scale_id (State.TrackInfo title _ tracknum) parents
     | is_inst_track title = NoteTrack pitch_track
     | is_pitch_track title = PitchTrack
     | otherwise = ControlTrack
     where
-    title = State.track_title track
     pitch_track = case List.find (is_pitch_track . State.track_title) parents of
-        Nothing -> NoteTrack.PitchTrack True (State.track_tracknum track + 1)
-        Just ptrack -> NoteTrack.PitchTrack False (State.track_tracknum ptrack)
+        Nothing -> NoteTrack.CreateTrack
+            tracknum (track_of_scale scale_id) (tracknum+1)
+        Just ptrack -> NoteTrack.ExistingTrack (State.track_tracknum ptrack)
 
 
 -- ** compile
@@ -329,8 +328,6 @@ track_of_scale :: Pitch.ScaleId -> String
 track_of_scale (Pitch.ScaleId scale_id) = pitch_track_prefix ++ scale_id
 
 pitch_track_prefix = "*"
--- | This means use the instrument scale.
-default_scale = Pitch.ScaleId ""
 
 is_inst_track = (">" `List.isPrefixOf`)
 inst_of_track = Score.Instrument . Seq.strip . drop 1

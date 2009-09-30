@@ -1,12 +1,11 @@
 module Util.Graph_test where
 import qualified Data.Array.IArray as IArray
 import qualified Data.Graph as Graph
+import qualified Data.List as List
 import qualified Util.Graph
+import Util.Graph (build)
 import Util.Test
 
-
-build edges =
-    Graph.buildG (0, maximum (-1 : (map (\(x, y) -> max x y) edges))) edges
 
 test_toggle_edge = do
     let f = Util.Graph.toggle_edge
@@ -17,17 +16,34 @@ test_toggle_edge = do
     eq (f (0, 1) (build [(0, 1)])) (Just (build []))
     eq (f (0, 1) (build [(1, 0)])) Nothing
 
-test_add_edge = do
-    let f = Util.Graph.add_edge
-    graph_equal (f (0, 1) (build [])) (build [(0, 1)])
-    graph_equal (f (1, 0) (build [(0, 1)])) (build [(0, 1), (1, 0)])
+test_splice = do
+    let f = Util.Graph.splice
+    graph_equal (f (2, 1) (build [(0, 1)])) (build [(0, 2), (2, 1)])
+    graph_equal (f (3, 2) (build [(0, 2), (2, 1)]))
+        (build [(0, 3), (3, 2), (2, 1)])
+    graph_equal (f (5, 2) xgraph)
+        (build [(0, 5), (4, 5), (5, 2), (2, 3), (2, 1)])
 
-test_remove_edge = do
-    let f = Util.Graph.remove_edge
-    graph_equal (f (0, 1) (build [])) (build [])
-    graph_equal (f (0, 1) (build [(0, 2)])) (build [(0, 2)])
-    graph_equal (f (0, 1) (build [(0, 1)])) (build [])
-    graph_equal (f (0, 1) (build [(0, 1), (0, 2)])) (build [(0, 2)])
+    -- finally a place I could use quickcheck...
+    let idempotent edge graph =
+            graph_equal (f edge (f edge graph)) (f edge graph)
+    idempotent (5, 2) xgraph
+    idempotent (1, 2) (build [(0, 1), (1, 3), (0, 2), (2, 4)])
+    idempotent (3, 2) (build [(0, 1), (1, 3), (0, 2), (2, 4)])
+
+test_add_edges = do
+    let f = Util.Graph.add_edges
+    graph_equal (f [(0, 1)] (build [])) (build [(0, 1)])
+    graph_equal (f [(1, 0)] (build [(0, 1)])) (build [(0, 1), (1, 0)])
+    graph_equal (f [(0, 1), (1, 0)] (build [])) (build [(0, 1), (1, 0)])
+
+test_remove_edges = do
+    let f = Util.Graph.remove_edges
+    graph_equal (f [(0, 1)] (build [])) (build [])
+    graph_equal (f [(0, 1)] (build [(0, 2)])) (build [(0, 2)])
+    graph_equal (f [(0, 1)] (build [(0, 1)])) (build [])
+    graph_equal (f [(0, 1)] (build [(0, 1), (0, 2)])) (build [(0, 2)])
+    graph_equal (f [(0, 1), (0, 2)] (build [(0, 1), (0, 2)])) (build [])
 
 test_map_vertices = do
     let f = Util.Graph.map_vertices
@@ -74,9 +90,10 @@ test_remove_vertex = do
     graph_equal (f 2 xgraph) (build [(0, 1), (0, 2), (3, 1), (3, 2)])
 
 graph_equal graph1 graph2
-    | e graph1 == e graph2 = success Nothing $ "graph == " ++ show graph1
+    | norm graph1 == norm graph2 = success Nothing $ "graph == " ++ show graph1
     | otherwise = failure Nothing $ "graph " ++ show graph1 ++ ":\n"
         ++ Util.Graph.draw graph1
         ++ "*** /= " ++ show graph2 ++ " ***\n" ++ Util.Graph.draw graph2
     where
-    e = filter (not . null . snd) . IArray.assocs
+    norm = map (\(p, cs) -> (p, List.sort cs)) . filter (not . null . snd)
+        . IArray.assocs

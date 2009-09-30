@@ -35,9 +35,23 @@ draw = Tree.drawForest . map (fmap show) . to_forest
 -- Return Nothing if adding an edge would create a cycle.
 toggle_edge :: Edge -> Graph -> Maybe Graph
 toggle_edge edge graph
-    | has_edge edge graph = Just (remove_edge edge graph)
+    | has_edge edge graph = Just (remove_edges [edge] graph)
     | would_make_cycle edge graph = Nothing
-    | otherwise = Just $ add_edge edge graph
+    | otherwise = Just $ add_edges [edge] graph
+
+-- | Splice @from@ into the graph above @to@.  That means both @from@ and @to@
+-- are detached from their parents, @from@ is relinked to @to@'s old parents,
+-- and @from@ is linked to @to@.
+--
+-- This operation should be idempotent.
+splice :: Edge -> Graph -> Graph
+splice (from, to) graph =
+    -- If I don't filter p/=from, a duplicate splice will cause a vertex to
+    -- loop back to itself.
+    add_edges ((from, to) : [(p, from) | p <- parents, p /= from]) $
+        remove_edges [(p, to) | p <- parents] graph
+    where
+    parents = [p | (p, cs) <- IArray.assocs graph, to `elem` cs]
 
 would_make_cycle :: Edge -> Graph -> Bool
 would_make_cycle (from, to) graph =
@@ -51,20 +65,24 @@ lonely_vertex :: Graph -> Vertex -> Bool
 lonely_vertex graph vertex =
     not (Array.in_bounds vertex graph) || null (graph!vertex)
 
-add_edge :: Edge -> Graph -> Graph
-add_edge (from, to) graph
-    | Array.in_bounds from graph = IArray.accum (flip (:)) graph [(from, to)]
-    | otherwise = IArray.accumArray (flip const) [] new_bounds
-        ((from, [to]) : IArray.assocs graph)
+add_edges :: [Edge] -> Graph -> Graph
+add_edges edges graph =
+    IArray.accumArray add [] new_bounds
+        (edges ++ [(p, c) | (p, cs) <- IArray.assocs graph, c <- cs])
     where
-    (lo, hi) = IArray.bounds graph
-    new_bounds = (min from (min to lo), max from (max to hi))
+    in_bounds = filter ((\p -> Array.in_bounds p graph) . fst) edges
+    (low, high) = IArray.bounds graph
+    flattened = [v | (p, c) <- edges, v <- [p, c]]
+    new_bounds = (minimum (low : flattened), maximum (high : flattened))
+    add cs c = if c `elem` cs then cs else c:cs
 
-remove_edge :: Edge -> Graph -> Graph
-remove_edge (from, to) graph
-    | Array.in_bounds from graph =
-        graph // [(from, List.delete to (graph!from))]
-    | otherwise = graph
+remove_edges :: [Edge] -> Graph -> Graph
+remove_edges edges graph =
+    graph // [(from, filter (`notElem` map snd groups) (graph!from))
+        | (from, groups) <- grouped]
+    where
+    in_bounds = filter ((\p -> Array.in_bounds p graph) . fst) edges
+    grouped = Seq.keyed_group_with fst in_bounds
 
 -- | Increment all vertices at and above, insert new empty vertex.
 insert_vertex :: Int -> Graph -> Graph

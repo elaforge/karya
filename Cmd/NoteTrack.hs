@@ -53,7 +53,11 @@ import qualified App.Config as Config
 
 -- | Indicate the pitch track of a note track.  If the Bool is True,
 -- the track doesn't exist and should be created at the given TrackNum.
-data PitchTrack = PitchTrack Bool Block.TrackNum deriving (Show, Eq)
+data PitchTrack =
+    -- | Create a pitch track with (note_tracknum, title, pitch_tracknum).
+    CreateTrack Block.TrackNum String Block.TrackNum
+    | ExistingTrack Block.TrackNum
+    deriving (Show, Eq)
 
 cmd_raw_edit :: Pitch.ScaleId -> Cmd.Cmd
 cmd_raw_edit scale_id msg = do
@@ -82,20 +86,25 @@ cmd_method_edit pitch_track msg = do
     return Cmd.Done
 
 get_pitch_track :: (Monad m) => PitchTrack -> Cmd.CmdT m Track.TrackId
-get_pitch_track (PitchTrack create tracknum) = do
+get_pitch_track pitch_track = do
     block_id <- Cmd.get_focused_block
-    if create
-        then create_pitch_track block_id tracknum
-        else Cmd.require_msg
+    case pitch_track of
+        CreateTrack note_tracknum title pitch_tracknum ->
+            create_pitch_track block_id note_tracknum title pitch_tracknum
+        ExistingTrack tracknum -> Cmd.require_msg
             ("get_pitch_track: invalid tracknum " ++ show tracknum)
             =<< State.event_track_at block_id tracknum
 
-create_pitch_track block_id tracknum = do
+-- | Create a pitch track for a note track.
+create_pitch_track :: (State.UiStateMonad m) => Block.BlockId
+    -> Block.TrackNum -- ^ tracknum of corresponding note track
+    -> String -- ^ created track has this title
+    -> Block.TrackNum -> m Track.TrackId
+create_pitch_track block_id note_tracknum title tracknum = do
     tid <- Create.track block_id tracknum
-    -- TODO if I really wanted to make this schema-independent, the title would
-    -- have to be passed in, but this is all pretty dependent on the default
-    -- schema anyway.
-    State.set_track_title tid "*"
+    -- Link note track underneath newly created pitch track.
+    State.splice_skeleton block_id (note_tracknum, tracknum)
+    State.set_track_title tid title
     return tid
 
 -- * implementation

@@ -39,18 +39,19 @@ test_cmd_raw_edit = do
         [(">i", [(0, 5, "a")])]
 
 test_cmd_val_edit = do
-    let f = NoteTrack.cmd_val_edit (NoteTrack.PitchTrack True 2) Twelve.scale_id
+    let create_track = NoteTrack.CreateTrack 1 "*new" 2
+    let f = NoteTrack.cmd_val_edit create_track Twelve.scale_id
         run track_specs cmd = extract $ run_sel track_specs cmd
         note = CmdTest.m_note_on 60 60 127
     -- create new track
     equal (run [(">i", [])] (f note))
-        [(">i", [(0, 10, "")]), ("*", [(0, 0, "4c")])]
+        [(">i", [(0, 10, "")]), ("*new", [(0, 0, "4c")])]
     equal (run [(">i", []), ("mod", [])] (f note))
-        [(">i", [(0, 10, "")]), ("*", [(0, 0, "4c")]), ("mod", [])]
+        [(">i", [(0, 10, "")]), ("*new", [(0, 0, "4c")]), ("mod", [])]
 
     -- modify existing track
     let f = NoteTrack.cmd_val_edit
-            (NoteTrack.PitchTrack False 2) Twelve.scale_id
+            (NoteTrack.ExistingTrack 2) Twelve.scale_id
         note_track = [(">i", [(0, 10, "")]), ("*", [(0, 0, "4d")])]
     equal (run note_track (f (mkkey Key.Backspace)))
         [(">i", []), ("*", [])]
@@ -58,7 +59,7 @@ test_cmd_val_edit = do
         [(">i", [(0, 10, "")]), ("*", [(0, 0, "4c")])]
 
 test_cmd_method_edit = do
-    let f = NoteTrack.cmd_method_edit (NoteTrack.PitchTrack False 2)
+    let f = NoteTrack.cmd_method_edit (NoteTrack.ExistingTrack 2)
         run track_specs cmd = extract $ run_sel track_specs cmd
         inst = (">i", [(0, 10, "")])
         note_track = [inst, ("*", [(0, 0, "4d")])]

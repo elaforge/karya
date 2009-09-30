@@ -39,6 +39,7 @@ import qualified Ui.Track as Track
 import qualified Midi.Midi as Midi
 
 import qualified Derive.Score as Score
+import qualified Perform.Pitch as Pitch
 import qualified Perform.Midi.Instrument as Instrument
 
 import qualified App.Config as Config
@@ -110,8 +111,8 @@ instance Binary SaveState where
             _ -> version_error "SaveState" v
 
 instance Binary State.State where
-    put (State.State a b c d e f g) = put_version 1
-        >> put a >> put b >> put c >> put d >> put e >> put f >> put g
+    put (State.State a b c d e f g h) = put_version 2
+        >> put a >> put b >> put c >> put d >> put e >> put f >> put g >> put h
     get = do
         v <- get_version
         case v of
@@ -124,7 +125,7 @@ instance Binary State.State where
                 rulers <- get :: Get (Map.Map Ruler.RulerId Ruler.Ruler)
                 midi_config <- get :: Get Instrument.Config
                 return $ State.State proj dir views blocks tracks rulers
-                    midi_config
+                    midi_config (Pitch.ScaleId Config.project_scale_id)
             2 -> do
                 proj <- get :: Get String
                 dir <- get :: Get String
@@ -133,11 +134,14 @@ instance Binary State.State where
                 tracks <- get :: Get (Map.Map Track.TrackId Track.Track)
                 rulers <- get :: Get (Map.Map Ruler.RulerId Ruler.Ruler)
                 midi_config <- get :: Get Instrument.Config
-                _scales <- get :: Get (Map.Map Score.Instrument String)
+                project_scale <- get :: Get Pitch.ScaleId
                 return $ State.State proj dir views blocks tracks rulers
-                    midi_config
-
+                    midi_config project_scale
             _ -> version_error "State.State" v
+
+instance Binary Pitch.ScaleId where
+    put (Pitch.ScaleId a) = put a
+    get = get >>= \a -> return (Pitch.ScaleId a)
 
 instance Binary Id.Id where
     put ident = put (Id.un_id ident)

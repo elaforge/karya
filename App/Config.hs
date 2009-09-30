@@ -45,7 +45,7 @@ instrument_db_cache = instrument_dir </> "inst.db"
 
 -- | Port to listen on for language requests.
 lang_port = Network.UnixSocket "seq_language"
-initialize_lang_port = File.ignore_enoent  $ Directory.removeFile "seq_language"
+initialize_lang_port = File.ignore_enoent $ Directory.removeFile "seq_language"
 
 -- | This string coming from the lang socket indicates that the message is
 -- complete and the server should process it and send a response.  It's
@@ -86,6 +86,10 @@ warning_color = Color.rgb 1 0.2 0.2
 abbreviation_color = Color.rgb 0 0 1
 
 -- * defaults
+
+-- | New project scale id.
+project_scale_id :: String
+project_scale_id = "twelve"
 
 -- | Controllers start out with this range.
 controller_pb_range :: Controller.PbRange

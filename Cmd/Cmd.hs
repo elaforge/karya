@@ -605,6 +605,7 @@ type SchemaDeriver d =
 -- | Information needed to decide what cmds should apply.
 data CmdContext = CmdContext {
     ctx_default_inst :: Maybe Score.Instrument
+    , ctx_project_scale :: Pitch.ScaleId
     , ctx_inst_addr :: Score.Instrument -> Maybe Instrument.Addr
     , ctx_lookup_midi :: MidiDb.LookupMidiInstrument
     , ctx_edit_mode :: EditMode

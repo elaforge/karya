@@ -1,4 +1,5 @@
 {-# LANGUAGE ViewPatterns #-}
+{-# OPTIONS_GHC -fno-warn-overlapping-patterns #-}
 {- | This module implements kbd entry by intercepting kbd and MIDI events and
     re-emitting them as InputNotes.  These then go to the track-specific edit
     cmds to enter notes and to "Cmd.MidiThru" which re-emits them as MIDI.
