@@ -56,7 +56,13 @@ cmds_with_note kbd_entry cmds msg = do
             return Cmd.Done -- I mapped a key, so I must be done
         Just Nothing -> return Cmd.Done
         -- I'm assuming this is only applied to those who want the InputNotes.
-        Nothing -> return Cmd.Continue
+        Nothing -> do
+            -- Non-mapped msgs should still fall through.
+            -- This is basically a little emulation of the responder cycle,
+            -- which makes me think I'm doing the wrong thing here.  Oh well.
+            status <- fmap Maybe.catMaybes $
+                forM cmds (\cmd -> Cmd.catch_abort (cmd msg))
+            return $ if Cmd.Done `elem` status then Cmd.Done else Cmd.Continue
 
 are_modifiers_down :: (Monad m) => Cmd.CmdT m Bool
 are_modifiers_down = fmap (not . Set.null) Keymap.mods_down

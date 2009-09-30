@@ -241,13 +241,9 @@ track_type track parents
 
 -- ** compile
 
--- | A schema is split into two parts: parse the tracks into a skeleton, and
--- then convert the skeleton into a deriver.  The intermediate data structure
--- allows me to compose schemas out of smaller parts, as well as inspect the
--- skeleton for e.g. instrument tracks named, or to create a view layout.
 default_schema_deriver :: SchemaDeriver Derive.EventDeriver
 default_schema_deriver block_id =
-    fmap compile (State.get_track_tree block_id)
+    fmap compile (State.get_unmuted_track_tree block_id)
 
 default_schema_signal_deriver :: SchemaDeriver Derive.SignalDeriver
 default_schema_signal_deriver block_id =

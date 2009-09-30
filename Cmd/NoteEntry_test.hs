@@ -29,39 +29,41 @@ test_key_to_input = do
 
 test_cmds_with_note = do
     let cmd_dummy msg = Log.warn (show msg) >> return Cmd.Done
-    let f kbd_entry msg = NoteEntry.cmds_with_note kbd_entry [cmd_dummy] msg
-        key = CmdTest.key_down ','
+    let key = CmdTest.key_down ','
         run cstate cmd = extract_logs $ CmdTest.run State.empty cstate cmd
+        input = Msg.InputNote
         -- key passed through to cmd_dummy
-        through msg = Right (Just Cmd.Done, [show (Msg.InputNote msg)])
+        through msg = Right (Just Cmd.Done, [show msg])
         continue = Right (Just Cmd.Continue, [])
+    let f kbd_entry msg = NoteEntry.cmds_with_note kbd_entry [cmd_dummy] msg
 
     -- test kbd entry
 
     -- abort when a modifier is down
     equal (run (with_key (CmdTest.make_key True Key.ControlL)) (f True key))
-        continue
+        (through key)
 
     let st = Cmd.empty_state
     equal (run st (f True key))
-        (through (CmdTest.note_on 62 62 100))
+        (through $ input (CmdTest.note_on 62 62 100))
     equal (run st (f True (CmdTest.key_up ',')))
-        (through (CmdTest.note_off 62 100))
+        (through $ input (CmdTest.note_off 62 100))
 
     equal (run (st { Cmd.state_kbd_entry_octave = 5 }) (f True key))
-        (through (CmdTest.note_on 74 74 100))
+        (through $ input (CmdTest.note_on 74 74 100))
     -- cmd not called, and further cmds skipped
     equal (run st (f True (CmdTest.key_down 'a')))
         (Right (Just Cmd.Done, []))
-    -- with kbd_entry off, keys abort
-    equal (run st (f False key)) continue
+    -- with kbd_entry off, keys don't get mapped
+    equal (run st (f False key))
+        (through key)
 
     -- test midi_entry (details tested in InputNote_test)
 
     equal (run st (f True (CmdTest.make_midi (Midi.NoteOn 25 20))))
-        (through (CmdTest.note_on 25 25 20))
+        (through $ input (CmdTest.note_on 25 25 20))
     equal (run st (f True (CmdTest.make_midi (Midi.NoteOff 25 20))))
-        (through (CmdTest.note_off 25 20))
+        (through $ input (CmdTest.note_off 25 20))
 
 with_key :: Msg.Msg -> Cmd.State
 with_key key =
