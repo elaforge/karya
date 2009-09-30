@@ -66,13 +66,12 @@ test_create_two_views = do
     state <- run_setup
     state <- io_human "view created, track title changes" $ run state $ do
         b2 <- create_block "b2" $ UiTest.mkblock ""
-            UiTest.default_block_config
             [(Block.RId t_ruler_id, 20), (Block.TId t_track1_id t_ruler_id, 30)]
         v2 <- create_view "v2" $
             Block.view b2
                 (UiTest.default_rect
                     { Types.rect_x = 300, Types.rect_y = 20 })
-                UiTest.default_zoom UiTest.default_view_config
+                UiTest.default_zoom
         State.set_track_title t_track1_id "hi there"
     return ()
 
@@ -340,11 +339,8 @@ setup_state = do
     ruler <- create_ruler "r1" (UiTest.mkruler 20 10)
     t1 <- create_track "b1.t1" (UiTest.empty_track "t1")
     b1 <- create_block "b1" $
-        UiTest.mkblock "hi b1" UiTest.default_block_config
-            [(Block.RId ruler, 20), (Block.TId t1 ruler, 30)]
-    create_view "v1"
-        (Block.view b1 UiTest.default_rect UiTest.default_zoom
-            UiTest.default_view_config)
+        UiTest.mkblock "hi b1" [(Block.RId ruler, 20), (Block.TId t1 ruler, 30)]
+    create_view "v1" (Block.view b1 UiTest.default_rect UiTest.default_zoom)
 
 create_view a b = State.create_view (mkid a) b
 create_block a b = State.create_block (mkid a) b

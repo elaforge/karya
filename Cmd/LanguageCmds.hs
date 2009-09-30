@@ -179,7 +179,7 @@ show_tracklike (Block.DId color) = return $ "Div " ++ show color
 create_block :: (State.UiStateMonad m) =>
     Id.Id -> String -> String -> m BlockId
 create_block block_id ruler_id schema_id = State.create_block block_id $
-    Block.block "" Config.block_config [track] (sid schema_id)
+    Block.block "" [track] (sid schema_id)
     where track = Block.block_track (ruler ruler_id) Config.ruler_width
 
 set_schema :: BlockId -> SchemaId -> Cmd.CmdL ()

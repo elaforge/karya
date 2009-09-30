@@ -74,8 +74,7 @@ convert_block (id_name, title, tracks) =
     State.exec_rethrow "convert block" State.empty $ do
         tracks <- mapM convert_track tracks
         State.create_block (Id.read_id id_name) $
-            Block.block title Config.block_config
-                (State.no_ruler_track:tracks) Config.schema
+            Block.block title (State.no_ruler_track:tracks) Config.schema
 
 convert_track :: (State.UiStateMonad m) =>
     Track -> m Block.BlockTrack

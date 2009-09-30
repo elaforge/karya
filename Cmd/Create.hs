@@ -78,8 +78,7 @@ block ruler_id = do
     ns <- State.get_project
     blocks <- fmap State.state_blocks State.get
     block_id <- require "block id" $ generate_block_id ns blocks
-    b <- State.create_block block_id $
-        Block.block "" Config.block_config [] Config.schema
+    b <- State.create_block block_id $ Block.block "" [] Config.schema
     State.insert_track b 0
         (Block.block_track (Block.RId ruler_id) Config.ruler_width)
     return b
@@ -90,8 +89,7 @@ named_block :: (State.UiStateMonad m) =>
     String -> RulerId -> m BlockId
 named_block name ruler_id = do
     ns <- State.get_project
-    b <- State.create_block (Id.id ns name) $
-        Block.block "" Config.block_config [] Config.schema
+    b <- State.create_block (Id.id ns name) $ Block.block "" [] Config.schema
     State.insert_track b 0
         (Block.block_track (Block.RId ruler_id) Config.ruler_width)
     return b
@@ -108,8 +106,7 @@ view block_id = do
     view_id <- require "view id" $ generate_view_id views block_id
     rect <- fmap (find_rect Config.view_size . map Block.view_rect . Map.elems
         . State.state_views) State.get
-    State.create_view view_id $
-        Block.view block_id rect Config.zoom Config.view_config
+    State.create_view view_id $ Block.view block_id rect Config.zoom
 
 block_view :: (State.UiStateMonad m) => RulerId -> m ViewId
 block_view ruler_id = block ruler_id >>= view

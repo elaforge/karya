@@ -17,6 +17,9 @@ import qualified Ui.Ruler as Ruler
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Track as Track
 
+import qualified App.Config as Config
+
+
 -- * block model
 
 data GenericBlock track = Block {
@@ -39,8 +42,8 @@ block_track_ids = track_ids_of . block_tracklike_ids
 block_ruler_ids :: Block -> [RulerId]
 block_ruler_ids = ruler_ids_of . block_tracklike_ids
 
-block title config tracks schema_id =
-    Block title config tracks Skeleton.empty schema_id
+block title tracks schema_id =
+    Block title default_config tracks Skeleton.empty schema_id
 
 -- | Per-block configuration.
 data Config = Config {
@@ -49,6 +52,11 @@ data Config = Config {
     , config_track_box :: (Color, Char)
     , config_sb_box :: (Color, Char)
     } deriving (Eq, Show, Read)
+
+default_config :: Config
+default_config = Config
+    Config.bconfig_selection_colors Config.bconfig_bg_color
+    Config.bconfig_track_box Config.bconfig_sb_box
 
 data BlockTrack = BlockTrack {
     tracklike_id :: TracklikeId
@@ -99,14 +107,9 @@ block_track_config btrack =
 
 flags_to_status :: [TrackFlag] -> (Maybe (Char, Color), Double)
 flags_to_status flags
-    | Solo `elem` flags = (Just ('S', solo_color), 1)
-    | Mute `elem` flags = (Just ('M', mute_color), 0.75)
+    | Solo `elem` flags = (Just ('S', Config.solo_color), 1)
+    | Mute `elem` flags = (Just ('M', Config.mute_color), 0.75)
     | otherwise = (Nothing, 1)
-    where
-    -- TODO can't be imported from App.Config because of circular imports
-    -- I should remove the Config->Block import
-    mute_color = Color.gray6
-    solo_color = Color.rgb 1 0.75 0.75
 
 modify_id :: BlockTrack -> (TracklikeId -> TracklikeId) -> BlockTrack
 modify_id track f = track { tracklike_id = f (tracklike_id track) }
@@ -190,10 +193,11 @@ data View = View {
 -- | Construct a View, using default values for most of its fields.
 -- Don't construct views using View directly since State.create_view overwrites
 -- view_tracks, and maybe more in the future.
-view block_id rect zoom config =
+view :: BlockId -> Types.Rect -> Types.Zoom -> View
+view block_id rect zoom =
     -- view_visible_track and view_visible_time are unknown, but will
     -- be filled in when the new view emits its initial resize msg.
-    View block_id rect 0 0 config Map.empty 0 zoom Map.empty []
+    View block_id rect 0 0 default_view_config Map.empty 0 zoom Map.empty []
 
 show_status :: View -> String
 show_status = Seq.join " | " . map (\(k, v) -> k ++ ": " ++ v)
@@ -225,6 +229,13 @@ data ViewConfig = ViewConfig {
     , vconfig_status_size :: Int
     } deriving (Eq, Ord, Show, Read)
 
+default_view_config :: ViewConfig
+default_view_config = ViewConfig
+    Config.vconfig_block_title_height
+    Config.vconfig_track_title_height
+    Config.vconfig_skel_height
+    Config.vconfig_sb_size
+    Config.vconfig_status_size
 
 -- This stuff belongs in BlockC.  However, Ui.State uses map_ids, and making
 -- State import BlockC makes practically everything import BlockC, which makes

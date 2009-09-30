@@ -1,9 +1,9 @@
 - hint refuses to compile when Cmd.NoteEntry emits a warning
 - Seq.keyed_group_with -> keyed_group_on
 - Cmd.BlockConfig -> Block?  or View -> ViewConfig
+- fix or remove logview_test
 CURRENT
   + insert new track skeleton splice
-  - reduce imports of App.Config so Ui.Block can use it
   + fix hint stuff
   - complete InputNote implementation for pitch entry
     - advance on NoteOff
@@ -37,7 +37,6 @@ MILESTONES
     - jack / rewrite
     - non-midi instruments
 
-- remove unqualified Types imports
 - update Cmd.GlobalKeymap comment
 
 - make sure pitch terminology is consistent:

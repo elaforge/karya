@@ -103,7 +103,7 @@ test_set_track_width = do
 
 test_set_model_config = do
     view <- create_empty_view
-    let config = UiTest.default_block_config
+    let config = Block.default_config
 
     -- block config
     io_human "track box turns red" $
@@ -189,7 +189,7 @@ event_track_2 = UiTest.mktrack ("2", [(16, 10, "ho"), (30, 32, "eyo")])
 create_empty_view = do
     let view_id = Types.ViewId (UiTest.mkid "default")
     send $ BlockC.create_view view_id "some title" UiTest.default_rect
-        UiTest.default_view_config UiTest.default_block_config
+        Block.default_view_config Block.default_config
     return view_id
 
 no_samples = Track.samples []

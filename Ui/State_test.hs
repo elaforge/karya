@@ -9,8 +9,6 @@ import qualified Ui.Block as Block
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 
-import qualified App.Config as Config
-
 
 test_verify = do
     let broken = simple_state
@@ -53,8 +51,8 @@ mkid = UiTest.mkid
 simple_state = snd $ UiTest.run State.empty $ do
     t0 <- State.create_track (mkid "t0") (UiTest.empty_track "tempo")
     ruler <- State.create_ruler (mkid "r1") (UiTest.ruler [])
-    b1 <- State.create_block (mkid "b1") $ UiTest.mkblock "hi b1"
-        Config.block_config [(Block.RId ruler, 20), (Block.TId t0 ruler, 40)]
+    b1 <- State.create_block (mkid "b1") $
+        UiTest.mkblock "hi b1" [(Block.RId ruler, 20), (Block.TId t0 ruler, 40)]
     _v1 <- State.create_view (mkid "v1") $ Block.view b1
-        UiTest.default_rect UiTest.default_zoom Config.view_config
+        UiTest.default_rect UiTest.default_zoom
     return ()

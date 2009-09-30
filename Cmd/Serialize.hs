@@ -191,7 +191,7 @@ instance Binary Block.Config where
     put _ = put ()
     get = do
         _ <- get :: Get ()
-        return Config.block_config
+        return Block.default_config
 
 instance Binary Skeleton.Skeleton where
     put (Skeleton.Skeleton a) = put a
@@ -292,14 +292,6 @@ instance Binary Block.ViewConfig where
     get = do
         v <- get_version
         case v of
-            1 -> do
-                block_title <- get :: Get Int
-                track_title <- get :: Get Int
-                sb_size <- get :: Get Int
-                status_size <- get :: Get Int
-                let skel_height = Block.vconfig_skel_height Config.view_config
-                return $ Block.ViewConfig block_title track_title skel_height
-                    sb_size status_size
             2 -> do
                 block_title <- get :: Get Int
                 track_title <- get :: Get Int

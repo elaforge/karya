@@ -9,7 +9,6 @@ import qualified Util.File as File
 
 import qualified Ui.Id as Id
 import qualified Ui.Color as Color
-import qualified Ui.Block as Block
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 import qualified Ui.UiMsg as UiMsg
@@ -85,6 +84,12 @@ play_color = Color.rgb 0 0.6 0
 warning_color = Color.rgb 1 0.2 0.2
 abbreviation_color = Color.rgb 0 0 1
 
+mute_color = Color.gray6
+solo_color = Color.rgb 1 0.75 0.75
+
+track_bg = Color.white
+ruler_bg = Color.rgb 1 0.85 0.5
+
 -- * defaults
 
 -- | New project scale id.
@@ -129,27 +134,20 @@ clip_block_name = "clip"
 
 make_selection_color = Color.alpha 0.3 . Color.lighten 0.8
 
--- ** colors
+-- * hardcoded configs
 
-track_bg = Color.white
-ruler_bg = Color.rgb 1 0.85 0.5
-muted_track_bg = Color.gray6
-solo_track_bg = Color.rgb 1 0.75 0.75
+bconfig_selection_colors =
+    [sel Color.blue, sel Color.green, sel Color.red, sel Color.yellow,
+        play_position_color]
+    where sel = make_selection_color
+bconfig_bg_color = Color.gray8
+bconfig_track_box = (box_color, ' ')
+bconfig_sb_box = (box_color, ' ')
 
-block_config = Block.Config
-    { Block.config_selection_colors =
-        let sel = make_selection_color in
-            [sel Color.blue, sel Color.green, sel Color.red, sel Color.yellow,
-                play_position_color]
-    , Block.config_bg_color = Color.gray8
-    , Block.config_track_box = (box_color, ' ')
-    , Block.config_sb_box = (box_color, ' ')
-    }
-
-view_config = Block.ViewConfig
-    { Block.vconfig_block_title_height = 20
-    , Block.vconfig_track_title_height = 20
-    , Block.vconfig_skel_height = 16
-    , Block.vconfig_sb_size = 12
-    , Block.vconfig_status_size = 16
-    }
+vconfig_block_title_height, vconfig_track_title_height, vconfig_skel_height,
+    vconfig_sb_size, vconfig_status_size :: Int
+vconfig_block_title_height = 20
+vconfig_track_title_height = 20
+vconfig_skel_height = 16
+vconfig_sb_size = 12
+vconfig_status_size = 16

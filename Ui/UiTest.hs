@@ -28,9 +28,6 @@ pause = putStr "? " >> IO.hFlush IO.stdout >> getLine >> return ()
 -- high, so a y of 44 is the minimum.
 default_rect = Types.Rect 10 50 200 200
 
-default_block_config = Config.block_config
-default_view_config = Config.view_config
-
 default_divider = Block.Divider Color.blue
 
 -- state
@@ -64,11 +61,10 @@ initial_state = do
         | (e, p) <- note_events]
     t2 <- State.create_track (mkid "b1.t2") (empty_track "velocity")
     State.insert_events t2 [(TrackPos 0, cont "1")]
-    b1 <- State.create_block (mkid "b1") $ mkblock "hi b1"
-        Config.block_config [(Block.RId ruler, 20), (Block.TId t0 overlay, 40),
+    b1 <- State.create_block (mkid "b1") $
+        mkblock "hi b1" [(Block.RId ruler, 20), (Block.TId t0 overlay, 40),
             (Block.TId t1 overlay, 40), (Block.TId t2 overlay, 40)]
-    State.create_view (mkid "v1")
-        (Block.view b1 default_rect default_zoom Config.view_config)
+    State.create_view (mkid "v1") (Block.view b1 default_rect default_zoom)
     return ()
 
 -- * mkstate
@@ -108,7 +104,7 @@ mkstate_id block_id tracks = do
 
     ruler <- State.create_ruler (mkid (block_name ++ ".r0")) default_ruler
     State.create_block (mkid block_name) $
-        mkblock "b1 title" default_block_config
+        mkblock "b1 title"
             ((Block.RId ruler, 20) : [(Block.TId tid ruler, 40) | tid <- tids])
     State.set_skeleton block_id =<< parse_skeleton block_id
     return tids
@@ -120,7 +116,6 @@ parse_skeleton block_id = do
 mkview :: (State.UiStateMonad m) => m ViewId
 mkview = State.create_view (Id.unpack_id default_view_id) $
     Block.view default_block_id default_rect default_zoom
-        default_view_config
 
 mkstate_view block_id tracks = do
     r <- mkstate block_id tracks
@@ -129,10 +124,9 @@ mkstate_view block_id tracks = do
 
 -- ** block
 
-mkblock :: String -> Block.Config -> [(Block.TracklikeId, Types.Width)]
-    -> Block.Block
-mkblock title config tracks = Block.block
-    title config (map (uncurry Block.block_track) tracks) Config.schema
+mkblock :: String -> [(Block.TracklikeId, Types.Width)] -> Block.Block
+mkblock title tracks = Block.block
+    title (map (uncurry Block.block_track) tracks) Config.schema
 
 -- ** track
 
