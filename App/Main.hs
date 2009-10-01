@@ -15,6 +15,7 @@ import System.FilePath ((</>))
 import qualified Network
 import qualified System.Environment
 import qualified System.IO as IO
+import qualified Text.Printf as Printf
 
 import qualified Util.Map as Map
 import qualified Util.Log as Log
@@ -79,11 +80,12 @@ load_static_config = do
         }
 
 iac n = "IAC Out " ++ show n
-tapco n = "Tapco Link MIDI USB Ver 2.2 Port " ++ show n
+tapco n = "Tapco " ++ show n
 mkmap mkdev pairs = Map.fromList [(mkdev k, mkdev v) | (k, v) <- pairs]
 
 write_device_map = mkmap Midi.WriteDevice
-    [ ("z1", tapco 1)
+    [ ("fm8", iac 1)
+    , ("z1", tapco 1)
     , ("vl1", tapco 2)
     , ("morpheus", tapco 2)
     , ("pc_2496", tapco 3)
@@ -97,6 +99,7 @@ read_device_map = mkmap Midi.ReadDevice
     , (tapco 4, "continuum")
     ]
 
+initialize :: (Network.Socket -> MidiImp.ReadChan -> IO ()) -> IO ()
 initialize f = do
     Log.initialize "seq.mach.log" "seq.log"
     MidiImp.initialize $ \midi_chan ->
@@ -169,6 +172,7 @@ main = initialize $ \lang_socket midi_chan -> do
 
     Ui.event_loop quit_request msg_chan
 
+{-
 midi_thru remap_rmsg midi_chan write_midi = forever $ do
     rmsg <- fmap remap_rmsg (STM.atomically (STM.readTChan midi_chan))
     let wmsgs = [Midi.WriteMessage dev Timestamp.immediately msg
@@ -178,6 +182,7 @@ midi_thru remap_rmsg midi_chan write_midi = forever $ do
 
 process_thru :: Midi.ReadMessage -> [(Midi.WriteDevice, Midi.Message)]
 process_thru rmsg = [(Midi.WriteDevice "fm8", Midi.rmsg_msg rmsg)]
+-}
 
 remap_read_message dev_map rmsg@(Midi.ReadMessage { Midi.rmsg_dev = dev }) =
     rmsg { Midi.rmsg_dev = Map.get dev dev dev_map }
@@ -195,15 +200,16 @@ responder_handler exc = do
 make_write_midi :: Map.Map Midi.WriteDevice Midi.WriteDevice
     -> MidiImp.WriteMap -> Midi.WriteMessage -> IO ()
 make_write_midi wdev_map write_map (Midi.WriteMessage wdev ts msg) = do
-    -- putStrLn $ "PLAY " ++ show (wdev, ts, msg)
     let real_wdev = Map.get wdev wdev wdev_map
+    Printf.printf "PLAY %s->%s: %s\n" (Midi.un_write_device wdev)
+        (Midi.un_write_device real_wdev) (show msg)
     case Map.lookup real_wdev write_map of
         Nothing -> Log.error $ show real_wdev ++ " not in devs: "
             ++ show (Map.keys write_map)
         Just dev_id -> do
             MidiImp.write_message dev_id ts msg
 
-
+print_devs :: MidiImp.ReadMap -> MidiImp.WriteMap -> IO ()
 print_devs rdev_map wdev_map = do
     putStrLn "read devs:"
     mapM_ print (Map.keys rdev_map)

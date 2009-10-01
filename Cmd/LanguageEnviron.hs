@@ -42,6 +42,7 @@ import qualified Cmd.TimeStep as TimeStep
 
 import qualified Derive.Score as Score
 import qualified Derive.Schema as Schema
+import qualified Perform.Pitch as Pitch
 import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Instrument as Instrument

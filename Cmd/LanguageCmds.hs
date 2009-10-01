@@ -401,6 +401,14 @@ dealloc_instrument inst = do
     State.set_midi_config $ config
         { Instrument.config_alloc = Map.delete inst alloc }
 
+-- | Deallocate the old allocation, and set it to the new one.  Meant for
+-- interactive use.
+realloc_instrument :: String -> String -> [Midi.Channel] -> Cmd.CmdL ()
+realloc_instrument inst_name wdev chans = do
+    let inst = Score.Instrument inst_name
+    dealloc_instrument inst
+    alloc_instrument inst [(Midi.WriteDevice wdev, c) | c <- chans]
+
 schema_instruments :: BlockId -> Cmd.CmdL [Score.Instrument]
 schema_instruments block_id = do
     titles <- fmap (map State.track_title) (State.get_track_info block_id)

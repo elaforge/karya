@@ -1,5 +1,4 @@
 - hint refuses to compile when Cmd.NoteEntry emits a warning
-- Seq.keyed_group_with -> keyed_group_on
 - Cmd.BlockConfig -> Block?  or View -> ViewConfig
 - fix or remove logview_test
 CURRENT
@@ -94,7 +93,7 @@ bugs:
   * ^C should quit instead of killing ui thread and hanging
   - cmd-q should also quit entirely not just close the windows
   * backspace to delete events doesn't work
-  - note on track keeps adding new tracks
+  * note on track keeps adding new tracks
   - new track after scale change doesn't play scale properly
   - mute doesn't trigger rederive
   - tracks with different tempos play correctly, but playback follows tempo

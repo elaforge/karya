@@ -125,6 +125,9 @@ parse_pitch_event scale _ event = do
 parse_note :: (Monad m) => Pitch.Scale -> Pitch.Note
     -> Derive.DeriveT m Signal.Val
 parse_note scale note = case Pitch.scale_note_to_nn scale note of
+    -- TODO If I made the signal go to an invalid value here here it would
+    -- prevent the notes from playing, which seems desirable, otherwise they
+    -- just keep playing the last parseable pitch.
     Nothing -> Derive.throw $
         show note ++ " not in " ++ show (Pitch.scale_id scale)
     Just (Pitch.NoteNumber nn) -> return nn
