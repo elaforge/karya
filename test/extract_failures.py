@@ -2,9 +2,15 @@
 
 import sys
 
+def any(iter):
+    for v in iter:
+        if v:
+            return True
+    return False
+
 failure = []
 for line in sys.stdin:
-    if line.startswith('++-> ') or line.startswith('__-> '):
+    if any(line.startswith(pre) for pre in ['++-> ', '__-> ', '----']):
         if failure:
             sys.stdout.write(''.join(failure) + '\n')
             failure = []

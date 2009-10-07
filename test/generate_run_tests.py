@@ -46,6 +46,7 @@ def get_defs(lines):
     if not lines:
         return []
     i, line = lines[0]
+    i += 1 # enumerate starts from 0
     m = re.match(r'^test_[a-zA-Z0-9_]+ \=', line)
     if m:
         body, rest = span(
@@ -109,6 +110,8 @@ import qualified Data.Maybe as Maybe
 import qualified Data.IORef as IORef
 import qualified System.Environment
 import qualified System.Console.GetOpt as GetOpt
+
+import qualified Util.Seq as Seq
 import qualified Util.Test as Test
 
 %(imports)s
@@ -164,10 +167,10 @@ matching_tests prefixes =
 run_test test = do
     putStrLn $ "---------- run test "
         ++ test_file test ++ ": " ++ test_name test
+    let name = last (Seq.split "." (test_name test))
     maybe id id (test_initialize test) $
         Test.catch_srcpos
-            (Just (test_file test, Just "run_test", test_line test))
-            (test_test test)
+            (Just (test_file test, Just name, test_line test)) (test_test test)
 '''
 
 
