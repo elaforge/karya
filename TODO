@@ -4,11 +4,6 @@
 CURRENT
   + insert new track skeleton splice
   + fix hint stuff
-  - complete InputNote implementation for pitch entry
-    - advance on NoteOff
-    - continuous adjustment by keeping track of NoteId
-      suspend automatic derivation while there's a note down?  use Cmd.Mod
-      instead of the note_id map since it should be more reliable.
 
   - TODO / haddock sweep
   - sample reyong
@@ -94,9 +89,10 @@ bugs:
   - cmd-q should also quit entirely not just close the windows
   * backspace to delete events doesn't work
   * note on track keeps adding new tracks
-  - new track after scale change doesn't play scale properly
-  - mute doesn't trigger rederive
+  * rederive should be triggered by: track title change, skel change, track
+    flags change
   - tracks with different tempos play correctly, but playback follows tempo
+  - unparsed notes are played instead of dropped
 
 performance:
   - random little hangs are annoying.  figure out what's going on.  GC?
@@ -244,6 +240,8 @@ Derive:
     - alternate scales
     - relative pitches, e.g. +5
   NoteTrack note
+    - record velocity if there is a velocity track
+    - chord input, if there are multiple note tracks for this inst
   ControlTrack control
     - relative controller tracks, combined with an operator, so e.g. "+, *scale"
       adds to the pitch track, and "*, volume" multiplies with the volume track
@@ -254,6 +252,8 @@ Derive:
       something like: a5- g2e1 b5-
       or "a5- ;; i ;; 2e, b5-", much better!
 
+  - suspend automatic derivation while there's a note down?  use Cmd.Mod
+    instead of the note_id map since it should be more reliable.
   - block derivation memoization / caching
   - set instrument within note track, controller within control track
   - separate instrument track, as a kind of controller track

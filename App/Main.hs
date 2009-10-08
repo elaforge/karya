@@ -218,7 +218,7 @@ print_devs rdev_map wdev_map = do
 
 setup_cmd :: [String] -> Cmd.CmdIO
 setup_cmd _args = do
-    Save.cmd_load "save/blank"
+    Save.cmd_load "save/default"
     State.set_project "untitled"
     return Cmd.Done
 

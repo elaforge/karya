@@ -63,7 +63,7 @@ data State = State {
     , state_project_dir :: String
     , state_views :: Map.Map ViewId Block.View
     , state_blocks :: Map.Map BlockId Block.Block
-    -- Track data also gets a symbol table.  This is so that I can
+    -- | Track data also gets a symbol table.  This is so that I can
     -- efficiently compare a track for identity, and also so I can
     -- change it here and all of its occurrances change.
     , state_tracks :: Map.Map TrackId Track.Track
@@ -77,8 +77,18 @@ data State = State {
     } deriving (Read, Show, Generics.Typeable)
 
 -- TODO "initial_state" would be more consistent
-empty = State "untitled" "save" Map.empty Map.empty Map.empty ruler_map
-    (Instrument.config [] Nothing) (Pitch.ScaleId Config.project_scale_id)
+empty :: State
+empty = State {
+    state_project = "untitled"
+    , state_project_dir = "save"
+    , state_views = Map.empty
+    , state_blocks = Map.empty
+    , state_tracks = Map.empty
+    , state_rulers = ruler_map
+
+    , state_midi_config = Instrument.config [] Nothing
+    , state_project_scale = Pitch.ScaleId Config.project_scale_id
+    }
     where ruler_map = Map.fromList [(no_ruler, Ruler.no_ruler)]
 
 -- | Since all TracklikeIds must have a ruler, all States have a special empty
@@ -1011,24 +1021,26 @@ get_tracks_of block_id = do
 blocks_with_track :: (UiStateMonad m) =>
     TrackId -> m [(BlockId, [(TrackNum, Block.TracklikeId)])]
 blocks_with_track track_id =
-    find_tracks ((== Just track_id) . Block.track_id_of)
+    find_tracks_m ((== Just track_id) . Block.track_id_of)
 
 -- | Just like 'blocks_with_track' except for ruler_id.
 blocks_with_ruler :: (UiStateMonad m) =>
     RulerId -> m [(BlockId, [(TrackNum, Block.TracklikeId)])]
 blocks_with_ruler ruler_id =
-    find_tracks ((== Just ruler_id) . Block.ruler_id_of)
+    find_tracks_m ((== Just ruler_id) . Block.ruler_id_of)
 
-find_tracks :: (UiStateMonad m) => (Block.TracklikeId -> Bool)
+find_tracks_m :: (UiStateMonad m) => (Block.TracklikeId -> Bool)
     -> m [(BlockId, [(TrackNum, Block.TracklikeId)])]
-find_tracks f = do
-    st <- get
-    let all_tracks block = Seq.enumerate (Block.block_tracks block)
-    let get_tracks block = [(tracknum, Block.tracklike_id track)
-            | (tracknum, track) <- all_tracks block
-            , f (Block.tracklike_id track)]
-    return [(block_id, get_tracks block)
-        | (block_id, block) <- Map.assocs (state_blocks st)]
+find_tracks_m f = fmap (find_tracks f . state_blocks) get
+
+find_tracks :: (Block.TracklikeId -> Bool) -> Map.Map BlockId Block.Block
+    -> [(BlockId, [(TrackNum, Block.TracklikeId)])]
+find_tracks f blocks = [(bid, get_tracks b) | (bid, b) <- Map.assocs blocks]
+    where
+    all_tracks block = Seq.enumerate (Block.block_tracks block)
+    get_tracks block =
+        [ (tracknum, Block.tracklike_id track)
+        | (tracknum, track) <- all_tracks block, f (Block.tracklike_id track)]
 
 -- * util
 

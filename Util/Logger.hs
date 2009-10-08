@@ -15,6 +15,12 @@ run m = do
     (val, msgs) <- Writer.runWriterT m
     return (val, DList.toList msgs)
 
+exec :: (Monad m) => LoggerT w m a -> m [w]
+exec m = return . snd =<< run m
+
+eval :: (Monad m) => LoggerT w m a -> m a
+eval m = return . fst =<< run m
+
 record :: (Writer.MonadWriter (DList.DList w) m) => w -> m ()
 record = Writer.tell . DList.singleton
 

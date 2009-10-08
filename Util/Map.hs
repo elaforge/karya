@@ -4,6 +4,7 @@ import Data.Function
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Set as Set
 
 
 get :: (Ord k) => a -> k -> Map.Map k a -> a
@@ -56,6 +57,12 @@ unique assocs = (Map.fromList pairs, concat rest)
 zip_intersection :: (Ord k) => Map.Map k v1 -> Map.Map k v2 -> [(k, v1, v2)]
 zip_intersection map1 map2 =
     [(k, v1, v2) | (k, v1) <- Map.assocs map1, Just v2 <- [Map.lookup k map2]]
+    -- I could implement with 'pairs', but it would be less efficient.
+
+-- | Pair up elements from each map with equal keys.
+pairs :: (Ord k) => Map.Map k v1 -> Map.Map k v2 -> [(k, Maybe v1, Maybe v2)]
+pairs map1 map2 = map (\k -> (k, Map.lookup k map1, Map.lookup k map2))
+    (Set.toList (Set.union (Map.keysSet map1) (Map.keysSet map2)))
 
 -- | Like Map.union, but also return a map of rejected duplicate keys from the
 -- map on the right.

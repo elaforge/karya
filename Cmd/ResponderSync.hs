@@ -45,7 +45,9 @@ import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
 import Ui
+import qualified Ui.Block as Block
 import qualified Ui.Diff as Diff
+import qualified Ui.State as State
 import qualified Ui.State as State
 import qualified Ui.Sync as Sync
 import qualified Ui.Track as Track
@@ -94,7 +96,7 @@ sync ui_from ui_to cmd_state cmd_updates = do
 
     let updates = diff_updates ++ cmd_updates
     -- Kick off the background derivation threads.
-    cmd_state <- run_derive ui_to cmd_state updates
+    cmd_state <- run_derive ui_from ui_to cmd_state updates
     return (updates, ui_to, cmd_state)
 
 -- | This should be run before every sync, since if errors get to sync they'll
@@ -102,7 +104,7 @@ sync ui_from ui_to cmd_state cmd_updates = do
 -- args should be protected by ASSERTs).
 --
 -- If there was any need, Cmd.State verification could go here too.
--- verify_state :: (Monad m) => Cmd.CmdT m ()
+verify_state :: State.State -> IO State.State
 verify_state state = do
     let (res, logs) = State.verify state
     mapM_ Log.write logs
@@ -113,20 +115,21 @@ verify_state state = do
 
 -- * derive events
 
-run_derive :: State.State -> Cmd.State -> [Update.Update] -> IO Cmd.State
-run_derive ui_state cmd_state updates = do
+run_derive :: State.State -> State.State -> Cmd.State -> [Update.Update]
+    -> IO Cmd.State
+run_derive ui_from ui_to cmd_state updates = do
     (cmd_state, _, logs, result) <- Cmd.run_io
-        ui_state cmd_state (derive_events updates >> return Cmd.Done)
+        ui_to cmd_state (derive_events ui_from ui_to updates >> return Cmd.Done)
     mapM_ Log.write logs
     case result of
         Left err -> Log.error $ "ui error deriving: " ++ show err
         _ -> return ()
     return cmd_state
 
-derive_events :: [Update.Update] -> Cmd.CmdT IO ()
-derive_events updates = do
+derive_events :: State.State -> State.State -> [Update.Update] -> Cmd.CmdT IO ()
+derive_events ui_from ui_to updates = do
     old_threads <- fmap Cmd.state_derive_threads Cmd.get_state
-    block_ids <- fmap Seq.unique (updated_blocks updates)
+    let block_ids = dirty_blocks ui_from ui_to updates
     -- In case they aren't done, their work is about to be obsolete.
     Trans.liftIO $ mapM_ Concurrent.killThread $
         Maybe.catMaybes (map (flip Map.lookup old_threads) block_ids)
@@ -145,11 +148,19 @@ background_derive block_id = do
     Trans.liftIO $ Thread.start_thread ("derive " ++ show block_id) $
         evaluate_performance block_id perf
 
-updated_blocks :: (State.UiStateMonad m) => [Update.Update] -> m [BlockId]
-updated_blocks updates = do
-    let track_ids = Maybe.catMaybes (map Update.events_changed updates)
-    block_info <- mapM State.blocks_with_track track_ids
-    return $ map fst (concat block_info)
+-- | Figure out which blocks should be re-derived.
+dirty_blocks :: State.State -> State.State -> [Update.Update] -> [BlockId]
+dirty_blocks ui_from ui_to updates = Seq.unique (track_block_ids ++ block_ids)
+    where
+    block_ids = Maybe.catMaybes (map Update.block_changed updates)
+    track_block_ids = concatMap blocks_of track_ids
+    -- When track title changes come from the UI they aren't emitted as
+    -- Updates, but they should still trigger a re-derive.
+    track_ids = Maybe.catMaybes $
+        map Update.track_changed (Diff.track_diff ui_from ui_to ++ updates)
+    blocks_of tid = map fst $ State.find_tracks
+        ((== Just tid) . Block.track_id_of) (State.state_blocks ui_to)
+
 
 evaluate_performance :: BlockId -> Cmd.Performance -> IO ()
 evaluate_performance block_id perf = do

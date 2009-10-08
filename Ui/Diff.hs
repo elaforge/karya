@@ -8,11 +8,11 @@ module Ui.Diff where
 import Control.Monad
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Identity as Identity
-import qualified Control.Monad.Writer as Writer
 import qualified Data.Map as Map
 import qualified Data.List as List
 
 import qualified Util.Seq as Seq
+import qualified Util.Logger as Logger
 import qualified Util.Map as Map
 
 import Ui
@@ -24,15 +24,16 @@ import qualified Ui.Update as Update
 
 type DiffError = String
 
-type DiffM a = Writer.WriterT [Update.Update]
+type DiffM a = Logger.LoggerT Update.Update
     (Error.ErrorT DiffError Identity.Identity) a
 
 throw :: String -> DiffM a
 throw = Error.throwError
-change :: Monad m => [Update.Update] -> Writer.WriterT [Update.Update] m ()
-change = Writer.tell
+change :: [Update.Update] -> DiffM ()
+change = Logger.record_list
 
-run = Identity.runIdentity . Error.runErrorT . Writer.execWriterT
+run :: DiffM () -> Either DiffError [Update.Update]
+run = Identity.runIdentity . Error.runErrorT . Logger.exec
 
 -- | Emit a list of the necessary 'Update's to turn @st1@ into @st2@.
 diff :: State.State -> State.State -> Either DiffError [Update.Update]
@@ -54,6 +55,10 @@ diff st1 st2 = fmap (munge_updates st2) $ run $ do
     mapM_ (uncurry3 diff_ruler)
         (Map.zip_intersection (State.state_rulers st1) (State.state_rulers st2))
 
+-- | Find only the TrackUpdates between two states.
+track_diff :: State.State -> State.State -> [Update.Update]
+track_diff old new = either (const []) id $ run $ mapM_ (uncurry3 diff_track)
+    (Map.zip_intersection (State.state_tracks old) (State.state_tracks new))
 
 -- | This is a nasty little case that falls out of how I'm doing diffs:
 -- First the view diff runs, which detects changed track widths.
@@ -137,7 +142,7 @@ diff_view st1 st2 view_id view1 view2 = do
     let Just colors1 = view_selection_colors st1 view1
         Just colors2 = view_selection_colors st2 view2
     mapM_ (uncurry3 (diff_selection view_update colors1 colors2))
-        (pair_maps (Block.view_selections view1) (Block.view_selections view2))
+        (Map.pairs (Block.view_selections view1) (Block.view_selections view2))
 
 view_selection_colors state view = do
     block <- Map.lookup (Block.view_block view) (State.state_blocks state)
@@ -217,10 +222,6 @@ uncurry3 f (a, b, c) = f a b c
 
 unequal_on :: (Eq eq) => (a -> eq) -> a -> a -> Bool
 unequal_on key a b = key a /= key b
-
-pair_maps :: (Ord k) => Map.Map k v -> Map.Map k v -> [(k, Maybe v, Maybe v)]
-pair_maps map1 map2 = map (\k -> (k, Map.lookup k map1, Map.lookup k map2))
-    (Map.keys (Map.union map1 map2))
 
 -- | Pair @a@ elements up with @b@ elements.  If they are equal according to
 -- @eq@, they'll both be Just in the result.  If an @a@ is deleted going from

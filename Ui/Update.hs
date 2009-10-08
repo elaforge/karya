@@ -67,14 +67,18 @@ is_view_update update = case update of
         _ -> False
     _ -> False
 
-events_changed :: Update -> Maybe TrackId
-events_changed (TrackUpdate track_id update) = case update of
+track_changed :: Update -> Maybe TrackId
+track_changed (TrackUpdate track_id update) = case update of
     TrackEvents _ _ -> Just track_id
     TrackAllEvents -> Just track_id
     -- It could have changed the interpretation of the events.
     TrackTitle _ -> Just track_id
     _ -> Nothing
-events_changed _ = Nothing
+track_changed _ = Nothing
+
+block_changed :: Update -> Maybe BlockId
+block_changed (BlockUpdate block_id _) = Just block_id
+block_changed _ = Nothing
 
 -- | Some Updates have to happen before others.
 sort :: [Update] -> [Update]
