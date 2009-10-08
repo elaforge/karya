@@ -62,8 +62,7 @@ do_updates block_samples updates = do
 -- This is because it happens asynchronously and would be noisy and inefficient
 -- to work into the responder loop, and isn't part of the usual state that
 -- should be saved anyway.
-set_play_position :: [(ViewId, [(Types.TrackNum, Maybe TrackPos)])]
-    -> IO ()
+set_play_position :: [(ViewId, [(TrackNum, Maybe TrackPos)])] -> IO ()
 set_play_position block_sels = Ui.send_action $ sequence_
     [ BlockC.set_track_selection view_id
         Config.play_position_selnum tracknum (sel_at pos)

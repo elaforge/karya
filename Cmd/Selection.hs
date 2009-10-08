@@ -55,7 +55,7 @@ cmd_advance_insert =
 -- If @extend@ is true, extend the current selection instead of setting a new
 -- selection.
 cmd_shift_selection :: (Monad m) =>
-    Types.SelNum -> Types.TrackNum -> Bool -> Cmd.CmdT m ()
+    Types.SelNum -> TrackNum -> Bool -> Cmd.CmdT m ()
 cmd_shift_selection selnum nshift extend = do
     view_id <- Cmd.get_focused_view
     block <- State.block_of_view view_id
@@ -101,7 +101,7 @@ cmd_snap_selection btn selnum msg = do
 
 -- | Get the dragged range, or abort if this isn't a drag Msg.
 mouse_drag :: (Monad m) => Int -> Msg.Msg
-    -> Cmd.CmdT m (Types.TrackNum, TrackPos, Types.TrackNum, TrackPos)
+    -> Cmd.CmdT m (TrackNum, TrackPos, TrackNum, TrackPos)
 mouse_drag btn msg = do
     (mod, (mouse_tracknum, mouse_pos)) <- Cmd.require (mouse_mod msg)
     msg_btn <- Cmd.require (Cmd.mouse_mod_btn mod)
@@ -214,7 +214,7 @@ selection_status sel = Types.pretty_pos start
 
 -- ** mouse
 
-mouse_mod :: Msg.Msg -> Maybe (Cmd.Modifier, (Types.TrackNum, TrackPos))
+mouse_mod :: Msg.Msg -> Maybe (Cmd.Modifier, (TrackNum, TrackPos))
 mouse_mod msg = do
     mouse <- Msg.mouse msg
     btn <- case UiMsg.mouse_state mouse of
@@ -227,8 +227,7 @@ mouse_mod msg = do
 
 -- | Shift the selection to the right or left, clipping it if it hits the edges
 -- of the displayed tracks.
-shift_selection :: Types.TrackNum -> Types.TrackNum -> Types.Selection
-    -> Types.Selection
+shift_selection :: TrackNum -> TrackNum -> Types.Selection -> Types.Selection
 shift_selection nshift ntracks sel =
     Types.sel_modify_tracks (between 0 (ntracks-1) . (+nshift)) sel
 
@@ -237,7 +236,7 @@ between low high n = min high (max low n)
 
 -- * util
 
-step_from :: (Monad m) => Types.TrackNum -> TrackPos -> TimeStep.TimeDirection
+step_from :: (Monad m) => TrackNum -> TrackPos -> TimeStep.TimeDirection
     -> Cmd.CmdT m TrackPos
 step_from tracknum pos direction = do
     block_id <- Cmd.get_focused_block
@@ -255,7 +254,7 @@ step_from tracknum pos direction = do
 -- | Get the ruler that applies to the given track.  Search left for the
 -- closest ruler that has all the given marklist names.  This includes ruler
 -- tracks and the rulers of event tracks.
-relevant_ruler :: Block.Block -> Types.TrackNum -> Maybe RulerId
+relevant_ruler :: Block.Block -> TrackNum -> Maybe RulerId
 relevant_ruler block tracknum = Seq.at (Block.ruler_ids_of in_order) 0
     where
     in_order = map (Block.tracklike_id . snd) $ dropWhile ((/=tracknum) . fst) $
@@ -263,27 +262,21 @@ relevant_ruler block tracknum = Seq.at (Block.ruler_ids_of in_order) 0
 
 
 -- I return a whole bunch of stuff and let the caller decide which it wants.
-type SelInfo = (BlockId, Types.TrackNum, TrackId, TrackPos)
+type SelInfo = (BlockId, TrackNum, TrackId, TrackPos)
 
 -- | Get the "insert position", which is the upper left corner of the insert
 -- selection.  Abort if it's not an event track.
 --
 -- I return a whole bunch of stuff and let the caller decide which it wants.
-get_insert :: (Monad m) =>
-    Cmd.CmdT m (BlockId, Types.TrackNum, TrackId, TrackPos)
+get_insert :: (Monad m) => Cmd.CmdT m (BlockId, TrackNum, TrackId, TrackPos)
 get_insert = do
     (block_id, tracknum, pos) <- get_insert_any
     track_id <- Cmd.require =<< State.event_track_at block_id tracknum
     return (block_id, tracknum, track_id, pos)
 
--- get_insert_tracknum :: (Monad m) => Cmd.CmdT m Types.TrackNum
--- get_insert_tracknum = do
---     (_, tracknum, _, _) <- get_insert
---     return tracknum
-
 -- | Return the leftmost tracknum and trackpos, even if it's not an event
 -- track.
-get_insert_any :: (Monad m) => Cmd.CmdT m (BlockId, Types.TrackNum, TrackPos)
+get_insert_any :: (Monad m) => Cmd.CmdT m (BlockId, TrackNum, TrackPos)
 get_insert_any = do
     (view_id, sel) <- get_selection Config.insert_selnum
     block_id <- State.block_id_of_view view_id

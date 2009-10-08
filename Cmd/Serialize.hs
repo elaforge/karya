@@ -207,7 +207,7 @@ instance Binary Block.BlockTrack where
                 id <- get :: Get Block.TracklikeId
                 width <- get :: Get Types.Width
                 _ <- get :: Get Bool
-                _ <- get :: Get (Maybe Types.TrackNum)
+                _ <- get :: Get (Maybe TrackNum)
                 _ <- get :: Get Bool
                 _ <- get :: Get Bool
                 return $ Block.BlockTrack id width [] []
@@ -307,7 +307,7 @@ instance Binary Types.Zoom where
     put (Types.Zoom a b) = put a >> put b
     get = get >>= \a -> get >>= \b -> return (zoom a b)
 
-selection = Types.Selection :: Types.TrackNum -> TrackPos -> Types.TrackNum
+selection = Types.Selection :: TrackNum -> TrackPos -> TrackNum
     -> TrackPos -> Types.Selection
 instance Binary Types.Selection where
     put (Types.Selection a b c d) = put a >> put b >> put c >> put d

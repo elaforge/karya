@@ -413,8 +413,7 @@ set_view_config view_id config =
     modify_view view_id (\view -> view { Block.view_config = config })
 
 -- | Update @tracknum@ of @view_id@ to have width @width@.
-set_track_width :: (UiStateMonad m) =>
-    ViewId -> Types.TrackNum -> Types.Width -> m ()
+set_track_width :: (UiStateMonad m) => ViewId -> TrackNum -> Types.Width -> m ()
 set_track_width view_id tracknum width = do
     view <- get_view view_id
     -- Functional update still sucks.  An imperative language would have:
@@ -552,7 +551,7 @@ set_skeleton block_id skel =
 -- created, refuse to add the edge and return False.  The edge is in (parent,
 -- child) order.
 toggle_skeleton_edge :: (UiStateMonad m) => BlockId
-    -> (Types.TrackNum, Types.TrackNum) -> m Bool
+    -> (TrackNum, TrackNum) -> m Bool
 toggle_skeleton_edge block_id edge = do
     block <- get_block block_id
     let skel = Block.block_skeleton block
@@ -566,8 +565,7 @@ toggle_skeleton_edge block_id edge = do
 -- be unlinked from its parent and relinked to the given parent, and the given
 -- parent will be linked to the old child's parent.
 -- This is not a toggle, so it should be idempotent.
-splice_skeleton :: (UiStateMonad m) => BlockId
-    -> (Types.TrackNum, Types.TrackNum) -> m ()
+splice_skeleton :: (UiStateMonad m) => BlockId -> (TrackNum, TrackNum) -> m ()
 splice_skeleton block_id edge = do
     block <- get_block block_id
     let skel = Block.block_skeleton block
@@ -583,7 +581,7 @@ type TrackTree = Tree.Forest TrackInfo
 data TrackInfo = TrackInfo {
     track_title :: String
     , track_id :: TrackId
-    , track_tracknum :: Types.TrackNum
+    , track_tracknum :: TrackNum
     } deriving (Show)
 
 get_track_info :: (UiStateMonad m) => BlockId -> m [TrackInfo]
@@ -615,7 +613,7 @@ get_unmuted_track_tree block_id = do
     block <- get_block block_id
     return $ filter_tracknums (muted_tracknums block tree) tree
 
-muted_tracknums :: Block.Block -> TrackTree -> [Types.TrackNum]
+muted_tracknums :: Block.Block -> TrackTree -> [TrackNum]
 muted_tracknums block tree
     | null solo = mute
     | otherwise = map fst tracks List.\\ soloed
@@ -628,7 +626,7 @@ muted_tracknums block tree
         [ track_tracknum t : map track_tracknum (ps ++ cs)
         | (t, ps, cs) <- Tree.paths tree, track_tracknum t `elem` solo ]
 
-filter_tracknums :: [Types.TrackNum] -> TrackTree -> TrackTree
+filter_tracknums :: [TrackNum] -> TrackTree -> TrackTree
 filter_tracknums muted forest = concatMap f forest
     where
     f (Tree.Node info cs)
@@ -637,14 +635,14 @@ filter_tracknums muted forest = concatMap f forest
 
 
 _tracks_of :: Block.Block -> Map.Map TrackId Track.Track
-    -> [(Types.TrackNum, TrackId, Track.Track)]
+    -> [(TrackNum, TrackId, Track.Track)]
 _tracks_of block tracks = do
     (i, Block.TId tid _) <- Seq.enumerate (Block.block_tracklike_ids block)
     track <- maybe mzero (:[]) (Map.lookup tid tracks)
     return (i, tid, track)
 
-_resolve :: Map.Map Types.TrackNum TrackInfo -> Tree.Forest Types.TrackNum
-    -> (Tree.Forest TrackInfo, [Types.TrackNum])
+_resolve :: Map.Map TrackNum TrackInfo -> Tree.Forest TrackNum
+    -> (Tree.Forest TrackInfo, [TrackNum])
 _resolve tracknums trees = foldr cat_tree ([], []) $ map go trees
     where
     go (Tree.Node tracknum subs) = case Map.lookup tracknum tracknums of
@@ -658,7 +656,7 @@ _resolve tracknums trees = foldr cat_tree ([], []) $ map go trees
 
 -- ** tracks
 
-insert_track :: (UiStateMonad m) => BlockId -> Types.TrackNum
+insert_track :: (UiStateMonad m) => BlockId -> TrackNum
     -> Block.BlockTrack -> m ()
 insert_track block_id tracknum track = do
     block <- get_block block_id
@@ -675,7 +673,7 @@ insert_track block_id tracknum track = do
         }
     modify $ \st -> st { state_views = Map.union views' (state_views st) }
 
-remove_track :: (UiStateMonad m) => BlockId -> Types.TrackNum -> m ()
+remove_track :: (UiStateMonad m) => BlockId -> TrackNum -> m ()
 remove_track block_id tracknum = do
     block <- get_block block_id
     views <- get_views_of block_id
@@ -692,7 +690,7 @@ remove_track block_id tracknum = do
 -- This is inconsistent with 'insert_track' and 'remove_track' which clip to
 -- range, but is convenient in practice.
 -- TODO why?
-track_at :: (UiStateMonad m) => BlockId -> Types.TrackNum
+track_at :: (UiStateMonad m) => BlockId -> TrackNum
     -> m (Maybe Block.BlockTrack)
 track_at block_id tracknum = do
     block <- get_block block_id
@@ -700,8 +698,7 @@ track_at block_id tracknum = do
 
 -- | Convenience function like 'track_at', but get the track_id if it's an
 -- event track.
-event_track_at :: (UiStateMonad m) =>
-    BlockId -> Types.TrackNum -> m (Maybe TrackId)
+event_track_at :: (UiStateMonad m) => BlockId -> TrackNum -> m (Maybe TrackId)
 event_track_at block_id tracknum = do
     maybe_track <- track_at block_id tracknum
     return $ do
@@ -710,14 +707,14 @@ event_track_at block_id tracknum = do
 
 -- | Like 'event_track_at' but throws if it's not there.
 get_event_track_at :: (UiStateMonad m) =>
-    String -> BlockId -> Types.TrackNum -> m TrackId
+    String -> BlockId -> TrackNum -> m TrackId
 get_event_track_at caller block_id tracknum =
     maybe (throw msg) return =<< event_track_at block_id tracknum
     where
     msg = caller ++ ": tracknum " ++ show tracknum ++ " not in "
         ++ show block_id
 
-tracks :: (UiStateMonad m) => BlockId -> m Types.TrackNum
+tracks :: (UiStateMonad m) => BlockId -> m TrackNum
 tracks block_id = do
     block <- get_block block_id
     return $ length (Block.block_tracks block)
@@ -732,7 +729,7 @@ get_tracklike track = case track of
 
 -- *** block track
 
-toggle_track_flag :: (UiStateMonad m) => BlockId -> Types.TrackNum
+toggle_track_flag :: (UiStateMonad m) => BlockId -> TrackNum
     -> Block.TrackFlag -> m ()
 toggle_track_flag block_id tracknum flag =
     modify_block_track block_id tracknum $ \btrack ->
@@ -742,13 +739,13 @@ toggle_track_flag block_id tracknum flag =
         | flag `elem` flags = List.delete flag flags
         | otherwise = flag : flags
 
-set_merged_tracks :: (UiStateMonad m) => BlockId -> Types.TrackNum
+set_merged_tracks :: (UiStateMonad m) => BlockId -> TrackNum
     -> [TrackId] -> m ()
 set_merged_tracks block_id tracknum merged =
     modify_block_track block_id tracknum $ \btrack ->
         btrack { Block.track_merged = merged }
 
-modify_block_track :: (UiStateMonad m) => BlockId -> Types.TrackNum
+modify_block_track :: (UiStateMonad m) => BlockId -> TrackNum
     -> (Block.BlockTrack -> Block.BlockTrack) -> m ()
 modify_block_track block_id tracknum modify = do
     block <- get_block block_id
@@ -983,7 +980,7 @@ insert_marklist ruler_id i marklist = modify_ruler ruler_id $ \ruler ->
     ruler { Ruler.ruler_marklists =
         Seq.insert_at (Ruler.ruler_marklists ruler) i marklist }
 
-remove_marklist :: (UiStateMonad m) => RulerId -> Types.TrackNum -> m ()
+remove_marklist :: (UiStateMonad m) => RulerId -> TrackNum -> m ()
 remove_marklist ruler_id n = modify_ruler ruler_id $ \ruler -> ruler
     { Ruler.ruler_marklists = Seq.remove_at (Ruler.ruler_marklists ruler) n }
 
@@ -1012,18 +1009,18 @@ get_tracks_of block_id = do
 -- | Find @track_id@ in all the blocks it exists in, and return the track info
 -- for each tracknum at which @track_id@ lives.
 blocks_with_track :: (UiStateMonad m) =>
-    TrackId -> m [(BlockId, [(Types.TrackNum, Block.TracklikeId)])]
+    TrackId -> m [(BlockId, [(TrackNum, Block.TracklikeId)])]
 blocks_with_track track_id =
     find_tracks ((== Just track_id) . Block.track_id_of)
 
 -- | Just like 'blocks_with_track' except for ruler_id.
 blocks_with_ruler :: (UiStateMonad m) =>
-    RulerId -> m [(BlockId, [(Types.TrackNum, Block.TracklikeId)])]
+    RulerId -> m [(BlockId, [(TrackNum, Block.TracklikeId)])]
 blocks_with_ruler ruler_id =
     find_tracks ((== Just ruler_id) . Block.ruler_id_of)
 
 find_tracks :: (UiStateMonad m) => (Block.TracklikeId -> Bool)
-    -> m [(BlockId, [(Types.TrackNum, Block.TracklikeId)])]
+    -> m [(BlockId, [(TrackNum, Block.TracklikeId)])]
 find_tracks f = do
     st <- get
     let all_tracks block = Seq.enumerate (Block.block_tracks block)

@@ -28,13 +28,12 @@ import qualified Cmd.Selection as Selection
 import qualified Perform.Pitch as Pitch
 
 
-
 -- | Indicate the pitch track of a note track, or how to create one if
 -- necessary.
 data PitchTrack =
     -- | Create a pitch track with (note_tracknum, title, pitch_tracknum).
-    CreateTrack Types.TrackNum String Types.TrackNum
-    | ExistingTrack Types.TrackNum
+    CreateTrack TrackNum String TrackNum
+    | ExistingTrack TrackNum
     deriving (Show, Eq)
 
 cmd_raw_edit :: Pitch.ScaleId -> Cmd.Cmd
@@ -107,8 +106,7 @@ all_keys_up = do
     return (Map.null (Cmd.wdev_note_track st))
 
 -- | Find existing tracknum or throw.
-track_of :: (Monad m) =>
-    InputNote.NoteId -> Cmd.CmdT m (Types.TrackNum, TrackId)
+track_of :: (Monad m) => InputNote.NoteId -> Cmd.CmdT m (TrackNum, TrackId)
 track_of note_id = do
     st <- Cmd.get_wdev_state
     (block_id, tracknum) <- maybe
@@ -119,7 +117,7 @@ track_of note_id = do
 
 -- | PitchTrack will presumably have to be a list if chords are supported.
 get_pitch_track :: (Monad m) => Maybe InputNote.NoteId -> PitchTrack
-    -> Cmd.CmdT m (Types.TrackNum, TrackId)
+    -> Cmd.CmdT m (TrackNum, TrackId)
 get_pitch_track maybe_note_id pitch_track = do
     block_id <- Cmd.get_focused_block
     (tracknum, tid) <- case pitch_track of
@@ -140,9 +138,9 @@ get_pitch_track maybe_note_id pitch_track = do
 
 -- | Create a pitch track for a note track.
 create_pitch_track :: (State.UiStateMonad m) => BlockId
-    -> Types.TrackNum -- ^ tracknum of corresponding note track
+    -> TrackNum -- ^ tracknum of corresponding note track
     -> String -- ^ created track has this title
-    -> Types.TrackNum -> m TrackId
+    -> TrackNum -> m TrackId
 create_pitch_track block_id note_tracknum title tracknum = do
     tid <- Create.track block_id tracknum
     -- Link note track underneath newly created pitch track.

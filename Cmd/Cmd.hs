@@ -253,7 +253,7 @@ data WriteDeviceState = WriteDeviceState {
     -- Used by Cmd.PitchTrack:
     -- | NoteIds being entered into which pitch tracks.  When entering a chord,
     -- a PitchChange uses this to know which pitch track to update.
-    , wdev_note_track :: Map.Map InputNote.NoteId (BlockId, Types.TrackNum)
+    , wdev_note_track :: Map.Map InputNote.NoteId (BlockId, TrackNum)
 
     -- Used by no one, yet:
     -- | Remember the current inst of each addr.  More than one instrument or
@@ -292,7 +292,7 @@ data Modifier = KeyMod Key.Key
     -- | Mouse button, and (tracknum, pos) in went down at, if any.
     -- The block is not recorded.  You can't drag across blocks so you know any
     -- click must apply to the focused block.
-    | MouseMod UiMsg.MouseButton (Maybe (Types.TrackNum, TrackPos))
+    | MouseMod UiMsg.MouseButton (Maybe (TrackNum, TrackPos))
     -- | Only chan and key are stored.  While it may be useful to map according
     -- to the device, this code doesn't know which devices are available.
     -- Block or track level handlers can query the device themselves.
@@ -329,7 +329,7 @@ get_current_step = fmap state_step get_state
 
 -- | Get the leftmost track covered by the insert selection, which is
 -- considered the "focused" track by convention.
-get_insert_tracknum :: (Monad m) => CmdT m (Maybe Types.TrackNum)
+get_insert_tracknum :: (Monad m) => CmdT m (Maybe TrackNum)
 get_insert_tracknum = do
     view_id <- get_focused_view
     sel <- State.get_selection view_id Config.insert_selnum
@@ -610,6 +610,6 @@ data CmdContext = CmdContext {
     , ctx_lookup_midi :: MidiDb.LookupMidiInstrument
     , ctx_edit_mode :: EditMode
     , ctx_kbd_entry :: Bool
-    , ctx_focused_tracknum :: Maybe Types.TrackNum
+    , ctx_focused_tracknum :: Maybe TrackNum
     , ctx_track_tree :: State.TrackTree
     }

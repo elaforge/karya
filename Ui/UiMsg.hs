@@ -21,7 +21,7 @@ data UiMsg = UiMsg Context Msg
 data Context = Context
     { ctx_block :: Maybe ViewId
     -- | Index into block tracks.
-    , ctx_track :: Maybe Types.TrackNum
+    , ctx_track :: Maybe TrackNum
     , ctx_pos :: Maybe TrackPos
     } deriving (Show)
 

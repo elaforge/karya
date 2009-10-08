@@ -5,6 +5,7 @@ import Control.Monad
 
 import qualified Util.Log as Log
 
+import Ui
 import qualified Ui.Block as Block
 import qualified Ui.State as State
 import qualified Ui.Types as Types
@@ -26,8 +27,7 @@ cmd_toggle_edge msg = do
         Log.warn $ "refused to add cycle-creating edge: " ++ show edge
     -- TODO: set selection so you can chain these
 
-get_clicked_track :: (Monad m) => Msg.Msg
-    -> Cmd.CmdT m Types.TrackNum
+get_clicked_track :: (Monad m) => Msg.Msg -> Cmd.CmdT m TrackNum
 get_clicked_track msg = case Cmd.msg_to_mod msg of
     Just (True, Cmd.MouseMod _ (Just (tracknum, _))) -> return tracknum
     _ -> Cmd.abort

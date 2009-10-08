@@ -314,7 +314,7 @@ all_inst_info = do
     info <- mapM Info.inst_info (Map.keys (Instrument.config_alloc config))
     return $ show (length info) ++ " instruments:\n" ++ Seq.join "\n\n" info
 
-track_info :: BlockId -> Types.TrackNum
+track_info :: BlockId -> TrackNum
     -> Cmd.CmdL (Schema.TrackType, Maybe Score.Instrument, Pitch.ScaleId)
 track_info block_id tracknum = do
     track_tree <- State.get_track_tree block_id

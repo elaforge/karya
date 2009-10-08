@@ -177,7 +177,7 @@ set_selection view_id selnum maybe_sel = do
 foreign import ccall "set_selection"
     c_set_selection :: Ptr CView -> CInt -> Ptr CSelection -> IO ()
 
-set_track_selection :: ViewId -> Types.SelNum -> Types.TrackNum
+set_track_selection :: ViewId -> Types.SelNum -> TrackNum
     -> Maybe CSelection -> Fltk ()
 set_track_selection view_id selnum tracknum maybe_sel = do
     viewp <- get_ptr view_id
@@ -225,8 +225,7 @@ set_status view_id status = do
 foreign import ccall "set_status" c_set_status :: Ptr CView -> CString -> IO ()
 
 -- | Set block-local track status.
-set_display_track :: ViewId -> Types.TrackNum
-    -> Block.DisplayTrack -> Fltk ()
+set_display_track :: ViewId -> TrackNum -> Block.DisplayTrack -> Fltk ()
 set_display_track view_id tracknum dtrack = do
     viewp <- get_ptr view_id
     with dtrack $ \dtrackp ->
@@ -237,7 +236,7 @@ foreign import ccall "set_display_track"
 
 -- ** Track operations
 
-insert_track :: ViewId -> Types.TrackNum -> Block.Tracklike
+insert_track :: ViewId -> TrackNum -> Block.Tracklike
     -> Track.Samples -> Types.Width -> Fltk ()
 insert_track view_id tracknum tracklike samples width = do
     viewp <- get_ptr view_id
@@ -245,13 +244,13 @@ insert_track view_id tracknum tracklike samples width = do
         c_insert_track viewp (Util.c_int tracknum) tp
             (Util.c_int width) mlistp len
 
-remove_track :: ViewId -> Types.TrackNum -> Fltk ()
+remove_track :: ViewId -> TrackNum -> Fltk ()
 remove_track view_id tracknum = do
     viewp <- get_ptr view_id
     with_finalizer $ \finalize ->
         c_remove_track viewp (Util.c_int tracknum) finalize
 
-update_track :: ViewId -> Types.TrackNum -> Block.Tracklike
+update_track :: ViewId -> TrackNum -> Block.Tracklike
     -> Track.Samples -> TrackPos -> TrackPos -> Fltk ()
 update_track view_id tracknum tracklike samples start end = do
     viewp <- get_ptr view_id
@@ -262,7 +261,7 @@ update_track view_id tracknum tracklike samples start end = do
                     mlistp len finalize startp endp
 
 -- | Like 'update_track' except update everywhere.
-update_entire_track :: ViewId -> Types.TrackNum -> Block.Tracklike
+update_entire_track :: ViewId -> TrackNum -> Block.Tracklike
     -> Track.Samples -> Fltk ()
 update_entire_track view_id tracknum tracklike samples =
     -- -1 is special cased in c++.
@@ -306,14 +305,14 @@ data TracklikePtr =
     | DPtr (Ptr Block.Divider)
 
 
-set_track_width :: ViewId -> Types.TrackNum -> Types.Width -> Fltk ()
+set_track_width :: ViewId -> TrackNum -> Types.Width -> Fltk ()
 set_track_width view_id tracknum width = do
     viewp <- get_ptr view_id
     c_set_track_width viewp (Util.c_int tracknum) (Util.c_int width)
 foreign import ccall "set_track_width"
     c_set_track_width :: Ptr CView -> CInt -> CInt -> IO ()
 
-set_track_title :: ViewId -> Types.TrackNum -> String -> Fltk ()
+set_track_title :: ViewId -> TrackNum -> String -> Fltk ()
 set_track_title view_id tracknum title = do
     viewp <- get_ptr view_id
     withCString title (c_set_track_title viewp (Util.c_int tracknum))

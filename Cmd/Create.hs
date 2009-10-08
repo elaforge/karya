@@ -124,8 +124,7 @@ destroy_view view_id = State.destroy_view view_id
 
 -- | Tracks look like \"ns/b0.t0\", etc.
 track_ruler :: (State.UiStateMonad m) =>
-    BlockId -> RulerId -> Types.TrackNum -> Types.Width
-    -> m TrackId
+    BlockId -> RulerId -> TrackNum -> Types.Width -> m TrackId
 track_ruler block_id ruler_id tracknum width = do
     tracks <- State.get_tracks_of block_id
     track_id <- require "track id" $
@@ -139,8 +138,7 @@ track_ruler block_id ruler_id tracknum width = do
 -- the left.
 -- If the track to the left is a ruler track, it will assume there is
 -- a ".overlay" version of it.
-track :: (State.UiStateMonad m) =>
-    BlockId -> Types.TrackNum -> m TrackId
+track :: (State.UiStateMonad m) => BlockId -> TrackNum -> m TrackId
 track block_id tracknum = do
     -- Clip to valid range so callers can use an out of range tracknum.
     tracknum <- clip_tracknum block_id tracknum
@@ -174,8 +172,7 @@ clip_tracknum block_id tracknum = do
 -- | Create a track with the given name and title.
 -- Looks like \"ns/b0.tempo\".
 named_track :: (State.UiStateMonad m) =>
-    BlockId -> RulerId -> Types.TrackNum
-    -> String -> String -> m TrackId
+    BlockId -> RulerId -> TrackNum -> String -> String -> m TrackId
 named_track block_id ruler_id tracknum name title = do
     ident <- make_id (Id.id_name (Id.unpack_id block_id) ++ "." ++ name)
     all_tracks <- fmap State.state_tracks State.get
@@ -219,8 +216,7 @@ generate_track_id block_id code tracks =
 -- | Swap the tracks at the given tracknums.  If one of the tracknums is out
 -- of range, the track at the other tracknum will be moved to the beginning or
 -- end, i.e. swapped with empty space.
-swap_tracks :: (State.UiStateMonad m) => BlockId
-    -> Types.TrackNum -> Types.TrackNum -> m ()
+swap_tracks :: (State.UiStateMonad m) => BlockId -> TrackNum -> TrackNum -> m ()
 swap_tracks block_id num0 num1 = do
     track0 <- State.track_at block_id num0
     track1 <- State.track_at block_id num1

@@ -22,6 +22,7 @@ import qualified Cmd.TimeStep as TimeStep
 
 import qualified Perform.Pitch as Pitch
 
+
 -- * events
 
 -- | Get the event under insertion point, creating an empty one if there is
@@ -53,7 +54,7 @@ modify_event_at (tracknum, track_id, pos) zero_dur f = do
         Just new_text -> State.insert_events track_id
             [(pos, event { Event.event_text = new_text })]
 
-type SelPos = (Types.TrackNum, TrackId, TrackPos)
+type SelPos = (TrackNum, TrackId, TrackPos)
 
 get_sel_pos :: (Monad m) => Cmd.CmdT m SelPos
 get_sel_pos = do

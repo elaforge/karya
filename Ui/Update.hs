@@ -27,7 +27,7 @@ data ViewUpdate =
     | Status String
     | TrackScroll Types.Width
     | Zoom Types.Zoom
-    | TrackWidth Types.TrackNum Types.Width
+    | TrackWidth TrackNum Types.Width
     | Selection Types.SelNum (Maybe Types.Selection)
     deriving Show
 
@@ -35,11 +35,11 @@ data BlockUpdate
     = BlockTitle String
     | BlockConfig Block.Config
     | BlockSkeleton Skeleton.Skeleton
-    | RemoveTrack Types.TrackNum
-    | InsertTrack Types.TrackNum Types.Width Block.DisplayTrack
+    | RemoveTrack TrackNum
+    | InsertTrack TrackNum Types.Width Block.DisplayTrack
     -- | Unlike a TrackUpdate, these settings are local to the block, not
     -- global to this track in all its blocks.
-    | DisplayTrack Types.TrackNum Block.DisplayTrack
+    | DisplayTrack TrackNum Block.DisplayTrack
     deriving Show
 
 -- | track, low_pos, high_pos

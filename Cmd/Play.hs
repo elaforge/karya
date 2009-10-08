@@ -280,7 +280,7 @@ data UpdaterState = UpdaterState {
     , updater_ts_offset :: Timestamp.Timestamp
     , updater_get_cur_ts :: IO Timestamp.Timestamp
     , updater_inv_tempo_func :: Transport.InverseTempoFunction
-    , updater_active_sels :: Set.Set (ViewId, [Types.TrackNum])
+    , updater_active_sels :: Set.Set (ViewId, [TrackNum])
     , updater_ui_state :: State.State
     }
 
@@ -322,12 +322,12 @@ updater_loop state = do
 -- blocks and tracks to the view-oriented views and tracknums.
 block_pos_to_play_pos :: (State.UiStateMonad m) =>
     [(BlockId, [(TrackId, TrackPos)])]
-    -> m [(ViewId, [(Types.TrackNum, Maybe TrackPos)])]
+    -> m [(ViewId, [(TrackNum, Maybe TrackPos)])]
 block_pos_to_play_pos block_pos = fmap concat (mapM convert block_pos)
 
 convert :: (State.UiStateMonad m) =>
     (BlockId, [(TrackId, TrackPos)])
-    -> m [(ViewId, [(Types.TrackNum, Maybe TrackPos)])]
+    -> m [(ViewId, [(TrackNum, Maybe TrackPos)])]
 convert (block_id, track_pos) = do
     view_ids <- fmap Map.keys (State.get_views_of block_id)
     block <- State.get_block block_id
@@ -335,7 +335,7 @@ convert (block_id, track_pos) = do
     return [(view_id, tracknum_pos) | view_id <- view_ids]
 
 tracknums_of :: Block.Block -> (TrackId, TrackPos)
-    -> [(Types.TrackNum, Maybe TrackPos)]
+    -> [(TrackNum, Maybe TrackPos)]
 tracknums_of block (track_id, pos) =
     [ (tracknum, Just pos)
     | (tracknum, Block.TId tid _) <- zip [0..] (Block.block_tracklike_ids block)

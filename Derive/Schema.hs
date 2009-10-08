@@ -124,7 +124,7 @@ get_cmds schema_map context schema_id =
 
 -- | Constructor for 'CmdContext'.
 cmd_context :: Instrument.Config -> Pitch.ScaleId -> MidiDb.LookupMidiInstrument
-    -> Cmd.EditMode -> Bool -> Maybe Types.TrackNum -> State.TrackTree
+    -> Cmd.EditMode -> Bool -> Maybe TrackNum -> State.TrackTree
     -> CmdContext
 cmd_context midi_config proj_scale lookup_midi edit_mode kbd_entry
         focused_tracknum ttree =
@@ -202,7 +202,7 @@ get_defaults context = (maybe_track_type, score_inst, scale_id)
 --
 -- TODO: if this leads to weird guesses, maybe return Nothing if there are
 -- two or more matches?
-get_track_info :: Pitch.ScaleId -> State.TrackTree -> Maybe Types.TrackNum
+get_track_info :: Pitch.ScaleId -> State.TrackTree -> Maybe TrackNum
     -> (Maybe TrackType, Maybe Score.Instrument, Pitch.ScaleId)
 get_track_info proj_scale _ Nothing = (Nothing, Nothing, proj_scale)
 get_track_info proj_scale track_tree (Just tracknum) = case paths of
