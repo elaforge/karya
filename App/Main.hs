@@ -40,7 +40,6 @@ import qualified Cmd.Responder as Responder
 import qualified Cmd.Save as Save
 import qualified Cmd.Language as Language
 
-import qualified Perform.Timestamp as Timestamp
 
 import qualified Instrument.Db as Db
 

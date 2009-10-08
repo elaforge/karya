@@ -10,18 +10,15 @@ import qualified Util.Seq as Seq
 
 import Ui
 import qualified Ui.Event as Event
-import qualified Ui.Id as Id
 import qualified Ui.Key as Key
 import qualified Ui.State as State
 import qualified Ui.Track as Track
+import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Selection as Selection
 import qualified Cmd.TimeStep as TimeStep
-
-import qualified Derive.Scale as Scale
 
 import qualified Perform.Pitch as Pitch
 
@@ -40,13 +37,13 @@ modify_event :: (Monad m) => Bool -- ^ create zero duration event
     -> (String -> Maybe String)
     -> Cmd.CmdT m ()
 modify_event zero_dur f = do
-    at <- Selection.get_insert_track
-    modify_event_at at zero_dur f
+    sel <- get_sel_pos
+    modify_event_at sel zero_dur f
 
-modify_event_at :: (Monad m) => Selection.TrackSel
+modify_event_at :: (Monad m) => SelPos
     -> Bool -- ^ Created event has 0 dur, otherwise until next time step.
     -> (String -> Maybe String) -> Cmd.CmdT m ()
-modify_event_at (track_id, tracknum, pos) zero_dur f = do
+modify_event_at (tracknum, track_id, pos) zero_dur f = do
     end_pos <- if zero_dur
         then return pos
         else Selection.step_from tracknum pos TimeStep.Advance
@@ -56,16 +53,40 @@ modify_event_at (track_id, tracknum, pos) zero_dur f = do
         Just new_text -> State.insert_events track_id
             [(pos, event { Event.event_text = new_text })]
 
+type SelPos = (Types.TrackNum, TrackId, TrackPos)
+
+get_sel_pos :: (Monad m) => Cmd.CmdT m SelPos
+get_sel_pos = do
+    (_, tracknum, track_id, pos) <- Selection.get_insert
+    return (tracknum, track_id, pos)
+
 -- * msgs
 
-data EditKey = Key Key.Key | Note Pitch.Note deriving (Show)
+-- | Extract a key for method input.  [a-z0-9.-]
+method_key :: Msg.Msg -> Maybe Key.Key
+method_key = extract_key $ \c -> Char.isAlphaNum c || c `elem` "-_."
 
--- | Get a keystroke from Msg, aborting if it's not appropriate.  Raw edit mode
--- snags all printable keys.  Also abort if there are modifiers, so commands
--- still work.
-edit_key :: (Monad m) => Pitch.ScaleId -> Msg.Msg -> Cmd.CmdT m EditKey
-edit_key scale_id msg = do
-    key <- Cmd.require =<< either State.throw return (edit_key_of scale_id msg)
+-- | Extract a key for controller value input.  [0-9.-]
+val_key :: Msg.Msg -> Maybe Key.Key
+val_key = extract_key $ \c -> Char.isDigit c || c `elem` "-_."
+
+
+-- | Extract a key for raw input.  Any printable character plus backspace.
+raw_key :: Msg.Msg -> Maybe Key.Key
+raw_key = extract_key Char.isPrint
+
+extract_key :: (Char -> Bool) -> Msg.Msg -> Maybe Key.Key
+extract_key f (Msg.key_down -> Just key) = if ok then Just key else Nothing
+    where
+    ok = case key of
+        Key.Backspace -> True
+        Key.KeyChar c | f c -> True
+        _ -> False
+extract_key _ _ = Nothing
+
+
+abort_on_mods :: (Monad m) => Cmd.CmdT m ()
+abort_on_mods = do
     keys_down <- fmap Map.keys Cmd.keys_down
     -- Abort if there are modifiers down, so commands still work.
     -- Except shift, of course.
@@ -76,69 +97,24 @@ edit_key scale_id msg = do
                 Key.ShiftR -> False
                 _ -> True
             _ -> True
-    when (not (is_printable key) || any is_mod keys_down) Cmd.abort
-    return key
+    when (any is_mod keys_down) Cmd.abort
 
--- | Like 'edit_key' except only accept identifier characters, for editing
--- methods and the like.  This way special keys like zoom and play still work.
-alpha_key :: (Monad m) => Msg.Msg -> Cmd.CmdT m Key.Key
-alpha_key msg = do
-    key <- Cmd.require $ get_key msg
-    case key of
-        Key.KeyChar c | Id.is_identifier c -> return ()
-        Key.Backspace -> return ()
-        _ -> Cmd.abort
-    return key
+abort_on_keys check_key (Msg.key_down -> Just key) =
+    when (not (check_key key)) Cmd.abort
 
--- | Like 'edit_key' except only accept Notes, and backspace, which is returned
--- as Nothing.
-note_key :: (Monad m) => Pitch.ScaleId -> Msg.Msg
-    -> Cmd.CmdT m (Maybe Pitch.Note)
-note_key scale_id msg =
-    either State.throw return =<< Cmd.require (get_note scale_id msg)
+parse_key :: (Monad m) => Pitch.ScaleId -> Pitch.InputKey
+    -> Cmd.CmdT m Pitch.Note
+parse_key scale_id input = do
+    let me = "EditUtil.parse_key"
+    scale <- Cmd.get_scale me scale_id
+    let msg = me ++ ": " ++ show input ++ " out of range for " ++ show scale_id
+    maybe (Cmd.throw msg) return (Pitch.scale_input_to_note scale input)
 
-get_note :: Pitch.ScaleId -> Msg.Msg -> Maybe (Either String (Maybe Pitch.Note))
-get_note scale_id (Msg.InputNote (InputNote.NoteOn _ input _)) = Just $ do
-    let msg = show scale_id ++ ": "
-    scale <- maybe (Left $ msg ++ "not found") Right $
-        Map.lookup scale_id Scale.scale_map
-    note <- maybe (Left $ msg ++ "get_note input out of range: " ++ show input)
-        Right (Pitch.scale_input_to_note scale input)
-    return (Just note)
-get_note _ (Msg.key_down -> Just Key.Backspace) = Just (Right Nothing)
-get_note _ _ = Nothing
-
-get_key :: Msg.Msg -> Maybe Key.Key
-get_key (Msg.key_down -> Just key) = Just key
-get_key _ = Nothing
-
-edit_key_of :: Pitch.ScaleId -> Msg.Msg -> Either String (Maybe EditKey)
-    -- No, these are not overlapped, ghc is wrong.
-edit_key_of _ (Msg.key_down -> Just key) = Right (Just (Key key))
-edit_key_of scale_id (get_note scale_id -> Just err_note) = case err_note of
-    Left err -> Left err
-    Right (Just note) -> Right (Just (Note note))
-    -- Right Nothing means Backspace, which should have been caught above
-    _ -> Right Nothing
-edit_key_of _ _ = Right Nothing
-
-is_printable :: EditKey -> Bool
-is_printable (Note _) = True
-is_printable (Key key) = case key of
-    Key.Backspace -> True
-    Key.KeyChar c -> Char.isPrint c
-    _ -> False
 
 -- * modify
 
 -- | Since there's no use for leading spaces, just a space makes an empty
 -- event.  Backspacing an empty event deletes it.
-modify_text :: EditKey -> String -> Maybe String
-modify_text (Note note) s =
-    Just (s ++ leading ++ note_prefix : Pitch.note_text note)
-    where leading = if null s then "" else " "
-modify_text (Key key) s = modify_text_key key s
-
 modify_text_key :: Key.Key -> String -> Maybe String
 modify_text_key key s = case key of
     Key.Backspace -> backspace s
@@ -157,6 +133,11 @@ backspace s
     is_note = not $ any Char.isSpace pre || null post
     -- drop note_prefix and leading (i.e. trailing) spaces
     rest = reverse $ dropWhile Char.isSpace (drop 1 post)
+
+modify_text_note :: Pitch.Note -> String -> Maybe String
+modify_text_note note s = Just $
+    s ++ leading ++ note_prefix : Pitch.note_text note
+    where leading = if null s then "" else " "
 
 note_prefix :: Char
 note_prefix = '*'

@@ -195,7 +195,7 @@ append_track = do
 
 insert_track_after_selection :: (Monad m) => Cmd.CmdT m TrackId
 insert_track_after_selection = do
-    (_, tracknum, _) <- Selection.get_insert_pos
+    (_, tracknum, _) <- Selection.get_insert_any
     block_id <- Cmd.get_focused_block
     track block_id (tracknum+1)
 

@@ -8,6 +8,7 @@ import qualified Midi.Midi as Midi
 
 import qualified Ui.Key as Key
 import qualified Ui.State as State
+import qualified Ui.Types as Types
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.UiTest as UiTest
 
@@ -42,11 +43,29 @@ run ustate cstate cmd = case Cmd.run_id ustate cstate cmd of
         Right (val, ui_state2, _updates) ->
             Right (val, ui_state2, cmd_state2, logs)
 
+eval :: State.State -> Cmd.State -> Cmd.CmdT Identity.Identity a -> a
+eval ustate cstate cmd = case run ustate cstate cmd of
+    Left err -> error $ "eval got StateError: " ++ show err
+    Right (Nothing, _, _, _) -> error $ "eval: cmd aborted"
+    Right (Just val, _, _, _) -> val
+
+-- | Run several cmds, threading the state through.
+thread :: State.State -> Cmd.State -> [Cmd.CmdT Identity.Identity a]
+    -> Either String (State.State, Cmd.State, [[String]])
+thread ustate cstate cmds = foldl f (Right (ustate, cstate, [])) cmds
+    where
+    f (Right (ustate, cstate, logs)) cmd = case run ustate cstate cmd of
+        Right (_val, ustate2, cstate2, logs2) ->
+            Right (ustate2, cstate2, logs ++ [map Log.msg_text logs2])
+        Left err -> Left (show err)
+    f (Left err) _ = Left err
+
 extract_logs result = case result of
     Right (Just _, _, _, logs) -> Right (Just (map Log.msg_text logs))
     Right (Nothing, _, _, _) -> Right Nothing
     Left err -> Left (show err)
 
+with_sel :: (Monad m) => Maybe Types.Selection -> Cmd.CmdT m a -> Cmd.CmdT m a
 with_sel sel cmd = do
     State.set_selection UiTest.default_view_id Config.insert_selnum sel
     Cmd.modify_state $ \st ->
@@ -57,18 +76,11 @@ with_sel sel cmd = do
 run_tracks :: [UiTest.TrackSpec] -> Cmd.CmdT Identity.Identity a
     -> Either String (Maybe a, [(String, [Simple.Event])], [String])
 run_tracks track_specs cmd =
-    case run ustate cstate cmd of
+    case run ustate cmd_state cmd of
         Right (val, ustate2, _cstate2, logs) ->
-            Right (val, extract_tracks ustate2, map Log.msg_text logs)
+            Right (val, UiTest.extract_tracks ustate2, map Log.msg_text logs)
         Left err -> Left (show err)
-    where
-    cstate = cmd_state
-    (_, ustate) = UiTest.run_mkview track_specs
-
-extract_tracks ustate = map (\(_, title, events) -> (title, events)) tracks
-    where
-    ((_, _, tracks), _) =
-        UiTest.run ustate (Simple.dump_block default_block_id)
+    where (_, ustate) = UiTest.run_mkview track_specs
 
 cmd_state = Cmd.empty_state
     { Cmd.state_focused_view = Just default_view_id

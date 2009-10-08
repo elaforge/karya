@@ -253,7 +253,7 @@ data WriteDeviceState = WriteDeviceState {
     -- Used by Cmd.PitchTrack:
     -- | NoteIds being entered into which pitch tracks.  When entering a chord,
     -- a PitchChange uses this to know which pitch track to update.
-    , wdev_note_track :: Map.Map InputNote.NoteId Types.TrackNum
+    , wdev_note_track :: Map.Map InputNote.NoteId (BlockId, Types.TrackNum)
 
     -- Used by no one, yet:
     -- | Remember the current inst of each addr.  More than one instrument or

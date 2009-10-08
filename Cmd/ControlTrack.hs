@@ -1,3 +1,4 @@
+{-# LANGUAGE ViewPatterns #-}
 module Cmd.ControlTrack where
 import Control.Monad
 import qualified Data.Maybe as Maybe
@@ -11,18 +12,22 @@ cmd_raw_edit = cmd_val_edit
 
 cmd_val_edit :: Cmd.Cmd
 cmd_val_edit msg = do
-    key <- EditUtil.alpha_key msg
-    modify_event $ -- deleting past "" on the val deletes the event
-        \(method, val) -> case EditUtil.modify_text_key key val of
-            Nothing -> (Nothing, Nothing)
-            Just new_val -> (Just method, Just new_val)
+    EditUtil.abort_on_mods
+    case msg of
+        (EditUtil.val_key -> Just key) -> modify_event $
+            \(method, val) -> case EditUtil.modify_text_key key val of
+                Nothing -> (Nothing, Nothing)
+                Just new_val -> (Just method, Just new_val)
+        _ -> Cmd.abort
     return Cmd.Done
 
 cmd_method_edit :: Cmd.Cmd
 cmd_method_edit msg = do
-    key <- EditUtil.alpha_key msg
-    modify_event $
-        \(method, val) -> (EditUtil.modify_text_key key method, Just val)
+    EditUtil.abort_on_mods
+    case msg of
+        (EditUtil.method_key -> Just key) -> modify_event $ \(method, val) ->
+            (EditUtil.modify_text_key key method, Just val)
+        _ -> Cmd.abort
     return Cmd.Done
 
 -- * implementation

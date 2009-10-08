@@ -11,9 +11,7 @@ import qualified Cmd.MidiThru as MidiThru
 
 
 test_input_to_midi = do
-    let state = Cmd.empty_wdev_state
-        pb = (-2, 2)
-        wdev = Midi.WriteDevice "wdev"
+    let wdev = Midi.WriteDevice "wdev"
         addrs = [(wdev, 0), (wdev, 1), (wdev, 2)]
     let f = map extract_msg . fst . thread_inputs addrs Cmd.empty_wdev_state
 

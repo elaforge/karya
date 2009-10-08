@@ -146,8 +146,6 @@ instance Id.Ident RulerId where
 
 -- * selection
 
--- TODO: remove color and put it in BlockC.SelectionC, which gets its color
--- from a BlockConfig list
 data Selection = Selection {
     -- | The position the selection was established at.
     sel_start_track :: TrackNum

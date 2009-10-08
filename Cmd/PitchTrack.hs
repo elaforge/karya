@@ -1,11 +1,17 @@
+{-# LANGUAGE ViewPatterns #-}
+{- | Cmds to edit a pitch track, which is a special kind of controller track.
+
+    This module creates the pitches that are later parsed by Derive.Controller.
+-}
 module Cmd.PitchTrack where
 import qualified Data.Maybe as Maybe
 
 import qualified Ui.Key as Key
-import qualified Cmd.ControlTrack as ControlTrack
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.ControlTrack as ControlTrack
 import qualified Cmd.EditUtil as EditUtil
-import qualified Cmd.Selection as Selection
+import qualified Cmd.InputNote as InputNote
+import qualified Cmd.Msg as Msg
 
 import qualified Perform.Pitch as Pitch
 
@@ -16,44 +22,48 @@ cmd_raw_edit = cmd_val_edit
 
 cmd_val_edit :: Pitch.ScaleId -> Cmd.Cmd
 cmd_val_edit scale_id msg = do
-    note <- EditUtil.note_key scale_id msg
-    tracksel <- Selection.get_insert_track
-    cmd_val_edit_at tracksel note
+    EditUtil.abort_on_mods
+    case msg of
+        Msg.InputNote (InputNote.NoteOn _note_id key _vel) -> do
+            sel_pos <- EditUtil.get_sel_pos
+            note <- EditUtil.parse_key scale_id key
+            val_edit_at sel_pos note
+        (Msg.key_down -> Just Key.Backspace) ->
+            EditUtil.modify_event False (const Nothing)
+        _ -> Cmd.abort
     return Cmd.Done
 
 cmd_method_edit :: Cmd.Cmd
 cmd_method_edit msg = do
-    tracksel <- Selection.get_insert_track
-    key <- EditUtil.alpha_key msg
-    cmd_method_edit_at tracksel key
+    EditUtil.abort_on_mods
+    case msg of
+        (EditUtil.method_key -> Just key) -> do
+            sel_pos <- EditUtil.get_sel_pos
+            method_edit_at sel_pos key
+        _ -> Cmd.abort
     return Cmd.Done
 
-cmd_val_edit_at :: (Monad m) => Selection.TrackSel -> Maybe Pitch.Note
-    -> Cmd.CmdT m ()
-cmd_val_edit_at tracksel note = do
-    modify_event_at tracksel $ \(method, _) -> case note of
-        Nothing -> (Nothing, Nothing)
-        Just n -> (Just method, Just (Pitch.note_text n))
+val_edit_at :: (Monad m) => EditUtil.SelPos -> Pitch.Note -> Cmd.CmdT m ()
+val_edit_at selpos note = modify_event_at selpos $ \(method, _) ->
+    (Just method, Just (Pitch.note_text note))
 
-cmd_method_edit_at :: (Monad m) => Selection.TrackSel -> Key.Key
-    -> Cmd.CmdT m ()
-cmd_method_edit_at tracksel key = do
-    modify_event_at tracksel $
-        \(method, val) -> (EditUtil.modify_text_key key method, Just val)
+method_edit_at :: (Monad m) => EditUtil.SelPos -> Key.Key -> Cmd.CmdT m ()
+method_edit_at selpos key = modify_event_at selpos $
+    \(method, val) -> (EditUtil.modify_text_key key method, Just val)
 
 -- | Record the last note entered.  Should be called by 'with_note'.
 cmd_record_note_status :: Pitch.ScaleId -> Cmd.Cmd
 cmd_record_note_status scale_id msg = do
-    case EditUtil.get_note scale_id msg of
-        Just (Right (Just note)) ->
+    case msg of
+        Msg.InputNote (InputNote.NoteOn _ key _) -> do
+            note <- EditUtil.parse_key scale_id key
             Cmd.set_status "note" (Just (Pitch.note_text note))
         _ -> return ()
     return Cmd.Continue
 
 -- * implementation
 
-modify_event_at :: (Monad m) => Selection.TrackSel
+modify_event_at :: (Monad m) => EditUtil.SelPos
     -> ((String, String) -> (Maybe String, Maybe String)) -> Cmd.CmdT m ()
-modify_event_at tracksel f =
-    EditUtil.modify_event_at tracksel True
-        (ControlTrack.unparse . f . ControlTrack.parse)
+modify_event_at selpos f = EditUtil.modify_event_at selpos True
+    (ControlTrack.unparse . f . ControlTrack.parse)

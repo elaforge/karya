@@ -18,6 +18,8 @@ import qualified Ui.Types as Types
 
 import qualified Derive.Schema as Schema
 
+import qualified Cmd.Simple as Simple
+
 import qualified App.Config as Config
 
 
@@ -122,13 +124,19 @@ mkstate_view block_id tracks = do
     mkview
     return r
 
--- ** block
+-- * extract from ustate
+
+extract_tracks :: State.State -> [(String, [Simple.Event])]
+extract_tracks ustate = map (\(_, title, events) -> (title, events)) tracks
+    where (_, _, tracks) = eval ustate (Simple.dump_block default_block_id)
+
+-- * block
 
 mkblock :: String -> [(Block.TracklikeId, Types.Width)] -> Block.Block
 mkblock title tracks = Block.block
     title (map (uncurry Block.block_track) tracks) Config.schema
 
--- ** track
+-- * track
 
 type TrackSpec = (String, [(Double, Double, String)])
 
@@ -140,12 +148,12 @@ mktrack (title, triplets) = Track.modify_events
     (Track.insert_events (map mkevent triplets)) (empty_track title)
 empty_track title = Track.track title [] Config.track_bg Config.render_config
 
--- ** event
+-- * event
 
 mkevent :: (Double, Double, String) -> Track.PosEvent
 mkevent (pos, dur, text) = (realToFrac pos, Event.event text (realToFrac dur))
 
--- ** ruler
+-- * ruler
 
 default_ruler = mkruler 10 10
 no_ruler = mkruler 0 0

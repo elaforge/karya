@@ -502,6 +502,9 @@ destroy_block block_id = do
 block_of_view :: (UiStateMonad m) => ViewId -> m Block.Block
 block_of_view view_id = get_block . Block.view_block =<< get_view view_id
 
+block_id_of_view :: (UiStateMonad m) => ViewId -> m BlockId
+block_id_of_view view_id = fmap Block.view_block (get_view view_id)
+
 set_block_config :: (UiStateMonad m) => BlockId -> Block.Config -> m ()
 set_block_config block_id config =
     modify_block block_id (\block -> block { Block.block_config = config })
@@ -685,7 +688,7 @@ remove_track block_id tracknum = do
         }
     modify $ \st -> st { state_views = Map.union views' (state_views st) }
 
--- | Get the TracklikeId at @tracknum@, or Nothing if its out of range.
+-- | Get the BlockTrack at @tracknum@, or Nothing if its out of range.
 -- This is inconsistent with 'insert_track' and 'remove_track' which clip to
 -- range, but is convenient in practice.
 -- TODO why?
@@ -704,6 +707,15 @@ event_track_at block_id tracknum = do
     return $ do
         track <- maybe_track
         Block.track_id_of (Block.tracklike_id track)
+
+-- | Like 'event_track_at' but throws if it's not there.
+get_event_track_at :: (UiStateMonad m) =>
+    String -> BlockId -> Types.TrackNum -> m TrackId
+get_event_track_at caller block_id tracknum =
+    maybe (throw msg) return =<< event_track_at block_id tracknum
+    where
+    msg = caller ++ ": tracknum " ++ show tracknum ++ " not in "
+        ++ show block_id
 
 tracks :: (UiStateMonad m) => BlockId -> m Types.TrackNum
 tracks block_id = do

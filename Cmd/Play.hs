@@ -121,19 +121,16 @@ import qualified App.Config as Config
 
 cmd_play_focused :: Transport.Info -> Cmd.CmdT IO Cmd.Status
 cmd_play_focused transport_info = do
-    view_id <- Cmd.get_focused_view
-    block_id <- find_play_block view_id
-
+    block_id <- Cmd.get_focused_block
     -- cmd_play wants to start with a track, so pick the first one.
+    -- TODO: pick the first event track!
     block <- State.get_block block_id
     track_id <- Cmd.require $ Seq.at (Block.block_track_ids block) 0
     cmd_play transport_info block_id (track_id, TrackPos 0)
 
 cmd_play_from_insert :: Transport.Info -> Cmd.CmdT IO Cmd.Status
 cmd_play_from_insert transport_info = do
-    view_id <- Cmd.get_focused_view
-    block_id <- find_play_block view_id
-    (track_id, _, pos) <- Selection.get_insert_track
+    (block_id, _, track_id, pos) <- Selection.get_insert
     cmd_play transport_info block_id (track_id, pos)
 
 cmd_play :: Transport.Info -> BlockId -> (TrackId, TrackPos)

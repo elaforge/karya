@@ -3,34 +3,21 @@ module Cmd.EditUtil_test where
 import Util.Test
 
 import qualified Ui.Key as Key
-import qualified Cmd.CmdTest as CmdTest
-import qualified Derive.Scale.Twelve as Twelve
 import qualified Perform.Pitch as Pitch
 
 import qualified Cmd.EditUtil as EditUtil
 
 
-test_get_note = do
-    let f = EditUtil.get_note Twelve.scale_id
-    equal (f (CmdTest.m_note_on 60 60 127))
-        (Just (Right (Just (Pitch.Note "4c"))))
-    equal (f (CmdTest.m_note_on 900 900 127))
-        (Just (Left $ "ScaleId \"twelve\": get_note input out of range: "
-            ++ "InputKey 900.0"))
-    equal (f (CmdTest.make_key True Key.Backspace)) (Just (Right Nothing))
-    equal (f (CmdTest.make_key True (Key.KeyChar 'c'))) Nothing
+test_modify_text_key = do
+    let f c = EditUtil.modify_text_key (Key.KeyChar c)
+    equal (f 'c' "a") (Just "ac")
+    equal (f ' ' "a") (Just "a ")
+    equal (f ' ' "") (Just "")
 
-test_modify_text = do
-    let f k = EditUtil.modify_text (EditUtil.Key k)
-    equal (EditUtil.modify_text (EditUtil.Note (Pitch.Note "abc")) "")
-        (Just "*abc")
-    equal (EditUtil.modify_text (EditUtil.Note (Pitch.Note "abc")) "a")
-        (Just "a *abc")
-    equal (f (Key.KeyChar 'c') "a") (Just "ac")
-    equal (f (Key.KeyChar ' ') "a") (Just "a ")
-    equal (f (Key.KeyChar ' ') "") (Just "")
-    equal (f Key.Backspace "a") (Just "")
-    equal (f Key.Backspace "") Nothing
+test_modify_text_note = do
+    let f n = EditUtil.modify_text_note (Pitch.Note n)
+    equal (f "abc" "") (Just "*abc")
+    equal (f "abc" "a") (Just "a *abc")
 
 test_backspace = do
     let f = EditUtil.backspace

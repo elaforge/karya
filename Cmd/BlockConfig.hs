@@ -18,9 +18,8 @@ import qualified Cmd.Selection as Selection
 
 cmd_toggle_edge :: (Monad m) => Msg.Msg -> Cmd.CmdT m ()
 cmd_toggle_edge msg = do
-    (_, sel_track_num, _) <- Selection.get_insert_track
+    (block_id, sel_track_num, _, _) <- Selection.get_insert
     clicked_track_num <- get_clicked_track msg
-    block_id <- Cmd.get_focused_block
     let edge = (clicked_track_num, sel_track_num)
     success <- State.toggle_skeleton_edge block_id edge
     when (not success) $
@@ -38,6 +37,5 @@ get_clicked_track msg = case Cmd.msg_to_mod msg of
 
 cmd_toggle_flag :: (Monad m) => Block.TrackFlag -> Cmd.CmdT m ()
 cmd_toggle_flag flag = do
-    block_id <- Cmd.get_focused_block
-    (_, tracknum, _) <- Selection.get_insert_track
+    (block_id, tracknum, _, _) <- Selection.get_insert
     State.toggle_track_flag block_id tracknum flag

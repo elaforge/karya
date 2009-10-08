@@ -117,6 +117,10 @@ mouse_drag btn msg = do
 
 -- * implementation
 
+-- | Handly shortcut for cmd_step_selection.
+advance :: (Monad m) => Cmd.CmdT m ()
+advance = cmd_step_selection Config.insert_selnum TimeStep.Advance False
+
 -- ** auto scroll
 
 -- | Anyone who wants to set a selection and automatically scroll the window to
@@ -257,25 +261,33 @@ relevant_ruler block tracknum = Seq.at (Block.ruler_ids_of in_order) 0
     in_order = map (Block.tracklike_id . snd) $ dropWhile ((/=tracknum) . fst) $
         reverse $ zip [0..] (Block.block_tracks block)
 
--- | Return the leftmost tracknum and trackpos, even if it's not an event
--- track.  TODO unless it's a divider?
-get_insert_pos :: (Monad m) => Cmd.CmdT m (ViewId, Types.TrackNum, TrackPos)
-get_insert_pos = do
-    (view_id, sel) <- get_selection Config.insert_selnum
-    return (view_id, Types.sel_start_track sel, Types.sel_start_pos sel)
 
-type TrackSel = (TrackId, Types.TrackNum, TrackPos)
+-- I return a whole bunch of stuff and let the caller decide which it wants.
+type SelInfo = (BlockId, Types.TrackNum, TrackId, TrackPos)
 
--- | Specialized 'selected_tracks' that gets the pos and track of the upper
--- left corner of the insert selection.
+-- | Get the "insert position", which is the upper left corner of the insert
+-- selection.  Abort if it's not an event track.
 --
--- Since this returns a track_id, it will return the leftmost event track, or
--- abort if there is none.
-get_insert_track :: (Monad m) => Cmd.CmdT m TrackSel
-get_insert_track = do
-    (track_ids, sel) <- selected_tracks Config.insert_selnum
-    track_id <- Cmd.require (track_ids `Seq.at` 0)
-    return (track_id, Types.sel_start_track sel, Types.sel_start_pos sel)
+-- I return a whole bunch of stuff and let the caller decide which it wants.
+get_insert :: (Monad m) =>
+    Cmd.CmdT m (BlockId, Types.TrackNum, TrackId, TrackPos)
+get_insert = do
+    (block_id, tracknum, pos) <- get_insert_any
+    track_id <- Cmd.require =<< State.event_track_at block_id tracknum
+    return (block_id, tracknum, track_id, pos)
+
+-- get_insert_tracknum :: (Monad m) => Cmd.CmdT m Types.TrackNum
+-- get_insert_tracknum = do
+--     (_, tracknum, _, _) <- get_insert
+--     return tracknum
+
+-- | Return the leftmost tracknum and trackpos, even if it's not an event
+-- track.
+get_insert_any :: (Monad m) => Cmd.CmdT m (BlockId, Types.TrackNum, TrackPos)
+get_insert_any = do
+    (view_id, sel) <- get_selection Config.insert_selnum
+    block_id <- State.block_id_of_view view_id
+    return (block_id, Types.sel_start_track sel, Types.sel_start_pos sel)
 
 
 -- | Get the start and end of the selection, along with the events that fall
@@ -303,6 +315,8 @@ event_before sel track = maybe [] (:[]) $
 
 -- | Get selected event tracks along with the selection.  The tracks are
 -- returned in the same order that they occur in the block.
+-- TODO: this has a problem, the selection will include non-event tracks that
+-- the track_ids don't contain
 selected_tracks :: (Monad m) =>
     Types.SelNum -> Cmd.CmdT m ([TrackId], Types.Selection)
 selected_tracks selnum = do

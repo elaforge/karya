@@ -1,43 +1,36 @@
+{-# LANGUAGE ViewPatterns #-}
 {-# OPTIONS_GHC -fno-warn-unused-imports #-}
-{- | Cmds to add notes to a note track and send midi thru.
+{- | Cmds to add notes to a note track.
 
     This module is sister to 'Derive.Note' since it edits events that
     Derive.Note parses.
-
-    A note track event has three fields: the interpolation method, the pitch,
-    and the call.  The method and pitch are just as an indexed control track
-    except that the pitch is interpreted relative to a given scale.  The call
-    is used in sub-derivation, as documented in Derive.Note.
-
-    - Midi keys send midi thru, and enter the scale degree (based on the octave
-    offset) if edit mode is on.  Later this will go through a scale mapping
-    layer, but for now it's hardcoded to Twelve.
-
-    - In kbd_entry mode, letter keys do the same as midi keys, according to an
-    organ-like layout.
-
-    - But in non kbd_entry mode, letter keys edit the call text.
 -}
 module Cmd.NoteTrack where
 import Control.Monad
 import qualified Control.Monad.Identity as Identity
+import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Util.Control as Control
 
 import Ui
 import qualified Ui.State as State
 import qualified Ui.Types as Types
+import qualified Ui.Key as Key
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.EditUtil as EditUtil
+import qualified Cmd.InputNote as InputNote
+import qualified Cmd.Msg as Msg
 import qualified Cmd.PitchTrack as PitchTrack
 import qualified Cmd.Selection as Selection
 
 import qualified Perform.Pitch as Pitch
 
 
--- | Indicate the pitch track of a note track.  If the Bool is True,
--- the track doesn't exist and should be created at the given TrackNum.
+
+-- | Indicate the pitch track of a note track, or how to create one if
+-- necessary.
 data PitchTrack =
     -- | Create a pitch track with (note_tracknum, title, pitch_tracknum).
     CreateTrack Types.TrackNum String Types.TrackNum
@@ -46,39 +39,104 @@ data PitchTrack =
 
 cmd_raw_edit :: Pitch.ScaleId -> Cmd.Cmd
 cmd_raw_edit scale_id msg = do
-    key <- EditUtil.edit_key scale_id msg
-    EditUtil.modify_event False (EditUtil.modify_text key)
+    EditUtil.abort_on_mods
+    case msg of
+        Msg.InputNote (InputNote.NoteOn note_id key _vel) -> do
+            note <- EditUtil.parse_key scale_id key
+            EditUtil.modify_event False (EditUtil.modify_text_note note)
+        (EditUtil.raw_key -> Just key) -> do
+            EditUtil.modify_event False (EditUtil.modify_text_key key)
+        _ -> Cmd.abort
     return Cmd.Done
 
 cmd_val_edit :: PitchTrack -> Pitch.ScaleId -> Cmd.Cmd
 cmd_val_edit pitch_track scale_id msg = do
-    note <- EditUtil.note_key scale_id msg
-    track_id <- get_pitch_track pitch_track
-    (_, tracknum, pos) <- Selection.get_insert_track
-    PitchTrack.cmd_val_edit_at (track_id, tracknum, pos) note
-    if (Maybe.isJust note)
-        then ensure_exists
-        else remove
+    EditUtil.abort_on_mods
+    (block_id, tracknum, track_id, pos) <- Selection.get_insert
+    case msg of
+        Msg.InputNote input_note -> case input_note of
+            InputNote.NoteOn note_id key _vel -> do
+                -- TODO if I can find a vel track, put the vel there
+                (pitch_tracknum, track_id) <-
+                    get_pitch_track (Just note_id) pitch_track
+                note <- EditUtil.parse_key scale_id key
+                PitchTrack.val_edit_at (pitch_tracknum, track_id, pos) note
+                -- TODO if I do chords, this will have to be the chosen note
+                -- track
+                ensure_exists
+            InputNote.PitchChange note_id key -> do
+                (tracknum, track_id) <- track_of note_id
+                note <- EditUtil.parse_key scale_id key
+                PitchTrack.val_edit_at (tracknum, track_id, pos) note
+            InputNote.NoteOff note_id _vel -> do
+                delete_note_id note_id
+                Control.whenM all_keys_up Selection.advance
+            InputNote.Control _ _ _ -> return ()
+        (Msg.key_down -> Just Key.Backspace) -> do
+            remove (tracknum, track_id, pos)
+            -- clear out the pitch track too
+            case pitch_track of
+                ExistingTrack tracknum -> do
+                    track_id <- State.get_event_track_at
+                        "NoteTrack.cmd_val_edit" block_id tracknum
+                    remove (tracknum, track_id, pos)
+                _ -> return ()
+        _ -> Cmd.abort
     return Cmd.Done
+    where
+    delete_note_id note_id = do
+        st <- Cmd.get_wdev_state
+        Cmd.set_wdev_state $ st { Cmd.wdev_note_track =
+            Map.delete note_id (Cmd.wdev_note_track st) }
 
 cmd_method_edit :: PitchTrack -> Cmd.Cmd
 cmd_method_edit pitch_track msg = do
-    key <- EditUtil.alpha_key msg
-    track_id <- get_pitch_track pitch_track
-    (_, tracknum, pos) <- Selection.get_insert_track
-    PitchTrack.cmd_method_edit_at (track_id, tracknum, pos) key
-    ensure_exists
+    EditUtil.abort_on_mods
+    case msg of
+        (EditUtil.method_key -> Just key) -> do
+            (_, _, pos) <- EditUtil.get_sel_pos
+            (tracknum, track_id) <- get_pitch_track Nothing pitch_track
+            PitchTrack.method_edit_at (tracknum, track_id, pos) key
+            ensure_exists
+        _ -> Cmd.abort
     return Cmd.Done
 
-get_pitch_track :: (Monad m) => PitchTrack -> Cmd.CmdT m TrackId
-get_pitch_track pitch_track = do
+all_keys_up :: (Monad m) => Cmd.CmdT m Bool
+all_keys_up = do
+    st <- Cmd.get_wdev_state
+    return (Map.null (Cmd.wdev_note_track st))
+
+-- | Find existing tracknum or throw.
+track_of :: (Monad m) =>
+    InputNote.NoteId -> Cmd.CmdT m (Types.TrackNum, TrackId)
+track_of note_id = do
+    st <- Cmd.get_wdev_state
+    (block_id, tracknum) <- maybe
+        (Cmd.throw $ "no tracknum for " ++ show note_id) return
+        (Map.lookup note_id (Cmd.wdev_note_track st))
+    track_id <- State.get_event_track_at "NoteTrack.track_of" block_id tracknum
+    return (tracknum, track_id)
+
+-- | PitchTrack will presumably have to be a list if chords are supported.
+get_pitch_track :: (Monad m) => Maybe InputNote.NoteId -> PitchTrack
+    -> Cmd.CmdT m (Types.TrackNum, TrackId)
+get_pitch_track maybe_note_id pitch_track = do
     block_id <- Cmd.get_focused_block
-    case pitch_track of
-        CreateTrack note_tracknum title pitch_tracknum ->
-            create_pitch_track block_id note_tracknum title pitch_tracknum
-        ExistingTrack tracknum -> Cmd.require_msg
-            ("get_pitch_track: invalid tracknum " ++ show tracknum)
-            =<< State.event_track_at block_id tracknum
+    (tracknum, tid) <- case pitch_track of
+        CreateTrack note_tracknum title pitch_tracknum -> do
+            tid <- create_pitch_track block_id note_tracknum title
+                pitch_tracknum
+            return (pitch_tracknum, tid)
+        ExistingTrack tracknum -> do
+            tid <- State.get_event_track_at "NoteTrack.get_pitch_track"
+                block_id tracknum
+            return (tracknum, tid)
+    st <- Cmd.get_wdev_state
+    case maybe_note_id of
+        Just note_id -> Cmd.set_wdev_state $ st { Cmd.wdev_note_track =
+            Map.insert note_id (block_id, tracknum) (Cmd.wdev_note_track st) }
+        _ -> return ()
+    return (tracknum, tid)
 
 -- | Create a pitch track for a note track.
 create_pitch_track :: (State.UiStateMonad m) => BlockId
@@ -97,5 +155,5 @@ create_pitch_track block_id note_tracknum title tracknum = do
 ensure_exists :: (Monad m) => Cmd.CmdT m ()
 ensure_exists = EditUtil.modify_event False Just
 
-remove :: (Monad m) => Cmd.CmdT m ()
-remove = EditUtil.modify_event False (const Nothing)
+remove :: (Monad m) => EditUtil.SelPos -> Cmd.CmdT m ()
+remove selpos = EditUtil.modify_event_at selpos False (const Nothing)
