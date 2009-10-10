@@ -116,8 +116,17 @@ m44_find_marks(TrackPos *start_pos, TrackPos *end_pos,
     return count;
 }
 
+struct EventInfo {
+    EventInfo(TrackPos pos, Event event, int rank) :
+        pos(pos), event(event), rank(rank)
+    {}
+    TrackPos pos;
+    Event event;
+    int rank;
+};
 
-typedef std::vector<std::pair<TrackPos, Event> > TrackData;
+
+typedef std::vector<EventInfo> TrackData;
 static TrackData t1_events;
 typedef std::vector<std::pair<TrackPos, double> > SampleData;
 static SampleData t1_samples;
@@ -128,18 +137,29 @@ void t1_set()
     Color eventc = Color(200, 200, 170);
     TextStyle style;
 
-    e.push_back(std::make_pair(TrackPos(0),
-        Event("4c#@$", TrackPos(16), eventc, style)));
-    e.push_back(std::make_pair(TrackPos(32),
-        Event("4d-", TrackPos(4), eventc, style)));
-    e.push_back(std::make_pair(TrackPos(38),
-        Event("5cb", TrackPos(4), eventc, style)));
-    e.push_back(std::make_pair(TrackPos(44),
-        Event("6--", TrackPos(4), eventc, style)));
-    e.push_back(std::make_pair(TrackPos(50),
-        Event("7--", TrackPos(4), eventc, style)));
-    e.push_back(std::make_pair(TrackPos(128),
-        Event("late!", TrackPos(64), eventc, style)));
+    e.push_back(EventInfo(TrackPos(0),
+        Event("4c#@$", TrackPos(16), eventc, style), 0));
+    e.push_back(EventInfo(TrackPos(32),
+        Event("4d-", TrackPos(4), eventc, style), 0));
+    e.push_back(EventInfo(TrackPos(38),
+        Event("5cb", TrackPos(4), eventc, style), 0));
+    e.push_back(EventInfo(TrackPos(44),
+        Event("6--", TrackPos(4), eventc, style), 0));
+    e.push_back(EventInfo(TrackPos(50),
+        Event("7--", TrackPos(4), eventc, style), 0));
+    e.push_back(EventInfo(TrackPos(128),
+        Event("late!", TrackPos(64), eventc, style), 0));
+    // coincident with rank 0
+    e.push_back(EventInfo(TrackPos(128),
+        Event("bg1", TrackPos(8), eventc, style), 1));
+    // overlaps with rank 0
+    e.push_back(EventInfo(TrackPos(160),
+        Event("bg2", TrackPos(8), eventc, style), 1));
+    e.push_back(EventInfo(TrackPos(164),
+        Event("bg2.5", TrackPos(8), eventc, style), 1));
+    // doesn't overlap rank 0
+    e.push_back(EventInfo(TrackPos(200),
+        Event("bg3", TrackPos(8), eventc, style), 1));
 
     SampleData &s = t1_samples;
     s.push_back(std::make_pair(TrackPos(0), 1));
@@ -158,37 +178,39 @@ void t1_set()
 
 int
 t1_find_events(TrackPos *start_pos, TrackPos *end_pos,
-        TrackPos **ret_tps, Event **ret_events)
+        TrackPos **ret_tps, Event **ret_events, int **ret_ranks)
 {
     size_t count = 0;
     size_t start = 0;
     for (; start < t1_events.size(); start++) {
-        if (t1_events[start].first + t1_events[start].second.duration
+        if (t1_events[start].pos + t1_events[start].event.duration
                 >= *start_pos)
             break;
     }
     while (start + count < t1_events.size()) {
-        if (t1_events[start+count].first >= *end_pos)
+        if (t1_events[start+count].pos >= *end_pos)
             break;
         count++;
     }
 
     *ret_tps = (TrackPos *) calloc(count, sizeof(TrackPos));
     *ret_events = (Event *) calloc(count, sizeof(Event));
+    *ret_ranks = (int *) calloc(count, sizeof(int));
     for (size_t i = 0; i < count; i++) {
         // Placement new since malloced space is uninitialized.
-        new((*ret_tps) + i) TrackPos(t1_events[start+i].first);
-        new((*ret_events) + i) Event(t1_events[start+i].second);
+        new((*ret_tps) + i) TrackPos(t1_events[start+i].pos);
+        new((*ret_events) + i) Event(t1_events[start+i].event);
         char **textp = &(*ret_events)[i].text;
         if (*textp)
             *textp = strdup(*textp);
+        (*ret_ranks)[i] = t1_events[start+i].rank;
     }
     return count;
 }
 
 int
 t1_no_events(TrackPos *start_pos, TrackPos *end_pos,
-        TrackPos **ret_tps, Event **ret_events)
+        TrackPos **ret_tps, Event **ret_events, int **ret_ranks)
 {
     return 0;
 }
@@ -289,7 +311,7 @@ main(int argc, char **argv)
     DividerConfig divider(Color(0x0000ff));
 
     int i = t1_events.size() - 1;
-    TrackPos t1_time_end = t1_events[i].first + t1_events[i].second.duration;
+    TrackPos t1_time_end = t1_events[i].pos + t1_events[i].event.duration;
 
     RenderConfig render_config(RenderConfig::render_filled,
         t1_find_samples, render_color);

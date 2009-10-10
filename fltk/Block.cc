@@ -189,7 +189,7 @@ BlockView::set_model_config(const BlockModelConfig &config, bool update_all)
     if (update_all || old.bg != config.bg) {
         track_tile.set_bg_color(config.bg);
         track_tile.redraw();
-        skel_display.color(color_to_fl(config.bg.scale(.90)));
+        skel_display.color(color_to_fl(config.bg.brightness(.9)));
         skel_display.redraw();
     }
     if (update_all || old.track_box != config.track_box) {

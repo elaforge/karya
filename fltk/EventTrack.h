@@ -17,7 +17,7 @@ Events don't overlap.
 
 struct RenderConfig {
     // Get samples from the one before start_pos to the one at or after
-    // end_pos.
+    // end_pos.  'ret_tps' should be in ascending order.
     // TODO start and end are actually const, but it's too much bother to
     // convert them now.
     typedef int (*FindSamples)(TrackPos *start_pos, TrackPos *end_pos,
@@ -44,7 +44,7 @@ struct EventTrackConfig {
     // Get events from start to end.  Return the TrackPos in pos, the events in
     // 'events', and the count.
     typedef int (*FindEvents)(TrackPos *start_pos, TrackPos *end_pos,
-            TrackPos **ret_tps, Event **ret_events);
+            TrackPos **ret_tps, Event **ret_events, int **ret_ranks);
 
     EventTrackConfig(Color bg_color, FindEvents find_events,
             TrackPos time_end, RenderConfig render_config) :
@@ -85,7 +85,8 @@ protected:
 private:
     void draw_area();
     void draw_samples(TrackPos start, TrackPos end);
-    int draw_upper_layer(int offset, const Event &event, int previous_bottom);
+    void draw_upper_layer(int offset, const Event &event, int rank,
+            Rect *previous, int *ranked_bottom);
 
     EventTrackConfig config;
     ZoomInfo zoom;

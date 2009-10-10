@@ -294,7 +294,7 @@ OverlayRuler::draw_selections()
         alpha_rectf(sel_rect, sel.color);
         if (sel.start == sel.end) {
             // Darken the select color a bit, and make it non-transparent.
-            fl_color(color_to_fl(sel.color.scale(0.5)));
+            fl_color(color_to_fl(sel.color.brightness(0.5)));
             fl_line_style(FL_SOLID, 1);
             fl_line(x() + 2, start, x() + w() - 2, start);
             // Draw a little bevel thingy.

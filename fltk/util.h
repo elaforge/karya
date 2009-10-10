@@ -97,6 +97,10 @@ struct Color {
     Color(unsigned char r, unsigned char g, unsigned char b,
             unsigned char a=0xff)
         : r(r), g(g), b(b), a(a) {}
+    static Color from_doubles(double r, double g, double b, double a) {
+        return Color(clamp(0.0, 255.0, r), clamp(0.0, 255.0, g),
+            clamp(0.0, 255.0, b), clamp(0.0, 255.0, a));
+    }
     Color(unsigned long rgb) :
         r(0xff & (rgb >> 16)), g(0xff & (rgb >> 8)), b(0xff & rgb), a(0xff) {}
     bool operator==(const Color &o) const {
@@ -107,9 +111,16 @@ struct Color {
     Color() : r(0), g(0), b(0), a(0) {}
     unsigned char r, g, b, a;
 
-    Color scale(double d) const {
-        return Color(clamp(0.0, 255.0, r * d), clamp(0.0, 255.0, g * d),
-                clamp(0.0, 255.0, b * d), a);
+    Color brightness(double d) const {
+        if (d < 1) {
+            return Color::from_doubles(
+                    scale(0.0, double(r), d), scale(0.0, double(g), d),
+                    scale(0.0, double(b), d), a);
+        } else {
+            return Color::from_doubles(
+                    scale(double(r), 255.0, d-1), scale(double(g), 255.0, d-1),
+                    scale(double(b), 255.0, d-1), a);
+        }
     }
 };
 
