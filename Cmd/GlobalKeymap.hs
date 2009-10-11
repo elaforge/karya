@@ -237,7 +237,8 @@ clip_bindings = concat
     [ command_only 'c' "copy selection" Clip.cmd_copy_selection
     , command_only 'x' "cut selection" Clip.cmd_cut_selection
     , command_only 'v' "paste selection" Clip.cmd_paste_overwrite
-    , command_only 'm' "merge selection" Clip.cmd_paste_merge
+    -- Makes as much sense as xcv I suppose.
+    , command_only 'b' "merge selection" Clip.cmd_paste_merge
     , bind_mod [Shift, PrimaryCommand] (Key.KeyChar 'v') "insert selection"
         Clip.cmd_paste_insert
     ]

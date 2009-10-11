@@ -63,6 +63,7 @@ import qualified Ui.Types as Types
 import qualified Cmd.Cmd as Cmd
 import Cmd.Cmd (Schema(..), SchemaDeriver, CmdContext(..), SchemaMap)
 import qualified Cmd.ControlTrack as ControlTrack
+import qualified Cmd.Keymap as Keymap
 import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.PitchTrack as PitchTrack
 import qualified Cmd.NoteEntry as NoteEntry
@@ -154,29 +155,28 @@ default_schema =
 -- current focus and information in the CmdContext.
 --
 -- TODO lookup scale here and return an error if it can't be found?
+-- TODO return ([Cmd.Cmd], [Error])
 default_cmds :: CmdContext -> [Cmd.Cmd]
-default_cmds context = wrap $ case maybe_track_type of
-        Nothing -> []
-        Just (NoteTrack pitch_track) -> case edit_mode of
-            Cmd.NoEdit -> []
+default_cmds context = case maybe_track_type of
+        Nothing -> [with_note []]
+        Just (NoteTrack ptrack) -> note_keymap ptrack $ case edit_mode of
+            Cmd.NoEdit -> [with_note []]
             Cmd.RawEdit -> [with_note [NoteTrack.cmd_raw_edit scale_id]]
             Cmd.ValEdit ->
-                [with_note [NoteTrack.cmd_val_edit pitch_track scale_id]]
+                [with_note [NoteTrack.cmd_val_edit ptrack scale_id]]
             Cmd.MethodEdit ->
-                [with_note [], NoteTrack.cmd_method_edit pitch_track]
+                [with_note [], NoteTrack.cmd_method_edit ptrack]
         Just PitchTrack -> case edit_mode of
-            Cmd.NoEdit -> []
+            Cmd.NoEdit -> [with_note []]
             Cmd.RawEdit -> [with_note [PitchTrack.cmd_raw_edit scale_id]]
             Cmd.ValEdit -> [with_note [PitchTrack.cmd_val_edit scale_id]]
             Cmd.MethodEdit -> [with_note [], PitchTrack.cmd_method_edit]
         Just ControlTrack -> case edit_mode of
-            Cmd.NoEdit -> []
+            Cmd.NoEdit -> [with_note []]
             Cmd.RawEdit -> [with_note [], ControlTrack.cmd_raw_edit]
             Cmd.ValEdit -> [with_note [], ControlTrack.cmd_val_edit]
             Cmd.MethodEdit -> [with_note [], ControlTrack.cmd_method_edit]
     where
-    wrap [] = [with_note []]
-    wrap cmds = cmds
     with_note cmds = NoteEntry.cmds_with_note kbd_entry (universal ++ cmds)
     universal = PitchTrack.cmd_record_note_status scale_id : midi_thru
     edit_mode = ctx_edit_mode context
@@ -184,6 +184,10 @@ default_cmds context = wrap $ case maybe_track_type of
     midi_thru =
         maybe [] (\inst -> [MidiThru.cmd_midi_thru scale_id inst]) maybe_inst
     (maybe_track_type, maybe_inst, scale_id) = get_defaults context
+
+    note_keymap ptrack cmds = Keymap.make_cmd cmd_map : cmds
+        -- TODO pass the errors out
+        where (cmd_map, _) = NoteTrack.make_keymap ptrack
 
 get_defaults :: CmdContext
     -> (Maybe TrackType, Maybe Score.Instrument, Pitch.ScaleId)

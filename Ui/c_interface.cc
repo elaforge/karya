@@ -158,6 +158,12 @@ set_display_track(BlockViewWindow *view, int tracknum,
     view->block.set_display_track(tracknum, *dtrack);
 }
 
+void
+collapse_track(BlockViewWindow *view, int tracknum, char collapse)
+{
+    view->block.collapse_track(tracknum, bool(collapse));
+}
+
 
 // tracks
 

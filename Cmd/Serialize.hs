@@ -220,13 +220,13 @@ instance Binary Block.BlockTrack where
             _ -> version_error "Block.BlockTrack" v
 
 instance Binary Block.TrackFlag where
-    put (Block.Hide) = putWord8 0
+    put (Block.Collapse) = putWord8 0
     put (Block.Solo) = putWord8 1
     put (Block.Mute) = putWord8 2
     get = do
         tag_ <- getWord8
         case tag_ of
-            0 -> return Block.Hide
+            0 -> return Block.Collapse
             1 -> return Block.Solo
             2 -> return Block.Mute
             _ -> fail "no parse for Block.TrackFlag"

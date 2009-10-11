@@ -1,9 +1,29 @@
+- use Seq.map_maybes
+
+- UI emits tracknums without regard to hidden tracks
+- rederive works from UI updates, so collapse a track makes it rederive
+  move collapse to c++?  now it's just like mute...
+
+- select move should skip collapsed track
+- collapsed tracks can keep mute/solo color to remind you
+
+- when I delete a block, do all the tracks get finalized?  I should keep track
+of finalization and look for leaks.
+
+
 - hint refuses to compile when Cmd.NoteEntry emits a warning
 - Cmd.BlockConfig -> Block?  or View -> ViewConfig
 - fix or remove logview_test
 CURRENT
   + insert new track skeleton splice
   + fix hint stuff
+  + merged tracks
+    + collapsed tracks
+      - haskell support
+    - adjacent collpsed tracks are merged
+    - fix divider dragging bug
+  - verify selection behaviour, it selects the invisible ones too, right?
+  - fix Select.whatever to dividers/rulers in the middle
 
   - TODO / haddock sweep
   - sample reyong
@@ -124,6 +144,7 @@ fltk:
     * mark text is abbreviated if there isn't enough room
   MoveTile
     - only capture drag on a plain drag with no modifiers
+    - bug: when there are two adjacent dividers, the right one can be resized
 
 logging logview:
   * logview needs scrollbars

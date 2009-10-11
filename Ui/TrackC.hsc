@@ -14,6 +14,7 @@ import Foreign
 import Foreign.C
 
 import qualified Util.Array as Array
+import qualified Util.Seq as Seq
 
 import Ui
 import qualified Ui.Event as Event
@@ -25,24 +26,33 @@ import qualified Ui.Util as Util
 -- See comment in BlockC.hsc.
 #let alignment t = "%lu", (unsigned long)offsetof(struct {char x__; t (y__); }, y__)
 
-instance Storable Track.Track where
-    sizeOf _ = #size EventTrackConfig
-    alignment _ = #{alignment EventTrackConfig}
-    peek = error "Track peek unimplemented"
-    poke = poke_track
+-- Since converting a Track requires both a track and merged events, poke needs
+-- two args.  So keep it out of Storable to prevent accidental use of 'with'.
+-- instance Storable Track.Track where
+--     sizeOf _ = #size EventTrackConfig
+--     alignment _ = #{alignment EventTrackConfig}
 
-poke_track trackp (Track.Track
-        { Track.track_events = events
-        , Track.track_bg = bg
-        , Track.track_render = render
-        })
-    = do
-        find_events <- make_find_events events
-        let time_end = Track.time_end events
-        (#poke EventTrackConfig, bg_color) trackp bg
-        (#poke EventTrackConfig, find_events) trackp find_events
-        (#poke EventTrackConfig, time_end) trackp time_end
-        (#poke EventTrackConfig, render) trackp render
+poke_track trackp (Track.Track _ _ bg render) = do
+    (#poke EventTrackConfig, bg_color) trackp bg
+    (#poke EventTrackConfig, render) trackp render
+
+poke_find_events :: Ptr Track.Track -> [Track.TrackEvents] -> IO ()
+poke_find_events trackp event_lists = do
+    let time_end = maximum (0 : map Track.time_end event_lists)
+    (#poke EventTrackConfig, find_events) trackp
+        =<< make_find_events event_lists
+    (#poke EventTrackConfig, time_end) trackp time_end
+
+with_track :: Track.Track -> [Track.TrackEvents] -> (Ptr Track.Track -> IO a)
+    -> IO a
+with_track track event_lists f = allocaBytes size $ \trackp -> do
+    poke_track trackp track
+    poke_find_events trackp (Track.track_events track : event_lists)
+    f trackp
+    where
+    size = #size EventTrackConfig
+    -- allocaBytesAligned is not exported from Foreign.Marshal.Alloc
+    -- align = #{alignment EventTrackConfig}
 
 insert_render_samples :: Ptr Track.Track -> Track.Samples -> IO ()
 insert_render_samples trackp samples = do
@@ -50,7 +60,10 @@ insert_render_samples trackp samples = do
     let renderp = (#ptr EventTrackConfig, render) trackp
     (#poke RenderConfig, find_samples) renderp find_samples
 
+make_find_events :: [Track.TrackEvents] -> IO (FunPtr FindEvents)
 make_find_events events = c_make_find_events (cb_find_events events)
+
+make_find_samples :: Track.Samples -> IO (FunPtr FindSamples)
 make_find_samples samples = c_make_find_samples (cb_find_samples samples)
 
 instance Storable Track.RenderConfig where
@@ -70,30 +83,37 @@ encode_style style = case style of
     Track.Filled -> (#const RenderConfig::render_filled)
 
 -- typedef int (*FindEvents)(TrackPos *start_pos, TrackPos *end_pos,
---         TrackPos **ret_tps, Event **ret_events);
+--         TrackPos **ret_tps, Event **ret_events, int **ret_ranks);
 type FindEvents = Ptr TrackPos -> Ptr TrackPos -> Ptr (Ptr TrackPos)
-    -> Ptr (Ptr Event.Event) -> IO Int
+    -> Ptr (Ptr Event.Event) -> Ptr (Ptr CInt) -> IO Int
+
+cb_find_events :: [Track.TrackEvents] -> FindEvents
+cb_find_events event_lists startp endp ret_tps ret_events ret_ranks = do
+    start <- peek startp
+    end <- peek endp
+    let key (pos, _, rank) = (pos, rank)
+    let (tps, evts, ranks) = unzip3 $ Seq.sort_on key [ (pos, evt, rank)
+            | (rank, events) <- zip [0..] event_lists
+            , (pos, evt) <- find_events start end events ]
+    unless (null evts) $ do
+        -- Calling c++ is responsible for freeing this.
+        poke ret_tps =<< newArray tps
+        poke ret_events =<< newArray evts
+        poke ret_ranks =<< newArray ranks
+    return (length evts)
+
+find_events :: TrackPos -> TrackPos -> Track.TrackEvents -> [Track.PosEvent]
+find_events start end events = take 1 bwd ++ until_end
+    where
+    -- Take 1 from bwd to get the event overlapping the beginning of the
+    -- damaged area.
+    (bwd, fwd) = Track.events_at start events
+    until_end = takeWhile ((<end) . fst) fwd
 
 -- typedef int (*FindSamples)(TrackPos *start_pos, TrackPos *end_pos,
 --         TrackPos **ret_tps, double **ret_samples);
 type FindSamples = Ptr TrackPos -> Ptr TrackPos -> Ptr (Ptr TrackPos)
     -> Ptr (Ptr CDouble) -> IO Int
-
-cb_find_events :: Track.TrackEvents -> FindEvents
-cb_find_events events startp endp ret_tps ret_events = do
-    start <- peek startp
-    end <- peek endp
-    let (bwd, fwd) = Track.events_at start events
-        (until_end, _rest) = break ((>= end) . fst) fwd
-        -- Get the event overlapping the beginning of the damaged area.
-        found_events = take 1 bwd ++ until_end
-    unless (null found_events) $ do
-        -- Calling c++ is responsible for freeing this.
-        tp_array <- newArray (map fst found_events)
-        event_array <- newArray (map snd found_events)
-        poke ret_tps tp_array
-        poke ret_events event_array
-    return (length found_events)
 
 cb_find_samples :: Track.Samples -> FindSamples
 cb_find_samples (Track.Samples samples) startp endp ret_tps ret_samples = do

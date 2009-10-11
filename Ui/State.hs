@@ -739,21 +739,12 @@ get_tracklike track = case track of
 
 -- *** block track
 
-toggle_track_flag :: (UiStateMonad m) => BlockId -> TrackNum
-    -> Block.TrackFlag -> m ()
-toggle_track_flag block_id tracknum flag =
-    modify_block_track block_id tracknum $ \btrack ->
-        btrack { Block.track_flags = toggle (Block.track_flags btrack) }
-    where
-    toggle flags
-        | flag `elem` flags = List.delete flag flags
-        | otherwise = flag : flags
-
-set_merged_tracks :: (UiStateMonad m) => BlockId -> TrackNum
-    -> [TrackId] -> m ()
-set_merged_tracks block_id tracknum merged =
-    modify_block_track block_id tracknum $ \btrack ->
-        btrack { Block.track_merged = merged }
+get_block_track :: (UiStateMonad m) => BlockId -> TrackNum -> m Block.BlockTrack
+get_block_track block_id tracknum = do
+    block <- get_block block_id
+    let msg = "State.get_block_track: bad tracknum for " ++ show block_id
+            ++ ": " ++ show tracknum
+    maybe (throw msg) return (Seq.at (Block.block_tracks block) tracknum)
 
 modify_block_track :: (UiStateMonad m) => BlockId -> TrackNum
     -> (Block.BlockTrack -> Block.BlockTrack) -> m ()
@@ -762,6 +753,60 @@ modify_block_track block_id tracknum modify = do
     btracks <- modify_at "modify_block_track"
         (Block.block_tracks block) tracknum modify
     modify_block block_id $ \b -> b { Block.block_tracks = btracks }
+
+toggle_track_flag :: (UiStateMonad m) => BlockId -> TrackNum
+    -> Block.TrackFlag -> m ()
+toggle_track_flag block_id tracknum flag =
+    modify_track_flags block_id tracknum toggle
+    where
+    toggle flags
+        | flag `elem` flags = List.delete flag flags
+        | otherwise = flag : flags
+
+add_track_flag, remove_track_flag
+    :: (UiStateMonad m) => BlockId -> TrackNum -> Block.TrackFlag -> m ()
+add_track_flag block_id tracknum flag =
+    modify_track_flags block_id tracknum (List.union [flag])
+remove_track_flag block_id tracknum flag =
+    modify_track_flags block_id tracknum (List.delete flag)
+
+modify_track_flags :: (UiStateMonad m) => BlockId -> TrackNum
+    -> ([Block.TrackFlag] -> [Block.TrackFlag]) -> m ()
+modify_track_flags block_id tracknum f =
+    modify_block_track block_id tracknum $ \btrack ->
+        btrack { Block.track_flags = f (Block.track_flags btrack) }
+
+-- | Merge the @from@ tracknum into the @to@ tracknum and collapse @from@.
+merge_track :: (UiStateMonad m) => BlockId -> TrackNum -> TrackNum -> m ()
+merge_track block_id to from = do
+    from_id <- get_event_track_at "State.merge_track" block_id from
+    modify_block_track block_id to $ \btrack ->
+        btrack { Block.track_merged = from_id : Block.track_merged btrack }
+    add_track_flag block_id from Block.Collapse
+
+-- | Reverse 'merge_track': remove the merged tracks and expand their
+-- occurrances in the given block.  \"Unmerge\" is not graceful, but at least
+-- it's obviously the opposite of \"merge\".
+unmerge_track :: (UiStateMonad m) => BlockId -> TrackNum -> m ()
+unmerge_track block_id tracknum = do
+    track_ids <- fmap Block.track_merged $ get_block_track block_id tracknum
+    unmerged_tracknums <- fmap concat $
+        mapM (track_id_tracknums block_id) track_ids
+    forM_ unmerged_tracknums $ \tracknum ->
+        remove_track_flag block_id tracknum Block.Collapse
+    set_merged_tracks block_id tracknum []
+
+set_merged_tracks :: (UiStateMonad m) => BlockId -> TrackNum
+    -> [TrackId] -> m ()
+set_merged_tracks block_id tracknum merged =
+    modify_block_track block_id tracknum $ \btrack ->
+        btrack { Block.track_merged = merged }
+
+track_id_tracknums :: (UiStateMonad m) => BlockId -> TrackId -> m [TrackNum]
+track_id_tracknums block_id track_id = do
+    block_tracks <- blocks_with_track track_id
+    return [tracknum | (bid, tracks) <- block_tracks, bid == block_id,
+        (tracknum, _) <- tracks]
 
 -- *** track util
 

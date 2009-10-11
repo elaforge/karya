@@ -230,9 +230,12 @@ set_display_track view_id tracknum dtrack = do
     viewp <- get_ptr view_id
     with dtrack $ \dtrackp ->
         c_set_display_track viewp (Util.c_int tracknum) dtrackp
-
+    c_collapse_track viewp (Util.c_int tracknum)
+        (fromBool (Block.dtrack_collapsed dtrack))
 foreign import ccall "set_display_track"
     c_set_display_track :: Ptr CView -> CInt -> Ptr Block.DisplayTrack -> IO ()
+foreign import ccall "collapse_track"
+    c_collapse_track :: Ptr CView -> CInt -> CChar -> IO ()
 
 -- ** Track operations
 
@@ -240,7 +243,7 @@ insert_track :: ViewId -> TrackNum -> Block.Tracklike
     -> Track.Samples -> Types.Width -> Fltk ()
 insert_track view_id tracknum tracklike samples width = do
     viewp <- get_ptr view_id
-    with_tracklike tracklike samples $ \tp mlistp len ->
+    with_tracklike [] tracklike samples $ \tp mlistp len ->
         c_insert_track viewp (Util.c_int tracknum) tp
             (Util.c_int width) mlistp len
 
@@ -251,21 +254,21 @@ remove_track view_id tracknum = do
         c_remove_track viewp (Util.c_int tracknum) finalize
 
 update_track :: ViewId -> TrackNum -> Block.Tracklike
-    -> Track.Samples -> TrackPos -> TrackPos -> Fltk ()
-update_track view_id tracknum tracklike samples start end = do
+    -> Track.Samples -> [Track.TrackEvents] -> TrackPos -> TrackPos -> Fltk ()
+update_track view_id tracknum tracklike samples merged start end = do
     viewp <- get_ptr view_id
     with_finalizer $ \finalize ->
         with start $ \startp -> with end $ \endp ->
-            with_tracklike tracklike samples $ \tp mlistp len ->
+            with_tracklike merged tracklike samples $ \tp mlistp len ->
                 c_update_track viewp (Util.c_int tracknum) tp
                     mlistp len finalize startp endp
 
 -- | Like 'update_track' except update everywhere.
 update_entire_track :: ViewId -> TrackNum -> Block.Tracklike
-    -> Track.Samples -> Fltk ()
-update_entire_track view_id tracknum tracklike samples =
+    -> Track.Samples -> [Track.TrackEvents] -> Fltk ()
+update_entire_track view_id tracknum tracklike samples merged =
     -- -1 is special cased in c++.
-    update_track view_id tracknum tracklike samples
+    update_track view_id tracknum tracklike samples merged
         (TrackPos (-1)) (TrackPos (-1))
 
 foreign import ccall "insert_track"
@@ -289,10 +292,15 @@ make_free_fun_ptr = c_make_free_fun_ptr freeHaskellFunPtr
 with_finalizer :: (FunPtr (FunPtrFinalizer a) -> IO c) -> IO c
 with_finalizer = Exception.bracket make_free_fun_ptr freeHaskellFunPtr
 
-with_tracklike tracklike samples f = case tracklike of
+-- | Convert a Tracklike into the set of pointers that c++ knows it as.
+-- A set of event lists can be merged into event tracks.
+with_tracklike :: [Track.TrackEvents] -> Block.Tracklike -> Track.Samples
+    -> (Ptr TracklikePtr -> Ptr Ruler.Marklist -> CInt -> IO ()) -> IO ()
+with_tracklike merged_events tracklike samples f = case tracklike of
     Block.T track ruler -> RulerC.with_ruler ruler $ \rulerp mlistp len ->
-        with track $ \trackp -> with (TPtr trackp samples rulerp) $ \tp ->
-            f tp mlistp len
+        TrackC.with_track track merged_events $ \trackp ->
+            with (TPtr trackp samples rulerp) $ \tp ->
+                f tp mlistp len
     Block.R ruler -> RulerC.with_ruler ruler $ \rulerp mlistp len ->
         with (RPtr rulerp) $ \tp ->
             f tp mlistp len
@@ -390,7 +398,7 @@ instance Storable Block.DisplayTrack where
     peek = error "no peek for DisplayTrack"
     poke = poke_display_track
 
-poke_display_track dtrackp (Block.DisplayTrack _ _merged status brightness) = do
+poke_display_track dtrackp (Block.DisplayTrack _ _ status brightness _) = do
     let (statusc, status_color) = maybe ('\NUL', Color.black) id status
     (#poke DisplayTrack, status) dtrackp statusc
     (#poke DisplayTrack, status_color) dtrackp status_color

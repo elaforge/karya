@@ -2,7 +2,9 @@ module Ui.Color where
 import Foreign
 import Foreign.C
 
+import qualified Util.Num as Num
 import qualified Ui.Util as Util
+
 
 -- r, g, b, alpha, from 0--1
 data Color = Color Double Double Double Double
@@ -31,10 +33,11 @@ gray7 = rgb 0.7 0.7 0.7
 gray8 = rgb 0.8 0.8 0.8
 gray9 = rgb 0.9 0.9 0.9
 
-scale :: Double -> Color -> Color
-scale d (Color r g b a) = rgba (r*d) (g*d) (b*d) a
-lighten d = scale (1+d)
-darken d = scale (1-d)
+brightness :: Double -> Color -> Color
+brightness d (Color r g b a)
+    | d < 1 = rgba (Num.scale 0 r d) (Num.scale 0 g d) (Num.scale 0 b d) a
+    | otherwise =
+        rgba (Num.scale r 1 (d-1)) (Num.scale g 1 (d-1)) (Num.scale b 1 (d-1)) a
 
 alpha a' (Color r g b _a) = rgba r g b a'
 

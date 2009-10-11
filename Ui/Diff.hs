@@ -181,8 +181,8 @@ diff_block block_id block1 block2 = do
     when (unequal Block.block_config) $
         change [block_update $ Update.BlockConfig (Block.block_config block2)]
     when (unequal Block.block_skeleton) $
-        change
-            [block_update $ Update.BlockSkeleton (Block.block_skeleton block2)]
+        change [block_update $
+            Update.BlockSkeleton (Block.block_skeleton block2)]
 
     let (dtracks1, dtracks2) = (Block.block_display_tracks block1,
             Block.block_display_tracks block2)
@@ -190,7 +190,7 @@ diff_block block_id block1 block2 = do
             dtracks1 dtracks2
     forM_ pairs $ \(i2, track1, track2) -> case (track1, track2) of
         (Just _, Nothing) -> change [block_update $ Update.RemoveTrack i2]
-        -- I only need the default creation width when I new track is being
+        -- I only need the default creation width when a new track is being
         -- created, oddly enough.
         (Nothing, Just (dtrack, width)) ->
             change [block_update $ Update.InsertTrack i2 width dtrack]
@@ -218,6 +218,7 @@ diff_ruler ruler_id ruler1 ruler2 = do
 
 -- * util
 
+uncurry3 :: (a -> b -> c -> d) -> (a, b, c) -> d
 uncurry3 f (a, b, c) = f a b c
 
 unequal_on :: (Eq eq) => (a -> eq) -> a -> a -> Bool

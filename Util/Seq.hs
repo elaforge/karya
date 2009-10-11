@@ -74,6 +74,9 @@ maximum_with key _ xs = foldl1' f xs
 
 -- * ordered lists
 
+sort_on :: (Ord b) => (a -> b) -> [a] -> [a]
+sort_on key = sortBy (\x y -> compare (key x) (key y))
+
 -- | Merge sorted lists.  If two elements compare equal, the one from the left
 -- list comes first.
 merge :: Ord a => [a] -> [a] -> [a]
@@ -105,7 +108,7 @@ keyed_group_with key = map (\gs -> (key (head gs), gs))
 -- | Like 'groupBy', but the list doesn't need to be sorted, and use a key
 -- function instead of equality.  List is returned in sorted order.
 group_with :: (Ord b) => (a -> b) -> [a] -> [[a]]
-group_with key = groupBy ((==) `on` key) . sortBy (compare `on` key)
+group_with key = groupBy ((==) `on` key) . sort_on key
 
 -- | Pair each element with the following element.  The last element is paired
 -- with Nothing.  Like @zip xs (drop 1 xs ++ f (last xs))@ but only traverses

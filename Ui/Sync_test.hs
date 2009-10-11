@@ -160,14 +160,36 @@ test_set_track_flags = do
         State.toggle_track_flag t_block_id 1 Block.Mute
     state <- io_human "track1 is soloed" $ run state $ do
         State.toggle_track_flag t_block_id 1 Block.Solo
+    state <- io_human "collapse" $ run state $ do
+        State.toggle_track_flag t_block_id 1 Block.Collapse
+    state <- io_human "expand" $ run state $ do
+        State.toggle_track_flag t_block_id 1 Block.Collapse
     state <- io_human "unsolo" $ run state $ do
         State.toggle_track_flag t_block_id 1 Block.Solo
     state <- io_human "unmute" $ run state $ do
         State.toggle_track_flag t_block_id 1 Block.Mute
-    state <- io_human "hide" $ run state $ do
-        State.toggle_track_flag t_block_id 1 Block.Hide
-    state <- io_human "unhide" $ run state $ do
-        State.toggle_track_flag t_block_id 1 Block.Hide
+    return ()
+
+test_set_track_merge = do
+    let ([t1, t2], state) = UiTest.run_mkview
+            [ ("t1", [(0, 1, "n1"), (2, 1, "")])
+            , ("t2", [(0, 0, "p1"), (0.5, 0, "p2"), (2, 0, "p3")])
+            ]
+    state <- io_human "has two tracks" $ run State.empty $ State.put state
+    state <- io_human "t2 merged with t1" $ run state $ do
+        State.set_merged_tracks UiTest.default_block_id 1 [t2]
+    return ()
+
+test_merge_unmerge_track = do
+    let ([t1, t2], state) = UiTest.run_mkview
+            [ ("t1", [(0, 1, "n1"), (2, 1, "")])
+            , ("t2", [(0, 0, "p1"), (0.5, 0, "p2"), (2, 0, "p3")])
+            ]
+    state <- io_human "has two tracks" $ run State.empty $ State.put state
+    state <- io_human "t2 merged with t1" $ run state $ do
+        State.merge_track UiTest.default_block_id 1 2
+    state <- io_human "t1 unmerged, t1 reappears" $ run state $ do
+        State.unmerge_track UiTest.default_block_id 1
     return ()
 
 test_insert_remove_track = do

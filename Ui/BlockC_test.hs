@@ -79,7 +79,7 @@ test_set_selection = do
     let ruler = UiTest.mkruler 20 10
     send $ BlockC.insert_track view 1
         (Block.T event_track_1 (UiTest.overlay_ruler ruler)) no_samples 30
-    let c = Color.lighten 0.5 Color.blue
+    let c = Color.brightness 1.5 Color.blue
     io_human "point selection appears" $
         send $ BlockC.set_selection view 0
             (cselection c 1 (TrackPos 0) 1 (TrackPos 0))
@@ -143,10 +143,10 @@ test_update_track = do
 
     io_human "ruler gets wider, both events change" $ do
         send $ BlockC.update_entire_track view 1
-            (Block.R (UiTest.mkruler 20 16)) no_samples
+            (Block.R (UiTest.mkruler 20 16)) no_samples []
         send $ BlockC.update_track view 2
             (Block.T event_track_2 (UiTest.overlay_ruler ruler))
-            no_samples (TrackPos 0) (TrackPos 60)
+            no_samples [] (TrackPos 0) (TrackPos 60)
 
 test_insert_remove_track = do
     view <- create_empty_view
@@ -169,7 +169,7 @@ test_samples = do
 
     let track2 = Track.set_render_style Track.Filled event_track_1
     io_human "samples are filled in" $
-        send $ BlockC.update_entire_track view 1 (event_track track2) samples
+        send $ BlockC.update_entire_track view 1 (event_track track2) samples []
 
 samples = Track.samples $ map (Arrow.first TrackPos)
     [(0, 1), (32, 0.5), (32, 1), (64, 0), (500, 0), (510, 1), (520, 0)]

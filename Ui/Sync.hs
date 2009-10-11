@@ -7,12 +7,27 @@
 
     So if this module has a bug, two views of one block could get out of sync
     and display different data.  Hopefully that won't happen.
+
+    Implementation of merged tracks:
+
+    They need to be implemented in two places: 1. when a block is updated with
+    changed merged tracks, and 2. when a track is updated they should be
+    preserved.  It's tricky because unlike normal track events, they are block
+    level, not track level, so the same track in different blocks may be merged
+    with different events.  I don't actually see a lot of use-case for the same
+    track in different blocks, but as long as I have it, it makes sense that it
+    can have different merges in different blocks, since it's really
+    a display-level effect.
+
+    This is a hassle because case 1 has to go hunt down the event info and case
+    2 has to go hunt down the per-block info, but such is life.
 -}
 module Ui.Sync (BlockSamples, sync, set_play_position) where
 import Control.Monad
 import qualified Control.Monad.Trans as Trans
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 
 import qualified Util.Seq as Seq
 
@@ -177,35 +192,51 @@ run_update block_samples (Update.BlockUpdate block_id update) = do
                                 (Track.track_title t)
                         BlockC.set_display_track view_id tracknum dtrack
                     _ -> return ()
-        Update.DisplayTrack tracknum dtrack -> return $
-            forM_ view_ids $ \view_id ->
-                BlockC.set_display_track view_id tracknum dtrack
+        Update.DisplayTrack tracknum dtrack -> do
+            let tracklike_id = Block.dtrack_tracklike_id dtrack
+            tracklike <- State.get_tracklike tracklike_id
+            ustate <- State.get
+            return $
+                forM_ view_ids $ \view_id -> do
+                    BlockC.set_display_track view_id tracknum dtrack
+                    let merged = Block.dtrack_merged dtrack
+                    let samples = get_samples maybe_track_samples tracklike_id
+                    BlockC.update_entire_track view_id tracknum tracklike
+                        samples (events_of_track_ids ustate merged)
 
 run_update block_samples (Update.TrackUpdate track_id update) = do
     blocks <- State.blocks_with_track track_id
     let track_info = [(block_id, tracknum, tid)
             | (block_id, tracks) <- blocks, (tracknum, tid) <- tracks]
+    -- lookup DisplayTrack and pair with the tracks
     fmap sequence_ $ forM track_info $ \(block_id, tracknum, tracklike_id) -> do
         view_ids <- fmap Map.keys (State.get_views_of block_id)
         tracklike <- State.get_tracklike tracklike_id
         let maybe_track_samples = lookup block_id block_samples
             samples = get_samples maybe_track_samples tracklike_id
+
+        ustate <- State.get
+        block <- State.get_block block_id
+        let merged = case Seq.at (Block.block_tracks block) tracknum of
+                Just btrack ->
+                    events_of_track_ids ustate (Block.track_merged btrack)
+                Nothing -> []
         fmap sequence_ $ forM view_ids $ \view_id -> case update of
             Update.TrackEvents low high ->
                 return $ BlockC.update_track view_id tracknum tracklike
-                    samples low high
+                    samples merged low high
             Update.TrackAllEvents ->
                 return $ BlockC.update_entire_track view_id tracknum tracklike
-                    samples
+                    samples merged
             Update.TrackTitle title ->
                 return $ BlockC.set_track_title view_id tracknum title
             Update.TrackBg ->
                 -- update_track also updates the bg color
                 return $ BlockC.update_track view_id tracknum tracklike
-                    samples (TrackPos 0) (TrackPos 0)
+                    samples merged (TrackPos 0) (TrackPos 0)
             Update.TrackRender ->
                 return $ BlockC.update_entire_track view_id tracknum tracklike
-                    samples
+                    samples merged
 
 run_update _ (Update.RulerUpdate ruler_id) = do
     blocks <- State.blocks_with_ruler ruler_id
@@ -214,10 +245,17 @@ run_update _ (Update.RulerUpdate ruler_id) = do
     fmap sequence_ $ forM track_info $ \(block_id, tracknum, tracklike_id) -> do
         view_ids <- fmap Map.keys (State.get_views_of block_id)
         tracklike <- State.get_tracklike tracklike_id
-        -- A ruler track doesn't have samples so don't bother to look for them.
-        let samples = get_samples Nothing tracklike_id
+        -- A ruler track doesn't have samples or merged events so don't bother
+        -- to look for them.
         fmap sequence_ $ forM view_ids $ \view_id -> return $
-            BlockC.update_entire_track view_id tracknum tracklike samples
+            BlockC.update_entire_track view_id tracknum tracklike
+                Track.no_samples []
+
+events_of_track_ids :: State.State -> [TrackId] -> [Track.TrackEvents]
+events_of_track_ids ustate track_ids = Maybe.catMaybes $ map events_of track_ids
+    where
+    events_of track_id = fmap Track.track_events (Map.lookup track_id tracks)
+    tracks = State.state_tracks ustate
 
 to_csel :: ViewId -> Types.SelNum -> Maybe (Types.Selection)
     -> State.StateT IO (Maybe BlockC.CSelection)

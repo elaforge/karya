@@ -83,6 +83,10 @@ run state m = case result of
         Right (val, state', _) -> (val, state')
     where result = Identity.runIdentity (State.run state m)
 
+exec state m = case State.exec state m of
+    Left err -> error $ "state error: " ++ show err
+    Right state' -> state'
+
 eval :: State.State -> State.StateT Identity.Identity a -> a
 eval state m = case State.eval state m of
     Left err -> error $ "state error: " ++ show err

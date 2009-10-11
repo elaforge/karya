@@ -80,12 +80,13 @@ data DisplayTrack = DisplayTrack {
     , dtrack_merged :: [TrackId]
     , dtrack_status :: Maybe (Char, Color)
     , dtrack_event_brightness :: Double
+    , dtrack_collapsed :: Bool
     } deriving (Eq, Show, Read)
 
 -- | Most of these only make sense for event tracks.
 data TrackFlag =
-    -- | Don't display this track at all.
-    Hide
+    -- | Track is collapsed to take up less space.
+    Collapse
     -- | UI shows solo indication.  If any tracks are soloed on a block, only
     -- those tracks are derived.
     | Solo
@@ -97,12 +98,12 @@ data TrackFlag =
 -- track creation width since it doesn't belong in DisplayTrack.
 block_display_tracks :: Block -> [(DisplayTrack, Types.Width)]
 block_display_tracks block =
-    [(block_track_config t, track_width t) | t <- block_tracks block,
-        Hide `notElem` track_flags t]
+    [(block_track_config t, track_width t) | t <- block_tracks block]
 
 block_track_config :: BlockTrack -> DisplayTrack
 block_track_config btrack =
     DisplayTrack (tracklike_id btrack) (track_merged btrack) status brightness
+        (Collapse `elem` track_flags btrack)
     where (status, brightness) = flags_to_status (track_flags btrack)
 
 flags_to_status :: [TrackFlag] -> (Maybe (Char, Color), Double)
