@@ -132,7 +132,7 @@ derive_events ui_from ui_to updates = do
     let block_ids = dirty_blocks ui_from ui_to updates
     -- In case they aren't done, their work is about to be obsolete.
     Trans.liftIO $ mapM_ Concurrent.killThread $
-        Maybe.catMaybes (map (flip Map.lookup old_threads) block_ids)
+        Seq.map_maybe (flip Map.lookup old_threads) block_ids
     threads <- mapM background_derive block_ids
     let new_threads = Map.fromList (zip block_ids threads)
     Cmd.modify_state $ \st -> st { Cmd.state_derive_threads =
@@ -152,12 +152,12 @@ background_derive block_id = do
 dirty_blocks :: State.State -> State.State -> [Update.Update] -> [BlockId]
 dirty_blocks ui_from ui_to updates = Seq.unique (track_block_ids ++ block_ids)
     where
-    block_ids = Maybe.catMaybes (map Update.block_changed updates)
+    block_ids = Seq.map_maybe Update.block_changed updates
     track_block_ids = concatMap blocks_of track_ids
     -- When track title changes come from the UI they aren't emitted as
     -- Updates, but they should still trigger a re-derive.
-    track_ids = Maybe.catMaybes $
-        map Update.track_changed (Diff.track_diff ui_from ui_to ++ updates)
+    track_ids = Seq.map_maybe Update.track_changed
+        (Diff.track_diff ui_from ui_to ++ updates)
     blocks_of tid = map fst $ State.find_tracks
         ((== Just tid) . Block.track_id_of) (State.state_blocks ui_to)
 

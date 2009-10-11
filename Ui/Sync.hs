@@ -27,7 +27,6 @@ import Control.Monad
 import qualified Control.Monad.Trans as Trans
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 
 import qualified Util.Seq as Seq
 
@@ -252,7 +251,7 @@ run_update _ (Update.RulerUpdate ruler_id) = do
                 Track.no_samples []
 
 events_of_track_ids :: State.State -> [TrackId] -> [Track.TrackEvents]
-events_of_track_ids ustate track_ids = Maybe.catMaybes $ map events_of track_ids
+events_of_track_ids ustate track_ids = Seq.map_maybe events_of track_ids
     where
     events_of track_id = fmap Track.track_events (Map.lookup track_id tracks)
     tracks = State.state_tracks ustate

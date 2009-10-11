@@ -125,7 +125,7 @@ element bytes = ((pb_up, pb_down), name, c_groups)
         (Parse.from_signed_7bit (bytes!!12), Parse.from_signed_7bit (bytes!!13))
     -- doc says 231~240
     name = Seq.strip $ Parse.to_string $ take 10 $ drop 231 bytes
-    controls = Maybe.catMaybes $ map (get_controller bytes) controllers
+    controls = Seq.map_maybe (get_controller bytes) controllers
     c_groups = [(cc, map fst grp)
         | (cc, grp) <- Seq.keyed_group_with snd controls]
 

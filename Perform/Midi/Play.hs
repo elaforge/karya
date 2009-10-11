@@ -7,6 +7,7 @@ import qualified Data.Set as Set
 import qualified Data.Maybe as Maybe
 
 import qualified Util.Log as Log
+import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
 import Ui
@@ -92,7 +93,7 @@ send_all write_midi addrs ts chan_msg =
 update_addrs addrs_seen wmsgs = Set.size addrs_seen' `seq` addrs_seen'
     where
     addrs_seen' = Set.union addrs_seen
-        (Set.fromList (Maybe.catMaybes (map wmsg_addr wmsgs)))
+        (Set.fromList (Seq.map_maybe wmsg_addr wmsgs))
 
 wmsg_addr :: Midi.WriteMessage -> Maybe Instrument.Addr
 wmsg_addr (Midi.WriteMessage dev _ (Midi.ChannelMessage chan _)) =

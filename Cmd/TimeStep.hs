@@ -101,8 +101,7 @@ rewind step marklists start_pos = case step of
 relevant_marks marklists names direction start_pos =
     let mlists = case names of
             AllMarklists -> map snd marklists
-            NamedMarklists names ->
-                Maybe.catMaybes (map (flip lookup marklists) names)
+            NamedMarklists names -> Seq.map_maybe (flip lookup marklists) names
         (cmp, marks) = case direction of
             Advance -> (compare,
                 map (flip Ruler.forward_from start_pos) mlists)

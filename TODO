@@ -1,5 +1,3 @@
-- use Seq.map_maybes
-
 - UI emits tracknums without regard to hidden tracks
 - rederive works from UI updates, so collapse a track makes it rederive
   move collapse to c++?  now it's just like mute...

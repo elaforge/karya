@@ -15,6 +15,10 @@ enumerate = zip [0..]
 key_with :: (a -> k) -> [a] -> [(k, a)]
 key_with f xs = zip (map f xs) xs
 
+-- | Map a function which may not have a return value.
+map_maybe :: (a -> Maybe b) -> [a] -> [b]
+map_maybe f = Maybe.catMaybes . map f
+
 -- * permutations
 
 -- | The cartesian product of a list of lists.  E.g.

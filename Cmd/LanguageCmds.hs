@@ -412,7 +412,7 @@ realloc_instrument inst_name wdev chans = do
 schema_instruments :: BlockId -> Cmd.CmdL [Score.Instrument]
 schema_instruments block_id = do
     titles <- fmap (map State.track_title) (State.get_track_info block_id)
-    return $ Maybe.catMaybes (map Schema.title_to_instrument titles)
+    return $ Seq.map_maybe Schema.title_to_instrument titles
 
 -- | Try to automatically create an instrument config based on the instruments
 -- found in the given block.  It simply gives each instrument on a device a
