@@ -29,6 +29,8 @@ Fl_Group::insert and Fl_Group::remove should be virtual, and it should be
 documented that these are always used for adding and removing widgets.  This
 way you can reliably intercept those to preserve your own invariants.
 
+remove(Fl_Widget &w) should be remove(const Fl_Widget &w)
+
 Fl_Input_::value should be virtual.
 
     Member functions that overlap with their superclass's name:

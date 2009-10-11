@@ -1,8 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 module Ui.Update where
 import qualified Data.Generics as Generics
-import Data.Function
-import qualified Data.List as List
+import qualified Util.Seq as Seq
 
 import Ui
 import qualified Ui.Block as Block
@@ -77,12 +76,15 @@ track_changed (TrackUpdate track_id update) = case update of
 track_changed _ = Nothing
 
 block_changed :: Update -> Maybe BlockId
-block_changed (BlockUpdate block_id _) = Just block_id
+block_changed (BlockUpdate block_id update) = case update of
+    BlockConfig _ -> Nothing
+    -- TODO if DisplayTrack only changed collapsed, then it's not a change
+    _ -> Just block_id
 block_changed _ = Nothing
 
 -- | Some Updates have to happen before others.
 sort :: [Update] -> [Update]
-sort = List.sortBy (compare `on` sort_key)
+sort = Seq.sort_on sort_key
 
 sort_key :: Update -> Int
 sort_key update = case update of
