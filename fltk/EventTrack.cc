@@ -323,6 +323,9 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
     // There's probably some way to get around this by caching whether an event
     // has displayed text.  I think I might want to do this, but should
     // wait until I am caching events from the callback in general.
+
+    // A little overlap is ok.
+    const static int ok_overlap = 4;
     if (rank && offset > previous->y)
         previous->w = 0;
     fl_font(fl_font(), Config::font_size::event);
@@ -337,11 +340,13 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
         if (rank) {
             pos.x = (x() + w()) - size.x;
             // Only display if I won't overlap text at the left or above.
-            if (pos.x > previous->r() && offset > *ranked_bottom)
+            if (pos.x > previous->r() - ok_overlap
+                    && offset > *ranked_bottom - ok_overlap)
+            {
                 draw_text = true;
+            }
         } else {
-            // A little overlap is ok.
-            if (offset > previous->b() - 4) {
+            if (offset > previous->b() - ok_overlap) {
                 draw_text = true;
                 pos.x = x() + 2;
             }
