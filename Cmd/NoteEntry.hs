@@ -44,10 +44,11 @@ cmds_with_note kbd_entry cmds msg = do
         then do
             octave <- fmap Cmd.state_kbd_entry_octave Cmd.get_state
             repeat <- Keymap.is_repeat msg
-            -- Just Nothing makes them get eaten here.
-            if repeat
-                then return (Just Nothing)
-                else return (kbd_input octave msg)
+            -- Just Nothing makes the repeats get eaten here, but make sure to
+            -- only suppress them if this key would have generated a note.
+            return $ case kbd_input octave msg of
+                Nothing -> Nothing
+                Just new_msg -> if repeat then Just Nothing else Just new_msg
         else return Nothing
     midi_note <- get_midi_input msg
     let maybe_new_msg = kbd_note `mplus` midi_note
