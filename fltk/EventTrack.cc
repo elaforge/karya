@@ -229,12 +229,6 @@ EventTrackView::draw_area()
     if (config.render.style != RenderConfig::render_none)
         this->draw_samples(start, end);
 
-    if (damage() & ~FL_DAMAGE_CHILD) {
-        this->draw_child(this->overlay_ruler);
-    } else {
-        this->update_child(this->overlay_ruler);
-    }
-
     // Draw the upper layer (event start line, text).
     // Don't use INT_MIN because it overflows too easily.
     Rect previous(x(), -9999, 0, 0);
@@ -251,6 +245,13 @@ EventTrackView::draw_area()
             free(events[i].text);
         free(events);
         free(event_pos);
+    }
+
+    // Draw the selection on top.
+    if (damage() & ~FL_DAMAGE_CHILD) {
+        this->draw_child(this->overlay_ruler);
+    } else {
+        this->update_child(this->overlay_ruler);
     }
 }
 
