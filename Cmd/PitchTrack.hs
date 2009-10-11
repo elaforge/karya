@@ -4,6 +4,7 @@
     This module creates the pitches that are later parsed by Derive.Controller.
 -}
 module Cmd.PitchTrack where
+import qualified Control.Arrow as Arrow
 import qualified Data.Maybe as Maybe
 
 import qualified Ui.Key as Key
@@ -12,6 +13,7 @@ import qualified Cmd.ControlTrack as ControlTrack
 import qualified Cmd.EditUtil as EditUtil
 import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Msg as Msg
+import qualified Cmd.Selection as Selection
 
 import qualified Perform.Pitch as Pitch
 
@@ -28,8 +30,8 @@ cmd_val_edit scale_id msg = do
             sel_pos <- EditUtil.get_sel_pos
             note <- EditUtil.parse_key scale_id key
             val_edit_at sel_pos note
-        (Msg.key_down -> Just Key.Backspace) ->
-            EditUtil.modify_event False (const Nothing)
+        (Msg.key_down -> Just Key.Backspace) -> do
+            EditUtil.modify_event False (const (Nothing, True))
         _ -> Cmd.abort
     return Cmd.Done
 
@@ -45,11 +47,11 @@ cmd_method_edit msg = do
 
 val_edit_at :: (Monad m) => EditUtil.SelPos -> Pitch.Note -> Cmd.CmdT m ()
 val_edit_at selpos note = modify_event_at selpos $ \(method, _) ->
-    (Just method, Just (Pitch.note_text note))
+    ((Just method, Just (Pitch.note_text note)), True)
 
 method_edit_at :: (Monad m) => EditUtil.SelPos -> Key.Key -> Cmd.CmdT m ()
 method_edit_at selpos key = modify_event_at selpos $
-    \(method, val) -> (EditUtil.modify_text_key key method, Just val)
+    \(method, val) -> ((EditUtil.modify_text_key key method, Just val), False)
 
 -- | Record the last note entered.  Should be called by 'with_note'.
 cmd_record_note_status :: Pitch.ScaleId -> Cmd.Cmd
@@ -64,6 +66,7 @@ cmd_record_note_status scale_id msg = do
 -- * implementation
 
 modify_event_at :: (Monad m) => EditUtil.SelPos
-    -> ((String, String) -> (Maybe String, Maybe String)) -> Cmd.CmdT m ()
+    -> ((String, String) -> ((Maybe String, Maybe String), Bool))
+    -> Cmd.CmdT m ()
 modify_event_at selpos f = EditUtil.modify_event_at selpos True
-    (ControlTrack.unparse . f . ControlTrack.parse)
+    (Arrow.first ControlTrack.unparse . f . ControlTrack.parse)

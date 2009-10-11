@@ -5,21 +5,22 @@ of finalization and look for leaks.
 - Cmd.BlockConfig -> Block?  or View -> ViewConfig
 - fix or remove logview_test
 CURRENT
-  - backspace advances
   - bring selection delete back
+  - schema cmds can return errors
 
-  - rederive works from UI updates, so collapse a track makes it rederive
+  - collapsing a track shouldn't trigger a rederive
   - select move should skip collapsed track
   - skel_display status can be two chars: Sm is solo+mute
   + insert new track skeleton splice
   + fix hint stuff
   + merged tracks
-    + collapsed tracks
-      - haskell support
     - adjacent collpsed tracks are merged
-    - fix divider dragging bug
   - verify selection behaviour, it selects the invisible ones too, right?
   - fix Select.whatever to dividers/rulers in the middle
+
+  track management:
+    - resize a bunch of tracks at once
+    - plain (non-merging) collapse
 
   - TODO / haddock sweep
   - sample reyong

@@ -1,5 +1,6 @@
 {-# LANGUAGE ViewPatterns #-}
 module Cmd.ControlTrack where
+import qualified Control.Arrow as Arrow
 import Control.Monad
 import qualified Data.Maybe as Maybe
 
@@ -14,10 +15,10 @@ cmd_val_edit :: Cmd.Cmd
 cmd_val_edit msg = do
     EditUtil.abort_on_mods
     case msg of
-        (EditUtil.val_key -> Just key) -> modify_event $
-            \(method, val) -> case EditUtil.modify_text_key key val of
-                Nothing -> (Nothing, Nothing)
-                Just new_val -> (Just method, Just new_val)
+        (EditUtil.val_key -> Just key) -> modify_event $ \(method, val) ->
+            case EditUtil.modify_text_key key val of
+                Nothing -> ((Nothing, Nothing), null val)
+                Just new_val -> ((Just method, Just new_val), False)
         _ -> Cmd.abort
     return Cmd.Done
 
@@ -26,15 +27,15 @@ cmd_method_edit msg = do
     EditUtil.abort_on_mods
     case msg of
         (EditUtil.method_key -> Just key) -> modify_event $ \(method, val) ->
-            (EditUtil.modify_text_key key method, Just val)
+            ((EditUtil.modify_text_key key method, Just val), False)
         _ -> Cmd.abort
     return Cmd.Done
 
 -- * implementation
 
-modify_event :: (Monad m) => ((String, String) -> (Maybe String, Maybe String))
-    -> Cmd.CmdT m ()
-modify_event f = EditUtil.modify_event True (unparse . f . parse)
+modify_event :: (Monad m) =>
+    ((String, String) -> ((Maybe String, Maybe String), Bool)) -> Cmd.CmdT m ()
+modify_event f = EditUtil.modify_event True (Arrow.first unparse . f . parse)
 
 parse :: String -> (String, String)
 parse s
