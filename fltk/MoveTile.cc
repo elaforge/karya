@@ -78,7 +78,6 @@ MoveTile::handle(int evt)
 
     switch (evt) {
     case FL_MOVE: case FL_ENTER: case FL_PUSH:
-        // return handle_move(evt, drag_state, drag_from);
         int r = this->handle_move(evt, &drag_state, &this->dragged_child);
         if (drag_state.x)
             drag_from.x = mouse.x;
@@ -284,18 +283,18 @@ MoveTile::handle_drag_tile(const Point drag_from, const Point drag_to,
         original_boxes[i] = this->original_box(i);
     std::vector<Rect> boxes(original_boxes.begin(), original_boxes.end());
 
-    /*
-        if growing, jostle to right
-        otherwise, for child in (from dragged to leftmost)
-            jostle to min.x
-    */
+    // if growing, jostle to right
+    // otherwise, for child in (from dragged to leftmost)
+    //      jostle to min.x
     Point shift(drag_to.x - drag_from.x, drag_to.y - drag_from.y);
     Point tile_edges(this->x() + this->w(), this->y() + this->h());
     // DEBUG("shift is " << shift);
     if (shift.x > 0) {
-        // Going right is easy, just jostle over all children to the right.
+        // Going right is easy, just resize the dragged child and jostle all
+        // children to the right.  I know this child isn't stiff because
+        // 'find_dragged_child' will have found the nearest leftwards unstiff
+        // one.
         jostle(boxes, tile_edges, drag_from, drag_to, dragged_child);
-        // Unless this is stiff, in which point I should go back to grow.
     } else {
         // Going left is harder, go back to the left trying to shrink children
         // until I have enough space.
@@ -339,47 +338,45 @@ static int dist(int x, int y) { return abs(x-y); }
 // Find the upper left most child from drag_from, if any, and return its
 // index.  Also return dragging status into drag_state.  If 'drag_from'
 // doesn't indicate any child, return -1 and drag_state is (false, false).
+//
+// Since stiff children can't be resized, dragging a stiff child counts as
+// dragging the nearest leftwards nonstiff one.  Kids can be so stubborn.
+// TODO this only does x drag since that's all I need right now
 int
 MoveTile::find_dragged_child(Point drag_from, BoolPoint *drag_state)
 {
     // Edges on or outside the tile never get dragged.
     Rect tile_box = this->original_box(MoveTile::GROUP_SIZE);
     *drag_state = BoolPoint(false, false);
+    int prev_r = 0;
+    int prev_nonstiff = -1;
     for (int i = 0; i < this->children(); i++) {
         Rect box = rect(this->child(i));
+        // Handle one vertical block of children at a time.
+        if (i > 0 && box.r() == prev_r)
+            continue;
 
         bool in_bounds = box.r() < tile_box.r();
         bool grabbable = dist(drag_from.x, box.r()) <= this->grab_area;
         bool inside = box.x <= drag_from.x && drag_from.x <= box.r();
         if (in_bounds && (grabbable || (this->stiff_child(i) && inside))) {
-            drag_state->x = true;
             if (this->stiff_child(i)) {
-                if (i == 0) {
-                    // You just can't drag if the leftmost child is stiff.
-                    drag_state->x = false;
+                // You just can't drag if all left children are stiff.
+                if (prev_nonstiff == -1) {
                     return -1;
                 } else {
-                    return this->previous_track(i);
+                    drag_state->x = true;
+                    return prev_nonstiff;
                 }
-            } else
-                return this->find(this->child(i));
+            } else {
+                drag_state->x = true;
+                return i;
+            }
         }
-        // TODO y drag
+
+        prev_r = box.r();
+        if (!this->stiff_child(i))
+            prev_nonstiff = i;
     }
     return -1;
-}
-
-
-int
-MoveTile::previous_track(int i) const
-{
-    int child_x = this->child(i)->x();
-    i--;
-    while (i > 0 && this->child(i)->x() >= child_x)
-        i--;
-    // Found the one to the left, now find the uppermost one.
-    child_x = this->child(i)->x();
-    while (i-1 > 0 && this->child(i-1)->x() == child_x)
-        i--;
-    return i;
 }

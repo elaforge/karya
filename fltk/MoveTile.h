@@ -9,8 +9,8 @@ a protected method 'sort_children' that subclasses should call after inserting
 widgets.  Unfortunately FLTK's 'insert' is not virtual so this can't be done
 automatically.
 
-Some children may be marked as non-resizable.  They are never resized, and
-their entire area is available for drag.
+Some children may be marked as non-resizable ("stiff").  They are never
+resized, and their entire area can be dragged.
 
 The callback is called when things are dragged.
 
@@ -78,7 +78,6 @@ private:
     int handle_move(int evt, BoolPoint *drag_state, int *dragged_child);
     void handle_drag_tile(Point drag_from, Point drag_to, int dragged_child);
     int find_dragged_child(Point drag_from, BoolPoint *drag_state);
-    int previous_track(int i) const;
 
     MoveDirection hmove, vmove;
     std::vector<bool> stiff_children;

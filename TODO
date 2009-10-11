@@ -1,18 +1,18 @@
-- UI emits tracknums without regard to hidden tracks
-- rederive works from UI updates, so collapse a track makes it rederive
-  move collapse to c++?  now it's just like mute...
-
-- select move should skip collapsed track
-- collapsed tracks can keep mute/solo color to remind you
-
 - when I delete a block, do all the tracks get finalized?  I should keep track
 of finalization and look for leaks.
-
 
 - hint refuses to compile when Cmd.NoteEntry emits a warning
 - Cmd.BlockConfig -> Block?  or View -> ViewConfig
 - fix or remove logview_test
 CURRENT
+  - backspace advances
+  - bring selection delete back
+  - after collapse it still thinks the expanded track is stiff!
+
+  - rederive works from UI updates, so collapse a track makes it rederive
+  - select move should skip collapsed track
+  - collapsed tracks can keep mute/solo color to remind you
+  - skel_display status can be two chars: Sm is solo+mute
   + insert new track skeleton splice
   + fix hint stuff
   + merged tracks
@@ -123,13 +123,14 @@ fltk:
   - convert Selection to use the same format as hs, so it can show the cursor
     end specially
   - bug: selection redraw leaves gaps when dragging downwards
-  - bug: in test_block, resizing tracks, leftmost track title is confused
+  * bug: in test_block, resizing tracks, leftmost track title is confused
   - figure out how to have a minimal title bar in os x (win.border(0) removes
     it altogether)
     I can set something like kUtilityWindowClass in Fl_mac.cxx:Fl_X::make, but
     it doesn't get any kbd input
   - can I get the windows into an os x windows menu?
   - bug: doesn't redraw after switching monitors
+  - SeqInputs should display the right side of the text if they're too small
   UI Msgs
     - can I capture os x two-finger drag events?
       yes, they're reported as FL_MOUSEWHEEL, so I should scroll on mousewheel
@@ -142,7 +143,7 @@ fltk:
     * mark text is abbreviated if there isn't enough room
   MoveTile
     - only capture drag on a plain drag with no modifiers
-    - bug: when there are two adjacent dividers, the right one can be resized
+    * bug: when there are two adjacent dividers, the right one can be resized
 
 logging logview:
   * logview needs scrollbars
