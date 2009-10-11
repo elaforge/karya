@@ -46,7 +46,7 @@ struct Tracklike {
 // Also acts like a union of Divider, Track, and Ruler.
 class TrackView : public Fl_Group {
 public:
-    TrackView(const char *label=0) : Fl_Group(0, 0, 1, 1, label) {
+    explicit TrackView(const char *label=0) : Fl_Group(0, 0, 1, 1, label) {
         this->labeltype(FL_NO_LABEL);
         end(); // This is a Group, but I don't want anything else to fall in.
         // DEBUG("created track view " << this);
@@ -84,7 +84,7 @@ public:
 
 class DividerView : public TrackView {
 public:
-    DividerView(const DividerConfig &config);
+    explicit DividerView(const DividerConfig &config);
     bool track_resizable() const { return false; }
     virtual Fl_Box &title_widget() { return *this->title_box; }
 protected:

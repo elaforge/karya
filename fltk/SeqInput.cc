@@ -9,7 +9,7 @@
 
 
 SeqInput::SeqInput(int X, int Y, int W, int H, bool do_expansion) :
-    Fl_Input(W, Y, W, H), focus_color(210, 220, 255),
+    Fl_Input(W, Y, W, H), focus_color(255, 240, 220),
     proper_size(W, H), expanded(false), do_expansion(do_expansion)
 {
     this->textsize(Config::font_size::input);

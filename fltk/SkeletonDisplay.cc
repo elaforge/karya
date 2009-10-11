@@ -50,10 +50,24 @@ void
 SkeletonDisplay::set_status(int tracknum, char status, Color color)
 {
     while (this->status_color.size() <= static_cast<size_t>(tracknum)) {
-        this->status_color.push_back(std::make_pair('\0', FL_BLACK));
+        this->status_color.push_back(std::make_pair('\0', Color()));
     }
-    this->status_color[tracknum] = std::make_pair(status, color_to_fl(color));
+    this->status_color[tracknum] = std::make_pair(status, color);
     this->redraw();
+}
+
+
+void
+SkeletonDisplay::get_status(int tracknum, char *status, Color *color)
+{
+    ASSERT(tracknum >= 0);
+    if (static_cast<size_t>(tracknum) < track_widths.size()) {
+        *status = status_color[tracknum].first;
+        *color = status_color[tracknum].second;
+    } else {
+        *status = ' ';
+        *color = Color(0, 0, 0);
+    }
 }
 
 
@@ -112,7 +126,7 @@ SkeletonDisplay::draw()
     for (size_t i = 0; i < status_size; i++) {
         char c = status_color[i].first;
         if (c) {
-            fl_color(status_color[i].second);
+            fl_color(color_to_fl(status_color[i].second));
             int w = track_widths[i];
             fl_rectf(this->x()+track_centers[i] - w/2, this->y(), w, this->h());
         }
@@ -140,7 +154,7 @@ SkeletonDisplay::draw()
             int cw = fl_width(c);
             int ch = fl_height() + fl_descent();
             int xpos = this->x() + track_centers[i] - cw/2;
-            fl_color(status_color[i].second);
+            fl_color(color_to_fl(status_color[i].second));
             fl_rectf(xpos-1, bottom - ch, cw + 2, ch);
             fl_color(FL_BLACK);
             fl_draw(&c, 1, xpos, bottom - fl_descent());

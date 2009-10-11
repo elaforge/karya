@@ -24,6 +24,7 @@ public:
     void set_config(
             const SkeletonConfig &config, const std::vector<int> &widths);
     void set_status(int tracknum, char status, Color color);
+    void get_status(int tracknum, char *status, Color *color);
     void set_width(int tracknum, int width);
 
     void resize(int x, int y, int w, int h) {
@@ -39,7 +40,7 @@ private:
     std::vector<int> track_widths;
     std::vector<int> track_centers;
     std::vector<std::pair<int, int> > parent_child;
-    std::vector<std::pair<char, Fl_Color> > status_color;
+    std::vector<std::pair<char, Color> > status_color;
     int right_edge;
 };
 

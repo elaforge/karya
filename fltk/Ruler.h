@@ -82,7 +82,7 @@ struct RulerConfig {
 
 class OverlayRuler : public Fl_Group {
 public:
-    OverlayRuler(const RulerConfig &config) :
+    explicit OverlayRuler(const RulerConfig &config) :
         Fl_Group(0, 0, 1, 1), config(config)
     {}
     void set_zoom(const ZoomInfo &new_zoom);
@@ -117,7 +117,7 @@ private:
 
 class RulerTrackView : public TrackView {
 public:
-    RulerTrackView(const RulerConfig &config);
+    explicit RulerTrackView(const RulerConfig &config);
     virtual Fl_Box &title_widget();
     virtual void set_zoom(const ZoomInfo &zoom) { ruler.set_zoom(zoom); }
     virtual void set_selection(int selnum, int tracknum, const Selection &sel) {

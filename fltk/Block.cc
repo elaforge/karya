@@ -12,6 +12,12 @@
 // Actually, it's ok if it overlaps, since it's just the status field.
 static const int mac_resizer_width = 0;
 
+// Collapsed tracks are replaced with this.
+// Thanks to c++'s initialization order mess, I can't use
+// Config::abbreviation_color here.
+static const DividerConfig collapsed_track(Color(0, 0, 255));
+static const int collapsed_width = 3;
+
 BlockView::BlockView(int X, int Y, int W, int H,
         const BlockModelConfig &model_config,
         const BlockViewConfig &view_config) :
@@ -381,6 +387,51 @@ BlockView::set_display_track(int tracknum, const DisplayTrack &dtrack)
                 dtrack.status_color);
     }
     this->track_at(tracknum)->set_event_brightness(dtrack.event_brightness);
+}
+
+
+void
+BlockView::collapse_track(int tracknum, bool collapse)
+{
+    // This adding and removing tracks is normally done from haskell, so some
+    // fiddly work needs to be done to save and restore track attributes.
+    // I initially implemented it at the haskell level, but keeping both sides
+    // tracknums in sync seemed to error-prone.
+    ASSERT(0 <= tracknum && tracknum < this->tracks());
+    if (tracknum == 0)
+        return; // can't collapse the ruler, sorry
+
+    while (this->collapsed_tracks.size() <= static_cast<size_t>(tracknum))
+        collapsed_tracks.push_back(BlockView::TrackInfo(NULL, 0));
+
+    if (bool(collapsed_tracks[tracknum].track) == collapse)
+        return;
+    if (collapse) {
+        int width = this->get_track_width(tracknum);
+        TrackView *t = track_tile.remove_track(tracknum-1);
+        TrackView *collapsed = new DividerView(collapsed_track);
+        this->insert_track_view(tracknum, collapsed, collapsed_width);
+
+        DisplayTrack display;
+        this->skel_display.get_status(tracknum-1,
+                &display.status, &display.status_color);
+        this->skel_display.set_width(tracknum-1, collapsed_width);
+        this->skel_display.set_status(tracknum-1, '\0', Color());
+
+        collapsed_tracks[tracknum] = BlockView::TrackInfo(t, width);
+        collapsed_tracks[tracknum].display = display;
+    } else {
+        BlockView::TrackInfo info = collapsed_tracks[tracknum];
+        TrackView *t = track_tile.remove_track(tracknum-1);
+        delete t;
+        this->insert_track_view(tracknum, info.track, info.width);
+
+        this->skel_display.set_width(tracknum-1, info.width);
+        this->skel_display.set_status(tracknum-1,
+                info.display.status, info.display.status_color);
+        collapsed_tracks[tracknum] = BlockView::TrackInfo(NULL, 0);
+    }
+    this->update_scrollbars();
 }
 
 

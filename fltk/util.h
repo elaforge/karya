@@ -97,6 +97,7 @@ struct Color {
     Color(unsigned char r, unsigned char g, unsigned char b,
             unsigned char a=0xff)
         : r(r), g(g), b(b), a(a) {}
+    explicit Color() : r(0), g(0), b(0), a(0) {}
     static Color from_doubles(double r, double g, double b, double a) {
         return Color(clamp(0.0, 255.0, r), clamp(0.0, 255.0, g),
             clamp(0.0, 255.0, b), clamp(0.0, 255.0, a));
@@ -108,7 +109,6 @@ struct Color {
     }
     bool operator!=(const Color &o) const { return !(*this == o); }
 
-    Color() : r(0), g(0), b(0), a(0) {}
     unsigned char r, g, b, a;
 
     Color brightness(double d) const {

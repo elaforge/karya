@@ -252,39 +252,21 @@ void
 timeout_func(void *vp)
 {
     BlockViewWindow &view = *((BlockViewWindow *) vp);
-    // view.block.set_zoom(ZoomInfo(TrackPos(64), 1));
     static int n;
-    double scroll_dist = 2.53165;
 
-    if (n > 3)
-        return;
-    view.block.set_zoom(ZoomInfo(TrackPos(scroll_dist * n), 1));
-
-    /*
-    std::cout << "------------\n";
+    std::cout << n << "------------\n";
     switch (n) {
     case 0:
-        view.block.set_selection(0, Selection(selection_colors[0],
-                    2, TrackPos(20), 1, TrackPos(10)));
+        view.block.collapse_track(3, true);
         break;
     case 1:
-        view.block.set_selection(0, Selection(selection_colors[0],
-                    2, TrackPos(20), 1, TrackPos(10)));
+        view.block.collapse_track(3, false);
         break;
-    // case 2:
-    //     view.block.set_selection(0, Selection(selection_colors[0],
-    //                 2, TrackPos(20), 1, TrackPos(5)));
-    //     break;
-    // case 3:
-    //     view.block.set_selection(0, Selection(selection_colors[0],
-    //                 2, TrackPos(20), 1, TrackPos(4)));
-    //     break;
     default:
         return;
     }
-    */
     n++;
-    Fl::repeat_timeout(.2, timeout_func, vp);
+    Fl::repeat_timeout(1, timeout_func, vp);
 }
 
 int
@@ -308,7 +290,7 @@ main(int argc, char **argv)
     ruler.marklists = mlists;
     RulerConfig truler(ruler_bg, false, true, true, m44_last_pos);
     truler.marklists = mlists;
-    DividerConfig divider(Color(0x0000ff));
+    DividerConfig divider(Color(0x00ff00));
 
     int i = t1_events.size() - 1;
     TrackPos t1_time_end = t1_events[i].pos + t1_events[i].event.duration;
@@ -333,8 +315,8 @@ main(int argc, char **argv)
     view.block.insert_track(0, Tracklike(&ruler), 20);
     // view.block.insert_track(1, Tracklike(&divider), 10);
     // view.block.insert_track(1, Tracklike(&ruler), 30);
-    view.block.insert_track(1, Tracklike(&track1, &truler), 30);
-    view.block.insert_track(2, Tracklike(&divider), 10);
+    view.block.insert_track(1, Tracklike(&track1, &truler), 80); // 30);
+    view.block.insert_track(2, Tracklike(&divider), 5);
     view.block.insert_track(3, Tracklike(&track2, &truler), 30);
     view.block.insert_track(4, Tracklike(&empty_track, &truler), 20);
     view.block.insert_track(5, Tracklike(&empty_track, &truler), 20);
@@ -353,7 +335,7 @@ main(int argc, char **argv)
     view.block.set_display_track(3, dtrack);
     // print_children(&view);
 
-    // Fl::add_timeout(1, timeout_func, (void*) &view);
+    Fl::add_timeout(1, timeout_func, (void*) &view);
 
     // view_config.block_title_height = 40;
     // view_config.track_title_height = 40;

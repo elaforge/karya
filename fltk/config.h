@@ -9,9 +9,9 @@
 namespace Config {
 
 // This color signifies that some content has been omitted due to lack of space.
-extern Color abbreviation_color;
+extern const Color abbreviation_color;
 // Mark the playing end of events with this.
-extern Color event_trigger_color;
+extern const Color event_trigger_color;
 
 enum {
     max_selections = 5,

@@ -65,9 +65,9 @@ struct BlockViewConfig {
 
 // Track config local to each BlockView.
 struct DisplayTrack {
-    char status;
-    Color status_color;
     double event_brightness;
+    Color status_color;
+    char status;
 };
 
 
@@ -113,6 +113,7 @@ public:
     void insert_track(int tracknum, const Tracklike &track, int width);
     void remove_track(int tracknum, FinalizeCallback finalizer);
     void set_display_track(int tracknum, const DisplayTrack &dtrack);
+    void collapse_track(int tracknum, bool collapse);
 
 private:
     void insert_track_view(int tracknum, TrackView *track, int width);
@@ -143,14 +144,25 @@ public:
     void set_track_width(int tracknum, int width) {
         if (tracknum == 0)
             this->set_ruler_width(width);
-        else
+        else {
             track_tile.set_track_width(tracknum-1, width);
+            skel_display.set_width(tracknum-1, width);
+        }
     }
 
 private:
     BlockModelConfig model_config;
     BlockViewConfig view_config;
     ZoomInfo zoom;
+    // Save a collapsed track so it can be expanded later.
+    struct TrackInfo {
+        TrackInfo(TrackView *track, int width) : track(track), width(width) {}
+        DisplayTrack display;
+        TrackView *track;
+        int width;
+    };
+    // Indexed by tracknum, with track==NULL if this tracknum isn't collapsed.
+    std::vector<TrackInfo> collapsed_tracks;
     // The ruler track gets this when there's "nothing" in it.
     TrackView *no_ruler;
 
