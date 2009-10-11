@@ -416,7 +416,11 @@ BlockView::collapse_track(int tracknum, bool collapse)
         this->skel_display.get_status(tracknum-1,
                 &display.status, &display.status_color);
         this->skel_display.set_width(tracknum-1, collapsed_width);
-        this->skel_display.set_status(tracknum-1, '\0', Color());
+        // Keep the status color as a reminder about the collapsed track.
+        if (display.status)
+            skel_display.set_status(tracknum-1, ' ', display.status_color);
+        else
+            skel_display.set_status(tracknum-1, '\0', Color());
 
         collapsed_tracks[tracknum] = BlockView::TrackInfo(t, width);
         collapsed_tracks[tracknum].display = display;

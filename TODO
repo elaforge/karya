@@ -10,7 +10,6 @@ CURRENT
 
   - rederive works from UI updates, so collapse a track makes it rederive
   - select move should skip collapsed track
-  - collapsed tracks can keep mute/solo color to remind you
   - skel_display status can be two chars: Sm is solo+mute
   + insert new track skeleton splice
   + fix hint stuff
