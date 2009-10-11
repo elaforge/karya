@@ -6,7 +6,7 @@ the given color.
 
 Accept zoom callbacks from parent Zoom and BlockView.
 
-Tracks come in pairs of a title and body.  
+Tracks come in pairs of a title and body.
 
 TrackTile_______
    |             \

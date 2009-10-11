@@ -44,6 +44,8 @@ public:
     {}
 
     virtual void resize(int X, int Y, int W, int H);
+    // remove isn't virtual, so use this to remove children.
+    virtual void remove_child(Fl_Widget *w);
     virtual int handle(int evt);
     void drag_tile(Point drag_from, Point drag_to);
 

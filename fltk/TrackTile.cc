@@ -151,7 +151,6 @@ TrackTile::insert_track(int tracknum, TrackView *track, int width)
     if (!track->track_resizable()) {
         this->set_stiff_child(child_pos);
         this->set_stiff_child(child_pos+1);
-        // DEBUG("stiff: " << child_pos);
     }
     this->update_sizes();
     this->redraw();
@@ -163,8 +162,8 @@ TrackTile::remove_track(int tracknum)
 {
     ASSERT(0 <= tracknum && tracknum <= tracks());
     TrackView *t = track_at(tracknum);
-    remove(t);
-    remove(t->title_widget());
+    this->remove_child(t);
+    this->remove_child(&t->title_widget());
     this->update_sizes();
     this->redraw();
     return t;

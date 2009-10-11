@@ -46,6 +46,18 @@ MoveTile::resize(int x, int y, int w, int h)
 }
 
 
+void
+MoveTile::remove_child(Fl_Widget *w)
+{
+    int c = this->find(w);
+    if (c != this->children()) {
+        this->remove(w);
+        if (static_cast<size_t>(c) < stiff_children.size())
+            this->stiff_children.erase(stiff_children.begin() + c);
+    }
+}
+
+
 static void
 set_cursor(Fl_Widget *widget, BoolPoint drag_state)
 {
@@ -128,9 +140,8 @@ MoveTile::drag_tile(Point drag_from, Point drag_to)
 void
 MoveTile::set_stiff_child(int child)
 {
-    for (int i = this->stiff_children.size(); i < children(); i++) {
+    while (this->stiff_children.size() <= static_cast<size_t>(child))
         this->stiff_children.push_back(false);
-    }
     this->stiff_children[child] = true;
 }
 
@@ -138,7 +149,7 @@ MoveTile::set_stiff_child(int child)
 bool
 MoveTile::stiff_child(int child)
 {
-    return (size_t) child < this->stiff_children.size()
+    return static_cast<size_t>(child) < this->stiff_children.size()
         && this->stiff_children[child];
 }
 

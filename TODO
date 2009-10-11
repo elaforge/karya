@@ -7,7 +7,6 @@ of finalization and look for leaks.
 CURRENT
   - backspace advances
   - bring selection delete back
-  - after collapse it still thinks the expanded track is stiff!
 
   - rederive works from UI updates, so collapse a track makes it rederive
   - select move should skip collapsed track
