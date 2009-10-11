@@ -142,7 +142,7 @@ track :: (State.UiStateMonad m) => BlockId -> TrackNum -> m TrackId
 track block_id tracknum = do
     -- Clip to valid range so callers can use an out of range tracknum.
     tracknum <- clip_tracknum block_id tracknum
-    prev_track <- State.track_at block_id (tracknum-1)
+    prev_track <- State.block_track_at block_id (tracknum-1)
 
     let ruler_id = case fmap Block.tracklike_id prev_track of
             Just (Block.TId _ rid) -> rid
@@ -199,8 +199,8 @@ insert_track_after_selection = do
 remove_selected_tracks :: (Monad m) => Cmd.CmdT m ()
 remove_selected_tracks = do
     block_id <- Cmd.get_focused_block
-    sel <- fmap snd $ Selection.selected_tracks Config.insert_selnum
-    mapM_ (State.remove_track block_id) (reverse (Types.sel_tracknums sel))
+    (tracknums, _, _, _) <- Selection.selected_tracks Config.insert_selnum
+    mapM_ (State.remove_track block_id) (reverse tracknums)
 
 -- ** util
 
@@ -218,8 +218,8 @@ generate_track_id block_id code tracks =
 -- end, i.e. swapped with empty space.
 swap_tracks :: (State.UiStateMonad m) => BlockId -> TrackNum -> TrackNum -> m ()
 swap_tracks block_id num0 num1 = do
-    track0 <- State.track_at block_id num0
-    track1 <- State.track_at block_id num1
+    track0 <- State.block_track_at block_id num0
+    track1 <- State.block_track_at block_id num1
     case (track0, track1) of
         (Nothing, Nothing) -> return ()
         (Just t0, Nothing) -> remove num0 >> insert num1 t0

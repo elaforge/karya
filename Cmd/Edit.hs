@@ -77,24 +77,22 @@ edit_color mode = case mode of
 -- | Extend the events in the selection to either the end of the selection or
 -- the beginning of the next note.
 cmd_set_duration :: (Monad m) => Cmd.CmdT m ()
-cmd_set_duration = modify_events $ \_start end (pos, event) ->
+cmd_set_duration = modify_events $ \_ end (pos, event) ->
     (pos, event { Event.event_duration = end - pos })
 
 -- | Insert empty space at the beginning of the selection for the length of
 -- the selection, pushing subsequent events forwards.
 cmd_insert_selection :: (Monad m) => Cmd.CmdT m ()
 cmd_insert_selection = do
-    (track_ids, sel) <- Selection.selected_tracks Config.insert_selnum
-    let (low, high) = Types.sel_range sel
-    mapM_ (move_track_events low (high - low)) track_ids
+    (_, track_ids, start, end) <- Selection.selected_tracks Config.insert_selnum
+    mapM_ (move_track_events start (end - start)) track_ids
 
 -- | Remove the notes under the selection, and move everything else back.
 cmd_delete_selection :: (Monad m) => Cmd.CmdT m ()
 cmd_delete_selection = do
     cmd_remove_selected
-    (track_ids, sel) <- Selection.selected_tracks Config.insert_selnum
-    let (low, high) = Types.sel_range sel
-    mapM_ (move_track_events low (-(high - low))) track_ids
+    (_, track_ids, start, end) <- Selection.selected_tracks Config.insert_selnum
+    mapM_ (move_track_events start (-(end - start))) track_ids
 
 move_track_events :: (State.UiStateMonad m) =>
     TrackPos -> TrackPos -> TrackId -> m ()
@@ -138,8 +136,7 @@ modify_events f = do
 -- a range, remove all events within its half-open extent.
 cmd_remove_selected :: (Monad m) => Cmd.CmdT m ()
 cmd_remove_selected = do
-    (track_ids, sel) <- Selection.selected_tracks Config.insert_selnum
-    let (start, end) = Types.sel_range sel
+    (_, track_ids, start, end) <- Selection.selected_tracks Config.insert_selnum
     forM_ track_ids $ \track_id -> if start == end
         then State.remove_event track_id start
         else State.remove_events track_id start end

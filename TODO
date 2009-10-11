@@ -1,3 +1,4 @@
+- draw selection on top of trigger, it's too hard to see
 - when I delete a block, do all the tracks get finalized?  I should keep track
 of finalization and look for leaks.
 
@@ -16,7 +17,6 @@ CURRENT
   + merged tracks
     - adjacent collpsed tracks are merged
   - verify selection behaviour, it selects the invisible ones too, right?
-  - fix Select.whatever to dividers/rulers in the middle
 
   track management:
     - resize a bunch of tracks at once

@@ -157,7 +157,7 @@ selection_sub_state sel = do
     block <- State.get_block block_id
 
     tracks <- fmap Maybe.catMaybes $
-        mapM (State.track_at block_id) (Types.sel_tracknums sel)
+        mapM (State.block_track_at block_id) (Types.sel_tracknums sel)
     let tracklike_ids = map Block.tracklike_id tracks
     tracklikes <- mapM State.get_tracklike tracklike_ids
 

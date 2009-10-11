@@ -700,20 +700,23 @@ remove_track block_id tracknum = do
 -- This is inconsistent with 'insert_track' and 'remove_track' which clip to
 -- range, but is convenient in practice.
 -- TODO why?
-track_at :: (UiStateMonad m) => BlockId -> TrackNum
+block_track_at :: (UiStateMonad m) => BlockId -> TrackNum
     -> m (Maybe Block.BlockTrack)
-track_at block_id tracknum = do
+block_track_at block_id tracknum = do
     block <- get_block block_id
     return $ Seq.at (Block.block_tracks block) tracknum
 
--- | Convenience function like 'track_at', but get the track_id if it's an
--- event track.
+track_at :: (UiStateMonad m) => BlockId -> TrackNum
+    -> m (Maybe Block.TracklikeId)
+track_at block_id tracknum = do
+    maybe_track <- block_track_at block_id tracknum
+    return $ fmap Block.tracklike_id maybe_track
+
+-- | Like 'track_at', but only for event tracks.
 event_track_at :: (UiStateMonad m) => BlockId -> TrackNum -> m (Maybe TrackId)
 event_track_at block_id tracknum = do
     maybe_track <- track_at block_id tracknum
-    return $ do
-        track <- maybe_track
-        Block.track_id_of (Block.tracklike_id track)
+    return $ Block.track_id_of =<< maybe_track
 
 -- | Like 'event_track_at' but throws if it's not there.
 get_event_track_at :: (UiStateMonad m) =>

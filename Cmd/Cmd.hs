@@ -563,12 +563,11 @@ ui_update_state ctx update =
 
 update_input ctx block_id text = case UiMsg.ctx_track ctx of
     Just tracknum -> do
-        track <- State.track_at block_id tracknum
-        case fmap (Block.track_id_of . Block.tracklike_id) track of
-            Just (Just track_id) ->
-                State.set_track_title track_id text
-            _ -> State.throw $ show (UiMsg.UpdateInput text) ++ " for "
-                ++ show ctx ++ " on non-event track " ++ show track
+        track_id <- State.event_track_at block_id tracknum
+        case track_id of
+            Just track_id -> State.set_track_title track_id text
+            Nothing -> State.throw $ show (UiMsg.UpdateInput text) ++ " for "
+                ++ show ctx ++ " on non-event track " ++ show tracknum
     Nothing -> State.set_block_title block_id text
 
 update_of (Msg.Ui (UiMsg.UiMsg ctx (UiMsg.UiUpdate update))) =

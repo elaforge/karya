@@ -30,6 +30,7 @@ cmd_val_edit scale_id msg = do
             sel_pos <- EditUtil.get_sel_pos
             note <- EditUtil.parse_key scale_id key
             val_edit_at sel_pos note
+            Selection.advance
         (Msg.key_down -> Just Key.Backspace) -> do
             EditUtil.modify_event False (const (Nothing, True))
         _ -> Cmd.abort
@@ -47,11 +48,11 @@ cmd_method_edit msg = do
 
 val_edit_at :: (Monad m) => EditUtil.SelPos -> Pitch.Note -> Cmd.CmdT m ()
 val_edit_at selpos note = modify_event_at selpos $ \(method, _) ->
-    ((Just method, Just (Pitch.note_text note)), True)
+    ((Just method, Just (Pitch.note_text note)), False)
 
 method_edit_at :: (Monad m) => EditUtil.SelPos -> Key.Key -> Cmd.CmdT m ()
-method_edit_at selpos key = modify_event_at selpos $
-    \(method, val) -> ((EditUtil.modify_text_key key method, Just val), False)
+method_edit_at selpos key = modify_event_at selpos $ \(method, val) ->
+    ((EditUtil.modify_text_key key method, Just val), False)
 
 -- | Record the last note entered.  Should be called by 'with_note'.
 cmd_record_note_status :: Pitch.ScaleId -> Cmd.Cmd

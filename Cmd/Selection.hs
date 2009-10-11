@@ -2,11 +2,13 @@
 -}
 module Cmd.Selection where
 import Control.Monad
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
 import qualified Util.Seq as Seq
 import qualified Util.Log as Log
+import qualified Util.Num as Num
 
 import Ui
 import qualified Ui.Block as Block
@@ -50,21 +52,47 @@ cmd_advance_insert :: (Monad m) => Cmd.CmdT m ()
 cmd_advance_insert =
     cmd_step_selection Config.insert_selnum TimeStep.Advance False
 
--- | Move the selection across tracks by @nshift@.
+-- | Move the selection across tracks by @shift@, skipping non-event tracks
+-- and collapsed tracks.
 --
 -- If @extend@ is true, extend the current selection instead of setting a new
 -- selection.
 cmd_shift_selection :: (Monad m) =>
     Types.SelNum -> TrackNum -> Bool -> Cmd.CmdT m ()
-cmd_shift_selection selnum nshift extend = do
+cmd_shift_selection selnum shift extend = do
     view_id <- Cmd.get_focused_view
     block <- State.block_of_view view_id
     sel <- Cmd.require =<< State.get_selection view_id selnum
-    let sel' = shift_selection nshift (length (Block.block_tracks block)) sel
+    let sel' = shift_sel block shift sel
     select_and_scroll view_id selnum
-        (Just (if extend then sel_merge sel sel' else sel'))
+        (Just (if extend then merge_sel sel sel' else sel'))
 
-sel_merge (Types.Selection strack spos _ _) (Types.Selection _ _ ctrack cpos) =
+
+-- | Shift the selection along selectable tracks, clipping if it's out of
+-- range.  While the sel_cur_track won't be on a non-selectable track after
+-- this, the selection may still include one.
+shift_sel :: Block.Block -> TrackNum -> Types.Selection -> Types.Selection
+shift_sel block shift sel =
+    Types.sel_modify_tracks (Num.clamp 0 max_track . (+shift2)) sel
+    where
+    selectable = selectable_tracks block
+    tracknum = Types.sel_cur_track sel
+    new_tracknum = Seq.mhead tracknum $ if shift >= 0
+        then drop shift $ dropWhile (< tracknum) selectable
+        else drop (-shift) $ dropWhile (> tracknum) (List.reverse selectable)
+    shift2 = new_tracknum - tracknum
+    max_track = length (Block.block_tracks block)
+
+-- | Get the tracknums from a block that should be selectable.
+selectable_tracks :: Block.Block -> [TrackNum]
+selectable_tracks block = do
+    (i, track@(Block.BlockTrack { Block.tracklike_id = Block.TId _ _}))
+        <- zip [0..] (Block.block_tracks block)
+    guard (Block.Collapse `notElem` Block.track_flags track)
+    return i
+
+merge_sel :: Types.Selection -> Types.Selection -> Types.Selection
+merge_sel (Types.Selection strack spos _ _) (Types.Selection _ _ ctrack cpos) =
     Types.Selection strack spos ctrack cpos
 
 -- | Set the selection based on a click or drag.
@@ -203,6 +231,7 @@ track_scroll_with_selection old_sel new_sel view_start view_end widths
 
 -- ** status
 
+sync_selection_status :: (Monad m) => ViewId -> Cmd.CmdT m ()
 sync_selection_status view_id = do
     maybe_sel <- State.get_selection view_id Config.insert_selnum
     Cmd.set_view_status view_id "sel" (fmap selection_status maybe_sel)
@@ -224,15 +253,6 @@ mouse_mod msg = do
         _ -> Nothing
     track_pos <- Msg.context_track_pos msg
     return $ (Cmd.MouseMod btn (Just track_pos), track_pos)
-
--- | Shift the selection to the right or left, clipping it if it hits the edges
--- of the displayed tracks.
-shift_selection :: TrackNum -> TrackNum -> Types.Selection -> Types.Selection
-shift_selection nshift ntracks sel =
-    Types.sel_modify_tracks (between 0 (ntracks-1) . (+nshift)) sel
-
--- TODO put this in a more general spot... but I don't have one!  Util.Num?
-between low high n = min high (max low n)
 
 -- * util
 
@@ -290,34 +310,34 @@ selected_events :: (Monad m) =>
     -> Types.SelNum
     -> Cmd.CmdT m (TrackPos, TrackPos, [(TrackId, [Track.PosEvent])])
 selected_events point_prev selnum = do
-    (track_ids, sel) <- selected_tracks selnum
+    (_, track_ids, start, end) <- selected_tracks selnum
     tracks <- mapM State.get_track track_ids
-    let (start, end) = Types.sel_range sel
-        get_events = if point_prev && Types.sel_is_point sel
-            then event_before else events_in_sel
-        track_events = [(track_id, get_events sel track)
+    let get_events = if point_prev && start == end
+            then event_before else events_in_range
+        track_events = [(track_id, get_events start end track)
             | (track_id, track) <- zip track_ids tracks]
     return (start, end, track_events)
 
-events_in_sel sel track =
+events_in_range, event_before :: TrackPos -> TrackPos -> Track.Track
+    -> [Track.PosEvent]
+events_in_range start end track =
     Track.events_in_range start end (Track.track_events track)
-    where (start, end) = Types.sel_range sel
-
-event_before sel track = maybe [] (:[]) $
-    Track.event_before (Types.sel_start_pos sel) (Track.track_events track)
+event_before start _ track = maybe [] (:[]) $
+    Track.event_before start (Track.track_events track)
 
 -- | Get selected event tracks along with the selection.  The tracks are
--- returned in the same order that they occur in the block.
--- TODO: this has a problem, the selection will include non-event tracks that
--- the track_ids don't contain
+-- returned in ascending order.
 selected_tracks :: (Monad m) =>
-    Types.SelNum -> Cmd.CmdT m ([TrackId], Types.Selection)
+    Types.SelNum -> Cmd.CmdT m ([TrackNum], [TrackId], TrackPos, TrackPos)
 selected_tracks selnum = do
     (view_id, sel) <- get_selection selnum
-    view <- State.get_view view_id
-    tracks <- mapM (State.event_track_at (Block.view_block view))
-        (Types.sel_tracknums sel)
-    return (Maybe.catMaybes tracks, sel)
+    block_id <- State.block_id_of_view view_id
+    tracklikes <- mapM (State.track_at block_id) (Types.sel_tracknums sel)
+    let (tracknums, track_ids) = unzip
+            [(i, track_id) | (i, Just (Block.TId track_id _))
+                <- zip (Types.sel_tracknums sel) tracklikes]
+    let (start, end) = Types.sel_range sel
+    return (tracknums, track_ids, start, end)
 
 -- | Get the requested selnum in the focused view.
 get_selection :: (Monad m) =>
