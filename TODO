@@ -31,8 +31,6 @@ CURRENT
 
 - verify twelve ->midi mapping and range checking
 
-- save and load midi_config separately
-
 MILESTONES
   0.1
     + scales and keyswitches

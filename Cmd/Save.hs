@@ -37,12 +37,27 @@ cmd_load fname = do
     let unserialize = if ".text" `List.isSuffixOf` fname
             then Serialize.unserialize_text else Serialize.unserialize
     try_state <- Trans.liftIO $ unserialize fname
-    state <- case try_state of
-        Left exc -> Cmd.throw $
-            "error unserializing " ++ show fname ++ ": " ++ show exc
-        Right st -> return st
+    state <- either (\exc -> Cmd.throw $
+            "unserializing " ++ show fname ++ ": " ++ show exc)
+        return try_state
     Trans.liftIO $ Log.notice $ "state loaded from " ++ show fname
 
     State.modify (const (Serialize.save_ui_state state))
     Edit.initialize_state
     Edit.clear_history
+
+cmd_save_midi_config :: (Trans.MonadIO m) => FilePath -> Cmd.CmdT m ()
+cmd_save_midi_config fname = do
+    st <- State.get
+    Log.notice $ "write midi config to " ++ show fname
+    Trans.liftIO $ Serialize.serialize_pretty_text fname
+        (State.state_midi_config st)
+
+cmd_load_midi_config :: (Trans.MonadIO m) => FilePath -> Cmd.CmdT m ()
+cmd_load_midi_config fname = do
+    Log.notice $ "load midi config from " ++ show fname
+    try_config <- Trans.liftIO $ Serialize.unserialize_text fname
+    config <- either (\exc -> Cmd.throw $
+            "unserializing midi config " ++ show fname ++ ": " ++ show exc)
+        return try_config
+    State.set_midi_config config

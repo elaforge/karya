@@ -24,6 +24,7 @@ import qualified Data.Time as Time
 import qualified System.IO as IO
 
 import qualified Util.File as File
+import qualified Util.PPrint as PPrint
 
 import Ui
 import qualified Ui.Block as Block
@@ -56,6 +57,13 @@ serialize_text fname state = do
     File.backup_file fname
     IO.writeFile fname (show state ++ "\n")
 
+-- | Like 'serialize_text' but pretty-print it.  Probably not suitable for
+-- giant things.
+serialize_pretty_text :: (Show a) => FilePath -> a -> IO ()
+serialize_pretty_text fname state = do
+    File.backup_file fname
+    IO.writeFile fname (PPrint.pshow state)
+
 unserialize :: FilePath -> IO (Either Exception.SomeException SaveState)
 unserialize fname = Exception.try $ do
     st <- Binary.decodeFile fname
@@ -66,7 +74,8 @@ unserialize fname = Exception.try $ do
     -- vaunted blazing speed.
     length (show st) `seq` return st
 
-unserialize_text :: FilePath -> IO (Either Exception.SomeException SaveState)
+unserialize_text :: (Read a) =>
+    FilePath -> IO (Either Exception.SomeException a)
 unserialize_text fname = do
     ui_str <- IO.readFile fname
     Exception.try $ readIO ui_str
