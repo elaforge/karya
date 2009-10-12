@@ -76,7 +76,7 @@ cmd_copy_selection = do
 cmd_cut_selection :: (Monad m) => Cmd.CmdT m ()
 cmd_cut_selection = do
     cmd_copy_selection
-    Edit.cmd_remove_selected
+    Edit.cmd_clear_selected
 
 -- | During copies, a point selection is a no-op.
 copy_selection :: (Monad m) => Types.SelNum -> Cmd.CmdT m Types.Selection

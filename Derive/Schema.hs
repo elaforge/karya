@@ -65,6 +65,7 @@ import Cmd.Cmd (Schema(..), SchemaDeriver, CmdContext(..), SchemaMap)
 import qualified Cmd.ControlTrack as ControlTrack
 import qualified Cmd.Keymap as Keymap
 import qualified Cmd.NoteTrack as NoteTrack
+import qualified Cmd.NoteTrackKeymap as NoteTrackKeymap
 import qualified Cmd.PitchTrack as PitchTrack
 import qualified Cmd.NoteEntry as NoteEntry
 import qualified Cmd.MidiThru as MidiThru
@@ -187,7 +188,7 @@ default_cmds context = case maybe_track_type of
 
     note_keymap ptrack cmds = Keymap.make_cmd cmd_map : cmds
         -- TODO pass the errors out
-        where (cmd_map, _) = NoteTrack.make_keymap ptrack
+        where (cmd_map, _) = NoteTrackKeymap.make_keymap ptrack
 
 get_defaults :: CmdContext
     -> (Maybe TrackType, Maybe Score.Instrument, Pitch.ScaleId)

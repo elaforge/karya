@@ -83,7 +83,8 @@ import qualified Ui.Key as Key
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Keymap as Keymap
-import Cmd.Keymap (bind_key, bind_char, bind_mod, bind_click, bind_drag)
+import Cmd.Keymap (bind_key, bind_char, bind_mod, bind_click, bind_drag,
+    command, command_char, command_only)
 import Cmd.Keymap (SimpleMod(..))
 
 import qualified Cmd.BlockConfig as BlockConfig
@@ -192,7 +193,7 @@ block_config_bindings = concat
     ]
 
 -- delete = remove events and move following events back
--- remove = just remove events
+-- clear = just remove events
 edit_bindings = concat
     [ bind_key Key.Escape "toggle val edit" Edit.cmd_toggle_val_edit
     , bind_mod [PrimaryCommand] Key.Escape "toggle raw edit"
@@ -204,11 +205,11 @@ edit_bindings = concat
 
     -- Unlike other event editing commands, you don't have to be in insert mode
     -- to remove events.  Maybe I'll change that later.
-    -- , command Key.Backspace "remove event" Edit.cmd_remove_selected
-    , bind_mod [Shift] Key.Backspace "delete selection"
-        Edit.cmd_delete_selection
-    , bind_mod [Shift] (Key.KeyChar '=') "insert selection"
-        Edit.cmd_insert_selection
+    , command Key.Backspace "clear selected" Edit.cmd_clear_selected
+    , bind_mod [Shift] Key.Backspace "delete selected"
+        Edit.cmd_delete_selected
+    , bind_mod [Shift] (Key.KeyChar '=') "insert into selection"
+        Edit.cmd_insert_into_selection
 
     , command_char 'u' "undo" Edit.undo
     , command_char 'r' "redo" Edit.redo
@@ -221,11 +222,6 @@ edit_bindings = concat
 
     , bind_char '-' "octave -1" (Edit.cmd_modify_octave (+ (-1)))
     , bind_char '=' "octave +1" (Edit.cmd_modify_octave (+1))
-
-    -- TODO These should probably go in the note track bindings.
-    , command_char 's' "set dur" Edit.cmd_set_duration
-    , command_char '.' "dur * 1.5" (Edit.cmd_modify_dur (*1.5))
-    , command_char ',' "dur / 1.5" (Edit.cmd_modify_dur (/1.5))
     ]
 
 create_bindings = concat
@@ -242,15 +238,3 @@ clip_bindings = concat
     , bind_mod [Shift, PrimaryCommand] (Key.KeyChar 'v') "insert selection"
         Clip.cmd_paste_insert
     ]
-
--- * util
-
--- | Most command keys are mapped to both a plain keystroke and command key.
--- This is a little unusual, but it means the command can still be invoked when
--- an edit mode has taken over the alphanumeric keys.
-command key desc cmd =
-    bind_key key desc cmd ++ bind_mod [PrimaryCommand] key desc cmd
-command_char char = command (Key.KeyChar char)
-
--- | But some commands are too dangerous to get a plain keystroke version.
-command_only char = bind_mod [PrimaryCommand] (Key.KeyChar char)

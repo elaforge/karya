@@ -126,7 +126,7 @@ error_srcpos = log Error
 -- | Emit msgs specifically intended to gather timing.  Obviously this only
 -- works with the LogMonad IO instance, but it's kind of hard to get timings
 -- for non-sequenced functional code.
-timer_srcpos srcpos text = return () -- log Debug srcpos ("timer: " ++ text)
+timer_srcpos srcpos text = log Debug srcpos ("timer: " ++ text)
 
 debug, notice, warn, error, timer :: LogMonad m => String -> m ()
 debug = debug_srcpos Nothing

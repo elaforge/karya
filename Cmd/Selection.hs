@@ -326,7 +326,7 @@ event_before start _ track = maybe [] (:[]) $
     Track.event_before start (Track.track_events track)
 
 -- | Get selected event tracks along with the selection.  The tracks are
--- returned in ascending order.
+-- returned in ascending order.  Only event tracks are returned.
 selected_tracks :: (Monad m) =>
     Types.SelNum -> Cmd.CmdT m ([TrackNum], [TrackId], TrackPos, TrackPos)
 selected_tracks selnum = do

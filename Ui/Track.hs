@@ -136,7 +136,7 @@ remove_event pos track_events = emap (Map.delete pos) track_events
 
 -- | Return the events before the given @pos@, and the events at and after it.
 events_at :: TrackPos -> TrackEvents -> ([PosEvent], [PosEvent])
-events_at pos (TrackEvents events) = (toDescList pre, Map.toAscList post)
+events_at pos (TrackEvents events) = (Map.toDescList pre, Map.toAscList post)
     where (pre, post) = Map.split2 pos events
 
 -- | This is like 'events_at', but if there isn't an event exactly at the pos,
@@ -148,13 +148,30 @@ events_at_before pos events
     | otherwise = (pre, post)
     where (pre, post) = events_at pos events
 
+-- | The event on or before the pos.
+event_before :: TrackPos -> TrackEvents -> Maybe PosEvent
+event_before pos events = case snd (events_at_before pos events) of
+    before : _ -> Just before
+    [] -> Nothing
+
+
+-- | The event on or after the pos.
+event_after :: TrackPos -> TrackEvents -> Maybe PosEvent
+event_after pos events = case snd (events_at pos events) of
+    after : _ -> Just after
+    [] -> Nothing
+
+-- | An event exactly at the given pos, or Nothing.
 event_at :: TrackEvents -> TrackPos -> Maybe Event.Event
 event_at track_events pos = case forward pos track_events of
     ((epos, event):_) | epos == pos -> Just event
     _ -> Nothing
 
-event_before pos events = let es = snd (events_at_before pos events)
-    in if null es then Nothing else Just (head es)
+event_strictly_after :: TrackPos -> TrackEvents -> Maybe PosEvent
+event_strictly_after pos events = case evts of
+        after : _ -> Just after
+        [] -> Nothing
+    where evts = dropWhile ((<=pos) . fst) (snd (events_at pos events))
 
 -- | Like 'event_at', but return an event that overlaps the given pos.
 event_overlapping :: TrackPos -> TrackEvents -> Maybe PosEvent
@@ -182,9 +199,20 @@ event_end :: PosEvent -> TrackPos
 event_end (pos, evt) = pos + Event.event_duration evt
 
 events_in_range :: TrackPos -> TrackPos -> TrackEvents -> [PosEvent]
-events_in_range start end events = Map.toAscList within
+events_in_range start end events = within
+    where (_, within, _) = split_range start end events
+
+-- | Split into tracks before, within, and after the half-open range.  @before@
+-- events are descending, the rest are ascending.  Unlike most half-open
+-- ranges, @start==end@ will include an event at @start@.
+split_range :: TrackPos -> TrackPos -> TrackEvents ->
+    ([PosEvent], [PosEvent], [PosEvent])
+split_range start end events = (pre, within2, post2)
     where
-    (_, within, _) = Map.split3 start end (un_event_map events)
+    (pre_m, within_m, post_m) = Map.split3 start end (un_event_map events)
+    (pre, within, post) = (Map.toDescList pre_m, Map.toAscList within_m,
+        Map.toAscList post_m)
+    (within2, post2) = if start == end then splitAt 1 post else (within, post)
 
 -- | Like 'events_in_range', except shorten the last event if it goes past the
 -- end.
@@ -200,10 +228,6 @@ clip_to_range start end events = Map.toAscList clipped
 
 
 -- * private implementation
-
--- this is implemented in Map but not exported for some reason
--- toDescList map = reverse (Map.toAscList map)
-toDescList = Map.toDescList
 
 
 -- | Merge @evts2@ into @evts1@.  Events that overlap other events will be

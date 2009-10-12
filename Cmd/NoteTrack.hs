@@ -13,43 +13,20 @@ import qualified Data.Maybe as Maybe
 import qualified Util.Control as Control
 
 import Ui
-import qualified Ui.Block as Block
 import qualified Ui.Key as Key
 import qualified Ui.State as State
 import qualified Ui.Types as Types
 
-import qualified Cmd.BlockConfig as BlockConfig
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.EditUtil as EditUtil
 import qualified Cmd.InputNote as InputNote
-import qualified Cmd.Keymap as Keymap
 import qualified Cmd.Msg as Msg
 import qualified Cmd.PitchTrack as PitchTrack
 import qualified Cmd.Selection as Selection
 
 import qualified Perform.Pitch as Pitch
 
-
--- * keymap
-
-make_keymap :: (Monad m) => PitchTrack -> (Keymap.CmdMap m, [String])
-make_keymap pitch_track = Keymap.make_cmd_map $ concat
-    [ Keymap.bind_mod [Keymap.Shift, Keymap.PrimaryCommand] (Key.KeyChar 'm')
-        "toggle merged" (cmd_toggle_merged pitch_track)
-    ]
-
-cmd_toggle_merged :: (Monad m) => PitchTrack -> Cmd.CmdT m ()
-cmd_toggle_merged (CreateTrack _ _ _) =
-    Cmd.throw "no pitch track to collapse"
-cmd_toggle_merged (ExistingTrack pitch_tracknum) = do
-    (block_id, note_tracknum, _, _) <- Selection.get_insert
-    btrack <- State.get_block_track block_id note_tracknum
-    if null (Block.track_merged btrack)
-        then State.merge_track block_id note_tracknum pitch_tracknum
-        else State.unmerge_track block_id note_tracknum
-
--- * editing
 
 -- | Indicate the pitch track of a note track, or how to create one if
 -- necessary.

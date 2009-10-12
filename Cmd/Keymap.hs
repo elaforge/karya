@@ -37,6 +37,20 @@ bind_key = bind_mod []
 bind_char :: (Monad m) => Char -> String -> Cmd.CmdT m a -> [Binding m]
 bind_char char = bind_key (Key.KeyChar char)
 
+-- | Many cmds are mapped to both a plain keystroke and command key version.
+-- This is a little unusual, but it means the command can still be invoked when
+-- an edit mode has taken over the alphanumeric keys.
+command :: (Monad m) => Key.Key -> String -> Cmd.CmdT m a -> [Binding m]
+command key desc cmd =
+    bind_key key desc cmd ++ bind_mod [PrimaryCommand] key desc cmd
+
+command_char :: (Monad m) => Char -> String -> Cmd.CmdT m a -> [Binding m]
+command_char char = command (Key.KeyChar char)
+
+-- | But some commands are too dangerous to get a plain keystroke version.
+command_only :: (Monad m) => Char -> String -> Cmd.CmdT m a -> [Binding m]
+command_only char = bind_mod [PrimaryCommand] (Key.KeyChar char)
+
 -- | Bind a key with the given modifiers.
 bind_mod :: (Monad m) => [SimpleMod] -> Key.Key -> String -> Cmd.CmdT m a
     -> [Binding m]

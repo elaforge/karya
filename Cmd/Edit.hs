@@ -80,17 +80,34 @@ cmd_set_duration :: (Monad m) => Cmd.CmdT m ()
 cmd_set_duration = modify_events $ \_ end (pos, event) ->
     (pos, event { Event.event_duration = end - pos })
 
+-- | If there is a following event, delete it and extend this one to its end.
+cmd_paste_events :: (Monad m) => Cmd.CmdT m ()
+cmd_paste_events = do
+    (start, end, tracks) <- Selection.selected_events True Config.insert_selnum
+    forM_ tracks $ \(track_id, pos_events) -> when (not (null pos_events)) $ do
+        track <- State.get_track track_id
+        let (pos1, evt1) = head pos_events
+        let (_, _, after) = Track.split_range start end
+                (Track.track_events track)
+        when (not (null after)) $ do
+            let (pos2, evt2) = head after
+            let pos_end = pos2 + Event.event_duration evt2
+            State.remove_events track_id pos1 pos_end
+            State.insert_events track_id
+                [(pos1, evt1 { Event.event_duration = pos_end - pos1 })]
+
+
 -- | Insert empty space at the beginning of the selection for the length of
 -- the selection, pushing subsequent events forwards.
-cmd_insert_selection :: (Monad m) => Cmd.CmdT m ()
-cmd_insert_selection = do
+cmd_insert_into_selection :: (Monad m) => Cmd.CmdT m ()
+cmd_insert_into_selection = do
     (_, track_ids, start, end) <- Selection.selected_tracks Config.insert_selnum
     mapM_ (move_track_events start (end - start)) track_ids
 
 -- | Remove the notes under the selection, and move everything else back.
-cmd_delete_selection :: (Monad m) => Cmd.CmdT m ()
-cmd_delete_selection = do
-    cmd_remove_selected
+cmd_delete_selected :: (Monad m) => Cmd.CmdT m ()
+cmd_delete_selected = do
+    cmd_clear_selected
     (_, track_ids, start, end) <- Selection.selected_tracks Config.insert_selnum
     mapM_ (move_track_events start (-(end - start))) track_ids
 
@@ -132,10 +149,10 @@ modify_events f = do
             else State.remove_events track_id start end
         State.insert_events track_id pos_events2
 
--- | If the insertion selection is a point, remove any event under it.  If it's
--- a range, remove all events within its half-open extent.
-cmd_remove_selected :: (Monad m) => Cmd.CmdT m ()
-cmd_remove_selected = do
+-- | If the insertion selection is a point, clear any event under it.  If it's
+-- a range, clear all events within its half-open extent.
+cmd_clear_selected :: (Monad m) => Cmd.CmdT m ()
+cmd_clear_selected = do
     (_, track_ids, start, end) <- Selection.selected_tracks Config.insert_selnum
     forM_ track_ids $ \track_id -> if start == end
         then State.remove_event track_id start
