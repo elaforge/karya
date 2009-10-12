@@ -1,0 +1,35 @@
+Indents are 4 spaces only.  Nothing is lined up vertically, and no tabs.
+
+All lower case names are lower_with_underscores even though it's not haskell
+standard.  All upper case names are haskell standard CamelCase.
+
+Operators are wrapped on the following line, with some exceptions like =, <-,
+$.
+
+Haddock comment for each module, describing what it's for and what should go in
+it.
+
+Large comments should use {- -} and be indented.  This way indentation based
+folding can get them out of the way.
+
+Modules are imported like 'import qualified A.B.C as C', with very few
+exceptions.  Therefore, names should generally not repeat the module name.
+Preferably no two modules have the same file name, but if they do, they can be
+imported along with their directory name.
+
+Major high level types tend to go in a module with their own name.  Many types
+also often have a functional constructor with the lower cased name of the type
+which may provide default arguments and whatnot.  Even though I don't generally
+restrict the "real" constructor from module export list, you should use the
+functional constructor when possible to insulate against changes to the type.
+
+All modules that call C end with "C", and split up such that as few modules as
+possible import them.  This is because ghci won't work it has to import a
+module with foreign deps.  Technically it should be able to if you give it the
+object files but I've never been able to get that to work.
+
+Record fields are named rec_xyz, where 'rec' is an abbreviation of the record
+type name.
+
+
+Cmds begin with cmd_.  Derivers begin with d_.

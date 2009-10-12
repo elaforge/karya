@@ -1,27 +1,23 @@
-ui/  - fltk code for the ui widgets, in c++
-Inteface/ - the api to talk with the ui, in c and hs
-Action/ - The Action type, which represents serializable UI actions, interacts
-    with Interface.
-Derive/ - Convert from Score to NoteList.
-Render/ - Render a NoteList to a given backend: MIDI, MIDI file, OSC, csound
-Plugin/ - Support for dynamic compiling and loading of code.
-Midi/ - The MIDI reading and writing thread.
-App/ - Core app logic, to tie it all together.  Also has the player logic, that
-    displays the playback position.
-
-
-    Code conventions
-Indents are 4 space tabs only.  Nothing is lined up vertically.
-
-When lines are broken, operators go on the second line.  '=' and '<-' are not
-considered operators and go on the previous line.  Also ($) goes on the
-previous line, since it's often used with the layout rule to make "blocks".
-
-Major high level types tend to go in a module with their own name.  Many types
-also often have a functional constructor with the lower cased name of the type
-which may provide default arguments and whatnot.  Even though I don't generally
-restrict the "real" constructor from module export list, you should use the
-functional constructor when possible to insulate against changes to the type.
+App/ - Main modules for the main binary and various support binaries.  Includes
+static config mechanism.
+Cmd/ - Cmds, which are the unit of execution.
+Derive/ - The Derive layer converts from the UI level events to mid-level
+Score events.
+Instrument/ - Support for the instrument db.
+Local/ - Package for the local instrument db definitions and local cmds.
+LogView/ - A separate log viewing tool.
+Midi/ - Handles communication with the OS-level MIDI driver.
+Perform/ - Convert mid-level Score events to their final representation.
+    Midi/ - A performance backend that converts to MIDI.
+Ui/ - API for communication with the UI and the data structures used by it.
+Util/ - Miscellaneous utility libraries.
+doc/ - Miscellaneous bits of documentation and ramblings.
+fltk/  - C++ for the fltk UI code.
+haddock/ - Haddock documentation.  Automatically generated from 'make doc'.
+hpc/ - Code coverage.  Automatically generated from 'make tests'.
+test/ - Support utilities for the testframework.
+test_obj/ - Test binaries and objects.  Automatically generated.
+tools/ - Miscellaneous command line utilities.
 
 
 

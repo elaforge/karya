@@ -2,10 +2,13 @@
 - when I delete a block, do all the tracks get finalized?  I should keep track
 of finalization and look for leaks.
 
+- Midi.Peform: NoteOff aligned at the next NoteOn on a track should go slightly
+after, since if I turned on fingered portamento then I want to hear it
 - hint refuses to compile when Cmd.NoteEntry emits a warning
 - Cmd.BlockConfig -> Block?  or View -> ViewConfig
 - fix or remove logview_test
 CURRENT
+  - use Data.Text for event text
   - bring selection delete back
   - schema cmds can return errors
 
@@ -189,8 +192,8 @@ Cmd:
   - the cmds that return anything other than Done are rare, have a special case
     for them and make most cmds return ()
   Keymap
-    - check for key assignment collisions
-    - support generic modifiers like any Shift, any Control, and Command
+    * check for key assignment collisions
+    * support generic modifiers like any Shift, any Control, and Command
       (which becomes alt on a PC keyboard)
   Cmd.Edit
     * change note lengths
@@ -251,11 +254,21 @@ Derive:
   PitchTrack pitch
     - pitch signal should be Signal (Method, Pitch) so that they can be
       transposed
-    - alternate scales
     - relative pitches, e.g. +5
   NoteTrack note
     - record velocity if there is a velocity track
     - chord input, if there are multiple note tracks for this inst
+     - non-note commands: set random seed, ...
+       do I want to set cc things from note or require a control track?
+       pedals, fingered portamento, ....  I think not because it will screw up
+       note initialization.  Also e.g. pedal will naturally want to apply to
+       a bunch of tracks.  With a good way to collapse or hide controller
+       tracks it should be ok to have its own track.
+       I do want +attr -> cc for cc keyswitches.  Technically attrs also kinda
+       overlap with controllers and need special support for initialization.
+       They get that by being treated separate instruments.
+     - leading ; means the command is evaluated for its effect but emits no note
+
   ControlTrack control
     - relative controller tracks, combined with an operator, so e.g. "+, *scale"
       adds to the pitch track, and "*, volume" multiplies with the volume track
@@ -265,6 +278,27 @@ Derive:
       notes?  the former is higher-level...
       something like: a5- g2e1 b5-
       or "a5- ;; i ;; 2e, b5-", much better!
+
+   - swap tracks keeping skeleton up to date
+
+   - Control track management?  It should be possible to have a note or a bunch
+     of note tracks with a bunch of control tracks and control the clutter.
+     Ideas: collapse has limited usefulness when there are too many, even with
+     color coding.  I could do this with logview: selecting a note track logs
+     a list of its control tracks and whether they are hidden or not.  Clicking
+     on one in logview will emit a cmd that will hide or show that track.
+     Or I could use a UI for adding new controls too: click a track, then a cmd
+     'add_control "vel"', this will unhide and focus the control if it exists,
+     or create a new one and link it with the skeleton if it doesn't.  ^T is
+     intended to create new note tracks, and they're only linked to tempo
+     initially.
+
+     This implies a slightly more generic and acme-ish system for logview:
+     anything enclosed in {}s can be clicked and will be sent verbatim, even if
+     it's in the catch line:
+
+     -- title (tracknum): inst_name, allocation, [control tracks]
+     Inst (track 1): fm8/inst1, fm8:0,1,2, [vel {hide 2}, pedal {show 3}]
 
   - suspend automatic derivation while there's a note down?  use Cmd.Mod
     instead of the note_id map since it should be more reliable.
