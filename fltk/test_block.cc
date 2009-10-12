@@ -11,7 +11,7 @@
 
 
 Color selection_colors[] = {
-    Color(0, 0, 255, 45),
+    Color(0, 0, 255, 90),
     Color(255, 0, 255, 90),
     Color(0, 255, 255, 90)
 };
@@ -260,7 +260,7 @@ timeout_func(void *vp)
         view.block.collapse_track(3, true);
         break;
     case 1:
-        view.block.collapse_track(3, false);
+        view.block.collapse_track(4, true);
         break;
     default:
         return;
@@ -313,9 +313,9 @@ main(int argc, char **argv)
     view.block.set_title("hi there");
 
     view.block.insert_track(0, Tracklike(&ruler), 20);
-    // view.block.insert_track(1, Tracklike(&divider), 10);
-    // view.block.insert_track(1, Tracklike(&ruler), 30);
-    view.block.insert_track(1, Tracklike(&track1, &truler), 80); // 30);
+    view.block.insert_track(1, Tracklike(&divider), 10);
+    view.block.insert_track(1, Tracklike(&ruler), 30);
+    view.block.insert_track(1, Tracklike(&track1, &truler), 30);
     view.block.insert_track(2, Tracklike(&divider), 5);
     view.block.insert_track(3, Tracklike(&track2, &truler), 30);
     view.block.insert_track(4, Tracklike(&empty_track, &truler), 20);
@@ -325,7 +325,7 @@ main(int argc, char **argv)
     int pairs[] = {0, 5, 2, 4, 3, 4};
     SkeletonConfig skel = skeleton_config(pairs, 3);
     view.block.set_skeleton(skel);
-    view.block.insert_track(7, Tracklike(&track2, &truler), 80);
+    // view.block.insert_track(7, Tracklike(&track2, &truler), 80);
 
     DisplayTrack dtrack;
     dtrack.status = 'M';
@@ -335,7 +335,7 @@ main(int argc, char **argv)
     view.block.set_display_track(3, dtrack);
     // print_children(&view);
 
-    Fl::add_timeout(1, timeout_func, (void*) &view);
+    // Fl::add_timeout(1, timeout_func, (void*) &view);
 
     // view_config.block_title_height = 40;
     // view_config.track_title_height = 40;
@@ -343,9 +343,9 @@ main(int argc, char **argv)
 
     view.block.set_zoom(ZoomInfo(TrackPos(0), 2));
 
-    /*
     view.block.set_selection(0, Selection(selection_colors[0],
-                3, TrackPos(60), 1, TrackPos(56)));
+                1, TrackPos(32), 1, TrackPos(32)));
+    /*
     view.block.set_selection(0, Selection(selection_colors[0],
                 1, TrackPos(60), 4, TrackPos(46)));
     view.block.set_selection(0, Selection(selection_colors[0],

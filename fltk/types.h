@@ -122,8 +122,8 @@ struct ZoomInfo {
                                   std::min(double(max_pixels), scaled))));
     }
 
-    // Given the current offset and zoom, this many pixels corresponds to
-    // how much trackpos?
+    // Given the current zoom, this many pixels corresponds to how much
+    // trackpos?
     TrackPos to_trackpos(int pixels) const {
         return TrackPos(double(pixels) / factor);
     }

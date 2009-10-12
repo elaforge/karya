@@ -20,6 +20,7 @@ SimpleScroll::set_offset(Point offset)
     this->offset = offset;
     child(0)->position(child(0)->x() + shift.x, child(0)->y() + shift.y);
     this->damage(FL_DAMAGE_SCROLL);
+    // DEBUG("offset: " << show_damage(damage()));
 }
 
 

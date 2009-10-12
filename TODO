@@ -1,3 +1,4 @@
+- corruption when test block is scrolled to the right
 - when I delete a block, do all the tracks get finalized?  I should keep track
 of finalization and look for leaks.
 
@@ -9,7 +10,6 @@ CURRENT
   - schema cmds can return errors
 
   - collapsing a track shouldn't trigger a rederive
-  - select move should skip collapsed track
   - skel_display status can be two chars: Sm is solo+mute
   + insert new track skeleton splice
   + fix hint stuff
@@ -130,7 +130,7 @@ fltk:
   - bug: doesn't redraw after switching monitors
   - SeqInputs should display the right side of the text if they're too small
   UI Msgs
-    - can I capture os x two-finger drag events?
+    * can I capture os x two-finger drag events?
       yes, they're reported as FL_MOUSEWHEEL, so I should scroll on mousewheel
   Track
     / dividers can have separate color for upper part, for collapsable tracks

@@ -81,6 +81,7 @@ public:
             const BlockModelConfig &model_config,
             const BlockViewConfig &view_config);
 
+    int handle(int evt);
     void resize(int X, int Y, int W, int H);
     void set_view_config(const BlockViewConfig &view_config,
             bool update_all=false);

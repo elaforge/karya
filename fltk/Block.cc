@@ -18,6 +18,11 @@ static const int mac_resizer_width = 0;
 static const DividerConfig collapsed_track(Color(0, 0, 255));
 static const int collapsed_width = 3;
 
+// Multiple mousewheel scroll pixels by this.
+static const double mousewheel_time_scale = 3;
+static const double mousewheel_track_scale = 3;
+
+
 BlockView::BlockView(int X, int Y, int W, int H,
         const BlockModelConfig &model_config,
         const BlockViewConfig &view_config) :
@@ -83,6 +88,25 @@ BlockView::BlockView(int X, int Y, int W, int H,
     // properly position their widgets.
     this->set_zoom(this->zoom);
     this->update_scrollbars();
+}
+
+
+int
+BlockView::handle(int evt)
+{
+    if (evt == FL_MOUSEWHEEL) {
+        if (Fl::event_dy()) {
+            TrackPos scroll = this->zoom.to_trackpos(
+                    Fl::event_dy() * mousewheel_time_scale);
+            set_zoom(ZoomInfo(this->zoom.offset + scroll, this->zoom.factor));
+        }
+        if (Fl::event_dx()) {
+            int scroll_y = Fl::event_dx() * mousewheel_track_scale;
+            this->set_track_scroll(this->get_track_scroll() + scroll_y);
+        }
+        return 1;
+    }
+    return Fl_Group::handle(evt);
 }
 
 
@@ -286,10 +310,13 @@ BlockView::set_track_scroll(int offset)
 {
     int track_end = this->track_tile.track_end();
     int max_offset = std::max(0, track_end - this->track_tile.w());
-    offset = std::min(max_offset, offset);
+    offset = clamp(0, max_offset, offset);
+    // offset = std::min(max_offset, offset);
 
     // If you update this, also update scrollbar_cb!
     Point scroll_offset(-offset, 0);
+    if (scroll_offset == this->track_scroll.get_offset())
+        return;
     this->track_scroll.set_offset(scroll_offset);
     this->skel_display_scroll.set_offset(scroll_offset);
     this->update_scrollbars();
@@ -623,6 +650,7 @@ BlockViewWindow::BlockViewWindow(int X, int Y, int W, int H,
     global_msg_collector()->window_update(this, UiMsg::msg_view_resize);
 }
 
+
 void
 BlockViewWindow::resize(int X, int Y, int W, int H)
 {
@@ -645,10 +673,8 @@ BlockViewWindow::handle(int evt)
         return true;
     }
 
-    // TODO turn FL_SCROLLWHEEL (also sent by two-finger drag) into scrolls
-
     bool accepted = false;
-    if (evt == FL_PUSH || evt == FL_MOVE) {
+    if (evt == FL_PUSH || evt == FL_MOVE || evt == FL_MOUSEWHEEL) {
         // see if someone else wants it
         accepted = Fl_Group::handle(evt);
     }
