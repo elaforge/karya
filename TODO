@@ -47,8 +47,6 @@ MILESTONES
     - jack / rewrite
     - non-midi instruments
 
-- update Cmd.GlobalKeymap comment
-
 - make sure pitch terminology is consistent:
   KeyNumber = scale independent note, Note = note in scale,
   Pitch = freq easily mapped to and from nn, same as NoteNumber,

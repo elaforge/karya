@@ -156,8 +156,8 @@ main = initialize $ \lang_socket midi_chan -> do
     Thread.start_thread "interpreter" $ do
         Language.interpreter interpreter_chan
         `Exception.finally` Ui.quit_ui_thread quit_request
-        -- ^C is killing this thread now.  The interaction between signals and
-        -- OS threads managed by the GHC RTS is probably unpredictable.
+        -- ctrl-C is killing this thread now.  The interaction between signals
+        -- and OS threads managed by the GHC RTS is probably unpredictable.
         -- I gather the recommended way is to start a thread for signal
         -- handling, I'll do that if this causes more trouble.
 

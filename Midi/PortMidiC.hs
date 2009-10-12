@@ -34,6 +34,7 @@ import qualified Control.Concurrent.STM as STM
 import qualified Control.Concurrent.STM.TChan as TChan
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
+import qualified Data.ByteString as ByteString
 import qualified Data.Map as Map
 import qualified System.IO.Unsafe as Unsafe
 
@@ -116,8 +117,9 @@ open_read_device read_chan rdev = do
     where
     enqueue_event chan rdev (PortMidi.Event (bytes, ts)) =
         STM.atomically $ TChan.writeTChan chan
+            -- TODO if I ever use portmidi again, update it to use ByteString
             (Midi.ReadMessage (to_read_device rdev) (to_timestamp ts)
-                (Parse.decode bytes))
+                (Parse.decode (ByteString.pack bytes)))
 
 -- | Open the given device for writing.  Subsequent calls to 'write_msg' on
 -- this device will work.
@@ -128,7 +130,9 @@ open_write_device wdev = PortMidi.open_output wdev
 -- be increasing for a given device.
 write_msg :: (PortMidi.WriteStream, PortMidi.Timestamp, Midi.Message) -> IO ()
 write_msg (stream, ts, msg) = do
-    PortMidi.write_event stream (PortMidi.Event (Parse.encode msg, ts))
+    -- TODO if I ever use portmidi again, update it to use ByteString
+    PortMidi.write_event stream
+        (PortMidi.Event (ByteString.unpack (Parse.encode msg), ts))
     -- put it in the bw monitor
 
 abort :: PortMidi.WriteStream -> IO ()

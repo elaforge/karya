@@ -4,6 +4,7 @@ import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Concurrent.STM.TChan as TChan
 import qualified Control.Exception as Exception
+import qualified Data.ByteString as ByteString
 import qualified Data.Map as Map
 import qualified Data.Word as Word
 import Text.Printf (printf)
@@ -48,8 +49,10 @@ write_sysex wstream write_msg = do
     Concurrent.threadDelay 10000
     Midi.PortMidi.abort wstream
 
+-- TODO if I ever use portmidi again, update it to use ByteString
 big_sysex = Midi.CommonMessage
-    (Midi.SystemExclusive 42 (take 10000 (cycle [0..9]) ++ [0xf7]))
+    (Midi.SystemExclusive 42
+        (ByteString.pack (take 10000 (cycle [0..9]) ++ [0xf7])))
 
 thru_loop write_msg out_dev read_chan = forever $ do
     Midi.ReadMessage dev ts msg <- STM.atomically
@@ -83,15 +86,15 @@ mknote wdev (ts, msg) =
 thru (ts, msg) = case msg of
     Midi.ChannelMessage ch (Midi.NoteOn key vel)
         -> [(ts1, Midi.ChannelMessage ch (Midi.NoteOn key vel))]
-            
     Midi.ChannelMessage ch (Midi.NoteOff key vel)
         -> [(ts1, Midi.ChannelMessage ch (Midi.NoteOff key vel))]
     m -> []
     where
     ts1 = ts + Timestamp.Timestamp 500
 
-show_msg (Midi.CommonMessage (Midi.SystemExclusive manuf bytes))
-    = printf "Sysex %x: [%s]" manuf (Seq.join ", " (map hex bytes))
+show_msg (Midi.CommonMessage (Midi.SystemExclusive manuf bytes)) =
+    printf "Sysex %x: [%s]" manuf
+        (Seq.join ", " (map hex (ByteString.unpack bytes)))
 show_msg m = show m
 
 hex :: Word.Word8 -> String

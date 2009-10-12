@@ -1,70 +1,34 @@
 {- | The default keyboard layout.
 
-    I group commands by their function:
+    I group cmds by their function.  The cmds of with higher numbers will
+    shadow the cmds with lower numbers.
 
     There should be deriver independent generic editing, and then deriver
-    specific shortcuts built on that.  So generic level looks like:
+    specific shortcuts built on that.  Global cmds also generally have
+    a command-key version, so you can invoke them even when kbd entry is on.
 
-    -1 State level operations, like load, save, undo.  Set timestep mode, set
+    Global generic cmds:
+
+    0. State level operations, like load, save, undo.  Set timestep mode, set
     edit mode.  Play, stop.  Move the selection.
 
-    0 Modify text independent attributes, like start position and duration.
+    1. Modify text independent attributes, like start position and duration.
     This includes copy and paste, remove, modify duration, nudge, ...
 
-    1 Create event with length as per timestep, then type to edit it.  Uses
-    alphanum keys.
+    Track-specific cmds depend on the schema and are looked up in
+    'Derive.Schema.schema_cmds':
 
-    Deriver specific commands are enabled in Schema.schema_cmds:
+    2. Track specific event operations, possibly affecting all events in the
+    selection: transposition, etc.  These are active regardless of EditMode,
+    and are found in Cmd.*TrackKeymap.
 
-    2 Modify events depending on track type, and hence requiring a deriver that
-    uses skeletons: transpose, modify vals, ...
+    3. Track specific event editing, which modifies a single event.
+    E.g., input notes and note text, pitches in a certain scale, controller
+    values, etc.  This is enabled by edit mode, and will shadow printable keys,
+    depending on the track type and edit mode.  Found in Cmd.*Track.
 
-    2.5 Send midi thru, which is remapped according to the nearest note track
-    and its active scale.
-
-    3 Edit the method part of an event.  Takes alphanum keys.
-
-    4 Edit the value part.  For numeric values, this is alphanum keys.  For enum
-    values (like notes) I'll want an adjustable key->text mapping.  Notes
-    take KeyNum -> Scale -> String -> String, while enums take Instrument ->
-    Controller -> String -> String.  A scale is like a special case of an enum.
-    TODO Enums are not implemented yet, and scales are hardcoded.  The scale
-    should be configured globally, as an insert mode, and enum vals are stored
-    in the instrument.
-
-    5 Edit the call part.  Takes alphanum keys.
-
-    Since a fair number of these want full alphanum keys, they have to be
-    organized with a system of modes.  -1 and 0 are always in scope.  They may
-    be shadowed by other modes, but generally globally available commands
-    should not be.
-
-    1 is raw edit mode.  It may be useful for entering deriver commands, like
-    scale, random seed, or something else.
-
-    2 is active in command mode, shouldn't overlap with -1 and 0.
-
-    3 is active in method edit mode, which should be easily accessible from val
-    edit mode.
-
-    4 is active in val edit mode.  On controller tracks, it takes alphanum or
-    midi controller, and on note tracks it only takes midi notes (so I can
-    still use 0 commands).  If I turn off the number typing in favor of midi
-    controller, or make it so it doesn't shadow useful keys (numbers, dot,
-    minus), it's more convenient.
-
-    5 is active in call edit mode, which can be via an escape combo.
-
-    Furthermore, there is kbd entry mode, which should behave exactly like
-    a midi kbd entry.
-
-    -1 and 0 commands generally get a command- variant, so you can run them
-    even when the alphanums are taken over.
-
-    All the edit modes are exclusive.  There is a set of -1 level commands to
-    toggle between edit modes and no edit (command mode).  Toggling kbd note
-    entry is orthogonal to the rest: cmd-shift-esc, and puts a K in the edit
-    box.
+    4. Kbd entry, if on, will hijack the letter keys and turn them into
+    NoteOns.
 
     TODO then there's midi recording:
 

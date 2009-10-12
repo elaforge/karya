@@ -488,10 +488,10 @@ vmap f (SignalVector vec) = SignalVector (f vec)
 -- TODO I should be able to do a faster version of this by working directly
 -- with the pointers.
 map_signal_accum ::
-    -- | Take the previous accum, previous x and y, and current x and y.
     (accum -> Val -> Val -> Val -> Val -> (accum, [(Val, Val)]))
-    -- | Optionally reduce the final ((x, y), accum) to samples to append.
+    -- ^ Take the previous accum, previous x and y, and current x and y.
     -> (((Val, Val), accum) -> [(Val, Val)]) -> accum -> Signal -> Signal
+    -- ^ Optionally reduce the final ((x, y), accum) to samples to append.
 map_signal_accum f final accum (SignalVector vec) =
     SignalVector (V.pack (DList.toList result))
     where
