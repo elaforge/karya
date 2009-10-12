@@ -186,7 +186,7 @@ default_cmds context = case maybe_track_type of
         maybe [] (\inst -> [MidiThru.cmd_midi_thru scale_id inst]) maybe_inst
     (maybe_track_type, maybe_inst, scale_id) = get_defaults context
 
-    note_keymap ptrack cmds = Keymap.make_cmd cmd_map : cmds
+    note_keymap ptrack cmds = cmds ++ [Keymap.make_cmd cmd_map]
         -- TODO pass the errors out
         where (cmd_map, _) = NoteTrackKeymap.make_keymap ptrack
 
