@@ -158,10 +158,9 @@ cmd_clear_selected = do
         then State.remove_event track_id start
         else State.remove_events track_id start end
 
-cmd_meter_step :: (Monad m) => Int -> Cmd.CmdT m ()
-cmd_meter_step rank = do
-    let step = (TimeStep.UntilMark
-            (TimeStep.NamedMarklists ["meter"]) (TimeStep.MatchRank rank))
+cmd_meter_step :: (Monad m) => TimeStep.MarkMatch -> Cmd.CmdT m ()
+cmd_meter_step match = do
+    let step = TimeStep.UntilMark (TimeStep.NamedMarklists ["meter"]) match
     Cmd.modify_state $ \st -> st { Cmd.state_step = step }
     sync_step_status
 
@@ -176,7 +175,9 @@ show_step (TimeStep.UntilMark mlists match) =
 show_step (TimeStep.MarkDistance mlists match) =
     "dist:" ++ show_marklists mlists ++ "/" ++ show_match match
 
-show_match (TimeStep.MatchRank rank) = "r" ++ show rank
+show_match :: TimeStep.MarkMatch -> String
+show_match (TimeStep.MatchRank rank skips) =
+    "r" ++ show rank ++ "+" ++ show skips
 
 show_marklists TimeStep.AllMarklists = "all"
 show_marklists (TimeStep.NamedMarklists mlists) = Seq.join "," mlists

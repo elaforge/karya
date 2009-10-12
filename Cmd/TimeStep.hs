@@ -29,9 +29,9 @@ data TimeStep
 data MarklistMatch = AllMarklists | NamedMarklists [Ruler.MarklistName]
     deriving (Show, Read)
 
+-- | Take a rank and a number of that rank to skip: MatchRank rank skips
+data MarkMatch = MatchRank Int Int deriving (Show, Read)
 -- | Given a marklist view, return the TrackPos to advance to.
-data MarkMatch = MatchRank Int
-    deriving (Show, Read)
 type Matcher = [(TrackPos, Ruler.Mark)] -> Maybe TrackPos
 
 data TimeDirection = Advance | Rewind deriving (Eq, Show)
@@ -112,12 +112,11 @@ relevant_marks marklists names direction start_pos =
 
 
 match :: MarkMatch -> Matcher
-match (MatchRank rank) = match_rank rank
+match (MatchRank rank skips) = match_rank rank skips
 
 -- | Get the pos of the next mark <= the given rank.
-match_rank :: Int -> Matcher
-match_rank rank marks
-    | null matches = Nothing
-    | otherwise = Just (fst (head matches))
-    where
-    matches = filter ((<=rank) . Ruler.mark_rank . snd) marks
+match_rank :: Int -> Int -> Matcher
+match_rank rank skips marks = case drop skips matches of
+    [] -> Nothing
+    (pos, _) : _ -> Just pos
+    where matches = filter ((<=rank) . Ruler.mark_rank . snd) marks
