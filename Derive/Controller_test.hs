@@ -18,7 +18,7 @@ test_d_signal = do
     let f = Controller.d_signal
     let run evts = case Derive_test.run State.empty (f evts) of
             Left err -> Left err
-            Right (val, _dstate, msgs) -> Right (val, map Log.msg_text msgs)
+            Right (val, _dstate, msgs) -> Right (val, map Log.msg_string msgs)
 
     let Right (sig, msgs) = run [mkevent 0 "bad", mkevent 1 "i bad"]
     equal sig (track_signal [])
@@ -38,7 +38,7 @@ test_d_pitch_signal = do
     let f = Controller.d_pitch_signal
     let run evts = case Derive_test.run State.empty (f Twelve.scale_id evts) of
             Left err -> Left err
-            Right (val, _dstate, msgs) -> Right (val, map Log.msg_text msgs)
+            Right (val, _dstate, msgs) -> Right (val, map Log.msg_string msgs)
 
     let Right (sig, msgs) = run [mkevent 0 "0 blah", mkevent 1 "i, bad"]
     equal sig (track_signal [])

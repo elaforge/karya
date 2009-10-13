@@ -26,7 +26,7 @@ main = do
 print_loop msgs last_date = do
     (date, msg) <- Chan.readChan msgs
     putStrLn $ show (date `Time.diffUTCTime` last_date) ++ "\t"
-        ++ Log.msg_text msg
+        ++ Log.msg_string msg
     print_loop msgs date
 
 tail_hdl :: Chan.Chan (Time.UTCTime, Log.Msg) -> IO.Handle -> IO ()

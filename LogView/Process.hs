@@ -11,6 +11,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Sequence as Sequence
+import qualified Data.Text as Text
 import qualified Data.Time as Time
 import qualified System.IO as IO
 
@@ -82,7 +83,7 @@ process_msg state msg = (new_state { state_status = status }, msg_styled)
                 then Just styled
                 else Nothing
         Nothing -> Nothing
-    caught = catch_patterns (state_catch_patterns state) (Log.msg_text msg)
+    caught = catch_patterns (state_catch_patterns state) (Log.msg_string msg)
     status = Map.union caught (state_status state)
 
 -- | Only display timing msgs that take longer than this.
@@ -102,7 +103,8 @@ timer_filter state msg
         then state { state_last_timing = Just msg } else state
     timing_msg last_msg
         | diff >= timing_diff_threshold = Just $ msg
-            { Log.msg_text = show diff ++ " " ++ Log.msg_text msg
+            { Log.msg_text =
+                Text.unwords [Text.pack (show diff), Log.msg_text msg]
             , Log.msg_prio = Log.Warn
             }
         | otherwise = Nothing
@@ -135,7 +137,7 @@ format_msg msg = run_formatter $ do
     let style = if Log.msg_prio msg < Log.Warn
             then style_plain else style_warn
     maybe (return ()) (emit_srcpos style) (Log.msg_caller msg)
-    regex_style style msg_text_regexes (Log.msg_text msg)
+    regex_style style msg_text_regexes (Log.msg_string msg)
     with_plain "\n"
 
 type Formatter = Writer.Writer [(String, [Style])] ()

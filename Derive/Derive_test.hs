@@ -54,7 +54,7 @@ import qualified Perform.Midi.Perform as Perform
     -- pprint (State.state_tracks ui_state)
     let (_, state, logs) = either (error . show) id
             (run ui_state (Derive.d_block block_id))
-    -- pmlist "logs" (map Log.msg_text logs)
+    -- pmlist "logs" (map Log.msg_string logs)
     -- TODO real test
     -- pprint $ Derive.state_warp state
     pmlist "track warps" $ Derive.state_track_warps state
@@ -88,7 +88,7 @@ test_subderive = do
             (UiTest.bid "sub", [(UiTest.tid "sub.t0", TrackPos pos)])
     equal (extract_events events) [(0, 4, "--b1"), (6, 2, "--sub1")]
 
-    strings_like (map Log.msg_text logs) ["error sub-deriving.*test/blub"]
+    strings_like (map Log.msg_string logs) ["error sub-deriving.*test/blub"]
     equal (map inv_tempo (map Timestamp.seconds [0, 2 .. 10]))
         [ [b0 0], [b0 4], [sub 0, b0 8], [sub 1, b0 12], [b0 16], [] ]
 

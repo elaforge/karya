@@ -9,6 +9,7 @@ import qualified System.CPUTime as CPUTime
 import qualified Midi.CoreMidi as CoreMidi
 import qualified Midi.Midi as Midi
 
+import qualified Util.Log as Log
 import Util.Test
 
 import qualified Ui.Key as Key
@@ -38,10 +39,13 @@ test_thru_timing = do
         msg_count = 10000
         msgs = take msg_count many_msgs
     print (length msgs)
+    -- This is awfully spammy otherwise.
+    log_state <- Log.initialize Nothing Nothing
     secs <- time_op $ do
         midi <- fmap extract $ with_inst msgs
         putStrLn $ "midi back: " ++ show (length midi)
     print (secs, secs / fromIntegral msg_count)
+    Log.swap_state log_state
 
 time_op :: IO a -> IO Double
 time_op op = do

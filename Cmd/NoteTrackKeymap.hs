@@ -8,8 +8,7 @@ import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Edit as Edit
 import qualified Cmd.Keymap as Keymap
-import Cmd.Keymap (bind_key, bind_char, bind_mod,
-    command_char)
+import Cmd.Keymap (bind_mod, command_char)
 import Cmd.Keymap (SimpleMod(..))
 
 import qualified Cmd.NoteTrack as NoteTrack

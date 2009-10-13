@@ -76,5 +76,5 @@ with_key key =
 extract_logs :: Either State.StateError (Maybe Cmd.Status, b, c, [Log.Msg])
     -> Either String (Maybe Cmd.Status, [String])
 extract_logs (Right (val, _cmd_state, _ui_state, logs)) =
-    Right (val, map Log.msg_text logs)
+    Right (val, map Log.msg_string logs)
 extract_logs (Left err) = Left (show err)

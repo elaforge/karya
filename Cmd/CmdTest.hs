@@ -56,12 +56,12 @@ thread ustate cstate cmds = foldl f (Right (ustate, cstate, [])) cmds
     where
     f (Right (ustate, cstate, logs)) cmd = case run ustate cstate cmd of
         Right (_val, ustate2, cstate2, logs2) ->
-            Right (ustate2, cstate2, logs ++ [map Log.msg_text logs2])
+            Right (ustate2, cstate2, logs ++ [map Log.msg_string logs2])
         Left err -> Left (show err)
     f (Left err) _ = Left err
 
 extract_logs result = case result of
-    Right (Just _, _, _, logs) -> Right (Just (map Log.msg_text logs))
+    Right (Just _, _, _, logs) -> Right (Just (map Log.msg_string logs))
     Right (Nothing, _, _, _) -> Right Nothing
     Left err -> Left (show err)
 
@@ -78,7 +78,7 @@ run_tracks :: [UiTest.TrackSpec] -> Cmd.CmdT Identity.Identity a
 run_tracks track_specs cmd =
     case run ustate cmd_state cmd of
         Right (val, ustate2, _cstate2, logs) ->
-            Right (val, UiTest.extract_tracks ustate2, map Log.msg_text logs)
+            Right (val, UiTest.extract_tracks ustate2, map Log.msg_string logs)
         Left err -> Left (show err)
     where (_, ustate) = UiTest.run_mkview track_specs
 

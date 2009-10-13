@@ -144,7 +144,7 @@ test_compile_to_signals = do
         , mksig [(0, set, 3), (10, set, 2), (20, set, 1)]
         ]
 
-derive_with_pitch compiler pitch_track = (res, map Log.msg_text logs)
+derive_with_pitch compiler pitch_track = (res, map Log.msg_string logs)
     where
     (state, track_tree) = mkstate_with_pitch pitch_track
     (res, _, _, logs, _) = Derive.derive Derive.empty_lookup_deriver

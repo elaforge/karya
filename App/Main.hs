@@ -100,7 +100,7 @@ read_device_map = mkmap Midi.ReadDevice
 
 initialize :: (Network.Socket -> MidiImp.ReadChan -> IO ()) -> IO ()
 initialize f = do
-    Log.initialize "seq.mach.log" "seq.log"
+    Log.initialize (Just "seq.mach.log") (Just "seq.log")
     MidiImp.initialize $ \midi_chan ->
         Network.withSocketsDo $ do
             Config.initialize_lang_port

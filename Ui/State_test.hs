@@ -17,7 +17,7 @@ test_verify = do
         (Right unbroken, logs) = State.verify broken
 
     -- reports and fixes view problem
-    equal (map Log.msg_text logs)
+    equal (map Log.msg_string logs)
         ["block has 2 tracks while view has 0, fixing"]
     equal (snd (State.verify unbroken)) []
 

@@ -24,7 +24,7 @@ test_interpreter = do
     --         cmd <- Language.send chan (Language.interpret [] state cmd_state s)
     --         (_cstate, _midi, logs, ui_res) <- Cmd.run "abort"
     --             state cmd_state cmd
-    --         return (extract_val ui_res, map Log.msg_text logs)
+    --         return (extract_val ui_res, map Log.msg_string logs)
     -- io_equal (f "return $ 4+3") (Right "7\n", [])
     -- io_equal (f "aoeu") (Right "error: won't compile: Not in scope: `aoeu'",
     --     ["interpreter error: won't compile: Not in scope: `aoeu'"])

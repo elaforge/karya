@@ -87,7 +87,7 @@ test_derive_notes = do
             (_, ui_state) = UiTest.run State.empty $ do
                 UiTest.mkstate sub_name [(">", [(0, 1, "")])]
                 UiTest.mkstate "b1" [(">", evts)]
-            extract_log msg = (Log.msg_text msg, Log.msg_stack msg)
+            extract_log msg = (Log.msg_string msg, Log.msg_stack msg)
 
     equal (run []) ([], [])
     equal (run [(0, 1, ">i +a")])

@@ -16,9 +16,9 @@
 -}
 
 module Util.Log (
-    initialize
+    initialize, swap_state
     -- * msgs
-    , Msg(..), Prio(..)
+    , Msg(..), msg_string, Prio(..), State(..)
     , msg, msg_srcpos
     , debug, notice, warn, error, timer, is_timer_msg
     , debug_srcpos, notice_srcpos, warn_srcpos, error_srcpos, timer_srcpos
@@ -39,6 +39,7 @@ import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Trans as Trans
 import qualified Data.List as List
 import qualified Data.Generics as Generics
+import qualified Data.Text as Text
 import qualified Data.Time as Time
 import qualified System.IO as IO
 import qualified System.IO.Unsafe  as Unsafe
@@ -62,30 +63,46 @@ data Msg = Msg {
     -- schema and event being processed.
     , msg_stack :: Maybe Warning.Stack
     -- | Free form text for humans.
-    , msg_text  :: String
+    , msg_text  :: Text.Text
     } deriving (Eq, Show, Read, Generics.Typeable)
+
+msg_string :: Msg -> String
+msg_string = Text.unpack . msg_text
 
 -- | Pure code can't give a date, but making msg_date Maybe makes it awkward
 -- for everyone who processes Msgs, so cheat with this.
 no_date_yet :: Time.UTCTime
 no_date_yet = Time.UTCTime (Time.ModifiedJulianDay 0) 0
 
--- | One handle for the machine readable log, and one for the human readable
+-- | Logging state.  Don't log if a handle is Nothing.
 -- one.
-data State = State (Maybe IO.Handle) (Maybe IO.Handle)
+data State = State {
+    state_mach_log :: Maybe IO.Handle
+    , state_human_log :: Maybe IO.Handle
+    }
 initial_state = State Nothing (Just IO.stdout)
 global_state = Unsafe.unsafePerformIO (MVar.newMVar initial_state)
 
 -- | Configure the log system to write to the given file.  Before you call
--- this, log output will go to stdout.
-initialize :: IO.FilePath -> IO.FilePath -> IO ()
-initialize mach_file file = do
-    mach_hdl <- IO.openFile mach_file IO.AppendMode
-    IO.hSetBuffering mach_hdl IO.LineBuffering
-    human_hdl <- IO.openFile file IO.AppendMode
-    IO.hSetBuffering human_hdl IO.LineBuffering
-    MVar.swapMVar global_state (State (Just mach_hdl) (Just human_hdl))
-    return ()
+-- this, log output will go to stdout.  Return the old state.
+initialize :: Maybe IO.FilePath -> Maybe IO.FilePath -> IO State
+initialize maybe_mach_file maybe_human_file = do
+    mach_hdl <- case maybe_mach_file of
+        Nothing -> return Nothing
+        Just mach_file -> do
+            hdl <- IO.openFile mach_file IO.AppendMode
+            IO.hSetBuffering hdl IO.LineBuffering
+            return (Just hdl)
+    human_hdl <- case maybe_human_file of
+        Nothing -> return Nothing
+        Just human_file -> do
+            hdl <- IO.openFile human_file IO.AppendMode
+            IO.hSetBuffering hdl IO.LineBuffering
+            return (Just hdl)
+    swap_state (State mach_hdl human_hdl)
+
+swap_state :: State -> IO State
+swap_state = MVar.swapMVar global_state
 
 data Prio
     -- | Lots of msgs produced by code level.  Users don't look at this during
@@ -103,11 +120,12 @@ data Prio
 
 -- | Create a msg with the give prio and text.
 msg_srcpos :: SrcPos.SrcPos -> Prio -> String -> Msg
-msg_srcpos srcpos prio text = Msg no_date_yet srcpos prio Nothing text
+msg_srcpos srcpos prio text = make_msg srcpos prio Nothing text
 msg :: Prio -> String -> Msg
 msg prio = msg_srcpos Nothing prio
-
-make_msg srcpos prio stack text = Msg no_date_yet srcpos prio stack text
+make_msg :: SrcPos.SrcPos -> Prio -> Maybe Warning.Stack -> String -> Msg
+make_msg srcpos prio stack text = Msg no_date_yet srcpos prio stack
+    (Text.pack text)
 
 log :: LogMonad m => Prio -> SrcPos.SrcPos -> String -> m ()
 log prio srcpos text = write (make_msg srcpos prio Nothing text)
@@ -136,7 +154,7 @@ error = error_srcpos Nothing
 timer = timer_srcpos Nothing
 
 is_timer_msg :: Msg -> Bool
-is_timer_msg msg = "timer: " `List.isPrefixOf` msg_text msg
+is_timer_msg msg = Text.pack "timer: " `Text.isPrefixOf` msg_text msg
 
 -- Yay permutation game.  I could probably do a typeclass trick to make 'stack'
 -- an optional arg, but I think I'd wind up with all the same boilerplate here.
@@ -176,7 +194,7 @@ format_msg (Msg { msg_date = _date, msg_caller = srcpos, msg_prio = prio
     where
     prio_stars prio = replicate (fromEnum prio + 1) '*'
     msg = printf "%-4s %s - %s"
-        (prio_stars prio) (SrcPos.show_srcpos srcpos) text
+        (prio_stars prio) (SrcPos.show_srcpos srcpos) (Text.unpack text)
 
 show_stack :: Warning.Stack -> String
 show_stack stack = "[[" ++ Seq.join " -> " (map f stack) ++ "]]"
