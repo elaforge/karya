@@ -33,7 +33,7 @@ test_process_msg = do
         ("", Just msg1, Nothing)
     -- above threshold, and timing prepended
     equal (f (state { Process.state_last_timing = Just msg0 }) msg2)
-        ("", Just msg2, Just "*\t1s timer: hello\n")
+        ("", Just msg2, Just "***\t1s timer: hello\n")
 
 test_regex_style = do
     let f = Process.run_formatter

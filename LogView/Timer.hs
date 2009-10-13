@@ -9,7 +9,6 @@ import qualified Util.Thread as Thread
 import qualified Util.Log as Log
 
 import qualified LogView.Process as Process
--- import qualified LogView.LogView as LogView
 
 delay_threshold = 0.01
 

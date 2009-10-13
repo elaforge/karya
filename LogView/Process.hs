@@ -90,7 +90,7 @@ timing_diff_threshold :: Time.NominalDiffTime
 timing_diff_threshold = 0.05
 
 -- | Filter out timer msgs that don't have a minimum time from the previous
--- timing, and prepend the interval if they do.
+-- timing, and prepend the interval and bump the priority to Warn if they do.
 timer_filter :: State -> Log.Msg -> (State, Maybe Log.Msg)
 timer_filter state msg
     | Log.is_timer_msg msg = case state_last_timing state of
@@ -101,8 +101,10 @@ timer_filter state msg
     new_state = if Log.is_timer_msg msg
         then state { state_last_timing = Just msg } else state
     timing_msg last_msg
-        | diff >= timing_diff_threshold = Just $
-            msg { Log.msg_text = show diff ++ " " ++ Log.msg_text msg }
+        | diff >= timing_diff_threshold = Just $ msg
+            { Log.msg_text = show diff ++ " " ++ Log.msg_text msg
+            , Log.msg_prio = Log.Warn
+            }
         | otherwise = Nothing
         where diff = Log.msg_date msg `Time.diffUTCTime` Log.msg_date last_msg
 
