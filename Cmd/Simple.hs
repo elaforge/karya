@@ -34,7 +34,7 @@ type Event = (Double, Double, String)
 
 event :: Track.PosEvent -> Event
 event (start, event) = (realToFrac start,
-    realToFrac (Event.event_duration event), Event.event_text event)
+    realToFrac (Event.event_duration event), Event.event_string event)
 
 dump_block :: (State.UiStateMonad m) => BlockId -> m Block
 dump_block block_id = do

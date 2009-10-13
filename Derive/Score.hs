@@ -7,6 +7,7 @@
 module Derive.Score where
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Data.Text as Text
 
 import Ui
 
@@ -19,10 +20,9 @@ data Event = Event {
     -- attributes like font style are not preserved here.
     event_start :: TrackPos
     , event_duration :: TrackPos
-    -- | Once events are fully derived, all the needed information should be in
-    -- the controllers and instrument and the event text should no longer be
-    -- needed, but it's handy to keep it around for error reporting.
-    , event_text :: String
+    -- | The UI level keeps it in UTF8 for easy communication with fltk, but
+    -- haskell will always need to decode it, so I might as well do it here.
+    , event_text :: Text.Text
     , event_controllers :: ControllerMap
 
     -- | Keep track of this event's display in various tracks (it may appear
@@ -37,11 +37,16 @@ data Event = Event {
     , event_attributes :: Attributes
     } deriving (Show)
 
+event_string :: Event -> String
+event_string = Text.unpack . event_text
+
+event_end :: Event -> TrackPos
 event_end event = event_start event + event_duration event
 
 -- | Probably for testing, since real events will have more stuff in them.
 event :: TrackPos -> TrackPos -> String -> Event
-event start dur text = Event start dur text Map.empty [] Nothing no_attrs
+event start dur text =
+    Event start dur (Text.pack text) Map.empty [] Nothing no_attrs
 
 type ControllerMap = Map.Map Controller Signal.Signal
 

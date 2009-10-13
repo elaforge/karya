@@ -1,4 +1,3 @@
-- corruption when test block is scrolled to the right
 - when I delete a block, do all the tracks get finalized?  I should keep track
 of finalization and look for leaks.
 
@@ -8,7 +7,7 @@ after, since if I turned on fingered portamento then I want to hear it
 - Cmd.BlockConfig -> Block?  or View -> ViewConfig
 - fix or remove logview_test
 CURRENT
-  - use Data.Text for event text
+  - corruption when test block is scrolled to the right
   - bring selection delete back
   - schema cmds can return errors
 

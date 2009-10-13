@@ -6,6 +6,7 @@ binary
 dlist
 hint
 haddock
+text-0.5
 
     fltk
 

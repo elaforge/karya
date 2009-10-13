@@ -85,6 +85,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
+import qualified Data.Text as Text
 import qualified Text.ParserCombinators.Parsec as P
 
 import Util.Control ((#>>))
@@ -153,12 +154,15 @@ parse_event inst attrs track_title (pos, event) = do
         else Derive.with_stack_pos pos (Event.event_duration event) $
             Derive.throw $ "parsing: " ++ Seq.join "; " errs
 
-parse_note :: Maybe Score.Instrument -> Score.Attributes -> String -> String
+parse_note :: Maybe Score.Instrument -> Score.Attributes -> String -> Text.Text
     -> (Parsed, [String])
 parse_note env_inst env_attrs title event = (Parsed call args inst attrs, errs)
     where
+    -- It may be worth it to try to keep this packed, but the rest of the code
+    -- is String so I'll punt on it now.
+    event_words = map Text.unpack (Text.words event)
     -- I have to thread word numbers through to have nice error msgs.
-    ws0 = describe "title" (words title) ++ describe "event" (words event)
+    ws0 = describe "title" (words title) ++ describe "event" event_words
     describe desc xs =
         [(desc ++ " word " ++ show i, x) | (i, x) <- zip [0..] xs]
     (inst, attrs, ws1) = preprocess_words env_inst env_attrs ws0

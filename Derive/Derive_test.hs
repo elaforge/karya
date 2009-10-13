@@ -310,4 +310,4 @@ mksignal segs = Signal.track_signal (TrackPos 1)
 extract_events :: [Score.Event] -> [(Double, Double, String)]
 extract_events = map $ \event ->
     (realToFrac (Score.event_start event),
-        realToFrac (Score.event_duration event), Score.event_text event)
+        realToFrac (Score.event_duration event), Score.event_string event)

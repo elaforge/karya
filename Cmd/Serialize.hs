@@ -18,6 +18,7 @@ import Control.Monad
 import qualified Data.Array.IArray as IArray
 import qualified Data.Binary as Binary
 import Data.Binary (Binary, Get, get, put, getWord8, putWord8)
+import qualified Data.ByteString as ByteString
 import qualified Data.Map as Map
 import qualified Data.Time as Time
 
@@ -458,7 +459,7 @@ instance Binary Track.TrackEvents where
 instance Binary Event.Event where
     put (Event.Event a b c) = put a >> put b >> put c
     get = do
-        text <- get :: Get String
+        text <- get :: Get ByteString.ByteString
         dur <- get :: Get TrackPos
         style <- get :: Get Event.StyleId
         return $ Event.Event text dur style

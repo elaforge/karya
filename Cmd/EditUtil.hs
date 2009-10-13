@@ -48,11 +48,12 @@ modify_event_at (tracknum, track_id, pos) zero_dur f = do
         then return pos
         else Selection.step_from tracknum pos TimeStep.Advance
     event <- get_event track_id pos (end_pos - pos)
-    let (val, advance) = f (Event.event_text event)
+    -- TODO I could have the modifier take Text, if it were worth it.
+    let (val, advance) = f (Event.event_string event)
     case val of
         Nothing -> State.remove_event track_id pos
         Just new_text -> State.insert_events track_id
-            [(pos, event { Event.event_text = new_text })]
+            [(pos, Event.set_string new_text event)]
     when advance Selection.advance
 
 type SelPos = (TrackNum, TrackId, TrackPos)

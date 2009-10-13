@@ -3,6 +3,7 @@ module Derive.Note_test where
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
+import qualified Data.Text as Text
 
 import Util.Test
 import qualified Util.Log as Log
@@ -24,7 +25,7 @@ import qualified Derive.Derive as Derive
 
 test_parse_note = do
     let f = Note.parse_note
-    equal (f (inst "k") no_attrs ">i" "1x 1y 2 b")
+    equal (f (inst "k") no_attrs ">i" (Text.pack "1x 1y 2 b"))
         (Note.Parsed "1x" [Note.Number 2, Note.String "b"] (inst "i") no_attrs
         ,["event word 1: can't parse number \"1y\"",
             "call \"1x\" starts with non-letter '1'"])
@@ -75,7 +76,7 @@ test_parse_arg = do
 test_derive_notes = do
     let mkevt (pos, dur, text) = (event, parsed)
             where
-            (parsed, _) = Note.parse_note Nothing no_attrs "" text
+            (parsed, _) = Note.parse_note Nothing no_attrs "" (Text.pack text)
             event = UiTest.mkevent (pos, dur, text)
         run evts = (map extract_event sevts, map extract_log logs)
             where
@@ -113,7 +114,8 @@ d_fake_sub = do
     st <- Derive.get
     start <- Derive.local_to_global 0
     end <- Derive.local_to_global 1
-    return [Score.Event start (end-start) "hi" Map.empty (Derive.state_stack st)
+    return [Score.Event start (end-start) (Text.pack "hi") Map.empty
+        (Derive.state_stack st)
         (Derive.state_instrument st) (Derive.state_attributes st)]
 
 mkstack :: [(String, Maybe (TrackPos, TrackPos))] -> Warning.Stack
@@ -121,7 +123,7 @@ mkstack = map $ \(bid, pos) -> (UiTest.bid bid, Nothing, pos)
 
 -- | Events aren't in Eq, so extract the bits I want to test.
 extract_event e = (Score.event_start e, Score.event_duration e,
-    Score.event_text e, Score.event_stack e, Score.event_instrument e,
+    Score.event_string e, Score.event_stack e, Score.event_instrument e,
     Score.event_attributes e)
 
 sub_name = "sub"

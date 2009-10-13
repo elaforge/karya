@@ -54,8 +54,9 @@ track_events = Track.make_track_events . mkevents
 mkevents =
     map (\(pos, dur, text) -> (TrackPos pos, Event.event text dur))
 
-extract_text (_, event) = Event.event_text event
-extract_event (pos, evt) = (pos, Event.event_duration evt, Event.event_text evt)
+extract_text (_, event) = Event.event_string event
+extract_event (pos, evt) =
+    (pos, Event.event_duration evt, Event.event_string evt)
 extract = map extract_event . Track.event_list
 
 no_overlaps = check . not . events_overlap

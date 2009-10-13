@@ -67,6 +67,9 @@ d_controller_track track_id = do
 
 -- * implementation
 
+-- It would be nicer to use a Text implementation of parsec so I don't have to
+-- unpack the event text.
+
 -- | Construct a control event from warped position.
 control_event :: Warning.Stack -> TrackPos -> Event.Event -> Score.Event
 control_event stack pos event = Score.Event pos 0 (Event.event_text event)
@@ -88,7 +91,7 @@ d_signal events = fmap (Signal.track_signal Signal.default_srate)
 parse_event :: (Monad m) => () -> Score.Event
     -> Derive.DeriveT m (TrackPos, Signal.Method, Signal.Val)
 parse_event _ event = do
-    (method, val) <- Derive.Parse.parse p_segment (Score.event_text event)
+    (method, val) <- Derive.Parse.parse p_segment (Score.event_string event)
     return (Score.event_start event, method, val)
 
 p_segment :: P.CharParser st (Signal.Method, Signal.Val)
@@ -111,7 +114,8 @@ d_pitch_signal scale_id events = do
 parse_pitch_event :: (Monad m) => Pitch.Scale -> () -> Score.Event
     -> Derive.DeriveT m (TrackPos, Signal.Method, Signal.Val)
 parse_pitch_event scale _ event = do
-    (method, note) <- Derive.Parse.parse p_note_segment (Score.event_text event)
+    (method, note) <-
+        Derive.Parse.parse p_note_segment (Score.event_string event)
     val <- parse_note scale note
     return (Score.event_start event, method, val)
 
