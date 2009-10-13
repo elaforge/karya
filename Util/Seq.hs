@@ -125,7 +125,7 @@ zip_next (x : xs@(y:_)) = (x, Just y) : zip_next xs
 -- | Like 'zip_next' but with preceeding and folowwing elements.
 zip_neighbors :: [a] -> [(Maybe a, a, Maybe a)]
 zip_neighbors [] = []
-zip_neighbors (x:xs) = (Nothing, x, mhead Nothing (map Just xs)) : go x xs
+zip_neighbors (x:xs) = (Nothing, x, mhead Nothing Just xs) : go x xs
     where
     go _ [] = []
     go prev [x] = [(Just prev, x, Nothing)]
@@ -143,17 +143,12 @@ partition_either (x:xs) =
 
 -- ** extracting sublists
 
--- | Total variants of head and tail with default values.  "m" is for "maybe".
-mhead :: a -> [a] -> a
-mhead def [] = def
-mhead _ (x:_) = x
-mtail :: [a] -> [a] -> [a]
-mtail def [] = def
-mtail _ (_:xs) = xs
-
-mlast :: a -> [a] -> a
-mlast def [] = def
-mlast _ xs = last xs
+-- | Total variants of unsafe list operations.  "m" is for "maybe".
+mhead, mlast :: b -> (a -> b) -> [a] -> b
+mhead empty _ [] = empty
+mhead _ full (x:_) = full x
+mlast empty _ [] = empty
+mlast _ full xs = full (last xs)
 
 -- | Drop adjacent elts if they are equal after applying the key function.  The
 -- first elt is kept.

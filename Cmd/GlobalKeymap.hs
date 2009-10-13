@@ -198,8 +198,8 @@ edit_bindings = concat
     step_rank rank skips = Edit.cmd_meter_step (TimeStep.MatchRank rank skips)
 
 create_bindings = concat
-    [ command_char 't' "append track" Create.insert_track_after_selection
-    , command_char 'd' "remove track" Create.remove_selected_tracks
+    [ command_only 't' "append track" Create.insert_track_after_selection
+    , command_only 'd' "delete track" Create.remove_selected_tracks
     ]
 
 clip_bindings = concat

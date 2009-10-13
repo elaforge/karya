@@ -77,7 +77,7 @@ shift_sel block shift sel =
     where
     selectable = selectable_tracks block
     tracknum = Types.sel_cur_track sel
-    new_tracknum = Seq.mhead tracknum $ if shift >= 0
+    new_tracknum = Seq.mhead tracknum id $ if shift >= 0
         then drop shift $ dropWhile (< tracknum) selectable
         else drop (-shift) $ dropWhile (> tracknum) (List.reverse selectable)
     shift2 = new_tracknum - tracknum
@@ -192,7 +192,7 @@ calc_track_offset view sel0 sel1 = max 0 (offset - ruler_width)
     where
     widths = map Block.track_view_width (Block.view_tracks view)
     -- Pesky ruler track doesn't count towards the track scroll.
-    ruler_width = Seq.mhead 0 widths
+    ruler_width = Seq.mhead 0 id widths
     offset = track_scroll_with_selection sel0 sel1
         (Block.view_track_scroll view + ruler_width)
         (Block.visible_track view) widths
@@ -305,11 +305,15 @@ get_insert_any = do
 
 -- | Get the start and end of the selection, along with the events that fall
 -- within it, by track.
-selected_events :: (Monad m) =>
+events :: (Monad m) =>
     Bool -- ^ If true, a point selection will get the event on or before it.
-    -> Types.SelNum
     -> Cmd.CmdT m (TrackPos, TrackPos, [(TrackId, [Track.PosEvent])])
-selected_events point_prev selnum = do
+events = events_selnum Config.insert_selnum
+
+events_selnum :: (Monad m) => Types.SelNum
+    -> Bool -- ^ If true, a point selection will get the event on or before it.
+    -> Cmd.CmdT m (TrackPos, TrackPos, [(TrackId, [Track.PosEvent])])
+events_selnum selnum point_prev = do
     (_, track_ids, start, end) <- selected_tracks selnum
     tracks <- mapM State.get_track track_ids
     let get_events = if point_prev && start == end
@@ -317,6 +321,23 @@ selected_events point_prev selnum = do
         track_events = [(track_id, get_events start end track)
             | (track_id, track) <- zip track_ids tracks]
     return (start, end, track_events)
+
+-- | A variant of 'selected_events'.  Get events starting with the one at or
+-- before the selection, and include the first one after the selection.
+events_around :: (Monad m) =>
+    Cmd.CmdT m [(TrackId, [Track.PosEvent], Maybe Track.PosEvent)]
+events_around = events_around_selnum Config.insert_selnum
+
+events_around_selnum :: (Monad m) => Types.SelNum
+    -> Cmd.CmdT m [(TrackId, [Track.PosEvent], Maybe Track.PosEvent)]
+events_around_selnum selnum = do
+    (_, track_ids, start, end) <- selected_tracks selnum
+    forM track_ids $ \track_id -> do
+        track <- State.get_track track_id
+        let (_, evts) = Track.events_at_before start (Track.track_events track)
+        let (within, after) =
+                break ((if start >= end then (>start) else (>=end)) . fst) evts
+        return (track_id, within, Seq.mhead Nothing Just after)
 
 events_in_range, event_before :: TrackPos -> TrackPos -> Track.Track
     -> [Track.PosEvent]

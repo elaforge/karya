@@ -82,20 +82,14 @@ cmd_set_duration = modify_events $ \_ end (pos, event) ->
 
 -- | If there is a following event, delete it and extend this one to its end.
 cmd_paste_events :: (Monad m) => Cmd.CmdT m ()
-cmd_paste_events = do
-    (start, end, tracks) <- Selection.selected_events True Config.insert_selnum
-    forM_ tracks $ \(track_id, pos_events) -> when (not (null pos_events)) $ do
-        track <- State.get_track track_id
-        let (pos1, evt1) = head pos_events
-        let (_, _, after) = Track.split_range start end
-                (Track.track_events track)
-        when (not (null after)) $ do
-            let (pos2, evt2) = head after
-            let pos_end = pos2 + Event.event_duration evt2
-            State.remove_events track_id pos1 pos_end
-            State.insert_events track_id
-                [(pos1, evt1 { Event.event_duration = pos_end - pos1 })]
-
+cmd_paste_events = mapM_ process =<< Selection.events_around
+    where
+    process (track_id, ((pos1, evt1):_), Just (pos2, evt2)) = do
+        let end = pos2 + Event.event_duration evt2
+        State.remove_events track_id pos1 end
+        State.insert_events track_id
+            [(pos1, evt1 { Event.event_duration = end - pos1 })]
+    process _ = return ()
 
 -- | Insert empty space at the beginning of the selection for the length of
 -- the selection, pushing subsequent events forwards.
@@ -141,8 +135,7 @@ cmd_modify_dur f = modify_events $ \_ _ (pos, evt) ->
 modify_events :: (Monad m) =>
     (TrackPos -> TrackPos -> Track.PosEvent -> Track.PosEvent) -> Cmd.CmdT m ()
 modify_events f = do
-    (start, end, track_events) <-
-        Selection.selected_events True Config.insert_selnum
+    (start, end, track_events) <- Selection.events True
     forM_ track_events $ \(track_id, pos_events) -> do
         let pos_events2 = map (f start end) pos_events
         if start == end then State.remove_event track_id start

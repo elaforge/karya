@@ -7,6 +7,9 @@ after, since if I turned on fingered portamento then I want to hear it
 - Cmd.BlockConfig -> Block?  or View -> ViewConfig
 - fix or remove logview_test
 CURRENT
+  - cut + paste didn't work with a point paste
+  - nudge events down by timestep
+
   - corruption when test block is scrolled to the right
   - bring selection delete back
   - schema cmds can return errors

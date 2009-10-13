@@ -78,7 +78,7 @@ main = do
     when (Help `elem` flags) (usage "usage:")
 
     let seek = NoSeek `notElem` flags
-    let history = Seq.mlast default_history [n | History n <- flags]
+    let history = Seq.mlast default_history id [n | History n <- flags]
 
     view <- LogViewC.create_logview 20 20 (fst initial_size) (snd initial_size)
         default_max_bytes
