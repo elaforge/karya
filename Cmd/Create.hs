@@ -94,8 +94,10 @@ named_block name ruler_id = do
         (Block.block_track (Block.RId ruler_id) Config.ruler_width)
     return b
 
-generate_block_id ns blocks =
-    generate_id ns no_parent "b" Types.BlockId blocks
+generate_block_id :: Id.Namespace -> Map.Map BlockId _a -> Maybe Id.Id
+generate_block_id ns blocks = generate_id ns no_parent "b" Types.BlockId blocks
+
+no_parent :: Id.Id
 no_parent = Id.id [] ""
 
 -- * view
@@ -103,7 +105,7 @@ no_parent = Id.id [] ""
 view :: (State.UiStateMonad m) => BlockId -> m ViewId
 view block_id = do
     views <- State.get_views_of block_id
-    view_id <- require "view id" $ generate_view_id views block_id
+    view_id <- require "view id" $ generate_view_id block_id views
     rect <- fmap (find_rect Config.view_size . map Block.view_rect . Map.elems
         . State.state_views) State.get
     State.create_view view_id $ Block.view block_id rect Config.zoom
@@ -112,7 +114,8 @@ block_view :: (State.UiStateMonad m) => RulerId -> m ViewId
 block_view ruler_id = block ruler_id >>= view
 
 -- | ViewIds look like \"ns/b0.v0\", \"ns/b0.v1\", etc.
-generate_view_id views block_id =
+generate_view_id :: BlockId -> Map.Map ViewId _a -> Maybe Id.Id
+generate_view_id block_id views =
     generate_id (Id.id_namespace ident) ident "v" Types.ViewId views
     where ident = Id.unpack_id block_id
 
@@ -126,9 +129,8 @@ destroy_view view_id = State.destroy_view view_id
 track_ruler :: (State.UiStateMonad m) =>
     BlockId -> RulerId -> TrackNum -> Types.Width -> m TrackId
 track_ruler block_id ruler_id tracknum width = do
-    tracks <- State.get_tracks_of block_id
-    track_id <- require "track id" $
-        generate_track_id block_id "t" tracks
+    tracks <- fmap State.state_tracks State.get
+    track_id <- require "track id" $ generate_track_id block_id "t" tracks
     tid <- State.create_track track_id (empty_track "")
     State.insert_track block_id tracknum
         (Block.block_track (Block.TId tid ruler_id) width)
@@ -209,6 +211,7 @@ empty_track title = Track.track title [] Config.track_bg Config.render_config
 tracklike_track (Block.TId tid _) = Just tid
 tracklike_track _ = Nothing
 
+generate_track_id :: BlockId -> String -> Map.Map TrackId _a -> Maybe Id.Id
 generate_track_id block_id code tracks =
     generate_id (Id.id_namespace ident) ident code Types.TrackId tracks
     where ident = Id.unpack_id block_id
@@ -254,6 +257,8 @@ overlay_suffix = ".overlay"
 
 -- * util
 
+generate_id :: (Ord a) => Id.Namespace -> Id.Id -> String -> (Id.Id -> a)
+    -> Map.Map a _b -> Maybe Id.Id
 generate_id ns parent_id code typ fm =
     List.find (not . (`Map.member` fm) . typ) candidates
     where candidates = ids_for ns (Id.id_name parent_id) code
