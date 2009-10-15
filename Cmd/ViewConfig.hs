@@ -1,5 +1,5 @@
 -- | Cmds related to view level state.
-module Cmd.View where
+module Cmd.ViewConfig where
 
 import Ui
 import qualified Ui.Block as Block

@@ -59,7 +59,7 @@ import qualified Cmd.Play as Play
 import qualified Cmd.Save as Save
 import qualified Cmd.Selection as Selection
 import qualified Cmd.TimeStep as TimeStep
-import qualified Cmd.View as View
+import qualified Cmd.ViewConfig as ViewConfig
 
 import qualified Perform.Transport as Transport
 
@@ -143,8 +143,10 @@ selection_bindings = concat
     where selnum = Config.insert_selnum
 
 view_config_bindings = concat
-    [ command_char '[' "zoom out *0.8" (View.cmd_zoom_around_insert (*0.8))
-    , command_char ']' "zoom in *1.25" (View.cmd_zoom_around_insert (*1.25))
+    [ command_char '[' "zoom out *0.8"
+        (ViewConfig.cmd_zoom_around_insert (*0.8))
+    , command_char ']' "zoom in *1.25"
+        (ViewConfig.cmd_zoom_around_insert (*1.25))
     ]
 
 block_config_bindings = concat
