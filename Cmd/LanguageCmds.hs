@@ -86,8 +86,9 @@ import qualified App.Config as Config
 -- part of the record, or change the types.  A real record system for haskell
 -- would probably fix this.
 show_record :: [(String, String)] -> String
-show_record = concatMap (\(k, v) ->
-    printf "%s:\n%s\n" k (indent_lines (Seq.strip v)))
+show_record = concatMap $ \(k, v) ->
+    let s = Seq.strip v in printf "%s:%s\n" k
+            (if '\n' `elem` s then '\n' : indent_lines s else ' ' : show s)
 indent_lines = Seq.rstrip . unlines . map (indent++) . lines
 indent = "  "
 
@@ -158,21 +159,48 @@ destroy_view view_id = State.destroy_view (vid view_id)
 show_block :: BlockId -> Cmd.CmdL String
 show_block block_id = do
     block <- State.get_block block_id
-    track_descs <- mapM show_tracklike (Block.block_tracklike_ids block)
+    tracks <- mapM show_tracklike (Block.block_tracklike_ids block)
     return $ show_record
         [ ("title", Block.block_title block)
-        , ("tracks", show_list track_descs)
+        , ("tracks", show_list tracks)
         , ("schema", show (Block.block_schema block))
         ]
-    where
 
+show_blocks :: String -> Cmd.CmdL String
+show_blocks match = do
+    st <- State.get
+    let block_ids = match_ids match $ Map.keys (State.state_blocks st)
+    blocks <- mapM State.get_block block_ids
+    descs <- forM (zip block_ids blocks) $ \(block_id, block) -> do
+        tracks <- mapM show_tracklike (Block.block_tracklike_ids block)
+        return $ printf "%s (title %s)\n%s" (show block_id)
+            (show (Block.block_title block)) (indent_lines (show_list tracks))
+    return (concat descs)
+
+-- | Filter ids containing a given substring.
+match_ids :: (Id.Ident id) => String -> [id] -> [id]
+match_ids sub = filter ((sub `List.isInfixOf`) . Id.show_id . Id.unpack_id)
+
+-- | Tracks that don't appear in any block.
+orphan_tracks :: Cmd.CmdL [TrackId]
+orphan_tracks =
+    fmap (\trefs -> [tid | (tid, refs) <- trefs, refs == 0]) track_refs
+
+track_refs :: Cmd.CmdL [(TrackId, Int)]
+track_refs = do
+    st <- State.get
+    let tids = concatMap Block.block_track_ids
+            (Map.elems (State.state_blocks st))
+        insert fm tid = Map.insertWith (+) tid 1 fm
+        ref_map = List.foldl' insert Map.empty tids
+    return [(tid, Map.get 0 tid ref_map)
+        | tid <- Map.keys (State.state_tracks st)]
+
+show_tracklike :: Block.TracklikeId -> Cmd.CmdL String
 show_tracklike (Block.TId tid rid) = do
     track <- State.get_track tid
-    ruler_desc <- show_tracklike (Block.RId rid)
-    let (id, title, _) = Simple.simplify_track tid track
-    return $ id ++ " (title " ++ show title ++ ")"
-        ++ " (len " ++ show (Track.events_length (Track.track_events track))
-        ++ ") " ++ ruler_desc
+    let title = Track.track_title track
+    return $ printf "%s (title %s) %s" (show tid) (show title) (show rid)
 show_tracklike (Block.RId rid) = return (show rid)
 show_tracklike (Block.DId color) = return $ "Div " ++ show color
 
@@ -212,6 +240,14 @@ show_events track_id start end = do
 set_render_style :: Track.RenderStyle -> TrackId -> Cmd.CmdL ()
 set_render_style style track_id = State.modify_track_render track_id $
     \render -> render { Track.render_style = style }
+
+-- | Insert a track that already exists.
+insert_track :: TrackId -> TrackNum -> Cmd.CmdL ()
+insert_track track_id tracknum = do
+    block_id <- Cmd.get_focused_block
+    ruler_id <- Create.get_ruler_id block_id tracknum
+    State.insert_track block_id tracknum
+        (Block.block_track (Block.TId track_id ruler_id) Config.track_width)
 
 -- ** events
 

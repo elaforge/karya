@@ -142,22 +142,22 @@ track :: (State.UiStateMonad m) => BlockId -> TrackNum -> m TrackId
 track block_id tracknum = do
     -- Clip to valid range so callers can use an out of range tracknum.
     tracknum <- clip_tracknum block_id tracknum
-    prev_track <- State.block_track_at block_id (tracknum-1)
+    ruler_id <- get_ruler_id block_id tracknum
+    track_ruler block_id ruler_id tracknum Config.track_width
 
+-- | Given a hypothetical track at @tracknum@, what should it's ruler id be?
+get_ruler_id :: (State.UiStateMonad m) => BlockId -> TrackNum -> m RulerId
+get_ruler_id block_id tracknum = do
+    prev_track <- State.block_track_at block_id (tracknum-1)
+    -- The above can generate a bad ruler_id if they didn't use 'ruler' to
+    -- create the ruler with the overlay version, so fall back on
+    -- State.no_ruler if it doesn't exist.
     let ruler_id = case fmap Block.tracklike_id prev_track of
             Just (Block.TId _ rid) -> rid
             Just (Block.RId rid) -> add_overlay_suffix rid
             _ -> State.no_ruler
-        -- TODO is there any real good reason to do this?
-        width = maybe Config.track_width Block.track_width prev_track
-    -- The above can generate a bad ruler_id if they didn't use 'ruler' to
-    -- create the ruler with the overlay version, so fall back on
-    -- State.no_ruler if it doesn't exist.
     maybe_ruler <- State.lookup_ruler ruler_id
-    let ruler_id2 = case maybe_ruler of
-            Nothing -> State.no_ruler
-            Just _ -> ruler_id
-    track_ruler block_id ruler_id2 tracknum width
+    return $ maybe State.no_ruler (const ruler_id) maybe_ruler
 
 add_overlay_suffix :: RulerId -> RulerId
 add_overlay_suffix ruler_id
