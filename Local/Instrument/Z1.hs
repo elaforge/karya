@@ -82,7 +82,8 @@ make_patch (name, cat, pb_range, osc1, osc2) =
     -- Initialization will be filled in later.
     (Instrument.patch inst) { Instrument.patch_tags = tags }
     where
-    inst = Instrument.instrument z1 name Nothing Controller.empty_map pb_range
+    inst = Instrument.instrument (Instrument.synth_name z1)
+        name Nothing Controller.empty_map pb_range
     tags = maybe_tags
         [("z1_category", cat), ("z1_osc", osc1), ("z1_osc", osc2)]
 

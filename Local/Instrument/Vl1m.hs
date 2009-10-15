@@ -104,7 +104,8 @@ vl1_patch name (pb_range1, name1, cc_groups1) (pb_range2, name2, cc_groups2) =
     pb_range = if range pb_range1 > range pb_range2
         then pb_range1 else pb_range2
     range (low, high) = max (abs low) (abs high)
-    inst = Instrument.instrument vl1 name Nothing cmap pb_range
+    inst = Instrument.instrument
+        (Instrument.synth_name vl1) name Nothing cmap pb_range
     tags = maybe_tags [("vl1_elt1", name1), ("vl1_elt2", name2)]
     cmap = Controller.controller_map $ Map.assocs $ Map.mapMaybe highest_prio $
         Map.unionWith (++) (Map.fromList cc_groups1) (Map.fromList cc_groups2)

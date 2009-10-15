@@ -40,27 +40,33 @@ data Instrument = Instrument {
 	, inst_controller_map :: Controller.ControllerMap
 
     , inst_pitch_bend_range :: Controller.PbRange
-    -- | Time from NoteOff to inaudible, in seconds.  This is used to determine
-    -- note overlap for the purposes of channel allocation.  It could also
-    -- be used to automatically trim control msgs, but I don't do that yet.
-    -- TODO but I allocate LRU, so it shouldn't make a difference, right?
-    , inst_decay :: Maybe Double
+    -- | Time from NoteOff to inaudible, in seconds.  This can be used to
+    -- figure out how long to generate control messages, or possibly determine
+    -- overlap for channel allocation, though I use LRU so it shouldn't matter.
+    , inst_decay :: Double
     -- | Scale used by this instrument.  This determines what adjustments need
     -- to be made, if any, to get a frequency indicated by the pitch track.
     , inst_scale :: Pitch.ScaleId
     } deriving (Eq, Ord, Show)
 
-instrument :: Synth -> InstrumentName -> Maybe Keyswitch
+instrument :: SynthName -> InstrumentName -> Maybe Keyswitch
     -> Controller.ControllerMap -> Controller.PbRange -> Instrument
-instrument synth name keyswitch cmap pb_range =
-    set_instrument_name synth name keyswitch
-        (Instrument "" "" Nothing "" cmap pb_range Nothing default_scale)
+instrument synth_name name keyswitch cmap pb_range =
+    set_instrument_name synth_name name keyswitch
+        (Instrument "" "" Nothing "" cmap pb_range default_decay default_scale)
 
-set_instrument_name synth name keyswitch inst = inst
-    { inst_synth = synth_name synth
+-- | Somewhat conservative default decay which should suit most instruments.
+-- 'inst_decay' will probably only rarely be explicitly set.
+default_decay :: Double
+default_decay = 1.0
+
+set_instrument_name :: SynthName -> String -> Maybe Keyswitch -> Instrument
+    -> Instrument
+set_instrument_name synth_name name keyswitch inst = inst
+    { inst_synth = synth_name
     , inst_name = name
     , inst_keyswitch = keyswitch
-    , inst_score_name = synth_name synth ++ "/" ++ name ++ ks_str
+    , inst_score_name = synth_name ++ "/" ++ name ++ ks_str
     }
     where
     ks_str = case keyswitch of
@@ -120,6 +126,7 @@ data Patch = Patch {
 	} deriving (Eq, Show)
 
 -- | Create a Patch with empty vals, to set them as needed.
+patch :: Instrument -> Patch
 patch inst = Patch inst NoInitialization (KeyswitchMap []) [] ""
 
 -- | A KeyswitchMap maps a set of attributes to a keyswitch and gives

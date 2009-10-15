@@ -28,6 +28,9 @@ import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
 
 
+legato :: Double
+legato = (\(TrackPos pos) -> pos) Perform.legato_overlap_time
+
 -- * perform
 
 -- Bad signal that goes over 1 at 1 and 3.
@@ -43,7 +46,7 @@ test_clip_warns = do
     equal (extract_warns warns)
         -- yeah matching floats is silly but it's quick and easy...
         [ ("Controller \"volume\" clipped", Just (1.05, 1.9500000000000002))
-        , ("Controller \"volume\" clipped", Just (3.05, 3.95))
+        , ("Controller \"volume\" clipped", Just (3.05, 4))
         ]
 
     check (all_msgs_valid msgs)
@@ -64,8 +67,7 @@ midi_cc_of _ = Nothing
 
 test_perform = do
     let t_perform events = do
-        let (msgs, warns) =
-                perform inst_config2 (map mkevent events)
+        let (msgs, warns) = perform inst_config2 (map mkevent events)
         -- print_msgs msgs
         -- putStrLn ""
         equal warns []
@@ -105,14 +107,15 @@ test_perform = do
         ]
 
     -- velocity curve shows up in NoteOns and NoteOffs
+    -- also legato overlap comes into play
     msgs <- t_perform
         [ (inst1, "a", 0, 2, [c_vel])
         , (inst1, "b", 2, 2, [c_vel])
         ]
     equal msgs
         [ ("dev1", 0.0, 0, NoteOn 60 127)
-        , ("dev1", 2.0, 0, NoteOff 60 63)
         , ("dev1", 2.0, 0, NoteOn 61 63)
+        , ("dev1", 2.0 + legato, 0, NoteOff 60 63)
         , ("dev1", 4.0, 0, NoteOff 61 0)
         ]
 
@@ -334,23 +337,25 @@ test_allot = do
 
 perform inst_config = Perform.perform test_lookup inst_config
 
-mkevent :: (Instrument.Instrument, String, Double, Double,
+mkevent :: (Instrument.Instrument, String, TrackPos, TrackPos,
         [(Controller.Controller, Signal.Signal)])
     -> Perform.Event
 mkevent (inst, pitch, start, dur, controls) =
-    Perform.Event inst (TrackPos start) (TrackPos dur)
-        (Map.fromList (pitch_control : controls)) fakestack
+    Perform.Event inst start dur (Map.fromList (pitch_sig : controls)) fakestack
     where
     fakestack =
         [ (Types.BlockId (Id.id "test" "fakeblock")
         , Just (Types.TrackId (Id.id "test" "faketrack"))
         , Just (TrackPos 42, TrackPos 42))
         ]
-    pitch_control = (Controller.c_pitch, Signal.signal [(TrackPos start, p)])
+    pitch_sig = (Controller.c_pitch, Signal.signal [(start, p)])
     p = Maybe.fromMaybe (error ("no pitch " ++ show pitch))
         (lookup pitch to_pitch)
     to_pitch = zip (map (:"") ['a'..'z']) [60..]
 mkevents = map (\ (p, s, d, c) -> mkevent (inst1, p, s, d, c))
+
+mkpitch :: Signal.Val -> Perform.ControllerMap
+mkpitch pitch = Map.fromList [(Controller.c_pitch, Signal.signal [(0, pitch)])]
 
 events1 = mkevents
     [ ("a", 0, 8, [])
@@ -367,7 +372,7 @@ c_vol2 = (vol_cc, mksignal [(0, 1), (2, 0), (4, 1)])
 c_vel = (Controller.c_velocity, mksignal [(0, 1), (4, 0)])
 c_aftertouch = (Controller.c_aftertouch, mksignal [(0, 0), (8, 1)])
 
-inst name = Instrument.instrument synth1 name Nothing
+inst name = Instrument.instrument (Instrument.synth_name synth1) name Nothing
     Controller.empty_map (-12, 12)
 
 inst1 = inst "inst1"

@@ -1,3 +1,7 @@
+- debug statements in callback
+- timer can summarize one responder loop cycle?
+- get diff results is really slow
+
 - when I delete a block, do all the tracks get finalized?  I should keep track
 of finalization and look for leaks.
 
@@ -73,11 +77,6 @@ diff.  except that hardly ever happens if I do shortcut thru
 logged or attached to an exception?  I guess the keymap thing is probably
 enough.
 
-- caching
-  on sync, check cache validity against updates, and regenerate signals and
-  events on blocks if necessary.
-- pass signal by pointer
-
 display signal:
   cmd makes a change to a controller track
   diff (and cmd) generate TrackEvents update
@@ -110,8 +109,12 @@ bugs:
 performance:
   - random little hangs are annoying.  figure out what's going on.  GC?
   * pause before playing.  printing logs make playing too strict?
-  - cache marks and events from callback
-  - will removing the style speed up event copying?
+  - send style id to c++ instead of all the style elements
+  - in c++, cache marks and events from callback
+  - cache track cmds for each track, update when the track title or skeleton
+  changes
+  - compile wth -O2
+  - deriver caching, see doc/derive_cache
 
 fltk:
   - draw arrows in SkeletonDisplay.cc properly
@@ -353,7 +356,7 @@ Midi:
     - display widget
 
 misc ideas:
-  - legato filter makes adjacent notes overlap a little, for keyed portamento
+  * legato filter makes adjacent notes overlap a little, for keyed portamento
   - more complicated track names: "< legato < synth/inst" to pipe inst output
     through legato deriver
   - use "<" for tracks that generate data, ">" for ones that accept it, e.g.

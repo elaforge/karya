@@ -284,7 +284,7 @@ default_synth = Instrument.synth "synth" "wdev" []
 default_dev = Midi.WriteDevice "out"
 default_inst_config = Instrument.config
     [(default_inst, [(default_dev, 0)])] Nothing
-default_perf_inst = Instrument.instrument default_synth "patch" Nothing
+default_perf_inst = Instrument.instrument "synth" "patch" Nothing
             Midi.Controller.empty_map (-2, 2)
 default_ksmap = Instrument.KeyswitchMap $
     map (\(attr, name, nn) -> (Set.fromList attr, Instrument.Keyswitch name nn))

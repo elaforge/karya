@@ -107,7 +107,7 @@ make_lookup inst_names _attrs (Score.Instrument inst) = Map.lookup inst inst_map
     where inst_map = Map.fromList $ zip inst_names (map make_inst inst_names)
 
 make_inst name = default_perf_inst { Instrument.inst_name = name }
-default_perf_inst = Instrument.instrument default_synth "i0" Nothing
+default_perf_inst = Instrument.instrument "synth" "i0" Nothing
             Midi.Controller.empty_map (-2, 2)
 default_synth = Instrument.Synth "synth" default_wdev
     (Midi.Controller.controller_map [])

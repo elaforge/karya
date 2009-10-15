@@ -23,7 +23,7 @@ immediately :: Timestamp
 immediately = Timestamp 0
 
 seconds :: (RealFrac a) => a -> Timestamp
-seconds secs = Timestamp (floor (secs * 1000))
+seconds secs = Timestamp (round (secs * 1000))
 to_seconds :: Timestamp -> Double
 to_seconds (Timestamp ts) = fromIntegral ts / 1000
 
@@ -35,7 +35,7 @@ to_microseconds (Timestamp ts) = ts * 1000
 -- This means I can't align to samples, but MIDI timing is not that accurate
 -- anyway.  If I ever need to align samples I may have to change this.
 from_track_pos :: TrackPos -> Timestamp
-from_track_pos = floor . (*1000)
+from_track_pos = round . (*1000)
 to_track_pos :: Timestamp -> TrackPos
 to_track_pos = TrackPos . (/1000) . fromIntegral
 

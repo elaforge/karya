@@ -50,7 +50,7 @@ mkpatch (name, cat, conts) = (Instrument.patch inst)
     { Instrument.patch_tags = tags }
     where
     tags = map (uncurry Instrument.tag) [("category", cat)]
-    inst = Instrument.instrument t_synth name Nothing
+    inst = Instrument.instrument (Instrument.synth_name t_synth) name Nothing
         (Controller.controller_map conts) (-2, 2)
 
 get_z1 = do

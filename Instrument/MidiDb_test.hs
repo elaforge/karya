@@ -18,9 +18,8 @@ test_lookup_instrument = do
                 (Set.fromList attrs) (Score.Instrument inst)
 
     let ks name key = Just (Instrument.Keyswitch name key)
-        kkt_inst name = Instrument.Instrument "kkt" name Nothing
-            ("kkt/" ++ name) Controller.empty_map (-96, 96) Nothing
-            Instrument.default_scale
+        kkt_inst name = Instrument.instrument "kkt" name Nothing
+            Controller.empty_map (-96, 96)
         hang = kkt_inst "hang1"
     equal (f "kkt/hang1" ["slap"]) $ Just $
         hang { Instrument.inst_keyswitch = ks "slap" 38 }

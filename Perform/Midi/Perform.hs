@@ -60,6 +60,15 @@ keyswitch_interval = 4
 pitch_bend_lead_time :: TrackPos
 pitch_bend_lead_time = Timestamp.to_track_pos (Timestamp.seconds 0.01)
 
+-- | When a track's NoteOff lines up with the next NoneOn, make them overlap by
+-- this amount.  Normally this won't be audible, but if the instrument is set
+-- for fingered portamento then this should trigger it.
+legato_overlap_time :: TrackPos
+legato_overlap_time = Timestamp.to_track_pos (Timestamp.seconds 0.01)
+
+-- Neither of those are exactly representable, but they get rounded to
+-- milliseconds anyway.
+
 -- * perform
 
 -- | Render instrument tracks down to midi messages, sorted in timestamp order.
@@ -114,7 +123,8 @@ _perform_notes addr_inst overlapping prev_note_off ((event, addr):events) =
     -- n seconds, which would possibly save generating controllers there, at
     -- the cost of assuming decays are < n sec.
     next_note_on = case List.find ((==addr) . snd) events of
-        Nothing -> event_end event -- TODO plus decay_time?
+        Nothing -> event_end event
+            + TrackPos (Instrument.inst_decay (event_instrument event))
         Just (evt, _chan) -> event_start evt
     (msgs, warns, note_off) = perform_note prev_note_off next_note_on event addr
     first_ts = case msgs of
@@ -262,7 +272,8 @@ perform_note prev_note_off next_note_on event (dev, chan)
         (Midi.ChannelMessage chan msg)
     pb_time = min note_on $ max prev_note_off (note_on - pitch_bend_lead_time)
     note_on = event_start event
-    note_off = event_end event
+    note_off = event_end event +  (if event_end event == next_note_on
+        then legato_overlap_time else 0)
     (on_vel, off_vel, vel_clip_warns) = note_velocity event note_on note_off
 
     pb_range = Instrument.inst_pitch_bend_range (event_instrument event)
@@ -495,6 +506,7 @@ data Event = Event {
     , event_stack :: Warning.Stack
     } deriving (Show)
 
+event_end :: Event -> TrackPos
 event_end event = event_start event + event_duration event
 
 -- | This isn't directly the midi channel, since it goes higher than 15, but

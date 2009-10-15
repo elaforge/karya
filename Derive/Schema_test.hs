@@ -45,9 +45,9 @@ mkalloc insts = Map.fromList
     | (chan, inst) <- Seq.enumerate insts]
 
 midi_default_inst = Instrument.instrument
-    synth "default" Nothing Controller.empty_map (-12, 12)
-midi_inst1 = (Instrument.instrument
-    synth "inst1" Nothing Controller.empty_map (-12, 12))
+    "synth" "default" Nothing Controller.empty_map (-12, 12)
+midi_inst1 = Instrument.instrument
+    "synth" "inst1" Nothing Controller.empty_map (-12, 12)
 inst1 = Score.Instrument "inst1"
 inst2 = Score.Instrument "inst2"
 default_inst = Score.Instrument "default"

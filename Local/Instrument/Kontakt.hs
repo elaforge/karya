@@ -13,10 +13,11 @@ load _dir = return (synth, MidiDb.merge_patch_maps
     (MidiDb.wildcard_patch_map patch_template)
     (fst $ MidiDb.patch_map patches))
 
-patch_template = Instrument.patch
-    (Instrument.instrument synth "" Nothing Controller.empty_map (-96, 96))
+patch_template = Instrument.patch $
+    Instrument.instrument synth_name "" Nothing Controller.empty_map (-96, 96)
 
-synth = Instrument.synth "kkt" "kontakt" []
+synth_name = "kkt"
+synth = Instrument.synth synth_name "kontakt" []
 
 patches =
     [ mkpatch "hang1" hang_keyswitches
@@ -31,7 +32,7 @@ hang_keyswitches = Instrument.make_keyswitches
 
 mkpatch inst_name ks_map = patch_template
     { Instrument.patch_instrument =
-        Instrument.set_instrument_name synth inst_name Nothing inst
+        Instrument.set_instrument_name synth_name inst_name Nothing inst
     , Instrument.patch_keyswitches = ks_map
     }
     where
