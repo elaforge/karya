@@ -113,6 +113,7 @@ map_events f events = emap (Map.fromList . map f . Map.toList) events
 -- their tails clipped until they don't, and given events that start at the
 -- same place as existing events will replace the existing ones.
 insert_events :: [PosEvent] -> TrackEvents -> TrackEvents
+insert_events [] events = events
 insert_events pos_events events =
     merge events (TrackEvents (Map.fromAscList clipped))
     where
@@ -139,6 +140,10 @@ events_at :: TrackPos -> TrackEvents -> ([PosEvent], [PosEvent])
 events_at pos (TrackEvents events) = (Map.toDescList pre, Map.toAscList post)
     where (pre, post) = Map.split2 pos events
 
+-- | All events at or after @pos@.  Implement as snd of events_at.
+events_after :: TrackPos -> TrackEvents -> [PosEvent]
+events_after pos track_events = snd (events_at pos track_events)
+
 -- | This is like 'events_at', but if there isn't an event exactly at the pos,
 -- start at the event right before it.
 events_at_before :: TrackPos -> TrackEvents -> ([PosEvent], [PosEvent])
@@ -163,7 +168,7 @@ event_after pos events = case snd (events_at pos events) of
 
 -- | An event exactly at the given pos, or Nothing.
 event_at :: TrackEvents -> TrackPos -> Maybe Event.Event
-event_at track_events pos = case forward pos track_events of
+event_at track_events pos = case events_after pos track_events of
     ((epos, event):_) | epos == pos -> Just event
     _ -> Nothing
 
@@ -181,10 +186,6 @@ event_overlapping pos track_events
     | otherwise = Nothing
     where
     (pre, post) = events_at pos track_events
-
--- | All events at or after @pos@.  Implement as snd of events_at.
-forward :: TrackPos -> TrackEvents -> [PosEvent]
-forward pos track_events = snd (events_at pos track_events)
 
 -- | Get all events in ascending order.  Like @snd . events_at (TrackPos 0)@.
 event_list :: TrackEvents -> [PosEvent]

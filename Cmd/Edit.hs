@@ -81,30 +81,86 @@ cmd_set_duration = modify_events $ \_ end (pos, event) ->
     (pos, event { Event.event_duration = end - pos })
 
 -- | If there is a following event, delete it and extend this one to its end.
-cmd_paste_events :: (Monad m) => Cmd.CmdT m ()
-cmd_paste_events = mapM_ process =<< Selection.events_around
+cmd_join_events :: (Monad m) => Cmd.CmdT m ()
+cmd_join_events = mapM_ process =<< Selection.events_around
     where
     process (track_id, ((pos1, evt1):_), Just (pos2, evt2)) = do
-        let end = pos2 + Event.event_duration evt2
+        let end = Track.event_end (pos2, evt2)
         State.remove_events track_id pos1 end
         State.insert_events track_id
             [(pos1, evt1 { Event.event_duration = end - pos1 })]
     process _ = return ()
 
 -- | Insert empty space at the beginning of the selection for the length of
--- the selection, pushing subsequent events forwards.
-cmd_insert_into_selection :: (Monad m) => Cmd.CmdT m ()
-cmd_insert_into_selection = do
-    (_, track_ids, start, end) <- Selection.selected_tracks Config.insert_selnum
-    mapM_ (move_track_events start (end - start)) track_ids
+-- the selection, pushing subsequent events forwards.  If the selection is
+-- a point, insert one timestep.
+cmd_insert_time :: (Monad m) => Cmd.CmdT m ()
+cmd_insert_time = do
+    (tracknums, track_ids, start, end) <- Selection.tracks
+    (start, end) <- expand_range tracknums start end
+    when (start /= end) $ forM_ track_ids $ \track_id -> do
+        -- lengthen an overlapping event
+        modify_overlapping track_id start $ \pos evt ->
+            let dur = Event.event_duration evt
+            in Just $ if pos == start then evt
+                else evt { Event.event_duration = dur + (end-start) }
+        move_track_events start (end-start) track_id
 
--- | Remove the notes under the selection, and move everything else back.
-cmd_delete_selected :: (Monad m) => Cmd.CmdT m ()
-cmd_delete_selected = do
-    cmd_clear_selected
-    (_, track_ids, start, end) <- Selection.selected_tracks Config.insert_selnum
-    mapM_ (move_track_events start (-(end - start))) track_ids
+-- | Remove the notes under the selection, and move everything else back.  If
+-- the selection is a point, delete one timestep.
+cmd_delete_time :: (Monad m) => Cmd.CmdT m ()
+cmd_delete_time = do
+    (tracknums, track_ids, start, end) <- Selection.tracks
+    (start, end) <- expand_range tracknums start end
+    when (start /= end) $ forM_ track_ids $ \track_id -> do
+        -- shorten an overlapping event
+        modify_overlapping track_id start $ \pos evt ->
+            let shorten = min end (Track.event_end (pos, evt)) - start
+                dur = Event.event_duration evt
+            in Just $ evt { Event.event_duration = dur - shorten }
+        deleted <- State.get_events track_id start end
+        State.remove_events track_id start end
+        move_track_events start (-(end-start)) track_id
+        -- Reinsert the deleted events, if they only partially overlapped the
+        -- deleted area.
+        State.insert_events track_id $
+            map (shift (start-end)) (clip_until end deleted)
+    where shift val (pos, evt) = (pos + val, evt)
 
+clip_until :: TrackPos -> [Track.PosEvent] -> [Track.PosEvent]
+clip_until until events = Seq.map_maybe f events
+    where
+    f pos_evt@(pos, evt)
+        | Track.event_end pos_evt <= until = Nothing
+        | pos >= until = Just pos_evt
+        | otherwise = Just $ (until, evt
+            { Event.event_duration = Event.event_duration evt - (until-pos) })
+
+modify_overlapping :: (Monad m) => TrackId -> TrackPos
+    -> (TrackPos -> Event.Event -> Maybe Event.Event) -> Cmd.CmdT m ()
+modify_overlapping track_id pos f = do
+    track <- State.get_track track_id
+    case Track.event_before pos (Track.track_events track) of
+        Just (evt_pos, evt) | Track.event_end (evt_pos, evt) > pos -> do
+            State.map_events track_id evt_pos evt_pos modify
+        _ -> return ()
+    where
+    modify [(pos, evt)] = maybe [] ((:[]) . ((,) pos)) (f pos evt)
+    modify _ = []
+
+-- | If the range is a point, then expand it to one timestep.
+expand_range :: (Monad m) => [TrackNum] -> TrackPos -> TrackPos
+    -> Cmd.CmdT m (TrackPos, TrackPos)
+expand_range (tracknum:_) start end
+    | start == end = do
+        block_id <- Cmd.get_focused_block
+        step <- Cmd.get_current_step
+        pos <- TimeStep.step_from step TimeStep.Advance block_id tracknum end
+        return (start, maybe end id pos)
+    | otherwise = return (start, end)
+expand_range [] start end = return (start, end)
+
+-- | Move everything at or after @start@ by @shift@.
 move_track_events :: (State.UiStateMonad m) =>
     TrackPos -> TrackPos -> TrackId -> m ()
 move_track_events start shift track_id = do
@@ -120,7 +176,8 @@ move_events start shift events = merged
     -- Ick.  Maybe I need a less error-prone way to say "select until the end
     -- of the track"?
     end = Track.time_end events + TrackPos 1
-    shifted = map (\(pos, evt) -> (pos+shift, evt)) (Track.forward start events)
+    shifted = map (\(pos, evt) -> (pos+shift, evt))
+        (Track.events_after start events)
     merged = Track.insert_events shifted (Track.remove_events start end events)
 
 -- | Modify event durations by applying a function to them.  0 durations
@@ -146,7 +203,7 @@ modify_events f = do
 -- a range, clear all events within its half-open extent.
 cmd_clear_selected :: (Monad m) => Cmd.CmdT m ()
 cmd_clear_selected = do
-    (_, track_ids, start, end) <- Selection.selected_tracks Config.insert_selnum
+    (_, track_ids, start, end) <- Selection.tracks
     forM_ track_ids $ \track_id -> if start == end
         then State.remove_event track_id start
         else State.remove_events track_id start end

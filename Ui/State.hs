@@ -900,88 +900,82 @@ modify_track_render :: (UiStateMonad m) => TrackId
 modify_track_render track_id f = modify_track track_id $ \track ->
     track { Track.track_render = f (Track.track_render track) }
 
+-- ** events
+
+-- There are two interpretations of a range: the strict one is that when
+-- start==end nothing can be selected.  A more relaxed one is that start==end
+-- will still select an event at start.  The relaxed one is often convenient
+-- for commands, so there are typically three variants of each ranged command:
+-- select events in the strict half-open range (functions end with _range),
+-- select an event at a certain point (functions use the singular), and select
+-- events in the relaxed half-open range (functions use the plural).
+
 -- | Insert events into track_id as per 'Track.insert_events'.
 insert_events :: (UiStateMonad m) =>
     TrackId -> [(TrackPos, Event.Event)] -> m ()
-insert_events track_id pos_evts = do
-    -- Stash a track update, see 'run' comment.
-    modify_events track_id (Track.insert_events pos_evts)
-    unless (null pos_evts) $
-        update $ Update.TrackUpdate track_id $ Update.TrackEvents
-            (fst (head pos_evts)) (Track.event_end (last pos_evts))
+insert_events track_id pos_evts = _modify_events track_id $ \events ->
+    let updates = if null pos_evts then []
+            else [(fst (head pos_evts), Track.event_end (last pos_evts))]
+    in (Track.insert_events pos_evts events, updates)
+
+get_events :: (UiStateMonad m) => TrackId -> TrackPos -> TrackPos
+    -> m [Track.PosEvent]
+get_events track_id start end = do
+    events <- fmap Track.track_events (get_track track_id)
+    return (_events_in_range start end events)
+
+remove_events :: (UiStateMonad m) => TrackId -> TrackPos -> TrackPos -> m ()
+remove_events track_id start end
+    | start == end = map_events track_id start end (const [])
+    | otherwise = remove_event_range track_id start end
+
+-- | Remove a single event at @pos@, if there is one.
+remove_event :: (UiStateMonad m) => TrackId -> TrackPos -> m ()
+remove_event track_id pos = remove_events track_id pos pos
 
 -- | Remove any events whose starting positions fall within the half-open
 -- range given.
-remove_events :: (UiStateMonad m) => TrackId -> TrackPos -> TrackPos -> m ()
-remove_events track_id start end = do
-    track <- get_track track_id
-    let evts = takeWhile ((<end) . fst)
-            (Track.forward start (Track.track_events track))
-    modify_events track_id (Track.remove_events start end)
-    unless (null evts) $
-        update $ Update.TrackUpdate track_id
-            (Update.TrackEvents start (Track.event_end (last evts)))
+remove_event_range :: (UiStateMonad m) =>
+    TrackId -> TrackPos -> TrackPos -> m ()
+    -- This should be more efficient than map_events.
+remove_event_range track_id start end = _modify_events track_id $ \events ->
+    let evts = takeWhile ((<end) . fst) (Track.events_after start events)
+        updates = if null evts then []
+            else [(start, Track.event_end (last evts))]
+    in (Track.remove_events start end events, updates)
 
 -- | Set the events of the track.
 set_events :: (UiStateMonad m) => TrackId -> Track.TrackEvents -> m ()
 set_events track_id events = do
-    modify_events track_id (const events)
+    track <- get_track track_id
+    update_track track_id (track { Track.track_events = events })
     update $ Update.TrackUpdate track_id Update.TrackAllEvents
 
--- | Remove a single event at @pos@, if there is one.
-remove_event :: (UiStateMonad m) => TrackId -> TrackPos -> m ()
-remove_event track_id pos = do
-    track <- get_track track_id
-    case Track.event_at (Track.track_events track) pos of
-        Nothing -> return ()
-        Just evt -> do
-            modify_events track_id (Track.remove_event pos)
-            let end = Track.event_end (pos, evt)
-            update $ Update.TrackUpdate track_id (Update.TrackEvents pos end)
+map_events :: (UiStateMonad m) => TrackId -> TrackPos -> TrackPos
+    -> ([Track.PosEvent] -> [Track.PosEvent]) -> m ()
+map_events track_id start end f = _modify_events track_id $ \events ->
+    let old = _events_in_range start end events
+        new = f old
+        deleted = if start == end
+            then Track.remove_event start events
+            else Track.remove_events start end events
+        starts = Seq.map_maybe (Seq.mhead Nothing (Just . fst)) [old, new]
+        ends = Seq.map_maybe (Seq.mlast Nothing (Just . Track.event_end))
+            [old, new]
+        updates = if null starts || null ends then []
+            else [(minimum starts, maximum ends)]
+    in (Track.insert_events new deleted, updates)
+
+_events_in_range :: TrackPos -> TrackPos -> Track.TrackEvents
+    -> [Track.PosEvent]
+_events_in_range start end events
+    | start == end = maybe [] ((:[]) . ((,) start))
+        (Track.event_at events start)
+    | otherwise =  Track.events_in_range start end events
 
 -- | Get the end of the last event of the block.
 track_end :: (UiStateMonad m) => TrackId -> m TrackPos
 track_end track_id = fmap Track.track_time_end (get_track track_id)
-
--- | An EventTransformer applies a given transformation to the events in
--- a track.  TODO make sure this can also be used as a deriver, so I can
--- use the same functions in derivers as in edit commands.
---
--- This will be called from the event at or previous (if there is no event at)
--- to the selection.
---
--- Will this be efficient for a large number of events?  Track.merge_events
--- will have to take care of efficiently merging a large input.
-type EventTransformer = [Track.PosEvent] -- previous events
-    -> [Track.PosEvent] -- subsequent events
-    -> Track.PosEvent -- event in question
-    -> [Track.PosEvent] -- produces these events
-
-{-
--- | Map a function across events in track_id from the range start to end.
--- If start doesn't fall on an event, this maps from the event /before/ the
--- start.
--- TODO this behaviour turns out to be handy in practice, but I'm not satisfied
--- with it in general.
-modify_event_range :: (UiStateMonad m) => TrackId
-    -> EventTransformer -> TrackPos -> TrackPos -> m ()
-modify_event_range track_id f start end = do
-    modify_events track_id (map_events f start end)
-    update $ Update.TrackUpdate track_id Update.TrackAllEvents
-
-map_events :: EventTransformer -> TrackPos -> TrackPos -> Track.TrackEvents
-    -> Track.TrackEvents
-map_events f start end track_events = process track_events
-    where
-    (pre, post) = Track.events_at_before start track_events
-    events = concat $ zipper_map f ((>=end) . fst) pre post
-    process = Track.insert_events events . Track.remove_events start end
-
-zipper_map _ _ _ [] = []
-zipper_map f stop prev (val:next)
-    | stop val = []
-    | otherwise = f prev next val : zipper_map f stop (val:prev) next
--}
 
 -- | Emit track updates for all tracks.  Use this when events have changed but
 -- I don't know which ones, e.g. when loading a file or restoring a previous
@@ -1001,9 +995,14 @@ modify_track track_id f = do
     track <- get_track track_id
     update_track track_id (f track)
 
--- This doesn't file TrackUpdates, so don't call this unless you do!
-modify_events track_id f = modify_track track_id $ \track ->
-    track { Track.track_events = f (Track.track_events track) }
+_modify_events :: (UiStateMonad m) => TrackId
+    -> (Track.TrackEvents -> (Track.TrackEvents, [(TrackPos,TrackPos)])) -> m ()
+_modify_events track_id f = do
+    track <- get_track track_id
+    let (new_events, updates) = f (Track.track_events track)
+    update_track track_id (track { Track.track_events = new_events })
+    mapM_ update [Update.TrackUpdate track_id (Update.TrackEvents start end)
+        | (start, end) <- updates]
 
 -- * ruler
 

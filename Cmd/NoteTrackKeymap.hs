@@ -23,7 +23,7 @@ make_keymap pitch_track = Keymap.make_cmd_map $ concat
     , command_char 's' "set dur" Edit.cmd_set_duration
     , command_char '.' "dur * 1.5" (Edit.cmd_modify_dur (*1.5))
     , command_char ',' "dur / 1.5" (Edit.cmd_modify_dur (/1.5))
-    , command_char 'p' "paste events" Edit.cmd_paste_events
+    , command_char 'j' "join events" Edit.cmd_join_events
     ]
 
 cmd_toggle_merged :: (Monad m) => NoteTrack.PitchTrack -> Cmd.CmdT m ()

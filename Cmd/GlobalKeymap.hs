@@ -170,10 +170,9 @@ edit_bindings = concat
     -- Unlike other event editing commands, you don't have to be in insert mode
     -- to remove events.  Maybe I'll change that later.
     , command Key.Backspace "clear selected" Edit.cmd_clear_selected
-    , bind_mod [Shift] Key.Backspace "delete selected"
-        Edit.cmd_delete_selected
-    , bind_mod [Shift] (Key.KeyChar '=') "insert into selection"
-        Edit.cmd_insert_into_selection
+
+    , bind_mod [PrimaryCommand] Key.Down "insert time" Edit.cmd_insert_time
+    , bind_mod [PrimaryCommand] Key.Up "delete time" Edit.cmd_delete_time
 
     , command_char 'u' "undo" Edit.undo
     , command_char 'r' "redo" Edit.redo

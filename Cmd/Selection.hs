@@ -314,7 +314,7 @@ events_selnum :: (Monad m) => Types.SelNum
     -> Bool -- ^ If true, a point selection will get the event on or before it.
     -> Cmd.CmdT m (TrackPos, TrackPos, [(TrackId, [Track.PosEvent])])
 events_selnum selnum point_prev = do
-    (_, track_ids, start, end) <- selected_tracks selnum
+    (_, track_ids, start, end) <- tracks_selnum selnum
     tracks <- mapM State.get_track track_ids
     let get_events = if point_prev && start == end
             then event_before else events_in_range
@@ -331,7 +331,7 @@ events_around = events_around_selnum Config.insert_selnum
 events_around_selnum :: (Monad m) => Types.SelNum
     -> Cmd.CmdT m [(TrackId, [Track.PosEvent], Maybe Track.PosEvent)]
 events_around_selnum selnum = do
-    (_, track_ids, start, end) <- selected_tracks selnum
+    (_, track_ids, start, end) <- tracks_selnum selnum
     forM track_ids $ \track_id -> do
         track <- State.get_track track_id
         let (_, evts) = Track.events_at_before start (Track.track_events track)
@@ -348,9 +348,12 @@ event_before start _ track = maybe [] (:[]) $
 
 -- | Get selected event tracks along with the selection.  The tracks are
 -- returned in ascending order.  Only event tracks are returned.
-selected_tracks :: (Monad m) =>
+tracks :: (Monad m) => Cmd.CmdT m ([TrackNum], [TrackId], TrackPos, TrackPos)
+tracks = tracks_selnum Config.insert_selnum
+
+tracks_selnum :: (Monad m) =>
     Types.SelNum -> Cmd.CmdT m ([TrackNum], [TrackId], TrackPos, TrackPos)
-selected_tracks selnum = do
+tracks_selnum selnum = do
     (view_id, sel) <- get_selection selnum
     block_id <- State.block_id_of_view view_id
     tracklikes <- mapM (State.track_at block_id) (Types.sel_tracknums sel)
