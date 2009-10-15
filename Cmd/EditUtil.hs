@@ -32,7 +32,7 @@ get_event :: (State.UiStateMonad m) =>
 get_event track_id pos dur = do
     track <- State.get_track track_id
     return $ Maybe.fromMaybe (Event.event "" dur)
-        (Track.event_at (Track.track_events track) pos)
+        (Track.event_at pos (Track.track_events track))
 
 modify_event :: (Monad m) => Bool -- ^ create zero duration event
     -> (String -> (Maybe String, Bool)) -> Cmd.CmdT m ()

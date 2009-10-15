@@ -167,8 +167,8 @@ event_after pos events = case snd (events_at pos events) of
     [] -> Nothing
 
 -- | An event exactly at the given pos, or Nothing.
-event_at :: TrackEvents -> TrackPos -> Maybe Event.Event
-event_at track_events pos = case events_after pos track_events of
+event_at :: TrackPos -> TrackEvents -> Maybe Event.Event
+event_at pos track_events = case events_after pos track_events of
     ((epos, event):_) | epos == pos -> Just event
     _ -> Nothing
 

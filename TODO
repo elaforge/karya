@@ -64,10 +64,6 @@ bug haskell-cafe:
 
 ----
 
-- remove State.modify_event_range?
-- either ruler is binary or step goes in binary steps.  otherwise there are
-durations that I can't reach with any step.
-
 - optimization: if a msg aborts or doesn't run any cmds, don't bother to run
 diff.  except that hardly ever happens if I do shortcut thru
 

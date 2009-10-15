@@ -970,7 +970,7 @@ _events_in_range :: TrackPos -> TrackPos -> Track.TrackEvents
     -> [Track.PosEvent]
 _events_in_range start end events
     | start == end = maybe [] ((:[]) . ((,) start))
-        (Track.event_at events start)
+        (Track.event_at start events)
     | otherwise =  Track.events_in_range start end events
 
 -- | Get the end of the last event of the block.
