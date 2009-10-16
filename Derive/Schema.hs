@@ -45,10 +45,11 @@ module Derive.Schema (
     , compile, compile_to_signals
 ) where
 import Control.Monad
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
-import qualified Data.List as List
 import qualified Data.Tree as Tree
+import qualified Text.Printf as Printf
 
 import qualified Util.Seq as Seq
 import qualified Util.Log as Log
@@ -63,12 +64,13 @@ import qualified Ui.Types as Types
 import qualified Cmd.Cmd as Cmd
 import Cmd.Cmd (Schema(..), SchemaDeriver, CmdContext(..), SchemaMap)
 import qualified Cmd.ControlTrack as ControlTrack
+import qualified Cmd.Info as Info
 import qualified Cmd.Keymap as Keymap
+import qualified Cmd.MidiThru as MidiThru
+import qualified Cmd.NoteEntry as NoteEntry
 import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.NoteTrackKeymap as NoteTrackKeymap
 import qualified Cmd.PitchTrack as PitchTrack
-import qualified Cmd.NoteEntry as NoteEntry
-import qualified Cmd.MidiThru as MidiThru
 
 import qualified Derive.Controller as Controller
 import qualified Derive.Derive as Derive
@@ -158,46 +160,53 @@ default_schema =
 -- TODO lookup scale here and return an error if it can't be found?
 -- TODO return ([Cmd.Cmd], [Error])
 default_cmds :: CmdContext -> [Cmd.Cmd]
-default_cmds context = case maybe_track_type of
-        Nothing -> [with_note []]
+default_cmds context = add_with_note $ case maybe_track_type of
+        Nothing -> ([], [])
         Just (NoteTrack ptrack) -> note_keymap ptrack $ case edit_mode of
-            Cmd.NoEdit -> [with_note []]
-            Cmd.RawEdit -> [with_note [NoteTrack.cmd_raw_edit scale_id]]
-            Cmd.ValEdit ->
-                [with_note [NoteTrack.cmd_val_edit ptrack scale_id]]
-            Cmd.MethodEdit ->
-                [with_note [], NoteTrack.cmd_method_edit ptrack]
+            Cmd.NoEdit -> ([], [])
+            Cmd.RawEdit -> ([NoteTrack.cmd_raw_edit scale_id], [])
+            Cmd.ValEdit -> ([NoteTrack.cmd_val_edit ptrack scale_id], [])
+            Cmd.MethodEdit -> ([], [NoteTrack.cmd_method_edit ptrack])
         Just PitchTrack -> case edit_mode of
-            Cmd.NoEdit -> [with_note []]
-            Cmd.RawEdit -> [with_note [PitchTrack.cmd_raw_edit scale_id]]
-            Cmd.ValEdit -> [with_note [PitchTrack.cmd_val_edit scale_id]]
-            Cmd.MethodEdit -> [with_note [], PitchTrack.cmd_method_edit]
+            Cmd.NoEdit -> ([], [])
+            Cmd.RawEdit -> ([PitchTrack.cmd_raw_edit scale_id], [])
+            Cmd.ValEdit -> ([PitchTrack.cmd_val_edit scale_id], [])
+            Cmd.MethodEdit -> ([], [PitchTrack.cmd_method_edit])
         Just ControlTrack -> case edit_mode of
-            Cmd.NoEdit -> [with_note []]
-            Cmd.RawEdit -> [with_note [], ControlTrack.cmd_raw_edit]
-            Cmd.ValEdit -> [with_note [], ControlTrack.cmd_val_edit]
-            Cmd.MethodEdit -> [with_note [], ControlTrack.cmd_method_edit]
+            Cmd.NoEdit -> ([], [])
+            Cmd.RawEdit -> ([], [ControlTrack.cmd_raw_edit])
+            Cmd.ValEdit -> ([], [ControlTrack.cmd_val_edit])
+            Cmd.MethodEdit -> ([], [ControlTrack.cmd_method_edit])
     where
+    add_with_note (note_cmds, cmds) = log_status ++ with_note note_cmds : cmds
+    log_status = maybe []
+        (\tracknum -> [cmd_set_inst_status (ctx_track_tree context) tracknum])
+        inst_tracknum
     with_note cmds = NoteEntry.cmds_with_note kbd_entry (universal ++ cmds)
     universal = PitchTrack.cmd_record_note_status scale_id : midi_thru
     edit_mode = ctx_edit_mode context
     kbd_entry = ctx_kbd_entry context
     midi_thru =
         maybe [] (\inst -> [MidiThru.cmd_midi_thru scale_id inst]) maybe_inst
-    (maybe_track_type, maybe_inst, scale_id) = get_defaults context
+    (maybe_track_type, maybe_inst, inst_tracknum, scale_id) =
+        get_defaults context
 
-    note_keymap ptrack cmds = cmds ++ [Keymap.make_cmd cmd_map]
+    note_keymap ptrack (note_cmds, cmds) =
+        (note_cmds, cmds ++ [Keymap.make_cmd cmd_map])
         -- TODO pass the errors out
         where (cmd_map, _) = NoteTrackKeymap.make_keymap ptrack
 
 get_defaults :: CmdContext
-    -> (Maybe TrackType, Maybe Score.Instrument, Pitch.ScaleId)
-get_defaults context = (maybe_track_type, score_inst, scale_id)
+    -> (Maybe TrackType, Maybe Score.Instrument, Maybe TrackNum, Pitch.ScaleId)
+    -- ^ (focused_track_type, inst_to_use, tracknum_of_inst, scale_id_to_use)
+get_defaults context = (maybe_track_type, score_inst, inst_tracknum, scale_id)
     where
     (maybe_track_type, track_inst, scale_id) = get_track_info
         (ctx_project_scale context) (ctx_track_tree context)
         (ctx_focused_tracknum context)
-    score_inst = track_inst `mplus` ctx_default_inst context
+    (score_inst, inst_tracknum) = case track_inst of
+        Nothing -> (ctx_default_inst context, Nothing)
+        Just (inst, tracknum) -> (Just inst, Just tracknum)
 
 -- | Find the type of a track and the instrument and scale in scope.
 --
@@ -208,7 +217,7 @@ get_defaults context = (maybe_track_type, score_inst, scale_id)
 -- TODO: if this leads to weird guesses, maybe return Nothing if there are
 -- two or more matches?
 get_track_info :: Pitch.ScaleId -> State.TrackTree -> Maybe TrackNum
-    -> (Maybe TrackType, Maybe Score.Instrument, Pitch.ScaleId)
+    -> (Maybe TrackType, Maybe (Score.Instrument, TrackNum), Pitch.ScaleId)
 get_track_info proj_scale _ Nothing = (Nothing, Nothing, proj_scale)
 get_track_info proj_scale track_tree (Just tracknum) = case paths of
         Nothing -> (Nothing, Nothing, proj_scale)
@@ -222,7 +231,10 @@ get_track_info proj_scale track_tree (Just tracknum) = case paths of
     where
     paths = List.find ((==tracknum) . State.track_tracknum . (\(a, _, _) -> a))
         (Util.Tree.paths track_tree)
-    find_inst = msum . map (title_to_instrument . State.track_title)
+    find_inst = msum . map (\track_info ->
+        case title_to_instrument (State.track_title track_info) of
+            Nothing -> Nothing
+            Just inst -> Just (inst, State.track_tracknum track_info))
     find_scale = msum . map (title_to_scale . State.track_title)
 
 -- | Describe the type of a single track.  This is used to figure out what set
@@ -242,6 +254,67 @@ track_type scale_id (State.TrackInfo title _ tracknum) parents
         Nothing -> NoteTrack.CreateTrack
             tracknum (track_of_scale scale_id) (tracknum+1)
         Just ptrack -> NoteTrack.ExistingTrack (State.track_tracknum ptrack)
+
+
+-- | Stick some handy info about the current instrument into the status.
+--
+-- Actually, 'Cmd.Selection.sync_selection_status' would be a better place for
+-- this, but that layer has no knowledge of schema-specific things, which
+-- includes track types.
+--
+-- Side-effects of not using sync_selection_status are that this will be called
+-- on every command *except* the one that actually switches the selection.
+-- They all involve key-ups so it'll happen pretty soon, but it's still ugly.
+cmd_set_inst_status :: (Monad m) => State.TrackTree -> TrackNum
+    -> _a -> Cmd.CmdT m Cmd.Status
+cmd_set_inst_status track_tree tracknum _msg = do
+    block_id <- Cmd.get_focused_block
+    status <- get_track_status block_id track_tree tracknum
+    Cmd.set_global_status "inst" status
+    return Cmd.Continue
+
+-- | Looks like:
+-- title (tracknum): inst_name, allocation, [control tracks]
+-- fm8/inst1 at 1: fm8:0,1,2, [vel {hide 2}, pedal {show 3}]
+get_track_status :: (Monad m) => BlockId -> State.TrackTree -> TrackNum
+    -> Cmd.CmdT m String
+get_track_status block_id track_tree tracknum = do
+    let (maybe_inst, controls) = control_tracks_of track_tree tracknum
+    track_descs <- show_track_status block_id controls
+    midi_config <- State.get_midi_config
+    let addrs = case maybe_inst of
+            Nothing -> []
+            Just inst -> Map.findWithDefault [] inst
+                (Instrument.config_alloc midi_config)
+    let title = maybe "<no_inst>" instrument_to_title maybe_inst
+    return $ Printf.printf "%s at %d: %s, [%s]" title tracknum
+        (Info.show_addrs addrs) (Seq.join ", " track_descs)
+
+control_tracks_of :: State.TrackTree -> TrackNum
+    -> (Maybe Score.Instrument, [State.TrackInfo])
+control_tracks_of track_tree tracknum = case paths of
+        Nothing -> (Nothing, [])
+        Just (track, parents, _) -> (inst_of track, controls parents)
+    where
+    paths = List.find ((==tracknum) . State.track_tracknum . (\(a, _, _) -> a))
+        (Util.Tree.paths track_tree)
+    controls = filter (is_control . State.track_title)
+    is_control title = not (is_tempo_track title || is_inst_track title)
+    inst_of = title_to_instrument . State.track_title
+
+-- | Looks like: [vel {hide 2}, pedal {show 3}]
+show_track_status :: (State.UiStateMonad m) => BlockId -> [State.TrackInfo]
+    -> m [String]
+show_track_status block_id status = forM status $ \info -> do
+    let title = State.track_title info
+        tracknum = State.track_tracknum info
+    btrack <- State.block_track_at block_id tracknum
+    let cmd_text = case fmap Block.track_flags btrack of
+            Nothing -> "?"
+            Just flags
+                | Block.Collapse `elem` flags -> "show"
+                | otherwise -> "hide"
+    return $ Printf.printf "%s {%s %d}" (Info.str title) cmd_text tracknum
 
 
 -- ** compile
@@ -327,15 +400,15 @@ signal_controller title track_id = do
 -- | The type of a track is derived from its title.
 is_tempo_track, is_pitch_track, is_inst_track :: String -> Bool
 is_tempo_track = (=="tempo")
-
 is_pitch_track = (pitch_track_prefix `List.isPrefixOf`)
+is_inst_track = (">" `List.isPrefixOf`)
+
 scale_of_track = Pitch.ScaleId . Seq.strip . drop 1
 track_of_scale :: Pitch.ScaleId -> String
 track_of_scale (Pitch.ScaleId scale_id) = pitch_track_prefix ++ scale_id
 
 pitch_track_prefix = "*"
 
-is_inst_track = (">" `List.isPrefixOf`)
 inst_of_track = Score.Instrument . Seq.strip . drop 1
 
 -- | Convert a track title into its instrument.  This could be per-schema, but

@@ -162,18 +162,22 @@ require_msg msg = maybe (throw msg) return
 -- | App global state.  Unlike Ui.State, this is not saved to disk.
 -- TODO break this up into a couple sections
 data State = State {
-    state_history :: ([HistoryEntry], [HistoryEntry])
+    -- Config type variables that change never or rarely.
+    state_instrument_db :: Instrument.Db.Db
+    , state_schema_map :: SchemaMap
+    -- | Copies by default go to a block+tracks with this project.
+    , state_clip_namespace :: Id.Namespace
+
+    -- Automatically maintained state.  This means only a few cmds should
+    -- modify these.
+
+    -- | History.
+    , state_history :: ([HistoryEntry], [HistoryEntry])
     -- | Set to True to disable history recording.  Useful so undo and
     -- save/load cmds aren't recorded.  TODO should go in cmd return val.
     , state_skip_history_record :: Bool
-    , state_instrument_db :: Instrument.Db.Db
-    , state_schema_map :: SchemaMap
 
-    -- | Map of keys held down.  Maintained by cmd_record_keys and accessed
-    -- with 'keys_down'.
-    -- The key is the modifier stripped of extraneous info, like mousedown
-    -- position, the value has complete info.
-    , state_keys_down :: Map.Map Modifier Modifier
+    -- Playing and derivation.
     -- | Transport control channel for the player, if one is running.
     , state_play_control :: Maybe Transport.PlayControl
     -- | As soon as any event changes are made to a block, its performance is
@@ -183,19 +187,30 @@ data State = State {
     -- | IDs of background derivation threads, so they can be killed if
     -- a new derivation is needed before they finish.
     , state_derive_threads :: Map.Map BlockId Concurrent.ThreadId
+
+    -- | Map of keys held down.  Maintained by cmd_record_keys and accessed
+    -- with 'keys_down'.
+    -- The key is the modifier stripped of extraneous info, like mousedown
+    -- position, the value has complete info.
+    , state_keys_down :: Map.Map Modifier Modifier
     -- | The block and track that have focus.  Commands that address
     -- a particular block or track will address these.
     , state_focused_view :: Maybe ViewId
-    -- | Copies by default go to a block+tracks with this project.
-    , state_clip_namespace :: Id.Namespace
 
+    -- | This is similar to 'Ui.Block.view_status', except that it's global
+    -- instead of per-view.  So changes are logged with a special prefix so
+    -- logview can catch them.  Really I only need this map to suppress log
+    -- spam.
+    , state_global_status :: Map.Map String String
+
+    -- External device tracking.
     -- | Midi state of WriteDevices.
     , state_wdev_state :: WriteDeviceState
     -- | Midi state of ReadDevices, including configuration like pitch bend
     -- range.
     , state_rdev_state :: ReadDeviceState
 
-    -- Editing state
+    -- Editing state, modified in the course of editing.
 
     -- | Edit mode enables various commands that write to tracks.
     , state_edit_mode :: EditMode
@@ -211,16 +226,20 @@ data State = State {
     } deriving (Show, Generics.Typeable)
 
 initial_state inst_db schema_map = State {
-    state_history = ([], [])
-    , state_skip_history_record = False
-    , state_instrument_db = inst_db
+    state_instrument_db = inst_db
     , state_schema_map = schema_map
-    , state_keys_down = Map.empty
+    , state_clip_namespace = Config.clip_namespace
+
+    , state_history = ([], [])
+    , state_skip_history_record = False
+
     , state_play_control = Nothing
     , state_performance = Map.empty
     , state_derive_threads = Map.empty
+
+    , state_keys_down = Map.empty
     , state_focused_view = Nothing
-    , state_clip_namespace = Config.clip_namespace
+    , state_global_status = Map.empty
 
     , state_wdev_state = empty_wdev_state
     , state_rdev_state = Map.empty
@@ -340,6 +359,14 @@ get_insert_tracknum = do
 set_view_status :: (Monad m) => ViewId -> String -> Maybe String
     -> CmdT m ()
 set_view_status view_id key val = State.set_view_status view_id key val
+
+set_global_status :: (Monad m) => String -> String -> CmdT m ()
+set_global_status key val = do
+    status_map <- fmap state_global_status get_state
+    when (Map.lookup key status_map /= Just val) $ do
+        modify_state $ \st ->
+            st { state_global_status = Map.insert key val status_map }
+        Log.notice $ "global status: " ++ key ++ " -- " ++ val
 
 -- | Set a status variable on all views.
 set_status :: (Monad m) => String -> Maybe String -> CmdT m ()

@@ -8,6 +8,8 @@ import qualified Data.Set as Set
 import qualified Util.Seq as Seq
 import qualified Util.Map as Map
 
+import qualified Midi.Midi as Midi
+
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.Score as Score
@@ -29,9 +31,10 @@ show_instrument_info addrs (MidiDb.Info _synth patch) = unlines
     , "addrs: " ++ show_addrs addrs
     ]
 
+-- | Looks like: "wdev1:[0,1,2]; wdev2:[0]"
 show_addrs :: [Instrument.Addr] -> String
 show_addrs addrs = show_list2
-    [ show wdev ++ ": " ++ show_list (map (show . snd) addrs)
+    [ Midi.un_write_device wdev ++ ":" ++ Seq.join "," (map (show . snd) addrs)
     | (wdev, addrs) <- Seq.keyed_group_with fst addrs]
 
 show_inst :: Score.Instrument -> String

@@ -358,7 +358,7 @@ track_info block_id tracknum = do
     case Schema.get_track_info proj_scale track_tree (Just tracknum) of
         (Nothing, _, _) -> Cmd.throw $ "can't get track type for "
             ++ show block_id ++ " at " ++ show tracknum
-        (Just typ, inst, scale) -> return (typ, inst, scale)
+        (Just typ, inst, scale) -> return (typ, fmap fst inst, scale)
 
 -- | Steps to load a new instrument.  All of them are optional, depending on
 -- the circumstances.
