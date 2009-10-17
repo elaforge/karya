@@ -519,17 +519,21 @@ lookup_id key map = case Map.lookup key map of
 -- It's like 'map_accuml_m' but sets the current event stack before operating
 -- on each event, so that Derive.warn can use it.  In addition, EventErrors are
 -- caught and turned into warnings.  Events that threw aren't included in the
--- output.
-map_events :: (Monad m) => (state -> x -> DeriveT m a) -> state
+-- output.  An additional function extracts an event, so you can map over
+-- things which are not themselves events.
+map_events :: (Monad m) => (state -> x -> DeriveT m (a, state)) -> state
     -> (x -> Score.Event) -> [x] -> DeriveT m [a]
 map_events f state event_of xs =
     fmap Maybe.catMaybes (Util.Control.map_accuml_m apply state xs)
     where
-    apply st x = with_event (event_of x) $ do
-        val <- catch_warn (f st x)
+    apply cur_state x = with_event (event_of x) $ do
+        val <- catch_warn (f cur_state x)
         return $ case val of
-            Nothing -> (st, Nothing)
-            Just val -> (st, Just val)
+            Nothing -> (cur_state, Nothing)
+            Just (val, next_state) -> (next_state, Just val)
+
+-- | A little more descriptive than ().
+data NoState = NoState deriving (Show)
 
 -- ** merge
 

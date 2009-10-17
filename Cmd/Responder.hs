@@ -210,7 +210,7 @@ respond rstate = do
             Log.warn $ "responder: " ++ show err
             return (Cmd.Continue, rstate)
         Right (status, ui_from, ui_to) -> do
-            Log.timer "syncing"
+            Log.timer "cmds complete"
             cmd_state <- return $ fix_cmd_state ui_to cmd_state
             (updates, ui_state, cmd_state) <-
                 ResponderSync.sync ui_from ui_to cmd_state updates

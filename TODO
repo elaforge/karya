@@ -1,6 +1,4 @@
-- debug statements in callback
-- timer can summarize one responder loop cycle?
-- get diff results is really slow
+- remove Util.Log -> Perform.Warning import, translate IDs into strings?
 
 - mute (i.e. change brightness) makes text get drawn twice
 
@@ -10,18 +8,14 @@
 of finalization and look for leaks.
 
 - hint refuses to compile when Cmd.NoteEntry emits a warning
-- fix or remove logview_test
 CURRENT
   - logview -> seq communication for hide and show
   - cut + paste didn't work with a point paste
-  - corruption when test block is scrolled to the right
   - bring selection delete back
   - schema cmds can return errors
 
-  - collapsing a track shouldn't trigger a rederive
   - skel_display status can be two chars: Sm is solo+mute
   + insert new track skeleton splice
-  + fix hint stuff
   + merged tracks
     - adjacent collpsed tracks are merged
   - verify selected_tracks and selected_events
@@ -34,7 +28,6 @@ CURRENT
   - sample reyong
   - transcribe kebyar duduk
 
-  - i control track thing
   - editing for "pattern list" block
   - double click call to jump to its block?
 
@@ -105,9 +98,14 @@ bugs:
     flags change
   - tracks with different tempos play correctly, but playback follows tempo
   - unparsed notes are played instead of dropped
+  - bizarre hint importing requirements in Cmd.LanguageEnviron
+  track down ghc rts crashes
+    - debug statements in callback
 
 performance:
-  - random little hangs are annoying.  figure out what's going on.  GC?
+  random little hangs are annoying.  figure out what's going on.  GC?
+    - timer can summarize one responder loop cycle?
+    - get diff results is really slow
   * pause before playing.  printing logs make playing too strict?
   - send style id to c++ instead of all the style elements
   - in c++, cache marks and events from callback
@@ -116,6 +114,7 @@ performance:
   - compile wth -O2
   - deriver caching, see doc/derive_cache
   - strictify some basic datatypes with ! and {-# UNPACK #-}: Ui.Event
+  - collapsing a track shouldn't trigger a rederive
 
 fltk:
   - draw arrows in SkeletonDisplay.cc properly
@@ -277,7 +276,7 @@ Derive:
     - relative controller tracks, combined with an operator, so e.g. "+, *scale"
       adds to the pitch track, and "*, volume" multiplies with the volume track
       operators: +, *, min, max
-    - just plain "i" means the previous val, to make timed slides easier
+    * just plain "i" means the previous val, to make timed slides easier
       "approach val" method to make pitch bend easier, or just insert two
       notes?  the former is higher-level...
       something like: a5- g2e1 b5-

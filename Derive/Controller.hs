@@ -86,13 +86,13 @@ control_event stack pos event = Score.Event pos 0 (Event.event_text event)
 d_signal :: (Monad m) => [Score.Event] -> Derive.DeriveT m Signal.Signal
     -- TODO Should the srate be controllable?
 d_signal events = fmap (Signal.track_signal Signal.default_srate)
-    (Derive.map_events parse_event () id events)
+    (Derive.map_events parse_event Derive.NoState id events)
 
-parse_event :: (Monad m) => () -> Score.Event
-    -> Derive.DeriveT m (TrackPos, Signal.Method, Signal.Val)
+parse_event :: (Monad m) => Derive.NoState -> Score.Event
+    -> Derive.DeriveT m ((TrackPos, Signal.Method, Signal.Val), Derive.NoState)
 parse_event _ event = do
     (method, val) <- Derive.Parse.parse p_segment (Score.event_string event)
-    return (Score.event_start event, method, val)
+    return ((Score.event_start event, method, val), Derive.NoState)
 
 p_segment :: P.CharParser st (Signal.Method, Signal.Val)
 p_segment = do
@@ -109,15 +109,16 @@ d_pitch_signal scale_id events = do
     scale <- maybe (Derive.throw ("unknown " ++ show scale_id)) return
         (Map.lookup scale_id Scale.scale_map)
     fmap (Signal.track_signal Signal.default_srate)
-        (Derive.map_events (parse_pitch_event scale) () id events)
+        (Derive.map_events (parse_pitch_event scale) Nothing id events)
 
-parse_pitch_event :: (Monad m) => Pitch.Scale -> () -> Score.Event
-    -> Derive.DeriveT m (TrackPos, Signal.Method, Signal.Val)
-parse_pitch_event scale _ event = do
+parse_pitch_event :: (Monad m) => Pitch.Scale -> Maybe Signal.Val
+    -> Score.Event -> Derive.DeriveT m
+        ((TrackPos, Signal.Method, Signal.Val), Maybe Signal.Val)
+parse_pitch_event scale previous_nn event = do
     (method, note) <-
         Derive.Parse.parse p_note_segment (Score.event_string event)
-    val <- parse_note scale note
-    return (Score.event_start event, method, val)
+    val <- parse_note scale previous_nn note
+    return ((Score.event_start event, method, val), Just val)
 
 -- | Parse scale notes for a given scale.  This one just matches the scale
 -- notes directly, but a more complicated one may get scale values out of the
@@ -126,15 +127,18 @@ parse_pitch_event scale _ event = do
 -- This converts from Pitch to Signal.Val, which loses scale information.
 -- TODO so if I want to have a pitch signal be GenericPitch, here is the place
 -- to change
-parse_note :: (Monad m) => Pitch.Scale -> Pitch.Note
+parse_note :: (Monad m) => Pitch.Scale -> Maybe Signal.Val -> Pitch.Note
     -> Derive.DeriveT m Signal.Val
-parse_note scale note = case Pitch.scale_note_to_nn scale note of
-    -- TODO If I made the signal go to an invalid value here here it would
-    -- prevent the notes from playing, which seems desirable, otherwise they
-    -- just keep playing the last parseable pitch.
-    Nothing -> Derive.throw $
-        show note ++ " not in " ++ show (Pitch.scale_id scale)
-    Just (Pitch.NoteNumber nn) -> return nn
+parse_note scale previous_nn note
+    | note == empty_note, Just nn <- previous_nn = return nn
+    | otherwise = case Pitch.scale_note_to_nn scale note of
+        -- TODO If I made the signal go to an invalid value here here it would
+        -- prevent the notes from playing, which seems desirable, otherwise they
+        -- just keep playing the last parseable pitch.
+        Nothing -> Derive.throw $
+            show note ++ " not in " ++ show (Pitch.scale_id scale)
+        Just (Pitch.NoteNumber nn) -> return nn
+    where empty_note = Pitch.Note ""
 
 p_note_segment :: P.CharParser st (Signal.Method, Pitch.Note)
 p_note_segment = do

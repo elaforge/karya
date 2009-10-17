@@ -50,5 +50,11 @@ test_d_pitch_signal = do
     equal (run [mkevent 0 "4c", mkevent 1 "4d", mkevent 2 "i, 4e"]) $
         Right (sig, [])
 
+    -- blank notes inherit the previous pitch
+    let sig = track_signal [(0, Signal.Set, 60), (1, Signal.Linear, 60),
+            (2, Signal.Linear, 64)]
+    equal (run [mkevent 0 "4c", mkevent 1 "i,", mkevent 2 "i, 4e"]) $
+        Right (sig, [])
+
 track_signal = Signal.track_signal Signal.default_srate
 mkevent pos text = Score.event pos 0 text

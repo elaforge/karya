@@ -1,6 +1,5 @@
 module Cmd.NoteTrack_test where
 import Util.Test
-import qualified Util.Log as Log
 
 import Ui
 import qualified Ui.Types as Types
