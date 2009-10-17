@@ -217,7 +217,7 @@ cmd_meter_step match = do
 sync_step_status :: (Monad m) => Cmd.CmdT m ()
 sync_step_status = do
     step <- fmap Cmd.state_step Cmd.get_state
-    Cmd.set_status status_step (Just (show_step step))
+    Cmd.set_global_status "step" (show_step step)
 
 show_step (TimeStep.Absolute pos) = "abs:" ++ show pos
 show_step (TimeStep.UntilMark mlists match) =
@@ -242,10 +242,11 @@ cmd_modify_octave f = do
 sync_octave_status :: (Monad m) => Cmd.CmdT m ()
 sync_octave_status = do
     octave <- fmap Cmd.state_kbd_entry_octave Cmd.get_state
-    Cmd.set_status status_octave (Just (show octave))
-
-status_octave = "8ve"
-status_step = "step"
+    -- This is technically global state and doesn't belong in the block's
+    -- status line, but I'm used to looking for it there, so put it in both
+    -- places.
+    Cmd.set_status "8ve" (Just (show octave))
+    Cmd.set_global_status "8ve" (show octave)
 
 -- * undo / redo
 
@@ -322,8 +323,23 @@ initialize_state = do
     sync_edit_box_status
     sync_octave_status
     sync_step_status
+    sync_global_status
     mapM_ Selection.sync_selection_status =<< State.get_all_view_ids
     mapM_ Cmd.sync_zoom_status =<< State.get_all_view_ids
     -- Emit track updates for all tracks, since I don't know where events have
     -- changed.
     State.update_all_tracks
+
+
+-- | Sync global status with the current state.  Should be invoked whenever
+-- said global state changes.
+--
+-- TODO Except it won't be when you use State directly.  Solutions are: have
+-- Cmd.set_namespace etc. and don't forget to call them, move logging to State,
+-- or modify the UiStateMonad instance so it logs in Cmd.
+sync_global_status :: (Monad m) => Cmd.CmdT m ()
+sync_global_status = do
+    st <- State.get
+    Cmd.set_global_status "namespace" (State.state_project st)
+    let (Pitch.ScaleId scale) = State.state_project_scale st
+    Cmd.set_global_status "scale" scale

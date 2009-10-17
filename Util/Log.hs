@@ -20,7 +20,8 @@ module Util.Log (
     -- * msgs
     , Msg(..), msg_string, Prio(..), State(..)
     , msg, msg_srcpos
-    , debug, notice, warn, error, timer, is_timer_msg
+    , debug, notice, warn, error
+    , timer, is_timer, is_first_timer, first_timer_prefix
     , debug_srcpos, notice_srcpos, warn_srcpos, error_srcpos, timer_srcpos
     , debug_stack, notice_stack, warn_stack, error_stack
     , debug_stack_srcpos, notice_stack_srcpos, warn_stack_srcpos
@@ -153,8 +154,16 @@ warn = warn_srcpos Nothing
 error = error_srcpos Nothing
 timer = timer_srcpos Nothing
 
-is_timer_msg :: Msg -> Bool
-is_timer_msg msg = Text.pack "timer: " `Text.isPrefixOf` msg_text msg
+is_timer :: Msg -> Bool
+is_timer msg = Text.pack "timer: " `Text.isPrefixOf` msg_text msg
+
+is_first_timer :: Msg -> Bool
+is_first_timer msg = Text.pack ("timer: " ++ first_timer_prefix)
+    `Text.isPrefixOf` msg_text msg
+
+-- | Prepend to a timer msg after an expected delay, like waiting on input.
+first_timer_prefix :: String
+first_timer_prefix = "first_timer: "
 
 -- Yay permutation game.  I could probably do a typeclass trick to make 'stack'
 -- an optional arg, but I think I'd wind up with all the same boilerplate here.

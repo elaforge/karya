@@ -30,9 +30,9 @@ clear_logs(LogViewWindow *view)
 }
 
 void
-set_status(LogViewWindow *view, const char *status)
+set_status(LogViewWindow *view, const char *status, const char *style)
 {
-    view->view.set_status(status);
+    view->view.set_status(status, style);
 }
 
 void

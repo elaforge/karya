@@ -6,3 +6,7 @@ import qualified Debug.Trace as Trace
 trace = Trace.trace
 tracev x = Trace.trace ("**trace: " ++ show x) x
 tracem msg x = Trace.trace ("**" ++ msg ++ ": " ++ show x) x
+
+traceM :: (Show a, Monad m) => a -> m ()
+traceM msg = trace ("** " ++ show msg) (return ())
+

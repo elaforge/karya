@@ -1,6 +1,7 @@
 -- |
 module Util.Regex where
 import Control.Monad.Error () -- for instance (Either String)
+import qualified Data.Maybe as Maybe
 
 import qualified Data.Array.IArray as IArray
 import qualified Text.Regex.PCRE as PCRE
@@ -19,10 +20,14 @@ makeM str = case PCRE.makeRegexM str of
 make :: String -> Regex
 make = either error id . makeM
 
-findall :: Regex -> String -> [String]
-findall (Regex _ reg) str = concatMap extract (PCRE.matchAllText reg str)
+-- | Return (complete_match, [group_match]).
+find_groups :: Regex -> String -> [(String, [String])]
+find_groups (Regex _ reg) str =
+    Maybe.catMaybes $ map extract (PCRE.matchAllText reg str)
     where
-    extract arr = map fst (IArray.elems arr)
+    extract arr = case map fst (IArray.elems arr) of
+        (h:rest) -> Just (h, rest)
+        [] -> Nothing
 
 find_ranges :: Regex -> String -> [(Int, Int)]
 find_ranges (Regex _ reg) str = concatMap extract (PCRE.matchAll reg str)

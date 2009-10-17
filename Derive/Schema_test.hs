@@ -71,14 +71,14 @@ test_get_track_info = do
         s1 = Pitch.ScaleId "s1"
     let tracknums = map Just [0..6] ++ [Nothing]
     let res = map (Schema.get_track_info proj_scale tree) tracknums
-    equal (res!!0) (Just Schema.ControlTrack, Just inst1, proj_scale)
+    equal (res!!0) (Just Schema.ControlTrack, Just (inst1, 1), proj_scale)
     equal (res!!1) (Just (Schema.NoteTrack (NoteTrack.ExistingTrack 2))
-        , Just inst1, s1)
-    equal (res!!2) (Just Schema.PitchTrack, Just inst1, s1)
-    equal (res!!3) (Just Schema.ControlTrack, Just inst1, proj_scale)
+        , Just (inst1, 1), s1)
+    equal (res!!2) (Just Schema.PitchTrack, Just (inst1, 1), s1)
+    equal (res!!3) (Just Schema.ControlTrack, Just (inst1, 1), proj_scale)
     equal (res!!4) (Just (Schema.NoteTrack (NoteTrack.CreateTrack 4 "*proj" 5))
-        , Just inst2, proj_scale)
-    equal (res!!5) (Just Schema.ControlTrack, Just inst2, proj_scale)
+        , Just (inst2, 4), proj_scale)
+    equal (res!!5) (Just Schema.ControlTrack, Just (inst2, 4), proj_scale)
     -- Nothing tracknum, and invalid tracknum
     equal (res!!6) (Nothing, Nothing, proj_scale)
     equal (res!!7) (Nothing, Nothing, proj_scale)

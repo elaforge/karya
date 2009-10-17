@@ -21,6 +21,10 @@ import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
 
 
+-- | Only display timing msgs that take longer than this.
+timing_diff_threshold :: Time.NominalDiffTime
+timing_diff_threshold = 0.5
+
 -- * state
 
 data State = State {
@@ -55,14 +59,32 @@ instance Show Filter where
 
 -- ** catch
 
--- | (title, regex)
+-- | This searches the log msg text for a regex and puts it in the status bar
+-- with the given key string.
+--
+-- If the regex has no groups, the entire match is used for the value.  If it
+-- has one group, that group is used.  If it has two groups, the first group
+-- will replace the key.  >2 groups is an error.
 type CatchPattern = (String, Regex.Regex)
 
 -- ** status
 
 type Status = Map.Map String String
-render_status status =
-    Seq.join " / " $ map (\(k, v) -> k ++ ": " ++ v) (Map.assocs status)
+render_status :: Status -> StyledText
+render_status status = run_formatter $ do
+    sequence_ $ List.intersperse (with_style style_divider " || ")
+        (map format_status (Map.assocs status))
+
+format_status :: (String, String) -> Formatter
+format_status (k, v) = do
+    with_style style_emphasis k
+    with_style style_plain ": "
+    regex_style style_plain clickable_braces v
+
+clickable_braces :: [(Regex.Regex, Style)]
+clickable_braces =
+    [ (Regex.make "\\{.*?\\}", style_clickable)
+    ]
 
 data StyledText = StyledText {
     style_text :: String
@@ -86,33 +108,36 @@ process_msg state msg = (new_state { state_status = status }, msg_styled)
     caught = catch_patterns (state_catch_patterns state) (Log.msg_string msg)
     status = Map.union caught (state_status state)
 
--- | Only display timing msgs that take longer than this.
-timing_diff_threshold :: Time.NominalDiffTime
-timing_diff_threshold = 0.05
-
 -- | Filter out timer msgs that don't have a minimum time from the previous
 -- timing, and prepend the interval and bump the priority to Warn if they do.
 timer_filter :: State -> Log.Msg -> (State, Maybe Log.Msg)
 timer_filter state msg
-    | Log.is_timer_msg msg = case state_last_timing state of
+    | Log.is_timer msg = case state_last_timing state of
         Nothing -> (new_state, Nothing)
         Just last_msg -> (new_state, timing_msg last_msg)
     | otherwise = (state, Just msg)
     where
-    new_state = if Log.is_timer_msg msg
+    new_state = if Log.is_timer msg
         then state { state_last_timing = Just msg } else state
     timing_msg last_msg
-        | diff >= timing_diff_threshold = Just $ msg
-            { Log.msg_text =
+        | not (Log.is_first_timer msg) && diff >= timing_diff_threshold = Just $
+            msg { Log.msg_text =
                 Text.unwords [Text.pack (show diff), Log.msg_text msg]
             , Log.msg_prio = Log.Warn
             }
         | otherwise = Nothing
-        where diff = Log.msg_date msg `Time.diffUTCTime` Log.msg_date last_msg
+        where
+        diff = Log.msg_date msg `Time.diffUTCTime` Log.msg_date last_msg
 
 catch_patterns :: [CatchPattern] -> String -> Status
 catch_patterns patterns text = Map.fromList $ concatMap match patterns
-    where match (title, reg) = map ((,) title) (Regex.findall reg text)
+    where
+    match (title, reg) = map extract (Regex.find_groups reg text)
+        where
+        extract (match, []) = (title, match)
+        extract (_, [match]) = (title, match)
+        extract (_, [match_title, match]) = (match_title, match)
+        extract _ = error $ show reg ++ " has >2 groups"
 
 -- ** filter
 
@@ -136,7 +161,7 @@ format_msg msg = run_formatter $ do
     with_plain "\t"
     let style = if Log.msg_prio msg < Log.Warn
             then style_plain else style_warn
-    maybe (return ()) (emit_srcpos style) (Log.msg_caller msg)
+    maybe (return ()) emit_srcpos (Log.msg_caller msg)
     regex_style style msg_text_regexes (Log.msg_string msg)
     with_plain "\n"
 
@@ -148,15 +173,15 @@ run_formatter = render_styles . Writer.execWriter
 emit_msg_text :: Style -> String -> Formatter
 emit_msg_text style text = with_style style text
 
-emit_srcpos style (file, func_name, line) = do
-    with_style style $ file ++ ":" ++ show line ++ " "
+emit_srcpos (file, func_name, line) = do
+    with_style style_filename $ file ++ ":" ++ show line ++ " "
     maybe (return ())
-        (\func -> with_style style_emphasis ("[" ++ func ++ "] ")) func_name
+        (\func -> with_style style_func_name ("[" ++ func ++ "] ")) func_name
 
 msg_text_regexes :: [(Regex.Regex, Style)]
 msg_text_regexes = map (\(reg, style) -> (Regex.make reg, style))
     [ ("\\([bvt]id \".*?\"\\)", style_emphasis)
-    ]
+    ] ++ clickable_braces
 
 regex_style :: Style -> [(Regex.Regex, Style)] -> String -> Formatter
 regex_style default_style regex_styles txt =
@@ -177,11 +202,15 @@ render_styles :: [(String, [Style])] -> StyledText
 render_styles styles =
     StyledText (concat (map fst styles)) (concat (map snd styles))
 
-style_plain, style_warn, style_clickable, style_emphasis :: Style
+style_plain, style_warn, style_clickable, style_emphasis, style_divider,
+    style_func_name, style_filename :: Style
 style_plain = 'A'
 style_warn = 'B'
 style_clickable = 'C'
 style_emphasis = 'D'
+style_divider = 'E'
+style_func_name = 'F'
+style_filename = 'G'
 
 
 -- * tail file

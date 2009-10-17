@@ -147,7 +147,9 @@ LOGVIEW_OBJ = LogView/LogView.hs LogView/LogViewC.hs \
 LOGVIEW_HS = LogView/LogViewC.hs
 
 .PHONY: $(BUILD)/logview
-$(BUILD)/logview: $(LOGVIEW_OBJ)
+# depend on Color because of Util.Log -> Peform.Warning import grossness
+# someday I should remove that
+$(BUILD)/logview: $(LOGVIEW_OBJ) Ui/Color.hs
 	$(GHC) $(HFLAGS) --make -main-is LogView.LogView $^ -o $@ \
 		$(HLDFLAGS)
 	$(BUNDLE)

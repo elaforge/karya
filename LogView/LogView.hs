@@ -38,11 +38,15 @@ initial_filter :: String
 initial_filter = "**"
 
 initial_size :: (Int, Int)
-initial_size = (500, 700)
+initial_size = (900, 300)
 
 default_catch_patterns :: [Process.CatchPattern]
 default_catch_patterns =
-    [ ("octave", Regex.make "octave: ([0-9]+)")
+    [ ("_", Regex.make "^global status: (.*?) -- (.*)")
+    -- I wound up having the app emit catch patterns explicitly instead of
+    -- putting the smarts in logview.  But it still seems conceivable that
+    -- I may want logview to catch things the app didn't explicitly mean to
+    -- be caught, so I'll leave this functionality in.
     ]
 
 -- | Remember this many log msgs.
@@ -55,7 +59,7 @@ default_history = 200
 default_max_bytes :: Int
 default_max_bytes = default_history * 100
 
-data Flag = Help | NoSeek | History Int deriving (Eq, Show)
+data Flag = Help | NoSeek | History Int | File String deriving (Eq, Show)
 options :: [GetOpt.OptDescr Flag]
 options =
     [ GetOpt.Option [] ["help"] (GetOpt.NoArg Help) "display usage"
@@ -64,8 +68,10 @@ options =
     , GetOpt.Option [] ["history"]
         (GetOpt.ReqArg (History . read) (show default_history))
         "remember this many lines"
+    , GetOpt.Option [] ["file"] (GetOpt.ReqArg File mach_log_filename)
+        "read from this file"
     ]
-usage msg = putStr (GetOpt.usageInfo msg options) >> System.Exit.exitFailure
+usage msg = putStr (GetOpt.usageInfo msg options) >> System.Exit.exitSuccess
 
 main :: IO ()
 main = do
@@ -78,14 +84,15 @@ main = do
     when (Help `elem` flags) (usage "usage:")
 
     let seek = NoSeek `notElem` flags
-    let history = Seq.mlast default_history id [n | History n <- flags]
+        history = Seq.mlast default_history id [n | History n <- flags]
+        filename = Seq.mlast mach_log_filename id [n | File n <- flags]
 
     view <- LogViewC.create_logview 20 20 (fst initial_size) (snd initial_size)
         default_max_bytes
     LogViewC.set_filter view initial_filter
 
     log_chan <- STM.newTChanIO
-    Concurrent.forkIO (Process.tail_file log_chan mach_log_filename seek)
+    Concurrent.forkIO (Process.tail_file log_chan filename seek)
     let state = (Process.initial_state initial_filter)
             { Process.state_catch_patterns = default_catch_patterns }
     Concurrent.forkIO (handle_msgs state history log_chan view)
@@ -123,7 +130,8 @@ handle_new_msg view msg = do
         Nothing -> return ()
     let new_status = Process.state_status new_state
     when (Process.state_status state /= new_status) $ do
-        send $ LogViewC.set_status view (Process.render_status new_status)
+        let (Process.StyledText status style) = Process.render_status new_status
+        send $ LogViewC.set_status view status style
         State.modify $ \st -> st { Process.state_status = new_status }
 
 send act = liftIO (LogViewC.send_action act)

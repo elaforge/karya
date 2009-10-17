@@ -29,7 +29,7 @@ public:
     LogView(int X, int Y, int W, int H, MsgCallback cb, int max_bytes);
     void append_log(const char *msg, const char *style);
     void clear_logs();
-    void set_status(const char *s) { status.value(s); }
+    void set_status(const char *msg, const char *style);
     void set_filter(const char *s) { command.value(s); }
 
 protected:
@@ -38,7 +38,9 @@ private:
     MsgCallback msg_callback;
     Fl_Text_Buffer buffer;
     Fl_Text_Buffer style_buffer;
-    Fl_Output status;
+    Fl_Text_Buffer status_buffer;
+    Fl_Text_Buffer status_style_buffer;
+    TextDisplay status;
     Fl_Input command;
     TextDisplay display;
 

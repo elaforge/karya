@@ -2,12 +2,17 @@
 - timer can summarize one responder loop cycle?
 - get diff results is really slow
 
+- mute (i.e. change brightness) makes text get drawn twice
+
+- love for browser
+
 - when I delete a block, do all the tracks get finalized?  I should keep track
 of finalization and look for leaks.
 
 - hint refuses to compile when Cmd.NoteEntry emits a warning
 - fix or remove logview_test
 CURRENT
+  - logview -> seq communication for hide and show
   - cut + paste didn't work with a point paste
   - corruption when test block is scrolled to the right
   - bring selection delete back

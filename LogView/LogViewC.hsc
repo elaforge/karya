@@ -72,11 +72,11 @@ clear_logs view = c_clear_logs (view_p view)
 foreign import ccall "clear_logs"
     c_clear_logs :: Ptr LogView -> IO ()
 
-set_status :: LogView -> String -> IO ()
-set_status view status = withCString status $ \statusp ->
-    c_set_status (view_p view) statusp
+set_status :: LogView -> String -> String -> IO ()
+set_status view status style = withCString status $ \statusp ->
+    withCString style $ \stylep -> c_set_status (view_p view) statusp stylep
 foreign import ccall "set_status"
-    c_set_status :: Ptr LogView -> CString -> IO ()
+    c_set_status :: Ptr LogView -> CString -> CString -> IO ()
 
 set_filter :: LogView -> String -> IO ()
 set_filter view filt = withCString filt $ \filtp ->

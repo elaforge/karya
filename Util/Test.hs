@@ -83,7 +83,7 @@ strings_like_srcpos srcpos gotten expected = do
     mapM_ (uncurry string_like) (zip gotten expected)
     where
     string_like a b
-        | null (Regex.findall (Regex.make b) a) =
+        | null (Regex.find_groups (Regex.make b) a) =
             failure srcpos $ show a ++ " !~ " ++ show b
         | otherwise = success srcpos $ show a ++ " =~ " ++ show b
 

@@ -9,8 +9,11 @@ static Fl_Text_Display::Style_Table_Entry style_table[] = {
     { FL_BLACK, FL_HELVETICA, default_font_size }, // A - plain
     { FL_RED, FL_HELVETICA, default_font_size }, // B - warn msgs
     { FL_BLUE, FL_HELVETICA, default_font_size }, // C - clickable text
-    // D - emphasis
-    { fl_rgb_color(0, 76, 0), FL_HELVETICA_BOLD, default_font_size },
+    { fl_rgb_color(0, 76, 0), FL_HELVETICA_BOLD,
+            default_font_size }, // D - emphasis
+    { FL_RED, FL_HELVETICA_BOLD, default_font_size }, // E - divider
+    { fl_rgb_color(0, 76, 0), FL_HELVETICA, default_font_size }, //F - func name
+    { FL_BLACK, FL_HELVETICA_ITALIC, default_font_size } // G - filename
 };
 
 
@@ -30,7 +33,7 @@ style_unfinished_cb(int n, void *p)
 
 
 enum {
-    status_height = 20,
+    status_height = 16,
     command_height = 20
 };
 
@@ -57,10 +60,19 @@ LogView::LogView(int X, int Y, int W, int H, MsgCallback cb, int max_bytes) :
     display.textfont(FL_HELVETICA);
     display.textsize(8);
     display.buffer(this->buffer);
-    display.highlight_data(&style_buffer, style_table,
+    display.highlight_data(&this->style_buffer, style_table,
             sizeof(style_table) / sizeof(style_table[0]),
             'A', style_unfinished_cb, 0);
     buffer.add_modify_callback(style_update, &display);
+
+    status.wrap_mode(false, 0);
+    // This should turn scrollbars off.
+    status.scrollbar_align(FL_ALIGN_CENTER);
+    status.buffer(this->status_buffer);
+    status.highlight_data(&this->status_style_buffer, style_table,
+            sizeof(style_table) / sizeof(style_table[0]),
+            'A', style_unfinished_cb, 0);
+    buffer.add_modify_callback(style_update, &status);
 }
 
 
@@ -87,44 +99,99 @@ LogView::clear_logs()
 }
 
 
-static void
-select_word(Fl_Text_Buffer &buf, int pos, int *begin, int *end)
+void
+LogView::set_status(const char *text, const char *style)
 {
-    int b = pos;
-    while (b && !isspace(buf.character(b)))
-        b--;
-    if (isspace(buf.character(b)))
-        b++;
+    ASSERT(strlen(text) == strlen(style));
 
-    int e = pos;
-    while (e < buf.length() && !isspace(buf.character(e)))
-        e++;
-    if (isspace(buf.character(b)))
-        e--;
+    int end = status_buffer.length();
+    status_style_buffer.replace(0, end, style);
+    status_buffer.replace(0, end, text);
+}
 
-    *begin = b;
-    *end = e;
+
+static void
+select_word(Fl_Text_Buffer &buf, int pos, int *set_begin, int *set_end)
+{
+    // look for { and }, otherwise select to nearest whitespace
+    // TODO doesn't match nested braces
+
+    int open_brace = -1;
+    int begin = pos;
+    while (begin >= 0) {
+        if (buf.character(begin) == '{') {
+            open_brace = begin;
+            break;
+        } else if (buf.character(begin) == '}') {
+            break;
+        } else {
+            begin--;
+        }
+    }
+
+    int close_brace = -1;
+    int end = pos;
+    while (end < buf.length()) {
+        if (buf.character(end) == '}') {
+            close_brace = end;
+            break;
+        } else if (buf.character(end) == '{') {
+            break;
+        } else {
+            end++;
+        }
+    }
+
+    if (close_brace != -1 && open_brace != -1) {
+        *set_begin = open_brace;
+        *set_end = close_brace + 1;
+        return;
+    }
+    begin = end = pos;
+
+    while (begin && !isspace(buf.character(begin)))
+        begin--;
+    if (isspace(buf.character(begin)))
+        begin++;
+
+    while (end < buf.length() && !isspace(buf.character(end)))
+        end++;
+    if (isspace(buf.character(end)))
+        end--;
+
+    *set_begin = begin;
+    *set_end = end + 1;
 }
 
 
 int
 LogView::handle(int evt)
 {
-    if (evt == FL_PUSH && Fl::event_inside(&display) &&
-            Fl::event_clicks() >= 1)
-    {
-        int pos = this->display.xy_to_position(Fl::event_x(), Fl::event_y());
-        int begin, end;
-        select_word(this->buffer, pos, &begin, &end);
-        this->buffer.select(begin, end);
-        char *word = this->buffer.selection_text();
-        this->msg_callback(cb_click, word);
-        free(word);
+    if (evt == FL_PUSH && Fl::event_clicks() >= 1) {
+        Fl_Text_Buffer *buf;
+        TextDisplay *display = NULL;
+        if (Fl::event_inside(&this->display)) {
+            display = &this->display;
+            buf = &this->buffer;
+        } else if (Fl::event_inside(&this->status)) {
+            display = &this->status;
+            buf = &this->status_buffer;
+        } else {
+            display = NULL;
+            buf = NULL;
+        }
+        if (display) {
+            int pos = display->xy_to_position(Fl::event_x(), Fl::event_y());
+            int begin, end;
+            select_word(*buf, pos, &begin, &end);
+            buf->select(begin, end);
+            char *word = buf->selection_text();
+            this->msg_callback(cb_click, word);
+            free(word);
+        }
         return 0;
-    } else {
-        return Fl_Group::handle(evt);
     }
-    // return Fl_Group::handle(evt);
+    return Fl_Group::handle(evt);
 }
 
 
