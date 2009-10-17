@@ -18,7 +18,7 @@ static const int mac_resizer_width = 0;
 static const DividerConfig collapsed_track(Color(0, 0, 255));
 static const int collapsed_width = 3;
 
-// Multiple mousewheel scroll pixels by this.
+// Multiply mousewheel scroll pixels by this.
 static const double mousewheel_time_scale = 3;
 static const double mousewheel_track_scale = 3;
 
@@ -292,7 +292,6 @@ BlockView::set_zoom_attr(const ZoomInfo &new_zoom)
     // move 2 pixels, which messes up the blit-oriented scrolling.
     zoom.offset = std::max(TrackPos(0), zoom.offset);
     zoom.offset = zoom.to_trackpos(zoom.to_pixels(zoom.offset));
-    // DEBUG("offset " << new_zoom.offset << " -> " << zoom.offset);
     this->track_tile.set_zoom(zoom);
     this->ruler_track->set_zoom(zoom);
 }

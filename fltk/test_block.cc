@@ -314,9 +314,8 @@ main(int argc, char **argv)
 
     view.block.insert_track(0, Tracklike(&ruler), 20);
     view.block.insert_track(1, Tracklike(&divider), 10);
-    view.block.insert_track(1, Tracklike(&ruler), 30);
-    view.block.insert_track(1, Tracklike(&track1, &truler), 30);
-    view.block.insert_track(2, Tracklike(&divider), 5);
+    view.block.insert_track(2, Tracklike(&track1, &truler), 30);
+    // view.block.insert_track(2, Tracklike(&divider), 5);
     view.block.insert_track(3, Tracklike(&track2, &truler), 30);
     view.block.insert_track(4, Tracklike(&empty_track, &truler), 20);
     view.block.insert_track(5, Tracklike(&empty_track, &truler), 20);
@@ -325,7 +324,6 @@ main(int argc, char **argv)
     int pairs[] = {0, 5, 2, 4, 3, 4};
     SkeletonConfig skel = skeleton_config(pairs, 3);
     view.block.set_skeleton(skel);
-    // view.block.insert_track(7, Tracklike(&track2, &truler), 80);
 
     DisplayTrack dtrack;
     dtrack.status = 'M';

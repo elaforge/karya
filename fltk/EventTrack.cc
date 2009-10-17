@@ -110,7 +110,7 @@ static void dummy_scroll_draw(void *, int, int, int, int) {}
 void
 EventTrackView::draw()
 {
-    Rect draw_rect = rect(this);
+    Rect draw_rect = clip_rect(rect(this));
     draw_rect.h--; // tiles make a 1 pixel lower border
     // DEBUG("track damage " << show_damage(damage()));
     if (this->damage() & FL_DAMAGE_SCROLL) {
