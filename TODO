@@ -9,7 +9,8 @@ of finalization and look for leaks.
 
 - hint refuses to compile when Cmd.NoteEntry emits a warning
 CURRENT
-  - logview -> seq communication for hide and show
+  - delayed track info update doesn't interact well with logview->app,
+    put it in an unconditional cmd
   - cut + paste didn't work with a point paste
   - bring selection delete back
   - schema cmds can return errors

@@ -275,7 +275,7 @@ cmd_set_inst_status track_tree tracknum _msg = do
 
 -- | Looks like:
 -- title (tracknum): inst_name, allocation, [control tracks]
--- fm8/inst1 at 1: fm8:0,1,2, [vel {hide 2}, pedal {show 3}]
+-- fm8/inst1 at 1: fm8:0,1,2, [vel {collapse 2}, pedal {expand 3}]
 get_track_status :: (Monad m) => BlockId -> State.TrackTree -> TrackNum
     -> Cmd.CmdT m String
 get_track_status block_id track_tree tracknum = do
@@ -302,7 +302,7 @@ control_tracks_of track_tree tracknum = case paths of
     is_control title = not (is_tempo_track title || is_inst_track title)
     inst_of = title_to_instrument . State.track_title
 
--- | Looks like: [vel {hide 2}, pedal {show 3}]
+-- | Looks like: [vel {collapse 2}, pedal {expand 3}]
 show_track_status :: (State.UiStateMonad m) => BlockId -> [State.TrackInfo]
     -> m [String]
 show_track_status block_id status = forM status $ \info -> do
@@ -312,8 +312,8 @@ show_track_status block_id status = forM status $ \info -> do
     let cmd_text = case fmap Block.track_flags btrack of
             Nothing -> "?"
             Just flags
-                | Block.Collapse `elem` flags -> "show"
-                | otherwise -> "hide"
+                | Block.Collapse `elem` flags -> "expand"
+                | otherwise -> "collapse"
     return $ Printf.printf "%s {%s %d}" (Info.str title) cmd_text tracknum
 
 

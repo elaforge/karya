@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -fno-warn-unused-imports #-}
+{-# LANGUAGE ScopedTypeVariables #-} -- for pattern type sig in catch
 {- | This module reads lines and streams them to the GUI, which displays them
     in a scrolling box.  Clickable text is marked and will be highlighted in
     the GUI.  When it's clicked, the GUI sends the tag back, much like an HTML
@@ -15,9 +16,11 @@
 module LogView.LogView where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
+import qualified Control.Exception as Exception
 import Control.Monad
 import qualified Control.Monad.State as State
 import Control.Monad.State (liftIO)
+import qualified Data.List as List
 import qualified System.Environment
 import qualified System.Exit
 import qualified System.Console.GetOpt as GetOpt
@@ -28,6 +31,8 @@ import qualified Util.Seq as Seq
 
 import qualified LogView.LogViewC as LogViewC
 import qualified LogView.Process as Process
+
+import qualified App.SendCmd as SendCmd
 
 
 mach_log_filename :: String
@@ -110,11 +115,10 @@ handle_msgs st history log_chan view = flip State.evalStateT st $ forever $ do
         NewLog log_msg -> do
             State.modify (Process.add_msg history log_msg)
             handle_new_msg view log_msg
-        ClickedWord word -> do
-            liftIO $ putStrLn $ "clicked: " ++ show word
+        ClickedWord word -> liftIO $ handle_clicked_word word
         FilterChanged expr -> do
             -- clear and redisplay msgs with new filter
-            send $ LogViewC.clear_logs view
+            send_action $ LogViewC.clear_logs view
             State.modify $ \st ->
                 st { Process.state_filter = Process.compile_filter expr }
             all_msgs <- fmap (reverse . Process.state_msgs) State.get
@@ -126,15 +130,30 @@ handle_new_msg view msg = do
     State.put new_state
     case styled of
         Just styled -> let (log_s, style_s) = Process.extract_style styled
-            in send $ LogViewC.append_log view log_s style_s
+            in send_action $ LogViewC.append_log view log_s style_s
         Nothing -> return ()
     let new_status = Process.state_status new_state
     when (Process.state_status state /= new_status) $ do
         let (Process.StyledText status style) = Process.render_status new_status
-        send $ LogViewC.set_status view status style
+        send_action $ LogViewC.set_status view status style
         State.modify $ \st -> st { Process.state_status = new_status }
 
-send act = liftIO (LogViewC.send_action act)
+handle_clicked_word :: String -> IO ()
+handle_clicked_word word
+    | "{" `List.isPrefixOf` word && "}" `List.isSuffixOf` word =
+        send_to_app (drop 1 (Seq.rdrop 1 word))
+    | otherwise = putStrLn $ "unknown clicked word: " ++ show word
+
+send_action :: (State.MonadIO m) => IO a -> m ()
+send_action act = liftIO (LogViewC.send_action act)
+
+send_to_app :: String -> IO ()
+send_to_app cmd = do
+    response <- SendCmd.send cmd
+        `Exception.catch` \(exc :: Exception.SomeException) ->
+            return ("error: " ++ show exc)
+    unless (null response) $
+        putStrLn $ "response: " ++ response
 
 get_msg log_chan view = STM.atomically $
     fmap NewLog (STM.readTChan log_chan)

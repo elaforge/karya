@@ -215,6 +215,17 @@ set_schema block_id schema_id = do
     State.modify_block block_id $ \block ->
         block { Block.block_schema = schema_id }
 
+collapse_track, expand_track :: BlockId -> TrackNum -> Cmd.CmdL ()
+collapse_track block_id tracknum =
+    State.add_track_flag block_id tracknum Block.Collapse
+expand_track block_id tracknum =
+    State.remove_track_flag block_id tracknum Block.Collapse
+
+collapse, expand :: TrackNum -> Cmd.CmdL ()
+collapse tracknum = flip collapse_track tracknum =<< Cmd.get_focused_block
+expand tracknum = flip expand_track tracknum =<< Cmd.get_focused_block
+
+
 -- ** tracks
 
 -- | Some helpers to make it easier to make TracklikeIds.
