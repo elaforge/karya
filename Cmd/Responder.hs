@@ -98,7 +98,7 @@ run_setup_cmd ui_state cmd_state cmd = do
             return (ui_state, [])
         Right (status, ui_state, updates) -> do
             when (status /= Cmd.Done) $
-                Log.warn $ "setup_cmd returned not-Done status, did it abort?"
+                Log.warn $ "setup_cmd not Done: " ++ show status
             return (ui_state, updates)
     (_, ui_state, cmd_state) <-
         ResponderSync.sync ui_state ui_to cmd_state updates
@@ -282,6 +282,8 @@ run_core_cmds rstate msg exit = do
     Trans.liftIO $ Log.timer "run core cmds"
     let ui_from = state_ui rstate
         cmd_state = state_cmd rstate
+
+    -- Run ui records first so they can't get aborted by other cmds.
     (ui_from, cmd_state) <- do_run exit Cmd.run_id_io rstate msg ui_from
         ui_from cmd_state [Cmd.cmd_record_ui_updates]
     Trans.liftIO $ Log.timer "ran record updates"
@@ -289,11 +291,14 @@ run_core_cmds rstate msg exit = do
 
     -- Focus commands and the rest of the pure commands come first so text
     -- entry can override io bound commands.
-    focus_cmds <- Trans.liftIO $
-        eval "get focus cmds" ui_to cmd_state [] get_focus_cmds
+    (context_cmds, warns) <- Trans.liftIO $
+        eval "get context cmds" ui_from cmd_state ([], []) get_context_cmds
+    Trans.liftIO $ forM_ warns $ \warn ->
+        Log.warn $ "getting context cmds: " ++ warn
+
     Trans.liftIO $
-        Log.timer ("ran get focus cmds: " ++ show (length focus_cmds))
-    let id_cmds = focus_cmds ++ hardcoded_cmds ++ GlobalKeymap.global_cmds
+        Log.timer ("ran get focus cmds: " ++ show (length context_cmds))
+    let id_cmds = context_cmds ++ hardcoded_cmds ++ GlobalKeymap.global_cmds
     (ui_to, cmd_state) <- do_run exit Cmd.run_id_io rstate msg ui_from
         ui_to cmd_state id_cmds
     Trans.liftIO $ Log.timer "ran pure cmds"
@@ -329,8 +334,8 @@ hardcoded_io_cmds transport_info interpreter_chan lang_dirs =
 
 
 -- | Get cmds according to the currently focused block and track.
-get_focus_cmds :: Cmd.CmdT Identity.Identity [Cmd.Cmd]
-get_focus_cmds = do
+get_context_cmds :: Cmd.CmdT Identity.Identity Schema.ContextCmds
+get_context_cmds = do
     block_id <- Cmd.get_focused_block
     ustate <- State.get
     tracknum <- Cmd.get_insert_tracknum

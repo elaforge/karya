@@ -8,9 +8,13 @@
 of finalization and look for leaks.
 
 - hint refuses to compile when Cmd.NoteEntry emits a warning
+
+cleanup:
+  - setting some state like project directly through State won't update
+  global status.  Maybe I could fix this and also avoid the scattered syncs
+  by doing a special state diff after cmds
+
 CURRENT
-  - delayed track info update doesn't interact well with logview->app,
-    put it in an unconditional cmd
   - cut + paste didn't work with a point paste
   - bring selection delete back
   - schema cmds can return errors

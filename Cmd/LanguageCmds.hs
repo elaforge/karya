@@ -61,6 +61,7 @@ import qualified Cmd.TimeStep as TimeStep
 import qualified Cmd.MakeRuler ()
 
 import qualified Derive.Schema as Schema
+import qualified Derive.Schema.Default as Default
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Controller as Midi.Controller
 import qualified Perform.Midi.Convert as Midi.Convert
@@ -216,10 +217,14 @@ set_schema block_id schema_id = do
         block { Block.block_schema = schema_id }
 
 collapse_track, expand_track :: BlockId -> TrackNum -> Cmd.CmdL ()
-collapse_track block_id tracknum =
+collapse_track block_id tracknum = do
+    -- TODO if the track to collapse is a pitch track, merge it with its
+    -- note track instead
     State.add_track_flag block_id tracknum Block.Collapse
-expand_track block_id tracknum =
+    Default.set_inst_status block_id tracknum
+expand_track block_id tracknum = do
     State.remove_track_flag block_id tracknum Block.Collapse
+    Default.set_inst_status block_id tracknum
 
 collapse, expand :: TrackNum -> Cmd.CmdL ()
 collapse tracknum = flip collapse_track tracknum =<< Cmd.get_focused_block
@@ -369,7 +374,7 @@ track_info block_id tracknum = do
     case Schema.get_track_info proj_scale track_tree (Just tracknum) of
         (Nothing, _, _) -> Cmd.throw $ "can't get track type for "
             ++ show block_id ++ " at " ++ show tracknum
-        (Just typ, inst, scale) -> return (typ, fmap fst inst, scale)
+        (Just typ, inst, scale) -> return (typ, inst, scale)
 
 -- | Steps to load a new instrument.  All of them are optional, depending on
 -- the circumstances.
@@ -395,7 +400,7 @@ load_instrument inst_name = do
     chan <- find_chan_for dev
     alloc_instrument inst [(dev, chan)]
 
-    State.set_track_title track_id (Schema.instrument_to_title inst)
+    State.set_track_title track_id (Default.instrument_to_title inst)
     send_instrument_init inst chan
     Log.notice $ "deallocating " ++ show old_inst ++ ", allocating "
         ++ show (dev, chan) ++ " to " ++ show inst
@@ -459,7 +464,7 @@ realloc_instrument inst_name wdev chans = do
 schema_instruments :: BlockId -> Cmd.CmdL [Score.Instrument]
 schema_instruments block_id = do
     titles <- fmap (map State.track_title) (State.get_track_info block_id)
-    return $ Seq.map_maybe Schema.title_to_instrument titles
+    return $ Seq.map_maybe Default.title_to_instrument titles
 
 -- | Try to automatically create an instrument config based on the instruments
 -- found in the given block.  It simply gives each instrument on a device a

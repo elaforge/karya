@@ -343,6 +343,15 @@ get_focused_block :: (Monad m) => CmdT m BlockId
 get_focused_block =
     fmap Block.view_block (get_focused_view >>= State.get_view)
 
+-- | In some circumstances I don't want to abort if there's no focused block.
+lookup_focused_block :: (Monad m) => CmdT m (Maybe BlockId)
+lookup_focused_block = do
+    maybe_view_id <- fmap state_focused_view get_state
+    case maybe_view_id of
+        -- It's still an error if the view id doesn't exist.
+        Just view_id -> fmap (Just . Block.view_block) (State.get_view view_id)
+        Nothing -> return Nothing
+
 get_current_step :: (Monad m) => CmdT m TimeStep.TimeStep
 get_current_step = fmap state_step get_state
 
@@ -616,8 +625,11 @@ data Schema = Schema {
     schema_deriver :: SchemaDeriver Derive.EventDeriver
     , schema_signal_deriver :: SchemaDeriver Derive.SignalDeriver
     -- | Get a set of Cmds that are applicable within the given CmdContext.
-    , schema_cmds :: CmdContext -> [Cmd]
+    , schema_cmds :: CmdContext -> ContextCmds
     }
+
+-- | (cmds to be run, warnings)
+type ContextCmds = ([Cmd], [String])
 
 -- | So Cmd.State can be showable, for debugging.
 instance Show Schema where

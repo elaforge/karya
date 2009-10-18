@@ -6,6 +6,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
+import qualified Util.Control as Control
 import qualified Util.Seq as Seq
 import qualified Util.Log as Log
 import qualified Util.Num as Num
@@ -17,9 +18,10 @@ import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 import qualified Ui.UiMsg as UiMsg
 
-import qualified Cmd.Msg as Msg
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Msg as Msg
 import qualified Cmd.TimeStep as TimeStep
+import qualified Derive.Schema.Default as Default
 
 import qualified App.Config as Config
 
@@ -235,6 +237,9 @@ sync_selection_status :: (Monad m) => ViewId -> Cmd.CmdT m ()
 sync_selection_status view_id = do
     maybe_sel <- State.get_selection view_id Config.insert_selnum
     Cmd.set_view_status view_id "sel" (fmap selection_status maybe_sel)
+    block_id <- State.block_id_of_view view_id
+    Control.when_just maybe_sel $
+        Default.set_inst_status block_id . Types.sel_cur_track
 
 selection_status :: Types.Selection -> String
 selection_status sel = Types.pretty_pos start

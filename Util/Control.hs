@@ -38,3 +38,6 @@ whenM :: (Monad m) => m Bool -> m a -> m ()
 whenM cond op = do
     b <- cond
     if b then op >> return () else return ()
+
+when_just :: (Monad m) => Maybe a -> (a -> m ()) -> m ()
+when_just val f = maybe (return ()) f val

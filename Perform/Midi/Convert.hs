@@ -17,7 +17,7 @@ import qualified Util.Map as Map
 import qualified Util.Logger as Logger
 import qualified Util.Seq as Seq
 
-import qualified Derive.Schema as Schema
+import qualified Derive.Schema.Default as Default
 import qualified Derive.Score as Score
 
 import qualified Perform.Warning as Warning
@@ -78,9 +78,9 @@ get_pitch controllers = do
 
 get_pitch_cs :: Score.ControllerMap -> [(Score.Controller, Signal.Signal)]
 get_pitch_cs = takeWhile (is_pitch_c . fst) . Map.toAscList
-    . snd . Map.split2 (Score.Controller Schema.pitch_track_prefix)
+    . snd . Map.split2 (Score.Controller Default.pitch_track_prefix)
 
-is_pitch_c (Score.Controller c) = Schema.is_pitch_track c
+is_pitch_c (Score.Controller c) = Default.is_pitch_track c
 
 -- * monad
 
