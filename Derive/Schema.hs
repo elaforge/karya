@@ -209,7 +209,8 @@ get_defaults context = (maybe_track_type, score_inst, scale_id)
 get_track_info :: Pitch.ScaleId -> State.TrackTree -> Maybe TrackNum
     -> (Maybe TrackType, Maybe Score.Instrument, Pitch.ScaleId)
 get_track_info proj_scale _ Nothing = (Nothing, Nothing, proj_scale)
-get_track_info proj_scale track_tree (Just tracknum) = case paths of
+get_track_info proj_scale track_tree (Just tracknum) =
+    case Default.paths_of track_tree tracknum of
         Nothing -> (Nothing, Nothing, proj_scale)
         Just (track, parents, children) ->
             let inst = find_inst (track : parents ++ children)
@@ -219,8 +220,6 @@ get_track_info proj_scale track_tree (Just tracknum) = case paths of
                 scale_id = maybe proj_scale id $ find_scale (track : parents)
             in (Just (track_type scale_id track parents), inst, scale_id)
     where
-    paths = List.find ((==tracknum) . State.track_tracknum . (\(a, _, _) -> a))
-        (Util.Tree.paths track_tree)
     find_inst = msum . map inst_of
     inst_of = Default.title_to_instrument . State.track_title
     find_scale = msum . map (Default.title_to_scale . State.track_title)
@@ -238,11 +237,11 @@ track_type scale_id (State.TrackInfo title _ tracknum) parents
     | Default.is_pitch_track title = PitchTrack
     | otherwise = ControlTrack
     where
-    pitch_track = case List.find find parents of
+    pitch_track = case List.find is_pitch parents of
         Nothing -> NoteTrack.CreateTrack
             tracknum (Default.track_of_scale scale_id) (tracknum+1)
         Just ptrack -> NoteTrack.ExistingTrack (State.track_tracknum ptrack)
-    find = Default.is_pitch_track . State.track_title
+    is_pitch = Default.is_pitch_track . State.track_title
 
 
 -- ** compile
