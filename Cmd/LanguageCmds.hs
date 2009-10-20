@@ -89,7 +89,7 @@ import qualified App.Config as Config
 show_record :: [(String, String)] -> String
 show_record = concatMap $ \(k, v) ->
     let s = Seq.strip v in printf "%s:%s\n" k
-            (if '\n' `elem` s then '\n' : indent_lines s else ' ' : show s)
+            (if '\n' `elem` s then '\n' : indent_lines s else ' ' : s)
 indent_lines = Seq.rstrip . unlines . map (indent++) . lines
 indent = "  "
 

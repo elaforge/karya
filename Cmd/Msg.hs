@@ -42,6 +42,11 @@ mouse (Ui (UiMsg.UiMsg _ (UiMsg.MsgEvent mouse@(UiMsg.Mouse {})))) =
     Just mouse
 mouse _ = Nothing
 
+mouse_down :: Msg -> Bool
+mouse_down msg = case mouse msg of
+    Just (UiMsg.Mouse { UiMsg.mouse_state = UiMsg.MouseDown _ }) -> True
+    _ -> False
+
 key :: Msg -> Maybe (Bool, Key.Key)
 key (Ui (UiMsg.UiMsg _ (UiMsg.MsgEvent (UiMsg.Kbd state key)))) =
     Just (state == UiMsg.KeyDown, key)

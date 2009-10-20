@@ -99,33 +99,33 @@ merge_sel (Types.Selection strack spos _ _) (Types.Selection _ _ ctrack cpos) =
 
 -- | Set the selection based on a click or drag.
 cmd_mouse_selection :: (Monad m) =>
-    Int -> Types.SelNum -> Msg.Msg -> Cmd.CmdT m ()
-cmd_mouse_selection btn selnum msg = do
+    Int -> Types.SelNum -> Bool -> Msg.Msg -> Cmd.CmdT m ()
+cmd_mouse_selection btn selnum extend msg = do
     (down_tracknum, down_pos, mouse_tracknum, mouse_pos) <- mouse_drag btn msg
-    let sel = Types.selection down_tracknum down_pos mouse_tracknum mouse_pos
     view_id <- Cmd.get_focused_view
+    old_sel <- State.get_selection view_id selnum
+    let (start_tracknum, start_pos) = case (extend, old_sel) of
+            (True, Just (Types.Selection tracknum pos _ _)) -> (tracknum, pos)
+            _ -> (down_tracknum, down_pos)
+    let sel = Types.selection start_tracknum start_pos mouse_tracknum mouse_pos
     select_and_scroll view_id selnum sel
 
 -- | Like 'cmd_mouse_selection', but snap the selection to the current time
 -- step.
-cmd_snap_selection :: (Monad m) => Int -> Types.SelNum -> Msg.Msg
+cmd_snap_selection :: (Monad m) => Int -> Types.SelNum -> Bool -> Msg.Msg
     -> Cmd.CmdT m ()
-cmd_snap_selection btn selnum msg = do
+cmd_snap_selection btn selnum extend msg = do
     (down_tracknum, _, mouse_tracknum, mouse_pos) <- mouse_drag btn msg
     block_id <- Cmd.get_focused_block
     step <- Cmd.get_current_step
     snap_pos <- TimeStep.snap step block_id mouse_tracknum mouse_pos
     view_id <- Cmd.get_focused_view
-    this_sel <- State.get_selection view_id selnum
-    let mouse_down = case Msg.mouse msg of
-            Just (UiMsg.Mouse { UiMsg.mouse_state = UiMsg.MouseDown _ }) ->
-                True
-            _ -> False
-        sel = case (mouse_down, this_sel) of
-            _ | mouse_down || this_sel == Nothing ->
+    old_sel <- State.get_selection view_id selnum
+    let sel = case old_sel of
+            _ | Msg.mouse_down msg && not extend || old_sel == Nothing ->
                 Types.selection down_tracknum snap_pos mouse_tracknum snap_pos
-            (_, Just (Types.Selection start_track start_pos _ _)) ->
-                Types.selection start_track start_pos mouse_tracknum snap_pos
+            Just (Types.Selection tracknum pos _ _) ->
+                Types.selection tracknum pos mouse_tracknum snap_pos
             _ -> error "not reached" -- ghc doesn't realize it is exhaustive
     select_and_scroll view_id selnum sel
 

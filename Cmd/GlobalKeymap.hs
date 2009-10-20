@@ -114,11 +114,17 @@ quit_bindings = [(kspec, cspec) | kspec <- kspecs]
 
 selection_bindings = concat
     [ bind_drag [] Config.mouse_select "snap drag selection"
-        (Selection.cmd_snap_selection Config.mouse_select Config.insert_selnum)
-    , bind_drag [PrimaryCommand] Config.mouse_select "free drag selection"
-        (Selection.cmd_mouse_selection Config.mouse_select Config.insert_selnum)
-    -- TODO extend selection with drag + shift
-    -- can I use shift+secondary or something to subtract the selection?
+        (Selection.cmd_snap_selection Config.mouse_select Config.insert_selnum
+            False)
+    , bind_drag [Shift] Config.mouse_select "snap drag selection"
+        (Selection.cmd_snap_selection Config.mouse_select Config.insert_selnum
+            True)
+    , bind_drag [PrimaryCommand] Config.mouse_select "drag selection"
+        (Selection.cmd_mouse_selection Config.mouse_select Config.insert_selnum
+            False)
+    , bind_drag [Shift, PrimaryCommand] Config.mouse_select "extend selection"
+        (Selection.cmd_mouse_selection Config.mouse_select Config.insert_selnum
+            True)
 
     , bind_mod [] Key.Down "advance selection"
         (Selection.cmd_step_selection selnum TimeStep.Advance False)
@@ -150,7 +156,8 @@ view_config_bindings = concat
     ]
 
 block_config_bindings = concat
-    [ bind_click [Shift, PrimaryCommand] Config.mouse_select 0
+    -- TODO I'm not used to use SecondaryCommand for the built in keymap...
+    [ bind_click [SecondaryCommand] Config.mouse_select 0
         "toggle skeleton edge" BlockConfig.cmd_toggle_edge
     , bind_mod [Shift] (Key.KeyChar 'm') "toggle mute"
         (BlockConfig.cmd_toggle_flag Block.Mute)
