@@ -112,17 +112,20 @@ map_events f events = emap (Map.fromList . map f . Map.toList) events
 -- | Merge events into the given TrackEvents.  Events that overlap will have
 -- their tails clipped until they don't, and given events that start at the
 -- same place as existing events will replace the existing ones.
+--
+-- This should be the the only way to create a 'TrackEvents', short of
+-- debugging, since it enforces import invariants.  However, the inserted
+-- are assumed to be sorted, for efficiency's sake.
+insert_sorted_events :: [PosEvent] -> TrackEvents -> TrackEvents
+insert_sorted_events [] events = events
+insert_sorted_events pos_events events =
+    merge (TrackEvents (Map.fromAscList clipped)) events
+    where clipped = clip_events pos_events
+
+-- | Like 'insert_sorted_events' but safer and less efficient.
 insert_events :: [PosEvent] -> TrackEvents -> TrackEvents
-insert_events [] events = events
 insert_events pos_events events =
-    merge events (TrackEvents (Map.fromAscList clipped))
-    where
-    clipped = map clip (Seq.zip_next pos_events)
-    clip ((pos, event), Nothing) = (pos,
-        event { Event.event_duration = max 0 (Event.event_duration event) })
-    clip ((pos, event), Just (next_pos, _)) =
-        (pos, event { Event.event_duration = dur })
-        where dur = max 0 $ min (Event.event_duration event) (next_pos - pos)
+    insert_sorted_events (Seq.sort_on fst pos_events) events
 
 -- | Remove events between @start@ and @end@, not including @end@.
 remove_events :: TrackPos -> TrackPos -> TrackEvents -> TrackEvents
@@ -232,51 +235,39 @@ clip_to_range start end events = Map.toAscList clipped
 
 
 -- | Merge @evts2@ into @evts1@.  Events that overlap other events will be
--- shortened until they don't overlap.  If events occur simultaneously, the
--- event from @evts2@ wins.  This is more efficient if @evts2@ is small.
+-- clipped so they don't overlap.  If events occur simultaneously, the
+-- event from @evts1@ wins.
+--
+-- The strategy is to extract the overlapping section and clip only that,
+-- then merge it back into the input maps, before merging them.  So in the
+-- common cases of non-overlapping maps or a small narrow map inserted into
+-- a large wide one this should traverse only a small portion of the large
+-- one, and it should do so in one pass.  However, if the small map straddles
+-- the large one, it will force an unnecessary traversal of the large one.  In
+-- that case, I'd be better off merging each event individually.
 merge :: TrackEvents -> TrackEvents -> TrackEvents
 merge (TrackEvents evts1) (TrackEvents evts2)
-    | Map.size evts1 < Map.size evts2 = TrackEvents (_merge evts2 evts1)
-    | otherwise = TrackEvents (_merge evts1 evts2)
-
-_merge evts1 evts2
-    | Map.null evts1 = evts2
-    | Map.null evts2 = evts1
-    | otherwise = union_right evts1 (Map.fromAscList clipped)
+    | Map.null evts1 = TrackEvents evts2
+    | Map.null evts2 = TrackEvents evts1
+    | otherwise = TrackEvents$ overlapping `Map.union2` evts1 `Map.union2` evts2
     where
-    -- The strategy is to merge the evts from evts1 and evts2, and then clip
-    -- the durations of the merged sequence so they don't overlap.  To improve
-    -- efficiency when evts1 is large and evts2 is small, only the
-    -- possibly overlapping subsets of evts1 and evts2 are merged and clipped.
-    -- So if the two maps don't overlap, very little work should be done.
-    -- However, since there is only one overlapping range, this will be
-    -- inefficient if evts2 straddles evts1.
-    -- TODO: is this overkill for the common case of merging in one event?
-    -- do benchmarks and maybe insert a special case for when evts2 is 1 or 2
+    -- minimal overlapping range
+    start = max (fst (Map.findMin evts1)) (fst (Map.findMin evts2))
+    end = min (event_end (Map.findMax evts2)) (event_end (Map.findMax evts2))
+    overlapping = Map.fromAscList $ clip_events $ Seq.merge_by cmp
+        (in_range_before start end evts1) (in_range_before start end evts2)
+    cmp a b = compare (fst a) (fst b)
 
-    first_pos = max (fst (Map.findMin evts1)) (fst (Map.findMin evts2))
-    last_pos = min
-        (event_end (Map.findMax evts2)) (event_end (Map.findMax evts2))
-    relevant = merge_range first_pos last_pos
-    merged = union_right (relevant evts1) (relevant evts2)
-    clipped = Map.foldWithKey fold_clip [] merged
+clip_events :: [PosEvent] -> [PosEvent]
+clip_events (pos_evt@(pos, evt) : rest@((next_pos, _) : _))
+    | event_end pos_evt > next_pos =
+        (pos, evt { Event.event_duration = (next_pos-pos) }) : clipped
+    | otherwise = pos_evt : clipped
+    where clipped = clip_events rest
+clip_events pos_events = pos_events
 
-fold_clip pos evt [] = [(pos, evt)]
-fold_clip pos evt rest@((next_pos, _next_evt) : _) =
-    (pos, evt { Event.event_duration = clipped_dur }) : rest
-    where clipped_dur = min (Event.event_duration evt) (next_pos - pos)
-
--- | Extract a submap whose keys are from one below @low@ to @high@.
-merge_range :: (Ord k) => k -> k -> Map.Map k a -> Map.Map k a
-merge_range low high fm = expanded
-    where
-    (below, within, above) = Map.split3 low high fm
-    expanded = maybe_add (Map.find_min above)
-        (maybe_add (Map.find_max below) within)
-
-maybe_add Nothing fm = fm
-maybe_add (Just (k, v)) fm = Map.insert k v fm
-
--- | Right-biased union.  Keys from the right map win.
-union_right :: Ord k => Map.Map k a -> Map.Map k a -> Map.Map k a
-union_right = Map.unionWith (\_ a -> a)
+-- | Everything from @start@ to @end@, plus one before @start@.
+in_range_before :: TrackPos -> TrackPos -> Map.Map TrackPos Event.Event
+    -> [PosEvent]
+in_range_before start end events = takeWhile ((<end) . fst) pos_events
+    where pos_events = snd $ events_at_before start (TrackEvents events)

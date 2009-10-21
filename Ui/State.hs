@@ -918,6 +918,14 @@ insert_events track_id pos_evts = _modify_events track_id $ \events ->
             else [(fst (head pos_evts), Track.event_end (last pos_evts))]
     in (Track.insert_events pos_evts events, updates)
 
+-- | Like 'insert_events', but more efficient and dangerous.
+insert_sorted_events :: (UiStateMonad m) =>
+    TrackId -> [(TrackPos, Event.Event)] -> m ()
+insert_sorted_events track_id pos_evts = _modify_events track_id $ \events ->
+    let updates = if null pos_evts then []
+            else [(fst (head pos_evts), Track.event_end (last pos_evts))]
+    in (Track.insert_sorted_events pos_evts events, updates)
+
 get_events :: (UiStateMonad m) => TrackId -> TrackPos -> TrackPos
     -> m [Track.PosEvent]
 get_events track_id start end = do

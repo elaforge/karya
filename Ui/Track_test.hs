@@ -29,6 +29,12 @@ test_insert_events = do
     -- Negative durations are clipped to 0.
     equal (f [(0, -4, "a0")] []) [(0, 0, "a0")]
 
+    -- this is really a place for quickcheck
+    equal (f [(1, 0, "1"), (1.25, 0, "1.25"), (2, 0, "2")]
+            [(0, 0, "0"), (0.25, 0, "0.25")])
+        [(0, 0, "0"), (0.25, 0, "0.25"), (1, 0, "1"), (1.25, 0, "1.25"),
+            (2, 0, "2")]
+
 test_remove_events = do
     let te1 = track_events [(0, 0, "0"), (16, 0, "16")]
     -- able to remove 0 dur events

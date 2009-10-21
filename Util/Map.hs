@@ -72,6 +72,14 @@ unique_union :: (Ord k) =>
 unique_union fm0 fm1 = (Map.union fm0 fm1, lost)
     where lost = Map.intersection fm1 fm0
 
+-- | Map.union says it's more efficient with @big `union` small@, so this one
+-- flips the args to be more efficient.  It's still left-biased.
+union2 :: (Ord k) => Map.Map k v -> Map.Map k v -> Map.Map k v
+union2 m1 m2
+    | Map.size m1 < Map.size m2 = m2 `right` m1
+    | otherwise = m1 `Map.union` m2
+    where right = Map.unionWith (\_ a -> a)
+
 -- | Safe versions of findMin and findMax.
 find_min :: Map.Map k a -> Maybe (k, a)
 find_min fm

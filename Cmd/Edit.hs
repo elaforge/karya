@@ -77,8 +77,8 @@ edit_color mode = case mode of
 -- | Extend the events in the selection to either the end of the selection or
 -- the beginning of the next note.
 cmd_set_duration :: (Monad m) => Cmd.CmdT m ()
-cmd_set_duration = modify_events $ \_ end (pos, event) ->
-    (pos, event { Event.event_duration = end - pos })
+cmd_set_duration = modify_events $ \_ end pos event ->
+    event { Event.event_duration = end - pos }
 
 -- | If there is a following event, delete it and extend this one to its end.
 cmd_join_events :: (Monad m) => Cmd.CmdT m ()
@@ -123,7 +123,7 @@ cmd_delete_time = do
         move_track_events start (-(end-start)) track_id
         -- Reinsert the deleted events, if they only partially overlapped the
         -- deleted area.
-        State.insert_events track_id $
+        State.insert_sorted_events track_id $
             map (shift (start-end)) (clip_until end deleted)
     where shift val (pos, evt) = (pos + val, evt)
 
@@ -175,29 +175,30 @@ move_events start shift events = merged
     -- If the last event has 0 duration, the selection will not include it.
     -- Ick.  Maybe I need a less error-prone way to say "select until the end
     -- of the track"?
-    end = Track.time_end events + TrackPos 1
+    end = Track.time_end events + 1
     shifted = map (\(pos, evt) -> (pos+shift, evt))
         (Track.events_after start events)
-    merged = Track.insert_events shifted (Track.remove_events start end events)
+    merged = Track.insert_sorted_events shifted
+        (Track.remove_events start end events)
 
 -- | Modify event durations by applying a function to them.  0 durations
 -- are passed through, so you can't accidentally give control events duration.
 cmd_modify_dur :: (Monad m) => (TrackPos -> TrackPos) -> Cmd.CmdT m ()
-cmd_modify_dur f = modify_events $ \_ _ (pos, evt) ->
-    (pos, evt { Event.event_duration = apply (Event.event_duration evt) })
+cmd_modify_dur f = modify_events $ \_ _ pos evt ->
+    evt { Event.event_duration = apply (Event.event_duration evt) }
     where apply dur = if dur == TrackPos 0 then dur else f dur
 
 -- | Modify previous event if the selection is a point, and all events under
--- the selection if it's a range.
+-- the selection if it's a range.  For efficiency, this can't move the events.
 modify_events :: (Monad m) =>
-    (TrackPos -> TrackPos -> Track.PosEvent -> Track.PosEvent) -> Cmd.CmdT m ()
+    (TrackPos -> TrackPos -> TrackPos -> Event.Event -> Event.Event)
+    -> Cmd.CmdT m ()
 modify_events f = do
     (start, end, track_events) <- Selection.events True
     forM_ track_events $ \(track_id, pos_events) -> do
-        let pos_events2 = map (f start end) pos_events
-        if start == end then State.remove_event track_id start
-            else State.remove_events track_id start end
-        State.insert_events track_id pos_events2
+        let insert = [(pos, f start end pos evt) | (pos, evt) <- pos_events]
+        State.remove_events track_id start end
+        State.insert_sorted_events track_id insert
 
 -- | If the insertion selection is a point, clear any event under it.  If it's
 -- a range, clear all events within its half-open extent.
