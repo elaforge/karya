@@ -3,22 +3,27 @@
 # all hs depends on tools/hspp though none state that
 # it should be able to get rid of GHC_LIB or find it out automatically
 
-DEBUG := -ggdb
-PORTMIDI := /usr/local/src/portmedia/portmidi/trunk
-# MIDI_LIBS := $(PORTMIDI)/pm_mac/libportmidi.a \
-# 	$(PORTMIDI)/porttime/libporttime.a \
-# 	-framework CoreFoundation -framework CoreMIDI -framework CoreAudio
+### c++ flags
+
+CXX_DEBUG := -ggdb
+CXX_OPT := -O2
 MIDI_LIBS := -framework CoreFoundation -framework CoreMIDI -framework CoreAudio
+PORTMIDI := /usr/local/src/portmedia/portmidi/trunk
 CINCLUDE := -Ifltk -I$(PORTMIDI)/pm_common -I$(PORTMIDI)/porttime -I.
-CXXFLAGS := `fltk-config --cxxflags` $(DEBUG) $(CINCLUDE) -Wall
 LDFLAGS := `fltk-config --ldflags` $(DEBUG)
+
+CXXFLAGS := `fltk-config --cxxflags` $(CXX_DEBUG) $(CINCLUDE) -Wall
+# CXXFLAGS := `fltk-config --cxxflags` $(CXX_OPT) $(CINCLUDE) -Wall
+
+
+### ghc flags
+
+HDEBUG := -debug
+HOPT = -O2
 
 # ghc doesn't like -ggdb, yay!
 # I use /usr/local/lib because that's where readline is installed.
 HLDFLAGS := `fltk-config --ldflags` -L/usr/local/lib
-# Directory for built binaries.
-BUILD := build
-BUNDLE = tools/make_bundle $@
 
 GHC := ghc-6.10.4
 # This is unfortunately needed by hsc2hs, which seems kinda broken.
@@ -30,7 +35,17 @@ BASIC_HFLAGS := -W $(CINCLUDE) -i../lib -pgmc g++ -pgml g++ \
 	-F -pgmF tools/hspp
 
 # These flags don't coexist with profiling.
-HFLAGS := $(BASIC_HFLAGS) -threaded -debug
+HFLAGS := $(BASIC_HFLAGS) -threaded $(HDEBUG)
+# HFLAGS := $(BASIC_HFLAGS) -threaded $(HOPT)
+
+
+### misc variables
+
+# Directory for built binaries.
+BUILD := build
+BUNDLE = tools/make_bundle $@
+
+### objects and binaries
 
 FLTK_OBJS := Block.o TrackTile.o Track.o Ruler.o EventTrack.o MoveTile.o \
 	Event.o P9Scrollbar.o SimpleScroll.o SeqInput.o MsgCollector.o \
@@ -43,6 +58,9 @@ BINARIES := $(addprefix $(BUILD)/, seq send repl browser make_db dump logview \
 TEST_BINARIES := $(addprefix $(BUILD)/, test_block test_logview test_browser \
 		test_core_midi) \
 	test_obj/RunTests
+
+
+### targets
 
 # If -j is given, this runs the ghcs in parallel, which results in endless
 # recompilation as the ghcs walk on each other.  So explicitly disable

@@ -1,37 +1,22 @@
-- remove Util.Log -> Perform.Warning import, translate IDs into strings?
-
-- mute (i.e. change brightness) makes text get drawn twice
-
-- love for browser
-
-- when I delete a block, do all the tracks get finalized?  I should keep track
-of finalization and look for leaks.
-
-- hint refuses to compile when Cmd.NoteEntry emits a warning
-
-cleanup:
-  - setting some state like project directly through State won't update
-  global status.  Maybe I could fix this and also avoid the scattered syncs
-  by doing a special state diff after cmds
+- I should be able to have project specific inst aliases, e.g. calung ->
+fm8/bass
+- program to launch loview and seq together
 
 CURRENT
+  - fix that selection drag draw problem
+  - unify c++ idea of a selection with haskell idea so c++ can show where the
+    "active end" is
+
   - cut + paste didn't work with a point paste
-  - bring selection delete back
-  - schema cmds can return errors
+  - bring "selection delete" back
 
   - skel_display status can be two chars: Sm is solo+mute
-  + insert new track skeleton splice
-  + merged tracks
-    - adjacent collpsed tracks are merged
-  - verify selected_tracks and selected_events
+  + insert new track could splice it into the skeleton in the place of the
+    current track.  But you don't always want that.  Two insert track cmds?
 
   track management:
     - resize a bunch of tracks at once
-    - plain (non-merging) collapse
-
-  - TODO / haddock sweep
-  - sample reyong
-  - transcribe kebyar duduk
+    - collapse tracks down to minimum width?
 
   - editing for "pattern list" block
   - double click call to jump to its block?
@@ -57,23 +42,12 @@ MILESTONES
   Pitch = freq easily mapped to and from nn, same as NoteNumber,
   NoteNumber = Midi.Key + decimal
 
-- support for Schema.default_scale, esp since it gets automatically added
-
-bug haskell-cafe:
-  - buggy ghci debugger
-  - haddock problems
-  + hint trouble
-
 ----
 
 - optimization: if a msg aborts or doesn't run any cmds, don't bother to run
 diff.  except that hardly ever happens if I do shortcut thru
 
 - per-project short aliases for inst names so you can fit them in tracks easily
-
-- cmds return (status, record_undo).  Also can Cmds include a name so it can be
-logged or attached to an exception?  I guess the keymap thing is probably
-enough.
 
 display signal:
   cmd makes a change to a controller track
@@ -102,24 +76,56 @@ bugs:
   * rederive should be triggered by: track title change, skel change, track
     flags change
   - tracks with different tempos play correctly, but playback follows tempo
-  - unparsed notes are played instead of dropped
+  - unparsed notes are played instead of dropped, it's because the pitch is
+    dropped but not the note
   - bizarre hint importing requirements in Cmd.LanguageEnviron
-  track down ghc rts crashes
-    - debug statements in callback
+  + track down ghc rts crashes
+    - write a script that continually starts up to see if I can trigger it
+
+  - add track should add skip collapsed tracks
+  - then state got confused, thought track was expanded when it was collapsed
+    This thing with internal state getting out of sync with real state is
+    troubling.  A problem with the state/sync design is that every bit of
+    separate state the UI has is an opportunity to get out of sync.
+
+  - fltk: mute (i.e. change brightness) makes text get drawn twice
+  - hint refuses to compile when Cmd.NoteEntry emits a warning
+
+cleanup:
+  - setting some state like project directly through State won't update
+    global status.  Maybe I could fix this and also avoid the scattered syncs
+    by doing a special state diff after cmds
+    sync: state_project, state_project_scale
+  - when I delete a block, do all the tracks get finalized?  I should keep
+    track of finalization and look for leaks.
+  - Makefile: ghc --make doesn't understand the hsc -> hs link, which leads to
+    manual inclusion of $(UI_HS) in the deps
+  - remove Util.Log -> Perform.Warning import by translating IDs into strings?
+    On the other hand, it's not unreasonable for logs to use other data types
 
 performance:
+  speed and memory tests, with and without -O2:
+    - cmd respond
+    - derivation
   random little hangs are annoying.  figure out what's going on.  GC?
     - timer can summarize one responder loop cycle?
     - get diff results is really slow
+    from yi bug:
+      * GHC triggers a major GC everytime Yi becomes active whenever user
+      resumes typing
+      * Major GC takes increasingly long time as number of object grows (as
+      expected)
+      So, we have to iron out all memory leaks.
+
   * pause before playing.  printing logs make playing too strict?
   - send style id to c++ instead of all the style elements
-  - in c++, cache marks and events from callback
-  - cache track cmds for each track, update when the track title or skeleton
-  changes
-  - compile wth -O2
-  - deriver caching, see doc/derive_cache
   - strictify some basic datatypes with ! and {-# UNPACK #-}: Ui.Event
   - collapsing a track shouldn't trigger a rederive
+  caching:
+    - in c++, cache marks and events from callback
+    - cache track cmds for each track, update when the track title or skeleton
+      changes
+    - deriver caching, see doc/derive_cache
 
 fltk:
   - draw arrows in SkeletonDisplay.cc properly
@@ -179,7 +185,8 @@ Ui:
     - track collapse
     * track mute
       - visual indication when both solo and mute is on
-    - track merge
+    * track merge
+    - adjacent collpsed tracks are merged
 
 skeleton:
   + splice track: adding a new track automatically links into the skeleton
@@ -197,6 +204,13 @@ Cmd:
   - Cmd_test
   - the cmds that return anything other than Done are rare, have a special case
     for them and make most cmds return ()
+  vi style keymap:
+    - movement: hjkl, HJKL to move timestep+1 or skip to
+      next inst track, bf to move timestep at block section rank, BF to move to
+      top and bottom of block
+    - esc and i for edit mode
+    - number prefixed cmds?  not for now
+  - selection scrolling should scroll so the next 2 timesteps are visible
   Keymap
     * check for key assignment collisions
     * support generic modifiers like any Shift, any Control, and Command
@@ -374,7 +388,9 @@ misc ideas:
   - chord input... think about some kind of compact representation
   - if derivation needs event IDs, maybe I can use the value-supply package
   - safecopy package does version controlled serialization
-  - check out loch package instead of hspp
+
+  - think about yi's approach to keybindings as a parser and keybinding state
+  - also investigate yi's approach to configuration
 
 research:
   - loading fonts in fltk, and drawing new fonts

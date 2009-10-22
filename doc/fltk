@@ -47,3 +47,4 @@ Fl_Scrollbar overrides value() to take extra args.
     Other minor signature changes:
 
 Fl_Scrollbar::value should be const (its "superclass" method is).
+Fl_Text_Buffer::character(int pos) should be const
