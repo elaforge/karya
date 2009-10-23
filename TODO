@@ -1,9 +1,8 @@
 - I should be able to have project specific inst aliases, e.g. calung ->
 fm8/bass
-- program to launch loview and seq together
+- program to launch logview and seq together
 
 CURRENT
-  - fix that selection drag draw problem
   - unify c++ idea of a selection with haskell idea so c++ can show where the
     "active end" is
 
@@ -60,6 +59,8 @@ display signal:
 
 ****
 - switch to darcs hashed repo format
+  darcs optimize --upgrade
+  darcs optimize --pristine
 
 note input / thru:
   * fractional InputKey and GenericNote
@@ -131,7 +132,7 @@ fltk:
   - draw arrows in SkeletonDisplay.cc properly
   - convert Selection to use the same format as hs, so it can show the cursor
     end specially
-  - bug: selection redraw leaves gaps when dragging downwards
+  * bug: selection redraw leaves gaps when dragging downwards
   * bug: in test_block, resizing tracks, leftmost track title is confused
   - figure out how to have a minimal title bar in os x (win.border(0) removes
     it altogether)
@@ -202,8 +203,6 @@ integrator / midi record:
 Cmd:
   - cmd to give a view focus and bring it to the front
   - Cmd_test
-  - the cmds that return anything other than Done are rare, have a special case
-    for them and make most cmds return ()
   vi style keymap:
     - movement: hjkl, HJKL to move timestep+1 or skip to
       next inst track, bf to move timestep at block section rank, BF to move to

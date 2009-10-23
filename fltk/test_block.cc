@@ -64,7 +64,8 @@ void m44_set()
     Color major = Color(116, 70, 0, 90);
     Color minor = Color(225, 100, 50, 90);
 
-    for (int i = 0; i < 200; i++) {
+    const int nmarks = 200;
+    for (int i = 0; i < nmarks; i++) {
         TrackPos t = TrackPos(i*8);
         if (i % 4 == 0) {
             sprintf(name, "%d", i / 4);
@@ -76,7 +77,7 @@ void m44_set()
             mlist.push_back(std::make_pair(t, m));
         }
     }
-    m44_last_pos = TrackPos(199 * 8);
+    m44_last_pos = TrackPos((nmarks-1) * 8);
 }
 
 int
@@ -342,7 +343,7 @@ main(int argc, char **argv)
     view.block.set_zoom(ZoomInfo(TrackPos(0), 2));
 
     view.block.set_selection(0, Selection(selection_colors[0],
-                1, TrackPos(32), 1, TrackPos(32)));
+                0, TrackPos(32), 2, TrackPos(64)));
     /*
     view.block.set_selection(0, Selection(selection_colors[0],
                 1, TrackPos(60), 4, TrackPos(46)));

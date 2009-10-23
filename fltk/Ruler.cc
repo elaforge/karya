@@ -111,12 +111,12 @@ static void dummy_scroll_draw(void *, int, int, int, int) {}
 void
 OverlayRuler::draw()
 {
-    Rect draw_area = clip_rect(rect(this));
-    // Tiles make a 1 pixel border.
+    Rect draw_area = rect(this);
+    // Don't step on 1 pixel border of tiled edges.
     draw_area.y++;
     draw_area.h -= 2;
-    draw_area.w--;
     draw_area.x++;
+    draw_area.w--;
 
     // TODO this only happens with RulerTrackView right?  can I move it there?
     if (damage() == FL_DAMAGE_SCROLL) {
