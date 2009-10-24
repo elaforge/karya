@@ -110,8 +110,14 @@ static void dummy_scroll_draw(void *, int, int, int, int) {}
 void
 EventTrackView::draw()
 {
-    Rect draw_rect = clip_rect(rect(this));
-    draw_rect.h--; // tiles make a 1 pixel lower border
+    Rect draw_area = rect(this);
+    // draw_rect.h--; // tiles make a 1 pixel lower border
+    // Don't step on 1 pixel border of tiled edges.
+    draw_area.y++;
+    draw_area.h -= 2;
+    draw_area.x++;
+    draw_area.w--;
+
     // DEBUG("track damage " << show_damage(damage()));
     if (this->damage() & FL_DAMAGE_SCROLL) {
         int scroll = zoom.to_pixels(zoom.offset) - zoom.to_pixels(last_offset);
@@ -122,10 +128,10 @@ EventTrackView::draw()
         //         << " last pix: " << zoom.to_pixels(last_offset));
         TrackPos shift_pos = std::max(
                 zoom.offset - last_offset, last_offset - zoom.offset);
-        fl_scroll(draw_rect.x, draw_rect.y, draw_rect.w, draw_rect.h,
+        fl_scroll(draw_area.x, draw_area.y, draw_area.w, draw_area.h,
                 0, -scroll, dummy_scroll_draw, NULL);
         if (scroll > 0) { // Contents moved up, bottom is damaged.
-            TrackPos bottom = zoom.offset + zoom.to_trackpos(draw_rect.h);
+            TrackPos bottom = zoom.offset + zoom.to_trackpos(draw_area.h);
             this->overlay_ruler.damage_range(bottom - shift_pos, bottom);
         } else if (scroll < 0) { // Contents moved down, top is damaged.
             this->overlay_ruler.damage_range(
@@ -138,10 +144,10 @@ EventTrackView::draw()
     if (damage() == FL_DAMAGE_CHILD || damage() == FL_DAMAGE_SCROLL
             || damage() == (FL_DAMAGE_CHILD | FL_DAMAGE_SCROLL))
     {
-        // DEBUG("track intersect: " << draw_rect.y << "--"
-        //     << overlay_ruler.draw_rect.b() << " with "
+        // DEBUG("track intersect: " << draw_area.y << "--"
+        //     << overlay_ruler.draw_area.b() << " with "
         //     << damaged_area.y << "--" << overlay_ruler.damaged_area.b());
-        draw_rect = draw_rect.intersect(this->overlay_ruler.damaged_area);
+        draw_area = draw_area.intersect(this->overlay_ruler.damaged_area);
     } else {
         // DEBUG("draw all");
     }
@@ -150,7 +156,7 @@ EventTrackView::draw()
     // When overlay_ruler.draw() is called it will redundantly clip again on
     // damage_range, but that's ok because it needs the clip when called from
     // RulerTrackView::draw().
-    ClipArea clip_area(draw_rect);
+    ClipArea clip_area(draw_area);
     this->draw_area();
     this->last_offset = this->zoom.offset;
 }

@@ -36,27 +36,24 @@ void
 OverlayRuler::set_selection(int selnum, int tracknum, const Selection &sel)
 {
     ASSERT(0 <= selnum && selnum < Config::max_selections);
-    // DEBUG("set selection " << selnum << ": " << sel);
+    // DEBUG("set selection " << sel.start_pos << "--" << sel.cur_pos);
     TrackSelection news(sel, tracknum);
     const TrackSelection &olds = this->selections[selnum];
 
     if (olds.empty() && !news.empty()) {
-        // DEBUG("add new " << news.start << "--" << news.end);
-        damage_range(news.start, news.end);
+        damage_range(news.low(), news.high());
     } else if (!olds.empty() && news.empty()) {
-        // DEBUG("clear old " << olds.start << "--" << olds.end);
-        damage_range(olds.start, olds.end);
+        damage_range(olds.low(), olds.high());
     } else if (!olds.empty() && !news.empty()) {
-        if (olds.end <= news.start || news.end <= olds.start) {
+        if (olds.high() <= news.low() || news.high() <= olds.low()) {
             // Not overlapping
-            // DEBUG("not overlapping");
-            damage_range(olds.start, olds.end);
-            damage_range(news.start, news.end);
+            damage_range(olds.low(), olds.high());
+            damage_range(news.low(), news.high());
         } else {
-            TrackPos start0 = std::min(olds.start, news.start);
-            TrackPos end0 = std::max(olds.start, news.start);
-            TrackPos start1 = std::min(olds.end, news.end);
-            TrackPos end1 = std::max(olds.end, news.end);
+            TrackPos start0 = std::min(olds.low(), news.low());
+            TrackPos end0 = std::max(olds.low(), news.low());
+            TrackPos start1 = std::min(olds.high(), news.high());
+            TrackPos end1 = std::max(olds.high(), news.high());
             if (end0 > start0)
                 damage_range(start0, end0);
             if (end1 > start1)
@@ -135,6 +132,9 @@ OverlayRuler::draw()
             draw_area.h = -scroll;
         }
     } else if (damage() == OverlayRuler::DAMAGE_RANGE) {
+        // If this is over an EventTrackView, its draw() will have already
+        // done this, since it uses my damaged_area to keep track of its own
+        // scroll damage.  It doesn't hurt to do it again though.
         // DEBUG("INTERSECT: " << SHOW_RANGE(draw_area) << " with "
         //     << SHOW_RANGE(damaged_area) << " = "
         //     << SHOW_RANGE(draw_area.intersect(this->damaged_area)));
@@ -287,20 +287,29 @@ OverlayRuler::draw_selections()
         const TrackSelection &sel = this->selections[i];
         if (sel.empty())
             continue;
-        int start = y() + this->zoom.to_pixels(sel.start - this->zoom.offset);
+        int start = y() + this->zoom.to_pixels(sel.low() - this->zoom.offset);
         int height = std::max(selection_min_size,
-                this->zoom.to_pixels(sel.end - sel.start));
-        sel_rect = clip_rect(Rect(x(), start, w(), height));
-        // DEBUG("SEL rectf " << sel_rect.y << "--" << sel_rect.b());
+                this->zoom.to_pixels(sel.high() - sel.low()));
+        // Rect intersection is half-open ranges, but rect drawing is inclusive
+        // pixel ranges.  So add one to ensure that if I share a pixel border
+        // with the clip rect, I'll still draw that pixel line.
+        sel_rect = clip_rect(Rect(x(), start, w() + 1, height + 1));
+
+        // Rect clipr = clip_rect(Rect(0, 0, 10000, 10000));
+        // DEBUG("SEL rectf from " << start << "--" << start+height
+        //     << " to " << sel_rect.y << "--" << sel_rect.b()
+        //     << " cl " << clipr.y << "--" << clipr.b());
         alpha_rectf(sel_rect, sel.color);
-        if (sel.start == sel.end) {
-            // Darken the select color a bit, and make it non-transparent.
-            fl_color(color_to_fl(sel.color.brightness(0.5)));
-            fl_line_style(FL_SOLID, 1);
-            fl_line(x() + 2, start, x() + w() - 2, start);
+
+        // Darken the the cur pos a bit, and make it non-transparent.
+        fl_color(color_to_fl(sel.color.brightness(0.5)));
+        fl_line_style(FL_SOLID, 1);
+        int cur = y() + this->zoom.to_pixels(sel.cur - this->zoom.offset);
+        fl_line(x() + 2, cur, x() + w() - 2, cur);
+        if (sel.is_point() && sel.is_cur_track) {
             // Draw a little bevel thingy.
             const int sz = selection_point_size;
-            fl_polygon(x(), start - sz, x() + 4, start, x(), start + sz);
+            fl_polygon(x(), cur - sz, x() + 4, cur, x(), cur + sz);
         }
     }
 }

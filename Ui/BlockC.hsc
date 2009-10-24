@@ -182,10 +182,10 @@ set_track_selection :: ViewId -> Types.SelNum -> TrackNum
 set_track_selection view_id selnum tracknum maybe_sel = do
     viewp <- get_ptr view_id
     maybeWith with maybe_sel $ \selp ->
-        c_set_multi_selection viewp (Util.c_int selnum)
+        c_set_track_selection viewp (Util.c_int selnum)
             (Util.c_int tracknum) selp
 foreign import ccall "set_track_selection"
-    c_set_multi_selection :: Ptr CView -> CInt -> CInt -> Ptr CSelection
+    c_set_track_selection :: Ptr CView -> CInt -> CInt -> Ptr CSelection
         -> IO ()
 
 -- | Max number of selections, hardcoded in ui/config.h.
@@ -444,15 +444,9 @@ instance Storable CSelection where
     poke = poke_selection
 
 poke_selection selp (CSelection color
-        (Types.Selection track0 pos0 track1 pos1)) = do
-    -- TODO convert c++ selections to hs style
-    let start_pos = min pos0 pos1
-        dur = max pos0 pos1 - min pos0 pos1
-        start_track = min track0 track1
-        -- Tracks are an inclusive range.
-        tracks = max track0 track1 - min track0 track1 + 1
+        (Types.Selection start_track start_pos cur_track cur_pos)) = do
     (#poke Selection, color) selp color
     (#poke Selection, start_track) selp (Util.c_int start_track)
     (#poke Selection, start_pos) selp start_pos
-    (#poke Selection, tracks) selp (Util.c_int tracks)
-    (#poke Selection, duration) selp dur
+    (#poke Selection, cur_track) selp (Util.c_int cur_track)
+    (#poke Selection, cur_pos) selp cur_pos

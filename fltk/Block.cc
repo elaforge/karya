@@ -337,8 +337,9 @@ BlockView::set_selection(int selnum, const Selection &sel)
     // This is a bit tricky because the tile tracks have a -1 view of tracknum.
     // track_at(0) is the ruler track.
     track_at(0)->set_selection(selnum, 0, sel);
-    Selection track_sel = sel;
+    Selection track_sel(sel);
     track_sel.start_track--;
+    track_sel.cur_track--;
     for (int i = 1; i < tracks(); i++)
         track_at(i)->set_selection(selnum, i-1, track_sel);
     // Since the selection counts toward time_end.
@@ -350,12 +351,15 @@ void
 BlockView::set_track_selection(int selnum, int tracknum, const Selection &sel)
 {
     ASSERT(0 <= selnum && selnum < Config::max_selections);
+    // It's sort of hacky to reuse Selection (instead of say TrackSelection)
+    // since I then totally ignore the tracknum, but fewer types means less
+    // marshalling code.
     Selection track_sel = sel;
-    track_sel.start_track = tracknum;
     if (tracknum == 0) {
+        track_sel.start_track = track_sel.cur_track = tracknum;
         track_at(0)->set_selection(selnum, 0, track_sel);
     } else {
-        track_sel.start_track--;
+        track_sel.start_track = track_sel.cur_track = tracknum - 1;
         track_at(tracknum)->set_selection(selnum, tracknum-1, track_sel);
     }
 }

@@ -17,8 +17,7 @@ class TrackPos {
 public:
     TrackPos() : _val(0) {}
     explicit TrackPos(double val) : _val(val) {}
-    // Used by EventTrack::create_widget for "everything"
-    // static TrackPos max_pos;
+    static const TrackPos invalid;
 
     // Scale by a given factor, for zooming.
     double scale(double factor) const { return _val * factor; }
@@ -41,57 +40,59 @@ private:
 
 std::ostream &operator<<(std::ostream &os, const TrackPos &pos);
 
-
-// "No selection" is if 'tracks' is 0.
 struct Selection {
-    Selection() : start_track(0), tracks(0) {}
-    Selection(Color color) : color(color), start_track(0), tracks(0) {}
-    Selection(Color color, int start_track, TrackPos start_pos, int tracks,
-            TrackPos duration) :
+    Selection() : start_track(-1), cur_track(-1) {}
+    Selection(Color color, int start_track, TrackPos start_pos, int cur_track,
+            TrackPos cur_pos) :
         color(color), start_track(start_track), start_pos(start_pos),
-        tracks(tracks), duration(duration)
+        cur_track(cur_track), cur_pos(cur_pos)
     {}
 
     bool operator==(const Selection &o) const {
         return color == o.color && start_track == o.start_track
-            && start_pos == o.start_pos && tracks == o.tracks
-            && duration == o.duration;
+            && start_pos == o.start_pos && cur_track == o.cur_track
+            && cur_pos == o.cur_pos;
     }
     bool operator!=(const Selection &o) const { return !(*this == o); }
-    // bool no_selection() const { return tracks == 0; }
+
+    // Both being -1 ensures that checking 'low <= track <= high' will be false
+    // for an empty selection.
+    bool empty() const { return cur_track == -1 && start_track == -1; }
+    int low_track() const { return std::min(start_track, cur_track); }
+    int high_track() const { return std::max(start_track, cur_track); }
 
     Color color;
     int start_track;
     TrackPos start_pos;
-    int tracks;
-    TrackPos duration;
+    int cur_track;
+    TrackPos cur_pos;
 };
 
 std::ostream &operator<<(std::ostream &os, const Selection &sel);
 
 struct TrackSelection {
-    TrackSelection() : start(TrackPos(0)), end(TrackPos(-1)) {}
+    TrackSelection() : cur(TrackPos::invalid) {}
     TrackSelection(const Selection &sel, int tracknum) {
-        if (sel.start_track <= tracknum
-                && tracknum < sel.start_track + sel.tracks)
+        if (sel.low_track() <= tracknum && tracknum <= sel.high_track())
         {
             color = sel.color;
             start = sel.start_pos;
-            end = sel.start_pos + sel.duration;
+            cur = sel.cur_pos;
+            is_cur_track = tracknum == sel.cur_track;
         } else {
-            start = TrackPos(0);
-            end = TrackPos(-1);
+            start = cur = TrackPos::invalid;
         }
     }
-    bool empty() const { return end < start; }
-    /*
-    bool operator==(const Selection &o) const {
-        return color == o.color && start == o.start && duration == o.duration;
+    bool empty() const {
+        return cur == TrackPos::invalid;
     }
-    bool operator!=(const Selection &o) const { !(*this == o); }
-    */
+    TrackPos low() const { return std::min(start, cur); }
+    TrackPos high() const { return std::max(start, cur); }
+    bool is_point() const { return start == cur; }
     Color color;
-    TrackPos start, end;
+    TrackPos start, cur;
+    // True if this track is the the start or cur track of the selection.
+    bool is_cur_track;
 };
 
 // You divide by factor to go from TrackPos -> pixels, so it can't be 0.
