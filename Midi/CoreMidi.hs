@@ -37,9 +37,10 @@ type WriteMap = Map.Map Midi.WriteDevice WriteDeviceId
 initialize :: (ReadChan -> IO a) -> IO a
 initialize app = do
     chan <- STM.newTChanIO
-    cb <- make_read_callback (chan_callback chan)
-    check_ =<< c_initialize cb
-    app chan `Exception.finally` terminate
+    Exception.bracket (make_read_callback (chan_callback chan))
+        freeHaskellFunPtr $ \cb -> do
+            check_ =<< c_initialize cb
+            app chan `Exception.finally` terminate
 
 foreign import ccall "core_midi_terminate" terminate :: IO ()
 foreign import ccall "core_midi_initialize"
