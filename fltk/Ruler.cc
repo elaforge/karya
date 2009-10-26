@@ -14,7 +14,7 @@
 // drawn on a 0 size selection.
 const static int selection_point_size = 4;
 // Selections are always at least this many pixels.
-const static int selection_min_size = 3;
+const static int selection_min_size = 2;
 
 // Hack for debugging.
 #define SHOW_RANGE(r) (r).y << "--" << (r).b()

@@ -44,8 +44,10 @@ public:
     {}
 
     virtual void resize(int X, int Y, int W, int H);
-    // remove isn't virtual, so use this to remove children.
+    // remove and insert aren't virtual, so use these to manage children.
     virtual void remove_child(Fl_Widget *w);
+    virtual void insert_child(Fl_Widget &w, int c);
+
     virtual int handle(int evt);
     void drag_tile(Point drag_from, Point drag_to);
 
@@ -57,7 +59,9 @@ public:
     */
 
     // Child won't resize, and its entire area is used for dragging.
-    void set_stiff_child(int child);
+    void set_stiff_child(int child) {
+        vector_put(stiff_children, child, true);
+    }
     bool stiff_child(int child);
 
     // Pass these constants as child to get the "special" boxes.

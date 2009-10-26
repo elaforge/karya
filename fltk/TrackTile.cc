@@ -143,10 +143,15 @@ TrackTile::insert_track(int tracknum, TrackView *track, int width)
     Fl_Widget &title = track->title_widget();
     title.size(width, this->title_height);
     int child_pos = tracknum*2;
-    this->insert(title, child_pos);
+    this->insert_child(title, child_pos);
+
+    SeqInput *inp = dynamic_cast<SeqInput *>(&title);
+    if (inp) {
+        printf("DEBUG: insert %d: %p title: %s\n", tracknum+1, track, inp->value());
+    }
 
     track->size(width, h() - this->title_height);
-    this->insert(*track, child_pos+1);
+    this->insert_child(*track, child_pos+1);
 
     if (!track->track_resizable()) {
         this->set_stiff_child(child_pos);

@@ -52,9 +52,16 @@ MoveTile::remove_child(Fl_Widget *w)
     int c = this->find(w);
     if (c != this->children()) {
         this->remove(w);
-        if (static_cast<size_t>(c) < stiff_children.size())
-            this->stiff_children.erase(stiff_children.begin() + c);
+        vector_erase(this->stiff_children, c);
     }
+}
+
+
+void
+MoveTile::insert_child(Fl_Widget &w, int c)
+{
+    this->insert(w, c);
+    this->stiff_children.insert(stiff_children.begin() + c, false);
 }
 
 
@@ -134,15 +141,6 @@ MoveTile::drag_tile(Point drag_from, Point drag_to)
     int dragged_child = this->find_dragged_child(drag_from, &drag_state);
     this->handle_drag_tile(drag_from, drag_to, dragged_child);
     this->init_sizes();
-}
-
-
-void
-MoveTile::set_stiff_child(int child)
-{
-    while (this->stiff_children.size() <= static_cast<size_t>(child))
-        this->stiff_children.push_back(false);
-    this->stiff_children[child] = true;
 }
 
 

@@ -61,13 +61,10 @@ void
 SkeletonDisplay::get_status(int tracknum, char *status, Color *color)
 {
     ASSERT(tracknum >= 0);
-    if (static_cast<size_t>(tracknum) < track_widths.size()) {
-        *status = status_color[tracknum].first;
-        *color = status_color[tracknum].second;
-    } else {
-        *status = ' ';
-        *color = Color(0, 0, 0);
-    }
+    std::pair<char, Color> v = vector_get(
+        status_color, tracknum, std::make_pair(' ', Color()));
+    *status = v.first;
+    *color = v.second;
 }
 
 

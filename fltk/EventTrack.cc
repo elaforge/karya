@@ -111,7 +111,6 @@ void
 EventTrackView::draw()
 {
     Rect draw_area = rect(this);
-    // draw_rect.h--; // tiles make a 1 pixel lower border
     // Don't step on 1 pixel border of tiled edges.
     draw_area.y++;
     draw_area.h -= 2;
@@ -251,6 +250,7 @@ EventTrackView::draw_area()
             free(events[i].text);
         free(events);
         free(event_pos);
+        free(ranks);
     }
 
     // Draw the selection on top.
