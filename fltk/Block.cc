@@ -379,6 +379,10 @@ BlockView::insert_track(int tracknum, const Tracklike &track, int width)
         t = new DividerView(*track.divider);
     }
     this->insert_track_view(tracknum, t, width);
+    if (static_cast<size_t>(tracknum) < this->collapsed_tracks.size()) {
+        collapsed_tracks.insert(
+            collapsed_tracks.begin() + tracknum, BlockView::TrackInfo());
+    }
 }
 
 
@@ -394,6 +398,7 @@ BlockView::remove_track(int tracknum, FinalizeCallback finalizer)
         TrackView *t = track_tile.remove_track(tracknum-1);
         t->finalize_callbacks(finalizer);
         delete t;
+        vector_erase(this->collapsed_tracks, tracknum);
         this->update_scrollbars();
     } else if (this->tracks() == 1) {
         if (this->ruler_track != this->no_ruler) {
@@ -432,7 +437,7 @@ BlockView::collapse_track(int tracknum, bool collapse)
         return; // can't collapse the ruler, sorry
 
     while (this->collapsed_tracks.size() <= static_cast<size_t>(tracknum))
-        collapsed_tracks.push_back(BlockView::TrackInfo(NULL, 0));
+        collapsed_tracks.push_back(BlockView::TrackInfo());
 
     if (bool(collapsed_tracks[tracknum].track) == collapse)
         return;

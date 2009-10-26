@@ -157,6 +157,8 @@ private:
     ZoomInfo zoom;
     // Save a collapsed track so it can be expanded later.
     struct TrackInfo {
+        // Uncollapsed tracks have empty TrackInfo.
+        TrackInfo() : track(NULL) {}
         TrackInfo(TrackView *track, int width) : track(track), width(width) {}
         DisplayTrack display;
         TrackView *track;
