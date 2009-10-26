@@ -1,11 +1,12 @@
 - I should be able to have project specific inst aliases, e.g. calung ->
-fm8/bass
+fm8/bass.  In fact there needs to be a general variable system, hopefully
+something a little better than plain textual substitution.
+
 - program to launch logview and seq together
 
 CURRENT
-  - unify c++ idea of a selection with haskell idea so c++ can show where the
-    "active end" is
-
+  - demo piece: show nested tempos with "bouncing ball", expressive pitch
+    track, non-trivial repl transformation (pitch tweak after big jump?)
   - cut + paste didn't work with a point paste
   - bring "selection delete" back
 
@@ -82,14 +83,13 @@ bugs:
   - bizarre hint importing requirements in Cmd.LanguageEnviron
   + track down ghc rts crashes
     - write a script that continually starts up to see if I can trigger it
+    add -DS flag
+    lots of "Warning: xyz still allocated at shutdown", are those foreign ptrs?
+    crash is when evacuating pinned memory, is it a foreign ptr?
 
-  - add track should add skip collapsed tracks
-  - then state got confused, thought track was expanded when it was collapsed
-    This thing with internal state getting out of sync with real state is
-    troubling.  A problem with the state/sync design is that every bit of
-    separate state the UI has is an opportunity to get out of sync.
-
+  * add track should add skip collapsed tracks
   - fltk: mute (i.e. change brightness) makes text get drawn twice
+  - fltk: moving a track title while it's expanded doesn't work
   - hint refuses to compile when Cmd.NoteEntry emits a warning
 
 cleanup:
@@ -130,7 +130,7 @@ performance:
 
 fltk:
   - draw arrows in SkeletonDisplay.cc properly
-  - convert Selection to use the same format as hs, so it can show the cursor
+  * convert Selection to use the same format as hs, so it can show the cursor
     end specially
   * bug: selection redraw leaves gaps when dragging downwards
   * bug: in test_block, resizing tracks, leftmost track title is confused

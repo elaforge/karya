@@ -77,17 +77,23 @@ shift_sel :: Block.Block -> TrackNum -> Types.Selection -> Types.Selection
 shift_sel block shift sel =
     Types.sel_modify_tracks (Num.clamp 0 max_track . (+shift2)) sel
     where
-    selectable = selectable_tracks block
-    tracknum = Types.sel_cur_track sel
-    new_tracknum = Seq.mhead tracknum id $ if shift >= 0
-        then drop shift $ dropWhile (< tracknum) selectable
-        else drop (-shift) $ dropWhile (> tracknum) (List.reverse selectable)
-    shift2 = new_tracknum - tracknum
+    new_tracknum = shift_tracknum block (Types.sel_cur_track sel) shift
+    shift2 = new_tracknum - Types.sel_cur_track sel
     max_track = length (Block.block_tracks block)
 
--- | Get the tracknums from a block that should be selectable.
+-- | Shift a tracknum to another track, skipping unselectable tracks.
+shift_tracknum :: Block.Block -> TrackNum -> Int -> TrackNum
+shift_tracknum block tracknum shift
+    | shift >= 0 = Seq.mhead tracknum id $
+        drop shift $ dropWhile (<tracknum) selectable
+    | otherwise = Seq.mhead tracknum id $
+        drop (-shift) $ dropWhile (>tracknum) (List.reverse selectable)
+    where selectable = selectable_tracks block
+
+-- | Get the tracknums from a block that should be selectable, including
+-- the tracknum one past the end.
 selectable_tracks :: Block.Block -> [TrackNum]
-selectable_tracks block = do
+selectable_tracks block = (++[length (Block.block_tracks block)]) $ do
     (i, track@(Block.BlockTrack { Block.tracklike_id = Block.TId _ _}))
         <- zip [0..] (Block.block_tracks block)
     guard (Block.Collapse `notElem` Block.track_flags track)

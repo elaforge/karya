@@ -196,7 +196,8 @@ insert_track_after_selection :: (Monad m) => Cmd.CmdT m TrackId
 insert_track_after_selection = do
     (_, tracknum, _) <- Selection.get_insert_any
     block_id <- Cmd.get_focused_block
-    track block_id (tracknum+1)
+    block <- State.get_block block_id
+    track block_id (Selection.shift_tracknum block tracknum 1)
 
 remove_selected_tracks :: (Monad m) => Cmd.CmdT m ()
 remove_selected_tracks = do
