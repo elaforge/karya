@@ -111,11 +111,6 @@ void
 EventTrackView::draw()
 {
     Rect draw_area = rect(this);
-    // Don't step on 1 pixel border of tiled edges.
-    draw_area.y++;
-    draw_area.h -= 2;
-    draw_area.x++;
-    draw_area.w--;
 
     // DEBUG("track damage " << show_damage(damage()));
     if (this->damage() & FL_DAMAGE_SCROLL) {
