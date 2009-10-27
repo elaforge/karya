@@ -20,6 +20,7 @@ test_events_at_before = do
 test_insert_events = do
     let f evts0 evts1 = extract $
             Track.insert_events (mkevents evts0) (track_events evts1)
+
     equal (f [(0, 1, "a0")] [(3, 1, "b0")])
         [(0, 1, "a0"), (3, 1, "b0")]
     equal (f [(0, 4, "a0"), (4, 4, "a1")] [(2, 4, "b0"), (6, 4, "b1")])
@@ -28,6 +29,10 @@ test_insert_events = do
     equal (f [(0, 4, "a0"), (2, 4, "a1")] []) [(0, 2, "a0"), (2, 4, "a1")]
     -- Negative durations are clipped to 0.
     equal (f [(0, -4, "a0")] []) [(0, 0, "a0")]
+
+    -- If the start is coincident, the existing events are replaced.
+    equal (f [(0, 1, "a"), (2, 1, "b")] [(0, 0, "1"), (2, 0, "2")])
+        [(0, 1, "a"), (2, 1, "b")]
 
     -- this is really a place for quickcheck
     equal (f [(1, 0, "1"), (1.25, 0, "1.25"), (2, 0, "2")]

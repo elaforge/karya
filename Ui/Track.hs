@@ -255,11 +255,14 @@ merge (TrackEvents evts1) (TrackEvents evts2)
     start = max (fst (Map.findMin evts1)) (fst (Map.findMin evts2))
     end = min (event_end (Map.findMax evts2)) (event_end (Map.findMax evts2))
     overlapping = Map.fromAscList $ clip_events $ Seq.merge_by cmp
-        (in_range_before start end evts1) (in_range_before start end evts2)
+        (in_range_before start end evts2) (in_range_before start end evts1)
     cmp a b = compare (fst a) (fst b)
 
+-- | Clip overlapping event durations.  If two event beginnings coincide, the
+-- last prevails.
 clip_events :: [PosEvent] -> [PosEvent]
 clip_events (pos_evt@(pos, evt) : rest@((next_pos, _) : _))
+    | pos == next_pos = clip_events rest
     | event_end pos_evt > next_pos =
         (pos, evt { Event.event_duration = (next_pos-pos) }) : clipped
     | otherwise = pos_evt : clipped
