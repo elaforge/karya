@@ -39,8 +39,9 @@ poke_track trackp (Track.Track _ _ bg render) = do
 poke_find_events :: Ptr Track.Track -> [Track.TrackEvents] -> IO ()
 poke_find_events trackp event_lists = do
     let time_end = maximum (0 : map Track.time_end event_lists)
-    (#poke EventTrackConfig, find_events) trackp
-        =<< make_find_events event_lists
+    find_events <- make_find_events event_lists
+    (#poke EventTrackConfig, find_events) trackp find_events
+        -- =<< make_find_events event_lists
     (#poke EventTrackConfig, time_end) trackp time_end
 
 with_track :: Track.Track -> [Track.TrackEvents] -> (Ptr Track.Track -> IO a)
@@ -61,10 +62,12 @@ insert_render_samples trackp samples = do
     (#poke RenderConfig, find_samples) renderp find_samples
 
 make_find_events :: [Track.TrackEvents] -> IO (FunPtr FindEvents)
-make_find_events events = c_make_find_events (cb_find_events events)
+make_find_events events = Util.make_fun_ptr "find_events" $
+    c_make_find_events (cb_find_events events)
 
 make_find_samples :: Track.Samples -> IO (FunPtr FindSamples)
-make_find_samples samples = c_make_find_samples (cb_find_samples samples)
+make_find_samples samples = Util.make_fun_ptr "find_samples" $
+    c_make_find_samples (cb_find_samples samples)
 
 instance Storable Track.RenderConfig where
     sizeOf _ = #size RenderConfig

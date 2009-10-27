@@ -287,10 +287,13 @@ foreign import ccall "update_track"
 type FunPtrFinalizer a = FunPtr a -> IO ()
 foreign import ccall "wrapper"
     c_make_free_fun_ptr :: FunPtrFinalizer a -> IO (FunPtr (FunPtrFinalizer a))
-make_free_fun_ptr = c_make_free_fun_ptr freeHaskellFunPtr
+
+make_free_fun_ptr :: IO (FunPtr (FunPtrFinalizer a))
+make_free_fun_ptr = Util.make_fun_ptr "free_fun_ptr" $
+    c_make_free_fun_ptr Util.free_fun_ptr
 
 with_finalizer :: (FunPtr (FunPtrFinalizer a) -> IO c) -> IO c
-with_finalizer = Exception.bracket make_free_fun_ptr freeHaskellFunPtr
+with_finalizer = Exception.bracket make_free_fun_ptr Util.free_fun_ptr
 
 -- | Convert a Tracklike into the set of pointers that c++ knows it as.
 -- A set of event lists can be merged into event tracks.

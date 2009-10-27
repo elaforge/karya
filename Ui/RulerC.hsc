@@ -45,7 +45,9 @@ cb_find_marks marklist startp endp ret_tps ret_marks = do
     -- putStrLn $ "find marks: " ++ show (length marks)
     return (length marks)
 
-make_find_marks marklist = c_make_find_marks (cb_find_marks marklist)
+make_find_marks :: Ruler.Marklist -> IO (FunPtr FindMarks)
+make_find_marks marklist = Util.make_fun_ptr "find_marks" $
+    c_make_find_marks (cb_find_marks marklist)
 
 foreign import ccall "wrapper"
     c_make_find_marks :: FindMarks -> IO (FunPtr FindMarks)
