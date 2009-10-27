@@ -75,7 +75,7 @@ scale(T min, T max, T v)
 
 
 #define DEBUG(X) do { std::cout << __FILE__ << ':' << __LINE__ << ' ' \
-    << X << '\n'; } while (0)
+    << X << '\n'; std::cout.flush(); } while (0)
 
 // vector //////////////////////////////
 
@@ -101,7 +101,7 @@ vector_put(std::vector<T> &a, int i, T v)
 }
 
 template <class T> inline T
-vector_get(std::vector<T> &a, int i, T def)
+vector_get(std::vector<T> &a, int i, T def = T())
 {
     if (static_cast<size_t>(i) >= a.size())
         return def;

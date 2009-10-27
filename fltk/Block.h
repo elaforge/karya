@@ -156,16 +156,17 @@ private:
     BlockViewConfig view_config;
     ZoomInfo zoom;
     // Save a collapsed track so it can be expanded later.
-    struct TrackInfo {
-        // Uncollapsed tracks have empty TrackInfo.
-        TrackInfo() : track(NULL) {}
-        TrackInfo(TrackView *track, int width) : track(track), width(width) {}
+    struct CollapsedTrack {
+        // Uncollapsed tracks have empty CollapsedTrack.
+        CollapsedTrack() : track(NULL) {}
+        CollapsedTrack(TrackView *track, int width) : track(track), width(width)
+        {}
         DisplayTrack display;
         TrackView *track;
         int width;
     };
     // Indexed by tracknum, with track==NULL if this tracknum isn't collapsed.
-    std::vector<TrackInfo> collapsed_tracks;
+    std::vector<CollapsedTrack> collapsed_tracks;
     // The ruler track gets this when there's "nothing" in it.
     TrackView *no_ruler;
 

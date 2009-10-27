@@ -195,13 +195,14 @@ run_update block_samples (Update.BlockUpdate block_id update) = do
             let tracklike_id = Block.dtrack_tracklike_id dtrack
             tracklike <- State.get_tracklike tracklike_id
             ustate <- State.get
-            return $
-                forM_ view_ids $ \view_id -> do
-                    BlockC.set_display_track view_id tracknum dtrack
-                    let merged = Block.dtrack_merged dtrack
-                    let samples = get_samples maybe_track_samples tracklike_id
-                    BlockC.update_entire_track view_id tracknum tracklike
-                        samples (events_of_track_ids ustate merged)
+            return $ forM_ view_ids $ \view_id -> do
+                BlockC.set_display_track view_id tracknum dtrack
+                let merged = Block.dtrack_merged dtrack
+                let samples = get_samples maybe_track_samples tracklike_id
+                -- This is unnecessary if I just collapsed the track, but
+                -- no big deal.
+                BlockC.update_entire_track view_id tracknum tracklike
+                    samples (events_of_track_ids ustate merged)
 
 run_update block_samples (Update.TrackUpdate track_id update) = do
     blocks <- State.blocks_with_track track_id

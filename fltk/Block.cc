@@ -381,7 +381,7 @@ BlockView::insert_track(int tracknum, const Tracklike &track, int width)
     this->insert_track_view(tracknum, t, width);
     if (static_cast<size_t>(tracknum) < this->collapsed_tracks.size()) {
         collapsed_tracks.insert(
-            collapsed_tracks.begin() + tracknum, BlockView::TrackInfo());
+            collapsed_tracks.begin() + tracknum, BlockView::CollapsedTrack());
     }
 }
 
@@ -398,7 +398,15 @@ BlockView::remove_track(int tracknum, FinalizeCallback finalizer)
         TrackView *t = track_tile.remove_track(tracknum-1);
         t->finalize_callbacks(finalizer);
         delete t;
+
+        // Make sure to finalize a track hiding in collapsed.
+        TrackView *collapsed = vector_get(collapsed_tracks, tracknum).track;
+        if (collapsed) {
+            collapsed->finalize_callbacks(finalizer);
+            delete collapsed;
+        }
         vector_erase(this->collapsed_tracks, tracknum);
+
         this->update_scrollbars();
     } else if (this->tracks() == 1) {
         if (this->ruler_track != this->no_ruler) {
@@ -437,7 +445,7 @@ BlockView::collapse_track(int tracknum, bool collapse)
         return; // can't collapse the ruler, sorry
 
     while (this->collapsed_tracks.size() <= static_cast<size_t>(tracknum))
-        collapsed_tracks.push_back(BlockView::TrackInfo());
+        collapsed_tracks.push_back(BlockView::CollapsedTrack());
 
     if (bool(collapsed_tracks[tracknum].track) == collapse)
         return;
@@ -457,18 +465,18 @@ BlockView::collapse_track(int tracknum, bool collapse)
         else
             skel_display.set_status(tracknum-1, '\0', Color());
 
-        collapsed_tracks[tracknum] = BlockView::TrackInfo(t, width);
+        collapsed_tracks[tracknum] = BlockView::CollapsedTrack(t, width);
         collapsed_tracks[tracknum].display = display;
     } else {
-        BlockView::TrackInfo info = collapsed_tracks[tracknum];
+        BlockView::CollapsedTrack collapsed = collapsed_tracks[tracknum];
         TrackView *t = track_tile.remove_track(tracknum-1);
         delete t;
-        this->insert_track_view(tracknum, info.track, info.width);
+        this->insert_track_view(tracknum, collapsed.track, collapsed.width);
 
-        this->skel_display.set_width(tracknum-1, info.width);
+        this->skel_display.set_width(tracknum-1, collapsed.width);
         this->skel_display.set_status(tracknum-1,
-                info.display.status, info.display.status_color);
-        collapsed_tracks[tracknum] = BlockView::TrackInfo(NULL, 0);
+                collapsed.display.status, collapsed.display.status_color);
+        collapsed_tracks[tracknum] = BlockView::CollapsedTrack(NULL, 0);
     }
     this->update_scrollbars();
 }
@@ -519,6 +527,9 @@ BlockView::update_track(int tracknum, const Tracklike &track,
         FinalizeCallback finalizer, TrackPos start, TrackPos end)
 {
     this->track_at(tracknum)->update(track, finalizer, start, end);
+    TrackView *collapsed = vector_get(collapsed_tracks, tracknum).track;
+    if (collapsed)
+        collapsed->update(track, finalizer, start, end);
     this->update_scrollbars();
 }
 
