@@ -51,12 +51,12 @@ eval ustate cstate cmd = case run ustate cstate cmd of
 
 -- | Run several cmds, threading the state through.
 thread :: State.State -> Cmd.State -> [Cmd.CmdT Identity.Identity a]
-    -> Either String (State.State, Cmd.State, [[String]])
-thread ustate cstate cmds = foldl f (Right (ustate, cstate, [])) cmds
+    -> Either String (State.State, Cmd.State)
+thread ustate cstate cmds = foldl f (Right (ustate, cstate)) cmds
     where
-    f (Right (ustate, cstate, logs)) cmd = case run ustate cstate cmd of
-        Right (_val, ustate2, cstate2, logs2) ->
-            Right (ustate2, cstate2, logs ++ [map Log.msg_string logs2])
+    f (Right (ustate, cstate)) cmd = case run ustate cstate cmd of
+        Right (_val, ustate2, cstate2, logs) ->
+            Log.trace_logs logs $ Right (ustate2, cstate2)
         Left err -> Left (show err)
     f (Left err) _ = Left err
 
@@ -74,11 +74,11 @@ with_sel sel cmd = do
 
 -- | Run cmd with the given tracks, and return the resulting tracks.
 run_tracks :: [UiTest.TrackSpec] -> Cmd.CmdT Identity.Identity a
-    -> Either String (Maybe a, [(String, [Simple.Event])], [String])
+    -> Either String (Maybe a, [(String, [Simple.Event])], [Log.Msg])
 run_tracks track_specs cmd =
     case run ustate cmd_state cmd of
         Right (val, ustate2, _cstate2, logs) ->
-            Right (val, UiTest.extract_tracks ustate2, map Log.msg_string logs)
+            Right (val, UiTest.extract_tracks ustate2, logs)
         Left err -> Left (show err)
     where (_, ustate) = UiTest.run_mkview track_specs
 

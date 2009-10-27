@@ -184,7 +184,7 @@ move_events start shift events = merged
 -- | Modify event durations by applying a function to them.  0 durations
 -- are passed through, so you can't accidentally give control events duration.
 cmd_modify_dur :: (Monad m) => (TrackPos -> TrackPos) -> Cmd.CmdT m ()
-cmd_modify_dur f = modify_events $ \_ _ pos evt ->
+cmd_modify_dur f = modify_events $ \_ _ _ evt ->
     evt { Event.event_duration = apply (Event.event_duration evt) }
     where apply dur = if dur == TrackPos 0 then dur else f dur
 

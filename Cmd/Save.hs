@@ -40,7 +40,7 @@ cmd_load fname = do
     state <- either (\exc -> Cmd.throw $
             "unserializing " ++ show fname ++ ": " ++ show exc)
         return try_state
-    Trans.liftIO $ Log.notice $ "state loaded from " ++ show fname
+    Log.notice $ "state loaded from " ++ show fname
 
     State.modify (const (Serialize.save_ui_state state))
     Edit.initialize_state

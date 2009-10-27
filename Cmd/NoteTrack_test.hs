@@ -1,5 +1,6 @@
 module Cmd.NoteTrack_test where
 import Util.Test
+import qualified Util.Log as Log
 
 import Ui
 import qualified Ui.Types as Types
@@ -21,11 +22,11 @@ mkkey = CmdTest.make_key True
 run_sel track_specs cmd = CmdTest.run_tracks track_specs
     (CmdTest.with_sel (Types.point_selection 1 0) cmd)
 
-extract (Right (Just Cmd.Done, tracks, [])) = tracks
+extract (Right (Just Cmd.Done, tracks, logs)) = Log.trace_logs logs tracks
 extract val = error $ "unexpected: " ++ show val
 
 thread :: [UiTest.TrackSpec] -> Cmd.Cmd -> [Msg.Msg]
-    -> ([(String, [Simple.Event])], (Types.TrackNum, TrackPos), [[String]])
+    -> ([(String, [Simple.Event])], (Types.TrackNum, TrackPos))
 thread track_specs cmd msgs =
     extract_sel $ CmdTest.thread ustate CmdTest.cmd_state cmds
     where
@@ -34,8 +35,8 @@ thread track_specs cmd msgs =
     cmds = set_sel : map (cmd$) msgs
 
 -- drop 1 is for set_sel above, and should really be in 'thread'.
-extract_sel (Right (ustate, cstate, log_grps)) = (UiTest.extract_tracks ustate,
-        CmdTest.eval ustate cstate get_sel, drop 1 log_grps)
+extract_sel (Right (ustate, cstate)) = (UiTest.extract_tracks ustate,
+        CmdTest.eval ustate cstate get_sel)
     where
     get_sel = do
         (_, tracknum, _, pos) <- Selection.get_insert
@@ -87,10 +88,9 @@ test_cmd_val_edit = do
         on nn = CmdTest.m_note_on nn (fromIntegral nn) 127
         off nn = CmdTest.m_note_off nn 127
     equal (thread empty_tracks f [on 60, off 60])
-        ([(">i", [(0, 10, "")]), ("*", [(0, 0, "4c")])], (1, 10), [[], []])
+        ([(">i", [(0, 10, "")]), ("*", [(0, 0, "4c")])], (1, 10))
     equal (thread empty_tracks f [on 60, on 61, off 60, off 61])
-        ([(">i", [(0, 10, "")]), ("*", [(0, 0, "4c#")])], (1, 10),
-            [[], [], [], []])
+        ([(">i", [(0, 10, "")]), ("*", [(0, 0, "4c#")])], (1, 10))
     -- TODO later test chord input
 
 test_cmd_method_edit = do

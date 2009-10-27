@@ -1,5 +1,6 @@
 module Cmd.PitchTrack_test where
 import Util.Test
+import qualified Util.Log as Log
 
 import qualified Ui.Types as Types
 import qualified Cmd.CmdTest as CmdTest
@@ -14,7 +15,7 @@ import qualified Ui.Key as Key
 run_sel track_specs cmd = CmdTest.run_tracks track_specs
     (CmdTest.with_sel (Types.point_selection 1 0) cmd)
 
-extract (Right (Just Cmd.Done, tracks, [])) = tracks
+extract (Right (Just Cmd.Done, tracks, logs)) = Log.trace_logs logs tracks
 extract val = error $ "unexpected: " ++ show val
 
 test_cmd_val_edit = do

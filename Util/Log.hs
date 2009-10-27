@@ -26,6 +26,7 @@ module Util.Log (
     , debug_stack, notice_stack, warn_stack, error_stack
     , debug_stack_srcpos, notice_stack_srcpos, warn_stack_srcpos
         , error_stack_srcpos
+    , trace_logs
     -- * LogT monad
     , LogMonad
     , LogT, write, run
@@ -42,6 +43,7 @@ import qualified Data.List as List
 import qualified Data.Generics as Generics
 import qualified Data.Text as Text
 import qualified Data.Time as Time
+import qualified Debug.Trace as Trace
 import qualified System.IO as IO
 import qualified System.IO.Unsafe  as Unsafe
 import Text.Printf (printf)
@@ -180,6 +182,14 @@ debug_stack = debug_stack_srcpos Nothing
 notice_stack = notice_stack_srcpos Nothing
 warn_stack = warn_stack_srcpos Nothing
 error_stack = error_stack_srcpos Nothing
+
+-- | Write log msgs with 'trace', for debugging.
+trace_logs :: [Msg] -> a -> a
+trace_logs logs val
+    | null logs = val
+    | otherwise = Trace.trace
+        (Seq.rdrop_while (=='\n') $ unlines $ "\tlogged:" : map format_msg logs)
+        val
 
 -- * LogT
 

@@ -1,26 +1,26 @@
-    ghc
-
     haskell deps, from hackage
 storablevector
 binary
 dlist
 hint
 haddock
-text-0.5
+text
+haskeline
+regex-pcre
+
+    installed separately:
+libpcre library from http://www.pcre.org
 
     fltk
 
-to make fltk usable:
+configure flags:
 --enable-debug --enable-threads --enable-quartz
 
-Edit either configure.in or configure to remove -fno-exceptions since I use
-them, and wrapped callbacks will use them.
+Edit either configure.in or configure to remove -fno-exceptions since ASSERT
+uses them
 
 Comment out .SILENT in makeinclude and possibly delete some of the Compiling
 echos, since I like to see exactly what flags cc is getting.
-
-patched fltk 1.1.8 src/Fl_mac.cxx for correct initial modifier handling
-(fltk bug # ...?)
 
     portmidi
 
