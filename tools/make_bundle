@@ -1,5 +1,7 @@
 #!/bin/zsh
-# based on a script michael sweet posted to the fltk mailing list
+# The generated shell script will take a cores envvar for the -N# RTS flag.
+#
+# Based on a script michael sweet posted to the fltk mailing list.
 
 if test $# != 1; then
     echo Usage: $0 filename
@@ -12,20 +14,22 @@ id=elaforge.seq.$(echo "$name" | tr ' ' _)
 bindir="$binpath.app/Contents/MacOS"
 
 if [[ $name = seq ]]; then
-    extra_args=(+RTS -N2 -RTS)
+    default_cores=2
 fi
 
 # Make a shell script that runs the bundled executable
 cat >"$binpath.run" <<EOF
 #!/bin/sh
 dir=\$(dirname "\$0")
-exec "\$dir/$name.app/Contents/MacOS/$name" $extra_args "\$@"
+exec "\$dir/$name.app/Contents/MacOS/$name" \
+    +RTS -N\${cores:-$default_cores} -RTS "\$@"
 EOF
 chmod +x "$binpath.run"
 
 # Make sure the script is idempotent since make likes to run it due to .PHONY.
-if cmp --silent "$binpath.run" "$binpath"; then
-    rm "$binpath.run"
+if [[ $(head -c2 $binpath) = '#!' ]] then
+    echo replacing shell script
+    mv $binpath.run $binpath
 else
     rm -rf "$bindir"
     mkdir -p "$bindir"

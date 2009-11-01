@@ -1,0 +1,20 @@
+#!/bin/zsh
+
+rm -f prof/*(N)
+
+args=(
+    -s # emit runtime summary
+    # -S # print a line for each gc
+    -L72 # field length for cost center names
+    -prof # emit seq.prof
+    -hc
+    # -hCshow_status
+)
+# only -N1 is supported with profiling
+cores=1 build/seq +RTS $args
+
+if [[ -e seq.prof ]]; then
+    mv seq.prof seq.hp prof
+    hp2ps -d <prof/seq.hp >prof/seq.ps
+    open prof/seq.ps
+fi
