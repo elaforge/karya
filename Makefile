@@ -18,25 +18,22 @@ CXXFLAGS := `fltk-config --cxxflags` $(CXX_DEBUG) $(CINCLUDE) -Wall
 
 ### ghc flags
 
-HDEBUG := -debug
+HFLAGS = $(BASIC_HFLAGS) $(HDEBUG) # -fforce-recomp
+
+HDEBUG := -debug -O2
+HPROF := -O2 -prof -auto-all -caf-all
 HOPT = -O2
 
-# ghc doesn't like -ggdb, yay!
-# I use /usr/local/lib because that's where readline is installed.
-HLDFLAGS := `fltk-config --ldflags` -L/usr/local/lib
+HLDFLAGS := `fltk-config --ldflags`
 
 GHC := ghc-6.10.4
 # This is unfortunately needed by hsc2hs, which seems kinda broken.
 GHC_LIB := /Library/Frameworks/GHC.framework/Versions/Current/usr/lib/ghc-6.10.4
 
 # hspp adds filename and lineno to various logging and testing functions.
-BASIC_HFLAGS := -W $(CINCLUDE) -i../lib -pgmc g++ -pgml g++ \
+BASIC_HFLAGS := -threaded -W $(CINCLUDE) -i../lib -pgmc g++ -pgml g++ \
 	-optc -ggdb -optl -ggdb \
 	-F -pgmF tools/hspp
-
-# These flags don't coexist with profiling.
-HFLAGS := $(BASIC_HFLAGS) -threaded $(HDEBUG)
-# HFLAGS := $(BASIC_HFLAGS) -threaded $(HOPT)
 
 
 ### misc variables
@@ -100,7 +97,8 @@ fltk/fltk.a: $(FLTK_OBJS)
 DIRECT_LINK = /usr/local/src/fltk/lib/libfltk.a \
 	-lpthread -framework Carbon -framework ApplicationServices
 $(BUILD)/test_block: fltk/test_block.o fltk/fltk.a
-	$(CXX) -o $@ $^ $(LDFLAGS) # $(DIRECT_LINK)
+	# $(CXX) -o $@ $^ $(LDFLAGS)
+	$(CXX) -o $@ $^ $(DIRECT_LINK)
 	$(BUNDLE)
 
 $(BUILD)/test_logview: LogView/test_logview.o LogView/logview_ui.o fltk/f_util.o
@@ -209,7 +207,7 @@ test_obj/RunTests.hs: $(ALL_HS)
 test_obj/RunTests: test_obj/RunTests.hs all_hsc $(UI_OBJS) $(MIDI_OBJS) \
 		fltk/fltk.a
 	tools/unline_hack
-	$(GHC) $(BASIC_HFLAGS) -threaded -i -itest_obj:. -fhpc --make \
+	$(GHC) $(BASIC_HFLAGS) -i -itest_obj:. -fhpc --make \
 		-odir test_obj -hidir test_obj \
 		test_obj/RunTests.hs -o $@ \
 		$(UI_OBJS) $(MIDI_OBJS) fltk/fltk.a \

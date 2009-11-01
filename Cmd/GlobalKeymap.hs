@@ -156,7 +156,7 @@ view_config_bindings = concat
     ]
 
 block_config_bindings = concat
-    -- TODO I'm not used to use SecondaryCommand for the built in keymap...
+    -- TODO I'm not supposed to use SecondaryCommand for the built in keymap.
     [ bind_click [SecondaryCommand] Config.mouse_select 0
         "toggle skeleton edge" BlockConfig.cmd_toggle_edge
     , bind_mod [Shift] (Key.KeyChar 'm') "toggle mute"

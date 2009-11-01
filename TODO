@@ -4,6 +4,9 @@ something a little better than plain textual substitution.
 
 - program to launch logview and seq together
 
+- midi alloc is a little too aggressive in merging channels, if it has lots of
+channels it should use them, and only merge when it's out of them.
+
 CURRENT
   + track down ghc rts crashes
 
@@ -66,19 +69,10 @@ display signal:
   darcs optimize --pristine
 
 note input / thru:
-  * fractional InputKey and GenericNote
   - keyswitch support in midi thru
   - profile midi->midi thru and implement a fast path if necessary
 
 bugs:
-  * when I do just space, I get "keyup not in modifiers"
-    cmd_record_keys not getting run when play throws?
-  * ^C should quit instead of killing ui thread and hanging
-  - cmd-q should also quit entirely not just close the windows
-  * backspace to delete events doesn't work
-  * note on track keeps adding new tracks
-  * rederive should be triggered by: track title change, skel change, track
-    flags change
   - tracks with different tempos play correctly, but playback follows tempo
   - unparsed notes are played instead of dropped, it's because the pitch is
     dropped but not the note
@@ -86,10 +80,8 @@ bugs:
   + track down ghc rts crashes
     - write a script that continually starts up to see if I can trigger it
     add -DS flag
-    lots of "Warning: xyz still allocated at shutdown", are those foreign ptrs?
     crash is when evacuating pinned memory, is it a foreign ptr?
 
-  * add track should add skip collapsed tracks
   - fltk: mute (i.e. change brightness) makes text get drawn twice
   - fltk: moving a track title while it's expanded doesn't work
   - hint refuses to compile when Cmd.NoteEntry emits a warning
@@ -105,9 +97,13 @@ cleanup:
     On the other hand, it's not unreasonable for logs to use other data types
 
 performance:
-  speed and memory tests, with and without -O2:
-    - cmd respond
-    - derivation
+  speed and memory profiling:
+    - respond to incoming notes
+    - diff and modify UI
+    - derive a large score
+  - pause before starting background derive to avoid thrashing during edits?
+  - use a lazy storeable vector for [Score.Event] and [Midi.Message] to save
+    memory?
   random little hangs are annoying.  figure out what's going on.  GC?
     - timer can summarize one responder loop cycle?
     - get diff results is really slow
@@ -118,9 +114,9 @@ performance:
       expected)
       So, we have to iron out all memory leaks.
 
-  * pause before playing.  printing logs make playing too strict?
   - send style id to c++ instead of all the style elements
-  - strictify some basic datatypes with ! and {-# UNPACK #-}: Ui.Event
+  - strictify some basic datatypes with ! and {-# UNPACK #-}:
+    Ui.Event, Midi.Message, Perform.Midi.Instrument.Instrument
   - collapsing a track shouldn't trigger a rederive
   caching:
     - in c++, cache marks and events from callback
@@ -130,10 +126,6 @@ performance:
 
 fltk:
   - draw arrows in SkeletonDisplay.cc properly
-  * convert Selection to use the same format as hs, so it can show the cursor
-    end specially
-  * bug: selection redraw leaves gaps when dragging downwards
-  * bug: in test_block, resizing tracks, leftmost track title is confused
   - figure out how to have a minimal title bar in os x (win.border(0) removes
     it altogether)
     I can set something like kUtilityWindowClass in Fl_mac.cxx:Fl_X::make, but
@@ -142,27 +134,18 @@ fltk:
   - bug: doesn't redraw after switching monitors
   - SeqInputs should display the right side of the text if they're too small
   UI Msgs
-    * can I capture os x two-finger drag events?
-      yes, they're reported as FL_MOUSEWHEEL, so I should scroll on mousewheel
   Track
     / dividers can have separate color for upper part, for collapsable tracks
-    * tracks have their own status lines, to report things like mute
   event track
     - "currently edited" event shouldn't be hidden by previous ones
   Ruler
-    * mark text is abbreviated if there isn't enough room
   MoveTile
     - only capture drag on a plain drag with no modifiers
-    * bug: when there are two adjacent dividers, the right one can be resized
 
 logging logview:
-  * logview needs scrollbars
-  * don't store msgs in memory, don't refilter from begining
   - use bytestrings?
-  * colorize (tid ..) (bid ..) (vid ..) etc.
   - implement clickable srcpos and StackPos
   - haskell and c++ use the same machine readable format
-  * rename LogViewer -> LogView just to reduce confusion
   - LogView should use Util.Fltk
   - tabs are not lining up properly
   - option to wrap lines or not?
@@ -179,8 +162,13 @@ Ui:
     - signal render support for indexed signal type, especially pitch
     - events store style as a uchar ID for consistency and memory savings
   Track
-    * patch Data.Map to include toDescList
     - benchmark large TrackEvents
+    more compact implemnetation than Data.Map?  profile first!
+      - priorities: memory efficiency, persistent, merge speed (insert many)
+        shallow tree of dense chunks?
+        can I take advantage of non-overlap?  [(pos0, data), (pos1, end), ...]
+        data Event = Event String StyleId | End | ControlVal Double
+      - I think memory efficiency is more important than modification speed
     - modify IntMap for Word64s, add toDescList
       - send patch to libraries@haskell.org
     - track collapse
@@ -194,7 +182,6 @@ skeleton:
   - parse skeleton in LanguageCmds
 
 test:
-  - grepping tests gets multiple lines
   - tests count number of tests in addition to checks within each test
 
 integrator / midi record:

@@ -42,6 +42,7 @@ data Event = Event {
     -- This is encoded as UTF8.  Data.Text would probably be more logical, but
     -- I expected it to be sent to the UI much more frequently than modified
     -- from haskell.  Don't access this directly, use 'event_text'.
+    -- TODO: or is it?  derivation could put the lie to that.
     event_utf8_bytestring :: ByteString.ByteString
     , event_duration :: TrackPos
     , event_style :: StyleId
