@@ -214,7 +214,7 @@ respond rstate = do
             cmd_state <- return $ fix_cmd_state ui_to cmd_state
             (updates, ui_state, cmd_state) <-
                 ResponderSync.sync ui_from ui_to cmd_state updates
-            cmd_state <- record_history updates ui_from cmd_state
+            cmd_state <- return $ record_history updates ui_from cmd_state
             return (status,
                 rstate { state_cmd = cmd_state, state_ui = ui_state })
     return (status /= Cmd.Quit, rstate)
@@ -230,19 +230,19 @@ fix_cmd_state ui_state cmd_state = case Cmd.state_focused_view cmd_state of
 
 -- Do the traditional thing where an action deletes the redo buffer.
 -- At some point I could think about a real branching history, but not now.
-record_history updates old_state cmd_state = do
-    let cmd_name = "none yet"
-        hist = fst (Cmd.state_history cmd_state)
-    let record = not (Cmd.state_skip_history_record cmd_state)
-            && should_record_history updates
-        new_hist = if record
-            then (Cmd.HistoryEntry cmd_name old_state : hist, [])
-            else Cmd.state_history cmd_state
-    -- let msg = (if record then "record " else "don't record ")
-    --         ++ show (length (fst new_hist), length (snd new_hist))
-    -- when record (Log.debug $ "history " ++ msg)
-    return $ cmd_state
+record_history :: [Update.Update] -> State.State -> Cmd.State -> Cmd.State
+record_history updates old_state cmd_state
+    | not skip && should_record_history updates = cmd_state
         { Cmd.state_history = new_hist, Cmd.state_skip_history_record = False }
+    | skip = cmd_state { Cmd.state_skip_history_record = False }
+        -- Be careful to not modify it when I don't need to, otherwise this
+        -- can build up unevaluated thunks until the history is forced.
+    | otherwise = cmd_state
+    where
+    skip = Cmd.state_skip_history_record cmd_state
+    cmd_name = "none yet"
+    hist = fst (Cmd.state_history cmd_state)
+    new_hist = (Cmd.HistoryEntry cmd_name old_state : hist, [])
 
 -- TODO I'd like to be able to undo only non-view changes, leaving the view
 -- where it is.  Or undo only the view changes, which means zoom and selection.
