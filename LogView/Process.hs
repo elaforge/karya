@@ -112,12 +112,13 @@ process_msg state msg = (new_state { state_status = status }, msg_styled)
 -- timing, and prepend the interval and bump the priority to Warn if they do.
 timer_filter :: State -> Log.Msg -> (State, Maybe Log.Msg)
 timer_filter state msg
-    | Log.is_timer msg = case state_last_timing state of
+    | is_timer = case state_last_timing state of
         Nothing -> (new_state, Nothing)
         Just last_msg -> (new_state, timing_msg last_msg)
     | otherwise = (state, Just msg)
     where
-    new_state = if Log.is_timer msg
+    is_timer = Log.msg_prio msg == Log.Timer
+    new_state = if is_timer
         then state { state_last_timing = Just msg } else state
     timing_msg last_msg
         | not (Log.is_first_timer msg) && diff >= timing_diff_threshold = Just $

@@ -20,9 +20,9 @@ module Util.Log (
     -- * msgs
     , Msg(..), msg_string, Prio(..), State(..)
     , msg, msg_srcpos
-    , debug, notice, warn, error
-    , timer, is_timer, is_first_timer, first_timer_prefix
-    , debug_srcpos, notice_srcpos, warn_srcpos, error_srcpos, timer_srcpos
+    , timer, debug, notice, warn, error
+    , is_first_timer, first_timer_prefix
+    , timer_srcpos, debug_srcpos, notice_srcpos, warn_srcpos, error_srcpos
     , debug_stack, notice_stack, warn_stack, error_stack
     , debug_stack_srcpos, notice_stack_srcpos, warn_stack_srcpos
         , error_stack_srcpos
@@ -107,10 +107,14 @@ initialize maybe_mach_file maybe_human_file = do
 swap_state :: State -> IO State
 swap_state = MVar.swapMVar global_state
 
-data Prio
+data Prio =
+    -- | Generated everywhere, to figure out where hangs are happening.  Should
+    -- only be on when debugging performance.  They only really work in
+    -- explicitly sequenced MonadIO code.
+    Timer
     -- | Lots of msgs produced by code level.  Users don't look at this during
     -- normal use, but can be useful for debugging.
-    = Debug
+    | Debug
     -- | Informational msgs that the user will want to see.  Progress messages
     -- in e.g. derivation and play status are included here.
     | Notice
@@ -137,31 +141,28 @@ log_stack :: LogMonad m => Prio -> SrcPos.SrcPos -> Warning.Stack -> String
 log_stack prio srcpos stack text =
     write (make_msg srcpos prio (Just stack) text)
 
-debug_srcpos, notice_srcpos, warn_srcpos, error_srcpos, timer_srcpos
+timer_srcpos, debug_srcpos, notice_srcpos, warn_srcpos, error_srcpos
     :: LogMonad m => SrcPos.SrcPos -> String -> m ()
+timer_srcpos = log Timer
 debug_srcpos = log Debug
 notice_srcpos = log Notice
 warn_srcpos = log Warn
 error_srcpos = log Error
 
--- | Emit msgs specifically intended to gather timing.  Obviously this only
--- works with the LogMonad IO instance, but it's kind of hard to get timings
--- for non-sequenced functional code.
-timer_srcpos srcpos text = log Debug srcpos ("timer: " ++ text)
-
-debug, notice, warn, error, timer :: LogMonad m => String -> m ()
+timer, debug, notice, warn, error :: LogMonad m => String -> m ()
+timer = timer_srcpos Nothing
 debug = debug_srcpos Nothing
 notice = notice_srcpos Nothing
 warn = warn_srcpos Nothing
 error = error_srcpos Nothing
-timer = timer_srcpos Nothing
 
 is_timer :: Msg -> Bool
 is_timer msg = Text.pack "timer: " `Text.isPrefixOf` msg_text msg
 
 is_first_timer :: Msg -> Bool
-is_first_timer msg = Text.pack ("timer: " ++ first_timer_prefix)
-    `Text.isPrefixOf` msg_text msg
+is_first_timer (Msg { msg_prio = Timer, msg_text = text }) =
+    Text.pack (first_timer_prefix) `Text.isPrefixOf` text
+is_first_timer _ = False
 
 -- | Prepend to a timer msg after an expected delay, like waiting on input.
 first_timer_prefix :: String
@@ -211,7 +212,8 @@ format_msg (Msg { msg_date = _date, msg_caller = srcpos, msg_prio = prio
         , msg_text = text, msg_stack = stack }) =
     msg ++ maybe "" ((' ':) . show_stack) stack
     where
-    prio_stars prio = replicate (fromEnum prio + 1) '*'
+    prio_stars Timer = "-"
+    prio_stars prio = replicate (fromEnum prio) '*'
     msg = printf "%-4s %s - %s"
         (prio_stars prio) (SrcPos.show_srcpos srcpos) (Text.unpack text)
 

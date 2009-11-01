@@ -143,7 +143,7 @@ fltk:
     - only capture drag on a plain drag with no modifiers
 
 logging logview:
-  - use bytestrings?
+  * use bytestrings?
   - implement clickable srcpos and StackPos
   - haskell and c++ use the same machine readable format
   - LogView should use Util.Fltk
@@ -151,6 +151,8 @@ logging logview:
   - option to wrap lines or not?
   - hide or display various attrs: date, file, function, ...
   - collapse duplicate lines
+  - commands like Selection or MIDI thru generate too much log spam, maybe
+    filter logs for those?
 
 Ui:
   - some kind of special highlight to indicate the active block
