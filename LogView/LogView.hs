@@ -36,7 +36,7 @@ import qualified App.SendCmd as SendCmd
 
 
 mach_log_filename :: String
-mach_log_filename = "seq.mach.log"
+mach_log_filename = "seq.log"
 
 -- | Initial contents of the filter field.
 initial_filter :: String

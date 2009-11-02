@@ -80,29 +80,22 @@ no_date_yet = Time.UTCTime (Time.ModifiedJulianDay 0) 0
 -- | Logging state.  Don't log if a handle is Nothing.
 -- one.
 data State = State {
-    state_mach_log :: Maybe IO.Handle
-    , state_human_log :: Maybe IO.Handle
+    state_log_hdl :: Maybe IO.Handle
     }
-initial_state = State Nothing (Just IO.stdout)
+initial_state = State Nothing
 global_state = Unsafe.unsafePerformIO (MVar.newMVar initial_state)
 
 -- | Configure the log system to write to the given file.  Before you call
 -- this, log output will go to stdout.  Return the old state.
-initialize :: Maybe IO.FilePath -> Maybe IO.FilePath -> IO State
-initialize maybe_mach_file maybe_human_file = do
-    mach_hdl <- case maybe_mach_file of
+initialize :: Maybe IO.FilePath -> IO State
+initialize log_fn = do
+    hdl <- case log_fn of
         Nothing -> return Nothing
-        Just mach_file -> do
-            hdl <- IO.openFile mach_file IO.AppendMode
+        Just fn -> do
+            hdl <- IO.openFile fn IO.AppendMode
             IO.hSetBuffering hdl IO.LineBuffering
             return (Just hdl)
-    human_hdl <- case maybe_human_file of
-        Nothing -> return Nothing
-        Just human_file -> do
-            hdl <- IO.openFile human_file IO.AppendMode
-            IO.hSetBuffering hdl IO.LineBuffering
-            return (Just hdl)
-    swap_state (State mach_hdl human_hdl)
+    swap_state (State hdl)
 
 swap_state :: State -> IO State
 swap_state = MVar.swapMVar global_state
@@ -201,10 +194,10 @@ maybe_do m maybe_val = maybe (return ()) id (fmap m maybe_val)
 
 instance LogMonad IO where
     write msg = do
-        msg' <- add_time msg
-        MVar.withMVar global_state $ \(State mach_hdl human_hdl) -> do
-            maybe_do (flip IO.hPutStrLn (serialize_msg msg')) mach_hdl
-            maybe_do (flip IO.hPutStrLn (format_msg msg')) human_hdl
+        msg <- add_time msg
+        MVar.withMVar global_state $ \(State maybe_hdl) -> case maybe_hdl of
+            Just hdl -> IO.hPutStrLn hdl (serialize_msg msg)
+            Nothing -> return ()
 
 -- TODO show the date, if any
 format_msg :: Msg -> String

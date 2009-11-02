@@ -51,7 +51,7 @@ FLTK_OBJS := Block.o TrackTile.o Track.o Ruler.o EventTrack.o MoveTile.o \
 FLTK_OBJS := $(addprefix fltk/, $(FLTK_OBJS))
 
 BINARIES := $(addprefix $(BUILD)/, seq send repl browser make_db dump logview \
-	timer)
+	timer logcat)
 TEST_BINARIES := $(addprefix $(BUILD)/, test_block test_logview test_browser \
 		test_core_midi) \
 	test_obj/RunTests
@@ -173,6 +173,10 @@ $(BUILD)/logview: $(LOGVIEW_OBJ) Ui/Color.hs
 .PHONY: $(BUILD)/timer
 $(BUILD)/timer: LogView/Timer.hs
 	$(GHC) $(HFLAGS) --make -main-is LogView.Timer $^ -o $@
+
+.PHONY: $(BUILD)/logcat
+$(BUILD)/logcat: LogView/LogCat.hs
+	$(GHC) $(HFLAGS) --make $^ -o $@
 
 BROWSER_OBJ = Instrument/Browser.hs \
 	Instrument/interface.o Instrument/browser_ui.o \
