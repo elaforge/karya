@@ -78,24 +78,24 @@ no_date_yet :: Time.UTCTime
 no_date_yet = Time.UTCTime (Time.ModifiedJulianDay 0) 0
 
 -- | Logging state.  Don't log if a handle is Nothing.
--- one.
 data State = State {
     state_log_hdl :: Maybe IO.Handle
+    , state_log_level :: Prio
     }
-initial_state = State Nothing
+initial_state = State Nothing Debug
 global_state = Unsafe.unsafePerformIO (MVar.newMVar initial_state)
 
 -- | Configure the log system to write to the given file.  Before you call
 -- this, log output will go to stdout.  Return the old state.
-initialize :: Maybe IO.FilePath -> IO State
-initialize log_fn = do
+initialize :: Maybe IO.FilePath -> Prio -> IO State
+initialize log_fn prio = do
     hdl <- case log_fn of
         Nothing -> return Nothing
         Just fn -> do
             hdl <- IO.openFile fn IO.AppendMode
             IO.hSetBuffering hdl IO.LineBuffering
             return (Just hdl)
-    swap_state (State hdl)
+    swap_state (State hdl prio)
 
 swap_state :: State -> IO State
 swap_state = MVar.swapMVar global_state
@@ -149,9 +149,6 @@ notice = notice_srcpos Nothing
 warn = warn_srcpos Nothing
 error = error_srcpos Nothing
 
-is_timer :: Msg -> Bool
-is_timer msg = Text.pack "timer: " `Text.isPrefixOf` msg_text msg
-
 is_first_timer :: Msg -> Bool
 is_first_timer (Msg { msg_prio = Timer, msg_text = text }) =
     Text.pack (first_timer_prefix) `Text.isPrefixOf` text
@@ -190,14 +187,13 @@ trace_logs logs val
 class Monad m => LogMonad m where
     write :: Msg -> m ()
 
-maybe_do m maybe_val = maybe (return ()) id (fmap m maybe_val)
-
 instance LogMonad IO where
     write msg = do
         msg <- add_time msg
-        MVar.withMVar global_state $ \(State maybe_hdl) -> case maybe_hdl of
-            Just hdl -> IO.hPutStrLn hdl (serialize_msg msg)
-            Nothing -> return ()
+        MVar.withMVar global_state $ \(State m_hdl prio) -> case m_hdl of
+            Just hdl | prio <= msg_prio msg ->
+                IO.hPutStrLn hdl (serialize_msg msg)
+            _ -> return ()
 
 -- TODO show the date, if any
 format_msg :: Msg -> String

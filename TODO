@@ -8,6 +8,7 @@ something a little better than plain textual substitution.
 channels it should use them, and only merge when it's out of them.
 
 CURRENT
+  - right arrow from ruler track skips first track
   + track down ghc rts crashes
 
   - demo piece: show nested tempos with "bouncing ball", expressive pitch
