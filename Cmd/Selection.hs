@@ -84,14 +84,18 @@ shift_sel block shift sel =
 -- | Shift a tracknum to another track, skipping unselectable tracks.
 shift_tracknum :: Block.Block -> TrackNum -> Int -> TrackNum
 shift_tracknum block tracknum shift
-    | shift >= 0 = Seq.mhead tracknum id $
-        drop shift $ dropWhile (<tracknum) selectable
-    | otherwise = Seq.mhead tracknum id $
-        drop (-shift) $ dropWhile (>tracknum) (List.reverse selectable)
-    where selectable = selectable_tracks block
+    | shift == 0 = tracknum
+    | shift > 0 = find_track (dropWhile (<tracknum) selectable)
+    | otherwise = find_track (dropWhile (>tracknum) (List.reverse selectable))
+    where
+    selectable = Seq.rdrop 1 (selectable_tracks block)
+    find_track [] = tracknum
+    find_track tracks@(first:_) = Seq.mhead tracknum id $ drop abs_shift tracks
+        where abs_shift = if tracknum /= first then abs shift - 1 else abs shift
 
 -- | Get the tracknums from a block that should be selectable, including
--- the tracknum one past the end.
+-- the tracknum one past the end.  This is so you can select where the next
+-- track should be.
 selectable_tracks :: Block.Block -> [TrackNum]
 selectable_tracks block = (++[length (Block.block_tracks block)]) $ do
     (i, track@(Block.BlockTrack { Block.tracklike_id = Block.TId _ _}))

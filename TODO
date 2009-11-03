@@ -19,6 +19,9 @@ CURRENT
   - skel_display status can be two chars: Sm is solo+mute
   + insert new track could splice it into the skeleton in the place of the
     current track.  But you don't always want that.  Two insert track cmds?
+  - analogous create block cmd that models it on the current block?
+  - delete track cmd that deletes the track instead of just removing it from
+    the block
 
   track management:
     - resize a bunch of tracks at once

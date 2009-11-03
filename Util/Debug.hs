@@ -1,7 +1,6 @@
 module Util.Debug where
 
 import qualified Debug.Trace as Trace
-import qualified Util.Log as Log
 
 
 trace :: String -> b -> b
