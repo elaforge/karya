@@ -197,7 +197,14 @@ insert_track_after_selection = do
     (_, tracknum, _) <- Selection.get_insert_any
     block_id <- Cmd.get_focused_block
     block <- State.get_block block_id
-    track block_id (Selection.shift_tracknum block tracknum 1)
+    track block_id (track_after block tracknum)
+
+track_after :: Block.Block -> TrackNum -> TrackNum
+track_after block tracknum
+    -- It must already be the rightmost tracknum.
+    | tracknum == next_tracknum = length (Block.block_tracks block)
+    | otherwise = next_tracknum
+    where next_tracknum = Selection.shift_tracknum block tracknum 1
 
 remove_selected_tracks :: (Monad m) => Cmd.CmdT m ()
 remove_selected_tracks = do

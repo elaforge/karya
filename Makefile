@@ -5,12 +5,12 @@
 
 ### c++ flags
 
-CXX_DEBUG := -ggdb
+CXX_DEBUG := -ggdb -O2
 CXX_OPT := -O2
 MIDI_LIBS := -framework CoreFoundation -framework CoreMIDI -framework CoreAudio
 PORTMIDI := /usr/local/src/portmedia/portmidi/trunk
 CINCLUDE := -Ifltk -I$(PORTMIDI)/pm_common -I$(PORTMIDI)/porttime -I.
-LDFLAGS := `fltk-config --ldflags` $(DEBUG)
+LDFLAGS := `fltk-config --ldflags`
 
 CXXFLAGS := `fltk-config --cxxflags` $(CXX_DEBUG) $(CINCLUDE) -Wall
 # CXXFLAGS := `fltk-config --cxxflags` $(CXX_OPT) $(CINCLUDE) -Wall
@@ -23,6 +23,7 @@ HFLAGS = $(BASIC_HFLAGS) $(HDEBUG) # -fforce-recomp
 HDEBUG := -debug -O2
 HPROF := -O2 -prof -auto-all -caf-all
 HOPT = -O2
+HTEST := -O2 -fhpc -prof -auto-all -caf-all
 
 HLDFLAGS := `fltk-config --ldflags`
 
@@ -203,15 +204,12 @@ test_obj/RunTests.hs: $(ALL_HS)
 
 # TODO a bug in ghc prevents .mix data from being emitted for files with LINE
 # workaround by grep -v out the LINEs into test_obj hierarchy
-# Compiles with -odir and -hidir into test_obj/ because they must be compiled
-# with -fhpc.
-# The 'hint' package uses 'Outputtable', which is from the ghc-6.8.2 package,
-# which isn't compiled with profiling.
-# -fprof -auto-all
+# Compiles with -odir and -hidir into test_obj/ because they are compiled with
+# different flags.
 test_obj/RunTests: test_obj/RunTests.hs all_hsc $(UI_OBJS) $(MIDI_OBJS) \
 		fltk/fltk.a
 	tools/unline_hack
-	$(GHC) $(BASIC_HFLAGS) -i -itest_obj:. -fhpc --make \
+	$(GHC) $(BASIC_HFLAGS) -i -itest_obj:. $(HTEST) --make \
 		-odir test_obj -hidir test_obj \
 		test_obj/RunTests.hs -o $@ \
 		$(UI_OBJS) $(MIDI_OBJS) fltk/fltk.a \
