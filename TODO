@@ -4,9 +4,6 @@ something a little better than plain textual substitution.
 
 - program to launch logview and seq together
 
-- midi alloc is a little too aggressive in merging channels, if it has lots of
-channels it should use them, and only merge when it's out of them.
-
 CURRENT
   + track down ghc rts crashes
 

@@ -123,8 +123,7 @@ _perform_notes addr_inst overlapping prev_note_off ((event, addr):events) =
     -- n seconds, which would possibly save generating controllers there, at
     -- the cost of assuming decays are < n sec.
     next_note_on = case List.find ((==addr) . snd) events of
-        Nothing -> event_end event
-            + TrackPos (Instrument.inst_decay (event_instrument event))
+        Nothing -> note_end event
         Just (evt, _chan) -> event_start evt
     (msgs, warns, note_off) = perform_note prev_note_off next_note_on event addr
     first_ts = case msgs of
@@ -272,7 +271,7 @@ perform_note prev_note_off next_note_on event (dev, chan)
         (Midi.ChannelMessage chan msg)
     pb_time = min note_on $ max prev_note_off (note_on - pitch_bend_lead_time)
     note_on = event_start event
-    note_off = event_end event +  (if event_end event == next_note_on
+    note_off = event_end event + (if event_end event == next_note_on
         then legato_overlap_time else 0)
     (on_vel, off_vel, vel_clip_warns) = note_velocity event note_on note_off
 
@@ -383,6 +382,11 @@ merge_messages = foldr (Seq.merge_by (compare `on` Midi.wmsg_ts)) []
 
 -- | Assign channels.  Events will be merged into the same channel where they
 -- can be.
+--
+-- A less aggressive policy would be to distribute the instrument among all of
+-- its addrs and only share when out of channels, but it seems like this would
+-- quickly eat up all the channels, forcing a new note that can't share to snag
+-- a used one.
 channelize :: InstAddrs -> [Event] -> [(Event, Channel)]
 channelize inst_addrs events = overlap_map (channelize_event inst_addrs) events
 
@@ -417,7 +421,7 @@ can_share_chan event1 event2 =
     && controls_equal start end (relevant event1) (relevant event2)
     where
     start = event_start event1
-    end = event_end event2
+    end = note_end event2
     -- Velocity and aftertouch are per-note addressable in midi, but the rest
     -- of the controllers require their own channel.
     relevant event = filter (Controller.is_channel_controller . fst)
@@ -509,6 +513,13 @@ data Event = Event {
 event_end :: Event -> TrackPos
 event_end event = event_start event + event_duration event
 
+-- | The end of an event after taking decay into account.  The note shouldn't
+-- be sounding past this time.
+note_end :: Event -> TrackPos
+note_end event =
+    event_end event + TrackPos (Instrument.inst_decay (event_instrument event))
+
+
 -- | This isn't directly the midi channel, since it goes higher than 15, but
 -- will later be mapped to midi channels.
 type Channel = Integer
@@ -527,8 +538,7 @@ overlap_map = go []
     go prev f (e:events) = (e, val) : go ((e, val) : overlapping) f events
         where
         start = event_start e
-        -- TODO add decay
-        overlapping = takeWhile ((> start) . event_end . fst) prev
+        overlapping = takeWhile ((> start) . note_end . fst) prev
         val = f overlapping e
 
 event_warning :: Event -> String -> Warning.Warning

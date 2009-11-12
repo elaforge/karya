@@ -43,7 +43,7 @@ data Instrument = Instrument {
     -- | Time from NoteOff to inaudible, in seconds.  This can be used to
     -- figure out how long to generate control messages, or possibly determine
     -- overlap for channel allocation, though I use LRU so it shouldn't matter.
-    , inst_decay :: Double
+    , inst_maybe_decay :: Maybe Double
     -- | Scale used by this instrument.  This determines what adjustments need
     -- to be made, if any, to get a frequency indicated by the pitch track.
     , inst_scale :: Pitch.ScaleId
@@ -53,12 +53,15 @@ instrument :: SynthName -> InstrumentName -> Maybe Keyswitch
     -> Controller.ControllerMap -> Controller.PbRange -> Instrument
 instrument synth_name name keyswitch cmap pb_range =
     set_instrument_name synth_name name keyswitch
-        (Instrument "" "" Nothing "" cmap pb_range default_decay default_scale)
+        (Instrument "" "" Nothing "" cmap pb_range Nothing default_scale)
 
 -- | Somewhat conservative default decay which should suit most instruments.
 -- 'inst_decay' will probably only rarely be explicitly set.
 default_decay :: Double
 default_decay = 1.0
+
+inst_decay :: Instrument -> Double
+inst_decay = maybe default_decay id . inst_maybe_decay
 
 set_instrument_name :: SynthName -> String -> Maybe Keyswitch -> Instrument
     -> Instrument

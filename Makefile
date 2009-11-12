@@ -23,7 +23,7 @@ HFLAGS = $(BASIC_HFLAGS) $(HDEBUG) # -fforce-recomp
 HDEBUG := -debug -O2
 HPROF := -O2 -prof -auto-all -caf-all
 HOPT = -O2
-HTEST := -O2 -fhpc -prof -auto-all -caf-all
+HTEST := -fhpc -prof -auto-all -caf-all # -O2
 
 HLDFLAGS := `fltk-config --ldflags`
 
