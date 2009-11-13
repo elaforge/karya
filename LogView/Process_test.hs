@@ -25,7 +25,7 @@ test_process_msg = do
         (Nothing, Just "*\thi\n")
 
     let day = Time.UTCTime (Time.ModifiedJulianDay 42)
-        timing t = (Log.msg Log.Debug "timer: hello") { Log.msg_date = t }
+        timing t = (Log.msg Log.Timer "hello") { Log.msg_date = t }
         msg0 = timing (day 0)
         msg1 = timing (day 0.01)
         msg2 = timing (day 1)
@@ -38,7 +38,7 @@ test_process_msg = do
         (Just msg1, Nothing)
     -- above threshold, and timing prepended
     equal (f (state { Process.state_last_timing = Just msg0 }) msg2)
-        (Just msg2, Just "***\t1s timer: hello\n")
+        (Just msg2, Just "***\t1s hello\n")
 
 test_regex_style = do
     let f = Process.run_formatter

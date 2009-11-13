@@ -158,13 +158,16 @@ eval_filter (Filter _ pred) msg text = pred msg text
 
 format_msg :: Log.Msg -> StyledText
 format_msg msg = run_formatter $ do
-    with_plain $ replicate (fromEnum (Log.msg_prio msg) + 1) '*'
+    with_plain (prio_stars (Log.msg_prio msg))
     with_plain "\t"
     let style = if Log.msg_prio msg < Log.Warn
             then style_plain else style_warn
     maybe (return ()) emit_srcpos (Log.msg_caller msg)
     regex_style style msg_text_regexes (Log.msg_string msg)
     with_plain "\n"
+    where
+    prio_stars Log.Timer = "-"
+    prio_stars prio = replicate (fromEnum prio) '*'
 
 type Formatter = Writer.Writer [(String, [Style])] ()
 
