@@ -399,8 +399,8 @@ channelize_event i_addrs overlapping event =
         Just (_:_:_) -> chan
         _ -> 0
     where
-    -- Pick the first overlapping channel or make up a channel one higher than
-    -- the maximum channel in use.
+    -- If there's no shareable channel, make up a channel one higher than the
+    -- maximum channel in use.
     chan = maybe (maximum (-1 : map snd overlapping) + 1) id
         (shareable_chan overlapping event)
 
@@ -415,13 +415,16 @@ shareable_chan overlapping event = fmap fst (List.find all_share by_chan)
 
 -- | Can the two events coexist in the same channel without interfering?
 can_share_chan :: Event -> Event -> Bool
-can_share_chan event1 event2 =
-    event_instrument event1 == event_instrument event2
-    && pitches_share start end (pitch_control event1) (pitch_control event2)
-    && controls_equal start end (relevant event1) (relevant event2)
+can_share_chan event1 event2
+    | start < end = event_instrument event1 == event_instrument event2
+        && pitches_share start note_off end
+            (pitch_control event1) (pitch_control event2)
+        && controls_equal start end (relevant event1) (relevant event2)
+    | otherwise = True
     where
-    start = event_start event1
-    end = note_end event2
+    start = max (event_start event1) (event_start event2)
+    end = min (note_end event1) (note_end event2)
+    note_off = min (event_end event1) (event_end event2)
     -- Velocity and aftertouch are per-note addressable in midi, but the rest
     -- of the controllers require their own channel.
     relevant event = filter (Controller.is_channel_controller . fst)
@@ -439,11 +442,11 @@ controls_equal start end c0 c1 = all (uncurry eq) (zip c0 c1)
     eq (c0, sig0) (c1, sig1) = c0 == c1
         && Signal.equal start end sig0 sig1
 
-pitches_share start end (Just sig0) (Just sig1) =
-    Signal.pitches_share start end sig0 sig1
+pitches_share start off end (Just sig0) (Just sig1) =
+    Signal.pitches_share start off end sig0 sig1
 -- 0 pitch events should get filtered, but in case they aren't, they can go
 -- with anyone.
-pitches_share _ _ _ _ = True
+pitches_share _ _ _ _ _ = True
 
 -- * allot channels
 

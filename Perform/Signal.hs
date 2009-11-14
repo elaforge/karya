@@ -145,13 +145,19 @@ data Method =
 
 -- | Convert the track-level representation of a signal to a Signal.
 track_signal :: TrackPos -> [TrackSegment] -> Signal
-track_signal srate segs =
-    SignalVector $ V.pack (map first_to_val (concat pairs ++ [last_sample]))
+track_signal srate segs = SignalVector $
+        V.pack (map first_to_val (drop_first (concat pairs ++ [last_sample])))
     where
     ((_, last_val), pairs) = List.mapAccumL go (TrackPos 0, 0) segs
     last_sample = (max_track_pos, last_val)
     go (pos0, val0) (pos1, meth, val1) = ((pos1, val1), samples)
         where samples = sample_track_seg srate pos0 val0 pos1 val1 meth
+    -- Suppress an initial (0, 0) when the signal doesn't actually start with
+    -- 0.  It confuses 'pitches_share'.
+    drop_first xs@((x0, _) : (x1, y1) : rest)
+        | x0 == 0 && x1 == 0 = (x1, y1) : rest
+        | otherwise = xs
+    drop_first xs = xs
 
 sample_track_seg :: TrackPos -> TrackPos -> Val -> TrackPos -> Val -> Method
     -> [Sample]
@@ -204,82 +210,54 @@ equal start end sig0 sig1 =
 -- Pitch is complicated.  Like other controllers, if the pitch curves are
 -- different they may not share a channel.  However, if the pitch curves
 -- are integral transpositions of each other, and the transposition is not
--- 0, they should definitely share.
-pitches_share :: TrackPos -> TrackPos -> Signal -> Signal -> Bool
-pitches_share start end sig0 sig1 =
-    pitch_share (at start sig0) (at start sig1)
-        && pitch_share (at end sig0) (at end sig1)
-        && V.foldr (&&) True (V.zipWith pitch_eq sig0' sig1')
+-- 0, they should share.  However, in the range of time after @note_off@ and
+-- before @end@, they are allowed to have a 0 transposition and share.
+pitches_share :: TrackPos -> TrackPos -> TrackPos -> Signal -> Signal -> Bool
+pitches_share start note_off end sig0 sig1 =
+    pitch_share (in_decay start) (at start sig0) (at start sig1)
+        && pitch_share (in_decay end) (at end sig0) (at end sig1)
+        && all pitch_eq samples
     where
     -- Unlike 'equal' I do resample, because there's a high chance of notes
     -- matching but not lining up in time.
-    (sig0', sig1') = resample
-        (sig_within start end sig0) (sig_within start end sig1)
-    pitch_eq (x0, y0) (x1, y1) = x0 == x1 && pitch_share y0 y1
+    samples = resample (sig_within start end sig0) (sig_within start end sig1)
+    pitch_eq (x, ay, by) = pitch_share (in_decay (TrackPos x)) ay by
+    in_decay = (>=note_off)
 
 -- | Only compare out to cents, since differences below that aren't really
 -- audible.
-pitch_share :: Double -> Double -> Bool
-pitch_share v0 v1 =
-    fst (properFraction v0) /= fst (properFraction v1) && f v0 == f v1
+pitch_share :: Bool -> Double -> Double -> Bool
+pitch_share in_decay v0 v1 = -- v0 == 0 || v1 == 0 ||
+    (in_decay || fst (properFraction v0) /= fst (properFraction v1))
+        && f v0 == f v1
     where f v = floor (snd (properFraction v) * 1000)
 
+sig_within :: TrackPos -> TrackPos -> Signal -> SigVec
 sig_within start end (SignalVector vec) = inside
     where
     (_, above) = V.splitAt (bsearch_on vec fst (pos_to_val start)) vec
-    (inside, _) = V.splitAt (bsearch_on above fst (pos_to_val end)) vec
+    (inside, _) = V.splitAt (bsearch_on above fst (pos_to_val end)) above
 
 -- * resample
 
--- | Resample the signals to have conincident sample points.
-resample :: SigVec -> SigVec -> (SigVec, SigVec)
-resample vec0 vec1 = (V.pack s0, V.pack s1)
-    where
-    merged = resample_list (,) (V.unpack vec0) (V.unpack vec1)
-    (s0, s1) = unzip [((x, ay), (x, by)) | (x, (ay, by)) <- merged]
-
--- | '_do_resample' works on the second sample of pairs of samples, so some
--- fiddly setup is needed to handle the leading samples.
+-- | Resample the signals to have coincident sample points.
 --
--- TODO Wow this is a lot of work and probably inefficient.  I can probably
--- rewrite this in C.
-resample_list f as@((ax0, ay0) : a_rest) bs@((bx0, by0) : b_rest)
-    | ax0 == bx0 = (ax0, f ay0 by0) : resample_list f a_rest b_rest
-    | ax0 < bx0 =
-        let (pre, post) = span ((<bx0) . fst) as
-            -- Find the y for bx0, since _do_resample will start at bx1.
-            (last_ax, last_ay) = last pre
-            (first_ax, first_ay) = if null post then (bx0, ay0) else head post
-            ay = y_at last_ax last_ay first_ax first_ay bx0
-        in [(ax, f ay (y_at 0 0 bx0 by0 ax)) | (ax, ay) <- pre]
-            ++ (bx0, f ay by0) : _do_resample f post bs
-    | bx0 < ax0 =
-        let (pre, post) = span ((<ax0) . fst) bs
-            (last_bx, last_by) = last pre
-            (first_bx, first_by) = if null post then (ax0, by0) else head post
-            by = y_at last_bx last_by first_bx first_by ax0
-        in [(bx, f (y_at 0 0 ax0 ay0 bx) by) | (bx, by) <- pre]
-            ++ (ax0, f ay0 by) : _do_resample f as post
-resample_list f [] bs = [(bx, f 0 by) | (bx, by) <- bs]
-resample_list f as [] = [(ax, f ay 0) | (ax, ay) <- as]
+-- This emits a list to take advantage of laziness.  Later when signals are
+-- lazy I should probably emit two signals.
+resample :: SigVec -> SigVec -> [(Val, Val, Val)]
+resample vec0 vec1 = _resample (0, 0) (0, 0) (V.unpack vec0) (V.unpack vec1)
 
--- Huh?  This seems identical to the first equation but still ghc complains.
-resample_list _ ((_, _) : _) ((_, _) : _) =
-    error "Signal.resample_list: unreached"
+_resample :: (Val, Val) -> (Val, Val)
+    -> [(Val, Val)] -> [(Val, Val)] -> [(Val, Val, Val)]
+_resample _ (_, by0) as [] = [(x, y, by0) | (x, y) <- as]
+_resample (_, ay0) _ [] bs = [(x, ay0, y) | (x, y) <- bs]
+_resample (ax0, ay0) (bx0, by0) a@((ax1, ay1) : as) b@((bx1, by1) : bs)
+    | ax1 == bx1 = (ax1, ay1, by1) : _resample (ax1, ay1) (bx1, by1) as bs
+    | ax1 < bx1 = (ax1, ay1, y_at bx0 by0 bx1 by1 ax1)
+        : _resample (ax1, ay1) (bx0, by0) as b
+    | otherwise = (bx1, y_at ax0 ay0 ax1 ay1 bx1, by1)
+        : _resample (ax0, ay0) (bx1, by1) a bs
 
-_do_resample f as@((ax0, ay0) : a_rest) bs@((bx0, by0) : b_rest)
-    | null a_rest && null b_rest = []
-    | ax1 == bx1 = (ax1, f ay1 by1) : _do_resample f a_rest b_rest
-    | ax1 < bx1 = (ax1, f ay1 (y_at bx0 by0 bx1 by1 ax1))
-        : _do_resample f a_rest bs
-    | otherwise = (bx1, f (y_at ax0 ay0 ax1 ay1 bx1) by1)
-        : _do_resample f as b_rest
-    where
-    (ax1, ay1) = if null a_rest then (max_val, ay0) else head a_rest
-    (bx1, by1) = if null b_rest then (max_val, by0) else head b_rest
-    max_val = pos_to_val max_track_pos
-_do_resample f [] bs = _do_resample f [(0, 0)] bs
-_do_resample f as [] = _do_resample f as [(0, 0)]
 
 -- * access
 
@@ -440,6 +418,12 @@ clip_max max_val = clip_with max_val (>)
 
 clip_min :: Val -> Signal -> Signal
 clip_min min_val = clip_with min_val (<)
+
+-- | Trim the end off of a signal.  It's just a view of the old signal, so it
+-- doesn't allocate a new signal.
+trim :: TrackPos -> Signal -> Signal
+trim pos (SignalVector vec) = SignalVector below
+    where (below, _) = V.splitAt (bsearch_on vec fst (pos_to_val pos)) vec
 
 map_val :: (Val -> Val) -> Signal -> Signal
 map_val f = vmap (V.map (Arrow.second f))

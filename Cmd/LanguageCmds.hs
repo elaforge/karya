@@ -502,7 +502,14 @@ controllers_of inst = undefined -- TODO
 
 -- ** derivation
 
+derive_to_midi :: BlockId -> Cmd.CmdL ([Midi.WriteMessage], [Warning.Warning])
 derive_to_midi block_id = score_to_midi =<< derive block_id
+
+derive_to_perf :: BlockId -> Cmd.CmdL ([Midi.Perform.Event], [Warning.Warning])
+derive_to_perf block_id = do
+    events <- derive block_id
+    lookup <- Cmd.get_lookup_midi_instrument
+    return $ Midi.Convert.convert lookup events
 
 derive :: BlockId -> Cmd.CmdL [Score.Event]
 derive block_id = do

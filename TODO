@@ -5,6 +5,7 @@ something a little better than plain textual substitution.
 - program to launch logview and seq together
 
 CURRENT
+  - make sure signal behaves ok without the sentinel, remove sentinel
   + track down ghc rts crashes
 
   - demo piece: show nested tempos with "bouncing ball", expressive pitch

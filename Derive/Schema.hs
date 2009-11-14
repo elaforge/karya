@@ -37,6 +37,7 @@ module Derive.Schema (
     -- * exported for testing
     , get_defaults, get_track_info, TrackType(..)
     , compile, compile_to_signals
+    , default_schema
 ) where
 import Control.Monad
 import qualified Data.List as List

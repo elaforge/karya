@@ -43,7 +43,7 @@ test_sample_function = do
 
 test_pitches_share = do
     let sig = Signal.signal
-    let f = Signal.pitches_share
+    let f start end = Signal.pitches_share start end end
     -- Different signals.
     equal (f 0 1 (sig [(0, 0), (1, 1)]) (sig [(1, 1), (0, 0)])) False
     -- Separated by an integer.
@@ -58,20 +58,17 @@ test_pitches_share = do
     equal (f 0 1 (sig [(0, 0), (1, 1)]) (sig [(0, 0.5), (1, 1.5)])) False
     equal (f 0 1 (sig [(0, 0), (1, 1)]) (sig [(0, 1.5), (1, 2.5)])) False
 
-test_resample_list = do
-    let f = Signal.resample_list (,)
-    equal (f [(1, 1), (2, 2)] [])
-        [(1, (1, 0)), (2, (2, 0))]
-    equal (f [(1, 1), (2, 2)] [(1, 2), (2, 1)])
-        [(1, (1, 2)), (2, (2, 1))]
+test_resample = do
+    -- TODO: test with coincident samples
+    let f = Signal._resample (0, 0) (0, 0)
 
-    let sig0 = [(1, 4), (4, 1), (6, 4)]
-        sig1 = [(2, 2), (4, 4), (8, 2), (9, 3)]
-        merged =
-            [ (1, (4, 1)), (2, (3, 2)), (4, (1, 4)), (6, (4, 3))
-            , (8, (4, 2)), (9, (4, 3))]
-    equal (f sig0 sig1) merged
-    equal (f sig1 sig0) [(x, (by, ay)) | (x, (ay, by)) <- merged]
+    equal (f [(1, 1), (2, 2)] []) [(1, 1, 0), (2, 2, 0)]
+    equal (f [] [(1, 1), (2, 2)]) [(1, 0, 1), (2, 0, 2)]
+    equal (f [(1, 1), (2, 2)] [(1, 3), (2, 4)]) [(1, 1, 3), (2, 2, 4)]
+    equal (f [(1, 1)] [(0, 2), (2, 4), (3, 6)])
+        [(0, 0, 2), (1, 1, 3), (2, 1, 4), (3, 1, 6)]
+    equal (f [(0, 0), (4, 4)] [(1, 1), (2, 2), (3, 3)])
+        [(0, 0, 0), (1, 1, 1), (2, 2, 2), (3, 3, 3), (4, 4, 3)]
 
 -- * access
 
@@ -184,3 +181,11 @@ test_clip_min = do
     above [(0, 0), (0, 2), (4, 2)]
     above [(1, 0)]
     above []
+
+test_trim = do
+    let sig = Signal.signal [(0, 0), (1, 1), (2, 0)]
+    let f p = Signal.unpack . Signal.trim p
+    equal (f 0 sig) []
+    equal (f 1 sig) [(0, 0)]
+    equal (f 2 sig) [(0, 0), (1, 1)]
+    equal (f 3 sig) [(0, 0), (1, 1), (2, 0)]

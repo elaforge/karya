@@ -220,7 +220,7 @@ parse_arg (desc, word@(c:rest))
 
 derive_notes :: (Monad m) => [(Track.PosEvent, Parsed)]
     -> Derive.DeriveT m [Score.Event]
-derive_notes = fmap concat . mapM note
+derive_notes = fmap (trim_pitches . concat) . mapM note
     where
     note ((pos, event), parsed) = Derive.with_stack_pos
         pos (Event.event_duration event) (derive_note pos event parsed)
@@ -253,6 +253,28 @@ derive_note pos event (Parsed call args inst attrs) = do
         -- TODO pass args
         else Derive.d_sub_derive [] $ Derive.with_instrument inst attrs $
             d_call pos (Event.event_duration event) call
+
+-- | In a note track, the pitch signal for each note ends when the next note
+-- begins.  Otherwise, it looks like each note changes pitch when the next note
+-- begins.  Of course, the note is already \"done\" at this point, but the
+-- decay time means it may not be.
+trim_pitches :: [Score.Event] -> [Score.Event]
+trim_pitches events = map trim_event (Seq.zip_next events)
+    where
+    trim_event (event, Nothing) = event
+    trim_event (event, Just next) =
+        event { Score.event_controllers = map_pitch trim cmap }
+        where
+        cmap = Score.event_controllers event
+        trim sig = Signal.trim (Score.event_start next) sig
+    map_pitch f cmap = Map.map f pitches `Map.union` cmap
+        where pitches = Map.filterWithKey (\k _ -> is_pitch k) cmap
+
+-- | TODO: this is really part of the schema, but its hard to trim the pitch
+-- track without knowing which one it is.
+is_pitch :: Score.Controller -> Bool
+is_pitch (Score.Controller c) = take 1 c == "*"
+
 
 d_call :: TrackPos -> TrackPos -> String -> Derive.EventDeriver
 d_call start dur ident = do

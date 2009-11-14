@@ -65,19 +65,53 @@ all_msgs_valid wmsgs = all Midi.valid_msg (map Midi.wmsg_msg wmsgs)
 midi_cc_of (Midi.ChannelMessage _ (Midi.ControlChange cc val)) = Just (cc, val)
 midi_cc_of _ = Nothing
 
+test_can_share_chan = do
+    let f evt1 evt2 = Perform.can_share_chan e1 e2
+            where [e1, e2] = mkevents [evt1, evt2]
+
+    -- Notes can share even though they overlap because of decay.
+    equal (f (inst1, "a", 0, 1, []) (inst1, "b", 1, 1, []))
+        True
+    -- Decay means fractinal notes don't share a channel.
+    equal (f (inst1, "a", 0, 1, []) (inst1, "a2", 1, 1, []))
+        False
+
 test_perform = do
     let t_perform events = do
-        let (msgs, warns) = perform inst_config2 (map mkevent events)
+        let evts = Seq.sort_on Perform.event_start (concatMap mkevents events)
+        -- pprint evts
+        let (msgs, warns) = perform inst_config2 evts
         -- print_msgs msgs
         -- putStrLn ""
         equal warns []
         return (map unpack_msg (filter (Midi.is_note . Midi.wmsg_msg) msgs))
 
+    -- fractional notes get their own channels
+    msgs <- t_perform
+        [ [ (inst1, "a", 0, 1, [])
+        , (inst1, "a2", 1, 1, [])
+        , (inst1, "b", 2, 1, [])
+        , (inst1, "b2", 3, 1, [])
+        ] ]
+    equal msgs
+        [ ("dev1", 0.0, 0, NoteOn 60 100)
+        , ("dev1", 1.0, 0, NoteOff 60 100)
+
+        , ("dev1", 1.0, 1, NoteOn 60 100)
+        , ("dev1", 2.0, 1, NoteOff 60 100)
+
+        , ("dev1", 2.0, 0, NoteOn 61 100)
+        , ("dev1", 3.0, 0, NoteOff 61 100)
+
+        , ("dev1", 3.0, 1, NoteOn 61 100)
+        , ("dev1", 4.0, 1, NoteOff 61 100)
+        ]
+
     -- channel 0 reused for inst1, inst2 gets its own channel
     msgs <- t_perform
-        [ (inst1, "a", 0, 1, [])
-        , (inst1, "b", 0, 1, [])
-        , (inst2, "c", 0, 1, [])
+        [ [(inst1, "a", 0, 1, [])]
+        , [(inst1, "b", 0, 1, [])]
+        , [(inst2, "c", 0, 1, [])]
         ]
     equal msgs
         [ ("dev1", 0.0, 0, NoteOn 60 100)
@@ -90,28 +124,23 @@ test_perform = do
 
     -- identical notes get split across channels 0 and 1
     msgs <- t_perform
-        [ (inst1, "a", 0, 2, [])
-        , (inst1, "a", 1, 2, [])
-        , (inst1, "b", 1, 2, [])
-        , (inst1, "b", 1.5, 2, [])
+        [ [(inst1, "a", 0, 2, [])]
+        , [(inst1, "a", 1, 2, [])]
         ]
     equal msgs
         [ ("dev1", 0.0, 0, NoteOn 60 100)
         , ("dev1", 1.0, 1, NoteOn 60 100)
-        , ("dev1", 1.0, 0, NoteOn 61 100)
-        , ("dev1", 1.5, 1, NoteOn 61 100)
+
         , ("dev1", 2.0, 0, NoteOff 60 100)
         , ("dev1", 3.0, 1, NoteOff 60 100)
-        , ("dev1", 3.0, 0, NoteOff 61 100)
-        , ("dev1", 3.5, 1, NoteOff 61 100)
         ]
 
     -- velocity curve shows up in NoteOns and NoteOffs
     -- also legato overlap comes into play
     msgs <- t_perform
-        [ (inst1, "a", 0, 2, [c_vel])
+        [ [ (inst1, "a", 0, 2, [c_vel])
         , (inst1, "b", 2, 2, [c_vel])
-        ]
+        ] ]
     equal msgs
         [ ("dev1", 0.0, 0, NoteOn 60 127)
         , ("dev1", 2.0, 0, NoteOn 61 63)
@@ -161,8 +190,9 @@ pretend_to_write xs = do
             putStrLn $ show i ++ ": " ++ show_msg msg
         IO.hPutStr handle (show msg)
 
-perform_one_chan events = Perform.perform_notes (with_chan 0 (mkevents events))
-    where with_chan chan = map (\evt -> (evt, (dev1, chan)))
+-- perform_one_chan events =
+--     Perform.perform_notes (with_chan 0 (mkevents events))
+--     where with_chan chan = map (\evt -> (evt, (dev1, chan)))
 
 print_msgs = mapM_ (putStrLn . show_msg)
 show_msg (Midi.WriteMessage dev ts msg) =
@@ -267,7 +297,7 @@ test_perform_controller2 = do
 
 test_channelize = do
     let inst_addrs = Perform.config_to_inst_addrs inst_config2 test_lookup
-        channelize = map snd . Perform.channelize inst_addrs . mkevents
+        channelize = map snd . Perform.channelize inst_addrs . mkevents_inst
     -- Re-use channels when the pitch is different, but don't when it's the
     -- same.
     equal (channelize
@@ -298,13 +328,9 @@ test_channelize = do
         ])
         [0, 1, 1]
 
-test_can_share_chan = do
-    let f = Perform.can_share_chan
-    print $ f (mkevent (inst1, "a", 0, 1, [])) (mkevent (inst1, "b", 0, 1, []))
-
 test_overlap_map = do
     let f overlapping event = (event, map fst overlapping)
-    let events = mkevents
+    let events = mkevents_inst
             [ ("a", 0, 2, [])
             , ("b", 1, 2, [])
             , ("c", 1.5, 2, [])
@@ -337,30 +363,36 @@ test_allot = do
 
 perform inst_config = Perform.perform test_lookup inst_config
 
-mkevent :: (Instrument.Instrument, String, TrackPos, TrackPos,
-        [(Controller.Controller, Signal.Signal)])
-    -> Perform.Event
-mkevent (inst, pitch, start, dur, controls) =
-    Perform.Event inst start dur (Map.fromList (pitch_sig : controls)) fakestack
+mkevent :: EventSpec -> Perform.Event
+mkevent event = head (mkevents [event])
+
+mkevents_inst = map (\ (p, s, d, c) -> mkevent (inst1, p, s, d, c))
+
+type EventSpec = (Instrument.Instrument, String, TrackPos, TrackPos,
+    [(Controller.Controller, Signal.Signal)])
+
+mkevents :: [EventSpec] -> [Perform.Event]
+mkevents events =
+    [Perform.Event inst start dur
+        (Map.fromList (pitch_control (start+dur) : controls)) stack
+        | (inst, _, start, dur, controls) <- events]
     where
-    fakestack =
+    pitch_control end = (Controller.c_pitch, Signal.trim end pitch_sig)
+    pitch_sig =
+        Signal.track_signal 1 [(pos, Signal.Set, val) | (pos, val) <- notes]
+    notes = map (\(_, p, start, _, _) -> (start, to_pitch p)) events
+    to_pitch p = Maybe.fromMaybe (error ("no pitch " ++ show p))
+        (lookup p pitch_map)
+    pitch_map = zip (map (:"") ['a'..'z']) [60..]
+        ++ zip (map (:"2") ['a'..'z']) [60.5..]
+    stack =
         [ (Types.BlockId (Id.id "test" "fakeblock")
         , Just (Types.TrackId (Id.id "test" "faketrack"))
         , Just (TrackPos 42, TrackPos 42))
         ]
-    pitch_sig = (Controller.c_pitch, Signal.signal [(start, p)])
-    p = Maybe.fromMaybe (error ("no pitch " ++ show pitch))
-        (lookup pitch to_pitch)
-    to_pitch = zip (map (:"") ['a'..'z']) [60..]
-mkevents = map (\ (p, s, d, c) -> mkevent (inst1, p, s, d, c))
 
 mkpitch :: Signal.Val -> Perform.ControllerMap
 mkpitch pitch = Map.fromList [(Controller.c_pitch, Signal.signal [(0, pitch)])]
-
-events1 = mkevents
-    [ ("a", 0, 8, [])
-    , ("b", 2, 8, [])
-    ]
 
 
 mksignal ts_vals = Signal.track_signal (TrackPos 1)

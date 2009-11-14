@@ -16,6 +16,7 @@ import qualified Util.Log as Log
 import Ui
 import qualified Ui.State as State
 import qualified Ui.Types as Types
+import qualified Ui.Track as Track
 import qualified Ui.UiTest as UiTest
 
 import qualified Midi.Midi as Midi
@@ -31,6 +32,7 @@ import qualified Derive.Scale.Twelve as Twelve
 import qualified Perform.Signal as Signal
 import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Transport as Transport
+import qualified Perform.Warning as Warning
 import qualified Perform.Midi.Controller as Midi.Controller
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Instrument as Instrument
@@ -110,6 +112,48 @@ basic_deriver note_tid pitch_tid =
         (Derive.with_instrument (Just default_inst) Score.no_attrs $
             Derive.with_track_warp Note.d_note_track note_tid)
 
+-- | Do a default derivation on the state, and return events and logs from each
+-- step.
+default_derive :: State.State -> Instrument.Config
+    -> ([Score.Event], [Log.Msg], [Perform.Event], [Warning.Warning],
+        [Midi.Message], [Warning.Warning])
+default_derive ui_state inst_config =
+    (events, derive_logs, midi_events, convert_warns, mmsgs, perform_warns)
+    where
+    deriver = UiTest.eval ui_state $
+        Schema.schema_deriver Schema.default_schema UiTest.default_block_id
+    (events, derive_logs) = derive_events ui_state deriver
+    (midi_events, convert_warns) = Convert.convert default_lookup events
+    (msgs, perform_warns) =
+        Perform.perform default_lookup inst_config midi_events
+    mmsgs = map Midi.wmsg_msg msgs
+
+test_fractional_pitch = do
+    -- A pitch that requires pitch bends should distribute across multiple
+    -- channels.  Yes, this is also tested in Perform.Midi.Perform, but this
+    -- also tests that the pitch signal is trimmed properly by
+    -- Note.trim_pitches.
+    let (tids, ui_state) = UiTest.run_mkstate
+            [ (">synth/patch", [(0, 16, ""), (16, 16, "")])
+            , ("*semar", [(0, 16, "1"), (16, 16, "2")])
+            ]
+    let inst_config = Instrument.config
+            [(default_inst,
+                [(default_dev, 0), (default_dev, 1), (default_dev, 2)])]
+            Nothing
+    let (events, derive_logs, midi_events, convert_warns, mmsgs, perform_warns)
+            = default_derive ui_state inst_config
+
+    equal derive_logs []
+    -- pprint events
+    equal convert_warns []
+    -- pprint midi_events
+    equal perform_warns []
+    -- pprint mmsgs
+    equal [(chan, nn) | Midi.ChannelMessage chan (Midi.NoteOn nn _) <- mmsgs]
+        [(0, 72), (1, 73)]
+
+
 test_basic = do
     -- verify the three phases of derivation
     -- 1: derivation to score events
@@ -125,14 +169,10 @@ test_basic = do
     -- 2: conversion to midi perf events
     let (midi_events, warns) = Convert.convert default_lookup events
     equal warns []
-    let evt = (,,,,,) (Instrument.inst_name default_perf_inst)
-        pitch_sig = Signal.track_signal Signal.default_srate
-                [(0, Signal.Set, 60), (16, Signal.Set, 61)]
-        pitch_cont = Map.singleton Midi.Controller.c_pitch pitch_sig
+    let evt = (,,,,) (Instrument.inst_name default_perf_inst)
     equal (map extract_perf_event midi_events)
-        [ evt (Just "a0") 0 16 pitch_cont (mkstack [("b1", "b1.t0", (0, 16))])
-        , evt (Just "a1+a2") 16 16 pitch_cont
-            (mkstack [("b1", "b1.t0", (16, 16))])
+        [ evt (Just "a0") 0 16 (mkstack [("b1", "b1.t0", (0, 16))])
+        , evt (Just "a1+a2") 16 16 (mkstack [("b1", "b1.t0", (16, 16))])
         ]
 
     -- 3: performance to midi protocol events
@@ -147,7 +187,7 @@ set_ks inst ks nn = inst
     { Instrument.inst_keyswitch = Just (Instrument.Keyswitch ks nn) }
 extract_perf_event (Perform.Event inst start dur controls stack) =
     ( Instrument.inst_name inst, fmap ks_name (Instrument.inst_keyswitch inst)
-    , start, dur, controls, stack)
+    , start, dur, stack)
 mkstack = map (\(bid, tid, pos) ->
     (UiTest.bid bid, Just (UiTest.tid tid), Just pos))
 
@@ -235,6 +275,30 @@ test_tempo = do
         [(0, 8, "--1"), (8, 6, "--2"), (15, 5, "--3")]
     equal (f [(0, Signal.Set, 0), (20, Signal.Linear, 2)])
         [(0, 7509, "--1"), (7509, 2500, "--2"), (10009, 5, "--3")]
+
+test_deriver_performance = do
+    -- test a large score for profiling
+    let size = 10000
+    let notes = cycle ["4a", "4b", "4c", "4d", "4e", "4f", "4g", "5c"]
+        pos = take size [0..]
+        vels = cycle ["1", ".2", ".4", ".6"]
+        tempo_pos = take (size `div` 10) [0, 10..]
+        tempos = cycle ["1", "2", "3", "i1"]
+        inst_tracks name =
+            [ (name, [(p, 1, "") | p <- pos])
+            , ("*twelve", [(p, 0, note) | (p, note) <- zip pos notes])
+            , ("vel", [(p, 0, vel) | (p, vel) <- zip pos vels])
+            ]
+    let (_, ui_state) = UiTest.run_mkstate $
+            [("tempo", [(p, 0, t) | (p, t) <- zip tempo_pos tempos])]
+            ++ inst_tracks ">i1" ++ inst_tracks ">i2"
+    let blocks = State.state_blocks ui_state
+    print (Map.size blocks)
+    print $ Map.map (Track.events_length . Track.track_events)
+        (State.state_tracks ui_state)
+
+    -- let (events, logs) = derive_events ui_state d
+
 
 -- * setup
 
