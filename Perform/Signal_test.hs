@@ -207,9 +207,9 @@ test_clip_min = do
     above [(1, 0)]
     above []
 
-test_trim = do
+test_truncate = do
     let sig = Signal.signal [(0, 0), (1, 1), (2, 0)]
-    let f p = Signal.unpack . Signal.trim p
+    let f p = Signal.unpack . Signal.truncate p
     equal (f 0 sig) []
     equal (f 1 sig) [(0, 0)]
     equal (f 2 sig) [(0, 0), (1, 1)]

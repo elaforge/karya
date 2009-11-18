@@ -263,15 +263,15 @@ trim_pitches events = map trim_event (Seq.zip_next events)
     where
     trim_event (event, Nothing) = event
     trim_event (event, Just next) =
-        event { Score.event_controllers = map_pitch trim cmap }
+        event { Score.event_controllers = map_pitch trunc cmap }
         where
         cmap = Score.event_controllers event
-        trim sig = Signal.trim (Score.event_start next) sig
+        trunc sig = Signal.truncate (Score.event_start next) sig
     map_pitch f cmap = Map.map f pitches `Map.union` cmap
         where pitches = Map.filterWithKey (\k _ -> is_pitch k) cmap
 
--- | TODO: this is really part of the schema, but its hard to trim the pitch
--- track without knowing which one it is.
+-- | TODO: this is really part of the schema, but its hard to truncate the
+-- pitch track without knowing which one it is.
 is_pitch :: Score.Controller -> Bool
 is_pitch (Score.Controller c) = take 1 c == "*"
 

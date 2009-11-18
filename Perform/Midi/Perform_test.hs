@@ -420,10 +420,10 @@ trim_pitches events = map trim_event (Seq.zip_next events)
     where
     trim_event (event, Nothing) = event
     trim_event (event, Just next) =
-        event { Perform.event_controls = map_pitch trim cmap }
+        event { Perform.event_controls = map_pitch trunc cmap }
         where
         cmap = Perform.event_controls event
-        trim sig = Signal.trim (Perform.event_start next) sig
+        trunc sig = Signal.truncate (Perform.event_start next) sig
     map_pitch f cmap = Map.map f pitches `Map.union` cmap
         where pitches = Map.filterWithKey (\k _ -> k == Controller.c_pitch) cmap
 

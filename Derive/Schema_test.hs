@@ -111,10 +111,16 @@ test_compile = do
     -- further until I remove the pitch stuff from the note parser
     let (res, logs) = derive
             ("*twelve", [(0, 0, "4c"), (10, 0, "4d"), (20, 0, "i, 4e")])
-    let pitch_signal = (Score.Controller "*twelve",
-            mksig [(0, set, 60), (5, set, 62), (10, Signal.Linear, 64)])
+    let psig segs = (Score.Controller "*twelve", mksig segs)
     equal logs []
-    equal res $ Right (replicate 3 (Map.fromList [pitch_signal, cont_signal]))
+    -- The pitch signal gets truncated so it doesn't look like the note's decay
+    -- wants to change pitch.
+    equal res $ Right $ map Map.fromList
+        [ [psig [(0, set, 60)], cont_signal]
+        , [psig [(0, set, 60), (5, set, 62)], cont_signal]
+        , [psig [(0, set, 60), (5, set, 62), (10, Signal.Linear, 64)],
+            cont_signal]
+        ]
 
 test_compile_to_signals = do
     let derive track = Arrow.first extract $

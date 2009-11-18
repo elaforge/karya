@@ -7,7 +7,6 @@ something a little better than plain textual substitution.
 - Score.event_controllers vs. Perform.event_controls
 
 CURRENT
-  - make sure signal behaves ok without the sentinel, remove sentinel
   + track down ghc rts crashes
 
   - demo piece: show nested tempos with "bouncing ball", expressive pitch

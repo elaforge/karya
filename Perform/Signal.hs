@@ -3,13 +3,8 @@
     points are interpolated linearly, so the signal array represents a series
     of straight line segments.
 
-    To avoid having to write special cases for the ends of signals, the
-    'track_signal' constructor will append an \"infinite\" flat segment holding
-    the signal at its last value.  This is logical for control and tempo
-    signals.  This means I have to make sure not to shorten signals, but that's
-    an easier special case to worry about.
-
-    There is an implicit initial sample at (0, 0).
+    There is an implicit initial sample at (0, 0).  The final sample is
+    considered to extend in a flat line infinitely to the right.
 
     There are a few design trade offs here:
 
@@ -117,7 +112,7 @@ signal vals =
     SignalVector (V.pack (map (\(a, b) -> (pos_to_val a, b)) vals))
 
 constant :: Val -> Signal
-constant n = signal [(0, n), (max_track_pos, n)]
+constant n = signal [(0, n)]
 
 -- TODO unused but maybe useful some day
 is_constant :: TrackPos -> TrackPos -> Signal -> Bool
@@ -157,10 +152,9 @@ data Method =
 -- | Convert the track-level representation of a signal to a Signal.
 track_signal :: TrackPos -> [TrackSegment] -> Signal
 track_signal srate segs = SignalVector $
-        V.pack (map first_to_val (drop_first (concat pairs ++ [last_sample])))
+        V.pack (map first_to_val (drop_first (concat pairs)))
     where
-    ((_, last_val), pairs) = List.mapAccumL go (TrackPos 0, 0) segs
-    last_sample = (max_track_pos, last_val)
+    (_, pairs) = List.mapAccumL go (TrackPos 0, 0) segs
     go (pos0, val0) (pos1, meth, val1) = ((pos1, val1), samples)
         where samples = sample_track_seg srate pos0 val0 pos1 val1 meth
     -- Suppress an initial (0, 0) when the signal doesn't actually start with
@@ -195,13 +189,12 @@ exp_function n val0 val1 amount
 
 -- * constants
 
--- | This is used to extend the last segment "forever" and to make endless
--- constant slope signals.  A little icky, but seems simpler than special
--- logic.
+-- | Used to create a segment that continues \"forever\".
 max_track_pos :: TrackPos
 max_track_pos = TrackPos (2^52 - 1) -- 52 bits of mantissa only should be enough
 
 -- Later, this should be under deriver control.
+default_srate :: TrackPos
 default_srate = TrackPos 0.05
 
 -- * comparison
@@ -261,7 +254,7 @@ within start end (SignalVector vec) = SignalVector (V.drop extra inside)
 --
 -- This emits a list to take advantage of laziness.  Later when signals are
 -- lazy I should probably emit two signals.
-resample :: Signal -> Signal -> [(Val, Val, Val)]
+resample :: Signal -> Signal -> [(Val, Val, Val)] -- ^ [(x, y0, y1)]
 resample (SignalVector vec0) (SignalVector vec1) =
     _resample (0, 0) (0, 0) (V.unpack vec0) (V.unpack vec1)
 
@@ -412,7 +405,10 @@ integrate srate = map_signal_accum go final 0
     where
     go accum x0 y0 x1 y1 =
         integrate_segment (pos_to_val srate) accum x0 y0 x1 y1
-    final ((x, _y), accum) = [(x, accum)]
+    -- Pretend like the last sample extends to the right forever.  This is
+    -- grody but seems to be inevitable with a variable sampling rate scheme.
+    big = pos_to_val max_track_pos
+    final ((x, y), accum) = [(x, accum), (big, accum + y * (big-x))]
 
 integrate_segment :: Val -> Val -> Val -> Val -> Val -> Val
     -> (Val, [(Val, Val)])
@@ -437,10 +433,10 @@ clip_max max_val = clip_with max_val (>)
 clip_min :: Val -> Signal -> Signal
 clip_min min_val = clip_with min_val (<)
 
--- | Trim the end off of a signal.  It's just a view of the old signal, so it
+-- | Truncate a signal.  It's just a view of the old signal, so it
 -- doesn't allocate a new signal.
-trim :: TrackPos -> Signal -> Signal
-trim pos (SignalVector vec) = SignalVector below
+truncate :: TrackPos -> Signal -> Signal
+truncate pos (SignalVector vec) = SignalVector below
     where (below, _) = V.splitAt (bsearch_on vec fst (pos_to_val pos)) vec
 
 map_val :: (Val -> Val) -> Signal -> Signal
