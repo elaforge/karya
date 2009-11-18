@@ -122,10 +122,8 @@ _perform_notes addr_inst overlapping prev_note_off ((event, addr):events) =
     -- happens once at gaps though, but if it's a problem I can abort after
     -- n seconds, which would possibly save generating controllers there, at
     -- the cost of assuming decays are < n sec.
-    next_note_on = case List.find ((==addr) . snd) events of
-        Nothing -> note_end event
-        Just (evt, _chan) -> event_start evt
-    (msgs, warns, note_off) = perform_note prev_note_off next_note_on event addr
+    next_event = fmap fst $ List.find ((==addr) . snd) events
+    (msgs, warns, note_off) = perform_note prev_note_off next_event event addr
     first_ts = case msgs of
         [] -> Timestamp.Timestamp 0 -- perform_note decided to play nothing?
         (msg:_) -> Midi.wmsg_ts msg
@@ -255,9 +253,13 @@ sort2 cmp xs = List.sortBy cmp xs
 
 -- * perform note
 
-perform_note :: TrackPos -> TrackPos -> Event -> Instrument.Addr
+-- | Emit MIDI for a single event.
+--
+-- @next_event@ is the next event with the same Addr which is used for the
+-- legato tweak and to see how far to render controllers.
+perform_note :: TrackPos -> Maybe Event -> Event -> Instrument.Addr
     -> ([Midi.WriteMessage], [Warning.Warning], TrackPos)
-perform_note prev_note_off next_note_on event (dev, chan)
+perform_note prev_note_off next_event event (dev, chan)
     | midi_nn == 0 =
         ([], [event_warning event "no pitch signal"], prev_note_off)
     | otherwise = (merge_messages [controller_msgs, note_msgs], warns, note_off)
@@ -271,13 +273,19 @@ perform_note prev_note_off next_note_on event (dev, chan)
         (Midi.ChannelMessage chan msg)
     pb_time = min note_on $ max prev_note_off (note_on - pitch_bend_lead_time)
     note_on = event_start event
-    note_off = event_end event + (if event_end event == next_note_on
-        then legato_overlap_time else 0)
+    next_note_on = maybe (note_end event) event_start next_event
+    should_legato = event_end event == next_note_on && midi_nn /= next_midi_nn
+    note_off = event_end event
+        + if should_legato then legato_overlap_time else 0
     (on_vel, off_vel, vel_clip_warns) = note_velocity event note_on note_off
 
     pb_range = Instrument.inst_pitch_bend_range (event_instrument event)
-    (midi_nn, pb) = Maybe.fromMaybe (0, 0)
-        (event_pitch_at pb_range event note_on)
+    (midi_nn, pb) = Maybe.fromMaybe (0, 0) $
+        event_pitch_at pb_range event note_on
+    next_midi_nn = Maybe.fromMaybe 0 $ do
+        next <- next_event
+        (nn, _) <- event_pitch_at pb_range next next_note_on
+        return nn
 
     control_sigs = Map.assocs (event_controls event)
     cmap = Instrument.inst_controller_map (event_instrument event)
