@@ -65,17 +65,6 @@ all_msgs_valid wmsgs = all Midi.valid_msg (map Midi.wmsg_msg wmsgs)
 midi_cc_of (Midi.ChannelMessage _ (Midi.ControlChange cc val)) = Just (cc, val)
 midi_cc_of _ = Nothing
 
-test_can_share_chan = do
-    let f evt1 evt2 = Perform.can_share_chan e1 e2
-            where [e1, e2] = mkevents [evt1, evt2]
-
-    -- Notes can share even though they overlap because of decay.
-    equal (f (inst1, "a", 0, 1, []) (inst1, "b", 1, 1, []))
-        True
-    -- Decay means fractinal notes don't share a channel.
-    equal (f (inst1, "a", 0, 1, []) (inst1, "a2", 1, 1, []))
-        False
-
 test_perform = do
     let t_perform events = do
         let evts = Seq.sort_on Perform.event_start (concatMap mkevents events)
@@ -148,6 +137,19 @@ test_perform = do
         , ("dev1", 4.0, 0, NoteOff 61 0)
         ]
 
+    -- Legato does not apply to consecutive notes with the same pitch, since
+    -- that makes the NoteOff abiguous.
+    msgs <- t_perform
+        [ [ (inst1, "a", 0, 1, [])
+        , (inst1, "a", 1, 1, [])
+        ] ]
+    equal msgs
+        [ ("dev1", 0.0, 0, NoteOn 60 100)
+        , ("dev1", 1.0, 0, NoteOff 60 100)
+        , ("dev1", 1.0, 0, NoteOn 60 100)
+        , ("dev1", 2.0, 0, NoteOff 60 100)
+        ]
+
 unpack_msg (Midi.WriteMessage (Midi.WriteDevice dev) ts
         (Midi.ChannelMessage chan msg)) =
     (dev, Timestamp.to_seconds ts, chan, msg)
@@ -204,7 +206,7 @@ test_pitch_curve = do
     let f evt = (Seq.drop_dups id (map Midi.wmsg_msg msgs), warns)
             where
             (msgs, warns, _) = Perform.perform_note
-                (TrackPos 0) (TrackPos 2) evt (dev1, 1)
+                (TrackPos 0) Nothing evt (dev1, 1)
         chan msgs = (map (Midi.ChannelMessage 1) msgs, [])
 
     equal (f (event [(1, 42.12)]))
@@ -219,7 +221,7 @@ test_pitch_curve = do
 
     let notes prev evt = [(Midi.wmsg_ts msg, Midi.wmsg_msg msg) | msg <- msgs]
             where
-            (msgs, _, _) = Perform.perform_note prev (TrackPos 2) evt (dev1, 1)
+            (msgs, _, _) = Perform.perform_note prev Nothing evt (dev1, 1)
     equal (head (notes (TrackPos 0) (event [(1, 42.12)])))
         (Timestamp.Timestamp 990, Midi.ChannelMessage 1 (Midi.PitchBend 0.01))
     equal (head (notes (TrackPos 1) (event [(1, 42.12)])))
@@ -309,6 +311,13 @@ test_channelize = do
         ])
         [0, 1, 0, 1, 2]
 
+    -- If they overlap during the decay, having the same note is ok.
+    equal (channelize
+        [ ("a", 0, 1, [])
+        , ("a", 1, 1, [])
+        ])
+        [0, 0]
+
     -- Even though they share pitches, they get the same channel, since inst2
     -- only has one addr.
     equal (map snd $ Perform.channelize inst_addrs $ map mkevent
@@ -327,6 +336,20 @@ test_channelize = do
         , ("c", 4, 4, [c_vol, c_aftertouch])
         ])
         [0, 1, 1]
+
+test_can_share_chan = do
+    let f evt1 evt2 = Perform.can_share_chan e1 e2
+            where [e1, e2] = mkevents [evt1, evt2]
+
+    -- Different notes can overlap.
+    equal (f (inst1, "a", 0, 2, []) (inst1, "b", 1, 2, []))
+        True
+    -- Notes can share even though they overlap because of decay.
+    equal (f (inst1, "a", 0, 1, []) (inst1, "b", 1, 1, []))
+        True
+    -- Decay means fractinal notes don't share a channel.
+    equal (f (inst1, "a", 0, 1, []) (inst1, "a2", 1, 1, []))
+        False
 
 test_overlap_map = do
     let f overlapping event = (event, map fst overlapping)
@@ -372,12 +395,12 @@ type EventSpec = (Instrument.Instrument, String, TrackPos, TrackPos,
     [(Controller.Controller, Signal.Signal)])
 
 mkevents :: [EventSpec] -> [Perform.Event]
-mkevents events =
+mkevents events = trim_pitches
     [Perform.Event inst start dur
-        (Map.fromList (pitch_control (start+dur) : controls)) stack
+        (Map.fromList (pitch_control : controls)) stack
         | (inst, _, start, dur, controls) <- events]
     where
-    pitch_control end = (Controller.c_pitch, Signal.trim end pitch_sig)
+    pitch_control = (Controller.c_pitch, pitch_sig)
     pitch_sig =
         Signal.track_signal 1 [(pos, Signal.Set, val) | (pos, val) <- notes]
     notes = map (\(_, p, start, _, _) -> (start, to_pitch p)) events
@@ -390,6 +413,19 @@ mkevents events =
         , Just (Types.TrackId (Id.id "test" "faketrack"))
         , Just (TrackPos 42, TrackPos 42))
         ]
+
+-- snaked from Derive.Note.trim_pitches
+trim_pitches :: [Perform.Event] -> [Perform.Event]
+trim_pitches events = map trim_event (Seq.zip_next events)
+    where
+    trim_event (event, Nothing) = event
+    trim_event (event, Just next) =
+        event { Perform.event_controls = map_pitch trim cmap }
+        where
+        cmap = Perform.event_controls event
+        trim sig = Signal.trim (Perform.event_start next) sig
+    map_pitch f cmap = Map.map f pitches `Map.union` cmap
+        where pitches = Map.filterWithKey (\k _ -> k == Controller.c_pitch) cmap
 
 mkpitch :: Signal.Val -> Perform.ControllerMap
 mkpitch pitch = Map.fromList [(Controller.c_pitch, Signal.signal [(0, pitch)])]

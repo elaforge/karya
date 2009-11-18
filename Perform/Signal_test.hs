@@ -43,20 +43,36 @@ test_sample_function = do
 
 test_pitches_share = do
     let sig = Signal.signal
-    let f start end = Signal.pitches_share start end end
+    let f = Signal.pitches_share False
+
     -- Different signals.
     equal (f 0 1 (sig [(0, 0), (1, 1)]) (sig [(1, 1), (0, 0)])) False
     -- Separated by an integer.
     equal (f 0 1 (sig [(0, 0), (1, 1)]) (sig [(0, 1), (1, 2)])) True
     equal (f 0 1 (sig [(0, 0), (2, 2)]) (sig [(0, 1), (1, 2)])) True
     equal (f 1 2 (sig [(0, 0), (2, 2)]) (sig [(0, 1), (10, 11)])) True
-    -- Separated by 0.
+    -- Separated by 0 can't share.
     equal (f 0 1 (sig [(0, 0), (1, 1)]) (sig [(0, 0), (1, 1)])) False
     equal (f 0 1 (sig [(0, 0), (1, 1)]) (sig [(0, 0), (2, 2)])) False
+    -- Except when one note is in decay.
+    equal (Signal.pitches_share True 1 2
+            (sig [(0, 1), (4, 1)]) (sig [(1, 1), (5, 1)]))
+        True
 
     -- Must be separated by an integer.
     equal (f 0 1 (sig [(0, 0), (1, 1)]) (sig [(0, 0.5), (1, 1.5)])) False
     equal (f 0 1 (sig [(0, 0), (1, 1)]) (sig [(0, 1.5), (1, 2.5)])) False
+
+    -- Signals with different starting times.
+    equal (f 1 3 (sig [(1, 0), (1, 61), (10, 61)]) (sig [(0, 60), (10, 60)]))
+        True
+
+test_within = do
+    let sig = Signal.signal [(1, 0), (1, 1), (4, 1)]
+    let f = Signal.within
+    equal (f 0 0 sig) (Signal.signal [])
+    equal (f 0 1 sig) (Signal.signal [])
+    equal (f 1 4 sig) (Signal.signal [(1, 1)])
 
 test_resample = do
     -- TODO: test with coincident samples

@@ -67,6 +67,8 @@ import qualified Data.Maybe as Maybe
 import qualified Data.StorableVector as V
 import qualified Foreign.Storable as Storable
 
+import qualified Util.Seq as Seq
+
 import Ui
 import qualified Ui.Track as Track
 
@@ -88,7 +90,7 @@ data Signal =
 
 -- | A pitch signal.  For the moment this is the same as a normal Signal since
 -- scale degrees are reduced to absolute numbers during signal derivation, but
--- ifI want to be able to handle relative pitch generically (i.e.
+-- if I want to be able to handle relative pitch generically (i.e.
 -- scale-independent transpositions and transpose non-tempered scales) this
 -- will have to be something like [(TrackPos, Method, Perform.Pitch)].
 type PitchSignal = Signal
@@ -117,8 +119,17 @@ signal vals =
 constant :: Val -> Signal
 constant n = signal [(0, n), (max_track_pos, n)]
 
+-- TODO unused but maybe useful some day
+is_constant :: TrackPos -> TrackPos -> Signal -> Bool
+is_constant start end sig =
+    all (== (Seq.mhead 0 id vals)) vals && at start sig == at end sig
+    where vals = unpack_vals (within start end sig)
+
 unpack :: Signal -> [(TrackPos, Val)]
 unpack (SignalVector vec) = map (Arrow.first val_to_pos) (V.unpack vec)
+
+unpack_vals :: Signal -> [Val]
+unpack_vals (SignalVector vec) = map snd (V.unpack vec)
 
 to_track_samples :: Signal -> Track.Samples
 to_track_samples = Track.samples . unpack
@@ -203,40 +214,46 @@ default_srate = TrackPos 0.05
 equal :: TrackPos -> TrackPos -> Signal -> Signal -> Bool
 equal start end sig0 sig1 =
     at start sig0 == at start sig1 && at end sig0 == at end sig1
-    && sig_within start end sig0 == sig_within start end sig1
+    && within start end sig0 == within start end sig1
 
 -- | Can the pitch signals share a channel within the given range?
 --
 -- Pitch is complicated.  Like other controllers, if the pitch curves are
 -- different they may not share a channel.  However, if the pitch curves
 -- are integral transpositions of each other, and the transposition is not
--- 0, they should share.  However, in the range of time after @note_off@ and
--- before @end@, they are allowed to have a 0 transposition and share.
-pitches_share :: TrackPos -> TrackPos -> TrackPos -> Signal -> Signal -> Bool
-pitches_share start note_off end sig0 sig1 =
-    pitch_share (in_decay start) (at start sig0) (at start sig1)
-        && pitch_share (in_decay end) (at end sig0) (at end sig1)
+-- 0, they should share.  Unless the overlap occurs during the decay of one or
+-- both notes, at which point 0 transposition is ok.
+pitches_share :: Bool -> TrackPos -> TrackPos -> Signal -> Signal -> Bool
+pitches_share in_decay start end sig0 sig1 =
+    pitch_share in_decay (at start sig0) (at start sig1)
+        && pitch_share in_decay (at end sig0) (at end sig1)
         && all pitch_eq samples
     where
     -- Unlike 'equal' I do resample, because there's a high chance of notes
     -- matching but not lining up in time.
-    samples = resample (sig_within start end sig0) (sig_within start end sig1)
-    pitch_eq (x, ay, by) = pitch_share (in_decay (TrackPos x)) ay by
-    in_decay = (>=note_off)
+    samples = resample (within start end sig0) (within start end sig1)
+    pitch_eq (_, ay, by) = pitch_share in_decay ay by
 
 -- | Only compare out to cents, since differences below that aren't really
 -- audible.
 pitch_share :: Bool -> Double -> Double -> Bool
-pitch_share in_decay v0 v1 = -- v0 == 0 || v1 == 0 ||
+pitch_share in_decay v0 v1 =
     (in_decay || fst (properFraction v0) /= fst (properFraction v1))
         && f v0 == f v1
     where f v = floor (snd (properFraction v) * 1000)
 
-sig_within :: TrackPos -> TrackPos -> Signal -> SigVec
-sig_within start end (SignalVector vec) = inside
+within :: TrackPos -> TrackPos -> Signal -> Signal
+within start end (SignalVector vec) = SignalVector (V.drop extra inside)
     where
     (_, above) = V.splitAt (bsearch_on vec fst (pos_to_val start)) vec
     (inside, _) = V.splitAt (bsearch_on above fst (pos_to_val end)) above
+    -- Otherwise concurrent samples confuse pitches_share.
+    -- TODO leading concurrent samples could confuse other things, maybe put
+    -- this in unpack?
+    extra = if V.null inside then 0
+        else case V.findIndex ((/= fst (V.head inside)) . fst) inside of
+            Nothing -> V.length inside - 1
+            Just i -> i - 1
 
 -- * resample
 
@@ -244,8 +261,9 @@ sig_within start end (SignalVector vec) = inside
 --
 -- This emits a list to take advantage of laziness.  Later when signals are
 -- lazy I should probably emit two signals.
-resample :: SigVec -> SigVec -> [(Val, Val, Val)]
-resample vec0 vec1 = _resample (0, 0) (0, 0) (V.unpack vec0) (V.unpack vec1)
+resample :: Signal -> Signal -> [(Val, Val, Val)]
+resample (SignalVector vec0) (SignalVector vec1) =
+    _resample (0, 0) (0, 0) (V.unpack vec0) (V.unpack vec1)
 
 _resample :: (Val, Val) -> (Val, Val)
     -> [(Val, Val)] -> [(Val, Val)] -> [(Val, Val, Val)]

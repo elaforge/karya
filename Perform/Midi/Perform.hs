@@ -417,14 +417,17 @@ shareable_chan overlapping event = fmap fst (List.find all_share by_chan)
 can_share_chan :: Event -> Event -> Bool
 can_share_chan event1 event2
     | start < end = event_instrument event1 == event_instrument event2
-        && pitches_share start note_off end
-            (pitch_control event1) (pitch_control event2)
+        && (pitches_share in_decay start end
+            (pitch_control event1) (pitch_control event2))
         && controls_equal start end (relevant event1) (relevant event2)
     | otherwise = True
     where
     start = max (event_start event1) (event_start event2)
     end = min (note_end event1) (note_end event2)
-    note_off = min (event_end event1) (event_end event2)
+    -- If the overlap is in the decay of one or both notes, the rules are
+    -- slightly different.
+    in_decay = event_end event1 <= event_start event2
+        || event_end event2 <= event_start event1
     -- Velocity and aftertouch are per-note addressable in midi, but the rest
     -- of the controllers require their own channel.
     relevant event = filter (Controller.is_channel_controller . fst)
