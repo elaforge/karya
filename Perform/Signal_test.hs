@@ -16,6 +16,15 @@ mkseg (pos, meth, val) = (TrackPos pos, meth, val)
 
 -- Also tests 'at'.
 test_track_signal = do
+    let f = Signal.track_signal 1
+    -- Make sure Set and Linear work as expected.
+    equal (f [(0, Set, 1), (2, Linear, 2)])
+        (Signal.signal [(0, 1), (2, 2)])
+    equal (f [(0, Set, 1), (2, Set, 2)])
+        (Signal.signal [(0, 1), (2, 1), (2, 2)])
+    equal (f [(0, Set, 1), (2, Set, 2), (3, Linear, 0), (4, Set, 1)])
+        (Signal.signal [(0, 1), (2, 1), (2, 2), (3, 0), (4, 0), (4, 1)])
+
     let range low high sig =
                 map (\p -> Signal.at p (tsig sig)) (map TrackPos [low..high-1])
 

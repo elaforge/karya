@@ -175,7 +175,7 @@ sample_track_seg :: TrackPos -> TrackPos -> Val -> TrackPos -> Val -> Method
 sample_track_seg srate pos0 val0 pos1 val1 meth = case meth of
     Set | val0 == val1 -> [(pos1, val1)]
         | otherwise -> [(pos1, val0), (pos1, val1)]
-    Linear -> [(pos0, val0), (pos1, val1)]
+    Linear -> [(pos1, val1)]
     Exp n -> sample_function (exp_function n val0 val1) srate pos0 pos1
 
 sample_function :: (Double -> Double) -> TrackPos -> TrackPos -> TrackPos
