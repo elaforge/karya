@@ -160,23 +160,25 @@ destroy_view view_id = State.destroy_view (vid view_id)
 show_block :: BlockId -> Cmd.CmdL String
 show_block block_id = do
     block <- State.get_block block_id
-    tracks <- mapM show_tracklike (Block.block_tracklike_ids block)
-    return $ show_record
-        [ ("title", Block.block_title block)
-        , ("tracks", show_list tracks)
-        , ("schema", show (Block.block_schema block))
-        ]
+    tracks <- mapM show_block_track (Block.block_tracks block)
+    return $ printf "%s %s\n%s"
+        (show (Block.block_title block)) (show block_id) (show_list tracks)
 
+show_block_track :: Block.BlockTrack -> Cmd.CmdL String
+show_block_track track = do
+    tracklike <- show_tracklike (Block.tracklike_id track)
+    return $ printf "%s\n\t(flags %s) (merged %s)" tracklike
+        (show (Block.track_flags track))
+        (show (Block.track_merged track))
+
+-- | Show all blocks whose block id match a string.
+-- TODO not too useful?
 show_blocks :: String -> Cmd.CmdL String
 show_blocks match = do
     st <- State.get
     let block_ids = match_ids match $ Map.keys (State.state_blocks st)
-    blocks <- mapM State.get_block block_ids
-    descs <- forM (zip block_ids blocks) $ \(block_id, block) -> do
-        tracks <- mapM show_tracklike (Block.block_tracklike_ids block)
-        return $ printf "%s (title %s)\n%s" (show block_id)
-            (show (Block.block_title block)) (indent_lines (show_list tracks))
-    return (concat descs)
+    descs <- mapM show_block block_ids
+    return $ Seq.join "\n" descs
 
 -- | Filter ids containing a given substring.
 match_ids :: (Id.Ident id) => String -> [id] -> [id]
@@ -201,7 +203,7 @@ show_tracklike :: Block.TracklikeId -> Cmd.CmdL String
 show_tracklike (Block.TId tid rid) = do
     track <- State.get_track tid
     let title = Track.track_title track
-    return $ printf "%s (title %s) %s" (show tid) (show title) (show rid)
+    return $ printf "%s %s %s" (show title) (show tid) (show rid)
 show_tracklike (Block.RId rid) = return (show rid)
 show_tracklike (Block.DId color) = return $ "Div " ++ show color
 

@@ -4,7 +4,8 @@ something a little better than plain textual substitution.
 
 - program to launch logview and seq together
 
-- Score.event_controllers vs. Perform.event_controls
+- ^T on the cmdline prints stuff!?
+- State.structure only used by Clip_test
 
 CURRENT
   + track down ghc rts crashes
@@ -74,6 +75,15 @@ note input / thru:
   - profile midi->midi thru and implement a fast path if necessary
 
 bugs:
+  - renaming the project makes the merged tracks get out of date
+  - nudge a note event on a collapsed track doesn't nudge the pitch event
+  - delete note event in command mode doesn't delete the pitch event
+  - bring block windows to the front after a load
+
+  - save saves with .state
+  - loading with a window displayed 'error: unknown (vid "untitled/b0.v0")'
+  - when loading a new state collapsed tracks are expanded
+
   - tracks with different tempos play correctly, but playback follows tempo
   - unparsed notes are played instead of dropped, it's because the pitch is
     dropped but not the note
@@ -155,16 +165,23 @@ logging logview:
   - commands like Selection or MIDI thru generate too much log spam, maybe
     filter logs for those?
 
+control
+  - make controller/control naming consistently "control"
+    - Score.event_controllers vs. Perform.event_controls
+  scale markers on pitch signals
+    - haskell will have to send [(String, Val)].  Either cache it or avoid
+      cache problems by always passing it but keep as a a ForeignPtr in haskell.
+    - fltk implementation
+  - more render options, e.g. solid with color gradient
+  dense sampled signals
+    - efficient storage, preferably as a Signal so no conversion is necessary
+    - display dense signals: omit text and trigger lines when zoomed out
+
 Ui:
   - some kind of special highlight to indicate the active block
   - rethrow c++ exceptions as FltkError
-  Controllers
-    * pass signals as pointers, not copies
-    - make sure very dense (e.g. sampled) signals are displayed and stored
-      efficiently, but are still editable normally when you zoom in.
-    - signal render support for indexed signal type, especially pitch
-    - events store style as a uchar ID for consistency and memory savings
   Track
+    - events pass style as a uchar ID for consistency and memory savings
     - benchmark large TrackEvents
     more compact implemnetation than Data.Map?  profile first!
       - priorities: memory efficiency, persistent, merge speed (insert many)
