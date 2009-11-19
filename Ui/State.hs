@@ -267,10 +267,13 @@ map_track_ids f = do
             blocks
     modify $ \st -> st { state_tracks = new_tracks, state_blocks = new_blocks }
     where
-    map_track f track = case Block.tracklike_id track of
+    map_track f = map_merged f . map_track_id f
+    map_track_id f track = case Block.tracklike_id track of
         Block.TId tid rid -> Block.modify_id track $
             const (Block.TId (f tid) rid)
         _ -> track
+    map_merged f track = track
+        { Block.track_merged = map f (Block.track_merged track) }
 
 map_ruler_ids :: (UiStateMonad m) => (Id.Id -> Id.Id) -> m ()
 map_ruler_ids f = do
