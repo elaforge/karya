@@ -253,7 +253,20 @@ initial_state inst_db schema_map = State {
     }
 
 empty_state = initial_state Instrument.Db.empty Map.empty
-clear_history cmd_state = cmd_state { state_history = ([], []) }
+
+-- | Reset the parts of the State which are specific to a \"session\".  This
+-- should be called whenever an entirely new state is loaded.
+reinit_state :: State -> State
+reinit_state cstate = cstate
+    { state_history = ([], [])
+    , state_focused_view = Nothing
+    -- I could go either way on these, but it seems nicer to reset them to
+    -- the default status.
+    , state_edit_mode = state_edit_mode empty_state
+    , state_kbd_entry = state_kbd_entry empty_state
+    , state_step = state_step empty_state
+    , state_kbd_entry_octave = state_kbd_entry_octave empty_state
+    }
 
 data WriteDeviceState = WriteDeviceState {
     -- Used by Cmd.MidiThru:

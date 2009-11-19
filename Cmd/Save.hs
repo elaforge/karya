@@ -18,7 +18,7 @@ get_save_file :: (Monad m) => Cmd.CmdT m FilePath
 get_save_file = do
     dir <- fmap State.state_project_dir State.get
     ns <- State.get_project
-    return $ FilePath.combine dir (map sanitize ns ++ ".state")
+    return $ FilePath.combine dir (map sanitize ns)
     where sanitize c = if FilePath.isPathSeparator c then '_' else c
 
 cmd_save :: (Trans.MonadIO m) => FilePath -> Cmd.CmdT m ()
@@ -43,8 +43,8 @@ cmd_load fname = do
     Log.notice $ "state loaded from " ++ show fname
 
     State.modify (const (Serialize.save_ui_state state))
+    Cmd.modify_state Cmd.reinit_state
     Edit.initialize_state
-    Edit.clear_history
 
 cmd_save_midi_config :: (Trans.MonadIO m) => FilePath -> Cmd.CmdT m ()
 cmd_save_midi_config fname = do

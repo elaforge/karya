@@ -1105,7 +1105,7 @@ find_tracks f blocks = [(bid, get_tracks b) | (bid, b) <- Map.assocs blocks]
 -- | Lookup @map!key@, throwing if it doesn't exist.
 lookup_id :: (Ord k, Show k, UiStateMonad m) => k -> Map.Map k a -> m a
 lookup_id key map = case Map.lookup key map of
-    Nothing -> throw $ "unknown " ++ show key
+    Nothing -> throw $ "State.lookup: unknown " ++ show key
     Just val -> return val
 
 -- | Insert @val@ at @key@ in @get_map state@, throwing if it already exists.

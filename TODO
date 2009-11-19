@@ -75,13 +75,14 @@ note input / thru:
   - profile midi->midi thru and implement a fast path if necessary
 
 bugs:
-  - renaming the project makes the merged tracks get out of date
+  * renaming the project makes the merged tracks get out of date
   - nudge a note event on a collapsed track doesn't nudge the pitch event
   - delete note event in command mode doesn't delete the pitch event
   - bring block windows to the front after a load
 
-  - save saves with .state
-  - loading with a window displayed 'error: unknown (vid "untitled/b0.v0")'
+  - mousewheel scroll goes past the end
+  * save saves with .state
+  * loading with a window displayed 'error: unknown (vid "untitled/b0.v0")'
   - when loading a new state collapsed tracks are expanded
 
   - tracks with different tempos play correctly, but playback follows tempo

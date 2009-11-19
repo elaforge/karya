@@ -311,9 +311,6 @@ merge_block old_blocks block_id new = case Map.lookup block_id old_blocks of
     Nothing -> new
     Just old -> new { Block.block_config = Block.block_config old }
 
-clear_history :: (Monad m) => Cmd.CmdT m ()
-clear_history = Cmd.modify_state $ \st -> st { Cmd.state_history = ([], []) }
-
 
 -- | Sync UI state up with Cmd state and schedule UI updates.
 initialize_state :: (Monad m) => Cmd.CmdT m ()
