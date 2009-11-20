@@ -109,10 +109,10 @@ run_update block_samples (Update.ViewUpdate view_id Update.CreateView) = do
     block <- State.get_block (Block.view_block view)
     let maybe_track_samples = lookup (Block.view_block view) block_samples
 
-    let tracks = Block.block_tracklike_ids block
-    ctracks <- mapM State.get_tracklike tracks
+    let track_ids = Block.block_tracklike_ids block
+    ctracks <- mapM State.get_tracklike track_ids
     let widths = map Block.track_view_width (Block.view_tracks view)
-    titles <- mapM track_title tracks
+    titles <- mapM track_title track_ids
 
     let sels = Block.view_selections view
     csels <- mapM (\(selnum, sel) -> to_csel view_id selnum (Just sel))
@@ -126,14 +126,17 @@ run_update block_samples (Update.ViewUpdate view_id Update.CreateView) = do
         BlockC.create_view view_id title (Block.view_rect view)
             (Block.view_config view) (Block.block_config block)
 
+        let tracks = map fst (Block.block_display_tracks block)
         let track_info = List.zip5 [0..] tracks ctracks widths titles
-        forM_ track_info $ \(tracknum, track, ctrack, width, title) -> do
+        forM_ track_info $ \(tracknum, dtrack, ctrack, width, title) -> do
             -- The 'get_samples' may imply some work evaluating 'block_samples'
             -- which will be serialized in the UI thread.  Should be ok though.
+            let track_id = Block.dtrack_tracklike_id dtrack
             BlockC.insert_track view_id tracknum ctrack
-                (get_samples maybe_track_samples track) width
+                (get_samples maybe_track_samples track_id) width
             unless (null title) $
                 BlockC.set_track_title view_id tracknum title
+            BlockC.set_display_track view_id tracknum dtrack
 
         unless (null (Block.block_title block)) $
             BlockC.set_title view_id (Block.block_title block)
