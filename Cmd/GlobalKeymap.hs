@@ -43,6 +43,7 @@ import qualified App.Config as Config
 
 import qualified Ui.Block as Block
 import qualified Ui.Key as Key
+import qualified Ui.State as State
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
@@ -206,16 +207,25 @@ edit_bindings = concat
     step_rank rank skips = Edit.cmd_meter_step (TimeStep.MatchRank rank skips)
 
 create_bindings = concat
-    [ command_only 't' "append track" Create.insert_track_after_selection
+    [ command_only 't' "insert track"
+        (Create.insert_track_after_selection False)
+    , bind_mod [PrimaryCommand, Shift] (Key.KeyChar 't') "splice track"
+        (Create.insert_track_after_selection True)
     , command_only 'd' "delete track" Create.remove_selected_tracks
+
+    , command_only 'n' "create view" (Create.view =<< Cmd.get_focused_block)
+    , command_only 'w' "destroy view"
+        (State.destroy_view =<< Cmd.get_focused_view)
+    , command_only 'b' "create block" (Create.block_from_template False)
+    , bind_mod [PrimaryCommand, Shift] (Key.KeyChar 'b') "create block template"
+        (Create.block_from_template True)
     ]
 
 clip_bindings = concat
     [ command_only 'c' "copy selection" Clip.cmd_copy_selection
     , command_only 'x' "cut selection" Clip.cmd_cut_selection
     , command_only 'v' "paste selection" Clip.cmd_paste_overwrite
-    -- Makes as much sense as xcv I suppose.
-    , command_only 'b' "merge selection" Clip.cmd_paste_merge
     , bind_mod [Shift, PrimaryCommand] (Key.KeyChar 'v') "insert selection"
         Clip.cmd_paste_insert
+    , command_only 'm' "merge selection" Clip.cmd_paste_merge
     ]

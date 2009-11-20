@@ -136,28 +136,37 @@ track_ruler block_id ruler_id tracknum width = do
         (Block.block_track (Block.TId tid ruler_id) width)
     return tid
 
--- | Like 'track_ruler', but copy the ruler and track width from the track to
--- the left.
+-- | Like 'track_ruler', but copy the ruler from the track to the left.
+--
 -- If the track to the left is a ruler track, it will assume there is
 -- a ".overlay" version of it.
 track :: (State.UiStateMonad m) => BlockId -> TrackNum -> m TrackId
 track block_id tracknum = do
     -- Clip to valid range so callers can use an out of range tracknum.
     tracknum <- clip_tracknum block_id tracknum
-    ruler_id <- get_ruler_id block_id tracknum
+    ruler_id <- get_overlay_ruler_id block_id (tracknum-1)
     track_ruler block_id ruler_id tracknum Config.track_width
 
 -- | Given a hypothetical track at @tracknum@, what should it's ruler id be?
-get_ruler_id :: (State.UiStateMonad m) => BlockId -> TrackNum -> m RulerId
-get_ruler_id block_id tracknum = do
-    prev_track <- State.block_track_at block_id (tracknum-1)
-    -- The above can generate a bad ruler_id if they didn't use 'ruler' to
-    -- create the ruler with the overlay version, so fall back on
-    -- State.no_ruler if it doesn't exist.
-    let ruler_id = case fmap Block.tracklike_id prev_track of
+get_overlay_ruler_id :: (State.UiStateMonad m) => BlockId -> TrackNum
+    -> m RulerId
+get_overlay_ruler_id block_id tracknum = do
+    track <- State.block_track_at block_id tracknum
+    -- The overlay suffix is just a convention, so it's not guaranteed to
+    -- exist.
+    let ruler_id = case fmap Block.tracklike_id track of
             Just (Block.TId _ rid) -> rid
             Just (Block.RId rid) -> add_overlay_suffix rid
             _ -> State.no_ruler
+    maybe_ruler <- State.lookup_ruler ruler_id
+    return $ maybe State.no_ruler (const ruler_id) maybe_ruler
+
+get_ruler_id :: (State.UiStateMonad m) => BlockId -> TrackNum -> m RulerId
+get_ruler_id block_id tracknum = do
+    maybe_track <- State.block_track_at block_id tracknum
+    let ruler_id = maybe State.no_ruler id $ do
+            track <- maybe_track
+            Block.ruler_id_of (Block.tracklike_id track)
     maybe_ruler <- State.lookup_ruler ruler_id
     return $ maybe State.no_ruler (const ruler_id) maybe_ruler
 
@@ -192,12 +201,16 @@ append_track = do
     block_id <- Cmd.get_focused_block
     track block_id 99999
 
-insert_track_after_selection :: (Monad m) => Cmd.CmdT m TrackId
-insert_track_after_selection = do
+insert_track_after_selection :: (Monad m) => Bool -> Cmd.CmdT m TrackId
+insert_track_after_selection splice = do
     (_, tracknum, _) <- Selection.get_insert_any
     block_id <- Cmd.get_focused_block
     block <- State.get_block block_id
-    track block_id (track_after block tracknum)
+    let new_tracknum = track_after block tracknum
+    track_id <- track block_id new_tracknum
+    when splice $
+        State.splice_skeleton block_id (new_tracknum, tracknum)
+    return track_id
 
 track_after :: Block.Block -> TrackNum -> TrackNum
 track_after block tracknum
@@ -211,6 +224,26 @@ remove_selected_tracks = do
     block_id <- Cmd.get_focused_block
     (tracknums, _, _, _) <- Selection.tracks
     mapM_ (State.remove_track block_id) (reverse tracknums)
+
+block_from_template :: (Monad m) => Bool -> Cmd.CmdT m BlockId
+block_from_template include_tracks = do
+    template_block_id <- Cmd.get_focused_block
+    ruler_id <- get_ruler_id template_block_id 0
+    block_id <- block ruler_id
+    when include_tracks $ do
+        template <- State.get_block template_block_id
+        let tracks = drop 1 (Block.block_tracks template)
+        forM_ (zip [1..] tracks) $ \(tracknum, track) ->
+            case Block.tracklike_id track of
+                Block.TId tid rid -> do
+                    new_tid <- track_ruler
+                        block_id rid tracknum (Block.track_width track)
+                    title <- fmap Track.track_title (State.get_track tid)
+                    State.set_track_title new_tid title
+                _ -> State.insert_track block_id tracknum track
+        State.set_skeleton block_id =<< State.get_skeleton template_block_id
+    view block_id
+    return block_id
 
 -- ** util
 

@@ -8,6 +8,13 @@ something a little better than plain textual substitution.
 - State.structure only used by Clip_test
 
 CURRENT
+  * insert new track could splice it into the skeleton in the place of the
+    current track.  But you don't always want that.  Two insert track cmds?
+  * analogous create block cmd that models it on the current block?
+  - insert track should work on a new empty block
+  - delete track cmd that deletes the track instead of just removing it from
+    the block
+
   + track down ghc rts crashes
 
   - demo piece: show nested tempos with "bouncing ball", expressive pitch
@@ -15,11 +22,6 @@ CURRENT
   - cut + paste didn't work with a point paste
 
   - skel_display status can be two chars: Sm is solo+mute
-  + insert new track could splice it into the skeleton in the place of the
-    current track.  But you don't always want that.  Two insert track cmds?
-  - analogous create block cmd that models it on the current block?
-  - delete track cmd that deletes the track instead of just removing it from
-    the block
 
   track management:
     - resize a bunch of tracks at once
@@ -95,6 +97,7 @@ bugs:
     - write a script that continually starts up to see if I can trigger it
     add -DS flag
     crash is when evacuating pinned memory, is it a foreign ptr?
+    - run under valgrind
 
   - fltk: mute (i.e. change brightness) makes text get drawn twice
   - fltk: moving a track title while it's expanded doesn't work
@@ -201,7 +204,7 @@ Ui:
     - adjacent collpsed tracks are merged
 
 skeleton:
-  + splice track: adding a new track automatically links into the skeleton
+  * splice track: adding a new track automatically links into the skeleton
   - parse skeleton in LanguageCmds
 
 test:
