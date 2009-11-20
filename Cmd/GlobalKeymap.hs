@@ -205,9 +205,8 @@ edit_bindings = concat
     step_rank rank skips = Edit.cmd_meter_step (TimeStep.MatchRank rank skips)
 
 create_bindings = concat
-    [ command_only 't' "insert track"
-        (Create.insert_track_after_selection False)
-    , command_only 'T' "splice track" (Create.insert_track_after_selection True)
+    [ command_only 't' "insert track" (Create.insert_track False)
+    , command_only 'T' "splice track" (Create.insert_track True)
     , command_only 'd' "delete tracks" Create.destroy_selected_tracks
 
     , command_only 'n' "create view" (Create.view =<< Cmd.get_focused_block)

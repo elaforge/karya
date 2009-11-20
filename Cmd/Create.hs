@@ -164,6 +164,16 @@ destroy_view view_id = do
 
 -- * track
 
+-- | Insert a track after the selection, or just append one if there isn't one.
+-- This is useful for empty blocks which of course have no selection.
+insert_track :: (Monad m) => Bool -> Cmd.CmdT m TrackId
+insert_track splice = do
+    view_id <- Cmd.get_focused_view
+    maybe_sel <- State.get_selection view_id Config.insert_selnum
+    case maybe_sel of
+        Nothing -> append_track
+        Just _ -> insert_track_after_selection splice
+
 append_track :: (Monad m) => Cmd.CmdT m TrackId
 append_track = do
     block_id <- Cmd.get_focused_block

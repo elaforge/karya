@@ -1,21 +1,9 @@
-- I should be able to have project specific inst aliases, e.g. calung ->
-fm8/bass.  In fact there needs to be a general variable system, hopefully
-something a little better than plain textual substitution.
-
 - program to launch logview and seq together
 
 - ^T on the cmdline prints stuff!?
 - State.structure only used by Clip_test
 
 CURRENT
-  * insert new track could splice it into the skeleton in the place of the
-    current track.  But you don't always want that.  Two insert track cmds?
-  * analogous create block cmd that models it on the current block?
-  - insert track should work on a new empty block
-  * delete track cmd that deletes the track instead of just removing it from
-    the block
-  * same for block
-
   + track down ghc rts crashes
 
   - demo piece: show nested tempos with "bouncing ball", expressive pitch
@@ -32,6 +20,11 @@ CURRENT
   - double click call to jump to its block?
 
 - verify twelve ->midi mapping and range checking
+
+note language
+  - project specific bindings, e.g. for instrument names
+  - calls, e.g. "` *1" does a rambat style jump
+    "-/_\\/_" does the rejang cadence
 
 MILESTONES
   0.1
@@ -78,6 +71,7 @@ note input / thru:
   - profile midi->midi thru and implement a fast path if necessary
 
 bugs:
+  - graphical corruption when scrolling down
   - keymap collisions are logged twice
   * renaming the project makes the merged tracks get out of date
   - nudge a note event on a collapsed track doesn't nudge the pitch event
