@@ -77,8 +77,8 @@ io_cmds transport_info =
 -- * io cmds
 
 (io_cmd_map, io_cmd_map_errors) = Keymap.make_cmd_map $ concat
-    [ bind_mod [Shift, PrimaryCommand] (Key.KeyChar 's') "save" cmd_save
-    , bind_mod [Shift, PrimaryCommand] (Key.KeyChar 'l') "load" cmd_load
+    [ command_only 'S' "save" cmd_save
+    , command_only 'L' "load" cmd_load
     , bind_char ' ' "stop play" Play.cmd_stop
     ]
 
@@ -160,10 +160,8 @@ block_config_bindings = concat
     -- TODO I'm not supposed to use SecondaryCommand for the built in keymap.
     [ bind_click [SecondaryCommand] Config.mouse_select 0
         "toggle skeleton edge" BlockConfig.cmd_toggle_edge
-    , bind_mod [Shift] (Key.KeyChar 'm') "toggle mute"
-        (BlockConfig.cmd_toggle_flag Block.Mute)
-    , bind_mod [Shift] (Key.KeyChar 's') "toggle solo"
-        (BlockConfig.cmd_toggle_flag Block.Solo)
+    , bind_char 'M' "toggle mute" (BlockConfig.cmd_toggle_flag Block.Mute)
+    , bind_char 'S' "toggle solo" (BlockConfig.cmd_toggle_flag Block.Solo)
     ]
 
 -- delete = remove events and move following events back
@@ -209,23 +207,20 @@ edit_bindings = concat
 create_bindings = concat
     [ command_only 't' "insert track"
         (Create.insert_track_after_selection False)
-    , bind_mod [PrimaryCommand, Shift] (Key.KeyChar 't') "splice track"
-        (Create.insert_track_after_selection True)
-    , command_only 'd' "delete track" Create.remove_selected_tracks
+    , command_only 'T' "splice track" (Create.insert_track_after_selection True)
+    , command_only 'd' "remove track" Create.remove_selected_tracks
 
     , command_only 'n' "create view" (Create.view =<< Cmd.get_focused_block)
     , command_only 'w' "destroy view"
         (State.destroy_view =<< Cmd.get_focused_view)
     , command_only 'b' "create block" (Create.block_from_template False)
-    , bind_mod [PrimaryCommand, Shift] (Key.KeyChar 'b') "create block template"
-        (Create.block_from_template True)
+    , command_only 'B' "create block template" (Create.block_from_template True)
     ]
 
 clip_bindings = concat
     [ command_only 'c' "copy selection" Clip.cmd_copy_selection
     , command_only 'x' "cut selection" Clip.cmd_cut_selection
     , command_only 'v' "paste selection" Clip.cmd_paste_overwrite
-    , bind_mod [Shift, PrimaryCommand] (Key.KeyChar 'v') "insert selection"
-        Clip.cmd_paste_insert
+    , command_only 'V' "insert selection" Clip.cmd_paste_insert
     , command_only 'm' "merge selection" Clip.cmd_paste_merge
     ]

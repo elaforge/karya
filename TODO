@@ -14,6 +14,7 @@ CURRENT
   - insert track should work on a new empty block
   - delete track cmd that deletes the track instead of just removing it from
     the block
+  - same for block
 
   + track down ghc rts crashes
 
@@ -77,6 +78,7 @@ note input / thru:
   - profile midi->midi thru and implement a fast path if necessary
 
 bugs:
+  - keymap collisions are logged twice
   * renaming the project makes the merged tracks get out of date
   - nudge a note event on a collapsed track doesn't nudge the pitch event
   - delete note event in command mode doesn't delete the pitch event
@@ -86,15 +88,13 @@ bugs:
   * save saves with .state
   * loading with a window displayed 'error: unknown (vid "untitled/b0.v0")'
   * when loading a new state collapsed tracks are expanded
-    having collapsed state in c++ is kind of error-prone, should I go back to
-    trying to put it in haskell?
 
   - tracks with different tempos play correctly, but playback follows tempo
   - unparsed notes are played instead of dropped, it's because the pitch is
     dropped but not the note
   - bizarre hint importing requirements in Cmd.LanguageEnviron
   + track down ghc rts crashes
-    - write a script that continually starts up to see if I can trigger it
+    * write a script that continually starts up to see if I can trigger it
     add -DS flag
     crash is when evacuating pinned memory, is it a foreign ptr?
     - run under valgrind
@@ -112,6 +112,8 @@ cleanup:
     manual inclusion of $(UI_HS) in the deps
   - remove Util.Log -> Perform.Warning import by translating IDs into strings?
     On the other hand, it's not unreasonable for logs to use other data types
+  - having collapsed state in c++ is kind of error-prone, should I go back to
+    trying to put it in haskell?
 
 performance:
   speed and memory profiling:
@@ -215,6 +217,7 @@ integrator / midi record:
   - implement
 
 Cmd:
+  ? a module with easy access to all GlobalKeymap cmds for cmdline access
   - cmd to give a view focus and bring it to the front
   - Cmd_test
   vi style keymap:
@@ -265,10 +268,6 @@ Cmd:
     * background derivation
     - start playing from top of displayed area
     - start playing from TimeStep before insert point
-
-  Cmd.Record
-    - come up with a plan for midi recording
-    - implement simple midi underiver aka integrator
 
   Undo
     * implement undo and undo/redo cmds

@@ -12,6 +12,7 @@
 -}
 module Cmd.Keymap where
 import Control.Monad
+import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -30,12 +31,15 @@ import qualified Cmd.Cmd as Cmd
 
 -- * building
 
--- | Simple cmd with no modifiers.
+-- | Binding with no modifiers.
 bind_key :: (Monad m) => Key.Key -> String -> Cmd.CmdT m a -> [Binding m]
 bind_key = bind_mod []
 
+-- | Bind a char with no modifiers.
+--
+-- Binding functions that take Char will add a Shift if it's uppercase.
 bind_char :: (Monad m) => Char -> String -> Cmd.CmdT m a -> [Binding m]
-bind_char char = bind_key (Key.KeyChar char)
+bind_char char = bind_mod (char_shift char []) (key_char char)
 
 -- | Many cmds are mapped to both a plain keystroke and command key version.
 -- This is a little unusual, but it means the command can still be invoked when
@@ -45,11 +49,12 @@ command key desc cmd =
     bind_key key desc cmd ++ bind_mod [PrimaryCommand] key desc cmd
 
 command_char :: (Monad m) => Char -> String -> Cmd.CmdT m a -> [Binding m]
-command_char char = command (Key.KeyChar char)
+command_char char desc cmd =
+    bind_char char desc cmd ++ command_only char desc cmd
 
 -- | But some commands are too dangerous to get a plain keystroke version.
 command_only :: (Monad m) => Char -> String -> Cmd.CmdT m a -> [Binding m]
-command_only char = bind_mod [PrimaryCommand] (Key.KeyChar char)
+command_only char = bind_mod (char_shift char [PrimaryCommand]) (key_char char)
 
 -- | Bind a key with the given modifiers.
 bind_mod :: (Monad m) => [SimpleMod] -> Key.Key -> String -> Cmd.CmdT m a
@@ -78,11 +83,21 @@ bind smods bindable desc bcmd =
     [(key_spec mods bindable, cspec desc cmd) | mods <- expand_mods smods]
     where cmd msg = bcmd msg >> return Cmd.Done
 
+-- ** util
+
 expand_mods :: [SimpleMod] -> [[Cmd.Modifier]]
 expand_mods [] = [[]]
 expand_mods smods = Seq.cartesian (map simple_to_mods smods)
 
--- ** CmdMap
+key_char :: Char -> Key.Key
+key_char c = Key.KeyChar (Char.toLower c)
+
+char_shift :: Char -> [SimpleMod] -> [SimpleMod]
+char_shift c mods
+    | Char.isUpper c = Shift : mods
+    | otherwise = mods
+
+-- * CmdMap
 
 -- | Create a CmdMap for efficient lookup and return warnings encountered
 -- during construction.
