@@ -17,12 +17,15 @@ if [[ $name = seq ]]; then
     default_cores=2
 fi
 
+if [[ -n "$default_cores" ]]; then
+    rts_flags=(+RTS -N\${cores:-$default_cores} -RTS)
+fi
+
 # Make a shell script that runs the bundled executable
 cat >"$binpath.run" <<EOF
 #!/bin/sh
 dir=\$(dirname "\$0")
-exec "\$dir/$name.app/Contents/MacOS/$name" \
-    +RTS -N\${cores:-$default_cores} -RTS "\$@"
+exec "\$dir/$name.app/Contents/MacOS/$name" $rts_flags "\$@"
 EOF
 chmod +x "$binpath.run"
 
