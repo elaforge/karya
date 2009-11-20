@@ -137,6 +137,8 @@ void t1_set()
     TrackData &e = t1_events;
     Color eventc = Color(200, 200, 170);
     TextStyle style;
+    style.font = FL_HELVETICA;
+    style.size = 9;
 
     e.push_back(EventInfo(TrackPos(0),
         Event("4c#@$", TrackPos(16), eventc, style), 0));
@@ -255,13 +257,29 @@ timeout_func(void *vp)
     BlockViewWindow &view = *((BlockViewWindow *) vp);
     static int n;
 
+    // copy paste from main()
+    static Color ruler_bg = Color(255, 230, 160);
+    static Color track_bg = Color(255, 255, 255);
+    static Color render_color = Color(196, 196, 255, 128);
+    static int i = t1_events.size() - 1;
+    static TrackPos t1_time_end = t1_events[i].pos
+        + t1_events[i].event.duration;
+    static RenderConfig render_config(RenderConfig::render_filled,
+        t1_find_samples, render_color);
+    static EventTrackConfig track1(track_bg, t1_no_events, t1_time_end,
+        render_config);
+    static RulerConfig truler(ruler_bg, false, true, true, m44_last_pos);
+
     std::cout << n << "------------\n";
     switch (n) {
     case 0:
-        view.block.collapse_track(3, true);
+        view.block.collapse_track(2, true);
         break;
     case 1:
-        view.block.collapse_track(4, true);
+        view.block.insert_track(2, Tracklike(&track1, &truler), 30);
+        break;
+    case 2:
+        // print_children(&view);
         break;
     default:
         return;
@@ -316,7 +334,6 @@ main(int argc, char **argv)
     view.block.insert_track(0, Tracklike(&ruler), 20);
     view.block.insert_track(1, Tracklike(&divider), 10);
     view.block.insert_track(2, Tracklike(&track1, &truler), 30);
-    // view.block.insert_track(2, Tracklike(&divider), 5);
     view.block.insert_track(3, Tracklike(&track2, &truler), 30);
     view.block.insert_track(4, Tracklike(&empty_track, &truler), 20);
     view.block.insert_track(5, Tracklike(&empty_track, &truler), 20);
@@ -331,7 +348,7 @@ main(int argc, char **argv)
     // dtrack.status_color = Color(255, 150, 150);
     dtrack.status_color = Color(150, 150, 150);
     dtrack.event_brightness = .75;
-    view.block.set_display_track(3, dtrack);
+    // view.block.set_display_track(3, dtrack);
     // print_children(&view);
 
     // Fl::add_timeout(1, timeout_func, (void*) &view);

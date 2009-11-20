@@ -116,6 +116,12 @@ TrackTile::view_end() const
         + this->zoom.offset;
 }
 
+TrackPos
+TrackTile::visible_time() const
+{
+    return this->zoom.to_trackpos(this->h() - this->title_height);
+}
+
 int
 TrackTile::track_end() const
 {

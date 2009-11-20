@@ -47,6 +47,8 @@ public:
     TrackPos time_end() const;
     // TrackPos of the bottom of the visible window.
     TrackPos view_end() const;
+    // Visible amount of track.
+    TrackPos visible_time() const;
     // Right side of the rightmost track.
     int track_end() const;
 

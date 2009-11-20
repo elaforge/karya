@@ -291,7 +291,8 @@ BlockView::set_zoom_attr(const ZoomInfo &new_zoom)
     // a pixel boundary.  Otherwise, some events may move 1 pixel while others
     // move 2 pixels, which messes up the blit-oriented scrolling.
     zoom.offset = std::max(TrackPos(0), zoom.offset);
-    zoom.offset = zoom.to_trackpos(zoom.to_pixels(zoom.offset));
+    TrackPos max_offset = track_tile.time_end() - track_tile.visible_time();
+    zoom.offset = clamp(TrackPos(0), max_offset, zoom.offset);
     this->track_tile.set_zoom(zoom);
     this->ruler_track->set_zoom(zoom);
 }
@@ -545,10 +546,9 @@ BlockView::update_scrollbars()
 
     const ZoomInfo &zoom = this->get_zoom();
     // The scale(1)s just convert a TrackPos to a double.
-    int track_h = track_tile.h() - view_config.track_title_height;
     this->time_sb.set_scroll_zoom(track_tile.time_end().scale(1),
             zoom.offset.scale(1),
-            zoom.to_trackpos(track_h).scale(1));
+            track_tile.visible_time().scale(1));
 }
 
 // static callbacks

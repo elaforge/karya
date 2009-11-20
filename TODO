@@ -80,10 +80,12 @@ bugs:
   - delete note event in command mode doesn't delete the pitch event
   - bring block windows to the front after a load
 
-  - mousewheel scroll goes past the end
+  * mousewheel scroll goes past the end
   * save saves with .state
   * loading with a window displayed 'error: unknown (vid "untitled/b0.v0")'
   - when loading a new state collapsed tracks are expanded
+    having collapsed state in c++ is kind of error-prone, should I go back to
+    trying to put it in haskell?
 
   - tracks with different tempos play correctly, but playback follows tempo
   - unparsed notes are played instead of dropped, it's because the pitch is

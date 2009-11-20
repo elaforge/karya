@@ -106,6 +106,7 @@ struct RectTmpl {
             T b_ = std::max(this->b(), o.b());
             return RectTmpl<T>(x_, y_, r_ - x_, b_ - y_);
         }
+        return *this; // not reached, but shut up gcc
     }
 
     // Return the intersection of this with 'o'.
