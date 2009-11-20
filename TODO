@@ -8,6 +8,7 @@ CURRENT
 
   - demo piece: show nested tempos with "bouncing ball", expressive pitch
     track, non-trivial repl transformation (pitch tweak after big jump?)
+    transcribe rejang w/ reyong patterns
   - cut + paste didn't work with a point paste
 
   - skel_display status can be two chars: Sm is solo+mute
@@ -71,7 +72,7 @@ note input / thru:
   - profile midi->midi thru and implement a fast path if necessary
 
 bugs:
-  - graphical corruption when scrolling down
+  * graphical corruption when scrolling down
   - keymap collisions are logged twice
   * renaming the project makes the merged tracks get out of date
   - nudge a note event on a collapsed track doesn't nudge the pitch event

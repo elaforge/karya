@@ -9,6 +9,9 @@
 
 // #define DEBUG(X) ;
 
+// Hack for debugging.
+#define SHOW_RANGE(r) (r).y << "--" << (r).b()
+
 // Colors of events at a non-zero rank are scaled by this.
 static const double rank_brightness = 1.5;
 
@@ -111,8 +114,8 @@ void
 EventTrackView::draw()
 {
     Rect draw_area = rect(this);
+    draw_area.h--; // Avoid the one pixel lower bezel.
 
-    // DEBUG("track damage " << show_damage(damage()));
     if (this->damage() & FL_DAMAGE_SCROLL) {
         int scroll = zoom.to_pixels(zoom.offset) - zoom.to_pixels(last_offset);
         // int scroll2 = zoom.to_pixels(zoom.offset - last_offset);
@@ -138,9 +141,9 @@ EventTrackView::draw()
     if (damage() == FL_DAMAGE_CHILD || damage() == FL_DAMAGE_SCROLL
             || damage() == (FL_DAMAGE_CHILD | FL_DAMAGE_SCROLL))
     {
-        // DEBUG("track intersect: " << draw_area.y << "--"
-        //     << overlay_ruler.draw_area.b() << " with "
-        //     << damaged_area.y << "--" << overlay_ruler.damaged_area.b());
+        // DEBUG("draw_area " << SHOW_RANGE(draw_area)
+        //     << " damage " << SHOW_RANGE(overlay_ruler.damaged_area) << " -> "
+        //     << SHOW_RANGE(draw_area.intersect(overlay_ruler.damaged_area)));
         draw_area = draw_area.intersect(this->overlay_ruler.damaged_area);
     } else {
         // DEBUG("draw all");
