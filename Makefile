@@ -141,7 +141,7 @@ $(BUILD)/seq: $(UI_HS) $(UI_OBJS) $(MIDI_OBJS) $(MIDI_HS) fltk/fltk.a
 		$(UI_OBJS) $(MIDI_OBJS) fltk/fltk.a $(MIDI_LIBS) \
 		$(HLDFLAGS) \
 		-o $@
-	$(BUNDLE)
+	$(BUNDLE) doc/seq.icns
 
 .PHONY: $(BUILD)/send
 $(BUILD)/send: App/Send.hs
