@@ -74,6 +74,26 @@ orphan_blocks = do
 
 -- * block
 
+block_from_template :: (Monad m) => Bool -> Cmd.CmdT m BlockId
+block_from_template include_tracks = do
+    template_block_id <- Cmd.get_focused_block
+    ruler_id <- get_ruler_id template_block_id 0
+    block_id <- block ruler_id
+    when include_tracks $ do
+        template <- State.get_block template_block_id
+        let tracks = drop 1 (Block.block_tracks template)
+        forM_ (zip [1..] tracks) $ \(tracknum, track) ->
+            case Block.tracklike_id track of
+                Block.TId tid rid -> do
+                    new_tid <- track_ruler
+                        block_id rid tracknum (Block.track_width track)
+                    title <- fmap Track.track_title (State.get_track tid)
+                    State.set_track_title new_tid title
+                _ -> State.insert_track block_id tracknum track
+        State.set_skeleton block_id =<< State.get_skeleton template_block_id
+    view block_id
+    return block_id
+
 -- | BlockIds look like \"ns/b0\", \"ns/b1\", etc.
 block :: (State.UiStateMonad m) => RulerId -> m BlockId
 block ruler_id = do
@@ -96,12 +116,6 @@ named_block name ruler_id = do
         (Block.block_track (Block.RId ruler_id) Config.ruler_width)
     return b
 
-generate_block_id :: Id.Namespace -> Map.Map BlockId _a -> Maybe Id.Id
-generate_block_id ns blocks = generate_id ns no_parent "b" Types.BlockId blocks
-
-no_parent :: Id.Id
-no_parent = Id.id [] ""
-
 -- | Delete a block and any views it appears in.  Also delete any tracks
 -- that only appeared in that block.
 destroy_block :: (State.UiStateMonad m) => BlockId -> m ()
@@ -111,6 +125,13 @@ destroy_block block_id = do
     orphan <- orphan_tracks
     mapM_ State.destroy_track (filter (`elem` orphan) track_ids)
 
+-- ** util
+
+generate_block_id :: Id.Namespace -> Map.Map BlockId _a -> Maybe Id.Id
+generate_block_id ns blocks = generate_id ns no_parent "b" Types.BlockId blocks
+
+no_parent :: Id.Id
+no_parent = Id.id [] ""
 
 -- * view
 
@@ -143,6 +164,22 @@ destroy_view view_id = do
 
 -- * track
 
+append_track :: (Monad m) => Cmd.CmdT m TrackId
+append_track = do
+    block_id <- Cmd.get_focused_block
+    track block_id 99999
+
+insert_track_after_selection :: (Monad m) => Bool -> Cmd.CmdT m TrackId
+insert_track_after_selection splice = do
+    (_, tracknum, _) <- Selection.get_insert_any
+    block_id <- Cmd.get_focused_block
+    block <- State.get_block block_id
+    let new_tracknum = track_after block tracknum
+    track_id <- track block_id new_tracknum
+    when splice $
+        State.splice_skeleton block_id (new_tracknum, tracknum)
+    return track_id
+
 -- | Tracks look like \"ns/b0.t0\", etc.
 track_ruler :: (State.UiStateMonad m) =>
     BlockId -> RulerId -> TrackNum -> Types.Width -> m TrackId
@@ -164,39 +201,6 @@ track block_id tracknum = do
     tracknum <- clip_tracknum block_id tracknum
     ruler_id <- get_overlay_ruler_id block_id (tracknum-1)
     track_ruler block_id ruler_id tracknum Config.track_width
-
--- | Given a hypothetical track at @tracknum@, what should it's ruler id be?
-get_overlay_ruler_id :: (State.UiStateMonad m) => BlockId -> TrackNum
-    -> m RulerId
-get_overlay_ruler_id block_id tracknum = do
-    track <- State.block_track_at block_id tracknum
-    -- The overlay suffix is just a convention, so it's not guaranteed to
-    -- exist.
-    let ruler_id = case fmap Block.tracklike_id track of
-            Just (Block.TId _ rid) -> rid
-            Just (Block.RId rid) -> add_overlay_suffix rid
-            _ -> State.no_ruler
-    maybe_ruler <- State.lookup_ruler ruler_id
-    return $ maybe State.no_ruler (const ruler_id) maybe_ruler
-
-get_ruler_id :: (State.UiStateMonad m) => BlockId -> TrackNum -> m RulerId
-get_ruler_id block_id tracknum = do
-    maybe_track <- State.block_track_at block_id tracknum
-    let ruler_id = maybe State.no_ruler id $ do
-            track <- maybe_track
-            Block.ruler_id_of (Block.tracklike_id track)
-    maybe_ruler <- State.lookup_ruler ruler_id
-    return $ maybe State.no_ruler (const ruler_id) maybe_ruler
-
-add_overlay_suffix :: RulerId -> RulerId
-add_overlay_suffix ruler_id
-    | overlay_suffix `List.isSuffixOf` ident = ruler_id
-    | otherwise = Types.RulerId (Id.id ns (ident ++ overlay_suffix))
-    where (ns, ident) = Id.un_id (Id.unpack_id ruler_id)
-
-clip_tracknum block_id tracknum = do
-    tracks <- State.tracks block_id
-    return $ max 0 (min tracks tracknum)
 
 -- | Create a track with the given name and title.
 -- Looks like \"ns/b0.tempo\".
@@ -235,63 +239,6 @@ destroy_track block_id tracknum = do
         when (track_id `elem` orphans) $
             State.destroy_track track_id
 
--- ** cmds
-
-append_track :: (Monad m) => Cmd.CmdT m TrackId
-append_track = do
-    block_id <- Cmd.get_focused_block
-    track block_id 99999
-
-insert_track_after_selection :: (Monad m) => Bool -> Cmd.CmdT m TrackId
-insert_track_after_selection splice = do
-    (_, tracknum, _) <- Selection.get_insert_any
-    block_id <- Cmd.get_focused_block
-    block <- State.get_block block_id
-    let new_tracknum = track_after block tracknum
-    track_id <- track block_id new_tracknum
-    when splice $
-        State.splice_skeleton block_id (new_tracknum, tracknum)
-    return track_id
-
-track_after :: Block.Block -> TrackNum -> TrackNum
-track_after block tracknum
-    -- It must already be the rightmost tracknum.
-    | tracknum == next_tracknum = length (Block.block_tracks block)
-    | otherwise = next_tracknum
-    where next_tracknum = Selection.shift_tracknum block tracknum 1
-
-block_from_template :: (Monad m) => Bool -> Cmd.CmdT m BlockId
-block_from_template include_tracks = do
-    template_block_id <- Cmd.get_focused_block
-    ruler_id <- get_ruler_id template_block_id 0
-    block_id <- block ruler_id
-    when include_tracks $ do
-        template <- State.get_block template_block_id
-        let tracks = drop 1 (Block.block_tracks template)
-        forM_ (zip [1..] tracks) $ \(tracknum, track) ->
-            case Block.tracklike_id track of
-                Block.TId tid rid -> do
-                    new_tid <- track_ruler
-                        block_id rid tracknum (Block.track_width track)
-                    title <- fmap Track.track_title (State.get_track tid)
-                    State.set_track_title new_tid title
-                _ -> State.insert_track block_id tracknum track
-        State.set_skeleton block_id =<< State.get_skeleton template_block_id
-    view block_id
-    return block_id
-
--- ** util
-
-empty_track title = Track.track title [] Config.track_bg Config.render_config
-
-tracklike_track (Block.TId tid _) = Just tid
-tracklike_track _ = Nothing
-
-generate_track_id :: BlockId -> String -> Map.Map TrackId _a -> Maybe Id.Id
-generate_track_id block_id code tracks =
-    generate_id (Id.id_namespace ident) ident code Types.TrackId tracks
-    where ident = Id.unpack_id block_id
-
 -- | Swap the tracks at the given tracknums.  If one of the tracknums is out
 -- of range, the track at the other tracknum will be moved to the beginning or
 -- end, i.e. swapped with empty space.
@@ -310,6 +257,57 @@ swap_tracks block_id num0 num1 = do
     remove = State.remove_track block_id
     insert = State.insert_track block_id
 
+-- ** util
+
+-- | Given a hypothetical track at @tracknum@, what should it's ruler id be?
+get_overlay_ruler_id :: (State.UiStateMonad m) => BlockId -> TrackNum
+    -> m RulerId
+get_overlay_ruler_id block_id tracknum = do
+    track <- State.block_track_at block_id tracknum
+    -- The overlay suffix is just a convention, so it's not guaranteed to
+    -- exist.
+    let ruler_id = case fmap Block.tracklike_id track of
+            Just (Block.TId _ rid) -> rid
+            Just (Block.RId rid) -> add_overlay_suffix rid
+            _ -> State.no_ruler
+    maybe_ruler <- State.lookup_ruler ruler_id
+    return $ maybe State.no_ruler (const ruler_id) maybe_ruler
+
+get_ruler_id :: (State.UiStateMonad m) => BlockId -> TrackNum -> m RulerId
+get_ruler_id block_id tracknum = do
+    maybe_track <- State.block_track_at block_id tracknum
+    let ruler_id = maybe State.no_ruler id $ do
+            track <- maybe_track
+            Block.ruler_id_of (Block.tracklike_id track)
+    maybe_ruler <- State.lookup_ruler ruler_id
+    return $ maybe State.no_ruler (const ruler_id) maybe_ruler
+
+add_overlay_suffix :: RulerId -> RulerId
+add_overlay_suffix ruler_id
+    | overlay_suffix `List.isSuffixOf` ident = ruler_id
+    | otherwise = Types.RulerId (Id.id ns (ident ++ overlay_suffix))
+    where (ns, ident) = Id.un_id (Id.unpack_id ruler_id)
+
+-- | Clip the tracknum to within the valid range.
+clip_tracknum :: (State.UiStateMonad m) => BlockId -> TrackNum -> m TrackNum
+clip_tracknum block_id tracknum = do
+    tracks <- State.tracks block_id
+    return $ max 0 (min tracks tracknum)
+
+track_after :: Block.Block -> TrackNum -> TrackNum
+track_after block tracknum
+    -- It must already be the rightmost tracknum.
+    | tracknum == next_tracknum = length (Block.block_tracks block)
+    | otherwise = next_tracknum
+    where next_tracknum = Selection.shift_tracknum block tracknum 1
+
+empty_track title = Track.track title [] Config.track_bg Config.render_config
+
+generate_track_id :: BlockId -> String -> Map.Map TrackId _a -> Maybe Id.Id
+generate_track_id block_id code tracks =
+    generate_id (Id.id_namespace ident) ident code Types.TrackId tracks
+    where ident = Id.unpack_id block_id
+
 -- * ruler
 
 -- | This creates both a ruler with the given name, and an overlay version
@@ -322,6 +320,8 @@ ruler name ruler = do
     over_rid <- State.create_ruler overlay_ident (MakeRuler.as_overlay ruler)
     return (rid, over_rid)
 
+-- ** util
+
 make_id :: (State.UiStateMonad m) => String -> m Id.Id
 make_id name = do
     ns <- State.get_project
@@ -331,7 +331,7 @@ make_id name = do
 overlay_suffix :: String
 overlay_suffix = ".overlay"
 
--- * util
+-- * general util
 
 generate_id :: (Ord a) => Id.Namespace -> Id.Id -> String -> (Id.Id -> a)
     -> Map.Map a _b -> Maybe Id.Id
