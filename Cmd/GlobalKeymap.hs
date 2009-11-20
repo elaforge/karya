@@ -208,11 +208,14 @@ create_bindings = concat
     [ command_only 't' "insert track"
         (Create.insert_track_after_selection False)
     , command_only 'T' "splice track" (Create.insert_track_after_selection True)
-    , command_only 'd' "remove track" Create.remove_selected_tracks
+    , command_only 'd' "delete tracks" Create.destroy_selected_tracks
 
     , command_only 'n' "create view" (Create.view =<< Cmd.get_focused_block)
+    -- For the moment, never destroy blocks when closing the view.
     , command_only 'w' "destroy view"
         (State.destroy_view =<< Cmd.get_focused_view)
+    , command_only 'W' "destroy block"
+        (Create.destroy_block =<< Cmd.get_focused_block)
     , command_only 'b' "create block" (Create.block_from_template False)
     , command_only 'B' "create block template" (Create.block_from_template True)
     ]

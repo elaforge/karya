@@ -18,6 +18,8 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
+import Util.Control
+
 import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Id as Id
@@ -100,6 +102,16 @@ generate_block_id ns blocks = generate_id ns no_parent "b" Types.BlockId blocks
 no_parent :: Id.Id
 no_parent = Id.id [] ""
 
+-- | Delete a block and any views it appears in.  Also delete any tracks
+-- that only appeared in that block.
+destroy_block :: (State.UiStateMonad m) => BlockId -> m ()
+destroy_block block_id = do
+    track_ids <- fmap Block.block_track_ids (State.get_block block_id)
+    State.destroy_block block_id
+    orphan <- orphan_tracks
+    mapM_ State.destroy_track (filter (`elem` orphan) track_ids)
+
+
 -- * view
 
 view :: (State.UiStateMonad m) => BlockId -> m ViewId
@@ -119,9 +131,15 @@ generate_view_id block_id views =
     generate_id (Id.id_namespace ident) ident "v" Types.ViewId views
     where ident = Id.unpack_id block_id
 
--- | Same as State.destroy_view, included here for consistency.
+-- | Destroy a view, along with the underlying block if there were no other
+-- views.
 destroy_view :: (State.UiStateMonad m) => ViewId -> m ()
-destroy_view view_id = State.destroy_view view_id
+destroy_view view_id = do
+    block_id <- State.block_id_of_view view_id
+    State.destroy_view view_id
+    orphans <- orphan_blocks
+    when (block_id `elem` orphans) $
+        State.destroy_block block_id
 
 -- * track
 
@@ -194,6 +212,29 @@ named_track block_id ruler_id tracknum name title = do
         (Block.block_track (Block.TId tid ruler_id) Config.track_width)
     return tid
 
+remove_selected_tracks :: (Monad m) => Cmd.CmdT m ()
+remove_selected_tracks = do
+    block_id <- Cmd.get_focused_block
+    (tracknums, _, _, _) <- Selection.tracks
+    mapM_ (State.remove_track block_id) (reverse tracknums)
+
+destroy_selected_tracks :: (Monad m) => Cmd.CmdT m ()
+destroy_selected_tracks = do
+    block_id <- Cmd.get_focused_block
+    (tracknums, _, _, _) <- Selection.tracks
+    mapM_ (destroy_track block_id) tracknums
+
+-- | Remove a track from a block.  If that was the only block it appeared in,
+-- delete the underlying track.  Rulers are never deleted automatically.
+destroy_track :: (Monad m) => BlockId -> TrackNum -> Cmd.CmdT m ()
+destroy_track block_id tracknum = do
+    tracklike <- Cmd.require =<< State.track_at block_id tracknum
+    State.remove_track block_id tracknum
+    when_just (Block.track_id_of tracklike) $ \track_id -> do
+        orphans <- orphan_tracks
+        when (track_id `elem` orphans) $
+            State.destroy_track track_id
+
 -- ** cmds
 
 append_track :: (Monad m) => Cmd.CmdT m TrackId
@@ -218,12 +259,6 @@ track_after block tracknum
     | tracknum == next_tracknum = length (Block.block_tracks block)
     | otherwise = next_tracknum
     where next_tracknum = Selection.shift_tracknum block tracknum 1
-
-remove_selected_tracks :: (Monad m) => Cmd.CmdT m ()
-remove_selected_tracks = do
-    block_id <- Cmd.get_focused_block
-    (tracknums, _, _, _) <- Selection.tracks
-    mapM_ (State.remove_track block_id) (reverse tracknums)
 
 block_from_template :: (Monad m) => Bool -> Cmd.CmdT m BlockId
 block_from_template include_tracks = do

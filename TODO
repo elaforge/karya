@@ -12,9 +12,9 @@ CURRENT
     current track.  But you don't always want that.  Two insert track cmds?
   * analogous create block cmd that models it on the current block?
   - insert track should work on a new empty block
-  - delete track cmd that deletes the track instead of just removing it from
+  * delete track cmd that deletes the track instead of just removing it from
     the block
-  - same for block
+  * same for block
 
   + track down ghc rts crashes
 
