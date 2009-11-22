@@ -96,7 +96,7 @@ cmd_join_events = mapM_ process =<< Selection.events_around
 -- a point, insert one timestep.
 cmd_insert_time :: (Monad m) => Cmd.CmdT m ()
 cmd_insert_time = do
-    (tracknums, track_ids, start, end) <- Selection.tracks
+    (tracknums, track_ids, start, end) <- Selection.merged_tracks
     (start, end) <- expand_range tracknums start end
     when (start /= end) $ forM_ track_ids $ \track_id -> do
         -- lengthen an overlapping event
@@ -110,7 +110,7 @@ cmd_insert_time = do
 -- the selection is a point, delete one timestep.
 cmd_delete_time :: (Monad m) => Cmd.CmdT m ()
 cmd_delete_time = do
-    (tracknums, track_ids, start, end) <- Selection.tracks
+    (tracknums, track_ids, start, end) <- Selection.merged_tracks
     (start, end) <- expand_range tracknums start end
     when (start /= end) $ forM_ track_ids $ \track_id -> do
         -- shorten an overlapping event
@@ -204,7 +204,7 @@ modify_events f = do
 -- a range, clear all events within its half-open extent.
 cmd_clear_selected :: (Monad m) => Cmd.CmdT m ()
 cmd_clear_selected = do
-    (_, track_ids, start, end) <- Selection.tracks
+    (_, track_ids, start, end) <- Selection.merged_tracks
     forM_ track_ids $ \track_id -> if start == end
         then State.remove_event track_id start
         else State.remove_events track_id start end

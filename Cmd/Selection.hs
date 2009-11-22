@@ -364,6 +364,28 @@ event_before start _ track = maybe [] (:[]) $
 tracks :: (Monad m) => Cmd.CmdT m ([TrackNum], [TrackId], TrackPos, TrackPos)
 tracks = tracks_selnum Config.insert_selnum
 
+-- | This is like 'tracks' except it also includes tracks merged into the
+-- selected tracks.
+merged_tracks :: (Monad m) =>
+    Cmd.CmdT m ([TrackNum], [TrackId], TrackPos, TrackPos)
+merged_tracks = do
+    (tracknums, track_ids, start, end) <- tracks
+    block_id <- Cmd.get_focused_block
+    tracks <- mapM (State.get_block_track block_id) tracknums
+    let merged_track_ids = concatMap Block.track_merged tracks
+    block <- State.get_block block_id
+    let merged = tracknums_of block merged_track_ids
+    let (all_tracknums, all_track_ids) = unzip $ List.sort $ List.nub $
+            merged ++ zip tracknums track_ids
+    return (all_tracknums, all_track_ids, start, end)
+
+tracknums_of :: Block.Block -> [TrackId] -> [(TrackNum, TrackId)]
+tracknums_of block track_ids = do
+    (tracknum, Block.TId tid _) <-
+        zip [0..] (Block.block_tracklike_ids block)
+    guard (tid `elem` track_ids)
+    return (tracknum, tid)
+
 tracks_selnum :: (Monad m) =>
     Types.SelNum -> Cmd.CmdT m ([TrackNum], [TrackId], TrackPos, TrackPos)
 tracks_selnum selnum = do

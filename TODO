@@ -72,11 +72,13 @@ note input / thru:
   - profile midi->midi thru and implement a fast path if necessary
 
 bugs:
+  - Edit.cmd_delete_time is still a little funky, an event with only 2 time
+    steps is deleted, >2 is shortened.
   * graphical corruption when scrolling down
   - keymap collisions are logged twice
   * renaming the project makes the merged tracks get out of date
-  - nudge a note event on a collapsed track doesn't nudge the pitch event
-  - delete note event in command mode doesn't delete the pitch event
+  * nudge a note event on a collapsed track doesn't nudge the pitch event
+  * delete note event in command mode doesn't delete the pitch event
   - bring block windows to the front after a load
 
   * mousewheel scroll goes past the end
