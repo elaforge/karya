@@ -21,16 +21,12 @@ struct SkeletonConfig {
 class SkeletonDisplay : public Fl_Box {
 public:
     SkeletonDisplay(int X, int Y, int W, int H);
+    void resize(int x, int y, int w, int h);
     void set_config(
             const SkeletonConfig &config, const std::vector<int> &widths);
     void set_status(int tracknum, char status, Color color);
     void get_status(int tracknum, char *status, Color *color);
     void set_width(int tracknum, int width);
-
-    void resize(int x, int y, int w, int h) {
-        w = std::max(right_edge, w);
-        Fl_Box::resize(x, y, w, h);
-    }
 
 protected:
     void draw();

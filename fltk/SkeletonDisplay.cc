@@ -10,10 +10,18 @@
 
 
 SkeletonDisplay::SkeletonDisplay(int X, int Y, int W, int H)
-    : Fl_Box(X, Y, W, H)
+    : Fl_Box(X, Y, W, H), right_edge(X+W)
 {
     box(FL_FLAT_BOX);
     // box(FL_THIN_DOWN_BOX);
+}
+
+
+void
+SkeletonDisplay::resize(int x, int y, int w, int h)
+{
+    w = std::max(this->right_edge, w);
+    Fl_Box::resize(x, y, w, h);
 }
 
 
