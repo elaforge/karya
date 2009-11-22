@@ -224,7 +224,7 @@ pitches_share in_decay start end sig0 sig1 =
     where
     -- Unlike 'equal' I do resample, because there's a high chance of notes
     -- matching but not lining up in time.
-    samples = resample (within start end sig0) (within start end sig1)
+    samples = resample_to_list (within start end sig0) (within start end sig1)
     pitch_eq (_, ay, by) = pitch_share in_decay ay by
 
 -- | Only compare out to cents, since differences below that aren't really
@@ -254,8 +254,8 @@ within start end (SignalVector vec) = SignalVector (V.drop extra inside)
 --
 -- This emits a list to take advantage of laziness.  Later when signals are
 -- lazy I should probably emit two signals.
-resample :: Signal -> Signal -> [(Val, Val, Val)] -- ^ [(x, y0, y1)]
-resample (SignalVector vec0) (SignalVector vec1) =
+resample_to_list :: Signal -> Signal -> [(Val, Val, Val)] -- ^ [(x, y0, y1)]
+resample_to_list (SignalVector vec0) (SignalVector vec1) =
     _resample (0, 0) (0, 0) (V.unpack vec0) (V.unpack vec1)
 
 _resample :: (Val, Val) -> (Val, Val)
@@ -360,6 +360,29 @@ interpolate_linear x0 y0 x1 y1 x = y0 + amount * (y1-y0)
     where amount = realToFrac $ (x-x0) / (x1-x0)
 
 -- * functions
+
+-- ** signal ops
+
+sig_add, sig_subtract :: Signal -> Signal -> Signal
+sig_add = sig_op (+)
+sig_subtract = sig_op (-)
+
+sig_mult :: Signal -> Signal -> Signal
+sig_mult = undefined -- will have to sample since lin*lin = exp
+
+-- TODO: broken for the moment.  Linearly interpolated line segments makes
+-- things like this too hard.
+sig_max, sig_min :: Signal -> Signal -> Signal
+sig_max = sig_op max
+sig_min = sig_op min
+
+sig_op :: (Val -> Val -> Val) -> Signal -> Signal -> Signal
+sig_op op sig0 sig1 =
+    -- This inefficiently unpacks to a list and back.  Later implement
+    -- a resample that doesn't unpack.
+    signal [(val_to_pos x, op y0 y1) | (x,y0,y1) <- resample_to_list sig0 sig1]
+
+-- ** special functions
 
 -- | Find the TrackPos at which the signal will attain the given Val.  Assumes
 -- the Val is non-decreasing.

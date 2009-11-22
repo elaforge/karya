@@ -289,7 +289,11 @@ compile_controller title track_id subderiver
                 then Controller.d_pitch_signal
                     (Default.scale_of_track title) sig_events
                 else Controller.d_signal sig_events
-        Controller.d_controller (Score.Controller title) signal subderiver
+        case Default.parse_control_title title of
+            (Just c_op, cont) -> Controller.d_relative_controller
+                (Score.Controller cont) c_op signal subderiver
+            (Nothing, cont) -> Controller.d_controller
+                (Score.Controller cont) signal subderiver
 
 
 -- | Compile a Skeleton to its SignalDeriver.  The SignalDeriver is like the

@@ -49,6 +49,13 @@ d_controller cont signalm eventsm = do
     signal <- signalm
     Derive.with_controller cont signal eventsm
 
+d_relative_controller :: (Monad m) =>
+    Score.Controller -> Derive.ControlOp -> Derive.DeriveT m Signal.Signal
+    -> Derive.DeriveT m [Score.Event] -> Derive.DeriveT m [Score.Event]
+d_relative_controller cont c_op signalm eventsm = do
+    signal <- signalm
+    Derive.with_relative_controller cont c_op signal eventsm
+
 -- | Get the signal events from a controller track.  They are meant to be
 -- fed to 'd_signal' or 'd_pitch_signal', which will convert them into
 -- a signal, and the whole thing passed as the signal deriver to

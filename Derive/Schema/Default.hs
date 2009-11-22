@@ -43,9 +43,11 @@ paths_of track_tree tracknum =
 is_tempo_track, is_pitch_track, is_inst_track :: String -> Bool
 is_tempo_track = (=="tempo")
 is_pitch_track = (pitch_track_prefix `List.isPrefixOf`)
+    . snd . parse_control_title
 is_inst_track = (">" `List.isPrefixOf`)
 
 scale_of_track = Pitch.ScaleId . Seq.strip . drop 1
+    . snd . parse_control_title
 track_of_scale :: Pitch.ScaleId -> String
 track_of_scale (Pitch.ScaleId scale_id) = pitch_track_prefix ++ scale_id
 
@@ -69,6 +71,17 @@ title_to_scale name
 -- | Convert from an instrument to the title of its instrument track.
 instrument_to_title :: Score.Instrument -> String
 instrument_to_title (Score.Instrument inst) = '>' : inst
+
+-- | The return value should be (Maybe ControlOp, Score.Controller), but
+-- I don't want to import Derive from here and Score.Controller is inconvenient
+-- for the functions above.
+parse_control_title :: String -> (Maybe String, String)
+parse_control_title title
+    | ',' `elem` title = (Just (Seq.strip pre), cont)
+    | otherwise = (Nothing, Seq.strip title)
+    where
+    (pre, post) = break (==',') title
+    cont = Seq.strip (drop 1 post)
 
 
 -- * set_inst_status

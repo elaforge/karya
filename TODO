@@ -4,6 +4,13 @@
 - State.structure only used by Clip_test
 
 CURRENT
+  * relative control tracks
+  - relative pitch tracks
+  - reverse skel display arrow direction
+  - convert Signal to only flat line segments
+  - rename controller -> control
+  - sub block: relative pitch track
+    create with absolute pitch track, then 'pitch_to_relative bid tnum "4c-"'
   + track down ghc rts crashes
 
   - demo piece: show nested tempos with "bouncing ball", expressive pitch
@@ -301,7 +308,7 @@ Derive:
     - leading ; means the command is evaluated for its effect but emits no note
 
   ControlTrack control
-    - relative controller tracks, combined with an operator, so e.g. "+, *scale"
+    * relative controller tracks, combined with an operator, so e.g. "+, *scale"
       adds to the pitch track, and "*, volume" multiplies with the volume track
       operators: +, *, min, max
     * just plain "i" means the previous val, to make timed slides easier

@@ -97,6 +97,7 @@ data State = State {
     -- blocks.
     , state_ui :: State.State
     , state_lookup_deriver :: LookupDeriver
+    , state_control_op_map :: Map.Map ControlOp SignalOp
     -- | This is set if the derivation is for a signal deriver.  Signal
     -- derivers skip all special tempo treatment.  Ultimately, this is needed
     -- because of the 'add_track_warp' hack.  It might be 'add_track_warp' is
@@ -115,6 +116,7 @@ initial_state ui_state lookup_deriver ignore_tempo = State {
     , state_track_warps = []
     , state_ui = ui_state
     , state_lookup_deriver = lookup_deriver
+    , state_control_op_map = default_control_op_map
     , state_ignore_tempo = ignore_tempo
     }
 
@@ -311,15 +313,6 @@ _add_context context s = Seq.join "/" context ++ ": " ++ s
 
 -- ** environment
 
-with_controller :: (Monad m) =>
-    Score.Controller -> Signal.Signal -> DeriveT m t -> DeriveT m t
-with_controller cont signal op = do
-    old_env <- fmap state_controllers get
-    modify $ \st -> st { state_controllers = Map.insert cont signal old_env }
-    result <- op
-    modify $ \st -> st { state_controllers = old_env }
-    return result
-
 with_instrument :: (Monad m) => Maybe Score.Instrument -> Score.Attributes
     -> DeriveT m t -> DeriveT m t
 with_instrument inst attrs op = do
@@ -330,6 +323,47 @@ with_instrument inst attrs op = do
     modify $ \st -> st
         { state_instrument = old_inst, state_attributes = old_attrs }
     return result
+
+-- *** control
+
+type ControlOp = String
+type SignalOp = Signal.Signal -> Signal.Signal -> Signal.Signal
+
+with_controller :: (Monad m) =>
+    Score.Controller -> Signal.Signal -> DeriveT m t -> DeriveT m t
+with_controller cont signal op = do
+    old_env <- fmap state_controllers get
+    modify $ \st -> st { state_controllers = Map.insert cont signal old_env }
+    result <- op
+    modify $ \st -> st { state_controllers = old_env }
+    return result
+
+with_relative_controller :: (Monad m) =>
+    Score.Controller -> ControlOp -> Signal.Signal -> DeriveT m t -> DeriveT m t
+with_relative_controller cont c_op signal op = do
+    sig_op <- lookup_control_op c_op
+    old_env <- fmap state_controllers get
+    modify $ \st ->
+        st { state_controllers = Map.insertWith sig_op cont signal old_env }
+    result <- op
+    modify $ \st -> st { state_controllers = old_env }
+    return result
+
+lookup_control_op :: (Monad m) => ControlOp -> DeriveT m SignalOp
+lookup_control_op c_op = do
+    op_map <- fmap state_control_op_map get
+    maybe (throw ("unknown control op: " ++ show c_op)) return
+        (Map.lookup c_op op_map)
+
+-- | Default set of control operators.  Merged at runtime with the static
+-- config.  TODO but not yet
+default_control_op_map :: Map.Map ControlOp SignalOp
+default_control_op_map = Map.fromList
+    [ ("+", Signal.sig_add)
+    , ("-", Signal.sig_subtract)
+    , ("max", Signal.sig_max)
+    , ("min", Signal.sig_min)
+    ]
 
 -- ** stack
 

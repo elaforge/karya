@@ -198,10 +198,8 @@ controller_deriver :: (Monad m) => TrackId -> TrackId
 controller_deriver note_tid pitch_tid cont_tid cont_name =
     Controller.d_controller (Score.Controller cont_name)
         (Controller.d_signal =<<
-            Derive.with_track_warp d_cont_track cont_tid)
+            Derive.with_track_warp Controller.d_controller_track cont_tid)
         (basic_deriver note_tid pitch_tid)
-    where
-    d_cont_track = Controller.d_controller_track
 
 test_controller = do
     let (tids, ui_state) = UiTest.run_mkstate
@@ -209,8 +207,8 @@ test_controller = do
             , ("*twelve", [(0, 1, "4c"), (1, 1, "4c#")])
             , (c_mod, [(0, 0, "1"), (1, 0, "i.75"), (2, 0, "i0")])
             ]
-    let (events, logs) = derive_events ui_state
-            (controller_deriver (tids!!0) (tids!!1) (tids!!2) c_mod)
+    let (events, logs) = derive_events ui_state $
+            controller_deriver (tids!!0) (tids!!1) (tids!!2) c_mod
     -- Cursory checks, more detailed checks are in more Note_test and
     -- Controller_test.
     equal logs []
@@ -227,6 +225,28 @@ test_controller = do
     -- Just make sure it did in fact emit ccs.
     check $ any (Midi.is_cc . Midi.wmsg_msg) msgs
     equal warns []
+
+relative_controller note_tid pitch_tid cont_tid cont_name rel_tid =
+    Controller.d_controller (Score.Controller cont_name)
+        (Controller.d_signal =<<
+            Derive.with_track_warp Controller.d_controller_track cont_tid)
+        (Controller.d_relative_controller (Score.Controller cont_name) "+"
+            (Controller.d_signal =<<
+                Derive.with_track_warp Controller.d_controller_track rel_tid)
+            (basic_deriver note_tid pitch_tid))
+
+test_relative_controller = do
+    let (tids, ui_state) = UiTest.run_mkstate
+            [ (">", [(0, 1, "")])
+            , ("*twelve", [(0, 1, "4c")])
+            , ("vel", [(0, 0, "0"), (2, 0, "i2"), (4, 0, "i0")])
+            , ("+, vel", [(0, 0, "1")])
+            ]
+    let (events, logs) = derive_events ui_state $
+            relative_controller (tids!!0) (tids!!1) (tids!!2) "vel" (tids!!3)
+    let extract = (Map.! Score.Controller "vel") . Score.event_controllers
+    equal logs []
+    equal (map extract events) [Signal.signal [(0, 1), (2, 3), (4, 1)]]
 
 test_make_inverse_tempo_func = do
     -- This is actually also tested in test_subderive.

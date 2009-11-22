@@ -112,6 +112,26 @@ test_sample = do
 
 -- * functions
 
+-- ** signal ops
+
+test_sig_add = do
+    let f a b = Signal.unpack $
+            Signal.sig_add (Signal.signal a) (Signal.signal b)
+    equal (f [(0, 0), (2, 2), (4, 0)] [(0, 1)])
+        [(0, 1), (2, 3), (4, 1)]
+    equal (f [(0, 0), (2, 2), (4, 0)] [(1, 0), (1, 1), (3, 1), (3, 0)])
+        [(0, 0), (1, 1), (1, 2), (2, 3), (3, 2), (3, 1), (4, 0)]
+
+test_sig_max = do
+    let f a b = Signal.unpack $
+            Signal.sig_max (Signal.signal a) (Signal.signal b)
+    let s = Signal.signal
+    pprint (Signal.resample_to_list (s [(0, 0), (2, 2), (4, 0)]) (s [(0, 1)]))
+    equal (f [(0, 0), (2, 2), (4, 0)] [(0, 1)])
+        [(0, 1), (1, 1), (2, 2), (3, 1), (4, 1)]
+
+-- ** special functions
+
 test_inverse_at = do
     let mksig = Signal.signal
     let f sig ts = Signal.inverse_at (mksig sig) (Timestamp.seconds ts)
