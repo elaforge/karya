@@ -12,9 +12,12 @@
     C1 = 36
 -}
 module Perform.Pitch where
+import Control.Monad
 import qualified Control.Monad.Error as Error
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Util.Seq as Seq
+import qualified Util.Parse as Parse
 
 
 -- | The main representation for a pitch.  Scale sharing is enforced by keeping
@@ -65,7 +68,7 @@ _equal2 = log a_hz - (a_nn * _equal1)
     a_hz = 440
     a_nn = 69
 
--- * misc
+-- * InputKey
 
 -- | A physically played key that hasn't been mapped to a scale yet.
 newtype InputKey = InputKey Double deriving (Eq, Ord, Show)
@@ -74,11 +77,33 @@ newtype InputKey = InputKey Double deriving (Eq, Ord, Show)
 middle_c :: InputKey
 middle_c = InputKey 60
 
--- A scale independent pitch.  The definitions of the octave and the degree
+-- * relative pitch
+
+-- | A scale independent pitch.  The definitions of the octave and the degree
 -- offset are up to the scale.
-newtype GenericPitch = GenericPitch (Octave, Double) deriving (Eq, Ord, Show)
+data Relative = Relative Octave Double deriving (Eq, Ord, Show)
 
 type Octave = Int
+
+-- | Generic relative notes look like "+4/3.2" or "+3.2" (octave omitted).
+from_relative :: Relative -> Note
+from_relative (Relative oct nn)
+    | oct == 0 = Note (sign ++ Parse.show_float (Just 2) (abs nn))
+    | otherwise = Note (sign ++ show (abs oct) ++ degree)
+    where
+    sign = if (if oct /= 0 then fromIntegral oct else nn) >= 0 then "+" else "-"
+    degree = (if oct == 0 then "" else "/")
+        ++ (if nn == 0 then "" else Parse.show_float (Just 2) nn)
+
+to_relative :: Note -> Maybe Relative
+to_relative (Note note) = do
+    unless (let c = take 1 note in c == "+" || c == "-") mzero
+    oct <- if null oct_s then return 0 else Parse.int oct_s
+    nn <- if null nn_s then return 0 else Parse.float nn_s
+    return (Relative oct nn)
+    where
+    (pre, post) = break (=='/') note
+    (oct_s, nn_s) = if null post then ("", pre) else (pre, drop 1 post)
 
 
 -- * scale

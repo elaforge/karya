@@ -26,7 +26,7 @@ cmd_val_edit :: Pitch.ScaleId -> Cmd.Cmd
 cmd_val_edit scale_id msg = do
     EditUtil.abort_on_mods
     case msg of
-        Msg.InputNote (InputNote.NoteOn _note_id key _vel) -> do
+        Msg.InputNote (InputNote.NoteOn _ key _) -> do
             sel_pos <- EditUtil.get_sel_pos
             note <- EditUtil.parse_key scale_id key
             val_edit_at sel_pos note
@@ -35,6 +35,34 @@ cmd_val_edit scale_id msg = do
             EditUtil.modify_event False (const (Nothing, True))
         _ -> Cmd.abort
     return Cmd.Done
+
+cmd_val_edit_relative :: Cmd.Cmd
+cmd_val_edit_relative msg = do
+    selpos <- EditUtil.get_sel_pos
+    cmd_val_edit_relative_at selpos msg
+
+cmd_val_edit_relative_at :: EditUtil.SelPos -> Cmd.Cmd
+cmd_val_edit_relative_at selpos msg = do
+    EditUtil.abort_on_mods
+    case msg of
+        Msg.InputNote (InputNote.NoteOn _ key _) -> do
+            let Pitch.Note note = Pitch.from_relative (key_to_relative key)
+            modify_event_at selpos $ \(meth, _) ->
+                ((Just meth, Just note), True)
+        (EditUtil.raw_key -> Just key) | key /= Key.KeyChar ' ' -> do
+            modify_event_at selpos $ \(meth, note) ->
+                ((Just meth, EditUtil.modify_text_key key note), False)
+        _ -> Cmd.abort
+    return Cmd.Done
+
+-- | Take pitch relative to middle C.  This is kinda random, so I'm not sure if
+-- it'll be useful.
+key_to_relative :: Pitch.InputKey -> Pitch.Relative
+key_to_relative (Pitch.InputKey key) = Pitch.Relative oct (fromIntegral nn + f)
+    where
+    (i, f) = properFraction key
+    c = (\(Pitch.InputKey k) -> floor k) Pitch.middle_c
+    (oct, nn) = (i - c) `divMod` 12
 
 cmd_method_edit :: Cmd.Cmd
 cmd_method_edit msg = do

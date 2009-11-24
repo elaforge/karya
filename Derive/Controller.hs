@@ -9,10 +9,6 @@
 
     - #e - Approach with exponential interpolation with #.  # defaults to 2.
 
-    TODO
-    - #a - Take # TrackPos to reach the value, starting at the point.  It's
-    like @[(p, "v"), (p+#, "iv")]@.
-
     - method;val - Approach val with method, then jump to val.
 -}
 module Derive.Controller where
@@ -98,15 +94,9 @@ d_signal events = fmap (Signal.track_signal Signal.default_srate)
 parse_event :: (Monad m) => Derive.NoState -> Score.Event
     -> Derive.DeriveT m ((TrackPos, Signal.Method, Signal.Val), Derive.NoState)
 parse_event _ event = do
-    (method, val) <- Derive.Parse.parse p_segment (Score.event_string event)
+    (method, val) <- Derive.Parse.parse (liftM2 (,) p_opt_method Parse.p_float)
+        (Score.event_string event)
     return ((Score.event_start event, method, val), Derive.NoState)
-
-p_segment :: P.CharParser st (Signal.Method, Signal.Val)
-p_segment = do
-    meth <- P.option Signal.Set (P.try p_method)
-    P.spaces
-    val <- Parse.p_float
-    return (meth, val)
 
 -- ** pitch signals
 
@@ -122,10 +112,34 @@ parse_pitch_event :: (Monad m) => Pitch.Scale -> Maybe Signal.Val
     -> Score.Event -> Derive.DeriveT m
         ((TrackPos, Signal.Method, Signal.Val), Maybe Signal.Val)
 parse_pitch_event scale previous_nn event = do
-    (method, note) <-
-        Derive.Parse.parse p_note_segment (Score.event_string event)
+    (method, note) <- Derive.Parse.parse
+        (liftM2 (,) p_opt_method_comma p_scale_note)
+        (Score.event_string event)
     val <- parse_note scale previous_nn note
     return ((Score.event_start event, method, val), Just val)
+
+d_relative_pitch_signal :: (Monad m) => [Score.Event]
+    -> Derive.DeriveT m Signal.PitchSignal
+d_relative_pitch_signal events =
+    fmap (Signal.track_signal Signal.default_srate)
+        (Derive.map_events parse_relative_pitch_event () id events)
+
+parse_relative_pitch_event :: (Monad m) => () -> Score.Event
+    -> Derive.DeriveT m ((TrackPos, Signal.Method, Signal.Val), ())
+parse_relative_pitch_event _ event = do
+    (method, val) <- Derive.Parse.parse
+        (liftM2 (,) p_opt_method_comma p_relative_pitch)
+        (Score.event_string event)
+    return ((Score.event_start event, method, val), ())
+
+p_relative_pitch :: P.CharParser st Signal.Val
+p_relative_pitch = do
+    s <- P.many P.anyToken
+    Pitch.Relative oct nn <-
+        maybe P.pzero return (Pitch.to_relative (Pitch.Note s))
+    -- TODO this means Relative won't work correctly on non tempered scales
+    -- to make this work, PitchSignal has to be a Signal Relative.
+    return (fromIntegral oct * 12 + nn)
 
 -- | Parse scale notes for a given scale.  This one just matches the scale
 -- notes directly, but a more complicated one may get scale values out of the
@@ -147,19 +161,26 @@ parse_note scale previous_nn note
         Just (Pitch.NoteNumber nn) -> return nn
     where empty_note = Pitch.Note ""
 
-p_note_segment :: P.CharParser st (Signal.Method, Pitch.Note)
-p_note_segment = do
-    meth <- P.option Signal.Set (P.try (p_method #>> P.char ','))
-    P.spaces
-    note <- p_scale_note
-    return (meth, note)
-
 p_scale_note :: P.CharParser st Pitch.Note
 p_scale_note = fmap Pitch.Note (P.many (P.satisfy (not . Char.isSpace)))
 
 -- ** generic
 
-p_method = (P.char 'i' >> return Signal.Linear)
+-- Since normal control events all start with a number or a dot and methods all
+-- start with letters, the interpolation method can go directly up against the
+-- value, saving a little space.  However, pitches in a pitch track can start
+-- with letters too, so there has to be a comma to separate the method from the
+-- value.
+
+p_opt_method :: P.CharParser st Signal.Method
+p_opt_method = P.option Signal.Set (P.try p_meth) #>> P.spaces
+
+p_opt_method_comma :: P.CharParser st Signal.Method
+p_opt_method_comma =
+    P.option Signal.Set (P.try (p_meth #>> P.char ',')) #>> P.spaces
+
+p_meth :: P.CharParser st Signal.Method
+p_meth = (P.char 'i' >> return Signal.Linear)
     <|> (P.char 's' >> return Signal.Set)
     <|> (P.try
         (P.option 2 (Parse.p_float) #>> P.char 'e' >>= return . Signal.Exp))

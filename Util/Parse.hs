@@ -63,16 +63,22 @@ p_nat = do
         _ -> P.pzero -- this should never happen
     <?> "natural int"
 
-p_float :: P.CharParser st Double
-p_float = do
-    sign <- P.option 1 (P.char '-' >> return (-1))
+p_unsigned_float :: P.CharParser st Double
+p_unsigned_float = do
     i <- P.many P.digit
     f <- P.option "" (P.char '.' >> P.many1 P.digit)
     case (i, f) of
         ("", "") -> P.pzero
         _ -> case read_float (i ++ "." ++ f) of
             [] -> P.pzero
-            ((val, _rest):_) -> return (val * sign)
+            ((val, _rest):_) -> return val
+    <?> "unsigned float"
+
+p_float :: P.CharParser st Double
+p_float = do
+    sign <- P.option 1 (P.char '-' >> return (-1))
+    val <- p_unsigned_float
+    return (val * sign)
     <?> "float"
 
 -- * non-parsec
@@ -107,3 +113,16 @@ complete_parse results = case results of
     [] -> Nothing
     ((val, ""):_) -> Just val
     _ -> Nothing
+
+-- ** show
+
+-- | Display a float with the given precision, dropping leading and trailing
+-- zeros.  So this can produce ".2" which is not a valid haskell float.
+show_float :: (RealFloat a) => Maybe Int -> a -> String
+show_float precision float
+    | float == 0 = "0"
+    | f == 0 = show i
+    | otherwise = Seq.rdrop_while (=='0') (dropWhile (=='0') s)
+    where
+    (i, f) = properFraction float
+    s = Numeric.showFFloat precision float ""

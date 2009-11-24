@@ -158,23 +158,27 @@ default_cmds context = (cmds2, warns)
     where
     cmds1 = add_with_note $ case maybe_track_type of
         Nothing -> ([], [])
-        Just (NoteTrack ptrack) -> case edit_mode of
+        Just (NoteTrack ptrack is_relative) -> case edit_mode of
             Cmd.NoEdit -> ([], [])
             Cmd.RawEdit -> ([NoteTrack.cmd_raw_edit scale_id], [])
-            Cmd.ValEdit -> ([NoteTrack.cmd_val_edit ptrack scale_id], [])
+            Cmd.ValEdit
+                | is_relative -> ([], [NoteTrack.cmd_val_edit_relative ptrack])
+                | otherwise -> ([NoteTrack.cmd_val_edit ptrack scale_id], [])
             Cmd.MethodEdit -> ([], [NoteTrack.cmd_method_edit ptrack])
-        Just PitchTrack -> case edit_mode of
+        Just (PitchTrack is_relative) -> case edit_mode of
             Cmd.NoEdit -> ([], [])
             Cmd.RawEdit -> ([PitchTrack.cmd_raw_edit scale_id], [])
-            Cmd.ValEdit -> ([PitchTrack.cmd_val_edit scale_id], [])
+            Cmd.ValEdit
+                | is_relative -> ([], [PitchTrack.cmd_val_edit_relative])
+                | otherwise -> ([PitchTrack.cmd_val_edit scale_id], [])
             Cmd.MethodEdit -> ([], [PitchTrack.cmd_method_edit])
-        Just ControlTrack -> case edit_mode of
+        Just (ControlTrack _) -> case edit_mode of
             Cmd.NoEdit -> ([], [])
             Cmd.RawEdit -> ([], [ControlTrack.cmd_raw_edit])
             Cmd.ValEdit -> ([], [ControlTrack.cmd_val_edit])
             Cmd.MethodEdit -> ([], [ControlTrack.cmd_method_edit])
     (cmds2, warns) = case maybe_track_type of
-        Just (NoteTrack ptrack) ->
+        Just (NoteTrack ptrack _) ->
             let (cmd_map, keymap_warns) = NoteTrackKeymap.make_keymap ptrack
             in (cmds1 ++ [Keymap.make_cmd cmd_map], keymap_warns)
         _ -> (cmds1, [])
@@ -186,8 +190,7 @@ default_cmds context = (cmds2, warns)
     kbd_entry = ctx_kbd_entry context
     midi_thru =
         maybe [] (\inst -> [MidiThru.cmd_midi_thru scale_id inst]) maybe_inst
-    (maybe_track_type, maybe_inst, scale_id) =
-        get_defaults context
+    (maybe_track_type, maybe_inst, scale_id) = get_defaults context
 
 get_defaults :: CmdContext
     -> (Maybe TrackType, Maybe Score.Instrument, Pitch.ScaleId)
@@ -229,20 +232,27 @@ get_track_info proj_scale track_tree (Just tracknum) =
 -- of cmds should apply to a given track.
 data TrackType =
     -- | NoteTrack is paired with the first pitch track found for it.
-    NoteTrack NoteTrack.PitchTrack | PitchTrack | ControlTrack
+    -- The Bool is True if this is a relative control track, or in the case of
+    -- NoteTrack, the corresponding PitchTrack is relative.
+    NoteTrack NoteTrack.PitchTrack Bool | PitchTrack Bool | ControlTrack Bool
     deriving (Show, Eq)
 
 track_type :: Pitch.ScaleId -> State.TrackInfo -> [State.TrackInfo] -> TrackType
 track_type scale_id (State.TrackInfo title _ tracknum) parents
-    | Default.is_inst_track title = NoteTrack pitch_track
-    | Default.is_pitch_track title = PitchTrack
-    | otherwise = ControlTrack
+    | Default.is_inst_track title = NoteTrack pitch_track pitch_rel
+    | Default.is_pitch_track title = PitchTrack is_rel
+    | otherwise = ControlTrack is_rel
     where
-    pitch_track = case List.find is_pitch parents of
-        Nothing -> NoteTrack.CreateTrack
-            tracknum (Default.track_of_scale scale_id) (tracknum+1)
-        Just ptrack -> NoteTrack.ExistingTrack (State.track_tracknum ptrack)
+    (pitch_track, pitch_rel) = case List.find is_pitch parents of
+        Nothing ->
+            -- Assume new pitch tracks should be absolute.
+            (NoteTrack.CreateTrack
+                tracknum (Default.track_of_scale scale_id) (tracknum+1),
+            False)
+        Just ptrack -> (NoteTrack.ExistingTrack (State.track_tracknum ptrack),
+            Default.is_relative_track (State.track_title ptrack))
     is_pitch = Default.is_pitch_track . State.track_title
+    is_rel = Default.is_relative_track title
 
 
 -- ** compile
@@ -285,15 +295,17 @@ compile_controller title track_id subderiver
         sig_events <- Derive.with_track_warp
             Controller.d_controller_track track_id
         -- TODO default to inst scale if none is given
-        let signal = if Default.is_pitch_track title
-                then Controller.d_pitch_signal
-                    (Default.scale_of_track title) sig_events
-                else Controller.d_signal sig_events
+        let if_is_pitch psig = if Default.is_pitch_track title
+                then psig else Controller.d_signal sig_events
         case Default.parse_control_title title of
             (Just c_op, cont) -> Controller.d_relative_controller
-                (Score.Controller cont) c_op signal subderiver
-            (Nothing, cont) -> Controller.d_controller
-                (Score.Controller cont) signal subderiver
+                (Score.Controller cont) c_op
+                (if_is_pitch (Controller.d_relative_pitch_signal sig_events))
+                subderiver
+            (Nothing, cont) -> Controller.d_controller (Score.Controller cont)
+                (if_is_pitch (Controller.d_pitch_signal
+                    (Default.scale_of_track cont) sig_events))
+                subderiver
 
 
 -- | Compile a Skeleton to its SignalDeriver.  The SignalDeriver is like the

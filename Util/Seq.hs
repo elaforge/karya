@@ -215,7 +215,8 @@ split_with f xs = map reverse (go f xs [])
         | otherwise = go f xs (x:collect)
 
 -- | Split 'xs' on 'sep', dropping 'sep' from the result.
-split "" _ = error $ "Util.Seq.split: empty separator"
+split :: (Eq a) => [a] -> [a] -> [[a]]
+split [] _ = error $ "Util.Seq.split: empty separator"
 split sep xs = go sep xs
     where
     go sep xs
@@ -223,11 +224,18 @@ split sep xs = go sep xs
         | otherwise = pre : split sep (drop (length sep) post)
         where (pre, post) = break_tails (sep `isPrefixOf`) xs
 
+-- | Like 'split', but only split once.
+split1 :: (Eq a) => [a] -> [a] -> ([a], [a])
+split1 [] _ = error $ "Util.Seq.split1: empty seperator"
+split1 sep xs = (pre, drop (length sep) post)
+    where (pre, post) = break_tails (sep `isPrefixOf`) xs
+
 -- | Split on commas and strip whitespace.
 split_commas :: String -> [String]
 split_commas = map strip . split ","
 
 -- | Concat a list with 'sep' in between.
+join :: [a] -> [[a]] -> [a]
 join sep = concat . intersperse sep
 
 replace1 :: (Eq a) => a -> [a] -> [a] -> [a]

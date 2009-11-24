@@ -51,6 +51,12 @@ scale_of_track = Pitch.ScaleId . Seq.strip . drop 1
 track_of_scale :: Pitch.ScaleId -> String
 track_of_scale (Pitch.ScaleId scale_id) = pitch_track_prefix ++ scale_id
 
+-- | True if this track is a relative control or pitch track.
+is_relative_track :: String -> Bool
+is_relative_track title = case parse_control_title title of
+    (Just _, _) -> True
+    _ -> False
+
 pitch_track_prefix = "*"
 
 inst_of_track = Score.Instrument . Seq.strip . drop 1

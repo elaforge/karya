@@ -3,9 +3,11 @@
 - ^T on the cmdline prints stuff!?
 - State.structure only used by Clip_test
 
+- can share pitches doesn't consider a whole step transposition unshareable
+
 CURRENT
   * relative control tracks
-  - relative pitch tracks
+  * relative pitch tracks
   - reverse skel display arrow direction
   - convert Signal to only flat line segments
   - rename controller -> control
@@ -39,14 +41,23 @@ MILESTONES
     + scales and keyswitches
     + efficient thru
     - dense / efficient control signals
+    - lazy signals
     - memoize deriver output, to avoid unnecessary rederivation
     - midi record / integrator
     - save undo history
+    - linux and windows ports
   future
+    - display / edit derivations inline
+    - print scores
+    - mouse oriented signal editing
     - freeze tracks / audio memoization: doc/freeze_track
     - vst host
-    - jack / rewrite
+    - sync with audio editor: jack or rewire
     - non-midi instruments
+
+  far future
+    - render audio
+    - include audio inline
 
 - make sure pitch terminology is consistent:
   KeyNumber = scale independent note, Note = note in scale,
@@ -292,9 +303,8 @@ Derive:
       * multiple tempos per block
     * subblock derivation
   PitchTrack pitch
-    - pitch signal should be Signal (Method, Pitch) so that they can be
-      transposed
-    - relative pitches, e.g. +5
+    - pitch signal should be Signal Relative so that they can be transposed
+    * relative pitches, e.g. +5
   NoteTrack note
     - non-note commands: set random seed, ...
       do I want to set cc things from note or require a control track?

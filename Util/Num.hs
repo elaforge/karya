@@ -1,4 +1,7 @@
+-- | Miscellaneous functions on numbers.  Things that could have gone in
+-- Numeric.
 module Util.Num where
+
 
 -- | Restrict a value to be between @low@ and @high@.
 clamp :: (Ord a) => a -> a -> a -> a
