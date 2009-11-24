@@ -3,12 +3,10 @@
 - ^T on the cmdline prints stuff!?
 - State.structure only used by Clip_test
 
-- can share pitches doesn't consider a whole step transposition unshareable
-
 CURRENT
   * relative control tracks
   * relative pitch tracks
-  - reverse skel display arrow direction
+  * reverse skel display arrow direction
   - convert Signal to only flat line segments
   - rename controller -> control
   - sub block: relative pitch track
@@ -90,6 +88,8 @@ note input / thru:
   - profile midi->midi thru and implement a fast path if necessary
 
 bugs:
+  - can share pitches doesn't consider a whole step transposition unshareable
+  - is kbd entry letting keys like 1 fall through?
   - Edit.cmd_delete_time is still a little funky, an event with only 2 time
     steps is deleted, >2 is shortened.
   * graphical corruption when scrolling down

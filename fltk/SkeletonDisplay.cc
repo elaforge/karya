@@ -113,9 +113,9 @@ draw_arrow(int fromx, int tox, int bottom, int top)
     // TODO get arrow angle right
     fl_color(FL_RED);
     fl_begin_polygon();
-    fl_vertex(tox-2, bottom-5);
-    fl_vertex(tox, bottom);
-    fl_vertex(tox+2, bottom-5);
+    fl_vertex(fromx-2, bottom-5);
+    fl_vertex(fromx, bottom);
+    fl_vertex(fromx+2, bottom-5);
     fl_end_polygon();
 }
 
