@@ -430,6 +430,9 @@ integrate srate = map_signal_accum go final 0
         integrate_segment (pos_to_val srate) accum x0 y0 x1 y1
     -- Pretend like the last sample extends to the right forever.  This is
     -- grody but seems to be inevitable with a variable sampling rate scheme.
+    -- TODO Actually, I only need to do this because the tempo signal doesn't
+    -- say how long the block is.  If the tempo track put a sample at the end
+    -- of the block I think I wouldn't need this...
     big = pos_to_val max_track_pos
     final ((x, y), accum) = [(x, accum), (big, accum + y * (big-x))]
 
@@ -444,7 +447,7 @@ integrate_segment srate accum x0 y0 x1 y1
     where
     samples = takeWhile (<x1) (sample_stream x0 srate)
     -- math is hard let's go shopping
-    y_at x = accum + (x**2 / (2/slope)) + (y0 * x)
+    y_at x = accum + ((x-x0)**2 / (2/slope)) + (y0 * (x-x0))
     slope = (y1-y0) / (x1-x0)
 
 -- | Clip signal to never go over the given val.  This is different from
