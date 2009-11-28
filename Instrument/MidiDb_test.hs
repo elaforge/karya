@@ -5,7 +5,7 @@ import Util.Test
 
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
-import qualified Perform.Midi.Controller as Controller
+import qualified Perform.Midi.Control as Control
 import qualified Instrument.MidiDb as MidiDb
 import qualified Local.Instrument.Kontakt as Kontakt
 
@@ -19,7 +19,7 @@ test_lookup_instrument = do
 
     let ks name key = Just (Instrument.Keyswitch name key)
         kkt_inst name = Instrument.instrument "kkt" name Nothing
-            Controller.empty_map (-96, 96)
+            Control.empty_map (-96, 96)
         hang = kkt_inst "hang1"
     equal (f "kkt/hang1" ["slap"]) $ Just $
         hang { Instrument.inst_keyswitch = ks "slap" 38 }

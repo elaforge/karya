@@ -63,14 +63,14 @@ lookup_midi midi_db attrs inst = case lookup_instrument midi_db inst of
 make_inst :: Instrument.Synth -> Instrument.Patch
     -> Score.Instrument -> Score.Attributes -> Instrument.Instrument
 make_inst synth patch (Score.Instrument score_inst) attrs = inst
-        { Instrument.inst_controller_map = Map.union inst_cmap synth_cmap
+        { Instrument.inst_control_map = Map.union inst_cmap synth_cmap
         , Instrument.inst_score_name = score_inst
         , Instrument.inst_keyswitch = ks
         }
     where
     inst = Instrument.patch_instrument patch
-    synth_cmap = Instrument.synth_controller_map synth
-    inst_cmap = Instrument.inst_controller_map inst
+    synth_cmap = Instrument.synth_control_map synth
+    inst_cmap = Instrument.inst_control_map inst
     ks = Instrument.get_keyswitch (Instrument.patch_keyswitches patch) attrs
 
 lookup_instrument :: MidiDb -> Score.Instrument -> Maybe Info

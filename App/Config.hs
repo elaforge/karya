@@ -14,7 +14,7 @@ import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 import qualified Ui.UiMsg as UiMsg
 
-import qualified Perform.Midi.Controller as Controller
+import qualified Perform.Midi.Control as Control
 
 
 -- * paths
@@ -97,9 +97,9 @@ ruler_bg = Color.rgb 1 0.85 0.5
 project_scale_id :: String
 project_scale_id = "twelve"
 
--- | Controllers start out with this range.
-controller_pb_range :: Controller.PbRange
-controller_pb_range = (-2, 2)
+-- | Default range for instruments that don't say otherwise.
+control_pb_range :: Control.PbRange
+control_pb_range = (-2, 2)
 
 -- | Default size of new views.
 view_size :: (Int, Int)

@@ -47,7 +47,7 @@ program_change bank program = map (ChannelMessage 0)
     ]
     where (lsb, msb) = split14 (fromIntegral bank)
 
-cc_bank_msb, cc_bank_lsb :: Controller
+cc_bank_msb, cc_bank_lsb :: Control
 cc_bank_msb = 0
 cc_bank_lsb = 32
 
@@ -112,7 +112,7 @@ show_message msg = show msg
 type Channel = Word8 -- actually 4 bits
 type Key = Word8
 type Velocity = Word8
-type Controller = Word8
+type Control = Word8
 type Program = Word8
 type ControlValue = Word8
 -- | This is converted to and from the -0x2000 and +0x2000 range by the parser.
@@ -121,13 +121,13 @@ data ChannelMessage =
     NoteOff Key Velocity
     | NoteOn Key Velocity
     | Aftertouch Key ControlValue
-    | ControlChange Controller ControlValue
+    | ControlChange Control ControlValue
     | ProgramChange Program
     | ChannelPressure ControlValue
     | PitchBend PitchBendValue
-    -- | channel mode messages (special controller values)
+    -- | channel mode messages (special control values)
     | AllSoundOff
-    | ResetAllControllers
+    | ResetAllCcontrols
     | LocalControl Bool
     | AllNotesOff
     | UndefinedChannelMode Word8 Word8

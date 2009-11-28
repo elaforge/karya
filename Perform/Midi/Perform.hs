@@ -34,7 +34,7 @@ import qualified Perform.Signal as Signal
 import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Warning as Warning
 
-import qualified Perform.Midi.Controller as Controller
+import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.MidiDb as MidiDb
 
@@ -120,7 +120,7 @@ _perform_notes addr_inst overlapping prev_note_off ((event, addr):events) =
     -- This find could demand lots or all of events if the
     -- (instrument, chan) doesn't play for a long time, or ever.  It only
     -- happens once at gaps though, but if it's a problem I can abort after
-    -- n seconds, which would possibly save generating controllers there, at
+    -- n seconds, which would possibly save generating controls there, at
     -- the cost of assuming decays are < n sec.
     next_event = fmap fst $ List.find ((==addr) . snd) events
     (msgs, warns, note_off) = perform_note prev_note_off next_event event addr
@@ -199,25 +199,25 @@ post_process :: [Midi.WriteMessage] -> [Midi.WriteMessage]
 post_process = reorder_control_messages . drop_duplicates
 
 drop_duplicates :: [Midi.WriteMessage] -> [Midi.WriteMessage]
-drop_duplicates = drop_dup_controllers Map.empty
+drop_duplicates = drop_dup_controls Map.empty
 
 -- | Keep a running state for each channel and drop duplicate msgs.
 type AddrState =
-    (Maybe Midi.PitchBendValue, Map.Map Midi.Controller Midi.ControlValue)
+    (Maybe Midi.PitchBendValue, Map.Map Midi.Control Midi.ControlValue)
 type RunningState = Map.Map Instrument.Addr AddrState
 
-drop_dup_controllers :: RunningState -> [Midi.WriteMessage]
+drop_dup_controls :: RunningState -> [Midi.WriteMessage]
     -> [Midi.WriteMessage]
-drop_dup_controllers _ [] = []
-drop_dup_controllers running (wmsg:wmsgs) = case wmsg of
+drop_dup_controls _ [] = []
+drop_dup_controls running (wmsg:wmsgs) = case wmsg of
     Midi.WriteMessage dev _ (Midi.ChannelMessage chan cmsg) ->
         let addr = (dev, chan)
             state = Map.lookup addr running
             (keep, state2) = analyze_msg state cmsg
             running2 = maybe running (\s -> Map.insert addr s running) state2
-            rest = drop_dup_controllers running2 wmsgs
+            rest = drop_dup_controls running2 wmsgs
         in if keep then wmsg : rest else rest
-    _ -> drop_dup_controllers running wmsgs
+    _ -> drop_dup_controls running wmsgs
 
 analyze_msg :: Maybe AddrState -> Midi.ChannelMessage -> (Bool, Maybe AddrState)
 analyze_msg Nothing msg = case msg of
@@ -256,13 +256,13 @@ sort2 cmp xs = List.sortBy cmp xs
 -- | Emit MIDI for a single event.
 --
 -- @next_event@ is the next event with the same Addr which is used for the
--- legato tweak and to see how far to render controllers.
+-- legato tweak and to see how far to render controls.
 perform_note :: TrackPos -> Maybe Event -> Event -> Instrument.Addr
     -> ([Midi.WriteMessage], [Warning.Warning], TrackPos)
 perform_note prev_note_off next_event event (dev, chan)
     | midi_nn == 0 =
         ([], [event_warning event "no pitch signal"], prev_note_off)
-    | otherwise = (merge_messages [controller_msgs, note_msgs], warns, note_off)
+    | otherwise = (merge_messages [control_msgs, note_msgs], warns, note_off)
     where
     note_msgs =
         [ chan_msg pb_time (Midi.PitchBend pb)
@@ -288,14 +288,14 @@ perform_note prev_note_off next_event event (dev, chan)
         return nn
 
     control_sigs = Map.assocs (event_controls event)
-    cmap = Instrument.inst_controller_map (event_instrument event)
-    (controller_pos_msgs, clip_warns) = unzip $
-        map (perform_controller cmap note_on next_note_on) control_sigs
+    cmap = Instrument.inst_control_map (event_instrument event)
+    (control_pos_msgs, clip_warns) = unzip $
+        map (perform_control cmap note_on next_note_on) control_sigs
     pitch_pos_msgs = maybe []
         (perform_pitch pb_range midi_nn note_on next_note_on)
-        (Map.lookup Controller.c_pitch (event_controls event))
-    controller_msgs = merge_messages $
-        map (map mkmsg) (pitch_pos_msgs : controller_pos_msgs)
+        (Map.lookup Control.c_pitch (event_controls event))
+    control_msgs = merge_messages $
+        map (map mkmsg) (pitch_pos_msgs : control_pos_msgs)
     mkmsg (pos, msg) = Midi.WriteMessage dev (Timestamp.from_track_pos pos)
         (Midi.ChannelMessage chan msg)
 
@@ -307,60 +307,59 @@ perform_note prev_note_off next_event event (dev, chan)
 -- The pitch bend always tunes upwards from the tempered note.  It would be
 -- slicker to use a negative offset if the note is eventually going above
 -- unity, but that's too much work.
-event_pitch_at :: Controller.PbRange -> Event -> TrackPos
+event_pitch_at :: Control.PbRange -> Event -> TrackPos
     -> Maybe (Midi.Key, Midi.PitchBendValue)
-event_pitch_at pb_range event pos = fmap (Controller.pitch_to_midi pb_range)
-    (control_at event Controller.c_pitch pos)
+event_pitch_at pb_range event pos = fmap (Control.pitch_to_midi pb_range)
+    (control_at event Control.c_pitch pos)
 
 note_velocity :: Event -> TrackPos -> TrackPos
-    -> (Midi.Velocity, Midi.Velocity, [(Controller.Controller, [ClipWarning])])
+    -> (Midi.Velocity, Midi.Velocity, [(Control.Control, [ClipWarning])])
 note_velocity event note_on note_off =
     (clipped_vel on_sig, clipped_vel off_sig, clip_warns)
     where
     on_sig = Maybe.fromMaybe default_velocity $
-        control_at event Controller.c_velocity note_on
+        control_at event Control.c_velocity note_on
     off_sig = Maybe.fromMaybe default_velocity $
-        control_at event Controller.c_velocity note_off
-    clipped_vel val = Controller.val_to_cc (fst (clip_val 0 1 val))
+        control_at event Control.c_velocity note_off
+    clipped_vel val = Control.val_to_cc (fst (clip_val 0 1 val))
     clip_warns =
         if snd (clip_val 0 1 on_sig) || snd (clip_val 0 1 off_sig)
-        then [(Controller.c_velocity, [(note_on, note_off)])]
+        then [(Control.c_velocity, [(note_on, note_off)])]
         else []
 
-make_clip_warnings :: Event -> (Controller.Controller, [(TrackPos, TrackPos)])
+make_clip_warnings :: Event -> (Control.Control, [(TrackPos, TrackPos)])
     -> [Warning.Warning]
-make_clip_warnings event (controller, clip_warns) =
-    [ Warning.warning (show controller ++ " clipped")
+make_clip_warnings event (control, clip_warns) =
+    [ Warning.warning (show control ++ " clipped")
         (event_stack event) (Just (start, end))
     | (start, end) <- clip_warns ]
 
-control_at :: Event -> Controller.Controller -> TrackPos
-    -> Maybe Signal.Val
-control_at event controller pos = do
-    sig <- Map.lookup controller (event_controls event)
+control_at :: Event -> Control.Control -> TrackPos -> Maybe Signal.Val
+control_at event control pos = do
+    sig <- Map.lookup control (event_controls event)
     return (Signal.at pos sig)
 
-perform_pitch :: Controller.PbRange -> Midi.Key -> TrackPos -> TrackPos
+perform_pitch :: Control.PbRange -> Midi.Key -> TrackPos -> TrackPos
     -> Signal.Signal -> [(TrackPos, Midi.ChannelMessage)]
 perform_pitch pb_range nn start end sig =
-    [ (pos, Midi.PitchBend (Controller.pb_from_nn pb_range nn val))
+    [ (pos, Midi.PitchBend (Control.pb_from_nn pb_range nn val))
     | (pos, val) <- pos_vals ]
     where
     pos_vals = takeWhile ((<end) . fst) $ Signal.sample start sig
 
 -- | Return the (pos, msg) pairs, and whether the signal value went out of the
--- allowed controller range, 0--1.
-perform_controller :: Controller.ControllerMap -> TrackPos -> TrackPos
-    -> (Controller.Controller, Signal.Signal)
+-- allowed control range, 0--1.
+perform_control :: Control.ControlMap -> TrackPos -> TrackPos
+    -> (Control.Control, Signal.Signal)
     -> ([(TrackPos, Midi.ChannelMessage)], [ClipWarning])
-perform_controller cmap start end (controller, sig) =
-    case Controller.controller_constructor cmap controller of
-        Nothing -> ([], []) -- TODO warn about a controller not in the cmap
+perform_control cmap start end (control, sig) =
+    case Control.control_constructor cmap control of
+        Nothing -> ([], []) -- TODO warn about a control not in the cmap
         Just cons -> ([(pos, cons val) | (pos, val) <- pos_cvals], clip_warns)
     where
-        -- TODO get srate from a controller
+        -- TODO get srate from a control
     pos_vals = takeWhile ((<end) . fst) $ Signal.sample start sig
-    (low, high) = Controller.controller_range
+    (low, high) = Control.control_range
     -- arrows?
     (cvals, clips) = unzip (map (clip_val low high) (map snd pos_vals))
     clip_warns = extract_clip_warns (zip pos_vals clips)
@@ -435,19 +434,19 @@ can_share_chan event1 event2
     in_decay = event_end event1 <= event_start event2
         || event_end event2 <= event_start event1
     -- Velocity and aftertouch are per-note addressable in midi, but the rest
-    -- of the controllers require their own channel.
-    relevant event = filter (Controller.is_channel_controller . fst)
+    -- of the controls require their own channel.
+    relevant event = filter (Control.is_channel_control . fst)
         (Map.assocs (event_controls event))
-    pitch_control event = Map.lookup Controller.c_pitch (event_controls event)
+    pitch_control event = Map.lookup Control.c_pitch (event_controls event)
 
--- | Are the controllers equal in the given range?
+-- | Are the controls equal in the given range?
 controls_equal :: TrackPos -> TrackPos
-    -> [(Controller.Controller, Signal.Signal)]
-    -> [(Controller.Controller, Signal.Signal)] -> Bool
+    -> [(Control.Control, Signal.Signal)]
+    -> [(Control.Control, Signal.Signal)] -> Bool
 controls_equal start end c0 c1 = all (uncurry eq) (zip c0 c1)
     where
-    -- Since the controllers are compared in sorted order, if the events don't
-    -- have the same controllers, they won't be equal.
+    -- Since the controls are compared in sorted order, if the events don't
+    -- have the same controls, they won't be equal.
     eq (c0, sig0) (c1, sig1) = c0 == c1
         && Signal.equal start end sig0 sig1
 
@@ -517,7 +516,7 @@ data Event = Event {
     event_instrument :: Instrument.Instrument
     , event_start :: TrackPos
     , event_duration :: TrackPos
-    , event_controls :: ControllerMap
+    , event_controls :: ControlMap
     -- original (TrackId, TrackPos) for errors
     , event_stack :: Warning.Stack
     } deriving (Show)
@@ -535,7 +534,7 @@ note_end event =
 -- | This isn't directly the midi channel, since it goes higher than 15, but
 -- will later be mapped to midi channels.
 type Channel = Integer
-type ControllerMap = Map.Map Controller.Controller Signal.Signal
+type ControlMap = Map.Map Control.Control Signal.Signal
 
 
 -- * util

@@ -63,7 +63,7 @@ import qualified Cmd.MakeRuler ()
 import qualified Derive.Schema as Schema
 import qualified Derive.Schema.Default as Default
 import qualified Derive.Score as Score
-import qualified Perform.Midi.Controller as Midi.Controller
+import qualified Perform.Midi.Control as Midi.Control
 import qualified Perform.Midi.Convert as Midi.Convert
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Midi.Perform
@@ -408,7 +408,7 @@ load_instrument inst_name = do
         ++ show (dev, chan) ++ " to " ++ show inst
     where
     inst_type (Schema.NoteTrack _ _, inst, _) = inst
-        -- maybe also accept controller if there is just one inst
+        -- maybe also accept control if there is just one inst
         -- but then I'd need some way to know the track_id
     inst_type _ = Nothing
 
@@ -496,8 +496,8 @@ device_of inst = do
     maybe_info <- Cmd.lookup_instrument_info inst
     return $ fmap (Instrument.synth_device . MidiDb.info_synth) maybe_info
 
-controllers_of :: Score.Instrument -> [Midi.Controller.Controller]
-controllers_of inst = undefined -- TODO
+controls_of :: Score.Instrument -> [Midi.Control.Control]
+controls_of inst = undefined -- TODO
 
 
 -- * schema

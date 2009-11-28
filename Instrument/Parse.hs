@@ -15,7 +15,7 @@ import qualified Util.Parse as Parse
 
 import qualified Util.File as File
 import qualified Midi.Midi as Midi
-import qualified Perform.Midi.Controller as Controller
+import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 
 
@@ -36,7 +36,7 @@ p_patch_file synth = do
     plines <- p_patch_lines
     return $ map (make_patch synth (-2, 2)) plines
 
-make_patch :: Instrument.SynthName -> Controller.PbRange -> PatchLine
+make_patch :: Instrument.SynthName -> Control.PbRange -> PatchLine
     -> Instrument.Patch
 make_patch synth pb_range (PatchLine name cat bank patch_num) =
     (Instrument.patch inst)
@@ -46,7 +46,7 @@ make_patch synth pb_range (PatchLine name cat bank patch_num) =
         }
     where
     inst = Instrument.instrument
-        synth name Nothing Controller.empty_map pb_range
+        synth name Nothing Control.empty_map pb_range
     tags = [Instrument.tag "category" cat]
 
 p_patch_lines = fmap Maybe.catMaybes $ Parsec.many p_line

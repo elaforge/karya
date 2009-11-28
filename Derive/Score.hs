@@ -23,7 +23,7 @@ data Event = Event {
     -- | The UI level keeps it in UTF8 for easy communication with fltk, but
     -- haskell will always need to decode it, so I might as well do it here.
     , event_text :: Text.Text
-    , event_controllers :: ControllerMap
+    , event_controls :: ControlMap
 
     -- | Keep track of this event's display in various tracks (it may appear
     -- in more than one if it appears in a merged track).  That way, if an
@@ -48,7 +48,7 @@ event :: TrackPos -> TrackPos -> String -> Event
 event start dur text =
     Event start dur (Text.pack text) Map.empty [] Nothing no_attrs
 
-type ControllerMap = Map.Map Controller Signal.Signal
+type ControlMap = Map.Map Control Signal.Signal
 
 -- | An Instrument is identified by a plain string.  This will be looked up in
 -- the instrument db to get the backend specific Instrument type as well as the
@@ -67,7 +67,7 @@ type Attributes = Set.Set Attribute
 no_attrs :: Attributes
 no_attrs = Set.empty
 
-newtype Controller = Controller String deriving (Eq, Ord, Show)
+newtype Control = Control String deriving (Eq, Ord, Show)
 
 -- * attributes
 

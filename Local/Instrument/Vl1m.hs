@@ -14,7 +14,7 @@ import qualified Util.Seq as Seq
 import qualified Midi.Midi as Midi
 
 import qualified Perform.Midi.Instrument as Instrument
-import qualified Perform.Midi.Controller as Controller
+import qualified Perform.Midi.Control as Control
 
 import qualified Instrument.MidiDb as MidiDb
 import qualified Instrument.Parse as Parse
@@ -24,8 +24,8 @@ load dir = Parse.patch_file (Instrument.synth_name vl1) (dir </> "vl1")
     >>= MidiDb.load_synth_desc vl1
 load_slow dir = parse_dir (dir </> "vl1_vc") >>= MidiDb.load_synth_desc vl1
 
-vl1 = Instrument.synth "vl1" "vl1" vl1_controllers
-vl1_controllers = []
+vl1 = Instrument.synth "vl1" "vl1" vl1_controls
+vl1_controls = []
 
 parse_dir :: FilePath -> IO [Instrument.Patch]
 parse_dir dir = do
@@ -107,9 +107,9 @@ vl1_patch name (pb_range1, name1, cc_groups1) (pb_range2, name2, cc_groups2) =
     inst = Instrument.instrument
         (Instrument.synth_name vl1) name Nothing cmap pb_range
     tags = maybe_tags [("vl1_elt1", name1), ("vl1_elt2", name2)]
-    cmap = Controller.controller_map $ Map.assocs $ Map.mapMaybe highest_prio $
+    cmap = Control.control_map $ Map.assocs $ Map.mapMaybe highest_prio $
         Map.unionWith (++) (Map.fromList cc_groups1) (Map.fromList cc_groups2)
-    highest_prio cs = List.find (`elem` cs) controller_prios
+    highest_prio cs = List.find (`elem` cs) control_prios
 
 maybe_tags tags = [Instrument.tag k v | (k, v) <- tags, not (null v)]
 
@@ -117,7 +117,7 @@ common_data bytes = name
     where
     name = Seq.strip $ Parse.to_string (take 10 bytes)
 
-type ElementInfo = (Controller.PbRange, String, [(Midi.Controller, [String])])
+type ElementInfo = (Control.PbRange, String, [(Midi.Control, [String])])
 
 element :: [Word.Word8] -> ElementInfo
 element bytes = ((pb_up, pb_down), name, c_groups)
@@ -126,12 +126,12 @@ element bytes = ((pb_up, pb_down), name, c_groups)
         (Parse.from_signed_7bit (bytes!!12), Parse.from_signed_7bit (bytes!!13))
     -- doc says 231~240
     name = Seq.strip $ Parse.to_string $ take 10 $ drop 231 bytes
-    controls = Seq.map_maybe (get_controller bytes) controllers
+    controls = Seq.map_maybe (get_control bytes) vl1_control_map
     c_groups = [(cc, map fst grp)
         | (cc, grp) <- Seq.keyed_group_with snd controls]
 
-get_controller :: [Word.Word8] -> Vl1Control -> Maybe (String, Midi.Controller)
-get_controller bytes (name, offset, depth, upper_lower) = do
+get_control :: [Word.Word8] -> Vl1Control -> Maybe (String, Midi.Control)
+get_control bytes (name, offset, depth, upper_lower) = do
     midi_control <- require valid_control control
     require (>=32) $ maximum $ map abs depth_bytes
     return (name, midi_control)
@@ -140,10 +140,10 @@ get_controller bytes (name, offset, depth, upper_lower) = do
     depth_bytes = [get_7bit bytes (offset+depth)]
         ++ if upper_lower then [get_7bit bytes (offset+depth+2)] else []
     require f v = if f v then Just v else Nothing
-        -- The vl1 mostly uses the midi controller list, except sticks some
+        -- The vl1 mostly uses the midi control list, except sticks some
         -- internal ones in there.
     valid_control c = c>0 && (c<11 || c>15) && c<120
-    -- TODO 120 is aftertouch, which I could support if ControllerMap did
+    -- TODO 120 is aftertouch, which I could support if ControlMap did
 
 get_7bit bytes offset = Parse.from_signed_8bit (Midi.join14 msb lsb)
     where [msb, lsb] = take 2 (drop offset bytes)
@@ -153,16 +153,16 @@ type Vl1Control = (String, Int, Int, Bool)
 
 -- | Vaguely "more audible" controls come first.  Having more than one seq
 -- control affecting the same vl1 control is confusing, so when a control is
--- assigned to more than one controller, the one first in this list will get
--- the controller.  That way, if contoller 2 is assigned to both pressure and
--- amplitude, the controller will be called "pressure".
+-- assigned to more than one control, the one first in this list will get
+-- the control.  That way, if contoller 2 is assigned to both pressure and
+-- amplitude, the control will be called "pressure".
 --
 -- Of course prominence is also highly dependent on depth, but this is simpler.
 -- I ignore controls below a certain depth anyway.
 --
 -- Paired with the byte offset in the "element parameters" sysex section.
-controllers :: [Vl1Control]
-controllers =
+vl1_control_map :: [Vl1Control]
+vl1_control_map =
     [ ("embouchure", 4, 2, True)
     , ("pressure", 0, 2, False)
     , ("amplitude", 22, 2, False)
@@ -181,4 +181,4 @@ controllers =
     , ("damping", 54, 2, False)
     , ("absorption", 58, 2, False)
     ]
-controller_prios = [c | (c, _, _, _) <- controllers]
+control_prios = [c | (c, _, _, _) <- vl1_control_map]

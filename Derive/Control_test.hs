@@ -1,4 +1,4 @@
-module Derive.Controller_test where
+module Derive.Control_test where
 
 import Util.Test
 import qualified Util.Log as Log
@@ -11,11 +11,11 @@ import qualified Derive.Score as Score
 import qualified Derive.Scale.Twelve as Twelve
 
 import qualified Derive.Derive_test as Derive_test
-import qualified Derive.Controller as Controller
+import qualified Derive.Control as Control
 
 
 test_d_signal = do
-    let f = Controller.d_signal
+    let f = Control.d_signal
     let run evts = case Derive_test.run State.empty (f evts) of
             Left err -> Left err
             Right (val, _dstate, msgs) -> Right (val, map Log.msg_string msgs)
@@ -35,7 +35,7 @@ test_d_signal = do
     strings_like msgs ["parse error on char 1"]
 
 test_d_pitch_signal = do
-    let f = Controller.d_pitch_signal
+    let f = Control.d_pitch_signal
     let run evts = case Derive_test.run State.empty (f Twelve.scale_id evts) of
             Left err -> Left err
             Right (val, _dstate, msgs) -> Right (val, map Log.msg_string msgs)

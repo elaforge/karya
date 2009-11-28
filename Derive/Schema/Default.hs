@@ -78,8 +78,8 @@ title_to_scale name
 instrument_to_title :: Score.Instrument -> String
 instrument_to_title (Score.Instrument inst) = '>' : inst
 
--- | The return value should be (Maybe ControlOp, Score.Controller), but
--- I don't want to import Derive from here and Score.Controller is inconvenient
+-- | The return value should be (Maybe ControlOp, Score.Control), but
+-- I don't want to import Derive from here and Score.Control is inconvenient
 -- for the functions above.
 parse_control_title :: String -> (Maybe String, String)
 parse_control_title title

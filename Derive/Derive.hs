@@ -78,7 +78,7 @@ data State = State {
 
     -- | Derivers can modify it for sub-derivers, or look at it, whether to
     -- attach to an Event or to handle internally.
-    state_controllers :: Score.ControllerMap
+    state_controls :: Score.ControlMap
     , state_instrument :: Maybe Score.Instrument
     , state_attributes :: Score.Attributes
     , state_warp :: Warp
@@ -106,7 +106,7 @@ data State = State {
     }
 
 initial_state ui_state lookup_deriver ignore_tempo = State {
-    state_controllers = Map.empty
+    state_controls = Map.empty
     , state_instrument = Nothing
     , state_attributes = Score.no_attrs
     , state_warp = initial_warp
@@ -329,24 +329,24 @@ with_instrument inst attrs op = do
 type ControlOp = String
 type SignalOp = Signal.Signal -> Signal.Signal -> Signal.Signal
 
-with_controller :: (Monad m) =>
-    Score.Controller -> Signal.Signal -> DeriveT m t -> DeriveT m t
-with_controller cont signal op = do
-    old_env <- fmap state_controllers get
-    modify $ \st -> st { state_controllers = Map.insert cont signal old_env }
+with_control :: (Monad m) =>
+    Score.Control -> Signal.Signal -> DeriveT m t -> DeriveT m t
+with_control cont signal op = do
+    old_env <- fmap state_controls get
+    modify $ \st -> st { state_controls = Map.insert cont signal old_env }
     result <- op
-    modify $ \st -> st { state_controllers = old_env }
+    modify $ \st -> st { state_controls = old_env }
     return result
 
-with_relative_controller :: (Monad m) =>
-    Score.Controller -> ControlOp -> Signal.Signal -> DeriveT m t -> DeriveT m t
-with_relative_controller cont c_op signal op = do
+with_relative_control :: (Monad m) =>
+    Score.Control -> ControlOp -> Signal.Signal -> DeriveT m t -> DeriveT m t
+with_relative_control cont c_op signal op = do
     sig_op <- lookup_control_op c_op
-    old_env <- fmap state_controllers get
+    old_env <- fmap state_controls get
     modify $ \st ->
-        st { state_controllers = Map.insertWith sig_op cont signal old_env }
+        st { state_controls = Map.insertWith sig_op cont signal old_env }
     result <- op
-    modify $ \st -> st { state_controllers = old_env }
+    modify $ \st -> st { state_controls = old_env }
     return result
 
 lookup_control_op :: (Monad m) => ControlOp -> DeriveT m SignalOp

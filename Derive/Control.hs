@@ -1,5 +1,5 @@
 {-# LANGUAGE PatternGuards #-}
-{- | Derivers for controller tracks.
+{- | Derivers for control tracks.
 
     Interpolation methods:
 
@@ -11,7 +11,7 @@
 
     - method;val - Approach val with method, then jump to val.
 -}
-module Derive.Controller where
+module Derive.Control where
 import Prelude hiding (lex)
 import Control.Monad
 import qualified Data.Char as Char
@@ -38,26 +38,26 @@ import qualified Derive.Score as Score
 
 
 -- | It's necessary for @eventsm@ to be monadic, since it needs to be run
--- inside the environment modified by d_controller.
-d_controller :: (Monad m) => Score.Controller -> Derive.DeriveT m Signal.Signal
+-- inside the environment modified by d_control.
+d_control :: (Monad m) => Score.Control -> Derive.DeriveT m Signal.Signal
     -> Derive.DeriveT m [Score.Event] -> Derive.DeriveT m [Score.Event]
-d_controller cont signalm eventsm = do
+d_control cont signalm eventsm = do
     signal <- signalm
-    Derive.with_controller cont signal eventsm
+    Derive.with_control cont signal eventsm
 
-d_relative_controller :: (Monad m) =>
-    Score.Controller -> Derive.ControlOp -> Derive.DeriveT m Signal.Signal
+d_relative_control :: (Monad m) =>
+    Score.Control -> Derive.ControlOp -> Derive.DeriveT m Signal.Signal
     -> Derive.DeriveT m [Score.Event] -> Derive.DeriveT m [Score.Event]
-d_relative_controller cont c_op signalm eventsm = do
+d_relative_control cont c_op signalm eventsm = do
     signal <- signalm
-    Derive.with_relative_controller cont c_op signal eventsm
+    Derive.with_relative_control cont c_op signal eventsm
 
--- | Get the signal events from a controller track.  They are meant to be
+-- | Get the signal events from a control track.  They are meant to be
 -- fed to 'd_signal' or 'd_pitch_signal', which will convert them into
 -- a signal, and the whole thing passed as the signal deriver to
--- 'd_controller'.
-d_controller_track :: (Monad m) => Derive.TrackDeriver m
-d_controller_track track_id = do
+-- 'd_control'.
+d_control_track :: (Monad m) => Derive.TrackDeriver m
+d_control_track track_id = do
     track <- Derive.get_track track_id
     stack <- fmap Derive.state_stack Derive.get
     let (pos_list, events) = unzip $ Track.event_list (Track.track_events track)

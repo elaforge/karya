@@ -14,7 +14,7 @@ import qualified Midi.Midi as Midi
 import qualified Derive.Score as Score
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Perform.Pitch as Pitch
-import qualified Perform.Midi.Controller as Controller
+import qualified Perform.Midi.Control as Control
 
 
 default_scale :: Pitch.ScaleId
@@ -34,12 +34,11 @@ data Instrument = Instrument {
     -- | Instrument name as given in the Score.Instrument.  It's just used
     -- to print msgs, but it should be the same to avoid confusion.
     , inst_score_name :: String
-	-- | Map controller names to a controller number.  Some controllers are
-	-- shared by all midi instruments, but some instruments have special
-	-- controllers.
-	, inst_controller_map :: Controller.ControllerMap
+    -- | Map control names to a control number.  Some controls are shared by
+    -- all midi instruments, but some instruments have special controls.
+	, inst_control_map :: Control.ControlMap
 
-    , inst_pitch_bend_range :: Controller.PbRange
+    , inst_pitch_bend_range :: Control.PbRange
     -- | Time from NoteOff to inaudible, in seconds.  This can be used to
     -- figure out how long to generate control messages, or possibly determine
     -- overlap for channel allocation, though I use LRU so it shouldn't matter.
@@ -50,7 +49,7 @@ data Instrument = Instrument {
     } deriving (Eq, Ord, Show)
 
 instrument :: SynthName -> InstrumentName -> Maybe Keyswitch
-    -> Controller.ControllerMap -> Controller.PbRange -> Instrument
+    -> Control.ControlMap -> Control.PbRange -> Instrument
 instrument synth_name name keyswitch cmap pb_range =
     set_instrument_name synth_name name keyswitch
         (Instrument "" "" Nothing "" cmap pb_range Nothing default_scale)
@@ -114,7 +113,7 @@ data Keyswitch = Keyswitch
 data Patch = Patch {
 	-- | The Instrument is a subset of the data available in the Patch.
 	-- The patch_instrument is not necessarily the same as the one eventually
-	-- used in performance, because e.g. synth controllers can get added in.
+	-- used in performance, because e.g. synth controls can get added in.
 	patch_instrument :: Instrument
     , patch_initialize :: InitializePatch
     -- | Keyswitches available to this instrument, if any.  Each of these is
@@ -195,19 +194,19 @@ type TagKey = String
 type TagVal = String
 
 -- | A Synth defines common features for a set of instruments, like device and
--- controllers.
+-- controls.
 data Synth = Synth {
     -- | Uniquely defines the synth, and is indexed by the
     -- Instrument.inst_synth field.
     synth_name :: SynthName
     , synth_device :: Midi.WriteDevice
-    -- | Often synths have a set of common controllers in addition to the
+    -- | Often synths have a set of common controls in addition to the
     -- global midi defaults.
-    , synth_controller_map :: Controller.ControllerMap
+    , synth_control_map :: Control.ControlMap
     } deriving (Eq, Show)
 
-synth name wdev controllers =
-    Synth name (Midi.WriteDevice wdev) (Controller.controller_map controllers)
+synth name wdev controls =
+    Synth name (Midi.WriteDevice wdev) (Control.control_map controls)
 
 type SynthName = String
 type InstrumentName = String

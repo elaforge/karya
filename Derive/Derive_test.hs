@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -fno-warn-unused-imports #-}
-{- | This also tests Derive.Note and Derive.Controller since it uses them to
+{- | This also tests Derive.Note and Derive.Control since it uses them to
     piece together a complete deriver.
 -}
 module Derive.Derive_test where
@@ -22,7 +22,7 @@ import qualified Ui.UiTest as UiTest
 import qualified Midi.Midi as Midi
 import qualified Instrument.MidiDb as MidiDb
 
-import qualified Derive.Controller as Controller
+import qualified Derive.Control as Control
 import qualified Derive.Derive as Derive
 import qualified Derive.Note as Note
 import qualified Derive.Schema as Schema
@@ -33,7 +33,7 @@ import qualified Perform.Signal as Signal
 import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Transport as Transport
 import qualified Perform.Warning as Warning
-import qualified Perform.Midi.Controller as Midi.Controller
+import qualified Perform.Midi.Control as Midi.Control
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
@@ -106,9 +106,9 @@ test_subderive = do
 basic_deriver :: (Monad m) => TrackId -> TrackId
     -> Derive.DeriveT m [Score.Event]
 basic_deriver note_tid pitch_tid =
-    Controller.d_controller (Score.Controller "*twelve")
-        (Controller.d_pitch_signal Twelve.scale_id =<<
-            Derive.with_track_warp Controller.d_controller_track pitch_tid)
+    Control.d_control (Score.Control "*twelve")
+        (Control.d_pitch_signal Twelve.scale_id =<<
+            Derive.with_track_warp Control.d_control_track pitch_tid)
         (Derive.with_instrument (Just default_inst) Score.no_attrs $
             Derive.with_track_warp Note.d_note_track note_tid)
 
@@ -192,25 +192,25 @@ mkstack = map (\(bid, tid, pos) ->
     (UiTest.bid bid, Just (UiTest.tid tid), Just pos))
 
 
--- | Slightly more complicated with pitch and mod controller tracks.
-controller_deriver :: (Monad m) => TrackId -> TrackId
+-- | Slightly more complicated with pitch and mod control tracks.
+control_deriver :: (Monad m) => TrackId -> TrackId
     -> TrackId -> String -> Derive.DeriveT m [Score.Event]
-controller_deriver note_tid pitch_tid cont_tid cont_name =
-    Controller.d_controller (Score.Controller cont_name)
-        (Controller.d_signal =<<
-            Derive.with_track_warp Controller.d_controller_track cont_tid)
+control_deriver note_tid pitch_tid cont_tid cont_name =
+    Control.d_control (Score.Control cont_name)
+        (Control.d_signal =<<
+            Derive.with_track_warp Control.d_control_track cont_tid)
         (basic_deriver note_tid pitch_tid)
 
-test_controller = do
+test_control = do
     let (tids, ui_state) = UiTest.run_mkstate
             [ (">", [(0, 1, "+a1"), (1, 1, "+a2")])
             , ("*twelve", [(0, 1, "4c"), (1, 1, "4c#")])
             , (c_mod, [(0, 0, "1"), (1, 0, "i.75"), (2, 0, "i0")])
             ]
     let (events, logs) = derive_events ui_state $
-            controller_deriver (tids!!0) (tids!!1) (tids!!2) c_mod
+            control_deriver (tids!!0) (tids!!1) (tids!!2) c_mod
     -- Cursory checks, more detailed checks are in more Note_test and
-    -- Controller_test.
+    -- Control_test.
     equal logs []
     equal (extract_events events) [(0, 1, "+a1"), (1, 1, "+a2")]
     equal (map (Set.toList . Score.event_attributes) events) [["a1"], ["a2"]]
@@ -226,16 +226,16 @@ test_controller = do
     check $ any (Midi.is_cc . Midi.wmsg_msg) msgs
     equal warns []
 
-relative_controller note_tid pitch_tid cont_tid cont_name rel_tid =
-    Controller.d_controller (Score.Controller cont_name)
-        (Controller.d_signal =<<
-            Derive.with_track_warp Controller.d_controller_track cont_tid)
-        (Controller.d_relative_controller (Score.Controller cont_name) "+"
-            (Controller.d_signal =<<
-                Derive.with_track_warp Controller.d_controller_track rel_tid)
+relative_control note_tid pitch_tid cont_tid cont_name rel_tid =
+    Control.d_control (Score.Control cont_name)
+        (Control.d_signal =<<
+            Derive.with_track_warp Control.d_control_track cont_tid)
+        (Control.d_relative_control (Score.Control cont_name) "+"
+            (Control.d_signal =<<
+                Derive.with_track_warp Control.d_control_track rel_tid)
             (basic_deriver note_tid pitch_tid))
 
-test_relative_controller = do
+test_relative_control = do
     let (tids, ui_state) = UiTest.run_mkstate
             [ (">", [(0, 1, "")])
             , ("*twelve", [(0, 1, "4c")])
@@ -243,9 +243,9 @@ test_relative_controller = do
             , ("+, vel", [(0, 0, "1")])
             ]
     let (events, logs) = derive_events ui_state $
-            relative_controller (tids!!0) (tids!!1) (tids!!2) "vel" (tids!!3)
+            relative_control (tids!!0) (tids!!1) (tids!!2) "vel" (tids!!3)
     let extract = (\sig -> map (flip Signal.at sig) [0..5])
-            . (Map.! Score.Controller "vel") . Score.event_controllers
+            . (Map.! Score.Control "vel") . Score.event_controls
     equal logs []
     equal (map extract events) [[1, 2, 3, 2, 1, 1]]
 
@@ -266,7 +266,7 @@ tempo_deriver :: (Monad m) => TrackId -> Signal.Signal -> TrackId
     -> TrackId -> TrackId -> Derive.DeriveT m [Score.Event]
 tempo_deriver sig_tid tempo note_tid pitch_tid vel_tid = do
     Derive.d_tempo sig_tid (return tempo) $
-        controller_deriver note_tid pitch_tid vel_tid "velocity"
+        control_deriver note_tid pitch_tid vel_tid "velocity"
 
 test_tempo = do
     let (tids, state) = UiTest.run_mkstate
@@ -364,7 +364,7 @@ perform = Perform.perform default_lookup default_inst_config
 
 block_id = UiTest.default_block_id
 
-c_mod = Midi.Controller.c_mod
+c_mod = Midi.Control.c_mod
 
 default_inst = Score.Instrument "synth/patch"
 default_synth = Instrument.synth "synth" "wdev" []
@@ -372,7 +372,7 @@ default_dev = Midi.WriteDevice "out"
 default_inst_config = Instrument.config
     [(default_inst, [(default_dev, 0)])] Nothing
 default_perf_inst = Instrument.instrument "synth" "patch" Nothing
-            Midi.Controller.empty_map (-2, 2)
+            Midi.Control.empty_map (-2, 2)
 default_ksmap = Instrument.KeyswitchMap $
     map (\(attr, name, nn) -> (Set.fromList attr, Instrument.Keyswitch name nn))
         [ (["a1", "a2"], "a1+a2", 0)

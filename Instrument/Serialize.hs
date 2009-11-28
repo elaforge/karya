@@ -13,7 +13,7 @@ import qualified Util.File as File
 
 import qualified Cmd.Serialize () -- get the Binary instances
 import qualified Perform.Midi.Instrument as Instrument
-import qualified Perform.Midi.Controller as Controller
+import qualified Perform.Midi.Control as Control
 
 import qualified Instrument.MidiDb as MidiDb
 import qualified Instrument.Search as Search
@@ -62,9 +62,9 @@ instance Binary Instrument.Synth where
     get = get >>= \a -> get >>= \b -> get >>= \c ->
         return (Instrument.Synth a b c)
 
-instance Binary Controller.Controller where
-    put (Controller.Controller a) = put a
-    get = get >>= \a -> return (Controller.Controller a)
+instance Binary Control.Control where
+    put (Control.Control a) = put a
+    get = get >>= \a -> return (Control.Control a)
 
 instance Binary MidiDb.PatchMap where
     put (MidiDb.PatchMap a) = put a

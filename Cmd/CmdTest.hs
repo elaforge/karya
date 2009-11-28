@@ -21,7 +21,7 @@ import qualified Derive.Score as Score
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Midi.Instrument as Instrument
-import qualified Perform.Midi.Controller as Midi.Controller
+import qualified Perform.Midi.Control as Midi.Control
 
 import qualified Instrument.Db
 import qualified Instrument.MidiDb as MidiDb
@@ -108,9 +108,9 @@ make_lookup inst_names _attrs (Score.Instrument inst) = Map.lookup inst inst_map
 
 make_inst name = default_perf_inst { Instrument.inst_name = name }
 default_perf_inst = Instrument.instrument "synth" "i0" Nothing
-            Midi.Controller.empty_map (-2, 2)
+            Midi.Control.empty_map (-2, 2)
 default_synth = Instrument.Synth "synth" default_wdev
-    (Midi.Controller.controller_map [])
+    (Midi.Control.control_map [])
 
 
 -- * msg
@@ -142,7 +142,7 @@ note_on note_id nn vel =
     InputNote.NoteOn (nid note_id) (Pitch.InputKey nn) (vel / 127)
 note_off note_id vel = InputNote.NoteOff (nid note_id) (vel / 127)
 control note_id cont val =
-    InputNote.Control (nid note_id) (Score.Controller cont) (val / 127)
+    InputNote.Control (nid note_id) (Score.Control cont) (val / 127)
 pitch note_id nn = InputNote.PitchChange (nid note_id) (Pitch.InputKey nn)
 nid = InputNote.NoteId
 

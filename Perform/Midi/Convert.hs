@@ -22,12 +22,12 @@ import qualified Derive.Score as Score
 
 import qualified Perform.Warning as Warning
 import qualified Perform.Signal as Signal
-import qualified Perform.Midi.Controller as Controller
+import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Perform as Perform
 import qualified Instrument.MidiDb as MidiDb
 
 -- TODO warnings about:
--- - Instrument has a controller that's not in its controller map.
+-- - Instrument has a control that's not in its control map.
 -- - Attributes that match /no/ keyswitches.
 -- - No allocation should be warned about in performer?
 
@@ -53,34 +53,33 @@ convert_event lookup_inst event = do
         ("midi instrument in instrument db: " ++ show score_inst)
         (lookup_inst (Score.event_attributes event) score_inst)
 
-    (pitch_sig, controllers) <- get_pitch (Score.event_controllers event)
-    let perf_cs = Map.insert Controller.c_pitch pitch_sig
-            (convert_controllers controllers)
+    (pitch_sig, controls) <- get_pitch (Score.event_controls event)
+    let perf_cs = Map.insert Control.c_pitch pitch_sig
+            (convert_controls controls)
     return $ Perform.Event midi_inst (Score.event_start event)
         (Score.event_duration event) perf_cs (Score.event_stack event)
 
 -- | They're both newtypes so this should boil down to id.
-convert_controllers :: Score.ControllerMap -> Perform.ControllerMap
-convert_controllers =
-    Map.mapKeys (\(Score.Controller c) -> Controller.Controller c)
+convert_controls :: Score.ControlMap -> Perform.ControlMap
+convert_controls =
+    Map.mapKeys (\(Score.Control c) -> Control.Control c)
 
-get_pitch :: Score.ControllerMap
-    -> ConvertT (Signal.Signal, Score.ControllerMap)
-get_pitch controllers = do
-    let pitch_cs = get_pitch_cs controllers
+get_pitch :: Score.ControlMap -> ConvertT (Signal.Signal, Score.ControlMap)
+get_pitch controls = do
+    let pitch_cs = get_pitch_cs controls
     pitch_sig <- require "pitch" $ case pitch_cs of
         [] -> Nothing
         (_, sig) : _ -> Just sig
     when (length pitch_cs > 1) $
         warn $ "extra pitch tracks ignored: "
             ++ Seq.join ", " (map (show.fst) (drop 1 pitch_cs))
-    return (pitch_sig, controllers `Map.difference` Map.fromAscList pitch_cs)
+    return (pitch_sig, controls `Map.difference` Map.fromAscList pitch_cs)
 
-get_pitch_cs :: Score.ControllerMap -> [(Score.Controller, Signal.Signal)]
+get_pitch_cs :: Score.ControlMap -> [(Score.Control, Signal.Signal)]
 get_pitch_cs = takeWhile (is_pitch_c . fst) . Map.toAscList
-    . snd . Map.split2 (Score.Controller Default.pitch_track_prefix)
+    . snd . Map.split2 (Score.Control Default.pitch_track_prefix)
 
-is_pitch_c (Score.Controller c) = Default.is_pitch_track c
+is_pitch_c (Score.Control c) = Default.is_pitch_track c
 
 -- * monad
 

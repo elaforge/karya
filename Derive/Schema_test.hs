@@ -24,7 +24,7 @@ import qualified Instrument.MidiDb as MidiDb
 import qualified Perform.Signal as Signal
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Midi.Instrument as Instrument
-import qualified Perform.Midi.Controller as Controller
+import qualified Perform.Midi.Control as Control
 
 import qualified Derive.Derive_test as Derive_test
 import qualified Util.Graph_test as Graph_test
@@ -45,9 +45,9 @@ mkalloc insts = Map.fromList
     | (chan, inst) <- Seq.enumerate insts]
 
 midi_default_inst = Instrument.instrument
-    "synth" "default" Nothing Controller.empty_map (-12, 12)
+    "synth" "default" Nothing Control.empty_map (-12, 12)
 midi_inst1 = Instrument.instrument
-    "synth" "inst1" Nothing Controller.empty_map (-12, 12)
+    "synth" "inst1" Nothing Control.empty_map (-12, 12)
 inst1 = Score.Instrument "inst1"
 inst2 = Score.Instrument "inst2"
 default_inst = Score.Instrument "default"
@@ -95,15 +95,15 @@ test_compile = do
         derive track = Arrow.first extract $
             derive_with_pitch Schema.compile track
         extract = either (Left . Derive.error_message)
-            (Right . (map Score.event_controllers))
+            (Right . (map Score.event_controls))
 
     let (res, logs) = derive ("*c2", [(0, 0, ".1")])
     equal logs []
     equal res $ Left ("compile: unknown ScaleId \"c2\"")
 
-    let cont_signal = (Score.Controller "c1",
+    let cont_signal = (Score.Control "c1",
             mksig [(0, set, 3), (5, set, 2), (10, set, 1)])
-        no_pitch = (Score.Controller "*twelve", mksig [])
+        no_pitch = (Score.Control "*twelve", mksig [])
 
     let (res, logs) = derive ("*twelve", [(0, 0, ".1")])
     equal logs ["compile: Note \".1\" not in ScaleId \"twelve\""]
@@ -111,7 +111,7 @@ test_compile = do
 
     let (res, logs) = derive
             ("*twelve", [(0, 0, "4c"), (10, 0, "4d"), (20, 0, "i, 4e")])
-    let psig trunc = (Score.Controller "*twelve", Signal.truncate trunc
+    let psig trunc = (Score.Control "*twelve", Signal.truncate trunc
             (mksig [(0, set, 60), (5, set, 62), (10, Signal.Linear, 64)]))
     equal logs []
     -- The pitch signal gets truncated so it doesn't look like the note's decay
@@ -184,7 +184,7 @@ test_parse = do
     let mkskel = Skeleton.make
     let f = Schema.default_parser . mktracks
 
-    -- They're both controllers, with no instrument track.
+    -- They're both controls, with no instrument track.
     skel_equal (f ["", ""]) (mkskel [(0, 1)])
     skel_equal (f [">i1"]) (mkskel [])
     skel_equal (f [">i1", "c1", "c2"]) (mkskel [(2, 1), (1, 0)])

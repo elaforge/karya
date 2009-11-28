@@ -8,7 +8,7 @@
     so on recursively.
 
     The sub-block is passed its parent's tempo map (along with all the other
-    controllers in the environment) to interpret as it will, so that it may,
+    controls in the environment) to interpret as it will, so that it may,
     for example, set absolute tempo.  The generated events should begin with
     the given start time, but are not guaranteed to last for the given
     duration.
@@ -100,7 +100,7 @@ import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 
-import qualified Derive.Controller as Controller
+import qualified Derive.Control as Control
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
 
@@ -245,7 +245,7 @@ derive_note pos event (Parsed call args inst attrs) = do
                 -- Null call but non-null args shouldn't happen.
                 Derive.warn ("ignored trailing args: " ++ show args)
             return [Score.Event start (end-start) (Event.event_text event)
-                (Derive.state_controllers st) (Derive.state_stack st)
+                (Derive.state_controls st) (Derive.state_stack st)
                 inst attrs]
         -- d_call will set shift and stretch which is in local time, so pass
         -- local rather than global.
@@ -263,17 +263,17 @@ trim_pitches events = map trim_event (Seq.zip_next events)
     where
     trim_event (event, Nothing) = event
     trim_event (event, Just next) =
-        event { Score.event_controllers = map_pitch trunc cmap }
+        event { Score.event_controls = map_pitch trunc cmap }
         where
-        cmap = Score.event_controllers event
+        cmap = Score.event_controls event
         trunc sig = Signal.truncate (Score.event_start next) sig
     map_pitch f cmap = Map.map f pitches `Map.union` cmap
         where pitches = Map.filterWithKey (\k _ -> is_pitch k) cmap
 
 -- | TODO: this is really part of the schema, but its hard to truncate the
 -- pitch track without knowing which one it is.
-is_pitch :: Score.Controller -> Bool
-is_pitch (Score.Controller c) = take 1 c == "*"
+is_pitch :: Score.Control -> Bool
+is_pitch (Score.Control c) = take 1 c == "*"
 
 
 d_call :: TrackPos -> TrackPos -> String -> Derive.EventDeriver

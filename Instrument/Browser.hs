@@ -27,7 +27,7 @@ import qualified Instrument.Db as Db
 import qualified Instrument.MidiDb as MidiDb
 import qualified Instrument.Parse as Parse
 import qualified Instrument.Search as Search
-import qualified Perform.Midi.Controller as Controller
+import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 
 import qualified Local.Instrument
@@ -85,9 +85,9 @@ info_of :: Db.Db -> Score.Instrument -> MidiDb.Info -> String
 info_of db score_inst (MidiDb.Info synth patch) =
     printf "%s -- %s -- %s\n\n" synth_name name dev
         ++ info_sections
-            [ ("Instrument controllers", cmap_info inst_cmap)
+            [ ("Instrument controls", cmap_info inst_cmap)
             , ("Keyswitches", show keyswitches)
-            , ("Synth controllers", cmap_info synth_cmap)
+            , ("Synth controls", cmap_info synth_cmap)
             , ("Pitchbend range", show (Instrument.inst_pitch_bend_range inst))
             , ("Initialization", initialize_info initialize)
             , ("Text", text)
@@ -97,7 +97,7 @@ info_of db score_inst (MidiDb.Info synth patch) =
     Instrument.Synth synth_name (Midi.WriteDevice dev) synth_cmap = synth
     Instrument.Patch inst initialize keyswitches _ text = patch
     name = let n = Instrument.inst_name inst in if null n then "*" else n
-    inst_cmap = Instrument.inst_controller_map inst
+    inst_cmap = Instrument.inst_control_map inst
     tags = maybe "" tags_info $
         Search.tags_of (Db.db_index db) score_inst
 
@@ -110,7 +110,7 @@ info_section (title, raw_text)
 
 cmap_info cmap = -- Seq.join "\n" $ map (Seq.join ", ") $ groups 3
     Seq.join ", " [cont ++ " (" ++ show num ++ ")"
-        | (Controller.Controller cont, num) <- Map.assocs cmap]
+        | (Control.Control cont, num) <- Map.assocs cmap]
 
 tags_info tags = unwords [quote k ++ "=" ++ quote v | (k, v) <- tags]
 

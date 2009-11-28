@@ -23,7 +23,7 @@ import qualified Perform.Signal as Signal
 import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Warning as Warning
 
-import qualified Perform.Midi.Controller as Controller
+import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
 
@@ -45,8 +45,8 @@ test_clip_warns = do
 
     equal (extract_warns warns)
         -- yeah matching floats is silly but it's quick and easy...
-        [ ("Controller \"volume\" clipped", Just (1.5, 1.5))
-        , ("Controller \"volume\" clipped", Just (3.5, 4))
+        [ ("Control \"volume\" clipped", Just (1.5, 1.5))
+        , ("Control \"volume\" clipped", Just (3.5, 4))
         ]
 
     check (all_msgs_valid msgs)
@@ -55,9 +55,9 @@ extract_warns = map (\w -> (Warning.warn_msg w, Warning.warn_pos w))
 
 test_vel_clip_warns = do
     let (msgs, warns) = perform inst_config1 $ map mkevent
-            [(inst1, "a", 0, 4, [badsig Controller.c_velocity])]
+            [(inst1, "a", 0, 4, [badsig Control.c_velocity])]
     equal (extract_warns warns)
-        [("Controller \"velocity\" clipped", Just (0, 4))]
+        [("Control \"velocity\" clipped", Just (0, 4))]
     check (all_msgs_valid msgs)
 
 all_msgs_valid wmsgs = all Midi.valid_msg (map Midi.wmsg_msg wmsgs)
@@ -202,7 +202,7 @@ show_msg (Midi.WriteMessage dev ts msg) =
 
 test_pitch_curve = do
     let event pitch = Perform.Event inst1 (TrackPos 1) (TrackPos 0.5)
-            (Map.fromList [(Controller.c_pitch, Signal.signal pitch)]) []
+            (Map.fromList [(Control.c_pitch, Signal.signal pitch)]) []
     let f evt = (Seq.drop_dups id (map Midi.wmsg_msg msgs), warns)
             where
             (msgs, warns, _) = Perform.perform_note
@@ -277,12 +277,12 @@ test_drop_duplicates = do
 test_reorder_control_messages = do
     equal 1 1 -- TODO
 
--- * controller
+-- * control
 
-test_perform_controller1 = do
+test_perform_control1 = do
     -- Bad signal that goes over 1 in two places.
     let sig = (vol_cc, mksignal [(0, 0), (1, 1.5), (2, 0), (2.5, 0), (3, 2)])
-        (msgs, warns) = Perform.perform_controller Controller.empty_map
+        (msgs, warns) = Perform.perform_control Control.empty_map
             (TrackPos 0) (TrackPos 4) sig
 
     -- controls are not emitted after they reach steady values
@@ -290,9 +290,9 @@ test_perform_controller1 = do
     -- goes over in 2 places
     equal (length warns) 2
 
-test_perform_controller2 = do
+test_perform_control2 = do
     let sig = (vol_cc, mksignal [(0, 0), (4, 1)])
-        (msgs, warns) = Perform.perform_controller Controller.empty_map
+        (msgs, warns) = Perform.perform_control Control.empty_map
             (TrackPos 2) (TrackPos 4) sig
     plist warns
     plist msgs
@@ -331,7 +331,7 @@ test_channelize = do
     -- TODO test cents and controls differences
 
     -- All under volume, but "p" also has a pitchbend, so it gets its own
-    -- track.  "p" and "c" share since they have the same controllers.
+    -- track.  "p" and "c" share since they have the same controls.
     equal (channelize
         [ ("a", 0, 4, [c_vol])
         , ("p", 2, 4, [c_vol, c_aftertouch])
@@ -394,7 +394,7 @@ mkevent event = head (mkevents [event])
 mkevents_inst = map (\ (p, s, d, c) -> mkevent (inst1, p, s, d, c))
 
 type EventSpec = (Instrument.Instrument, String, TrackPos, TrackPos,
-    [(Controller.Controller, Signal.Signal)])
+    [(Control.Control, Signal.Signal)])
 
 mkevents :: [EventSpec] -> [Perform.Event]
 mkevents events = trim_pitches
@@ -402,7 +402,7 @@ mkevents events = trim_pitches
         (Map.fromList (pitch_control : controls)) stack
         | (inst, _, start, dur, controls) <- events]
     where
-    pitch_control = (Controller.c_pitch, pitch_sig)
+    pitch_control = (Control.c_pitch, pitch_sig)
     pitch_sig =
         Signal.track_signal 1 [(pos, Signal.Set, val) | (pos, val) <- notes]
     notes = map (\(_, p, start, _, _) -> (start, to_pitch p)) events
@@ -427,23 +427,23 @@ trim_pitches events = map trim_event (Seq.zip_next events)
         cmap = Perform.event_controls event
         trunc sig = Signal.truncate (Perform.event_start next) sig
     map_pitch f cmap = Map.map f pitches `Map.union` cmap
-        where pitches = Map.filterWithKey (\k _ -> k == Controller.c_pitch) cmap
+        where pitches = Map.filterWithKey (\k _ -> k == Control.c_pitch) cmap
 
-mkpitch :: Signal.Val -> Perform.ControllerMap
-mkpitch pitch = Map.fromList [(Controller.c_pitch, Signal.signal [(0, pitch)])]
+mkpitch :: Signal.Val -> Perform.ControlMap
+mkpitch pitch = Map.fromList [(Control.c_pitch, Signal.signal [(0, pitch)])]
 
 
 mksignal ts_vals = Signal.track_signal (TrackPos 1)
     [(TrackPos pos, Signal.Linear, val) | (pos, val) <- ts_vals]
 
-vol_cc = Controller.Controller "volume"
+vol_cc = Control.Control "volume"
 c_vol = (vol_cc, mksignal [(0, 1), (4, 0)])
 c_vol2 = (vol_cc, mksignal [(0, 1), (2, 0), (4, 1)])
-c_vel = (Controller.c_velocity, mksignal [(0, 1), (4, 0)])
-c_aftertouch = (Controller.c_aftertouch, mksignal [(0, 0), (8, 1)])
+c_vel = (Control.c_velocity, mksignal [(0, 1), (4, 0)])
+c_aftertouch = (Control.c_aftertouch, mksignal [(0, 0), (8, 1)])
 
 inst name = Instrument.instrument (Instrument.synth_name synth1) name Nothing
-    Controller.empty_map (-12, 12)
+    Control.empty_map (-12, 12)
 
 inst1 = inst "inst1"
 inst2 = inst "inst2"

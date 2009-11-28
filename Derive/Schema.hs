@@ -66,7 +66,7 @@ import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.NoteTrackKeymap as NoteTrackKeymap
 import qualified Cmd.PitchTrack as PitchTrack
 
-import qualified Derive.Controller as Controller
+import qualified Derive.Control as Control
 import qualified Derive.Derive as Derive
 import qualified Derive.Note as Note
 import qualified Derive.Score as Score
@@ -278,32 +278,32 @@ _compile (Tree.Node track@(State.TrackInfo title track_id _) subs)
         else Derive.with_track_warp Note.d_note_track track_id
     | otherwise = do
         when (null subs) $
-            Log.warn $ "controller " ++ show track ++ " has no sub tracks"
-        compile_controller title track_id
+            Log.warn $ "control " ++ show track ++ " has no sub tracks"
+        compile_control title track_id
             (Derive.d_merge =<< mapM _compile subs)
 
-compile_controller :: String -> TrackId
+compile_control :: String -> TrackId
     -> Derive.EventDeriver -> Derive.EventDeriver
-compile_controller title track_id subderiver
+compile_control title track_id subderiver
     | Default.is_tempo_track title = do
         -- A tempo track is derived like other signals, but gets special
         -- treatment because of the track warps chicanery.
         sig_events <- Derive.with_track_warp_tempo
-            Controller.d_controller_track track_id
-        Derive.d_tempo track_id (Controller.d_signal sig_events) subderiver
+            Control.d_control_track track_id
+        Derive.d_tempo track_id (Control.d_signal sig_events) subderiver
     | otherwise = do
         sig_events <- Derive.with_track_warp
-            Controller.d_controller_track track_id
+            Control.d_control_track track_id
         -- TODO default to inst scale if none is given
         let if_is_pitch psig = if Default.is_pitch_track title
-                then psig else Controller.d_signal sig_events
+                then psig else Control.d_signal sig_events
         case Default.parse_control_title title of
-            (Just c_op, cont) -> Controller.d_relative_controller
-                (Score.Controller cont) c_op
-                (if_is_pitch (Controller.d_relative_pitch_signal sig_events))
+            (Just c_op, cont) -> Control.d_relative_control
+                (Score.Control cont) c_op
+                (if_is_pitch (Control.d_relative_pitch_signal sig_events))
                 subderiver
-            (Nothing, cont) -> Controller.d_controller (Score.Controller cont)
-                (if_is_pitch (Controller.d_pitch_signal
+            (Nothing, cont) -> Control.d_control (Score.Control cont)
+                (if_is_pitch (Control.d_pitch_signal
                     (Default.scale_of_track cont) sig_events))
                 subderiver
 
@@ -327,17 +327,17 @@ _compile_to_signals (Tree.Node (State.TrackInfo title track_id _) subs)
     | otherwise = do
         -- Note no special treatment for tempo, since signal output shouldn't
         -- be warped.
-        track_sigs <- signal_controller title track_id
+        track_sigs <- signal_control title track_id
         rest_sigs <- Derive.d_signal_merge =<< mapM _compile_to_signals subs
         return (track_sigs : rest_sigs)
 
-signal_controller :: (Monad m) => String -> TrackId
+signal_control :: (Monad m) => String -> TrackId
     -> Derive.DeriveT m (TrackId, Signal.Signal)
-signal_controller title track_id = do
-    sig_events <- Derive.with_track_warp Controller.d_controller_track track_id
+signal_control title track_id = do
+    sig_events <- Derive.with_track_warp Control.d_control_track track_id
     sig <- if Default.is_pitch_track title
-        then Controller.d_pitch_signal (Default.scale_of_track title) sig_events
-        else Controller.d_signal sig_events
+        then Control.d_pitch_signal (Default.scale_of_track title) sig_events
+        else Control.d_signal sig_events
     return (track_id, sig)
 
 -- * parser

@@ -25,9 +25,9 @@
     2. Sample points are interpolated linearly rather than setting flat
     segments.  This means long linear ramps (such as the integral of a constant
     tempo) don't have to be sampled, which should be a big bonus.  However, it
-    means that the common case of recorded midi controllers takes twice as much
+    means that the common case of recorded midi controls takes twice as much
     data, since a flat segment must be expressed as [(x0, y0), (x1, y0), (x2,
-    y1), ...].  This will be bad for recorded midi controllers, but I may wind
+    y1), ...].  This will be bad for recorded midi controls, but I may wind
     up with a special storage hack for those anyway.  Or maybe linear
     interpolation is ok for dense signal, if it's above the sampling rate then
     it doesn't matter anyway.
@@ -210,7 +210,7 @@ equal start end sig0 sig1 =
 
 -- | Can the pitch signals share a channel within the given range?
 --
--- Pitch is complicated.  Like other controllers, if the pitch curves are
+-- Pitch is complicated.  Like other controls, if the pitch curves are
 -- different they may not share a channel.  However, if the pitch curves
 -- are integral transpositions of each other, and the transposition is not
 -- 0, they should share.  Unless the overlap occurs during the decay of one or

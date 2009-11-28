@@ -5,7 +5,7 @@
     Pasting is complicated because the clipboard events have to be shifted and
     clipped according to the destination selection.
 
-    Also, the tracks are typed in that it's not appropriate to paste controller
+    Also, the tracks are typed in that it's not appropriate to paste control
     events into a note track.  However, I'm going to ignore that and assume the
     user won't paste them if he didn't mean it.
 

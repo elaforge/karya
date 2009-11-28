@@ -5,7 +5,7 @@ out how to parse .nki files or something.
 -}
 module Local.Instrument.Kontakt where
 import qualified Perform.Midi.Instrument as Instrument
-import qualified Perform.Midi.Controller as Controller
+import qualified Perform.Midi.Control as Control
 import qualified Instrument.MidiDb as MidiDb
 
 load :: FilePath -> IO MidiDb.SynthDesc
@@ -14,7 +14,7 @@ load _dir = return (synth, MidiDb.merge_patch_maps
     (fst $ MidiDb.patch_map patches))
 
 patch_template = Instrument.patch $
-    Instrument.instrument synth_name "" Nothing Controller.empty_map (-96, 96)
+    Instrument.instrument synth_name "" Nothing Control.empty_map (-96, 96)
 
 synth_name = "kkt"
 synth = Instrument.synth synth_name "kontakt" []

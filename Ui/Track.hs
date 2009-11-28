@@ -90,8 +90,8 @@ time_end events = maybe (TrackPos 0) event_end (last_event events)
 newtype TrackEvents =
     TrackEvents (Map.Map TrackPos Event.Event)
     deriving (Eq, Show, Read)
-    -- alternate efficient version for controller tracks?
-    -- ControllerTrack (Array (TrackPos, Double))
+    -- alternate efficient version for control tracks?
+    -- ControlTrack (Array (TrackPos, Double))
 
 -- | Create a TrackEvents.  The input must be in ascending order!
 event_map_asc :: [PosEvent] -> TrackEvents

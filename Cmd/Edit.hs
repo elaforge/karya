@@ -1,5 +1,5 @@
 {- | Event editing commands.  This is where generic event editing commands go.
-    More specialized ones, like copy and paste and controller or note track
+    More specialized ones, like copy and paste and control or note track
     commands, go in their own modules.
 -}
 module Cmd.Edit where

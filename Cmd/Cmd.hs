@@ -44,7 +44,7 @@ import qualified App.Config as Config
 import qualified Derive.Derive as Derive
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
-import qualified Perform.Midi.Controller as Controller
+import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
 
@@ -298,7 +298,7 @@ empty_wdev_state :: WriteDeviceState
 empty_wdev_state = WriteDeviceState
     Map.empty Map.empty Map.empty Map.empty 0 Map.empty Map.empty
 
-type ReadDeviceState = Map.Map Midi.ReadDevice InputNote.ControllerState
+type ReadDeviceState = Map.Map Midi.ReadDevice InputNote.ControlState
 
 data Performance = Performance {
     perf_msgs :: [Midi.WriteMessage]
@@ -317,7 +317,7 @@ data HistoryEntry = HistoryEntry {
 
 -- | These enable various commands to edit event text.  What exactly val,
 -- and method mean are dependent on the schema, but I expect the definitions
--- in Cmd.NoteTrack and Cmd.ControllerTrack will be universal.
+-- in Cmd.NoteTrack and Cmd.ControlTrack will be universal.
 data EditMode = NoEdit | RawEdit | ValEdit | MethodEdit deriving (Eq, Show)
 
 data Modifier = KeyMod Key.Key
@@ -422,20 +422,20 @@ get_scale caller scale_id = maybe
     (Map.lookup scale_id Scale.scale_map)
 
 get_rdev_state :: (Monad m) => Midi.ReadDevice
-    -> CmdT m InputNote.ControllerState
+    -> CmdT m InputNote.ControlState
 get_rdev_state rdev = do
     cmap <- fmap state_rdev_state get_state
-    return $ maybe (InputNote.empty_state Config.controller_pb_range) id
+    return $ maybe (InputNote.empty_state Config.control_pb_range) id
         (Map.lookup rdev cmap)
 
 set_rdev_state :: (Monad m) => Midi.ReadDevice
-    -> InputNote.ControllerState -> CmdT m ()
+    -> InputNote.ControlState -> CmdT m ()
 set_rdev_state rdev state = do
     st <- get_state
     put_state $ st { state_rdev_state =
         Map.insert rdev state (state_rdev_state st) }
 
-set_pitch_bend_range :: (Monad m) => Controller.PbRange -> Midi.ReadDevice
+set_pitch_bend_range :: (Monad m) => Control.PbRange -> Midi.ReadDevice
     -> CmdT m ()
 set_pitch_bend_range range rdev = do
     state <- get_rdev_state rdev

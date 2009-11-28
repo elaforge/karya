@@ -69,7 +69,7 @@ get_sel_pos = do
 method_key :: Msg.Msg -> Maybe Key.Key
 method_key = extract_key $ \c -> Char.isAlphaNum c || c `elem` "-_."
 
--- | Extract a key for controller value input.  [0-9.-]
+-- | Extract a key for control value input.  [0-9.-]
 val_key :: Msg.Msg -> Maybe Key.Key
 val_key = extract_key $ \c -> Char.isDigit c || c `elem` "-_."
 

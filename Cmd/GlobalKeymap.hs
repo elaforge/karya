@@ -23,7 +23,7 @@
     and are found in Cmd.*TrackKeymap.
 
     3. Track specific event editing, which modifies a single event.
-    E.g., input notes and note text, pitches in a certain scale, controller
+    E.g., input notes and note text, pitches in a certain scale, control
     values, etc.  This is enabled by edit mode, and will shadow printable keys,
     depending on the track type and edit mode.  Found in Cmd.*Track.
 

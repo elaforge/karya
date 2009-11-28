@@ -12,7 +12,7 @@ import qualified Util.Map as Map
 import qualified Midi.Midi as Midi
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
-import qualified Perform.Midi.Controller as Controller
+import qualified Perform.Midi.Control as Control
 
 import qualified Instrument.MidiDb as MidiDb
 
@@ -73,11 +73,11 @@ parse = map split . words
 
 -- * implementation
 
-backend_tag, synth_tag, name_tag, controller_tag :: Instrument.TagKey
+backend_tag, synth_tag, name_tag, control_tag :: Instrument.TagKey
 backend_tag = "backend"
 synth_tag = "synth"
 name_tag = "name"
-controller_tag = "controller"
+control_tag = "control"
 -- | Indicates that the instrument has a sysex message as its midi
 -- initialization, which probably means it's not built in to the synth.
 sysex_tag = "sysex"
@@ -111,14 +111,14 @@ synth_tags :: Instrument.Synth -> MidiDb.PatchMap -> [[Instrument.Tag]]
 synth_tags synth patches = map (stags++) (patch_tags patches)
     where
     stags = tag synth_tag (Instrument.synth_name synth)
-        : controller_tags (Instrument.synth_controller_map synth)
+        : control_tags (Instrument.synth_control_map synth)
 
 -- | Get tags for the patch, including automatically generated ones.
 patch_tags :: MidiDb.PatchMap -> [[Instrument.Tag]]
 patch_tags (MidiDb.PatchMap patches) = map ptags (Map.assocs patches)
     where
     ptags (inst_name, patch) = Instrument.tag name_tag inst_name
-            : controller_tags (Instrument.inst_controller_map inst)
+            : control_tags (Instrument.inst_control_map inst)
             ++ Instrument.patch_tags patch
             ++ has_sysex
         where
@@ -129,5 +129,4 @@ patch_tags (MidiDb.PatchMap patches) = map ptags (Map.assocs patches)
                 | otherwise -> []
             _ -> []
 
-controller_tags =
-    map (Instrument.tag controller_tag) . Controller.controller_map_names
+control_tags = map (Instrument.tag control_tag) . Control.control_map_names

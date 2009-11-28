@@ -1,7 +1,7 @@
 {-# LANGUAGE ViewPatterns #-}
-{- | Cmds to edit a pitch track, which is a special kind of controller track.
+{- | Cmds to edit a pitch track, which is a special kind of control track.
 
-    This module creates the pitches that are later parsed by Derive.Controller.
+    This module creates the pitches that are later parsed by Derive.Control.
 -}
 module Cmd.PitchTrack where
 import qualified Control.Arrow as Arrow

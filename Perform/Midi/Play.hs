@@ -58,8 +58,8 @@ play_msgs :: Transport.State -> Set.Set Instrument.Addr -> [Midi.WriteMessage]
 play_msgs state addrs_seen msgs = do
     let write_midi = Transport.state_midi_writer state
     -- Make sure that I get a consistent play, not affected by previous
-    -- controller states.
-    -- send_all write_midi new_devs Midi.ResetAllControllers
+    -- control states.
+    -- send_all write_midi new_devs Midi.ResetAllCcontrols
 
     -- This should make the buffer always be between write_ahead*2 and
     -- write_ahead ahead of now.

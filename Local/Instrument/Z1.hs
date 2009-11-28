@@ -10,7 +10,7 @@ import System.FilePath ((</>))
 import qualified Util.Seq as Seq
 
 import qualified Perform.Midi.Instrument as Instrument
-import qualified Perform.Midi.Controller as Controller
+import qualified Perform.Midi.Control as Control
 import qualified Instrument.MidiDb as MidiDb
 import qualified Instrument.Parse as Parse
 
@@ -20,9 +20,9 @@ load dir = Parse.patch_file (Instrument.synth_name z1) (dir </> "z1")
 load_slow dir = Parse.parse_sysex_dir korg_sysex (dir </> "z1_sysex")
     >>= MidiDb.load_synth_desc z1
 
-z1 = Instrument.synth "z1" "z1" z1_controllers
+z1 = Instrument.synth "z1" "z1" z1_controls
 
-z1_controllers =
+z1_controls =
     [
     -- The PE controls are the "performance expression" knobs whose effect
     -- depends on the instrument.
@@ -83,7 +83,7 @@ make_patch (name, cat, pb_range, osc1, osc2) =
     (Instrument.patch inst) { Instrument.patch_tags = tags }
     where
     inst = Instrument.instrument (Instrument.synth_name z1)
-        name Nothing Controller.empty_map pb_range
+        name Nothing Control.empty_map pb_range
     tags = maybe_tags
         [("z1_category", cat), ("z1_osc", osc1), ("z1_osc", osc2)]
 

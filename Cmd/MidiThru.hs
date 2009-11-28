@@ -4,7 +4,7 @@
     This is a very complicated thru and might be too slow.  It has to deal
     with:
 
-    - Remap input pitch according to scale and controller pitch bend range
+    - Remap input pitch according to scale and control pitch bend range
     (done by NoteEntry) and instrument pb range.  This means keeping track of
     previous note id and pb val.
 
@@ -49,7 +49,7 @@ import qualified Cmd.Msg as Msg
 import qualified Derive.Score as Score
 
 import qualified Perform.Pitch as Pitch
-import qualified Perform.Midi.Controller as Controller
+import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import Perform.Midi.Instrument (Addr)
 
@@ -94,7 +94,7 @@ map_scale scale input = case input of
     convert input_key = fmap (\(Pitch.NoteNumber nn) -> Pitch.InputKey nn)
         (Pitch.scale_input_to_nn scale input_key)
 
-input_to_midi :: Controller.PbRange -> Cmd.WriteDeviceState
+input_to_midi :: Control.PbRange -> Cmd.WriteDeviceState
     -> [Addr] -> InputNote.Input
     -> ([(Midi.WriteDevice, Midi.Message)], Maybe Cmd.WriteDeviceState)
 input_to_midi pb_range wdev_state addrs input = case alloc addrs input of
