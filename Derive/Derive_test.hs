@@ -244,9 +244,10 @@ test_relative_controller = do
             ]
     let (events, logs) = derive_events ui_state $
             relative_controller (tids!!0) (tids!!1) (tids!!2) "vel" (tids!!3)
-    let extract = (Map.! Score.Controller "vel") . Score.event_controllers
+    let extract = (\sig -> map (flip Signal.at sig) [0..5])
+            . (Map.! Score.Controller "vel") . Score.event_controllers
     equal logs []
-    equal (map extract events) [Signal.signal [(0, 1), (2, 3), (4, 1)]]
+    equal (map extract events) [[1, 2, 3, 2, 1, 1]]
 
 test_make_inverse_tempo_func = do
     -- This is actually also tested in test_subderive.
@@ -278,23 +279,25 @@ test_tempo = do
             (tids!!0) (tids!!1) (tids!!2)
         floor_event :: (Double, Double, String) -> (Integer, Integer, String)
         floor_event (start, dur, text) = (floor start, floor dur, text)
-        derive_with sig = extract_events events
-            where (events, _logs) = derive_events state (mkderiver sig)
-    let f = map floor_event . derive_with
+        derive_with sig =
+            (map floor_event (extract_events events), map Log.msg_string logs)
+            where (events, logs) = derive_events state (mkderiver sig)
+    let f = derive_with
 
     equal (f [(0, Signal.Set, 2)])
-        [(0, 5, "--1"), (5, 5, "--2"), (10, 5, "--3")]
+        ([(0, 5, "--1"), (5, 5, "--2"), (10, 5, "--3")], [])
 
     -- Slow down.
     equal (f [(0, Signal.Set, 2), (20, Signal.Linear, 1)])
-        [(0, 6, "--1"), (6, 8, "--2"), (15, 10, "--3")]
+        ([(0, 5, "--1"), (5, 8, "--2"), (13, 10, "--3")], [])
     equal (f [(0, Signal.Set, 2), (20, Signal.Linear, 0)])
-        [(0, 2505, "--1"), (2505, 7504, "--2"), (10009, 9, "--3")]
+        ([(0, 6, "--1"), (6, 528, "--2"), (535, 10000, "--3")], [])
     -- Speed up.
     equal (f [(0, Signal.Set, 1), (20, Signal.Linear, 2)])
-        [(0, 8, "--1"), (8, 6, "--2"), (15, 5, "--3")]
+        ([(0, 8, "--1"), (8, 5, "--2"), (13, 4, "--3")], [])
     equal (f [(0, Signal.Set, 0), (20, Signal.Linear, 2)])
-        [(0, 7509, "--1"), (7509, 2500, "--2"), (10009, 5, "--3")]
+        ([(0, 528, "--1"), (528, 6, "--2"), (535, 5, "--3")], [])
+
 
 test_deriver_performance = do
     -- test a large score for profiling

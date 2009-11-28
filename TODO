@@ -7,7 +7,7 @@ CURRENT
   * relative control tracks
   * relative pitch tracks
   * reverse skel display arrow direction
-  - convert Signal to only flat line segments
+  * convert Signal to only flat line segments
   - rename controller -> control
   - sub block: relative pitch track
     create with absolute pitch track, then 'pitch_to_relative bid tnum "4c-"'

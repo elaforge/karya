@@ -54,6 +54,7 @@
     - implement a more efficient map_signal_accum and see if it helps
 -}
 
+
 module Perform.Signal where
 import qualified Control.Arrow as Arrow
 import qualified Data.DList as DList
@@ -304,10 +305,6 @@ index pos (Signal vec)
             where mid = (low + high) `div` 2
 
 -- | Generate samples starting at a certain point in the signal.
---
--- This won't emit consecutive samples with the same value.  This might
--- cause problems if some MIDI instrument treats them as significant, but I'll
--- worry about that if I find one.
 sample :: TrackPos -> Signal -> [Sample]
 sample start (Signal vec)
     | V.null vec = [(start, 0)]
@@ -416,13 +413,15 @@ integrate srate = map_signal_accum go final 0
     where
     go accum x0 y0 x1 y1 =
         integrate_segment (pos_to_val srate) accum x0 y0 x1 y1
-    -- Pretend like the last sample extends to the right forever.  This is
-    -- grody but seems to be inevitable with a variable sampling rate scheme.
-    -- TODO Actually, I only need to do this because the tempo signal doesn't
-    -- say how long the block is.  If the tempo track put a sample at the end
-    -- of the block I think I wouldn't need this...
-    big = pos_to_val max_track_pos
-    final ((x, y), accum) = [(x, accum), (big, accum + y * (big-x))]
+    -- Extend the integral out until I'm pretty sure no one will need it.  When
+    -- I have lazy signals I really can make it go on forever.  If I use
+    -- max_track_pos I run into trouble when composing two integrals, because
+    -- the shorter one truncates the longer one, and since there's only one
+    -- sample it changes the slope.
+    -- To avoid generating tons of useless signal, I emit sparse samples and
+    -- rely on linear interpolation from 'inverse_at'.
+    final ((x, y), accum) =
+        [(x + int, accum + y * int) | int <- [0, 1000..10000]]
 
 integrate_segment :: Val -> Val -> Val -> Val -> Val -> Val
     -> (Val, [(Val, Val)])

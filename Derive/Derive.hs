@@ -150,7 +150,7 @@ data Warp = Warp {
     warp_signal :: Signal.Signal
     , warp_shift :: TrackPos
     , warp_stretch :: TrackPos
-    } deriving (Show)
+    } deriving (Eq, Show)
 
 initial_warp = make_warp (Signal.signal [(0, 0),
     (Signal.max_track_pos, Signal.pos_to_val Signal.max_track_pos)])
@@ -456,8 +456,6 @@ local_to_global pos = do
     (Warp sig shift stretch) <- fmap state_warp get
     return $ Signal.val_to_pos (Signal.at_linear (pos * stretch + shift) sig)
 
-default_warp = Signal.signal
-    [(0, 0), (Signal.max_track_pos, Signal.pos_to_val Signal.max_track_pos)]
 tempo_srate = Signal.default_srate
 min_tempo :: Signal.Val
 min_tempo = 0.001
@@ -501,7 +499,10 @@ tempo_to_warp = Signal.integrate tempo_srate . Signal.map_val (1/)
 d_warp :: (Monad m) => Signal.Signal -> DeriveT m a -> DeriveT m a
 d_warp sig deriver = do
     old_warp <- fmap state_warp get
-    modify $ \st -> st { state_warp = compose_warp (state_warp st) sig }
+    modify $ \st -> st { state_warp =
+        -- optimization for unnested tempo
+        if old_warp == initial_warp then make_warp sig
+        else compose_warp old_warp sig }
     start_new_warp
     result <- deriver
     modify $ \st -> st { state_warp = old_warp }

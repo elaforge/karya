@@ -232,11 +232,11 @@ derive_note pos event (Parsed call args inst attrs) = do
     -- up with a way to guarantee such accesses are increasing and let me gc
     -- the head.
     start <- Derive.local_to_global pos
-    -- Log.debug $ show (parsed_text parsed) ++ ": local global "
-    --     ++ show (parsed_start parsed, start)
-    -- warp <- fmap Derive.state_warp Derive.get
-    -- Log.debug $ "warp " ++ show warp
     end <- Derive.local_to_global (pos + Event.event_duration event)
+    -- Log.debug $ show (Event.event_string event) ++ ": local global "
+    --     ++ show ((pos, start), (pos + Event.event_duration event, end))
+    -- Derive.Warp wp stretch shift <- fmap Derive.state_warp Derive.get
+    -- Log.debug $ "warp " ++ (show wp)
     st <- Derive.get
 
     if null call
