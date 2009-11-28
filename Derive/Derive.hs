@@ -454,7 +454,7 @@ start_new_warp = do
 local_to_global :: (Monad m) => TrackPos -> DeriveT m TrackPos
 local_to_global pos = do
     (Warp sig shift stretch) <- fmap state_warp get
-    return $ Signal.val_to_pos (Signal.at (pos * stretch + shift) sig)
+    return $ Signal.val_to_pos (Signal.at_linear (pos * stretch + shift) sig)
 
 default_warp = Signal.signal
     [(0, 0), (Signal.max_track_pos, Signal.pos_to_val Signal.max_track_pos)]

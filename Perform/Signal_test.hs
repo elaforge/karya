@@ -19,15 +19,14 @@ test_track_signal = do
     let f = Signal.track_signal 1
     -- Make sure Set and Linear work as expected.
     equal (f [(0, Set, 1), (2, Linear, 2)])
-        (Signal.signal [(0, 1), (2, 2)])
+        (Signal.signal [(0, 1), (1, 1.5), (2, 2)])
     equal (f [(0, Set, 1), (2, Set, 2)])
-        (Signal.signal [(0, 1), (2, 1), (2, 2)])
-    equal (f [(0, Set, 1), (2, Set, 2), (3, Linear, 0), (4, Set, 1)])
-        (Signal.signal [(0, 1), (2, 1), (2, 2), (3, 0), (4, 0), (4, 1)])
+        (Signal.signal [(0, 1), (2, 2)])
+    equal (f [(0, Set, 1), (2, Set, 2), (4, Linear, 0), (5, Set, 1)])
+        (Signal.signal [(0, 1), (2, 2), (3, 1), (4, 0), (5, 1)])
 
     let range low high sig =
                 map (\p -> Signal.at p (tsig sig)) (map TrackPos [low..high-1])
-
     equal (range 0 4 []) [0, 0, 0, 0]
     equal (range 0 4 [(2, Set, 1)]) [0, 0, 1, 1]
     equal (range 0 4 [(0, Set, 1), (3, Set, 1)]) [1, 1, 1, 1]
@@ -37,16 +36,24 @@ test_track_signal = do
     equal (range 0 6 [(0, Set, 0), (4, Linear, 1), (4, Set, 0)])
         [0, 0.25, 0.5, 0.75, 0, 0]
 
+    equal (range 0 5 [(0, Linear, 1), (4, Linear, 0)])
+        [1, 0.75, 0.5, 0.25, 0]
+
+test_at_linear = do
+    let f = Signal.at_linear
+    equal (map (flip f (Signal.signal [(2, 2), (4, 0)])) [0..5])
+        [0, 1, 2, 1, 0, 0]
+
 test_sample_function = do
     let f start end = Signal.sample_function
             (Signal.exp_function 2 1 2) (TrackPos 1)
             (TrackPos start) (TrackPos end)
 
     equal (f 0 0) []
-    -- Doesn't include the end.
-    equal (f 0 1) [(TrackPos 0, 1)]
-    equal (f 0 2) [(TrackPos 0, 1), (TrackPos 1, 1.25)]
-    equal (f 10 12) [(TrackPos 10, 1), (TrackPos 11, 1.25)]
+    -- Includes the end, not the beginning.
+    equal (f 0 1) [(1, 2)]
+    equal (f 0 2) [(1, 1.25), (2, 2)]
+    equal (f 10 12) [(11, 1.25), (12, 2)]
 
 -- * comparison
 
@@ -85,30 +92,21 @@ test_within = do
 
 test_resample = do
     -- TODO: test with coincident samples
-    let f = Signal._resample (0, 0) (0, 0)
+    let f = Signal._resample 0 0
 
     equal (f [(1, 1), (2, 2)] []) [(1, 1, 0), (2, 2, 0)]
     equal (f [] [(1, 1), (2, 2)]) [(1, 0, 1), (2, 0, 2)]
     equal (f [(1, 1), (2, 2)] [(1, 3), (2, 4)]) [(1, 1, 3), (2, 2, 4)]
     equal (f [(1, 1)] [(0, 2), (2, 4), (3, 6)])
-        [(0, 0, 2), (1, 1, 3), (2, 1, 4), (3, 1, 6)]
-    equal (f [(0, 0), (4, 4)] [(1, 1), (2, 2), (3, 3)])
-        [(0, 0, 0), (1, 1, 1), (2, 2, 2), (3, 3, 3), (4, 4, 3)]
+        [(0, 0, 2), (1, 1, 2), (2, 1, 4), (3, 1, 6)]
 
 -- * access
 
 test_sample = do
-    let sig = Signal.signal [(0, 0), (2, 2), (4, 2), (6, 0)]
-    equal (Signal.sample 1 0 sig)
-        [(0, 0), (1, 1), (2, 2), (5, 1), (6, 0)]
-    equal (Signal.sample 1 2 sig)
-        [(2, 2), (5, 1), (6, 0)]
-    equal (Signal.sample 1 3 sig)
-        [(3, 2), (5, 1), (6, 0)]
-
-    let discont = Signal.signal [(0, 1), (2, 1), (2, 0)]
-    equal (Signal.sample 1 0 discont)
-        [(0, 1), (2, 0)]
+    let sig = Signal.signal [(0, 2), (1, 2), (1, 0), (2, 1)]
+    equal (Signal.sample 0 sig) [(0, 2), (1, 0), (2, 1)]
+    equal (Signal.sample 1 sig) [(1, 0), (2, 1)]
+    equal (Signal.sample 3 sig) [(3, 1)]
 
 -- * functions
 
@@ -119,16 +117,14 @@ test_sig_add = do
             Signal.sig_add (Signal.signal a) (Signal.signal b)
     equal (f [(0, 0), (2, 2), (4, 0)] [(0, 1)])
         [(0, 1), (2, 3), (4, 1)]
-    equal (f [(0, 0), (2, 2), (4, 0)] [(1, 0), (1, 1), (3, 1), (3, 0)])
-        [(0, 0), (1, 1), (1, 2), (2, 3), (3, 2), (3, 1), (4, 0)]
+    equal (f [(0, 0), (2, 2), (4, 0)] [(1, 1), (3, 0)])
+        [(0, 0), (1, 1), (2, 3), (3, 2), (4, 0)]
 
 test_sig_max = do
     let f a b = Signal.unpack $
             Signal.sig_max (Signal.signal a) (Signal.signal b)
-    let s = Signal.signal
-    pprint (Signal.resample_to_list (s [(0, 0), (2, 2), (4, 0)]) (s [(0, 1)]))
     equal (f [(0, 0), (2, 2), (4, 0)] [(0, 1)])
-        [(0, 1), (1, 1), (2, 2), (3, 1), (4, 1)]
+        [(0, 1), (2, 2), (4, 1)]
 
 -- ** special functions
 
@@ -156,7 +152,7 @@ test_compose = do
 
 test_integrate = do
     -- The last sample is the max_track_pos sentinel.
-    let f sig = Seq.rdrop 1 $ Signal.unpack $ Signal.integrate (TrackPos 1) sig
+    let f sig = Seq.rdrop 1 $ Signal.unpack $ Signal.integrate 1 sig
     equal (f (tsig [(0, Set, 0), (2, Linear, 2), (4, Linear, 2)]))
         [(0, 0), (1, 0.5), (2, 2), (4, 6)]
     equal (f (tsig [(0, Set, 0), (3, Linear, -3)]))
@@ -188,27 +184,6 @@ test_shift_stretch = do
     equal (Signal.unpack (Signal.stretch (TrackPos 2) sig))
         [(0, 1), (2, 0)]
 
-test_find_samples = do
-    let mksig = Signal.signal
-    let f = Signal.find_samples
-    let [zero, one, two] = map (\n -> (TrackPos n, n)) [0..2]
-    let three = (TrackPos 3, 2)
-    let sig = mksig [one, two]
-    -- Fake up a zero segment that has some length.
-    equal (f 0 (mksig [])) (zero, (TrackPos 1, 0))
-    equal (f 0 sig) (zero, one)
-    equal (f 1 sig) (one, two)
-    equal (f 2 sig) (two, three)
-    equal (f 3 sig) (two, three)
-
-    -- Make sure the simultaneous samples are skipped.
-    let sig2 = mksig [(0, 0), (1, 0), (1, 1)]
-    equal (map (\n -> f n sig2) [0..2])
-        [ ((0, 0), (1, 0))
-        , ((1, 1), (2, 1))
-        , ((1, 1), (2, 1))
-        ]
-
 test_clip_max = do
     let f = Signal.unpack . Signal.clip_max 1 . Signal.signal
     let below samples = check $ List.all ((<=1) . snd) (f samples)
@@ -218,7 +193,7 @@ test_clip_max = do
     below []
 
     -- signal isn't shortened
-    equal (f [(0, 0), (2, 2), (4, 2)]) [(0, 0), (1, 1), (4, 1)]
+    equal (f [(0, 0), (2, 2), (4, 2)]) [(0, 0), (2, 1), (4, 1)]
 
 test_clip_min = do
     let f = Signal.unpack . Signal.clip_min 1 . Signal.signal

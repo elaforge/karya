@@ -16,7 +16,7 @@
     a different State (likely an older and newer version of the same State),
     but I'll deal with that when I get there.
 
-    A higher level interface (e.g. 'Cmd.Create') may ease this by automatically
+    A higher level interface (e.g. "Cmd.Create") may ease this by automatically
     creating objects with automatically generated IDs.
 -}
 module Ui.State where

@@ -45,8 +45,8 @@ test_clip_warns = do
 
     equal (extract_warns warns)
         -- yeah matching floats is silly but it's quick and easy...
-        [ ("Controller \"volume\" clipped", Just (1.05, 1.9500000000000002))
-        , ("Controller \"volume\" clipped", Just (3.05, 4))
+        [ ("Controller \"volume\" clipped", Just (1.5, 1.5))
+        , ("Controller \"volume\" clipped", Just (3.5, 4))
         ]
 
     check (all_msgs_valid msgs)
@@ -212,12 +212,14 @@ test_pitch_curve = do
     equal (f (event [(1, 42.12)]))
         (chan [Midi.PitchBend 0.01, Midi.NoteOn 42 100, Midi.NoteOff 42 100])
 
-    -- This is a little tedious, but pb 0 goes first, then it goes to 1.
-    equal (f (event [(1, 42), (2, 42+24)]))
-        (chan $ [Midi.PitchBend 0, Midi.NoteOn 42 100]
-            ++ map Midi.PitchBend
-                [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]
-            ++ [Midi.NoteOff 42 100, Midi.PitchBend 1])
+    equal (f (event
+            [(1, 42), (1.5, 42+6), (1.75, 42+12), (1.9, 42+16), (2, 42+24)]))
+        (chan $
+            [ Midi.PitchBend 0, Midi.NoteOn 42 100
+            , Midi.PitchBend 0.5
+            , Midi.NoteOff 42 100
+            , Midi.PitchBend 1
+            ])
 
     let notes prev evt = [(Midi.wmsg_ts msg, Midi.wmsg_msg msg) | msg <- msgs]
             where

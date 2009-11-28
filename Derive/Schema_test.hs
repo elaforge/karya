@@ -109,19 +109,17 @@ test_compile = do
     equal logs ["compile: Note \".1\" not in ScaleId \"twelve\""]
     equal res $ Right (replicate 3 (Map.fromList [no_pitch, cont_signal]))
 
-    -- TODO so here they all have the *scale controller, but I can't test
-    -- further until I remove the pitch stuff from the note parser
     let (res, logs) = derive
             ("*twelve", [(0, 0, "4c"), (10, 0, "4d"), (20, 0, "i, 4e")])
-    let psig segs = (Score.Controller "*twelve", mksig segs)
+    let psig trunc = (Score.Controller "*twelve", Signal.truncate trunc
+            (mksig [(0, set, 60), (5, set, 62), (10, Signal.Linear, 64)]))
     equal logs []
     -- The pitch signal gets truncated so it doesn't look like the note's decay
     -- wants to change pitch.
     equal res $ Right $ map Map.fromList
-        [ [psig [(0, set, 60)], cont_signal]
-        , [psig [(0, set, 60), (5, set, 62)], cont_signal]
-        , [psig [(0, set, 60), (5, set, 62), (10, Signal.Linear, 64)],
-            cont_signal]
+        [ [psig 5, cont_signal]
+        , [psig 10, cont_signal]
+        , [psig 50, cont_signal]
         ]
 
 test_compile_to_signals = do

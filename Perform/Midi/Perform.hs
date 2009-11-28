@@ -346,8 +346,7 @@ perform_pitch pb_range nn start end sig =
     [ (pos, Midi.PitchBend (Controller.pb_from_nn pb_range nn val))
     | (pos, val) <- pos_vals ]
     where
-    pos_vals = takeWhile ((<end) . fst) $
-        Signal.sample Signal.default_srate start sig
+    pos_vals = takeWhile ((<end) . fst) $ Signal.sample start sig
 
 -- | Return the (pos, msg) pairs, and whether the signal value went out of the
 -- allowed controller range, 0--1.
@@ -360,8 +359,7 @@ perform_controller cmap start end (controller, sig) =
         Just cons -> ([(pos, cons val) | (pos, val) <- pos_cvals], clip_warns)
     where
         -- TODO get srate from a controller
-    pos_vals = takeWhile ((<end) . fst) $
-        Signal.sample Signal.default_srate start sig
+    pos_vals = takeWhile ((<end) . fst) $ Signal.sample start sig
     (low, high) = Controller.controller_range
     -- arrows?
     (cvals, clips) = unzip (map (clip_val low high) (map snd pos_vals))
