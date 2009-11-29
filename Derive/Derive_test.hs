@@ -95,11 +95,36 @@ test_subderive = do
         [ [b0 0], [b0 4], [sub 0, b0 8], [sub 1, b0 12], [b0 16], [] ]
 
     -- TODO test when the subblock has a tempo too
+    -- type TempoFunction = BlockId -> TrackId -> TrackPos
+    --     -> Maybe Timestamp.Timestamp
 
     -- For eyeball verification.
     -- pprint events
     -- pprint $ zip [0,2..] $ map inv_tempo (map Timestamp.seconds [0, 2 .. 10])
     -- pprint $ Derive.state_track_warps state
+
+test_tempo_funcs = do
+    let ([t_tid, tid1], ui_state) = UiTest.run State.empty $ UiTest.mkstate "b0"
+            [ ("tempo", [(0, 0, "2")])
+            , (">i1", [(0, 8, "--b1"), (8, 8, "--b2"), (16, 1, "--b3")])
+            ]
+        bid = UiTest.bid "b0"
+    let look = Schema.lookup_deriver default_schema_map ui_state
+    let (events, tempo, inv_tempo, logs) =
+            derive look ui_state (Derive.d_block bid)
+    equal logs []
+
+    -- [(BlockId, [(TrackId, TrackPos)])]
+    let b0 pos = (bid, [(tid1, pos), (t_tid, pos)])
+    equal (map inv_tempo (map Timestamp.seconds [0, 2 .. 10]))
+        [[b0 0], [b0 4], [b0 8], [b0 12], [b0 16], []]
+
+    equal (map (tempo bid t_tid) [0, 2 .. 10])
+        (map (Just . Timestamp.Timestamp) [0, 1000 .. 5000])
+
+    -- test multiple tempo
+    -- test subderive
+
 
 
 -- | Simple deriver with one track and one instrument.

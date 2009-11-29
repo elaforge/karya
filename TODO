@@ -12,6 +12,10 @@ CURRENT
   - sub block: relative pitch track
     create with absolute pitch track, then 'pitch_to_relative bid tnum "4c-"'
   + track down ghc rts crashes
+  - select track, st3 style select block, track
+  - extend shouldn't clip current event to 0
+  - play from insert doesn't work
+  - enter note on existing note should change its length
 
   - demo piece: show nested tempos with "bouncing ball", expressive pitch
     track, non-trivial repl transformation (pitch tweak after big jump?)

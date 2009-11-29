@@ -221,7 +221,7 @@ make_tempo_func :: [TrackWarp] -> Transport.TempoFunction
 make_tempo_func track_warps block_id track_id pos = do
     warp <- lookup_track_warp block_id track_id track_warps
     -- TODO shift/stretch?
-    let warped = Signal.val_to_pos (Signal.at pos (warp_signal warp))
+    let warped = Signal.val_to_pos (Signal.at_linear pos (warp_signal warp))
     return $ Timestamp.from_track_pos warped
 
 lookup_track_warp :: BlockId -> TrackId -> [TrackWarp] -> Maybe Warp
