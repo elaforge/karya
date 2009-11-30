@@ -420,8 +420,11 @@ integrate srate = map_signal_accum go final 0
     -- sample it changes the slope.
     -- To avoid generating tons of useless signal, I emit sparse samples and
     -- rely on linear interpolation from 'inverse_at'.
-    final ((x, y), accum) =
-        [(x + int, accum + y * int) | int <- [0, 1000..10000]]
+    final ((x, y), accum) = [(x + int, accum + y * int) | int <- _extra_samples]
+
+-- | Exported for tests.
+_extra_samples :: [Val]
+_extra_samples = [0, 1000 .. 10000]
 
 integrate_segment :: Val -> Val -> Val -> Val -> Val -> Val
     -> (Val, [(Val, Val)])

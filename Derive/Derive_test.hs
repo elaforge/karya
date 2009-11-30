@@ -103,12 +103,16 @@ test_subderive = do
     -- pprint $ zip [0,2..] $ map inv_tempo (map Timestamp.seconds [0, 2 .. 10])
     -- pprint $ Derive.state_track_warps state
 
-test_tempo_funcs = do
+track_specs =
+    [ ("tempo", [(0, 0, "2")])
+    , (">i1", [(0, 8, "--b1"), (8, 8, "--b2"), (16, 1, "--b3")])
+    ]
+
+test_tempo_funcs1 = do
+    let bid = UiTest.bid "b0"
+
     let ([t_tid, tid1], ui_state) = UiTest.run State.empty $ UiTest.mkstate "b0"
-            [ ("tempo", [(0, 0, "2")])
-            , (">i1", [(0, 8, "--b1"), (8, 8, "--b2"), (16, 1, "--b3")])
-            ]
-        bid = UiTest.bid "b0"
+            track_specs
     let look = Schema.lookup_deriver default_schema_map ui_state
     let (events, tempo, inv_tempo, logs) =
             derive look ui_state (Derive.d_block bid)
@@ -121,6 +125,28 @@ test_tempo_funcs = do
 
     equal (map (tempo bid t_tid) [0, 2 .. 10])
         (map (Just . Timestamp.Timestamp) [0, 1000 .. 5000])
+
+test_tempo_funcs2 = do
+    let ([t_tid1, tid1, t_tid2, tid2], ui_state) = UiTest.run State.empty $
+            UiTest.mkstate "b0" $ track_specs
+                ++ [ ("tempo", [(0, 0, "1")])
+                , (">i2", [(0, 16, "--2b1")])
+                ]
+        bid = UiTest.bid "b0"
+    let look = Schema.lookup_deriver default_schema_map ui_state
+    let (events, tempo, inv_tempo, logs) =
+            derive look ui_state (Derive.d_block bid)
+    equal logs []
+    equal (map (tempo bid t_tid1) [0, 2 .. 10])
+        (map (Just . Timestamp.Timestamp) [0, 1000 .. 5000])
+    equal (map (tempo bid t_tid2) [0, 2 .. 10])
+        (map (Just . Timestamp.Timestamp) [0, 2000 .. 10000])
+    let b0 pos = (bid, [(tid1, pos), (t_tid1, pos)])
+        b1 pos = (bid, [(tid2, pos), (t_tid2, pos)])
+
+    equal (map inv_tempo (map Timestamp.seconds [0, 2 .. 10]))
+        [[b1 0, b0 0], [b1 2, b0 4], [b1 4, b0 8], [b1 6, b0 12],
+            [b1 8, b0 16], [b1 10]]
 
     -- test multiple tempo
     -- test subderive

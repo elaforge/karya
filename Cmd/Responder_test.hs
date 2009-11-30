@@ -36,7 +36,7 @@ test_thru_timing = do
     let extract (_, midi) = midi
         many_msgs = [CmdTest.make_midi msg
             | n <- cycle [0..127], msg <- [Midi.NoteOn n 60, Midi.NoteOff n 60]]
-        msg_count = 10000
+        msg_count = 100 -- increase this for real profiling
         msgs = take msg_count many_msgs
     print (length msgs)
     -- This is awfully spammy otherwise.

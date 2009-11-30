@@ -151,8 +151,8 @@ test_compose = do
         [(0, 0), (1, 1), (2, 2)]
 
 test_integrate = do
-    -- The last sample is the max_track_pos sentinel.
-    let f sig = Seq.rdrop 1 $ Signal.unpack $ Signal.integrate 1 sig
+    let f sig = Seq.rdrop (length Signal._extra_samples - 1) $
+            Signal.unpack $ Signal.integrate 1 sig
     equal (f (tsig [(0, Set, 0), (2, Linear, 2), (4, Linear, 2)]))
         [(0, 0), (1, 0.5), (2, 2), (4, 6)]
     equal (f (tsig [(0, Set, 0), (3, Linear, -3)]))
