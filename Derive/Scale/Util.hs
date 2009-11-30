@@ -15,14 +15,26 @@ type Frac = Double
 
 type InputMap = Map.Map Pitch.InputKey (Pitch.NoteNumber, String)
 -- | Map a scale degree to the previous nn, matching nn, and following nn.
-type DegreeMap = Map.Map String
+type DegreeMap = Map.Map String Degree
+
+-- | Each note has a previous nn, matching nn, following nn, and generic pitch.
+data Degree = Degree
     (Maybe Pitch.NoteNumber, Pitch.NoteNumber, Maybe Pitch.NoteNumber)
+    Pitch.Generic
 
 note_to_nn :: DegreeMap -> Pitch.Note -> Maybe Pitch.NoteNumber
 note_to_nn degree_map note = do
     (degree, frac, hz) <- split_note note
-    (prev, nn, next) <- Map.lookup degree degree_map
+    Degree (prev, nn, next) _ <- Map.lookup degree degree_map
     make_nn prev nn next frac hz
+
+note_to_generic :: DegreeMap -> Pitch.Note -> Maybe Pitch.Generic
+note_to_generic degree_map note = do
+    (degree, frac, _hz) <- split_note note
+    Degree _ (Pitch.Generic oct deg) <- Map.lookup degree degree_map
+    -- TODO Generic has no field for absolute offset, I can add it if it would
+    -- be useful
+    return (Pitch.Generic oct (deg + frac))
 
 make_nn :: Maybe Pitch.NoteNumber -> Pitch.NoteNumber -> Maybe Pitch.NoteNumber
     -> Frac -> Int -> Maybe Pitch.NoteNumber

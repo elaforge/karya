@@ -14,6 +14,7 @@ scale = Pitch.Scale {
     Pitch.scale_id = scale_id
     , Pitch.scale_pattern = "[12356](\\.*|\\^*)"
     , Pitch.scale_note_to_nn = Util.note_to_nn degree_map
+    , Pitch.scale_note_to_generic = Util.note_to_generic degree_map
     , Pitch.scale_input_to_note = Util.input_to_note input_map
     , Pitch.scale_input_to_nn = Util.input_to_nn input_map
     , Pitch.scale_transpose = transpose
@@ -58,6 +59,10 @@ note_numbers = map Pitch.nn
 -- Line a list starting with nding up with 'note_numbers'.
 align = take (length note_numbers) . drop 1
 
+generics :: [Pitch.Generic]
+generics = align
+    [Pitch.Generic oct deg | oct <- [Pitch.middle_octave-2 ..], deg <- [0..4]]
+
 -- | These are not in the scale, but you can get them if you bend pitch from
 -- the top or bottom note.
 low_nn = Pitch.NoteNumber 48.73
@@ -68,7 +73,9 @@ degree_to_num = Map.fromList (zip degrees [0..])
 num_to_degree = Map.fromList (zip [0..] degrees)
 
 degree_map :: Util.DegreeMap
-degree_map = Map.fromList $ zip degrees (Seq.zip_neighbors note_numbers)
+degree_map = Map.fromList $ zip degrees
+    [Util.Degree nn generic | (nn, generic)
+        <- zip (Seq.zip_neighbors note_numbers) generics]
 
 input_keys = [Util.i_c, Util.i_d, Util.i_e, Util.i_f, Util.i_g]
 inputs = align

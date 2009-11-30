@@ -77,7 +77,12 @@ newtype InputKey = InputKey Double deriving (Eq, Ord, Show)
 middle_c :: InputKey
 middle_c = InputKey 60
 
--- * relative pitch
+-- | The middle octave.  The \"center\" of a scale should be oriented around
+-- this.
+middle_octave :: Octave
+middle_octave = 5
+
+-- * generic pitches
 
 -- | A scale independent pitch.  The definitions of the octave and the degree
 -- offset are up to the scale.
@@ -128,6 +133,8 @@ data Scale = Scale {
     -- | Convert the scale note to a pitch with frequency.  Returns Nothing
     -- if the note isn't part of the scale.
     , scale_note_to_nn :: Note -> Maybe NoteNumber
+    -- | Convert scale note to generic pitch, or Nothing.
+    , scale_note_to_generic :: Note -> Maybe Generic
     -- | Convert from an InputKey to a Note, or Nothing if the it's out of
     -- range for this scale.
     , scale_input_to_note :: InputKey -> Maybe Note

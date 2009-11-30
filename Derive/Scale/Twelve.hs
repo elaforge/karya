@@ -35,6 +35,7 @@ scale = Pitch.Scale {
     Pitch.scale_id = scale_id
     , Pitch.scale_pattern = "[-1-9][a-g]#?"
     , Pitch.scale_note_to_nn = note_to_nn
+    , Pitch.scale_note_to_generic = note_to_generic
     , Pitch.scale_input_to_note = input_to_note
     , Pitch.scale_input_to_nn = input_to_nn
     , Pitch.scale_transpose = transpose
@@ -50,6 +51,13 @@ note_to_nn note = do
     (degree, frac, hz) <- Util.split_note note
     nn <- Map.lookup degree degree_to_nn
     return $ Pitch.add_hz (fromIntegral hz) (nn + Pitch.nn frac)
+
+note_to_generic :: Pitch.Note -> Maybe Pitch.Generic
+note_to_generic note = do
+    Pitch.NoteNumber nn <- note_to_nn note
+    let (nn_i, nn_f) = properFraction nn
+    let (oct, degree) = nn_i `divMod` 12
+    return (Pitch.Generic oct (fromIntegral degree + nn_f))
 
 degree_to_nn :: Map.Map String Pitch.NoteNumber
 degree_to_nn = Map.fromList $ zip degrees (map Pitch.NoteNumber [0..127])
