@@ -135,10 +135,10 @@ parse_relative_pitch_event _ event = do
 p_relative_pitch :: P.CharParser st Signal.Val
 p_relative_pitch = do
     s <- P.many P.anyToken
-    Pitch.Relative oct nn <-
+    Pitch.Generic oct nn <-
         maybe P.pzero return (Pitch.to_relative (Pitch.Note s))
-    -- TODO this means Relative won't work correctly on non tempered scales
-    -- to make this work, PitchSignal has to be a Signal Relative.
+    -- TODO this means relative pitches won't work correctly on non tempered
+    -- scales.  To make this work, PitchSignal has to be a Signal Generic.
     return (fromIntegral oct * 12 + nn)
 
 -- | Parse scale notes for a given scale.  This one just matches the scale

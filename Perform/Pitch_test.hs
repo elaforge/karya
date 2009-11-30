@@ -3,7 +3,7 @@ import Util.Test
 import qualified Perform.Pitch as Pitch
 
 
-relatives = map (uncurry Pitch.Relative)
+relatives = map (uncurry Pitch.Generic)
     [ (0, 0)
     , (0, 1.1)
     , (1, 0)

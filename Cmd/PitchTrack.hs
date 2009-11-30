@@ -55,10 +55,10 @@ cmd_val_edit_relative_at selpos msg = do
         _ -> Cmd.abort
     return Cmd.Done
 
--- | Take pitch relative to middle C.  This is kinda random, so I'm not sure if
--- it'll be useful.
-key_to_relative :: Pitch.InputKey -> Pitch.Relative
-key_to_relative (Pitch.InputKey key) = Pitch.Relative oct (fromIntegral nn + f)
+-- | Take input to a generic pitch relative to middle C.  This is kinda random,
+-- so I'm not sure if it'll be useful.
+key_to_relative :: Pitch.InputKey -> Pitch.Generic
+key_to_relative (Pitch.InputKey key) = Pitch.Generic oct (fromIntegral nn + f)
     where
     (i, f) = properFraction key
     c = (\(Pitch.InputKey k) -> floor k) Pitch.middle_c

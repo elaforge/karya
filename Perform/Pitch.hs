@@ -81,13 +81,13 @@ middle_c = InputKey 60
 
 -- | A scale independent pitch.  The definitions of the octave and the degree
 -- offset are up to the scale.
-data Relative = Relative Octave Double deriving (Eq, Ord, Show)
+data Generic = Generic Octave Double deriving (Eq, Ord, Show)
 
 type Octave = Int
 
 -- | Generic relative notes look like "+4/3.2" or "+3.2" (octave omitted).
-from_relative :: Relative -> Note
-from_relative (Relative oct nn)
+from_relative :: Generic -> Note
+from_relative (Generic oct nn)
     | oct == 0 = Note (sign ++ Parse.show_float (Just 2) (abs nn))
     | otherwise = Note (sign ++ show (abs oct) ++ degree)
     where
@@ -95,12 +95,12 @@ from_relative (Relative oct nn)
     degree = (if oct == 0 then "" else "/")
         ++ (if nn == 0 then "" else Parse.show_float (Just 2) nn)
 
-to_relative :: Note -> Maybe Relative
+to_relative :: Note -> Maybe Generic
 to_relative (Note note) = do
     unless (let c = take 1 note in c == "+" || c == "-") mzero
     oct <- if null oct_s then return 0 else Parse.int oct_s
     nn <- if null nn_s then return 0 else Parse.float nn_s
-    return (Relative oct nn)
+    return (Generic oct nn)
     where
     (pre, post) = break (=='/') note
     (oct_s, nn_s) = if null post then ("", pre) else (pre, drop 1 post)
