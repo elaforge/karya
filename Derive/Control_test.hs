@@ -20,13 +20,13 @@ test_d_signal = do
             Left err -> Left err
             Right (val, _dstate, msgs) -> Right (val, map Log.msg_string msgs)
 
-    let Right (sig, msgs) = run [mkevent 0 "bad", mkevent 1 "i bad"]
+    let Right (sig, msgs) = run [mkevent 0 "bad", mkevent 1 "i, bad"]
     equal sig (track_signal [])
     strings_like msgs ["parse error on char 1", "parse error on char 3"]
 
     let sig = track_signal
             [(0, Signal.Set, 0), (1, Signal.Linear, 1), (1.5, Signal.Exp 2, 0)]
-    equal (run [mkevent 0 "0", mkevent 1 "i 1", mkevent 1.5 "2e0"]) $
+    equal (run [mkevent 0 "0", mkevent 1 "i, 1", mkevent 1.5 "2e, 0"]) $
         Right (sig, [])
 
     -- error in the middle is ignored

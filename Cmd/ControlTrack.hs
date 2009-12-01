@@ -37,6 +37,10 @@ modify_event :: (Monad m) =>
     ((String, String) -> ((Maybe String, Maybe String), Bool)) -> Cmd.CmdT m ()
 modify_event f = EditUtil.modify_event True (Arrow.first unparse . f . parse)
 
+-- | This is the Cmd equivalent to 'Derive.Control.parse_event', so they should
+-- be kept in sync.  I don't use the same functions because this only has to
+-- parse the event just enough for editing and will also be parsing incomplete
+-- events.
 parse :: String -> (String, String)
 parse s
     | null post = ("", pre)

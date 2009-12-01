@@ -76,7 +76,7 @@ test_subderive = do
             tids2 <- UiTest.mkstate "b0"
                 [ ("tempo", [(0, 0, "2")])
                 , (">i1", [(0, 8, "--b1"), (8, 8, "sub"), (16, 1, "blub")])
-                , ("cont", [(0, 0, "1"), (16, 0, "i0")])
+                , ("cont", [(0, 0, "1"), (16, 0, "i, 0")])
                 ]
             return ()
     let look = Schema.lookup_deriver default_schema_map ui_state
@@ -256,7 +256,7 @@ test_control = do
     let (tids, ui_state) = UiTest.run_mkstate
             [ (">", [(0, 1, "+a1"), (1, 1, "+a2")])
             , ("*twelve", [(0, 1, "4c"), (1, 1, "4c#")])
-            , (c_mod, [(0, 0, "1"), (1, 0, "i.75"), (2, 0, "i0")])
+            , (c_mod, [(0, 0, "1"), (1, 0, "i, .75"), (2, 0, "i, 0")])
             ]
     let (events, logs) = derive_events ui_state $
             control_deriver (tids!!0) (tids!!1) (tids!!2) c_mod
@@ -290,7 +290,7 @@ test_relative_control = do
     let (tids, ui_state) = UiTest.run_mkstate
             [ (">", [(0, 1, "")])
             , ("*twelve", [(0, 1, "4c")])
-            , ("vel", [(0, 0, "0"), (2, 0, "i2"), (4, 0, "i0")])
+            , ("vel", [(0, 0, "0"), (2, 0, "i, 2"), (4, 0, "i, 0")])
             , ("+, vel", [(0, 0, "1")])
             ]
     let (events, logs) = derive_events ui_state $
