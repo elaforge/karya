@@ -358,7 +358,7 @@ events_around_selnum selnum = do
     (_, track_ids, start, end) <- tracks_selnum selnum
     forM track_ids $ \track_id -> do
         track <- State.get_track track_id
-        let (before, rest) = Track.events_at start (Track.track_events track)
+        let (before, rest) = Track.split start (Track.track_events track)
         let (within, after) =
                 break ((if start==end then (>end) else (>=end))  . fst) rest
         return (track_id, before, within, after)

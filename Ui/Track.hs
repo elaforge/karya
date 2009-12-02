@@ -139,22 +139,22 @@ remove_event :: TrackPos -> TrackEvents -> TrackEvents
 remove_event pos track_events = emap (Map.delete pos) track_events
 
 -- | Return the events before the given @pos@, and the events at and after it.
-events_at :: TrackPos -> TrackEvents -> ([PosEvent], [PosEvent])
-events_at pos (TrackEvents events) = (Map.toDescList pre, Map.toAscList post)
+split :: TrackPos -> TrackEvents -> ([PosEvent], [PosEvent])
+split pos (TrackEvents events) = (Map.toDescList pre, Map.toAscList post)
     where (pre, post) = Map.split2 pos events
 
--- | All events at or after @pos@.  Implement as snd of events_at.
+-- | All events at or after @pos@.  Implement as snd of 'split'.
 events_after :: TrackPos -> TrackEvents -> [PosEvent]
-events_after pos track_events = snd (events_at pos track_events)
+events_after pos track_events = snd (split pos track_events)
 
--- | This is like 'events_at', but if there isn't an event exactly at the pos,
+-- | This is like 'split', but if there isn't an event exactly at the pos,
 -- start at the event right before it.
 events_at_before :: TrackPos -> TrackEvents -> ([PosEvent], [PosEvent])
 events_at_before pos events
     | (epos, _) : _ <- post, epos == pos = (pre, post)
     | before : prepre <- pre = (prepre, before:post)
     | otherwise = (pre, post)
-    where (pre, post) = events_at pos events
+    where (pre, post) = split pos events
 
 -- | The event on or before the pos.
 event_before :: TrackPos -> TrackEvents -> Maybe PosEvent
@@ -165,7 +165,7 @@ event_before pos events = case snd (events_at_before pos events) of
 
 -- | The event on or after the pos.
 event_after :: TrackPos -> TrackEvents -> Maybe PosEvent
-event_after pos events = case snd (events_at pos events) of
+event_after pos events = case snd (split pos events) of
     after : _ -> Just after
     [] -> Nothing
 
@@ -179,7 +179,7 @@ event_strictly_after :: TrackPos -> TrackEvents -> Maybe PosEvent
 event_strictly_after pos events = case evts of
         after : _ -> Just after
         [] -> Nothing
-    where evts = dropWhile ((<=pos) . fst) (snd (events_at pos events))
+    where evts = dropWhile ((<=pos) . fst) (snd (split pos events))
 
 -- | Like 'event_at', but return an event that overlaps the given pos.
 event_overlapping :: TrackPos -> TrackEvents -> Maybe PosEvent
@@ -187,10 +187,9 @@ event_overlapping pos track_events
     | (next:_) <- post, fst next == pos = Just next
     | (prev:_) <- pre, event_end prev > pos = Just prev
     | otherwise = Nothing
-    where
-    (pre, post) = events_at pos track_events
+    where (pre, post) = split pos track_events
 
--- | Get all events in ascending order.  Like @snd . events_at (TrackPos 0)@.
+-- | Get all events in ascending order.  Like @snd . split (TrackPos 0)@.
 event_list :: TrackEvents -> [PosEvent]
 event_list (TrackEvents events) = Map.toAscList events
 

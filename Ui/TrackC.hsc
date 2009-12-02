@@ -110,7 +110,7 @@ find_events start end events = take 1 bwd ++ until_end
     where
     -- Take 1 from bwd to get the event overlapping the beginning of the
     -- damaged area.
-    (bwd, fwd) = Track.events_at start events
+    (bwd, fwd) = Track.split start events
     until_end = takeWhile ((<end) . fst) fwd
 
 -- typedef int (*FindSamples)(TrackPos *start_pos, TrackPos *end_pos,
