@@ -75,16 +75,21 @@ edit_color mode = case mode of
 -- * universal event cmds
 
 -- | Extend the events in the selection to either the end of the selection or
--- the beginning of the next note.
+-- the beginning of the next note, whichever is shorter.
+--
+-- To make it easy to create legato, if a point selection matches an event,
+-- modify the previous event instead of setting the current one to 0 duration.
 cmd_set_duration :: (Monad m) => Cmd.CmdT m ()
-cmd_set_duration = modify_events $ \_ end pos event ->
-    event { Event.event_duration = end - pos }
+cmd_set_duration = do
+    (_, sel) <- Selection.get
+    modify_events_prev $ \pos event ->
+        event { Event.event_duration = snd (Types.sel_range sel) - pos }
 
 -- | If there is a following event, delete it and extend this one to its end.
 cmd_join_events :: (Monad m) => Cmd.CmdT m ()
 cmd_join_events = mapM_ process =<< Selection.events_around
     where
-    process (track_id, ((pos1, evt1):_), Just (pos2, evt2)) = do
+    process (track_id, _, ((pos1, evt1):_), ((pos2, evt2):_)) = do
         let end = Track.event_end (pos2, evt2)
         State.remove_events track_id pos1 end
         State.insert_events track_id
@@ -184,20 +189,31 @@ move_events start shift events = merged
 -- | Modify event durations by applying a function to them.  0 durations
 -- are passed through, so you can't accidentally give control events duration.
 cmd_modify_dur :: (Monad m) => (TrackPos -> TrackPos) -> Cmd.CmdT m ()
-cmd_modify_dur f = modify_events $ \_ _ _ evt ->
+cmd_modify_dur f = modify_events $ \_ evt ->
     evt { Event.event_duration = apply (Event.event_duration evt) }
     where apply dur = if dur == TrackPos 0 then dur else f dur
 
 -- | Modify previous event if the selection is a point, and all events under
 -- the selection if it's a range.  For efficiency, this can't move the events.
-modify_events :: (Monad m) =>
-    (TrackPos -> TrackPos -> TrackPos -> Event.Event -> Event.Event)
+modify_events :: (Monad m) => (TrackPos -> Event.Event -> Event.Event)
     -> Cmd.CmdT m ()
 modify_events f = do
-    (start, end, track_events) <- Selection.events True
-    forM_ track_events $ \(track_id, pos_events) -> do
-        let insert = [(pos, f start end pos evt) | (pos, evt) <- pos_events]
+    track_events <- Selection.events True
+    forM_ track_events $ \(track_id, (start, end), pos_events) -> do
+        let insert = [(pos, f pos evt) | (pos, evt) <- pos_events]
         State.remove_events track_id start end
+        State.insert_sorted_events track_id insert
+
+-- | This is like 'modify_events' but a point selection always matches the
+-- previous event.
+modify_events_prev :: (Monad m) => (TrackPos -> Event.Event -> Event.Event)
+    -> Cmd.CmdT m ()
+modify_events_prev f = do
+    track_events <- Selection.events_around
+    is_point <- Selection.is_point
+    forM_ track_events $ \(track_id, before, within, _) -> do
+        let events = if is_point then take 1 before else within
+        let insert = [(pos, f pos evt) | (pos, evt) <- events]
         State.insert_sorted_events track_id insert
 
 -- | If the insertion selection is a point, clear any event under it.  If it's

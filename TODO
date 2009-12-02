@@ -4,6 +4,7 @@
 - State.structure only used by Clip_test
 
 CURRENT
+  - rename Track.events_at -> events_split
   - Event.event_text should be Text instead of ByteString
   - compile_to_signals doesn't like relative pitch tracks?
   - compile_to_signals spams too much when there is an error
@@ -19,7 +20,7 @@ CURRENT
     create with absolute pitch track, then 'pitch_to_relative bid tnum "4c-"'
   + track down ghc rts crashes
   - select track, st3 style select block, track
-  - extend shouldn't clip current event to 0
+  * extend shouldn't clip current event to 0
   - enter note on existing note should change its length
 
   - demo piece: show nested tempos with "bouncing ball", expressive pitch
