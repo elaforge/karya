@@ -150,9 +150,10 @@ track_signal :: TrackPos -> [TrackSegment] -> Signal
 track_signal srate segs =
     Signal $ V.pack (map first_to_val (concat pairs))
     where
-    (last_pair, pairs) = case segs of
-        (x, meth, y) : rest | x == 0 -> List.mapAccumL go (x, y) segs
-        _ -> List.mapAccumL go (0, 0) segs
+    pairs = case segs of
+        (x, _, y) : rest | x == 0 ->
+            [(0, y)] : (snd $ List.mapAccumL go (0, y) rest)
+        _ -> snd $ List.mapAccumL go (0, 0) segs
     go (pos0, val0) (pos1, meth, val1) = ((pos1, val1), samples)
         where samples = sample_track_seg srate pos0 val0 pos1 val1 meth
 
