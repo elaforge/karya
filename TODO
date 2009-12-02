@@ -4,6 +4,12 @@
 - State.structure only used by Clip_test
 
 CURRENT
+  - Event.event_text should be Text instead of ByteString
+  - compile_to_signals doesn't like relative pitch tracks?
+  - compile_to_signals spams too much when there is an error
+  - implement scale transpose in terms of to_generic and generic_add
+  - control track can't put in method?  edit method inserts comma?
+  - logview: clickable stackpos
   * relative control tracks
   * relative pitch tracks
   * reverse skel display arrow direction
@@ -14,7 +20,6 @@ CURRENT
   + track down ghc rts crashes
   - select track, st3 style select block, track
   - extend shouldn't clip current event to 0
-  - play from insert doesn't work
   - enter note on existing note should change its length
 
   - demo piece: show nested tempos with "bouncing ball", expressive pitch

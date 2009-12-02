@@ -7,6 +7,7 @@ module Cmd.PitchTrack where
 import qualified Control.Arrow as Arrow
 import qualified Data.Maybe as Maybe
 
+import qualified Ui.Event as Event
 import qualified Ui.Key as Key
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ControlTrack as ControlTrack
@@ -98,4 +99,19 @@ modify_event_at :: (Monad m) => EditUtil.SelPos
     -> ((String, String) -> ((Maybe String, Maybe String), Bool))
     -> Cmd.CmdT m ()
 modify_event_at selpos f = EditUtil.modify_event_at selpos True
-    (Arrow.first ControlTrack.unparse . f . ControlTrack.parse)
+    (Arrow.first unparse . f . parse)
+
+-- | Modify event text.  This is not used within this module but is exported
+-- for others as a more general variant of 'modify_event_at'.
+modify :: ((String, String) -> (String, String)) -> Event.Event -> Event.Event
+modify f event = Event.set_string text event
+    where
+    text = maybe "" id (process (Event.event_string event))
+    process = unparse . justify . f . parse
+    justify (a, b) = (Just a, Just b)
+
+parse :: String -> (String, String)
+parse = ControlTrack.parse
+
+unparse :: (Maybe String, Maybe String) -> Maybe String
+unparse = ControlTrack.unparse

@@ -8,6 +8,7 @@
 ^test_obj/
 ^test.output$
 ^unused
+^prof/
 
 ^Local/Instrument/z1_sysex
 ^Local/Instrument/(vl1_sysex|vl1_vc)

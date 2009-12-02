@@ -2,8 +2,8 @@
 -- This module imports modules that are possibly used only dynamically by
 -- lang, just to make sure they get compiled.
 {- | Helper functions to be imported into LanguageEnviron.  LanguageEnviron
-    must be interpreted since it's the "top level" module, so I put the library
-    of commands in here.
+    must be interpreted since it's the \"top level\" module, so I put the
+    library of commands in here.
 
     Of course, lang commands can use anything in scope in LanguageEnviron, not
     just these helpers.  That includes all the various cmd_* functions used by
@@ -16,11 +16,15 @@
 
     The various show_* functions print out state generally in a 'show' format,
     but not necessarily.  It's designed to be for human reading and may leave
-    out "uninteresting" data.
+    out relatively uninteresting data.
 
     TODO Can I use Language.Haskell.Parser or haddock to generate a list of
     toplevel names along with their documentation to give the REPL for
     completion and interactive documentation?
+
+    To keep this module from getting huge, only general purpose and common cmds
+    should go here.  Cmds which are meant to be used from the REPL but may be
+    more specialized can go in Cmd.Lang.L* modules.
 -}
 module Cmd.LanguageCmds where
 import Control.Monad
@@ -380,10 +384,14 @@ track_info block_id tracknum = do
 
 -- | Steps to load a new instrument.  All of them are optional, depending on
 -- the circumstances.
+--
 -- - Deallocate address asignments for the old instrument, if one is being
 -- replaced.
+--
 -- - Allocate addresses for the new instrument.
+--
 -- - Title track with new instrument.
+--
 -- - Send midi init.
 --
 -- For example, typing a new instrument in a track title should only complain
@@ -472,7 +480,8 @@ schema_instruments block_id = do
 -- found in the given block.  It simply gives each instrument on a device a
 -- single channel increasing from 0.
 --
--- Example: auto_config (bid "b0") >>= State.set_midi_config
+-- Example: @auto_config (bid \"b0\") >>= State.set_midi_config@
+--
 -- TODO: won't work if there are >1 block, need a merge config
 -- TODO: same inst with different keyswitches should get the same addrs
 auto_config :: BlockId -> Cmd.CmdL Instrument.Config

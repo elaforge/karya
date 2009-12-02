@@ -890,9 +890,12 @@ destroy_track track_id = do
         remove_track block_id tracknum
     modify $ \st -> st { state_tracks = Map.delete track_id (state_tracks st) }
 
+modify_track_title :: (UiStateMonad m) => TrackId -> (String -> String) -> m ()
+modify_track_title track_id f = modify_track track_id $ \track ->
+    track { Track.track_title = f (Track.track_title track) }
+
 set_track_title :: (UiStateMonad m) => TrackId -> String -> m ()
-set_track_title track_id text = modify_track track_id $ \track ->
-    track { Track.track_title = text }
+set_track_title track_id text = modify_track_title track_id (const text)
 
 set_track_bg :: (UiStateMonad m) => TrackId -> Color -> m ()
 set_track_bg track_id color = modify_track track_id $ \track ->

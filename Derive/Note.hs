@@ -291,7 +291,7 @@ d_call start dur ident = do
     -- This is actually the only thing that requires that block_id name a real
     -- block.
     ui_state <- fmap Derive.state_ui Derive.get
-    block_dur <- either (Derive.throw . ("getting block end: "++) . show)
+    block_dur <- either (Derive.throw . ("d_call: "++) . show)
         return (State.eval ui_state (get_block_dur block_id))
     if block_dur > TrackPos 0
         then Derive.d_at start (Derive.d_stretch (dur/block_dur)

@@ -16,7 +16,6 @@ import Control.Monad
 import qualified Control.Monad.Error as Error
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
-import qualified Util.Seq as Seq
 import qualified Util.Parse as Parse
 
 
@@ -85,12 +84,14 @@ middle_octave = 5
 -- * generic pitches
 
 -- | A scale independent pitch.  The definitions of the octave and the degree
--- offset are up to the scale.
+-- offset are up to the scale.  This doesn't know how many notes are in an
+-- octave, so after transposition it may be denormalized.
 data Generic = Generic Octave Double deriving (Eq, Ord, Show)
 
 type Octave = Int
 
--- | Generic relative notes look like "+4/3.2" or "+3.2" (octave omitted).
+-- | Generic relative notes look like \"+4/3.2\" or \"+3.2\" (octave omitted)
+-- or \"+3/\" (only octave).
 from_relative :: Generic -> Note
 from_relative (Generic oct nn)
     | oct == 0 = Note (sign ++ Parse.show_float (Just 2) (abs nn))
@@ -109,6 +110,13 @@ to_relative (Note note) = do
     where
     (pre, post) = break (=='/') note
     (oct_s, nn_s) = if null post then ("", pre) else (pre, drop 1 post)
+
+-- Should this produce a separate Relative type?  Let's see if I need it first.
+add_generic, sub_generic :: Generic -> Generic -> Generic
+add_generic (Generic oct1 nn1) (Generic oct2 nn2) =
+    Generic (oct1+oct2) (nn1+nn2)
+sub_generic (Generic oct1 nn1) (Generic oct2 nn2) =
+    Generic (oct1-oct2) (nn1-nn2)
 
 
 -- * scale
@@ -145,6 +153,8 @@ data Scale = Scale {
 
     -- | Transpose the given note by the given scale steps, or octaves.
     -- Return an error if it couldn't be transposed for some reason.
+    --
+    -- TODO once I add generic_to_note then these can go away.
     , scale_transpose :: Transposer
     , scale_transpose_octave :: Transposer
 

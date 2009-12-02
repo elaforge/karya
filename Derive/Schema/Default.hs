@@ -89,6 +89,11 @@ parse_control_title title
     (pre, post) = break (==',') title
     cont = Seq.strip (drop 1 post)
 
+unparse_control_title :: (Maybe String, String) -> String
+unparse_control_title (maybe_op, title) = case maybe_op of
+    Just op -> op ++ ", " ++ title
+    Nothing -> title
+
 
 -- * set_inst_status
 

@@ -22,7 +22,7 @@ test_d_signal = do
 
     let Right (sig, msgs) = run [mkevent 0 "bad", mkevent 1 "i, bad"]
     equal sig (track_signal [])
-    strings_like msgs ["parse error on char 1", "parse error on char 3"]
+    strings_like msgs ["parse error on char 1", "parse error on char 4"]
 
     let sig = track_signal
             [(0, Signal.Set, 0), (1, Signal.Linear, 1), (1.5, Signal.Exp 2, 0)]
