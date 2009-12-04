@@ -75,7 +75,7 @@ test_unlink_vertex = do
     graph_equal (f 0 xgraph) (build [(4, 2), (2, 1), (2, 3)])
     graph_equal (f 1 xgraph) (build [(0, 2), (4, 2), (2, 3)])
     graph_equal (f 2 xgraph) (build [(0, 1), (0, 3), (4, 1), (4, 3)])
-    throws "out of range" $ f (-1) xgraph
+    throws (f (-1) xgraph) "out of range"
 
 test_remove_vertex = do
     let f = Util.Graph.remove_vertex

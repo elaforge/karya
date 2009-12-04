@@ -88,11 +88,11 @@ strings_like_srcpos srcpos gotten expected = do
         | otherwise = success srcpos $ show a ++ " =~ " ++ show b
 
 -- | The given pure value should throw an exception that matches the predicate.
-throws :: (Show a) => String -> a -> IO ()
+throws :: (Show a) => a -> String -> IO ()
 throws = throws_srcpos Nothing
 
-throws_srcpos :: (Show a) => SrcPos.SrcPos -> String -> a -> IO ()
-throws_srcpos srcpos exc_like val =
+throws_srcpos :: (Show a) => SrcPos.SrcPos -> a -> String -> IO ()
+throws_srcpos srcpos val exc_like =
     (Exception.evaluate val >> failure srcpos ("didn't throw: " ++ show val))
     `Exception.catch` \(exc :: Exception.SomeException) ->
         if exc_like `List.isInfixOf` show exc

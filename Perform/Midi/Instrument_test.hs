@@ -25,4 +25,4 @@ test_make_keyswitches = do
             [ (Set.fromList ["a", "b"], Instrument.Keyswitch "a+b" 1)
             , (Set.empty, Instrument.Keyswitch "" 2)
             ]
-    throws "attr [\"pizz\"] is shadowed by []" (f [("", 1), ("pizz", 2)])
+    throws (f [("", 1), ("pizz", 2)]) "attr [\"pizz\"] is shadowed by []"
