@@ -63,6 +63,7 @@ import qualified Cmd.TimeStep as TimeStep
 
 -- Just make sure these are compiled.
 import qualified Cmd.MakeRuler ()
+import qualified Cmd.Lang.LPitch ()
 
 import qualified Derive.Schema as Schema
 import qualified Derive.Schema.Default as Default

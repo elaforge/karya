@@ -25,12 +25,12 @@ import qualified Perform.Pitch as Pitch
 -- | Given a base note, convert absolute pitch events to relative.
 to_relative :: String -> Cmd.CmdL ()
 to_relative note_s = do
-    (_, _, track_events) <- Selection.events True
-    titles <- fmap (map Track.track_title)
-        (mapM (State.get_track . fst) track_events)
+    track_events <- Selection.events True
+    let track_ids = map (\(a, _, _) -> a) track_events
+    titles <- fmap (map Track.track_title) (mapM State.get_track track_ids)
     let scales = map Default.title_to_scale titles
     let tracks = [(track_id, scale, events)
-            | (title, Just scale, (track_id, events)) <-
+            | (title, Just scale, (track_id, _, events)) <-
                 zip3 titles scales track_events,
             not (Default.is_relative_track title)]
     if (null tracks)
