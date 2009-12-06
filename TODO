@@ -8,7 +8,6 @@ CURRENT
   - compile_to_signals doesn't like relative pitch tracks?
   - compile_to_signals spams too much when there is an error
   - implement scale transpose in terms of to_generic and generic_add
-  - control track can't put in method?  edit method inserts comma?
   - logview: clickable stackpos
   * relative control tracks
   * relative pitch tracks
@@ -312,7 +311,7 @@ Derive:
       * multiple tempos per block
     * subblock derivation
   PitchTrack pitch
-    - pitch signal should be Signal Relative so that they can be transposed
+    + pitch signal should be Signal Relative so that they can be transposed
     * relative pitches, e.g. +5
   NoteTrack note
     - non-note commands: set random seed, ...

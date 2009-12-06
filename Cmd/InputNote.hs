@@ -39,11 +39,11 @@ import qualified Perform.Midi.Control as Control
 
 
 data Input =
-    -- | The InputKey and Val (velocity) could be sent separately, but that
+    -- | The InputKey and val (velocity) could be sent separately, but that
     -- would make converting this back into midi for thru harder.
-    NoteOn NoteId Pitch.InputKey Signal.Val
-    | NoteOff NoteId Signal.Val
-    | Control NoteId Score.Control Signal.Val
+    NoteOn NoteId Pitch.InputKey Signal.Y
+    | NoteOff NoteId Signal.Y
+    | Control NoteId Score.Control Signal.Y
     -- | Pitch could also be a Control, but this way the pitch is typed.
     | PitchChange NoteId Pitch.InputKey
     deriving (Eq, Show)

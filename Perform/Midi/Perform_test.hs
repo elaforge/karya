@@ -429,7 +429,7 @@ trim_pitches events = map trim_event (Seq.zip_next events)
     map_pitch f cmap = Map.map f pitches `Map.union` cmap
         where pitches = Map.filterWithKey (\k _ -> k == Control.c_pitch) cmap
 
-mkpitch :: Signal.Val -> Perform.ControlMap
+mkpitch :: Signal.Y -> Perform.ControlMap
 mkpitch pitch = Map.fromList [(Control.c_pitch, Signal.signal [(0, pitch)])]
 
 

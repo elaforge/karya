@@ -45,7 +45,7 @@ import qualified Instrument.MidiDb as MidiDb
 
 -- | This winds up being 100, which is loud but not too loud and
 -- distinctive-looking.
-default_velocity :: Signal.Val
+default_velocity :: Signal.Y
 default_velocity = 0.79
 
 -- | A keyswitch gets this much lead time before the note it is meant to
@@ -334,7 +334,7 @@ make_clip_warnings event (control, clip_warns) =
         (event_stack event) (Just (start, end))
     | (start, end) <- clip_warns ]
 
-control_at :: Event -> Control.Control -> TrackPos -> Maybe Signal.Val
+control_at :: Event -> Control.Control -> TrackPos -> Maybe Signal.Y
 control_at event control pos = do
     sig <- Map.lookup control (event_controls event)
     return (Signal.at pos sig)
@@ -367,7 +367,7 @@ perform_control cmap start end (control, sig) =
 
 type ClipWarning = (TrackPos, TrackPos)
 
-extract_clip_warns :: [((TrackPos, Signal.Val), Bool)] -> [ClipWarning]
+extract_clip_warns :: [((TrackPos, Signal.Y), Bool)] -> [ClipWarning]
 extract_clip_warns pos_val_clips = [(head pos, last pos) | pos <- clip_pos]
     where
     groups = List.groupBy ((==) `on` snd) pos_val_clips
@@ -447,8 +447,7 @@ controls_equal start end c0 c1 = all (uncurry eq) (zip c0 c1)
     where
     -- Since the controls are compared in sorted order, if the events don't
     -- have the same controls, they won't be equal.
-    eq (c0, sig0) (c1, sig1) = c0 == c1
-        && Signal.equal start end sig0 sig1
+    eq (c0, sig0) (c1, sig1) = c0 == c1 && Signal.equal start end sig0 sig1
 
 pitches_share start off end (Just sig0) (Just sig1) =
     Signal.pitches_share start off end sig0 sig1

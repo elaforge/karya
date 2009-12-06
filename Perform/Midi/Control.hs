@@ -39,14 +39,14 @@ type PbRange = (Integer, Integer)
 
 -- | Convert from a control to a function that creates its MIDI message.
 control_constructor :: ControlMap -> Control
-    -> (Maybe (Signal.Val -> Midi.ChannelMessage))
+    -> (Maybe (Signal.Y -> Midi.ChannelMessage))
 control_constructor cmap cont = msum
     [ Map.lookup cont special_controls
     , fmap make_midi_cc (Map.lookup cont cmap)
     , fmap make_midi_cc (Map.lookup cont universal_control_map)
     ]
 
-make_midi_cc :: Midi.Control -> Signal.Val -> Midi.ChannelMessage
+make_midi_cc :: Midi.Control -> Signal.Y -> Midi.ChannelMessage
 make_midi_cc cnum val = Midi.ControlChange cnum (val_to_cc val)
 
 special_controls = Map.fromList
@@ -63,16 +63,16 @@ is_channel_control :: Control -> Bool
 is_channel_control cont =
     cont `notElem` [c_velocity, c_poly_aftertouch, c_pitch]
 
-control_range :: (Signal.Val, Signal.Val)
+control_range :: (Signal.Y, Signal.Y)
 control_range = (0, 1)
 
 -- | Given a pitch val, return the midi note number and pitch bend amount to
 -- sound at the pitch.
-pitch_to_midi :: PbRange -> Signal.Val -> (Midi.Key, Midi.PitchBendValue)
+pitch_to_midi :: PbRange -> Signal.Y -> (Midi.Key, Midi.PitchBendValue)
 pitch_to_midi pb_range val = (key, pb_from_nn pb_range key val)
     where key = floor (Num.clamp 0 127 val)
 
-pb_from_nn :: PbRange -> Midi.Key -> Signal.Val -> Midi.PitchBendValue
+pb_from_nn :: PbRange -> Midi.Key -> Signal.Y -> Midi.PitchBendValue
 pb_from_nn pb_range key val =
     realToFrac $ if bend >= 0 then bend / high else bend / (-low)
     where
@@ -132,8 +132,8 @@ c_mod = "modulation"
 
 -- * util
 
-val_to_pb :: Signal.Val -> Int
+val_to_pb :: Signal.Y -> Int
 val_to_pb val = floor ((val + 1) * 0x2000 - 0x2000)
 
-val_to_cc :: Signal.Val -> Midi.ControlValue
+val_to_cc :: Signal.Y -> Midi.ControlValue
 val_to_cc val = floor (val * 0x7f)

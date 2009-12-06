@@ -92,7 +92,7 @@ d_signal events = fmap (Signal.track_signal Signal.default_srate)
     (Derive.map_events parse_event Derive.NoState id events)
 
 parse_event :: (Monad m) => Derive.NoState -> Score.Event
-    -> Derive.DeriveT m ((TrackPos, Signal.Method, Signal.Val), Derive.NoState)
+    -> Derive.DeriveT m ((TrackPos, Signal.Method, Signal.Y), Derive.NoState)
 parse_event _ event = do
     (method, val) <- Derive.Parse.parse (liftM2 (,) p_opt_method Parse.p_float)
         (Score.event_string event)
@@ -108,9 +108,9 @@ d_pitch_signal scale_id events = do
     fmap (Signal.track_signal Signal.default_srate)
         (Derive.map_events (parse_pitch_event scale) Nothing id events)
 
-parse_pitch_event :: (Monad m) => Pitch.Scale -> Maybe Signal.Val
+parse_pitch_event :: (Monad m) => Pitch.Scale -> Maybe Signal.Y
     -> Score.Event -> Derive.DeriveT m
-        ((TrackPos, Signal.Method, Signal.Val), Maybe Signal.Val)
+        ((TrackPos, Signal.Method, Signal.Y), Maybe Signal.Y)
 parse_pitch_event scale previous_nn event = do
     (method, note) <- Derive.Parse.parse
         (liftM2 (,) p_opt_method p_scale_note) (Score.event_string event)
@@ -124,13 +124,13 @@ d_relative_pitch_signal events =
         (Derive.map_events parse_relative_pitch_event () id events)
 
 parse_relative_pitch_event :: (Monad m) => () -> Score.Event
-    -> Derive.DeriveT m ((TrackPos, Signal.Method, Signal.Val), ())
+    -> Derive.DeriveT m ((TrackPos, Signal.Method, Signal.Y), ())
 parse_relative_pitch_event _ event = do
     (method, val) <- Derive.Parse.parse
         (liftM2 (,) p_opt_method p_relative_pitch) (Score.event_string event)
     return ((Score.event_start event, method, val), ())
 
-p_relative_pitch :: P.CharParser st Signal.Val
+p_relative_pitch :: P.CharParser st Signal.Y
 p_relative_pitch = do
     s <- P.many P.anyToken
     Pitch.Generic oct nn <-
@@ -143,11 +143,11 @@ p_relative_pitch = do
 -- notes directly, but a more complicated one may get scale values out of the
 -- environment or something.
 --
--- This converts from Pitch to Signal.Val, which loses scale information.
+-- This converts from Pitch to Signal.Y, which loses scale information.
 -- TODO so if I want to have a pitch signal be GenericPitch, here is the place
 -- to change
-parse_note :: (Monad m) => Pitch.Scale -> Maybe Signal.Val -> Pitch.Note
-    -> Derive.DeriveT m Signal.Val
+parse_note :: (Monad m) => Pitch.Scale -> Maybe Signal.Y -> Pitch.Note
+    -> Derive.DeriveT m Signal.Y
 parse_note scale previous_nn note
     | note == empty_note, Just nn <- previous_nn = return nn
     | otherwise = case Pitch.scale_note_to_nn scale note of

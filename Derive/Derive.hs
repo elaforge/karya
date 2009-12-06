@@ -152,8 +152,8 @@ data Warp = Warp {
     , warp_stretch :: TrackPos
     } deriving (Eq, Show)
 
-initial_warp = make_warp (Signal.signal [(0, 0),
-    (Signal.max_track_pos, Signal.pos_to_val Signal.max_track_pos)])
+initial_warp :: Warp
+initial_warp = make_warp (Signal.signal [(0, 0), (Signal.max_x, Signal.max_y)])
 
 -- | Convert a Signal to a Warp.
 make_warp :: Signal.Signal -> Warp
@@ -220,8 +220,8 @@ run derive_state m = do
 make_tempo_func :: [TrackWarp] -> Transport.TempoFunction
 make_tempo_func track_warps block_id track_id pos = do
     warp <- lookup_track_warp block_id track_id track_warps
-    -- TODO shift/stretch?
-    let warped = Signal.val_to_pos (Signal.at_linear pos (warp_signal warp))
+    -- TODO what about shift and stretch?
+    let warped = Signal.y_to_x (Signal.at_linear pos (warp_signal warp))
     return $ Timestamp.from_track_pos warped
 
 lookup_track_warp :: BlockId -> TrackId -> [TrackWarp] -> Maybe Warp
@@ -454,10 +454,10 @@ start_new_warp = do
 local_to_global :: (Monad m) => TrackPos -> DeriveT m TrackPos
 local_to_global pos = do
     (Warp sig shift stretch) <- fmap state_warp get
-    return $ Signal.val_to_pos (Signal.at_linear (pos * stretch + shift) sig)
+    return $ Signal.y_to_x (Signal.at_linear (pos * stretch + shift) sig)
 
 tempo_srate = Signal.default_srate
-min_tempo :: Signal.Val
+min_tempo :: Signal.Y
 min_tempo = 0.001
 
 d_stretch :: (Monad m) => TrackPos -> DeriveT m a -> DeriveT m a
@@ -493,7 +493,7 @@ d_tempo track_id signalm deriver = do
         add_track_warp track_id
         deriver
 
-tempo_to_warp = Signal.integrate tempo_srate . Signal.map_val (1/)
+tempo_to_warp = Signal.integrate tempo_srate . Signal.map_y (1/)
     . Signal.clip_min min_tempo
 
 d_warp :: (Monad m) => Signal.Signal -> DeriveT m a -> DeriveT m a
