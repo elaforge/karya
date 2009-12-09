@@ -1,29 +1,28 @@
 -- | Saih gender wayang.
 module Derive.Scale.Wayang where
-import qualified Data.Map as Map
 
 import qualified Perform.Pitch as Pitch
 import qualified Derive.Scale.Util as Util
-import qualified Util.Seq as Seq
 
 
 scale = Pitch.Scale {
     Pitch.scale_id = scale_id
     , Pitch.scale_pattern = "[12356](\\.*|\\^*)"
-    , Pitch.scale_note_to_nn = Util.note_to_nn degree_map
-    , Pitch.scale_note_to_generic = Util.note_to_generic degree_map
-    , Pitch.scale_input_to_note = Util.input_to_note input_map
-    , Pitch.scale_input_to_nn = Util.input_to_nn input_map
-    , Pitch.scale_transpose = transpose
-    , Pitch.scale_transpose_octave = transpose . (*5)
-    , Pitch.scale_set_pitch_bend = True
+    , Pitch.scale_octave = 5
+
+    , Pitch.scale_note_to_generic = Util.note_to_generic scale_map
+    , Pitch.scale_input_to_note = Util.input_to_note scale_map
+    , Pitch.scale_input_to_nn = Util.input_to_nn scale_map
+    , Pitch.scale_generic_to_nn = Util.generic_to_nn scale_map
+    , Pitch.scale_set_pitch_bend = False
     }
 
 scale_id :: Pitch.ScaleId
 scale_id = Pitch.ScaleId "wayang"
 
-transpose :: Pitch.Transposer
-transpose = Util.transpose degree_to_num num_to_degree
+scale_map :: Util.ScaleMap
+scale_map =
+    Util.scale_map (align degrees) (align inputs) note_numbers (align generics)
 
 note_numbers_umbang :: [Pitch.NoteNumber]
 note_numbers_umbang = map Pitch.nn
@@ -75,23 +74,11 @@ note_numbers = note_numbers_umbang
 -- Line a list starting with nding up with 'note_numbers'.
 align = take (length note_numbers) . drop 4
 
-generics :: [Pitch.Generic]
-generics = align
-    [Pitch.Generic oct deg | oct <- [Pitch.middle_octave-2 ..], deg <- [0..4]]
-
-degrees = align [(d:o) | o <- ["..", ".", "", "^", "^^"], d <- "12356"]
-degree_to_num = Map.fromList (zip degrees [0..])
-num_to_degree = Map.fromList (zip [0..] degrees)
-
-degree_map :: Util.DegreeMap
-degree_map = Map.fromList $ zip degrees
-    [Util.Degree nn generic | (nn, generic)
-        <- zip (Seq.zip_neighbors note_numbers) generics]
-
-input_map :: Util.InputMap
-input_map = Map.fromList $ zip inputs (zip note_numbers degrees)
+degrees = map Pitch.Note [(d:o) | o <- ["..", ".", "", "^", "^^"], d <- "12356"]
 
 input_keys = [Util.i_c, Util.i_d, Util.i_e, Util.i_f, Util.i_g]
-inputs = align
-    [Pitch.InputKey (middle + o*12 + d) | o <- [-2..2], d <- input_keys]
+inputs = [Pitch.InputKey (middle + o*12 + d) | o <- [-2..2], d <- input_keys]
     where (Pitch.InputKey middle) = Pitch.middle_c
+
+generics :: [Util.IntGeneric]
+generics = [0..]
