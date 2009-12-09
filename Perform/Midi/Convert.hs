@@ -18,10 +18,12 @@ import qualified Util.Logger as Logger
 import qualified Util.Seq as Seq
 
 import qualified Derive.Schema.Default as Default
+import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 
-import qualified Perform.Warning as Warning
+import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
+import qualified Perform.Warning as Warning
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Perform as Perform
 import qualified Instrument.MidiDb as MidiDb
@@ -53,33 +55,22 @@ convert_event lookup_inst event = do
         ("midi instrument in instrument db: " ++ show score_inst)
         (lookup_inst (Score.event_attributes event) score_inst)
 
-    (pitch_sig, controls) <- get_pitch (Score.event_controls event)
-    let perf_cs = Map.insert Control.c_pitch pitch_sig
-            (convert_controls controls)
+    pitch <- convert_pitch (Score.event_pitch event)
+    let controls = convert_controls (Score.event_controls event)
     return $ Perform.Event midi_inst (Score.event_start event)
-        (Score.event_duration event) perf_cs (Score.event_stack event)
+        (Score.event_duration event) controls pitch (Score.event_stack event)
 
 -- | They're both newtypes so this should boil down to id.
 convert_controls :: Score.ControlMap -> Perform.ControlMap
-convert_controls =
-    Map.mapKeys (\(Score.Control c) -> Control.Control c)
+convert_controls = Map.mapKeys (\(Score.Control c) -> Control.Control c)
 
-get_pitch :: Score.ControlMap -> ConvertT (Signal.Signal, Score.ControlMap)
-get_pitch controls = do
-    let pitch_cs = get_pitch_cs controls
-    pitch_sig <- require "pitch" $ case pitch_cs of
-        [] -> Nothing
-        (_, sig) : _ -> Just sig
-    when (length pitch_cs > 1) $
-        warn $ "extra pitch tracks ignored: "
-            ++ Seq.join ", " (map (show.fst) (drop 1 pitch_cs))
-    return (pitch_sig, controls `Map.difference` Map.fromAscList pitch_cs)
-
-get_pitch_cs :: Score.ControlMap -> [(Score.Control, Signal.Signal)]
-get_pitch_cs = takeWhile (is_pitch_c . fst) . Map.toAscList
-    . snd . Map.split2 (Score.Control Default.pitch_track_prefix)
-
-is_pitch_c (Score.Control c) = Default.is_pitch_track c
+convert_pitch :: PitchSignal.PitchSignal -> ConvertT Signal.NoteNumber
+convert_pitch psig = case Map.lookup scale_id Scale.scale_map of
+    Nothing -> do
+        warn $ "unknown scale: " ++ show scale_id
+        return (Signal.constant Signal.invalid_pitch)
+    Just scale -> return $ PitchSignal.convert scale psig
+    where scale_id = PitchSignal.sig_scale psig
 
 -- * monad
 

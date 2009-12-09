@@ -161,11 +161,7 @@ to_midi :: Control.PbRange -> Midi.PitchBendValue
     -> Map.Map NoteId Midi.Key  -> Input
     -> ([Midi.ChannelMessage], Map.Map NoteId Midi.Key)
 to_midi pb_range prev_pb id_to_key input = case input of
-        NoteOn note_id (Pitch.InputKey nn) vel ->
-            let (key, pb) = Control.pitch_to_midi pb_range nn
-                n = Midi.NoteOn key (from_val vel)
-                msgs = if prev_pb == pb then [n] else [Midi.PitchBend pb, n]
-            in (msgs, Map.insert note_id key id_to_key)
+        NoteOn note_id (Pitch.InputKey nn) vel -> note_on note_id nn vel
         NoteOff note_id vel -> with_key note_id $ \key ->
             ([Midi.NoteOff key (from_val vel)], Map.delete note_id id_to_key)
         PitchChange note_id (Pitch.InputKey nn) -> with_key note_id $ \key ->
@@ -179,3 +175,9 @@ to_midi pb_range prev_pb id_to_key input = case input of
         Nothing -> ([], id_to_key)
         Just key -> f key
     from_val val = floor (val * 127)
+    note_on note_id nn vel = case Control.pitch_to_midi pb_range nn of
+        Nothing -> ([], id_to_key)
+        Just (key, pb) ->
+            let n = Midi.NoteOn key (from_val vel)
+            in (if prev_pb == pb then [n] else [Midi.PitchBend pb, n],
+                Map.insert note_id key id_to_key)

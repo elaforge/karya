@@ -60,17 +60,18 @@ special_controls = Map.fromList
 -- I include all variable note parameters.
 is_channel_control :: Control -> Bool
     -- Don't include c_pitch because that is checked for sharing separately.
-is_channel_control cont =
-    cont `notElem` [c_velocity, c_poly_aftertouch, c_pitch]
+is_channel_control cont = cont `notElem` [c_velocity, c_poly_aftertouch]
 
 control_range :: (Signal.Y, Signal.Y)
 control_range = (0, 1)
 
 -- | Given a pitch val, return the midi note number and pitch bend amount to
 -- sound at the pitch.
-pitch_to_midi :: PbRange -> Signal.Y -> (Midi.Key, Midi.PitchBendValue)
-pitch_to_midi pb_range val = (key, pb_from_nn pb_range key val)
-    where key = floor (Num.clamp 0 127 val)
+pitch_to_midi :: PbRange -> Signal.Y -> Maybe (Midi.Key, Midi.PitchBendValue)
+pitch_to_midi pb_range val
+    | val < 0 || val > 127 = Nothing
+    | otherwise = Just (key, pb_from_nn pb_range key val)
+    where key = floor val
 
 pb_from_nn :: PbRange -> Midi.Key -> Signal.Y -> Midi.PitchBendValue
 pb_from_nn pb_range key val =
@@ -83,11 +84,7 @@ pb_from_nn pb_range key val =
 
 -- ** non-cc controls
 
--- | The pitch control is even more special, because it doesn't directly
--- correspond to any midi control.  Instead it's decomposed into
--- (midi_nn, pb_val) by 'pitch_to_midi'.
-c_pitch, c_velocity :: Control
-c_pitch = Control "pitch"
+c_velocity :: Control
 c_velocity = Control "velocity"
 
 -- | I call channel pressure \"aftertouch\" because true aftertouch is so rare.

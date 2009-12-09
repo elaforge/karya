@@ -113,9 +113,9 @@ show_step = _cmd_state Cmd.state_step
 set_step :: TimeStep.TimeStep -> Cmd.CmdL ()
 set_step step = Cmd.modify_state $ \st -> st { Cmd.state_step = step }
 
-show_octave :: Cmd.CmdL Int
+show_octave :: Cmd.CmdL Pitch.Octave
 show_octave = _cmd_state Cmd.state_kbd_entry_octave
-set_octave :: Int -> Cmd.CmdL ()
+set_octave :: Pitch.Octave -> Cmd.CmdL ()
 set_octave n = Edit.cmd_modify_octave (const n) >> return ()
 
 -- * load / save

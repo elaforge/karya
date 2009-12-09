@@ -23,9 +23,11 @@ import qualified Instrument.MidiDb as MidiDb
 
 import qualified Perform.Signal as Signal
 import qualified Perform.Pitch as Pitch
+import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Control as Control
 
+import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Derive_test as Derive_test
 import qualified Util.Graph_test as Graph_test
 
@@ -93,49 +95,52 @@ mksig = Signal.track_signal Signal.default_srate
 test_compile = do
     let set = Signal.Set
         derive track = Arrow.first extract $
-            derive_with_pitch Schema.compile track
-        extract = either (Left . Derive.error_message)
-            (Right . (map Score.event_controls))
+            derive_with_cont Schema.compile track
+        extract = either (Left . Derive.error_message) Right
+        controls = either Left (Right . map Score.event_controls)
+        pitches = either Left (Right . map Score.event_pitch)
 
     let (res, logs) = derive ("*c2", [(0, 0, ".1")])
     equal logs []
-    equal res $ Left ("compile: unknown ScaleId \"c2\"")
+    equal res $ Left ("compile: d_pitch_signal: unknown ScaleId \"c2\"")
 
-    let cont_signal = (Score.Control "c1",
-            mksig [(0, set, 3), (5, set, 2), (10, set, 1)])
-        no_pitch = (Score.Control "*twelve", mksig [])
+    let cont_signal = Map.fromList [(Score.Control "c1",
+            mksig [(0, set, 3), (5, set, 2), (10, set, 1)])]
+        no_pitch = DeriveTest.pitch_signal (Pitch.ScaleId "twelve") []
 
     let (res, logs) = derive ("*twelve", [(0, 0, ".1")])
     equal logs ["compile: Note \".1\" not in ScaleId \"twelve\""]
-    equal res $ Right (replicate 3 (Map.fromList [no_pitch, cont_signal]))
+    equal (controls res) (Right [cont_signal, cont_signal, cont_signal])
+    equal (pitches res) (Right [no_pitch, no_pitch, no_pitch])
 
     let (res, logs) = derive
-            ("*twelve", [(0, 0, "4c"), (10, 0, "4d"), (20, 0, "i, 4e")])
-    let psig trunc = (Score.Control "*twelve", Signal.truncate trunc
-            (mksig [(0, set, 60), (5, set, 62), (10, Signal.Linear, 64)]))
+            ("*twelve", [(0, 0, "4c"), (4, 0, "4d"), (10, 0, "i, 4e")])
+    let psig trunc = PitchSignal.truncate trunc
+            (DeriveTest.pitch_signal (Pitch.ScaleId "twelve")
+                [(0, set, 60), (2, set, 62), (5, Signal.Linear, 64)])
+
     equal logs []
     -- The pitch signal gets truncated so it doesn't look like the note's decay
     -- wants to change pitch.
-    equal res $ Right $ map Map.fromList
-        [ [psig 5, cont_signal]
-        , [psig 10, cont_signal]
-        , [psig 50, cont_signal]
-        ]
+    equal (controls res) (Right [cont_signal, cont_signal, cont_signal])
+    equal (pitches res) (Right [psig 5, psig 10, psig 50])
 
 test_compile_to_signals = do
     let derive track = Arrow.first extract $
-            derive_with_pitch Schema.compile_to_signals track
+            derive_with_cont Schema.compile_to_signals track
         extract = either (Left . Derive.error_message) (Right . id)
 
     let (res, logs) = derive ("*bogus", [])
     equal logs []
-    equal res (Left "compile_to_signals: unknown ScaleId \"bogus\"")
+    equal res
+        (Left "compile_to_signals: d_display_pitch: unknown ScaleId \"bogus\"")
 
-    let (_res, logs) = derive ("*twelve", [(10, 0, ".2")])
-    equal logs ["compile_to_signals: Note \".2\" not in ScaleId \"twelve\""]
+    -- TODO re-enable when rendering pitch signals is in
+    -- let (_res, logs) = derive ("*twelve", [(10, 0, ".2")])
+    -- equal logs ["compile_to_signals: Note \".2\" not in ScaleId \"twelve\""]
 
     let (res, logs) = derive
-            ("*twelve", [(0, 0, "4c"), (10, 0, "4d"), (20, 0, "i, 4e")])
+            ("vel", [(0, 0, "1"), (2, 0, "i, 2"), (10, 0, "10")])
     equal logs []
     -- tempo, c1, and pitch tracks get signals.
     equal (fmap (map fst) res)
@@ -146,27 +151,27 @@ test_compile_to_signals = do
     let set = Signal.Set
     equal (fmap (map snd) res) $ Right
         [ mksig [(0, set, 2)]
-        , mksig [(0, set, 60), (10, set, 62), (20, Signal.Linear, 64)]
+        , mksig [(0, set, 1), (2, Signal.Linear, 2), (10, set, 10)]
         , mksig [(0, set, 3), (10, set, 2), (20, set, 1)]
         ]
 
-derive_with_pitch compiler pitch_track = (res, map Log.msg_string logs)
+derive_with_cont compiler cont_track = (res, map Log.msg_string logs)
     where
-    (state, track_tree) = mkstate_with_pitch pitch_track
+    (state, track_tree) = mkstate_with_pitch cont_track
     (res, _, _, logs, _) = Derive.derive Derive.empty_lookup_deriver
         state True (Derive_test.setup_deriver (compiler track_tree))
-    mkstate_with_pitch pitch_track = (state, track_tree)
+    mkstate_with_pitch cont_track = (state, track_tree)
         where
         (tids, state) = UiTest.run_mkstate
             [ ("tempo", [(0, 0, "2")])
             , (">inst0", [(0, 5, ""), (10, 5, ""), (20, 5, "")])
             , ("c1", [(0, 0, "3"), (10, 0, "2"), (20, 0, "1")])
-            , pitch_track
+            , cont_track
             ]
         track title tracknum = State.TrackInfo title (tids!!tracknum) tracknum
         track_tree =
             [ node (track "tempo" 0)
-                [ node (track (fst pitch_track) 3)
+                [ node (track (fst cont_track) 3)
                     [ node (track "c1" 2) [node (track ">inst0" 1) []]]
                 ]
             ]

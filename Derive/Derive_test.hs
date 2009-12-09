@@ -24,12 +24,15 @@ import qualified Instrument.MidiDb as MidiDb
 
 import qualified Derive.Control as Control
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Note as Note
 import qualified Derive.Schema as Schema
 import qualified Derive.Score as Score
 import qualified Derive.Scale.Twelve as Twelve
 
 import qualified Perform.Signal as Signal
+import qualified Perform.Pitch as Pitch
+import Perform.SignalBase (Method(..))
 import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Transport as Transport
 import qualified Perform.Warning as Warning
@@ -37,6 +40,13 @@ import qualified Perform.Midi.Control as Midi.Control
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
+
+-- TODO
+-- There's a lot of awkwardness here building the derivers by hand, because
+-- this doesn't depend on Schema to automatically create a deriver.  If I don't
+-- mind simultaneously testing Schema, I could eliminate all that work.  On one
+-- hand, testing with smaller scope makes clearer bugs, but on the other hand
+-- more test code means more bugs in the test itself.
 
 
 {-
@@ -151,18 +161,6 @@ test_tempo_funcs2 = do
     -- test multiple tempo
     -- test subderive
 
-
-
--- | Simple deriver with one track and one instrument.
-basic_deriver :: (Monad m) => TrackId -> TrackId
-    -> Derive.DeriveT m [Score.Event]
-basic_deriver note_tid pitch_tid =
-    Control.d_control (Score.Control "*twelve")
-        (Control.d_pitch_signal Twelve.scale_id =<<
-            Derive.with_track_warp Control.d_control_track pitch_tid)
-        (Derive.with_instrument (Just default_inst) Score.no_attrs $
-            Derive.with_track_warp Note.d_note_track note_tid)
-
 -- | Do a default derivation on the state, and return events and logs from each
 -- step.
 default_derive :: State.State -> Instrument.Config
@@ -196,14 +194,25 @@ test_fractional_pitch = do
             = default_derive ui_state inst_config
 
     equal derive_logs []
-    -- pprint events
+    pprint events
     equal convert_warns []
-    -- pprint midi_events
+    pprint midi_events
     equal perform_warns []
     -- pprint mmsgs
     equal [(chan, nn) | Midi.ChannelMessage chan (Midi.NoteOn nn _) <- mmsgs]
         [(0, 72), (1, 73)]
 
+
+
+-- | Simple deriver with one track and one instrument.
+basic_deriver :: (Monad m) => TrackId -> TrackId
+    -> Derive.DeriveT m [Score.Event]
+basic_deriver note_tid pitch_tid =
+    Control.d_pitch
+        (Control.d_pitch_signal Twelve.scale_id =<<
+            Derive.with_track_warp Control.d_control_track pitch_tid)
+        (Derive.with_instrument (Just default_inst) Score.no_attrs $
+            Derive.with_track_warp Note.d_note_track note_tid)
 
 test_basic = do
     -- verify the three phases of derivation
@@ -236,7 +245,7 @@ test_basic = do
 ks_name (Instrument.Keyswitch name _) = name
 set_ks inst ks nn = inst
     { Instrument.inst_keyswitch = Just (Instrument.Keyswitch ks nn) }
-extract_perf_event (Perform.Event inst start dur controls stack) =
+extract_perf_event (Perform.Event inst start dur _controls _pitch stack) =
     ( Instrument.inst_name inst, fmap ks_name (Instrument.inst_keyswitch inst)
     , start, dur, stack)
 mkstack = map (\(bid, tid, pos) ->
@@ -281,7 +290,7 @@ relative_control note_tid pitch_tid cont_tid cont_name rel_tid =
     Control.d_control (Score.Control cont_name)
         (Control.d_signal =<<
             Derive.with_track_warp Control.d_control_track cont_tid)
-        (Control.d_relative_control (Score.Control cont_name) "+"
+        (Control.d_relative (Score.Control cont_name) "+"
             (Control.d_signal =<<
                 Derive.with_track_warp Control.d_control_track rel_tid)
             (basic_deriver note_tid pitch_tid))
@@ -289,7 +298,7 @@ relative_control note_tid pitch_tid cont_tid cont_name rel_tid =
 test_relative_control = do
     let (tids, ui_state) = UiTest.run_mkstate
             [ (">", [(0, 1, "")])
-            , ("*twelve", [(0, 1, "4c")])
+            , ("*twelve", [(0, 0, "4c")])
             , ("vel", [(0, 0, "0"), (2, 0, "i, 2"), (4, 0, "i, 0")])
             , ("+, vel", [(0, 0, "1")])
             ]
@@ -299,6 +308,21 @@ test_relative_control = do
             . (Map.! Score.Control "vel") . Score.event_controls
     equal logs []
     equal (map extract events) [[1, 2, 3, 2, 1, 1]]
+
+test_relative_pitch = do
+    let f track = (map Score.event_pitch events, derive_logs)
+            where
+            (_, ui_state) = UiTest.run_mkstate
+                [ (default_inst_title, [(0, 10, "")])
+                , ("+, *semar", track)
+                , ("*semar", [(0, 0, "1")])
+                ]
+            (events, derive_logs, _, _, _, _) =
+                default_derive ui_state default_inst_config
+    let mksig = DeriveTest.pitch_signal (Pitch.ScaleId "semar")
+    equal (f []) ([mksig [(0, Set, 10)]], [])
+    equal (f [(0, 0, "+1/"), (1, 0, "i, +0")])
+        ([mksig [(0, Set, 15), (1, Linear, 10)]], [])
 
 test_make_inverse_tempo_func = do
     -- This is actually also tested in test_subderive.
@@ -335,18 +359,18 @@ test_tempo = do
             where (events, logs) = derive_events state (mkderiver sig)
     let f = derive_with
 
-    equal (f [(0, Signal.Set, 2)])
+    equal (f [(0, Set, 2)])
         ([(0, 5, "--1"), (5, 5, "--2"), (10, 5, "--3")], [])
 
     -- Slow down.
-    equal (f [(0, Signal.Set, 2), (20, Signal.Linear, 1)])
+    equal (f [(0, Set, 2), (20, Linear, 1)])
         ([(0, 5, "--1"), (5, 8, "--2"), (13, 10, "--3")], [])
-    equal (f [(0, Signal.Set, 2), (20, Signal.Linear, 0)])
+    equal (f [(0, Set, 2), (20, Linear, 0)])
         ([(0, 6, "--1"), (6, 528, "--2"), (535, 10000, "--3")], [])
     -- Speed up.
-    equal (f [(0, Signal.Set, 1), (20, Signal.Linear, 2)])
+    equal (f [(0, Set, 1), (20, Linear, 2)])
         ([(0, 8, "--1"), (8, 5, "--2"), (13, 4, "--3")], [])
-    equal (f [(0, Signal.Set, 0), (20, Signal.Linear, 2)])
+    equal (f [(0, Set, 0), (20, Linear, 2)])
         ([(0, 528, "--1"), (528, 6, "--2"), (535, 5, "--3")], [])
 
 
@@ -418,6 +442,7 @@ block_id = UiTest.default_block_id
 c_mod = Midi.Control.c_mod
 
 default_inst = Score.Instrument "synth/patch"
+default_inst_title = ">synth/patch"
 default_synth = Instrument.synth "synth" "wdev" []
 default_dev = Midi.WriteDevice "out"
 default_inst_config = Instrument.config

@@ -16,6 +16,9 @@ module Util.Test (
 
     , success, failure
 
+    -- * extracting
+    , expect_right
+
     -- * pretty printing
     , plist, pslist, pmlist
     , module PPrint
@@ -132,6 +135,13 @@ io_human_srcpos srcpos expected_msg op = do
         then failure srcpos $ "didn't see " ++ show expected_msg
         else success srcpos $ "saw " ++ show expected_msg
     return result
+
+
+-- * unpacking
+
+expect_right :: (Show a) => String -> Either a b -> b
+expect_right msg (Left v) = error $ msg ++ ": " ++ show v
+expect_right _ (Right v) = v
 
 -- * util
 

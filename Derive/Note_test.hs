@@ -16,6 +16,7 @@ import qualified Derive.Derive_test as Derive_test
 import qualified Derive.Note as Note
 import qualified Derive.Score as Score
 import qualified Perform.Pitch as Pitch
+import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Warning as Warning
 
 import qualified Derive.Derive as Derive
@@ -114,9 +115,11 @@ d_fake_sub = do
     st <- Derive.get
     start <- Derive.local_to_global 0
     end <- Derive.local_to_global 1
-    return [Score.Event start (end-start) (Text.pack "hi") Map.empty
+    return [Score.Event start (end-start) (Text.pack "hi") Map.empty fake_pitch
         (Derive.state_stack st)
         (Derive.state_instrument st) (Derive.state_attributes st)]
+
+fake_pitch = PitchSignal.constant (Pitch.ScaleId "fake") (Pitch.Generic 60)
 
 mkstack :: [(String, Maybe (TrackPos, TrackPos))] -> Warning.Stack
 mkstack = map $ \(bid, pos) -> (UiTest.bid bid, Nothing, pos)

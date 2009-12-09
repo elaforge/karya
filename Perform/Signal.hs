@@ -54,11 +54,11 @@
     - implement a more efficient map_signal_accum and see if it helps
 -}
 module Perform.Signal (
-    Signal, sig_vec
-    , X, Y, x_to_y, y_to_x, max_x, max_y, default_srate
-    , PitchSignal
+    Signal(Signal), sig_vec
+    , X, Y, x_to_y, y_to_x, max_x, max_y, default_srate, invalid_pitch
+    , Tempo, Control, NoteNumber
 
-    , signal, constant, track_signal, Method(..)
+    , signal, constant, track_signal, Method(..), Segment
     , unpack, to_track_samples
 
     , at, at_linear, sample
@@ -88,7 +88,7 @@ import qualified Ui.Track as Track
 
 import qualified Perform.Timestamp as Timestamp
 import qualified Perform.SignalBase as SignalBase
-import Perform.SignalBase (Method(..), max_x, default_srate)
+import Perform.SignalBase (Method(..), Segment, max_x, default_srate)
 
 
 -- * types
@@ -98,15 +98,21 @@ data Signal = Signal { sig_vec :: SignalBase.SigVec Y }
     -- a real signal.
     deriving (Eq)
 
--- | TODO remove this when I integrate the real PitchSignal
-type PitchSignal = Signal
-
 modify_vec :: (SignalBase.SigVec Y -> SignalBase.SigVec Y) -> Signal -> Signal
 modify_vec f = Signal . f . sig_vec
 
 type X = SignalBase.X
 type Y = Double
 instance SignalBase.Signal Y
+
+-- TODO use phantom types or something to make these real types but
+-- or maybe just newtypes
+
+type Tempo = Signal
+type Control = Signal
+
+-- | Signal of Pitch.NoteNumber.
+type NoteNumber = Signal
 
 instance Storable.Storable (X, Y) where
     sizeOf _ = Storable.sizeOf (undefined :: TrackPos)
@@ -134,6 +140,11 @@ y_to_x = TrackPos
 max_y :: Y
 max_y = x_to_y SignalBase.max_x
 
+-- | A pitch that shouldn't be played.  Used for a non-existent pitch or one
+-- that goes out of the range of its scale.
+invalid_pitch :: Y
+invalid_pitch = -1
+
 -- * construction / deconstruction
 
 signal :: [(X, Y)] -> Signal
@@ -142,7 +153,7 @@ signal ys = Signal (V.pack ys)
 constant :: Y -> Signal
 constant n = signal [(0, n)]
 
-track_signal :: X -> [SignalBase.TrackSegment] -> Signal
+track_signal :: X -> [SignalBase.Segment] -> Signal
 track_signal srate segs = Signal (SignalBase.track_signal srate segs)
 
 -- | Used for tests.

@@ -105,6 +105,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
 
 import qualified Perform.Pitch as Pitch
+import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
 
 
@@ -245,8 +246,8 @@ derive_note pos event (Parsed call args inst attrs) = do
                 -- Null call but non-null args shouldn't happen.
                 Derive.warn ("ignored trailing args: " ++ show args)
             return [Score.Event start (end-start) (Event.event_text event)
-                (Derive.state_controls st) (Derive.state_stack st)
-                inst attrs]
+                (Derive.state_controls st) (Derive.state_pitch st)
+                (Derive.state_stack st) inst attrs]
         -- d_call will set shift and stretch which is in local time, so pass
         -- local rather than global.
         -- TODO look in namespace for calls other than subderive
@@ -257,24 +258,16 @@ derive_note pos event (Parsed call args inst attrs) = do
 -- | In a note track, the pitch signal for each note ends when the next note
 -- begins.  Otherwise, it looks like each note changes pitch when the next note
 -- begins.  Of course, the note is already \"done\" at this point, but the
--- decay time means it may not be.
+-- decay time means it may still be audible.
 trim_pitches :: [Score.Event] -> [Score.Event]
 trim_pitches events = map trim_event (Seq.zip_next events)
     where
     trim_event (event, Nothing) = event
     trim_event (event, Just next) =
-        event { Score.event_controls = map_pitch trunc cmap }
+        event { Score.event_pitch = PitchSignal.truncate p psig }
         where
-        cmap = Score.event_controls event
-        trunc sig = Signal.truncate (Score.event_start next) sig
-    map_pitch f cmap = Map.map f pitches `Map.union` cmap
-        where pitches = Map.filterWithKey (\k _ -> is_pitch k) cmap
-
--- | TODO: this is really part of the schema, but its hard to truncate the
--- pitch track without knowing which one it is.
-is_pitch :: Score.Control -> Bool
-is_pitch (Score.Control c) = take 1 c == "*"
-
+        psig = Score.event_pitch event
+        p = Score.event_start next
 
 d_call :: TrackPos -> TrackPos -> String -> Derive.EventDeriver
 d_call start dur ident = do

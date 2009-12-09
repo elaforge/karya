@@ -113,7 +113,7 @@ bsearch_above vec key v = go vec 0 (V.length vec)
 -- * track signal
 
 -- | Convert the track-level representation of a signal to a Signal.
-track_signal :: (Signal y) => X -> [TrackSegment] -> SigVec y
+track_signal :: (Signal y) => X -> [Segment] -> SigVec y
 track_signal srate segs = V.pack (concat pairs)
     where
     pairs = case segs of
@@ -123,7 +123,7 @@ track_signal srate segs = V.pack (concat pairs)
     go (x0, y0) (x1, meth, y1) = ((x1, y1), samples)
         where samples = sample_track_seg srate x0 y0 x1 y1 meth
 
-type TrackSegment = (X, Method, Double)
+type Segment = (X, Method, Double)
 
 -- | This corresponds to the methods allowed on controller track values.
 --

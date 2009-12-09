@@ -18,6 +18,8 @@ import qualified Cmd.Selection as Selection
 
 import qualified Perform.Pitch as Pitch
 
+import qualified Derive.Control as Control
+
 
 -- | Raw edit is awkward because of the "[meth,]val" syntax.
 cmd_raw_edit :: Pitch.ScaleId -> Cmd.Cmd
@@ -47,7 +49,7 @@ cmd_val_edit_relative_at selpos msg = do
     EditUtil.abort_on_mods
     case msg of
         Msg.InputNote (InputNote.NoteOn _ key _) -> do
-            let Pitch.Note note = Pitch.from_relative (key_to_relative key)
+            let Pitch.Note note = Control.unparse_relative (key_to_relative key)
             modify_event_at selpos $ \(meth, _) ->
                 ((Just meth, Just note), True)
         (EditUtil.raw_key -> Just key) | key /= Key.KeyChar ' ' -> do
@@ -58,8 +60,8 @@ cmd_val_edit_relative_at selpos msg = do
 
 -- | Take input to a generic pitch relative to middle C.  This is kinda random,
 -- so I'm not sure if it'll be useful.
-key_to_relative :: Pitch.InputKey -> Pitch.Generic
-key_to_relative (Pitch.InputKey key) = Pitch.Generic oct (fromIntegral nn + f)
+key_to_relative :: Pitch.InputKey -> (Pitch.Octave, Double)
+key_to_relative (Pitch.InputKey key) = (oct, fromIntegral nn + f)
     where
     (i, f) = properFraction key
     c = (\(Pitch.InputKey k) -> floor k) Pitch.middle_c

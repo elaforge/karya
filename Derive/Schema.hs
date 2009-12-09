@@ -247,7 +247,7 @@ track_type scale_id (State.TrackInfo title _ tracknum) parents
         Nothing ->
             -- Assume new pitch tracks should be absolute.
             (NoteTrack.CreateTrack
-                tracknum (Default.track_of_scale scale_id) (tracknum+1),
+                tracknum (Default.scale_to_title scale_id) (tracknum+1),
             False)
         Just ptrack -> (NoteTrack.ExistingTrack (State.track_tracknum ptrack),
             Default.is_relative_track (State.track_title ptrack))
@@ -292,20 +292,19 @@ compile_control title track_id subderiver
             Control.d_control_track track_id
         Derive.d_tempo track_id (Control.d_signal sig_events) subderiver
     | otherwise = do
-        sig_events <- Derive.with_track_warp
-            Control.d_control_track track_id
+        events <- Derive.with_track_warp Control.d_control_track track_id
         -- TODO default to inst scale if none is given
-        let if_is_pitch psig = if Default.is_pitch_track title
-                then psig else Control.d_signal sig_events
-        case Default.parse_control_title title of
-            (Just c_op, cont) -> Control.d_relative_control
-                (Score.Control cont) c_op
-                (if_is_pitch (Control.d_relative_pitch_signal sig_events))
-                subderiver
-            (Nothing, cont) -> Control.d_control (Score.Control cont)
-                (if_is_pitch (Control.d_pitch_signal
-                    (Default.scale_of_track cont) sig_events))
-                subderiver
+        let deriver = case Default.parse_control_title title of
+                (Nothing, Left cont) ->
+                    Control.d_control cont (Control.d_signal events)
+                (Just c_op, Left cont) ->
+                    Control.d_relative cont c_op (Control.d_signal events)
+                (Nothing, Right scale_id) ->
+                    Control.d_pitch (Control.d_pitch_signal scale_id events)
+                (Just c_op, Right scale_id) ->
+                    Control.d_relative_pitch
+                        c_op (Control.d_relative_pitch_signal scale_id events)
+        deriver subderiver
 
 
 -- | Compile a Skeleton to its SignalDeriver.  The SignalDeriver is like the
@@ -334,10 +333,12 @@ _compile_to_signals (Tree.Node (State.TrackInfo title track_id _) subs)
 signal_control :: (Monad m) => String -> TrackId
     -> Derive.DeriveT m (TrackId, Signal.Signal)
 signal_control title track_id = do
-    sig_events <- Derive.with_track_warp Control.d_control_track track_id
-    sig <- if Default.is_pitch_track title
-        then Control.d_pitch_signal (Default.scale_of_track title) sig_events
-        else Control.d_signal sig_events
+    events <- Derive.with_track_warp Control.d_control_track track_id
+    sig <- case Default.parse_control_title title of
+        (_, Left _) -> Control.d_signal events
+        (Nothing, Right scale_id) -> Control.d_display_pitch scale_id events
+        (Just _, Right scale_id) ->
+            Control.d_display_relative_pitch scale_id events
     return (track_id, sig)
 
 -- * parser

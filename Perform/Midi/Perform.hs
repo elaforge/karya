@@ -259,48 +259,70 @@ sort2 cmp xs = List.sortBy cmp xs
 -- legato tweak and to see how far to render controls.
 perform_note :: TrackPos -> Maybe Event -> Event -> Instrument.Addr
     -> ([Midi.WriteMessage], [Warning.Warning], TrackPos)
-perform_note prev_note_off next_event event (dev, chan)
-    | midi_nn == 0 =
-        ([], [event_warning event "no pitch signal"], prev_note_off)
-    | otherwise = (merge_messages [control_msgs, note_msgs], warns, note_off)
+perform_note prev_note_off next_event event addr =
+    case event_pitch_at (event_pb_range event) event (event_start event) of
+        Nothing -> ([], [event_warning event "no pitch signal"], prev_note_off)
+        Just (midi_nn, pb) ->
+            let (note_msgs, note_warns, note_off) = _note_msgs midi_nn pb
+                (control_msgs, control_warns) = _control_msgs midi_nn
+                warns = note_warns ++ control_warns
+            in (merge_messages [control_msgs, note_msgs], warns, note_off)
     where
-    note_msgs =
-        [ chan_msg pb_time (Midi.PitchBend pb)
-        , chan_msg note_on (Midi.NoteOn midi_nn on_vel)
-        , chan_msg note_off (Midi.NoteOff midi_nn off_vel)
-        ]
-    chan_msg pos msg = Midi.WriteMessage dev (Timestamp.from_track_pos pos)
-        (Midi.ChannelMessage chan msg)
+    -- 'perform_note_msgs' and 'perform_control_msgs' are really part of one
+    -- big function.  Splitting it apart led to a bit of duplicated work but
+    -- hopefully it's easier to understand this way.
+    _note_msgs = perform_note_msgs prev_note_off next_event event addr
+    _control_msgs = perform_control_msgs next_event event addr
+
+-- | Perform the note on and note off.
+perform_note_msgs :: TrackPos -> Maybe Event -> Event -> Instrument.Addr
+    -> Midi.Key -> Midi.PitchBendValue
+    -> ([Midi.WriteMessage], [Warning.Warning], TrackPos)
+perform_note_msgs prev_note_off next_event event (dev, chan) midi_nn pb =
+    ([ chan_msg pb_time (Midi.PitchBend pb)
+    , chan_msg note_on (Midi.NoteOn midi_nn on_vel)
+    , chan_msg note_off (Midi.NoteOff midi_nn off_vel)
+    ], warns, note_off)
+    where
     pb_time = min note_on $ max prev_note_off (note_on - pitch_bend_lead_time)
     note_on = event_start event
-    next_note_on = maybe (note_end event) event_start next_event
-    should_legato = event_end event == next_note_on && midi_nn /= next_midi_nn
+    should_legato = event_end event == next_note_on
+        && Just midi_nn /= next_midi_nn
     note_off = event_end event
         + if should_legato then legato_overlap_time else 0
     (on_vel, off_vel, vel_clip_warns) = note_velocity event note_on note_off
-
-    pb_range = Instrument.inst_pitch_bend_range (event_instrument event)
-    (midi_nn, pb) = Maybe.fromMaybe (0, 0) $
-        event_pitch_at pb_range event note_on
-    next_midi_nn = Maybe.fromMaybe 0 $ do
+    next_midi_nn = do
         next <- next_event
-        (nn, _) <- event_pitch_at pb_range next next_note_on
-        return nn
+        fmap fst $ event_pitch_at (event_pb_range event) next next_note_on
+    next_note_on = maybe (note_end event) event_start next_event
+    warns = make_clip_warnings event (Control.c_velocity, vel_clip_warns)
+    chan_msg pos msg = Midi.WriteMessage dev (Timestamp.from_track_pos pos)
+        (Midi.ChannelMessage chan msg)
 
+-- | Perform control change messages.
+perform_control_msgs :: Maybe Event -> Event -> Instrument.Addr
+    -> Midi.Key -> ([Midi.WriteMessage], [Warning.Warning])
+perform_control_msgs next_event event (dev, chan) midi_nn =
+    (control_msgs, warns)
+    where
+    control_msgs = merge_messages $
+        map (map chan_msg) (pitch_pos_msgs : control_pos_msgs)
     control_sigs = Map.assocs (event_controls event)
     cmap = Instrument.inst_control_map (event_instrument event)
     (control_pos_msgs, clip_warns) = unzip $
         map (perform_control cmap note_on next_note_on) control_sigs
-    pitch_pos_msgs = maybe []
-        (perform_pitch pb_range midi_nn note_on next_note_on)
-        (Map.lookup Control.c_pitch (event_controls event))
-    control_msgs = merge_messages $
-        map (map mkmsg) (pitch_pos_msgs : control_pos_msgs)
-    mkmsg (pos, msg) = Midi.WriteMessage dev (Timestamp.from_track_pos pos)
+    pitch_pos_msgs = perform_pitch (event_pb_range event) midi_nn note_on
+        next_note_on (event_pitch event)
+    note_on = event_start event
+
+    next_note_on = maybe (note_end event) event_start next_event
+    warns = concatMap (make_clip_warnings event)
+        (zip (map fst control_sigs) clip_warns)
+    chan_msg (pos, msg) = Midi.WriteMessage dev (Timestamp.from_track_pos pos)
         (Midi.ChannelMessage chan msg)
 
-    warns = concatMap (make_clip_warnings event)
-        (zip (map fst control_sigs) clip_warns ++ vel_clip_warns)
+event_pb_range :: Event -> Control.PbRange
+event_pb_range = Instrument.inst_pitch_bend_range . event_instrument
 
 -- | Get pitch at the given point of the signal.
 --
@@ -309,11 +331,11 @@ perform_note prev_note_off next_event event (dev, chan)
 -- unity, but that's too much work.
 event_pitch_at :: Control.PbRange -> Event -> TrackPos
     -> Maybe (Midi.Key, Midi.PitchBendValue)
-event_pitch_at pb_range event pos = fmap (Control.pitch_to_midi pb_range)
-    (control_at event Control.c_pitch pos)
+event_pitch_at pb_range event pos =
+    Control.pitch_to_midi pb_range (Signal.at pos (event_pitch event))
 
 note_velocity :: Event -> TrackPos -> TrackPos
-    -> (Midi.Velocity, Midi.Velocity, [(Control.Control, [ClipWarning])])
+    -> (Midi.Velocity, Midi.Velocity, [ClipWarning])
 note_velocity event note_on note_off =
     (clipped_vel on_sig, clipped_vel off_sig, clip_warns)
     where
@@ -324,10 +346,10 @@ note_velocity event note_on note_off =
     clipped_vel val = Control.val_to_cc (fst (clip_val 0 1 val))
     clip_warns =
         if snd (clip_val 0 1 on_sig) || snd (clip_val 0 1 off_sig)
-        then [(Control.c_velocity, [(note_on, note_off)])]
-        else []
+        then [(note_on, note_off)] else []
 
-make_clip_warnings :: Event -> (Control.Control, [(TrackPos, TrackPos)])
+type ClipWarning = (TrackPos, TrackPos)
+make_clip_warnings :: Event -> (Control.Control, [ClipWarning])
     -> [Warning.Warning]
 make_clip_warnings event (control, clip_warns) =
     [ Warning.warning (show control ++ " clipped")
@@ -340,7 +362,7 @@ control_at event control pos = do
     return (Signal.at pos sig)
 
 perform_pitch :: Control.PbRange -> Midi.Key -> TrackPos -> TrackPos
-    -> Signal.Signal -> [(TrackPos, Midi.ChannelMessage)]
+    -> Signal.NoteNumber -> [(TrackPos, Midi.ChannelMessage)]
 perform_pitch pb_range nn start end sig =
     [ (pos, Midi.PitchBend (Control.pb_from_nn pb_range nn val))
     | (pos, val) <- pos_vals ]
@@ -350,7 +372,7 @@ perform_pitch pb_range nn start end sig =
 -- | Return the (pos, msg) pairs, and whether the signal value went out of the
 -- allowed control range, 0--1.
 perform_control :: Control.ControlMap -> TrackPos -> TrackPos
-    -> (Control.Control, Signal.Signal)
+    -> (Control.Control, Signal.Control)
     -> ([(TrackPos, Midi.ChannelMessage)], [ClipWarning])
 perform_control cmap start end (control, sig) =
     case Control.control_constructor cmap control of
@@ -365,8 +387,6 @@ perform_control cmap start end (control, sig) =
     clip_warns = extract_clip_warns (zip pos_vals clips)
     pos_cvals = zip (map fst pos_vals) cvals
 
-type ClipWarning = (TrackPos, TrackPos)
-
 extract_clip_warns :: [((TrackPos, Signal.Y), Bool)] -> [ClipWarning]
 extract_clip_warns pos_val_clips = [(head pos, last pos) | pos <- clip_pos]
     where
@@ -374,6 +394,7 @@ extract_clip_warns pos_val_clips = [(head pos, last pos) | pos <- clip_pos]
     clip_pos = [[pos | ((pos, _val), _clipped) <- g ]
         | g <- groups, snd (head g)]
 
+clip_val :: Signal.Y -> Signal.Y -> Signal.Y -> (Signal.Y, Bool)
 clip_val low high val
     | val < low = (low, True)
     | val > high = (high, True)
@@ -423,7 +444,7 @@ can_share_chan :: Event -> Event -> Bool
 can_share_chan event1 event2
     | start < end = event_instrument event1 == event_instrument event2
         && (pitches_share in_decay start end
-            (pitch_control event1) (pitch_control event2))
+            (event_pitch event1) (event_pitch event2))
         && controls_equal start end (relevant event1) (relevant event2)
     | otherwise = True
     where
@@ -437,23 +458,19 @@ can_share_chan event1 event2
     -- of the controls require their own channel.
     relevant event = filter (Control.is_channel_control . fst)
         (Map.assocs (event_controls event))
-    pitch_control event = Map.lookup Control.c_pitch (event_controls event)
 
 -- | Are the controls equal in the given range?
 controls_equal :: TrackPos -> TrackPos
-    -> [(Control.Control, Signal.Signal)]
-    -> [(Control.Control, Signal.Signal)] -> Bool
+    -> [(Control.Control, Signal.Control)]
+    -> [(Control.Control, Signal.Control)] -> Bool
 controls_equal start end c0 c1 = all (uncurry eq) (zip c0 c1)
     where
     -- Since the controls are compared in sorted order, if the events don't
     -- have the same controls, they won't be equal.
     eq (c0, sig0) (c1, sig1) = c0 == c1 && Signal.equal start end sig0 sig1
 
-pitches_share start off end (Just sig0) (Just sig1) =
+pitches_share start off end sig0 sig1 =
     Signal.pitches_share start off end sig0 sig1
--- 0 pitch events should get filtered, but in case they aren't, they can go
--- with anyone.
-pitches_share _ _ _ _ _ = True
 
 -- * allot channels
 
@@ -516,6 +533,7 @@ data Event = Event {
     , event_start :: TrackPos
     , event_duration :: TrackPos
     , event_controls :: ControlMap
+    , event_pitch :: Signal.NoteNumber
     -- original (TrackId, TrackPos) for errors
     , event_stack :: Warning.Stack
     } deriving (Show)
@@ -533,7 +551,7 @@ note_end event =
 -- | This isn't directly the midi channel, since it goes higher than 15, but
 -- will later be mapped to midi channels.
 type Channel = Integer
-type ControlMap = Map.Map Control.Control Signal.Signal
+type ControlMap = Map.Map Control.Control Signal.Control
 
 
 -- * util

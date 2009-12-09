@@ -42,14 +42,10 @@ paths_of track_tree tracknum =
 -- | The type of a track is derived from its title.
 is_tempo_track, is_pitch_track, is_inst_track :: String -> Bool
 is_tempo_track = (=="tempo")
-is_pitch_track = (pitch_track_prefix `List.isPrefixOf`)
-    . snd . parse_control_title
+is_pitch_track title = case parse_control_title title of
+    (_, Right _) -> True
+    _ -> False
 is_inst_track = (">" `List.isPrefixOf`)
-
-scale_of_track = Pitch.ScaleId . Seq.strip . drop 1
-    . snd . parse_control_title
-track_of_scale :: Pitch.ScaleId -> String
-track_of_scale (Pitch.ScaleId scale_id) = pitch_track_prefix ++ scale_id
 
 -- | True if this track is a relative control or pitch track.
 is_relative_track :: String -> Bool
@@ -69,30 +65,39 @@ title_to_instrument name
     | is_inst_track name = Just $ inst_of_track name
     | otherwise = Nothing
 
-title_to_scale :: String -> Maybe Pitch.ScaleId
-title_to_scale name
-    | is_pitch_track name = Just $ scale_of_track name
-    | otherwise = Nothing
-
 -- | Convert from an instrument to the title of its instrument track.
 instrument_to_title :: Score.Instrument -> String
 instrument_to_title (Score.Instrument inst) = '>' : inst
 
--- | The return value should be (Maybe ControlOp, Score.Control), but
--- I don't want to import Derive from here and Score.Control is inconvenient
--- for the functions above.
-parse_control_title :: String -> (Maybe String, String)
+title_to_scale :: String -> Maybe Pitch.ScaleId
+title_to_scale title = either (const Nothing) Just
+    (snd (parse_control_title title))
+
+scale_to_title :: Pitch.ScaleId -> String
+scale_to_title scale_id = unparse_control_title Nothing (Right scale_id)
+
+-- | The fst element is Just ControlOp for a relative track.
+parse_control_title :: String
+    -> (Maybe String, Either Score.Control Pitch.ScaleId)
 parse_control_title title
-    | ',' `elem` title = (Just (Seq.strip pre), cont)
-    | otherwise = (Nothing, Seq.strip title)
+    | ',' `elem` title = (Just (Seq.strip pre), parse (drop 1 post))
+    | otherwise = (Nothing, parse title)
     where
     (pre, post) = break (==',') title
-    cont = Seq.strip (drop 1 post)
+    parse title =
+        maybe (Left (Score.Control (Seq.strip title))) Right (to_pitch title)
+    to_pitch title
+        | pitch_track_prefix `List.isPrefixOf` s =
+            Just (Pitch.ScaleId (drop 1 s))
+        | otherwise = Nothing
+        where s = Seq.strip title
 
-unparse_control_title :: (Maybe String, String) -> String
-unparse_control_title (maybe_op, title) = case maybe_op of
-    Just op -> op ++ ", " ++ title
-    Nothing -> title
+unparse_control_title :: Maybe String -> Either Score.Control Pitch.ScaleId
+    -> String
+unparse_control_title maybe_op cont = case cont of
+    Left (Score.Control s) -> pref s
+    Right (Pitch.ScaleId s) -> pref (pitch_track_prefix ++ s)
+    where pref = maybe id (\op t -> op ++ ", " ++ t) maybe_op
 
 
 -- * set_inst_status

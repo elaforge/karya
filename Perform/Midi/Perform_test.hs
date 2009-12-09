@@ -202,7 +202,7 @@ show_msg (Midi.WriteMessage dev ts msg) =
 
 test_pitch_curve = do
     let event pitch = Perform.Event inst1 (TrackPos 1) (TrackPos 0.5)
-            (Map.fromList [(Control.c_pitch, Signal.signal pitch)]) []
+            Map.empty (Signal.signal pitch) []
     let f evt = (Seq.drop_dups id (map Midi.wmsg_msg msgs), warns)
             where
             (msgs, warns, _) = Perform.perform_note
@@ -228,6 +228,14 @@ test_pitch_curve = do
         (Timestamp.Timestamp 990, Midi.ChannelMessage 1 (Midi.PitchBend 0.01))
     equal (head (notes (TrackPos 1) (event [(1, 42.12)])))
         (Timestamp.Timestamp 1000, Midi.ChannelMessage 1 (Midi.PitchBend 0.01))
+
+test_no_pitch = do
+    let event = (mkevent (inst1, "a", 0, 2, []))
+            { Perform.event_pitch = Signal.constant Signal.invalid_pitch }
+    let (midi, logs) = perform inst_config1 [event]
+    equal (map Midi.wmsg_msg midi) []
+    equal (map (\w -> (Warning.warn_msg w, Warning.warn_pos w)) logs)
+        [("no pitch signal", Just (0, 2))]
 
 test_keyswitch = do
     let extract msgs = [(ts, key) | Midi.WriteMessage { Midi.wmsg_ts = ts,
@@ -399,10 +407,9 @@ type EventSpec = (Instrument.Instrument, String, TrackPos, TrackPos,
 mkevents :: [EventSpec] -> [Perform.Event]
 mkevents events = trim_pitches
     [Perform.Event inst start dur
-        (Map.fromList (pitch_control : controls)) stack
+        (Map.fromList controls) pitch_sig stack
         | (inst, _, start, dur, controls) <- events]
     where
-    pitch_control = (Control.c_pitch, pitch_sig)
     pitch_sig =
         Signal.track_signal 1 [(pos, Signal.Set, val) | (pos, val) <- notes]
     notes = map (\(_, p, start, _, _) -> (start, to_pitch p)) events
@@ -421,17 +428,9 @@ trim_pitches :: [Perform.Event] -> [Perform.Event]
 trim_pitches events = map trim_event (Seq.zip_next events)
     where
     trim_event (event, Nothing) = event
-    trim_event (event, Just next) =
-        event { Perform.event_controls = map_pitch trunc cmap }
-        where
-        cmap = Perform.event_controls event
-        trunc sig = Signal.truncate (Perform.event_start next) sig
-    map_pitch f cmap = Map.map f pitches `Map.union` cmap
-        where pitches = Map.filterWithKey (\k _ -> k == Control.c_pitch) cmap
-
-mkpitch :: Signal.Y -> Perform.ControlMap
-mkpitch pitch = Map.fromList [(Control.c_pitch, Signal.signal [(0, pitch)])]
-
+    trim_event (event, Just next) = event { Perform.event_pitch =
+        Signal.truncate (Perform.event_start next) psig }
+        where psig = Perform.event_pitch event
 
 mksignal ts_vals = Signal.track_signal (TrackPos 1)
     [(TrackPos pos, Signal.Linear, val) | (pos, val) <- ts_vals]

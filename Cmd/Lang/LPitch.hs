@@ -18,6 +18,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Selection as Selection
 import qualified Cmd.PitchTrack as PitchTrack
 import qualified Derive.Schema.Default as Default
+import qualified Derive.Control as Control
 
 import qualified Perform.Pitch as Pitch
 
@@ -49,8 +50,8 @@ track_to_generic base_note (track_id, scale_id, events) = do
             (map (event_to_generic scale . snd) events)
     unless (null bad_notes) $
         Cmd.throw $ name ++ ": notes not in scale: " ++ show bad_notes
-    let generics2 = map (`Pitch.sub_generic` base) generics
-    let events2 = [(pos, set_note (Pitch.from_relative generic) event)
+    let generics2 = map (subtract base) generics
+    let events2 = [(pos, set_note (generic_to_relative scale generic) event)
             | ((pos, event), generic) <- zip events generics2]
     unless (null events2) $ do
         -- This is kinda grody.  TODO there should be some higher level way
@@ -59,11 +60,19 @@ track_to_generic base_note (track_id, scale_id, events) = do
         State.remove_events track_id start end
         State.insert_sorted_events track_id events2
         State.modify_track_title track_id $ \title ->
-            Default.unparse_control_title (Just "+", title)
+            case Default.parse_control_title title of
+                (_, cont) -> Default.unparse_control_title (Just "+") cont
 
 set_note :: Pitch.Note -> Event.Event -> Event.Event
 set_note note = PitchTrack.modify f
     where f (meth, _) = (meth, Pitch.note_text note)
+
+generic_to_relative :: Pitch.Scale -> Pitch.Generic -> Pitch.Note
+generic_to_relative scale (Pitch.Generic n) =
+    Control.unparse_relative (oct, fromIntegral nn + frac)
+    where
+    (d, frac) = properFraction n
+    (oct, nn) = d `divMod` Pitch.scale_octave scale
 
 event_to_generic :: Pitch.Scale -> Event.Event
     -> Either Pitch.Note Pitch.Generic

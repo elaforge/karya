@@ -12,6 +12,7 @@ import qualified Data.Text as Text
 import Ui
 
 import qualified Perform.Signal as Signal
+import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Warning as Warning
 
 
@@ -24,6 +25,7 @@ data Event = Event {
     -- haskell will always need to decode it, so I might as well do it here.
     , event_text :: Text.Text
     , event_controls :: ControlMap
+    , event_pitch :: PitchSignal.PitchSignal
 
     -- | Keep track of this event's display in various tracks (it may appear
     -- in more than one if it appears in a merged track).  That way, if an
@@ -35,18 +37,13 @@ data Event = Event {
     -- performer.
     , event_instrument :: Maybe Instrument
     , event_attributes :: Attributes
-    } deriving (Show)
+    } deriving (Eq, Show)
 
 event_string :: Event -> String
 event_string = Text.unpack . event_text
 
 event_end :: Event -> TrackPos
 event_end event = event_start event + event_duration event
-
--- | Probably for testing, since real events will have more stuff in them.
-event :: TrackPos -> TrackPos -> String -> Event
-event start dur text =
-    Event start dur (Text.pack text) Map.empty [] Nothing no_attrs
 
 type ControlMap = Map.Map Control Signal.Signal
 
