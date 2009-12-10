@@ -72,7 +72,7 @@ generic_to_relative scale (Pitch.Generic n) =
     Control.unparse_relative (oct, fromIntegral nn + frac)
     where
     (d, frac) = properFraction n
-    (oct, nn) = d `divMod` Pitch.scale_octave scale
+    (oct, nn) = d `quotRem` Pitch.scale_octave scale
 
 event_to_generic :: Pitch.Scale -> Event.Event
     -> Either Pitch.Note Pitch.Generic

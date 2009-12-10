@@ -65,7 +65,7 @@ key_to_relative (Pitch.InputKey key) = (oct, fromIntegral nn + f)
     where
     (i, f) = properFraction key
     c = (\(Pitch.InputKey k) -> floor k) Pitch.middle_c
-    (oct, nn) = (i - c) `divMod` 12
+    (oct, nn) = (i - c) `quotRem` 12
 
 cmd_method_edit :: Cmd.Cmd
 cmd_method_edit msg = do

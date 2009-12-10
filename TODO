@@ -1,6 +1,3 @@
-- Generic is now Num, remove casting
-- convert tests to use DeriveTest
-
 - typed Signals
   - Control Float
   - Tempo Double
@@ -10,7 +7,6 @@
   I can use phantom types and use all doubles, but if space is an issue
   most can be converted to floats and I can use typeclass for Float vs. Double.
 
-- use quotRem instead of divMod with relative pitches?
 - is Module.throw_srcpos not enabled?
 - the +- at the beginning of a relative pitch is not necessary in a relative
   pitch track because the title already says it's relative
@@ -35,6 +31,7 @@ CURRENT
   - compile_to_signals spams too much when there is an error
   - implement scale transpose in terms of to_generic and generic_add
   - logview: clickable stackpos
+  - "drag selection" cmd is too spammy
   * relative control tracks
   * relative pitch tracks
   * reverse skel display arrow direction
