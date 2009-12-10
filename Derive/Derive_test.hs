@@ -79,30 +79,29 @@ import qualified Perform.Midi.Perform as Perform
 
 
 test_subderive = do
-    let bid = UiTest.bid "b0"
     let ui_state = snd $ UiTest.run State.empty $ do
-            tids1 <- UiTest.mkstate "sub"
+            UiTest.mkstate "sub"
                 [ (">i2", [(1, 1, "--sub1")]) ]
-            tids2 <- UiTest.mkstate "b0"
+            UiTest.mkstate "b0"
                 [ ("tempo", [(0, 0, "2")])
                 , (">i1", [(0, 8, "--b1"), (8, 8, "sub"), (16, 1, "blub")])
                 , ("cont", [(0, 0, "1"), (16, 0, "i, 0")])
                 ]
-            return ()
     let look = Schema.lookup_deriver default_schema_map ui_state
-    -- pprint $ State.state_blocks ui_state
     let (Right events, tempo, inv_tempo, logs, state) =
-            Derive.derive look ui_state False (Derive.d_block bid)
+            Derive.derive look ui_state False (Derive.d_block (UiTest.bid "b0"))
 
     let b0 pos = (UiTest.bid "b0",
             [(UiTest.tid ("b0.t" ++ show n), TrackPos pos) | n <- [ 1, 2, 0]])
-        sub pos =
-            (UiTest.bid "sub", [(UiTest.tid "sub.t0", TrackPos pos)])
+        sub pos = (UiTest.bid "sub", [(UiTest.tid "sub.t0", TrackPos pos)])
     equal (extract_events events) [(0, 4, "--b1"), (6, 2, "--sub1")]
 
     strings_like (map Log.msg_string logs) ["error sub-deriving.*test/blub"]
-    equal (map inv_tempo (map Timestamp.seconds [0, 2 .. 10]))
-        [ [b0 0], [b0 4], [sub 0, b0 8], [sub 1, b0 12], [b0 16], [] ]
+    let pos = map inv_tempo (map Timestamp.seconds [0, 2 .. 10])
+    equal (map List.sort pos)
+        [[b0 0], [b0 4], [b0 8, sub 0], [b0 12, sub 1], [b0 16], []]
+    equal (map Score.event_instrument events)
+        [Just (Score.Instrument "i1"), Just (Score.Instrument "i2")]
 
     -- TODO test when the subblock has a tempo too
     -- type TempoFunction = BlockId -> TrackId -> TrackPos
@@ -112,6 +111,30 @@ test_subderive = do
     -- pprint events
     -- pprint $ zip [0,2..] $ map inv_tempo (map Timestamp.seconds [0, 2 .. 10])
     -- pprint $ Derive.state_track_warps state
+
+test_multiple_subderive = do
+    let ui_state = snd $ UiTest.run State.empty $ do
+            UiTest.mkstate "sub"
+                [ (">", [(0, 1, "--sub1")]) ]
+            UiTest.mkstate "b0"
+                [ (">i1", [(0, 2, "sub"), (2, 2, "sub"), (4, 2, "sub")])
+                ]
+    let look = Schema.lookup_deriver default_schema_map ui_state
+    let (Right events, tempo, inv_tempo, logs, state) =
+            Derive.derive look ui_state False (Derive.d_block (UiTest.bid "b0"))
+    equal (extract_events events)
+        [(0, 2, "--sub1"), (2, 2, "--sub1"), (4, 2, "--sub1")]
+    -- Empty inst inherits calling inst.
+    equal (map Score.event_instrument events)
+        (replicate 3 (Just (Score.Instrument "i1")))
+
+    let pos = map inv_tempo (map Timestamp.seconds [0..6])
+    let b0 pos = (UiTest.bid "b0", [(UiTest.tid ("b0.t0"), TrackPos pos)])
+        sub pos = (UiTest.bid "sub", [(UiTest.tid "sub.t0", TrackPos pos)])
+    equal (map List.sort pos)
+        [ [b0 0, sub 0], [b0 1, sub 0.5], [b0 2, sub 0], [b0 3, sub 0.5]
+        , [b0 4, sub 0], [b0 5, sub 0.5], []
+        ]
 
 track_specs =
     [ ("tempo", [(0, 0, "2")])

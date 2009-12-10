@@ -248,10 +248,8 @@ make_inverse_tempo_func track_warps ts = do
     return (block_id, [(track_id, pos) | track_id <- track_ids])
     where
     pos = Timestamp.to_track_pos ts
-    track_pos =
-        [ (tw_block tw, tw_tracks tw, dewarp (tw_warp tw) ts)
-        | tw <- track_warps, tw_start tw <= pos && pos < tw_end tw
-        ]
+    track_pos = [(tw_block tw, tw_tracks tw, dewarp (tw_warp tw) ts) |
+            tw <- track_warps, tw_start tw <= pos && pos < tw_end tw]
     dewarp (Warp sig shift stretch) ts = do
         p <- Signal.inverse_at sig ts
         return $ (p - shift)  / stretch
@@ -489,7 +487,7 @@ add_track_warp track_id = do
     block_id <- get_current_block_id
     track_warps <- fmap state_track_warps get
     case track_warps of
-            -- This happens on blocks without tempo tracks.
+            -- This happens if the initial block doesn't have a tempo track.
         [] -> start_new_warp >> add_track_warp track_id
         (tw:tws)
             | tw_block tw == block_id -> do
@@ -500,6 +498,9 @@ add_track_warp track_id = do
             | otherwise -> start_new_warp >> add_track_warp track_id
 
 -- | Start a new track warp for the current block_id, as in the stack.
+--
+-- This must be called for each block, and it must be called after the tempo is
+-- warped for that block so it can install the new warp.
 start_new_warp :: (Monad m) => DeriveT m ()
 start_new_warp = do
     block_id <- get_current_block_id
@@ -562,20 +563,23 @@ d_tempo track_id signalm deriver = do
         add_track_warp track_id
         deriver
 
+tempo_to_warp :: Signal.Tempo -> Signal.Tempo
 tempo_to_warp = Signal.integrate tempo_srate . Signal.map_y (1/)
     . Signal.clip_min min_tempo
 
 d_warp :: (Monad m) => Signal.Tempo -> DeriveT m a -> DeriveT m a
 d_warp sig deriver = do
     old_warp <- fmap state_warp get
-    modify $ \st -> st { state_warp =
-        -- optimization for unnested tempo
-        if old_warp == initial_warp then make_warp sig
-        else compose_warp old_warp sig }
+    modify $ \st -> st { state_warp = compose old_warp sig }
     start_new_warp
     result <- deriver
     modify $ \st -> st { state_warp = old_warp }
     return result
+    where
+    compose warp sig
+        -- If the top level block has no tempo, don't bother composing.
+        | warp == initial_warp = make_warp sig
+        | otherwise = compose_warp warp sig
 
 -- | Warp a Warp with a warp signal.
 --

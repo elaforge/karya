@@ -12,7 +12,6 @@
 - State.structure only used by Clip_test
 
 - playback cursor seems to reset to the top after a play through
-- subderived doesn't get the cursor on the second derive
 - empty scale defaults in Derive, but not in Cmd
 
 CURRENT

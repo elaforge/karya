@@ -268,7 +268,16 @@ default_schema_signal_deriver block_id =
 -- | Transform a deriver skeleton into a real deriver.  The deriver may throw
 -- if the skeleton was malformed.
 compile :: State.TrackTree -> Derive.EventDeriver
-compile tree = Derive.with_msg "compile" $ sub_compile tree
+compile tree = Derive.with_msg "compile" $ do
+    -- Support for the 'Derive.add_track_warp' hack.  If a block doesn't have
+    -- a tempo track, 'd_tempo' -> 'd_warp' never gets called, so I have to
+    -- start the warp here.
+    unless (has_tempo_track tree) Derive.start_new_warp
+    sub_compile tree
+
+has_tempo_track :: State.TrackTree -> Bool
+has_tempo_track = any $ \(Tree.Node track subs) ->
+    Default.is_tempo_track (State.track_title track) || has_tempo_track subs
 
 sub_compile :: State.TrackTree -> Derive.EventDeriver
 sub_compile tree = Derive.d_merge =<< mapM with_track tree
