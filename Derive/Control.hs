@@ -15,7 +15,6 @@ module Derive.Control where
 import Prelude hiding (lex)
 import Control.Monad
 import qualified Data.Char as Char
-import qualified Data.Map as Map
 
 import qualified Text.ParserCombinators.Parsec as P
 import Text.ParserCombinators.Parsec ((<|>), (<?>))
@@ -68,7 +67,7 @@ d_relative_pitch c_op signalm eventsm = do
 -- | Get the signal events from a control track.  They are meant to be
 -- fed to 'd_signal', which will convert them into a signal, and the whole
 -- thing passed as the signal deriver to 'd_control'.
-d_control_track :: (Monad m) => Derive.TrackDeriver m
+d_control_track :: (Monad m) => Derive.TrackDeriver m Score.ControlEvent
 d_control_track track_id = do
     track <- Derive.get_track track_id
     stack <- fmap Derive.state_stack Derive.get
@@ -86,12 +85,9 @@ d_control_track track_id = do
 -- have to unpack the event text.
 
 -- | Construct a control event from warped position.
---
--- TODO using Score.Event for control events seems a bit silly since they're
--- empty except pos, text, and stack.
-control_event :: Warning.Stack -> TrackPos -> Event.Event -> Score.Event
-control_event stack pos event = Score.Event pos 0 (Event.event_text event)
-        Map.empty PitchSignal.empty evt_stack Nothing Score.no_attrs
+control_event :: Warning.Stack -> TrackPos -> Event.Event -> Score.ControlEvent
+control_event stack pos event =
+    Score.ControlEvent pos (Event.event_text event) evt_stack
     where
     evt_stack = case stack of
         (block_id, track_id, _) : rest ->
@@ -101,21 +97,21 @@ control_event stack pos event = Score.Event pos 0 (Event.event_text event)
 -- ** number signals
 
 -- | Derive a Signal from Events.
-d_signal :: (Monad m) => [Score.Event] -> Derive.DeriveT m Signal.Control
+d_signal :: (Monad m) => [Score.ControlEvent] -> Derive.DeriveT m Signal.Control
     -- TODO Should the srate be controllable?
 d_signal events = fmap (Signal.track_signal Signal.default_srate)
     (Derive.map_events parse_event Derive.NoState id events)
 
-parse_event :: (Monad m) => Derive.NoState -> Score.Event
+parse_event :: (Monad m) => Derive.NoState -> Score.ControlEvent
     -> Derive.DeriveT m (Signal.Segment, Derive.NoState)
 parse_event _ event = do
     (method, val) <- Derive.Parse.parse (liftM2 (,) p_opt_method Parse.p_float)
-        (Score.event_string event)
-    return ((Score.event_start event, method, val), Derive.NoState)
+        (Score.cevent_string event)
+    return ((Score.cevent_start event, method, val), Derive.NoState)
 
 -- ** pitch signals
 
-d_pitch_signal :: (Monad m) => Pitch.ScaleId -> [Score.Event]
+d_pitch_signal :: (Monad m) => Pitch.ScaleId -> [Score.ControlEvent]
     -> Derive.DeriveT m PitchSignal.PitchSignal
 d_pitch_signal scale_id events = do
     scale <- Derive.get_scale "d_pitch_signal" scale_id
@@ -123,7 +119,7 @@ d_pitch_signal scale_id events = do
         (Derive.map_events (parse_pitch_event scale) Nothing id events)
 
 -- | Produce a plain signal from an absolute pitch track to render on the UI.
-d_display_pitch :: (Monad m) => Pitch.ScaleId -> [Score.Event]
+d_display_pitch :: (Monad m) => Pitch.ScaleId -> [Score.ControlEvent]
     -> Derive.DeriveT m Signal.Signal
 d_display_pitch scale_id _events = do
     scale <- Derive.get_scale "d_display_pitch" scale_id
@@ -131,7 +127,7 @@ d_display_pitch scale_id _events = do
     return (Signal.constant 0)
 
 -- | As 'd_display_pitch' but parse a relative pitch track.
-d_display_relative_pitch :: (Monad m) => Pitch.ScaleId -> [Score.Event]
+d_display_relative_pitch :: (Monad m) => Pitch.ScaleId -> [Score.ControlEvent]
     -> Derive.DeriveT m Signal.Signal
 d_display_relative_pitch scale_id _events = do
     scale <- Derive.get_scale "d_display_relative_pitch" scale_id
@@ -139,14 +135,15 @@ d_display_relative_pitch scale_id _events = do
     return (Signal.constant 0)
 
 parse_pitch_event :: (Monad m) => Pitch.Scale -> Maybe Pitch.Degree
-    -> Score.Event -> Derive.DeriveT m (PitchSignal.Segment, Maybe Pitch.Degree)
+    -> Score.ControlEvent
+    -> Derive.DeriveT m (PitchSignal.Segment, Maybe Pitch.Degree)
 parse_pitch_event scale prev event = do
     (method, note) <- Derive.Parse.parse
-        (liftM2 (,) p_opt_method p_scale_note) (Score.event_string event)
+        (liftM2 (,) p_opt_method p_scale_note) (Score.cevent_string event)
     degree <- parse_note scale prev note
-    return ((Score.event_start event, method, degree), Just degree)
+    return ((Score.cevent_start event, method, degree), Just degree)
 
-d_relative_pitch_signal :: (Monad m) => Pitch.ScaleId -> [Score.Event]
+d_relative_pitch_signal :: (Monad m) => Pitch.ScaleId -> [Score.ControlEvent]
     -> Derive.DeriveT m PitchSignal.Relative
 d_relative_pitch_signal scale_id events = do
     scale <- Derive.get_scale "d_relative_pitch_signal" scale_id
@@ -154,14 +151,14 @@ d_relative_pitch_signal scale_id events = do
     segs <- Derive.map_events (parse_relative_pitch_event per_oct) () id events
     return $ PitchSignal.track_signal scale_id Signal.default_srate segs
 
-parse_relative_pitch_event :: (Monad m) => Pitch.Octave -> () -> Score.Event
-    -> Derive.DeriveT m (PitchSignal.Segment, ())
+parse_relative_pitch_event :: (Monad m) => Pitch.Octave -> ()
+    -> Score.ControlEvent -> Derive.DeriveT m (PitchSignal.Segment, ())
 parse_relative_pitch_event per_oct _ event = do
     (method, (oct, nn)) <- Derive.Parse.parse
         (liftM2 (,) p_opt_method parse_relative)
-        (Score.event_string event)
+        (Score.cevent_string event)
     let degree = Pitch.Degree (fromIntegral (oct * per_oct) + nn)
-    return ((Score.event_start event, method, degree), ())
+    return ((Score.cevent_start event, method, degree), ())
 
 -- | Relative notes look like \"4/3.2\" or \"-3.2\" (octave omitted)
 -- or \"-3/\" (only octave).

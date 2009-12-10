@@ -1,5 +1,4 @@
 module Derive.Control_test where
-import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import Util.Test
@@ -7,11 +6,8 @@ import qualified Util.Log as Log
 
 import qualified Ui.State as State
 
-import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
-
 import qualified Derive.Score as Score
-
 import qualified Derive.Derive_test as Derive_test
 import qualified Derive.Control as Control
 import qualified Derive.DeriveTest as DeriveTest
@@ -64,6 +60,4 @@ test_d_pitch_signal = do
     equal (run [mkevent 0 "4c", mkevent 1 "i,", mkevent 2 "i, 4e"]) $
         Right (sig, [])
 
-mkevent pos text =
-    Score.Event pos 0 (Text.pack text) Map.empty PitchSignal.empty
-        [] Nothing Score.no_attrs
+mkevent pos text = Score.ControlEvent pos (Text.pack text) []

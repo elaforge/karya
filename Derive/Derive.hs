@@ -62,7 +62,7 @@ import qualified Derive.Score as Score
 
 -- * DeriveT
 
-type TrackDeriver m = TrackId -> DeriveT m [Score.Event]
+type TrackDeriver m e = TrackId -> DeriveT m [e]
 
 type EventDeriver = DeriveT Identity.Identity [Score.Event]
 type SignalDeriver = DeriveT Identity.Identity [(TrackId, Signal.Signal)]
@@ -278,9 +278,9 @@ local from_state modify_state to_state m = do
 -- their stack based on the current event_stack, which is set by the
 -- with_stack_* functions.  Then, when they are processed, the stack is used
 -- to *set* event_stack, which is what 'warn' and 'throw' will look at.
-with_event :: (Monad m) => Score.Event -> DeriveT m a -> DeriveT m a
+with_event :: (Monad m, Score.Eventlike e) => e -> DeriveT m a -> DeriveT m a
 with_event event = local state_stack
-    (\st -> st { state_stack = Score.event_stack event })
+    (\st -> st { state_stack = Score.stack event })
     (\old st -> st { state_stack = old })
 
 -- ** state access
@@ -595,7 +595,7 @@ compose_warp (Warp warpsig shift stretch) sig = make_warp
 -- | This does setup common to all track derivation, namely recording the tempo
 -- warp and putting the track in the stack, and then calls the specific track
 -- deriver.
-with_track_warp :: (Monad m) => TrackDeriver m -> TrackDeriver m
+with_track_warp :: (Monad m) => TrackDeriver m e -> TrackDeriver m e
 with_track_warp track_deriver track_id = do
     ignore_tempo <- fmap state_ignore_tempo get
     unless ignore_tempo (add_track_warp track_id)
@@ -604,7 +604,7 @@ with_track_warp track_deriver track_id = do
 -- | This is a special version of 'with_track_warp' just for the tempo track.
 -- It doesn't record the track warp, see 'd_tempo' for why.
 with_track_warp_tempo :: (Monad m) =>
-    (TrackId -> DeriveT m [Score.Event]) -> TrackDeriver m
+    (TrackId -> DeriveT m [e]) -> TrackDeriver m e
 with_track_warp_tempo track_deriver track_id = track_deriver track_id
 
 -- * utils
@@ -624,8 +624,9 @@ lookup_id key map = case Map.lookup key map of
 -- caught and turned into warnings.  Events that threw aren't included in the
 -- output.  An additional function extracts an event, so you can map over
 -- things which are not themselves events.
-map_events :: (Monad m) => (state -> x -> DeriveT m (a, state)) -> state
-    -> (x -> Score.Event) -> [x] -> DeriveT m [a]
+map_events :: (Monad m, Score.Eventlike e) =>
+    (state -> x -> DeriveT m (a, state))
+    -> state -> (x -> e) -> [x] -> DeriveT m [a]
 map_events f state event_of xs =
     fmap Maybe.catMaybes (Util.Control.map_accuml_m apply state xs)
     where

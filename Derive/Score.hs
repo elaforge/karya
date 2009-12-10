@@ -16,6 +16,10 @@ import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Warning as Warning
 
 
+-- | Currently this is just for 'Derive.map_events'.
+class Eventlike e where
+    stack :: e -> [Warning.StackPos]
+
 data Event = Event {
     -- | These are the core attributes that define an event.  UI display
     -- attributes like font style are not preserved here.
@@ -39,6 +43,9 @@ data Event = Event {
     , event_attributes :: Attributes
     } deriving (Eq, Show)
 
+instance Eventlike Event where
+    stack = event_stack
+
 event_string :: Event -> String
 event_string = Text.unpack . event_text
 
@@ -46,6 +53,18 @@ event_end :: Event -> TrackPos
 event_end event = event_start event + event_duration event
 
 type ControlMap = Map.Map Control Signal.Signal
+
+data ControlEvent = ControlEvent {
+    cevent_start :: TrackPos
+    , cevent_text :: Text.Text
+    , cevent_stack :: [Warning.StackPos]
+    } deriving (Eq, Show)
+
+instance Eventlike ControlEvent where
+    stack = cevent_stack
+
+cevent_string :: ControlEvent -> String
+cevent_string = Text.unpack . cevent_text
 
 -- | An Instrument is identified by a plain string.  This will be looked up in
 -- the instrument db to get the backend specific Instrument type as well as the

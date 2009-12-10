@@ -247,6 +247,11 @@ test_basic = do
     equal [nn | Midi.ChannelMessage _ (Midi.NoteOn nn _) <- mmsgs]
         [1, 60, 0, 61]
     equal warns []
+    where
+    -- TODO since tid is set by the compiler now and this doesn't use the
+    -- compiler, the stack is missing this during the tests
+    mkstack = map (\(bid, _tid, pos) ->
+        (UiTest.bid bid, Nothing, Just pos))
 
 ks_name (Instrument.Keyswitch name _) = name
 set_ks inst ks nn = inst
@@ -254,8 +259,6 @@ set_ks inst ks nn = inst
 extract_perf_event (Perform.Event inst start dur _controls _pitch stack) =
     ( Instrument.inst_name inst, fmap ks_name (Instrument.inst_keyswitch inst)
     , start, dur, stack)
-mkstack = map (\(bid, tid, pos) ->
-    (UiTest.bid bid, Just (UiTest.tid tid), Just pos))
 
 
 -- | Slightly more complicated with pitch and mod control tracks.

@@ -123,7 +123,7 @@ data CallArg = Number Double | String String | Note Pitch.Note
 
 -- * note track
 
-d_note_track :: (Monad m) => Derive.TrackDeriver m
+d_note_track :: (Monad m) => Derive.TrackDeriver m Score.Event
 d_note_track track_id = do
     track <- Derive.get_track track_id
     let pos_events = Track.event_list (Track.track_events track)
