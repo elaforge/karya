@@ -15,14 +15,11 @@ import qualified Perform.SignalBase as SignalBase
 scale = Pitch.ScaleId "scale"
 mksig = PitchSignal.signal scale
 unsig = PitchSignal.unpack
-
-track_signal segs = PitchSignal.track_signal scale 1
-    [(x, meth, Pitch.Generic n) | (x, meth, n) <- segs]
+tsig = PitchSignal.track_signal scale 1
 
 test_y_at = do
     -- y_at is not exported, but at_linear is the thing that calls it.
-    let sig = track_signal
-            [(0, Set, 2), (2, Linear, 0), (4, Set, 0), (6, Linear, 4)]
+    let sig = tsig [(0, Set, 2), (2, Linear, 0), (4, Set, 0), (6, Linear, 4)]
     let reduce (from, to, at) = Num.scale from to at
     let res = (map (\x -> PitchSignal.at_linear x sig) [0..7])
     equal (map reduce res)
@@ -30,7 +27,7 @@ test_y_at = do
 
 test_track_signal = do
     let sig = PitchSignal.signal scale
-    let f = track_signal
+    let f = tsig
 
     equal (f [(0, Set, 2), (2, Linear, 0)])
         (sig [(0, (2, 2, 0)), (1, (2, 0, 0.5)), (2, (2, 0, 1))])
@@ -45,7 +42,6 @@ test_clip_min_max = do
         (map (\d -> [(1, (1, 5, d))]) [0, 0, 0.25, 0.5, 0.5, 0.5, 0.5])
 
 test_sig_add = do
-    let tsig = PitchSignal.track_signal scale 1
     let conv = PitchSignal.convert Twelve.scale
     let f = PitchSignal.sig_add
 

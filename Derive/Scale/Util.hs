@@ -14,41 +14,41 @@ import qualified Perform.Pitch as Pitch
 -- temperedness.
 type Frac = Double
 
--- | This isn't Pitch.Generic because I want to force that they are integral.
--- The whole point of Generic is that it has an integral relationship with
+-- | This isn't Pitch.Degree because I want to force that they are integral.
+-- The whole point of Degree is that it has an integral relationship with
 -- notes, minus the fractional offset.
-type IntGeneric = Int
+type IntDegree = Int
 
 -- | Map a scale degree to the previous nn, matching nn, and following nn.
 data ScaleMap = ScaleMap {
-    smap_note_to_generic :: Map.Map Pitch.Note IntGeneric
+    smap_note_to_degree :: Map.Map Pitch.Note IntDegree
     , smap_note_to_nn :: Map.Map Pitch.Note Pitch.NoteNumber
-    , smap_generic_to_nn :: Map.Map IntGeneric
+    , smap_degree_to_nn :: Map.Map IntDegree
         (Maybe Pitch.NoteNumber, Pitch.NoteNumber, Maybe Pitch.NoteNumber)
     , smap_input_to_note :: InputMap
     } deriving (Show)
 
 scale_map :: [Pitch.Note] -> [Pitch.InputKey] -> [Pitch.NoteNumber]
-    -> [IntGeneric] -> ScaleMap
-scale_map notes inputs nns generics = ScaleMap
-    (Map.fromList (zip notes generics))
+    -> [IntDegree] -> ScaleMap
+scale_map notes inputs nns degrees = ScaleMap
+    (Map.fromList (zip notes degrees))
     (Map.fromList (zip notes nns))
-    (Map.fromList (zip generics (Seq.zip_neighbors nns)))
+    (Map.fromList (zip degrees (Seq.zip_neighbors nns)))
     (Map.fromList (zip inputs (zip nns notes)))
 
 type InputMap = Map.Map Pitch.InputKey (Pitch.NoteNumber, Pitch.Note)
 
-note_to_generic :: ScaleMap -> Pitch.Note -> Maybe Pitch.Generic
-note_to_generic smap note = do
-    (degree, frac) <- split_note note
-    generic <- Map.lookup (Pitch.Note degree) (smap_note_to_generic smap)
-    -- TODO Generic has no field for absolute offset, I can add it if it would
+note_to_degree :: ScaleMap -> Pitch.Note -> Maybe Pitch.Degree
+note_to_degree smap note = do
+    (step, frac) <- split_note note
+    degree <- Map.lookup (Pitch.Note step) (smap_note_to_degree smap)
+    -- TODO Degree has no field for absolute offset, I can add it if it would
     -- be useful
-    return $ Pitch.Generic (fromIntegral generic + frac)
+    return $ Pitch.Degree (fromIntegral degree + frac)
 
 input_to_note :: ScaleMap -> Pitch.InputKey -> Maybe Pitch.Note
 input_to_note smap input = flip fmap (lookup_input input input_map) $
-    \(_, degree, frac) -> join_note (Pitch.note_text degree) frac
+    \(_, step, frac) -> join_note (Pitch.note_text step) frac
     where input_map = smap_input_to_note smap
 
 input_to_nn :: ScaleMap -> Pitch.InputKey -> Maybe Pitch.NoteNumber
@@ -59,7 +59,7 @@ input_to_nn smap input =
 lookup_input :: Pitch.InputKey -> InputMap
     -> Maybe (Pitch.NoteNumber, Pitch.Note, Frac)
 lookup_input input input_map
-    | Just (nn, degree) <- at = Just (nn, degree, 0)
+    | Just (nn, step) <- at = Just (nn, step, 0)
     | Map.null pre || Map.null post = Nothing
     | otherwise =
         let (prev_input, (prev_nn, prev_degree)) = Map.findMax pre
@@ -76,10 +76,10 @@ lookup_input input input_map
     i (Pitch.InputKey nn) = nn
 
 
-generic_to_nn :: ScaleMap -> Pitch.Generic -> Maybe Pitch.NoteNumber
-generic_to_nn smap (Pitch.Generic generic) = do
-    let (int, frac) = properFraction generic
-    (prev, nn, next) <- Map.lookup int (smap_generic_to_nn smap)
+degree_to_nn :: ScaleMap -> Pitch.Degree -> Maybe Pitch.NoteNumber
+degree_to_nn smap (Pitch.Degree degree) = do
+    let (int, frac) = properFraction degree
+    (prev, nn, next) <- Map.lookup int (smap_degree_to_nn smap)
     make_nn prev nn next frac
 
 make_nn :: Maybe Pitch.NoteNumber -> Pitch.NoteNumber -> Maybe Pitch.NoteNumber
@@ -95,9 +95,9 @@ make_nn mprev nn mnext frac
 -- utils can't use those chars themselves or the parser will get confused.
 --
 -- As a special case for scales that start with possibly negative number, the
--- degree may start with a + or -, since a null degree isn't very useful.
+-- step may start with a + or -, since a null step isn't very useful.
 join_note :: String -> Frac -> Pitch.Note
-join_note degree frac = Pitch.Note $ degree ++ frac_s
+join_note step frac = Pitch.Note $ step ++ frac_s
     where
     frac_s
         | frac == 0 = ""
@@ -108,11 +108,11 @@ join_note degree frac = Pitch.Note $ degree ++ frac_s
 -- | Examples: @"4+32" -> (4, 0.32)@, @"-1c#-12" -> ("-1c#", -0.12)@.
 split_note :: Pitch.Note -> Maybe (String, Frac)
 split_note (Pitch.Note note) = case frac of
-        Just f -> Just (degree, fromIntegral f / 100)
+        Just f -> Just (step, fromIntegral f / 100)
         Nothing -> Nothing
     where
     (degree0, rest0) = break (`elem` "-+") (drop 1 note)
-    degree = take 1 note ++ degree0
+    step = take 1 note ++ degree0
     frac = if null rest0 then Just 0 else Parse.int rest0
 
 -- * misc

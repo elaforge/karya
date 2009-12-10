@@ -16,14 +16,14 @@ a relative control is the first one (but this is more ok)
 - empty scale on a relative pitch track... can it inherit the scale in scope?
 it only needs the per_oct
 
-- Pitch.Generic is a dumb name
-  Pitch.Degree?  Pitch.Step?
-
 - make Score.ControlEvent which is returned by Derive.Control.d_control_track
 
 - program to launch logview and seq together
 - ^T on the cmdline prints stuff!?
 - State.structure only used by Clip_test
+
+- playback cursor seems to reset to the top after a play through
+- subderived doesn't get the cursor on the second derive
 
 CURRENT
   - Event.event_text should be Text instead of ByteString
@@ -220,8 +220,6 @@ logging logview:
     filter logs for those?
 
 control
-  - make controller/control naming consistently "control"
-    - Score.event_controllers vs. Perform.event_controls
   scale markers on pitch signals
     - haskell will have to send [(String, Val)].  Either cache it or avoid
       cache problems by always passing it but keep as a a ForeignPtr in haskell.
@@ -334,7 +332,7 @@ Derive:
       * multiple tempos per block
     * subblock derivation
   PitchTrack pitch
-    + pitch signal should be Signal Relative so that they can be transposed
+    * pitch signal should be Signal Relative so that they can be transposed
     * relative pitches, e.g. +5
   NoteTrack note
     - non-note commands: set random seed, ...
@@ -357,6 +355,12 @@ Derive:
       notes?  the former is higher-level...
       something like: a5- g2e1 b5-
       or "a5- ;; i ;; 2e, b5-", much better!
+
+  scales
+    - implement pengumbang pengisep
+    - enharmonics for Twelve
+    - just intonation
+    - looks like fun: http://en.wikipedia.org/wiki/Bohlen-Pierce_scale
 
    - swap tracks keeping skeleton up to date
 

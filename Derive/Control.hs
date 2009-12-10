@@ -138,14 +138,13 @@ d_display_relative_pitch scale_id _events = do
     -- TODO implement when I implement pitch signal rendering
     return (Signal.constant 0)
 
-parse_pitch_event :: (Monad m) => Pitch.Scale -> Maybe Pitch.Generic
-    -> Score.Event -> Derive.DeriveT m
-        (PitchSignal.Segment, Maybe Pitch.Generic)
+parse_pitch_event :: (Monad m) => Pitch.Scale -> Maybe Pitch.Degree
+    -> Score.Event -> Derive.DeriveT m (PitchSignal.Segment, Maybe Pitch.Degree)
 parse_pitch_event scale prev event = do
     (method, note) <- Derive.Parse.parse
         (liftM2 (,) p_opt_method p_scale_note) (Score.event_string event)
-    generic <- parse_note scale prev note
-    return ((Score.event_start event, method, generic), Just generic)
+    degree <- parse_note scale prev note
+    return ((Score.event_start event, method, degree), Just degree)
 
 d_relative_pitch_signal :: (Monad m) => Pitch.ScaleId -> [Score.Event]
     -> Derive.DeriveT m PitchSignal.Relative
@@ -161,8 +160,8 @@ parse_relative_pitch_event per_oct _ event = do
     (method, (oct, nn)) <- Derive.Parse.parse
         (liftM2 (,) p_opt_method parse_relative)
         (Score.event_string event)
-    let val = Pitch.Generic (fromIntegral (oct * per_oct) + nn)
-    return ((Score.event_start event, method, val), ())
+    let degree = Pitch.Degree (fromIntegral (oct * per_oct) + nn)
+    return ((Score.event_start event, method, degree), ())
 
 -- | Relative notes look like \"+4/3.2\" or \"+3.2\" (octave omitted)
 -- or \"+3/\" (only octave).
@@ -194,13 +193,13 @@ unparse_relative (oct, nn)
 --
 -- An empty Note gets the same pitch as the previous one which gives an easy
 -- way to shorten the length of a subsequent slide, e.g. @["4c", "i", "i, 4d"]@.
-parse_note :: (Monad m) => Pitch.Scale -> Maybe Pitch.Generic -> Pitch.Note
-    -> Derive.DeriveT m Pitch.Generic
+parse_note :: (Monad m) => Pitch.Scale -> Maybe Pitch.Degree -> Pitch.Note
+    -> Derive.DeriveT m Pitch.Degree
 parse_note scale prev note
-    | note == empty_note, Just generic <- prev = return generic
+    | note == empty_note, Just degree <- prev = return degree
     | otherwise = maybe
         (Derive.throw $ show note ++ " not in " ++ show (Pitch.scale_id scale))
-        return (Pitch.scale_note_to_generic scale note)
+        return (Pitch.scale_note_to_degree scale note)
         -- TODO If I made the signal go to an invalid value on error it would
         -- prevent the notes from playing, which seems desirable, otherwise they
         -- just keep playing the last parseable pitch.

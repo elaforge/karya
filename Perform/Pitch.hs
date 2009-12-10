@@ -54,12 +54,12 @@ middle_c = InputKey 60
 middle_octave :: Octave
 middle_octave = 5
 
--- ** Generic
+-- ** Degree
 
 -- | This is a pitch in a certain scale, but the actual frequency can't be
 -- known untill it's applied to a scale.  Should never be negative.
 -- PitchSignals use this type.
-newtype Generic = Generic Double deriving (Eq, Ord, Show, Num)
+newtype Degree = Degree Double deriving (Eq, Ord, Show, Num)
 
 -- ** NoteNumber
 
@@ -118,7 +118,7 @@ data Scale = Scale {
     -- though.
     , scale_pattern :: String
 
-    -- | How many integral Generic steps are there in an octave?  This is so
+    -- | How many integral Degrees are there in an octave?  This is so
     -- that relative pitch notation, which includes an octave, can generate
     -- a PitchSignal.Relative, which doesn't.
     --
@@ -128,17 +128,17 @@ data Scale = Scale {
     , scale_octave :: Octave
 
     -- | Used by derivation.
-    , scale_note_to_generic :: Note -> Maybe Generic
+    , scale_note_to_degree :: Note -> Maybe Degree
 
     -- | Used by note input.
     , scale_input_to_note :: InputKey -> Maybe Note
     -- | Used by MIDI thru.  This is a shortcut for
-    -- @generic_to_nn . note_to_generic . input_to_note@ but can be implemented
+    -- @degree_to_nn . note_to_degree . input_to_note@ but can be implemented
     -- more efficiently by the scale.
     , scale_input_to_nn :: InputKey -> Maybe NoteNumber
 
     -- | Used by conversion before performance.
-    , scale_generic_to_nn :: Generic -> Maybe NoteNumber
+    , scale_degree_to_nn :: Degree -> Maybe NoteNumber
 
     -- | A special hack for midi, since it needs additional pitch bend msgs
     -- to play a non-tempered scale (well, there is a midi tuning standard, but
@@ -155,4 +155,4 @@ data Scale = Scale {
     }
 
 note_in_scale :: Scale -> Note -> Bool
-note_in_scale scale = Maybe.isJust . scale_note_to_generic scale
+note_in_scale scale = Maybe.isJust . scale_note_to_degree scale

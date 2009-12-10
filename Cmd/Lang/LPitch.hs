@@ -36,23 +36,23 @@ to_relative note_s = do
             not (Default.is_relative_track title)]
     if (null tracks)
         then Log.warn $ "LPitch.to_relative: no tracks to process"
-        else mapM_ (track_to_generic (Pitch.Note note_s)) tracks
+        else mapM_ (track_to_degree (Pitch.Note note_s)) tracks
 
-track_to_generic :: (Monad m) => Pitch.Note
+track_to_degree :: (Monad m) => Pitch.Note
     -> (TrackId, Pitch.ScaleId, [Track.PosEvent]) -> Cmd.CmdT m ()
-track_to_generic base_note (track_id, scale_id, events) = do
-    let name = "LPitch.track_to_generic"
+track_to_degree base_note (track_id, scale_id, events) = do
+    let name = "LPitch.track_to_degree"
     scale <- Cmd.get_scale name scale_id
     base <- maybe
         (Cmd.throw $ name ++ ": unknown base note: " ++ show base_note)
-        return (Pitch.scale_note_to_generic scale base_note)
-    let (bad_notes, generics) = Seq.partition_either
-            (map (event_to_generic scale . snd) events)
+        return (Pitch.scale_note_to_degree scale base_note)
+    let (bad_notes, degrees) = Seq.partition_either
+            (map (event_to_degree scale . snd) events)
     unless (null bad_notes) $
         Cmd.throw $ name ++ ": notes not in scale: " ++ show bad_notes
-    let generics2 = map (subtract base) generics
-    let events2 = [(pos, set_note (generic_to_relative scale generic) event)
-            | ((pos, event), generic) <- zip events generics2]
+    let degrees2 = map (subtract base) degrees
+    let events2 = [(pos, set_note (degree_to_relative scale degree) event)
+            | ((pos, event), degree) <- zip events degrees2]
     unless (null events2) $ do
         -- This is kinda grody.  TODO there should be some higher level way
         -- to modify events.  Selection.modify_events?
@@ -67,15 +67,14 @@ set_note :: Pitch.Note -> Event.Event -> Event.Event
 set_note note = PitchTrack.modify f
     where f (meth, _) = (meth, Pitch.note_text note)
 
-generic_to_relative :: Pitch.Scale -> Pitch.Generic -> Pitch.Note
-generic_to_relative scale (Pitch.Generic n) =
+degree_to_relative :: Pitch.Scale -> Pitch.Degree -> Pitch.Note
+degree_to_relative scale (Pitch.Degree n) =
     Control.unparse_relative (oct, fromIntegral nn + frac)
     where
     (d, frac) = properFraction n
     (oct, nn) = d `quotRem` Pitch.scale_octave scale
 
-event_to_generic :: Pitch.Scale -> Event.Event
-    -> Either Pitch.Note Pitch.Generic
-event_to_generic scale event =
-    maybe (Left note) Right (Pitch.scale_note_to_generic scale note)
+event_to_degree :: Pitch.Scale -> Event.Event -> Either Pitch.Note Pitch.Degree
+event_to_degree scale event =
+    maybe (Left note) Right (Pitch.scale_note_to_degree scale note)
     where note = Pitch.Note (snd (PitchTrack.parse (Event.event_string event)))

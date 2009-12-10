@@ -35,40 +35,40 @@ scale = Pitch.Scale {
     Pitch.scale_id = scale_id
     , Pitch.scale_pattern = "[-1-9][a-g]#?"
     , Pitch.scale_octave = 12
-    , Pitch.scale_note_to_generic = note_to_generic
+    , Pitch.scale_note_to_degree = note_to_degree
     , Pitch.scale_input_to_note = input_to_note
     , Pitch.scale_input_to_nn = input_to_nn
-    , Pitch.scale_generic_to_nn = generic_to_nn
+    , Pitch.scale_degree_to_nn = degree_to_nn
     , Pitch.scale_set_pitch_bend = False
     }
 
 scale_id :: Pitch.ScaleId
 scale_id = Pitch.ScaleId "twelve"
 
-note_to_generic :: Pitch.Note -> Maybe Pitch.Generic
-note_to_generic note = do
+note_to_degree :: Pitch.Note -> Maybe Pitch.Degree
+note_to_degree note = do
     (degree, frac) <- Util.split_note note
-    g <- Map.lookup degree degree_to_generic
-    return (Pitch.Generic (fromIntegral g + frac))
+    g <- Map.lookup degree step_to_degree
+    return (Pitch.Degree (fromIntegral g + frac))
 
 input_to_note :: Pitch.InputKey -> Maybe Pitch.Note
 input_to_note (Pitch.InputKey key_nn) = do
     let (int, cents) = properFraction key_nn
-    degree <- Map.lookup int generic_to_degree
-    return $ Util.join_note degree cents
+    step <- Map.lookup int degree_to_step
+    return $ Util.join_note step cents
 
 input_to_nn :: Pitch.InputKey -> Maybe Pitch.NoteNumber
 input_to_nn (Pitch.InputKey nn) = Just (Pitch.NoteNumber nn)
 
-generic_to_nn :: Pitch.Generic -> Maybe Pitch.NoteNumber
-generic_to_nn (Pitch.Generic n) = Just (Pitch.NoteNumber n)
+degree_to_nn :: Pitch.Degree -> Maybe Pitch.NoteNumber
+degree_to_nn (Pitch.Degree n) = Just (Pitch.NoteNumber n)
 
 -- * implementation
 
-degree_to_generic :: Map.Map String Util.IntGeneric
-degree_to_generic = Map.fromList $ zip degrees [0..127]
-    where degrees = [show o ++ d | o <- [-1..9], d <- note_degrees]
-generic_to_degree = Map.invert degree_to_generic
+step_to_degree :: Map.Map String Util.IntDegree
+step_to_degree = Map.fromList $ zip steps [0..127]
+    where steps = [show o ++ d | o <- [-1..9], d <- note_degrees]
+degree_to_step = Map.invert step_to_degree
 
 note_degrees :: [String]
 note_degrees = ["c", "c#", "d", "d#", "e", "f", "f#", "g", "g#", "a", "a#", "b"]

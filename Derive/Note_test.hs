@@ -119,7 +119,7 @@ d_fake_sub = do
         (Derive.state_stack st)
         (Derive.state_instrument st) (Derive.state_attributes st)]
 
-fake_pitch = PitchSignal.constant (Pitch.ScaleId "fake") (Pitch.Generic 60)
+fake_pitch = PitchSignal.constant (Pitch.ScaleId "fake") (Pitch.Degree 60)
 
 mkstack :: [(String, Maybe (TrackPos, TrackPos))] -> Warning.Stack
 mkstack = map $ \(bid, pos) -> (UiTest.bid bid, Nothing, pos)

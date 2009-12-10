@@ -7,15 +7,14 @@ import qualified Util.Log as Log
 
 import qualified Ui.State as State
 
-import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
 
 import qualified Derive.Score as Score
 
 import qualified Derive.Derive_test as Derive_test
-import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Control as Control
+import qualified Derive.DeriveTest as DeriveTest
 
 
 test_d_signal = do
@@ -40,29 +39,28 @@ test_d_signal = do
     strings_like msgs ["parse error on char 1"]
 
 test_d_pitch_signal = do
-    let scale_id = Twelve.scale_id
-    let track_signal segs = PitchSignal.track_signal scale_id
-            Signal.default_srate
-            [(x, meth, Pitch.Generic n) | (x, meth, n) <- segs]
-    let f = Control.d_pitch_signal
-    let run evts = case Derive_test.run State.empty (f scale_id evts) of
+    let psig = DeriveTest.pitch_signal DeriveTest.scale_id
+    let run evts = case result of
             Left err -> Left err
             Right (val, _dstate, msgs) -> Right (val, map Log.msg_string msgs)
+            where
+            result = Derive_test.run State.empty
+                (Control.d_pitch_signal DeriveTest.scale_id evts)
 
     let (sig, msgs) = expect_right "running derive" $
             run [mkevent 0 "0 blah", mkevent 1 "i, bad"]
-    equal sig (track_signal [])
+    equal sig (psig [])
     strings_like msgs ["trailing junk: \" blah\"", "Note \"0\" not in ScaleId",
         "Note \"bad\" not in ScaleId"]
 
-    let sig = track_signal
+    let sig = psig
             [(0, Signal.Set, 60), (1, Signal.Set, 62), (2, Signal.Linear, 64)]
     equal (run [mkevent 0 "4c", mkevent 1 "4d", mkevent 2 "i, 4e"]) $
         Right (sig, [])
 
     -- blank notes inherit the previous pitch
-    let sig = track_signal [(0, Signal.Set, 60), (1, Signal.Linear, 60),
-            (2, Signal.Linear, 64)]
+    let sig = psig [(0, Signal.Set, 60),
+            (1, Signal.Linear, 60), (2, Signal.Linear, 64)]
     equal (run [mkevent 0 "4c", mkevent 1 "i,", mkevent 2 "i, 4e"]) $
         Right (sig, [])
 

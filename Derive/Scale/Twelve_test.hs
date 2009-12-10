@@ -7,7 +7,7 @@ import qualified Derive.Scale.Twelve as Twelve
 
 
 test_note_to_nn = do
-    let f = fmap (\(Pitch.Generic n) -> n) . Twelve.note_to_generic . Pitch.Note
+    let f = Twelve.note_to_degree . Pitch.Note
     equal (f "4c") (Just 60)
     equal (f "-1c") (Just 0)
     equal (f "-2b") Nothing

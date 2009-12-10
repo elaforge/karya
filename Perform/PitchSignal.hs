@@ -71,7 +71,7 @@ modify_vec f sig = sig { sig_vec = f (sig_vec sig) }
 type X = SignalBase.X
 -- | Each sample is @(from, to, at)@, where @at@ is a normalized value between
 -- 0 and 1 describing how far between @from@ and @to@ the value is.  @from@ and
--- @to@ are really Pitch.Generic, but are Floats here to save space.
+-- @to@ are really Pitch.Degree, but are Floats here to save space.
 --
 -- This encoding consumes 12 bytes, but it seems like it should be possible to
 -- reduce that.  There will be long sequences of samples with the same @from@
@@ -116,18 +116,18 @@ signal scale_id ys = PitchSignal scale_id (V.pack ys)
 
 empty :: PitchSignal
 empty = constant (Pitch.ScaleId "empty signal")
-    (Pitch.Generic Signal.invalid_pitch)
+    (Pitch.Degree Signal.invalid_pitch)
 
-constant :: Pitch.ScaleId -> Pitch.Generic -> PitchSignal
-constant scale_id (Pitch.Generic n) =
+constant :: Pitch.ScaleId -> Pitch.Degree -> PitchSignal
+constant scale_id (Pitch.Degree n) =
     signal scale_id [(0, (realToFrac n, realToFrac n, 0))]
 
-type Segment = (TrackPos, Method, Pitch.Generic)
+type Segment = (TrackPos, Method, Pitch.Degree)
 
 track_signal :: Pitch.ScaleId -> X -> [Segment] -> PitchSignal
 track_signal scale_id srate segs = PitchSignal scale_id
     (SignalBase.track_signal srate
-        [(pos, meth, g) | (pos, meth, Pitch.Generic g) <- segs])
+        [(pos, meth, g) | (pos, meth, Pitch.Degree g) <- segs])
 
 -- | Used for tests.
 unpack :: PitchSignal -> [(X, Y)]
@@ -150,7 +150,7 @@ convert scale psig = Signal.Signal (V.map f (sig_vec psig))
         (Just nn0, Just nn1) -> (x, Num.scale nn0 nn1 at)
         _ -> (x, Signal.invalid_pitch)
     to_nn n = fmap un_nn
-        (Pitch.scale_generic_to_nn scale (Pitch.Generic (realToFrac n)))
+        (Pitch.scale_degree_to_nn scale (Pitch.Degree (realToFrac n)))
     un_nn (Pitch.NoteNumber n) = n
 
 -- * functions
