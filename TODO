@@ -11,8 +11,6 @@
 - the +- at the beginning of a relative pitch is not necessary in a relative
   pitch track because the title already says it's relative
 
-- warning if a relative pitch track is added to the no_pitch signal?  or
-a relative control is the first one (but this is more ok)
 - empty scale on a relative pitch track... can it inherit the scale in scope?
 it only needs the per_oct
 

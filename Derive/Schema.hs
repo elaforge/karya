@@ -268,8 +268,14 @@ default_schema_signal_deriver block_id =
 -- | Transform a deriver skeleton into a real deriver.  The deriver may throw
 -- if the skeleton was malformed.
 compile :: State.TrackTree -> Derive.EventDeriver
-compile tree = Derive.with_msg "compile" $
-    Derive.d_merge =<< mapM _compile tree
+compile tree = Derive.with_msg "compile" $ sub_compile tree
+
+sub_compile :: State.TrackTree -> Derive.EventDeriver
+sub_compile tree = Derive.d_merge =<< mapM with_track tree
+    where
+    with_track tree@(Tree.Node track _) =
+        Derive.with_stack_track (State.track_id track) (_compile tree)
+
 _compile :: Tree.Tree State.TrackInfo -> Derive.EventDeriver
 _compile (Tree.Node track@(State.TrackInfo title track_id _) subs)
     | Default.is_inst_track title = if not (null subs)
@@ -279,8 +285,8 @@ _compile (Tree.Node track@(State.TrackInfo title track_id _) subs)
     | otherwise = do
         when (null subs) $
             Log.warn $ "control " ++ show track ++ " has no sub tracks"
-        compile_control title track_id
-            (Derive.d_merge =<< mapM _compile subs)
+        Derive.with_stack_track track_id $
+            compile_control title track_id (sub_compile subs)
 
 compile_control :: String -> TrackId
     -> Derive.EventDeriver -> Derive.EventDeriver

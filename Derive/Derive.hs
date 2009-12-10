@@ -350,22 +350,28 @@ type PitchOp = PitchSignal.PitchSignal -> PitchSignal.Relative
 with_control :: (Monad m) =>
     Score.Control -> Signal.Control -> DeriveT m t -> DeriveT m t
 with_control cont signal op = do
-    old_env <- fmap state_controls get
-    modify $ \st -> st { state_controls = Map.insert cont signal old_env }
+    controls <- fmap state_controls get
+    modify $ \st -> st { state_controls = Map.insert cont signal controls }
     result <- op
-    modify $ \st -> st { state_controls = old_env }
+    modify $ \st -> st { state_controls = controls }
     return result
 
 with_relative_control :: (Monad m) =>
     Score.Control -> ControlOp -> Signal.Control -> DeriveT m t -> DeriveT m t
 with_relative_control cont c_op signal op = do
     sig_op <- lookup_control_op c_op
-    old_env <- fmap state_controls get
-    modify $ \st ->
-        st { state_controls = Map.insertWith sig_op cont signal old_env }
-    result <- op
-    modify $ \st -> st { state_controls = old_env }
-    return result
+    controls <- fmap state_controls get
+    let msg = "relative control applied when no absolute control is in scope: "
+    case Map.lookup cont controls of
+        Nothing -> do
+            warn (msg ++ show cont)
+            op
+        Just old_sig -> do
+            modify $ \st -> st { state_controls =
+                Map.insert cont (sig_op old_sig signal) controls }
+            result <- op
+            modify $ \st -> st { state_controls = controls }
+            return result
 
 with_pitch :: (Monad m) => PitchSignal.PitchSignal -> DeriveT m t -> DeriveT m t
 with_pitch signal op = do
@@ -380,10 +386,15 @@ with_relative_pitch :: (Monad m) =>
 with_relative_pitch c_op signal op = do
     sig_op <- lookup_pitch_control_op c_op
     old <- fmap state_pitch get
-    modify $ \st -> st { state_pitch = sig_op old signal }
-    result <- op
-    modify $ \st -> st { state_pitch = old }
-    return result
+    if old == PitchSignal.empty
+        then do
+            warn $ "relative pitch applied when no absolute pitch is in scope"
+            op
+        else do
+            modify $ \st -> st { state_pitch = sig_op old signal }
+            result <- op
+            modify $ \st -> st { state_pitch = old }
+            return result
 
 lookup_control_op :: (Monad m) => ControlOp -> DeriveT m SignalOp
 lookup_control_op c_op = do
@@ -425,6 +436,7 @@ get_current_block_id = do
         [] -> throw "empty state_stack"
         ((block_id, _, _):_) -> return block_id
 
+-- | Make a quick trick block stack.
 with_stack_block :: (Monad m) => BlockId -> DeriveT m a -> DeriveT m a
 with_stack_block block_id op = do
     modify $ \st ->
@@ -433,6 +445,7 @@ with_stack_block block_id op = do
     modify $ \st -> st { state_stack = drop 1 (state_stack st) }
     return v
 
+-- | Make a quick trick track stack.
 with_stack_track :: (Monad m) => TrackId -> DeriveT m a -> DeriveT m a
 with_stack_track track_id = modify_stack $ \(block_id, _, _) ->
     (block_id, Just track_id, Nothing)
@@ -581,14 +594,13 @@ with_track_warp :: (Monad m) => TrackDeriver m -> TrackDeriver m
 with_track_warp track_deriver track_id = do
     ignore_tempo <- fmap state_ignore_tempo get
     unless ignore_tempo (add_track_warp track_id)
-    with_stack_track track_id (track_deriver track_id)
+    track_deriver track_id
 
 -- | This is a special version of 'with_track_warp' just for the tempo track.
 -- It doesn't record the track warp, see 'd_tempo' for why.
 with_track_warp_tempo :: (Monad m) =>
     (TrackId -> DeriveT m [Score.Event]) -> TrackDeriver m
-with_track_warp_tempo track_deriver track_id =
-    with_stack_track track_id (track_deriver track_id)
+with_track_warp_tempo track_deriver track_id = track_deriver track_id
 
 -- * utils
 

@@ -177,6 +177,12 @@ default_derive ui_state inst_config =
         Perform.perform default_lookup inst_config midi_events
     mmsgs = map Midi.wmsg_msg msgs
 
+default_derive_tracks :: [UiTest.TrackSpec]
+    -> ([Score.Event], [Log.Msg], [Perform.Event], [Warning.Warning],
+        [Midi.Message], [Warning.Warning])
+default_derive_tracks tracks = default_derive ui_state default_inst_config
+    where (_, ui_state) = UiTest.run_mkstate tracks
+
 test_fractional_pitch = do
     -- A pitch that requires pitch bends should distribute across multiple
     -- channels.  Yes, this is also tested in Perform.Midi.Perform, but this
@@ -309,20 +315,37 @@ test_relative_control = do
     equal logs []
     equal (map extract events) [[1, 2, 3, 2, 1, 1]]
 
+    -- putting relative and absolute in the wrong order causes a warning
+    let (events, logs, _, _, _, _) = default_derive_tracks
+            [ (default_inst_title, [(0, 10, "")])
+            , ("vel", [(0, 0, "1")])
+            , ("+, vel", [(0, 0, "1")])
+            ]
+    equal (map Score.event_controls events)
+        [Map.fromList [(Score.Control "vel", Signal.signal [(0, 1)])]]
+    strings_like (map Log.msg_string logs) ["no absolute control is in scope"]
+
 test_relative_pitch = do
     let f track = (map Score.event_pitch events, derive_logs)
             where
-            (_, ui_state) = UiTest.run_mkstate
+            (events, derive_logs, _, _, _, _) = default_derive_tracks
                 [ (default_inst_title, [(0, 10, "")])
                 , ("+, *semar", track)
                 , ("*semar", [(0, 0, "1")])
                 ]
-            (events, derive_logs, _, _, _, _) =
-                default_derive ui_state default_inst_config
     let mksig = DeriveTest.pitch_signal (Pitch.ScaleId "semar")
     equal (f []) ([mksig [(0, Set, 10)]], [])
     equal (f [(0, 0, "+1/"), (1, 0, "i, +0")])
         ([mksig [(0, Set, 15), (1, Linear, 10)]], [])
+
+    -- putting relative and absolute in the wrong order causes a warning
+    let (events, logs, _, _, _, _) = default_derive_tracks
+            [ (default_inst_title, [(0, 10, "")])
+            , ("*semar", [(0, 0, "1")])
+            , ("+, *semar", [(0, 0, "+1")])
+            ]
+    equal (map Score.event_pitch events) [mksig [(0, Set, 10)]]
+    strings_like (map Log.msg_string logs) ["no absolute pitch is in scope"]
 
 test_make_inverse_tempo_func = do
     -- This is actually also tested in test_subderive.
