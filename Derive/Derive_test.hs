@@ -95,7 +95,7 @@ test_subderive = do
             Derive.derive look ui_state False (Derive.d_block bid)
 
     let b0 pos = (UiTest.bid "b0",
-            [(UiTest.tid ("b0.t"++show n), TrackPos pos) | n <- [ 1, 2, 0]])
+            [(UiTest.tid ("b0.t" ++ show n), TrackPos pos) | n <- [ 1, 2, 0]])
         sub pos =
             (UiTest.bid "sub", [(UiTest.tid "sub.t0", TrackPos pos)])
     equal (extract_events events) [(0, 4, "--b1"), (6, 2, "--sub1")]
@@ -335,13 +335,13 @@ test_relative_pitch = do
                 ]
     let mksig = DeriveTest.pitch_signal (Pitch.ScaleId "semar")
     equal (f []) ([mksig [(0, Set, 10)]], [])
-    equal (f [(0, 0, "+1/"), (1, 0, "i, +0")])
+    equal (f [(0, 0, "1/"), (1, 0, "i, 0")])
         ([mksig [(0, Set, 15), (1, Linear, 10)]], [])
 
     -- empty relative pitch defaults to scale
     let (pitches, logs) = extract $ default_derive_tracks
             [ (default_inst_title, [(0, 10, "")])
-            , ("+, *", [(0, 0, "+1/")])
+            , ("+, *", [(0, 0, "1/")])
             , ("*semar", [(0, 0, "1")])
             ]
     equal logs []
@@ -351,7 +351,7 @@ test_relative_pitch = do
     let (pitches, logs) = extract $ default_derive_tracks
             [ (default_inst_title, [(0, 10, "")])
             , ("*semar", [(0, 0, "1")])
-            , ("+, *semar", [(0, 0, "+1")])
+            , ("+, *semar", [(0, 0, "1")])
             ]
     equal pitches [mksig [(0, Set, 10)]]
     strings_like (map Log.msg_string logs) ["no absolute pitch is in scope"]

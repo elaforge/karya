@@ -163,13 +163,12 @@ parse_relative_pitch_event per_oct _ event = do
     let degree = Pitch.Degree (fromIntegral (oct * per_oct) + nn)
     return ((Score.event_start event, method, degree), ())
 
--- | Relative notes look like \"+4/3.2\" or \"+3.2\" (octave omitted)
--- or \"+3/\" (only octave).
+-- | Relative notes look like \"4/3.2\" or \"-3.2\" (octave omitted)
+-- or \"-3/\" (only octave).
 parse_relative :: P.CharParser st (Pitch.Octave, Double)
 parse_relative = do
-    sign <- fmap (\c -> if c == '-' then -1 else 1) (P.oneOf "-+")
     (oct, nn) <- P.try oct_nn <|> just_nn
-    return (sign*oct, nn)
+    return (oct, nn)
     where
     oct_nn = do
         oct <- Parse.p_int

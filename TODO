@@ -7,9 +7,6 @@
   I can use phantom types and use all doubles, but if space is an issue
   most can be converted to floats and I can use typeclass for Float vs. Double.
 
-- the +- at the beginning of a relative pitch is not necessary in a relative
-  pitch track because the title already says it's relative
-
 - make Score.ControlEvent which is returned by Derive.Control.d_control_track
 
 - program to launch logview and seq together
@@ -18,6 +15,7 @@
 
 - playback cursor seems to reset to the top after a play through
 - subderived doesn't get the cursor on the second derive
+- empty scale defaults in Derive, but not in Cmd
 
 CURRENT
   - Event.event_text should be Text instead of ByteString
