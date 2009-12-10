@@ -110,6 +110,10 @@ type ScaleMap = Map.Map ScaleId Scale
 
 newtype ScaleId = ScaleId String deriving (Eq, Ord, Read, Show)
 
+-- | An empty scale defaults to the scale in scope.
+default_scale_id :: ScaleId
+default_scale_id = ScaleId ""
+
 data Scale = Scale {
     scale_id :: ScaleId
     -- | A pattern describing what the scale notes look like.  Used only for

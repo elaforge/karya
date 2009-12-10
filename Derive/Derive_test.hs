@@ -326,9 +326,9 @@ test_relative_control = do
     strings_like (map Log.msg_string logs) ["no absolute control is in scope"]
 
 test_relative_pitch = do
-    let f track = (map Score.event_pitch events, derive_logs)
-            where
-            (events, derive_logs, _, _, _, _) = default_derive_tracks
+    let extract (events, logs, _, _, _, _) =
+            (map Score.event_pitch events, logs)
+    let f track = extract $ default_derive_tracks
                 [ (default_inst_title, [(0, 10, "")])
                 , ("+, *semar", track)
                 , ("*semar", [(0, 0, "1")])
@@ -338,13 +338,22 @@ test_relative_pitch = do
     equal (f [(0, 0, "+1/"), (1, 0, "i, +0")])
         ([mksig [(0, Set, 15), (1, Linear, 10)]], [])
 
+    -- empty relative pitch defaults to scale
+    let (pitches, logs) = extract $ default_derive_tracks
+            [ (default_inst_title, [(0, 10, "")])
+            , ("+, *", [(0, 0, "+1/")])
+            , ("*semar", [(0, 0, "1")])
+            ]
+    equal logs []
+    equal pitches [mksig [(0, Set, 15)]]
+
     -- putting relative and absolute in the wrong order causes a warning
-    let (events, logs, _, _, _, _) = default_derive_tracks
+    let (pitches, logs) = extract $ default_derive_tracks
             [ (default_inst_title, [(0, 10, "")])
             , ("*semar", [(0, 0, "1")])
             , ("+, *semar", [(0, 0, "+1")])
             ]
-    equal (map Score.event_pitch events) [mksig [(0, Set, 10)]]
+    equal pitches [mksig [(0, Set, 10)]]
     strings_like (map Log.msg_string logs) ["no absolute pitch is in scope"]
 
 test_make_inverse_tempo_func = do

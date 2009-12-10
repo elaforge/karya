@@ -7,12 +7,8 @@
   I can use phantom types and use all doubles, but if space is an issue
   most can be converted to floats and I can use typeclass for Float vs. Double.
 
-- is Module.throw_srcpos not enabled?
 - the +- at the beginning of a relative pitch is not necessary in a relative
   pitch track because the title already says it's relative
-
-- empty scale on a relative pitch track... can it inherit the scale in scope?
-it only needs the per_oct
 
 - make Score.ControlEvent which is returned by Derive.Control.d_control_track
 
@@ -158,6 +154,7 @@ cleanup:
     On the other hand, it's not unreasonable for logs to use other data types
   - having collapsed state in c++ is kind of error-prone, should I go back to
     trying to put it in haskell?
+  - hspp doesn't catch calls to Derive.throw and Derive.warn within Derive
 
 performance:
   speed and memory profiling:

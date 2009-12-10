@@ -288,9 +288,14 @@ with_event event = local state_stack
 -- | Lookup a scale_id or throw.
 -- TODO merge in the static config scales.
 get_scale :: (Monad m) => String -> Pitch.ScaleId -> DeriveT m Pitch.Scale
-get_scale caller scale_id = maybe
-    (throw (caller ++ ": unknown " ++ show scale_id)) return
-    (Map.lookup scale_id Scale.scale_map)
+get_scale caller scale_id = do
+    -- Defaulting the scale here means that relative pitch tracks don't need
+    -- to mention their scale.
+    scale_id <- if scale_id == Pitch.default_scale_id
+        then fmap (PitchSignal.sig_scale . state_pitch) get
+        else return scale_id
+    maybe (throw (caller ++ ": unknown " ++ show scale_id)) return
+        (Map.lookup scale_id Scale.scale_map)
 
 -- ** errors
 
@@ -615,7 +620,7 @@ lookup_id key map = case Map.lookup key map of
 -- | General purpose iterator over events.
 --
 -- It's like 'map_accuml_m' but sets the current event stack before operating
--- on each event, so that Derive.warn can use it.  In addition, EventErrors are
+-- on each event, so that 'warn' can use it.  In addition, EventErrors are
 -- caught and turned into warnings.  Events that threw aren't included in the
 -- output.  An additional function extracts an event, so you can map over
 -- things which are not themselves events.
