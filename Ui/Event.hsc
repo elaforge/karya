@@ -27,7 +27,6 @@ module Ui.Event where
 import qualified Data.Array.IArray as IArray
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Encoding
-import qualified Data.Text.Encoding.Error as Encoding.Error
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Internal as Internal
 import Foreign
@@ -43,27 +42,20 @@ data Event = Event {
     -- I expected it to be sent to the UI much more frequently than modified
     -- from haskell.  Don't access this directly, use 'event_text'.
     -- TODO: or is it?  derivation could put the lie to that.
-    event_utf8_bytestring :: ByteString.ByteString
+    event_text :: Text.Text
     , event_duration :: TrackPos
     , event_style :: StyleId
     } deriving (Eq, Show, Read)
 
 -- | Manual event constructor.
 event :: String -> TrackPos -> Event
--- TODO isn't there a way to do this encoding in one step?
-event text dur = Event (Encoding.encodeUtf8 (Text.pack text))
-    (max (TrackPos 0) dur) default_style
-
-event_text :: Event -> Text.Text
-event_text event = Encoding.decodeUtf8With Encoding.Error.lenientDecode
-    (event_utf8_bytestring event)
+event text dur = Event (Text.pack text) (max (TrackPos 0) dur) default_style
 
 event_string :: Event -> String
 event_string = Text.unpack . event_text
 
 set_string :: String -> Event -> Event
-set_string s evt =
-    evt { event_utf8_bytestring = (Encoding.encodeUtf8 (Text.pack s)) }
+set_string s evt = evt { event_text = Text.pack s }
 
 default_style :: StyleId
 default_style = StyleId 0
@@ -109,10 +101,10 @@ instance Storable Event where
     poke = poke_event
     peek = error "Event peek unimplemented"
 
-poke_event eventp (Event utf8_bs dur style_id) = do
+poke_event eventp (Event text dur style_id) = do
     let (Style color text_style align) = lookup_style style_id
     -- Must be freed by the caller, EventTrackView::draw_area.
-    textp <- unpackCString0 utf8_bs
+    textp <- unpackCString0 (Encoding.encodeUtf8 text)
     (#poke Event, text) eventp textp
     (#poke Event, duration) eventp dur
     (#poke Event, color) eventp color

@@ -1,6 +1,5 @@
 - program to launch logview and seq together
 - ^T on the cmdline prints stuff!?
-- State.structure only used by Clip_test
 
 - playback cursor seems to reset to the top after a play through
 - empty scale defaults in Derive, but not in Cmd
@@ -11,8 +10,7 @@
 - derivers for seleh patterns
 
 CURRENT
-  - Event.event_text should be Text instead of ByteString
-  - compile_to_signals doesn't like relative pitch tracks?
+  * Event.event_text should be Text instead of ByteString
   - logview: clickable stackpos
   * relative control tracks
   * relative pitch tracks
@@ -132,6 +130,7 @@ bugs:
   - hint refuses to compile when Cmd.NoteEntry emits a warning
 
 cleanup:
+  - State.structure only used by Clip_test
   - setting some state like project directly through State won't update
     global status.  Maybe I could fix this and also avoid the scattered syncs
     by doing a special state diff after cmds
