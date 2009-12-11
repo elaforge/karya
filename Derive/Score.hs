@@ -52,7 +52,7 @@ event_string = Text.unpack . event_text
 event_end :: Event -> TrackPos
 event_end event = event_start event + event_duration event
 
-type ControlMap = Map.Map Control Signal.Signal
+type ControlMap = Map.Map Control Signal.Control
 
 data ControlEvent = ControlEvent {
     cevent_start :: TrackPos

@@ -402,7 +402,7 @@ mkevent event = head (mkevents [event])
 mkevents_inst = map (\ (p, s, d, c) -> mkevent (inst1, p, s, d, c))
 
 type EventSpec = (Instrument.Instrument, String, TrackPos, TrackPos,
-    [(Control.Control, Signal.Signal)])
+    [(Control.Control, Signal.Control)])
 
 mkevents :: [EventSpec] -> [Perform.Event]
 mkevents events = trim_pitches

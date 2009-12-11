@@ -395,7 +395,7 @@ test_make_inverse_tempo_func = do
     equal (map f (map Timestamp.seconds [0..2]))
         [with_block 0, with_block 2, []]
 
-tempo_deriver :: (Monad m) => TrackId -> Signal.Signal -> TrackId
+tempo_deriver :: (Monad m) => TrackId -> Signal.Tempo -> TrackId
     -> TrackId -> TrackId -> Derive.DeriveT m [Score.Event]
 tempo_deriver sig_tid tempo note_tid pitch_tid vel_tid = do
     Derive.d_tempo sig_tid (return tempo) $

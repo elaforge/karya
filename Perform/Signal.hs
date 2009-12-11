@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances, TypeSynonymInstances, EmptyDataDecls #-}
 {- | This module implements signals as sparse arrays of Val->Val.  The
     points are interpolated linearly, so the signal array represents a series
     of straight line segments.
@@ -55,11 +55,12 @@
 -}
 module Perform.Signal (
     Signal(Signal), sig_vec
-    , X, Y, x_to_y, y_to_x, max_x, max_y, default_srate, invalid_pitch
-    , Tempo, Control, NoteNumber
+    , X, Y, x_to_y, y_to_x, max_x, max_y, default_srate, invalid_pitch, empty
+    , Tempo, Warp, Control, NoteNumber, Display
 
     , signal, constant, track_signal, Method(..), Segment
     , unpack, to_track_samples
+    , coerce
 
     , at, at_linear, sample
 
@@ -93,26 +94,41 @@ import Perform.SignalBase (Method(..), Segment, max_x, default_srate)
 
 -- * types
 
-data Signal = Signal { sig_vec :: SignalBase.SigVec Y }
+newtype Signal y = Signal { sig_vec :: SignalBase.SigVec Y }
     -- The Eq instance is only for tests, since it may be quite expensive on
     -- a real signal.
     deriving (Eq)
 
-modify_vec :: (SignalBase.SigVec Y -> SignalBase.SigVec Y) -> Signal -> Signal
+modify_vec :: (SignalBase.SigVec Y -> SignalBase.SigVec Y)
+    -> Signal y0 -> Signal y1
 modify_vec f = Signal . f . sig_vec
 
 type X = SignalBase.X
 type Y = Double
 instance SignalBase.Signal Y
 
--- TODO use phantom types or something to make these real types but
--- or maybe just newtypes
+-- | This is the type of performer-interpreted controls that go into the
+-- event's control map.
+type Control = Signal ControlSig
+data ControlSig
 
-type Tempo = Signal
-type Control = Signal
+-- | A tempo is a normal Control signal, except that instead of going into the
+-- control map, it gets turned into a Warp and goes into the warp map.
+type Tempo = Signal TempoSig
+data TempoSig
 
--- | Signal of Pitch.NoteNumber.
-type NoteNumber = Signal
+-- | A tempo warp maps score time to global time.
+type Warp = Signal WarpSig
+data WarpSig
+
+-- | This is the type of pitch signals used by the performer, after the scale
+-- has been factored out.
+type NoteNumber = Signal NoteNumberSig
+data NoteNumberSig
+
+-- | This is the type of signals which are sent to the UI for display.
+type Display = Signal DisplaySig
+data DisplaySig
 
 instance Storable.Storable (X, Y) where
     sizeOf _ = Storable.sizeOf (undefined :: TrackPos)
@@ -129,7 +145,7 @@ instance SignalBase.Y Y where
     y_at x0 y0 x1 y1 x = y_at (x_to_y x0) y0 (x_to_y x1) y1 (x_to_y x)
     project y0 y1 at = Num.scale y0 y1 at
 
-instance Show Signal where
+instance Show (Signal y) where
     show (Signal vec) = "Signal " ++ show (V.unpack vec)
 
 x_to_y :: X -> Y
@@ -145,67 +161,74 @@ max_y = x_to_y SignalBase.max_x
 invalid_pitch :: Y
 invalid_pitch = -1
 
+empty :: Signal y
+empty = signal []
+
 -- * construction / deconstruction
 
-signal :: [(X, Y)] -> Signal
+signal :: [(X, Y)] -> Signal y
 signal ys = Signal (V.pack ys)
 
-constant :: Y -> Signal
+constant :: Y -> Signal y
 constant n = signal [(0, n)]
 
-track_signal :: X -> [SignalBase.Segment] -> Signal
+track_signal :: X -> [SignalBase.Segment] -> Signal y
 track_signal srate segs = Signal (SignalBase.track_signal srate segs)
 
 -- | Used for tests.
-unpack :: Signal -> [(X, Y)]
+unpack :: Signal y -> [(X, Y)]
 unpack = V.unpack . sig_vec
 
 -- | TODO This is used by the signal deriver and is inefficient.  I should be
 -- passing a pointer.
-to_track_samples :: Signal -> Track.Samples
+to_track_samples :: Signal y -> Track.Samples
 to_track_samples = Track.samples . unpack
+
+-- | Sometimes signal types need to be converted.
+coerce :: Signal y0 -> Signal y1
+coerce (Signal vec) = Signal vec
 
 -- * access
 
-at, at_linear :: X -> Signal -> Y
+at, at_linear :: X -> Signal y -> Y
 at x sig = SignalBase.at x (sig_vec sig)
 at_linear x sig = SignalBase.at_linear x (sig_vec sig)
 
-sample :: X -> Signal -> [(X, Y)]
+sample :: X -> Signal y -> [(X, Y)]
 sample start sig = SignalBase.sample start (sig_vec sig)
 
 
 -- * transformation
 
-sig_add, sig_subtract, sig_multiply :: Signal -> Signal -> Signal
+sig_add, sig_subtract, sig_multiply :: Control -> Control -> Control
 sig_add = sig_op (+)
 sig_subtract = sig_op (-)
 sig_multiply = sig_op (*)
 
-sig_max, sig_min :: Signal -> Signal -> Signal
+sig_max, sig_min :: Control -> Control -> Control
 sig_max = sig_op max
 sig_min = sig_op min
 
 -- | Clip signal to never go above or below the given value.  Like 'sig_max'
 -- and 'sig_min' except relative to a scalar value.
-clip_max, clip_min :: Y -> Signal -> Signal
+clip_max, clip_min :: Y -> Signal y -> Signal y
 clip_max val = modify_vec (V.map (Arrow.second (min val)))
 clip_min val = modify_vec (V.map (Arrow.second (max val)))
 
-shift, stretch :: X -> Signal -> Signal
+shift, stretch :: X -> Signal y -> Signal y
 shift x = modify_vec (SignalBase.shift x)
 stretch x = modify_vec (SignalBase.stretch x)
 
-truncate :: X -> Signal -> Signal
+truncate :: X -> Signal y -> Signal y
 truncate x = modify_vec (SignalBase.truncate x)
 
-map_x :: (X -> X) -> Signal -> Signal
+map_x :: (X -> X) -> Signal y -> Signal y
 map_x f = modify_vec (SignalBase.map_x f)
 
-map_y :: (Y -> Y) -> Signal -> Signal
+map_y :: (Y -> Y) -> Signal y -> Signal y
 map_y f = modify_vec (SignalBase.map_y f)
 
-sig_op :: (Y -> Y -> Y) -> Signal -> Signal -> Signal
+sig_op :: (Y -> Y -> Y) -> Signal y -> Signal y -> Signal y
 sig_op op sig0 sig1 =
     Signal (SignalBase.sig_op op (sig_vec sig0) (sig_vec sig1))
 
@@ -223,7 +246,7 @@ sig_op op sig0 sig1 =
 --
 -- This uses a bsearch on the vector, which is only reasonable as long as
 -- its strict.  When I switch to lazy vectors, I'll have to thread the tails.
-inverse_at :: Signal -> Timestamp.Timestamp -> Maybe X
+inverse_at :: Warp -> Timestamp.Timestamp -> Maybe X
 inverse_at sig ts
     | i >= V.length vec = Nothing
     | y1 == y = Just x1
@@ -237,7 +260,7 @@ inverse_at sig ts
     (x1, y1) = V.index vec i
 
 -- | Compose the first signal with the second.
-compose :: Signal -> Signal -> Signal
+compose :: Warp -> Warp -> Warp
 compose f g = Signal $ SignalBase.map_y go (sig_vec g)
     where go y = SignalBase.at_linear (y_to_x y) (sig_vec f)
     -- TODO Walking down f would be more efficient, especially once Signal is
@@ -246,7 +269,7 @@ compose f g = Signal $ SignalBase.map_y go (sig_vec g)
 -- | Integrate the signal.
 --
 -- The sample points are linear interpolated.
-integrate :: X -> Signal -> Signal
+integrate :: X -> Tempo -> Warp
 integrate srate = modify_vec (SignalBase.map_signal_accum go final 0)
     where
     go accum x0 y0 x1 y1 =
@@ -282,7 +305,7 @@ integrate_segment srate accum x0 y0 x1 y1
 
 --- * comparison
 
-equal :: X -> X -> Signal -> Signal -> Bool
+equal :: X -> X -> Signal y -> Signal y -> Bool
 equal x0 x1 sig0 sig1 = SignalBase.equal x0 x1 (sig_vec sig0) (sig_vec sig1)
 
 -- | Can the pitch signals share a channel within the given range?
@@ -297,7 +320,7 @@ equal x0 x1 sig0 sig1 = SignalBase.equal x0 x1 (sig_vec sig0) (sig_vec sig1)
 -- both notes, at which point 0 transposition is ok.
 --
 -- TODO this is actually a MIDI notion, so it should go in Perform.Midi
-pitches_share :: Bool -> X -> X -> Signal -> Signal -> Bool
+pitches_share :: Bool -> X -> X -> NoteNumber -> NoteNumber -> Bool
 pitches_share in_decay start end sig0 sig1 =
     pitch_share in_decay (at start sig0) (at start sig1)
         && pitch_share in_decay (at end sig0) (at end sig1)

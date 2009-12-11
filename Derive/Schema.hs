@@ -102,7 +102,7 @@ lookup_deriver schema_map ui_state block_id = State.eval ui_state $ do
 -- the signal deriver is only ever local to one block, so it doesn't need
 -- a lookup mechanism.
 get_signal_deriver :: (State.UiStateMonad m) => SchemaMap -> BlockId
-    -> m Derive.SignalDeriver
+    -> m (Derive.SignalDeriver Signal.Display)
 get_signal_deriver schema_map block_id = do
     block <- State.get_block block_id
     schema <- State.lookup_id (Block.block_schema block)
@@ -261,7 +261,8 @@ default_schema_deriver :: SchemaDeriver Derive.EventDeriver
 default_schema_deriver block_id =
     fmap compile (State.get_unmuted_track_tree block_id)
 
-default_schema_signal_deriver :: SchemaDeriver Derive.SignalDeriver
+default_schema_signal_deriver ::
+    SchemaDeriver (Derive.SignalDeriver Signal.Display)
 default_schema_signal_deriver block_id =
     fmap compile_to_signals (State.get_track_tree block_id)
 
@@ -303,9 +304,8 @@ compile_control title track_id subderiver
     | Default.is_tempo_track title = do
         -- A tempo track is derived like other signals, but gets special
         -- treatment because of the track warps chicanery.
-        sig_events <- Derive.with_track_warp_tempo
-            Control.d_control_track track_id
-        Derive.d_tempo track_id (Control.d_signal sig_events) subderiver
+        events <- Derive.with_track_warp_tempo Control.d_control_track track_id
+        Derive.d_tempo track_id (Control.d_tempo_signal events) subderiver
     | otherwise = do
         events <- Derive.with_track_warp Control.d_control_track track_id
         -- TODO default to inst scale if none is given
@@ -331,11 +331,12 @@ compile_control title track_id subderiver
 -- seems annoying to have to make a whole separate signal deriver.  Getting the
 -- signals from the track could be more hardcoded and less work when writing
 -- a new schema.
-compile_to_signals :: State.TrackTree -> Derive.SignalDeriver
+compile_to_signals :: State.TrackTree -> (Derive.SignalDeriver Signal.Display)
 compile_to_signals tree = Derive.with_msg "compile_to_signals" $
     Derive.d_signal_merge =<< mapM _compile_to_signals tree
 
-_compile_to_signals :: Tree.Tree State.TrackInfo -> Derive.SignalDeriver
+_compile_to_signals :: Tree.Tree State.TrackInfo
+    -> Derive.SignalDeriver Signal.Display
 _compile_to_signals (Tree.Node (State.TrackInfo title track_id _) subs)
     | Default.is_inst_track title = return []
     | otherwise = do
@@ -346,11 +347,11 @@ _compile_to_signals (Tree.Node (State.TrackInfo title track_id _) subs)
         return (track_sigs : rest_sigs)
 
 signal_control :: (Monad m) => String -> TrackId
-    -> Derive.DeriveT m (TrackId, Signal.Signal)
+    -> Derive.DeriveT m (TrackId, Signal.Display)
 signal_control title track_id = do
     events <- Derive.with_track_warp Control.d_control_track track_id
     sig <- case Default.parse_control_title title of
-        (_, Left _) -> Control.d_signal events
+        (_, Left _) -> Control.d_display_signal events
         (Nothing, Right scale_id) -> Control.d_display_pitch scale_id events
         (Just _, Right scale_id) ->
             Control.d_display_relative_pitch scale_id events

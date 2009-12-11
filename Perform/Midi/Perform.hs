@@ -364,10 +364,9 @@ control_at event control pos = do
 perform_pitch :: Control.PbRange -> Midi.Key -> TrackPos -> TrackPos
     -> Signal.NoteNumber -> [(TrackPos, Midi.ChannelMessage)]
 perform_pitch pb_range nn start end sig =
-    [ (pos, Midi.PitchBend (Control.pb_from_nn pb_range nn val))
-    | (pos, val) <- pos_vals ]
-    where
-    pos_vals = takeWhile ((<end) . fst) $ Signal.sample start sig
+    [(pos, Midi.PitchBend (Control.pb_from_nn pb_range nn val)) |
+        (pos, val) <- pos_vals]
+    where pos_vals = takeWhile ((<end) . fst) $ Signal.sample start sig
 
 -- | Return the (pos, msg) pairs, and whether the signal value went out of the
 -- allowed control range, 0--1.

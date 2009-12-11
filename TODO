@@ -1,18 +1,14 @@
-- typed Signals
-  - Control Float
-  - Tempo Double
-  - RelativePitch Pitch.Generic [Float] (output of relative pitch track)
-  - GenericPitch Pitch.Generic [Float] (output of PitchSignal.convert)
-
-  I can use phantom types and use all doubles, but if space is an issue
-  most can be converted to floats and I can use typeclass for Float vs. Double.
-
 - program to launch logview and seq together
 - ^T on the cmdline prints stuff!?
 - State.structure only used by Clip_test
 
 - playback cursor seems to reset to the top after a play through
 - empty scale defaults in Derive, but not in Cmd
+
+- piece with fancy pitch: doira + synth
+  1 1^ - 1^ 3 7# - - 1 1^ 1 32 7#7 1 1^ - 1^ 3 7# 1^
+    3 3333 2 2 2b 2b
+- derivers for seleh patterns
 
 CURRENT
   - Event.event_text should be Text instead of ByteString

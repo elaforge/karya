@@ -45,11 +45,11 @@ d_control cont signalm eventsm = do
     Derive.with_control cont signal eventsm
 
 d_relative :: (Monad m) =>
-    Score.Control -> Derive.ControlOp -> Derive.DeriveT m Signal.Control
+    Score.Control -> Derive.Operator -> Derive.DeriveT m Signal.Control
     -> Derive.DeriveT m [Score.Event] -> Derive.DeriveT m [Score.Event]
-d_relative cont c_op signalm eventsm = do
+d_relative cont op signalm eventsm = do
     signal <- signalm
-    Derive.with_relative_control cont c_op signal eventsm
+    Derive.with_relative_control cont op signal eventsm
 
 d_pitch :: (Monad m) => Derive.DeriveT m PitchSignal.PitchSignal
     -> Derive.DeriveT m [Score.Event] -> Derive.DeriveT m [Score.Event]
@@ -57,12 +57,12 @@ d_pitch signalm eventsm = do
     signal <- signalm
     Derive.with_pitch signal eventsm
 
-d_relative_pitch :: (Monad m) => Derive.ControlOp
+d_relative_pitch :: (Monad m) => Derive.Operator
     -> Derive.DeriveT m PitchSignal.Relative
     -> Derive.DeriveT m [Score.Event] -> Derive.DeriveT m [Score.Event]
-d_relative_pitch c_op signalm eventsm = do
+d_relative_pitch op signalm eventsm = do
     signal <- signalm
-    Derive.with_relative_pitch c_op signal eventsm
+    Derive.with_relative_pitch op signal eventsm
 
 -- | Get the signal events from a control track.  They are meant to be
 -- fed to 'd_signal', which will convert them into a signal, and the whole
@@ -102,6 +102,16 @@ d_signal :: (Monad m) => [Score.ControlEvent] -> Derive.DeriveT m Signal.Control
 d_signal events = fmap (Signal.track_signal Signal.default_srate)
     (Derive.map_events parse_event Derive.NoState id events)
 
+-- | Tempo tracks use the same syntax as other control tracks, but the signal
+-- type is different.
+d_tempo_signal :: (Monad m) =>
+    [Score.ControlEvent] -> Derive.DeriveT m Signal.Tempo
+d_tempo_signal = fmap Signal.coerce . d_signal
+
+d_display_signal :: (Monad m) =>
+    [Score.ControlEvent] -> Derive.DeriveT m Signal.Display
+d_display_signal = fmap Signal.coerce . d_signal
+
 parse_event :: (Monad m) => Derive.NoState -> Score.ControlEvent
     -> Derive.DeriveT m (Signal.Segment, Derive.NoState)
 parse_event _ event = do
@@ -120,7 +130,7 @@ d_pitch_signal scale_id events = do
 
 -- | Produce a plain signal from an absolute pitch track to render on the UI.
 d_display_pitch :: (Monad m) => Pitch.ScaleId -> [Score.ControlEvent]
-    -> Derive.DeriveT m Signal.Signal
+    -> Derive.DeriveT m Signal.Display
 d_display_pitch scale_id _events = do
     scale <- Derive.get_scale "d_display_pitch" scale_id
     -- TODO implement when I implement pitch signal rendering
@@ -128,7 +138,7 @@ d_display_pitch scale_id _events = do
 
 -- | As 'd_display_pitch' but parse a relative pitch track.
 d_display_relative_pitch :: (Monad m) => Pitch.ScaleId -> [Score.ControlEvent]
-    -> Derive.DeriveT m Signal.Signal
+    -> Derive.DeriveT m Signal.Display
 d_display_relative_pitch scale_id _events = do
     scale <- Derive.get_scale "d_display_relative_pitch" scale_id
     -- TODO implement when I implement pitch signal rendering

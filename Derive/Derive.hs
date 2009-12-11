@@ -65,7 +65,7 @@ import qualified Derive.Score as Score
 type TrackDeriver m e = TrackId -> DeriveT m [e]
 
 type EventDeriver = DeriveT Identity.Identity [Score.Event]
-type SignalDeriver = DeriveT Identity.Identity [(TrackId, Signal.Signal)]
+type SignalDeriver sig = DeriveT Identity.Identity [(TrackId, sig)]
 
 newtype DeriveT m a = DeriveT (DeriveStack m a)
     deriving (Functor, Monad, Trans.MonadIO, Error.MonadError DeriveError)
@@ -102,8 +102,8 @@ data State = State {
     -- blocks.
     , state_ui :: State.State
     , state_lookup_deriver :: LookupDeriver
-    , state_control_op_map :: Map.Map ControlOp SignalOp
-    , state_pitch_op_map :: Map.Map ControlOp PitchOp
+    , state_control_op_map :: Map.Map Operator ControlOp
+    , state_pitch_op_map :: Map.Map Operator PitchOp
     -- | This is set if the derivation is for a signal deriver.  Signal
     -- derivers skip all special tempo treatment.  Ultimately, this is needed
     -- because of the 'add_track_warp' hack.  It might be 'add_track_warp' is
@@ -155,7 +155,7 @@ data TrackWarp = TrackWarp {
 --
 -- TODO Is this really that much of a win?
 data Warp = Warp {
-    warp_signal :: Signal.Tempo
+    warp_signal :: Signal.Warp
     , warp_shift :: TrackPos
     , warp_stretch :: TrackPos
     } deriving (Eq, Show)
@@ -164,7 +164,7 @@ initial_warp :: Warp
 initial_warp = make_warp (Signal.signal [(0, 0), (Signal.max_x, Signal.max_y)])
 
 -- | Convert a Signal to a Warp.
-make_warp :: Signal.Tempo -> Warp
+make_warp :: Signal.Warp -> Warp
 make_warp sig = Warp sig (TrackPos 0) (TrackPos 1)
 
 data DeriveError = DeriveError SrcPos.SrcPos [Warning.StackPos] String
@@ -345,8 +345,8 @@ with_instrument inst attrs op = do
 
 -- *** control
 
-type ControlOp = String
-type SignalOp = Signal.Signal -> Signal.Signal -> Signal.Signal
+type Operator = String
+type ControlOp = Signal.Control -> Signal.Control -> Signal.Control
 type PitchOp = PitchSignal.PitchSignal -> PitchSignal.Relative
     -> PitchSignal.PitchSignal
 
@@ -360,7 +360,7 @@ with_control cont signal op = do
     return result
 
 with_relative_control :: (Monad m) =>
-    Score.Control -> ControlOp -> Signal.Control -> DeriveT m t -> DeriveT m t
+    Score.Control -> Operator -> Signal.Control -> DeriveT m t -> DeriveT m t
 with_relative_control cont c_op signal op = do
     sig_op <- lookup_control_op c_op
     controls <- fmap state_controls get
@@ -385,7 +385,7 @@ with_pitch signal op = do
     return result
 
 with_relative_pitch :: (Monad m) =>
-    ControlOp -> PitchSignal.Relative -> DeriveT m t -> DeriveT m t
+    Operator -> PitchSignal.Relative -> DeriveT m t -> DeriveT m t
 with_relative_pitch c_op signal op = do
     sig_op <- lookup_pitch_control_op c_op
     old <- fmap state_pitch get
@@ -399,7 +399,7 @@ with_relative_pitch c_op signal op = do
             modify $ \st -> st { state_pitch = old }
             return result
 
-lookup_control_op :: (Monad m) => ControlOp -> DeriveT m SignalOp
+lookup_control_op :: (Monad m) => Operator -> DeriveT m ControlOp
 lookup_control_op c_op = do
     op_map <- fmap state_control_op_map get
     maybe (throw ("unknown control op: " ++ show c_op)) return
@@ -407,7 +407,7 @@ lookup_control_op c_op = do
 
 -- | Default set of control operators.  Merged at runtime with the static
 -- config.  TODO but not yet
-default_control_op_map :: Map.Map ControlOp SignalOp
+default_control_op_map :: Map.Map Operator ControlOp
 default_control_op_map = Map.fromList
     [ ("+", Signal.sig_add)
     , ("-", Signal.sig_subtract)
@@ -416,14 +416,14 @@ default_control_op_map = Map.fromList
     , ("min", Signal.sig_min)
     ]
 
-lookup_pitch_control_op :: (Monad m) => ControlOp -> DeriveT m PitchOp
+lookup_pitch_control_op :: (Monad m) => Operator -> DeriveT m PitchOp
 lookup_pitch_control_op c_op = do
     op_map <- fmap state_pitch_op_map get
     maybe (throw ("unknown pitch op: " ++ show c_op)) return
         (Map.lookup c_op op_map)
 
 -- | As with 'default_control_op_map', but pitch ops have a different type.
-default_pitch_op_map :: Map.Map ControlOp PitchOp
+default_pitch_op_map :: Map.Map Operator PitchOp
 default_pitch_op_map = Map.fromList
     [ ("+", PitchSignal.sig_add)
     , ("max", PitchSignal.sig_max)
@@ -563,11 +563,11 @@ d_tempo track_id signalm deriver = do
         add_track_warp track_id
         deriver
 
-tempo_to_warp :: Signal.Tempo -> Signal.Tempo
+tempo_to_warp :: Signal.Tempo -> Signal.Warp
 tempo_to_warp = Signal.integrate tempo_srate . Signal.map_y (1/)
     . Signal.clip_min min_tempo
 
-d_warp :: (Monad m) => Signal.Tempo -> DeriveT m a -> DeriveT m a
+d_warp :: (Monad m) => Signal.Warp -> DeriveT m a -> DeriveT m a
 d_warp sig deriver = do
     old_warp <- fmap state_warp get
     modify $ \st -> st { state_warp = compose old_warp sig }
@@ -589,7 +589,7 @@ d_warp sig deriver = do
 -- > f(scale(stretch, g) + offset)
 -- > (shift f -offset)(scale(stretch, g))
 -- > (compose (shift-time f (- offset)) (scale stretch g))
-compose_warp :: Warp -> Signal.Tempo -> Warp
+compose_warp :: Warp -> Signal.Warp -> Warp
 compose_warp (Warp warpsig shift stretch) sig = make_warp
     (Signal.shift (-shift) warpsig `Signal.compose` Signal.stretch stretch sig)
 
@@ -648,8 +648,8 @@ data NoState = NoState deriving (Show)
 d_merge :: (Monad m) => [[Score.Event]] -> m [Score.Event]
 d_merge = return . merge_events
 
-d_signal_merge :: (Monad m) => [[(TrackId, Signal.Control)]]
-    -> m [(TrackId, Signal.Control)]
+d_signal_merge :: (Monad m) => [[(TrackId, Signal.Signal y)]]
+    -> m [(TrackId, Signal.Signal y)]
 d_signal_merge = return . concat
 
 merge_events :: [[Score.Event]] -> [Score.Event]

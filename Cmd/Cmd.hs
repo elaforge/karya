@@ -47,6 +47,7 @@ import qualified Derive.Score as Score
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
+import qualified Perform.Signal as Signal
 
 
 -- | This makes Cmds more specific than they have to be, and doesn't let them
@@ -636,7 +637,8 @@ type SchemaMap = Map.Map SchemaId Schema
 -- | A Schema attaches a number of things to a Block.
 data Schema = Schema {
     schema_deriver :: SchemaDeriver Derive.EventDeriver
-    , schema_signal_deriver :: SchemaDeriver Derive.SignalDeriver
+    , schema_signal_deriver ::
+        SchemaDeriver (Derive.SignalDeriver Signal.Display)
     -- | Get a set of Cmds that are applicable within the given CmdContext.
     , schema_cmds :: CmdContext -> ContextCmds
     }
