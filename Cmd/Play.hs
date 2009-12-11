@@ -242,13 +242,14 @@ derive schema_map block_id = do
     return (result, tempo_func, inv_tempo_func)
 
 -- | Convert a Warning into an appropriate log msg.
--- TODO: The special formatting for the event_stack should let the log viewer
--- know it can be clicked on and highlighted.
 warn_to_msg :: String -> Warning.Warning -> Log.Msg
-warn_to_msg context (Warning.Warning msg event_stack range) =
-    Log.msg Log.Warn $ context ++ ": " ++ msg
-        ++ " [" ++ show event_stack ++ "] "
-        ++ maybe "" (("pos: " ++) . show) range
+warn_to_msg context (Warning.Warning msg event_stack maybe_range) =
+    log { Log.msg_stack = Just event_stack }
+    where
+    log = Log.msg Log.Warn $ context ++ ": " ++ msg
+        -- TODO It would be more useful to append this to the stack, but I have
+        -- to convert global -> local.
+        ++ maybe "" (("pos: " ++) . show) maybe_range
 
 
 -- ** updater

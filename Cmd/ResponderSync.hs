@@ -167,8 +167,7 @@ evaluate_performance :: BlockId -> Cmd.Performance -> IO ()
 evaluate_performance block_id perf = do
     -- Force the performance to actually be evaluated.  Writing out the logs
     -- should do it.
-    let prefix = flip Text.append
-            (Text.pack ("deriving " ++ show block_id ++ ": "))
+    let prefix = Text.append (Text.pack ("deriving " ++ show block_id ++ ": "))
     let logs = map (\log -> log { Log.msg_text = prefix (Log.msg_text log) })
             (Cmd.perf_logs perf)
     mapM_ Log.write logs
