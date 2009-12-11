@@ -14,7 +14,7 @@ CURRENT
   - creating a new block didn't get the box state?
   - try new fltk
   - selection delete doesn't work on merged track
-  - a manual way to mark block end (add "--"?) for subblocks
+  * a manual way to mark block end (add "--"?) for subblocks
   - test relative pitch slide!
   - more symbolic calls, e.g. -/_\\/ and -//
   * in window title, put bid before vid

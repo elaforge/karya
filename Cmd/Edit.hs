@@ -74,6 +74,12 @@ edit_color mode = case mode of
 
 -- * universal event cmds
 
+-- | Insert an event at the current insert pos.
+insert_event :: (Monad m) => String -> TrackPos -> Cmd.CmdT m ()
+insert_event text dur = do
+    (_, _, track_id, pos) <- Selection.get_insert
+    State.insert_events track_id [(pos, Event.event text dur)]
+
 -- | Extend the events in the selection to either the end of the selection or
 -- the beginning of the next note, whichever is shorter.
 --

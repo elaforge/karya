@@ -8,7 +8,7 @@ import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Edit as Edit
 import qualified Cmd.Keymap as Keymap
-import Cmd.Keymap (bind_mod, command_char)
+import Cmd.Keymap (bind_mod, command_char, bind_char)
 import Cmd.Keymap (SimpleMod(..))
 
 import qualified Cmd.NoteTrack as NoteTrack
@@ -24,7 +24,17 @@ make_keymap pitch_track = Keymap.make_cmd_map $ concat
     , command_char '.' "dur * 1.5" (Edit.cmd_modify_dur (*1.5))
     , command_char ',' "dur / 1.5" (Edit.cmd_modify_dur (/1.5))
     , command_char 'j' "join events" Edit.cmd_join_events
+
+    , bind_char '`' "insert track end" cmd_insert_track_end
     ]
+
+-- | This can be used to extend the length of a block so when it is subderived
+-- it has the right length.
+--
+-- If it's more convenient, I could remove any existing "--" events before
+-- inserting the new one.
+cmd_insert_track_end :: (Monad m) => Cmd.CmdT m ()
+cmd_insert_track_end = Edit.insert_event "--" 0
 
 cmd_toggle_merged :: (Monad m) => NoteTrack.PitchTrack -> Cmd.CmdT m ()
 cmd_toggle_merged (NoteTrack.CreateTrack _ _ _) =

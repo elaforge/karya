@@ -166,6 +166,8 @@ block_config_bindings = concat
 
 -- delete = remove events and move following events back
 -- clear = just remove events
+
+-- Global bindings for edit type things.
 edit_bindings = concat
     [ bind_key Key.Escape "toggle val edit" Edit.cmd_toggle_val_edit
     , bind_mod [PrimaryCommand] Key.Escape "toggle raw edit"
@@ -197,7 +199,7 @@ edit_bindings = concat
     , command_char '6' "step rank 5+1" (step_rank 5 1) -- 32nd
     , command_char '7' "step_rank 6+0" (step_rank 6 0) -- 64th
 
-    , bind_char '-' "octave -1" (Edit.cmd_modify_octave (+ (-1)))
+    , bind_char '-' "octave -1" (Edit.cmd_modify_octave (subtract 1))
     , bind_char '=' "octave +1" (Edit.cmd_modify_octave (+1))
     ]
     where
