@@ -26,7 +26,7 @@ instance Error.Error Warning where
     strMsg msg = Warning msg [] Nothing
 
 -- | The location of an event that had a problem.
--- (block_id, track_id, (event_start, event_dur))
+-- (block_id, track_id, (event_start, event_end))
 type StackPos = (BlockId, Maybe TrackId, Maybe (TrackPos, TrackPos))
 
 -- | Stack order is most recent call first.
@@ -36,7 +36,7 @@ type Stack = [StackPos]
 -- but are here since both places import this module.
 --
 -- Examples:
--- "untitled/b0 untitled/b0.t2 0-0"
+-- "untitled/b0 untitled/b0.t2 0-.25"
 -- "untitled/b0 foo/bar *"
 -- "untitled/b0 * *"
 unparse_stack :: StackPos -> String

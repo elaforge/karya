@@ -456,7 +456,7 @@ with_stack_track track_id = modify_stack $ \(block_id, _, _) ->
 with_stack_pos :: (Monad m) => TrackPos -> TrackPos -> DeriveT m a
     -> DeriveT m a
 with_stack_pos start dur = modify_stack $ \(block_id, track_id, _) ->
-    (block_id, track_id, Just (start, dur))
+    (block_id, track_id, Just (start, start + dur))
 
 modify_stack :: (Monad m) => (Warning.StackPos -> Warning.StackPos)
     -> DeriveT m a -> DeriveT m a

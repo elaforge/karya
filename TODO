@@ -11,8 +11,11 @@
 - signal deriver doesn't record track in stack
 
 CURRENT
+  - window position not restored on load
   - creating a new block didn't get the box state?
   - try new fltk
+  - trying to derive relative blocks generates a lot of log spam, can I avoid
+    that somehow?
   - selection delete doesn't work on merged track
   * a manual way to mark block end (add "--"?) for subblocks
   - test relative pitch slide!
