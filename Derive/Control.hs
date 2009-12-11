@@ -186,10 +186,9 @@ parse_relative = do
 
 unparse_relative :: (Pitch.Octave, Double) -> Pitch.Note
 unparse_relative (oct, nn)
-    | oct == 0 = Pitch.Note (sign ++ Parse.show_float (Just 2) (abs nn))
-    | otherwise = Pitch.Note (sign ++ show (abs oct) ++ degree)
+    | oct == 0 = Pitch.Note (Parse.show_float (Just 2) nn)
+    | otherwise = Pitch.Note (show oct ++ degree)
     where
-    sign = if (if oct /= 0 then fromIntegral oct else nn) >= 0 then "+" else "-"
     degree = (if oct == 0 then "" else "/")
         ++ (if nn == 0 then "" else Parse.show_float (Just 2) nn)
 

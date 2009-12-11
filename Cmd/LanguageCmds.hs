@@ -140,6 +140,10 @@ save_as fn = Save.cmd_save fn
 
 -- * undo, redo
 
+undo, redo :: Cmd.CmdL ()
+undo = Edit.undo
+redo = Edit.redo
+
 -- * show / modify UI state
 
 vid = Types.ViewId . Id.read_id

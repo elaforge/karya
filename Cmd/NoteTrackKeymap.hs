@@ -35,4 +35,3 @@ cmd_toggle_merged (NoteTrack.ExistingTrack pitch_tracknum) = do
     if null (Block.track_merged btrack)
         then State.merge_track block_id note_tracknum pitch_tracknum
         else State.unmerge_track block_id note_tracknum
-
