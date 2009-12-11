@@ -11,6 +11,13 @@
 - signal deriver doesn't record track in stack
 
 CURRENT
+  - creating a new block didn't get the box state?
+  - try new fltk
+  - selection delete doesn't work on merged track
+  - a manual way to mark block end (add "--"?) for subblocks
+  - test relative pitch slide!
+  - more symbolic calls, e.g. -/_\\/ and -//
+  * in window title, put bid before vid
   * Event.event_text should be Text instead of ByteString
   * logview: clickable stackpos
   - should tab in raw edit mode go to method?  how to go back then?
@@ -19,9 +26,7 @@ CURRENT
   * reverse skel display arrow direction
   * convert Signal to only flat line segments
   * rename controller -> control
-  - sub block: relative pitch track
-    create with absolute pitch track, then 'pitch_to_relative bid tnum "4c-"'
-  + track down ghc rts crashes
+  * track down ghc rts crashes
   - select track, st3 style select block, track
   * extend shouldn't clip current event to 0
   - enter note on existing note should change its length

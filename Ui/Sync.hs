@@ -92,8 +92,9 @@ track_title (Block.TId track_id _) =
     fmap Track.track_title (State.get_track track_id)
 track_title _ = return ""
 
+-- | Generate the title for block windows.
 block_window_title :: ViewId -> BlockId -> String
-block_window_title view_id block_id = show view_id ++ " -- " ++ show block_id
+block_window_title view_id block_id = show block_id ++ " -- " ++ show view_id
 
 get_samples :: Maybe Track.TrackSamples -> Block.TracklikeId -> Track.Samples
 get_samples maybe_track_samples track = maybe Track.no_samples id $ do
