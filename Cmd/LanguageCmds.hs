@@ -40,6 +40,8 @@ import qualified Util.Map as Map
 import Util.Pretty as Pretty
 import qualified Util.PPrint as PPrint
 
+import qualified Midi.Midi as Midi
+
 import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
@@ -77,33 +79,40 @@ import qualified Perform.Signal as Signal
 import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Warning as Warning
 
-
 import qualified Instrument.MidiDb as MidiDb
 import qualified Instrument.Db as Instrument.Db
-
-import qualified Midi.Midi as Midi
 
 import qualified App.Config as Config
 
 
--- * util
+-- * errors
 
--- | pprint does ok for records, but it doesn't work so well if I want to print
--- part of the record, or change the types.  A real record system for haskell
--- would probably fix this.
-show_record :: [(String, String)] -> String
-show_record = concatMap $ \(k, v) ->
-    let s = Seq.strip v in printf "%s:%s\n" k
-            (if '\n' `elem` s then '\n' : indent_lines s else ' ' : s)
-indent_lines = Seq.rstrip . unlines . map (indent++) . lines
-indent = "  "
+-- | Called from logview
+s :: String -> Cmd.CmdL ()
+s stackpos = maybe (Cmd.throw $ "can't parse stackpos: " ++ show stackpos)
+        highlight_error (Warning.parse_stack stackpos)
 
-show_list :: [String] -> String
-show_list xs = concatMap (\(i, x) -> printf "%d. %s\n" i x) (Seq.enumerate xs)
+unerror :: Cmd.CmdL ()
+unerror = do
+    view_ids <- State.get_all_view_ids
+    forM_ view_ids $ \vid -> do
+        State.set_selection vid Config.error_selnum Nothing
 
+highlight_error :: Warning.StackPos -> Cmd.CmdL ()
+highlight_error (bid, maybe_tid, maybe_range) = do
+    view_ids <- fmap Map.keys (State.get_views_of bid)
+    -- mapM_ raise_view view_ids
+    case (maybe_tid, maybe_range) of
+        (Just tid, Just (from, to)) -> do
+            tracknums <- State.track_id_tracknums bid tid
+            forM_ view_ids $ \vid -> forM_ tracknums $ \tracknum ->
+                Selection.select_and_scroll vid Config.error_selnum
+                    (Types.selection tracknum from tracknum to)
+        _ -> return ()
 
-_cmd_state :: (Cmd.State -> a) -> Cmd.CmdL a
-_cmd_state = flip fmap Cmd.get_state
+-- TODO implement
+raise_view :: ViewId -> Cmd.CmdL ()
+raise_view = undefined
 
 -- * show / modify cmd state
 
@@ -233,6 +242,7 @@ expand_track block_id tracknum = do
     State.remove_track_flag block_id tracknum Block.Collapse
     Default.set_inst_status block_id tracknum
 
+-- | Called from logview.
 collapse, expand :: TrackNum -> Cmd.CmdL ()
 collapse tracknum = flip collapse_track tracknum =<< Cmd.get_focused_block
 expand tracknum = flip expand_track tracknum =<< Cmd.get_focused_block
@@ -359,6 +369,7 @@ replace_ruler ruler_id block_id = do
 
 -- * midi config
 
+-- | Called from the browser.
 lookup_instrument :: String -> Cmd.CmdL (Maybe Instrument.Instrument)
 lookup_instrument inst_name = do
     lookup_inst <- Cmd.get_lookup_midi_instrument
@@ -545,3 +556,23 @@ score_to_midi events = do
         (midi_msgs, perform_warnings) =
             Midi.Perform.perform lookup inst_config midi_events
     return (midi_msgs, convert_warnings ++ perform_warnings)
+
+
+-- * util
+
+-- | pprint does ok for records, but it doesn't work so well if I want to print
+-- part of the record, or change the types.  A real record system for haskell
+-- would probably fix this.
+show_record :: [(String, String)] -> String
+show_record = concatMap $ \(k, v) ->
+    let s = Seq.strip v in printf "%s:%s\n" k
+            (if '\n' `elem` s then '\n' : indent_lines s else ' ' : s)
+indent_lines = Seq.rstrip . unlines . map (indent++) . lines
+indent = "  "
+
+show_list :: [String] -> String
+show_list xs = concatMap (\(i, x) -> printf "%d. %s\n" i x) (Seq.enumerate xs)
+
+
+_cmd_state :: (Cmd.State -> a) -> Cmd.CmdL a
+_cmd_state = flip fmap Cmd.get_state

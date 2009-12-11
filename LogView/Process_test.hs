@@ -43,4 +43,5 @@ test_process_msg = do
 test_regex_style = do
     let f = Process.run_formatter
             . Process.regex_style Process.style_plain Process.msg_text_regexes
+    -- TODO actually test
     pprint $ f "bah (bid \"name\") bah (vid \"2\") q"

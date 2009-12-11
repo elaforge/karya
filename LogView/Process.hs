@@ -15,7 +15,9 @@ import qualified Data.Text as Text
 import qualified Data.Time as Time
 import qualified System.IO as IO
 
-import qualified Util.Control
+import qualified Perform.Warning as Warning
+
+import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
@@ -162,7 +164,12 @@ format_msg msg = run_formatter $ do
     with_plain "\t"
     let style = if Log.msg_prio msg < Log.Warn
             then style_plain else style_warn
-    maybe (return ()) emit_srcpos (Log.msg_caller msg)
+    when_just (Log.msg_caller msg) $ \caller -> do
+        emit_srcpos caller
+        with_plain " "
+    when_just (Log.msg_stack msg) $ \stack -> do
+        emit_stack stack
+        with_plain " "
     regex_style style msg_text_regexes (Log.msg_string msg)
     with_plain "\n"
     where
@@ -174,13 +181,18 @@ type Formatter = Writer.Writer [(String, [Style])] ()
 run_formatter :: Formatter -> StyledText
 run_formatter = render_styles . Writer.execWriter
 
-emit_msg_text :: Style -> String -> Formatter
-emit_msg_text style text = with_style style text
-
+emit_srcpos :: (String, Maybe String, Int) -> Formatter
 emit_srcpos (file, func_name, line) = do
     with_style style_filename $ file ++ ":" ++ show line ++ " "
     maybe (return ())
-        (\func -> with_style style_func_name ("[" ++ func ++ "] ")) func_name
+        (\func -> with_style style_func_name ("[" ++ func ++ "]")) func_name
+
+emit_stack :: Warning.Stack -> Formatter
+emit_stack stack = with_style style_clickable $ Seq.join "/" (map fmt stack)
+    where fmt stack_pos = "{s " ++ show (Warning.unparse_stack stack_pos) ++ "}"
+
+emit_msg_text :: Style -> String -> Formatter
+emit_msg_text style text = with_style style text
 
 msg_text_regexes :: [(Regex.Regex, Style)]
 msg_text_regexes = map (\(reg, style) -> (Regex.make reg, style))
@@ -241,7 +253,7 @@ deserialize_line line = do
 
 tail_getline :: IO.Handle -> IO String
 tail_getline hdl = do
-    Util.Control.while_ (IO.hIsEOF hdl) $
+    while_ (IO.hIsEOF hdl) $
         Concurrent.threadDelay 500000
     -- Since hGetLine in its infinite wisdom chops the newline it's impossible
     -- to tell if this is a complete line or not.  I'll set LineBuffering and

@@ -70,8 +70,8 @@ instance Storable Zoom where
 -- many units are in one second depends on the tempo.  TrackPos units
 -- can be negative, but blocks only display events at positive TrackPos.
 newtype TrackPos = TrackPos Double
-    deriving (Num, Enum, Real, Floating, Fractional, RealFrac, Eq, Ord,
-        Show, Read)
+    deriving (Num, Enum, Real, Floating, Fractional, RealFrac, RealFloat,
+        Eq, Ord, Show, Read)
 
 instance Storable TrackPos where
     sizeOf _ = #size TrackPos

@@ -1,7 +1,13 @@
 module Perform.Warning where
 import qualified Control.Monad.Error as Error
+import qualified Text.ParserCombinators.Parsec as P
+import Text.ParserCombinators.Parsec ((<|>))
+import qualified Util.Parse as Parse
+import qualified Util.Seq as Seq
 
 import Ui
+import qualified Ui.Types as Types
+import qualified Ui.Id as Id
 
 
 data Warning = Warning {
@@ -25,3 +31,34 @@ type StackPos = (BlockId, Maybe TrackId, Maybe (TrackPos, TrackPos))
 
 -- | Stack order is most recent call first.
 type Stack = [StackPos]
+
+-- | Format a StackPos.  These functions are used by LogView and LanguageCmds,
+-- but are here since both places import this module.
+--
+-- Examples:
+-- "untitled/b0 untitled/b0.t2 0-0"
+-- "untitled/b0 foo/bar *"
+-- "untitled/b0 * *"
+unparse_stack :: StackPos -> String
+unparse_stack (bid, maybe_tid, maybe_range) =
+    Seq.join " " [bid_s, tid_s, range_s]
+    where
+    bid_s = Id.show_id (Id.unpack_id bid)
+    tid_s = maybe "*" (Id.show_id . Id.unpack_id) maybe_tid
+    range_s = maybe "*"
+        (\(from, to) -> float from ++ "-" ++ float to) maybe_range
+    float = Parse.show_float (Just 2)
+
+parse_stack :: String -> Maybe StackPos
+parse_stack = Parse.maybe_parse $ do
+    bid <- Parse.p_word
+    tid <- optional Parse.p_word
+    range <- optional $ do
+        from <- Parse.p_float
+        P.char '-'
+        to <- Parse.p_float
+        return (TrackPos from, TrackPos to)
+    return (Types.BlockId (Id.read_id bid),
+        fmap (Types.TrackId . Id.read_id) tid, range)
+    where
+    optional p = (P.char '*' >> P.spaces >> return Nothing) <|> fmap Just p

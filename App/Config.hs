@@ -66,6 +66,11 @@ mouse_select = 1
 insert_selnum :: Types.SelNum
 insert_selnum = 0
 
+error_selnum :: Types.SelNum
+error_selnum = 3
+error_selnum_color :: Color.Color
+error_selnum_color = make_selection_color Color.red
+
 -- | SelNum of the play position indicator.
 play_position_selnum :: Types.SelNum
 play_position_selnum = 4
@@ -139,7 +144,7 @@ make_selection_color = Color.alpha 0.3 . Color.brightness 1.25
 -- * hardcoded configs
 
 bconfig_selection_colors =
-    [sel Color.blue, sel Color.green, sel Color.red, sel Color.yellow,
+    [sel Color.blue, sel Color.green, sel Color.yellow, error_selnum_color,
         play_position_color]
     where sel = make_selection_color
 bconfig_bg_color = Color.gray8
