@@ -137,7 +137,7 @@ extract_tracks ustate = map (\(_, title, events) -> (title, events)) tracks
 -- * block
 
 mkblock :: String -> [(Block.TracklikeId, Types.Width)] -> Block.Block
-mkblock title tracks = Block.block
+mkblock title tracks = Block.block Block.default_config
     title (map (uncurry Block.block_track) tracks) Config.schema
 
 -- * track

@@ -53,6 +53,7 @@ cmd_toggle_kbd_entry = do
 
 -- ** util
 
+modify_edit_mode :: (Monad m) => (Cmd.EditMode -> Cmd.EditMode) -> Cmd.CmdT m ()
 modify_edit_mode f = do
     Cmd.modify_state $ \st ->
         st { Cmd.state_edit_mode = f (Cmd.state_edit_mode st) }
@@ -62,10 +63,10 @@ sync_edit_box_status :: (Monad m) => Cmd.CmdT m ()
 sync_edit_box_status = do
     edit_mode <- fmap Cmd.state_edit_mode Cmd.get_state
     kbd_entry <- fmap Cmd.state_kbd_entry Cmd.get_state
-    block_ids <- State.get_all_block_ids
     let c = if kbd_entry then 'K' else ' '
-    forM_ block_ids $ \bid -> State.set_edit_box bid (edit_color edit_mode) c
+    Cmd.set_edit_box (edit_color edit_mode) c
 
+edit_color :: Cmd.EditMode -> Color
 edit_color mode = case mode of
     Cmd.NoEdit -> Config.box_color
     Cmd.RawEdit -> Config.raw_edit_color

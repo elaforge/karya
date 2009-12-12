@@ -224,6 +224,8 @@ data State = State {
     -- octave instead of scale degree since scales may have different numbers
     -- of notes per octave.
     , state_kbd_entry_octave :: Pitch.Octave
+
+    , state_edit_box :: (Color, Char)
     } deriving (Show, Generics.Typeable)
 
 initial_state inst_db schema_map = State {
@@ -251,8 +253,11 @@ initial_state inst_db schema_map = State {
         TimeStep.UntilMark TimeStep.AllMarklists (TimeStep.MatchRank 3 0)
     -- This should put middle C in the center of the kbd entry keys.
     , state_kbd_entry_octave = 4
+
+    , state_edit_box = Config.bconfig_track_box
     }
 
+empty_state :: State
 empty_state = initial_state Instrument.Db.empty Map.empty
 
 -- | Reset the parts of the State which are specific to a \"session\".  This
@@ -448,6 +453,28 @@ get_wdev_state = fmap state_wdev_state get_state
 set_wdev_state :: (Monad m) => WriteDeviceState -> CmdT m ()
 set_wdev_state wdev_state =
     modify_state $ \st -> st { state_wdev_state = wdev_state }
+
+-- | At the Ui level, the edit box is per-block, but I use it to indicate edit
+-- mode, which is global.  So it gets stored in Cmd.State and must be synced
+-- with new blocks.
+set_edit_box :: (Monad m) => Color -> Char -> CmdT m ()
+set_edit_box color char = do
+    modify_state $ \st -> st { state_edit_box = (color, char) }
+    block_ids <- State.get_all_block_ids
+    forM_ block_ids $ \bid -> State.set_edit_box bid color char
+
+create_block :: (Monad m) => Id.Id -> String -> [Block.BlockTrack]
+    -> CmdT m BlockId
+create_block block_id title tracks = do
+    config <- block_config
+    -- TODO get a default schema?
+    State.create_block block_id (Block.block config title tracks Config.schema)
+
+block_config :: (Monad m) => CmdT m Block.Config
+block_config = do
+    track_box <- fmap state_edit_box get_state
+    return $ Block.Config Config.bconfig_selection_colors
+        Config.bconfig_bg_color track_box Config.bconfig_sb_box
 
 -- * basic cmds
 

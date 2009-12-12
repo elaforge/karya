@@ -95,25 +95,22 @@ block_from_template include_tracks = do
     return block_id
 
 -- | BlockIds look like \"ns/b0\", \"ns/b1\", etc.
-block :: (State.UiStateMonad m) => RulerId -> m BlockId
+block :: (Monad m) => RulerId -> Cmd.CmdT m BlockId
 block ruler_id = do
     ns <- State.get_project
     blocks <- fmap State.state_blocks State.get
     block_id <- require "block id" $ generate_block_id ns blocks
-    b <- State.create_block block_id $ Block.block "" [] Config.schema
-    State.insert_track b 0
-        (Block.block_track (Block.RId ruler_id) Config.ruler_width)
+    b <- Cmd.create_block block_id ""
+        [Block.block_track (Block.RId ruler_id) Config.ruler_width]
     return b
 
 -- | Create a block with the given ID name.  Useful for blocks meant to be
 -- sub-derived.
-named_block :: (State.UiStateMonad m) =>
-    String -> RulerId -> m BlockId
+named_block :: (Monad m) => String -> RulerId -> Cmd.CmdT m BlockId
 named_block name ruler_id = do
     ns <- State.get_project
-    b <- State.create_block (Id.id ns name) $ Block.block "" [] Config.schema
-    State.insert_track b 0
-        (Block.block_track (Block.RId ruler_id) Config.ruler_width)
+    b <- Cmd.create_block (Id.id ns name) ""
+        [Block.block_track (Block.RId ruler_id) Config.ruler_width]
     return b
 
 -- | Delete a block and any views it appears in.  Also delete any tracks
@@ -143,7 +140,7 @@ view block_id = do
         . State.state_views) State.get
     State.create_view view_id $ Block.view block_id rect Config.zoom
 
-block_view :: (State.UiStateMonad m) => RulerId -> m ViewId
+block_view :: (Monad m) => RulerId -> Cmd.CmdT m ViewId
 block_view ruler_id = block ruler_id >>= view
 
 -- | ViewIds look like \"ns/b0.v0\", \"ns/b0.v1\", etc.

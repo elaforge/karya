@@ -42,8 +42,9 @@ block_track_ids = track_ids_of . block_tracklike_ids
 block_ruler_ids :: Block -> [RulerId]
 block_ruler_ids = ruler_ids_of . block_tracklike_ids
 
-block title tracks schema_id =
-    Block title default_config tracks Skeleton.empty schema_id
+block :: Config -> String  -> [BlockTrack] -> SchemaId -> Block
+block config title tracks schema_id =
+    Block title config tracks Skeleton.empty schema_id
 
 -- | Per-block configuration.
 data Config = Config {
@@ -160,8 +161,7 @@ rulers_of = Seq.map_maybe ruler_of
 
 -- | A divider separating tracks.
 -- Defined here in Block since it's so trivial.
-data Divider = Divider Color
-    deriving (Eq, Ord, Show, Read)
+data Divider = Divider Color deriving (Eq, Ord, Show, Read)
 
 -- * block view
 
