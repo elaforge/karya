@@ -27,9 +27,13 @@ HTEST := -fhpc -prof -auto-all -caf-all # -O2
 
 HLDFLAGS := `fltk-config --ldflags`
 
-GHC := ghc-6.10.4
-# This is unfortunately needed by hsc2hs, which seems kinda broken.
-GHC_LIB := /Library/Frameworks/GHC.framework/Versions/Current/usr/lib/ghc-6.10.4
+# This is unfortunately needed by hsc2hs to include HsFFI.h, which seems
+# GHC := ghc-6.10.4
+# kinda broken.
+# GHC_LIB := /Library/Frameworks/GHC.framework/Versions/Current/usr/lib/ghc-6.10.4
+
+GHC := ghc-6.12.1
+GHC_LIB := /Library/Frameworks/GHC.framework/Versions/Current/usr/lib/ghc-6.12.1/
 
 # hspp adds filename and lineno to various logging and testing functions.
 BASIC_HFLAGS := -threaded -W $(CINCLUDE) -i../lib -pgmc g++ -pgml g++ \

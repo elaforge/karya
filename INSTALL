@@ -1,12 +1,20 @@
     haskell deps, from hackage
-storablevector
+storablevector -> transformers, non-negative, QuickCheck-1
 binary
 dlist
-hint
-haddock
+hint -> ghc-paths, MonadCatchIO-mtl, ghc-mtl
+haddock (only to build docs)
 text
 haskeline
 regex-pcre
+
+    no longer in base, I think these should come from the haskell platform?
+parsec
+mtl
+network
+stm
+haskell-src -> happy
+
 
     installed separately:
 libpcre library from http://www.pcre.org
