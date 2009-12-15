@@ -5,7 +5,6 @@ import qualified Data.Tree as Tree
 import qualified Util.Graph as Graph
 
 import Ui
-import qualified Ui.Types as Types
 
 
 -- | The skeleton describes a hierarchical relationship between tracks.  It's

@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -fno-warn-unused-imports #-} -- ghc confused about Control.Monad
 {- | Convert from the Derive events to MIDI performer specific events.
 
     Since this module depends on both the Derive and Perform.Midi layers, it
@@ -6,18 +5,14 @@
     physically located in Perform.Midi.
 -}
 module Perform.Midi.Convert where
-import Control.Monad
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.Reader as Reader
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
-import qualified Util.Map as Map
 import qualified Util.Logger as Logger
-import qualified Util.Seq as Seq
 
-import qualified Derive.Schema.Default as Default
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 

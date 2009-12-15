@@ -42,7 +42,6 @@ module Derive.Schema (
 import Control.Monad
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import qualified Data.Tree as Tree
 
 import qualified Util.Log as Log
@@ -53,7 +52,6 @@ import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
-import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
 import Cmd.Cmd (Schema(..), SchemaDeriver, CmdContext(..), ContextCmds,

@@ -37,8 +37,6 @@
     events.
 -}
 module Cmd.GlobalKeymap where
-import qualified Control.Monad.Identity as Identity
-
 import qualified App.Config as Config
 
 import qualified Ui.Block as Block

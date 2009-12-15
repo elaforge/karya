@@ -3,7 +3,6 @@
 module Local.Instrument.Z1 where
 import qualified Data.Bits as Bits
 import qualified Data.List as List
-import qualified Data.Maybe as Maybe
 import qualified Data.Word as Word
 import System.FilePath ((</>))
 

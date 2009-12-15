@@ -1,5 +1,4 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, DeriveDataTypeable #-}
-{-# OPTIONS_GHC -fno-warn-unused-imports #-}
 module Cmd.Cmd where
 
 import Control.Monad
@@ -9,11 +8,8 @@ import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State as MonadState
 import qualified Control.Monad.Trans as Trans
 import Control.Monad.Trans (lift)
-import qualified Control.Monad.Writer as Writer
 import qualified Data.Generics as Generics
-import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import Text.Printf
 
 import qualified Util.Logger as Logger
@@ -23,7 +19,6 @@ import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Id as Id
 import qualified Ui.Key as Key
-import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.Types as Types
 import qualified Ui.UiMsg as UiMsg

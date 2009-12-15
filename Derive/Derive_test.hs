@@ -1,13 +1,10 @@
-{-# OPTIONS_GHC -fno-warn-unused-imports #-}
 {- | This also tests Derive.Note and Derive.Control since it uses them to
     piece together a complete deriver.
 -}
 module Derive.Derive_test where
-import Control.Monad
 import qualified Control.Monad.Identity as Identity
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import qualified Data.Maybe as Maybe
 import qualified Data.List as List
 
 import Util.Test

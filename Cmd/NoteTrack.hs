@@ -1,21 +1,16 @@
 {-# LANGUAGE ViewPatterns #-}
-{-# OPTIONS_GHC -fno-warn-unused-imports #-}
 {- | Cmds to add notes to a note track.
 
     This module is sister to 'Derive.Note' since it edits events that
     Derive.Note parses.
 -}
 module Cmd.NoteTrack where
-import Control.Monad
-import qualified Control.Monad.Identity as Identity
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import qualified Util.Control as Control
 
 import Ui
 import qualified Ui.Key as Key
 import qualified Ui.State as State
-import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create

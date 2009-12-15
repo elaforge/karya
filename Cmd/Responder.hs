@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -fno-warn-unused-imports #-} -- ghc confused about Control.Monad
 {-# LANGUAGE ScopedTypeVariables #-} -- for pattern type sig in catch
 {- | The responder is the main event loop on the haskell side.
 

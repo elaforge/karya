@@ -2,7 +2,6 @@
 
 Later there should be an undump mode that converts text to the binary format.
 -}
-import Control.Monad
 import qualified Data.Array.IArray as IArray
 import qualified Data.Map as Map
 import qualified System.Environment as Environment

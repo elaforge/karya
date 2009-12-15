@@ -1,5 +1,4 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, DeriveDataTypeable #-}
-{-# OPTIONS_GHC -fno-warn-unused-imports #-}
 {- | The overall UI state is described here.  This is an immutable data
     structure that contains all the tracks, rulers, note data, and so forth.
     It exports a StateT monad for modification and access.
@@ -29,7 +28,6 @@ import qualified Control.Monad.State as State
 import qualified Data.Generics as Generics
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import qualified Data.Tree as Tree
 
 import qualified Util.Log as Log
@@ -48,7 +46,6 @@ import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 import qualified Ui.Update as Update
 
-import qualified Derive.Score as Score
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Midi.Instrument as Instrument
 

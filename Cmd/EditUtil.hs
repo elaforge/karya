@@ -13,7 +13,6 @@ import qualified Ui.Event as Event
 import qualified Ui.Key as Key
 import qualified Ui.State as State
 import qualified Ui.Track as Track
-import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
@@ -101,9 +100,6 @@ abort_on_mods = do
                 _ -> True
             _ -> True
     when (any is_mod keys_down) Cmd.abort
-
-abort_on_keys check_key (Msg.key_down -> Just key) =
-    when (not (check_key key)) Cmd.abort
 
 parse_key :: (Monad m) => Pitch.ScaleId -> Pitch.InputKey
     -> Cmd.CmdT m Pitch.Note

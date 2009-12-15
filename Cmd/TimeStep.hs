@@ -12,7 +12,6 @@ import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
-import qualified Ui.Types as Types
 
 
 -- | A variable time step, used to find out how much to advance

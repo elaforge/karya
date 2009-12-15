@@ -1,7 +1,6 @@
 -- | Array utilities.
 module Util.Array where
 import qualified Data.Array.IArray as IArray
-import Data.Function
 import Data.Array.IArray ((!))
 
 

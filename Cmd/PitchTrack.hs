@@ -5,7 +5,6 @@
 -}
 module Cmd.PitchTrack where
 import qualified Control.Arrow as Arrow
-import qualified Data.Maybe as Maybe
 
 import qualified Ui.Event as Event
 import qualified Ui.Key as Key

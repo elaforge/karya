@@ -1,9 +1,7 @@
 {-# LANGUAGE PatternGuards #-}
 module Ui.Track where
 import qualified Data.Array.IArray as IArray
-import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Text.Read as Read
 
 import qualified Util.Map as Map
 import qualified Util.Seq as Seq

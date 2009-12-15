@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -fno-warn-unused-imports #-}
 {-# LANGUAGE ScopedTypeVariables #-} -- for pattern type sig in catch
 {- | This module reads lines and streams them to the GUI, which displays them
     in a scrolling box.  Clickable text is marked and will be highlighted in

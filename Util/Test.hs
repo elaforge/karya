@@ -28,7 +28,6 @@ import qualified Control.Exception as Exception
 import Control.Monad
 import qualified Data.IORef as IORef
 import qualified Data.List as List
-import qualified Data.Maybe as Maybe
 import qualified System.IO as IO
 import qualified System.IO.Unsafe as Unsafe
 import Text.Printf

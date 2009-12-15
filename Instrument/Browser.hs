@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -fno-warn-unused-imports #-} -- ghc confused about Control.Monad
 {-# LANGUAGE ScopedTypeVariables #-} -- for pattern type sig in catch
 module Instrument.Browser where
 import Control.Monad
@@ -10,7 +9,6 @@ import qualified Data.ByteString as ByteString
 import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Numeric
 import Text.Printf
 
 import qualified Util.Seq as Seq

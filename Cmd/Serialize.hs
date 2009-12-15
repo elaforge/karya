@@ -103,13 +103,6 @@ version_error typ ver = throw $
 
 -- * binary instances
 
--- TODO This is provided by Data.Binary, but it's compiled against the stdlib
--- Data.Map and I have my own hacked version for the moment.  Remove this
--- later.
-instance (Ord k, Binary k, Binary e) => Binary (Map.Map k e) where
-    put = put . Map.toAscList
-    get = liftM Map.fromDistinctAscList get
-
 instance Binary SaveState where
     put (SaveState a b) = put_version 0
         >> put a >> put b

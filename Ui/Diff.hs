@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -fno-warn-unused-imports #-}
 {- | Diff two states to produce a list of Updates, which must be sent to the UI
 to make it display the second state.
 

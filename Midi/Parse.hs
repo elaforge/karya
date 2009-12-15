@@ -2,7 +2,6 @@ module Midi.Parse where
 import qualified Data.ByteString as B
 import Data.Word (Word8)
 import Data.Bits
-import Data.List
 
 import Midi.Midi
 

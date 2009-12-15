@@ -2,7 +2,6 @@
     them on to the event handling mechanism (the responder).
 -}
 module Ui.UiMsg where
-import Foreign
 import Text.Printf
 
 import qualified Util.Seq as Seq

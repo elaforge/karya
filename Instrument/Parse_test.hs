@@ -1,8 +1,5 @@
 module Instrument.Parse_test where
-import Control.Monad
-import qualified Data.Either as Either
 -- import qualified Data.Word as Word
-
 import Util.Test
 
 import qualified Midi.Midi as Midi

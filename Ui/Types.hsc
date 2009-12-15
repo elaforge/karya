@@ -2,7 +2,7 @@
 -- | Miscellaneous low level types with few dependencies.
 module Ui.Types where
 import qualified Numeric
-import qualified Text.Read as Read -- for Read instances
+import Text.Read -- for Read class with readPrec
 import Foreign
 import Foreign.C
 

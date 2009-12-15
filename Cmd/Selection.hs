@@ -4,7 +4,6 @@ module Cmd.Selection where
 import Control.Monad
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 
 import qualified Util.Control as Control
 import qualified Util.Seq as Seq

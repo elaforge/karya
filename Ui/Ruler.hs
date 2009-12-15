@@ -1,7 +1,6 @@
 module Ui.Ruler where
 import qualified Data.Array.IArray as IArray
 import Data.Array.IArray ((!))
-import qualified Text.Read as Read
 
 import Util.Pretty
 import qualified Util.Array as Array

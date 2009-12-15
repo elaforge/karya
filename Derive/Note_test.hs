@@ -1,7 +1,5 @@
 module Derive.Note_test where
-
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 

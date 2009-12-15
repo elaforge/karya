@@ -1,6 +1,3 @@
-{-# OPTIONS_GHC -fno-warn-unused-imports #-}
--- This module imports modules that are possibly used only dynamically by
--- lang, just to make sure they get compiled.
 {- | Helper functions to be imported into LanguageEnviron.  LanguageEnviron
     must be interpreted since it's the \"top level\" module, so I put the
     library of commands in here.
@@ -28,10 +25,8 @@
 -}
 module Cmd.LanguageCmds where
 import Control.Monad
-import Control.Monad.Trans (liftIO)
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import Text.Printf
 
 import qualified Util.Seq as Seq
@@ -75,12 +70,10 @@ import qualified Perform.Midi.Convert as Midi.Convert
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Midi.Perform
 import qualified Perform.Pitch as Pitch
-import qualified Perform.Signal as Signal
 import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Warning as Warning
 
 import qualified Instrument.MidiDb as MidiDb
-import qualified Instrument.Db as Instrument.Db
 
 import qualified App.Config as Config
 

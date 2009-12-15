@@ -1,6 +1,4 @@
 module Derive.DeriveTest where
-
-import Ui
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Pitch as Pitch

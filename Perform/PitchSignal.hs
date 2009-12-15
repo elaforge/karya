@@ -39,7 +39,6 @@ module Perform.PitchSignal (
     , map_x
 ) where
 import Prelude hiding (truncate)
-import qualified Data.List as List
 import qualified Data.StorableVector as V
 import qualified Foreign.Storable as Storable
 import qualified Util.Num as Num

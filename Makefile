@@ -33,7 +33,7 @@ HLDFLAGS := `fltk-config --ldflags`
 # GHC_LIB := /Library/Frameworks/GHC.framework/Versions/Current/usr/lib/ghc-6.10.4
 
 GHC := ghc-6.12.1
-GHC_LIB := /Library/Frameworks/GHC.framework/Versions/Current/usr/lib/ghc-6.12.1/
+GHC_LIB := /Library/Frameworks/GHC.framework/Versions/Current/usr/lib/ghc-6.12.1
 
 # hspp adds filename and lineno to various logging and testing functions.
 BASIC_HFLAGS := -threaded -W $(CINCLUDE) -i../lib -pgmc g++ -pgml g++ \
@@ -239,5 +239,4 @@ tags: $(ALL_HS)
 
 # include GHC_LIB/include since hsc includes HsFFI.h
 %.hs: %.hsc
-	hsc2hs -c g++ --cflag -Wno-invalid-offsetof $(CINCLUDE) \
-		-I$(GHC_LIB)/include $<
+	hsc2hs -c g++ --cflag -Wno-invalid-offsetof $(CINCLUDE) $<

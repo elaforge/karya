@@ -1,6 +1,5 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
 module Ui.UiMsgC where
-import Control.Monad
 import Foreign
 import Foreign.C
 import qualified Data.Maybe as Maybe

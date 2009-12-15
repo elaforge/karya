@@ -11,11 +11,8 @@
     definition is in 'Bindable'.
 -}
 module Cmd.Keymap where
-import Control.Monad
 import qualified Data.Char as Char
-import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
 import qualified Util.Log as Log

@@ -1,15 +1,15 @@
 module Cmd.Language_test where
-import qualified Control.Concurrent as Concurrent
-import qualified Control.Exception as Exception
-import qualified Data.Map as Map
-import qualified Language.Haskell.Interpreter as Interpreter
+-- import qualified Control.Concurrent as Concurrent
+-- import qualified Control.Exception as Exception
+-- import qualified Data.Map as Map
+-- import qualified Language.Haskell.Interpreter as Interpreter
 
-import qualified Util.Log as Log
+-- import qualified Util.Log as Log
 import Util.Test
 
-import qualified Ui.State as State
-import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Language as Language
+-- import qualified Ui.State as State
+-- import qualified Cmd.Cmd as Cmd
+-- import qualified Cmd.Language as Language
 
 
 -- TODO broken and slow tests

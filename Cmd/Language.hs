@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -fno-warn-unused-imports #-}
 {-# LANGUAGE ScopedTypeVariables #-} -- for pattern type sig in catch
 {- | Process a textual language, which may look familiar, to perform UI state
     changes.
@@ -12,13 +11,11 @@
     source files are newer?
 -}
 module Cmd.Language where
-import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.Chan as Chan
 import qualified Control.Exception as Exception
 import Control.Monad
 import qualified Control.Monad.Error as Error
-import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.Trans as Trans
 
 import qualified Language.Haskell.Interpreter as Interpreter
@@ -29,7 +26,6 @@ import System.FilePath ((</>))
 
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
-import qualified Util.Thread as Thread
 
 import qualified Ui.State as State
 

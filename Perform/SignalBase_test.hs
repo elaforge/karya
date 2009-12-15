@@ -1,13 +1,8 @@
 module Perform.SignalBase_test where
-import qualified Data.List as List
 import qualified Data.StorableVector as V
 
 import Util.Test
-import qualified Util.Seq as Seq
 
-import Ui
-
-import qualified Perform.Timestamp as Timestamp
 
 import Perform.Signal (Y) -- use the instances for Y from Signal
 import qualified Perform.SignalBase as SignalBase

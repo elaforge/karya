@@ -8,7 +8,6 @@ import qualified Util.Log as Log
 import Ui
 import qualified Ui.Block as Block
 import qualified Ui.State as State
-import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg

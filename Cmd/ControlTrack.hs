@@ -1,7 +1,6 @@
 {-# LANGUAGE ViewPatterns #-}
 module Cmd.ControlTrack where
 import qualified Control.Arrow as Arrow
-import Control.Monad
 import qualified Data.Maybe as Maybe
 
 import qualified Cmd.Cmd as Cmd

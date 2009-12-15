@@ -5,7 +5,6 @@ import Util.Test
 import qualified Midi.Midi as Midi
 
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.CmdTest as CmdTest
 import Cmd.CmdTest (note_on, note_off, control, pitch)
 import qualified Cmd.MidiThru as MidiThru
 

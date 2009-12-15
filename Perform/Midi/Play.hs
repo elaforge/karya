@@ -4,7 +4,6 @@ import qualified Control.Concurrent as Concurrent
 import qualified Control.Exception as Exception
 import Control.Monad
 import qualified Data.Set as Set
-import qualified Data.Maybe as Maybe
 
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq

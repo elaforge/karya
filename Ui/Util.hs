@@ -10,7 +10,7 @@
 module Ui.Util where
 import Foreign
 import Foreign.C
-import qualified System.IO as IO
+
 
 -- | This is similar to Ui.Types.UI, except that it's intended for the low
 -- level fltk operations.  The difference is that all fltk operations must be
@@ -52,7 +52,7 @@ withForeignPtrs fps f = withfp [] fps f
     withfp ps (fp:rest) f = withForeignPtr fp (\p -> withfp (p:ps) rest f)
 
 make_fun_ptr :: String -> IO (FunPtr a) -> IO (FunPtr a)
-make_fun_ptr name make = do
+make_fun_ptr _name make = do
     fptr <- make
     -- putStrLn $ "alloc " ++ show name ++ ": " ++ show fptr
     -- IO.hFlush IO.stdout

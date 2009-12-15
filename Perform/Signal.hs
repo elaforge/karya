@@ -77,8 +77,6 @@ module Perform.Signal (
 ) where
 import Prelude hiding (truncate)
 import qualified Control.Arrow as Arrow
-import qualified Data.List as List
-import qualified Data.Maybe as Maybe
 import qualified Data.StorableVector as V
 import qualified Foreign.Storable as Storable
 

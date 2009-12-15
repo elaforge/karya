@@ -21,9 +21,6 @@
 -}
 module Derive.Scale.Twelve where
 import qualified Data.Map as Map
-import qualified Data.Char as Char
-import qualified Data.List as List
-
 import qualified Util.Map as Map
 
 import qualified Derive.Scale.Util as Util

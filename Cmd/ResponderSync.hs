@@ -37,7 +37,6 @@ import qualified Control.Arrow as Arrow
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Monad.Trans as Trans
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
 import qualified Util.Map as Map
@@ -48,7 +47,6 @@ import qualified Util.Thread as Thread
 import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Diff as Diff
-import qualified Ui.State as State
 import qualified Ui.State as State
 import qualified Ui.Sync as Sync
 import qualified Ui.Track as Track

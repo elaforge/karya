@@ -1,10 +1,8 @@
 {- | Instrument db for the Yamaha VL1-m.
 -}
 module Local.Instrument.Vl1m where
-import Control.Monad
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import qualified Data.Word as Word
 import System.FilePath ((</>))
 import qualified System.FilePath as FilePath

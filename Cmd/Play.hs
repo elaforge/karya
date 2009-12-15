@@ -78,11 +78,9 @@
 module Cmd.Play where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Exception as Exception
-import Control.Monad
 import qualified Control.Monad.Trans as Trans
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import qualified Data.Maybe as Maybe
 
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
@@ -96,7 +94,6 @@ import qualified Ui.State as State
 -- This causes a bunch of modules to import BlockC.  Can I move the updater
 -- stuff out?
 import qualified Ui.Sync as Sync
-import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg

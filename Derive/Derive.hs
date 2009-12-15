@@ -1,5 +1,4 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, PatternGuards #-}
-{-# OPTIONS_GHC -fno-warn-unused-imports #-} -- ghc confused about Control.Monad
 {- | Main module for the deriver monad.
 
     Derivers are always in DeriveT, even if they don't need its facilities.
@@ -39,7 +38,6 @@ import Control.Monad.Trans (lift)
 import Data.Function
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
-import qualified Data.Set as Set
 
 import qualified Util.Control
 import qualified Util.Log as Log

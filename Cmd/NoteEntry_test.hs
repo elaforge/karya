@@ -34,7 +34,6 @@ test_cmds_with_note = do
         input = Msg.InputNote
         -- key passed through to cmd_dummy
         through msg = Right (Just Cmd.Done, [show msg])
-        continue = Right (Just Cmd.Continue, [])
     let f kbd_entry msg = NoteEntry.cmds_with_note kbd_entry [cmd_dummy] msg
 
     -- test kbd entry

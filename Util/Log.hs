@@ -39,7 +39,6 @@ import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Trans as Trans
-import qualified Data.List as List
 import qualified Data.Generics as Generics
 import qualified Data.Text as Text
 import qualified Data.Time as Time

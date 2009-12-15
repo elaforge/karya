@@ -3,9 +3,7 @@
 module Instrument.MidiDb where
 import Control.Monad
 import qualified Data.Char as Char
-import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 
 import qualified Util.Map as Map
 import qualified Util.Log as Log

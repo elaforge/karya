@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -fno-warn-unused-imports #-}
--- Control.Monad
 {- | Derive events on a note track.  This is the Derive equivalent of
     "Cmd.NoteTrack", but has a different name to avoid clashes.
 
@@ -79,17 +77,11 @@
 -}
 module Derive.Note where
 import Control.Monad
-import qualified Control.Monad.Identity as Identity
 import qualified Data.Char as Char
 import qualified Data.List as List
-import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as Text
-import qualified Text.ParserCombinators.Parsec as P
 
-import Util.Control ((#>>))
-import qualified Util.Log as Log
 import qualified Util.Parse as Parse
 import Util.Seq as Seq
 
@@ -100,13 +92,11 @@ import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 
-import qualified Derive.Control as Control
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
-import qualified Perform.Signal as Signal
 
 
 type NoteParser m = Track.PosEvent -> Derive.DeriveT m [Parsed]

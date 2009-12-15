@@ -9,7 +9,6 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
 import Perform.SignalBase (Method(..))
-import qualified Perform.SignalBase as SignalBase
 
 
 scale = Pitch.ScaleId "scale"

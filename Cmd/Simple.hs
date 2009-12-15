@@ -3,7 +3,6 @@
     form, stashing converted simple blocks in the clipboard.
 -}
 module Cmd.Simple where
-import Control.Monad
 import qualified Control.Monad.Trans as Trans
 
 import Ui

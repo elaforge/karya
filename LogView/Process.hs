@@ -1,15 +1,11 @@
-{-# OPTIONS_GHC -fno-warn-unused-imports #-}
--- Control.Monad
 module LogView.Process where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
 import Control.Monad
-import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.Writer as Writer
 import qualified Data.Foldable as Foldable
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import qualified Data.Sequence as Sequence
 import qualified Data.Text as Text
 import qualified Data.Time as Time
