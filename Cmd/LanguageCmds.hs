@@ -161,7 +161,7 @@ show_state = do
 -- ** views
 
 get_views :: Cmd.CmdL [ViewId]
-get_views = fmap (Map.keys . State.state_views) State.get
+get_views = State.gets (Map.keys . State.state_views)
 
 destroy_view :: String -> Cmd.CmdL ()
 destroy_view view_id = State.destroy_view (vid view_id)
@@ -541,7 +541,7 @@ derive_tempo block_id ts = do
 score_to_midi :: [Score.Event]
     -> Cmd.CmdL ([Midi.WriteMessage], [Warning.Warning])
 score_to_midi events = do
-    inst_config <- fmap State.state_midi_config State.get
+    inst_config <- State.gets State.state_midi_config
     lookup <- Cmd.get_lookup_midi_instrument
     let (midi_events, convert_warnings) = Midi.Convert.convert lookup events
         (midi_msgs, perform_warnings) =

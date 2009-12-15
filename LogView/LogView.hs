@@ -120,7 +120,7 @@ handle_msgs st history log_chan view = flip State.evalStateT st $ forever $ do
             send_action $ LogViewC.clear_logs view
             State.modify $ \st ->
                 st { Process.state_filter = Process.compile_filter expr }
-            all_msgs <- fmap (reverse . Process.state_msgs) State.get
+            all_msgs <- State.gets (reverse . Process.state_msgs)
             mapM_ (handle_new_msg view) all_msgs
 
 handle_new_msg view msg = do

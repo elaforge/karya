@@ -340,6 +340,9 @@ mouse_mod_btn _ = Nothing
 get_state :: (Monad m) => CmdT m State
 get_state = (CmdT . lift) MonadState.get
 
+gets :: (Monad m) => (State -> a) -> CmdT m a
+gets f = fmap f get_state
+
 put_state :: (Monad m) => State -> CmdT m ()
 put_state st = (CmdT . lift) (MonadState.put st)
 
@@ -348,10 +351,10 @@ modify_state f = (CmdT . lift) (MonadState.modify f)
 
 -- | Keys currently held down, as in 'state_keys_down'.
 keys_down :: (Monad m) => CmdT m (Map.Map Modifier Modifier)
-keys_down = fmap state_keys_down get_state
+keys_down = gets state_keys_down
 
 get_focused_view :: (Monad m) => CmdT m ViewId
-get_focused_view = fmap state_focused_view get_state >>= require
+get_focused_view = gets state_focused_view >>= require
 
 get_focused_block :: (Monad m) => CmdT m BlockId
 get_focused_block =
@@ -360,14 +363,14 @@ get_focused_block =
 -- | In some circumstances I don't want to abort if there's no focused block.
 lookup_focused_block :: (Monad m) => CmdT m (Maybe BlockId)
 lookup_focused_block = do
-    maybe_view_id <- fmap state_focused_view get_state
+    maybe_view_id <- gets state_focused_view
     case maybe_view_id of
         -- It's still an error if the view id doesn't exist.
         Just view_id -> fmap (Just . Block.view_block) (State.get_view view_id)
         Nothing -> return Nothing
 
 get_current_step :: (Monad m) => CmdT m TimeStep.TimeStep
-get_current_step = fmap state_step get_state
+get_current_step = gets state_step
 
 -- | Get the leftmost track covered by the insert selection, which is
 -- considered the "focused" track by convention.
@@ -385,7 +388,7 @@ set_view_status view_id key val = State.set_view_status view_id key val
 
 set_global_status :: (Monad m) => String -> String -> CmdT m ()
 set_global_status key val = do
-    status_map <- fmap state_global_status get_state
+    status_map <- gets state_global_status
     when (Map.lookup key status_map /= Just val) $ do
         modify_state $ \st ->
             st { state_global_status = Map.insert key val status_map }
@@ -394,24 +397,24 @@ set_global_status key val = do
 -- | Set a status variable on all views.
 set_status :: (Monad m) => String -> Maybe String -> CmdT m ()
 set_status key val = do
-    view_ids <- fmap (Map.keys . State.state_views) State.get
+    view_ids <- State.gets (Map.keys . State.state_views)
     forM_ view_ids $ \view_id -> set_view_status view_id key val
 
 get_lookup_midi_instrument :: (Monad m) => CmdT m MidiDb.LookupMidiInstrument
 get_lookup_midi_instrument =
-    fmap (Instrument.Db.db_lookup_midi . state_instrument_db) get_state
+    gets (Instrument.Db.db_lookup_midi . state_instrument_db)
 
 lookup_instrument_info :: (Monad m) => Score.Instrument
     -> CmdT m (Maybe MidiDb.Info)
 lookup_instrument_info inst = do
-    inst_db <- fmap state_instrument_db get_state
+    inst_db <- gets state_instrument_db
     return $ Instrument.Db.db_lookup inst_db inst
 
 get_schema_map :: (Monad m) => CmdT m SchemaMap
-get_schema_map = fmap state_schema_map get_state
+get_schema_map = gets state_schema_map
 
 get_clip_namespace :: (Monad m) => CmdT m Id.Namespace
-get_clip_namespace = fmap state_clip_namespace get_state
+get_clip_namespace = gets state_clip_namespace
 set_clip_namespace :: (Monad m) => Id.Namespace -> CmdT m ()
 set_clip_namespace ns = modify_state $ \st -> st { state_clip_namespace = ns }
 
@@ -425,7 +428,7 @@ get_scale caller scale_id = maybe
 get_rdev_state :: (Monad m) => Midi.ReadDevice
     -> CmdT m InputNote.ControlState
 get_rdev_state rdev = do
-    cmap <- fmap state_rdev_state get_state
+    cmap <- gets state_rdev_state
     return $ maybe (InputNote.empty_state Config.control_pb_range) id
         (Map.lookup rdev cmap)
 
@@ -443,7 +446,7 @@ set_pitch_bend_range range rdev = do
     set_rdev_state rdev (state { InputNote.state_pb_range = range })
 
 get_wdev_state :: (Monad m) => CmdT m WriteDeviceState
-get_wdev_state = fmap state_wdev_state get_state
+get_wdev_state = gets state_wdev_state
 
 set_wdev_state :: (Monad m) => WriteDeviceState -> CmdT m ()
 set_wdev_state wdev_state =
@@ -467,7 +470,7 @@ create_block block_id title tracks = do
 
 block_config :: (Monad m) => CmdT m Block.Config
 block_config = do
-    track_box <- fmap state_edit_box get_state
+    track_box <- gets state_edit_box
     return $ Block.Config Config.bconfig_selection_colors
         Config.bconfig_bg_color track_box Config.bconfig_sb_box
 

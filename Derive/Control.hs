@@ -70,7 +70,7 @@ d_relative_pitch op signalm eventsm = do
 d_control_track :: (Monad m) => Derive.TrackDeriver m Score.ControlEvent
 d_control_track track_id = do
     track <- Derive.get_track track_id
-    stack <- fmap Derive.state_stack Derive.get
+    stack <- Derive.gets Derive.state_stack
     let (pos_list, events) = unzip $ Track.event_list (Track.track_events track)
     -- TODO when signals are lazy this will be inefficient.  See TODO in
     -- Note.hs.

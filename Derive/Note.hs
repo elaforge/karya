@@ -127,8 +127,8 @@ d_note_track track_id = do
 parse_events :: (Monad m) => String -> [Track.PosEvent]
     -> Derive.DeriveT m [(Track.PosEvent, Parsed)]
 parse_events track_title pos_events = do
-    inst <- fmap Derive.state_instrument Derive.get
-    attrs <- fmap Derive.state_attributes Derive.get
+    inst <- Derive.gets Derive.state_instrument
+    attrs <- Derive.gets Derive.state_attributes
     maybe_parsed <- mapM
         (Derive.catch_warn . (parse_event inst attrs track_title))
         pos_events
@@ -226,7 +226,7 @@ derive_note pos event (Parsed call args inst attrs) = do
     end <- Derive.local_to_global (pos + Event.event_duration event)
     -- Log.debug $ show (Event.event_string event) ++ ": local global "
     --     ++ show ((pos, start), (pos + Event.event_duration event, end))
-    -- Derive.Warp wp stretch shift <- fmap Derive.state_warp Derive.get
+    -- Derive.Warp wp stretch shift <- Derive.gets Derive.state_warp
     -- Log.debug $ "warp " ++ (show wp)
     st <- Derive.get
 
@@ -262,9 +262,9 @@ trim_pitches events = map trim_event (Seq.zip_next events)
 d_call :: TrackPos -> TrackPos -> String -> Derive.EventDeriver
 d_call start dur ident = do
     -- TODO also I'll want to support generic calls
-    default_ns <- fmap (State.state_project . Derive.state_ui) Derive.get
+    default_ns <- Derive.gets (State.state_project . Derive.state_ui)
     let block_id = Types.BlockId (make_id default_ns ident)
-    stack <- fmap Derive.state_stack Derive.get
+    stack <- Derive.gets Derive.state_stack
     -- Since there is no branching, any recursion will be endless.
     when (block_id `elem` [bid | (bid, _, _) <- stack]) $
         Derive.throw $ "recursive block derivation: " ++ show block_id
@@ -273,7 +273,7 @@ d_call start dur ident = do
     -- not sure how to indicate that kind of derivation.
     -- This is actually the only thing that requires that block_id name a real
     -- block.
-    ui_state <- fmap Derive.state_ui Derive.get
+    ui_state <- Derive.gets Derive.state_ui
     block_dur <- either (Derive.throw . ("d_call: "++) . show)
         return (State.eval ui_state (get_block_dur block_id))
     if block_dur > TrackPos 0

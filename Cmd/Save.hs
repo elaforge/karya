@@ -16,7 +16,7 @@ import qualified Cmd.Serialize as Serialize
 
 get_save_file :: (Monad m) => Cmd.CmdT m FilePath
 get_save_file = do
-    dir <- fmap State.state_project_dir State.get
+    dir <- State.gets State.state_project_dir
     ns <- State.get_project
     return $ FilePath.combine dir (map sanitize ns)
     where sanitize c = if FilePath.isPathSeparator c then '_' else c

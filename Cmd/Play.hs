@@ -168,7 +168,7 @@ cmd_transport_msg msg = do
         Msg.Transport (Transport.Status block_id status) ->
             return (block_id, status)
         _ -> Cmd.abort
-    block_ids <- fmap (Map.keys . State.state_blocks) State.get
+    block_ids <- State.gets (Map.keys . State.state_blocks)
     mapM_ (flip State.set_play_box (play_state_color status)) block_ids
 
     Log.notice $ "player status for " ++ show block_id ++ ": " ++ show status
@@ -193,7 +193,7 @@ seek_msgs start_ts midi_msgs = map (Midi.add_timestamp (-start_ts)) $
 
 get_performance :: (Monad m) => BlockId -> Cmd.CmdT m Cmd.Performance
 get_performance block_id = do
-    by_block <- fmap Cmd.state_performance Cmd.get_state
+    by_block <- Cmd.gets Cmd.state_performance
     maybe (State.throw $ "no performance for block " ++ show block_id) return
         (Map.lookup block_id by_block)
 
@@ -218,7 +218,7 @@ perform block_id inst_db schema_map = do
     let (midi_events, convert_warnings) = Convert.convert lookup_inst events
 
     -- TODO call Convert.verify for more warnings
-    inst_config <- fmap State.state_midi_config State.get
+    inst_config <- State.gets State.state_midi_config
     let (midi_msgs, perform_warnings) =
             Perform.perform lookup_inst inst_config midi_events
     let logs = map (warn_to_msg "event conversion") convert_warnings

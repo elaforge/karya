@@ -61,8 +61,8 @@ modify_edit_mode f = do
 
 sync_edit_box_status :: (Monad m) => Cmd.CmdT m ()
 sync_edit_box_status = do
-    edit_mode <- fmap Cmd.state_edit_mode Cmd.get_state
-    kbd_entry <- fmap Cmd.state_kbd_entry Cmd.get_state
+    edit_mode <- Cmd.gets Cmd.state_edit_mode
+    kbd_entry <- Cmd.gets Cmd.state_kbd_entry
     let c = if kbd_entry then 'K' else ' '
     Cmd.set_edit_box (edit_color edit_mode) c
 
@@ -240,7 +240,7 @@ cmd_meter_step match = do
 
 sync_step_status :: (Monad m) => Cmd.CmdT m ()
 sync_step_status = do
-    step <- fmap Cmd.state_step Cmd.get_state
+    step <- Cmd.gets Cmd.state_step
     Cmd.set_global_status "step" (show_step step)
 
 show_step (TimeStep.Absolute pos) = "abs:" ++ show pos
@@ -265,7 +265,7 @@ cmd_modify_octave f = do
 
 sync_octave_status :: (Monad m) => Cmd.CmdT m ()
 sync_octave_status = do
-    octave <- fmap Cmd.state_kbd_entry_octave Cmd.get_state
+    octave <- Cmd.gets Cmd.state_kbd_entry_octave
     -- This is technically global state and doesn't belong in the block's
     -- status line, but I'm used to looking for it there, so put it in both
     -- places.
@@ -279,7 +279,7 @@ sync_octave_status = do
 
 undo :: (Monad m) => Cmd.CmdT m ()
 undo = do
-    (past, future) <- fmap Cmd.state_history Cmd.get_state
+    (past, future) <- Cmd.gets Cmd.state_history
     now <- State.get
     case past of
         (prev:rest) -> do
@@ -293,7 +293,7 @@ undo = do
 
 redo :: (Monad m) => Cmd.CmdT m ()
 redo = do
-    (past, future) <- fmap Cmd.state_history Cmd.get_state
+    (past, future) <- Cmd.gets Cmd.state_history
     now <- State.get
     case future of
         (next:rest) -> do
@@ -319,7 +319,7 @@ merge_undo_states old new = new {
 
 hist_status :: (Monad m) => Cmd.CmdT m ()
 hist_status = do
-    (past, future) <- fmap Cmd.state_history Cmd.get_state
+    (past, future) <- Cmd.gets Cmd.state_history
     Log.debug $ "past length: " ++ show (length past)
         ++ ", future length: " ++ show (length future)
 

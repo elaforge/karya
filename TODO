@@ -11,7 +11,6 @@
 - signal deriver doesn't record track in stack
 
 CURRENT
-  - split up Cmd.State
   - window position not restored on load
   * creating a new block didn't get the box state?
   - try new fltk

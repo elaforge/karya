@@ -51,25 +51,25 @@ rename_project from to = State.map_ids set_ns
 -- to State.destroy_track for \"gc\".
 orphan_tracks :: (State.UiStateMonad m) => m [TrackId]
 orphan_tracks = do
-    blocks <- fmap (Map.elems . State.state_blocks) State.get
+    blocks <- State.gets (Map.elems . State.state_blocks)
     let ref_tracks = Set.fromList (concatMap Block.block_track_ids blocks)
-    tracks <- fmap (Set.fromAscList . Map.keys . State.state_tracks) State.get
+    tracks <- State.gets (Set.fromAscList . Map.keys . State.state_tracks)
     return $ Set.toList (tracks `Set.difference` ref_tracks)
 
 -- | Find rulers which are not found in any block.
 orphan_rulers :: (State.UiStateMonad m) => m [RulerId]
 orphan_rulers = do
-    blocks <- fmap (Map.elems . State.state_blocks) State.get
+    blocks <- State.gets (Map.elems . State.state_blocks)
     let ref_rulers = Set.fromList (concatMap Block.block_ruler_ids blocks)
-    rulers <- fmap (Set.fromAscList . Map.keys . State.state_rulers) State.get
+    rulers <- State.gets (Set.fromAscList . Map.keys . State.state_rulers)
     return $ Set.toList (rulers `Set.difference` ref_rulers)
 
 -- | Find blocks with no associated views.
 orphan_blocks :: (State.UiStateMonad m) => m [BlockId]
 orphan_blocks = do
-    views <- fmap (Map.elems . State.state_views) State.get
+    views <- State.gets (Map.elems . State.state_views)
     let ref_blocks = Set.fromList (map Block.view_block views)
-    blocks <- fmap (Set.fromAscList . Map.keys . State.state_blocks) State.get
+    blocks <- State.gets (Set.fromAscList . Map.keys . State.state_blocks)
     return $ Set.toList (blocks `Set.difference` ref_blocks)
 
 -- * block
@@ -98,7 +98,7 @@ block_from_template include_tracks = do
 block :: (Monad m) => RulerId -> Cmd.CmdT m BlockId
 block ruler_id = do
     ns <- State.get_project
-    blocks <- fmap State.state_blocks State.get
+    blocks <- State.gets State.state_blocks
     block_id <- require "block id" $ generate_block_id ns blocks
     b <- Cmd.create_block block_id ""
         [Block.block_track (Block.RId ruler_id) Config.ruler_width]
@@ -136,8 +136,8 @@ view :: (State.UiStateMonad m) => BlockId -> m ViewId
 view block_id = do
     views <- State.get_views_of block_id
     view_id <- require "view id" $ generate_view_id block_id views
-    rect <- fmap (find_rect Config.view_size . map Block.view_rect . Map.elems
-        . State.state_views) State.get
+    rect <- State.gets (find_rect Config.view_size . map Block.view_rect
+        . Map.elems . State.state_views)
     State.create_view view_id $ Block.view block_id rect Config.zoom
 
 block_view :: (Monad m) => RulerId -> Cmd.CmdT m ViewId
@@ -191,7 +191,7 @@ insert_track_after_selection splice = do
 track_ruler :: (State.UiStateMonad m) =>
     BlockId -> RulerId -> TrackNum -> Types.Width -> m TrackId
 track_ruler block_id ruler_id tracknum width = do
-    tracks <- fmap State.state_tracks State.get
+    tracks <- State.gets State.state_tracks
     track_id <- require "track id" $ generate_track_id block_id "t" tracks
     tid <- State.create_track track_id (empty_track "")
     State.insert_track block_id tracknum
@@ -215,7 +215,7 @@ named_track :: (State.UiStateMonad m) =>
     BlockId -> RulerId -> TrackNum -> String -> String -> m TrackId
 named_track block_id ruler_id tracknum name title = do
     ident <- make_id (Id.id_name (Id.unpack_id block_id) ++ "." ++ name)
-    all_tracks <- fmap State.state_tracks State.get
+    all_tracks <- State.gets State.state_tracks
     when (Types.TrackId ident `Map.member` all_tracks) $
         State.throw $ "track " ++ show ident ++ " already exists"
     tid <- State.create_track ident (empty_track title)

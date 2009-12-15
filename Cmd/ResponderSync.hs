@@ -127,7 +127,7 @@ run_derive ui_from ui_to cmd_state updates = do
 
 derive_events :: State.State -> State.State -> [Update.Update] -> Cmd.CmdT IO ()
 derive_events ui_from ui_to updates = do
-    old_threads <- fmap Cmd.state_derive_threads Cmd.get_state
+    old_threads <- Cmd.gets Cmd.state_derive_threads
     let block_ids = dirty_blocks ui_from ui_to updates
     -- In case they aren't done, their work is about to be obsolete.
     Trans.liftIO $ mapM_ Concurrent.killThread $

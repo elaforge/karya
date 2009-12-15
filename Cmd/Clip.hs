@@ -211,7 +211,7 @@ set_namespace ns state = do
         State.map_track_ids set
 
 get_clip_namespace :: (Monad m) => Cmd.CmdT m Id.Namespace
-get_clip_namespace = fmap Cmd.state_clip_namespace Cmd.get_state
+get_clip_namespace = Cmd.gets Cmd.state_clip_namespace
 
 -- | Destroy all views, blocks, tracks, and rulers with the given namespace.
 -- TODO move this to Ui.State?

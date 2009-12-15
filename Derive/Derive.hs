@@ -254,8 +254,12 @@ make_inverse_tempo_func track_warps ts = do
 
 modify :: (Monad m) => (State -> State) -> DeriveT m ()
 modify f = (DeriveT . lift) (Monad.State.modify f)
+
 get :: (Monad m) => DeriveT m State
 get = (DeriveT . lift) Monad.State.get
+
+gets :: (Monad m) => (State -> a) -> DeriveT m a
+gets f = fmap f get
 
 -- | This is a little different from Reader.local because only a portion of
 -- the state is used Reader-style, i.e. 'state_track_warps' always collects.
@@ -264,7 +268,7 @@ get = (DeriveT . lift) Monad.State.get
 local :: (Monad m) => (State -> b) -> (State -> State) -> (b -> State -> State)
     -> DeriveT m a -> DeriveT m a
 local from_state modify_state to_state m = do
-    old <- fmap from_state get
+    old <- gets from_state
     modify modify_state
     result <- m
     modify (to_state old)
@@ -288,7 +292,7 @@ get_scale caller scale_id = do
     -- Defaulting the scale here means that relative pitch tracks don't need
     -- to mention their scale.
     scale_id <- if scale_id == Pitch.default_scale_id
-        then fmap (PitchSignal.sig_scale . state_pitch) get
+        then gets (PitchSignal.sig_scale . state_pitch)
         else return scale_id
     maybe (throw (caller ++ ": unknown " ++ show scale_id)) return
         (Map.lookup scale_id Scale.scale_map)
@@ -300,8 +304,8 @@ throw = throw_srcpos Nothing
 
 throw_srcpos :: (Monad m) => SrcPos.SrcPos -> String -> DeriveT m a
 throw_srcpos srcpos msg = do
-    stack <- fmap state_stack get
-    context <- fmap state_log_context get
+    stack <- gets state_stack
+    context <- gets state_log_context
     Error.throwError (DeriveError srcpos stack (_add_context context msg))
 
 with_msg :: (Monad m) => String -> DeriveT m a -> DeriveT m a
@@ -321,8 +325,8 @@ warn = warn_srcpos Nothing
 
 warn_srcpos :: (Monad m) => SrcPos.SrcPos -> String -> DeriveT m ()
 warn_srcpos srcpos msg = do
-    stack <- fmap state_stack get
-    context <- fmap state_log_context get
+    stack <- gets state_stack
+    context <- gets state_log_context
     Log.warn_stack_srcpos srcpos stack (_add_context context msg)
 
 _add_context [] s = s
@@ -333,8 +337,8 @@ _add_context context s = Seq.join "/" context ++ ": " ++ s
 with_instrument :: (Monad m) => Maybe Score.Instrument -> Score.Attributes
     -> DeriveT m t -> DeriveT m t
 with_instrument inst attrs op = do
-    old_inst <- fmap state_instrument get
-    old_attrs <- fmap state_attributes get
+    old_inst <- gets state_instrument
+    old_attrs <- gets state_attributes
     modify $ \st -> st { state_instrument = inst, state_attributes = attrs }
     result <- op
     modify $ \st -> st
@@ -351,7 +355,7 @@ type PitchOp = PitchSignal.PitchSignal -> PitchSignal.Relative
 with_control :: (Monad m) =>
     Score.Control -> Signal.Control -> DeriveT m t -> DeriveT m t
 with_control cont signal op = do
-    controls <- fmap state_controls get
+    controls <- gets state_controls
     modify $ \st -> st { state_controls = Map.insert cont signal controls }
     result <- op
     modify $ \st -> st { state_controls = controls }
@@ -361,7 +365,7 @@ with_relative_control :: (Monad m) =>
     Score.Control -> Operator -> Signal.Control -> DeriveT m t -> DeriveT m t
 with_relative_control cont c_op signal op = do
     sig_op <- lookup_control_op c_op
-    controls <- fmap state_controls get
+    controls <- gets state_controls
     let msg = "relative control applied when no absolute control is in scope: "
     case Map.lookup cont controls of
         Nothing -> do
@@ -376,7 +380,7 @@ with_relative_control cont c_op signal op = do
 
 with_pitch :: (Monad m) => PitchSignal.PitchSignal -> DeriveT m t -> DeriveT m t
 with_pitch signal op = do
-    old <- fmap state_pitch get
+    old <- gets state_pitch
     modify $ \st -> st { state_pitch = signal }
     result <- op
     modify $ \st -> st { state_pitch = old }
@@ -386,7 +390,7 @@ with_relative_pitch :: (Monad m) =>
     Operator -> PitchSignal.Relative -> DeriveT m t -> DeriveT m t
 with_relative_pitch c_op signal op = do
     sig_op <- lookup_pitch_control_op c_op
-    old <- fmap state_pitch get
+    old <- gets state_pitch
     if old == PitchSignal.empty
         then do
             warn $ "relative pitch applied when no absolute pitch is in scope"
@@ -399,7 +403,7 @@ with_relative_pitch c_op signal op = do
 
 lookup_control_op :: (Monad m) => Operator -> DeriveT m ControlOp
 lookup_control_op c_op = do
-    op_map <- fmap state_control_op_map get
+    op_map <- gets state_control_op_map
     maybe (throw ("unknown control op: " ++ show c_op)) return
         (Map.lookup c_op op_map)
 
@@ -416,7 +420,7 @@ default_control_op_map = Map.fromList
 
 lookup_pitch_control_op :: (Monad m) => Operator -> DeriveT m PitchOp
 lookup_pitch_control_op c_op = do
-    op_map <- fmap state_pitch_op_map get
+    op_map <- gets state_pitch_op_map
     maybe (throw ("unknown pitch op: " ++ show c_op)) return
         (Map.lookup c_op op_map)
 
@@ -432,7 +436,7 @@ default_pitch_op_map = Map.fromList
 
 get_current_block_id :: (Monad m) => DeriveT m BlockId
 get_current_block_id = do
-    stack <- fmap state_stack get
+    stack <- gets state_stack
     case stack of
         [] -> throw "empty state_stack"
         ((block_id, _, _):_) -> return block_id
@@ -459,7 +463,7 @@ with_stack_pos start dur = modify_stack $ \(block_id, track_id, _) ->
 modify_stack :: (Monad m) => (Warning.StackPos -> Warning.StackPos)
     -> DeriveT m a -> DeriveT m a
 modify_stack f op = do
-    old_stack <- fmap state_stack get
+    old_stack <- gets state_stack
     new_stack <- case old_stack of
         [] -> throw "can't modify empty state stack"
         (x:xs) -> return (f x : xs)
@@ -483,7 +487,7 @@ modify_stack f op = do
 add_track_warp :: (Monad m) => TrackId -> DeriveT m ()
 add_track_warp track_id = do
     block_id <- get_current_block_id
-    track_warps <- fmap state_track_warps get
+    track_warps <- gets state_track_warps
     case track_warps of
             -- This happens if the initial block doesn't have a tempo track.
         [] -> start_new_warp >> add_track_warp track_id
@@ -503,7 +507,7 @@ start_new_warp :: (Monad m) => DeriveT m ()
 start_new_warp = do
     block_id <- get_current_block_id
     start <- local_to_global (TrackPos 0)
-    ui_state <- fmap state_ui get
+    ui_state <- gets state_ui
     let time_end = either (const (TrackPos 0)) id $
             State.eval ui_state (State.event_end block_id)
     end <- local_to_global time_end
@@ -521,7 +525,7 @@ start_new_warp = do
 
 local_to_global :: (Monad m) => TrackPos -> DeriveT m TrackPos
 local_to_global pos = do
-    (Warp sig shift stretch) <- fmap state_warp get
+    (Warp sig shift stretch) <- gets state_warp
     return $ Signal.y_to_x (Signal.at_linear (pos * stretch + shift) sig)
 
 tempo_srate = Signal.default_srate
@@ -540,7 +544,7 @@ d_at shift = with_warp $ \w ->
 
 with_warp :: (Monad m) => (Warp -> Warp) -> DeriveT m a -> DeriveT m a
 with_warp f d = do
-    old <- fmap state_warp get
+    old <- gets state_warp
     modify $ \st -> st { state_warp = f (state_warp st) }
     v <- d
     modify $ \st -> st { state_warp = old }
@@ -567,7 +571,7 @@ tempo_to_warp = Signal.integrate tempo_srate . Signal.map_y (1/)
 
 d_warp :: (Monad m) => Signal.Warp -> DeriveT m a -> DeriveT m a
 d_warp sig deriver = do
-    old_warp <- fmap state_warp get
+    old_warp <- gets state_warp
     modify $ \st -> st { state_warp = compose old_warp sig }
     start_new_warp
     result <- deriver
@@ -599,7 +603,7 @@ compose_warp (Warp warpsig shift stretch) sig = make_warp
 -- deriver.
 with_track_warp :: (Monad m) => TrackDeriver m e -> TrackDeriver m e
 with_track_warp track_deriver track_id = do
-    ignore_tempo <- fmap state_ignore_tempo get
+    ignore_tempo <- gets state_ignore_tempo
     unless ignore_tempo (add_track_warp track_id)
     track_deriver track_id
 

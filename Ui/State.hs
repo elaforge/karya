@@ -192,6 +192,9 @@ instance Monad m => UiStateMonad (StateT m) where
     update upd = (StateT . lift) (Logger.record upd)
     throw msg = (StateT . lift . lift) (Error.throwError (StateError msg))
 
+gets :: (UiStateMonad m) => (State -> a) -> m a
+gets f = fmap f get
+
 
 -- * global changes
 
@@ -234,18 +237,18 @@ map_ids f = do
 
 map_view_ids :: (UiStateMonad m) => (Id.Id -> Id.Id) -> m ()
 map_view_ids f = do
-    views <- fmap state_views get
+    views <- gets state_views
     let view_f = Types.ViewId . f . Id.unpack_id
     new_views <- safe_map_keys "state_views" view_f views
     modify $ \st -> st { state_views = new_views }
 
 map_block_ids :: (UiStateMonad m) => (Id.Id -> Id.Id) -> m ()
 map_block_ids f = do
-    blocks <- fmap state_blocks get
+    blocks <- gets state_blocks
     let block_f = Types.BlockId . f . Id.unpack_id
     new_blocks <- safe_map_keys "state_blocks" block_f blocks
 
-    views <- fmap state_views get
+    views <- gets state_views
     let new_views = Map.map
             (\v -> v { Block.view_block = block_f (Block.view_block v) })
             views
@@ -253,11 +256,11 @@ map_block_ids f = do
 
 map_track_ids :: (UiStateMonad m) => (Id.Id -> Id.Id) -> m ()
 map_track_ids f = do
-    tracks <- fmap state_tracks get
+    tracks <- gets state_tracks
     let track_f = Types.TrackId . f . Id.unpack_id
     new_tracks <- safe_map_keys "state_tracks" track_f tracks
 
-    blocks <- fmap state_blocks get
+    blocks <- gets state_blocks
     let new_blocks = Map.map
             (\b -> b { Block.block_tracks =
                 map (map_track track_f) (Block.block_tracks b) })
@@ -274,11 +277,11 @@ map_track_ids f = do
 
 map_ruler_ids :: (UiStateMonad m) => (Id.Id -> Id.Id) -> m ()
 map_ruler_ids f = do
-    rulers <- fmap state_rulers get
+    rulers <- gets state_rulers
     let ruler_f = Types.RulerId . trans . Id.unpack_id
     new_rulers <- safe_map_keys "state_rulers" ruler_f rulers
 
-    blocks <- fmap state_blocks get
+    blocks <- gets state_blocks
     let new_blocks = Map.map
             (\b -> b { Block.block_tracks =
                 map (map_track ruler_f) (Block.block_tracks b) })
@@ -373,19 +376,19 @@ verify_block block = do
     mapM_ get_ruler (Block.block_ruler_ids block)
 
 get_project :: (UiStateMonad m) => m Id.Namespace
-get_project = fmap state_project get
+get_project = gets state_project
 
 set_project :: (UiStateMonad m) => Id.Namespace -> m ()
 set_project ns = modify $ \st -> st { state_project = ns }
 
 get_midi_config :: (UiStateMonad m) => m Instrument.Config
-get_midi_config = fmap state_midi_config get
+get_midi_config = gets state_midi_config
 
 set_midi_config :: (UiStateMonad m) => Instrument.Config -> m ()
 set_midi_config config = modify $ \st -> st { state_midi_config = config}
 
 get_project_scale :: (UiStateMonad m) => m Pitch.ScaleId
-get_project_scale = fmap state_project_scale get
+get_project_scale = gets state_project_scale
 
 set_project_scale :: (UiStateMonad m) => Pitch.ScaleId -> m ()
 set_project_scale scale_id = modify $ \st ->
@@ -400,7 +403,7 @@ lookup_view :: (UiStateMonad m) => ViewId -> m (Maybe Block.View)
 lookup_view view_id = get >>= return . Map.lookup view_id . state_views
 
 get_all_view_ids :: (UiStateMonad m) => m [ViewId]
-get_all_view_ids = fmap (Map.keys . state_views) get
+get_all_view_ids = gets (Map.keys . state_views)
 
 -- | Create a new view.  Block.view_tracks can be left empty, since it will
 -- be replaced by views generated from the the block.  If the caller uses the
@@ -488,7 +491,7 @@ modify_view view_id f = do
 -- * block
 
 get_all_block_ids :: (UiStateMonad m) => m [BlockId]
-get_all_block_ids = fmap (Map.keys . state_blocks) get
+get_all_block_ids = gets (Map.keys . state_blocks)
 
 get_block :: (UiStateMonad m) => BlockId -> m Block.Block
 get_block block_id = get >>= lookup_id block_id . state_blocks
@@ -1062,7 +1065,7 @@ modify_ruler ruler_id f = do
 -- | Get all views of a given block.
 get_views_of :: (UiStateMonad m) => BlockId -> m (Map.Map ViewId Block.View)
 get_views_of block_id = do
-    views <- fmap state_views get
+    views <- gets state_views
     return $ Map.filter ((==block_id) . Block.view_block) views
 
 -- | Get all the tracks in a given block.
@@ -1089,7 +1092,7 @@ blocks_with_ruler ruler_id =
 
 find_tracks_m :: (UiStateMonad m) => (Block.TracklikeId -> Bool)
     -> m [(BlockId, [(TrackNum, Block.TracklikeId)])]
-find_tracks_m f = fmap (find_tracks f . state_blocks) get
+find_tracks_m f = gets (find_tracks f . state_blocks)
 
 find_tracks :: (Block.TracklikeId -> Bool) -> Map.Map BlockId Block.Block
     -> [(BlockId, [(TrackNum, Block.TracklikeId)])]
