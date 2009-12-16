@@ -57,6 +57,9 @@ event_string = Text.unpack . event_text
 set_string :: String -> Event -> Event
 set_string s evt = evt { event_text = Text.pack s }
 
+set_duration :: TrackPos -> Event -> Event
+set_duration dur event = event { event_duration = max 0 dur }
+
 default_style :: StyleId
 default_style = StyleId 0
 

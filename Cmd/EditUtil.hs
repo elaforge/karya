@@ -4,7 +4,6 @@ module Cmd.EditUtil where
 import Control.Monad
 import qualified Data.Char as Char
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 
 import qualified Util.Seq as Seq
 
@@ -31,7 +30,7 @@ get_event :: (State.UiStateMonad m) =>
     TrackId -> TrackPos -> TrackPos -> m Event.Event
 get_event track_id pos dur = do
     track <- State.get_track track_id
-    return $ Maybe.fromMaybe (Event.event "" dur)
+    return $ maybe (Event.event "" dur) (Event.set_duration dur)
         (Track.event_at pos (Track.track_events track))
 
 modify_event :: (Monad m) => Bool -- ^ create zero duration event

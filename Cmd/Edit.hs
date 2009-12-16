@@ -90,7 +90,7 @@ cmd_set_duration :: (Monad m) => Cmd.CmdT m ()
 cmd_set_duration = do
     (_, sel) <- Selection.get
     modify_events_prev $ \pos event ->
-        event { Event.event_duration = snd (Types.sel_range sel) - pos }
+        Event.set_duration (snd (Types.sel_range sel) - pos) event
 
 -- | If there is a following event, delete it and extend this one to its end.
 cmd_join_events :: (Monad m) => Cmd.CmdT m ()
@@ -100,7 +100,7 @@ cmd_join_events = mapM_ process =<< Selection.events_around
         let end = Track.event_end (pos2, evt2)
         State.remove_events track_id pos1 end
         State.insert_events track_id
-            [(pos1, evt1 { Event.event_duration = end - pos1 })]
+            [(pos1, Event.set_duration (end - pos1) evt1)]
     process _ = return ()
 
 -- | Insert empty space at the beginning of the selection for the length of
@@ -115,7 +115,7 @@ cmd_insert_time = do
         modify_overlapping track_id start $ \pos evt ->
             let dur = Event.event_duration evt
             in Just $ if pos == start then evt
-                else evt { Event.event_duration = dur + (end-start) }
+                else Event.set_duration (dur + (end-start)) evt
         move_track_events start (end-start) track_id
 
 -- | Remove the notes under the selection, and move everything else back.  If
@@ -129,7 +129,7 @@ cmd_delete_time = do
         modify_overlapping track_id start $ \pos evt ->
             let shorten = min end (Track.event_end (pos, evt)) - start
                 dur = Event.event_duration evt
-            in Just $ evt { Event.event_duration = dur - shorten }
+            in Just $ Event.set_duration (dur - shorten) evt
         deleted <- State.get_events track_id start end
         State.remove_events track_id start end
         move_track_events start (-(end-start)) track_id
@@ -145,8 +145,8 @@ clip_until until events = Seq.map_maybe f events
     f pos_evt@(pos, evt)
         | Track.event_end pos_evt <= until = Nothing
         | pos >= until = Just pos_evt
-        | otherwise = Just $ (until, evt
-            { Event.event_duration = Event.event_duration evt - (until-pos) })
+        | otherwise = Just $ (until,
+            Event.set_duration (Event.event_duration evt - (until-pos)) evt)
 
 modify_overlapping :: (Monad m) => TrackId -> TrackPos
     -> (TrackPos -> Event.Event -> Maybe Event.Event) -> Cmd.CmdT m ()
@@ -197,7 +197,7 @@ move_events start shift events = merged
 -- are passed through, so you can't accidentally give control events duration.
 cmd_modify_dur :: (Monad m) => (TrackPos -> TrackPos) -> Cmd.CmdT m ()
 cmd_modify_dur f = modify_events $ \_ evt ->
-    evt { Event.event_duration = apply (Event.event_duration evt) }
+    Event.set_duration (apply (Event.event_duration evt)) evt
     where apply dur = if dur == TrackPos 0 then dur else f dur
 
 -- | Modify previous event if the selection is a point, and all events under
