@@ -26,7 +26,7 @@ cmd_raw_edit = cmd_val_edit
 
 cmd_val_edit :: Pitch.ScaleId -> Cmd.Cmd
 cmd_val_edit scale_id msg = do
-    EditUtil.abort_on_mods
+    EditUtil.fallthrough msg
     case msg of
         Msg.InputNote (InputNote.NoteOn _ key _) -> do
             sel_pos <- EditUtil.get_sel_pos
@@ -45,7 +45,7 @@ cmd_val_edit_relative msg = do
 
 cmd_val_edit_relative_at :: EditUtil.SelPos -> Cmd.Cmd
 cmd_val_edit_relative_at selpos msg = do
-    EditUtil.abort_on_mods
+    EditUtil.fallthrough msg
     case msg of
         Msg.InputNote (InputNote.NoteOn _ key _) -> do
             let Pitch.Note note = Control.unparse_relative (key_to_relative key)
@@ -68,7 +68,7 @@ key_to_relative (Pitch.InputKey key) = (oct, fromIntegral nn + f)
 
 cmd_method_edit :: Cmd.Cmd
 cmd_method_edit msg = do
-    EditUtil.abort_on_mods
+    EditUtil.fallthrough msg
     case msg of
         (EditUtil.method_key -> Just key) -> do
             sel_pos <- EditUtil.get_sel_pos

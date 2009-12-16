@@ -12,7 +12,7 @@ cmd_raw_edit = cmd_val_edit
 
 cmd_val_edit :: Cmd.Cmd
 cmd_val_edit msg = do
-    EditUtil.abort_on_mods
+    EditUtil.fallthrough msg
     case msg of
         (EditUtil.val_key -> Just key) -> modify_event $ \(method, val) ->
             case EditUtil.modify_text_key key val of
@@ -23,7 +23,7 @@ cmd_val_edit msg = do
 
 cmd_method_edit :: Cmd.Cmd
 cmd_method_edit msg = do
-    EditUtil.abort_on_mods
+    EditUtil.fallthrough msg
     case msg of
         (EditUtil.method_key -> Just key) -> modify_event $ \(method, val) ->
             ((EditUtil.modify_text_key key method, Just val), False)

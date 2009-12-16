@@ -13,6 +13,7 @@ import qualified Ui.Event as Event
 import qualified Ui.Key as Key
 import qualified Ui.State as State
 import qualified Ui.Track as Track
+import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
@@ -87,8 +88,10 @@ extract_key f (Msg.key_down -> Just key) = if ok then Just key else Nothing
 extract_key _ _ = Nothing
 
 
-abort_on_mods :: (Monad m) => Cmd.CmdT m ()
-abort_on_mods = do
+-- | When edit mode is on, the edit cmds tend to catch all msgs.  However, some
+-- msgs should go through anyway.
+fallthrough :: (Monad m) => Msg.Msg -> Cmd.CmdT m ()
+fallthrough msg = do
     keys_down <- fmap Map.keys Cmd.keys_down
     -- Abort if there are modifiers down, so commands still work.
     -- Except shift, of course.
@@ -100,6 +103,11 @@ abort_on_mods = do
                 _ -> True
             _ -> True
     when (any is_mod keys_down) Cmd.abort
+
+    -- When clearing a range, let the global Edit.cmd_clear_selected handle it.
+    let is_backspace = Msg.key_down msg == Just Key.Backspace
+    (_, sel) <- Selection.get
+    when (is_backspace && not (Types.sel_is_point sel)) Cmd.abort
 
 parse_key :: (Monad m) => Pitch.ScaleId -> Pitch.InputKey
     -> Cmd.CmdT m Pitch.Note

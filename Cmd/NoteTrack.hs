@@ -33,7 +33,7 @@ data PitchTrack =
 
 cmd_raw_edit :: Pitch.ScaleId -> Cmd.Cmd
 cmd_raw_edit scale_id msg = do
-    EditUtil.abort_on_mods
+    EditUtil.fallthrough msg
     case msg of
         Msg.InputNote (InputNote.NoteOn _ key _) -> do
             note <- EditUtil.parse_key scale_id key
@@ -47,7 +47,7 @@ cmd_raw_edit scale_id msg = do
 
 cmd_val_edit :: PitchTrack -> Pitch.ScaleId -> Cmd.Cmd
 cmd_val_edit pitch_track scale_id msg = do
-    EditUtil.abort_on_mods
+    EditUtil.fallthrough msg
     (block_id, tracknum, track_id, pos) <- Selection.get_insert
     case msg of
         Msg.InputNote input_note -> case input_note of
@@ -96,7 +96,7 @@ cmd_val_edit_relative pitch_track msg = do
 
 cmd_method_edit :: PitchTrack -> Cmd.Cmd
 cmd_method_edit pitch_track msg = do
-    EditUtil.abort_on_mods
+    EditUtil.fallthrough msg
     case msg of
         (EditUtil.method_key -> Just key) -> do
             (_, _, pos) <- EditUtil.get_sel_pos
