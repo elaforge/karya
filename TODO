@@ -13,28 +13,10 @@
 - try record punning
 
 CURRENT
-  + window position not restored on load
-    - had to patch fltk, test Fl_cocoa.mm, make str for Fl_mac.cxx
-  * creating a new block didn't get the box state?
-  + try new fltk
-    - how to compile?
-  * selection delete doesn't work on merged track
-  * a manual way to mark block end (add "--"?) for subblocks
   - test relative pitch slide!
   - more symbolic calls, e.g. -/_\\/ and -//
-  * in window title, put bid before vid
-  * Event.event_text should be Text instead of ByteString
-  * logview: clickable stackpos
   - should tab in raw edit mode go to method?  how to go back then?
-  * relative control tracks
-  * relative pitch tracks
-  * reverse skel display arrow direction
-  * convert Signal to only flat line segments
-  * rename controller -> control
-  * track down ghc rts crashes
   - select track, st3 style select block, track
-  * extend shouldn't clip current event to 0
-  * enter note on existing note should change its length
 
   - demo piece: show nested tempos with "bouncing ball", expressive pitch
     track, non-trivial repl transformation (pitch tweak after big jump?)
@@ -42,6 +24,9 @@ CURRENT
   - cut + paste didn't work with a point paste
 
   - skel_display status can be two chars: Sm is solo+mute
+
+  bugs:
+    - Create.rename_project loses the merged tracks
 
   track management:
     - resize a bunch of tracks at once
@@ -115,27 +100,19 @@ bugs:
   - is kbd entry letting keys like 1 fall through?
   - Edit.cmd_delete_time is still a little funky, an event with only 2 time
     steps is deleted, >2 is shortened.
-  * graphical corruption when scrolling down
   - keymap collisions are logged twice
-  * renaming the project makes the merged tracks get out of date
-  * nudge a note event on a collapsed track doesn't nudge the pitch event
-  * delete note event in command mode doesn't delete the pitch event
+  - Create.rename_project loses the merged tracks
   - bring block windows to the front after a load
-
-  * mousewheel scroll goes past the end
-  * save saves with .state
-  * loading with a window displayed 'error: unknown (vid "untitled/b0.v0")'
-  * when loading a new state collapsed tracks are expanded
 
   - tracks with different tempos play correctly, but playback follows tempo
   - unparsed notes are played instead of dropped, it's because the pitch is
     dropped but not the note
   - bizarre hint importing requirements in Cmd.LanguageEnviron
   + track down ghc rts crashes
-    * write a script that continually starts up to see if I can trigger it
     add -DS flag
     crash is when evacuating pinned memory, is it a foreign ptr?
     - run under valgrind
+    - why doesn't valgrind reveal bad memory access from haskell, e.g. poke...
 
   - fltk: mute (i.e. change brightness) makes text get drawn twice
   - fltk: moving a track title while it's expanded doesn't work
@@ -204,6 +181,12 @@ fltk:
   MoveTile
     - only capture drag on a plain drag with no modifiers
 
+libfltk:
+  + try cocoa fltk patch
+    - how to compile?
+  + window position not restored on load
+    - had to patch fltk, test Fl_cocoa.mm, make str for Fl_mac.cxx
+
 logging:
   - trying to derive relative blocks generates a lot of log spam, can I avoid
     that somehow?
@@ -212,8 +195,6 @@ logging:
   - compile_to_signals spams too much when there is an error
 
 logview:
-  * use bytestrings?
-  * implement clickable srcpos and StackPos
   - haskell and c++ use the same machine readable format
   - LogView should use Util.Fltk
   - tabs are not lining up properly
@@ -245,14 +226,10 @@ Ui:
       - I think memory efficiency is more important than modification speed
     - modify IntMap for Word64s, add toDescList
       - send patch to libraries@haskell.org
-    - track collapse
-    * track mute
-      - visual indication when both solo and mute is on
-    * track merge
+    - visual indication when both solo and mute is on
     - adjacent collpsed tracks are merged
 
 skeleton:
-  * splice track: adding a new track automatically links into the skeleton
   - parse skeleton in LanguageCmds
 
 test:
@@ -274,11 +251,7 @@ Cmd:
     - number prefixed cmds?  not for now
   - selection scrolling should scroll so the next 2 timesteps are visible
   Keymap
-    * check for key assignment collisions
-    * support generic modifiers like any Shift, any Control, and Command
-      (which becomes alt on a PC keyboard)
   Cmd.Edit
-    * change note lengths
     - alternate finale-like note entry: hold down step key to set step and
       turn on edit mode, but only while the key is down
     - trackerlike note entry: entered events are all as long as the block
@@ -286,12 +259,11 @@ Cmd:
     - map selection through function
     - transpose selection
     - controller edit mode accepts two numbers and moves on, no spaces
-    * nudge events
     - a legato command that always goes to the next note would still be useful
-    - method edit works in controller tracks
+   - swap tracks keeping skeleton up to date
+   - double / halve events under selection
+   - stretch events in selection to another length (need two selections?)
   Cmd.Selection
-    * drag snap to timestep
-    * extend selection with shift-arrow
   Cmd.TimeStep
     - snap to event begin/end
 
@@ -311,12 +283,13 @@ Cmd:
     - warn about unallocated instruments (Convert.verify)
     * make sure the whole stack is lazy
     - play loops
-    * background derivation
+    smarter background derivation
+      - wait a second before deriving
+      - don't derive while a key or mouse button is down
     - start playing from top of displayed area
     - start playing from TimeStep before insert point
 
   Undo
-    * implement undo and undo/redo cmds
     - figure out how to checkpoint just state diffs
     - add undo history to on-disk format
 
@@ -328,14 +301,7 @@ Cmd:
     - details in doc/freeze_track
 
 Derive:
-  derivers
-    * control
-    * tempo
-      * multiple tempos per block
-    * subblock derivation
   PitchTrack pitch
-    * pitch signal should be Signal Relative so that they can be transposed
-    * relative pitches, e.g. +5
   NoteTrack note
     - non-note commands: set random seed, ...
       do I want to set cc things from note or require a control track?
@@ -349,22 +315,14 @@ Derive:
     - leading ; means the command is evaluated for its effect but emits no note
 
   ControlTrack control
-    * relative controller tracks, combined with an operator, so e.g. "+, *scale"
-      adds to the pitch track, and "*, volume" multiplies with the volume track
-      operators: +, *, min, max
-    * just plain "i" means the previous val, to make timed slides easier
-      "approach val" method to make pitch bend easier, or just insert two
-      notes?  the former is higher-level...
-      something like: a5- g2e1 b5-
-      or "a5- ;; i ;; 2e, b5-", much better!
-
+    - configurable interpolators instead of a hardcoded ADT
+      - sine
+      - constant slope, exp slope (i.e. slope until next control event)
   scales
     - implement pengumbang pengisep
     - enharmonics for Twelve
     - just intonation
     - looks like fun: http://en.wikipedia.org/wiki/Bohlen-Pierce_scale
-
-   - swap tracks keeping skeleton up to date
 
    - Control track management?  It should be possible to have a note or a bunch
      of note tracks with a bunch of control tracks and control the clutter.
@@ -397,26 +355,12 @@ Derive:
   - 3 way merge for derived blocks
 
 Perform:
-  Player
-    * flush midi output when I get a Stop
-      * send patches upstream
-  Midi
-    * eliminate duplicate controller msgs
-    * pitch signal rendering
-    * support key switches
-
   Instrument
     - some kind of organized way to manage instruments and instrument config
-    * backend-independent instrument def
     - some basic midi instrument defs for generic midi (dev, patch)
-    * defs for z1 and vl1
 
   Signal
     - lazy implementation
-    * implement Signal.equal
-    - signal transformation derivers: +, *, /, min, max, ...
-    * after implementing GUI drawing and transformation, reduce the
-      proliferation of signal types
     - ensure that controllers are warped continuously by tempo
 
 Instrument DB:
@@ -433,14 +377,11 @@ Instrument DB:
     program change
 
 Midi:
-  * implement midi merging for midi thru
-  * a single msg input thread instead of one thread per input port
   bandwidth
     - keep stats
     - display widget
 
 misc ideas:
-  * legato filter makes adjacent notes overlap a little, for keyed portamento
   - more complicated track names: "< legato < synth/inst" to pipe inst output
     through legato deriver
   - use "<" for tracks that generate data, ">" for ones that accept it, e.g.
