@@ -7,14 +7,31 @@
 
 CXX_DEBUG := -ggdb -O2
 CXX_OPT := -O2
+OPT := $(CXX_DEBUG)
+
 MIDI_LIBS := -framework CoreFoundation -framework CoreMIDI -framework CoreAudio
 # PORTMIDI := /usr/local/src/portmedia/portmidi/trunk
 # CINCLUDE := -Ifltk -I$(PORTMIDI)/pm_common -I$(PORTMIDI)/porttime -I.
 CINCLUDE := -Ifltk -I.
-LDFLAGS := `fltk-config --ldflags`
 
-CXXFLAGS := `fltk-config --cxxflags` $(CXX_DEBUG) $(CINCLUDE) -Wall
-# CXXFLAGS := `fltk-config --cxxflags` $(CXX_OPT) $(CINCLUDE) -Wall
+# vanilla fltk
+LIBFLTK_I := -I/usr/local/include -I/usr/local/include/FL/images
+LIBFLTK := -L/usr/local/lib -lfltk
+
+# cocoa fltk
+LIBFLTK_I := -I/usr/local/src/fltk-cocoa/branch-1.3-cocoa
+LIBFLTK := /usr/local/src/fltk-cocoa/branch-1.3-cocoa/lib/libfltk.a
+
+# fltk 119
+LIBFLTK_I := -I/usr/local/src/fltk
+LIBFLTK := /usr/local/src/fltk/lib/libfltk.a
+
+LIBFLTK_D := -D_THREAD_SAFE -D_REENTRANT
+FLTX_CXX := $(LIBFLTK_I) $(LIBFLTK_D)
+CXXFLAGS = $(FLTK_CXX) $(OPT) $(CINCLUDE) -Wall
+
+FLTK_LD := $(LIBFLTK) -lpthread -framework Carbon -framework ApplicationServices
+LDFLAGS := $(FLTK_LD)
 
 
 ### ghc flags
@@ -26,13 +43,10 @@ HPROF := -O2 -prof -auto-all -caf-all
 HOPT = -O2
 HTEST := -fhpc # -prof -auto-all -caf-all # -O2
 
-HLDFLAGS := `fltk-config --ldflags`
+HLDFLAGS := $(FLTK_LD)
 
 # This is unfortunately needed by hsc2hs to include HsFFI.h, which seems
-# GHC := ghc-6.10.4
 # kinda broken.
-# GHC_LIB := /Library/Frameworks/GHC.framework/Versions/Current/usr/lib/ghc-6.10.4
-
 GHC := ghc-6.12.1
 GHC_LIB := /Library/Frameworks/GHC.framework/Versions/Current/usr/lib/ghc-6.12.1
 
@@ -99,12 +113,8 @@ clean:
 fltk/fltk.a: $(FLTK_OBJS)
 	ar -rs $@ $^
 
-# Link against libfltk from src dir, for testing libfltk changes.
-DIRECT_LINK = /usr/local/src/fltk/lib/libfltk.a \
-	-lpthread -framework Carbon -framework ApplicationServices
 $(BUILD)/test_block: fltk/test_block.o fltk/fltk.a
-	# $(CXX) -o $@ $^ $(LDFLAGS)
-	$(CXX) -o $@ $^ $(DIRECT_LINK)
+	$(CXX) -o $@ $^ $(LDFLAGS)
 	$(BUNDLE)
 
 $(BUILD)/test_logview: LogView/test_logview.o LogView/logview_ui.o fltk/f_util.o

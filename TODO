@@ -10,10 +10,14 @@
 - derivers for seleh patterns
 - signal deriver doesn't record track in stack
 
+- try record punning
+
 CURRENT
-  - window position not restored on load
+  + window position not restored on load
+    - had to patch fltk, test Fl_cocoa.mm, make str for Fl_mac.cxx
   * creating a new block didn't get the box state?
-  - try new fltk
+  + try new fltk
+    - how to compile?
   - trying to derive relative blocks generates a lot of log spam, can I avoid
     that somehow?
   - selection delete doesn't work on merged track
