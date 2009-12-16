@@ -8,8 +8,9 @@
 CXX_DEBUG := -ggdb -O2
 CXX_OPT := -O2
 MIDI_LIBS := -framework CoreFoundation -framework CoreMIDI -framework CoreAudio
-PORTMIDI := /usr/local/src/portmedia/portmidi/trunk
-CINCLUDE := -Ifltk -I$(PORTMIDI)/pm_common -I$(PORTMIDI)/porttime -I.
+# PORTMIDI := /usr/local/src/portmedia/portmidi/trunk
+# CINCLUDE := -Ifltk -I$(PORTMIDI)/pm_common -I$(PORTMIDI)/porttime -I.
+CINCLUDE := -Ifltk -I.
 LDFLAGS := `fltk-config --ldflags`
 
 CXXFLAGS := `fltk-config --cxxflags` $(CXX_DEBUG) $(CINCLUDE) -Wall
@@ -23,7 +24,7 @@ HFLAGS = $(BASIC_HFLAGS) $(HDEBUG) # -fforce-recomp
 HDEBUG := -debug # -O2
 HPROF := -O2 -prof -auto-all -caf-all
 HOPT = -O2
-HTEST := -fhpc -prof -auto-all -caf-all # -O2
+HTEST := -fhpc # -prof -auto-all -caf-all # -O2
 
 HLDFLAGS := `fltk-config --ldflags`
 
@@ -238,5 +239,13 @@ tags: $(ALL_HS)
 	rm tags.sorted
 
 # include GHC_LIB/include since hsc includes HsFFI.h
+# TODO hack around hsc2hs bogosity for now
 %.hs: %.hsc
 	hsc2hs -c g++ --cflag -Wno-invalid-offsetof $(CINCLUDE) $<
+	grep -v INCLUDE $@ >$@.tmp
+	mv $@.tmp $@
+
+# hsc2hs -c g++ --cflag -Wno-invalid-offsetof $(CINCLUDE) $<
+# ./hsc2hs -D__GLASGOW_HASKELL__=612 -c g++ --cflag -Wno-invalid-offsetof $(CINCLUDE) \
+# 	-t $(GHC_LIB)/template-hsc.h -I $(GHC_LIB)/include \
+# 	$<
