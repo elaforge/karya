@@ -160,7 +160,10 @@ advance = cmd_step_selection Config.insert_selnum TimeStep.Advance False
 
 -- ** auto scroll
 
--- | Anyone who wants to set a selection and automatically scroll the window to
+-- | Figure out how much to scroll to keep the selection visible and with
+-- reasonable space around it.
+--
+-- Anyone who wants to set a selection and automatically scroll the window to
 -- follow the selection should use this function.
 select_and_scroll :: (Monad m) =>
      ViewId -> Types.SelNum -> Maybe Types.Selection -> Cmd.CmdT m ()
@@ -179,63 +182,61 @@ auto_scroll :: (Monad m) => ViewId -> Types.Selection
     -> Types.Selection -> Cmd.CmdT m ()
 auto_scroll view_id sel0 sel1 = do
     view <- State.get_view view_id
-    let zoom = Block.view_zoom view
-    let zoom_offset = calc_time_offset view sel0 sel1
-    let track_offset = calc_track_offset view sel0 sel1
-    State.set_zoom view_id (zoom { Types.zoom_offset = zoom_offset })
+    zoom_offset <- auto_time_scroll view sel0 sel1
+    track_offset <- auto_track_scroll view sel0 sel1
+
+    State.set_zoom view_id $
+        (Block.view_zoom view) { Types.zoom_offset = zoom_offset }
     State.set_track_scroll view_id track_offset
     Cmd.sync_zoom_status view_id
 
-calc_time_offset view sel0 sel1 = time_scroll_with_selection
-        sel0 sel1 (Types.zoom_offset zoom) view_end extra_space
+-- TODO this scrolls too fast when dragging.  Detect a drag and scroll at
+-- a rate determined by how far past the bottom the pointer is.
+auto_time_scroll :: (Monad m) => Block.View -> Types.Selection
+    -> Types.Selection -> Cmd.CmdT m TrackPos
+auto_time_scroll view sel0 sel1 = do
+    block_id <- Cmd.get_focused_block
+    step <- Cmd.get_current_step
+    let steps = if Types.sel_cur_pos sel1 >= Types.sel_cur_pos sel0
+            then steps_visible else -steps_visible
+    next <- TimeStep.step_n steps step block_id
+        (Types.sel_cur_track sel1) (Types.sel_cur_pos sel1)
+    return $ get_time_offset max_visible view (Types.sel_cur_pos sel1) next
     where
-    zoom = Block.view_zoom view
-    visible_time = Block.visible_time view
-    view_start = Types.zoom_offset zoom
-    view_end = view_start + visible_time
-    -- Scroll by 1/4 of the visible screen.
-    -- TODO handle out of range drag by scrolling at a constant rate
-    extra_space = visible_time / 4
+    -- Try to keep this many timesteps in the scroll direction in view.
+    steps_visible = 3
+    -- Never scroll so much there isn't at least this percent of visible area
+    -- in the anti-scroll direction.
+    max_visible = 0.2
 
-calc_track_offset view sel0 sel1 = max 0 (offset - ruler_width)
+get_time_offset :: TrackPos -> Block.View -> TrackPos -> TrackPos -> TrackPos
+get_time_offset max_visible view sel_pos scroll_to
+    | scroll_to >= sel_pos = if scroll_to <= view_end then view_start
+        else min (sel_pos - visible * max_visible) (scroll_to - visible)
+    | otherwise = if scroll_to >= view_start then view_start
+        else max (sel_pos - visible * (1-max_visible)) scroll_to
     where
-    widths = map Block.track_view_width (Block.view_tracks view)
+    visible = Block.visible_time view
+    view_start = Types.zoom_offset (Block.view_zoom view)
+    view_end = view_start + visible
+
+auto_track_scroll :: (Monad m) => Block.View -> Types.Selection
+    -> Types.Selection -> Cmd.CmdT m Types.Width
+auto_track_scroll view sel0 sel1 = do
+    return $ get_track_offset
+        view (Types.sel_cur_track sel0) (Types.sel_cur_track sel1)
+
+get_track_offset :: Block.View -> TrackNum -> TrackNum -> Types.Width
+get_track_offset view prev_tracknum cur_tracknum
+    | cur_tracknum >= prev_tracknum = max view_start (track_end - visible)
+    | otherwise = min view_start track_start
+    where
     -- Pesky ruler track doesn't count towards the track scroll.
-    ruler_width = Seq.mhead 0 id widths
-    offset = track_scroll_with_selection sel0 sel1
-        (Block.view_track_scroll view + ruler_width)
-        (Block.visible_track view) widths
-
--- | If the moving edge of the selection is going out of the visible area,
--- scroll to put it into view plus a little extra space.  If both edges are
--- moving, don't scroll.
-time_scroll_with_selection :: Types.Selection -> Types.Selection
-    -> TrackPos -> TrackPos -- ^ bounds of the visible track area
-    -> TrackPos -- ^ amount an out of range selection should scroll
-    -> TrackPos -- ^ time offset should be this much
-time_scroll_with_selection old_sel new_sel view_start view_end extra
-    | scroll_down && scroll_up = view_start
-    | scroll_down = view_start + (new_end - view_end) + extra
-    | scroll_up = new_start - extra
-    | otherwise = view_start
-    where
-    (old_start, old_end) = Types.sel_range old_sel
-    (new_start, new_end) = Types.sel_range new_sel
-    scroll_down = new_end > old_end && new_end > view_end
-    scroll_up = new_start < old_start && new_start < view_start
-
-track_scroll_with_selection old_sel new_sel view_start view_end widths
-    | scroll_right && scroll_left = view_start
-    | scroll_right = view_start + (new_end - view_end)
-    | scroll_left = new_start
-    | otherwise = view_start
-    where
-    track_range sel = (sum (take start widths), sum (take end widths))
-        where (start, end) = Types.sel_track_range sel
-    (old_start, old_end) = track_range old_sel
-    (new_start, new_end) = track_range new_sel
-    scroll_right = new_end > old_end && new_end > view_end
-    scroll_left = new_start < old_start && new_start < view_start
+    widths = map Block.track_view_width (drop 1 (Block.view_tracks view))
+    track_start = sum (take (cur_tracknum-1) widths)
+    track_end = sum (take cur_tracknum widths)
+    view_start = Block.view_track_scroll view
+    visible = Block.view_visible_track view
 
 
 -- ** status

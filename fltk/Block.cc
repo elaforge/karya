@@ -323,13 +323,6 @@ BlockView::set_track_scroll(int offset)
 }
 
 
-Point
-BlockView::get_track_size() const
-{
-    return Point(this->track_tile.w(), this->track_tile.h());
-}
-
-
 void
 BlockView::set_selection(int selnum, const Selection &sel)
 {

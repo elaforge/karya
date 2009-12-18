@@ -51,6 +51,8 @@ public:
     TrackPos visible_time() const;
     // Right side of the rightmost track.
     int track_end() const;
+    // Visible width and height.
+    Point visible_pixels() const;
 
     void insert_track(int tracknum, TrackView *track, int width);
     // Remove and return the TrackView, so the parent can delete it.

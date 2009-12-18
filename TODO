@@ -8,15 +8,19 @@
   1 1^ - 1^ 3 7# - - 1 1^ 1 32 7#7 1 1^ - 1^ 3 7# 1^
     3 3333 2 2 2b 2b
 - derivers for seleh patterns
+  - do a code version and a block version
+  - block version requires block arguments and variable substitution
 - signal deriver doesn't record track in stack
 
 - try record punning
 
 CURRENT
+  - just editing a note shouldn't change its dur!
   - test relative pitch slide!
   - more symbolic calls, e.g. -/_\\/ and -//
   - should tab in raw edit mode go to method?  how to go back then?
   - select track, st3 style select block, track
+  - symbolic score, as in doc/custom_symbols
 
   - demo piece: show nested tempos with "bouncing ball", expressive pitch
     track, non-trivial repl transformation (pitch tweak after big jump?)
@@ -35,12 +39,6 @@ CURRENT
   - editing for "pattern list" block
   - double click call to jump to its block?
 
-- verify twelve ->midi mapping and range checking
-
-note language
-  - project specific bindings, e.g. for instrument names
-  - calls, e.g. "` *1" does a rambat style jump
-    "-/_\\/_" does the rejang cadence
 
 MILESTONES
   0.1
@@ -249,7 +247,7 @@ Cmd:
       top and bottom of block
     - esc and i for edit mode
     - number prefixed cmds?  not for now
-  - selection scrolling should scroll so the next 2 timesteps are visible
+  * selection scrolling should scroll so the next 2 timesteps are visible
   Keymap
   Cmd.Edit
     - alternate finale-like note entry: hold down step key to set step and

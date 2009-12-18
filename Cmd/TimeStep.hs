@@ -44,6 +44,8 @@ snap (Absolute _) _ _ pos = return pos
 snap time_step block_id tracknum pos = fmap (Maybe.fromMaybe pos) $
     step_from time_step Rewind block_id tracknum pos
 
+-- | Step in the given direction from the given position, or Nothing if
+-- the step is out of range.
 step_from :: (State.UiStateMonad m) => TimeStep -> TimeDirection
     -> BlockId -> TrackNum -> TrackPos -> m (Maybe TrackPos)
 step_from time_step direction block_id tracknum pos = do
@@ -52,8 +54,29 @@ step_from time_step direction block_id tracknum pos = do
         Nothing -> return Nothing
         Just ruler_id -> do
             ruler <- State.get_ruler ruler_id
-            return $
-                stepper direction time_step (Ruler.ruler_marklists ruler) pos
+            return $ step direction time_step (Ruler.ruler_marklists ruler) pos
+    where
+    step Advance = advance
+    step Rewind = rewind
+
+-- | Step @n@ times, or until no further stepping is possible.
+step_n :: (State.UiStateMonad m) => Int -> TimeStep
+    -> BlockId -> TrackNum -> TrackPos -> m TrackPos
+step_n nsteps time_step block_id tracknum pos = do
+    block <- State.get_block block_id
+    case relevant_ruler block tracknum of
+        Nothing -> return pos
+        Just ruler_id -> do
+            ruler <- State.get_ruler ruler_id
+            return $ step_until (abs nsteps)
+                (step time_step (Ruler.ruler_marklists ruler)) pos
+    where
+    step = if nsteps >= 0 then advance else rewind
+
+step_until :: Int -> (TrackPos -> Maybe TrackPos) -> TrackPos -> TrackPos
+step_until n f x
+    | n <= 0 = x
+    | otherwise = maybe x (step_until (n-1) f) (f x)
 
 -- | Get the ruler that applies to the given track.  Search left for the
 -- closest ruler that has all the given marklist names.  This includes ruler
@@ -63,9 +86,6 @@ relevant_ruler block tracknum = Seq.at (Block.ruler_ids_of in_order) 0
     where
     in_order = map snd $ dropWhile ((/=tracknum) . fst) $ reverse $
         zip [0..] (Block.block_tracklike_ids block)
-
-stepper Advance = advance
-stepper Rewind = rewind
 
 -- | Advance the given pos according to step on the ruler.
 advance :: TimeStep -> [(Ruler.MarklistName, Ruler.Marklist)] -> TrackPos

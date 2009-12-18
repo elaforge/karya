@@ -134,6 +134,11 @@ TrackTile::track_end() const
     return end;
 }
 
+Point
+TrackTile::visible_pixels() const
+{
+    return Point(this->w(), std::max(0, this->h() - this->title_height));
+}
 
 void
 TrackTile::insert_track(int tracknum, TrackView *track, int width)
