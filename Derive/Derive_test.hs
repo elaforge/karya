@@ -258,7 +258,7 @@ test_basic = do
     let evt = (,,,,) (Instrument.inst_name default_perf_inst)
     equal (map extract_perf_event midi_events)
         [ evt (Just "a0") 0 16 (mkstack [("b1", "b1.t0", (0, 16))])
-        , evt (Just "a1+a2") 16 16 (mkstack [("b1", "b1.t0", (16, 16))])
+        , evt (Just "a1+a2") 16 16 (mkstack [("b1", "b1.t0", (16, 32))])
         ]
 
     -- 3: performance to midi protocol events

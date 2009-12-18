@@ -105,7 +105,7 @@ test_derive_notes = do
     equal evts
         [ (0, 1, "hi", mkstack [("sub", Nothing), ("b1", Just (0, 1))],
             Nothing, no_attrs)
-        , (1, 2, "hi", mkstack [("sub", Nothing), ("b1", Just (1, 2))],
+        , (1, 2, "hi", mkstack [("sub", Nothing), ("b1", Just (1, 3))],
             inst "i", attrs ["a"])
         ]
 
