@@ -237,7 +237,7 @@ data TrackType =
 
 track_type :: Pitch.ScaleId -> State.TrackInfo -> [State.TrackInfo] -> TrackType
 track_type scale_id (State.TrackInfo title _ tracknum) parents
-    | Default.is_inst_track title = NoteTrack pitch_track pitch_rel
+    | Default.is_note_track title = NoteTrack pitch_track pitch_rel
     | Default.is_pitch_track title = PitchTrack is_rel
     | otherwise = ControlTrack is_rel
     where
@@ -286,7 +286,7 @@ sub_compile tree = Derive.d_merge =<< mapM with_track tree
 
 _compile :: Tree.Tree State.TrackInfo -> Derive.EventDeriver
 _compile (Tree.Node track@(State.TrackInfo title track_id _) subs)
-    | Default.is_inst_track title = if not (null subs)
+    | Default.is_note_track title = if not (null subs)
         then Derive.throw $ "inst track " ++ show track ++ " has sub tracks "
             ++ show subs
         else Derive.with_track_warp Note.d_note_track track_id
@@ -336,7 +336,7 @@ compile_to_signals tree = Derive.with_msg "compile_to_signals" $
 _compile_to_signals :: Tree.Tree State.TrackInfo
     -> Derive.SignalDeriver Signal.Display
 _compile_to_signals (Tree.Node (State.TrackInfo title track_id _) subs)
-    | Default.is_inst_track title = return []
+    | Default.is_note_track title = return []
     | otherwise = do
         -- Note no special treatment for tempo, since signal output shouldn't
         -- be warped.
@@ -380,21 +380,21 @@ parse_tempo_group :: [State.TrackInfo] -> Tree.Forest State.TrackInfo
 parse_tempo_group [] = []
 parse_tempo_group (track:tracks)
     | Default.is_tempo_track (State.track_title track) =
-        [Tree.Node track (parse_inst_groups tracks)]
-    | otherwise = parse_inst_groups (track:tracks)
+        [Tree.Node track (parse_note_groups tracks)]
+    | otherwise = parse_note_groups (track:tracks)
 
 -- | [c1 i1 c2 c3] -> c1 . c3 . c2 . i1
-parse_inst_groups :: [State.TrackInfo] -> Tree.Forest State.TrackInfo
-parse_inst_groups tracks = case inst_groups of
+parse_note_groups :: [State.TrackInfo] -> Tree.Forest State.TrackInfo
+parse_note_groups tracks = case inst_groups of
         [] -> []
-        global : rest -> descend (concatMap parse_inst_group rest) global
+        global : rest -> descend (concatMap parse_note_group rest) global
     where
     inst_groups = Seq.split_with
-        (Default.is_inst_track . State.track_title) tracks
+        (Default.is_note_track . State.track_title) tracks
 
-parse_inst_group :: [State.TrackInfo] -> Tree.Forest State.TrackInfo
-parse_inst_group [] = []
-parse_inst_group (track:tracks) = descend [Tree.Node track []] (reverse tracks)
+parse_note_group :: [State.TrackInfo] -> Tree.Forest State.TrackInfo
+parse_note_group [] = []
+parse_note_group (track:tracks) = descend [Tree.Node track []] (reverse tracks)
 
 descend :: Tree.Forest a -> [a] -> Tree.Forest a
 descend bottom [] = bottom

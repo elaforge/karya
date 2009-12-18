@@ -437,14 +437,14 @@ test_deriver_performance = do
         vels = cycle ["1", ".2", ".4", ".6"]
         tempo_pos = take (size `div` 10) [0, 10..]
         tempos = cycle ["1", "2", "3", "i1"]
-        inst_tracks name =
+        note_tracks name =
             [ (name, [(p, 1, "") | p <- pos])
             , ("*twelve", [(p, 0, note) | (p, note) <- zip pos notes])
             , ("vel", [(p, 0, vel) | (p, vel) <- zip pos vels])
             ]
     let (_, ui_state) = UiTest.run_mkstate $
             [("tempo", [(p, 0, t) | (p, t) <- zip tempo_pos tempos])]
-            ++ inst_tracks ">i1" ++ inst_tracks ">i2"
+            ++ note_tracks ">i1" ++ note_tracks ">i2"
     let blocks = State.state_blocks ui_state
     print (Map.size blocks)
     print $ Map.map (Track.events_length . Track.track_events)

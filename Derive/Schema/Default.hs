@@ -40,12 +40,12 @@ paths_of track_tree tracknum =
         (Util.Tree.paths track_tree)
 
 -- | The type of a track is derived from its title.
-is_tempo_track, is_pitch_track, is_inst_track :: String -> Bool
+is_tempo_track, is_pitch_track, is_note_track :: String -> Bool
 is_tempo_track = (=="tempo")
 is_pitch_track title = case parse_control_title title of
     (_, Right _) -> True
     _ -> False
-is_inst_track = (">" `List.isPrefixOf`)
+is_note_track = (">" `List.isPrefixOf`)
 
 -- | True if this track is a relative control or pitch track.
 is_relative_track :: String -> Bool
@@ -62,7 +62,7 @@ inst_of_track = Score.Instrument . Seq.strip . drop 1
 -- thing.
 title_to_instrument :: String -> Maybe Score.Instrument
 title_to_instrument name
-    | is_inst_track name = Just $ inst_of_track name
+    | is_note_track name = Just $ inst_of_track name
     | otherwise = Nothing
 
 -- | Convert from an instrument to the title of its instrument track.
@@ -126,15 +126,15 @@ set_inst_status block_id tracknum = do
 -- fm8/inst1 at 1: fm8:0,1,2, [vel {collapse 2}, pedal {expand 3}]
 get_track_status :: (Monad m) => BlockId -> State.TrackTree -> TrackNum
     -> Cmd.CmdT m String
-get_track_status block_id ttree tracknum = case inst_track_of ttree tracknum of
-    Just (inst, inst_tracknum) -> do
-        let controls = control_tracks_of ttree inst_tracknum
+get_track_status block_id ttree tracknum = case note_track_of ttree tracknum of
+    Just (inst, note_tracknum) -> do
+        let controls = control_tracks_of ttree note_tracknum
         track_descs <- show_track_status block_id controls
         midi_config <- State.get_midi_config
         let addrs = Map.findWithDefault [] inst
                 (Instrument.config_alloc midi_config)
         let title = instrument_to_title inst
-        return $ Printf.printf "%s at %d: %s, [%s]" title inst_tracknum
+        return $ Printf.printf "%s at %d: %s, [%s]" title note_tracknum
             (Info.show_addrs addrs) (Seq.join ", " track_descs)
     Nothing -> return $ "track " ++ show tracknum ++ ": no inst"
 
@@ -144,11 +144,11 @@ control_tracks_of ttree tracknum = case paths_of ttree tracknum of
         Just (_, parents, _) -> controls parents
     where
     controls = filter (is_control . State.track_title)
-    is_control title = not (is_tempo_track title || is_inst_track title)
+    is_control title = not (is_tempo_track title || is_note_track title)
 
-inst_track_of :: State.TrackTree -> TrackNum
+note_track_of :: State.TrackTree -> TrackNum
     -> Maybe (Score.Instrument, TrackNum)
-inst_track_of ttree tracknum = case paths_of ttree tracknum of
+note_track_of ttree tracknum = case paths_of ttree tracknum of
         Nothing -> Nothing
         Just (track, parents, children) ->
             find_inst (track : parents ++ children)
