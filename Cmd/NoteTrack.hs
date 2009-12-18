@@ -37,10 +37,10 @@ cmd_raw_edit scale_id msg = do
     case msg of
         Msg.InputNote (InputNote.NoteOn _ key _) -> do
             note <- EditUtil.parse_key scale_id key
-            EditUtil.modify_event False $ \txt ->
+            EditUtil.modify_event False False $ \txt ->
                 (EditUtil.modify_text_note note txt, False)
         (EditUtil.raw_key -> Just key) -> do
-            EditUtil.modify_event False $ \txt ->
+            EditUtil.modify_event False False $ \txt ->
                 (EditUtil.modify_text_key key txt, False)
         _ -> Cmd.abort
     return Cmd.Done
@@ -157,7 +157,8 @@ create_pitch_track block_id note_tracknum title tracknum = do
 -- * implementation
 
 ensure_exists :: (Monad m) => Cmd.CmdT m ()
-ensure_exists = EditUtil.modify_event False $ \txt -> (Just txt, False)
+ensure_exists = EditUtil.modify_event False True $ \txt -> (Just txt, False)
 
 remove :: (Monad m) => EditUtil.SelPos -> Cmd.CmdT m ()
-remove selpos = EditUtil.modify_event_at selpos False (const (Nothing, False))
+remove selpos =
+    EditUtil.modify_event_at selpos False False (const (Nothing, False))

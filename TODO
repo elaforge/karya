@@ -7,15 +7,13 @@
 - piece with fancy pitch: doira + synth
   1 1^ - 1^ 3 7# - - 1 1^ 1 32 7#7 1 1^ - 1^ 3 7# 1^
     3 3333 2 2 2b 2b
-- derivers for seleh patterns
-  - do a code version and a block version
-  - block version requires block arguments and variable substitution
 - signal deriver doesn't record track in stack
 
 - try record punning
 
 CURRENT
-  - just editing a note shouldn't change its dur!
+  * just editing a note shouldn't change its dur!
+  - note track can pipe through derivers: '<d0 arg0 arg1 <d1 <fm8/bass'
   - test relative pitch slide!
   - more symbolic calls, e.g. -/_\\/ and -//
   - should tab in raw edit mode go to method?  how to go back then?
@@ -299,6 +297,11 @@ Cmd:
     - details in doc/freeze_track
 
 Derive:
+  - note track can pipe through derivers: '<d0 arg0 arg1 <d1 <fm8/bass'
+  - echo deriver, 'echo 2 <fm8/bass', signals: echo_feedback, echo_time
+  - derivers for seleh patterns
+    - do a code version and a block version
+    - block version requires block arguments and variable substitution
   PitchTrack pitch
   NoteTrack note
     - non-note commands: set random seed, ...

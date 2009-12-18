@@ -34,7 +34,7 @@ cmd_val_edit scale_id msg = do
             val_edit_at sel_pos note
             Selection.advance
         (Msg.key_down -> Just Key.Backspace) -> do
-            EditUtil.modify_event False (const (Nothing, True))
+            EditUtil.modify_event False True (const (Nothing, True))
         _ -> Cmd.abort
     return Cmd.Done
 
@@ -99,7 +99,7 @@ cmd_record_note_status scale_id msg = do
 modify_event_at :: (Monad m) => EditUtil.SelPos
     -> ((String, String) -> ((Maybe String, Maybe String), Bool))
     -> Cmd.CmdT m ()
-modify_event_at selpos f = EditUtil.modify_event_at selpos True
+modify_event_at selpos f = EditUtil.modify_event_at selpos True True
     (Arrow.first unparse . f . parse)
 
 -- | Modify event text.  This is not used within this module but is exported

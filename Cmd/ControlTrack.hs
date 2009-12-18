@@ -34,7 +34,7 @@ cmd_method_edit msg = do
 
 modify_event :: (Monad m) =>
     ((String, String) -> ((Maybe String, Maybe String), Bool)) -> Cmd.CmdT m ()
-modify_event f = EditUtil.modify_event True (Arrow.first unparse . f . parse)
+modify_event f = EditUtil.modify_event True True (Arrow.first unparse . f . parse)
 
 -- | This is the Cmd equivalent to 'Derive.Control.parse_event', so they should
 -- be kept in sync.  I don't use the same functions because this only has to

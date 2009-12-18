@@ -27,26 +27,28 @@ import qualified Perform.Pitch as Pitch
 -- | Get the event under insertion point, creating an empty one if there is
 -- none.
 get_event :: (State.UiStateMonad m) =>
-    TrackId -> TrackPos -> TrackPos -> m Event.Event
-get_event track_id pos dur = do
+    Bool -> TrackId -> TrackPos -> TrackPos -> m Event.Event
+get_event modify_dur track_id pos dur = do
     track <- State.get_track track_id
-    return $ maybe (Event.event "" dur) (Event.set_duration dur)
+    let modify = if modify_dur then Event.set_duration dur else id
+    return $ maybe (Event.event "" dur) modify
         (Track.event_at pos (Track.track_events track))
 
-modify_event :: (Monad m) => Bool -- ^ create zero duration event
-    -> (String -> (Maybe String, Bool)) -> Cmd.CmdT m ()
-modify_event zero_dur f = do
+modify_event :: (Monad m) =>
+    Bool -> Bool -> (String -> (Maybe String, Bool)) -> Cmd.CmdT m ()
+modify_event zero_dur modify_dur f = do
     sel <- get_sel_pos
-    modify_event_at sel zero_dur f
+    modify_event_at sel zero_dur modify_dur f
 
 modify_event_at :: (Monad m) => SelPos
     -> Bool -- ^ Created event has 0 dur, otherwise until next time step.
+    -> Bool -- ^ If True, modify the duration of an existing event.
     -> (String -> (Maybe String, Bool)) -> Cmd.CmdT m ()
-modify_event_at (tracknum, track_id, pos) zero_dur f = do
+modify_event_at (tracknum, track_id, pos) zero_dur modify_dur f = do
     end_pos <- if zero_dur
         then return pos
         else Selection.step_from tracknum pos TimeStep.Advance
-    event <- get_event track_id pos (end_pos - pos)
+    event <- get_event modify_dur track_id pos (end_pos - pos)
     -- TODO I could have the modifier take Text, if it were worth it.
     let (val, advance) = f (Event.event_string event)
     case val of
