@@ -25,7 +25,6 @@ module Util.Test (
 ) where
 
 import qualified Control.Exception as Exception
-import Control.Monad
 import qualified Data.IORef as IORef
 import qualified Data.List as List
 import qualified System.IO as IO
@@ -77,17 +76,16 @@ strings_like :: [String] -> [String] -> IO ()
 strings_like = strings_like_srcpos Nothing
 
 strings_like_srcpos :: SrcPos.SrcPos -> [String] -> [String] -> IO ()
-strings_like_srcpos srcpos gotten expected = do
-    when (length gotten /= length expected) $
-        failure srcpos $ "got length " ++ show (length gotten)
-            ++ " /= expected length " ++ show (length expected) ++ ": "
-            ++ show gotten
-    mapM_ (uncurry string_like) (zip gotten expected)
+strings_like_srcpos srcpos gotten expected
+    | null gotten && null expected = success srcpos "[] =~ []"
+    | otherwise = mapM_ (uncurry string_like)
+        (zip gotten (map Just expected ++ repeat Nothing))
     where
-    string_like a b
+    string_like a (Just b)
         | null (Regex.find_groups (Regex.make b) a) =
             failure srcpos $ show a ++ " !~ " ++ show b
         | otherwise = success srcpos $ show a ++ " =~ " ++ show b
+    string_like a Nothing = failure srcpos (a ++ " !~ Nothing")
 
 -- | The given pure value should throw an exception that matches the predicate.
 throws :: (Show a) => a -> String -> IO ()
