@@ -5,6 +5,7 @@ import qualified Text.ParserCombinators.Parsec as P
 import qualified Text.ParserCombinators.Parsec.Error as Parsec.Error
 import Text.ParserCombinators.Parsec ((<?>))
 
+import Util.Control
 import qualified Util.Seq as Seq
 
 
@@ -16,10 +17,16 @@ parse parser text = case P.parse parser "" text of
 maybe_parse :: P.CharParser () a -> String -> Maybe a
 maybe_parse parser text = either (const Nothing) Just (parse parser text)
 
+parse_all :: P.CharParser () a -> String -> Either String a
+parse_all parser = parse (parser #>> P.eof)
+
 format_error :: String -> Parsec.Error.ParseError -> String
 format_error text err = "parse error on char "
     ++ show (P.sourceColumn (P.errorPos err)) ++ " of " ++ show text ++ ": "
-    ++ Seq.replace "\n" "; " (show_error_msgs (Parsec.Error.errorMessages err))
+    ++ msgs err
+    where
+    msgs = Seq.join "; " . filter (not.null) . lines . show_error_msgs
+        . Parsec.Error.errorMessages
 
 -- | Contrary to its documentation, showErrorMessages takes a set of strings
 -- for translation, which makes it hard to use.
