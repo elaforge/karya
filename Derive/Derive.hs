@@ -452,20 +452,20 @@ with_stack_block block_id op = do
 
 -- | Make a quick trick track stack.
 with_stack_track :: (Monad m) => TrackId -> DeriveT m a -> DeriveT m a
-with_stack_track track_id = modify_stack $ \(block_id, _, _) ->
-    (block_id, Just track_id, Nothing)
+with_stack_track track_id = modify_stack "with_stack_track" $
+    \(block_id, _, _) -> (block_id, Just track_id, Nothing)
 
 with_stack_pos :: (Monad m) => TrackPos -> TrackPos -> DeriveT m a
     -> DeriveT m a
-with_stack_pos start dur = modify_stack $ \(block_id, track_id, _) ->
-    (block_id, track_id, Just (start, start + dur))
+with_stack_pos start dur = modify_stack "with_stack_pos" $
+    \(block_id, track_id, _) -> (block_id, track_id, Just (start, start + dur))
 
-modify_stack :: (Monad m) => (Warning.StackPos -> Warning.StackPos)
+modify_stack :: (Monad m) => String -> (Warning.StackPos -> Warning.StackPos)
     -> DeriveT m a -> DeriveT m a
-modify_stack f op = do
+modify_stack caller f op = do
     old_stack <- gets state_stack
     new_stack <- case old_stack of
-        [] -> throw "can't modify empty state stack"
+        [] -> throw $ caller ++ ": can't modify empty stack"
         (x:xs) -> return (f x : xs)
     modify $ \st -> st { state_stack = new_stack }
     v <- op
@@ -534,7 +534,7 @@ min_tempo = 0.001
 
 d_stretch :: (Monad m) => TrackPos -> DeriveT m a -> DeriveT m a
 d_stretch factor d
-    | factor <= 0 = throw $ "negative stretch: " ++ show factor
+    | factor <= 0 = throw $ "stretch <= 0: " ++ show factor
     | otherwise = with_warp
         (\w -> w { warp_stretch = warp_stretch w * factor }) d
 
