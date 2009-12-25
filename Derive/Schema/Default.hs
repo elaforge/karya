@@ -45,7 +45,7 @@ is_tempo_track = (=="tempo")
 is_pitch_track title = case parse_control_title title of
     (_, Right _) -> True
     _ -> False
-is_note_track = (">" `List.isPrefixOf`)
+is_note_track = (note_track_prefix `List.isPrefixOf`)
 
 -- | True if this track is a relative control or pitch track.
 is_relative_track :: String -> Bool
@@ -53,6 +53,8 @@ is_relative_track title = case parse_control_title title of
     (Just _, _) -> True
     _ -> False
 
+note_track_prefix, pitch_track_prefix :: String
+note_track_prefix = ">"
 pitch_track_prefix = "*"
 
 inst_of_track = Score.Instrument . Seq.strip . drop 1

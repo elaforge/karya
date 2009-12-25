@@ -77,12 +77,7 @@
 -}
 module Derive.Note where
 import Control.Monad
-import qualified Data.Char as Char
 import qualified Data.List as List
-import qualified Data.Set as Set
-import qualified Data.Text as Text
-
-import qualified Util.Parse as Parse
 import Util.Seq as Seq
 
 import Ui
@@ -94,21 +89,19 @@ import qualified Ui.Types as Types
 
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
+import qualified Derive.TrackLang as TrackLang
 
-import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
 
 
-type NoteParser m = Track.PosEvent -> Derive.DeriveT m [Parsed]
-
-data Parsed = Parsed
-    { parsed_call :: String
-    , parsed_args :: [CallArg]
-    , parsed_inst :: Maybe Score.Instrument
-    , parsed_attrs :: Score.Attributes
+data NoteDesc = NoteDesc
+    { note_args :: [TrackLang.Val]
+    , note_inst :: Maybe Score.Instrument
+    , note_attrs :: Score.Attributes
     } deriving (Eq, Show)
+empty_note = NoteDesc [] Nothing Score.no_attrs
 
-data CallArg = Number Double | String String | Note Pitch.Note
+data Call = Call { call_name :: String, call_args :: [TrackLang.Val] }
     deriving (Eq, Show)
 
 -- * note track
@@ -117,108 +110,82 @@ d_note_track :: (Monad m) => Derive.TrackDeriver m Score.Event
 d_note_track track_id = do
     track <- Derive.get_track track_id
     let pos_events = Track.event_list (Track.track_events track)
-    pos_parsed <- parse_events (Track.track_title track) pos_events
-    derive_notes pos_parsed
+    (ndesc, calls) <- parse_track_title (Track.track_title track)
+    derive_notes =<< parse_events ndesc pos_events
+    -- call calls
+
+parse_track_title :: (Monad m) => String -> Derive.DeriveT m (NoteDesc, [Call])
+parse_track_title title = do
+    (inst_tokens, call_tokens) <-
+        either (Derive.throw . ("parsing track title: " ++)) return
+        (TrackLang.parse title)
+    inst <- Derive.gets Derive.state_instrument
+    attrs <- Derive.gets Derive.state_attributes
+    let ndesc = parse_note_desc (NoteDesc [] inst attrs) inst_tokens
+    calls <- mapM parse_call call_tokens
+    return (ndesc, calls)
+
+-- | Filter the inst and attr declarations out of the parsed Vals and put the
+-- rest in 'note_args'.
+parse_note_desc :: NoteDesc -> [TrackLang.Val] -> NoteDesc
+parse_note_desc ndesc tokens = rev $ List.foldl' collect (rev ndesc) tokens
+    where
+    collect ndesc val = case val of
+        TrackLang.Instrument (Just inst) -> ndesc { note_inst = Just inst }
+        TrackLang.Instrument Nothing -> ndesc
+        TrackLang.Attr mode attr -> ndesc
+            { note_attrs = TrackLang.set_attr mode attr (note_attrs ndesc) }
+        _ -> ndesc { note_args = val : note_args ndesc }
+    rev ndesc = ndesc { note_args = List.reverse (note_args ndesc) }
+
+-- | Split the call and args from a list of Vals.
+parse_call :: (Monad m) => [TrackLang.Val] -> Derive.DeriveT m Call
+parse_call args = either (Derive.throw . ("parse_call: "++)) return $ do
+    (call, args) <- case args of
+        [] -> Right ([], [])
+        arg:args -> case arg of
+            TrackLang.Call ident -> Right (ident, args)
+            _ -> Left $ "non-function in function position: " ++ show arg
+    let calls = [ident | TrackLang.Call ident <- args]
+    when (not (null calls)) $
+        Left $ "functions in non-function position: " ++ show calls
+    return $ Call call args
 
 -- ** parse
 
--- | Convert each Event.Event into a Parsed, stripping out the rest of
--- the Event except start and dur.
-parse_events :: (Monad m) => String -> [Track.PosEvent]
-    -> Derive.DeriveT m [(Track.PosEvent, Parsed)]
-parse_events track_title pos_events = do
-    inst <- Derive.gets Derive.state_instrument
-    attrs <- Derive.gets Derive.state_attributes
-    maybe_parsed <- mapM
-        (Derive.catch_warn . (parse_event inst attrs track_title))
-        pos_events
-    return [(pos_event, parsed)
-        | (pos_event, Just parsed) <- zip pos_events maybe_parsed]
+-- | Parse each Event and pair it with a NoteDesc, filtering out the ones that
+-- can't be parsed.
+parse_events :: (Monad m) => NoteDesc -> [Track.PosEvent]
+    -> Derive.DeriveT m [(Track.PosEvent, NoteDesc)]
+parse_events ndesc pos_events = do
+    maybe_ndescs <- mapM (Derive.catch_warn . (parse_event ndesc)) pos_events
+    return [(pos_event, ndesc)
+        | (pos_event, Just ndesc) <- zip pos_events maybe_ndescs]
 
-parse_event :: Monad m => Maybe Score.Instrument -> Score.Attributes
-    -> String -> Track.PosEvent -> Derive.DeriveT m Parsed
-parse_event inst attrs track_title (pos, event) = do
-    let (parsed, errs) =
-            parse_note inst attrs track_title (Event.event_text event)
-    if (null errs)
-        then return parsed
-        else Derive.with_stack_pos pos (Event.event_duration event) $
-            Derive.throw $ "parsing: " ++ Seq.join "; " errs
-
-parse_note :: Maybe Score.Instrument -> Score.Attributes -> String -> Text.Text
-    -> (Parsed, [String])
-parse_note env_inst env_attrs title event = (Parsed call args inst attrs, errs)
-    where
-    -- It may be worth it to try to keep this packed, but the rest of the code
-    -- is String so I'll punt on it now.
-    event_words = map Text.unpack (Text.words event)
-    -- I have to thread word numbers through to have nice error msgs.
-    ws0 = describe "title" (words title) ++ describe "event" event_words
-    describe desc xs =
-        [(desc ++ " word " ++ show i, x) | (i, x) <- zip [0..] xs]
-    (inst, attrs, ws1) = preprocess_words env_inst env_attrs ws0
-    (call, args, errs) = parse_args ws1
-
-preprocess_words :: Maybe Score.Instrument -> Score.Attributes
-    -> [(String, String)]
-    -> (Maybe Score.Instrument, Score.Attributes, [(String, String)])
-preprocess_words env_inst env_attrs ws = (inst, attrs, reverse ws2_rev)
-    where
-    -- foldl is most convenient for left-to-right set processing but it gets
-    -- the output backwards.
-    (attrs, ws1_rev) = List.foldl' parse_attr (env_attrs, []) (strip_comment ws)
-    (inst, ws2_rev) = List.foldl' parse_inst (env_inst, []) (reverse ws1_rev)
-    parse_attr (attrs, rest) desc_word = case snd desc_word of
-        '+':attr -> (Set.insert attr attrs, rest)
-        '-':attr -> (Set.delete attr attrs, rest)
-        "=" -> (Set.empty, rest)
-        '=':attr -> (Set.singleton attr, rest)
-        _ -> (attrs, desc_word:rest)
-    parse_inst (inst, rest) desc_word = case snd desc_word of
-        -- Bare '>' is probably a track title, and I don't want that to
-        -- override the inst from the environment.
-        ">" -> (inst, rest)
-        '>':inst_name -> (Just (Score.Instrument inst_name), rest)
-        _ -> (inst, desc_word:rest)
-
-strip_comment [] = []
-strip_comment (w@(_, word):ws)
-    | "--" `List.isPrefixOf` word = []
-    | otherwise = w : strip_comment ws
-
-parse_args :: [(String, String)] -> (String, [CallArg], [String])
-parse_args ws = (call, args, errs1 ++ errs2)
-    where
-    (errs1, args) = Seq.partition_either $ map parse_arg (drop 1 ws)
-    call = if null ws then "" else snd (head ws)
-    -- I can lift this restriction if convenient, but it seems like it may
-    -- catch some typos.
-    errs2 = case call of
-        (c:_) | not (Char.isLetter c) ->
-            ["call " ++ show call ++ " starts with non-letter " ++ show c]
-        _ -> []
-
-parse_arg :: (String, String) -> Either String CallArg
-parse_arg (desc, "") = Left $ desc ++ ": empty word, this shouldn't happen!"
-parse_arg (desc, word@(c:rest))
-    | Char.isDigit c || c == '.' = case Parse.float word of
-        Just val -> Right (Number val)
-        Nothing -> Left $ desc ++ ": can't parse number " ++ show word
-    | c == '*' = Right (Note (Pitch.Note rest))
-    | otherwise = Right (String word)
+parse_event :: Monad m => NoteDesc -> Track.PosEvent
+    -> Derive.DeriveT m NoteDesc
+parse_event ndesc (pos, event) = do
+    let err msg = Derive.with_stack_pos pos (Event.event_duration event) $
+            Derive.throw ("parsing note: " ++ msg)
+    (inst_tokens, call_tokens) <- either err return $
+        TrackLang.parse (Event.event_string event)
+    when (not (null call_tokens)) $
+        -- TODO support pipes in notes
+        Derive.throw $ "note calls not yet supported: " ++ show call_tokens
+    return $ parse_note_desc ndesc inst_tokens
 
 -- ** derive
 
-derive_notes :: (Monad m) => [(Track.PosEvent, Parsed)]
+derive_notes :: (Monad m) => [(Track.PosEvent, NoteDesc)]
     -> Derive.DeriveT m [Score.Event]
 derive_notes = fmap (trim_pitches . concat) . mapM note
     where
-    note ((pos, event), parsed) = Derive.with_stack_pos
-        pos (Event.event_duration event) (derive_note pos event parsed)
+    note ((pos, event), ndesc) = Derive.with_stack_pos
+        pos (Event.event_duration event) (derive_note pos event ndesc)
 
-derive_note :: (Monad m) => TrackPos -> Event.Event -> Parsed
+derive_note :: (Monad m) => TrackPos -> Event.Event -> NoteDesc
     -> Derive.DeriveT m [Score.Event]
-derive_note pos event (Parsed call args inst attrs) = do
+derive_note pos event (NoteDesc args inst attrs) = do
     -- TODO when signals are lazy this will be inefficient.  I need to come
     -- up with a way to guarantee such accesses are increasing and let me gc
     -- the head.
@@ -230,20 +197,20 @@ derive_note pos event (Parsed call args inst attrs) = do
     -- Log.debug $ "warp " ++ (show wp)
     st <- Derive.get
 
-    if null call
-        then do
-            unless (null args) $
-                -- Null call but non-null args shouldn't happen.
-                Derive.warn ("ignored trailing args: " ++ show args)
-            return [Score.Event start (end-start) (Event.event_text event)
-                (Derive.state_controls st) (Derive.state_pitch st)
-                (Derive.state_stack st) inst attrs]
-        -- d_call will set shift and stretch which is in local time, so pass
-        -- local rather than global.
-        -- TODO look in namespace for calls other than subderive
-        -- TODO pass args
-        else Derive.d_sub_derive [] $ Derive.with_instrument inst attrs $
-            d_call pos (Event.event_duration event) call
+    case args of
+        [] -> return [Score.Event start (end-start) (Event.event_text event)
+            (Derive.state_controls st) (Derive.state_pitch st)
+            (Derive.state_stack st) inst attrs]
+        _ -> do
+            Call sub args <- parse_call args
+            -- d_sub will set shift and stretch which is in local time, so pass
+            -- local rather than global.
+            -- TODO look in namespace other than blocks for sub_id
+            -- TODO pass args
+            when (not (null args)) $
+                Derive.throw $ "args not supported yet: " ++ show args
+            Derive.d_sub_derive [] $ Derive.with_instrument inst attrs $
+                d_sub pos (Event.event_duration event) sub
 
 -- | In a note track, the pitch signal for each note ends when the next note
 -- begins.  Otherwise, it looks like each note changes pitch when the next note
@@ -259,8 +226,8 @@ trim_pitches events = map trim_event (Seq.zip_next events)
         psig = Score.event_pitch event
         p = Score.event_start next
 
-d_call :: TrackPos -> TrackPos -> String -> Derive.EventDeriver
-d_call start dur ident = do
+d_sub :: TrackPos -> TrackPos -> String -> Derive.EventDeriver
+d_sub start dur ident = do
     -- TODO also I'll want to support generic calls
     default_ns <- Derive.gets (State.state_project . Derive.state_ui)
     let block_id = Types.BlockId (make_id default_ns ident)
@@ -274,8 +241,10 @@ d_call start dur ident = do
     -- This is actually the only thing that requires that block_id name a real
     -- block.
     ui_state <- Derive.gets Derive.state_ui
-    block_dur <- either (Derive.throw . ("d_call: "++) . show)
-        return (State.eval ui_state (get_block_dur block_id))
+    -- This is the first time I look up block_id so if the block does't exist
+    -- this will throw.
+    block_dur <- either (Derive.throw . ("d_sub: "++) . show) return
+        (State.eval ui_state (get_block_dur block_id))
     if block_dur > TrackPos 0
         then Derive.d_at start (Derive.d_stretch (dur/block_dur)
             (Derive.d_block block_id))

@@ -45,6 +45,10 @@ import qualified Perform.Midi.Perform as Perform
 -- hand, testing with smaller scope makes clearer bugs, but on the other hand
 -- more test code means more bugs in the test itself.
 
+-- TODO
+-- use derive functions from DeriveTest
+-- don't test subderive stuff already tested in Note_test
+
 
 {-
 -- Inspect the final state after running a derivation.
@@ -498,7 +502,6 @@ c_mod = Midi.Control.c_mod
 
 default_inst = Score.Instrument "synth/patch"
 default_inst_title = ">synth/patch"
-default_synth = Instrument.synth "synth" "wdev" []
 default_dev = Midi.WriteDevice "out"
 default_inst_config = Instrument.config
     [(default_inst, [(default_dev, 0)])] Nothing

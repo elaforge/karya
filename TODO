@@ -12,8 +12,10 @@
 - try record punning
 
 CURRENT
+  - stack: bid/tid/* should highlight the entire track
+  - crashing bug adding new track to skeleton
   * just editing a note shouldn't change its dur!
-  - note track can pipe through derivers: '<d0 arg0 arg1 <d1 <fm8/bass'
+  + note track can pipe through derivers: '<d0 arg0 arg1 <d1 <fm8/bass'
   - test relative pitch slide!
   - more symbolic calls, e.g. -/_\\/ and -//
   - should tab in raw edit mode go to method?  how to go back then?

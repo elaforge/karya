@@ -1,7 +1,5 @@
 module Derive.Note_test where
-import qualified Data.Map as Map
 import qualified Data.Set as Set
-import qualified Data.Text as Text
 
 import Util.Test
 import qualified Util.Log as Log
@@ -10,105 +8,112 @@ import Ui
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 
-import qualified Derive.Derive_test as Derive_test
+import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Note as Note
 import qualified Derive.Score as Score
-import qualified Perform.Pitch as Pitch
-import qualified Perform.PitchSignal as PitchSignal
-import qualified Perform.Warning as Warning
+import qualified Derive.TrackLang as TrackLang
 
-import qualified Derive.Derive as Derive
+import qualified Perform.Warning as Warning
 
 
 -- * parse
 
-test_parse_note = do
-    let f = Note.parse_note
-    equal (f (inst "k") no_attrs ">i" (Text.pack "1x 1y 2 b"))
-        (Note.Parsed "1x" [Note.Number 2, Note.String "b"] (inst "i") no_attrs
-        ,["event word 1: can't parse number \"1y\"",
-            "call \"1x\" starts with non-letter '1'"])
-
-test_preprocess_words = do
-    let f inst attrs s = (inst2, attrs2, map snd rest)
-            where
-            (inst2, attrs2, rest) = Note.preprocess_words
-                inst attrs (zip (map show [0..]) (words s))
-
-    equal (f Nothing no_attrs "--blah +a1 >i1") (Nothing, no_attrs, [])
-    equal (f Nothing (attrs ["a4"]) "+a1 +a2 -a1 x")
-        (Nothing, attrs ["a2", "a4"], ["x"])
-    equal (f Nothing (attrs ["a4"]) "+a1 +a2 =a3 x")
-        (Nothing, attrs ["a3"], ["x"])
-    equal (f Nothing (attrs ["a4"]) "+a1 +a2 = x")
-        (Nothing, no_attrs, ["x"])
-    equal (f (inst "i1") no_attrs "+a1 > ")
-        (inst "i1", attrs ["a1"], [])
-    equal (f (inst "i1") no_attrs ">i2 x >i3 +a1 --blah blah")
-        (inst "i3", attrs ["a1"], ["x"])
-
-test_parse_args = do
-    let f s = Note.parse_args (zip (map show [0..]) (words s))
-    equal (f "x y 1 *a")
-        ("x", [Note.String "y", Note.Number 1, Note.Note (Pitch.Note "a")], [])
-    equal (f "x 1y z")
-        ("x", [Note.String "z"], ["1: can't parse number \"1y\""])
-    equal (f "1x")
-        ("1x", [], ["call \"1x\" starts with non-letter '1'"])
-    equal (f "") ("", [], [])
-
-no_attrs = Score.no_attrs
-inst = Just . Score.Instrument
-attrs = Set.fromList :: [String] -> Score.Attributes
-
-test_parse_arg = do
-    let f s = Note.parse_arg ("desc", s)
-    equal (f "") $ Left "desc: empty word, this shouldn't happen!"
-    equal (f ".1") $ Right (Note.Number 0.1)
-    equal (f ".") $ Left "desc: can't parse number \".\""
-    equal (f "1s") $ Left "desc: can't parse number \"1s\""
-    equal (f "*ho") $ Right (Note.Note (Pitch.Note "ho"))
-    equal (f "hoho") $ Right (Note.String "hoho")
+test_parse_note_dec = do
+    let f ndesc text = either (const Nothing)
+            (Just . Note.parse_note_desc ndesc . fst) (TrackLang.parse text)
+    let mkdesc args inst attrs = Just $ Note.NoteDesc (map TrackLang.Num args)
+            (fmap Score.Instrument inst) (Set.fromList attrs)
+    let ndesc = Note.NoteDesc [TrackLang.Num 1] Nothing Score.no_attrs
+    equal (f ndesc "3 4") (mkdesc [1, 3, 4] Nothing [])
+    equal (f ndesc "+foo +bar -foo") (mkdesc [1] Nothing ["bar"])
+    equal (f ndesc "+foo =") (mkdesc [1] Nothing [])
+    equal (f ndesc ">") (mkdesc [1] Nothing [])
+    equal (f ndesc ">i") (mkdesc [1] (Just "i") [])
+    equal (f ndesc "foo.bar") Nothing
 
 -- * derivers
 
-test_derive_notes = do
-    let mkevt (pos, dur, text) = (event, parsed)
+test_d_note_track = do
+    let run title evts = nostack $
+            DeriveTest.derive_tracks_tempo [(title, evts)]
+
+    equal (run ">i" []) (Right [], [])
+    let inst = Just "i"
+    equal (run ">i" [(0, 1, ">i +a")])
+        (Right [mkevent 0 1 ">i +a" [] inst ["a"]], [])
+
+    strings_like [show (run "> | bad/attr" [])] ["parse error"]
+
+    -- override attrs
+    let (evts, logs) = run "> +a" [(0, 1, "=b"), (1, 1, "-a")]
+    equal evts $ Right
+        [mkevent 0 1 "=b" [] Nothing ["b"], mkevent 1 1 "-a" [] Nothing []]
+    equal logs []
+
+test_d_sub = do
+    let run evts = extract $ DeriveTest.derive_block ui_state (UiTest.bid "b1")
             where
-            (parsed, _) = Note.parse_note Nothing no_attrs "" (Text.pack text)
-            event = UiTest.mkevent (pos, dur, text)
-        run evts = (map extract_event sevts, map extract_log logs)
-            where
-            (sevts, logs) =
-                Derive_test.derive_events_lookup lookup ui_state deriver
-            deriver = Note.derive_notes (map mkevt evts)
-            lookup = lookup_deriver d_fake_sub
             (_, ui_state) = UiTest.run State.empty $ do
-                UiTest.mkstate sub_name [(">", [(0, 1, "")])]
+                UiTest.mkstate "sub" [(">", [(0, 1, "--sub")])]
                 UiTest.mkstate "b1" [(">", evts)]
-            extract_log msg = (Log.msg_string msg, Log.msg_stack msg)
-
-    equal (run []) ([], [])
-    equal (run [(0, 1, ">i +a")])
-        ([(0, 1, ">i +a", mkstack [("b1", Just (0, 1))], inst "i",
-            attrs ["a"])], [])
-
     let (evts, logs) = run [(0, 1, "nosuch")]
-    equal evts []
+    equal evts (Right [])
     strings_like (map fst logs)
         ["error sub-deriving.* unknown \\(bid \"test/nosuch\""]
-    equal (map snd logs) [Just (mkstack [("b1", Just (0, 1))])]
+    equal (map snd logs) [Just (mkstack [("b1", "b1.t0", (0, 1))])]
 
     -- subderived stuff is stretched and placed, inherits instrument
-    let (evts, logs) = run [(0, 1, sub_name), (1, 2, ">i +a " ++ sub_name)]
+    let (evts, logs) = run [(0, 1, "sub"), (1, 2, ">i +a sub")]
     equal logs []
-    equal evts
-        [ (0, 1, "hi", mkstack [("sub", Nothing), ("b1", Just (0, 1))],
-            Nothing, no_attrs)
-        , (1, 2, "hi", mkstack [("sub", Nothing), ("b1", Just (1, 3))],
-            inst "i", attrs ["a"])
+    equal evts $ Right
+        [ mkevent 0 1 "--sub"
+            [("sub", "sub.t0", (0, 1)), ("b1", "b1.t0", (0, 1))]
+            Nothing []
+        , mkevent 1 2 "--sub"
+            [("sub", "sub.t0", (0, 1)), ("b1", "b1.t0", (1, 3))]
+            (Just "i") ["a"]
         ]
 
+type Extracted =
+    (TrackPos, TrackPos, String, Warning.Stack, Maybe Score.Instrument,
+        Score.Attributes)
+
+extract :: DeriveTest.Result [Score.Event]
+    -> (Either String [Extracted], [(String, Maybe Warning.Stack)])
+extract result = (fmap (map extract_event) err_events, map extract_log logs)
+    where
+    (err_events, logs) = DeriveTest.e_val result
+    extract_log msg = (Log.msg_string msg, Log.msg_stack msg)
+    -- | Events aren't in Eq, so extract the bits I want to test.
+    extract_event e = (Score.event_start e, Score.event_duration e,
+        Score.event_string e, Score.event_stack e, Score.event_instrument e,
+        Score.event_attributes e)
+
+nostack :: DeriveTest.Result [Score.Event]
+    -> (Either String [Extracted], [String])
+nostack = f . extract
+    where
+    f (result, logs) =
+        (fmap (map (\(a, b, c, _, d, e) -> (a, b, c, [], d, e))) result,
+            map fst logs)
+
+mkevent :: TrackPos -> TrackPos -> String
+    -> [(String, String, (TrackPos, TrackPos))] -> Maybe String -> [String]
+    -> Extracted
+mkevent start dur text stack inst attrs =
+    (start, dur, text, mkstack stack, fmap Score.Instrument inst, mkattrs attrs)
+
+mkattrs = Set.fromList :: [String] -> Score.Attributes
+
+mkstack :: [(String, String, (TrackPos, TrackPos))] -> Warning.Stack
+mkstack = map $ \(bid, tid, pos) ->
+    (UiTest.bid bid, Just (UiTest.tid tid), Just pos)
+
+-- * sub
+
+-- use to test non-block subderives
+{-
+d_fake_sub :: Derive.EventDeriver
 d_fake_sub = do
     st <- Derive.get
     start <- Derive.local_to_global 0
@@ -116,19 +121,10 @@ d_fake_sub = do
     return [Score.Event start (end-start) (Text.pack "hi") Map.empty fake_pitch
         (Derive.state_stack st)
         (Derive.state_instrument st) (Derive.state_attributes st)]
-
-fake_pitch = PitchSignal.constant (Pitch.ScaleId "fake") (Pitch.Degree 60)
-
-mkstack :: [(String, Maybe (TrackPos, TrackPos))] -> Warning.Stack
-mkstack = map $ \(bid, pos) -> (UiTest.bid bid, Nothing, pos)
-
--- | Events aren't in Eq, so extract the bits I want to test.
-extract_event e = (Score.event_start e, Score.event_duration e,
-    Score.event_string e, Score.event_stack e, Score.event_instrument e,
-    Score.event_attributes e)
-
-sub_name = "sub"
+    where
+    fake_pitch = PitchSignal.constant (Pitch.ScaleId "fake") (Pitch.Degree 60)
 
 lookup_deriver deriver block_id
-    | block_id == UiTest.bid sub_name = Right deriver
+    | block_id == UiTest.bid "some-sub" = Right deriver
     | otherwise = Left (State.StateError "not found")
+-}
