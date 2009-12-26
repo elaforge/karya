@@ -7,6 +7,7 @@ module Util.Test (
     , check, check_srcpos, check_msg, check_msg_srcpos
     , equal, equal_srcpos
     , strings_like, strings_like_srcpos
+    , map_left, left_like, left_like_srcpos
     -- ** exception checks
     , throws, throws_srcpos, catch_srcpos
 
@@ -81,11 +82,31 @@ strings_like_srcpos srcpos gotten expected
     | otherwise = mapM_ (uncurry string_like)
         (zip gotten (map Just expected ++ repeat Nothing))
     where
-    string_like a (Just b)
-        | null (Regex.find_groups (Regex.make b) a) =
-            failure srcpos $ show a ++ " !~ " ++ show b
-        | otherwise = success srcpos $ show a ++ " =~ " ++ show b
-    string_like a Nothing = failure srcpos (a ++ " !~ Nothing")
+    string_like gotten (Just reg)
+        | regex_matches reg gotten = failure srcpos $ gotten ++ " !~ " ++ reg
+        | otherwise = success srcpos $ gotten ++ " =~ " ++ reg
+    string_like gotten Nothing = failure srcpos (gotten ++ " !~ Nothing")
+
+map_left f (Left a) = Left (f a)
+map_left _ (Right a) = Right a
+
+left_like :: (Show a) => Either String a -> String -> IO ()
+left_like = left_like_srcpos Nothing
+
+-- | It's common for Left to be an error msg, or be something that can be
+-- converted to one.
+left_like_srcpos :: (Show a) =>
+    SrcPos.SrcPos -> Either String a -> String -> IO ()
+left_like_srcpos srcpos gotten expected = case gotten of
+    Left msg
+        | regex_matches expected msg ->
+            success srcpos $ "Left (" ++ msg ++ ") =~ Left (" ++ expected ++ ")"
+        | otherwise ->
+            failure srcpos $ "Left (" ++ msg ++ ") !~ Left (" ++ expected ++ ")"
+    Right a -> failure srcpos $ "Right (" ++ show a ++ ") !~ " ++ expected
+
+regex_matches :: String -> String -> Bool
+regex_matches reg s = not $ null $ Regex.find_groups (Regex.make reg) s
 
 -- | The given pure value should throw an exception that matches the predicate.
 throws :: (Show a) => a -> String -> IO ()
