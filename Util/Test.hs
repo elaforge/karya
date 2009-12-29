@@ -83,8 +83,8 @@ strings_like_srcpos srcpos gotten expected
         (zip gotten (map Just expected ++ repeat Nothing))
     where
     string_like gotten (Just reg)
-        | regex_matches reg gotten = failure srcpos $ gotten ++ " !~ " ++ reg
-        | otherwise = success srcpos $ gotten ++ " =~ " ++ reg
+        | regex_matches reg gotten = success srcpos $ gotten ++ " =~ " ++ reg
+        | otherwise = failure srcpos $ gotten ++ " !~ " ++ reg
     string_like gotten Nothing = failure srcpos (gotten ++ " !~ Nothing")
 
 map_left f (Left a) = Left (f a)
