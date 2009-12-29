@@ -66,6 +66,7 @@ module Perform.Signal (
 
     , sig_add, sig_subtract, sig_multiply
     , sig_max, sig_min, clip_max, clip_min
+    , scalar_add, scalar_subtract, scalar_multiply, scalar_divide
     , shift, stretch
     , truncate
     , map_x, map_y
@@ -206,6 +207,15 @@ sig_multiply = sig_op (*)
 sig_max, sig_min :: Control -> Control -> Control
 sig_max = sig_op max
 sig_min = sig_op min
+
+-- ** scalar transformations
+
+scalar_add, scalar_subtract, scalar_multiply, scalar_divide ::
+    Y -> Control -> Control
+scalar_add n = map_y (+n)
+scalar_subtract n = map_y (subtract n)
+scalar_multiply n = map_y (*n)
+scalar_divide n = map_y (/n)
 
 -- | Clip signal to never go above or below the given value.  Like 'sig_max'
 -- and 'sig_min' except relative to a scalar value.

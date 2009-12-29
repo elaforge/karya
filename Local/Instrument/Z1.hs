@@ -25,11 +25,11 @@ z1_controls =
     [
     -- The PE controls are the "performance expression" knobs whose effect
     -- depends on the instrument.
-    (13, "pe 1"), (20, "pe 2"), (21, "pe 3"), (22, "pe 4"), (23, "pe 5")
-    , (16, "pad x"), (17, "pad y")
-    , (65, "z1 port sw")
+    (13, "pe1"), (20, "pe2"), (21, "pe3"), (22, "pe4"), (23, "pe5")
+    , (16, "pad-x"), (17, "pad-y")
+    , (65, "z1-port-sw")
     -- General purpose on/off switches.
-    , (80, "z1 sw 1"), (81, "z1 sw 2")
+    , (80, "z1-sw-1"), (81, "z1-sw-2")
 
     -- Various filter cutoff etc.
     ]
@@ -84,7 +84,7 @@ make_patch (name, cat, pb_range, osc1, osc2) =
     inst = Instrument.instrument (Instrument.synth_name z1)
         name Nothing Control.empty_map pb_range
     tags = maybe_tags
-        [("z1_category", cat), ("z1_osc", osc1), ("z1_osc", osc2)]
+        [("z1-category", cat), ("z1-osc", osc1), ("z1-osc", osc2)]
 
 maybe_tags tags = [Instrument.tag k v | (k, Just v) <- tags]
 

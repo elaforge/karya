@@ -7,6 +7,7 @@ import qualified Util.Num as Num
 
 import qualified Midi.Midi as Midi
 
+import qualified Derive.Score as Score
 import qualified Perform.Signal as Signal
 
 
@@ -82,10 +83,13 @@ pb_from_nn pb_range key val =
 
 -- * built in controls
 
+convert_control :: Score.Control -> Control
+convert_control (Score.Control c) = Control c
+
 -- ** non-cc controls
 
 c_velocity :: Control
-c_velocity = Control "velocity"
+c_velocity = convert_control Score.c_velocity
 
 -- | I call channel pressure \"aftertouch\" because true aftertouch is so rare.
 -- All controls here are per-note anyway.  Mainly I want to be able to reuse
@@ -112,10 +116,10 @@ cc_map = [(n, "cc" ++ show n) | n <- [0..127]] ++
     , (7, "volume")
     , (8, "balance")
     , (10, "pan")
-    , (64, "damper pedal")
-    , (65, "portamento pedal")
-    , (66, "sustenuto pedal")
-    , (67, "soft pedal")
+    , (64, "damper-pedal")
+    , (65, "portamento-pedal")
+    , (66, "sustenuto-pedal")
+    , (67, "soft-pedal")
     ]
 
 -- | This will also be checked by 'control_constructor', so these are

@@ -19,6 +19,8 @@ import qualified Perform.Warning as Warning
 -- | Currently this is just for 'Derive.map_events'.
 class Eventlike e where
     stack :: e -> [Warning.StackPos]
+    start :: e -> TrackPos
+    set_start :: TrackPos -> e -> e
 
 data Event = Event {
     -- | These are the core attributes that define an event.  UI display
@@ -45,12 +47,28 @@ data Event = Event {
 
 instance Eventlike Event where
     stack = event_stack
+    start = event_start
+    set_start pos event = event { event_start = pos }
 
 event_string :: Event -> String
 event_string = Text.unpack . event_text
 
 event_end :: Event -> TrackPos
 event_end event = event_start event + event_duration event
+
+move :: (Eventlike e) => (TrackPos -> TrackPos) -> e -> e
+move f event = set_start (f (start event)) event
+
+modify_control :: Control -> (Signal.Control -> Signal.Control)
+    -> Event -> Event
+modify_control control f event = case Map.lookup control controls of
+        Nothing -> event
+        Just sig ->
+            event { event_controls = Map.insert control (f sig) controls }
+    where controls = event_controls event
+
+modify_signal :: Control -> (Signal.Y -> Signal.Y) -> Event -> Event
+modify_signal control f = modify_control control (Signal.map_y f)
 
 type ControlMap = Map.Map Control Signal.Control
 
@@ -62,6 +80,8 @@ data ControlEvent = ControlEvent {
 
 instance Eventlike ControlEvent where
     stack = cevent_stack
+    start = cevent_start
+    set_start pos cevent = cevent { cevent_start = pos }
 
 cevent_string :: ControlEvent -> String
 cevent_string = Text.unpack . cevent_text
@@ -84,6 +104,17 @@ no_attrs :: Attributes
 no_attrs = Set.empty
 
 newtype Control = Control String deriving (Eq, Ord, Show)
+
+-- ** controls
+
+-- Some standard controls.  The MIDI deriver should understand them.
+
+-- TODO this could be converted into velocity or breath depending on the
+-- instrument.
+c_pressure = Control "pres"
+
+c_velocity = Control "vel"
+c_breath = Control "breath"
 
 -- * attributes
 

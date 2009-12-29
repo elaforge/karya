@@ -8,7 +8,6 @@ import qualified Ui.State as State
 
 import qualified Perform.Signal as Signal
 import qualified Derive.Score as Score
-import qualified Derive.Derive_test as Derive_test
 import qualified Derive.Control as Control
 import qualified Derive.DeriveTest as DeriveTest
 
@@ -16,7 +15,7 @@ import qualified Derive.DeriveTest as DeriveTest
 test_d_signal = do
     let track_signal = Signal.track_signal Signal.default_srate
     let f = Control.d_signal
-    let run evts = case Derive_test.run State.empty (f evts) of
+    let run evts = case DeriveTest.run State.empty (f evts) of
             Left err -> Left err
             Right (val, _dstate, msgs) -> Right (val, map Log.msg_string msgs)
 
@@ -40,7 +39,7 @@ test_d_pitch_signal = do
             Left err -> Left err
             Right (val, _dstate, msgs) -> Right (val, map Log.msg_string msgs)
             where
-            result = Derive_test.run State.empty
+            result = DeriveTest.run State.empty
                 (Control.d_pitch_signal DeriveTest.scale_id evts)
 
     let (sig, msgs) = expect_right "running derive" $

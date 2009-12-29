@@ -56,8 +56,7 @@ extract_warns = map (\w -> (Warning.warn_msg w, Warning.warn_pos w))
 test_vel_clip_warns = do
     let (msgs, warns) = perform inst_config1 $ map mkevent
             [(inst1, "a", 0, 4, [badsig Control.c_velocity])]
-    equal (extract_warns warns)
-        [("Control \"velocity\" clipped", Just (0, 4))]
+    equal (extract_warns warns) [("Control \"vel\" clipped", Just (0, 4))]
     check (all_msgs_valid msgs)
 
 all_msgs_valid wmsgs = all Midi.valid_msg (map Midi.wmsg_msg wmsgs)

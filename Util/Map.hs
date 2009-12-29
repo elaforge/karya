@@ -7,6 +7,7 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
 
+-- | This is just 'findWithDefault' by a shorter name.
 get :: (Ord k) => a -> k -> Map.Map k a -> a
 get def k fm = Maybe.fromMaybe def (Map.lookup k fm)
 
@@ -79,6 +80,9 @@ union2 m1 m2
     | Map.size m1 < Map.size m2 = m2 `right` m1
     | otherwise = m1 `Map.union` m2
     where right = Map.unionWith (\_ a -> a)
+
+insert_list :: (Ord k) => [(k, v)] -> Map.Map k v -> Map.Map k v
+insert_list kvs m = List.foldl' (\m (k, v) -> Map.insert k v m) m kvs
 
 -- | Safe versions of findMin and findMax.
 find_min :: Map.Map k a -> Maybe (k, a)

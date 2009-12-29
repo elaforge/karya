@@ -224,6 +224,13 @@ split sep xs = go sep xs
         | otherwise = pre : split sep (drop (length sep) post)
         where (pre, post) = break_tails (sep `isPrefixOf`) xs
 
+-- | 'split' never returns nil, so sometimes it's more convenient to express
+-- that in the type.
+split_t :: (Eq a) => [a] -> [a] -> ([a], [[a]])
+split_t sep xs = case split sep xs of
+    (g:gs) -> (g, gs)
+    _ -> error "split_t: unreached"
+
 -- | Like 'split', but only split once.
 split1 :: (Eq a) => [a] -> [a] -> ([a], [a])
 split1 [] _ = error $ "Util.Seq.split1: empty seperator"

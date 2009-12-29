@@ -11,11 +11,21 @@
 
 - try record punning
 
+- maybe I can get rid of schema?
+
+- skip derivation on a block if it has no absolute pitch tracks?
+- derive multiple blocks with parMap
+
 CURRENT
+  + TrackLang
+  - document / enforce rules for CallId, Control, etc?
+
+  - initial control env has vel = constant 1
+
   - stack: bid/tid/* should highlight the entire track
   - crashing bug adding new track to skeleton
   * just editing a note shouldn't change its dur!
-  + note track can pipe through derivers: '<d0 arg0 arg1 <d1 <fm8/bass'
+  * note track can pipe through derivers: '>fm8/bass | d0 arg0 arg1 | d1'
   - test relative pitch slide!
   - more symbolic calls, e.g. -/_\\/ and -//
   - should tab in raw edit mode go to method?  how to go back then?
@@ -304,6 +314,18 @@ Derive:
   - derivers for seleh patterns
     - do a code version and a block version
     - block version requires block arguments and variable substitution
+  TrackLang
+    - lazy version of Derive.Call.map_events
+    - make sure signal derivation doesn't do calls
+    - implement num -> signal coercion
+    - implement mandatory signal args
+    - implement _ dummy arg
+    - implement call by arg name e.g. "delay time=%xyz"
+    - implement control calls
+    - implement block level calls in block title
+    - other attributes in block title, e.g. "alias=?squiggle? | xyz"?
+    - support pitch signals, e.g. "tune-to %*some-sig" but that requires named
+      pitch signals
   PitchTrack pitch
   NoteTrack note
     - non-note commands: set random seed, ...

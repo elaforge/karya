@@ -169,11 +169,11 @@ vl1_control_map =
     , ("growl", 36, 3, False)
     , ("vibrato", 14, 2, False)
 
-    , ("dynamic filter", 46, 2, False)
-    , ("throat formant", 41, 3, False)
+    , ("dynamic-filter", 46, 2, False)
+    , ("throat-formant", 41, 3, False)
 
-    , ("breath noise", 31, 3, False)
-    , ("harmonic enhancer", 50, 2, False)
+    , ("breath-noise", 31, 3, False)
+    , ("harmonic-enhancer", 50, 2, False)
 
     , ("tonguing", 18, 2, False)
     , ("damping", 54, 2, False)

@@ -1,7 +1,7 @@
 {- | Instrument db for the native instruments Kontakt sampler.
 
-Unfortunately the instruments here have to be hardcoded unless I want to figure
-out how to parse .nki files or something.
+    Unfortunately the instruments here have to be hardcoded unless I want to
+    figure out how to parse .nki files or something.
 -}
 module Local.Instrument.Kontakt where
 import qualified Perform.Midi.Instrument as Instrument

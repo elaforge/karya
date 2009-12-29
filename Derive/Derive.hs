@@ -56,6 +56,7 @@ import qualified Perform.Warning as Warning
 
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
+import qualified Derive.TrackLang as TrackLang
 
 
 -- * DeriveT
@@ -102,6 +103,7 @@ data State = State {
     , state_lookup_deriver :: LookupDeriver
     , state_control_op_map :: Map.Map Operator ControlOp
     , state_pitch_op_map :: Map.Map Operator PitchOp
+    , state_call_map :: CallMap
     -- | This is set if the derivation is for a signal deriver.  Signal
     -- derivers skip all special tempo treatment.  Ultimately, this is needed
     -- because of the 'add_track_warp' hack.  It might be 'add_track_warp' is
@@ -109,7 +111,7 @@ data State = State {
     , state_ignore_tempo :: Bool
     }
 
-initial_state ui_state lookup_deriver ignore_tempo = State {
+initial_state ui_state lookup_deriver calls ignore_tempo = State {
     state_controls = Map.empty
     , state_pitch = PitchSignal.empty
     , state_instrument = Nothing
@@ -123,8 +125,28 @@ initial_state ui_state lookup_deriver ignore_tempo = State {
     , state_lookup_deriver = lookup_deriver
     , state_control_op_map = default_control_op_map
     , state_pitch_op_map = default_pitch_op_map
+    , state_call_map = calls
     , state_ignore_tempo = ignore_tempo
     }
+
+data CallMap = CallMap {
+    calls_note :: Map.Map TrackLang.CallId Call
+    , calls_control :: Map.Map TrackLang.CallId Call
+    , calls_sub :: Map.Map TrackLang.CallId SubDerive
+    }
+empty_call_map = CallMap Map.empty Map.empty Map.empty
+
+instance Show CallMap where
+    show (CallMap note control sub) = "(CallMap "
+            ++ keys note ++ " " ++ keys control ++ " " ++ keys sub ++ ")"
+        where
+        keys m = "<" ++ Seq.join ", " [c | TrackLang.CallId c <- Map.keys m]
+            ++ ">"
+
+type Call = [TrackLang.Val] -> [Score.Event]
+    -> Either TrackLang.TypeError EventDeriver
+type SubDerive = [TrackLang.Val]
+    -> Either TrackLang.TypeError EventDeriver
 
 
 -- | Since the deriver may vary based on the block, this is needed to find
@@ -182,15 +204,16 @@ instance Monad m => Log.LogMonad (DeriveT m) where
 
 -- * monadic ops
 
-derive :: LookupDeriver -> State.State -> Bool -> DeriveT Identity.Identity a
+derive :: LookupDeriver -> State.State -> CallMap -> Bool
+    -> DeriveT Identity.Identity a
     -> (Either DeriveError a,
         Transport.TempoFunction, Transport.InverseTempoFunction, [Log.Msg],
         State) -- ^ State is not actually needed, but is handy for testing.
-derive lookup_deriver ui_state ignore_tempo deriver =
+derive lookup_deriver ui_state calls ignore_tempo deriver =
     (result, tempo_func, inv_tempo_func, logs, state)
     where
     (result, state, logs) = Identity.runIdentity $
-        run (initial_state ui_state lookup_deriver ignore_tempo) deriver
+        run (initial_state ui_state lookup_deriver calls ignore_tempo) deriver
     track_warps = state_track_warps state
     tempo_func = make_tempo_func track_warps
     inv_tempo_func = make_inverse_tempo_func track_warps
@@ -352,6 +375,14 @@ type ControlOp = Signal.Control -> Signal.Control -> Signal.Control
 type PitchOp = PitchSignal.PitchSignal -> PitchSignal.Relative
     -> PitchSignal.PitchSignal
 
+control_at :: (Monad m) => TrackPos -> Score.Control -> Signal.Y
+    -> DeriveT m Signal.Y
+control_at pos cont deflt = do
+    controls <- gets state_controls
+    case Map.lookup cont controls of
+        Nothing -> return deflt
+        Just sig -> return (Signal.at pos sig)
+
 with_control :: (Monad m) =>
     Score.Control -> Signal.Control -> DeriveT m t -> DeriveT m t
 with_control cont signal op = do
@@ -431,6 +462,25 @@ default_pitch_op_map = Map.fromList
     , ("max", PitchSignal.sig_max)
     , ("min", PitchSignal.sig_min)
     ]
+
+lookup_note_call :: (Monad m) => TrackLang.CallId -> DeriveT m Call
+lookup_note_call call_id = do
+    cmap <- gets state_call_map
+    maybe (throw $ "lookup_note_call: unknown " ++ show call_id) return
+        (Map.lookup call_id (calls_note cmap))
+
+lookup_control_call :: (Monad m) => TrackLang.CallId -> DeriveT m Call
+lookup_control_call call_id = do
+    cmap <- gets state_call_map
+    maybe (throw $ "lookup_control_call: unknown " ++ show call_id) return
+        (Map.lookup call_id (calls_control cmap))
+
+lookup_sub_call :: (Monad m) => TrackLang.CallId -> DeriveT m SubDerive
+lookup_sub_call call_id = do
+    cmap <- gets state_call_map
+    maybe (throw $ "lookup_sub_call: unknown " ++ show call_id) return
+        (Map.lookup call_id (calls_sub cmap))
+
 
 -- ** stack
 

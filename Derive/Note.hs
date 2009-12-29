@@ -78,7 +78,7 @@
 module Derive.Note where
 import Control.Monad
 import qualified Data.List as List
-import Util.Seq as Seq
+import qualified Util.Seq as Seq
 
 import Ui
 import qualified Ui.Event as Event
@@ -101,18 +101,25 @@ data NoteDesc = NoteDesc
     } deriving (Eq, Show)
 empty_note = NoteDesc [] Nothing Score.no_attrs
 
-data Call = Call { call_name :: String, call_args :: [TrackLang.Val] }
+data Call = Call TrackLang.CallId [TrackLang.Val]
     deriving (Eq, Show)
 
 -- * note track
 
-d_note_track :: (Monad m) => Derive.TrackDeriver m Score.Event
+d_note_track :: TrackId -> Derive.EventDeriver
 d_note_track track_id = do
     track <- Derive.get_track track_id
     let pos_events = Track.event_list (Track.track_events track)
     (ndesc, calls) <- parse_track_title (Track.track_title track)
-    derive_notes =<< parse_events ndesc pos_events
-    -- call calls
+    events <- derive_notes =<< parse_events ndesc pos_events
+    foldM call events calls
+
+call :: [Score.Event] -> Call -> Derive.EventDeriver
+call events (Call call_id args) = do
+    call <- Derive.lookup_note_call call_id
+    let left err = Derive.throw $
+            "parse error: " ++ TrackLang.show_type_error err
+    join $ either left return (call args events)
 
 parse_track_title :: (Monad m) => String -> Derive.DeriveT m (NoteDesc, [Call])
 parse_track_title title = do
@@ -131,9 +138,9 @@ parse_note_desc :: NoteDesc -> [TrackLang.Val] -> NoteDesc
 parse_note_desc ndesc tokens = rev $ List.foldl' collect (rev ndesc) tokens
     where
     collect ndesc val = case val of
-        TrackLang.Instrument (Just inst) -> ndesc { note_inst = Just inst }
-        TrackLang.Instrument Nothing -> ndesc
-        TrackLang.Attr mode attr -> ndesc
+        TrackLang.VInstrument (Just inst) -> ndesc { note_inst = Just inst }
+        TrackLang.VInstrument Nothing -> ndesc
+        TrackLang.VAttr (TrackLang.Attr (mode, attr)) -> ndesc
             { note_attrs = TrackLang.set_attr mode attr (note_attrs ndesc) }
         _ -> ndesc { note_args = val : note_args ndesc }
     rev ndesc = ndesc { note_args = List.reverse (note_args ndesc) }
@@ -141,15 +148,15 @@ parse_note_desc ndesc tokens = rev $ List.foldl' collect (rev ndesc) tokens
 -- | Split the call and args from a list of Vals.
 parse_call :: (Monad m) => [TrackLang.Val] -> Derive.DeriveT m Call
 parse_call args = either (Derive.throw . ("parse_call: "++)) return $ do
-    (call, args) <- case args of
-        [] -> Right ([], [])
+    (call_id, args) <- case args of
+        [] -> Left "empty expression"
         arg:args -> case arg of
-            TrackLang.Call ident -> Right (ident, args)
+            TrackLang.VCall call_id -> Right (call_id, args)
             _ -> Left $ "non-function in function position: " ++ show arg
-    let calls = [ident | TrackLang.Call ident <- args]
-    when (not (null calls)) $
-        Left $ "functions in non-function position: " ++ show calls
-    return $ Call call args
+    let bad_calls = [cid | TrackLang.VCall cid <- args]
+    when (not (null bad_calls)) $
+        Left $ "functions in non-function position: " ++ show bad_calls
+    return $ Call call_id args
 
 -- ** parse
 
@@ -198,6 +205,8 @@ derive_note pos event (NoteDesc args inst attrs) = do
     st <- Derive.get
 
     case args of
+        -- TODO when signals are lazy I should drop the heads of the control
+        -- signals so they can be gced.
         [] -> return [Score.Event start (end-start) (Event.event_text event)
             (Derive.state_controls st) (Derive.state_pitch st)
             (Derive.state_stack st) inst attrs]
@@ -226,11 +235,11 @@ trim_pitches events = map trim_event (Seq.zip_next events)
         psig = Score.event_pitch event
         p = Score.event_start next
 
-d_sub :: TrackPos -> TrackPos -> String -> Derive.EventDeriver
-d_sub start dur ident = do
+d_sub :: TrackPos -> TrackPos -> TrackLang.CallId -> Derive.EventDeriver
+d_sub start dur call_id = do
     -- TODO also I'll want to support generic calls
     default_ns <- Derive.gets (State.state_project . Derive.state_ui)
-    let block_id = Types.BlockId (make_id default_ns ident)
+    let block_id = Types.BlockId (make_id default_ns call_id)
     stack <- Derive.gets Derive.state_stack
     -- Since there is no branching, any recursion will be endless.
     when (block_id `elem` [bid | (bid, _, _) <- stack]) $
@@ -265,8 +274,8 @@ get_block_dur = State.event_end
 --
 -- TODO move this to a more generic place since LanguageCmds may want it to?
 
-make_id :: String -> String -> Id.Id
-make_id default_ns ident_str = Id.id ns ident
+make_id :: String -> TrackLang.CallId -> Id.Id
+make_id default_ns (TrackLang.CallId ident_str) = Id.id ns ident
     where
     (w0, w1) = break (=='/') ident_str
     (ns, ident) = if null w1 then (default_ns, w0) else (w0, drop 1 w1)

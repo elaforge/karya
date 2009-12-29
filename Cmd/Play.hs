@@ -231,9 +231,10 @@ derive :: (Monad m) => Schema.SchemaMap -> BlockId -> Cmd.CmdT m
         Transport.InverseTempoFunction)
 derive schema_map block_id = do
     ui_state <- State.get
+    call_map <- Cmd.gets Cmd.state_call_map
     let (result, tempo_func, inv_tempo_func, logs, _) =
             Derive.derive (Schema.lookup_deriver schema_map ui_state)
-                ui_state False (Derive.d_block block_id)
+                ui_state call_map False (Derive.d_block block_id)
     -- TODO does this force the derivation?
     mapM_ Log.write logs
     return (result, tempo_func, inv_tempo_func)

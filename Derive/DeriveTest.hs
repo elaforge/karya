@@ -1,6 +1,7 @@
 module Derive.DeriveTest where
 import qualified Control.Monad.Identity as Identity
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Util.Log as Log
 
 import qualified Midi.Midi as Midi
@@ -9,6 +10,8 @@ import qualified Instrument.MidiDb as MidiDb
 import Ui
 import qualified Ui.UiTest as UiTest
 import qualified Ui.State as State
+
+import qualified Cmd.Cmd as Cmd
 
 import qualified Derive.Derive as Derive
 import qualified Derive.Scale.Twelve as Twelve
@@ -36,6 +39,22 @@ pitch_signal scale_id =
 
 signal = Signal.track_signal Signal.default_srate
 
+-- * run
+
+run :: State.State -> Derive.DeriveT Identity.Identity a
+    -> Either String (a, Derive.State, [Log.Msg])
+run ui_state m =
+    case Identity.runIdentity (Derive.run derive_state m) of
+        (Left err, _, _logs) -> Left (Derive.error_message err)
+        (Right val, state, logs) -> Right (val, state, logs)
+    where
+    -- Good to have a minimal fake stack so there's someplace to put
+    -- trackpos.
+    fake_stack = [(UiTest.bid "blck", Just (UiTest.tid "trck"), Nothing)]
+    derive_state = (Derive.initial_state ui_state
+        (Schema.lookup_deriver Map.empty ui_state) Cmd.initial_call_map False)
+            { Derive.state_stack = fake_stack }
+
 -- * derive
 
 type Result a = (Either String a, Transport.TempoFunction,
@@ -61,13 +80,12 @@ derive_block :: State.State -> BlockId -> Result [Score.Event]
 derive_block ui_state block_id = derive lookup_deriver ui_state deriver
     where
     lookup_deriver = Schema.lookup_deriver Map.empty ui_state
-    deriver = Derive.d_block UiTest.default_block_id
+    deriver = Derive.d_block block_id
 
 derive :: Derive.LookupDeriver -> State.State
-    -> Derive.DeriveT Identity.Identity a
-    -> Result a
-derive lookup_deriver ui_state deriver =
-    case Derive.derive lookup_deriver ui_state False deriver of
+    -> Derive.DeriveT Identity.Identity a -> Result a
+derive lookup_deriver ui_state d =
+    case Derive.derive lookup_deriver ui_state Cmd.initial_call_map False d of
         (Left err, b, c, d, e) -> (Left (show err), b, c, d, e)
         (Right a, b, c, d, e) -> (Right a, b, c, d, e)
 
@@ -76,12 +94,22 @@ derive lookup_deriver ui_state deriver =
 e_val :: Result a -> (Either String a, [Log.Msg])
 e_val (val, _, _, msgs, _) = (val, msgs)
 
+e_val_right :: Result a -> (a, [Log.Msg])
+e_val_right result = case e_val result of
+    (Left err, _) -> error $ "e_val_right: unexpected Left: " ++ err
+    (Right v, logs) -> (v, logs)
+
+e_logs :: Result a -> (Either String a, [String])
+e_logs result = let (val, msgs) = e_val result in (val, map Log.msg_string msgs)
+
 
 -- * inst
 
 default_lookup :: MidiDb.LookupMidiInstrument
 default_lookup attrs (Score.Instrument inst)
-    | inst == "synth/patch" = Just default_perf_inst
+    | inst == "synth/patch" = Just (default_perf_inst
+        { Instrument.inst_keyswitch =
+            Instrument.get_keyswitch default_ksmap attrs })
     | otherwise = Nothing
 
 default_inst = Score.Instrument "synth/patch"
@@ -91,6 +119,14 @@ default_inst_title = ">synth/patch"
 
 default_inst_config = Instrument.config
     [(default_inst, [(Midi.WriteDevice "out", 0)])] Nothing
+
+default_ksmap = Instrument.KeyswitchMap $
+    map (\(attr, name, nn) -> (Set.fromList attr, Instrument.Keyswitch name nn))
+        [ (["a1", "a2"], "a1+a2", 0)
+        , (["a0"], "a0", 1)
+        , (["a1"], "a1", 2)
+        , (["a2"], "a2", 3)
+        ]
 
 {-
 default_derive_tracks :: [UiTest.TrackSpec]

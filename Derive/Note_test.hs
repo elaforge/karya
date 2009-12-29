@@ -21,9 +21,9 @@ import qualified Perform.Warning as Warning
 test_parse_note_dec = do
     let f ndesc text = either (const Nothing)
             (Just . Note.parse_note_desc ndesc . fst) (TrackLang.parse text)
-    let mkdesc args inst attrs = Just $ Note.NoteDesc (map TrackLang.Num args)
+    let mkdesc args inst attrs = Just $ Note.NoteDesc (map TrackLang.VNum args)
             (fmap Score.Instrument inst) (Set.fromList attrs)
-    let ndesc = Note.NoteDesc [TrackLang.Num 1] Nothing Score.no_attrs
+    let ndesc = Note.NoteDesc [TrackLang.VNum 1] Nothing Score.no_attrs
     equal (f ndesc "3 4") (mkdesc [1, 3, 4] Nothing [])
     equal (f ndesc "+foo +bar -foo") (mkdesc [1] Nothing ["bar"])
     equal (f ndesc "+foo =") (mkdesc [1] Nothing [])
@@ -74,6 +74,37 @@ test_d_sub = do
             (Just "i") ["a"]
         ]
 
+test_calls = do
+    let simple_evt val = fmap (map f) val
+            where f (start, dur, text, _, _, _) = (start, dur, text)
+    let run title tracks = simple_evt $ fst $ nostack $
+            DeriveTest.derive_tracks_tempo
+                ((title, [(0, 1, "--1"), (1, 1, "--2")]) : tracks)
+
+    -- errors
+    left_like (run ">i | call | 42 bad parse" [])
+        "non-function in function position"
+
+    left_like (run ">i | no-such-call" [])
+        "unknown CallId \"no-such-call\""
+    left_like (run ">i | delay *bad-arg" [])
+        "expected signal but got"
+    left_like (run ">i | delay 1 2 3 4" [])
+        "too many arguments"
+
+    -- ok
+    equal (run ">i | delay" []) $
+        Right [(1, 1, "--1"), (2, 1, "--2")]
+    equal (run ">i | delay %delay" []) $
+        Right [(0, 1, "--1"), (1, 1, "--2")]
+    equal (run ">i | delay %delay,2" []) $
+        Right [(2, 1, "--1"), (3, 1, "--2")]
+    equal (run ">i | delay %delay" [("delay", [(0, 0, "1"), (1, 0, "2")])]) $
+        Right [(1, 1, "--1"), (3, 1, "--2")]
+    equal (run ">i | delay %delay,1 | delay %delay,1" []) $
+        Right [(2, 1, "--1"), (3, 1, "--2")]
+
+
 type Extracted =
     (TrackPos, TrackPos, String, Warning.Stack, Maybe Score.Instrument,
         Score.Attributes)
@@ -111,7 +142,7 @@ mkstack = map $ \(bid, tid, pos) ->
 
 -- * sub
 
--- use to test non-block subderives
+-- TODO use to test non-block subderives
 {-
 d_fake_sub :: Derive.EventDeriver
 d_fake_sub = do

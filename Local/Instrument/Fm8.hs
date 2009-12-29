@@ -15,6 +15,6 @@ synth_name = "fm8"
 fm8 = Instrument.synth synth_name "fm8" fm8_controls
 
 fm8_controls =
-    [ (4, "fm8 control 1"), (11, "fm8 control 2")
-    , (16, "morph x"), (17, "morph y")
+    [ (4, "fm8-control-1"), (11, "fm8-control-2")
+    , (16, "morph-x"), (17, "morph-y")
     ]

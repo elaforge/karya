@@ -3,6 +3,13 @@
 module Util.Control where
 import Control.Monad.Error () -- get instance Monad (Either e)
 
+-- Like the Arrow combinators, but more specific.
+first :: (a -> b) -> (a, c) -> (b, c)
+first f (a, c) = (f a, c)
+
+second :: (a -> b) -> (c, a) -> (c, b)
+second f (c, a) = (c, f a)
+
 -- | Like mapAccumL but lifted into a monad.
 map_accuml_m :: (Monad m) => (acc -> x -> m (acc, y)) -> acc -> [x] -> m [y]
 map_accuml_m _ _ [] = return []

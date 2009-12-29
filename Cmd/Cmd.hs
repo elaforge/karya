@@ -36,6 +36,7 @@ import qualified Instrument.MidiDb as MidiDb
 
 import qualified App.Config as Config
 
+import qualified Derive.Call.Basic as Call.Basic
 import qualified Derive.Derive as Derive
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
@@ -161,6 +162,8 @@ data State = State {
     -- Config type variables that change never or rarely.
     state_instrument_db :: Instrument.Db.Db
     , state_schema_map :: SchemaMap
+    -- | Namespace for track function calls.
+    , state_call_map :: Derive.CallMap
     -- | Copies by default go to a block+tracks with this project.
     , state_clip_namespace :: Id.Namespace
 
@@ -226,6 +229,7 @@ data State = State {
 initial_state inst_db schema_map = State {
     state_instrument_db = inst_db
     , state_schema_map = schema_map
+    , state_call_map = initial_call_map
     , state_clip_namespace = Config.clip_namespace
 
     , state_history = ([], [])
@@ -254,6 +258,12 @@ initial_state inst_db schema_map = State {
 
 empty_state :: State
 empty_state = initial_state Instrument.Db.empty Map.empty
+
+initial_call_map :: Derive.CallMap
+initial_call_map = Derive.CallMap
+    (Map.fromList Call.Basic.note_calls)
+    (Map.fromList Call.Basic.control_calls)
+    Map.empty
 
 -- | Reset the parts of the State which are specific to a \"session\".  This
 -- should be called whenever an entirely new state is loaded.
