@@ -90,6 +90,13 @@ is_note (ChannelMessage _ (NoteOn _ _)) = True
 is_note (ChannelMessage _ (NoteOff _ _)) = True
 is_note _ = False
 
+is_note_on (ChannelMessage _ (NoteOn _ _)) = True
+is_note_on _ = False
+
+channel_message :: Message -> Maybe ChannelMessage
+channel_message (ChannelMessage _ m) = Just m
+channel_message _ = Nothing
+
 -- * types
 
 data Message =

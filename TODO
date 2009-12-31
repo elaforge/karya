@@ -17,6 +17,8 @@
 - derive multiple blocks with parMap
 
 CURRENT
+  - hspp screws up \\ string continuations
+  - load kotek puts window off the screen
   - methods no longer hardcoded, e.g. Map MethodId MethodInterpolator
   + TrackLang
   - document / enforce rules for CallId, Control, etc?
@@ -26,7 +28,6 @@ CURRENT
   - stack: bid/tid/* should highlight the entire track
   - crashing bug adding new track to skeleton
   * just editing a note shouldn't change its dur!
-  * note track can pipe through derivers: '>fm8/bass | d0 arg0 arg1 | d1'
   - test relative pitch slide!
   - more symbolic calls, e.g. -/_\\/ and -//
   - should tab in raw edit mode go to method?  how to go back then?
@@ -310,16 +311,16 @@ Cmd:
     - details in doc/freeze_track
 
 Derive:
-  - note track can pipe through derivers: '<d0 arg0 arg1 <d1 <fm8/bass'
-  - echo deriver, 'echo 2 <fm8/bass', signals: echo_feedback, echo_time
   - derivers for seleh patterns
     - do a code version and a block version
     - block version requires block arguments and variable substitution
   TrackLang
+    * note track can pipe through derivers: '>fm8/bass | d0 arg0 arg1 | d1'
+    * echo deriver, '>fm8/bass | echo 2', signals: echo_feedback, echo_time
     - lazy version of Derive.Call.map_events
     - make sure signal derivation doesn't do calls
     * implement num -> signal coercion
-    - implement mandatory signal args
+    * implement mandatory signal args
     * implement _ dummy arg
     - implement call by arg name e.g. "delay time=%xyz"
     - implement control calls
@@ -327,6 +328,15 @@ Derive:
     - other attributes in block title, e.g. "alias=?squiggle? | xyz"?
     - support pitch signals, e.g. "tune-to %*some-sig" but that requires named
       pitch signals
+    - implement rambat "tick", this requires a deriver before the note
+      derivation, logical syntax would be "tick | >fm8/bass | d0 arg arg"
+      but this makes tracks harder to recognize
+      b0 arg | b1 arg | >fm8/bass | d0 arg | d1 arg
+      #fm8/bass << b0 arg << b1 arg >> d0 arg >> d1 arg
+      But pre-note derivation is no good because they're still Event.Events and
+      have no signals applied.  So how about the note deriver passes ';...'
+      notes which are then expected to be interpreted by calls.  Any remaining
+      ;s at conversion are warned about.
   PitchTrack pitch
   NoteTrack note
     - non-note commands: set random seed, ...

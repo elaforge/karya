@@ -35,6 +35,7 @@ module Perform.PitchSignal (
 
     , sig_add
     , sig_max, sig_min, clip_max, clip_min
+    , shift, stretch
     , truncate
     , map_x
 ) where
@@ -177,6 +178,10 @@ ymin val (from, to, at) = (from, to, at2)
     where at2 = Num.clamp 0 at (Num.normalize from to (realToFrac val))
 ymax val (from, to, at) = (from, to, at2)
     where at2 = Num.clamp at 1 (Num.normalize from to (realToFrac val))
+
+shift, stretch :: X -> PitchSignal -> PitchSignal
+shift x = modify_vec (SignalBase.shift x)
+stretch x = modify_vec (SignalBase.stretch x)
 
 truncate :: X -> PitchSignal -> PitchSignal
 truncate x = modify_vec (SignalBase.truncate x)

@@ -12,7 +12,6 @@ import Ui
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.Track as Track
-import qualified Ui.Types as Types
 import qualified Ui.UiTest as UiTest
 
 import qualified Cmd.NoteTrack as NoteTrack
@@ -80,8 +79,9 @@ test_compile = do
     equal logs []
     left_like res "compile: d_pitch_signal: unknown ScaleId \"c2\""
 
-    let cont_signal = Map.fromList [(Score.Control "c1",
-            mksig [(0, Set, 3), (0.5, Set, 2), (1, Set, 1)])]
+    let cont_signal = Map.union Derive.initial_controls
+            (Map.fromList [(Score.Control "c1",
+                mksig [(0, Set, 3), (0.5, Set, 2), (1, Set, 1)])])
         no_pitch = DeriveTest.pitch_signal (Pitch.ScaleId "twelve") []
 
     let (res, logs) = derive ("*twelve", [(0, 0, ".1")])

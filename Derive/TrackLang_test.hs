@@ -53,5 +53,5 @@ test_parse = do
     equal (f "+ foo") Nothing
 
     equal (f "%sig %sig2,.4") $
-        Just ([mksig (0, Just (Score.Control "sig")),
-            mksig  (0.4, Just (Score.Control "sig2"))], [])
+        Just ([mksig (Nothing, Just (Score.Control "sig")),
+            mksig  (Just 0.4, Just (Score.Control "sig2"))], [])

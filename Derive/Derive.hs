@@ -112,7 +112,7 @@ data State = State {
     }
 
 initial_state ui_state lookup_deriver calls ignore_tempo = State {
-    state_controls = Map.empty
+    state_controls = initial_controls
     , state_pitch = PitchSignal.empty
     , state_instrument = Nothing
     , state_attributes = Score.no_attrs
@@ -128,6 +128,12 @@ initial_state ui_state lookup_deriver calls ignore_tempo = State {
     , state_call_map = calls
     , state_ignore_tempo = ignore_tempo
     }
+
+-- | Initial control environment.
+--
+-- See 'Perform.Midi.Perform.default_velocity' for 0.79.
+initial_controls :: Score.ControlMap
+initial_controls = Map.fromList [(Score.c_velocity, Signal.constant 0.79)]
 
 data CallMap = CallMap {
     calls_note :: Map.Map TrackLang.CallId Call

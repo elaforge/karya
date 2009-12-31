@@ -107,18 +107,19 @@ e_logs result = let (val, msgs) = e_val result in (val, map Log.msg_string msgs)
 
 default_lookup :: MidiDb.LookupMidiInstrument
 default_lookup attrs (Score.Instrument inst)
-    | inst == "synth/patch" = Just (default_perf_inst
+    | inst == "i" = Just (default_perf_inst
         { Instrument.inst_keyswitch =
             Instrument.get_keyswitch default_ksmap attrs })
     | otherwise = Nothing
 
-default_inst = Score.Instrument "synth/patch"
+default_inst = Score.Instrument "i"
 default_perf_inst = Instrument.instrument "synth" "patch" Nothing
             Midi.Control.empty_map (-2, 2)
-default_inst_title = ">synth/patch"
+default_inst_title = ">i"
 
-default_inst_config = Instrument.config
-    [(default_inst, [(Midi.WriteDevice "out", 0)])] Nothing
+default_inst_config =
+    Instrument.config [(default_inst, [dev 0, dev 1, dev 2])] Nothing
+    where dev = (,) (Midi.WriteDevice "out")
 
 default_ksmap = Instrument.KeyswitchMap $
     map (\(attr, name, nn) -> (Set.fromList attr, Instrument.Keyswitch name nn))

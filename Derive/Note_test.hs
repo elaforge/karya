@@ -1,8 +1,12 @@
 module Derive.Note_test where
+import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import Util.Test
 import qualified Util.Log as Log
+import qualified Util.Seq as Seq
+
+import qualified Midi.Midi as Midi
 
 import Ui
 import qualified Ui.State as State
@@ -73,6 +77,26 @@ test_d_sub = do
             [("sub", "sub.t0", (0, 1)), ("b1", "b1.t0", (1, 3))]
             (Just "i") ["a"]
         ]
+
+-- TODO this should probably go in Basic_test
+test_echo = do
+    let derive title tracks = DeriveTest.derive_tracks_tempo
+                ((title, [(0, 1, "--1"), (1, 1, "--2")]) : tracks)
+    let result = derive (DeriveTest.default_inst_title ++ " | echo 2")
+            [("*twelve", [(0, 0, "4c"), (1, 0, "4d")])]
+    let (events, logs) = DeriveTest.e_val_right result
+    let (_perf_events, convert_warns, mmsgs, perf_warns) =
+            DeriveTest.perform DeriveTest.default_inst_config events
+
+    -- The MIDI test is probably enough.
+    -- let extract e = (Score.event_start e,
+    --         Map.assocs (Score.event_controls e), Score.event_pitch e)
+    -- pprint (map extract events)
+    equal logs []
+    equal convert_warns []
+    equal perf_warns []
+    equal (Seq.map_maybe Midi.channel_message (filter Midi.is_note_on mmsgs))
+        (map (uncurry Midi.NoteOn) [(60, 100), (62, 100), (60, 40), (62, 40)])
 
 test_calls = do
     let simple_evt val = fmap (map f) val

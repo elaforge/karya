@@ -19,8 +19,6 @@ import qualified Perform.Warning as Warning
 -- | Currently this is just for 'Derive.map_events'.
 class Eventlike e where
     stack :: e -> [Warning.StackPos]
-    start :: e -> TrackPos
-    set_start :: TrackPos -> e -> e
 
 data Event = Event {
     -- | These are the core attributes that define an event.  UI display
@@ -47,8 +45,6 @@ data Event = Event {
 
 instance Eventlike Event where
     stack = event_stack
-    start = event_start
-    set_start pos event = event { event_start = pos }
 
 event_string :: Event -> String
 event_string = Text.unpack . event_text
@@ -56,8 +52,16 @@ event_string = Text.unpack . event_text
 event_end :: Event -> TrackPos
 event_end event = event_start event + event_duration event
 
-move :: (Eventlike e) => (TrackPos -> TrackPos) -> e -> e
-move f event = set_start (f (start event)) event
+move :: (TrackPos -> TrackPos) -> Event -> Event
+move f event =
+    move_controls (pos - event_start event) $ event { event_start = pos }
+    where pos = f (event_start event)
+
+move_controls :: TrackPos -> Event -> Event
+move_controls diff event = event
+    { event_controls = Map.map (Signal.shift diff) (event_controls event)
+    , event_pitch = PitchSignal.shift diff (event_pitch event)
+    }
 
 modify_control :: Control -> (Signal.Control -> Signal.Control)
     -> Event -> Event
@@ -80,8 +84,6 @@ data ControlEvent = ControlEvent {
 
 instance Eventlike ControlEvent where
     stack = cevent_stack
-    start = cevent_start
-    set_start pos cevent = cevent { cevent_start = pos }
 
 cevent_string :: ControlEvent -> String
 cevent_string = Text.unpack . cevent_text

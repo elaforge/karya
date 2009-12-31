@@ -171,20 +171,16 @@ test_fractional_pitch = do
     -- Note.trim_pitches.
     let (events, derive_logs) = DeriveTest.e_val_right $
             DeriveTest.derive_tracks
-                [ (">synth/patch", [(0, 16, ""), (16, 16, "")])
+                [ (inst_title, [(0, 16, ""), (16, 16, "")])
                 , ("*semar", [(0, 16, "1"), (16, 16, "2")])
                 ]
-    let inst_config = Instrument.config
-            [(default_inst,
-                [(default_dev, 0), (default_dev, 1), (default_dev, 2)])]
-            Nothing
-    let (perf_events, convert_warns, mmsgs, perform_warns) =
-            DeriveTest.perform inst_config events
+    let (_perf_events, convert_warns, mmsgs, perform_warns) =
+            DeriveTest.perform DeriveTest.default_inst_config events
 
     equal derive_logs []
-    pprint events
+    -- pprint events
     equal convert_warns []
-    pprint perf_events
+    -- pprint perf_events
     equal perform_warns []
     -- pprint mmsgs
     equal [(chan, nn) | Midi.ChannelMessage chan (Midi.NoteOn nn _) <- mmsgs]
@@ -194,18 +190,18 @@ test_basic = do
     -- verify the three phases of derivation
     -- 1: derivation to score events
     let (events, logs) = DeriveTest.e_val_right $ DeriveTest.derive_tracks
-            [ (default_inst_title ++ " +a1", [(0, 16, "+a0"), (16, 16, "+a2")])
+            [ (inst_title ++ " +a1", [(0, 16, "+a0"), (16, 16, "+a2")])
             , ("*twelve", [(0, 16, "4c"), (16, 16, "4c#")])
             ]
     let (perf_events, convert_warns, mmsgs, midi_warns) = DeriveTest.perform
-            default_inst_config events
+            DeriveTest.default_inst_config events
 
     equal logs []
     equal (extract_events events) [(0, 16, "+a0"), (16, 16, "+a2")]
 
     -- 2: conversion to midi perf events
     equal convert_warns []
-    let evt = (,,,,) (Instrument.inst_name default_perf_inst)
+    let evt = (,,,,) (Instrument.inst_name perf_inst)
     equal (map extract_perf_event perf_events)
         [ evt (Just "a0") 0 16 (mkstack [("b1", "b1.t0", (0, 16))])
         , evt (Just "a1+a2") 16 16 (mkstack [("b1", "b1.t0", (16, 32))])
@@ -225,13 +221,13 @@ test_basic = do
 
 test_control = do
     let (events, logs) = DeriveTest.e_val_right $ DeriveTest.derive_tracks
-            [ (default_inst_title, [(0, 1, "+a1"), (1, 1, "+a2")])
+            [ (inst_title, [(0, 1, "+a1"), (1, 1, "+a2")])
             , ("*twelve", [(0, 1, "4c"), (1, 1, "4c#")])
             , (Midi.Control.c_mod,
                 [(0, 0, "1"), (1, 0, "i, .75"), (2, 0, "i, 0")])
             ]
     let (perf_events, convert_warns, mmsgs, midi_warns) = DeriveTest.perform
-            default_inst_config events
+            DeriveTest.default_inst_config events
 
     -- Cursory checks, more detailed checks are in more Note_test and
     -- Control_test.
@@ -242,7 +238,7 @@ test_control = do
     equal convert_warns []
     equal (length perf_events) 2
     equal (map Perform.event_instrument perf_events)
-        [set_ks default_perf_inst "a1" 2, set_ks default_perf_inst "a2" 3]
+        [set_ks perf_inst "a1" 2, set_ks perf_inst "a2" 3]
 
     -- Just make sure it did in fact emit ccs.
     check $ any Midi.is_cc mmsgs
@@ -265,7 +261,7 @@ test_relative_control = do
 
     -- putting relative and absolute in the wrong order causes a warning
     let (events, logs) = DeriveTest.e_logs $ DeriveTest.derive_tracks
-            [ (default_inst_title, [(0, 10, "")])
+            [ (inst_title, [(0, 10, "")])
             , ("vel", [(0, 0, "1")])
             , ("+, vel", [(0, 0, "1")])
             ]
@@ -277,7 +273,7 @@ test_relative_pitch = do
     let extract result = (fmap (map Score.event_pitch) events, logs)
             where (events, logs) = DeriveTest.e_logs result
     let f track = extract $ DeriveTest.derive_tracks
-                [ (default_inst_title, [(0, 10, "")])
+                [ (inst_title, [(0, 10, "")])
                 , ("+, *semar", track)
                 , ("*semar", [(0, 0, "1")])
                 ]
@@ -288,7 +284,7 @@ test_relative_pitch = do
 
     -- empty relative pitch defaults to scale
     let (pitches, logs) = extract $ DeriveTest.derive_tracks
-            [ (default_inst_title, [(0, 10, "")])
+            [ (inst_title, [(0, 10, "")])
             , ("+, *", [(0, 0, "1/")])
             , ("*semar", [(0, 0, "1")])
             ]
@@ -297,7 +293,7 @@ test_relative_pitch = do
 
     -- putting relative and absolute in the wrong order causes a warning
     let (pitches, logs) = extract $ DeriveTest.derive_tracks
-            [ (default_inst_title, [(0, 10, "")])
+            [ (inst_title, [(0, 10, "")])
             , ("*semar", [(0, 0, "1")])
             , ("+, *semar", [(0, 0, "1")])
             ]
@@ -369,13 +365,8 @@ profile_deriver_performance = do
 
 -- * setup
 
-default_inst = Score.Instrument "synth/patch"
-default_inst_title = ">synth/patch"
-default_dev = Midi.WriteDevice "out"
-default_inst_config = Instrument.config
-    [(default_inst, [(default_dev, 0)])] Nothing
-default_perf_inst = Instrument.instrument "synth" "patch" Nothing
-            Midi.Control.empty_map (-2, 2)
+inst_title = DeriveTest.default_inst_title
+perf_inst = DeriveTest.default_perf_inst
 
 extract_events :: [Score.Event] -> [(Double, Double, String)]
 extract_events = map $ \event ->

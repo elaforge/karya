@@ -45,10 +45,11 @@ c_echo args events = TrackLang.call3 args
         return (echo (Signal.y_to_x delay) feedback (floor times) event)
 
 echo :: TrackPos -> Double -> Int -> Score.Event -> [Score.Event]
-echo delay feedback times event = [modify n event | n <- [0..times]]
+echo delay feedback times event = event : [modify n event | n <- [1..times]]
     where
-    modify n = Score.modify_signal Score.c_velocity (*feedback)
+    modify n = Score.modify_signal Score.c_velocity (*vel)
         . Score.move (+ fromIntegral n * delay)
+        where vel = feedback ** (fromIntegral n)
 
 modify_vel :: Double -> Score.Event -> Score.Event
 modify_vel n = Score.modify_signal Score.c_velocity (*n)
