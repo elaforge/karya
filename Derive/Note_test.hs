@@ -81,22 +81,23 @@ test_calls = do
             DeriveTest.derive_tracks_tempo
                 ((title, [(0, 1, "--1"), (1, 1, "--2")]) : tracks)
 
-    -- errors
     left_like (run ">i | call | 42 bad parse" [])
         "non-function in function position"
-
     left_like (run ">i | no-such-call" [])
         "unknown CallId \"no-such-call\""
     left_like (run ">i | delay *bad-arg" [])
         "expected signal but got"
     left_like (run ">i | delay 1 2 3 4" [])
         "too many arguments"
+    left_like (run ">i | delay" [])
+        "not in environment"
+    left_like (run ">i | delay _" [])
+        "not in environment"
+    left_like (run ">i | delay %delay" []) $
+        "not in environment"
 
-    -- ok
-    equal (run ">i | delay" []) $
-        Right [(1, 1, "--1"), (2, 1, "--2")]
-    equal (run ">i | delay %delay" []) $
-        Right [(0, 1, "--1"), (1, 1, "--2")]
+    equal (run ">i | delay 2" []) $
+        Right [(2, 1, "--1"), (3, 1, "--2")]
     equal (run ">i | delay %delay,2" []) $
         Right [(2, 1, "--1"), (3, 1, "--2")]
     equal (run ">i | delay %delay" [("delay", [(0, 0, "1"), (1, 0, "2")])]) $

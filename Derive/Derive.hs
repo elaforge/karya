@@ -375,12 +375,14 @@ type ControlOp = Signal.Control -> Signal.Control -> Signal.Control
 type PitchOp = PitchSignal.PitchSignal -> PitchSignal.Relative
     -> PitchSignal.PitchSignal
 
-control_at :: (Monad m) => TrackPos -> Score.Control -> Signal.Y
+control_at :: (Monad m) => TrackPos -> Score.Control -> Maybe Signal.Y
     -> DeriveT m Signal.Y
 control_at pos cont deflt = do
     controls <- gets state_controls
     case Map.lookup cont controls of
-        Nothing -> return deflt
+        Nothing -> maybe
+            (throw $ "control_at: not in environment and no default given: "
+                ++ show cont) return deflt
         Just sig -> return (Signal.at pos sig)
 
 with_control :: (Monad m) =>

@@ -38,6 +38,9 @@ show_error_msgs = Parsec.Error.showErrorMessages
 lexeme :: P.CharParser st a -> P.CharParser st a
 lexeme p = p >>= \v -> P.skipMany P.space >> return v
 
+optional :: P.GenParser tok st a -> P.GenParser tok st (Maybe a)
+optional = P.option Nothing . fmap Just
+
 p_rest :: P.GenParser tok st t -> P.GenParser tok st (t, [tok])
 p_rest p = do
     val <- p

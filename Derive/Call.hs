@@ -32,7 +32,8 @@ map_events events sigs f = do
 get_signal :: (Monad m) => TrackPos -> TrackLang.Signal
     -> Derive.DeriveT m Signal.Y
 get_signal pos (TrackLang.Signal (deflt, control)) = case control of
-    Nothing -> return deflt
+    Nothing -> maybe (Derive.throw $ "TrackLang.Signal with no control and no "
+        ++ "default value is silly") return deflt
     Just cont -> Derive.control_at pos cont deflt
 
 get_signals :: (Monad m) => TrackPos -> [TrackLang.Signal]

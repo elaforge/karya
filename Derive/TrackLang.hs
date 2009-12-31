@@ -12,12 +12,18 @@
     Type inference: look at the positions of variables in the block and figure
     out what the type of the block is.
 
+    Function arguments:
+
+    - The only automatic coercion is from a number to a constant signal of that
+    value.
+
+    - An argument of @_@ is treated as not given, so you can pass positional
+    arguments after it.
+
     Control track: @+, cont@ is the same as @cont | add %cont2@
 
-    Any number can be converted into a signal automatically.
-
     call syntax:
-    echo delay=%echo-delay,1 feedback=%echo-feedback,.4 times=(Nothing, 1)
+    echo delay=%echo-delay,1 feedback=.4 times=1
 
     echo _ %echo-delay,1
 
@@ -61,6 +67,7 @@ data Val =
     -- Events, and a call transforms Events.
     -- Literal: @func@
     | VCall CallId
+    | VNotGiven
     deriving (Eq, Show)
 
 data AttrMode = Add | Remove | Set | Clear deriving (Eq, Show)
@@ -68,9 +75,12 @@ data AttrMode = Add | Remove | Set | Clear deriving (Eq, Show)
 -- TODO later this should be Signal.Method
 newtype Method = Method String deriving (Eq, Show)
 newtype CallId = CallId String deriving (Eq, Ord, Show)
--- | (default, control).  If @control@ is Nothing, always use the default
--- (i.e. it's a constant signal).
-newtype Signal = Signal (Signal.Y, Maybe Score.Control) deriving (Eq, Show)
+-- | (default, control).  If @default@ is Nothing, the signal must be present
+-- or an error will be thrown.  If @control@ is Nothing, always use the default
+-- (i.e. it's a constant signal).  There's no syntax for both Nothing, but if
+-- given as a default arg, then the arg is effectively required.
+newtype Signal = Signal (Maybe Signal.Y, Maybe Score.Control)
+    deriving (Eq, Show)
 newtype Attr = Attr (AttrMode, Score.Attribute) deriving (Eq, Show)
 
 set_attr :: AttrMode -> Score.Attribute -> Score.Attributes -> Score.Attributes
@@ -175,11 +185,14 @@ check_args vals optional_args
         ++ show (length optional_args) ++ ", got " ++ show (length vals)
 
 extract_arg :: (Typecheck a) => Int -> Arg a -> Maybe Val -> Either TypeError a
-extract_arg argno arg maybe_val = case (arg_default arg, maybe_val) of
+extract_arg argno arg maybe_val = case (arg_default arg, maybe_val2) of
         (Nothing, Nothing) -> err Nothing
         (_, Just val) -> check val
         (Just v, Nothing) -> Right v
     where
+    maybe_val2 = case maybe_val of
+        Just VNotGiven -> Nothing
+        _ -> maybe_val
     check val = case type_check val of
         Nothing -> err (Just val)
         Just v -> Right v
@@ -216,6 +229,7 @@ instance Typecheck Attr where
 
 instance Typecheck Signal where
     type_check (VSignal a) = Just a
+    type_check (VNum a) = Just (Signal (Just a, Nothing))
     type_check _ = Nothing
     type_name _ = "signal"
 
@@ -235,10 +249,10 @@ optional :: String -> a -> Arg a
 optional name deflt = Arg name (Just deflt)
 
 signal :: Signal.Y -> String -> Signal
-signal deflt name = Signal (deflt, Just (Score.Control name))
+signal deflt name = Signal (Just deflt, Just (Score.Control name))
 
-required_signal :: Signal.Y  -> Signal
-required_signal deflt = Signal (deflt, Nothing)
+required_signal :: String  -> Signal
+required_signal name = Signal (Nothing, Just (Score.Control name))
 
 -- * parsing
 
@@ -270,6 +284,7 @@ p_val = fmap VNote p_note <|> fmap VInstrument p_instrument
     -- afterwards, while a Num is a '.' or digit, so they're not ambiguous.
     <|> fmap VAttr (P.try p_attr) <|> fmap VNum p_num
     <|> fmap VSignal p_signal <|> fmap VCall p_call
+    <|> (P.char '_' >> return VNotGiven)
 
 p_note :: P.Parser Pitch.Note
 p_note = P.string pitch_track_prefix >> fmap Pitch.Note p_word
@@ -307,9 +322,7 @@ p_signal :: P.Parser Signal
 p_signal = do
     P.char '%'
     control <- fmap Score.Control p_ident
-    deflt <- P.option 0 $ do
-        P.char ','
-        Parse.p_float
+    deflt <- Parse.optional (P.char ',' >> Parse.p_float)
     return $ Signal (deflt, Just control)
 
 p_call :: P.Parser CallId

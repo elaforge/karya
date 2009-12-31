@@ -5,7 +5,7 @@ import Util.Control
 import Ui
 import qualified Derive.Derive as Derive
 import qualified Derive.TrackLang as TrackLang
-import Derive.TrackLang (optional, signal)
+import Derive.TrackLang (optional, required_signal, signal)
 import qualified Derive.Score as Score
 import qualified Derive.Call as Call
 
@@ -21,9 +21,11 @@ note_calls = map (first TrackLang.CallId)
 control_calls :: [(TrackLang.CallId, Derive.Call)]
 control_calls = []
 
+-- * note calls
+
 c_delay :: Derive.Call
 c_delay args events = TrackLang.call1 args
-    (optional "time" (signal 1 "delay-time")) $ \time ->
+    (optional "time" (required_signal "delay-time")) $ \time ->
     Call.map_events events [time] $ \event [time] ->
         return [Score.move (+ TrackPos time) event]
 

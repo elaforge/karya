@@ -17,6 +17,7 @@
 - derive multiple blocks with parMap
 
 CURRENT
+  - methods no longer hardcoded, e.g. Map MethodId MethodInterpolator
   + TrackLang
   - document / enforce rules for CallId, Control, etc?
 
@@ -317,9 +318,9 @@ Derive:
   TrackLang
     - lazy version of Derive.Call.map_events
     - make sure signal derivation doesn't do calls
-    - implement num -> signal coercion
+    * implement num -> signal coercion
     - implement mandatory signal args
-    - implement _ dummy arg
+    * implement _ dummy arg
     - implement call by arg name e.g. "delay time=%xyz"
     - implement control calls
     - implement block level calls in block title
