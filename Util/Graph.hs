@@ -55,7 +55,7 @@ splice (from, to) graph =
 
 would_make_cycle :: Edge -> Graph -> Bool
 would_make_cycle (from, to) graph =
-    Array.in_bounds from graph && path graph to from
+    Array.in_bounds from graph && Array.in_bounds to graph && path graph to from
 
 has_edge :: Edge -> Graph -> Bool
 has_edge (from, to) graph = Array.in_bounds from graph && to `elem` graph!from

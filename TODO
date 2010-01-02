@@ -17,16 +17,15 @@
 - derive multiple blocks with parMap
 
 CURRENT
+  - join is not joining pitch track
   - hspp screws up \\ string continuations
   - load kotek puts window off the screen
   - methods no longer hardcoded, e.g. Map MethodId MethodInterpolator
   + TrackLang
   - document / enforce rules for CallId, Control, etc?
 
-  - initial control env has vel = constant 1
-
   - stack: bid/tid/* should highlight the entire track
-  - crashing bug adding new track to skeleton
+  * crashing bug adding new track to skeleton
   * just editing a note shouldn't change its dur!
   - test relative pitch slide!
   - more symbolic calls, e.g. -/_\\/ and -//
