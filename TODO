@@ -17,7 +17,6 @@
 - derive multiple blocks with parMap
 
 CURRENT
-  - join is not joining pitch track
   - hspp screws up \\ string continuations
   - load kotek puts window off the screen
   - methods no longer hardcoded, e.g. Map MethodId MethodInterpolator
@@ -434,6 +433,18 @@ Midi:
   bandwidth
     - keep stats
     - display widget
+
+arrival beats:
+  - ui support for trigger edge at end
+  - block flag for arrival beats
+  - derive support: subderive as normal, note derivation from end (trigger) of
+    event until the end of a rest if there is one or until the sounding
+    of the next score event otherwise.  This may be sooner than the next ui
+    event if it involves subderivation.
+    --|   --|
+      |+++  |+++..
+    --|--|
+      |++|++..
 
 misc ideas:
   - more complicated track names: "< legato < synth/inst" to pipe inst output

@@ -326,6 +326,7 @@ events = events_selnum Config.insert_selnum
 events_selnum :: (Monad m) => Types.SelNum
     -> Bool -- ^ If true, a point selection will get the event on or before it.
     -> Cmd.CmdT m [(TrackId, (TrackPos, TrackPos), [Track.PosEvent])]
+    -- ^ (track_id, (sel_start, sel_end), events_around)
 events_selnum selnum point_prev = do
     (_, track_ids, start, end) <- tracks_selnum selnum
     tracks <- mapM State.get_track track_ids
@@ -344,8 +345,8 @@ events_selnum selnum point_prev = do
     event_before start _ track = maybe [] (:[]) $
         Track.event_before start (Track.track_events track)
 
--- | A variant of 'selected_events'.  Get events starting with the one at or
--- before the selection, and include the first one after the selection.
+-- | A variant of 'selected_events'.  If the selection is a point, the
+-- \"within\" list will contain the event at or before the selection.
 events_around :: (Monad m) =>
     Cmd.CmdT m [(TrackId, [Track.PosEvent], [Track.PosEvent], [Track.PosEvent])]
 events_around = events_around_selnum Config.insert_selnum
@@ -356,11 +357,14 @@ events_around_selnum :: (Monad m) => Types.SelNum
     -- ^ (track_id, before, within, after)
 events_around_selnum selnum = do
     (_, track_ids, start, end) <- tracks_selnum selnum
+    (_, sel) <- get_selnum selnum
     forM track_ids $ \track_id -> do
         track <- State.get_track track_id
-        let (before, rest) = Track.split start (Track.track_events track)
-        let (within, after) =
-                break ((if start==end then (>end) else (>=end))  . fst) rest
+        let split = if Types.sel_is_point sel then Track.split_at_before
+                else Track.split
+            (before, rest) = split start (Track.track_events track)
+            (within, after) = break
+                ((if start==end then (>end) else (>=end))  . fst) rest
         return (track_id, before, within, after)
 
 -- | Get selected event tracks along with the selection.  The tracks are
@@ -368,12 +372,28 @@ events_around_selnum selnum = do
 tracks :: (Monad m) => Cmd.CmdT m ([TrackNum], [TrackId], TrackPos, TrackPos)
 tracks = tracks_selnum Config.insert_selnum
 
+tracks_selnum :: (Monad m) =>
+    Types.SelNum -> Cmd.CmdT m ([TrackNum], [TrackId], TrackPos, TrackPos)
+tracks_selnum selnum = do
+    (view_id, sel) <- get_selnum selnum
+    block_id <- State.block_id_of_view view_id
+    tracklikes <- mapM (State.track_at block_id) (Types.sel_tracknums sel)
+    let (tracknums, track_ids) = unzip
+            [(i, track_id) | (i, Just (Block.TId track_id _))
+                <- zip (Types.sel_tracknums sel) tracklikes]
+    let (start, end) = Types.sel_range sel
+    return (tracknums, track_ids, start, end)
+
 -- | This is like 'tracks' except it also includes tracks merged into the
 -- selected tracks.
 merged_tracks :: (Monad m) =>
     Cmd.CmdT m ([TrackNum], [TrackId], TrackPos, TrackPos)
-merged_tracks = do
-    (tracknums, track_ids, start, end) <- tracks
+merged_tracks = merged_tracks_selnum Config.insert_selnum
+
+merged_tracks_selnum :: (Monad m) => Types.SelNum
+    -> Cmd.CmdT m ([TrackNum], [TrackId], TrackPos, TrackPos)
+merged_tracks_selnum selnum = do
+    (tracknums, track_ids, start, end) <- tracks_selnum selnum
     block_id <- Cmd.get_focused_block
     tracks <- mapM (State.get_block_track block_id) tracknums
     let merged_track_ids = concatMap Block.track_merged tracks
@@ -389,18 +409,6 @@ tracknums_of block track_ids = do
         zip [0..] (Block.block_tracklike_ids block)
     guard (tid `elem` track_ids)
     return (tracknum, tid)
-
-tracks_selnum :: (Monad m) =>
-    Types.SelNum -> Cmd.CmdT m ([TrackNum], [TrackId], TrackPos, TrackPos)
-tracks_selnum selnum = do
-    (view_id, sel) <- get_selnum selnum
-    block_id <- State.block_id_of_view view_id
-    tracklikes <- mapM (State.track_at block_id) (Types.sel_tracknums sel)
-    let (tracknums, track_ids) = unzip
-            [(i, track_id) | (i, Just (Block.TId track_id _))
-                <- zip (Types.sel_tracknums sel) tracklikes]
-    let (start, end) = Types.sel_range sel
-    return (tracknums, track_ids, start, end)
 
 -- | Get the requested selnum in the focused view.
 get_selnum :: (Monad m) => Types.SelNum -> Cmd.CmdT m (ViewId, Types.Selection)

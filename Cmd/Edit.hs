@@ -217,10 +217,8 @@ modify_events_prev :: (Monad m) => (TrackPos -> Event.Event -> Event.Event)
     -> Cmd.CmdT m ()
 modify_events_prev f = do
     track_events <- Selection.events_around
-    is_point <- Selection.is_point
-    forM_ track_events $ \(track_id, before, within, _) -> do
-        let events = if is_point then take 1 before else within
-        let insert = [(pos, f pos evt) | (pos, evt) <- events]
+    forM_ track_events $ \(track_id, _, within, _) -> do
+        let insert = [(pos, f pos evt) | (pos, evt) <- within]
         State.insert_sorted_events track_id insert
 
 -- | If the insertion selection is a point, clear any event under it.  If it's

@@ -8,9 +8,9 @@ import qualified Ui.Track as Track
 -- TODO improve tests
 
 
-test_events_at_before = do
+test_split_at_before = do
     let e1 = track_events [(0, 1, "0"), (1, 1, "1"), (2, 1, "2")]
-    let f pos = let (pre, post) = Track.events_at_before pos e1
+    let f pos = let (pre, post) = Track.split_at_before pos e1
             in (map extract_text pre, map extract_text post)
     equal (f 0) ([], ["0", "1", "2"])
     equal (f 0.5) ([], ["0", "1", "2"])

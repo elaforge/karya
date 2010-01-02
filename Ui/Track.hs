@@ -147,8 +147,8 @@ events_after pos track_events = snd (split pos track_events)
 
 -- | This is like 'split', but if there isn't an event exactly at the pos,
 -- start at the event right before it.
-events_at_before :: TrackPos -> TrackEvents -> ([PosEvent], [PosEvent])
-events_at_before pos events
+split_at_before :: TrackPos -> TrackEvents -> ([PosEvent], [PosEvent])
+split_at_before pos events
     | (epos, _) : _ <- post, epos == pos = (pre, post)
     | before : prepre <- pre = (prepre, before:post)
     | otherwise = (pre, post)
@@ -156,7 +156,7 @@ events_at_before pos events
 
 -- | The event on or before the pos.
 event_before :: TrackPos -> TrackEvents -> Maybe PosEvent
-event_before pos events = case snd (events_at_before pos events) of
+event_before pos events = case snd (split_at_before pos events) of
     before : _ -> Just before
     [] -> Nothing
 
@@ -270,4 +270,4 @@ clip_events pos_events = pos_events
 in_range_before :: TrackPos -> TrackPos -> Map.Map TrackPos Event.Event
     -> [PosEvent]
 in_range_before start end events = takeWhile ((<end) . fst) pos_events
-    where pos_events = snd $ events_at_before start (TrackEvents events)
+    where pos_events = snd $ split_at_before start (TrackEvents events)
