@@ -331,12 +331,31 @@ Derive:
     - implement rambat "tick", this requires a deriver before the note
       derivation, logical syntax would be "tick | >fm8/bass | d0 arg arg"
       but this makes tracks harder to recognize
+
       b0 arg | b1 arg | >fm8/bass | d0 arg | d1 arg
       #fm8/bass << b0 arg << b1 arg >> d0 arg >> d1 arg
-      But pre-note derivation is no good because they're still Event.Events and
-      have no signals applied.  So how about the note deriver passes ';...'
-      notes which are then expected to be interpreted by calls.  Any remaining
-      ;s at conversion are warned about.
+
+      1. A pre-note deriver would work with Event.Event, get signals from the
+      environment, and work in score time (but could use local_to_gloal for
+      absolute timing).  This means it would be unsuitable to put at block
+      level.
+
+      2. A post-note deriver would work with Score.Event, could get signals
+      from the event, and work in absolute time (but I could add
+      global_to_local).  I have to make the note deriver ignore ; and have
+      convert warn about remaining ones, but this would work at the block level
+      just the same as the track level.
+
+      3. I think eventually derivers should work with [EventDeriver] instead of
+      Event so that abstraction works, i.e. a triplet can work with
+      subderivers.  To make this work, I need to replace [Score.Event] with
+      [(shift, stretch, EventDeriver)] so I can know durations, and get pitch
+      etc.  from the environment.  This way I don't need to have the next event
+      parsed to do the derivation, but I think a 'tick' can be a plain call
+      like any other.  Maybe I could extend track title with arg=val to provide
+      default vals for calls.
+
+      For the moment, do #2, and implement #3 later.
   PitchTrack pitch
   NoteTrack note
     - non-note commands: set random seed, ...

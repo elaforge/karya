@@ -17,7 +17,8 @@ import qualified Data.Maybe as Maybe
 
 
 -- There are many representations for pitch.  The types here are ordered
--- from abstract to concrete.
+-- from abstract to concrete.  'Degree', 'NoteNumber', and 'Hz' can be relative
+-- or absolute, but at the moment no distinctions are made at the type level.
 
 -- ** Pitch
 
@@ -57,7 +58,7 @@ middle_octave = 5
 -- ** Degree
 
 -- | This is a pitch in a certain scale, but the actual frequency can't be
--- known untill it's applied to a scale.  Should never be negative.
+-- known untill it's applied to a scale.
 -- PitchSignals use this type.
 newtype Degree = Degree Double deriving (Eq, Ord, Show, Num)
 

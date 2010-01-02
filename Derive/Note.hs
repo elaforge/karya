@@ -101,7 +101,7 @@ data NoteDesc = NoteDesc
     } deriving (Eq, Show)
 empty_note = NoteDesc [] Nothing Score.no_attrs
 
-data Call = Call TrackLang.CallId [TrackLang.Val]
+data Call = Call { call_id :: TrackLang.CallId, call_args :: [TrackLang.Val] }
     deriving (Eq, Show)
 
 -- * note track
@@ -117,9 +117,15 @@ d_note_track track_id = do
 call :: [Score.Event] -> Call -> Derive.EventDeriver
 call events (Call call_id args) = do
     call <- Derive.lookup_note_call call_id
-    let left err = Derive.throw $
+    let msg (TrackLang.CallId c) = "note call " ++ show c
+    case call args events of
+        Left err -> Derive.throw $
             "parse error: " ++ TrackLang.show_type_error err
-    join $ either left return (call args events)
+        Right d -> Derive.with_msg (msg call_id) d
+
+-- * parse
+
+-- ** track title
 
 parse_track_title :: (Monad m) => String -> Derive.DeriveT m (NoteDesc, [Call])
 parse_track_title title = do
@@ -129,8 +135,11 @@ parse_track_title title = do
     inst <- Derive.gets Derive.state_instrument
     attrs <- Derive.gets Derive.state_attributes
     let ndesc = parse_note_desc (NoteDesc [] inst attrs) inst_tokens
-    calls <- mapM parse_call call_tokens
+    calls <- mapM do_parse_call call_tokens
     return (ndesc, calls)
+    where
+    do_parse_call args = either (Derive.throw . ("parse_track_title: " ++))
+        return (parse_call args)
 
 -- | Filter the inst and attr declarations out of the parsed Vals and put the
 -- rest in 'note_args'.
@@ -145,20 +154,28 @@ parse_note_desc ndesc tokens = rev $ List.foldl' collect (rev ndesc) tokens
         _ -> ndesc { note_args = val : note_args ndesc }
     rev ndesc = ndesc { note_args = List.reverse (note_args ndesc) }
 
--- | Split the call and args from a list of Vals.
-parse_call :: (Monad m) => [TrackLang.Val] -> Derive.DeriveT m Call
-parse_call args = either (Derive.throw . ("parse_call: "++)) return $ do
-    (call_id, args) <- case args of
-        [] -> Left "empty expression"
-        arg:args -> case arg of
-            TrackLang.VCall call_id -> Right (call_id, args)
-            _ -> Left $ "non-function in function position: " ++ show arg
-    let bad_calls = [cid | TrackLang.VCall cid <- args]
-    when (not (null bad_calls)) $
-        Left $ "functions in non-function position: " ++ show bad_calls
-    return $ Call call_id args
+-- ** directive
 
--- ** parse
+is_directive :: String -> Bool
+is_directive (';':_) = True
+is_directive _ = False
+
+parse_directive :: Score.Event -> Maybe (Either String Call)
+parse_directive event = case Score.event_string event of
+    c : rest | c == directive_prefix -> Just (parse_directive_text rest)
+    _ -> Nothing
+
+parse_directive_text :: String -> Either String Call
+parse_directive_text text = do
+    (tokens, call_tokens) <- TrackLang.parse text
+    when (not (null call_tokens)) $
+        Left $ "calls not supported for directives: " ++ show call_tokens
+    parse_call tokens
+
+directive_prefix :: Char
+directive_prefix = ';'
+
+-- ** events
 
 -- | Parse each Event and pair it with a NoteDesc, filtering out the ones that
 -- can't be parsed.
@@ -171,17 +188,32 @@ parse_events ndesc pos_events = do
 
 parse_event :: Monad m => NoteDesc -> Track.PosEvent
     -> Derive.DeriveT m NoteDesc
-parse_event ndesc (pos, event) = do
-    let err msg = Derive.with_stack_pos pos (Event.event_duration event) $
-            Derive.throw ("parsing note: " ++ msg)
-    (inst_tokens, call_tokens) <- either err return $
-        TrackLang.parse (Event.event_string event)
-    when (not (null call_tokens)) $
-        -- TODO support pipes in notes
-        Derive.throw $ "note calls not yet supported: " ++ show call_tokens
-    return $ parse_note_desc ndesc inst_tokens
+parse_event ndesc (pos, event)
+    | is_directive (Event.event_string event) = return empty_note
+    | otherwise = do
+        let err msg = Derive.with_stack_pos pos (Event.event_duration event) $
+                Derive.throw ("parsing note: " ++ msg)
+        (inst_tokens, call_tokens) <- either err return $
+            TrackLang.parse (Event.event_string event)
+        when (not (null call_tokens)) $
+            -- TODO support pipes in notes
+            Derive.throw $ "note calls not yet supported: " ++ show call_tokens
+        return $ parse_note_desc ndesc inst_tokens
 
--- ** derive
+-- | Split the call and args from a list of Vals.
+parse_call :: [TrackLang.Val] -> Either String Call
+parse_call args = do
+    (call_id, args) <- case args of
+        [] -> Left "empty expression"
+        arg:args -> case arg of
+            TrackLang.VCall call_id -> Right (call_id, args)
+            _ -> Left $ "non-function in function position: " ++ show arg
+    let bad_calls = [cid | TrackLang.VCall cid <- args]
+    when (not (null bad_calls)) $
+        Left $ "functions in non-function position: " ++ show bad_calls
+    return $ Call call_id args
+
+-- * derive
 
 derive_notes :: (Monad m) => [(Track.PosEvent, NoteDesc)]
     -> Derive.DeriveT m [Score.Event]
@@ -211,7 +243,8 @@ derive_note pos event (NoteDesc args inst attrs) = do
             (Derive.state_controls st) (Derive.state_pitch st)
             (Derive.state_stack st) inst attrs]
         _ -> do
-            Call sub args <- parse_call args
+            Call sub args <- either (Derive.throw . ("derive_note: " ++))
+                return (parse_call args)
             -- d_sub will set shift and stretch which is in local time, so pass
             -- local rather than global.
             -- TODO look in namespace other than blocks for sub_id
@@ -279,22 +312,3 @@ make_id default_ns (TrackLang.CallId ident_str) = Id.id ns ident
     where
     (w0, w1) = break (=='/') ident_str
     (ns, ident) = if null w1 then (default_ns, w0) else (w0, drop 1 w1)
-
-
--- * old crap kept alive by Cmd.NoteTrack
-
--- | (method, note)
-type NoteTokens = (String, String)
-
-tokenize_note :: String -> Either String NoteTokens
-tokenize_note text = case Seq.split_commas text of
-    [] -> Right ("", "")
-    [w0] -> Right ("", w0)
-    [w0, w1] -> Right (w0, w1)
-    ws -> Left $ "too many words in note: " ++ show ws
-
-untokenize_note :: NoteTokens -> String
-untokenize_note toks = case toks of
-    ("", "") -> ""
-    ("", note) -> note
-    (meth, note) -> meth ++ "," ++ note

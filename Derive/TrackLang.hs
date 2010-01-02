@@ -117,6 +117,11 @@ show_type_error (ArgError err) = "arg error: " ++ err
 instance Error.Error TypeError where
     strMsg _ = error "strMsg not defined for TypeError"
 
+call0 :: [Val] -> result -> Either TypeError result
+call0 vals f = do
+    check_args vals []
+    return f
+
 extract1 :: (Typecheck a) => [Val] -> Arg a -> Either TypeError a
 extract1 vals sig0 = do
     arg0 : _ <- check_args vals [arg_opt sig0]
@@ -124,7 +129,7 @@ extract1 vals sig0 = do
 
 call1 :: (Typecheck a) =>
     [Val] -> Arg a -> (a -> result) -> Either TypeError result
-call1 args arg0 f = return . f =<< extract1 args arg0
+call1 vals arg0 f = return . f =<< extract1 vals arg0
 
 extract2 :: (Typecheck a, Typecheck b) =>
     [Val] -> (Arg a, Arg b) -> Either TypeError (a, b)
@@ -134,8 +139,8 @@ extract2 vals (sig0, sig1) = do
 
 call2 :: (Typecheck a, Typecheck b) =>
     [Val] -> (Arg a, Arg b) -> (a -> b -> result) -> Either TypeError result
-call2 args (arg0, arg1) f = do
-    (val0, val1) <- extract2 args (arg0, arg1)
+call2 vals (arg0, arg1) f = do
+    (val0, val1) <- extract2 vals (arg0, arg1)
     return $ f val0 val1
 
 extract3 :: (Typecheck a, Typecheck b, Typecheck c) =>
@@ -149,8 +154,8 @@ extract3 vals (sig0, sig1, sig2) = do
 call3 :: (Typecheck a, Typecheck b, Typecheck c) =>
     [Val] -> (Arg a, Arg b, Arg c) -> (a -> b -> c -> result)
     -> Either TypeError result
-call3 args (arg0, arg1, arg2) f = do
-    (val0, val1, val2) <- extract3 args (arg0, arg1, arg2)
+call3 vals (arg0, arg1, arg2) f = do
+    (val0, val1, val2) <- extract3 vals (arg0, arg1, arg2)
     return $ f val0 val1 val2
 
 extract4 :: (Typecheck a, Typecheck b, Typecheck c, Typecheck d) =>
@@ -164,19 +169,19 @@ extract4 vals (sig0, sig1, sig2, sig3) = do
 call4 :: (Typecheck a, Typecheck b, Typecheck c, Typecheck d) =>
     [Val] -> (Arg a, Arg b, Arg c, Arg d) -> (a -> b -> c -> d -> result)
     -> Either TypeError result
-call4 args (arg0, arg1, arg2, arg3) f = do
-    (val0, val1, val2, val3) <- extract4 args (arg0, arg1, arg2, arg3)
+call4 vals (arg0, arg1, arg2, arg3) f = do
+    (val0, val1, val2, val3) <- extract4 vals (arg0, arg1, arg2, arg3)
     return $ f val0 val1 val2 val3
 
 check_args :: [Val] -> [(Bool, String)] -> Either TypeError [Maybe Val]
 check_args vals optional_args
-    | not (null bad_required) = Left $ ArgError $
-        "required args can't follow an optional one: "
-            ++ Seq.join ", " [show i ++ "/" ++ name | (i, name) <- bad_required]
     | length vals < length required = Left $ ArgError $
         "too few arguments, " ++ expected
     | length vals > length optional_args = Left $ ArgError $
         "too many arguments, " ++ expected
+    | not (null bad_required) = Left $ ArgError $
+        "required args can't follow an optional one: "
+            ++ Seq.join ", " [show i ++ "/" ++ name | (i, name) <- bad_required]
     | otherwise = Right $ map Just vals ++ repeat Nothing
     where
     (required, optional) = break (fst . snd) (zip [0..] optional_args)

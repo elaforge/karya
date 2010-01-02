@@ -103,7 +103,7 @@ data State = State {
     , state_lookup_deriver :: LookupDeriver
     , state_control_op_map :: Map.Map Operator ControlOp
     , state_pitch_op_map :: Map.Map Operator PitchOp
-    , state_call_map :: CallMap
+    , state_call_map :: CallEnv
     -- | This is set if the derivation is for a signal deriver.  Signal
     -- derivers skip all special tempo treatment.  Ultimately, this is needed
     -- because of the 'add_track_warp' hack.  It might be 'add_track_warp' is
@@ -133,26 +133,42 @@ initial_state ui_state lookup_deriver calls ignore_tempo = State {
 --
 -- See 'Perform.Midi.Perform.default_velocity' for 0.79.
 initial_controls :: Score.ControlMap
-initial_controls = Map.fromList [(Score.c_velocity, Signal.constant 0.79)]
+initial_controls = Map.fromList
+    [(Score.c_velocity, Signal.constant default_velocity)]
 
-data CallMap = CallMap {
-    calls_note :: Map.Map TrackLang.CallId Call
-    , calls_control :: Map.Map TrackLang.CallId Call
-    , calls_sub :: Map.Map TrackLang.CallId SubDerive
+default_velocity :: Signal.Y
+default_velocity = 0.79
+
+initial_warp :: Warp
+initial_warp = make_warp (Signal.signal [(0, 0), (Signal.max_x, Signal.max_y)])
+
+data CallEnv = CallEnv {
+    calls_note :: CallMap
+    , calls_control :: CallMap
+    , calls_sub :: SubMap
     }
-empty_call_map = CallMap Map.empty Map.empty Map.empty
+empty_call_map = CallEnv Map.empty Map.empty Map.empty
 
-instance Show CallMap where
-    show (CallMap note control sub) = "(CallMap "
-            ++ keys note ++ " " ++ keys control ++ " " ++ keys sub ++ ")"
-        where
-        keys m = "<" ++ Seq.join ", " [c | TrackLang.CallId c <- Map.keys m]
-            ++ ">"
+type CallMap = Map.Map TrackLang.CallId Call
+type SubMap = Map.Map TrackLang.CallId SubDerive
 
 type Call = [TrackLang.Val] -> [Score.Event]
     -> Either TrackLang.TypeError EventDeriver
 type SubDerive = [TrackLang.Val]
     -> Either TrackLang.TypeError EventDeriver
+
+make_calls :: [(String, Call)] -> CallMap
+make_calls = Map.fromList . map (Util.Control.first TrackLang.CallId)
+
+make_subs :: [(String, SubDerive)] -> SubMap
+make_subs = Map.fromList . map (Util.Control.first TrackLang.CallId)
+
+instance Show CallEnv where
+    show (CallEnv note control sub) = "(CallEnv "
+            ++ keys note ++ " " ++ keys control ++ " " ++ keys sub ++ ")"
+        where
+        keys m = "<" ++ Seq.join ", " [c | TrackLang.CallId c <- Map.keys m]
+            ++ ">"
 
 
 -- | Since the deriver may vary based on the block, this is needed to find
@@ -186,9 +202,6 @@ data Warp = Warp {
     , warp_stretch :: TrackPos
     } deriving (Eq, Show)
 
-initial_warp :: Warp
-initial_warp = make_warp (Signal.signal [(0, 0), (Signal.max_x, Signal.max_y)])
-
 -- | Convert a Signal to a Warp.
 make_warp :: Signal.Warp -> Warp
 make_warp sig = Warp sig (TrackPos 0) (TrackPos 1)
@@ -210,7 +223,7 @@ instance Monad m => Log.LogMonad (DeriveT m) where
 
 -- * monadic ops
 
-derive :: LookupDeriver -> State.State -> CallMap -> Bool
+derive :: LookupDeriver -> State.State -> CallEnv -> Bool
     -> DeriveT Identity.Identity a
     -> (Either DeriveError a,
         Transport.TempoFunction, Transport.InverseTempoFunction, [Log.Msg],
@@ -359,7 +372,7 @@ warn_srcpos srcpos msg = do
     Log.warn_stack_srcpos srcpos stack (_add_context context msg)
 
 _add_context [] s = s
-_add_context context s = Seq.join "/" context ++ ": " ++ s
+_add_context context s = Seq.join " / " (reverse context) ++ ": " ++ s
 
 -- ** environment
 
@@ -381,6 +394,13 @@ type ControlOp = Signal.Control -> Signal.Control -> Signal.Control
 type PitchOp = PitchSignal.PitchSignal -> PitchSignal.Relative
     -> PitchSignal.PitchSignal
 
+-- | This gets the control from the environment, not the event.  The difference
+-- is that the environment is the current state at this point of evaluation, so
+-- it would represent the context of the computation, while the event is the
+-- environment at the time the event was created.
+--
+-- Control events don't have their own signal, but there is a signal in the
+-- environment at the time of their evaluation.
 control_at :: (Monad m) => TrackPos -> Score.Control -> Maybe Signal.Y
     -> DeriveT m Signal.Y
 control_at pos cont deflt = do

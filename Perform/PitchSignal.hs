@@ -34,10 +34,13 @@ module Perform.PitchSignal (
     , convert
 
     , sig_add
-    , sig_max, sig_min, clip_max, clip_min
+    , sig_max, sig_min
+    , scalar_add, scalar_subtract
+    , clip_max, clip_min
     , shift, stretch
     , truncate
-    , map_x
+    , map_x, map_degree
+    , y_to_degree
 ) where
 import Prelude hiding (truncate)
 import qualified Data.StorableVector as V
@@ -153,7 +156,7 @@ convert scale psig = Signal.Signal (V.map f (sig_vec psig))
         (Pitch.scale_degree_to_nn scale (Pitch.Degree (realToFrac n)))
     un_nn (Pitch.NoteNumber n) = n
 
--- * functions
+-- * transformation
 
 sig_add :: PitchSignal -> Relative -> PitchSignal
 sig_add = sig_op add
@@ -166,6 +169,15 @@ sig_add = sig_op add
 sig_max, sig_min :: PitchSignal -> Relative -> PitchSignal
 sig_max = sig_op $ \y0 y1 -> ymax (reduce y1) y0
 sig_min = sig_op $ \y0 y1 -> ymin (reduce y1) y0
+
+reduce :: Y -> Signal.Y
+reduce (from, to, at) = Num.scale (realToFrac from) (realToFrac to) at
+
+-- ** scalar transformation
+
+scalar_add, scalar_subtract :: Pitch.Degree -> PitchSignal -> PitchSignal
+scalar_add d = map_degree (+d)
+scalar_subtract d = map_degree (subtract d)
 
 -- | Scalar versions of 'sig_max' and 'sig_min'.  Note that the arguments are
 -- also reversed for currying convenience.
@@ -199,5 +211,15 @@ map_x f = modify_vec (SignalBase.map_x f)
 map_y :: (Y -> Y) -> PitchSignal -> PitchSignal
 map_y f = modify_vec (SignalBase.map_y f)
 
-reduce :: Y -> Signal.Y
-reduce (from, to, at) = Num.scale (realToFrac from) (realToFrac to) at
+map_degree :: (Pitch.Degree -> Pitch.Degree) -> PitchSignal -> PitchSignal
+map_degree f = map_y $ \(from, to, at) -> (g from, g to, at)
+    where g = from_degree . f . to_degree
+
+from_degree :: Pitch.Degree -> Float
+from_degree (Pitch.Degree n) = realToFrac n
+to_degree :: Float -> Pitch.Degree
+to_degree f = Pitch.Degree (realToFrac f)
+
+y_to_degree :: Y -> Pitch.Degree
+y_to_degree (from, to, at) =
+    Pitch.Degree (Num.scale (realToFrac from) (realToFrac to) at)

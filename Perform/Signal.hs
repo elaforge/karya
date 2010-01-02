@@ -208,7 +208,7 @@ sig_max, sig_min :: Control -> Control -> Control
 sig_max = sig_op max
 sig_min = sig_op min
 
--- ** scalar transformations
+-- ** scalar transformation
 
 scalar_add, scalar_subtract, scalar_multiply, scalar_divide ::
     Y -> Control -> Control

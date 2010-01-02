@@ -1,6 +1,5 @@
 -- | A collection of basic calls.
 module Derive.Call.Basic where
-import Util.Control
 
 import Ui
 import qualified Derive.Derive as Derive
@@ -12,22 +11,23 @@ import qualified Derive.Call as Call
 import qualified Perform.Signal as Signal
 
 
-note_calls :: [(TrackLang.CallId, Derive.Call)]
-note_calls = map (first TrackLang.CallId)
+note_calls :: Derive.CallMap
+note_calls = Derive.make_calls
     [ ("delay", c_delay)
     , ("echo", c_echo)
     ]
 
-control_calls :: [(TrackLang.CallId, Derive.Call)]
-control_calls = []
+control_calls :: Derive.CallMap
+control_calls = Derive.make_calls []
 
 -- * note calls
 
 c_delay :: Derive.Call
 c_delay args events = TrackLang.call1 args
     (optional "time" (required_signal "delay-time")) $ \time ->
-    Call.map_events events [time] $ \event [time] ->
-        return [Score.move (+ TrackPos time) event]
+    Call.map_asc events () $ Call.with_signals [time] $
+    \[time] (_, _, event, _) ->
+        return ((), [Score.move (+ TrackPos time) event])
 
 -- TODO If the feedback signal is constant, as it is likely to be, then I could
 -- preserve sharing by reusing the velocity of the first event.  However, this
@@ -39,17 +39,14 @@ c_echo :: Derive.Call
 c_echo args events = TrackLang.call3 args
     ( optional "delay" (signal 1 "echo-delay")
     , optional "feedback" (signal 0.4 "echo-feedback")
-    , optional "times" (signal 1 "echo-times")
-    ) $ \a b c ->
-    Call.map_events events [a, b, c] $ \event [delay, feedback, times] ->
-        return (echo (Signal.y_to_x delay) feedback (floor times) event)
+    , optional "times" (signal 1 "echo-times")) $ \delay feedback times ->
+    Call.map_any events () $ Call.with_signals [delay, feedback, times] $
+    \[delay, feedback, times] (_, _, event, _) ->
+        return ((), echo (Signal.y_to_x delay) feedback (floor times) event)
 
 echo :: TrackPos -> Double -> Int -> Score.Event -> [Score.Event]
 echo delay feedback times event = event : [modify n event | n <- [1..times]]
     where
-    modify n = Score.modify_signal Score.c_velocity (*vel)
+    modify n = Score.modify_velocity (*vel)
         . Score.move (+ fromIntegral n * delay)
         where vel = feedback ** (fromIntegral n)
-
-modify_vel :: Double -> Score.Event -> Score.Event
-modify_vel n = Score.modify_signal Score.c_velocity (*n)

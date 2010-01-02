@@ -1,5 +1,4 @@
 module Derive.Note_test where
-import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import Util.Test
@@ -12,6 +11,7 @@ import Ui
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 
+import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Note as Note
 import qualified Derive.Score as Score
@@ -98,6 +98,42 @@ test_echo = do
     equal (Seq.map_maybe Midi.channel_message (filter Midi.is_note_on mmsgs))
         (map (uncurry Midi.NoteOn) [(60, 100), (62, 100), (60, 40), (62, 40)])
 
+test_tick = do
+    let derive evts tracks = (extracted, logs)
+            where
+            (val, logs) = DeriveTest.e_val $ DeriveTest.derive_tracks_tempo
+                ((DeriveTest.default_inst_title++" | tick .5", evts) : tracks)
+            extracted = fmap (map (e_evt . DeriveTest.e_event)) val
+            e_evt e = (DeriveTest.e_start e, DeriveTest.e_dur e,
+                DeriveTest.e_pitch e, DeriveTest.e_vel e)
+    let vel = Derive.default_velocity
+
+    let (_evts, logs) = derive
+            [(0, 1, ";tick"), (1, 1, ";tick"), (2, 1, "")]
+            [("*twelve", [(0, 0, "4c"), (2, 0, "4d")])]
+    equal (map Log.msg_string logs)
+        ["compile / note call \"tick\": no previous event"]
+    equal (map Log.msg_stack logs)
+        [Just (mkstack [("b1", "b1.t1", (0, 1))])]
+
+    let (evts, logs) = derive [(0, 1, ""), (1, 1, ";tick"), (2, 1, "")]
+            [("*twelve", [(0, 0, "4c"), (2, 0, "4d")])]
+    equal logs []
+    equal evts $ Right
+        [ (0, 1, 60, vel)
+        , (1.5,  0.5, 61, vel*0.5)
+        , (2, 1, 62, vel)
+        ]
+
+    let (evts, logs) = derive [(0, 0.5, ""), (0.5, 0.5, ";tick"), (1, 1, "")]
+            [("*twelve", [(0, 0, "4c"), (1, 0, "4d")])]
+    equal logs []
+    equal evts $ Right
+        [ (0, 0.5, 60, vel)
+        , (0.5,  0.5, 61, vel*0.5)
+        , (1, 1, 62, vel)
+        ]
+
 test_calls = do
     let simple_evt val = fmap (map f) val
             where f (start, dur, text, _, _, _) = (start, dur, text)
@@ -130,6 +166,7 @@ test_calls = do
         Right [(2, 1, "--1"), (3, 1, "--2")]
 
 
+-- TODO use DeriveTest.Event instead
 type Extracted =
     (TrackPos, TrackPos, String, Warning.Stack, Maybe Score.Instrument,
         Score.Attributes)

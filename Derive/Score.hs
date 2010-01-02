@@ -11,14 +11,18 @@ import qualified Data.Text as Text
 
 import Ui
 
-import qualified Perform.Signal as Signal
+import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
+import qualified Perform.Signal as Signal
 import qualified Perform.Warning as Warning
 
 
 -- | Currently this is just for 'Derive.map_events'.
 class Eventlike e where
     stack :: e -> [Warning.StackPos]
+    start :: e -> TrackPos
+
+-- * Event
 
 data Event = Event {
     -- | These are the core attributes that define an event.  UI display
@@ -35,7 +39,7 @@ data Event = Event {
     -- in more than one if it appears in a merged track).  That way, if an
     -- error or warning is emitted concerning this event, its position on the
     -- UI can be highlighted.
-    , event_stack :: [Warning.StackPos]
+    , event_stack :: Warning.Stack
 
     -- | These are optional parameters that may or may not be required by the
     -- performer.
@@ -45,6 +49,9 @@ data Event = Event {
 
 instance Eventlike Event where
     stack = event_stack
+    start = event_start
+
+type ControlMap = Map.Map Control Signal.Control
 
 event_string :: Event -> String
 event_string = Text.unpack . event_text
@@ -57,11 +64,31 @@ move f event =
     move_controls (pos - event_start event) $ event { event_start = pos }
     where pos = f (event_start event)
 
+place :: TrackPos -> TrackPos -> Event -> Event
+place start dur event = (move (const start) event) { event_duration = dur }
+
 move_controls :: TrackPos -> Event -> Event
 move_controls diff event = event
     { event_controls = Map.map (Signal.shift diff) (event_controls event)
     , event_pitch = PitchSignal.shift diff (event_pitch event)
     }
+
+-- ** control
+
+control_at :: TrackPos -> Control -> Maybe Signal.Y -> Event -> Maybe Signal.Y
+control_at pos cont deflt event =
+    maybe deflt (Just . Signal.at pos) (Map.lookup cont (event_controls event))
+
+initial_velocity :: Event -> Signal.Y
+initial_velocity event = maybe 0 id $
+     -- Derive.initial_controls should mean Nothing never happens.
+    control_at (event_start event) c_velocity (Just 0) event
+
+modify_velocity :: (Signal.Y -> Signal.Y) -> Event -> Event
+modify_velocity = modify_signal c_velocity
+
+modify_signal :: Control -> (Signal.Y -> Signal.Y) -> Event -> Event
+modify_signal control f = modify_control control (Signal.map_y f)
 
 modify_control :: Control -> (Signal.Control -> Signal.Control)
     -> Event -> Event
@@ -71,19 +98,35 @@ modify_control control f event = case Map.lookup control controls of
             event { event_controls = Map.insert control (f sig) controls }
     where controls = event_controls event
 
-modify_signal :: Control -> (Signal.Y -> Signal.Y) -> Event -> Event
-modify_signal control f = modify_control control (Signal.map_y f)
+-- ** pitch
 
-type ControlMap = Map.Map Control Signal.Control
+pitch_at :: TrackPos -> Event -> PitchSignal.Y
+pitch_at pos = PitchSignal.at pos . event_pitch
+
+degree_at :: TrackPos -> Event -> Pitch.Degree
+degree_at pos = PitchSignal.y_to_degree . pitch_at pos
+
+initial_pitch :: Event -> Pitch.Degree
+initial_pitch event = degree_at (event_start event) event
+
+modify_pitch :: (Pitch.Degree -> Pitch.Degree) -> Event -> Event
+modify_pitch f event =
+    event { event_pitch = PitchSignal.map_degree f (event_pitch event) }
+
+transpose :: Pitch.Degree -> Event -> Event
+transpose n = modify_pitch (+n)
+
+-- * ControlEvent
 
 data ControlEvent = ControlEvent {
     cevent_start :: TrackPos
     , cevent_text :: Text.Text
-    , cevent_stack :: [Warning.StackPos]
+    , cevent_stack :: Warning.Stack
     } deriving (Eq, Show)
 
 instance Eventlike ControlEvent where
     stack = cevent_stack
+    start = cevent_start
 
 cevent_string :: ControlEvent -> String
 cevent_string = Text.unpack . cevent_text
