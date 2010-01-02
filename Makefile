@@ -10,9 +10,11 @@ CXX_OPT := -O2
 OPT := $(CXX_DEBUG)
 
 MIDI_LIBS := -framework CoreFoundation -framework CoreMIDI -framework CoreAudio
-# PORTMIDI := /usr/local/src/portmedia/portmidi/trunk
-# CINCLUDE := -Ifltk -I$(PORTMIDI)/pm_common -I$(PORTMIDI)/porttime -I.
-CINCLUDE := -Ifltk -I.
+PORTMIDI := /usr/local/src/portmedia/portmidi/trunk
+CINCLUDE := -Ifltk -I$(PORTMIDI)/pm_common -I$(PORTMIDI)/porttime -I.
+# TODO even though I don't use portmidi any more, I still maintain PortMidi.hsc
+# in case I want it again.
+# CINCLUDE := -Ifltk -I.
 
 # vanilla fltk
 LIBFLTK_I := -I/usr/local/include -I/usr/local/include/FL/images
