@@ -244,8 +244,10 @@ EventTrackView::draw_area()
         this->draw_upper_layer(offset, event, rank, &previous, &ranked_bottom);
     }
     if (count) {
-        for (int i = 0; i < count; i++)
-            free(events[i].text);
+        for (int i = 0; i < count; i++) {
+            if (events[i].text)
+                free(events[i].text);
+        }
         free(events);
         free(event_pos);
         free(ranks);
@@ -340,20 +342,22 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
     } else {
         Point pos(0, offset + (fl_height() - fl_descent()));
         Point size(0, 0);
-        fl_measure(event.text, size.x, size.y, false);
         bool draw_text = false;
-        if (rank) {
-            pos.x = (x() + w()) - size.x;
-            // Only display if I won't overlap text at the left or above.
-            if (pos.x > previous->r() - ok_overlap
-                    && offset > *ranked_bottom - ok_overlap)
-            {
-                draw_text = true;
-            }
-        } else {
-            if (offset > previous->b() - ok_overlap) {
-                draw_text = true;
-                pos.x = x() + 2;
+        if (event.text) {
+            fl_measure(event.text, size.x, size.y, false);
+            if (rank) {
+                pos.x = (x() + w()) - size.x;
+                // Only display if I won't overlap text at the left or above.
+                if (pos.x > previous->r() - ok_overlap
+                        && offset > *ranked_bottom - ok_overlap)
+                {
+                    draw_text = true;
+                }
+            } else {
+                if (offset > previous->b() - ok_overlap) {
+                    draw_text = true;
+                    pos.x = x() + 2;
+                }
             }
         }
 
@@ -385,7 +389,7 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
                     // block.
                     fl_color(color_to_fl(Config::abbreviation_color));
                     fl_rectf(x()+w() - 2, offset, 2, fl_height());
-                } else if (*event.text
+                } else if (event.text && *event.text
                         && isspace(event.text[strlen(event.text)-1]))
                 {
                     // Hightlight a trailing space.

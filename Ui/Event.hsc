@@ -107,7 +107,8 @@ instance Storable Event where
 poke_event eventp (Event text dur style_id) = do
     let (Style color text_style align) = lookup_style style_id
     -- Must be freed by the caller, EventTrackView::draw_area.
-    textp <- unpackCString0 (Encoding.encodeUtf8 text)
+    textp <- if Text.null text then return nullPtr
+        else unpackCString0 (Encoding.encodeUtf8 text)
     (#poke Event, text) eventp textp
     (#poke Event, duration) eventp dur
     (#poke Event, color) eventp color
