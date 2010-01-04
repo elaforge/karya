@@ -23,6 +23,7 @@ public:
     double scale(double factor) const { return _val * factor; }
 
     // Basic arithmetic and comparisons work on a TrackPos.
+    TrackPos operator-() const { return TrackPos(-_val); }
 #define OP(X) \
 TrackPos operator X(const TrackPos &o) const { \
     TrackPos r(_val X o._val); return r; \

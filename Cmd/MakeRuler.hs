@@ -65,7 +65,7 @@ meter_ranks =
 
 -- | Constructor for "plain" rulers.
 ruler :: [Ruler.NameMarklist] -> Ruler.Ruler
-ruler marklists = Ruler.ruler marklists Config.ruler_bg True False False
+ruler marklists = Ruler.ruler marklists Config.ruler_bg True False False False
 
 -- | Convert a ruler to be suitable as an overlay ruler.
 as_overlay :: Ruler.Ruler -> Ruler.Ruler

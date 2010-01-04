@@ -19,6 +19,9 @@ data Ruler = Ruler {
     , ruler_bg :: Color
     , ruler_show_names :: Bool
     , ruler_use_alpha :: Bool
+    -- | Align bottoms of marks to beats, instead of the top.  Looks good used
+    -- with negative duration events (arrival beats).
+    , ruler_align_to_bottom :: Bool
     , ruler_full_width :: Bool
     } deriving (Eq, Show, Read)
 ruler = Ruler
@@ -29,7 +32,7 @@ time_end = maximum . (TrackPos 0 :) . map (last_pos . snd) . ruler_marklists
 
 -- | Empty ruler.
 no_ruler :: Ruler
-no_ruler = ruler [] Color.black False False False
+no_ruler = ruler [] Color.black False False False False
 
 -- | Transform all the marklists in a ruler.
 map_marklists :: (NameMarklist -> NameMarklist) -> Ruler -> Ruler

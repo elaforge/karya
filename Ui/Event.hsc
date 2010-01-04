@@ -69,8 +69,11 @@ default_style = StyleId 0
 -- anyway.
 style_table :: [(StyleId, Style)]
 style_table =
-    [ (default_style, Style (Color.rgb 0.9 0.9 0.7) default_font False)
+    [ (default_style, Style evt_color default_font)
     ]
+    where
+    evt_color = Color.rgb 0.9 0.9 0.7
+
 default_font = Font.TextStyle Font.Helvetica [] 9 Color.black
 
 -- | To save space, event styles are explicitly shared by storing them in
@@ -81,7 +84,6 @@ newtype StyleId = StyleId Word8
 data Style = Style {
     style_color :: Color
     , style_text :: Font.TextStyle
-    , style_align_to_bottom :: Bool
     } deriving (Eq, Show, Read)
 
 -- * storable
@@ -89,7 +91,7 @@ data Style = Style {
 style_array :: IArray.Array Word8 Style
 style_array = IArray.array (0, maxBound) ([(i, no_style) | i <- [0..maxBound]])
     IArray.// [(sid, style) | (StyleId sid, style) <- style_table]
-    where no_style = Style Color.black default_font False
+    where no_style = Style Color.black default_font
 
 lookup_style :: StyleId -> Style
 lookup_style (StyleId style) = style_array IArray.! style
@@ -105,7 +107,7 @@ instance Storable Event where
     peek = error "Event peek unimplemented"
 
 poke_event eventp (Event text dur style_id) = do
-    let (Style color text_style align) = lookup_style style_id
+    let (Style color text_style) = lookup_style style_id
     -- Must be freed by the caller, EventTrackView::draw_area.
     textp <- if Text.null text then return nullPtr
         else unpackCString0 (Encoding.encodeUtf8 text)
@@ -113,7 +115,6 @@ poke_event eventp (Event text dur style_id) = do
     (#poke Event, duration) eventp dur
     (#poke Event, color) eventp color
     (#poke Event, style) eventp text_style
-    (#poke Event, align_to_bottom) eventp align
 
 -- | Unpack the bytestring to a null-terminated cstring, in malloc'd space.
 -- ByteString only has an alloca version of this.

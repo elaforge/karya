@@ -10,6 +10,9 @@
 #include "SkeletonDisplay.h"
 
 
+static const bool arrival_beats = true;
+
+
 Color selection_colors[] = {
     Color(0, 0, 255, 90),
     Color(255, 0, 255, 90),
@@ -124,6 +127,7 @@ struct EventInfo {
     TrackPos pos;
     Event event;
     int rank;
+    bool operator<(const EventInfo &o) const { return pos < o.pos; }
 };
 
 
@@ -164,6 +168,16 @@ void t1_set()
     e.push_back(EventInfo(TrackPos(200),
         Event("bg3", TrackPos(8), eventc, style), 1));
 
+    if (arrival_beats) {
+        for (size_t i = 0; i < e.size(); i++) {
+            TrackPos p = e[i].pos;
+            TrackPos dur = e[i].event.duration;
+            e[i].pos = p + dur;
+            e[i].event.duration = -dur;
+        }
+        std::sort(e.begin(), e.end());
+    }
+
     SampleData &s = t1_samples;
     s.push_back(std::make_pair(TrackPos(0), 1));
     s.push_back(std::make_pair(TrackPos(32), .5));
@@ -195,6 +209,8 @@ t1_find_events(TrackPos *start_pos, TrackPos *end_pos,
             break;
         count++;
     }
+    start = 0;
+    count = t1_events.size();
 
     *ret_tps = (TrackPos *) calloc(count, sizeof(TrackPos));
     *ret_events = (Event *) calloc(count, sizeof(Event));
@@ -268,7 +284,8 @@ timeout_func(void *vp)
         t1_find_samples, render_color);
     static EventTrackConfig track1(track_bg, t1_no_events, t1_time_end,
         render_config);
-    static RulerConfig truler(ruler_bg, false, true, true, m44_last_pos);
+    static RulerConfig truler(ruler_bg, false, true, true, arrival_beats,
+        m44_last_pos);
 
     std::cout << n << "------------\n";
     switch (n) {
@@ -305,9 +322,11 @@ main(int argc, char **argv)
     t1_set();
     m44_set();
 
-    RulerConfig ruler(ruler_bg, true, false, false, m44_last_pos);
+    RulerConfig ruler(ruler_bg, true, false, false, arrival_beats,
+        m44_last_pos);
     ruler.marklists = mlists;
-    RulerConfig truler(ruler_bg, false, true, true, m44_last_pos);
+    RulerConfig truler(ruler_bg, false, true, true, arrival_beats,
+        m44_last_pos);
     truler.marklists = mlists;
     DividerConfig divider(Color(0x00ff00));
 

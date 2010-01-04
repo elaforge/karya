@@ -60,9 +60,10 @@ struct RulerConfig {
     // Initializing marklists by assignment is less convenient from c++, but
     // more convenient to serialize from haskell.
     RulerConfig(Color bg, bool show_names, bool use_alpha, bool full_width,
-            TrackPos last_mark_pos) :
+            bool align_to_bottom, TrackPos last_mark_pos) :
         bg(bg), show_names(show_names), use_alpha(use_alpha),
-        full_width(full_width), last_mark_pos(last_mark_pos)
+        full_width(full_width), align_to_bottom(align_to_bottom),
+        last_mark_pos(last_mark_pos)
     {}
     Marklists marklists;
 
@@ -75,6 +76,9 @@ struct RulerConfig {
     bool use_alpha;
     // Always draw marks across the full width of the track.
     bool full_width;
+    // Align bottoms of marks to beats, instead of the top.  Looks good used
+    // with negative duration events (arrival beats).
+    bool align_to_bottom;
 
     TrackPos last_mark_pos;
 };

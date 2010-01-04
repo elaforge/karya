@@ -365,16 +365,29 @@ instance Binary Types.RulerId where
     put (Types.RulerId a) = put a
     get = get >>= \a -> return (Types.RulerId a)
 
-ruler = Ruler.Ruler :: [Ruler.NameMarklist] -> Color -> Bool -> Bool -> Bool
-    -> Ruler.Ruler
 instance Binary Ruler.Ruler where
-    put (Ruler.Ruler a b c d e) = put_version 0
-        >> put a >> put b >> put c >> put d >> put e
+    put (Ruler.Ruler a b c d e f) = put_version 1
+        >> put a >> put b >> put c >> put d >> put e >> put f
     get = do
         v <- get_version
         case v of
-            0 -> get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
-                get >>= \e -> return (ruler a b c d e)
+            0 -> do
+                marklists <- get :: Get [Ruler.NameMarklist]
+                bg <- get :: Get Color
+                show_names <- get :: Get Bool
+                use_alpha <- get :: Get Bool
+                full_width <- get :: Get Bool
+                return $ Ruler.Ruler marklists bg show_names use_alpha False
+                    full_width
+            1 -> do
+                marklists <- get :: Get [Ruler.NameMarklist]
+                bg <- get :: Get Color
+                show_names <- get :: Get Bool
+                use_alpha <- get :: Get Bool
+                align_to_bottom <- get :: Get Bool
+                full_width <- get :: Get Bool
+                return $ Ruler.Ruler marklists bg show_names use_alpha
+                    align_to_bottom full_width
             _ -> version_error "Ruler.Ruler" v
 
 marklist = Ruler.Marklist :: IArray.Array Int Ruler.PosMark -> Ruler.Marklist

@@ -162,8 +162,9 @@ default_ruler = mkruler 10 10
 no_ruler = mkruler 0 0
 ruler_until pos = ruler [Ruler.marklist "until" [(pos, Ruler.null_mark)]]
 
-mkruler marks dist = Ruler.Ruler [marklist marks dist] ruler_bg True False False
-ruler mlists = Ruler.Ruler mlists ruler_bg True False False
+mkruler marks dist = Ruler.Ruler [marklist marks dist] ruler_bg
+    True False False False
+ruler mlists = Ruler.Ruler mlists ruler_bg True False False False
 ruler_bg = Color.rgb 1 0.85 0.5
 marklist n dist =
     Ruler.marklist "meter" (take n $ zip (map TrackPos [0, dist ..]) m44)

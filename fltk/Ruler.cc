@@ -190,8 +190,9 @@ OverlayRuler::draw_marklists()
     // DEBUG("clip: " << clip);
     if (clip.w == 0 || clip.h == 0)
         return;
+    int y = this->y() + 1; // avoid bevel
 
-    TrackPos start = this->zoom.to_trackpos(clip.y - this->y());
+    TrackPos start = this->zoom.to_trackpos(clip.y - y);
     TrackPos end = start + this->zoom.to_trackpos(clip.h);
     start = start + this->zoom.offset;
     end = end + this->zoom.offset;
@@ -219,7 +220,7 @@ OverlayRuler::draw_marklists()
         Marklist::FindMarks find = mlist->find_marks;
         int count = find(&start, &end, &mark_tps, &marks);
         for (int i = 0; i < count; i++) {
-            int offset = y() + zoom.to_pixels(mark_tps[i] - zoom.offset);
+            int offset = y + zoom.to_pixels(mark_tps[i] - zoom.offset);
             draw_mark(offset, marks[i]);
         }
         if (count) {
@@ -238,6 +239,8 @@ void
 OverlayRuler::draw_mark(int offset, const Mark &mark)
 {
     Color c = mark.color;
+    if (this->config.align_to_bottom)
+        offset -= mark.width - 1;
 
     // DEBUG("mark: @" << offset << " r" << mark.rank << " c: " << mark.color);
     if (!this->config.use_alpha)
@@ -283,11 +286,12 @@ void
 OverlayRuler::draw_selections()
 {
     Rect sel_rect;
+    int y = this->y() + 1; // avoid bevel
     for (int i = 0; i < Config::max_selections; i++) {
         const TrackSelection &sel = this->selections[i];
         if (sel.empty())
             continue;
-        int start = y() + this->zoom.to_pixels(sel.low() - this->zoom.offset);
+        int start = y + this->zoom.to_pixels(sel.low() - this->zoom.offset);
         int height = std::max(selection_min_size,
                 this->zoom.to_pixels(sel.high() - sel.low()));
         // Rect intersection is half-open ranges, but rect drawing is inclusive
@@ -304,7 +308,7 @@ OverlayRuler::draw_selections()
         // Darken the the cur pos a bit, and make it non-transparent.
         fl_color(color_to_fl(sel.color.brightness(0.5)));
         fl_line_style(FL_SOLID, 1);
-        int cur = y() + this->zoom.to_pixels(sel.cur - this->zoom.offset);
+        int cur = y + this->zoom.to_pixels(sel.cur - this->zoom.offset);
         fl_line(x() + 2, cur, x() + w() - 2, cur);
         if (sel.is_point() && sel.is_cur_track) {
             // Draw a little bevel thingy.

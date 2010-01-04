@@ -76,11 +76,13 @@ instance Storable Ruler.Ruler where
 
 -- Doesn't poke the marklists, since those are passed separately, since the
 -- real RulerConfig uses an STL vector which has to be serialized in c++.
-poke_ruler rulerp (Ruler.Ruler mlists bg show_names use_alpha full_width) = do
+poke_ruler rulerp (Ruler.Ruler mlists bg show_names use_alpha align_to_bottom
+        full_width) = do
     (#poke RulerConfig, bg) rulerp bg
     (#poke RulerConfig, show_names) rulerp show_names
     (#poke RulerConfig, use_alpha) rulerp use_alpha
     (#poke RulerConfig, full_width) rulerp full_width
+    (#poke RulerConfig, align_to_bottom) rulerp align_to_bottom
     (#poke RulerConfig, last_mark_pos) rulerp (last_mark_pos (map snd mlists))
 
 last_mark_pos mlists = maximum (TrackPos 0 : map Ruler.last_pos mlists)

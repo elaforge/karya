@@ -105,13 +105,11 @@ cb_find_events event_lists startp endp ret_tps ret_events ret_ranks = do
         poke ret_ranks =<< newArray ranks
     return (length evts)
 
+-- | Take 1 from before to get the event overlapping the beginning of the
+-- damaged area and 1 from after in case it has a negative duration.
 find_events :: TrackPos -> TrackPos -> Track.TrackEvents -> [Track.PosEvent]
-find_events start end events = take 1 bwd ++ until_end
-    where
-    -- Take 1 from bwd to get the event overlapping the beginning of the
-    -- damaged area.
-    (bwd, fwd) = Track.split start events
-    until_end = takeWhile ((<end) . fst) fwd
+find_events start end events = Seq.take1 ((<end) . fst) post
+    where (_, post) = Track.split_at_before start events
 
 -- typedef int (*FindSamples)(TrackPos *start_pos, TrackPos *end_pos,
 --         TrackPos **ret_tps, double **ret_samples);

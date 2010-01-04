@@ -294,12 +294,13 @@ copy_marklist "meter" (rid "r1") (rid "r1.overlay")
 
 show_ruler :: RulerId -> Cmd.CmdL String
 show_ruler ruler_id = do
-    (Ruler.Ruler mlists bg show_names use_alpha full_width) <-
+    (Ruler.Ruler mlists bg show_names use_alpha align_to_bottom full_width) <-
         State.get_ruler ruler_id
     return $ show_record
         [ ("bg", show bg)
         , ("show_names", show show_names), ("use_alpha", show use_alpha)
         , ("full_width", show full_width)
+        , ("align_to_bottom", show align_to_bottom)
         , ("marklists", show_list (map fst mlists))
         ]
 

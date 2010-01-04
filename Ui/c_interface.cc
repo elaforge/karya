@@ -177,7 +177,8 @@ insert_track(BlockViewWindow *view, int tracknum,
         // Substitute a complete ruler for the semi-constructed one.
         RulerConfig &partial = *track->ruler;
         RulerConfig config(partial.bg, partial.show_names, partial.use_alpha,
-                partial.full_width, partial.last_mark_pos);
+                partial.full_width, partial.align_to_bottom,
+                partial.last_mark_pos);
         for (int i = 0; i < nmarklists; i++)
             config.marklists.push_back(marklists[i]);
         track->ruler = &config;
@@ -206,7 +207,8 @@ update_track(BlockViewWindow *view, int tracknum,
         // Substitute a complete ruler for the semi-constructed one.
         RulerConfig &partial = *track->ruler;
         RulerConfig config(partial.bg, partial.show_names, partial.use_alpha,
-                partial.full_width, partial.last_mark_pos);
+                partial.full_width, partial.align_to_bottom,
+                partial.last_mark_pos);
         for (int i = 0; i < nmarklists; i++)
             config.marklists.push_back(marklists[i]);
         track->ruler = &config;

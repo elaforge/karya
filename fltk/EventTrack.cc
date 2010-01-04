@@ -114,7 +114,8 @@ void
 EventTrackView::draw()
 {
     Rect draw_area = rect(this);
-    draw_area.h--; // Avoid the one pixel lower bezel.
+    draw_area.y++; // Avoid the one pixel upper and lower bezels;
+    draw_area.h -= 2;
 
     if (this->damage() & FL_DAMAGE_SCROLL) {
         int scroll = zoom.to_pixels(zoom.offset) - zoom.to_pixels(last_offset);
@@ -179,6 +180,7 @@ EventTrackView::draw_area()
     Rect clip = clip_rect(rect(this));
     if (clip.w == 0 || clip.h == 0)
         return;
+    int y = this->y() + 1; // top pixel is a bevel
 
     // TODO It might be cleaner to eliminate bg_box and just call fl_rectf
     // and fl_draw_box myself.
@@ -188,19 +190,17 @@ EventTrackView::draw_area()
     this->draw_child(this->bg_box);
 
     // Code copy and pasted from OverlayRuler::draw_marklists.
-    TrackPos start = this->zoom.to_trackpos(clip.y - this->y());
+    TrackPos start = this->zoom.to_trackpos(clip.y - y);
     TrackPos end = start + this->zoom.to_trackpos(clip.h);
     start = start + this->zoom.offset;
     // Go back far enough to get an event whose text would overlap the damaged
     // area.  This won't work so well if I have different font sizes...
     // but I think I don't have to do that.
-    fl_font(fl_font(), Config::font_size::event);
     start = std::max(TrackPos(0), start - this->zoom.to_trackpos(fl_height()));
     end = end + this->zoom.offset;
     // DEBUG("TRACK CLIP: " << start << "--" << end << ", "
     //         << clip.y << "--" << clip.b());
 
-    // Draw event boxes.
     Event *events;
     TrackPos *event_pos;
     int *ranks;
@@ -208,31 +208,29 @@ EventTrackView::draw_area()
             &start, &end, &event_pos, &events, &ranks);
     // show_found_events(start, end, event_pos, events, count);
 
-    // Draw the event box.  Rank >0 boxes are only drawn if they don't overlap
-    // with a rank 0 one.
-    int previous_bottom = -9999;
+    // Draw event boxes.  Rank >0 boxes are not drawn since I'd have to figure
+    // out overlaps and they're meant to be used with control tracks anyway.
     for (int i = 0; i < count; i++) {
+        if (ranks[i])
+            continue;
         const Event &event = events[i];
         const TrackPos &pos = event_pos[i];
-        int rank = ranks[i];
-        int offset = y() + this->zoom.to_pixels(pos - this->zoom.offset);
+        int offset = y + this->zoom.to_pixels(pos - this->zoom.offset);
         int height = this->zoom.to_pixels(event.duration);
+        int y0 = std::min(offset, offset + height);
+        int y1 = std::max(offset, offset + height);
 
-        if (rank > 0 && offset < previous_bottom)
-            continue;
         Color c = event.color.brightness(this->brightness);
-        if (rank)
-            c = c.brightness(rank_brightness);
         fl_color(color_to_fl(c));
-        fl_rectf(this->x() + 1, offset, this->w() - 2, height);
-        if (rank == 0)
-            previous_bottom = offset + height;
+        fl_rectf(this->x() + 1, y0, this->w() - 2, y1-y0);
     }
 
     if (config.render.style != RenderConfig::render_none)
         this->draw_samples(start, end);
 
     // Draw the upper layer (event start line, text).
+    // Don't let text draw over the precious bevel.
+    fl_push_clip(this->x() + 1, this->y(), this->w() - 2, this->h());
     // Don't use INT_MIN because it overflows too easily.
     Rect previous(x(), -9999, 0, 0);
     int ranked_bottom = -9999;
@@ -240,9 +238,10 @@ EventTrackView::draw_area()
         const Event &event = events[i];
         const TrackPos &pos = event_pos[i];
         int rank = ranks[i];
-        int offset = y() + this->zoom.to_pixels(pos - this->zoom.offset);
+        int offset = y + this->zoom.to_pixels(pos - this->zoom.offset);
         this->draw_upper_layer(offset, event, rank, &previous, &ranked_bottom);
     }
+    fl_pop_clip();
     if (count) {
         for (int i = 0; i < count; i++) {
             if (events[i].text)
@@ -268,8 +267,10 @@ EventTrackView::draw_samples(TrackPos start, TrackPos end)
     double *samples;
     int sample_count = this->config.render.find_samples(&start, &end,
         &sample_pos, &samples);
+    int y = this->y() + 1; // avoid bevel
     // TODO alpha not supported, I'd need a non-portable drawing routine for it.
-    fl_color(color_to_fl(this->config.render.color.brightness(this->brightness)));
+    fl_color(color_to_fl(this->config.render.color.brightness(
+        this->brightness)));
     if (config.render.style == RenderConfig::render_line)
         fl_line_style(FL_SOLID | FL_CAP_ROUND, 2);
     else
@@ -278,14 +279,14 @@ EventTrackView::draw_samples(TrackPos start, TrackPos end)
     int min_x = x() + 2;
     int max_x = x() + w() - 2;
     for (int i = 0; i < sample_count; i++) {
-        int offset = y() + this->zoom.to_pixels(sample_pos[i] - zoom.offset);
+        int offset = y + this->zoom.to_pixels(sample_pos[i] - zoom.offset);
         int next_offset;
         double next_sample;
         if (i+1 < sample_count) {
-            next_offset = y() + zoom.to_pixels(sample_pos[i+1] - zoom.offset);
+            next_offset = y + zoom.to_pixels(sample_pos[i+1] - zoom.offset);
             next_sample = samples[i+1];
         } else {
-            next_offset = y() + h();
+            next_offset = y + h();
             next_sample = samples[i];
         }
         int xpos = floor(::scale(double(min_x), double(max_x),
@@ -333,77 +334,80 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
 
     // A little overlap is ok.
     const static int ok_overlap = 4;
-    if (rank && offset > previous->y)
-        previous->w = 0;
     fl_font(fl_font(), Config::font_size::event);
-    if (event.align_to_bottom) {
-        // TODO draw line at bottom, align text on top of it
-        // bottom = offset + fl_height(); // or something
+    Rect text_rect(x() + 2, 0, 0, 0);
+    if (event.duration < TrackPos(0)) {
+        // Negative duration means text goes above the trigger line.
+        text_rect.y = offset - (fl_height() - fl_descent()) - 2;
     } else {
-        Point pos(0, offset + (fl_height() - fl_descent()));
-        Point size(0, 0);
-        bool draw_text = false;
-        if (event.text) {
-            fl_measure(event.text, size.x, size.y, false);
-            if (rank) {
-                pos.x = (x() + w()) - size.x;
-                // Only display if I won't overlap text at the left or above.
-                if (pos.x > previous->r() - ok_overlap
-                        && offset > *ranked_bottom - ok_overlap)
-                {
-                    draw_text = true;
-                }
-            } else {
-                if (offset > previous->b() - ok_overlap) {
-                    draw_text = true;
-                    pos.x = x() + 2;
-                }
-            }
-        }
+        text_rect.y = offset;
+    }
+    if (event.text) {
+        // params modified through ref args
+        fl_measure(event.text, text_rect.w, text_rect.h, false);
+    }
+    if (rank && text_rect.y >= previous->b() - ok_overlap)
+        previous->w = 0;
 
-        // Draw trigger line.
-        // Don't draw it if it overlaps with the previous.
-        if (!rank || offset > previous->y) {
-            Color trigger_c;
-            if (draw_text)
-                trigger_c = Config::event_trigger_color;
-            else
-                trigger_c = Config::abbreviation_color;
-            if (rank)
-                trigger_c = trigger_c.brightness(rank_brightness);
-            fl_color(color_to_fl(trigger_c));
-            fl_line_style(FL_SOLID, 1);
-            fl_line(x() + 1, offset, x()+w() - 2, offset);
-        }
-
-        if (draw_text) {
-            if (rank)
-                fl_color(color_to_fl(
-                            Color(0, 0, 0).brightness(rank_brightness)));
-            else
-                fl_color(FL_BLACK);
-            fl_draw(event.text, pos.x, pos.y);
-            if (!rank) {
-                if (size.x > w() - 1) {
-                    // If the text is too long it gets truncated with a blue
-                    // block.
-                    fl_color(color_to_fl(Config::abbreviation_color));
-                    fl_rectf(x()+w() - 2, offset, 2, fl_height());
-                } else if (event.text && *event.text
-                        && isspace(event.text[strlen(event.text)-1]))
-                {
-                    // Hightlight a trailing space.
-                    fl_color(FL_RED);
-                    fl_rectf(x() + size.x, offset, 2, fl_height());
-                }
-            }
-        }
+    // The various pixel tweaks in here were determined by zooming in and
+    // squinting.
+    bool draw_text = false;
+    if (event.text) {
         if (rank) {
-            *ranked_bottom = offset + fl_height();
+            text_rect.x = (x() + w()) - text_rect.w - 2;
+            // Only display if I won't overlap text at the left or above.
+            if (text_rect.x > previous->r() - 2
+                    && text_rect.y >= *ranked_bottom)
+            {
+                draw_text = true;
+            }
         } else {
-            previous->y = offset;
-            previous->w = size.x;
-            previous->h = fl_height();
+            if (text_rect.y >= previous->b() - ok_overlap)
+                draw_text = true;
         }
+    }
+
+    // Draw trigger line.
+    // Try to avoid drawing over a primary trigger line with a ranked one.
+    if (!(rank && text_rect.y == previous->y)) {
+        Color trigger_c;
+        if (draw_text || !event.text)
+            trigger_c = Config::event_trigger_color;
+        else
+            trigger_c = Config::abbreviation_color;
+        if (rank)
+            trigger_c = trigger_c.brightness(rank_brightness);
+        fl_color(color_to_fl(trigger_c));
+        fl_line_style(FL_SOLID, 1);
+        fl_line(x() + 1, offset, x()+w() - 2, offset);
+    }
+
+    if (draw_text) {
+        if (rank)
+            fl_color(color_to_fl(
+                        Color(0, 0, 0).brightness(rank_brightness)));
+        else
+            fl_color(FL_BLACK);
+        fl_font(Config::font, Config::font_size::event);
+        fl_draw(event.text, text_rect.x, text_rect.b() - fl_descent());
+        if (!rank) {
+            if (text_rect.w > w() - 4) {
+                // If the text is too long it gets truncated with a blue
+                // block.
+                fl_color(color_to_fl(Config::abbreviation_color));
+                fl_rectf(x()+w() - 3, text_rect.y, 2, text_rect.h);
+            } else if (event.text && *event.text
+                    && isspace(event.text[strlen(event.text)-1]))
+            {
+                // Hightlight a trailing space.
+                fl_color(FL_RED);
+                fl_rectf(text_rect.r(), text_rect.y, 2, fl_height());
+            }
+        }
+    }
+    if (rank) {
+        *ranked_bottom = text_rect.b();
+    } else {
+        *previous = text_rect;
     }
 }
