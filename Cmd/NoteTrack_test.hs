@@ -28,7 +28,7 @@ extract val = error $ "unexpected: " ++ show val
 thread :: [UiTest.TrackSpec] -> Cmd.Cmd -> [Msg.Msg]
     -> ([(String, [Simple.Event])], (Types.TrackNum, TrackPos))
 thread track_specs cmd msgs =
-    extract_sel $ CmdTest.thread ustate CmdTest.cmd_state cmds
+    extract_sel $ CmdTest.thread ustate CmdTest.default_cmd_state cmds
     where
     (_, ustate) = UiTest.run_mkview track_specs
     set_sel = CmdTest.with_sel (Types.point_selection 1 0) (return Cmd.Done)

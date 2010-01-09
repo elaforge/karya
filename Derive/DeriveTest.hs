@@ -102,22 +102,18 @@ e_val_right result = case e_val result of
 e_logs :: Result a -> (Either String a, [String])
 e_logs result = let (val, msgs) = e_val result in (val, map Log.msg_string msgs)
 
-data Event = Event {
-    e_start :: TrackPos
-    , e_dur :: TrackPos
-    , e_string :: String
-    , e_pitch :: Double
-    , e_vel :: Double
-    } deriving (Eq, Show)
+extract :: (Score.Event -> a) -> (Log.Msg -> b) -> Result [Score.Event]
+    -> (Either String [a], [b])
+extract e_event e_log result = (fmap (map e_event) val, map e_log logs)
+    where (val, logs) = e_val result
 
-e_event :: Score.Event -> Event
-e_event e = Event (Score.event_start e) (Score.event_duration e)
-    (Score.event_string e) pitch (Score.initial_velocity e)
-    where
-    Pitch.Degree pitch = Score.initial_pitch e
+extract_events :: (Score.Event -> a) -> Result [Score.Event]
+    -> (Either String [a], [Log.Msg])
+extract_events e_event = extract e_event id
 
-e_events :: (Either String [Score.Event], logs) -> (Either String [Event], logs)
-e_events = first (fmap (map e_event))
+-- | Get standard event info.
+e_event :: Score.Event -> (TrackPos, TrackPos, String)
+e_event e = (Score.event_start e, Score.event_duration e, Score.event_string e)
 
 
 -- * inst
@@ -145,15 +141,3 @@ default_ksmap = Instrument.KeyswitchMap $
         , (["a1"], "a1", 2)
         , (["a2"], "a2", 3)
         ]
-
-{-
-default_derive_tracks :: [UiTest.TrackSpec]
-    -> ([Score.Event], [Log.Msg], [Perform.Event], [Warning.Warning],
-        [Midi.Message], [Warning.Warning])
-default_derive_tracks tracks = default_derive ui_state default_inst_config
-    where (_, ui_state) = UiTest.run_mkstate tracks
-
--- | Fake up a stack and track warp, so I can derive without d_block or
--- d_warp.
-setup_deriver d = Derive.with_stack_block block_id (Derive.start_new_warp >> d)
--}

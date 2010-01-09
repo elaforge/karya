@@ -196,6 +196,7 @@ edit_bindings = concat
     , command_char '5' "step rank 4+0" (step_rank 4 0) -- 16th
     , command_char '6' "step rank 5+1" (step_rank 5 1) -- 32nd
     , command_char '7' "step_rank 6+0" (step_rank 6 0) -- 64th
+    , command_only '`' "invert step" Edit.cmd_invert_step_direction
 
     , bind_char '-' "octave -1" (Edit.cmd_modify_octave (subtract 1))
     , bind_char '=' "octave +1" (Edit.cmd_modify_octave (+1))

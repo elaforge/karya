@@ -1,4 +1,12 @@
 {- | Commands dealing with selection and cursor movement.
+
+As is typical, when it comes to selecting events, the selection represents a
+half-open range.  However, reflecting the orientation of events, a negative
+event at the start of the range won't be included, and a negative event at he
+end of the range will be included.  This is natural for events with negative
+duration, since they are weighted at the end.
+
+This behaviour is actually implemented in the low level "Ui.Track" functions.
 -}
 module Cmd.Selection where
 import Control.Monad
@@ -34,7 +42,7 @@ import qualified App.Config as Config
 -- advance to the next relevant mark.  "next relevant mark" is the next visible
 -- mark in the ruler to the left.  If @extend@ is true, extend the current
 -- selection instead of setting a new point selection.
-cmd_step_selection :: (Monad m) => Types.SelNum -> TimeStep.TimeDirection
+cmd_step_selection :: (Monad m) => Types.SelNum -> TimeStep.Direction
     -> Bool -> Cmd.CmdT m ()
 cmd_step_selection selnum dir extend = do
     view_id <- Cmd.get_focused_view
@@ -269,7 +277,7 @@ mouse_mod msg = do
 
 -- * util
 
-step_from :: (Monad m) => TrackNum -> TrackPos -> TimeStep.TimeDirection
+step_from :: (Monad m) => TrackNum -> TrackPos -> TimeStep.Direction
     -> Cmd.CmdT m TrackPos
 step_from tracknum pos direction = do
     block_id <- Cmd.get_focused_block
@@ -315,57 +323,76 @@ get_insert_any = do
     block_id <- State.block_id_of_view view_id
     return (block_id, Types.sel_start_track sel, Types.sel_start_pos sel)
 
+-- ** select events
 
--- | Get the start and end of the selection, along with the events that fall
--- within it, by track.
-events :: (Monad m) =>
-    Bool -- ^ If true, a point selection will get the event on or before it.
-    -> Cmd.CmdT m [(TrackId, (TrackPos, TrackPos), [Track.PosEvent])]
-events = events_selnum Config.insert_selnum
+-- | Selected events per track.  Gives events previous to, within, and after
+-- the selection.  As usual, previous events are in descending order.  The
+-- event range is also returned, which is not the same as the selection range
+-- because these functions may select more events than lie strictly within the
+-- selection.
+type SelectedAround = [(TrackId, (TrackPos, TrackPos),
+    ([Track.PosEvent], [Track.PosEvent], [Track.PosEvent]))]
+type SelectedEvents = [(TrackId, (TrackPos, TrackPos), [Track.PosEvent])]
 
-events_selnum :: (Monad m) => Types.SelNum
-    -> Bool -- ^ If true, a point selection will get the event on or before it.
-    -> Cmd.CmdT m [(TrackId, (TrackPos, TrackPos), [Track.PosEvent])]
-    -- ^ (track_id, (sel_start, sel_end), events_around)
-events_selnum selnum point_prev = do
-    (_, track_ids, start, end) <- tracks_selnum selnum
-    tracks <- mapM State.get_track track_ids
-    let prev = point_prev && start == end
-    let get_events = if prev then event_before else events_in_range
-        get_range events = case events of
-            [e@(pos, _)] | prev -> (pos, Track.event_end e)
-            _ -> (start, end)
-    return $ do
-        (track_id, track) <- zip track_ids tracks
-        let events = get_events start end track
-        return $ (track_id, get_range events, events)
-    where
-    events_in_range start end track =
-        Track.events_in_range start end (Track.track_events track)
-    event_before start _ track = maybe [] (:[]) $
-        Track.event_before start (Track.track_events track)
+-- | 'events_around' is the default selection behaviour.
+events :: (Monad m) => Cmd.CmdT m SelectedEvents
+events = fmap extract_events events_around
 
--- | A variant of 'selected_events'.  If the selection is a point, the
--- \"within\" list will contain the event at or before the selection.
-events_around :: (Monad m) =>
-    Cmd.CmdT m [(TrackId, [Track.PosEvent], [Track.PosEvent], [Track.PosEvent])]
+events_around :: (Monad m) => Cmd.CmdT m SelectedAround
 events_around = events_around_selnum Config.insert_selnum
 
-events_around_selnum :: (Monad m) => Types.SelNum
-    -> Cmd.CmdT m [(TrackId,
-        [Track.PosEvent], [Track.PosEvent], [Track.PosEvent])]
-    -- ^ (track_id, before, within, after)
-events_around_selnum selnum = do
+-- | Select events whose @pos@ likes within the selection range.
+strict_events_around :: (Monad m) => Types.SelNum -> Cmd.CmdT m SelectedAround
+strict_events_around selnum = do
     (_, track_ids, start, end) <- tracks_selnum selnum
-    (_, sel) <- get_selnum selnum
+    tracks <- mapM State.get_track track_ids
+    return [(track_id, (start, end),
+        Track.split_range start end (Track.track_events track))
+            | (track_id, track) <- zip track_ids tracks]
+
+-- | TODO not really used, delete this?
+overlapping_events_around :: (Monad m) =>
+    Types.SelNum -> Cmd.CmdT m SelectedAround
+overlapping_events_around selnum = do
+    (_, track_ids, start, end) <- tracks_selnum selnum
     forM track_ids $ \track_id -> do
-        track <- State.get_track track_id
-        let split = if Types.sel_is_point sel then Track.split_at_before
-                else Track.split
-            (before, rest) = split start (Track.track_events track)
-            (within, after) = break
-                ((if start==end then (>end) else (>=end))  . fst) rest
-        return (track_id, before, within, after)
+        events <- fmap Track.track_events (State.get_track track_id)
+        let start2 = maybe start fst (Track.event_overlapping start events)
+        let end2 = maybe end fst (Track.event_overlapping end events)
+        return (track_id, (start2, end2), Track.split_range start2 end2 events)
+
+-- | Get events in the selection, but if no events are selected, expand it
+-- to include a previous positive event or a following negative one.  If both
+-- are present, the positive event is favored.  If neither are present, select
+-- nothing.
+--
+-- This is the standard definition of a selection, and should be used in all
+-- standard selection using commands.
+events_around_selnum :: (Monad m) => Types.SelNum -> Cmd.CmdT m SelectedAround
+events_around_selnum selnum = do
+    selected <- strict_events_around selnum
+    return $ do
+        (track_id, range, evts) <- selected
+        let evts2 = expand evts
+        let range2 = expand_range evts2 range
+        return (track_id, range2, evts2)
+    where
+    expand (before, [], after)
+        | take_prev = (drop 1 before, take 1 before, after)
+        | take_next = (before, take 1 after, drop 1 after)
+        | otherwise = (before, [], after)
+        where
+        take_prev = Seq.mhead False Track.event_positive before
+        take_next = Seq.mhead False Track.event_negative after
+    expand selected = selected
+    expand_range (_, [evt], _) _ = (Track.event_min evt, Track.event_max evt)
+    expand_range _ range = range
+
+extract_events :: SelectedAround -> SelectedEvents
+extract_events = map $ \(track_id, range, (_, within, _)) ->
+    (track_id, range, within)
+
+-- ** select tracks
 
 -- | Get selected event tracks along with the selection.  The tracks are
 -- returned in ascending order.  Only event tracks are returned.
@@ -419,11 +446,3 @@ get_selnum selnum = do
 
 get :: (Monad m) => Cmd.CmdT m (ViewId, Types.Selection)
 get = get_selnum Config.insert_selnum
-
-is_point :: (Monad m) => Cmd.CmdT m Bool
-is_point = is_point_selnum Config.insert_selnum
-
-is_point_selnum :: (Monad m) => Types.SelNum -> Cmd.CmdT m Bool
-is_point_selnum selnum = do
-    (_, sel) <- get_selnum selnum
-    return (Types.sel_is_point sel)

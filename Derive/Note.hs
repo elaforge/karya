@@ -74,6 +74,52 @@
 
     - In method mode, it edits the last note event or adds one, just like note
     mode.
+
+
+    Negative duration:
+
+    Arriving beats are implemented with negative duration.  An arriving beat is
+    a beat which arrives at the end of a unit of time, instead of departing
+    from the beginning.  This concept is usually associated with Javanese and
+    Balinese music, but Western music includes arriving patterns such as
+    cadences and grace notes, while Indonesian music includes departing
+    patterns such as the \"bouncing ball note\".
+
+    An arriving note is not a change in the sounding duration of the note, but
+    is a higher level concept.  The harmonic scope of of a departing note
+    extends after the note in the pitch context established by that note, while
+    the scope of an arriving note precedes the sounding of the note, preparing
+    for its arriving.  A note whose harmonic scope precedes the sounding of the
+    note itself is naturally represented as an event with negative duration.
+
+    However, since the physical sounding duration (which of course must always
+    be positive) and harmonic scope of a note no longer coincide, the sounding
+    duration of an arriving note is somewhat more implicit.  The rule is such:
+
+    If the event lines up with the following event then the note will sound
+    until the next note begins:
+
+    @
+        --|--|
+          |++|++...
+    @
+
+    If the event doesn't line up, then the empty space is taken as a rest,
+    and the note is played up until the arrival of the rest:
+
+    @
+        --|   --|
+          |+++  |++...
+    @
+
+    An arriving note followed by a departing note will sound until the
+    beginning of the departing note, and a departing note followed by an
+    arriving note is unchanged.  This logic is implemented by the
+    'process_negative_duration' function.
+
+    Note that final note, if it is an arriving note, has an ambiguous duration
+    (@...@).  This defaults to 'negative_duration_default', but you can specify
+    the duration of the final note easily enough by making it a departing note.
 -}
 module Derive.Note where
 import Control.Monad
@@ -94,6 +140,12 @@ import qualified Derive.TrackLang as TrackLang
 import qualified Perform.PitchSignal as PitchSignal
 
 
+-- | Notes with negative duration have an implicit sounding duration which
+-- depends on the following note.  Meanwhile (and for the last note of the
+-- score), they have this sounding duration.
+negative_duration_default :: TrackPos
+negative_duration_default = 1
+
 data NoteDesc = NoteDesc
     { note_args :: [TrackLang.Val]
     , note_inst :: Maybe Score.Instrument
@@ -112,7 +164,10 @@ d_note_track track_id = do
     let pos_events = Track.event_list (Track.track_events track)
     (ndesc, calls) <- parse_track_title (Track.track_title track)
     events <- derive_notes =<< parse_events ndesc pos_events
-    foldM call events calls
+    -- TODO won't this run redundantly for subderives?  It should be idempotent
+    -- but still its inefficient.  Since compile is run for each block, it
+    -- still happens once per block it can't go there.
+    foldM call (process_negative_duration events) calls
 
 call :: [Score.Event] -> Call -> Derive.EventDeriver
 call events (Call call_id args) = do
@@ -228,20 +283,27 @@ derive_note pos event (NoteDesc args inst attrs) = do
     -- TODO when signals are lazy this will be inefficient.  I need to come
     -- up with a way to guarantee such accesses are increasing and let me gc
     -- the head.
+    let dur = Event.event_duration event
     start <- Derive.local_to_global pos
-    end <- Derive.local_to_global (pos + Event.event_duration event)
+    end <- if dur < 0
+        then return (start + negative_duration_default)
+        else Derive.local_to_global (pos + dur)
+    let neg_dur = if dur < 0 then abs dur else 0
     -- Log.debug $ show (Event.event_string event) ++ ": local global "
     --     ++ show ((pos, start), (pos + Event.event_duration event, end))
     -- Derive.Warp wp stretch shift <- Derive.gets Derive.state_warp
     -- Log.debug $ "warp " ++ (show wp)
-    st <- Derive.get
 
+    st <- Derive.get
     case args of
+        _ | dur == 0 -> do
+            Derive.warn "omitting note with 0 duration"
+            return []
         -- TODO when signals are lazy I should drop the heads of the control
         -- signals so they can be gced.
-        [] -> return [Score.Event start (end-start) (Event.event_text event)
-            (Derive.state_controls st) (Derive.state_pitch st)
-            (Derive.state_stack st) inst attrs]
+        [] -> return [Score.Event start (end-start) neg_dur
+            (Event.event_text event) (Derive.state_controls st)
+            (Derive.state_pitch st) (Derive.state_stack st) inst attrs]
         _ -> do
             Call sub args <- either (Derive.throw . ("derive_note: " ++))
                 return (parse_call args)
@@ -251,8 +313,13 @@ derive_note pos event (NoteDesc args inst attrs) = do
             -- TODO pass args
             when (not (null args)) $
                 Derive.throw $ "args not supported yet: " ++ show args
+            -- Derivation happens according to the extent of the note, not the
+            -- duration.  This is how negative duration events begin deriving
+            -- before arriving at the trigger.
+            let (begin, end) = (Track.event_min (pos, event),
+                    Track.event_max (pos, event))
             Derive.d_sub_derive [] $ Derive.with_instrument inst attrs $
-                d_sub pos (Event.event_duration event) sub
+                d_sub begin (end - begin) sub
 
 -- | In a note track, the pitch signal for each note ends when the next note
 -- begins.  Otherwise, it looks like each note changes pitch when the next note
@@ -300,6 +367,29 @@ d_sub start dur call_id = do
 -- work around it though by appending a comment dummy event.
 get_block_dur :: (State.UiStateMonad m) => BlockId -> m TrackPos
 get_block_dur = State.event_end
+
+
+-- * post process
+
+-- | Process out negative duration notes as described in module doc.
+process_negative_duration :: [Score.Event] -> [Score.Event]
+process_negative_duration = map go . Seq.zip_next
+    where
+    go (cur, Nothing) = cur
+    go (cur, Just next)
+            -- Departing notes are not changed.
+        | ndur cur == 0 = cur
+            -- Arriving followed by arriving with a rest in between extends to
+            -- the arrival of the rest.
+        | ndur next > 0 && rest > 0 = set_dur rest
+            -- Arriving followed by arriving with no rest, or an arriving note
+            -- followed by a departing note will sound until the next note.
+        | otherwise = set_dur (pos next - pos cur)
+        where
+        ndur = Score.event_negative_duration
+        pos = Score.event_start
+        rest = pos next - ndur next - pos cur
+        set_dur dur = cur { Score.event_duration = dur }
 
 
 -- | Make an Id from a string, relative to the current ns if it doesn't already

@@ -535,8 +535,9 @@ with_stack_track track_id = modify_stack "with_stack_track" $
 
 with_stack_pos :: (Monad m) => TrackPos -> TrackPos -> DeriveT m a
     -> DeriveT m a
-with_stack_pos start dur = modify_stack "with_stack_pos" $
-    \(block_id, track_id, _) -> (block_id, track_id, Just (start, start + dur))
+with_stack_pos pos dur = modify_stack "with_stack_pos" $
+    \(block_id, track_id, _) -> (block_id, track_id, Just (start, end))
+    where (start, end) = (min pos (pos+dur), max pos (pos+dur))
 
 modify_stack :: (Monad m) => String -> (Warning.StackPos -> Warning.StackPos)
     -> DeriveT m a -> DeriveT m a

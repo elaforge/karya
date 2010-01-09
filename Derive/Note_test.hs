@@ -17,6 +17,7 @@ import qualified Derive.Note as Note
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
+import qualified Perform.Pitch as Pitch
 import qualified Perform.Warning as Warning
 
 
@@ -38,7 +39,7 @@ test_parse_note_dec = do
 -- * derivers
 
 test_d_note_track = do
-    let run title evts = nostack $
+    let run title evts = extract_nostack $
             DeriveTest.derive_tracks_tempo [(title, evts)]
 
     equal (run ">i" []) (Right [], [])
@@ -55,7 +56,8 @@ test_d_note_track = do
     equal logs []
 
 test_d_sub = do
-    let run evts = extract $ DeriveTest.derive_block ui_state (UiTest.bid "b1")
+    let run evts = extract_common $
+            DeriveTest.derive_block ui_state (UiTest.bid "b1")
             where
             (_, ui_state) = UiTest.run State.empty $ do
                 UiTest.mkstate "sub" [(">", [(0, 1, "--sub")])]
@@ -89,9 +91,6 @@ test_echo = do
             DeriveTest.perform DeriveTest.default_inst_config events
 
     -- The MIDI test is probably enough.
-    -- let extract e = (Score.event_start e,
-    --         Map.assocs (Score.event_controls e), Score.event_pitch e)
-    -- pprint (map extract events)
     equal logs []
     equal convert_warns []
     equal perf_warns []
@@ -99,13 +98,12 @@ test_echo = do
         (map (uncurry Midi.NoteOn) [(60, 100), (62, 100), (60, 40), (62, 40)])
 
 test_tick = do
-    let derive evts tracks = (extracted, logs)
-            where
-            (val, logs) = DeriveTest.e_val $ DeriveTest.derive_tracks_tempo
-                ((DeriveTest.default_inst_title++" | tick .5", evts) : tracks)
-            extracted = fmap (map (e_evt . DeriveTest.e_event)) val
-            e_evt e = (DeriveTest.e_start e, DeriveTest.e_dur e,
-                DeriveTest.e_pitch e, DeriveTest.e_vel e)
+    let extract = DeriveTest.extract_events $ \e ->
+            (Score.event_start e, Score.event_duration e, pitch e,
+                Score.initial_velocity e)
+        pitch e = let Pitch.Degree p = Score.initial_pitch e in p
+    let derive evts tracks = extract $ DeriveTest.derive_tracks_tempo
+            ((DeriveTest.default_inst_title++" | tick .5", evts) : tracks)
     let vel = Derive.default_velocity
 
     let (_evts, logs) = derive
@@ -135,11 +133,9 @@ test_tick = do
         ]
 
 test_calls = do
-    let simple_evt val = fmap (map f) val
-            where f (start, dur, text, _, _, _) = (start, dur, text)
-    let run title tracks = simple_evt $ fst $ nostack $
-            DeriveTest.derive_tracks_tempo
-                ((title, [(0, 1, "--1"), (1, 1, "--2")]) : tracks)
+    let extract = DeriveTest.extract_events DeriveTest.e_event
+    let run title tracks = fst $ extract $ DeriveTest.derive_tracks_tempo
+            ((title, [(0, 1, "--1"), (1, 1, "--2")]) : tracks)
 
     left_like (run ">i | call | 42 bad parse" [])
         "non-function in function position"
@@ -165,26 +161,42 @@ test_calls = do
     equal (run ">i | delay %delay,1 | delay %delay,1" []) $
         Right [(2, 1, "--1"), (3, 1, "--2")]
 
+test_negative_duration = do
+    let extract = DeriveTest.extract
+            (\e -> (DeriveTest.e_event e, Score.event_negative_duration e))
+            Log.msg_string
+    let run evts = extract $ DeriveTest.derive_tracks_tempo
+            [(DeriveTest.default_inst_title, evts)]
 
--- TODO use DeriveTest.Event instead
+    let deflt = Note.negative_duration_default
+    -- negative dur shows up, events get lined up
+    equal (run [(1, -1, "--1"), (3, -2, "--2")])
+        (Right [((1, 2, "--1"), 1), ((3, deflt, "--2"), 2)], [])
+    -- rest
+    equal (run [(1, -1, "--1"), (3, -1, "--2")])
+        (Right [((1, 1, "--1"), 1), ((3, deflt, "--2"), 1)], [])
+    -- 0 dur is omitted
+    equal (run [(1, -1, "--1"), (3, 0, "--2")])
+        (Right [((1, 1, "--1"), 1)], ["compile: omitting note with 0 duration"])
+
+
 type Extracted =
     (TrackPos, TrackPos, String, Warning.Stack, Maybe Score.Instrument,
         Score.Attributes)
 
-extract :: DeriveTest.Result [Score.Event]
+extract_common :: DeriveTest.Result [Score.Event]
     -> (Either String [Extracted], [(String, Maybe Warning.Stack)])
-extract result = (fmap (map extract_event) err_events, map extract_log logs)
+extract_common = DeriveTest.extract extract_event extract_log
     where
-    (err_events, logs) = DeriveTest.e_val result
     extract_log msg = (Log.msg_string msg, Log.msg_stack msg)
     -- | Events aren't in Eq, so extract the bits I want to test.
     extract_event e = (Score.event_start e, Score.event_duration e,
         Score.event_string e, Score.event_stack e, Score.event_instrument e,
         Score.event_attributes e)
 
-nostack :: DeriveTest.Result [Score.Event]
+extract_nostack :: DeriveTest.Result [Score.Event]
     -> (Either String [Extracted], [String])
-nostack = f . extract
+extract_nostack = f . extract_common
     where
     f (result, logs) =
         (fmap (map (\(a, b, c, _, d, e) -> (a, b, c, [], d, e))) result,

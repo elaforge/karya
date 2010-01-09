@@ -15,6 +15,7 @@ import qualified Ui.State as State
 import qualified Ui.Track as Track
 
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Edit as Edit
 import qualified Cmd.Selection as Selection
 import qualified Cmd.PitchTrack as PitchTrack
 import qualified Derive.Schema.Default as Default
@@ -23,11 +24,26 @@ import qualified Derive.Control as Control
 import qualified Perform.Pitch as Pitch
 
 
+-- * invert
+
+-- TODO these should invert position of control events too
+to_negative, to_positive :: Cmd.CmdL ()
+to_negative = Edit.map_selection_sorted $ \evt ->
+    Just $ if Track.event_negative evt then evt else negate_event evt
+to_positive = Edit.map_selection_sorted $ \evt ->
+    Just $ if Track.event_positive evt then evt else negate_event evt
+
+negate_event (pos, evt) =
+    (pos + Event.event_duration evt, Event.modify_duration negate evt)
+
+-- * to_relative
+
+-- TODO this should use map_track
 -- | Given a base note, convert absolute pitch events to relative.
 to_relative :: String -> Cmd.CmdL ()
 to_relative note_s = do
-    track_events <- Selection.events True
-    let track_ids = map (\(a, _, _) -> a) track_events
+    track_events <- Selection.events
+    let track_ids = [track_id | (track_id, _, _) <- track_events]
     titles <- fmap (map Track.track_title) (mapM State.get_track track_ids)
     let scales = map Default.title_to_scale titles
     let tracks = [(track_id, scale, events)

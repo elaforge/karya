@@ -89,19 +89,34 @@ insert_event text dur = do
 cmd_set_duration :: (Monad m) => Cmd.CmdT m ()
 cmd_set_duration = do
     (_, sel) <- Selection.get
-    modify_events_prev $ \pos event ->
+    modify_events $ \pos event ->
         Event.set_duration (snd (Types.sel_range sel) - pos) event
 
 -- | If there is a following event, delete it and extend this one to its end.
 cmd_join_events :: (Monad m) => Cmd.CmdT m ()
 cmd_join_events = mapM_ process =<< Selection.events_around
     where
-    process (track_id, _, ((pos1, evt1):_), ((pos2, evt2):_)) = do
-        let end = Track.event_end (pos2, evt2)
-        State.remove_events track_id pos1 end
-        State.insert_events track_id
-            [(pos1, Event.set_duration (end - pos1) evt1)]
+        -- If I only selected one, join with the next.  Otherwise, join
+        -- selected events.
+    process (track_id, _, (_, [evt1], (evt2:_))) = join track_id evt1 evt2
+    process (track_id, _, (_, evts@(_ : _ : _), _)) =
+        join track_id (head evts) (last evts)
     process _ = return ()
+    join track_id (pos1, evt1) (pos2, evt2) =
+        -- Yes, this deletes any "backwards" events in the middle, but that
+        -- should be ok.
+        case (Event.is_negative evt1, Event.is_negative evt2) of
+            (False, False) -> do
+                let end = Track.event_end (pos2, evt2)
+                State.remove_events track_id pos1 end
+                State.insert_event track_id pos1
+                    (Event.set_duration (end - pos1) evt1)
+            (True, True) -> do
+                let start = Track.event_end (pos1, evt1)
+                State.remove_events track_id start pos2
+                State.insert_event track_id pos2
+                    (Event.set_duration (start - pos2) evt2)
+            _ -> return () -- no sensible way to join these
 
 -- | Insert empty space at the beginning of the selection for the length of
 -- the selection, pushing subsequent events forwards.  If the selection is
@@ -110,13 +125,33 @@ cmd_insert_time :: (Monad m) => Cmd.CmdT m ()
 cmd_insert_time = do
     (tracknums, track_ids, start, end) <- Selection.merged_tracks
     (start, end) <- expand_range tracknums start end
-    when (start /= end) $ forM_ track_ids $ \track_id -> do
-        -- lengthen an overlapping event
-        modify_overlapping track_id start $ \pos evt ->
-            let dur = Event.event_duration evt
-            in Just $ if pos == start then evt
-                else Event.set_duration (dur + (end-start)) evt
-        move_track_events start (end-start) track_id
+    when (end > start) $ forM_ track_ids $ \track_id -> do
+        track <- State.get_track track_id
+        case Track.split_at_before start (Track.track_events track) of
+            (_, []) -> return ()
+            (_, evts@((pos, _):_)) -> do
+                track_end <- State.track_end track_id
+                State.remove_events track_id (min pos start) track_end
+                State.insert_sorted_events track_id
+                    (map (stretch start end) evts)
+
+-- TODO both stretch and shrink could be faster by just mapping the shift
+-- once the overlapping events are done, but it's probably not worth it.
+stretch :: TrackPos -> TrackPos -> Track.PosEvent -> Track.PosEvent
+stretch start end event@(pos, evt)
+    | Event.is_positive evt = stretchp
+    | otherwise = stretchm
+    where
+    shift = end - start
+    stretchp
+        | pos < start && Track.event_end event <= start = event
+        | pos < start = (pos, Event.modify_duration (+shift) evt)
+        | otherwise = (pos + shift, evt)
+    stretchm
+        | pos <= start = event
+        | Track.event_end event < start =
+            (pos + shift, Event.modify_duration (subtract shift) evt)
+        | otherwise = (pos + shift, evt)
 
 -- | Remove the notes under the selection, and move everything else back.  If
 -- the selection is a point, delete one timestep.
@@ -124,20 +159,36 @@ cmd_delete_time :: (Monad m) => Cmd.CmdT m ()
 cmd_delete_time = do
     (tracknums, track_ids, start, end) <- Selection.merged_tracks
     (start, end) <- expand_range tracknums start end
-    when (start /= end) $ forM_ track_ids $ \track_id -> do
-        -- shorten an overlapping event
-        modify_overlapping track_id start $ \pos evt ->
-            let shorten = min end (Track.event_end (pos, evt)) - start
-                dur = Event.event_duration evt
-            in Just $ Event.set_duration (dur - shorten) evt
-        deleted <- State.get_events track_id start end
-        State.remove_events track_id start end
-        move_track_events start (-(end-start)) track_id
-        -- Reinsert the deleted events, if they only partially overlapped the
-        -- deleted area.
-        State.insert_sorted_events track_id $
-            map (shift (start-end)) (clip_until end deleted)
-    where shift val (pos, evt) = (pos + val, evt)
+    when (end > start) $ forM_ track_ids $ \track_id -> do
+        track <- State.get_track track_id
+        case Track.split_at_before start (Track.track_events track) of
+            (_, []) -> return ()
+            (_, evts@((pos, _):_)) -> do
+                track_end <- State.track_end track_id
+                State.remove_events track_id (min pos start) track_end
+                State.insert_sorted_events track_id
+                    (Seq.map_maybe (shrink start end) evts)
+
+shrink :: TrackPos -> TrackPos -> Track.PosEvent -> Maybe Track.PosEvent
+shrink start end event@(pos, evt)
+    | Event.is_positive evt = shrinkp
+    | otherwise = shrinkm
+    where
+    shift = end - start
+    shrinkp
+        | pos < start && Track.event_end event <= start = Just event
+        | pos < start =
+            Just (pos, Event.modify_duration
+                (subtract (min (Track.event_end event - start) shift)) evt)
+        | pos < end = Nothing
+        | otherwise = Just (pos - shift, evt)
+    shrinkm
+        | pos <= start = Just event
+        | pos <= end = Nothing
+        | Track.event_end event < end =
+            Just (pos - shift, Event.modify_duration
+                (+ min shift (end - Track.event_end event)) evt)
+        | otherwise = Just (pos - shift, evt)
 
 clip_until :: TrackPos -> [Track.PosEvent] -> [Track.PosEvent]
 clip_until until events = Seq.map_maybe f events
@@ -147,18 +198,6 @@ clip_until until events = Seq.map_maybe f events
         | pos >= until = Just pos_evt
         | otherwise = Just $ (until,
             Event.set_duration (Event.event_duration evt - (until-pos)) evt)
-
-modify_overlapping :: (Monad m) => TrackId -> TrackPos
-    -> (TrackPos -> Event.Event -> Maybe Event.Event) -> Cmd.CmdT m ()
-modify_overlapping track_id pos f = do
-    track <- State.get_track track_id
-    case Track.event_before pos (Track.track_events track) of
-        Just (evt_pos, evt) | Track.event_end (evt_pos, evt) > pos -> do
-            State.map_events track_id evt_pos evt_pos modify
-        _ -> return ()
-    where
-    modify [(pos, evt)] = maybe [] ((:[]) . ((,) pos)) (f pos evt)
-    modify _ = []
 
 -- | If the range is a point, then expand it to one timestep.
 expand_range :: (Monad m) => [TrackNum] -> TrackPos -> TrackPos
@@ -172,26 +211,27 @@ expand_range (tracknum:_) start end
     | otherwise = return (start, end)
 expand_range [] start end = return (start, end)
 
+-- * modify (move to another module?)
+
 -- | Move everything at or after @start@ by @shift@.
 move_track_events :: (State.UiStateMonad m) =>
     TrackPos -> TrackPos -> TrackId -> m ()
-move_track_events start shift track_id = do
-    track <- State.get_track track_id
-    let shifted = move_events start shift (Track.track_events track)
-    State.set_events track_id shifted
+move_track_events start shift track_id = State.modify_track_events track_id $
+    \events -> move_events start shift events
 
--- | All events starting at a point to the end are shifted by the given amount.
+-- | All events starting at and after a point to the end are shifted by the
+-- given amount.
 move_events :: TrackPos -> TrackPos -> Track.TrackEvents -> Track.TrackEvents
-move_events start shift events = merged
+move_events point shift events = merged
     where
     -- If the last event has 0 duration, the selection will not include it.
     -- Ick.  Maybe I need a less error-prone way to say "select until the end
     -- of the track"?
     end = Track.time_end events + 1
     shifted = map (\(pos, evt) -> (pos+shift, evt))
-        (Track.events_after start events)
+        (Track.events_after point events)
     merged = Track.insert_sorted_events shifted
-        (Track.remove_events start end events)
+        (Track.remove_events point end events)
 
 -- | Modify event durations by applying a function to them.  0 durations
 -- are passed through, so you can't accidentally give control events duration.
@@ -200,26 +240,43 @@ cmd_modify_dur f = modify_events $ \_ evt ->
     Event.set_duration (apply (Event.event_duration evt)) evt
     where apply dur = if dur == TrackPos 0 then dur else f dur
 
--- | Modify previous event if the selection is a point, and all events under
--- the selection if it's a range.  For efficiency, this can't move the events.
+-- | Modify events in the selection.  For efficiency, this can't move the
+-- events.
 modify_events :: (Monad m) => (TrackPos -> Event.Event -> Event.Event)
     -> Cmd.CmdT m ()
 modify_events f = do
-    track_events <- Selection.events True
-    forM_ track_events $ \(track_id, (start, end), pos_events) -> do
-        let insert = [(pos, f pos evt) | (pos, evt) <- pos_events]
-        State.remove_events track_id start end
+    track_events <- Selection.events
+    forM_ track_events $ \(track_id, _, events) -> do
+        let insert = [(pos, f pos evt) | (pos, evt) <- events]
         State.insert_sorted_events track_id insert
 
--- | This is like 'modify_events' but a point selection always matches the
--- previous event.
-modify_events_prev :: (Monad m) => (TrackPos -> Event.Event -> Event.Event)
+map_selection_sorted :: (Monad m) => (Track.PosEvent -> Maybe Track.PosEvent)
     -> Cmd.CmdT m ()
-modify_events_prev f = do
-    track_events <- Selection.events_around
-    forM_ track_events $ \(track_id, _, within, _) -> do
-        let insert = [(pos, f pos evt) | (pos, evt) <- within]
-        State.insert_sorted_events track_id insert
+map_selection_sorted f = do
+    selected <- Selection.events
+    forM_ selected $ \(track_id, (start, end), events) -> do
+        State.remove_events track_id start end
+        State.insert_sorted_events track_id (Seq.map_maybe f events)
+
+map_selection :: (Monad m) => (Track.PosEvent -> Maybe Track.PosEvent)
+    -> Cmd.CmdT m ()
+map_selection f = do
+    selected <- Selection.events
+    forM_ selected $ \(track_id, (start, end), events) -> do
+        State.remove_events track_id start end
+        State.insert_events track_id (Seq.map_maybe f events)
+
+map_track_sorted :: (Monad m) => (Track.PosEvent -> Maybe Track.PosEvent)
+    -> TrackId -> Cmd.CmdT m ()
+map_track_sorted f track_id = State.modify_track_events track_id $
+    Track.from_sorted_events . Seq.map_maybe f . Track.event_list
+
+map_track :: (Monad m) => (Track.PosEvent -> Maybe Track.PosEvent)
+    -> TrackId -> Cmd.CmdT m ()
+map_track f track_id = State.modify_track_events track_id $
+    Track.from_events . Seq.map_maybe f . Track.event_list
+
+-- * end modify
 
 -- | If the insertion selection is a point, clear any event under it.  If it's
 -- a range, clear all events within its half-open extent.
@@ -236,16 +293,32 @@ cmd_meter_step match = do
     Cmd.modify_state $ \st -> st { Cmd.state_step = step }
     sync_step_status
 
+cmd_invert_step_direction :: (Monad m) => Cmd.CmdT m ()
+cmd_invert_step_direction = do
+    Cmd.modify_state $ \st -> st { Cmd.state_note_direction =
+        invert (Cmd.state_note_direction st) }
+    sync_step_status
+    where
+    invert TimeStep.Advance = TimeStep.Rewind
+    invert TimeStep.Rewind = TimeStep.Advance
+
 sync_step_status :: (Monad m) => Cmd.CmdT m ()
 sync_step_status = do
-    step <- Cmd.gets Cmd.state_step
-    Cmd.set_global_status "step" (show_step step)
+    st <- Cmd.get_state
+    Cmd.set_global_status "step" $
+        show_step (Cmd.state_step st) (Cmd.state_note_direction st)
 
-show_step (TimeStep.Absolute pos) = "abs:" ++ show pos
-show_step (TimeStep.UntilMark mlists match) =
-    "until:" ++ show_marklists mlists ++ "/" ++ show_match match
-show_step (TimeStep.MarkDistance mlists match) =
-    "dist:" ++ show_marklists mlists ++ "/" ++ show_match match
+show_step :: TimeStep.TimeStep -> TimeStep.Direction -> String
+show_step step direction = dir_s : case step of
+    TimeStep.Absolute pos -> "abs:" ++ show pos
+    TimeStep.UntilMark mlists match ->
+        "until:" ++ show_marklists mlists ++ "/" ++ show_match match
+    TimeStep.MarkDistance mlists match ->
+        "dist:" ++ show_marklists mlists ++ "/" ++ show_match match
+    where
+    dir_s = case direction of
+        TimeStep.Advance -> '+'
+        TimeStep.Rewind -> '-'
 
 show_match :: TimeStep.MarkMatch -> String
 show_match (TimeStep.MatchRank rank skips) =

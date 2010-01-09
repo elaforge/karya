@@ -38,6 +38,7 @@ import qualified Util.Seq as Seq
 
 import Ui
 import qualified Ui.Block as Block
+import qualified Ui.Event as Event
 import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Ui.Track as Track
@@ -177,6 +178,9 @@ selection_sub_state sel = do
                 (Block.set_rid State.no_ruler (Block.tracklike_id track))
                 (Block.track_width track)
 
+-- | Make a copy of the track with only the events in the selection shifted
+-- by the offset of the selection.
+events_in_sel :: Types.Selection -> Track.Track -> Track.Track
 events_in_sel sel track =
     track { Track.track_events =
         Track.event_map_asc [(pos-start, evt) | (pos, evt) <- events] }
@@ -190,10 +194,10 @@ state_to_namespace :: (State.UiStateMonad m) =>
     State.State -> Id.Namespace -> m ()
 state_to_namespace state ns = do
     destroy_namespace ns
-    state' <- set_namespace ns state
+    state2 <- set_namespace ns state
     global_st <- State.get
     merged <- State.throw_either "merge states"
-        (State.merge_states global_st state')
+        (State.merge_states global_st state2)
     State.put merged
 
 -- | Set all the IDs in the state to be in the given namespace, except rulers.
@@ -232,7 +236,8 @@ destroy_namespace ns = do
 
 -- | Get the info necessary to paste from the clipboard: start and end pos,
 -- the tracks in the destination selection, and the events from the clipboard
--- grouped by track.  The clipboard events are clipped to start--end.
+-- grouped by track.  The clipboard events are clipped to start--end and
+-- shifted into the paste range.
 paste_info :: (Monad m) =>
     Cmd.CmdT m (TrackPos, TrackPos, [TrackId], [[Track.PosEvent]])
 paste_info = do
@@ -241,12 +246,22 @@ paste_info = do
     clip_events <- mapM (clip_track_events start end) clip_track_ids
     return (start, end, track_ids, clip_events)
 
+clip_track_events :: (State.UiStateMonad m) =>
+    TrackPos -> TrackPos -> TrackId -> m [Track.PosEvent]
 clip_track_events start end track_id = do
     track <- State.get_track track_id
-    let events = Track.clip_to_range
-            (TrackPos 0) (end-start) (Track.track_events track)
+    let events = clip_events (end-start)
+            (Track.event_list (Track.track_events track))
         shifted = map (\(pos, evt) -> (pos+start, evt)) events
     return shifted
+
+clip_events :: TrackPos -> [Track.PosEvent] -> [Track.PosEvent]
+clip_events _ [] = []
+clip_events point (event@(pos, evt):events)
+    | pos >= point = []
+    | Track.event_end event > point =
+        [(pos, Event.modify_duration (\d -> min d (point - pos)) evt)]
+    | otherwise = event : clip_events point events
 
 -- | Get the destination and clip tracks involved in a paste, along with the
 -- paste selection.

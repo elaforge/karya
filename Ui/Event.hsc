@@ -49,7 +49,7 @@ data Event = Event {
 
 -- | Manual event constructor.
 event :: String -> TrackPos -> Event
-event text dur = Event (Text.pack text) (max (TrackPos 0) dur) default_style
+event text dur = Event (Text.pack text) dur default_style
 
 event_string :: Event -> String
 event_string = Text.unpack . event_text
@@ -58,7 +58,17 @@ set_string :: String -> Event -> Event
 set_string s evt = evt { event_text = Text.pack s }
 
 set_duration :: TrackPos -> Event -> Event
-set_duration dur event = event { event_duration = max 0 dur }
+set_duration dur event = event { event_duration = dur }
+
+modify_duration :: (TrackPos -> TrackPos) -> Event -> Event
+modify_duration f evt = set_duration (f (event_duration evt)) evt
+
+-- | 0 is considered both positive and negative because they're ambiguous.
+-- For example, Track._split_range which includes them in both ends.
+is_positive, is_negative :: Event -> Bool
+is_positive = (>=0) . event_duration
+is_negative = (<=0) . event_duration
+
 
 default_style :: StyleId
 default_style = StyleId 0

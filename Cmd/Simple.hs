@@ -54,7 +54,7 @@ simplify_track track_id track =
 
 dump_selection :: Cmd.CmdL [(TrackId, [Event])]
 dump_selection = do
-    track_events <- Selection.events True
+    track_events <- Selection.events
     return [(track_id, map event events)
         | (track_id, _, events) <- track_events]
 

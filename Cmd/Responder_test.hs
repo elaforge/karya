@@ -57,7 +57,7 @@ time_op op = do
 {-
 -- test_keydown = do
     let (_, ustate) = UiTest.run_mkview []
-    let cstate = CmdTest.cmd_state
+    let cstate = CmdTest.default_cmd_state
     let extract ([((res, cstate), _)], _) =
             (res2, Map.keys (Cmd.state_keys_down cstate))
             where
@@ -74,7 +74,7 @@ time_op op = do
 
 with_inst msgs = do
     let (_, ustate) = UiTest.run_mkview [(">i0", [])]
-    let cstate = CmdTest.cmd_state
+    let cstate = CmdTest.default_cmd_state
     let (ustate2, cstate2) = CmdTest.set_insts ["i0"] ustate cstate
     run_msgs ustate2 cstate2 msgs
 

@@ -7,15 +7,33 @@ import qualified Ui.Track as Track
 
 -- TODO improve tests
 
+test_split_range = do
+    let extract (a, b, c) = (map fst a, map fst b, map fst c)
+    let f start end evts = extract $ Track.split_range start end
+            (track_events [(p, d, show p) | (p, d) <- evts])
+    equal (f 1 2 [(0, 1), (1, 1), (2, 1), (3, 1)])
+        ([0], [1], [2, 3])
+    equal (f 1 2 [(0, 0.5), (1, -0.5), (2, 1), (3, 1)])
+        ([1, 0], [], [2, 3])
+    equal (f 1 2 [(0, 1), (1, 0.5), (2, -0.5), (3, 1)])
+        ([0], [1, 2], [3])
+    equal (f 1 1 [(1, 1)])
+        ([], [], [1])
+    equal (f 1 1 [(1, -1)])
+        ([1], [], [])
+    -- 0 dur events will be included in both ends.
+    equal (f 1 2 [(0, 0), (1, 0), (2, 0), (3, 0)])
+        ([0], [1, 2], [3])
+
 
 test_split_at_before = do
     let e1 = track_events [(0, 1, "0"), (1, 1, "1"), (2, 1, "2")]
     let f pos = let (pre, post) = Track.split_at_before pos e1
-            in (map extract_text pre, map extract_text post)
-    equal (f 0) ([], ["0", "1", "2"])
-    equal (f 0.5) ([], ["0", "1", "2"])
-    equal (f 1) (["0"], ["1", "2"])
-    equal (f 1.5) (["0"], ["1", "2"])
+            in (map fst pre, map fst post)
+    equal (f 0) ([], [0, 1, 2])
+    equal (f 0.5) ([], [0, 1, 2])
+    equal (f 1) ([0], [1, 2])
+    equal (f 1.5) ([0], [1, 2])
 
 test_insert_events = do
     let f evts0 evts1 = extract $
@@ -27,9 +45,6 @@ test_insert_events = do
         [(0, 2, "a0"), (2, 2, "b0"), (4, 2, "a1"), (6, 4, "b1")]
     -- Inserting overlapping events are clipped.
     equal (f [(0, 4, "a0"), (2, 4, "a1")] []) [(0, 2, "a0"), (2, 4, "a1")]
-    -- Negative durations are clipped to 0.
-    equal (f [(0, -4, "a0")] []) [(0, 0, "a0")]
-
     -- If the start is coincident, the existing events are replaced.
     equal (f [(0, 1, "a"), (2, 1, "b")] [(0, 0, "1"), (2, 0, "2")])
         [(0, 1, "a"), (2, 1, "b")]
@@ -40,23 +55,41 @@ test_insert_events = do
         [(0, 0, "0"), (0.25, 0, "0.25"), (1, 0, "1"), (1.25, 0, "1.25"),
             (2, 0, "2")]
 
-test_remove_events = do
-    let te1 = track_events [(0, 0, "0"), (16, 0, "16")]
-    -- able to remove 0 dur events
-    equal (extract $ Track.remove_event (TrackPos 0) te1)
-        [(16, 0, "16")]
-    equal (extract $ Track.remove_event (TrackPos 16) te1)
-        [(0, 0, "0")]
+test_insert_negative_events = do
+    let f evts0 evts1 = extract $
+            Track.insert_events (mkevents evts0) (track_events evts1)
+    equal (f [(1, -1, "a0")] [(2, -0.5, "b0")]) [(1, -1, "a0"), (2, -0.5, "b0")]
+    equal (f [(1, -1, "a0")] [(2, -2, "b0")]) [(1, -1, "a0"), (2, -1, "b0")]
+    equal (f [(0, 2, "a0"), (2, 2, "a1")] [(1, -1, "b0")])
+        [(0, 1, "a0"), (1, 0, "b0"), (2, 2, "a1")]
+    equal (f [(1.5, -0.5, "a0")] [(1, 0.5, "b0"), (2, 1, "b1")])
+        [(1, 0.5, "b0"), (1.5, 0, "a0"), (2, 1, "b1")]
+    equal (f [(1.25, 0.25, "a0")] [(2, -1, "b0")])
+        [(1.25, 0.25, "a0"), (2, -0.5, "b0")]
 
+test_clip_events = do
+    let f = map extract_event .  Track.clip_events . mkevents
+    equal (f [(0, 1, "a"), (1, 1, "b")]) [(0, 1, "a"), (1, 1, "b")]
+    equal (f [(0, 2, "a"), (1, 1, "b")]) [(0, 1, "a"), (1, 1, "b")]
+    equal (f [(1, -1, "a"), (2, -1, "b")]) [(1, -1, "a"), (2, -1, "b")]
+    equal (f [(1, -1, "a"), (2, -2, "b")]) [(1, -1, "a"), (2, -1, "b")]
+    equal (f [(0, 2, "a"), (1, -1, "b")]) [(0, 1, "a"), (1, 0, "b")]
+    equal (f [(0, 1, "a"), (0, 2, "b")]) [(0, 2, "b")]
+
+    equal (f [(0, 0.5, "a0"), (1, -5, "b0")]) [(0, 0.5, "a0"), (1, -0.5, "b0")]
+
+test_remove_events = do
+    let te1 = track_events [(0, 0, "0"), (16, 1, "16")]
+    -- able to remove 0 dur events
+    equal (extract $ Track.remove_event 0 te1) [(16, 1, "16")]
+
+    let f = Track.remove_events
     -- doesn't include end of range
-    equal (extract $ Track.remove_events (TrackPos 0) (TrackPos 16) te1)
-        [(16, 0, "16")]
+    equal (extract $ f 0 16 te1) [(16, 1, "16")]
     -- get it all
-    equal (extract $ Track.remove_events (TrackPos 0) (TrackPos 17) te1)
-        []
+    equal (extract $ f 0 17 te1) []
     -- missed entirely
-    equal (extract $ Track.remove_events (TrackPos 4) (TrackPos 10) te1)
-        [(0, 0, "0"), (16, 0, "16")]
+    equal (extract $ f 4 10 te1) [(0, 0, "0"), (16, 1, "16")]
 
 
 -- * util

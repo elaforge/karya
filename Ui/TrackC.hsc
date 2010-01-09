@@ -97,7 +97,7 @@ cb_find_events event_lists startp endp ret_tps ret_events ret_ranks = do
     let key (pos, _, rank) = (pos, rank)
     let (tps, evts, ranks) = unzip3 $ Seq.sort_on key [ (pos, evt, rank)
             | (rank, events) <- zip [0..] event_lists
-            , (pos, evt) <- find_events start end events ]
+            , (pos, evt) <- Track.in_range_around start end events ]
     unless (null evts) $ do
         -- Calling c++ is responsible for freeing this.
         poke ret_tps =<< newArray tps
@@ -108,8 +108,7 @@ cb_find_events event_lists startp endp ret_tps ret_events ret_ranks = do
 -- | Take 1 from before to get the event overlapping the beginning of the
 -- damaged area and 1 from after in case it has a negative duration.
 find_events :: TrackPos -> TrackPos -> Track.TrackEvents -> [Track.PosEvent]
-find_events start end events = Seq.take1 ((<end) . fst) post
-    where (_, post) = Track.split_at_before start events
+find_events = Track.in_range_around
 
 -- typedef int (*FindSamples)(TrackPos *start_pos, TrackPos *end_pos,
 --         TrackPos **ret_tps, double **ret_samples);

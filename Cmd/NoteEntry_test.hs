@@ -30,7 +30,8 @@ test_key_to_input = do
 test_cmds_with_note = do
     let cmd_dummy msg = Log.warn (show msg) >> return Cmd.Done
     let key = CmdTest.key_down ','
-        run cstate cmd = extract_logs $ CmdTest.run State.empty cstate cmd
+        run cstate cmd = CmdTest.extract id Log.msg_string $
+            CmdTest.run State.empty cstate cmd
         input = Msg.InputNote
         -- key passed through to cmd_dummy
         through msg = Right (Just Cmd.Done, [show msg])
@@ -66,14 +67,8 @@ test_cmds_with_note = do
 
 with_key :: Msg.Msg -> Cmd.State
 with_key key =
-    extract $ CmdTest.run State.empty CmdTest.cmd_state
+    extract $ CmdTest.run State.empty CmdTest.default_cmd_state
         (Cmd.cmd_record_keys key)
     where
     extract (Right (_, _, cmd_state, _)) = cmd_state
     extract val = error $ "with_keys: " ++ show val
-
-extract_logs :: Either State.StateError (Maybe Cmd.Status, b, c, [Log.Msg])
-    -> Either String (Maybe Cmd.Status, [String])
-extract_logs (Right (val, _cmd_state, _ui_state, logs)) =
-    Right (val, map Log.msg_string logs)
-extract_logs (Left err) = Left (show err)

@@ -891,20 +891,26 @@ destroy_track track_id = do
     modify $ \st -> st { state_tracks = Map.delete track_id (state_tracks st) }
 
 modify_track_title :: (UiStateMonad m) => TrackId -> (String -> String) -> m ()
-modify_track_title track_id f = modify_track track_id $ \track ->
+modify_track_title track_id f = _modify_track track_id $ \track ->
     track { Track.track_title = f (Track.track_title track) }
 
 set_track_title :: (UiStateMonad m) => TrackId -> String -> m ()
 set_track_title track_id text = modify_track_title track_id (const text)
 
 set_track_bg :: (UiStateMonad m) => TrackId -> Color -> m ()
-set_track_bg track_id color = modify_track track_id $ \track ->
+set_track_bg track_id color = _modify_track track_id $ \track ->
     track { Track.track_bg = color }
 
 modify_track_render :: (UiStateMonad m) => TrackId
     -> (Track.RenderConfig -> Track.RenderConfig) -> m ()
-modify_track_render track_id f = modify_track track_id $ \track ->
+modify_track_render track_id f = _modify_track track_id $ \track ->
     track { Track.track_render = f (Track.track_render track) }
+
+modify_track_events :: (UiStateMonad m) => TrackId
+    -> (Track.TrackEvents -> Track.TrackEvents) -> m ()
+modify_track_events track_id f = do
+    _modify_track track_id (Track.modify_events f)
+    update $ Update.TrackUpdate track_id Update.TrackAllEvents
 
 -- ** events
 
@@ -917,20 +923,20 @@ modify_track_render track_id f = modify_track track_id $ \track ->
 -- events in the relaxed half-open range (functions use the plural).
 
 -- | Insert events into track_id as per 'Track.insert_events'.
-insert_events :: (UiStateMonad m) =>
-    TrackId -> [(TrackPos, Event.Event)] -> m ()
-insert_events track_id pos_evts = _modify_events track_id $ \events ->
-    let updates = if null pos_evts then []
-            else [(fst (head pos_evts), Track.event_end (last pos_evts))]
-    in (Track.insert_events pos_evts events, updates)
+insert_events :: (UiStateMonad m) => TrackId -> [Track.PosEvent] -> m ()
+insert_events track_id pos_evts =
+    -- Calculating updates is easiest if it's sorted, and insert likes sorted
+    -- anyway.
+    insert_sorted_events track_id (Seq.sort_on fst pos_evts)
 
 -- | Like 'insert_events', but more efficient and dangerous.
 insert_sorted_events :: (UiStateMonad m) =>
     TrackId -> [(TrackPos, Event.Event)] -> m ()
 insert_sorted_events track_id pos_evts = _modify_events track_id $ \events ->
-    let updates = if null pos_evts then []
-            else [(fst (head pos_evts), Track.event_end (last pos_evts))]
-    in (Track.insert_sorted_events pos_evts events, updates)
+    (Track.insert_sorted_events pos_evts events, _events_updates pos_evts)
+
+insert_event :: (UiStateMonad m) => TrackId -> TrackPos -> Event.Event -> m ()
+insert_event track_id pos evt = insert_sorted_events track_id [(pos, evt)]
 
 get_events :: (UiStateMonad m) => TrackId -> TrackPos -> TrackPos
     -> m [Track.PosEvent]
@@ -938,54 +944,53 @@ get_events track_id start end = do
     events <- fmap Track.track_events (get_track track_id)
     return (_events_in_range start end events)
 
-remove_events :: (UiStateMonad m) => TrackId -> TrackPos -> TrackPos -> m ()
+-- | Remove any events whose starting positions fall within the half-open
+-- range given, or under the point if the selection is a point.
+remove_events :: (UiStateMonad m) => TrackId -> TrackPos -> TrackPos
+    -> m ()
 remove_events track_id start end
-    | start == end = map_events track_id start end (const [])
+    | start == end = remove_event track_id start
     | otherwise = remove_event_range track_id start end
 
 -- | Remove a single event at @pos@, if there is one.
 remove_event :: (UiStateMonad m) => TrackId -> TrackPos -> m ()
-remove_event track_id pos = remove_events track_id pos pos
+remove_event track_id pos = _modify_events track_id $ \events ->
+    case Track.event_at pos events of
+        Nothing -> (events, [])
+        Just evt ->
+            (Track.remove_event pos events, _events_updates [(pos, evt)])
 
--- | Remove any events whose starting positions fall within the half-open
--- range given.
+-- | Remove any events whose starting positions strictly fall within the
+-- half-open range given.
 remove_event_range :: (UiStateMonad m) =>
     TrackId -> TrackPos -> TrackPos -> m ()
-    -- This should be more efficient than map_events.
-remove_event_range track_id start end = _modify_events track_id $ \events ->
-    let evts = takeWhile ((<end) . fst) (Track.events_after start events)
-        updates = if null evts then []
-            else [(start, Track.event_end (last evts))]
-    in (Track.remove_events start end events, updates)
+remove_event_range track_id start end =
+    _modify_events track_id $ \events ->
+        let evts = Track.events_in_range start end events
+        in (Track.remove_events start end events, _events_updates evts)
 
--- | Set the events of the track.
-set_events :: (UiStateMonad m) => TrackId -> Track.TrackEvents -> m ()
-set_events track_id events = do
-    track <- get_track track_id
-    update_track track_id (track { Track.track_events = events })
-    update $ Update.TrackUpdate track_id Update.TrackAllEvents
-
-map_events :: (UiStateMonad m) => TrackId -> TrackPos -> TrackPos
+map_events_sorted :: (UiStateMonad m) => TrackId -> TrackPos -> TrackPos
     -> ([Track.PosEvent] -> [Track.PosEvent]) -> m ()
-map_events track_id start end f = _modify_events track_id $ \events ->
+map_events_sorted track_id start end f = _modify_events track_id $ \events ->
     let old = _events_in_range start end events
         new = f old
         deleted = if start == end
             then Track.remove_event start events
             else Track.remove_events start end events
-        starts = Seq.map_maybe (Seq.mhead Nothing (Just . fst)) [old, new]
-        ends = Seq.map_maybe (Seq.mlast Nothing (Just . Track.event_end))
+        starts = Seq.map_maybe (Seq.mhead Nothing (Just . Track.event_min))
+            [old, new]
+        ends = Seq.map_maybe (Seq.mlast Nothing (Just . Track.event_max))
             [old, new]
         updates = if null starts || null ends then []
             else [(minimum starts, maximum ends)]
-    in (Track.insert_events new deleted, updates)
+    in (Track.insert_sorted_events new deleted, updates)
 
 _events_in_range :: TrackPos -> TrackPos -> Track.TrackEvents
     -> [Track.PosEvent]
 _events_in_range start end events
     | start == end = maybe [] ((:[]) . ((,) start))
         (Track.event_at start events)
-    | otherwise =  Track.events_in_range start end events
+    | otherwise = Track.events_in_range start end events
 
 -- | Get the end of the last event of the block.
 track_end :: (UiStateMonad m) => TrackId -> m TrackPos
@@ -1003,20 +1008,26 @@ update_all_tracks = do
 
 -- ** util
 
-update_track track_id track = modify $ \st -> st
-    { state_tracks = Map.adjust (const track) track_id (state_tracks st) }
-modify_track track_id f = do
+_modify_track track_id f = do
     track <- get_track track_id
-    update_track track_id (f track)
+    _set_track track_id (f track)
 
 _modify_events :: (UiStateMonad m) => TrackId
     -> (Track.TrackEvents -> (Track.TrackEvents, [(TrackPos,TrackPos)])) -> m ()
 _modify_events track_id f = do
     track <- get_track track_id
     let (new_events, updates) = f (Track.track_events track)
-    update_track track_id (track { Track.track_events = new_events })
+    _set_track track_id (track { Track.track_events = new_events })
     mapM_ update [Update.TrackUpdate track_id (Update.TrackEvents start end)
         | (start, end) <- updates]
+
+_events_updates :: [Track.PosEvent] -> [(TrackPos, TrackPos)]
+_events_updates [] = []
+_events_updates evts =
+    [(Track.event_min (head evts), Track.event_max (last evts))]
+
+_set_track track_id track = modify $ \st -> st
+    { state_tracks = Map.adjust (const track) track_id (state_tracks st) }
 
 -- * ruler
 

@@ -33,7 +33,7 @@ data MarkMatch = MatchRank Int Int deriving (Show, Read)
 -- | Given a marklist view, return the TrackPos to advance to.
 type Matcher = [(TrackPos, Ruler.Mark)] -> Maybe TrackPos
 
-data TimeDirection = Advance | Rewind deriving (Eq, Show)
+data Direction = Advance | Rewind deriving (Eq, Show)
 
 
 -- | Given a pos, return the nearest point on a timestep.
@@ -46,7 +46,7 @@ snap time_step block_id tracknum pos = fmap (Maybe.fromMaybe pos) $
 
 -- | Step in the given direction from the given position, or Nothing if
 -- the step is out of range.
-step_from :: (State.UiStateMonad m) => TimeStep -> TimeDirection
+step_from :: (State.UiStateMonad m) => TimeStep -> Direction
     -> BlockId -> TrackNum -> TrackPos -> m (Maybe TrackPos)
 step_from time_step direction block_id tracknum pos = do
     block <- State.get_block block_id
