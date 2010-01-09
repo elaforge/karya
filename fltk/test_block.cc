@@ -127,7 +127,12 @@ struct EventInfo {
     TrackPos pos;
     Event event;
     int rank;
-    bool operator<(const EventInfo &o) const { return pos < o.pos; }
+    bool operator<(const EventInfo &o) const {
+        if (pos == o.pos)
+            return rank < o.rank;
+        else
+            return pos < o.pos;
+    }
 };
 
 
@@ -144,6 +149,7 @@ void t1_set()
     style.font = FL_HELVETICA;
     style.size = 9;
 
+    /*
     e.push_back(EventInfo(TrackPos(0),
         Event("4c#@$", TrackPos(16), eventc, style), 0));
     e.push_back(EventInfo(TrackPos(32),
@@ -164,9 +170,29 @@ void t1_set()
         Event("bg2", TrackPos(8), eventc, style), 1));
     e.push_back(EventInfo(TrackPos(164),
         Event("bg2.5", TrackPos(8), eventc, style), 1));
+    // coincedent with end of rank 0
+    e.push_back(EventInfo(TrackPos(128+64),
+        Event("bg3", TrackPos(0), eventc, style), 1));
     // doesn't overlap rank 0
-    e.push_back(EventInfo(TrackPos(200),
-        Event("bg3", TrackPos(8), eventc, style), 1));
+    e.push_back(EventInfo(TrackPos(230),
+        Event("bg4", TrackPos(0), eventc, style), 1));
+    */
+
+    /*
+    SampleData &s = t1_samples;
+    s.push_back(std::make_pair(TrackPos(0), 1));
+    s.push_back(std::make_pair(TrackPos(32), .5));
+    s.push_back(std::make_pair(TrackPos(32), 1));
+    s.push_back(std::make_pair(TrackPos(64), 0));
+    */
+    e.push_back(EventInfo(TrackPos(0*8),
+        Event("main", TrackPos(8), eventc, style), 0));
+    for (int i = 0; i < 100; i++) {
+        char buf[32];
+        sprintf(buf, "e%d", i);
+        e.push_back(EventInfo(TrackPos(i*8),
+            Event(strdup(buf), TrackPos(8), eventc, style), 1));
+    }
 
     if (arrival_beats) {
         for (size_t i = 0; i < e.size(); i++) {
@@ -177,20 +203,6 @@ void t1_set()
         }
         std::sort(e.begin(), e.end());
     }
-
-    SampleData &s = t1_samples;
-    s.push_back(std::make_pair(TrackPos(0), 1));
-    s.push_back(std::make_pair(TrackPos(32), .5));
-    s.push_back(std::make_pair(TrackPos(32), 1));
-    s.push_back(std::make_pair(TrackPos(64), 0));
-    /*
-    for (int i = 0; i < 100; i++) {
-        char buf[32];
-        sprintf(buf, "e%d", i);
-        e.push_back(std::make_pair(TrackPos(i*8),
-                Event(strdup(buf), TrackPos(8), eventc, style)));
-    }
-    */
 }
 
 int
@@ -376,7 +388,7 @@ main(int argc, char **argv)
     // view_config.track_title_height = 40;
     // view.block.set_view_config(view_config);
 
-    view.block.set_zoom(ZoomInfo(TrackPos(0), 2));
+    view.block.set_zoom(ZoomInfo(TrackPos(0), 1.6));
 
     view.block.set_selection(0, Selection(selection_colors[0],
                 0, TrackPos(32), 2, TrackPos(64)));

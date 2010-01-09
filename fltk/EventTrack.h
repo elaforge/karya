@@ -86,7 +86,7 @@ private:
     void draw_area();
     void draw_samples(TrackPos start, TrackPos end);
     void draw_upper_layer(int offset, const Event &event, int rank,
-            Rect *previous, int *ranked_bottom);
+            Rect *previous, int *ranked_bottom, int prev_offset);
 
     EventTrackConfig config;
     ZoomInfo zoom;

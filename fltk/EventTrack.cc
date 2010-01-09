@@ -12,8 +12,10 @@
 // Hack for debugging.
 #define SHOW_RANGE(r) (r).y << "--" << (r).b()
 
-// Colors of events at a non-zero rank are scaled by this.
+// The color of events at a non-zero rank is scaled by this.
 static const double rank_brightness = 1.5;
+// The color of events with a negative duration is scaled by this.
+static const double negative_duration_brightness = .85;
 
 // EventTrackView ///////
 
@@ -217,10 +219,18 @@ EventTrackView::draw_area()
         const TrackPos &pos = event_pos[i];
         int offset = y + this->zoom.to_pixels(pos - this->zoom.offset);
         int height = this->zoom.to_pixels(event.duration);
+        // Make sure events don't quite extend as far as they should, so it's
+        // clearer which direction they're facing.
+        if (height > 0)
+            height -= 1;
+        else if (height < 0)
+            height += 1;
         int y0 = std::min(offset, offset + height);
         int y1 = std::max(offset, offset + height);
 
         Color c = event.color.brightness(this->brightness);
+        if (event.duration < TrackPos(0))
+            c = c.brightness(negative_duration_brightness);
         fl_color(color_to_fl(c));
         fl_rectf(this->x() + 1, y0, this->w() - 2, y1-y0);
     }
@@ -234,12 +244,15 @@ EventTrackView::draw_area()
     // Don't use INT_MIN because it overflows too easily.
     Rect previous(x(), -9999, 0, 0);
     int ranked_bottom = -9999;
+    int prev_offset = -9999;
     for (int i = 0; i < count; i++) {
         const Event &event = events[i];
         const TrackPos &pos = event_pos[i];
         int rank = ranks[i];
         int offset = y + this->zoom.to_pixels(pos - this->zoom.offset);
-        this->draw_upper_layer(offset, event, rank, &previous, &ranked_bottom);
+        this->draw_upper_layer(offset, event, rank, &previous,
+            &ranked_bottom, prev_offset);
+        prev_offset = offset;
     }
     fl_pop_clip();
     if (count) {
@@ -314,7 +327,7 @@ EventTrackView::draw_samples(TrackPos start, TrackPos end)
 
 void
 EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
-        Rect *previous, int *ranked_bottom)
+        Rect *previous, int *ranked_bottom, int prev_offset)
 {
     // So the overlap stuff is actually pretty tricky.  I want to not display
     // text when it would overlap with the previous text, so it doesn't get
@@ -357,7 +370,7 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
             text_rect.x = (x() + w()) - text_rect.w - 2;
             // Only display if I won't overlap text at the left or above.
             if (text_rect.x > previous->r() - 2
-                    && text_rect.y >= *ranked_bottom)
+                    && text_rect.y >= *ranked_bottom - ok_overlap)
             {
                 draw_text = true;
             }
@@ -367,9 +380,8 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
         }
     }
 
-    // Draw trigger line.
-    // Try to avoid drawing over a primary trigger line with a ranked one.
-    if (!(rank && text_rect.y == previous->y)) {
+    // Draw trigger line.  Try not to draw two in the same place.
+    if (offset != prev_offset) {
         Color trigger_c;
         if (draw_text || !event.text)
             trigger_c = Config::event_trigger_color;

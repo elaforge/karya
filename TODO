@@ -17,6 +17,19 @@
 - derive multiple blocks with parMap
 
 CURRENT
+  - insert and delete time should use the selection if non-point
+  - update Cmd.CmdTest
+  - with negative events I want control text to go on top, but how is the
+    control event supposed to know?  track flag to override text side?
+    - can I use negative 0?  I'm worried that it's brittle...
+      haskell: isNegativeZero, c: signbit(..)
+  - join for control tracks could be useful, just delete following evt
+  - move map_track etc. from Cmd.Edit to a new module
+  - LPitch should use map_track
+  - rename project -> namespace
+  * cmd support for negative durs: select range, edit modify overlapping evt,
+    etc.
+  - don't redraw if no scroll happened?
   - hspp screws up \\ string continuations
   - load kotek puts window off the screen
   - methods no longer hardcoded, e.g. Map MethodId MethodInterpolator
@@ -104,9 +117,11 @@ note input / thru:
   - profile midi->midi thru and implement a fast path if necessary
 
 bugs:
+  - undo should not move windows!  some bug is making undo randomly jump to
+    (0, 0)
   - can share pitches doesn't consider a whole step transposition unshareable
   - is kbd entry letting keys like 1 fall through?
-  - Edit.cmd_delete_time is still a little funky, an event with only 2 time
+  * Edit.cmd_delete_time is still a little funky, an event with only 2 time
     steps is deleted, >2 is shortened.
   - keymap collisions are logged twice
   - Create.rename_project loses the merged tracks
@@ -435,9 +450,9 @@ Midi:
     - display widget
 
 arrival beats:
-  - ui support for trigger edge at end
-  - block flag for arrival beats
-  - derive support: subderive as normal, note derivation from end (trigger) of
+  * ui support for trigger edge at end
+  * cmd flag for arrival beats
+  * derive support: subderive as normal, note derivation from end (trigger) of
     event until the end of a rest if there is one or until the sounding
     of the next score event otherwise.  This may be sooner than the next ui
     event if it involves subderivation.
