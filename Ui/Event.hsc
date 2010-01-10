@@ -66,8 +66,8 @@ modify_duration f evt = set_duration (f (event_duration evt)) evt
 -- | 0 is considered both positive and negative because they're ambiguous.
 -- For example, Track._split_range which includes them in both ends.
 is_positive, is_negative :: Event -> Bool
-is_positive = (>=0) . event_duration
-is_negative = (<=0) . event_duration
+is_positive = not . is_negative
+is_negative evt = let d = event_duration evt in d < 0 || isNegativeZero d
 
 
 default_style :: StyleId

@@ -149,7 +149,6 @@ void t1_set()
     style.font = FL_HELVETICA;
     style.size = 9;
 
-    /*
     e.push_back(EventInfo(TrackPos(0),
         Event("4c#@$", TrackPos(16), eventc, style), 0));
     e.push_back(EventInfo(TrackPos(32),
@@ -175,8 +174,7 @@ void t1_set()
         Event("bg3", TrackPos(0), eventc, style), 1));
     // doesn't overlap rank 0
     e.push_back(EventInfo(TrackPos(230),
-        Event("bg4", TrackPos(0), eventc, style), 1));
-    */
+        Event("bg4", TrackPos(0), eventc, style), 0));
 
     /*
     SampleData &s = t1_samples;
@@ -185,6 +183,7 @@ void t1_set()
     s.push_back(std::make_pair(TrackPos(32), 1));
     s.push_back(std::make_pair(TrackPos(64), 0));
     */
+    /*
     e.push_back(EventInfo(TrackPos(0*8),
         Event("main", TrackPos(8), eventc, style), 0));
     for (int i = 0; i < 100; i++) {
@@ -193,6 +192,7 @@ void t1_set()
         e.push_back(EventInfo(TrackPos(i*8),
             Event(strdup(buf), TrackPos(8), eventc, style), 1));
     }
+    */
 
     if (arrival_beats) {
         for (size_t i = 0; i < e.size(); i++) {

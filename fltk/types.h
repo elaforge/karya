@@ -18,6 +18,7 @@ public:
     TrackPos() : _val(0) {}
     explicit TrackPos(double val) : _val(val) {}
     static const TrackPos invalid;
+    bool negative_zero() const { return _val == 0 && signbit(_val); }
 
     // Scale by a given factor, for zooming.
     double scale(double factor) const { return _val * factor; }

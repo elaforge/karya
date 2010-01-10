@@ -349,7 +349,7 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
     const static int ok_overlap = 4;
     fl_font(fl_font(), Config::font_size::event);
     Rect text_rect(x() + 2, 0, 0, 0);
-    if (event.duration < TrackPos(0)) {
+    if (event.is_negative()) {
         // Negative duration means text goes above the trigger line.
         text_rect.y = offset - (fl_height() - fl_descent()) - 2;
     } else {

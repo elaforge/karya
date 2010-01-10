@@ -41,7 +41,6 @@ poke_find_events trackp event_lists = do
     let time_end = maximum (0 : map Track.time_end event_lists)
     find_events <- make_find_events event_lists
     (#poke EventTrackConfig, find_events) trackp find_events
-        -- =<< make_find_events event_lists
     (#poke EventTrackConfig, time_end) trackp time_end
 
 with_track :: Track.Track -> [Track.TrackEvents] -> (Ptr Track.Track -> IO a)

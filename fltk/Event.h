@@ -26,6 +26,9 @@ struct Event {
             const TextStyle &style, bool align_to_bottom = false) :
         text(text), duration(duration), color(color), style(style)
     {}
+    bool is_negative() const {
+        return duration < TrackPos(0) || duration.negative_zero();
+    }
 
     // std::string would be nicer but I can't serialize to that from haskell.
     char *text;

@@ -22,6 +22,8 @@ import qualified Util.Log as Log
 import qualified Util.Thread as Thread
 
 import Ui
+import qualified Ui.Event as Event
+import qualified Ui.Ruler as Ruler
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.Types as Types
@@ -73,7 +75,7 @@ load_static_config = do
         , StaticConfig.config_schema_map = Map.empty
         , StaticConfig.config_local_lang_dirs = [app_dir </> Config.lang_dir]
         , StaticConfig.config_global_cmds = []
-        , StaticConfig.config_setup_cmd = setup_cmd
+        , StaticConfig.config_setup_cmd = auto_setup_cmd
         , StaticConfig.config_read_device_map = read_device_map
         , StaticConfig.config_write_device_map = write_device_map
         }
@@ -170,6 +172,7 @@ main = initialize $ \lang_socket midi_chan -> do
         `Exception.finally` Ui.quit_ui_thread quit_request
 
     Ui.event_loop quit_request msg_chan
+    Log.notice "app quitting"
 
 {-
 midi_thru remap_rmsg midi_chan write_midi = forever $ do
@@ -222,16 +225,17 @@ setup_cmd _args = do
     State.set_project "untitled"
     return Cmd.Done
 
+arrival_beats = True
 
-old_setup_cmd :: [String] -> Cmd.CmdIO
-old_setup_cmd _args = do
+auto_setup_cmd :: [String] -> Cmd.CmdIO
+auto_setup_cmd _args = do
     (bid, vid) <- empty_block
     t0 <- Create.track bid 2
-    State.insert_events t0 $ map UiTest.mkevent
+    State.insert_events t0 $ map (note_event . UiTest.mkevent)
         [(0, 1, ""), (1, 1, ""), (2, 1, ""), (3, 1, "")]
     State.set_track_title t0 ">fm8/bass"
     t1 <- Create.track bid 3
-    State.insert_events t1 $ map UiTest.mkevent
+    State.insert_events t1 $ map (control_event . UiTest.mkevent)
         [(0, 0, "5c"), (1, 0, "5d"), (2, 0, "5e"), (3, 0, "5f")]
     State.set_track_title t1 "*twelve"
     State.set_track_width vid 3 50
@@ -242,6 +246,14 @@ old_setup_cmd _args = do
     State.set_selection vid Config.insert_selnum
         (Types.point_selection 0 (TrackPos 0))
     return Cmd.Done
+    where
+    note_event (pos, evt)
+        | arrival_beats = (pos+dur, Event.modify_duration negate evt)
+        | otherwise = (pos, evt)
+        where dur = Event.event_duration evt
+    control_event (pos, evt)
+        | arrival_beats = (pos + 1, Event.modify_duration negate evt)
+        | otherwise = (pos, evt)
 
 setup_big :: [String] -> Cmd.CmdIO
 setup_big _ = do
@@ -281,6 +293,7 @@ setup_big _ = do
 empty_block = do
     (rid, over_rid) <- Create.ruler "meter_44"
         (MakeRuler.ruler [MakeRuler.meter_ruler (1/16) MakeRuler.m44])
+        { Ruler.ruler_align_to_bottom = arrival_beats }
 
     bid <- Create.block rid
     vid <- Create.view bid

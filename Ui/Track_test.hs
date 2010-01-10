@@ -21,9 +21,11 @@ test_split_range = do
         ([], [], [1])
     equal (f 1 1 [(1, -1)])
         ([1], [], [])
-    -- 0 dur events will be included in both ends.
+    -- 0 dur events included at beginning, -0 included at end
     equal (f 1 2 [(0, 0), (1, 0), (2, 0), (3, 0)])
-        ([0], [1, 2], [3])
+        ([0], [1], [2, 3])
+    equal (f 1 2 [(0, -0), (1, -0), (2, -0), (3, -0)])
+        ([1, 0], [2], [3])
 
 
 test_split_at_before = do

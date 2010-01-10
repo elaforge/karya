@@ -77,10 +77,10 @@ instance Storable TrackPos where
     sizeOf _ = #size TrackPos
     alignment _ = #{alignment TrackPos}
     peek posp = do
-        v <- (#peek TrackPos, _val) posp :: IO CDouble
-        return (TrackPos (realToFrac v))
+        v <- (#peek TrackPos, _val) posp :: IO Double
+        return (TrackPos v)
     poke posp (TrackPos pos) =
-        (#poke TrackPos, _val) posp (realToFrac pos :: CDouble)
+        (#poke TrackPos, _val) posp pos
 
 track_pos :: (Real a) => a -> TrackPos
 track_pos n = TrackPos (realToFrac n)

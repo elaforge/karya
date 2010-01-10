@@ -19,7 +19,7 @@
 CURRENT
   - insert and delete time should use the selection if non-point
   - update Cmd.CmdTest
-  - with negative events I want control text to go on top, but how is the
+  * with negative events I want control text to go on top, but how is the
     control event supposed to know?  track flag to override text side?
     - can I use negative 0?  I'm worried that it's brittle...
       haskell: isNegativeZero, c: signbit(..)
@@ -448,18 +448,6 @@ Midi:
   bandwidth
     - keep stats
     - display widget
-
-arrival beats:
-  * ui support for trigger edge at end
-  * cmd flag for arrival beats
-  * derive support: subderive as normal, note derivation from end (trigger) of
-    event until the end of a rest if there is one or until the sounding
-    of the next score event otherwise.  This may be sooner than the next ui
-    event if it involves subderivation.
-    --|   --|
-      |+++  |+++..
-    --|--|
-      |++|++..
 
 misc ideas:
   - more complicated track names: "< legato < synth/inst" to pipe inst output

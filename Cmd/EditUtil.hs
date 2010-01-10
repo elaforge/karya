@@ -17,6 +17,7 @@ import qualified Ui.Types as Types
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Selection as Selection
+import qualified Cmd.TimeStep as TimeStep
 
 import qualified Perform.Pitch as Pitch
 
@@ -45,9 +46,12 @@ modify_event_at :: (Monad m) => SelPos
     -> (String -> (Maybe String, Bool)) -> Cmd.CmdT m ()
 modify_event_at (tracknum, track_id, pos) zero_dur modify_dur f = do
     direction <- Cmd.gets Cmd.state_note_direction
-    end_pos <- if zero_dur then return pos
-        else Selection.step_from tracknum pos direction
-    event <- get_event modify_dur track_id pos (end_pos - pos)
+    dur <- if zero_dur
+        then return $ if direction == TimeStep.Advance then 0 else -0
+        else do
+            end <- Selection.step_from tracknum pos direction
+            return (end - pos)
+    event <- get_event modify_dur track_id pos dur
     -- TODO I could have the modifier take Text, if it were worth it.
     let (val, advance) = f (Event.event_string event)
     case val of

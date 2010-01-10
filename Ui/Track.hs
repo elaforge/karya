@@ -308,7 +308,7 @@ clip_events = map clip_duration . Seq.zip_neighbors . Seq.drop_initial_dups fst
             | otherwise = cur
         clip_from_prev prev@(prev_pos, _)
             | event_positive prev = if event_end prev > event_end cur
-                then set_dur (min 0 (event_end prev - cur_pos))
+                then set_dur (min (-0) (event_end prev - cur_pos))
                 else cur
             | otherwise = if event_end cur < prev_pos
                 then set_dur (prev_pos - cur_pos)
