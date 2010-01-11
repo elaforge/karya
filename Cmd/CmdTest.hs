@@ -33,20 +33,9 @@ import qualified App.Config as Config
 default_block_id = UiTest.default_block_id
 default_view_id = UiTest.default_view_id
 
-
--- TODO remove for run_tracks2
--- | Run cmd with the given tracks, and return the resulting tracks.
-run_tracks :: [UiTest.TrackSpec] -> Cmd.CmdT Identity.Identity a
-    -> Either String (Maybe a, [(String, [Simple.Event])], [Log.Msg])
-run_tracks track_specs cmd =
-    case run ustate default_cmd_state cmd of
-        Right (val, ustate2, _cstate2, logs) ->
-            Right (val, UiTest.extract_tracks ustate2, logs)
-        Left err -> Left (show err)
-    where (_, ustate) = UiTest.run_mkview track_specs
-
-run_tracks2 :: [UiTest.TrackSpec] -> Cmd.CmdT Identity.Identity a -> Result a
-run_tracks2 track_specs = run ustate default_cmd_state
+-- | Run cmd with the given tracks.
+run_tracks :: [UiTest.TrackSpec] -> Cmd.CmdT Identity.Identity a -> Result a
+run_tracks track_specs = run ustate default_cmd_state
     where (_, ustate) = UiTest.run_mkview track_specs
 
 -- | Run a cmd and return everything you could possibly be interested in.
@@ -63,6 +52,15 @@ type Result val =
 
 e_val :: Result val -> Either String (Maybe val, [Log.Msg])
 e_val = fmap (\(v, _, _, logs) -> (v, logs))
+
+e_ustate :: (State.State -> e_val) -> (Log.Msg -> e_log) -> Result _val
+    -> Either String (e_val, [e_log])
+e_ustate e_ustate e_log = fmap $ \(_, ustate, _, logs) ->
+    (e_ustate ustate, map e_log logs)
+
+e_tracks :: Result _val -> Either String [(String, [Simple.Event])]
+e_tracks result = fmap ex $ e_ustate UiTest.extract_tracks id result
+    where ex (val, logs) = (Log.trace_logs logs val)
 
 extract :: (val -> e_val) -> (Log.Msg -> e_log) -> Result val
     -> Either String (Maybe e_val, [e_log])
@@ -91,14 +89,6 @@ extract_logs result = case result of
     Right (Just _, _, _, logs) -> Right (Just (map Log.msg_string logs))
     Right (Nothing, _, _, _) -> Right Nothing
     Left err -> Left (show err)
-
--- TODO remove for set_sel
-with_sel :: (Monad m) => Maybe Types.Selection -> Cmd.CmdT m a -> Cmd.CmdT m a
-with_sel sel cmd = do
-    State.set_selection UiTest.default_view_id Config.insert_selnum sel
-    Cmd.modify_state $ \st ->
-        st { Cmd.state_focused_view = Just UiTest.default_view_id }
-    cmd
 
 set_sel :: (Monad m) => Types.TrackNum -> TrackPos -> Types.TrackNum
     -> TrackPos -> Cmd.CmdT m ()

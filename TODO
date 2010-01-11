@@ -18,7 +18,7 @@
 
 CURRENT
   - insert and delete time should use the selection if non-point
-  - update Cmd.CmdTest
+  * update Cmd.CmdTest
   * with negative events I want control text to go on top, but how is the
     control event supposed to know?  track flag to override text side?
     - can I use negative 0?  I'm worried that it's brittle...
