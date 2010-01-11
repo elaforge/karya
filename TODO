@@ -24,8 +24,8 @@ CURRENT
     - can I use negative 0?  I'm worried that it's brittle...
       haskell: isNegativeZero, c: signbit(..)
   - join for control tracks could be useful, just delete following evt
-  - move map_track etc. from Cmd.Edit to a new module
-  - LPitch should use map_track
+  * move map_track etc. from Cmd.Edit to a new module
+  * LPitch should use map_track
   - rename project -> namespace
   * cmd support for negative durs: select range, edit modify overlapping evt,
     etc.

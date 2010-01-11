@@ -17,8 +17,9 @@ import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.TimeStep as TimeStep
+import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.Selection as Selection
+import qualified Cmd.TimeStep as TimeStep
 
 import qualified Perform.Pitch as Pitch
 
@@ -89,8 +90,15 @@ insert_event text dur = do
 cmd_set_duration :: (Monad m) => Cmd.CmdT m ()
 cmd_set_duration = do
     (_, sel) <- Selection.get
-    modify_events $ \pos event ->
+    ModifyEvents.modify_events $ \pos event ->
         Event.set_duration (snd (Types.sel_range sel) - pos) event
+
+-- | Modify event durations by applying a function to them.  0 durations
+-- are passed through, so you can't accidentally give control events duration.
+cmd_modify_dur :: (Monad m) => (TrackPos -> TrackPos) -> Cmd.CmdT m ()
+cmd_modify_dur f = ModifyEvents.modify_events $ \_ evt ->
+    Event.set_duration (apply (Event.event_duration evt)) evt
+    where apply dur = if dur == TrackPos 0 then dur else f dur
 
 -- | If there is a following event, delete it and extend this one to its end.
 cmd_join_events :: (Monad m) => Cmd.CmdT m ()
@@ -210,73 +218,6 @@ expand_range (tracknum:_) start end
         return (start, maybe end id pos)
     | otherwise = return (start, end)
 expand_range [] start end = return (start, end)
-
--- * modify (move to another module?)
-
--- | Move everything at or after @start@ by @shift@.
-move_track_events :: (State.UiStateMonad m) =>
-    TrackPos -> TrackPos -> TrackId -> m ()
-move_track_events start shift track_id = State.modify_track_events track_id $
-    \events -> move_events start shift events
-
--- | All events starting at and after a point to the end are shifted by the
--- given amount.
-move_events :: TrackPos -> TrackPos -> Track.TrackEvents -> Track.TrackEvents
-move_events point shift events = merged
-    where
-    -- If the last event has 0 duration, the selection will not include it.
-    -- Ick.  Maybe I need a less error-prone way to say "select until the end
-    -- of the track"?
-    end = Track.time_end events + 1
-    shifted = map (\(pos, evt) -> (pos+shift, evt))
-        (Track.events_after point events)
-    merged = Track.insert_sorted_events shifted
-        (Track.remove_events point end events)
-
--- | Modify event durations by applying a function to them.  0 durations
--- are passed through, so you can't accidentally give control events duration.
-cmd_modify_dur :: (Monad m) => (TrackPos -> TrackPos) -> Cmd.CmdT m ()
-cmd_modify_dur f = modify_events $ \_ evt ->
-    Event.set_duration (apply (Event.event_duration evt)) evt
-    where apply dur = if dur == TrackPos 0 then dur else f dur
-
--- | Modify events in the selection.  For efficiency, this can't move the
--- events.
-modify_events :: (Monad m) => (TrackPos -> Event.Event -> Event.Event)
-    -> Cmd.CmdT m ()
-modify_events f = do
-    track_events <- Selection.events
-    forM_ track_events $ \(track_id, _, events) -> do
-        let insert = [(pos, f pos evt) | (pos, evt) <- events]
-        State.insert_sorted_events track_id insert
-
-map_selection_sorted :: (Monad m) => (Track.PosEvent -> Maybe Track.PosEvent)
-    -> Cmd.CmdT m ()
-map_selection_sorted f = do
-    selected <- Selection.events
-    forM_ selected $ \(track_id, (start, end), events) -> do
-        State.remove_events track_id start end
-        State.insert_sorted_events track_id (Seq.map_maybe f events)
-
-map_selection :: (Monad m) => (Track.PosEvent -> Maybe Track.PosEvent)
-    -> Cmd.CmdT m ()
-map_selection f = do
-    selected <- Selection.events
-    forM_ selected $ \(track_id, (start, end), events) -> do
-        State.remove_events track_id start end
-        State.insert_events track_id (Seq.map_maybe f events)
-
-map_track_sorted :: (Monad m) => (Track.PosEvent -> Maybe Track.PosEvent)
-    -> TrackId -> Cmd.CmdT m ()
-map_track_sorted f track_id = State.modify_track_events track_id $
-    Track.from_sorted_events . Seq.map_maybe f . Track.event_list
-
-map_track :: (Monad m) => (Track.PosEvent -> Maybe Track.PosEvent)
-    -> TrackId -> Cmd.CmdT m ()
-map_track f track_id = State.modify_track_events track_id $
-    Track.from_events . Seq.map_maybe f . Track.event_list
-
--- * end modify
 
 -- | If the insertion selection is a point, clear any event under it.  If it's
 -- a range, clear all events within its half-open extent.

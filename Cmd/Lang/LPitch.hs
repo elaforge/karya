@@ -6,7 +6,6 @@
 -- generic places.
 module Cmd.Lang.LPitch where
 import Control.Monad
-import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 
 import Ui
@@ -15,8 +14,7 @@ import qualified Ui.State as State
 import qualified Ui.Track as Track
 
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Edit as Edit
-import qualified Cmd.Selection as Selection
+import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.PitchTrack as PitchTrack
 import qualified Derive.Schema.Default as Default
 import qualified Derive.Control as Control
@@ -28,9 +26,9 @@ import qualified Perform.Pitch as Pitch
 
 -- TODO these should invert position of control events too
 to_negative, to_positive :: Cmd.CmdL ()
-to_negative = Edit.map_selection_sorted $ \evt ->
+to_negative = ModifyEvents.events_sorted $ \evt ->
     Just $ if Track.event_negative evt then evt else negate_event evt
-to_positive = Edit.map_selection_sorted $ \evt ->
+to_positive = ModifyEvents.events_sorted $ \evt ->
     Just $ if Track.event_positive evt then evt else negate_event evt
 
 negate_event (pos, evt) =
@@ -38,25 +36,18 @@ negate_event (pos, evt) =
 
 -- * to_relative
 
--- TODO this should use map_track
--- | Given a base note, convert absolute pitch events to relative.
 to_relative :: String -> Cmd.CmdL ()
-to_relative note_s = do
-    track_events <- Selection.events
-    let track_ids = [track_id | (track_id, _, _) <- track_events]
-    titles <- fmap (map Track.track_title) (mapM State.get_track track_ids)
-    let scales = map Default.title_to_scale titles
-    let tracks = [(track_id, scale, events)
-            | (title, Just scale, (track_id, _, events)) <-
-                zip3 titles scales track_events,
-            not (Default.is_relative_track title)]
-    if (null tracks)
-        then Log.warn $ "LPitch.to_relative: no tracks to process"
-        else mapM_ (track_to_degree (Pitch.Note note_s)) tracks
+to_relative note_s = ModifyEvents.tracks_sorted $ \track_id events -> do
+    title <- fmap Track.track_title (State.get_track track_id)
+    let maybe_scale = Default.title_to_scale title
+    case maybe_scale of
+        Just scale_id | not (Default.is_relative_track title) ->
+            track_to_degree (Pitch.Note note_s) track_id scale_id events
+        _ -> return events
 
-track_to_degree :: (Monad m) => Pitch.Note
-    -> (TrackId, Pitch.ScaleId, [Track.PosEvent]) -> Cmd.CmdT m ()
-track_to_degree base_note (track_id, scale_id, events) = do
+track_to_degree :: (Monad m) => Pitch.Note -> TrackId -> Pitch.ScaleId
+    -> [Track.PosEvent] -> Cmd.CmdT m [Track.PosEvent]
+track_to_degree base_note track_id scale_id events = do
     let name = "LPitch.track_to_degree"
     scale <- Cmd.get_scale name scale_id
     base <- maybe
@@ -67,17 +58,11 @@ track_to_degree base_note (track_id, scale_id, events) = do
     unless (null bad_notes) $
         Cmd.throw $ name ++ ": notes not in scale: " ++ show bad_notes
     let degrees2 = map (subtract base) degrees
-    let events2 = [(pos, set_note (degree_to_relative scale degree) event)
+    State.modify_track_title track_id $ \title ->
+        Default.unparse_control_title (Just "+") $ snd $
+            Default.parse_control_title title
+    return [(pos, set_note (degree_to_relative scale degree) event)
             | ((pos, event), degree) <- zip events degrees2]
-    unless (null events2) $ do
-        -- This is kinda grody.  TODO there should be some higher level way
-        -- to modify events.  Selection.modify_events?
-        let (start, end) = (fst (head events), Track.event_end (last events))
-        State.remove_events track_id start end
-        State.insert_sorted_events track_id events2
-        State.modify_track_title track_id $ \title ->
-            case Default.parse_control_title title of
-                (_, cont) -> Default.unparse_control_title (Just "+") cont
 
 set_note :: Pitch.Note -> Event.Event -> Event.Event
 set_note note = PitchTrack.modify f

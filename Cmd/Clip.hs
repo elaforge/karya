@@ -46,6 +46,7 @@ import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Edit as Edit
+import qualified Cmd.ModifyEvents as ModifyEvents
 
 import qualified App.Config as Config
 
@@ -125,7 +126,7 @@ cmd_paste_insert :: (Monad m) => Cmd.CmdT m ()
 cmd_paste_insert = do
     (start, end, track_ids, clip_events) <- paste_info
     -- Only shift the tracks that are in clip_events.
-    mapM_ (Edit.move_track_events start (end-start))
+    mapM_ (ModifyEvents.move_track_events start (end-start))
         (map fst (zip track_ids clip_events))
     forM_  (zip track_ids clip_events) $ \(track_id, events) -> do
         State.insert_events track_id events
