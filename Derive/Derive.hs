@@ -670,7 +670,8 @@ d_warp sig deriver = do
 -- > (compose (shift-time f (- offset)) (scale stretch g))
 compose_warp :: Warp -> Signal.Warp -> Warp
 compose_warp (Warp warpsig shift stretch) sig = make_warp
-    (Signal.shift (-shift) warpsig `Signal.compose` Signal.stretch stretch sig)
+    (Signal.shift (-shift) warpsig
+        `Signal.compose` Signal.scale (Signal.x_to_y stretch) sig)
 
 
 -- ** track

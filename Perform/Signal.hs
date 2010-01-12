@@ -67,7 +67,7 @@ module Perform.Signal (
     , sig_add, sig_subtract, sig_multiply
     , sig_max, sig_min, clip_max, clip_min
     , scalar_add, scalar_subtract, scalar_multiply, scalar_divide
-    , shift, stretch
+    , shift, scale
     , truncate
     , map_x, map_y
 
@@ -223,9 +223,14 @@ clip_max, clip_min :: Y -> Signal y -> Signal y
 clip_max val = modify_vec (V.map (Arrow.second (min val)))
 clip_min val = modify_vec (V.map (Arrow.second (max val)))
 
-shift, stretch :: X -> Signal y -> Signal y
+shift :: X -> Signal y -> Signal y
 shift x = modify_vec (SignalBase.shift x)
-stretch x = modify_vec (SignalBase.stretch x)
+
+scale :: Y -> Signal y -> Signal y
+scale mult vec
+    | mult <= 0 = error $ "scale: called with mult<=0: " ++ show mult
+    | mult == 1 = vec
+    | otherwise = map_y (*mult) vec
 
 truncate :: X -> Signal y -> Signal y
 truncate x = modify_vec (SignalBase.truncate x)

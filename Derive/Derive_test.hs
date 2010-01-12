@@ -96,6 +96,44 @@ test_subderive = do
     -- pprint $ zip [0,2..] $ map inv_tempo (map Timestamp.seconds [0, 2 .. 10])
     -- pprint $ Derive.state_track_warps state
 
+test_tempo_ops = do
+    let run op = fmap extract $ DeriveTest.run State.empty op
+            where
+            extract :: ([TrackPos], b, [Log.Msg]) -> [TrackPos]
+            extract (val, _, logs) = Log.trace_logs logs val
+        record = do
+            x0 <- Derive.local_to_global 0
+            x1 <- Derive.local_to_global 2
+            return [x0, x1]
+
+    equal (run record) $ Right [0, 2]
+    equal (run (Derive.d_stretch 2 $ record)) $ Right [0, 4]
+    equal (run (Derive.d_at 2 $ record)) $ Right [2, 4]
+    equal (run (Derive.d_at 2 $ Derive.d_stretch 0.5 $ record)) $ Right [2, 3]
+    equal (run (Derive.d_stretch 0.5 $ Derive.d_at 2 $ record)) $ Right [1, 2]
+
+    -- test compose
+    let plain = Signal.signal [(0, 0), (1, 1), (2, 2), (3, 3), (100, 100)]
+        slow = Signal.signal [(0, 0), (1, 2), (2, 4), (3, 6), (100, 200)]
+
+    equal (run (Derive.d_warp plain $ record)) $ Right [0, 2]
+    equal (run (Derive.d_at 2 $ Derive.d_warp plain $ record)) $ Right [2, 4]
+    equal (run (Derive.d_stretch 2 $ Derive.d_warp plain $ record)) $
+        Right [0, 4]
+
+    equal (run (Derive.d_warp plain $ Derive.d_warp plain $ record)) $
+        Right [0, 2]
+    equal (run (Derive.d_warp plain $ Derive.d_warp slow $ record)) $
+        Right [0, 4]
+    equal (run (Derive.d_warp slow $ Derive.d_warp plain $ record)) $
+        Right [0, 4]
+    equal (run (Derive.d_warp slow $ Derive.d_warp slow $ record)) $
+        Right [0, 8]
+
+    equal (run (Derive.d_at 1 $ Derive.d_stretch 2 $ Derive.d_warp slow $
+        Derive.d_warp slow $ record)) $
+            Right [1, 17]
+
 test_multiple_subderive = do
     let ui_state = snd $ UiTest.run State.empty $ do
             UiTest.mkstate "sub"

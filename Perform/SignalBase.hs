@@ -195,12 +195,6 @@ shift offset vec
     | offset == 0 = vec
     | otherwise = map_x (+offset) vec
 
-stretch :: (Signal y) => X -> SigVec y -> SigVec y
-stretch mult vec
-    | mult <= 0 = error $ "stretch: called with mult<=0: " ++ show mult
-    | mult == 1 = vec
-    | otherwise = map_x (*mult) vec
-
 -- | Truncate a signal.  It's just a view of the old signal, so it
 -- doesn't allocate a new signal.
 truncate :: (Signal y) => X -> SigVec y -> SigVec y

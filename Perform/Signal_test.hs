@@ -31,6 +31,15 @@ test_compose = do
     -- They cancel each other out.
     equal (unsig (Signal.compose f g))
         [(0, 0), (1, 1), (2, 2)]
+    let lin = mksig [(0, 0), (1, 1), (2, 2), (3, 3), (100, 100)]
+        slow = mksig [(0, 0), (1, 2), (2, 4), (3, 6)]
+    equal (Signal.compose lin lin) lin
+    equal (Signal.compose lin slow) slow
+    -- Since the signals are not the same length it looks funny at the end.
+    -- But this should never be audible since a sub-block's warp shouldn't
+    -- be longer than its parent's.
+    equal (Signal.compose slow lin) $
+        mksig [(0, 0), (1, 2), (2, 4), (3, 6), (100, 6)]
 
 test_integrate = do
     let f sig = Seq.rdrop (length Signal._extra_samples - 1) $
