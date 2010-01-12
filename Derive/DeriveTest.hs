@@ -3,7 +3,6 @@ import qualified Control.Monad.Identity as Identity
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Util.Log as Log
-import Util.Control
 
 import qualified Midi.Midi as Midi
 import qualified Instrument.MidiDb as MidiDb

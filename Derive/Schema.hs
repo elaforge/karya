@@ -302,7 +302,7 @@ compile_control title track_id subderiver
     | Default.is_tempo_track title = do
         -- A tempo track is derived like other signals, but gets special
         -- treatment because of the track warps chicanery.
-        events <- Derive.with_track_warp_tempo Control.d_control_track track_id
+        events <- Derive.without_track_warp Control.d_control_track track_id
         Derive.d_tempo track_id (Control.d_tempo_signal events) subderiver
     | otherwise = do
         events <- Derive.with_track_warp Control.d_control_track track_id

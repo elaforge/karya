@@ -629,8 +629,6 @@ with_warp f d = do
     modify $ \st -> st { state_warp = old }
     return v
 
--- take a track with events, warp according to the current warp
-
 -- | Warp the given deriver with the given signal.
 --
 -- The track_id passed so that the track that emitted the signal can be marked
@@ -688,9 +686,10 @@ with_track_warp track_deriver track_id = do
 
 -- | This is a special version of 'with_track_warp' just for the tempo track.
 -- It doesn't record the track warp, see 'd_tempo' for why.
-with_track_warp_tempo :: (Monad m) =>
+without_track_warp :: (Monad m) =>
     (TrackId -> DeriveT m [e]) -> TrackDeriver m e
-with_track_warp_tempo track_deriver track_id = track_deriver track_id
+without_track_warp track_deriver track_id = do
+    with_warp (const initial_warp) (track_deriver track_id)
 
 -- * utils
 
