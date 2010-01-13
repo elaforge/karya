@@ -163,6 +163,17 @@ show_state = do
 get_views :: Cmd.CmdL [ViewId]
 get_views = State.gets (Map.keys . State.state_views)
 
+-- | Show all views whose view id matches a string.
+show_views :: String -> Cmd.CmdL String
+show_views match = do
+    st <- State.get
+    let view_ids = match_ids match $ Map.keys (State.state_views st)
+    descs <- mapM show_view view_ids
+    return $ Seq.join "\n" descs
+
+show_view :: ViewId -> Cmd.CmdL String
+show_view = fmap PPrint.pshow . State.get_view
+
 destroy_view :: String -> Cmd.CmdL ()
 destroy_view view_id = State.destroy_view (vid view_id)
 
@@ -182,8 +193,8 @@ show_block_track track = do
         (show (Block.track_flags track))
         (show (Block.track_merged track))
 
--- | Show all blocks whose block id match a string.
--- TODO not too useful?
+-- | Show all blocks whose block id matches a string.
+-- Useful for quick block inspection.
 show_blocks :: String -> Cmd.CmdL String
 show_blocks match = do
     st <- State.get
