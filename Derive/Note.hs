@@ -347,26 +347,15 @@ d_sub start dur call_id = do
     -- Stretch call to fit in duration, based on the block length.
     -- An alternate approach would be no stretch, but just clip, but I'm
     -- not sure how to indicate that kind of derivation.
-    -- This is actually the only thing that requires that block_id name a real
-    -- block.
-    ui_state <- Derive.gets Derive.state_ui
     -- This is the first time I look up block_id so if the block does't exist
     -- this will throw.
-    block_dur <- either (Derive.throw . ("d_sub: "++) . show) return
-        (State.eval ui_state (get_block_dur block_id))
+    block_dur <- Derive.get_block_dur block_id
     if block_dur > TrackPos 0
         then Derive.d_at start (Derive.d_stretch (dur/block_dur)
             (Derive.d_block block_id))
         else do
             Derive.warn $ "block with zero duration: " ++ show block_id
             return []
-
--- | Sub-derived blocks are stretched according to their length, and this
--- function defines the length of a block.  'event_end' seems the most
--- intuitive, but then you can't make blocks with trailing space.  You can
--- work around it though by appending a comment dummy event.
-get_block_dur :: (State.UiStateMonad m) => BlockId -> m TrackPos
-get_block_dur = State.event_end
 
 
 -- * post process

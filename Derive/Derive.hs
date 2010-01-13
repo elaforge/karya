@@ -629,18 +629,53 @@ with_warp f d = do
     modify $ \st -> st { state_warp = old }
     return v
 
--- | Warp the given deriver with the given signal.
+-- | Warp a block with the given deriver with the given signal.
 --
 -- The track_id passed so that the track that emitted the signal can be marked
--- as having the tempo that it emits, so the tempo track's play position will
--- move at the tempo track's tempo.
-d_tempo :: (Monad m) => TrackId -> DeriveT m Signal.Tempo
+-- as having the tempo that it emits, even though it's really derived in global
+-- time, so the tempo track's play position will move at the tempo track's
+-- tempo.
+--
+-- The block_id is used to stretch the block out to the length of its last
+-- event, regardless of the tempo.  This means that when the calling block
+-- stretches it to the duration of the event it winds up being the right
+-- length.  Obviously, this is skipped for the top level block.
+--
+-- TODO relying on the stack seems a little implicit, would it be better
+-- to pass Maybe BlockId or Maybe TrackPos?
+d_tempo :: (Monad m) => BlockId -> TrackId -> DeriveT m Signal.Tempo
     -> DeriveT m a -> DeriveT m a
-d_tempo track_id signalm deriver = do
+d_tempo block_id track_id signalm deriver = do
     signal <- signalm
-    d_warp (tempo_to_warp signal) $ do
+    -- Log.debug $ Signal.log_signal "tempo sig" signal
+    let warp = tempo_to_warp signal
+    top_level <- is_top_level_block
+    stretch <- if top_level then return id
+        else do
+            block_dur <- get_block_dur block_id
+            global_dur <- with_warp (const (make_warp warp))
+                (local_to_global block_dur)
+            Log.debug $ "dur, global dur "
+                ++ show (block_id, block_dur, global_dur)
+            return (d_stretch (block_dur / global_dur))
+    stretch $ d_warp (tempo_to_warp signal) $ do
         add_track_warp track_id
         deriver
+
+is_top_level_block :: (Monad m) => DeriveT m Bool
+is_top_level_block = do
+    stack <- gets state_stack
+    return (length stack <= 1)
+
+-- | Sub-derived blocks are stretched according to their length, and this
+-- function defines the length of a block.  'event_end' seems the most
+-- intuitive, but then you can't make blocks with trailing space.  You can
+-- work around it though by appending a comment dummy event.
+get_block_dur :: (Monad m) => BlockId -> DeriveT m TrackPos
+get_block_dur block_id = do
+    ui_state <- gets state_ui
+    either (throw . ("get_block_dur: "++) . show) return
+        (State.eval ui_state (State.event_end block_id))
 
 tempo_to_warp :: Signal.Tempo -> Signal.Warp
 tempo_to_warp = Signal.integrate tempo_srate . Signal.map_y (1/)

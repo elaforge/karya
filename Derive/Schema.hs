@@ -257,7 +257,7 @@ track_type scale_id (State.TrackInfo title _ tracknum) parents
 
 default_schema_deriver :: SchemaDeriver Derive.EventDeriver
 default_schema_deriver block_id =
-    fmap compile (State.get_unmuted_track_tree block_id)
+    fmap (compile block_id) (State.get_unmuted_track_tree block_id)
 
 default_schema_signal_deriver ::
     SchemaDeriver (Derive.SignalDeriver Signal.Display)
@@ -266,26 +266,26 @@ default_schema_signal_deriver block_id =
 
 -- | Transform a deriver skeleton into a real deriver.  The deriver may throw
 -- if the skeleton was malformed.
-compile :: State.TrackTree -> Derive.EventDeriver
-compile tree = Derive.with_msg "compile" $ do
+compile :: BlockId -> State.TrackTree -> Derive.EventDeriver
+compile block_id tree = Derive.with_msg "compile" $ do
     -- Support for the 'Derive.add_track_warp' hack.  If a block doesn't have
     -- a tempo track, 'd_tempo' -> 'd_warp' never gets called, so I have to
     -- start the warp here.
     unless (has_tempo_track tree) Derive.start_new_warp
-    sub_compile tree
+    sub_compile block_id tree
 
 has_tempo_track :: State.TrackTree -> Bool
 has_tempo_track = any $ \(Tree.Node track subs) ->
     Default.is_tempo_track (State.track_title track) || has_tempo_track subs
 
-sub_compile :: State.TrackTree -> Derive.EventDeriver
-sub_compile tree = Derive.d_merge =<< mapM with_track tree
+sub_compile :: BlockId -> State.TrackTree -> Derive.EventDeriver
+sub_compile block_id tree = Derive.d_merge =<< mapM with_track tree
     where
     with_track tree@(Tree.Node track _) =
-        Derive.with_stack_track (State.track_id track) (_compile tree)
+        Derive.with_stack_track (State.track_id track) (_compile block_id tree)
 
-_compile :: Tree.Tree State.TrackInfo -> Derive.EventDeriver
-_compile (Tree.Node track@(State.TrackInfo title track_id _) subs)
+_compile :: BlockId -> Tree.Tree State.TrackInfo -> Derive.EventDeriver
+_compile block_id (Tree.Node track@(State.TrackInfo title track_id _) subs)
     | Default.is_note_track title = if not (null subs)
         then Derive.throw $ "inst track " ++ show track ++ " has sub tracks "
             ++ show subs
@@ -294,16 +294,19 @@ _compile (Tree.Node track@(State.TrackInfo title track_id _) subs)
         when (null subs) $
             Log.warn $ "control " ++ show track ++ " has no sub tracks"
         Derive.with_stack_track track_id $
-            compile_control title track_id (sub_compile subs)
+            compile_control block_id title track_id
+                (sub_compile block_id subs)
 
-compile_control :: String -> TrackId
+compile_control :: BlockId -> String -> TrackId
     -> Derive.EventDeriver -> Derive.EventDeriver
-compile_control title track_id subderiver
+compile_control block_id title track_id subderiver
     | Default.is_tempo_track title = do
-        -- A tempo track is derived like other signals, but gets special
-        -- treatment because of the track warps chicanery.
+        -- A tempo track is derived like other signals, but in absolute time.
+        -- Otherwise it would wind up being composed with the environmental
+        -- warp twice.
         events <- Derive.without_track_warp Control.d_control_track track_id
-        Derive.d_tempo track_id (Control.d_tempo_signal events) subderiver
+        Derive.d_tempo block_id track_id (Control.d_tempo_signal events)
+            subderiver
     | otherwise = do
         events <- Derive.with_track_warp Control.d_control_track track_id
         -- TODO default to inst scale if none is given
