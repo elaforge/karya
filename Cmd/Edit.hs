@@ -90,13 +90,13 @@ insert_event text dur = do
 cmd_set_duration :: (Monad m) => Cmd.CmdT m ()
 cmd_set_duration = do
     (_, sel) <- Selection.get
-    ModifyEvents.modify_events $ \pos event ->
+    ModifyEvents.modify_pos_events $ \pos event ->
         Event.set_duration (snd (Types.sel_range sel) - pos) event
 
 -- | Modify event durations by applying a function to them.  0 durations
 -- are passed through, so you can't accidentally give control events duration.
 cmd_modify_dur :: (Monad m) => (TrackPos -> TrackPos) -> Cmd.CmdT m ()
-cmd_modify_dur f = ModifyEvents.modify_events $ \_ evt ->
+cmd_modify_dur f = ModifyEvents.modify_events $ \evt ->
     Event.set_duration (apply (Event.event_duration evt)) evt
     where apply dur = if dur == TrackPos 0 then dur else f dur
 

@@ -34,13 +34,17 @@ move_events point shift events = merged
 
 -- | Modify events in the selection.  For efficiency, this can't move the
 -- events.
-modify_events :: (Monad m) => (TrackPos -> Event.Event -> Event.Event)
+modify_pos_events :: (Monad m) => (TrackPos -> Event.Event -> Event.Event)
     -> Cmd.CmdT m ()
-modify_events f = do
+modify_pos_events f = do
     track_events <- Selection.events
     forM_ track_events $ \(track_id, _, events) -> do
         let insert = [(pos, f pos evt) | (pos, evt) <- events]
         State.insert_sorted_events track_id insert
+
+-- | A version of 'modify_events_pos' that doesn't pass the pos.
+modify_events :: (Monad m) => (Event.Event -> Event.Event) -> Cmd.CmdT m ()
+modify_events f = modify_pos_events (\_ evt -> f evt)
 
 events_sorted :: (Monad m) => (Track.PosEvent -> Maybe Track.PosEvent)
     -> Cmd.CmdT m ()
