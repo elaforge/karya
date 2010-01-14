@@ -17,14 +17,13 @@
 - derive multiple blocks with parMap
 
 CURRENT
-  - insert time on a control event copies it
+  * insert time on a control event copies it
   - implement continuous controller warp
   - make Track.UnsortedEvents and Track.SortedEvents, type or newtype?
   * sample rendering has little white lines
   * sample rendering is still assuming linear interpolation between samples
   - empty tempo track should default to 1
   * tempo shouldn't be linear interpolated by default
-  - subderive with save/bounce is not composing
   - insert and delete time should use the selection if non-point
   * update Cmd.CmdTest
   * with negative events I want control text to go on top, but how is the

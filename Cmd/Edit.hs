@@ -139,7 +139,8 @@ cmd_insert_time = do
             (_, []) -> return ()
             (_, evts@((pos, _):_)) -> do
                 track_end <- State.track_end track_id
-                State.remove_events track_id (min pos start) track_end
+                -- +1 to get final event if it's 0 dur, see move_events
+                State.remove_events track_id (min pos start) (track_end + 1)
                 State.insert_sorted_events track_id
                     (map (stretch start end) evts)
 
@@ -173,7 +174,8 @@ cmd_delete_time = do
             (_, []) -> return ()
             (_, evts@((pos, _):_)) -> do
                 track_end <- State.track_end track_id
-                State.remove_events track_id (min pos start) track_end
+                -- +1 to get final event if it's 0 dur, see move_events
+                State.remove_events track_id (min pos start) (track_end + 1)
                 State.insert_sorted_events track_id
                     (Seq.map_maybe (shrink start end) evts)
 
