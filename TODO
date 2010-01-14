@@ -20,8 +20,8 @@ CURRENT
   - insert time on a control event copies it
   - implement continuous controller warp
   - make Track.UnsortedEvents and Track.SortedEvents, type or newtype?
-  - sample rendering has little white lines
-  - sample rendering is still assuming linear interpolation between samples
+  * sample rendering has little white lines
+  * sample rendering is still assuming linear interpolation between samples
   - empty tempo track should default to 1
   * tempo shouldn't be linear interpolated by default
   - subderive with save/bounce is not composing

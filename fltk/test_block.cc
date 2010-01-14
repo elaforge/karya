@@ -10,7 +10,7 @@
 #include "SkeletonDisplay.h"
 
 
-static const bool arrival_beats = true;
+static const bool arrival_beats = false;
 
 
 Color selection_colors[] = {
@@ -176,13 +176,10 @@ void t1_set()
     e.push_back(EventInfo(TrackPos(230),
         Event("bg4", TrackPos(0), eventc, style), 0));
 
-    /*
     SampleData &s = t1_samples;
-    s.push_back(std::make_pair(TrackPos(0), 1));
-    s.push_back(std::make_pair(TrackPos(32), .5));
-    s.push_back(std::make_pair(TrackPos(32), 1));
-    s.push_back(std::make_pair(TrackPos(64), 0));
-    */
+    for (int i = 0; i < 145; i++) {
+        s.push_back(std::make_pair(TrackPos(i), fmod(i / 60.0, 1)));
+    }
     /*
     e.push_back(EventInfo(TrackPos(0*8),
         Event("main", TrackPos(8), eventc, style), 0));
@@ -254,8 +251,9 @@ t1_find_samples(TrackPos *start_pos, TrackPos *end_pos,
     size_t start = 0;
     SampleData &a = t1_samples;
     for (; start < a.size(); start++) {
-        TrackPos next = start+1 < a.size() ? a[start+1].first : a[start].first;
-        if (next >= *start_pos)
+        if (start + 1 == a.size())
+            break;
+        else if (a[start+1].first >= *start_pos)
             break;
     }
     while (start + count < a.size()) {
@@ -279,6 +277,10 @@ t1_find_samples(TrackPos *start_pos, TrackPos *end_pos,
 // Of course I don't actually need to finalize any FunPtrs here...
 void t1_finalizer(void *p) {}
 
+static const Color ruler_bg = Color(255, 230, 160);
+static const Color track_bg = Color(255, 255, 255);
+static const Color render_color = Color(200, 100, 100, 128);
+
 void
 timeout_func(void *vp)
 {
@@ -286,9 +288,6 @@ timeout_func(void *vp)
     static int n;
 
     // copy paste from main()
-    static Color ruler_bg = Color(255, 230, 160);
-    static Color track_bg = Color(255, 255, 255);
-    static Color render_color = Color(196, 196, 255, 128);
     static int i = t1_events.size() - 1;
     static TrackPos t1_time_end = t1_events[i].pos
         + t1_events[i].event.duration;
@@ -327,10 +326,6 @@ main(int argc, char **argv)
     mlists.push_back(Marklist(m44_find_marks));
     Marklists nomarks;
 
-    Color ruler_bg = Color(255, 230, 160);
-    Color track_bg = Color(255, 255, 255);
-    Color render_color = Color(196, 196, 255, 128);
-
     t1_set();
     m44_set();
 
@@ -345,7 +340,7 @@ main(int argc, char **argv)
     int i = t1_events.size() - 1;
     TrackPos t1_time_end = t1_events[i].pos + t1_events[i].event.duration;
 
-    RenderConfig render_config(RenderConfig::render_filled,
+    RenderConfig render_config(RenderConfig::render_line,
         t1_find_samples, render_color);
 
     EventTrackConfig empty_track(track_bg, t1_no_events, t1_time_end,

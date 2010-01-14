@@ -277,9 +277,9 @@ void
 EventTrackView::draw_samples(TrackPos start, TrackPos end)
 {
     TrackPos *sample_pos;
-    double *samples;
+    double *sample_vals;
     int sample_count = this->config.render.find_samples(&start, &end,
-        &sample_pos, &samples);
+        &sample_pos, &sample_vals);
     int y = this->y() + 1; // avoid bevel
     // TODO alpha not supported, I'd need a non-portable drawing routine for it.
     fl_color(color_to_fl(this->config.render.color.brightness(
@@ -288,39 +288,42 @@ EventTrackView::draw_samples(TrackPos start, TrackPos end)
         fl_line_style(FL_SOLID | FL_CAP_ROUND, 2);
     else
         fl_line_style(FL_SOLID | FL_CAP_ROUND, 0);
+
     // Account for both the 1 pixel track border and the width of the line.
     int min_x = x() + 2;
     int max_x = x() + w() - 2;
+    int prev_xpos = min_x;
+    int prev_offset = 0;
     for (int i = 0; i < sample_count; i++) {
         int offset = y + this->zoom.to_pixels(sample_pos[i] - zoom.offset);
-        int next_offset;
-        double next_sample;
-        if (i+1 < sample_count) {
-            next_offset = y + zoom.to_pixels(sample_pos[i+1] - zoom.offset);
-            next_sample = samples[i+1];
-        } else {
-            next_offset = y + h();
-            next_sample = samples[i];
-        }
+        if (offset <= prev_offset && i > 0)
+            continue;
+        // TODO later the max should come from the callback
         int xpos = floor(::scale(double(min_x), double(max_x),
-            ::clamp(0.0, 1.0, samples[i])));
-        int next_xpos = floor(::scale(double(min_x), double(max_x),
-            ::clamp(0.0, 1.0, next_sample)));
+            ::clamp(0.0, 1.0, sample_vals[i])));
 
-        // DEBUG("p0 (" << xpos << ", " << offset << "), p1 ("
-        //         << next_xpos << ", " << next_offset << ")");
-
+        int next_offset;
+        if (i+1 < sample_count)
+            next_offset = y + zoom.to_pixels(sample_pos[i+1] - zoom.offset);
+        else
+            next_offset = y + h();
         switch (config.render.style) {
         case RenderConfig::render_line:
-            fl_line(xpos, offset, next_xpos, next_offset);
+            fl_line(prev_xpos, offset, xpos, offset, xpos, next_offset);
             break;
         case RenderConfig::render_filled:
-            fl_polygon(xpos, offset, next_xpos, next_offset,
-                    min_x, next_offset, min_x, offset);
+            // For some reason, on OS X at least, height 1 rects don't get
+            // drawn.
+            fl_rectf(min_x, offset, xpos - min_x, (next_offset - offset) + 1);
             break;
         case RenderConfig::render_none:
             break;
+        default:
+            DEBUG("unknown render style: " << config.render.style);
         }
+
+        prev_xpos = xpos;
+        prev_offset = offset;
     }
 }
 
