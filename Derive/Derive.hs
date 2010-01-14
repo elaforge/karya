@@ -605,9 +605,9 @@ start_new_warp = do
 local_to_global :: (Monad m) => TrackPos -> DeriveT m TrackPos
 local_to_global pos = do
     (Warp sig shift stretch) <- gets state_warp
+    -- Log.debug $ "local to global " ++ show pos ++ ": " ++ show sig
     return $ Signal.y_to_x (Signal.at_linear (pos * stretch + shift) sig)
 
-tempo_srate = Signal.default_srate
 min_tempo :: Signal.Y
 min_tempo = 0.001
 
@@ -647,7 +647,6 @@ d_tempo :: (Monad m) => BlockId -> TrackId -> DeriveT m Signal.Tempo
     -> DeriveT m a -> DeriveT m a
 d_tempo block_id track_id signalm deriver = do
     signal <- signalm
-    -- Log.debug $ Signal.log_signal "tempo sig" signal
     let warp = tempo_to_warp signal
     top_level <- is_top_level_block
     stretch <- if top_level then return id
@@ -655,8 +654,8 @@ d_tempo block_id track_id signalm deriver = do
             block_dur <- get_block_dur block_id
             global_dur <- with_warp (const (make_warp warp))
                 (local_to_global block_dur)
-            Log.debug $ "dur, global dur "
-                ++ show (block_id, block_dur, global_dur)
+            -- Log.debug $ "dur, global dur "
+            --     ++ show (block_id, block_dur, global_dur)
             return (d_stretch (block_dur / global_dur))
     stretch $ d_warp (tempo_to_warp signal) $ do
         add_track_warp track_id
@@ -678,12 +677,14 @@ get_block_dur block_id = do
         (State.eval ui_state (State.event_end block_id))
 
 tempo_to_warp :: Signal.Tempo -> Signal.Warp
-tempo_to_warp = Signal.integrate tempo_srate . Signal.map_y (1/)
+tempo_to_warp = Signal.integrate Signal.tempo_srate . Signal.map_y (1/)
     . Signal.clip_min min_tempo
 
 d_warp :: (Monad m) => Signal.Warp -> DeriveT m a -> DeriveT m a
 d_warp sig deriver = do
     old_warp <- gets state_warp
+    -- Log.write $ Signal.log_signal (warp_signal (compose old_warp sig)) $
+    --     Log.msg Log.Debug "new warp"
     modify $ \st -> st { state_warp = compose old_warp sig }
     start_new_warp
     result <- deriver
@@ -704,9 +705,9 @@ d_warp sig deriver = do
 -- > (shift f -offset)(scale(stretch, g))
 -- > (compose (shift-time f (- offset)) (scale stretch g))
 compose_warp :: Warp -> Signal.Warp -> Warp
-compose_warp (Warp warpsig shift stretch) sig = make_warp
-    (Signal.shift (-shift) warpsig
-        `Signal.compose` Signal.scale (Signal.x_to_y stretch) sig)
+compose_warp (Warp f shift stretch) g = make_warp $
+    Signal.compose (Signal.shift (-shift) f)
+        (Signal.scale (Signal.x_to_y stretch) g)
 
 
 -- ** track

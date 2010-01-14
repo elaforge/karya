@@ -66,6 +66,9 @@ data Msg = Msg {
     , msg_stack :: Maybe Warning.Stack
     -- | Free form text for humans.
     , msg_text  :: Text.Text
+    -- | Attach some typed data.  Data.Dynamic would be more generic, but
+    -- I can't think of anything I'd use it for other than signals.
+    , msg_signal :: [(Double, Double)]
     } deriving (Eq, Show, Read, Generics.Typeable)
 
 msg_string :: Msg -> String
@@ -124,7 +127,7 @@ msg :: Prio -> String -> Msg
 msg prio = msg_srcpos Nothing prio
 make_msg :: SrcPos.SrcPos -> Prio -> Maybe Warning.Stack -> String -> Msg
 make_msg srcpos prio stack text = Msg no_date_yet srcpos prio stack
-    (Text.pack text)
+    (Text.pack text) []
 
 log :: LogMonad m => Prio -> SrcPos.SrcPos -> String -> m ()
 log prio srcpos text = write (make_msg srcpos prio Nothing text)

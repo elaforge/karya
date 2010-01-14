@@ -5,9 +5,11 @@ module Derive.Derive_test where
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.List as List
+import qualified Numeric
 
 import Util.Test
 import qualified Util.Log as Log
+import qualified Util.Seq as Seq
 
 import Ui
 import qualified Ui.State as State
@@ -28,6 +30,8 @@ import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Midi.Control as Midi.Control
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
+
+import Util.Debug
 
 
 -- TODO
@@ -95,6 +99,51 @@ test_subderive = do
     -- pprint events
     -- pprint $ zip [0,2..] $ map inv_tempo (map Timestamp.seconds [0, 2 .. 10])
     -- pprint $ Derive.state_track_warps state
+
+test_tempo_compose = do
+    let run tempo events sub_tempo =
+            trace (trace_logs logs) $ fmap extract_events score_events
+            where
+            ui_state = snd $ UiTest.run State.empty $ do
+                UiTest.mkstate "sub"
+                    [ ("tempo", sub_tempo)
+                    , (">", [(0, 1, ""), (1, 1, "")])
+                    ]
+                UiTest.mkstate "b0"
+                    [ ("tempo", tempo)
+                    , (">i1", events)
+                    ]
+            (score_events, _tempo, inv_tempo, logs, _state) =
+                DeriveTest.derive_block ui_state (UiTest.bid "b0")
+        trace_logs logs = Seq.join "\n" $ map show_log logs
+
+    equal (run [(0, 0, "1")] [(2, 2, "sub")] [(0, 0, "1")]) $
+        Right [(2, 1, ""), (3, 1, "")]
+    -- Tempo of the sub doesn't matter since it will be stretched to fit.
+    equal (run [(0, 0, "1")] [(2, 2, "sub")] [(0, 0, "2")]) $
+        Right [(2, 1, ""), (3, 1, "")]
+    equal (run [(0, 0, "1")] [(2, 2, "sub")] [(0, 0, ".5")]) $
+        Right [(2, 1, ""), (3, 1, "")]
+
+    -- Make sure the top level block doesn't get stretched.
+    equal (run [(0, 0, "2")] [(0, 2, "--1"), (2, 2, "sub"), (4, 2, "--2")]
+        [(0, 0, ".5")]) $
+            Right [(0, 1, "--1"), (1, 0.5, ""), (1.5, 0.5, ""), (2, 1, "--2")]
+
+    equal (run [(0, 0, "1"), (2, 0, "2")] [(0, 2, "sub")] [(0, 0, "1")]) $
+            Right [(0, 1, ""), (1, 1, "")]
+    equal (run [(0, 0, "2"), (4, 0, ".5")] [(0, 4, "sub"), (4, 4, "sub")]
+        [(0, 0, "1")]) $
+            Right [(0, 1, ""), (1, 1, ""), (2, 4, ""), (6, 4, "")]
+
+show_log msg
+    | null (Log.msg_signal msg) = Log.format_msg msg
+    | otherwise = "*** " ++ Log.msg_string msg ++ "\n"
+        ++ show_sig (Log.msg_signal msg)
+
+show_sig sig =
+    Seq.join "\n" [showf x ++ "\t -> " ++ showf y | (x, y) <- sig]
+    where showf f = Numeric.showFFloat (Just 3) f ""
 
 test_tempo_ops = do
     let run op = fmap extract $ DeriveTest.run State.empty op
@@ -352,9 +401,10 @@ test_make_inverse_tempo_func = do
         [with_block 0, with_block 2, []]
 
 test_tempo = do
-    let f tempo_track = (fmap (map floor_event . extract_events) events, logs)
+    let f tempo_track =
+            Log.trace_logs logs (fmap (map floor_event . extract_events) events)
             where
-            (events, logs) = DeriveTest.e_logs $ DeriveTest.derive_tracks
+            (events, logs) = DeriveTest.e_val $ DeriveTest.derive_tracks
                 [ ("tempo", tempo_track)
                 , (">", [(0, 10, "--1"), (10, 10, "--2"), (20, 10, "--3")])
                 , ("*twelve", [(0, 10, "5a"), (10, 10, "5b"), (20, 10, "5c")])
@@ -362,19 +412,23 @@ test_tempo = do
         floor_event :: (Double, Double, String) -> (Integer, Integer, String)
         floor_event (start, dur, text) = (floor start, floor dur, text)
 
-    equal (f [(0, 0, "2")])
-        (Right [(0, 5, "--1"), (5, 5, "--2"), (10, 5, "--3")], [])
+    equal (f [(0, 0, "2")]) $
+        Right [(0, 5, "--1"), (5, 5, "--2"), (10, 4, "--3")]
 
     -- Slow down.
-    equal (f [(0, 0, "2"), (20, 0, "i, 1")])
-        (Right [(0, 5, "--1"), (5, 8, "--2"), (13, 9, "--3")], [])
-    equal (f [(0, 0, "2"), (20, 0, "i, 0")])
-        (Right [(0, 6, "--1"), (6, 83, "--2"), (90, 10000, "--3")], [])
+    equal (f [(0, 0, "2"), (20, 0, "i, 1")]) $
+        Right [(0, 5, "--1"), (5, 8, "--2"), (13, 10, "--3")]
+    equal (f [(0, 0, "2"), (20, 0, "i, 0")]) $
+        Right [(0, 6, "--1"), (6, 58, "--2"), (65, 10000, "--3")]
     -- Speed up.
-    equal (f [(0, 0, "1"), (20, 0, "i, 2")])
-        (Right [(0, 8, "--1"), (8, 5, "--2"), (13, 5, "--3")], [])
-    equal (f [(0, 0, "0"), (20, 0, "i, 2")])
-        (Right [(0, 83, "--1"), (83, 6, "--2"), (90, 5, "--3")], [])
+    equal (f [(0, 0, "1"), (20, 0, "i, 2")]) $
+        Right [(0, 8, "--1"), (8, 5, "--2"), (13, 4, "--3")]
+    equal (f [(0, 0, "0"), (20, 0, "i, 2")]) $
+        Right [(0, 108, "--1"), (108, 6, "--2"), (115, 5, "--3")]
+
+    -- Change tempo.
+    equal (f [(0, 0, "1"), (10, 0, "2")]) $
+        Right [(0, 10, "--1"), (10, 5, "--2"), (15, 5, "--3")]
 
 
 profile_deriver_performance = do

@@ -26,43 +26,34 @@ test_inverse_at = do
         [Just 0, Just 1, Just 1, Just 2, Nothing]
 
 test_compose = do
-    let f = mksig [(0, 0), (10, 20)]
-        g = mksig [(0, 0), (1, 0.5), (2, 1)]
+    let sig0 = mksig [(0, 0), (10, 20)]
+        sig1 = mksig [(0, 0), (1, 0.5), (2, 1)]
+    let f = Signal.compose
     -- They cancel each other out.
-    equal (unsig (Signal.compose f g))
-        [(0, 0), (1, 1), (2, 2)]
+    equal (unsig (f sig0 sig1)) [(0, 0), (1, 1), (2, 2)]
     let lin = mksig [(0, 0), (1, 1), (2, 2), (3, 3), (100, 100)]
         slow = mksig [(0, 0), (1, 2), (2, 4), (3, 6)]
-    equal (Signal.compose lin lin) lin
-    equal (Signal.compose lin slow) slow
+    equal (f lin lin) lin
+    equal (f lin slow) slow
     -- Since the signals are not the same length it looks funny at the end.
     -- But this should never be audible since a sub-block's warp shouldn't
     -- be longer than its parent's.
-    equal (Signal.compose slow lin) $
+    equal (f slow lin) $
         mksig [(0, 0), (1, 2), (2, 4), (3, 6), (100, 6)]
 
 test_integrate = do
-    let f sig = Seq.rdrop (length Signal._extra_samples - 1) $
-            unsig $ Signal.integrate 1 sig
-    equal (f (mksig [(0, 0), (1, 1), (2, 2), (4, 2)]))
-        [(0, 0), (1, 0.5), (2, 2), (4, 6)]
-    equal (f (mksig [(0, 0), (1, -1), (2, -2), (3, -3)]))
-        [(0, 0), (1, -0.5), (2, -2), (3, -4.5)]
+        -- strip off the padding that integrate appends
+    let f samples = take nxs $ unsig $ Signal.integrate 1 (mksig samples)
+            where nxs = floor (fst (last samples)) + 1
 
-test_integrate_segment = do
-    let f = Signal.integrate_segment 1 0
-    equal (f 0 2 0 2) (0, [])
-    equal (f 0 2 1 2) (2, [(0, 0)])
-    equal (f 0 2 4 2) (8, [(0, 0)])
-
-    equal (f 0 0 2 2) (2, [(0, 0), (1, 0.5)])
-    equal (f 0 0 3 3) (4.5, [(0, 0), (1, 0.5), (2, 2)])
-    equal (f 0 0 3 (-3)) (-4.5, [(0, 0), (1, -0.5), (2, -2)])
-
-    -- with offset
-    equal (f 0 2 4 0) (4, [(0, 0), (1, 1.75), (2, 3), (3, 3.75)])
-    -- crossing 0
-    equal (f 0 2 4 (-2)) (0, [(0, 0), (1, 1.5), (2, 2), (3, 1.5)])
+    equal (f [(0, 1), (3, 2)])
+        [(0, 0), (1, 1), (2, 2), (3, 3)]
+    equal (f [(1, 1), (3, 2)])
+        [(0, 0), (1, 0), (2, 1), (3, 2)]
+    equal (f [(0, 0), (1, 1), (2, 2), (4, 2)])
+        [(0, 0), (1, 0), (2, 1), (3, 3), (4, 5)]
+    equal (f [(0, 0), (1, -1), (2, -2), (3, -3)])
+        [(0, 0), (1, 0), (2, -1), (3, -3)]
 
 -- * comparison
 

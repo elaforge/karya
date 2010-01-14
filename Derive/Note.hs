@@ -139,6 +139,10 @@ import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.PitchSignal as PitchSignal
 
+-- debugging
+-- import qualified Perform.Signal as Signal
+-- import qualified Util.Log as Log
+
 
 -- | Notes with negative duration have an implicit sounding duration which
 -- depends on the following note.  Meanwhile (and for the last note of the
@@ -292,7 +296,7 @@ derive_note pos event (NoteDesc args inst attrs) = do
     -- Log.debug $ show (Event.event_string event) ++ ": local global "
     --     ++ show ((pos, start), (pos + Event.event_duration event, end))
     -- Derive.Warp wp stretch shift <- Derive.gets Derive.state_warp
-    -- Log.debug $ "warp " ++ (show wp)
+    -- Log.write $ Signal.log_signal wp $ Log.msg Log.Debug  "warp"
 
     st <- Derive.get
     case args of

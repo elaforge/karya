@@ -57,15 +57,11 @@ test_at_linear = do
 
 -- * transformation
 
-test_shift_stretch = do
+test_shift = do
     let vec = mkvec [(0, 1), (1, 0)]
     let shift x = unvec $ SignalBase.shift x vec
-        stretch x = unvec $ SignalBase.stretch x vec
     equal (shift 0) [(0, 1), (1, 0)]
     equal (shift 1) [(1, 1), (2, 0)]
-    throws (stretch 0) "called with mult<=0"
-    equal (stretch 1) [(0, 1), (1, 0)]
-    equal (stretch 2) [(0, 1), (2, 0)]
 
 test_truncate = do
     let vec = mkvec [(0, 0), (1, 1), (2, 0)]

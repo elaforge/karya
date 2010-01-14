@@ -264,12 +264,12 @@ within start end vec = V.drop extra inside
 --
 -- This emits a list to take advantage of laziness.  Later when signals are
 -- lazy I should probably emit two signals.
-resample_to_list :: (Signal v0, Signal v1) =>
-    SigVec v0 -> SigVec v1 -> [(X, v0, v1)]
+resample_to_list :: (Signal y0, Signal y1) =>
+    SigVec y0 -> SigVec y1 -> [(X, y0, y1)]
 resample_to_list vec0 vec1 =
     resample zero_y zero_y (V.unpack vec0) (V.unpack vec1)
 
-resample :: v0 -> v1 -> [(X, v0)] -> [(X, v1)] -> [(X, v0, v1)]
+resample :: y0 -> y1 -> [(X, y0)] -> [(X, y1)] -> [(X, y0, y1)]
 resample _ prev_by as [] = [(x, y, prev_by) | (x, y) <- as]
 resample prev_ay _ [] bs = [(x, prev_ay, y) | (x, y) <- bs]
 resample prev_ay prev_by as@((ax, ay) : rest_a) bs@((bx, by) : rest_b)

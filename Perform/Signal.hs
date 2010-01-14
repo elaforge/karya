@@ -55,11 +55,13 @@
 -}
 module Perform.Signal (
     Signal(Signal), sig_vec
-    , X, Y, x_to_y, y_to_x, max_x, max_y, default_srate, invalid_pitch, empty
+    , X, Y, x_to_y, y_to_x, max_x, max_y, default_srate, tempo_srate
+    , invalid_pitch, empty
     , Tempo, Warp, Control, NoteNumber, Display
 
     , signal, constant, track_signal, Method(..), Segment
     , unpack, to_track_samples
+    , log_signal
     , coerce
 
     , at, at_linear, sample
@@ -72,7 +74,7 @@ module Perform.Signal (
     , map_x, map_y
 
     , inverse_at, compose, integrate
-    , _extra_samples, integrate_segment -- testing
+    , integrate_segment -- export for testing
 
     , equal, pitches_share
 ) where
@@ -82,6 +84,7 @@ import qualified Data.StorableVector as V
 import qualified Foreign.Storable as Storable
 
 import qualified Util.Num as Num
+import qualified Util.Log as Log
 
 import Ui
 import qualified Ui.Track as Track
@@ -152,6 +155,8 @@ x_to_y (TrackPos x) = x
 y_to_x :: Y -> X
 y_to_x = TrackPos
 
+-- * constants
+
 max_y :: Y
 max_y = x_to_y SignalBase.max_x
 
@@ -162,6 +167,17 @@ invalid_pitch = -1
 
 empty :: Signal y
 empty = signal []
+
+-- | Signal composition, used by warps, is really tricky without a constant
+-- srate.  Since 'integrate' is the way to generate 'Warp's, ensure they are
+-- at this srate by passing this to integrate.
+--
+-- 0.05 = 50 Hz = 800b/sec = 47kb/min
+-- 0.01 = 100 Hz = 1600b/sec = 94kb/min
+tempo_srate :: X
+    -- TODO resolution is very low for the moment since I have neither lazy
+    -- signals nor a graphical way to log signals yet
+tempo_srate = 0.1
 
 -- * construction / deconstruction
 
@@ -177,6 +193,12 @@ track_signal srate segs = Signal (SignalBase.track_signal srate segs)
 -- | Used for tests.
 unpack :: Signal y -> [(X, Y)]
 unpack = V.unpack . sig_vec
+
+-- | A hack to log a signal.  This way it can be extracted later and displayed
+-- in a format that's nicer than a huge log line.
+log_signal :: Signal y -> Log.Msg -> Log.Msg
+log_signal sig msg =
+    msg { Log.msg_signal = [(x, y) | (TrackPos x, y) <- unpack sig] }
 
 -- | TODO This is used by the signal deriver and is inefficient.  I should be
 -- passing a pointer.
@@ -285,36 +307,21 @@ compose f g = Signal $ SignalBase.map_y go (sig_vec g)
 integrate :: X -> Tempo -> Warp
 integrate srate = modify_vec (SignalBase.map_signal_accum go final 0)
     where
-    go accum x0 y0 x1 y1 =
-        -- integrate_segment (to_val srate) accum (to_val x0) y0 (to_val x1) y1
-        integrate_segment srate accum x0 y0 x1 y1
-    -- Extend the integral out until I'm pretty sure no one will need it.  When
-    -- I have lazy signals I really can make it go on forever.  If I use
-    -- max_track_pos I run into trouble when composing two integrals, because
-    -- the shorter one truncates the longer one, and since there's only one
-    -- sample it changes the slope.
-    -- To avoid generating tons of useless signal, I emit sparse samples and
-    -- rely on linear interpolation from 'inverse_at'.
-    final accum (x, y) =
-        [(x + y_to_x int, accum + y * int) | int <- _extra_samples]
-
--- | Exported for tests.
-_extra_samples :: [Y]
-_extra_samples = [0, 1000 .. 10000]
+    go accum x0 y0 x1 y1 = integrate_segment srate accum x0 y0 x1 y1
+    -- TODO for now only append a few seconds of samples to extend the
+    -- integration.  This means a tempo track will only extend this far
+    -- past the last sample, which is clearly not good, but when signals are
+    -- lazy this can extend indefinitely and the problem goes away.
+    padding = 30
+    final accum (x, y) = snd $ integrate_segment srate accum x y (x+padding) y
 
 integrate_segment :: X -> Y -> X -> Y -> X -> Y -> (Y, [(X, Y)])
-integrate_segment srate accum x0 y0 x1 y1
+integrate_segment srate accum x0 y0 x1 _y1
     | x0 >= x1 = (accum, [])
-        -- A line with slope 0 can be integrated without sampling.
-        -- The final point is left for the beginning of the next segment.
-    | y0 == y1 = (accum + (x_to_y x1 - x_to_y x0)*y0, [(x0, accum)])
-    | otherwise = (y_at x1, [(x, y_at x) | x <- samples])
+    | otherwise = (y_at x1, [(x, y_at x) | x <- xs])
     where
-    samples = SignalBase.range False x0 x1 srate
-    -- math is hard let's go shopping
-    y_at x = accum + x_to_y ((x-x0)**2 / (2/slope)) + (y0 * x_to_y (x-x0))
-    slope = y_to_x (y1-y0) / (x1-x0)
-
+    xs = SignalBase.range False x0 x1 srate
+    y_at x = accum + x_to_y (x-x0) * y0
 
 --- * comparison
 
