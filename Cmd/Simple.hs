@@ -16,6 +16,12 @@ import qualified Cmd.Clip as Clip
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Selection as Selection
 
+import qualified Derive.Score as Score
+import qualified Perform.Pitch as Pitch
+import qualified Perform.Signal as Signal
+import qualified Perform.Midi.Perform as Perform
+import qualified Perform.Midi.Instrument as Instrument
+
 import qualified App.Config as Config
 
 
@@ -31,9 +37,30 @@ type Track = (String, String, [Event])
 -- | (start, duration, text)
 type Event = (Double, Double, String)
 
+-- | (start, duration, text, initial_pitch)
+type ScoreEvent = (Double, Double, String, Pitch.Degree)
+
+-- | (inst, start, duration, initial_pitch)
+type PerfEvent = (String, Double, Double, Pitch.NoteNumber)
+
+from_pos :: TrackPos -> Double
+from_pos = realToFrac
+
 event :: Track.PosEvent -> Event
-event (start, event) = (realToFrac start,
-    realToFrac (Event.event_duration event), Event.event_string event)
+event (start, event) = (from_pos start,
+    from_pos (Event.event_duration event), Event.event_string event)
+
+score_event :: Score.Event -> ScoreEvent
+score_event evt = (from_pos (Score.event_start evt),
+    from_pos (Score.event_duration evt),
+    Score.event_string evt, Score.initial_pitch evt)
+
+perf_event :: Perform.Event -> PerfEvent
+perf_event evt = (Instrument.inst_name (Perform.event_instrument evt),
+    from_pos start, from_pos (Perform.event_duration evt),
+    Pitch.nn (Signal.at start (Perform.event_pitch evt)))
+    where start = Perform.event_start evt
+
 
 dump_block :: (State.UiStateMonad m) => BlockId -> m Block
 dump_block block_id = do
@@ -87,4 +114,4 @@ convert_track (id_name, title, events) = do
 
 convert_event :: Event -> Track.PosEvent
 convert_event (start, dur, text) =
-    (realToFrac start, Event.event text (realToFrac dur))
+    (TrackPos start, Event.event text (TrackPos dur))
