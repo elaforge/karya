@@ -168,10 +168,7 @@ d_note_track track_id = do
     let pos_events = Track.event_list (Track.track_events track)
     (ndesc, calls) <- parse_track_title (Track.track_title track)
     events <- derive_notes =<< parse_events ndesc pos_events
-    -- TODO won't this run redundantly for subderives?  It should be idempotent
-    -- but still its inefficient.  Since compile is run for each block, it
-    -- still happens once per block it can't go there.
-    foldM call (process_negative_duration events) calls
+    foldM call events calls
 
 call :: [Score.Event] -> Call -> Derive.EventDeriver
 call events (Call call_id args) = do
@@ -276,23 +273,22 @@ parse_call args = do
 
 derive_notes :: (Monad m) => [(Track.PosEvent, NoteDesc)]
     -> Derive.DeriveT m [Score.Event]
-derive_notes = fmap (trim_pitches . concat) . mapM note
+derive_notes = fmap concat . mapM note . Seq.zip_next
     where
-    note ((pos, event), ndesc) = Derive.with_stack_pos
-        pos (Event.event_duration event) (derive_note pos event ndesc)
+    note (((pos, event), ndesc), next) = Derive.with_stack_pos
+        pos (Event.event_duration event) (derive_note pos event ndesc next)
 
 derive_note :: (Monad m) => TrackPos -> Event.Event -> NoteDesc
-    -> Derive.DeriveT m [Score.Event]
-derive_note pos event (NoteDesc args inst attrs) = do
+    -> Maybe (Track.PosEvent, NoteDesc) -> Derive.DeriveT m [Score.Event]
+derive_note pos event (NoteDesc args inst attrs) maybe_next = do
     -- TODO when signals are lazy this will be inefficient.  I need to come
     -- up with a way to guarantee such accesses are increasing and let me gc
     -- the head.
-    let dur = Event.event_duration event
     start <- Derive.local_to_global pos
-    end <- if dur < 0
-        then return (start + negative_duration_default)
-        else Derive.local_to_global (pos + dur)
-    let neg_dur = if dur < 0 then abs dur else 0
+    -- TODO the last event may have a next event from the deriving block,
+    -- pass that down from there
+    let dur = calculate_duration (pos, event) (fmap fst maybe_next)
+    end <- Derive.local_to_global (pos + dur)
     -- Log.debug $ show (Event.event_string event) ++ ": local global "
     --     ++ show ((pos, start), (pos + Event.event_duration event, end))
     -- Derive.Warp wp stretch shift <- Derive.gets Derive.state_warp
@@ -305,9 +301,11 @@ derive_note pos event (NoteDesc args inst attrs) = do
             return []
         -- TODO when signals are lazy I should drop the heads of the control
         -- signals so they can be gced.
-        [] -> return [Score.Event start (end-start) neg_dur
-            (Event.event_text event) (Derive.state_controls st)
-            (Derive.state_pitch st) (Derive.state_stack st) inst attrs]
+        [] -> do
+            pitch_sig <- trimmed_pitch maybe_next (Derive.state_pitch st)
+            return [Score.Event start (end-start)
+                (Event.event_text event) (Derive.state_controls st)
+                pitch_sig (Derive.state_stack st) inst attrs]
         _ -> do
             Call sub args <- either (Derive.throw . ("derive_note: " ++))
                 return (parse_call args)
@@ -325,19 +323,32 @@ derive_note pos event (NoteDesc args inst attrs) = do
             Derive.d_sub_derive [] $ Derive.with_instrument inst attrs $
                 d_sub begin (end - begin) sub
 
--- | In a note track, the pitch signal for each note ends when the next note
--- begins.  Otherwise, it looks like each note changes pitch when the next note
--- begins.  Of course, the note is already \"done\" at this point, but the
--- decay time means it may still be audible.
-trim_pitches :: [Score.Event] -> [Score.Event]
-trim_pitches events = map trim_event (Seq.zip_next events)
+calculate_duration :: Track.PosEvent -> Maybe Track.PosEvent -> TrackPos
+calculate_duration (cur_pos, cur) (Just (next_pos, next))
+        -- Departing notes are not changed.
+    | Event.is_positive cur = dur cur
+        -- Arriving followed by arriving with a rest in between extends to
+        -- the arrival of the rest.
+    | Event.is_negative next && rest > 0 = rest
+        -- Arriving followed by arriving with no rest, or an arriving note
+        -- followed by a departing note will sound until the next note.
+    | otherwise = next_pos - cur_pos
     where
-    trim_event (event, Nothing) = event
-    trim_event (event, Just next) =
-        event { Score.event_pitch = PitchSignal.truncate p psig }
-        where
-        psig = Score.event_pitch event
-        p = Score.event_start next
+    rest = Track.event_end (next_pos, next) - cur_pos
+    dur = Event.event_duration
+calculate_duration (_, cur) Nothing
+    | Event.is_positive cur = Event.event_duration cur
+    | otherwise = negative_duration_default
+
+-- | In a note track, the pitch signal for each note is constant as soon as the
+-- next note begins.  Otherwise, it looks like each note changes pitch during
+-- its decay.
+trimmed_pitch :: (Monad m) => Maybe (Track.PosEvent, NoteDesc)
+    -> PitchSignal.PitchSignal -> Derive.DeriveT m PitchSignal.PitchSignal
+trimmed_pitch (Just ((next_pos, _), _)) sig = do
+    next <- Derive.local_to_global next_pos
+    return $ PitchSignal.truncate next sig
+trimmed_pitch _ sig = return sig
 
 d_sub :: TrackPos -> TrackPos -> TrackLang.CallId -> Derive.EventDeriver
 d_sub start dur call_id = do
@@ -362,28 +373,7 @@ d_sub start dur call_id = do
             return []
 
 
--- * post process
-
--- | Process out negative duration notes as described in module doc.
-process_negative_duration :: [Score.Event] -> [Score.Event]
-process_negative_duration = map go . Seq.zip_next
-    where
-    go (cur, Nothing) = cur
-    go (cur, Just next)
-            -- Departing notes are not changed.
-        | ndur cur == 0 = cur
-            -- Arriving followed by arriving with a rest in between extends to
-            -- the arrival of the rest.
-        | ndur next > 0 && rest > 0 = set_dur rest
-            -- Arriving followed by arriving with no rest, or an arriving note
-            -- followed by a departing note will sound until the next note.
-        | otherwise = set_dur (pos next - pos cur)
-        where
-        ndur = Score.event_negative_duration
-        pos = Score.event_start
-        rest = pos next - ndur next - pos cur
-        set_dur dur = cur { Score.event_duration = dur }
-
+-- * util
 
 -- | Make an Id from a string, relative to the current ns if it doesn't already
 -- have one.

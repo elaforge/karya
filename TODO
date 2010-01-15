@@ -17,6 +17,7 @@
 - derive multiple blocks with parMap
 
 CURRENT
+  - test should only run one test if it's an exact match
   * insert time on a control event copies it
   - implement continuous controller warp
   - make Track.UnsortedEvents and Track.SortedEvents, type or newtype?
@@ -272,6 +273,12 @@ test:
 
 integrator / midi record:
   - implement
+
+REPL repl
+  - haskeline sucks for long lines, add multiple line editing?
+    really I'd prefer plan9 style esc then edit
+  - could add syntax mangling, but probably better to add it to the mangler
+    so it works for everyone
 
 Cmd:
   ? a module with easy access to all GlobalKeymap cmds for cmdline access

@@ -29,10 +29,6 @@ data Event = Event {
     -- attributes like font style are not preserved here.
     event_start :: TrackPos
     , event_duration :: TrackPos
-    -- | This will be the (positive) amount of negative duration the
-    -- Event.Event had.  'event_duration' is the actual sounding duration.
-    -- Negative duration is used to implement arrival beats.
-    , event_negative_duration :: TrackPos
     -- | The UI level keeps it in UTF8 for easy communication with fltk, but
     -- haskell will always need to decode it, so I might as well do it here.
     , event_text :: Text.Text

@@ -20,6 +20,7 @@ import qualified Derive.Score as Score
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
+import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Transport as Transport
 import qualified Perform.Warning as Warning
 
@@ -67,13 +68,14 @@ derive_tracks_tempo :: [UiTest.TrackSpec] -> Result [Score.Event]
 derive_tracks_tempo tracks = derive_tracks (("tempo", [(0, 0, "1")]) : tracks)
 
 perform :: Instrument.Config -> [Score.Event]
-    -> ([Perform.Event], [Warning.Warning], [Midi.Message], [Warning.Warning])
+    -> ([Perform.Event], [Warning.Warning],
+        [(Timestamp.Timestamp, Midi.Message)], [Warning.Warning])
 perform inst_config events = (perf_events, convert_warns, mmsgs, perform_warns)
     where
     (perf_events, convert_warns) = Convert.convert default_lookup events
     (msgs, perform_warns) =
         Perform.perform default_lookup inst_config perf_events
-    mmsgs = map Midi.wmsg_msg msgs
+    mmsgs = map (\m -> (Midi.wmsg_ts m, Midi.wmsg_msg m)) msgs
 
 derive_block :: State.State -> BlockId -> Result [Score.Event]
 derive_block ui_state block_id = derive lookup_deriver ui_state deriver
@@ -113,6 +115,12 @@ extract_events e_event = extract e_event id
 -- | Get standard event info.
 e_event :: Score.Event -> (TrackPos, TrackPos, String)
 e_event e = (Score.event_start e, Score.event_duration e, Score.event_string e)
+
+note_on_times :: [(Timestamp.Timestamp, Midi.Message)]
+    -> [(Integer, Midi.Key, Midi.Velocity)]
+note_on_times mmsgs = [(ts, nn, vel)
+    | (Timestamp.Timestamp ts, Midi.ChannelMessage _ (Midi.NoteOn nn vel))
+        <- mmsgs]
 
 
 -- * inst

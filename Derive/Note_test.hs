@@ -94,8 +94,8 @@ test_echo = do
     equal logs []
     equal convert_warns []
     equal perf_warns []
-    equal (Seq.map_maybe Midi.channel_message (filter Midi.is_note_on mmsgs))
-        (map (uncurry Midi.NoteOn) [(60, 100), (62, 100), (60, 40), (62, 40)])
+    equal (DeriveTest.note_on_times mmsgs)
+        [(0, 60, 100), (1000, 62, 100), (2000, 60, 40), (3000, 62, 40)]
 
 test_tick = do
     let extract = DeriveTest.extract_events $ \e ->
@@ -162,22 +162,20 @@ test_calls = do
         Right [(2, 1, "--1"), (3, 1, "--2")]
 
 test_negative_duration = do
-    let extract = DeriveTest.extract
-            (\e -> (DeriveTest.e_event e, Score.event_negative_duration e))
-            Log.msg_string
+    let extract = DeriveTest.extract (\e -> DeriveTest.e_event e) Log.msg_string
     let run evts = extract $ DeriveTest.derive_tracks_tempo
             [(DeriveTest.default_inst_title, evts)]
 
     let deflt = Note.negative_duration_default
-    -- negative dur shows up, events get lined up
+    -- events get lined up
     equal (run [(1, -1, "--1"), (3, -2, "--2")])
-        (Right [((1, 2, "--1"), 1), ((3, deflt, "--2"), 2)], [])
+        (Right [(1, 2, "--1"), (3, deflt, "--2")], [])
     -- rest
     equal (run [(1, -1, "--1"), (3, -1, "--2")])
-        (Right [((1, 1, "--1"), 1), ((3, deflt, "--2"), 1)], [])
+        (Right [(1, 1, "--1"), (3, deflt, "--2")], [])
     -- 0 dur is omitted
     equal (run [(1, -1, "--1"), (3, 0, "--2")])
-        (Right [((1, 1, "--1"), 1)], ["compile: omitting note with 0 duration"])
+        (Right [(1, 2, "--1")], ["compile: omitting note with 0 duration"])
 
 
 type Extracted =

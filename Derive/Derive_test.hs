@@ -19,6 +19,8 @@ import qualified Ui.UiTest as UiTest
 
 import qualified Midi.Midi as Midi
 
+import qualified Cmd.Simple as Simple
+
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
@@ -91,14 +93,34 @@ test_subderive = do
     equal (fmap (map Score.event_instrument) events) $
         Right [Just (Score.Instrument "i1"), Just (Score.Instrument "i2")]
 
-    -- TODO test when the subblock has a tempo too
-    -- type TempoFunction = BlockId -> TrackId -> TrackPos
-    --     -> Maybe Timestamp.Timestamp
-
     -- For eyeball verification.
     -- pprint events
     -- pprint $ zip [0,2..] $ map inv_tempo (map Timestamp.seconds [0, 2 .. 10])
     -- pprint $ Derive.state_track_warps state
+
+test_subderive_multiple = do
+    -- make sure subderiving a block with multiple tracks works correctly
+    let ui_state = snd $ UiTest.run State.empty $ do
+            UiTest.mkstate "sub"
+                [ (">", [(0, 1, "--1-1"), (1, 1, "--1-2")])
+                , ("*twelve", [(0, 0, "4c"), (1, 0, "4d")])
+                , (">", [(0, 1, "--2-1"), (1, 1, "--2-2")])
+                , ("*twelve", [(0, 0, "5c"), (1, 0, "5d")])
+                ]
+            UiTest.mkstate "b0"
+                [ ("tempo", [(0, 0, "2")])
+                , (">i", [(0, 8, "sub")])
+                , ("vel", [(0, 0, "1"), (8, 0, "i, 0")])
+                ]
+    let (Right events, logs) = DeriveTest.e_val $
+            DeriveTest.derive_block ui_state (UiTest.bid "b0")
+    let (perf_events, convert_warns, mmsgs, midi_warns) = DeriveTest.perform
+            DeriveTest.default_inst_config events
+    let ts = Timestamp.Timestamp
+    equal (DeriveTest.note_on_times mmsgs)
+        [ (0, 60, 127), (0, 72, 127)
+        , (2000, 62, 63), (2000, 74, 63)
+        ]
 
 test_tempo_compose = do
     let run tempo events sub_tempo =
@@ -135,6 +157,10 @@ test_tempo_compose = do
     equal (run [(0, 0, "2"), (4, 0, ".5")] [(0, 4, "sub"), (4, 4, "sub")]
         [(0, 0, "1")]) $
             Right [(0, 1, ""), (1, 1, ""), (2, 4, ""), (6, 4, "")]
+
+    -- TODO test when the subblock has a tempo too
+    -- type TempoFunction = BlockId -> TrackId -> TrackPos
+    --     -> Maybe Timestamp.Timestamp
 
 show_log msg
     | null (Log.msg_signal msg) = Log.format_msg msg
@@ -270,7 +296,8 @@ test_fractional_pitch = do
     -- pprint perf_events
     equal perform_warns []
     -- pprint mmsgs
-    equal [(chan, nn) | Midi.ChannelMessage chan (Midi.NoteOn nn _) <- mmsgs]
+    equal [(chan, nn) | Midi.ChannelMessage chan (Midi.NoteOn nn _)
+            <- map snd mmsgs]
         [(0, 72), (1, 73)]
 
 test_basic = do
@@ -295,7 +322,7 @@ test_basic = do
         ]
 
     -- 3: performance to midi protocol events
-    equal [nn | Midi.ChannelMessage _ (Midi.NoteOn nn _) <- mmsgs]
+    equal [nn | Midi.ChannelMessage _ (Midi.NoteOn nn _) <- map snd mmsgs]
         [1, 60, 0, 61]
     equal midi_warns []
     where
@@ -328,7 +355,7 @@ test_control = do
         [set_ks perf_inst "a1" 2, set_ks perf_inst "a2" 3]
 
     -- Just make sure it did in fact emit ccs.
-    check $ any Midi.is_cc mmsgs
+    check $ any Midi.is_cc (map snd mmsgs)
     equal midi_warns []
     where
     set_ks inst ks nn = inst
