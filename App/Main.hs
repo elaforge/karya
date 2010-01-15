@@ -225,7 +225,7 @@ setup_cmd _args = do
     State.set_project "untitled"
     return Cmd.Done
 
-arrival_beats = True
+arrival_beats = False
 
 auto_setup_cmd :: [String] -> Cmd.CmdIO
 auto_setup_cmd _args = do

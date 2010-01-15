@@ -131,6 +131,9 @@ data Patch = Patch {
 patch :: Instrument -> Patch
 patch inst = Patch inst NoInitialization (KeyswitchMap []) [] ""
 
+patch_name :: Patch -> InstrumentName
+patch_name = inst_name . patch_instrument
+
 -- | A KeyswitchMap maps a set of attributes to a keyswitch and gives
 -- a piority for those mapping.  For example, if {pizz} is before {cresc}, then
 -- {pizz, cresc} will map to {pizz}, unless, of course, {pizz, cresc} comes
@@ -183,9 +186,6 @@ validate_keyswithes (KeyswitchMap attr_ks) =
         Just other_attr -> Just $ "attr " ++ show (Set.toList attr)
             ++ " is shadowed by " ++ show (Set.toList other_attr)
         Nothing -> Nothing
-
-patch_name :: Patch -> InstrumentName
-patch_name = inst_name . patch_instrument
 
 type Tag = (TagKey, TagVal)
 tag :: String -> String -> Tag

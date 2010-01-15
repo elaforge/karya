@@ -25,10 +25,13 @@ type Search = Query -> [Score.Instrument]
 -- match nothing won't cause the match to fail.
 type Query = [(Instrument.TagKey, Instrument.TagVal)]
 
--- | Search the db.  The input string is in the db query language, and the
--- output is the names of matching patches, along with their backend.
+-- | Search the db.  The input Query is in the parsed db query language, and
+-- the output is the names of matching patches, along with their backend.
+--
+-- An empty query matches everything.
 search :: Index -> Search
 search idx query
+    | null query = Map.keys (idx_inverted idx)
     | null matches = []
     | otherwise = Set.toList (foldl1 Set.intersection matches)
     where

@@ -9,6 +9,7 @@ import qualified Data.ByteString as ByteString
 import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import Text.Printf
 
 import qualified Util.Seq as Seq
@@ -44,29 +45,30 @@ main = SendCmd.initialize $ do
     putStrLn $ "Loaded " ++ show (Db.size db)
     -- let db = Db.db Instrument.Search_test.midi_db Search.empty_index
     win <- BrowserC.create 50 50 400 200
-    Concurrent.forkIO $ handle_msgs win db initial_state
+    Concurrent.forkIO $ handle_msgs win db
         `Exception.finally` putStrLn "handler thread died"
     Fltk.run
 
 data State = State {
     state_displayed :: [Score.Instrument]
     }
-initial_state = State []
 
-handle_msgs :: BrowserC.Window -> Db.Db -> State -> IO ()
-handle_msgs win db state = flip State.evalStateT state $ forever $ do
-    (Fltk.Msg typ text) <- State.liftIO $ get_msg (Fltk.win_chan win)
-    -- State.liftIO $ print (typ, text)
-    case typ of
-        BrowserC.Select -> State.liftIO $ show_info win db text
-        BrowserC.Choose -> State.liftIO $ choose_instrument text
-        BrowserC.Query -> do
-            state <- State.get
-            displayed <- State.liftIO $
-                process_query win db (state_displayed state) text
-            State.put (state { state_displayed = displayed })
-        BrowserC.Unknown c -> State.liftIO $
-            putStrLn $ "unknown msg type: " ++ show c
+handle_msgs :: BrowserC.Window -> Db.Db -> IO ()
+handle_msgs win db = do
+    displayed <- State.liftIO $ process_query win db [] ""
+    flip State.evalStateT (State displayed) $ forever $ do
+        (Fltk.Msg typ text) <- State.liftIO $ get_msg (Fltk.win_chan win)
+        -- State.liftIO $ print (typ, text)
+        case typ of
+            BrowserC.Select -> State.liftIO $ show_info win db text
+            BrowserC.Choose -> State.liftIO $ choose_instrument text
+            BrowserC.Query -> do
+                state <- State.get
+                displayed <- State.liftIO $
+                    process_query win db (state_displayed state) text
+                State.put (state { state_displayed = displayed })
+            BrowserC.Unknown c -> State.liftIO $
+                putStrLn $ "unknown msg type: " ++ show c
 
 get_msg msg_chan = STM.atomically $ STM.readTChan msg_chan
 
@@ -84,7 +86,7 @@ info_of db score_inst (MidiDb.Info synth patch) =
     printf "%s -- %s -- %s\n\n" synth_name name dev
         ++ info_sections
             [ ("Instrument controls", cmap_info inst_cmap)
-            , ("Keyswitches", show keyswitches)
+            , ("Keyswitches", show_keyswitches keyswitches)
             , ("Synth controls", cmap_info synth_cmap)
             , ("Pitchbend range", show (Instrument.inst_pitch_bend_range inst))
             , ("Initialization", initialize_info initialize)
@@ -98,6 +100,18 @@ info_of db score_inst (MidiDb.Info synth patch) =
     inst_cmap = Instrument.inst_control_map inst
     tags = maybe "" tags_info $
         Search.tags_of (Db.db_index db) score_inst
+
+-- | Pretty print Keyswitches
+show_keyswitches :: Instrument.KeyswitchMap -> String
+show_keyswitches (Instrument.KeyswitchMap ksmap) =
+    Seq.join "\n" (map show_pair ksmap)
+    where
+    show_pair (attrs, ks) = show_attrs attrs ++ ": " ++ show_ks ks
+    show_attrs attrs
+        | Set.null attrs = "{}"
+        | otherwise = Seq.join " " ['+':attr | attr <- Set.toList attrs]
+    show_ks ks = Instrument.ks_name ks
+        ++ " (" ++ show (Instrument.ks_key ks) ++ ")"
 
 info_sections = unlines . filter (not.null) . map info_section
 info_section (title, raw_text)

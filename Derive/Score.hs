@@ -139,7 +139,7 @@ cevent_string = Text.unpack . cevent_text
 -- the instrument db to get the backend specific Instrument type as well as the
 -- backend itself, but things at the Derive layer and above don't care about
 -- all that.
-data Instrument = Instrument String
+newtype Instrument = Instrument String
     deriving (Eq, Ord, Show, Read)
 inst_name (Instrument s) = s
 

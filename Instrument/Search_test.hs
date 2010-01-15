@@ -14,21 +14,22 @@ import qualified Local.Instrument.Z1
 
 
 test_search = do
-    let idx = Search.make_index midi_db
-    equal (Search.search idx []) []
-    equal (Search.search idx [("category", "key"), ("control", "comb")])
-        (insts ["z1/comb_clav"])
-    equal (Search.search idx [("category", "key"), ("control", "")])
-        (insts ["z1/comb_clav", "z1/pulse_clav"])
-    equal (Search.search idx [("name", "delg"), ("name", "comb")])
+    let f = map Score.inst_name . Search.search index
+    equal (f []) t_all_insts
+    equal (f [("synth", "")]) t_all_insts
+    equal (f [("category", "key"), ("control", "comb")])
+        ["z1/comb_clav"]
+    equal (f [("category", "key"), ("control", "")])
+        ["z1/comb_clav", "z1/pulse_clav"]
+    equal (f [("name", "delg"), ("name", "comb")])
         []
-    equal (Search.search idx [("synth", "fm8")])
-        (insts ["fm8/*"])
+    equal (f [("synth", "fm8")])
+        ["fm8/*"]
 
-insts = map Score.Instrument
-
+index = Search.make_index midi_db
 midi_db = MidiDb.midi_db
     [(t_synth, t_patches), (t_synth2, t_patches2)]
+t_all_insts = map Score.inst_name (Map.keys (Search.idx_inverted index))
 
 t_synth = Instrument.synth "z1" "Z1 dev" [(13, "pe 1")]
 t_patches = fst $ MidiDb.patch_map $ map mkpatch
