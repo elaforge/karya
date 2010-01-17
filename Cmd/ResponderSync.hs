@@ -61,6 +61,13 @@ import qualified Derive.Schema as Schema
 import qualified Perform.Signal as Signal
 
 
+-- | The background derive threads will wait this long before starting up,
+-- to avoid working too hard during an edit.
+derive_wait_focused, derive_wait_unfocused :: Double
+derive_wait_focused = 1
+derive_wait_unfocused = 3
+
+
 -- | Sync @state2@ to the UI.
 -- Returns both UI state and cmd state since verification may clean up the UI
 -- state, and this is where the undo history is stored in Cmd.State.
@@ -144,8 +151,11 @@ background_derive block_id = do
         block_id (Cmd.state_instrument_db st) (Cmd.state_schema_map st)
     Cmd.put_state $ st { Cmd.state_performance =
         Map.insert block_id perf (Cmd.state_performance st) }
+    focused <- Cmd.lookup_focused_block
     Trans.liftIO $ Thread.start_thread ("derive " ++ show block_id) $
-        evaluate_performance block_id perf
+        -- If there is no focus I don't know who is going first, so they're all
+        -- equal priority.
+        evaluate_performance block_id (maybe True (==block_id) focused) perf
 
 -- | Figure out which blocks should be re-derived.
 dirty_blocks :: State.State -> State.State -> [Update.Update] -> [BlockId]
@@ -161,8 +171,11 @@ dirty_blocks ui_from ui_to updates = Seq.unique (track_block_ids ++ block_ids)
         ((== Just tid) . Block.track_id_of) (State.state_blocks ui_to)
 
 
-evaluate_performance :: BlockId -> Cmd.Performance -> IO ()
-evaluate_performance block_id perf = do
+evaluate_performance :: BlockId -> Bool -> Cmd.Performance -> IO ()
+evaluate_performance block_id has_focus perf = do
+    Concurrent.threadDelay $ floor $
+        (if has_focus then derive_wait_focused else derive_wait_unfocused)
+            * 1000000
     -- Force the performance to actually be evaluated.  Writing out the logs
     -- should do it.
     let prefix = Text.append (Text.pack ("deriving " ++ show block_id ++ ": "))

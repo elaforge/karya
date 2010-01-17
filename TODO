@@ -17,6 +17,8 @@
 - derive multiple blocks with parMap
 
 CURRENT
+  - fix load window positions
+  - default inst and pitch for blocks with none
   - scroll box should be red when the derivation is not up to date, back to
     green when it is, that way you can see if derivation failed
   - test should only run one test if it's an exact match
@@ -183,7 +185,10 @@ performance:
     - respond to incoming notes
     - diff and modify UI
     - derive a large score
-  - pause before starting background derive to avoid thrashing during edits?
+  * pause before starting background derive to avoid thrashing during edits?
+  - only derive first few seconds?  Or derive up to selection + a few seconds?
+    implement caching first
+    to log incrementally, emit log msg every n sec of derivation
   - use a lazy storeable vector for [Score.Event] and [Midi.Message] to save
     memory?
   random little hangs are annoying.  figure out what's going on.  GC?
