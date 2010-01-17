@@ -17,6 +17,8 @@
 - derive multiple blocks with parMap
 
 CURRENT
+  - scroll box should be red when the derivation is not up to date, back to
+    green when it is, that way you can see if derivation failed
   - test should only run one test if it's an exact match
   * insert time on a control event copies it
   - implement continuous controller warp
@@ -125,8 +127,14 @@ note input / thru:
   - profile midi->midi thru and implement a fast path if necessary
 
 bugs:
+  - apparently -0 isn't saved?
+  - comment event should be ignored... or use just ;?  in any case I should be
+    able to make it 0 dur
+  * warning is missing a space: "performance: no pitch signalpos: (TrackP..."
+  - clipboard is not handling the skeleton properly
+  - deriving signal causes event derive to fail too?
   - undo should not move windows!  some bug is making undo randomly jump to
-    (0, 0)
+    (0, 0), windows are also going to weird places on load
   - can share pitches doesn't consider a whole step transposition unshareable
   - is kbd entry letting keys like 1 fall through?
   * Edit.cmd_delete_time is still a little funky, an event with only 2 time

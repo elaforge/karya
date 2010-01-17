@@ -247,7 +247,7 @@ warn_to_msg context (Warning.Warning msg event_stack maybe_range) =
     log = Log.msg Log.Warn $ context ++ ": " ++ msg
         -- TODO It would be more useful to append this to the stack, but I have
         -- to convert global -> local.
-        ++ maybe "" (("pos: " ++) . show) maybe_range
+        ++ maybe "" ((" range: " ++) . show) maybe_range
 
 
 -- ** updater
