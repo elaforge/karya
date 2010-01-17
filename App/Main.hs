@@ -76,10 +76,22 @@ load_static_config = do
         , StaticConfig.config_schema_map = Map.empty
         , StaticConfig.config_local_lang_dirs = [app_dir </> Config.lang_dir]
         , StaticConfig.config_global_cmds = []
-        , StaticConfig.config_setup_cmd = auto_setup_cmd
+        , StaticConfig.config_setup_cmd = parse_args
         , StaticConfig.config_read_device_map = read_device_map
         , StaticConfig.config_write_device_map = write_device_map
         }
+
+parse_args :: [String] -> Cmd.CmdIO
+parse_args argv = case argv of
+    [] -> auto_setup_cmd
+    ["-a"] -> do
+        Save.cmd_load "save/default"
+        State.set_project "untitled"
+        return Cmd.Done
+    [fn] -> do
+        Save.cmd_load fn
+        return Cmd.Done
+    _ -> error $ "bad args: " ++ show argv -- TODO something better
 
 iac n = "IAC Out " ++ show n
 tapco n = "Tapco " ++ show n
@@ -221,16 +233,10 @@ print_devs rdev_map wdev_map = do
     mapM_ print (Map.keys wdev_map)
 
 
-setup_cmd :: [String] -> Cmd.CmdIO
-setup_cmd _args = do
-    Save.cmd_load "save/default"
-    State.set_project "untitled"
-    return Cmd.Done
-
 arrival_beats = False
 
-auto_setup_cmd :: [String] -> Cmd.CmdIO
-auto_setup_cmd _args = do
+auto_setup_cmd :: Cmd.CmdIO
+auto_setup_cmd = do
     (bid, vid) <- empty_block
     t0 <- Create.track bid 2
     State.insert_events t0 $ map (note_event . UiTest.mkevent)
