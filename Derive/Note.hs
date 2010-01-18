@@ -24,6 +24,11 @@
     subsequent word is ignored.  At the least this is useful for tests to
     keep track of events.
 
+    - As a special case, an event that is entirely @--@ is ignored entirely.
+    It would be more elegant to implement this simply as a call that emits
+    no events, but -- looks nicer.  At the moment, this is convenient to extend
+    the length of a block past the last note.
+
     - Attributes are prepended by @+@, @-@, or @=@ are collected into a set,
     which is placed in the environment.  @+@ adds to the set, @-@ subtracts,
     and @=@ sets it.
@@ -298,6 +303,10 @@ derive_note pos event (NoteDesc args inst attrs) maybe_next = do
     case args of
         _ | dur == 0 -> do
             Derive.warn "omitting note with 0 duration"
+            return []
+        _ | Event.event_string event == "--" ->
+            -- Events that are entirely comment are skipped entirely, see
+            -- module comment.
             return []
         -- TODO when signals are lazy I should drop the heads of the control
         -- signals so they can be gced.
