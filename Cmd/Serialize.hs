@@ -27,6 +27,7 @@ import qualified System.IO as IO
 
 import qualified Util.File as File
 import qualified Util.PPrint as PPrint
+import qualified Util.Binary
 
 import Ui
 import qualified Ui.Block as Block
@@ -324,8 +325,8 @@ instance Binary Types.Selection where
 -- ** Types, Color, Font
 
 instance Binary TrackPos where
-    put (TrackPos a) = put a
-    get = get >>= \a -> return (TrackPos a)
+    put (TrackPos a) = put (Util.Binary.NDouble a)
+    get = get >>= \(Util.Binary.NDouble a) -> return (TrackPos a)
 
 instance Binary Color.Color where
     put (Color.Color a b c d) = put a >> put b >> put c >> put d

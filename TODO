@@ -17,6 +17,7 @@
 
 CURRENT
   - fix load window positions
+    - update fltk to cocoa version first
   * default inst and pitch for blocks with none
   - scroll box should be red when the derivation is not up to date, back to
     green when it is, that way you can see if derivation failed
@@ -128,7 +129,7 @@ note input / thru:
   - profile midi->midi thru and implement a fast path if necessary
 
 bugs:
-  - apparently -0 isn't saved?
+  * apparently -0 isn't saved?
   - comment event should be ignored... or use just ;?  in any case I should be
     able to make it 0 dur
   * warning is missing a space: "performance: no pitch signalpos: (TrackP..."
@@ -352,6 +353,10 @@ Cmd:
 
   Cmd.Freeze
     - details in doc/freeze_track
+
+  Cmd.Save
+    - save with a magic number so I can load songs, inst configs, etc.
+    - gzip save files
 
 Derive:
   - derivers for seleh patterns

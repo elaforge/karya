@@ -2,6 +2,7 @@ module Cmd.Serialize_test where
 import qualified Data.Binary as Binary
 
 import Util.Test
+import Ui
 
 import qualified Ui.UiTest as UiTest
 import qualified Ui.State as State
@@ -20,6 +21,11 @@ test_serialize = do
     uncurry equal $ run (State.state_tracks . Serialize.save_ui_state)
     uncurry equal $ run (State.state_rulers . Serialize.save_ui_state)
     uncurry equal $ run (State.state_midi_config . Serialize.save_ui_state)
+
+test_negative_zero = do
+    -- make sure negative zero is encoded properly
+    equal (recode (TrackPos 0)) 0
+    equal (recode (TrackPos (-0))) (-0.0)
 
 
 recode :: Binary.Binary a => a -> a
