@@ -113,8 +113,9 @@ data State = State {
 
 initial_state ui_state lookup_deriver calls ignore_tempo = State {
     state_controls = initial_controls
-    , state_pitch = PitchSignal.empty
-    , state_instrument = Nothing
+    , state_pitch = PitchSignal.constant
+        (State.state_project_scale ui_state) Pitch.middle_degree
+    , state_instrument = State.state_default_inst ui_state
     , state_attributes = Score.no_attrs
     , state_warp = initial_warp
     , state_stack = []
@@ -452,6 +453,7 @@ with_relative_pitch c_op signal op = do
     old <- gets state_pitch
     if old == PitchSignal.empty
         then do
+            -- This shouldn't happen normally because of the default pitch.
             warn $ "relative pitch applied when no absolute pitch is in scope"
             op
         else do

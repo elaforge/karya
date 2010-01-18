@@ -19,8 +19,6 @@ import qualified Ui.UiTest as UiTest
 
 import qualified Midi.Midi as Midi
 
-import qualified Cmd.Simple as Simple
-
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
@@ -112,11 +110,10 @@ test_subderive_multiple = do
                 , (">i", [(0, 8, "sub")])
                 , ("vel", [(0, 0, "1"), (8, 0, "i, 0")])
                 ]
-    let (Right events, logs) = DeriveTest.e_val $
+    let (Right events, _) = DeriveTest.e_val $
             DeriveTest.derive_block ui_state (UiTest.bid "b0")
-    let (perf_events, convert_warns, mmsgs, midi_warns) = DeriveTest.perform
+    let (_, _, mmsgs, _) = DeriveTest.perform
             DeriveTest.default_inst_config events
-    let ts = Timestamp.Timestamp
     equal (DeriveTest.note_on_times mmsgs)
         [ (0, 60, 127), (0, 72, 127)
         , (2000, 62, 63), (2000, 74, 63)
@@ -365,22 +362,23 @@ test_relative_control = do
     let (events, logs) = DeriveTest.e_logs $ DeriveTest.derive_tracks
             [ (">", [(0, 1, "")])
             , ("*twelve", [(0, 0, "4c")])
-            , ("+, vel", [(0, 0, "1")])
-            , ("vel", [(0, 0, "0"), (2, 0, "i, 2"), (4, 0, "i, 0")])
+            , ("+, cont", [(0, 0, "1")])
+            , ("cont", [(0, 0, "0"), (2, 0, "i, 2"), (4, 0, "i, 0")])
             ]
     let extract = (\sig -> map (flip Signal.at sig) [0..5])
-            . (Map.! Score.Control "vel") . Score.event_controls
+            . (Map.! Score.Control "cont") . Score.event_controls
     equal logs []
     equal (fmap (map extract) events) $ Right [[1, 2, 3, 2, 1, 1]]
 
     -- putting relative and absolute in the wrong order causes a warning
     let (events, logs) = DeriveTest.e_logs $ DeriveTest.derive_tracks
             [ (inst_title, [(0, 10, "")])
-            , ("vel", [(0, 0, "1")])
-            , ("+, vel", [(0, 0, "1")])
+            , ("cont", [(0, 0, "1")])
+            , ("+, cont", [(0, 0, "1")])
             ]
-    equal (fmap (map Score.event_controls) events) $
-        Right [Map.fromList [(Score.Control "vel", Signal.signal [(0, 1)])]]
+    let controls = Map.union Derive.initial_controls $
+            Map.fromList [(Score.Control "cont", Signal.signal [(0, 1)])]
+    equal (fmap (map Score.event_controls) events) $ Right [controls]
     strings_like logs ["no absolute control is in scope"]
 
 test_relative_pitch = do
@@ -389,30 +387,32 @@ test_relative_pitch = do
     let f track = extract $ DeriveTest.derive_tracks
                 [ (inst_title, [(0, 10, "")])
                 , ("+, *semar", track)
-                , ("*semar", [(0, 0, "1")])
+                , ("*semar", [(0, 0, "1.")])
                 ]
+        base = Pitch.Degree 55 -- that's "1."
     let mksig = DeriveTest.pitch_signal (Pitch.ScaleId "semar")
-    equal (f []) (Right [mksig [(0, Set, 10)]], [])
+    equal (f []) (Right [mksig [(0, Set, base)]], [])
     equal (f [(0, 0, "1/"), (1, 0, "i, 0")])
-        (Right [mksig [(0, Set, 15), (1, Linear, 10)]], [])
+        (Right [mksig [(0, Set, base + 5), (1, Linear, base)]], [])
 
-    -- empty relative pitch defaults to scale
+    -- empty relative pitch defaults to scale in scope
     let (pitches, logs) = extract $ DeriveTest.derive_tracks
             [ (inst_title, [(0, 10, "")])
             , ("+, *", [(0, 0, "1/")])
-            , ("*semar", [(0, 0, "1")])
+            , ("*semar", [(0, 0, "1.")])
             ]
     equal logs []
-    equal pitches $ Right [mksig [(0, Set, 15)]]
+    equal pitches $ Right [mksig [(0, Set, base + 5)]]
 
-    -- putting relative and absolute in the wrong order causes a warning
+    -- putting relative and absolute in the wrong order overrides the relative
     let (pitches, logs) = extract $ DeriveTest.derive_tracks
             [ (inst_title, [(0, 10, "")])
-            , ("*semar", [(0, 0, "1")])
+            , ("*semar", [(0, 0, "1.")])
             , ("+, *semar", [(0, 0, "1")])
             ]
-    equal pitches $ Right [mksig [(0, Set, 10)]]
-    strings_like logs ["no absolute pitch is in scope"]
+    equal pitches $ Right [mksig [(0, Set, base)]]
+    -- no warning because of default pitch
+    strings_like logs []
 
 test_make_inverse_tempo_func = do
     -- This is actually also tested in test_subderive.

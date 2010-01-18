@@ -62,6 +62,13 @@ middle_octave = 5
 -- PitchSignals use this type.
 newtype Degree = Degree Double deriving (Eq, Ord, Show, Num)
 
+-- | For consistency, scales should roughly center themselves around this
+-- degree.  This way you don't need to know the scale to know a good
+-- representative note for it, for example for a default pitch.
+middle_int_degree :: Int
+middle_int_degree = 60
+middle_degree = Degree (fromIntegral middle_int_degree)
+
 -- ** NoteNumber
 
 -- | This is equal tempered scale notes with the same definition as MIDI, so

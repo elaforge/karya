@@ -3,9 +3,6 @@ import qualified Data.Set as Set
 
 import Util.Test
 import qualified Util.Log as Log
-import qualified Util.Seq as Seq
-
-import qualified Midi.Midi as Midi
 
 import Ui
 import qualified Ui.State as State

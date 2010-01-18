@@ -294,6 +294,7 @@ setup_big _ = do
     State.insert_events t1_vel (take 100 (mkvels (cycle (reverse vels))))
 
     State.set_midi_config inst_config
+    State.set_default_inst (Just (Score.Instrument "fm8/bass"))
     State.set_selection view Config.insert_selnum
         (Types.point_selection 0 (TrackPos 0))
     return Cmd.Done
@@ -310,6 +311,5 @@ empty_block = do
     State.insert_events t_tempo $ map UiTest.mkevent [(0, 0, "1")]
     return (bid, vid)
 
-inst_config =
-    Instrument.config [(Score.Instrument "fm8/bass", addrs)] Nothing
+inst_config = Instrument.config [(Score.Instrument "fm8/bass", addrs)]
     where addrs = [(Instrument.synth_device Fm8.fm8, n) | n <- [0..2]]

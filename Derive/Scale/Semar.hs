@@ -25,7 +25,7 @@ scale_id = Pitch.ScaleId "semar"
 
 scale_map :: Util.ScaleMap
 scale_map =
-    Util.scale_map (align steps) (align inputs) note_numbers (align degrees)
+    Util.scale_map (align steps) (align inputs) note_numbers degrees
 
 note_numbers :: [Pitch.NoteNumber]
 note_numbers = map Pitch.nn
@@ -57,6 +57,7 @@ note_numbers = map Pitch.nn
 
 -- Line a list starting with nding up with 'note_numbers'.
 align = take (length note_numbers) . drop 1
+center = 9 -- index of middle pitch
 
 steps = map Pitch.Note [(d:o) | o <- ["..", ".", "", "^", "^^"], d <- "12356"]
 
@@ -65,4 +66,4 @@ inputs = [Pitch.InputKey (middle + o*12 + d) | o <- [-2..2], d <- input_keys]
     where (Pitch.InputKey middle) = Pitch.middle_c
 
 degrees :: [Util.IntDegree]
-degrees = [0..]
+degrees = [Pitch.middle_int_degree - center ..]

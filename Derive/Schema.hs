@@ -120,19 +120,18 @@ get_cmds schema_map context schema_id =
         Just schema -> schema_cmds schema context
 
 -- | Constructor for 'CmdContext'.
-cmd_context :: Instrument.Config -> Pitch.ScaleId -> MidiDb.LookupMidiInstrument
-    -> Cmd.EditMode -> Bool -> Maybe TrackNum -> State.TrackTree
-    -> CmdContext
-cmd_context midi_config proj_scale lookup_midi edit_mode kbd_entry
-        focused_tracknum ttree =
-    CmdContext default_inst proj_scale inst_addr lookup_midi edit_mode
+cmd_context :: State.State
+    -> MidiDb.LookupMidiInstrument -> Cmd.EditMode -> Bool -> Maybe TrackNum
+    -> State.TrackTree -> CmdContext
+cmd_context ustate lookup_midi edit_mode kbd_entry focused_tracknum ttree =
+    CmdContext (State.state_default_inst ustate) (State.state_project_scale ustate) inst_addr lookup_midi edit_mode
         kbd_entry focused_tracknum ttree
     where
-    default_inst = Instrument.config_default_inst midi_config
     -- The thru cmd has to pick a single addr for a give inst, so let's just
     -- pick the lowest one.
+    mconfig = State.state_midi_config ustate
     inst_map = Map.fromList [ (inst, minimum addrs)
-        | (inst, addrs) <- Map.toList (Instrument.config_alloc midi_config)
+        | (inst, addrs) <- Map.toList (Instrument.config_alloc mconfig)
         , not (null addrs) ]
     inst_addr = flip Map.lookup inst_map
 

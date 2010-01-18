@@ -116,21 +116,12 @@ instance Binary SaveState where
             _ -> version_error "SaveState" v
 
 instance Binary State.State where
-    put (State.State a b c d e f g h) = put_version 2
+    put (State.State a b c d e f g h i) = put_version 3
         >> put a >> put b >> put c >> put d >> put e >> put f >> put g >> put h
+        >> put i
     get = do
         v <- get_version
         case v of
-            1 -> do
-                proj <- get :: Get String
-                dir <- get :: Get String
-                views <- get :: Get (Map.Map Types.ViewId Block.View)
-                blocks <- get :: Get (Map.Map Types.BlockId Block.Block)
-                tracks <- get :: Get (Map.Map Types.TrackId Track.Track)
-                rulers <- get :: Get (Map.Map Types.RulerId Ruler.Ruler)
-                midi_config <- get :: Get Instrument.Config
-                return $ State.State proj dir views blocks tracks rulers
-                    midi_config (Pitch.ScaleId Config.project_scale_id)
             2 -> do
                 proj <- get :: Get String
                 dir <- get :: Get String
@@ -141,7 +132,19 @@ instance Binary State.State where
                 midi_config <- get :: Get Instrument.Config
                 project_scale <- get :: Get Pitch.ScaleId
                 return $ State.State proj dir views blocks tracks rulers
-                    midi_config project_scale
+                    midi_config project_scale Nothing
+            3 -> do
+                proj <- get :: Get String
+                dir <- get :: Get String
+                views <- get :: Get (Map.Map Types.ViewId Block.View)
+                blocks <- get :: Get (Map.Map Types.BlockId Block.Block)
+                tracks <- get :: Get (Map.Map Types.TrackId Track.Track)
+                rulers <- get :: Get (Map.Map Types.RulerId Ruler.Ruler)
+                midi_config <- get :: Get Instrument.Config
+                project_scale <- get :: Get Pitch.ScaleId
+                default_inst <- get :: Get (Maybe Score.Instrument)
+                return $ State.State proj dir views blocks tracks rulers
+                    midi_config project_scale default_inst
             _ -> version_error "State.State" v
 
 instance Binary Pitch.ScaleId where
@@ -482,18 +485,17 @@ instance Binary Event.StyleId where
 -- ** Midi.Instrument
 
 instance Binary Instrument.Config where
-    put (Instrument.Config a b) = put_version 2 >> put a >> put b
+    put (Instrument.Config a) = put_version 3 >> put a
     get = do
         v <- get_version
         case v of
-            1 -> do
-                alloc <- get :: Get (Map.Map Score.Instrument [Instrument.Addr])
-                _ <- get :: Get (Maybe Instrument.Addr)
-                return $ Instrument.Config alloc Nothing
             2 -> do
                 alloc <- get :: Get (Map.Map Score.Instrument [Instrument.Addr])
-                default_inst <- get :: Get (Maybe Score.Instrument)
-                return $ Instrument.Config alloc default_inst
+                _ <- get :: Get (Maybe Score.Instrument)
+                return $ Instrument.Config alloc
+            3 -> do
+                alloc <- get :: Get (Map.Map Score.Instrument [Instrument.Addr])
+                return $ Instrument.Config alloc
             _ -> version_error "Instrument.Config" v
 
 instance Binary Score.Instrument where

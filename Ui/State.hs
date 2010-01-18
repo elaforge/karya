@@ -46,6 +46,7 @@ import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 import qualified Ui.Update as Update
 
+import qualified Derive.Score as Score
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Midi.Instrument as Instrument
 
@@ -71,6 +72,9 @@ data State = State {
     -- | Automatically created pitch tracks will have this scale.  MIDI thru
     -- will also use it when a scale can't be derived from focus.
     , state_project_scale :: Pitch.ScaleId
+    -- | This instrument is present in the initial environment, so it will be
+    -- the instrument in scope in abscence of any others.
+    , state_default_inst :: Maybe Score.Instrument
     } deriving (Read, Show, Generics.Typeable)
 
 -- TODO "initial_state" would be more consistent
@@ -83,8 +87,9 @@ empty = State {
     , state_tracks = Map.empty
     , state_rulers = ruler_map
 
-    , state_midi_config = Instrument.config [] Nothing
+    , state_midi_config = Instrument.config []
     , state_project_scale = Pitch.ScaleId Config.project_scale_id
+    , state_default_inst = Nothing
     }
     where ruler_map = Map.fromList [(no_ruler, Ruler.no_ruler)]
 
@@ -393,6 +398,9 @@ get_project_scale = gets state_project_scale
 set_project_scale :: (UiStateMonad m) => Pitch.ScaleId -> m ()
 set_project_scale scale_id = modify $ \st ->
     st { state_project_scale = scale_id }
+
+set_default_inst :: (UiStateMonad m) => Maybe Score.Instrument -> m ()
+set_default_inst inst = modify $ \st -> st { state_default_inst = inst }
 
 -- * view
 

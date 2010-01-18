@@ -13,12 +13,11 @@
 
 - maybe I can get rid of schema?
 
-- skip derivation on a block if it has no absolute pitch tracks?
 - derive multiple blocks with parMap
 
 CURRENT
   - fix load window positions
-  - default inst and pitch for blocks with none
+  * default inst and pitch for blocks with none
   - scroll box should be red when the derivation is not up to date, back to
     green when it is, that way you can see if derivation failed
   - test should only run one test if it's an exact match

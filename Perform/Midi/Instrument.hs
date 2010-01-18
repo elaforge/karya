@@ -85,13 +85,8 @@ data Config = Config {
     -- instrument wishing to use an address will emit an appropriate message to
     -- configure it (probably a keyswitch, possibly a program change).
     config_alloc :: Map.Map Score.Instrument [Addr]
-    -- | This will be used if e.g. midi thru when it cant't figure out what
-    -- instrument is involved, or if the instrument has no allocation.  Of
-    -- course, if this instrument doesn't exist or has no allocation, nothing
-    -- will happen.
-    , config_default_inst :: Maybe Score.Instrument
     } deriving (Eq, Read, Show)
-config inst_addrs default_inst = Config (Map.fromList inst_addrs) default_inst
+config = Config . Map.fromList
 
 -- | Midi instruments are addressed by a (device, channel) pair, allocated in
 -- 'Config'.

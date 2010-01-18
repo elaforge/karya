@@ -77,7 +77,6 @@ import qualified Instrument.MidiDb as MidiDb
 
 import qualified App.Config as Config
 
-
 -- * errors
 
 -- | Called from logview
@@ -147,8 +146,8 @@ tid = Types.TrackId . Id.read_id
 
 show_state :: Cmd.CmdL String
 show_state = do
-    (State.State project dir views blocks tracks rulers _midi_conf proj_scale)
-        <- State.get
+    (State.State project dir views blocks tracks rulers _midi_conf proj_scale
+        default_inst) <- State.get
     -- midi config showed by show_midi_config
     let f fm = show_list (map show (Map.keys fm))
     return $ show_record
@@ -156,6 +155,7 @@ show_state = do
         , ("views", f views), ("blocks", f blocks)
         , ("tracks", f tracks), ("rulers", f rulers)
         , ("scale", show proj_scale)
+        , ("default_inst", show default_inst)
         ]
 
 -- ** views
@@ -508,12 +508,9 @@ auto_config block_id = do
         allocs = [(inst, [(dev, fromIntegral i)])
             | (dev, by_dev) <- Seq.keyed_group_with snd inst_devs
             , (i, (inst, _dev)) <- Seq.enumerate by_dev]
-        default_inst = case allocs of
-            (inst, _):_ -> Just inst
-            _ -> Nothing
     unless (null no_dev) $
         Log.warn $ "no synth found for instruments: " ++ show insts
-    return $ Instrument.config allocs default_inst
+    return $ Instrument.config allocs
 
 device_of :: Score.Instrument -> Cmd.CmdL (Maybe Midi.WriteDevice)
 device_of inst = do

@@ -138,7 +138,7 @@ default_perf_inst = Instrument.instrument "synth" "patch" Nothing
 default_inst_title = ">i"
 
 default_inst_config =
-    Instrument.config [(default_inst, [dev 0, dev 1, dev 2])] Nothing
+    Instrument.config [(default_inst, [dev 0, dev 1, dev 2])]
     where dev = (,) (Midi.WriteDevice "out")
 
 default_ksmap = Instrument.KeyswitchMap $

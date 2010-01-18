@@ -110,7 +110,7 @@ make_inst_db inst_names = Instrument.Db.empty
     { Instrument.Db.db_lookup_midi = make_lookup inst_names }
 
 default_midi_config inst_names =
-    Instrument.Config (Map.fromList (zip insts addrs)) (Just (head insts))
+    Instrument.Config (Map.fromList (zip insts addrs))
     where
     insts = map Score.Instrument inst_names
     addrs = [[(default_wdev, chan)] | chan <- [0..]]

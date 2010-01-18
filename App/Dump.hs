@@ -47,7 +47,7 @@ fail_with msg = do
     System.Exit.exitWith (System.Exit.ExitFailure 1)
 
 pprint_ui_state abbr (State.State project dir views blocks tracks rulers
-        midi_config proj_scale) = do
+        midi_config proj_scale default_inst) = do
     put_field "project" project
     put_field "project_dir" dir
     put_field "state_midi_config" (PPrint.pshow midi_config)
@@ -60,6 +60,7 @@ pprint_ui_state abbr (State.State project dir views blocks tracks rulers
     put_field "state_ruler" $ if abbreviate_rulers `elem` abbr
         then pshow_map (Map.map abbr_ruler rulers)
         else PPrint.pshow (Map.map abbr_ruler rulers)
+    put_field "default_inst" $ show default_inst
 
 pshow_map fm = "Map.fromList [\n"
     ++ Seq.join ",\n" (map show_assoc (Map.assocs fm))

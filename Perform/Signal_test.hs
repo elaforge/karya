@@ -1,6 +1,5 @@
 module Perform.Signal_test where
 import Util.Test
-import qualified Util.Seq as Seq
 
 import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Signal as Signal

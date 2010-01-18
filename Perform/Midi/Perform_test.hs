@@ -449,7 +449,6 @@ dev1 = Midi.WriteDevice "dev1"
 dev2 = Midi.WriteDevice "dev2"
 synth1 = Instrument.synth "synth1" "synth1" []
 inst_config1 = Instrument.config [(score_inst inst1, [(dev1, 0), (dev1, 1)])]
-    Nothing
 
 score_inst inst = Score.Instrument (Instrument.inst_name inst)
 
@@ -457,7 +456,6 @@ score_inst inst = Score.Instrument (Instrument.inst_name inst)
 inst_config2 = Instrument.config
     [ (score_inst inst1, [(dev1, 0), (dev1, 1)])
     , (score_inst inst2, [(dev2, 2)]) ]
-    Nothing
 default_ksmap = Instrument.make_keyswitches
     [("a1+a2", 0), ("a0", 1), ("a1", 2), ("a2", 3)]
 

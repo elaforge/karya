@@ -23,6 +23,7 @@ import qualified Ui.Event as Event
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
+import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 import qualified Ui.Update as Update
