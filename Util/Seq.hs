@@ -122,7 +122,7 @@ zip_next [] = []
 zip_next [x] = [(x, Nothing)]
 zip_next (x : xs@(y:_)) = (x, Just y) : zip_next xs
 
--- | Like 'zip_next' but with preceeding and folowwing elements.
+-- | Like 'zip_next' but with both preceding and following elements.
 zip_neighbors :: [a] -> [(Maybe a, a, Maybe a)]
 zip_neighbors [] = []
 zip_neighbors (x:xs) = (Nothing, x, mhead Nothing Just xs) : go x xs
@@ -130,6 +130,13 @@ zip_neighbors (x:xs) = (Nothing, x, mhead Nothing Just xs) : go x xs
     go _ [] = []
     go prev [x] = [(Just prev, x, Nothing)]
     go prev (x : xs@(y:_)) = (Just prev, x, Just y) : go x xs
+
+-- | Like 'zip', but the shorter list is padded with Nothings.
+padded_zip :: [a] -> [b] -> [(Maybe a, Maybe b)]
+padded_zip [] [] = []
+padded_zip [] bs = zip (repeat Nothing) (map Just bs)
+padded_zip as [] = zip (map Just as) (repeat Nothing)
+padded_zip (a:as) (b:bs) = (Just a, Just b) : padded_zip as bs
 
 -- * sublists
 

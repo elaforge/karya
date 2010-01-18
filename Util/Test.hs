@@ -79,13 +79,15 @@ strings_like = strings_like_srcpos Nothing
 strings_like_srcpos :: SrcPos.SrcPos -> [String] -> [String] -> IO ()
 strings_like_srcpos srcpos gotten expected
     | null gotten && null expected = success srcpos "[] =~ []"
-    | otherwise = mapM_ (uncurry string_like)
-        (zip gotten (map Just expected ++ repeat Nothing))
+    | otherwise = mapM_ (uncurry string_like) (Seq.padded_zip gotten expected)
     where
-    string_like gotten (Just reg)
+    string_like Nothing (Just reg) =
+        failure srcpos $ "gotten list too short: expected " ++ show reg
+    string_like (Just gotten) Nothing =
+        failure srcpos $ "expected list too short: got " ++ show gotten
+    string_like (Just gotten) (Just reg)
         | regex_matches reg gotten = success srcpos $ gotten ++ " =~ " ++ reg
         | otherwise = failure srcpos $ gotten ++ " !~ " ++ reg
-    string_like gotten Nothing = failure srcpos (gotten ++ " !~ Nothing")
 
 map_left f (Left a) = Left (f a)
 map_left _ (Right a) = Right a
