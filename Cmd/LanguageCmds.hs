@@ -520,6 +520,15 @@ device_of inst = do
 controls_of :: Score.Instrument -> [Midi.Control.Control]
 controls_of inst = undefined -- TODO
 
+-- | Send AllNotesOff msgs to all inst addr.
+all_notes_off :: Cmd.CmdL ()
+all_notes_off = do
+    config <- State.get_midi_config
+    let addrs = Seq.unique $ concat $
+            Map.elems (Instrument.config_alloc config)
+    let notes_off chan = Midi.ChannelMessage chan Midi.AllNotesOff
+    sequence_ [Cmd.midi dev (notes_off chan) | (dev, chan) <- addrs]
+
 
 -- * schema
 
