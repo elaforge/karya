@@ -2,10 +2,12 @@
 -- Add SrcPos (Just (line, Just func_name, lineno)) args to certain functions.
 --
 -- I don't use cpp because it doesn't like dots in symbols.
+--
+-- TODO this screws up \\ string continuation
 import qualified Data.List as List
 import qualified Data.Char as Char
 import qualified System.Environment
-import qualified Text.Regex as Regex
+import qualified Util.Regex as Regex
 
 
 -- These are substituted everywhere.
@@ -64,16 +66,6 @@ replace_ids replace contents = spaces ++ tok2 ++ replace_ids replace after_tok
         _ -> ("", "")
     tok2 = replace tok
 
-process_line subs (i, func_name, line) =
-    foldl (.) id (map ($ (i, func_name)) subs) line
-
-make_sub (src, dest) fn (i, func_name) line =
-    -- Hack: to avoid substituting Something.equal, insist on spaces
-    -- surrounding the src string.
-    Regex.subRegex reg line
-        (" " ++ dest ++ " (" ++ show (Just (fn, func_name, i)) ++ ") ")
-    where reg = Regex.mkRegex (" " ++ src ++ " ")
-
 
 annotate_func_names lines = tail (scanl scan Nothing lines)
 
@@ -81,9 +73,8 @@ scan last_func line = case func_name line of
     Nothing -> last_func
     Just x -> Just x
 
-func_name line = case Regex.matchRegex reg line of
-        Nothing -> Nothing
-        Just [fname] -> Just fname
-        Just groups -> error $ "unexpected groups: " ++ show groups
-    where
-    reg = Regex.mkRegex "^([a-z0-9_][A-Za-z0-9_]*) .*="
+func_name line = case Regex.find_groups reg line of
+        [] -> Nothing
+        (_, [fname]) : _ -> Just fname
+        groups -> error $ "unexpected groups: " ++ show groups
+    where reg = Regex.make "^([a-z0-9_][A-Za-z0-9_]*) .*="
