@@ -118,6 +118,11 @@ void
 set_track_selection(BlockViewWindow *view, int selnum, int tracknum,
         const Selection *sel)
 {
+    // This function is the only one which is called asynchronously from
+    // the usual diff->sync rigamorale.  So if a track is deleted while
+    // the playback thread is calling this, the tracknum will be incorrect.
+    // It's not worth fixing for real, but at least I can not crash.
+    tracknum = std::min(view->block.tracks() - 1, tracknum);
     if (sel)
         view->block.set_track_selection(selnum, tracknum, *sel);
     else

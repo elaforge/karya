@@ -16,8 +16,43 @@
 - derive multiple blocks with parMap
 
 CURRENT
+  - happened automatically adding a pitch track:
+    assertion: <assertion failed at fltk/TrackTile.cc:266 update_sizes():
+    'title->w() == body->w()'>
+    7   TrackTile::update_sizes() + 1208 (util.h:44)
+    8   TrackTile::insert_track(int, TrackView*, int) + 1082 (TrackTile.cc:167)
+    9   BlockView::insert_track_view(int, TrackView*, int) + 155 (Block.cc:489)
+    10  BlockView::insert_track(int, Tracklike const&, int) + 85 (Block.cc:376)
+    11  insert_track + 205 (c_interface.cc:187)
+
+  - subderive blocks in rejangn are giving "omitting note with 0 duration"
+  - clicking jumps to points that arrows won't jump to
+  - auto scroll is doing the wrong thing on a click
+  - also auto scroll annoying, scroll down then when it passes threshold
+    suddenly jump.
+    curser in middle, move down, view suddenly jumps to bottom
+
+  - playback should have multiple lines when a block is derived multiple times
+
+  - stop play when a neg dur note is playing in white space never turns off
+  - neg dur before sub derive also sounds forever, I think it has to do with
+    not passing the next note
+  - just "i" isn't getting previous control
+  * all notes off lang cmd
+  - move midi lang cmds to Cmd.Lang.LMidi
+  - rederive lang cmd
+
+  - insts with breath are not easy to use
+    if I make sure breah control goes thru then I shouldn't need anything
+    special
+  - local inst db, in Ui.State, so I can e.g. set pb range for fm/* inst
+
+  - some way to turn off all midi thru / input
+  - midi input doesn't advance on note off
+  - midi thru doesn't pick up default inst
   - fix load window positions
     - update fltk to cocoa version first
+  - cmd to resize window to fit tracks
   * default inst and pitch for blocks with none
   - scroll box should be red when the derivation is not up to date, back to
     green when it is, that way you can see if derivation failed
@@ -130,7 +165,7 @@ note input / thru:
 
 bugs:
   * apparently -0 isn't saved?
-  - comment event should be ignored... or use just ;?  in any case I should be
+  * comment event should be ignored... or use just ;?  in any case I should be
     able to make it 0 dur
   * warning is missing a space: "performance: no pitch signalpos: (TrackP..."
   - clipboard is not handling the skeleton properly
