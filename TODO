@@ -1,7 +1,6 @@
 - program to launch logview and seq together
 - ^T on the cmdline prints stuff!?
 
-- playback cursor seems to reset to the top after a play through
 - empty scale defaults in Derive, but not in Cmd
 
 - piece with fancy pitch: doira + synth

@@ -285,20 +285,21 @@ data UpdaterState = UpdaterState {
 
 updater_loop :: UpdaterState -> IO ()
 updater_loop state = do
-    cur_ts <- fmap (+ (- updater_ts_offset state)) (updater_get_cur_ts state)
+    cur_ts <- fmap (subtract (updater_ts_offset state))
+        (updater_get_cur_ts state)
 
     let block_pos = updater_inv_tempo_func state cur_ts
     play_pos <- either
         (\err -> Log.error ("state error in updater: " ++ show err)
             >> return [])
         return
-        (State.eval (updater_ui_state state)
-            $ block_pos_to_play_pos block_pos)
+        (State.eval (updater_ui_state state) (block_pos_to_play_pos block_pos))
     Sync.set_play_position play_pos
 
     let active_sels = Set.fromList
             [(view_id, map fst num_pos) | (view_id, num_pos) <- play_pos]
-    clear_play_position (Set.difference (updater_active_sels state) active_sels)
+    mapM_ Sync.clear_play_position $ map fst $
+        Set.toList (Set.difference (updater_active_sels state) active_sels)
     state <- return $ state { updater_active_sels = active_sels }
 
     stopped <- Transport.check_player_stopped (updater_ctl state)
@@ -307,14 +308,11 @@ updater_loop state = do
     -- ++ show tmsg ++ ", " ++ show block_pos ++ ", gone: " ++ show gone
     -- putStrLn updater_status
     if stopped || null block_pos
-        then clear_play_position (updater_active_sels state)
+        then mapM_ Sync.clear_play_position $
+            map fst (Set.toList (updater_active_sels state))
         else do
             Concurrent.threadDelay 40000
             updater_loop state
-    where
-    clear_play_position view_nums = Sync.set_play_position
-        [ (view_id, map (flip (,) Nothing) nums)
-        | (view_id, nums) <- Set.toList view_nums ]
 
 
 -- | Do all the annoying shuffling around to convert the deriver-oriented

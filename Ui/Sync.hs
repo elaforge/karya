@@ -22,7 +22,8 @@
     This is a hassle because case 1 has to go hunt down the event info and case
     2 has to go hunt down the per-block info, but such is life.
 -}
-module Ui.Sync (BlockSamples, sync, set_play_position) where
+module Ui.Sync (BlockSamples, sync, set_play_position, clear_play_position)
+where
 import Control.Monad
 import qualified Control.Monad.Trans as Trans
 import qualified Data.List as List
@@ -87,6 +88,10 @@ set_play_position block_sels = Ui.send_action $ sequence_
         Nothing -> Nothing
         Just pos -> Just $ BlockC.CSelection Config.play_position_color
             (Types.Selection 0 pos 0 pos)
+
+clear_play_position :: ViewId -> IO ()
+clear_play_position view_id = Ui.send_action $
+    BlockC.set_selection view_id Config.play_position_selnum Nothing
 
 track_title (Block.TId track_id _) =
     fmap Track.track_title (State.get_track track_id)
