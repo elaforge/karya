@@ -107,7 +107,7 @@ test_tick = do
             [(0, 1, ";tick"), (1, 1, ";tick"), (2, 1, "")]
             [("*twelve", [(0, 0, "4c"), (2, 0, "4d")])]
     equal (map Log.msg_string logs)
-        ["compile / note call \"tick\": no previous event"]
+        ["compile (bid \"test/b1\") / note call \"tick\": no previous event"]
     equal (map Log.msg_stack logs)
         [Just (mkstack [("b1", "b1.t1", (0, 1))])]
 
@@ -172,7 +172,8 @@ test_negative_duration = do
         (Right [(1, 1, "--1"), (3, deflt, "--2")], [])
     -- 0 dur is omitted
     equal (run [(1, -1, "--1"), (3, 0, "--2")])
-        (Right [(1, 2, "--1")], ["compile: omitting note with 0 duration"])
+        (Right [(1, 2, "--1")],
+            ["compile (bid \"test/b1\"): omitting note with 0 duration"])
 
 
 type Extracted =

@@ -77,7 +77,7 @@ test_compile = do
 
     let (res, logs) = derive ("*c2", [(0, 0, ".1")])
     equal logs []
-    left_like res "compile: d_pitch_signal: unknown ScaleId \"c2\""
+    left_like res "compile .*: d_pitch_signal: unknown ScaleId \"c2\""
 
     let cont_signal = Map.union Derive.initial_controls
             (Map.fromList [(Score.Control "c1",
@@ -86,7 +86,7 @@ test_compile = do
 
     let (res, logs) = derive ("*twelve", [(0, 0, ".1")])
     equal (map Log.msg_string logs)
-        ["compile: Note \".1\" not in ScaleId \"twelve\""]
+        ["compile (bid \"test/b1\"): Note \".1\" not in ScaleId \"twelve\""]
     equal (controls res) (Right [cont_signal, cont_signal, cont_signal])
     equal (pitches res) (Right [no_pitch, no_pitch, no_pitch])
 
@@ -115,7 +115,7 @@ test_compile_to_signals = do
     let (res, logs) = derive ("*bogus", [])
     equal logs []
     left_like res
-        "compile_to_signals: d_display_pitch: unknown ScaleId \"bogus\""
+        "compile_to_signals .*: d_display_pitch: unknown ScaleId \"bogus\""
 
     -- TODO re-enable when rendering pitch signals is in
     -- let (_res, logs) = derive ("*twelve", [(10, 0, ".2")])

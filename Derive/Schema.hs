@@ -261,12 +261,12 @@ default_schema_deriver block_id =
 default_schema_signal_deriver ::
     SchemaDeriver (Derive.SignalDeriver Signal.Display)
 default_schema_signal_deriver block_id =
-    fmap compile_to_signals (State.get_track_tree block_id)
+    fmap (compile_to_signals block_id) (State.get_track_tree block_id)
 
 -- | Transform a deriver skeleton into a real deriver.  The deriver may throw
 -- if the skeleton was malformed.
 compile :: BlockId -> State.TrackTree -> Derive.EventDeriver
-compile block_id tree = Derive.with_msg "compile" $ do
+compile block_id tree = Derive.with_msg ("compile " ++ show block_id) $ do
     -- Support for the 'Derive.add_track_warp' hack.  If a block doesn't have
     -- a tempo track, 'd_tempo' -> 'd_warp' never gets called, so I have to
     -- start the warp here.
@@ -331,9 +331,11 @@ compile_control block_id title track_id subderiver
 -- seems annoying to have to make a whole separate signal deriver.  Getting the
 -- signals from the track could be more hardcoded and less work when writing
 -- a new schema.
-compile_to_signals :: State.TrackTree -> (Derive.SignalDeriver Signal.Display)
-compile_to_signals tree = Derive.with_msg "compile_to_signals" $
-    Derive.d_signal_merge =<< mapM _compile_to_signals tree
+compile_to_signals :: BlockId -> State.TrackTree
+    -> (Derive.SignalDeriver Signal.Display)
+compile_to_signals block_id tree =
+    Derive.with_msg ("compile_to_signals " ++ show block_id) $
+        Derive.d_signal_merge =<< mapM _compile_to_signals tree
 
 _compile_to_signals :: Tree.Tree State.TrackInfo
     -> Derive.SignalDeriver Signal.Display
