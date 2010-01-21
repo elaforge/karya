@@ -1,7 +1,6 @@
 # TODO BUGS
 # .depend needs 'touch .depend' to bootstrap
 # all hs depends on tools/hspp though none state that
-# it should be able to get rid of GHC_LIB or find it out automatically
 
 ### c++ flags
 
@@ -10,26 +9,22 @@ CXX_OPT := -O2
 OPT := $(CXX_DEBUG)
 
 MIDI_LIBS := -framework CoreFoundation -framework CoreMIDI -framework CoreAudio
-PORTMIDI := /usr/local/src/portmedia/portmidi/trunk
-CINCLUDE := -Ifltk -I$(PORTMIDI)/pm_common -I$(PORTMIDI)/porttime -I.
-# TODO even though I don't use portmidi any more, I still maintain PortMidi.hsc
-# in case I want it again.
-# CINCLUDE := -Ifltk -I.
+CINCLUDE := -Ifltk -I.
 
 # vanilla fltk
-LIBFLTK_I := -I/usr/local/include -I/usr/local/include/FL/images
-LIBFLTK := -L/usr/local/lib -lfltk
+# LIBFLTK_I := -I/usr/local/include -I/usr/local/include/FL/images
+# LIBFLTK := -L/usr/local/lib -lfltk
 
 # cocoa fltk
-LIBFLTK_I := -I/usr/local/src/fltk-cocoa/branch-1.3-cocoa
-LIBFLTK := /usr/local/src/fltk-cocoa/branch-1.3-cocoa/lib/libfltk.a
+# LIBFLTK_I := -I/usr/local/src/fltk-1.3/
+# LIBFLTK := /usr/local/src/fltk-1.3/lib/libfltk.a -framework Cocoa
 
 # fltk 119
-LIBFLTK_I := -I/usr/local/src/fltk
+LIBFLTK_I := -I/usr/local/src/fltk -DOLD_FLTK
 LIBFLTK := /usr/local/src/fltk/lib/libfltk.a
 
 LIBFLTK_D := -D_THREAD_SAFE -D_REENTRANT
-FLTX_CXX := $(LIBFLTK_I) $(LIBFLTK_D)
+FLTK_CXX := $(LIBFLTK_I) $(LIBFLTK_D)
 CXXFLAGS = $(FLTK_CXX) $(OPT) $(CINCLUDE) -Wall
 
 FLTK_LD := $(LIBFLTK) -lpthread -framework Carbon -framework ApplicationServices
@@ -47,9 +42,9 @@ HTEST := -fhpc # -prof -auto-all -caf-all # -O2
 
 HLDFLAGS := $(FLTK_LD)
 
-# This is unfortunately needed by hsc2hs to include HsFFI.h, which seems
-# kinda broken.
 GHC := ghc-6.12.1
+# Used by haddock to find system docs, but it doesn't work anyway.
+# TODO Fix this someday.
 GHC_LIB := /Library/Frameworks/GHC.framework/Versions/Current/usr/lib/ghc-6.12.1
 
 # hspp adds filename and lineno to various logging and testing functions.
@@ -108,7 +103,7 @@ tools/hspp: tools/hspp.hs
 clean:
 	rm -f `find . -name '*.o' -or -name '*.hi' -or -name '*.pyc'` \
 		fixdeps fltk/fltk.a \
-		$(UI_HS) $(MIDI_HS) $(LOGVIEW_HS) $(BROWSER_HS) haddock/*  hpc/* \
+		$(UI_HS) $(PORTMIDI_HS) $(LOGVIEW_HS) $(BROWSER_HS) haddock/*  hpc/* \
 		seq_language
 	rm -rf test_obj/* $(BUILD)/* .hpc
 
@@ -131,34 +126,28 @@ UI_HSC := $(wildcard Ui/*.hsc)
 UI_HS := $(UI_HSC:hsc=hs)
 UI_OBJS := Ui/c_interface.o
 
-MIDI_HSC := $(wildcard Midi/*.hsc)
-MIDI_HS := $(MIDI_HSC:hsc=hs)
-MIDI_OBJS := Midi/core_midi.o
+COREMIDI_OBJS := Midi/core_midi.o
 
 ALL_HS = $(shell tools/all_hs.py)
 
-all_hsc: $(UI_HS) $(MIDI_HS)
+.PHONY: all_hsc
+all_hsc: $(UI_HS) $(PORTMIDI_HS)
 
 # PHONY convinces make to always run ghc, which figures out deps on its own
-# .PHONY: $(BUILD)/test_midi
-# $(BUILD)/test_midi: $(MIDI_HS) $(UI_HS)
-# 	$(GHC) $(HFLAGS) --make \
-# 		-main-is Midi.TestMidi Midi/TestMidi.hs $(MIDI_LIBS) -o $@
-
-.PHONY: $(BUILD)/test_core_midi
-$(BUILD)/test_core_midi: $(UI_HS) $(MIDI_OBJS)
-	$(GHC) $(HFLAGS) --make \
-		-main-is Midi.TestCoreMidi Midi/TestCoreMidi.hs -o $@ \
-		$(MIDI_OBJS) $(MIDI_LIBS) \
-
 .PHONY: $(BUILD)/seq
-$(BUILD)/seq: $(UI_HS) $(UI_OBJS) $(MIDI_OBJS) $(MIDI_HS) fltk/fltk.a
+$(BUILD)/seq: $(UI_HS) $(UI_OBJS) $(COREMIDI_OBJS) fltk/fltk.a
 	$(GHC) $(HFLAGS) -package ghc --make \
 		-main-is App.Main App/Main.hs \
-		$(UI_OBJS) $(MIDI_OBJS) fltk/fltk.a $(MIDI_LIBS) \
+		$(UI_OBJS) $(COREMIDI_OBJS) fltk/fltk.a $(MIDI_LIBS) \
 		$(HLDFLAGS) \
 		-o $@
 	$(BUNDLE) doc/seq.icns
+
+.PHONY: $(BUILD)/test_core_midi
+$(BUILD)/test_core_midi: $(UI_HS) $(COREMIDI_OBJS)
+	$(GHC) $(HFLAGS) --make \
+		-main-is Midi.TestCoreMidi Midi/TestCoreMidi.hs -o $@ \
+		$(COREMIDI_OBJS) $(MIDI_LIBS) \
 
 .PHONY: $(BUILD)/send
 $(BUILD)/send: App/Send.hs
@@ -229,13 +218,13 @@ test_obj/RunTests.hs: $(ALL_HS)
 # workaround by grep -v out the LINEs into test_obj hierarchy
 # Compiles with -odir and -hidir into test_obj/ because they are compiled with
 # different flags.
-test_obj/RunTests: test_obj/RunTests.hs all_hsc $(UI_OBJS) $(MIDI_OBJS) \
+test_obj/RunTests: test_obj/RunTests.hs all_hsc $(UI_OBJS) $(COREMIDI_OBJS) \
 		fltk/fltk.a
 	tools/unline_hack
 	$(GHC) $(BASIC_HFLAGS) -i -itest_obj:. $(HTEST) --make \
 		-odir test_obj -hidir test_obj \
 		test_obj/RunTests.hs -o $@ \
-		$(UI_OBJS) $(MIDI_OBJS) fltk/fltk.a \
+		$(UI_OBJS) $(COREMIDI_OBJS) fltk/fltk.a \
 		$(MIDI_LIBS) $(HLDFLAGS)
 	rm -f *.tix # this sticks around and breaks things
 	rm -f test.output # this gets reset on each new test run
@@ -256,14 +245,22 @@ tags: $(ALL_HS)
 	(echo -e '!_TAG_FILE_SORTED\t1\t ~'; cat tags.sorted) >tags
 	rm tags.sorted
 
-# include GHC_LIB/include since hsc includes HsFFI.h
-# TODO hack around hsc2hs bogosity for now
 %.hs: %.hsc
-	hsc2hs -c g++ --cflag -Wno-invalid-offsetof $(CINCLUDE) $<
+	hsc2hs -c g++ --cflag -Wno-invalid-offsetof $(CINCLUDE) $(PORTMIDI_I) $<
+	@# hsc2hs stil includes INCLUDE but ghc 6.12 doesn't like that
 	grep -v INCLUDE $@ >$@.tmp
 	mv $@.tmp $@
 
-# hsc2hs -c g++ --cflag -Wno-invalid-offsetof $(CINCLUDE) $<
-# ./hsc2hs -D__GLASGOW_HASKELL__=612 -c g++ --cflag -Wno-invalid-offsetof $(CINCLUDE) \
-# 	-t $(GHC_LIB)/template-hsc.h -I $(GHC_LIB)/include \
-# 	$<
+### portmidi ###
+# I'm not using this now, but may use it again in the future
+
+# PORTMIDI := /usr/local/src/portmedia/portmidi/trunk
+# PORTMIDI_I := -Ifltk -I$(PORTMIDI)/pm_common -I$(PORTMIDI)/porttime -I.
+#
+# PORTMIDI_HSC := $(wildcard Midi/*.hsc)
+# PORTMIDI_HS := $(PORTMIDI_HSC:hsc=hs)
+#
+# .PHONY: $(BUILD)/test_portmidi
+# $(BUILD)/test_portmidi: Midi/PortMidi.hs $(UI_HS)
+# 	$(GHC) $(HFLAGS) --make \
+# 		-main-is Midi.TestMidi Midi/TestMidi.hs $(MIDI_LIBS) -o $@
