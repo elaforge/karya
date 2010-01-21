@@ -84,12 +84,12 @@ struct RulerConfig {
 };
 
 
-class OverlayRuler : public Fl_Group {
+class OverlayRuler : public Fl_Widget {
 public:
     explicit OverlayRuler(const RulerConfig &config) :
-        Fl_Group(0, 0, 1, 1), config(config)
+        Fl_Widget(0, 0, 1, 1), config(config)
     {}
-    void set_zoom(const ZoomInfo &new_zoom);
+    void set_zoom(const ZoomInfo &new_zoom) { this->zoom = new_zoom; }
     void set_selection(int selnum, int tracknum, const Selection &sel);
     TrackPos time_end() const;
     void set_config(const RulerConfig &config, FinalizeCallback finalizer,
@@ -104,6 +104,10 @@ public:
     Rect damaged_area;
 
     RulerConfig config;
+
+    // Remember how much I've scrolled, to do fl_scroll() optimization.
+    TrackPos last_offset;
+    ZoomInfo zoom;
 protected:
     void draw();
 
@@ -112,10 +116,6 @@ private:
     void draw_mark(int offset, const Mark &mark);
     void draw_selections();
     TrackSelection selections[Config::max_selections];
-
-    // Remember how much I've scrolled, to do fl_scroll() optimization.
-    TrackPos last_offset;
-    ZoomInfo zoom;
 };
 
 
@@ -123,7 +123,7 @@ class RulerTrackView : public TrackView {
 public:
     explicit RulerTrackView(const RulerConfig &config);
     virtual Fl_Box &title_widget();
-    virtual void set_zoom(const ZoomInfo &zoom) { ruler.set_zoom(zoom); }
+    virtual void set_zoom(const ZoomInfo &zoom);
     virtual void set_selection(int selnum, int tracknum, const Selection &sel) {
         ruler.set_selection(selnum, tracknum, sel);
     }
@@ -135,13 +135,13 @@ public:
     }
 
 protected:
-    // void draw();
+    void draw();
 
 private:
     // If created, this is owned by a Fl_Group, which deletes it.
     Fl_Box *title_box;
+    Fl_Box bg_box;
     OverlayRuler ruler;
-        Fl_Box bg_box;
 };
 
 #endif

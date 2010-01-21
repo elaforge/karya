@@ -54,6 +54,8 @@ void
 EventTrackView::set_zoom(const ZoomInfo &new_zoom)
 {
     // DEBUG("zoom " << this->zoom << " to " << new_zoom);
+    if (new_zoom == this->zoom)
+        return;
     if (this->zoom.factor == new_zoom.factor)
         this->damage(FL_DAMAGE_SCROLL);
     else
@@ -116,48 +118,59 @@ void
 EventTrackView::draw()
 {
     Rect draw_area = rect(this);
-    draw_area.y++; // Avoid the one pixel upper and lower bezels;
-    draw_area.h -= 2;
 
-    if (this->damage() & FL_DAMAGE_SCROLL) {
+    // DEBUG("event track damage " << show_damage(damage()));
+    if (this->damage() == FL_DAMAGE_SCROLL) {
+        // Avoid the one pixel upper and lower bezels;
+        draw_area.x++; draw_area.w -= 2;
+        draw_area.y++; draw_area.h -= 2;
+        draw_area = clip_rect(draw_area);
+
         int scroll = zoom.to_pixels(zoom.offset) - zoom.to_pixels(last_offset);
-        // int scroll2 = zoom.to_pixels(zoom.offset - last_offset);
-        // DEBUG("scroll diff: " << zoom.offset - last_offset
-        //         << " pixels: " << -scroll << " or " << -scroll2);
-        // DEBUG("offset pix: " << zoom.to_pixels(zoom.offset)
-        //         << " last pix: " << zoom.to_pixels(last_offset));
-        TrackPos shift_pos = std::max(
-                zoom.offset - last_offset, last_offset - zoom.offset);
+        // DEBUG("scroll " << SHOW_RANGE(draw_area) << " " << -scroll);
         fl_scroll(draw_area.x, draw_area.y, draw_area.w, draw_area.h,
                 0, -scroll, dummy_scroll_draw, NULL);
+        TrackPos shift_pos = std::max(
+                zoom.offset - last_offset, last_offset - zoom.offset);
         if (scroll > 0) { // Contents moved up, bottom is damaged.
             TrackPos bottom = zoom.offset + zoom.to_trackpos(draw_area.h);
             this->overlay_ruler.damage_range(bottom - shift_pos, bottom);
+            draw_area.y = draw_area.b() - scroll;
+            draw_area.h = scroll;
         } else if (scroll < 0) { // Contents moved down, top is damaged.
             this->overlay_ruler.damage_range(
                     zoom.offset, zoom.offset + shift_pos);
+            draw_area.h = -scroll;
+        } else {
+            draw_area.h = 0;
         }
-    }
-    // The damage is a little hacky, because the overlay_ruler overlaps this
-    // widget.  So only having child damage means the overlay will have
-    // DAMAGE_RANGE and this widget also needs to redraw in that range.
-    if (damage() == FL_DAMAGE_CHILD || damage() == FL_DAMAGE_SCROLL
-            || damage() == (FL_DAMAGE_CHILD | FL_DAMAGE_SCROLL))
-    {
-        // DEBUG("draw_area " << SHOW_RANGE(draw_area)
-        //     << " damage " << SHOW_RANGE(overlay_ruler.damaged_area) << " -> "
-        //     << SHOW_RANGE(draw_area.intersect(overlay_ruler.damaged_area)));
+    } else if (this->damage() == FL_DAMAGE_CHILD) {
+        // Only CHILD damage means a selection was set.  But since I overlap
+        // with the child, I have to draw too.
+        // DEBUG("pre intersect " << SHOW_RANGE(draw_area));
         draw_area = draw_area.intersect(this->overlay_ruler.damaged_area);
+        // DEBUG("post intersect " << SHOW_RANGE(draw_area));
     } else {
         // DEBUG("draw all");
     }
+    if (draw_area.w == 0 || draw_area.h == 0)
+        return;
 
-    // The remaining drawing routines will optimize based on the clip rect.
+    // DEBUG("draw area " << draw_area << " " << SHOW_RANGE(draw_area));
     // When overlay_ruler.draw() is called it will redundantly clip again on
     // damage_range, but that's ok because it needs the clip when called from
     // RulerTrackView::draw().
     ClipArea clip_area(draw_area);
+
+    // TODO It might be cleaner to eliminate bg_box and just call fl_rectf
+    // and fl_draw_box myself.  But this draws the all-mighty bevel too.
+    this->draw_child(this->bg_box);
+    Rect inside_bevel = rect(this);
+    inside_bevel.x++; inside_bevel.w -= 2;
+    inside_bevel.y++; inside_bevel.h -= 2;
+    ClipArea clip_area2(inside_bevel);
     this->draw_area();
+    overlay_ruler.damaged_area.w = overlay_ruler.damaged_area.h = 0;
     this->last_offset = this->zoom.offset;
 }
 
@@ -180,16 +193,7 @@ void
 EventTrackView::draw_area()
 {
     Rect clip = clip_rect(rect(this));
-    if (clip.w == 0 || clip.h == 0)
-        return;
     int y = this->y() + 1; // top pixel is a bevel
-
-    // TODO It might be cleaner to eliminate bg_box and just call fl_rectf
-    // and fl_draw_box myself.
-    // fl_color(bg_box.color());
-    // fl_rectf(clip.x, clip.y, clip.w, clip.h);
-    // DEBUG("DRAW BOX " << clip.y << "--" << clip.b());
-    this->draw_child(this->bg_box);
 
     // Code copy and pasted from OverlayRuler::draw_marklists.
     TrackPos start = this->zoom.to_trackpos(clip.y - y);
@@ -239,8 +243,6 @@ EventTrackView::draw_area()
         this->draw_samples(start, end);
 
     // Draw the upper layer (event start line, text).
-    // Don't let text draw over the precious bevel.
-    fl_push_clip(this->x() + 1, this->y(), this->w() - 2, this->h());
     // Don't use INT_MIN because it overflows too easily.
     Rect previous(x(), -9999, 0, 0);
     int ranked_bottom = -9999;
@@ -254,7 +256,6 @@ EventTrackView::draw_area()
             &ranked_bottom, prev_offset);
         prev_offset = offset;
     }
-    fl_pop_clip();
     if (count) {
         for (int i = 0; i < count; i++) {
             if (events[i].text)
@@ -265,12 +266,11 @@ EventTrackView::draw_area()
         free(ranks);
     }
 
-    // Draw the selection on top.
-    if (damage() & ~FL_DAMAGE_CHILD) {
+    // The overlay ruler overlaps me entirely, so I'm sure it's damaged.
+    if (damage() & FL_DAMAGE_ALL)
         this->draw_child(this->overlay_ruler);
-    } else {
+    else
         this->update_child(this->overlay_ruler);
-    }
 }
 
 void

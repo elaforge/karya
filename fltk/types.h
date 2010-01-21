@@ -110,10 +110,10 @@ struct ZoomInfo {
     ZoomInfo(TrackPos offset, double factor) :
         offset(offset), factor(std::max(MINIMUM_FACTOR, factor))
     {}
-    bool operator==(const ZoomInfo &o) {
+    bool operator==(const ZoomInfo &o) const {
         return offset == o.offset && factor == o.factor;
     }
-    bool operator!=(const ZoomInfo &o) { return !(*this == o); }
+    bool operator!=(const ZoomInfo &o) const { return !(*this == o); }
 
     // How many pixels is the given pos at, at this zoom?  This doesn't take
     // the zoom offset into account, so you'll have to subtract that from 'pos'

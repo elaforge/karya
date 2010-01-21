@@ -128,6 +128,9 @@ struct RectTmpl {
             y -= h;
         }
     }
+
+    PointTmpl<T> width_range() const { return PointTmpl<T>(x, x + w); }
+    PointTmpl<T> height_range() const { return PointTmpl<T>(y, y + h); }
 };
 
 template <class T> inline std::ostream &
