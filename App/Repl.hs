@@ -4,6 +4,7 @@ import Control.Monad
 import Control.Monad.Trans (liftIO)
 import qualified Control.Exception as Exception
 import qualified System.Console.Haskeline as Haskeline
+import qualified Util.Seq as Seq
 
 import qualified App.SendCmd as SendCmd
 
@@ -22,11 +23,14 @@ repl :: Haskeline.InputT IO ()
 repl = do
     maybe_line <- Haskeline.getInputLine "> "
     case maybe_line of
-        Just line -> do
-            response <- liftIO $ SendCmd.send line `Exception.catch` catch_all
-            unless (null response) $
-                liftIO $ putStrLn response
-            repl
+        Just line
+            | null (Seq.strip line) -> repl
+            | otherwise -> do
+                response <- liftIO $ SendCmd.send line
+                    `Exception.catch` catch_all
+                unless (null response) $
+                    liftIO $ putStrLn response
+                repl
         Nothing -> return ()
 
 catch_all :: Exception.SomeException -> IO String
