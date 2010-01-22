@@ -45,9 +45,8 @@ SeqInput::handle(int evt)
     if (evt == FL_KEYDOWN || evt == FL_KEYUP) {
         switch (key) {
         case FL_Shift_L: case FL_Shift_R: case FL_Enter: case FL_Escape:
-        case FL_Right: case FL_Left: case FL_BackSpace:
-            // let editing keys through
-            break;
+        case FL_Right: case FL_Left: case FL_BackSpace: case FL_Tab:
+            break; // some non-prinables are handlede here
         default:
             // but control chars and the like should be passed out
             if (!isprint(Fl::event_key()))
