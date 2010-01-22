@@ -167,6 +167,9 @@ bugs:
   * comment event should be ignored... or use just ;?  in any case I should be
     able to make it 0 dur
   * warning is missing a space: "performance: no pitch signalpos: (TrackP..."
+  - Perform.Midi.Perform: control lead time is not enough, make each note
+    have a "pre-decay" to check for presetting controls, and remove sort post
+    proc
   - clipboard is not handling the skeleton properly
   - deriving signal causes event derive to fail too?
   - undo should not move windows!  some bug is making undo randomly jump to
@@ -194,7 +197,7 @@ bugs:
       free Xlib or Win32 objects using an OS thread different to the one that
       is used to execute all other Gtk+ functions.
 
-  - fltk: moving a track title while it's expanded doesn't work
+  * fltk: moving a track title while it's expanded doesn't work
   - hint refuses to compile when Cmd.NoteEntry emits a warning
 
 cleanup:

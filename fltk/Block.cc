@@ -348,6 +348,9 @@ BlockView::set_track_selection(int selnum, int tracknum, const Selection &sel)
     // It's sort of hacky to reuse Selection (instead of say TrackSelection)
     // since I then totally ignore the tracknum, but fewer types means less
     // marshalling code.
+    // TODO an "empty" Selection() should clear the sel, but here it just sets
+    // it to 0.  It's ok for now because I use set_selection to clear for the
+    // whole block.
     Selection track_sel = sel;
     if (tracknum == 0) {
         track_sel.start_track = track_sel.cur_track = tracknum;
@@ -701,6 +704,7 @@ BlockViewWindow::handle(int evt)
             break;
         case FL_FOCUS:
             global_msg_collector()->event(evt, this);
+            break;
         }
         return true;
     }

@@ -12,6 +12,7 @@ SeqInput::SeqInput(int X, int Y, int W, int H, bool do_expansion) :
     Fl_Input(W, Y, W, H), focus_color(255, 240, 220),
     proper_size(W, H), expanded(false), do_expansion(do_expansion)
 {
+    this->color(FL_WHITE);
     this->textsize(Config::font_size::input);
     this->box(FL_THIN_DOWN_BOX);
     this->callback(SeqInput::changed_cb, static_cast<void *>(this));
@@ -22,10 +23,9 @@ SeqInput::SeqInput(int X, int Y, int W, int H, bool do_expansion) :
 void
 SeqInput::resize(int x, int y, int w, int h)
 {
-    // DEBUG("resize to " << Point(w, h));
-    this->proper_size = Point(w, h);
     if (!this->expanded)
-        Fl_Input::resize(x, y, w, h);
+        this->proper_size = Point(w, h);
+    Fl_Input::resize(x, y, w, h);
 }
 
 
