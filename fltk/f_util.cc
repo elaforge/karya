@@ -15,33 +15,69 @@
 // enum { DAMAGE_ZOOM = FL_DAMAGE_USER1 };
 
 
+static const char *
+show_key(int key)
+{
+    static char buf[32];
+    if (isprint(key))
+        sprintf(buf, "'%c'", key);
+    else if (isprint(key < FL_KP_Last && key - FL_KP))
+        sprintf(buf, "kp-%c", key - FL_KP);
+    else if (isprint(FL_F <= key && key < FL_F_Last))
+        sprintf(buf, "fn-%d", key - FL_F);
+    else {
+        const char *e = "unknown";
+        switch (key) {
+        case FL_Escape: e = "escape"; break;
+        case FL_BackSpace: e = "backspace"; break;
+        case FL_Tab: e = "tab"; break;
+        case FL_Enter: e = "enter"; break;
+        }
+        return e;
+    }
+    return buf;
+}
+
+
 const char *
 show_event(int ev)
 {
     static char buf[1024];
+    const char *e = "unknown";
     switch (ev) {
-    case FL_NO_EVENT: return "nothing";
-    case FL_PUSH: return "push";
-    case FL_DRAG: return "drag";
-    case FL_RELEASE: return "release";
-    case FL_MOVE: return "move";
-    case FL_MOUSEWHEEL: return "mousewheel";
-    case FL_ENTER: return "enter";
-    case FL_LEAVE: return "leave";
-    case FL_FOCUS: return "focus";
-    case FL_UNFOCUS: return "unfocus";
+    case FL_NO_EVENT: e = "nothing"; break;
+    case FL_PUSH: e = "push"; break;
+    case FL_DRAG: e = "drag"; break;
+    case FL_RELEASE: e = "release"; break;
+    case FL_MOVE: e = "move"; break;
+    case FL_MOUSEWHEEL: e = "mousewheel"; break;
+    case FL_ENTER: e = "enter"; break;
+    case FL_LEAVE: e = "leave"; break;
+    case FL_FOCUS: e = "focus"; break;
+    case FL_UNFOCUS: e = "unfocus"; break;
 
-    case FL_KEYDOWN: return "keydown";
-    case FL_KEYUP: return "keyup";
-    case FL_SHORTCUT: return "shortcut";
-    case FL_DEACTIVATE: return "deactivate";
-    case FL_ACTIVATE: return "activate";
-    case FL_HIDE: return "hide";
-    case FL_SHOW: return "show";
-    default:
-        sprintf(buf, "unknown event: %d", ev);
-        return buf;
+    case FL_KEYDOWN: e = "keydown"; break;
+    case FL_KEYUP: e = "keyup"; break;
+    case FL_SHORTCUT: e = "shortcut"; break;
+    case FL_DEACTIVATE: e = "deactivate"; break;
+    case FL_ACTIVATE: e = "activate"; break;
+    case FL_HIDE: e = "hide"; break;
+    case FL_SHOW: e = "show"; break;
     }
+    switch (ev) {
+    case FL_PUSH: case FL_DRAG: case FL_RELEASE: case FL_MOVE:
+    case FL_MOUSEWHEEL:
+        snprintf(buf, sizeof buf, "%s (%d, %d)", e,
+            Fl::event_x(), Fl::event_y());
+        break;
+    case FL_KEYDOWN: case FL_KEYUP:
+        snprintf(buf, sizeof buf, "%s %s", e, show_key(Fl::event_key()));
+        break;
+    default:
+        snprintf(buf, sizeof buf, "%s", e);
+        break;
+    }
+    return buf;
 }
 
 
