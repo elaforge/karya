@@ -325,6 +325,7 @@ EventTrackView::draw_samples(TrackPos start, TrackPos end)
         prev_xpos = xpos;
         prev_offset = offset;
     }
+    fl_line_style(0);
 }
 
 
@@ -393,7 +394,6 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
         if (rank)
             trigger_c = trigger_c.brightness(rank_brightness);
         fl_color(color_to_fl(trigger_c));
-        fl_line_style(FL_SOLID, 1);
         fl_line(x() + 1, offset, x()+w() - 2, offset);
     }
 

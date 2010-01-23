@@ -234,6 +234,7 @@ OverlayRuler::draw_mark(int offset, const Mark &mark)
             fl_color(color_to_fl(Config::abbreviation_color));
             fl_line_style(FL_SOLID, 2);
             fl_line(x() + 1, offset - fl_height(), x() + 1, offset);
+            fl_line_style(0);
             xpos = xmax;
         }
 
@@ -263,7 +264,6 @@ OverlayRuler::draw_selections()
 
         // Darken the the cur pos a bit, and make it non-transparent.
         fl_color(color_to_fl(sel.color.brightness(0.5)));
-        fl_line_style(FL_SOLID, 1);
         int cur = y + this->zoom.to_pixels(sel.cur - this->zoom.offset);
         fl_line(x() + 2, cur, x() + w() - 2, cur);
         if (sel.is_point() && sel.is_cur_track) {
