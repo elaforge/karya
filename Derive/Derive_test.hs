@@ -31,8 +31,6 @@ import qualified Perform.Midi.Control as Midi.Control
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
 
-import Util.Debug
-
 
 -- TODO
 -- don't test subderive stuff already tested in Note_test
@@ -67,16 +65,15 @@ import Util.Debug
 
 
 test_subderive = do
-    let ui_state = snd $ UiTest.run State.empty $ do
-            UiTest.mkstate "sub"
-                [ (">i2", [(1, 1, "--sub1")]) ]
-            UiTest.mkstate "b0"
-                [ ("tempo", [(0, 0, "2")])
-                , (">i1", [(0, 8, "--b1"), (8, 8, "sub"), (16, 1, "blub")])
-                , ("cont", [(0, 0, "1"), (16, 0, "i, 0")])
-                ]
     let (events, _tempo, inv_tempo, logs, _state) =
-            DeriveTest.derive_block ui_state (UiTest.bid "b0")
+            DeriveTest.derive_blocks
+                [ ("b0",
+                    [ ("tempo", [(0, 0, "2")])
+                    , (">i1", [(0, 8, "--b1"), (8, 8, "sub"), (16, 1, "blub")])
+                    , ("cont", [(0, 0, "1"), (16, 0, "i, 0")])
+                    ])
+                , ("sub", [(">i2", [(1, 1, "--sub1")])])
+                ]
 
     let b0 pos = (UiTest.bid "b0",
             [(UiTest.tid ("b0.t" ++ show n), TrackPos pos) | n <- [ 1, 2, 0]])
@@ -98,20 +95,19 @@ test_subderive = do
 
 test_subderive_multiple = do
     -- make sure subderiving a block with multiple tracks works correctly
-    let ui_state = snd $ UiTest.run State.empty $ do
-            UiTest.mkstate "sub"
+    let (Right events, _) = DeriveTest.e_val $ DeriveTest.derive_blocks
+            [ ("b0",
+                [ ("tempo", [(0, 0, "2")])
+                , (">i", [(0, 8, "sub")])
+                , ("vel", [(0, 0, "1"), (8, 0, "i, 0")])
+                ])
+            , ("sub",
                 [ (">", [(0, 1, "--1-1"), (1, 1, "--1-2")])
                 , ("*twelve", [(0, 0, "4c"), (1, 0, "4d")])
                 , (">", [(0, 1, "--2-1"), (1, 1, "--2-2")])
                 , ("*twelve", [(0, 0, "5c"), (1, 0, "5d")])
-                ]
-            UiTest.mkstate "b0"
-                [ ("tempo", [(0, 0, "2")])
-                , (">i", [(0, 8, "sub")])
-                , ("vel", [(0, 0, "1"), (8, 0, "i, 0")])
-                ]
-    let (Right events, _) = DeriveTest.e_val $
-            DeriveTest.derive_block ui_state (UiTest.bid "b0")
+                ])
+            ]
     let (_, _, mmsgs, _) = DeriveTest.perform
             DeriveTest.default_inst_config events
     equal (DeriveTest.note_on_times mmsgs)
@@ -119,22 +115,40 @@ test_subderive_multiple = do
         , (2000, 62, 63), (2000, 74, 63)
         ]
 
+test_multiple_subderive = do
+    -- make sure a sequence of sub calls works
+    let (events, _, inv_tempo, logs, _) =
+            DeriveTest.derive_blocks
+            [ ("b0", [(">i1", [(0, 2, "sub"), (2, 2, "sub"), (4, 2, "sub")])])
+            , ("sub", [(">", [(0, 1, "--sub1")])])
+            ]
+    equal logs []
+    equal (fmap extract_events events) $
+        Right [(0, 2, "--sub1"), (2, 2, "--sub1"), (4, 2, "--sub1")]
+    -- Empty inst inherits calling inst.
+    equal (fmap (map Score.event_instrument) events) $
+        Right (replicate 3 (Just (Score.Instrument "i1")))
+
+    let pos = map inv_tempo (map Timestamp.seconds [0..6])
+    let b0 pos = (UiTest.bid "b0", [(UiTest.tid ("b0.t0"), TrackPos pos)])
+        sub pos = (UiTest.bid "sub", [(UiTest.tid "sub.t0", TrackPos pos)])
+    equal (map List.sort pos)
+        [ [b0 0, sub 0], [b0 1, sub 0.5], [b0 2, sub 0], [b0 3, sub 0.5]
+        , [b0 4, sub 0], [b0 5, sub 0.5], []
+        ]
+
 test_tempo_compose = do
     let run tempo events sub_tempo =
-            trace (trace_logs logs) $ fmap extract_events score_events
+            Log.trace_logs logs $ fmap extract_events score_events
             where
-            ui_state = snd $ UiTest.run State.empty $ do
-                UiTest.mkstate "sub"
-                    [ ("tempo", sub_tempo)
-                    , (">", [(0, 1, ""), (1, 1, "")])
+            (score_events, _tempo, _inv_tempo, logs, _state) =
+                DeriveTest.derive_blocks
+                    [ ("b0", [("tempo", tempo), (">i1", events)])
+                    , ("sub",
+                        [ ("tempo", sub_tempo)
+                        , (">", [(0, 1, ""), (1, 1, "")])
+                        ])
                     ]
-                UiTest.mkstate "b0"
-                    [ ("tempo", tempo)
-                    , (">i1", events)
-                    ]
-            (score_events, _tempo, inv_tempo, logs, _state) =
-                DeriveTest.derive_block ui_state (UiTest.bid "b0")
-        trace_logs logs = Seq.join "\n" $ map show_log logs
 
     equal (run [(0, 0, "1")] [(2, 2, "sub")] [(0, 0, "1")]) $
         Right [(2, 1, ""), (3, 1, "")]
@@ -205,30 +219,6 @@ test_tempo_ops = do
     equal (run (Derive.d_at 1 $ Derive.d_stretch 2 $ Derive.d_warp slow $
         Derive.d_warp slow $ record)) $
             Right [1, 17]
-
-test_multiple_subderive = do
-    let ui_state = snd $ UiTest.run State.empty $ do
-            UiTest.mkstate "sub"
-                [ (">", [(0, 1, "--sub1")]) ]
-            UiTest.mkstate "b0"
-                [ (">i1", [(0, 2, "sub"), (2, 2, "sub"), (4, 2, "sub")])
-                ]
-    let (events, _, inv_tempo, logs, _) =
-            DeriveTest.derive_block ui_state (UiTest.bid "b0")
-    equal logs []
-    equal (fmap extract_events events) $
-        Right [(0, 2, "--sub1"), (2, 2, "--sub1"), (4, 2, "--sub1")]
-    -- Empty inst inherits calling inst.
-    equal (fmap (map Score.event_instrument) events) $
-        Right (replicate 3 (Just (Score.Instrument "i1")))
-
-    let pos = map inv_tempo (map Timestamp.seconds [0..6])
-    let b0 pos = (UiTest.bid "b0", [(UiTest.tid ("b0.t0"), TrackPos pos)])
-        sub pos = (UiTest.bid "sub", [(UiTest.tid "sub.t0", TrackPos pos)])
-    equal (map List.sort pos)
-        [ [b0 0, sub 0], [b0 1, sub 0.5], [b0 2, sub 0], [b0 3, sub 0.5]
-        , [b0 4, sub 0], [b0 5, sub 0.5], []
-        ]
 
 track_specs =
     [ ("tempo", [(0, 0, "2")])

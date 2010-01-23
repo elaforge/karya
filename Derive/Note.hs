@@ -279,40 +279,38 @@ parse_call args = do
 derive_notes :: (Monad m) => [(Track.PosEvent, NoteDesc)]
     -> Derive.DeriveT m [Score.Event]
 derive_notes = fmap concat . mapM note . Seq.zip_next
+    -- TODO instead of just zip_next use zip_neighbors and skip statements
+    -- statements don't produce [Score.Event]s
     where
     note (((pos, event), ndesc), next) = Derive.with_stack_pos
-        pos (Event.event_duration event) (derive_note pos event ndesc next)
+        pos (Event.event_duration event)
+        (derive_note pos event ndesc (fmap fst next))
 
 derive_note :: (Monad m) => TrackPos -> Event.Event -> NoteDesc
-    -> Maybe (Track.PosEvent, NoteDesc) -> Derive.DeriveT m [Score.Event]
-derive_note pos event (NoteDesc args inst attrs) maybe_next = do
+    -> Maybe Track.PosEvent -> Derive.DeriveT m [Score.Event]
+derive_note pos event (NoteDesc args inst attrs) track_next = do
     -- TODO when signals are lazy this will be inefficient.  I need to come
     -- up with a way to guarantee such accesses are increasing and let me gc
     -- the head.
-    start <- Derive.local_to_global pos
-    -- TODO the last event may have a next event from the deriving block,
-    -- pass that down from there
-    let dur = calculate_duration (pos, event) (fmap fst maybe_next)
-    end <- Derive.local_to_global (pos + dur)
-    -- Log.debug $ show (Event.event_string event) ++ ": local global "
-    --     ++ show ((pos, start), (pos + Event.event_duration event, end))
-    -- Derive.Warp wp stretch shift <- Derive.gets Derive.state_warp
-    -- Log.write $ Signal.log_signal wp $ Log.msg Log.Debug  "warp"
-
     st <- Derive.get
+    next <- case track_next of
+        Just evt -> fmap Just (event_to_global evt)
+            -- state_next_note is already in global time because it's from the
+            -- caller.
+        Nothing -> return (Derive.state_next_note st)
     case args of
-        _ | dur == 0 -> do
+        _ | Event.event_duration event == 0 -> do
             Derive.warn "omitting note with 0 duration"
             return []
         _ | Event.event_string event == "--" ->
             -- Events that are entirely comment are skipped entirely, see
             -- module comment.
             return []
-        -- TODO when signals are lazy I should drop the heads of the control
-        -- signals so they can be gced.
         [] -> do
-            pitch_sig <- trimmed_pitch maybe_next (Derive.state_pitch st)
-            return [Score.Event start (end-start)
+            global_evt <- event_to_global (pos, event)
+            let dur = calculate_duration global_evt next
+            let pitch_sig = trimmed_pitch next (Derive.state_pitch st)
+            return [Score.Event (fst global_evt) dur
                 (Event.event_text event) (Derive.state_controls st)
                 pitch_sig (Derive.state_stack st) inst attrs]
         _ -> do
@@ -329,8 +327,23 @@ derive_note pos event (NoteDesc args inst attrs) maybe_next = do
             -- before arriving at the trigger.
             let (begin, end) = (Track.event_min (pos, event),
                     Track.event_max (pos, event))
-            Derive.d_sub_derive [] $ Derive.with_instrument inst attrs $
-                d_sub begin (end - begin) sub
+            -- The 'next' passed here will become the callee's state_next_note.
+            -- TODO But if the next note is a call, this wil be wrong.
+            -- To fix this, I have to turn events into [deriver] and then
+            -- take the first event from the next deriver.  I may need this
+            -- anyway to skip statements... but what will happen when the
+            -- next event in turn wants to know its next?  It shouldn't for
+            -- just one event, right?
+            Derive.d_sub_derive [] $ Derive.with_next_note next $
+                Derive.with_instrument inst attrs $
+                    d_sub begin (end - begin) sub
+
+event_to_global :: (Monad m) => Track.PosEvent
+    -> Derive.DeriveT m Track.PosEvent
+event_to_global (pos, evt) = do
+    start <- Derive.local_to_global pos
+    end <- Derive.local_to_global (pos + Event.event_duration evt)
+    return (start, Event.set_duration (end - start) evt)
 
 calculate_duration :: Track.PosEvent -> Maybe Track.PosEvent -> TrackPos
 calculate_duration (cur_pos, cur) (Just (next_pos, next))
@@ -352,12 +365,12 @@ calculate_duration (_, cur) Nothing
 -- | In a note track, the pitch signal for each note is constant as soon as the
 -- next note begins.  Otherwise, it looks like each note changes pitch during
 -- its decay.
-trimmed_pitch :: (Monad m) => Maybe (Track.PosEvent, NoteDesc)
-    -> PitchSignal.PitchSignal -> Derive.DeriveT m PitchSignal.PitchSignal
-trimmed_pitch (Just ((next_pos, _), _)) sig = do
-    next <- Derive.local_to_global next_pos
-    return $ PitchSignal.truncate next sig
-trimmed_pitch _ sig = return sig
+-- TODO when signals are lazy I should drop the heads of the control
+-- signals so they can be gced.
+trimmed_pitch :: Maybe Track.PosEvent -> PitchSignal.PitchSignal
+    -> PitchSignal.PitchSignal
+trimmed_pitch (Just (next_pos, _)) sig = PitchSignal.truncate next_pos sig
+trimmed_pitch _ sig = sig
 
 d_sub :: TrackPos -> TrackPos -> TrackLang.CallId -> Derive.EventDeriver
 d_sub start dur call_id = do
@@ -369,8 +382,6 @@ d_sub start dur call_id = do
     when (block_id `elem` [bid | (bid, _, _) <- stack]) $
         Derive.throw $ "recursive block derivation: " ++ show block_id
     -- Stretch call to fit in duration, based on the block length.
-    -- An alternate approach would be no stretch, but just clip, but I'm
-    -- not sure how to indicate that kind of derivation.
     -- This is the first time I look up block_id so if the block does't exist
     -- this will throw.
     block_dur <- Derive.get_block_dur block_id

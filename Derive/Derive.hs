@@ -46,6 +46,7 @@ import qualified Util.SrcPos as SrcPos
 
 import Ui
 import qualified Ui.State as State
+import qualified Ui.Track as Track
 
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
@@ -86,6 +87,10 @@ data State = State {
     , state_instrument :: Maybe Score.Instrument
     , state_attributes :: Score.Attributes
     , state_warp :: Warp
+    -- | This is the next note-generating event in the calling context.  This
+    -- is so the final score event of the deriver can know its scope.  See
+    -- "Derive.Note" for various uses.
+    , state_next_note :: Maybe Track.PosEvent
     -- | This is the call stack for events.  It's used for error reporting,
     -- and attached to events in case they want to emit errors later (say
     -- during performance).
@@ -118,6 +123,7 @@ initial_state ui_state lookup_deriver calls ignore_tempo = State {
     , state_instrument = State.state_default_inst ui_state
     , state_attributes = Score.no_attrs
     , state_warp = initial_warp
+    , state_next_note = Nothing
     , state_stack = []
     , state_log_context = []
 
@@ -246,6 +252,7 @@ d_block block_id = do
     deriver <- either rethrow return (state_lookup_deriver state block_id)
     with_stack_block block_id deriver
 
+-- | Run a derivation, catching and logging any exception.
 d_sub_derive :: (Monad m) => a -> DeriveT Identity.Identity a -> DeriveT m a
 d_sub_derive fail_val deriver = do
     state <- get
@@ -256,6 +263,8 @@ d_sub_derive fail_val deriver = do
             warn $ "error sub-deriving: " ++ show err
             return fail_val
         Right val -> do
+            -- TODO once the logging portion of the state is factored out I
+            -- should copy back only that part
             modify (const state2)
             return val
 
@@ -325,6 +334,12 @@ with_event :: (Monad m, Score.Eventlike e) => e -> DeriveT m a -> DeriveT m a
 with_event event = local state_stack
     (\st -> st { state_stack = Score.stack event })
     (\old st -> st { state_stack = old })
+
+with_next_note :: (Monad m) => Maybe Track.PosEvent
+    -> DeriveT m a -> DeriveT m a
+with_next_note next = local state_next_note
+    (\st -> st { state_next_note = next })
+    (\old st -> st { state_next_note = old })
 
 -- ** state access
 

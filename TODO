@@ -496,6 +496,9 @@ Derive:
       "*scale" -> ("", ScaleId scale)
       "*scale, psig -> ("psig", ScaleId scale)
   NoteTrack note
+    negative duration
+      - figuring out note duration is still not correct, I pass the position of
+        the next event, but not the next Score.Event.
 
   ControlTrack control
     - configurable interpolators instead of a hardcoded ADT

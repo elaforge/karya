@@ -1,4 +1,5 @@
 module Derive.DeriveTest where
+import Control.Monad
 import qualified Control.Monad.Identity as Identity
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -76,6 +77,14 @@ perform inst_config events = (perf_events, convert_warns, mmsgs, perform_warns)
     (msgs, perform_warns) =
         Perform.perform default_lookup inst_config perf_events
     mmsgs = map (\m -> (Midi.wmsg_ts m, Midi.wmsg_msg m)) msgs
+
+-- | Create multiple blocks, and derive the first one.
+derive_blocks :: [(String, [UiTest.TrackSpec])] -> Result [Score.Event]
+derive_blocks block_tracks = derive_block ui_state bid
+    where
+    (_, ui_state) = UiTest.run State.empty $
+        forM_ block_tracks $ \(bid, tracks) -> UiTest.mkstate bid tracks
+    bid = UiTest.bid (fst (head block_tracks))
 
 derive_block :: State.State -> BlockId -> Result [Score.Event]
 derive_block ui_state block_id = derive lookup_deriver ui_state deriver

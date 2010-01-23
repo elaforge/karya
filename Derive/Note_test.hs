@@ -53,12 +53,10 @@ test_d_note_track = do
     equal logs []
 
 test_d_sub = do
-    let run evts = extract_common $
-            DeriveTest.derive_block ui_state (UiTest.bid "b1")
-            where
-            (_, ui_state) = UiTest.run State.empty $ do
-                UiTest.mkstate "sub" [(">", [(0, 1, "--sub")])]
-                UiTest.mkstate "b1" [(">", evts)]
+    let run evts = extract_common $ DeriveTest.derive_blocks
+            [ ("b1", [(">", evts)])
+            , ("sub", [(">", [(0, 1, "--sub")])])
+            ]
     let (evts, logs) = run [(0, 1, "nosuch")]
     equal evts (Right [])
     strings_like (map fst logs)
@@ -174,6 +172,21 @@ test_negative_duration = do
     equal (run [(1, -1, "--1"), (3, 0, "--2")])
         (Right [(1, 2, "--1")],
             ["compile (bid \"test/b1\"): omitting note with 0 duration"])
+
+    let run evts = extract $ DeriveTest.derive_blocks
+            [ ("b1", [(">", evts)])
+            , ("sub", [(">", [(1, -1, "--1"), (2, -1, "--2")])])
+            ]
+    -- last event extends up to "rest" at 5
+    equal (run [(4, -4, "sub"), (6, -1, "")])
+        (Right [(2, 2, "--1"), (4, 1, "--2"), (6, deflt, "")], [])
+
+    -- TODO This will come out incorrect because I don't pass the correct next
+    -- event.  Punt on this for now, I may have a better solution later.
+    -- equal (run [(4, -4, "sub"), (8, -4, "sub")])
+    --     (Right [(2, 2, "--1"), (4, 2, "--2"), (6, 2, "--1"),
+    --         (8, deflt, "--2")],
+    --     [])
 
 
 type Extracted =
