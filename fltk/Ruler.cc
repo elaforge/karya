@@ -376,6 +376,8 @@ RulerTrackView::draw()
         // DEBUG("pre intersect " << SHOW_RANGE(draw_area));
         draw_area = draw_area.intersect(this->ruler.damaged_area);
         // DEBUG("post intersect " << SHOW_RANGE(draw_area));
+    } else {
+        this->damage(FL_DAMAGE_ALL);
     }
     // Prevent marks at the top and bottom from drawing outside the ruler.
     ClipArea clip_area(draw_area);

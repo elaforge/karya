@@ -6,6 +6,8 @@
 - try record punning
 
 CURRENT
+  - factor scroll redrawing into a single class
+  - scroll to right, tracks don't receive clicks
   - happened automatically adding a pitch track:
     assertion: <assertion failed at fltk/TrackTile.cc:266 update_sizes():
     'title->w() == body->w()'>
@@ -255,8 +257,10 @@ fltk:
     I can set something like kUtilityWindowClass in Fl_mac.cxx:Fl_X::make, but
     it doesn't get any kbd input
   - can I get the windows into an os x windows menu?
-  - bug: doesn't redraw after switching monitors
   - SeqInputs should display the right side of the text if they're too small
+  draw bugs:
+    - when scrolling upwards, ruler mark text is not drawn completely
+    - doesn't redraw after switching monitors
   UI Msgs
   Track
     / dividers can have separate color for upper part, for collapsable tracks

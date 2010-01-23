@@ -151,7 +151,10 @@ EventTrackView::draw()
         draw_area = draw_area.intersect(this->overlay_ruler.damaged_area);
         // DEBUG("post intersect " << SHOW_RANGE(draw_area));
     } else {
-        // DEBUG("draw all");
+        // I could technically handle SCROLL | CHILD, but I'd have to tweak
+        // the ruler's damaged_area to account for the scroll and that's too
+        // much bother right now.
+        this->damage(FL_DAMAGE_ALL);
     }
     if (draw_area.w == 0 || draw_area.h == 0)
         return;
