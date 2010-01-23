@@ -1,18 +1,9 @@
+- cleanup Ui.Track: event_list -> all_events?
+- #(poke Mispeled, field) fieldp field results in compiler bus error
 - program to launch logview and seq together
 - ^T on the cmdline prints stuff!?
-
-- empty scale defaults in Derive, but not in Cmd
-
-- piece with fancy pitch: doira + synth
-  1 1^ - 1^ 3 7# - - 1 1^ 1 32 7#7 1 1^ - 1^ 3 7# 1^
-    3 3333 2 2 2b 2b
 - signal deriver doesn't record track in stack
-
 - try record punning
-
-- maybe I can get rid of schema?
-
-- derive multiple blocks with parMap
 
 CURRENT
   - happened automatically adding a pitch track:
@@ -23,6 +14,7 @@ CURRENT
     9   BlockView::insert_track_view(int, TrackView*, int) + 155 (Block.cc:489)
     10  BlockView::insert_track(int, Tracklike const&, int) + 85 (Block.cc:376)
     11  insert_track + 205 (c_interface.cc:187)
+    solution: text entry is collapsed by track add, remove, or resize
 
   - subderive blocks in rejangn are giving "omitting note with 0 duration"
   - clicking jumps to points that arrows won't jump to
@@ -32,6 +24,7 @@ CURRENT
     curser in middle, move down, view suddenly jumps to bottom
 
   - playback should have multiple lines when a block is derived multiple times
+    have a set of playback selnums?
 
   - stop play when a neg dur note is playing in white space never turns off
   - neg dur before sub derive also sounds forever, I think it has to do with
@@ -49,6 +42,7 @@ CURRENT
   - some way to turn off all midi thru / input
   - midi input doesn't advance on note off
   - midi thru doesn't pick up default inst
+    empty scale defaults in Derive, but not in Cmd
   - fix load window positions
     - update fltk to cocoa version first
   - cmd to resize window to fit tracks
@@ -75,7 +69,6 @@ CURRENT
   - rename project -> namespace
   * cmd support for negative durs: select range, edit modify overlapping evt,
     etc.
-  - don't redraw if no scroll happened?
   - hspp screws up \\ string continuations
   - load kotek puts window off the screen
   - methods no longer hardcoded, e.g. Map MethodId MethodInterpolator
@@ -201,6 +194,7 @@ bugs:
   - hint refuses to compile when Cmd.NoteEntry emits a warning
 
 cleanup:
+  - split Derive.State into dynamically scoped, constant, and logging parts
   - State.structure only used by Clip_test
   - Makefile: ghc --make doesn't understand the hsc -> hs link, which leads to
     manual inclusion of $(UI_HS) in the deps
@@ -216,6 +210,10 @@ cleanup:
       sync: state_project, state_project_scale
     - creating a block through State.create_block instead of Cmd.create_block
       won't get the current track box color
+  - since tracklang lets me apply derivers to tracks and skel makes the
+    structure explicit, do I still need the schema?  at least for Cmds, I do
+    need a way to look up Cmds based on track focus.  Before doing anything
+    rash, think about ways to derive e.g. 工尺譜.
 
 performance:
   speed and memory profiling:
@@ -247,6 +245,8 @@ performance:
     - cache track cmds for each track, update when the track title or skeleton
       changes
     - deriver caching, see doc/derive_cache
+  - derive multiple blocks with strategies, par, parMap.  Can I spark all
+    subderivations?
 
 fltk:
   - draw arrows in SkeletonDisplay.cc properly
@@ -320,6 +320,7 @@ skeleton:
 test:
   - tests count number of tests in addition to checks within each test
   - it should be possible to build only certain tests into RunTests
+  - use generics or Foldable or something to write a generic StructEqual
 
 integrator / midi record:
   - implement
@@ -399,10 +400,10 @@ Derive:
   - derivers for seleh patterns
     - do a code version and a block version
     - block version requires block arguments and variable substitution
-  TrackLang
+  TrackLang tracklang
     * note track can pipe through derivers: '>fm8/bass | d0 arg0 arg1 | d1'
     * echo deriver, '>fm8/bass | echo 2', signals: echo_feedback, echo_time
-    - lazy version of Derive.Call.map_events
+    - Derive.Call.map_asc_events, I need Seq.merge_asc_lists for this.
     - make sure signal derivation doesn't do calls
     * implement num -> signal coercion
     * implement mandatory signal args
@@ -413,46 +414,88 @@ Derive:
     - other attributes in block title, e.g. "alias=?squiggle? | xyz"?
     - support pitch signals, e.g. "tune-to %*some-sig" but that requires named
       pitch signals
-    - implement rambat "tick", this requires a deriver before the note
-      derivation, logical syntax would be "tick | >fm8/bass | d0 arg arg"
-      but this makes tracks harder to recognize
 
-      b0 arg | b1 arg | >fm8/bass | d0 arg | d1 arg
-      #fm8/bass << b0 arg << b1 arg >> d0 arg >> d1 arg
+    - Currently calls are [Score.Event] -> [Score.Event].  Clearly they should
+      be able to work on DeriveT as well so they can work in score time and
+      take advantage of behavioural abstraction.  Then 'a | b' is
+      really 'b . a'.
 
-      1. A pre-note deriver would work with Event.Event, get signals from the
-      environment, and work in score time (but could use local_to_gloal for
-      absolute timing).  This means it would be unsuitable to put at block
-      level.
+    - I need a way to give default args to each call.  Normally signals do
+      this and they would give me a way to change the default args in time,
+      but I would need typed signals, and still might want a way to set the
+      name of a signal for an arg.  So for the moment I can use a separate
+      mechanism, but it should be dynamically scoped via Derive.State.
 
-      2. A post-note deriver would work with Score.Event, could get signals
-      from the event, and work in absolute time (but I could add
-      global_to_local).  I have to make the note deriver ignore ; and have
-      convert warn about remaining ones, but this would work at the block level
-      just the same as the track level.
+      So why do I need ';' at all then?  It signals the event is not
+      derived into notes, but maybe that's obvious enough from the syntax.
+      I think I could make '>inst' shorthand for 'inst = >inst' and '+attr'
+      shorthand for 'attrs + attr'.  But what if I want to scope the
+      setting to a note?
+        '' -> a null call derives a note
+        'x = y' -> set val
+        'x = y |' -> set val within the derivation of a note
+        '+attr' -> shorthand for 'attrs += attr |'
+        '+attr1 +attr2' -> shorthand for 'attrs += attr1 | attrs += attr2 |'
+        '>inst | block' -> set inst and call 'block'
+        '|' -> derive two notes (or error if this isn't useful)
+        '| x = y' -> error, x = y is ignored
 
-      3. I think eventually derivers should work with [EventDeriver] instead of
-      Event so that abstraction works, i.e. a triplet can work with
-      subderivers.  To make this work, I need to replace [Score.Event] with
-      [(shift, stretch, EventDeriver)] so I can know durations, and get pitch
-      etc.  from the environment.  This way I don't need to have the next event
-      parsed to do the derivation, but I think a 'tick' can be a plain call
-      like any other.  Maybe I could extend track title with arg=val to provide
-      default vals for calls.
+      This brings up the possibility of being able to set the "null"
+      deriver for a track.  Normally it's the one that emits [Event ...],
+      but could there be a use for replacing it with something else?
+      Implement "damping" notes that way?
 
-      For the moment, do #2, and implement #3 later.
+      Now the track title really is just composed with the track: >inst | blah
+      I still have to signal a note track though, and a leading '>' still
+      seams reasonable.  But now I can write '> | sets_inst_based_on_env'.
+
+    - Implement tick as a call:
+      Need to get next and prev Ui.Event, get pitch from pitch sig
+      to_local (between (to_gloal prev_pos) (to_gloal next_pos)
+      d_absolute_at = d_at . to_local
+
+    - Implement suppress as call:
+      This is more tricky, how can a call modify neighbors?  Especially
+      preceding ones.  This seems to mean I still need postproc calls:
+      DeriveT -> DeriveT.  Internally it evaluates the deriver, processes
+      the Score.Events and wraps it in another deriver (the seq equivalent of
+      cue).  After that most behaviours are ineffective, but them's the
+      breaks I guess.
+
+    - Implement tuplet:
+      't *n1 *n2 *n3 |' runs deriver three times with three different
+      pitches.
+
+    - 't' expects a deriver, while 'some-block' and '' don't.  Some derivers
+      can go both ways: 'seed = 42' sets 'seed' in the current env, while
+      'seed = 42 | sub' sets it in the 'sub' call.
+      How do I express this difference?  Calls need types for "needs arg", "no
+      arg", and "optional arg".  Then after type checking I pass
+      (Maybe Deriver).
+
+    - Also, when looking for the next note on, I should skip notes which are
+      just 'statements' that produce no notes.  That way I can set a var
+      without screwing up negative duration dur calculation.
+
+    - Implement clip-call:
+      Undo the call stretchig, this should be efficient because of stretch
+      combining:
+
+      d_stretch (recip (dur/block_dur)) $ d_clip dur $ deriver
+      "unstretch | sub"
+
+      A non-block call (including notes) will have a block_dur == dur.  I can
+      also imagine a version without the clip.  'unstretch' is a crummy name
+      though.  'restore'?  'abs-dur'?
+
   PitchTrack pitch
+    - Multiple pitch tracks, so derivers (e.g. tuned just scale) can take pitch
+      track args.  The way this could work is that the state_pitch becomes
+      'Map SignalName PitchSignal' and the "" signal is taken by the note
+      deriver during convert.  Track syntax:
+      "*scale" -> ("", ScaleId scale)
+      "*scale, psig -> ("psig", ScaleId scale)
   NoteTrack note
-    - non-note commands: set random seed, ...
-      do I want to set cc things from note or require a control track?
-      pedals, fingered portamento, ....  I think not because it will screw up
-      note initialization.  Also e.g. pedal will naturally want to apply to
-      a bunch of tracks.  With a good way to collapse or hide controller
-      tracks it should be ok to have its own track.
-      I do want +attr -> cc for cc keyswitches.  Technically attrs also kinda
-      overlap with controllers and need special support for initialization.
-      They get that by being treated separate instruments.
-    - leading ; means the command is evaluated for its effect but emits no note
 
   ControlTrack control
     - configurable interpolators instead of a hardcoded ADT
@@ -501,7 +544,11 @@ Perform:
 
   Signal
     - lazy implementation
-    - ensure that controllers are warped continuously by tempo
+    - continuous tempo warping for signals
+      tempo: "2" -> "1", "2", cont: "2" -> "i, 1", should emit a bent line
+
+  Midi:
+    - Convert certain attrs to controls for cc 'keyswitches'.
 
 Instrument DB:
   - search lang supports quotes
@@ -522,17 +569,11 @@ Midi:
     - display widget
 
 misc ideas:
-  - more complicated track names: "< legato < synth/inst" to pipe inst output
-    through legato deriver
-  - use "<" for tracks that generate data, ">" for ones that accept it, e.g.
-    to display and merge a derived version
   - should be a documented extensible way to add new track types without
     modifying core ADTs
-
   - chord input... think about some kind of compact representation
   - if derivation needs event IDs, maybe I can use the value-supply package
   - safecopy package does version controlled serialization
-
   - think about yi's approach to keybindings as a parser and keybinding state
   - also investigate yi's approach to configuration
 
