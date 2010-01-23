@@ -33,7 +33,7 @@ CURRENT
     not passing the next note
   - just "i" isn't getting previous control
   * all notes off lang cmd
-  - move midi lang cmds to Cmd.Lang.LMidi
+  * move inst lang cmds to Cmd.Lang.LInst
   - rederive lang cmd
 
   - insts with breath are not easy to use
