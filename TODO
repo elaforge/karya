@@ -31,7 +31,6 @@ CURRENT
   - stop play when a neg dur note is playing in white space never turns off
   - neg dur before sub derive also sounds forever, I think it has to do with
     not passing the next note
-  - just "i" isn't getting previous control
   * all notes off lang cmd
   * move inst lang cmds to Cmd.Lang.LInst
   - rederive lang cmd
@@ -45,13 +44,11 @@ CURRENT
   - midi input doesn't advance on note off
   - midi thru doesn't pick up default inst
     empty scale defaults in Derive, but not in Cmd
-  - fix load window positions
-    - update fltk to cocoa version first
   - cmd to resize window to fit tracks
   * default inst and pitch for blocks with none
   - scroll box should be red when the derivation is not up to date, back to
     green when it is, that way you can see if derivation failed
-  - test should only run one test if it's an exact match
+  * test should only run one test if it's an exact match
   * insert time on a control event copies it
   - implement continuous controller warp
   - make Track.UnsortedEvents and Track.SortedEvents, type or newtype?
@@ -272,9 +269,12 @@ fltk:
 
 libfltk:
   + try cocoa fltk patch
-    - how to compile?
+    - wait for clipping and modifier event patches to go in
   + window position not restored on load
     - had to patch fltk, test Fl_cocoa.mm, make str for Fl_mac.cxx
+    - str 2309
+  + fltk 1.3 Fl_Display_Text has alignment bugs, and too slow
+    - sent mail to list
 
 logging:
   - trying to derive relative blocks generates a lot of log spam, can I avoid
@@ -493,6 +493,7 @@ Derive:
       though.  'restore'?  'abs-dur'?
 
   PitchTrack pitch
+    - implement PitchTrack.cmd_raw edit, so I can enter fractional notes
     - Multiple pitch tracks, so derivers (e.g. tuned just scale) can take pitch
       track args.  The way this could work is that the state_pitch becomes
       'Map SignalName PitchSignal' and the "" signal is taken by the note

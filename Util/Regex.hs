@@ -1,4 +1,4 @@
--- |
+-- | More user friendly regex api.
 module Util.Regex where
 import Control.Monad.Error () -- for instance (Either String)
 import qualified Data.Maybe as Maybe
@@ -19,6 +19,9 @@ makeM str = case PCRE.makeRegexM str of
 
 make :: String -> Regex
 make = either error id . makeM
+
+matches :: Regex -> String -> Bool
+matches (Regex _ reg) str = PCRE.matchTest reg str
 
 -- | Return (complete_match, [group_match]).
 find_groups :: Regex -> String -> [(String, [String])]

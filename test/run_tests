@@ -34,6 +34,8 @@ function run() {
 if [ "$direct_tests" ]; then
     run $run_tests $flags $direct_tests |& tee -a $test_output
 fi
+# init tests don't re-init after running, and it's easier to tear down
+# everything after each run.
 for test in $init_tests; do
     run $run_tests $flags $test |& tee -a $test_output
 done

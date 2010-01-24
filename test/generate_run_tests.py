@@ -110,6 +110,7 @@ import qualified Data.IORef as IORef
 import qualified System.Environment
 import qualified System.Console.GetOpt as GetOpt
 
+import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
 import qualified Util.Test as Test
 
@@ -160,8 +161,9 @@ print_sorted vals = mapM_ putStrLn (List.sort vals)
 
 matching_tests :: [String] -> [Test]
 matching_tests [] = all_tests
-matching_tests prefixes =
-    filter (\t -> any (`List.isInfixOf` test_name t) prefixes) all_tests
+matching_tests patterns =
+    filter (\t -> any (flip Regex.matches (test_name t)) regs) all_tests
+    where regs = map Regex.make patterns
 
 run_test test = do
     putStrLn $ "---------- run test "
