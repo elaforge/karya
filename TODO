@@ -6,6 +6,8 @@
 - try record punning
 
 CURRENT
+  - remove with_msg "compile bid", it's redundant with the stack
+  - make "error subderiving" msg nicer and put the stack in the log msg
   - factor scroll redrawing into a single class
   - scroll to right, tracks don't receive clicks
   - happened automatically adding a pitch track:
@@ -69,9 +71,7 @@ CURRENT
   * cmd support for negative durs: select range, edit modify overlapping evt,
     etc.
   - hspp screws up \\ string continuations
-  - load kotek puts window off the screen
   - methods no longer hardcoded, e.g. Map MethodId MethodInterpolator
-  + TrackLang
   - document / enforce rules for CallId, Control, etc?
 
   - stack: bid/tid/* should highlight the entire track
@@ -82,16 +82,8 @@ CURRENT
   - should tab in raw edit mode go to method?  how to go back then?
   - select track, st3 style select block, track
   - symbolic score, as in doc/custom_symbols
-
-  - demo piece: show nested tempos with "bouncing ball", expressive pitch
-    track, non-trivial repl transformation (pitch tweak after big jump?)
-    transcribe rejang w/ reyong patterns
   - cut + paste didn't work with a point paste
-
   - skel_display status can be two chars: Sm is solo+mute
-
-  bugs:
-    - Create.rename_project loses the merged tracks
 
   track management:
     - resize a bunch of tracks at once
@@ -254,7 +246,6 @@ fltk:
     I can set something like kUtilityWindowClass in Fl_mac.cxx:Fl_X::make, but
     it doesn't get any kbd input
   - can I get the windows into an os x windows menu?
-  - SeqInputs should display the right side of the text if they're too small
   draw bugs:
     - when scrolling upwards, ruler mark text is not drawn completely
     - doesn't redraw after switching monitors
@@ -263,6 +254,15 @@ fltk:
     / dividers can have separate color for upper part, for collapsable tracks
   event track
     - "currently edited" event shouldn't be hidden by previous ones
+    - I think I still need a better story for collapsed events.  Maybe keep
+      a local cache of TrackPos -> IsHidden, this is just a record of where
+      text was drawn.
+      It seems to do this right I'd have to redraw the events each time the
+      selection moved, start from the selection and work outwards.  This way
+      the "selected" event is visible.  Of course I only have to redraw out
+      to the last event that had to change.  And I think I can still optimize
+      scrolling, I just have to keep the local pos->hidden cache, which gets
+      cleared on a track update.
   Ruler
   MoveTile
     - only capture drag on a plain drag with no modifiers
@@ -424,6 +424,18 @@ Derive:
       take advantage of behavioural abstraction.  Then 'a | b' is
       really 'b . a'.
 
+  tracklang2:
+    * data NoteDeriver = (start, dur, EventDeriver)
+    * note track emits [NoteDeriver], merges to EventDeriver
+    - change calls from [Score.Event] to [NoteDeriver]
+
+    - parser support for '='
+    - val typed signals
+    - val signals in derive state
+    - modify calls to extract args from environ
+    - remove Derive.Note.ParsedNote stuff in favor of dynamic environ
+    - implement calls below
+
     - I need a way to give default args to each call.  Normally signals do
       this and they would give me a way to change the default args in time,
       but I would need typed signals, and still might want a way to set the
@@ -436,7 +448,7 @@ Derive:
       shorthand for 'attrs + attr'.  But what if I want to scope the
       setting to a note?
         '' -> a null call derives a note
-        'x = y' -> set val
+        'x = y' -> set val for rest of track
         'x = y |' -> set val within the derivation of a note
         '+attr' -> shorthand for 'attrs += attr |'
         '+attr1 +attr2' -> shorthand for 'attrs += attr1 | attrs += attr2 |'
@@ -453,6 +465,25 @@ Derive:
       I still have to signal a note track though, and a leading '>' still
       seams reasonable.  But now I can write '> | sets_inst_based_on_env'.
 
+      A problem with the 'set val' statements is that I have to evaluate them
+      to be able to evaluate notes past it.  This makes finding the next event
+      tricky.  A signal wouldn't have this problem but that's only because
+      the signal is evaluated in a separate track.  That seems notationally
+      inconvenient, though I suppose automatic track collapse and creation
+      could improve this.
+
+      Hmm, the presence of random seed means I have to evaluate in a line...
+      except if I make random a function of seed + trackpos.  "Associative"
+      derivation seems like a useful property in general.  What if I have
+      a deriver that wants to know if there's a note at the next major
+      downbeat?  Also this lets me derive only a portion of a block.
+
+      So I could do two passes on a note track: one pass extracts the '=' and
+      turns them into signals, next pass does processing.  I can even put them
+      in their own track if I want, I just add a note track and don't put in
+      notes... or maybe I need a '=' title or something because as note
+      generators, note tracks need to go at the bottom.
+
     - Implement tick as a call:
       Need to get next and prev Ui.Event, get pitch from pitch sig
       to_local (between (to_gloal prev_pos) (to_gloal next_pos)
@@ -464,7 +495,9 @@ Derive:
       DeriveT -> DeriveT.  Internally it evaluates the deriver, processes
       the Score.Events and wraps it in another deriver (the seq equivalent of
       cue).  After that most behaviours are ineffective, but them's the
-      breaks I guess.
+      breaks I guess.  It seems nicer if I could pass something to the block
+      to cause it to skip the downbeat, but how can I do this in a non-ad-hoc
+      way?  If I can insert a per-project block deriver I can add it as an arg.
 
     - Implement tuplet:
       't *n1 *n2 *n3 |' runs deriver three times with three different
@@ -491,6 +524,35 @@ Derive:
       A non-block call (including notes) will have a block_dur == dur.  I can
       also imagine a version without the clip.  'unstretch' is a crummy name
       though.  'restore'?  'abs-dur'?
+
+    - Implement seleh derivation.  The tricky thing here is I want n notes, not
+      a call with n args.  But I don't necessarily want to derive to
+      Score.Event and postprocess, I want to transform Ui.Event.  What it
+      really wants to work with is [Deriver].  So maybe I can split the track
+      parsing  process into:
+        TrackId -> [(start, dur, Parsed)] -> [(start, dur, Deriver)]
+        -> [Deriver] -> Deriver
+        Seleh can pair derivers:
+          seq [stretch 0.5 (seq d1 d2), stretch 0.5 (seq d1 d2)]
+          (d1 @> d2) ~ 0.5 @> (d1 @> d2) ~ 0.5
+        Of course, I may also want to get destinations based on where they are
+        in the beat, so I'd need the (start, dur, Deriver) format.  Without
+        logical-stop I don't know how long a Deriver is, so I need the triples.
+      So how to insert a deriver, or replace the note-placing step?
+
+      Maybe I can make Derive = (start, dur, EventDeriver).  This is like
+      logical-stop except that it's under control of the caller, the deriver
+      itself has no control over its stop time.  Sequence is nice in that it
+      guarantees an increasing time, but these would be combined with merge
+      and have to have their own external sorted guarantee, just like
+      [Score.Event].
+
+      So track emits [Deriver], then track calls take [Deriver] -> [Deriver],
+      the final track operation is a merge.
+
+      I might even be able to use this to get negative durations right.  The
+      [Deriver] merge can pass next note on... but it wants next event on, so
+      it still has to query the next deriver.
 
   PitchTrack pitch
     - implement PitchTrack.cmd_raw edit, so I can enter fractional notes

@@ -16,14 +16,12 @@ CINCLUDE := -Ifltk -I.
 # LIBFLTK := -L/usr/local/lib -lfltk
 
 # cocoa fltk
-# LIBFLTK_I := -I/usr/local/src/fltk-1.3/
-# LIBFLTK := /usr/local/src/fltk-1.3/lib/libfltk.a -framework Cocoa
 # LIBFLTK := /usr/local/src/fltk-dev/fltk-1.3/lib/libfltk.a -framework Cocoa
 # LIBFLTK_I := -I/usr/local/src/fltk-dev/fltk-1.3/
 
-# fltk 119
-LIBFLTK_I := -I/usr/local/src/fltk -DOLD_FLTK
-LIBFLTK := /usr/local/src/fltk/lib/libfltk.a
+# fltk 1.1.9
+LIBFLTK_I := -I/usr/local/src/fltk-1.1.9 -DOLD_FLTK
+LIBFLTK := /usr/local/src/fltk-1.1.9/lib/libfltk.a
 
 LIBFLTK_D := -D_THREAD_SAFE -D_REENTRANT
 FLTK_CXX := $(LIBFLTK_I) $(LIBFLTK_D)

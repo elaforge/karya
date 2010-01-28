@@ -64,7 +64,7 @@ module Perform.Signal (
     , log_signal
     , coerce
 
-    , at, at_linear, sample
+    , at, at_linear, is_constant, sample
 
     , sig_add, sig_subtract, sig_multiply
     , sig_max, sig_min, clip_max, clip_min
@@ -214,6 +214,12 @@ coerce (Signal vec) = Signal vec
 at, at_linear :: X -> Signal y -> Y
 at x sig = SignalBase.at x (sig_vec sig)
 at_linear x sig = SignalBase.at_linear x (sig_vec sig)
+
+is_constant :: Signal y -> Bool
+is_constant (Signal vec) = case V.viewL vec of
+    Nothing -> True
+    Just ((x0, y0), rest) -> x0 == 0 && V.all ((==y0) . snd) rest
+        || V.all ((==0) . snd) vec
 
 sample :: X -> Signal y -> [(X, Y)]
 sample start sig = SignalBase.sample start (sig_vec sig)
@@ -376,15 +382,3 @@ x_at x0 y0 x1 y1 y
     | x0 == x1 = x1 -- zero width means vertical, which means it crosses here
     | y0 == y1 = error $ "x_at on flat line " ++ show ((x0, y0), (x1, y1), y)
     | otherwise = (y - y0) / ((y1 - y0) / (x1 - x0)) + x0
-
-
-
-{-
-
--- TODO unused but maybe useful some day
-is_constant :: TrackPos -> TrackPos -> Signal -> Bool
-is_constant start end sig =
-    all (== (Seq.mhead 0 id vals)) vals && at start sig == at end sig
-    where vals = unpack_vals (within start end sig)
-
--}

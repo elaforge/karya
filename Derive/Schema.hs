@@ -267,15 +267,16 @@ default_schema_signal_deriver block_id =
 -- if the skeleton was malformed.
 compile :: BlockId -> State.TrackTree -> Derive.EventDeriver
 compile block_id tree = Derive.with_msg ("compile " ++ show block_id) $ do
-    -- Support for the 'Derive.add_track_warp' hack.  If a block doesn't have
-    -- a tempo track, 'd_tempo' -> 'd_warp' never gets called, so I have to
-    -- start the warp here.
-    unless (has_tempo_track tree) Derive.start_new_warp
-    sub_compile block_id tree
+    -- d_tempo sets up some stuff that every block needs, so add one if a block
+    -- doesn't have at least one top level tempo.
+    let with_default_tempo = if has_tempo_track tree then id
+            else Derive.d_tempo block_id Nothing (return (Signal.constant 1))
+    with_default_tempo (sub_compile block_id tree)
 
+-- | Does this tree have a tempo track at the top level?
 has_tempo_track :: State.TrackTree -> Bool
-has_tempo_track = any $ \(Tree.Node track subs) ->
-    Default.is_tempo_track (State.track_title track) || has_tempo_track subs
+has_tempo_track = any $ \(Tree.Node track _) ->
+    Default.is_tempo_track (State.track_title track)
 
 sub_compile :: BlockId -> State.TrackTree -> Derive.EventDeriver
 sub_compile block_id tree = Derive.d_merge =<< mapM with_track tree
@@ -304,7 +305,7 @@ compile_control block_id title track_id subderiver
         -- Otherwise it would wind up being composed with the environmental
         -- warp twice.
         events <- Derive.without_track_warp Control.d_control_track track_id
-        Derive.d_tempo block_id track_id (Control.d_tempo_signal events)
+        Derive.d_tempo block_id (Just track_id) (Control.d_tempo_signal events)
             subderiver
     | otherwise = do
         events <- Derive.with_track_warp Control.d_control_track track_id

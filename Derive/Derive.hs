@@ -46,7 +46,6 @@ import qualified Util.SrcPos as SrcPos
 
 import Ui
 import qualified Ui.State as State
-import qualified Ui.Track as Track
 
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
@@ -64,8 +63,22 @@ import qualified Derive.TrackLang as TrackLang
 
 type TrackDeriver m e = TrackId -> DeriveT m [e]
 
+type Deriver a = DeriveT Identity.Identity a
 type EventDeriver = DeriveT Identity.Identity [Score.Event]
 type SignalDeriver sig = DeriveT Identity.Identity [(TrackId, sig)]
+
+-- | A deriver with position and stretch not yet applied.  This is an
+-- intermediate step between the EventDeriver and [Score.Event] so that
+-- functions can manipulate the derivers abstractly.
+data NoteDeriver = NoteDeriver {
+    -- | These times are in score time.
+    n_start :: TrackPos
+    , n_duration :: TrackPos
+    , n_deriver :: EventDeriver
+    }
+
+-- | Sorted in order of 'n_start'.  Later I may want to make this a real type.
+type OrderedNoteDerivers = [NoteDeriver]
 
 newtype DeriveT m a = DeriveT (DeriveStack m a)
     deriving (Functor, Monad, Trans.MonadIO, Error.MonadError DeriveError)
@@ -84,13 +97,10 @@ data State = State {
     state_controls :: Score.ControlMap
     -- | Absolute pitch signal currently in scope.
     , state_pitch :: PitchSignal.PitchSignal
+    -- TODO later these all go into the val signal map
     , state_instrument :: Maybe Score.Instrument
     , state_attributes :: Score.Attributes
     , state_warp :: Warp
-    -- | This is the next note-generating event in the calling context.  This
-    -- is so the final score event of the deriver can know its scope.  See
-    -- "Derive.Note" for various uses.
-    , state_next_note :: Maybe Track.PosEvent
     -- | This is the call stack for events.  It's used for error reporting,
     -- and attached to events in case they want to emit errors later (say
     -- during performance).
@@ -123,7 +133,6 @@ initial_state ui_state lookup_deriver calls ignore_tempo = State {
     , state_instrument = State.state_default_inst ui_state
     , state_attributes = Score.no_attrs
     , state_warp = initial_warp
-    , state_next_note = Nothing
     , state_stack = []
     , state_log_context = []
 
@@ -246,8 +255,23 @@ derive lookup_deriver ui_state calls ignore_tempo deriver =
 
 d_block :: BlockId -> EventDeriver
 d_block block_id = do
+    -- Do some error checking.  These are all caught later, but if I throw here
+    -- the stack doesn't include the bogus block yet and I have give more
+    -- specific error msgs.
+    let bthrow s = throw ("d_block " ++ show block_id ++ ": " ++ s)
+    ui_state <- gets state_ui
+    case Map.lookup block_id (State.state_blocks ui_state) of
+        Nothing -> bthrow "block_id not found"
+        _ -> return ()
+    stack <- gets state_stack
+    -- Since there is no branching, any recursion will be endless.
+    when (block_id `elem` [bid | (bid, _, _) <- stack]) $
+        bthrow "recursive block derivation"
+    block_dur <- get_block_dur block_id
+    when (block_dur <= 0) $
+        bthrow "block with zero duration"
     state <- get
-    let rethrow exc = throw $ "lookup deriver for " ++ show block_id
+    let rethrow exc = bthrow $ "lookup deriver for " ++ show block_id
             ++ ": " ++ show exc
     deriver <- either rethrow return (state_lookup_deriver state block_id)
     with_stack_block block_id deriver
@@ -334,12 +358,6 @@ with_event :: (Monad m, Score.Eventlike e) => e -> DeriveT m a -> DeriveT m a
 with_event event = local state_stack
     (\st -> st { state_stack = Score.stack event })
     (\old st -> st { state_stack = old })
-
-with_next_note :: (Monad m) => Maybe Track.PosEvent
-    -> DeriveT m a -> DeriveT m a
-with_next_note next = local state_next_note
-    (\st -> st { state_next_note = next })
-    (\old st -> st { state_next_note = old })
 
 -- ** state access
 
@@ -653,29 +671,47 @@ with_warp f d = do
 -- time, so the tempo track's play position will move at the tempo track's
 -- tempo.
 --
--- The block_id is used to stretch the block out to the length of its last
--- event, regardless of the tempo.  This means that when the calling block
--- stretches it to the duration of the event it winds up being the right
--- length.  Obviously, this is skipped for the top level block.
+-- The block_id is used to stretch the block to a length of 1, regardless of
+-- the tempo.  This means that when the calling block stretches it to the
+-- duration of the event it winds up being the right length.  Obviously, this
+-- is skipped for the top level block.
 --
 -- TODO relying on the stack seems a little implicit, would it be better
 -- to pass Maybe BlockId or Maybe TrackPos?
-d_tempo :: (Monad m) => BlockId -> TrackId -> DeriveT m Signal.Tempo
+--
+-- d_block seems like a better place to do this, but I don't have a local warp
+-- yet.  This relies on every block having a d_tempo at the top, but
+-- 'add_track_warp' already relies on that so Schema.compile ensures it.
+--
+-- TODO what to do about blocks with multiple tempo tracks?  I think it would
+-- be best to stretch the block to the first one.  I could break out
+-- stretch_to_1 and have compile apply it to only the first tempo track.
+d_tempo :: (Monad m) => BlockId -> Maybe TrackId -> DeriveT m Signal.Tempo
     -> DeriveT m a -> DeriveT m a
-d_tempo block_id track_id signalm deriver = do
+d_tempo block_id maybe_track_id signalm deriver = do
     signal <- signalm
     let warp = tempo_to_warp signal
     top_level <- is_top_level_block
-    stretch <- if top_level then return id
+    stretch_to_1 <- if top_level then return id
         else do
             block_dur <- get_block_dur block_id
             global_dur <- with_warp (const (make_warp warp))
                 (local_to_global block_dur)
             -- Log.debug $ "dur, global dur "
             --     ++ show (block_id, block_dur, global_dur)
-            return (d_stretch (block_dur / global_dur))
-    stretch $ d_warp (tempo_to_warp signal) $ do
-        add_track_warp track_id
+            when (block_dur == 0) $
+                throw $ "can't derive a block with zero duration"
+            return (d_stretch (1 / global_dur))
+    -- Optimize for a constant (or missing) tempo.
+    let tempo_warp d = if Signal.is_constant signal
+            then do
+                let tempo = Signal.at 0 signal
+                when (tempo <= 0) $
+                    throw $ "constant tempo <= 0: " ++ show tempo
+                d_stretch (Signal.y_to_x (1 / tempo)) (start_new_warp >> d)
+            else d_warp (tempo_to_warp signal) d
+    stretch_to_1 $ tempo_warp $ do
+        Util.Control.when_just maybe_track_id add_track_warp
         deriver
 
 is_top_level_block :: (Monad m) => DeriveT m Bool

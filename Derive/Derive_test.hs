@@ -32,61 +32,41 @@ import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
 
 
--- TODO
--- don't test subderive stuff already tested in Note_test
-
-{-
--- Inspect the final state after running a derivation.
--- TODO what useful tests is this performing?
--- test_derive_state = do
-    let ui_state = snd $ UiTest.run_mkstate
-            [ ("tempo", [(0, 0, "2")])
-            , (">1", [(0, 16, ""), (16, 16, "")])
-            , ("cont", [(0, 0, "1"), (16, 0, "i.75"), (32, 0, "i0")])
-            ]
-    let skel = fst $ UiTest.run ui_state $ do
-            block <- State.get_block block_id
-            skel <- Schema.get_skeleton Map.empty block
-            return skel
-    pprint skel
-    -- pprint (State.state_tracks ui_state)
-    let (_, state, logs) = either (error . show) id
-            (run ui_state (Derive.d_block block_id))
-    -- pmlist "logs" (map Log.msg_string logs)
-    -- TODO real test
-    -- pprint $ Derive.state_warp state
-    pmlist "track warps" $ Derive.state_track_warps state
-
-    let tw = Derive.state_track_warps state
-    let inv_tempo = Derive.make_inverse_tempo_func tw
-    -- pprint $ (Derive.make_inverse_tempo_func tw) (Timestamp.seconds 1)
-    pprint $ map inv_tempo (map Timestamp.seconds [0..3])
--}
-
-
 test_subderive = do
-    let (events, _tempo, inv_tempo, logs, _state) =
-            DeriveTest.derive_blocks
-                [ ("b0",
-                    [ ("tempo", [(0, 0, "2")])
-                    , (">i1", [(0, 8, "--b1"), (8, 8, "sub"), (16, 1, "blub")])
-                    , ("cont", [(0, 0, "1"), (16, 0, "i, 0")])
-                    ])
-                , ("sub", [(">i2", [(1, 1, "--sub1")])])
-                ]
+    let run evts = DeriveTest.derive_blocks
+            [ ("b0",
+                [ ("tempo", [(0, 0, "2")])
+                , (">i1", evts)
+                ])
+            , ("sub", [(">i2", [(1, 1, "--sub1")])])
+            , ("empty", [(">i", [])])
+            ]
+    let (events, msgs) = DeriveTest.e_val (run [(0, 1, "nosuch"),
+            (1, 1, "empty"), (2, 1, "b0"), (3, 1, "--x")])
+    -- errors don't stop derivation
+    equal (fmap extract_events events) (Right [(1.5, 0.5, "--x")])
+    strings_like (map Log.msg_string msgs)
+        ["block_id not found", "block with zero duration", "recursive block"]
+    let mkstack (from, to) = Just
+            [(UiTest.bid "b0", Just (UiTest.tid "b0.t1"), Just (from, to))]
+    equal (map Log.msg_stack msgs) $ map mkstack
+        [(0, 1), (1, 2), (2, 3)]
+
+    let (events, _tempo, inv_tempo, logs, _state) = run
+            [(0, 8, "--b1"), (8, 8, "sub"), (16, 1, "--b2")]
+    equal (fmap extract_events events) $
+        Right [(0, 4, "--b1"), (6, 2, "--sub1"), (8, 0.5, "--b2")]
+    equal (fmap (map Score.event_instrument) events) $
+        Right (map (Just . Score.Instrument) ["i1", "i2", "i1"])
+
+    equal (map Log.msg_string logs) []
 
     let b0 pos = (UiTest.bid "b0",
-            [(UiTest.tid ("b0.t" ++ show n), TrackPos pos) | n <- [ 1, 2, 0]])
+            [(UiTest.tid ("b0.t" ++ show n), TrackPos pos) | n <- [ 1, 0]])
         sub pos = (UiTest.bid "sub", [(UiTest.tid "sub.t0", TrackPos pos)])
-    equal (fmap extract_events events) $
-        Right [(0, 4, "--b1"), (6, 2, "--sub1")]
-
-    strings_like (map Log.msg_string logs) ["unknown \\(bid \"test/blub\"\\)"]
-    let pos = map inv_tempo (map Timestamp.seconds [0, 2 .. 10])
+        pos = map inv_tempo (map Timestamp.seconds [0, 2 .. 10])
     equal (map List.sort pos)
         [[b0 0], [b0 4], [b0 8, sub 0], [b0 12, sub 1], [b0 16], []]
-    equal (fmap (map Score.event_instrument) events) $
-        Right [Just (Score.Instrument "i1"), Just (Score.Instrument "i2")]
 
     -- For eyeball verification.
     -- pprint events
@@ -280,7 +260,7 @@ test_fractional_pitch = do
     equal derive_logs []
     -- pprint events
     equal convert_warns []
-    -- pprint perf_events
+    -- pprint _perf_events
     equal perform_warns []
     -- pprint mmsgs
     equal [(chan, nn) | Midi.ChannelMessage chan (Midi.NoteOn nn _)
@@ -430,7 +410,7 @@ test_tempo = do
         floor_event (start, dur, text) = (floor start, floor dur, text)
 
     equal (f [(0, 0, "2")]) $
-        Right [(0, 5, "--1"), (5, 5, "--2"), (10, 4, "--3")]
+        Right [(0, 5, "--1"), (5, 5, "--2"), (10, 5, "--3")]
 
     -- Slow down.
     equal (f [(0, 0, "2"), (20, 0, "i, 1")]) $

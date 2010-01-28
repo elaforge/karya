@@ -129,6 +129,7 @@
 module Derive.Note where
 import Control.Monad
 import qualified Data.List as List
+import qualified Data.Maybe as Maybe
 import qualified Util.Seq as Seq
 
 import Ui
@@ -143,10 +144,6 @@ import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.PitchSignal as PitchSignal
-
--- debugging
--- import qualified Perform.Signal as Signal
--- import qualified Util.Log as Log
 
 
 -- | Notes with negative duration have an implicit sounding duration which
@@ -172,8 +169,47 @@ d_note_track track_id = do
     track <- Derive.get_track track_id
     let pos_events = Track.event_list (Track.track_events track)
     (ndesc, calls) <- parse_track_title (Track.track_title track)
-    events <- derive_notes =<< parse_events ndesc pos_events
-    foldM call events calls
+    note_derivers <- derive_notes =<< parse_events ndesc pos_events
+    -- foldM call events calls
+    sequence_notes note_derivers
+
+sequence_notes :: Derive.OrderedNoteDerivers -> Derive.EventDeriver
+    -- TODO concat here assumes they are non-overlapping.  I suppose I should
+    -- use merge?
+sequence_notes = fmap concat . mapM place . Seq.zip_next
+    where
+    place (Derive.NoteDeriver pos dur deriver, maybe_next) =
+        with_dur (calculate_duration pos dur maybe_next) deriver
+        where
+        with_dur real_dur = Derive.d_at pos . Derive.d_stretch real_dur
+            . Derive.with_stack_pos pos dur
+
+calculate_duration :: TrackPos -> TrackPos -> Maybe Derive.NoteDeriver
+    -> TrackPos
+calculate_duration cur_pos cur_dur (Just next)
+    -- TODO this doesn't handle the duration of notes at the end of a block.
+    -- Unfortunately it seems hard to do that, because I need to know the
+    -- start time of the next *event* which is first hard because that's global
+    -- time and secondly hard because I only know the next deriver.  However,
+    -- it's hard to run this as a post processor because by the time that
+    -- events are produced I've lost the info about who follows who on a track.
+    -- Though I suppose I could look at the stack for each event...
+        -- Departing notes are not changed.
+    | Event.is_positive_duration cur_dur = cur_dur
+        -- Arriving followed by arriving with a rest in between extends to
+        -- the arrival of the rest.
+    | Event.is_negative_duration next_dur && rest > 0 = rest
+        -- Arriving followed by arriving with no rest, or an arriving note
+        -- followed by a departing note will sound until the next note.
+    | otherwise = next_pos - cur_pos
+    where
+    next_pos = Derive.n_start next
+    next_dur = Derive.n_duration next
+    rest = next_pos + next_dur - cur_pos
+    dur = Event.event_duration
+calculate_duration _ cur_dur Nothing
+    | Event.is_positive_duration cur_dur = cur_dur
+    | otherwise = negative_duration_default
 
 call :: [Score.Event] -> Call -> Derive.EventDeriver
 call events (Call call_id args) = do
@@ -277,120 +313,79 @@ parse_call args = do
 -- * derive
 
 derive_notes :: (Monad m) => [(Track.PosEvent, NoteDesc)]
-    -> Derive.DeriveT m [Score.Event]
-derive_notes = fmap concat . mapM note . Seq.zip_next
-    -- TODO instead of just zip_next use zip_neighbors and skip statements
-    -- statements don't produce [Score.Event]s
+    -> Derive.DeriveT m Derive.OrderedNoteDerivers
+derive_notes = fmap Maybe.catMaybes . mapM note . Seq.zip_next
     where
-    note (((pos, event), ndesc), next) = Derive.with_stack_pos
-        pos (Event.event_duration event)
-        (derive_note pos event ndesc (fmap fst next))
+    note (((pos, event), ndesc), next) =
+        Derive.with_stack_pos pos (Event.event_duration event)
+            (derive_note pos event ndesc (fmap (fst . fst) next))
 
 derive_note :: (Monad m) => TrackPos -> Event.Event -> NoteDesc
-    -> Maybe Track.PosEvent -> Derive.DeriveT m [Score.Event]
-derive_note pos event (NoteDesc args inst attrs) track_next = do
-    -- TODO when signals are lazy this will be inefficient.  I need to come
-    -- up with a way to guarantee such accesses are increasing and let me gc
-    -- the head.
-    st <- Derive.get
-    next <- case track_next of
-        Just evt -> fmap Just (event_to_global evt)
-            -- state_next_note is already in global time because it's from the
-            -- caller.
-        Nothing -> return (Derive.state_next_note st)
-    case args of
-        _ | Event.event_duration event == 0 -> do
-            Derive.warn "omitting note with 0 duration"
-            return []
-        _ | Event.event_string event == "--" ->
-            -- Events that are entirely comment are skipped entirely, see
-            -- module comment.
-            return []
-        [] -> do
-            global_evt <- event_to_global (pos, event)
-            let dur = calculate_duration global_evt next
-            let pitch_sig = trimmed_pitch next (Derive.state_pitch st)
-            return [Score.Event (fst global_evt) dur
-                (Event.event_text event) (Derive.state_controls st)
-                pitch_sig (Derive.state_stack st) inst attrs]
-        _ -> do
-            Call sub args <- either (Derive.throw . ("derive_note: " ++))
-                return (parse_call args)
-            -- d_sub will set shift and stretch which is in local time, so pass
-            -- local rather than global.
-            -- TODO look in namespace other than blocks for sub_id
-            -- TODO pass args
-            when (not (null args)) $
-                Derive.throw $ "args not supported yet: " ++ show args
-            -- Derivation happens according to the extent of the note, not the
-            -- duration.  This is how negative duration events begin deriving
-            -- before arriving at the trigger.
-            let (begin, end) = (Track.event_min (pos, event),
-                    Track.event_max (pos, event))
-            -- The 'next' passed here will become the callee's state_next_note.
-            -- TODO But if the next note is a call, this wil be wrong.
-            -- To fix this, I have to turn events into [deriver] and then
-            -- take the first event from the next deriver.  I may need this
-            -- anyway to skip statements... but what will happen when the
-            -- next event in turn wants to know its next?  It shouldn't for
-            -- just one event, right?
-            Derive.d_sub_derive [] $ Derive.with_next_note next $
-                Derive.with_instrument inst attrs $
-                    d_sub begin (end - begin) sub
-
-event_to_global :: (Monad m) => Track.PosEvent
-    -> Derive.DeriveT m Track.PosEvent
-event_to_global (pos, evt) = do
-    start <- Derive.local_to_global pos
-    end <- Derive.local_to_global (pos + Event.event_duration evt)
-    return (start, Event.set_duration (end - start) evt)
-
-calculate_duration :: Track.PosEvent -> Maybe Track.PosEvent -> TrackPos
-calculate_duration (cur_pos, cur) (Just (next_pos, next))
-        -- Departing notes are not changed.
-    | Event.is_positive cur = dur cur
-        -- Arriving followed by arriving with a rest in between extends to
-        -- the arrival of the rest.
-    | Event.is_negative next && rest > 0 = rest
-        -- Arriving followed by arriving with no rest, or an arriving note
-        -- followed by a departing note will sound until the next note.
-    | otherwise = next_pos - cur_pos
+    -> Maybe TrackPos -> Derive.DeriveT m (Maybe Derive.NoteDeriver)
+derive_note pos event (NoteDesc args inst attrs) next_note
+    | Event.event_duration event == 0 = do
+        Derive.warn "omitting note with 0 duration"
+        return Nothing
+        -- Events that are entirely comment are skipped entirely, see
+        -- module comment.
+    | Event.event_string event == "--" = return Nothing
+    | null args = do -- TODO lookup null call
+        -- eventually this gets subsumed into call below, but it still has
+        -- special treatment wrt negative durations
+        return $ Just (note_deriver (d_note event (fmap to_local next_note)))
+    | otherwise = do
+        Call call_id args <- either (Derive.throw . ("derive_note: " ++))
+            return (parse_call args)
+        -- TODO look in namespace other than blocks for call_id
+        -- TODO pass args
+        when (not (null args)) $
+            Derive.throw $ "args not supported yet: " ++ show args
+        -- Derivation happens according to the extent of the note, not the
+        -- duration.  This is how negative duration events begin deriving
+        -- before arriving at the trigger.
+        let (start, end) = (Track.event_min (pos, event),
+                Track.event_max (pos, event))
+        deriver <- d_call_block start (end-start) call_id
+        return $ Just (note_deriver deriver)
     where
-    rest = Track.event_end (next_pos, next) - cur_pos
-    dur = Event.event_duration
-calculate_duration (_, cur) Nothing
-    | Event.is_positive cur = Event.event_duration cur
-    | otherwise = negative_duration_default
+    note_deriver d = Derive.NoteDeriver pos (Event.event_duration event)
+        (Derive.with_instrument inst attrs d)
+    -- All notes are 0--1 and rely on NoteDeriver to place and stretch them.
+    -- So I need to reverse the transformation for the next note pos so it is
+    -- in that local time.
+    to_local p = (p - pos) / Event.event_duration event
+
+d_note :: Event.Event -> Maybe TrackPos -> Derive.EventDeriver
+d_note event next_note = do
+    start <- Derive.local_to_global 0
+    end <- Derive.local_to_global 1
+    next <- case next_note of
+        Nothing -> return Nothing
+        Just next -> fmap Just (Derive.local_to_global next)
+    st <- Derive.get
+    let inst = Derive.state_instrument st
+        attrs = Derive.state_attributes st
+        pitch_sig = trimmed_pitch next (Derive.state_pitch st)
+    return [Score.Event start (end - start)
+        (Event.event_text event) (Derive.state_controls st)
+        pitch_sig (Derive.state_stack st) inst attrs]
+
+d_call_block :: (Monad m) => TrackPos -> TrackPos -> TrackLang.CallId
+    -> Derive.DeriveT m Derive.EventDeriver
+d_call_block start dur call_id = do
+    default_ns <- Derive.gets (State.state_project . Derive.state_ui)
+    let block_id = Types.BlockId (make_id default_ns call_id)
+    return $ Derive.d_sub_derive [] (Derive.d_block block_id)
 
 -- | In a note track, the pitch signal for each note is constant as soon as the
 -- next note begins.  Otherwise, it looks like each note changes pitch during
 -- its decay.
 -- TODO when signals are lazy I should drop the heads of the control
 -- signals so they can be gced.
-trimmed_pitch :: Maybe Track.PosEvent -> PitchSignal.PitchSignal
+trimmed_pitch :: Maybe TrackPos -> PitchSignal.PitchSignal
     -> PitchSignal.PitchSignal
-trimmed_pitch (Just (next_pos, _)) sig = PitchSignal.truncate next_pos sig
-trimmed_pitch _ sig = sig
-
-d_sub :: TrackPos -> TrackPos -> TrackLang.CallId -> Derive.EventDeriver
-d_sub start dur call_id = do
-    -- TODO also I'll want to support generic calls
-    default_ns <- Derive.gets (State.state_project . Derive.state_ui)
-    let block_id = Types.BlockId (make_id default_ns call_id)
-    stack <- Derive.gets Derive.state_stack
-    -- Since there is no branching, any recursion will be endless.
-    when (block_id `elem` [bid | (bid, _, _) <- stack]) $
-        Derive.throw $ "recursive block derivation: " ++ show block_id
-    -- Stretch call to fit in duration, based on the block length.
-    -- This is the first time I look up block_id so if the block does't exist
-    -- this will throw.
-    block_dur <- Derive.get_block_dur block_id
-    if block_dur > TrackPos 0
-        then Derive.d_at start (Derive.d_stretch (dur/block_dur)
-            (Derive.d_block block_id))
-        else do
-            Derive.warn $ "block with zero duration: " ++ show block_id
-            return []
+trimmed_pitch (Just next) sig = PitchSignal.truncate next sig
+trimmed_pitch Nothing sig = sig
 
 
 -- * util
