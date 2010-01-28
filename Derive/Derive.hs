@@ -302,9 +302,7 @@ run derive_state m = do
 make_tempo_func :: [TrackWarp] -> Transport.TempoFunction
 make_tempo_func track_warps block_id track_id pos = do
     warp <- lookup_track_warp block_id track_id track_warps
-    -- TODO what about shift and stretch?
-    let warped = Signal.y_to_x (Signal.at_linear pos (warp_signal warp))
-    return $ Timestamp.from_track_pos warped
+    return $ Timestamp.from_track_pos (warp_at pos warp)
 
 lookup_track_warp :: BlockId -> TrackId -> [TrackWarp] -> Maybe Warp
 lookup_track_warp block_id track_id track_warps = case matches of
@@ -639,9 +637,12 @@ start_new_warp = do
 
 local_to_global :: (Monad m) => TrackPos -> DeriveT m TrackPos
 local_to_global pos = do
-    (Warp sig shift stretch) <- gets state_warp
-    -- Log.debug $ "local to global " ++ show pos ++ ": " ++ show sig
-    return $ Signal.y_to_x (Signal.at_linear (pos * stretch + shift) sig)
+    warp <- gets state_warp
+    return (warp_at pos warp)
+
+warp_at :: TrackPos -> Warp -> TrackPos
+warp_at pos (Warp sig shift stretch) =
+    Signal.y_to_x (Signal.at_linear (pos * stretch + shift) sig)
 
 min_tempo :: Signal.Y
 min_tempo = 0.001
