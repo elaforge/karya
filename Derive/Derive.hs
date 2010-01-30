@@ -1,4 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving, PatternGuards #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, PatternGuards, ScopedTypeVariables #-}
 {- | Main module for the deriver monad.
 
     Derivers are always in DeriveT, even if they don't need its facilities.
@@ -46,6 +46,7 @@ import qualified Util.SrcPos as SrcPos
 
 import Ui
 import qualified Ui.State as State
+import qualified Ui.Track as Track
 
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
@@ -80,6 +81,10 @@ data NoteDeriver = NoteDeriver {
 -- | Sorted in order of 'n_start'.  Later I may want to make this a real type.
 type OrderedNoteDerivers = [NoteDeriver]
 
+map_derivers :: (EventDeriver -> EventDeriver)
+    -> OrderedNoteDerivers -> OrderedNoteDerivers
+map_derivers f = map (\nd -> nd { n_deriver = f (n_deriver nd) })
+
 newtype DeriveT m a = DeriveT (DeriveStack m a)
     deriving (Functor, Monad, Trans.MonadIO, Error.MonadError DeriveError)
 run_derive_t (DeriveT m) = m
@@ -97,9 +102,8 @@ data State = State {
     state_controls :: Score.ControlMap
     -- | Absolute pitch signal currently in scope.
     , state_pitch :: PitchSignal.PitchSignal
-    -- TODO later these all go into the val signal map
-    , state_instrument :: Maybe Score.Instrument
-    , state_attributes :: Score.Attributes
+
+    , state_environ :: TrackLang.Environ
     , state_warp :: Warp
     -- | This is the call stack for events.  It's used for error reporting,
     -- and attached to events in case they want to emit errors later (say
@@ -130,8 +134,8 @@ initial_state ui_state lookup_deriver calls ignore_tempo = State {
     state_controls = initial_controls
     , state_pitch = PitchSignal.constant
         (State.state_project_scale ui_state) Pitch.middle_degree
-    , state_instrument = State.state_default_inst ui_state
-    , state_attributes = Score.no_attrs
+
+    , state_environ = Map.empty
     , state_warp = initial_warp
     , state_stack = []
     , state_log_context = []
@@ -161,29 +165,38 @@ initial_warp = make_warp (Signal.signal [(0, 0), (Signal.max_x, Signal.max_y)])
 data CallEnv = CallEnv {
     calls_note :: CallMap
     , calls_control :: CallMap
-    , calls_sub :: SubMap
     }
-empty_call_map = CallEnv Map.empty Map.empty Map.empty
+empty_call_map = CallEnv Map.empty Map.empty
 
 type CallMap = Map.Map TrackLang.CallId Call
-type SubMap = Map.Map TrackLang.CallId SubDerive
+type Call = [TrackLang.Val] -> CallType -> Either TrackLang.TypeError CallResult
 
-type Call = [TrackLang.Val] -> [Score.Event]
-    -> Either TrackLang.TypeError EventDeriver
-type SubDerive = [TrackLang.Val]
-    -> Either TrackLang.TypeError EventDeriver
+-- | Calls are in Deriver so they have access to the environment in scope.
+-- This could be a little misleading though, because the call deriver runs
+-- *before* the OrderedNoteDerivers it works with, so if it wants to alter
+-- the environment for a specific deriver it must alter the deriver within the
+-- 'n_deriver'.
+type CallResult = Deriver OrderedNoteDerivers
+
+-- | Calls are either note generators or transformers, depending on their
+-- position.  A call at the end of a composition will be called as a Generator
+-- while ones composed with it will be called as Transformers, so in @a | b@,
+-- @a@ is a Transformer and @b@ is a Generator.  The call of course may return
+-- a type error if it doesn't like that.
+data CallType =
+    -- | Provides the relevant event and the score start time of the next event
+    -- of the track, if any.
+    Generator Track.PosEvent (Maybe TrackPos)
+    | Transformer OrderedNoteDerivers
 
 make_calls :: [(String, Call)] -> CallMap
-make_calls = Map.fromList . map (Util.Control.first TrackLang.CallId)
-
-make_subs :: [(String, SubDerive)] -> SubMap
-make_subs = Map.fromList . map (Util.Control.first TrackLang.CallId)
+make_calls = Map.fromList . map (Util.Control.first TrackLang.Symbol)
 
 instance Show CallEnv where
-    show (CallEnv note control sub) = "(CallEnv "
-            ++ keys note ++ " " ++ keys control ++ " " ++ keys sub ++ ")"
+    show (CallEnv note control) =
+        "(CallEnv " ++ keys note ++ " " ++ keys control ++ ")"
         where
-        keys m = "<" ++ Seq.join ", " [c | TrackLang.CallId c <- Map.keys m]
+        keys m = "<" ++ Seq.join ", " [c | TrackLang.Symbol c <- Map.keys m]
             ++ ">"
 
 
@@ -408,16 +421,45 @@ _add_context context s = Seq.join " / " (reverse context) ++ ": " ++ s
 
 -- ** environment
 
-with_instrument :: (Monad m) => Maybe Score.Instrument -> Score.Attributes
-    -> DeriveT m t -> DeriveT m t
-with_instrument inst attrs op = do
-    old_inst <- gets state_instrument
-    old_attrs <- gets state_attributes
-    modify $ \st -> st { state_instrument = inst, state_attributes = attrs }
-    result <- op
-    modify $ \st -> st
-        { state_instrument = old_inst, state_attributes = old_attrs }
-    return result
+lookup_val :: forall a m. (TrackLang.Typecheck a, Monad m) =>
+    TrackLang.ValName -> DeriveT m (Maybe a)
+lookup_val name = do
+    environ <- gets state_environ
+    let return_type = TrackLang.type_of_val (undefined :: a)
+    case TrackLang.lookup_val name environ of
+            Left TrackLang.NotFound -> return Nothing
+            Left (TrackLang.WrongType typ) ->
+                throw $ "val for " ++ show name ++ ": expected "
+                    ++ show return_type ++ " but got " ++ show typ
+            Right v -> return (Just v)
+
+get_val :: (TrackLang.Typecheck a, Monad m) =>
+    a -> TrackLang.ValName -> DeriveT m a
+get_val deflt name = fmap (maybe deflt id) (lookup_val name)
+
+put_val :: (Monad m, TrackLang.Typecheck val) => TrackLang.ValName -> val
+    -> DeriveT m ()
+put_val name val = do
+    environ <- insert_environ name val =<< gets state_environ
+    modify $ \st -> st { state_environ = environ }
+
+with_val :: (TrackLang.Typecheck val) => TrackLang.ValName -> val
+    -> Deriver a -> Deriver a
+with_val name val deriver = do
+    old_environ <- gets state_environ
+    environ <- insert_environ name val old_environ
+    modify $ \st -> st { state_environ = environ }
+    v <- deriver
+    modify $ \st -> st { state_environ = old_environ }
+    return v
+
+insert_environ :: (Monad m, TrackLang.Typecheck val) => TrackLang.ValName
+    -> val -> TrackLang.Environ -> DeriveT m TrackLang.Environ
+insert_environ name val environ =
+    case TrackLang.put_val name val environ of
+        Left typ -> throw $ "can't set " ++ show name ++ " to " ++ show val
+            ++ ", expected type " ++ show typ
+        Right environ2 -> return environ2
 
 -- *** control
 
@@ -524,23 +566,14 @@ default_pitch_op_map = Map.fromList
     , ("min", PitchSignal.sig_min)
     ]
 
-lookup_note_call :: (Monad m) => TrackLang.CallId -> DeriveT m Call
-lookup_note_call call_id = do
-    cmap <- gets state_call_map
-    maybe (throw $ "lookup_note_call: unknown " ++ show call_id) return
-        (Map.lookup call_id (calls_note cmap))
+-- lookup_note_call is defined in Derive.Call.Basic because it also looks for
+-- blocks and returns the block deriver.
 
 lookup_control_call :: (Monad m) => TrackLang.CallId -> DeriveT m Call
 lookup_control_call call_id = do
     cmap <- gets state_call_map
     maybe (throw $ "lookup_control_call: unknown " ++ show call_id) return
         (Map.lookup call_id (calls_control cmap))
-
-lookup_sub_call :: (Monad m) => TrackLang.CallId -> DeriveT m SubDerive
-lookup_sub_call call_id = do
-    cmap <- gets state_call_map
-    maybe (throw $ "lookup_sub_call: unknown " ++ show call_id) return
-        (Map.lookup call_id (calls_sub cmap))
 
 
 -- ** stack

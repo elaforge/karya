@@ -147,7 +147,9 @@ newtype KeyswitchMap = KeyswitchMap [(Score.Attributes, Keyswitch)]
 get_keyswitch :: KeyswitchMap -> Score.Attributes -> Maybe Keyswitch
 get_keyswitch (KeyswitchMap attr_ks) attrs =
     fmap snd (List.find is_subset attr_ks)
-    where is_subset (inst_attrs, _) = inst_attrs `Set.isSubsetOf` attrs
+    where
+    is_subset (inst_attrs, _) = Score.attrs_set inst_attrs
+        `Set.isSubsetOf` Score.attrs_set attrs
 
 keys_of :: KeyswitchMap -> Set.Set Midi.Key
 keys_of (KeyswitchMap attr_ks) = Set.fromList $ map (ks_key . snd) attr_ks
@@ -169,14 +171,15 @@ make_keyswitches attr_keys
     where
     ks_map = KeyswitchMap
         [(split attr, Keyswitch attr key) | (attr, key) <- attr_keys]
-        where split = Set.fromList . filter (not.null) . Seq.split "+"
+        where
+        split = Score.attributes . filter (not.null) . Seq.split "+"
     errs = validate_keyswithes ks_map
 
 validate_keyswithes :: KeyswitchMap -> [String]
 validate_keyswithes (KeyswitchMap attr_ks) =
     Maybe.catMaybes $ zipWith check (List.inits attrs) attrs
     where
-    attrs = map fst attr_ks
+    attrs = map (Score.attrs_set . fst) attr_ks
     check prev attr = case List.find (`Set.isSubsetOf` attr) prev of
         Just other_attr -> Just $ "attr " ++ show (Set.toList attr)
             ++ " is shadowed by " ++ show (Set.toList other_attr)

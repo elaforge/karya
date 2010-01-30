@@ -2,7 +2,6 @@ module Derive.DeriveTest where
 import Control.Monad
 import qualified Control.Monad.Identity as Identity
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 import qualified Util.Log as Log
 
 import qualified Midi.Midi as Midi
@@ -151,9 +150,10 @@ default_inst_config =
     where dev = (,) (Midi.WriteDevice "out")
 
 default_ksmap = Instrument.KeyswitchMap $
-    map (\(attr, name, nn) -> (Set.fromList attr, Instrument.Keyswitch name nn))
+    map (\(attrs, name, nn) -> (to_attrs attrs, Instrument.Keyswitch name nn))
         [ (["a1", "a2"], "a1+a2", 0)
         , (["a0"], "a0", 1)
         , (["a1"], "a1", 2)
         , (["a2"], "a2", 3)
         ]
+    where to_attrs = Score.attributes

@@ -12,13 +12,14 @@ import qualified Perform.Signal as Signal
 
 
 note_calls :: Derive.CallMap
-note_calls = Derive.make_calls
-    [ ("tick", c_tick)
-    ]
+note_calls = Derive.make_calls []
+    -- [ ("tick", c_tick)
+    -- ]
 
 control_calls :: Derive.CallMap
 control_calls = Derive.make_calls []
 
+{-
 -- | Insert an intermediate grace note in the rambat style.  The grace note
 -- precedes the following note, and is one step above or one step below
 -- depending on the preceding note.
@@ -71,4 +72,4 @@ stretch start end offset = (pos, end - pos)
     where
     -- Try to use the offset, but use the midpoint if there isn't room.
     pos = max (end - offset) ((start + end) / 2)
-
+-}

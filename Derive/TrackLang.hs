@@ -32,13 +32,14 @@
 module Derive.TrackLang where
 import Control.Monad
 import qualified Control.Monad.Error as Error
+import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
+import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Text.ParserCombinators.Parsec as P
 import Text.ParserCombinators.Parsec ((<|>), (<?>))
 
-import Util.Control
 import qualified Util.Parse as Parse
 import qualified Util.Seq as Seq
 
@@ -53,20 +54,23 @@ data Val =
     -- | Sets the instrument in scope for a note.  An empty instrument doesn't
     -- set the instrument, but can be used to mark a track as a note track.
     -- Literal: @>@, @>inst@
-    | VInstrument (Maybe Score.Instrument)
+    | VInstrument Score.Instrument
     -- | Goes in a control method field.  Literal: @m'i'@, @m'2e'@
     | VMethod Method
     -- | Goes in a control val field.  Literal: @42.23@
     | VNum Double
     -- | Goes in a note event.  Literal: @+attr@, @-attr@, @=attr@
-    | VAttr Attr
+    | VRelativeAttr RelativeAttr
+    | VAttributes Score.Attributes
     -- | A signal name.  An optional value gives a default if the signal isn't
     -- present.  Literal: @%control@, @%control,.4@
     | VSignal Signal
     -- | A call to a function.  There are two kinds: a subderive produces
     -- Events, and a call transforms Events.
     -- Literal: @func@
-    | VCall CallId
+    | VSymbol Symbol
+    -- | An explicit not-given arg for functions so you can use positional args
+    -- with defaults.  Literal: @_@
     | VNotGiven
     deriving (Eq, Show)
 
@@ -74,45 +78,178 @@ data AttrMode = Add | Remove | Set | Clear deriving (Eq, Show)
 
 -- TODO later this should be Signal.Method
 newtype Method = Method String deriving (Eq, Show)
-newtype CallId = CallId String deriving (Eq, Ord, Show)
+-- | Symbols used in function call position.
+type CallId = Symbol
+-- | Symbols to look up a val in the 'ValMap'.
+type ValName = Symbol
+
+newtype Symbol = Symbol String deriving (Eq, Ord, Show)
+
 -- | (default, control).  If @default@ is Nothing, the signal must be present
 -- or an error will be thrown.  If @control@ is Nothing, always use the default
--- (i.e. it's a constant signal).  There's no syntax for both Nothing, but if
--- given as a default arg, then the arg is effectively required.
+-- (i.e. it's a constant signal).  There's no syntax for a Nothing Control, but
+-- it can be given as a default arg.  Both Nothing doesn't make much sense, and
+-- effectively means the arg is required.
 newtype Signal = Signal (Maybe Signal.Y, Maybe Score.Control)
     deriving (Eq, Show)
-newtype Attr = Attr (AttrMode, Score.Attribute) deriving (Eq, Show)
+newtype RelativeAttr = RelativeAttr (AttrMode, Score.Attribute)
+    deriving (Eq, Show)
 
-set_attr :: AttrMode -> Score.Attribute -> Score.Attributes -> Score.Attributes
-set_attr mode attr attrs = case mode of
-    Add -> Set.insert attr attrs
-    Remove -> Set.delete attr attrs
+set_attr :: RelativeAttr -> Score.Attributes -> Score.Attributes
+set_attr (RelativeAttr (mode, attr)) attrs = Score.Attributes $ case mode of
+    Add -> Set.insert attr (Score.attrs_set attrs)
+    Remove -> Set.delete attr (Score.attrs_set attrs)
     Set -> Set.singleton attr
     Clear -> Set.empty
 
--- * type checking
+-- | An empty instrument literal is a no-op, see 'VInstrument'.
+is_null_instrument :: Score.Instrument -> Bool
+is_null_instrument (Score.Instrument "") = True
+is_null_instrument _ = False
+
+-- * constants
+
+c_equal :: CallId
+c_equal = Symbol "="
+
+v_instrument, v_attributes :: ValName
+v_instrument = Symbol "instrument"
+v_attributes = Symbol "attributes"
+
+-- * types
+
+data Type = TNote | TInstrument | TMethod | TNum | TRelativeAttr | TAttributes
+    | TSignal | TSymbol | TNotGiven
+    deriving (Eq, Show)
+type_of val = case val of
+    VNote _ -> TNote
+    VInstrument _ -> TInstrument
+    VMethod _ -> TMethod
+    VNum _ -> TNum
+    VRelativeAttr _ -> TRelativeAttr
+    VAttributes _ -> TAttributes
+    VSignal _ -> TSignal
+    VSymbol _ -> TSymbol
+    VNotGiven -> TNotGiven
+
+type_equal :: Val -> Val -> Bool
+type_equal val0 val1 = type_of val0 == type_of val1
+
+class Show a => Typecheck a where
+    from_val :: Val -> Maybe a
+    to_val :: a -> Val
+
+instance Typecheck Pitch.Note where
+    from_val (VNote a) = Just a
+    from_val _ = Nothing
+    to_val = VNote
+
+instance Typecheck Score.Instrument where
+    from_val (VInstrument a) = Just a
+    from_val _ = Nothing
+    to_val = VInstrument
+
+instance Typecheck Method where
+    from_val (VMethod a) = Just a
+    from_val _ = Nothing
+    to_val = VMethod
+
+instance Typecheck Double where
+    from_val (VNum a) = Just a
+    from_val _ = Nothing
+    to_val = VNum
+
+instance Typecheck RelativeAttr where
+    from_val (VRelativeAttr a) = Just a
+    from_val _ = Nothing
+    to_val = VRelativeAttr
+
+instance Typecheck Score.Attributes where
+    from_val (VAttributes a) = Just a
+    from_val _ = Nothing
+    to_val = VAttributes
+
+instance Typecheck Signal where
+    from_val (VSignal a) = Just a
+    from_val (VNum a) = Just (Signal (Just a, Nothing))
+    from_val _ = Nothing
+    to_val = VSignal
+
+instance Typecheck Symbol where
+    from_val (VSymbol a) = Just a
+    from_val _ = Nothing
+    to_val = VSymbol
+
+-- * val signal
+
+type Environ = Map.Map ValName Val
+
+-- | Return either the modified environ or the type expected if the type of the
+-- argument was wrong.  Once you put a key of a given type into the environ, it
+-- can only ever be overwritten by a Val of the same type.
+--
+-- 'RelativeAttr's are never inserted, they combine with existing Attributes or
+-- create new ones.
+put_val :: (Typecheck val) => ValName -> val -> Environ -> Either Type Environ
+put_val name val environ = case maybe_old of
+    Nothing -> Right $ Map.insert name new_val environ
+    Just old_val
+        | type_equal old_val new_val -> Right $ Map.insert name new_val environ
+        | otherwise -> Left (type_of old_val)
+    where
+    maybe_old = Map.lookup name environ
+    new_val = case (to_val val) of
+        VRelativeAttr rel_attr -> VAttributes $
+            case maybe_old of
+                Just (VAttributes attrs) -> set_attr rel_attr attrs
+                _ -> set_attr rel_attr Score.no_attrs
+        _ -> to_val val
+
+data LookupError = NotFound | WrongType Type deriving (Show)
+
+lookup_val :: (Typecheck a) => ValName -> Environ -> Either LookupError a
+lookup_val name environ = case Map.lookup name environ of
+    Nothing -> Left NotFound
+    Just val -> case from_val val of
+        Nothing -> Left (WrongType (type_of val))
+        Just v -> Right v
+
+-- * arg extraction
 
 data Arg a = Arg {
     arg_name :: String
     , arg_default :: Maybe a
     } deriving (Eq, Show)
 
-arg_type :: (Typecheck a) => Arg a -> String
-arg_type arg = type_name (maybe undefined id (arg_default arg))
+arg_type :: (Typecheck a) => Arg a -> Type
+arg_type arg = type_of_val (maybe undefined id (arg_default arg))
+
+type_of_val :: (Typecheck a) => a -> Type
+type_of_val = type_of . to_val
 
 arg_opt :: Arg a -> (Bool, String)
 arg_opt arg = (Maybe.isJust (arg_default arg), arg_name arg)
 
 data TypeError =
-    -- | arg number, arg name, expected type name, received val
-    TypeError Int String String (Maybe Val)
+    -- | arg number, arg name, expected type, received val
+    TypeError Int String Type (Maybe Val)
+    -- | A generator call was called in transformer position.  See
+    -- 'Derive.CallType'.
+    | ExpectedGenerator
+    -- | A transformer call was called in generator position.
+    | ExpectedTransformer
+    -- | Couldn't even call the thing because the name was not found.
+    | CallNotFound CallId
+    -- | Calling error that doesn't fit into the above categories.
     | ArgError String
     deriving (Eq, Show)
 
 show_type_error (TypeError argno name expected received) =
-    "type error: arg " ++ show argno ++ "/" ++ name ++ ": expected "
-        ++ expected ++ " but got " ++ show received
-show_type_error (ArgError err) = "arg error: " ++ err
+    "TypeError: arg " ++ show argno ++ "/" ++ name ++ ": expected "
+        ++ show expected ++ " but got " ++ show received
+show_type_error (ArgError err) = "ArgError: " ++ err
+show_type_error (CallNotFound call_id) = "CallNotFound: " ++ show call_id
+show_type_error err = show err
 
 instance Error.Error TypeError where
     strMsg _ = error "strMsg not defined for TypeError"
@@ -198,50 +335,10 @@ extract_arg argno arg maybe_val = case (arg_default arg, maybe_val2) of
     maybe_val2 = case maybe_val of
         Just VNotGiven -> Nothing
         _ -> maybe_val
-    check val = case type_check val of
+    check val = case from_val val of
         Nothing -> err (Just val)
         Just v -> Right v
     err val = Left (TypeError argno (arg_name arg) (arg_type arg) val)
-
-class Typecheck a where
-    type_check :: Val -> Maybe a
-    type_name :: a -> String
-
-instance Typecheck Pitch.Note where
-    type_check (VNote a) = Just a
-    type_check _ = Nothing
-    type_name _ = "note"
-
-instance Typecheck (Maybe Score.Instrument) where
-    type_check (VInstrument a) = Just a
-    type_check _ = Nothing
-    type_name _ = "instrument"
-
-instance Typecheck Method where
-    type_check (VMethod a) = Just a
-    type_check _ = Nothing
-    type_name _ = "method"
-
-instance Typecheck Double where
-    type_check (VNum a) = Just a
-    type_check _ = Nothing
-    type_name _ = "num"
-
-instance Typecheck Attr where
-    type_check (VAttr a) = Just a
-    type_check _ = Nothing
-    type_name _ = "attribute"
-
-instance Typecheck Signal where
-    type_check (VSignal a) = Just a
-    type_check (VNum a) = Just (Signal (Just a, Nothing))
-    type_check _ = Nothing
-    type_name _ = "signal"
-
-instance Typecheck CallId where
-    type_check (VCall a) = Just a
-    type_check _ = Nothing
-    type_name _ = "call"
 
 -- ** signature
 
@@ -261,45 +358,56 @@ required_signal name = Signal (Nothing, Just (Score.Control name))
 
 -- * parsing
 
+-- | The only operator is @|@, so a list of lists suffices for an AST.
+type Expr = [Call]
+data Call = Call CallId [Val] deriving (Eq, Show)
+
 -- TODO These should remain the same as the ones in Derive.Schema.Default for
 -- consistency.  I can't use those directly because of circular imports.
 note_track_prefix, pitch_track_prefix :: String
 note_track_prefix = ">"
 pitch_track_prefix = "*"
 
--- | The only operator is @|@, so a list of lists suffices for an AST.
--- I return a pair to make it obvious that there is always at least one list.
-parse :: String -> Either String ([Val], [[Val]])
-parse text = Parse.parse_all p_expr (strip_comment text)
+parse :: String -> Either String Expr
+parse text = Parse.parse_all p_pipeline (strip_comment text)
+
+p_pipeline :: P.Parser Expr
+p_pipeline = P.sepBy p_expr (Parse.symbol "|")
+
+p_expr, p_equal :: P.Parser Call
+p_expr = P.try p_equal <|> P.try p_call <|> p_null_call
+p_equal = do
+    a1 <- p_symbol
+    Parse.symbol "="
+    a2 <- p_val
+    return $ Call c_equal [VSymbol a1, a2]
+
+p_call, p_null_call :: P.Parser Call
+p_call = liftM2 Call p_symbol (P.many p_val)
+p_null_call = liftM2 Call (P.option (Symbol "") p_symbol) (P.many p_val)
 
 strip_comment :: String -> String
 strip_comment = fst . Seq.break_tails ("--" `List.isPrefixOf`)
 
-p_expr :: P.Parser ([Val], [[Val]])
-p_expr = do
-    P.spaces
-    -- The P.many with P.sepBy means I should never get nil.
-    first:rest <- P.sepBy (P.many (p_val #>> P.spaces)) (P.char '|' >> P.spaces)
-    return (first, rest)
-
 p_val :: P.Parser Val
-p_val = fmap VNote p_note <|> fmap VInstrument p_instrument
+p_val = Parse.lexeme $ fmap VNote p_note <|> fmap VInstrument p_instrument
     <|> fmap VMethod p_method
-    -- Attr and Num can both start with a '-', but an Attr has to have a letter
-    -- afterwards, while a Num is a '.' or digit, so they're not ambiguous.
-    <|> fmap VAttr (P.try p_attr) <|> fmap VNum p_num
-    <|> fmap VSignal p_signal <|> fmap VCall p_call
+    -- RelativeAttr and Num can both start with a '-', but an RelativeAttr has
+    -- to have a letter afterwards, while a Num is a '.' or digit, so they're
+    -- not ambiguous.
+    <|> fmap VRelativeAttr (P.try p_rel_attr) <|> fmap VNum p_num
+    <|> fmap VSignal p_signal <|> fmap VSymbol p_symbol
     <|> (P.char '_' >> return VNotGiven)
 
 p_note :: P.Parser Pitch.Note
 p_note = P.string pitch_track_prefix >> fmap Pitch.Note p_word
     <?> "note"
 
-p_instrument :: P.Parser (Maybe Score.Instrument)
+p_instrument :: P.Parser Score.Instrument
 p_instrument = do
     P.string note_track_prefix
     inst <- p_null_word
-    return $ if null inst then Nothing else Just (Score.Instrument inst)
+    return $ Score.Instrument inst
     <?> "instrument"
 
 p_method :: P.Parser Method
@@ -313,36 +421,49 @@ p_num = Parse.p_float
 
 -- There's no particular reason to restrict attrs to idents, but this will
 -- force some standardization on the names.
-p_attr :: P.Parser Attr
-p_attr = do
+p_rel_attr :: P.Parser RelativeAttr
+p_rel_attr = do
     let as m c = fmap (const m) (P.char c)
     mode <- P.choice [as Add '+', as Remove '-', as Set '=']
     attr <- case mode of
-        Set -> P.option "" p_ident
-        _ -> p_ident
-    return $ Attr (if null attr then Clear else mode, attr)
-    <?> "attr"
+        Set -> P.option "" (p_ident "")
+        _ -> p_ident ""
+    return $ RelativeAttr (if null attr then Clear else mode, attr)
+    <?> "relative attr"
 
 p_signal :: P.Parser Signal
 p_signal = do
     P.char '%'
-    control <- fmap Score.Control p_ident
+    control <- fmap Score.Control (p_ident ",")
     deflt <- Parse.optional (P.char ',' >> Parse.p_float)
     return $ Signal (deflt, Just control)
+    <?> "signal"
 
-p_call :: P.Parser CallId
-p_call = fmap CallId p_ident
+p_symbol :: P.Parser Symbol
+p_symbol = Parse.lexeme (fmap Symbol (p_ident "")) <?> "symbol"
 
 -- | Identifiers are somewhat more strict than usual.  They must be lowercase,
 -- and the only non-letter allowed is hyphen.  This means words must be
 -- separated with hyphens, and leaves me free to give special meanings to
 -- underscores or caps if I want.
-p_ident :: P.Parser String
-p_ident = do
+--
+-- @until@ gives additional chars that stop parsing, for idents that are
+-- embedded in another lexeme.
+p_ident :: String -> P.Parser String
+p_ident until = do
     initial <- P.lower
-    rest <- P.many (P.lower <|> P.digit <|> P.char '-')
-    return (initial : rest)
-    <?> "identifier"
+    -- This forces identifiers to be separated with spaces, except with the |
+    -- operator.  Otherwise @sym>inst@ is parsed as a call @sym >inst@, which
+    -- seems like something I don't want to support.
+    rest <- P.many (P.noneOf (" |=" ++ until))
+    let ident = initial : rest
+    when (not (valid_identifier ident)) $
+        P.unexpected $ "chars in identifier; only [a-z0-9-] are accepted: "
+            ++ show ident
+    return ident
+
+valid_identifier :: String -> Bool
+valid_identifier = all $ \c -> Char.isLower c || Char.isDigit c || c == '-'
 
 p_single_string :: P.Parser String
 p_single_string = P.between (P.char '\'') (P.char '\'') $ P.many (P.noneOf "'")

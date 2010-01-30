@@ -144,9 +144,14 @@ inst_name (Instrument s) = s
 -- arguments to an instrument, and will typically select an articulation, or
 -- a drum from a drumset, or something like that.
 type Attribute = String
-type Attributes = Set.Set Attribute
+newtype Attributes = Attributes (Set.Set Attribute) deriving (Eq, Show)
+attrs_set (Attributes attrs) = attrs
+
+attributes :: [String] -> Attributes
+attributes = Attributes . Set.fromList
+
 no_attrs :: Attributes
-no_attrs = Set.empty
+no_attrs = Attributes Set.empty
 
 newtype Control = Control String deriving (Eq, Ord, Show)
 

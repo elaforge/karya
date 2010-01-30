@@ -42,7 +42,7 @@ show_inst (Score.Instrument name) = '>' : name
 
 show_keyswitch_map :: Instrument.KeyswitchMap -> String
 show_keyswitch_map (Instrument.KeyswitchMap attr_ks) = show_list $
-    map (('+':) . Seq.join "+" . Set.elems . fst) attr_ks
+    map (('+':) . Seq.join "+" . Set.elems . Score.attrs_set . fst) attr_ks
 
 show_list, show_list2 :: [String] -> String
 show_list [] = "[]"

@@ -1,5 +1,4 @@
 module Derive.Note_test where
-import qualified Data.Set as Set
 
 import Util.Test
 import qualified Util.Log as Log
@@ -18,61 +17,65 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.Warning as Warning
 
 
--- * parse
-
-test_parse_note_desc = do
-    let f ndesc text = either (const Nothing)
-            (Just . Note.parse_note_desc ndesc . fst) (TrackLang.parse text)
-    let mkdesc args inst attrs = Just $ Note.NoteDesc (map TrackLang.VNum args)
-            (fmap Score.Instrument inst) (Set.fromList attrs)
-    let ndesc = Note.NoteDesc [TrackLang.VNum 1] Nothing Score.no_attrs
-    equal (f ndesc "3 4") (mkdesc [1, 3, 4] Nothing [])
-    equal (f ndesc "+foo +bar -foo") (mkdesc [1] Nothing ["bar"])
-    equal (f ndesc "+foo =") (mkdesc [1] Nothing [])
-    equal (f ndesc ">") (mkdesc [1] Nothing [])
-    equal (f ndesc ">i") (mkdesc [1] (Just "i") [])
-    equal (f ndesc "foo.bar") Nothing
-
 -- * derivers
 
 test_d_note_track = do
+    -- Test basic plumbing, but also test the null deriver while I'm at it.
     let run title evts = extract_nostack $
             DeriveTest.derive_tracks_tempo [(title, evts)]
-
-    equal (run ">i" [(0, 1, "--")]) (Right [], [])
     let inst = Just "i"
-    equal (run ">i" [(0, 1, ">i +a")])
+
+    let (evts, logs) = (run ">i" [(0, 1, "+a 42")])
+    equal evts (Right [])
+    strings_like logs ["expected inst or attr"]
+    let (evts, logs) = run ">i" [(0, 1, "parse/error")]
+    equal evts (Right [])
+    strings_like logs ["parse error"]
+    -- title error throws exception
+    left_like (fst (run ">i parse/err" [(0, 1, "")])) "parse error"
+
+    -- comment only event is filtered out
+    equal (run ">i" [(0, 1, "--")]) (Right [], [])
+    equal (run ">" [(0, 1, ">i +a")])
         (Right [mkevent 0 1 ">i +a" [] inst ["a"]], [])
+    equal (run ">i +a" [(0, 1, "")])
+        (Right [mkevent 0 1 "" [] inst ["a"]], [])
 
-    strings_like [show (run "> | bad/attr" [(0, 1, "--")])] ["parse error"]
+    -- event overrides attrs
+    equal (run "> +a" [(0, 1, "=b"), (1, 1, "-a")])
+        (Right [mkevent 0 1 "=b" [] Nothing ["b"],
+            mkevent 1 1 "-a" [] Nothing []],
+        [])
+    -- alternate syntax
+    equal (run ">i" [(0, 1, ""), (1, 1, ">i2 |")])
+        (Right [mkevent 0 1 "" [] inst [],
+            mkevent 1 1 ">i2 |" [] (Just "i2") []],
+        [])
 
-    -- override attrs
-    let (evts, logs) = run "> +a" [(0, 1, "=b"), (1, 1, "-a")]
-    equal evts $ Right
-        [mkevent 0 1 "=b" [] Nothing ["b"], mkevent 1 1 "-a" [] Nothing []]
-    equal logs []
 
-test_d_call_block = do
-    -- This is actually also testing Derive.d_block
+test_c_block = do
+    -- This also tests Basic.lookup_note_call
     let run evts = extract_common $ DeriveTest.derive_blocks
             [ ("b1", [(">", evts)])
-            , ("sub", [(">", [(0, 1, "--sub")])])
+            , ("sub", [(">", [(0, 22, "--sub")])])
             ]
     let (evts, logs) = run [(0, 1, "nosuch")]
     equal evts (Right [])
-    strings_like (map fst logs)
-        ["error sub-deriving.* \\(bid \"test/nosuch\"\\): block_id not found"]
+    strings_like (map fst logs) ["CallNotFound: Symbol \"nosuch\""]
     equal (map snd logs) [Just (mkstack [("b1", "b1.t0", (0, 1))])]
 
+    strings_like (map fst (snd (run [(0, 1, "sub >arg")])))
+        ["args for block call not implemented yet"]
+
     -- subderived stuff is stretched and placed, inherits instrument
-    let (evts, logs) = run [(0, 1, "sub"), (1, 2, ">i +a sub")]
+    let (evts, logs) = run [(0, 1, "sub"), (1, 2, ">i +a | sub")]
     equal logs []
     equal evts $ Right
         [ mkevent 0 1 "--sub"
-            [("sub", "sub.t0", (0, 1)), ("b1", "b1.t0", (0, 1))]
+            [("sub", "sub.t0", (0, 22)), ("b1", "b1.t0", (0, 1))]
             Nothing []
         , mkevent 1 2 "--sub"
-            [("sub", "sub.t0", (0, 1)), ("b1", "b1.t0", (1, 3))]
+            [("sub", "sub.t0", (0, 22)), ("b1", "b1.t0", (1, 3))]
             (Just "i") ["a"]
         ]
 
@@ -173,7 +176,7 @@ test_negative_duration = do
         (Right [(1, 1, "--1"), (3, deflt, "--2")], [])
     -- 0 dur is omitted
     equal (run [(1, -1, "--1"), (3, 0, "--2")])
-        (Right [(1, deflt, "--1")],
+        (Right [(1, 2, "--1")],
             ["compile (bid \"test/b1\"): omitting note with 0 duration"])
 
     -- TODO these won't work properly until durations can be calculated
@@ -219,10 +222,8 @@ extract_nostack = f . extract_common
 mkevent :: TrackPos -> TrackPos -> String
     -> [(String, String, (TrackPos, TrackPos))] -> Maybe String -> [String]
     -> Extracted
-mkevent start dur text stack inst attrs =
-    (start, dur, text, mkstack stack, fmap Score.Instrument inst, mkattrs attrs)
-
-mkattrs = Set.fromList :: [String] -> Score.Attributes
+mkevent start dur text stack inst attrs = (start, dur, text, mkstack stack,
+    fmap Score.Instrument inst, Score.attributes attrs)
 
 mkstack :: [(String, String, (TrackPos, TrackPos))] -> Warning.Stack
 mkstack = map $ \(bid, tid, pos) ->

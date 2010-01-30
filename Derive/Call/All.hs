@@ -9,13 +9,10 @@ import qualified Derive.Call.Rambat as Rambat
 
 
 call_map :: Derive.CallEnv
-call_map = Derive.CallEnv note_calls control_calls sub_calls
+call_map = Derive.CallEnv note_calls control_calls
 
 note_calls :: Derive.CallMap
 note_calls = Map.unions [Basic.note_calls, Rambat.note_calls]
 
 control_calls :: Derive.CallMap
 control_calls = Map.unions [Basic.control_calls, Rambat.control_calls]
-
-sub_calls :: Derive.SubMap
-sub_calls = Map.empty

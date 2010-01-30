@@ -6,6 +6,7 @@
 - try record punning
 
 CURRENT
+  - add Util.ParseOperators
   - remove with_msg "compile bid", it's redundant with the stack
   - make "error subderiving" msg nicer and put the stack in the log msg
   - factor scroll redrawing into a single class
@@ -427,13 +428,20 @@ Derive:
   tracklang2:
     * data NoteDeriver = (start, dur, EventDeriver)
     * note track emits [NoteDeriver], merges to EventDeriver
+    * replace d_note with d_null_call
+    - implement Equal
+    - Call.map_* checks type for Transformer
+    - track puts Equal and null calls after sequence_notes
     - change calls from [Score.Event] to [NoteDeriver]
+    - do something about possibly overlapping OrderedNoteDerivers
 
-    - parser support for '='
-    - val typed signals
-    - val signals in derive state
-    - modify calls to extract args from environ
-    - remove Derive.Note.ParsedNote stuff in favor of dynamic environ
+    - Cmd: after entering 'x = y' form, can it automatically set dur=0?
+
+    * parser support for '='
+    * val typed signals
+    * val signals in derive state
+    * modify calls to extract args from environ
+    * remove Derive.Note.ParsedNote stuff in favor of dynamic environ
     - implement calls below
 
     - I need a way to give default args to each call.  Normally signals do
@@ -502,13 +510,6 @@ Derive:
     - Implement tuplet:
       't *n1 *n2 *n3 |' runs deriver three times with three different
       pitches.
-
-    - 't' expects a deriver, while 'some-block' and '' don't.  Some derivers
-      can go both ways: 'seed = 42' sets 'seed' in the current env, while
-      'seed = 42 | sub' sets it in the 'sub' call.
-      How do I express this difference?  Calls need types for "needs arg", "no
-      arg", and "optional arg".  Then after type checking I pass
-      (Maybe Deriver).
 
     - Also, when looking for the next note on, I should skip notes which are
       just 'statements' that produce no notes.  That way I can set a var

@@ -46,7 +46,8 @@ test_subderive = do
     -- errors don't stop derivation
     equal (fmap extract_events events) (Right [(1.5, 0.5, "--x")])
     strings_like (map Log.msg_string msgs)
-        ["block_id not found", "block with zero duration", "recursive block"]
+        ["CallNotFound: Symbol \"nosuch\"", "block with zero duration",
+            "recursive block"]
     let mkstack (from, to) = Just
             [(UiTest.bid "b0", Just (UiTest.tid "b0.t1"), Just (from, to))]
     equal (map Log.msg_stack msgs) $ map mkstack
@@ -314,7 +315,8 @@ test_control = do
     -- Control_test.
     equal logs []
     equal (extract_events events) [(0, 1, "+a1"), (1, 1, "+a2")]
-    equal (map (Set.toList . Score.event_attributes) events) [["a1"], ["a2"]]
+    equal (map (Set.toList . Score.attrs_set . Score.event_attributes) events)
+        [["a1"], ["a2"]]
 
     equal convert_warns []
     equal (length perf_events) 2

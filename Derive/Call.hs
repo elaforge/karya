@@ -10,7 +10,7 @@ import qualified Util.Map as Map
 import qualified Derive.Derive as Derive
 import qualified Derive.TrackLang as TrackLang
 import qualified Derive.Score as Score
-import qualified Derive.Note as Note
+-- import qualified Derive.Note as Note
 
 import qualified Perform.Signal as Signal
 
@@ -58,6 +58,7 @@ with_signals sigs f context@(_, _, event, _) = do
     vals <- event_signals event sigs
     f vals context
 
+{-
 with_directive :: (Monad m) => (TrackLang.CallId -> Bool)
     -> (Note.Call -> EventContext st -> Result m st)
     -> EventContext st -> Result m st
@@ -72,10 +73,11 @@ with_directive is_dir f context@(st, _, event, _) =
             | otherwise -> return (st, [event])
 
 with_directive_calls call_ids = with_directive (is_call call_ids)
+-}
 
 is_call :: [String] -> TrackLang.CallId -> Bool
 is_call call_id_strs call_id = Set.member call_id call_ids
-    where call_ids = Set.fromList (map TrackLang.CallId call_id_strs)
+    where call_ids = Set.fromList (map TrackLang.Symbol call_id_strs)
 
 get_signal :: (Monad m) => Score.Event -> TrackLang.Signal
     -> Derive.DeriveT m Signal.Y

@@ -127,23 +127,15 @@
     the duration of the final note easily enough by making it a departing note.
 -}
 module Derive.Note where
-import Control.Monad
-import qualified Data.List as List
-import qualified Data.Maybe as Maybe
 import qualified Util.Seq as Seq
 
 import Ui
 import qualified Ui.Event as Event
-import qualified Ui.Id as Id
-import qualified Ui.State as State
 import qualified Ui.Track as Track
-import qualified Ui.Types as Types
 
 import qualified Derive.Derive as Derive
-import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
-
-import qualified Perform.PitchSignal as PitchSignal
+import qualified Derive.Call.Basic as Call.Basic
 
 
 -- | Notes with negative duration have an implicit sounding duration which
@@ -152,25 +144,17 @@ import qualified Perform.PitchSignal as PitchSignal
 negative_duration_default :: TrackPos
 negative_duration_default = 1
 
-data NoteDesc = NoteDesc
-    { note_args :: [TrackLang.Val]
-    , note_inst :: Maybe Score.Instrument
-    , note_attrs :: Score.Attributes
-    } deriving (Eq, Show)
-empty_note = NoteDesc [] Nothing Score.no_attrs
-
-data Call = Call { call_id :: TrackLang.CallId, call_args :: [TrackLang.Val] }
-    deriving (Eq, Show)
-
 -- * note track
 
 d_note_track :: TrackId -> Derive.EventDeriver
 d_note_track track_id = do
     track <- Derive.get_track track_id
     let pos_events = Track.event_list (Track.track_events track)
-    (ndesc, calls) <- parse_track_title (Track.track_title track)
-    note_derivers <- derive_notes =<< parse_events ndesc pos_events
-    -- foldM call events calls
+    title_expr <- case TrackLang.parse (Track.track_title track) of
+        Left err -> Derive.throw $ "track title: " ++ err
+        Right expr -> return expr
+    note_derivers <- derive_notes pos_events
+    note_derivers <- eval "title" title_expr (Derive.Transformer note_derivers)
     sequence_notes note_derivers
 
 sequence_notes :: Derive.OrderedNoteDerivers -> Derive.EventDeriver
@@ -178,8 +162,12 @@ sequence_notes :: Derive.OrderedNoteDerivers -> Derive.EventDeriver
     -- use merge?
 sequence_notes = fmap concat . mapM place . Seq.zip_next
     where
-    place (Derive.NoteDeriver pos dur deriver, maybe_next) =
-        with_dur (calculate_duration pos dur maybe_next) deriver
+    place (Derive.NoteDeriver pos dur deriver, maybe_next)
+        | dur == 0 = do
+            Derive.with_stack_pos pos dur $
+                Derive.warn "omitting note with 0 duration"
+            return []
+        | otherwise = with_dur (calculate_duration pos dur maybe_next) deriver
         where
         with_dur real_dur = Derive.d_at pos . Derive.d_stretch real_dur
             . Derive.with_stack_pos pos dur
@@ -206,53 +194,15 @@ calculate_duration cur_pos cur_dur (Just next)
     next_pos = Derive.n_start next
     next_dur = Derive.n_duration next
     rest = next_pos + next_dur - cur_pos
-    dur = Event.event_duration
 calculate_duration _ cur_dur Nothing
     | Event.is_positive_duration cur_dur = cur_dur
     | otherwise = negative_duration_default
 
-call :: [Score.Event] -> Call -> Derive.EventDeriver
-call events (Call call_id args) = do
-    call <- Derive.lookup_note_call call_id
-    let msg (TrackLang.CallId c) = "note call " ++ show c
-    case call args events of
-        Left err -> Derive.throw $
-            "parse error: " ++ TrackLang.show_type_error err
-        Right d -> Derive.with_msg (msg call_id) d
-
 -- * parse
-
--- ** track title
-
-parse_track_title :: (Monad m) => String -> Derive.DeriveT m (NoteDesc, [Call])
-parse_track_title title = do
-    (inst_tokens, call_tokens) <-
-        either (Derive.throw . ("parsing track title: " ++)) return
-        (TrackLang.parse title)
-    inst <- Derive.gets Derive.state_instrument
-    attrs <- Derive.gets Derive.state_attributes
-    let ndesc = parse_note_desc (NoteDesc [] inst attrs) inst_tokens
-    calls <- mapM do_parse_call call_tokens
-    return (ndesc, calls)
-    where
-    do_parse_call args = either (Derive.throw . ("parse_track_title: " ++))
-        return (parse_call args)
-
--- | Filter the inst and attr declarations out of the parsed Vals and put the
--- rest in 'note_args'.
-parse_note_desc :: NoteDesc -> [TrackLang.Val] -> NoteDesc
-parse_note_desc ndesc tokens = rev $ List.foldl' collect (rev ndesc) tokens
-    where
-    collect ndesc val = case val of
-        TrackLang.VInstrument (Just inst) -> ndesc { note_inst = Just inst }
-        TrackLang.VInstrument Nothing -> ndesc
-        TrackLang.VAttr (TrackLang.Attr (mode, attr)) -> ndesc
-            { note_attrs = TrackLang.set_attr mode attr (note_attrs ndesc) }
-        _ -> ndesc { note_args = val : note_args ndesc }
-    rev ndesc = ndesc { note_args = List.reverse (note_args ndesc) }
 
 -- ** directive
 
+{-
 is_directive :: String -> Bool
 is_directive (';':_) = True
 is_directive _ = False
@@ -271,132 +221,63 @@ parse_directive_text text = do
 
 directive_prefix :: Char
 directive_prefix = ';'
-
--- ** events
-
--- | Parse each Event and pair it with a NoteDesc, filtering out the ones that
--- can't be parsed.
-parse_events :: (Monad m) => NoteDesc -> [Track.PosEvent]
-    -> Derive.DeriveT m [(Track.PosEvent, NoteDesc)]
-parse_events ndesc pos_events = do
-    maybe_ndescs <- mapM (Derive.catch_warn . (parse_event ndesc)) pos_events
-    return [(pos_event, ndesc)
-        | (pos_event, Just ndesc) <- zip pos_events maybe_ndescs]
-
-parse_event :: Monad m => NoteDesc -> Track.PosEvent
-    -> Derive.DeriveT m NoteDesc
-parse_event ndesc (pos, event)
-    | is_directive (Event.event_string event) = return empty_note
-    | otherwise = do
-        let err msg = Derive.with_stack_pos pos (Event.event_duration event) $
-                Derive.throw ("parsing note: " ++ msg)
-        (inst_tokens, call_tokens) <- either err return $
-            TrackLang.parse (Event.event_string event)
-        when (not (null call_tokens)) $
-            -- TODO support pipes in notes
-            Derive.throw $ "note calls not yet supported: " ++ show call_tokens
-        return $ parse_note_desc ndesc inst_tokens
-
--- | Split the call and args from a list of Vals.
-parse_call :: [TrackLang.Val] -> Either String Call
-parse_call args = do
-    (call_id, args) <- case args of
-        [] -> Left "empty expression"
-        arg:args -> case arg of
-            TrackLang.VCall call_id -> Right (call_id, args)
-            _ -> Left $ "non-function in function position: " ++ show arg
-    let bad_calls = [cid | TrackLang.VCall cid <- args]
-    when (not (null bad_calls)) $
-        Left $ "functions in non-function position: " ++ show bad_calls
-    return $ Call call_id args
+-}
 
 -- * derive
 
-derive_notes :: (Monad m) => [(Track.PosEvent, NoteDesc)]
-    -> Derive.DeriveT m Derive.OrderedNoteDerivers
-derive_notes = fmap Maybe.catMaybes . mapM note . Seq.zip_next
+derive_notes :: [Track.PosEvent] -> Derive.CallResult
+derive_notes = fmap concat . mapM note . Seq.zip_next
     where
-    note (((pos, event), ndesc), next) =
-        Derive.with_stack_pos pos (Event.event_duration event)
-            (derive_note pos event ndesc (fmap (fst . fst) next))
+    note ((pos, event), next) = Derive.with_stack_pos pos
+        (Event.event_duration event) (derive_note pos event (fmap fst next))
 
-derive_note :: (Monad m) => TrackPos -> Event.Event -> NoteDesc
-    -> Maybe TrackPos -> Derive.DeriveT m (Maybe Derive.NoteDeriver)
-derive_note pos event (NoteDesc args inst attrs) next_note
-    | Event.event_duration event == 0 = do
-        Derive.warn "omitting note with 0 duration"
-        return Nothing
+derive_note :: TrackPos -> Event.Event -> Maybe TrackPos -> Derive.CallResult
+derive_note pos event next_note
         -- Events that are entirely comment are skipped entirely, see
         -- module comment.
-    | Event.event_string event == "--" = return Nothing
-    | null args = do -- TODO lookup null call
-        -- eventually this gets subsumed into call below, but it still has
-        -- special treatment wrt negative durations
-        return $ Just (note_deriver (d_note event (fmap to_local next_note)))
-    | otherwise = do
-        Call call_id args <- either (Derive.throw . ("derive_note: " ++))
-            return (parse_call args)
-        -- TODO look in namespace other than blocks for call_id
-        -- TODO pass args
-        when (not (null args)) $
-            Derive.throw $ "args not supported yet: " ++ show args
-        -- Derivation happens according to the extent of the note, not the
-        -- duration.  This is how negative duration events begin deriving
-        -- before arriving at the trigger.
-        let (start, end) = (Track.event_min (pos, event),
-                Track.event_max (pos, event))
-        deriver <- d_call_block start (end-start) call_id
-        return $ Just (note_deriver deriver)
+    | Event.event_string event == "--" = return []
+    | otherwise = case TrackLang.parse (Event.event_string event) of
+        Left err -> Derive.warn err >> return []
+        Right expr -> eval "note" expr (Derive.Generator (pos, event) next_note)
+
+eval :: String -> TrackLang.Expr -> Derive.CallType -> Derive.CallResult
+eval caller expr call_type = do
+    val <- go call_type (reverse expr)
+    case val of
+        Left err -> do
+            Derive.warn $ "eval " ++ caller ++ " "
+                ++ TrackLang.show_type_error err
+            return []
+        Right derivers -> return derivers
     where
-    note_deriver d = Derive.NoteDeriver pos (Event.event_duration event)
-        (Derive.with_instrument inst attrs d)
-    -- All notes are 0--1 and rely on NoteDeriver to place and stretch them.
-    -- So I need to reverse the transformation for the next note pos so it is
-    -- in that local time.
-    to_local p = (p - pos) / Event.event_duration event
+    go call_type (TrackLang.Call call_id args : rest) = do
+        call <- Call.Basic.lookup_note_call call_id
+        case call args call_type of
+            Left err -> return $ Left err
+            Right d -> do
+                note_derivers <- d
+                go (Derive.Transformer note_derivers) rest
+    go (Derive.Transformer note_derivers) [] = return $ Right note_derivers
+    go (Derive.Generator event _) [] = Derive.throw $
+        "event with no calls at all (this shouldn't happen): " ++ show event
 
-d_note :: Event.Event -> Maybe TrackPos -> Derive.EventDeriver
-d_note event next_note = do
-    start <- Derive.local_to_global 0
-    end <- Derive.local_to_global 1
-    next <- case next_note of
-        Nothing -> return Nothing
-        Just next -> fmap Just (Derive.local_to_global next)
-    st <- Derive.get
-    let inst = Derive.state_instrument st
-        attrs = Derive.state_attributes st
-        pitch_sig = trimmed_pitch next (Derive.state_pitch st)
-    return [Score.Event start (end - start)
-        (Event.event_text event) (Derive.state_controls st)
-        pitch_sig (Derive.state_stack st) inst attrs]
+{-
+d_eq :: TrackLang.ValName -> TrackLang.Val -> (Maybe Derive.EventDeriver)
+    -> Derive.EventDeriver
+d_eq sym val maybe_deriver = do
+    pos <- Derive.local_to_global 0
+    case maybe_deriver of
+        Nothing -> Derive.insert_val sym pos val >> return []
+        Just deriver -> Derive.with_val sym pos val deriver
 
-d_call_block :: (Monad m) => TrackPos -> TrackPos -> TrackLang.CallId
-    -> Derive.DeriveT m Derive.EventDeriver
-d_call_block start dur call_id = do
-    default_ns <- Derive.gets (State.state_project . Derive.state_ui)
-    let block_id = Types.BlockId (make_id default_ns call_id)
-    return $ Derive.d_sub_derive [] (Derive.d_block block_id)
+d_equal :: TrackLang.ValName -> TrackLang.Val -> Derive.Deriver ()
+d_equal sym val = do
+    pos <- Derive.local_to_global 0
+    Derive.insert_val sym pos val
 
--- | In a note track, the pitch signal for each note is constant as soon as the
--- next note begins.  Otherwise, it looks like each note changes pitch during
--- its decay.
--- TODO when signals are lazy I should drop the heads of the control
--- signals so they can be gced.
-trimmed_pitch :: Maybe TrackPos -> PitchSignal.PitchSignal
-    -> PitchSignal.PitchSignal
-trimmed_pitch (Just next) sig = PitchSignal.truncate next sig
-trimmed_pitch Nothing sig = sig
-
-
--- * util
-
--- | Make an Id from a string, relative to the current ns if it doesn't already
--- have one.
---
--- TODO move this to a more generic place since LanguageCmds may want it to?
-
-make_id :: String -> TrackLang.CallId -> Id.Id
-make_id default_ns (TrackLang.CallId ident_str) = Id.id ns ident
-    where
-    (w0, w1) = break (=='/') ident_str
-    (ns, ident) = if null w1 then (default_ns, w0) else (w0, drop 1 w1)
+d_equal_m :: TrackLang.ValName -> TrackLang.Val -> Derive.EventDeriver
+    -> Derive.EventDeriver
+d_equal_m sym val deriver = do
+    pos <- Derive.local_to_global 0
+    Derive.with_val sym pos val deriver
+-}

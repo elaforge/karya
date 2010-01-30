@@ -12,6 +12,7 @@ import Data.Binary (Binary, get, put, getWord8, putWord8)
 import qualified Util.File as File
 
 import qualified Cmd.Serialize () -- get the Binary instances
+import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Control as Control
 
@@ -101,3 +102,7 @@ instance Binary Instrument.KeyswitchMap where
 instance Binary Instrument.Keyswitch where
     put (Instrument.Keyswitch a b) = put a >> put b
     get = get >>= \a -> get >>= \b -> return (Instrument.Keyswitch a b)
+
+instance Binary Score.Attributes where
+    put (Score.Attributes a) = put a
+    get = get >>= \a -> return (Score.Attributes a)

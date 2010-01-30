@@ -67,7 +67,11 @@ modify_duration f evt = set_duration (f (event_duration evt)) evt
 -- For example, Track._split_range which includes them in both ends.
 is_positive, is_negative :: Event -> Bool
 is_positive = not . is_negative
-is_negative evt = let d = event_duration evt in d < 0 || isNegativeZero d
+is_negative = is_negative_duration . event_duration
+
+is_negative_duration, is_positive_duration :: TrackPos -> Bool
+is_negative_duration d = d < 0 || isNegativeZero d
+is_positive_duration = not . is_negative_duration
 
 
 default_style :: StyleId
