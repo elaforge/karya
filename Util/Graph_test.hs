@@ -89,8 +89,8 @@ test_remove_vertex = do
     graph_equal (f 2 xgraph) (build [(0, 1), (0, 2), (3, 1), (3, 2)])
 
 graph_equal graph1 graph2
-    | norm graph1 == norm graph2 = success Nothing $ "graph == " ++ show graph1
-    | otherwise = failure Nothing $ "graph " ++ show graph1 ++ ":\n"
+    | norm graph1 == norm graph2 = success $ "graph == " ++ show graph1
+    | otherwise = failure $ "graph " ++ show graph1 ++ ":\n"
         ++ Util.Graph.draw graph1
         ++ "*** /= " ++ show graph2 ++ " ***\n" ++ Util.Graph.draw graph2
     where

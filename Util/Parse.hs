@@ -35,8 +35,12 @@ show_error_msgs = Parsec.Error.showErrorMessages
     "or" "unknown parse error" "expecting" "unexpected" "end of input"
 
 -- | Convert a parser into a lexeme parser by skipping whitespace afterwards.
+-- Like TokenParser.lexeme except it only accepts plain space.
 lexeme :: P.CharParser st a -> P.CharParser st a
 lexeme p = p >>= \v -> P.skipMany P.space >> return v
+
+symbol :: String -> P.CharParser st String
+symbol = lexeme . P.string
 
 optional :: P.GenParser tok st a -> P.GenParser tok st (Maybe a)
 optional = P.option Nothing . fmap Just

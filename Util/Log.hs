@@ -4,15 +4,6 @@
     Log msgs are used to report everything from errors and debug msgs to status
     reports.  They are collected in a central place that writes them to a file
     in a machine-readable serialized format.
-
-    Unimplemented:
-    Various subsystems could register an interest in log msgs.
-
-    So a progress bar would register a function that looks for Progress msgs
-    from the relevant system and updates itself when it sees them.  Blocks
-    register a function that watches for Block errors and highlights the part
-    of the block that had the error (probably emitted by Derive).
-    Informational msgs matching a given pattern may go to the status bar.
 -}
 
 module Util.Log (
@@ -153,7 +144,7 @@ error = error_srcpos Nothing
 
 is_first_timer :: Msg -> Bool
 is_first_timer (Msg { msg_prio = Timer, msg_text = text }) =
-    Text.pack (first_timer_prefix) `Text.isPrefixOf` text
+    Text.pack first_timer_prefix `Text.isPrefixOf` text
 is_first_timer _ = False
 
 -- | Prepend to a timer msg after an expected delay, like waiting on input.
