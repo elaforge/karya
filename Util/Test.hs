@@ -24,12 +24,14 @@ module Util.Test (
     , plist, pslist, pmlist
     , module PPrint
 ) where
-
+import Control.Monad
 import qualified Control.Exception as Exception
 import qualified Data.IORef as IORef
 import qualified Data.List as List
 import qualified System.IO as IO
 import qualified System.IO.Unsafe as Unsafe
+import qualified System.Posix.IO as IO
+import qualified System.Posix.Terminal as Terminal
 import Text.Printf
 
 import qualified Util.Regex as Regex
@@ -195,8 +197,16 @@ success_srcpos srcpos msg =
 
 -- | Print a msg with a special tag indicating a failing test.
 failure_srcpos :: SrcPos.SrcPos -> String -> IO ()
-failure_srcpos srcpos msg =
-    hPrintf IO.stdout "__-> %s - %s\n" (SrcPos.show_srcpos srcpos) msg
+failure_srcpos srcpos msg = do
+    -- A little magic to make failures more obvious in tty output.
+    -- TODO get these codes from termcap
+    isatty <- Terminal.queryTerminal IO.stdOutput
+    when isatty $
+        putStr "\ESC[31m"
+    hPrintf IO.stdout "__-> %s - %s" (SrcPos.show_srcpos srcpos) msg
+    when isatty $
+        putStr "\ESC[m\ESC[m"
+    putChar '\n'
 
 -- getChar with no buffering
 human_getch :: IO Char
