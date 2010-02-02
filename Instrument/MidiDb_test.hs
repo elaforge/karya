@@ -1,5 +1,4 @@
 module Instrument.MidiDb_test where
-import qualified Data.Set as Set
 
 import Util.Test
 

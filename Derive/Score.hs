@@ -146,6 +146,7 @@ inst_name (Instrument s) = s
 type Attribute = String
 newtype Attributes = Attributes (Set.Set Attribute) deriving (Eq, Show)
 attrs_set (Attributes attrs) = attrs
+attrs_list = Set.toList . attrs_set
 
 attributes :: [String] -> Attributes
 attributes = Attributes . Set.fromList

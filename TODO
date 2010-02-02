@@ -6,6 +6,7 @@
 - try record punning
 
 CURRENT
+  - replace use of Seq.merge_by with more efficient Seq.merge_with
   - add Util.ParseOperators
   - remove with_msg "compile bid", it's redundant with the stack
   - make "error subderiving" msg nicer and put the stack in the log msg
@@ -429,13 +430,20 @@ Derive:
     * data NoteDeriver = (start, dur, EventDeriver)
     * note track emits [NoteDeriver], merges to EventDeriver
     * replace d_note with d_null_call
-    - implement Equal
-    - Call.map_* checks type for Transformer
-    - track puts Equal and null calls after sequence_notes
-    - change calls from [Score.Event] to [NoteDeriver]
-    - do something about possibly overlapping OrderedNoteDerivers
+    * implement Equal
+    - re-implement tick
+    - re-implement echo
+    - arg processing: arg defaults taken automatically from the env, if
+      prefixed with call name: "call-arg"
+    - re-implement directives: derive_notes returns (EventDeriver, [Event])
+    - test Calls that return overlapping events
+    - adapt Derive.Call utils for working with EventDeriver
+    - block-level calls
+    - come up with a syntax for Ui.Event preproc calls
+    - negative duration postproc
+    - put TrackLang.Val into Pretty
 
-    - Cmd: after entering 'x = y' form, can it automatically set dur=0?
+    - Cmd: after entering 'x = y' event, can it automatically set dur=0?
 
     * parser support for '='
     * val typed signals

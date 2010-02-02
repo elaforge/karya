@@ -1,4 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, PatternGuards, ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {- | Main module for the deriver monad.
 
     Derivers are always in DeriveT, even if they don't need its facilities.
@@ -67,23 +68,6 @@ type TrackDeriver m e = TrackId -> DeriveT m [e]
 type Deriver a = DeriveT Identity.Identity a
 type EventDeriver = DeriveT Identity.Identity [Score.Event]
 type SignalDeriver sig = DeriveT Identity.Identity [(TrackId, sig)]
-
--- | A deriver with position and stretch not yet applied.  This is an
--- intermediate step between the EventDeriver and [Score.Event] so that
--- functions can manipulate the derivers abstractly.
-data NoteDeriver = NoteDeriver {
-    -- | These times are in score time.
-    n_start :: TrackPos
-    , n_duration :: TrackPos
-    , n_deriver :: EventDeriver
-    }
-
--- | Sorted in order of 'n_start'.  Later I may want to make this a real type.
-type OrderedNoteDerivers = [NoteDeriver]
-
-map_derivers :: (EventDeriver -> EventDeriver)
-    -> OrderedNoteDerivers -> OrderedNoteDerivers
-map_derivers f = map (\nd -> nd { n_deriver = f (n_deriver nd) })
 
 newtype DeriveT m a = DeriveT (DeriveStack m a)
     deriving (Functor, Monad, Trans.MonadIO, Error.MonadError DeriveError)
@@ -162,6 +146,8 @@ default_velocity = 0.79
 initial_warp :: Warp
 initial_warp = make_warp (Signal.signal [(0, 0), (Signal.max_x, Signal.max_y)])
 
+-- ** calls
+
 data CallEnv = CallEnv {
     calls_note :: CallMap
     , calls_control :: CallMap
@@ -169,25 +155,31 @@ data CallEnv = CallEnv {
 empty_call_map = CallEnv Map.empty Map.empty
 
 type CallMap = Map.Map TrackLang.CallId Call
-type Call = [TrackLang.Val] -> CallType -> Either TrackLang.TypeError CallResult
 
--- | Calls are in Deriver so they have access to the environment in scope.
--- This could be a little misleading though, because the call deriver runs
--- *before* the OrderedNoteDerivers it works with, so if it wants to alter
--- the environment for a specific deriver it must alter the deriver within the
--- 'n_deriver'.
-type CallResult = Deriver OrderedNoteDerivers
+-- | A Call will be called as either a generator or a transformer, depending on
+-- its position.  A call at the end of a compose pipeline will be called as
+-- a generator while ones composed with it will be called as transformers, so
+-- in @a | b@, @a@ is a transformer and @b@ is a generator.
+data Call = Call {
+    call_generator :: Maybe GeneratorCall
+    , call_transformer :: Maybe TransformerCall
+    }
+-- | args -> prev_events -> cur_event -> next_events -> (deriver, consumed)
+type GeneratorCall = [TrackLang.Val] -> [Track.PosEvent] -> Track.PosEvent
+    -> [Track.PosEvent] -> Either TrackLang.TypeError (EventDeriver, Int)
+type TransformerCall = [TrackLang.Val] -> EventDeriver
+    -> Either TrackLang.TypeError EventDeriver
 
--- | Calls are either note generators or transformers, depending on their
--- position.  A call at the end of a composition will be called as a Generator
--- while ones composed with it will be called as Transformers, so in @a | b@,
--- @a@ is a Transformer and @b@ is a Generator.  The call of course may return
--- a type error if it doesn't like that.
-data CallType =
-    -- | Provides the relevant event and the score start time of the next event
-    -- of the track, if any.
-    Generator Track.PosEvent (Maybe TrackPos)
-    | Transformer OrderedNoteDerivers
+generator call = Call (Just call) Nothing
+transformer call = Call Nothing (Just call)
+
+-- | Like 'generator', except for a generator that consumes a single event.
+generate_one :: ([TrackLang.Val] -> [Track.PosEvent] -> Track.PosEvent
+    -> [Track.PosEvent]
+    -> Either TrackLang.TypeError EventDeriver)
+    -> Call
+generate_one call = generator $ \args prev cur next ->
+    fmap (, 1) (call args prev cur next)
 
 make_calls :: [(String, Call)] -> CallMap
 make_calls = Map.fromList . map (Util.Control.first TrackLang.Symbol)
@@ -199,6 +191,7 @@ instance Show CallEnv where
         keys m = "<" ++ Seq.join ", " [c | TrackLang.Symbol c <- Map.keys m]
             ++ ">"
 
+-- ** state support
 
 -- | Since the deriver may vary based on the block, this is needed to find
 -- the appropriate deriver.  It's created by 'Schema.lookup_deriver'.
@@ -402,10 +395,11 @@ with_msg msg = local state_log_context
 
 -- | Catch DeriveErrors and convert them into warnings.  If an error is caught,
 -- return Nothing, otherwise return Just op's value.
-catch_warn :: (Monad m) => DeriveT m a -> DeriveT m (Maybe a)
-catch_warn op = Error.catchError (fmap Just op) $
+catch_warn :: (Monad m) => (String -> String) -> DeriveT m a
+    -> DeriveT m (Maybe a)
+catch_warn msg_of op = Error.catchError (fmap Just op) $
     \(DeriveError srcpos stack msg) ->
-        Log.warn_stack_srcpos srcpos stack msg >> return Nothing
+        Log.warn_stack_srcpos srcpos stack (msg_of msg) >> return Nothing
 
 warn :: (Monad m) => String -> DeriveT m ()
 warn = warn_srcpos Nothing
@@ -429,8 +423,8 @@ lookup_val name = do
     case TrackLang.lookup_val name environ of
             Left TrackLang.NotFound -> return Nothing
             Left (TrackLang.WrongType typ) ->
-                throw $ "val for " ++ show name ++ ": expected "
-                    ++ show return_type ++ " but got " ++ show typ
+                throw $ "lookup_val " ++ show name ++ ": expected "
+                    ++ show return_type ++ " but val type is " ++ show typ
             Right v -> return (Just v)
 
 get_val :: (TrackLang.Typecheck a, Monad m) =>
@@ -458,7 +452,7 @@ insert_environ :: (Monad m, TrackLang.Typecheck val) => TrackLang.ValName
 insert_environ name val environ =
     case TrackLang.put_val name val environ of
         Left typ -> throw $ "can't set " ++ show name ++ " to " ++ show val
-            ++ ", expected type " ++ show typ
+            ++ ", expected " ++ show typ
         Right environ2 -> return environ2
 
 -- *** control
@@ -839,7 +833,7 @@ map_events f state event_of xs =
     fmap Maybe.catMaybes (Util.Control.map_accuml_m apply state xs)
     where
     apply cur_state x = with_event (event_of x) $ do
-        val <- catch_warn (f cur_state x)
+        val <- catch_warn id (f cur_state x)
         return $ case val of
             Nothing -> (cur_state, Nothing)
             Just (val, next_state) -> (next_state, Just val)

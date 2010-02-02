@@ -127,7 +127,7 @@
     the duration of the final note easily enough by making it a departing note.
 -}
 module Derive.Note where
-import qualified Util.Seq as Seq
+import Control.Monad
 
 import Ui
 import qualified Ui.Event as Event
@@ -153,10 +153,9 @@ d_note_track track_id = do
     title_expr <- case TrackLang.parse (Track.track_title track) of
         Left err -> Derive.throw $ "track title: " ++ err
         Right expr -> return expr
-    note_derivers <- derive_notes pos_events
-    note_derivers <- eval "title" title_expr (Derive.Transformer note_derivers)
-    sequence_notes note_derivers
+    join $ eval_transformer "title" title_expr (derive_notes pos_events)
 
+{-
 sequence_notes :: Derive.OrderedNoteDerivers -> Derive.EventDeriver
     -- TODO concat here assumes they are non-overlapping.  I suppose I should
     -- use merge?
@@ -167,7 +166,9 @@ sequence_notes = fmap concat . mapM place . Seq.zip_next
             Derive.with_stack_pos pos dur $
                 Derive.warn "omitting note with 0 duration"
             return []
-        | otherwise = with_dur (calculate_duration pos dur maybe_next) deriver
+        | otherwise = with_dur (calculate_duration pos dur maybe_next) $ do
+            Log.debug $ "run at " ++ show pos
+            deriver
         where
         with_dur real_dur = Derive.d_at pos . Derive.d_stretch real_dur
             . Derive.with_stack_pos pos dur
@@ -197,10 +198,9 @@ calculate_duration cur_pos cur_dur (Just next)
 calculate_duration _ cur_dur Nothing
     | Event.is_positive_duration cur_dur = cur_dur
     | otherwise = negative_duration_default
+-}
 
--- * parse
-
--- ** directive
+-- * directive
 
 {-
 is_directive :: String -> Bool
@@ -225,59 +225,78 @@ directive_prefix = ';'
 
 -- * derive
 
-derive_notes :: [Track.PosEvent] -> Derive.CallResult
-derive_notes = fmap concat . mapM note . Seq.zip_next
+derive_notes :: [Track.PosEvent] -> Derive.EventDeriver
+derive_notes = go []
     where
-    note ((pos, event), next) = Derive.with_stack_pos pos
-        (Event.event_duration event) (derive_note pos event (fmap fst next))
+    with_stack pos evt = Derive.with_stack_pos pos (Event.event_duration evt)
+    go _ [] = return []
+    go prev (cur@(pos, event) : rest) = with_stack pos event $ do
+        (deriver, consumed) <- derive_note prev cur rest
+        when (consumed < 1) $
+            Derive.throw $ "call consumed invalid number of events: "
+                ++ show consumed
+        events <- deriver
+        -- TODO is this really an optimization?  profile later
+        let (prev2, next2) = if consumed == 1
+                then (cur : prev, rest)
+                else let (pre, post) = splitAt consumed (cur : rest)
+                    in (reverse pre ++ prev, post)
+        rest_events <- go prev2 next2
+        return (Derive.merge_events [events, rest_events])
 
-derive_note :: TrackPos -> Event.Event -> Maybe TrackPos -> Derive.CallResult
-derive_note pos event next_note
-        -- Events that are entirely comment are skipped entirely, see
-        -- module comment.
-    | Event.event_string event == "--" = return []
+skip_event :: Derive.Deriver (Derive.EventDeriver, Int)
+skip_event = return (return [], 1)
+
+-- | Derive a single deriver's worth of events.  Most calls will only consume
+-- a single event, but some may handle a series of events.
+derive_note :: [Track.PosEvent] -- ^ previous events, in reverse order
+    -> Track.PosEvent -- ^ cur event
+    -> [Track.PosEvent] -- ^ following events
+    -> Derive.Deriver (Derive.EventDeriver, Int)
+derive_note prev cur@(_, event) next
+    | Event.event_string event == "--" = skip_event
     | otherwise = case TrackLang.parse (Event.event_string event) of
-        Left err -> Derive.warn err >> return []
-        Right expr -> eval "note" expr (Derive.Generator (pos, event) next_note)
+        Left err -> Derive.warn err >> skip_event
+        Right expr -> eval_generator "note" expr prev cur next
 
-eval :: String -> TrackLang.Expr -> Derive.CallType -> Derive.CallResult
-eval caller expr call_type = do
-    val <- go call_type (reverse expr)
-    case val of
-        Left err -> do
-            Derive.warn $ "eval " ++ caller ++ " "
-                ++ TrackLang.show_type_error err
-            return []
-        Right derivers -> return derivers
-    where
-    go call_type (TrackLang.Call call_id args : rest) = do
-        call <- Call.Basic.lookup_note_call call_id
-        case call args call_type of
-            Left err -> return $ Left err
-            Right d -> do
-                note_derivers <- d
-                go (Derive.Transformer note_derivers) rest
-    go (Derive.Transformer note_derivers) [] = return $ Right note_derivers
-    go (Derive.Generator event _) [] = Derive.throw $
-        "event with no calls at all (this shouldn't happen): " ++ show event
+eval_generator :: String -> TrackLang.Expr -> [Track.PosEvent] -> Track.PosEvent
+    -> [Track.PosEvent] -> Derive.Deriver (Derive.EventDeriver, Int)
+eval_generator caller (TrackLang.Call call_id args : rest) prev cur next = do
+    let msg = "eval_generator " ++ show caller ++ ": "
+    call <- Call.Basic.lookup_note_call call_id
+    case Derive.call_generator call of
+        Nothing -> do
+            Derive.warn $ msg ++ "non-generator " ++ show call_id
+                ++ " in generator position"
+            skip_event
+        Just c -> case c args prev cur next of
+            Left err -> do
+                Derive.warn $ msg ++ TrackLang.show_type_error err
+                skip_event
+            Right (deriver, consumed) -> do
+                deriver <- eval_transformer caller rest deriver
+                return (deriver, consumed)
+eval_generator _ [] _ cur _ = Derive.throw $
+    "event with no calls at all (this shouldn't happen): " ++ show cur
 
-{-
-d_eq :: TrackLang.ValName -> TrackLang.Val -> (Maybe Derive.EventDeriver)
-    -> Derive.EventDeriver
-d_eq sym val maybe_deriver = do
-    pos <- Derive.local_to_global 0
-    case maybe_deriver of
-        Nothing -> Derive.insert_val sym pos val >> return []
-        Just deriver -> Derive.with_val sym pos val deriver
+eval_transformer :: String -> TrackLang.Expr -> Derive.EventDeriver
+    -> Derive.Deriver Derive.EventDeriver
+eval_transformer caller (TrackLang.Call call_id args : rest) deriver = do
+    let msg = "eval_transformer " ++ show caller ++ ": "
+    call <- Call.Basic.lookup_note_call call_id
+    case Derive.call_transformer call of
+        Nothing -> do
+            Derive.warn $ msg ++ "non-transformer " ++ show call_id
+                ++ " in transformer position"
+            return (return [])
+        Just c -> case c args deriver of
+            Left err -> do
+                Derive.warn $ msg ++ TrackLang.show_type_error err
+                return (return [])
+            Right deriver ->
+                eval_transformer caller rest (handle_exc call_id deriver)
+eval_transformer _ [] deriver = return deriver
 
-d_equal :: TrackLang.ValName -> TrackLang.Val -> Derive.Deriver ()
-d_equal sym val = do
-    pos <- Derive.local_to_global 0
-    Derive.insert_val sym pos val
-
-d_equal_m :: TrackLang.ValName -> TrackLang.Val -> Derive.EventDeriver
-    -> Derive.EventDeriver
-d_equal_m sym val deriver = do
-    pos <- Derive.local_to_global 0
-    Derive.with_val sym pos val deriver
--}
+handle_exc :: TrackLang.CallId -> Derive.EventDeriver -> Derive.EventDeriver
+handle_exc call_id deriver = fmap (maybe [] id) (Derive.catch_warn msg deriver)
+    where msg s = "exception in " ++ show call_id ++ ": " ++ s

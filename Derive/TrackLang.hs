@@ -59,7 +59,12 @@ data Val =
     | VMethod Method
     -- | Goes in a control val field.  Literal: @42.23@
     | VNum Double
-    -- | Goes in a note event.  Literal: @+attr@, @-attr@, @=attr@
+    -- | Relative attribute adjustment.  Literal: @+attr@, @-attr@, @=attr@,
+    -- @=-@ (to clear attributes).
+    --
+    -- This is a bit of a hack, but means I can do attr adjustment without +=
+    -- or -= operators.  It's ambiguous with 'p_equal' when spaces are omitted,
+    -- e.g. @a=-42@ can be parsed as @[a, =-, 42]@ or @[=, a, -42]@.
     | VRelativeAttr RelativeAttr
     | VAttributes Score.Attributes
     -- | A signal name.  An optional value gives a default if the signal isn't
@@ -113,8 +118,8 @@ c_equal :: CallId
 c_equal = Symbol "="
 
 v_instrument, v_attributes :: ValName
-v_instrument = Symbol "instrument"
-v_attributes = Symbol "attributes"
+v_instrument = Symbol "inst"
+v_attributes = Symbol "attr"
 
 -- * types
 
@@ -132,12 +137,13 @@ type_of val = case val of
     VSymbol _ -> TSymbol
     VNotGiven -> TNotGiven
 
-type_equal :: Val -> Val -> Bool
-type_equal val0 val1 = type_of val0 == type_of val1
-
 class Show a => Typecheck a where
     from_val :: Val -> Maybe a
     to_val :: a -> Val
+
+instance Typecheck Val where
+    from_val = Just
+    to_val = id
 
 instance Typecheck Pitch.Note where
     from_val (VNote a) = Just a
@@ -192,9 +198,12 @@ type Environ = Map.Map ValName Val
 -- create new ones.
 put_val :: (Typecheck val) => ValName -> val -> Environ -> Either Type Environ
 put_val name val environ = case maybe_old of
-    Nothing -> Right $ Map.insert name new_val environ
+    Nothing -> case Map.lookup name hardcoded_types of
+        Just expected | type_of new_val /= expected -> Left expected
+        _ -> Right $ Map.insert name new_val environ
     Just old_val
-        | type_equal old_val new_val -> Right $ Map.insert name new_val environ
+        | type_of old_val == type_of new_val ->
+            Right $ Map.insert name new_val environ
         | otherwise -> Left (type_of old_val)
     where
     maybe_old = Map.lookup name environ
@@ -205,6 +214,14 @@ put_val name val environ = case maybe_old of
                 _ -> set_attr rel_attr Score.no_attrs
         _ -> to_val val
 
+-- | If a standard val gets set to the wrong type, it will cause confusing
+-- errors later on.
+hardcoded_types :: Map.Map ValName Type
+hardcoded_types = Map.fromList
+    [ (v_instrument, TInstrument)
+    , (v_attributes, TAttributes)
+    ]
+
 data LookupError = NotFound | WrongType Type deriving (Show)
 
 lookup_val :: (Typecheck a) => ValName -> Environ -> Either LookupError a
@@ -214,7 +231,7 @@ lookup_val name environ = case Map.lookup name environ of
         Nothing -> Left (WrongType (type_of val))
         Just v -> Right v
 
--- * arg extraction
+-- * signatures
 
 data Arg a = Arg {
     arg_name :: String
@@ -230,14 +247,25 @@ type_of_val = type_of . to_val
 arg_opt :: Arg a -> (Bool, String)
 arg_opt arg = (Maybe.isJust (arg_default arg), arg_name arg)
 
+-- Utilities to describe function signatures.
+
+required :: String -> Arg a
+required name = Arg name Nothing
+
+optional :: String -> a -> Arg a
+optional name deflt = Arg name (Just deflt)
+
+signal :: Signal.Y -> String -> Signal
+signal deflt name = Signal (Just deflt, Just (Score.Control name))
+
+required_signal :: String  -> Signal
+required_signal name = Signal (Nothing, Just (Score.Control name))
+
+-- * extract and call
+
 data TypeError =
     -- | arg number, arg name, expected type, received val
     TypeError Int String Type (Maybe Val)
-    -- | A generator call was called in transformer position.  See
-    -- 'Derive.CallType'.
-    | ExpectedGenerator
-    -- | A transformer call was called in generator position.
-    | ExpectedTransformer
     -- | Couldn't even call the thing because the name was not found.
     | CallNotFound CallId
     -- | Calling error that doesn't fit into the above categories.
@@ -249,7 +277,6 @@ show_type_error (TypeError argno name expected received) =
         ++ show expected ++ " but got " ++ show received
 show_type_error (ArgError err) = "ArgError: " ++ err
 show_type_error (CallNotFound call_id) = "CallNotFound: " ++ show call_id
-show_type_error err = show err
 
 instance Error.Error TypeError where
     strMsg _ = error "strMsg not defined for TypeError"
@@ -340,25 +367,11 @@ extract_arg argno arg maybe_val = case (arg_default arg, maybe_val2) of
         Just v -> Right v
     err val = Left (TypeError argno (arg_name arg) (arg_type arg) val)
 
--- ** signature
-
--- Utilities to describe function signatures.
-
-required :: String -> Arg a
-required name = Arg name Nothing
-
-optional :: String -> a -> Arg a
-optional name deflt = Arg name (Just deflt)
-
-signal :: Signal.Y -> String -> Signal
-signal deflt name = Signal (Just deflt, Just (Score.Control name))
-
-required_signal :: String  -> Signal
-required_signal name = Signal (Nothing, Just (Score.Control name))
-
 -- * parsing
 
--- | The only operator is @|@, so a list of lists suffices for an AST.
+-- | The only operator is @|@, so a list of lists suffices for an AST.  The
+-- Expr is in *call* order, which is the reverse of the textual order, since
+-- composition associates right to left.
 type Expr = [Call]
 data Call = Call CallId [Val] deriving (Eq, Show)
 
@@ -369,7 +382,7 @@ note_track_prefix = ">"
 pitch_track_prefix = "*"
 
 parse :: String -> Either String Expr
-parse text = Parse.parse_all p_pipeline (strip_comment text)
+parse text = fmap reverse (Parse.parse_all p_pipeline (strip_comment text))
 
 p_pipeline :: P.Parser Expr
 p_pipeline = P.sepBy p_expr (Parse.symbol "|")
@@ -377,10 +390,10 @@ p_pipeline = P.sepBy p_expr (Parse.symbol "|")
 p_expr, p_equal :: P.Parser Call
 p_expr = P.try p_equal <|> P.try p_call <|> p_null_call
 p_equal = do
-    a1 <- p_symbol
+    a1 <- p_val
     Parse.symbol "="
     a2 <- p_val
-    return $ Call c_equal [VSymbol a1, a2]
+    return $ Call c_equal [a1, a2]
 
 p_call, p_null_call :: P.Parser Call
 p_call = liftM2 Call p_symbol (P.many p_val)
@@ -426,7 +439,7 @@ p_rel_attr = do
     let as m c = fmap (const m) (P.char c)
     mode <- P.choice [as Add '+', as Remove '-', as Set '=']
     attr <- case mode of
-        Set -> P.option "" (p_ident "")
+        Set -> (P.char '-' >> return "") <|> p_ident ""
         _ -> p_ident ""
     return $ RelativeAttr (if null attr then Clear else mode, attr)
     <?> "relative attr"

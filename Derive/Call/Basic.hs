@@ -12,7 +12,7 @@ import qualified Ui.Types as Types
 
 import qualified Derive.Derive as Derive
 import qualified Derive.TrackLang as TrackLang
--- import Derive.TrackLang (optional, required_signal, signal)
+import Derive.TrackLang (Arg, required)
 import qualified Derive.Score as Score
 
 import qualified Perform.PitchSignal as PitchSignal
@@ -21,6 +21,7 @@ import qualified Perform.PitchSignal as PitchSignal
 note_calls :: Derive.CallMap
 note_calls = Derive.make_calls
     [ ("", c_note)
+    , ("=", c_equal)
     ]
 
 control_calls :: Derive.CallMap
@@ -45,7 +46,12 @@ lookup_note_call call_id = do
 -- abort evaluation of this expression, so consider this a kind of type error,
 -- which does just that.
 c_not_found :: TrackLang.CallId -> Derive.Call
-c_not_found call_id _ _ = Left (TrackLang.CallNotFound call_id)
+c_not_found call_id = Derive.Call
+    (Just $ \_ _ _ _ -> err) (Just $ \_ _ -> err)
+    where err = Left (TrackLang.CallNotFound call_id)
+
+one_note :: Derive.EventDeriver -> (Derive.EventDeriver, Int)
+one_note d = (d, 1)
 
 -- * note call
 
@@ -55,41 +61,47 @@ c_not_found call_id _ _ = Left (TrackLang.CallNotFound call_id)
 -- abbreviated syntax: @+attr@ to generate a note with that attr, or
 -- @>i | call@ to run call with that instrument.
 c_note :: Derive.Call
-c_note args call_type = case process_note_args Nothing [] args of
-    (inst, rel_attrs, []) -> Right $ note inst rel_attrs call_type
-    (_, _, invalid) -> Left $
-        TrackLang.ArgError $ "expected inst or attr: " ++ show invalid
-
-note :: Maybe Score.Instrument -> [TrackLang.RelativeAttr]
-    -> Derive.CallType -> Derive.CallResult
-note n_inst rel_attrs (Derive.Generator (pos, event) next_note) = do
-    return $ (:[]) $ Derive.NoteDeriver pos (Event.event_duration event) $ do
-        -- I could use the same code as the Transformer case, but this is a
-        -- common case and it's probably more efficient to do it directly.
-        start <- Derive.local_to_global 0
-        end <- Derive.local_to_global 1
-        next <- case next_note of
-            Nothing -> return Nothing
-            Just next -> fmap Just (Derive.local_to_global (to_local next))
-        inst <- case n_inst of
-            Just inst -> return (Just inst)
-            Nothing -> Derive.lookup_val TrackLang.v_instrument
-        attrs <- Derive.get_val Score.no_attrs TrackLang.v_attributes
-        st <- Derive.get
-        let pitch_sig = trimmed_pitch next (Derive.state_pitch st)
-        return [Score.Event start (end - start)
-            (Event.event_text event) (Derive.state_controls st)
-            pitch_sig (Derive.state_stack st) inst (apply rel_attrs attrs)]
+c_note = Derive.Call
+    (Just $ \args _ event next -> case process args of
+        (inst, rel_attrs, []) ->
+            Right $ one_note $ generate_note inst rel_attrs event next
+        (_, _, invalid) -> Left $
+            TrackLang.ArgError $ "expected inst or attr: " ++ show invalid)
+    (Just $ \args deriver -> case process args of
+        (inst, rel_attrs, []) -> Right $ transform_note inst rel_attrs deriver
+        (_, _, invalid) -> Left $
+            TrackLang.ArgError $ "expected inst or attr: " ++ show invalid)
     where
-    -- All notes are 0--1 and rely on NoteDeriver to place and stretch them.
-    -- So I need to reverse the transformation for the next note pos so it is
-    -- in that local time.
-    to_local p = (p - pos) / Event.event_duration event
+    process = process_note_args Nothing []
+
+generate_note :: Maybe Score.Instrument -> [TrackLang.RelativeAttr]
+    -> Track.PosEvent -> [Track.PosEvent] -> Derive.EventDeriver
+generate_note n_inst rel_attrs (pos, event) next = do
+    -- I could use the same code as the Transformer case, but this is a
+    -- common case and it's probably more efficient to do it directly.
+    start <- Derive.local_to_global pos
+    end <- Derive.local_to_global (pos + Event.event_duration event)
+    -- TODO due to negative durations, end could be before start.  I need to
+    -- add a post-proc step to calculate the proper durations
+    next_start <- case next of
+        [] -> return Nothing
+        (npos, _) : _ -> fmap Just (Derive.local_to_global npos)
+    inst <- case n_inst of
+        Just inst -> return (Just inst)
+        Nothing -> Derive.lookup_val TrackLang.v_instrument
+    attrs <- Derive.get_val Score.no_attrs TrackLang.v_attributes
+    st <- Derive.get
+    let pitch_sig = trimmed_pitch next_start (Derive.state_pitch st)
+    return [Score.Event start (end - start)
+        (Event.event_text event) (Derive.state_controls st)
+        pitch_sig (Derive.state_stack st) inst (apply rel_attrs attrs)]
+    where
     apply rel_attrs attrs =
         List.foldl' (.) id (map TrackLang.set_attr rel_attrs) attrs
 
-note n_inst rel_attrs (Derive.Transformer derivers) =
-    return $ Derive.map_derivers (with_inst . with_attrs) derivers
+transform_note :: Maybe Score.Instrument -> [TrackLang.RelativeAttr]
+    -> Derive.EventDeriver -> Derive.EventDeriver
+transform_note n_inst rel_attrs deriver = with_inst (with_attrs deriver)
     where
     with_inst = maybe id (Derive.with_val TrackLang.v_instrument) n_inst
     with_attrs =
@@ -122,24 +134,19 @@ trimmed_pitch Nothing sig = sig
 -- * block call
 
 c_block :: BlockId -> Derive.Call
-c_block block_id args call_type = case call_type of
-    Derive.Transformer _ -> Left $ TrackLang.ExpectedGenerator
-    Derive.Generator (pos, event) next_note
-        | not (null args) -> Left $
-            TrackLang.ArgError "args for block call not implemented yet"
-        | otherwise -> Right (block_call block_id pos event next_note)
+c_block block_id = Derive.generate_one $ \args _ (pos, event) _ ->
+    if null args then Right $ block_call block_id pos event
+    else Left $ TrackLang.ArgError "args for block call not implemented yet"
 
-block_call :: BlockId -> TrackPos -> Event.Event -> Maybe TrackPos
-    -> Derive.CallResult
-block_call block_id pos event _next_note = return $
-    (:[]) $ Derive.NoteDeriver start (end-start) $
+block_call :: BlockId -> TrackPos -> Event.Event -> Derive.EventDeriver
+block_call block_id pos event =
+    Derive.d_at start $ Derive.d_stretch (end-start) $
         Derive.d_sub_derive [] (Derive.d_block block_id)
     where
     -- Derivation happens according to the extent of the note, not the
     -- duration.  This is how negative duration events begin deriving before
     -- arriving at the trigger.
     (start, end) = (Track.event_min (pos, event), Track.event_max (pos, event))
-
 
 -- | Make an Id from a string, relative to the current ns if it doesn't already
 -- have one.
@@ -150,3 +157,15 @@ make_id default_ns (TrackLang.Symbol ident_str) = Id.id ns ident
     where
     (w0, w1) = break (=='/') ident_str
     (ns, ident) = if null w1 then (default_ns, w0) else (w0, drop 1 w1)
+
+-- * equal
+
+c_equal :: Derive.Call
+c_equal = Derive.Call
+    (Just $ \args _ _ _ -> with_args args generate)
+    (Just $ \args deriver -> with_args args (transform deriver))
+    where
+    with_args args = TrackLang.call2 args
+        (required "symbol", required "value" :: Arg TrackLang.Val)
+    transform deriver sym val = Derive.with_val sym val deriver
+    generate sym val = one_note $ Derive.put_val sym val >> return []

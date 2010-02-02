@@ -32,9 +32,9 @@ test_extract = do
 test_parse = do
     let f = TrackLang.parse
     equal (f "a | b") $ Right
-        [Call (Symbol "a") [], Call (Symbol "b") []]
+        [Call (Symbol "b") [], Call (Symbol "a") []]
     equal (f "a | b | c") $ Right $
-        [Call (Symbol "a") [], Call (Symbol "b") [], Call (Symbol "c") []]
+        [Call (Symbol "c") [], Call (Symbol "b") [], Call (Symbol "a") []]
 
     equal (f "a") $ Right [Call (Symbol "a") []]
     equal (f "a 42") $ Right [Call (Symbol "a") [VNum 42]]
@@ -44,10 +44,10 @@ test_parse = do
     equal (f "|") $ Right [Call (Symbol "") [], Call (Symbol "") []]
 
     equal (f "a|b=4|>inst %sig") $ Right
-        [ Call (Symbol "a") []
-        , Call (Symbol "=") [VSymbol (Symbol "b"), VNum 4]
-        , Call (Symbol "") [VInstrument (Score.Instrument "inst"),
+        [ Call (Symbol "") [VInstrument (Score.Instrument "inst"),
             VSignal (Signal (Nothing, Just (Score.Control "sig")))]
+        , Call (Symbol "=") [VSymbol (Symbol "b"), VNum 4]
+        , Call (Symbol "a") []
         ]
 
 test_p_val = do
@@ -68,7 +68,7 @@ test_p_val = do
             , ("+a", mkattr (Add, "a"))
             , ("-b", mkattr (Remove, "b"))
             , ("=c", mkattr (Set, "c"))
-            , ("=", mkattr (Clear, ""))
+            , ("=-", mkattr (Clear, ""))
             , ("+aB", Nothing)
 
             , ("0", Just (VNum 0))
