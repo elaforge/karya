@@ -15,4 +15,4 @@ note_calls :: Derive.CallMap
 note_calls = Map.unions [Basic.note_calls, Rambat.note_calls]
 
 control_calls :: Derive.CallMap
-control_calls = Map.unions [Basic.control_calls, Rambat.control_calls]
+control_calls = Map.unions [Basic.control_calls]

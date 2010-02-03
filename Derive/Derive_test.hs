@@ -201,6 +201,20 @@ test_tempo_ops = do
         Derive.d_warp slow $ record)) $
             Right [1, 17]
 
+test_global_to_local = do
+    let extract (val, _, logs) = Log.trace_logs logs val
+    let f do_warp pos = fmap extract $ DeriveTest.run State.empty $
+            do_warp (Derive.global_to_local =<< Derive.local_to_global pos)
+    equal (f id 1) (Right 1)
+    equal (f (Derive.d_at 5) 1) (Right 1)
+    equal (f (Derive.d_stretch 5) 1) (Right 1)
+    equal (f (Derive.d_stretch 5 . Derive.d_at 5) 1) (Right 1)
+    let slow = Signal.signal [(0, 0), (1, 2), (2, 4), (3, 6), (100, 200)]
+    equal (f (Derive.d_warp slow . Derive.d_stretch 5 . Derive.d_at 5) 1)
+        (Right 1)
+    equal (f (Derive.d_stretch 5 . Derive.d_at 5 . Derive.d_warp slow) 1)
+        (Right 1)
+
 track_specs =
     [ ("tempo", [(0, 0, "2")])
     , (">i1", [(0, 8, "--b1"), (8, 8, "--b2"), (16, 1, "--b3")])

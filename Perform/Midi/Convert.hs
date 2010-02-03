@@ -64,7 +64,7 @@ convert_pitch psig = case Map.lookup scale_id Scale.scale_map of
     Nothing -> do
         warn $ "unknown scale: " ++ show scale_id
         return (Signal.constant Signal.invalid_pitch)
-    Just scale -> return $ PitchSignal.convert scale psig
+    Just scale -> return $ PitchSignal.to_nn scale psig
     where scale_id = PitchSignal.sig_scale psig
 
 -- * monad

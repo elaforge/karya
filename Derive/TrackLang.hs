@@ -375,6 +375,16 @@ extract_arg argno arg maybe_val = case (arg_default arg, maybe_val2) of
 type Expr = [Call]
 data Call = Call CallId [Val] deriving (Eq, Show)
 
+-- | Convenient constructor for Call.  Not to be confused with 'call0'--calln.
+--
+-- TODO I should be able to have different types of vals, but I think I need an
+-- existential wrapper for that, or an infix operator.
+call :: String -> Call
+call sym = Call (Symbol sym) []
+
+-- expr :: (Typecheck a) => [(String, [a])] -> Expr
+-- expr = reverse . map (uncurry call)
+
 -- TODO These should remain the same as the ones in Derive.Schema.Default for
 -- consistency.  I can't use those directly because of circular imports.
 note_track_prefix, pitch_track_prefix :: String

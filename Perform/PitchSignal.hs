@@ -31,7 +31,7 @@ module Perform.PitchSignal (
     , unpack
 
     , at, at_linear, sample
-    , convert
+    , to_nn
 
     , sig_add
     , sig_max, sig_min
@@ -146,8 +146,8 @@ sample :: X -> PitchSignal -> [(X, Y)]
 sample start sig = SignalBase.sample start (sig_vec sig)
 
 -- | Flatten a pitch signal into an absolute note number signal.
-convert :: Pitch.Scale -> PitchSignal -> Signal.NoteNumber
-convert scale psig = Signal.Signal (V.map f (sig_vec psig))
+to_nn :: Pitch.Scale -> PitchSignal -> Signal.NoteNumber
+to_nn scale psig = Signal.Signal (V.map f (sig_vec psig))
     where
     f (x, (from, to, at)) = case (to_nn from, to_nn to) of
         (Just nn0, Just nn1) -> (x, Num.scale nn0 nn1 at)
@@ -155,6 +155,9 @@ convert scale psig = Signal.Signal (V.map f (sig_vec psig))
     to_nn n = fmap un_nn
         (Pitch.scale_degree_to_nn scale (Pitch.Degree (realToFrac n)))
     un_nn (Pitch.NoteNumber n) = n
+
+to_scalar :: Y -> Signal.Y
+to_scalar (from, to, at) = Num.scale (realToFrac from) (realToFrac to) at
 
 -- * transformation
 
@@ -164,14 +167,11 @@ sig_add = sig_op add
     add y0@(from0, to0, _) y1@(from1, to1, _) = (from, to, at)
         where
         (from, to) = (from0 + from1, to0 + to1)
-        at = Num.normalize from to (realToFrac (reduce y0 + reduce y1))
+        at = Num.normalize from to (realToFrac (to_scalar y0 + to_scalar y1))
 
 sig_max, sig_min :: PitchSignal -> Relative -> PitchSignal
-sig_max = sig_op $ \y0 y1 -> ymax (reduce y1) y0
-sig_min = sig_op $ \y0 y1 -> ymin (reduce y1) y0
-
-reduce :: Y -> Signal.Y
-reduce (from, to, at) = Num.scale (realToFrac from) (realToFrac to) at
+sig_max = sig_op $ \y0 y1 -> ymax (to_scalar y1) y0
+sig_min = sig_op $ \y0 y1 -> ymin (to_scalar y1) y0
 
 -- ** scalar transformation
 
@@ -220,5 +220,4 @@ to_degree :: Float -> Pitch.Degree
 to_degree f = Pitch.Degree (realToFrac f)
 
 y_to_degree :: Y -> Pitch.Degree
-y_to_degree (from, to, at) =
-    Pitch.Degree (Num.scale (realToFrac from) (realToFrac to) at)
+y_to_degree = Pitch.Degree . to_scalar

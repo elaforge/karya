@@ -90,3 +90,61 @@ notes, except more awkwardly because of two tracks
 - track collapsing
 - track muting
 - track merging
+
+
+2010-02-01
+the problem:
+transform deriver maps across the derivers, but c_equal as a generator sets
+the evaluating env.  It would have to map across derivers after its pos.
+
+I want to expose the note structure to transformers, but I want to allow
+functions to behave as they please, which implies opacity.
+
+Processing Event.Events makes it hard to modify signals since they don't have
+signals attached.
+
+Process Score.Events completely bypasses abstraction, you can only manipulate
+the events concretely and in global time.
+
+Processing Derivers means that transformers can't deal with events at all.
+Global things like echo with constant delay would work, variable delay would
+not work.  What's more, notation like tick may not work.  This is theoretically
+the nicest way, but I have to push everything down to the evaluation level.
+The thing that's hard to do is modifying sets of events together.
+
+- tick: look at prev pos and pitch and next pos and pitch, emit EventDeriver
+based on that.
+
+- suppress previous note: I think I can better implement this as a block arg
+anyway, but in any case this works with Score.Events so it's a post proc,
+I think I need the notation pass-through thing (directives).  So I would emit
+(EventDeriver, [leftover_event]).
+
+- tuplet: Evaluated at call time, should be fine.
+
+- clip-call: Should be fine.
+
+- seleh: I could snarf future events, evaluate them, and then manipulate the
+resulting derivers.  So I need a way to snag a bunch of future events and turn
+them into derivers.  So the event map should look like:
+[previous_event] -> [following_event] -> (EventDeriver, consumed).
+
+derive_notes prev next = do
+    let (d, consumed) = derive_note prev next
+    events <- d
+    -- optimize consumed=1?
+    let (pre, post) = splitAt consumed next
+    rest_events <- derive_notes (reverse pre ++ prev) post
+    return (merge events rest_events)
+
+Conclusion:
+    - implement new derive_notes map, change Call signature
+    - remove NoteDeriver
+    - come up with a syntax for Ui Event preproc
+
+Ideally I want to be able to process things at all levels, preprocess
+Event.Events, postprocess Score.Events, and abstractly manipulate Derivers.
+I can postprocess Score.Events by forcing the Deriver and re-packaging it at
+the cost of evaluating behaviours (I would have to at least handle warp).
+Preprocess would need a special notation at the track level, though I can see
+it wanting the control tracks too, so maybe also at the block level.

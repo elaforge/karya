@@ -426,12 +426,25 @@ Derive:
       take advantage of behavioural abstraction.  Then 'a | b' is
       really 'b . a'.
 
+  - Since I may multiply a control just for a particular note, it would be
+    nice to only evaltuate the parts that are actually needed.  I think a
+    lazy bytetring should do this correctly, only forcing chunks that are hit
+    during the bsearch.
+  - dynamics controls:
+    - volume, velocity, and breath map directly to midi vals
+    - pres is continuous volume, maps to velocity or breath depending on inst
+    - vel is attack volume, maps to velocity or breath but is only sampled at
+      the beginning of the note
+  - make local time and global time different types?
+  - to cut the middle out of a pattern: a cut signal that disabled derivation
+    when it's 1?
+
   tracklang2:
     * data NoteDeriver = (start, dur, EventDeriver)
     * note track emits [NoteDeriver], merges to EventDeriver
     * replace d_note with d_null_call
     * implement Equal
-    - re-implement tick
+    * re-implement tick
     - re-implement echo
     - arg processing: arg defaults taken automatically from the env, if
       prefixed with call name: "call-arg"
@@ -442,8 +455,14 @@ Derive:
     - come up with a syntax for Ui.Event preproc calls
     - negative duration postproc
     - put TrackLang.Val into Pretty
+    - default args are in Deriver, so I can have e.g. trill default to current
+      pitch+1
 
     - Cmd: after entering 'x = y' event, can it automatically set dur=0?
+
+    - When looking for the next note on, I should skip notes which are just
+      'statements' that produce no notes.  That way a var set won't interrupt
+      the pitch sig.
 
     * parser support for '='
     * val typed signals
@@ -519,10 +538,6 @@ Derive:
       't *n1 *n2 *n3 |' runs deriver three times with three different
       pitches.
 
-    - Also, when looking for the next note on, I should skip notes which are
-      just 'statements' that produce no notes.  That way I can set a var
-      without screwing up negative duration dur calculation.
-
     - Implement clip-call:
       Undo the call stretchig, this should be efficient because of stretch
       combining:
@@ -535,33 +550,46 @@ Derive:
       though.  'restore'?  'abs-dur'?
 
     - Implement seleh derivation.  The tricky thing here is I want n notes, not
-      a call with n args.  But I don't necessarily want to derive to
-      Score.Event and postprocess, I want to transform Ui.Event.  What it
-      really wants to work with is [Deriver].  So maybe I can split the track
-      parsing  process into:
-        TrackId -> [(start, dur, Parsed)] -> [(start, dur, Deriver)]
-        -> [Deriver] -> Deriver
+      a call with n args.  Use the Generator "consumed" return val for this.
         Seleh can pair derivers:
           seq [stretch 0.5 (seq d1 d2), stretch 0.5 (seq d1 d2)]
           (d1 @> d2) ~ 0.5 @> (d1 @> d2) ~ 0.5
-        Of course, I may also want to get destinations based on where they are
-        in the beat, so I'd need the (start, dur, Deriver) format.  Without
-        logical-stop I don't know how long a Deriver is, so I need the triples.
-      So how to insert a deriver, or replace the note-placing step?
 
-      Maybe I can make Derive = (start, dur, EventDeriver).  This is like
-      logical-stop except that it's under control of the caller, the deriver
-      itself has no control over its stop time.  Sequence is nice in that it
-      guarantees an increasing time, but these would be combined with merge
-      and have to have their own external sorted guarantee, just like
-      [Score.Event].
+        Without logical-stop I can't sequence Derivers.
 
-      So track emits [Deriver], then track calls take [Deriver] -> [Deriver],
-      the final track operation is a merge.
+      It would be nice to do a piece on seleh patterns where the form itself is
+      in the same pattern, for a kind of fractal structure.  How to have
+      a pattern derive patterns?
 
-      I might even be able to use this to get negative durations right.  The
-      [Deriver] merge can pass next note on... but it wants next event on, so
-      it still has to query the next deriver.
+      - pass the calls as block args
+      - put the null deriver in the env
+      - more general than the above: dynamically scoped call map and syntax to
+        modify it
+      - env var that prepends or appends calls to notes.  actually, this is
+        better done as a preproc.
+
+      Maybe I could unify the env and call map and also a general variable
+      facility: var = val -- 'var' is a symbol, so assign to the call map,
+      'val' is a symbol so look up in call map and env
+
+      call var var -- look up 'var's
+
+      This way I need a VFunction type and variable lookup.
+
+    - Implement trill
+      - use relative default arg for other note
+      - absolute tempo version that adds new cycles when stretched
+      - version with n cycles that stretches with tempo
+      - hybrid where the initial part stretches, final part is absolute
+      - to give time intervals, I think Derive has to have access to the rulers
+
+    - Controlling notation parameters, e.g. does trill start on upper or lower
+      note: calls have descriptive names, and you can set the generic name in
+      the env.  They can also call other calls which can be replaced in the
+      env, so e.g. hybrid-trill could call 'hybrid-trill-start' and
+      'hybrid-trill-decay' and expect those to be set.  This is sort of like
+      the OO template pattern, but is less disciplined because they come from
+      a global environment.  Is there a more principled way to do this?
 
   PitchTrack pitch
     - implement PitchTrack.cmd_raw edit, so I can enter fractional notes

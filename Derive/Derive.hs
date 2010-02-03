@@ -329,7 +329,7 @@ make_inverse_tempo_func track_warps ts = do
     track_pos = [(tw_block tw, tw_tracks tw, dewarp (tw_warp tw) ts) |
             tw <- track_warps, tw_start tw <= pos && pos < tw_end tw]
     dewarp (Warp sig shift stretch) ts = do
-        p <- Signal.inverse_at sig ts
+        p <- Signal.inverse_at sig (Timestamp.to_track_pos ts)
         return $ (p - shift)  / stretch
 
 modify :: (Monad m) => (State -> State) -> DeriveT m ()
@@ -469,15 +469,26 @@ type PitchOp = PitchSignal.PitchSignal -> PitchSignal.Relative
 --
 -- Control events don't have their own signal, but there is a signal in the
 -- environment at the time of their evaluation.
-control_at :: (Monad m) => TrackPos -> Score.Control -> Maybe Signal.Y
+control_at :: (Monad m) => Score.Control -> Maybe Signal.Y -> TrackPos
     -> DeriveT m Signal.Y
-control_at pos cont deflt = do
+control_at cont deflt pos = do
     controls <- gets state_controls
     case Map.lookup cont controls of
         Nothing -> maybe
             (throw $ "control_at: not in environment and no default given: "
                 ++ show cont) return deflt
-        Just sig -> return (Signal.at pos sig)
+        Just sig -> do
+            global_pos <- local_to_global pos
+            return (Signal.at global_pos sig)
+
+pitch_at :: (Monad m) => TrackPos -> DeriveT m PitchSignal.Y
+pitch_at pos = do
+    pitches <- gets state_pitch
+    global_pos <- local_to_global pos
+    return (PitchSignal.at global_pos pitches)
+
+pitch_degree_at :: (Monad m) => TrackPos -> DeriveT m Pitch.Degree
+pitch_degree_at pos = fmap PitchSignal.y_to_degree (pitch_at pos)
 
 with_control :: (Monad m) =>
     Score.Control -> Signal.Control -> DeriveT m t -> DeriveT m t
@@ -513,6 +524,11 @@ with_pitch signal op = do
     modify $ \st -> st { state_pitch = old }
     return result
 
+with_constant_pitch :: (Monad m) => Pitch.Degree -> DeriveT m t -> DeriveT m t
+with_constant_pitch degree op = do
+    pitch <- gets state_pitch
+    with_pitch (PitchSignal.constant (PitchSignal.sig_scale pitch) degree) op
+
 with_relative_pitch :: (Monad m) =>
     Operator -> PitchSignal.Relative -> DeriveT m t -> DeriveT m t
 with_relative_pitch c_op signal op = do
@@ -528,6 +544,16 @@ with_relative_pitch c_op signal op = do
             result <- op
             modify $ \st -> st { state_pitch = old }
             return result
+
+-- *** specializations
+
+velocity_at :: (Monad m) => TrackPos -> DeriveT m Signal.Y
+velocity_at = control_at Score.c_velocity (Just default_velocity)
+
+with_velocity :: (Monad m) => Signal.Control -> DeriveT m t -> DeriveT m t
+with_velocity = with_control Score.c_velocity
+
+-- *** control ops
 
 lookup_control_op :: (Monad m) => Operator -> DeriveT m ControlOp
 lookup_control_op c_op = do
@@ -666,6 +692,13 @@ local_to_global :: (Monad m) => TrackPos -> DeriveT m TrackPos
 local_to_global pos = do
     warp <- gets state_warp
     return (warp_at pos warp)
+
+global_to_local :: (Monad m) => TrackPos -> DeriveT m TrackPos
+global_to_local pos = do
+    Warp sig shift stretch <- gets state_warp
+    x <- maybe (throw $ "global_to_local out of range: " ++ show pos) return
+        (Signal.inverse_at sig pos)
+    return $ (x - shift) / stretch
 
 warp_at :: TrackPos -> Warp -> TrackPos
 warp_at pos (Warp sig shift stretch) =

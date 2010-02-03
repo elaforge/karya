@@ -41,7 +41,7 @@ test_clip_min_max = do
         (map (\d -> [(1, (1, 5, d))]) [0, 0, 0.25, 0.5, 0.5, 0.5, 0.5])
 
 test_sig_add = do
-    let conv = PitchSignal.convert Twelve.scale
+    let conv = PitchSignal.to_nn Twelve.scale
     let f = PitchSignal.sig_add
 
     let s0 = tsig [(0, Set, 4), (4, Linear, 0)]

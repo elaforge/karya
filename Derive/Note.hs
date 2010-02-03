@@ -135,7 +135,7 @@ import qualified Ui.Track as Track
 
 import qualified Derive.Derive as Derive
 import qualified Derive.TrackLang as TrackLang
-import qualified Derive.Call.Basic as Call.Basic
+import qualified Derive.Call as Call
 
 
 -- | Notes with negative duration have an implicit sounding duration which
@@ -153,7 +153,7 @@ d_note_track track_id = do
     title_expr <- case TrackLang.parse (Track.track_title track) of
         Left err -> Derive.throw $ "track title: " ++ err
         Right expr -> return expr
-    join $ eval_transformer "title" title_expr (derive_notes pos_events)
+    join $ Call.eval_transformer "title" title_expr (derive_notes pos_events)
 
 {-
 sequence_notes :: Derive.OrderedNoteDerivers -> Derive.EventDeriver
@@ -257,46 +257,4 @@ derive_note prev cur@(_, event) next
     | Event.event_string event == "--" = skip_event
     | otherwise = case TrackLang.parse (Event.event_string event) of
         Left err -> Derive.warn err >> skip_event
-        Right expr -> eval_generator "note" expr prev cur next
-
-eval_generator :: String -> TrackLang.Expr -> [Track.PosEvent] -> Track.PosEvent
-    -> [Track.PosEvent] -> Derive.Deriver (Derive.EventDeriver, Int)
-eval_generator caller (TrackLang.Call call_id args : rest) prev cur next = do
-    let msg = "eval_generator " ++ show caller ++ ": "
-    call <- Call.Basic.lookup_note_call call_id
-    case Derive.call_generator call of
-        Nothing -> do
-            Derive.warn $ msg ++ "non-generator " ++ show call_id
-                ++ " in generator position"
-            skip_event
-        Just c -> case c args prev cur next of
-            Left err -> do
-                Derive.warn $ msg ++ TrackLang.show_type_error err
-                skip_event
-            Right (deriver, consumed) -> do
-                deriver <- eval_transformer caller rest deriver
-                return (deriver, consumed)
-eval_generator _ [] _ cur _ = Derive.throw $
-    "event with no calls at all (this shouldn't happen): " ++ show cur
-
-eval_transformer :: String -> TrackLang.Expr -> Derive.EventDeriver
-    -> Derive.Deriver Derive.EventDeriver
-eval_transformer caller (TrackLang.Call call_id args : rest) deriver = do
-    let msg = "eval_transformer " ++ show caller ++ ": "
-    call <- Call.Basic.lookup_note_call call_id
-    case Derive.call_transformer call of
-        Nothing -> do
-            Derive.warn $ msg ++ "non-transformer " ++ show call_id
-                ++ " in transformer position"
-            return (return [])
-        Just c -> case c args deriver of
-            Left err -> do
-                Derive.warn $ msg ++ TrackLang.show_type_error err
-                return (return [])
-            Right deriver ->
-                eval_transformer caller rest (handle_exc call_id deriver)
-eval_transformer _ [] deriver = return deriver
-
-handle_exc :: TrackLang.CallId -> Derive.EventDeriver -> Derive.EventDeriver
-handle_exc call_id deriver = fmap (maybe [] id) (Derive.catch_warn msg deriver)
-    where msg s = "exception in " ++ show call_id ++ ": " ++ s
+        Right expr -> Call.eval_generator "note" expr prev cur next

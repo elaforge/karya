@@ -89,7 +89,6 @@ import qualified Util.Log as Log
 import Ui
 import qualified Ui.Track as Track
 
-import qualified Perform.Timestamp as Timestamp
 import qualified Perform.SignalBase as SignalBase
 import Perform.SignalBase (Method(..), Segment, max_x, default_srate)
 
@@ -287,14 +286,14 @@ sig_op op sig0 sig1 =
 --
 -- This uses a bsearch on the vector, which is only reasonable as long as
 -- its strict.  When I switch to lazy vectors, I'll have to thread the tails.
-inverse_at :: Warp -> Timestamp.Timestamp -> Maybe X
-inverse_at sig ts
+inverse_at :: Warp -> TrackPos -> Maybe X
+inverse_at sig pos
     | i >= V.length vec = Nothing
     | y1 == y = Just x1
     | otherwise = Just $ y_to_x $ x_at (x_to_y x0) y0 (x_to_y x1) y1 y
     where
     vec = sig_vec sig
-    y = x_to_y (Timestamp.to_track_pos ts)
+    y = x_to_y pos
     i = SignalBase.bsearch_on vec snd y
         -- This can create x0==x1, but y1 should == y in that case.
     (x0, y0) = if i-1 < 0 then (0, 0) else V.index vec (i-1)

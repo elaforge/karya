@@ -1,20 +1,157 @@
 -- | Utilities for writing calls.  This is higher-level than TrackLang, so
 -- it can import "Derive.Derive".
 module Derive.Call where
-import qualified Data.DList as DList
+-- import qualified Data.DList as DList
 import qualified Data.Map as Map
-import qualified Data.Set as Set
-import qualified Util.Log as Log
-import qualified Util.Map as Map
+-- import qualified Data.Set as Set
+-- import qualified Util.Log as Log
+-- import qualified Util.Map as Map
+
+import Ui
+import qualified Ui.Event as Event
+import qualified Ui.Id as Id
+import qualified Ui.State as State
+import qualified Ui.Track as Track
+import qualified Ui.Types as Types
 
 import qualified Derive.Derive as Derive
 import qualified Derive.TrackLang as TrackLang
-import qualified Derive.Score as Score
--- import qualified Derive.Note as Note
+-- import qualified Derive.Score as Score
+import qualified Derive.Call.Basic as Basic
 
 import qualified Perform.Signal as Signal
 
 
+-- * signals
+
+with_signals :: TrackPos -> [TrackLang.Signal]
+    -> ([Signal.Y] -> Derive.Deriver a) -> Derive.Deriver a
+with_signals pos sigs f = f =<< mapM (get_signal pos) sigs
+
+get_signal :: TrackPos -> TrackLang.Signal -> Derive.Deriver Signal.Y
+get_signal pos (TrackLang.Signal (deflt, control)) = case control of
+    Nothing -> maybe (Derive.throw $ "TrackLang.Signal with no control and no "
+        ++ "default value is silly") return deflt
+    Just cont -> Derive.control_at cont deflt pos
+
+-- * util
+
+one_note :: Either TrackLang.TypeError Derive.EventDeriver
+    -> Either TrackLang.TypeError (Derive.EventDeriver, Int)
+one_note = fmap $ \d -> (d, 1)
+
+skip_event :: GeneratorReturn
+skip_event = return (return [], 1)
+
+-- * eval
+
+type GeneratorReturn = Derive.Deriver (Derive.EventDeriver, Int)
+
+-- | Evaluate a single note as a generator.  Fake up an event with no prev or
+-- next lists.
+eval_one :: String -> TrackPos -> TrackPos -> TrackLang.Expr
+    -> Derive.EventDeriver
+eval_one caller start dur expr = do
+    -- Since the event was fake, I don't care if it wants to consume.
+    (deriver, _) <- eval_generator caller expr []
+        (event start dur ("expr: " ++ show expr)) []
+    deriver
+
+event :: TrackPos -> TrackPos -> String -> Track.PosEvent
+event start dur text = (start, Event.event text dur)
+
+eval_generator :: String -> TrackLang.Expr -> [Track.PosEvent] -> Track.PosEvent
+    -> [Track.PosEvent] -> GeneratorReturn
+eval_generator caller (TrackLang.Call call_id args : rest) prev cur next = do
+    let msg = "eval_generator " ++ show caller ++ ": "
+    call <- lookup_note_call call_id
+    case Derive.call_generator call of
+        Nothing -> do
+            Derive.warn $ msg ++ "non-generator " ++ show call_id
+                ++ " in generator position"
+            skip_event
+        Just c -> case c args prev cur next of
+            Left err -> do
+                Derive.warn $ msg ++ TrackLang.show_type_error err
+                skip_event
+            Right (deriver, consumed) -> do
+                deriver <- eval_transformer caller rest
+                    (handle_exc "generator" call_id deriver)
+                return (deriver, consumed)
+eval_generator _ [] _ cur _ = Derive.throw $
+    "event with no calls at all (this shouldn't happen): " ++ show cur
+
+eval_transformer :: String -> TrackLang.Expr -> Derive.EventDeriver
+    -> Derive.Deriver Derive.EventDeriver
+eval_transformer caller (TrackLang.Call call_id args : rest) deriver = do
+    let msg = "eval_transformer " ++ show caller ++ ": "
+    call <- lookup_note_call call_id
+    case Derive.call_transformer call of
+        Nothing -> do
+            Derive.warn $ msg ++ "non-transformer " ++ show call_id
+                ++ " in transformer position"
+            return (return [])
+        Just c -> case c args deriver of
+            Left err -> do
+                Derive.warn $ msg ++ TrackLang.show_type_error err
+                return (return [])
+            Right deriver ->
+                eval_transformer caller rest
+                    (handle_exc "transformer" call_id deriver)
+eval_transformer _ [] deriver = return deriver
+
+handle_exc :: String -> TrackLang.CallId -> Derive.EventDeriver
+    -> Derive.EventDeriver
+handle_exc call_type call_id deriver = fmap (maybe [] id) $
+    Derive.catch_warn ("exception: "++) (Derive.with_msg msg deriver)
+    where
+    msg = call_type ++ " " ++ show call_id
+
+-- * lookup_note_call
+
+-- | This is here instead of Derive because note calls first look at the block
+-- ids to derive a block.
+lookup_note_call :: TrackLang.CallId -> Derive.Deriver Derive.Call
+lookup_note_call call_id = do
+    st <- Derive.get
+    let default_ns = State.state_project (Derive.state_ui st)
+        block_id = Types.BlockId (make_id default_ns call_id)
+    let call_map = Derive.calls_note (Derive.state_call_map st)
+    if block_id `Map.member` State.state_blocks (Derive.state_ui st)
+        then return $ Basic.c_block block_id
+        else case Map.lookup call_id call_map of
+            Nothing -> return (c_not_found call_id)
+            Just call -> return call
+
+-- | I don't want to abort all of derivation by throwing, but I do want to
+-- abort evaluation of this expression, so consider this a kind of type error,
+-- which does just that.
+c_not_found :: TrackLang.CallId -> Derive.Call
+c_not_found call_id = Derive.Call
+    (Just $ \_ _ _ _ -> err) (Just $ \_ _ -> err)
+    where err = Left (TrackLang.CallNotFound call_id)
+
+-- | Make an Id from a string, relative to the current ns if it doesn't already
+-- have one.
+--
+-- TODO move this to a more generic place since LanguageCmds may want it to?
+make_id :: String -> TrackLang.CallId -> Id.Id
+make_id default_ns (TrackLang.Symbol ident_str) = Id.id ns ident
+    where
+    (w0, w1) = break (=='/') ident_str
+    (ns, ident) = if null w1 then (default_ns, w0) else (w0, drop 1 w1)
+
+
+-- * map score events
+
+-- Functions here force a Deriver into its Score.Events and process them
+-- directly, and then repackage them as a Deriver.  This can accomplish
+-- concrete post-processing type effects but has the side-effect of collapsing
+-- the Deriver, which will no longer respond to the environment.
+--
+-- The warp behaviour is reinstated though.
+
+{-
 -- | Transform an event list.  As a convenience, you can optionally pass a list
 -- of signals which will be looked up at each event start.
 --
@@ -58,7 +195,6 @@ with_signals sigs f context@(_, _, event, _) = do
     vals <- event_signals event sigs
     f vals context
 
-{-
 with_directive :: (Monad m) => (TrackLang.CallId -> Bool)
     -> (Note.Call -> EventContext st -> Result m st)
     -> EventContext st -> Result m st
@@ -73,7 +209,6 @@ with_directive is_dir f context@(st, _, event, _) =
             | otherwise -> return (st, [event])
 
 with_directive_calls call_ids = with_directive (is_call call_ids)
--}
 
 is_call :: [String] -> TrackLang.CallId -> Bool
 is_call call_id_strs call_id = Set.member call_id call_ids
@@ -117,3 +252,4 @@ foldM_neighbors f st xs = go st [] xs
     go st prev (x:xs) = do
         new_st <- f st prev x xs
         go new_st (x:prev) xs
+-}

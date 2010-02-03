@@ -1,7 +1,6 @@
 module Perform.Signal_test where
 import Util.Test
 
-import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Signal as Signal
 
 
@@ -11,7 +10,7 @@ unsig = Signal.unpack
 -- * transformation
 
 test_inverse_at = do
-    let f sig ts = Signal.inverse_at (mksig sig) (Timestamp.seconds ts)
+    let f sig pos_list = Signal.inverse_at (mksig sig) pos_list
     equal (map (f [(0, 0), (2, 2)]) [0..3])
         [Just 0, Just 1, Just 2, Nothing]
     equal (map (f [(1, 1), (2, 2)]) [0..3])

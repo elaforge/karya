@@ -7,13 +7,11 @@ import Ui
 -- import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 
-import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
-import qualified Derive.Note as Note
+-- import qualified Derive.Note as Note
 import qualified Derive.Score as Score
-import qualified Derive.TrackLang as TrackLang
 
-import qualified Perform.Pitch as Pitch
+-- import qualified Perform.Pitch as Pitch
 import qualified Perform.Warning as Warning
 
 
@@ -138,41 +136,6 @@ test_c_equal = do
     equal perf_warns []
     equal (DeriveTest.note_on_times mmsgs)
         [(0, 60, 100), (1000, 62, 100), (2000, 60, 40), (3000, 62, 40)]
-
--- test_tick = do
-    let extract = DeriveTest.extract_events $ \e ->
-            (Score.event_start e, Score.event_duration e, pitch e,
-                Score.initial_velocity e)
-        pitch e = let Pitch.Degree p = Score.initial_pitch e in p
-    let derive evts tracks = extract $ DeriveTest.derive_tracks_tempo
-            ((DeriveTest.default_inst_title++" | tick .5", evts) : tracks)
-    let vel = Derive.default_velocity
-
-    let (_evts, logs) = derive
-            [(0, 1, ";tick"), (1, 1, ";tick"), (2, 1, "")]
-            [("*twelve", [(0, 0, "4c"), (2, 0, "4d")])]
-    equal (map Log.msg_string logs)
-        ["compile (bid \"test/b1\") / note call \"tick\": no previous event"]
-    equal (map Log.msg_stack logs)
-        [Just (mkstack [("b1", "b1.t1", (0, 1))])]
-
-    let (evts, logs) = derive [(0, 1, ""), (1, 1, ";tick"), (2, 1, "")]
-            [("*twelve", [(0, 0, "4c"), (2, 0, "4d")])]
-    equal logs []
-    equal evts $ Right
-        [ (0, 1, 60, vel)
-        , (1.5,  0.5, 61, vel*0.5)
-        , (2, 1, 62, vel)
-        ]
-
-    let (evts, logs) = derive [(0, 0.5, ""), (0.5, 0.5, ";tick"), (1, 1, "")]
-            [("*twelve", [(0, 0, "4c"), (1, 0, "4d")])]
-    equal logs []
-    equal evts $ Right
-        [ (0, 0.5, 60, vel)
-        , (0.5,  0.5, 61, vel*0.5)
-        , (1, 1, 62, vel)
-        ]
 
 -- test_calls = do
     let extract = DeriveTest.extract_events DeriveTest.e_event

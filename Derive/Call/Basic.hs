@@ -1,14 +1,14 @@
 -- | A collection of basic calls.
+--
+-- Unlike other Call modules, this is imported by "Derive.Call" so it can't
+-- import it.  This is because c_block is hardcoded into
+-- 'Derive.Call.lookup_note_call'.
 module Derive.Call.Basic where
 import qualified Data.List as List
-import qualified Data.Map as Map
 
 import Ui
 import qualified Ui.Event as Event
-import qualified Ui.Id as Id
-import qualified Ui.State as State
 import qualified Ui.Track as Track
-import qualified Ui.Types as Types
 
 import qualified Derive.Derive as Derive
 import qualified Derive.TrackLang as TrackLang
@@ -26,32 +26,6 @@ note_calls = Derive.make_calls
 
 control_calls :: Derive.CallMap
 control_calls = Derive.make_calls []
-
-
--- | This is here instead of Derive because note calls first look at the block
--- ids to derive a block.
-lookup_note_call :: TrackLang.CallId -> Derive.Deriver Derive.Call
-lookup_note_call call_id = do
-    st <- Derive.get
-    let default_ns = State.state_project (Derive.state_ui st)
-        block_id = Types.BlockId (make_id default_ns call_id)
-    let call_map = Derive.calls_note (Derive.state_call_map st)
-    if block_id `Map.member` State.state_blocks (Derive.state_ui st)
-        then return $ c_block block_id
-        else case Map.lookup call_id call_map of
-            Nothing -> return (c_not_found call_id)
-            Just call -> return call
-
--- | I don't want to abort all of derivation by throwing, but I do want to
--- abort evaluation of this expression, so consider this a kind of type error,
--- which does just that.
-c_not_found :: TrackLang.CallId -> Derive.Call
-c_not_found call_id = Derive.Call
-    (Just $ \_ _ _ _ -> err) (Just $ \_ _ -> err)
-    where err = Left (TrackLang.CallNotFound call_id)
-
-one_note :: Derive.EventDeriver -> (Derive.EventDeriver, Int)
-one_note d = (d, 1)
 
 -- * note call
 
@@ -148,16 +122,6 @@ block_call block_id pos event =
     -- arriving at the trigger.
     (start, end) = (Track.event_min (pos, event), Track.event_max (pos, event))
 
--- | Make an Id from a string, relative to the current ns if it doesn't already
--- have one.
---
--- TODO move this to a more generic place since LanguageCmds may want it to?
-make_id :: String -> TrackLang.CallId -> Id.Id
-make_id default_ns (TrackLang.Symbol ident_str) = Id.id ns ident
-    where
-    (w0, w1) = break (=='/') ident_str
-    (ns, ident) = if null w1 then (default_ns, w0) else (w0, drop 1 w1)
-
 -- * equal
 
 c_equal :: Derive.Call
@@ -169,3 +133,8 @@ c_equal = Derive.Call
         (required "symbol", required "value" :: Arg TrackLang.Val)
     transform deriver sym val = Derive.with_val sym val deriver
     generate sym val = one_note $ Derive.put_val sym val >> return []
+
+-- * misc
+
+one_note :: Derive.EventDeriver -> (Derive.EventDeriver, Int)
+one_note d = (d, 1)
