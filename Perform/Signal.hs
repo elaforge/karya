@@ -60,7 +60,7 @@ module Perform.Signal (
     , Tempo, Warp, Control, NoteNumber, Display
 
     , signal, constant, track_signal, Method(..), Segment
-    , unpack, to_track_samples
+    , unsignal, to_track_samples
     , log_signal
     , coerce
 
@@ -147,7 +147,7 @@ instance SignalBase.Y Y where
     project y0 y1 at = Num.scale y0 y1 at
 
 instance Show (Signal y) where
-    show (Signal vec) = "Signal " ++ show (V.unpack vec)
+    show (Signal vec) = "Signal " ++ show (SignalBase.unsignal vec)
 
 x_to_y :: X -> Y
 x_to_y (TrackPos x) = x
@@ -181,7 +181,7 @@ tempo_srate = 0.1
 -- * construction / deconstruction
 
 signal :: [(X, Y)] -> Signal y
-signal ys = Signal (V.pack ys)
+signal ys = Signal (SignalBase.signal ys)
 
 constant :: Y -> Signal y
 constant n = signal [(0, n)]
@@ -189,20 +189,20 @@ constant n = signal [(0, n)]
 track_signal :: X -> [SignalBase.Segment] -> Signal y
 track_signal srate segs = Signal (SignalBase.track_signal srate segs)
 
--- | Used for tests.
-unpack :: Signal y -> [(X, Y)]
-unpack = V.unpack . sig_vec
-
 -- | A hack to log a signal.  This way it can be extracted later and displayed
 -- in a format that's nicer than a huge log line.
 log_signal :: Signal y -> Log.Msg -> Log.Msg
 log_signal sig msg =
-    msg { Log.msg_signal = [(x, y) | (TrackPos x, y) <- unpack sig] }
+    msg { Log.msg_signal = [(x, y) | (TrackPos x, y) <- unsignal sig] }
 
 -- | TODO This is used by the signal deriver and is inefficient.  I should be
 -- passing a pointer.
 to_track_samples :: Signal y -> Track.Samples
-to_track_samples = Track.samples . unpack
+to_track_samples = Track.samples . unsignal
+
+-- | Used for tests.
+unsignal :: Signal y -> [(X, Y)]
+unsignal = SignalBase.unsignal . sig_vec
 
 -- | Sometimes signal types need to be converted.
 coerce :: Signal y0 -> Signal y1
@@ -286,8 +286,8 @@ sig_op op sig0 sig1 =
 --
 -- This uses a bsearch on the vector, which is only reasonable as long as
 -- its strict.  When I switch to lazy vectors, I'll have to thread the tails.
-inverse_at :: Warp -> TrackPos -> Maybe X
-inverse_at sig pos
+inverse_at :: TrackPos -> Warp -> Maybe X
+inverse_at pos sig
     | i >= V.length vec = Nothing
     | y1 == y = Just x1
     | otherwise = Just $ y_to_x $ x_at (x_to_y x0) y0 (x_to_y x1) y1 y

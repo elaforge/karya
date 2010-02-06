@@ -41,6 +41,15 @@ class (Eq y) => Y y where
 
 type X = TrackPos
 
+signal :: (Signal y) => [(X, y)] -> SigVec y
+signal xs@((x, _):_)
+    | x == 0 = V.pack xs
+    | otherwise = V.pack ((0, zero_y) : xs)
+signal [] = V.pack []
+
+unsignal :: (Signal y) => SigVec y -> [(X, y)]
+unsignal = V.unpack
+
 -- * constants
 
 -- | Used to create a segment that continues \"forever\".
@@ -54,29 +63,33 @@ default_srate = TrackPos 0.05
 -- * access
 
 at :: (Signal y) => X -> SigVec y -> y
-at x vec = case highest_index x vec of
-    Just i | i >= 0 -> snd (V.index vec i)
-    _ -> zero_y
+at x vec
+    | i >= 0 = snd (V.index vec i)
+    | not (V.null vec) = snd (V.index vec 0)
+    | otherwise = zero_y
+    where i = highest_index x vec
 
 -- | 'at' with linear interpolation.
 at_linear :: (Signal y) => X -> SigVec y -> y
-at_linear x vec = maybe zero_y (interpolate x vec) (highest_index x vec)
+at_linear x vec = interpolate x vec (highest_index x vec)
     where
     interpolate x vec i
+        | V.null vec = zero_y
         | i + 1 >= V.length vec = y0
+        | i < 0 = snd (V.index vec 0)
         | otherwise = y_at x0 y0 x1 y1 x
         where
-        (x0, y0) = if i < 0 then (0, zero_y) else V.index vec i
+        (x0, y0) = V.index vec i
         (x1, y1) = V.index vec (i+1)
 
 
 -- | Return the highest index of the given X.  So the next value is
 -- guaranteed to have a higher x, if it exists.  Return -1 if @x@ is before
 -- the first element.
-highest_index :: (Signal y) => X -> SigVec y -> Maybe Int
+highest_index :: (Signal y) => X -> SigVec y -> Int
 highest_index x vec
-    | V.length vec == 0 = Nothing
-    | otherwise = Just (i-1)
+    | V.length vec == 0 = -1
+    | otherwise = i - 1
     where i = bsearch_above vec fst x
 
 -- | Generate samples starting at a certain point in the signal.
@@ -114,7 +127,7 @@ bsearch_above vec key v = go vec 0 (V.length vec)
 
 -- | Convert the track-level representation of a signal to a Signal.
 track_signal :: (Signal y) => X -> [Segment] -> SigVec y
-track_signal srate segs = V.pack (concat pairs)
+track_signal srate segs = signal (concat pairs)
     where
     pairs = case segs of
         (x, _, y) : rest | x == 0 ->
@@ -212,7 +225,7 @@ sig_op :: (Signal v0, Signal v1) =>
 sig_op op sig0 sig1 =
     -- This inefficiently unpacks to a list and back.  Later implement
     -- a resample that doesn't unpack.
-    V.pack [(x, op y0 y1) | (x, y0, y1) <- resample_to_list sig0 sig1]
+    signal [(x, op y0 y1) | (x, y0, y1) <- resample_to_list sig0 sig1]
 
 
 -- | Map a function across pairs of samples, threading an additional
@@ -230,7 +243,7 @@ map_signal_accum :: (Signal y) =>
     -> (accum -> (X, y) -> [(X, y)])
     -- ^ Given the final @(accum, (x, y))@, produce samples to append.
     -> accum -> SigVec y -> SigVec y
-map_signal_accum f final accum vec = V.pack (DList.toList result)
+map_signal_accum f final accum vec = signal (DList.toList result)
     where
     (last_accum, _, dlist) = V.foldl' go (accum, (0, zero_y), DList.empty) vec
     end = if V.null vec then [] else final last_accum (V.last vec)

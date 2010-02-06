@@ -28,7 +28,7 @@ module Perform.PitchSignal (
     , X, Y, max_x, default_srate
 
     , signal, constant, empty, track_signal, Method(..), Segment
-    , unpack
+    , unsignal
 
     , at, at_linear, sample
     , to_nn
@@ -109,13 +109,13 @@ instance SignalBase.Y Y where
     project y0 y1 at = (realToFrac y0, realToFrac y1, realToFrac at)
 
 instance Show PitchSignal where
-    show (PitchSignal scale_id vec) =
-        "PitchSignal (" ++ show scale_id ++ ") " ++ show (V.unpack vec)
+    show sig@(PitchSignal scale_id _) =
+        "PitchSignal (" ++ show scale_id ++ ") " ++ show (unsignal sig)
 
 -- * construction / deconstruction
 
 signal :: Pitch.ScaleId -> [(X, Y)] -> PitchSignal
-signal scale_id ys = PitchSignal scale_id (V.pack ys)
+signal scale_id ys = PitchSignal scale_id (SignalBase.signal ys)
 
 empty :: PitchSignal
 empty = constant (Pitch.ScaleId "empty signal")
@@ -133,8 +133,8 @@ track_signal scale_id srate segs = PitchSignal scale_id
         [(pos, meth, g) | (pos, meth, Pitch.Degree g) <- segs])
 
 -- | Used for tests.
-unpack :: PitchSignal -> [(X, Y)]
-unpack = V.unpack . sig_vec
+unsignal :: PitchSignal -> [(X, Y)]
+unsignal = SignalBase.unsignal . sig_vec
 
 -- * access
 

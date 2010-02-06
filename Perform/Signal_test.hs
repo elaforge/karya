@@ -5,12 +5,12 @@ import qualified Perform.Signal as Signal
 
 
 mksig = Signal.signal
-unsig = Signal.unpack
+unsig = Signal.unsignal
 
 -- * transformation
 
 test_inverse_at = do
-    let f sig pos_list = Signal.inverse_at (mksig sig) pos_list
+    let f sig pos_list = Signal.inverse_at pos_list (mksig sig)
     equal (map (f [(0, 0), (2, 2)]) [0..3])
         [Just 0, Just 1, Just 2, Nothing]
     equal (map (f [(1, 1), (2, 2)]) [0..3])

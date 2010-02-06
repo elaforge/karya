@@ -13,7 +13,7 @@ import Perform.SignalBase (Method(..))
 
 scale = Pitch.ScaleId "scale"
 mksig = PitchSignal.signal scale
-unsig = PitchSignal.unpack
+unsig = PitchSignal.unsignal
 tsig = PitchSignal.track_signal scale 1
 
 test_y_at = do
@@ -36,7 +36,8 @@ test_track_signal = do
 
 test_clip_min_max = do
     let sig = mksig [(1, (1, 5, 0.5))]
-    let f v = unsig (PitchSignal.clip_max v sig)
+    -- drop the initial (0, 0) since I know it's there
+    let f v = drop 1 $ unsig $ PitchSignal.clip_max v sig
     equal (map f (map Pitch.NoteNumber [0..6]))
         (map (\d -> [(1, (1, 5, d))]) [0, 0, 0.25, 0.5, 0.5, 0.5, 0.5])
 
