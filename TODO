@@ -5,11 +5,10 @@
 - signal deriver doesn't record track in stack
 - try record punning
 
-CURRENT
+UNSORTED
   * SignalBase: the sample at 0 should extend to -inf, so if at gets <=0, return
     first sample <=0.  This will avoid derivers that need a wide range getting
     zeros.
-  - replace use of Seq.merge_by with more efficient Seq.merge_with
   - add Util.ParseOperators
   - remove with_msg "compile bid", it's redundant with the stack
   - make "error subderiving" msg nicer and put the stack in the log msg

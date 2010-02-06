@@ -282,10 +282,9 @@ merge (TrackEvents evts1) (TrackEvents evts2)
     -- minimal overlapping range
     start = max (event_min (Map.findMin evts1)) (event_min (Map.findMin evts2))
     end = min (event_max (Map.findMax evts2)) (event_max (Map.findMax evts2))
-    overlapping = Map.fromAscList $ clip_events $ Seq.merge_by cmp
+    overlapping = Map.fromAscList $ clip_events $ Seq.merge_with fst
         (in_range_around start end (TrackEvents evts2))
         (in_range_around start end (TrackEvents evts1))
-    cmp a b = compare (fst a) (fst b)
 
 -- | Clip overlapping event durations.  If two event positions coincide, the
 -- last prevails.  An event with duration overlapping another event will be

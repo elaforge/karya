@@ -401,7 +401,7 @@ clip_val low high val
 
 -- | Merge the sorted midi messages into a single sorted list.
 merge_messages :: [[Midi.WriteMessage]] -> [Midi.WriteMessage]
-merge_messages = foldr (Seq.merge_by (compare `on` Midi.wmsg_ts)) []
+merge_messages = foldr (Seq.merge_with Midi.wmsg_ts) []
 
 -- * channelize
 
