@@ -94,6 +94,16 @@ merge_by cmp xlist@(x:xs) ylist@(y:ys) = case cmp x y of
     GT -> y : merge_by cmp xlist ys
     _ -> x : merge_by cmp xs ylist
 
+-- | Like 'merge_by' but easier to use and should be slightly more efficient
+-- for keyed merges.
+merge_with :: (Ord k) => (a -> k) -> [a] -> [a] -> [a]
+merge_with _ [] ys = ys
+merge_with _ xs [] = xs
+merge_with key xlist@(x:xs) ylist@(y:ys)
+    -- TODO avoid calling key more than once
+    | key x <= key y = x : merge_with key xs ylist
+    | otherwise = y : merge_with key xlist ys
+
 -- | Handy to merge or sort a descending list.
 reverse_compare a b = case compare a b of
     LT -> GT
