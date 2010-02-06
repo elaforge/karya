@@ -201,16 +201,16 @@ show_status = Seq.join " | " . map (\(k, v) -> k ++ ": " ++ v)
     . Map.assocs . view_status
 
 -- | Return how much track is in view.
-visible_time :: View -> TrackPos
+visible_time :: View -> ScoreTime
 visible_time view =
     pixels_to_track_pos (view_zoom view) (view_visible_time view)
 
 visible_track :: View -> Types.Width
 visible_track = view_visible_track
 
-pixels_to_track_pos :: Types.Zoom -> Int -> TrackPos
+pixels_to_track_pos :: Types.Zoom -> Int -> ScoreTime
 pixels_to_track_pos zoom pixels =
-    TrackPos (fromIntegral pixels) / TrackPos (Types.zoom_factor zoom)
+    ScoreTime (fromIntegral pixels) / ScoreTime (Types.zoom_factor zoom)
 
 data TrackView = TrackView {
     track_view_width :: Types.Width

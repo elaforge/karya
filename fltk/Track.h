@@ -62,9 +62,9 @@ public:
     virtual bool track_resizable() const { return true; }
     virtual void set_event_brightness(double d) {}
     // Return the end of the last event.
-    virtual TrackPos time_end() const { return TrackPos(0); }
+    virtual ScoreTime time_end() const { return ScoreTime(0); }
     virtual void update(const Tracklike &track, FinalizeCallback finalizer,
-            TrackPos start, TrackPos end)
+            ScoreTime start, ScoreTime end)
     {}
     // This is called before the object is deleted.
     virtual void finalize_callbacks(FinalizeCallback finalizer) {}

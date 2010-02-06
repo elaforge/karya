@@ -487,7 +487,6 @@ Derive:
     * val signals in derive state
     * modify calls to extract args from environ
     * remove Derive.Note.ParsedNote stuff in favor of dynamic environ
-    - implement calls below
 
     - I need a way to give default args to each call.  Normally signals do
       this and they would give me a way to change the default args in time,

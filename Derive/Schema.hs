@@ -14,10 +14,6 @@
     configuration.
 
     TODO dynamic loaded schemas are not implemented yet
-
-    TODO Since the tempo track is global now, I should lose the tempo scope
-    parsing.  Except that I'd like it to not be global, so I'll just leave this
-    as-is unless I decide global after all.  TODO is it really global!?
 -}
 module Derive.Schema (
     -- Re-export schema types from Cmd, to pretend they're defined here.

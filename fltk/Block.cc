@@ -96,7 +96,7 @@ BlockView::handle(int evt)
 {
     if (evt == FL_MOUSEWHEEL) {
         if (Fl::event_dy()) {
-            TrackPos scroll = this->zoom.to_trackpos(
+            ScoreTime scroll = this->zoom.to_trackpos(
                     Fl::event_dy() * mousewheel_time_scale);
             set_zoom(ZoomInfo(this->zoom.offset + scroll, this->zoom.factor));
         }
@@ -270,10 +270,10 @@ BlockView::set_zoom(const ZoomInfo &zoom)
     // Actually, it's important to be able to scroll down to areas without
     // events, so I'm going to comment this out for now.
     // int track_h = track_tile.h() - view_config.track_title_height;
-    // TrackPos height = zoom.to_trackpos(track_h);
-    // TrackPos max_pos = std::max(TrackPos(0), track_tile.time_end() - height);
+    // ScoreTime height = zoom.to_trackpos(track_h);
+    // ScoreTime max_pos = std::max(ScoreTime(0), track_tile.time_end() - height);
     //
-    // this->zoom = ZoomInfo(clamp(TrackPos(0), max_pos, zoom.offset),
+    // this->zoom = ZoomInfo(clamp(ScoreTime(0), max_pos, zoom.offset),
     //         zoom.factor);
 
     if (this->zoom != zoom) {
@@ -290,9 +290,9 @@ BlockView::set_zoom_attr(const ZoomInfo &new_zoom)
     // Clip offset to be positive, and quantize it to conform exactly to
     // a pixel boundary.  Otherwise, some events may move 1 pixel while others
     // move 2 pixels, which messes up the blit-oriented scrolling.
-    zoom.offset = std::max(TrackPos(0), zoom.offset);
-    TrackPos max_offset = track_tile.time_end() - track_tile.visible_time();
-    zoom.offset = clamp(TrackPos(0), max_offset, zoom.offset);
+    zoom.offset = std::max(ScoreTime(0), zoom.offset);
+    ScoreTime max_offset = track_tile.time_end() - track_tile.visible_time();
+    zoom.offset = clamp(ScoreTime(0), max_offset, zoom.offset);
     this->track_tile.set_zoom(zoom);
     this->ruler_track->set_zoom(zoom);
 }
@@ -521,7 +521,7 @@ BlockView::replace_ruler_track(TrackView *track, int width)
 
 void
 BlockView::update_track(int tracknum, const Tracklike &track,
-        FinalizeCallback finalizer, TrackPos start, TrackPos end)
+        FinalizeCallback finalizer, ScoreTime start, ScoreTime end)
 {
     this->track_at(tracknum)->update(track, finalizer, start, end);
     TrackView *collapsed = vector_get(collapsed_tracks, tracknum).track;
@@ -541,7 +541,7 @@ BlockView::update_scrollbars()
         track_tile.track_end(), get_track_scroll(), track_tile.w());
 
     const ZoomInfo &zoom = this->get_zoom();
-    // The scale(1)s just convert a TrackPos to a double.
+    // The scale(1)s just convert a ScoreTime to a double.
     this->time_sb.set_scroll_zoom(track_tile.time_end().scale(1),
             zoom.offset.scale(1),
             track_tile.visible_time().scale(1));
@@ -557,10 +557,10 @@ BlockView::scrollbar_cb(Fl_Widget *_unused_w, void *vp)
     BlockView *self = static_cast<BlockView *>(vp);
 
     double time_offset = self->time_sb.get_offset();
-    TrackPos end = self->track_tile.time_end();
+    ScoreTime end = self->track_tile.time_end();
     // This does the same stuff as BlockView::set_zoom, but doesn't call
     // update_scrollbars and collects the msg.
-    ZoomInfo new_zoom(TrackPos(end.scale(time_offset)),
+    ZoomInfo new_zoom(ScoreTime(end.scale(time_offset)),
             self->get_zoom().factor);
     if (new_zoom != self->get_zoom()) {
         self->set_zoom_attr(new_zoom);
@@ -646,6 +646,8 @@ BlockViewWindow::BlockViewWindow(int X, int Y, int W, int H,
     block(X, Y, W, H, model_config, view_config),
     testing(false)
 {
+    DEBUG("Y " << Y << " -> " << Fl::event_y_root() - Fl::event_y());
+    DEBUG("create view " << Rect(X, Y, W, H) << " " << Point(Fl::event_y_root(), Fl::event_y()));
     this->callback((Fl_Callback *) block_view_window_cb);
     this->resizable(this);
     // Fl_Window::resize makes explicit resize()s set size_range to the given
@@ -661,6 +663,10 @@ BlockViewWindow::BlockViewWindow(int X, int Y, int W, int H,
     // Fl::visible_focus(false); // doesn't seem to do anything
     // this->border(false);
 
+    if (Fl::event_y() == -50) {
+        this->position(X, 0);
+        DEBUG("Y " << Y << " -> " << Fl::event_y_root() - Fl::event_y());
+    }
     // Send an initial resize to inform the haskell layer about dimensions.
     global_msg_collector()->window_update(this, UiMsg::msg_view_resize);
 }
@@ -688,6 +694,9 @@ BlockViewWindow::handle(int evt)
         return true;
     }
 
+    // if (evt == FL_MOVE) {
+    //     std::cerr << "m\t" << Fl::event_x() << "\t" << Fl::event_y() << '\n';
+    // }
     bool accepted = false;
     if (evt == FL_PUSH || evt == FL_MOVE || evt == FL_MOUSEWHEEL) {
         // see if someone else wants it

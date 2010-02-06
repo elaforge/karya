@@ -34,13 +34,13 @@ c_tick = Derive.generate_one $ \args prev (pos, _) next -> TrackLang.call2 args
     \time vel -> case (prev, next) of
         ((ppos, _) : _, (npos, _) : _) ->
             Call.with_signals pos [time, vel] $ \[time, vel] ->
-                tick (Signal.y_to_x time) vel ppos npos
+                tick (Signal.y_to_real time) vel ppos npos
         _ -> do
             Derive.throw $ "no "
                 ++ (if null prev then "previous" else "next") ++ " event"
             return []
 
-tick :: TrackPos -> Signal.Y -> TrackPos -> TrackPos -> Derive.EventDeriver
+tick :: RealTime -> Signal.Y -> ScoreTime -> ScoreTime -> Derive.EventDeriver
 tick time vel prev next = do
     prev_pitch <- Derive.pitch_degree_at prev
     next_pitch <- Derive.pitch_degree_at next
@@ -53,12 +53,12 @@ tick time vel prev next = do
 
 -- TODO if I need to do more note shifting and placing, I could dream up some
 -- sort of constraint language like TeX's notion of stretchiness
-stretch :: TrackPos -> TrackPos -> TrackPos
-    -> Derive.Deriver (TrackPos, TrackPos)
+stretch :: ScoreTime -> ScoreTime -> RealTime
+    -> Derive.Deriver (ScoreTime, ScoreTime)
 stretch prev next offset = do
-    gprev <- Derive.local_to_global prev
-    gnext <- Derive.local_to_global next
+    real_prev <- Derive.score_to_real prev
+    real_next <- Derive.score_to_real next
     -- Try to use the offset, but use the midpoint if there isn't room.
-    let posg = max (gnext - offset) ((gprev + gnext) / 2)
-    pos <- Derive.global_to_local posg
+    let real_pos = max (real_next - offset) ((real_prev + real_next) / 2)
+    pos <- Derive.real_to_score real_pos
     return (pos, next - pos)

@@ -141,7 +141,7 @@ import qualified Derive.Call as Call
 -- | Notes with negative duration have an implicit sounding duration which
 -- depends on the following note.  Meanwhile (and for the last note of the
 -- score), they have this sounding duration.
-negative_duration_default :: TrackPos
+negative_duration_default :: ScoreTime
 negative_duration_default = 1
 
 -- * note track
@@ -173,8 +173,8 @@ sequence_notes = fmap concat . mapM place . Seq.zip_next
         with_dur real_dur = Derive.d_at pos . Derive.d_stretch real_dur
             . Derive.with_stack_pos pos dur
 
-calculate_duration :: TrackPos -> TrackPos -> Maybe Derive.NoteDeriver
-    -> TrackPos
+calculate_duration :: ScoreTime -> ScoreTime -> Maybe Derive.NoteDeriver
+    -> ScoreTime
 calculate_duration cur_pos cur_dur (Just next)
     -- TODO this doesn't handle the duration of notes at the end of a block.
     -- Unfortunately it seems hard to do that, because I need to know the

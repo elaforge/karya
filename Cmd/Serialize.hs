@@ -310,13 +310,13 @@ instance Binary Block.ViewConfig where
                     sb_size status_size
             _ -> version_error "Block.ViewConfig" v
 
-zoom = Types.Zoom :: TrackPos -> Double -> Types.Zoom
+zoom = Types.Zoom :: ScoreTime -> Double -> Types.Zoom
 instance Binary Types.Zoom where
     put (Types.Zoom a b) = put a >> put b
     get = get >>= \a -> get >>= \b -> return (zoom a b)
 
-selection = Types.Selection :: TrackNum -> TrackPos -> TrackNum
-    -> TrackPos -> Types.Selection
+selection = Types.Selection :: TrackNum -> ScoreTime -> TrackNum
+    -> ScoreTime -> Types.Selection
 instance Binary Types.Selection where
     put (Types.Selection a b c d) = put a >> put b >> put c >> put d
     get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
@@ -324,9 +324,9 @@ instance Binary Types.Selection where
 
 -- ** Types, Color, Font
 
-instance Binary TrackPos where
-    put (TrackPos a) = put (Util.Binary.NDouble a)
-    get = get >>= \(Util.Binary.NDouble a) -> return (TrackPos a)
+instance Binary ScoreTime where
+    put (ScoreTime a) = put (Util.Binary.NDouble a)
+    get = get >>= \(Util.Binary.NDouble a) -> return (ScoreTime a)
 
 instance Binary Color.Color where
     put (Color.Color a b c d) = put a >> put b >> put c >> put d
@@ -455,7 +455,7 @@ instance Binary Track.RenderStyle where
             2 -> return Track.Filled
             _ -> fail "no parse for Track.RenderStyle"
 
-track_events = Track.TrackEvents :: Map.Map TrackPos Event.Event
+track_events = Track.TrackEvents :: Map.Map ScoreTime Event.Event
     -> Track.TrackEvents
 instance Binary Track.TrackEvents where
     put (Track.TrackEvents a) = put_version 0 >> put a
@@ -474,7 +474,7 @@ instance Binary Event.Event where
         put style
     get = do
         bs <- get :: Get ByteString.ByteString
-        dur <- get :: Get TrackPos
+        dur <- get :: Get ScoreTime
         style <- get :: Get Event.StyleId
         let text = Encoding.decodeUtf8 bs
         return $ Event.Event text dur style

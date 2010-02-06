@@ -64,8 +64,8 @@ test_subderive = do
     equal (map Log.msg_string logs) []
 
     let b0 pos = (UiTest.bid "b0",
-            [(UiTest.tid ("b0.t" ++ show n), TrackPos pos) | n <- [ 1, 0]])
-        sub pos = (UiTest.bid "sub", [(UiTest.tid "sub.t0", TrackPos pos)])
+            [(UiTest.tid ("b0.t" ++ show n), ScoreTime pos) | n <- [ 1, 0]])
+        sub pos = (UiTest.bid "sub", [(UiTest.tid "sub.t0", ScoreTime pos)])
         pos = map inv_tempo (map Timestamp.seconds [0, 2 .. 10])
     equal (map List.sort pos)
         [[b0 0], [b0 4], [b0 8, sub 0], [b0 12, sub 1], [b0 16], []]
@@ -112,8 +112,8 @@ test_multiple_subderive = do
         Right (replicate 3 (Just (Score.Instrument "i1")))
 
     let pos = map inv_tempo (map Timestamp.seconds [0..6])
-    let b0 pos = (UiTest.bid "b0", [(UiTest.tid ("b0.t0"), TrackPos pos)])
-        sub pos = (UiTest.bid "sub", [(UiTest.tid "sub.t0", TrackPos pos)])
+    let b0 pos = (UiTest.bid "b0", [(UiTest.tid ("b0.t0"), ScoreTime pos)])
+        sub pos = (UiTest.bid "sub", [(UiTest.tid "sub.t0", ScoreTime pos)])
     equal (map List.sort pos)
         [ [b0 0, sub 0], [b0 1, sub 0.5], [b0 2, sub 0], [b0 3, sub 0.5]
         , [b0 4, sub 0], [b0 5, sub 0.5], []
@@ -152,7 +152,7 @@ test_tempo_compose = do
             Right [(0, 1, ""), (1, 1, ""), (2, 4, ""), (6, 4, "")]
 
     -- TODO test when the subblock has a tempo too
-    -- type TempoFunction = BlockId -> TrackId -> TrackPos
+    -- type TempoFunction = BlockId -> TrackId -> ScoreTime
     --     -> Maybe Timestamp.Timestamp
 
 show_log msg
@@ -166,12 +166,10 @@ show_sig sig =
 
 test_warp_ops = do
     let run op = fmap extract $ DeriveTest.run State.empty (op record)
-            where
-            extract :: ([TrackPos], b, [Log.Msg]) -> [TrackPos]
-            extract (val, _, logs) = Log.trace_logs logs val
+            where extract (val, _, logs) = Log.trace_logs logs val
         record = do
-            x0 <- Derive.local_to_global 0
-            x1 <- Derive.local_to_global 2
+            x0 <- Derive.score_to_real 0
+            x1 <- Derive.score_to_real 2
             return [x0, x1]
 
     equal (run id) $ Right [0, 2]
@@ -204,10 +202,10 @@ test_warp_ops = do
         . Derive.d_warp slow)) $
             Right [1, 17]
 
-test_global_to_local = do
+test_real_to_score = do
     let extract (val, _, logs) = Log.trace_logs logs val
     let f do_warp pos = fmap extract $ DeriveTest.run State.empty $
-            do_warp (Derive.global_to_local =<< Derive.local_to_global pos)
+            do_warp (Derive.real_to_score =<< Derive.score_to_real pos)
     equal (f id 1) (Right 1)
     equal (f (Derive.d_at 5) 1) (Right 1)
     equal (f (Derive.d_stretch 5) 1) (Right 1)
@@ -256,7 +254,7 @@ test_tempo_funcs1 = do
     let (_, tempo, inv_tempo, logs, _) = DeriveTest.derive_block ui_state bid
     equal logs []
 
-    -- [(BlockId, [(TrackId, TrackPos)])]
+    -- [(BlockId, [(TrackId, ScoreTime)])]
     let b0 pos = (bid, [(tid1, pos), (t_tid, pos)])
     equal (map inv_tempo (map Timestamp.seconds [0, 2 .. 10]))
         [[b0 0], [b0 4], [b0 8], [b0 12], [b0 16], []]
@@ -432,11 +430,11 @@ test_make_inverse_tempo_func = do
     -- This is actually also tested in test_subderive.
     let track_id = Types.TrackId (UiTest.mkid "warp")
         warp = Score.signal_to_warp (Derive.tempo_to_warp (Signal.constant 2))
-        track_warps = [Derive.TrackWarp
-            (TrackPos 0) (TrackPos 2) UiTest.default_block_id [track_id] warp]
+        track_warps =
+            [Derive.TrackWarp 0 2 UiTest.default_block_id [track_id] warp]
     let f = Derive.make_inverse_tempo_func track_warps
         with_block pos = [(UiTest.default_block_id, [(track_id, pos)])]
-    -- Fast tempo means TrackPos pass quickly relative to Timestamps.
+    -- Fast tempo means ScoreTime passes quickly relative to Timestamps.
     -- Second 2 at tempo 2 is trackpos 4, which is past the end of the block.
     equal (map f (map Timestamp.seconds [0..2]))
         [with_block 0, with_block 2, []]

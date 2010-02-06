@@ -33,7 +33,7 @@ run = UiTest.run State.empty
 track1_events = [(0, 2, "e11"), (4, 2, "e12"), (8, 2, "e13")]
 track2_events = [(1, 2, "e21"), (5, 2, "e22")]
 
-to_simple :: [(TrackPos, TrackPos, String)] -> [Simple.Event]
+to_simple :: [(ScoreTime, ScoreTime, String)] -> [Simple.Event]
 to_simple = map (\(pos, dur, text) -> (realToFrac pos, realToFrac dur, text))
 
 (clip_track_ids, clip_state) = run $ UiTest.mkstate_id

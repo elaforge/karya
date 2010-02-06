@@ -119,7 +119,7 @@ struct UiMsg {
     // If it was over a ruler or event track, has_pos=true and it was at this
     // pos.
     char has_pos; // as has_tracknum
-    TrackPos pos;
+    ScoreTime pos;
 };
 
 std::ostream &operator<<(std::ostream &os, const UiMsg &m);

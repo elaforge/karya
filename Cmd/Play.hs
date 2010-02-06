@@ -123,14 +123,14 @@ cmd_play_focused transport_info = do
     -- TODO: pick the first event track!
     block <- State.get_block block_id
     track_id <- Cmd.require $ Seq.at (Block.block_track_ids block) 0
-    cmd_play transport_info block_id (track_id, TrackPos 0)
+    cmd_play transport_info block_id (track_id, 0)
 
 cmd_play_from_insert :: Transport.Info -> Cmd.CmdT IO Cmd.Status
 cmd_play_from_insert transport_info = do
     (block_id, _, track_id, pos) <- Selection.get_insert
     cmd_play transport_info block_id (track_id, pos)
 
-cmd_play :: Transport.Info -> BlockId -> (TrackId, TrackPos)
+cmd_play :: Transport.Info -> BlockId -> (TrackId, ScoreTime)
     -> Cmd.CmdT IO Cmd.Status
 cmd_play transport_info block_id (start_track, start_pos) = do
     cmd_state <- Cmd.get_state
@@ -246,7 +246,7 @@ warn_to_msg context (Warning.Warning msg event_stack maybe_range) =
     where
     log = Log.msg Log.Warn $ context ++ ": " ++ msg
         -- TODO It would be more useful to append this to the stack, but I have
-        -- to convert global -> local.
+        -- to convert real -> score.
         ++ maybe "" ((" range: " ++) . show) maybe_range
 
 
@@ -318,21 +318,21 @@ updater_loop state = do
 -- | Do all the annoying shuffling around to convert the deriver-oriented
 -- blocks and tracks to the view-oriented views and tracknums.
 block_pos_to_play_pos :: (State.UiStateMonad m) =>
-    [(BlockId, [(TrackId, TrackPos)])]
-    -> m [(ViewId, [(TrackNum, Maybe TrackPos)])]
+    [(BlockId, [(TrackId, ScoreTime)])]
+    -> m [(ViewId, [(TrackNum, Maybe ScoreTime)])]
 block_pos_to_play_pos block_pos = fmap concat (mapM convert block_pos)
 
 convert :: (State.UiStateMonad m) =>
-    (BlockId, [(TrackId, TrackPos)])
-    -> m [(ViewId, [(TrackNum, Maybe TrackPos)])]
+    (BlockId, [(TrackId, ScoreTime)])
+    -> m [(ViewId, [(TrackNum, Maybe ScoreTime)])]
 convert (block_id, track_pos) = do
     view_ids <- fmap Map.keys (State.get_views_of block_id)
     block <- State.get_block block_id
     let tracknum_pos = concatMap (tracknums_of block) track_pos
     return [(view_id, tracknum_pos) | view_id <- view_ids]
 
-tracknums_of :: Block.Block -> (TrackId, TrackPos)
-    -> [(TrackNum, Maybe TrackPos)]
+tracknums_of :: Block.Block -> (TrackId, ScoreTime)
+    -> [(TrackNum, Maybe ScoreTime)]
 tracknums_of block (track_id, pos) =
     [ (tracknum, Just pos)
     | (tracknum, Block.TId tid _) <- zip [0..] (Block.block_tracklike_ids block)

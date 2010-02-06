@@ -43,21 +43,23 @@ type ScoreEvent = (Double, Double, String, Pitch.Degree)
 -- | (inst, start, duration, initial_pitch)
 type PerfEvent = (String, Double, Double, Pitch.NoteNumber)
 
-from_pos :: TrackPos -> Double
-from_pos = realToFrac
+from_score :: ScoreTime -> Double
+from_score (ScoreTime d) = d
+from_real :: RealTime -> Double
+from_real (RealTime d) = d
 
 event :: Track.PosEvent -> Event
-event (start, event) = (from_pos start,
-    from_pos (Event.event_duration event), Event.event_string event)
+event (start, event) = (from_score start,
+    from_score (Event.event_duration event), Event.event_string event)
 
 score_event :: Score.Event -> ScoreEvent
-score_event evt = (from_pos (Score.event_start evt),
-    from_pos (Score.event_duration evt),
+score_event evt = (from_real (Score.event_start evt),
+    from_real (Score.event_duration evt),
     Score.event_string evt, Score.initial_pitch evt)
 
 perf_event :: Perform.Event -> PerfEvent
 perf_event evt = (Instrument.inst_name (Perform.event_instrument evt),
-    from_pos start, from_pos (Perform.event_duration evt),
+    from_real start, from_real (Perform.event_duration evt),
     Pitch.nn (Signal.at start (Perform.event_pitch evt)))
     where start = Perform.event_start evt
 
@@ -114,4 +116,4 @@ convert_track (id_name, title, events) = do
 
 convert_event :: Event -> Track.PosEvent
 convert_event (start, dur, text) =
-    (TrackPos start, Event.event text (TrackPos dur))
+    (ScoreTime start, Event.event text (ScoreTime dur))

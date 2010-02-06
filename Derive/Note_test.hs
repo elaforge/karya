@@ -179,7 +179,7 @@ test_calls = do
 
 
 type Extracted =
-    (TrackPos, TrackPos, String, Warning.Stack, Maybe Score.Instrument,
+    (RealTime, RealTime, String, Warning.Stack, Maybe Score.Instrument,
         Score.Attributes)
 
 extract_common :: DeriveTest.Result [Score.Event]
@@ -200,13 +200,13 @@ extract_nostack = f . extract_common
         (fmap (map (\(a, b, c, _, d, e) -> (a, b, c, [], d, e))) result,
             map fst logs)
 
-mkevent :: TrackPos -> TrackPos -> String
-    -> [(String, String, (TrackPos, TrackPos))] -> Maybe String -> [String]
+mkevent :: RealTime -> RealTime -> String
+    -> [(String, String, (ScoreTime, ScoreTime))] -> Maybe String -> [String]
     -> Extracted
 mkevent start dur text stack inst attrs = (start, dur, text, mkstack stack,
     fmap Score.Instrument inst, Score.attributes attrs)
 
-mkstack :: [(String, String, (TrackPos, TrackPos))] -> Warning.Stack
+mkstack :: [(String, String, (ScoreTime, ScoreTime))] -> Warning.Stack
 mkstack = map $ \(bid, tid, pos) ->
     (UiTest.bid bid, Just (UiTest.tid tid), Just pos)
 mk_track_stack :: [(String, String)] -> Warning.Stack
@@ -220,8 +220,8 @@ mk_track_stack = map $ \(bid, tid) ->
 d_fake_sub :: Derive.EventDeriver
 d_fake_sub = do
     st <- Derive.get
-    start <- Derive.local_to_global 0
-    end <- Derive.local_to_global 1
+    start <- Derive.score_to_real 0
+    end <- Derive.score_to_real 1
     return [Score.Event start (end-start) (Text.pack "hi") Map.empty fake_pitch
         (Derive.state_stack st)
         (Derive.state_instrument st) (Derive.state_attributes st)]

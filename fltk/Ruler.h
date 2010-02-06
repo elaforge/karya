@@ -44,10 +44,10 @@ struct Mark {
 };
 
 struct Marklist {
-    // Get marks from start to end.  Return the TrackPos in pos, the events in
+    // Get marks from start to end.  Return the ScoreTime in pos, the events in
     // 'marks', and the count.
-    typedef int (*FindMarks)(TrackPos *start_pos, TrackPos *end_pos,
-            TrackPos **ret_tps, Mark **ret_marks);
+    typedef int (*FindMarks)(ScoreTime *start_pos, ScoreTime *end_pos,
+            ScoreTime **ret_tps, Mark **ret_marks);
     Marklist(FindMarks find_marks) : find_marks(find_marks) {}
     FindMarks find_marks;
 };
@@ -60,7 +60,7 @@ struct RulerConfig {
     // Initializing marklists by assignment is less convenient from c++, but
     // more convenient to serialize from haskell.
     RulerConfig(Color bg, bool show_names, bool use_alpha, bool full_width,
-            bool align_to_bottom, TrackPos last_mark_pos) :
+            bool align_to_bottom, ScoreTime last_mark_pos) :
         bg(bg), show_names(show_names), use_alpha(use_alpha),
         full_width(full_width), align_to_bottom(align_to_bottom),
         last_mark_pos(last_mark_pos)
@@ -80,7 +80,7 @@ struct RulerConfig {
     // with negative duration events (arrival beats).
     bool align_to_bottom;
 
-    TrackPos last_mark_pos;
+    ScoreTime last_mark_pos;
 };
 
 
@@ -91,13 +91,13 @@ public:
     {}
     void set_zoom(const ZoomInfo &new_zoom) { this->zoom = new_zoom; }
     void set_selection(int selnum, int tracknum, const Selection &sel);
-    TrackPos time_end() const;
+    ScoreTime time_end() const;
     void set_config(const RulerConfig &config, FinalizeCallback finalizer,
-            TrackPos start, TrackPos end);
+            ScoreTime start, ScoreTime end);
     void finalize_callbacks(FinalizeCallback finalizer);
     // Mark a segment of the track as needing to be redrawn.
     // Only public so that EventTrack::draw can call it.
-    void damage_range(TrackPos start, TrackPos end);
+    void damage_range(ScoreTime start, ScoreTime end);
 
     enum { DAMAGE_RANGE = FL_DAMAGE_USER1 };
     // This area needs to be redrawn.
@@ -106,7 +106,7 @@ public:
     RulerConfig config;
 
     // Remember how much I've scrolled, to do fl_scroll() optimization.
-    TrackPos last_offset;
+    ScoreTime last_offset;
     ZoomInfo zoom;
 protected:
     void draw();
@@ -127,9 +127,9 @@ public:
     virtual void set_selection(int selnum, int tracknum, const Selection &sel) {
         ruler.set_selection(selnum, tracknum, sel);
     }
-    virtual TrackPos time_end() const { return ruler.time_end(); }
+    virtual ScoreTime time_end() const { return ruler.time_end(); }
     virtual void update(const Tracklike &track, FinalizeCallback finalizer,
-            TrackPos start, TrackPos end);
+            ScoreTime start, ScoreTime end);
     virtual void finalize_callbacks(FinalizeCallback finalizer) {
         ruler.finalize_callbacks(finalizer);
     }

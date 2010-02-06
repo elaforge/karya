@@ -1,4 +1,4 @@
-{- | A TimeStep is an abstract description of a TrackPos interval.
+{- | A TimeStep is an abstract description of a ScoreTime interval.
 
     It's used to advance a cursor, snap a selection, set a note duration, etc.
 -}
@@ -18,7 +18,7 @@ import qualified Ui.State as State
 -- the cursor, how long an event should be, etc.
 data TimeStep
      -- | Absolute time step.
-    = Absolute TrackPos
+    = Absolute ScoreTime
     -- | Until the next mark that matches.
     | UntilMark MarklistMatch MarkMatch
     -- | Until next matching mark + offset from previous mark.
@@ -30,15 +30,15 @@ data MarklistMatch = AllMarklists | NamedMarklists [Ruler.MarklistName]
 
 -- | Take a rank and a number of that rank to skip: MatchRank rank skips
 data MarkMatch = MatchRank Int Int deriving (Show, Read)
--- | Given a marklist view, return the TrackPos to advance to.
-type Matcher = [(TrackPos, Ruler.Mark)] -> Maybe TrackPos
+-- | Given a marklist view, return the ScoreTime to advance to.
+type Matcher = [(ScoreTime, Ruler.Mark)] -> Maybe ScoreTime
 
 data Direction = Advance | Rewind deriving (Eq, Show)
 
 
 -- | Given a pos, return the nearest point on a timestep.
 snap :: (State.UiStateMonad m) =>
-    TimeStep -> BlockId -> TrackNum -> TrackPos -> m TrackPos
+    TimeStep -> BlockId -> TrackNum -> ScoreTime -> m ScoreTime
     -- Absolute steps don't have any absolute alignment, so you can't snap.
 snap (Absolute _) _ _ pos = return pos
 snap time_step block_id tracknum pos = fmap (Maybe.fromMaybe pos) $
@@ -47,7 +47,7 @@ snap time_step block_id tracknum pos = fmap (Maybe.fromMaybe pos) $
 -- | Step in the given direction from the given position, or Nothing if
 -- the step is out of range.
 step_from :: (State.UiStateMonad m) => TimeStep -> Direction
-    -> BlockId -> TrackNum -> TrackPos -> m (Maybe TrackPos)
+    -> BlockId -> TrackNum -> ScoreTime -> m (Maybe ScoreTime)
 step_from time_step direction block_id tracknum pos = do
     block <- State.get_block block_id
     case relevant_ruler block tracknum of
@@ -61,7 +61,7 @@ step_from time_step direction block_id tracknum pos = do
 
 -- | Step @n@ times, or until no further stepping is possible.
 step_n :: (State.UiStateMonad m) => Int -> TimeStep
-    -> BlockId -> TrackNum -> TrackPos -> m TrackPos
+    -> BlockId -> TrackNum -> ScoreTime -> m ScoreTime
 step_n nsteps time_step block_id tracknum pos = do
     block <- State.get_block block_id
     case relevant_ruler block tracknum of
@@ -73,7 +73,7 @@ step_n nsteps time_step block_id tracknum pos = do
     where
     step = if nsteps >= 0 then advance else rewind
 
-step_until :: Int -> (TrackPos -> Maybe TrackPos) -> TrackPos -> TrackPos
+step_until :: Int -> (ScoreTime -> Maybe ScoreTime) -> ScoreTime -> ScoreTime
 step_until n f x
     | n <= 0 = x
     | otherwise = maybe x (step_until (n-1) f) (f x)
@@ -88,8 +88,8 @@ relevant_ruler block tracknum = Seq.at (Block.ruler_ids_of in_order) 0
         zip [0..] (Block.block_tracklike_ids block)
 
 -- | Advance the given pos according to step on the ruler.
-advance :: TimeStep -> [(Ruler.MarklistName, Ruler.Marklist)] -> TrackPos
-    -> Maybe TrackPos
+advance :: TimeStep -> [(Ruler.MarklistName, Ruler.Marklist)] -> ScoreTime
+    -> Maybe ScoreTime
 advance step marklists start_pos = case step of
     Absolute pos -> Just (start_pos + pos)
     UntilMark names matcher -> match matcher
@@ -102,8 +102,8 @@ advance step marklists start_pos = case step of
         return (next_pos + (start_pos - prev_pos))
 
 -- | Just like 'advance', but get a previous pos.
-rewind :: TimeStep -> [(Ruler.MarklistName, Ruler.Marklist)] -> TrackPos
-    -> Maybe TrackPos
+rewind :: TimeStep -> [(Ruler.MarklistName, Ruler.Marklist)] -> ScoreTime
+    -> Maybe ScoreTime
 rewind step marklists start_pos = case step of
     Absolute pos -> Just (start_pos - pos)
     UntilMark names matcher -> match matcher
@@ -126,7 +126,7 @@ relevant_marks marklists names direction start_pos =
                 map (flip Ruler.forward_from start_pos) mlists)
             Rewind -> (Seq.reverse_compare,
                 map (flip Ruler.backward start_pos) mlists)
-    -- Sort on TrackPos.  foldr is important to preserve laziness.
+    -- Sort on ScoreTime.  foldr is important to preserve laziness.
     in foldr (Seq.merge_by (cmp `on` fst)) [] marks
 
 

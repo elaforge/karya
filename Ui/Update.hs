@@ -43,7 +43,7 @@ data BlockUpdate
 
 -- | track, low_pos, high_pos
 data TrackUpdate
-    = TrackEvents TrackPos TrackPos
+    = TrackEvents ScoreTime ScoreTime
     -- | Used when there have been unknown updates so I have to play it safe.
     | TrackAllEvents
     | TrackTitle String

@@ -55,7 +55,8 @@
 -}
 module Perform.Signal (
     Signal(Signal), sig_vec
-    , X, Y, x_to_y, y_to_x, max_x, max_y, default_srate, tempo_srate
+    , X, Y, x_to_y, y_to_real, y_to_score, max_x, max_y
+    , default_srate, tempo_srate
     , invalid_pitch, empty
     , Tempo, Warp, Control, NoteNumber, Display
 
@@ -88,6 +89,7 @@ import qualified Util.Log as Log
 
 import Ui
 import qualified Ui.Track as Track
+import qualified Ui.Types as Types
 
 import qualified Perform.SignalBase as SignalBase
 import Perform.SignalBase (Method(..), Segment, max_x, default_srate)
@@ -118,7 +120,8 @@ data ControlSig
 type Tempo = Signal TempoSig
 data TempoSig
 
--- | A tempo warp maps score time to global time.
+-- | A tempo warp maps score time to real time.  Of course the type is still
+-- (ScoreTime, Y), so functions that process Warps have to convert.
 type Warp = Signal WarpSig
 data WarpSig
 
@@ -132,12 +135,12 @@ type Display = Signal DisplaySig
 data DisplaySig
 
 instance Storable.Storable (X, Y) where
-    sizeOf _ = Storable.sizeOf (undefined :: TrackPos)
+    sizeOf _ = Storable.sizeOf (undefined :: RealTime)
         + Storable.sizeOf (undefined :: Double)
     alignment _ = Storable.alignment (undefined :: Double)
     poke cp (a, b) = Storable.pokeByteOff cp 0 a >> Storable.pokeByteOff cp 8 b
     peek cp = do
-        a <- Storable.peekByteOff cp 0 :: IO TrackPos
+        a <- Storable.peekByteOff cp 0 :: IO RealTime
         b <- Storable.peekByteOff cp 8 :: IO Double
         return (a, b)
 
@@ -150,9 +153,14 @@ instance Show (Signal y) where
     show (Signal vec) = "Signal " ++ show (SignalBase.unsignal vec)
 
 x_to_y :: X -> Y
-x_to_y (TrackPos x) = x
-y_to_x :: Y -> X
-y_to_x = TrackPos
+x_to_y (RealTime x) = x
+
+y_to_real :: Y -> X
+y_to_real = RealTime
+
+-- | Some control signals may be interpreted as score time.
+y_to_score :: Y -> ScoreTime
+y_to_score = ScoreTime
 
 -- * constants
 
@@ -193,12 +201,15 @@ track_signal srate segs = Signal (SignalBase.track_signal srate segs)
 -- in a format that's nicer than a huge log line.
 log_signal :: Signal y -> Log.Msg -> Log.Msg
 log_signal sig msg =
-    msg { Log.msg_signal = [(x, y) | (TrackPos x, y) <- unsignal sig] }
+    msg { Log.msg_signal = [(x, y) | (RealTime x, y) <- unsignal sig] }
 
 -- | TODO This is used by the signal deriver and is inefficient.  I should be
 -- passing a pointer.
 to_track_samples :: Signal y -> Track.Samples
-to_track_samples = Track.samples . unsignal
+to_track_samples = Track.samples . to_score . unsignal
+    -- Signals that go to the UI don't get warped, so they are actually still
+    -- in score time.  This conversion should be optimized away.
+    where to_score xs = [(Types.real_to_score x, y) | (x, y) <- xs]
 
 -- | Used for tests.
 unsignal :: Signal y -> [(X, Y)]
@@ -286,11 +297,11 @@ sig_op op sig0 sig1 =
 --
 -- This uses a bsearch on the vector, which is only reasonable as long as
 -- its strict.  When I switch to lazy vectors, I'll have to thread the tails.
-inverse_at :: TrackPos -> Warp -> Maybe X
+inverse_at :: RealTime -> Warp -> Maybe X
 inverse_at pos sig
     | i >= V.length vec = Nothing
     | y1 == y = Just x1
-    | otherwise = Just $ y_to_x $ x_at (x_to_y x0) y0 (x_to_y x1) y1 y
+    | otherwise = Just $ y_to_real $ x_at (x_to_y x0) y0 (x_to_y x1) y1 y
     where
     vec = sig_vec sig
     y = x_to_y pos
@@ -302,7 +313,7 @@ inverse_at pos sig
 -- | Compose the first signal with the second.
 compose :: Warp -> Warp -> Warp
 compose f g = Signal $ SignalBase.map_y go (sig_vec g)
-    where go y = SignalBase.at_linear (y_to_x y) (sig_vec f)
+    where go y = SignalBase.at_linear (y_to_real y) (sig_vec f)
     -- TODO Walking down f would be more efficient, especially once Signal is
     -- lazy.
 

@@ -254,7 +254,7 @@ remove_track view_id tracknum = do
         c_remove_track viewp (Util.c_int tracknum) finalize
 
 update_track :: ViewId -> TrackNum -> Block.Tracklike
-    -> Track.Samples -> [Track.TrackEvents] -> TrackPos -> TrackPos -> Fltk ()
+    -> Track.Samples -> [Track.TrackEvents] -> ScoreTime -> ScoreTime -> Fltk ()
 update_track view_id tracknum tracklike samples merged start end = do
     viewp <- get_ptr view_id
     with_finalizer $ \finalize ->
@@ -269,7 +269,7 @@ update_entire_track :: ViewId -> TrackNum -> Block.Tracklike
 update_entire_track view_id tracknum tracklike samples merged =
     -- -1 is special cased in c++.
     update_track view_id tracknum tracklike samples merged
-        (TrackPos (-1)) (TrackPos (-1))
+        (ScoreTime (-1)) (ScoreTime (-1))
 
 foreign import ccall "insert_track"
     c_insert_track :: Ptr CView -> CInt -> Ptr TracklikePtr -> CInt
@@ -279,7 +279,7 @@ foreign import ccall "remove_track"
 foreign import ccall "update_track"
     c_update_track :: Ptr CView -> CInt -> Ptr TracklikePtr
         -> Ptr Ruler.Marklist -> CInt -> FunPtr (FunPtrFinalizer a)
-        -> Ptr TrackPos -> Ptr TrackPos -> IO ()
+        -> Ptr ScoreTime -> Ptr ScoreTime -> IO ()
 
 -- | When I do anything that will destroy previous callbacks, I have to pass
 -- yet another callback which will be used to mark the old callbacks as done,

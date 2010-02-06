@@ -77,7 +77,7 @@ edit_color mode = case mode of
 -- * universal event cmds
 
 -- | Insert an event at the current insert pos.
-insert_event :: (Monad m) => String -> TrackPos -> Cmd.CmdT m ()
+insert_event :: (Monad m) => String -> ScoreTime -> Cmd.CmdT m ()
 insert_event text dur = do
     (_, _, track_id, pos) <- Selection.get_insert
     State.insert_events track_id [(pos, Event.event text dur)]
@@ -95,10 +95,10 @@ cmd_set_duration = do
 
 -- | Modify event durations by applying a function to them.  0 durations
 -- are passed through, so you can't accidentally give control events duration.
-cmd_modify_dur :: (Monad m) => (TrackPos -> TrackPos) -> Cmd.CmdT m ()
+cmd_modify_dur :: (Monad m) => (ScoreTime -> ScoreTime) -> Cmd.CmdT m ()
 cmd_modify_dur f = ModifyEvents.modify_events $ \evt ->
     Event.set_duration (apply (Event.event_duration evt)) evt
-    where apply dur = if dur == TrackPos 0 then dur else f dur
+    where apply dur = if dur == 0 then dur else f dur
 
 -- | If there is a following event, delete it and extend this one to its end.
 cmd_join_events :: (Monad m) => Cmd.CmdT m ()
@@ -146,7 +146,7 @@ cmd_insert_time = do
 
 -- TODO both stretch and shrink could be faster by just mapping the shift
 -- once the overlapping events are done, but it's probably not worth it.
-stretch :: TrackPos -> TrackPos -> Track.PosEvent -> Track.PosEvent
+stretch :: ScoreTime -> ScoreTime -> Track.PosEvent -> Track.PosEvent
 stretch start end event@(pos, evt)
     | Event.is_positive evt = stretchp
     | otherwise = stretchm
@@ -179,7 +179,7 @@ cmd_delete_time = do
                 State.insert_sorted_events track_id
                     (Seq.map_maybe (shrink start end) evts)
 
-shrink :: TrackPos -> TrackPos -> Track.PosEvent -> Maybe Track.PosEvent
+shrink :: ScoreTime -> ScoreTime -> Track.PosEvent -> Maybe Track.PosEvent
 shrink start end event@(pos, evt)
     | Event.is_positive evt = shrinkp
     | otherwise = shrinkm
@@ -200,7 +200,7 @@ shrink start end event@(pos, evt)
                 (+ min shift (end - Track.event_end event)) evt)
         | otherwise = Just (pos - shift, evt)
 
-clip_until :: TrackPos -> [Track.PosEvent] -> [Track.PosEvent]
+clip_until :: ScoreTime -> [Track.PosEvent] -> [Track.PosEvent]
 clip_until until events = Seq.map_maybe f events
     where
     f pos_evt@(pos, evt)
@@ -210,8 +210,8 @@ clip_until until events = Seq.map_maybe f events
             Event.set_duration (Event.event_duration evt - (until-pos)) evt)
 
 -- | If the range is a point, then expand it to one timestep.
-expand_range :: (Monad m) => [TrackNum] -> TrackPos -> TrackPos
-    -> Cmd.CmdT m (TrackPos, TrackPos)
+expand_range :: (Monad m) => [TrackNum] -> ScoreTime -> ScoreTime
+    -> Cmd.CmdT m (ScoreTime, ScoreTime)
 expand_range (tracknum:_) start end
     | start == end = do
         block_id <- Cmd.get_focused_block

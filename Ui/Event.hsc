@@ -43,12 +43,12 @@ data Event = Event {
     -- from haskell.  Don't access this directly, use 'event_text'.
     -- TODO: or is it?  derivation could put the lie to that.
     event_text :: Text.Text
-    , event_duration :: TrackPos
+    , event_duration :: ScoreTime
     , event_style :: StyleId
     } deriving (Eq, Show, Read)
 
 -- | Manual event constructor.
-event :: String -> TrackPos -> Event
+event :: String -> ScoreTime -> Event
 event text dur = Event (Text.pack text) dur default_style
 
 event_string :: Event -> String
@@ -57,10 +57,10 @@ event_string = Text.unpack . event_text
 set_string :: String -> Event -> Event
 set_string s evt = evt { event_text = Text.pack s }
 
-set_duration :: TrackPos -> Event -> Event
+set_duration :: ScoreTime -> Event -> Event
 set_duration dur event = event { event_duration = dur }
 
-modify_duration :: (TrackPos -> TrackPos) -> Event -> Event
+modify_duration :: (ScoreTime -> ScoreTime) -> Event -> Event
 modify_duration f evt = set_duration (f (event_duration evt)) evt
 
 -- | 0 is considered both positive and negative because they're ambiguous.
@@ -69,7 +69,7 @@ is_positive, is_negative :: Event -> Bool
 is_positive = not . is_negative
 is_negative = is_negative_duration . event_duration
 
-is_negative_duration, is_positive_duration :: TrackPos -> Bool
+is_negative_duration, is_positive_duration :: ScoreTime -> Bool
 is_negative_duration d = d < 0 || isNegativeZero d
 is_positive_duration = not . is_negative_duration
 

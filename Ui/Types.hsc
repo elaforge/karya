@@ -49,7 +49,7 @@ instance Storable Rect where
 
 -- | View zoom and time scroll offset.
 data Zoom = Zoom {
-    zoom_offset :: TrackPos
+    zoom_offset :: ScoreTime
     , zoom_factor :: Double
     } deriving (Eq, Ord, Show, Read)
 
@@ -66,27 +66,45 @@ instance Storable Zoom where
 
 -- * trackpos
 
--- | The position of an Event on a track.  The units are arbitrary, so how
--- many units are in one second depends on the tempo.  TrackPos units
--- can be negative, but blocks only display events at positive TrackPos.
-newtype TrackPos = TrackPos Double
+-- | Score time is the abstract unit of time, and its mapping to real time
+-- is dependent on the score context.  ScoreTime units can be negative, but
+-- blocks only display events at >=0 ScoreTime.
+newtype ScoreTime = ScoreTime Double
     deriving (Num, Enum, Real, Floating, Fractional, RealFrac, RealFloat,
         Eq, Ord, Show, Read)
 
-instance Storable TrackPos where
-    sizeOf _ = #size TrackPos
-    alignment _ = #{alignment TrackPos}
+-- | A concrete unit of time, otherwise known as seconds.
+newtype RealTime = RealTime Double
+    deriving (Num, Enum, Real, Floating, Fractional, RealFrac, RealFloat,
+        Eq, Ord, Show, Read)
+
+instance Storable ScoreTime where
+    sizeOf _ = #size ScoreTime
+    alignment _ = #{alignment ScoreTime}
     peek posp = do
-        v <- (#peek TrackPos, _val) posp :: IO Double
-        return (TrackPos v)
-    poke posp (TrackPos pos) =
-        (#poke TrackPos, _val) posp pos
+        v <- (#peek ScoreTime, _val) posp :: IO Double
+        return (ScoreTime v)
+    poke posp (ScoreTime pos) =
+        (#poke ScoreTime, _val) posp pos
 
-track_pos :: (Real a) => a -> TrackPos
-track_pos n = TrackPos (realToFrac n)
+-- | These are stored in signals, but don't get handed to c++, so a plain
+-- double is fine.
+instance Storable RealTime where
+    sizeOf _ = #size double
+    alignment _ = #{alignment double}
+    peek posp = do
+        v <- peek (castPtr posp) :: IO Double
+        return (RealTime v)
+    poke posp (RealTime pos) = poke (castPtr posp) pos
 
-pretty_pos :: TrackPos -> String
-pretty_pos (TrackPos pos) = Numeric.showFFloat (Just 3) pos ""
+score_to_real :: ScoreTime -> RealTime
+score_to_real (ScoreTime p) = RealTime p
+
+real_to_score :: RealTime -> ScoreTime
+real_to_score (RealTime p) = ScoreTime p
+
+pretty_pos :: ScoreTime -> String
+pretty_pos (ScoreTime pos) = Numeric.showFFloat (Just 3) pos ""
 
 -- * ID
 
@@ -150,23 +168,23 @@ instance Id.Ident RulerId where
 data Selection = Selection {
     -- | The position the selection was established at.
     sel_start_track :: TrackNum
-    , sel_start_pos :: TrackPos
+    , sel_start_pos :: ScoreTime
 
     -- | The position the selection is now at.  The tracks are an inclusive
     -- range, the pos are half-open.  This is because these pairs are meant to
     -- be symmetrical, but the c++ layer only supports half-open pos ranges.
     -- I don't think there's much I can do about this.
     , sel_cur_track :: TrackNum
-    , sel_cur_pos :: TrackPos
+    , sel_cur_pos :: ScoreTime
     } deriving (Eq, Ord, Show, Read)
 
 -- | These constructors return Maybe because that's what set_selection expects.
-selection :: TrackNum -> TrackPos -> TrackNum -> TrackPos -> Maybe Selection
+selection :: TrackNum -> ScoreTime -> TrackNum -> ScoreTime -> Maybe Selection
 selection start_track start_pos cur_track cur_pos =
     Just (Selection start_track start_pos cur_track cur_pos)
 
 -- | A point is a selection with no duration.
-point_selection :: TrackNum -> TrackPos -> Maybe Selection
+point_selection :: TrackNum -> ScoreTime -> Maybe Selection
 point_selection tracknum pos = selection tracknum pos tracknum pos
 
 sel_is_point :: Selection -> Bool
@@ -195,14 +213,14 @@ sel_tracknums :: Selection -> [TrackNum]
 sel_tracknums sel = let (start, end) = sel_track_range sel in [start..end]
 
 -- | Start and end points, from small to large.
-sel_range :: Selection -> (TrackPos, TrackPos)
+sel_range :: Selection -> (ScoreTime, ScoreTime)
 sel_range sel = (min pos0 pos1, max pos0 pos1)
     where (pos0, pos1) = (sel_start_pos sel, sel_cur_pos sel)
 
-sel_set_duration :: TrackPos -> Selection -> Selection
+sel_set_duration :: ScoreTime -> Selection -> Selection
 sel_set_duration dur sel
-    | cur > start = sel { sel_cur_pos = start + (max (TrackPos 0) dur) }
-    | otherwise = sel { sel_start_pos = cur + (max (TrackPos 0) dur) }
+    | cur > start = sel { sel_cur_pos = start + (max 0 dur) }
+    | otherwise = sel { sel_start_pos = cur + (max 0 dur) }
     where
     start = sel_start_pos sel
     cur = sel_cur_pos sel

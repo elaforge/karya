@@ -124,10 +124,10 @@ public:
     // 'track' should be the same kind of track as the one at 'tracknum' or this
     // throws.  Update colors and whatnot if they have changed (pointers
     // may be passed as NULL which means no change).  Also mark that the range
-    // 'start' to 'end' should be updated.  If 'end' is TrackPos(0), the entire
+    // 'start' to 'end' should be updated.  If 'end' is ScoreTime(0), the entire
     // range should be updated.
     void update_track(int tracknum, const Tracklike &track,
-            FinalizeCallback finalizer, TrackPos start, TrackPos end);
+            FinalizeCallback finalizer, ScoreTime start, ScoreTime end);
 
     TrackView *track_at(int tracknum) {
         if (tracknum == 0)

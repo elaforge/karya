@@ -76,8 +76,9 @@ d_control_track track_id = do
     -- Note.hs.
     -- Unlike the note deriver, I can do the warping all in one go here,
     -- because control events never trigger subderivation.
-    warped <- mapM Derive.local_to_global pos_list
-    return $ map (uncurry (control_event stack)) (zip warped events)
+    warped <- mapM Derive.score_to_real pos_list
+    return [control_event stack score_pos real_pos event
+        | (score_pos, real_pos, event) <- zip3 pos_list warped events]
 
 -- * implementation
 
@@ -85,13 +86,15 @@ d_control_track track_id = do
 -- have to unpack the event text.
 
 -- | Construct a control event from warped position.
-control_event :: Warning.Stack -> TrackPos -> Event.Event -> Score.ControlEvent
-control_event stack pos event =
+control_event :: Warning.Stack -> ScoreTime -> RealTime -> Event.Event
+    -> Score.ControlEvent
+control_event stack score_pos pos event =
     Score.ControlEvent pos (Event.event_text event) evt_stack
     where
     evt_stack = case stack of
         (block_id, track_id, _) : rest ->
-            (block_id, track_id, Just (pos, Event.event_duration event)) : rest
+            (block_id, track_id, Just (score_pos, Event.event_duration event))
+                : rest
         [] -> []
 
 -- ** number signals

@@ -21,7 +21,7 @@ data Context = Context
     { ctx_block :: Maybe ViewId
     -- | Index into block tracks.
     , ctx_track :: Maybe TrackNum
-    , ctx_pos :: Maybe TrackPos
+    , ctx_pos :: Maybe ScoreTime
     } deriving (Show)
 
 -- | Corresponds to UiMsg::MsgType enum.

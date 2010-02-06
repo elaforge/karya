@@ -90,8 +90,8 @@ extract_logs result = case result of
     Right (Nothing, _, _, _) -> Right Nothing
     Left err -> Left (show err)
 
-set_sel :: (Monad m) => Types.TrackNum -> TrackPos -> Types.TrackNum
-    -> TrackPos -> Cmd.CmdT m ()
+set_sel :: (Monad m) => Types.TrackNum -> ScoreTime -> Types.TrackNum
+    -> ScoreTime -> Cmd.CmdT m ()
 set_sel t0 p0 t1 p1 = do
     let sel = Types.selection t0 p0 t1 p1
     State.set_selection UiTest.default_view_id Config.insert_selnum sel

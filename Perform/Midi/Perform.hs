@@ -57,14 +57,14 @@ keyswitch_interval = 4
 -- if you set pitch bend immediately before playing the note you will get
 -- a little sproing.  Try to put pitch bends before their notes by this amount,
 -- unless there's another note there.
-pitch_bend_lead_time :: TrackPos
-pitch_bend_lead_time = Timestamp.to_track_pos (Timestamp.seconds 0.01)
+pitch_bend_lead_time :: RealTime
+pitch_bend_lead_time = Timestamp.to_real_time (Timestamp.seconds 0.01)
 
 -- | When a track's NoteOff lines up with the next NoneOn, make them overlap by
 -- this amount.  Normally this won't be audible, but if the instrument is set
 -- for fingered portamento then this should trigger it.
-legato_overlap_time :: TrackPos
-legato_overlap_time = Timestamp.to_track_pos (Timestamp.seconds 0.01)
+legato_overlap_time :: RealTime
+legato_overlap_time = Timestamp.to_real_time (Timestamp.seconds 0.01)
 
 -- Neither of those are exactly representable, but they get rounded to
 -- milliseconds anyway.
@@ -107,10 +107,10 @@ perform_notes :: [(Event, Instrument.Addr)]
     -- Pass an empty AddrInst because I can't make any assumptions about the
     -- state of the synthesizer.  The one from the wdev state might be out of
     -- date by the time this performance is played.
-perform_notes events = _perform_notes Map.empty [] (TrackPos 0) events
+perform_notes events = _perform_notes Map.empty [] (RealTime 0) events
 
 _perform_notes :: AddrInst -> [Midi.WriteMessage]
-    -> TrackPos -> [(Event, Instrument.Addr)]
+    -> RealTime -> [(Event, Instrument.Addr)]
     -> ([Midi.WriteMessage], [Warning.Warning])
 _perform_notes _ overlapping _ [] = (overlapping, [])
 _perform_notes addr_inst overlapping prev_note_off ((event, addr):events) =
@@ -156,7 +156,7 @@ adjust_chan_state addr_inst addr event =
     new_addr_inst = Map.insert addr inst addr_inst
     inst = event_instrument event
     old_inst = Map.lookup addr addr_inst
-    ts = Timestamp.from_track_pos (event_start event)
+    ts = Timestamp.from_real_time (event_start event)
 
 -- | TODO support program change, I'll have to get ahold of patch_initialize.
 chan_state_msgs :: Instrument.Addr -> Timestamp.Timestamp
@@ -257,8 +257,8 @@ sort2 cmp xs = List.sortBy cmp xs
 --
 -- @next_event@ is the next event with the same Addr which is used for the
 -- legato tweak and to see how far to render controls.
-perform_note :: TrackPos -> Maybe Event -> Event -> Instrument.Addr
-    -> ([Midi.WriteMessage], [Warning.Warning], TrackPos)
+perform_note :: RealTime -> Maybe Event -> Event -> Instrument.Addr
+    -> ([Midi.WriteMessage], [Warning.Warning], RealTime)
 perform_note prev_note_off next_event event addr =
     case event_pitch_at (event_pb_range event) event (event_start event) of
         Nothing -> ([], [event_warning event "no pitch signal"], prev_note_off)
@@ -275,9 +275,9 @@ perform_note prev_note_off next_event event addr =
     _control_msgs = perform_control_msgs next_event event addr
 
 -- | Perform the note on and note off.
-perform_note_msgs :: TrackPos -> Maybe Event -> Event -> Instrument.Addr
+perform_note_msgs :: RealTime -> Maybe Event -> Event -> Instrument.Addr
     -> Midi.Key -> Midi.PitchBendValue
-    -> ([Midi.WriteMessage], [Warning.Warning], TrackPos)
+    -> ([Midi.WriteMessage], [Warning.Warning], RealTime)
 perform_note_msgs prev_note_off next_event event (dev, chan) midi_nn pb =
     ([ chan_msg pb_time (Midi.PitchBend pb)
     , chan_msg note_on (Midi.NoteOn midi_nn on_vel)
@@ -296,7 +296,7 @@ perform_note_msgs prev_note_off next_event event (dev, chan) midi_nn pb =
         fmap fst $ event_pitch_at (event_pb_range event) next next_note_on
     next_note_on = maybe (note_end event) event_start next_event
     warns = make_clip_warnings event (Control.c_velocity, vel_clip_warns)
-    chan_msg pos msg = Midi.WriteMessage dev (Timestamp.from_track_pos pos)
+    chan_msg pos msg = Midi.WriteMessage dev (Timestamp.from_real_time pos)
         (Midi.ChannelMessage chan msg)
 
 -- | Perform control change messages.
@@ -318,7 +318,7 @@ perform_control_msgs next_event event (dev, chan) midi_nn =
     next_note_on = maybe (note_end event) event_start next_event
     warns = concatMap (make_clip_warnings event)
         (zip (map fst control_sigs) clip_warns)
-    chan_msg (pos, msg) = Midi.WriteMessage dev (Timestamp.from_track_pos pos)
+    chan_msg (pos, msg) = Midi.WriteMessage dev (Timestamp.from_real_time pos)
         (Midi.ChannelMessage chan msg)
 
 event_pb_range :: Event -> Control.PbRange
@@ -329,12 +329,12 @@ event_pb_range = Instrument.inst_pitch_bend_range . event_instrument
 -- The pitch bend always tunes upwards from the tempered note.  It would be
 -- slicker to use a negative offset if the note is eventually going above
 -- unity, but that's too much work.
-event_pitch_at :: Control.PbRange -> Event -> TrackPos
+event_pitch_at :: Control.PbRange -> Event -> RealTime
     -> Maybe (Midi.Key, Midi.PitchBendValue)
 event_pitch_at pb_range event pos =
     Control.pitch_to_midi pb_range (Signal.at pos (event_pitch event))
 
-note_velocity :: Event -> TrackPos -> TrackPos
+note_velocity :: Event -> RealTime -> RealTime
     -> (Midi.Velocity, Midi.Velocity, [ClipWarning])
 note_velocity event note_on note_off =
     (clipped_vel on_sig, clipped_vel off_sig, clip_warns)
@@ -348,7 +348,7 @@ note_velocity event note_on note_off =
         if snd (clip_val 0 1 on_sig) || snd (clip_val 0 1 off_sig)
         then [(note_on, note_off)] else []
 
-type ClipWarning = (TrackPos, TrackPos)
+type ClipWarning = (RealTime, RealTime)
 make_clip_warnings :: Event -> (Control.Control, [ClipWarning])
     -> [Warning.Warning]
 make_clip_warnings event (control, clip_warns) =
@@ -356,13 +356,13 @@ make_clip_warnings event (control, clip_warns) =
         (event_stack event) (Just (start, end))
     | (start, end) <- clip_warns ]
 
-control_at :: Event -> Control.Control -> TrackPos -> Maybe Signal.Y
+control_at :: Event -> Control.Control -> RealTime -> Maybe Signal.Y
 control_at event control pos = do
     sig <- Map.lookup control (event_controls event)
     return (Signal.at pos sig)
 
-perform_pitch :: Control.PbRange -> Midi.Key -> TrackPos -> TrackPos
-    -> Signal.NoteNumber -> [(TrackPos, Midi.ChannelMessage)]
+perform_pitch :: Control.PbRange -> Midi.Key -> RealTime -> RealTime
+    -> Signal.NoteNumber -> [(RealTime, Midi.ChannelMessage)]
 perform_pitch pb_range nn start end sig =
     [(pos, Midi.PitchBend (Control.pb_from_nn pb_range nn val)) |
         (pos, val) <- pos_vals]
@@ -370,9 +370,9 @@ perform_pitch pb_range nn start end sig =
 
 -- | Return the (pos, msg) pairs, and whether the signal value went out of the
 -- allowed control range, 0--1.
-perform_control :: Control.ControlMap -> TrackPos -> TrackPos
+perform_control :: Control.ControlMap -> RealTime -> RealTime
     -> (Control.Control, Signal.Control)
-    -> ([(TrackPos, Midi.ChannelMessage)], [ClipWarning])
+    -> ([(RealTime, Midi.ChannelMessage)], [ClipWarning])
 perform_control cmap start end (control, sig) =
     case Control.control_constructor cmap control of
         Nothing -> ([], []) -- TODO warn about a control not in the cmap
@@ -386,7 +386,7 @@ perform_control cmap start end (control, sig) =
     clip_warns = extract_clip_warns (zip pos_vals clips)
     pos_cvals = zip (map fst pos_vals) cvals
 
-extract_clip_warns :: [((TrackPos, Signal.Y), Bool)] -> [ClipWarning]
+extract_clip_warns :: [((RealTime, Signal.Y), Bool)] -> [ClipWarning]
 extract_clip_warns pos_val_clips = [(head pos, last pos) | pos <- clip_pos]
     where
     groups = List.groupBy ((==) `on` snd) pos_val_clips
@@ -459,7 +459,7 @@ can_share_chan event1 event2
         (Map.assocs (event_controls event))
 
 -- | Are the controls equal in the given range?
-controls_equal :: TrackPos -> TrackPos
+controls_equal :: RealTime -> RealTime
     -> [(Control.Control, Signal.Control)]
     -> [(Control.Control, Signal.Control)] -> Bool
 controls_equal start end c0 c1 = all (uncurry eq) (zip c0 c1)
@@ -485,7 +485,7 @@ allot inst_addrs events = Maybe.catMaybes $
 
 data AllotState = AllotState {
     -- | Allocated addresses, and when they were last used.
-    ast_available :: Map.Map Instrument.Addr TrackPos
+    ast_available :: Map.Map Instrument.Addr RealTime
     -- | Map arbitrary input channels to an instrument address in the allocated
     -- range.
     , ast_map :: Map.Map (Instrument.Instrument, Channel) Instrument.Addr
@@ -523,28 +523,28 @@ steal_addr inst state =
                 in Just addr
         _ -> Nothing
     where
-    mlookup addr = Map.findWithDefault (TrackPos 0) addr (ast_available state)
+    mlookup addr = Map.findWithDefault (RealTime 0) addr (ast_available state)
 
 -- * data
 
 data Event = Event {
     event_instrument :: Instrument.Instrument
-    , event_start :: TrackPos
-    , event_duration :: TrackPos
+    , event_start :: RealTime
+    , event_duration :: RealTime
     , event_controls :: ControlMap
     , event_pitch :: Signal.NoteNumber
-    -- original (TrackId, TrackPos) for errors
+    -- original (TrackId, ScoreTime) for errors
     , event_stack :: Warning.Stack
     } deriving (Show)
 
-event_end :: Event -> TrackPos
+event_end :: Event -> RealTime
 event_end event = event_start event + event_duration event
 
 -- | The end of an event after taking decay into account.  The note shouldn't
 -- be sounding past this time.
-note_end :: Event -> TrackPos
+note_end :: Event -> RealTime
 note_end event =
-    event_end event + TrackPos (Instrument.inst_decay (event_instrument event))
+    event_end event + RealTime (Instrument.inst_decay (event_instrument event))
 
 
 -- | This isn't directly the midi channel, since it goes higher than 15, but

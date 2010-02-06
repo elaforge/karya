@@ -63,16 +63,16 @@ test_scroll_zoom = do
         send $ BlockC.set_track_scroll view 0
 
     io_human "scroll down a little" $
-        send $ BlockC.set_zoom view (Types.Zoom (TrackPos 20) 1)
+        send $ BlockC.set_zoom view (Types.Zoom (ScoreTime 20) 1)
     io_human "scroll down all the way" $
-        send $ BlockC.set_zoom view (Types.Zoom (TrackPos 99999) 1)
+        send $ BlockC.set_zoom view (Types.Zoom (ScoreTime 99999) 1)
     io_human "scroll back" $
-        send $ BlockC.set_zoom view (Types.Zoom (TrackPos (-20)) 1)
+        send $ BlockC.set_zoom view (Types.Zoom (ScoreTime (-20)) 1)
 
     io_human "zoom in to 2" $
-        send $ BlockC.set_zoom view (Types.Zoom (TrackPos 0) 2)
+        send $ BlockC.set_zoom view (Types.Zoom (ScoreTime 0) 2)
     io_human "zoom out back to 1" $
-        send $ BlockC.set_zoom view (Types.Zoom (TrackPos 0) 1)
+        send $ BlockC.set_zoom view (Types.Zoom (ScoreTime 0) 1)
 
 test_set_selection = do
     view <- create_empty_view
@@ -82,10 +82,10 @@ test_set_selection = do
     let c = Color.brightness 1.5 Color.blue
     io_human "point selection appears" $
         send $ BlockC.set_selection view 0
-            (cselection c 1 (TrackPos 0) 1 (TrackPos 0))
+            (cselection c 1 (ScoreTime 0) 1 (ScoreTime 0))
     io_human "replaced by long selection" $
         send $ BlockC.set_selection view 0
-            (cselection c 1 (TrackPos 10) 1 (TrackPos 20))
+            (cselection c 1 (ScoreTime 10) 1 (ScoreTime 20))
     io_human "goes away" $
         send $ BlockC.set_selection view 0 Nothing
 
@@ -146,7 +146,7 @@ test_update_track = do
             (Block.R (UiTest.mkruler 20 16)) no_samples []
         send $ BlockC.update_track view 2
             (Block.T event_track_2 (UiTest.overlay_ruler ruler))
-            no_samples [] (TrackPos 0) (TrackPos 60)
+            no_samples [] (ScoreTime 0) (ScoreTime 60)
 
 test_insert_remove_track = do
     view <- create_empty_view
@@ -154,7 +154,7 @@ test_insert_remove_track = do
     io_human "new event track" $
         send $ BlockC.insert_track view 1
             (Block.T event_track_1 ruler) no_samples 30
-    send $ BlockC.set_zoom view (Types.Zoom (TrackPos 0) 2)
+    send $ BlockC.set_zoom view (Types.Zoom (ScoreTime 0) 2)
     io_human "another new event track also zoomed" $
         send $ BlockC.insert_track view 2
             (Block.T event_track_2 ruler) no_samples 30
@@ -171,7 +171,7 @@ test_samples = do
     io_human "samples are filled in" $
         send $ BlockC.update_entire_track view 1 (event_track track2) samples []
 
-samples = Track.samples $ map (Arrow.first TrackPos)
+samples = Track.samples $ map (Arrow.first ScoreTime)
     [(0, 1), (32, 0.5), (32, 1), (64, 0), (500, 0), (510, 1), (520, 0)]
 
 -- TODO

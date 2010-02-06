@@ -29,7 +29,7 @@ import qualified Perform.Midi.Perform as Perform
 
 
 legato :: Double
-legato = (\(TrackPos pos) -> pos) Perform.legato_overlap_time
+legato = (\(RealTime pos) -> pos) Perform.legato_overlap_time
 
 -- * perform
 
@@ -200,12 +200,12 @@ show_msg (Midi.WriteMessage dev ts msg) =
     show dev ++ ": " ++ pretty ts ++ ": " ++ show msg
 
 test_pitch_curve = do
-    let event pitch = Perform.Event inst1 (TrackPos 1) (TrackPos 0.5)
+    let event pitch = Perform.Event inst1 (RealTime 1) (RealTime 0.5)
             Map.empty (Signal.signal pitch) []
     let f evt = (Seq.drop_dups id (map Midi.wmsg_msg msgs), warns)
             where
             (msgs, warns, _) = Perform.perform_note
-                (TrackPos 0) Nothing evt (dev1, 1)
+                (RealTime 0) Nothing evt (dev1, 1)
         chan msgs = (map (Midi.ChannelMessage 1) msgs, [])
 
     equal (f (event [(1, 42.12)]))
@@ -223,9 +223,9 @@ test_pitch_curve = do
     let notes prev evt = [(Midi.wmsg_ts msg, Midi.wmsg_msg msg) | msg <- msgs]
             where
             (msgs, _, _) = Perform.perform_note prev Nothing evt (dev1, 1)
-    equal (head (notes (TrackPos 0) (event [(1, 42.12)])))
+    equal (head (notes (RealTime 0) (event [(1, 42.12)])))
         (Timestamp.Timestamp 990, Midi.ChannelMessage 1 (Midi.PitchBend 0.01))
-    equal (head (notes (TrackPos 1) (event [(1, 42.12)])))
+    equal (head (notes (RealTime 1) (event [(1, 42.12)])))
         (Timestamp.Timestamp 1000, Midi.ChannelMessage 1 (Midi.PitchBend 0.01))
 
 test_no_pitch = do
@@ -290,7 +290,7 @@ test_perform_control1 = do
     -- Bad signal that goes over 1 in two places.
     let sig = (vol_cc, mksignal [(0, 0), (1, 1.5), (2, 0), (2.5, 0), (3, 2)])
         (msgs, warns) = Perform.perform_control Control.empty_map
-            (TrackPos 0) (TrackPos 4) sig
+            (RealTime 0) (RealTime 4) sig
 
     -- controls are not emitted after they reach steady values
     check $ all Midi.valid_chan_msg (map snd msgs)
@@ -300,7 +300,7 @@ test_perform_control1 = do
 test_perform_control2 = do
     let sig = (vol_cc, mksignal [(0, 0), (4, 1)])
         (msgs, warns) = Perform.perform_control Control.empty_map
-            (TrackPos 2) (TrackPos 4) sig
+            (RealTime 2) (RealTime 4) sig
     plist warns
     plist msgs
 
@@ -400,7 +400,7 @@ mkevent event = head (mkevents [event])
 
 mkevents_inst = map (\ (p, s, d, c) -> mkevent (inst1, p, s, d, c))
 
-type EventSpec = (Instrument.Instrument, String, TrackPos, TrackPos,
+type EventSpec = (Instrument.Instrument, String, RealTime, RealTime,
     [(Control.Control, Signal.Control)])
 
 mkevents :: [EventSpec] -> [Perform.Event]
@@ -419,7 +419,7 @@ mkevents events = trim_pitches
     stack =
         [ (Types.BlockId (Id.id "test" "fakeblock")
         , Just (Types.TrackId (Id.id "test" "faketrack"))
-        , Just (TrackPos 42, TrackPos 42))
+        , Just (42, 42))
         ]
 
 -- snaked from Derive.Note.trim_pitches
@@ -431,8 +431,8 @@ trim_pitches events = map trim_event (Seq.zip_next events)
         Signal.truncate (Perform.event_start next) psig }
         where psig = Perform.event_pitch event
 
-mksignal ts_vals = Signal.track_signal (TrackPos 1)
-    [(TrackPos pos, Signal.Linear, val) | (pos, val) <- ts_vals]
+mksignal ts_vals = Signal.track_signal (RealTime 1)
+    [(RealTime pos, Signal.Linear, val) | (pos, val) <- ts_vals]
 
 vol_cc = Control.Control "volume"
 c_vol = (vol_cc, mksignal [(0, 1), (4, 0)])

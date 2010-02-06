@@ -10,7 +10,7 @@ Both are 0--1 and represent the percentage of the way down the scroll space,
 and the percentage of the total space visible.  The scrollbar is proportional,
 but has a minimum size, and won't go totally off the end.
 
-zoom_position(TrackPos max, TrackPos display_size, ZoomInfo zoom)
+zoom_position(ScoreTime max, ScoreTime display_size, ZoomInfo zoom)
 {
     10, (5, .5)
 }

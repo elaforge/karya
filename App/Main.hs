@@ -21,7 +21,6 @@ import qualified Util.Map as Map
 import qualified Util.Log as Log
 import qualified Util.Thread as Thread
 
-import Ui
 import qualified Ui.Event as Event
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Skeleton as Skeleton
@@ -251,8 +250,7 @@ auto_setup_cmd = do
     State.set_skeleton bid $ Skeleton.make [(1, 3), (3, 2)]
 
     State.set_midi_config inst_config
-    State.set_selection vid Config.insert_selnum
-        (Types.point_selection 0 (TrackPos 0))
+    State.set_selection vid Config.insert_selnum (Types.point_selection 0 0)
     return Cmd.Done
     where
     note_event (pos, evt)
@@ -295,8 +293,7 @@ setup_big _ = do
 
     State.set_midi_config inst_config
     State.set_default_inst (Just (Score.Instrument "fm8/bass"))
-    State.set_selection view Config.insert_selnum
-        (Types.point_selection 0 (TrackPos 0))
+    State.set_selection view Config.insert_selnum (Types.point_selection 0 0)
     return Cmd.Done
 
 empty_block = do

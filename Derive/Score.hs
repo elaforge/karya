@@ -11,6 +11,7 @@ import qualified Data.Text as Text
 import Util.Control
 
 import Ui
+import qualified Ui.Types as Types
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
@@ -21,15 +22,15 @@ import qualified Perform.Warning as Warning
 -- | Currently this is just for 'Derive.map_events'.
 class Eventlike e where
     stack :: e -> [Warning.StackPos]
-    start :: e -> TrackPos
+    start :: e -> RealTime
 
 -- * Event
 
 data Event = Event {
     -- | These are the core attributes that define an event.  UI display
     -- attributes like font style are not preserved here.
-    event_start :: TrackPos
-    , event_duration :: TrackPos
+    event_start :: RealTime
+    , event_duration :: RealTime
     -- | The UI level keeps it in UTF8 for easy communication with fltk, but
     -- haskell will always need to decode it, so I might as well do it here.
     , event_text :: Text.Text
@@ -57,26 +58,30 @@ type ControlMap = Map.Map Control Signal.Control
 event_string :: Event -> String
 event_string = Text.unpack . event_text
 
-event_end :: Event -> TrackPos
+event_end :: Event -> RealTime
 event_end event = event_start event + event_duration event
 
 -- ** modify events
 
-move :: (TrackPos -> TrackPos) -> Event -> Event
+-- These operate directly on events, so we are in RealTime at this point.
+
+move :: (RealTime -> RealTime) -> Event -> Event
 move f event =
     move_controls (pos - event_start event) $ event { event_start = pos }
     where pos = f (event_start event)
 
-place :: TrackPos -> TrackPos -> Event -> Event
+place :: RealTime -> RealTime -> Event -> Event
 place start dur event = (move (const start) event) { event_duration = dur }
 
-move_controls :: TrackPos -> Event -> Event
+-- *** control
+
+move_controls :: RealTime -> Event -> Event
 move_controls shift event = event
     { event_controls = Map.map (Signal.shift shift) (event_controls event)
     , event_pitch = PitchSignal.shift shift (event_pitch event)
     }
 
-event_control_at :: TrackPos -> Control -> Maybe Signal.Y -> Event
+event_control_at :: RealTime -> Control -> Maybe Signal.Y -> Event
     -> Maybe Signal.Y
 event_control_at pos cont deflt event =
     maybe deflt (Just . Signal.at pos) (Map.lookup cont (event_controls event))
@@ -100,6 +105,24 @@ modify_event_control control f event = case Map.lookup control controls of
             event { event_controls = Map.insert control (f sig) controls }
     where controls = event_controls event
 
+-- *** pitch
+
+pitch_at :: RealTime -> Event -> PitchSignal.Y
+pitch_at pos = PitchSignal.at pos . event_pitch
+
+degree_at :: RealTime -> Event -> Pitch.Degree
+degree_at pos = PitchSignal.y_to_degree . pitch_at pos
+
+initial_pitch :: Event -> Pitch.Degree
+initial_pitch event = degree_at (event_start event) event
+
+modify_pitch :: (Pitch.Degree -> Pitch.Degree) -> Event -> Event
+modify_pitch f event =
+    event { event_pitch = PitchSignal.map_degree f (event_pitch event) }
+
+transpose :: Pitch.Degree -> Event -> Event
+transpose n = modify_pitch (+n)
+
 
 -- ** warp
 
@@ -109,8 +132,8 @@ modify_event_control control f event = case Map.lookup control controls of
 -- flattened out when the warp is composed though (in 'd_warp').
 data Warp = Warp {
     warp_signal :: Signal.Warp
-    , warp_shift :: TrackPos
-    , warp_stretch :: TrackPos
+    , warp_shift :: ScoreTime
+    , warp_stretch :: ScoreTime
     } deriving (Eq, Show)
 
 id_warp :: Warp
@@ -122,22 +145,29 @@ is_id_warp = (== id_warp)
 id_warp_signal :: Signal.Warp
 id_warp_signal = Signal.signal [(0, 0), (Signal.max_x, Signal.max_y)]
 
-stretch_warp :: TrackPos -> Warp -> Warp
+stretch_warp :: ScoreTime -> Warp -> Warp
 stretch_warp factor warp = warp { warp_stretch = warp_stretch warp * factor }
 
-shift_warp :: TrackPos -> Warp -> Warp
+shift_warp :: ScoreTime -> Warp -> Warp
 shift_warp shift warp =
     warp { warp_shift = warp_shift warp + warp_stretch warp * shift }
 
-warp_pos :: TrackPos -> Warp -> TrackPos
+warp_pos :: ScoreTime -> Warp -> RealTime
 warp_pos pos warp@(Warp sig shift stretch)
-    | is_id_warp warp = pos
-    | otherwise = Signal.y_to_x $ Signal.at_linear (pos * stretch + shift) sig
+    | is_id_warp warp = to_real pos
+    | otherwise = Signal.y_to_real $
+        Signal.at_linear (to_real (pos * stretch + shift)) sig
 
-unwarp_pos :: TrackPos -> Warp -> Maybe TrackPos
+-- | Unlike 'warp_pos', 'unwarp_pos' can fail.  This asymmetry is because
+-- at_linear will project a signal on forever, but inverse_at won't.
+-- TODO this behaviour is important for playback, but maybe I could have
+-- another projecting version to get rid of the Maybe here.  It would be
+-- projecting at 1:1 instead of 0:1 which might be a little odd, but
+-- convenient.
+unwarp_pos :: RealTime -> Warp -> Maybe ScoreTime
 unwarp_pos pos (Warp sig shift stretch) = case Signal.inverse_at pos sig of
     Nothing -> Nothing
-    Just p -> Just $ (p - shift) / stretch
+    Just p -> Just $ (Types.real_to_score p - shift) / stretch
 
 -- | Warp a Warp with a warp signal.
 compose_warp :: Warp -> Signal.Warp -> Warp
@@ -151,16 +181,17 @@ compose_warp warp sig
     -- > (shift f -offset)(scale(stretch, g))
     -- > (compose (shift-time f (- offset)) (scale stretch g))
     compose (Warp f shift stretch) g = signal_to_warp $
-        Signal.compose (Signal.shift (-shift) f)
-            (Signal.scale (Signal.x_to_y stretch) g)
+        Signal.compose (Signal.shift (- (to_real shift)) f)
+            (Signal.scale (Signal.x_to_y (to_real stretch)) g)
 
 -- | Convert a Signal to a Warp.
 signal_to_warp :: Signal.Warp -> Warp
-signal_to_warp sig = Warp sig (TrackPos 0) (TrackPos 1)
+signal_to_warp sig = Warp sig (ScoreTime 0) (ScoreTime 1)
 
+-- TODO unused?  remove this?
 warp_to_signal :: Warp -> Signal.Warp
 warp_to_signal (Warp sig shift stretch) =
-    Signal.map_x (subtract shift . (* stretch)) sig
+    Signal.map_x (subtract (to_real shift) . (* to_real stretch)) sig
 
 -- | Warp a signal.
 -- TODO this does the same thing as compose_warp, but Signal.compose doesn't
@@ -171,8 +202,9 @@ warp_control :: Signal.Control -> Warp -> Signal.Control
 warp_control control warp@(Warp sig shift stretch)
     | is_id_warp warp = control
         -- optimization
-    | sig == id_warp_signal = Signal.map_x (\p -> (p+shift) * stretch) control
-    | otherwise = Signal.map_x (\x -> warp_pos x warp) control
+    | sig == id_warp_signal =
+        Signal.map_x (\p -> (p + to_real shift) * to_real stretch) control
+    | otherwise = Signal.map_x (\x -> warp_pos (to_score x) warp) control
 
 -- TODO this should be merged with warp_control, I need to use SignalBase.map_x
 warp_pitch :: PitchSignal.PitchSignal -> Warp -> PitchSignal.PitchSignal
@@ -180,8 +212,8 @@ warp_pitch psig warp@(Warp sig shift stretch)
     | is_id_warp warp = psig
         -- optimization
     | sig == id_warp_signal =
-        PitchSignal.map_x (\p -> (p+shift) * stretch) psig
-    | otherwise = PitchSignal.map_x (\x -> warp_pos x warp) psig
+        PitchSignal.map_x (\p -> (p + to_real shift) * to_real stretch) psig
+    | otherwise = PitchSignal.map_x (\x -> warp_pos (to_score x) warp) psig
 
 -- ** warped control
 
@@ -206,11 +238,12 @@ insert_control :: Control -> Signal.Control -> WarpedControls -> WarpedControls
 insert_control cont sig (WarpedControls cmap) =
     WarpedControls $ Map.insert cont (sig, id_warp) cmap
 
-lookup_control :: TrackPos -> Control -> WarpedControls -> Maybe Signal.Y
+lookup_control :: RealTime -> Control -> WarpedControls -> Maybe Signal.Y
 lookup_control pos cont (WarpedControls cmap) = case Map.lookup cont cmap of
     Nothing -> Nothing
-    -- Instead of warping the signal I unwarp the point.
-    Just (sig, warp) -> case unwarp_pos pos warp of
+    -- Instead of warping the signal I unwarp the point, so things are a little
+    -- backwards here.
+    Just (sig, warp) -> case fmap to_real (unwarp_pos pos warp) of
         Nothing -> Nothing
         Just p -> Just $ Signal.at p sig
 
@@ -225,28 +258,10 @@ modify_warps :: (Warp -> Warp) -> WarpedControls -> WarpedControls
 modify_warps f (WarpedControls cmap) = WarpedControls $ Map.map (second f) cmap
 
 
--- ** pitch
-
-pitch_at :: TrackPos -> Event -> PitchSignal.Y
-pitch_at pos = PitchSignal.at pos . event_pitch
-
-degree_at :: TrackPos -> Event -> Pitch.Degree
-degree_at pos = PitchSignal.y_to_degree . pitch_at pos
-
-initial_pitch :: Event -> Pitch.Degree
-initial_pitch event = degree_at (event_start event) event
-
-modify_pitch :: (Pitch.Degree -> Pitch.Degree) -> Event -> Event
-modify_pitch f event =
-    event { event_pitch = PitchSignal.map_degree f (event_pitch event) }
-
-transpose :: Pitch.Degree -> Event -> Event
-transpose n = modify_pitch (+n)
-
 -- * ControlEvent
 
 data ControlEvent = ControlEvent {
-    cevent_start :: TrackPos
+    cevent_start :: RealTime
     , cevent_text :: Text.Text
     , cevent_stack :: Warning.Stack
     } deriving (Eq, Show)
@@ -306,3 +321,8 @@ trem = "trem"
 cresc = "cresc"
 dim = "dim"
 sfz = "sfz"
+
+-- * util
+
+to_real = Types.score_to_real
+to_score = Types.real_to_score

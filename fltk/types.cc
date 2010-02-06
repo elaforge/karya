@@ -1,12 +1,12 @@
 #include "types.h"
 
 
-const TrackPos TrackPos::invalid = TrackPos(-1);
+const ScoreTime ScoreTime::invalid = ScoreTime(-1);
 
 std::ostream &
-operator<<(std::ostream &os, const TrackPos &pos)
+operator<<(std::ostream &os, const ScoreTime &pos)
 {
-    return os << "TrackPos(" << pos._val << ")";
+    return os << "ScoreTime(" << pos._val << ")";
 }
 
 std::ostream &

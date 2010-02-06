@@ -77,7 +77,7 @@ do_updates block_samples updates = do
 -- This is because it happens asynchronously and would be noisy and inefficient
 -- to work into the responder loop, and isn't part of the usual state that
 -- should be saved anyway.
-set_play_position :: [(ViewId, [(TrackNum, Maybe TrackPos)])] -> IO ()
+set_play_position :: [(ViewId, [(TrackNum, Maybe ScoreTime)])] -> IO ()
 set_play_position block_sels = Ui.send_action $ sequence_
     [ BlockC.set_track_selection view_id
         Config.play_position_selnum tracknum (sel_at pos)
@@ -242,7 +242,7 @@ run_update block_samples (Update.TrackUpdate track_id update) = do
             Update.TrackBg ->
                 -- update_track also updates the bg color
                 return $ BlockC.update_track view_id tracknum tracklike
-                    samples merged (TrackPos 0) (TrackPos 0)
+                    samples merged (ScoreTime 0) (ScoreTime 0)
             Update.TrackRender ->
                 return $ BlockC.update_entire_track view_id tracknum tracklike
                     samples merged

@@ -53,13 +53,13 @@ generate_note :: Maybe Score.Instrument -> [TrackLang.RelativeAttr]
 generate_note n_inst rel_attrs (pos, event) next = do
     -- I could use the same code as the Transformer case, but this is a
     -- common case and it's probably more efficient to do it directly.
-    start <- Derive.local_to_global pos
-    end <- Derive.local_to_global (pos + Event.event_duration event)
+    start <- Derive.score_to_real pos
+    end <- Derive.score_to_real (pos + Event.event_duration event)
     -- TODO due to negative durations, end could be before start.  I need to
     -- add a post-proc step to calculate the proper durations
     next_start <- case next of
         [] -> return Nothing
-        (npos, _) : _ -> fmap Just (Derive.local_to_global npos)
+        (npos, _) : _ -> fmap Just (Derive.score_to_real npos)
     inst <- case n_inst of
         Just inst -> return (Just inst)
         Nothing -> Derive.lookup_val TrackLang.v_instrument
@@ -100,7 +100,7 @@ process_note_args inst attrs args = (inst', attrs', reverse invalid)
 -- its decay.
 -- TODO when signals are lazy I should drop the heads of the control
 -- signals so they can be gced.
-trimmed_pitch :: Maybe TrackPos -> PitchSignal.PitchSignal
+trimmed_pitch :: Maybe RealTime -> PitchSignal.PitchSignal
     -> PitchSignal.PitchSignal
 trimmed_pitch (Just next) sig = PitchSignal.truncate next sig
 trimmed_pitch Nothing sig = sig
@@ -112,7 +112,7 @@ c_block block_id = Derive.generate_one $ \args _ (pos, event) _ ->
     if null args then Right $ block_call block_id pos event
     else Left $ TrackLang.ArgError "args for block call not implemented yet"
 
-block_call :: BlockId -> TrackPos -> Event.Event -> Derive.EventDeriver
+block_call :: BlockId -> ScoreTime -> Event.Event -> Derive.EventDeriver
 block_call block_id pos event =
     Derive.d_at start $ Derive.d_stretch (end-start) $
         Derive.d_sub_derive [] (Derive.d_block block_id)

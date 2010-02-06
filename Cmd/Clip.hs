@@ -240,7 +240,7 @@ destroy_namespace ns = do
 -- grouped by track.  The clipboard events are clipped to start--end and
 -- shifted into the paste range.
 paste_info :: (Monad m) =>
-    Cmd.CmdT m (TrackPos, TrackPos, [TrackId], [[Track.PosEvent]])
+    Cmd.CmdT m (ScoreTime, ScoreTime, [TrackId], [[Track.PosEvent]])
 paste_info = do
     (track_ids, clip_track_ids, sel) <- get_paste_area
     let (start, end) = Types.sel_range sel
@@ -248,7 +248,7 @@ paste_info = do
     return (start, end, track_ids, clip_events)
 
 clip_track_events :: (State.UiStateMonad m) =>
-    TrackPos -> TrackPos -> TrackId -> m [Track.PosEvent]
+    ScoreTime -> ScoreTime -> TrackId -> m [Track.PosEvent]
 clip_track_events start end track_id = do
     track <- State.get_track track_id
     let events = clip_events (end-start)
@@ -256,7 +256,7 @@ clip_track_events start end track_id = do
         shifted = map (\(pos, evt) -> (pos+start, evt)) events
     return shifted
 
-clip_events :: TrackPos -> [Track.PosEvent] -> [Track.PosEvent]
+clip_events :: ScoreTime -> [Track.PosEvent] -> [Track.PosEvent]
 clip_events _ [] = []
 clip_events point (event@(pos, evt):events)
     | pos >= point = []

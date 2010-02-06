@@ -14,11 +14,11 @@ data Warning = Warning {
     warn_msg :: String
     , warn_event :: Stack
     -- | Range that the warning covers.  It should be within the event's
-    -- range.  It's in global time, so it needs to be converted back to
-    -- local time, and it's (start, end) rather than (start, dur).
-    -- TODO: convert these back to TrackPos with the tempo map
+    -- range.  It's in real time, so it needs to be converted back to
+    -- score time, and it's (start, end) rather than (start, dur).
+    -- TODO: convert these back to ScoreTime with the tempo map
     -- TODO convert to (start, dur) for consistency.
-    , warn_pos :: Maybe (TrackPos, TrackPos)
+    , warn_pos :: Maybe (RealTime, RealTime)
     } deriving (Eq, Show)
 warning = Warning
 
@@ -27,7 +27,7 @@ instance Error.Error Warning where
 
 -- | The location of an event that had a problem.
 -- (block_id, track_id, (event_start, event_end))
-type StackPos = (BlockId, Maybe TrackId, Maybe (TrackPos, TrackPos))
+type StackPos = (BlockId, Maybe TrackId, Maybe (ScoreTime, ScoreTime))
 
 -- | Stack order is most recent call first.
 type Stack = [StackPos]
@@ -57,7 +57,7 @@ parse_stack = Parse.maybe_parse $ do
         from <- Parse.p_float
         P.char '-'
         to <- Parse.p_float
-        return (TrackPos from, TrackPos to)
+        return (ScoreTime from, ScoreTime to)
     return (Types.BlockId (Id.read_id bid),
         fmap (Types.TrackId . Id.read_id) tid, range)
     where

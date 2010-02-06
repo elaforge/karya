@@ -95,11 +95,11 @@ TrackTile::set_zoom(const ZoomInfo &zoom)
 }
 
 
-TrackPos
+ScoreTime
 TrackTile::time_end() const
 {
     // These both have a 1 minimum to keep others from dividing by 0.
-    TrackPos end(1);
+    ScoreTime end(1);
     // It's too much hassle to make a const version of track_at when I know
     // I'm using it const.
     for (int i = 0; i < this->tracks(); i++) {
@@ -109,14 +109,14 @@ TrackTile::time_end() const
     return end;
 }
 
-TrackPos
+ScoreTime
 TrackTile::view_end() const
 {
     return this->zoom.to_trackpos(this->h() - this->title_height)
         + this->zoom.offset;
 }
 
-TrackPos
+ScoreTime
 TrackTile::visible_time() const
 {
     return this->zoom.to_trackpos(this->h() - this->title_height);

@@ -140,7 +140,7 @@ test_compile_to_signals = do
         Signal.track_signal Signal.default_srate segs
 
 signal_derive_tracks :: [UiTest.TrackSpec]
-    -> (Either String [(TrackId, [(TrackPos, Double)])], [Log.Msg])
+    -> (Either String [(TrackId, [(ScoreTime, Double)])], [Log.Msg])
 signal_derive_tracks tracks = case res of
         Left err -> (Left (show err), [])
         Right (track_smps, logs) -> (Right (map extract track_smps), logs)

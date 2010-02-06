@@ -11,7 +11,7 @@ import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 
 
-type PosEvent = (TrackPos, Event.Event)
+type PosEvent = (ScoreTime, Event.Event)
 
 data Track = Track {
     track_title :: String
@@ -36,9 +36,9 @@ data RenderStyle = NoRender | Line | Filled
     deriving (Eq, Show, Read)
 
 type TrackSamples = [(TrackId, Samples)]
-newtype Samples = Samples (IArray.Array Int (TrackPos, Double))
+newtype Samples = Samples (IArray.Array Int (ScoreTime, Double))
     deriving (Show)
-samples :: [(TrackPos, Double)] -> Samples
+samples :: [(ScoreTime, Double)] -> Samples
 samples smps = Samples $ IArray.listArray (0, length smps - 1) smps
 
 no_samples = samples []
@@ -59,21 +59,21 @@ modify_events :: (TrackEvents -> TrackEvents) -> Track -> Track
 modify_events f track@(Track { track_events = events }) =
     track { track_events = f events }
 
-track_time_end :: Track -> TrackPos
+track_time_end :: Track -> ScoreTime
 track_time_end track = time_end (track_events track)
 
-time_end :: TrackEvents -> TrackPos
+time_end :: TrackEvents -> ScoreTime
 time_end events = maybe 0 event_max (last_event events)
 
 
 -- * TrackEvents implementation
 
 {- TODO I probably need a more efficient data structure here.  Requirements:
-    1 Sparse mapping from TrackPos -> Event.
+    1 Sparse mapping from ScoreTime -> Event.
     1 Non-destructive updates share memory related to size of change, not size
     of map.
     1 Repeatedly inserting ascending elements is efficient.
-    1 Getting ascending and descending lists from a given TrackPos is
+    1 Getting ascending and descending lists from a given ScoreTime is
     efficient.
 
     2 Space efficient, contiguous storage.  If I am storing Doubles, they
@@ -84,14 +84,14 @@ time_end events = maybe 0 event_max (last_event events)
     to store a diff in the common case.
 
     IntMap claims to be much faster than Map, but uses Ints.  It looks like
-    I can change the types to Word64 to store TrackPos's.  Then maybe I can
+    I can change the types to Word64 to store ScoreTime's.  Then maybe I can
     implement toDescList with foldl?
 -}
 newtype TrackEvents =
-    TrackEvents (Map.Map TrackPos Event.Event)
+    TrackEvents (Map.Map ScoreTime Event.Event)
     deriving (Eq, Show, Read)
     -- alternate efficient version for control tracks?
-    -- ControlTrack (Array (TrackPos, Double))
+    -- ControlTrack (Array (ScoreTime, Double))
 
 -- | Create a TrackEvents.  The input must be in ascending order!
 event_map_asc :: [PosEvent] -> TrackEvents
@@ -135,28 +135,28 @@ from_events evts = insert_events evts empty_events
 from_sorted_events evts = insert_sorted_events evts empty_events
 
 -- | Remove events in range.
-remove_events :: TrackPos -> TrackPos -> TrackEvents -> TrackEvents
+remove_events :: ScoreTime -> ScoreTime -> TrackEvents -> TrackEvents
 remove_events start end track_events =
     emap (`Map.difference` deletes) track_events
     where (_, deletes, _) = _split_range start end (te_map track_events)
 
 -- | Remove an event if it occurs exactly at the given pos.
-remove_event :: TrackPos -> TrackEvents -> TrackEvents
+remove_event :: ScoreTime -> TrackEvents -> TrackEvents
 remove_event pos track_events = emap (Map.delete pos) track_events
 
 -- | Return the events before the given @pos@, and the events at and after it.
-split :: TrackPos -> TrackEvents -> ([PosEvent], [PosEvent])
+split :: ScoreTime -> TrackEvents -> ([PosEvent], [PosEvent])
 split pos (TrackEvents events) = (Map.toDescList pre, Map.toAscList post)
     where (pre, post) = Map.split2 pos events
 
 -- | Events at or after @pos@.
-events_after :: TrackPos -> TrackEvents -> [PosEvent]
+events_after :: ScoreTime -> TrackEvents -> [PosEvent]
 events_after pos track_events = snd (split pos track_events)
 
 -- | This is like 'split', but if there isn't an event exactly at the pos and
 -- the previous event is positive (i.e. has a chance of overlapping), include
 -- that in the after event.
-split_at_before :: TrackPos -> TrackEvents -> ([PosEvent], [PosEvent])
+split_at_before :: ScoreTime -> TrackEvents -> ([PosEvent], [PosEvent])
 split_at_before pos events
     | (epos, _) : _ <- post, epos == pos = (pre, post)
     | before : prepre <- pre, event_positive before = (prepre, before:post)
@@ -164,20 +164,20 @@ split_at_before pos events
     where (pre, post) = split pos events
 
 -- | An event exactly at the given pos, or Nothing.
-event_at :: TrackPos -> TrackEvents -> Maybe Event.Event
+event_at :: ScoreTime -> TrackEvents -> Maybe Event.Event
 event_at pos track_events = case events_after pos track_events of
     ((epos, event):_) | epos == pos -> Just event
     _ -> Nothing
 
 -- | Like 'event_at', but return an event that overlaps the given pos.
-event_overlapping :: TrackPos -> TrackEvents -> Maybe PosEvent
+event_overlapping :: ScoreTime -> TrackEvents -> Maybe PosEvent
 event_overlapping pos track_events
     | (next:_) <- post, fst next == pos || event_end next < pos = Just next
     | (prev:_) <- pre, event_end prev > pos = Just prev
     | otherwise = Nothing
     where (pre, post) = split pos track_events
 
--- | Get all events in ascending order.  Like @snd . split (TrackPos 0)@.
+-- | Get all events in ascending order.  Like @snd . split (ScoreTime 0)@.
 event_list :: TrackEvents -> [PosEvent]
 event_list (TrackEvents events) = Map.toAscList events
 
@@ -185,15 +185,15 @@ event_list (TrackEvents events) = Map.toAscList events
 last_event :: TrackEvents -> Maybe PosEvent
 last_event (TrackEvents events) = Map.find_max events
 
-event_start :: PosEvent -> TrackPos
+event_start :: PosEvent -> ScoreTime
 event_start = fst
 
 -- | Return the position at the end of the event.  Could be before @pos@ if
 -- the event has a negative duration.
-event_end :: PosEvent -> TrackPos
+event_end :: PosEvent -> ScoreTime
 event_end (pos, evt) = pos + Event.event_duration evt
 
-event_min, event_max :: PosEvent -> TrackPos
+event_min, event_max :: PosEvent -> ScoreTime
 event_min e@(pos, _) = min pos (event_end e)
 event_max e@(pos, _) = max pos (event_end e)
 
@@ -201,38 +201,38 @@ event_positive, event_negative :: PosEvent -> Bool
 event_positive = Event.is_positive . snd
 event_negative = Event.is_negative . snd
 
-event_overlaps :: TrackPos -> PosEvent -> Bool
+event_overlaps :: ScoreTime -> PosEvent -> Bool
 event_overlaps p e@(pos, evt)
     | Event.is_positive evt = p == pos || p >= pos && p < event_end e
     | otherwise = p == pos || p <= pos && p > event_end e
 
 -- | Everything from @start@ to @end@ exclusive, plus one before @start@ and
 -- one after @end@.
-in_range_around :: TrackPos -> TrackPos -> TrackEvents -> [PosEvent]
+in_range_around :: ScoreTime -> ScoreTime -> TrackEvents -> [PosEvent]
 in_range_around start end =
     Seq.take1 ((<end) . fst) .  snd . split_at_before start
 
-events_in_range :: TrackPos -> TrackPos -> TrackEvents -> [PosEvent]
+events_in_range :: ScoreTime -> ScoreTime -> TrackEvents -> [PosEvent]
 events_in_range start end events = within
     where (_, within, _) = split_range start end events
 
 -- | Split into tracks before, within, and after the half-open range.
 -- @before@ events are descending, the rest are ascending.
-split_range :: TrackPos -> TrackPos -> TrackEvents
+split_range :: ScoreTime -> ScoreTime -> TrackEvents
     -> ([PosEvent], [PosEvent], [PosEvent])
 split_range start end events =
     (Map.toDescList pre, Map.toAscList within, Map.toAscList post)
     where (pre, within, post) = _split_range start end (te_map events)
 
-split_lookup :: TrackPos -> TrackEvents
+split_lookup :: ScoreTime -> TrackEvents
     -> ([PosEvent], Maybe PosEvent, [PosEvent])
 split_lookup pos events =
     (Map.toDescList pre, fmap (pos,) at, Map.toAscList post)
     where (pre, at, post) = Map.splitLookup pos (te_map events)
 
-_split_range :: TrackPos -> TrackPos -> Map.Map TrackPos Event.Event
-    -> (Map.Map TrackPos Event.Event, Map.Map TrackPos Event.Event,
-        Map.Map TrackPos Event.Event)
+_split_range :: ScoreTime -> ScoreTime -> Map.Map ScoreTime Event.Event
+    -> (Map.Map ScoreTime Event.Event, Map.Map ScoreTime Event.Event,
+        Map.Map ScoreTime Event.Event)
 _split_range start end emap = (pre2, within3, post2)
     where
     (pre, within, post) = Map.split3 start end emap
@@ -247,7 +247,7 @@ _split_range start end emap = (pre2, within3, post2)
 
 -- -- | Like 'events_in_range', except shorten the last event if it goes past the
 -- -- end.
--- clip_to_range :: TrackPos -> TrackPos -> TrackEvents -> [PosEvent]
+-- clip_to_range :: ScoreTime -> ScoreTime -> TrackEvents -> [PosEvent]
 -- clip_to_range start end events = Map.toAscList clipped
 --     where
 --     (_, within, _) = _split_range start end (te_map events)

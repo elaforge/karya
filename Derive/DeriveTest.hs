@@ -126,7 +126,7 @@ extract_events_only ex_event result = Log.trace_logs logs vals
     where (vals, logs) = extract ex_event id result
 
 -- | Get standard event info.
-e_event :: Score.Event -> (TrackPos, TrackPos, String)
+e_event :: Score.Event -> (RealTime, RealTime, String)
 e_event e = (Score.event_start e, Score.event_duration e, Score.event_string e)
 
 note_on_times :: [(Timestamp.Timestamp, Midi.Message)]

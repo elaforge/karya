@@ -56,10 +56,10 @@ SkeletonConfig skeleton_config(int *pairs, int len)
     return skel;
 }
 
-typedef static std::vector<std::pair<TrackPos, Mark> > MarkData;
+typedef static std::vector<std::pair<ScoreTime, Mark> > MarkData;
 static MarkData m44_marks;
 
-static TrackPos m44_last_pos;
+static ScoreTime m44_last_pos;
 void m44_set()
 {
     MarkData &mlist = m44_marks;
@@ -69,7 +69,7 @@ void m44_set()
 
     const int nmarks = 200;
     for (int i = 0; i < nmarks; i++) {
-        TrackPos t = TrackPos(i*8);
+        ScoreTime t = ScoreTime(i*8);
         if (i % 4 == 0) {
             sprintf(name, "%d", i / 4);
             Mark m(1, 3, major, strdup(name), 0, 0);
@@ -80,12 +80,12 @@ void m44_set()
             mlist.push_back(std::make_pair(t, m));
         }
     }
-    m44_last_pos = TrackPos((nmarks-1) * 8);
+    m44_last_pos = ScoreTime((nmarks-1) * 8);
 }
 
 int
-m44_find_marks(TrackPos *start_pos, TrackPos *end_pos,
-        TrackPos **ret_tps, Mark **ret_marks)
+m44_find_marks(ScoreTime *start_pos, ScoreTime *end_pos,
+        ScoreTime **ret_tps, Mark **ret_marks)
 {
     MarkData &mlist = m44_marks;
     size_t count = 0;
@@ -107,11 +107,11 @@ m44_find_marks(TrackPos *start_pos, TrackPos *end_pos,
     if (count < mlist.size())
         count += 2;
 
-    *ret_tps = (TrackPos *) calloc(count, sizeof(TrackPos));
+    *ret_tps = (ScoreTime *) calloc(count, sizeof(ScoreTime));
     *ret_marks = (Mark *) calloc(count, sizeof(Mark));
     for (size_t i = 0; i < count; i++) {
         // Placement new since malloced space is uninitialized.
-        new((*ret_tps) + i) TrackPos(mlist[start+i].first);
+        new((*ret_tps) + i) ScoreTime(mlist[start+i].first);
         new((*ret_marks) + i) Mark(mlist[start+i].second);
         char **namep = &(*ret_marks)[i].name;
         if (*namep)
@@ -121,10 +121,10 @@ m44_find_marks(TrackPos *start_pos, TrackPos *end_pos,
 }
 
 struct EventInfo {
-    EventInfo(TrackPos pos, Event event, int rank) :
+    EventInfo(ScoreTime pos, Event event, int rank) :
         pos(pos), event(event), rank(rank)
     {}
-    TrackPos pos;
+    ScoreTime pos;
     Event event;
     int rank;
     bool operator<(const EventInfo &o) const {
@@ -138,7 +138,7 @@ struct EventInfo {
 
 typedef std::vector<EventInfo> TrackData;
 static TrackData t1_events;
-typedef std::vector<std::pair<TrackPos, double> > SampleData;
+typedef std::vector<std::pair<ScoreTime, double> > SampleData;
 static SampleData t1_samples;
 
 void t1_set()
@@ -149,52 +149,52 @@ void t1_set()
     style.font = FL_HELVETICA;
     style.size = 9;
 
-    e.push_back(EventInfo(TrackPos(0),
-        Event("4c#@$", TrackPos(16), eventc, style), 0));
-    e.push_back(EventInfo(TrackPos(32),
-        Event("4d-", TrackPos(4), eventc, style), 0));
-    e.push_back(EventInfo(TrackPos(38),
-        Event("5cb", TrackPos(4), eventc, style), 0));
-    e.push_back(EventInfo(TrackPos(44),
-        Event("6--", TrackPos(4), eventc, style), 0));
-    e.push_back(EventInfo(TrackPos(50),
-        Event("7--", TrackPos(4), eventc, style), 0));
-    e.push_back(EventInfo(TrackPos(128),
-        Event("late!", TrackPos(64), eventc, style), 0));
+    e.push_back(EventInfo(ScoreTime(0),
+        Event("4c#@$", ScoreTime(16), eventc, style), 0));
+    e.push_back(EventInfo(ScoreTime(32),
+        Event("4d-", ScoreTime(4), eventc, style), 0));
+    e.push_back(EventInfo(ScoreTime(38),
+        Event("5cb", ScoreTime(4), eventc, style), 0));
+    e.push_back(EventInfo(ScoreTime(44),
+        Event("6--", ScoreTime(4), eventc, style), 0));
+    e.push_back(EventInfo(ScoreTime(50),
+        Event("7--", ScoreTime(4), eventc, style), 0));
+    e.push_back(EventInfo(ScoreTime(128),
+        Event("late!", ScoreTime(64), eventc, style), 0));
     // coincident with rank 0
-    e.push_back(EventInfo(TrackPos(128),
-        Event("bg1", TrackPos(8), eventc, style), 1));
+    e.push_back(EventInfo(ScoreTime(128),
+        Event("bg1", ScoreTime(8), eventc, style), 1));
     // overlaps with rank 0
-    e.push_back(EventInfo(TrackPos(160),
-        Event("bg2", TrackPos(8), eventc, style), 1));
-    e.push_back(EventInfo(TrackPos(164),
-        Event("bg2.5", TrackPos(8), eventc, style), 1));
+    e.push_back(EventInfo(ScoreTime(160),
+        Event("bg2", ScoreTime(8), eventc, style), 1));
+    e.push_back(EventInfo(ScoreTime(164),
+        Event("bg2.5", ScoreTime(8), eventc, style), 1));
     // coincedent with end of rank 0
-    e.push_back(EventInfo(TrackPos(128+64),
-        Event("bg3", TrackPos(0), eventc, style), 1));
+    e.push_back(EventInfo(ScoreTime(128+64),
+        Event("bg3", ScoreTime(0), eventc, style), 1));
     // doesn't overlap rank 0
-    e.push_back(EventInfo(TrackPos(230),
-        Event("bg4", TrackPos(0), eventc, style), 0));
+    e.push_back(EventInfo(ScoreTime(230),
+        Event("bg4", ScoreTime(0), eventc, style), 0));
 
     SampleData &s = t1_samples;
     for (int i = 0; i < 145; i++) {
-        s.push_back(std::make_pair(TrackPos(i), fmod(i / 60.0, 1)));
+        s.push_back(std::make_pair(ScoreTime(i), fmod(i / 60.0, 1)));
     }
     /*
-    e.push_back(EventInfo(TrackPos(0*8),
-        Event("main", TrackPos(8), eventc, style), 0));
+    e.push_back(EventInfo(ScoreTime(0*8),
+        Event("main", ScoreTime(8), eventc, style), 0));
     for (int i = 0; i < 100; i++) {
         char buf[32];
         sprintf(buf, "e%d", i);
-        e.push_back(EventInfo(TrackPos(i*8),
-            Event(strdup(buf), TrackPos(8), eventc, style), 1));
+        e.push_back(EventInfo(ScoreTime(i*8),
+            Event(strdup(buf), ScoreTime(8), eventc, style), 1));
     }
     */
 
     if (arrival_beats) {
         for (size_t i = 0; i < e.size(); i++) {
-            TrackPos p = e[i].pos;
-            TrackPos dur = e[i].event.duration;
+            ScoreTime p = e[i].pos;
+            ScoreTime dur = e[i].event.duration;
             e[i].pos = p + dur;
             e[i].event.duration = -dur;
         }
@@ -203,8 +203,8 @@ void t1_set()
 }
 
 int
-t1_find_events(TrackPos *start_pos, TrackPos *end_pos,
-        TrackPos **ret_tps, Event **ret_events, int **ret_ranks)
+t1_find_events(ScoreTime *start_pos, ScoreTime *end_pos,
+        ScoreTime **ret_tps, Event **ret_events, int **ret_ranks)
 {
     size_t count = 0;
     size_t start = 0;
@@ -221,12 +221,12 @@ t1_find_events(TrackPos *start_pos, TrackPos *end_pos,
     start = 0;
     count = t1_events.size();
 
-    *ret_tps = (TrackPos *) calloc(count, sizeof(TrackPos));
+    *ret_tps = (ScoreTime *) calloc(count, sizeof(ScoreTime));
     *ret_events = (Event *) calloc(count, sizeof(Event));
     *ret_ranks = (int *) calloc(count, sizeof(int));
     for (size_t i = 0; i < count; i++) {
         // Placement new since malloced space is uninitialized.
-        new((*ret_tps) + i) TrackPos(t1_events[start+i].pos);
+        new((*ret_tps) + i) ScoreTime(t1_events[start+i].pos);
         new((*ret_events) + i) Event(t1_events[start+i].event);
         char **textp = &(*ret_events)[i].text;
         if (*textp)
@@ -237,15 +237,15 @@ t1_find_events(TrackPos *start_pos, TrackPos *end_pos,
 }
 
 int
-t1_no_events(TrackPos *start_pos, TrackPos *end_pos,
-        TrackPos **ret_tps, Event **ret_events, int **ret_ranks)
+t1_no_events(ScoreTime *start_pos, ScoreTime *end_pos,
+        ScoreTime **ret_tps, Event **ret_events, int **ret_ranks)
 {
     return 0;
 }
 
 int
-t1_find_samples(TrackPos *start_pos, TrackPos *end_pos,
-        TrackPos **ret_tps, double **ret_samples)
+t1_find_samples(ScoreTime *start_pos, ScoreTime *end_pos,
+        ScoreTime **ret_tps, double **ret_samples)
 {
     size_t count = 0;
     size_t start = 0;
@@ -264,11 +264,11 @@ t1_find_samples(TrackPos *start_pos, TrackPos *end_pos,
     if (start + count < a.size())
         count++; // should get until one sample after the cutoff
 
-    *ret_tps = (TrackPos *) calloc(count, sizeof(TrackPos));
+    *ret_tps = (ScoreTime *) calloc(count, sizeof(ScoreTime));
     *ret_samples = (double *) calloc(count, sizeof(double));
     for (size_t i = 0; i < count; i++) {
         // Placement new since malloced space is uninitialized.
-        new((*ret_tps) + i) TrackPos(a[start+i].first);
+        new((*ret_tps) + i) ScoreTime(a[start+i].first);
         (*ret_samples)[i] = a[start+i].second;
     }
     return count;
@@ -289,7 +289,7 @@ timeout_func(void *vp)
 
     // copy paste from main()
     static int i = t1_events.size() - 1;
-    static TrackPos t1_time_end = t1_events[i].pos
+    static ScoreTime t1_time_end = t1_events[i].pos
         + t1_events[i].event.duration;
     static RenderConfig render_config(RenderConfig::render_filled,
         t1_find_samples, render_color);
@@ -301,9 +301,12 @@ timeout_func(void *vp)
     std::cout << n << "------------\n";
     switch (n) {
     case 0:
-        view.block.collapse_track(2, true);
+        view.block.set_selection(0, Selection(selection_colors[0],
+                    1, ScoreTime(64), 1, ScoreTime(64)));
+        view.block.set_zoom(ZoomInfo(ScoreTime(16), 1.6));
         break;
     case 1:
+        return;
         view.block.insert_track(2, Tracklike(&track1, &truler), 30);
         break;
     case 2:
@@ -338,7 +341,7 @@ main(int argc, char **argv)
     DividerConfig divider(Color(0x00ff00));
 
     int i = t1_events.size() - 1;
-    TrackPos t1_time_end = t1_events[i].pos + t1_events[i].event.duration;
+    ScoreTime t1_time_end = t1_events[i].pos + t1_events[i].event.duration;
 
     RenderConfig render_config(RenderConfig::render_line,
         t1_find_samples, render_color);
@@ -351,23 +354,26 @@ main(int argc, char **argv)
         render_config);
 
     BlockViewWindow view(100, 100, 200, 500, "view1", config, view_config);
+    BlockViewWindow view2(300, 100, 200, 500, "view2", config, view_config);
+    view.testing = true;
+    view2.testing = true;
+    view2.show(argc, argv);
     // view.border(0);
 
-    view.testing = true;
     view.block.set_status("no status yet");
     view.block.set_title("hi there");
 
-    view.block.insert_track(0, Tracklike(&ruler), 20);
-    view.block.insert_track(1, Tracklike(&divider), 10);
-    view.block.insert_track(2, Tracklike(&track1, &truler), 30);
-    view.block.insert_track(3, Tracklike(&track2, &truler), 30);
-    view.block.insert_track(4, Tracklike(&empty_track, &truler), 20);
-    view.block.insert_track(5, Tracklike(&empty_track, &truler), 20);
-    view.block.insert_track(6, Tracklike(&track2, &truler), 80);
+    // view.block.insert_track(0, Tracklike(&ruler), 20);
+    // view.block.insert_track(1, Tracklike(&divider), 10);
+    view.block.insert_track(1, Tracklike(&empty_track, &truler), 100);
+    // view.block.insert_track(2, Tracklike(&track2, &truler), 30);
+    // view.block.insert_track(3, Tracklike(&empty_track, &truler), 20);
+    // view.block.insert_track(4, Tracklike(&empty_track, &truler), 20);
+    // view.block.insert_track(5, Tracklike(&track2, &truler), 80);
 
-    int pairs[] = {0, 5, 2, 4, 3, 4};
-    SkeletonConfig skel = skeleton_config(pairs, 3);
-    view.block.set_skeleton(skel);
+    // int pairs[] = {0, 5, 2, 4, 3, 4};
+    // SkeletonConfig skel = skeleton_config(pairs, 3);
+    // view.block.set_skeleton(skel);
 
     DisplayTrack dtrack;
     dtrack.status = 'M';
@@ -383,17 +389,17 @@ main(int argc, char **argv)
     // view_config.track_title_height = 40;
     // view.block.set_view_config(view_config);
 
-    view.block.set_zoom(ZoomInfo(TrackPos(0), 1.6));
+    view.block.set_zoom(ZoomInfo(ScoreTime(0), 1.6));
 
     view.block.set_selection(0, Selection(selection_colors[0],
-                0, TrackPos(32), 2, TrackPos(64)));
+                1, ScoreTime(32), 1, ScoreTime(32)));
     /*
     view.block.set_selection(0, Selection(selection_colors[0],
-                1, TrackPos(60), 4, TrackPos(46)));
+                1, ScoreTime(60), 4, ScoreTime(46)));
     view.block.set_selection(0, Selection(selection_colors[0],
-                1, TrackPos(0), 4, TrackPos(56)));
+                1, ScoreTime(0), 4, ScoreTime(56)));
     view.block.set_selection(1, Selection(selection_colors[1],
-                1, TrackPos(64), 4, TrackPos(0)));
+                1, ScoreTime(64), 4, ScoreTime(0)));
     */
 
     view.show(argc, argv);

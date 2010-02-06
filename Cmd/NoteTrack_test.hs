@@ -22,7 +22,7 @@ run_sel track_specs cmd = CmdTest.e_tracks $
     CmdTest.run_tracks track_specs $ CmdTest.set_sel 1 0 1 0 >> cmd
 
 thread :: [UiTest.TrackSpec] -> Cmd.Cmd -> [Msg.Msg]
-    -> ([(String, [Simple.Event])], (Types.TrackNum, TrackPos))
+    -> ([(String, [Simple.Event])], (Types.TrackNum, ScoreTime))
 thread track_specs cmd msgs =
     extract_sel $ CmdTest.thread ustate CmdTest.default_cmd_state cmds
     where

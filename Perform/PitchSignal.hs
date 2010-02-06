@@ -25,7 +25,7 @@
 -}
 module Perform.PitchSignal (
     PitchSignal, Relative, sig_scale, sig_vec
-    , X, Y, max_x, default_srate
+    , X, Y, y_to_degree, max_x, default_srate
 
     , signal, constant, empty, track_signal, Method(..), Segment
     , unsignal
@@ -40,7 +40,6 @@ module Perform.PitchSignal (
     , shift
     , truncate
     , map_x, map_degree
-    , y_to_degree
 ) where
 import Prelude hiding (truncate)
 import qualified Data.StorableVector as V
@@ -100,7 +99,7 @@ instance Storable.Storable (X, Y) where
         from <- Storable.peekByteOff cp 8 :: IO Float
         to <- Storable.peekByteOff cp 12 :: IO Float
         at <- Storable.peekByteOff cp 16 :: IO Float
-        return (TrackPos pos, (from, to, at))
+        return (RealTime pos, (from, to, at))
 
 instance SignalBase.Y Y where
     zero_y = (0, 0, 0)
@@ -111,6 +110,9 @@ instance SignalBase.Y Y where
 instance Show PitchSignal where
     show sig@(PitchSignal scale_id _) =
         "PitchSignal (" ++ show scale_id ++ ") " ++ show (unsignal sig)
+
+y_to_degree :: Y -> Pitch.Degree
+y_to_degree = Pitch.Degree . to_scalar
 
 -- * construction / deconstruction
 
@@ -125,7 +127,7 @@ constant :: Pitch.ScaleId -> Pitch.Degree -> PitchSignal
 constant scale_id (Pitch.Degree n) =
     signal scale_id [(0, (realToFrac n, realToFrac n, 0))]
 
-type Segment = (TrackPos, Method, Pitch.Degree)
+type Segment = (RealTime, Method, Pitch.Degree)
 
 track_signal :: Pitch.ScaleId -> X -> [Segment] -> PitchSignal
 track_signal scale_id srate segs = PitchSignal scale_id
@@ -218,6 +220,3 @@ from_degree :: Pitch.Degree -> Float
 from_degree (Pitch.Degree n) = realToFrac n
 to_degree :: Float -> Pitch.Degree
 to_degree f = Pitch.Degree (realToFrac f)
-
-y_to_degree :: Y -> Pitch.Degree
-y_to_degree = Pitch.Degree . to_scalar

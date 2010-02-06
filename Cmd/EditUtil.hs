@@ -27,7 +27,7 @@ import qualified Perform.Pitch as Pitch
 -- | Get the event under insertion point, creating an empty one if there is
 -- none.
 get_event :: (State.UiStateMonad m) =>
-    Bool -> TrackId -> TrackPos -> TrackPos -> m Event.Event
+    Bool -> TrackId -> ScoreTime -> ScoreTime -> m Event.Event
 get_event modify_dur track_id pos dur = do
     track <- State.get_track track_id
     let modify = if modify_dur then Event.set_duration dur else id
@@ -60,7 +60,7 @@ modify_event_at (tracknum, track_id, pos) zero_dur modify_dur f = do
             [(pos, Event.set_string new_text event)]
     when advance Selection.advance
 
-type SelPos = (TrackNum, TrackId, TrackPos)
+type SelPos = (TrackNum, TrackId, ScoreTime)
 
 get_sel_pos :: (Monad m) => Cmd.CmdT m SelPos
 get_sel_pos = do

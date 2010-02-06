@@ -22,9 +22,9 @@ with_ruler ruler f = do
         f rulerp mlists (Util.c_int len)
     where marklists = map snd (Ruler.ruler_marklists ruler)
 
--- typedef int (*FindMarks)(TrackPos *start_pos, TrackPos *end_pos,
---         TrackPos **ret_tps, Mark **ret_marks);
-type FindMarks = Ptr TrackPos -> Ptr TrackPos -> Ptr (Ptr TrackPos)
+-- typedef int (*FindMarks)(ScoreTime *start_pos, ScoreTime *end_pos,
+--         ScoreTime **ret_tps, Mark **ret_marks);
+type FindMarks = Ptr ScoreTime -> Ptr ScoreTime -> Ptr (Ptr ScoreTime)
     -> Ptr (Ptr Ruler.Mark) -> IO Int
 
 cb_find_marks :: Ruler.Marklist -> FindMarks
@@ -85,7 +85,7 @@ poke_ruler rulerp (Ruler.Ruler mlists bg show_names use_alpha align_to_bottom
     (#poke RulerConfig, align_to_bottom) rulerp align_to_bottom
     (#poke RulerConfig, last_mark_pos) rulerp (last_mark_pos (map snd mlists))
 
-last_mark_pos mlists = maximum (TrackPos 0 : map Ruler.last_pos mlists)
+last_mark_pos mlists = maximum (ScoreTime 0 : map Ruler.last_pos mlists)
 
 instance Storable Ruler.Mark where
     sizeOf _ = #size Mark

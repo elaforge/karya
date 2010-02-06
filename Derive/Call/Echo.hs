@@ -24,7 +24,7 @@ c_delay :: Derive.Call
 c_delay = Derive.transformer $ \args pos deriver -> TrackLang.call1 args
     (optional "time" (required_signal "delay-time")) $ \time ->
     Call.with_signals pos [time] $ \[time] ->
-        Derive.d_at (TrackPos time) deriver
+        Derive.d_at (ScoreTime time) deriver
 
 -- | This echo works on Derivers instead of Events, which means that the echoes
 -- happen in score time, so they will change tempo with the rest of the score,
@@ -38,9 +38,9 @@ c_echo = Derive.transformer $ \args pos deriver -> TrackLang.call3 args
     , optional "feedback" (signal 0.4 "echo-feedback")
     , optional "times" (1 :: Double)) $ \delay feedback times ->
     Call.with_signals pos [delay, feedback] $ \[delay, feedback] ->
-        echo (Signal.y_to_x delay) feedback (floor times) deriver
+        echo (Signal.y_to_score delay) feedback (floor times) deriver
 
-echo :: TrackPos -> Double -> Int -> Derive.EventDeriver -> Derive.EventDeriver
+echo :: ScoreTime -> Double -> Int -> Derive.EventDeriver -> Derive.EventDeriver
 echo delay feedback times deriver
     | times <= 0 = deriver
     | otherwise = Derive.d_merge deriver

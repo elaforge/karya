@@ -205,7 +205,7 @@ remove_track(BlockViewWindow *view, int tracknum,
 void
 update_track(BlockViewWindow *view, int tracknum,
         Tracklike *track, Marklist *marklists, int nmarklists,
-        FinalizeCallback finalizer, TrackPos *start, TrackPos *end)
+        FinalizeCallback finalizer, ScoreTime *start, ScoreTime *end)
 {
     RulerConfig *old_ruler = track->ruler;
     if (track->ruler) {

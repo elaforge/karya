@@ -24,11 +24,11 @@ import qualified Perform.Signal as Signal
 
 -- * signals
 
-with_signals :: TrackPos -> [TrackLang.Signal]
+with_signals :: ScoreTime -> [TrackLang.Signal]
     -> ([Signal.Y] -> Derive.Deriver a) -> Derive.Deriver a
 with_signals pos sigs f = f =<< mapM (get_signal pos) sigs
 
-get_signal :: TrackPos -> TrackLang.Signal -> Derive.Deriver Signal.Y
+get_signal :: ScoreTime -> TrackLang.Signal -> Derive.Deriver Signal.Y
 get_signal pos (TrackLang.Signal (deflt, control)) = case control of
     Nothing -> maybe (Derive.throw $ "TrackLang.Signal with no control and no "
         ++ "default value is silly") return deflt
@@ -49,7 +49,7 @@ type GeneratorReturn = Derive.Deriver (Derive.EventDeriver, Int)
 
 -- | Evaluate a single note as a generator.  Fake up an event with no prev or
 -- next lists.
-eval_one :: String -> TrackPos -> TrackPos -> TrackLang.Expr
+eval_one :: String -> ScoreTime -> ScoreTime -> TrackLang.Expr
     -> Derive.EventDeriver
 eval_one caller start dur expr = do
     -- Since the event was fake, I don't care if it wants to consume.
@@ -57,7 +57,7 @@ eval_one caller start dur expr = do
         (event start dur ("expr: " ++ show expr)) []
     deriver
 
-event :: TrackPos -> TrackPos -> String -> Track.PosEvent
+event :: ScoreTime -> ScoreTime -> String -> Track.PosEvent
 event start dur text = (start, Event.event text dur)
 
 eval_generator :: String -> TrackLang.Expr -> [Track.PosEvent] -> Track.PosEvent
@@ -81,7 +81,7 @@ eval_generator caller (TrackLang.Call call_id args : rest) prev cur next = do
 eval_generator _ [] _ cur _ = Derive.throw $
     "event with no calls at all (this shouldn't happen): " ++ show cur
 
-eval_transformer :: String -> TrackLang.Expr -> TrackPos -> Derive.EventDeriver
+eval_transformer :: String -> TrackLang.Expr -> ScoreTime -> Derive.EventDeriver
     -> Derive.Deriver Derive.EventDeriver
 eval_transformer caller (TrackLang.Call call_id args : rest) pos deriver = do
     let msg = "eval_transformer " ++ show caller ++ ": "

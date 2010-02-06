@@ -14,13 +14,13 @@ import qualified Cmd.Selection as Selection
 
 -- | Move everything at or after @start@ by @shift@.
 move_track_events :: (State.UiStateMonad m) =>
-    TrackPos -> TrackPos -> TrackId -> m ()
+    ScoreTime -> ScoreTime -> TrackId -> m ()
 move_track_events start shift track_id = State.modify_track_events track_id $
     \events -> move_events start shift events
 
 -- | All events starting at and after a point to the end are shifted by the
 -- given amount.
-move_events :: TrackPos -> TrackPos -> Track.TrackEvents -> Track.TrackEvents
+move_events :: ScoreTime -> ScoreTime -> Track.TrackEvents -> Track.TrackEvents
 move_events point shift events = merged
     where
     -- If the last event has 0 duration, the selection will not include it.
@@ -34,7 +34,7 @@ move_events point shift events = merged
 
 -- | Modify events in the selection.  For efficiency, this can't move the
 -- events.
-modify_pos_events :: (Monad m) => (TrackPos -> Event.Event -> Event.Event)
+modify_pos_events :: (Monad m) => (ScoreTime -> Event.Event -> Event.Event)
     -> Cmd.CmdT m ()
 modify_pos_events f = do
     track_events <- Selection.events

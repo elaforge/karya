@@ -6,7 +6,7 @@
 
     - a block with 8 measures, each in 4/4
 
-    > make_meter (TrackPos 1024) [8, 4, 4, 4]
+    > make_meter (ScoreTime 1024) [8, 4, 4, 4]
 
     - a block with 8 measures, each in 3/4
 
@@ -123,7 +123,7 @@ mshow = map snd . meter_marks 1
 -- ** meter implementation
 
 -- | Simplified description of a mark with just (time, rank).
-type MarkRank = (TrackPos, Int)
+type MarkRank = (ScoreTime, Int)
 
 -- | Convert a Meter into [MarkRank], which can later be turned into [PosMark].
 meter_marks :: Double -> Meter -> [MarkRank]
@@ -164,8 +164,8 @@ marks_to_ruler marks = Ruler.marklist meter_marklist pos_marks
 mark_durs = map mark_dur . List.tails
 -- | The duration of a mark is the distance until the next mark of equal or
 -- greater (lower) rank.
-mark_dur :: [MarkRank] -> TrackPos
-mark_dur [] = TrackPos 0
+mark_dur :: [MarkRank] -> ScoreTime
+mark_dur [] = 0
 mark_dur ((pos, rank) : marks) = next_pos - pos
     where (next_pos, _) = maybe (0, 0) id (List.find ((<=rank) . snd) marks)
 

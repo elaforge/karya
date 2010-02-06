@@ -9,7 +9,7 @@ import Ui
 import qualified Ui.Color as Color
 
 
--- TODO I should just use a TrackPosMap like tracks do.  Then I can share some
+-- TODO I should just use a ScoreTimeMap like tracks do.  Then I can share some
 -- of the utilities.
 
 data Ruler = Ruler {
@@ -27,8 +27,8 @@ data Ruler = Ruler {
 ruler = Ruler
 
 -- | Get the position of the last mark of the ruler.
-time_end :: Ruler -> TrackPos
-time_end = maximum . (TrackPos 0 :) . map (last_pos . snd) . ruler_marklists
+time_end :: Ruler -> ScoreTime
+time_end = maximum . (ScoreTime 0 :) . map (last_pos . snd) . ruler_marklists
 
 -- | Empty ruler.
 no_ruler :: Ruler
@@ -39,7 +39,7 @@ map_marklists :: (NameMarklist -> NameMarklist) -> Ruler -> Ruler
 map_marklists f ruler =
     ruler { ruler_marklists = map f (ruler_marklists ruler) }
 
-clip :: TrackPos -> Ruler -> Ruler
+clip :: ScoreTime -> Ruler -> Ruler
 clip pos = map_marklists (clip_marklist pos)
 
 -- * marklist
@@ -52,7 +52,7 @@ data Marklist = Marklist (IArray.Array Int PosMark)
 
 type NameMarklist = (MarklistName, Marklist)
 type MarklistName = String
-type PosMark = (TrackPos, Mark)
+type PosMark = (ScoreTime, Mark)
 
 -- | Construct a Marklist.
 marklist :: MarklistName -> [PosMark] -> NameMarklist
@@ -63,14 +63,14 @@ marklist name posmarks =
 --
 -- Unlike most functions that take ranges, the output will *include* the end
 -- pos.  This is because it's convenient for rulers to have a mark at the end.
-clip_marklist :: TrackPos -> NameMarklist -> NameMarklist
+clip_marklist :: ScoreTime -> NameMarklist -> NameMarklist
 clip_marklist pos (name, mlist) =
-    marklist name (takeWhile ((<=pos) . fst) (forward mlist (TrackPos 0)))
+    marklist name (takeWhile ((<=pos) . fst) (forward mlist (ScoreTime 0)))
 
 -- | Get the position of the last mark.
-last_pos :: Marklist -> TrackPos
+last_pos :: Marklist -> ScoreTime
 last_pos (Marklist marray)
-    | i == -1 = TrackPos 0
+    | i == -1 = ScoreTime 0
     | otherwise = fst (marray ! i)
     where i = snd (IArray.bounds marray)
 
@@ -88,14 +88,14 @@ instance Pretty Mark where
     pretty m = "<mark: " ++ show (mark_rank m) ++ name ++ ">"
         where name = if null (mark_name m) then "" else " " ++ mark_name m
 
-at :: Marklist -> TrackPos -> ([PosMark], [PosMark])
+at :: Marklist -> ScoreTime -> ([PosMark], [PosMark])
 at (Marklist a) pos = (map (a!) [i-1, i-2..low], map (a!) [i..high])
     where
     i = Array.bsearch_on fst a pos
     (low, high) = IArray.bounds a
 
 -- | Marks starting at the first mark >= the given pos, to the end.
-forward :: Marklist -> TrackPos -> [PosMark]
+forward :: Marklist -> ScoreTime -> [PosMark]
 forward marklist pos = snd (at marklist pos)
 
 -- | Like 'forward', but don't include a mark equal to @pos@.
@@ -105,5 +105,5 @@ forward_from marklist pos
     where marks = forward marklist pos
 
 -- | Marks starting at the first mark <= the given pos, to the beginning.
-backward :: Marklist -> TrackPos -> [PosMark]
+backward :: Marklist -> ScoreTime -> [PosMark]
 backward marklist pos = fst (at marklist pos)

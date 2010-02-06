@@ -20,8 +20,8 @@ struct RenderConfig {
     // end_pos.  'ret_tps' should be in ascending order.
     // TODO start and end are actually const, but it's too much bother to
     // convert them now.
-    typedef int (*FindSamples)(TrackPos *start_pos, TrackPos *end_pos,
-            TrackPos **ret_tps, double **ret_samples);
+    typedef int (*FindSamples)(ScoreTime *start_pos, ScoreTime *end_pos,
+            ScoreTime **ret_tps, double **ret_samples);
     enum RenderStyle {
         render_none,
         render_line,
@@ -41,19 +41,19 @@ struct RenderConfig {
 // one before start and one after end.  Then if the next draw_area is within
 // that area (as it will be when scrolling smoothly) I can avoid the callback.
 struct EventTrackConfig {
-    // Get events from start to end, ordered by pos.  Return the TrackPos in
+    // Get events from start to end, ordered by pos.  Return the ScoreTime in
     // pos, the events in 'events', and the count.
-    typedef int (*FindEvents)(TrackPos *start_pos, TrackPos *end_pos,
-            TrackPos **ret_tps, Event **ret_events, int **ret_ranks);
+    typedef int (*FindEvents)(ScoreTime *start_pos, ScoreTime *end_pos,
+            ScoreTime **ret_tps, Event **ret_events, int **ret_ranks);
 
     EventTrackConfig(Color bg_color, FindEvents find_events,
-            TrackPos time_end, RenderConfig render_config) :
+            ScoreTime time_end, RenderConfig render_config) :
         bg_color(bg_color), find_events(find_events), time_end(time_end),
         render(render_config)
     {}
     Color bg_color;
     FindEvents find_events;
-    TrackPos time_end;
+    ScoreTime time_end;
 
     RenderConfig render;
 };
@@ -74,9 +74,9 @@ public:
         overlay_ruler.set_selection(selnum, tracknum, sel);
     }
     virtual void set_event_brightness(double d);
-    virtual TrackPos time_end() const;
+    virtual ScoreTime time_end() const;
     virtual void update(const Tracklike &track, FinalizeCallback finalizer,
-            TrackPos start, TrackPos end);
+            ScoreTime start, ScoreTime end);
     virtual void finalize_callbacks(FinalizeCallback finalizer);
 
 protected:
@@ -84,14 +84,14 @@ protected:
 
 private:
     void draw_area();
-    void draw_samples(TrackPos start, TrackPos end);
+    void draw_samples(ScoreTime start, ScoreTime end);
     void draw_upper_layer(int offset, const Event &event, int rank,
             Rect *previous, int *ranked_bottom, int prev_offset);
 
     EventTrackConfig config;
     ZoomInfo zoom;
     // Remember how much I've scrolled, to do fl_scroll() optimization.
-    TrackPos last_offset;
+    ScoreTime last_offset;
     double brightness;
     Color bg_color;
 

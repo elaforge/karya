@@ -16,7 +16,7 @@ import qualified Util.Seq as Seq
 
 -- | This is just a class alias to stave off huge ugly signatures.
 --
--- A Signal is pairs of (x, y).  The X is always TrackPos, but the Y may be
+-- A Signal is pairs of (x, y).  The X is always RealTime, but the Y may be
 -- any type that implements 'Y'.
 class (Storable.Storable (X, y), Y y) => Signal y
 
@@ -39,7 +39,7 @@ class (Eq y) => Y y where
     -- | Given two Ys and a Double between 0 and 1, make a Y in between.
     project :: Double -> Double -> Double -> y
 
-type X = TrackPos
+type X = RealTime
 
 signal :: (Signal y) => [(X, y)] -> SigVec y
 signal xs@((x, _):_)
@@ -54,11 +54,11 @@ unsignal = V.unpack
 
 -- | Used to create a segment that continues \"forever\".
 max_x :: X
-max_x = TrackPos (2^52 - 1) -- 52 bits of mantissa only should be enough
+max_x = RealTime (2^52 - 1) -- 52 bits of mantissa only should be enough
 
 -- Later, this should be under deriver control.
 default_srate :: X
-default_srate = TrackPos 0.05
+default_srate = RealTime 0.05
 
 -- * access
 

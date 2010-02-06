@@ -46,7 +46,7 @@ private:
 
     static void command_cb(Fl_Widget *w, void *vp);
 
-    // Keep a maximm of this many lines.
+    // Keep a maximm of this many bytes.
     int max_bytes;
 };
 

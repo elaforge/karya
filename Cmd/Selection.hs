@@ -146,7 +146,7 @@ cmd_snap_selection btn selnum extend msg = do
 
 -- | Get the dragged range, or abort if this isn't a drag Msg.
 mouse_drag :: (Monad m) => Int -> Msg.Msg
-    -> Cmd.CmdT m (TrackNum, TrackPos, TrackNum, TrackPos)
+    -> Cmd.CmdT m (TrackNum, ScoreTime, TrackNum, ScoreTime)
 mouse_drag btn msg = do
     (mod, (mouse_tracknum, mouse_pos)) <- Cmd.require (mouse_mod msg)
     msg_btn <- Cmd.require (Cmd.mouse_mod_btn mod)
@@ -201,7 +201,7 @@ auto_scroll view_id sel0 sel1 = do
 -- TODO this scrolls too fast when dragging.  Detect a drag and scroll at
 -- a rate determined by how far past the bottom the pointer is.
 auto_time_scroll :: (Monad m) => Block.View -> Types.Selection
-    -> Types.Selection -> Cmd.CmdT m TrackPos
+    -> Types.Selection -> Cmd.CmdT m ScoreTime
 auto_time_scroll view sel0 sel1 = do
     block_id <- Cmd.get_focused_block
     step <- Cmd.get_current_step
@@ -217,7 +217,8 @@ auto_time_scroll view sel0 sel1 = do
     -- in the anti-scroll direction.
     max_visible = 0.2
 
-get_time_offset :: TrackPos -> Block.View -> TrackPos -> TrackPos -> TrackPos
+get_time_offset :: ScoreTime -> Block.View -> ScoreTime -> ScoreTime
+    -> ScoreTime
 get_time_offset max_visible view sel_pos scroll_to
     | scroll_to >= sel_pos = if scroll_to <= view_end then view_start
         else min (sel_pos - visible * max_visible) (scroll_to - visible)
@@ -264,7 +265,7 @@ selection_status sel = Types.pretty_pos start
 
 -- ** mouse
 
-mouse_mod :: Msg.Msg -> Maybe (Cmd.Modifier, (TrackNum, TrackPos))
+mouse_mod :: Msg.Msg -> Maybe (Cmd.Modifier, (TrackNum, ScoreTime))
 mouse_mod msg = do
     mouse <- Msg.mouse msg
     btn <- case UiMsg.mouse_state mouse of
@@ -277,8 +278,8 @@ mouse_mod msg = do
 
 -- * util
 
-step_from :: (Monad m) => TrackNum -> TrackPos -> TimeStep.Direction
-    -> Cmd.CmdT m TrackPos
+step_from :: (Monad m) => TrackNum -> ScoreTime -> TimeStep.Direction
+    -> Cmd.CmdT m ScoreTime
 step_from tracknum pos direction = do
     block_id <- Cmd.get_focused_block
     step <- Cmd.get_current_step
@@ -303,13 +304,13 @@ relevant_ruler block tracknum = Seq.at (Block.ruler_ids_of in_order) 0
 
 
 -- I return a whole bunch of stuff and let the caller decide which it wants.
-type SelInfo = (BlockId, TrackNum, TrackId, TrackPos)
+type SelInfo = (BlockId, TrackNum, TrackId, ScoreTime)
 
 -- | Get the "insert position", which is the upper left corner of the insert
 -- selection.  Abort if it's not an event track.
 --
 -- I return a whole bunch of stuff and let the caller decide which it wants.
-get_insert :: (Monad m) => Cmd.CmdT m (BlockId, TrackNum, TrackId, TrackPos)
+get_insert :: (Monad m) => Cmd.CmdT m (BlockId, TrackNum, TrackId, ScoreTime)
 get_insert = do
     (block_id, tracknum, pos) <- get_insert_any
     track_id <- Cmd.require =<< State.event_track_at block_id tracknum
@@ -317,7 +318,7 @@ get_insert = do
 
 -- | Return the leftmost tracknum and trackpos, even if it's not an event
 -- track.
-get_insert_any :: (Monad m) => Cmd.CmdT m (BlockId, TrackNum, TrackPos)
+get_insert_any :: (Monad m) => Cmd.CmdT m (BlockId, TrackNum, ScoreTime)
 get_insert_any = do
     (view_id, sel) <- get
     block_id <- State.block_id_of_view view_id
@@ -330,9 +331,9 @@ get_insert_any = do
 -- event range is also returned, which is not the same as the selection range
 -- because these functions may select more events than lie strictly within the
 -- selection.
-type SelectedAround = [(TrackId, (TrackPos, TrackPos),
+type SelectedAround = [(TrackId, (ScoreTime, ScoreTime),
     ([Track.PosEvent], [Track.PosEvent], [Track.PosEvent]))]
-type SelectedEvents = [(TrackId, (TrackPos, TrackPos), [Track.PosEvent])]
+type SelectedEvents = [(TrackId, (ScoreTime, ScoreTime), [Track.PosEvent])]
 
 -- | 'events_around' is the default selection behaviour.
 events :: (Monad m) => Cmd.CmdT m SelectedEvents
@@ -396,11 +397,11 @@ extract_events = map $ \(track_id, range, (_, within, _)) ->
 
 -- | Get selected event tracks along with the selection.  The tracks are
 -- returned in ascending order.  Only event tracks are returned.
-tracks :: (Monad m) => Cmd.CmdT m ([TrackNum], [TrackId], TrackPos, TrackPos)
+tracks :: (Monad m) => Cmd.CmdT m ([TrackNum], [TrackId], ScoreTime, ScoreTime)
 tracks = tracks_selnum Config.insert_selnum
 
 tracks_selnum :: (Monad m) =>
-    Types.SelNum -> Cmd.CmdT m ([TrackNum], [TrackId], TrackPos, TrackPos)
+    Types.SelNum -> Cmd.CmdT m ([TrackNum], [TrackId], ScoreTime, ScoreTime)
 tracks_selnum selnum = do
     (view_id, sel) <- get_selnum selnum
     block_id <- State.block_id_of_view view_id
@@ -414,11 +415,11 @@ tracks_selnum selnum = do
 -- | This is like 'tracks' except it also includes tracks merged into the
 -- selected tracks.
 merged_tracks :: (Monad m) =>
-    Cmd.CmdT m ([TrackNum], [TrackId], TrackPos, TrackPos)
+    Cmd.CmdT m ([TrackNum], [TrackId], ScoreTime, ScoreTime)
 merged_tracks = merged_tracks_selnum Config.insert_selnum
 
 merged_tracks_selnum :: (Monad m) => Types.SelNum
-    -> Cmd.CmdT m ([TrackNum], [TrackId], TrackPos, TrackPos)
+    -> Cmd.CmdT m ([TrackNum], [TrackId], ScoreTime, ScoreTime)
 merged_tracks_selnum selnum = do
     (tracknums, track_ids, start, end) <- tracks_selnum selnum
     block_id <- Cmd.get_focused_block

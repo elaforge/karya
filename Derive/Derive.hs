@@ -18,7 +18,7 @@
     The end goal is that log messages and exceptions are tagged with the place
     they occurred.  This is called the stack, and is described in
     'Perform.Warning.Stack'.  Since the stack elements indicate positions on
-    the screen, they should be in local unwarped time, not global time.
+    the screen, they should be in unwarped score time, not real time.
 
     The current stack is stored in 'state_stack' and will be added to by
     'with_stack_block', 'with_stack_track', and 'with_stack_pos' as the deriver
@@ -47,6 +47,7 @@ import qualified Util.SrcPos as SrcPos
 import Ui
 import qualified Ui.State as State
 import qualified Ui.Track as Track
+import qualified Ui.Types as Types
 
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
@@ -167,7 +168,7 @@ data Call = Call {
 type GeneratorCall = [TrackLang.Val] -> [Track.PosEvent] -> Track.PosEvent
     -> [Track.PosEvent] -> Either TrackLang.TypeError (EventDeriver, Int)
 -- | args -> pos -> deriver -> deriver
-type TransformerCall = [TrackLang.Val] -> TrackPos -> EventDeriver
+type TransformerCall = [TrackLang.Val] -> ScoreTime -> EventDeriver
     -> Either TrackLang.TypeError EventDeriver
 
 generator call = Call (Just call) Nothing
@@ -203,10 +204,9 @@ empty_lookup_deriver :: LookupDeriver
 empty_lookup_deriver = const (Right (return []))
 
 -- | Each track warp is a warp indexed by the block and tracks it covers.
--- The start and end pos are in global time.
 data TrackWarp = TrackWarp {
-    tw_start :: TrackPos
-    , tw_end :: TrackPos
+    tw_start :: RealTime
+    , tw_end :: RealTime
     , tw_block :: BlockId
     , tw_tracks :: [TrackId]
     , tw_warp :: Score.Warp
@@ -292,7 +292,7 @@ run derive_state m = do
 make_tempo_func :: [TrackWarp] -> Transport.TempoFunction
 make_tempo_func track_warps block_id track_id pos = do
     warp <- lookup_track_warp block_id track_id track_warps
-    return $ Timestamp.from_track_pos (Score.warp_pos pos warp)
+    return $ Timestamp.from_real_time (Score.warp_pos pos warp)
 
 lookup_track_warp :: BlockId -> TrackId -> [TrackWarp] -> Maybe Score.Warp
 lookup_track_warp block_id track_id track_warps = case matches of
@@ -309,10 +309,10 @@ make_inverse_tempo_func track_warps ts = do
     (block_id, track_ids, Just pos) <- track_pos
     return (block_id, [(track_id, pos) | track_id <- track_ids])
     where
-    pos = Timestamp.to_track_pos ts
+    pos = Timestamp.to_real_time ts
     track_pos = [(tw_block tw, tw_tracks tw, unwarp ts (tw_warp tw)) |
             tw <- track_warps, tw_start tw <= pos && pos < tw_end tw]
-    unwarp ts warp = Score.unwarp_pos (Timestamp.to_track_pos ts) warp
+    unwarp ts warp = Score.unwarp_pos (Timestamp.to_real_time ts) warp
 
 modify :: (Monad m) => (State -> State) -> DeriveT m ()
 modify f = (DeriveT . lift) (Monad.State.modify f)
@@ -461,25 +461,27 @@ unwarped_controls = do
         }
     return (unwarped, unwarped_pitch)
 
-control_at :: (Monad m) => Score.Control -> Maybe Signal.Y -> TrackPos
+control_at :: (Monad m) => Score.Control -> Maybe Signal.Y -> ScoreTime
     -> DeriveT m Signal.Y
 control_at cont deflt pos = do
     controls <- gets state_controls
-    global_pos <- local_to_global pos
-    case Score.lookup_control global_pos cont controls of
+    real <- score_to_real pos
+    case Score.lookup_control real cont controls of
         Nothing -> maybe
             (throw $ "control_at: not in environment and no default given: "
                 ++ show cont) return deflt
         Just y -> return y
 
-pitch_at :: (Monad m) => TrackPos -> DeriveT m PitchSignal.Y
+pitch_at :: (Monad m) => ScoreTime -> DeriveT m PitchSignal.Y
 pitch_at pos = do
     pitches <- gets state_pitch
     warp <- gets state_pitch_warp
-    global_pos <- local_to_global pos
-    return (PitchSignal.at (Score.warp_pos global_pos warp) pitches)
+    real <- score_to_real pos
+    unwarped <- maybe (throw "can't unwarp pos") return $
+        Score.unwarp_pos real warp
+    return (PitchSignal.at (Types.score_to_real unwarped) pitches)
 
-pitch_degree_at :: (Monad m) => TrackPos -> DeriveT m Pitch.Degree
+pitch_degree_at :: (Monad m) => ScoreTime -> DeriveT m Pitch.Degree
 pitch_degree_at pos = fmap PitchSignal.y_to_degree (pitch_at pos)
 
 with_control :: (Monad m) =>
@@ -545,7 +547,7 @@ with_pitch_operator c_op signal op = do
 
 -- *** specializations
 
-velocity_at :: (Monad m) => TrackPos -> DeriveT m Signal.Y
+velocity_at :: (Monad m) => ScoreTime -> DeriveT m Signal.Y
 velocity_at = control_at Score.c_velocity (Just default_velocity)
 
 with_velocity :: (Monad m) => Signal.Control -> DeriveT m t -> DeriveT m t
@@ -617,7 +619,7 @@ with_stack_track :: (Monad m) => TrackId -> DeriveT m a -> DeriveT m a
 with_stack_track track_id = modify_stack "with_stack_track" $
     \(block_id, _, _) -> (block_id, Just track_id, Nothing)
 
-with_stack_pos :: (Monad m) => TrackPos -> TrackPos -> DeriveT m a
+with_stack_pos :: (Monad m) => ScoreTime -> ScoreTime -> DeriveT m a
     -> DeriveT m a
 with_stack_pos pos dur = modify_stack "with_stack_pos" $
     \(block_id, track_id, _) -> (block_id, track_id, Just (start, end))
@@ -669,11 +671,11 @@ add_track_warp track_id = do
 start_new_warp :: (Monad m) => DeriveT m ()
 start_new_warp = do
     block_id <- get_current_block_id
-    start <- local_to_global (TrackPos 0)
+    start <- score_to_real (ScoreTime 0)
     ui_state <- gets state_ui
-    let time_end = either (const (TrackPos 0)) id $
+    let time_end = either (const (ScoreTime 0)) id $
             State.eval ui_state (State.event_end block_id)
-    end <- local_to_global time_end
+    end <- score_to_real time_end
     modify $ \st ->
         let tw = TrackWarp start end block_id [] (state_warp st)
         in st { state_track_warps = tw : state_track_warps st }
@@ -686,24 +688,24 @@ start_new_warp = do
 -- tempo: trackpos over time.  Warp is the time warping that the tempo implies,
 -- which is integral (1/tempo).
 
-local_to_global :: (Monad m) => TrackPos -> DeriveT m TrackPos
-local_to_global pos = do
+score_to_real :: (Monad m) => ScoreTime -> DeriveT m RealTime
+score_to_real pos = do
     warp <- gets state_warp
     return (Score.warp_pos pos warp)
 
-global_to_local :: (Monad m) => TrackPos -> DeriveT m TrackPos
-global_to_local pos = do
+real_to_score :: (Monad m) => RealTime -> DeriveT m ScoreTime
+real_to_score pos = do
     warp <- gets state_warp
-    maybe (throw $ "global_to_local out of range: " ++ show pos) return
+    maybe (throw $ "real_to_score out of range: " ++ show pos) return
         (Score.unwarp_pos pos warp)
 
 min_tempo :: Signal.Y
 min_tempo = 0.001
 
-d_at :: (Monad m) => TrackPos -> DeriveT m a -> DeriveT m a
+d_at :: (Monad m) => ScoreTime -> DeriveT m a -> DeriveT m a
 d_at shift = with_warp (Score.shift_warp shift)
 
-d_stretch :: (Monad m) => TrackPos -> DeriveT m a -> DeriveT m a
+d_stretch :: (Monad m) => ScoreTime -> DeriveT m a -> DeriveT m a
 d_stretch factor deriver
     | factor <= 0 = throw $ "stretch <= 0: " ++ show factor
     | otherwise = with_warp (Score.stretch_warp factor) deriver
@@ -753,10 +755,10 @@ d_control_warp sig deriver = do
         }
     return result
 
-d_control_at :: (Monad m) => TrackPos -> DeriveT m a -> DeriveT m a
+d_control_at :: (Monad m) => ScoreTime -> DeriveT m a -> DeriveT m a
 d_control_at shift = with_control_warp (Score.shift_warp shift) . d_at shift
 
-d_control_stretch :: (Monad m) => TrackPos -> DeriveT m a -> DeriveT m a
+d_control_stretch :: (Monad m) => ScoreTime -> DeriveT m a -> DeriveT m a
 d_control_stretch factor =
     with_control_warp (Score.stretch_warp factor) . d_stretch factor
 
@@ -783,7 +785,7 @@ with_control_warp f deriver = do
 -- | Warp a block with the given deriver with the given signal.
 --
 -- The track_id passed so that the track that emitted the signal can be marked
--- as having the tempo that it emits, even though it's really derived in global
+-- as having the tempo that it emits, even though it's really derived in real
 -- time, so the tempo track's play position will move at the tempo track's
 -- tempo.
 --
@@ -793,7 +795,7 @@ with_control_warp f deriver = do
 -- is skipped for the top level block.
 --
 -- TODO relying on the stack seems a little implicit, would it be better
--- to pass Maybe BlockId or Maybe TrackPos?
+-- to pass Maybe BlockId or Maybe ScoreTime?
 --
 -- d_block seems like a better place to do this, but I don't have a local warp
 -- yet.  This relies on every block having a d_tempo at the top, but
@@ -811,20 +813,20 @@ d_tempo block_id maybe_track_id signalm deriver = do
     stretch_to_1 <- if top_level then return id
         else do
             block_dur <- get_block_dur block_id
-            global_dur <- with_warp (const (Score.signal_to_warp warp))
-                (local_to_global block_dur)
+            real_dur <- with_warp (const (Score.signal_to_warp warp))
+                (score_to_real block_dur)
             -- Log.debug $ "dur, global dur "
-            --     ++ show (block_id, block_dur, global_dur)
+            --     ++ show (block_id, block_dur, real_dur)
             when (block_dur == 0) $
                 throw $ "can't derive a block with zero duration"
-            return (d_stretch (1 / global_dur))
+            return (d_stretch (1 / Types.real_to_score real_dur))
     -- Optimize for a constant (or missing) tempo.
     let tempo_warp d = if Signal.is_constant signal
             then do
                 let tempo = Signal.at 0 signal
                 when (tempo <= 0) $
                     throw $ "constant tempo <= 0: " ++ show tempo
-                d_stretch (Signal.y_to_x (1 / tempo)) (start_new_warp >> d)
+                d_stretch (Signal.y_to_score (1 / tempo)) $ start_new_warp >> d
             else d_warp (tempo_to_warp signal) d
     stretch_to_1 $ tempo_warp $ do
         Util.Control.when_just maybe_track_id add_track_warp
@@ -839,7 +841,7 @@ is_top_level_block = do
 -- function defines the length of a block.  'event_end' seems the most
 -- intuitive, but then you can't make blocks with trailing space.  You can
 -- work around it though by appending a comment dummy event.
-get_block_dur :: (Monad m) => BlockId -> DeriveT m TrackPos
+get_block_dur :: (Monad m) => BlockId -> DeriveT m ScoreTime
 get_block_dur block_id = do
     ui_state <- gets state_ui
     either (throw . ("get_block_dur: "++) . show) return

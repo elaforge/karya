@@ -260,7 +260,7 @@ show_track track_id = do
     return $ PPrint.pshow (track { Track.track_events = Track.empty_events })
         ++ "Events: " ++ show (Track.events_length (Track.track_events track))
 
-show_events :: TrackId -> TrackPos -> TrackPos -> Cmd.CmdL [Simple.Event]
+show_events :: TrackId -> ScoreTime -> ScoreTime -> Cmd.CmdL [Simple.Event]
 show_events track_id start end = do
     track <- State.get_track track_id
     return $ (map Simple.event
@@ -314,7 +314,7 @@ show_marklist ruler_id marklist_name = do
     mlist <- get_marklist ruler_id marklist_name
     return $ show_list $
         map (\(pos, m) -> printf "%s - %s" (show pos) (pretty m))
-            (Ruler.forward mlist (TrackPos 0))
+            (Ruler.forward mlist 0)
 
 get_marklist :: RulerId -> Ruler.MarklistName -> Cmd.CmdL Ruler.Marklist
 get_marklist ruler_id marklist_name = do

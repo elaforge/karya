@@ -75,7 +75,7 @@ EventTrackView::set_event_brightness(double d)
 }
 
 
-TrackPos
+ScoreTime
 EventTrackView::time_end() const
 {
     return std::max(this->config.time_end, this->overlay_ruler.time_end());
@@ -84,7 +84,7 @@ EventTrackView::time_end() const
 
 void
 EventTrackView::update(const Tracklike &track, FinalizeCallback finalizer,
-        TrackPos start, TrackPos end)
+        ScoreTime start, ScoreTime end)
 {
     ASSERT(track.track && track.ruler);
     // Doesn't use finalize_callbacks because that finalizes the ruler,
@@ -130,10 +130,10 @@ EventTrackView::draw()
         // DEBUG("scroll " << SHOW_RANGE(draw_area) << " " << -scroll);
         fl_scroll(draw_area.x, draw_area.y, draw_area.w, draw_area.h,
                 0, -scroll, dummy_scroll_draw, NULL);
-        TrackPos shift_pos = std::max(
+        ScoreTime shift_pos = std::max(
                 zoom.offset - last_offset, last_offset - zoom.offset);
         if (scroll > 0) { // Contents moved up, bottom is damaged.
-            TrackPos bottom = zoom.offset + zoom.to_trackpos(draw_area.h);
+            ScoreTime bottom = zoom.offset + zoom.to_trackpos(draw_area.h);
             this->overlay_ruler.damage_range(bottom - shift_pos, bottom);
             draw_area.y = draw_area.b() - scroll;
             draw_area.h = scroll;
@@ -180,8 +180,8 @@ EventTrackView::draw()
 
 /*
 static void
-show_found_events(TrackPos start, TrackPos end,
-        TrackPos *event_pos, Event *events, int count)
+show_found_events(ScoreTime start, ScoreTime end,
+        ScoreTime *event_pos, Event *events, int count)
 {
     printf("%.2f-%.2f: %d events:", start.scale(1), end.scale(1), count);
     for (int i = 0; i < count; i++) {
@@ -199,19 +199,19 @@ EventTrackView::draw_area()
     int y = this->y() + 1; // top pixel is a bevel
 
     // Code copy and pasted from OverlayRuler::draw_marklists.
-    TrackPos start = this->zoom.to_trackpos(clip.y - y);
-    TrackPos end = start + this->zoom.to_trackpos(clip.h);
+    ScoreTime start = this->zoom.to_trackpos(clip.y - y);
+    ScoreTime end = start + this->zoom.to_trackpos(clip.h);
     start = start + this->zoom.offset;
     // Go back far enough to get an event whose text would overlap the damaged
     // area.  This won't work so well if I have different font sizes...
     // but I think I don't have to do that.
-    start = std::max(TrackPos(0), start - this->zoom.to_trackpos(fl_height()));
+    start = std::max(ScoreTime(0), start - this->zoom.to_trackpos(fl_height()));
     end = end + this->zoom.offset;
     // DEBUG("TRACK CLIP: " << start << "--" << end << ", "
     //         << clip.y << "--" << clip.b());
 
     Event *events;
-    TrackPos *event_pos;
+    ScoreTime *event_pos;
     int *ranks;
     int count = this->config.find_events(
             &start, &end, &event_pos, &events, &ranks);
@@ -223,7 +223,7 @@ EventTrackView::draw_area()
         if (ranks[i])
             continue;
         const Event &event = events[i];
-        const TrackPos &pos = event_pos[i];
+        const ScoreTime &pos = event_pos[i];
         int offset = y + this->zoom.to_pixels(pos - this->zoom.offset);
         int height = this->zoom.to_pixels(event.duration);
         // Make sure events don't quite extend as far as they should, so it's
@@ -236,7 +236,7 @@ EventTrackView::draw_area()
         int y1 = std::max(offset, offset + height);
 
         Color c = event.color.brightness(this->brightness);
-        if (event.duration < TrackPos(0))
+        if (event.duration < ScoreTime(0))
             c = c.brightness(negative_duration_brightness);
         fl_color(color_to_fl(c));
         fl_rectf(this->x() + 1, y0, this->w() - 2, y1-y0);
@@ -252,7 +252,7 @@ EventTrackView::draw_area()
     int prev_offset = -9999;
     for (int i = 0; i < count; i++) {
         const Event &event = events[i];
-        const TrackPos &pos = event_pos[i];
+        const ScoreTime &pos = event_pos[i];
         int rank = ranks[i];
         int offset = y + this->zoom.to_pixels(pos - this->zoom.offset);
         this->draw_upper_layer(offset, event, rank, &previous,
@@ -277,9 +277,9 @@ EventTrackView::draw_area()
 }
 
 void
-EventTrackView::draw_samples(TrackPos start, TrackPos end)
+EventTrackView::draw_samples(ScoreTime start, ScoreTime end)
 {
-    TrackPos *sample_pos;
+    ScoreTime *sample_pos;
     double *sample_vals;
     int sample_count = this->config.render.find_samples(&start, &end,
         &sample_pos, &sample_vals);

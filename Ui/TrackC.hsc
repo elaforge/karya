@@ -1,5 +1,5 @@
 {-# LANGUAGE ForeignFunctionInterface, EmptyDataDecls #-}
-{- | A Track is a container for Events.  A track goes from TrackPos 0 until
+{- | A Track is a container for Events.  A track goes from ScoreTime 0 until
     the end of the last Event.
 
     TODO
@@ -84,9 +84,9 @@ encode_style style = case style of
     Track.Line -> (#const RenderConfig::render_line)
     Track.Filled -> (#const RenderConfig::render_filled)
 
--- typedef int (*FindEvents)(TrackPos *start_pos, TrackPos *end_pos,
---         TrackPos **ret_tps, Event **ret_events, int **ret_ranks);
-type FindEvents = Ptr TrackPos -> Ptr TrackPos -> Ptr (Ptr TrackPos)
+-- typedef int (*FindEvents)(ScoreTime *start_pos, ScoreTime *end_pos,
+--         ScoreTime **ret_tps, Event **ret_events, int **ret_ranks);
+type FindEvents = Ptr ScoreTime -> Ptr ScoreTime -> Ptr (Ptr ScoreTime)
     -> Ptr (Ptr Event.Event) -> Ptr (Ptr CInt) -> IO Int
 
 cb_find_events :: [Track.TrackEvents] -> FindEvents
@@ -106,12 +106,12 @@ cb_find_events event_lists startp endp ret_tps ret_events ret_ranks = do
 
 -- | Take 1 from before to get the event overlapping the beginning of the
 -- damaged area and 1 from after in case it has a negative duration.
-find_events :: TrackPos -> TrackPos -> Track.TrackEvents -> [Track.PosEvent]
+find_events :: ScoreTime -> ScoreTime -> Track.TrackEvents -> [Track.PosEvent]
 find_events = Track.in_range_around
 
--- typedef int (*FindSamples)(TrackPos *start_pos, TrackPos *end_pos,
---         TrackPos **ret_tps, double **ret_samples);
-type FindSamples = Ptr TrackPos -> Ptr TrackPos -> Ptr (Ptr TrackPos)
+-- typedef int (*FindSamples)(ScoreTime *start_pos, ScoreTime *end_pos,
+--         ScoreTime **ret_tps, double **ret_samples);
+type FindSamples = Ptr ScoreTime -> Ptr ScoreTime -> Ptr (Ptr ScoreTime)
     -> Ptr (Ptr CDouble) -> IO Int
 
 cb_find_samples :: Track.Samples -> FindSamples

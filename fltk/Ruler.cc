@@ -38,10 +38,10 @@ OverlayRuler::set_selection(int selnum, int tracknum, const Selection &sel)
             damage_range(olds.low(), olds.high());
             damage_range(news.low(), news.high());
         } else {
-            TrackPos start0 = std::min(olds.low(), news.low());
-            TrackPos end0 = std::max(olds.low(), news.low());
-            TrackPos start1 = std::min(olds.high(), news.high());
-            TrackPos end1 = std::max(olds.high(), news.high());
+            ScoreTime start0 = std::min(olds.low(), news.low());
+            ScoreTime end0 = std::max(olds.low(), news.low());
+            ScoreTime start1 = std::min(olds.high(), news.high());
+            ScoreTime end1 = std::max(olds.high(), news.high());
             if (end0 > start0)
                 damage_range(start0, end0);
             if (end1 > start1)
@@ -54,14 +54,14 @@ OverlayRuler::set_selection(int selnum, int tracknum, const Selection &sel)
 }
 
 
-TrackPos
+ScoreTime
 OverlayRuler::time_end() const
 {
     return this->config.last_mark_pos;
     // Now that I go to the end of the ruler, I probably don't need to check
     // the selections any more.
     /*
-    TrackPos end(0);
+    ScoreTime end(0);
     for (int i = 0; i < Config::max_selections; i++) {
         if (!selections[i].empty())
             end = std::max(end, selections[i].end);
@@ -73,7 +73,7 @@ OverlayRuler::time_end() const
 
 void
 OverlayRuler::set_config(const RulerConfig &config, FinalizeCallback finalizer,
-        TrackPos start, TrackPos end)
+        ScoreTime start, ScoreTime end)
 {
     this->finalize_callbacks(finalizer);
     this->config = config;
@@ -117,10 +117,10 @@ OverlayRuler::draw()
 
 
 void
-OverlayRuler::damage_range(TrackPos start, TrackPos end)
+OverlayRuler::damage_range(ScoreTime start, ScoreTime end)
 {
     Rect r = rect(this);
-    if (start == TrackPos(-1) && end == TrackPos(-1)) {
+    if (start == ScoreTime(-1) && end == ScoreTime(-1)) {
         ; // leave it covering the whole widget
     } else {
         r.y += this->zoom.to_pixels(start - this->zoom.offset);
@@ -153,14 +153,14 @@ OverlayRuler::draw_marklists()
         return;
     int y = this->y() + 1; // avoid bevel
 
-    TrackPos start = this->zoom.to_trackpos(clip.y - y);
-    TrackPos end = start + this->zoom.to_trackpos(clip.h);
+    ScoreTime start = this->zoom.to_trackpos(clip.y - y);
+    ScoreTime end = start + this->zoom.to_trackpos(clip.h);
     start = start + this->zoom.offset;
     end = end + this->zoom.offset;
     // DEBUG("RULER CLIP: " << start << "--" << end << ", "
     //         << SHOW_RANGE(clip));
 
-    TrackPos *mark_tps;
+    ScoreTime *mark_tps;
     Mark *marks;
 
     // Show updated range, for debugging.
@@ -320,7 +320,7 @@ RulerTrackView::set_zoom(const ZoomInfo &new_zoom)
 
 void
 RulerTrackView::update(const Tracklike &track, FinalizeCallback finalizer,
-        TrackPos start, TrackPos end)
+        ScoreTime start, ScoreTime end)
 {
     ASSERT(track.ruler && !track.track);
     this->ruler.set_config(*track.ruler, finalizer, start, end);
@@ -354,11 +354,11 @@ RulerTrackView::draw()
             - ruler.zoom.to_pixels(ruler.last_offset);
         fl_scroll(draw_area.x, draw_area.y, draw_area.w, draw_area.h,
                 0, -scroll, dummy_scroll_draw, NULL);
-        TrackPos shift_pos = std::max(
+        ScoreTime shift_pos = std::max(
                 ruler.zoom.offset - ruler.last_offset,
                 ruler.last_offset - ruler.zoom.offset);
         if (scroll > 0) { // Contents moved up, bottom is damaged.
-            TrackPos bottom = ruler.zoom.offset
+            ScoreTime bottom = ruler.zoom.offset
                 + ruler.zoom.to_trackpos(draw_area.h);
             this->ruler.damage_range(bottom - shift_pos, bottom);
             draw_area.y = draw_area.b() - scroll;
