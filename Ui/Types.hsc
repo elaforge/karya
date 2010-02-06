@@ -1,11 +1,11 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 -- | Miscellaneous low level types with few dependencies.
 module Ui.Types where
-import qualified Numeric
 import Text.Read -- for Read class with readPrec
 import Foreign
 import Foreign.C
 
+import qualified Util.Pretty as Pretty
 import qualified Ui.Id as Id
 import qualified Ui.Util as Util
 
@@ -103,8 +103,10 @@ score_to_real (ScoreTime p) = RealTime p
 real_to_score :: RealTime -> ScoreTime
 real_to_score (RealTime p) = ScoreTime p
 
-pretty_pos :: ScoreTime -> String
-pretty_pos (ScoreTime pos) = Numeric.showFFloat (Just 3) pos ""
+instance Pretty.Pretty ScoreTime where
+    pretty (ScoreTime p) = Pretty.pretty p ++ "st" -- st for ScoreTime
+instance Pretty.Pretty RealTime where
+    pretty (RealTime p) = Pretty.pretty p ++ "s" -- s for seconds
 
 -- * ID
 

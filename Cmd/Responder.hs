@@ -27,6 +27,7 @@ import qualified System.IO as IO
 
 import qualified Util.Logger as Logger
 import qualified Util.Log as Log
+import qualified Util.Pretty as Pretty
 import qualified Util.Thread as Thread
 
 import qualified Ui.Block as Block
@@ -201,7 +202,7 @@ run_responder = Logger.run . flip Cont.runContT return
 respond :: ResponderState -> IO (Bool, ResponderState)
 respond rstate = do
     msg <- state_msg_reader rstate
-    Log.timer $ Log.first_timer_prefix ++ "received msg: " ++ Msg.pretty_msg msg
+    Log.timer $ Log.first_timer_prefix ++ "received msg: " ++ Pretty.pretty msg
     ((res, cmd_state), updates) <- run_responder (run_cmds rstate msg)
     rstate <- return $ rstate { state_cmd = cmd_state }
     (status, rstate) <- case res of

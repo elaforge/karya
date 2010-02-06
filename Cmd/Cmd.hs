@@ -10,10 +10,10 @@ import qualified Control.Monad.Trans as Trans
 import Control.Monad.Trans (lift)
 import qualified Data.Generics as Generics
 import qualified Data.Map as Map
-import Text.Printf
 
 import qualified Util.Logger as Logger
 import qualified Util.Log as Log
+import qualified Util.Pretty as Pretty
 
 import Ui
 import qualified Ui.Block as Block
@@ -629,8 +629,8 @@ sync_zoom_status view_id = do
 
 show_zoom_status :: Types.Zoom -> String
 show_zoom_status (Types.Zoom offset factor) =
-    "+" ++ Types.pretty_pos offset ++ "*" ++ fact
-    where fact = printf "%.1f" factor
+    '+' : Pretty.show_float (Just 3) offset
+    ++ '*' : Pretty.show_float (Just 1) factor
 
 ui_update_state :: UiMsg.Context -> UiMsg.UiUpdate -> CmdT Identity.Identity ()
 ui_update_state ctx@(UiMsg.Context (Just view_id) _track _pos) update =

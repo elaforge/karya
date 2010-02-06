@@ -471,7 +471,7 @@ Derive:
     - block-level calls
     - come up with a syntax for Ui.Event preproc calls
     - negative duration postproc
-    - put TrackLang.Val into Pretty
+    * put TrackLang.Val into Pretty
     - default args are in Deriver, so I can have e.g. trill default to current
       pitch+1
 

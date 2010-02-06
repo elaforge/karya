@@ -41,6 +41,7 @@ import qualified Text.ParserCombinators.Parsec as P
 import Text.ParserCombinators.Parsec ((<|>), (<?>))
 
 import qualified Util.Parse as Parse
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Derive.Score as Score
@@ -79,6 +80,24 @@ data Val =
     | VNotGiven
     deriving (Eq, Show)
 
+instance Pretty.Pretty Val where
+    pretty val = case val of
+        VNote (Pitch.Note n) -> note_literal_prefix ++ n
+        VInstrument (Score.Instrument inst) -> inst_literal_prefix ++ inst
+        VMethod (Method m) -> "m'" ++ m ++ "'"
+        VNum d -> Pretty.pretty d
+        VRelativeAttr (RelativeAttr (mode, attr)) -> case mode of
+            Add -> '+' : attr
+            Remove -> '-' : attr
+            Set -> '=' : attr
+            Clear -> "=-"
+        VAttributes attrs -> Seq.join "+" (Score.attrs_list attrs)
+        VSignal (Signal (deflt, cont)) -> '%' :
+            maybe "<no-sig>" (\(Score.Control s) -> s) cont
+            ++ maybe "" ((',':) . Pretty.pretty) deflt
+        VSymbol sym -> Pretty.pretty sym
+        VNotGiven -> "_"
+
 data AttrMode = Add | Remove | Set | Clear deriving (Eq, Show)
 
 -- TODO later this should be Signal.Method
@@ -89,6 +108,9 @@ type CallId = Symbol
 type ValName = Symbol
 
 newtype Symbol = Symbol String deriving (Eq, Ord, Show)
+instance Pretty.Pretty Symbol where
+    pretty (Symbol "") = "<null>"
+    pretty (Symbol s) = s
 
 -- | (default, control).  If @default@ is Nothing, the signal must be present
 -- or an error will be thrown.  If @control@ is Nothing, always use the default
@@ -126,6 +148,11 @@ v_attributes = Symbol "attr"
 data Type = TNote | TInstrument | TMethod | TNum | TRelativeAttr | TAttributes
     | TSignal | TSymbol | TNotGiven
     deriving (Eq, Show)
+
+instance Pretty.Pretty Type where
+    pretty typ = "type " ++ drop 1 (show typ)
+
+type_of :: Val -> Type
 type_of val = case val of
     VNote _ -> TNote
     VInstrument _ -> TInstrument
@@ -272,11 +299,13 @@ data TypeError =
     | ArgError String
     deriving (Eq, Show)
 
-show_type_error (TypeError argno name expected received) =
-    "TypeError: arg " ++ show argno ++ "/" ++ name ++ ": expected "
-        ++ show expected ++ " but got " ++ show received
-show_type_error (ArgError err) = "ArgError: " ++ err
-show_type_error (CallNotFound call_id) = "CallNotFound: " ++ show call_id
+instance Pretty.Pretty TypeError where
+    pretty err = case err of
+        TypeError argno name expected received ->
+            "TypeError: arg " ++ show argno ++ "/" ++ name ++ ": expected "
+            ++ Pretty.pretty expected ++ " but got " ++ Pretty.pretty received
+        ArgError err -> "ArgError: " ++ err
+        CallNotFound call_id -> "CallNotFound: " ++ Pretty.pretty call_id
 
 instance Error.Error TypeError where
     strMsg _ = error "strMsg not defined for TypeError"
@@ -387,9 +416,9 @@ call sym = Call (Symbol sym) []
 
 -- TODO These should remain the same as the ones in Derive.Schema.Default for
 -- consistency.  I can't use those directly because of circular imports.
-note_track_prefix, pitch_track_prefix :: String
-note_track_prefix = ">"
-pitch_track_prefix = "*"
+inst_literal_prefix, note_literal_prefix :: String
+inst_literal_prefix = ">"
+note_literal_prefix = "*"
 
 parse :: String -> Either String Expr
 parse text = fmap reverse (Parse.parse_all p_pipeline (strip_comment text))
@@ -423,12 +452,12 @@ p_val = Parse.lexeme $ fmap VNote p_note <|> fmap VInstrument p_instrument
     <|> (P.char '_' >> return VNotGiven)
 
 p_note :: P.Parser Pitch.Note
-p_note = P.string pitch_track_prefix >> fmap Pitch.Note p_word
+p_note = P.string note_literal_prefix >> fmap Pitch.Note p_word
     <?> "note"
 
 p_instrument :: P.Parser Score.Instrument
 p_instrument = do
-    P.string note_track_prefix
+    P.string inst_literal_prefix
     inst <- p_null_word
     return $ Score.Instrument inst
     <?> "instrument"

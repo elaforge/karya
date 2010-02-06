@@ -2,6 +2,8 @@ module Cmd.Msg where
 import qualified Data.Char as Char
 import qualified System.IO as IO
 
+import qualified Util.Pretty as Pretty
+
 import qualified Ui.Key as Key
 import qualified Ui.UiMsg as UiMsg
 import qualified Midi.Midi as Midi
@@ -27,9 +29,9 @@ data Msg =
     | Socket IO.Handle String
     deriving (Show)
 
-pretty_msg :: Msg -> String
-pretty_msg (Ui msg) = "Ui: " ++ UiMsg.pretty_ui_msg msg
-pretty_msg msg = show msg
+instance Pretty.Pretty Msg where
+    pretty (Ui msg) = "Ui: " ++ Pretty.pretty msg
+    pretty msg = show msg
 
 -- * views
 

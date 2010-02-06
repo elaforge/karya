@@ -47,8 +47,7 @@ test_subderive = do
     -- errors don't stop derivation
     equal (fmap extract_events events) (Right [(1.5, 0.5, "--x")])
     strings_like (map Log.msg_string msgs)
-        ["CallNotFound: Symbol \"nosuch\"", "block with zero duration",
-            "recursive block"]
+        ["CallNotFound: nosuch", "block with zero duration", "recursive block"]
     let mkstack (from, to) = Just
             [(UiTest.bid "b0", Just (UiTest.tid "b0.t1"), Just (from, to))]
     equal (map Log.msg_stack msgs) $ map mkstack

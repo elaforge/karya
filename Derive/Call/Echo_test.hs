@@ -1,6 +1,5 @@
 module Derive.Call.Echo_test where
 
-import qualified Util.Log as Log
 import Util.Test
 
 import qualified Derive.DeriveTest as DeriveTest

@@ -4,6 +4,7 @@
 module Ui.UiMsg where
 import Text.Printf
 
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import Ui
@@ -68,20 +69,22 @@ data KbdState = KeyDown | KeyUp deriving (Eq, Ord, Show)
 
 type MouseButton = Int
 
-pretty_ui_msg :: UiMsg -> String
-pretty_ui_msg (UiMsg ctx (MsgEvent mdata)) = case mdata of
-    Mouse mstate coords clicks is_click ->
-        printf "Mouse: %s %s %s click: %s %d" (show mstate) (show coords)
-            (pretty_context ctx) (show is_click) clicks
-    Kbd kstate key -> printf "Kbd: %s %s" (show kstate) (show key)
-    AuxMsg msg -> printf "Aux: %s %s" (show msg) (pretty_context ctx)
-    Unhandled x -> printf "Unhandled: %d" x
-pretty_ui_msg (UiMsg ctx msg)
-    = printf "Other Event: %s %s" (show msg) (pretty_context ctx)
+instance Pretty.Pretty UiMsg where
+    pretty ui_msg = case ui_msg of
+        UiMsg ctx (MsgEvent mdata) -> case mdata of
+            Mouse mstate coords clicks is_click ->
+                printf "Mouse: %s %s %s click: %s %d" (show mstate)
+                    (show coords) (Pretty.pretty ctx) (show is_click) clicks
+            Kbd kstate key -> printf "Kbd: %s %s" (show kstate) (show key)
+            AuxMsg msg -> printf "Aux: %s %s" (show msg) (Pretty.pretty ctx)
+            Unhandled x -> printf "Unhandled: %d" x
+        UiMsg ctx msg ->
+            printf "Other Event: %s %s" (show msg) (Pretty.pretty ctx)
 
-pretty_context (Context block tracknum pos) = "{" ++ contents ++ "}"
-    where
-    contents = Seq.join " " (filter (not.null) [show_maybe "block" block,
-        show_maybe "tracknum" tracknum, show_maybe "pos" pos])
-    show_maybe _ Nothing = ""
-    show_maybe desc (Just x) = desc ++ "=" ++ show x
+instance Pretty.Pretty Context where
+    pretty (Context block tracknum pos) = "{" ++ contents ++ "}"
+        where
+        contents = Seq.join " " (filter (not.null) [show_maybe "block" block,
+            show_maybe "tracknum" tracknum, show_maybe "pos" pos])
+        show_maybe _ Nothing = ""
+        show_maybe desc (Just x) = desc ++ "=" ++ show x

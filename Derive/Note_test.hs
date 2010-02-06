@@ -60,7 +60,7 @@ test_c_block = do
             ]
     let (evts, logs) = run [(0, 1, "nosuch")]
     equal evts (Right [])
-    strings_like (map fst logs) ["CallNotFound: Symbol \"nosuch\""]
+    strings_like (map fst logs) ["CallNotFound: nosuch"]
     equal (map snd logs) [Just (mkstack [("b1", "b1.t0", (0, 1))])]
 
     strings_like (map fst (snd (run [(0, 1, "sub >arg")])))
@@ -98,7 +98,7 @@ test_c_equal = do
     let (evts, logs) = run "> | 42 = >inst" [(0, 1, "")]
     equal evts (Right [])
     strings_like (map Log.msg_string logs)
-        ["arg 0/symbol: expected TSymbol but got"]
+        ["arg 0/symbol: expected type Symbol but got"]
 
     -- only the event with the error is omitted
     let (evts, logs) = run ">" [(0, 1, "inst = inst |"), (1, 1, "")]
@@ -130,7 +130,7 @@ test_calls = do
 
     left_like (run ">i | no-such-call") "CallNotFound"
     left_like (run ">i | delay *bad-arg")
-        "expected TSignal but got"
+        "expected type Signal but got"
     left_like (run ">i | delay 1 2 3 4")
         "too many arguments"
     left_like (run ">i | delay")

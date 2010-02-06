@@ -6,6 +6,7 @@ import qualified Data.Map as Map
 -- import qualified Data.Set as Set
 -- import qualified Util.Log as Log
 -- import qualified Util.Map as Map
+import qualified Util.Pretty as Pretty
 
 import Ui
 import qualified Ui.Event as Event
@@ -72,7 +73,7 @@ eval_generator caller (TrackLang.Call call_id args : rest) prev cur next = do
             skip_event
         Just c -> case c args prev cur next of
             Left err -> do
-                Derive.warn $ msg ++ TrackLang.show_type_error err
+                Derive.warn $ msg ++ Pretty.pretty err
                 skip_event
             Right (deriver, consumed) -> do
                 deriver <- eval_transformer caller rest (fst cur)
@@ -93,7 +94,7 @@ eval_transformer caller (TrackLang.Call call_id args : rest) pos deriver = do
             return (return [])
         Just c -> case c args pos deriver of
             Left err -> do
-                Derive.warn $ msg ++ TrackLang.show_type_error err
+                Derive.warn $ msg ++ Pretty.pretty err
                 return (return [])
             Right deriver ->
                 eval_transformer caller rest pos
@@ -105,7 +106,7 @@ handle_exc :: String -> TrackLang.CallId -> Derive.EventDeriver
 handle_exc call_type call_id deriver = fmap (maybe [] id) $
     Derive.catch_warn ("exception: "++) (Derive.with_msg msg deriver)
     where
-    msg = call_type ++ " " ++ show call_id
+    msg = call_type ++ " " ++ Pretty.pretty call_id
 
 -- * lookup_note_call
 

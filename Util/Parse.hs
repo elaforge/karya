@@ -6,8 +6,14 @@ import qualified Text.ParserCombinators.Parsec.Error as Parsec.Error
 import Text.ParserCombinators.Parsec ((<?>))
 
 import Util.Control
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
+
+-- | Pretty's show_float is re-exported here because it produces a string that
+-- p_float can parse.
+show_float :: (RealFloat a) => Maybe Int -> a -> String
+show_float = Pretty.show_float
 
 parse :: P.CharParser () a -> String -> Either String a
 parse parser text = case P.parse parser "" text of
@@ -127,16 +133,3 @@ complete_parse results = case results of
     [] -> Nothing
     ((val, ""):_) -> Just val
     _ -> Nothing
-
--- ** show
-
--- | Display a float with the given precision, dropping leading and trailing
--- zeros.  So this can produce ".2" which is not a valid haskell float.
-show_float :: (RealFloat a) => Maybe Int -> a -> String
-show_float precision float
-    | float == 0 = "0"
-    | f == 0 = show i
-    | otherwise = Seq.rdrop_while (=='0') (dropWhile (=='0') s)
-    where
-    (i, f) = properFraction float
-    s = Numeric.showFFloat precision float ""

@@ -26,8 +26,7 @@ test_tick = do
             [(0, 1, "tick"), (1, 1, "tick"), (2, 1, "")]
             [("*twelve", [(0, 0, "4c"), (2, 0, "4d")])]
     -- make sure it shows up in the stack
-    strings_like (map Log.msg_string logs)
-        ["generator Symbol \"tick\": no previous event"]
+    strings_like (map Log.msg_string logs) ["generator tick: no previous event"]
 
     -- tick is a constant time before second note regardless of tempo
     let (evts, logs) = run [(0, 1, ""), (1, 1, "tick .5"), (2, 1, "")]

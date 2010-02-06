@@ -17,6 +17,7 @@ import qualified Util.Control as Control
 import qualified Util.Seq as Seq
 import qualified Util.Log as Log
 import qualified Util.Num as Num
+import qualified Util.Pretty as Pretty
 
 import Ui
 import qualified Ui.Block as Block
@@ -259,8 +260,8 @@ sync_selection_status view_id = do
         Default.set_inst_status block_id . Types.sel_cur_track
 
 selection_status :: Types.Selection -> String
-selection_status sel = Types.pretty_pos start
-    ++ if start == end then "" else "-" ++ Types.pretty_pos end
+selection_status sel = Pretty.show_float (Just 3) start
+    ++ if start == end then "" else "-" ++ Pretty.show_float (Just 3) end
     where (start, end) = Types.sel_range sel
 
 -- ** mouse

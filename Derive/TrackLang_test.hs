@@ -1,6 +1,7 @@
 module Derive.TrackLang_test where
 import Control.Monad
 
+import qualified Util.Pretty as Pretty
 import Util.Test
 import qualified Util.Parse as Parse
 
@@ -16,14 +17,13 @@ test_extract = do
     let sig0 :: (TrackLang.Arg Double, TrackLang.Arg Double)
         sig0 = (TrackLang.Arg "mandatory" Nothing,
             TrackLang.Arg "optional" (Just 42))
-        f args sig = map_left TrackLang.show_type_error
-            (TrackLang.extract2 args sig)
+        f args sig = map_left Pretty.pretty (TrackLang.extract2 args sig)
 
     left_like (f [] sig0) "too few arguments"
     equal (f [VNum 1] sig0) (Right (1, 42))
     equal (f [VNum 1, VNum 2] sig0) (Right (1, 2))
     left_like (f [VMethod (TrackLang.Method "ho")] sig0)
-        "0/mandatory: expected TNum"
+        "0/mandatory: expected type Num but got m'ho'"
     left_like (f [VNum 1, VNum 2, VNum 3] sig0)
         "too many arguments"
     left_like (f [VNum 1] (snd sig0, fst sig0))
