@@ -49,7 +49,7 @@ d_relative :: (Monad m) =>
     -> Derive.DeriveT m [Score.Event] -> Derive.DeriveT m [Score.Event]
 d_relative cont op signalm eventsm = do
     signal <- signalm
-    Derive.with_relative_control cont op signal eventsm
+    Derive.with_control_operator cont op signal eventsm
 
 d_pitch :: (Monad m) => Derive.DeriveT m PitchSignal.PitchSignal
     -> Derive.DeriveT m [Score.Event] -> Derive.DeriveT m [Score.Event]
@@ -62,7 +62,7 @@ d_relative_pitch :: (Monad m) => Derive.Operator
     -> Derive.DeriveT m [Score.Event] -> Derive.DeriveT m [Score.Event]
 d_relative_pitch op signalm eventsm = do
     signal <- signalm
-    Derive.with_relative_pitch op signal eventsm
+    Derive.with_pitch_operator op signal eventsm
 
 -- | Get the signal events from a control track.  They are meant to be
 -- fed to 'd_signal', which will convert them into a signal, and the whole

@@ -41,7 +41,7 @@ c_note = Derive.Call
             Right $ one_note $ generate_note inst rel_attrs event next
         (_, _, invalid) -> Left $
             TrackLang.ArgError $ "expected inst or attr: " ++ show invalid)
-    (Just $ \args deriver -> case process args of
+    (Just $ \args _ deriver -> case process args of
         (inst, rel_attrs, []) -> Right $ transform_note inst rel_attrs deriver
         (_, _, invalid) -> Left $
             TrackLang.ArgError $ "expected inst or attr: " ++ show invalid)
@@ -64,11 +64,11 @@ generate_note n_inst rel_attrs (pos, event) next = do
         Just inst -> return (Just inst)
         Nothing -> Derive.lookup_val TrackLang.v_instrument
     attrs <- Derive.get_val Score.no_attrs TrackLang.v_attributes
+    (controls, pitch_sig) <- Derive.unwarped_controls
     st <- Derive.get
-    let pitch_sig = trimmed_pitch next_start (Derive.state_pitch st)
     return [Score.Event start (end - start)
-        (Event.event_text event) (Derive.state_controls st)
-        pitch_sig (Derive.state_stack st) inst (apply rel_attrs attrs)]
+        (Event.event_text event) controls (trimmed_pitch next_start pitch_sig)
+        (Derive.state_stack st) inst (apply rel_attrs attrs)]
     where
     apply rel_attrs attrs =
         List.foldl' (.) id (map TrackLang.set_attr rel_attrs) attrs
@@ -127,7 +127,7 @@ block_call block_id pos event =
 c_equal :: Derive.Call
 c_equal = Derive.Call
     (Just $ \args _ _ _ -> with_args args generate)
-    (Just $ \args deriver -> with_args args (transform deriver))
+    (Just $ \args _ deriver -> with_args args (transform deriver))
     where
     with_args args = TrackLang.call2 args
         (required "symbol", required "value" :: Arg TrackLang.Val)

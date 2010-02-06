@@ -279,7 +279,7 @@ has_tempo_track = any $ \(Tree.Node track _) ->
     Default.is_tempo_track (State.track_title track)
 
 sub_compile :: BlockId -> State.TrackTree -> Derive.EventDeriver
-sub_compile block_id tree = Derive.d_merge =<< mapM with_track tree
+sub_compile block_id tree = Derive.d_merge_list (map with_track tree)
     where
     with_track tree@(Tree.Node track _) =
         Derive.with_stack_track (State.track_id track) (_compile block_id tree)

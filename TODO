@@ -6,6 +6,9 @@
 - try record punning
 
 CURRENT
+  * SignalBase: the sample at 0 should extend to -inf, so if at gets <=0, return
+    first sample <=0.  This will avoid derivers that need a wide range getting
+    zeros.
   - replace use of Seq.merge_by with more efficient Seq.merge_with
   - add Util.ParseOperators
   - remove with_msg "compile bid", it's redundant with the stack
@@ -439,18 +442,33 @@ Derive:
   - to cut the middle out of a pattern: a cut signal that disabled derivation
     when it's 1?
 
+  echo doesn't work because d_at doesn't warp the controls
+  a track is (warp (control xyz) (pitches xyz))
+  normally this is good because the d_at to place notes shouldn't touch the
+  control
+  But it doesn't work if you want to warp a note and the controls.  So I think
+  I need a d_warp_controls that also warps the controls.  It would be nice to
+  apply the warp optimization so that (d_control_at 1 (d_control_at 1 x)) just
+  shifts the signal by 2 directly.  This is basically manual fusion but I don't
+  trust automatic fusion to get through all those monads and stuff.
+  So I think I just have a Warp attached to the controls which gets applied
+  when warps are composed.
+
+  +@ +~ do control warps, -@ -~ don't.
+
   tracklang2:
     * data NoteDeriver = (start, dur, EventDeriver)
     * note track emits [NoteDeriver], merges to EventDeriver
     * replace d_note with d_null_call
     * implement Equal
     * re-implement tick
-    - re-implement echo
+    * re-implement echo
+    - implement event-echo and event processing in general
     - arg processing: arg defaults taken automatically from the env, if
       prefixed with call name: "call-arg"
     - re-implement directives: derive_notes returns (EventDeriver, [Event])
+      wait until I have a call that wants to use it
     - test Calls that return overlapping events
-    - adapt Derive.Call utils for working with EventDeriver
     - block-level calls
     - come up with a syntax for Ui.Event preproc calls
     - negative duration postproc
@@ -519,7 +537,7 @@ Derive:
       notes... or maybe I need a '=' title or something because as note
       generators, note tracks need to go at the bottom.
 
-    - Implement tick as a call:
+    * Implement tick as a call:
       Need to get next and prev Ui.Event, get pitch from pitch sig
       to_local (between (to_gloal prev_pos) (to_gloal next_pos)
       d_absolute_at = d_at . to_local

@@ -8,6 +8,7 @@ module Derive.Score where
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
+import Util.Control
 
 import Ui
 
@@ -59,6 +60,8 @@ event_string = Text.unpack . event_text
 event_end :: Event -> TrackPos
 event_end event = event_start event + event_duration event
 
+-- ** modify events
+
 move :: (TrackPos -> TrackPos) -> Event -> Event
 move f event =
     move_controls (pos - event_start event) $ event { event_start = pos }
@@ -68,35 +71,159 @@ place :: TrackPos -> TrackPos -> Event -> Event
 place start dur event = (move (const start) event) { event_duration = dur }
 
 move_controls :: TrackPos -> Event -> Event
-move_controls diff event = event
-    { event_controls = Map.map (Signal.shift diff) (event_controls event)
-    , event_pitch = PitchSignal.shift diff (event_pitch event)
+move_controls shift event = event
+    { event_controls = Map.map (Signal.shift shift) (event_controls event)
+    , event_pitch = PitchSignal.shift shift (event_pitch event)
     }
 
--- ** control
-
-control_at :: TrackPos -> Control -> Maybe Signal.Y -> Event -> Maybe Signal.Y
-control_at pos cont deflt event =
+event_control_at :: TrackPos -> Control -> Maybe Signal.Y -> Event
+    -> Maybe Signal.Y
+event_control_at pos cont deflt event =
     maybe deflt (Just . Signal.at pos) (Map.lookup cont (event_controls event))
 
 initial_velocity :: Event -> Signal.Y
 initial_velocity event = maybe 0 id $
      -- Derive.initial_controls should mean Nothing never happens.
-    control_at (event_start event) c_velocity (Just 0) event
+    event_control_at (event_start event) c_velocity (Just 0) event
 
 modify_velocity :: (Signal.Y -> Signal.Y) -> Event -> Event
-modify_velocity = modify_signal c_velocity
+modify_velocity = modify_event_signal c_velocity
 
-modify_signal :: Control -> (Signal.Y -> Signal.Y) -> Event -> Event
-modify_signal control f = modify_control control (Signal.map_y f)
+modify_event_signal :: Control -> (Signal.Y -> Signal.Y) -> Event -> Event
+modify_event_signal control f = modify_event_control control (Signal.map_y f)
 
-modify_control :: Control -> (Signal.Control -> Signal.Control)
+modify_event_control :: Control -> (Signal.Control -> Signal.Control)
     -> Event -> Event
-modify_control control f event = case Map.lookup control controls of
+modify_event_control control f event = case Map.lookup control controls of
         Nothing -> event
         Just sig ->
             event { event_controls = Map.insert control (f sig) controls }
     where controls = event_controls event
+
+
+-- ** warp
+
+-- | A tempo warp signal.  The shift and stretch are an optimization hack
+-- stolen from nyquist.  The idea is to make composed shifts and stretches more
+-- efficient since only the shift and stretch are changed.  They have to be
+-- flattened out when the warp is composed though (in 'd_warp').
+data Warp = Warp {
+    warp_signal :: Signal.Warp
+    , warp_shift :: TrackPos
+    , warp_stretch :: TrackPos
+    } deriving (Eq, Show)
+
+id_warp :: Warp
+id_warp = signal_to_warp id_warp_signal
+
+is_id_warp :: Warp -> Bool
+is_id_warp = (== id_warp)
+
+id_warp_signal :: Signal.Warp
+id_warp_signal = Signal.signal [(0, 0), (Signal.max_x, Signal.max_y)]
+
+stretch_warp :: TrackPos -> Warp -> Warp
+stretch_warp factor warp = warp { warp_stretch = warp_stretch warp * factor }
+
+shift_warp :: TrackPos -> Warp -> Warp
+shift_warp shift warp =
+    warp { warp_shift = warp_shift warp + warp_stretch warp * shift }
+
+warp_pos :: TrackPos -> Warp -> TrackPos
+warp_pos pos warp@(Warp sig shift stretch)
+    | is_id_warp warp = pos
+    | otherwise = Signal.y_to_x $ Signal.at_linear (pos * stretch + shift) sig
+
+unwarp_pos :: TrackPos -> Warp -> Maybe TrackPos
+unwarp_pos pos (Warp sig shift stretch) = case Signal.inverse_at pos sig of
+    Nothing -> Nothing
+    Just p -> Just $ (p - shift) / stretch
+
+-- | Warp a Warp with a warp signal.
+compose_warp :: Warp -> Signal.Warp -> Warp
+compose_warp warp sig
+    | is_id_warp warp = signal_to_warp sig
+    | otherwise = compose warp sig
+    where
+    -- From the nyquist warp function:
+    -- > f(stretch * g(t) + shift)
+    -- > f(scale(stretch, g) + offset)
+    -- > (shift f -offset)(scale(stretch, g))
+    -- > (compose (shift-time f (- offset)) (scale stretch g))
+    compose (Warp f shift stretch) g = signal_to_warp $
+        Signal.compose (Signal.shift (-shift) f)
+            (Signal.scale (Signal.x_to_y stretch) g)
+
+-- | Convert a Signal to a Warp.
+signal_to_warp :: Signal.Warp -> Warp
+signal_to_warp sig = Warp sig (TrackPos 0) (TrackPos 1)
+
+warp_to_signal :: Warp -> Signal.Warp
+warp_to_signal (Warp sig shift stretch) =
+    Signal.map_x (subtract shift . (* stretch)) sig
+
+-- | Warp a signal.
+-- TODO this does the same thing as compose_warp, but Signal.compose doesn't
+-- work correctly with unmatched sampling rates.  I get around it composing
+-- warps with warps because they go through integrate, which enforces
+-- a constant sampling rate, but this is a brittle hack and should go away.
+warp_control :: Signal.Control -> Warp -> Signal.Control
+warp_control control warp@(Warp sig shift stretch)
+    | is_id_warp warp = control
+        -- optimization
+    | sig == id_warp_signal = Signal.map_x (\p -> (p+shift) * stretch) control
+    | otherwise = Signal.map_x (\x -> warp_pos x warp) control
+
+-- TODO this should be merged with warp_control, I need to use SignalBase.map_x
+warp_pitch :: PitchSignal.PitchSignal -> Warp -> PitchSignal.PitchSignal
+warp_pitch psig warp@(Warp sig shift stretch)
+    | is_id_warp warp = psig
+        -- optimization
+    | sig == id_warp_signal =
+        PitchSignal.map_x (\p -> (p+shift) * stretch) psig
+    | otherwise = PitchSignal.map_x (\x -> warp_pos x warp) psig
+
+-- ** warped control
+
+-- | This warp is applied to control signals in the environment, and
+-- concretely instead of abstractly.  Storing it here first lets me avoid
+-- recalculating a whole signal just to get a few points (even with laziness
+-- it's not efficient) and lets me combine shifts and stretches before
+-- application.  It's kind of like a form of manual fusion.
+newtype WarpedControls = WarpedControls (Map.Map Control (Signal.Control, Warp))
+    deriving (Eq, Show)
+
+warped_controls :: [(Control, Signal.Control)] -> WarpedControls
+warped_controls conts = WarpedControls $
+    Map.fromList [(cont, (sig, id_warp)) | (cont, sig) <- conts]
+
+unwarp_controls :: WarpedControls -> ControlMap
+unwarp_controls (WarpedControls cmap) =
+    Map.fromAscList $ map f $ Map.toAscList cmap
+    where f (cont, (sig, warp)) = (cont, warp_control sig warp)
+
+insert_control :: Control -> Signal.Control -> WarpedControls -> WarpedControls
+insert_control cont sig (WarpedControls cmap) =
+    WarpedControls $ Map.insert cont (sig, id_warp) cmap
+
+lookup_control :: TrackPos -> Control -> WarpedControls -> Maybe Signal.Y
+lookup_control pos cont (WarpedControls cmap) = case Map.lookup cont cmap of
+    Nothing -> Nothing
+    -- Instead of warping the signal I unwarp the point.
+    Just (sig, warp) -> case unwarp_pos pos warp of
+        Nothing -> Nothing
+        Just p -> Just $ Signal.at p sig
+
+modify_control :: Control -> (Signal.Control -> Signal.Control)
+    -> WarpedControls -> Maybe WarpedControls
+modify_control cont f (WarpedControls cmap) = case Map.lookup cont cmap of
+    Nothing -> Nothing
+    Just (sig, warp) -> Just $
+        WarpedControls $ Map.insert cont (f sig, warp) cmap
+
+modify_warps :: (Warp -> Warp) -> WarpedControls -> WarpedControls
+modify_warps f (WarpedControls cmap) = WarpedControls $ Map.map (second f) cmap
+
 
 -- ** pitch
 

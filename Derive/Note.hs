@@ -153,7 +153,7 @@ d_note_track track_id = do
     title_expr <- case TrackLang.parse (Track.track_title track) of
         Left err -> Derive.throw $ "track title: " ++ err
         Right expr -> return expr
-    join $ Call.eval_transformer "title" title_expr (derive_notes pos_events)
+    join $ Call.eval_transformer "title" title_expr 0 (derive_notes pos_events)
 
 {-
 sequence_notes :: Derive.OrderedNoteDerivers -> Derive.EventDeriver
@@ -235,14 +235,12 @@ derive_notes = go []
         when (consumed < 1) $
             Derive.throw $ "call consumed invalid number of events: "
                 ++ show consumed
-        events <- deriver
         -- TODO is this really an optimization?  profile later
         let (prev2, next2) = if consumed == 1
                 then (cur : prev, rest)
                 else let (pre, post) = splitAt consumed (cur : rest)
                     in (reverse pre ++ prev, post)
-        rest_events <- go prev2 next2
-        return (Derive.merge_events [events, rest_events])
+        Derive.d_merge deriver (go prev2 next2)
 
 skip_event :: Derive.Deriver (Derive.EventDeriver, Int)
 skip_event = return (return [], 1)

@@ -1,3 +1,15 @@
+-- | Echo and delay oriented calls.
+module Derive.Call.Echo where
+
+import Ui
+
+import qualified Derive.Call as Call
+import qualified Derive.Derive as Derive
+import qualified Derive.Score as Score
+import qualified Derive.TrackLang as TrackLang
+import Derive.TrackLang (optional, required_signal, signal)
+
+import qualified Perform.Signal as Signal
 
 
 note_calls :: Derive.CallMap
@@ -6,37 +18,35 @@ note_calls = Derive.make_calls
     , ("echo", c_echo)
     ]
 
-control_calls :: Derive.CallMap
-control_calls = Derive.make_calls []
-
 -- * note calls
 
 c_delay :: Derive.Call
-c_delay args events = TrackLang.call1 args
+c_delay = Derive.transformer $ \args pos deriver -> TrackLang.call1 args
     (optional "time" (required_signal "delay-time")) $ \time ->
-    Call.map_asc events () $ Call.with_signals [time] $
-    \[time] (_, _, event, _) ->
-        return ((), [Score.move (+ TrackPos time) event])
+    Call.with_signals pos [time] $ \[time] ->
+        Derive.d_at (TrackPos time) deriver
 
--- TODO If the feedback signal is constant, as it is likely to be, then I could
--- preserve sharing by reusing the velocity of the first event.  However, this
--- only works if each event has the same signal, which may not be the case if
--- there is sub-derivation involved.  Signal serial numbers or StablePtr might
--- be a solution, but I think if signals were lazy then only the necessary bit
--- of the signal will be transformed which achieves the same effect.
+-- | This echo works on Derivers instead of Events, which means that the echoes
+-- happen in score time, so they will change tempo with the rest of the score,
+-- and the realization may change due to a different velocity.
+--
+-- TODO implement a event-echo variant that works directly on events for a
+-- concrete echo
 c_echo :: Derive.Call
-c_echo args events = TrackLang.call3 args
+c_echo = Derive.transformer $ \args pos deriver -> TrackLang.call3 args
     ( optional "delay" (signal 1 "echo-delay")
     , optional "feedback" (signal 0.4 "echo-feedback")
-    , optional "times" (signal 1 "echo-times")) $ \delay feedback times ->
-    Call.map_any events () $ Call.with_signals [delay, feedback, times] $
-    \[delay, feedback, times] (_, _, event, _) ->
-        return ((), echo (Signal.y_to_x delay) feedback (floor times) event)
+    , optional "times" (1 :: Double)) $ \delay feedback times ->
+    Call.with_signals pos [delay, feedback] $ \[delay, feedback] ->
+        echo (Signal.y_to_x delay) feedback (floor times) deriver
 
-echo :: TrackPos -> Double -> Int -> Score.Event -> [Score.Event]
-echo delay feedback times event = event : [modify n event | n <- [1..times]]
-    where
-    modify n = Score.modify_velocity (*vel)
-        . Score.move (+ fromIntegral n * delay)
-        where vel = feedback ** (fromIntegral n)
+echo :: TrackPos -> Double -> Int -> Derive.EventDeriver -> Derive.EventDeriver
+echo delay feedback times deriver
+    | times <= 0 = deriver
+    | otherwise = Derive.d_merge deriver
+        (Derive.d_control_at delay (scale_vel feedback
+            (echo delay feedback (times - 1) deriver)))
 
+scale_vel :: Signal.Y -> Derive.EventDeriver -> Derive.EventDeriver
+scale_vel d = Derive.with_relative_control
+    Score.c_velocity Signal.sig_multiply (Signal.constant d)

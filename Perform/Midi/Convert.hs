@@ -56,6 +56,8 @@ convert_event lookup_inst event = do
         (Score.event_duration event) controls pitch (Score.event_stack event)
 
 -- | They're both newtypes so this should boil down to id.
+-- I could filter out the ones MIDI doesn't handle but laziness should do its
+-- thing.  TODO unless that preverts timely GC?
 convert_controls :: Score.ControlMap -> Perform.ControlMap
 convert_controls = Map.mapKeys (\(Score.Control c) -> Control.Control c)
 

@@ -118,7 +118,12 @@ extract e_event e_log result = (fmap (map e_event) val, map e_log logs)
 
 extract_events :: (Score.Event -> a) -> Result [Score.Event]
     -> (Either String [a], [Log.Msg])
-extract_events e_event = extract e_event id
+extract_events ex_event = extract ex_event id
+
+extract_events_only :: (Score.Event -> a) -> Result [Score.Event]
+    -> Either String [a]
+extract_events_only ex_event result = Log.trace_logs logs vals
+    where (vals, logs) = extract ex_event id result
 
 -- | Get standard event info.
 e_event :: Score.Event -> (TrackPos, TrackPos, String)

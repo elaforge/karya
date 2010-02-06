@@ -75,15 +75,15 @@ eval_generator caller (TrackLang.Call call_id args : rest) prev cur next = do
                 Derive.warn $ msg ++ TrackLang.show_type_error err
                 skip_event
             Right (deriver, consumed) -> do
-                deriver <- eval_transformer caller rest
+                deriver <- eval_transformer caller rest (fst cur)
                     (handle_exc "generator" call_id deriver)
                 return (deriver, consumed)
 eval_generator _ [] _ cur _ = Derive.throw $
     "event with no calls at all (this shouldn't happen): " ++ show cur
 
-eval_transformer :: String -> TrackLang.Expr -> Derive.EventDeriver
+eval_transformer :: String -> TrackLang.Expr -> TrackPos -> Derive.EventDeriver
     -> Derive.Deriver Derive.EventDeriver
-eval_transformer caller (TrackLang.Call call_id args : rest) deriver = do
+eval_transformer caller (TrackLang.Call call_id args : rest) pos deriver = do
     let msg = "eval_transformer " ++ show caller ++ ": "
     call <- lookup_note_call call_id
     case Derive.call_transformer call of
@@ -91,14 +91,14 @@ eval_transformer caller (TrackLang.Call call_id args : rest) deriver = do
             Derive.warn $ msg ++ "non-transformer " ++ show call_id
                 ++ " in transformer position"
             return (return [])
-        Just c -> case c args deriver of
+        Just c -> case c args pos deriver of
             Left err -> do
                 Derive.warn $ msg ++ TrackLang.show_type_error err
                 return (return [])
             Right deriver ->
-                eval_transformer caller rest
+                eval_transformer caller rest pos
                     (handle_exc "transformer" call_id deriver)
-eval_transformer _ [] deriver = return deriver
+eval_transformer _ [] _ deriver = return deriver
 
 handle_exc :: String -> TrackLang.CallId -> Derive.EventDeriver
     -> Derive.EventDeriver
@@ -128,7 +128,7 @@ lookup_note_call call_id = do
 -- which does just that.
 c_not_found :: TrackLang.CallId -> Derive.Call
 c_not_found call_id = Derive.Call
-    (Just $ \_ _ _ _ -> err) (Just $ \_ _ -> err)
+    (Just $ \_ _ _ _ -> err) (Just $ \_ _ _ -> err)
     where err = Left (TrackLang.CallNotFound call_id)
 
 -- | Make an Id from a string, relative to the current ns if it doesn't already

@@ -2,6 +2,7 @@ module Derive.Note_test where
 
 import Util.Test
 import qualified Util.Log as Log
+import qualified Util.Seq as Seq
 
 import Ui
 -- import qualified Ui.State as State
@@ -119,53 +120,25 @@ test_c_equal = do
     equal (run ">i" [(0, 1, ""), (1, 1, "inst = >i2 |"), (2, 1, ">i3 |")])
         (Right [(0, inst "i", []), (1, inst "i2", []), (2, inst "i3", [])], [])
 
-{-
--- TODO this should probably go in Basic_test
--- test_echo = do
-    let derive title tracks = DeriveTest.derive_tracks_tempo
-                ((title, [(0, 1, "--1"), (1, 1, "--2")]) : tracks)
-    let result = derive (DeriveTest.default_inst_title ++ " | echo 2")
-            [("*twelve", [(0, 0, "4c"), (1, 0, "4d")])]
-    let (events, logs) = DeriveTest.e_val_right result
-    let (_perf_events, convert_warns, mmsgs, perf_warns) =
-            DeriveTest.perform DeriveTest.default_inst_config events
+test_calls = do
+    let extract r = case DeriveTest.extract DeriveTest.e_event id r of
+            (Right val, []) -> Right val
+            (Left err, []) -> Left err
+            (_, logs) -> Left (Seq.join "\n" (map Log.msg_string logs))
+    let run title = extract $
+            DeriveTest.derive_tracks_tempo [(title, [(0, 1, "--1")])]
 
-    -- The MIDI test is probably enough.
-    equal logs []
-    equal convert_warns []
-    equal perf_warns []
-    equal (DeriveTest.note_on_times mmsgs)
-        [(0, 60, 100), (1000, 62, 100), (2000, 60, 40), (3000, 62, 40)]
-
--- test_calls = do
-    let extract = DeriveTest.extract_events DeriveTest.e_event
-    let run title tracks = fst $ extract $ DeriveTest.derive_tracks_tempo
-            ((title, [(0, 1, "--1"), (1, 1, "--2")]) : tracks)
-
-    left_like (run ">i | call | 42 bad parse" [])
-        "non-function in function position"
-    left_like (run ">i | no-such-call" [])
-        "unknown CallId \"no-such-call\""
-    left_like (run ">i | delay *bad-arg" [])
-        "expected signal but got"
-    left_like (run ">i | delay 1 2 3 4" [])
+    left_like (run ">i | no-such-call") "CallNotFound"
+    left_like (run ">i | delay *bad-arg")
+        "expected TSignal but got"
+    left_like (run ">i | delay 1 2 3 4")
         "too many arguments"
-    left_like (run ">i | delay" [])
+    left_like (run ">i | delay")
+        "not in environment and no default given"
+    left_like (run ">i | delay _")
         "not in environment"
-    left_like (run ">i | delay _" [])
+    left_like (run ">i | delay %delay") $
         "not in environment"
-    left_like (run ">i | delay %delay" []) $
-        "not in environment"
-
-    equal (run ">i | delay 2" []) $
-        Right [(2, 1, "--1"), (3, 1, "--2")]
-    equal (run ">i | delay %delay,2" []) $
-        Right [(2, 1, "--1"), (3, 1, "--2")]
-    equal (run ">i | delay %delay" [("delay", [(0, 0, "1"), (1, 0, "2")])]) $
-        Right [(1, 1, "--1"), (3, 1, "--2")]
-    equal (run ">i | delay %delay,1 | delay %delay,1" []) $
-        Right [(2, 1, "--1"), (3, 1, "--2")]
--}
 
 {-
 -- this is all broken at the moment until I re-implement duration calculation

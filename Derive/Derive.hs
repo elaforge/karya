@@ -36,7 +36,6 @@ import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State as Monad.State
 import qualified Control.Monad.Trans as Trans
 import Control.Monad.Trans (lift)
-import Data.Function
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
@@ -83,12 +82,15 @@ data State = State {
 
     -- | Derivers can modify it for sub-derivers, or look at it, whether to
     -- attach to an Event or to handle internally.
-    state_controls :: Score.ControlMap
+    state_controls :: Score.WarpedControls
     -- | Absolute pitch signal currently in scope.
     , state_pitch :: PitchSignal.PitchSignal
+    -- TODO unify this with Score.WarpedControls
+    -- I can do this when I support multiple pitch signals
+    , state_pitch_warp :: Score.Warp
 
     , state_environ :: TrackLang.Environ
-    , state_warp :: Warp
+    , state_warp :: Score.Warp
     -- | This is the call stack for events.  It's used for error reporting,
     -- and attached to events in case they want to emit errors later (say
     -- during performance).
@@ -118,9 +120,10 @@ initial_state ui_state lookup_deriver calls ignore_tempo = State {
     state_controls = initial_controls
     , state_pitch = PitchSignal.constant
         (State.state_project_scale ui_state) Pitch.middle_degree
+    , state_pitch_warp = Score.id_warp
 
     , state_environ = Map.empty
-    , state_warp = initial_warp
+    , state_warp = Score.id_warp
     , state_stack = []
     , state_log_context = []
 
@@ -134,17 +137,13 @@ initial_state ui_state lookup_deriver calls ignore_tempo = State {
     }
 
 -- | Initial control environment.
---
--- See 'Perform.Midi.Perform.default_velocity' for 0.79.
-initial_controls :: Score.ControlMap
-initial_controls = Map.fromList
+initial_controls :: Score.WarpedControls
+initial_controls = Score.warped_controls
     [(Score.c_velocity, Signal.constant default_velocity)]
 
+-- | See 'Perform.Midi.Perform.default_velocity' for 0.79.
 default_velocity :: Signal.Y
 default_velocity = 0.79
-
-initial_warp :: Warp
-initial_warp = make_warp (Signal.signal [(0, 0), (Signal.max_x, Signal.max_y)])
 
 -- ** calls
 
@@ -167,7 +166,8 @@ data Call = Call {
 -- | args -> prev_events -> cur_event -> next_events -> (deriver, consumed)
 type GeneratorCall = [TrackLang.Val] -> [Track.PosEvent] -> Track.PosEvent
     -> [Track.PosEvent] -> Either TrackLang.TypeError (EventDeriver, Int)
-type TransformerCall = [TrackLang.Val] -> EventDeriver
+-- | args -> pos -> deriver -> deriver
+type TransformerCall = [TrackLang.Val] -> TrackPos -> EventDeriver
     -> Either TrackLang.TypeError EventDeriver
 
 generator call = Call (Just call) Nothing
@@ -209,24 +209,8 @@ data TrackWarp = TrackWarp {
     , tw_end :: TrackPos
     , tw_block :: BlockId
     , tw_tracks :: [TrackId]
-    , tw_warp :: Warp
+    , tw_warp :: Score.Warp
     } deriving (Show)
-
--- | A tempo warp signal.  The shift and stretch are an optimization hack
--- stolen from nyquist.  The idea is to make composed shifts and stretches more
--- efficient since only the shift and stretch are changed.  They have to be
--- flattened out when the warp is composed though (in 'd_warp').
---
--- TODO Is this really that much of a win?
-data Warp = Warp {
-    warp_signal :: Signal.Warp
-    , warp_shift :: TrackPos
-    , warp_stretch :: TrackPos
-    } deriving (Eq, Show)
-
--- | Convert a Signal to a Warp.
-make_warp :: Signal.Warp -> Warp
-make_warp sig = Warp sig (TrackPos 0) (TrackPos 1)
 
 data DeriveError = DeriveError SrcPos.SrcPos [Warning.StackPos] String
     deriving (Eq)
@@ -308,9 +292,9 @@ run derive_state m = do
 make_tempo_func :: [TrackWarp] -> Transport.TempoFunction
 make_tempo_func track_warps block_id track_id pos = do
     warp <- lookup_track_warp block_id track_id track_warps
-    return $ Timestamp.from_track_pos (warp_at pos warp)
+    return $ Timestamp.from_track_pos (Score.warp_pos pos warp)
 
-lookup_track_warp :: BlockId -> TrackId -> [TrackWarp] -> Maybe Warp
+lookup_track_warp :: BlockId -> TrackId -> [TrackWarp] -> Maybe Score.Warp
 lookup_track_warp block_id track_id track_warps = case matches of
         [] -> Nothing
         (w:_) -> Just w
@@ -326,11 +310,9 @@ make_inverse_tempo_func track_warps ts = do
     return (block_id, [(track_id, pos) | track_id <- track_ids])
     where
     pos = Timestamp.to_track_pos ts
-    track_pos = [(tw_block tw, tw_tracks tw, dewarp (tw_warp tw) ts) |
+    track_pos = [(tw_block tw, tw_tracks tw, unwarp ts (tw_warp tw)) |
             tw <- track_warps, tw_start tw <= pos && pos < tw_end tw]
-    dewarp (Warp sig shift stretch) ts = do
-        p <- Signal.inverse_at sig (Timestamp.to_track_pos ts)
-        return $ (p - shift)  / stretch
+    unwarp ts warp = Score.unwarp_pos (Timestamp.to_track_pos ts) warp
 
 modify :: (Monad m) => (State -> State) -> DeriveT m ()
 modify f = (DeriveT . lift) (Monad.State.modify f)
@@ -462,30 +444,40 @@ type ControlOp = Signal.Control -> Signal.Control -> Signal.Control
 type PitchOp = PitchSignal.PitchSignal -> PitchSignal.Relative
     -> PitchSignal.PitchSignal
 
--- | This gets the control from the environment, not the event.  The difference
--- is that the environment is the current state at this point of evaluation, so
--- it would represent the context of the computation, while the event is the
--- environment at the time the event was created.
---
--- Control events don't have their own signal, but there is a signal in the
--- environment at the time of their evaluation.
+-- | Flatten WarpedControls into an unwarped ControlMap.  Put the flattened
+-- controls back into the environment so this work isn't duplicated.
+unwarped_controls :: (Monad m) =>
+    DeriveT m (Score.ControlMap, PitchSignal.PitchSignal)
+unwarped_controls = do
+    controls <- gets state_controls
+    let unwarped = Score.unwarp_controls controls
+    pitch <- gets state_pitch
+    pitch_warp <- gets state_pitch_warp
+    let unwarped_pitch = Score.warp_pitch pitch pitch_warp
+    modify $ \st -> st
+        { state_controls = Score.warped_controls (Map.toList unwarped)
+        , state_pitch = unwarped_pitch
+        , state_pitch_warp = Score.id_warp
+        }
+    return (unwarped, unwarped_pitch)
+
 control_at :: (Monad m) => Score.Control -> Maybe Signal.Y -> TrackPos
     -> DeriveT m Signal.Y
 control_at cont deflt pos = do
     controls <- gets state_controls
-    case Map.lookup cont controls of
+    global_pos <- local_to_global pos
+    case Score.lookup_control global_pos cont controls of
         Nothing -> maybe
             (throw $ "control_at: not in environment and no default given: "
                 ++ show cont) return deflt
-        Just sig -> do
-            global_pos <- local_to_global pos
-            return (Signal.at global_pos sig)
+        Just y -> return y
 
 pitch_at :: (Monad m) => TrackPos -> DeriveT m PitchSignal.Y
 pitch_at pos = do
     pitches <- gets state_pitch
+    warp <- gets state_pitch_warp
     global_pos <- local_to_global pos
-    return (PitchSignal.at global_pos pitches)
+    return (PitchSignal.at (Score.warp_pos global_pos warp) pitches)
 
 pitch_degree_at :: (Monad m) => TrackPos -> DeriveT m Pitch.Degree
 pitch_degree_at pos = fmap PitchSignal.y_to_degree (pitch_at pos)
@@ -494,25 +486,31 @@ with_control :: (Monad m) =>
     Score.Control -> Signal.Control -> DeriveT m t -> DeriveT m t
 with_control cont signal op = do
     controls <- gets state_controls
-    modify $ \st -> st { state_controls = Map.insert cont signal controls }
+    -- TODO only revert the specific control
+    modify $ \st ->
+        st { state_controls = Score.insert_control cont signal controls }
     result <- op
     modify $ \st -> st { state_controls = controls }
     return result
 
-with_relative_control :: (Monad m) =>
+with_control_operator :: (Monad m) =>
     Score.Control -> Operator -> Signal.Control -> DeriveT m t -> DeriveT m t
-with_relative_control cont c_op signal op = do
-    sig_op <- lookup_control_op c_op
+with_control_operator cont c_op signal deriver = do
+    op <- lookup_control_op c_op
+    with_relative_control cont op signal deriver
+
+with_relative_control :: (Monad m) =>
+    Score.Control -> ControlOp -> Signal.Control -> DeriveT m t -> DeriveT m t
+with_relative_control cont op signal deriver = do
     controls <- gets state_controls
     let msg = "relative control applied when no absolute control is in scope: "
-    case Map.lookup cont controls of
+    case Score.modify_control cont (\old_sig -> op old_sig signal) controls of
         Nothing -> do
             warn (msg ++ show cont)
-            op
-        Just old_sig -> do
-            modify $ \st -> st { state_controls =
-                Map.insert cont (sig_op old_sig signal) controls }
-            result <- op
+            deriver
+        Just new_controls -> do
+            modify $ \st -> st { state_controls = new_controls }
+            result <- deriver
             modify $ \st -> st { state_controls = controls }
             return result
 
@@ -529,9 +527,9 @@ with_constant_pitch degree op = do
     pitch <- gets state_pitch
     with_pitch (PitchSignal.constant (PitchSignal.sig_scale pitch) degree) op
 
-with_relative_pitch :: (Monad m) =>
+with_pitch_operator :: (Monad m) =>
     Operator -> PitchSignal.Relative -> DeriveT m t -> DeriveT m t
-with_relative_pitch c_op signal op = do
+with_pitch_operator c_op signal op = do
     sig_op <- lookup_pitch_control_op c_op
     old <- gets state_pitch
     if old == PitchSignal.empty
@@ -691,39 +689,96 @@ start_new_warp = do
 local_to_global :: (Monad m) => TrackPos -> DeriveT m TrackPos
 local_to_global pos = do
     warp <- gets state_warp
-    return (warp_at pos warp)
+    return (Score.warp_pos pos warp)
 
 global_to_local :: (Monad m) => TrackPos -> DeriveT m TrackPos
 global_to_local pos = do
-    Warp sig shift stretch <- gets state_warp
-    x <- maybe (throw $ "global_to_local out of range: " ++ show pos) return
-        (Signal.inverse_at sig pos)
-    return $ (x - shift) / stretch
-
-warp_at :: TrackPos -> Warp -> TrackPos
-warp_at pos (Warp sig shift stretch) =
-    Signal.y_to_x (Signal.at_linear (pos * stretch + shift) sig)
+    warp <- gets state_warp
+    maybe (throw $ "global_to_local out of range: " ++ show pos) return
+        (Score.unwarp_pos pos warp)
 
 min_tempo :: Signal.Y
 min_tempo = 0.001
 
-d_stretch :: (Monad m) => TrackPos -> DeriveT m a -> DeriveT m a
-d_stretch factor d
-    | factor <= 0 = throw $ "stretch <= 0: " ++ show factor
-    | otherwise = with_warp
-        (\w -> w { warp_stretch = warp_stretch w * factor }) d
-
 d_at :: (Monad m) => TrackPos -> DeriveT m a -> DeriveT m a
-d_at shift = with_warp $ \w ->
-    w { warp_shift = warp_shift w + warp_stretch w * shift }
+d_at shift = with_warp (Score.shift_warp shift)
 
-with_warp :: (Monad m) => (Warp -> Warp) -> DeriveT m a -> DeriveT m a
-with_warp f d = do
+d_stretch :: (Monad m) => TrackPos -> DeriveT m a -> DeriveT m a
+d_stretch factor deriver
+    | factor <= 0 = throw $ "stretch <= 0: " ++ show factor
+    | otherwise = with_warp (Score.stretch_warp factor) deriver
+
+with_warp :: (Monad m) => (Score.Warp -> Score.Warp) -> DeriveT m a
+    -> DeriveT m a
+with_warp f deriver = do
     old <- gets state_warp
     modify $ \st -> st { state_warp = f (state_warp st) }
-    v <- d
+    v <- deriver
     modify $ \st -> st { state_warp = old }
     return v
+
+d_warp :: (Monad m) => Signal.Warp -> DeriveT m a -> DeriveT m a
+d_warp sig deriver = do
+    old_warp <- gets state_warp
+    -- Log.write $
+    --     Signal.log_signal (warp_signal (Score.compose_warp old_warp sig)) $
+    --     Log.msg Log.Debug "new warp"
+    modify $ \st -> st { state_warp = Score.compose_warp old_warp sig }
+    start_new_warp
+    result <- deriver
+    modify $ \st -> st { state_warp = old_warp }
+    return result
+
+-- | Like 'd_warp' but this will also warp controls in the environment.
+--
+-- 'd_warp' doesn't worp controls at all, but the control track that creates
+-- them is warped so they are effectively warped by the surrounding d_warp
+-- (TODO continuous control warp might change that).  Subsequent
+-- warping inside the d_warp won't affect the controls, so @d_at p d@ won't
+-- move the controls along with @d@.
+d_control_warp :: (Monad m) => Signal.Warp -> DeriveT m a -> DeriveT m a
+d_control_warp sig deriver = do
+    old <- gets state_controls
+    old_pitch_warp <- gets state_pitch_warp
+    let warped = Score.modify_warps (`Score.compose_warp` sig) old
+    let warped_pitch = Score.compose_warp old_pitch_warp sig
+    modify $ \st -> st
+        { state_controls = warped
+        , state_pitch_warp = warped_pitch
+        }
+    result <- d_warp sig deriver
+    modify $ \st -> st
+        { state_controls = old
+        , state_pitch_warp = old_pitch_warp
+        }
+    return result
+
+d_control_at :: (Monad m) => TrackPos -> DeriveT m a -> DeriveT m a
+d_control_at shift = with_control_warp (Score.shift_warp shift) . d_at shift
+
+d_control_stretch :: (Monad m) => TrackPos -> DeriveT m a -> DeriveT m a
+d_control_stretch factor =
+    with_control_warp (Score.stretch_warp factor) . d_stretch factor
+
+with_control_warp :: (Monad m) => (Score.Warp -> Score.Warp)
+    -> DeriveT m a -> DeriveT m a
+with_control_warp f deriver = do
+    old <- gets state_controls
+    old_pitch_warp <- gets state_pitch_warp
+    modify $ \st -> st
+        { state_controls = Score.modify_warps f old
+        , state_pitch_warp = f old_pitch_warp
+        }
+    v <- deriver
+    -- TODO controls and warps are restored, but only the pitch warp is
+    -- restored.  I don't think this makes a difference because no one should
+    -- set a control without unsetting it, but I should at least be consistent.
+    modify $ \st -> st
+        { state_controls = old
+        , state_pitch_warp = old_pitch_warp
+        }
+    return v
+
 
 -- | Warp a block with the given deriver with the given signal.
 --
@@ -756,7 +811,7 @@ d_tempo block_id maybe_track_id signalm deriver = do
     stretch_to_1 <- if top_level then return id
         else do
             block_dur <- get_block_dur block_id
-            global_dur <- with_warp (const (make_warp warp))
+            global_dur <- with_warp (const (Score.signal_to_warp warp))
                 (local_to_global block_dur)
             -- Log.debug $ "dur, global dur "
             --     ++ show (block_id, block_dur, global_dur)
@@ -794,35 +849,6 @@ tempo_to_warp :: Signal.Tempo -> Signal.Warp
 tempo_to_warp = Signal.integrate Signal.tempo_srate . Signal.map_y (1/)
     . Signal.clip_min min_tempo
 
-d_warp :: (Monad m) => Signal.Warp -> DeriveT m a -> DeriveT m a
-d_warp sig deriver = do
-    old_warp <- gets state_warp
-    -- Log.write $ Signal.log_signal (warp_signal (compose old_warp sig)) $
-    --     Log.msg Log.Debug "new warp"
-    modify $ \st -> st { state_warp = compose old_warp sig }
-    start_new_warp
-    result <- deriver
-    modify $ \st -> st { state_warp = old_warp }
-    return result
-    where
-    compose warp sig
-        -- If the top level block has no tempo, don't bother composing.
-        | warp == initial_warp = make_warp sig
-        | otherwise = compose_warp warp sig
-
--- | Warp a Warp with a warp signal.
---
--- From the nyquist warp function:
---
--- > f(stretch * g(t) + shift)
--- > f(scale(stretch, g) + offset)
--- > (shift f -offset)(scale(stretch, g))
--- > (compose (shift-time f (- offset)) (scale stretch g))
-compose_warp :: Warp -> Signal.Warp -> Warp
-compose_warp (Warp f shift stretch) g = make_warp $
-    Signal.compose (Signal.shift (-shift) f)
-        (Signal.scale (Signal.x_to_y stretch) g)
-
 
 -- ** track
 
@@ -840,7 +866,7 @@ with_track_warp track_deriver track_id = do
 without_track_warp :: (Monad m) =>
     (TrackId -> DeriveT m [e]) -> TrackDeriver m e
 without_track_warp track_deriver track_id = do
-    with_warp (const initial_warp) (track_deriver track_id)
+    with_warp (const Score.id_warp) (track_deriver track_id)
 
 -- * utils
 
@@ -876,12 +902,20 @@ data NoState = NoState deriving (Show)
 
 -- ** merge
 
-d_merge :: (Monad m) => [[Score.Event]] -> m [Score.Event]
-d_merge = return . merge_events
+d_merge :: (Monad m) => DeriveT m [Score.Event] -> DeriveT m [Score.Event]
+    -> DeriveT m [Score.Event]
+d_merge = liftM2 merge_events
+
+d_merge_list :: (Monad m) => [DeriveT m [Score.Event]]
+    -> DeriveT m [Score.Event]
+d_merge_list = foldr d_merge (return [])
+
+merge_events :: [Score.Event] -> [Score.Event] -> [Score.Event]
+merge_events = Seq.merge_with Score.event_start
+
+merge_event_lists :: [[Score.Event]] -> [Score.Event]
+merge_event_lists = foldr merge_events []
 
 d_signal_merge :: (Monad m) => [[(TrackId, Signal.Signal y)]]
-    -> m [(TrackId, Signal.Signal y)]
+    -> DeriveT m [(TrackId, Signal.Signal y)]
 d_signal_merge = return . concat
-
-merge_events :: [[Score.Event]] -> [Score.Event]
-merge_events = foldr (Seq.merge_by (compare `on` Score.event_start)) []
