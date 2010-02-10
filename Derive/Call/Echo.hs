@@ -36,8 +36,8 @@ c_echo :: Derive.Call
 c_echo = Derive.transformer $ \args pos deriver -> TrackLang.call3 args
     ( optional "delay" (signal 1 "echo-delay")
     , optional "feedback" (signal 0.4 "echo-feedback")
-    , optional "times" (1 :: Double)) $ \delay feedback times ->
-    Call.with_signals pos [delay, feedback] $ \[delay, feedback] ->
+    , optional "times" (signal 1 "echo-times")) $ \delay feedback times ->
+    Call.with_signals pos [delay, feedback, times]$ \[delay, feedback, times] ->
         echo (Signal.y_to_score delay) feedback (floor times) deriver
 
 echo :: ScoreTime -> Double -> Int -> Derive.EventDeriver -> Derive.EventDeriver
