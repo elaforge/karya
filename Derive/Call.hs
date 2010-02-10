@@ -66,12 +66,14 @@ eval_generator :: String -> TrackLang.Expr -> [Track.PosEvent] -> Track.PosEvent
 eval_generator caller (TrackLang.Call call_id args : rest) prev cur next = do
     let msg = "eval_generator " ++ show caller ++ ": "
     call <- lookup_note_call call_id
+    env <- Derive.gets Derive.state_environ
+    let passed = TrackLang.PassedArgs args env call_id
     case Derive.call_generator call of
         Nothing -> do
             Derive.warn $ msg ++ "non-generator " ++ show call_id
                 ++ " in generator position"
             skip_event
-        Just c -> case c args prev cur next of
+        Just c -> case c passed prev cur next of
             Left err -> do
                 Derive.warn $ msg ++ Pretty.pretty err
                 skip_event
@@ -87,12 +89,14 @@ eval_transformer :: String -> TrackLang.Expr -> ScoreTime -> Derive.EventDeriver
 eval_transformer caller (TrackLang.Call call_id args : rest) pos deriver = do
     let msg = "eval_transformer " ++ show caller ++ ": "
     call <- lookup_note_call call_id
+    env <- Derive.gets Derive.state_environ
+    let passed = TrackLang.PassedArgs args env call_id
     case Derive.call_transformer call of
         Nothing -> do
             Derive.warn $ msg ++ "non-transformer " ++ show call_id
                 ++ " in transformer position"
             return (return [])
-        Just c -> case c args pos deriver of
+        Just c -> case c passed pos deriver of
             Left err -> do
                 Derive.warn $ msg ++ Pretty.pretty err
                 return (return [])

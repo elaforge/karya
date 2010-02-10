@@ -36,12 +36,12 @@ control_calls = Derive.make_calls []
 -- @>i | call@ to run call with that instrument.
 c_note :: Derive.Call
 c_note = Derive.Call
-    (Just $ \args _ event next -> case process args of
+    (Just $ \args _ event next -> case process (TrackLang.passed_vals args) of
         (inst, rel_attrs, []) ->
             Right $ one_note $ generate_note inst rel_attrs event next
         (_, _, invalid) -> Left $
             TrackLang.ArgError $ "expected inst or attr: " ++ show invalid)
-    (Just $ \args _ deriver -> case process args of
+    (Just $ \args _ deriver -> case process (TrackLang.passed_vals args) of
         (inst, rel_attrs, []) -> Right $ transform_note inst rel_attrs deriver
         (_, _, invalid) -> Left $
             TrackLang.ArgError $ "expected inst or attr: " ++ show invalid)
@@ -109,8 +109,9 @@ trimmed_pitch Nothing sig = sig
 
 c_block :: BlockId -> Derive.Call
 c_block block_id = Derive.generate_one $ \args _ (pos, event) _ ->
-    if null args then Right $ block_call block_id pos event
-    else Left $ TrackLang.ArgError "args for block call not implemented yet"
+    if null (TrackLang.passed_vals args)
+        then Right $ block_call block_id pos event
+        else Left $ TrackLang.ArgError "args for block call not implemented yet"
 
 block_call :: BlockId -> ScoreTime -> Event.Event -> Derive.EventDeriver
 block_call block_id pos event =

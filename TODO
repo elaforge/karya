@@ -6,6 +6,11 @@
 - try record punning
 
 UNSORTED
+  - try latest fltk patch
+  - make sure window placement stuff is fixed
+
+  - move Cmd.LanguageCmds to Cmd.Lang.Global
+  - move MakeRuler to Lang too?
   * SignalBase: the sample at 0 should extend to -inf, so if at gets <=0, return
     first sample <=0.  This will avoid derivers that need a wide range getting
     zeros.
@@ -463,19 +468,21 @@ Derive:
     * re-implement tick
     * re-implement echo
     - implement event-echo and event processing in general
-    - arg processing: arg defaults taken automatically from the env, if
+    * arg processing: arg defaults taken automatically from the env, if
       prefixed with call name: "call-arg"
-    - re-implement directives: derive_notes returns (EventDeriver, [Event])
-      wait until I have a call that wants to use it
     - test Calls that return overlapping events
     - block-level calls
-    - come up with a syntax for Ui.Event preproc calls
     - negative duration postproc
     * put TrackLang.Val into Pretty
     - default args are in Deriver, so I can have e.g. trill default to current
       pitch+1
 
     - Cmd: after entering 'x = y' event, can it automatically set dur=0?
+
+    - come up with a syntax for Ui.Event preproc calls
+      >inst1 | echo < preproc1 < preproc2
+    - re-implement directives: derive_notes returns (EventDeriver, [Event])
+      wait until I have a call that wants to use it
 
     - When looking for the next note on, I should skip notes which are just
       'statements' that produce no notes.  That way a var set won't interrupt

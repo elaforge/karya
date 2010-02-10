@@ -260,13 +260,29 @@ lookup_val name environ = case Map.lookup name environ of
 
 -- * signatures
 
+-- | A single argument in the signature of a call.
 data Arg a = Arg {
+    -- | An arg that is not explicitly given will be looked for in the dynamic
+    -- environment as <callid>-<argname>.  Of course signal args get this
+    -- already through the control map, but this way non signal args can be
+    -- defaulted, or you can default a signal arg to a constant without going
+    -- to the bother of making a signal track.
     arg_name :: String
     , arg_default :: Maybe a
     } deriving (Eq, Show)
 
 arg_type :: (Typecheck a) => Arg a -> Type
 arg_type arg = type_of_val (maybe undefined id (arg_default arg))
+
+arg_environ_default :: CallId -> String -> ValName
+arg_environ_default (Symbol call) arg_name = Symbol $ call ++ "-" ++ arg_name
+
+-- | Passed arguments.  The dynamic environ is also given for defaulting args.
+data PassedArgs = PassedArgs {
+    passed_vals :: [Val]
+    , passed_environ :: Environ
+    , passed_call :: CallId
+    }
 
 type_of_val :: (Typecheck a) => a -> Type
 type_of_val = type_of . to_val
@@ -310,34 +326,35 @@ instance Pretty.Pretty TypeError where
 instance Error.Error TypeError where
     strMsg _ = error "strMsg not defined for TypeError"
 
-call0 :: [Val] -> result -> Either TypeError result
+call0 :: PassedArgs -> result -> Either TypeError result
 call0 vals f = do
     check_args vals []
     return f
 
-extract1 :: (Typecheck a) => [Val] -> Arg a -> Either TypeError a
+extract1 :: (Typecheck a) => PassedArgs -> Arg a -> Either TypeError a
 extract1 vals sig0 = do
     arg0 : _ <- check_args vals [arg_opt sig0]
     extract_arg 0 sig0 arg0
 
 call1 :: (Typecheck a) =>
-    [Val] -> Arg a -> (a -> result) -> Either TypeError result
+    PassedArgs -> Arg a -> (a -> result) -> Either TypeError result
 call1 vals arg0 f = return . f =<< extract1 vals arg0
 
 extract2 :: (Typecheck a, Typecheck b) =>
-    [Val] -> (Arg a, Arg b) -> Either TypeError (a, b)
+    PassedArgs -> (Arg a, Arg b) -> Either TypeError (a, b)
 extract2 vals (sig0, sig1) = do
     arg0 : arg1 : _ <- check_args vals [arg_opt sig0, arg_opt sig1]
     liftM2 (,) (extract_arg 0 sig0 arg0) (extract_arg 1 sig1 arg1)
 
 call2 :: (Typecheck a, Typecheck b) =>
-    [Val] -> (Arg a, Arg b) -> (a -> b -> result) -> Either TypeError result
+    PassedArgs -> (Arg a, Arg b) -> (a -> b -> result)
+    -> Either TypeError result
 call2 vals (arg0, arg1) f = do
     (val0, val1) <- extract2 vals (arg0, arg1)
     return $ f val0 val1
 
 extract3 :: (Typecheck a, Typecheck b, Typecheck c) =>
-    [Val] -> (Arg a, Arg b, Arg c) -> Either TypeError (a, b, c)
+    PassedArgs -> (Arg a, Arg b, Arg c) -> Either TypeError (a, b, c)
 extract3 vals (sig0, sig1, sig2) = do
     arg0 : arg1 : arg2 : _ <- check_args vals
         [arg_opt sig0, arg_opt sig1, arg_opt sig2]
@@ -345,14 +362,14 @@ extract3 vals (sig0, sig1, sig2) = do
         (extract_arg 2 sig2 arg2)
 
 call3 :: (Typecheck a, Typecheck b, Typecheck c) =>
-    [Val] -> (Arg a, Arg b, Arg c) -> (a -> b -> c -> result)
+    PassedArgs -> (Arg a, Arg b, Arg c) -> (a -> b -> c -> result)
     -> Either TypeError result
 call3 vals (arg0, arg1, arg2) f = do
     (val0, val1, val2) <- extract3 vals (arg0, arg1, arg2)
     return $ f val0 val1 val2
 
 extract4 :: (Typecheck a, Typecheck b, Typecheck c, Typecheck d) =>
-    [Val] -> (Arg a, Arg b, Arg c, Arg d) -> Either TypeError (a, b, c, d)
+    PassedArgs -> (Arg a, Arg b, Arg c, Arg d) -> Either TypeError (a, b, c, d)
 extract4 vals (sig0, sig1, sig2, sig3) = do
     arg0 : arg1 : arg2 : arg3 : _ <- check_args vals
         [arg_opt sig0, arg_opt sig1, arg_opt sig2, arg_opt sig3]
@@ -360,27 +377,42 @@ extract4 vals (sig0, sig1, sig2, sig3) = do
         (extract_arg 2 sig2 arg2) (extract_arg 3 sig3 arg3)
 
 call4 :: (Typecheck a, Typecheck b, Typecheck c, Typecheck d) =>
-    [Val] -> (Arg a, Arg b, Arg c, Arg d) -> (a -> b -> c -> d -> result)
+    PassedArgs -> (Arg a, Arg b, Arg c, Arg d) -> (a -> b -> c -> d -> result)
     -> Either TypeError result
 call4 vals (arg0, arg1, arg2, arg3) f = do
     (val0, val1, val2, val3) <- extract4 vals (arg0, arg1, arg2, arg3)
     return $ f val0 val1 val2 val3
 
-check_args :: [Val] -> [(Bool, String)] -> Either TypeError [Maybe Val]
-check_args vals optional_args
-    | length vals < length required = Left $ ArgError $
-        "too few arguments, " ++ expected
+check_args :: PassedArgs -> [(Bool, String)] -> Either TypeError [Maybe Val]
+check_args passed optional_args
+    | length defaulted_vals < length required = Left $ ArgError $
+        "too few arguments: " ++ expected
     | length vals > length optional_args = Left $ ArgError $
-        "too many arguments, " ++ expected
+        "too many arguments: " ++ expected
     | not (null bad_required) = Left $ ArgError $
         "required args can't follow an optional one: "
             ++ Seq.join ", " [show i ++ "/" ++ name | (i, name) <- bad_required]
-    | otherwise = Right $ map Just vals ++ repeat Nothing
+    | otherwise = Right $ map Just defaulted_vals ++ repeat Nothing
     where
     (required, optional) = break (fst . snd) (zip [0..] optional_args)
+    vals = passed_vals passed
+    defaulted_vals = Maybe.catMaybes $
+        zipWith deflt (map Just vals ++ repeat Nothing) optional_args
+        where
+        deflt (Just val) _ = Just val
+        deflt Nothing (_, arg_name) = Map.lookup
+            (arg_environ_default (passed_call passed) arg_name)
+            (passed_environ passed)
     bad_required = [(i, name) | (i, (False, name)) <- optional]
-    expected = "expected from " ++ show (length required) ++ " to "
-        ++ show (length optional_args) ++ ", got " ++ show (length vals)
+    from_env = length defaulted_vals - length vals
+    arg_range = if length required == length optional_args
+        then show (length required)
+        else "from " ++ show (length required) ++ " to "
+            ++ show (length optional_args)
+    expected = "expected " ++ arg_range ++ ", got "
+        ++ show (length defaulted_vals)
+        ++ if from_env == 0 then ""
+            else " (" ++ show from_env ++ " from environ)"
 
 extract_arg :: (Typecheck a) => Int -> Arg a -> Maybe Val -> Either TypeError a
 extract_arg argno arg maybe_val = case (arg_default arg, maybe_val2) of

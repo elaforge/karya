@@ -165,17 +165,17 @@ data Call = Call {
     , call_transformer :: Maybe TransformerCall
     }
 -- | args -> prev_events -> cur_event -> next_events -> (deriver, consumed)
-type GeneratorCall = [TrackLang.Val] -> [Track.PosEvent] -> Track.PosEvent
+type GeneratorCall = TrackLang.PassedArgs -> [Track.PosEvent] -> Track.PosEvent
     -> [Track.PosEvent] -> Either TrackLang.TypeError (EventDeriver, Int)
 -- | args -> pos -> deriver -> deriver
-type TransformerCall = [TrackLang.Val] -> ScoreTime -> EventDeriver
+type TransformerCall = TrackLang.PassedArgs -> ScoreTime -> EventDeriver
     -> Either TrackLang.TypeError EventDeriver
 
 generator call = Call (Just call) Nothing
 transformer call = Call Nothing (Just call)
 
 -- | Like 'generator', except for a generator that consumes a single event.
-generate_one :: ([TrackLang.Val] -> [Track.PosEvent] -> Track.PosEvent
+generate_one :: (TrackLang.PassedArgs -> [Track.PosEvent] -> Track.PosEvent
     -> [Track.PosEvent]
     -> Either TrackLang.TypeError EventDeriver)
     -> Call

@@ -140,6 +140,15 @@ test_calls = do
     left_like (run ">i | delay %delay") $
         "not in environment"
 
+test_environ_default = do
+    -- Mostly tested in TrackLang_test, but also make sure c_equal and and
+    -- track evaluation and the environ default all work together.
+    let extract = DeriveTest.extract DeriveTest.e_event Log.msg_string
+    let run evts = extract $ DeriveTest.derive_tracks_tempo [(">i", evts)]
+    equal (run [(0, 0, "delay-time = 0"), (1, 1, "delay |"),
+            (2, 0, "delay-time = 1"), (3, 1, "delay |")])
+        (Right [(1, 1, "delay |"), (4, 1, "delay |")], [])
+
 {-
 -- this is all broken at the moment until I re-implement duration calculation
 -- test_negative_duration = do
