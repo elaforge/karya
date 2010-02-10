@@ -36,6 +36,7 @@ import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State as Monad.State
 import qualified Control.Monad.Trans as Trans
 import Control.Monad.Trans (lift)
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
@@ -94,7 +95,8 @@ data State = State {
     , state_warp :: Score.Warp
     -- | This is the call stack for events.  It's used for error reporting,
     -- and attached to events in case they want to emit errors later (say
-    -- during performance).
+    -- during performance).  This is not a Warning.Stack becasue it's kept in
+    -- reverse order for ease of construction.
     , state_stack :: [Warning.StackPos]
     , state_log_context :: [String]
 
@@ -242,6 +244,10 @@ derive lookup_deriver ui_state calls ignore_tempo deriver =
     track_warps = state_track_warps state
     tempo_func = make_tempo_func track_warps
     inv_tempo_func = make_inverse_tempo_func track_warps
+
+-- | Just like 'd_block', except run toplevel post processing.
+d_root_block :: BlockId -> EventDeriver
+d_root_block = fmap process_negative_durations . d_block
 
 d_block :: BlockId -> EventDeriver
 d_block block_id = do
@@ -921,3 +927,62 @@ merge_event_lists = foldr merge_events []
 d_signal_merge :: (Monad m) => [[(TrackId, Signal.Signal y)]]
     -> DeriveT m [(TrackId, Signal.Signal y)]
 d_signal_merge = return . concat
+
+
+-- * negative duration
+
+-- TODO if I wind up going with the postproc route, this should probably become
+-- bound to a special toplevel postproc symbol so it can be changed or turned
+-- off
+
+-- | Notes with negative duration have an implicit sounding duration which
+-- depends on the following note.  Meanwhile (and for the last note of the
+-- score), they have this sounding duration.
+negative_duration_default :: RealTime
+negative_duration_default = 1
+
+-- | Post-process events to replace negative durations with positive ones.
+process_negative_durations :: [Score.Event] -> [Score.Event]
+process_negative_durations [] = []
+process_negative_durations (evt:evts) = evt2 : process_negative_durations evts
+    where
+    next = find_next evt evts
+    dur = calculate_duration (pos_dur evt) (fmap pos_dur next)
+    evt2 = if dur == Score.event_duration evt then evt
+        else evt { Score.event_duration = dur }
+    pos_dur evt = (Score.event_start evt, Score.event_duration evt)
+
+find_next :: Score.Event -> [Score.Event] -> Maybe Score.Event
+find_next from = List.find (next_in_track from_stack . Score.event_stack)
+    where from_stack = Score.event_stack from
+
+-- | Is the second stack from an event that occurs later on the same track as
+-- the first?  This is more complicated than it may seem at first because the
+-- second event could come from a different deriver.  So it should look like
+-- @same ; same ; bid same / tid same / higher ; *@.
+next_in_track :: Warning.Stack -> Warning.Stack -> Bool
+next_in_track (s0@(bid0, tid0, r0) : stack0) (s1@(bid1, tid1, r1) : stack1)
+    | s0 == s1 = next_in_track stack0 stack1
+    | bid0 == bid1 && tid0 == tid1 && r0 `before` r1 = True
+    | otherwise = False
+    where
+    before (Just (s0, _)) (Just (s1, _)) = s0 < s1
+    before _ _ = False
+next_in_track _ _ = True
+
+calculate_duration :: (RealTime, RealTime) -> Maybe (RealTime, RealTime)
+    -> RealTime
+calculate_duration (cur_pos, cur_dur) (Just (next_pos, next_dur))
+        -- Departing notes are not changed.
+    | cur_dur > 0 = cur_dur
+        -- Arriving followed by arriving with a rest in between extends to
+        -- the arrival of the rest.
+    | next_dur <= 0 && rest > 0 = rest
+        -- Arriving followed by arriving with no rest, or an arriving note
+        -- followed by a departing note will sound until the next note.
+    | otherwise = next_pos - cur_pos
+    where
+    rest = next_pos + next_dur - cur_pos
+calculate_duration (_, dur) Nothing
+    | dur > 0 = dur
+    | otherwise = negative_duration_default

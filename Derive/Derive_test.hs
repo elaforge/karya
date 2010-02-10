@@ -468,6 +468,54 @@ test_tempo = do
     equal (f [(0, 0, "1"), (10, 0, "2")]) $
         Right [(0, 10, "--1"), (10, 5, "--2"), (15, 5, "--3")]
 
+test_negative_duration = do
+    let extract = DeriveTest.extract (\e -> DeriveTest.e_event e) Log.msg_string
+    let run evts = extract $ DeriveTest.derive_tracks_tempo
+            [(DeriveTest.default_inst_title, evts)]
+
+    let deflt = Derive.negative_duration_default
+    -- events get lined up
+    equal (run [(1, -1, "--1"), (3, -2, "--2")])
+        (Right [(1, 2, "--1"), (3, deflt, "--2")], [])
+    -- rest
+    equal (run [(1, -1, "--1"), (3, -1, "--2")])
+        (Right [(1, 1, "--1"), (3, deflt, "--2")], [])
+    -- 0 dur is treated as negative
+    equal (run [(1, -1, "--1"), (3, 0, "--2")])
+        (Right [(1, 2, "--1"), (3, deflt, "--2")], [])
+
+    let run evts = extract $ DeriveTest.derive_blocks
+            [ ("b1", [(">", evts)])
+            , ("sub", [(">", [(1, -1, "--1"), (2, -1, "--2")])])
+            ]
+    -- last event extends up to "rest" at 5
+    equal (run [(4, -4, "sub"), (6, -1, "")])
+        (Right [(2, 2, "--1"), (4, 1, "--2"), (6, deflt, "")], [])
+
+    -- events between derivers work
+    equal (run [(4, -4, "sub"), (8, -4, "sub")])
+        (Right [(2, 2, "--1"), (4, 2, "--2"), (6, 2, "--1"),
+            (8, deflt, "--2")],
+        [])
+    let run evts = extract $ DeriveTest.derive_blocks
+            [ ("b1", [(">", evts)])
+            , ("sub",
+                [ (">i1", [(1, -1, "--11"), (2, -1, "--12")])
+                , (">i2", [(1, -1, "--21")])
+                ])
+            ]
+    -- as above but both last events are extended
+    equal (run [(4, -4, "sub"), (6, -1, "")])
+        (Right [(2, 2, "--11"), (2, 3, "--21"), (4, 1, "--12"),
+            (6, deflt, "")], [])
+
+    -- events between derivers work
+    equal (run [(4, -4, "sub"), (8, -4, "sub")])
+        (Right
+            [ (2, 2, "--11"), (2, 2, "--21"), (4, 2, "--12")
+            , (6, 2, "--11"), (6, deflt, "--21"), (8, deflt, "--12") ],
+        [])
+
 
 profile_deriver_performance = do
     -- test a large score for profiling

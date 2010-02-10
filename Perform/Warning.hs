@@ -29,7 +29,7 @@ instance Error.Error Warning where
 -- (block_id, track_id, (event_start, event_end))
 type StackPos = (BlockId, Maybe TrackId, Maybe (ScoreTime, ScoreTime))
 
--- | Stack order is most recent call first.
+-- | Stack order is most recent call last.
 type Stack = [StackPos]
 
 -- | Format a StackPos.  These functions are used by LogView and LanguageCmds,

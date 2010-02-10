@@ -89,7 +89,7 @@ derive_block :: State.State -> BlockId -> Result [Score.Event]
 derive_block ui_state block_id = derive lookup_deriver ui_state deriver
     where
     lookup_deriver = Schema.lookup_deriver Map.empty ui_state
-    deriver = Derive.d_block block_id
+    deriver = Derive.d_root_block block_id
 
 derive :: Derive.LookupDeriver -> State.State
     -> Derive.DeriveT Identity.Identity a -> Result a

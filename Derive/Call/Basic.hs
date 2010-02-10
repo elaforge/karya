@@ -68,7 +68,8 @@ generate_note n_inst rel_attrs (pos, event) next = do
     st <- Derive.get
     return [Score.Event start (end - start)
         (Event.event_text event) controls (trimmed_pitch next_start pitch_sig)
-        (Derive.state_stack st) inst (apply rel_attrs attrs)]
+        -- state_stack is kept in reverse order
+        (reverse (Derive.state_stack st)) inst (apply rel_attrs attrs)]
     where
     apply rel_attrs attrs =
         List.foldl' (.) id (map TrackLang.set_attr rel_attrs) attrs

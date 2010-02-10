@@ -6,9 +6,6 @@
 - try record punning
 
 UNSORTED
-  - try latest fltk patch
-  - make sure window placement stuff is fixed
-
   - move Cmd.LanguageCmds to Cmd.Lang.Global
   - move MakeRuler to Lang too?
   * SignalBase: the sample at 0 should extend to -inf, so if at gets <=0, return
@@ -472,7 +469,7 @@ Derive:
       prefixed with call name: "call-arg"
     - test Calls that return overlapping events
     - block-level calls
-    - negative duration postproc
+    * negative duration postproc
     * put TrackLang.Val into Pretty
     - default args are in Deriver, so I can have e.g. trill default to current
       pitch+1

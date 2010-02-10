@@ -120,11 +120,12 @@
     An arriving note followed by a departing note will sound until the
     beginning of the departing note, and a departing note followed by an
     arriving note is unchanged.  This logic is implemented by the
-    'process_negative_duration' function.
+    'Derive.process_negative_durations' function.
 
     Note that final note, if it is an arriving note, has an ambiguous duration
-    (@...@).  This defaults to 'negative_duration_default', but you can specify
-    the duration of the final note easily enough by making it a departing note.
+    (@...@).  This defaults to 'Derive.negative_duration_default', but you can
+    specify the duration of the final note easily enough by making it
+    a departing note.
 -}
 module Derive.Note where
 import Control.Monad
@@ -138,12 +139,6 @@ import qualified Derive.TrackLang as TrackLang
 import qualified Derive.Call as Call
 
 
--- | Notes with negative duration have an implicit sounding duration which
--- depends on the following note.  Meanwhile (and for the last note of the
--- score), they have this sounding duration.
-negative_duration_default :: ScoreTime
-negative_duration_default = 1
-
 -- * note track
 
 d_note_track :: TrackId -> Derive.EventDeriver
@@ -154,51 +149,6 @@ d_note_track track_id = do
         Left err -> Derive.throw $ "track title: " ++ err
         Right expr -> return expr
     join $ Call.eval_transformer "title" title_expr 0 (derive_notes pos_events)
-
-{-
-sequence_notes :: Derive.OrderedNoteDerivers -> Derive.EventDeriver
-    -- TODO concat here assumes they are non-overlapping.  I suppose I should
-    -- use merge?
-sequence_notes = fmap concat . mapM place . Seq.zip_next
-    where
-    place (Derive.NoteDeriver pos dur deriver, maybe_next)
-        | dur == 0 = do
-            Derive.with_stack_pos pos dur $
-                Derive.warn "omitting note with 0 duration"
-            return []
-        | otherwise = with_dur (calculate_duration pos dur maybe_next) $ do
-            Log.debug $ "run at " ++ show pos
-            deriver
-        where
-        with_dur real_dur = Derive.d_at pos . Derive.d_stretch real_dur
-            . Derive.with_stack_pos pos dur
-
-calculate_duration :: ScoreTime -> ScoreTime -> Maybe Derive.NoteDeriver
-    -> ScoreTime
-calculate_duration cur_pos cur_dur (Just next)
-    -- TODO this doesn't handle the duration of notes at the end of a block.
-    -- Unfortunately it seems hard to do that, because I need to know the
-    -- start time of the next *event* which is first hard because that's global
-    -- time and secondly hard because I only know the next deriver.  However,
-    -- it's hard to run this as a post processor because by the time that
-    -- events are produced I've lost the info about who follows who on a track.
-    -- Though I suppose I could look at the stack for each event...
-        -- Departing notes are not changed.
-    | Event.is_positive_duration cur_dur = cur_dur
-        -- Arriving followed by arriving with a rest in between extends to
-        -- the arrival of the rest.
-    | Event.is_negative_duration next_dur && rest > 0 = rest
-        -- Arriving followed by arriving with no rest, or an arriving note
-        -- followed by a departing note will sound until the next note.
-    | otherwise = next_pos - cur_pos
-    where
-    next_pos = Derive.n_start next
-    next_dur = Derive.n_duration next
-    rest = next_pos + next_dur - cur_pos
-calculate_duration _ cur_dur Nothing
-    | Event.is_positive_duration cur_dur = cur_dur
-    | otherwise = negative_duration_default
--}
 
 -- * directive
 
