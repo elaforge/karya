@@ -163,7 +163,9 @@ show_views match = do
     st <- State.get
     let view_ids = match_ids match $ Map.keys (State.state_views st)
     descs <- mapM show_view view_ids
-    return $ Seq.join "\n" descs
+    return $ Seq.join "\n"
+        ["** " ++ show view_id ++ ":\n" ++ desc
+            | (view_id, desc) <- zip view_ids descs]
 
 show_view :: ViewId -> Cmd.CmdL String
 show_view = fmap PPrint.pshow . State.get_view
@@ -194,7 +196,9 @@ show_blocks match = do
     st <- State.get
     let block_ids = match_ids match $ Map.keys (State.state_blocks st)
     descs <- mapM show_block block_ids
-    return $ Seq.join "\n" descs
+    return $ Seq.join "\n"
+        ["** " ++ show block_id ++ ":\n" ++ desc
+            | (block_id, desc) <- zip block_ids descs]
 
 -- | Filter ids containing a given substring.
 match_ids :: (Id.Ident id) => String -> [id] -> [id]
