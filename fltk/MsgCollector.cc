@@ -170,10 +170,7 @@ set_update_args(UiMsg &m, BlockView *view, UiMsg::MsgType type)
         m.update_zoom = new ZoomInfo(view->get_zoom());
         break;
     case UiMsg::msg_view_resize:
-        m.update_rect = new Rect(rect(view));
-        // TODO Is this really the only way to find out the window's position?
-        m.update_rect->x = Fl::event_x_root() - Fl::event_x();
-        m.update_rect->y = Fl::event_y_root() - Fl::event_y();
+        m.update_rect = new Rect(rect(view->window()));
         {
             Point track_size = view->get_track_size();
             m.width_scroll_visible_track = track_size.x;

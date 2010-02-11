@@ -646,8 +646,6 @@ BlockViewWindow::BlockViewWindow(int X, int Y, int W, int H,
     block(X, Y, W, H, model_config, view_config),
     testing(false)
 {
-    DEBUG("Y " << Y << " -> " << Fl::event_y_root() - Fl::event_y());
-    DEBUG("create view " << Rect(X, Y, W, H) << " " << Point(Fl::event_y_root(), Fl::event_y()));
     this->callback((Fl_Callback *) block_view_window_cb);
     this->resizable(this);
     // Fl_Window::resize makes explicit resize()s set size_range to the given
@@ -662,13 +660,6 @@ BlockViewWindow::BlockViewWindow(int X, int Y, int W, int H,
     Fl::dnd_text_ops(false); // don't do drag and drop text
     // Fl::visible_focus(false); // doesn't seem to do anything
     // this->border(false);
-
-    if (Fl::event_y() == -50) {
-        this->position(X, 0);
-        DEBUG("Y " << Y << " -> " << Fl::event_y_root() - Fl::event_y());
-    }
-    // Send an initial resize to inform the haskell layer about dimensions.
-    global_msg_collector()->window_update(this, UiMsg::msg_view_resize);
 }
 
 
@@ -683,6 +674,10 @@ BlockViewWindow::resize(int X, int Y, int W, int H)
 int
 BlockViewWindow::handle(int evt)
 {
+    if (evt == FL_SHOW) {
+        // Send an initial resize to inform the haskell layer about dimensions.
+        global_msg_collector()->window_update(this, UiMsg::msg_view_resize);
+    }
     if (this->testing && evt == FL_KEYDOWN && Fl::event_key() == FL_Escape) {
         this->hide();
     }
