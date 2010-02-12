@@ -91,8 +91,7 @@ derive_block ui_state block_id = derive lookup_deriver ui_state deriver
     lookup_deriver = Schema.lookup_deriver Map.empty ui_state
     deriver = Derive.d_root_block block_id
 
-derive :: Derive.LookupDeriver -> State.State
-    -> Derive.DeriveT Identity.Identity a -> Result a
+derive :: Derive.LookupDeriver -> State.State -> Derive.Deriver a -> Result a
 derive lookup_deriver ui_state d =
     case Derive.derive lookup_deriver ui_state Call.All.call_map False d of
         (Left err, b, c, d, e) -> (Left (show err), b, c, d, e)

@@ -42,7 +42,7 @@ one_note :: Either TrackLang.TypeError Derive.EventDeriver
 one_note = fmap $ \d -> (d, 1)
 
 skip_event :: GeneratorReturn
-skip_event = return (return [], 1)
+skip_event = return (Derive.empty_deriver, 1)
 
 -- * eval
 
@@ -95,11 +95,11 @@ eval_transformer caller (TrackLang.Call call_id args : rest) pos deriver = do
         Nothing -> do
             Derive.warn $ msg ++ "non-transformer " ++ show call_id
                 ++ " in transformer position"
-            return (return [])
+            return Derive.empty_deriver
         Just c -> case c passed pos deriver of
             Left err -> do
                 Derive.warn $ msg ++ Pretty.pretty err
-                return (return [])
+                return Derive.empty_deriver
             Right deriver ->
                 eval_transformer caller rest pos
                     (handle_exc "transformer" call_id deriver)
@@ -107,7 +107,7 @@ eval_transformer _ [] _ deriver = return deriver
 
 handle_exc :: String -> TrackLang.CallId -> Derive.EventDeriver
     -> Derive.EventDeriver
-handle_exc call_type call_id deriver = fmap (maybe [] id) $
+handle_exc call_type call_id deriver = fmap (maybe Derive.no_events id) $
     Derive.catch_warn ("exception: "++) (Derive.with_msg msg deriver)
     where
     msg = call_type ++ " " ++ Pretty.pretty call_id

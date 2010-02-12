@@ -117,7 +117,7 @@ c_block block_id = Derive.generate_one $ \args _ (pos, event) _ ->
 block_call :: BlockId -> ScoreTime -> Event.Event -> Derive.EventDeriver
 block_call block_id pos event =
     Derive.d_at start $ Derive.d_stretch (end-start) $
-        Derive.d_sub_derive [] (Derive.d_block block_id)
+        Derive.d_sub_derive Derive.no_events (Derive.d_block block_id)
     where
     -- Derivation happens according to the extent of the note, not the
     -- duration.  This is how negative duration events begin deriving before
@@ -134,7 +134,7 @@ c_equal = Derive.Call
     with_args args = TrackLang.call2 args
         (required "symbol", required "value" :: Arg TrackLang.Val)
     transform deriver sym val = Derive.with_val sym val deriver
-    generate sym val = one_note $ Derive.put_val sym val >> return []
+    generate sym val = one_note $ Derive.put_val sym val >> Derive.empty_deriver
 
 -- * misc
 

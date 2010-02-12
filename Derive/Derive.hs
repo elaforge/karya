@@ -64,11 +64,17 @@ import qualified Derive.TrackLang as TrackLang
 
 -- * DeriveT
 
-type TrackDeriver m e = TrackId -> DeriveT m [e]
-
 type Deriver a = DeriveT Identity.Identity a
-type EventDeriver = DeriveT Identity.Identity [Score.Event]
-type SignalDeriver sig = DeriveT Identity.Identity [(TrackId, sig)]
+type EventDeriver = Deriver [Score.Event]
+type SignalDeriver sig = Deriver [(TrackId, sig)]
+
+empty_deriver :: EventDeriver
+empty_deriver = return no_events
+
+no_events :: [Score.Event]
+no_events = []
+
+type TrackDeriver m e = TrackId -> DeriveT m [e]
 
 newtype DeriveT m a = DeriveT (DeriveStack m a)
     deriving (Functor, Monad, Trans.MonadIO, Error.MonadError DeriveError)
@@ -203,7 +209,7 @@ type LookupDeriver = BlockId -> Either State.StateError EventDeriver
 -- | LookupDeriver that suppresses all sub-derivations.  Used by the signal
 -- deriver since it only derives one block at a time.
 empty_lookup_deriver :: LookupDeriver
-empty_lookup_deriver = const (Right (return []))
+empty_lookup_deriver = const (Right empty_deriver)
 
 -- | Each track warp is a warp indexed by the block and tracks it covers.
 data TrackWarp = TrackWarp {
@@ -467,6 +473,11 @@ unwarped_controls = do
         }
     return (unwarped, unwarped_pitch)
 
+get_control :: (Monad m) => Score.Control -> DeriveT m (Maybe Signal.Control)
+get_control cont = do
+    controls <- gets state_controls
+    return $ Score.unwarped_control cont controls
+
 control_at :: (Monad m) => Score.Control -> Maybe Signal.Y -> ScoreTime
     -> DeriveT m Signal.Y
 control_at cont deflt pos = do
@@ -523,33 +534,39 @@ with_relative_control cont op signal deriver = do
             return result
 
 with_pitch :: (Monad m) => PitchSignal.PitchSignal -> DeriveT m t -> DeriveT m t
-with_pitch signal op = do
+with_pitch signal deriver = do
     old <- gets state_pitch
     modify $ \st -> st { state_pitch = signal }
-    result <- op
+    result <- deriver
     modify $ \st -> st { state_pitch = old }
     return result
 
 with_constant_pitch :: (Monad m) => Pitch.Degree -> DeriveT m t -> DeriveT m t
-with_constant_pitch degree op = do
+with_constant_pitch degree deriver = do
     pitch <- gets state_pitch
-    with_pitch (PitchSignal.constant (PitchSignal.sig_scale pitch) degree) op
+    with_pitch (PitchSignal.constant (PitchSignal.sig_scale pitch) degree)
+        deriver
 
-with_pitch_operator :: (Monad m) =>
-    Operator -> PitchSignal.Relative -> DeriveT m t -> DeriveT m t
-with_pitch_operator c_op signal op = do
-    sig_op <- lookup_pitch_control_op c_op
+with_relative_pitch :: (Monad m) =>
+    PitchOp -> PitchSignal.Relative -> DeriveT m t -> DeriveT m t
+with_relative_pitch sig_op signal deriver = do
     old <- gets state_pitch
     if old == PitchSignal.empty
         then do
             -- This shouldn't happen normally because of the default pitch.
             warn $ "relative pitch applied when no absolute pitch is in scope"
-            op
+            deriver
         else do
             modify $ \st -> st { state_pitch = sig_op old signal }
-            result <- op
+            result <- deriver
             modify $ \st -> st { state_pitch = old }
             return result
+
+with_pitch_operator :: (Monad m) =>
+    Operator -> PitchSignal.Relative -> DeriveT m t -> DeriveT m t
+with_pitch_operator c_op signal deriver = do
+    sig_op <- lookup_pitch_control_op c_op
+    with_relative_pitch sig_op signal deriver
 
 -- *** specializations
 
@@ -724,6 +741,9 @@ with_warp f deriver = do
     v <- deriver
     modify $ \st -> st { state_warp = old }
     return v
+
+in_real_time :: (Monad m) => DeriveT m a -> DeriveT m a
+in_real_time = with_warp (const Score.id_warp)
 
 d_warp :: (Monad m) => Signal.Warp -> DeriveT m a -> DeriveT m a
 d_warp sig deriver = do

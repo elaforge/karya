@@ -234,6 +234,11 @@ unwarp_controls (WarpedControls cmap) =
     Map.fromAscList $ map f $ Map.toAscList cmap
     where f (cont, (sig, warp)) = (cont, warp_control sig warp)
 
+unwarped_control :: Control -> WarpedControls -> Maybe Signal.Control
+unwarped_control cont (WarpedControls cmap) = case Map.lookup cont cmap of
+    Nothing -> Nothing
+    Just (sig, warp) -> Just $ warp_control sig warp
+
 insert_control :: Control -> Signal.Control -> WarpedControls -> WarpedControls
 insert_control cont sig (WarpedControls cmap) =
     WarpedControls $ Map.insert cont (sig, id_warp) cmap

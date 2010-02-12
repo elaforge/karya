@@ -179,7 +179,7 @@ derive_notes :: [Track.PosEvent] -> Derive.EventDeriver
 derive_notes = go []
     where
     with_stack pos evt = Derive.with_stack_pos pos (Event.event_duration evt)
-    go _ [] = return []
+    go _ [] = Derive.empty_deriver
     go prev (cur@(pos, event) : rest) = with_stack pos event $ do
         (deriver, consumed) <- derive_note prev cur rest
         when (consumed < 1) $
@@ -193,7 +193,7 @@ derive_notes = go []
         Derive.d_merge deriver (go prev2 next2)
 
 skip_event :: Derive.Deriver (Derive.EventDeriver, Int)
-skip_event = return (return [], 1)
+skip_event = return (Derive.empty_deriver, 1)
 
 -- | Derive a single deriver's worth of events.  Most calls will only consume
 -- a single event, but some may handle a series of events.

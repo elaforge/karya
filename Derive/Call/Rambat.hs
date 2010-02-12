@@ -35,10 +35,8 @@ c_tick = Derive.generate_one $ \args prev (pos, _) next -> TrackLang.call2 args
         ((ppos, _) : _, (npos, _) : _) ->
             Call.with_signals pos [time, vel] $ \[time, vel] ->
                 tick (Signal.y_to_real time) vel ppos npos
-        _ -> do
-            Derive.throw $ "no "
-                ++ (if null prev then "previous" else "next") ++ " event"
-            return []
+        _ -> Derive.throw $ "no "
+            ++ (if null prev then "previous" else "next") ++ " event"
 
 tick :: RealTime -> Signal.Y -> ScoreTime -> ScoreTime -> Derive.EventDeriver
 tick time vel prev next = do

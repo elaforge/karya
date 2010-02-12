@@ -71,10 +71,10 @@ test_c_block = do
     equal logs []
     equal evts $ Right
         [ mkevent 0 1 "--sub"
-            [("sub", "sub.t0", (0, 22)), ("b1", "b1.t0", (0, 1))]
+            [("b1", "b1.t0", (0, 1)), ("sub", "sub.t0", (0, 22))]
             Nothing []
         , mkevent 1 2 "--sub"
-            [("sub", "sub.t0", (0, 22)), ("b1", "b1.t0", (1, 3))]
+            [("b1", "b1.t0", (1, 3)), ("sub", "sub.t0", (0, 22))]
             (Just "i") ["a"]
         ]
 
