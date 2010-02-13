@@ -11,24 +11,27 @@ OPT := $(CXX_DEBUG)
 MIDI_LIBS := -framework CoreFoundation -framework CoreMIDI -framework CoreAudio
 CINCLUDE := -Ifltk -I.
 
+# Flags for all versions.
+FLTK_LD := -lpthread -framework Carbon -framework ApplicationServices
+LIBFLTK_D := -D_THREAD_SAFE -D_REENTRANT
+
 # vanilla fltk
-# LIBFLTK_I := -I/usr/local/include -I/usr/local/include/FL/images
-# LIBFLTK := -L/usr/local/lib -lfltk
+LIBFLTK_INC := -I/usr/local/include -I/usr/local/include/FL/images
+LIBFLTK_LD := -L/usr/local/lib -lfltk
 
 # cocoa fltk
-# LIBFLTK := /usr/local/src/fltk-dev/fltk-1.3/lib/libfltk.a -framework Cocoa
-# LIBFLTK_I := -I/usr/local/src/fltk-dev/fltk-1.3/
+LIBFLTK_1_3_LD := /usr/local/src/fltk-dev/fltk-1.3/lib/libfltk.a \
+	-framework Cocoa
+LIBFLTK_1_3_INC := -I/usr/local/src/fltk-dev/fltk-1.3/
 
 # fltk 1.1.9
-LIBFLTK_I := -I/usr/local/src/fltk-1.1.9 -DOLD_FLTK
-LIBFLTK := /usr/local/src/fltk-1.1.9/lib/libfltk.a
+LIBFLTK_1_1_LD := /usr/local/src/fltk-1.1.9/lib/libfltk.a
+LIBFLTK_1_1_INC := -I/usr/local/src/fltk-1.1.9 -DOLD_FLTK
 
-LIBFLTK_D := -D_THREAD_SAFE -D_REENTRANT
-FLTK_CXX := $(LIBFLTK_I) $(LIBFLTK_D)
+FLTK_CXX := $(LIBFLTK_1_3_INC) $(LIBFLTK_D)
 CXXFLAGS = $(FLTK_CXX) $(OPT) $(CINCLUDE) -Wall
 
-FLTK_LD := $(LIBFLTK) -lpthread -framework Carbon -framework ApplicationServices
-LDFLAGS := $(FLTK_LD)
+LDFLAGS := $(LIBFLTK_1_3_LD) $(FLTK_LD)
 
 
 ### ghc flags
@@ -40,7 +43,7 @@ HPROF := -O2 -prof -auto-all -caf-all
 HOPT = -O2
 HTEST := -fhpc # -prof -auto-all -caf-all # -O2
 
-HLDFLAGS := $(FLTK_LD)
+HLDFLAGS := $(LDFLAGS)
 
 GHC := ghc-6.12.1
 # Used by haddock to find system docs, but it doesn't work anyway.
@@ -114,14 +117,6 @@ $(BUILD)/test_block: fltk/test_block.o fltk/fltk.a
 	$(CXX) -o $@ $^ $(LDFLAGS)
 	$(BUNDLE)
 
-$(BUILD)/test_logview: LogView/test_logview.o LogView/logview_ui.o fltk/f_util.o
-	$(CXX) -o $@ $^ $(LDFLAGS)
-	$(BUNDLE)
-
-$(BUILD)/test_browser: Instrument/test_browser.o Instrument/browser_ui.o fltk/f_util.o
-	$(CXX) -o $@ $^ $(LDFLAGS)
-	$(BUNDLE)
-
 UI_HSC := $(wildcard Ui/*.hsc)
 UI_HS := $(UI_HSC:hsc=hs)
 UI_OBJS := Ui/c_interface.o
@@ -133,6 +128,8 @@ ALL_HS = $(shell tools/all_hs.py)
 .PHONY: all_hsc
 all_hsc: $(UI_HS) $(PORTMIDI_HS)
 
+### main app
+
 # PHONY convinces make to always run ghc, which figures out deps on its own
 .PHONY: $(BUILD)/seq
 $(BUILD)/seq: $(UI_HS) $(UI_OBJS) $(COREMIDI_OBJS) fltk/fltk.a
@@ -143,11 +140,15 @@ $(BUILD)/seq: $(UI_HS) $(UI_OBJS) $(COREMIDI_OBJS) fltk/fltk.a
 		-o $@
 	$(BUNDLE) doc/seq.icns
 
+### midi
+
 .PHONY: $(BUILD)/test_core_midi
 $(BUILD)/test_core_midi: $(UI_HS) $(COREMIDI_OBJS)
 	$(GHC) $(HFLAGS) --make \
 		-main-is Midi.TestCoreMidi Midi/TestCoreMidi.hs -o $@ \
 		$(COREMIDI_OBJS) $(MIDI_LIBS) \
+
+### repl
 
 .PHONY: $(BUILD)/send
 $(BUILD)/send: App/Send.hs
@@ -155,6 +156,8 @@ $(BUILD)/send: App/Send.hs
 .PHONY: $(BUILD)/repl
 $(BUILD)/repl: App/Repl.hs
 	$(GHC) $(HFLAGS) --make $^ -o $@ $(HLDFLAGS)
+
+### saved state
 
 .PHONY: $(BUILD)/dump
 $(BUILD)/dump: App/Dump.hs
@@ -164,24 +167,31 @@ $(BUILD)/dump: App/Dump.hs
 $(BUILD)/update: App/Update.hs
 	$(GHC) $(HFLAGS) --make $^ -o $@
 
-.PHONY: $(BUILD)/make_db
-$(BUILD)/make_db: Instrument/MakeDb.hs
-	$(GHC) $(HFLAGS) --make $^ -o $@
-.PHONY: sense
-sense:
-	@echo 'Nevairrrr!'
+### logview
 
 LOGVIEW_OBJ = LogView/LogView.hs LogView/LogViewC.hs \
 	LogView/interface.o LogView/logview_ui.o
 LOGVIEW_HS = LogView/LogViewC.hs
 
+# Fltk 1.3 has a buggy and slow Fl_Text_Display, so use 1.1 for now.
+LOGVIEW_CXX := $(LIBFLTK_1_1_INC) $(LIBFLTK_D) $(OPT) $(CINCLUDE) -Wall
+LOGVIEW_LD := $(LIBFLTK_1_1_LD) $(FLTK_LD)
+
 .PHONY: $(BUILD)/logview
 # depend on Color because of Util.Log -> Peform.Warning import grossness
 # someday I should remove that
 $(BUILD)/logview: $(LOGVIEW_OBJ) Ui/Color.hs
-	$(GHC) $(HFLAGS) --make -main-is LogView.LogView $^ -o $@ \
-		$(HLDFLAGS)
+	$(GHC) $(HFLAGS) --make -main-is LogView.LogView $^ -o $@ $(LOGVIEW_LD)
 	$(BUNDLE)
+
+$(BUILD)/test_logview: LogView/test_logview.o LogView/logview_ui.o fltk/f_util.o
+	$(CXX) -o $@ $^ $(LOGVIEW_LD)
+	$(BUNDLE)
+
+$(addprefix LogView/,test_logview.o interface.o logview_ui.o): %.o: %.cc
+	$(CXX) $(LOGVIEW_CXX) -c -o $@ $<
+
+### log util
 
 .PHONY: $(BUILD)/timer
 $(BUILD)/timer: LogView/Timer.hs
@@ -190,6 +200,8 @@ $(BUILD)/timer: LogView/Timer.hs
 .PHONY: $(BUILD)/logcat
 $(BUILD)/logcat: LogView/LogCat.hs
 	$(GHC) $(HFLAGS) --make $^ -o $@
+
+### browser
 
 BROWSER_OBJ = Instrument/Browser.hs \
 	Instrument/interface.o Instrument/browser_ui.o \
@@ -201,6 +213,19 @@ $(BUILD)/browser: $(BROWSER_OBJ) $(BROWSER_HS)
 	$(GHC) $(HFLAGS) --make -main-is Instrument.Browser $^ -o $@ \
 		$(HLDFLAGS)
 	$(BUNDLE)
+
+$(BUILD)/test_browser: Instrument/test_browser.o Instrument/browser_ui.o fltk/f_util.o
+	$(CXX) -o $@ $^ $(LDFLAGS)
+	$(BUNDLE)
+
+.PHONY: $(BUILD)/make_db
+$(BUILD)/make_db: Instrument/MakeDb.hs
+	$(GHC) $(HFLAGS) --make $^ -o $@
+.PHONY: sense
+sense:
+	@echo 'Nevairrrr!'
+
+### doc
 
 .PHONY: doc
 doc:
