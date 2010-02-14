@@ -13,13 +13,12 @@
 -}
 module Derive.Control where
 import Prelude hiding (lex)
-import Control.Monad
 import qualified Data.Char as Char
 
 import qualified Text.ParserCombinators.Parsec as P
-import Text.ParserCombinators.Parsec ((<|>), (<?>))
+import Text.ParserCombinators.Parsec ((<?>))
 
-import Util.Control ((#>>))
+import Util.Control
 import qualified Util.Parse as Parse
 
 import Ui
@@ -118,7 +117,7 @@ d_display_signal = fmap Signal.coerce . d_signal
 parse_event :: (Monad m) => Derive.NoState -> Score.ControlEvent
     -> Derive.DeriveT m (Signal.Segment, Derive.NoState)
 parse_event _ event = do
-    (method, val) <- Derive.Parse.parse (liftM2 (,) p_opt_method Parse.p_float)
+    (method, val) <- Derive.Parse.parse ((,) <$> p_opt_method <*> Parse.p_float)
         (Score.cevent_string event)
     return ((Score.cevent_start event, method, val), Derive.NoState)
 
@@ -152,7 +151,7 @@ parse_pitch_event :: (Monad m) => Pitch.Scale -> Maybe Pitch.Degree
     -> Derive.DeriveT m (PitchSignal.Segment, Maybe Pitch.Degree)
 parse_pitch_event scale prev event = do
     (method, note) <- Derive.Parse.parse
-        (liftM2 (,) p_opt_method p_scale_note) (Score.cevent_string event)
+        ((,) <$> p_opt_method <*> p_scale_note) (Score.cevent_string event)
     degree <- parse_note scale prev note
     return ((Score.cevent_start event, method, degree), Just degree)
 
@@ -168,7 +167,7 @@ parse_relative_pitch_event :: (Monad m) => Pitch.Octave -> ()
     -> Score.ControlEvent -> Derive.DeriveT m (PitchSignal.Segment, ())
 parse_relative_pitch_event per_oct _ event = do
     (method, (oct, nn)) <- Derive.Parse.parse
-        (liftM2 (,) p_opt_method parse_relative)
+        ((,) <$> p_opt_method <*> parse_relative)
         (Score.cevent_string event)
     let degree = Pitch.Degree (fromIntegral (oct * per_oct) + nn)
     return ((Score.cevent_start event, method, degree), ())
@@ -214,7 +213,7 @@ parse_note scale prev note
     where empty_note = Pitch.Note ""
 
 p_scale_note :: P.CharParser st Pitch.Note
-p_scale_note = fmap Pitch.Note (P.many (P.satisfy (not . Char.isSpace)))
+p_scale_note = Pitch.Note <$> P.many (P.satisfy (not . Char.isSpace))
 
 -- ** generic
 
@@ -222,13 +221,13 @@ p_scale_note = fmap Pitch.Note (P.many (P.satisfy (not . Char.isSpace)))
 -- incomplete event text and the comma is important to disambiguate.
 
 p_opt_method :: P.CharParser st Signal.Method
-p_opt_method = P.option Signal.Set (P.try (p_meth #>> P.char ',')) #>> P.spaces
+p_opt_method = P.option Signal.Set (P.try (p_meth <* P.char ',')) <* P.spaces
 
 p_meth :: P.CharParser st Signal.Method
 p_meth = (P.char 'i' >> return Signal.Linear)
     <|> (P.char 's' >> return Signal.Set)
     <|> (P.try
-        (P.option 2 (Parse.p_float) #>> P.char 'e' >>= return . Signal.Exp))
+        (P.option 2 (Parse.p_float) <* P.char 'e' >>= return . Signal.Exp))
     <?> "method: 'i' 's', or '#e'"
 
 unparse_method :: Signal.Method -> String

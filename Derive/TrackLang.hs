@@ -38,7 +38,8 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Text.ParserCombinators.Parsec as P
-import Text.ParserCombinators.Parsec ((<|>), (<?>))
+import Text.ParserCombinators.Parsec ((<?>))
+import Util.Control
 
 import qualified Util.Parse as Parse
 import qualified Util.Pretty as Pretty
@@ -347,7 +348,7 @@ extract2 :: (Typecheck a, Typecheck b) =>
     PassedArgs -> (Arg a, Arg b) -> Either TypeError (a, b)
 extract2 vals (sig0, sig1) = do
     arg0 : arg1 : _ <- check_args vals [arg_opt sig0, arg_opt sig1]
-    liftM2 (,) (extract_arg 0 sig0 arg0) (extract_arg 1 sig1 arg1)
+    (,) <$> extract_arg 0 sig0 arg0 <*> extract_arg 1 sig1 arg1
 
 call2 :: (Typecheck a, Typecheck b) =>
     PassedArgs -> (Arg a, Arg b) -> (a -> b -> result)
@@ -361,8 +362,8 @@ extract3 :: (Typecheck a, Typecheck b, Typecheck c) =>
 extract3 vals (sig0, sig1, sig2) = do
     arg0 : arg1 : arg2 : _ <- check_args vals
         [arg_opt sig0, arg_opt sig1, arg_opt sig2]
-    liftM3 (,,) (extract_arg 0 sig0 arg0) (extract_arg 1 sig1 arg1)
-        (extract_arg 2 sig2 arg2)
+    (,,) <$> extract_arg 0 sig0 arg0 <*> extract_arg 1 sig1 arg1
+        <*> extract_arg 2 sig2 arg2
 
 call3 :: (Typecheck a, Typecheck b, Typecheck c) =>
     PassedArgs -> (Arg a, Arg b, Arg c) -> (a -> b -> c -> result)
@@ -376,8 +377,8 @@ extract4 :: (Typecheck a, Typecheck b, Typecheck c, Typecheck d) =>
 extract4 vals (sig0, sig1, sig2, sig3) = do
     arg0 : arg1 : arg2 : arg3 : _ <- check_args vals
         [arg_opt sig0, arg_opt sig1, arg_opt sig2, arg_opt sig3]
-    liftM4 (,,,) (extract_arg 0 sig0 arg0) (extract_arg 1 sig1 arg1)
-        (extract_arg 2 sig2 arg2) (extract_arg 3 sig3 arg3)
+    (,,,) <$> extract_arg 0 sig0 arg0 <*> extract_arg 1 sig1 arg1
+        <*> extract_arg 2 sig2 arg2 <*> extract_arg 3 sig3 arg3
 
 call4 :: (Typecheck a, Typecheck b, Typecheck c, Typecheck d) =>
     PassedArgs -> (Arg a, Arg b, Arg c, Arg d) -> (a -> b -> c -> d -> result)
@@ -456,7 +457,7 @@ inst_literal_prefix = ">"
 note_literal_prefix = "*"
 
 parse :: String -> Either String Expr
-parse text = fmap reverse (Parse.parse_all p_pipeline (strip_comment text))
+parse text = reverse <$> Parse.parse_all p_pipeline (strip_comment text)
 
 p_pipeline :: P.Parser Expr
 p_pipeline = P.sepBy p_expr (Parse.symbol "|")
@@ -470,38 +471,31 @@ p_equal = do
     return $ Call c_equal [a1, a2]
 
 p_call, p_null_call :: P.Parser Call
-p_call = liftM2 Call p_symbol (P.many p_val)
-p_null_call = liftM2 Call (P.option (Symbol "") p_symbol) (P.many p_val)
+p_call = Call <$> p_symbol <*> P.many p_val
+p_null_call = Call <$> P.option (Symbol "") p_symbol <*> P.many p_val
 
 strip_comment :: String -> String
 strip_comment = fst . Seq.break_tails ("--" `List.isPrefixOf`)
 
 p_val :: P.Parser Val
-p_val = Parse.lexeme $ fmap VNote p_note <|> fmap VInstrument p_instrument
-    <|> fmap VMethod p_method
+p_val = Parse.lexeme $ VNote <$> p_note <|> VInstrument <$> p_instrument
+    <|> VMethod <$> p_method
     -- RelativeAttr and Num can both start with a '-', but an RelativeAttr has
     -- to have a letter afterwards, while a Num is a '.' or digit, so they're
     -- not ambiguous.
-    <|> fmap VRelativeAttr (P.try p_rel_attr) <|> fmap VNum p_num
-    <|> fmap VControl p_control <|> fmap VSymbol p_symbol
+    <|> VRelativeAttr <$> P.try p_rel_attr <|> VNum <$> p_num
+    <|> VControl <$> p_control <|> VSymbol <$> p_symbol
     <|> (P.char '_' >> return VNotGiven)
 
 p_note :: P.Parser Pitch.Note
-p_note = P.string note_literal_prefix >> fmap Pitch.Note p_word
-    <?> "note"
+p_note = P.string note_literal_prefix >> Pitch.Note <$> p_word <?> "note"
 
 p_instrument :: P.Parser Score.Instrument
-p_instrument = do
-    P.string inst_literal_prefix
-    inst <- p_null_word
-    return $ Score.Instrument inst
+p_instrument = P.string inst_literal_prefix >> Score.Instrument <$> p_null_word
     <?> "instrument"
 
 p_method :: P.Parser Method
-p_method = do
-    P.char 'm'
-    fmap Method p_single_string
-    <?> "method"
+p_method = P.char 'm' *> (Method <$> p_single_string) <?> "method"
 
 p_num :: P.Parser Double
 p_num = Parse.p_float
@@ -510,7 +504,7 @@ p_num = Parse.p_float
 -- force some standardization on the names.
 p_rel_attr :: P.Parser RelativeAttr
 p_rel_attr = do
-    let as m c = fmap (const m) (P.char c)
+    let as m c = const m <$> P.char c
     mode <- P.choice [as Add '+', as Remove '-', as Set '=']
     attr <- case mode of
         Set -> (P.char '-' >> return "") <|> p_ident ""
@@ -521,7 +515,7 @@ p_rel_attr = do
 p_control :: P.Parser Control
 p_control = do
     P.char '%'
-    control <- fmap Score.Control (p_ident ",")
+    control <- Score.Control <$> p_ident ","
     deflt <- Parse.optional (P.char ',' >> Parse.p_float)
     return $ case deflt of
         Nothing -> Control control
@@ -529,7 +523,7 @@ p_control = do
     <?> "control"
 
 p_symbol :: P.Parser Symbol
-p_symbol = Parse.lexeme (fmap Symbol (p_ident "")) <?> "symbol"
+p_symbol = Parse.lexeme (Symbol <$> p_ident "") <?> "symbol"
 
 -- | Identifiers are somewhat more strict than usual.  They must be lowercase,
 -- and the only non-letter allowed is hyphen.  This means words must be

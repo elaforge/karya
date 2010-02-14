@@ -481,7 +481,7 @@ instance Binary Event.Event where
 
 instance Binary Event.StyleId where
     put (Event.StyleId a) = put a
-    get = liftM Event.StyleId get
+    get = fmap Event.StyleId get
 
 -- ** Midi.Instrument
 
@@ -501,7 +501,7 @@ instance Binary Instrument.Config where
 
 instance Binary Score.Instrument where
     put (Score.Instrument a) = put a
-    get = liftM Score.Instrument get
+    get = fmap Score.Instrument get
 
 -- ** Midi
 

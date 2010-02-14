@@ -1,6 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, DeriveDataTypeable #-}
 module Cmd.Cmd where
-
+import qualified Control.Applicative as Applicative
 import Control.Monad
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Monad.Error as Error
@@ -123,6 +123,10 @@ instance Monad m => State.UiStateMonad (CmdT m) where
     modify f = CmdT (State.modify f)
     update upd = CmdT (State.update upd)
     throw msg = CmdT (State.throw msg)
+
+instance (Monad m) => Applicative.Applicative (CmdT m) where
+    pure = return
+    (<*>) = ap
 
 type MidiThru = (Midi.WriteDevice, Midi.Message)
 

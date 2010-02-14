@@ -24,7 +24,7 @@ maybe_parse :: P.CharParser () a -> String -> Maybe a
 maybe_parse parser text = either (const Nothing) Just (parse parser text)
 
 parse_all :: P.CharParser () a -> String -> Either String a
-parse_all parser = parse (parser #>> P.eof)
+parse_all parser = parse (parser <* P.eof)
 
 format_error :: String -> Parsec.Error.ParseError -> String
 format_error text err = "parse error on char "
@@ -52,18 +52,12 @@ optional :: P.GenParser tok st a -> P.GenParser tok st (Maybe a)
 optional = P.option Nothing . fmap Just
 
 p_rest :: P.GenParser tok st t -> P.GenParser tok st (t, [tok])
-p_rest p = do
-    val <- p
-    rest <- P.getInput
-    return (val, rest)
+p_rest p = (,) <$> p <*> P.getInput
 
 
 -- | A word of non-space chars, and eat the following spaces.
 p_word :: P.CharParser st String
-p_word = do
-    w <- P.many1 (P.noneOf " ")
-    P.spaces
-    return w
+p_word = P.many1 (P.noneOf " ") <* P.spaces
 
 -- | Parse a possibly signed integer.
 p_int :: P.CharParser st Integer
@@ -79,7 +73,7 @@ p_nat :: P.CharParser st Integer
 p_nat = do
     i <- P.many P.digit
     case Numeric.readDec i of
-        (n, _):_ -> return n
+        (n, _) : _ -> return n
         _ -> P.pzero -- this should never happen
     <?> "natural int"
 
@@ -91,7 +85,7 @@ p_unsigned_float = do
         ("", "") -> P.pzero
         _ -> case read_float (i ++ "." ++ f) of
             [] -> P.pzero
-            ((val, _rest):_) -> return val
+            (val, _rest) : _ -> return val
     <?> "unsigned float"
 
 p_float :: P.CharParser st Double
@@ -131,5 +125,5 @@ add0 s = s
 complete_parse :: [(a, String)] -> Maybe a
 complete_parse results = case results of
     [] -> Nothing
-    ((val, ""):_) -> Just val
+    (val, "") : _ -> Just val
     _ -> Nothing

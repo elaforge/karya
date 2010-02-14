@@ -19,6 +19,7 @@
     creating objects with automatically generated IDs.
 -}
 module Ui.State where
+import qualified Control.Applicative as Applicative
 import Control.Monad
 import qualified Control.Monad.Trans as Trans
 import Control.Monad.Trans (lift)
@@ -30,6 +31,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Tree as Tree
 
+import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Logger as Logger
 import qualified Util.Map as Map
@@ -183,7 +185,7 @@ instance Show StateError where
 
 -- TODO remove modify and implement in terms of get and put?
 -- TODO I also think I can remove throw since it's in Error
-class (Monad m, Functor m) => UiStateMonad m where
+class (Monad m, Functor m, Applicative.Applicative m) => UiStateMonad m where
     get :: m State
     put :: State -> m ()
     modify :: (State -> State) -> m ()
@@ -196,6 +198,10 @@ instance Monad m => UiStateMonad (StateT m) where
     modify f = StateT (State.modify f)
     update upd = (StateT . lift) (Logger.record upd)
     throw msg = (StateT . lift . lift) (Error.throwError (StateError msg))
+
+instance (Monad m) => Applicative.Applicative (StateT m) where
+    pure = return
+    (<*>) = ap
 
 gets :: (UiStateMonad m) => (State -> a) -> m a
 gets f = fmap f get
@@ -523,7 +529,7 @@ block_of_view :: (UiStateMonad m) => ViewId -> m Block.Block
 block_of_view view_id = get_block . Block.view_block =<< get_view view_id
 
 block_id_of_view :: (UiStateMonad m) => ViewId -> m BlockId
-block_id_of_view view_id = fmap Block.view_block (get_view view_id)
+block_id_of_view view_id = Block.view_block <$> get_view view_id
 
 set_block_config :: (UiStateMonad m) => BlockId -> Block.Config -> m ()
 set_block_config block_id config =
@@ -549,7 +555,7 @@ ruler_end block_id = do
     block <- get_block block_id
     case Block.block_ruler_ids block of
         [] -> return $ ScoreTime 0
-        ruler_id : _ -> fmap Ruler.time_end (get_ruler ruler_id)
+        ruler_id : _ -> Ruler.time_end <$> get_ruler ruler_id
 
 -- | Get the end of the block according to the last event of the block.
 event_end :: (UiStateMonad m) => BlockId -> m ScoreTime
@@ -561,7 +567,7 @@ event_end block_id = do
 -- ** skeleton
 
 get_skeleton :: (UiStateMonad m) => BlockId -> m Skeleton.Skeleton
-get_skeleton block_id = fmap Block.block_skeleton (get_block block_id)
+get_skeleton block_id = Block.block_skeleton <$> get_block block_id
 
 set_skeleton :: (UiStateMonad m) => BlockId -> Skeleton.Skeleton
     -> m ()
@@ -746,9 +752,9 @@ tracks block_id = do
 get_tracklike :: (UiStateMonad m) => Block.TracklikeId -> m Block.Tracklike
 get_tracklike track = case track of
     Block.TId track_id ruler_id ->
-        liftM2 Block.T (get_track track_id) (get_ruler ruler_id)
+        Block.T <$> get_track track_id <*> get_ruler ruler_id
     Block.RId ruler_id ->
-        liftM Block.R (get_ruler ruler_id)
+        Block.R <$> get_ruler ruler_id
     Block.DId divider -> return (Block.D divider)
 
 -- *** block track
@@ -803,9 +809,9 @@ merge_track block_id to from = do
 -- it's obviously the opposite of \"merge\".
 unmerge_track :: (UiStateMonad m) => BlockId -> TrackNum -> m ()
 unmerge_track block_id tracknum = do
-    track_ids <- fmap Block.track_merged $ get_block_track block_id tracknum
-    unmerged_tracknums <- fmap concat $
-        mapM (track_id_tracknums block_id) track_ids
+    track_ids <- Block.track_merged <$> get_block_track block_id tracknum
+    unmerged_tracknums <-
+        concat <$> mapM (track_id_tracknums block_id) track_ids
     forM_ unmerged_tracknums $ \tracknum ->
         remove_track_flag block_id tracknum Block.Collapse
     set_merged_tracks block_id tracknum []
@@ -949,7 +955,7 @@ insert_event track_id pos evt = insert_sorted_events track_id [(pos, evt)]
 get_events :: (UiStateMonad m) => TrackId -> ScoreTime -> ScoreTime
     -> m [Track.PosEvent]
 get_events track_id start end = do
-    events <- fmap Track.track_events (get_track track_id)
+    events <- Track.track_events <$> get_track track_id
     return (_events_in_range start end events)
 
 -- | Remove any events whose starting positions fall within the half-open
@@ -1002,7 +1008,7 @@ _events_in_range start end events
 
 -- | Get the end of the last event of the block.
 track_end :: (UiStateMonad m) => TrackId -> m ScoreTime
-track_end track_id = fmap Track.track_time_end (get_track track_id)
+track_end track_id = Track.track_time_end <$> get_track track_id
 
 -- | Emit track updates for all tracks.  Use this when events have changed but
 -- I don't know which ones, e.g. when loading a file or restoring a previous
