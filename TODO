@@ -6,6 +6,8 @@
 - try record punning
 
 UNSORTED
+  - event text editing is not so great, it would be nicer to bring up
+    a standard text entry widget, that way I can type unicode too
   - move Cmd.LanguageCmds to Cmd.Lang.Global
   - move MakeRuler to Lang too?
   * SignalBase: the sample at 0 should extend to -inf, so if at gets <=0, return
@@ -439,25 +441,46 @@ Derive:
     - pres is continuous volume, maps to velocity or breath depending on inst
     - vel is attack volume, maps to velocity or breath but is only sampled at
       the beginning of the note
-  - make local time and global time different types?
+  * make local time and global time different types?
   - to cut the middle out of a pattern: a cut signal that disabled derivation
     when it's 1?
 
-  echo doesn't work because d_at doesn't warp the controls
-  a track is (warp (control xyz) (pitches xyz))
-  normally this is good because the d_at to place notes shouldn't touch the
-  control
-  But it doesn't work if you want to warp a note and the controls.  So I think
-  I need a d_warp_controls that also warps the controls.  It would be nice to
-  apply the warp optimization so that (d_control_at 1 (d_control_at 1 x)) just
-  shifts the signal by 2 directly.  This is basically manual fusion but I don't
-  trust automatic fusion to get through all those monads and stuff.
-  So I think I just have a Warp attached to the controls which gets applied
-  when warps are composed.
+  - combine ornaments, like "hold 1s | tr" to hold the first note for 1 score
+    time before starting the trill.  I think this could work by warping tr
 
-  +@ +~ do control warps, -@ -~ don't.
+  - PitchSignal.Relative should have Nothing ScaleId
+  - ScoreTime and RealTime literals: 1s, 1r
+    If I had score and real time literals, I could merge abs and score trills.
+    Then I need to support either typed controls, or a notation for "cont
+    x interpreted as score time".
+
+    trill 1 4s -> Signal (Just (RealTime 4), Control)
+    trill 1 s%cont -> Signal (Nothing :: Maybe RealTime, Control)
+
+    data ControlType = Scalar ScalarType Signal.Control
+        | Pitch PitchType PitchSignal.PitchSignal
+    data ScalarType = TReal | TScore | TNum
+    data PitchType = TAbsolutePitch | TRelativePitch
+  - remove pos arg from generator
+
+  deriver customization
+    - bind symbol names, e.g. bind specific-trill to local 'tr' symbol
+    - set dynamic env vals, especially if a family of derivers use the same
+      argument names for analogous behaviour, e.g. 'tr-speed'
+    - make it easy to add haskell derivers, tracklang must remain simple
+    - derivers call other derivers, which can be rebound
+
+  - instrument deriver that makes it retrigger on pitch changes, e.g. for
+    trills on a piano... I think this has to be score postproc because it needs
+    to be pre-scale conversion
+
+  - time interval literal, so I can specify e.g. trill speed in terms of beats
+    This means Derive has to have access to the rulers.
 
   tracklang2:
+    - remove nonsensical Signal (Nothing, Nothing) type
+    - make event length available to transformers so they can unstretch to it?
+    - rename TrackLang.Signal -> TrackLang.Control ?
     * data NoteDeriver = (start, dur, EventDeriver)
     * note track emits [NoteDeriver], merges to EventDeriver
     * replace d_note with d_null_call
@@ -467,19 +490,22 @@ Derive:
     - implement event-echo and event processing in general
     * arg processing: arg defaults taken automatically from the env, if
       prefixed with call name: "call-arg"
+      - one problem with this is rebound symbols, do I want to force new names?
+        I think I do, because otherwise it exposes the underlying symbol.
     - test Calls that return overlapping events
     - block-level calls
     * negative duration postproc
     * put TrackLang.Val into Pretty
-    - default args are in Deriver, so I can have e.g. trill default to current
-      pitch+1
+    - x = _ will unset x
 
     - Cmd: after entering 'x = y' event, can it automatically set dur=0?
 
     - come up with a syntax for Ui.Event preproc calls
       >inst1 | echo < preproc1 < preproc2
+    - also I can have a post-parse "macro" preproc pass, this is more suited
+      for prepending a call
     - re-implement directives: derive_notes returns (EventDeriver, [Event])
-      wait until I have a call that wants to use it
+      wait until I have a call that wants to use it (suppress event?)
 
     - When looking for the next note on, I should skip notes which are just
       'statements' that produce no notes.  That way a var set won't interrupt
@@ -559,7 +585,7 @@ Derive:
       pitches.
 
     - Implement clip-call:
-      Undo the call stretchig, this should be efficient because of stretch
+      Undo the call stretching, this should be efficient because of stretch
       combining:
 
       d_stretch (recip (dur/block_dur)) $ d_clip dur $ deriver
@@ -596,20 +622,10 @@ Derive:
 
       This way I need a VFunction type and variable lookup.
 
-    - Implement trill
-      - use relative default arg for other note
-      - absolute tempo version that adds new cycles when stretched
-      - version with n cycles that stretches with tempo
+    * Implement trill
+      * absolute tempo version that adds new cycles when stretched
+      * version with n cycles that stretches with tempo
       - hybrid where the initial part stretches, final part is absolute
-      - to give time intervals, I think Derive has to have access to the rulers
-
-    - Controlling notation parameters, e.g. does trill start on upper or lower
-      note: calls have descriptive names, and you can set the generic name in
-      the env.  They can also call other calls which can be replaced in the
-      env, so e.g. hybrid-trill could call 'hybrid-trill-start' and
-      'hybrid-trill-decay' and expect those to be set.  This is sort of like
-      the OO template pattern, but is less disciplined because they come from
-      a global environment.  Is there a more principled way to do this?
 
   PitchTrack pitch
     - implement PitchTrack.cmd_raw edit, so I can enter fractional notes

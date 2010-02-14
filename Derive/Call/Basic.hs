@@ -41,7 +41,7 @@ c_note = Derive.Call
             Right $ one_note $ generate_note inst rel_attrs event next
         (_, _, invalid) -> Left $
             TrackLang.ArgError $ "expected inst or attr: " ++ show invalid)
-    (Just $ \args _ deriver -> case process (TrackLang.passed_vals args) of
+    (Just $ \args deriver -> case process (TrackLang.passed_vals args) of
         (inst, rel_attrs, []) -> Right $ transform_note inst rel_attrs deriver
         (_, _, invalid) -> Left $
             TrackLang.ArgError $ "expected inst or attr: " ++ show invalid)
@@ -49,12 +49,11 @@ c_note = Derive.Call
     process = process_note_args Nothing []
 
 generate_note :: Maybe Score.Instrument -> [TrackLang.RelativeAttr]
-    -> Track.PosEvent -> [Track.PosEvent] -> Derive.EventDeriver
-generate_note n_inst rel_attrs (pos, event) next = do
-    -- I could use the same code as the Transformer case, but this is a
-    -- common case and it's probably more efficient to do it directly.
-    start <- Derive.score_to_real pos
-    end <- Derive.score_to_real (pos + Event.event_duration event)
+    -> Event.Event -> [Track.PosEvent] -> Derive.EventDeriver
+generate_note n_inst rel_attrs event next = do
+    let (from, to) = if Event.event_duration event < 0 then (1, 0) else (0, 1)
+    start <- Derive.score_to_real from
+    end <- Derive.score_to_real to
     -- TODO due to negative durations, end could be before start.  I need to
     -- add a post-proc step to calculate the proper durations
     next_start <- case next of
@@ -109,27 +108,21 @@ trimmed_pitch Nothing sig = sig
 -- * block call
 
 c_block :: BlockId -> Derive.Call
-c_block block_id = Derive.generate_one $ \args _ (pos, event) _ ->
+c_block block_id = Derive.generate_one $ \args _ _ _ ->
     if null (TrackLang.passed_vals args)
-        then Right $ block_call block_id pos event
+        then Right $ block_call block_id
         else Left $ TrackLang.ArgError "args for block call not implemented yet"
 
-block_call :: BlockId -> ScoreTime -> Event.Event -> Derive.EventDeriver
-block_call block_id pos event =
-    Derive.d_at start $ Derive.d_stretch (end-start) $
-        Derive.d_sub_derive Derive.no_events (Derive.d_block block_id)
-    where
-    -- Derivation happens according to the extent of the note, not the
-    -- duration.  This is how negative duration events begin deriving before
-    -- arriving at the trigger.
-    (start, end) = (Track.event_min (pos, event), Track.event_max (pos, event))
+block_call :: BlockId -> Derive.EventDeriver
+block_call block_id =
+    Derive.d_sub_derive Derive.no_events (Derive.d_block block_id)
 
 -- * equal
 
 c_equal :: Derive.Call
 c_equal = Derive.Call
     (Just $ \args _ _ _ -> with_args args generate)
-    (Just $ \args _ deriver -> with_args args (transform deriver))
+    (Just $ \args deriver -> with_args args (transform deriver))
     where
     with_args args = TrackLang.call2 args
         (required "symbol", required "value" :: Arg TrackLang.Val)

@@ -25,6 +25,10 @@ test_c_note = do
             DeriveTest.derive_tracks_tempo [(title, evts)]
     let inst = Just "i"
 
+    let evt s d = mkevent s d "" [] inst []
+    equal (run ">i" [(0, 1, ""), (1, 2, ""), (3, 3, "")])
+        (Right [evt 0 1, evt 1 2, evt 3 3], [])
+
     let (evts, logs) = (run ">i" [(0, 1, "+a 42")])
     equal evts (Right [])
     strings_like logs ["expected inst or attr"]
@@ -149,44 +153,6 @@ test_environ_default = do
             (2, 0, "delay-time = 1"), (3, 1, "delay |")])
         (Right [(1, 1, "delay |"), (4, 1, "delay |")], [])
 
-{-
--- this is all broken at the moment until I re-implement duration calculation
--- test_negative_duration = do
-    let extract = DeriveTest.extract (\e -> DeriveTest.e_event e) Log.msg_string
-    let run evts = extract $ DeriveTest.derive_tracks_tempo
-            [(DeriveTest.default_inst_title, evts)]
-
-    let deflt = Note.negative_duration_default
-    -- events get lined up
-    equal (run [(1, -1, "--1"), (3, -2, "--2")])
-        (Right [(1, 2, "--1"), (3, deflt, "--2")], [])
-    -- rest
-    equal (run [(1, -1, "--1"), (3, -1, "--2")])
-        (Right [(1, 1, "--1"), (3, deflt, "--2")], [])
-    -- 0 dur is omitted
-    equal (run [(1, -1, "--1"), (3, 0, "--2")])
-        (Right [(1, 2, "--1")],
-            ["compile (bid \"test/b1\"): omitting note with 0 duration"])
-
-    -- TODO these won't work properly until durations can be calculated
-    -- properly, see comment in Derive.Note.calculate_duration.
-    -- let run evts = extract $ DeriveTest.derive_blocks
-    --         [ ("b1", [(">", evts)])
-    --         , ("sub", [(">", [(1, -1, "--1"), (2, -1, "--2")])])
-    --         ]
-    -- -- last event extends up to "rest" at 5
-    -- equal (run [(4, -4, "sub"), (6, -1, "")])
-    --     (Right [(2, 2, "--1"), (4, 1, "--2"), (6, deflt, "")], [])
-
-    -- TODO This will come out incorrect because I don't pass the correct next
-    -- event.  Punt on this for now, I may have a better solution later.
-    -- equal (run [(4, -4, "sub"), (8, -4, "sub")])
-    --     (Right [(2, 2, "--1"), (4, 2, "--2"), (6, 2, "--1"),
-    --         (8, deflt, "--2")],
-    --     [])
--}
-
-
 type Extracted =
     (RealTime, RealTime, String, Warning.Stack, Maybe Score.Instrument,
         Score.Attributes)
@@ -221,23 +187,3 @@ mkstack = map $ \(bid, tid, pos) ->
 mk_track_stack :: [(String, String)] -> Warning.Stack
 mk_track_stack = map $ \(bid, tid) ->
     (UiTest.bid bid, Just (UiTest.tid tid), Nothing)
-
--- * sub
-
--- TODO use to test non-block subderives
-{-
-d_fake_sub :: Derive.EventDeriver
-d_fake_sub = do
-    st <- Derive.get
-    start <- Derive.score_to_real 0
-    end <- Derive.score_to_real 1
-    return [Score.Event start (end-start) (Text.pack "hi") Map.empty fake_pitch
-        (Derive.state_stack st)
-        (Derive.state_instrument st) (Derive.state_attributes st)]
-    where
-    fake_pitch = PitchSignal.constant (Pitch.ScaleId "fake") (Pitch.Degree 60)
-
-lookup_deriver deriver block_id
-    | block_id == UiTest.bid "some-sub" = Right deriver
-    | otherwise = Left (State.StateError "not found")
--}

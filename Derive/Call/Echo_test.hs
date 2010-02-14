@@ -9,6 +9,11 @@ test_delay = do
     let extract = DeriveTest.extract_events_only DeriveTest.e_event
     let run title pref tracks = extract $ DeriveTest.derive_tracks_tempo
             ((title, [(0, 1, pref ++ "--1"), (1, 1, pref ++ "--2")]) : tracks)
+
+    let pref = "delay %delay | "
+    equal (run ">i" pref [("delay", [(0, 0, "1"), (1, 0, "2")])]) $
+        Right [(1, 1, pref ++ "--1"), (3, 1, pref ++ "--2")]
+
     equal (run ">i | delay 2" "" []) $
         Right [(2, 1, "--1"), (3, 1, "--2")]
     equal (run ">i | delay %delay,2" "" []) $

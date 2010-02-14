@@ -2,6 +2,7 @@ module Derive.DeriveTest where
 import Control.Monad
 import qualified Control.Monad.Identity as Identity
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 import qualified Util.Log as Log
 
 import qualified Midi.Midi as Midi
@@ -16,6 +17,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Schema as Schema
 import qualified Derive.Score as Score
+import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Pitch as Pitch
@@ -134,6 +136,21 @@ note_on_times mmsgs = [(ts, nn, vel)
     | (Timestamp.Timestamp ts, Midi.ChannelMessage _ (Midi.NoteOn nn vel))
         <- mmsgs]
 
+
+-- * call
+
+derive_note :: Derive.Deriver a -> Result a
+derive_note = derive Derive.empty_lookup_deriver State.empty
+
+d_note :: Derive.EventDeriver
+d_note = do
+    start <- Derive.score_to_real 0
+    end <- Derive.score_to_real 1
+    inst <- Derive.lookup_val TrackLang.v_instrument
+    attrs <- Derive.get_val Score.no_attrs TrackLang.v_attributes
+    (controls, psig) <- Derive.unwarped_controls
+    return [Score.Event start (end-start) (Text.pack "evt")
+        controls psig [] inst attrs]
 
 -- * inst
 

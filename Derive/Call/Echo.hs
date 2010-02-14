@@ -1,4 +1,9 @@
 -- | Echo and delay oriented calls.
+--
+-- TODO implement a event-echo variant that works directly on events for a
+-- concrete echo
+--
+-- TODO echo with RealTime delay
 module Derive.Call.Echo where
 
 import Ui
@@ -20,24 +25,36 @@ note_calls = Derive.make_calls
 
 -- * note calls
 
+-- | Simple delay.
+--
+-- [time /Signal/ @%delay-time@] Delay this much score time.
 c_delay :: Derive.Call
-c_delay = Derive.transformer $ \args pos deriver -> TrackLang.call1 args
+c_delay = Derive.transformer $ \args deriver -> TrackLang.call1 args
     (optional "time" (required_signal "delay-time")) $ \time ->
-    Call.with_signals pos [time] $ \[time] ->
-        Derive.d_at (ScoreTime time) deriver
+    Call.with_controls [time] $ \[time] -> Derive.d_at (ScoreTime time) deriver
 
 -- | This echo works on Derivers instead of Events, which means that the echoes
 -- happen in score time, so they will change tempo with the rest of the score,
 -- and the realization may change due to a different velocity.
 --
--- TODO implement a event-echo variant that works directly on events for a
--- concrete echo
+-- The signals are only sampled at the beginning of the echo, so you can't
+-- vary them over the scope of an echo call like you can with @event-echo@.
+-- You would have to wrap every event in an @echo@ for that.
+--
+-- [delay /Signal/ @%echo-delay,1@] Each echo is delayed this long in score
+-- time.
+--
+-- [feedback /Signal/ @%echo-feedback,.4@] The dynamics of each echo are
+-- multiplied by this amount.
+--
+-- [times /Signal/ @%echo-times,1@] This many echoes, not counting the unechoed
+-- notes.
 c_echo :: Derive.Call
-c_echo = Derive.transformer $ \args pos deriver -> TrackLang.call3 args
+c_echo = Derive.transformer $ \args deriver -> TrackLang.call3 args
     ( optional "delay" (signal 1 "echo-delay")
     , optional "feedback" (signal 0.4 "echo-feedback")
     , optional "times" (signal 1 "echo-times")) $ \delay feedback times ->
-    Call.with_signals pos [delay, feedback, times]$ \[delay, feedback, times] ->
+    Call.with_controls [delay, feedback, times]$ \[delay, feedback, times] ->
         echo (Signal.y_to_score delay) feedback (floor times) deriver
 
 echo :: ScoreTime -> Double -> Int -> Derive.EventDeriver -> Derive.EventDeriver

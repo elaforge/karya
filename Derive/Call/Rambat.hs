@@ -21,19 +21,19 @@ note_calls = Derive.make_calls
 --
 -- TODO damping
 --
--- [@time@ /signal/ @%tick-time,.2@] Time from the grace note to the following
+-- [time /Signal/ @%tick-time,.2@] Time from the grace note to the following
 -- note.  This is in absolute time, but will be halfway between the previous
 -- and next note if there isn't this much time.
 --
--- [@vel@ /signal/ @%tick-velocity,.3@] Grace note velocity will be this
+-- [vel /Signal/ @%tick-velocity,.3@] Grace note velocity will be this
 -- percentage of the following note.
 c_tick :: Derive.Call
-c_tick = Derive.generate_one $ \args prev (pos, _) next -> TrackLang.call2 args
+c_tick = Derive.generate_one $ \args prev _ next -> TrackLang.call2 args
     ( optional "time" (signal 0.15 "tick-time")
     , optional "vel" (signal 0.5 "tick-velocity")) $
     \time vel -> case (prev, next) of
         ((ppos, _) : _, (npos, _) : _) ->
-            Call.with_signals pos [time, vel] $ \[time, vel] ->
+            Call.with_controls [time, vel] $ \[time, vel] ->
                 tick (Signal.y_to_real time) vel ppos npos
         _ -> Derive.throw $ "no "
             ++ (if null prev then "previous" else "next") ++ " event"

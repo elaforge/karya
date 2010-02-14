@@ -46,6 +46,7 @@ import qualified Util.Seq as Seq
 import qualified Util.SrcPos as SrcPos
 
 import Ui
+import qualified Ui.Event as Event
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
@@ -173,22 +174,22 @@ data Call = Call {
     , call_transformer :: Maybe TransformerCall
     }
 -- | args -> prev_events -> cur_event -> next_events -> (deriver, consumed)
-type GeneratorCall = TrackLang.PassedArgs -> [Track.PosEvent] -> Track.PosEvent
+type GeneratorCall = TrackLang.PassedArgs -> [Track.PosEvent] -> Event.Event
     -> [Track.PosEvent] -> Either TrackLang.TypeError (EventDeriver, Int)
 -- | args -> pos -> deriver -> deriver
-type TransformerCall = TrackLang.PassedArgs -> ScoreTime -> EventDeriver
+type TransformerCall = TrackLang.PassedArgs -> EventDeriver
     -> Either TrackLang.TypeError EventDeriver
 
 generator call = Call (Just call) Nothing
 transformer call = Call Nothing (Just call)
 
 -- | Like 'generator', except for a generator that consumes a single event.
-generate_one :: (TrackLang.PassedArgs -> [Track.PosEvent] -> Track.PosEvent
+generate_one :: (TrackLang.PassedArgs -> [Track.PosEvent] -> Event.Event
     -> [Track.PosEvent]
     -> Either TrackLang.TypeError EventDeriver)
     -> Call
-generate_one call = generator $ \args prev cur next ->
-    fmap (, 1) (call args prev cur next)
+generate_one call = generator $ \args prev event next ->
+    fmap (, 1) (call args prev event next)
 
 make_calls :: [(String, Call)] -> CallMap
 make_calls = Map.fromList . map (Util.Control.first TrackLang.Symbol)
@@ -473,6 +474,9 @@ unwarped_controls = do
         }
     return (unwarped, unwarped_pitch)
 
+-- | Return an entire signal.  Remember, signals are in RealTime, so if you
+-- want to index them in ScoreTime you will have to call 'score_to_real'.
+-- 'control_at' does that for you.
 get_control :: (Monad m) => Score.Control -> DeriveT m (Maybe Signal.Control)
 get_control cont = do
     controls <- gets state_controls
@@ -730,7 +734,9 @@ d_at shift = with_warp (Score.shift_warp shift)
 
 d_stretch :: (Monad m) => ScoreTime -> DeriveT m a -> DeriveT m a
 d_stretch factor deriver
-    | factor <= 0 = throw $ "stretch <= 0: " ++ show factor
+    -- A stretch of 0 is ok since the deriver may produce no events, or may
+    -- work in real time.
+    | factor < 0 = throw $ "stretch < 0: " ++ show factor
     | otherwise = with_warp (Score.stretch_warp factor) deriver
 
 with_warp :: (Monad m) => (Score.Warp -> Score.Warp) -> DeriveT m a

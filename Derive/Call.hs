@@ -1,5 +1,10 @@
--- | Utilities for writing calls.  This is higher-level than TrackLang, so
--- it can import "Derive.Derive".
+{- | Utilities for writing calls.  This is higher-level than TrackLang, so
+it can import "Derive.Derive".
+
+Calls are evaluated in normalized time, which means that they start at
+@score_to_real 0@ and end at @score to real 1@.  The events passed to the
+generator are also in this time.
+-}
 module Derive.Call where
 -- import qualified Data.DList as DList
 import qualified Data.Map as Map
@@ -25,15 +30,29 @@ import qualified Perform.Signal as Signal
 
 -- * signals
 
-with_signals :: ScoreTime -> [TrackLang.Signal]
-    -> ([Signal.Y] -> Derive.Deriver a) -> Derive.Deriver a
-with_signals pos sigs f = f =<< mapM (get_signal pos) sigs
+with_controls :: [TrackLang.Signal] -> ([Signal.Y] -> Derive.Deriver a)
+    -> Derive.Deriver a
+with_controls sigs f = f =<< mapM (control_at 0) sigs
 
-get_signal :: ScoreTime -> TrackLang.Signal -> Derive.Deriver Signal.Y
-get_signal pos (TrackLang.Signal (deflt, control)) = case control of
+control_at :: ScoreTime -> TrackLang.Signal -> Derive.Deriver Signal.Y
+control_at pos (TrackLang.Signal (deflt, control)) = case control of
     Nothing -> maybe (Derive.throw $ "TrackLang.Signal with no control and no "
         ++ "default value is silly") return deflt
     Just cont -> Derive.control_at cont deflt pos
+
+-- | Convert a 'TrackLang.Signal' to a real signal.
+to_signal :: TrackLang.Signal -> Derive.Deriver Signal.Control
+to_signal (TrackLang.Signal sig_val) = case sig_val of
+    (Just deflt, Nothing) -> return $ Signal.constant deflt
+    (deflt, Just cont) -> do
+        maybe_sig <- Derive.get_control cont
+        case maybe_sig of
+            Nothing -> case deflt of
+                Nothing -> Derive.throw $ "not found: " ++ show cont
+                Just deflt -> return $ Signal.constant deflt
+            Just sig -> return sig
+    -- TODO can't I change the type to eliminate this?
+    (Nothing, Nothing) -> Derive.throw $ "TrackLang.Signal (Nothing, Nothing)"
 
 -- * util
 
@@ -61,9 +80,10 @@ eval_one caller start dur expr = do
 event :: ScoreTime -> ScoreTime -> String -> Track.PosEvent
 event start dur text = (start, Event.event text dur)
 
-eval_generator :: String -> TrackLang.Expr -> [Track.PosEvent] -> Track.PosEvent
-    -> [Track.PosEvent] -> GeneratorReturn
-eval_generator caller (TrackLang.Call call_id args : rest) prev cur next = do
+eval_generator :: String -> TrackLang.Expr -> [Track.PosEvent]
+    -> Track.PosEvent -> [Track.PosEvent] -> GeneratorReturn
+eval_generator caller (TrackLang.Call call_id args : rest) prev cur
+        next = do
     let msg = "eval_generator " ++ show caller ++ ": "
     call <- lookup_note_call call_id
     env <- Derive.gets Derive.state_environ
@@ -73,20 +93,35 @@ eval_generator caller (TrackLang.Call call_id args : rest) prev cur next = do
             Derive.warn $ msg ++ "non-generator " ++ show call_id
                 ++ " in generator position"
             skip_event
-        Just c -> case c passed prev cur next of
+        Just c -> case c passed (map warp prev) evt0 (map warp next) of
             Left err -> do
                 Derive.warn $ msg ++ Pretty.pretty err
                 skip_event
             Right (deriver, consumed) -> do
-                deriver <- eval_transformer caller rest (fst cur)
+                deriver <- eval_transformer caller rest
                     (handle_exc "generator" call_id deriver)
-                return (deriver, consumed)
+                return (place deriver, consumed)
+    where
+    -- Derivation happens according to the extent of the note, not the
+    -- duration.  This is how negative duration events begin deriving before
+    -- arriving at the trigger.  Note generating calls that wish to actually
+    -- generate negative duration may check the event_duration and reverse this
+    -- by looking at a (start, end) of (1, 0) instead of (0, 1).
+    place = Derive.d_at start . Derive.d_stretch stretch
+    (start, end) = (Track.event_min cur, Track.event_max cur)
+    stretch = end - start
+    warp_dur = if stretch == 0 then const 0 else (/stretch)
+    -- Warp all the events to be local to the warp established by 'place'.
+    warp (pos, evt) =
+        ((pos-start) / stretch, Event.modify_duration warp_dur evt)
+    evt0 = Event.modify_duration warp_dur (snd cur)
+
 eval_generator _ [] _ cur _ = Derive.throw $
     "event with no calls at all (this shouldn't happen): " ++ show cur
 
-eval_transformer :: String -> TrackLang.Expr -> ScoreTime -> Derive.EventDeriver
+eval_transformer :: String -> TrackLang.Expr -> Derive.EventDeriver
     -> Derive.Deriver Derive.EventDeriver
-eval_transformer caller (TrackLang.Call call_id args : rest) pos deriver = do
+eval_transformer caller (TrackLang.Call call_id args : rest) deriver = do
     let msg = "eval_transformer " ++ show caller ++ ": "
     call <- lookup_note_call call_id
     env <- Derive.gets Derive.state_environ
@@ -96,14 +131,14 @@ eval_transformer caller (TrackLang.Call call_id args : rest) pos deriver = do
             Derive.warn $ msg ++ "non-transformer " ++ show call_id
                 ++ " in transformer position"
             return Derive.empty_deriver
-        Just c -> case c passed pos deriver of
+        Just c -> case c passed deriver of
             Left err -> do
                 Derive.warn $ msg ++ Pretty.pretty err
                 return Derive.empty_deriver
             Right deriver ->
-                eval_transformer caller rest pos
+                eval_transformer caller rest
                     (handle_exc "transformer" call_id deriver)
-eval_transformer _ [] _ deriver = return deriver
+eval_transformer _ [] deriver = return deriver
 
 handle_exc :: String -> TrackLang.CallId -> Derive.EventDeriver
     -> Derive.EventDeriver
@@ -133,7 +168,7 @@ lookup_note_call call_id = do
 -- which does just that.
 c_not_found :: TrackLang.CallId -> Derive.Call
 c_not_found call_id = Derive.Call
-    (Just $ \_ _ _ _ -> err) (Just $ \_ _ _ -> err)
+    (Just $ \_ _ _ _ -> err) (Just $ \_ _ -> err)
     where err = Left (TrackLang.CallNotFound call_id)
 
 -- | Make an Id from a string, relative to the current ns if it doesn't already

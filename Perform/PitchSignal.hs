@@ -28,7 +28,7 @@ module Perform.PitchSignal (
     , X, Y, y_to_degree, max_x, default_srate
 
     , signal, constant, empty, track_signal, Method(..), Segment
-    , unsignal
+    , unsignal, from_control
 
     , at, at_linear, sample
     , to_nn
@@ -138,14 +138,9 @@ track_signal scale_id srate segs = PitchSignal scale_id
 unsignal :: PitchSignal -> [(X, Y)]
 unsignal = SignalBase.unsignal . sig_vec
 
--- * access
-
-at, at_linear :: X -> PitchSignal -> Y
-at pos sig = SignalBase.at pos (sig_vec sig)
-at_linear pos sig = SignalBase.at_linear pos (sig_vec sig)
-
-sample :: X -> PitchSignal -> [(X, Y)]
-sample start sig = SignalBase.sample start (sig_vec sig)
+from_control :: Signal.Control -> Relative
+from_control sig = signal (Pitch.ScaleId "relative")
+    [(x, (realToFrac y, realToFrac y, 0)) | (x, y) <- Signal.unsignal sig]
 
 -- | Flatten a pitch signal into an absolute note number signal.
 to_nn :: Pitch.Scale -> PitchSignal -> Signal.NoteNumber
@@ -160,6 +155,15 @@ to_nn scale psig = Signal.Signal (V.map f (sig_vec psig))
 
 to_scalar :: Y -> Signal.Y
 to_scalar (from, to, at) = Num.scale (realToFrac from) (realToFrac to) at
+
+-- * access
+
+at, at_linear :: X -> PitchSignal -> Y
+at pos sig = SignalBase.at pos (sig_vec sig)
+at_linear pos sig = SignalBase.at_linear pos (sig_vec sig)
+
+sample :: X -> PitchSignal -> [(X, Y)]
+sample start sig = SignalBase.sample start (sig_vec sig)
 
 -- * transformation
 

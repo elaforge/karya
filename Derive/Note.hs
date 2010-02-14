@@ -148,7 +148,7 @@ d_note_track track_id = do
     title_expr <- case TrackLang.parse (Track.track_title track) of
         Left err -> Derive.throw $ "track title: " ++ err
         Right expr -> return expr
-    join $ Call.eval_transformer "title" title_expr 0 (derive_notes pos_events)
+    join $ Call.eval_transformer "title" title_expr (derive_notes pos_events)
 
 -- * directive
 
