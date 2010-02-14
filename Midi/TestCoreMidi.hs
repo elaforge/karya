@@ -175,8 +175,8 @@ test_sysex write_msg read_msg = do
     Just (out, secs) <- read_until 10 read_msg
     putStrLn $ show secs ++ " seconds for " ++ show size ++ "k"
     let out_msg = Midi.rmsg_msg out
-    if out_msg == msg then success Nothing "sysex equal"
-        else failure Nothing $ "got sysex: " ++ show out_msg
+    if out_msg == msg then success "sysex equal"
+        else failure $ "got sysex: " ++ show out_msg
 
 
 -- * util

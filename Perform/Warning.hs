@@ -17,7 +17,6 @@ data Warning = Warning {
     -- range.  It's in real time, so it needs to be converted back to
     -- score time, and it's (start, end) rather than (start, dur).
     -- TODO: convert these back to ScoreTime with the tempo map
-    -- TODO convert to (start, dur) for consistency.
     , warn_pos :: Maybe (RealTime, RealTime)
     } deriving (Eq, Show)
 warning = Warning
@@ -26,19 +25,18 @@ instance Error.Error Warning where
     strMsg msg = Warning msg [] Nothing
 
 -- | The location of an event that had a problem.
--- (block_id, track_id, (event_start, event_end))
+-- @(block_id, track_id, (event_start, event_end))@
 type StackPos = (BlockId, Maybe TrackId, Maybe (ScoreTime, ScoreTime))
 
 -- | Stack order is most recent call last.
 type Stack = [StackPos]
 
 -- | Format a StackPos.  These functions are used by LogView and LanguageCmds,
--- but are here since both places import this module.
+-- but are here since both places import this module.  Examples:
 --
--- Examples:
--- "untitled/b0 untitled/b0.t2 0-.25"
--- "untitled/b0 foo/bar *"
--- "untitled/b0 * *"
+-- > "untitled/b0 untitled/b0.t2 0-.25"
+-- > "untitled/b0 foo/bar *"
+-- > "untitled/b0 * *"
 unparse_stack :: StackPos -> String
 unparse_stack (bid, maybe_tid, maybe_range) =
     Seq.join " " [bid_s, tid_s, range_s]

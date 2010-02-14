@@ -105,7 +105,7 @@ join_note step frac = Pitch.Note $ step ++ frac_s
         | otherwise = s
         where s = show (round (frac*100))
 
--- | Examples: @"4+32" -> (4, 0.32)@, @"-1c#-12" -> ("-1c#", -0.12)@.
+-- | Examples: @\"4+32\" -> (4, 0.32)@, @\"-1c#-12\" -> (\"-1c#\", -0.12)@.
 split_note :: Pitch.Note -> Maybe (String, Frac)
 split_note (Pitch.Note note) = case frac of
         Just f -> Just (step, fromIntegral f / 100)

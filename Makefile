@@ -123,10 +123,10 @@ UI_OBJS := Ui/c_interface.o
 
 COREMIDI_OBJS := Midi/core_midi.o
 
-ALL_HS = $(shell tools/all_hs.py)
+# No longer used, but I haven't deleted them quite yet.
+OBSOLETE := Midi/PortMidiC.hs Midi/PortMidi.hsc Midi/TestMidi.hs
 
-.PHONY: all_hsc
-all_hsc: $(UI_HS) $(PORTMIDI_HS)
+ALL_HS = $(filter-out $(OBSOLETE), $(shell tools/all_hs.py))
 
 ### main app
 
@@ -227,8 +227,10 @@ sense:
 
 ### doc
 
+ALL_HSC := $(patsubst %.hsc, %.hs, $(filter %.hsc, $(ALL_HS)))
+
 .PHONY: doc
-doc:
+doc: $(ALL_HSC)
 	@# Unless there's some way to tell firefox to go to a certain line in
 	@# a file, I can't use --source-entity without something like hscolour.
 	haddock --html -B $(GHC_LIB) --source-module="../%F" -o haddock \
@@ -243,8 +245,8 @@ test_obj/RunTests.hs: $(ALL_HS)
 # workaround by grep -v out the LINEs into test_obj hierarchy
 # Compiles with -odir and -hidir into test_obj/ because they are compiled with
 # different flags.
-test_obj/RunTests: test_obj/RunTests.hs all_hsc $(UI_OBJS) $(COREMIDI_OBJS) \
-		fltk/fltk.a
+test_obj/RunTests: test_obj/RunTests.hs $(UI_HS) $(UI_OBJS) \
+		$(COREMIDI_OBJS) fltk/fltk.a
 	tools/unline_hack
 	$(GHC) $(BASIC_HFLAGS) -i -itest_obj:. $(HTEST) --make \
 		-odir test_obj -hidir test_obj \

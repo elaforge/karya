@@ -9,7 +9,6 @@ import qualified Data.ByteString as ByteString
 import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 import Text.Printf
 
 import qualified Util.Seq as Seq
@@ -106,10 +105,10 @@ show_keyswitches :: Instrument.KeyswitchMap -> String
 show_keyswitches (Instrument.KeyswitchMap ksmap) =
     Seq.join "\n" (map show_pair ksmap)
     where
-    show_pair (attrs, ks) = show_attrs attrs ++ ": " ++ show_ks ks
-    show_attrs attrs
-        | Set.null attrs = "{}"
-        | otherwise = Seq.join " " ['+':attr | attr <- Set.toList attrs]
+    show_pair (attrs, ks) = show_attrs (Score.attrs_list attrs)
+        ++ ": " ++ show_ks ks
+    show_attrs [] = "{}"
+    show_attrs attrs = Seq.join " " ['+':attr | attr <- attrs]
     show_ks ks = Instrument.ks_name ks
         ++ " (" ++ show (Instrument.ks_key ks) ++ ")"
 

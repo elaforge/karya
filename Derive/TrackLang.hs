@@ -263,7 +263,7 @@ lookup_val name environ = case Map.lookup name environ of
 -- | A single argument in the signature of a call.
 data Arg a = Arg {
     -- | An arg that is not explicitly given will be looked for in the dynamic
-    -- environment as <callid>-<argname>.  Of course signal args get this
+    -- environment as \<callid>-<argname\>.  Of course signal args get this
     -- already through the control map, but this way non signal args can be
     -- defaulted, or you can default a signal arg to a constant without going
     -- to the bother of making a signal track.
