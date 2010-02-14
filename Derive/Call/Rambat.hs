@@ -4,7 +4,7 @@ import Ui
 
 import qualified Derive.Derive as Derive
 import qualified Derive.TrackLang as TrackLang
-import Derive.TrackLang (optional, signal)
+import Derive.TrackLang (optional, control)
 import qualified Derive.Call as Call
 
 import qualified Perform.Signal as Signal
@@ -29,8 +29,8 @@ note_calls = Derive.make_calls
 -- percentage of the following note.
 c_tick :: Derive.Call
 c_tick = Derive.generate_one $ \args prev _ next -> TrackLang.call2 args
-    ( optional "time" (signal 0.15 "tick-time")
-    , optional "vel" (signal 0.5 "tick-velocity")) $
+    ( optional "time" (control "tick-time" 0.15)
+    , optional "vel" (control "tick-velocity" 0.5)) $
     \time vel -> case (prev, next) of
         ((ppos, _) : _, (npos, _) : _) ->
             Call.with_controls [time, vel] $ \[time, vel] ->

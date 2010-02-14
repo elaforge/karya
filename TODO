@@ -461,7 +461,8 @@ Derive:
         | Pitch PitchType PitchSignal.PitchSignal
     data ScalarType = TReal | TScore | TNum
     data PitchType = TAbsolutePitch | TRelativePitch
-  - remove pos arg from generator
+  - time interval literal, so I can specify e.g. trill speed in terms of beats
+    This means Derive has to have access to the rulers.
 
   deriver customization
     - bind symbol names, e.g. bind specific-trill to local 'tr' symbol
@@ -474,13 +475,10 @@ Derive:
     trills on a piano... I think this has to be score postproc because it needs
     to be pre-scale conversion
 
-  - time interval literal, so I can specify e.g. trill speed in terms of beats
-    This means Derive has to have access to the rulers.
-
   tracklang2:
-    - remove nonsensical Signal (Nothing, Nothing) type
+    * remove nonsensical Signal (Nothing, Nothing) type
     - make event length available to transformers so they can unstretch to it?
-    - rename TrackLang.Signal -> TrackLang.Control ?
+    * rename TrackLang.Signal -> TrackLang.Control ?
     * data NoteDeriver = (start, dur, EventDeriver)
     * note track emits [NoteDeriver], merges to EventDeriver
     * replace d_note with d_null_call

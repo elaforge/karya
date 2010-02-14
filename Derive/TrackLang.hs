@@ -68,9 +68,9 @@ data Val =
     -- e.g. @a=-42@ can be parsed as @[a, =-, 42]@ or @[=, a, -42]@.
     | VRelativeAttr RelativeAttr
     | VAttributes Score.Attributes
-    -- | A signal name.  An optional value gives a default if the signal isn't
-    -- present.  Literal: @%control@, @%control,.4@
-    | VSignal Signal
+    -- | A control name.  An optional value gives a default if the control
+    -- isn't present.  Literal: @%control@, @%control,.4@
+    | VControl Control
     -- | A call to a function.  There are two kinds: a subderive produces
     -- Events, and a call transforms Events.
     -- Literal: @func@
@@ -92,9 +92,11 @@ instance Pretty.Pretty Val where
             Set -> '=' : attr
             Clear -> "=-"
         VAttributes attrs -> Seq.join "+" (Score.attrs_list attrs)
-        VSignal (Signal (deflt, cont)) -> '%' :
-            maybe "<no-sig>" (\(Score.Control s) -> s) cont
-            ++ maybe "" ((',':) . Pretty.pretty) deflt
+        VControl control -> case control of
+            ConstantControl val -> Pretty.pretty val
+            DefaultedControl (Score.Control cont) deflt ->
+                '%' : cont ++ ',' : Pretty.pretty deflt
+            Control (Score.Control cont) -> '%' : cont
         VSymbol sym -> Pretty.pretty sym
         VNotGiven -> "_"
 
@@ -112,12 +114,13 @@ instance Pretty.Pretty Symbol where
     pretty (Symbol "") = "<null>"
     pretty (Symbol s) = s
 
--- | (default, control).  If @default@ is Nothing, the signal must be present
--- or an error will be thrown.  If @control@ is Nothing, always use the default
--- (i.e. it's a constant signal).  There's no syntax for a Nothing Control, but
--- it can be given as a default arg.  Both Nothing doesn't make much sense, and
--- effectively means the arg is required.
-newtype Signal = Signal (Maybe Signal.Y, Maybe Score.Control)
+data Control =
+    -- | A constant signal.  This is coerced from a VNum literal.
+    ConstantControl Signal.Y
+    -- | If the control isn't present, use the constant.
+    | DefaultedControl Score.Control Signal.Y
+    -- | Throw an exception if the control isn't present.
+    | Control Score.Control
     deriving (Eq, Show)
 newtype RelativeAttr = RelativeAttr (AttrMode, Score.Attribute)
     deriving (Eq, Show)
@@ -146,7 +149,7 @@ v_attributes = Symbol "attr"
 -- * types
 
 data Type = TNote | TInstrument | TMethod | TNum | TRelativeAttr | TAttributes
-    | TSignal | TSymbol | TNotGiven
+    | TControl | TSymbol | TNotGiven
     deriving (Eq, Show)
 
 instance Pretty.Pretty Type where
@@ -160,7 +163,7 @@ type_of val = case val of
     VNum _ -> TNum
     VRelativeAttr _ -> TRelativeAttr
     VAttributes _ -> TAttributes
-    VSignal _ -> TSignal
+    VControl _ -> TControl
     VSymbol _ -> TSymbol
     VNotGiven -> TNotGiven
 
@@ -202,18 +205,18 @@ instance Typecheck Score.Attributes where
     from_val _ = Nothing
     to_val = VAttributes
 
-instance Typecheck Signal where
-    from_val (VSignal a) = Just a
-    from_val (VNum a) = Just (Signal (Just a, Nothing))
+instance Typecheck Control where
+    from_val (VControl a) = Just a
+    from_val (VNum a) = Just (ConstantControl a)
     from_val _ = Nothing
-    to_val = VSignal
+    to_val = VControl
 
 instance Typecheck Symbol where
     from_val (VSymbol a) = Just a
     from_val _ = Nothing
     to_val = VSymbol
 
--- * val signal
+-- * dynamic environment
 
 type Environ = Map.Map ValName Val
 
@@ -263,10 +266,10 @@ lookup_val name environ = case Map.lookup name environ of
 -- | A single argument in the signature of a call.
 data Arg a = Arg {
     -- | An arg that is not explicitly given will be looked for in the dynamic
-    -- environment as \<callid>-<argname\>.  Of course signal args get this
-    -- already through the control map, but this way non signal args can be
-    -- defaulted, or you can default a signal arg to a constant without going
-    -- to the bother of making a signal track.
+    -- environment as \<callid>-<argname\>.  Of course control args get this
+    -- already through the control map, but this way non control args can be
+    -- defaulted, or you can default a control arg to a constant without going
+    -- to the bother of making a track for it.
     arg_name :: String
     , arg_default :: Maybe a
     } deriving (Eq, Show)
@@ -298,11 +301,11 @@ required name = Arg name Nothing
 optional :: String -> a -> Arg a
 optional name deflt = Arg name (Just deflt)
 
-signal :: Signal.Y -> String -> Signal
-signal deflt name = Signal (Just deflt, Just (Score.Control name))
+control :: String -> Signal.Y -> Control
+control name deflt = DefaultedControl (Score.Control name) deflt
 
-required_signal :: String  -> Signal
-required_signal name = Signal (Nothing, Just (Score.Control name))
+required_control :: String  -> Control
+required_control name = Control (Score.Control name)
 
 -- * extract and call
 
@@ -480,7 +483,7 @@ p_val = Parse.lexeme $ fmap VNote p_note <|> fmap VInstrument p_instrument
     -- to have a letter afterwards, while a Num is a '.' or digit, so they're
     -- not ambiguous.
     <|> fmap VRelativeAttr (P.try p_rel_attr) <|> fmap VNum p_num
-    <|> fmap VSignal p_signal <|> fmap VSymbol p_symbol
+    <|> fmap VControl p_control <|> fmap VSymbol p_symbol
     <|> (P.char '_' >> return VNotGiven)
 
 p_note :: P.Parser Pitch.Note
@@ -515,13 +518,15 @@ p_rel_attr = do
     return $ RelativeAttr (if null attr then Clear else mode, attr)
     <?> "relative attr"
 
-p_signal :: P.Parser Signal
-p_signal = do
+p_control :: P.Parser Control
+p_control = do
     P.char '%'
     control <- fmap Score.Control (p_ident ",")
     deflt <- Parse.optional (P.char ',' >> Parse.p_float)
-    return $ Signal (deflt, Just control)
-    <?> "signal"
+    return $ case deflt of
+        Nothing -> Control control
+        Just val -> DefaultedControl control val
+    <?> "control"
 
 p_symbol :: P.Parser Symbol
 p_symbol = Parse.lexeme (fmap Symbol (p_ident "")) <?> "symbol"

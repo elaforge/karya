@@ -30,7 +30,7 @@ import Ui
 import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
 import qualified Derive.TrackLang as TrackLang
-import Derive.TrackLang (optional, required, signal)
+import Derive.TrackLang (optional, required, control)
 
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
@@ -52,7 +52,7 @@ note_calls = Derive.make_calls
 -- [speed /Signal/ @%trill-speed,14@] Trill at this many cycles per second.
 c_absolute_trill :: Derive.Call
 c_absolute_trill = Derive.transformer $ \args deriver -> TrackLang.call2 args
-    (required "neighbor", optional "speed" (signal 14 "trill-speed")) $
+    (required "neighbor", optional "speed" (control "trill-speed" 14)) $
     \neighbor speed -> do
         neighbor_sig <- Call.to_signal neighbor
         speed_sig <- Call.to_signal speed
@@ -80,7 +80,7 @@ pos_at_speed sig pos = pos : pos_at_speed sig (pos + Signal.y_to_real (1/speed))
 -- [speed /Signal/ @%trill-speed,14@] Trill at this many cycles per score unit.
 c_score_trill :: Derive.Call
 c_score_trill = Derive.transformer $ \args deriver -> TrackLang.call2 args
-    (required "neighbor", optional "speed" (signal 14 "trill-speed")) $
+    (required "neighbor", optional "speed" (control "trill-speed" 14)) $
     \neighbor speed -> do
         neighbor_sig <- Call.to_signal neighbor
         speed_sig <- Call.to_signal speed

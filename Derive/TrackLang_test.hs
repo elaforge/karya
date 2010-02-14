@@ -7,7 +7,7 @@ import Util.Test
 import qualified Util.Parse as Parse
 
 import qualified Derive.Score as Score
-import Derive.TrackLang (AttrMode(..), Call(..), Method(..), Signal(..),
+import Derive.TrackLang (AttrMode(..), Call(..), Method(..), Control(..),
     Symbol(..), Val(..))
 import qualified Derive.TrackLang as TrackLang
 
@@ -64,15 +64,13 @@ test_parse = do
 
     equal (f "a|b=4|>inst %sig") $ Right
         [ Call (Symbol "") [VInstrument (Score.Instrument "inst"),
-            VSignal (Signal (Nothing, Just (Score.Control "sig")))]
+            VControl (Control (Score.Control "sig"))]
         , Call (Symbol "=") [VSymbol (Symbol "b"), VNum 4]
         , Call (Symbol "a") []
         ]
 
 test_p_val = do
     let mkattr = Just . VRelativeAttr . TrackLang.RelativeAttr
-        mksig deflt cont = Just $ VSignal $
-            TrackLang.Signal (deflt, fmap Score.Control cont)
         mknote = Just . VNote . Pitch.Note
     let expr_expected =
             [ ("*note", mknote "note")
@@ -94,8 +92,9 @@ test_p_val = do
             , ("0.", Nothing)
             , (".2", Just (VNum 0.2))
 
-            , ("%sig", mksig Nothing (Just "sig"))
-            , ("%sig,0", mksig (Just 0) (Just "sig"))
+            , ("%sig", Just $ VControl $ Control (Score.Control "sig"))
+            , ("%sig,0", Just $ VControl $
+                DefaultedControl (Score.Control "sig") 0)
             , ("%sig,", Nothing)
 
             , ("sym", Just $ VSymbol (Symbol "sym"))

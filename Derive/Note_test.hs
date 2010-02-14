@@ -134,7 +134,7 @@ test_calls = do
 
     left_like (run ">i | no-such-call") "CallNotFound"
     left_like (run ">i | delay *bad-arg")
-        "expected type Signal but got"
+        "expected type Control but got"
     left_like (run ">i | delay 1 2 3 4")
         "too many arguments"
     left_like (run ">i | delay")

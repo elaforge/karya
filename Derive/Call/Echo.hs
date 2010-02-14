@@ -12,7 +12,7 @@ import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
-import Derive.TrackLang (optional, required_signal, signal)
+import Derive.TrackLang (optional, required_control, control)
 
 import qualified Perform.Signal as Signal
 
@@ -30,7 +30,7 @@ note_calls = Derive.make_calls
 -- [time /Signal/ @%delay-time@] Delay this much score time.
 c_delay :: Derive.Call
 c_delay = Derive.transformer $ \args deriver -> TrackLang.call1 args
-    (optional "time" (required_signal "delay-time")) $ \time ->
+    (optional "time" (required_control "delay-time")) $ \time ->
     Call.with_controls [time] $ \[time] -> Derive.d_at (ScoreTime time) deriver
 
 -- | This echo works on Derivers instead of Events, which means that the echoes
@@ -51,9 +51,9 @@ c_delay = Derive.transformer $ \args deriver -> TrackLang.call1 args
 -- notes.
 c_echo :: Derive.Call
 c_echo = Derive.transformer $ \args deriver -> TrackLang.call3 args
-    ( optional "delay" (signal 1 "echo-delay")
-    , optional "feedback" (signal 0.4 "echo-feedback")
-    , optional "times" (signal 1 "echo-times")) $ \delay feedback times ->
+    ( optional "delay" (control "echo-delay" 1)
+    , optional "feedback" (control "echo-feedback" 0.4)
+    , optional "times" (control "echo-times" 1)) $ \delay feedback times ->
     Call.with_controls [delay, feedback, times]$ \[delay, feedback, times] ->
         echo (Signal.y_to_score delay) feedback (floor times) deriver
 

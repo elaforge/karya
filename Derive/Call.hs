@@ -30,29 +30,27 @@ import qualified Perform.Signal as Signal
 
 -- * signals
 
-with_controls :: [TrackLang.Signal] -> ([Signal.Y] -> Derive.Deriver a)
+with_controls :: [TrackLang.Control] -> ([Signal.Y] -> Derive.Deriver a)
     -> Derive.Deriver a
-with_controls sigs f = f =<< mapM (control_at 0) sigs
+with_controls controls f = f =<< mapM (control_at 0) controls
 
-control_at :: ScoreTime -> TrackLang.Signal -> Derive.Deriver Signal.Y
-control_at pos (TrackLang.Signal (deflt, control)) = case control of
-    Nothing -> maybe (Derive.throw $ "TrackLang.Signal with no control and no "
-        ++ "default value is silly") return deflt
-    Just cont -> Derive.control_at cont deflt pos
+control_at :: ScoreTime -> TrackLang.Control -> Derive.Deriver Signal.Y
+control_at pos control = case control of
+    TrackLang.ConstantControl deflt -> return deflt
+    TrackLang.DefaultedControl cont deflt ->
+        Derive.control_at cont (Just deflt) pos
+    TrackLang.Control cont -> Derive.control_at cont Nothing pos
 
--- | Convert a 'TrackLang.Signal' to a real signal.
-to_signal :: TrackLang.Signal -> Derive.Deriver Signal.Control
-to_signal (TrackLang.Signal sig_val) = case sig_val of
-    (Just deflt, Nothing) -> return $ Signal.constant deflt
-    (deflt, Just cont) -> do
-        maybe_sig <- Derive.get_control cont
-        case maybe_sig of
-            Nothing -> case deflt of
-                Nothing -> Derive.throw $ "not found: " ++ show cont
-                Just deflt -> return $ Signal.constant deflt
-            Just sig -> return sig
-    -- TODO can't I change the type to eliminate this?
-    (Nothing, Nothing) -> Derive.throw $ "TrackLang.Signal (Nothing, Nothing)"
+-- | Convert a 'TrackLang.Control' to a signal.
+to_signal :: TrackLang.Control -> Derive.Deriver Signal.Control
+to_signal control = case control of
+    TrackLang.ConstantControl deflt -> return $ Signal.constant deflt
+    TrackLang.DefaultedControl cont deflt -> do
+        sig <- Derive.get_control cont
+        return $ maybe (Signal.constant deflt) id sig
+    TrackLang.Control cont ->
+        maybe (Derive.throw $ "not found: " ++ show cont) return
+            =<< Derive.get_control cont
 
 -- * util
 
@@ -228,13 +226,6 @@ map_asc events st f = do
 type EventContext st = (st, [Score.Event], Score.Event, [Score.Event])
 type Result m st = Derive.DeriveT m (st, [Score.Event])
 
-with_signals :: (Monad m) => [TrackLang.Signal]
-    -> ([Signal.Y] -> EventContext st -> Result m st)
-    -> EventContext st -> Result m st
-with_signals sigs f context@(_, _, event, _) = do
-    vals <- event_signals event sigs
-    f vals context
-
 with_directive :: (Monad m) => (TrackLang.CallId -> Bool)
     -> (Note.Call -> EventContext st -> Result m st)
     -> EventContext st -> Result m st
@@ -253,23 +244,6 @@ with_directive_calls call_ids = with_directive (is_call call_ids)
 is_call :: [String] -> TrackLang.CallId -> Bool
 is_call call_id_strs call_id = Set.member call_id call_ids
     where call_ids = Set.fromList (map TrackLang.Symbol call_id_strs)
-
-get_signal :: (Monad m) => Score.Event -> TrackLang.Signal
-    -> Derive.DeriveT m Signal.Y
-get_signal event (TrackLang.Signal (deflt, control)) = case control of
-    Nothing -> maybe (Derive.throw $ "TrackLang.Signal with no control and no "
-        ++ "default value is silly") return deflt
-    Just cont -> maybe
-        (Derive.throw $ "get_signal: not in environment and no default given: "
-            ++ show cont)
-        return (Score.control_at (Score.start event) cont deflt event)
-    -- TODO hspp screws up \ syntax
-    -- Nothing -> maybe (Derive.throw $ "TrackLang.Signal with no control and \
-    --     \no default value is silly") return deflt
-
-event_signals :: (Monad m) => Score.Event -> [TrackLang.Signal]
-    -> Derive.DeriveT m [Signal.Y]
-event_signals event = mapM (get_signal event)
 
 -- * util
 
