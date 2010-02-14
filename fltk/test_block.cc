@@ -8,6 +8,7 @@
 #include "EventTrack.h"
 #include "Ruler.h"
 #include "SkeletonDisplay.h"
+#include "MsgCollector.h"
 
 
 static const bool arrival_beats = false;
@@ -319,9 +320,17 @@ timeout_func(void *vp)
     Fl::repeat_timeout(1, timeout_func, vp);
 }
 
+void
+handle_argv(int argc, char **argv)
+{
+    if (argc > 1 && strcmp(argv[1], "log") == 0)
+        global_msg_collector()->log_collected = true;
+}
+
 int
 main(int argc, char **argv)
 {
+    handle_argv(argc, argv);
     BlockViewConfig view_config = block_view_config();
     BlockModelConfig config = block_model_config();
 
@@ -353,11 +362,11 @@ main(int argc, char **argv)
     EventTrackConfig track2(track_bg, t1_find_events, t1_time_end,
         render_config);
 
-    BlockViewWindow view(100, 100, 200, 500, "view1", config, view_config);
+    BlockViewWindow view(0, 100, 200, 500, "view1", config, view_config);
     BlockViewWindow view2(300, 100, 200, 500, "view2", config, view_config);
     view.testing = true;
     view2.testing = true;
-    view2.show(argc, argv);
+    view2.show();
     // view.border(0);
 
     view.block.set_status("no status yet");
@@ -402,6 +411,6 @@ main(int argc, char **argv)
                 1, ScoreTime(64), 4, ScoreTime(0)));
     */
 
-    view.show(argc, argv);
+    view.show();
     Fl::run();
 }

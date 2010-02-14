@@ -127,7 +127,7 @@ std::ostream &operator<<(std::ostream &os, const UiMsg &m);
 
 class MsgCollector {
 public:
-    MsgCollector() {}
+    MsgCollector() : log_collected(false) {}
     // Normally 'view' will be intuited from the mouse position, but
     // you can override that by passing it explicitly.
     // 'track_drag' will assume you are dragging from a track and always
@@ -154,6 +154,9 @@ public:
     }
     int msgs_size() const { return msgs.size(); }
     void clear();
+
+    // If true, log all collected msgs for debugging.
+    bool log_collected;
 
 private:
     void push(const UiMsg &m);

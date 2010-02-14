@@ -34,18 +34,13 @@ operator<<(std::ostream &os, const UiMsg &m)
         "track_scroll", "zoom", "view_resize",
         "track_width", "close" };
 
-    char keybuf[12];
     os << '<' << msg_type_names[m.type];
     if (m.type == UiMsg::msg_event) {
-        if (isprint(m.key))
-            sprintf(keybuf, "%c", m.key);
-        else
-            sprintf(keybuf, "\\0x%x", m.key);
         os << "=" << show_event(m.event)
+            << " key=" << show_key(m.key)
             << " button=" << m.button << " clicks=" << m.clicks
             << " is_click=" << m.is_click
-            << " xy=(" << m.x << ", " << m.y
-            << ") key='" << keybuf << "'";
+            << " xy=(" << m.x << ", " << m.y << ")";
     }
 
     if (m.update_text)
@@ -275,5 +270,6 @@ MsgCollector::push(const UiMsg &m)
         }
     }
     this->msgs.push_back(m);
-    // DEBUG("collected " << m);
+    if (this->log_collected)
+        DEBUG("collected " << m);
 }

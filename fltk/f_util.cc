@@ -15,7 +15,7 @@
 // enum { DAMAGE_ZOOM = FL_DAMAGE_USER1 };
 
 
-static const char *
+const char *
 show_key(int key)
 {
     static char buf[32];
@@ -27,11 +27,37 @@ show_key(int key)
         sprintf(buf, "fn-%d", key - FL_F);
     else {
         const char *e = "unknown";
+        #define K(KEY, STR) case FL_##KEY: e = #STR; break
         switch (key) {
-        case FL_Escape: e = "escape"; break;
-        case FL_BackSpace: e = "backspace"; break;
-        case FL_Tab: e = "tab"; break;
-        case FL_Enter: e = "enter"; break;
+        K(Escape, escape);
+        K(BackSpace, backspace);
+        K(Tab, tab);
+        K(Enter, enter);
+        K(Print, print);
+        K(Scroll_Lock, scroll_lock);
+        K(Pause, pause);
+        K(Insert, insert);
+        K(Home, home);
+        K(Page_Up, page_up);
+        K(Delete, delete);
+        K(End, end);
+        K(Page_Down, page_down);
+        K(Left, left);
+        K(Right, right);
+        K(Down, down);
+        K(Shift_L, shift_l);
+        K(Shift_R, shift_r);
+        K(Control_L, control_l);
+        K(Control_R, control_r);
+        K(Caps_Lock, caps_lock);
+        K(Alt_L, alt_l);
+        K(Alt_R, alt_r);
+        K(Meta_L, meta_l);
+        K(Meta_R, meta_r);
+        K(Menu, menu);
+        K(Num_Lock, num_lock);
+        K(KP_Enter, kp_enter);
+        #undef K
         }
         return e;
     }
@@ -42,7 +68,6 @@ show_key(int key)
 const char *
 show_event(int ev)
 {
-    static char buf[1024];
     const char *e = "unknown";
     switch (ev) {
     case FL_NO_EVENT: e = "nothing"; break;
@@ -64,17 +89,23 @@ show_event(int ev)
     case FL_HIDE: e = "hide"; break;
     case FL_SHOW: e = "show"; break;
     }
+    return e;
+}
+
+const char *
+show_event_info(int ev)
+{
+    static char buf[1024];
     switch (ev) {
     case FL_PUSH: case FL_DRAG: case FL_RELEASE: case FL_MOVE:
     case FL_MOUSEWHEEL:
-        snprintf(buf, sizeof buf, "%s (%d, %d)", e,
-            Fl::event_x(), Fl::event_y());
+        snprintf(buf, sizeof buf, "(%d, %d)", Fl::event_x(), Fl::event_y());
         break;
     case FL_KEYDOWN: case FL_KEYUP:
-        snprintf(buf, sizeof buf, "%s %s", e, show_key(Fl::event_key()));
+        return show_key(Fl::event_key());
         break;
     default:
-        snprintf(buf, sizeof buf, "%s", e);
+        return "unknown";
         break;
     }
     return buf;
