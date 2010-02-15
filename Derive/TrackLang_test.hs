@@ -21,7 +21,7 @@ test_extract = do
         call = TrackLang.Symbol "call"
         mkenv kvs = Map.fromList
             [(TrackLang.Symbol k, v) | (k, v) <- kvs]
-        mkargs vals = TrackLang.PassedArgs vals (mkenv []) call
+        mkargs vals = TrackLang.PassedArgs vals (mkenv []) call 1
         f args sig = map_left Pretty.pretty (TrackLang.extract2 args sig)
     let method = VMethod (TrackLang.Method "ho")
 
@@ -38,7 +38,8 @@ test_extract = do
     let sig1 :: (TrackLang.Arg Double, TrackLang.Arg Double)
         sig1 = (TrackLang.Arg "m1" Nothing, TrackLang.Arg "m2" Nothing)
 
-    let passed vals env = TrackLang.PassedArgs (map VNum vals) (mkenv env) call
+    let passed vals env =
+            TrackLang.PassedArgs (map VNum vals) (mkenv env) call 1
     left_like (f (passed [] []) sig1)
         "too few arguments: expected 2, got 0"
     left_like (f (passed [] [("call-m1", method)]) sig1)

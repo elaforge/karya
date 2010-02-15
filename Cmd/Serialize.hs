@@ -13,7 +13,6 @@
 module Cmd.Serialize where
 
 import qualified Control.Exception as Exception
-import Control.Monad
 
 import qualified Data.Array.IArray as IArray
 import qualified Data.Binary as Binary

@@ -45,6 +45,8 @@ import qualified Util.Parse as Parse
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
+import Ui
+
 import qualified Derive.Score as Score
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
@@ -286,6 +288,14 @@ data PassedArgs = PassedArgs {
     passed_vals :: [Val]
     , passed_environ :: Environ
     , passed_call :: CallId
+    -- | The deriver was stretched by the reciprocal of this number to put it
+    -- into normalized 0--1 time (i.e. this is the deriver's original
+    -- duration).  Calls can divide by this to get durations in the context of
+    -- the track.
+    --
+    -- Stretch for a 0 dur note is considered 1, not infinity, to avoid
+    -- problems with division by 0.
+    , passed_stretch :: ScoreTime
     }
 
 type_of_val :: (Typecheck a) => a -> Type

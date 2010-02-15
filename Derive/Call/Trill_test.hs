@@ -28,10 +28,13 @@ test_absolute_trill = do
 
 test_score_trill = do
     let f = Trill.score_trill
-    equal (run (f (con 1) (con 2))) $
+    equal (run (f 1 (con 1) (con 2))) $
         Right [[(0, 60), (0.5, 61), (1, 60)]]
+    -- If the event was length 2 there should be 2 cycles
+    equal (run (f 2 (con 1) (con 2))) $
+        Right [[(0, 60), (0.25, 61), (0.5, 60), (0.75, 61), (1, 60)]]
     -- trill speed affected by stretch
-    equal (run (Derive.d_stretch 2 . f (con 1) (con 2))) $
+    equal (run (Derive.d_stretch 2 . f 1 (con 1) (con 2))) $
         Right [[(0, 60), (1, 61), (2, 60)]]
 
 run deriver = extract $ DeriveTest.derive_note $

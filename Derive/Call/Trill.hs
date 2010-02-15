@@ -84,25 +84,27 @@ c_score_trill = Derive.transformer $ \args deriver -> TrackLang.call2 args
     \neighbor speed -> do
         neighbor_sig <- Call.to_signal neighbor
         speed_sig <- Call.to_signal speed
-        score_trill neighbor_sig speed_sig deriver
+        score_trill (TrackLang.passed_stretch args) neighbor_sig speed_sig
+            deriver
 
-score_trill :: Signal.Control -> Signal.Control -> Derive.EventDeriver
-    -> Derive.EventDeriver
-score_trill neighbor speed deriver = do
-    all_transitions <- score_pos_at_speed speed 0 1
+score_trill :: ScoreTime -> Signal.Control -> Signal.Control
+    -> Derive.EventDeriver -> Derive.EventDeriver
+score_trill stretch neighbor speed deriver = do
+    all_transitions <- score_pos_at_speed stretch speed 0 1
     let transitions = integral_cycles 1 all_transitions
     real_transitions <- mapM Derive.score_to_real transitions
     trill_from_transitions real_transitions neighbor deriver
 
-score_pos_at_speed :: Signal.Control -> ScoreTime -> ScoreTime
+score_pos_at_speed :: ScoreTime -> Signal.Control -> ScoreTime -> ScoreTime
     -> Derive.Deriver [ScoreTime]
-score_pos_at_speed sig pos end
+score_pos_at_speed stretch sig pos end
     | pos > end = return []
     | otherwise = do
         real <- Derive.score_to_real pos
-        let speed = Signal.at real sig
-            -- TODO multiply speed by original event duration
-        rest <- score_pos_at_speed sig (pos + Signal.y_to_score (1/speed)) end
+        -- If the event stretch is 2, I can double the speed to put it in
+        -- score time wrt the track.
+        let speed = Signal.y_to_score (Signal.at real sig) * stretch
+        rest <- score_pos_at_speed stretch sig (pos + recip speed) end
         return (pos : rest)
 
 -- * util

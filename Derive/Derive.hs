@@ -1,5 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, PatternGuards, ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 {- | Main module for the deriver monad.
 
     Derivers are always in DeriveT, even if they don't need its facilities.
@@ -39,6 +40,7 @@ import Control.Monad.Trans (lift)
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Monoid as Monoid
 
 import qualified Util.Control
 import qualified Util.Log as Log
@@ -736,7 +738,7 @@ d_stretch :: (Monad m) => ScoreTime -> DeriveT m a -> DeriveT m a
 d_stretch factor deriver
     -- A stretch of 0 is ok since the deriver may produce no events, or may
     -- work in real time.
-    | factor < 0 = throw $ "stretch < 0: " ++ show factor
+    | factor <= 0 = throw $ "stretch <= 0: " ++ show factor
     | otherwise = with_warp (Score.stretch_warp factor) deriver
 
 with_warp :: (Monad m) => (Score.Warp -> Score.Warp) -> DeriveT m a
@@ -953,6 +955,11 @@ merge_event_lists = foldr merge_events []
 d_signal_merge :: (Monad m) => [[(TrackId, Signal.Signal y)]]
     -> DeriveT m [(TrackId, Signal.Signal y)]
 d_signal_merge = return . concat
+
+-- | Monoid instance for those who prefer that interface.
+instance Monoid.Monoid EventDeriver where
+    mempty = empty_deriver
+    mappend = d_merge
 
 
 -- * negative duration

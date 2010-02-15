@@ -477,7 +477,7 @@ Derive:
 
   tracklang2:
     * remove nonsensical Signal (Nothing, Nothing) type
-    - make event length available to transformers so they can unstretch to it?
+    * make event length available to transformers so they can unstretch to it?
     * rename TrackLang.Signal -> TrackLang.Control ?
     * data NoteDeriver = (start, dur, EventDeriver)
     * note track emits [NoteDeriver], merges to EventDeriver

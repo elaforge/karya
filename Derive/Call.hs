@@ -85,7 +85,7 @@ eval_generator caller (TrackLang.Call call_id args : rest) prev cur
     let msg = "eval_generator " ++ show caller ++ ": "
     call <- lookup_note_call call_id
     env <- Derive.gets Derive.state_environ
-    let passed = TrackLang.PassedArgs args env call_id
+    let passed = TrackLang.PassedArgs args env call_id stretch
     case Derive.call_generator call of
         Nothing -> do
             Derive.warn $ msg ++ "non-generator " ++ show call_id
@@ -96,7 +96,7 @@ eval_generator caller (TrackLang.Call call_id args : rest) prev cur
                 Derive.warn $ msg ++ Pretty.pretty err
                 skip_event
             Right (deriver, consumed) -> do
-                deriver <- eval_transformer caller rest
+                deriver <- eval_transformer caller stretch rest
                     (handle_exc "generator" call_id deriver)
                 return (place deriver, consumed)
     where
@@ -107,23 +107,23 @@ eval_generator caller (TrackLang.Call call_id args : rest) prev cur
     -- by looking at a (start, end) of (1, 0) instead of (0, 1).
     place = Derive.d_at start . Derive.d_stretch stretch
     (start, end) = (Track.event_min cur, Track.event_max cur)
-    stretch = end - start
-    warp_dur = if stretch == 0 then const 0 else (/stretch)
+    -- A 0 dur event can't be normalized, so don't try.
+    stretch = if start == end then 1 else end - start
     -- Warp all the events to be local to the warp established by 'place'.
     warp (pos, evt) =
-        ((pos-start) / stretch, Event.modify_duration warp_dur evt)
-    evt0 = Event.modify_duration warp_dur (snd cur)
+        ((pos-start) / stretch, Event.modify_duration (/stretch) evt)
+    evt0 = Event.modify_duration (/stretch) (snd cur)
 
 eval_generator _ [] _ cur _ = Derive.throw $
     "event with no calls at all (this shouldn't happen): " ++ show cur
 
-eval_transformer :: String -> TrackLang.Expr -> Derive.EventDeriver
-    -> Derive.Deriver Derive.EventDeriver
-eval_transformer caller (TrackLang.Call call_id args : rest) deriver = do
+eval_transformer :: String -> ScoreTime -> TrackLang.Expr
+    -> Derive.EventDeriver -> Derive.Deriver Derive.EventDeriver
+eval_transformer caller stretch (TrackLang.Call call_id args : rest) deriver= do
     let msg = "eval_transformer " ++ show caller ++ ": "
     call <- lookup_note_call call_id
     env <- Derive.gets Derive.state_environ
-    let passed = TrackLang.PassedArgs args env call_id
+    let passed = TrackLang.PassedArgs args env call_id stretch
     case Derive.call_transformer call of
         Nothing -> do
             Derive.warn $ msg ++ "non-transformer " ++ show call_id
@@ -134,9 +134,9 @@ eval_transformer caller (TrackLang.Call call_id args : rest) deriver = do
                 Derive.warn $ msg ++ Pretty.pretty err
                 return Derive.empty_deriver
             Right deriver ->
-                eval_transformer caller rest
+                eval_transformer caller stretch rest
                     (handle_exc "transformer" call_id deriver)
-eval_transformer _ [] deriver = return deriver
+eval_transformer _ _ [] deriver = return deriver
 
 handle_exc :: String -> TrackLang.CallId -> Derive.EventDeriver
     -> Derive.EventDeriver
