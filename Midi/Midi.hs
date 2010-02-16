@@ -6,6 +6,9 @@ import qualified Data.Generics as Generics
 import qualified Perform.Timestamp as Timestamp
 import Data.Word (Word8)
 
+import qualified Util.Pretty as Pretty
+
+
 -- * devices
 
 data WriteMessage = WriteMessage {
@@ -47,11 +50,11 @@ program_change bank program = map (ChannelMessage 0)
     ]
     where (lsb, msb) = split14 (fromIntegral bank)
 
+-- * constants
+
 cc_bank_msb, cc_bank_lsb :: Control
 cc_bank_msb = 0
 cc_bank_lsb = 32
-
--- * constants
 
 -- | These aren't used here, but even though I'd like to constrain all midi
 -- parsing to Midi.Parse, other places wind up dealing with raw sysex msgs.
@@ -106,12 +109,11 @@ data Message =
     | UnknownMessage Word8 Word8 Word8
     deriving (Eq, Ord, Show, Read, Generics.Typeable)
 
--- | Like show, but don't display sysexs which may be huge.
-show_message :: Message -> String
-show_message (CommonMessage (SystemExclusive manuf bytes)) =
-    "CommonMessage (SystemExclusive " ++ show manuf
-        ++ " <" ++ show (ByteString.length bytes) ++ " bytes>)"
-show_message msg = show msg
+instance Pretty.Pretty Message where
+    pretty (CommonMessage (SystemExclusive manuf bytes)) =
+        "CommonMessage (SystemExclusive " ++ show manuf
+            ++ " <" ++ show (ByteString.length bytes) ++ " bytes>)"
+    pretty msg = show msg
 
 -- TODO using Word8 here is kind of iffy.  Word8s silently overflow after 0xff.
 -- On the other hand, these all have 7 bit ranges, so I can still check for

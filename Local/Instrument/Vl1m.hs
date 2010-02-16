@@ -149,16 +149,16 @@ get_7bit bytes offset = Parse.from_signed_8bit (Midi.join14 msb lsb)
 -- | (name, sysex_offset, depth_offset, has_upper_lower)
 type Vl1Control = (String, Int, Int, Bool)
 
--- | Vaguely "more audible" controls come first.  Having more than one seq
+-- | Vaguely \"more audible\" controls come first.  Having more than one seq
 -- control affecting the same vl1 control is confusing, so when a control is
 -- assigned to more than one control, the one first in this list will get
 -- the control.  That way, if contoller 2 is assigned to both pressure and
--- amplitude, the control will be called "pressure".
+-- amplitude, the control will be called @pressure@.
 --
 -- Of course prominence is also highly dependent on depth, but this is simpler.
 -- I ignore controls below a certain depth anyway.
 --
--- Paired with the byte offset in the "element parameters" sysex section.
+-- Paired with the byte offset in the @element parameters@ sysex section.
 vl1_control_map :: [Vl1Control]
 vl1_control_map =
     [ ("embouchure", 4, 2, True)

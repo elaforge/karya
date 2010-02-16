@@ -6,6 +6,7 @@ import qualified Data.Map as Map
 
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
+import qualified Util.Pretty as Pretty
 
 import qualified Midi.Midi as Midi
 
@@ -110,7 +111,7 @@ send_initialization :: Instrument.InitializePatch
     -> Score.Instrument -> Midi.WriteDevice -> Midi.Channel -> Cmd.CmdL ()
 send_initialization init inst dev chan = case init of
     Instrument.InitializeMidi msgs -> do
-        Log.notice $ "sending midi init: " ++ concatMap Midi.show_message msgs
+        Log.notice $ "sending midi init: " ++ Pretty.pretty msgs
         mapM_ ((Cmd.midi dev) . Midi.set_channel chan) msgs
     Instrument.InitializeMessage msg ->
         -- TODO warn doesn't seem quite right for this...
