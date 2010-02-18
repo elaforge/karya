@@ -170,7 +170,7 @@ selection_sub_state sel = do
             block { Block.block_tracks = [] }
 
         -- Copy over the tracks, but without their rulers.
-        let track_pairs = Seq.unique_with fst $ zip
+        let track_pairs = Seq.unique_on fst $ zip
                 (Block.track_ids_of tracklike_ids) (Block.tracks_of tracklikes)
         forM_ track_pairs $ \(track_id, track) ->
             State.create_track (Id.unpack_id track_id) (events_in_sel sel track)

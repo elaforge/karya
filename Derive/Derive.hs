@@ -947,7 +947,7 @@ d_merge_list :: (Monad m) => [DeriveT m [Score.Event]]
 d_merge_list = foldr d_merge (return [])
 
 merge_events :: [Score.Event] -> [Score.Event] -> [Score.Event]
-merge_events = Seq.merge_with Score.event_start
+merge_events = Seq.merge_on Score.event_start
 
 merge_event_lists :: [[Score.Event]] -> [Score.Event]
 merge_event_lists = foldr merge_events []

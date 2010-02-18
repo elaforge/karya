@@ -126,7 +126,7 @@ element bytes = ((pb_up, pb_down), name, c_groups)
     name = Seq.strip $ Parse.to_string $ take 10 $ drop 231 bytes
     controls = Seq.map_maybe (get_control bytes) vl1_control_map
     c_groups = [(cc, map fst grp)
-        | (cc, grp) <- Seq.keyed_group_with snd controls]
+        | (cc, grp) <- Seq.keyed_group_on snd controls]
 
 get_control :: [Word.Word8] -> Vl1Control -> Maybe (String, Midi.Control)
 get_control bytes (name, offset, depth, upper_lower) = do

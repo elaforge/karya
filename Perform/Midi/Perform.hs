@@ -401,7 +401,7 @@ clip_val low high val
 
 -- | Merge the sorted midi messages into a single sorted list.
 merge_messages :: [[Midi.WriteMessage]] -> [Midi.WriteMessage]
-merge_messages = foldr (Seq.merge_with Midi.wmsg_ts) []
+merge_messages = foldr (Seq.merge_on Midi.wmsg_ts) []
 
 -- * channelize
 
@@ -434,7 +434,7 @@ channelize_event i_addrs overlapping event =
 shareable_chan :: [(Event, Channel)] -> Event -> Maybe Channel
 shareable_chan overlapping event = fmap fst (List.find all_share by_chan)
     where
-    by_chan = Seq.keyed_group_with snd overlapping
+    by_chan = Seq.keyed_group_on snd overlapping
     all_share (_chan, evt_chans) =
         all (can_share_chan event) (map fst evt_chans)
 

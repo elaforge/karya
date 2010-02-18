@@ -149,7 +149,7 @@ alloc_addr note_addr addr_serial serial addrs input
 
     (allocated, free) = List.partition (`elem` (Map.elems note_addr)) addrs
     old_addr = if null allocated then Nothing
-        else Just $ Seq.minimum_with (flip Map.lookup addr_serial)
+        else Just $ Seq.minimum_on (flip Map.lookup addr_serial)
             (error "unreached") allocated
 
 pb_of :: Midi.PitchBendValue -> [Midi.ChannelMessage] -> Midi.PitchBendValue

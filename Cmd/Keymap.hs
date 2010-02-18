@@ -190,7 +190,7 @@ type CmdMap m = Map.Map KeySpec (CmdSpec m)
 
 overlaps :: [Binding m] -> [[String]]
 overlaps bindings =
-    [map cmd_name grp | grp <- Seq.group_with fst bindings, length grp > 1]
+    [map cmd_name grp | grp <- Seq.group_on fst bindings, length grp > 1]
     where cmd_name (kspec, CmdSpec name _) = show kspec ++ ": " ++ name
 
 -- | Return the mods currently down, stripping out non-modifier keys and notes,

@@ -81,7 +81,7 @@ remove_edges edges graph =
         | (from, groups) <- grouped]
     where
     in_bounds = filter ((\p -> Array.in_bounds p graph) . fst) edges
-    grouped = Seq.keyed_group_with fst in_bounds
+    grouped = Seq.keyed_group_on fst in_bounds
 
 -- | Increment all vertices at and above, insert new empty vertex.
 insert_vertex :: Int -> Graph -> Graph

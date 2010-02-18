@@ -1,10 +1,10 @@
 module Util.Seq where
-
 import qualified Data.Char as Char
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import Data.Function
-import Data.List
+import qualified Data.List as List
+import qualified Data.List.Ordered as Ordered
 
 
 -- * transformation
@@ -12,8 +12,8 @@ import Data.List
 enumerate :: [a] -> [(Int, a)]
 enumerate = zip [0..]
 
-key_with :: (a -> k) -> [a] -> [(k, a)]
-key_with f xs = zip (map f xs) xs
+key_on :: (a -> k) -> [a] -> [(k, a)]
+key_on f xs = zip (map f xs) xs
 
 -- | Map a function which may not have a return value.
 map_maybe :: (a -> Maybe b) -> [a] -> [b]
@@ -66,63 +66,62 @@ modify_at xs i f = case post of
 
 -- * min max
 
-minimum_with :: (Ord ord) => (a -> ord) -> a -> [a] -> a
-minimum_with _ ifnull [] = ifnull
-minimum_with key _ xs = foldl1' f xs
+minimum_on :: (Ord ord) => (a -> ord) -> a -> [a] -> a
+minimum_on _ ifnull [] = ifnull
+minimum_on key _ xs = List.foldl1' f xs
     where f low x = if key x < key low then x else low
 
-maximum_with :: (Ord ord) => (a -> ord) -> a -> [a] -> a
-maximum_with _ ifnull [] = ifnull
-maximum_with key _ xs = foldl1' f xs
+maximum_on :: (Ord ord) => (a -> ord) -> a -> [a] -> a
+maximum_on _ ifnull [] = ifnull
+maximum_on key _ xs = List.foldl1' f xs
     where f high x = if key x > key high then x else high
 
 -- * ordered lists
 
 sort_on :: (Ord b) => (a -> b) -> [a] -> [a]
-sort_on key = sortBy (\x y -> compare (key x) (key y))
+sort_on = Ordered.sortOn'
 
 -- | Merge sorted lists.  If two elements compare equal, the one from the left
 -- list comes first.
 merge :: Ord a => [a] -> [a] -> [a]
-merge = merge_by compare
+merge = merge_on id
 
--- | Non-overloaded version of 'merge'.
 merge_by :: (a -> a -> Ordering) -> [a] -> [a] -> [a]
-merge_by _ [] ys = ys
-merge_by _ xs [] = xs
-merge_by cmp xlist@(x:xs) ylist@(y:ys) = case cmp x y of
-    GT -> y : merge_by cmp xlist ys
-    _ -> x : merge_by cmp xs ylist
+merge_by = Ordered.mergeBy
 
--- | Like 'merge_by' but easier to use and should be slightly more efficient
--- for keyed merges.
-merge_with :: (Ord k) => (a -> k) -> [a] -> [a] -> [a]
-merge_with _ [] ys = ys
-merge_with _ xs [] = xs
-merge_with key xlist@(x:xs) ylist@(y:ys)
-    -- TODO avoid calling key more than once
-    | key x <= key y = x : merge_with key xs ylist
-    | otherwise = y : merge_with key xlist ys
+merge_on :: (Ord k) => (a -> k) -> [a] -> [a] -> [a]
+merge_on key = Ordered.mergeBy (compare `on` key)
+
+merge_lists :: (Ord k) => (a -> k) -> [[a]] -> [a]
+merge_lists key = foldr (merge_on key) []
+
+-- | If the heads of the sublists are also sorted I can be lazy in the list of
+-- sublists too.  This version is optimized for minimal overlap.
+merge_asc_lists :: (Ord k) => (a -> k) -> [[a]] -> [a]
+merge_asc_lists key = foldr go []
+    where
+    go [] ys = ys
+    go (x:xs) ys = x : merge_on key xs ys
 
 -- | Handy to merge or sort a descending list.
+reverse_compare :: (Ord a) => a -> a -> Ordering
 reverse_compare a b = case compare a b of
     LT -> GT
     EQ -> EQ
     GT -> LT
 
-
 -- * grouping
 
 -- | Group the unsorted list into @(key x, xs)@ where all @xs@ compare equal
 -- after @key@ is applied to them.  List is returned in sorted order.
-keyed_group_with :: (Ord b) => (a -> b) -> [a] -> [(b, [a])]
-keyed_group_with key = map (\gs -> (key (head gs), gs))
-    . groupBy ((==) `on` key) . sortBy (compare `on` key)
+keyed_group_on :: (Ord b) => (a -> b) -> [a] -> [(b, [a])]
+keyed_group_on key = map (\gs -> (key (head gs), gs))
+    . group_on key . sort_on key
 
 -- | Like 'groupBy', but the list doesn't need to be sorted, and use a key
 -- function instead of equality.  List is returned in sorted order.
-group_with :: (Ord b) => (a -> b) -> [a] -> [[a]]
-group_with key = groupBy ((==) `on` key) . sort_on key
+group_on :: (Ord b) => (a -> b) -> [a] -> [[a]]
+group_on key = List.groupBy ((==) `on` key) . sort_on key
 
 -- | Pair each element with the following element.  The last element is paired
 -- with Nothing.  Like @zip xs (drop 1 xs ++ f (last xs))@ but only traverses
@@ -148,6 +147,24 @@ padded_zip [] bs = zip (repeat Nothing) (map Just bs)
 padded_zip as [] = zip (map Just as) (repeat Nothing)
 padded_zip (a:as) (b:bs) = (Just a, Just b) : padded_zip as bs
 
+{-
+pairs :: [a] -> [(a, a)]
+pairs (x0 : x1 : xs) = (x0, x1) : pairs xs
+pairs _ = []
+
+unpairs :: [(a, a)] -> [a]
+unpairs ((x0, x1) : xs) = x0 : x1 : unpairs xs
+unpairs [] = []
+
+partition2 :: (a -> Bool) -> (a -> Bool) -> [a] -> ([a], [a], [a])
+partition2 _ _ [] = ([], [], [])
+partition2 f g (x:xs)
+    | f x = (x : fs, gs, rest)
+    | g x = (fs, x : gs, rest)
+    | otherwise = (fs, gs, x : rest)
+    where (fs, gs, rest) = partition2 f g xs
+-}
+
 -- * sublists
 
 -- A foldr version is not lazy enough and overflows the stack.
@@ -169,14 +186,14 @@ mlast _ full xs = full (last xs)
 
 -- | Drop adjacent elts if they are equal after applying the key function.  The
 -- first elt is kept.
-drop_dups :: (Eq b) => (a -> b) -> [a] -> [a]
+drop_dups :: (Eq k) => (a -> k) -> [a] -> [a]
 drop_dups _ [] = []
 drop_dups key (x:xs) = x : map snd (filter (not . equal) (zip (x:xs) xs))
     where equal (x, y) = key x == key y
 
 -- | Like 'drop_dups', but keep the last adjacent equal elt instead of the
 -- first.
-drop_initial_dups :: (Eq b) => (a -> b) -> [a] -> [a]
+drop_initial_dups :: (Eq k) => (a -> k) -> [a] -> [a]
 drop_initial_dups _ [] = []
 drop_initial_dups _ [x] = [x]
 drop_initial_dups key (x:xs@(next:_))
@@ -185,10 +202,10 @@ drop_initial_dups key (x:xs@(next:_))
     where rest = drop_initial_dups key xs
 
 unique :: Ord a => [a] -> [a]
-unique = unique_with id
+unique = unique_on id
 
-unique_with :: Ord b => (a -> b) -> [a] -> [a]
-unique_with f xs = go Set.empty xs
+unique_on :: Ord k => (a -> k) -> [a] -> [a]
+unique_on f xs = go Set.empty xs
     where
     go _set [] = []
     go set (x:xs)
@@ -257,7 +274,7 @@ split sep xs = go sep xs
     go sep xs
         | null post = [pre]
         | otherwise = pre : split sep (drop (length sep) post)
-        where (pre, post) = break_tails (sep `isPrefixOf`) xs
+        where (pre, post) = break_tails (sep `List.isPrefixOf`) xs
 
 -- | 'split' never returns nil, so sometimes it's more convenient to express
 -- that in the type.
@@ -270,7 +287,7 @@ split_t sep xs = case split sep xs of
 split1 :: (Eq a) => [a] -> [a] -> ([a], [a])
 split1 [] _ = error $ "Util.Seq.split1: empty seperator"
 split1 sep xs = (pre, drop (length sep) post)
-    where (pre, post) = break_tails (sep `isPrefixOf`) xs
+    where (pre, post) = break_tails (sep `List.isPrefixOf`) xs
 
 -- | Split on commas and strip whitespace.
 split_commas :: String -> [String]
@@ -278,7 +295,7 @@ split_commas = map strip . split ","
 
 -- | Concat a list with 'sep' in between.
 join :: [a] -> [[a]] -> [a]
-join sep = concat . intersperse sep
+join sep = concat . List.intersperse sep
 
 replace1 :: (Eq a) => a -> [a] -> [a] -> [a]
 replace1 from to xs = concatMap (\v -> if v == from then to else [v]) xs
@@ -296,5 +313,5 @@ replace val repl = replaceWith (replaceVal val repl)
 
 -- | Helper for replaceWith to replace a constant sublist 'val' with 'repl'.
 replaceVal val repl xs
-    | val `isPrefixOf` xs = Just (repl, drop (length val) xs)
+    | val `List.isPrefixOf` xs = Just (repl, drop (length val) xs)
     | otherwise = Nothing

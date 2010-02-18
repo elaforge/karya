@@ -160,7 +160,7 @@ auto_config block_id = do
     let no_dev = [inst | (inst, Nothing) <- zip insts devs]
         inst_devs = [(inst, dev) | (inst, Just dev) <- zip insts devs]
         allocs = [(inst, [(dev, fromIntegral i)])
-            | (dev, by_dev) <- Seq.keyed_group_with snd inst_devs
+            | (dev, by_dev) <- Seq.keyed_group_on snd inst_devs
             , (i, (inst, _dev)) <- Seq.enumerate by_dev]
     unless (null no_dev) $
         Log.warn $ "no synth found for instruments: " ++ show insts

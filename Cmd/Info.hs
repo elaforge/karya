@@ -35,7 +35,7 @@ show_instrument_info addrs (MidiDb.Info _synth patch) = unlines
 show_addrs :: [Instrument.Addr] -> String
 show_addrs addrs = show_list2
     [ Midi.un_write_device wdev ++ ":" ++ Seq.join "," (map (show . snd) addrs)
-    | (wdev, addrs) <- Seq.keyed_group_with fst addrs]
+    | (wdev, addrs) <- Seq.keyed_group_on fst addrs]
 
 show_inst :: Score.Instrument -> String
 show_inst (Score.Instrument name) = '>' : name
