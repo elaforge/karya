@@ -12,10 +12,8 @@ import Ui
 
 
 -- | An absolute timestamp, measured from some arbitrary starting position.
--- Since I use the default PortMidi timer, it's from the initialization of the
--- midi subsystem at the moment.
---
--- The resolution is milliseconds.
+-- The resolution is only milliseconds, so it can't be used to align audio.
+-- This is just for the MIDI.
 newtype Timestamp = Timestamp Integer
     deriving (Eq, Ord, Show, Num, Enum, Real, Integral)
 
@@ -30,10 +28,6 @@ to_seconds (Timestamp ts) = fromIntegral ts / 1000
 to_microseconds :: Timestamp -> Integer
 to_microseconds (Timestamp ts) = ts * 1000
 
--- | RealTime is converted 1:1000.  This means that a RealTime, after passing
--- through all the tempo mapping, should eventually correspond to seconds.
--- This means I can't align to samples, but MIDI timing is not that accurate
--- anyway.  If I ever need to align samples I may have to change this.
 from_real_time :: RealTime -> Timestamp
 from_real_time = round . (*1000)
 to_real_time :: Timestamp -> RealTime

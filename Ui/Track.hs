@@ -13,6 +13,10 @@ import qualified Ui.Event as Event
 
 type PosEvent = (ScoreTime, Event.Event)
 
+-- | Constructor for tests, analogous to 'Event.event'.
+event :: ScoreTime -> ScoreTime -> String -> PosEvent
+event start dur txt = (start, Event.event txt dur)
+
 data Track = Track {
     track_title :: String
     , track_events :: TrackEvents
