@@ -772,6 +772,10 @@ d_warp sig deriver = do
 -- (TODO continuous control warp might change that).  Subsequent
 -- warping inside the d_warp won't affect the controls, so @d_at p d@ won't
 -- move the controls along with @d@.
+--
+-- TODO actually the whole concept is kinda bogus, because it transforms
+-- controls after they have already been rendered, which is too late for
+-- any kind of abstraction.  See thoughts in doc/tracklang
 d_control_warp :: (Monad m) => Signal.Warp -> DeriveT m a -> DeriveT m a
 d_control_warp sig deriver = do
     old <- gets state_controls

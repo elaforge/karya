@@ -261,7 +261,45 @@ fltk:
   Track
     / dividers can have separate color for upper part, for collapsable tracks
   event track
+    - editing event text should use a text entry widget, that way I get
+      a cursor, IME, etc.  A side benefit is that I don't have to derive half
+      edited data.  This also solves the problem where the currently edited
+      event is hidden.
+
+      This only applies to raw edit mode.  Entering notes and doing
+      programmatic changes is still single key.
+      Remove the separate raw edit mode.  Return while in edit mode creates an
+      event if one doesn't exist and begins editing its text.  Keyboard focus
+      is then in the widget until return or tab or a click outside of it.
+
+      I can express that by attaching (currently_edited_event :: Maybe
+      (BlockId, TrackNum, ScoreTime)) to the state.  Actually it still has to
+      go outside of the state because I don't want to save that or undo into
+      it.  Edit mode could conceivably be in state, but probably shouldn't, it
+      isn't currently.  So return (State, [UiCommand]).
+
+      Another possibility is to do it totally in c++: if "edit" is true, then
+      fltk takes the enter, checks for text under the cursor for initial
+      contents, and then sents a msg when editing is done.  This is simpler
+      because it doesn't need to put focus in the state, but less flexible
+      because haskell can't trigger an edit.  And not that much simpler,
+      because I need an editing mode synced over.
+
+      What if I want a cmd that just edits control val: open edit with just the
+      number part, or maybe just the number part selected, which then modifies
+      the text on enter.  Then I have to know when the msg comes back that it's
+      meant to just edit part of the event.  One way would be put a tag in the
+      focus: Just (bid, tnum, pos, "tag").  Sorta ugly though.  But since
+      hs->fltk and fltk->hs communication is asynchronous, I don't see any way
+      around this.
+
+      Also I need explicit trigger to implement automatic opening when in edit
+      mode.  This is probably not good for note tracks, but maybe useful for
+      control tracks.
+
     - "currently edited" event shouldn't be hidden by previous ones
+      bring event closest to cursor to front?
+
     - I think I still need a better story for collapsed events.  Maybe keep
       a local cache of TrackPos -> IsHidden, this is just a record of where
       text was drawn.
@@ -409,7 +447,7 @@ Cmd:
     - gzip save files
 
 Derive:
-  - derivers for seleh patterns
+  - derivers for sekaran patterns
     - do a code version and a block version
     - block version requires block arguments and variable substitution
   TrackLang tracklang
@@ -509,6 +547,11 @@ Derive:
       'statements' that produce no notes.  That way a var set won't interrupt
       the pitch sig.
 
+    - implement automatic block splitting as described in doc/tracklang
+    - some kind of notation for replacing the track interpreter, e.g.
+      TrackId -> EventDeriver.
+      This could be used to implement macros, and also preproc.
+
     * parser support for '='
     * val typed signals
     * val signals in derive state
@@ -593,7 +636,7 @@ Derive:
       also imagine a version without the clip.  'unstretch' is a crummy name
       though.  'restore'?  'abs-dur'?
 
-    - Implement seleh derivation.  The tricky thing here is I want n notes, not
+    / Implement sekar derivation.  The tricky thing here is I want n notes, not
       a call with n args.  Use the Generator "consumed" return val for this.
         Seleh can pair derivers:
           seq [stretch 0.5 (seq d1 d2), stretch 0.5 (seq d1 d2)]
@@ -601,7 +644,7 @@ Derive:
 
         Without logical-stop I can't sequence Derivers.
 
-      It would be nice to do a piece on seleh patterns where the form itself is
+      It would be nice to do a piece on sekar patterns where the form itself is
       in the same pattern, for a kind of fractal structure.  How to have
       a pattern derive patterns?
 

@@ -148,3 +148,176 @@ I can postprocess Score.Events by forcing the Deriver and re-packaging it at
 the cost of evaluating behaviours (I would have to at least handle warp).
 Preprocess would need a special notation at the track level, though I can see
 it wanting the control tracks too, so maybe also at the block level.
+
+
+
+2010-02-21
+    application of calls in the track
+
+A note track is at the bottom of the call tree, it runs in the context
+provided by the control tracks above it.  This is necessary for derivers that
+need to know what the pitch is, or modify the pitch, like trill.  However,
+some derivers want to move (warp) other derivers, along with their pitches and
+various other controls.  The problem is that the controls have already been
+evaluated, and that's why you can see them in the environment.
+
+There are two solutions: warp the controls in the environment after the fact,
+or evaluate the call before the controls.  The first is probably not tenable,
+because controls themselves may contain abstract derivation, e.g. a trill in a
+pitch control can't be manipulated properly if it has already been reduced to
+a signal, so I am left with the second.  While the actual note generating
+calls are still at the bottom of the call tree by necessity, some of the calls
+in the note track are not.
+
+One problem is how to express where each call goes.  A normal language can
+simply nest expressions as desired, but I have all expressions flattened into
+tracks.
+
+- Use multiple note tracks, and place each call explicitly at its level.  This
+is most appealing in terms of orthogonality.  I have to work out exactly what
+this would look like: how does a call in an outer note track get the derivers
+for the calls in the inner ones?  Will it be too awkward notationally?
+
+- Explicitly mark calls with a list of controls they are above.  This can
+either be from passing some kind of argument to the call, or something
+hardcoded.  It seems like this would lead to lots of messing with control
+lists for each call and is not very easy to use.  Also, it has to be
+per-track, because you could have the same control outside and inside, e.g. a
+breath track outside, and then a multiplicative breath track contouring each
+note inside.
+
+- Mark controls as binding loosely or tightly, and derivers are coded to
+operate "inside" or "outside" of notes.  I think this is pretty feasible
+because derivers seem to break down naturally into those two categories.  This
+way control tracks are tagged with note-local or global, which will control
+whether derivers that modify notes will modify them or not.
+
+Derivers that want to manipulate notes abstractly are functions of [Deriver]
+-> Deriver.  But how do events get turned into a Deriver in the first place?
+
+More like real expression evaluation: eval innermost first then pass to calls.
+Dunno how this would work...
+
+Another way is that the deriver takes [Event] then has control over the
+evaluation, but will eval recursively.  This way if it reorders them they can
+get the proper prev and next, or can it?  Suppose a note generator wants prev
+and next pitches, and is inside a sekaran:
+
+derivers = eval_notes [events duplicated for how to play]
+merge [d @ x ~ f | d <- derivers]
+
+The whole thing about stripping the call from the first note of a subeval
+seems wrong.  Multiple note tracks would avoid this.  It seems like if they
+were evaluated separately...
+
+
+To get trimmed_pitch right I only need to trim according to the track and
+warping won't destroy that property.  However, next and prev notes won't be
+according to what you actually hear.  Then again, what exactly does "previous
+note" mean in the presence of derivers that rearrange them arbitrarily?  I
+need a better idea of what prev and next will be used for.
+    trimmed_pitch : need next event on the track, in RealTime.
+    repeat something from previous note: maybe just use dynamic env?
+
+Previously, a note can get previous/next pitch because it's in the same pitch
+env as prev and next notes.  Could I generalize this with prev/next derivers?
+I just need the environ from them, so I should be able to avoid an endless
+recursion.
+
+Anything but strictly previous on track and next on track seems too ad-hoc and
+hence too hard to predict.  Multiple consume calls kinda throw in a monkey
+wrench.  They're really analogous to macros though.  But macros just rearrange
+syntax, they don't evaluate too, but just doing syntax would make common
+things like transposition a pain.  It seems like I should still be able to get
+prev and next right if I'm careful.
+
+
+    - controls are marked as being outside or inside
+    - calls are also marked as binding outside or inside
+    - pass the TrackIds for outside controls in the dynamic env, and an
+        outside call will delete and re-evaluate them
+    or
+    - the first time I hit an inner control, look downwards for note tracks.
+    Run a derive on just the outer calls.  But how do I actually do that?
+
+outer expr events = do
+    -- But then I need to pass in the expr below me for eval, right?
+    (deriver, consumed) <- eval expr events
+    return (deriver, drop consumed events)
+
+eval_outer = do
+    groups <- collect_groups :: (Expr, [(TrackId, [Event])])
+    (ds, residue) <- unzip <$> mapM outer groups
+    sequence_ [set_residue tid (concat events) | (tid, events) <- residue]
+    return (merge ds, concat residue)
+
+
+I think the general form of what I want to do is a deriver that takes
+*multiple* other derivers as arguments.  So the main issue is breaking up a
+track into multiple derivers so they can be processed separately.  How about:
+
+Transformer takes Deriver, but also gets [(TrackId, [Event])].  It can use
+that to create (TrackPos, TrackPos) ranges and set those in dynamic env, which
+causes the note deriver to only derive events in that range.  So
+
+outer expr events d0 = do
+    (d1, consumed) <- eval expr events d0
+    range = range_of events (drop consumed events)
+    merge d1 (in_range range end d0)
+
+I don't think prev/next works with this at all though.
+
+
+
+Make a list of derivers and where they want to be:
+    - trill, bottom
+    - vibrato and pitch ornaments, bottom
+    - rambat, bottom
+    - more traditional sekaran that only looks at pitches and generates new
+    notes
+    In general ornaments can all go on the bottom.  If they modify a single
+    note, or generate simple notes, i.e. first order.
+
+    - sekar, above pitch, breath, etc.
+    - tuples, much like sekar
+        t *a *b *c | call |
+    - also could have a sekar-like tuple:
+        t 3 -- Take the next 3 notes and fit them into the space of the first,
+            or into the space of all 3 until 4th event start.
+    - echo, like sekar
+    In general, things that transform notes go in a certain middle position
+    since they want to keep controllers on their notes.  I.e. "higher order"
+    derivers that manipulate other derivers.  The problem is that they're in
+    the middle, but where is per-block.  But I think a simple low/high flag
+    would be enough.  It would have to be block-local, the controls from
+    an outer block are all outer.
+
+    max, vel, inner -- but with two optional args it's ambiguous
+    vel + inner -- but just + won't parse currently
+    %vel + inner -- not ambiguous with normal calls, which is necessary if
+        I allow it in the middle of a track
+
+    %vel combine:+ inner:true
+    This becomes a null call to 'control %vel combine:+ inner:true'
+
+    In the same way
+    >i
+    becomes a null call to 'note >i', which then evaluates everything and
+    returns (Deriver, length of track).  Returns to who?  Default call is
+    hardcoded.  This means that the track call can be a generator.  This is
+    also a way to implement preproc.  But it doesn't scale to composed preproc.
+    Also the need the > first to signal a note track.
+
+
+
+Conclusion for now:
+
+This stuff is too complicated, forget about it.
+    - implement echo with events
+    - implement tuple by splitting one event
+
+I already have deriver arguments in block calls.  I don't have a way to collect
+them into multiple arguments, but presumably could.  It's just that splitting
+every single deriver out into a block is too much of a pain notationally.  So
+if I eventually do want to implement this, do it as a kind of automatic block
+splitting, where you can split a bit of a block and pretend its a sub-block.

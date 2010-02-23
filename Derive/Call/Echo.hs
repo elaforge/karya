@@ -4,6 +4,9 @@
 -- concrete echo
 --
 -- TODO echo with RealTime delay
+--
+-- TODO echo and delay are broken here because they will delay even things that
+-- should not be delayed, like a global volume control
 module Derive.Call.Echo where
 
 import Ui
