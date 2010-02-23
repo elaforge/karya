@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TypeSynonymInstances #-} -- for instance Typecheck String
 {- | The event text in a note track forms a simple language.
 
     Notes with text are interpreted as function calls.  The function will be
@@ -63,6 +63,8 @@ data Val =
     | VMethod Method
     -- | Goes in a control val field.  Literal: @42.23@
     | VNum Double
+    -- | Escape a quote by doubling it.  Literal: @'hello'@, @'quinn''s hat'@
+    | VString String
     -- | Relative attribute adjustment.  Literal: @+attr@, @-attr@, @=attr@,
     -- @=-@ (to clear attributes).
     --
@@ -89,6 +91,7 @@ instance Pretty.Pretty Val where
         VInstrument (Score.Instrument inst) -> inst_literal_prefix ++ inst
         VMethod (Method m) -> "m'" ++ m ++ "'"
         VNum d -> Pretty.pretty d
+        VString s -> "'" ++ Seq.replace "'" "''" s ++ "'"
         VRelativeAttr (RelativeAttr (mode, attr)) -> case mode of
             Add -> '+' : attr
             Remove -> '-' : attr
@@ -151,8 +154,8 @@ v_attributes = Symbol "attr"
 
 -- * types
 
-data Type = TNote | TInstrument | TMethod | TNum | TRelativeAttr | TAttributes
-    | TControl | TSymbol | TNotGiven
+data Type = TNote | TInstrument | TMethod | TNum | TString | TRelativeAttr
+    | TAttributes | TControl | TSymbol | TNotGiven
     deriving (Eq, Show)
 
 instance Pretty.Pretty Type where
@@ -164,6 +167,7 @@ type_of val = case val of
     VInstrument _ -> TInstrument
     VMethod _ -> TMethod
     VNum _ -> TNum
+    VString _ -> TString
     VRelativeAttr _ -> TRelativeAttr
     VAttributes _ -> TAttributes
     VControl _ -> TControl
@@ -197,6 +201,11 @@ instance Typecheck Double where
     from_val (VNum a) = Just a
     from_val _ = Nothing
     to_val = VNum
+
+instance Typecheck String where
+    from_val (VString s) = Just s
+    from_val _ = Nothing
+    to_val = VString
 
 instance Typecheck RelativeAttr where
     from_val (VRelativeAttr a) = Just a
@@ -340,19 +349,35 @@ instance Pretty.Pretty TypeError where
 instance Error.Error TypeError where
     strMsg _ = error "strMsg not defined for TypeError"
 
-call0 :: PassedArgs -> result -> Either TypeError result
-call0 vals f = do
-    check_args vals []
-    return f
+type WithError = Either String
+
+with_error :: WithError result -> Either TypeError result
+with_error (Left s) = Left (ArgError s)
+with_error (Right v) = Right v
+
+-- | Each call function will typecheck and call a function.  For the @_error@
+-- variants, the function may also check the args and return Left, which will
+-- be converted into an ArgError.
+--
+-- This is because call evaluation procedes in one pass to check types and
+-- another to actually call the derivers.  I suppose I could do all the
+-- checking in DeriveT, but this way I can keep the exceptions separate.
+--
+-- TODO However with extensible exceptions couldn't I do this more cleanly?
+-- And I think if events consumed depends on deriver processing then this will
+-- be necessary.
+call0 :: PassedArgs -> WithError result -> Either TypeError result
+call0 vals f = check_args vals [] >> with_error f
 
 extract1 :: (Typecheck a) => PassedArgs -> Arg a -> Either TypeError a
 extract1 vals sig0 = do
     arg0 : _ <- check_args vals [arg_opt sig0]
     extract_arg 0 sig0 arg0
 
-call1 :: (Typecheck a) =>
-    PassedArgs -> Arg a -> (a -> result) -> Either TypeError result
-call1 vals arg0 f = return . f =<< extract1 vals arg0
+call1_error :: (Typecheck a) => PassedArgs -> Arg a -> (a -> WithError result)
+    -> Either TypeError result
+call1_error vals arg0 f = with_error . f =<< extract1 vals arg0
+call1 vals arg0 f = call1_error vals arg0 (return . f)
 
 extract2 :: (Typecheck a, Typecheck b) =>
     PassedArgs -> (Arg a, Arg b) -> Either TypeError (a, b)
@@ -360,12 +385,13 @@ extract2 vals (sig0, sig1) = do
     arg0 : arg1 : _ <- check_args vals [arg_opt sig0, arg_opt sig1]
     (,) <$> extract_arg 0 sig0 arg0 <*> extract_arg 1 sig1 arg1
 
-call2 :: (Typecheck a, Typecheck b) =>
-    PassedArgs -> (Arg a, Arg b) -> (a -> b -> result)
+call2_error :: (Typecheck a, Typecheck b) =>
+    PassedArgs -> (Arg a, Arg b) -> (a -> b -> WithError result)
     -> Either TypeError result
-call2 vals (arg0, arg1) f = do
+call2_error vals (arg0, arg1) f = do
     (val0, val1) <- extract2 vals (arg0, arg1)
-    return $ f val0 val1
+    with_error $ f val0 val1
+call2 vals args f = call2_error vals args (\a0 a1 -> return (f a0 a1))
 
 extract3 :: (Typecheck a, Typecheck b, Typecheck c) =>
     PassedArgs -> (Arg a, Arg b, Arg c) -> Either TypeError (a, b, c)
@@ -375,12 +401,13 @@ extract3 vals (sig0, sig1, sig2) = do
     (,,) <$> extract_arg 0 sig0 arg0 <*> extract_arg 1 sig1 arg1
         <*> extract_arg 2 sig2 arg2
 
-call3 :: (Typecheck a, Typecheck b, Typecheck c) =>
-    PassedArgs -> (Arg a, Arg b, Arg c) -> (a -> b -> c -> result)
+call3_error :: (Typecheck a, Typecheck b, Typecheck c) =>
+    PassedArgs -> (Arg a, Arg b, Arg c) -> (a -> b -> c -> WithError result)
     -> Either TypeError result
-call3 vals (arg0, arg1, arg2) f = do
+call3_error vals (arg0, arg1, arg2) f = do
     (val0, val1, val2) <- extract3 vals (arg0, arg1, arg2)
-    return $ f val0 val1 val2
+    with_error $ f val0 val1 val2
+call3 vals args f = call3_error vals args (\a0 a1 a2 -> return (f a0 a1 a2))
 
 extract4 :: (Typecheck a, Typecheck b, Typecheck c, Typecheck d) =>
     PassedArgs -> (Arg a, Arg b, Arg c, Arg d) -> Either TypeError (a, b, c, d)
@@ -390,12 +417,15 @@ extract4 vals (sig0, sig1, sig2, sig3) = do
     (,,,) <$> extract_arg 0 sig0 arg0 <*> extract_arg 1 sig1 arg1
         <*> extract_arg 2 sig2 arg2 <*> extract_arg 3 sig3 arg3
 
-call4 :: (Typecheck a, Typecheck b, Typecheck c, Typecheck d) =>
-    PassedArgs -> (Arg a, Arg b, Arg c, Arg d) -> (a -> b -> c -> d -> result)
+call4_error :: (Typecheck a, Typecheck b, Typecheck c, Typecheck d) =>
+    PassedArgs -> (Arg a, Arg b, Arg c, Arg d)
+    -> (a -> b -> c -> d -> WithError result)
     -> Either TypeError result
-call4 vals (arg0, arg1, arg2, arg3) f = do
+call4_error vals (arg0, arg1, arg2, arg3) f = do
     (val0, val1, val2, val3) <- extract4 vals (arg0, arg1, arg2, arg3)
-    return $ f val0 val1 val2 val3
+    with_error $ f val0 val1 val2 val3
+call4 vals args f =
+    call4_error vals args (\a0 a1 a2 a3 -> return (f a0 a1 a2 a3))
 
 check_args :: PassedArgs -> [(Bool, String)] -> Either TypeError [Maybe Val]
 check_args passed optional_args
@@ -494,7 +524,7 @@ p_val = Parse.lexeme $ VNote <$> p_note <|> VInstrument <$> p_instrument
     -- to have a letter afterwards, while a Num is a '.' or digit, so they're
     -- not ambiguous.
     <|> VRelativeAttr <$> P.try p_rel_attr <|> VNum <$> p_num
-    <|> VControl <$> p_control <|> VSymbol <$> p_symbol
+    <|> VString <$> p_string <|> VControl <$> p_control <|> VSymbol <$> p_symbol
     <|> (P.char '_' >> return VNotGiven)
 
 p_note :: P.Parser Pitch.Note
@@ -509,6 +539,9 @@ p_method = P.char 'm' *> (Method <$> p_single_string) <?> "method"
 
 p_num :: P.Parser Double
 p_num = Parse.p_float
+
+p_string :: P.Parser String
+p_string = p_single_string <?> "string"
 
 -- There's no particular reason to restrict attrs to idents, but this will
 -- force some standardization on the names.
@@ -559,7 +592,8 @@ valid_identifier :: String -> Bool
 valid_identifier = all $ \c -> Char.isLower c || Char.isDigit c || c == '-'
 
 p_single_string :: P.Parser String
-p_single_string = P.between (P.char '\'') (P.char '\'') $ P.many (P.noneOf "'")
+p_single_string = P.between (P.char '\'') (P.char '\'') $
+    P.many (P.noneOf "'" <|> (P.try (P.string "''") >> return '\''))
 
 p_word, p_null_word :: P.Parser String
 p_word = P.many1 (P.noneOf " ")

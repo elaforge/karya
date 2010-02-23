@@ -78,6 +78,8 @@ eval_one caller start dur expr = do
 event :: ScoreTime -> ScoreTime -> String -> Track.PosEvent
 event start dur text = (start, Event.event text dur)
 
+-- ** eval implementation
+
 eval_generator :: String -> TrackLang.Expr -> [Track.PosEvent]
     -> Track.PosEvent -> [Track.PosEvent] -> GeneratorReturn
 eval_generator caller (TrackLang.Call call_id args : rest) prev cur

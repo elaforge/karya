@@ -46,10 +46,10 @@ note_calls = Derive.make_calls
 
 -- | Absolute time trill.
 --
--- [neighbor /Signal/] Alternate with this relative pitch.
+-- [neighbor /Control/] Alternate with this relative pitch.
 --      TODO should be a pitch signal
 --
--- [speed /Signal/ @%trill-speed,14@] Trill at this many cycles per second.
+-- [speed /Control/ @%trill-speed,14@] Trill at this many cycles per second.
 c_absolute_trill :: Derive.Call
 c_absolute_trill = Derive.transformer $ \args deriver -> TrackLang.call2 args
     (required "neighbor", optional "speed" (control "trill-speed" 14)) $
@@ -75,9 +75,9 @@ pos_at_speed sig pos = pos : pos_at_speed sig (pos + Signal.y_to_real (1/speed))
 -- | Trill in score time.  Unlike 'c_absolute_trill', the trill rate will be
 -- affected by the current tempo.
 --
--- [neighbor /Signal/] Alternate with this relative pitch.
+-- [neighbor /Control/] Alternate with this relative pitch.
 --
--- [speed /Signal/ @%trill-speed,14@] Trill at this many cycles per score unit.
+-- [speed /Control/ @%trill-speed,14@] Trill at this many cycles per score unit.
 c_score_trill :: Derive.Call
 c_score_trill = Derive.transformer $ \args deriver -> TrackLang.call2 args
     (required "neighbor", optional "speed" (control "trill-speed" 14)) $

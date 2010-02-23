@@ -93,6 +93,10 @@ test_p_val = do
             , ("0.", Nothing)
             , (".2", Just (VNum 0.2))
 
+            , ("'hi'", Just (VString "hi"))
+            , ("'quinn''s hat'", Just (VString "quinn's hat"))
+            , ("'bad string", Nothing)
+
             , ("%sig", Just $ VControl $ Control (Score.Control "sig"))
             , ("%sig,0", Just $ VControl $
                 DefaultedControl (Score.Control "sig") 0)

@@ -37,24 +37,24 @@ c_delay = Derive.transformer $ \args deriver -> TrackLang.call1 args
 -- happen in score time, so they will change tempo with the rest of the score,
 -- and the realization may change due to a different velocity.
 --
--- The signals are only sampled at the beginning of the echo, so you can't
+-- The controls are only sampled at the beginning of the echo, so you can't
 -- vary them over the scope of an echo call like you can with @event-echo@.
 -- You would have to wrap every event in an @echo@ for that.
 --
--- [delay /Signal/ @%echo-delay,1@] Each echo is delayed this long in score
+-- [delay /Control/ @%echo-delay,1@] Each echo is delayed this long in score
 -- time.
 --
--- [feedback /Signal/ @%echo-feedback,.4@] The dynamics of each echo are
+-- [feedback /Control/ @%echo-feedback,.4@] The dynamics of each echo are
 -- multiplied by this amount.
 --
--- [times /Signal/ @%echo-times,1@] This many echoes, not counting the unechoed
--- notes.
+-- [times /Control/ @%echo-times,1@] This many echoes, not counting the
+-- un-echoed notes.
 c_echo :: Derive.Call
 c_echo = Derive.transformer $ \args deriver -> TrackLang.call3 args
     ( optional "delay" (control "echo-delay" 1)
     , optional "feedback" (control "echo-feedback" 0.4)
     , optional "times" (control "echo-times" 1)) $ \delay feedback times ->
-    Call.with_controls [delay, feedback, times]$ \[delay, feedback, times] ->
+    Call.with_controls [delay, feedback, times] $ \[delay, feedback, times] ->
         echo (Signal.y_to_score delay) feedback (floor times) deriver
 
 echo :: ScoreTime -> Double -> Int -> Derive.EventDeriver -> Derive.EventDeriver
