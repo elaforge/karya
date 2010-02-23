@@ -801,17 +801,18 @@ with_control_warp :: (Monad m) => (Score.Warp -> Score.Warp)
 with_control_warp f deriver = do
     old <- gets state_controls
     old_pitch_warp <- gets state_pitch_warp
+    old_pitch <- gets state_pitch
     modify $ \st -> st
         { state_controls = Score.modify_warps f old
         , state_pitch_warp = f old_pitch_warp
         }
     v <- deriver
-    -- TODO controls and warps are restored, but only the pitch warp is
-    -- restored.  I don't think this makes a difference because no one should
-    -- set a control without unsetting it, but I should at least be consistent.
+    -- Restore the signal with the warp, since they may be collapsed.
+    -- This will be harder to get wrong once pitch is merged with controls.
     modify $ \st -> st
         { state_controls = old
         , state_pitch_warp = old_pitch_warp
+        , state_pitch = old_pitch
         }
     return v
 

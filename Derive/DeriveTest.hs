@@ -130,6 +130,10 @@ extract_events_only ex_event result = Log.trace_logs logs vals
 e_event :: Score.Event -> (RealTime, RealTime, String)
 e_event e = (Score.event_start e, Score.event_duration e, Score.event_string e)
 
+e_pitch :: Score.Event -> (RealTime, RealTime, String, Pitch.Degree)
+e_pitch e = (Score.event_start e, Score.event_duration e, Score.event_string e,
+    Score.initial_pitch e)
+
 note_on_times :: [(Timestamp.Timestamp, Midi.Message)]
     -> [(Integer, Midi.Key, Midi.Velocity)]
 note_on_times mmsgs = [(ts, nn, vel)
