@@ -307,11 +307,14 @@ data PassedArgs = PassedArgs {
     , passed_stretch :: ScoreTime
     }
 
+passed_args :: String -> [Val] -> PassedArgs
+passed_args call vals = PassedArgs vals Map.empty (Symbol call) 1
+
 type_of_val :: (Typecheck a) => a -> Type
 type_of_val = type_of . to_val
 
-arg_opt :: Arg a -> (Bool, String)
-arg_opt arg = (Maybe.isJust (arg_default arg), arg_name arg)
+arg_required :: Arg a -> (Bool, String)
+arg_required arg = (Maybe.isNothing (arg_default arg), arg_name arg)
 
 -- Utilities to describe function signatures.
 
@@ -371,7 +374,7 @@ call0 vals f = check_args vals [] >> with_error f
 
 extract1 :: (Typecheck a) => PassedArgs -> Arg a -> Either TypeError a
 extract1 vals sig0 = do
-    arg0 : _ <- check_args vals [arg_opt sig0]
+    arg0 : _ <- check_args vals [arg_required sig0]
     extract_arg 0 sig0 arg0
 
 call1_error :: (Typecheck a) => PassedArgs -> Arg a -> (a -> WithError result)
@@ -382,7 +385,7 @@ call1 vals arg0 f = call1_error vals arg0 (return . f)
 extract2 :: (Typecheck a, Typecheck b) =>
     PassedArgs -> (Arg a, Arg b) -> Either TypeError (a, b)
 extract2 vals (sig0, sig1) = do
-    arg0 : arg1 : _ <- check_args vals [arg_opt sig0, arg_opt sig1]
+    arg0 : arg1 : _ <- check_args vals [arg_required sig0, arg_required sig1]
     (,) <$> extract_arg 0 sig0 arg0 <*> extract_arg 1 sig1 arg1
 
 call2_error :: (Typecheck a, Typecheck b) =>
@@ -397,7 +400,7 @@ extract3 :: (Typecheck a, Typecheck b, Typecheck c) =>
     PassedArgs -> (Arg a, Arg b, Arg c) -> Either TypeError (a, b, c)
 extract3 vals (sig0, sig1, sig2) = do
     arg0 : arg1 : arg2 : _ <- check_args vals
-        [arg_opt sig0, arg_opt sig1, arg_opt sig2]
+        [arg_required sig0, arg_required sig1, arg_required sig2]
     (,,) <$> extract_arg 0 sig0 arg0 <*> extract_arg 1 sig1 arg1
         <*> extract_arg 2 sig2 arg2
 
@@ -413,7 +416,8 @@ extract4 :: (Typecheck a, Typecheck b, Typecheck c, Typecheck d) =>
     PassedArgs -> (Arg a, Arg b, Arg c, Arg d) -> Either TypeError (a, b, c, d)
 extract4 vals (sig0, sig1, sig2, sig3) = do
     arg0 : arg1 : arg2 : arg3 : _ <- check_args vals
-        [arg_opt sig0, arg_opt sig1, arg_opt sig2, arg_opt sig3]
+        [arg_required sig0, arg_required sig1, arg_required sig2,
+            arg_required sig3]
     (,,,) <$> extract_arg 0 sig0 arg0 <*> extract_arg 1 sig1 arg1
         <*> extract_arg 2 sig2 arg2 <*> extract_arg 3 sig3 arg3
 
@@ -427,36 +431,49 @@ call4_error vals (arg0, arg1, arg2, arg3) f = do
 call4 vals args f =
     call4_error vals args (\a0 a1 a2 a3 -> return (f a0 a1 a2 a3))
 
-check_args :: PassedArgs -> [(Bool, String)] -> Either TypeError [Maybe Val]
-check_args passed optional_args
-    | length defaulted_vals < length required = Left $ ArgError $
+-- | The call sequence is a little complicated because an argument can be
+-- given explicitly, given implicitly by the environment, or defaulted if
+-- it was declared optional.
+--
+-- 'check_args' defaults not-given args from the environment and verifies that
+-- the number of args are correct, given the optional and environment-supplied
+-- ones.  It returns Just for args given explicitly or by the environment, and
+-- an infinite supply of Nothing for the rest.
+--
+-- Defaulting optional args and type-checking both require a typed 'Typecheck'
+-- instance and happen in 'extract_arg'.
+check_args :: PassedArgs y -> [(Bool, String)] -- ^ @(arg_required?, name)@
+    -> Either TypeError [Maybe Val]
+check_args passed args
+    | supplied_args < length required = Left $ ArgError $
         "too few arguments: " ++ expected
-    | length vals > length optional_args = Left $ ArgError $
+    | length vals > length args = Left $ ArgError $
         "too many arguments: " ++ expected
     | not (null bad_required) = Left $ ArgError $
-        "required args can't follow an optional one: "
+        "required arg can't follow an optional one: "
             ++ Seq.join ", " [show i ++ "/" ++ name | (i, name) <- bad_required]
-    | otherwise = Right $ map Just defaulted_vals ++ repeat Nothing
+    | otherwise = Right $ defaulted_vals ++ repeat Nothing
     where
-    (required, optional) = break (fst . snd) (zip [0..] optional_args)
+    (required, optional) = span (fst . snd) (zip [0..] args)
     vals = passed_vals passed
-    defaulted_vals = Maybe.catMaybes $
-        zipWith deflt (map Just vals ++ repeat Nothing) optional_args
+    defaulted_vals = zipWith deflt (map Just vals ++ repeat Nothing) args
         where
         deflt (Just val) _ = Just val
         deflt Nothing (_, arg_name) = Map.lookup
             (arg_environ_default (passed_call passed) arg_name)
             (passed_environ passed)
-    bad_required = [(i, name) | (i, (False, name)) <- optional]
-    from_env = length defaulted_vals - length vals
-    arg_range = if length required == length optional_args
+    supplied_args = length (filter Maybe.isJust defaulted_vals)
+    bad_required = [(i, name) | (i, (True, name)) <- optional]
+
+    from_env = max 0 (supplied_args - length vals)
+    arg_range = if length required == length args
         then show (length required)
-        else "from " ++ show (length required) ++ " to "
-            ++ show (length optional_args)
+        else "from " ++ show (length required) ++ " to " ++ show (length args)
     expected = "expected " ++ arg_range ++ ", got "
-        ++ show (length defaulted_vals)
+        ++ show (length vals)
         ++ if from_env == 0 then ""
             else " (" ++ show from_env ++ " from environ)"
+
 
 extract_arg :: (Typecheck a) => Int -> Arg a -> Maybe Val -> Either TypeError a
 extract_arg argno arg maybe_val = case (arg_default arg, maybe_val2) of
