@@ -66,7 +66,9 @@ module Perform.Signal (
     , coerce
 
     , at, at_linear, is_constant, sample
+    , first, last
 
+    , merge
     , sig_add, sig_subtract, sig_multiply
     , sig_max, sig_min, clip_max, clip_min
     , scalar_add, scalar_subtract, scalar_multiply, scalar_divide
@@ -79,7 +81,7 @@ module Perform.Signal (
 
     , equal, pitches_share
 ) where
-import Prelude hiding (truncate)
+import Prelude hiding (last, truncate)
 import qualified Control.Arrow as Arrow
 import qualified Data.StorableVector as V
 import qualified Foreign.Storable as Storable
@@ -234,8 +236,16 @@ is_constant (Signal vec) = case V.viewL vec of
 sample :: X -> Signal y -> [(X, Y)]
 sample start sig = SignalBase.sample start (sig_vec sig)
 
+first :: Signal y -> Maybe (X, Y)
+first = fmap fst . V.viewL . sig_vec
+
+last :: Signal y -> Maybe (X, Y)
+last = fmap snd . V.viewR . sig_vec
 
 -- * transformation
+
+merge :: [Signal y] -> Signal y
+merge = Signal . SignalBase.merge . map sig_vec
 
 sig_add, sig_subtract, sig_multiply :: Control -> Control -> Control
 sig_add = sig_op (+)

@@ -59,6 +59,15 @@ test_at_linear = do
 
 -- * transformation
 
+test_merge = do
+    let f = unvec . SignalBase.merge . map mkvec
+    equal (f []) []
+    equal (f [[(0, 0), (1, 1)]]) [(0, 0), (1, 1)]
+    equal (f [[(1, 1)], [(2, 2)], [(3, 3)]])
+        [(1, 1), (2, 2), (3, 3)]
+    equal (f [[(0, 0), (1, 1), (2, 2)], [(1, 3), (2, 4), (3, 5)]])
+        [(0, 0), (1, 3), (2, 4), (3, 5)]
+
 test_shift = do
     let vec = mkvec [(0, 1), (1, 0)]
     let shift x = unvec $ SignalBase.shift x vec

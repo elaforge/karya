@@ -24,15 +24,17 @@
     actual interpolation to an absolute pitch is delayed until the performance.
 -}
 module Perform.PitchSignal (
-    PitchSignal, Relative, sig_scale, sig_vec
-    , X, Y, y_to_degree, max_x, default_srate
+    PitchSignal, Relative, sig_scale, sig_vec, set_scale
+    , X, Y, y_to_degree, degree_to_y, max_x, default_srate
 
     , signal, constant, empty, track_signal, Method(..), Segment
     , unsignal, from_control
 
     , at, at_linear, sample
+    , first, last
     , to_nn
 
+    , merge
     , sig_add
     , sig_max, sig_min
     , scalar_add, scalar_subtract
@@ -41,7 +43,7 @@ module Perform.PitchSignal (
     , truncate
     , map_x, map_degree
 ) where
-import Prelude hiding (truncate)
+import Prelude hiding (last, truncate)
 import qualified Data.StorableVector as V
 import qualified Foreign.Storable as Storable
 import qualified Util.Num as Num
@@ -65,6 +67,9 @@ data PitchSignal = PitchSignal
 -- convenience, and to document the functions that treat their first and second
 -- arguments differently, like 'sig_max'.
 type Relative = PitchSignal
+
+set_scale :: Pitch.ScaleId -> PitchSignal -> PitchSignal
+set_scale scale_id sig = sig { sig_scale = scale_id }
 
 modify_vec :: (SignalBase.SigVec Y -> SignalBase.SigVec Y)
     -> PitchSignal -> PitchSignal
@@ -114,6 +119,10 @@ instance Show PitchSignal where
 y_to_degree :: Y -> Pitch.Degree
 y_to_degree = Pitch.Degree . to_scalar
 
+degree_to_y :: Pitch.Degree -> Y
+degree_to_y (Pitch.Degree d) = (f, f, 0)
+    where f = Num.double_to_float d
+
 -- * construction / deconstruction
 
 signal :: Pitch.ScaleId -> [(X, Y)] -> PitchSignal
@@ -123,8 +132,7 @@ empty :: PitchSignal
 empty = signal (Pitch.ScaleId "empty signal") []
 
 constant :: Pitch.ScaleId -> Pitch.Degree -> PitchSignal
-constant scale_id (Pitch.Degree n) =
-    signal scale_id [(0, (realToFrac n, realToFrac n, 0))]
+constant scale_id degree = signal scale_id [(0, degree_to_y degree)]
 
 type Segment = (RealTime, Method, Pitch.Degree)
 
@@ -164,7 +172,19 @@ at_linear pos sig = SignalBase.at_linear pos (sig_vec sig)
 sample :: X -> PitchSignal -> [(X, Y)]
 sample start sig = SignalBase.sample start (sig_vec sig)
 
+first :: PitchSignal -> Maybe (X, Y)
+first = fmap fst . V.viewL . sig_vec
+
+last :: PitchSignal -> Maybe (X, Y)
+last = fmap snd . V.viewR . sig_vec
+
+
 -- * transformation
+
+merge :: [PitchSignal] -> PitchSignal
+merge sigs@(sig:_) =
+    PitchSignal (sig_scale sig) (SignalBase.merge (map sig_vec sigs))
+merge [] = empty
 
 sig_add :: PitchSignal -> Relative -> PitchSignal
 sig_add = sig_op add

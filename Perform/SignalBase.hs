@@ -198,6 +198,26 @@ equal start end sig0 sig1 =
 
 -- * transformation
 
+-- | Merge a sorted list of vectors.  Samples are not interspersed, and if
+-- the vectors overlap the later one wins.
+merge :: (Signal y) => [SigVec y] -> SigVec y
+merge vecs = fst $ V.unfoldrN len go vecs
+    where
+    -- This will be too big if there's lots of overlap, but I plan to switch
+    -- to a lazy vector anyway.
+    len = sum (map V.length vecs) + 1
+    go [] = Nothing
+    go [vec] = case V.viewL vec of
+        Nothing -> Nothing
+        Just (x, rest) -> Just (x, [rest])
+    go (cur : vecs@(next : rest)) = case V.viewL cur of
+        Nothing -> go vecs
+        Just ((x, y), cur_tl) -> case V.viewL next of
+            Nothing -> go (cur : rest)
+            Just ((next_x, next_y), next_tl)
+                | next_x <= x -> Just ((next_x, next_y), next_tl : rest)
+                | otherwise -> Just ((x, y), cur_tl : vecs)
+
 -- | Shift the signal in time.
 shift :: (Signal y) => X -> SigVec y -> SigVec y
 shift offset vec
