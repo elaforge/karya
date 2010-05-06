@@ -37,7 +37,8 @@ test_at = do
     let range low high sig =
                 map (\p -> SignalBase.at p (tsig sig)) [low..high-1] :: [Y]
     equal (range 0 4 []) [0, 0, 0, 0]
-    equal (range 0 4 [(2, Set, 1)]) [0, 0, 1, 1]
+    -- Values before the first sample take its value.
+    equal (range 0 4 [(2, Set, 1)]) [1, 1, 1, 1]
     equal (range 0 4 [(0, Set, 1), (3, Set, 1)]) [1, 1, 1, 1]
 
     equal (range 0 5 [(0, Set, 0), (4, Linear, 1)])
@@ -48,18 +49,13 @@ test_at = do
     equal (range 0 5 [(0, Linear, 1), (4, Linear, 0)])
         [1, 0.75, 0.5, 0.25, 0]
 
-    -- there is an implicit (0, 0)
-    let f = SignalBase.at
-    equal (f (-1) (mkvec [(1, 2)])) 0
-    equal (f (-1) (mkvec [(0, 2)])) 2
+    -- Negative index is ok.
+    equal (SignalBase.at (-1) (mkvec [(0, 2)])) 2
 
 test_at_linear = do
     let f vec x = SignalBase.at_linear x vec
-    equal (map (f (mkvec [(2, 2), (4, 0)])) [0..5])
-        [0, 1, 2, 1, 0, 0]
-    -- implicit (0, 0)
+    equal (map (f (mkvec [(2, 2), (4, 0)])) [0..5]) [2, 2, 2, 1, 0, 0]
     equal (f (mkvec [(0, 2), (2, 0)]) (-1)) 2
-    equal (f (mkvec [(2, 2), (4, 0)]) (-1)) 0
 
 -- * transformation
 
@@ -98,9 +94,9 @@ test_map_signal_accum = do
 
 test_resample_to_list = do
     let f vec0 vec1 = SignalBase.resample_to_list (mkvec vec0) (mkvec vec1)
-    equal (f [(1, 1), (2, 2)] []) [(0, 0, 0), (1, 1, 0), (2, 2, 0)]
-    equal (f [] [(1, 1), (2, 2)]) [(0, 0, 0), (1, 0, 1), (2, 0, 2)]
+    equal (f [(1, 1), (2, 2)] []) [(1, 1, 0), (2, 2, 0)]
+    equal (f [] [(1, 1), (2, 2)]) [(1, 0, 1), (2, 0, 2)]
     equal (f [(1, 1), (2, 2)] [(1, 3), (2, 4)])
-        [(0, 0, 0), (1, 1, 3), (2, 2, 4)]
+        [(1, 1, 3), (2, 2, 4)]
     equal (f [(1, 1)] [(0, 2), (2, 4), (3, 6)])
         [(0, 0, 2), (1, 1, 2), (2, 1, 4), (3, 1, 6)]

@@ -120,8 +120,7 @@ signal :: Pitch.ScaleId -> [(X, Y)] -> PitchSignal
 signal scale_id ys = PitchSignal scale_id (SignalBase.signal ys)
 
 empty :: PitchSignal
-empty = constant (Pitch.ScaleId "empty signal")
-    (Pitch.Degree Signal.invalid_pitch)
+empty = signal (Pitch.ScaleId "empty signal") []
 
 constant :: Pitch.ScaleId -> Pitch.Degree -> PitchSignal
 constant scale_id (Pitch.Degree n) =

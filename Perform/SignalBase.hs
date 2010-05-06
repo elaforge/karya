@@ -42,10 +42,7 @@ class (Eq y) => Y y where
 type X = RealTime
 
 signal :: (Signal y) => [(X, y)] -> SigVec y
-signal xs@((x, _):_)
-    | x == 0 = V.pack xs
-    | otherwise = V.pack ((0, zero_y) : xs)
-signal [] = V.pack []
+signal = V.pack
 
 unsignal :: (Signal y) => SigVec y -> [(X, y)]
 unsignal = V.unpack
@@ -81,7 +78,6 @@ at_linear x vec = interpolate x vec (highest_index x vec)
         where
         (x0, y0) = V.index vec i
         (x1, y1) = V.index vec (i+1)
-
 
 -- | Return the highest index of the given X.  So the next value is
 -- guaranteed to have a higher x, if it exists.  Return -1 if @x@ is before

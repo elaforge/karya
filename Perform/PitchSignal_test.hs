@@ -33,11 +33,10 @@ test_track_signal = do
     equal (f [(1, Set, 2), (3, Set, 1)])
         (sig [(1, (2, 2, 0)), (3, (1, 1, 0))])
 
-
 test_clip_min_max = do
     let sig = mksig [(1, (1, 5, 0.5))]
     -- drop the initial (0, 0) since I know it's there
-    let f v = drop 1 $ unsig $ PitchSignal.clip_max v sig
+    let f v = unsig $ PitchSignal.clip_max v sig
     equal (map f (map Pitch.NoteNumber [0..6]))
         (map (\d -> [(1, (1, 5, d))]) [0, 0, 0.25, 0.5, 0.5, 0.5, 0.5])
 
