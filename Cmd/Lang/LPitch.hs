@@ -61,19 +61,15 @@ track_to_degree base_note track_id scale_id events = do
     State.modify_track_title track_id $ \title ->
         Default.unparse_control_title (Just "+") $ snd $
             Default.parse_control_title title
-    return [(pos, set_note (degree_to_relative scale degree) event)
+    return [(pos, set_note (degree_to_relative degree) event)
             | ((pos, event), degree) <- zip events degrees2]
 
-set_note :: Pitch.Note -> Event.Event -> Event.Event
-set_note note = PitchTrack.modify f
-    where f (meth, _) = (meth, Pitch.note_text note)
+set_note :: String -> Event.Event -> Event.Event
+set_note text = PitchTrack.modify f
+    where f (meth, _) = (meth, text)
 
-degree_to_relative :: Pitch.Scale -> Pitch.Degree -> Pitch.Note
-degree_to_relative scale (Pitch.Degree n) =
-    Control.unparse_relative (oct, fromIntegral nn + frac)
-    where
-    (d, frac) = properFraction n
-    (oct, nn) = d `quotRem` Pitch.scale_octave scale
+degree_to_relative :: Pitch.Degree -> String
+degree_to_relative (Pitch.Degree n) = Control.unparse_relative n
 
 event_to_degree :: Pitch.Scale -> Event.Event -> Either Pitch.Note Pitch.Degree
 event_to_degree scale event =

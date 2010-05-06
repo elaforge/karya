@@ -77,21 +77,21 @@ test_compile = do
 
     let (res, logs) = derive ("*c2", [(0, 0, ".1")])
     equal logs []
-    left_like res "compile .*: d_pitch_signal: unknown ScaleId \"c2\""
+    left_like res "compile .*: d_pitch: unknown ScaleId \"c2\""
 
     let cont_signal = Map.union (Score.unwarp_controls Derive.initial_controls)
             (Map.fromList [(Score.Control "c1",
                 mksig [(0, Set, 3), (0.5, Set, 2), (1, Set, 1)])])
-        no_pitch = DeriveTest.pitch_signal (Pitch.ScaleId "twelve") []
+        no_pitch = PitchSignal.empty
 
     let (res, logs) = derive ("*twelve", [(0, 0, ".1")])
-    equal (map Log.msg_string logs)
-        ["compile (bid \"test/b1\"): Note \".1\" not in ScaleId \"twelve\""]
+    strings_like (map Log.msg_string logs)
+        ["Note \".1\" not in ScaleId \"twelve\""]
     equal (controls res) (Right [cont_signal, cont_signal, cont_signal])
     equal (pitches res) (Right [no_pitch, no_pitch, no_pitch])
 
     let (res, logs) = derive
-            ("*twelve", [(0, 0, "4c"), (4, 0, "4d"), (10, 0, "i, 4e")])
+            ("*twelve", [(0, 0, "4c"), (4, 0, "4d"), (10, 0, "i *4e")])
     let psig trunc = PitchSignal.truncate trunc
             (DeriveTest.pitch_signal (Pitch.ScaleId "twelve")
                 [(0, Set, 60), (2, Set, 62), (5, Signal.Linear, 64)])
@@ -104,40 +104,41 @@ test_compile = do
     where
     mksig = Signal.track_signal Signal.default_srate
 
-test_compile_to_signals = do
-    let derive track = signal_derive_tracks
-            [ ("tempo", [(0, 0, "2")])
-            , (">i1", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
-            , track
-            , ("c1", [(0, 0, "3"), (1, 0, "2"), (2, 0, "1")])
-            ]
-
-    let (res, logs) = derive ("*bogus", [])
-    equal logs []
-    left_like res
-        "compile_to_signals .*: d_display_pitch: unknown ScaleId \"bogus\""
-
-    -- TODO re-enable when rendering pitch signals is in
-    -- let (_res, logs) = derive ("*twelve", [(10, 0, ".2")])
-    -- equal logs ["compile_to_signals: Note \".2\" not in ScaleId \"twelve\""]
-
-    let (res, logs) = derive
-            ("vel", [(0, 0, "1"), (1, 0, "i, 2"), (2, 0, "10")])
-    equal logs []
-    -- tempo, c1, and pitch tracks get signals.
-    equal (fmap (map fst) res)
-        (Right $ map UiTest.tid ["b0.t0", "b0.t3", "b0.t2"])
-
-    -- It's important that the tempo track *doesn't* apply, since these go to
-    -- the UI.
-    equal (fmap (map snd) res) $ Right
-        [ mksmps [(0, Set, 2)]
-        , mksmps [(0, Set, 3), (1, Set, 2), (2, Set, 1)]
-        , mksmps [(0, Set, 1), (1, Signal.Linear, 2), (2, Set, 10)]
-        ]
-    where
-    mksmps segs = extract_smps $ Signal.to_track_samples $
-        Signal.track_signal Signal.default_srate segs
+-- TODO compile_to_signals needs to be reimplemented
+-- test_compile_to_signals = do
+--     let derive track = signal_derive_tracks
+--             [ ("tempo", [(0, 0, "2")])
+--             , (">i1", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
+--             , track
+--             , ("c1", [(0, 0, "3"), (1, 0, "2"), (2, 0, "1")])
+--             ]
+--
+--     let (res, logs) = derive ("*bogus", [])
+--     equal logs []
+--     left_like res
+--         "compile_to_signals .*: d_display_pitch: unknown ScaleId \"bogus\""
+--
+--     -- TODO re-enable when rendering pitch signals is in
+--     -- let (_res, logs) = derive ("*twelve", [(10, 0, ".2")])
+--     -- equal logs ["compile_to_signals: Note \".2\" not in ScaleId \"twelve\""]
+--
+--     let (res, logs) = derive
+--             ("vel", [(0, 0, "1"), (1, 0, "i, 2"), (2, 0, "10")])
+--     equal logs []
+--     -- tempo, c1, and pitch tracks get signals.
+--     equal (fmap (map fst) res)
+--         (Right $ map UiTest.tid ["b0.t0", "b0.t3", "b0.t2"])
+--
+--     -- It's important that the tempo track *doesn't* apply, since these go to
+--     -- the UI.
+--     equal (fmap (map snd) res) $ Right
+--         [ mksmps [(0, Set, 2)]
+--         , mksmps [(0, Set, 3), (1, Set, 2), (2, Set, 1)]
+--         , mksmps [(0, Set, 1), (1, Signal.Linear, 2), (2, Set, 10)]
+--         ]
+--     where
+--     mksmps segs = extract_smps $ Signal.to_track_samples $
+--         Signal.track_signal Signal.default_srate segs
 
 signal_derive_tracks :: [UiTest.TrackSpec]
     -> (Either String [(TrackId, [(ScoreTime, Double)])], [Log.Msg])

@@ -5,6 +5,7 @@
 -- 'Derive.Call.lookup_note_call'.
 module Derive.Call.Basic where
 import qualified Data.List as List
+import Util.Control
 
 import Ui
 import qualified Ui.Event as Event
@@ -18,14 +19,11 @@ import qualified Derive.Score as Score
 import qualified Perform.PitchSignal as PitchSignal
 
 
-note_calls :: Derive.CallMap
+note_calls :: Derive.NoteCallMap
 note_calls = Derive.make_calls
     [ ("", c_note)
     , ("=", c_equal)
     ]
-
-control_calls :: Derive.CallMap
-control_calls = Derive.make_calls []
 
 -- * note call
 
@@ -34,7 +32,7 @@ control_calls = Derive.make_calls []
 -- which means you can assign these to a note generator or a call with an
 -- abbreviated syntax: @+attr@ to generate a note with that attr, or
 -- @>i | call@ to run call with that instrument.
-c_note :: Derive.Call
+c_note :: Derive.NoteCall
 c_note = Derive.Call
     (Just $ \args _ event next -> case process (TrackLang.passed_vals args) of
         (inst, rel_attrs, []) ->
@@ -62,7 +60,8 @@ generate_note n_inst rel_attrs event next = do
     inst <- case n_inst of
         Just inst -> return (Just inst)
         Nothing -> Derive.lookup_val TrackLang.v_instrument
-    attrs <- Derive.get_val Score.no_attrs TrackLang.v_attributes
+    attrs <- defaulted Score.no_attrs <$>
+        Derive.lookup_val TrackLang.v_attributes
     (controls, pitch_sig) <- Derive.unwarped_controls
     st <- Derive.get
     return [Score.Event start (end - start)
@@ -107,7 +106,7 @@ trimmed_pitch Nothing sig = sig
 
 -- * block call
 
-c_block :: BlockId -> Derive.Call
+c_block :: BlockId -> Derive.NoteCall
 c_block block_id = Derive.generate_one $ \args _ _ _ ->
     if null (TrackLang.passed_vals args)
         then Right $ block_call block_id
@@ -119,7 +118,7 @@ block_call block_id =
 
 -- * equal
 
-c_equal :: Derive.Call
+c_equal :: Derive.NoteCall
 c_equal = Derive.Call
     (Just $ \args _ _ _ -> with_args args generate)
     (Just $ \args deriver -> with_args args (transform deriver))
@@ -127,7 +126,7 @@ c_equal = Derive.Call
     with_args args = TrackLang.call2 args
         (required "symbol", required "value" :: Arg TrackLang.Val)
     transform deriver sym val = Derive.with_val sym val deriver
-    generate sym val = one_note $ Derive.put_val sym val >> Derive.empty_deriver
+    generate sym val = one_note $ Derive.put_val sym val >> Derive.empty_events
 
 -- * misc
 

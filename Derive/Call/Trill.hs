@@ -36,7 +36,7 @@ import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
 
 
-note_calls :: Derive.CallMap
+note_calls :: Derive.NoteCallMap
 note_calls = Derive.make_calls
     [ ("abs-trill", c_absolute_trill)
     , ("score-trill", c_score_trill)
@@ -50,7 +50,7 @@ note_calls = Derive.make_calls
 --      TODO should be a pitch signal
 --
 -- [speed /Control/ @%trill-speed,14@] Trill at this many cycles per second.
-c_absolute_trill :: Derive.Call
+c_absolute_trill :: Derive.NoteCall
 c_absolute_trill = Derive.transformer $ \args deriver -> TrackLang.call2 args
     (required "neighbor", optional "speed" (control "trill-speed" 14)) $
     \neighbor speed -> do
@@ -78,7 +78,7 @@ pos_at_speed sig pos = pos : pos_at_speed sig (pos + Signal.y_to_real (1/speed))
 -- [neighbor /Control/] Alternate with this relative pitch.
 --
 -- [speed /Control/ @%trill-speed,14@] Trill at this many cycles per score unit.
-c_score_trill :: Derive.Call
+c_score_trill :: Derive.NoteCall
 c_score_trill = Derive.transformer $ \args deriver -> TrackLang.call2 args
     (required "neighbor", optional "speed" (control "trill-speed" 14)) $
     \neighbor speed -> do

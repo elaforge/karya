@@ -6,11 +6,8 @@ Calls are evaluated in normalized time, which means that they start at
 generator are also in this time.
 -}
 module Derive.Call where
--- import qualified Data.DList as DList
 import qualified Data.Map as Map
--- import qualified Data.Set as Set
--- import qualified Util.Log as Log
--- import qualified Util.Map as Map
+import Util.Control
 import qualified Util.Pretty as Pretty
 
 import Ui
@@ -22,7 +19,7 @@ import qualified Ui.Types as Types
 
 import qualified Derive.Derive as Derive
 import qualified Derive.TrackLang as TrackLang
--- import qualified Derive.Score as Score
+import qualified Derive.Score as Score
 import qualified Derive.Call.Basic as Basic
 
 import qualified Perform.Signal as Signal
@@ -58,12 +55,12 @@ one_note :: Either TrackLang.TypeError Derive.EventDeriver
     -> Either TrackLang.TypeError (Derive.EventDeriver, Int)
 one_note = fmap $ \d -> (d, 1)
 
-skip_event :: GeneratorReturn
-skip_event = return (Derive.empty_deriver, 1)
-
 -- * eval
 
-type GeneratorReturn = Derive.Deriver (Derive.EventDeriver, Int)
+type GeneratorReturn derived = Derive.Deriver (Derive.Deriver derived, Int)
+
+skip :: derived -> GeneratorReturn derived
+skip empty = return (return empty, 1)
 
 -- | Evaluate a single note as a generator.  Fake up an event with no prev or
 -- next lists.
@@ -71,7 +68,7 @@ eval_one :: String -> ScoreTime -> ScoreTime -> TrackLang.Expr
     -> Derive.EventDeriver
 eval_one caller start dur expr = do
     -- Since the event was fake, I don't care if it wants to consume.
-    (deriver, _) <- eval_generator caller expr []
+    (deriver, _) <- eval_note_generator caller expr Nothing []
         (event start dur ("expr: " ++ show expr)) []
     deriver
 
@@ -80,26 +77,81 @@ event start dur text = (start, Event.event text dur)
 
 -- ** eval implementation
 
-eval_generator :: String -> TrackLang.Expr -> [Track.PosEvent]
-    -> Track.PosEvent -> [Track.PosEvent] -> GeneratorReturn
-eval_generator caller (TrackLang.Call call_id args : rest) prev cur
-        next = do
+-- | (caller, empty, lookup_call, preproc)
+--
+-- @caller@ is used in errors and warnings.
+-- @preproc@ is applied to each event text before parsing.  It's a hack for
+-- the pitch track mangling.
+type DeriveInfo y derived = (String, derived,
+    TrackLang.CallId -> Derive.Deriver (Derive.Call y derived),
+    String -> String)
+
+derive_track :: DeriveInfo y derived
+    -> (Maybe (RealTime, y) -> derived -> Maybe (RealTime, y))
+    -> [Track.PosEvent] -> Derive.Deriver [derived]
+derive_track info@(_, empty, _, _) get_last_sample events = do
+    chunks <- go Nothing [] events
+    return chunks
+    where
+    go _ _ [] = return []
+    go prev_sample prev (cur@(pos, event) : rest) = do
+        (chunk, consumed) <- with_catch (empty, 1) pos event $ do
+            (deriver, consumed) <- derive_event info prev_sample
+                prev cur rest
+            chunk <- deriver
+            return (chunk, consumed)
+        -- TODO is this really an optimization?  profile later
+        let (prev2, next2) = if consumed == 1
+                then (cur : prev, rest)
+                else let (pre, post) = splitAt consumed (cur : rest)
+                    in (reverse pre ++ prev, post)
+        rest <- go (get_last_sample prev_sample chunk) prev2 next2
+        return $ chunk : rest
+
+    with_catch deflt pos evt = fmap (defaulted deflt) . Derive.catch_warn id
+        . with_stack pos evt
+    with_stack pos evt = Derive.with_stack_pos pos (Event.event_duration evt)
+
+derive_event :: DeriveInfo y derived
+    -> Maybe (RealTime, y)
+    -> [Track.PosEvent] -- ^ previous events, in reverse order
+    -> Track.PosEvent -- ^ cur event
+    -> [Track.PosEvent] -- ^ following events
+    -> Derive.Deriver (Derive.Deriver derived, Int)
+derive_event info@(_, empty, _, preproc) prev_sample prev cur@(_, event) next
+    | Event.event_string event == "--" = skip empty
+    | otherwise = case TrackLang.parse (preproc (Event.event_string event)) of
+        Left err -> Derive.warn err >> skip empty
+        Right expr -> eval_generator info expr prev_sample prev cur next
+
+eval_note_generator :: String -> TrackLang.Expr
+    -> Maybe (RealTime, Score.Event) -> [Track.PosEvent]
+    -> Track.PosEvent -> [Track.PosEvent] -> GeneratorReturn Derive.Events
+eval_note_generator caller =
+    eval_generator (caller, Derive.no_events, lookup_note_call, id)
+
+eval_generator :: DeriveInfo y derived
+    -> TrackLang.Expr -> Maybe (RealTime, y)
+    -> [Track.PosEvent] -> Track.PosEvent -> [Track.PosEvent]
+    -> Derive.Deriver (Derive.Deriver derived, Int)
+eval_generator info@(caller, empty, lookup_call, _)
+        (TrackLang.Call call_id args : rest) prev_val prev cur next = do
     let msg = "eval_generator " ++ show caller ++ ": "
-    call <- lookup_note_call call_id
+    call <- lookup_call call_id
     env <- Derive.gets Derive.state_environ
-    let passed = TrackLang.PassedArgs args env call_id stretch
+    let passed = TrackLang.PassedArgs args env call_id stretch prev_val
     case Derive.call_generator call of
         Nothing -> do
             Derive.warn $ msg ++ "non-generator " ++ show call_id
                 ++ " in generator position"
-            skip_event
+            skip empty
         Just c -> case c passed (map warp prev) evt0 (map warp next) of
             Left err -> do
                 Derive.warn $ msg ++ Pretty.pretty err
-                skip_event
-            Right (deriver, consumed) -> do
-                deriver <- eval_transformer caller stretch rest
-                    (handle_exc "generator" call_id deriver)
+                skip empty
+            Right (generate_deriver, consumed) -> do
+                deriver <- eval_transformer info stretch rest
+                    (handle_exc "generator" empty call_id generate_deriver)
                 return (place deriver, consumed)
     where
     -- Derivation happens according to the extent of the note, not the
@@ -112,46 +164,56 @@ eval_generator caller (TrackLang.Call call_id args : rest) prev cur
     -- A 0 dur event can't be normalized, so don't try.
     stretch = if start == end then 1 else end - start
     -- Warp all the events to be local to the warp established by 'place'.
+    -- TODO optimize the stretch=1 case and see if that affects performance
     warp (pos, evt) =
         ((pos-start) / stretch, Event.modify_duration (/stretch) evt)
     evt0 = Event.modify_duration (/stretch) (snd cur)
-
-eval_generator _ [] _ cur _ = Derive.throw $
+eval_generator _ [] _ _ cur _ = Derive.throw $
     "event with no calls at all (this shouldn't happen): " ++ show cur
 
-eval_transformer :: String -> ScoreTime -> TrackLang.Expr
+
+eval_note_transformer :: String -> ScoreTime -> TrackLang.Expr
     -> Derive.EventDeriver -> Derive.Deriver Derive.EventDeriver
-eval_transformer caller stretch (TrackLang.Call call_id args : rest) deriver= do
+eval_note_transformer caller =
+    eval_transformer (caller, Derive.no_events, lookup_note_call, id)
+
+eval_transformer :: DeriveInfo y derived
+    -> ScoreTime -> TrackLang.Expr
+    -> Derive.Deriver derived -> Derive.Deriver (Derive.Deriver derived)
+eval_transformer info@(caller, empty, lookup_call, _) stretch
+        (TrackLang.Call call_id args : rest) deriver = do
     let msg = "eval_transformer " ++ show caller ++ ": "
-    call <- lookup_note_call call_id
+    call <- lookup_call call_id
     env <- Derive.gets Derive.state_environ
-    let passed = TrackLang.PassedArgs args env call_id stretch
+    let passed = TrackLang.PassedArgs args env call_id stretch Nothing
     case Derive.call_transformer call of
         Nothing -> do
             Derive.warn $ msg ++ "non-transformer " ++ show call_id
                 ++ " in transformer position"
-            return Derive.empty_deriver
+            return (return empty)
         Just c -> case c passed deriver of
             Left err -> do
                 Derive.warn $ msg ++ Pretty.pretty err
-                return Derive.empty_deriver
-            Right deriver ->
-                eval_transformer caller stretch rest
-                    (handle_exc "transformer" call_id deriver)
+                return (return empty)
+            Right deriver -> eval_transformer info stretch rest
+                (handle_exc "transformer" empty call_id deriver)
 eval_transformer _ _ [] deriver = return deriver
 
-handle_exc :: String -> TrackLang.CallId -> Derive.EventDeriver
-    -> Derive.EventDeriver
-handle_exc call_type call_id deriver = fmap (maybe Derive.no_events id) $
-    Derive.catch_warn ("exception: "++) (Derive.with_msg msg deriver)
+handle_exc :: String -> a -> TrackLang.CallId
+    -> Derive.Deriver a -> Derive.Deriver a
+handle_exc call_type empty call_id deriver = fmap (maybe empty id) $
+    Derive.catch_warn id (Derive.with_msg msg deriver)
     where
     msg = call_type ++ " " ++ Pretty.pretty call_id
 
 -- * lookup_note_call
 
+-- TODO Can I move this to Derive.Note?  The only thing is that Calls want
+-- to do their own sub-derivation, e.g. Rambat.c_tick.
+
 -- | This is here instead of Derive because note calls first look at the block
 -- ids to derive a block.
-lookup_note_call :: TrackLang.CallId -> Derive.Deriver Derive.Call
+lookup_note_call :: TrackLang.CallId -> Derive.Deriver Derive.NoteCall
 lookup_note_call call_id = do
     st <- Derive.get
     let default_ns = State.state_project (Derive.state_ui st)
@@ -166,7 +228,7 @@ lookup_note_call call_id = do
 -- | I don't want to abort all of derivation by throwing, but I do want to
 -- abort evaluation of this expression, so consider this a kind of type error,
 -- which does just that.
-c_not_found :: TrackLang.CallId -> Derive.Call
+c_not_found :: TrackLang.CallId -> Derive.NoteCall
 c_not_found call_id = Derive.Call
     (Just $ \_ _ _ _ -> err) (Just $ \_ _ -> err)
     where err = Left (TrackLang.CallNotFound call_id)

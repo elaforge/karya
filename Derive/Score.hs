@@ -19,11 +19,6 @@ import qualified Perform.Signal as Signal
 import qualified Perform.Warning as Warning
 
 
--- | Currently this is just for 'Derive.map_events'.
-class Eventlike e where
-    stack :: e -> [Warning.StackPos]
-    start :: e -> RealTime
-
 -- * Event
 
 data Event = Event {
@@ -48,10 +43,6 @@ data Event = Event {
     , event_instrument :: Maybe Instrument
     , event_attributes :: Attributes
     } deriving (Eq, Show)
-
-instance Eventlike Event where
-    stack = event_stack
-    start = event_start
 
 type ControlMap = Map.Map Control Signal.Control
 
@@ -262,21 +253,7 @@ modify_control cont f (WarpedControls cmap) = case Map.lookup cont cmap of
 modify_warps :: (Warp -> Warp) -> WarpedControls -> WarpedControls
 modify_warps f (WarpedControls cmap) = WarpedControls $ Map.map (second f) cmap
 
-
--- * ControlEvent
-
-data ControlEvent = ControlEvent {
-    cevent_start :: RealTime
-    , cevent_text :: Text.Text
-    , cevent_stack :: Warning.Stack
-    } deriving (Eq, Show)
-
-instance Eventlike ControlEvent where
-    stack = cevent_stack
-    start = cevent_start
-
-cevent_string :: ControlEvent -> String
-cevent_string = Text.unpack . cevent_text
+-- * instrument
 
 -- | An Instrument is identified by a plain string.  This will be looked up in
 -- the instrument db to get the backend specific Instrument type as well as the

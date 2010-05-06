@@ -12,226 +12,135 @@
     - method;val - Approach val with method, then jump to val.
 -}
 module Derive.Control where
-import Prelude hiding (lex)
-import qualified Data.Char as Char
-
-import qualified Text.ParserCombinators.Parsec as P
-import Text.ParserCombinators.Parsec ((<?>))
+import Prelude
+import Control.Monad
 
 import Util.Control
 import qualified Util.Parse as Parse
 
 import Ui
-import qualified Ui.Event as Event
 import qualified Ui.Track as Track
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
-import qualified Perform.Warning as Warning
 
+import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
-import qualified Derive.Parse as Derive.Parse
 import qualified Derive.Score as Score
+import qualified Derive.TrackLang as TrackLang
 
-
--- | It's necessary for @eventsm@ to be monadic, since it needs to be run
--- inside the environment modified by d_control.
-d_control :: (Monad m) => Score.Control -> Derive.DeriveT m Signal.Control
-    -> Derive.DeriveT m [Score.Event] -> Derive.DeriveT m [Score.Event]
-d_control cont signalm eventsm = do
-    signal <- signalm
-    Derive.with_control cont signal eventsm
 
 d_relative :: (Monad m) =>
-    Score.Control -> Derive.Operator -> Derive.DeriveT m Signal.Control
+    Score.Control -> TrackLang.CallId -> Derive.DeriveT m Signal.Control
     -> Derive.DeriveT m [Score.Event] -> Derive.DeriveT m [Score.Event]
 d_relative cont op signalm eventsm = do
     signal <- signalm
     Derive.with_control_operator cont op signal eventsm
 
-d_pitch :: (Monad m) => Derive.DeriveT m PitchSignal.PitchSignal
-    -> Derive.DeriveT m [Score.Event] -> Derive.DeriveT m [Score.Event]
-d_pitch signalm eventsm = do
-    signal <- signalm
-    Derive.with_pitch signal eventsm
-
-d_relative_pitch :: (Monad m) => Derive.Operator
+d_relative_pitch :: (Monad m) => TrackLang.CallId
     -> Derive.DeriveT m PitchSignal.Relative
     -> Derive.DeriveT m [Score.Event] -> Derive.DeriveT m [Score.Event]
 d_relative_pitch op signalm eventsm = do
     signal <- signalm
     Derive.with_pitch_operator op signal eventsm
 
--- | Get the signal events from a control track.  They are meant to be
--- fed to 'd_signal', which will convert them into a signal, and the whole
--- thing passed as the signal deriver to 'd_control'.
-d_control_track :: (Monad m) => Derive.TrackDeriver m Score.ControlEvent
-d_control_track track_id = do
+-- | Top level deriver for control tracks.
+d_control_track :: BlockId -> TrackId -> Derive.Transformer
+d_control_track block_id track_id deriver = do
     track <- Derive.get_track track_id
-    stack <- Derive.gets Derive.state_stack
-    let (pos_list, events) = unzip $ Track.event_list (Track.track_events track)
-    -- TODO when signals are lazy this will be inefficient.  See TODO in
-    -- Note.hs.
-    -- Unlike the note deriver, I can do the warping all in one go here,
-    -- because control events never trigger subderivation.
-    warped <- mapM Derive.score_to_real pos_list
-    return [control_event stack score_pos real_pos event
-        | (score_pos, real_pos, event) <- zip3 pos_list warped events]
+    title_expr <- case TrackLang.parse (Track.track_title track) of
+        Left err -> Derive.throw $ "track title: " ++ err
+        Right expr -> return expr
+    -- TODO event calls are evaluated in normalized time, but track calls
+    -- aren't.  Should they be?
+    join $ eval_track block_id track_id title_expr deriver
 
--- * implementation
+eval_track :: BlockId -> TrackId -> TrackLang.Expr
+    -> Derive.EventDeriver -> Derive.Deriver Derive.EventDeriver
+eval_track block_id track_id [TrackLang.Call call_id args] deriver = do
+    track <- Derive.get_track track_id
+    let events = Track.event_list (Track.track_events track)
 
--- TODO It would be nicer to use a Text implementation of parsec so I don't
--- have to unpack the event text.
+    -- The control track title doesn't follow the normal syntax of
+    -- "symbol val val ...".  At least not for the final expression in the
+    -- pipeline.
+    let vals = if call_id == TrackLang.Symbol ""
+            then args else TrackLang.VSymbol call_id : args
+    transformer <- case vals of
+        [TrackLang.VSymbol (TrackLang.Symbol "tempo")] -> return $
+            tempo_call block_id track_id
+                (Signal.coerce <$> derive_signal events)
+        [TrackLang.VSymbol (TrackLang.Symbol control)] -> return $
+            control_call track_id (Score.Control control) (derive_signal events)
+        [TrackLang.VNote note] -> return $
+            pitch_call track_id (note_to_scale note) events Nothing
+        -- Named pitch track
+        [TrackLang.VNote note, TrackLang.VControl (TrackLang.Control cont)] ->
+            return $ pitch_call track_id (note_to_scale note) events (Just cont)
+        -- TODO implement relative control tracks
+        vals -> Derive.throw $ "args must be note or symbol: " ++ show vals
+    return (transformer deriver)
+    where note_to_scale (Pitch.Note s) = Pitch.ScaleId s
+eval_track _ _ _expr _ = return $
+    Derive.throw "composition not supported on control tracks yet"
 
--- | Construct a control event from warped position.
-control_event :: Warning.Stack -> ScoreTime -> RealTime -> Event.Event
-    -> Score.ControlEvent
-control_event stack score_pos pos event =
-    Score.ControlEvent pos (Event.event_text event) evt_stack
-    where
-    evt_stack = case stack of
-        (block_id, track_id, _) : rest ->
-            (block_id, track_id, Just (score_pos, Event.event_duration event))
-                : rest
-        [] -> []
+-- | A tempo track is derived like other signals, but in absolute time.
+-- Otherwise it would wind up being composed with the environmental
+-- warp twice.
+tempo_call :: BlockId -> TrackId -> Derive.Deriver Signal.Tempo
+    -> Derive.Transformer
+tempo_call block_id track_id sig = Derive.d_tempo block_id (Just track_id) $
+    Derive.with_warp (const Score.id_warp) sig
 
--- ** number signals
+control_call :: TrackId -> Score.Control -> Derive.ControlDeriver
+    -> Derive.Transformer
+control_call track_id control deriver = d_control control $
+    Derive.with_track_warp track_id deriver
 
--- | Derive a Signal from Events.
-d_signal :: (Monad m) => [Score.ControlEvent] -> Derive.DeriveT m Signal.Control
-    -- TODO Should the srate be controllable?
-d_signal events = fmap (Signal.track_signal Signal.default_srate)
-    (Derive.map_events parse_event Derive.NoState id events)
+d_control :: Score.Control -> Derive.ControlDeriver -> Derive.Transformer
+d_control cont control_deriver deriver = do
+    signal <- control_deriver
+    Derive.with_control cont signal deriver
 
--- | Tempo tracks use the same syntax as other control tracks, but the signal
--- type is different.
-d_tempo_signal :: (Monad m) =>
-    [Score.ControlEvent] -> Derive.DeriveT m Signal.Tempo
-d_tempo_signal = fmap Signal.coerce . d_signal
+pitch_call :: TrackId -> Pitch.ScaleId -> [Track.PosEvent]
+    -> Maybe Score.Control -> Derive.Transformer
+pitch_call _ _ _ (Just _) =
+    const $ Derive.throw $ "named pitch tracks not supported yet"
+pitch_call track_id scale_id events Nothing = d_pitch scale_id
+    (Derive.with_track_warp track_id (derive_pitch events))
 
-d_display_signal :: (Monad m) =>
-    [Score.ControlEvent] -> Derive.DeriveT m Signal.Display
-d_display_signal = fmap Signal.coerce . d_signal
+d_pitch :: Pitch.ScaleId -> Derive.PitchDeriver -> Derive.Transformer
+d_pitch scale_id control_deriver deriver = do
+    scale <- Derive.get_scale "d_pitch" scale_id
+    Derive.with_val TrackLang.v_scale scale $ do
+        signal <- control_deriver
+        Derive.with_pitch signal deriver
 
-parse_event :: (Monad m) => Derive.NoState -> Score.ControlEvent
-    -> Derive.DeriveT m (Signal.Segment, Derive.NoState)
-parse_event _ event = do
-    (method, val) <- Derive.Parse.parse ((,) <$> p_opt_method <*> Parse.p_float)
-        (Score.cevent_string event)
-    return ((Score.cevent_start event, method, val), Derive.NoState)
 
--- ** pitch signals
+derive_pitch :: [Track.PosEvent] -> Derive.PitchDeriver
+derive_pitch = fmap PitchSignal.merge
+    . Call.derive_track
+        ("pitch", Derive.no_pitch, Derive.lookup_pitch_call, mangle_pitch_call)
+        (\prev chunk -> PitchSignal.last chunk `mplus` prev)
 
-d_pitch_signal :: (Monad m) => Pitch.ScaleId -> [Score.ControlEvent]
-    -> Derive.DeriveT m PitchSignal.PitchSignal
-d_pitch_signal scale_id events = do
-    scale <- Derive.get_scale "d_pitch_signal" scale_id
-    fmap (PitchSignal.track_signal scale_id PitchSignal.default_srate)
-        (Derive.map_events (parse_pitch_event scale) Nothing id events)
+-- | I really want to be able to give notes arbitrary names.  Especially
+-- numbers are good names for notes.  Unfortunately numbers also look like
+-- numbers.  Note literal syntax prefixes *, but a pitch track consists mostly
+-- of note literals so it looks ugly.  So a pitch track automatically prefixes
+-- *s when it consists of a single token.
+mangle_pitch_call :: String -> String
+mangle_pitch_call text
+    | ' ' `elem` text = text
+    | otherwise = '*' : text
 
--- | Produce a plain signal from an absolute pitch track to render on the UI.
-d_display_pitch :: (Monad m) => Pitch.ScaleId -> [Score.ControlEvent]
-    -> Derive.DeriveT m Signal.Display
-d_display_pitch scale_id _events = do
-    scale <- Derive.get_scale "d_display_pitch" scale_id
-    -- TODO implement when I implement pitch signal rendering
-    return (Signal.constant 0)
+derive_signal :: [Track.PosEvent] -> Derive.ControlDeriver
+derive_signal = fmap Signal.merge
+    . Call.derive_track
+        ("control", Derive.no_control, Derive.lookup_control_call, id)
+        (\prev chunk -> Signal.last chunk `mplus` prev)
 
--- | As 'd_display_pitch' but parse a relative pitch track.
-d_display_relative_pitch :: (Monad m) => Pitch.ScaleId -> [Score.ControlEvent]
-    -> Derive.DeriveT m Signal.Display
-d_display_relative_pitch scale_id _events = do
-    scale <- Derive.get_scale "d_display_relative_pitch" scale_id
-    -- TODO implement when I implement pitch signal rendering
-    return (Signal.constant 0)
-
-parse_pitch_event :: (Monad m) => Pitch.Scale -> Maybe Pitch.Degree
-    -> Score.ControlEvent
-    -> Derive.DeriveT m (PitchSignal.Segment, Maybe Pitch.Degree)
-parse_pitch_event scale prev event = do
-    (method, note) <- Derive.Parse.parse
-        ((,) <$> p_opt_method <*> p_scale_note) (Score.cevent_string event)
-    degree <- parse_note scale prev note
-    return ((Score.cevent_start event, method, degree), Just degree)
-
-d_relative_pitch_signal :: (Monad m) => Pitch.ScaleId -> [Score.ControlEvent]
-    -> Derive.DeriveT m PitchSignal.Relative
-d_relative_pitch_signal scale_id events = do
-    scale <- Derive.get_scale "d_relative_pitch_signal" scale_id
-    let per_oct = Pitch.scale_octave scale
-    segs <- Derive.map_events (parse_relative_pitch_event per_oct) () id events
-    return $ PitchSignal.track_signal scale_id Signal.default_srate segs
-
-parse_relative_pitch_event :: (Monad m) => Pitch.Octave -> ()
-    -> Score.ControlEvent -> Derive.DeriveT m (PitchSignal.Segment, ())
-parse_relative_pitch_event per_oct _ event = do
-    (method, (oct, nn)) <- Derive.Parse.parse
-        ((,) <$> p_opt_method <*> parse_relative)
-        (Score.cevent_string event)
-    let degree = Pitch.Degree (fromIntegral (oct * per_oct) + nn)
-    return ((Score.cevent_start event, method, degree), ())
-
--- | Relative notes look like \"4/3.2\" or \"-3.2\" (octave omitted)
--- or \"-3/\" (only octave).
-parse_relative :: P.CharParser st (Pitch.Octave, Double)
-parse_relative = do
-    (oct, nn) <- P.try oct_nn <|> just_nn
-    return (oct, nn)
-    where
-    oct_nn = do
-        oct <- Parse.p_int
-        P.char '/'
-        nn <- P.option 0 Parse.p_float
-        return (oct, nn)
-    just_nn = Parse.p_float >>= \nn -> return (0, nn)
-
-unparse_relative :: (Pitch.Octave, Double) -> Pitch.Note
-unparse_relative (oct, nn)
-    | oct == 0 = Pitch.Note (Parse.show_float (Just 2) nn)
-    | otherwise = Pitch.Note (show oct ++ degree)
-    where
-    degree = (if oct == 0 then "" else "/")
-        ++ (if nn == 0 then "" else Parse.show_float (Just 2) nn)
-
--- | Parse scale notes for a given scale.  This one just matches the scale
--- notes directly, but a more complicated one may get scale values out of the
--- environment or something.
---
--- An empty Note gets the same pitch as the previous one which gives an easy
--- way to shorten the length of a subsequent slide, e.g. @["4c", "i", "i, 4d"]@.
-parse_note :: (Monad m) => Pitch.Scale -> Maybe Pitch.Degree -> Pitch.Note
-    -> Derive.DeriveT m Pitch.Degree
-parse_note scale prev note
-    | note == empty_note, Just degree <- prev = return degree
-    | otherwise = maybe
-        (Derive.throw $ show note ++ " not in " ++ show (Pitch.scale_id scale))
-        return (Pitch.scale_note_to_degree scale note)
-        -- TODO If I made the signal go to an invalid value on error it would
-        -- prevent the notes from playing, which seems desirable, otherwise they
-        -- just keep playing the last parseable pitch.
-    where empty_note = Pitch.Note ""
-
-p_scale_note :: P.CharParser st Pitch.Note
-p_scale_note = Pitch.Note <$> P.many (P.satisfy (not . Char.isSpace))
-
--- ** generic
-
--- The method is separated from the value with a comma.  The cmds have to parse
--- incomplete event text and the comma is important to disambiguate.
-
-p_opt_method :: P.CharParser st Signal.Method
-p_opt_method = P.option Signal.Set (P.try (p_meth <* P.char ',')) <* P.spaces
-
-p_meth :: P.CharParser st Signal.Method
-p_meth = (P.char 'i' >> return Signal.Linear)
-    <|> (P.char 's' >> return Signal.Set)
-    <|> (P.try
-        (P.option 2 (Parse.p_float) <* P.char 'e' >>= return . Signal.Exp))
-    <?> "method: 'i' 's', or '#e'"
-
-unparse_method :: Signal.Method -> String
-unparse_method meth = case meth of
-    Signal.Set -> ""
-    Signal.Linear -> "i"
-    Signal.Exp n -> show n ++ "e"
+-- | A relative pitch track is parsed as an ordinary control track, so
+-- a relative pitch is unparsed into a control \"set\" expression.
+unparse_relative :: Double -> String
+unparse_relative = Parse.show_float (Just 2)

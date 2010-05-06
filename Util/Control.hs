@@ -6,6 +6,9 @@ module Util.Control (
     , map_accuml_m
     , while, while_
     , whenM, when_just
+    , defaulted
+
+    , finally
 ) where
 import Control.Monad
 import qualified Control.Monad.Error as Error
@@ -14,9 +17,11 @@ import qualified Control.Applicative as Applicative
 import qualified Text.ParserCombinators.Parsec as P
 
 
--- Like the Arrow combinators, but specialized to functions.
+-- | Like the Arrow combinators, but specialized to functions for clearer
+-- error messages.
 first :: (a -> b) -> (a, c) -> (b, c)
 first f (a, c) = (f a, c)
+
 second :: (a -> b) -> (c, a) -> (c, b)
 second f (c, a) = (c, f a)
 
@@ -51,6 +56,9 @@ whenM cond op = do
 when_just :: (Monad m) => Maybe a -> (a -> m ()) -> m ()
 when_just val f = maybe (return ()) f val
 
+defaulted :: a -> Maybe a -> a
+defaulted deflt = maybe deflt id
+
 
 instance Applicative.Applicative (P.GenParser s a) where
     pure = return
@@ -63,3 +71,17 @@ instance Applicative.Alternative (P.GenParser s a) where
 instance (Error.Error e) => Applicative.Applicative (Either e) where
     pure = return
     (<*>) = ap
+
+
+-- | Annoyingly, Monad does not imply Applicative, so <* doesn't work
+-- everywhere.
+(<#) :: (Monad m) => m a -> m b -> m a
+m0 <# m1 = do
+    r <- m0
+    m1
+    return r
+
+-- | Finally a finally for MonadError.
+finally :: (Error.MonadError e m) => m a -> m () -> m a
+finally action handler = Error.catchError (action <# handler) $
+    \exc -> handler >> Error.throwError exc

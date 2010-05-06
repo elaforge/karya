@@ -10,7 +10,7 @@ import qualified Derive.Call as Call
 import qualified Perform.Signal as Signal
 
 
-note_calls :: Derive.CallMap
+note_calls :: Derive.NoteCallMap
 note_calls = Derive.make_calls
     [ ("tick", c_tick)
     ]
@@ -27,7 +27,7 @@ note_calls = Derive.make_calls
 --
 -- [vel /Control/ @%tick-velocity,.3@] Grace note velocity will be this
 -- percentage of the following note.
-c_tick :: Derive.Call
+c_tick :: Derive.NoteCall
 c_tick = Derive.generate_one $ \args prev _ next -> TrackLang.call2 args
     ( optional "time" (control "tick-time" 0.15)
     , optional "vel" (control "tick-velocity" 0.5)) $

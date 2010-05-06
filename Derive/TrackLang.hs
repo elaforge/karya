@@ -55,6 +55,9 @@ import qualified Perform.Signal as Signal
 data Val =
     -- | Goes in a pitch track val field.  Literal: @*5a@
     VNote Pitch.Note
+    -- | No special literal yet, but in the track title reuses note literal
+    -- syntax.
+    | VScale Pitch.Scale
     -- | Sets the instrument in scope for a note.  An empty instrument doesn't
     -- set the instrument, but can be used to mark a track as a note track.
     -- Literal: @>@, @>inst@
@@ -88,6 +91,8 @@ data Val =
 instance Pretty.Pretty Val where
     pretty val = case val of
         VNote (Pitch.Note n) -> note_literal_prefix ++ n
+        VScale scale -> case Pitch.scale_id scale of
+            Pitch.ScaleId scale_id -> note_literal_prefix ++ scale_id
         VInstrument (Score.Instrument inst) -> inst_literal_prefix ++ inst
         VMethod (Method m) -> "m'" ++ m ++ "'"
         VNum d -> Pretty.pretty d
@@ -148,14 +153,17 @@ is_null_instrument _ = False
 c_equal :: CallId
 c_equal = Symbol "="
 
-v_instrument, v_attributes :: ValName
+-- | Define a few inhabitants of Environ which are used by the built-in set
+-- of calls.
+v_instrument, v_attributes, v_scale :: ValName
 v_instrument = Symbol "inst"
 v_attributes = Symbol "attr"
+v_scale = Symbol "scale"
 
 -- * types
 
-data Type = TNote | TInstrument | TMethod | TNum | TString | TRelativeAttr
-    | TAttributes | TControl | TSymbol | TNotGiven
+data Type = TNote | TScale | TInstrument | TMethod | TNum | TString
+    | TRelativeAttr | TAttributes | TControl | TSymbol | TNotGiven
     deriving (Eq, Show)
 
 instance Pretty.Pretty Type where
@@ -164,6 +172,7 @@ instance Pretty.Pretty Type where
 type_of :: Val -> Type
 type_of val = case val of
     VNote _ -> TNote
+    VScale _ -> TScale
     VInstrument _ -> TInstrument
     VMethod _ -> TMethod
     VNum _ -> TNum
@@ -186,6 +195,11 @@ instance Typecheck Pitch.Note where
     from_val (VNote a) = Just a
     from_val _ = Nothing
     to_val = VNote
+
+instance Typecheck Pitch.Scale where
+    from_val (VScale a) = Just a
+    from_val _ = Nothing
+    to_val = VScale
 
 instance Typecheck Score.Instrument where
     from_val (VInstrument a) = Just a
@@ -262,6 +276,7 @@ hardcoded_types :: Map.Map ValName Type
 hardcoded_types = Map.fromList
     [ (v_instrument, TInstrument)
     , (v_attributes, TAttributes)
+    , (v_scale, TScale)
     ]
 
 data LookupError = NotFound | WrongType Type deriving (Show)
@@ -293,7 +308,7 @@ arg_environ_default :: CallId -> String -> ValName
 arg_environ_default (Symbol call) arg_name = Symbol $ call ++ "-" ++ arg_name
 
 -- | Passed arguments.  The dynamic environ is also given for defaulting args.
-data PassedArgs = PassedArgs {
+data PassedArgs y = PassedArgs {
     passed_vals :: [Val]
     , passed_environ :: Environ
     , passed_call :: CallId
@@ -305,10 +320,14 @@ data PassedArgs = PassedArgs {
     -- Stretch for a 0 dur note is considered 1, not infinity, to avoid
     -- problems with division by 0.
     , passed_stretch :: ScoreTime
+
+    -- | Hack so control calls have access to the previous sample, since
+    -- they tend to want to interpolate from that value.
+    , passed_prev_val :: Maybe (RealTime, y)
     }
 
-passed_args :: String -> [Val] -> PassedArgs
-passed_args call vals = PassedArgs vals Map.empty (Symbol call) 1
+passed_args :: String -> [Val] -> PassedArgs y
+passed_args call vals = PassedArgs vals Map.empty (Symbol call) 1 Nothing
 
 type_of_val :: (Typecheck a) => a -> Type
 type_of_val = type_of . to_val
@@ -369,27 +388,28 @@ with_error (Right v) = Right v
 -- TODO However with extensible exceptions couldn't I do this more cleanly?
 -- And I think if events consumed depends on deriver processing then this will
 -- be necessary.
-call0 :: PassedArgs -> WithError result -> Either TypeError result
-call0 vals f = check_args vals [] >> with_error f
+call0_error :: PassedArgs y -> WithError result -> Either TypeError result
+call0_error vals f = check_args vals [] >> with_error f
+call0 vals f = call0_error vals (return f)
 
-extract1 :: (Typecheck a) => PassedArgs -> Arg a -> Either TypeError a
+extract1 :: (Typecheck a) => PassedArgs y -> Arg a -> Either TypeError a
 extract1 vals sig0 = do
     arg0 : _ <- check_args vals [arg_required sig0]
     extract_arg 0 sig0 arg0
 
-call1_error :: (Typecheck a) => PassedArgs -> Arg a -> (a -> WithError result)
+call1_error :: (Typecheck a) => PassedArgs y -> Arg a -> (a -> WithError result)
     -> Either TypeError result
 call1_error vals arg0 f = with_error . f =<< extract1 vals arg0
 call1 vals arg0 f = call1_error vals arg0 (return . f)
 
 extract2 :: (Typecheck a, Typecheck b) =>
-    PassedArgs -> (Arg a, Arg b) -> Either TypeError (a, b)
+    PassedArgs y -> (Arg a, Arg b) -> Either TypeError (a, b)
 extract2 vals (sig0, sig1) = do
     arg0 : arg1 : _ <- check_args vals [arg_required sig0, arg_required sig1]
     (,) <$> extract_arg 0 sig0 arg0 <*> extract_arg 1 sig1 arg1
 
 call2_error :: (Typecheck a, Typecheck b) =>
-    PassedArgs -> (Arg a, Arg b) -> (a -> b -> WithError result)
+    PassedArgs y -> (Arg a, Arg b) -> (a -> b -> WithError result)
     -> Either TypeError result
 call2_error vals (arg0, arg1) f = do
     (val0, val1) <- extract2 vals (arg0, arg1)
@@ -397,7 +417,7 @@ call2_error vals (arg0, arg1) f = do
 call2 vals args f = call2_error vals args (\a0 a1 -> return (f a0 a1))
 
 extract3 :: (Typecheck a, Typecheck b, Typecheck c) =>
-    PassedArgs -> (Arg a, Arg b, Arg c) -> Either TypeError (a, b, c)
+    PassedArgs y -> (Arg a, Arg b, Arg c) -> Either TypeError (a, b, c)
 extract3 vals (sig0, sig1, sig2) = do
     arg0 : arg1 : arg2 : _ <- check_args vals
         [arg_required sig0, arg_required sig1, arg_required sig2]
@@ -405,7 +425,7 @@ extract3 vals (sig0, sig1, sig2) = do
         <*> extract_arg 2 sig2 arg2
 
 call3_error :: (Typecheck a, Typecheck b, Typecheck c) =>
-    PassedArgs -> (Arg a, Arg b, Arg c) -> (a -> b -> c -> WithError result)
+    PassedArgs y -> (Arg a, Arg b, Arg c) -> (a -> b -> c -> WithError result)
     -> Either TypeError result
 call3_error vals (arg0, arg1, arg2) f = do
     (val0, val1, val2) <- extract3 vals (arg0, arg1, arg2)
@@ -413,7 +433,8 @@ call3_error vals (arg0, arg1, arg2) f = do
 call3 vals args f = call3_error vals args (\a0 a1 a2 -> return (f a0 a1 a2))
 
 extract4 :: (Typecheck a, Typecheck b, Typecheck c, Typecheck d) =>
-    PassedArgs -> (Arg a, Arg b, Arg c, Arg d) -> Either TypeError (a, b, c, d)
+    PassedArgs y -> (Arg a, Arg b, Arg c, Arg d)
+    -> Either TypeError (a, b, c, d)
 extract4 vals (sig0, sig1, sig2, sig3) = do
     arg0 : arg1 : arg2 : arg3 : _ <- check_args vals
         [arg_required sig0, arg_required sig1, arg_required sig2,
@@ -422,7 +443,7 @@ extract4 vals (sig0, sig1, sig2, sig3) = do
         <*> extract_arg 2 sig2 arg2 <*> extract_arg 3 sig3 arg3
 
 call4_error :: (Typecheck a, Typecheck b, Typecheck c, Typecheck d) =>
-    PassedArgs -> (Arg a, Arg b, Arg c, Arg d)
+    PassedArgs y -> (Arg a, Arg b, Arg c, Arg d)
     -> (a -> b -> c -> d -> WithError result)
     -> Either TypeError result
 call4_error vals (arg0, arg1, arg2, arg3) f = do
@@ -470,7 +491,7 @@ check_args passed args
         then show (length required)
         else "from " ++ show (length required) ++ " to " ++ show (length args)
     expected = "expected " ++ arg_range ++ ", got "
-        ++ show (length vals)
+        ++ show (length vals) ++ show vals
         ++ if from_env == 0 then ""
             else " (" ++ show from_env ++ " from environ)"
 
@@ -515,6 +536,9 @@ note_literal_prefix = "*"
 
 parse :: String -> Either String Expr
 parse text = reverse <$> Parse.parse_all p_pipeline (strip_comment text)
+
+parse_vals :: String -> Either String [Val]
+parse_vals text = Parse.parse_all (P.many p_val) (strip_comment text)
 
 p_pipeline :: P.Parser Expr
 p_pipeline = P.sepBy p_expr (Parse.symbol "|")

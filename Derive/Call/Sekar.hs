@@ -27,7 +27,7 @@ import qualified Derive.Derive as Derive
 -- import qualified Perform.Signal as Signal
 
 
-note_calls :: Derive.CallMap
+note_calls :: Derive.NoteCallMap
 note_calls = Derive.make_calls
     [ -- ("sekar", c_sekar)
     ]

@@ -42,12 +42,13 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Monoid as Monoid
 
-import qualified Util.Control
+import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Util.SrcPos as SrcPos
 
 import Ui
+import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.State as State
 import qualified Ui.Track as Track
@@ -68,15 +69,44 @@ import qualified Derive.TrackLang as TrackLang
 -- * DeriveT
 
 type Deriver a = DeriveT Identity.Identity a
-type EventDeriver = Deriver [Score.Event]
-type SignalDeriver sig = Deriver [(TrackId, sig)]
 
-empty_deriver :: EventDeriver
-empty_deriver = return no_events
+-- ** events
 
-no_events :: [Score.Event]
+type EventDeriver = Deriver Events
+type Events = [Score.Event]
+
+no_events :: Events
 no_events = []
 
+empty_events :: EventDeriver
+empty_events = return no_events
+
+-- ** control
+
+type ControlDeriver = Deriver Control
+type Control = Signal.Control
+type DisplaySignalDeriver = Deriver [(TrackId, Signal.Display)]
+
+no_control :: Control
+no_control = Signal.empty
+
+empty_control :: ControlDeriver
+empty_control = return no_control
+
+-- ** pitch
+
+type PitchDeriver = Deriver PitchSignal.PitchSignal
+type Pitch = PitchSignal.PitchSignal
+
+no_pitch :: Pitch
+no_pitch = PitchSignal.empty
+
+empty_pitch :: PitchDeriver
+empty_pitch = return no_pitch
+
+-- ** state
+
+-- TODO remove this
 type TrackDeriver m e = TrackId -> DeriveT m [e]
 
 newtype DeriveT m a = DeriveT (DeriveStack m a)
@@ -118,8 +148,8 @@ data State = State {
     -- blocks.
     , state_ui :: State.State
     , state_lookup_deriver :: LookupDeriver
-    , state_control_op_map :: Map.Map Operator ControlOp
-    , state_pitch_op_map :: Map.Map Operator PitchOp
+    , state_control_op_map :: Map.Map TrackLang.CallId ControlOp
+    , state_pitch_op_map :: Map.Map TrackLang.CallId PitchOp
     , state_call_map :: CallEnv
     -- | This is set if the derivation is for a signal deriver.  Signal
     -- derivers skip all special tempo treatment.  Ultimately, this is needed
@@ -160,45 +190,61 @@ default_velocity = 0.79
 -- ** calls
 
 data CallEnv = CallEnv {
-    calls_note :: CallMap
-    , calls_control :: CallMap
+    calls_note :: NoteCallMap
+    , calls_control :: ControlCallMap
+    , calls_pitch :: PitchCallMap
     }
-empty_call_map = CallEnv Map.empty Map.empty
+empty_call_map = CallEnv Map.empty Map.empty Map.empty
 
-type CallMap = Map.Map TrackLang.CallId Call
+type NoteCallMap = Map.Map TrackLang.CallId NoteCall
+type ControlCallMap = Map.Map TrackLang.CallId ControlCall
+type PitchCallMap = Map.Map TrackLang.CallId PitchCall
 
 -- | A Call will be called as either a generator or a transformer, depending on
 -- its position.  A call at the end of a compose pipeline will be called as
 -- a generator while ones composed with it will be called as transformers, so
 -- in @a | b@, @a@ is a transformer and @b@ is a generator.
-data Call = Call {
-    call_generator :: Maybe GeneratorCall
-    , call_transformer :: Maybe TransformerCall
+data Call y derived = Call {
+    call_generator :: Maybe (GeneratorCall y derived)
+    , call_transformer :: Maybe (TransformerCall y derived)
     }
+
+type NoteCall = Call Score.Event Events
+type ControlCall = Call Signal.Y Control
+type PitchCall = Call PitchSignal.Y Pitch
+
 -- | args -> prev_events -> cur_event -> next_events -> (deriver, consumed)
-type GeneratorCall = TrackLang.PassedArgs -> [Track.PosEvent] -> Event.Event
-    -> [Track.PosEvent] -> Either TrackLang.TypeError (EventDeriver, Int)
--- | args -> pos -> deriver -> deriver
-type TransformerCall = TrackLang.PassedArgs -> EventDeriver
-    -> Either TrackLang.TypeError EventDeriver
+type GeneratorCall y derived = TrackLang.PassedArgs y -> [Track.PosEvent]
+    -> Event.Event -> [Track.PosEvent]
+    -> Either TrackLang.TypeError (Deriver derived, Int)
+-- | args -> (deriver -> deriver)
+type TransformerCall y derived = TrackLang.PassedArgs y -> Deriver derived
+    -> Either TrackLang.TypeError (Deriver derived)
+
+-- | The call for the whole control track.
+type ControlTrackCall = BlockId -> TrackId -> TrackLang.PassedArgs Signal.Y
+    -> Deriver Transformer
+type Transformer = EventDeriver -> EventDeriver
 
 generator call = Call (Just call) Nothing
 transformer call = Call Nothing (Just call)
 
 -- | Like 'generator', except for a generator that consumes a single event.
-generate_one :: (TrackLang.PassedArgs -> [Track.PosEvent] -> Event.Event
+generate_one :: (TrackLang.PassedArgs y -> [Track.PosEvent] -> Event.Event
     -> [Track.PosEvent]
-    -> Either TrackLang.TypeError EventDeriver)
-    -> Call
+    -> Either TrackLang.TypeError (Deriver derived))
+    -> Call y derived
 generate_one call = generator $ \args prev event next ->
     fmap (, 1) (call args prev event next)
 
-make_calls :: [(String, Call)] -> CallMap
-make_calls = Map.fromList . map (Util.Control.first TrackLang.Symbol)
+make_calls :: [(String, Call y derived)]
+    -> Map.Map TrackLang.CallId (Call y derived)
+make_calls = Map.fromList . map (first TrackLang.Symbol)
 
 instance Show CallEnv where
-    show (CallEnv note control) =
-        "(CallEnv " ++ keys note ++ " " ++ keys control ++ ")"
+    show (CallEnv note control pitch) =
+        "(CallEnv " ++ keys note ++ " " ++ keys control ++ " " ++ keys pitch
+        ++ ")"
         where
         keys m = "<" ++ Seq.join ", " [c | TrackLang.Symbol c <- Map.keys m]
             ++ ">"
@@ -212,7 +258,7 @@ type LookupDeriver = BlockId -> Either State.StateError EventDeriver
 -- | LookupDeriver that suppresses all sub-derivations.  Used by the signal
 -- deriver since it only derives one block at a time.
 empty_lookup_deriver :: LookupDeriver
-empty_lookup_deriver = const (Right empty_deriver)
+empty_lookup_deriver = const (Right empty_events)
 
 -- | Each track warp is a warp indexed by the block and tracks it covers.
 data TrackWarp = TrackWarp {
@@ -261,7 +307,7 @@ d_root_block = fmap process_negative_durations . d_block
 d_block :: BlockId -> EventDeriver
 d_block block_id = do
     -- Do some error checking.  These are all caught later, but if I throw here
-    -- the stack doesn't include the bogus block yet and I have give more
+    -- the stack doesn't include the bogus block yet and I can give more
     -- specific error msgs.
     let bthrow s = throw ("d_block " ++ show block_id ++ ": " ++ s)
     ui_state <- gets state_ui
@@ -347,17 +393,15 @@ local :: (Monad m) => (State -> b) -> (State -> State) -> (b -> State -> State)
 local from_state modify_state to_state m = do
     old <- gets from_state
     modify modify_state
-    result <- m
-    modify (to_state old)
-    return result
+    m `finally` modify (to_state old)
 
 -- | So this is kind of confusing.  When events are created, they are assigned
 -- their stack based on the current event_stack, which is set by the
 -- with_stack_* functions.  Then, when they are processed, the stack is used
 -- to *set* event_stack, which is what 'warn' and 'throw' will look at.
-with_event :: (Monad m, Score.Eventlike e) => e -> DeriveT m a -> DeriveT m a
+with_event :: (Monad m) => Score.Event -> DeriveT m a -> DeriveT m a
 with_event event = local state_stack
-    (\st -> st { state_stack = Score.stack event })
+    (\st -> st { state_stack = Score.event_stack event })
     (\old st -> st { state_stack = old })
 
 -- ** state access
@@ -424,9 +468,12 @@ lookup_val name = do
                     ++ show return_type ++ " but val type is " ++ show typ
             Right v -> return (Just v)
 
-get_val :: (TrackLang.Typecheck a, Monad m) =>
-    a -> TrackLang.ValName -> DeriveT m a
-get_val deflt name = fmap (maybe deflt id) (lookup_val name)
+-- | Like 'lookup_val', but throw if the value isn't present.
+require_val :: forall a m. (TrackLang.Typecheck a, Monad m) =>
+    TrackLang.ValName -> DeriveT m a
+require_val name = do
+    val <- lookup_val name
+    maybe (throw $ "val not present in environ: " ++ show name) return val
 
 put_val :: (Monad m, TrackLang.Typecheck val) => TrackLang.ValName -> val
     -> DeriveT m ()
@@ -454,7 +501,6 @@ insert_environ name val environ =
 
 -- *** control
 
-type Operator = String
 type ControlOp = Signal.Control -> Signal.Control -> Signal.Control
 type PitchOp = PitchSignal.PitchSignal -> PitchSignal.Relative
     -> PitchSignal.PitchSignal
@@ -518,8 +564,8 @@ with_control cont signal op = do
     modify $ \st -> st { state_controls = controls }
     return result
 
-with_control_operator :: (Monad m) =>
-    Score.Control -> Operator -> Signal.Control -> DeriveT m t -> DeriveT m t
+with_control_operator :: (Monad m) => Score.Control -> TrackLang.CallId
+    -> Signal.Control -> DeriveT m t -> DeriveT m t
 with_control_operator cont c_op signal deriver = do
     op <- lookup_control_op c_op
     with_relative_control cont op signal deriver
@@ -569,7 +615,7 @@ with_relative_pitch sig_op signal deriver = do
             return result
 
 with_pitch_operator :: (Monad m) =>
-    Operator -> PitchSignal.Relative -> DeriveT m t -> DeriveT m t
+    TrackLang.CallId -> PitchSignal.Relative -> DeriveT m t -> DeriveT m t
 with_pitch_operator c_op signal deriver = do
     sig_op <- lookup_pitch_control_op c_op
     with_relative_pitch sig_op signal deriver
@@ -584,7 +630,7 @@ with_velocity = with_control Score.c_velocity
 
 -- *** control ops
 
-lookup_control_op :: (Monad m) => Operator -> DeriveT m ControlOp
+lookup_control_op :: (Monad m) => TrackLang.CallId -> DeriveT m ControlOp
 lookup_control_op c_op = do
     op_map <- gets state_control_op_map
     maybe (throw ("unknown control op: " ++ show c_op)) return
@@ -592,8 +638,8 @@ lookup_control_op c_op = do
 
 -- | Default set of control operators.  Merged at runtime with the static
 -- config.  TODO but not yet
-default_control_op_map :: Map.Map Operator ControlOp
-default_control_op_map = Map.fromList
+default_control_op_map :: Map.Map TrackLang.CallId ControlOp
+default_control_op_map = Map.fromList $ map (first TrackLang.Symbol)
     [ ("+", Signal.sig_add)
     , ("-", Signal.sig_subtract)
     , ("*", Signal.sig_multiply)
@@ -601,15 +647,15 @@ default_control_op_map = Map.fromList
     , ("min", Signal.sig_min)
     ]
 
-lookup_pitch_control_op :: (Monad m) => Operator -> DeriveT m PitchOp
+lookup_pitch_control_op :: (Monad m) => TrackLang.CallId -> DeriveT m PitchOp
 lookup_pitch_control_op c_op = do
     op_map <- gets state_pitch_op_map
     maybe (throw ("unknown pitch op: " ++ show c_op)) return
         (Map.lookup c_op op_map)
 
 -- | As with 'default_control_op_map', but pitch ops have a different type.
-default_pitch_op_map :: Map.Map Operator PitchOp
-default_pitch_op_map = Map.fromList
+default_pitch_op_map :: Map.Map TrackLang.CallId PitchOp
+default_pitch_op_map = Map.fromList $ map (first TrackLang.Symbol)
     [ ("+", PitchSignal.sig_add)
     , ("max", PitchSignal.sig_max)
     , ("min", PitchSignal.sig_min)
@@ -618,12 +664,17 @@ default_pitch_op_map = Map.fromList
 -- lookup_note_call is defined in Derive.Call.Basic because it also looks for
 -- blocks and returns the block deriver.
 
-lookup_control_call :: (Monad m) => TrackLang.CallId -> DeriveT m Call
+lookup_control_call :: (Monad m) => TrackLang.CallId -> DeriveT m ControlCall
 lookup_control_call call_id = do
     cmap <- gets state_call_map
     maybe (throw $ "lookup_control_call: unknown " ++ show call_id) return
         (Map.lookup call_id (calls_control cmap))
 
+lookup_pitch_call :: (Monad m) => TrackLang.CallId -> DeriveT m PitchCall
+lookup_pitch_call call_id = do
+    cmap <- gets state_call_map
+    maybe (throw $ "lookup_pitch_call: unknown " ++ show call_id) return
+        (Map.lookup call_id (calls_pitch cmap))
 
 -- ** stack
 
@@ -868,7 +919,7 @@ d_tempo block_id maybe_track_id signalm deriver = do
                 d_stretch (Signal.y_to_score (1 / tempo)) $ start_new_warp >> d
             else d_warp (tempo_to_warp signal) d
     stretch_to_1 $ tempo_warp $ do
-        Util.Control.when_just maybe_track_id add_track_warp
+        when_just maybe_track_id add_track_warp
         deriver
 
 is_top_level_block :: (Monad m) => DeriveT m Bool
@@ -895,12 +946,14 @@ tempo_to_warp = Signal.integrate Signal.tempo_srate . Signal.map_y (1/)
 
 -- | This does setup common to all track derivation, namely recording the tempo
 -- warp and putting the track in the stack, and then calls the specific track
--- deriver.
-with_track_warp :: (Monad m) => TrackDeriver m e -> TrackDeriver m e
-with_track_warp track_deriver track_id = do
+-- deriver.  This is because every track except tempo tracks should be wrapped
+-- with this.  It doesn't actually affect the warp since that's already in
+-- the environment.
+with_track_warp :: TrackId -> Deriver d -> Deriver d
+with_track_warp track_id deriver = do
     ignore_tempo <- gets state_ignore_tempo
     unless ignore_tempo (add_track_warp track_id)
-    track_deriver track_id
+    deriver
 
 -- | This is a special version of 'with_track_warp' just for the tempo track.
 -- It doesn't record the track warp, see 'd_tempo' for why.
@@ -911,7 +964,14 @@ without_track_warp track_deriver track_id = do
 
 -- * utils
 
+-- | Because DeriveT is not a UiStateMonad.
+--
+-- TODO I suppose it could be, but then I'd be tempted to make
+-- a ReadOnlyUiStateMonad.  And I'd have to merge the exceptions.
+get_track :: (Monad m) => TrackId -> DeriveT m Track.Track
 get_track track_id = get >>= lookup_id track_id . State.state_tracks . state_ui
+
+get_block :: (Monad m) => BlockId -> DeriveT m Block.Block
 get_block block_id = get >>= lookup_id block_id . State.state_blocks . state_ui
 
 -- | Lookup @map!key@, throwing if it doesn't exist.
@@ -926,11 +986,11 @@ lookup_id key map = case Map.lookup key map of
 -- caught and turned into warnings.  Events that threw aren't included in the
 -- output.  An additional function extracts an event, so you can map over
 -- things which are not themselves events.
-map_events :: (Monad m, Score.Eventlike e) =>
+map_events :: (Monad m) =>
     (state -> x -> DeriveT m (a, state))
-    -> state -> (x -> e) -> [x] -> DeriveT m [a]
+    -> state -> (x -> Score.Event) -> [x] -> DeriveT m [a]
 map_events f state event_of xs =
-    fmap Maybe.catMaybes (Util.Control.map_accuml_m apply state xs)
+    fmap Maybe.catMaybes (map_accuml_m apply state xs)
     where
     apply cur_state x = with_event (event_of x) $ do
         val <- catch_warn id (f cur_state x)
@@ -943,27 +1003,23 @@ data NoState = NoState deriving (Show)
 
 -- ** merge
 
-d_merge :: (Monad m) => DeriveT m [Score.Event] -> DeriveT m [Score.Event]
-    -> DeriveT m [Score.Event]
+d_merge :: (Monad m) => DeriveT m Events -> DeriveT m Events
+    -> DeriveT m Events
 d_merge = liftM2 merge_events
 
-d_merge_list :: (Monad m) => [DeriveT m [Score.Event]]
-    -> DeriveT m [Score.Event]
+d_merge_list :: (Monad m) => [DeriveT m Events] -> DeriveT m Events
 d_merge_list = foldr d_merge (return [])
 
 merge_events :: [Score.Event] -> [Score.Event] -> [Score.Event]
 merge_events = Seq.merge_on Score.event_start
 
 merge_event_lists :: [[Score.Event]] -> [Score.Event]
-merge_event_lists = foldr merge_events []
-
-d_signal_merge :: (Monad m) => [[(TrackId, Signal.Signal y)]]
-    -> DeriveT m [(TrackId, Signal.Signal y)]
-d_signal_merge = return . concat
+merge_event_lists = Seq.merge_asc_lists Score.event_start
+-- merge_event_lists = foldr merge_events []
 
 -- | Monoid instance for those who prefer that interface.
 instance Monoid.Monoid EventDeriver where
-    mempty = empty_deriver
+    mempty = empty_events
     mappend = d_merge
 
 

@@ -131,7 +131,6 @@ module Derive.Note where
 import Control.Monad
 
 import Ui
-import qualified Ui.Event as Event
 import qualified Ui.Track as Track
 
 import qualified Derive.Derive as Derive
@@ -144,13 +143,13 @@ import qualified Derive.Call as Call
 d_note_track :: TrackId -> Derive.EventDeriver
 d_note_track track_id = do
     track <- Derive.get_track track_id
-    let pos_events = Track.event_list (Track.track_events track)
     title_expr <- case TrackLang.parse (Track.track_title track) of
         Left err -> Derive.throw $ "track title: " ++ err
         Right expr -> return expr
     -- TODO event calls are evaluated in normalized time, but track calls
     -- aren't.  Should they be?
-    join $ Call.eval_transformer "title" 1 title_expr
+    let pos_events = Track.event_list (Track.track_events track)
+    join $ Call.eval_note_transformer "title" 1 title_expr
         (derive_notes pos_events)
 
 -- * directive
@@ -179,33 +178,6 @@ directive_prefix = ';'
 -- * derive
 
 derive_notes :: [Track.PosEvent] -> Derive.EventDeriver
-derive_notes = go []
-    where
-    with_stack pos evt = Derive.with_stack_pos pos (Event.event_duration evt)
-    go _ [] = Derive.empty_deriver
-    go prev (cur@(pos, event) : rest) = with_stack pos event $ do
-        (deriver, consumed) <- derive_note prev cur rest
-        when (consumed < 1) $
-            Derive.throw $ "call consumed invalid number of events: "
-                ++ show consumed
-        -- TODO is this really an optimization?  profile later
-        let (prev2, next2) = if consumed == 1
-                then (cur : prev, rest)
-                else let (pre, post) = splitAt consumed (cur : rest)
-                    in (reverse pre ++ prev, post)
-        Derive.d_merge deriver (go prev2 next2)
-
-skip_event :: Derive.Deriver (Derive.EventDeriver, Int)
-skip_event = return (Derive.empty_deriver, 1)
-
--- | Derive a single deriver's worth of events.  Most calls will only consume
--- a single event, but some may handle a series of events.
-derive_note :: [Track.PosEvent] -- ^ previous events, in reverse order
-    -> Track.PosEvent -- ^ cur event
-    -> [Track.PosEvent] -- ^ following events
-    -> Derive.Deriver (Derive.EventDeriver, Int)
-derive_note prev cur@(_, event) next
-    | Event.event_string event == "--" = skip_event
-    | otherwise = case TrackLang.parse (Event.event_string event) of
-        Left err -> Derive.warn err >> skip_event
-        Right expr -> Call.eval_generator "note" expr prev cur next
+derive_notes = fmap Derive.merge_event_lists
+    . Call.derive_track ("note", Derive.no_events, Call.lookup_note_call, id)
+        (\_ _ -> Nothing)

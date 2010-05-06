@@ -48,7 +48,7 @@ cmd_val_edit_relative_at selpos msg = do
     EditUtil.fallthrough msg
     case msg of
         Msg.InputNote (InputNote.NoteOn _ key _) -> do
-            let Pitch.Note note = Control.unparse_relative (key_to_relative key)
+            let note = Control.unparse_relative (key_to_relative key)
             modify_event_at selpos $ \(meth, _) ->
                 ((Just meth, Just note), True)
         (EditUtil.raw_key -> Just key) | key /= Key.KeyChar ' ' -> do
@@ -59,12 +59,9 @@ cmd_val_edit_relative_at selpos msg = do
 
 -- | Take input to a pitch relative to middle C.  This is kinda random, so I'm
 -- not sure if it'll be useful.
-key_to_relative :: Pitch.InputKey -> (Pitch.Octave, Double)
-key_to_relative (Pitch.InputKey key) = (oct, fromIntegral nn + f)
-    where
-    (i, f) = properFraction key
-    c = (\(Pitch.InputKey k) -> floor k) Pitch.middle_c
-    (oct, nn) = (i - c) `quotRem` 12
+key_to_relative :: Pitch.InputKey -> Double
+key_to_relative (Pitch.InputKey key) = key - c
+    where Pitch.InputKey c = Pitch.middle_c
 
 cmd_method_edit :: Cmd.Cmd
 cmd_method_edit msg = do

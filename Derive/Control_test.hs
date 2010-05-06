@@ -1,62 +1,81 @@
+{-# LANGUAGE ParallelListComp #-}
 module Derive.Control_test where
-import qualified Data.Text as Text
+import qualified Data.Map as Map
 
 import Util.Test
 import qualified Util.Log as Log
 
 import qualified Ui.State as State
+import qualified Ui.UiTest as UiTest
 
-import qualified Perform.Signal as Signal
-import qualified Derive.Score as Score
 import qualified Derive.Control as Control
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Score as Score
+
+import qualified Perform.PitchSignal as PitchSignal
+import qualified Perform.Signal as Signal
 
 
-test_d_signal = do
-    let track_signal = Signal.track_signal Signal.default_srate
-    let f = Control.d_signal
-    let run evts = case DeriveTest.run State.empty (f evts) of
-            Left err -> Left err
-            Right (val, _dstate, msgs) -> Right (val, map Log.msg_string msgs)
+test_control_track = do
+    let derive = do_derive (fmap Signal.unsignal
+            . Map.lookup (Score.Control "cont") . Score.event_controls)
+    let events = [(0, 0, "1"), (1, 0, "2")]
 
-    let Right (sig, msgs) = run [mkevent 0 "bad", mkevent 1 "i, bad"]
-    equal sig (track_signal [])
-    strings_like msgs ["parse error on char 1", "parse error on char 4"]
+    -- various failures
+    left_like (fst (derive ("", events))) "args must be note or symbol"
+    left_like (fst (derive ("cont | cont", events))) "composition not supported"
 
-    let sig = track_signal
-            [(0, Signal.Set, 0), (1, Signal.Linear, 1), (1.5, Signal.Exp 2, 0)]
-    equal (run [mkevent 0 "0", mkevent 1 "i, 1", mkevent 1.5 "2e, 0"]) $
-        Right (sig, [])
+    let (val, logs) = derive ("cont", [(0, 0, "abc"), (1, 0, "def")])
+    equal val (Right [Just []])
+    strings_like logs ["unknown Symbol \"abc\"", "unknown Symbol \"def\""]
+    equal (derive ("cont", events)) (Right [Just [(0, 1), (1, 2)]], [])
 
-    -- error in the middle is ignored
-    let Right (sig, msgs) = run [mkevent 0 "0", mkevent 1 "blah", mkevent 1 "1"]
-    equal sig (track_signal [(0, Signal.Set, 0), (1, Signal.Set, 1)])
-    strings_like msgs ["parse error on char 1"]
+test_derive_signal = do
+    let extract (Left err) = Left err
+        extract (Right (val, _, logs)) =
+            Right (Signal.unsignal val, map Log.msg_string logs)
+    let derive events = extract $ DeriveTest.run State.empty
+            (Control.derive_signal (map UiTest.mkevent events))
+    equal (derive [(0, 0, "1"), (1, 0, "2")])
+        (Right ([(0, 1), (1, 2)], []))
+    equal (derive [(0, 0, "1"), (0.1, 0, "i 2")])
+        (Right ([(0, 1), (0.05, 1.5), (0.1, 2)], []))
+    equal (derive [(0, 0, "1"), (0.1, 0, "i 2"), (0.2, 0, "i 1")])
+        (Right ([(0, 1), (0.05, 1.5), (0.1, 2),
+            (0.15000000000000002, 1.5), (0.2, 1)], []))
 
-test_d_pitch_signal = do
-    let psig = DeriveTest.pitch_signal DeriveTest.scale_id
-    let run evts = case result of
-            Left err -> Left err
-            Right (val, _dstate, msgs) -> Right (val, map Log.msg_string msgs)
-            where
-            result = DeriveTest.run State.empty
-                (Control.d_pitch_signal DeriveTest.scale_id evts)
+    -- evaluation continues after an error
+    equal (derive [(0, 0, "1"), (1, 0, "def")])
+        (Right ([(0, 1)], ["lookup_control_call: unknown Symbol \"def\""]))
+    equal (derive [(0, 0, "1"), (0.05, 0, "def"), (0.1, 0, "i 2")])
+        (Right ([(0, 1), (0.05, 1.5), (0.1, 2)],
+            ["lookup_control_call: unknown Symbol \"def\""]))
 
-    let (sig, msgs) = expect_right "running derive" $
-            run [mkevent 0 "0 blah", mkevent 1 "i, bad"]
-    equal sig (psig [])
-    strings_like msgs ["trailing junk: \" blah\"", "Note \"0\" not in ScaleId",
-        "Note \"bad\" not in ScaleId"]
+test_pitch_track = do
+    let derive = do_derive (PitchSignal.unsignal . Score.event_pitch)
 
-    let sig = psig
-            [(0, Signal.Set, 60), (1, Signal.Set, 62), (2, Signal.Linear, 64)]
-    equal (run [mkevent 0 "4c", mkevent 1 "4d", mkevent 2 "i, 4e"]) $
-        Right (sig, [])
+    let (val, logs) = derive ("*no_scale", [(0, 0, "1"), (1, 0, "2")])
+    left_like val "unknown ScaleId \"no_scale\""
+    equal logs []
 
-    -- blank notes inherit the previous pitch
-    let sig = psig [(0, Signal.Set, 60),
-            (1, Signal.Linear, 60), (2, Signal.Linear, 64)]
-    equal (run [mkevent 0 "4c", mkevent 1 "i,", mkevent 2 "i, 4e"]) $
-        Right (sig, [])
+    let (val, logs) = derive ("*twelve", [(0, 0, "1"), (1, 0, "2")])
+    equal val (Right [[]])
+    strings_like logs
+        [ "generator <null>: Note \"1\" not in ScaleId"
+        , "generator <null>: Note \"2\" not in ScaleId"
+        ]
+    let (val, logs) = derive
+            ("*twelve", [(0, 0, "4c"), (1, 0, "4d"), (2, 0, "4hc")])
+    equal val (Right [[(0, (60, 60, 0)), (1, (62, 62, 0))]])
+    strings_like logs ["Note \"4hc\" not in ScaleId"]
+    equal (derive ("*twelve", [(0, 0, "4c"), (1, 0, "4d")]))
+        (Right [[(0, (60, 60, 0)), (1, (62, 62, 0))]], [])
 
-mkevent pos text = Score.ControlEvent pos (Text.pack text) []
+    equal (derive ("*twelve", [(0, 0, "4c"), (0.1, 0, "i *4d")]))
+        (Right [[(0, (60, 60, 0)), (0.05, (60, 62, 0.5)), (0.1, (60, 62, 1))]],
+            [])
+
+do_derive :: (Score.Event -> a) -> UiTest.TrackSpec
+    -> (Either String [a], [String])
+do_derive extract track = DeriveTest.extract extract Log.msg_string $
+        DeriveTest.derive_tracks [(">", [(0, 2, "")]), track]

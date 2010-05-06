@@ -166,5 +166,14 @@ data Scale = Scale {
     , scale_set_pitch_bend :: Bool
     }
 
+-- | These instances are just so TrackLang.Val can have VScale.  You could
+-- argue that it should store ScaleId instead of scale, but looking up the
+-- scale all the time seems like a hassle.
+instance Eq Scale where
+    s0 == s1 = scale_id s0 == scale_id s1
+
+instance Show Scale where
+    show scale = "<" ++ show (scale_id scale) ++ ">"
+
 note_in_scale :: Scale -> Note -> Bool
 note_in_scale scale = Maybe.isJust . scale_note_to_degree scale

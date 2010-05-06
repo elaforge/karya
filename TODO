@@ -1,3 +1,93 @@
+- default NoteTrackCall looks up events, evaluates them, then looks up
+symbol as a transformer and applies it to the deriver
+- default ControlTrackCall looks up events, evaluates them, then looks at the
+
+CURRENT
+  * stick last sample in dynamic env for next control deriver
+  * lookup calls for control and pitch
+  * implement calls: null and various interpolaters
+  * remove ControlEvent
+  - remove Default track title parsing stuff
+  - remove SignalBase track segment stuff
+  - implement relative controls
+  - pull sampling srate out of dynamic env
+  - implement control track title calls
+  - update Cmds for control and pitch tracks to edit new syntax: simple
+    implementation for edit method mode
+
+  - remove warped control?
+
+  - subblock derivation for control tracks
+
+  - put prev, cur, next in PassedArgs too?
+
+  - change syntax to sexpr like
+    since a scale degree may simply be a number, I can keep * as an explicit
+    call literal
+    special hack for pitch track so I don't need it?  but how would that work
+    - or, self-eval symbols like numbers first try to evaltuate as calls?
+    that's bad because then a scale would interfere with plain numbers
+
+  - implement 'e' interpolator
+
+  - implement sub-calls with TVal return type
+    Now I have so many call maps, can I merge them?
+      - relative control and pitch
+      - note, control, and pitch
+      - tval
+  - implement scales as a set of sub-calls that return pitches
+    - they can take a number for cents offset: (4c# 20)
+  - unify symbol tables?
+  - what about efficiency?
+
+  - profile derivation, if parsing is a problem, look into attoparsec
+
+
+  - write derive_pitch_signal
+    decide how the pitch track represents pitch points
+    For the moment, implement as null calls with * prepended.
+    In the future, implement as separate calls:
+      Expand symbol definition to be everything until a space.
+      Implement symbol substitution as a nullary call, I think I want this
+      anyway.
+      4c#/+20 -> Call "4c#" [PitchOffset 20]
+      But for consistency, shouldn't I evaltuate all *pitch args this same way?
+      So maybe I should have a separate namespace for *notes.
+      There's a use-case for merging note namespace with the normal call one,
+      so I can e.g. rebind a note locally, or incorporate a call so it looks
+      like a pitch.
+
+      Maybe I should do pitch offset as a plain number arg: 4c# 20
+
+      But this doesn't work so well for pitch arguments.  It would have to be
+      (4c# 20), and now I need parens.  Implementing as 4c#/20 is just
+      a nonstandard way of specifying precedence.
+
+      If I have expression level calls then I have to worry about types.
+      Instead of returning [Score.Event], these calls return a TrackLang type.
+      So: "TEvents [Score.Event] | TVal TrackLang.Val
+
+      This probably means that parsing should move entirely to space-separated
+      words plus parens.  I wind up with something sexpr-like.
+
+      Fancy pitch use cases:
+        - retune a scale according to another signal
+          Can be done by a call.
+        - retune a note depending on the previous interval (e.g. sloppy pitches
+          when playing quickly)
+          I think this has to be postproc.
+  - plug into schema, use has children rather than title
+  - modify cmds, can't know track type anymore
+
+
+- how to implement string emulation?  Every note is assigned a string.  When
+  a legato new note is played, it either stops an existing string or takes
+  a new one.  The previous note will either ring for a decay if the string is
+  unassigned, or reset to its "open" pitch otherwise.
+
+- research graph coverage
+
+
 - cleanup Ui.Track: event_list -> all_events?
 - #(poke Mispeled, field) fieldp field results in compiler bus error
 - program to launch logview and seq together
@@ -16,8 +106,6 @@ UNSORTED
   - add Util.ParseOperators
   - remove with_msg "compile bid", it's redundant with the stack
   - make "error subderiving" msg nicer and put the stack in the log msg
-  - factor scroll redrawing into a single class
-  - scroll to right, tracks don't receive clicks
   - happened automatically adding a pitch track:
     assertion: <assertion failed at fltk/TrackTile.cc:266 update_sizes():
     'title->w() == body->w()'>
@@ -248,6 +336,8 @@ performance:
     subderivations?
 
 fltk:
+  - factor scroll redrawing into a single class
+  - scroll to right, tracks don't receive clicks
   - draw arrows in SkeletonDisplay.cc properly
   - figure out how to have a minimal title bar in os x (win.border(0) removes
     it altogether)
@@ -368,6 +458,7 @@ skeleton:
   - parse skeleton in LanguageCmds
 
 test:
+  - write a fltk structure dump so UI tests can be non-interactive
   - tests count number of tests in addition to checks within each test
   - it should be possible to build only certain tests into RunTests
   - use generics or Foldable or something to write a generic StructEqual
@@ -514,6 +605,7 @@ Derive:
     to be pre-scale conversion
 
   tracklang2:
+    * implement control tracks as tracklang, methods become calls
     * remove nonsensical Signal (Nothing, Nothing) type
     * make event length available to transformers so they can unstretch to it?
     * rename TrackLang.Signal -> TrackLang.Control ?

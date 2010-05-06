@@ -3,6 +3,7 @@ import Control.Monad
 import qualified Control.Monad.Identity as Identity
 import qualified Data.Map as Map
 import qualified Data.Text as Text
+import Util.Control
 import qualified Util.Log as Log
 
 import qualified Midi.Midi as Midi
@@ -50,7 +51,7 @@ run ui_state m =
         (Left err, _, _logs) -> Left (Derive.error_message err)
         (Right val, state, logs) -> Right (val, state, logs)
     where
-    -- Good to have a minimal fake stack so there's someplace to put
+    -- Good to have a minimal fake stack so there's some place to put
     -- trackpos.
     fake_stack = [(UiTest.bid "blck", Just (UiTest.tid "trck"), Nothing)]
     derive_state = (Derive.initial_state ui_state
@@ -151,7 +152,8 @@ d_note = do
     start <- Derive.score_to_real 0
     end <- Derive.score_to_real 1
     inst <- Derive.lookup_val TrackLang.v_instrument
-    attrs <- Derive.get_val Score.no_attrs TrackLang.v_attributes
+    attrs <- defaulted Score.no_attrs <$>
+        Derive.lookup_val TrackLang.v_attributes
     (controls, psig) <- Derive.unwarped_controls
     return [Score.Event start (end-start) (Text.pack "evt")
         controls psig [] inst attrs]

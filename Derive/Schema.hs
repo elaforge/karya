@@ -96,7 +96,7 @@ lookup_deriver schema_map ui_state block_id = State.eval ui_state $ do
 -- the signal deriver is only ever local to one block, so it doesn't need
 -- a lookup mechanism.
 get_signal_deriver :: (State.UiStateMonad m) => SchemaMap -> BlockId
-    -> m (Derive.SignalDeriver Signal.Display)
+    -> m Derive.DisplaySignalDeriver
 get_signal_deriver schema_map block_id = do
     block <- State.get_block block_id
     schema <- State.lookup_id (Block.block_schema block)
@@ -254,8 +254,7 @@ default_schema_deriver :: SchemaDeriver Derive.EventDeriver
 default_schema_deriver block_id =
     fmap (compile block_id) (State.get_unmuted_track_tree block_id)
 
-default_schema_signal_deriver ::
-    SchemaDeriver (Derive.SignalDeriver Signal.Display)
+default_schema_signal_deriver :: SchemaDeriver Derive.DisplaySignalDeriver
 default_schema_signal_deriver block_id =
     fmap (compile_to_signals block_id) (State.get_track_tree block_id)
 
@@ -285,62 +284,43 @@ _compile block_id (Tree.Node track@(State.TrackInfo title track_id _) subs)
     | Default.is_note_track title = if not (null subs)
         then Derive.throw $ "inst track " ++ show track ++ " has sub tracks "
             ++ show subs
-        else Derive.with_track_warp Note.d_note_track track_id
+        else Derive.with_track_warp track_id (Note.d_note_track track_id)
     | otherwise = do
         when (null subs) $
             Log.warn $ "control " ++ show track ++ " has no sub tracks"
         Derive.with_stack_track track_id $
-            compile_control block_id title track_id
+            Control.d_control_track block_id track_id
                 (sub_compile block_id subs)
 
-compile_control :: BlockId -> String -> TrackId
-    -> Derive.EventDeriver -> Derive.EventDeriver
-compile_control block_id title track_id subderiver
-    | Default.is_tempo_track title = do
-        -- A tempo track is derived like other signals, but in absolute time.
-        -- Otherwise it would wind up being composed with the environmental
-        -- warp twice.
-        events <- Derive.without_track_warp Control.d_control_track track_id
-        Derive.d_tempo block_id (Just track_id) (Control.d_tempo_signal events)
-            subderiver
-    | otherwise = do
-        events <- Derive.with_track_warp Control.d_control_track track_id
-        -- TODO default to inst scale if none is given
-        let deriver = case Default.parse_control_title title of
-                (Nothing, Left cont) ->
-                    Control.d_control cont (Control.d_signal events)
-                (Just c_op, Left cont) ->
-                    Control.d_relative cont c_op (Control.d_signal events)
-                (Nothing, Right scale_id) ->
-                    Control.d_pitch (Control.d_pitch_signal scale_id events)
-                (Just c_op, Right scale_id) ->
-                    Control.d_relative_pitch
-                        c_op (Control.d_relative_pitch_signal scale_id events)
-        deriver subderiver
 
-
--- | Compile a Skeleton to its SignalDeriver.  The SignalDeriver is like the
--- main Deriver except that it derives down to track signals instead of events.
--- While the events go on to performance, the track signals go to the UI so
--- it can draw pretty graphs.
+-- | Compile a Skeleton to its DisplaySignalDeriver.  The DisplaySignalDeriver
+-- is like the main Deriver except that it derives down to track signals
+-- instead of events.  While the events go on to performance, the track signals
+-- go to the UI so it can draw pretty graphs.
 --
 -- TODO Think about this some more in light of more complicated derivers.  It
 -- seems annoying to have to make a whole separate signal deriver.  Getting the
 -- signals from the track could be more hardcoded and less work when writing
 -- a new schema.
-compile_to_signals :: BlockId -> State.TrackTree
-    -> (Derive.SignalDeriver Signal.Display)
-compile_to_signals block_id tree =
-    Derive.with_msg ("compile_to_signals " ++ show block_id) $
-        Derive.d_signal_merge =<< mapM _compile_to_signals tree
+--
+-- Can I generate this as a side-effect of the normal derivation?  If each
+-- track records its samples then I don't need to generate them separately.
+-- Of course I have to map real->score but it should be possible to do that
+-- relatively efficiently.
+--
+-- TODO disabled for the moment
+compile_to_signals :: BlockId -> State.TrackTree -> Derive.DisplaySignalDeriver
+compile_to_signals _block_id _tree = return []
+    -- Derive.with_msg ("compile_to_signals " ++ show block_id) $
+    --     Derive.d_signal_merge =<< mapM _compile_to_signals tree
 
-_compile_to_signals :: Tree.Tree State.TrackInfo
-    -> Derive.SignalDeriver Signal.Display
+{-
+_compile_to_signals :: Tree.Tree State.TrackInfo -> Derive.DisplaySignalDeriver
 _compile_to_signals (Tree.Node (State.TrackInfo title track_id _) subs)
     | Default.is_note_track title = return []
     | otherwise = do
-        -- Note no special treatment for tempo, since signal output shouldn't
-        -- be warped.
+        -- Note no special treatment for the tempo track, since signal output
+        -- shouldn't be warped.
         track_sigs <- signal_control title track_id
         rest_sigs <- Derive.d_signal_merge =<< mapM _compile_to_signals subs
         return (track_sigs : rest_sigs)
@@ -348,13 +328,14 @@ _compile_to_signals (Tree.Node (State.TrackInfo title track_id _) subs)
 signal_control :: (Monad m) => String -> TrackId
     -> Derive.DeriveT m (TrackId, Signal.Display)
 signal_control title track_id = do
-    events <- Derive.with_track_warp Control.d_control_track track_id
+    events <- Derive.with_track_warp Control.d_control_events track_id
     sig <- case Default.parse_control_title title of
         (_, Left _) -> Control.d_display_signal events
         (Nothing, Right scale_id) -> Control.d_display_pitch scale_id events
         (Just _, Right scale_id) ->
             Control.d_display_relative_pitch scale_id events
     return (track_id, sig)
+-}
 
 -- * parser
 

@@ -20,3 +20,10 @@ normalize :: (Real a, Fractional a, Fractional b) => a -> a -> a -> b
 normalize low high v
     | low == high && v == low = 0
     | otherwise = realToFrac $ (v-low) / (high-low)
+
+
+double_to_float :: Double -> Float
+double_to_float = realToFrac
+
+float_to_double :: Float -> Double
+float_to_double = realToFrac
