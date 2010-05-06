@@ -51,7 +51,8 @@ GHC := ghc-6.12.1
 GHC_LIB := /Library/Frameworks/GHC.framework/Versions/Current/usr/lib/ghc-6.12.1
 
 # hspp adds filename and lineno to various logging and testing functions.
-BASIC_HFLAGS := -threaded -W $(CINCLUDE) -i../lib -pgmc g++ -pgml g++ \
+BASIC_HFLAGS := -threaded -W -fwarn-tabs \
+	$(CINCLUDE) -i../lib -pgmc g++ -pgml g++ \
 	-optc -ggdb -optl -ggdb \
 	-F -pgmF tools/hspp
 
@@ -267,7 +268,7 @@ interactive: test_obj/RunTests
 ### misc ###
 
 tags: $(ALL_HS)
-	hasktags --ctags $^
+	hasktags --ignore-close-implementation --ctags $^
 	sort tags >tags.sorted
 	(echo -e '!_TAG_FILE_SORTED\t1\t ~'; cat tags.sorted) >tags
 	rm tags.sorted

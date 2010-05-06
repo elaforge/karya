@@ -36,7 +36,7 @@ data Instrument = Instrument {
     , inst_score_name :: String
     -- | Map control names to a control number.  Some controls are shared by
     -- all midi instruments, but some instruments have special controls.
-	, inst_control_map :: Control.ControlMap
+    , inst_control_map :: Control.ControlMap
 
     , inst_pitch_bend_range :: Control.PbRange
     -- | Time from NoteOff to inaudible, in seconds.  This can be used to
@@ -106,21 +106,21 @@ data Keyswitch = Keyswitch
 -- | A Patch has information about one specific instrument.  The performance
 -- 'Instrument' and MIDI config are derived from it, via its 'Synth'.
 data Patch = Patch {
-	-- | The Instrument is a subset of the data available in the Patch.
-	-- The patch_instrument is not necessarily the same as the one eventually
-	-- used in performance, because e.g. synth controls can get added in.
-	patch_instrument :: Instrument
+    -- | The Instrument is a subset of the data available in the Patch.
+    -- The patch_instrument is not necessarily the same as the one eventually
+    -- used in performance, because e.g. synth controls can get added in.
+    patch_instrument :: Instrument
     , patch_initialize :: InitializePatch
     -- | Keyswitches available to this instrument, if any.  Each of these is
     -- considered its own instrument, like synth\/inst\/ks.  A keyswitch key may
     -- occur more than once, and a name of \"\" is used when the instrument is
     -- looked up without a keyswitch.
     , patch_keyswitches :: KeyswitchMap
-	-- | Key-value pairs used to index the patch.
-	, patch_tags :: [Tag]
+    -- | Key-value pairs used to index the patch.
+    , patch_tags :: [Tag]
     -- | Some free form text about the patch.
     , patch_text :: String
-	} deriving (Eq, Show)
+    } deriving (Eq, Show)
 
 -- | Create a Patch with empty vals, to set them as needed.
 patch :: Instrument -> Patch
