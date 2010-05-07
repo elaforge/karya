@@ -7,6 +7,7 @@ CURRENT
   * lookup calls for control and pitch
   * implement calls: null and various interpolaters
   * remove ControlEvent
+  * implement previous value defaulting for control calls
   - remove Default track title parsing stuff
   - remove SignalBase track segment stuff
   - implement relative controls
@@ -14,6 +15,8 @@ CURRENT
   - implement control track title calls
   - update Cmds for control and pitch tracks to edit new syntax: simple
     implementation for edit method mode
+
+  - TrackLang.optional args should be able to pass Nothing if arg is not given
 
   - remove warped control?
 
@@ -76,17 +79,12 @@ CURRENT
         - retune a note depending on the previous interval (e.g. sloppy pitches
           when playing quickly)
           I think this has to be postproc.
-  - plug into schema, use has children rather than title
-  - modify cmds, can't know track type anymore
 
 
 - how to implement string emulation?  Every note is assigned a string.  When
   a legato new note is played, it either stops an existing string or takes
   a new one.  The previous note will either ring for a decay if the string is
   unassigned, or reset to its "open" pitch otherwise.
-
-- research graph coverage
-
 
 - cleanup Ui.Track: event_list -> all_events?
 - #(poke Mispeled, field) fieldp field results in compiler bus error

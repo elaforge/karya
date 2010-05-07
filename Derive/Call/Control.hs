@@ -35,22 +35,30 @@ c_set = Derive.generate_one $ \args _ _ _ -> TrackLang.call1 args
         return $ Signal.signal [(pos, val)]
 
 c_linear :: Derive.ControlCall
-c_linear = control_interpolate id
+c_linear = Derive.generate_one $ \args _ _ _ ->
+    case TrackLang.passed_vals args of
+        [] -> case TrackLang.passed_prev_val args of
+            Nothing -> return $
+                Derive.throw "can't set to previous val when there was none"
+            Just (_, prev_y) -> return $ do
+                pos <- Derive.score_to_real 0
+                return $ Signal.signal [(pos, prev_y)]
+        _ -> control_interpolate id args
 
 -- | Create samples according to an interpolator function.  The function is
 -- passed values from 0--1 representing position in time and is expected to
 -- return values from 0--1 representing the Y position at that time.  So linear
 -- interpolation is simply @id@.
-control_interpolate :: (Double -> Signal.Y) -> Derive.ControlCall
-control_interpolate f = Derive.generate_one $
-    \args _ _ _ -> TrackLang.call1 args (required "val") $ \val -> do
-        cur <- Derive.score_to_real 0
-        case TrackLang.passed_prev_val args of
-            Nothing -> do
-                -- TODO warn
-                return $ Signal.signal [(cur, val)]
-            Just (prev, prev_val) -> return $ Signal.signal $
-                interpolate Num.scale f prev prev_val cur val
+control_interpolate :: (Double -> Signal.Y) -> TrackLang.PassedArgs Signal.Y
+    -> Either TrackLang.TypeError Derive.ControlDeriver
+control_interpolate f args = TrackLang.call1 args (required "val") $ \val -> do
+    cur <- Derive.score_to_real 0
+    case TrackLang.passed_prev_val args of
+        Nothing -> do
+            -- TODO warn
+            return $ Signal.signal [(cur, val)]
+        Just (prev, prev_val) -> return $ Signal.signal $
+            interpolate Num.scale f prev prev_val cur val
 
 
 -- ** note
@@ -77,11 +85,21 @@ note_to_degree scale note = case Pitch.scale_note_to_degree scale note of
     Just degree -> return degree
 
 c_note_linear :: Derive.PitchCall
-c_note_linear = pitch_interpolate id
+c_note_linear = Derive.generate_one $ \args _ _ _ ->
+    case TrackLang.passed_vals args of
+        [] -> case TrackLang.passed_prev_val args of
+            Nothing -> return $
+                Derive.throw "can't set to previous val when there was none"
+            Just (_, prev_y) -> return $ do
+                pos <- Derive.score_to_real 0
+                scale <- Derive.require_val TrackLang.v_scale
+                return $ PitchSignal.signal (Pitch.scale_id scale)
+                    [(pos, prev_y)]
+        _ -> pitch_interpolate id args
 
-pitch_interpolate :: (Double -> Double) -> Derive.PitchCall
-pitch_interpolate f = Derive.generate_one $
-    \args _ _ _ -> TrackLang.call1 args (required "note") $ \note -> do
+pitch_interpolate :: (Double -> Double) -> TrackLang.PassedArgs PitchSignal.Y
+    -> Either TrackLang.TypeError Derive.PitchDeriver
+pitch_interpolate f args = TrackLang.call1 args (required "note") $ \note -> do
         cur <- Derive.score_to_real 0
         scale <- Derive.require_val TrackLang.v_scale
         degree <- note_to_degree scale note
