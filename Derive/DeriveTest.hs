@@ -22,7 +22,6 @@ import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Pitch as Pitch
-import qualified Perform.Signal as Signal
 import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Transport as Transport
 import qualified Perform.Warning as Warning
@@ -35,12 +34,10 @@ import qualified Perform.Midi.Perform as Perform
 
 scale_id = Twelve.scale_id
 
-pitch_signal :: Pitch.ScaleId -> [PitchSignal.Segment]
-    -> PitchSignal.PitchSignal
-pitch_signal scale_id =
-    PitchSignal.track_signal scale_id PitchSignal.default_srate
-
-signal = Signal.track_signal Signal.default_srate
+pitch_interpolate :: RealTime -> Float -> RealTime -> Float
+    -> [(RealTime, PitchSignal.Y)]
+pitch_interpolate x0 y0 x1 y1 = [(x, (y0, y1, to_n x)) | x <- [x0 .. x1]]
+    where to_n x = realToFrac (x - x0) / fromIntegral (length [x0 .. x1] - 1)
 
 -- * run
 

@@ -27,7 +27,7 @@ module Perform.PitchSignal (
     PitchSignal, Relative, sig_scale, sig_vec, set_scale
     , X, Y, y_to_degree, degree_to_y, max_x, default_srate
 
-    , signal, constant, empty, track_signal, Method(..), Segment
+    , signal, constant, empty
     , unsignal, from_control
 
     , at, at_linear, sample
@@ -52,7 +52,7 @@ import Ui
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.SignalBase as SignalBase
-import Perform.SignalBase (Method(..), max_x, default_srate)
+import Perform.SignalBase (max_x, default_srate, to_double)
 import qualified Perform.Signal as Signal
 
 
@@ -108,16 +108,21 @@ instance Storable.Storable (X, Y) where
 
 instance SignalBase.Y Y where
     zero_y = (0, 0, 0)
-    y_at x0 (_, to0, at0) x1 (from1, _, at1) x = (to0, from1, at)
-        where at = Num.scale at0 at1 (Num.normalize x0 x1 x)
-    project y0 y1 at = (realToFrac y0, realToFrac y1, realToFrac at)
+    to_double (from, to, at) = Num.scale (realToFrac from) (realToFrac to) at
+
+    -- y_at x0 (from0, to0, at0) x1 (from1, to1, at1) x
+    --     | at0 >= 1 = (to0, from1, 0)
+    --     | otherwise = (from0, to1, at)
+    --     where at = Num.scale at0 at1 (Num.normalize x0 x1 x)
+    -- y_at x0 (_, to0, at0) x1 (from1, _, at1) x = (to0, from1, at)
+    --     where at = Num.scale at0 at1 (Num.normalize x0 x1 x)
 
 instance Show PitchSignal where
     show sig@(PitchSignal scale_id _) =
         "PitchSignal (" ++ show scale_id ++ ") " ++ show (unsignal sig)
 
 y_to_degree :: Y -> Pitch.Degree
-y_to_degree = Pitch.Degree . to_scalar
+y_to_degree = Pitch.Degree . to_double
 
 degree_to_y :: Pitch.Degree -> Y
 degree_to_y (Pitch.Degree d) = (f, f, 0)
@@ -134,13 +139,6 @@ empty = signal (Pitch.ScaleId "empty signal") []
 constant :: Pitch.ScaleId -> Pitch.Degree -> PitchSignal
 constant scale_id degree = signal scale_id [(0, degree_to_y degree)]
 
-type Segment = (RealTime, Method, Pitch.Degree)
-
-track_signal :: Pitch.ScaleId -> X -> [Segment] -> PitchSignal
-track_signal scale_id srate segs = PitchSignal scale_id
-    (SignalBase.track_signal srate
-        [(pos, meth, g) | (pos, meth, Pitch.Degree g) <- segs])
-
 -- | Used for tests.
 unsignal :: PitchSignal -> [(X, Y)]
 unsignal = SignalBase.unsignal . sig_vec
@@ -153,20 +151,19 @@ from_control sig = signal (Pitch.ScaleId "relative")
 to_nn :: Pitch.Scale -> PitchSignal -> Signal.NoteNumber
 to_nn scale psig = Signal.Signal (V.map f (sig_vec psig))
     where
-    f (x, (from, to, at)) = case (to_nn from, to_nn to) of
+    f (x, (from, to, at)) = case (lookup_degree from, lookup_degree to) of
         (Just nn0, Just nn1) -> (x, Num.scale nn0 nn1 at)
         _ -> (x, Signal.invalid_pitch)
-    to_nn n = fmap un_nn
+    lookup_degree n = fmap un_nn
         (Pitch.scale_degree_to_nn scale (Pitch.Degree (realToFrac n)))
     un_nn (Pitch.NoteNumber n) = n
 
-to_scalar :: Y -> Signal.Y
-to_scalar (from, to, at) = Num.scale (realToFrac from) (realToFrac to) at
-
 -- * access
 
-at, at_linear :: X -> PitchSignal -> Y
+at :: X -> PitchSignal -> Y
 at pos sig = SignalBase.at pos (sig_vec sig)
+
+at_linear :: X -> PitchSignal -> Signal.Y
 at_linear pos sig = SignalBase.at_linear pos (sig_vec sig)
 
 sample :: X -> PitchSignal -> [(X, Y)]
@@ -192,11 +189,11 @@ sig_add = sig_op add
     add y0@(from0, to0, _) y1@(from1, to1, _) = (from, to, at)
         where
         (from, to) = (from0 + from1, to0 + to1)
-        at = Num.normalize from to (realToFrac (to_scalar y0 + to_scalar y1))
+        at = Num.normalize from to (realToFrac (to_double y0 + to_double y1))
 
 sig_max, sig_min :: PitchSignal -> Relative -> PitchSignal
-sig_max = sig_op $ \y0 y1 -> ymax (to_scalar y1) y0
-sig_min = sig_op $ \y0 y1 -> ymin (to_scalar y1) y0
+sig_max = sig_op $ \y0 y1 -> ymax (to_double y1) y0
+sig_min = sig_op $ \y0 y1 -> ymin (to_double y1) y0
 
 -- ** scalar transformation
 

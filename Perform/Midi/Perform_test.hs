@@ -20,6 +20,7 @@ import qualified Instrument.MidiDb as MidiDb
 import qualified Derive.Score as Score
 
 import qualified Perform.Signal as Signal
+import qualified Perform.SignalBase as SignalBase
 import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Warning as Warning
 
@@ -35,7 +36,6 @@ legato = (\(RealTime pos) -> pos) Perform.legato_overlap_time
 
 -- Bad signal that goes over 1 at 1 and 3.
 badsig cont = (cont, mksignal [(0, 0), (1.5, 1.5), (2.5, 0.5), (4, 2)])
--- badsig cont = (cont, mksignal [(0, 0), (2, 2), (4, 0), (6, 2)])
 
 test_clip_warns = do
     let events = map mkevent [(inst1, "a", 0, 4, [badsig vol_cc])]
@@ -409,9 +409,7 @@ mkevents events = trim_pitches
         (Map.fromList controls) pitch_sig stack
         | (inst, _, start, dur, controls) <- events]
     where
-    pitch_sig =
-        Signal.track_signal 1 [(pos, Signal.Set, val) | (pos, val) <- notes]
-    notes = map (\(_, p, start, _, _) -> (start, to_pitch p)) events
+    pitch_sig = Signal.signal [(pos, to_pitch p) | (_, p, pos, _, _) <- events]
     to_pitch p = Maybe.fromMaybe (error ("no pitch " ++ show p))
         (lookup p pitch_map)
     pitch_map = zip (map (:"") ['a'..'z']) [60..]
@@ -431,8 +429,17 @@ trim_pitches events = map trim_event (Seq.zip_next events)
         Signal.truncate (Perform.event_start next) psig }
         where psig = Perform.event_pitch event
 
-mksignal ts_vals = Signal.track_signal (RealTime 1)
-    [(RealTime pos, Signal.Linear, val) | (pos, val) <- ts_vals]
+-- | Make a signal with linear interpolation between the points.
+mksignal :: [(RealTime, Signal.Y)] -> Signal.Control
+mksignal = Signal.signal . interpolate
+    where
+    interpolate :: [(RealTime, Signal.Y)] -> [(RealTime, Signal.Y)]
+    interpolate ((x0, y0) : rest@((x1, y1) : _))
+        | x0 >= x1 = interpolate rest
+        | otherwise = [(x, SignalBase.y_at (d x0) y0 (d x1) y1 (d x))
+            | x <- [x0, x0+1 .. x1-1]] ++ interpolate rest
+    interpolate val = val
+    d = SignalBase.x_to_double
 
 vol_cc = Control.Control "volume"
 c_vol = (vol_cc, mksignal [(0, 1), (4, 0)])

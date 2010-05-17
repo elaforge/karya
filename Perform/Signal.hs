@@ -60,7 +60,7 @@ module Perform.Signal (
     , invalid_pitch, empty
     , Tempo, Warp, Control, NoteNumber, Display
 
-    , signal, constant, track_signal, Method(..), Segment
+    , signal, constant
     , unsignal, to_track_samples
     , log_signal
     , coerce
@@ -85,8 +85,6 @@ import Prelude hiding (last, truncate)
 import qualified Control.Arrow as Arrow
 import qualified Data.StorableVector as V
 import qualified Foreign.Storable as Storable
-
-import qualified Util.Num as Num
 import qualified Util.Log as Log
 
 import Ui
@@ -94,7 +92,7 @@ import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 
 import qualified Perform.SignalBase as SignalBase
-import Perform.SignalBase (Method(..), Segment, max_x, default_srate)
+import Perform.SignalBase (max_x, default_srate)
 
 
 -- * types
@@ -148,8 +146,7 @@ instance Storable.Storable (X, Y) where
 
 instance SignalBase.Y Y where
     zero_y = 0
-    y_at x0 y0 x1 y1 x = y_at (x_to_y x0) y0 (x_to_y x1) y1 (x_to_y x)
-    project y0 y1 at = Num.scale y0 y1 at
+    to_double = id
 
 instance Show (Signal y) where
     show (Signal vec) = "Signal " ++ show (SignalBase.unsignal vec)
@@ -195,9 +192,6 @@ signal ys = Signal (SignalBase.signal ys)
 
 constant :: Y -> Signal y
 constant n = signal [(0, n)]
-
-track_signal :: X -> [SignalBase.Segment] -> Signal y
-track_signal srate segs = Signal (SignalBase.track_signal srate segs)
 
 -- | A hack to log a signal.  This way it can be extracted later and displayed
 -- in a format that's nicer than a huge log line.
@@ -311,7 +305,8 @@ inverse_at :: RealTime -> Warp -> Maybe X
 inverse_at pos sig
     | i >= V.length vec = Nothing
     | y1 == y = Just x1
-    | otherwise = Just $ y_to_real $ x_at (x_to_y x0) y0 (x_to_y x1) y1 y
+    | otherwise = Just $ y_to_real $
+        SignalBase.x_at (x_to_y x0) y0 (x_to_y x1) y1 y
     where
     vec = sig_vec sig
     y = x_to_y pos
@@ -386,19 +381,3 @@ pitch_share in_decay v0 v1 =
     (in_decay || fst (properFraction v0) /= fst (properFraction v1))
         && f v0 == f v1
     where f v = floor (snd (properFraction v) * 1000)
-
-
--- * util
-
--- | Given a line defined by the two points, find the y at the given x.
-y_at :: Double -> Double -> Double -> Double -> Double -> Double
-y_at x0 y0 x1 y1 x
-    | x == x1 = y1 -- avoid zero length segments
-    | otherwise = (y1 - y0) / (x1 - x0) * (x - x0) + y0
-
--- | Given a line defined by the two points, find the x at the given y.
-x_at :: Double -> Double -> Double -> Double -> Double -> Double
-x_at x0 y0 x1 y1 y
-    | x0 == x1 = x1 -- zero width means vertical, which means it crosses here
-    | y0 == y1 = error $ "x_at on flat line " ++ show ((x0, y0), (x1, y1), y)
-    | otherwise = (y - y0) / ((y1 - y0) / (x1 - x0)) + x0

@@ -1,10 +1,9 @@
 {-# LANGUAGE FlexibleContexts #-}
-{- | 
+{- | Functions common between the different signal types.
 -}
 module Perform.SignalBase where
 import qualified Control.Arrow as Arrow
 import qualified Data.DList as DList
-import qualified Data.List as List
 import qualified Data.StorableVector as V
 import qualified Foreign.Storable as Storable
 
@@ -35,9 +34,7 @@ type SigVec y = V.Vector (X, y)
 
 class (Eq y) => Y y where
     zero_y :: y
-    y_at :: X -> y -> X -> y -> X -> y
-    -- | Given two Ys and a Double between 0 and 1, make a Y in between.
-    project :: Double -> Double -> Double -> y
+    to_double :: y -> Double
 
 type X = RealTime
 
@@ -67,17 +64,25 @@ at x vec
     where i = highest_index x vec
 
 -- | 'at' with linear interpolation.
-at_linear :: (Signal y) => X -> SigVec y -> y
+--
+-- 'at_linear' always returns a double, because \"delayed interpolated\" values
+-- ala PitchSignal don't really make sense when they themselves are
+-- interpolated.
+at_linear :: (Signal y) => X -> SigVec y -> Double
 at_linear x vec = interpolate x vec (highest_index x vec)
     where
     interpolate x vec i
-        | V.null vec = zero_y
-        | i + 1 >= V.length vec = y0
-        | i < 0 = snd (V.index vec 0)
-        | otherwise = y_at x0 y0 x1 y1 x
+        | V.null vec = 0
+        | i + 1 >= V.length vec = to_double y0
+        | i < 0 = to_double (snd (V.index vec 0))
+        | otherwise = y_at (x_to_double x0) (to_double y0)
+            (x_to_double x1) (to_double y1) (x_to_double x)
         where
         (x0, y0) = V.index vec i
         (x1, y1) = V.index vec (i+1)
+
+x_to_double :: RealTime -> Double
+x_to_double (RealTime x) = x
 
 -- | Return the highest index of the given X.  So the next value is
 -- guaranteed to have a higher x, if it exists.  Return -1 if @x@ is before
@@ -118,70 +123,6 @@ bsearch_above vec key v = go vec 0 (V.length vec)
         | otherwise = go vec low mid
         where mid = (low + high) `div` 2
 
-
--- * track signal
-
--- | Convert the track-level representation of a signal to a Signal.
-track_signal :: (Signal y) => X -> [Segment] -> SigVec y
-track_signal srate segs = signal (concat pairs)
-    where
-    pairs = case segs of
-        (x, _, y) : rest | x == 0 ->
-            [(0, project y y 0)] : (snd $ List.mapAccumL go (0, y) rest)
-        _ -> snd $ List.mapAccumL go (0, 0) segs
-    go (x0, y0) (x1, meth, y1) = ((x1, y1), samples)
-        where samples = sample_track_seg srate x0 y0 x1 y1 meth
-
-type Segment = (X, Method, Double)
-
--- | This corresponds to the methods allowed on controller track values.
---
--- TODO I think this will be too inflexible because it makes it hard to add
--- new methods.  It will probably turn into a more flexible data structure when
--- I start wanting those.
-data Method =
-    -- | Set the value at the given point in time.  The "to val" is ignored.
-    Set
-    -- | Approach the point with a straight line.
-    | Linear
-    -- | Approach the point with an exponential curve.  If the exponent is
-    -- positive, the value will be x**n.  If it's negative, it will be
-    -- x**(1/n).
-    | Exp Double
-    deriving (Show, Eq)
-
-lin_function :: Double -> Double
-lin_function x = x
-
-exp_function :: Double -> Double -> Double
-exp_function n x = x**exp
-    where exp = if n >= 0 then n else (1 / abs n)
-
-sample_track_seg :: (Y y) => X -> X -> Double -> X -> Double -> Method
-    -> [(X, y)]
-sample_track_seg srate x0 y0 x1 y1 meth = case meth of
-    Set -> [(x1, project y1 y1 0)]
-    Linear
-        | y0 == y1 -> [(x1, project y1 y1 0)]
-        | otherwise -> sample_function lin_function srate x0 y0 x1 y1
-    Exp n -> sample_function (exp_function n) srate x0 y0 x1 y1
-
-sample_function :: (Y y) => (Double -> Double) -> X
-    -> X -> Double -> X -> Double -> [(X, y)]
-sample_function f srate x0 y0 x1 y1 = zip xs (map (project y0 y1 . f) points)
-    where
-    xs = drop 1 (range True x0 x1 srate)
-    points = map (\p -> realToFrac ((p-x0) / (x1-x0))) xs
-
--- | Like enumFromTo except it can include the final value.  Uses
--- multiplication instead of successive addition to avoid loss of precision.
-range :: (Num a, Ord a) => Bool -> a -> a -> a -> [a]
-range include_final start end step = go 0
-    where
-    go i
-        | val >= end = if include_final then [end] else []
-        | otherwise = val : go (i+1)
-        where val = start + (i*step)
 
 -- * comparison
 
@@ -305,3 +246,29 @@ resample prev_ay prev_by as@((ax, ay) : rest_a) bs@((bx, by) : rest_b)
     | ax == bx = (ax, ay, by) : resample ay by rest_a rest_b
     | ax < bx = (ax, ay, prev_by) : resample ay prev_by rest_a bs
     | otherwise = (bx, prev_ay, by) : resample prev_ay by as rest_b
+
+
+
+-- | Like enumFromTo except it can include the final value.  Uses
+-- multiplication instead of successive addition to avoid loss of precision.
+range :: (Num a, Ord a) => Bool -> a -> a -> a -> [a]
+range include_final start end step = go 0
+    where
+    go i
+        | val >= end = if include_final then [end] else []
+        | otherwise = val : go (i+1)
+        where val = start + (i*step)
+
+
+-- | Given a line defined by the two points, find the y at the given x.
+y_at :: Double -> Double -> Double -> Double -> Double -> Double
+y_at x0 y0 x1 y1 x
+    | x == x1 = y1 -- avoid zero length segments
+    | otherwise = (y1 - y0) / (x1 - x0) * (x - x0) + y0
+
+-- | Given a line defined by the two points, find the x at the given y.
+x_at :: Double -> Double -> Double -> Double -> Double -> Double
+x_at x0 y0 x1 y1 y
+    | x0 == x1 = x1 -- zero width means vertical, which means it crosses here
+    | y0 == y1 = error $ "x_at on flat line " ++ show ((x0, y0), (x1, y1), y)
+    | otherwise = (y - y0) / ((y1 - y0) / (x1 - x0)) + x0

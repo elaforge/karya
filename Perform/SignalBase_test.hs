@@ -4,7 +4,7 @@ import Util.Test
 
 import Perform.Signal (Y) -- use the instances for Y from Signal
 import qualified Perform.SignalBase as SignalBase
-import Perform.SignalBase (X, Method(..))
+import Perform.SignalBase (X)
 
 
 mkvec :: [(X, Y)] -> SignalBase.SigVec Y
@@ -13,41 +13,17 @@ mkvec = SignalBase.signal
 unvec :: SignalBase.SigVec Y -> [(X, Y)]
 unvec = SignalBase.unsignal
 
-test_track_signal = do
-    let f = unvec . SignalBase.track_signal 1
-    -- Make sure Set and Linear work as expected.
-    equal (f [(0, Set, 1), (2, Linear, 2)])
-        [(0, 1), (1, 1.5), (2, 2)]
-    equal (f [(0, Set, 1), (2, Set, 2)])
-        [(0, 1), (2, 2)]
-    equal (f [(0, Set, 1), (2, Set, 2), (4, Linear, 0), (5, Set, 1)])
-        [(0, 1), (2, 2), (3, 1), (4, 0), (5, 1)]
-
-test_sample_function = do
-    let f x0 y0 x1 y1 = SignalBase.sample_function id 1 x0 y0 x1 y1 :: [(X, Y)]
-    -- Includes the end, not the beginning.
-    equal (f 0 0 0 0) []
-    equal (f 0 0 0.5 0.5) [(0.5, 0.5)]
-    equal (f 0 0 1 1) [(1, 1)]
-    equal (f 0 0 3 3) [(1, 1), (2, 2), (3, 3)]
-
 
 test_at = do
-    let tsig = SignalBase.track_signal 1
-    let range low high sig =
-                map (\p -> SignalBase.at p (tsig sig)) [low..high-1] :: [Y]
+    let range low high sig = [SignalBase.at p (SignalBase.signal sig)
+            | p <- [low..high-1]] :: [Y]
     equal (range 0 4 []) [0, 0, 0, 0]
-    -- Values before the first sample take its value.
-    equal (range 0 4 [(2, Set, 1)]) [1, 1, 1, 1]
-    equal (range 0 4 [(0, Set, 1), (3, Set, 1)]) [1, 1, 1, 1]
-
-    equal (range 0 5 [(0, Set, 0), (4, Linear, 1)])
+    equal (range 0 5 (zip [0..] [0, 0.25, 0.5, 0.75, 1]))
         [0, 0.25, 0.5, 0.75, 1]
-    equal (range 0 6 [(0, Set, 0), (4, Linear, 1), (4, Set, 0)])
-        [0, 0.25, 0.5, 0.75, 0, 0]
 
-    equal (range 0 5 [(0, Linear, 1), (4, Linear, 0)])
-        [1, 0.75, 0.5, 0.25, 0]
+    -- Values before the first sample take its value.
+    equal (range 0 4 [(2, 1)]) [1, 1, 1, 1]
+    equal (range 0 4 [(0, 1), (3, 1)]) [1, 1, 1, 1]
 
     -- Negative index is ok.
     equal (SignalBase.at (-1) (mkvec [(0, 2)])) 2

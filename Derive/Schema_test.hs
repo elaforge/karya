@@ -21,7 +21,6 @@ import qualified Derive.Schema as Schema
 import qualified Derive.Score as Score
 
 import qualified Perform.Signal as Signal
-import Perform.Signal (Method(..))
 import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
 
@@ -80,7 +79,7 @@ test_compile = do
 
     let cont_signal = Map.union (Score.unwarp_controls Derive.initial_controls)
             (Map.fromList [(Score.Control "c1",
-                mksig [(0, Set, 3), (0.5, Set, 2), (1, Set, 1)])])
+                mksig [(0, 3), (0.5, 2), (1, 1)])])
         no_pitch = PitchSignal.empty
 
     let (res, logs) = derive ("*twelve", [(0, 0, ".1")])
@@ -91,9 +90,10 @@ test_compile = do
 
     let (res, logs) = derive
             ("*twelve", [(0, 0, "4c"), (4, 0, "4d"), (10, 0, "i *4e")])
-    let psig trunc = PitchSignal.truncate trunc
-            (DeriveTest.pitch_signal (Pitch.ScaleId "twelve")
-                [(0, Set, 60), (2, Set, 62), (5, Signal.Linear, 64)])
+    let complete_psig = PitchSignal.signal (Pitch.ScaleId "twelve")
+            ([(0, (60, 60, 0)), (2, (62, 62, 0))]
+                ++ DeriveTest.pitch_interpolate 2 62 6 64)
+    let psig trunc = PitchSignal.truncate trunc complete_psig
 
     equal logs []
     -- The pitch signal gets truncated so it doesn't look like the note's decay
@@ -101,7 +101,7 @@ test_compile = do
     equal (controls res) (Right [cont_signal, cont_signal, cont_signal])
     equal (pitches res) (Right [psig 1, psig 2, psig 50])
     where
-    mksig = Signal.track_signal Signal.default_srate
+    mksig = Signal.signal
 
 -- TODO compile_to_signals needs to be reimplemented
 -- test_compile_to_signals = do

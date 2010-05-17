@@ -2,6 +2,8 @@
 symbol as a transformer and applies it to the deriver
 - default ControlTrackCall looks up events, evaluates them, then looks at the
 
+- profile with and without strict state monad
+
 CURRENT
   * stick last sample in dynamic env for next control deriver
   * lookup calls for control and pitch
@@ -9,9 +11,9 @@ CURRENT
   * remove ControlEvent
   * implement previous value defaulting for control calls
   * remove Default track title parsing stuff
-  - remove SignalBase track segment stuff
-  - implement relative controls
+  * remove SignalBase track segment stuff
   - pull sampling srate out of dynamic env
+  - implement relative controls
   - implement control track title calls
   - update Cmds for control and pitch tracks to edit new syntax: simple
     implementation for edit method mode
