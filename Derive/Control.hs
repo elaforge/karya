@@ -1,4 +1,3 @@
-{-# LANGUAGE PatternGuards #-}
 {- | Derivers for control tracks.
 
     Interpolation methods:
@@ -29,6 +28,7 @@ import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
+import qualified Derive.Schema.Default as Default
 
 
 d_relative :: (Monad m) =>
@@ -67,21 +67,17 @@ eval_track block_id track_id [TrackLang.Call call_id args] deriver = do
     -- pipeline.
     let vals = if call_id == TrackLang.Symbol ""
             then args else TrackLang.VSymbol call_id : args
-    transformer <- case vals of
-        [TrackLang.VSymbol (TrackLang.Symbol "tempo")] -> return $
-            tempo_call block_id track_id
-                (Signal.coerce <$> derive_signal events)
-        [TrackLang.VSymbol (TrackLang.Symbol control)] -> return $
-            control_call track_id (Score.Control control) (derive_signal events)
-        [TrackLang.VNote note] -> return $
-            pitch_call track_id (note_to_scale note) events Nothing
-        -- Named pitch track
-        [TrackLang.VNote note, TrackLang.VControl (TrackLang.Control cont)] ->
-            return $ pitch_call track_id (note_to_scale note) events (Just cont)
-        -- TODO implement relative control tracks
-        vals -> Derive.throw $ "args must be note or symbol: " ++ show vals
-    return (transformer deriver)
-    where note_to_scale (Pitch.Note s) = Pitch.ScaleId s
+    return $ case Default.parse_control_vals vals of
+        Right Default.Tempo -> tempo_call block_id track_id
+            (Signal.coerce <$> derive_signal events) deriver
+        Right (Default.Control Nothing control) ->
+            control_call track_id control (derive_signal events) deriver
+        Right (Default.Pitch (Default.PitchAbsolute maybe_scale_id) Nothing) ->
+            pitch_call track_id maybe_scale_id events Nothing deriver
+        Right track_type ->
+            Derive.throw $ "track type not supported yet: " ++ show track_type
+        Left msg ->
+            Derive.throw $ "failed to parse " ++ show vals ++ ": " ++ msg
 eval_track _ _ _expr _ = return $
     Derive.throw "composition not supported on control tracks yet"
 
@@ -103,19 +99,22 @@ d_control cont control_deriver deriver = do
     signal <- control_deriver
     Derive.with_control cont signal deriver
 
-pitch_call :: TrackId -> Pitch.ScaleId -> [Track.PosEvent]
+pitch_call :: TrackId -> Maybe Pitch.ScaleId -> [Track.PosEvent]
     -> Maybe Score.Control -> Derive.Transformer
 pitch_call _ _ _ (Just _) =
     const $ Derive.throw $ "named pitch tracks not supported yet"
-pitch_call track_id scale_id events Nothing = d_pitch scale_id
+pitch_call track_id maybe_scale_id events Nothing = d_pitch maybe_scale_id
     (Derive.with_track_warp track_id (derive_pitch events))
 
-d_pitch :: Pitch.ScaleId -> Derive.PitchDeriver -> Derive.Transformer
-d_pitch scale_id control_deriver deriver = do
+d_pitch :: Maybe Pitch.ScaleId -> Derive.PitchDeriver -> Derive.Transformer
+d_pitch (Just scale_id) control_deriver deriver = do
     scale <- Derive.get_scale "d_pitch" scale_id
     Derive.with_val TrackLang.v_scale scale $ do
         signal <- control_deriver
         Derive.with_pitch signal deriver
+d_pitch Nothing control_deriver deriver = do
+    signal <- control_deriver
+    Derive.with_pitch signal deriver
 
 
 derive_pitch :: [Track.PosEvent] -> Derive.PitchDeriver

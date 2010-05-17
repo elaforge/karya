@@ -22,7 +22,7 @@ test_control_track = do
     let events = [(0, 0, "1"), (1, 0, "2")]
 
     -- various failures
-    left_like (fst (derive ("", events))) "args must be note or symbol"
+    left_like (fst (derive ("", events))) "failed to parse"
     left_like (fst (derive ("cont | cont", events))) "composition not supported"
 
     let (val, logs) = derive ("cont", [(0, 0, "abc"), (1, 0, "def")])

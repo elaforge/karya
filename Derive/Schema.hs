@@ -36,11 +36,9 @@ module Derive.Schema (
     , default_schema
 ) where
 import Control.Monad
-import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Tree as Tree
 
-import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Util.Tree
 
@@ -215,7 +213,8 @@ get_track_info proj_scale track_tree (Just tracknum) =
                 -- set scale override the project scale for higher level
                 -- tracks.
                 scale_id = maybe proj_scale id $ find_scale (track : parents)
-            in (Just (track_type scale_id track parents), inst, scale_id)
+            in (Just (track_type scale_id track parents (null children)),
+                inst, scale_id)
     where
     find_inst = msum . map inst_of
     inst_of = Default.title_to_instrument . State.track_title
@@ -230,22 +229,33 @@ data TrackType =
     NoteTrack NoteTrack.PitchTrack Bool | PitchTrack Bool | ControlTrack Bool
     deriving (Show, Eq)
 
-track_type :: Pitch.ScaleId -> State.TrackInfo -> [State.TrackInfo] -> TrackType
-track_type scale_id (State.TrackInfo title _ tracknum) parents
-    | Default.is_note_track title = NoteTrack pitch_track pitch_rel
-    | Default.is_pitch_track title = PitchTrack is_rel
-    | otherwise = ControlTrack is_rel
+track_type :: Pitch.ScaleId -> State.TrackInfo -> [State.TrackInfo]
+    -> Bool -- ^ no_children
+    -> TrackType
+track_type scale_id (State.TrackInfo _ _ tracknum) parents True =
+    NoteTrack pitch_track pitch_rel
     where
-    (pitch_track, pitch_rel) = case List.find is_pitch parents of
+    (pitch_track, pitch_rel) = case msum (map is_pitch parents) of
+        Just pair -> pair
         Nothing ->
             -- Assume new pitch tracks should be absolute.
             (NoteTrack.CreateTrack
                 tracknum (Default.scale_to_title scale_id) (tracknum+1),
             False)
-        Just ptrack -> (NoteTrack.ExistingTrack (State.track_tracknum ptrack),
-            Default.is_relative_track (State.track_title ptrack))
-    is_pitch = Default.is_pitch_track . State.track_title
-    is_rel = Default.is_relative_track title
+    is_pitch track = case Default.parse_control (State.track_title track) of
+        Right (Default.Pitch ptype _) -> Just
+            (NoteTrack.ExistingTrack (State.track_tracknum track), is_rel ptype)
+        _ -> Nothing
+    is_rel (Default.PitchRelative _) = True
+    is_rel (Default.PitchAbsolute _) = False
+track_type _ (State.TrackInfo title _ _) _ False =
+    case Default.parse_control title of
+        Right ctype@(Default.Control _ _) ->
+            ControlTrack (Default.is_relative ctype)
+        Right ctype@(Default.Pitch _ _) ->
+            PitchTrack (Default.is_relative ctype)
+        -- Default to a control track if it's unparseable.
+        _ -> ControlTrack False
 
 
 -- ** compile
@@ -280,17 +290,10 @@ sub_compile block_id tree = Derive.d_merge_list (map with_track tree)
         Derive.with_stack_track (State.track_id track) (_compile block_id tree)
 
 _compile :: BlockId -> Tree.Tree State.TrackInfo -> Derive.EventDeriver
-_compile block_id (Tree.Node track@(State.TrackInfo title track_id _) subs)
-    | Default.is_note_track title = if not (null subs)
-        then Derive.throw $ "inst track " ++ show track ++ " has sub tracks "
-            ++ show subs
-        else Derive.with_track_warp track_id (Note.d_note_track track_id)
-    | otherwise = do
-        when (null subs) $
-            Log.warn $ "control " ++ show track ++ " has no sub tracks"
-        Derive.with_stack_track track_id $
-            Control.d_control_track block_id track_id
-                (sub_compile block_id subs)
+_compile block_id (Tree.Node (State.TrackInfo _ track_id _) subs)
+    | null subs = Derive.with_track_warp track_id (Note.d_note_track track_id)
+    | otherwise = Derive.with_stack_track track_id $
+        Control.d_control_track block_id track_id (sub_compile block_id subs)
 
 
 -- | Compile a Skeleton to its DisplaySignalDeriver.  The DisplaySignalDeriver
@@ -372,7 +375,7 @@ parse_note_groups tracks = case inst_groups of
         global : rest -> descend (concatMap parse_note_group rest) global
     where
     inst_groups = Seq.split_with
-        (Default.is_note_track . State.track_title) tracks
+        (Default.looks_like_note_track . State.track_title) tracks
 
 parse_note_group :: [State.TrackInfo] -> Tree.Forest State.TrackInfo
 parse_note_group [] = []

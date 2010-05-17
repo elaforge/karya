@@ -8,7 +8,7 @@ CURRENT
   * implement calls: null and various interpolaters
   * remove ControlEvent
   * implement previous value defaulting for control calls
-  - remove Default track title parsing stuff
+  * remove Default track title parsing stuff
   - remove SignalBase track segment stuff
   - implement relative controls
   - pull sampling srate out of dynamic env

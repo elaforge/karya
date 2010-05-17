@@ -1,106 +1,138 @@
--- | Definitions for the default schema.
+{-# LANGUAGE PatternGuards #-}
+-- | Utilities to deal with track titles.
 --
--- Most are in "Derive.Schema" but a few are broken out so others can import
--- them.  Technically this is incorrect because general commands shouldn't
--- depend on the schema, but 'set_inst_status' wants to do some
--- track parsing to set global status.  This will be a problem if I ever
--- have other schemas, but if I have those I can solve the problem then.
+-- Note track titles are just tracklang expressions, so no extra code is
+-- needed.  Control tracks titles are rather more complicated, and Cmds in
+-- addition to the Schema need to agree on how they are parsed.
 --
--- set_inst_status can't be in the schema because it wants to run when
--- non-schema cmds run, like set selection and track collapse.
---
--- I originally assumed I would have many different schemas, but now that
--- the skeleton is explicit and I have a possible notation to pipe a track
--- through a function, I'm not entirely sure if it's worth keeping the schema
--- concept.  Even if I do eliminate schemas, there is still a division between
--- general and track-specific commands, and the latter can't import the former,
--- to avoid circular imports.
+-- TODO The name is no longer very accurate.
 module Derive.Schema.Default where
 import Control.Monad
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Tree as Tree
 import qualified Text.Printf as Printf
 import qualified Util.Seq as Seq
 import qualified Util.Tree
+import qualified Util.Pretty as Pretty
 
 import Ui
 import qualified Ui.Block as Block
 import qualified Ui.State as State
 import qualified Derive.Score as Score
+import qualified Derive.TrackLang as TrackLang
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Info as Info
 
 
-paths_of :: State.TrackTree -> TrackNum
-    -> Maybe (State.TrackInfo, [State.TrackInfo], [State.TrackInfo])
-paths_of track_tree tracknum =
-    List.find ((==tracknum) . State.track_tracknum . (\(a, _, _) -> a))
-        (Util.Tree.paths track_tree)
+-- * track info
 
--- | The type of a track is derived from its title.
-is_tempo_track, is_pitch_track, is_note_track :: String -> Bool
-is_tempo_track = (=="tempo")
-is_pitch_track title = case parse_control_title title of
-    (_, Right _) -> True
-    _ -> False
-is_note_track = (note_track_prefix `List.isPrefixOf`)
+data ControlType =
+    -- | > control
+    -- > + control
+    Control (Maybe TrackLang.CallId) Score.Control
+    -- | > *scale
+    -- > *scale pitch_control
+    -- > + *
+    -- > + * pitch_control
+    | Pitch PitchType (Maybe Score.Control)
+    -- | > tempo
+    | Tempo
+    deriving (Show)
 
--- | True if this track is a relative control or pitch track.
-is_relative_track :: String -> Bool
-is_relative_track title = case parse_control_title title of
-    (Just _, _) -> True
-    _ -> False
+data PitchType =
+    PitchRelative TrackLang.CallId | PitchAbsolute (Maybe Pitch.ScaleId)
+    deriving (Show)
 
-note_track_prefix, pitch_track_prefix :: String
-note_track_prefix = ">"
-pitch_track_prefix = "*"
+parse_control :: String -> Either String ControlType
+parse_control = fmap fst . parse_control_expr
 
-inst_of_track = Score.Instrument . Seq.strip . drop 1
+parse_control_expr :: String -> Either String (ControlType, TrackLang.Expr)
+parse_control_expr title = do
+    (expr, vals) <- TrackLang.parse_control_track title
+    ctrack <- parse_control_vals vals
+    return (ctrack, expr)
 
--- | Convert a track title into its instrument.  This could be per-schema, but
--- I'm going to hardcode it for now and assume all schemas will do the same
--- thing.
-title_to_instrument :: String -> Maybe Score.Instrument
-title_to_instrument name
-    | is_note_track name = Just $ inst_of_track name
-    | otherwise = Nothing
+parse_control_vals :: [TrackLang.Val] -> Either String ControlType
+parse_control_vals vals = case vals of
+        [TrackLang.VSymbol (TrackLang.Symbol "tempo")] -> Right Tempo
+        [TrackLang.VSymbol control] ->
+            Right $ Control Nothing (control_of control)
+        [TrackLang.VSymbol call, TrackLang.VSymbol control] ->
+            Right $ Control (Just call) (control_of control)
+        [TrackLang.VNote note] ->
+            Right $ Pitch (PitchAbsolute (scale_of note)) Nothing
+        [TrackLang.VNote note, TrackLang.VSymbol control] ->
+            Right $ Pitch (PitchAbsolute (scale_of note))
+                (Just (control_of control))
+        TrackLang.VSymbol call : TrackLang.VNote note : rest
+            | not (null (Pitch.note_text note)) ->
+                Left "relative pitch track can't have a scale"
+            | [] <- rest ->
+                Right $ Pitch (PitchRelative call) Nothing
+            | [TrackLang.VSymbol control] <- rest ->
+                Right $ Pitch (PitchRelative call) (Just (control_of control))
+        _ -> Left $ "args must be one of [\"tempo\", control, op control, "
+            ++ "*scale, *scale pitch_control, op *, op * pitch_control]"
+    where
+    scale_of (Pitch.Note "") = Nothing
+    scale_of (Pitch.Note text) = Just (Pitch.ScaleId text)
+    control_of (TrackLang.Symbol control) = Score.Control control
+
+unparse_control :: ControlType -> String
+unparse_control = Seq.join " " . map Pretty.pretty . unparse_control_vals
+
+unparse_control_vals :: ControlType -> [TrackLang.Val]
+unparse_control_vals ctype = case ctype of
+        Control call (Score.Control control) -> case call of
+            Nothing -> [sym control]
+            Just op -> [TrackLang.VSymbol op, sym control]
+        Pitch ptype name ->
+            let pname = maybe [] (\(Score.Control c) -> [sym c]) name
+            in case ptype of
+                PitchRelative call -> [TrackLang.VSymbol call, note ""] ++ pname
+                PitchAbsolute (Just (Pitch.ScaleId scale_id)) ->
+                    [note scale_id] ++ pname
+                PitchAbsolute Nothing -> [note ""] ++ pname
+        Tempo -> [sym "tempo"]
+    where
+    sym = TrackLang.VSymbol . TrackLang.Symbol
+    note = TrackLang.VNote . Pitch.Note
+
+-- ** util
+
+scale_to_title :: Pitch.ScaleId -> String
+scale_to_title scale_id =
+    unparse_control (Pitch (PitchAbsolute (Just scale_id)) Nothing)
+
+title_to_scale :: String -> Maybe Pitch.ScaleId
+title_to_scale title = case parse_control title of
+    Right (Pitch (PitchAbsolute (Just scale_id)) _) -> Just scale_id
+    _ -> Nothing
 
 -- | Convert from an instrument to the title of its instrument track.
 instrument_to_title :: Score.Instrument -> String
-instrument_to_title (Score.Instrument inst) = '>' : inst
+instrument_to_title = Pretty.pretty . TrackLang.VInstrument
 
-title_to_scale :: String -> Maybe Pitch.ScaleId
-title_to_scale title = either (const Nothing) Just
-    (snd (parse_control_title title))
+title_is_relative :: String -> Bool
+title_is_relative = either (const False) is_relative . parse_control
 
-scale_to_title :: Pitch.ScaleId -> String
-scale_to_title scale_id = unparse_control_title Nothing (Right scale_id)
+is_relative :: ControlType -> Bool
+is_relative (Control (Just _) _) = True
+is_relative (Pitch (PitchRelative _) _) = True
+is_relative _ = False
 
--- | The fst element is Just ControlOp for a relative track.
-parse_control_title :: String
-    -> (Maybe String, Either Score.Control Pitch.ScaleId)
-parse_control_title title
-    | ',' `elem` title = (Just (Seq.strip pre), parse (drop 1 post))
-    | otherwise = (Nothing, parse title)
-    where
-    (pre, post) = break (==',') title
-    parse title =
-        maybe (Left (Score.Control (Seq.strip title))) Right (to_pitch title)
-    to_pitch title
-        | pitch_track_prefix `List.isPrefixOf` s =
-            Just (Pitch.ScaleId (drop 1 s))
-        | otherwise = Nothing
-        where s = Seq.strip title
+-- | Note tracks are defined as tracks without children.  But if I'm trying to
+-- figure out a skeleton in the first place I need to guess which one is the
+-- note track.
+looks_like_note_track :: String -> Bool
+looks_like_note_track ('>':_) = True
+looks_like_note_track _ = False
 
-unparse_control_title :: Maybe String -> Either Score.Control Pitch.ScaleId
-    -> String
-unparse_control_title maybe_op cont = case cont of
-    Left (Score.Control s) -> pref s
-    Right (Pitch.ScaleId s) -> pref (pitch_track_prefix ++ s)
-    where pref = maybe id (\op t -> op ++ ", " ++ t) maybe_op
-
+is_tempo_track :: String -> Bool
+is_tempo_track = (=="tempo")
 
 -- * set_inst_status
 
@@ -140,25 +172,50 @@ get_track_status block_id ttree tracknum = case note_track_of ttree tracknum of
             (Info.show_addrs addrs) (Seq.join ", " track_descs)
     Nothing -> return $ "track " ++ show tracknum ++ ": no inst"
 
+
+find_track :: TrackNum -> State.TrackTree -> Maybe (Tree.Tree State.TrackInfo)
+find_track tracknum = Util.Tree.find ((==tracknum) . State.track_tracknum)
+
 control_tracks_of :: State.TrackTree -> TrackNum -> [State.TrackInfo]
 control_tracks_of ttree tracknum = case paths_of ttree tracknum of
         Nothing -> []
         Just (_, parents, _) -> controls parents
     where
     controls = filter (is_control . State.track_title)
-    is_control title = not (is_tempo_track title || is_note_track title)
+    is_control title = not (is_tempo_track title)
+    -- TODO a "control of" should be defined as the "single parents", every
+    -- parent that has only one child
 
+-- | Given a tracknum, find the note track below it.  Since there may
+-- be multiple ones, pick the first one.
+--
+-- Search down the children for a instrument title, then get the first note
+-- track (tree bottom) underneath that.
+--
+-- This assumes the instrument is specified in a track below, not inherited
+-- from the environment.  Inheriting the instrument seems hard to do, but may
+-- be possible.  Maybe I can sove this problem later.
 note_track_of :: State.TrackTree -> TrackNum
     -> Maybe (Score.Instrument, TrackNum)
-note_track_of ttree tracknum = case paths_of ttree tracknum of
+note_track_of ttree tracknum = case find_track tracknum ttree of
         Nothing -> Nothing
-        Just (track, parents, children) ->
-            find_inst (track : parents ++ children)
+        Just tree -> find_inst tree
     where
-    find_inst = msum . map inst_of
-    inst_of info = case title_to_instrument (State.track_title info) of
-        Nothing -> Nothing
-        Just inst -> Just (inst, State.track_tracknum info)
+    find_inst tree@(Tree.Node track children) = case inst_of track of
+        Nothing -> msum (map find_inst children)
+        Just inst -> Just
+            (inst, State.track_tracknum (Util.Tree.first_leaf tree))
+    inst_of = title_to_instrument . State.track_title
+
+-- | Convert a track title into its instrument.
+--
+-- This is a hack because the track title is actually code and I'm trying to
+-- pick an instrument out without executing it.
+--
+-- TODO this will break on anything complicated like @>inst | xyz@.
+title_to_instrument :: String -> Maybe Score.Instrument
+title_to_instrument ('>':name) = Just (Score.Instrument name)
+title_to_instrument _ = Nothing
 
 -- | Looks like: [vel {collapse 2}, pedal {expand 3}]
 show_track_status :: (State.UiStateMonad m) => BlockId -> [State.TrackInfo]
@@ -173,3 +230,9 @@ show_track_status block_id status = forM status $ \info -> do
                 | Block.Collapse `elem` flags -> "expand"
                 | otherwise -> "collapse"
     return $ Printf.printf "%s {%s %d}" (Info.str title) cmd_text tracknum
+
+paths_of :: State.TrackTree -> TrackNum
+    -> Maybe (State.TrackInfo, [State.TrackInfo], [State.TrackInfo])
+paths_of track_tree tracknum =
+    List.find ((==tracknum) . State.track_tracknum . (\(a, _, _) -> a))
+        (Util.Tree.paths track_tree)

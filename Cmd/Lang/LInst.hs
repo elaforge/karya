@@ -172,7 +172,7 @@ device_of inst = do
     return $ fmap (Instrument.synth_device . MidiDb.info_synth) maybe_info
 
 controls_of :: Score.Instrument -> [Control.Control]
-controls_of inst = undefined -- TODO
+controls_of _inst = undefined -- TODO
 
 -- | Send AllNotesOff msgs to all inst addr.
 all_notes_off :: Cmd.CmdL ()

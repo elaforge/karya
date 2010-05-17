@@ -33,20 +33,19 @@ import qualified Util.Graph_test as Graph_test
 
 test_get_track_info = do
     let tree = mk_track_tree
-            -- ["c0", ">inst1", "+, *s1", "c1", ">inst2", "+, c2"]
+            -- ["c0", ">inst1", "add *", "c1", ">inst2", "add c2"]
             [ node ("c0", 0)
-                [ node ("c1", 3) [node ("+, *s1", 2) [node (">inst1", 1) []]]
-                , node ("+, c2", 5) [node (">inst2", 4) []]
+                [ node ("c1", 3) [node ("add *", 2) [node (">inst1", 1) []]]
+                , node ("add c2", 5) [node (">inst2", 4) []]
                 ]
             ]
         proj_scale = Pitch.ScaleId "proj"
-        s1 = Pitch.ScaleId "s1"
     let tracknums = map Just [0..6] ++ [Nothing]
     let res = map (Schema.get_track_info proj_scale tree) tracknums
     equal (res!!0) (Just (Schema.ControlTrack False), Just inst1, proj_scale)
     equal (res!!1) (Just (Schema.NoteTrack (NoteTrack.ExistingTrack 2) True),
-        Just inst1, s1)
-    equal (res!!2) (Just (Schema.PitchTrack True), Just inst1, s1)
+        Just inst1, proj_scale)
+    equal (res!!2) (Just (Schema.PitchTrack True), Just inst1, proj_scale)
     equal (res!!3) (Just (Schema.ControlTrack False), Just inst1, proj_scale)
     equal (res!!4)
         (Just (Schema.NoteTrack (NoteTrack.CreateTrack 4 "*proj" 5) False),
