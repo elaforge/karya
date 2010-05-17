@@ -534,8 +534,22 @@ inst_literal_prefix, note_literal_prefix :: String
 inst_literal_prefix = ">"
 note_literal_prefix = "*"
 
+-- | The returned Expr is never null.
 parse :: String -> Either String Expr
 parse text = reverse <$> Parse.parse_all p_pipeline (strip_comment text)
+
+-- | Parse a control track title.  The final expression in the composition is
+-- parsed simply as a list of values, not a Call.  Control track titles don't
+-- follow the normal calling process but pattern match directly on vals.
+parse_control_track :: String -> Either String (Expr, [Val])
+parse_control_track text = do
+    expr <- parse text
+    case expr of
+        [] -> Left "not reached because of 'parse' postcondition"
+        call : rest -> return (rest, combine call)
+    where
+    combine (Call (Symbol "") vals) = vals
+    combine (Call call_id vals) = VSymbol call_id : vals
 
 parse_vals :: String -> Either String [Val]
 parse_vals text = Parse.parse_all (P.many p_val) (strip_comment text)
@@ -552,24 +566,27 @@ p_equal = do
     return $ Call c_equal [a1, a2]
 
 p_call, p_null_call :: P.Parser Call
-p_call = Call <$> p_symbol <*> P.many p_val
-p_null_call = Call <$> P.option (Symbol "") p_symbol <*> P.many p_val
+p_call = Call <$> (Parse.lexeme p_symbol) <*> P.many p_val
+p_null_call = Call <$>
+    P.option (Symbol "") (Parse.lexeme p_symbol) <*> P.many p_val
 
 strip_comment :: String -> String
 strip_comment = fst . Seq.break_tails ("--" `List.isPrefixOf`)
 
 p_val :: P.Parser Val
-p_val = Parse.lexeme $ VNote <$> p_note <|> VInstrument <$> p_instrument
+p_val = Parse.lexeme $
+    VNote <$> p_note <|> VInstrument <$> p_instrument
     <|> VMethod <$> p_method
     -- RelativeAttr and Num can both start with a '-', but an RelativeAttr has
     -- to have a letter afterwards, while a Num is a '.' or digit, so they're
     -- not ambiguous.
     <|> VRelativeAttr <$> P.try p_rel_attr <|> VNum <$> p_num
-    <|> VString <$> p_string <|> VControl <$> p_control <|> VSymbol <$> p_symbol
+    <|> VString <$> p_string <|> VControl <$> p_control
     <|> (P.char '_' >> return VNotGiven)
+    <|> VSymbol <$> p_symbol
 
 p_note :: P.Parser Pitch.Note
-p_note = P.string note_literal_prefix >> Pitch.Note <$> p_word <?> "note"
+p_note = P.string note_literal_prefix >> Pitch.Note <$> p_null_word <?> "note"
 
 p_instrument :: P.Parser Score.Instrument
 p_instrument = P.string inst_literal_prefix >> Score.Instrument <$> p_null_word
@@ -606,8 +623,14 @@ p_control = do
         Just val -> DefaultedControl control val
     <?> "control"
 
+-- | Symbols can have anything in them but they have to start with a letter.
+-- This means special literals can start with wacky characters and not be
+-- ambiguous.
 p_symbol :: P.Parser Symbol
-p_symbol = Parse.lexeme (Symbol <$> p_ident "") <?> "symbol"
+p_symbol = do
+    c <- P.letter
+    rest <- p_null_word
+    return (Symbol (c : rest))
 
 -- | Identifiers are somewhat more strict than usual.  They must be lowercase,
 -- and the only non-letter allowed is hyphen.  This means words must be

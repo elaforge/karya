@@ -64,12 +64,15 @@ test_parse = do
     equal (f "") $ Right [Call (Symbol "") []]
     equal (f "|") $ Right [Call (Symbol "") [], Call (Symbol "") []]
 
-    equal (f "a|b=4|>inst %sig") $ Right
+    equal (f "a | b = 4 | >inst %sig") $ Right
         [ Call (Symbol "") [VInstrument (Score.Instrument "inst"),
             VControl (Control (Score.Control "sig"))]
         , Call (Symbol "=") [VSymbol (Symbol "b"), VNum 4]
         , Call (Symbol "a") []
         ]
+
+    -- Symbols can have anything in them as long as they start with a letter.
+    equal (f "a|b=4") $ Right [Call (Symbol "a|b=4") []]
 
 test_p_val = do
     let mkattr = Just . VRelativeAttr . TrackLang.RelativeAttr
@@ -104,7 +107,8 @@ test_p_val = do
             , ("%sig,", Nothing)
 
             , ("sym", Just $ VSymbol (Symbol "sym"))
-            , ("bad/sym", Nothing)
+            , ("s!$_", Just $ VSymbol (Symbol "s!$_"))
+            , ("$bad", Nothing)
             , ("-", Nothing)
             , ("_", Just VNotGiven)
             ]
@@ -123,5 +127,4 @@ test_p_equal = do
     let f = Parse.parse_all TrackLang.p_equal
     equal (f "a = b") (eq "a" (VSymbol (Symbol "b")))
     equal (f "a = 10") (eq "a" (VNum 10))
-    equal (f "a=10") (eq "a" (VNum 10))
     left_like (f "a=") "unexpected end of input"

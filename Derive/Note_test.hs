@@ -9,10 +9,8 @@ import Ui
 import qualified Ui.UiTest as UiTest
 
 import qualified Derive.DeriveTest as DeriveTest
--- import qualified Derive.Note as Note
 import qualified Derive.Score as Score
 
--- import qualified Perform.Pitch as Pitch
 import qualified Perform.Warning as Warning
 
 
@@ -32,11 +30,13 @@ test_c_note = do
     let (evts, logs) = (run ">i" [(0, 1, "+a 42")])
     equal evts (Right [])
     strings_like logs ["expected inst or attr"]
-    let (evts, logs) = run ">i" [(0, 1, "parse/error")]
+
+    let (evts, logs) = run ">i" [(0, 1, "$parse/error")]
     equal evts (Right [])
     strings_like logs ["parse error"]
+
     -- title error throws exception
-    left_like (fst (run ">i parse/err" [(0, 1, "")])) "parse error"
+    left_like (fst (run ">i $parse/err" [(0, 1, "")])) "parse error"
 
     -- comment only event is filtered out
     equal (run ">i" [(0, 1, "--")]) (Right [], [])
