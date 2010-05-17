@@ -167,7 +167,9 @@ partition2 f g (x:xs)
 
 -- * sublists
 
--- A foldr version is not lazy enough and overflows the stack.
+-- | Partition a list of Eithers into a pair.  Lazy enough to handle an infinite
+-- input list.
+partition_either :: [Either a b] -> ([a], [b])
 partition_either [] = ([], [])
 partition_either (x:xs) =
     let (ls, rs) = partition_either xs
