@@ -49,24 +49,17 @@ d_relative_pitch op signalm eventsm = do
 d_control_track :: BlockId -> TrackId -> Derive.Transformer
 d_control_track block_id track_id deriver = do
     track <- Derive.get_track track_id
-    title_expr <- case TrackLang.parse (Track.track_title track) of
-        Left err -> Derive.throw $ "track title: " ++ err
-        Right expr -> return expr
+    (expr, vals) <- either (\err -> Derive.throw $ "track title: " ++ err)
+        return (TrackLang.parse_control_track (Track.track_title track))
     -- TODO event calls are evaluated in normalized time, but track calls
     -- aren't.  Should they be?
-    join $ eval_track block_id track_id title_expr deriver
+    join $ eval_track block_id track_id expr vals deriver
 
-eval_track :: BlockId -> TrackId -> TrackLang.Expr
+eval_track :: BlockId -> TrackId -> TrackLang.Expr -> [TrackLang.Val]
     -> Derive.EventDeriver -> Derive.Deriver Derive.EventDeriver
-eval_track block_id track_id [TrackLang.Call call_id args] deriver = do
+eval_track block_id track_id [] vals deriver = do
     track <- Derive.get_track track_id
     let events = Track.event_list (Track.track_events track)
-
-    -- The control track title doesn't follow the normal syntax of
-    -- "symbol val val ...".  At least not for the final expression in the
-    -- pipeline.
-    let vals = if call_id == TrackLang.Symbol ""
-            then args else TrackLang.VSymbol call_id : args
     return $ case Default.parse_control_vals vals of
         Right Default.Tempo -> tempo_call block_id track_id
             (Signal.coerce <$> derive_signal events) deriver
@@ -78,7 +71,7 @@ eval_track block_id track_id [TrackLang.Call call_id args] deriver = do
             Derive.throw $ "track type not supported yet: " ++ show track_type
         Left msg ->
             Derive.throw $ "failed to parse " ++ show vals ++ ": " ++ msg
-eval_track _ _ _expr _ = return $
+eval_track _ _ _expr _ _ = return $
     Derive.throw "composition not supported on control tracks yet"
 
 -- | A tempo track is derived like other signals, but in absolute time.
