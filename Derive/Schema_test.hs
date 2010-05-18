@@ -89,7 +89,7 @@ test_compile = do
     equal (pitches res) (Right [no_pitch, no_pitch, no_pitch])
 
     let (res, logs) = derive
-            ("*twelve", [(0, 0, "4c"), (4, 0, "4d"), (10, 0, "i *4e")])
+            ("*twelve", [(0, 0, "4c"), (4, 0, "4d"), (12, 0, "i *4e")])
     let complete_psig = PitchSignal.signal (Pitch.ScaleId "twelve")
             ([(0, (60, 60, 0)), (2, (62, 62, 0))]
                 ++ DeriveTest.pitch_interpolate 2 62 6 64)

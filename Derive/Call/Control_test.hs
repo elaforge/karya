@@ -15,9 +15,8 @@ test_set = do
 
 test_linear = do
     -- make sure 0 arg variant works
-    equal (run [(0, 0, "1"), (0.9, 0, "i"), (1, 0, "i 0")])
-        (Right [Just [(0, 1),
-            (0.9, 1), (0.9500000000000001, 0.49999999999999944), (1, 0)]])
+    equal (run [(0, 0, "1"), (1, 0, "i"), (3, 0, "i 0")])
+        (Right [Just [(0, 1), (1, 1), (2, 0.5), (3, 0)]])
 
 run events = extract $ DeriveTest.derive_tracks_tempo
     [ (">", [(0, 1, "")])

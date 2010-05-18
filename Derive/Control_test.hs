@@ -71,9 +71,8 @@ test_pitch_track = do
     equal (derive ("*twelve", [(0, 0, "4c"), (1, 0, "4d")]))
         (Right [[(0, (60, 60, 0)), (1, (62, 62, 0))]], [])
 
-    equal (derive ("*twelve", [(0, 0, "4c"), (0.1, 0, "i *4d")]))
-        (Right [[(0, (60, 60, 0)), (0.05, (60, 62, 0.5)), (0.1, (60, 62, 1))]],
-            [])
+    equal (derive ("*twelve", [(0, 0, "4c"), (2, 0, "i *4d")]))
+        (Right [[(0, (60, 60, 0)), (1, (60, 62, 0.5)), (2, (60, 62, 1))]], [])
 
 do_derive :: (Score.Event -> a) -> UiTest.TrackSpec
     -> (Either String [a], [String])

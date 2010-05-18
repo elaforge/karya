@@ -34,9 +34,11 @@ import qualified Perform.Midi.Perform as Perform
 
 scale_id = Twelve.scale_id
 
+-- Drop the first sample to make this match output from the derive call
+-- interpolators.
 pitch_interpolate :: RealTime -> Float -> RealTime -> Float
     -> [(RealTime, PitchSignal.Y)]
-pitch_interpolate x0 y0 x1 y1 = [(x, (y0, y1, to_n x)) | x <- [x0 .. x1]]
+pitch_interpolate x0 y0 x1 y1 = drop 1 [(x, (y0, y1, to_n x)) | x <- [x0 .. x1]]
     where to_n x = realToFrac (x - x0) / fromIntegral (length [x0 .. x1] - 1)
 
 -- * run
@@ -92,10 +94,12 @@ derive_block ui_state block_id = derive lookup_deriver ui_state deriver
     deriver = Derive.d_root_block block_id
 
 derive :: Derive.LookupDeriver -> State.State -> Derive.Deriver a -> Result a
-derive lookup_deriver ui_state d =
+derive lookup_deriver ui_state deriver =
     case Derive.derive lookup_deriver ui_state Call.All.call_map False d of
         (Left err, b, c, d, e) -> (Left (show err), b, c, d, e)
         (Right a, b, c, d, e) -> (Right a, b, c, d, e)
+    -- tests are easier to write and read with integral interpolation
+    where d = Derive.put_val TrackLang.v_srate (1 :: Double) >> deriver
 
 -- ** extract
 

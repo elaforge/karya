@@ -155,10 +155,11 @@ c_equal = Symbol "="
 
 -- | Define a few inhabitants of Environ which are used by the built-in set
 -- of calls.
-v_instrument, v_attributes, v_scale :: ValName
+v_instrument, v_attributes, v_scale, v_srate :: ValName
 v_instrument = Symbol "inst"
 v_attributes = Symbol "attr"
 v_scale = Symbol "scale"
+v_srate = Symbol "srate"
 
 -- * types
 
@@ -277,6 +278,7 @@ hardcoded_types = Map.fromList
     [ (v_instrument, TInstrument)
     , (v_attributes, TAttributes)
     , (v_scale, TScale)
+    , (v_srate, TNum)
     ]
 
 data LookupError = NotFound | WrongType Type deriving (Show)

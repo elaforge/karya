@@ -53,12 +53,13 @@ control_interpolate :: (Double -> Signal.Y) -> TrackLang.PassedArgs Signal.Y
     -> Either TrackLang.TypeError Derive.ControlDeriver
 control_interpolate f args = TrackLang.call1 args (required "val") $ \val -> do
     cur <- Derive.score_to_real 0
+    srate <- Derive.require_val TrackLang.v_srate
     case TrackLang.passed_prev_val args of
         Nothing -> do
             -- TODO warn
             return $ Signal.signal [(cur, val)]
         Just (prev, prev_val) -> return $ Signal.signal $
-            interpolate Num.scale f prev prev_val cur val
+            interpolate (RealTime srate) Num.scale f prev prev_val cur val
 
 
 -- ** note
@@ -102,14 +103,16 @@ pitch_interpolate :: (Double -> Double) -> TrackLang.PassedArgs PitchSignal.Y
 pitch_interpolate f args = TrackLang.call1 args (required "note") $ \note -> do
         cur <- Derive.score_to_real 0
         scale <- Derive.require_val TrackLang.v_scale
+        srate <- Derive.require_val TrackLang.v_srate
         degree <- note_to_degree scale note
         let signal = PitchSignal.signal (Pitch.scale_id scale)
         case TrackLang.passed_prev_val args of
             Nothing -> do
                 -- TODO warn
                 return $ signal [(cur, PitchSignal.degree_to_y degree)]
-            Just (prev, prev_y) -> return $ signal $ interpolate pitch_scale f
-                prev prev_y cur (PitchSignal.degree_to_y degree)
+            Just (prev, prev_y) -> return $ signal $
+                interpolate (RealTime srate) pitch_scale f prev prev_y cur
+                    (PitchSignal.degree_to_y degree)
 
 pitch_scale :: PitchSignal.Y -> PitchSignal.Y -> Double -> PitchSignal.Y
 pitch_scale y0 y1 n =
@@ -120,12 +123,11 @@ pitch_scale y0 y1 n =
 
 -- * util
 
-interpolate :: (y -> y -> Double -> y) -> (Double -> Double)
+interpolate :: RealTime -> (y -> y -> Double -> y) -> (Double -> Double)
     -> RealTime -> y -> RealTime -> y -> [(RealTime, y)]
-interpolate scale f x0 y0 x1 y1 =
+interpolate srate scale f x0 y0 x1 y1 =
     zip xs (map (scale y0 y1 . f . Num.normalize x0 x1) xs)
-    where xs = range_until x0 x1 Signal.default_srate
-    -- TODO later pull srate out of dynamic env
+    where xs = range_until x0 x1 srate
 
 -- | Enumerate a half-open range, except this one omits the first value and
 -- includes the final one.  Uses multiplication instead of successive addition

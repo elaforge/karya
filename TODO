@@ -1,9 +1,3 @@
-- default NoteTrackCall looks up events, evaluates them, then looks up
-symbol as a transformer and applies it to the deriver
-- default ControlTrackCall looks up events, evaluates them, then looks at the
-
-- profile with and without strict state monad
-
 CURRENT
   * stick last sample in dynamic env for next control deriver
   * lookup calls for control and pitch
@@ -12,26 +6,21 @@ CURRENT
   * implement previous value defaulting for control calls
   * remove Default track title parsing stuff
   * remove SignalBase track segment stuff
-  - pull sampling srate out of dynamic env
   - implement relative controls
+  * pull sampling srate out of dynamic env
   - implement control track title calls
   - update Cmds for control and pitch tracks to edit new syntax: simple
     implementation for edit method mode
+  - more sophisticated function to find out the inst of a note track
+  - put prev, cur, next in PassedArgs too?
+  - make sure the environ is not kept between track evaluations, I don't
+    want 'x = y' in one track to affect another
 
   - TrackLang.optional args should be able to pass Nothing if arg is not given
 
   - remove warped control?
 
   - subblock derivation for control tracks
-
-  - put prev, cur, next in PassedArgs too?
-
-  - change syntax to sexpr like
-    since a scale degree may simply be a number, I can keep * as an explicit
-    call literal
-    special hack for pitch track so I don't need it?  but how would that work
-    - or, self-eval symbols like numbers first try to evaltuate as calls?
-    that's bad because then a scale would interfere with plain numbers
 
   - implement 'e' interpolator
 
@@ -41,12 +30,9 @@ CURRENT
       - note, control, and pitch
       - tval
   - implement scales as a set of sub-calls that return pitches
-    - they can take a number for cents offset: (4c# 20)
-  - unify symbol tables?
-  - what about efficiency?
-
-  - profile derivation, if parsing is a problem, look into attoparsec
-
+    - they can take a number for cents offset: (*4c# 20)
+    - what about efficiency?
+  - merge pitch call namespace with normal call namespace
 
   - write derive_pitch_signal
     decide how the pitch track represents pitch points
@@ -303,6 +289,8 @@ cleanup:
     rash, think about ways to derive e.g. 工尺譜.
 
 performance:
+  - profile derivation, if parsing is a problem, look into attoparsec
+  - profile with and without strict state monad
   speed and memory profiling:
     - respond to incoming notes
     - diff and modify UI

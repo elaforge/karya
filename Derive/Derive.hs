@@ -164,7 +164,7 @@ initial_state ui_state lookup_deriver calls ignore_tempo = State {
         (State.state_project_scale ui_state) Pitch.middle_degree
     , state_pitch_warp = Score.id_warp
 
-    , state_environ = Map.empty
+    , state_environ = initial_environ
     , state_warp = Score.id_warp
     , state_stack = []
     , state_log_context = []
@@ -182,6 +182,11 @@ initial_state ui_state lookup_deriver calls ignore_tempo = State {
 initial_controls :: Score.WarpedControls
 initial_controls = Score.warped_controls
     [(Score.c_velocity, Signal.constant default_velocity)]
+
+initial_environ :: TrackLang.Environ
+initial_environ = Map.fromList
+    [ (TrackLang.v_srate, TrackLang.VNum 0.05)
+    ]
 
 -- | See 'Perform.Midi.Perform.default_velocity' for 0.79.
 default_velocity :: Signal.Y
