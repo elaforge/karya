@@ -1,4 +1,4 @@
--- | A collection of basic calls for control and pitch tracks.
+-- | Basic calls for control and pitch tracks.
 module Derive.Call.Control where
 
 import qualified Util.Num as Num

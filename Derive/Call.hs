@@ -20,7 +20,7 @@ import qualified Ui.Types as Types
 import qualified Derive.Derive as Derive
 import qualified Derive.TrackLang as TrackLang
 import qualified Derive.Score as Score
-import qualified Derive.Call.Basic as Basic
+import qualified Derive.Call.Note as Note
 
 import qualified Perform.Signal as Signal
 
@@ -220,7 +220,7 @@ lookup_note_call call_id = do
         block_id = Types.BlockId (make_id default_ns call_id)
     let call_map = Derive.calls_note (Derive.state_call_map st)
     if block_id `Map.member` State.state_blocks (Derive.state_ui st)
-        then return $ Basic.c_block block_id
+        then return $ Note.c_block block_id
         else case Map.lookup call_id call_map of
             Nothing -> return (c_not_found call_id)
             Just call -> return call

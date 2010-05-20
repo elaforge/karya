@@ -4,7 +4,7 @@ import qualified Data.Map as Map
 
 import qualified Derive.Derive as Derive
 
-import qualified Derive.Call.Basic as Basic
+import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Control as Control
 import qualified Derive.Call.Echo as Echo
 import qualified Derive.Call.Rambat as Rambat
@@ -15,7 +15,7 @@ call_map :: Derive.CallEnv
 call_map = Derive.CallEnv note_calls control_calls pitch_calls
 
 note_calls :: Derive.NoteCallMap
-note_calls = Map.unions [Basic.note_calls, Echo.note_calls, Rambat.note_calls,
+note_calls = Map.unions [Note.note_calls, Echo.note_calls, Rambat.note_calls,
     Trill.note_calls]
 
 control_calls :: Derive.ControlCallMap

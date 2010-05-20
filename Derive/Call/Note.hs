@@ -1,9 +1,9 @@
--- | A collection of basic calls.
+-- | Basic calls for note tracks.
 --
 -- Unlike other Call modules, this is imported by "Derive.Call" so it can't
 -- import it.  This is because c_block is hardcoded into
 -- 'Derive.Call.lookup_note_call'.
-module Derive.Call.Basic where
+module Derive.Call.Note where
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
 import Util.Control

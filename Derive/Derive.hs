@@ -666,7 +666,7 @@ default_pitch_op_map = Map.fromList $ map (first TrackLang.Symbol)
     , ("min", PitchSignal.sig_min)
     ]
 
--- lookup_note_call is defined in Derive.Call.Basic because it also looks for
+-- lookup_note_call is defined in Derive.Call.Note because it also looks for
 -- blocks and returns the block deriver.
 
 lookup_control_call :: (Monad m) => TrackLang.CallId -> DeriveT m ControlCall

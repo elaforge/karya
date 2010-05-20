@@ -57,7 +57,7 @@ test_c_note = do
         [])
 
 test_c_block = do
-    -- This also tests Basic.lookup_note_call
+    -- This also tests Derive.Call.Note.lookup_note_call
     let run evts = extract_common $ DeriveTest.derive_blocks
             [ ("b1", [(">", evts)])
             , ("sub", [(">", [(0, 22, "--sub")])])
