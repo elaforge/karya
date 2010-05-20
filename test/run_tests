@@ -31,6 +31,7 @@ function run() {
     fi
 }
 
+:>$test_output
 if [ "$direct_tests" ]; then
     run $run_tests $flags $direct_tests |& tee -a $test_output
 fi
