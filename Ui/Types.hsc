@@ -5,9 +5,9 @@ import Text.Read -- for Read class with readPrec
 import Foreign
 import Foreign.C
 
+import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Ui.Id as Id
-import qualified Ui.Util as Util
 
 
 #include "c_interface.h"
@@ -59,10 +59,10 @@ instance Storable Zoom where
     peek zoomp = do
         offset <- (#peek ZoomInfo, offset) zoomp
         factor <- (#peek ZoomInfo, factor) zoomp :: IO CDouble
-        return $ Zoom offset (realToFrac factor)
+        return $ Zoom offset (Num.c2d factor)
     poke zoomp (Zoom offset factor) = do
         (#poke ZoomInfo, offset) zoomp offset
-        (#poke ZoomInfo, factor) zoomp (Util.c_double factor)
+        (#poke ZoomInfo, factor) zoomp (Num.d2c factor)
 
 -- * trackpos
 

@@ -126,7 +126,7 @@ y_to_degree = Pitch.Degree . to_double
 
 degree_to_y :: Pitch.Degree -> Y
 degree_to_y (Pitch.Degree d) = (f, f, 0)
-    where f = Num.double_to_float d
+    where f = Num.d2f d
 
 -- * construction / deconstruction
 
@@ -154,8 +154,7 @@ to_nn scale psig = Signal.Signal (V.map f (sig_vec psig))
     f (x, (from, to, at)) = case (lookup_degree from, lookup_degree to) of
         (Just nn0, Just nn1) -> (x, Num.scale nn0 nn1 at)
         _ -> (x, Signal.invalid_pitch)
-    lookup_degree n = fmap un_nn
-        (Pitch.scale_degree_to_nn scale (Pitch.Degree (realToFrac n)))
+    lookup_degree n = fmap un_nn (Pitch.scale_degree_to_nn scale (to_degree n))
     un_nn (Pitch.NoteNumber n) = n
 
 -- * access
@@ -209,9 +208,9 @@ clip_min (Pitch.NoteNumber nn) = map_y (ymax nn)
 
 ymin, ymax :: Double -> Y -> Y
 ymin val (from, to, at) = (from, to, at2)
-    where at2 = Num.clamp 0 at (Num.normalize from to (realToFrac val))
+    where at2 = Num.clamp 0 at (Num.normalize from to (Num.d2f val))
 ymax val (from, to, at) = (from, to, at2)
-    where at2 = Num.clamp at 1 (Num.normalize from to (realToFrac val))
+    where at2 = Num.clamp at 1 (Num.normalize from to (Num.d2f val))
 
 shift :: X -> PitchSignal -> PitchSignal
 shift x = modify_vec (SignalBase.shift x)
@@ -237,6 +236,6 @@ map_degree f = map_y $ \(from, to, at) -> (g from, g to, at)
     where g = from_degree . f . to_degree
 
 from_degree :: Pitch.Degree -> Float
-from_degree (Pitch.Degree n) = realToFrac n
+from_degree (Pitch.Degree n) = Num.d2f n
 to_degree :: Float -> Pitch.Degree
-to_degree f = Pitch.Degree (realToFrac f)
+to_degree f = Pitch.Degree (Num.f2d f)

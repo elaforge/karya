@@ -62,7 +62,7 @@ control_interpolate f args = TrackLang.call1 args (required "val") $ \val -> do
             interpolate (RealTime srate) Num.scale f prev prev_val cur val
 
 
--- ** note
+-- ** pitch
 
 pitch_calls :: Derive.PitchCallMap
 pitch_calls = Derive.make_calls
@@ -115,8 +115,7 @@ pitch_interpolate f args = TrackLang.call1 args (required "note") $ \note -> do
                     (PitchSignal.degree_to_y degree)
 
 pitch_scale :: PitchSignal.Y -> PitchSignal.Y -> Double -> PitchSignal.Y
-pitch_scale y0 y1 n =
-    (Num.double_to_float d0, Num.double_to_float d1, Num.double_to_float n)
+pitch_scale y0 y1 n = (Num.d2f d0, Num.d2f d1, Num.d2f n)
     where
     Pitch.Degree d0 = PitchSignal.y_to_degree y0
     Pitch.Degree d1 = PitchSignal.y_to_degree y1

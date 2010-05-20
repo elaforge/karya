@@ -8,6 +8,7 @@ module Ui.RulerC where
 import Control.Monad
 import Foreign
 import Foreign.C
+import qualified Util.Num as Num
 
 import Ui
 import qualified Ui.Ruler as Ruler
@@ -107,6 +108,5 @@ poke_mark markp (Ruler.Mark
         (#poke Mark, width) markp (Util.c_int width)
         (#poke Mark, color) markp color
         (#poke Mark, name) markp namep
-        (#poke Mark, name_zoom_level) markp
-            (Util.c_double name_zoom_level)
-        (#poke Mark, zoom_level) markp (Util.c_double zoom_level)
+        (#poke Mark, name_zoom_level) markp (Num.d2c name_zoom_level)
+        (#poke Mark, zoom_level) markp (Num.d2c zoom_level)

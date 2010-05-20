@@ -14,6 +14,7 @@ import Foreign
 import Foreign.C
 
 import qualified Util.Array as Array
+import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
 import Ui
@@ -127,7 +128,7 @@ cb_find_samples (Track.Samples samples) startp endp ret_tps ret_samples = do
     -- putStrLn $ "go find " ++ show start_i ++ "--" ++ show max_i
     unless (null found) $ do
         tp_array <- newArray (map fst found)
-        sample_array <- newArray (map (Util.c_double . snd) found)
+        sample_array <- newArray (map (Num.d2c . snd) found)
         poke ret_tps tp_array
         poke ret_samples sample_array
     -- putStrLn $ "find samples " ++ show start ++ "--" ++ show end
