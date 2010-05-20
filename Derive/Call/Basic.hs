@@ -5,6 +5,7 @@
 -- 'Derive.Call.lookup_note_call'.
 module Derive.Call.Basic where
 import qualified Data.List as List
+import qualified Data.Maybe as Maybe
 import Util.Control
 
 import Ui
@@ -60,7 +61,7 @@ generate_note n_inst rel_attrs event next = do
     inst <- case n_inst of
         Just inst -> return (Just inst)
         Nothing -> Derive.lookup_val TrackLang.v_instrument
-    attrs <- defaulted Score.no_attrs <$>
+    attrs <- Maybe.fromMaybe Score.no_attrs <$>
         Derive.lookup_val TrackLang.v_attributes
     (controls, pitch_sig) <- Derive.unwarped_controls
     st <- Derive.get

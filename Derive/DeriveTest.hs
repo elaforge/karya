@@ -2,6 +2,7 @@ module Derive.DeriveTest where
 import Control.Monad
 import qualified Control.Monad.Identity as Identity
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 import Util.Control
 import qualified Util.Log as Log
@@ -153,7 +154,7 @@ d_note = do
     start <- Derive.score_to_real 0
     end <- Derive.score_to_real 1
     inst <- Derive.lookup_val TrackLang.v_instrument
-    attrs <- defaulted Score.no_attrs <$>
+    attrs <- Maybe.fromMaybe Score.no_attrs <$>
         Derive.lookup_val TrackLang.v_attributes
     (controls, psig) <- Derive.unwarped_controls
     return [Score.Event start (end-start) (Text.pack "evt")

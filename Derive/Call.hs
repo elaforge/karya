@@ -7,7 +7,7 @@ generator are also in this time.
 -}
 module Derive.Call where
 import qualified Data.Map as Map
-import Util.Control
+import qualified Data.Maybe as Maybe
 import qualified Util.Pretty as Pretty
 
 import Ui
@@ -108,8 +108,8 @@ derive_track info@(_, empty, _, _) get_last_sample events = do
         rest <- go (get_last_sample prev_sample chunk) prev2 next2
         return $ chunk : rest
 
-    with_catch deflt pos evt = fmap (defaulted deflt) . Derive.catch_warn id
-        . with_stack pos evt
+    with_catch deflt pos evt =
+        fmap (Maybe.fromMaybe deflt) . Derive.catch_warn id . with_stack pos evt
     with_stack pos evt = Derive.with_stack_pos pos (Event.event_duration evt)
 
 derive_event :: DeriveInfo y derived

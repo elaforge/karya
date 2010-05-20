@@ -7,8 +7,6 @@ module Cmd.PitchTrack where
 import qualified Data.Maybe as Maybe
 import Util.Control
 
-import qualified Util.Log as Log
-
 import qualified Ui.Event as Event
 import qualified Ui.Key as Key
 import qualified Cmd.Cmd as Cmd

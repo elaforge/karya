@@ -6,7 +6,6 @@ module Util.Control (
     , map_accuml_m
     , while, while_
     , whenM, when_just
-    , defaulted
 
     , finally
 ) where
@@ -55,9 +54,6 @@ whenM cond op = do
 
 when_just :: (Monad m) => Maybe a -> (a -> m ()) -> m ()
 when_just val f = maybe (return ()) f val
-
-defaulted :: a -> Maybe a -> a
-defaulted deflt = maybe deflt id
 
 
 instance Applicative.Applicative (P.GenParser s a) where

@@ -21,8 +21,6 @@ CURRENT
     want 'x = y' in one track to affect another
   - find a better name for Derive.Schema.Default
 
-  - replace Control.defaulted with fromMaybe
-
   - TrackLang.optional args should be able to pass Nothing if arg is not given
 
   - remove warped control?
