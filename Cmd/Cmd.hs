@@ -141,7 +141,10 @@ abort :: (Monad m) => CmdT m a
 abort = Error.throwError State.Abort
 
 catch_abort :: (Monad m) => CmdT m a -> CmdT m (Maybe a)
-catch_abort m = Error.catchError (fmap Just m) (\_ -> return Nothing)
+catch_abort m = Error.catchError (fmap Just m) catch
+    where
+    catch State.Abort = return Nothing
+    catch err = Error.throwError err
 
 -- | This is the same as State.throw, but it feels like things in Cmd may not
 -- always want to reuse State's exceptions, so they should call this one.

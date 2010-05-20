@@ -1,5 +1,3 @@
-- Cmd.throw isn't being logged?
-
 CURRENT
   * stick last sample in dynamic env for next control deriver
   * lookup calls for control and pitch
