@@ -32,18 +32,7 @@ data PitchTrack =
     deriving (Show, Eq)
 
 cmd_raw_edit :: Pitch.ScaleId -> Cmd.Cmd
-cmd_raw_edit scale_id msg = do
-    EditUtil.fallthrough msg
-    case msg of
-        Msg.InputNote (InputNote.NoteOn _ key _) -> do
-            note <- EditUtil.parse_key scale_id key
-            EditUtil.modify_event False False $ \txt ->
-                (EditUtil.modify_text_note note txt, False)
-        (EditUtil.raw_key -> Just key) -> do
-            EditUtil.modify_event False False $ \txt ->
-                (EditUtil.modify_text_key key txt, False)
-        _ -> Cmd.abort
-    return Cmd.Done
+cmd_raw_edit = EditUtil.raw_edit False
 
 cmd_val_edit :: PitchTrack -> Pitch.ScaleId -> Cmd.Cmd
 cmd_val_edit pitch_track scale_id msg = do

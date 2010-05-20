@@ -19,9 +19,8 @@ import qualified Cmd.Selection as Selection
 import qualified Perform.Pitch as Pitch
 
 
--- | TODO implement
 cmd_raw_edit :: Pitch.ScaleId -> Cmd.Cmd
-cmd_raw_edit = cmd_val_edit
+cmd_raw_edit = EditUtil.raw_edit True
 
 cmd_val_edit :: Pitch.ScaleId -> Cmd.Cmd
 cmd_val_edit scale_id msg = do

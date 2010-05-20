@@ -11,7 +11,7 @@ CURRENT
   - implement control track title calls
   * update Cmds for control and pitch tracks to edit new syntax: simple
     implementation for edit method mode
-  - implement PitchTrack.cmd_raw_edit
+  * implement PitchTrack.cmd_raw_edit
   - more sophisticated function to find out the inst of a note track
   - put prev, cur, next in PassedArgs too?
   - why didn't srate= in the tempo track seem to have an effect?
@@ -47,6 +47,10 @@ CURRENT
   a legato new note is played, it either stops an existing string or takes
   a new one.  The previous note will either ring for a decay if the string is
   unassigned, or reset to its "open" pitch otherwise.
+
+- implement postproc calls.  Think about how to keep incremental recomputation
+  in the presence of postproc.  I suppose they have to declare how much they
+  depend on.
 
 - cleanup Ui.Track: event_list -> all_events?
 - #(poke Mispeled, field) fieldp field results in compiler bus error

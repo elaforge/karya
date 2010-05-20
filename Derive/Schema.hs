@@ -161,7 +161,7 @@ default_cmds context = (cmds2, warns)
             Cmd.MethodEdit -> ([], [PitchTrack.cmd_method_edit])
         Just ControlTrack -> case edit_mode of
             Cmd.NoEdit -> ([], [])
-            Cmd.RawEdit -> ([], [ControlTrack.cmd_raw_edit])
+            Cmd.RawEdit -> ([], [ControlTrack.cmd_raw_edit scale_id])
             Cmd.ValEdit -> ([], [ControlTrack.cmd_val_edit])
             Cmd.MethodEdit -> ([], [ControlTrack.cmd_method_edit])
     (cmds2, warns) = case maybe_track_type of

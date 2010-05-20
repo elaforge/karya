@@ -15,12 +15,29 @@ import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Selection as Selection
 import qualified Cmd.TimeStep as TimeStep
 
 import qualified Perform.Pitch as Pitch
 
+
+-- * raw edit
+
+raw_edit :: Bool -> Pitch.ScaleId -> Cmd.Cmd
+raw_edit zero_dur scale_id msg = do
+    fallthrough msg
+    case msg of
+        Msg.InputNote (InputNote.NoteOn _ key _) -> do
+            note <- parse_key scale_id key
+            modify_event zero_dur False $ \txt ->
+                (modify_text_note note txt, False)
+        (raw_key -> Just key) -> do
+            modify_event zero_dur False $ \txt ->
+                (modify_text_key key txt, False)
+        _ -> Cmd.abort
+    return Cmd.Done
 
 -- * events
 

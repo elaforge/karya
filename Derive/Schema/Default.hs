@@ -1,6 +1,8 @@
 {-# LANGUAGE PatternGuards #-}
 -- | Utilities to deal with track titles.
 --
+-- Like Derive.Schema, this module is used by both Cmd and Derive.
+--
 -- Note track titles are just tracklang expressions, so no extra code is
 -- needed.  Control tracks titles are rather more complicated, and Cmds in
 -- addition to the Schema need to agree on how they are parsed.

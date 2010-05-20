@@ -7,9 +7,11 @@ import qualified Util.Seq as Seq
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.EditUtil as EditUtil
 
+import qualified Perform.Pitch as Pitch
 
-cmd_raw_edit :: Cmd.Cmd
-cmd_raw_edit = cmd_val_edit
+
+cmd_raw_edit :: Pitch.ScaleId -> Cmd.Cmd
+cmd_raw_edit = EditUtil.raw_edit True
 
 cmd_val_edit :: Cmd.Cmd
 cmd_val_edit msg = do
