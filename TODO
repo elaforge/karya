@@ -1,3 +1,5 @@
+- Cmd.throw isn't being logged?
+
 CURRENT
   * stick last sample in dynamic env for next control deriver
   * lookup calls for control and pitch
@@ -6,15 +8,20 @@ CURRENT
   * implement previous value defaulting for control calls
   * remove Default track title parsing stuff
   * remove SignalBase track segment stuff
-  - implement relative controls
+  * implement relative controls
   * pull sampling srate out of dynamic env
   - implement control track title calls
   - update Cmds for control and pitch tracks to edit new syntax: simple
     implementation for edit method mode
+  - implement PitchTrack.cmd_raw_edit
   - more sophisticated function to find out the inst of a note track
   - put prev, cur, next in PassedArgs too?
+  - why didn't srate= in the tempo track seem to have an effect?
   - make sure the environ is not kept between track evaluations, I don't
     want 'x = y' in one track to affect another
+  - find a better name for Derive.Schema.Default
+
+  - replace Control.defaulted with fromMaybe
 
   - TrackLang.optional args should be able to pass Nothing if arg is not given
 
@@ -31,43 +38,14 @@ CURRENT
       - tval
   - implement scales as a set of sub-calls that return pitches
     - they can take a number for cents offset: (*4c# 20)
+    Fancy pitch use cases:
+      - retune a scale according to another signal
+        Can be done by a call.
+      - retune a note depending on the previous interval (e.g. sloppy pitches
+        when playing quickly)
+        I think this has to be postproc.
     - what about efficiency?
   - merge pitch call namespace with normal call namespace
-
-  - write derive_pitch_signal
-    decide how the pitch track represents pitch points
-    For the moment, implement as null calls with * prepended.
-    In the future, implement as separate calls:
-      Expand symbol definition to be everything until a space.
-      Implement symbol substitution as a nullary call, I think I want this
-      anyway.
-      4c#/+20 -> Call "4c#" [PitchOffset 20]
-      But for consistency, shouldn't I evaltuate all *pitch args this same way?
-      So maybe I should have a separate namespace for *notes.
-      There's a use-case for merging note namespace with the normal call one,
-      so I can e.g. rebind a note locally, or incorporate a call so it looks
-      like a pitch.
-
-      Maybe I should do pitch offset as a plain number arg: 4c# 20
-
-      But this doesn't work so well for pitch arguments.  It would have to be
-      (4c# 20), and now I need parens.  Implementing as 4c#/20 is just
-      a nonstandard way of specifying precedence.
-
-      If I have expression level calls then I have to worry about types.
-      Instead of returning [Score.Event], these calls return a TrackLang type.
-      So: "TEvents [Score.Event] | TVal TrackLang.Val
-
-      This probably means that parsing should move entirely to space-separated
-      words plus parens.  I wind up with something sexpr-like.
-
-      Fancy pitch use cases:
-        - retune a scale according to another signal
-          Can be done by a call.
-        - retune a note depending on the previous interval (e.g. sloppy pitches
-          when playing quickly)
-          I think this has to be postproc.
-
 
 - how to implement string emulation?  Every note is assigned a string.  When
   a legato new note is played, it either stops an existing string or takes

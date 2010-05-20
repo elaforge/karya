@@ -137,6 +137,8 @@ data Scale = Scale {
     -- This precludes fancy things like variably sized octaves, but that
     -- requires putting an octave in PitchSignal.Relative and letting the scale
     -- provide 'PitchSignal.sig_add'.
+    --
+    -- If this is zero, this scale has no concept of an octave.
     , scale_octave :: Octave
 
     -- | Used by derivation.

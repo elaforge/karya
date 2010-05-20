@@ -21,6 +21,7 @@ import qualified Ui.Block as Block
 import qualified Ui.State as State
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
+import qualified Derive.Scale.Relative as Relative
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Cmd.Cmd as Cmd
@@ -110,6 +111,7 @@ scale_to_title scale_id =
 title_to_scale :: String -> Maybe Pitch.ScaleId
 title_to_scale title = case parse_control title of
     Right (Pitch (PitchAbsolute (Just scale_id)) _) -> Just scale_id
+    Right (Pitch (PitchRelative _) _) -> Just Relative.scale_id
     _ -> Nothing
 
 -- | Convert from an instrument to the title of its instrument track.

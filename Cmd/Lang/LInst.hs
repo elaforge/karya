@@ -84,7 +84,7 @@ load_instrument inst_name = do
     Log.notice $ "deallocating " ++ show old_inst ++ ", allocating "
         ++ show (dev, chan) ++ " to " ++ show inst
     where
-    inst_type (Schema.NoteTrack _ _, inst, _) = inst
+    inst_type (Schema.NoteTrack _, inst, _) = inst
         -- maybe also accept control if there is just one inst
         -- but then I'd need some way to know the track_id
     inst_type _ = Nothing

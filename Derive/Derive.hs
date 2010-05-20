@@ -645,9 +645,9 @@ lookup_control_op c_op = do
 -- config.  TODO but not yet
 default_control_op_map :: Map.Map TrackLang.CallId ControlOp
 default_control_op_map = Map.fromList $ map (first TrackLang.Symbol)
-    [ ("+", Signal.sig_add)
-    , ("-", Signal.sig_subtract)
-    , ("*", Signal.sig_multiply)
+    [ ("add", Signal.sig_add)
+    , ("sub", Signal.sig_subtract)
+    , ("mult", Signal.sig_multiply)
     , ("max", Signal.sig_max)
     , ("min", Signal.sig_min)
     ]
@@ -661,7 +661,7 @@ lookup_pitch_control_op c_op = do
 -- | As with 'default_control_op_map', but pitch ops have a different type.
 default_pitch_op_map :: Map.Map TrackLang.CallId PitchOp
 default_pitch_op_map = Map.fromList $ map (first TrackLang.Symbol)
-    [ ("+", PitchSignal.sig_add)
+    [ ("add", PitchSignal.sig_add)
     , ("max", PitchSignal.sig_max)
     , ("min", PitchSignal.sig_min)
     ]

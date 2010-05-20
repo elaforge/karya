@@ -149,27 +149,23 @@ default_cmds context = (cmds2, warns)
     where
     cmds1 = add_with_note $ case maybe_track_type of
         Nothing -> ([], [])
-        Just (NoteTrack ptrack is_relative) -> case edit_mode of
+        Just (NoteTrack ptrack) -> case edit_mode of
             Cmd.NoEdit -> ([], [])
             Cmd.RawEdit -> ([NoteTrack.cmd_raw_edit scale_id], [])
-            Cmd.ValEdit
-                | is_relative -> ([], [NoteTrack.cmd_val_edit_relative ptrack])
-                | otherwise -> ([NoteTrack.cmd_val_edit ptrack scale_id], [])
+            Cmd.ValEdit -> ([NoteTrack.cmd_val_edit ptrack scale_id], [])
             Cmd.MethodEdit -> ([], [NoteTrack.cmd_method_edit ptrack])
-        Just (PitchTrack is_relative) -> case edit_mode of
+        Just PitchTrack -> case edit_mode of
             Cmd.NoEdit -> ([], [])
             Cmd.RawEdit -> ([PitchTrack.cmd_raw_edit scale_id], [])
-            Cmd.ValEdit
-                | is_relative -> ([], [PitchTrack.cmd_val_edit_relative])
-                | otherwise -> ([PitchTrack.cmd_val_edit scale_id], [])
+            Cmd.ValEdit -> ([PitchTrack.cmd_val_edit scale_id], [])
             Cmd.MethodEdit -> ([], [PitchTrack.cmd_method_edit])
-        Just (ControlTrack _) -> case edit_mode of
+        Just ControlTrack -> case edit_mode of
             Cmd.NoEdit -> ([], [])
             Cmd.RawEdit -> ([], [ControlTrack.cmd_raw_edit])
             Cmd.ValEdit -> ([], [ControlTrack.cmd_val_edit])
             Cmd.MethodEdit -> ([], [ControlTrack.cmd_method_edit])
     (cmds2, warns) = case maybe_track_type of
-        Just (NoteTrack ptrack _) ->
+        Just (NoteTrack ptrack) ->
             let (cmd_map, keymap_warns) = NoteTrackKeymap.make_keymap ptrack
             in (cmds1 ++ [Keymap.make_cmd cmd_map], keymap_warns)
         _ -> (cmds1, [])
@@ -218,44 +214,37 @@ get_track_info proj_scale track_tree (Just tracknum) =
     where
     find_inst = msum . map inst_of
     inst_of = Default.title_to_instrument . State.track_title
+    -- TODO if the scale is relative, this won't get the octave from the
+    -- enclosing scale
     find_scale = msum . map (Default.title_to_scale . State.track_title)
 
 -- | Describe the type of a single track.  This is used to figure out what set
 -- of cmds should apply to a given track.
 data TrackType =
     -- | NoteTrack is paired with the first pitch track found for it.
-    -- The Bool is True if this is a relative control track, or in the case of
-    -- NoteTrack, the corresponding PitchTrack is relative.
-    NoteTrack NoteTrack.PitchTrack Bool | PitchTrack Bool | ControlTrack Bool
+    NoteTrack NoteTrack.PitchTrack | PitchTrack | ControlTrack
     deriving (Show, Eq)
 
 track_type :: Pitch.ScaleId -> State.TrackInfo -> [State.TrackInfo]
     -> Bool -- ^ no_children
     -> TrackType
 track_type scale_id (State.TrackInfo _ _ tracknum) parents True =
-    NoteTrack pitch_track pitch_rel
+    NoteTrack pitch_track
     where
-    (pitch_track, pitch_rel) = case msum (map is_pitch parents) of
+    pitch_track = case msum (map is_pitch parents) of
         Just pair -> pair
-        Nothing ->
-            -- Assume new pitch tracks should be absolute.
-            (NoteTrack.CreateTrack
-                tracknum (Default.scale_to_title scale_id) (tracknum+1),
-            False)
+        Nothing -> NoteTrack.CreateTrack
+            tracknum (Default.scale_to_title scale_id) (tracknum+1)
     is_pitch track = case Default.parse_control (State.track_title track) of
-        Right (Default.Pitch ptype _) -> Just
-            (NoteTrack.ExistingTrack (State.track_tracknum track), is_rel ptype)
+        Right (Default.Pitch _ _) -> Just $
+            NoteTrack.ExistingTrack (State.track_tracknum track)
         _ -> Nothing
-    is_rel (Default.PitchRelative _) = True
-    is_rel (Default.PitchAbsolute _) = False
 track_type _ (State.TrackInfo title _ _) _ False =
     case Default.parse_control title of
-        Right ctype@(Default.Control _ _) ->
-            ControlTrack (Default.is_relative ctype)
-        Right ctype@(Default.Pitch _ _) ->
-            PitchTrack (Default.is_relative ctype)
+        Right (Default.Control _ _) -> ControlTrack
+        Right (Default.Pitch _ _) -> PitchTrack
         -- Default to a control track if it's unparseable.
-        _ -> ControlTrack False
+        _ -> ControlTrack
 
 
 -- ** compile

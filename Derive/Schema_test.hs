@@ -19,6 +19,7 @@ import qualified Cmd.NoteTrack as NoteTrack
 import qualified Derive.Derive as Derive
 import qualified Derive.Schema as Schema
 import qualified Derive.Score as Score
+import qualified Derive.Scale.Relative as Relative
 
 import qualified Perform.Signal as Signal
 import qualified Perform.Pitch as Pitch
@@ -41,15 +42,15 @@ test_get_track_info = do
         proj_scale = Pitch.ScaleId "proj"
     let tracknums = map Just [0..6] ++ [Nothing]
     let res = map (Schema.get_track_info proj_scale tree) tracknums
-    equal (res!!0) (Just (Schema.ControlTrack False), Just inst1, proj_scale)
-    equal (res!!1) (Just (Schema.NoteTrack (NoteTrack.ExistingTrack 2) True),
-        Just inst1, proj_scale)
-    equal (res!!2) (Just (Schema.PitchTrack True), Just inst1, proj_scale)
-    equal (res!!3) (Just (Schema.ControlTrack False), Just inst1, proj_scale)
+    equal (res!!0) (Just Schema.ControlTrack, Just inst1, proj_scale)
+    equal (res!!1) (Just (Schema.NoteTrack (NoteTrack.ExistingTrack 2)),
+        Just inst1, Relative.scale_id)
+    equal (res!!2) (Just Schema.PitchTrack, Just inst1, Relative.scale_id)
+    equal (res!!3) (Just Schema.ControlTrack, Just inst1, proj_scale)
     equal (res!!4)
-        (Just (Schema.NoteTrack (NoteTrack.CreateTrack 4 "*proj" 5) False),
+        (Just (Schema.NoteTrack (NoteTrack.CreateTrack 4 "*proj" 5)),
             Just inst2, proj_scale)
-    equal (res!!5) (Just (Schema.ControlTrack True), Just inst2, proj_scale)
+    equal (res!!5) (Just Schema.ControlTrack, Just inst2, proj_scale)
     -- Nothing tracknum, and invalid tracknum
     equal (res!!6) (Nothing, Nothing, proj_scale)
     equal (res!!7) (Nothing, Nothing, proj_scale)
@@ -75,7 +76,7 @@ test_compile = do
 
     let (res, logs) = derive ("*c2", [(0, 0, ".1")])
     equal logs []
-    left_like res "compile .*: d_pitch: unknown ScaleId \"c2\""
+    left_like res "compile .*: pitch_call: unknown ScaleId \"c2\""
 
     let cont_signal = Map.union (Score.unwarp_controls Derive.initial_controls)
             (Map.fromList [(Score.Control "c1",

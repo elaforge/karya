@@ -9,10 +9,12 @@ import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 
 import qualified Derive.Control as Control
+import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
 import qualified Perform.PitchSignal as PitchSignal
+import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
 
@@ -30,12 +32,12 @@ test_control_track = do
     strings_like logs ["unknown Symbol \"abc\"", "unknown Symbol \"def\""]
     equal (derive ("cont", events)) (Right [Just [(0, 1), (1, 2)]], [])
 
-test_derive_signal = do
+test_derive_control = do
     let extract (Left err) = Left err
         extract (Right (val, _, logs)) =
             Right (Signal.unsignal val, map Log.msg_string logs)
     let derive events = extract $ DeriveTest.run State.empty
-            (Control.derive_signal (map UiTest.mkevent events))
+            (Control.derive_control (map UiTest.mkevent events))
     equal (derive [(0, 0, "1"), (1, 0, "2")])
         (Right ([(0, 1), (1, 2)], []))
     equal (derive [(0, 0, "1"), (0.1, 0, "i 2")])
@@ -78,3 +80,53 @@ do_derive :: (Score.Event -> a) -> UiTest.TrackSpec
     -> (Either String [a], [String])
 do_derive extract track = DeriveTest.extract extract Log.msg_string $
         DeriveTest.derive_tracks [(">", [(0, 2, "")]), track]
+
+test_relative_control = do
+    let (events, logs) = DeriveTest.e_logs $ DeriveTest.derive_tracks
+            [ (">", [(0, 1, "")])
+            , ("*twelve", [(0, 0, "4c")])
+            , ("add cont", [(0, 0, "1")])
+            , ("cont", [(0, 0, "0"), (2, 0, "i 2"), (4, 0, "i 0")])
+            ]
+    let extract = (\sig -> map (flip Signal.at sig) [0..5])
+            . (Map.! Score.Control "cont") . Score.event_controls
+    equal logs []
+    equal (fmap (map extract) events) $ Right [[1, 2, 3, 2, 1, 1]]
+
+    -- putting relative and absolute in the wrong order causes a warning
+    let (events, logs) = DeriveTest.e_logs $ DeriveTest.derive_tracks
+            [ (">", [(0, 10, "")])
+            , ("cont", [(0, 0, "1")])
+            , ("add cont", [(0, 0, "1")])
+            ]
+    let controls = Map.union (Score.unwarp_controls Derive.initial_controls) $
+            Map.fromList [(Score.Control "cont", Signal.signal [(0, 1)])]
+    equal (fmap (map Score.event_controls) events) $ Right [controls]
+    strings_like logs ["no absolute control is in scope"]
+
+test_relative_pitch = do
+    let extract result = (fmap (map Score.event_pitch) events, logs)
+            where (events, logs) = DeriveTest.e_logs result
+    let f track = extract $ DeriveTest.derive_tracks
+                [ (">", [(0, 10, "")])
+                , ("add *", track)
+                , ("*twelve", [(0, 0, "4c")])
+                ]
+        base = 60
+    let mksig = PitchSignal.signal (Pitch.ScaleId "twelve")
+    equal (f []) (Right [mksig [(0, (base, base, 0))]], [])
+    equal (f [(0, 0, "0"), (4, 0, "i *2")])
+        (Right
+            [mksig ((0, (60, 60, 0))
+                : DeriveTest.pitch_interpolate 0 base 4 (base+2))],
+            [])
+
+    -- putting relative and absolute in the wrong order overrides the relative
+    let (pitches, logs) = extract $ DeriveTest.derive_tracks
+            [ (">", [(0, 10, "")])
+            , ("*twelve", [(0, 0, "4c")])
+            , ("add *", [(0, 0, "1")])
+            ]
+    equal pitches $ Right [mksig [(0, (base, base, 0))]]
+    -- no warning because of default pitch
+    strings_like logs []

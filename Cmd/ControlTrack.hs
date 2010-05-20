@@ -1,7 +1,8 @@
 {-# LANGUAGE ViewPatterns #-}
 module Cmd.ControlTrack where
-import qualified Control.Arrow as Arrow
 import qualified Data.Maybe as Maybe
+import Util.Control
+import qualified Util.Seq as Seq
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.EditUtil as EditUtil
@@ -34,24 +35,30 @@ cmd_method_edit msg = do
 
 modify_event :: (Monad m) =>
     ((String, String) -> ((Maybe String, Maybe String), Bool)) -> Cmd.CmdT m ()
-modify_event f = EditUtil.modify_event True True (Arrow.first unparse . f . parse)
+modify_event f = EditUtil.modify_event True True (first unparse . f . parse)
 
--- | This is the Cmd equivalent to 'Derive.Control.parse_event', so they should
--- be kept in sync.  I don't use the same functions because this only has to
--- parse the event just enough for editing and will also be parsing incomplete
--- events.
+-- | Try to figure out the call part of the expression and split it from the
+-- rest.
+--
+-- I don't use Derive.TrackLang.parse because this is likely to be dealing with
+-- incomplete strings that don't parse at all.
+--
+-- I use a trailing space to tell the difference between a method and a val.
 parse :: String -> (String, String)
 parse s
-    | null post = ("", pre)
+    | null post = if is_method pre then (pre, "") else ("", pre)
     | otherwise = (pre, tail post)
-    where
-    (pre, post) = break (==',') s
+    where (pre, post) = break (==' ') s
+
+is_method :: String -> Bool
+is_method = Seq.mlast False (==' ')
 
 unparse :: (Maybe String, Maybe String) -> Maybe String
-unparse (method, val)
-    | null pre && null post = Nothing
-    | null pre = Just post
-    | otherwise = Just (pre ++ ',' : post)
+unparse (method, val) = case (pre, post) of
+        ("", "") -> Nothing
+        ("", _:_) -> Just post
+        -- Disambiguate a bare method with a trailing space.
+        _ -> Just (pre ++ ' ' : post)
     where
     pre = Maybe.fromMaybe "" method
     post = Maybe.fromMaybe "" val

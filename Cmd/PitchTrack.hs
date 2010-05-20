@@ -4,7 +4,10 @@
     This module creates the pitches that are later parsed by Derive.Control.
 -}
 module Cmd.PitchTrack where
-import qualified Control.Arrow as Arrow
+import qualified Data.Maybe as Maybe
+import Util.Control
+
+import qualified Util.Log as Log
 
 import qualified Ui.Event as Event
 import qualified Ui.Key as Key
@@ -17,10 +20,8 @@ import qualified Cmd.Selection as Selection
 
 import qualified Perform.Pitch as Pitch
 
-import qualified Derive.Control as Control
 
-
--- | Raw edit is awkward because of the "[meth,]val" syntax.
+-- | TODO implement
 cmd_raw_edit :: Pitch.ScaleId -> Cmd.Cmd
 cmd_raw_edit = cmd_val_edit
 
@@ -37,31 +38,6 @@ cmd_val_edit scale_id msg = do
             EditUtil.modify_event False True (const (Nothing, True))
         _ -> Cmd.abort
     return Cmd.Done
-
-cmd_val_edit_relative :: Cmd.Cmd
-cmd_val_edit_relative msg = do
-    selpos <- EditUtil.get_sel_pos
-    cmd_val_edit_relative_at selpos msg
-
-cmd_val_edit_relative_at :: EditUtil.SelPos -> Cmd.Cmd
-cmd_val_edit_relative_at selpos msg = do
-    EditUtil.fallthrough msg
-    case msg of
-        Msg.InputNote (InputNote.NoteOn _ key _) -> do
-            let note = Control.unparse_relative (key_to_relative key)
-            modify_event_at selpos $ \(meth, _) ->
-                ((Just meth, Just note), True)
-        (EditUtil.raw_key -> Just key) | key /= Key.KeyChar ' ' -> do
-            modify_event_at selpos $ \(meth, note) ->
-                ((Just meth, EditUtil.modify_text_key key note), False)
-        _ -> Cmd.abort
-    return Cmd.Done
-
--- | Take input to a pitch relative to middle C.  This is kinda random, so I'm
--- not sure if it'll be useful.
-key_to_relative :: Pitch.InputKey -> Double
-key_to_relative (Pitch.InputKey key) = key - c
-    where Pitch.InputKey c = Pitch.middle_c
 
 cmd_method_edit :: Cmd.Cmd
 cmd_method_edit msg = do
@@ -97,7 +73,7 @@ modify_event_at :: (Monad m) => EditUtil.SelPos
     -> ((String, String) -> ((Maybe String, Maybe String), Bool))
     -> Cmd.CmdT m ()
 modify_event_at selpos f = EditUtil.modify_event_at selpos True True
-    (Arrow.first unparse . f . parse)
+    (first unparse . f . parse)
 
 -- | Modify event text.  This is not used within this module but is exported
 -- for others as a more general variant of 'modify_event_at'.
@@ -112,4 +88,16 @@ parse :: String -> (String, String)
 parse = ControlTrack.parse
 
 unparse :: (Maybe String, Maybe String) -> Maybe String
-unparse = ControlTrack.unparse
+unparse (method, val) = case (pre, post) of
+        ("", "") -> Nothing
+        -- If the method is gone, the note no longer needs its *, due to
+        -- 'Derive.Control.mangle_pitch_call'.
+        ("", '*':rest) -> Just rest
+        ("", _:_) -> Just post
+        (_:_, "") -> Just (pre ++ " ")
+        (_:_, '*':_) -> Just (pre ++ ' ' : post)
+        -- And add a * if the method is new.
+        (_:_, _:_) -> Just (pre ++ ' ' : '*' : post)
+    where
+    pre = Maybe.fromMaybe "" method
+    post = Maybe.fromMaybe "" val

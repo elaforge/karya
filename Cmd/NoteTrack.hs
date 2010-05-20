@@ -86,14 +86,6 @@ cmd_val_edit pitch_track scale_id msg = do
         Cmd.set_wdev_state $ st { Cmd.wdev_note_track =
             Map.delete note_id (Cmd.wdev_note_track st) }
 
-cmd_val_edit_relative :: PitchTrack -> Cmd.Cmd
-cmd_val_edit_relative pitch_track msg = do
-    (tracknum, track_id) <- get_pitch_track Nothing pitch_track
-    (_, _, _, pos) <- Selection.get_insert
-    PitchTrack.cmd_val_edit_relative_at (tracknum, track_id, pos) msg
-    ensure_exists
-    return Cmd.Done
-
 cmd_method_edit :: PitchTrack -> Cmd.Cmd
 cmd_method_edit pitch_track msg = do
     EditUtil.fallthrough msg

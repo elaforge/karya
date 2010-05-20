@@ -33,13 +33,14 @@ test_cmd_method_edit = do
     let run track_specs cmd = run_sel track_specs cmd
         f key = PitchTrack.cmd_method_edit key
     equal (run [("*", [])] (f (CmdTest.key_down 'x'))) $
-        Right [("*", [(0, 0, "x,")])]
-    equal (run [("*", [(0, 0, "x")])] (f CmdTest.backspace)) $
-        Right [("*", [(0, 0, "x")])]
-    equal (run [("*", [(0, 0, "x,y")])] (f CmdTest.backspace)) $
+        Right [("*", [(0, 0, "x ")])]
+    equal (run [("*", [(0, 0, "y")])] (f CmdTest.backspace)) $
         Right [("*", [(0, 0, "y")])]
-    equal (run [("*", [(0, 0, "x,")])] (f CmdTest.backspace)) $
+    equal (run [("*", [(0, 0, "x *y")])] (f CmdTest.backspace)) $
+        Right [("*", [(0, 0, "y")])]
+    equal (run [("*", [(0, 0, "x ")])] (f CmdTest.backspace)) $
         Right [("*", [])]
 
+    -- tab falls through, does not create an event with tab
     equal (run_sel [] (f (CmdTest.make_key True Key.Tab))) $
         Right []

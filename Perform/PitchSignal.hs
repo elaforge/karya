@@ -50,6 +50,7 @@ import qualified Util.Num as Num
 
 import Ui
 
+import qualified Derive.Scale.Relative as Relative
 import qualified Perform.Pitch as Pitch
 import qualified Perform.SignalBase as SignalBase
 import Perform.SignalBase (max_x, default_srate, to_double)
@@ -66,6 +67,9 @@ data PitchSignal = PitchSignal
 -- It should be lacking a scale, but is the same type as PitchSignal for
 -- convenience, and to document the functions that treat their first and second
 -- arguments differently, like 'sig_max'.
+--
+-- This can't be a plain signal because otherwise adding a relative pitch to
+-- a pitch would destroy the pitch's structure.
 type Relative = PitchSignal
 
 set_scale :: Pitch.ScaleId -> PitchSignal -> PitchSignal
@@ -144,7 +148,7 @@ unsignal :: PitchSignal -> [(X, Y)]
 unsignal = SignalBase.unsignal . sig_vec
 
 from_control :: Signal.Control -> Relative
-from_control sig = signal (Pitch.ScaleId "relative")
+from_control sig = signal Relative.scale_id
     [(x, (realToFrac y, realToFrac y, 0)) | (x, y) <- Signal.unsignal sig]
 
 -- | Flatten a pitch signal into an absolute note number signal.

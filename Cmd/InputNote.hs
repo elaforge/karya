@@ -30,6 +30,7 @@
 module Cmd.InputNote where
 import qualified Data.Map as Map
 import qualified Util.Map as Map
+import qualified Util.Num as Num
 import qualified Midi.Midi as Midi
 
 import qualified Derive.Score as Score
@@ -120,7 +121,7 @@ update_state addr chan_msg state = state
 pb_to_input :: Control.PbRange -> Midi.PitchBendValue -> Midi.Key
     -> Pitch.InputKey
 pb_to_input (low, high) pb key =
-    Pitch.InputKey (realToFrac (fromIntegral key + offset))
+    Pitch.InputKey (Num.f2d (fromIntegral key + offset))
     where
     offset = if pb < 0 then -pb * fromIntegral low else pb * fromIntegral high
 
