@@ -17,8 +17,8 @@ import qualified Ui.Track as Track
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.PitchTrack as PitchTrack
+import qualified Derive.Scale.Relative as Relative
 import qualified Derive.Schema.Default as Default
-import qualified Derive.Control as Control
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
@@ -66,15 +66,12 @@ track_to_degree base_note track_id scale_id events = do
     State.modify_track_title track_id $
         const $ Default.unparse_control track_type
     let degrees2 = map (subtract base) degrees
-    return [(pos, set_note (degree_to_relative degree) event)
+    return [(pos, set_note (Relative.degree_to_note degree) event)
             | ((pos, event), degree) <- zip events degrees2]
 
-set_note :: String -> Event.Event -> Event.Event
-set_note text = PitchTrack.modify f
-    where f (meth, _) = (meth, text)
-
-degree_to_relative :: Pitch.Degree -> String
-degree_to_relative (Pitch.Degree n) = Control.unparse_relative n
+set_note :: Pitch.Note -> Event.Event -> Event.Event
+set_note note = PitchTrack.modify f
+    where f (meth, _) = (meth, Pitch.note_text note)
 
 event_to_degree :: Pitch.Scale -> Event.Event -> Either Pitch.Note Pitch.Degree
 event_to_degree scale event =

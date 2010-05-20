@@ -33,6 +33,9 @@ scale_id = Pitch.ScaleId "relative"
 note_to_degree :: Pitch.Note -> Maybe Pitch.Degree
 note_to_degree note = Pitch.Degree <$> Parse.float (Pitch.note_text note)
 
+degree_to_note :: Pitch.Degree -> Pitch.Note
+degree_to_note (Pitch.Degree d) = Pitch.Note (Parse.show_float (Just 2) d)
+
 input_to_note :: Pitch.InputKey -> Maybe Pitch.Note
 input_to_note (Pitch.InputKey key) =
     Just $ Pitch.Note $ Parse.show_float (Just 2) (key - middle)
