@@ -17,8 +17,9 @@ import qualified Ui.Track as Track
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.PitchTrack as PitchTrack
+
 import qualified Derive.Scale.Relative as Relative
-import qualified Derive.Schema.Default as Default
+import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
@@ -41,8 +42,8 @@ negate_event (pos, evt) =
 to_relative :: String -> Cmd.CmdL ()
 to_relative note_s = ModifyEvents.tracks_sorted $ \track_id events -> do
     title <- Track.track_title <$> State.get_track track_id
-    case Default.parse_control title of
-        Right (Default.Pitch (Default.PitchAbsolute (Just scale_id)) _) ->
+    case TrackInfo.parse_control title of
+        Right (TrackInfo.Pitch (TrackInfo.PitchAbsolute (Just scale_id)) _) ->
             track_to_degree (Pitch.Note note_s) track_id scale_id events
         val -> Cmd.throw $ "not an absolute pitch track: " ++ show val
 
@@ -59,12 +60,13 @@ track_to_degree base_note track_id scale_id events = do
     unless (null bad_notes) $
         Cmd.throw $ name ++ ": notes not in scale: " ++ show bad_notes
     title <- Track.track_title <$> State.get_track track_id
-    track_type <- case Default.parse_control title of
-        Right (Default.Pitch (Default.PitchAbsolute _) pname) -> return $
-            Default.Pitch (Default.PitchRelative (TrackLang.Symbol "add")) pname
+    track_type <- case TrackInfo.parse_control title of
+        Right (TrackInfo.Pitch (TrackInfo.PitchAbsolute _) pname) ->
+            return $ TrackInfo.Pitch
+                (TrackInfo.PitchRelative (TrackLang.Symbol "add")) pname
         val -> Cmd.throw $ "not an absolute pitch track: " ++ show val
     State.modify_track_title track_id $
-        const $ Default.unparse_control track_type
+        const $ TrackInfo.unparse_control track_type
     let degrees2 = map (subtract base) degrees
     return [(pos, set_note (Relative.degree_to_note degree) event)
             | ((pos, event), degree) <- zip events degrees2]

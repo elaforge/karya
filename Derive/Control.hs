@@ -24,10 +24,10 @@ import qualified Perform.Signal as Signal
 
 import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
-import qualified Derive.Score as Score
-import qualified Derive.TrackLang as TrackLang
 import qualified Derive.Scale.Relative as Relative
-import qualified Derive.Schema.Default as Default
+import qualified Derive.Score as Score
+import qualified Derive.TrackInfo as TrackInfo
+import qualified Derive.TrackLang as TrackLang
 
 
 -- | Top level deriver for control tracks.
@@ -45,15 +45,15 @@ eval_track :: BlockId -> TrackId -> TrackLang.Expr -> [TrackLang.Val]
 eval_track block_id track_id expr vals deriver = do
     track <- Derive.get_track track_id
     let events = Track.event_list (Track.track_events track)
-    case Default.parse_control_vals vals of
-        Right Default.Tempo -> do
+    case TrackInfo.parse_control_vals vals of
+        Right TrackInfo.Tempo -> do
             control_deriver <- derive_control expr events
             tempo_call block_id track_id
                 (Signal.coerce <$> control_deriver) deriver
-        Right (Default.Control maybe_op control) -> do
+        Right (TrackInfo.Control maybe_op control) -> do
             control_deriver <- derive_control expr events
             control_call track_id control maybe_op control_deriver deriver
-        Right (Default.Pitch ptype maybe_name) ->
+        Right (TrackInfo.Pitch ptype maybe_name) ->
             pitch_call track_id maybe_name ptype expr events deriver
         Left msg ->
             Derive.throw $ "failed to parse " ++ show vals ++ ": " ++ msg
@@ -78,23 +78,23 @@ control_call track_id control maybe_op control_deriver =
             Nothing -> Derive.with_control control signal deriver
             Just op -> Derive.with_control_operator control op signal deriver
 
-pitch_call :: TrackId -> Maybe Score.Control -> Default.PitchType
+pitch_call :: TrackId -> Maybe Score.Control -> TrackInfo.PitchType
     -> TrackLang.Expr -> [Track.PosEvent] -> Derive.Transformer
 pitch_call _ (Just _) _ _ _ _ =
     Derive.throw $ "named pitch tracks not supported yet"
 pitch_call track_id Nothing ptype track_expr events deriver =
     Derive.track_setup track_id $ do
         with_scale <- case ptype of
-            Default.PitchRelative _ -> do
+            TrackInfo.PitchRelative _ -> do
                 scale <- Derive.lookup_val TrackLang.v_scale
                 let relative_scale = maybe Relative.scale Relative.adjust scale
                 return $ Derive.with_val TrackLang.v_scale relative_scale
-            Default.PitchAbsolute (Just scale_id) -> do
+            TrackInfo.PitchAbsolute (Just scale_id) -> do
                 scale <- Derive.get_scale "pitch_call" scale_id
                 return $ Derive.with_val TrackLang.v_scale scale
-            Default.PitchAbsolute Nothing -> return id
+            TrackInfo.PitchAbsolute Nothing -> return id
         with_scale $ case ptype of
-            Default.PitchRelative op -> do
+            TrackInfo.PitchRelative op -> do
                 signal <- derive_relative_pitch events
                 Derive.with_pitch_operator op signal deriver
             _ -> do

@@ -49,6 +49,7 @@ import qualified Ui.Types as Types
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Edit as Edit
+import qualified Cmd.Info as Info
 import qualified Cmd.Language as Language
 import qualified Cmd.Play as Play
 import qualified Cmd.Save as Save
@@ -61,7 +62,6 @@ import qualified Cmd.MakeRuler ()
 import qualified Cmd.Lang.LPitch ()
 import qualified Cmd.Lang.LInst as LInst
 
-import qualified Derive.Schema.Default as Default
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Convert as Midi.Convert
 import qualified Perform.Midi.Perform as Midi.Perform
@@ -237,10 +237,10 @@ collapse_track block_id tracknum = do
     -- TODO if the track to collapse is a pitch track, merge it with its
     -- note track instead
     State.add_track_flag block_id tracknum Block.Collapse
-    Default.set_inst_status block_id tracknum
+    Info.set_inst_status block_id tracknum
 expand_track block_id tracknum = do
     State.remove_track_flag block_id tracknum Block.Collapse
-    Default.set_inst_status block_id tracknum
+    Info.set_inst_status block_id tracknum
 
 -- | Called from logview.
 collapse, expand :: TrackNum -> Cmd.CmdL ()

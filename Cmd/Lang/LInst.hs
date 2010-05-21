@@ -16,8 +16,8 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Info as Info
 
 import qualified Derive.Schema as Schema
-import qualified Derive.Schema.Default as Default
 import qualified Derive.Score as Score
+import qualified Derive.TrackInfo as TrackInfo
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Midi.Control as Control
@@ -79,7 +79,7 @@ load_instrument inst_name = do
     chan <- find_chan_for dev
     alloc_instrument inst [(dev, chan)]
 
-    State.set_track_title track_id (Default.instrument_to_title inst)
+    State.set_track_title track_id (TrackInfo.instrument_to_title inst)
     send_instrument_init inst chan
     Log.notice $ "deallocating " ++ show old_inst ++ ", allocating "
         ++ show (dev, chan) ++ " to " ++ show inst
@@ -143,7 +143,7 @@ realloc_instrument inst_name wdev chans = do
 schema_instruments :: BlockId -> Cmd.CmdL [Score.Instrument]
 schema_instruments block_id = do
     titles <- fmap (map State.track_title) (State.get_track_info block_id)
-    return $ Seq.map_maybe Default.title_to_instrument titles
+    return $ Seq.map_maybe TrackInfo.title_to_instrument titles
 
 -- | Try to automatically create an instrument config based on the instruments
 -- found in the given block.  It simply gives each instrument on a device a

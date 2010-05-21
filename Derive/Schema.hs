@@ -51,6 +51,7 @@ import qualified Cmd.Cmd as Cmd
 import Cmd.Cmd (Schema(..), SchemaDeriver, CmdContext(..), ContextCmds,
     SchemaMap)
 import qualified Cmd.ControlTrack as ControlTrack
+import qualified Cmd.Info as Info
 import qualified Cmd.Keymap as Keymap
 import qualified Cmd.MidiThru as MidiThru
 import qualified Cmd.NoteEntry as NoteEntry
@@ -62,7 +63,7 @@ import qualified Derive.Control as Control
 import qualified Derive.Derive as Derive
 import qualified Derive.Note as Note
 import qualified Derive.Score as Score
-import qualified Derive.Schema.Default as Default
+import qualified Derive.TrackInfo as TrackInfo
 
 import qualified Perform.Signal as Signal
 import qualified Perform.Pitch as Pitch
@@ -201,7 +202,7 @@ get_track_info :: Pitch.ScaleId -> State.TrackTree -> Maybe TrackNum
     -> (Maybe TrackType, Maybe Score.Instrument, Pitch.ScaleId)
 get_track_info proj_scale _ Nothing = (Nothing, Nothing, proj_scale)
 get_track_info proj_scale track_tree (Just tracknum) =
-    case Default.paths_of track_tree tracknum of
+    case Info.paths_of track_tree tracknum of
         Nothing -> (Nothing, Nothing, proj_scale)
         Just (track, parents, children) ->
             let inst = find_inst (track : parents ++ children)
@@ -213,10 +214,10 @@ get_track_info proj_scale track_tree (Just tracknum) =
                 inst, scale_id)
     where
     find_inst = msum . map inst_of
-    inst_of = Default.title_to_instrument . State.track_title
+    inst_of = TrackInfo.title_to_instrument . State.track_title
     -- TODO if the scale is relative, this won't get the octave from the
     -- enclosing scale
-    find_scale = msum . map (Default.title_to_scale . State.track_title)
+    find_scale = msum . map (TrackInfo.title_to_scale . State.track_title)
 
 -- | Describe the type of a single track.  This is used to figure out what set
 -- of cmds should apply to a given track.
@@ -234,15 +235,15 @@ track_type scale_id (State.TrackInfo _ _ tracknum) parents True =
     pitch_track = case msum (map is_pitch parents) of
         Just pair -> pair
         Nothing -> NoteTrack.CreateTrack
-            tracknum (Default.scale_to_title scale_id) (tracknum+1)
-    is_pitch track = case Default.parse_control (State.track_title track) of
-        Right (Default.Pitch _ _) -> Just $
+            tracknum (TrackInfo.scale_to_title scale_id) (tracknum+1)
+    is_pitch track = case TrackInfo.parse_control (State.track_title track) of
+        Right (TrackInfo.Pitch _ _) -> Just $
             NoteTrack.ExistingTrack (State.track_tracknum track)
         _ -> Nothing
 track_type _ (State.TrackInfo title _ _) _ False =
-    case Default.parse_control title of
-        Right (Default.Control _ _) -> ControlTrack
-        Right (Default.Pitch _ _) -> PitchTrack
+    case TrackInfo.parse_control title of
+        Right (TrackInfo.Control _ _) -> ControlTrack
+        Right (TrackInfo.Pitch _ _) -> PitchTrack
         -- Default to a control track if it's unparseable.
         _ -> ControlTrack
 
@@ -270,7 +271,7 @@ compile block_id tree = Derive.with_msg ("compile " ++ show block_id) $ do
 -- | Does this tree have a tempo track at the top level?
 has_tempo_track :: State.TrackTree -> Bool
 has_tempo_track = any $ \(Tree.Node track _) ->
-    Default.is_tempo_track (State.track_title track)
+    TrackInfo.is_tempo_track (State.track_title track)
 
 sub_compile :: BlockId -> State.TrackTree -> Derive.EventDeriver
 sub_compile block_id tree = Derive.d_merge_list (map with_track tree)
@@ -309,7 +310,7 @@ compile_to_signals _block_id _tree = return []
 {-
 _compile_to_signals :: Tree.Tree State.TrackInfo -> Derive.DisplaySignalDeriver
 _compile_to_signals (Tree.Node (State.TrackInfo title track_id _) subs)
-    | Default.is_note_track title = return []
+    | TrackInfo.is_note_track title = return []
     | otherwise = do
         -- Note no special treatment for the tempo track, since signal output
         -- shouldn't be warped.
@@ -321,7 +322,7 @@ signal_control :: (Monad m) => String -> TrackId
     -> Derive.DeriveT m (TrackId, Signal.Display)
 signal_control title track_id = do
     events <- Derive.with_track_warp Control.d_control_events track_id
-    sig <- case Default.parse_control_title title of
+    sig <- case TrackInfo.parse_control_title title of
         (_, Left _) -> Control.d_display_signal events
         (Nothing, Right scale_id) -> Control.d_display_pitch scale_id events
         (Just _, Right scale_id) ->
@@ -348,12 +349,12 @@ default_parser = Skeleton.make
 -- [c0, tempo1 (c1 . i1), tempo2 (c2 . c3 . i2)]
 parse_to_tree :: [State.TrackInfo] -> Tree.Forest State.TrackInfo
 parse_to_tree tracks = concatMap parse_tempo_group $
-    Seq.split_with (Default.is_tempo_track . State.track_title) tracks
+    Seq.split_with (TrackInfo.is_tempo_track . State.track_title) tracks
 
 parse_tempo_group :: [State.TrackInfo] -> Tree.Forest State.TrackInfo
 parse_tempo_group [] = []
 parse_tempo_group (track:tracks)
-    | Default.is_tempo_track (State.track_title track) =
+    | TrackInfo.is_tempo_track (State.track_title track) =
         [Tree.Node track (parse_note_groups tracks)]
     | otherwise = parse_note_groups (track:tracks)
 
@@ -364,7 +365,7 @@ parse_note_groups tracks = case inst_groups of
         global : rest -> descend (concatMap parse_note_group rest) global
     where
     inst_groups = Seq.split_with
-        (Default.looks_like_note_track . State.track_title) tracks
+        (TrackInfo.looks_like_note_track . State.track_title) tracks
 
 parse_note_group :: [State.TrackInfo] -> Tree.Forest State.TrackInfo
 parse_note_group [] = []

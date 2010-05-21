@@ -16,7 +16,7 @@ CURRENT
   - put prev, cur, next in PassedArgs too?
   * make sure the environ is not kept between track evaluations, I don't
     want 'x = y' in one track to affect another
-  - find a better name for Derive.Schema.Default
+  * find a better name for Derive.Schema.Default
 
   - fix midi perform to handle overlaps and sharing correctly, use merge_lists
 

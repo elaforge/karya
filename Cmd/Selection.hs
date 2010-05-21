@@ -27,9 +27,9 @@ import qualified Ui.Types as Types
 import qualified Ui.UiMsg as UiMsg
 
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Info as Info
 import qualified Cmd.Msg as Msg
 import qualified Cmd.TimeStep as TimeStep
-import qualified Derive.Schema.Default as Default
 
 import qualified App.Config as Config
 
@@ -257,7 +257,7 @@ sync_selection_status view_id = do
     Cmd.set_view_status view_id "sel" (fmap selection_status maybe_sel)
     block_id <- State.block_id_of_view view_id
     Control.when_just maybe_sel $
-        Default.set_inst_status block_id . Types.sel_cur_track
+        Info.set_inst_status block_id . Types.sel_cur_track
 
 selection_status :: Types.Selection -> String
 selection_status sel = Pretty.show_float (Just 3) start
