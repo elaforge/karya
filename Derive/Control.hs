@@ -65,13 +65,14 @@ eval_track _ _ _expr _ _ = return $
 -- warp twice.
 tempo_call :: BlockId -> TrackId -> Derive.Deriver Signal.Tempo
     -> Derive.Transformer
-tempo_call block_id track_id sig = Derive.d_tempo block_id (Just track_id) $
-    Derive.with_warp (const Score.id_warp) sig
+tempo_call block_id track_id sig_deriver =
+    Derive.d_tempo block_id (Just track_id) $
+        Derive.setup_without_warp sig_deriver
 
 control_call :: TrackId -> Score.Control -> Maybe TrackLang.CallId
     -> Derive.ControlDeriver -> Derive.Transformer
-control_call track_id control maybe_op deriver =
-    with_control $ Derive.with_track_warp track_id deriver
+control_call track_id control maybe_op control_deriver =
+    with_control $ Derive.track_setup track_id control_deriver
     where
     with_control control_deriver deriver = do
         signal <- control_deriver
@@ -84,7 +85,7 @@ pitch_call :: TrackId -> Maybe Score.Control -> Default.PitchType
 pitch_call _ (Just _) _ _ _ =
     Derive.throw $ "named pitch tracks not supported yet"
 pitch_call track_id Nothing ptype events deriver =
-    Derive.with_track_warp track_id $ do
+    Derive.track_setup track_id $ do
         with_scale <- case ptype of
             Default.PitchRelative _ -> do
                 scale <- Derive.lookup_val TrackLang.v_scale

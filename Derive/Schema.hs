@@ -280,7 +280,7 @@ sub_compile block_id tree = Derive.d_merge_list (map with_track tree)
 
 _compile :: BlockId -> Tree.Tree State.TrackInfo -> Derive.EventDeriver
 _compile block_id (Tree.Node (State.TrackInfo _ track_id _) subs)
-    | null subs = Derive.with_track_warp track_id (Note.d_note_track track_id)
+    | null subs = Derive.track_setup track_id (Note.d_note_track track_id)
     | otherwise = Derive.with_stack_track track_id $
         Control.d_control_track block_id track_id (sub_compile block_id subs)
 

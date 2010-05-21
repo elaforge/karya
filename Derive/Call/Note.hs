@@ -23,7 +23,7 @@ import qualified Perform.PitchSignal as PitchSignal
 note_calls :: Derive.NoteCallMap
 note_calls = Derive.make_calls
     [ ("", c_note)
-    , ("=", c_equal)
+    , ("=", c_equal Derive.no_events)
     ]
 
 -- * note call
@@ -119,15 +119,15 @@ block_call block_id =
 
 -- * equal
 
-c_equal :: Derive.NoteCall
-c_equal = Derive.Call
+c_equal :: derived -> Derive.Call y derived
+c_equal empty = Derive.Call
     (Just $ \args _ _ _ -> with_args args generate)
     (Just $ \args deriver -> with_args args (transform deriver))
     where
     with_args args = TrackLang.call2 args
         (required "symbol", required "value" :: Arg TrackLang.Val)
     transform deriver sym val = Derive.with_val sym val deriver
-    generate sym val = one_note $ Derive.put_val sym val >> Derive.empty_events
+    generate sym val = (Derive.put_val sym val >> return empty, 1)
 
 -- * misc
 

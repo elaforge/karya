@@ -1,16 +1,17 @@
 module Derive.Note_test where
+import qualified Data.Map as Map
 
 import Util.Test
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 
 import Ui
--- import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
+import qualified Perform.Signal as Signal
 import qualified Perform.Warning as Warning
 
 
@@ -123,6 +124,32 @@ test_c_equal = do
     -- works as transformer
     equal (run ">i" [(0, 1, ""), (1, 1, "inst = >i2 |"), (2, 1, ">i3 |")])
         (Right [(0, inst "i", []), (1, inst "i2", []), (2, inst "i3", [])], [])
+
+test_environ_across_tracks = do
+    let e_evt = fmap Signal.unsignal . Map.lookup (Score.Control "cont")
+            . Score.event_controls
+    let run tracks = DeriveTest.extract e_evt Log.msg_string $
+            DeriveTest.derive_tracks_tempo ((">", [(0, 10, "")]) : tracks)
+
+    -- first make sure srate works as I expect
+    let interpolated = [(0, 0), (1, 0.25), (2, 0.5), (3, 0.75), (4, 1)]
+    equal (run [("cont", [(0, 0, "0"), (4, 0, "i 1")])])
+        (Right [Just interpolated], [])
+    equal (run [("srate = 2 | cont", [(1, 0, "0"), (5, 0, "i 1")])])
+        (Right [Just [(1, 0), (3, 0.5), (5, 1)]], [])
+    equal (run [("cont", [(0, 0, "srate = 2"), (1, 0, "0"), (5, 0, "i 1")])])
+        (Right [Just [(1, 0), (3, 0.5), (5, 1)]], [])
+
+    -- now make sure srate in one track doesn't affect another
+    let cont = ("cont", [(0, 0, "0"), (4, 0, "i 1")])
+    equal (run [("cont2", [(0, 0, "srate = 2")]), cont])
+        (Right [Just interpolated], [])
+    equal (run [cont, ("cont2", [(0, 0, "srate = 2")])])
+        (Right [Just interpolated], [])
+    equal (run [("srate = 2 | cont2", []), cont])
+        (Right [Just interpolated], [])
+    equal (run [cont, ("srate = 2 | cont2", [])])
+        (Right [Just interpolated], [])
 
 test_calls = do
     let extract r = case DeriveTest.extract DeriveTest.e_event id r of

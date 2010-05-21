@@ -244,6 +244,11 @@ make_id default_ns (TrackLang.Symbol ident_str) = Id.id ns ident
     (ns, ident) = if null w1 then (default_ns, w0) else (w0, drop 1 w1)
 
 
+-- * c_equal
+
+c_equal :: derived -> Derive.Call y derived
+c_equal = Note.c_equal
+
 -- * map score events
 
 -- Functions here force a Deriver into its Score.Events and process them

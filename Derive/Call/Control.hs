@@ -5,6 +5,7 @@ import qualified Util.Num as Num
 
 import Ui
 
+import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
 import qualified Derive.TrackLang as TrackLang
 import Derive.TrackLang (required)
@@ -24,7 +25,8 @@ import qualified Perform.Signal as Signal
 
 control_calls :: Derive.ControlCallMap
 control_calls = Derive.make_calls
-    [ ("", c_set)
+    [ ("=", Call.c_equal Derive.no_control)
+    , ("", c_set)
     , ("i", c_linear)
     ]
 
@@ -66,7 +68,8 @@ control_interpolate f args = TrackLang.call1 args (required "val") $ \val -> do
 
 pitch_calls :: Derive.PitchCallMap
 pitch_calls = Derive.make_calls
-    [ ("", c_note_set)
+    [ ("=", Call.c_equal Derive.no_pitch)
+    , ("", c_note_set)
     , ("i", c_note_linear)
     ]
 

@@ -14,10 +14,11 @@ CURRENT
   * implement PitchTrack.cmd_raw_edit
   - more sophisticated function to find out the inst of a note track
   - put prev, cur, next in PassedArgs too?
-  - why didn't srate= in the tempo track seem to have an effect?
-  - make sure the environ is not kept between track evaluations, I don't
+  * make sure the environ is not kept between track evaluations, I don't
     want 'x = y' in one track to affect another
   - find a better name for Derive.Schema.Default
+
+  - fix midi perform to handle overlaps and sharing correctly, use merge_lists
 
   - TrackLang.optional args should be able to pass Nothing if arg is not given
 
@@ -26,6 +27,8 @@ CURRENT
   - subblock derivation for control tracks
 
   - implement 'e' interpolator
+  - re-enable signal deriver, but in a more efficient way?  can I reuse the
+    derived signals?
 
   - implement sub-calls with TVal return type
     Now I have so many call maps, can I merge them?

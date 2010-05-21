@@ -140,6 +140,7 @@ import qualified Derive.Call as Call
 
 -- * note track
 
+-- | Top level deriver for note tracks.
 d_note_track :: TrackId -> Derive.EventDeriver
 d_note_track track_id = do
     track <- Derive.get_track track_id

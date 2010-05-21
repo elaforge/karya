@@ -392,13 +392,13 @@ gets f = fmap f get
 -- | This is a little different from Reader.local because only a portion of
 -- the state is used Reader-style, i.e. 'state_track_warps' always collects.
 -- TODO split State into dynamically scoped portion and use Reader for that.
--- this should also properly restore state after an exception
-local :: (Monad m) => (State -> b) -> (State -> State) -> (b -> State -> State)
-    -> DeriveT m a -> DeriveT m a
-local from_state modify_state to_state m = do
+local :: (Monad m) => (State -> b) -> (b -> State -> State)
+    -> (State -> DeriveT m State) -> DeriveT m a -> DeriveT m a
+local from_state to_state modify_state deriver = do
     old <- gets from_state
-    modify modify_state
-    m `finally` modify (to_state old)
+    new <- modify_state =<< get
+    modify (const new)
+    deriver `finally` modify (to_state old)
 
 -- | So this is kind of confusing.  When events are created, they are assigned
 -- their stack based on the current event_stack, which is set by the
@@ -406,8 +406,8 @@ local from_state modify_state to_state m = do
 -- to *set* event_stack, which is what 'warn' and 'throw' will look at.
 with_event :: (Monad m) => Score.Event -> DeriveT m a -> DeriveT m a
 with_event event = local state_stack
-    (\st -> st { state_stack = Score.event_stack event })
     (\old st -> st { state_stack = old })
+    (\st -> return $ st { state_stack = Score.event_stack event })
 
 -- ** state access
 
@@ -436,8 +436,8 @@ throw_srcpos srcpos msg = do
 
 with_msg :: (Monad m) => String -> DeriveT m a -> DeriveT m a
 with_msg msg = local state_log_context
-    (\st -> st { state_log_context = msg : state_log_context st })
     (\old st -> st { state_log_context = old })
+    (\st -> return $ st { state_log_context = msg : state_log_context st })
 
 -- | Catch DeriveErrors and convert them into warnings.  If an error is caught,
 -- return Nothing, otherwise return Just op's value.
@@ -486,15 +486,19 @@ put_val name val = do
     environ <- insert_environ name val =<< gets state_environ
     modify $ \st -> st { state_environ = environ }
 
+-- | Set the given val dynamically within the given computation.
 with_val :: (TrackLang.Typecheck val) => TrackLang.ValName -> val
     -> Deriver a -> Deriver a
-with_val name val deriver = do
-    old_environ <- gets state_environ
-    environ <- insert_environ name val old_environ
-    modify $ \st -> st { state_environ = environ }
-    v <- deriver
-    modify $ \st -> st { state_environ = old_environ }
-    return v
+with_val name val =
+    local state_environ (\old st -> st { state_environ = old }) $ \st -> do
+        environ <- insert_environ name val (state_environ st)
+        return (st { state_environ = environ })
+
+-- | This is like 'with_val', only it doesn't make any changes to the environ,
+-- only restores it on return.
+with_local_environ :: (Monad m) => DeriveT m a -> DeriveT m a
+with_local_environ =
+    local state_environ (\old st -> st { state_environ = old }) return
 
 insert_environ :: (Monad m, TrackLang.Typecheck val) => TrackLang.ValName
     -> val -> TrackLang.Environ -> DeriveT m TrackLang.Environ
@@ -954,18 +958,17 @@ tempo_to_warp = Signal.integrate Signal.tempo_srate . Signal.map_y (1/)
 -- deriver.  This is because every track except tempo tracks should be wrapped
 -- with this.  It doesn't actually affect the warp since that's already in
 -- the environment.
-with_track_warp :: TrackId -> Deriver d -> Deriver d
-with_track_warp track_id deriver = do
+track_setup :: TrackId -> Deriver d -> Deriver d
+track_setup track_id deriver = do
     ignore_tempo <- gets state_ignore_tempo
     unless ignore_tempo (add_track_warp track_id)
-    deriver
+    with_local_environ deriver
 
--- | This is a special version of 'with_track_warp' just for the tempo track.
--- It doesn't record the track warp, see 'd_tempo' for why.
-without_track_warp :: (Monad m) =>
-    (TrackId -> DeriveT m [e]) -> TrackDeriver m e
-without_track_warp track_deriver track_id = do
-    with_warp (const Score.id_warp) (track_deriver track_id)
+-- | This is a version of 'track_setup' for the tempo track.  It doesn't record
+-- the track warp, see 'd_tempo' for why.
+setup_without_warp :: Deriver d -> Deriver d
+setup_without_warp deriver = do
+    with_local_environ $ with_warp (const Score.id_warp) deriver
 
 -- * utils
 
