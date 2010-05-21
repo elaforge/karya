@@ -1,26 +1,9 @@
 CURRENT
-  * stick last sample in dynamic env for next control deriver
-  * lookup calls for control and pitch
-  * implement calls: null and various interpolaters
-  * remove ControlEvent
-  * implement previous value defaulting for control calls
-  * remove Default track title parsing stuff
-  * remove SignalBase track segment stuff
-  * implement relative controls
-  * pull sampling srate out of dynamic env
-  * implement control track title calls
-  * update Cmds for control and pitch tracks to edit new syntax: simple
-    implementation for edit method mode
-  * implement PitchTrack.cmd_raw_edit
   - more sophisticated function to find out the inst of a note track
   - put prev, cur, next in PassedArgs too?
-  * make sure the environ is not kept between track evaluations, I don't
-    want 'x = y' in one track to affect another
-  * find a better name for Derive.Schema.Default
+    except that transformers currently don't get these args
 
   - fix midi perform to handle overlaps and sharing correctly, use merge_lists
-
-  - TrackLang.optional args should be able to pass Nothing if arg is not given
 
   - remove warped control?
 
@@ -29,22 +12,6 @@ CURRENT
   - implement 'e' interpolator
   - re-enable signal deriver, but in a more efficient way?  can I reuse the
     derived signals?
-
-  - implement sub-calls with TVal return type
-    Now I have so many call maps, can I merge them?
-      - relative control and pitch
-      - note, control, and pitch
-      - tval
-  - implement scales as a set of sub-calls that return pitches
-    - they can take a number for cents offset: (*4c# 20)
-    Fancy pitch use cases:
-      - retune a scale according to another signal
-        Can be done by a call.
-      - retune a note depending on the previous interval (e.g. sloppy pitches
-        when playing quickly)
-        I think this has to be postproc.
-    - what about efficiency?
-  - merge pitch call namespace with normal call namespace
 
 - cleanup Ui.Track: event_list -> all_events?
 - #(poke Mispeled, field) fieldp field results in compiler bus error
@@ -58,9 +25,6 @@ UNSORTED
     a standard text entry widget, that way I can type unicode too
   - move Cmd.LanguageCmds to Cmd.Lang.Global
   - move MakeRuler to Lang too?
-  * SignalBase: the sample at 0 should extend to -inf, so if at gets <=0, return
-    first sample <=0.  This will avoid derivers that need a wide range getting
-    zeros.
   - remove with_msg "compile bid", it's redundant with the stack
   - make "error subderiving" msg nicer and put the stack in the log msg
   - happened automatically adding a pitch track:
@@ -86,8 +50,6 @@ UNSORTED
   - stop play when a neg dur note is playing in white space never turns off
   - neg dur before sub derive also sounds forever, I think it has to do with
     not passing the next note
-  * all notes off lang cmd
-  * move inst lang cmds to Cmd.Lang.LInst
   - rederive lang cmd
 
   - insts with breath are not easy to use
@@ -100,36 +62,18 @@ UNSORTED
   - midi thru doesn't pick up default inst
     empty scale defaults in Derive, but not in Cmd
   - cmd to resize window to fit tracks
-  * default inst and pitch for blocks with none
   - scroll box should be red when the derivation is not up to date, back to
     green when it is, that way you can see if derivation failed
-  * test should only run one test if it's an exact match
-  * insert time on a control event copies it
   - implement continuous controller warp
   - make Track.UnsortedEvents and Track.SortedEvents, type or newtype?
-  * sample rendering has little white lines
-  * sample rendering is still assuming linear interpolation between samples
   - empty tempo track should default to 1
-  * tempo shouldn't be linear interpolated by default
   - insert and delete time should use the selection if non-point
-  * update Cmd.CmdTest
-  * with negative events I want control text to go on top, but how is the
-    control event supposed to know?  track flag to override text side?
-    - can I use negative 0?  I'm worried that it's brittle...
-      haskell: isNegativeZero, c: signbit(..)
   - join for control tracks could be useful, just delete following evt
-  * move map_track etc. from Cmd.Edit to a new module
-  * LPitch should use map_track
   - rename project -> namespace
-  * cmd support for negative durs: select range, edit modify overlapping evt,
-    etc.
   - hspp screws up \\ string continuations
-  * methods no longer hardcoded, e.g. Map MethodId MethodInterpolator
   - document / enforce rules for CallId, Control, etc?
 
   - stack: bid/tid/* should highlight the entire track
-  * crashing bug adding new track to skeleton
-  * just editing a note shouldn't change its dur!
   - test relative pitch slide!
   - more symbolic calls, e.g. -/_\\/ and -//
   - should tab in raw edit mode go to method?  how to go back then?
@@ -420,11 +364,13 @@ test:
 integrator / midi record:
   - implement
 
-REPL repl
+REPL repl language
   - haskeline sucks for long lines, add multiple line editing?
     really I'd prefer plan9 style esc then edit
   - could add syntax mangling, but probably better to add it to the mangler
     so it works for everyone
+  - pass -fobject-code to avoid trying to recompile files?
+  - add custom interpreter for some commands to make them fast?
 
 Cmd:
   ? a module with easy access to all GlobalKeymap cmds for cmdline access
@@ -498,9 +444,13 @@ Derive:
     - Think about how to keep incremental recomputation in the presence of
       postproc.  I suppose they have to declare how much they depend on.
     examples of postprocs:
+      - echo
       - retune a note depending on the previous interval (e.g. sloppy pitches
         when playing quickly)
       - negative duration
+      - instrument deriver that makes it retrigger on pitch changes, e.g. for
+        trills on a piano... I think this has to be score postproc because it
+        needs to be pre-scale conversion
       - string emulation:  Every note is assigned a string.  When
         a legato new note is played, it either stops an existing string or takes
         a new one.  The previous note will either ring for a decay if the
@@ -512,18 +462,18 @@ Derive:
         When a note moves from one to another, start a new note at the
         destination pitch and bend the decay of the old one to the fundamental
         or closer harmonic from the previous mode.
+      - rambat damping emulation: notes ring on by default until they can be
+        damped.  Damp at the first opportunity, where opportunity is defined
+        as a break with no notes for a certain amount of time.  Can only damp
+        two neighboring notes at a time.
 
   - derivers for sekaran patterns
     - do a code version and a block version
     - block version requires block arguments and variable substitution
   TrackLang tracklang
-    * note track can pipe through derivers: '>fm8/bass | d0 arg0 arg1 | d1'
-    * echo deriver, '>fm8/bass | echo 2', signals: echo_feedback, echo_time
+    - TrackLang.optional args should be able to pass Nothing if arg is not given
     - Derive.Call.map_asc_events, I need Seq.merge_asc_lists for this.
     - make sure signal derivation doesn't do calls
-    * implement num -> signal coercion
-    * implement mandatory signal args
-    * implement _ dummy arg
     - implement call by arg name e.g. "delay time=%xyz"
     - implement control calls
     - implement block level calls in block title
@@ -531,28 +481,33 @@ Derive:
     - support pitch signals, e.g. "tune-to %*some-sig" but that requires named
       pitch signals
 
-    - Currently calls are [Score.Event] -> [Score.Event].  Clearly they should
-      be able to work on DeriveT as well so they can work in score time and
-      take advantage of behavioural abstraction.  Then 'a | b' is
-      really 'b . a'.
+    - implement sub-calls with TVal return type
+      Now I have so many call maps, can I merge them?
+        - relative control and pitch
+        - note, control, and pitch
+        - tval
+    - implement scales as a set of sub-calls that return pitches
+      - they can take a number for cents offset: (*4c# 20)
+      Fancy pitch use cases:
+        - retune a scale according to another signal
+          Can be done by a call.
+        - retune a note depending on the previous interval (e.g. sloppy pitches
+          when playing quickly)
+          I think this has to be postproc.
+      - what about efficiency?
+    - merge pitch call namespace with normal call namespace
 
-  - Since I may multiply a control just for a particular note, it would be
-    nice to only evaltuate the parts that are actually needed.  I think a
-    lazy bytetring should do this correctly, only forcing chunks that are hit
-    during the bsearch.
   - dynamics controls:
     - volume, velocity, and breath map directly to midi vals
     - pres is continuous volume, maps to velocity or breath depending on inst
     - vel is attack volume, maps to velocity or breath but is only sampled at
       the beginning of the note
-  * make local time and global time different types?
   - to cut the middle out of a pattern: a cut signal that disabled derivation
     when it's 1?
 
   - combine ornaments, like "hold 1s | tr" to hold the first note for 1 score
     time before starting the trill.  I think this could work by warping tr
 
-  - PitchSignal.Relative should have Nothing ScaleId
   - ScoreTime and RealTime literals: 1s, 1r
     If I had score and real time literals, I could merge abs and score trills.
     Then I need to support either typed controls, or a notation for "cont
@@ -575,104 +530,34 @@ Derive:
     - make it easy to add haskell derivers, tracklang must remain simple
     - derivers call other derivers, which can be rebound
 
-  - instrument deriver that makes it retrigger on pitch changes, e.g. for
-    trills on a piano... I think this has to be score postproc because it needs
-    to be pre-scale conversion
+  * arg processing: arg defaults taken automatically from the env, if
+    prefixed with call name: "call-arg"
+    - one problem with this is rebound symbols, do I want to force new names?
+      I think I do, because otherwise it exposes the underlying symbol.
+  - test Calls that return overlapping events
+  - block-level calls
+  * put TrackLang.Val into Pretty
+  - x = _ will unset x
 
-  tracklang2:
-    * implement control tracks as tracklang, methods become calls
-    * remove nonsensical Signal (Nothing, Nothing) type
-    * make event length available to transformers so they can unstretch to it?
-    * rename TrackLang.Signal -> TrackLang.Control ?
-    * data NoteDeriver = (start, dur, EventDeriver)
-    * note track emits [NoteDeriver], merges to EventDeriver
-    * replace d_note with d_null_call
-    * implement Equal
-    * re-implement tick
-    * re-implement echo
-    - implement event-echo and event processing in general
-    * arg processing: arg defaults taken automatically from the env, if
-      prefixed with call name: "call-arg"
-      - one problem with this is rebound symbols, do I want to force new names?
-        I think I do, because otherwise it exposes the underlying symbol.
-    - test Calls that return overlapping events
-    - block-level calls
-    * negative duration postproc
-    * put TrackLang.Val into Pretty
-    - x = _ will unset x
+  - Cmd: after entering 'x = y' event, can it automatically set dur=0?
 
-    - Cmd: after entering 'x = y' event, can it automatically set dur=0?
+  - come up with a syntax for Ui.Event preproc calls
+    >inst1 | echo < preproc1 < preproc2
+  - also I can have a post-parse "macro" preproc pass, this is more suited
+    for prepending a call
+  - re-implement directives: derive_notes returns (EventDeriver, [Event])
+    wait until I have a call that wants to use it (suppress event?)
 
-    - come up with a syntax for Ui.Event preproc calls
-      >inst1 | echo < preproc1 < preproc2
-    - also I can have a post-parse "macro" preproc pass, this is more suited
-      for prepending a call
-    - re-implement directives: derive_notes returns (EventDeriver, [Event])
-      wait until I have a call that wants to use it (suppress event?)
+  - When looking for the next note on, I should skip notes which are just
+    'statements' that produce no notes.  That way a var set won't interrupt
+    the pitch sig.
 
-    - When looking for the next note on, I should skip notes which are just
-      'statements' that produce no notes.  That way a var set won't interrupt
-      the pitch sig.
+  - implement automatic block splitting as described in doc/tracklang
+  - some kind of notation for replacing the track interpreter, e.g.
+    TrackId -> EventDeriver.
+    This could be used to implement macros, and also preproc.
 
-    - implement automatic block splitting as described in doc/tracklang
-    - some kind of notation for replacing the track interpreter, e.g.
-      TrackId -> EventDeriver.
-      This could be used to implement macros, and also preproc.
-
-    * parser support for '='
-    * val typed signals
-    * val signals in derive state
-    * modify calls to extract args from environ
-    * remove Derive.Note.ParsedNote stuff in favor of dynamic environ
-
-    - I need a way to give default args to each call.  Normally signals do
-      this and they would give me a way to change the default args in time,
-      but I would need typed signals, and still might want a way to set the
-      name of a signal for an arg.  So for the moment I can use a separate
-      mechanism, but it should be dynamically scoped via Derive.State.
-
-      So why do I need ';' at all then?  It signals the event is not
-      derived into notes, but maybe that's obvious enough from the syntax.
-      I think I could make '>inst' shorthand for 'inst = >inst' and '+attr'
-      shorthand for 'attrs + attr'.  But what if I want to scope the
-      setting to a note?
-        '' -> a null call derives a note
-        'x = y' -> set val for rest of track
-        'x = y |' -> set val within the derivation of a note
-        '+attr' -> shorthand for 'attrs += attr |'
-        '+attr1 +attr2' -> shorthand for 'attrs += attr1 | attrs += attr2 |'
-        '>inst | block' -> set inst and call 'block'
-        '|' -> derive two notes (or error if this isn't useful)
-        '| x = y' -> error, x = y is ignored
-
-      This brings up the possibility of being able to set the "null"
-      deriver for a track.  Normally it's the one that emits [Event ...],
-      but could there be a use for replacing it with something else?
-      Implement "damping" notes that way?
-
-      Now the track title really is just composed with the track: >inst | blah
-      I still have to signal a note track though, and a leading '>' still
-      seams reasonable.  But now I can write '> | sets_inst_based_on_env'.
-
-      A problem with the 'set val' statements is that I have to evaluate them
-      to be able to evaluate notes past it.  This makes finding the next event
-      tricky.  A signal wouldn't have this problem but that's only because
-      the signal is evaluated in a separate track.  That seems notationally
-      inconvenient, though I suppose automatic track collapse and creation
-      could improve this.
-
-      Hmm, the presence of random seed means I have to evaluate in a line...
-      except if I make random a function of seed + trackpos.  "Associative"
-      derivation seems like a useful property in general.  What if I have
-      a deriver that wants to know if there's a note at the next major
-      downbeat?  Also this lets me derive only a portion of a block.
-
-      So I could do two passes on a note track: one pass extracts the '=' and
-      turns them into signals, next pass does processing.  I can even put them
-      in their own track if I want, I just add a note track and don't put in
-      notes... or maybe I need a '=' title or something because as note
-      generators, note tracks need to go at the bottom.
-
+  note calls:
     * Implement tick as a call:
       Need to get next and prev Ui.Event, get pitch from pitch sig
       to_local (between (to_gloal prev_pos) (to_gloal next_pos)
@@ -736,17 +621,12 @@ Derive:
       - hybrid where the initial part stretches, final part is absolute
 
   PitchTrack pitch
-    - implement PitchTrack.cmd_raw edit, so I can enter fractional notes
-    - Multiple pitch tracks, so derivers (e.g. tuned just scale) can take pitch
+    - Named pitch tracks, so derivers (e.g. tuned just scale) can take pitch
       track args.  The way this could work is that the state_pitch becomes
       'Map SignalName PitchSignal' and the "" signal is taken by the note
       deriver during convert.  Track syntax:
       "*scale" -> ("", ScaleId scale)
-      "*scale, psig -> ("psig", ScaleId scale)
-  NoteTrack note
-    negative duration
-      - figuring out note duration is still not correct, I pass the position of
-        the next event, but not the next Score.Event.
+      "*scale %psig -> ("psig", ScaleId scale)
 
   ControlTrack control
     - configurable interpolators instead of a hardcoded ADT
@@ -785,8 +665,8 @@ Derive:
   - instrument aliases to make a shorthand for setting instrument, and also
     setting keyswitch on current instrument
 
-  - display derived blocks
-  - 3 way merge for derived blocks
+  - reflect derivation back into a block
+  - merge block level changes with derivation
 
 Perform:
   - instruments can have a native scale, so playing that scale won't involve

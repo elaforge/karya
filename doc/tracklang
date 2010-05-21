@@ -321,3 +321,54 @@ them into multiple arguments, but presumably could.  It's just that splitting
 every single deriver out into a block is too much of a pain notationally.  So
 if I eventually do want to implement this, do it as a kind of automatic block
 splitting, where you can split a bit of a block and pretend its a sub-block.
+
+
+old notes:
+
+- I need a way to give default args to each call.  Normally signals do
+  this and they would give me a way to change the default args in time,
+  but I would need typed signals, and still might want a way to set the
+  name of a signal for an arg.  So for the moment I can use a separate
+  mechanism, but it should be dynamically scoped via Derive.State.
+
+  So why do I need ';' at all then?  It signals the event is not
+  derived into notes, but maybe that's obvious enough from the syntax.
+  I think I could make '>inst' shorthand for 'inst = >inst' and '+attr'
+  shorthand for 'attrs + attr'.  But what if I want to scope the
+  setting to a note?
+    '' -> a null call derives a note
+    'x = y' -> set val for rest of track
+    'x = y |' -> set val within the derivation of a note
+    '+attr' -> shorthand for 'attrs += attr |'
+    '+attr1 +attr2' -> shorthand for 'attrs += attr1 | attrs += attr2 |'
+    '>inst | block' -> set inst and call 'block'
+    '|' -> derive two notes (or error if this isn't useful)
+    '| x = y' -> error, x = y is ignored
+
+  This brings up the possibility of being able to set the "null"
+  deriver for a track.  Normally it's the one that emits [Event ...],
+  but could there be a use for replacing it with something else?
+  Implement "damping" notes that way?
+
+  Now the track title really is just composed with the track: >inst | blah
+  I still have to signal a note track though, and a leading '>' still
+  seams reasonable.  But now I can write '> | sets_inst_based_on_env'.
+
+  A problem with the 'set val' statements is that I have to evaluate them
+  to be able to evaluate notes past it.  This makes finding the next event
+  tricky.  A signal wouldn't have this problem but that's only because
+  the signal is evaluated in a separate track.  That seems notationally
+  inconvenient, though I suppose automatic track collapse and creation
+  could improve this.
+
+  Hmm, the presence of random seed means I have to evaluate in a line...
+  except if I make random a function of seed + trackpos.  "Associative"
+  derivation seems like a useful property in general.  What if I have
+  a deriver that wants to know if there's a note at the next major
+  downbeat?  Also this lets me derive only a portion of a block.
+
+  So I could do two passes on a note track: one pass extracts the '=' and
+  turns them into signals, next pass does processing.  I can even put them
+  in their own track if I want, I just add a note track and don't put in
+  notes... or maybe I need a '=' title or something because as note
+  generators, note tracks need to go at the bottom.

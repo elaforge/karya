@@ -1,6 +1,20 @@
+    Speeding up derivation
+
+Given the same input, a deriver will yield the same output.  So the main
+questions are what to memoize, and how to detect when the input is the same.
+
+
+Event postproc
+
+    Speeding up performance
+
+Like derivation, performance is also deterministic.  
+
+
+
 Individual block derivations can only be cached if they have the same
-environment.  Tempo can be different if only the offset is different (then you
-just add the offset difference to the events).
+environment.  Tempo can be different if only the offset and stretch are
+different (then you just add the offset difference to the events).
 
 The important thing is detecting what needs to be regenerated.  In general it
 can't be done, because a derivation may decide what to do based on any other

@@ -1,0 +1,21 @@
+<<Move description of negative duration from Derive.Note to here.>>
+
+General issues with arrival beats / negative duration:
+
+- it's conceivably possible to have duration and scope separate, and invoke
+special duration handling only for 0 dur events.  Otherwise it seems like it
+might be awkward to use an arriving pattern in a departing score; how do
+I specify the duration?  I can use the "--" event as an explicit note off.
+
+- negative dur: this seems like a lot of pain that just boils down to deriving
+from (s+1, e).  And I still don't have a solution for the redundant
+'process_negative_duration' problem.  Is there another way to do
+pre-derivation?
+
+Negative dur doesn't work quite right with controls either since for
+a derivation the pitch should change right when the new note is entered.
+
+
+
+Sometimes I want to arrive on the beat, sometimes I don't.  A general way of
+suppressing a note?  This is idiom, so it should be a general kind of notation.
