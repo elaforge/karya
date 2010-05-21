@@ -150,8 +150,8 @@ d_note_track track_id = do
     -- TODO event calls are evaluated in normalized time, but track calls
     -- aren't.  Should they be?
     let pos_events = Track.event_list (Track.track_events track)
-    join $ Call.eval_note_transformer "title" 1 title_expr
-        (derive_notes pos_events)
+    join $ Call.eval_note_transformer "title" 1 title_expr $
+        derive_notes pos_events
 
 -- * directive
 

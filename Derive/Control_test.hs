@@ -1,6 +1,7 @@
 {-# LANGUAGE ParallelListComp #-}
 module Derive.Control_test where
 import qualified Data.Map as Map
+import Control.Monad
 
 import Util.Test
 import qualified Util.Log as Log
@@ -25,19 +26,32 @@ test_control_track = do
 
     -- various failures
     left_like (fst (derive ("", events))) "failed to parse"
-    left_like (fst (derive ("cont | cont", events))) "composition not supported"
 
     let (val, logs) = derive ("cont", [(0, 0, "abc"), (1, 0, "def")])
     equal val (Right [Just []])
     strings_like logs ["unknown Symbol \"abc\"", "unknown Symbol \"def\""]
     equal (derive ("cont", events)) (Right [Just [(0, 1), (1, 2)]], [])
 
+test_track_expression = do
+    let derive = do_derive (fmap Signal.unsignal
+            . Map.lookup (Score.Control "cont") . Score.event_controls)
+    equal (derive ("cont", [(0, 0, "0"), (4, 0, "i 1")]))
+        (Right [Just [(0, 0), (1, 0.25), (2, 0.5), (3, 0.75), (4, 1)]], [])
+    equal (derive ("srate = 2 | cont", [(0, 0, "0"), (4, 0, "i 1")]))
+        (Right [Just [(0, 0), (2, 0.5), (4, 1)]], [])
+
+    let derive_pitch = do_derive (PitchSignal.unsignal . Score.event_pitch)
+    equal
+        (derive_pitch ("srate = 2 | *twelve", [(0, 0, "4c"), (4, 0, "i *4d")]))
+        (Right [[(0, (60, 60, 0)), (2, (60, 62, 0.5)), (4, (60, 62, 1))]], [])
+
+
 test_derive_control = do
     let extract (Left err) = Left err
         extract (Right (val, _, logs)) =
             Right (Signal.unsignal val, map Log.msg_string logs)
     let derive events = extract $ DeriveTest.run State.empty
-            (Control.derive_control (map UiTest.mkevent events))
+            (join $ Control.derive_control [] (map UiTest.mkevent events))
     equal (derive [(0, 0, "1"), (1, 0, "2")])
         (Right ([(0, 1), (1, 2)], []))
     equal (derive [(0, 0, "1"), (0.1, 0, "i 2")])

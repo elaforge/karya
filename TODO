@@ -8,7 +8,7 @@ CURRENT
   * remove SignalBase track segment stuff
   * implement relative controls
   * pull sampling srate out of dynamic env
-  - implement control track title calls
+  * implement control track title calls
   * update Cmds for control and pitch tracks to edit new syntax: simple
     implementation for edit method mode
   * implement PitchTrack.cmd_raw_edit

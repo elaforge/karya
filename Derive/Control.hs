@@ -38,27 +38,25 @@ d_control_track block_id track_id deriver = do
         return (TrackLang.parse_control_track (Track.track_title track))
     -- TODO event calls are evaluated in normalized time, but track calls
     -- aren't.  Should they be?
-    join $ eval_track block_id track_id expr vals deriver
+    eval_track block_id track_id expr vals deriver
 
 eval_track :: BlockId -> TrackId -> TrackLang.Expr -> [TrackLang.Val]
-    -> Derive.EventDeriver -> Derive.Deriver Derive.EventDeriver
-eval_track block_id track_id [] vals deriver = do
+    -> Derive.Transformer
+eval_track block_id track_id expr vals deriver = do
     track <- Derive.get_track track_id
     let events = Track.event_list (Track.track_events track)
-    return $ case Default.parse_control_vals vals of
-        Right Default.Tempo -> tempo_call block_id track_id
-            (Signal.coerce <$> derive_control events) deriver
-        Right (Default.Control maybe_op control) ->
-            control_call track_id control maybe_op (derive_control events)
-                deriver
-        Right (Default.Pitch ptype Nothing) ->
-            pitch_call track_id Nothing ptype events deriver
-        Right track_type ->
-            Derive.throw $ "track type not supported yet: " ++ show track_type
+    case Default.parse_control_vals vals of
+        Right Default.Tempo -> do
+            control_deriver <- derive_control expr events
+            tempo_call block_id track_id
+                (Signal.coerce <$> control_deriver) deriver
+        Right (Default.Control maybe_op control) -> do
+            control_deriver <- derive_control expr events
+            control_call track_id control maybe_op control_deriver deriver
+        Right (Default.Pitch ptype maybe_name) ->
+            pitch_call track_id maybe_name ptype expr events deriver
         Left msg ->
             Derive.throw $ "failed to parse " ++ show vals ++ ": " ++ msg
-eval_track _ _ _expr _ _ = return $
-    Derive.throw "composition not supported on control tracks yet"
 
 -- | A tempo track is derived like other signals, but in absolute time.
 -- Otherwise it would wind up being composed with the environmental
@@ -81,10 +79,10 @@ control_call track_id control maybe_op control_deriver =
             Just op -> Derive.with_control_operator control op signal deriver
 
 pitch_call :: TrackId -> Maybe Score.Control -> Default.PitchType
-    -> [Track.PosEvent] -> Derive.Transformer
-pitch_call _ (Just _) _ _ _ =
+    -> TrackLang.Expr -> [Track.PosEvent] -> Derive.Transformer
+pitch_call _ (Just _) _ _ _ _ =
     Derive.throw $ "named pitch tracks not supported yet"
-pitch_call track_id Nothing ptype events deriver =
+pitch_call track_id Nothing ptype track_expr events deriver =
     Derive.track_setup track_id $ do
         with_scale <- case ptype of
             Default.PitchRelative _ -> do
@@ -100,14 +98,18 @@ pitch_call track_id Nothing ptype events deriver =
                 signal <- derive_relative_pitch events
                 Derive.with_pitch_operator op signal deriver
             _ -> do
-                signal <- derive_pitch events
+                signal <- join $ derive_pitch track_expr events
                 Derive.with_pitch signal deriver
 
-derive_pitch :: [Track.PosEvent] -> Derive.PitchDeriver
-derive_pitch = fmap PitchSignal.merge
-    . Call.derive_track
-        ("pitch", Derive.no_pitch, Derive.lookup_pitch_call, mangle_pitch_call)
-        (\prev chunk -> PitchSignal.last chunk `mplus` prev)
+derive_pitch :: TrackLang.Expr -> [Track.PosEvent]
+    -> Derive.Deriver Derive.PitchDeriver
+derive_pitch track_expr events =
+    Call.eval_transformer info 1 track_expr deriver
+    where
+    deriver = PitchSignal.merge <$> Call.derive_track info
+        (\prev chunk -> PitchSignal.last chunk `mplus` prev) events
+    info = ("pitch", Derive.no_pitch, Derive.lookup_pitch_call,
+        mangle_pitch_call)
 
 derive_relative_pitch :: [Track.PosEvent] -> Derive.PitchDeriver
 derive_relative_pitch = fmap PitchSignal.merge
@@ -126,8 +128,11 @@ mangle_pitch_call text
     | ' ' `elem` text = text
     | otherwise = '*' : text
 
-derive_control :: [Track.PosEvent] -> Derive.ControlDeriver
-derive_control = fmap Signal.merge
-    . Call.derive_track
-        ("control", Derive.no_control, Derive.lookup_control_call, id)
-        (\prev chunk -> Signal.last chunk `mplus` prev)
+derive_control :: TrackLang.Expr -> [Track.PosEvent]
+    -> Derive.Deriver Derive.ControlDeriver
+derive_control track_expr events =
+    Call.eval_transformer info 1 track_expr deriver
+    where
+    deriver = Signal.merge <$> Call.derive_track info
+        (\prev chunk -> Signal.last chunk `mplus` prev) events
+    info = ("control", Derive.no_control, Derive.lookup_control_call, id)
