@@ -46,15 +46,6 @@ CURRENT
     - what about efficiency?
   - merge pitch call namespace with normal call namespace
 
-- how to implement string emulation?  Every note is assigned a string.  When
-  a legato new note is played, it either stops an existing string or takes
-  a new one.  The previous note will either ring for a decay if the string is
-  unassigned, or reset to its "open" pitch otherwise.
-
-- implement postproc calls.  Think about how to keep incremental recomputation
-  in the presence of postproc.  I suppose they have to declare how much they
-  depend on.
-
 - cleanup Ui.Track: event_list -> all_events?
 - #(poke Mispeled, field) fieldp field results in compiler bus error
 - program to launch logview and seq together
@@ -70,7 +61,6 @@ UNSORTED
   * SignalBase: the sample at 0 should extend to -inf, so if at gets <=0, return
     first sample <=0.  This will avoid derivers that need a wide range getting
     zeros.
-  - add Util.ParseOperators
   - remove with_msg "compile bid", it's redundant with the stack
   - make "error subderiving" msg nicer and put the stack in the log msg
   - happened automatically adding a pitch track:
@@ -134,7 +124,7 @@ UNSORTED
   * cmd support for negative durs: select range, edit modify overlapping evt,
     etc.
   - hspp screws up \\ string continuations
-  - methods no longer hardcoded, e.g. Map MethodId MethodInterpolator
+  * methods no longer hardcoded, e.g. Map MethodId MethodInterpolator
   - document / enforce rules for CallId, Control, etc?
 
   - stack: bid/tid/* should highlight the entire track
@@ -158,11 +148,13 @@ UNSORTED
 
 MILESTONES
   0.1
-    + scales and keyswitches
+    * scales and keyswitches
     + efficient thru
+    + tracklang complete with set of basic calls
     - dense / efficient control signals
     - lazy signals
     - memoize deriver output, to avoid unnecessary rederivation
+    - symbolic score
     - midi record / integrator
     - save undo history
     - linux and windows ports
@@ -174,15 +166,9 @@ MILESTONES
     - vst host
     - sync with audio editor: jack or rewire
     - non-midi instruments
-
   far future
     - render audio
     - include audio inline
-
-- make sure pitch terminology is consistent:
-  KeyNumber = scale independent note, Note = note in scale,
-  Pitch = freq easily mapped to and from nn, same as NoteNumber,
-  NoteNumber = Midi.Key + decimal
 
 ----
 
@@ -219,7 +205,7 @@ bugs:
     proc
   - clipboard is not handling the skeleton properly
   - deriving signal causes event derive to fail too?
-  - undo should not move windows!  some bug is making undo randomly jump to
+  * undo should not move windows!  some bug is making undo randomly jump to
     (0, 0), windows are also going to weird places on load
   - can share pitches doesn't consider a whole step transposition unshareable
   - is kbd entry letting keys like 1 fall through?
@@ -316,7 +302,6 @@ fltk:
   draw bugs:
     - when scrolling upwards, ruler mark text is not drawn completely
     - doesn't redraw after switching monitors
-  UI Msgs
   Track
     / dividers can have separate color for upper part, for collapsable tracks
   event track
@@ -368,16 +353,15 @@ fltk:
       to the last event that had to change.  And I think I can still optimize
       scrolling, I just have to keep the local pos->hidden cache, which gets
       cleared on a track update.
-  Ruler
   MoveTile
     - only capture drag on a plain drag with no modifiers
 
 libfltk:
-  + try cocoa fltk patch
-    - wait for clipping and modifier event patches to go in
-  + window position not restored on load
-    - had to patch fltk, test Fl_cocoa.mm, make str for Fl_mac.cxx
-    - str 2309
+  * try cocoa fltk patch
+    * wait for clipping and modifier event patches to go in
+  * window position not restored on load
+    * had to patch fltk, test Fl_cocoa.mm, make str for Fl_mac.cxx
+    * str 2309
   + fltk 1.3 Fl_Display_Text has alignment bugs, and too slow
     - sent mail to list
 
@@ -431,6 +415,7 @@ test:
   - tests count number of tests in addition to checks within each test
   - it should be possible to build only certain tests into RunTests
   - use generics or Foldable or something to write a generic StructEqual
+  - RunTests.hs: if running >1 init-* tests, run them in sub processes
 
 integrator / midi record:
   - implement
@@ -507,6 +492,27 @@ Cmd:
     - gzip save files
 
 Derive:
+  - implement postproc calls
+    - framework for determining scope of a postproc: per inst, per track,
+      for pre or post overlaps, etc.
+    - Think about how to keep incremental recomputation in the presence of
+      postproc.  I suppose they have to declare how much they depend on.
+    examples of postprocs:
+      - retune a note depending on the previous interval (e.g. sloppy pitches
+        when playing quickly)
+      - negative duration
+      - string emulation:  Every note is assigned a string.  When
+        a legato new note is played, it either stops an existing string or takes
+        a new one.  The previous note will either ring for a decay if the
+        string is unassigned, or reset to its "open" pitch otherwise.  Strings
+        can either assume their new pitch instantly (stopped), or gradually
+        (bent).
+      - overblow emulation: a set of overblow ranges are defined, along with
+        possible pitches for each one (fundamental and overblow harmonics).
+        When a note moves from one to another, start a new note at the
+        destination pitch and bend the decay of the old one to the fundamental
+        or closer harmonic from the previous mode.
+
   - derivers for sekaran patterns
     - do a code version and a block version
     - block version requires block arguments and variable substitution
@@ -783,6 +789,8 @@ Derive:
   - 3 way merge for derived blocks
 
 Perform:
+  - instruments can have a native scale, so playing that scale won't involve
+    pitch bends
   Instrument
     - some kind of organized way to manage instruments and instrument config
     - some basic midi instrument defs for generic midi (dev, patch)
@@ -798,7 +806,6 @@ Perform:
 Instrument DB:
   - search lang supports quotes
   - search lang supports - to exclude a term
-  - original file goes in a tag, not the text
   - bug: discarded insts still in index
   - ability to edit tags, esp. add "favorite rating"
   - now that PatchTemplate is gone, maybe I can use a simpler storage format
@@ -816,7 +823,8 @@ Midi:
 misc ideas:
   - should be a documented extensible way to add new track types without
     modifying core ADTs
-  - chord input... think about some kind of compact representation
+  - Staff notation represents chords well, but tracks don't.  Think of a more
+    compact notation.
   - if derivation needs event IDs, maybe I can use the value-supply package
   - safecopy package does version controlled serialization
   - think about yi's approach to keybindings as a parser and keybinding state
@@ -824,7 +832,6 @@ misc ideas:
 
 research:
   - loading fonts in fltk, and drawing new fonts
-  - subscribe to haskell-art
   - download sequencers and see how they ship midi reliably
   - learn about hs gtk for reference
 
