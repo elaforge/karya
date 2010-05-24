@@ -281,9 +281,6 @@ test_drop_duplicates = do
 
     -- keyswitches
 
-test_reorder_control_messages = do
-    equal 1 1 -- TODO
-
 -- * control
 
 test_perform_control1 = do
@@ -306,69 +303,111 @@ test_perform_control2 = do
 
 -- * channelize
 
+-- test the overlap map and channel allocation
 test_channelize = do
     let inst_addrs = Perform.config_to_inst_addrs inst_config2 test_lookup
-        channelize = map snd . Perform.channelize inst_addrs . mkevents_inst
+        pevent (start, dur, psig) =
+            Perform.Event inst1 start dur Map.empty (Signal.signal psig) []
+        f = map snd . Perform.channelize inst_addrs . map pevent
+
     -- Re-use channels when the pitch is different, but don't when it's the
     -- same.
-    equal (channelize
-        [ ("a", 0, 2, [])
-        , ("a", 1, 2, [])
-        , ("b", 1, 2, [])
-        , ("b", 1.5, 2, [])
-        , ("a", 1.75, 2, [])
+    equal (f
+        [ (0, 2, [(0, 60)])
+        , (0, 2, [(0, 60.5)])
+        , (0, 2, [(0, 61)]) -- can share with event 0
+        , (0, 2, [(0, 61.5)]) -- can share with event 1
+        , (0, 2, [(0, 60.75)]) -- can share with neither
+        , (6, 2, [(6, 60.75)]) -- back to 0
         ])
-        [0, 1, 0, 1, 2]
+        [0, 1, 0, 1, 2, 0]
 
-    -- If they overlap during the decay, having the same note is ok.
-    equal (channelize
-        [ ("a", 0, 1, [])
-        , ("a", 1, 1, [])
+    -- can't share because of decay
+    equal (f
+        [ (0, 2, [(0, 60)])
+        , (2, 2, [(2, 60.5)])
+        ])
+        [0, 1]
+
+    -- still can't share because of the control lead time
+    let evt0_end = Perform.note_end (pevent (0, 2, []))
+    equal (f
+        [ (0, 2, [(0, 60)])
+        , (evt0_end, 2, [(evt0_end, 60.5)])
+        ])
+        [0, 1]
+
+    -- can finally share
+    let evt0_end2 = evt0_end + Perform.set_control_lead_time
+    equal (f
+        [ (0, 2, [(0, 60)])
+        , (evt0_end2, 2, [(evt0_end2, 60.5)])
         ])
         [0, 0]
 
-    -- Even though they share pitches, they get the same channel, since inst2
-    -- only has one addr.
+    -- don't bother channelizing if the inst only has one addr
     equal (map snd $ Perform.channelize inst_addrs $ map mkevent
         [ (inst2, "a", 0, 2, [])
-        , (inst2, "a", 1, 2, [])
+        , (inst2, "a2", 1, 2, [])
         ])
         [0, 0]
 
-    -- TODO test cents and controls differences
-
-    -- All under volume, but "p" also has a pitchbend, so it gets its own
-    -- track.  "p" and "c" share since they have the same controls.
-    equal (channelize
-        [ ("a", 0, 4, [c_vol])
-        , ("p", 2, 4, [c_vol, c_aftertouch])
-        , ("c", 4, 4, [c_vol, c_aftertouch])
-        ])
-        [0, 1, 1]
 
 test_can_share_chan = do
-    let f evt1 evt2 = Perform.can_share_chan e1 e2
-            where [e1, e2] = mkevents [evt1, evt2]
+    let mkcontrols csigs = Map.fromList
+            [(Control.Control c, Signal.signal sig) | (c, sig) <- csigs]
+    let pevent (start, dur, psig, conts) =
+            Perform.Event inst1 start dur (mkcontrols conts)
+                (Signal.signal psig) []
+    let f evt0 evt1 = Perform.can_share_chan (pevent evt0) (pevent evt1)
 
-    -- Different notes can overlap.
-    equal (f (inst1, "a", 0, 2, []) (inst1, "b", 1, 2, []))
+    -- Pitches with an integral difference overlap.
+    equal (f (0, 2, [(0, 60)], []) (0, 2, [(0, 61)], [])) True
+    -- Same pitch can't.
+    equal (f (0, 2, [(0, 60)], []) (0, 2, [(0, 60)], [])) False
+    -- If they overlap during the decay, having the same note is ok.
+    equal (f (0, 2, [(0, 60)], []) (2, 2, [(0, 60)], [])) True
+
+    -- Fractional pitches don't share, even in the decay.
+    equal (f (0, 2, [(0, 60)], []) (0, 2, [(0, 60.5)], [])) False
+    equal (f (0, 2, [(0, 60)], []) (2, 2, [(2, 60.5)], [])) False
+    -- Still can't share because of the control lead time.
+    let e0_end = Perform.note_end (pevent (0, 2, [], []))
+    equal (f (0, 2, [(0, 60)], []) (e0_end, 2, [(e0_end, 60.5)], [])) False
+    -- Finally can share.
+    let e0_end2 = e0_end + Perform.set_control_lead_time
+    equal (f (0, 2, [(0, 60)], []) (e0_end2, 2, [(e0_end2, 60.5)], [])) True
+
+    -- First pitch can't share because it's bent from its original pitch.
+    -- Actually they could if the bend is integral and perform_note were
+    -- smart enough to subtract the bent amount from the second note's note on.
+    equal (f (0, 2, [(0, 60), (1, 61)], []) (2, 2, [(2, 62)], [])) False
+
+    -- Can share baecause they have the same curve with integral transposition.
+    equal (f (0, 2, [(0, 60), (1, 60.5)], []) (0, 2, [(0, 61), (1, 61.5)], []))
         True
-    -- Notes can share even though they overlap because of decay.
-    equal (f (inst1, "a", 0, 1, []) (inst1, "b", 1, 1, []))
-        True
-    -- Decay means fractinal notes don't share a channel.
-    equal (f (inst1, "a", 0, 1, []) (inst1, "a2", 1, 1, []))
-        False
+
+    let cont = ("cont", [(0, 1), (1, 0.5), (2, 0)])
+    -- Share with the same controller.
+    equal (f (0, 2, [(0, 60)], [cont]) (0, 2, [(0, 61)], [cont])) True
+    equal (f (0, 2, [(0, 60)], [cont]) (0, 2, [(0, 61)], [])) False
+
 
 test_overlap_map = do
-    let f overlapping event = (event, map fst overlapping)
+    let extent e = (Perform.event_start e, Perform.event_duration e)
+    let f overlapping event = (extent event, map (extent . fst) overlapping)
     let events = mkevents_inst
             [ ("a", 0, 2, [])
             , ("b", 1, 2, [])
             , ("c", 1.5, 2, [])
-            , ("d", 3, 2, [])
+            , ("d", 5, 2, [])
             ]
-    plist $ Perform.overlap_map f events
+    equal (map snd (Perform.overlap_map f events))
+        [ ((0, 2), [])
+        , ((1, 2), [(0, 2)])
+        , ((1.5, 2), [(1, 2), (0, 2)])
+        , ((5, 2), [])
+        ]
 
 -- * allot
 
@@ -400,6 +439,8 @@ mkevent event = head (mkevents [event])
 
 mkevents_inst = map (\ (p, s, d, c) -> mkevent (inst1, p, s, d, c))
 
+-- | Name will determine the pitch.  It can be a-z, or a2-z2, which will
+-- yield fractional pitches.
 type EventSpec = (Instrument.Instrument, String, RealTime, RealTime,
     [(Control.Control, Signal.Control)])
 

@@ -1,9 +1,11 @@
 CURRENT
+  - fix problems with Perform.Midi:
+    - not enough lead time for pitch bend
+    * note bent by a whole step is considered shareable
+
   - more sophisticated function to find out the inst of a note track
   - put prev, cur, next in PassedArgs too?
     except that transformers currently don't get these args
-
-  - fix midi perform to handle overlaps and sharing correctly, use merge_lists
 
   - remove warped control?
 
@@ -151,7 +153,7 @@ bugs:
   - deriving signal causes event derive to fail too?
   * undo should not move windows!  some bug is making undo randomly jump to
     (0, 0), windows are also going to weird places on load
-  - can share pitches doesn't consider a whole step transposition unshareable
+  * can share pitches doesn't consider a whole step transposition unshareable
   - is kbd entry letting keys like 1 fall through?
   * Edit.cmd_delete_time is still a little funky, an event with only 2 time
     steps is deleted, >2 is shortened.
@@ -200,6 +202,16 @@ cleanup:
     rash, think about ways to derive e.g. 工尺譜.
 
 performance:
+  - More efficient signal comparison in Perform.Midi
+    Derive.State keeps a counter.  This is incremented and assigned by
+    'with_control'.  The MIDI layer can then compare IDs to tell if the signal
+    is the same.  It's reasonable for controls to extend through the decay of
+    the note, so this is enough for them.  Should I try to merge even when the
+    IDs differ?  How about no at first.
+
+    Pitch is unusual in that it is implicitly clipped at the start of the next
+    note.
+
   - profile derivation, if parsing is a problem, look into attoparsec
   - profile with and without strict state monad
   speed and memory profiling:

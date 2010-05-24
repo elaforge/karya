@@ -22,6 +22,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
+import qualified Util.Map as Map
 import qualified Util.Seq as Seq
 
 import Ui
@@ -55,10 +56,9 @@ keyswitch_interval = 4
 
 -- | Most synths don't respond to pitch bend instantly, but smooth it out, so
 -- if you set pitch bend immediately before playing the note you will get
--- a little sproing.  Try to put pitch bends before their notes by this amount,
--- unless there's another note there.
-pitch_bend_lead_time :: RealTime
-pitch_bend_lead_time = Timestamp.to_real_time (Timestamp.seconds 0.01)
+-- a little sproing.  Put pitch bends before their notes by this amount.
+set_control_lead_time :: RealTime
+set_control_lead_time = Timestamp.to_real_time (Timestamp.seconds 0.01)
 
 -- | When a track's NoteOff lines up with the next NoneOn, make them overlap by
 -- this amount.  Normally this won't be audible, but if the instrument is set
@@ -284,7 +284,7 @@ perform_note_msgs prev_note_off next_event event (dev, chan) midi_nn pb =
     , chan_msg note_off (Midi.NoteOff midi_nn off_vel)
     ], warns, note_off)
     where
-    pb_time = min note_on $ max prev_note_off (note_on - pitch_bend_lead_time)
+    pb_time = min note_on $ max prev_note_off (note_on - set_control_lead_time)
     note_on = event_start event
     should_legato = event_end event == next_note_on
         && Just midi_nn /= next_midi_nn
@@ -436,40 +436,53 @@ shareable_chan overlapping event = fmap fst (List.find all_share by_chan)
     where
     by_chan = Seq.keyed_group_on snd overlapping
     all_share (_chan, evt_chans) =
-        all (can_share_chan event) (map fst evt_chans)
+        all (flip can_share_chan event) (map fst evt_chans)
 
 -- | Can the two events coexist in the same channel without interfering?
+-- The reason this is not commutative is so I can assume the start of @old@
+-- precedes the start of @new@ and save a little computation.
 can_share_chan :: Event -> Event -> Bool
-can_share_chan event1 event2
-    | start < end = event_instrument event1 == event_instrument event2
-        && (pitches_share in_decay start end
-            (event_pitch event1) (event_pitch event2))
-        && controls_equal start end (relevant event1) (relevant event2)
+can_share_chan old new
+    | start < end = event_instrument new == event_instrument old
+        && pitches_share
+        && controls_equal start end (event_controls new) (event_controls old)
     | otherwise = True
     where
-    start = max (event_start event1) (event_start event2)
-    end = min (note_end event1) (note_end event2)
-    -- If the overlap is in the decay of one or both notes, the rules are
-    -- slightly different.
-    in_decay = event_end event1 <= event_start event2
-        || event_end event2 <= event_start event1
-    -- Velocity and aftertouch are per-note addressable in midi, but the rest
-    -- of the controls require their own channel.
-    relevant event = filter (Control.is_channel_control . fst)
-        (Map.assocs (event_controls event))
+    start = note_begin new
+    end = min (note_end new) (note_end old)
+
+    pitches_share = initial_pitch == current_pitch
+        && Signal.pitches_share in_decay start end
+            (event_pitch old) (event_pitch new)
+        where
+        -- If the overlap is in the decay of one or both notes, the rules are
+        -- slightly different.
+        in_decay = event_end new <= event_start old
+            || event_end old <= event_start new
+        -- If the old event is not at its initial pitch, it will have pitch
+        -- bend applied and therefore can't share with this one.  Actually, it
+        -- could possibly share if 'new' started on a pitch other than its
+        -- initial pitch and relied on the existing pitch bend to put it in
+        -- place, but I think this is hard with the current architecture.
+        -- TODO this will improperly split parallel pitch slides and whole
+        -- degree slides so it's not ideal.  I need to think more about how to
+        -- efficiently determine sharing.  Perhaps if can_share returned
+        -- a number if the signals are parallel with an integral offset, then
+        -- the caller can subtract that offset from the pitch.
+        initial_pitch = Signal.at (event_start old) (event_pitch old)
+        current_pitch = Signal.at start (event_pitch old)
 
 -- | Are the controls equal in the given range?
 controls_equal :: RealTime -> RealTime
-    -> [(Control.Control, Signal.Control)]
-    -> [(Control.Control, Signal.Control)] -> Bool
-controls_equal start end c0 c1 = all (uncurry eq) (zip c0 c1)
+    -> ControlMap -> ControlMap -> Bool
+controls_equal start end cs0 cs1 = all eq pairs
     where
-    -- Since the controls are compared in sorted order, if the events don't
-    -- have the same controls, they won't be equal.
-    eq (c0, sig0) (c1, sig1) = c0 == c1 && Signal.equal start end sig0 sig1
-
-pitches_share start off end sig0 sig1 =
-    Signal.pitches_share start off end sig0 sig1
+    -- Velocity and aftertouch are per-note addressable in midi, but the rest
+    -- of the controls require their own channel.
+    relevant = Map.filterWithKey (\k _ -> Control.is_channel_control k)
+    pairs = Map.pairs (relevant cs0) (relevant cs1)
+    eq (_, Just sig0, Just sig1) = Signal.equal start end sig0 sig1
+    eq _ = False
 
 -- * allot channels
 
@@ -540,6 +553,10 @@ data Event = Event {
 event_end :: Event -> RealTime
 event_end event = event_start event + event_duration event
 
+
+note_begin :: Event -> RealTime
+note_begin event = event_start event - set_control_lead_time
+
 -- | The end of an event after taking decay into account.  The note shouldn't
 -- be sounding past this time.
 note_end :: Event -> RealTime
@@ -557,14 +574,15 @@ type ControlMap = Map.Map Control.Control Signal.Control
 
 -- | Map the given function across the events, passing it previous events it
 -- overlaps with.  The previous events passed to the function are paired with
--- its previous return values on those events.
+-- its previous return values on those events.  The overlapping events are
+-- passed in reverse order, so the most recently overlapping is first.
 overlap_map :: ([(Event, a)] -> Event -> a) -> [Event] -> [(Event, a)]
 overlap_map = go []
     where
     go _ _ [] = []
     go prev f (e:events) = (e, val) : go ((e, val) : overlapping) f events
         where
-        start = event_start e
+        start = note_begin e
         overlapping = takeWhile ((> start) . note_end . fst) prev
         val = f overlapping e
 
