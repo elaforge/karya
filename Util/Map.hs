@@ -4,7 +4,6 @@ import Data.Function
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
-import qualified Data.Set as Set
 
 
 -- | This is just 'findWithDefault' by a shorter name.
@@ -62,8 +61,14 @@ zip_intersection map1 map2 =
 
 -- | Pair up elements from each map with equal keys.
 pairs :: (Ord k) => Map.Map k v1 -> Map.Map k v2 -> [(k, Maybe v1, Maybe v2)]
-pairs map1 map2 = map (\k -> (k, Map.lookup k map1, Map.lookup k map2))
-    (Set.toList (Set.union (Map.keysSet map1) (Map.keysSet map2)))
+pairs map0 map1 = pair_sorted (Map.toAscList map0) (Map.toAscList map1)
+    where
+    pair_sorted xs [] = [(k, Just v, Nothing) | (k, v) <- xs]
+    pair_sorted [] ys = [(k, Nothing, Just v) | (k, v) <- ys]
+    pair_sorted x@((k0, v0) : xs) y@((k1, v1) : ys)
+        | k0 == k1 = (k0, Just v0, Just v1) : pair_sorted xs ys
+        | k0 < k1 = (k0, Just v0, Nothing) : pair_sorted xs y
+        | otherwise = (k1, Nothing, Just v1) : pair_sorted x ys
 
 -- | Like Map.union, but also return a map of rejected duplicate keys from the
 -- map on the right.
