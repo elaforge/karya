@@ -34,6 +34,8 @@ import qualified System.Posix.IO as IO
 import qualified System.Posix.Terminal as Terminal
 import Text.Printf
 
+-- avoid ghci bug where a new import messes it up
+import qualified Util.Debug ()
 import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
 import qualified Util.SrcPos as SrcPos
