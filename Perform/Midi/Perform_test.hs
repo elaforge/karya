@@ -1,6 +1,7 @@
 module Perform.Midi.Perform_test where
 import Control.Monad
 import qualified Control.Concurrent as Concurrent
+import qualified Debug.Trace as Trace
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified System.IO as IO
@@ -33,36 +34,6 @@ legato :: Double
 legato = (\(RealTime pos) -> pos) Perform.legato_overlap_time
 
 -- * perform
-
--- Bad signal that goes over 1 at 1 and 3.
-badsig cont = (cont, mksignal [(0, 0), (1.5, 1.5), (2.5, 0.5), (4, 2)])
-
-test_clip_warns = do
-    let events = map mkevent [(inst1, "a", 0, 4, [badsig vol_cc])]
-        (msgs, warns) = perform inst_config1 events
-    -- TODO check that warnings came at the right places
-    -- check that the clips happen at the same places as the warnings
-
-    equal (extract_warns warns)
-        -- yeah matching floats is silly but it's quick and easy...
-        [ ("Control \"volume\" clipped", Just (1.5, 1.5))
-        , ("Control \"volume\" clipped", Just (3.5, 4))
-        ]
-
-    check (all_msgs_valid msgs)
-
-extract_warns = map (\w -> (Warning.warn_msg w, Warning.warn_pos w))
-
-test_vel_clip_warns = do
-    let (msgs, warns) = perform inst_config1 $ map mkevent
-            [(inst1, "a", 0, 4, [badsig Control.c_velocity])]
-    equal (extract_warns warns) [("Control \"vel\" clipped", Just (0, 4))]
-    check (all_msgs_valid msgs)
-
-all_msgs_valid wmsgs = all Midi.valid_msg (map Midi.wmsg_msg wmsgs)
-
-midi_cc_of (Midi.ChannelMessage _ (Midi.ControlChange cc val)) = Just (cc, val)
-midi_cc_of _ = Nothing
 
 test_perform = do
     let t_perform events = do
@@ -125,6 +96,7 @@ test_perform = do
 
     -- velocity curve shows up in NoteOns and NoteOffs
     -- also legato overlap comes into play
+    let c_vel = (Control.c_velocity, mksignal [(0, 1), (4, 0)])
     msgs <- t_perform
         [ [ (inst1, "a", 0, 2, [c_vel])
         , (inst1, "b", 2, 2, [c_vel])
@@ -149,16 +121,131 @@ test_perform = do
         , ("dev1", 2.0, 0, NoteOff 60 100)
         ]
 
+trace_warns :: [Warning.Warning] -> a -> a
+trace_warns warns val
+    | null warns = val
+    | otherwise = Trace.trace (unlines $ map Warning.warn_msg warns) val
+
+test_control_lead_time = do
+    -- verify that controls are given lead time if they are on their own
+    -- channels, and not if they aren't
+    let Timestamp.Timestamp lead =
+            Timestamp.from_real_time Perform.control_lead_time
+    let extract_msgs wmsgs =
+            [(ts, chan, msg) | Midi.WriteMessage _ (Timestamp.Timestamp ts)
+                (Midi.ChannelMessage chan msg) <- wmsgs]
+        extract (msgs, warns) = trace_warns warns (extract_msgs msgs)
+    let f = extract . perform inst_config2 . mkevents_inst1
+
+    equal (f [("a", 0, 4, []), ("b2", 4, 4, [])])
+        [ (0, 0, PitchBend 0)
+        , (0, 0, NoteOn 60 100)
+
+        , (4000 - lead, 1, PitchBend 0.5)
+        , (4000, 0, NoteOff 60 100)
+        , (4000, 1, NoteOn 61 100)
+        , (8000, 1, NoteOff 61 100)
+        ]
+
+    let vol = (vol_cc, mksignal [(4, 0), (6, 1)])
+    equal (f [("a", 0, 4, []), ("b", 4, 4, [vol])])
+        [ (0, 0, PitchBend 0)
+        , (0, 0, NoteOn 60 100)
+
+        , (4000 - lead, 1, ControlChange 7 0)
+        , (4000 - lead, 1, PitchBend 0)
+
+        , (4000, 0, NoteOff 60 100)
+
+        , (4000, 1, NoteOn 61 100)
+        , (5000, 1, ControlChange 7 63)
+        , (6000, 1, ControlChange 7 127)
+        , (8000, 1, NoteOff 61 100)
+        ]
+
+    -- Force them to be on the same channel, so there shouldn't be any
+    -- control lead.
+    let f2 = extract . perform inst_config2 . mkevents
+    equal (f2 [(inst2, "a", 0, 4, []), (inst2, "b2", 4, 4, [])])
+        [ (0, 2, PitchBend 0)
+        , (0, 2, NoteOn 60 100)
+        , (4000, 2, PitchBend 0.5)
+        , (4000, 2, NoteOn 61 100)
+        , (4010, 2, NoteOff 60 100) -- legato overlap kicks in
+        , (8000, 2, NoteOff 61 100)
+        ]
+
+    equal (f2 [(inst2, "a", 0, 4, []), (inst2, "b", 4, 4, [vol])])
+        [ (0, 2, PitchBend 0)
+        , (0, 2, NoteOn 60 100)
+        , (4000, 2, ControlChange 7 0)
+        , (4000, 2, NoteOn 61 100)
+        , (4010, 2, NoteOff 60 100) -- legato overlap kicks in
+        , (5000, 2, ControlChange 7 63)
+        , (6000, 2, ControlChange 7 127)
+        , (8000, 2, NoteOff 61 100)
+        ]
+
+
+-- Bad signal that goes over 1 at 1 and 3.
+badsig cont = (cont, mksignal [(0, 0), (1.5, 1.5), (2.5, 0.5), (4, 2)])
+
+test_clip_warns = do
+    let events = [mkevent (inst1, "a", 0, 4, [badsig vol_cc])]
+        (msgs, warns) = perform inst_config1 events
+    -- TODO check that warnings came at the right places
+    -- check that the clips happen at the same places as the warnings
+
+    equal (extract_warns warns)
+        -- yeah matching floats is silly but it's quick and easy...
+        [ ("Control \"volume\" clipped", Just (1.5, 1.5))
+        , ("Control \"volume\" clipped", Just (3.5, 4))
+        ]
+
+    check (all_msgs_valid msgs)
+
+extract_warns = map (\w -> (Warning.warn_msg w, Warning.warn_pos w))
+
+test_vel_clip_warns = do
+    let (msgs, warns) = perform inst_config1 $ mkevents_inst1
+            [("a", 0, 4, [badsig Control.c_velocity])]
+    equal (extract_warns warns) [("Control \"vel\" clipped", Just (0, 4))]
+    check (all_msgs_valid msgs)
+
+all_msgs_valid wmsgs = all Midi.valid_msg (map Midi.wmsg_msg wmsgs)
+
+midi_cc_of (Midi.ChannelMessage _ (Midi.ControlChange cc val)) = Just (cc, val)
+midi_cc_of _ = Nothing
+
 unpack_msg (Midi.WriteMessage (Midi.WriteDevice dev) ts
         (Midi.ChannelMessage chan msg)) =
     (dev, Timestamp.to_seconds ts, chan, msg)
 unpack_msg (Midi.WriteMessage (Midi.WriteDevice _) _ msg) =
     error $ "unknown msg: " ++ show msg
 
--- test_perform_lazy = do
---     let endless = map (\(n, ts) -> (n:"", ts, 4, [c_vol]))
---             (zip (cycle ['a'..'g']) [0,4..])
---     let (msgs, _warns) = perform_one_chan endless
+test_perform_lazy = do
+    let perform evts = Perform.perform_notes [(evt, (dev1, 0)) | evt <- evts]
+    let endless = map mkevent [(inst1, n:"", ts, 4, [])
+            | (n, ts) <- zip (cycle ['a'..'g']) [0,4..]]
+    let (msgs, _warns) = perform endless
+    res <- run_timeout 1 $ return (take 20 msgs)
+    case res of
+        Just msgs -> print_msgs msgs
+        Nothing -> return ()
+
+run_timeout :: Double -> IO a -> IO (Maybe a)
+run_timeout timeout action = do
+    mvar <- Concurrent.newEmptyMVar
+    th1 <- Concurrent.forkIO $ do
+        val <- action
+        Concurrent.putMVar mvar (Just val)
+    th2 <- Concurrent.forkIO $ do
+        Concurrent.threadDelay (floor (timeout * 1000000))
+        Concurrent.putMVar mvar Nothing
+    result <- Concurrent.takeMVar mvar
+    mapM_ Concurrent.killThread [th1, th2]
+    return result
+
 --     (th_id, chan) <- pretend_to_write msgs
 --     Concurrent.threadDelay (5 * 1000000)
 --     Concurrent.killThread th_id
@@ -191,10 +278,6 @@ pretend_to_write xs = do
             putStrLn $ show i ++ ": " ++ show_msg msg
         IO.hPutStr handle (show msg)
 
--- perform_one_chan events =
---     Perform.perform_notes (with_chan 0 (mkevents events))
---     where with_chan chan = map (\evt -> (evt, (dev1, chan)))
-
 print_msgs = mapM_ (putStrLn . show_msg)
 show_msg (Midi.WriteMessage dev ts msg) =
     show dev ++ ": " ++ pretty ts ++ ": " ++ show msg
@@ -208,11 +291,10 @@ test_pitch_curve = do
                 (RealTime 0) Nothing evt (dev1, 1)
         chan msgs = (map (Midi.ChannelMessage 1) msgs, [])
 
-    equal (f (event [(1, 42.12)]))
-        (chan [Midi.PitchBend 0.01, Midi.NoteOn 42 100, Midi.NoteOff 42 100])
+    equal (f (event [(1, 42.5)]))
+        (chan [Midi.PitchBend 0.5, Midi.NoteOn 42 100, Midi.NoteOff 42 100])
 
-    equal (f (event
-            [(1, 42), (1.5, 42+6), (1.75, 42+12), (1.9, 42+16), (2, 42+24)]))
+    equal (f (event [(1, 42), (1.5, 42.5), (1.75, 43), (1.9, 43.5), (2, 44)]))
         (chan $
             [ Midi.PitchBend 0, Midi.NoteOn 42 100
             , Midi.PitchBend 0.5
@@ -223,10 +305,11 @@ test_pitch_curve = do
     let notes prev evt = [(Midi.wmsg_ts msg, Midi.wmsg_msg msg) | msg <- msgs]
             where
             (msgs, _, _) = Perform.perform_note prev Nothing evt (dev1, 1)
-    equal (head (notes (RealTime 0) (event [(1, 42.12)])))
-        (Timestamp.Timestamp 990, Midi.ChannelMessage 1 (Midi.PitchBend 0.01))
-    equal (head (notes (RealTime 1) (event [(1, 42.12)])))
-        (Timestamp.Timestamp 1000, Midi.ChannelMessage 1 (Midi.PitchBend 0.01))
+    -- Try to use the control_lead_time unless the previous note is too close.
+    equal (head (notes (RealTime 0) (event [(1, 42.5)])))
+        (Timestamp.Timestamp 900, Midi.ChannelMessage 1 (Midi.PitchBend 0.5))
+    equal (head (notes (RealTime 1) (event [(1, 42.5)])))
+        (Timestamp.Timestamp 1000, Midi.ChannelMessage 1 (Midi.PitchBend 0.5))
 
 test_no_pitch = do
     let event = (mkevent (inst1, "a", 0, 2, []))
@@ -286,8 +369,7 @@ test_drop_duplicates = do
 test_perform_control1 = do
     -- Bad signal that goes over 1 in two places.
     let sig = (vol_cc, mksignal [(0, 0), (1, 1.5), (2, 0), (2.5, 0), (3, 2)])
-        (msgs, warns) = Perform.perform_control Control.empty_map
-            (RealTime 0) (RealTime 4) sig
+        (msgs, warns) = Perform.perform_control Control.empty_map 0 0 4 sig
 
     -- controls are not emitted after they reach steady values
     check $ all Midi.valid_chan_msg (map snd msgs)
@@ -296,8 +378,7 @@ test_perform_control1 = do
 
 test_perform_control2 = do
     let sig = (vol_cc, mksignal [(0, 0), (4, 1)])
-        (msgs, warns) = Perform.perform_control Control.empty_map
-            (RealTime 2) (RealTime 4) sig
+        (msgs, warns) = Perform.perform_control Control.empty_map 0 2 4 sig
     plist warns
     plist msgs
 
@@ -338,7 +419,7 @@ test_channelize = do
         [0, 1]
 
     -- can finally share
-    let evt0_end2 = evt0_end + Perform.set_control_lead_time
+    let evt0_end2 = evt0_end + Perform.control_lead_time
     equal (f
         [ (0, 2, [(0, 60)])
         , (evt0_end2, 2, [(evt0_end2, 60.5)])
@@ -346,16 +427,13 @@ test_channelize = do
         [0, 0]
 
     -- don't bother channelizing if the inst only has one addr
-    equal (map snd $ Perform.channelize inst_addrs $ map mkevent
+    equal (map snd $ Perform.channelize inst_addrs $ mkevents
         [ (inst2, "a", 0, 2, [])
         , (inst2, "a2", 1, 2, [])
         ])
         [0, 0]
 
-
 test_can_share_chan = do
-    let mkcontrols csigs = Map.fromList
-            [(Control.Control c, Signal.signal sig) | (c, sig) <- csigs]
     let pevent (start, dur, psig, conts) =
             Perform.Event inst1 start dur (mkcontrols conts)
                 (Signal.signal psig) []
@@ -375,7 +453,7 @@ test_can_share_chan = do
     let e0_end = Perform.note_end (pevent (0, 2, [], []))
     equal (f (0, 2, [(0, 60)], []) (e0_end, 2, [(e0_end, 60.5)], [])) False
     -- Finally can share.
-    let e0_end2 = e0_end + Perform.set_control_lead_time
+    let e0_end2 = e0_end + Perform.control_lead_time
     equal (f (0, 2, [(0, 60)], []) (e0_end2, 2, [(e0_end2, 60.5)], [])) True
 
     -- First pitch can't share because it's bent from its original pitch.
@@ -391,7 +469,6 @@ test_can_share_chan = do
     -- Share with the same controller.
     equal (f (0, 2, [(0, 60)], [cont]) (0, 2, [(0, 61)], [cont])) True
     equal (f (0, 2, [(0, 60)], [cont]) (0, 2, [(0, 61)], [])) False
-
 
 test_overlap_map = do
     let extent e = (Perform.event_start e, Perform.event_duration e)
@@ -444,10 +521,13 @@ mkevents_inst = map (\ (p, s, d, c) -> mkevent (inst1, p, s, d, c))
 type EventSpec = (Instrument.Instrument, String, RealTime, RealTime,
     [(Control.Control, Signal.Control)])
 
+mkevents_inst1 evts = mkevents
+    [(inst1, text, start, dur, conts) | (text, start, dur, conts) <- evts]
+
+-- | Takes a list so it can simulate the controls and pitch for one track.
 mkevents :: [EventSpec] -> [Perform.Event]
 mkevents events = trim_pitches
-    [Perform.Event inst start dur
-        (Map.fromList controls) pitch_sig stack
+    [Perform.Event inst start dur (Map.fromList controls) pitch_sig stack
         | (inst, _, start, dur, controls) <- events]
     where
     pitch_sig = Signal.signal [(pos, to_pitch p) | (_, p, pos, _, _) <- events]
@@ -458,8 +538,12 @@ mkevents events = trim_pitches
     stack =
         [ (Types.BlockId (Id.id "test" "fakeblock")
         , Just (Types.TrackId (Id.id "test" "faketrack"))
-        , Just (42, 42))
+        , Just (42, 43))
         ]
+
+mkcontrols :: [(String, [(RealTime, Signal.Y)])] -> Perform.ControlMap
+mkcontrols csigs = Map.fromList
+    [(Control.Control c, Signal.signal sig) | (c, sig) <- csigs]
 
 -- snaked from Derive.Note.trim_pitches
 trim_pitches :: [Perform.Event] -> [Perform.Event]
@@ -483,16 +567,12 @@ mksignal = Signal.signal . interpolate
     d = SignalBase.x_to_double
 
 vol_cc = Control.Control "volume"
-c_vol = (vol_cc, mksignal [(0, 1), (4, 0)])
-c_vol2 = (vol_cc, mksignal [(0, 1), (2, 0), (4, 1)])
-c_vel = (Control.c_velocity, mksignal [(0, 1), (4, 0)])
-c_aftertouch = (Control.c_aftertouch, mksignal [(0, 0), (8, 1)])
 
-inst name = Instrument.instrument (Instrument.synth_name synth1) name Nothing
-    Control.empty_map (-12, 12)
+inst1 = mkinst "inst1"
+inst2 = mkinst "inst2"
+mkinst name = Instrument.instrument (Instrument.synth_name synth1) name Nothing
+    Control.empty_map (-1, 1)
 
-inst1 = inst "inst1"
-inst2 = inst "inst2"
 dev1 = Midi.WriteDevice "dev1"
 dev2 = Midi.WriteDevice "dev2"
 synth1 = Instrument.synth "synth1" "synth1" []

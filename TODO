@@ -1,6 +1,6 @@
 CURRENT
   - fix problems with Perform.Midi:
-    - not enough lead time for pitch bend
+    * not enough lead time for pitch bend
     * note bent by a whole step is considered shareable
 
   - more sophisticated function to find out the inst of a note track
@@ -146,7 +146,7 @@ bugs:
   * comment event should be ignored... or use just ;?  in any case I should be
     able to make it 0 dur
   * warning is missing a space: "performance: no pitch signalpos: (TrackP..."
-  - Perform.Midi.Perform: control lead time is not enough, make each note
+  * Perform.Midi.Perform: control lead time is not enough, make each note
     have a "pre-decay" to check for presetting controls, and remove sort post
     proc
   - clipboard is not handling the skeleton properly

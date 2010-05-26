@@ -22,6 +22,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
+import Util.Control
 import qualified Util.Map as Map
 import qualified Util.Seq as Seq
 
@@ -57,8 +58,8 @@ keyswitch_interval = 4
 -- | Most synths don't respond to pitch bend instantly, but smooth it out, so
 -- if you set pitch bend immediately before playing the note you will get
 -- a little sproing.  Put pitch bends before their notes by this amount.
-set_control_lead_time :: RealTime
-set_control_lead_time = Timestamp.to_real_time (Timestamp.seconds 0.01)
+control_lead_time :: RealTime
+control_lead_time = Timestamp.to_real_time (Timestamp.seconds 0.1)
 
 -- | When a track's NoteOff lines up with the next NoneOn, make them overlap by
 -- this amount.  Normally this won't be audible, but if the instrument is set
@@ -107,33 +108,35 @@ perform_notes :: [(Event, Instrument.Addr)]
     -- Pass an empty AddrInst because I can't make any assumptions about the
     -- state of the synthesizer.  The one from the wdev state might be out of
     -- date by the time this performance is played.
-perform_notes events = _perform_notes Map.empty [] (RealTime 0) events
-
-_perform_notes :: AddrInst -> [Midi.WriteMessage]
-    -> RealTime -> [(Event, Instrument.Addr)]
-    -> ([Midi.WriteMessage], [Warning.Warning])
-_perform_notes _ overlapping _ [] = (overlapping, [])
-_perform_notes addr_inst overlapping prev_note_off ((event, addr):events) =
-    (play ++ rest_msgs, chan_state_warns ++ warns ++ rest_warns)
+perform_notes events = (merge_sorted_messages msgs, concat warns)
     where
-    (rest_msgs, rest_warns) = _perform_notes addr_inst2 not_yet note_off events
-    -- This find could demand lots or all of events if the
-    -- (instrument, chan) doesn't play for a long time, or ever.  It only
-    -- happens once at gaps though, but if it's a problem I can abort after
-    -- n seconds, which would possibly save generating controls there, at
-    -- the cost of assuming decays are < n sec.
-    next_event = fmap fst $ List.find ((==addr) . snd) events
-    (msgs, warns, note_off) = perform_note prev_note_off next_event event addr
-    first_ts = case msgs of
-        [] -> Timestamp.Timestamp 0 -- perform_note decided to play nothing?
-        (msg:_) -> Midi.wmsg_ts msg
-    -- These will be in the \"past\", so messages may get slightly out of order
-    -- if they are before 'overlapping', which means that a pchange with a long
-    -- lead time may lose its lead time.  TODO fix this if it becomes a problem
+    (msgs, warns) = unzip $
+        map_notes _perform_note (Map.empty, Map.empty) events
+    -- This is like mapAccumL, but looks for the next event.
+    map_notes _ _ [] = []
+    map_notes f state (x@(_, addr):xs) = y : map_notes f state2 xs
+        where
+        next = fst <$> List.find ((==addr) . snd) xs
+        (state2, y) = f state next x
+
+-- | Map from an address to the last time a note was playing on that address.
+-- This includes the last note's decay time, so the channel should be reusable
+-- after this time.
+type NoteOffMap = Map.Map Instrument.Addr RealTime
+
+_perform_note :: (AddrInst, NoteOffMap) -> Maybe Event
+    -> (Event, Instrument.Addr)
+    -> ((AddrInst, NoteOffMap), ([Midi.WriteMessage], [Warning.Warning]))
+_perform_note (addr_inst, note_off_map) next_event (event, addr) =
+    ((addr_inst2, Map.insert addr note_off note_off_map), (msgs, warns))
+    where
+    (note_msgs, note_warns, note_off) = perform_note
+        (Map.findWithDefault 0 addr note_off_map) next_event event addr
     (chan_state_msgs, chan_state_warns, addr_inst2) =
         adjust_chan_state addr_inst addr event
-    (play, not_yet) = List.partition ((<= first_ts) . Midi.wmsg_ts)
-        (merge_messages [overlapping, chan_state_msgs ++ msgs])
+    msgs = merge_messages [chan_state_msgs, note_msgs]
+    warns = note_warns ++ chan_state_warns
+
 
 -- | Figure out of any msgs need to be emitted to convert the channel state to
 -- the given event on the given addr.
@@ -196,7 +199,7 @@ chan_state_msgs addr@(wdev, chan) ts maybe_old_inst new_inst
 
 -- | Some context free post-processing on the midi stream.
 post_process :: [Midi.WriteMessage] -> [Midi.WriteMessage]
-post_process = reorder_control_messages . drop_duplicates
+post_process = drop_duplicates
 
 drop_duplicates :: [Midi.WriteMessage] -> [Midi.WriteMessage]
 drop_duplicates = drop_dup_controls Map.empty
@@ -233,23 +236,6 @@ analyze_msg (Just (pb_val, cmap)) msg = case msg of
         | otherwise -> (True, Just (pb_val, Map.insert c v cmap))
     _ -> (True, Nothing)
 
--- | If a control message and a note message happen at the same time, the
--- control should go first, just to make sure the synth doesn't make a popping
--- noise.
-reorder_control_messages :: [Midi.WriteMessage] -> [Midi.WriteMessage]
-reorder_control_messages = sort2 (compare `on` msg_key)
-    where
-    msg_key msg = (Midi.wmsg_ts msg, key msg)
-    key msg = case Midi.wmsg_msg msg of
-        Midi.ChannelMessage _ (Midi.ControlChange _ _) -> 0
-        _ -> 1
-
--- | A single bubblesort pass.  It's lazy and sorts almost-sorted stuff well.
-sort2 cmp (a:b:zs) = case cmp a b of
-    GT -> b : sort2 cmp (a:zs)
-    _ -> a : sort2 cmp (b:zs)
-sort2 cmp xs = List.sortBy cmp xs
-
 
 -- * perform note
 
@@ -259,11 +245,12 @@ sort2 cmp xs = List.sortBy cmp xs
 -- legato tweak and to see how far to render controls.
 perform_note :: RealTime -> Maybe Event -> Event -> Instrument.Addr
     -> ([Midi.WriteMessage], [Warning.Warning], RealTime)
+    -- ^ (msgs, warns, note_off)
 perform_note prev_note_off next_event event addr =
     case event_pitch_at (event_pb_range event) event (event_start event) of
         Nothing -> ([], [event_warning event "no pitch signal"], prev_note_off)
-        Just (midi_nn, pb) ->
-            let (note_msgs, note_warns, note_off) = _note_msgs midi_nn pb
+        Just (midi_nn, _) ->
+            let (note_msgs, note_warns, note_off) = _note_msgs midi_nn
                 (control_msgs, control_warns) = _control_msgs midi_nn
                 warns = note_warns ++ control_warns
             in (merge_messages [control_msgs, note_msgs], warns, note_off)
@@ -271,21 +258,19 @@ perform_note prev_note_off next_event event addr =
     -- 'perform_note_msgs' and 'perform_control_msgs' are really part of one
     -- big function.  Splitting it apart led to a bit of duplicated work but
     -- hopefully it's easier to understand this way.
-    _note_msgs = perform_note_msgs prev_note_off next_event event addr
-    _control_msgs = perform_control_msgs next_event event addr
+    _note_msgs = perform_note_msgs next_event event addr
+    _control_msgs = perform_control_msgs prev_note_off next_event event addr
 
 -- | Perform the note on and note off.
-perform_note_msgs :: RealTime -> Maybe Event -> Event -> Instrument.Addr
-    -> Midi.Key -> Midi.PitchBendValue
-    -> ([Midi.WriteMessage], [Warning.Warning], RealTime)
-perform_note_msgs prev_note_off next_event event (dev, chan) midi_nn pb =
-    ([ chan_msg pb_time (Midi.PitchBend pb)
-    , chan_msg note_on (Midi.NoteOn midi_nn on_vel)
+perform_note_msgs :: Maybe Event -> Event -> Instrument.Addr
+    -> Midi.Key -> ([Midi.WriteMessage], [Warning.Warning], RealTime)
+perform_note_msgs next_event event (dev, chan) midi_nn =
+    ([ chan_msg note_on (Midi.NoteOn midi_nn on_vel)
     , chan_msg note_off (Midi.NoteOff midi_nn off_vel)
     ], warns, note_off)
     where
-    pb_time = min note_on $ max prev_note_off (note_on - set_control_lead_time)
     note_on = event_start event
+    -- Don't legato between repeated notes.
     should_legato = event_end event == next_note_on
         && Just midi_nn /= next_midi_nn
     note_off = event_end event
@@ -300,9 +285,9 @@ perform_note_msgs prev_note_off next_event event (dev, chan) midi_nn pb =
         (Midi.ChannelMessage chan msg)
 
 -- | Perform control change messages.
-perform_control_msgs :: Maybe Event -> Event -> Instrument.Addr
+perform_control_msgs :: RealTime -> Maybe Event -> Event -> Instrument.Addr
     -> Midi.Key -> ([Midi.WriteMessage], [Warning.Warning])
-perform_control_msgs next_event event (dev, chan) midi_nn =
+perform_control_msgs prev_note_off next_event event (dev, chan) midi_nn =
     (control_msgs, warns)
     where
     control_msgs = merge_messages $
@@ -310,9 +295,10 @@ perform_control_msgs next_event event (dev, chan) midi_nn =
     control_sigs = Map.assocs (event_controls event)
     cmap = Instrument.inst_control_map (event_instrument event)
     (control_pos_msgs, clip_warns) = unzip $
-        map (perform_control cmap note_on next_note_on) control_sigs
-    pitch_pos_msgs = perform_pitch (event_pb_range event) midi_nn note_on
-        next_note_on (event_pitch event)
+        map (perform_control cmap prev_note_off note_on next_note_on)
+            control_sigs
+    pitch_pos_msgs = perform_pitch (event_pb_range event)
+        midi_nn prev_note_off note_on next_note_on (event_pitch event)
     note_on = event_start event
 
     next_note_on = maybe (note_end event) event_start next_event
@@ -362,29 +348,45 @@ control_at event control pos = do
     return (Signal.at pos sig)
 
 perform_pitch :: Control.PbRange -> Midi.Key -> RealTime -> RealTime
-    -> Signal.NoteNumber -> [(RealTime, Midi.ChannelMessage)]
-perform_pitch pb_range nn start end sig =
+    -> RealTime -> Signal.NoteNumber -> [(RealTime, Midi.ChannelMessage)]
+perform_pitch pb_range nn prev_note_off start end sig =
     [(pos, Midi.PitchBend (Control.pb_from_nn pb_range nn val)) |
-        (pos, val) <- pos_vals]
-    where pos_vals = takeWhile ((<end) . fst) $ Signal.sample start sig
+        (pos, val) <- pos_vals2]
+    where
+    pos_vals = takeWhile ((<end) . fst) $ Signal.sample start sig
+    pos_vals2 = create_leading_cc prev_note_off start sig pos_vals
 
 -- | Return the (pos, msg) pairs, and whether the signal value went out of the
 -- allowed control range, 0--1.
-perform_control :: Control.ControlMap -> RealTime -> RealTime
+perform_control :: Control.ControlMap -> RealTime -> RealTime -> RealTime
     -> (Control.Control, Signal.Control)
     -> ([(RealTime, Midi.ChannelMessage)], [ClipWarning])
-perform_control cmap start end (control, sig) =
+perform_control cmap prev_note_off start end (control, sig) =
     case Control.control_constructor cmap control of
         Nothing -> ([], []) -- TODO warn about a control not in the cmap
-        Just cons -> ([(pos, cons val) | (pos, val) <- pos_cvals], clip_warns)
+        Just ctor -> ([(pos, ctor val) | (pos, val) <- pos_vals3], clip_warns)
     where
-        -- TODO get srate from a control
+    pos_vals3 = create_leading_cc prev_note_off start sig pos_vals2
     pos_vals = takeWhile ((<end) . fst) $ Signal.sample start sig
     (low, high) = Control.control_range
-    -- arrows?
-    (cvals, clips) = unzip (map (clip_val low high) (map snd pos_vals))
+    -- Ack.  Extract the vals, clip them, zip clipped vals back in.
+    (clipped_vals, clips) = unzip (map (clip_val low high) (map snd pos_vals))
     clip_warns = extract_clip_warns (zip pos_vals clips)
-    pos_cvals = zip (map fst pos_vals) cvals
+    pos_vals2 = zip (map fst pos_vals) clipped_vals
+
+-- | I rely on postprocessing to eliminate the redundant msgs.
+-- Since 'channelize' respects the 'control_lead_time', I expect msgs to be
+-- scheduled on their own channels if possible.
+create_leading_cc :: RealTime -> RealTime -> Signal.Signal y
+    -> [(RealTime, Signal.Y)] -> [(RealTime, Signal.Y)]
+create_leading_cc prev_note_off start sig pos_vals =
+    initial : dropWhile ((<=start) . fst) pos_vals
+    where
+    -- Don't go before 0.  Don't go before the previous note, but don't go
+    -- after the start of this note, in case the previous note ends after this
+    -- one begins.
+    tweak = max 0 . max (min prev_note_off start)
+    initial = (tweak (start - control_lead_time), Signal.at start sig)
 
 extract_clip_warns :: [((RealTime, Signal.Y), Bool)] -> [ClipWarning]
 extract_clip_warns pos_val_clips = [(head pos, last pos) | pos <- clip_pos]
@@ -401,7 +403,10 @@ clip_val low high val
 
 -- | Merge the sorted midi messages into a single sorted list.
 merge_messages :: [[Midi.WriteMessage]] -> [Midi.WriteMessage]
-merge_messages = foldr (Seq.merge_on Midi.wmsg_ts) []
+merge_messages = Seq.merge_lists Midi.wmsg_ts
+
+merge_sorted_messages :: [[Midi.WriteMessage]] -> [Midi.WriteMessage]
+merge_sorted_messages = Seq.merge_asc_lists Midi.wmsg_ts
 
 -- * channelize
 
@@ -555,7 +560,7 @@ event_end event = event_start event + event_duration event
 
 
 note_begin :: Event -> RealTime
-note_begin event = event_start event - set_control_lead_time
+note_begin event = event_start event - control_lead_time
 
 -- | The end of an event after taking decay into account.  The note shouldn't
 -- be sounding past this time.
