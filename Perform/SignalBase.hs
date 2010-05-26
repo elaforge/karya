@@ -9,8 +9,6 @@ import qualified Foreign.Storable as Storable
 
 import Ui
 
-import qualified Util.Seq as Seq
-
 -- * types
 
 -- | This is just a class alias to stave off huge ugly signatures.
@@ -93,12 +91,12 @@ highest_index x vec
     | otherwise = i - 1
     where i = bsearch_above vec fst x
 
--- | Generate samples starting at a certain point in the signal.
+-- | Return all samples at and after a certain point in the signal.
 sample :: (Signal y) => X -> SigVec y -> [(X, y)]
 sample start vec
     | V.null vec = [(start, zero_y)]
     | V.null rest = [(start, snd (V.index vec (V.length vec - 1)))]
-    | otherwise = Seq.drop_initial_dups fst (V.unpack rest)
+    | otherwise = V.unpack rest
     where rest = V.drop (bsearch_on vec fst start) vec
 
 -- | Find the index of the first element >= the key of the given element.
