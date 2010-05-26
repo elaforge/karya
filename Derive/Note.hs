@@ -153,31 +153,6 @@ d_note_track track_id = do
     join $ Call.eval_note_transformer "title" 1 title_expr $
         derive_notes pos_events
 
--- * directive
-
-{-
-is_directive :: String -> Bool
-is_directive (';':_) = True
-is_directive _ = False
-
-parse_directive :: Score.Event -> Maybe (Either String Call)
-parse_directive event = case Score.event_string event of
-    c : rest | c == directive_prefix -> Just (parse_directive_text rest)
-    _ -> Nothing
-
-parse_directive_text :: String -> Either String Call
-parse_directive_text text = do
-    (tokens, call_tokens) <- TrackLang.parse text
-    when (not (null call_tokens)) $
-        Left $ "calls not supported for directives: " ++ show call_tokens
-    parse_call tokens
-
-directive_prefix :: Char
-directive_prefix = ';'
--}
-
--- * derive
-
 derive_notes :: [Track.PosEvent] -> Derive.EventDeriver
 derive_notes = fmap Derive.merge_event_lists
     . Call.derive_track ("note", Derive.no_events, Call.lookup_note_call, id)
