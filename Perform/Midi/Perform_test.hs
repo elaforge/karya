@@ -152,8 +152,8 @@ test_control_lead_time = do
         [ (0, 0, PitchBend 0)
         , (0, 0, NoteOn 60 100)
 
-        , (4000 - lead, 1, ControlChange 7 0)
         , (4000 - lead, 1, PitchBend 0)
+        , (4000 - lead, 1, ControlChange 7 0)
 
         , (4000, 0, NoteOff 60 100)
 

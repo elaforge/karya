@@ -1,3 +1,4 @@
+-- | Put your own local commands here.
 module Local.Lang.Test where
 import qualified Util.Log as Log
 
@@ -19,7 +20,7 @@ import qualified Derive.Score as Score
 import qualified Derive.Schema as Schema
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Instrument as Instrument
-import Cmd.LanguageCmds
+import Cmd.Lang.Global
 
 
 test_cmd :: Cmd.CmdL ()

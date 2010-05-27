@@ -23,7 +23,7 @@
 
     - different mouse buttons are hard to do on the mac, so use standard for now
 
-    - merge with function... I think I can just do it in LanguageCmds
+    - merge with function... I think I can just do it at the REPL
 
     More complicated pastes should be implemented as derivers, which are more
     flexible than editing operations.  However, there could be a "derive in

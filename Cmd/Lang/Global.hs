@@ -1,8 +1,9 @@
-{- | Helper functions to be imported into LanguageEnviron.  LanguageEnviron
+{- | Helper functions to be imported into Cmd.Lang.Environ.  Cmd.Lang.Environ
     must be interpreted since it's the \"top level\" module, so I put the
-    library of commands in here.
+    library of commands in here.  An unqualified import in Cmd.Lang.Environ
+    means this module is in scope at the REPL.
 
-    Of course, lang commands can use anything in scope in LanguageEnviron, not
+    Of course, lang commands can use anything in scope in Cmd.Lang.Environ, not
     just these helpers.  That includes all the various cmd_* functions used by
     the keybindings and everything in State.  Also, keybindings can be invoked
     directly with the 'keybinding' helper.  TODO not implemented
@@ -23,7 +24,7 @@
     should go here.  Cmds which are meant to be used from the REPL but may be
     more specialized can go in Cmd.Lang.L* modules.
 -}
-module Cmd.LanguageCmds where
+module Cmd.Lang.Global where
 import Control.Monad
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -69,6 +70,7 @@ import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Warning as Warning
 
 import qualified App.Config as Config
+
 
 -- * errors
 

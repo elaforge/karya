@@ -31,7 +31,7 @@ type StackPos = (BlockId, Maybe TrackId, Maybe (ScoreTime, ScoreTime))
 -- | Stack order is most recent call last.
 type Stack = [StackPos]
 
--- | Format a StackPos.  These functions are used by LogView and LanguageCmds,
+-- | Format a StackPos.  These functions are used by LogView and Cmd.Lang.*,
 -- but are here since both places import this module.  Examples:
 --
 -- > "untitled/b0 untitled/b0.t2 0-.25"

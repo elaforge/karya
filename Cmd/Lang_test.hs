@@ -1,4 +1,4 @@
-module Cmd.Language_test where
+module Cmd.Lang_test where
 -- import qualified Control.Concurrent as Concurrent
 -- import qualified Control.Exception as Exception
 -- import qualified Data.Map as Map
@@ -9,7 +9,7 @@ import Util.Test
 
 -- import qualified Ui.State as State
 -- import qualified Cmd.Cmd as Cmd
--- import qualified Cmd.Language as Language
+-- import qualified Cmd.Lang as Lang
 
 
 -- TODO broken and slow tests

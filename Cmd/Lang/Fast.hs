@@ -5,7 +5,7 @@ module Cmd.Lang.Fast where
 import qualified Data.Char as Char
 
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.LanguageCmds as LanguageCmds
+import qualified Cmd.Lang.Global as Global
 import qualified Cmd.Lang.LInst as LInst
 
 
@@ -19,10 +19,9 @@ fast_interpret text = case lex_all text of
 interpret :: [String] -> Maybe (Cmd.CmdT IO String)
 interpret toks = case toks of
         -- Called by logview.
-        ["s", str] | Just arg <- val str -> cmd $ LanguageCmds.s arg
-        ["collapse", int] | Just arg <- val int ->
-            cmd $ LanguageCmds.collapse arg
-        ["expand", int] | Just arg <- val int -> cmd $ LanguageCmds.expand arg
+        ["s", str] | Just arg <- val str -> cmd $ Global.s arg
+        ["collapse", int] | Just arg <- val int -> cmd $ Global.collapse arg
+        ["expand", int] | Just arg <- val int -> cmd $ Global.expand arg
 
         -- Called by the browser.
         ["load_instrument", str] | Just arg <- val str ->
@@ -30,14 +29,15 @@ interpret toks = case toks of
 
         -- Misc.
         ["quit"] -> Just quit
-        ["save"] -> cmd LanguageCmds.save
-        ["save_as", str] | Just arg <- val str -> cmd $ LanguageCmds.save_as arg
-        ["load", str] | Just arg <- val str -> cmd $ LanguageCmds.load arg
+        ["save"] -> cmd Global.save
+        ["save_as", str] | Just arg <- val str -> cmd $ Global.save_as arg
+        ["load", str] | Just arg <- val str -> cmd $ Global.load arg
 
+        ["show_state"] -> Just Global.show_state
         ["show_views", str] | Just arg <- val str ->
-            Just $ LanguageCmds.show_views arg
+            Just $ Global.show_views arg
         ["show_blocks", str] | Just arg <- val str ->
-            Just $ LanguageCmds.show_blocks arg
+            Just $ Global.show_blocks arg
         _ -> Nothing
     where
     cmd c = Just (c >> return "")

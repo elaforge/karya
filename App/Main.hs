@@ -39,7 +39,7 @@ import qualified Cmd.MakeRuler as MakeRuler
 import qualified Cmd.Responder as Responder
 -- import qualified Cmd.TimeStep as TimeStep
 import qualified Cmd.Save as Save
-import qualified Cmd.Language as Language
+import qualified Cmd.Lang as Lang
 
 
 import qualified Instrument.Db as Db
@@ -54,8 +54,7 @@ import qualified Local.Instrument.Fm8 as Fm8
 -- sure it doesn't have any compile errors in advance.
 -- TODO but then I have to remove the .o, cuz otherwise ghc insists on failing
 -- to load the compiled version.
--- import Cmd.LanguageEnviron ()
-import Cmd.LanguageCmds ()
+-- import Cmd.Lang.Environ ()
 
 -- tmp, used by debug prints
 import qualified Ui.UiTest as UiTest
@@ -168,7 +167,7 @@ main = initialize $ \lang_socket midi_chan -> do
 
     interpreter_chan <- Chan.newChan
     Thread.start_thread "interpreter" $ do
-        Language.interpreter interpreter_chan
+        Lang.interpreter interpreter_chan
         `Exception.finally` Ui.quit_ui_thread quit_request
         -- ctrl-C is killing this thread now.  The interaction between signals
         -- and OS threads managed by the GHC RTS is probably unpredictable.

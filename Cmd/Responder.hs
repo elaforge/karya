@@ -41,7 +41,7 @@ import qualified Perform.Timestamp as Timestamp
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Edit as Edit
 import qualified Cmd.GlobalKeymap as GlobalKeymap
-import qualified Cmd.Language as Language
+import qualified Cmd.Lang as Lang
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Play as Play
 import qualified Cmd.ResponderSync as ResponderSync
@@ -59,7 +59,7 @@ data ResponderState = ResponderState {
     , state_msg_reader :: MsgReader
     , state_midi_writer :: MidiWriter
     , state_transport_info :: Transport.Info
-    , state_interpreter_chan :: Language.InterpreterChan
+    , state_interpreter_chan :: Lang.InterpreterChan
     }
 
 type MidiWriter = Midi.WriteMessage -> IO ()
@@ -67,7 +67,7 @@ type MsgReader = IO Msg.Msg
 
 responder :: StaticConfig.StaticConfig -> MsgReader -> MidiWriter
     -> IO () -> IO Timestamp.Timestamp -> Transport.Chan -> Cmd.CmdIO
-    -> Language.InterpreterChan -> IO ()
+    -> Lang.InterpreterChan -> IO ()
 responder static_config get_msg write_midi abort_midi get_now_ts player_chan
         setup_cmd interpreter_chan = do
     Log.debug "start responder"
@@ -328,7 +328,7 @@ hardcoded_cmds =
 
 -- | And these special commands that run in IO.
 hardcoded_io_cmds transport_info interpreter_chan lang_dirs =
-    [ Language.cmd_language interpreter_chan lang_dirs
+    [ Lang.cmd_language interpreter_chan lang_dirs
     , Play.cmd_transport_msg
     ] ++ GlobalKeymap.io_cmds transport_info
 

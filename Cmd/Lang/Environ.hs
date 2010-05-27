@@ -4,9 +4,9 @@
 
     It has to be interpreted, so it should just put useful things into scope
     but not actually define anything itself.  Those definitions go in
-    LanguageCmds.
+    Cmd.Lang.Global.
 -}
-module Cmd.LanguageEnviron where
+module Cmd.Lang.Environ where
 import Control.Monad.Trans (liftIO)
 import qualified Data.Map as Map
 import qualified Data.List as List
@@ -53,7 +53,7 @@ import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
 import qualified Instrument.Db as Db
-import Cmd.LanguageCmds
+import Cmd.Lang.Global
 
 import qualified App.Config as Config
 

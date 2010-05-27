@@ -5,12 +5,12 @@
     The incoming commands are received via Msg.Socket msgs.
 
     TODO currently this will reload any updated modules as interpreted.  While
-    I want to do this for explicitly named modules (LanguageEnviron and
+    I want to do this for explicitly named modules (Cmd.Lang.Environ and
     Local/Lang/*.hs), it's just annoying and brittle when applied to the main
     src files.  Is there a way to get ghc to load the objects even if the
     source files are newer?
 -}
-module Cmd.Language where
+module Cmd.Lang where
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.Chan as Chan
 import qualified Control.Exception as Exception
@@ -112,7 +112,7 @@ type LangType = State.State -> Cmd.State -> IO (Cmd.CmdVal String)
 --
 -- Since I got errors trying to have the type of the code be CmdT directly
 -- ("error loading interface for Cmd"), I do a workaround where I have it
--- return a function of type 'LangType' instead.  LanguageEnviron contains
+-- return a function of type 'LangType' instead.  Cmd.Lang.Environ contains
 -- a 'run' function to run that in CmdT, and then this function packages it
 -- back up in a CmdT again and returns it.  It's a little roundabout but it
 -- seems to work.
@@ -121,8 +121,8 @@ type LangType = State.State -> Cmd.State -> IO (Cmd.CmdVal String)
 interpret :: [Interpreter.ModuleName] -> State.State -> Cmd.State -> String
     -> Interpreter.Interpreter (Cmd.CmdT IO String)
 interpret local_mods ui_state cmd_state text = do
-    Interpreter.loadModules $ ["Cmd.LanguageEnviron"] ++ local_mods
-    Interpreter.setTopLevelModules ["Cmd.LanguageEnviron"]
+    Interpreter.loadModules $ ["Cmd.Lang.Environ"] ++ local_mods
+    Interpreter.setTopLevelModules ["Cmd.Lang.Environ"]
     Interpreter.setImports $ ["Prelude"] ++ local_mods
 
     cmd_func <- Interpreter.interpret (mangle_code text)
@@ -148,7 +148,7 @@ merge_cmd_state cmd_state midi logs ui_res = do
             return response
 
 -- | Automatically put the input code into CmdT by putting it in
--- LanguageEnviron.run.
+-- Cmd.Lang.Environ.run.
 mangle_code :: String -> String
 mangle_code text = Seq.strip $ "run $ do\n" ++ indent text
     where indent = unlines . map ("    "++) . lines
