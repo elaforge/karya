@@ -30,6 +30,47 @@ import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
 
 
+test_basic = do
+    -- verify the three phases of derivation
+    -- 1: derivation to score events
+    let (events, logs) = DeriveTest.e_val_right $ DeriveTest.derive_tracks
+            [ (inst_title ++ " +a1", [(0, 16, "+a0"), (16, 16, "+a2")])
+            , ("*twelve", [(0, 0, "4c"), (16, 0, "4c#")])
+            ]
+    let (perf_events, convert_warns, mmsgs, midi_warns) = DeriveTest.perform
+            DeriveTest.default_inst_config events
+
+    equal logs []
+    equal (extract_events events) [(0, 16, "+a0"), (16, 16, "+a2")]
+
+    -- 2: conversion to midi perf events
+    equal convert_warns []
+    let evt = (,,,,) (Instrument.inst_name perf_inst)
+    equal (map extract_perf_event perf_events)
+        [ evt (Just "a0") 0 16 (mkstack [("b1", "b1.t0", (0, 16))])
+        , evt (Just "a1+a2") 16 16 (mkstack [("b1", "b1.t0", (16, 32))])
+        ]
+
+    -- 3: performance to midi protocol events
+    equal [nn | Midi.ChannelMessage _ (Midi.NoteOn nn _) <- map snd mmsgs]
+        [1, 60, 0, 61]
+    equal midi_warns []
+    where
+    mkstack = map (\(bid, tid, pos) ->
+        (UiTest.bid bid, Just (UiTest.tid tid), Just pos))
+    extract_perf_event (Perform.Event inst start dur _controls _pitch stack) =
+        (Instrument.inst_name inst,
+            fmap ks_name (Instrument.inst_keyswitch inst), start, dur, stack)
+    ks_name (Instrument.Keyswitch name _) = name
+
+test_call = do
+    let (events, logs) = DeriveTest.e_val_right $ DeriveTest.derive_tracks
+            [ (">", [(0, 8, ""), (8, 8, "abs-trill |")])
+            , ("*twelve", [(0, 0, "4c"), (8, 0, "4c#")])
+            ]
+    plist (map Log.msg_string logs)
+    pprint events
+
 test_subderive = do
     let run evts = DeriveTest.derive_blocks
             [ ("b0",
@@ -304,39 +345,6 @@ test_fractional_pitch = do
     equal [(chan, nn) | Midi.ChannelMessage chan (Midi.NoteOn nn _)
             <- map snd mmsgs]
         [(0, 72), (1, 73)]
-
-test_basic = do
-    -- verify the three phases of derivation
-    -- 1: derivation to score events
-    let (events, logs) = DeriveTest.e_val_right $ DeriveTest.derive_tracks
-            [ (inst_title ++ " +a1", [(0, 16, "+a0"), (16, 16, "+a2")])
-            , ("*twelve", [(0, 16, "4c"), (16, 16, "4c#")])
-            ]
-    let (perf_events, convert_warns, mmsgs, midi_warns) = DeriveTest.perform
-            DeriveTest.default_inst_config events
-
-    equal logs []
-    equal (extract_events events) [(0, 16, "+a0"), (16, 16, "+a2")]
-
-    -- 2: conversion to midi perf events
-    equal convert_warns []
-    let evt = (,,,,) (Instrument.inst_name perf_inst)
-    equal (map extract_perf_event perf_events)
-        [ evt (Just "a0") 0 16 (mkstack [("b1", "b1.t0", (0, 16))])
-        , evt (Just "a1+a2") 16 16 (mkstack [("b1", "b1.t0", (16, 32))])
-        ]
-
-    -- 3: performance to midi protocol events
-    equal [nn | Midi.ChannelMessage _ (Midi.NoteOn nn _) <- map snd mmsgs]
-        [1, 60, 0, 61]
-    equal midi_warns []
-    where
-    mkstack = map (\(bid, tid, pos) ->
-        (UiTest.bid bid, Just (UiTest.tid tid), Just pos))
-    extract_perf_event (Perform.Event inst start dur _controls _pitch stack) =
-        (Instrument.inst_name inst,
-            fmap ks_name (Instrument.inst_keyswitch inst), start, dur, stack)
-    ks_name (Instrument.Keyswitch name _) = name
 
 test_control = do
     let (events, logs) = DeriveTest.e_val_right $ DeriveTest.derive_tracks

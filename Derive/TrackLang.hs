@@ -493,7 +493,7 @@ check_args passed args
         then show (length required)
         else "from " ++ show (length required) ++ " to " ++ show (length args)
     expected = "expected " ++ arg_range ++ ", got "
-        ++ show (length vals) ++ show vals
+        ++ show (length vals) ++ " " ++ show vals
         ++ if from_env == 0 then ""
             else " (" ++ show from_env ++ " from environ)"
 

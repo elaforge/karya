@@ -136,22 +136,22 @@ eval_generator :: DeriveInfo y derived
     -> Derive.Deriver (Derive.Deriver derived, Int)
 eval_generator info@(caller, empty, lookup_call, _)
         (TrackLang.Call call_id args : rest) prev_val prev cur next = do
-    let msg = "eval_generator " ++ show caller ++ ": "
     call <- lookup_call call_id
     env <- Derive.gets Derive.state_environ
     let passed = TrackLang.PassedArgs args env call_id stretch prev_val
+    let msg = eval_msg "generator" caller call_id
     case Derive.call_generator call of
         Nothing -> do
-            Derive.warn $ msg ++ "non-generator " ++ show call_id
-                ++ " in generator position"
+            Derive.with_msg msg
+                (Derive.warn "non-generator in generator position")
             skip empty
         Just c -> case c passed (map warp prev) evt0 (map warp next) of
             Left err -> do
-                Derive.warn $ msg ++ Pretty.pretty err
+                Derive.with_msg msg $ Derive.warn $ Pretty.pretty err
                 skip empty
             Right (generate_deriver, consumed) -> do
                 deriver <- eval_transformer info stretch rest
-                    (handle_exc "generator" empty call_id generate_deriver)
+                    (handle_exc msg empty generate_deriver)
                 return (place deriver, consumed)
     where
     -- Derivation happens according to the extent of the note, not the
@@ -182,29 +182,35 @@ eval_transformer :: DeriveInfo y derived
     -> Derive.Deriver derived -> Derive.Deriver (Derive.Deriver derived)
 eval_transformer info@(caller, empty, lookup_call, _) stretch
         (TrackLang.Call call_id args : rest) deriver = do
-    let msg = "eval_transformer " ++ show caller ++ ": "
     call <- lookup_call call_id
     env <- Derive.gets Derive.state_environ
     let passed = TrackLang.PassedArgs args env call_id stretch Nothing
+    let msg = eval_msg "transformer" caller call_id
     case Derive.call_transformer call of
         Nothing -> do
-            Derive.warn $ msg ++ "non-transformer " ++ show call_id
-                ++ " in transformer position"
+            Derive.with_msg msg $
+                Derive.warn "non-transformer in transformer position"
             return (return empty)
         Just c -> case c passed deriver of
             Left err -> do
-                Derive.warn $ msg ++ Pretty.pretty err
+                Derive.with_msg msg $ Derive.warn $ Pretty.pretty err
                 return (return empty)
             Right deriver -> eval_transformer info stretch rest
-                (handle_exc "transformer" empty call_id deriver)
+                (handle_exc msg empty deriver)
 eval_transformer _ _ [] deriver = return deriver
 
-handle_exc :: String -> a -> TrackLang.CallId
-    -> Derive.Deriver a -> Derive.Deriver a
-handle_exc call_type empty call_id deriver = fmap (maybe empty id) $
+handle_exc :: String -> a -> Derive.Deriver a -> Derive.Deriver a
+handle_exc msg empty deriver = fmap (maybe empty id) $
+    -- TODO with_msg is not quite right here, because then nested calls wind up
+    -- pushing nested msgs on to the stack and cluttering up the error msgs,
+    -- when I really only want the last.  Not sure why this only happens for
+    -- the title expr though.  I don't know what a better solution would be,
+    -- short of both a nested and non-nested contexts.
     Derive.catch_warn id (Derive.with_msg msg deriver)
-    where
-    msg = call_type ++ " " ++ Pretty.pretty call_id
+
+eval_msg :: String -> String -> TrackLang.CallId -> String
+eval_msg eval_type caller call_id = "eval "
+    ++ caller ++ " " ++ eval_type ++ " " ++ Pretty.pretty call_id
 
 -- * lookup_note_call
 

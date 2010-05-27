@@ -137,6 +137,9 @@ data State = State {
     -- during performance).  This is not a Warning.Stack becasue it's kept in
     -- reverse order for ease of construction.
     , state_stack :: [Warning.StackPos]
+    -- | This is a free-form stack which can be used to record call sequences
+    -- in derivation.  It represents logical position during derivation rather
+    -- than position on the score.
     , state_log_context :: [String]
 
     -- | Remember the warp signal for each track.  A warp usually a applies to

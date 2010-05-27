@@ -1,8 +1,15 @@
-CURRENT
-  - fix problems with Perform.Midi:
-    * not enough lead time for pitch bend
-    * note bent by a whole step is considered shareable
+- Implement >inst as setting the null deriver instead of env.instrument.  That
+  way the inst has control over the interpretation of e.g. attributes and
+  pitch slide (to implement piano style retrigger)
 
+CURRENT
+  * improve call error msgs:
+    lose the stack stuff, since I already have a track position
+    but put in the call name
+  - fast path for lang: collapse, expand, s, save, save_as, load
+
+  - call stack should use an absolute name stored in the call so it doesn't
+    get confused by rebinding
   - more sophisticated function to find out the inst of a note track
   - put prev, cur, next in PassedArgs too?
     except that transformers currently don't get these args
@@ -39,7 +46,6 @@ UNSORTED
     11  insert_track + 205 (c_interface.cc:187)
     solution: text entry is collapsed by track add, remove, or resize
 
-  - subderive blocks in rejangn are giving "omitting note with 0 duration"
   - clicking jumps to points that arrows won't jump to
   - auto scroll is doing the wrong thing on a click
   - also auto scroll annoying, scroll down then when it passes threshold
@@ -49,9 +55,6 @@ UNSORTED
   - playback should have multiple lines when a block is derived multiple times
     have a set of playback selnums?
 
-  - stop play when a neg dur note is playing in white space never turns off
-  - neg dur before sub derive also sounds forever, I think it has to do with
-    not passing the next note
   - rederive lang cmd
 
   - insts with breath are not easy to use
@@ -268,34 +271,30 @@ fltk:
 
       This only applies to raw edit mode.  Entering notes and doing
       programmatic changes is still single key.
+
       Remove the separate raw edit mode.  Return while in edit mode creates an
       event if one doesn't exist and begins editing its text.  Keyboard focus
       is then in the widget until return or tab or a click outside of it.
 
-      I can express that by attaching (currently_edited_event :: Maybe
-      (BlockId, TrackNum, ScoreTime)) to the state.  Actually it still has to
-      go outside of the state because I don't want to save that or undo into
-      it.  Edit mode could conceivably be in state, but probably shouldn't, it
-      isn't currently.  So return (State, [UiCommand]).
+      The responder has to be able to tell UI to open a text entry, so return
+      (State, [UiCommand]), where
+        data Edit = Edit {
+          edit_block_id :: BlockId
+          , edit_tracknum :: TrackNum
+          , edit_at :: ScoreTime
+          , edit_text :: String
+          , edit_insert :: Bool
+          , edit_selected :: Bool
+          }
 
-      Another possibility is to do it totally in c++: if "edit" is true, then
-      fltk takes the enter, checks for text under the cursor for initial
-      contents, and then sents a msg when editing is done.  This is simpler
-      because it doesn't need to put focus in the state, but less flexible
-      because haskell can't trigger an edit.  And not that much simpler,
-      because I need an editing mode synced over.
+      If the edit_insert is True and there is already a text entry open at
+      that position, insert the given string at the insertion point rather
+      than creating a new one.  This can implement midi->*note insertion.
 
-      What if I want a cmd that just edits control val: open edit with just the
-      number part, or maybe just the number part selected, which then modifies
-      the text on enter.  Then I have to know when the msg comes back that it's
-      meant to just edit part of the event.  One way would be put a tag in the
-      focus: Just (bid, tnum, pos, "tag").  Sorta ugly though.  But since
-      hs->fltk and fltk->hs communication is asynchronous, I don't see any way
-      around this.
+      Return msg is:
+        data Edited = Edited BlockId TrackNum ScoreTime String
 
-      Also I need explicit trigger to implement automatic opening when in edit
-      mode.  This is probably not good for note tracks, but maybe useful for
-      control tracks.
+      The UI can suppress this if it detects the text hasn't changed.
 
     - "currently edited" event shouldn't be hidden by previous ones
       bring event closest to cursor to front?

@@ -21,6 +21,10 @@ test_absolute_trill = do
     -- trill speed is in real time and not affected by stretch
     equal (run (Derive.d_stretch 2 . f (con 1) (con 2))) $
         Right [[(0, 60), (0.5, 61), (1, 60), (1.5, 61), (2, 60)]]
+    -- it still produces an integral number of cycles
+    equal (run (Derive.d_stretch 1.8 . f (con 1) (con 2))) $
+        Right [[(0, 60), (0.5, 61), (1, 60)]]
+
     equal (run (f (Signal.signal [(0, 1), (0.5, 2)]) (con 4))) $
         Right [[(0, 60), (0.25, 61), (0.5, 60), (0.75, 62), (1, 60)]]
     equal (run (f (con 1) (Signal.signal [(0, 2), (0.5, 4)]))) $

@@ -151,25 +151,36 @@ test_environ_across_tracks = do
     equal (run [cont, ("srate = 2 | cont2", [])])
         (Right [Just interpolated], [])
 
-test_calls = do
+test_call_errors = do
     let extract r = case DeriveTest.extract DeriveTest.e_event id r of
             (Right val, []) -> Right val
             (Left err, []) -> Left err
             (_, logs) -> Left (Seq.join "\n" (map Log.msg_string logs))
-    let run title = extract $
-            DeriveTest.derive_tracks_tempo [(title, [(0, 1, "--1")])]
 
-    left_like (run ">i | no-such-call") "CallNotFound"
-    left_like (run ">i | delay *bad-arg")
+    let run_title title = extract $
+            DeriveTest.derive_tracks_tempo [(title, [(0, 1, "--1")])]
+    left_like (run_title ">i | no-such-call") "CallNotFound"
+    left_like (run_title ">i | delay *bad-arg")
         "expected type Control but got"
-    left_like (run ">i | delay 1 2 3 4")
+    left_like (run_title ">i | delay 1 2 3 4")
         "too many arguments"
-    left_like (run ">i | delay")
+    left_like (run_title ">i | delay")
         "not in environment and no default given"
-    left_like (run ">i | delay _")
+    left_like (run_title ">i | delay _")
         "not in environment"
-    left_like (run ">i | delay %delay") $
+    left_like (run_title ">i | delay %delay")
         "not in environment"
+
+    let run_evt evt = extract $
+            DeriveTest.derive_tracks_tempo [(">i", [(0, 1, evt)])]
+    left_like (run_evt "no-such-call")
+        "eval note generator no-such-call: CallNotFound"
+    left_like (run_evt "abs-trill")
+        "eval note generator abs-trill: non-generator in generator position"
+    left_like (run_evt "abs-trill |")
+        "eval note transformer abs-trill: ArgError: too few arguments"
+    equal (run_evt "delay 2 | abs-trill 2 |")
+        (Right [(2, 1, "delay 2 | abs-trill 2 |")])
 
 test_environ_default = do
     -- Mostly tested in TrackLang_test, but also make sure c_equal and and
