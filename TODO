@@ -34,7 +34,7 @@ UNSORTED
     a standard text entry widget, that way I can type unicode too
   * move Cmd.LanguageCmds to Cmd.Lang.Global
   - move MakeRuler to Lang too?
-  - remove with_msg "compile bid", it's redundant with the stack
+  * remove with_msg "compile bid", it's redundant with the stack
   - make "error subderiving" msg nicer and put the stack in the log msg
   - happened automatically adding a pitch track:
     assertion: <assertion failed at fltk/TrackTile.cc:266 update_sizes():

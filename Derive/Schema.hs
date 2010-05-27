@@ -261,7 +261,7 @@ default_schema_signal_deriver block_id =
 -- | Transform a deriver skeleton into a real deriver.  The deriver may throw
 -- if the skeleton was malformed.
 compile :: BlockId -> State.TrackTree -> Derive.EventDeriver
-compile block_id tree = Derive.with_msg ("compile " ++ show block_id) $ do
+compile block_id tree = do
     -- d_tempo sets up some stuff that every block needs, so add one if a block
     -- doesn't have at least one top level tempo.
     let with_default_tempo = if has_tempo_track tree then id
