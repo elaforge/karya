@@ -50,7 +50,6 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Edit as Edit
 import qualified Cmd.Info as Info
-import qualified Cmd.Language as Language
 import qualified Cmd.Play as Play
 import qualified Cmd.Save as Save
 import qualified Cmd.Selection as Selection
@@ -114,9 +113,6 @@ set_octave :: Pitch.Octave -> Cmd.CmdL ()
 set_octave n = Edit.cmd_modify_octave (const n) >> return ()
 
 -- * load / save
-
-quit :: Cmd.CmdL String
-quit = return Language.magic_quit_string
 
 save :: Cmd.CmdL ()
 load, save_as :: FilePath -> Cmd.CmdL ()

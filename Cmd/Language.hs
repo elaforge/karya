@@ -29,6 +29,7 @@ import qualified Util.Seq as Seq
 
 import qualified Ui.State as State
 
+import qualified Cmd.Lang.Fast as Fast
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 
@@ -47,15 +48,16 @@ cmd_language interpreter_chan lang_dirs msg = do
     cmd_state <- Cmd.get_state
     local_modules <- fmap concat (mapM get_local_modules lang_dirs)
 
-    cmd <- Trans.liftIO $ send interpreter_chan
-        (interpret local_modules ui_state cmd_state text)
+    cmd <- case Fast.fast_interpret text of
+        Just cmd -> return cmd
+        Nothing -> Trans.liftIO $ send interpreter_chan
+            (interpret local_modules ui_state cmd_state text)
     response <- cmd -- TODO what if cmd aborts?  won't I skip the response?
     Trans.liftIO $ catch_io_errors $ do
         unless (null response) $
             IO.hPutStrLn response_hdl response
         IO.hClose response_hdl
-    return $ if response == (magic_quit_string++"\n")
-        then Cmd.Quit else Cmd.Done
+    return $ if response == Fast.magic_quit_string then Cmd.Quit else Cmd.Done
     where
     catch_io_errors = Exception.handle $ \(exc :: IOError) -> do
         Log.warn $ "caught exception from socket write: " ++ show exc
@@ -82,10 +84,6 @@ get_local_modules lang_dir = do
 
 is_hs :: FilePath -> Bool
 is_hs fn = take 1 fn /= "." && FilePath.takeExtension fn == ".hs"
-
--- | Hack so that language cmds can quit the app, since they return strings.
-magic_quit_string :: String
-magic_quit_string = "-- * YES, really quit * --"
 
 -- ** interpreter
 

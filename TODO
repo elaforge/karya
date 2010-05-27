@@ -6,7 +6,7 @@ CURRENT
   * improve call error msgs:
     lose the stack stuff, since I already have a track position
     but put in the call name
-  - fast path for lang: collapse, expand, s, save, save_as, load
+  * fast path for lang: collapse, expand, s, save, save_as, load
 
   - call stack should use an absolute name stored in the call so it doesn't
     get confused by rebinding
@@ -381,7 +381,7 @@ REPL repl language
   - could add syntax mangling, but probably better to add it to the mangler
     so it works for everyone
   - pass -fobject-code to avoid trying to recompile files?
-  - add custom interpreter for some commands to make them fast?
+  * add custom interpreter for some commands to make them fast?
 
 Cmd:
   ? a module with easy access to all GlobalKeymap cmds for cmdline access
