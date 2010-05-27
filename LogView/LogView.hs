@@ -63,12 +63,15 @@ default_history = 200
 default_max_bytes :: Int
 default_max_bytes = default_history * 100
 
-data Flag = Help | NoSeek | History Int | File String deriving (Eq, Show)
+data Flag = Help | Seek (Maybe Integer) | History Int | File String
+    deriving (Eq, Show)
 options :: [GetOpt.OptDescr Flag]
 options =
     [ GetOpt.Option [] ["help"] (GetOpt.NoArg Help) "display usage"
-    , GetOpt.Option [] ["noseek"] (GetOpt.NoArg NoSeek)
-        "scan log file from beginning instead of seeking to the end"
+    , GetOpt.Option [] ["seek"] (GetOpt.OptArg (Seek . fmap read) "lines") $
+        "if given no arg, scan the log file from the beginning, if given an "
+        ++ "arg, scan approximately that many lines from the end (assuming the "
+        ++ "average line is 200 bytes)"
     , GetOpt.Option [] ["history"]
         (GetOpt.ReqArg (History . read) (show default_history))
         "remember this many lines"
@@ -87,7 +90,7 @@ main = do
         usage ("unparsed args: " ++ show args)
     when (Help `elem` flags) (usage "usage:")
 
-    let seek = NoSeek `notElem` flags
+    let seek = Seq.mlast Nothing id [Just s | Seek (Just s) <- flags]
         history = Seq.mlast default_history id [n | History n <- flags]
         filename = Seq.mlast mach_log_filename id [n | File n <- flags]
 

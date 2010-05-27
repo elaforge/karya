@@ -227,14 +227,19 @@ style_filename = 'G'
 
 -- * tail file
 
-tail_file :: STM.TChan Log.Msg -> FilePath -> Bool -> IO ()
+tail_file :: STM.TChan Log.Msg -> FilePath -> Maybe Integer -> IO ()
 tail_file log_chan filename seek = do
     -- ReadWriteMode makes it create the file if it doesn't exist, and not
     -- die here.
     hdl <- IO.openFile filename IO.ReadWriteMode
     IO.hSetBuffering hdl IO.LineBuffering -- See tail_getline.
-    when seek $
-        IO.hSeek hdl IO.SeekFromEnd 0
+    case seek of
+        Nothing -> IO.hSeek hdl IO.SeekFromEnd 0
+        Just 0 -> return ()
+        Just n -> do
+            IO.hSeek hdl IO.SeekFromEnd (-n * 200)
+            IO.hGetLine hdl -- make sure I'm at a line boundary
+            return ()
     forever $ do
         line <- tail_getline hdl
         msg <- deserialize_line line
