@@ -11,10 +11,15 @@ import qualified Perform.Pitch as Pitch
 adjust :: Pitch.Scale -> Pitch.Scale
 adjust enclosing_scale = scale
     { Pitch.scale_octave = oct
-    , Pitch.scale_id = Pitch.ScaleId ("relative " ++ show oct)
+    -- would make is_relative kinda icky
+    -- , Pitch.scale_id = Pitch.ScaleId ("relative " ++ show oct)
     }
     where oct = Pitch.scale_octave enclosing_scale
 
+is_relative :: Pitch.ScaleId -> Bool
+is_relative = (==scale_id)
+
+scale :: Pitch.Scale
 scale = Pitch.Scale {
     Pitch.scale_id = scale_id
     , Pitch.scale_pattern = "float"

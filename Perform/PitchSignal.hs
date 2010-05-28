@@ -40,7 +40,7 @@ module Perform.PitchSignal (
     , scalar_add, scalar_subtract
     , clip_max, clip_min
     , shift
-    , truncate
+    , truncate, shorten
     , map_x, map_degree
 ) where
 import Prelude hiding (last, truncate)
@@ -137,6 +137,9 @@ degree_to_y (Pitch.Degree d) = (f, f, 0)
 signal :: Pitch.ScaleId -> [(X, Y)] -> PitchSignal
 signal scale_id ys = PitchSignal scale_id (SignalBase.signal ys)
 
+relative :: [(X, Y)] -> PitchSignal
+relative = signal Relative.scale_id
+
 empty :: PitchSignal
 empty = signal (Pitch.ScaleId "empty signal") []
 
@@ -221,6 +224,9 @@ shift x = modify_vec (SignalBase.shift x)
 
 truncate :: X -> PitchSignal -> PitchSignal
 truncate x = modify_vec (SignalBase.truncate x)
+
+shorten :: X -> PitchSignal -> PitchSignal
+shorten x = modify_vec (SignalBase.shorten x)
 
 -- | Combine two PitchSignals with a binary operator.  This ignores the
 -- scale of the second signal, so anyone who wants to warn about that should do

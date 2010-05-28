@@ -41,6 +41,16 @@ test_score_trill = do
     equal (run (Derive.d_stretch 2 . f 1 (con 1) (con 2))) $
         Right [[(0, 60), (1, 61), (2, 60)]]
 
+-- * pitch calls
+
+test_pitch_absolute_trill = do
+    -- pprint (run_pitch [(0, 0, "abs-trill *4c")])
+    pprint (run_pitch [(0, 0, "5c"), (1, 0, "5d"), (2, 0, "abs-trill *4e")])
+
+test_neighbor = do
+    equal (run_pitch [(0, 0, "neighbor *4c 1 2")])
+        (Right [[(0, (61, 60, 0)), (1, (61, 60, 0.5)), (2, (61, 60, 1))]])
+
 run deriver = extract $ DeriveTest.derive_note $
     Derive.with_constant_pitch (Pitch.Degree 60) $
     deriver DeriveTest.d_note
@@ -48,3 +58,11 @@ con = Signal.constant
 
 extract = DeriveTest.extract_events_only
     (Signal.unsignal . PitchSignal.to_nn Twelve.scale . Score.event_pitch)
+
+run_pitch events = extract $ DeriveTest.derive_tracks_tempo
+    [ (">", [(0, 10, "")])
+    , ("*twelve", events)
+    ]
+    where
+    extract = DeriveTest.extract_events_only
+        (PitchSignal.unsignal . Score.event_pitch)

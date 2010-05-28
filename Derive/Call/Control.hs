@@ -68,7 +68,17 @@ control_interpolate f val args = do
             -- TODO warn
             return $ Signal.signal [(cur, val)]
         Just (prev, prev_val) -> return $ Signal.signal $
-            interpolate (RealTime srate) Num.scale f prev prev_val cur val
+            interpolate_control False (RealTime srate) f prev prev_val cur val
+
+interpolate_control :: Bool -> RealTime -> (Double -> Double)
+    -> RealTime -> Signal.Y -> RealTime -> Signal.Y
+    -> [(RealTime, Signal.Y)]
+interpolate_control include_initial srate f x0 y0 x1 y1
+    | include_initial = sig
+    | otherwise = drop 1 sig
+    where
+    sig = [(x, to_pos x) | x <- range x0 x1 srate]
+    to_pos = Num.scale y0 y1 . f . Num.normalize x0 x1
 
 
 -- ** pitch
@@ -85,15 +95,9 @@ c_note_set = Derive.generate_one $ \args _ _ _ -> TrackLang.call1 args
     (required "val") $ \note -> do
         scale <- Derive.require_val TrackLang.v_scale
         pos <- Derive.score_to_real 0
-        degree <- note_to_degree scale note
+        degree <- Call.lookup_note scale note
         return $ PitchSignal.signal (Pitch.scale_id scale)
             [(pos, PitchSignal.degree_to_y degree)]
-
-note_to_degree :: Pitch.Scale -> Pitch.Note -> Derive.Deriver Pitch.Degree
-note_to_degree scale note = case Pitch.scale_note_to_degree scale note of
-    Nothing -> Derive.throw $
-        show note ++ " not in " ++ show (Pitch.scale_id scale)
-    Just degree -> return degree
 
 c_note_linear :: Derive.PitchCall
 c_note_linear = Derive.generate_one $ \args _ _ _ ->
@@ -120,29 +124,29 @@ pitch_interpolate f note args = do
         cur <- Derive.score_to_real 0
         scale <- Derive.require_val TrackLang.v_scale
         srate <- Derive.require_val TrackLang.v_srate
-        degree <- note_to_degree scale note
+        degree <- Call.lookup_note scale note
         let signal = PitchSignal.signal (Pitch.scale_id scale)
         case TrackLang.passed_prev_val args of
             Nothing -> do
                 -- TODO warn
                 return $ signal [(cur, PitchSignal.degree_to_y degree)]
             Just (prev, prev_y) -> return $ signal $
-                interpolate (RealTime srate) pitch_scale f prev prev_y cur
-                    (PitchSignal.degree_to_y degree)
+                interpolate_pitch False (RealTime srate) f
+                    prev (PitchSignal.y_to_degree prev_y) cur degree
 
-pitch_scale :: PitchSignal.Y -> PitchSignal.Y -> Double -> PitchSignal.Y
-pitch_scale y0 y1 n = (Num.d2f d0, Num.d2f d1, Num.d2f n)
+interpolate_pitch :: Bool -> RealTime -> (Double -> Double)
+    -> RealTime -> Pitch.Degree -> RealTime -> Pitch.Degree
+    -> [(RealTime, PitchSignal.Y)]
+interpolate_pitch include_initial srate f x0 y0 x1 y1
+    | include_initial = sig
+    | otherwise = drop 1 sig
     where
-    Pitch.Degree d0 = PitchSignal.y_to_degree y0
-    Pitch.Degree d1 = PitchSignal.y_to_degree y1
+    sig = [(x, (fy0, fy1, to_pos x)) | x <- range x0 x1 srate]
+    to_pos = Num.d2f . f . Num.normalize x0 x1
+    (fy0, fy1) = (to_f y0, to_f y1)
+    to_f (Pitch.Degree d) = Num.d2f d
 
 -- * util
-
-interpolate :: RealTime -> (y -> y -> Double -> y) -> (Double -> Double)
-    -> RealTime -> y -> RealTime -> y -> [(RealTime, y)]
-interpolate srate scale f x0 y0 x1 y1 =
-    zip xs (map (scale y0 y1 . f . Num.normalize x0 x1) xs)
-    where xs = range_until x0 x1 srate
 
 -- | Negative exponents produce a curve that jumps from the "starting point"
 -- which doesn't seem too useful, so so hijack the negatives as an easier way
@@ -152,11 +156,10 @@ expon :: Double -> Double -> Double
 expon n x = x**exp
     where exp = if n >= 0 then n else (1 / abs n)
 
--- | Enumerate a half-open range, except this one omits the first value and
--- includes the final one.  Uses multiplication instead of successive addition
--- to avoid loss of precision.
-range_until :: (Num a, Ord a) => a -> a -> a -> [a]
-range_until start end step = go 1
+-- | Enumerate an inclusive range.  Uses multiplication instead of successive
+-- addition to avoid loss of precision.
+range :: (Num a, Ord a) => a -> a -> a -> [a]
+range start end step = go 0
     where
     go i
         | val >= end = [end]

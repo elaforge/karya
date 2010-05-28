@@ -22,4 +22,4 @@ control_calls :: Derive.ControlCallMap
 control_calls = Map.unions [Control.control_calls]
 
 pitch_calls :: Derive.PitchCallMap
-pitch_calls = Map.unions [Control.pitch_calls]
+pitch_calls = Map.unions [Control.pitch_calls, Trill.pitch_calls]

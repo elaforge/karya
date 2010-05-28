@@ -168,6 +168,11 @@ shift offset vec
 truncate :: (Signal y) => X -> SigVec y -> SigVec y
 truncate x vec = fst $ V.splitAt (bsearch_on vec fst x) vec
 
+-- | The dual of 'truncate'.  Trim a signal's head up until, but not including,
+-- the given X.
+shorten :: (Signal y) => X -> SigVec y -> SigVec y
+shorten x vec = snd $ V.splitAt (bsearch_on vec fst x) vec
+
 map_x :: (Signal y) => (X -> X) -> SigVec y -> SigVec y
 map_x f = V.map (Arrow.first f)
 

@@ -1,9 +1,12 @@
 {- | Utilities for writing calls.  This is higher-level than TrackLang, so
-it can import "Derive.Derive".
+    it can import "Derive.Derive".
 
-Calls are evaluated in normalized time, which means that they start at
-@score_to_real 0@ and end at @score to real 1@.  The events passed to the
-generator are also in this time.
+    It should also have DeriveT utilities that could go in Derive, but are more
+    specific to calls.
+
+    Calls are evaluated in normalized time, which means that they start at
+    @score_to_real 0@ and end at @score to real 1@.  The events passed to the
+    generator are also in this time.
 -}
 module Derive.Call where
 import qualified Data.Map as Map
@@ -21,7 +24,9 @@ import qualified Derive.Derive as Derive
 import qualified Derive.TrackLang as TrackLang
 import qualified Derive.Score as Score
 import qualified Derive.Call.Note as Note
+import qualified Derive.Scale.Relative as Relative
 
+import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
 
@@ -54,6 +59,46 @@ to_signal control = case control of
 one_note :: Either TrackLang.TypeError Derive.EventDeriver
     -> Either TrackLang.TypeError (Derive.EventDeriver, Int)
 one_note = fmap $ \d -> (d, 1)
+
+-- | Get the next \"relevant\" event beginning.  Intended to be used by calls
+-- to determine their extent, especially control calls, which have no explicit
+-- duration.
+--
+-- This will skip 'x = y' calls, which are not indended to affect note scope.
+-- TODO implement that
+next_event_begin :: [Track.PosEvent] -> Maybe ScoreTime
+next_event_begin ((pos, _) : _) = Just pos
+next_event_begin _ = Nothing
+
+-- | There are a set of pitch calls that need a "note" arg when called in an
+-- absolute context, but can more usefully default to (Note "0") in a relative
+-- track.  This will prepend a note arg if the scale in the environ is
+-- relative.
+default_relative_note :: TrackLang.PassedArgs y -> TrackLang.PassedArgs y
+default_relative_note args
+    | is_relative = args { TrackLang.passed_vals =
+        TrackLang.VNote (Pitch.Note "0") : TrackLang.passed_vals args }
+    | otherwise = args
+    where
+    environ = TrackLang.passed_environ args
+    is_relative = case TrackLang.lookup_val TrackLang.v_scale environ of
+        Right scale -> Relative.is_relative (Pitch.scale_id scale)
+        _ -> False
+
+-- ** derive ops
+
+-- | Find the given note in the current scale, or throw.
+note_to_degree :: Pitch.Note -> Derive.Deriver Pitch.Degree
+note_to_degree note = do
+    scale <- Derive.require_val TrackLang.v_scale
+    lookup_note scale note
+
+-- | Look up the given note in the given scale, or throw.
+lookup_note :: Pitch.Scale -> Pitch.Note -> Derive.Deriver Pitch.Degree
+lookup_note scale note = case Pitch.scale_note_to_degree scale note of
+    Nothing -> Derive.throw $
+        show note ++ " not in " ++ show (Pitch.scale_id scale)
+    Just degree -> return degree
 
 -- * eval
 
