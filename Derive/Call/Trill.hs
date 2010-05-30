@@ -62,7 +62,7 @@ c_absolute_trill = Derive.transformer $ \args deriver -> TrackLang.call2 args
 
 absolute_trill :: Signal.Control -> Signal.Control -> Derive.Transformer
 absolute_trill neighbor speed deriver = do
-    real_start <- Derive.score_to_real 0
+    real_start <- Derive.now
     real_end <- Derive.score_to_real 1
     let all_transitions = pos_at_speed speed real_start
     let transitions = integral_cycles real_end all_transitions
@@ -132,7 +132,7 @@ pitch_absolute_trill :: Pitch.Note -> Signal.Control -> Signal.Control
     -> RealTime -> Derive.PitchDeriver
 pitch_absolute_trill note speed neighbor dur = do
     degree <- Call.note_to_degree note
-    start <- Derive.score_to_real 0
+    start <- Derive.now
     scale <- Derive.require_val TrackLang.v_scale
     let all_transitions = pos_at_speed speed start
     let transitions = integral_cycles (start + dur) all_transitions

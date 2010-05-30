@@ -206,7 +206,7 @@ test_warp_ops = do
     let run op = fmap extract $ DeriveTest.run State.empty (op record)
             where extract (val, _, logs) = Log.trace_logs logs val
         record = do
-            x0 <- Derive.score_to_real 0
+            x0 <- Derive.now
             x1 <- Derive.score_to_real 2
             return [x0, x1]
 

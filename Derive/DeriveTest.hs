@@ -151,7 +151,7 @@ derive_note = derive Derive.empty_lookup_deriver State.empty
 
 d_note :: Derive.EventDeriver
 d_note = do
-    start <- Derive.score_to_real 0
+    start <- Derive.now
     end <- Derive.score_to_real 1
     inst <- Derive.lookup_val TrackLang.v_instrument
     attrs <- Maybe.fromMaybe Score.no_attrs <$>

@@ -37,7 +37,7 @@ control_calls = Derive.make_calls
 c_set :: Derive.ControlCall
 c_set = Derive.generate_one $ \args _ _ _ -> TrackLang.call1 args
     (required "val") $ \val -> do
-        pos <- Derive.score_to_real 0
+        pos <- Derive.now
         return $ Signal.signal [(pos, val)]
 
 c_linear :: Derive.ControlCall
@@ -47,7 +47,7 @@ c_linear = Derive.generate_one $ \args _ _ _ ->
             Nothing -> return $ Derive.throw
                 "can't set to previous val when there was none"
             Just (_, prev_y) -> return $ do
-                pos <- Derive.score_to_real 0
+                pos <- Derive.now
                 return $ Signal.signal [(pos, prev_y)]
         _ -> TrackLang.call1 args (required "val") $ \val ->
             control_interpolate id val args
@@ -60,7 +60,7 @@ c_exponential = Derive.generate_one $ \args _ _ _ ->
 c_slide :: Derive.ControlCall
 c_slide = Derive.generate_one $ \args _ _ next -> TrackLang.call2 args
     (required "val", optional "time" 0.1) $ \val time -> do
-        start <- Derive.score_to_real 0
+        start <- Derive.now
         end <- case Call.next_event_begin next of
             Nothing -> return $ start + RealTime time
             Just n -> do
@@ -84,7 +84,7 @@ c_slide = Derive.generate_one $ \args _ _ next -> TrackLang.call2 args
 control_interpolate :: (Double -> Signal.Y) -> Signal.Y
     -> TrackLang.PassedArgs Signal.Y -> Derive.ControlDeriver
 control_interpolate f val args = do
-    start <- Derive.score_to_real 0
+    start <- Derive.now
     srate <- Call.get_srate
     case TrackLang.passed_prev_val args of
         Nothing -> do
@@ -125,7 +125,7 @@ c_note_set :: Derive.PitchCall
 c_note_set = Derive.generate_one $ \args _ _ _ -> TrackLang.call1 args
     (required "val") $ \note -> do
         scale <- Derive.require_val TrackLang.v_scale
-        pos <- Derive.score_to_real 0
+        pos <- Derive.now
         degree <- Call.lookup_note scale note
         return $ PitchSignal.signal (Pitch.scale_id scale)
             [(pos, PitchSignal.degree_to_y degree)]
@@ -137,7 +137,7 @@ c_note_linear = Derive.generate_one $ \args _ _ _ ->
             Nothing -> return $
                 Derive.throw "can't set to previous val when there was none"
             Just (_, prev_y) -> return $ do
-                pos <- Derive.score_to_real 0
+                pos <- Derive.now
                 scale <- Derive.require_val TrackLang.v_scale
                 return $ PitchSignal.signal (Pitch.scale_id scale)
                     [(pos, prev_y)]
@@ -152,11 +152,11 @@ c_note_exponential = Derive.generate_one $ \args _ _ _ ->
 c_note_slide :: Derive.PitchCall
 c_note_slide = Derive.generate_one $ \args _ _ next -> TrackLang.call2 args
     (required "note", optional "time" 0.1) $ \note time -> do
-        start <- Derive.score_to_real 0
+        start <- Derive.now
         end <- case Call.next_event_begin next of
             Nothing -> return $ start + RealTime time
             Just n -> do
-                next <- Derive.score_to_real n
+                next <- Derive.now
                 return $ min (start + RealTime time) next
         scale <- Derive.require_val TrackLang.v_scale
         srate <- Call.get_srate
@@ -180,7 +180,7 @@ c_neighbor = Derive.generate_one $ \args _ _ _ ->
     TrackLang.call3 (Call.default_relative_note args)
     (required "note", optional "neighbor" 1, optional "time" 0.1) $
     \note neighbor time -> do
-        start <- Derive.score_to_real 0
+        start <- Derive.now
         let end = start + RealTime time
         scale <- Derive.require_val TrackLang.v_scale
         degree <- Call.lookup_note scale note
@@ -195,7 +195,7 @@ c_neighbor = Derive.generate_one $ \args _ _ _ ->
 pitch_interpolate :: (Double -> Signal.Y) -> Pitch.Note
     -> TrackLang.PassedArgs PitchSignal.Y -> Derive.PitchDeriver
 pitch_interpolate f note args = do
-    start <- Derive.score_to_real 0
+    start <- Derive.now
     scale <- Derive.require_val TrackLang.v_scale
     srate <- Call.get_srate
     degree <- Call.lookup_note scale note

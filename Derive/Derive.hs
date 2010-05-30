@@ -785,6 +785,9 @@ score_to_real pos = do
     warp <- gets state_warp
     return (Score.warp_pos pos warp)
 
+now :: (Monad m) => DeriveT m RealTime
+now = score_to_real 0
+
 real_to_score :: (Monad m) => RealTime -> DeriveT m ScoreTime
 real_to_score pos = do
     warp <- gets state_warp
