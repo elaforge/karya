@@ -27,7 +27,6 @@
 module Derive.Call.Trill where
 import Ui
 
-import qualified Derive.Call.Control as Control
 import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
 import qualified Derive.TrackLang as TrackLang
@@ -113,7 +112,7 @@ score_pos_at_speed stretch sig pos end
 
 pitch_calls :: Derive.PitchCallMap
 pitch_calls = Derive.make_calls
-    [ ("neighbor", c_neighbor) -- this clearly needs a symbol
+    [ ("tr", c_pitch_absolute_trill)
     , ("abs-trill", c_pitch_absolute_trill)
     ]
 
@@ -141,25 +140,6 @@ pitch_absolute_trill note speed neighbor dur = do
             (PitchSignal.constant (Pitch.scale_id scale) degree)
             (make_trill transitions neighbor)
 
-
--- | Emit a quick slide from a neighboring pitch in absolute time.
---
--- [neighbor /Number/ @1@] Neighbor note, in scale degrees.
---
--- [time /Number/ @.3@] Duration of ornament, in seconds.
-c_neighbor :: Derive.PitchCall
-c_neighbor = Derive.generate_one $ \args _ _ _ ->
-    TrackLang.call3 (Call.default_relative_note args)
-    (required "note", optional "neighbor" 1, optional "time" 0.1) $
-    \note neighbor time -> do
-        start <- Derive.score_to_real 0
-        let end = start + RealTime time
-        scale <- Derive.require_val TrackLang.v_scale
-        degree <- Call.lookup_note scale note
-        srate <- Derive.require_val TrackLang.v_srate
-        return $ PitchSignal.signal (Pitch.scale_id scale) $
-                Control.interpolate_pitch True (RealTime srate) id
-                start (Pitch.Degree neighbor + degree) end degree
 
 
 -- * util

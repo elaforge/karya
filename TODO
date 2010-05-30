@@ -3,10 +3,25 @@
   pitch slide (to implement piano style retrigger)
 
 CURRENT
+  - raw entry mode won't accept shifted letters
   * improve call error msgs:
     lose the stack stuff, since I already have a track position
     but put in the call name
   * fast path for lang: collapse, expand, s, save, save_as, load
+  - replace 'score_to_real 0' with 'now'
+  - tracklang parsing: remove null call so I can say the first word is
+    It would be really nice to have arbitrary symbols as calls.  I can do this
+    by going to a purely location based system, so the first word is always
+    a symbol.  But then I need to think of a replacement for the null call
+    concept.
+
+    Note: "" -> null call, and I don't mind losing ">i" for "inst = >i"
+
+    Control: I suppose a special hack where if the text is a number, call "set
+    n".  I already have the syntax mangle.
+
+    Pitch: Same hack.  Or maybe if notes wind up being calls, the mangle can in
+    fact go away.
 
   - call stack should use an absolute name stored in the call so it doesn't
     get confused by rebinding

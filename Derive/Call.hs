@@ -5,12 +5,13 @@
     specific to calls.
 
     Calls are evaluated in normalized time, which means that they start at
-    @score_to_real 0@ and end at @score to real 1@.  The events passed to the
+    @score_to_real 0@ and end at @score_to_real 1@.  The events passed to the
     generator are also in this time.
 -}
 module Derive.Call where
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import Util.Control
 import qualified Util.Pretty as Pretty
 
 import Ui
@@ -99,6 +100,9 @@ lookup_note scale note = case Pitch.scale_note_to_degree scale note of
     Nothing -> Derive.throw $
         show note ++ " not in " ++ show (Pitch.scale_id scale)
     Just degree -> return degree
+
+get_srate :: Derive.Deriver RealTime
+get_srate = RealTime <$> Derive.require_val TrackLang.v_srate
 
 -- * eval
 

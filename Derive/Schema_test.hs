@@ -76,7 +76,7 @@ test_compile = do
 
     let (res, logs) = derive ("*c2", [(0, 0, ".1")])
     equal logs []
-    left_like res "compile .*: pitch_call: unknown ScaleId \"c2\""
+    left_like res "pitch_call: unknown ScaleId \"c2\""
 
     let cont_signal = Map.union (Score.unwarp_controls Derive.initial_controls)
             (Map.fromList [(Score.Control "c1",

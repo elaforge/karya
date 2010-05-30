@@ -23,12 +23,15 @@ import qualified Perform.Signal as Signal
 -- Continuous warp:
 -- happens if the interpolating functions look up every point
 
+-- * control
+
 control_calls :: Derive.ControlCallMap
 control_calls = Derive.make_calls
     [ ("=", Call.c_equal Derive.no_control)
     , ("", c_set)
     , ("i", c_linear)
     , ("e", c_exponential)
+    , ("s", c_slide)
     ]
 
 c_set :: Derive.ControlCall
@@ -54,6 +57,26 @@ c_exponential = Derive.generate_one $ \args _ _ _ ->
     TrackLang.call2 args (required "val", optional "exp" 2) $ \val exp ->
         control_interpolate (expon exp) val args
 
+c_slide :: Derive.ControlCall
+c_slide = Derive.generate_one $ \args _ _ next -> TrackLang.call2 args
+    (required "val", optional "time" 0.1) $ \val time -> do
+        start <- Derive.score_to_real 0
+        end <- case Call.next_event_begin next of
+            Nothing -> return $ start + RealTime time
+            Just n -> do
+                next <- Derive.score_to_real n
+                return $ min (start + RealTime time) next
+        srate <- Call.get_srate
+        case TrackLang.passed_prev_val args of
+                Nothing -> do
+                    Derive.warn "no previous value to slide from"
+                    return $ Signal.signal [(start, val)]
+                Just (_, prev_y) -> return $ Signal.signal $
+                    interpolate_control True srate id start prev_y end val
+
+
+-- ** control util
+
 -- | Create samples according to an interpolator function.  The function is
 -- passed values from 0--1 representing position in time and is expected to
 -- return values from 0--1 representing the Y position at that time.  So linear
@@ -61,14 +84,14 @@ c_exponential = Derive.generate_one $ \args _ _ _ ->
 control_interpolate :: (Double -> Signal.Y) -> Signal.Y
     -> TrackLang.PassedArgs Signal.Y -> Derive.ControlDeriver
 control_interpolate f val args = do
-    cur <- Derive.score_to_real 0
-    srate <- Derive.require_val TrackLang.v_srate
+    start <- Derive.score_to_real 0
+    srate <- Call.get_srate
     case TrackLang.passed_prev_val args of
         Nothing -> do
-            -- TODO warn
-            return $ Signal.signal [(cur, val)]
+            Derive.warn "no previous value to interpolate from"
+            return $ Signal.signal [(start, val)]
         Just (prev, prev_val) -> return $ Signal.signal $
-            interpolate_control False (RealTime srate) f prev prev_val cur val
+            interpolate_control False srate f prev prev_val start val
 
 interpolate_control :: Bool -> RealTime -> (Double -> Double)
     -> RealTime -> Signal.Y -> RealTime -> Signal.Y
@@ -81,13 +104,21 @@ interpolate_control include_initial srate f x0 y0 x1 y1
     to_pos = Num.scale y0 y1 . f . Num.normalize x0 x1
 
 
--- ** pitch
+-- * pitch
+
+-- TODO pitch_interpolate, c_note_slide, and c_neighbor all share a certain
+-- amount of code.  think of a way to factor that out.
 
 pitch_calls :: Derive.PitchCallMap
 pitch_calls = Derive.make_calls
     [ ("=", Call.c_equal Derive.no_pitch)
     , ("", c_note_set)
     , ("i", c_note_linear)
+    , ("e", c_note_exponential)
+    , ("s", c_note_slide)
+
+    , ("n", c_neighbor) -- this clearly needs a symbol
+    , ("neighbor", c_neighbor)
     ]
 
 c_note_set :: Derive.PitchCall
@@ -118,21 +149,64 @@ c_note_exponential = Derive.generate_one $ \args _ _ _ ->
     TrackLang.call2 args (required "note", optional "exp" 2) $ \note exp ->
         pitch_interpolate (expon exp) note args
 
-pitch_interpolate :: (Double -> Signal.Y) -> Pitch.Note
-    -> TrackLang.PassedArgs PitchSignal.Y -> Derive.PitchDeriver
-pitch_interpolate f note args = do
-        cur <- Derive.score_to_real 0
+c_note_slide :: Derive.PitchCall
+c_note_slide = Derive.generate_one $ \args _ _ next -> TrackLang.call2 args
+    (required "note", optional "time" 0.1) $ \note time -> do
+        start <- Derive.score_to_real 0
+        end <- case Call.next_event_begin next of
+            Nothing -> return $ start + RealTime time
+            Just n -> do
+                next <- Derive.score_to_real n
+                return $ min (start + RealTime time) next
         scale <- Derive.require_val TrackLang.v_scale
-        srate <- Derive.require_val TrackLang.v_srate
+        srate <- Call.get_srate
         degree <- Call.lookup_note scale note
         let signal = PitchSignal.signal (Pitch.scale_id scale)
         case TrackLang.passed_prev_val args of
-            Nothing -> do
-                -- TODO warn
-                return $ signal [(cur, PitchSignal.degree_to_y degree)]
-            Just (prev, prev_y) -> return $ signal $
-                interpolate_pitch False (RealTime srate) f
-                    prev (PitchSignal.y_to_degree prev_y) cur degree
+                Nothing -> do
+                    Derive.warn "no previous value to slide from"
+                    return $ signal [(start, PitchSignal.degree_to_y degree)]
+                Just (_, prev_y) -> return $ signal $
+                    interpolate_pitch True srate id
+                        start (PitchSignal.y_to_degree prev_y) end degree
+
+-- | Emit a quick slide from a neighboring pitch in absolute time.
+--
+-- [neighbor /Number/ @1@] Neighbor note, in scale degrees.
+--
+-- [time /Number/ @.3@] Duration of ornament, in seconds.
+c_neighbor :: Derive.PitchCall
+c_neighbor = Derive.generate_one $ \args _ _ _ ->
+    TrackLang.call3 (Call.default_relative_note args)
+    (required "note", optional "neighbor" 1, optional "time" 0.1) $
+    \note neighbor time -> do
+        start <- Derive.score_to_real 0
+        let end = start + RealTime time
+        scale <- Derive.require_val TrackLang.v_scale
+        degree <- Call.lookup_note scale note
+        srate <- Call.get_srate
+        let signal = PitchSignal.signal (Pitch.scale_id scale)
+        return $ signal $ interpolate_pitch True srate id
+            start (Pitch.Degree neighbor + degree) end degree
+
+
+-- ** pitch util
+
+pitch_interpolate :: (Double -> Signal.Y) -> Pitch.Note
+    -> TrackLang.PassedArgs PitchSignal.Y -> Derive.PitchDeriver
+pitch_interpolate f note args = do
+    start <- Derive.score_to_real 0
+    scale <- Derive.require_val TrackLang.v_scale
+    srate <- Call.get_srate
+    degree <- Call.lookup_note scale note
+    let signal = PitchSignal.signal (Pitch.scale_id scale)
+    case TrackLang.passed_prev_val args of
+        Nothing -> do
+            Derive.warn $ "no previous val to interpolate from"
+            return $ signal [(start, PitchSignal.degree_to_y degree)]
+        Just (prev, prev_y) -> return $ signal $
+            interpolate_pitch False srate f
+                prev (PitchSignal.y_to_degree prev_y) start degree
 
 interpolate_pitch :: Bool -> RealTime -> (Double -> Double)
     -> RealTime -> Pitch.Degree -> RealTime -> Pitch.Degree

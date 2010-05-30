@@ -20,9 +20,9 @@
     playing an audio file), but the fact that it's working from the same tempo
     map that generated the audio should keep it in sync.
 
-    - There are three threads involved: the performer is manages whatever
-    process needs to perform the score, the updater sweeps the play position
-    along, and the app event handler is waiting for events in the responder.
+    - There are three threads involved: the performer manages whatever process
+    needs to perform the score, the updater sweeps the play position along, and
+    the app event handler is waiting for events in the responder.
 
     - On cancel, kill the thread, and invoke a backend specific means to cancel
     outstanding notes (flush midi port, kill external performer, ...).
