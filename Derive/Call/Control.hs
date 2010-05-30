@@ -35,13 +35,13 @@ control_calls = Derive.make_calls
     ]
 
 c_set :: Derive.ControlCall
-c_set = Derive.generate_one $ \args _ _ _ -> TrackLang.call1 args
+c_set = Derive.generate_one "set" $ \args _ _ _ -> TrackLang.call1 args
     (required "val") $ \val -> do
         pos <- Derive.now
         return $ Signal.signal [(pos, val)]
 
 c_linear :: Derive.ControlCall
-c_linear = Derive.generate_one $ \args _ _ _ ->
+c_linear = Derive.generate_one "linear" $ \args _ _ _ ->
     case TrackLang.passed_vals args of
         [] -> case TrackLang.passed_prev_val args of
             Nothing -> return $ Derive.throw
@@ -53,12 +53,12 @@ c_linear = Derive.generate_one $ \args _ _ _ ->
             control_interpolate id val args
 
 c_exponential :: Derive.ControlCall
-c_exponential = Derive.generate_one $ \args _ _ _ ->
+c_exponential = Derive.generate_one "exponential" $ \args _ _ _ ->
     TrackLang.call2 args (required "val", optional "exp" 2) $ \val exp ->
         control_interpolate (expon exp) val args
 
 c_slide :: Derive.ControlCall
-c_slide = Derive.generate_one $ \args _ _ next -> TrackLang.call2 args
+c_slide = Derive.generate_one "slide" $ \args _ _ next -> TrackLang.call2 args
     (required "val", optional "time" 0.1) $ \val time -> do
         start <- Derive.now
         end <- case Call.next_event_begin next of
@@ -122,7 +122,7 @@ pitch_calls = Derive.make_calls
     ]
 
 c_note_set :: Derive.PitchCall
-c_note_set = Derive.generate_one $ \args _ _ _ -> TrackLang.call1 args
+c_note_set = Derive.generate_one "note_set" $ \args _ _ _ ->TrackLang.call1 args
     (required "val") $ \note -> do
         scale <- Derive.require_val TrackLang.v_scale
         pos <- Derive.now
@@ -131,7 +131,7 @@ c_note_set = Derive.generate_one $ \args _ _ _ -> TrackLang.call1 args
             [(pos, PitchSignal.degree_to_y degree)]
 
 c_note_linear :: Derive.PitchCall
-c_note_linear = Derive.generate_one $ \args _ _ _ ->
+c_note_linear = Derive.generate_one "note_linear" $ \args _ _ _ ->
     case TrackLang.passed_vals args of
         [] -> case TrackLang.passed_prev_val args of
             Nothing -> return $
@@ -145,18 +145,19 @@ c_note_linear = Derive.generate_one $ \args _ _ _ ->
             pitch_interpolate id note args
 
 c_note_exponential :: Derive.PitchCall
-c_note_exponential = Derive.generate_one $ \args _ _ _ ->
+c_note_exponential = Derive.generate_one "note_exponential" $ \args _ _ _ ->
     TrackLang.call2 args (required "note", optional "exp" 2) $ \note exp ->
         pitch_interpolate (expon exp) note args
 
 c_note_slide :: Derive.PitchCall
-c_note_slide = Derive.generate_one $ \args _ _ next -> TrackLang.call2 args
+c_note_slide = Derive.generate_one "note_slide" $
+    \args _ _ next -> TrackLang.call2 args
     (required "note", optional "time" 0.1) $ \note time -> do
         start <- Derive.now
         end <- case Call.next_event_begin next of
             Nothing -> return $ start + RealTime time
             Just n -> do
-                next <- Derive.now
+                next <- Derive.score_to_real n
                 return $ min (start + RealTime time) next
         scale <- Derive.require_val TrackLang.v_scale
         srate <- Call.get_srate
@@ -176,7 +177,7 @@ c_note_slide = Derive.generate_one $ \args _ _ next -> TrackLang.call2 args
 --
 -- [time /Number/ @.3@] Duration of ornament, in seconds.
 c_neighbor :: Derive.PitchCall
-c_neighbor = Derive.generate_one $ \args _ _ _ ->
+c_neighbor = Derive.generate_one "neighbor" $ \args _ _ _ ->
     TrackLang.call3 (Call.default_relative_note args)
     (required "note", optional "neighbor" 1, optional "time" 0.1) $
     \note neighbor time -> do

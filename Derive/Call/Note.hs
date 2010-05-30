@@ -34,7 +34,7 @@ note_calls = Derive.make_calls
 -- abbreviated syntax: @+attr@ to generate a note with that attr, or
 -- @>i | call@ to run call with that instrument.
 c_note :: Derive.NoteCall
-c_note = Derive.Call
+c_note = Derive.Call "note"
     (Just $ \args _ event next -> case process (TrackLang.passed_vals args) of
         (inst, rel_attrs, []) ->
             Right $ one_note $ generate_note inst rel_attrs event next
@@ -108,7 +108,7 @@ trimmed_pitch Nothing sig = sig
 -- * block call
 
 c_block :: BlockId -> Derive.NoteCall
-c_block block_id = Derive.generate_one $ \args _ _ _ ->
+c_block block_id = Derive.generate_one "block" $ \args _ _ _ ->
     if null (TrackLang.passed_vals args)
         then Right $ block_call block_id
         else Left $ TrackLang.ArgError "args for block call not implemented yet"
@@ -120,7 +120,7 @@ block_call block_id =
 -- * equal
 
 c_equal :: derived -> Derive.Call y derived
-c_equal empty = Derive.Call
+c_equal empty = Derive.Call "equal"
     (Just $ \args _ _ _ -> with_args args generate)
     (Just $ \args deriver -> with_args args (transform deriver))
     where

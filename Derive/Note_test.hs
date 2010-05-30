@@ -174,11 +174,12 @@ test_call_errors = do
     let run_evt evt = extract $
             DeriveTest.derive_tracks_tempo [(">i", [(0, 1, evt)])]
     left_like (run_evt "no-such-call")
-        "eval note generator no-such-call: CallNotFound"
+        "eval note generator not_found: CallNotFound"
     left_like (run_evt "abs-trill")
-        "eval note generator abs-trill: non-generator in generator position"
+        ("eval note generator absolute_trill: non-generator in generator "
+            ++ "position")
     left_like (run_evt "abs-trill |")
-        "eval note transformer abs-trill: ArgError: too few arguments"
+        "eval note transformer absolute_trill: ArgError: too few arguments"
     equal (run_evt "delay 2 | abs-trill 2 |")
         (Right [(2, 1, "delay 2 | abs-trill 2 |")])
 

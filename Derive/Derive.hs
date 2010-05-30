@@ -213,7 +213,10 @@ type PitchCallMap = Map.Map TrackLang.CallId PitchCall
 -- a generator while ones composed with it will be called as transformers, so
 -- in @a | b@, @a@ is a transformer and @b@ is a generator.
 data Call y derived = Call {
-    call_generator :: Maybe (GeneratorCall y derived)
+    -- | Since call IDs may be rebound dynamically, each call has its own name
+    -- so that error msgs are unambiguous.
+    call_name :: String
+    , call_generator :: Maybe (GeneratorCall y derived)
     , call_transformer :: Maybe (TransformerCall y derived)
     }
 
@@ -234,15 +237,19 @@ type ControlTrackCall = BlockId -> TrackId -> TrackLang.PassedArgs Signal.Y
     -> Deriver Transformer
 type Transformer = EventDeriver -> EventDeriver
 
-generator call = Call (Just call) Nothing
-transformer call = Call Nothing (Just call)
+generator :: String -> GeneratorCall y derived -> Call y derived
+generator name call = Call name (Just call) Nothing
+
+transformer :: String -> TransformerCall y derived -> Call y derived
+transformer name call = Call name Nothing (Just call)
 
 -- | Like 'generator', except for a generator that consumes a single event.
-generate_one :: (TrackLang.PassedArgs y -> [Track.PosEvent] -> Event.Event
+generate_one :: String
+    -> (TrackLang.PassedArgs y -> [Track.PosEvent] -> Event.Event
     -> [Track.PosEvent]
     -> Either TrackLang.TypeError (Deriver derived))
     -> Call y derived
-generate_one call = generator $ \args prev event next ->
+generate_one name call = generator name $ \args prev event next ->
     fmap (, 1) (call args prev event next)
 
 make_calls :: [(String, Call y derived)]

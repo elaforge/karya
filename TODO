@@ -3,7 +3,8 @@
   pitch slide (to implement piano style retrigger)
 
 CURRENT
-  - raw entry mode won't accept shifted letters
+  - sometimes it's starting up with capslock down
+  * raw entry mode won't accept shifted letters
   * improve call error msgs:
     lose the stack stuff, since I already have a track position
     but put in the call name
@@ -23,7 +24,7 @@ CURRENT
     Pitch: Same hack.  Or maybe if notes wind up being calls, the mangle can in
     fact go away.
 
-  - call stack should use an absolute name stored in the call so it doesn't
+  * call stack should use an absolute name stored in the call so it doesn't
     get confused by rebinding
   - more sophisticated function to find out the inst of a note track
   - put prev, cur, next in PassedArgs too?

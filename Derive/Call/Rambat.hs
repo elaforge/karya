@@ -28,7 +28,7 @@ note_calls = Derive.make_calls
 -- [vel /Control/ @%tick-velocity,.3@] Grace note velocity will be this
 -- percentage of the following note.
 c_tick :: Derive.NoteCall
-c_tick = Derive.generate_one $ \args prev _ next -> TrackLang.call2 args
+c_tick = Derive.generate_one "tick" $ \args prev _ next -> TrackLang.call2 args
     ( optional "time" (control "tick-time" 0.15)
     , optional "vel" (control "tick-velocity" 0.5)) $
     \time vel -> case (prev, next) of

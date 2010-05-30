@@ -53,7 +53,8 @@ note_calls = Derive.make_calls
 --
 -- [speed /Control/ @%trill-speed,14@] Trill at this many cycles per second.
 c_absolute_trill :: Derive.NoteCall
-c_absolute_trill = Derive.transformer $ \args deriver -> TrackLang.call2 args
+c_absolute_trill = Derive.transformer "absolute_trill" $
+    \args deriver -> TrackLang.call2 args
     (required "neighbor", optional "speed" (control "trill-speed" 14)) $
     \neighbor speed -> do
         neighbor_sig <- Call.to_signal neighbor
@@ -79,7 +80,8 @@ pos_at_speed sig pos = pos : pos_at_speed sig (pos + Signal.y_to_real (1/speed))
 --
 -- [speed /Control/ @%trill-speed,14@] Trill at this many cycles per score unit.
 c_score_trill :: Derive.NoteCall
-c_score_trill = Derive.transformer $ \args deriver -> TrackLang.call2 args
+c_score_trill = Derive.transformer "score_trill" $
+    \args deriver -> TrackLang.call2 args
     (required "neighbor", optional "speed" (control "trill-speed" 14)) $
     \neighbor speed -> do
         neighbor_sig <- Call.to_signal neighbor
@@ -117,8 +119,8 @@ pitch_calls = Derive.make_calls
     ]
 
 c_pitch_absolute_trill :: Derive.PitchCall
-c_pitch_absolute_trill = Derive.generate_one $ \args _ _ next ->
-    TrackLang.call3 (Call.default_relative_note args)
+c_pitch_absolute_trill = Derive.generate_one "pitch_absolute_trill" $
+    \args _ _ next -> TrackLang.call3 (Call.default_relative_note args)
     (required "note", optional "neighbor" (control "trill-neighbor" 1),
         optional "speed" (control "trill-speed" 14)) $
     \note neighbor speed -> do
@@ -152,7 +154,7 @@ trill_from_transitions transitions neighbor = Derive.with_relative_pitch
 -- | I feel like this should at least return
 -- @[(x0, (0, y, 0)), (x1, (0, y, 1)), ...]@, but does it make a difference?
 make_trill :: [RealTime] -> Signal.Control -> PitchSignal.Relative
-make_trill transitions neighbor = PitchSignal.from_control $
+make_trill transitions neighbor = PitchSignal.relative_from_control $
     Signal.sig_multiply (make_square transitions) neighbor
 
 make_square :: [RealTime] -> Signal.Control

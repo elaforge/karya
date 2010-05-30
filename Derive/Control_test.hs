@@ -77,8 +77,8 @@ test_pitch_track = do
     let (val, logs) = derive ("*twelve", [(0, 0, "1"), (1, 0, "2")])
     equal val (Right [[]])
     strings_like logs
-        [ "generator <null>: Note \"1\" not in ScaleId"
-        , "generator <null>: Note \"2\" not in ScaleId"
+        [ "generator note_set: Note \"1\" not in ScaleId"
+        , "generator note_set: Note \"2\" not in ScaleId"
         ]
     let (val, logs) = derive
             ("*twelve", [(0, 0, "4c"), (1, 0, "4d"), (2, 0, "4hc")])

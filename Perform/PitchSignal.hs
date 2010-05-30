@@ -27,8 +27,8 @@ module Perform.PitchSignal (
     PitchSignal, Relative, sig_scale, sig_vec, set_scale
     , X, Y, y_to_degree, degree_to_y, max_x, default_srate
 
-    , signal, constant, empty
-    , unsignal, from_control
+    , signal, relative, relative_from_control, constant, empty
+    , unsignal
 
     , at, at_linear, sample
     , first, last
@@ -140,6 +140,10 @@ signal scale_id ys = PitchSignal scale_id (SignalBase.signal ys)
 relative :: [(X, Y)] -> PitchSignal
 relative = signal Relative.scale_id
 
+relative_from_control :: Signal.Control -> Relative
+relative_from_control sig = signal Relative.scale_id
+    [(x, (realToFrac y, realToFrac y, 0)) | (x, y) <- Signal.unsignal sig]
+
 empty :: PitchSignal
 empty = signal (Pitch.ScaleId "empty signal") []
 
@@ -149,10 +153,6 @@ constant scale_id degree = signal scale_id [(0, degree_to_y degree)]
 -- | Used for tests.
 unsignal :: PitchSignal -> [(X, Y)]
 unsignal = SignalBase.unsignal . sig_vec
-
-from_control :: Signal.Control -> Relative
-from_control sig = signal Relative.scale_id
-    [(x, (realToFrac y, realToFrac y, 0)) | (x, y) <- Signal.unsignal sig]
 
 -- | Flatten a pitch signal into an absolute note number signal.
 to_nn :: Pitch.Scale -> PitchSignal -> Signal.NoteNumber

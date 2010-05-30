@@ -188,7 +188,7 @@ eval_generator info@(caller, empty, lookup_call, _)
     call <- lookup_call call_id
     env <- Derive.gets Derive.state_environ
     let passed = TrackLang.PassedArgs args env call_id stretch prev_val
-    let msg = eval_msg "generator" caller call_id
+    let msg = eval_msg "generator" caller call
     case Derive.call_generator call of
         Nothing -> do
             Derive.with_msg msg
@@ -234,7 +234,7 @@ eval_transformer info@(caller, empty, lookup_call, _) stretch
     call <- lookup_call call_id
     env <- Derive.gets Derive.state_environ
     let passed = TrackLang.PassedArgs args env call_id stretch Nothing
-    let msg = eval_msg "transformer" caller call_id
+    let msg = eval_msg "transformer" caller call
     case Derive.call_transformer call of
         Nothing -> do
             Derive.with_msg msg $
@@ -257,9 +257,9 @@ handle_exc msg empty deriver = fmap (maybe empty id) $
     -- short of both a nested and non-nested contexts.
     Derive.catch_warn id (Derive.with_msg msg deriver)
 
-eval_msg :: String -> String -> TrackLang.CallId -> String
-eval_msg eval_type caller call_id = "eval "
-    ++ caller ++ " " ++ eval_type ++ " " ++ Pretty.pretty call_id
+eval_msg :: String -> String -> Derive.Call y derived -> String
+eval_msg eval_type caller call = "eval "
+    ++ caller ++ " " ++ eval_type ++ " " ++ Derive.call_name call
 
 -- * lookup_note_call
 
@@ -284,7 +284,7 @@ lookup_note_call call_id = do
 -- abort evaluation of this expression, so consider this a kind of type error,
 -- which does just that.
 c_not_found :: TrackLang.CallId -> Derive.NoteCall
-c_not_found call_id = Derive.Call
+c_not_found call_id = Derive.Call "not_found"
     (Just $ \_ _ _ _ -> err) (Just $ \_ _ -> err)
     where err = Left (TrackLang.CallNotFound call_id)
 
