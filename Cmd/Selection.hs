@@ -181,19 +181,19 @@ select_and_scroll view_id selnum sel = do
     State.set_selection view_id selnum sel
     sync_selection_status view_id
     case (old_sel, sel) of
-        (Just sel0, Just sel1) -> auto_scroll view_id sel0 sel1
+        (Just old, Just new) -> auto_scroll view_id old new
         _ -> return ()
 
--- | If @sel1@ has scrolled off the edge of the window, automatically scroll
--- it so that the selection is in view.  @sel0@ is needed to determine the
--- direction of the scroll.
-auto_scroll :: (Monad m) => ViewId -> Types.Selection
-    -> Types.Selection -> Cmd.CmdT m ()
-auto_scroll view_id sel0 sel1 = do
+-- | If @new@ has scrolled off the edge of the window, automatically scroll
+-- it so that the selection is in view.
+auto_scroll :: (Monad m) => ViewId
+    -> Types.Selection -- ^ old selection, to determine scroll direction
+    -> Types.Selection -- ^ new selection
+    -> Cmd.CmdT m ()
+auto_scroll view_id old new = do
     view <- State.get_view view_id
-    zoom_offset <- auto_time_scroll view sel0 sel1
-    track_offset <- auto_track_scroll view sel0 sel1
-
+    let zoom_offset = auto_time_scroll view new
+        track_offset = auto_track_scroll view old new
     State.set_zoom view_id $
         (Block.view_zoom view) { Types.zoom_offset = zoom_offset }
     State.set_track_scroll view_id track_offset
@@ -201,43 +201,23 @@ auto_scroll view_id sel0 sel1 = do
 
 -- TODO this scrolls too fast when dragging.  Detect a drag and scroll at
 -- a rate determined by how far past the bottom the pointer is.
-auto_time_scroll :: (Monad m) => Block.View -> Types.Selection
-    -> Types.Selection -> Cmd.CmdT m ScoreTime
-auto_time_scroll view sel0 sel1 = do
-    block_id <- Cmd.get_focused_block
-    step <- Cmd.get_current_step
-    let steps = if Types.sel_cur_pos sel1 >= Types.sel_cur_pos sel0
-            then steps_visible else -steps_visible
-    next <- TimeStep.step_n steps step block_id
-        (Types.sel_cur_track sel1) (Types.sel_cur_pos sel1)
-    return $ get_time_offset max_visible view (Types.sel_cur_pos sel1) next
-    where
-    -- Try to keep this many timesteps in the scroll direction in view.
-    steps_visible = 3
-    -- Never scroll so much there isn't at least this percent of visible area
-    -- in the anti-scroll direction.
-    max_visible = 0.2
-
-get_time_offset :: ScoreTime -> Block.View -> ScoreTime -> ScoreTime
-    -> ScoreTime
-get_time_offset max_visible view sel_pos scroll_to
-    | scroll_to >= sel_pos = if scroll_to <= view_end then view_start
-        else min (sel_pos - visible * max_visible) (scroll_to - visible)
-    | otherwise = if scroll_to >= view_start then view_start
-        else max (sel_pos - visible * (1-max_visible)) scroll_to
+auto_time_scroll :: Block.View -> Types.Selection -> ScoreTime
+auto_time_scroll view new
+    | scroll_to >= view_end = scroll_to - visible + space
+    | scroll_to < view_start = scroll_to - space
+    | otherwise = view_start
     where
     visible = Block.visible_time view
     view_start = Types.zoom_offset (Block.view_zoom view)
     view_end = view_start + visible
+    scroll_to = Types.sel_cur_pos new
+    space = ScoreTime
+        (visible_pixels / Types.zoom_factor (Block.view_zoom view))
+    visible_pixels = 30
 
-auto_track_scroll :: (Monad m) => Block.View -> Types.Selection
-    -> Types.Selection -> Cmd.CmdT m Types.Width
-auto_track_scroll view sel0 sel1 = do
-    return $ get_track_offset
-        view (Types.sel_cur_track sel0) (Types.sel_cur_track sel1)
-
-get_track_offset :: Block.View -> TrackNum -> TrackNum -> Types.Width
-get_track_offset view prev_tracknum cur_tracknum
+auto_track_scroll :: Block.View -> Types.Selection -> Types.Selection
+    -> Types.Width
+auto_track_scroll view old new
     | cur_tracknum >= prev_tracknum = max view_start (track_end - visible)
     | otherwise = min view_start track_start
     where
@@ -247,6 +227,8 @@ get_track_offset view prev_tracknum cur_tracknum
     track_end = sum (take cur_tracknum widths)
     view_start = Block.view_track_scroll view
     visible = Block.view_visible_track view
+    prev_tracknum = Types.sel_cur_track old
+    cur_tracknum = Types.sel_cur_track new
 
 
 -- ** status

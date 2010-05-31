@@ -3,7 +3,7 @@
   pitch slide (to implement piano style retrigger)
 
 CURRENT
-  - sometimes it's starting up with capslock down
+  - somehow capslock keydown is sent sometimes
   * raw entry mode won't accept shifted letters
   * improve call error msgs:
     lose the stack stuff, since I already have a track position
@@ -29,6 +29,7 @@ CURRENT
   - more sophisticated function to find out the inst of a note track
   - put prev, cur, next in PassedArgs too?
     except that transformers currently don't get these args
+    what would the track transformer pass?
 
   - remove warped control?
 
@@ -48,6 +49,8 @@ CURRENT
 UNSORTED
   - event text editing is not so great, it would be nicer to bring up
     a standard text entry widget, that way I can type unicode too
+  - bug: track scroll from rightmost track when scrolled doesn't properly set
+    selection
   * move Cmd.LanguageCmds to Cmd.Lang.Global
   - move MakeRuler to Lang too?
   * remove with_msg "compile bid", it's redundant with the stack
@@ -63,8 +66,8 @@ UNSORTED
     solution: text entry is collapsed by track add, remove, or resize
 
   - clicking jumps to points that arrows won't jump to
-  - auto scroll is doing the wrong thing on a click
-  - also auto scroll annoying, scroll down then when it passes threshold
+  * auto scroll is doing the wrong thing on a click
+  * also auto scroll annoying, scroll down then when it passes threshold
     suddenly jump.
     curser in middle, move down, view suddenly jumps to bottom
 
@@ -185,6 +188,8 @@ bugs:
     dropped but not the note
   - bizarre hint importing requirements in Cmd.LanguageEnviron
   + track down ghc rts crashes, assertion failure
+    - it showed up when ghc started paying attention to alignment, look into
+      allocaBytes and allocaBytesAligned
     add -DS flag
     crash is when evacuating pinned memory, is it a foreign ptr?
     - run under valgrind
@@ -409,8 +414,6 @@ Cmd:
       top and bottom of block
     - esc and i for edit mode
     - number prefixed cmds?  not for now
-  * selection scrolling should scroll so the next 2 timesteps are visible
-  Keymap
   Cmd.Edit
     - alternate finale-like note entry: hold down step key to set step and
       turn on edit mode, but only while the key is down
