@@ -363,11 +363,11 @@ main(int argc, char **argv)
         render_config);
 
     BlockViewWindow view(0, 100, 200, 500, "view1", config, view_config);
-    BlockViewWindow view2(300, 100, 200, 500, "view2", config, view_config);
     view.testing = true;
-    view2.testing = true;
-    view2.show();
     // view.border(0);
+    // BlockViewWindow view2(300, 100, 200, 500, "view2", config, view_config);
+    // view2.testing = true;
+    // view2.show();
 
     view.block.set_status("no status yet");
     view.block.set_title("hi there");
@@ -375,9 +375,9 @@ main(int argc, char **argv)
     // view.block.insert_track(0, Tracklike(&ruler), 20);
     // view.block.insert_track(1, Tracklike(&divider), 10);
     view.block.insert_track(1, Tracklike(&empty_track, &truler), 100);
-    // view.block.insert_track(2, Tracklike(&track2, &truler), 30);
-    // view.block.insert_track(3, Tracklike(&empty_track, &truler), 20);
-    // view.block.insert_track(4, Tracklike(&empty_track, &truler), 20);
+    view.block.insert_track(2, Tracklike(&track2, &truler), 40);
+    view.block.insert_track(3, Tracklike(&empty_track, &truler), 60);
+    view.block.insert_track(4, Tracklike(&empty_track, &truler), 40);
     // view.block.insert_track(5, Tracklike(&track2, &truler), 80);
 
     // int pairs[] = {0, 5, 2, 4, 3, 4};

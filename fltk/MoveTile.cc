@@ -214,7 +214,7 @@ MoveTile::handle_move(int evt, BoolPoint *drag_state, int *dragged_child)
     // TODO Disable vertical drag for now.
     drag_state->y = false;
     set_cursor(this, *drag_state);
-    // DEBUG("state: " << *drag_state << " drag_from: " << drag_from);
+    // DEBUG("state: " << *drag_state << " child: " << *dragged_child);
     if (drag_state->x || drag_state->y)
         return true; // I'm taking control now
     else

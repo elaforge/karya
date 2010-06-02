@@ -18,7 +18,13 @@ SimpleScroll::set_offset(Point offset)
 {
     Point shift(offset.x - this->offset.x, offset.y - this->offset.y);
     this->offset = offset;
-    child(0)->position(child(0)->x() + shift.x, child(0)->y() + shift.y);
+    // When scrolling in negative x and y (so the child's x and y are getting
+    // smaller), grow the child so its right edge stays in the same place.
+    // When scrolling back, shrink it.  The assumption is that the child is
+    // prepared to grow on the right and bottom edges.
+    Fl_Widget *c = child(0);
+    c->resize(c->x() + shift.x, c->y() + shift.y,
+            c->w() - shift.x, c->h() - shift.y);
     this->damage(FL_DAMAGE_SCROLL);
     // DEBUG("offset: " << show_damage(damage()));
 }

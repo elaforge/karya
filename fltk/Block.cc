@@ -309,7 +309,7 @@ void
 BlockView::set_track_scroll(int offset)
 {
     int track_end = this->track_tile.track_end();
-    int max_offset = std::max(0, track_end - this->track_tile.w());
+    int max_offset = std::max(0, track_end - this->track_scroll.w());
     offset = clamp(0, max_offset, offset);
     // offset = std::min(max_offset, offset);
 
@@ -538,7 +538,7 @@ void
 BlockView::update_scrollbars()
 {
     this->track_sb.set_scroll_zoom(
-        track_tile.track_end(), get_track_scroll(), track_tile.w());
+        track_tile.track_end(), get_track_scroll(), track_scroll.w());
 
     const ZoomInfo &zoom = this->get_zoom();
     // The scale(1)s just convert a ScoreTime to a double.
@@ -567,12 +567,12 @@ BlockView::scrollbar_cb(Fl_Widget *_unused_w, void *vp)
         global_msg_collector()->block_update(self, UiMsg::msg_zoom);
     }
 
-    // If you update this, also update set_track_scroll!
     // This is the same as BlockView::set_track_scroll, but can reuse
-    // track_end, and doesn't call update_scrollbars.
+    // track_end, and doesn't call update_scrollbars.  Since they do the same
+    // thing, if you update this, also update set_track_scroll!
     double track_offset = self->track_sb.get_offset();
     int track_end = self->track_tile.track_end();
-    int max_offset = std::max(0, track_end - self->track_tile.w());
+    int max_offset = std::max(0, track_end - self->track_scroll.w());
     int offset = std::min(max_offset, int(track_offset * track_end));
     Point new_offset(-offset, 0);
     if (self->track_scroll.get_offset() != new_offset) {

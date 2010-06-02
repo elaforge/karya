@@ -10,19 +10,6 @@ CURRENT
     but put in the call name
   * fast path for lang: collapse, expand, s, save, save_as, load
   * replace 'score_to_real 0' with 'now'
-  - tracklang parsing: remove null call so I can say the first word is
-    It would be really nice to have arbitrary symbols as calls.  I can do this
-    by going to a purely location based system, so the first word is always
-    a symbol.  But then I need to think of a replacement for the null call
-    concept.
-
-    Note: "" -> null call, and I don't mind losing ">i" for "inst = >i"
-
-    Control: I suppose a special hack where if the text is a number, call "set
-    n".  I already have the syntax mangle.
-
-    Pitch: Same hack.  Or maybe if notes wind up being calls, the mangle can in
-    fact go away.
 
   * call stack should use an absolute name stored in the call so it doesn't
     get confused by rebinding
@@ -47,12 +34,12 @@ CURRENT
 - try record punning
 
 UNSORTED
-  - event text editing is not so great, it would be nicer to bring up
-    a standard text entry widget, that way I can type unicode too
-  - bug: track scroll from rightmost track when scrolled doesn't properly set
+
+  * bug: track scroll from rightmost track when scrolled doesn't properly set
     selection
   * move Cmd.LanguageCmds to Cmd.Lang.Global
-  - move MakeRuler to Lang too?
+  / move MakeRuler to Lang too?
+    no, it's used by Cmd.Create, which is used by keybindings
   * remove with_msg "compile bid", it's redundant with the stack
   - make "error subderiving" msg nicer and put the stack in the log msg
   - happened automatically adding a pitch track:
@@ -65,7 +52,7 @@ UNSORTED
     11  insert_track + 205 (c_interface.cc:187)
     solution: text entry is collapsed by track add, remove, or resize
 
-  - clicking jumps to points that arrows won't jump to
+  - clicking jumps to timestep points that arrows won't jump to
   * auto scroll is doing the wrong thing on a click
   * also auto scroll annoying, scroll down then when it passes threshold
     suddenly jump.
@@ -90,19 +77,17 @@ UNSORTED
     green when it is, that way you can see if derivation failed
   - implement continuous controller warp
   - make Track.UnsortedEvents and Track.SortedEvents, type or newtype?
-  - empty tempo track should default to 1
+  * empty tempo track should default to 1
   - insert and delete time should use the selection if non-point
   - join for control tracks could be useful, just delete following evt
   - rename project -> namespace
   - hspp screws up \\ string continuations
-  - document / enforce rules for CallId, Control, etc?
+  - document / enforce naming restrictions for CallId, Control, etc?
 
   - stack: bid/tid/* should highlight the entire track
   - test relative pitch slide!
-  - more symbolic calls, e.g. -/_\\/ and -//
   - should tab in raw edit mode go to method?  how to go back then?
   - select track, st3 style select block, track
-  - symbolic score, as in doc/custom_symbols
   - cut + paste didn't work with a point paste
   - skel_display status can be two chars: Sm is solo+mute
 
@@ -270,9 +255,46 @@ performance:
   - derive multiple blocks with strategies, par, parMap.  Can I spark all
     subderivations?
 
+symbolic score as in doc/custom_symbols
+  - tracklang parsing: remove null call so I can say the first word is
+    anything.  It would be really nice to have arbitrary symbols as calls.
+    I can do this by going to a purely location based system, so the first word
+    is always a symbol.  But then I need to think of a replacement for the null
+    call concept.
+
+    Note: "" -> null call, and I don't mind losing ">i" for "inst = >i"
+
+    Control: I suppose a special hack where if the text is a number, call "set
+    n".  I already have the syntax mangle.
+
+    Pitch: Same hack, only xyz -> 'set *xyz'.  That means there's no way to
+    write a nullary call, say 'subblock'.  But if notes wind up being calls,
+    the mangle can just go away and the problem is gone.
+
+    Note: no mangle?
+
+    How does this interact with the other idea to have inst be a call?
+      call = >some/inst
+    Now this actually affects the mangler, '' is mangled to
+    '>some/inst'.  It might be a little cleaner to always mangle to
+    'default', and then put the inst calling logic in 'default'.
+
+    Now what about 'block0'?  It's ok, the inst is still inherited by the sub.
+    What about '+attr'?  I want it to become '>inst +attr'  However, it might
+    be nicer to not implement +attr and leave it to local bindings.  E.g.
+    bind 'attr' to 'default +attr'.  That way, a call to 'sn' could be either
+    a call to 'attrs = +sn | default' or just a call to 'sn'.
+
+    How to represent symbols?
+
+    If I a native text entry widget then it should be possible to expand
+    symbols into their ?name? notation for editing, and render them as a symbol
+    for display.  Of course, for unicode characters I can also rely on an IME,
+    so I would need some way to decide which to expand.
+
 fltk:
   - factor scroll redrawing into a single class
-  - scroll to right, tracks don't receive clicks
+  * scroll to right, tracks don't receive clicks
   - draw arrows in SkeletonDisplay.cc properly
   - figure out how to have a minimal title bar in os x (win.border(0) removes
     it altogether)
