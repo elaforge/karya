@@ -200,6 +200,8 @@ edit_bindings = concat
 
     , bind_char '-' "octave -1" (Edit.cmd_modify_octave (subtract 1))
     , bind_char '=' "octave +1" (Edit.cmd_modify_octave (+1))
+
+    , command_char 'j' "join events" Edit.cmd_join_events
     ]
     where
     step_rank rank skips = Edit.cmd_meter_step (TimeStep.MatchRank rank skips)

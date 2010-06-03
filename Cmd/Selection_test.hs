@@ -2,9 +2,6 @@ module Cmd.Selection_test where
 
 import Util.Test
 
-import qualified Ui.Block as Block
-import qualified Ui.Types as Types
-
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Selection as Selection
 

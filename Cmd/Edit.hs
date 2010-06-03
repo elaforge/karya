@@ -117,14 +117,20 @@ cmd_join_events = mapM_ process =<< Selection.events_around
             (False, False) -> do
                 let end = Track.event_end (pos2, evt2)
                 State.remove_events track_id pos1 end
-                State.insert_event track_id pos1
-                    (Event.set_duration (end - pos1) evt1)
+                -- If evt2 is zero dur, the above half-open range won't get it.
+                State.remove_event track_id pos2
+                State.insert_event track_id pos1 (set_dur (end - pos1) evt1)
             (True, True) -> do
                 let start = Track.event_end (pos1, evt1)
                 State.remove_events track_id start pos2
-                State.insert_event track_id pos2
-                    (Event.set_duration (start - pos2) evt2)
+                State.remove_event track_id pos2
+                State.insert_event track_id pos2 (set_dur (start - pos2) evt2)
             _ -> return () -- no sensible way to join these
+    -- Zero dur events are never lengthened.  This means that joining control
+    -- events simply deletes the later ones.
+    set_dur dur evt
+        | Event.event_duration evt == 0 = evt
+        | otherwise = Event.set_duration dur evt
 
 -- | Insert empty space at the beginning of the selection for the length of
 -- the selection, pushing subsequent events forwards.  If the selection is

@@ -23,7 +23,6 @@ make_keymap pitch_track = Keymap.make_cmd_map $ concat
     , command_char 's' "set dur" Edit.cmd_set_duration
     , command_char '.' "dur * 1.5" (Edit.cmd_modify_dur (*1.5))
     , command_char ',' "dur / 1.5" (Edit.cmd_modify_dur (/1.5))
-    , command_char 'j' "join events" Edit.cmd_join_events
 
     , bind_char '`' "insert track end" cmd_insert_track_end
     ]

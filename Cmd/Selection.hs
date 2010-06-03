@@ -325,7 +325,7 @@ events = fmap extract_events events_around
 events_around :: (Monad m) => Cmd.CmdT m SelectedAround
 events_around = events_around_selnum Config.insert_selnum
 
--- | Select events whose @pos@ likes within the selection range.
+-- | Select events whose @pos@ lie strictly within the selection range.
 strict_events_around :: (Monad m) => Types.SelNum -> Cmd.CmdT m SelectedAround
 strict_events_around selnum = do
     (_, track_ids, start, end) <- tracks_selnum selnum

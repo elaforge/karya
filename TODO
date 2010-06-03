@@ -72,7 +72,7 @@ UNSORTED
   - make Track.UnsortedEvents and Track.SortedEvents, type or newtype?
   * empty tempo track should default to 1
   - insert and delete time should use the selection if non-point
-  - join for control tracks could be useful, just delete following evt
+  * join for control tracks could be useful, just delete following evt
   - rename project -> namespace
   - hspp screws up \\ string continuations
   - document / enforce naming restrictions for CallId, Control, etc?
