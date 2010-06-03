@@ -1,4 +1,6 @@
 CURRENT
+  - Cmd.throw from repl should print back to repl
+  - select_and_scroll doesn't scroll down when going from no sel -> sel
   * Cmd.Play TODO: properly convert to log msg
   - Derive: inst as a call rather than just something from the env
   - symbolic score: remove null call
@@ -77,7 +79,7 @@ UNSORTED
   - hspp screws up \\ string continuations
   - document / enforce naming restrictions for CallId, Control, etc?
 
-  - stack: bid/tid/* should highlight the entire track
+  * stack: bid/tid/* should highlight the entire track
   - test relative pitch slide!
   - should tab in raw edit mode go to method?  how to go back then?
   - select track, st3 style select block, track

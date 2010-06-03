@@ -167,6 +167,12 @@ mouse_drag btn msg = do
 advance :: (Monad m) => Cmd.CmdT m ()
 advance = cmd_step_selection Config.insert_selnum TimeStep.Advance False
 
+select :: (Monad m) => ViewId -> Types.SelNum -> Maybe Types.Selection
+    -> Cmd.CmdT m ()
+select view_id selnum sel = do
+    State.set_selection view_id selnum sel
+    sync_selection_status view_id
+
 -- ** auto scroll
 
 -- | Figure out how much to scroll to keep the selection visible and with

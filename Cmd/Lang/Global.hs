@@ -76,6 +76,7 @@ import qualified App.Config as Config
 
 -- | Called from logview
 s :: String -> Cmd.CmdL ()
+s "" = unerror
 s stackpos = maybe (Cmd.throw $ "can't parse stackpos: " ++ show stackpos)
         highlight_error (Warning.parse_stack stackpos)
 
@@ -88,18 +89,25 @@ unerror = do
 highlight_error :: Warning.StackPos -> Cmd.CmdL ()
 highlight_error (bid, maybe_tid, maybe_range) = do
     view_ids <- fmap Map.keys (State.get_views_of bid)
-    -- mapM_ raise_view view_ids
+    mapM_ raise_view view_ids
     case (maybe_tid, maybe_range) of
+        (Nothing, _) -> forM_ view_ids $ \vid ->
+            Selection.select vid Config.error_selnum
+                (Types.selection 0 0 9999 9999)
+        (Just tid, Nothing) -> do
+            tracknums <- State.track_id_tracknums bid tid
+            forM_ view_ids $ \vid -> forM_ tracknums $ \tracknum ->
+                Selection.select vid Config.error_selnum
+                    (Types.selection tracknum 0 tracknum 9999)
         (Just tid, Just (from, to)) -> do
             tracknums <- State.track_id_tracknums bid tid
             forM_ view_ids $ \vid -> forM_ tracknums $ \tracknum ->
                 Selection.select_and_scroll vid Config.error_selnum
-                    (Types.selection tracknum from tracknum to)
-        _ -> return ()
+                    (Types.selection tracknum to tracknum from)
 
 -- TODO implement
 raise_view :: ViewId -> Cmd.CmdL ()
-raise_view = undefined
+raise_view _view_id = return ()
 
 -- * show / modify cmd state
 
