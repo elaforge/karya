@@ -1,6 +1,5 @@
 CURRENT
   * Cmd.throw from repl should print back to repl
-  - select_and_scroll doesn't scroll down when going from no sel -> sel
   * Cmd.Play TODO: properly convert to log msg
   - Derive: inst as a call rather than just something from the env
   - symbolic score: remove null call
@@ -36,7 +35,7 @@ UNSORTED
   / move MakeRuler to Lang too?
     no, it's used by Cmd.Create, which is used by keybindings
   * remove with_msg "compile bid", it's redundant with the stack
-  - make "error subderiving" msg nicer and put the stack in the log msg
+  * make "error subderiving" msg nicer and put the stack in the log msg
   - happened automatically adding a pitch track:
     assertion: <assertion failed at fltk/TrackTile.cc:266 update_sizes():
     'title->w() == body->w()'>
@@ -169,6 +168,7 @@ bugs:
     dropped but not the note
   - bizarre hint importing requirements in Cmd.LanguageEnviron
   + track down ghc rts crashes, assertion failure
+    - eliminated use of allocaBytes for alloca, see if that helps
     - it showed up when ghc started paying attention to alignment, look into
       allocaBytes and allocaBytesAligned
     add -DS flag
@@ -447,6 +447,7 @@ Cmd:
    - double / halve events under selection
    - stretch events in selection to another length (need two selections?)
   Cmd.Selection
+    - select_and_scroll doesn't scroll down when going from no sel -> sel
   Cmd.TimeStep
     - snap to event begin/end
 

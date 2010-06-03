@@ -343,20 +343,26 @@ d_block block_id = do
     with_stack_block block_id deriver
 
 -- | Run a derivation, catching and logging any exception.
-d_sub_derive :: (Monad m) => a -> DeriveT Identity.Identity a -> DeriveT m a
-d_sub_derive fail_val deriver = do
+d_subderive :: (Monad m) => a -> DeriveT Identity.Identity a -> DeriveT m a
+d_subderive fail_val deriver = do
     state <- get
     let (res, state2, logs) = Identity.runIdentity $ run state deriver
     mapM_ Log.write logs
     case res of
-        Left err -> do
-            warn $ "error sub-deriving: " ++ show err
+        Left (DeriveError srcpos stack msg) -> do
+            -- I don't use 'warn', which means I don't get the local context,
+            -- but I think that's ok because the msg gets the sub-block's
+            -- context.
+            Log.write $
+                (Log.msg_srcpos srcpos Log.Warn ("subderiving: " ++ msg))
+                { Log.msg_stack = Just stack }
             return fail_val
         Right val -> do
             -- TODO once the logging portion of the state is factored out I
             -- should copy back only that part
             modify (const state2)
             return val
+
 
 run :: (Monad m) =>
     State -> DeriveT m a -> m (Either DeriveError a, State, [Log.Msg])

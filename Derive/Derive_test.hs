@@ -112,6 +112,15 @@ test_subderive = do
     -- pprint $ zip [0,2..] $ map inv_tempo (map Timestamp.seconds [0, 2 .. 10])
     -- pprint $ Derive.state_track_warps state
 
+test_subderive_error = do
+    let run evts = DeriveTest.derive_blocks
+            [ ("b0", [ (">i1", evts) ])
+            , ("sub", [(">", []), ("add *error syntax", [(1, 1, "--sub1")])])
+            ]
+    let (val, logs) = (DeriveTest.e_logs $ run [(0, 1, "sub")])
+    equal val (Right [])
+    strings_like logs ["subderiving: .*: failed to parse"]
+
 test_subderive_multiple = do
     -- make sure subderiving a block with multiple tracks works correctly
     let (Right events, logs) = DeriveTest.e_val $ DeriveTest.derive_blocks

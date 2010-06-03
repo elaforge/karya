@@ -15,6 +15,7 @@ import Prelude
 import Control.Monad
 
 import Util.Control
+import qualified Util.Pretty as Pretty
 
 import Ui
 import qualified Ui.Track as Track
@@ -55,8 +56,8 @@ eval_track block_id track_id expr vals deriver = do
             control_call track_id control maybe_op control_deriver deriver
         Right (TrackInfo.Pitch ptype maybe_name) ->
             pitch_call track_id maybe_name ptype expr events deriver
-        Left msg ->
-            Derive.throw $ "failed to parse " ++ show vals ++ ": " ++ msg
+        Left msg -> Derive.throw $
+            "failed to parse " ++ Pretty.pretty vals ++ ": " ++ msg
 
 -- | A tempo track is derived like other signals, but in absolute time.
 -- Otherwise it would wind up being composed with the environmental

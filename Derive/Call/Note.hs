@@ -115,7 +115,7 @@ c_block block_id = Derive.generate_one "block" $ \args _ _ _ ->
 
 block_call :: BlockId -> Derive.EventDeriver
 block_call block_id =
-    Derive.d_sub_derive Derive.no_events (Derive.d_block block_id)
+    Derive.d_subderive Derive.no_events (Derive.d_block block_id)
 
 -- * equal
 
