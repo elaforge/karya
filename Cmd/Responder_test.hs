@@ -81,7 +81,8 @@ with_inst msgs = do
 dummy_transport :: IO Transport.Info
 dummy_transport = do
     chan <- TChan.newTChanIO
-    return $ Transport.Info chan (const (return ())) (return ()) CoreMidi.now
+    return $ Transport.Info (\_ _ -> return ())
+        (const (return ())) (return ()) CoreMidi.now
 
 run_msgs :: State.State -> Cmd.State -> [Msg.Msg]
     -> IO ([Cmd.Status], [Midi.WriteMessage])
@@ -90,9 +91,10 @@ run_msgs ustate cstate msgs = do
     let midi_writer wmsg = MVar.modifyMVar_ midi (\ms -> return (wmsg:ms))
     interpreter_chan <- Chan.newChan
     transport_info <- dummy_transport
+    loopback_chan <- TChan.newTChanIO
     let rstate = Responder.ResponderState StaticConfig.empty_config
             ustate cstate (error "state_msg_reader unused") midi_writer
-            transport_info interpreter_chan
+            transport_info interpreter_chan loopback_chan
     statuses <- thread_states rstate msgs
     midi_msgs <- MVar.takeMVar midi
     return (statuses, midi_msgs)

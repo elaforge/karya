@@ -49,10 +49,15 @@ cmd_language interpreter_chan lang_dirs msg = do
     local_modules <- fmap concat (mapM get_local_modules lang_dirs)
 
     cmd <- case Fast.fast_interpret text of
-        Just cmd -> return cmd
+        Just cmd -> return $ cmd `Error.catchError` \err -> case err of
+            State.StateError err -> do
+                Log.warn $ "state error in lang cmd: " ++ err
+                return $ "error: " ++ err
+            State.Abort -> return "aborted"
+        -- 'interpret' catches errors in 'merge_cmd_state'
         Nothing -> Trans.liftIO $ send interpreter_chan
             (interpret local_modules ui_state cmd_state text)
-    response <- cmd -- TODO what if cmd aborts?  won't I skip the response?
+    response <- cmd
     Trans.liftIO $ catch_io_errors $ do
         unless (null response) $
             IO.hPutStrLn response_hdl response
@@ -137,7 +142,9 @@ merge_cmd_state cmd_state midi logs ui_res = do
     mapM_ Log.write logs
     mapM_ (uncurry Cmd.midi) midi
     case ui_res of
-        Left (State.StateError err) -> return $ "error: " ++ err
+        Left (State.StateError err) -> do
+            Log.warn $ "state error in lang cmd: " ++ err
+            return $ "error: " ++ err
         Left State.Abort -> Cmd.abort
         Right (response, ui_state2, updates) -> do
             -- I trust that they modified the state through the State

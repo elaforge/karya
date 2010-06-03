@@ -1,5 +1,5 @@
 CURRENT
-  - Cmd.throw from repl should print back to repl
+  * Cmd.throw from repl should print back to repl
   - select_and_scroll doesn't scroll down when going from no sel -> sel
   * Cmd.Play TODO: properly convert to log msg
   - Derive: inst as a call rather than just something from the env
