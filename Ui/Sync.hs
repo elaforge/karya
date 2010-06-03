@@ -171,6 +171,7 @@ run_update _ (Update.ViewUpdate view_id update) = do
         Update.Selection selnum maybe_sel -> do
             csel <- to_csel view_id selnum maybe_sel
             return $ BlockC.set_selection view_id selnum csel
+        Update.BringToFront -> return $ BlockC.bring_to_front view_id
 
 -- Block ops apply to every view with that block.
 run_update block_samples (Update.BlockUpdate block_id update) = do

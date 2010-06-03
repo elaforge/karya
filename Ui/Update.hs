@@ -28,6 +28,9 @@ data ViewUpdate =
     | Zoom Types.Zoom
     | TrackWidth TrackNum Types.Width
     | Selection Types.SelNum (Maybe Types.Selection)
+    -- | Bring the window to the front.  Unlike most other updates, this is
+    -- recorded directly and is not reflected in Ui.State.
+    | BringToFront
     deriving Show
 
 data BlockUpdate
@@ -51,6 +54,7 @@ data TrackUpdate
     | TrackRender
     deriving (Show)
 
+-- | Updates which purely manipulate the view are treated differently by undo.
 is_view_update :: Update -> Bool
 is_view_update update = case update of
     ViewUpdate _ view_update -> case view_update of
@@ -66,6 +70,15 @@ is_view_update update = case update of
         _ -> False
     _ -> False
 
+-- | Does an update imply a change which would require rederiving?
+block_changed :: Update -> Maybe BlockId
+block_changed (BlockUpdate block_id update) = case update of
+    BlockConfig _ -> Nothing
+    -- TODO if DisplayTrack only changed collapsed, then it's not a change
+    _ -> Just block_id
+block_changed _ = Nothing
+
+-- | As 'block_changed', but for track updates.
 track_changed :: Update -> Maybe TrackId
 track_changed (TrackUpdate track_id update) = case update of
     TrackEvents _ _ -> Just track_id
@@ -74,13 +87,6 @@ track_changed (TrackUpdate track_id update) = case update of
     TrackTitle _ -> Just track_id
     _ -> Nothing
 track_changed _ = Nothing
-
-block_changed :: Update -> Maybe BlockId
-block_changed (BlockUpdate block_id update) = case update of
-    BlockConfig _ -> Nothing
-    -- TODO if DisplayTrack only changed collapsed, then it's not a change
-    _ -> Just block_id
-block_changed _ = Nothing
 
 -- | Some Updates have to happen before others.
 sort :: [Update] -> [Update]

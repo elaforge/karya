@@ -36,6 +36,7 @@ void set_selection(BlockViewWindow *view, int selnum,
         const Selection *sel);
 void set_track_selection(BlockViewWindow *view, int selnum, int tracknum,
         const Selection *sel);
+void bring_to_front(BlockViewWindow *view);
 
 void set_model_config(BlockViewWindow *view, BlockModelConfig *config);
 void set_skeleton(BlockViewWindow *view, SkeletonConfig *skel);

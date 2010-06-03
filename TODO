@@ -90,7 +90,7 @@ bugs:
   - deriving signal causes event derive to fail too?
   - keymap collisions are logged twice
   - Create.rename_project loses the merged tracks
-  - bring block windows to the front after a load
+  * bring block windows to the front after a load / no don't, it's annoying
 
   - tracks with different tempos play correctly, but playback follows tempo
   - unparsed notes are played instead of dropped, it's because the pitch is

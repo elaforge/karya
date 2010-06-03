@@ -24,6 +24,8 @@ module Ui.BlockC (
     , set_track_scroll
     , CSelection(..)
     , set_selection, set_track_selection
+    , bring_to_front
+
     -- ** constants
     , max_selections
 
@@ -192,6 +194,9 @@ foreign import ccall "set_track_selection"
 max_selections :: Int
 max_selections = (#const Config::max_selections)
 
+bring_to_front :: ViewId -> Fltk ()
+bring_to_front view_id = c_bring_to_front =<< get_ptr view_id
+foreign import ccall "bring_to_front" c_bring_to_front :: Ptr CView -> IO ()
 
 -- * Block operations
 

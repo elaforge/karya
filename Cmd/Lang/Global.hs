@@ -56,9 +56,9 @@ import qualified Cmd.Save as Save
 import qualified Cmd.Selection as Selection
 import qualified Cmd.Simple as Simple
 import qualified Cmd.TimeStep as TimeStep
+import qualified Cmd.ViewConfig as ViewConfig
 
 -- Just make sure these are compiled.
-import qualified Cmd.MakeRuler ()
 import qualified Cmd.Lang.LPitch ()
 import qualified Cmd.Lang.LInst as LInst
 
@@ -89,7 +89,7 @@ unerror = do
 highlight_error :: Warning.StackPos -> Cmd.CmdL ()
 highlight_error (bid, maybe_tid, maybe_range) = do
     view_ids <- fmap Map.keys (State.get_views_of bid)
-    mapM_ raise_view view_ids
+    mapM_ ViewConfig.bring_to_front view_ids
     case (maybe_tid, maybe_range) of
         (Nothing, _) -> forM_ view_ids $ \vid ->
             Selection.select vid Config.error_selnum
@@ -104,10 +104,6 @@ highlight_error (bid, maybe_tid, maybe_range) = do
             forM_ view_ids $ \vid -> forM_ tracknums $ \tracknum ->
                 Selection.select_and_scroll vid Config.error_selnum
                     (Types.selection tracknum to tracknum from)
-
--- TODO implement
-raise_view :: ViewId -> Cmd.CmdL ()
-raise_view _view_id = return ()
 
 -- * show / modify cmd state
 

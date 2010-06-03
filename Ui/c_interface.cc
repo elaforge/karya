@@ -130,6 +130,12 @@ set_track_selection(BlockViewWindow *view, int selnum, int tracknum,
 }
 
 
+void bring_to_front(BlockViewWindow *view)
+{
+    view->show();
+}
+
+
 // block
 
 void

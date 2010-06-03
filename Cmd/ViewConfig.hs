@@ -5,6 +5,7 @@ import Ui
 import qualified Ui.Block as Block
 import qualified Ui.State as State
 import qualified Ui.Types as Types
+import qualified Ui.Update as Update
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Selection as Selection
@@ -45,3 +46,10 @@ zoom_pos :: ScoreTime -> ScoreTime -> ScoreTime -> ScoreTime -> ScoreTime
 zoom_pos offset pos oldf newf = (offset - pos) * (oldf/newf) + pos
 
 get_zoom view_id = fmap Block.view_zoom (State.get_view view_id)
+
+
+-- * misc
+
+bring_to_front :: (Monad m) => ViewId -> Cmd.CmdT m ()
+bring_to_front view_id =
+    State.update $ Update.ViewUpdate view_id Update.BringToFront
