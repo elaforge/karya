@@ -1,84 +1,40 @@
 CURRENT
-  * Cmd.throw from repl should print back to repl
-  * Cmd.Play TODO: properly convert to log msg
   - Derive: inst as a call rather than just something from the env
   - symbolic score: remove null call
+  - make some random score generators for performance testing
 
-  * raw entry mode won't accept shifted letters
-  * improve call error msgs:
-    lose the stack stuff, since I already have a track position
-    but put in the call name
-  * fast path for lang: collapse, expand, s, save, save_as, load
-  * replace 'score_to_real 0' with 'now'
-
-  * call stack should use an absolute name stored in the call so it doesn't
-    get confused by rebinding
   - more sophisticated function to find out the inst of a note track
   / put prev, cur, next in PassedArgs too?
     except that transformers currently don't get these args
     what would the track transformer pass?
   - remove warped control?
   - subblock derivation for control tracks
-  * implement 'e' interpolator
   - re-enable signal deriver, but in a more efficient way?  can I reuse the
     derived signals?
 
-- program to launch logview and seq together
-- ^T on the cmdline prints stuff!?
-- signal deriver doesn't record track in stack
-- try record punning
-
 UNSORTED
-  * bug: track scroll from rightmost track when scrolled doesn't properly set
-    selection
-  * move Cmd.LanguageCmds to Cmd.Lang.Global
   / move MakeRuler to Lang too?
     no, it's used by Cmd.Create, which is used by keybindings
-  * remove with_msg "compile bid", it's redundant with the stack
-  * make "error subderiving" msg nicer and put the stack in the log msg
-  - happened automatically adding a pitch track:
-    assertion: <assertion failed at fltk/TrackTile.cc:266 update_sizes():
-    'title->w() == body->w()'>
-    7   TrackTile::update_sizes() + 1208 (util.h:44)
-    8   TrackTile::insert_track(int, TrackView*, int) + 1082 (TrackTile.cc:167)
-    9   BlockView::insert_track_view(int, TrackView*, int) + 155 (Block.cc:489)
-    10  BlockView::insert_track(int, Tracklike const&, int) + 85 (Block.cc:376)
-    11  insert_track + 205 (c_interface.cc:187)
-    solution: text entry is collapsed by track add, remove, or resize
 
   - clicking jumps to timestep points that arrows won't jump to
-  * auto scroll is doing the wrong thing on a click
-  * also auto scroll annoying, scroll down then when it passes threshold
-    suddenly jump.
-    curser in middle, move down, view suddenly jumps to bottom
-
   - playback should have multiple lines when a block is derived multiple times
     have a set of playback selnums?
-
   - rederive lang cmd
-
   - insts with breath are not easy to use
     if I make sure breah control goes thru then I shouldn't need anything
     special
   - local inst db, in Ui.State, so I can e.g. set pb range for fm/* inst
 
-  - some way to turn off all midi thru / input
   - midi input doesn't advance on note off
   - midi thru doesn't pick up default inst
     empty scale defaults in Derive, but not in Cmd
   - cmd to resize window to fit tracks
-  * scroll box should be red when the derivation is not up to date, back to
-    green when it is, that way you can see if derivation failed
   - implement continuous controller warp
   - make Track.UnsortedEvents and Track.SortedEvents, type or newtype?
-  * empty tempo track should default to 1
   - insert and delete time should use the selection if non-point
-  * join for control tracks could be useful, just delete following evt
   - rename project -> namespace
-  - hspp screws up \\ string continuations
   - document / enforce naming restrictions for CallId, Control, etc?
 
-  * stack: bid/tid/* should highlight the entire track
   - test relative pitch slide!
   - should tab in raw edit mode go to method?  how to go back then?
   - select track, st3 style select block, track
@@ -117,48 +73,21 @@ MILESTONES
     - render audio
     - include audio inline
 
-----
+----------------------------------------------------------------------
 
-- optimization: if a msg aborts or doesn't run any cmds, don't bother to run
-diff.  except that hardly ever happens if I do shortcut thru
-
-- per-project short aliases for inst names so you can fit them in tracks easily
-
-display signal:
-  cmd makes a change to a controller track
-  diff (and cmd) generate TrackEvents update
-  sync processes TrackEvents and TrackAllEvents and merges it with samples
-
-  so where does sync get the samples?  I can pass it [(TrackId, Samples)]
-  that comes from (Track, Signal), which comes from a partial derivation
-  most derivers should be able to get that from the Skeleton
-
-****
 - switch to darcs hashed repo format
   darcs optimize --upgrade
   darcs optimize --pristine
 
 note input / thru:
+  - some way to turn off all midi thru / input
   - keyswitch support in midi thru
   - profile midi->midi thru and implement a fast path if necessary
 
 bugs:
   - #(poke Mispeled, field) fieldp field results in compiler bus error
-  * apparently -0 isn't saved?
-  * comment event should be ignored... or use just ;?  in any case I should be
-    able to make it 0 dur
-  * warning is missing a space: "performance: no pitch signalpos: (TrackP..."
-  * Perform.Midi.Perform: control lead time is not enough, make each note
-    have a "pre-decay" to check for presetting controls, and remove sort post
-    proc
-  - clipboard is not handling the skeleton properly
+  - clipboard is not copying the skeleton
   - deriving signal causes event derive to fail too?
-  * undo should not move windows!  some bug is making undo randomly jump to
-    (0, 0), windows are also going to weird places on load
-  * can share pitches doesn't consider a whole step transposition unshareable
-  - is kbd entry letting keys like 1 fall through?
-  * Edit.cmd_delete_time is still a little funky, an event with only 2 time
-    steps is deleted, >2 is shortened.
   - keymap collisions are logged twice
   - Create.rename_project loses the merged tracks
   - bring block windows to the front after a load
@@ -180,9 +109,7 @@ bugs:
       currently not supported. The reason is that GHC's garbage collector might
       free Xlib or Win32 objects using an OS thread different to the one that
       is used to execute all other Gtk+ functions.
-
-  * fltk: moving a track title while it's expanded doesn't work
-  - hint refuses to compile when Cmd.NoteEntry emits a warning
+  - hint refuses to compile when a module emits a warning
 
 cleanup:
   - cleanup Ui.Track: event_list -> all_events?
@@ -195,6 +122,7 @@ cleanup:
   - having collapsed state in c++ is kind of error-prone, should I go back to
     trying to put it in haskell?
   - hspp doesn't catch calls to Derive.throw and Derive.warn within Derive
+  - hspp screws up \\ string continuations
   error prone things:
     - setting some state like project directly through State won't update
       global status.  Maybe I could fix this and also avoid the scattered syncs
@@ -218,13 +146,15 @@ performance:
     Pitch is unusual in that it is implicitly clipped at the start of the next
     note.
 
+  - If a msg aborts or doesn't run any cmds, don't bother to run diff.
+    Except that hardly ever happens if I do shortcut thru.
+
   - profile derivation, if parsing is a problem, look into attoparsec
   - profile with and without strict state monad
   speed and memory profiling:
     - respond to incoming notes
     - diff and modify UI
     - derive a large score
-  * pause before starting background derive to avoid thrashing during edits?
   - only derive first few seconds?  Or derive up to selection + a few seconds?
     implement caching first
     to log incrementally, emit log msg every n sec of derivation
@@ -291,8 +221,10 @@ symbolic score as in doc/custom_symbols
 
 fltk:
   - bug: somehow capslock keydown is sent sometimes
+  - auto add pitch track when a track title input is expanded crashes with
+    assertion error 'title->w() == body->w()'
+    solution: text entry is collapsed by track add, remove, or resize
   - factor scroll redrawing into a single class
-  * scroll to right, tracks don't receive clicks
   - draw arrows in SkeletonDisplay.cc properly
   - figure out how to have a minimal title bar in os x (win.border(0) removes
     it altogether)
@@ -413,6 +345,10 @@ test:
   - use generics or Foldable or something to write a generic StructEqual
   - RunTests.hs: if running >1 init-* tests, run them in sub processes
 
+misc:
+  - program to launch logview and seq together
+  - ^T on the cmdline prints stuff!?
+
 integrator / midi record:
   - implement
 
@@ -489,9 +425,12 @@ Cmd:
     - gzip save files
 
 Derive:
-  - Implement >inst as setting the null call instead of env.instrument.
-    That way the inst has control over the interpretation of e.g. attributes
-    and pitch slide (to implement piano style retrigger)
+  instrument
+    - per-project short aliases for inst names so you can fit them in tracks
+      easily
+    - Implement >inst as setting the null call instead of env.instrument.
+      That way the inst has control over the interpretation of e.g. attributes
+      and pitch slide (to implement piano style retrigger)
 
   - implement postproc calls
     - framework for determining scope of a postproc: per inst, per track,
@@ -591,7 +530,6 @@ Derive:
       I think I do, because otherwise it exposes the underlying symbol.
   - test Calls that return overlapping events
   - block-level calls
-  * put TrackLang.Val into Pretty
   - x = _ will unset x
 
   - Cmd: after entering 'x = y' event, can it automatically set dur=0?
@@ -736,6 +674,7 @@ Perform:
       tempo: "2" -> "1", "2", cont: "2" -> "i, 1", should emit a bent line
 
   Midi:
+    - see if synths support the set pitchbend range controller
     - Convert certain attrs to controls for cc 'keyswitches'.
 
 Instrument DB:
