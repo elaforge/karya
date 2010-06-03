@@ -1,5 +1,5 @@
 CURRENT
-  - Cmd.Play TODO: properly convert to log msg
+  * Cmd.Play TODO: properly convert to log msg
   - Derive: inst as a call rather than just something from the env
   - symbolic score: remove null call
 

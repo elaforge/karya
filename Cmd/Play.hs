@@ -214,9 +214,10 @@ perform :: (Monad m) => BlockId -> Instrument.Db.Db -> Schema.SchemaMap
 perform block_id inst_db schema_map = do
     (derive_result, tempo, inv_tempo) <- derive schema_map block_id
     events <- case derive_result of
-        -- TODO properly convert to log msg
-        Left derive_error -> do
-            Log.warn $ "derive error: " ++ show derive_error
+        Left (Derive.DeriveError srcpos stack msg) -> do
+            Log.write $
+                (Log.msg_srcpos srcpos Log.Warn ("deriving: " ++ msg))
+                { Log.msg_stack = Just stack }
             Cmd.abort
         Right events -> return events
 
