@@ -30,6 +30,7 @@ import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Thread as Thread
 
+import Ui
 import qualified Ui.Block as Block
 import qualified Ui.State as State
 import qualified Ui.UiMsg as UiMsg
@@ -60,16 +61,17 @@ data ResponderState = ResponderState {
     , state_midi_writer :: MidiWriter
     , state_transport_info :: Transport.Info
     , state_interpreter_chan :: Lang.InterpreterChan
+    , state_loopback_chan :: TChan.TChan Msg.Msg
     }
 
 type MidiWriter = Midi.WriteMessage -> IO ()
 type MsgReader = IO Msg.Msg
 
 responder :: StaticConfig.StaticConfig -> MsgReader -> MidiWriter
-    -> IO () -> IO Timestamp.Timestamp -> Transport.Chan -> Cmd.CmdIO
-    -> Lang.InterpreterChan -> IO ()
-responder static_config get_msg write_midi abort_midi get_now_ts player_chan
-        setup_cmd interpreter_chan = do
+    -> IO () -> IO Timestamp.Timestamp -> Cmd.CmdIO
+    -> Lang.InterpreterChan -> TChan.TChan Msg.Msg -> IO ()
+responder static_config get_msg write_midi abort_midi get_now_ts setup_cmd
+        interpreter_chan loopback_chan = do
     Log.debug "start responder"
     -- Report keymap overlaps.
     mapM_ Log.warn
@@ -79,17 +81,22 @@ responder static_config get_msg write_midi abort_midi get_now_ts player_chan
             (StaticConfig.config_instrument_db static_config)
             (StaticConfig.config_schema_map static_config)
         cmd = setup_cmd >> Edit.initialize_state >> return Cmd.Done
-    (ui_state, cmd_state) <- run_setup_cmd State.empty cmd_state cmd
+    (ui_state, cmd_state) <-
+        run_setup_cmd loopback_chan State.empty cmd_state cmd
     let rstate = ResponderState static_config ui_state cmd_state
             get_msg write_midi
-            (Transport.Info player_chan write_midi abort_midi get_now_ts)
-            interpreter_chan
+            (Transport.Info send_status write_midi abort_midi get_now_ts)
+            interpreter_chan loopback_chan
     respond_loop rstate
+    where
+    send_status block_id status =
+        STM.atomically $ STM.writeTChan loopback_chan
+            (Msg.Transport (Transport.Status block_id status))
 
 -- | A special run-and-sync that runs before the respond loop gets started.
-run_setup_cmd :: State.State -> Cmd.State -> Cmd.CmdIO
+run_setup_cmd :: TChan.TChan Msg.Msg -> State.State -> Cmd.State -> Cmd.CmdIO
     -> IO (State.State, Cmd.State)
-run_setup_cmd ui_state cmd_state cmd = do
+run_setup_cmd loopback_chan ui_state cmd_state cmd = do
     (cmd_state, _, logs, result) <- Cmd.run_io ui_state cmd_state cmd
     mapM_ Log.write logs
     (ui_to, updates) <- case result of
@@ -101,8 +108,14 @@ run_setup_cmd ui_state cmd_state cmd = do
                 Log.warn $ "setup_cmd not Done: " ++ show status
             return (ui_state, updates)
     (_, ui_state, cmd_state) <-
-        ResponderSync.sync ui_state ui_to cmd_state updates
+        ResponderSync.sync (send_derive_status loopback_chan)
+            ui_state ui_to cmd_state updates
     return (ui_state, cmd_state)
+
+send_derive_status :: TChan.TChan Msg.Msg -> BlockId -> Msg.DeriveStatus
+    -> IO ()
+send_derive_status looppback_chan block_id status = STM.atomically $
+    TChan.writeTChan looppback_chan (Msg.DeriveStatus block_id status)
 
 respond_loop :: ResponderState -> IO ()
 respond_loop rstate = do
@@ -113,16 +126,16 @@ respond_loop rstate = do
 -- | Create the MsgReader to pass to 'responder'.
 create_msg_reader ::
     (Midi.ReadMessage -> Midi.ReadMessage) -> TChan.TChan Midi.ReadMessage
-    -> Network.Socket -> TChan.TChan UiMsg.UiMsg -> Transport.Chan
+    -> Network.Socket -> TChan.TChan UiMsg.UiMsg -> TChan.TChan Msg.Msg
     -> IO MsgReader
-create_msg_reader remap_rmsg midi_chan lang_socket ui_chan player_chan = do
+create_msg_reader remap_rmsg midi_chan lang_socket ui_chan loopback_chan = do
     lang_chan <- TChan.newTChanIO
     Thread.start_thread "accept lang socket" (accept_loop lang_socket lang_chan)
     return $ STM.atomically $
         fmap Msg.Ui (TChan.readTChan ui_chan)
         `STM.orElse` fmap (Msg.Midi . remap_rmsg) (TChan.readTChan midi_chan)
-        `STM.orElse` fmap Msg.Transport (TChan.readTChan player_chan)
         `STM.orElse` fmap (uncurry Msg.Socket) (TChan.readTChan lang_chan)
+        `STM.orElse` TChan.readTChan loopback_chan
 
 -- | Accept a connection on the socket, read everything that comes over, then
 -- place the socket and the read data on @output_chan@.  It's the caller's
@@ -212,8 +225,9 @@ respond rstate = do
         Right (status, ui_from, ui_to) -> do
             Log.timer "cmds complete"
             cmd_state <- return $ fix_cmd_state ui_to cmd_state
-            (updates, ui_state, cmd_state) <-
-                ResponderSync.sync ui_from ui_to cmd_state updates
+            (updates, ui_state, cmd_state) <- ResponderSync.sync
+                (send_derive_status (state_loopback_chan rstate))
+                    ui_from ui_to cmd_state updates
             cmd_state <- return $ record_history updates ui_from cmd_state
             return (status,
                 rstate { state_cmd = cmd_state, state_ui = ui_state })
@@ -329,7 +343,7 @@ hardcoded_cmds =
 -- | And these special commands that run in IO.
 hardcoded_io_cmds transport_info interpreter_chan lang_dirs =
     [ Lang.cmd_language interpreter_chan lang_dirs
-    , Play.cmd_transport_msg
+    , Play.cmd_play_msg
     ] ++ GlobalKeymap.io_cmds transport_info
 
 

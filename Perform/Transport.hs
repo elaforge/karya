@@ -14,18 +14,19 @@ import qualified Perform.Timestamp as Timestamp
 
 -- | These go back to the responder loop from the render thread to notify it
 -- about the transport's state.
+-- TODO BlockId isn't used, but could be conceivably useful for logging, or
+-- to differentiate between multiple backends, so leave it in for now
 data Status = Status BlockId PlayerStatus deriving (Eq, Show)
 data PlayerStatus = Playing | Stopped | Died String
     -- TODO later have play status so it can move the selection
     deriving (Eq, Show)
-type Chan = STM.TChan Status
 
 -- | Data needed by the player thread.  This is created during app setup and
 -- passed directly to the play cmds by the responder loop.  When the play is
 -- started, it's incorporated into the play 'State'.
 data Info = Info {
-    -- | Channel to communicate back to the responder loop.
-    info_responder_chan :: Chan
+    -- | Send status messages back to the responder loop.
+    info_send_status :: BlockId -> PlayerStatus -> IO ()
     , info_midi_writer :: Midi.WriteMessage -> IO ()
     -- | Action that will abort any pending midi msgs written with the midi
     -- writer.
@@ -80,7 +81,7 @@ type InverseTempoFunction = Timestamp.Timestamp
 -- This is read-only, and shouldn't need to be modified.
 data State = State {
     -- | Communicate out of the Player.
-    state_responder_chan :: Chan
+    state_send_status :: BlockId -> PlayerStatus -> IO ()
     -- | Communicate into the Player.
     , state_play_control :: PlayControl
     , state_updater_control :: UpdaterControl
@@ -93,13 +94,10 @@ data State = State {
     , state_timestamp_offset :: Timestamp.Timestamp
     , state_get_current_timestamp :: IO Timestamp.Timestamp
     }
+
 state (Info chan writer abort get_ts) block_id = do
     ts <- get_ts
     play_control <- fmap PlayControl STM.newEmptyTMVarIO
     updater_control <- fmap UpdaterControl (IORef.newIORef False)
     return $
         State chan play_control updater_control writer abort block_id ts get_ts
-
-write_status :: Chan -> PlayerStatus -> BlockId -> IO ()
-write_status chan status block_id =
-    STM.atomically $ STM.writeTChan chan (Status block_id status)

@@ -89,6 +89,7 @@ method_edit_color = Color.rgb 0.6 0 0
 play_color = Color.rgb 0 0.6 0
 warning_color = Color.rgb 1 0.2 0.2
 abbreviation_color = Color.rgb 0 0 1
+busy_color = Color.rgb 0 1 1
 
 mute_color = Color.gray6
 solo_color = Color.rgb 1 0.75 0.75

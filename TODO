@@ -1,9 +1,8 @@
-- Implement >inst as setting the null deriver instead of env.instrument.  That
-  way the inst has control over the interpretation of e.g. attributes and
-  pitch slide (to implement piano style retrigger)
-
 CURRENT
-  - somehow capslock keydown is sent sometimes
+  - Cmd.Play TODO: properly convert to log msg
+  - Derive: inst as a call rather than just something from the env
+  - symbolic score: remove null call
+
   * raw entry mode won't accept shifted letters
   * improve call error msgs:
     lose the stack stuff, since I already have a track position
@@ -14,27 +13,21 @@ CURRENT
   * call stack should use an absolute name stored in the call so it doesn't
     get confused by rebinding
   - more sophisticated function to find out the inst of a note track
-  - put prev, cur, next in PassedArgs too?
+  / put prev, cur, next in PassedArgs too?
     except that transformers currently don't get these args
     what would the track transformer pass?
-
   - remove warped control?
-
   - subblock derivation for control tracks
-
   * implement 'e' interpolator
   - re-enable signal deriver, but in a more efficient way?  can I reuse the
     derived signals?
 
-- cleanup Ui.Track: event_list -> all_events?
-- #(poke Mispeled, field) fieldp field results in compiler bus error
 - program to launch logview and seq together
 - ^T on the cmdline prints stuff!?
 - signal deriver doesn't record track in stack
 - try record punning
 
 UNSORTED
-
   * bug: track scroll from rightmost track when scrolled doesn't properly set
     selection
   * move Cmd.LanguageCmds to Cmd.Lang.Global
@@ -73,7 +66,7 @@ UNSORTED
   - midi thru doesn't pick up default inst
     empty scale defaults in Derive, but not in Cmd
   - cmd to resize window to fit tracks
-  - scroll box should be red when the derivation is not up to date, back to
+  * scroll box should be red when the derivation is not up to date, back to
     green when it is, that way you can see if derivation failed
   - implement continuous controller warp
   - make Track.UnsortedEvents and Track.SortedEvents, type or newtype?
@@ -149,6 +142,7 @@ note input / thru:
   - profile midi->midi thru and implement a fast path if necessary
 
 bugs:
+  - #(poke Mispeled, field) fieldp field results in compiler bus error
   * apparently -0 isn't saved?
   * comment event should be ignored... or use just ;?  in any case I should be
     able to make it 0 dur
@@ -189,6 +183,7 @@ bugs:
   - hint refuses to compile when Cmd.NoteEntry emits a warning
 
 cleanup:
+  - cleanup Ui.Track: event_list -> all_events?
   - split Derive.State into dynamically scoped, constant, and logging parts
   - State.structure only used by Clip_test
   - Makefile: ghc --make doesn't understand the hsc -> hs link, which leads to
@@ -293,6 +288,7 @@ symbolic score as in doc/custom_symbols
     so I would need some way to decide which to expand.
 
 fltk:
+  - bug: somehow capslock keydown is sent sometimes
   - factor scroll redrawing into a single class
   * scroll to right, tracks don't receive clicks
   - draw arrows in SkeletonDisplay.cc properly
@@ -490,6 +486,10 @@ Cmd:
     - gzip save files
 
 Derive:
+  - Implement >inst as setting the null call instead of env.instrument.
+    That way the inst has control over the interpretation of e.g. attributes
+    and pitch slide (to implement piano style retrigger)
+
   - implement postproc calls
     - framework for determining scope of a postproc: per inst, per track,
       for pre or post overlaps, etc.

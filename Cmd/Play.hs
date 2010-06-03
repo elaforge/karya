@@ -37,7 +37,7 @@
     responder.  Both the player and the updater use it to send transport msgs
     to the responder.  All the player sends is a Died msg which can be logged
     when the player as started and stopped.  Transport msgs wind up in
-    'cmd_transport_msg', which can use them to set UI state like changing the
+    'cmd_play_msg', which can use them to set UI state like changing the
     play box color and logging.
 
     The updater is kicked off simultaneously with the performer, and advances
@@ -90,6 +90,7 @@ import qualified Midi.Midi as Midi
 
 import Ui
 import qualified Ui.Block as Block
+import qualified Ui.Color as Color
 import qualified Ui.State as State
 -- This causes a bunch of modules to import BlockC.  Can I move the updater
 -- stuff out?
@@ -161,18 +162,16 @@ cmd_stop = do
     Trans.liftIO $ Transport.stop_player ctl
     return Cmd.Done
 
--- | Respond to transport status msgs coming back from the player thread.
-cmd_transport_msg :: Msg.Msg -> Cmd.CmdT IO Cmd.Status
-cmd_transport_msg msg = do
-    (block_id, status) <- case msg of
-        Msg.Transport (Transport.Status block_id status) ->
-            return (block_id, status)
+-- | Respond to msgs about derivation and playing status.
+cmd_play_msg :: Msg.Msg -> Cmd.CmdT IO Cmd.Status
+cmd_play_msg msg = do
+    case msg of
+        Msg.Transport (Transport.Status _ status) -> transport_msg status
+        Msg.DeriveStatus block_id status -> derive_status_msg block_id status
         _ -> Cmd.abort
-    block_ids <- State.gets (Map.keys . State.state_blocks)
-    mapM_ (flip State.set_play_box (play_state_color status)) block_ids
-
-    Log.notice $ "player status for " ++ show block_id ++ ": " ++ show status
-    case status of
+    return Cmd.Done
+    where
+    transport_msg status = case status of
         Transport.Playing -> return ()
         -- Either the performer has declared itself stopped, or the updater
         -- has declared it stopped.  In any case, I don't need a transport
@@ -180,7 +179,13 @@ cmd_transport_msg msg = do
         Transport.Stopped -> Cmd.modify_state $ \st ->
             st { Cmd.state_play_control = Nothing }
         Transport.Died err_msg -> Log.warn ("player died: " ++ err_msg)
-    return Cmd.Done
+    derive_status_msg block_id status =
+        State.set_play_box block_id (derive_status_color status)
+    derive_status_color status = case status of
+        Msg.StartedDeriving -> Config.busy_color
+        Msg.Deriving -> Color.brightness 1.5 Config.busy_color
+        Msg.DeriveFailed -> Config.warning_color
+        Msg.DeriveComplete -> Config.box_color
 
 -- * implementation
 
@@ -210,8 +215,9 @@ perform block_id inst_db schema_map = do
     (derive_result, tempo, inv_tempo) <- derive schema_map block_id
     events <- case derive_result of
         -- TODO properly convert to log msg
-        Left derive_error -> Log.warn ("derive error: " ++ show derive_error)
-            >> Cmd.abort
+        Left derive_error -> do
+            Log.warn $ "derive error: " ++ show derive_error
+            Cmd.abort
         Right events -> return events
 
     let lookup_inst = Instrument.Db.db_lookup_midi inst_db
@@ -262,16 +268,16 @@ updater_thread ctl transport_info inv_tempo_func start_ts ui_state = do
     -- Send Playing and Stopped msgs to the responder for all visible blocks.
     let block_ids = Seq.unique $ Map.elems (Map.map Block.view_block
             (State.state_views ui_state))
-        trans_chan = Transport.info_responder_chan transport_info
         get_cur_ts = Transport.info_get_current_timestamp transport_info
     -- This won't be exactly the same as the renderer's ts offset, but it's
     -- probably close enough.
     ts_offset <- get_cur_ts
     let state = UpdaterState ctl (ts_offset - start_ts) get_cur_ts
             inv_tempo_func Set.empty ui_state
+    let send status bid = Transport.info_send_status transport_info bid status
     Exception.bracket_
-        (mapM_ (Transport.write_status trans_chan Transport.Playing) block_ids)
-        (mapM_ (Transport.write_status trans_chan Transport.Stopped) block_ids)
+        (mapM_ (send Transport.Playing) block_ids)
+        (mapM_ (send Transport.Stopped) block_ids)
         (updater_loop state)
 
 data UpdaterState = UpdaterState {
@@ -340,11 +346,6 @@ tracknums_of block (track_id, pos) =
 
 
 -- * util
-
-play_state_color status = case status of
-    Transport.Playing -> Config.play_color
-    Transport.Died _ -> Config.warning_color
-    _ -> Config.box_color
 
 -- | Find the block to play, relative to the given view.
 -- find_play_block :: State.State -> ViewId -> BlockId

@@ -160,10 +160,10 @@ main = initialize $ \lang_socket midi_chan -> do
     -- Thread.start_thread "midi thru" $
     --     midi_thru remap_rmsg thru_chan write_midi
 
-    player_chan <- STM.newTChanIO
+    loopback_chan <- STM.newTChanIO
     msg_chan <- STM.newTChanIO
     get_msg <- Responder.create_msg_reader
-        remap_rmsg midi_chan lang_socket msg_chan player_chan
+        remap_rmsg midi_chan lang_socket msg_chan loopback_chan
 
     interpreter_chan <- Chan.newChan
     Thread.start_thread "interpreter" $ do
@@ -176,7 +176,7 @@ main = initialize $ \lang_socket midi_chan -> do
 
     Thread.start_thread "responder" $ do
         Responder.responder static_config get_msg write_midi abort_midi
-            get_now_ts player_chan setup_cmd interpreter_chan
+            get_now_ts setup_cmd interpreter_chan loopback_chan
         `Exception.catch` responder_handler
             -- It would be possible to restart the responder, but chances are
             -- good it would just die again.

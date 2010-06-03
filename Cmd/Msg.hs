@@ -4,6 +4,7 @@ import qualified System.IO as IO
 
 import qualified Util.Pretty as Pretty
 
+import Ui
 import qualified Ui.Key as Key
 import qualified Ui.UiMsg as UiMsg
 import qualified Midi.Midi as Midi
@@ -23,6 +24,9 @@ data Msg =
     | InputNote InputNote.Input
     -- | Message from the transport/play thread.
     | Transport Transport.Status
+    -- | Message about the derivation status, from the background derivation
+    -- threads.
+    | DeriveStatus BlockId DeriveStatus
     -- | Message from the language control socket, includes the socket handle
     -- than can be used to write a response.  Whoever responds to Socket should
     -- close the handle.
@@ -32,6 +36,9 @@ data Msg =
 instance Pretty.Pretty Msg where
     pretty (Ui msg) = "Ui: " ++ Pretty.pretty msg
     pretty msg = show msg
+
+data DeriveStatus = Deriving | StartedDeriving | DeriveFailed | DeriveComplete
+    deriving (Show)
 
 -- * views
 

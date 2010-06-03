@@ -36,9 +36,9 @@ player_thread state midi_msgs = do
     Log.notice $ "play block " ++ name ++ " starting at "
         ++ show (Transport.state_timestamp_offset state)
     play_msgs state Set.empty midi_msgs
-        `Exception.catch` \(exc :: Exception.SomeException) -> do
-            Transport.write_status (Transport.state_responder_chan state)
-                (Transport.Died (show exc)) (Transport.state_block_id state)
+        `Exception.catch` \(exc :: Exception.SomeException) ->
+            Transport.state_send_status state
+                (Transport.state_block_id state) (Transport.Died (show exc))
     Transport.player_stopped (Transport.state_updater_control state)
     Log.notice $ "render score " ++ show name ++ " complete"
 
