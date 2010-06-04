@@ -1,5 +1,4 @@
 {-# LANGUAGE ScopedTypeVariables #-} -- for pattern type sig in catch
-module Instrument.Browser where
 import Control.Monad
 import qualified Control.Exception as Exception
 import qualified Control.Monad.State as State

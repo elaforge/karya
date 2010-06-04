@@ -6,11 +6,24 @@ declaration, or a declaration of "Main".
 
 import sys, os
 
+obsolete = set(['Midi/PortMidiC.hs', 'Midi/PortMidi.hsc', 'Midi/TestMidi.hs'])
+
+more_obsolete = set('''
+    Cmd/Lang/Environ.hs
+    Derive/Call/Sekar.hs
+    Derive/Operator.hs
+    Derive/Parse.hs
+    LogView/Timer.hs
+    Midi/TestCoreMidi.hs
+    Util/Chart.hs
+'''.split())
+
+obsolete = obsolete.union(more_obsolete)
+
+
 def main():
-    if len(sys.argv) > 1 and sys.argv[1] == 'notest':
-        notest = True
-    else:
-        notest = False
+    notest = 'notest' in sys.argv
+    hsc_as_hs = 'hsc_as_hs' in sys.argv
     hs_files = []
     hsc_files = []
     def accum(_arg, dirname, fnames):
@@ -25,12 +38,15 @@ def main():
     hs_files = [fn for fn in hs_files if fn+'c' not in hsc_files]
     fns = [fn[2:] for fn in hs_files + hsc_files]
     fns.sort()
-    fns = filter(lambda fn: fn != 'Data/Map.hs' and not is_main(fn), fns)
+    fns = filter(lambda fn: not is_main(fn) and fn not in obsolete, fns)
     if notest:
-        fns = filter(
-            lambda fn: not (fn.endswith('_test.hs') or fn.endswith('Test.hs')),
-            fns)
+        fns = filter(lambda fn: not is_test(fn), fns)
+    if hsc_as_hs:
+        fns = [fn.replace('.hsc', '.hs') for fn in fns]
     print ' '.join(fns)
+
+def is_test(fn):
+    return fn.endswith('_test.hs') or fn.endswith('Test.hs')
 
 def capword(s):
     return s and s[0].isupper()
@@ -41,6 +57,8 @@ def is_main(fn):
             return True
         elif line.startswith('module '):
             return False
+        elif line.startswith('import '):
+            break
     return True
 
 if __name__ == '__main__':

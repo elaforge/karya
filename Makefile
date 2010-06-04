@@ -141,6 +141,19 @@ $(BUILD)/seq: $(UI_HS) $(UI_OBJS) $(COREMIDI_OBJS) fltk/fltk.a
 		-o $@
 	$(BUNDLE) doc/seq.icns
 
+# not_mine = Instrument/BrowserC.o LogView/LogViewC.o Util/Fltk.o
+# ALL_O := $(patsubst %.hs, %.o, $(filter-out $(OBSOLETE), $(shell tools/all_hs.py notest hsc_as_hs)))
+# $(BUILD)/seqp: $(UI_OBJS) $(COREMIDI_OBJS) fltk/fltk.a Derive/Derive_test.o \
+# 		$(filter-out $(not_mine), $(ALL_O))
+# 	$(GHC) $(HFLAGS) -package ghc -package parsec -package binary \
+# 		-package mtl -package hint -package bytestring -package text \
+# 		-package dlist -package storablevector -package data-ordlist \
+# 		-package network -package stm \
+# 		-package regex-base -package regex-pcre \
+# 		-main-is App.Main $^ \
+# 		$(MIDI_LIBS) $(HLDFLAGS) \
+# 		-o $@
+
 ### midi
 
 .PHONY: $(BUILD)/test_core_midi
@@ -182,7 +195,7 @@ LOGVIEW_LD := $(LIBFLTK_1_1_LD) $(FLTK_LD)
 # depend on Color because of Util.Log -> Peform.Warning import grossness
 # someday I should remove that
 $(BUILD)/logview: $(LOGVIEW_OBJ) Ui/Color.hs
-	$(GHC) $(HFLAGS) --make -main-is LogView.LogView $^ -o $@ $(LOGVIEW_LD)
+	$(GHC) $(HFLAGS) --make $^ -o $@ $(LOGVIEW_LD)
 	$(BUNDLE)
 
 $(BUILD)/test_logview: LogView/test_logview.o LogView/logview_ui.o fltk/f_util.o
@@ -211,7 +224,7 @@ BROWSER_HS = Instrument/BrowserC.hs
 
 .PHONY: $(BUILD)/browser
 $(BUILD)/browser: $(BROWSER_OBJ) $(BROWSER_HS)
-	$(GHC) $(HFLAGS) --make -main-is Instrument.Browser $^ -o $@ \
+	$(GHC) $(HFLAGS) --make $^ -o $@ \
 		$(HLDFLAGS)
 	$(BUNDLE)
 

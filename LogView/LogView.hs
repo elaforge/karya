@@ -12,7 +12,6 @@
     are kept in a status line.  That way, events reported in the log can be
     collected together.
 -}
-module LogView.LogView where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception
