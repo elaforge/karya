@@ -40,8 +40,8 @@ make_patch :: Instrument.SynthName -> Control.PbRange -> PatchLine
     -> Instrument.Patch
 make_patch synth pb_range (PatchLine name cat bank patch_num) =
     (Instrument.patch inst)
-        { Instrument.patch_initialize =
-            Instrument.InitializeMidi (Midi.program_change bank patch_num)
+        { Instrument.patch_initialize = Instrument.InitializeMidi $
+            map (Midi.ChannelMessage 0) (Midi.program_change bank patch_num)
         , Instrument.patch_tags = tags
         }
     where

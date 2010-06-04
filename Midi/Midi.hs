@@ -8,6 +8,8 @@ import Data.Word (Word8)
 
 import qualified Util.Pretty as Pretty
 
+import qualified Midi.CC as CC
+
 
 -- * devices
 
@@ -43,18 +45,24 @@ add_timestamp ts wmsg = wmsg { wmsg_ts = wmsg_ts wmsg + ts }
 -- * constructors
 
 -- | Emit a program change with bank in [msb, lsb, pchange] order.
-program_change :: Integer -> Integer -> [Message]
-program_change bank program = map (ChannelMessage 0)
-    [ ControlChange cc_bank_msb msb, ControlChange cc_bank_lsb lsb
+program_change :: Integer -> Integer -> [ChannelMessage]
+program_change bank program =
+    [ ControlChange CC.bank msb, ControlChange CC.bank_lsb lsb
     , ProgramChange (fromIntegral program)
     ]
     where (lsb, msb) = split14 (fromIntegral bank)
 
--- * constants
+-- | Emit a pitch bend sensitivity RPN message for the given range.
+pitch_bend_sensitivity :: Double -> [ChannelMessage]
+pitch_bend_sensitivity range =
+    [ ControlChange CC.rpn_msb 0, ControlChange CC.rpn_lsb 0
+    , ControlChange CC.data_entry semitones
+    ] ++ if cents <= 0 then [] else [ControlChange CC.data_entry_lsb cents]
+    where
+    (semitones, frac) = properFraction range
+    cents = round (frac * 100)
 
-cc_bank_msb, cc_bank_lsb :: Control
-cc_bank_msb = 0
-cc_bank_lsb = 32
+-- * constants
 
 -- | These aren't used here, but even though I'd like to constrain all midi
 -- parsing to Midi.Parse, other places wind up dealing with raw sysex msgs.
@@ -121,7 +129,7 @@ instance Pretty.Pretty Message where
 type Channel = Word8 -- actually 4 bits
 type Key = Word8
 type Velocity = Word8
-type Control = Word8
+type Control = CC.Control
 type Program = Word8
 type ControlValue = Word8
 -- | This is converted to and from the -0x2000 and +0x2000 range by the parser.
