@@ -121,8 +121,8 @@ cleanup:
     On the other hand, it's not unreasonable for logs to use other data types
   - having collapsed state in c++ is kind of error-prone, should I go back to
     trying to put it in haskell?
-  - hspp doesn't catch calls to Derive.throw and Derive.warn within Derive
-  - hspp screws up \\ string continuations
+  * hspp doesn't catch calls to Derive.throw and Derive.warn within Derive
+  * hspp screws up \\ string continuations
   error prone things:
     - setting some state like project directly through State won't update
       global status.  Maybe I could fix this and also avoid the scattered syncs
@@ -363,7 +363,6 @@ REPL repl language
 Cmd:
   ? a module with easy access to all GlobalKeymap cmds for cmdline access
   - cmd to give a view focus and bring it to the front
-  - Cmd_test
   vi style keymap:
     - movement: hjkl, HJKL to move timestep+1 or skip to
       next inst track, bf to move timestep at block section rank, BF to move to
@@ -404,7 +403,7 @@ Cmd:
     * make sure the whole stack is lazy
     - play loops
     smarter background derivation
-      - wait a second before deriving
+      * wait a second before deriving
       - don't derive while a key or mouse button is down
     - start playing from top of displayed area
     - start playing from TimeStep before insert point
