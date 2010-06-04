@@ -41,8 +41,6 @@ import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.MidiDb as MidiDb
 
 
--- TODO: use default_decay, and use decay for overlaps and max lookahead
-
 -- * constants
 
 -- | This winds up being 100, which is loud but not too loud and
@@ -80,8 +78,10 @@ perform :: MidiDb.LookupMidiInstrument
 perform lookup_inst config events = (post_process msgs, warns)
     where
     inst_addrs = config_to_inst_addrs config lookup_inst
-    (msgs, warns) = (perform_notes . allot inst_addrs
-        . channelize inst_addrs) events
+    (event_channels, allot_warns) = allot inst_addrs $
+        channelize inst_addrs events
+    (msgs, perform_warns) = perform_notes event_channels
+    warns = allot_warns ++ perform_warns
 
 config_to_inst_addrs :: Instrument.Config -> MidiDb.LookupMidiInstrument
     -> InstAddrs
@@ -497,9 +497,14 @@ controls_equal start end cs0 cs1 = all eq pairs
 --
 -- Events with instruments that have no address allocation in the config
 -- will be dropped.
-allot :: InstAddrs -> [(Event, Channel)] -> [(Event, Instrument.Addr)]
-allot inst_addrs events = Maybe.catMaybes $
-    snd $ List.mapAccumL allot_event (initial_allot_state inst_addrs) events
+allot :: InstAddrs -> [(Event, Channel)]
+    -> ([(Event, Instrument.Addr)], [Warning.Warning])
+allot inst_addrs events = (Maybe.catMaybes event_addrs, warnings)
+    where
+    (state, event_addrs) = List.mapAccumL allot_event
+        (initial_allot_state inst_addrs) events
+    warnings = [Warning.warning ("no allocation for " ++ show inst) stack
+        Nothing | (inst, stack) <- Map.assocs (ast_no_alloc state)]
 
 data AllotState = AllotState {
     -- | Allocated addresses, and when they were last used.
@@ -509,8 +514,10 @@ data AllotState = AllotState {
     , ast_map :: Map.Map (Instrument.Instrument, Channel) Instrument.Addr
     -- | Addresses allocated to each instrument.
     , ast_inst_addrs :: InstAddrs
+    , ast_no_alloc :: Map.Map Instrument.InstrumentName Warning.Stack
     } deriving (Show)
 initial_allot_state inst_addrs = AllotState Map.empty Map.empty inst_addrs
+    Map.empty
 
 allot_event :: AllotState -> (Event, Channel)
     -> (AllotState, Maybe (Event, Instrument.Addr))
@@ -521,7 +528,7 @@ allot_event state (event, ichan) =
             -- nothing allocated to this instrument
             -- TODO if I'm going to log about insts without allocation this
             -- is the spot
-            Nothing -> (state, Nothing)
+            Nothing -> (insert_warning, Nothing)
             Just addr ->
                 (update_avail addr (update_map addr state), Just (event, addr))
     where
@@ -530,6 +537,10 @@ allot_event state (event, ichan) =
         Map.insert addr (event_end event) (ast_available state) }
     update_map addr state =
         state { ast_map = Map.insert (inst, ichan) addr (ast_map state) }
+    insert_warning = state { ast_no_alloc =
+        Map.insertWith' const (Instrument.inst_name inst)
+            (event_stack event) (ast_no_alloc state) }
+
 
 -- | Steal the least recently used address for the given instrument.
 steal_addr :: Instrument.Instrument -> AllotState -> Maybe Instrument.Addr

@@ -399,7 +399,7 @@ Cmd:
       pvid, etc., or the mangler turns <foo> into <current/foo>
 
   Cmd.Play
-    - warn about unallocated instruments (Convert.verify)
+    * warn about unallocated instruments (Convert.verify)
     * make sure the whole stack is lazy
     - play loops
     smarter background derivation

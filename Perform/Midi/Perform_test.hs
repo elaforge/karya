@@ -493,7 +493,8 @@ test_allot = do
         mk1 = mk inst1
         in_time mks = zipWith ($) mks [0..]
         inst_addrs = Perform.config_to_inst_addrs inst_config1 test_lookup
-        allot_chans events = map snd $ map snd (Perform.allot inst_addrs events)
+        allot_chans events = map snd $ map snd $ fst $
+                Perform.allot inst_addrs events
 
     -- They should alternate channels, according to LRU.
     equal (allot_chans (in_time [mk1 0, mk1 1, mk1 2, mk1 3]))
@@ -506,6 +507,20 @@ test_allot = do
     -- Instruments with no allocation get filtered out.
     equal (allot_chans (in_time [mk1 1, mk inst2 1, mk1 2]))
         [0, 1]
+
+test_allot_warn = do
+    let inst_addrs = Perform.config_to_inst_addrs inst_config1 test_lookup
+    let extract (evts, warns) =
+            (map extract_evt evts, map Warning.warn_msg warns)
+        extract_evt (e, (Midi.WriteDevice dev, chan)) =
+            (Instrument.inst_name (Perform.event_instrument e), dev, chan)
+    let f = extract . Perform.allot inst_addrs
+            . map (\(evt, chan) -> (mkevent evt, chan))
+    let no_inst = mkinst "no_inst"
+    equal (f [((inst1, "a", 0, 1, []), 0)])
+        ([("inst1", "dev1", 0)], [])
+    equal (f [((no_inst, "a", 0, 1, []), 0), ((no_inst, "b", 1, 2, []), 0)])
+        ([], ["no allocation for \"no_inst\""])
 
 -- * setup
 
