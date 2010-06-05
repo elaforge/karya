@@ -3,7 +3,13 @@
 
 TODO documentation
 -}
-module Midi.CoreMidi where
+module Midi.CoreMidi (
+    ReadChan, ReadDeviceId, WriteDeviceId, ReadMap, WriteMap
+    , initialize, get_devices
+
+    , connect_read_device, write_message
+    , abort, now
+) where
 import qualified Control.Exception as Exception
 import qualified Control.Concurrent.STM as STM
 import qualified Data.ByteString as ByteString
