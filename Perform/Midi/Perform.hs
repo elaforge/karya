@@ -421,14 +421,15 @@ channelize :: InstAddrs -> [Event] -> [(Event, Channel)]
 channelize inst_addrs events = overlap_map (channelize_event inst_addrs) events
 
 channelize_event :: InstAddrs -> [(Event, Channel)] -> Event -> Channel
-channelize_event i_addrs overlapping event =
-    case Map.lookup (Instrument.inst_name (event_instrument event)) i_addrs of
+channelize_event inst_addrs overlapping event =
+    case Map.lookup inst_name inst_addrs of
         -- If the event has 0 or 1 addrs I can just give a constant channel.
         -- 'allot' will assign the correct addr, or drop the event if there
         -- are none.
         Just (_:_:_) -> chan
         _ -> 0
     where
+    inst_name = Instrument.inst_name (event_instrument event)
     -- If there's no shareable channel, make up a channel one higher than the
     -- maximum channel in use.
     chan = maybe (maximum (-1 : map snd overlapping) + 1) id
@@ -475,7 +476,9 @@ can_share_chan old new
         -- a number if the signals are parallel with an integral offset, then
         -- the caller can subtract that offset from the pitch.
         initial_pitch = Signal.at (event_start old) (event_pitch old)
-        current_pitch = Signal.at start (event_pitch old)
+        -- Note the current pitch is 'event_start' and *not* start, which
+        -- will be slightly before the current start, due to control lead.
+        current_pitch = Signal.at (event_start new) (event_pitch old)
 
 -- | Are the controls equal in the given range?
 controls_equal :: RealTime -> RealTime
@@ -538,7 +541,7 @@ allot_event state (event, ichan) =
     update_map addr state =
         state { ast_map = Map.insert (inst, ichan) addr (ast_map state) }
     insert_warning = state { ast_no_alloc =
-        Map.insertWith' const (Instrument.inst_name inst)
+        Map.insertWith' const (Instrument.inst_score_name inst)
             (event_stack event) (ast_no_alloc state) }
 
 
