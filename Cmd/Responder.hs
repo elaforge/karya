@@ -11,7 +11,12 @@
     which are given to Sync to sync the visible UI with the changes the Cmds
     made to the UI state.
 -}
-module Cmd.Responder where
+module Cmd.Responder (
+    create_msg_reader, responder
+
+    -- for tests
+    , ResponderState(..), run_cmds, run_responder
+) where
 
 import Control.Monad
 import qualified Control.Monad.Identity as Identity

@@ -31,7 +31,12 @@
     able to render samples directly to a buffer which gets passed by pointer to
     c++.
 -}
-module Cmd.ResponderSync where
+module Cmd.ResponderSync (
+    sync
+
+    -- for tests
+    , dirty_blocks
+) where
 import Control.Monad
 import qualified Control.Arrow as Arrow
 import qualified Control.Concurrent as Concurrent
