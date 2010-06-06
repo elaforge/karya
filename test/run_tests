@@ -7,7 +7,12 @@
 
 # TODO: display warn and error log msgs
 
-run_tests=test_obj/RunTests
+run_tests=$1
+shift
+if [[ -z $run_tests ]]; then
+    echo "usage: $0 run/tests/binary [ prefixes ...]"
+    exit 1
+fi
 
 # This is appended to.  It should be reset along with the coverage data every
 # time test_obj/RunTests is built.

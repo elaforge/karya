@@ -2,7 +2,7 @@
 
 prefixes=("$@")
 
-run_profile=profile_obj/RunProfile
+run_profile=build/profile/RunProfile
 out=prof
 
 mkdir -p $out

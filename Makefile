@@ -62,6 +62,9 @@ BASIC_HFLAGS := -threaded -W -fwarn-tabs \
 
 # Directory for built binaries.
 BUILD := build
+TBUILD := $(BUILD)/test
+PBUILD := $(BUILD)/profile
+
 BUNDLE = tools/make_bundle $@
 
 ### objects and binaries
@@ -76,7 +79,7 @@ BINARIES := $(addprefix $(BUILD)/, seq send repl browser make_db dump update \
 	logview timer logcat)
 TEST_BINARIES := $(addprefix $(BUILD)/, test_block test_logview test_browser \
 		test_core_midi) \
-	test_obj/RunTests
+	$(TBUILD)/RunTests
 
 
 ### targets
@@ -110,7 +113,7 @@ clean:
 		fixdeps fltk/fltk.a \
 		$(UI_HS) $(PORTMIDI_HS) $(LOGVIEW_HS) $(BROWSER_HS) haddock/*  \
 		hpc/* seq_language
-	rm -rf test_obj/* $(BUILD)/* .hpc
+	rm -rf $(BUILD)/* .hpc
 
 fltk/fltk.a: $(FLTK_OBJS)
 	ar -rs $@ $^
@@ -255,8 +258,6 @@ doc: $(ALL_HSC)
 
 TEST_CMDLINE = $(GHC) $(BASIC_HFLAGS) --make \
 	$(UI_OBJS) $(COREMIDI_OBJS) fltk/fltk.a $(MIDI_LIBS) $(HLDFLAGS)
-TBUILD := test_obj
-PBUILD := profile_obj
 
 # TODO a bug in ghc prevents .mix data from being emitted for files with LINE
 # workaround by grep -v out the LINEs into build hierarchy
@@ -280,12 +281,12 @@ $(PBUILD)/RunProfile: $(PBUILD)/RunProfile.hs $(UI_HS) $(UI_OBJS) \
 		$(PBUILD)/RunProfile.hs -o $@ $(HPROFILE)
 
 .PHONY: tests
-tests: test_obj/RunTests
-	test/run_tests auto-
+tests: $(TBUILD)/RunTests
+	test/run_tests $^ auto-
 
 .PHONY: interactive
-interactive: test_obj/RunTests
-	test/run_tests interactive-
+interactive: $(TBUILD)/RunTests
+	test/run_tests $^ interactive-
 
 ### misc ###
 

@@ -50,6 +50,7 @@ def main():
         'imports': '\n'.join(map(make_import, test_fns)),
         'all_tests': ',\n    '.join(make_tests(test_defs, init_funcs)),
     }
+    os.makedirs(os.path.dirname(out_fn))
     out = open(out_fn, 'w')
     out.write(output)
     out.close()

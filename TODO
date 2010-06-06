@@ -1,6 +1,6 @@
 CURRENT
   - clean up inst_config / lookup_inst situation in DeriveTest / Derive_profile
-  - move test_obj/ and profile_obj/ to build/test and build/profile
+  * move test_obj/ and profile_obj/ to build/test and build/profile
   * cc on a multiplexed inst is not being merged
   - why does creating a block in setup cmd without a view go to cpu 100%?
   - Derive: inst as a call rather than just something from the env
