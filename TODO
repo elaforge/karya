@@ -1,7 +1,11 @@
 CURRENT
+  - clean up inst_config / lookup_inst situation in DeriveTest / Derive_profile
+  - move test_obj/ and profile_obj/ to build/test and build/profile
+  * cc on a multiplexed inst is not being merged
+  - why does creating a block in setup cmd without a view go to cpu 100%?
   - Derive: inst as a call rather than just something from the env
   - symbolic score: remove null call
-  - make some random score generators for performance testing
+  * make some score generators for performance testing
 
   - more sophisticated function to find out the inst of a note track
   / put prev, cur, next in PassedArgs too?
@@ -97,7 +101,21 @@ bugs:
     dropped but not the note
   - bizarre hint importing requirements in Cmd.LanguageEnviron
   + track down ghc rts crashes, assertion failure
-    - eliminated use of allocaBytes for alloca, see if that helps
+    could be:
+      - bad poke in Ui/*.hsc, perhaps due to alignment
+        * eliminated use of allocaBytes for alloca, see if that helps
+            no
+        + find_events
+        - update selection
+        - ...
+      * concurrent call problem with CoreMidi
+        * replace CoreMidi with stub interface
+        no, still happens
+      * bad poke in CoreMidi
+      - inconsistent compile, hptSomeThingBelowUs is another symptom
+        - report bug with repro instructions
+      - bad write in c++ (but it's read-only, isn't it?  bad free?)
+
     - it showed up when ghc started paying attention to alignment, look into
       allocaBytes and allocaBytesAligned
     add -DS flag

@@ -64,6 +64,8 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Timestamp as Timestamp
 
+import qualified Derive.Derive_profile as Derive_profile
+
 
 load_static_config :: IO StaticConfig.StaticConfig
 load_static_config = do
@@ -234,7 +236,17 @@ print_devs rdev_map wdev_map = do
 arrival_beats = False
 
 auto_setup_cmd :: Cmd.CmdIO
-auto_setup_cmd = do
+auto_setup_cmd = setup_normal
+
+setup_generate :: Cmd.CmdIO
+setup_generate = do
+    Derive_profile.make_shared_control "b1" 100
+    State.set_midi_config Derive_profile.inst_config
+    Create.view (UiTest.bid "b1")
+    return Cmd.Done
+
+setup_normal :: Cmd.CmdIO
+setup_normal = do
     (bid, vid) <- empty_block
     t0 <- Create.track bid 2
     State.insert_events t0 $ map (note_event . UiTest.mkevent)
@@ -248,7 +260,7 @@ auto_setup_cmd = do
     -- tempo 1 -> *twelve 3 -> >fm8/bass 2
     State.set_skeleton bid $ Skeleton.make [(1, 3), (3, 2)]
 
-    State.set_midi_config inst_config
+    State.set_midi_config (make_inst_config [("fm8/bass", [0..2])])
     State.set_selection vid Config.insert_selnum (Types.point_selection 0 0)
     return Cmd.Done
     where
@@ -260,8 +272,8 @@ auto_setup_cmd = do
         | arrival_beats = (pos + 1, Event.modify_duration negate evt)
         | otherwise = (pos, evt)
 
-setup_big :: [String] -> Cmd.CmdIO
-setup_big _ = do
+setup_big :: Cmd.CmdIO
+setup_big = do
     (b, view) <- empty_block
     t0 <- Create.track b 2
     State.set_track_title t0 ">fm8/bass"
@@ -290,7 +302,7 @@ setup_big _ = do
         (take 100 (mknotes (cycle (reverse (map ((,) 6) notes)))))
     State.insert_events t1_vel (take 100 (mkvels (cycle (reverse vels))))
 
-    State.set_midi_config inst_config
+    State.set_midi_config (make_inst_config [("fm8/bass", [0..2])])
     State.set_default_inst (Just (Score.Instrument "fm8/bass"))
     State.set_selection view Config.insert_selnum (Types.point_selection 0 0)
     return Cmd.Done
@@ -307,5 +319,7 @@ empty_block = do
     State.insert_events t_tempo $ map UiTest.mkevent [(0, 0, "1")]
     return (bid, vid)
 
-inst_config = Instrument.config [(Score.Instrument "fm8/bass", addrs)]
-    where addrs = [(Instrument.synth_device Fm8.fm8, n) | n <- [0..2]]
+make_inst_config :: [(String, [Midi.Channel])] -> Instrument.Config
+make_inst_config config = Instrument.config
+    [(Score.Instrument inst, map mkaddr chans) | (inst, chans) <- config]
+    where mkaddr chan = (Instrument.synth_device Fm8.fm8, chan)

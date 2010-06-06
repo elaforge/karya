@@ -1,0 +1,32 @@
+#!/bin/zsh
+
+prefixes=("$@")
+
+run_profile=profile_obj/RunProfile
+out=prof
+
+mkdir -p $out
+
+flags=(
+    # time profiling
+    -s # emit runtime summary
+    -p # emit .prof file
+
+    # heap profiling
+    -L32 # field length for cost center names in heap profile
+    -hc # by producing cost-center stack
+    # -hm # by module
+    # -hd # by closure description
+    # -hy # by type
+    # -hr # by retainer set
+    # -hb # by biography
+)
+
+$run_profile +RTS $flags -RTS $prefixes
+
+stem=$(basename $run_profile)
+mv $stem.prof $out
+if [[ -e $out/$stem.hp ]]; then
+    mv $stem.hp $out
+    hp2ps -d <$out/$stem.hp >$out/$stem.ps
+fi

@@ -6,6 +6,7 @@
 ^hpc/
 ^\.hpc
 ^test_obj/
+^profile_obj
 ^test.output$
 ^unused
 ^prof/

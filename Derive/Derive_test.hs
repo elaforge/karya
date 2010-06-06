@@ -14,7 +14,6 @@ import qualified Util.Seq as Seq
 import Ui
 import qualified Ui.State as State
 import qualified Ui.Types as Types
-import qualified Ui.Track as Track
 import qualified Ui.UiTest as UiTest
 
 import qualified Midi.Midi as Midi
@@ -473,31 +472,6 @@ test_negative_duration = do
             [ (2, 2, "--11"), (2, 2, "--21"), (4, 2, "--12")
             , (6, 2, "--11"), (6, deflt, "--21"), (8, deflt, "--12") ],
         [])
-
-
-profile_deriver_performance = do
-    -- test a large score for profiling
-    let size = 10000
-    let notes = cycle ["4a", "4b", "4c", "4d", "4e", "4f", "4g", "5c"]
-        pos = take size [0..]
-        vels = cycle ["1", ".2", ".4", ".6"]
-        tempo_pos = take (size `div` 10) [0, 10..]
-        tempos = cycle ["1", "2", "3", "i1"]
-        note_tracks name =
-            [ (name, [(p, 1, "") | p <- pos])
-            , ("*twelve", [(p, 0, note) | (p, note) <- zip pos notes])
-            , ("vel", [(p, 0, vel) | (p, vel) <- zip pos vels])
-            ]
-    let (_, ui_state) = UiTest.run_mkstate $
-            [("tempo", [(p, 0, t) | (p, t) <- zip tempo_pos tempos])]
-            ++ note_tracks ">i1" ++ note_tracks ">i2"
-    let blocks = State.state_blocks ui_state
-    print (Map.size blocks)
-    print $ Map.map (Track.events_length . Track.track_events)
-        (State.state_tracks ui_state)
-
-    -- let (events, logs) = derive_events ui_state d
-
 
 -- * setup
 

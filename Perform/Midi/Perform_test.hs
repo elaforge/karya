@@ -520,7 +520,7 @@ test_allot_warn = do
     equal (f [((inst1, "a", 0, 1, []), 0)])
         ([("inst1", "dev1", 0)], [])
     equal (f [((no_inst, "a", 0, 1, []), 0), ((no_inst, "b", 1, 2, []), 0)])
-        ([], ["no allocation for \"no_inst\""])
+        ([], ["no allocation for \"synth1/no_inst\""])
 
 -- * setup
 

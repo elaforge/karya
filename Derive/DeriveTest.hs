@@ -1,6 +1,7 @@
 module Derive.DeriveTest where
 import Control.Monad
 import qualified Control.Monad.Identity as Identity
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
@@ -164,19 +165,28 @@ d_note = do
 
 default_lookup :: MidiDb.LookupMidiInstrument
 default_lookup attrs (Score.Instrument inst)
-    | inst == "i" = Just (default_perf_inst
+    | inst == "i" = Just $ default_perf_inst
         { Instrument.inst_keyswitch =
-            Instrument.get_keyswitch default_ksmap attrs })
+            Instrument.get_keyswitch default_ksmap attrs }
+    | synth `List.isPrefixOf` inst = Just $ default_perf_inst
+        { Instrument.inst_name = drop (length synth + 1) inst
+        , Instrument.inst_score_name = inst
+        }
     | otherwise = Nothing
 
 default_inst = Score.Instrument "i"
-default_perf_inst = Instrument.instrument "synth" "patch" Nothing
+default_perf_inst = Instrument.instrument synth "patch" Nothing
             Midi.Control.empty_map (-2, 2)
 default_inst_title = ">i"
 
-default_inst_config =
-    Instrument.config [(default_inst, [dev 0, dev 1, dev 2])]
-    where dev = (,) (Midi.WriteDevice "out")
+synth = "fm8"
+
+default_inst_config = make_inst_config [("i", [0..2])]
+
+make_inst_config :: [(String, [Midi.Channel])] -> Instrument.Config
+make_inst_config config = Instrument.config
+    [(Score.Instrument inst, map mkaddr chans) | (inst, chans) <- config]
+    where mkaddr chan = (Midi.WriteDevice "fm8", chan)
 
 default_ksmap = Instrument.KeyswitchMap $
     map (\(attrs, name, nn) -> (to_attrs attrs, Instrument.Keyswitch name nn))

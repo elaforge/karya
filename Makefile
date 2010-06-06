@@ -41,7 +41,8 @@ HFLAGS = $(BASIC_HFLAGS) $(HDEBUG) # -fforce-recomp
 HDEBUG := -debug # -O2
 HPROF := -O2 -prof -auto-all -caf-all
 HOPT = -O2
-HTEST := -fhpc # -prof -auto-all -caf-all # -O2
+HTEST := -fhpc
+HPROFILE := -prof -auto-all -caf-all -O2
 
 HLDFLAGS := $(LDFLAGS)
 
@@ -107,8 +108,8 @@ tools/hspp: tools/hspp.hs
 clean:
 	rm -f `find . -name '*.o' -or -name '*.hi' -or -name '*.pyc'` \
 		fixdeps fltk/fltk.a \
-		$(UI_HS) $(PORTMIDI_HS) $(LOGVIEW_HS) $(BROWSER_HS) haddock/*  hpc/* \
-		seq_language
+		$(UI_HS) $(PORTMIDI_HS) $(LOGVIEW_HS) $(BROWSER_HS) haddock/*  \
+		hpc/* seq_language
 	rm -rf test_obj/* $(BUILD)/* .hpc
 
 fltk/fltk.a: $(FLTK_OBJS)
@@ -252,31 +253,39 @@ doc: $(ALL_HSC)
 
 ### tests ###
 
-test_obj/RunTests.hs: $(ALL_HS)
-	test/generate_run_tests.py $@ $(filter %_test.hs, $(ALL_HS))
+TEST_CMDLINE = $(GHC) $(BASIC_HFLAGS) --make \
+	$(UI_OBJS) $(COREMIDI_OBJS) fltk/fltk.a $(MIDI_LIBS) $(HLDFLAGS)
+TBUILD := test_obj
+PBUILD := profile_obj
 
 # TODO a bug in ghc prevents .mix data from being emitted for files with LINE
-# workaround by grep -v out the LINEs into test_obj hierarchy
-# Compiles with -odir and -hidir into test_obj/ because they are compiled with
+# workaround by grep -v out the LINEs into build hierarchy
+# Compiles with -odir and -hidir into $(TBUILD)/ because they are compiled with
 # different flags.
-test_obj/RunTests: test_obj/RunTests.hs $(UI_HS) $(UI_OBJS) \
+$(TBUILD)/RunTests.hs: $(ALL_HS)
+	test/generate_run_tests.py $@ $(filter %_test.hs, $(ALL_HS))
+$(TBUILD)/RunTests: $(TBUILD)/RunTests.hs $(UI_HS) $(UI_OBJS) \
 		$(COREMIDI_OBJS) fltk/fltk.a
 	tools/unline_hack
-	$(GHC) $(BASIC_HFLAGS) -i -itest_obj:. $(HTEST) --make \
-		-odir test_obj -hidir test_obj \
-		test_obj/RunTests.hs -o $@ \
-		$(UI_OBJS) $(COREMIDI_OBJS) fltk/fltk.a \
-		$(MIDI_LIBS) $(HLDFLAGS)
-	rm -f *.tix # this sticks around and breaks things
+	$(TEST_CMDLINE) -i -i$(TBUILD):. -odir $(TBUILD) -hidir $(TBUILD) \
+		$(TBUILD)/RunTests.hs -o $@ $(HTEST)
+	rm -f *.tix # this sticks around and breaks hpc
 	rm -f test.output # this gets reset on each new test run
+
+$(PBUILD)/RunProfile.hs: $(ALL_HS)
+	test/generate_run_tests.py $@ $(filter %_profile.hs, $(ALL_HS))
+$(PBUILD)/RunProfile: $(PBUILD)/RunProfile.hs $(UI_HS) $(UI_OBJS) \
+		$(COREMIDI_OBJS) fltk/fltk.a
+	$(TEST_CMDLINE) -i -i$(PBUILD):. -odir $(PBUILD) -hidir $(PBUILD) \
+		$(PBUILD)/RunProfile.hs -o $@ $(HPROFILE)
 
 .PHONY: tests
 tests: test_obj/RunTests
-	test/run_tests direct-
+	test/run_tests auto-
 
 .PHONY: interactive
 interactive: test_obj/RunTests
-	test/run_tests init-
+	test/run_tests interactive-
 
 ### misc ###
 

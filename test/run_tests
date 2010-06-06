@@ -20,8 +20,8 @@ if [[ $prefixes[0] = '--skip' ]]; then
     shift
 fi
 
-init_tests=($($run_tests --list $prefixes | grep '^init-'))
-direct_tests=($($run_tests --list $prefixes | grep '^direct-'))
+interactive_tests=($($run_tests --list $prefixes | grep '^interactive-'))
+normal_tests=($($run_tests --list $prefixes | grep '^auto-'))
 
 function run() {
     "$@"
@@ -32,12 +32,12 @@ function run() {
 }
 
 :>$test_output
-if [ "$direct_tests" ]; then
-    run $run_tests $flags $direct_tests |& tee -a $test_output
+if [ "$normal_tests" ]; then
+    run $run_tests $flags $normal_tests |& tee -a $test_output
 fi
 # init tests don't re-init after running, and it's easier to tear down
 # everything after each run.
-for test in $init_tests; do
+for test in $interactive_tests; do
     run $run_tests $flags $test |& tee -a $test_output
 done
 

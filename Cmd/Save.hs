@@ -12,7 +12,6 @@ import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Edit as Edit
 import qualified Cmd.Serialize as Serialize
-import qualified Cmd.ViewConfig as ViewConfig
 
 
 get_save_file :: (Monad m) => Cmd.CmdT m FilePath
