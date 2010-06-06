@@ -23,12 +23,13 @@ instance Pretty Float where pretty = show_float (Just 3)
 -- zeros.  So this can produce ".2" which is not a valid haskell float.
 show_float :: (RealFloat a) => Maybe Int -> a -> String
 show_float precision float
-    | float == 0 = "0"
     | f == 0 = show i
-    | otherwise = Seq.rdrop_while (=='0') (dropWhile (=='0') s)
+    | stripped == "." = "0"
+    | otherwise = stripped
     where
     (i, f) = properFraction float
     s = Numeric.showFFloat precision float ""
+    stripped = Seq.rdrop_while (=='0') (dropWhile (=='0') s)
 
 instance Pretty a => Pretty [a] where
     pretty xs = "[" ++ Seq.join ", " (map pretty xs) ++ "]"
