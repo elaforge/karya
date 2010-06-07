@@ -65,7 +65,7 @@ lookup_input input input_map
         let (prev_input, (prev_nn, prev_degree)) = Map.findMax pre
             (next_input, (next_nn, next_degree)) = Map.findMin post
             dist = Num.normalize (i prev_input) (i next_input) (i input)
-            scaled_nn = Num.scale prev_nn next_nn dist
+            scaled_nn = Num.scale prev_nn next_nn (Pitch.NoteNumber dist)
         in if dist > 0.5
             then Just (scaled_nn, next_degree, dist - 1)
             else Just (scaled_nn, prev_degree, dist)
@@ -89,7 +89,7 @@ make_nn mprev nn mnext frac
     | frac > 0 = fmap (\next -> interpolate nn next) mnext
     | otherwise = fmap (\prev -> interpolate prev nn) mprev
     where
-    interpolate low high = Num.scale low high frac
+    interpolate low high = Num.scale low high (Pitch.NoteNumber frac)
 
 -- I use + and - for fractional offset.  This means that scales that use these
 -- utils can't use those chars themselves or the parser will get confused.

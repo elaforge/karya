@@ -4,6 +4,7 @@ module Derive.Call.Control where
 import qualified Util.Num as Num
 
 import Ui
+import qualified Ui.Types as Types
 
 import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
@@ -100,8 +101,8 @@ interpolate_control include_initial srate f x0 y0 x1 y1
     | include_initial = sig
     | otherwise = drop 1 sig
     where
-    sig = [(x, to_pos x) | x <- range x0 x1 srate]
-    to_pos = Num.scale y0 y1 . f . Num.normalize x0 x1
+    sig = [(x, y_of x) | x <- range x0 x1 srate]
+    y_of = Num.scale y0 y1 . f . Types.real_to_double . Num.normalize x0 x1
 
 
 -- * pitch
@@ -216,8 +217,8 @@ interpolate_pitch include_initial srate f x0 y0 x1 y1
     | include_initial = sig
     | otherwise = drop 1 sig
     where
-    sig = [(x, (fy0, fy1, to_pos x)) | x <- range x0 x1 srate]
-    to_pos = Num.d2f . f . Num.normalize x0 x1
+    sig = [(x, (fy0, fy1, y_of x)) | x <- range x0 x1 srate]
+    y_of = Num.d2f . f . Types.real_to_double . Num.normalize x0 x1
     (fy0, fy1) = (to_f y0, to_f y1)
     to_f (Pitch.Degree d) = Num.d2f d
 

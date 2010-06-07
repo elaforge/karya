@@ -21,7 +21,7 @@ frequently.  Auto tests get an auto- prefix so you can avoid the interactive
 ones.  TODO interactive should be removed
 """
 
-import sys, os, re
+import sys, os, re, subprocess
 
 
 def main():
@@ -50,7 +50,7 @@ def main():
         'imports': '\n'.join(map(make_import, test_fns)),
         'all_tests': ',\n    '.join(make_tests(test_defs, init_funcs)),
     }
-    os.makedirs(os.path.dirname(out_fn))
+    subprocess.call(['mkdir', '-p', os.path.dirname(out_fn)])
     out = open(out_fn, 'w')
     out.write(output)
     out.close()

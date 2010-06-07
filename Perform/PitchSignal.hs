@@ -112,7 +112,7 @@ instance Storable.Storable (X, Y) where
 
 instance SignalBase.Y Y where
     zero_y = (0, 0, 0)
-    to_double (from, to, at) = Num.scale (realToFrac from) (realToFrac to) at
+    to_double (from, to, at) = Num.f2d (Num.scale from to at)
 
     -- y_at x0 (from0, to0, at0) x1 (from1, to1, at1) x
     --     | at0 >= 1 = (to0, from1, 0)
@@ -159,7 +159,7 @@ to_nn :: Pitch.Scale -> PitchSignal -> Signal.NoteNumber
 to_nn scale psig = Signal.Signal (V.map f (sig_vec psig))
     where
     f (x, (from, to, at)) = case (lookup_degree from, lookup_degree to) of
-        (Just nn0, Just nn1) -> (x, Num.scale nn0 nn1 at)
+        (Just nn0, Just nn1) -> (x, Num.scale nn0 nn1 (Num.f2d at))
         _ -> (x, Signal.invalid_pitch)
     lookup_degree n = fmap un_nn (Pitch.scale_degree_to_nn scale (to_degree n))
     un_nn (Pitch.NoteNumber n) = n

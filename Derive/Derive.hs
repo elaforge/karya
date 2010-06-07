@@ -34,7 +34,7 @@ module Derive.Derive where
 import Control.Monad
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Identity as Identity
-import qualified Control.Monad.State as Monad.State
+import qualified Control.Monad.State.Strict as Monad.State
 import qualified Control.Monad.Trans as Trans
 import Control.Monad.Trans (lift)
 import qualified Data.List as List

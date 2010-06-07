@@ -103,6 +103,12 @@ score_to_real (ScoreTime p) = RealTime p
 real_to_score :: RealTime -> ScoreTime
 real_to_score (RealTime p) = ScoreTime p
 
+score_to_double :: ScoreTime -> Double
+score_to_double (ScoreTime p) = p
+
+real_to_double :: RealTime -> Double
+real_to_double (RealTime p) = p
+
 instance Pretty.Pretty ScoreTime where
     pretty (ScoreTime p) = Pretty.pretty p ++ "st" -- st for ScoreTime
 instance Pretty.Pretty RealTime where
