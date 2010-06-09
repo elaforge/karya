@@ -5,6 +5,7 @@ module Perform.SignalBase where
 import qualified Control.Arrow as Arrow
 import qualified Data.DList as DList
 import qualified Data.StorableVector as V
+import qualified Data.StorableVector.Base as VectorBase
 import qualified Foreign.Storable as Storable
 
 import Ui
@@ -87,9 +88,9 @@ x_to_double (RealTime x) = x
 -- the first element.
 highest_index :: (Signal y) => X -> SigVec y -> Int
 highest_index x vec
-    | V.length vec == 0 = -1
+    | V.null vec = -1
     | otherwise = i - 1
-    where i = bsearch_above vec fst x
+    where i = bsearch_above vec x
 
 -- | Return all samples at and after a certain point in the signal.
 sample :: (Signal y) => X -> SigVec y -> [(X, y)]
@@ -97,7 +98,7 @@ sample start vec
     | V.null vec = [(start, zero_y)]
     | V.null rest = [(start, snd (V.index vec (V.length vec - 1)))]
     | otherwise = V.unpack rest
-    where rest = V.drop (bsearch_on vec fst start) vec
+    where rest = V.drop (bsearch vec start) vec
 
 -- | Find the index of the first element >= the key of the given element.
 bsearch_on :: (Storable.Storable y, Ord key) =>
@@ -106,18 +107,28 @@ bsearch_on vec key v = go vec 0 (V.length vec)
     where
     go vec low high
         | low == high = low
-        | v <= key (vec `V.index` mid) = go vec low mid
+        | v <= key (VectorBase.unsafeIndex vec mid) = go vec low mid
+        | otherwise = go vec (mid+1) high
+        where mid = (low + high) `div` 2
+
+-- | A version of 'bsearch_on' specialized to search X.  Profiling says
+-- this gets called a lot and apparently the specialization makes a difference.
+bsearch :: (Storable.Storable (X, y)) => V.Vector (X, y) -> X -> Int
+bsearch vec v = go vec 0 (V.length vec)
+    where
+    go vec low high
+        | low == high = low
+        | v <= fst (VectorBase.unsafeIndex vec mid) = go vec low mid
         | otherwise = go vec (mid+1) high
         where mid = (low + high) `div` 2
 
 -- | This gets the index of the value *after* @v@.
-bsearch_above :: (Storable.Storable y, Ord key) =>
-    V.Vector y -> (y -> key) -> key -> Int
-bsearch_above vec key v = go vec 0 (V.length vec)
+bsearch_above :: (Storable.Storable (X, y)) => V.Vector (X, y) -> X -> Int
+bsearch_above vec v = go vec 0 (V.length vec)
     where
     go vec low high
         | low == high = low
-        | v >= key (V.index vec mid) = go vec (mid+1) high
+        | v >= fst (VectorBase.unsafeIndex vec mid) = go vec (mid+1) high
         | otherwise = go vec low mid
         where mid = (low + high) `div` 2
 
@@ -166,12 +177,12 @@ shift offset vec
 -- | Truncate a signal.  It's just a view of the old signal, so it
 -- doesn't allocate a new signal.
 truncate :: (Signal y) => X -> SigVec y -> SigVec y
-truncate x vec = fst $ V.splitAt (bsearch_on vec fst x) vec
+truncate x vec = fst $ V.splitAt (bsearch vec x) vec
 
 -- | The dual of 'truncate'.  Trim a signal's head up until, but not including,
 -- the given X.
 shorten :: (Signal y) => X -> SigVec y -> SigVec y
-shorten x vec = snd $ V.splitAt (bsearch_on vec fst x) vec
+shorten x vec = snd $ V.splitAt (bsearch vec x) vec
 
 map_x :: (Signal y) => (X -> X) -> SigVec y -> SigVec y
 map_x f = V.map (Arrow.first f)
@@ -223,8 +234,8 @@ within :: (Signal y) => X -> X -> SigVec y -> SigVec y
 within start end vec = V.drop extra inside
     where
     -- TODO use bsearch_above?
-    (_, above) = V.splitAt (bsearch_on vec fst start) vec
-    (inside, _) = V.splitAt (bsearch_on above fst end) above
+    (_, above) = V.splitAt (bsearch vec start) vec
+    (inside, _) = V.splitAt (bsearch above end) above
     -- Otherwise concurrent samples confuse pitches_share.
     -- TODO leading concurrent samples could confuse other things, maybe put
     -- this in unpack?
