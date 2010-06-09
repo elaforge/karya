@@ -1,6 +1,7 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-} -- NFData instance
 -- | Miscellaneous low level types with few dependencies.
 module Ui.Types where
+import Control.DeepSeq
 import Text.Read -- for Read class with readPrec
 import Foreign
 import Foreign.C
@@ -71,12 +72,12 @@ instance Storable Zoom where
 -- blocks only display events at >=0 ScoreTime.
 newtype ScoreTime = ScoreTime Double
     deriving (Num, Enum, Real, Floating, Fractional, RealFrac, RealFloat,
-        Eq, Ord, Show, Read)
+        Eq, Ord, Show, Read, NFData)
 
 -- | A concrete unit of time, otherwise known as seconds.
 newtype RealTime = RealTime Double
     deriving (Num, Enum, Real, Floating, Fractional, RealFrac, RealFloat,
-        Eq, Ord, Show, Read)
+        Eq, Ord, Show, Read, NFData)
 
 instance Storable ScoreTime where
     sizeOf _ = #size ScoreTime
@@ -120,22 +121,22 @@ instance Pretty.Pretty RealTime where
 -- Even though the constructor is exported, you should only create them
 -- through the 'State.StateT' interface.
 newtype BlockId = BlockId Id.Id
-    deriving (Eq, Ord)
+    deriving (Eq, Ord, NFData)
 
 -- | Reference to a View, as per 'BlockId'.
 newtype ViewId = ViewId Id.Id
-    deriving (Eq, Ord)
+    deriving (Eq, Ord, NFData)
 
 -- | Reference to a schema.  Declared here instead of Deriver.Schema to avoid
 -- a circular import.
 newtype SchemaId = SchemaId Id.Id
-    deriving (Eq, Ord)
+    deriving (Eq, Ord, NFData)
 
 newtype TrackId = TrackId Id.Id
-    deriving (Eq, Ord)
+    deriving (Eq, Ord, NFData)
 
 newtype RulerId = RulerId Id.Id
-    deriving (Eq, Ord)
+    deriving (Eq, Ord, NFData)
 
 instance Show BlockId where show = Id.show_ident
 instance Show ViewId where show = Id.show_ident

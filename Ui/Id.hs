@@ -1,3 +1,4 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-} -- NFData instance
 module Ui.Id (
     Ident(..)
 
@@ -15,6 +16,7 @@ module Ui.Id (
     , global
 ) where
 import Prelude hiding (id)
+import Control.DeepSeq
 import Control.Monad
 import qualified Data.Char as Char
 
@@ -29,7 +31,7 @@ import qualified Text.ParserCombinators.ReadPrec as ReadPrec
 -- it's easier to put it here than make a whole new module.
 type Namespace = String
 newtype Id = Id (Namespace, String)
-    deriving (Eq, Ord, Show, Read)
+    deriving (Eq, Ord, Show, Read, NFData)
 un_id (Id ident) = ident
 
 -- | BlockIds, RulerIds, etc. are just wrappers around Ids.  Giving them a

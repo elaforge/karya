@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleInstances, TypeSynonymInstances, EmptyDataDecls #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-} -- NFData instance
 {- | This module implements signals as sparse arrays of Val->Val.  The
     points are interpolated linearly, so the signal array represents a series
     of straight line segments.
@@ -82,6 +83,7 @@ module Perform.Signal (
     , equal, pitches_share
 ) where
 import Prelude hiding (last, truncate)
+import Control.DeepSeq
 import qualified Control.Arrow as Arrow
 import qualified Data.StorableVector as V
 import qualified Foreign.Storable as Storable
@@ -100,7 +102,7 @@ import Perform.SignalBase (max_x, default_srate)
 newtype Signal y = Signal { sig_vec :: SignalBase.SigVec Y }
     -- The Eq instance is only for tests, since it may be quite expensive on
     -- a real signal.
-    deriving (Eq)
+    deriving (Eq, NFData)
 
 modify_vec :: (SignalBase.SigVec Y -> SignalBase.SigVec Y)
     -> Signal y0 -> Signal y1

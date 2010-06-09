@@ -2,6 +2,7 @@
     device and channel mapping.
 -}
 module Perform.Midi.Instrument where
+import Control.DeepSeq
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -47,6 +48,10 @@ data Instrument = Instrument {
     -- to be made, if any, to get a frequency indicated by the pitch track.
     , inst_scale :: Pitch.ScaleId
     } deriving (Eq, Ord, Show)
+
+instance NFData Instrument where
+    -- don't bother with the rest since instruments are constructed all at once
+    rnf inst = rnf (inst_score_name inst)
 
 instrument :: SynthName -> InstrumentName -> Maybe Keyswitch
     -> Control.ControlMap -> Control.PbRange -> Instrument

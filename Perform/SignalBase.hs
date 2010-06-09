@@ -3,6 +3,7 @@
 -}
 module Perform.SignalBase where
 import qualified Control.Arrow as Arrow
+import Control.DeepSeq
 import qualified Data.DList as DList
 import qualified Data.StorableVector as V
 import qualified Data.StorableVector.Base as VectorBase
@@ -17,6 +18,10 @@ import Ui
 -- A Signal is pairs of (x, y).  The X is always RealTime, but the Y may be
 -- any type that implements 'Y'.
 class (Storable.Storable (X, y), Y y) => Signal y
+
+-- | Vector is strict anyway.
+instance NFData (V.Vector a) where
+    rnf = const ()
 
 -- The 'Signal' class isn't really a signal, but is a shorthand for the
 -- constraints on @y@.  If Signal was a signal then maybe I could put in

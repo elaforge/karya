@@ -1,6 +1,8 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-} -- NFData instance
 {- | Support for MIDI controls.
 -}
 module Perform.Midi.Control where
+import Control.DeepSeq
 import Control.Monad
 import qualified Data.Map as Map
 import qualified Util.Num as Num
@@ -32,7 +34,7 @@ control_map_names cmap = [name | Control name <- Map.keys cmap]
 -- This is the MIDI performer's version of Control.  The more general
 -- Score.Control is converted along with Score.Events in
 -- Perform.Midi.Convert.
-newtype Control = Control String deriving (Eq, Ord, Show, Read)
+newtype Control = Control String deriving (Eq, Ord, Show, Read, NFData)
 
 -- | Pitchbend range in tempered semitones below and above unity.  The first
 -- integer should probably be negative.
