@@ -83,9 +83,14 @@ p_unsigned_float = do
     f <- P.option "" (P.char '.' >> P.many1 P.digit)
     case (i, f) of
         ("", "") -> P.pzero
-        _ -> case read_float (i ++ "." ++ f) of
-            [] -> P.pzero
-            (val, _rest) : _ -> return val
+        _ -> do
+            let int = case Numeric.readDec i of
+                    [] -> 0
+                    (n, _) : _ -> n
+            let frac = case Numeric.readDec f of
+                    [] -> 0
+                    (n, _) : _ -> n / (10^length f)
+            return (int + frac)
     <?> "unsigned float"
 
 p_float :: P.CharParser st Double
@@ -97,7 +102,7 @@ p_float = do
 
 -- * non-parsec
 
-float :: (RealFrac a) => String -> Maybe a
+float :: String -> Maybe Double
 float = complete_parse . read_float
 
 int :: (Integral a) => String -> Maybe a
@@ -105,7 +110,7 @@ int = complete_parse . read_int
 
 -- | Read numbers of the form \"[+-]?\d*\.\d*\".  So unlike haskell, +.3 is
 -- valid.
-read_float :: (RealFrac a) => String -> [(a, String)]
+read_float :: String -> [(Double, String)]
 read_float s = [(sign*i, rest) | (i, rest) <- Numeric.readFloat (add0 num)]
     where (sign, num) = read_sign s
 
