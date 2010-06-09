@@ -13,20 +13,27 @@ flags=(
     -p # emit .prof file
 
     # heap profiling
-    -L32 # field length for cost center names in heap profile
-    -hc # by producing cost-center stack
-    # -hm # by module
+    -L42 # field length for cost center names in heap profile
+    # -hc # by producing cost-center stack
+    -hm # by module
     # -hd # by closure description
     # -hy # by type
     # -hr # by retainer set
     # -hb # by biography
 )
 
-$run_profile +RTS $flags -RTS $prefixes
+profiles=($($run_profile --list $prefixes))
 
-stem=$(basename $run_profile)
-mv $stem.prof $out
-if [[ -e $out/$stem.hp ]]; then
-    mv $stem.hp $out
-    hp2ps -d <$out/$stem.hp >$out/$stem.ps
-fi
+for prof in $profiles; do
+    dir=$out/$(date +%y-%m-%d)/${prof/*.profile_/}
+    mkdir -p $dir
+    time $run_profile +RTS $flags -RTS $prof | tee $dir/stdout
+
+    stem=$(basename $run_profile)
+    mv $stem.prof $dir
+    mv $stem.hp $dir
+    mv $stem.aux $dir
+    if [[ -e $dir/$stem.hp ]]; then
+        hp2ps -c <$dir/$stem.hp >$dir/$stem.ps
+    fi
+done

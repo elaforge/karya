@@ -1,5 +1,37 @@
 CURRENT
+  - run a set of profilers as a script and save the results
+
+  - Signal.pitch_share I think is still used even when I have signal IDs
+    profile and make sure it's fast for common cases
+
+  - implement signal IDs
+    - Avoid converting signals more than once.  For this I need to not truncate
+      the pitch signal, or at least chop off the beginning as well.
+    - Avoid expensive sharing check for channelize.
+
+  - performance:
+    eliminate the deriver memory spike
+    Maybe it's the control deriver creating a huge list of signal chunks, which
+    is then all forced at once since merge needs them all.
+    Create a big block of just signal interpolations, one with just 'sets',
+    one with just notes, to see who is hungry.
+      they're all hungry
+
+    Deriver [Event] output is not lazy.  I think it's because >>= for ErrorT
+    is strict.  Can I have a form of exception that doesn't need to see if
+    any exceptinos are thrown before producing output?  That means it needs
+    to produce "CappedList = Cons val | Nil (Maybe Exception)"  What does >>=
+    look like?
+
+    data EventList = Nil (Maybe Exception)
+        -- | I produce a lot of singletons, so optimize away a pointer.
+        | Event1 !Score.Event
+        -- | Unroll a chunk of events.
+        | Event16 !Score.Event !Score.Event ... EventList
+        | EventCons !Score.Event EventList
+
   - clean up inst_config / lookup_inst situation in DeriveTest / Derive_profile
+
   * move test_obj/ and profile_obj/ to build/test and build/profile
   * cc on a multiplexed inst is not being merged
   - why does creating a block in setup cmd without a view go to cpu 100%?
@@ -105,7 +137,7 @@ bugs:
       - bad poke in Ui/*.hsc, perhaps due to alignment
         * eliminated use of allocaBytes for alloca, see if that helps
             no
-        + find_events
+        * find_events
         - update selection
         - ...
       * concurrent call problem with CoreMidi
@@ -168,7 +200,7 @@ performance:
     Except that hardly ever happens if I do shortcut thru.
 
   - profile derivation, if parsing is a problem, look into attoparsec
-  - profile with and without strict state monad
+  * profile with and without strict state monad
   speed and memory profiling:
     - respond to incoming notes
     - diff and modify UI

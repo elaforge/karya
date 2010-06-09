@@ -1035,14 +1035,14 @@ d_merge :: (Monad m) => DeriveT m Events -> DeriveT m Events
 d_merge = liftM2 merge_events
 
 d_merge_list :: (Monad m) => [DeriveT m Events] -> DeriveT m Events
-d_merge_list = foldr d_merge (return [])
+d_merge_list = fmap merge_event_lists . sequence
+-- d_merge_list = foldr d_merge (return [])
 
 merge_events :: [Score.Event] -> [Score.Event] -> [Score.Event]
 merge_events = Seq.merge_on Score.event_start
 
 merge_event_lists :: [[Score.Event]] -> [Score.Event]
 merge_event_lists = Seq.merge_asc_lists Score.event_start
--- merge_event_lists = foldr merge_events []
 
 -- | Monoid instance for those who prefer that interface.
 instance Monoid.Monoid EventDeriver where

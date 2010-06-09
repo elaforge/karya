@@ -1,4 +1,7 @@
 module Derive.Derive_profile where
+import qualified Control.DeepSeq as DeepSeq
+import Control.Monad
+-- import qualified Control.Concurrent as Concurrent
 import qualified Data.Map as Map
 import qualified Data.Time as Time
 import qualified System.CPUTime as CPUTime
@@ -6,7 +9,6 @@ import qualified Text.Printf as Printf
 
 import Util.Control
 import Util.Test
-import qualified Util.Pretty as Pretty
 
 import Ui
 import qualified Ui.State as State
@@ -19,43 +21,104 @@ import qualified Derive.Score as Score
 import qualified Perform.Midi.Perform as Perform
 
 
-profile_shared = run_profile $ make_shared_control "b1" 1000
 
-profile_simple = run_profile $ make_simple "b1" 1000
+-- | Make a block with simple non-overlapping controls and tempo changes.
+profile_simple = run_profile $ make_simple "b1" 0 2000
 
+make_simple :: (State.UiStateMonad m) => String -> Int -> Double -> m [TrackId]
+make_simple bid offset size = UiTest.mkstate bid $
+        track_until size simple_tempo_track
+        : note_tracks inst1 0 ++ note_tracks inst2 2
+    where
+    note_tracks name offset2 =
+        [ track (note_track name)
+        , track simple_pitch_track
+        , track vel_track
+        ]
+        where track = track_until size . track_drop (offset + offset2)
+
+-- | Block with a control controlling multiple note tracks.  Intended to
+-- profile channelize control sharing.
+profile_shared = run_profile $ make_shared_control "b1" 2000
+    where
+    make_shared_control bid size = UiTest.mkstate bid $
+            track simple_tempo_track
+            : track mod_track
+            : track_set 0 ++ track_set 2 -- ++ track_set 4
+        where
+        track = track_until size
+        track_set offset = map (track . track_drop offset)
+            [ note_track inst1
+            , simple_pitch_track
+            , vel_track
+            ]
+
+-- | Block with non-tempered scale so pitches can't share.  Intended to profile
+-- channelize pitch sharing.
 profile_nontempered = run_profile $ make_nontempered "b1" 1000
+    where
+    make_nontempered bid size = UiTest.mkstate bid $ map (track_until size)
+            [ simple_tempo_track
+            , note_track inst1
+            , nontempered_pitch_track
+            , vel_track
+            ]
+
+-- | Giant control track with lots of samples.  Intended to profile control
+-- track derivation.
+profile_control = run_profile $ make_big_control "b1" 15000
+    where
+    make_big_control bid size = UiTest.mkstate bid $ map (track_until size)
+        [ (inst1, [(0, size, "")])
+        , mod_track
+        ]
+
+-- | Giant note track.  Profile note track derivation.
+profile_notes = run_profile $ make_big_notes "b1" 15000
+    where
+    make_big_notes bid size = UiTest.mkstate bid $ map (track_until size)
+        [ note_track inst1
+        ]
+
+-- | Block with lots of calls to sub-blocks.
+profile_subblocks = run_profile $ make_subderive "b1" 300
+
+make_subderive bid size = do
+    let sub_bids = [bid ++ "." ++ show sub | sub <- [0..15]]
+    forM_ (zip sub_bids [0, 4..]) $ \(sub_bid, offset) ->
+        make_simple sub_bid offset 16
+    UiTest.mkstate bid [track_until size $ ctrack 1 ">" sub_bids]
 
 
 run_profile create = do
     let (_, ui_state) = UiTest.run State.empty create
-    let blocks = State.state_blocks ui_state
-
     start_cpu <- CPUTime.getCPUTime
     start <- now
     let section = time_section (start_cpu, start)
+
     section "generate" $ do
         print $ Map.map (Track.events_length . Track.track_events)
             (State.state_tracks ui_state)
 
-    let e_event e = (Score.event_start e, Score.event_duration e,
-            Score.event_text e)
     let (events, logs) = DeriveTest.e_val_right $
             DeriveTest.derive_block ui_state (UiTest.bid "b1")
     section "derive" $ do
         putStrLn $ "events: " ++ show (length events)
-        pprint logs
+        pprint (take 5 logs)
 
-    let e_pevent e = (Perform.event_start e, Perform.event_duration e)
     let (perf_events, convert_warns, mmsgs, midi_warns) =
             DeriveTest.perform inst_config events
     section "convert" $ do
-        -- pprint (take 5 (map e_pevent perf_events))
+        force perf_events
         putStrLn $ "perf events: " ++ show (length perf_events)
         pprint (take 5 convert_warns)
 
     section "midi" $ do
         putStrLn $ "msgs: " ++ show (length mmsgs)
         pprint (take 5 midi_warns)
+
+force :: (DeepSeq.NFData a) => a -> IO ()
+force val = DeepSeq.deepseq val (return ())
 
 time_section :: (Integer, Time.DiffTime) -> String -> IO a -> IO a
 time_section (start_cpu, start_time) title op = do
@@ -85,57 +148,20 @@ cpu_to_sec :: Integer -> Double
 cpu_to_sec s = fromIntegral s / fromIntegral (10^12)
 
 
--- | Make a block with simple non-overlapping controls and tempo changes.
-make_simple :: (State.UiStateMonad m) => String -> Double -> m [TrackId]
-make_simple bid size = UiTest.mkstate bid $
-        track_until size simple_tempo_track
-        : note_tracks inst1 0 ++ note_tracks inst2 2
-    where
-    note_tracks name offset =
-        [ track (note_track name)
-        , track simple_pitch_track
-        , track vel_track
-        ]
-        where track = track_until size . track_drop offset
-
--- | Block with a control controlling multiple notes.
-make_shared_control :: (State.UiStateMonad m) => String -> Double -> m [TrackId]
-make_shared_control bid size = UiTest.mkstate bid $
-        track simple_tempo_track
-        : track mod_track
-        : track_set 0 ++ track_set 2 -- ++ track_set 4
-    where
-    track = track_until size
-    track_set offset = map (track . track_drop offset)
-        [ note_track inst1
-        , simple_pitch_track
-        , vel_track
-        ]
-
--- | Block with non-tempered scale so pitches can't share.
-make_nontempered bid size = UiTest.mkstate bid $ map (track_until size)
-        [ simple_tempo_track
-        , note_track inst1
-        , nontempered_pitch_track
-        , vel_track
-        ]
-
--- | Block with lots of calls to sub-blocks.
-
 inst1 = ">fm8/1"
 inst2 = ">fm8/2"
 
 note_track inst = (inst, [(p, 1, "") | p <- [0..]])
-simple_tempo_track = ctrack "tempo" ["1", "2", "3", "i 1"] 10
-mod_track = ctrack "srate = .02 | cc1" ["i 1", "i 0", "e 1", "i .5", "0"] 1
+simple_tempo_track = ctrack 10 "tempo" ["1", "2", "3", "i 1"]
+mod_track = ctrack 1 "srate = .02 | cc1" ["i 1", "i 0", "e 1", "i .5", "0"]
 simple_pitch_track =
-    ctrack "*twelve" ["4a", "4b", "4c", "4d", "4e", "4f", "4g", "5c"] 1
+    ctrack 1 "*twelve" ["4a", "4b", "4c", "4d", "4e", "4f", "4g", "5c"]
 nontempered_pitch_track =
-    ctrack "*semar" ["1", "2", "3", "5", "6", "1^", "6."] 1
-vel_track = ctrack "vel" ["1", ".2", ".4", ".6"] 1
+    ctrack 1 "*semar" ["1", "2", "3", "5", "6", "1^", "6."]
+vel_track = ctrack 1 "vel" ["1", ".2", ".4", ".6"]
 
-ctrack :: String -> [String] -> Double -> UiTest.TrackSpec
-ctrack title ts step =
+ctrack :: Double -> String -> [String] -> UiTest.TrackSpec
+ctrack step title ts =
     (title, [(p, 0, t) | (p, t) <- zip [0, step..] (cycle ts)])
 
 track_until :: Double -> UiTest.TrackSpec -> UiTest.TrackSpec
