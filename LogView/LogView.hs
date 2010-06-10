@@ -89,7 +89,7 @@ main = do
         usage ("unparsed args: " ++ show args)
     when (Help `elem` flags) (usage "usage:")
 
-    let seek = Seq.mlast Nothing id [Just s | Seek (Just s) <- flags]
+    let seek = Seq.mlast (Just 0) id [s | Seek s <- flags]
         history = Seq.mlast default_history id [n | History n <- flags]
         filename = Seq.mlast mach_log_filename id [n | File n <- flags]
 
