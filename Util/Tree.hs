@@ -25,3 +25,23 @@ find :: (a -> Bool) -> Forest a -> Maybe (Tree a)
 find p trees = case List.find (p . rootLabel) trees of
     Nothing -> msum $ map (find p . subForest) trees
     Just tree -> Just tree
+
+-- | Find the first matching depthwise matching element and the path to reach
+-- it.  The parents list is ordered immediate to distant.
+find_with_parents :: (a -> Bool) -> Forest a -> Maybe (Tree a, [a])
+find_with_parents f trees = msum (map (go []) trees)
+    where
+    go parents tree@(Node val subs)
+        | f val = Just (tree, parents)
+        | otherwise = msum (map (go (val : parents)) subs)
+
+-- | Find the first leaf, always taking the leftmost branch.
+first_leaf :: Tree a -> a
+first_leaf (Node a []) = a
+first_leaf (Node _ (child : _)) = first_leaf child
+
+leaves :: Forest a -> [Tree a]
+leaves trees = do
+    tree <- trees
+    sub <- if (null (subForest tree)) then [tree] else leaves (subForest tree)
+    return sub
