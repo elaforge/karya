@@ -376,7 +376,9 @@ poke_tracklike_ptr tp trackp = do
 
 instance Storable Block.Config where
     sizeOf _ = #size BlockModelConfig
-    alignment _ = #{alignment BlockModelConfig}
+    -- TODO alignment figures the alignment is 1, which seems to be crashing
+    -- the gc.  See if this fixes it.
+    alignment _ = 4 -- #{alignment BlockModelConfig}
     poke = poke_block_model_config
 
 poke_block_model_config configp
