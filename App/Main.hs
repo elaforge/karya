@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 -- | Sequencer.
 --
 -- Dumadak tan wenten alangan.
@@ -179,12 +180,15 @@ main = initialize $ \lang_socket midi_chan -> do
     Thread.start_thread "responder" $ do
         Responder.responder static_config get_msg write_midi abort_midi
             get_now_ts setup_cmd interpreter_chan loopback_chan
-        `Exception.catch` responder_handler
+        `Exception.catch` (\(exc :: Exception.SomeException) ->
+            Log.error $ "responder thread died from exception: " ++ show exc)
             -- It would be possible to restart the responder, but chances are
             -- good it would just die again.
         `Exception.finally` Ui.quit_ui_thread quit_request
 
     Ui.event_loop quit_request msg_chan
+        `Exception.catch` \(exc :: Exception.SomeException) ->
+            Log.error $ "ui died from exception: " ++ show exc
     Log.notice "app quitting"
 
 {-
@@ -206,11 +210,6 @@ open_read_devices :: Map.Map Midi.ReadDevice MidiImp.ReadDeviceId
     -> [Midi.ReadDevice] -> IO ()
 open_read_devices rdev_map rdevs = forM_ rdevs $ \rdev ->
     MidiImp.connect_read_device rdev (rdev_map Map.! rdev)
-
-responder_handler :: Exception.SomeException -> IO ()
-responder_handler exc = do
-    Log.error ("responder died from exception: " ++ show exc)
-    putStrLn ("responder died from exception: " ++ show exc)
 
 make_write_midi :: Map.Map Midi.WriteDevice Midi.WriteDevice
     -> MidiImp.WriteMap -> Midi.WriteMessage -> IO ()

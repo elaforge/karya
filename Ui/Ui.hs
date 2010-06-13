@@ -2,11 +2,9 @@
 module Ui.Ui (event_loop, send_action, quit_ui_thread) where
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.STM as STM
-import qualified Control.Exception as Exception
-import System.IO.Unsafe
+import System.IO.Unsafe as Unsafe
 
 import qualified Util.Control as Control
-import qualified Util.Log as Log
 
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.UiMsgC as UiMsgC
@@ -16,20 +14,17 @@ import qualified Ui.UiMsgC as UiMsgC
 -- but for some reason when I do that it loses its polymorphism, even with a
 -- rank2 type.
 acts_mvar :: MVar.MVar [a]
-acts_mvar = unsafePerformIO (MVar.newMVar [])
+acts_mvar = Unsafe.unsafePerformIO (MVar.newMVar [])
 
 -- | Run the 'app' thread, passing it a channel that produces msgs, and go
 -- into the UI polling loop.  This is intended to be run from the main thread,
 -- since some UIs don't work properly unless run from the main thread.
 -- When 'app' exits, the ui loop will be aborted.
 event_loop :: MVar.MVar () -> STM.TChan UiMsg.UiMsg -> IO ()
-event_loop quit_request msg_chan = Exception.handle ui_handler $ do
+event_loop quit_request msg_chan = do
     c_initialize
     Control.while_ (fmap not (MVar.isEmptyMVar quit_request)) $
         poll_loop acts_mvar msg_chan
-
-ui_handler :: Exception.SomeException -> IO ()
-ui_handler exc = Log.error ("ui thread died from exception: " ++ show exc)
 
 -- | Send the UI to the ui thread and run it, returning its result.
 send_action :: IO a -> IO a
