@@ -1,5 +1,5 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
-module Ui.UiMsgC where
+module Ui.UiMsgC (get_ui_msgs) where
 import Foreign
 import Foreign.C
 import qualified Data.Maybe as Maybe

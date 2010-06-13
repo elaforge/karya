@@ -6,7 +6,7 @@
     cached derivation and realization (depending on deriver scope)
     modified event map, for derivation (old trackpos -> new trackpos)
 -}
-module Ui.TrackC where
+module Ui.TrackC (with_track, insert_render_samples) where
 import Control.Monad
 import Data.Array.IArray ((!))
 import qualified Data.Array.IArray as IArray
@@ -72,7 +72,7 @@ make_find_samples samples = Util.make_fun_ptr "find_samples" $
 instance Storable Track.RenderConfig where
     sizeOf _ = #size RenderConfig
     alignment _ = #{alignment RenderConfig}
-    peek = error "RenderConfig peek unimplemented"
+    peek _ = error "RenderConfig peek unimplemented"
     poke = poke_render_config
 
 poke_render_config configp (Track.RenderConfig style color) = do
@@ -95,6 +95,8 @@ cb_find_events event_lists startp endp ret_tps ret_events ret_ranks = do
     start <- peek startp
     end <- peek endp
     let key (pos, _, rank) = (pos, rank)
+    -- Take 1 from before to get the event overlapping the beginning of the
+    -- damaged area and 1 from after in case it has a negative duration.
     let (tps, evts, ranks) = unzip3 $ Seq.sort_on key [ (pos, evt, rank)
             | (rank, events) <- zip [0..] event_lists
             , (pos, evt) <- Track.in_range_around start end events ]
@@ -104,11 +106,6 @@ cb_find_events event_lists startp endp ret_tps ret_events ret_ranks = do
         poke ret_events =<< newArray evts
         poke ret_ranks =<< newArray ranks
     return (length evts)
-
--- | Take 1 from before to get the event overlapping the beginning of the
--- damaged area and 1 from after in case it has a negative duration.
-find_events :: ScoreTime -> ScoreTime -> Track.TrackEvents -> [Track.PosEvent]
-find_events = Track.in_range_around
 
 -- typedef int (*FindSamples)(ScoreTime *start_pos, ScoreTime *end_pos,
 --         ScoreTime **ret_tps, double **ret_samples);

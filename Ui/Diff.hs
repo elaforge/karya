@@ -3,7 +3,11 @@ to make it display the second state.
 
 This is unpleasantly complicated and subtle.  I wish I knew a better way!
 -}
-module Ui.Diff where
+module Ui.Diff (
+    diff, track_diff
+    -- for tests
+    , pair_lists
+) where
 import Control.Monad
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Identity as Identity

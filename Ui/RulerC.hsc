@@ -4,7 +4,7 @@
     optional name.  They also have a display at zoom value.  Marks are only
     displayed if the zoom level is >= the display at zoom.
 -}
-module Ui.RulerC where
+module Ui.RulerC (with_ruler) where
 import Control.Monad
 import Foreign
 import Foreign.C
