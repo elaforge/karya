@@ -28,6 +28,7 @@ module Util.Log (
 import Prelude hiding (error, log)
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
+import Control.Monad
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Trans as Trans
 import qualified Data.Generics as Generics
@@ -187,6 +188,8 @@ instance LogMonad IO where
             Just hdl | prio <= msg_prio msg ->
                 IO.hPutStrLn hdl (serialize_msg msg)
             _ -> return ()
+        when (msg_prio msg == Error) $
+            putStrLn (format_msg msg)
 
 -- TODO show the date, if any
 format_msg :: Msg -> String
