@@ -259,15 +259,12 @@ doc: $(ALL_HSC)
 TEST_CMDLINE = $(GHC) $(BASIC_HFLAGS) --make \
 	$(UI_OBJS) $(COREMIDI_OBJS) fltk/fltk.a $(MIDI_LIBS) $(HLDFLAGS)
 
-# TODO a bug in ghc prevents .mix data from being emitted for files with LINE
-# workaround by grep -v out the LINEs into build hierarchy
 # Compiles with -odir and -hidir into $(TBUILD)/ because they are compiled with
 # different flags.
 $(TBUILD)/RunTests.hs: $(ALL_HS)
 	test/generate_run_tests.py $@ $(filter %_test.hs, $(ALL_HS))
 $(TBUILD)/RunTests: $(TBUILD)/RunTests.hs $(UI_HS) $(UI_OBJS) \
 		$(COREMIDI_OBJS) fltk/fltk.a
-	tools/unline_hack
 	$(TEST_CMDLINE) -i -i$(TBUILD):. -odir $(TBUILD) -hidir $(TBUILD) \
 		$(TBUILD)/RunTests.hs -o $@ $(HTEST)
 	rm -f *.tix # this sticks around and breaks hpc
