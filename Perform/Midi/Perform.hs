@@ -210,8 +210,7 @@ type AddrState =
     (Maybe Midi.PitchBendValue, Map.Map Midi.Control Midi.ControlValue)
 type RunningState = Map.Map Instrument.Addr AddrState
 
-drop_dup_controls :: RunningState -> [Midi.WriteMessage]
-    -> [Midi.WriteMessage]
+drop_dup_controls :: RunningState -> [Midi.WriteMessage] -> [Midi.WriteMessage]
 drop_dup_controls _ [] = []
 drop_dup_controls running (wmsg:wmsgs) = case wmsg of
     Midi.WriteMessage dev _ (Midi.ChannelMessage chan cmsg) ->
@@ -354,7 +353,7 @@ perform_pitch pb_range nn prev_note_off start end sig =
     [(pos, Midi.PitchBend (Control.pb_from_nn pb_range nn val)) |
         (pos, val) <- pos_vals2]
     where
-    pos_vals = takeWhile ((<end) . fst) $ Signal.sample start sig
+    pos_vals = takeWhile ((<=end) . fst) $ Signal.sample start sig
     pos_vals2 = create_leading_cc prev_note_off start sig pos_vals
 
 -- | Return the (pos, msg) pairs, and whether the signal value went out of the
@@ -368,7 +367,7 @@ perform_control cmap prev_note_off start end (control, sig) =
         Just ctor -> ([(pos, ctor val) | (pos, val) <- pos_vals3], clip_warns)
     where
     pos_vals3 = create_leading_cc prev_note_off start sig pos_vals2
-    pos_vals = takeWhile ((<end) . fst) $ Signal.sample start sig
+    pos_vals = takeWhile ((<=end) . fst) $ Signal.sample start sig
     (low, high) = Control.control_range
     -- Ack.  Extract the vals, clip them, zip clipped vals back in.
     (clipped_vals, clips) = unzip (map (clip_val low high) (map snd pos_vals))
