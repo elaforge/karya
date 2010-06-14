@@ -36,13 +36,14 @@ LDFLAGS := $(LIBFLTK_1_3_LD) $(FLTK_LD)
 
 ### ghc flags
 
-HFLAGS = $(BASIC_HFLAGS) $(HDEBUG) # -fforce-recomp
-
-HDEBUG := -debug # -O2
+HDEBUG := -debug
 HPROF := -O2 -prof -auto-all -caf-all
 HOPT = -O2
 HTEST := -fhpc
 HPROFILE := -prof -auto-all -caf-all -O2
+
+# Flags for generic compiles that don't need to be debugging or profiling.
+HFLAGS = $(BASIC_HFLAGS) $(HDEBUG) # -fforce-recomp
 
 HLDFLAGS := $(LDFLAGS)
 
@@ -135,14 +136,14 @@ ALL_HS = $(filter-out $(OBSOLETE), $(shell tools/all_hs.py))
 
 ### main app
 
+SEQ_CMDLINE = $(GHC) -package ghc $(BASIC_HFLAGS) \
+	--make -main-is App.Main App/Main.hs \
+	$(UI_OBJS) $(COREMIDI_OBJS) fltk/fltk.a $(MIDI_LIBS) $(HLDFLAGS)
+
 # PHONY convinces make to always run ghc, which figures out deps on its own
 .PHONY: $(BUILD)/seq
 $(BUILD)/seq: $(UI_HS) $(UI_OBJS) $(COREMIDI_OBJS) fltk/fltk.a
-	$(GHC) $(HFLAGS) -package ghc --make \
-		-main-is App.Main App/Main.hs \
-		$(UI_OBJS) $(COREMIDI_OBJS) fltk/fltk.a $(MIDI_LIBS) \
-		$(HLDFLAGS) \
-		-o $@
+	$(SEQ_CMDLINE) $(HDEBUG) -o $@
 	$(BUNDLE) doc/seq.icns
 
 # not_mine = Instrument/BrowserC.o LogView/LogViewC.o Util/Fltk.o
@@ -266,7 +267,7 @@ $(TBUILD)/RunTests.hs: $(ALL_HS)
 $(TBUILD)/RunTests: $(TBUILD)/RunTests.hs $(UI_HS) $(UI_OBJS) \
 		$(COREMIDI_OBJS) fltk/fltk.a
 	$(TEST_CMDLINE) -i -i$(TBUILD):. -odir $(TBUILD) -hidir $(TBUILD) \
-		$(TBUILD)/RunTests.hs -o $@ $(HTEST)
+		$(TBUILD)/RunTests.hs $(HTEST) -o $@
 	rm -f *.tix # this sticks around and breaks hpc
 	rm -f test.output # this gets reset on each new test run
 
@@ -276,6 +277,12 @@ $(PBUILD)/RunProfile: $(PBUILD)/RunProfile.hs $(UI_HS) $(UI_OBJS) \
 		$(COREMIDI_OBJS) fltk/fltk.a
 	$(TEST_CMDLINE) -i -i$(PBUILD):. -odir $(PBUILD) -hidir $(PBUILD) \
 		$(PBUILD)/RunProfile.hs -o $@ $(HPROFILE)
+
+.PHONY: $(PBUILD)/seq
+$(PBUILD)/seq: $(UI_HS) $(UI_OBJS) $(COREMIDI_OBJS) fltk/fltk.a
+	$(SEQ_CMDLINE) -i -i$(PBUILD):. -odir $(PBUILD) -hidir $(PBUILD) \
+		$(HPROFILE) -o $@
+	$(BUNDLE) doc/seq.icns
 
 .PHONY: tests
 tests: $(TBUILD)/RunTests

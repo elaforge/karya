@@ -1,4 +1,17 @@
+vim:
+  - follow tag under cursor
+  - Get module name of current file
+  - turn 'module x.y.z where' into 'import qualified x.y.z as z'
+  - figure out where to insert it, and insert it
+
 CURRENT
+  + rts crash
+    - Did alignment change fix it?  Wait a while and mail list if it's still
+      gone.
+    easier to repro if I start a bunch of derive threads and click
+    try removing pokes and see if I can still repro, I can get positive
+    confirmation at least
+
   - run a set of profilers as a script and save the results
 
   - Signal.pitch_share I think is still used even when I have signal IDs
@@ -47,6 +60,11 @@ CURRENT
   - subblock derivation for control tracks
   - re-enable signal deriver, but in a more efficient way?  can I reuse the
     derived signals?
+    Pass a signal ptr and a factor to c++, which then multiplies the factor
+    and displays as-is.
+    On derive run, record tracks with a constant tempo with that factor.
+    Run a separate signal deriver that skips already recorded signal tracks.
+    It evaluates signal tracks in ID warp and saves the results.
 
 UNSORTED
   / move MakeRuler to Lang too?
@@ -144,7 +162,7 @@ bugs:
         * replace CoreMidi with stub interface
         no, still happens
       * bad poke in CoreMidi
-      - inconsistent compile, hptSomeThingBelowUs is another symptom
+      * inconsistent compile, hptSomeThingBelowUs is another symptom
         - report bug with repro instructions
       - bad write in c++ (but it's read-only, isn't it?  bad free?)
 

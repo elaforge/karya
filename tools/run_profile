@@ -2,11 +2,6 @@
 
 prefixes=("$@")
 
-run_profile=build/profile/RunProfile
-out=prof
-
-mkdir -p $out
-
 flags=(
     # time profiling
     -sRunProfile.gc # emit runtime summary
@@ -31,7 +26,19 @@ all_heap_flags=(
 # output will be named hc_hbdrag.*
 heap_flags=(${=${heap:-hm}})
 
-profiles=($($run_profile --list $prefixes))
+if [[ $prefixes = seq ]]; then
+    run_profile=build/profile/seq
+    profiles=seq
+else
+    run_profile=build/profile/RunProfile
+    profiles=($($run_profile --list $prefixes))
+fi
+out=prof
+
+function run() {
+    echo "$@"
+    "$@"
+}
 
 for prof in $profiles; do
     dir=$out/$(date +%y-%m-%d)/${prof/*-/}
@@ -40,8 +47,11 @@ for prof in $profiles; do
     # Due to shells being insane, this substitution can't happen to heap_flags
     # directly.
     stem=${stem/ /_}
-    echo $run_profile +RTS $flags -${^heap_flags} -RTS "^$prof$"
-    $run_profile +RTS $flags -${^heap_flags} -RTS "^$prof$"
+    if [[ $prof = seq ]]; then
+        cores=1 run $run_profile +RTS $flags -${^heap_flags} -RTS
+    else
+        run $run_profile +RTS $flags -${^heap_flags} -RTS "^$prof$"
+    fi
 
     basename=$(basename $run_profile)
     for suf in gc prof hp aux tix; do
