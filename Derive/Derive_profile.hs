@@ -16,9 +16,6 @@ import qualified Ui.Track as Track
 import qualified Ui.UiTest as UiTest
 
 import qualified Derive.DeriveTest as DeriveTest
-import qualified Derive.Score as Score
-
-import qualified Perform.Midi.Perform as Perform
 
 
 
@@ -40,18 +37,18 @@ make_simple bid offset size = UiTest.mkstate bid $
 -- | Block with a control controlling multiple note tracks.  Intended to
 -- profile channelize control sharing.
 profile_shared = run_profile $ make_shared_control "b1" 2000
+
+make_shared_control bid size = UiTest.mkstate bid $
+        track simple_tempo_track
+        : track mod_track
+        : track_set 0 ++ track_set 2 -- ++ track_set 4
     where
-    make_shared_control bid size = UiTest.mkstate bid $
-            track simple_tempo_track
-            : track mod_track
-            : track_set 0 ++ track_set 2 -- ++ track_set 4
-        where
-        track = track_until size
-        track_set offset = map (track . track_drop offset)
-            [ note_track inst1
-            , simple_pitch_track
-            , vel_track
-            ]
+    track = track_until size
+    track_set offset = map (track . track_drop offset)
+        [ note_track inst1
+        , simple_pitch_track
+        , vel_track
+        ]
 
 -- | Block with non-tempered scale so pitches can't share.  Intended to profile
 -- channelize pitch sharing.
@@ -67,11 +64,11 @@ profile_nontempered = run_profile $ make_nontempered "b1" 1000
 -- | Giant control track with lots of samples.  Intended to profile control
 -- track derivation.
 profile_control = run_profile $ make_big_control "b1" 15000
-    where
-    make_big_control bid size = UiTest.mkstate bid $ map (track_until size)
-        [ (inst1, [(0, size, "")])
-        , mod_track
-        ]
+
+make_big_control bid size = UiTest.mkstate bid $ map (track_until size)
+    [ (inst1, [(0, size, "")])
+    , mod_track
+    ]
 
 -- | Giant note track.  Profile note track derivation.
 profile_notes = run_profile $ make_big_notes "b1" 15000
@@ -103,19 +100,19 @@ run_profile create = do
     let (events, logs) = DeriveTest.e_val_right $
             DeriveTest.derive_block ui_state (UiTest.bid "b1")
     section "derive" $ do
-        putStrLn $ "events: " ++ show (length events)
         pprint (take 5 logs)
+        putStrLn $ "events: " ++ show (length events)
 
     let (perf_events, convert_warns, mmsgs, midi_warns) =
             DeriveTest.perform inst_config events
     section "convert" $ do
         force perf_events
-        putStrLn $ "perf events: " ++ show (length perf_events)
         pprint (take 5 convert_warns)
+        putStrLn $ "perf events: " ++ show (length perf_events)
 
     section "midi" $ do
-        putStrLn $ "msgs: " ++ show (length mmsgs)
         pprint (take 5 midi_warns)
+        putStrLn $ "msgs: " ++ show (length mmsgs)
 
 force :: (DeepSeq.NFData a) => a -> IO ()
 force val = DeepSeq.deepseq val (return ())
@@ -151,18 +148,22 @@ cpu_to_sec s = fromIntegral s / fromIntegral (10^12)
 inst1 = ">fm8/1"
 inst2 = ">fm8/2"
 
-note_track inst = (inst, [(p, 1, "") | p <- [0..]])
-simple_tempo_track = ctrack 10 "tempo" ["1", "2", "3", "i 1"]
-mod_track = ctrack 1 "srate = .02 | cc1" ["i 1", "i 0", "e 1", "i .5", "0"]
+note_track inst = ctrack 1 inst [""]
+simple_tempo_track = ctrack0 10 "tempo" ["1", "2", "3", "i 1"]
+mod_track = ctrack0 1 "srate = .02 | cc1" ["i 1", "i 0", "e 1", "i .5", "0"]
 simple_pitch_track =
-    ctrack 1 "*twelve" ["4a", "4b", "4c", "4d", "4e", "4f", "4g", "5c"]
+    ctrack0 1 "*twelve" ["4a", "4b", "4c", "4d", "4e", "4f", "4g", "5c"]
 nontempered_pitch_track =
-    ctrack 1 "*semar" ["1", "2", "3", "5", "6", "1^", "6."]
-vel_track = ctrack 1 "vel" ["1", ".2", ".4", ".6"]
+    ctrack0 1 "*semar" ["1", "2", "3", "5", "6", "1^", "6."]
+vel_track = ctrack0 1 "vel" ["1", ".2", ".4", ".6"]
+
+ctrack0 :: Double -> String -> [String] -> UiTest.TrackSpec
+ctrack0 step title ts =
+    (title, [(p, 0, t) | (p, t) <- zip [0, step..] (cycle ts)])
 
 ctrack :: Double -> String -> [String] -> UiTest.TrackSpec
 ctrack step title ts =
-    (title, [(p, 0, t) | (p, t) <- zip [0, step..] (cycle ts)])
+    (title, [(p, step, t) | (p, t) <- zip [0, step..] (cycle ts)])
 
 track_until :: Double -> UiTest.TrackSpec -> UiTest.TrackSpec
 track_until until = second (takeWhile (\(p, _, _) -> p <= until))

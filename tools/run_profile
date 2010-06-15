@@ -1,39 +1,38 @@
 #!/bin/zsh
+# hc # by producing cost-center stack
+# hm # by module
+# hd # by closure description
+# hy # by type
+# hr # by retainer set
+# hb # by biography
 
 prefixes=("$@")
-
-flags=(
-    # time profiling
-    -sRunProfile.gc # emit runtime summary
-    -p # emit .prof file
-
-    # heap profiling
-    -L42 # field length for cost center names in heap profile
-)
-
-# Just documentation for now.
-all_heap_flags=(
-    hc # by producing cost-center stack
-    hm # by module
-    hd # by closure description
-    hy # by type
-    hr # by retainer set
-    hb # by biography
-)
 
 # Take flags from $heap and split on spaces.
 # This way you can pass 'hc hbdrag', (-hc -hbdrag) will be passed, and the
 # output will be named hc_hbdrag.*
 heap_flags=(${=${heap:-hm}})
 
-if [[ $prefixes = seq ]]; then
-    run_profile=build/profile/seq
+if [[ $prefixes[1] = seq ]]; then
+    run_profile=(build/profile/seq $prefixes[2,-1])
+    basename=seq
     profiles=seq
 else
     run_profile=build/profile/RunProfile
+    basename=RunProfile
     profiles=($($run_profile --list $prefixes))
 fi
+
 out=prof
+
+flags=(
+    # time profiling
+    -s$basename.gc # emit runtime summary
+    -p # emit .prof file
+
+    # heap profiling
+    -L42 # field length for cost center names in heap profile
+)
 
 function run() {
     echo "$@"
@@ -50,11 +49,11 @@ for prof in $profiles; do
     if [[ $prof = seq ]]; then
         cores=1 run $run_profile +RTS $flags -${^heap_flags} -RTS
     else
-        run $run_profile +RTS $flags -${^heap_flags} -RTS "^$prof$"
+        run $run_profile +RTS $flags -${^heap_flags} -RTS "^$prof$" \
+            | tee $basename.stdout
     fi
 
-    basename=$(basename $run_profile)
-    for suf in gc prof hp aux tix; do
+    for suf in gc prof hp aux tix stdout; do
         if [[ -e $basename.$suf ]]; then
             mv $basename.$suf $stem.$suf
         fi

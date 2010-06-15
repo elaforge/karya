@@ -85,6 +85,7 @@ load_static_config = do
 parse_args :: [String] -> Cmd.CmdIO
 parse_args argv = case argv of
     [] -> auto_setup_cmd
+    ["generate", gen] -> setup_generate gen
     ["-a"] -> do
         Save.cmd_load "save/default"
         State.set_project "untitled"
@@ -237,9 +238,13 @@ arrival_beats = False
 auto_setup_cmd :: Cmd.CmdIO
 auto_setup_cmd = setup_normal
 
-setup_generate :: Cmd.CmdIO
-setup_generate = do
-    Derive_profile.make_shared_control "b1" 100
+setup_generate :: String -> Cmd.CmdIO
+setup_generate gen = do
+    case gen of
+        "subderive" -> Derive_profile.make_subderive "b1" 100
+        "control" -> Derive_profile.make_big_control "b1" 15000
+        "shared" -> Derive_profile.make_shared_control "b1" 2000
+        _ -> error gen
     State.set_midi_config Derive_profile.inst_config
     Create.view (UiTest.bid "b1")
     return Cmd.Done
