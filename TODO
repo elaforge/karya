@@ -1,10 +1,11 @@
-vim:
+auto insert imports in vim:
   - follow tag under cursor
   - Get module name of current file
   - turn 'module x.y.z where' into 'import qualified x.y.z as z'
   - figure out where to insert it, and insert it
 
 CURRENT
+  - scale as sub-call
   + rts crash
     - Did alignment change fix it?  Wait a while and mail list if it's still
       gone.
@@ -12,36 +13,42 @@ CURRENT
     try removing pokes and see if I can still repro, I can get positive
     confirmation at least
 
-  - run a set of profilers as a script and save the results
-
-  - Signal.pitch_share I think is still used even when I have signal IDs
-    profile and make sure it's fast for common cases
-
-  - implement signal IDs
-    - Avoid converting signals more than once.  For this I need to not truncate
-      the pitch signal, or at least chop off the beginning as well.
-    - Avoid expensive sharing check for channelize.
+  * run a set of profilers as a script and save the results
 
   - performance:
-    eliminate the deriver memory spike
-    Maybe it's the control deriver creating a huge list of signal chunks, which
-    is then all forced at once since merge needs them all.
-    Create a big block of just signal interpolations, one with just 'sets',
-    one with just notes, to see who is hungry.
-      they're all hungry
+    - eliminate the deriver memory spike
+      - doesn't seem to happen so much with subderivations
+      - possibly put/get/modify is too lazy?
+      - or maybe it's the control deriver creating a huge list of signal
+        chunks, which is then all forced at once since merge needs them all.
 
-    Deriver [Event] output is not lazy.  I think it's because >>= for ErrorT
-    is strict.  Can I have a form of exception that doesn't need to see if
-    any exceptinos are thrown before producing output?  That means it needs
-    to produce "CappedList = Cons val | Nil (Maybe Exception)"  What does >>=
-    look like?
+      - Deriver [Event] output is not lazy.  I think it's because >>= for
+        ErrorT is strict.  Can I have a form of exception that doesn't need to
+        see if any exceptinos are thrown before producing output?  That means
+        it needs to produce "CappedList = Cons val | Nil (Maybe Exception)"
+        What does >>= look like?
 
-    data EventList = Nil (Maybe Exception)
-        -- | I produce a lot of singletons, so optimize away a pointer.
-        | Event1 !Score.Event
-        -- | Unroll a chunk of events.
-        | Event16 !Score.Event !Score.Event ... EventList
-        | EventCons !Score.Event EventList
+        I think this means I need to localize derive exceptions and remove
+        ErrorT from DeriveT.  I still run calls in ErrorT though.
+
+      data EventList = Nil (Maybe Exception)
+          -- | I produce a lot of singletons, so optimize away a pointer.
+          | Event1 !Score.Event
+          -- | Unroll a chunk of events.
+          | Event16 !Score.Event !Score.Event ... EventList
+          | EventCons !Score.Event EventList
+    - fix Perform and Signal memory spike exhibited by "generate control"
+      - order of printing warns matters, experiment 'seq generate control'
+        without warns
+      - can I eliminate the warn/msg order thing by inserting strictness?
+    - Signal.pitch_share I think is still used even when I have signal IDs
+      profile and make sure it's fast for common cases
+
+    - implement signal IDs
+      - Avoid converting signals more than once.  For this I need to not
+        truncate the pitch signal, or at least chop off the beginning as well.
+      - Avoid expensive sharing check for channelize.
+    - switch to attoparsec for parsing
 
   - clean up inst_config / lookup_inst situation in DeriveTest / Derive_profile
 
@@ -777,6 +784,8 @@ research:
   - learn about hs gtk for reference
 
 future:
+  - I need to sync with a DAW but don't want to implement rewire.
+    Which DAWs support jack?  ardour, reaper?, ...?
   - check out jack some more.  I don't necessarily support it in the beginning
     but should have an idea at least.
     Looks like I could use it for midi i/o, but what's the advantage over
