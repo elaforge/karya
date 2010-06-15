@@ -1,0 +1,44 @@
+If a track is 'abs-tempo', evaluate it in absolute time.  Sections between "--"
+are in relative time.  Maybe I can get the signal display in a different color?
+
+To implement the above, track titles are calls from "TrackId -> Deriver
+Results" where "Results = [Event] | Signal | PitchSignal".  This also extends
+to the block.  So "lookup_deriver" is replaced by evaluating the block title.
+I think this means I can get rid of the deriver part of the schema, and get rid
+of SchemaId.  The SchemaMap is now subsumed into the call tables:
+
+EventCall a = Generator (Events -> (Int, Deriver a))
+    | Transformer (Derive a -> Deriver a)
+
+NoteCall = EventCall [Score.Event]
+SignalCall = EventCall Signal.Signal
+PitchSignalCall = EventCall PitchSignal.PitchSignal
+
+TrackCall = Generator (TrackId -> EventDeriver)
+    | Transformer (TrackId -> EventDeriver -> EventDeriver)
+BlockCall = BlockId -> EventDeriver
+
+Each of these are in their own namespace.
+
+Signal tracks should be evaluated like note tracks, as a series of calls in
+note time.  A null call ".45" is evaluated as "set .45".  This means that
+interpolators are now just calls: "i .3".  As the note track can use block ids,
+a control track can use a track id to subderive a control track.  Each deriver
+returns a Signal, and Signals are merged with truncation.  Or if I use lazy
+signals maybe each chunk can simply be appended?
+
+Signals: check out vector, instead of storablevector, it now can store pairs of
+primitive types?  What are the differences with storablevector?
+
+Now that I have the dynamic env, I don't really need block args.  Actually
+that's not true: I don't need them for calls, but I need them everywhere else.
+However if I just implement symbol lookup for literal symbols then I don't.
+The one nice thing about block args is that they are explicit, dynamic env is
+totally implicit.
+
+This way I can give a block a "tr" arg and force callers to 
+
+I'm a little nervous about all these dynamic vars.  I could make a lexical env
+which is not passed to sub calls but then we need both lexical and dynamic
+binding and it all gets a little more complicated.
+

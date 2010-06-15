@@ -1,0 +1,107 @@
+{-
+Here's a problem with signal calls:
+
+Signal calls emit samples from prev val until the current.  But a transformer
+wants to transform samples from the current to the next.  So when the
+transformer runs, there aren't any samples yet.
+
+Solutions:
+
+1) Don't use transformers in a control track.  Or more specifically, only use
+transformers that affect the previous samples, as srate= would.  I don't think
+this is tenable because 1 attaching them to notes limits them to note start
+times and 2 not all control calls will generate samples before, e.g. a "sine"
+might generate ones afterwards.
+
+2) Make interpolators generate samples afterwards.  This means writing "i 1"
+will generate a ramp that reaches "1" at the next call.  This seems odd to me
+because interpolator values represent the signal value at the next event, but
+maybe I could get used to it.  It means instead of a no-arg "i" to maintain
+previous val, I only need a nop event like "--" to signal an early end to the
+curve.  If I generate samples from [n+1..m] then a transformer can't affect the
+sample at 'n' because it belongs to the previous call, but [n..m-1] means that
+the given val is not reached at any given point, but right before one, which
+seems non-intuitive.  Also, the transformer not being able to affect samples
+before and after seems like an inconvenient restriction.
+
+Actually, a transformer like 'neighbor' is not really a transformer, because it
+is in the wrong order.  Transformers establish environment for their
+transformees, but 'neighbor' generates a relative signal to modify its
+environment.  However, another transformer might establish environment, if
+a control call relied on environ (srate) or another control.  The case of
+'neighbor' is simply a postproc transformer, it simply evaluates the
+subderiver, applies its changes, and returns them.
+
+3) Somehow evaluate the next interpolator.  I think this is doomed because not
+all control generators will want to generate from the previous value.
+
+4) Things like 'neighbor' are really plain generators in a relative track.
+Putting them in as transformers is perhaps not correct.  However, it seems
+much more notationally convenient to write 'neighbor | 4c' rather than line up
+a separate relative pitch class.  Also, 'sine .1 1 | 4' (amp .1, period 1, add
+to 4) may be more convenient than 'sine .1 1 4' (amp .1, period 1, centered on
+4).  But perhaps I can write them as generators and then write a automatic
+converter to transformer.
+
+I should make a "sine" generator to get a better feel
+
+note    pitch   trill-depth     trill-speed     breath
+-       a
+        p *d                                    >
+-       e                                       >
+-       f                                       <
+        tr *e   1               4
+
+                                i 12
+                e 3
+
+        d
+        e
+        neigh *f
+
+p = portamento to new val with env-set speed
+>, < = slide down to or up from an env-set low value
+
+note    add *   *twelve
+-       tr 1    a
+                i *b
+        --
+
+Is there a use for composed signal calls?  Setting env, e.g. srate=.
+
+So each pitch call gets a generator version that makes relative pitch signal,
+and another version that makes absolute signal and takes a note val.  So how
+do they tell when they are in an absolute or relative pitch track?
+
+Could check for relative scale id, but it seems less error prone to have
+a disjoint namespace.
+
+absolute:
+tr (required "note", optional "depth" %trill-depth,1,
+    optional "speed" %trill-speed,12)
+neighbor (required "note", optional "depth" 1)
+s (required "note", optional "time" 0.2)
+
+relative:
+tr (optional "depth" %trill-depth,1, optional "speed" %trill-speed,12)
+neighbor (optional "depth" 1)
+s (required "number", optional "time" 0.2)
+
+So there are a set of calls which in an absolute context require a note arg,
+andin a relative context more usefully default to 0.  I suppose a set of
+call[0-9] wrappers could check for the scale in scope, and modify the signature
+appropriately.
+
+
+
+It would be really nice to have arbitrary symbols as calls.  I can do this by
+going to a purely location based system, so the first word is always a symbol.
+But then I need to think of a replacement for the null call concept.
+
+Note: "" -> null call, and I don't mind losing ">i" for "inst = >i"
+
+Control: I suppose a special hack where if the text is a number, call "set n".
+I already have the syntax mangle.
+
+Pitch: Same hack.  Or maybe if notes wind up being calls, the mangle can in
+fact go away.

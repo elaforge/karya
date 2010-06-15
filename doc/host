@@ -1,0 +1,50 @@
+VST / AU host
+
+plugins - list available plugins
+
+load "name" - load a plugin, return an plugin ID
+
+unload ID - unload plugin
+
+ls audio/{in,out} midi/{in,out} - list port IDs for global ports
+
+ls plugin/ - list loaded plugin IDs
+
+ls ID/audio/{in,out} ID/midi/{in,out} -
+ls port IDs for relevant input or output
+
+ls ID/auto - list automation targets
+
+connect port_id port_id - connect the ports, if of compatible type
+
+disconnect port_id port_id - disconnect
+
+get_state ID - return state of ID, as a ByteString
+
+set_sate ID - restore state
+
+edit ID - bring up editor window for plugin
+
+automate ID/auto/auto_id signal - feed automation signal to automation
+parameter.  Signal is a binary format: [(Float, Float)].
+
+This means I need an internal timer, which should be the CoreMIDI one for
+synchronization.
+
+
+TODO
+
+c++:
+os specific
+  load and unload VSTs and setup interface
+  open and close audio and midi interfaces
+  create window for editor
+
+os independent
+  setup audio / midi graph and drive it
+  get and set state
+
+hs:
+listen on port
+parse commands
+
