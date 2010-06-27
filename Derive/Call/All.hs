@@ -11,8 +11,8 @@ import qualified Derive.Call.Rambat as Rambat
 import qualified Derive.Call.Trill as Trill
 
 
-call_map :: Derive.CallEnv
-call_map = Derive.CallEnv note_calls control_calls pitch_calls
+call_map :: Derive.CallMap
+call_map = Derive.CallMap note_calls control_calls pitch_calls
 
 note_calls :: Derive.NoteCallMap
 note_calls = Map.unions [Note.note_calls, Echo.note_calls, Rambat.note_calls,

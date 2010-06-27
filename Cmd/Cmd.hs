@@ -169,7 +169,7 @@ data State = State {
     state_instrument_db :: Instrument.Db.Db
     , state_schema_map :: SchemaMap
     -- | Namespace for track function calls.
-    , state_call_map :: Derive.CallEnv
+    , state_call_map :: Derive.CallMap
     -- | Copies by default go to a block+tracks with this project.
     , state_clip_namespace :: Id.Namespace
 

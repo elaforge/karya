@@ -153,7 +153,7 @@ data State = State {
     , state_lookup_deriver :: LookupDeriver
     , state_control_op_map :: Map.Map TrackLang.CallId ControlOp
     , state_pitch_op_map :: Map.Map TrackLang.CallId PitchOp
-    , state_call_map :: CallEnv
+    , state_call_map :: CallMap
     -- | This is set if the derivation is for a signal deriver.  Signal
     -- derivers skip all special tempo treatment.  Ultimately, this is needed
     -- because of the 'add_track_warp' hack.  It might be 'add_track_warp' is
@@ -197,12 +197,12 @@ default_velocity = 0.79
 
 -- ** calls
 
-data CallEnv = CallEnv {
+data CallMap = CallMap {
     calls_note :: NoteCallMap
     , calls_control :: ControlCallMap
     , calls_pitch :: PitchCallMap
     }
-empty_call_map = CallEnv Map.empty Map.empty Map.empty
+empty_call_map = CallMap Map.empty Map.empty Map.empty
 
 type NoteCallMap = Map.Map TrackLang.CallId NoteCall
 type ControlCallMap = Map.Map TrackLang.CallId ControlCall
@@ -256,9 +256,9 @@ make_calls :: [(String, Call y derived)]
     -> Map.Map TrackLang.CallId (Call y derived)
 make_calls = Map.fromList . map (first TrackLang.Symbol)
 
-instance Show CallEnv where
-    show (CallEnv note control pitch) =
-        "(CallEnv " ++ keys note ++ " " ++ keys control ++ " " ++ keys pitch
+instance Show CallMap where
+    show (CallMap note control pitch) =
+        "(CallMap " ++ keys note ++ " " ++ keys control ++ " " ++ keys pitch
         ++ ")"
         where
         keys m = "<" ++ Seq.join ", " [c | TrackLang.Symbol c <- Map.keys m]
@@ -301,7 +301,7 @@ instance Monad m => Log.LogMonad (DeriveT m) where
 
 -- * monadic ops
 
-derive :: LookupDeriver -> State.State -> CallEnv -> Bool
+derive :: LookupDeriver -> State.State -> CallMap -> Bool
     -> DeriveT Identity.Identity a
     -> (Either DeriveError a,
         Transport.TempoFunction, Transport.InverseTempoFunction, [Log.Msg],
