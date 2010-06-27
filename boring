@@ -2,20 +2,14 @@
 ^save$
 ^save/
 ^haddock/
-^crash
 ^hpc/
 ^\.hpc
 ^test.output$
-^unused
 ^prof/
 
 ^Local/Instrument/z1_sysex
 ^Local/Instrument/(vl1_sysex|vl1_vc)
 ^Local/Instrument/inst\.db
-
-# scratch files
-^scratch
-^haskell-questions$
 
 \.log$
 ^repl\.history$
@@ -27,9 +21,6 @@ _stub.[ch]$
 ^build/
 ^tools/hspp$
 ^tools/fixdeps$
-
-# profile cruft
-^RunTests\.
 
 # .hs generated from .hsc
 ^Midi/PortMidi.hs$
