@@ -28,9 +28,10 @@ module Derive.Call.Trill where
 import Ui
 
 import qualified Derive.Call as Call
+import Derive.CallSig (optional, required, control)
+import qualified Derive.CallSig as CallSig
 import qualified Derive.Derive as Derive
 import qualified Derive.TrackLang as TrackLang
-import Derive.TrackLang (optional, required, control)
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
@@ -54,7 +55,7 @@ note_calls = Derive.make_calls
 -- [speed /Control/ @%trill-speed,14@] Trill at this many cycles per second.
 c_absolute_trill :: Derive.NoteCall
 c_absolute_trill = Derive.transformer "absolute_trill" $
-    \args deriver -> TrackLang.call2 args
+    \args deriver -> CallSig.call2 args
     (required "neighbor", optional "speed" (control "trill-speed" 14)) $
     \neighbor speed -> do
         neighbor_sig <- Call.to_signal neighbor
@@ -81,13 +82,13 @@ pos_at_speed sig pos = pos : pos_at_speed sig (pos + Signal.y_to_real (1/speed))
 -- [speed /Control/ @%trill-speed,14@] Trill at this many cycles per score unit.
 c_score_trill :: Derive.NoteCall
 c_score_trill = Derive.transformer "score_trill" $
-    \args deriver -> TrackLang.call2 args
+    \args deriver -> CallSig.call2 args
     (required "neighbor", optional "speed" (control "trill-speed" 14)) $
     \neighbor speed -> do
         neighbor_sig <- Call.to_signal neighbor
         speed_sig <- Call.to_signal speed
-        score_trill (TrackLang.passed_stretch args) neighbor_sig speed_sig
-            deriver
+        score_trill (Derive.info_stretch (Derive.passed_info args))
+            neighbor_sig speed_sig deriver
 
 score_trill :: ScoreTime -> Signal.Control -> Signal.Control
     -> Derive.EventDeriver -> Derive.EventDeriver
@@ -120,14 +121,14 @@ pitch_calls = Derive.make_calls
 
 c_pitch_absolute_trill :: Derive.PitchCall
 c_pitch_absolute_trill = Derive.generate_one "pitch_absolute_trill" $
-    \args _ _ next -> TrackLang.call3 (Call.default_relative_note args)
+    \args -> CallSig.call3 (Call.default_relative_note args)
     (required "note", optional "neighbor" (control "trill-neighbor" 1),
         optional "speed" (control "trill-speed" 14)) $
     \note neighbor speed -> do
         speed_sig <- Call.to_signal speed
         neighbor_sig <- Call.to_signal neighbor
-        next_event <- maybe (return 1) Derive.score_to_real $
-            Call.next_event_begin next
+        next_event <- maybe (return 1) Derive.score_to_real
+            (Derive.passed_next_begin args)
         pitch_absolute_trill note speed_sig neighbor_sig next_event
 
 pitch_absolute_trill :: Pitch.Note -> Signal.Control -> Signal.Control

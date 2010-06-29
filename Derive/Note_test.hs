@@ -65,7 +65,7 @@ test_c_block = do
             ]
     let (evts, logs) = run [(0, 1, "nosuch")]
     equal evts (Right [])
-    strings_like (map fst logs) ["CallNotFound: nosuch"]
+    strings_like (map fst logs) ["unknown Symbol \"nosuch\""]
     equal (map snd logs) [Just (mkstack [("b1", "b1.t0", (0, 1))])]
 
     strings_like (map fst (snd (run [(0, 1, "sub >arg")])))
@@ -95,21 +95,19 @@ test_c_equal = do
     let run = do_run e_evt id
     -- log stack should be at the track level
     let (evts, logs) = run "> | inst = inst" [(0, 1, "")]
-    equal evts (Right [])
-    equal (map Log.msg_stack logs)
-        [Just (mk_track_stack [("b1", "b1.t1")])]
-    strings_like (map Log.msg_string logs) ["expected TInstrument"]
+    left_like evts $ "\\(bid \"test/b1\"\\)/\\(tid \"test/b1.t1\"\\)/\\*"
+        ++ ".*expected type Instrument"
+    equal logs []
 
     let (evts, logs) = run "> | 42 = >inst" [(0, 1, "")]
-    equal evts (Right [])
-    strings_like (map Log.msg_string logs)
-        ["arg 0/symbol: expected type Symbol but got"]
+    left_like evts
+        "arg 0/symbol: expected type Symbol but got 42"
+    equal logs []
 
     -- only the event with the error is omitted
     let (evts, logs) = run ">" [(0, 1, "inst = inst |"), (1, 1, "")]
     equal evts (Right [(1, Nothing, [])])
-    strings_like (map Log.msg_string logs)
-        ["expected TInstrument"]
+    strings_like (map Log.msg_string logs) ["expected type Instrument"]
 
     let run = do_run e_evt Log.msg_string
     -- works as "generator"
@@ -159,7 +157,7 @@ test_call_errors = do
 
     let run_title title = extract $
             DeriveTest.derive_tracks_tempo [(title, [(0, 1, "--1")])]
-    left_like (run_title ">i | no-such-call") "CallNotFound"
+    left_like (run_title ">i | no-such-call") "unknown Symbol \"no-such-call\""
     left_like (run_title ">i | delay *bad-arg")
         "expected type Control but got"
     left_like (run_title ">i | delay 1 2 3 4")
@@ -174,12 +172,12 @@ test_call_errors = do
     let run_evt evt = extract $
             DeriveTest.derive_tracks_tempo [(">i", [(0, 1, evt)])]
     left_like (run_evt "no-such-call")
-        "eval note generator not_found: CallNotFound"
+        "unknown Symbol \"no-such-call\""
     left_like (run_evt "abs-trill")
-        ("eval note generator absolute_trill: non-generator in generator "
+        ("note generate absolute_trill: non-generator in generator "
             ++ "position")
     left_like (run_evt "abs-trill |")
-        "eval note transformer absolute_trill: ArgError: too few arguments"
+        "note transform absolute_trill: ArgError: too few arguments"
     equal (run_evt "delay 2 | abs-trill 2 |")
         (Right [(2, 1, "delay 2 | abs-trill 2 |")])
 

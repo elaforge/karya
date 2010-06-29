@@ -147,6 +147,10 @@ note_on_times mmsgs = [(ts, nn, vel)
 
 -- * call
 
+passed_args :: String -> [TrackLang.Val] -> Derive.PassedArgs derived
+passed_args call vals = Derive.PassedArgs vals Map.empty
+    (TrackLang.Symbol call) Derive.dummy_call_info
+
 derive_note :: Derive.Deriver a -> Result a
 derive_note = derive Derive.empty_lookup_deriver State.empty
 

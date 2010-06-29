@@ -1,8 +1,4 @@
 -- | Basic calls for note tracks.
---
--- Unlike other Call modules, this is imported by "Derive.Call" so it can't
--- import it.  This is because c_block is hardcoded into
--- 'Derive.Call.lookup_note_call'.
 module Derive.Call.Note where
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
@@ -12,9 +8,9 @@ import Ui
 import qualified Ui.Event as Event
 import qualified Ui.Track as Track
 
+import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
 import qualified Derive.TrackLang as TrackLang
-import Derive.TrackLang (Arg, required)
 import qualified Derive.Score as Score
 
 import qualified Perform.PitchSignal as PitchSignal
@@ -23,7 +19,7 @@ import qualified Perform.PitchSignal as PitchSignal
 note_calls :: Derive.NoteCallMap
 note_calls = Derive.make_calls
     [ ("", c_note)
-    , ("=", c_equal Derive.no_events)
+    , ("=", Call.c_equal Derive.no_events)
     ]
 
 -- * note call
@@ -35,12 +31,13 @@ note_calls = Derive.make_calls
 -- @>i | call@ to run call with that instrument.
 c_note :: Derive.NoteCall
 c_note = Derive.Call "note"
-    (Just $ \args _ event next -> case process (TrackLang.passed_vals args) of
+    (Just $ \args -> case process (Derive.passed_vals args) of
         (inst, rel_attrs, []) ->
-            Right $ one_note $ generate_note inst rel_attrs event next
+            Right $ one_note $ generate_note inst rel_attrs
+                (Derive.passed_event args) (Derive.passed_next_events args)
         (_, _, invalid) -> Left $
             TrackLang.ArgError $ "expected inst or attr: " ++ show invalid)
-    (Just $ \args deriver -> case process (TrackLang.passed_vals args) of
+    (Just $ \args deriver -> case process (Derive.passed_vals args) of
         (inst, rel_attrs, []) -> Right $ transform_note inst rel_attrs deriver
         (_, _, invalid) -> Left $
             TrackLang.ArgError $ "expected inst or attr: " ++ show invalid)
@@ -104,30 +101,6 @@ trimmed_pitch :: Maybe RealTime -> PitchSignal.PitchSignal
     -> PitchSignal.PitchSignal
 trimmed_pitch (Just next) sig = PitchSignal.truncate next sig
 trimmed_pitch Nothing sig = sig
-
--- * block call
-
-c_block :: BlockId -> Derive.NoteCall
-c_block block_id = Derive.generate_one "block" $ \args _ _ _ ->
-    if null (TrackLang.passed_vals args)
-        then Right $ block_call block_id
-        else Left $ TrackLang.ArgError "args for block call not implemented yet"
-
-block_call :: BlockId -> Derive.EventDeriver
-block_call block_id =
-    Derive.d_subderive Derive.no_events (Derive.d_block block_id)
-
--- * equal
-
-c_equal :: derived -> Derive.Call y derived
-c_equal empty = Derive.Call "equal"
-    (Just $ \args _ _ _ -> with_args args generate)
-    (Just $ \args deriver -> with_args args (transform deriver))
-    where
-    with_args args = TrackLang.call2 args
-        (required "symbol", required "value" :: Arg TrackLang.Val)
-    transform deriver sym val = Derive.with_val sym val deriver
-    generate sym val = (Derive.put_val sym val >> return empty, 1)
 
 -- * misc
 

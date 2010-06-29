@@ -13,6 +13,7 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import Util.Control
 import qualified Util.Pretty as Pretty
+import qualified Util.Seq as Seq
 
 import Ui
 import qualified Ui.Event as Event
@@ -21,10 +22,10 @@ import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 
+import qualified Derive.CallSig as CallSig
+import Derive.CallSig (required)
 import qualified Derive.Derive as Derive
 import qualified Derive.TrackLang as TrackLang
-import qualified Derive.Score as Score
-import qualified Derive.Call.Note as Note
 import qualified Derive.Scale.Relative as Relative
 
 import qualified Perform.Pitch as Pitch
@@ -61,27 +62,17 @@ one_note :: Either TrackLang.TypeError Derive.EventDeriver
     -> Either TrackLang.TypeError (Derive.EventDeriver, Int)
 one_note = fmap $ \d -> (d, 1)
 
--- | Get the next \"relevant\" event beginning.  Intended to be used by calls
--- to determine their extent, especially control calls, which have no explicit
--- duration.
---
--- This will skip 'x = y' calls, which are not indended to affect note scope.
--- TODO implement that
-next_event_begin :: [Track.PosEvent] -> Maybe ScoreTime
-next_event_begin ((pos, _) : _) = Just pos
-next_event_begin _ = Nothing
-
 -- | There are a set of pitch calls that need a "note" arg when called in an
 -- absolute context, but can more usefully default to (Note "0") in a relative
 -- track.  This will prepend a note arg if the scale in the environ is
 -- relative.
-default_relative_note :: TrackLang.PassedArgs y -> TrackLang.PassedArgs y
+default_relative_note :: Derive.PassedArgs derived -> Derive.PassedArgs derived
 default_relative_note args
-    | is_relative = args { TrackLang.passed_vals =
-        TrackLang.VNote (Pitch.Note "0") : TrackLang.passed_vals args }
+    | is_relative = args { Derive.passed_vals =
+        TrackLang.VNote (Pitch.Note "0") : Derive.passed_vals args }
     | otherwise = args
     where
-    environ = TrackLang.passed_environ args
+    environ = Derive.passed_environ args
     is_relative = case TrackLang.lookup_val TrackLang.v_scale environ of
         Right scale -> Relative.is_relative (Pitch.scale_id scale)
         _ -> False
@@ -117,36 +108,38 @@ eval_one :: String -> ScoreTime -> ScoreTime -> TrackLang.Expr
     -> Derive.EventDeriver
 eval_one caller start dur expr = do
     -- Since the event was fake, I don't care if it wants to consume.
-    (deriver, _) <- eval_note_generator caller expr Nothing []
-        (event start dur ("expr: " ++ show expr)) []
-    deriver
-
-event :: ScoreTime -> ScoreTime -> String -> Track.PosEvent
-event start dur text = (start, Event.event text dur)
+    (deriver, _) <- apply_toplevel (dinfo, cinfo) expr
+    Derive.d_at start (Derive.d_stretch dur deriver)
+    where
+    cinfo = Derive.CallInfo 1 Nothing
+        (Event.event ("expr: " ++ show expr) 1) [] []
+    dinfo = DeriveInfo caller Derive.no_events lookup_note_call
 
 -- ** eval implementation
 
--- | (caller, empty, lookup_call, preproc)
---
--- @caller@ is used in errors and warnings.
--- @preproc@ is applied to each event text before parsing.  It's a hack for
--- the pitch track mangling.
-type DeriveInfo y derived = (String, derived,
-    TrackLang.CallId -> Derive.Deriver (Derive.Call y derived),
-    String -> String)
+data DeriveInfo derived = DeriveInfo {
+    -- | Used in errors and warnings.
+    info_caller :: String
+    -- | This deriver's empty value to return on failure.
+    , info_empty :: derived
+    , info_lookup :: TrackLang.CallId -> Derive.Deriver (Derive.Call derived)
+    }
 
-derive_track :: DeriveInfo y derived
-    -> (Maybe (RealTime, y) -> derived -> Maybe (RealTime, y))
+type PreProcess = String -> String -- TrackLang.Expr -> TrackLang.Expr
+
+derive_track :: DeriveInfo derived -> PreProcess
+    -> (Maybe (RealTime, Derive.Element derived) -> derived
+        -> Maybe (RealTime, Derive.Element derived))
     -> [Track.PosEvent] -> Derive.Deriver [derived]
-derive_track info@(_, empty, _, _) get_last_sample events = do
+derive_track dinfo preproc get_last_sample events = do
     chunks <- go Nothing [] events
     return chunks
     where
     go _ _ [] = return []
     go prev_sample prev (cur@(pos, event) : rest) = do
-        (chunk, consumed) <- with_catch (empty, 1) pos event $ do
-            (deriver, consumed) <- derive_event info prev_sample
-                prev cur rest
+        (chunk, consumed) <- with_catch (info_empty dinfo, 1) pos event $ do
+            (deriver, consumed) <- derive_event dinfo preproc
+                prev_sample prev cur rest
             chunk <- deriver
             return (chunk, consumed)
         -- TODO is this really an optimization?  profile later
@@ -161,113 +154,84 @@ derive_track info@(_, empty, _, _) get_last_sample events = do
         fmap (Maybe.fromMaybe deflt) . Derive.catch_warn id . with_stack pos evt
     with_stack pos evt = Derive.with_stack_pos pos (Event.event_duration evt)
 
-derive_event :: DeriveInfo y derived
-    -> Maybe (RealTime, y)
+derive_event :: DeriveInfo derived -> PreProcess
+    -> Maybe (RealTime, Derive.Element derived)
     -> [Track.PosEvent] -- ^ previous events, in reverse order
     -> Track.PosEvent -- ^ cur event
     -> [Track.PosEvent] -- ^ following events
-    -> Derive.Deriver (Derive.Deriver derived, Int)
-derive_event info@(_, empty, _, preproc) prev_sample prev cur@(_, event) next
-    | Event.event_string event == "--" = skip empty
+    -> GeneratorReturn derived
+derive_event dinfo preproc prev_val prev cur@(_, event) next
+    | Event.event_string event == "--" = skip (info_empty dinfo)
     | otherwise = case TrackLang.parse (preproc (Event.event_string event)) of
-        Left err -> Derive.warn err >> skip empty
-        Right expr -> eval_generator info expr prev_sample prev cur next
-
-eval_note_generator :: String -> TrackLang.Expr
-    -> Maybe (RealTime, Score.Event) -> [Track.PosEvent]
-    -> Track.PosEvent -> [Track.PosEvent] -> GeneratorReturn Derive.Events
-eval_note_generator caller =
-    eval_generator (caller, Derive.no_events, lookup_note_call, id)
-
-eval_generator :: DeriveInfo y derived
-    -> TrackLang.Expr -> Maybe (RealTime, y)
-    -> [Track.PosEvent] -> Track.PosEvent -> [Track.PosEvent]
-    -> Derive.Deriver (Derive.Deriver derived, Int)
-eval_generator info@(caller, empty, lookup_call, _)
-        (TrackLang.Call call_id args : rest) prev_val prev cur next = do
-    call <- lookup_call call_id
-    env <- Derive.gets Derive.state_environ
-    let passed = TrackLang.PassedArgs args env call_id stretch prev_val
-    let msg = eval_msg "generator" caller call
-    case Derive.call_generator call of
-        Nothing -> do
-            Derive.with_msg msg
-                (Derive.warn "non-generator in generator position")
-            skip empty
-        Just c -> case c passed (map warp prev) evt0 (map warp next) of
-            Left err -> do
-                Derive.with_msg msg $ Derive.warn $ Pretty.pretty err
-                skip empty
-            Right (generate_deriver, consumed) -> do
-                deriver <- eval_transformer info stretch rest
-                    (handle_exc msg empty generate_deriver)
-                return (place deriver, consumed)
+        Left err -> Derive.warn err >> skip (info_empty dinfo)
+        Right expr -> run_call expr
     where
-    -- Derivation happens according to the extent of the note, not the
-    -- duration.  This is how negative duration events begin deriving before
-    -- arriving at the trigger.  Note generating calls that wish to actually
-    -- generate negative duration may check the event_duration and reverse this
-    -- by looking at a (start, end) of (1, 0) instead of (0, 1).
-    place = Derive.d_at start . Derive.d_stretch stretch
-    (start, end) = (Track.event_min cur, Track.event_max cur)
-    -- A 0 dur event can't be normalized, so don't try.
-    stretch = if start == end then 1 else end - start
-    -- Warp all the events to be local to the warp established by 'place'.
-    -- TODO optimize the stretch=1 case and see if that affects performance
-    warp (pos, evt) =
-        ((pos-start) / stretch, Event.modify_duration (/stretch) evt)
-    evt0 = Event.modify_duration (/stretch) (snd cur)
-eval_generator _ [] _ _ cur _ = Derive.throw $
-    "event with no calls at all (this shouldn't happen): " ++ show cur
+    -- TODO move with_catch down here
+    run_call expr = do
+            (deriver, consumed) <- apply_toplevel (dinfo, cinfo) expr
+            return (place deriver, consumed)
+        where
+        cinfo = Derive.CallInfo stretch prev_val
+            evt0 (map warp prev) (map warp next)
+        -- Derivation happens according to the extent of the note, not the
+        -- duration.  This is how negative duration events begin deriving
+        -- before arriving at the trigger.  Note generating calls that wish to
+        -- actually generate negative duration may check the event_duration and
+        -- reverse this by looking at a (start, end) of (1, 0) instead of
+        -- (0, 1).
+        place = Derive.d_at start . Derive.d_stretch stretch
+        (start, end) = (Track.event_min cur, Track.event_max cur)
+        -- A 0 dur event can't be normalized, so don't try.
+        stretch = if start == end then 1 else end - start
+        -- Warp all the events to be local to the warp established by 'place'.
+        -- TODO optimize the stretch=1 case and see if that affects performance
+        warp (pos, evt) =
+            ((pos-start) / stretch, Event.modify_duration (/stretch) evt)
+        evt0 = Event.modify_duration (/stretch) (snd cur)
 
+apply_toplevel :: (DeriveInfo derived, Derive.CallInfo derived)
+    -> TrackLang.Expr -> GeneratorReturn derived
+apply_toplevel info expr = case Seq.break_last expr of
+    (transform_calls, Just generator_call) -> do
+        (deriver, consumed) <- apply_generator info generator_call
+        return (apply_transformer info transform_calls deriver, consumed)
+    _ -> Derive.throw "event with no calls at all (this shouldn't happen)"
 
-eval_note_transformer :: String -> ScoreTime -> TrackLang.Expr
-    -> Derive.EventDeriver -> Derive.Deriver Derive.EventDeriver
-eval_note_transformer caller =
-    eval_transformer (caller, Derive.no_events, lookup_note_call, id)
-
-eval_transformer :: DeriveInfo y derived
-    -> ScoreTime -> TrackLang.Expr
-    -> Derive.Deriver derived -> Derive.Deriver (Derive.Deriver derived)
-eval_transformer info@(caller, empty, lookup_call, _) stretch
-        (TrackLang.Call call_id args : rest) deriver = do
-    call <- lookup_call call_id
+apply_generator :: (DeriveInfo derived, Derive.CallInfo derived)
+    -> TrackLang.Call -> GeneratorReturn derived
+apply_generator (dinfo, cinfo) (TrackLang.Call call_id args) = do
+    call <- info_lookup dinfo call_id
     env <- Derive.gets Derive.state_environ
-    let passed = TrackLang.PassedArgs args env call_id stretch Nothing
-    let msg = eval_msg "transformer" caller call
+    let with_msg = Derive.with_msg $
+            info_caller dinfo ++ " generate " ++ Derive.call_name call
+    let passed = Derive.PassedArgs args env call_id cinfo
+    case Derive.call_generator call of
+        Just c -> case c passed of
+            Left err -> with_msg $ Derive.throw $ Pretty.pretty err
+            Right (deriver, consumed) -> return (with_msg deriver, consumed)
+        Nothing -> with_msg $
+            Derive.throw "non-generator in generator position"
+
+apply_transformer :: (DeriveInfo derived, Derive.CallInfo derived)
+    -> TrackLang.Expr -> Derive.Deriver derived -> Derive.Deriver derived
+apply_transformer _ [] deriver = deriver
+apply_transformer info@(dinfo, cinfo) (TrackLang.Call call_id args : calls)
+        deriver = do
+    let new_deriver = apply_transformer info calls deriver
+    call <- info_lookup dinfo call_id
+    env <- Derive.gets Derive.state_environ
+    let with_msg = Derive.with_msg $
+            info_caller dinfo ++ " transform " ++ Derive.call_name call
+    let passed = Derive.PassedArgs args env call_id cinfo
     case Derive.call_transformer call of
-        Nothing -> do
-            Derive.with_msg msg $
-                Derive.warn "non-transformer in transformer position"
-            return (return empty)
-        Just c -> case c passed deriver of
-            Left err -> do
-                Derive.with_msg msg $ Derive.warn $ Pretty.pretty err
-                return (return empty)
-            Right deriver -> eval_transformer info stretch rest
-                (handle_exc msg empty deriver)
-eval_transformer _ _ [] deriver = return deriver
-
-handle_exc :: String -> a -> Derive.Deriver a -> Derive.Deriver a
-handle_exc msg empty deriver = fmap (maybe empty id) $
-    -- TODO with_msg is not quite right here, because then nested calls wind up
-    -- pushing nested msgs on to the stack and cluttering up the error msgs,
-    -- when I really only want the last.  Not sure why this only happens for
-    -- the title expr though.  I don't know what a better solution would be,
-    -- short of both a nested and non-nested contexts.
-    Derive.catch_warn id (Derive.with_msg msg deriver)
-
-eval_msg :: String -> String -> Derive.Call y derived -> String
-eval_msg eval_type caller call = "eval "
-    ++ caller ++ " " ++ eval_type ++ " " ++ Derive.call_name call
+        Just c -> case c passed new_deriver of
+            Left err -> with_msg $ Derive.throw $ Pretty.pretty err
+            Right result -> with_msg result
+        Nothing -> with_msg $
+            Derive.throw "non-transformer in transformer position"
 
 -- * lookup_note_call
 
--- TODO Can I move this to Derive.Note?  The only thing is that Calls want
--- to do their own sub-derivation, e.g. Rambat.c_tick.
-
--- | This is here instead of Derive because note calls first look at the block
--- ids to derive a block.
 lookup_note_call :: TrackLang.CallId -> Derive.Deriver Derive.NoteCall
 lookup_note_call call_id = do
     st <- Derive.get
@@ -275,18 +239,21 @@ lookup_note_call call_id = do
         block_id = Types.BlockId (make_id default_ns call_id)
     let call_map = Derive.calls_note (Derive.state_call_map st)
     if block_id `Map.member` State.state_blocks (Derive.state_ui st)
-        then return $ Note.c_block block_id
+        then return $ c_block block_id
         else case Map.lookup call_id call_map of
-            Nothing -> return (c_not_found call_id)
+            Nothing ->
+                Derive.throw $ "lookup_note_call: unknown " ++ show call_id
             Just call -> return call
 
--- | I don't want to abort all of derivation by throwing, but I do want to
--- abort evaluation of this expression, so consider this a kind of type error,
--- which does just that.
-c_not_found :: TrackLang.CallId -> Derive.NoteCall
-c_not_found call_id = Derive.Call "not_found"
-    (Just $ \_ _ _ _ -> err) (Just $ \_ _ -> err)
-    where err = Left (TrackLang.CallNotFound call_id)
+c_block :: BlockId -> Derive.NoteCall
+c_block block_id = Derive.generate_one "block" $ \args ->
+    if null (Derive.passed_vals args)
+        then Right $ block_call block_id
+        else Left $ TrackLang.ArgError "args for block call not implemented yet"
+
+block_call :: BlockId -> Derive.EventDeriver
+block_call block_id =
+    Derive.d_subderive Derive.no_events (Derive.d_block block_id)
 
 -- | Make an Id from a string, relative to the current ns if it doesn't already
 -- have one.
@@ -298,11 +265,29 @@ make_id default_ns (TrackLang.Symbol ident_str) = Id.id ns ident
     (w0, w1) = break (=='/') ident_str
     (ns, ident) = if null w1 then (default_ns, w0) else (w0, drop 1 w1)
 
+lookup_control_call :: TrackLang.CallId -> Derive.Deriver Derive.ControlCall
+lookup_control_call call_id = do
+    cmap <- Derive.gets (Derive.calls_control . Derive.state_call_map)
+    maybe (Derive.throw $ "lookup_control_call: unknown " ++ show call_id)
+        return (Map.lookup call_id cmap)
+
+lookup_pitch_call :: TrackLang.CallId -> Derive.Deriver Derive.PitchCall
+lookup_pitch_call call_id = do
+    cmap <- Derive.gets (Derive.calls_pitch . Derive.state_call_map)
+    maybe (Derive.throw $ "lookup_pitch_call: unknown " ++ show call_id) return
+        (Map.lookup call_id cmap)
 
 -- * c_equal
 
-c_equal :: derived -> Derive.Call y derived
-c_equal = Note.c_equal
+c_equal :: derived -> Derive.Call derived
+c_equal empty = Derive.Call "equal"
+    (Just $ \args -> with_args args generate)
+    (Just $ \args deriver -> with_args args (transform deriver))
+    where
+    with_args args = CallSig.call2 args
+        (required "symbol", required "value" :: CallSig.Arg TrackLang.Val)
+    transform deriver sym val = Derive.with_val sym val deriver
+    generate sym val = (Derive.put_val sym val >> return empty, 1)
 
 -- * map score events
 

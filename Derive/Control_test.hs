@@ -1,7 +1,6 @@
 {-# LANGUAGE ParallelListComp #-}
 module Derive.Control_test where
 import qualified Data.Map as Map
-import Control.Monad
 
 import Util.Test
 import qualified Util.Log as Log
@@ -51,7 +50,7 @@ test_derive_control = do
         extract (Right (val, _, logs)) =
             Right (Signal.unsignal val, map Log.msg_string logs)
     let derive events = extract $ DeriveTest.run State.empty
-            (join $ Control.derive_control [] (map UiTest.mkevent events))
+            (Control.derive_control [] (map UiTest.mkevent events))
     equal (derive [(0, 0, "1"), (1, 0, "2")])
         (Right ([(0, 1), (1, 2)], []))
     equal (derive [(0, 0, "1"), (0.1, 0, "i 2")])
@@ -77,8 +76,8 @@ test_pitch_track = do
     let (val, logs) = derive ("*twelve", [(0, 0, "1"), (1, 0, "2")])
     equal val (Right [[]])
     strings_like logs
-        [ "generator note_set: Note \"1\" not in ScaleId"
-        , "generator note_set: Note \"2\" not in ScaleId"
+        [ "generate note_set: Note \"1\" not in ScaleId"
+        , "generate note_set: Note \"2\" not in ScaleId"
         ]
     let (val, logs) = derive
             ("*twelve", [(0, 0, "4c"), (1, 0, "4d"), (2, 0, "4hc")])

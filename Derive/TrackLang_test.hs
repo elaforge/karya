@@ -1,9 +1,6 @@
 module Derive.TrackLang_test where
 import Control.Monad
-import qualified Data.Map as Map
 
-import Util.Control
-import qualified Util.Pretty as Pretty
 import Util.Test
 import qualified Util.Parse as Parse
 
@@ -15,47 +12,12 @@ import qualified Derive.TrackLang as TrackLang
 import qualified Perform.Pitch as Pitch
 
 
-test_extract = do
-    -- tests extract_arg
-    let sig :: (TrackLang.Arg Double, TrackLang.Arg Double)
-        sig = (TrackLang.required "required", TrackLang.optional "optional" 42)
-        mkargs = TrackLang.passed_args "call"
-        f args = map_left Pretty.pretty (TrackLang.extract2 args sig)
-
-    left_like (f (mkargs [])) "too few arguments"
-    equal (f (mkargs [VNum 1])) (Right (1, 42))
-    equal (f (mkargs [VNum 1, VNum 2])) (Right (1, 2))
-    equal (f (mkargs [VString "hi", VNum 2]))
-        (Left "TypeError: arg 0/required: expected type Num but got 'hi'")
-
-test_check_args = do
-    let mkargs = TrackLang.passed_args "call"
-        optional = (False, "optional")
-        required = (True, "required")
-    let f passed args = map_left Pretty.pretty $ take 2 <$>
-            TrackLang.check_args passed args
-    equal (f (mkargs []) []) (Right [Nothing, Nothing])
-    left_like (f (mkargs [VNum 1]) []) "too many arguments: expected 0, got 1"
-    left_like (f (mkargs []) [required]) "too few arguments: expected 1, got 0"
-    left_like (f (mkargs []) [required, optional])
-        "too few arguments: expected from 1 to 2, got 0"
-    left_like (f (mkargs [VNum 1, VNum 2]) [optional, required])
-        "required arg can't follow an optional one: 1/required"
-
-    equal (f (mkargs [VNum 1]) [required, optional])
-        (Right [Just (VNum 1), Nothing])
-    let with_env = (mkargs []) { TrackLang.passed_environ =
-            Map.fromList [(TrackLang.Symbol "call-required", VNum 10)] }
-    equal (f with_env [required, optional])
-        (Right [Just (VNum 10), Nothing])
-
-
 test_parse = do
     let f = TrackLang.parse
     equal (f "a | b") $ Right
-        [Call (Symbol "b") [], Call (Symbol "a") []]
+        [Call (Symbol "a") [], Call (Symbol "b") []]
     equal (f "a | b | c") $ Right $
-        [Call (Symbol "c") [], Call (Symbol "b") [], Call (Symbol "a") []]
+        [Call (Symbol "a") [], Call (Symbol "b") [], Call (Symbol "c") []]
 
     equal (f "a") $ Right [Call (Symbol "a") []]
     equal (f "a 42") $ Right [Call (Symbol "a") [VNum 42]]
@@ -65,10 +27,10 @@ test_parse = do
     equal (f "|") $ Right [Call (Symbol "") [], Call (Symbol "") []]
 
     equal (f "a | b = 4 | >inst %sig") $ Right
-        [ Call (Symbol "") [VInstrument (Score.Instrument "inst"),
-            VControl (Control (Score.Control "sig"))]
+        [ Call (Symbol "a") []
         , Call (Symbol "=") [VSymbol (Symbol "b"), VNum 4]
-        , Call (Symbol "a") []
+        , Call (Symbol "") [VInstrument (Score.Instrument "inst"),
+            VControl (Control (Score.Control "sig"))]
         ]
 
     -- Symbols can have anything in them as long as they start with a letter.

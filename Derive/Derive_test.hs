@@ -84,7 +84,8 @@ test_subderive = do
     -- errors don't stop derivation
     equal (fmap extract_events events) (Right [(1.5, 0.5, "--x")])
     strings_like (map Log.msg_string msgs)
-        ["CallNotFound: nosuch", "block with zero duration", "recursive block"]
+        ["unknown Symbol \"nosuch\"", "block with zero duration",
+            "recursive block"]
     let mkstack (from, to) = Just
             [(UiTest.bid "b0", Just (UiTest.tid "b0.t1"), Just (from, to))]
     equal (map Log.msg_stack msgs) $ map mkstack
@@ -118,7 +119,7 @@ test_subderive_error = do
             ]
     let (val, logs) = (DeriveTest.e_logs $ run [(0, 1, "sub")])
     equal val (Right [])
-    strings_like logs ["subderiving: .*: failed to parse"]
+    strings_like logs ["subderiving: .* failed to parse"]
 
 test_subderive_multiple = do
     -- make sure subderiving a block with multiple tracks works correctly

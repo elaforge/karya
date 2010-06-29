@@ -2,9 +2,10 @@ module Derive.Call.Rambat where
 
 import Ui
 
+import Derive.CallSig (optional, control)
+import qualified Derive.CallSig as CallSig
 import qualified Derive.Derive as Derive
 import qualified Derive.TrackLang as TrackLang
-import Derive.TrackLang (optional, control)
 import qualified Derive.Call as Call
 
 import qualified Perform.Signal as Signal
@@ -28,15 +29,15 @@ note_calls = Derive.make_calls
 -- [vel /Control/ @%tick-velocity,.3@] Grace note velocity will be this
 -- percentage of the following note.
 c_tick :: Derive.NoteCall
-c_tick = Derive.generate_one "tick" $ \args prev _ next -> TrackLang.call2 args
+c_tick = Derive.generate_one "tick" $ \args -> CallSig.call2 args
     ( optional "time" (control "tick-time" 0.15)
-    , optional "vel" (control "tick-velocity" 0.5)) $
-    \time vel -> case (prev, next) of
-        ((ppos, _) : _, (npos, _) : _) ->
+    , optional "vel" (control "tick-velocity" 0.5)) $ \time vel ->
+    case (Derive.passed_prev_begin args, Derive.passed_next_begin args) of
+        (Just ppos, Just npos) ->
             Call.with_controls [time, vel] $ \[time, vel] ->
                 tick (Signal.y_to_real time) vel ppos npos
-        _ -> Derive.throw $ "no "
-            ++ (if null prev then "previous" else "next") ++ " event"
+        (Nothing, Just _) -> Derive.throw "no previous event"
+        _ -> Derive.throw "no next event"
 
 tick :: RealTime -> Signal.Y -> ScoreTime -> ScoreTime -> Derive.EventDeriver
 tick time vel prev next = do

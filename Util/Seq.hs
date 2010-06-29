@@ -256,6 +256,11 @@ break_tails f lst@(x:xs)
     | f lst = ([], lst)
     | otherwise = let (pre, post) = break_tails f xs in (x:pre, post)
 
+break_last :: [a] -> ([a], Maybe a)
+break_last [] = ([], Nothing)
+break_last [x] = ([], Just x)
+break_last (x:xs) = let (first, last) = break_last xs in (x:first, last)
+
 -- | Split @xs@ before places where @f@ matches.
 --
 -- > split_with (==1) [1,2,1]

@@ -1,6 +1,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, PatternGuards, ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE TypeFamilies #-}
 {- | Main module for the deriver monad.
 
     Derivers are always in DeriveT, even if they don't need its facilities.
@@ -44,6 +45,7 @@ import qualified Data.Monoid as Monoid
 
 import Util.Control
 import qualified Util.Log as Log
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.SrcPos as SrcPos
 
@@ -69,6 +71,13 @@ import qualified Derive.TrackLang as TrackLang
 -- * DeriveT
 
 type Deriver a = DeriveT Identity.Identity a
+
+-- | All this does is mean one less type parameter for Call, and centralizes
+-- the derived -> element relationship here.
+type family Element derived :: *
+type instance Element [Score.Event] = Score.Event
+type instance Element Signal.Control = Signal.Y
+type instance Element PitchSignal.PitchSignal = PitchSignal.Y
 
 -- ** events
 
@@ -212,48 +221,107 @@ type PitchCallMap = Map.Map TrackLang.CallId PitchCall
 -- its position.  A call at the end of a compose pipeline will be called as
 -- a generator while ones composed with it will be called as transformers, so
 -- in @a | b@, @a@ is a transformer and @b@ is a generator.
-data Call y derived = Call {
+data Call derived = Call {
     -- | Since call IDs may be rebound dynamically, each call has its own name
     -- so that error msgs are unambiguous.
     call_name :: String
-    , call_generator :: Maybe (GeneratorCall y derived)
-    , call_transformer :: Maybe (TransformerCall y derived)
+    , call_generator :: Maybe (GeneratorCall derived)
+    , call_transformer :: Maybe (TransformerCall derived)
     }
 
-type NoteCall = Call Score.Event Events
-type ControlCall = Call Signal.Y Control
-type PitchCall = Call PitchSignal.Y Pitch
+type NoteCall = Call Events
+type ControlCall = Call Control
+type PitchCall = Call Pitch
 
--- | args -> prev_events -> cur_event -> next_events -> (deriver, consumed)
-type GeneratorCall y derived = TrackLang.PassedArgs y -> [Track.PosEvent]
-    -> Event.Event -> [Track.PosEvent]
+-- | Data passed to a 'Call'.
+data PassedArgs derived = PassedArgs {
+    passed_vals :: [TrackLang.Val]
+    , passed_environ :: TrackLang.Environ
+    , passed_call :: TrackLang.CallId
+    , passed_info :: CallInfo derived
+    }
+
+passed_event :: PassedArgs derived -> Event.Event
+passed_event = info_event . passed_info
+
+passed_next_events :: PassedArgs derived -> [Track.PosEvent]
+passed_next_events = info_next_events . passed_info
+
+passed_prev_events :: PassedArgs derived -> [Track.PosEvent]
+passed_prev_events = info_prev_events . passed_info
+
+passed_next_begin :: PassedArgs derived -> Maybe ScoreTime
+passed_next_begin = fmap fst . relevant_event . passed_next_events
+
+passed_prev_begin :: PassedArgs derived -> Maybe ScoreTime
+passed_prev_begin = fmap fst . relevant_event . passed_prev_events
+
+-- | Get the next \"relevant\" event beginning.  Intended to be used by calls
+-- to determine their extent, especially control calls, which have no explicit
+-- duration.
+--
+-- This will skip 'x = y' calls, which are not indended to affect note scope.
+-- TODO implement that
+relevant_event :: [Track.PosEvent] -> Maybe Track.PosEvent
+relevant_event ((pos, evt) : _) = Just (pos, evt)
+relevant_event _ = Nothing
+
+passed_prev_val :: PassedArgs derived -> Maybe (RealTime, Element derived)
+passed_prev_val = info_prev_val . passed_info
+
+-- | Additional data for a call.  This part is invariant for all calls on
+-- an event.
+data CallInfo derived = CallInfo {
+    -- | The deriver was stretched by the reciprocal of this number to put it
+    -- into normalized 0--1 time (i.e. this is the deriver's original
+    -- duration).  Calls can divide by this to get durations in the context of
+    -- the track.
+    --
+    -- Stretch for a 0 dur note is considered 1, not infinity, to avoid
+    -- problems with division by 0.
+    info_stretch :: ScoreTime
+
+    -- | Hack so control calls have access to the previous sample, since
+    -- they tend to want to interpolate from that value.
+    , info_prev_val :: Maybe (RealTime, Element derived)
+
+    -- | These are warped into normalized time.
+    , info_event :: Event.Event
+    , info_prev_events :: [Track.PosEvent]
+    , info_next_events :: [Track.PosEvent]
+    }
+
+-- | Transformer calls don't necessarily apply to any particular event, and
+-- neither to generators for that matter.
+dummy_call_info :: CallInfo derived
+dummy_call_info = CallInfo 1 Nothing (Event.event "<no event>" 1) [] []
+
+-- | args -> (deriver, consumed)
+type GeneratorCall derived = PassedArgs derived
     -> Either TrackLang.TypeError (Deriver derived, Int)
 -- | args -> (deriver -> deriver)
-type TransformerCall y derived = TrackLang.PassedArgs y -> Deriver derived
+type TransformerCall derived = PassedArgs derived -> Deriver derived
     -> Either TrackLang.TypeError (Deriver derived)
 
 -- | The call for the whole control track.
-type ControlTrackCall = BlockId -> TrackId -> TrackLang.PassedArgs Signal.Y
+type ControlTrackCall = BlockId -> TrackId -> PassedArgs Control
     -> Deriver Transformer
 type Transformer = EventDeriver -> EventDeriver
 
-generator :: String -> GeneratorCall y derived -> Call y derived
+generator :: String -> GeneratorCall derived -> Call derived
 generator name call = Call name (Just call) Nothing
 
-transformer :: String -> TransformerCall y derived -> Call y derived
+transformer :: String -> TransformerCall derived -> Call derived
 transformer name call = Call name Nothing (Just call)
 
 -- | Like 'generator', except for a generator that consumes a single event.
 generate_one :: String
-    -> (TrackLang.PassedArgs y -> [Track.PosEvent] -> Event.Event
-    -> [Track.PosEvent]
-    -> Either TrackLang.TypeError (Deriver derived))
-    -> Call y derived
-generate_one name call = generator name $ \args prev event next ->
-    fmap (, 1) (call args prev event next)
+    -> (PassedArgs derived -> Either TrackLang.TypeError (Deriver derived))
+    -> Call derived
+generate_one name call = generator name $ \args -> fmap (, 1) (call args)
 
-make_calls :: [(String, Call y derived)]
-    -> Map.Map TrackLang.CallId (Call y derived)
+make_calls :: [(String, Call derived)]
+    -> Map.Map TrackLang.CallId (Call derived)
 make_calls = Map.fromList . map (first TrackLang.Symbol)
 
 instance Show CallMap where
@@ -521,7 +589,7 @@ insert_environ :: (Monad m, TrackLang.Typecheck val) => TrackLang.ValName
 insert_environ name val environ =
     case TrackLang.put_val name val environ of
         Left typ -> throw $ "can't set " ++ show name ++ " to " ++ show val
-            ++ ", expected " ++ show typ
+            ++ ", expected " ++ Pretty.pretty typ
         Right environ2 -> return environ2
 
 -- *** control
@@ -685,21 +753,6 @@ default_pitch_op_map = Map.fromList $ map (first TrackLang.Symbol)
     , ("max", PitchSignal.sig_max)
     , ("min", PitchSignal.sig_min)
     ]
-
--- lookup_note_call is defined in Derive.Call.Note because it also looks for
--- blocks and returns the block deriver.
-
-lookup_control_call :: (Monad m) => TrackLang.CallId -> DeriveT m ControlCall
-lookup_control_call call_id = do
-    cmap <- gets state_call_map
-    maybe (throw $ "lookup_control_call: unknown " ++ show call_id) return
-        (Map.lookup call_id (calls_control cmap))
-
-lookup_pitch_call :: (Monad m) => TrackLang.CallId -> DeriveT m PitchCall
-lookup_pitch_call call_id = do
-    cmap <- gets state_call_map
-    maybe (throw $ "lookup_pitch_call: unknown " ++ show call_id) return
-        (Map.lookup call_id (calls_pitch cmap))
 
 -- ** stack
 

@@ -12,10 +12,10 @@ module Derive.Call.Echo where
 import Ui
 
 import qualified Derive.Call as Call
+import Derive.CallSig (optional, required_control, control)
+import qualified Derive.CallSig as CallSig
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
-import qualified Derive.TrackLang as TrackLang
-import Derive.TrackLang (optional, required_control, control)
 
 import qualified Perform.Signal as Signal
 
@@ -32,7 +32,7 @@ note_calls = Derive.make_calls
 --
 -- [time /Signal/ @%delay-time@] Delay this much score time.
 c_delay :: Derive.NoteCall
-c_delay = Derive.transformer "delay" $ \args deriver -> TrackLang.call1 args
+c_delay = Derive.transformer "delay" $ \args deriver -> CallSig.call1 args
     (optional "time" (required_control "delay-time")) $ \time ->
     Call.with_controls [time] $ \[time] -> Derive.d_at (ScoreTime time) deriver
 
@@ -53,7 +53,7 @@ c_delay = Derive.transformer "delay" $ \args deriver -> TrackLang.call1 args
 -- [times /Control/ @%echo-times,1@] This many echoes, not counting the
 -- un-echoed notes.
 c_echo :: Derive.NoteCall
-c_echo = Derive.transformer "echo" $ \args deriver -> TrackLang.call3 args
+c_echo = Derive.transformer "echo" $ \args deriver -> CallSig.call3 args
     ( optional "delay" (control "echo-delay" 1)
     , optional "feedback" (control "echo-feedback" 0.4)
     , optional "times" (control "echo-times" 1)) $ \delay feedback times ->

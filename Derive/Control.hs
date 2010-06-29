@@ -48,11 +48,11 @@ eval_track block_id track_id expr vals deriver = do
     let events = Track.event_list (Track.track_events track)
     case TrackInfo.parse_control_vals vals of
         Right TrackInfo.Tempo -> do
-            control_deriver <- derive_control expr events
+            let control_deriver = derive_control expr events
             tempo_call block_id track_id
                 (Signal.coerce <$> control_deriver) deriver
         Right (TrackInfo.Control maybe_op control) -> do
-            control_deriver <- derive_control expr events
+            let control_deriver = derive_control expr events
             control_call track_id control maybe_op control_deriver deriver
         Right (TrackInfo.Pitch ptype maybe_name) ->
             pitch_call track_id maybe_name ptype expr events deriver
@@ -99,25 +99,26 @@ pitch_call track_id Nothing ptype track_expr events deriver =
                 signal <- derive_relative_pitch events
                 Derive.with_pitch_operator op signal deriver
             _ -> do
-                signal <- join $ derive_pitch track_expr events
+                signal <- derive_pitch track_expr events
                 Derive.with_pitch signal deriver
 
-derive_pitch :: TrackLang.Expr -> [Track.PosEvent]
-    -> Derive.Deriver Derive.PitchDeriver
+derive_pitch :: TrackLang.Expr -> [Track.PosEvent] -> Derive.PitchDeriver
 derive_pitch track_expr events =
-    Call.eval_transformer info 1 track_expr deriver
+    Call.apply_transformer (dinfo, Derive.dummy_call_info) track_expr deriver
     where
-    deriver = PitchSignal.merge <$> Call.derive_track info
-        (\prev chunk -> PitchSignal.last chunk `mplus` prev) events
-    info = ("pitch", Derive.no_pitch, Derive.lookup_pitch_call,
-        mangle_pitch_call)
+    deriver = PitchSignal.merge <$>
+        Call.derive_track dinfo mangle_pitch_call last_sample events
+    dinfo = Call.DeriveInfo "pitch" Derive.no_pitch Call.lookup_pitch_call
+    last_sample prev chunk = PitchSignal.last chunk `mplus` prev
 
 derive_relative_pitch :: [Track.PosEvent] -> Derive.PitchDeriver
-derive_relative_pitch = fmap PitchSignal.merge
-    . Call.derive_track
-        ("relative pitch", Derive.no_pitch, Derive.lookup_pitch_call,
-            mangle_pitch_call)
-        (\prev chunk -> PitchSignal.last chunk `mplus` prev)
+derive_relative_pitch events =
+    PitchSignal.merge <$> Call.derive_track dinfo mangle_pitch_call last_sample
+        events
+    where
+    last_sample prev chunk = PitchSignal.last chunk `mplus` prev
+    dinfo = Call.DeriveInfo "relative pitch" Derive.no_pitch
+        Call.lookup_pitch_call
 
 -- | I really want to be able to give notes arbitrary names.  Especially
 -- numbers are good names for notes.  Unfortunately numbers also look like
@@ -129,11 +130,10 @@ mangle_pitch_call text
     | ' ' `elem` text = text
     | otherwise = '*' : text
 
-derive_control :: TrackLang.Expr -> [Track.PosEvent]
-    -> Derive.Deriver Derive.ControlDeriver
+derive_control :: TrackLang.Expr -> [Track.PosEvent] -> Derive.ControlDeriver
 derive_control track_expr events =
-    Call.eval_transformer info 1 track_expr deriver
+    Call.apply_transformer (dinfo, Derive.dummy_call_info) track_expr deriver
     where
-    deriver = Signal.merge <$> Call.derive_track info
-        (\prev chunk -> Signal.last chunk `mplus` prev) events
-    info = ("control", Derive.no_control, Derive.lookup_control_call, id)
+    deriver = Signal.merge <$> Call.derive_track dinfo id last_sample events
+    dinfo = Call.DeriveInfo "control" Derive.no_control Call.lookup_control_call
+    last_sample prev chunk = Signal.last chunk `mplus` prev

@@ -128,7 +128,7 @@
     a departing note.
 -}
 module Derive.Note where
-import Control.Monad
+import Util.Control
 
 import Ui
 import qualified Ui.Track as Track
@@ -144,16 +144,21 @@ import qualified Derive.Call as Call
 d_note_track :: TrackId -> Derive.EventDeriver
 d_note_track track_id = do
     track <- Derive.get_track track_id
-    title_expr <- case TrackLang.parse (Track.track_title track) of
+    track_expr <- case TrackLang.parse (Track.track_title track) of
         Left err -> Derive.throw $ "track title: " ++ err
         Right expr -> return expr
     -- TODO event calls are evaluated in normalized time, but track calls
     -- aren't.  Should they be?
     let pos_events = Track.event_list (Track.track_events track)
-    join $ Call.eval_note_transformer "title" 1 title_expr $
-        derive_notes pos_events
+    -- Unlike event evaluation, if the title evaluation throws, the whole block
+    -- will abort.  This seems reasonable to me.
+    Call.apply_transformer (derive_info "title", Derive.dummy_call_info)
+        track_expr (derive_notes pos_events)
 
 derive_notes :: [Track.PosEvent] -> Derive.EventDeriver
-derive_notes = fmap Derive.merge_event_lists
-    . Call.derive_track ("note", Derive.no_events, Call.lookup_note_call, id)
-        (\_ _ -> Nothing)
+derive_notes events = Derive.merge_event_lists <$>
+    Call.derive_track (derive_info "note") id (\_ _ -> Nothing) events
+
+derive_info :: String -> Call.DeriveInfo Derive.Events
+derive_info caller =
+    Call.DeriveInfo caller Derive.no_events Call.lookup_note_call
