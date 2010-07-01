@@ -5,8 +5,8 @@ import Util.Test
 import qualified Util.Parse as Parse
 
 import qualified Derive.Score as Score
-import Derive.TrackLang (AttrMode(..), Call(..), Method(..), Control(..),
-    Symbol(..), Val(..), Term(..))
+import Derive.TrackLang (AttrMode(..), Call(..), Control(..), Symbol(..),
+    Val(..), Term(..))
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
@@ -55,9 +55,6 @@ test_p_val = do
 
             , (">", Just $ VInstrument (Score.Instrument ""))
             , (">fu/nny^*", Just $ VInstrument (Score.Instrument "fu/nny^*"))
-
-            , ("m'foo'", Just $ VMethod (Method "foo"))
-            , ("m'foo", Nothing)
 
             , ("+a", mkattr (Add, "a"))
             , ("-b", mkattr (Remove, "b"))

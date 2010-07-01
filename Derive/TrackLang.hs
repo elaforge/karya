@@ -59,8 +59,6 @@ data Val =
     -- set the instrument, but can be used to mark a track as a note track.
     -- Literal: @>@, @>inst@
     | VInstrument Score.Instrument
-    -- | Goes in a control method field.  Literal: @m'i'@, @m'2e'@
-    | VMethod Method
     -- | Goes in a control val field.  Literal: @42.23@
     | VNum Double
     -- | Escape a quote by doubling it.  Literal: @'hello'@, @'quinn''s hat'@
@@ -91,7 +89,6 @@ instance Pretty.Pretty Val where
         VScale scale -> case Pitch.scale_id scale of
             Pitch.ScaleId scale_id -> note_literal_prefix ++ scale_id
         VInstrument (Score.Instrument inst) -> inst_literal_prefix ++ inst
-        VMethod (Method m) -> "m'" ++ m ++ "'"
         VNum d -> Pretty.pretty d
         VString s -> "'" ++ Seq.replace "'" "''" s ++ "'"
         VRelativeAttr (RelativeAttr (mode, attr)) -> case mode of
@@ -110,8 +107,6 @@ instance Pretty.Pretty Val where
 
 data AttrMode = Add | Remove | Set | Clear deriving (Eq, Show)
 
--- TODO later this should be Signal.Method
-newtype Method = Method String deriving (Eq, Show)
 -- | Symbols used in function call position.
 type CallId = Symbol
 -- | Symbols to look up a val in the 'ValMap'.
@@ -160,7 +155,7 @@ v_srate = Symbol "srate"
 
 -- * types
 
-data Type = TNote | TScale | TInstrument | TMethod | TNum | TString
+data Type = TNote | TScale | TInstrument | TNum | TString
     | TRelativeAttr | TAttributes | TControl | TSymbol | TNotGiven
     deriving (Eq, Show)
 
@@ -172,7 +167,6 @@ type_of val = case val of
     VNote _ -> TNote
     VScale _ -> TScale
     VInstrument _ -> TInstrument
-    VMethod _ -> TMethod
     VNum _ -> TNum
     VString _ -> TString
     VRelativeAttr _ -> TRelativeAttr
@@ -206,11 +200,6 @@ instance Typecheck Score.Instrument where
     from_val (VInstrument a) = Just a
     from_val _ = Nothing
     to_val = VInstrument
-
-instance Typecheck Method where
-    from_val (VMethod a) = Just a
-    from_val _ = Nothing
-    to_val = VMethod
 
 instance Typecheck Double where
     from_val (VNum a) = Just a
@@ -398,7 +387,6 @@ p_sub_call = P.between (P.char '(') (P.char ')') p_call
 p_val :: P.Parser Val
 p_val = Parse.lexeme $
     VNote <$> p_note <|> VInstrument <$> p_instrument
-    <|> VMethod <$> p_method
     -- RelativeAttr and Num can both start with a '-', but an RelativeAttr has
     -- to have a letter afterwards, while a Num is a '.' or digit, so they're
     -- not ambiguous.
@@ -413,9 +401,6 @@ p_note = P.string note_literal_prefix >> Pitch.Note <$> p_null_word <?> "note"
 p_instrument :: P.Parser Score.Instrument
 p_instrument = P.string inst_literal_prefix >> Score.Instrument <$> p_null_word
     <?> "instrument"
-
-p_method :: P.Parser Method
-p_method = P.char 'm' *> (Method <$> p_single_string) <?> "method"
 
 p_num :: P.Parser Double
 p_num = Parse.p_float
