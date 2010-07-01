@@ -92,7 +92,7 @@ strings_like_srcpos srcpos gotten expected
     string_like (Just gotten) Nothing =
         failure_srcpos srcpos $ "expected list too short: got " ++ show gotten
     string_like (Just gotten) (Just reg)
-        | regex_matches reg gotten = success_srcpos srcpos $
+        | pattern_matches reg gotten = success_srcpos srcpos $
             gotten ++ " =~ " ++ reg
         | otherwise = failure_srcpos srcpos $ gotten ++ " !~ " ++ reg
 
@@ -108,15 +108,27 @@ left_like_srcpos :: (Show a) =>
     SrcPos.SrcPos -> Either String a -> String -> IO ()
 left_like_srcpos srcpos gotten expected = case gotten of
     Left msg
-        | regex_matches expected msg -> success_srcpos srcpos $
+        | pattern_matches expected msg -> success_srcpos srcpos $
             "Left (" ++ msg ++ ") =~ Left (" ++ expected ++ ")"
         | otherwise -> failure_srcpos srcpos $
             "Left (" ++ msg ++ ") !~ Left (" ++ expected ++ ")"
     Right a -> failure_srcpos srcpos $
         "Right (" ++ show a ++ ") !~ " ++ expected
 
-regex_matches :: String -> String -> Bool
-regex_matches reg s = not $ null $ Regex.find_groups (Regex.make reg) s
+-- | This is a simplified pattern that only has the @*@ operator, which is
+-- equivalent to regex's @.*?@.  This reduces the amount of quoting you have
+-- to write.
+pattern_matches :: String -> String -> Bool
+pattern_matches pattern s = not $ null $
+    Regex.find_groups (pattern_to_reg pattern) s
+
+pattern_to_reg :: String -> Regex.Regex
+pattern_to_reg = Regex.make . mkstar . Regex.escape
+    where
+    mkstar "" = ""
+    mkstar ('\\' : '\\' : '*' : cs) = '\\' : '*' : mkstar cs
+    mkstar ('\\' : '*' : cs) = '.' : '*' : '?' : mkstar cs
+    mkstar (c : cs) = c : mkstar cs
 
 -- | The given pure value should throw an exception that matches the predicate.
 throws :: (Show a) => a -> String -> IO ()

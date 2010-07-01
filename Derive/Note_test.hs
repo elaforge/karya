@@ -95,8 +95,8 @@ test_c_equal = do
     let run = do_run e_evt id
     -- log stack should be at the track level
     let (evts, logs) = run "> | inst = inst" [(0, 1, "")]
-    left_like evts $ "\\(bid \"test/b1\"\\)/\\(tid \"test/b1.t1\"\\)/\\*"
-        ++ ".*expected type Instrument"
+    left_like evts $ "(bid \"test/b1\")/(tid \"test/b1.t1\")/\\*"
+        ++ "*expected type Instrument"
     equal logs []
 
     let (evts, logs) = run "> | 42 = >inst" [(0, 1, "")]

@@ -116,7 +116,7 @@ test_compile = do
 --     let (res, logs) = derive ("*bogus", [])
 --     equal logs []
 --     left_like res
---         "compile_to_signals .*: d_display_pitch: unknown ScaleId \"bogus\""
+--         "compile_to_signals *: d_display_pitch: unknown ScaleId \"bogus\""
 --
 --     -- TODO re-enable when rendering pitch signals is in
 --     -- let (_res, logs) = derive ("*twelve", [(10, 0, ".2")])

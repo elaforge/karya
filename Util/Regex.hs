@@ -36,3 +36,10 @@ find_ranges :: Regex -> String -> [(Int, Int)]
 find_ranges (Regex _ reg) str = concatMap extract (PCRE.matchAll reg str)
     where
     extract arr = [(i, i+n) | (i, n) <- IArray.elems arr]
+
+-- | Escape a string so the regex matches it literally.
+escape :: String -> String
+escape "" = ""
+escape (c : cs)
+    | c `elem` "\\^$.[|()?*+{" = '\\' : c : escape cs
+    | otherwise = c : escape cs
