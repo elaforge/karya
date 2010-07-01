@@ -1,3 +1,4 @@
+{-# LANGUAGE PatternGuards #-}
 {- | Derivers for control tracks.
 
     Interpolation methods:
@@ -16,11 +17,13 @@ import Control.Monad
 
 import Util.Control
 import qualified Util.Pretty as Pretty
+import qualified Util.Seq as Seq
 
 import Ui
 import qualified Ui.Track as Track
 
 import qualified Perform.PitchSignal as PitchSignal
+import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
 import qualified Derive.Call as Call
@@ -102,38 +105,46 @@ pitch_call track_id Nothing ptype track_expr events deriver =
                 signal <- derive_pitch track_expr events
                 Derive.with_pitch signal deriver
 
+derive_control :: TrackLang.Expr -> [Track.PosEvent] -> Derive.ControlDeriver
+derive_control track_expr events =
+    Call.apply_transformer (dinfo, Derive.dummy_call_info) track_expr deriver
+    where
+    deriver = Signal.merge <$> Call.derive_track dinfo preprocess_control
+        last_sample events
+    dinfo = Call.DeriveInfo "control" Derive.no_control Call.lookup_control_call
+    last_sample prev chunk = Signal.last chunk `mplus` prev
+
+preprocess_control :: Call.PreProcess
+preprocess_control expr = case Seq.break_last expr of
+    (calls, Just (TrackLang.Call (TrackLang.Symbol sym) []))
+        | Right num@(TrackLang.VNum _) <- TrackLang.parse_val sym ->
+            calls ++ [TrackLang.Call (TrackLang.Symbol "set")
+                [TrackLang.Literal num]]
+    _ -> expr
+
+
 derive_pitch :: TrackLang.Expr -> [Track.PosEvent] -> Derive.PitchDeriver
 derive_pitch track_expr events =
     Call.apply_transformer (dinfo, Derive.dummy_call_info) track_expr deriver
     where
     deriver = PitchSignal.merge <$>
-        Call.derive_track dinfo mangle_pitch_call last_sample events
+        Call.derive_track dinfo preprocess_pitch last_sample events
     dinfo = Call.DeriveInfo "pitch" Derive.no_pitch Call.lookup_pitch_call
     last_sample prev chunk = PitchSignal.last chunk `mplus` prev
 
 derive_relative_pitch :: [Track.PosEvent] -> Derive.PitchDeriver
 derive_relative_pitch events =
-    PitchSignal.merge <$> Call.derive_track dinfo mangle_pitch_call last_sample
-        events
+    PitchSignal.merge <$>
+        Call.derive_track dinfo preprocess_pitch last_sample events
     where
     last_sample prev chunk = PitchSignal.last chunk `mplus` prev
     dinfo = Call.DeriveInfo "relative pitch" Derive.no_pitch
         Call.lookup_pitch_call
 
--- | I really want to be able to give notes arbitrary names.  Especially
--- numbers are good names for notes.  Unfortunately numbers also look like
--- numbers.  Note literal syntax prefixes *, but a pitch track consists mostly
--- of note literals so it looks ugly.  So a pitch track automatically prefixes
--- *s when it consists of a single token.
-mangle_pitch_call :: String -> String
-mangle_pitch_call text
-    | ' ' `elem` text = text
-    | otherwise = '*' : text
-
-derive_control :: TrackLang.Expr -> [Track.PosEvent] -> Derive.ControlDeriver
-derive_control track_expr events =
-    Call.apply_transformer (dinfo, Derive.dummy_call_info) track_expr deriver
-    where
-    deriver = Signal.merge <$> Call.derive_track dinfo id last_sample events
-    dinfo = Call.DeriveInfo "control" Derive.no_control Call.lookup_control_call
-    last_sample prev chunk = Signal.last chunk `mplus` prev
+-- TODO this can go away when pitches are calls
+preprocess_pitch :: Call.PreProcess
+preprocess_pitch expr = case Seq.break_last expr of
+    (calls, Just (TrackLang.Call (TrackLang.Symbol sym) [])) ->
+        calls ++ [TrackLang.Call (TrackLang.Symbol "set")
+                [TrackLang.Literal (TrackLang.VNote (Pitch.Note sym))]]
+    _ -> expr

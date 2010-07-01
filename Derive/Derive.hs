@@ -78,6 +78,8 @@ type family Element derived :: *
 type instance Element [Score.Event] = Score.Event
 type instance Element Signal.Control = Signal.Y
 type instance Element PitchSignal.PitchSignal = PitchSignal.Y
+-- | Vals have no element.
+-- type instance Element TrackLang.Val = ()
 
 -- ** events
 

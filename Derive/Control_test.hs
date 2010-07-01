@@ -61,10 +61,10 @@ test_derive_control = do
 
     -- evaluation continues after an error
     equal (derive [(0, 0, "1"), (1, 0, "def")])
-        (Right ([(0, 1)], ["lookup_control_call: unknown Symbol \"def\""]))
+        (Right ([(0, 1)], ["unknown Symbol \"def\""]))
     equal (derive [(0, 0, "1"), (0.05, 0, "def"), (0.1, 0, "i 2")])
         (Right ([(0, 1), (0.05, 1.5), (0.1, 2)],
-            ["lookup_control_call: unknown Symbol \"def\""]))
+            ["unknown Symbol \"def\""]))
 
 test_pitch_track = do
     let derive = do_derive (PitchSignal.unsignal . Score.event_pitch)
@@ -128,6 +128,7 @@ test_relative_pitch = do
         base = 60
     let mksig = PitchSignal.signal (Pitch.ScaleId "twelve")
     equal (f []) (Right [mksig [(0, (base, base, 0))]], [])
+
     equal (f [(0, 0, "0"), (4, 0, "i *2")])
         (Right
             [mksig ((0, (60, 60, 0))

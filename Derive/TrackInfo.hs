@@ -46,16 +46,17 @@ parse_control_expr title = do
 
 parse_control_vals :: [TrackLang.Val] -> Either String ControlType
 parse_control_vals vals = case vals of
+        [TrackLang.VSymbol (TrackLang.Symbol ('*':scale))] ->
+            Right $ Pitch (PitchAbsolute (scale_of scale)) Nothing
+        [TrackLang.VSymbol (TrackLang.Symbol ('*':scale)),
+                TrackLang.VSymbol control] ->
+            Right $ Pitch (PitchAbsolute (scale_of scale))
+                (Just (control_of control))
         [TrackLang.VSymbol (TrackLang.Symbol "tempo")] -> Right Tempo
         [TrackLang.VSymbol control] ->
             Right $ Control Nothing (control_of control)
         [TrackLang.VSymbol call, TrackLang.VSymbol control] ->
             Right $ Control (Just call) (control_of control)
-        [TrackLang.VNote note] ->
-            Right $ Pitch (PitchAbsolute (scale_of note)) Nothing
-        [TrackLang.VNote note, TrackLang.VSymbol control] ->
-            Right $ Pitch (PitchAbsolute (scale_of note))
-                (Just (control_of control))
         TrackLang.VSymbol call : TrackLang.VNote note : rest
             | not (null (Pitch.note_text note)) ->
                 Left "relative pitch track can't have a scale"
@@ -66,8 +67,8 @@ parse_control_vals vals = case vals of
         _ -> Left $ "args must be one of [\"tempo\", control, op control, "
             ++ "*scale, *scale pitch_control, op *, op * pitch_control]"
     where
-    scale_of (Pitch.Note "") = Nothing
-    scale_of (Pitch.Note text) = Just (Pitch.ScaleId text)
+    scale_of "" = Nothing
+    scale_of text = Just (Pitch.ScaleId text)
     control_of (TrackLang.Symbol control) = Score.Control control
 
 unparse_control :: ControlType -> String

@@ -28,11 +28,11 @@ test_c_note = do
     equal (run ">i" [(0, 1, ""), (1, 2, ""), (3, 3, "")])
         (Right [evt 0 1, evt 1 2, evt 3 3], [])
 
-    let (evts, logs) = (run ">i" [(0, 1, "+a 42")])
+    let (evts, logs) = (run ">i" [(0, 1, "n +a 42")])
     equal evts (Right [])
     strings_like logs ["expected inst or attr"]
 
-    let (evts, logs) = run ">i" [(0, 1, "$parse/error")]
+    let (evts, logs) = run ">i" [(0, 1, ")parse/error")]
     equal evts (Right [])
     strings_like logs ["parse error"]
 
@@ -41,20 +41,20 @@ test_c_note = do
 
     -- comment only event is filtered out
     equal (run ">i" [(0, 1, "--")]) (Right [], [])
-    equal (run ">" [(0, 1, ">i +a")])
-        (Right [mkevent 0 1 ">i +a" [] inst ["a"]], [])
+    equal (run ">" [(0, 1, "n >i +a")])
+        (Right [mkevent 0 1 "n >i +a" [] inst ["a"]], [])
     equal (run ">i +a" [(0, 1, "")])
         (Right [mkevent 0 1 "" [] inst ["a"]], [])
 
     -- event overrides attrs
-    equal (run "> +a" [(0, 1, "=b"), (1, 1, "-a")])
-        (Right [mkevent 0 1 "=b" [] Nothing ["b"],
-            mkevent 1 1 "-a" [] Nothing []],
+    equal (run "> +a" [(0, 1, "n =b"), (1, 1, "n -a")])
+        (Right [mkevent 0 1 "n =b" [] Nothing ["b"],
+            mkevent 1 1 "n -a" [] Nothing []],
         [])
     -- alternate syntax
-    equal (run ">i" [(0, 1, ""), (1, 1, ">i2 |")])
+    equal (run ">i" [(0, 1, ""), (1, 1, "n >i2 |")])
         (Right [mkevent 0 1 "" [] inst [],
-            mkevent 1 1 ">i2 |" [] (Just "i2") []],
+            mkevent 1 1 "n >i2 |" [] (Just "i2") []],
         [])
 
 test_c_block = do
@@ -72,7 +72,7 @@ test_c_block = do
         ["args for block call not implemented yet"]
 
     -- subderived stuff is stretched and placed, inherits instrument
-    let (evts, logs) = run [(0, 1, "sub"), (1, 2, ">i +a | sub")]
+    let (evts, logs) = run [(0, 1, "sub"), (1, 2, "n >i +a | sub")]
     equal logs []
     equal evts $ Right
         [ mkevent 0 1 "--sub"
@@ -99,11 +99,6 @@ test_c_equal = do
         ++ "*expected type Instrument"
     equal logs []
 
-    let (evts, logs) = run "> | 42 = >inst" [(0, 1, "")]
-    left_like evts
-        "arg 0/symbol: expected type Symbol but got 42"
-    equal logs []
-
     -- only the event with the error is omitted
     let (evts, logs) = run ">" [(0, 1, "inst = inst |"), (1, 1, "")]
     equal evts (Right [(1, Nothing, [])])
@@ -120,7 +115,7 @@ test_c_equal = do
         (Right [(1, inst "i", ["a", "b"]), (3, inst "i", ["b"])], [])
 
     -- works as transformer
-    equal (run ">i" [(0, 1, ""), (1, 1, "inst = >i2 |"), (2, 1, ">i3 |")])
+    equal (run ">i" [(0, 1, ""), (1, 1, "inst = >i2 |"), (2, 1, "n >i3 |")])
         (Right [(0, inst "i", []), (1, inst "i2", []), (2, inst "i3", [])], [])
 
 test_environ_across_tracks = do
@@ -158,16 +153,11 @@ test_call_errors = do
     let run_title title = extract $
             DeriveTest.derive_tracks_tempo [(title, [(0, 1, "--1")])]
     left_like (run_title ">i | no-such-call") "unknown Symbol \"no-such-call\""
-    left_like (run_title ">i | delay *bad-arg")
-        "expected type Control but got"
-    left_like (run_title ">i | delay 1 2 3 4")
-        "too many arguments"
-    left_like (run_title ">i | delay")
-        "not in environment and no default given"
-    left_like (run_title ">i | delay _")
-        "not in environment"
-    left_like (run_title ">i | delay %delay")
-        "not in environment"
+    left_like (run_title ">i | delay *bad-arg") "expected type Control but got"
+    left_like (run_title ">i | delay 1 2 3 4") "too many arguments"
+    left_like (run_title ">i | delay") "not in environment and no default given"
+    left_like (run_title ">i | delay _") "not in environment"
+    left_like (run_title ">i | delay %delay") "not in environment"
 
     let run_evt evt = extract $
             DeriveTest.derive_tracks_tempo [(">i", [(0, 1, evt)])]

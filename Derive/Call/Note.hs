@@ -19,6 +19,9 @@ import qualified Perform.PitchSignal as PitchSignal
 note_calls :: Derive.NoteCallMap
 note_calls = Derive.make_calls
     [ ("", c_note)
+    -- | Since you can never call "" with arguments, I need a non-null form
+    -- to handle the args version.
+    , ("n", c_note)
     , ("=", Call.c_equal Derive.no_events)
     ]
 

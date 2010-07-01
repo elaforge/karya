@@ -133,9 +133,10 @@ import Util.Control
 import Ui
 import qualified Ui.Track as Track
 
-import qualified Derive.Derive as Derive
-import qualified Derive.TrackLang as TrackLang
 import qualified Derive.Call as Call
+import qualified Derive.Derive as Derive
+import qualified Derive.Score as Score
+import qualified Derive.TrackLang as TrackLang
 
 
 -- * note track
@@ -146,7 +147,7 @@ d_note_track track_id = do
     track <- Derive.get_track track_id
     track_expr <- case TrackLang.parse (Track.track_title track) of
         Left err -> Derive.throw $ "track title: " ++ err
-        Right expr -> return expr
+        Right expr -> return (preprocess_title expr)
     -- TODO event calls are evaluated in normalized time, but track calls
     -- aren't.  Should they be?
     let pos_events = Track.event_list (Track.track_events track)
@@ -162,3 +163,12 @@ derive_notes events = Derive.merge_event_lists <$>
 derive_info :: String -> Call.DeriveInfo Derive.Events
 derive_info caller =
     Call.DeriveInfo caller Derive.no_events Call.lookup_note_call
+
+-- | It's convenient to tag a note track with @>inst@ to set its instrument.
+-- Unfortunately, this is parsed as a call to @>inst@
+preprocess_title :: Call.PreProcess
+preprocess_title (TrackLang.Call (TrackLang.Symbol ('>':inst)) args : calls) =
+    TrackLang.Call (TrackLang.Symbol "n") (mkinst inst : args) : calls
+    where
+    mkinst = TrackLang.Literal . TrackLang.VInstrument . Score.Instrument
+preprocess_title expr = expr

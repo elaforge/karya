@@ -326,9 +326,6 @@ data Term = ValCall Call | Literal Val deriving (Eq, Show)
 call :: String -> Call
 call sym = Call (Symbol sym) []
 
--- expr :: (Typecheck a) => [(String, [a])] -> Expr
--- expr = map (uncurry call)
-
 -- TODO These should remain the same as the ones in Derive.Schema.Default for
 -- consistency.  I can't use those directly because of circular imports.
 inst_literal_prefix, note_literal_prefix :: String
@@ -351,13 +348,17 @@ parse_control_track text = do
             Right (calls, combined)
         _ -> Left "not reached because of 'parse' postcondition"
     where
-    combine (Call call_id terms)
+    combine (Call call_id@(Symbol sym) terms)
         | not (null [() | ValCall _ <- terms]) =
             Left "val calls not supported in control track title"
+        | null sym = Right [val | Literal val <- terms]
         | otherwise = Right $ VSymbol call_id : [val | Literal val <- terms]
 
 parse_vals :: String -> Either String [Val]
 parse_vals text = Parse.parse_all (P.many p_val) (strip_comment text)
+
+parse_val :: String -> Either String Val
+parse_val = Parse.parse_all p_val
 
 p_pipeline :: P.Parser Expr
 p_pipeline = P.sepBy p_expr (Parse.symbol "|")
@@ -365,15 +366,25 @@ p_pipeline = P.sepBy p_expr (Parse.symbol "|")
 p_expr, p_equal :: P.Parser Call
 p_expr = P.try p_equal <|> P.try p_call <|> p_null_call
 p_equal = do
-    a1 <- p_val
-    Parse.symbol "="
+    a1 <- p_call_symbol
+    P.skipMany1 P.space
+    P.char '='
+    -- This ensures that "a =b" is not interpreted as an equal expression.
+    P.skipMany1 P.space
     a2 <- p_term
-    return $ Call c_equal [Literal a1, a2]
+    return $ Call c_equal [Literal (VSymbol a1), a2]
 
-p_call, p_null_call :: P.Parser Call
-p_call = Call <$> (Parse.lexeme p_symbol) <*> P.many p_term
-p_null_call = Call <$>
-    P.option (Symbol "") (Parse.lexeme p_symbol) <*> P.many p_term
+p_call :: P.Parser Call
+p_call = Call <$> Parse.lexeme p_call_symbol <*> P.many p_term
+
+p_null_call :: P.Parser Call
+p_null_call = return (Call (Symbol "") []) <?> "null call"
+
+-- | Any word in call position is considered a Symbol.  This means that
+-- you can have calls like @4@ and @>@, which are useful names for notes or
+-- ornaments.
+p_call_symbol :: P.Parser Symbol
+p_call_symbol = Symbol <$> p_word
 
 strip_comment :: String -> String
 strip_comment = fst . Seq.break_tails ("--" `List.isPrefixOf`)

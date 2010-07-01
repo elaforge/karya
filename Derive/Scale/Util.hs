@@ -75,7 +75,6 @@ lookup_input input input_map
     (pre, at, post) = Map.splitLookup input input_map
     i (Pitch.InputKey nn) = nn
 
-
 degree_to_nn :: ScaleMap -> Pitch.Degree -> Maybe Pitch.NoteNumber
 degree_to_nn smap (Pitch.Degree degree) = do
     let (int, frac) = properFraction degree

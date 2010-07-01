@@ -19,12 +19,11 @@ test_parse = do
     equal (f "a | b | c") $ Right $
         [Call (Symbol "a") [], Call (Symbol "b") [], Call (Symbol "c") []]
 
-    equal (f "a") $ Right [Call (Symbol "a") []]
-    equal (f "a 42") $ Right [Call (Symbol "a") [VNum 42]]
-    equal (f ">inst") $ Right
-        [Call (Symbol "") [VInstrument (Score.Instrument "inst")]]
+    -- Any word in call position is a symbol.
+    equal (f "4") $ Right [Call (Symbol "4") []]
+    equal (f "4 4") $ Right [Call (Symbol "4") [Literal (VNum 4)]]
+    -- So the only way to have a null call is a null expression.
     equal (f "") $ Right [Call (Symbol "") []]
-    equal (f "|") $ Right [Call (Symbol "") [], Call (Symbol "") []]
 
     equal (f "a") $ Right [Call (Symbol "a") []]
     equal (f "a 42") $ Right [Call (Symbol "a") [Literal (VNum 42)]]
@@ -32,9 +31,9 @@ test_parse = do
 
     equal (f "a | b = 4 | . >inst %sig") $ Right
         [ Call (Symbol "a") []
-        , Call (Symbol "=") [VSymbol (Symbol "b"), VNum 4]
-        , Call (Symbol "") [VInstrument (Score.Instrument "inst"),
-            VControl (Control (Score.Control "sig"))]
+        , Call (Symbol "=") (map Literal [symbol "b", VNum 4])
+        , Call (Symbol ".") (map Literal [VInstrument (Score.Instrument "inst"),
+            VControl (Control (Score.Control "sig"))])
         ]
 
     -- Symbols can have anything in them as long as they start with a letter.
@@ -104,6 +103,12 @@ test_p_equal = do
     left_like (f "a = ()") "unexpected \")\""
     left_like (f "(a) = b") "unexpected \"(\""
     left_like (f "a=") "unexpected end of input"
+
+    let parse = TrackLang.parse
+    equal (parse "a =b") $ Right [Call (Symbol "a")
+        [Literal (VRelativeAttr (TrackLang.RelativeAttr (Set, "b")))]]
+    equal (parse "a= b") $ Right [Call (Symbol "a=") [Literal (symbol "b")]]
+    equal (parse "a=b") $ Right [Call (Symbol "a=b") []]
 
 val_call sym args = ValCall (Call (Symbol sym) args)
 symbol sym = VSymbol (Symbol sym)

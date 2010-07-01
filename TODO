@@ -27,7 +27,7 @@ CURRENT
     * parser supports ()s and sub exprs
     * evaluate each word separately
     * lookup in XyzMap, then in ValMap
-    - control: preproc takes VNum d -> Symbol "set" (VNum d)
+    * control: preproc takes VNum d -> Symbol "set" (VNum d)
     - absolute pitch: no preproc, val is a call that returns VDegree, fallback
       turns that into 'set'
     - relative pitch: relative pitch scale has -n -- n
@@ -46,7 +46,7 @@ CURRENT
       But I'll want a Typecheck promotion from Num -> Degree so I can write
       4 instead of (4), especially for relative pitches.  Except I think I
       don't because that will be error prone if relative scale is fancy.
-  - remove null call
+  * remove null call
 
   - derivers as normal args causes a problem for transformers with optional
     args: 'echo | xyz' -> 'echo (xyz)', but the required transformer arg

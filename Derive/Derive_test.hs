@@ -33,14 +33,14 @@ test_basic = do
     -- verify the three phases of derivation
     -- 1: derivation to score events
     let (events, logs) = DeriveTest.e_val_right $ DeriveTest.derive_tracks
-            [ (inst_title ++ " +a1", [(0, 16, "+a0"), (16, 16, "+a2")])
+            [ (inst_title ++ " +a1", [(0, 16, "n +a0"), (16, 16, "n +a2")])
             , ("*twelve", [(0, 0, "4c"), (16, 0, "4c#")])
             ]
     let (perf_events, convert_warns, mmsgs, midi_warns) = DeriveTest.perform
             DeriveTest.default_inst_config events
 
     equal logs []
-    equal (extract_events events) [(0, 16, "+a0"), (16, 16, "+a2")]
+    equal (extract_events events) [(0, 16, "n +a0"), (16, 16, "n +a2")]
 
     -- 2: conversion to midi perf events
     equal convert_warns []
@@ -357,7 +357,7 @@ test_fractional_pitch = do
 
 test_control = do
     let (events, logs) = DeriveTest.e_val_right $ DeriveTest.derive_tracks
-            [ (inst_title, [(0, 1, "+a1"), (1, 1, "+a2")])
+            [ (inst_title, [(0, 1, "n +a1"), (1, 1, "n +a2")])
             , ("*twelve", [(0, 1, "4c"), (1, 1, "4c#")])
             , ("cc1", [(0, 0, "1"), (1, 0, "i .75"), (2, 0, "i 0")])
             ]
@@ -367,7 +367,7 @@ test_control = do
     -- Cursory checks, more detailed checks are in more Note_test and
     -- Control_test.
     equal logs []
-    equal (extract_events events) [(0, 1, "+a1"), (1, 1, "+a2")]
+    equal (extract_events events) [(0, 1, "n +a1"), (1, 1, "n +a2")]
     equal (map (Set.toList . Score.attrs_set . Score.event_attributes) events)
         [["a1"], ["a2"]]
 
