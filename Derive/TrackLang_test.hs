@@ -6,7 +6,7 @@ import qualified Util.Parse as Parse
 
 import qualified Derive.Score as Score
 import Derive.TrackLang (AttrMode(..), Call(..), Method(..), Control(..),
-    Symbol(..), Val(..))
+    Symbol(..), Val(..), Term(..))
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
@@ -26,7 +26,11 @@ test_parse = do
     equal (f "") $ Right [Call (Symbol "") []]
     equal (f "|") $ Right [Call (Symbol "") [], Call (Symbol "") []]
 
-    equal (f "a | b = 4 | >inst %sig") $ Right
+    equal (f "a") $ Right [Call (Symbol "a") []]
+    equal (f "a 42") $ Right [Call (Symbol "a") [Literal (VNum 42)]]
+    equal (f "a | ") $ Right [Call (Symbol "a") [], Call (Symbol "") []]
+
+    equal (f "a | b = 4 | . >inst %sig") $ Right
         [ Call (Symbol "a") []
         , Call (Symbol "=") [VSymbol (Symbol "b"), VNum 4]
         , Call (Symbol "") [VInstrument (Score.Instrument "inst"),
@@ -35,6 +39,13 @@ test_parse = do
 
     -- Symbols can have anything in them as long as they start with a letter.
     equal (f "a|b=4") $ Right [Call (Symbol "a|b=4") []]
+
+    -- Except parens, which start a subcall.
+    equal (f "a(b(4))") $
+        Right [Call (Symbol "a") [val_call "b" [val_call "4" []]]]
+    -- Unbalanced parens.
+    -- The error msg is strange for this one, I don't know why.
+    left_like (f "a (b") "parse error"
 
 test_p_val = do
     let mkattr = Just . VRelativeAttr . TrackLang.RelativeAttr
@@ -85,8 +96,14 @@ test_p_val = do
             _ -> success $ show res ++ " == " ++ show expected
 
 test_p_equal = do
-    let eq a b = Right (Call (Symbol "=") [VSymbol (Symbol a), b])
+    let eq a b = Right (Call (Symbol "=") [Literal $ VSymbol (Symbol a), b])
     let f = Parse.parse_all TrackLang.p_equal
-    equal (f "a = b") (eq "a" (VSymbol (Symbol "b")))
-    equal (f "a = 10") (eq "a" (VNum 10))
+    equal (f "a = b") (eq "a" (Literal (VSymbol (Symbol "b"))))
+    equal (f "a = 10") (eq "a" (Literal (VNum 10)))
+    equal (f "a = (b c)") (eq "a" (val_call "b" [Literal (symbol "c")]))
+    left_like (f "a = ()") "unexpected \")\""
+    left_like (f "(a) = b") "unexpected \"(\""
     left_like (f "a=") "unexpected end of input"
+
+val_call sym args = ValCall (Call (Symbol sym) args)
+symbol sym = VSymbol (Symbol sym)

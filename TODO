@@ -5,7 +5,66 @@ auto insert imports in vim:
   - figure out where to insert it, and insert it
 
 CURRENT
+  Call as any word means I can't write ">inst" as a note track title.  prproc?
+  First word is call means that "+attr" or ">inst" no longer works.  In
+  exchange I get calls named '4' or '>' or whatever.  I think if I want
+  a specific attr I should make it a call anyway: "rim = (attr = +rim)"
+
+  Or use null-parsing for note tracks.  Inconsistent parsing is bad.
+
+  Null parsing in pitch tracks means that '4' can't be a call, so I'd need
+  a preproc back to change x to (x).  Also preproc must go back to being
+  textual.  Then, '>' in a control track can't be a call.
+
+  So, I think arbitrary call names are too important.  If I later add call
+  lookup handlers, I can both eliminate the control preproc (num is a call to
+  "set num") and apply '+whatever' as a call.  However a lookup handler seems
+  morally equivalent to preproc.
+
+  - should I make the control title expression the first one instead of last?
+
   - scale as sub-call
+    * parser supports ()s and sub exprs
+    * evaluate each word separately
+    * lookup in XyzMap, then in ValMap
+    - control: preproc takes VNum d -> Symbol "set" (VNum d)
+    - absolute pitch: no preproc, val is a call that returns VDegree, fallback
+      turns that into 'set'
+    - relative pitch: relative pitch scale has -n -- n
+    - note: no preproc
+    - scale adds its degrees to val call map
+      I can use the current scale as a fallback in the val call lookup just
+      like the note lookup looks in blocks.
+
+      If I put (Note -> Maybe ValCall) in Scale, then Scale needs to import
+      Derive.  If I give it a type param then it's hard for TrackLang.Val to
+      have a Scale
+
+      So either, put Val and Scale into Derive, or store ScaleIds in Val
+
+    - make a Degree type so calls don't have to take degree as VNum
+      But I'll want a Typecheck promotion from Num -> Degree so I can write
+      4 instead of (4), especially for relative pitches.  Except I think I
+      don't because that will be error prone if relative scale is fancy.
+  - remove null call
+
+  - derivers as normal args causes a problem for transformers with optional
+    args: 'echo | xyz' -> 'echo (xyz)', but the required transformer arg
+    can't follow an optional call arg.  I can solve this by partially
+    implementing keyword args.  'echo | xyz' is sugar for
+    'echo deriver:(xyz)'.  The typechecker first associates kw args with
+    their matching args and then procedes normally.
+
+  - remove TrackLang.VMethod
+  - remove consumed call return unless I can think of something good for it
+  * test_util regex match uses a simplified regex that only supports *
+
+  - incremental saving: pair diffs with the changed bit.  Then save that chunk
+    on every save.  Occaisionally write a checkpoint, which is just the whole
+    state, and throw away all states before it.  On load, scan to the last
+    checkpoint, load it, and apply the subsequent diffs.  On undo, if there are
+    no previous states, load the previous checkpoint and apply its diffs.
+
   + rts crash
     - Did alignment change fix it?  Wait a while and mail list if it's still
       gone.
@@ -19,6 +78,7 @@ CURRENT
     - eliminate the deriver memory spike
       - doesn't seem to happen so much with subderivations
       - possibly put/get/modify is too lazy?
+      - maybe split Derive.State into dynamic and static portions?
       - or maybe it's the control deriver creating a huge list of signal
         chunks, which is then all forced at once since merge needs them all.
 
@@ -786,6 +846,15 @@ research:
 future:
   - I need to sync with a DAW but don't want to implement rewire.
     Which DAWs support jack?  ardour, reaper?, ...?
+
+    Can I use ardour as vst host, DAW, and track freezer?  It has OSC support
+    and I could add more.  Downside: no windows.
+
+    - vst host: Need to programmatically load plugins, configure plugins, route
+      audio.
+    - DAW: Need to sync play position.
+    - track freezer: Record plugin output, sync play position.
+
   - check out jack some more.  I don't necessarily support it in the beginning
     but should have an idea at least.
     Looks like I could use it for midi i/o, but what's the advantage over

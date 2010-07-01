@@ -8,6 +8,7 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
 import Util.Control
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import Derive.Derive (PassedArgs(..))
@@ -177,7 +178,7 @@ check_args passed args
         then show (length required)
         else "from " ++ show (length required) ++ " to " ++ show (length args)
     expected = "expected " ++ arg_range ++ ", got "
-        ++ show (length vals) ++ " " ++ show vals
+        ++ show (length vals) ++ ": " ++ Pretty.pretty vals
         ++ if from_env == 0 then ""
             else " (" ++ show from_env ++ " from environ)"
 

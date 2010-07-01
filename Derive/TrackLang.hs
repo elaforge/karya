@@ -316,16 +316,8 @@ instance Error.Error TypeError where
 
 -- | The only operator is @|@, so a list of lists suffices for an AST.
 type Expr = [Call]
-data Call = Call CallId [Val] deriving (Eq, Show)
-
-data Call2 = Call2 CallId [Term] deriving (Show)
-data Term = Expr Call2 | Literal Val deriving (Show)
-
-parse_call :: String -> Either String Call2
-parse_call text = Parse.parse_all p_pipeline2 (strip_comment text)
-
-p_pipeline2 :: P.Parser Call2
-p_pipeline2 = undefined
+data Call = Call CallId [Term] deriving (Eq, Show)
+data Term = ValCall Call | Literal Val deriving (Eq, Show)
 
 -- | Convenient constructor for Call.  Not to be confused with 'call0'--calln.
 --
@@ -354,11 +346,15 @@ parse_control_track :: String -> Either String (Expr, [Val])
 parse_control_track text = do
     expr <- parse text
     case Seq.break_last expr of
-        (calls, Just track_expr) -> Right (calls, combine track_expr)
+        (calls, Just track_expr) -> do
+            combined <- combine track_expr
+            Right (calls, combined)
         _ -> Left "not reached because of 'parse' postcondition"
     where
-    combine (Call (Symbol "") vals) = vals
-    combine (Call call_id vals) = VSymbol call_id : vals
+    combine (Call call_id terms)
+        | not (null [() | ValCall _ <- terms]) =
+            Left "val calls not supported in control track title"
+        | otherwise = Right $ VSymbol call_id : [val | Literal val <- terms]
 
 parse_vals :: String -> Either String [Val]
 parse_vals text = Parse.parse_all (P.many p_val) (strip_comment text)
@@ -371,16 +367,22 @@ p_expr = P.try p_equal <|> P.try p_call <|> p_null_call
 p_equal = do
     a1 <- p_val
     Parse.symbol "="
-    a2 <- p_val
-    return $ Call c_equal [a1, a2]
+    a2 <- p_term
+    return $ Call c_equal [Literal a1, a2]
 
 p_call, p_null_call :: P.Parser Call
-p_call = Call <$> (Parse.lexeme p_symbol) <*> P.many p_val
+p_call = Call <$> (Parse.lexeme p_symbol) <*> P.many p_term
 p_null_call = Call <$>
-    P.option (Symbol "") (Parse.lexeme p_symbol) <*> P.many p_val
+    P.option (Symbol "") (Parse.lexeme p_symbol) <*> P.many p_term
 
 strip_comment :: String -> String
 strip_comment = fst . Seq.break_tails ("--" `List.isPrefixOf`)
+
+p_term :: P.Parser Term
+p_term = Literal <$> p_val <|> ValCall <$> p_sub_call
+
+p_sub_call :: P.Parser Call
+p_sub_call = P.between (P.char '(') (P.char ')') p_call
 
 p_val :: P.Parser Val
 p_val = Parse.lexeme $
@@ -469,5 +471,5 @@ p_single_string = P.between (P.char '\'') (P.char '\'') $
     P.many (P.noneOf "'" <|> (P.try (P.string "''") >> return '\''))
 
 p_word, p_null_word :: P.Parser String
-p_word = P.many1 (P.noneOf " ")
-p_null_word = P.many (P.noneOf " ")
+p_word = P.many1 (P.noneOf " ()")
+p_null_word = P.many (P.noneOf " ()")

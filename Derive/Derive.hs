@@ -210,12 +210,14 @@ data CallMap = CallMap {
     calls_note :: NoteCallMap
     , calls_control :: ControlCallMap
     , calls_pitch :: PitchCallMap
-    }
-empty_call_map = CallMap Map.empty Map.empty Map.empty
+    , calls_val :: ValCallMap
+    } deriving (Show)
+empty_call_map = CallMap Map.empty Map.empty Map.empty Map.empty
 
 type NoteCallMap = Map.Map TrackLang.CallId NoteCall
 type ControlCallMap = Map.Map TrackLang.CallId ControlCall
 type PitchCallMap = Map.Map TrackLang.CallId PitchCall
+type ValCallMap = Map.Map TrackLang.CallId ValCall
 
 -- | A Call will be called as either a generator or a transformer, depending on
 -- its position.  A call at the end of a compose pipeline will be called as
@@ -229,9 +231,24 @@ data Call derived = Call {
     , call_transformer :: Maybe (TransformerCall derived)
     }
 
+instance Show (Call derived) where
+    show (Call name gen trans) = "<call " ++ name ++ Seq.join " " tags ++ ">"
+        where
+        tags = [t | (t, True) <- [("generator", Maybe.isJust gen),
+            ("transformer", Maybe.isJust trans)]]
+
 type NoteCall = Call Events
 type ControlCall = Call Control
 type PitchCall = Call Pitch
+
+data ValCall = ValCall {
+    vcall_name :: String
+    , vcall_call :: PassedArgs TrackLang.Val
+        -> Either TrackLang.TypeError (Deriver TrackLang.Val)
+    }
+
+instance Show ValCall where
+    show (ValCall name _) = "<val call" ++ name ++ ">"
 
 -- | Data passed to a 'Call'.
 data PassedArgs derived = PassedArgs {
@@ -271,6 +288,9 @@ passed_prev_val = info_prev_val . passed_info
 
 -- | Additional data for a call.  This part is invariant for all calls on
 -- an event.
+--
+-- Not used at all for val calls.
+-- events not used for transform calls.
 data CallInfo derived = CallInfo {
     -- | The deriver was stretched by the reciprocal of this number to put it
     -- into normalized 0--1 time (i.e. this is the deriver's original
@@ -320,17 +340,8 @@ generate_one :: String
     -> Call derived
 generate_one name call = generator name $ \args -> fmap (, 1) (call args)
 
-make_calls :: [(String, Call derived)]
-    -> Map.Map TrackLang.CallId (Call derived)
+make_calls :: [(String, call)] -> Map.Map TrackLang.CallId call
 make_calls = Map.fromList . map (first TrackLang.Symbol)
-
-instance Show CallMap where
-    show (CallMap note control pitch) =
-        "(CallMap " ++ keys note ++ " " ++ keys control ++ " " ++ keys pitch
-        ++ ")"
-        where
-        keys m = "<" ++ Seq.join ", " [c | TrackLang.Symbol c <- Map.keys m]
-            ++ ">"
 
 -- ** state support
 

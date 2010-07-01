@@ -122,10 +122,12 @@ data DeriveInfo derived = DeriveInfo {
     info_caller :: String
     -- | This deriver's empty value to return on failure.
     , info_empty :: derived
-    , info_lookup :: TrackLang.CallId -> Derive.Deriver (Derive.Call derived)
+    , info_lookup :: TrackLang.CallId
+        -> Derive.Deriver (Maybe (Derive.Call derived))
     }
 
-type PreProcess = String -> String -- TrackLang.Expr -> TrackLang.Expr
+type PreProcess = TrackLang.Expr -> TrackLang.Expr
+type Info derived = (DeriveInfo derived, Derive.CallInfo derived)
 
 derive_track :: DeriveInfo derived -> PreProcess
     -> (Maybe (RealTime, Derive.Element derived) -> derived
@@ -162,9 +164,9 @@ derive_event :: DeriveInfo derived -> PreProcess
     -> GeneratorReturn derived
 derive_event dinfo preproc prev_val prev cur@(_, event) next
     | Event.event_string event == "--" = skip (info_empty dinfo)
-    | otherwise = case TrackLang.parse (preproc (Event.event_string event)) of
+    | otherwise = case TrackLang.parse (Event.event_string event) of
         Left err -> Derive.warn err >> skip (info_empty dinfo)
-        Right expr -> run_call expr
+        Right expr -> run_call (preproc expr)
     where
     -- TODO move with_catch down here
     run_call expr = do
@@ -189,40 +191,55 @@ derive_event dinfo preproc prev_val prev cur@(_, event) next
             ((pos-start) / stretch, Event.modify_duration (/stretch) evt)
         evt0 = Event.modify_duration (/stretch) (snd cur)
 
-apply_toplevel :: (DeriveInfo derived, Derive.CallInfo derived)
-    -> TrackLang.Expr -> GeneratorReturn derived
+apply_toplevel :: Info derived -> TrackLang.Expr -> GeneratorReturn derived
 apply_toplevel info expr = case Seq.break_last expr of
     (transform_calls, Just generator_call) -> do
         (deriver, consumed) <- apply_generator info generator_call
         return (apply_transformer info transform_calls deriver, consumed)
     _ -> Derive.throw "event with no calls at all (this shouldn't happen)"
 
-apply_generator :: (DeriveInfo derived, Derive.CallInfo derived)
-    -> TrackLang.Call -> GeneratorReturn derived
-apply_generator (dinfo, cinfo) (TrackLang.Call call_id args) = do
-    call <- info_lookup dinfo call_id
+apply_generator :: Info derived -> TrackLang.Call -> GeneratorReturn derived
+apply_generator info@(dinfo, cinfo) (TrackLang.Call call_id args) = do
+    maybe_call <- info_lookup dinfo call_id
+    (call, vals) <- case maybe_call of
+        Just call -> do
+            vals <- mapM (eval info) args
+            return (call, vals)
+        Nothing -> do
+            maybe_call <- lookup_val_call call_id
+            case maybe_call of
+                Nothing -> Derive.throw $ unknown_call_id call_id
+                Just vcall -> do
+                    val <- apply info call_id vcall args
+                    -- We only do this fallback thing once.
+                    fb_call <- with_call fallback_call_id (info_lookup dinfo)
+                    return (fb_call, [val])
+
     env <- Derive.gets Derive.state_environ
-    let with_msg = Derive.with_msg $
-            info_caller dinfo ++ " generate " ++ Derive.call_name call
-    let passed = Derive.PassedArgs args env call_id cinfo
+    let passed = Derive.PassedArgs vals env call_id cinfo
     case Derive.call_generator call of
         Just c -> case c passed of
-            Left err -> with_msg $ Derive.throw $ Pretty.pretty err
-            Right (deriver, consumed) -> return (with_msg deriver, consumed)
-        Nothing -> with_msg $
+            Left err -> with_msg call $ Derive.throw $ Pretty.pretty err
+            Right (deriver, consumed) ->
+                return (with_msg call deriver, consumed)
+        Nothing -> with_msg call $
             Derive.throw "non-generator in generator position"
+    where
+    with_msg call = Derive.with_msg $
+        info_caller dinfo ++ " generate " ++ Derive.call_name call
 
-apply_transformer :: (DeriveInfo derived, Derive.CallInfo derived)
-    -> TrackLang.Expr -> Derive.Deriver derived -> Derive.Deriver derived
+apply_transformer :: Info derived -> TrackLang.Expr
+    -> Derive.Deriver derived -> Derive.Deriver derived
 apply_transformer _ [] deriver = deriver
 apply_transformer info@(dinfo, cinfo) (TrackLang.Call call_id args : calls)
         deriver = do
+    vals <- mapM (eval info) args
     let new_deriver = apply_transformer info calls deriver
-    call <- info_lookup dinfo call_id
+    call <- with_call call_id (info_lookup dinfo)
     env <- Derive.gets Derive.state_environ
     let with_msg = Derive.with_msg $
             info_caller dinfo ++ " transform " ++ Derive.call_name call
-    let passed = Derive.PassedArgs args env call_id cinfo
+    let passed = Derive.PassedArgs vals env call_id cinfo
     case Derive.call_transformer call of
         Just c -> case c passed new_deriver of
             Left err -> with_msg $ Derive.throw $ Pretty.pretty err
@@ -230,20 +247,45 @@ apply_transformer info@(dinfo, cinfo) (TrackLang.Call call_id args : calls)
         Nothing -> with_msg $
             Derive.throw "non-transformer in transformer position"
 
--- * lookup_note_call
+eval :: Info derived -> TrackLang.Term -> Derive.Deriver TrackLang.Val
+eval _ (TrackLang.Literal val) = return val
+eval info (TrackLang.ValCall (TrackLang.Call call_id terms)) = do
+    call <- with_call call_id lookup_val_call
+    apply info call_id call terms
 
-lookup_note_call :: TrackLang.CallId -> Derive.Deriver Derive.NoteCall
+apply :: Info derived -> TrackLang.CallId -> Derive.ValCall -> [TrackLang.Term]
+    -> Derive.Deriver TrackLang.Val
+apply info@(dinfo, _) call_id call args = do
+    env <- Derive.gets Derive.state_environ
+    let with_msg = Derive.with_msg $
+            info_caller dinfo ++ " val call " ++ Derive.vcall_name call
+    vals <- mapM (eval info) args
+    let passed = Derive.PassedArgs vals env call_id Derive.dummy_call_info
+    case Derive.vcall_call call passed of
+        Left err -> with_msg $ Derive.throw $ Pretty.pretty err
+        Right result -> with_msg result
+
+with_call :: TrackLang.CallId
+    -> (TrackLang.CallId -> Derive.Deriver (Maybe call)) -> Derive.Deriver call
+with_call call_id lookup =
+    maybe (Derive.throw (unknown_call_id call_id)) return =<< lookup call_id
+
+unknown_call_id :: TrackLang.CallId -> String
+unknown_call_id call_id = "unknown " ++ show call_id
+
+fallback_call_id :: TrackLang.CallId
+fallback_call_id = TrackLang.Symbol ""
+
+-- * lookup call
+
+lookup_note_call :: TrackLang.CallId -> Derive.Deriver (Maybe Derive.NoteCall)
 lookup_note_call call_id = do
     st <- Derive.get
     let default_ns = State.state_project (Derive.state_ui st)
         block_id = Types.BlockId (make_id default_ns call_id)
-    let call_map = Derive.calls_note (Derive.state_call_map st)
     if block_id `Map.member` State.state_blocks (Derive.state_ui st)
-        then return $ c_block block_id
-        else case Map.lookup call_id call_map of
-            Nothing ->
-                Derive.throw $ "lookup_note_call: unknown " ++ show call_id
-            Just call -> return call
+        then return $ Just $ c_block block_id
+        else lookup_call Derive.calls_note call_id
 
 c_block :: BlockId -> Derive.NoteCall
 c_block block_id = Derive.generate_one "block" $ \args ->
@@ -258,24 +300,28 @@ block_call block_id =
 -- | Make an Id from a string, relative to the current ns if it doesn't already
 -- have one.
 --
--- TODO move this to a more generic place since LanguageCmds may want it to?
+-- TODO move this to a more generic place since LanguageCmds may want it too?
 make_id :: String -> TrackLang.CallId -> Id.Id
 make_id default_ns (TrackLang.Symbol ident_str) = Id.id ns ident
     where
     (w0, w1) = break (=='/') ident_str
     (ns, ident) = if null w1 then (default_ns, w0) else (w0, drop 1 w1)
 
-lookup_control_call :: TrackLang.CallId -> Derive.Deriver Derive.ControlCall
-lookup_control_call call_id = do
-    cmap <- Derive.gets (Derive.calls_control . Derive.state_call_map)
-    maybe (Derive.throw $ "lookup_control_call: unknown " ++ show call_id)
-        return (Map.lookup call_id cmap)
+lookup_control_call :: TrackLang.CallId
+    -> Derive.Deriver (Maybe Derive.ControlCall)
+lookup_control_call = lookup_call Derive.calls_control
 
-lookup_pitch_call :: TrackLang.CallId -> Derive.Deriver Derive.PitchCall
-lookup_pitch_call call_id = do
-    cmap <- Derive.gets (Derive.calls_pitch . Derive.state_call_map)
-    maybe (Derive.throw $ "lookup_pitch_call: unknown " ++ show call_id) return
-        (Map.lookup call_id cmap)
+lookup_pitch_call :: TrackLang.CallId -> Derive.Deriver (Maybe Derive.PitchCall)
+lookup_pitch_call = lookup_call Derive.calls_pitch
+
+lookup_val_call :: TrackLang.CallId -> Derive.Deriver (Maybe Derive.ValCall)
+lookup_val_call = lookup_call Derive.calls_val
+
+lookup_call :: (Derive.CallMap -> Map.Map TrackLang.CallId call)
+    -> TrackLang.CallId -> Derive.Deriver (Maybe call)
+lookup_call get_cmap call_id = do
+    cmap <- Derive.gets (get_cmap . Derive.state_call_map)
+    return (Map.lookup call_id cmap)
 
 -- * c_equal
 

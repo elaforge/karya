@@ -65,7 +65,12 @@ type Result a = (Either String a, Transport.TempoFunction,
     Transport.InverseTempoFunction, [Log.Msg], Derive.State)
 
 derive_tracks :: [UiTest.TrackSpec] -> Result [Score.Event]
-derive_tracks tracks = derive_block ui_state UiTest.default_block_id
+derive_tracks = derive_tracks_cmap Call.All.call_map
+
+derive_tracks_cmap :: Derive.CallMap -> [UiTest.TrackSpec]
+    -> Result [Score.Event]
+derive_tracks_cmap cmap tracks =
+    derive_block_cmap cmap ui_state UiTest.default_block_id
     where (_, ui_state) = UiTest.run_mkstate tracks
 
 derive_tracks_tempo :: [UiTest.TrackSpec] -> Result [Score.Event]
@@ -90,14 +95,23 @@ derive_blocks block_tracks = derive_block ui_state bid
     bid = UiTest.bid (fst (head block_tracks))
 
 derive_block :: State.State -> BlockId -> Result [Score.Event]
-derive_block ui_state block_id = derive lookup_deriver ui_state deriver
+derive_block = derive_block_cmap Call.All.call_map
+
+derive_block_cmap :: Derive.CallMap -> State.State -> BlockId
+    -> Result [Score.Event]
+derive_block_cmap cmap ui_state block_id =
+    derive_cmap cmap lookup_deriver ui_state deriver
     where
     lookup_deriver = Schema.lookup_deriver Map.empty ui_state
     deriver = Derive.d_root_block block_id
 
 derive :: Derive.LookupDeriver -> State.State -> Derive.Deriver a -> Result a
-derive lookup_deriver ui_state deriver =
-    case Derive.derive lookup_deriver ui_state Call.All.call_map False d of
+derive = derive_cmap Call.All.call_map
+
+derive_cmap :: Derive.CallMap -> Derive.LookupDeriver -> State.State
+    -> Derive.Deriver a -> Result a
+derive_cmap cmap lookup_deriver ui_state deriver =
+    case Derive.derive lookup_deriver ui_state cmap False d of
         (Left err, b, c, d, e) -> (Left (show err), b, c, d, e)
         (Right a, b, c, d, e) -> (Right a, b, c, d, e)
     -- tests are easier to write and read with integral interpolation
