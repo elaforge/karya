@@ -379,7 +379,7 @@ strip_comment :: String -> String
 strip_comment = fst . Seq.break_tails ("--" `List.isPrefixOf`)
 
 p_term :: P.Parser Term
-p_term = Literal <$> p_val <|> ValCall <$> p_sub_call
+p_term = Parse.lexeme $ Literal <$> p_val <|> ValCall <$> p_sub_call
 
 p_sub_call :: P.Parser Call
 p_sub_call = P.between (P.char '(') (P.char ')') p_call

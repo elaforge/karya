@@ -42,6 +42,8 @@ test_parse = do
     -- Except parens, which start a subcall.
     equal (f "a(b(4))") $
         Right [Call (Symbol "a") [val_call "b" [val_call "4" []]]]
+    equal (f "a (b) c") $
+        Right [Call (Symbol "a") [val_call "b" [], Literal (symbol "c")]]
     -- Unbalanced parens.
     -- The error msg is strange for this one, I don't know why.
     left_like (f "a (b") "parse error"
