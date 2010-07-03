@@ -562,12 +562,13 @@ lookup_val :: forall a m. (TrackLang.Typecheck a, Monad m) =>
     TrackLang.ValName -> DeriveT m (Maybe a)
 lookup_val name = do
     environ <- gets state_environ
-    let return_type = TrackLang.type_of_val (undefined :: a)
+    let return_type = TrackLang.to_type (error "lookup_val" :: a)
     case TrackLang.lookup_val name environ of
             Left TrackLang.NotFound -> return Nothing
             Left (TrackLang.WrongType typ) ->
                 throw $ "lookup_val " ++ show name ++ ": expected "
-                    ++ show return_type ++ " but val type is " ++ show typ
+                    ++ Pretty.pretty return_type ++ " but val type is "
+                    ++ Pretty.pretty typ
             Right v -> return (Just v)
 
 -- | Like 'lookup_val', but throw if the value isn't present.
@@ -575,7 +576,7 @@ require_val :: forall a m. (TrackLang.Typecheck a, Monad m) =>
     TrackLang.ValName -> DeriveT m a
 require_val name = do
     val <- lookup_val name
-    maybe (throw $ "val not present in environ: " ++ show name) return val
+    maybe (throw $ "environ val not found: " ++ Pretty.pretty name) return val
 
 put_val :: (Monad m, TrackLang.Typecheck val) => TrackLang.ValName -> val
     -> DeriveT m ()

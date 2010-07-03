@@ -59,7 +59,7 @@ data Val =
     -- set the instrument, but can be used to mark a track as a note track.
     -- Literal: @>@, @>inst@
     | VInstrument Score.Instrument
-    -- | Goes in a control val field.  Literal: @42.23@
+    -- | Literal: @42.23@, @-.4@
     | VNum Double
     -- | Escape a quote by doubling it.  Literal: @'hello'@, @'quinn''s hat'@
     | VString String
@@ -157,13 +157,19 @@ v_srate = Symbol "srate"
 
 data Type = TNote | TScale | TInstrument | TNum | TString
     | TRelativeAttr | TAttributes | TControl | TSymbol | TNotGiven
+    | TMaybe Type | TVal
     deriving (Eq, Show)
 
 instance Pretty.Pretty Type where
-    pretty typ = "type " ++ drop 1 (show typ)
+    pretty (TMaybe typ) = "Maybe " ++ Pretty.pretty typ
+    pretty typ = drop 1 (show typ)
 
 type_of :: Val -> Type
 type_of val = case val of
+    -- Yes, it's duplicated with 'to_type', and I can merge them by adding
+    -- a VMaybe and doing @type_of . to_val@, but 'to_val' and 'type_of' both
+    -- promising to not evaluate the value seems even more hacky than just
+    -- 'to_type' making that promise.
     VNote _ -> TNote
     VScale _ -> TScale
     VInstrument _ -> TInstrument
@@ -175,31 +181,47 @@ type_of val = case val of
     VSymbol _ -> TSymbol
     VNotGiven -> TNotGiven
 
-type_of_val :: (Typecheck a) => a -> Type
-type_of_val = type_of . to_val
-
 class Show a => Typecheck a where
     from_val :: Val -> Maybe a
     to_val :: a -> Val
+    -- | This shouldn't evaluate its argument, so you can use
+    -- @maybe undefined id@ to get the type of a @Maybe a@.
+    -- This is an unsatisfying dangerous hack.
+    to_type :: a -> Type
 
 instance Typecheck Val where
     from_val = Just
     to_val = id
+    to_type _ = TVal
+
+-- | Putting Maybe in Typecheck means I can have optional arguments with no
+-- defaults.  Further docs in 'CallSig.optional'.
+instance (Typecheck a) => Typecheck (Maybe a) where
+    from_val VNotGiven = Just Nothing
+    from_val a = case from_val a of
+        Nothing -> Nothing
+        Just v -> Just (Just v)
+    to_val Nothing = VNotGiven
+    to_val (Just a) = to_val a
+    to_type val = TMaybe (to_type (maybe undefined id val))
 
 instance Typecheck Pitch.Note where
     from_val (VNote a) = Just a
     from_val _ = Nothing
     to_val = VNote
+    to_type _ = TNote
 
 instance Typecheck Pitch.Scale where
     from_val (VScale a) = Just a
     from_val _ = Nothing
     to_val = VScale
+    to_type _ = TScale
 
 instance Typecheck Score.Instrument where
     from_val (VInstrument a) = Just a
     from_val _ = Nothing
     to_val = VInstrument
+    to_type _ = TInstrument
 
 instance Typecheck Double where
     from_val (VNum a) = Just a
@@ -210,27 +232,32 @@ instance Typecheck String where
     from_val (VString s) = Just s
     from_val _ = Nothing
     to_val = VString
+    to_type _ = TString
 
 instance Typecheck RelativeAttr where
     from_val (VRelativeAttr a) = Just a
     from_val _ = Nothing
     to_val = VRelativeAttr
+    to_type _ = TRelativeAttr
 
 instance Typecheck Score.Attributes where
     from_val (VAttributes a) = Just a
     from_val _ = Nothing
     to_val = VAttributes
+    to_type _ = TAttributes
 
 instance Typecheck Control where
     from_val (VControl a) = Just a
     from_val (VNum a) = Just (ConstantControl a)
     from_val _ = Nothing
     to_val = VControl
+    to_type _ = TControl
 
 instance Typecheck Symbol where
     from_val (VSymbol a) = Just a
     from_val _ = Nothing
     to_val = VSymbol
+    to_type _ = TSymbol
 
 -- * dynamic environment
 
@@ -294,7 +321,9 @@ instance Pretty.Pretty TypeError where
     pretty err = case err of
         TypeError argno name expected received ->
             "TypeError: arg " ++ show argno ++ "/" ++ name ++ ": expected "
-            ++ Pretty.pretty expected ++ " but got " ++ Pretty.pretty received
+            ++ Pretty.pretty expected ++ " but got "
+            ++ Pretty.pretty (type_of <$> received)
+            ++ " " ++ Pretty.pretty received
         ArgError err -> "ArgError: " ++ err
         CallNotFound call_id -> "CallNotFound: " ++ Pretty.pretty call_id
 

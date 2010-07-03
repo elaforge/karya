@@ -95,14 +95,14 @@ test_c_equal = do
     let run = do_run e_evt id
     -- log stack should be at the track level
     let (evts, logs) = run "> | inst = inst" [(0, 1, "")]
-    left_like evts $ "(bid \"test/b1\")/(tid \"test/b1.t1\")/\\*"
-        ++ "*expected type Instrument"
+    left_like evts $
+        "(bid \"test/b1\")/(tid \"test/b1.t1\")/\\**expected Instrument"
     equal logs []
 
     -- only the event with the error is omitted
     let (evts, logs) = run ">" [(0, 1, "inst = inst |"), (1, 1, "")]
     equal evts (Right [(1, Nothing, [])])
-    strings_like (map Log.msg_string logs) ["expected type Instrument"]
+    strings_like (map Log.msg_string logs) ["expected Instrument"]
 
     let run = do_run e_evt Log.msg_string
     -- works as "generator"

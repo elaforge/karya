@@ -33,7 +33,8 @@ data Arg a = Arg {
     } deriving (Eq, Show)
 
 arg_type :: (Typecheck a) => Arg a -> TrackLang.Type
-arg_type arg = TrackLang.type_of_val (maybe undefined id (arg_default arg))
+arg_type arg = TrackLang.to_type
+    (maybe (error "arg_type shouldn't evaluate this") id (arg_default arg))
 
 arg_environ_default :: TrackLang.CallId -> String -> TrackLang.ValName
 arg_environ_default (TrackLang.Symbol call) arg_name =
@@ -47,6 +48,17 @@ arg_required arg = (Maybe.isNothing (arg_default arg), arg_name arg)
 required :: String -> Arg a
 required name = Arg name Nothing
 
+-- | This requires a default value.  However, if you give the default as
+-- Nothing, this will select the Maybe instance of Typecheck, and the resulting
+-- value will be Nothing if the arg wasn't given or Just if it was.
+--
+-- TODO
+-- This is sort of an ugly way to implement optional args with no default
+-- because it admits the possibility of required Maybe args or even Maybe
+-- (Maybe ...) args, none of which mean anything interesting.  A more
+-- satisfying implementation would admit only
+-- @Required a | Defaulted a | Optional (Maybe a)@, but I'm not sure how to
+-- make that work with Typecheck.
 optional :: String -> a -> Arg a
 optional name deflt = Arg name (Just deflt)
 
