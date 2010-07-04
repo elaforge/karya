@@ -107,7 +107,7 @@ test_relative_control = do
             , ("cont", [(0, 0, "1")])
             , ("add cont", [(0, 0, "1")])
             ]
-    let controls = Map.union (Score.unwarp_controls Derive.initial_controls) $
+    let controls = Map.union Derive.initial_controls $
             Map.fromList [(Score.Control "cont", Signal.signal [(0, 1)])]
     equal (fmap (map Score.event_controls) events) $ Right [controls]
     strings_like logs ["no absolute control is in scope"]

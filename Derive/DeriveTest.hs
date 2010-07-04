@@ -180,9 +180,11 @@ d_note = do
     inst <- Derive.lookup_val TrackLang.v_instrument
     attrs <- Maybe.fromMaybe Score.no_attrs <$>
         Derive.lookup_val TrackLang.v_attributes
-    (controls, psig) <- Derive.unwarped_controls
+    st <- Derive.get
+    let controls = Derive.state_controls st
+        pitch_sig = Derive.state_pitch st
     return [Score.Event start (end-start) (Text.pack "evt")
-        controls psig [] inst attrs]
+        controls pitch_sig [] inst attrs]
 
 -- * inst
 

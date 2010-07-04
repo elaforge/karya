@@ -263,15 +263,18 @@ test_real_to_score = do
     equal (f (Derive.d_stretch 5 . Derive.d_at 5 . Derive.d_warp slow) 1)
         (Right 1)
 
-test_control_warp_ops = do
-    let controls = [(Score.Control "cont",
+test_d_control_at = do
+    let controls = Map.fromList [(Score.Control "cont",
             Signal.signal [(0, 1), (2, 2), (4, 0)])]
     let set_controls = Derive.modify $ \st ->
-            st { Derive.state_controls = Score.warped_controls controls }
+            st { Derive.state_controls = controls }
     let run op = fmap extract $
-            DeriveTest.run State.empty
-                (set_controls >> op Derive.unwarped_controls)
+            DeriveTest.run State.empty (set_controls >> op get)
             where
+            get = do
+                conts <- Derive.gets Derive.state_controls
+                psig <- Derive.gets Derive.state_pitch
+                return (conts, psig)
             extract ((conts, pitch), _, logs) = Log.trace_logs logs
                 (Signal.unsignal (snd (head (Map.toList conts))),
                     PitchSignal.unsignal pitch)
@@ -279,14 +282,6 @@ test_control_warp_ops = do
         ([(0, 1), (2, 2), (4, 0)], [(0, (60, 60, 0))])
     equal (run $ Derive.d_control_at 2) $ Right
         ([(2, 1), (4, 2), (6, 0)], [(2, (60, 60, 0))])
-    equal (run $ Derive.d_control_stretch 2) $ Right
-        ([(0, 1), (4, 2), (8, 0)], [(0, (60, 60, 0))])
-
-    let tempo = Derive.d_control_warp . Derive.tempo_to_warp . Signal.signal
-    equal (run $ tempo [(0, 1)]) $ Right
-        ([(0, 1), (2, 2), (4, 0)], [(0, (60, 60, 0))])
-    equal (run $ tempo [(0, 1), (2, 0.5)]) $ Right
-        ([(0, 1), (2, 2), (6, 0)], [(0, (60, 60, 0))])
 
 track_specs =
     [ ("tempo", [(0, 0, "2")])

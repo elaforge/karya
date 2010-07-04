@@ -8,7 +8,6 @@ module Derive.Score where
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
-import Util.Control
 
 import Ui
 import qualified Ui.Types as Types
@@ -205,53 +204,6 @@ warp_pitch psig warp@(Warp sig shift stretch)
     | sig == id_warp_signal =
         PitchSignal.map_x (\p -> (p + to_real shift) * to_real stretch) psig
     | otherwise = PitchSignal.map_x (\x -> warp_pos (to_score x) warp) psig
-
--- ** warped control
-
--- | This warp is applied to control signals in the environment, and
--- concretely instead of abstractly.  Storing it here first lets me avoid
--- recalculating a whole signal just to get a few points (even with laziness
--- it's not efficient) and lets me combine shifts and stretches before
--- application.  It's kind of like a form of manual fusion.
-newtype WarpedControls = WarpedControls (Map.Map Control (Signal.Control, Warp))
-    deriving (Eq, Show)
-
-warped_controls :: [(Control, Signal.Control)] -> WarpedControls
-warped_controls conts = WarpedControls $
-    Map.fromList [(cont, (sig, id_warp)) | (cont, sig) <- conts]
-
-unwarp_controls :: WarpedControls -> ControlMap
-unwarp_controls (WarpedControls cmap) =
-    Map.fromAscList $ map f $ Map.toAscList cmap
-    where f (cont, (sig, warp)) = (cont, warp_control sig warp)
-
-unwarped_control :: Control -> WarpedControls -> Maybe Signal.Control
-unwarped_control cont (WarpedControls cmap) = case Map.lookup cont cmap of
-    Nothing -> Nothing
-    Just (sig, warp) -> Just $ warp_control sig warp
-
-insert_control :: Control -> Signal.Control -> WarpedControls -> WarpedControls
-insert_control cont sig (WarpedControls cmap) =
-    WarpedControls $ Map.insert cont (sig, id_warp) cmap
-
-lookup_control :: RealTime -> Control -> WarpedControls -> Maybe Signal.Y
-lookup_control pos cont (WarpedControls cmap) = case Map.lookup cont cmap of
-    Nothing -> Nothing
-    -- Instead of warping the signal I unwarp the point, so things are a little
-    -- backwards here.
-    Just (sig, warp) -> case fmap to_real (unwarp_pos pos warp) of
-        Nothing -> Nothing
-        Just p -> Just $ Signal.at p sig
-
-modify_control :: Control -> (Signal.Control -> Signal.Control)
-    -> WarpedControls -> Maybe WarpedControls
-modify_control cont f (WarpedControls cmap) = case Map.lookup cont cmap of
-    Nothing -> Nothing
-    Just (sig, warp) -> Just $
-        WarpedControls $ Map.insert cont (f sig, warp) cmap
-
-modify_warps :: (Warp -> Warp) -> WarpedControls -> WarpedControls
-modify_warps f (WarpedControls cmap) = WarpedControls $ Map.map (second f) cmap
 
 -- * instrument
 

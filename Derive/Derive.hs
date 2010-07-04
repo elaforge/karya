@@ -134,12 +134,9 @@ data State = State {
 
     -- | Derivers can modify it for sub-derivers, or look at it, whether to
     -- attach to an Event or to handle internally.
-    state_controls :: Score.WarpedControls
+    state_controls :: Score.ControlMap
     -- | Absolute pitch signal currently in scope.
     , state_pitch :: PitchSignal.PitchSignal
-    -- TODO unify this with Score.WarpedControls
-    -- I can do this when I support multiple pitch signals
-    , state_pitch_warp :: Score.Warp
 
     , state_environ :: TrackLang.Environ
     , state_warp :: Score.Warp
@@ -176,7 +173,6 @@ initial_state ui_state lookup_deriver calls environ ignore_tempo = State {
     state_controls = initial_controls
     , state_pitch = PitchSignal.constant
         (State.state_project_scale ui_state) Pitch.middle_degree
-    , state_pitch_warp = Score.id_warp
 
     , state_environ = environ
     , state_warp = Score.id_warp
@@ -193,8 +189,8 @@ initial_state ui_state lookup_deriver calls environ ignore_tempo = State {
     }
 
 -- | Initial control environment.
-initial_controls :: Score.WarpedControls
-initial_controls = Score.warped_controls
+initial_controls :: Score.ControlMap
+initial_controls = Map.fromList
     [(Score.c_velocity, Signal.constant default_velocity)]
 
 -- | See 'Perform.Midi.Perform.default_velocity' for 0.79.
@@ -329,6 +325,8 @@ type TransformerCall derived = PassedArgs derived -> Deriver derived
 -- | The call for the whole control track.
 type ControlTrackCall = BlockId -> TrackId -> PassedArgs Control
     -> Deriver Transformer
+
+-- TODO remove?
 type Transformer = EventDeriver -> EventDeriver
 
 generator :: String -> GeneratorCall derived -> Call derived
@@ -614,50 +612,28 @@ type ControlOp = Signal.Control -> Signal.Control -> Signal.Control
 type PitchOp = PitchSignal.PitchSignal -> PitchSignal.Relative
     -> PitchSignal.PitchSignal
 
--- | Flatten WarpedControls into an unwarped ControlMap.  Put the flattened
--- controls back into the environment so this work isn't duplicated.
-unwarped_controls :: (Monad m) =>
-    DeriveT m (Score.ControlMap, PitchSignal.PitchSignal)
-unwarped_controls = do
-    controls <- gets state_controls
-    let unwarped = Score.unwarp_controls controls
-    pitch <- gets state_pitch
-    pitch_warp <- gets state_pitch_warp
-    let unwarped_pitch = Score.warp_pitch pitch pitch_warp
-    modify $ \st -> st
-        { state_controls = Score.warped_controls (Map.toList unwarped)
-        , state_pitch = unwarped_pitch
-        , state_pitch_warp = Score.id_warp
-        }
-    return (unwarped, unwarped_pitch)
-
 -- | Return an entire signal.  Remember, signals are in RealTime, so if you
 -- want to index them in ScoreTime you will have to call 'score_to_real'.
 -- 'control_at' does that for you.
 get_control :: (Monad m) => Score.Control -> DeriveT m (Maybe Signal.Control)
-get_control cont = do
-    controls <- gets state_controls
-    return $ Score.unwarped_control cont controls
+get_control cont = Map.lookup cont <$> gets state_controls
 
 control_at :: (Monad m) => Score.Control -> Maybe Signal.Y -> ScoreTime
     -> DeriveT m Signal.Y
 control_at cont deflt pos = do
     controls <- gets state_controls
     real <- score_to_real pos
-    case Score.lookup_control real cont controls of
+    case Map.lookup cont controls of
         Nothing -> maybe
             (throw $ "control_at: not in environment and no default given: "
                 ++ show cont) return deflt
-        Just y -> return y
+        Just sig -> return $ Signal.at real sig
 
 pitch_at :: (Monad m) => ScoreTime -> DeriveT m PitchSignal.Y
 pitch_at pos = do
-    pitches <- gets state_pitch
-    warp <- gets state_pitch_warp
+    psig <- gets state_pitch
     real <- score_to_real pos
-    unwarped <- maybe (throw "can't unwarp pos") return $
-        Score.unwarp_pos real warp
-    return (PitchSignal.at (Types.score_to_real unwarped) pitches)
+    return (PitchSignal.at real psig)
 
 pitch_degree_at :: (Monad m) => ScoreTime -> DeriveT m Pitch.Degree
 pitch_degree_at pos = fmap PitchSignal.y_to_degree (pitch_at pos)
@@ -668,7 +644,7 @@ with_control cont signal op = do
     controls <- gets state_controls
     -- TODO only revert the specific control
     modify $ \st ->
-        st { state_controls = Score.insert_control cont signal controls }
+        st { state_controls = Map.insert cont signal controls }
     result <- op
     modify $ \st -> st { state_controls = controls }
     return result
@@ -684,15 +660,11 @@ with_relative_control :: (Monad m) =>
 with_relative_control cont op signal deriver = do
     controls <- gets state_controls
     let msg = "relative control applied when no absolute control is in scope: "
-    case Score.modify_control cont (\old_sig -> op old_sig signal) controls of
+    case Map.lookup cont controls of
         Nothing -> do
             warn (msg ++ show cont)
             deriver
-        Just new_controls -> do
-            modify $ \st -> st { state_controls = new_controls }
-            result <- deriver
-            modify $ \st -> st { state_controls = controls }
-            return result
+        Just old_signal -> with_control cont (op old_signal signal) deriver
 
 with_pitch :: (Monad m) => PitchSignal.PitchSignal -> DeriveT m t -> DeriveT m t
 with_pitch signal deriver = do
@@ -913,60 +885,22 @@ d_warp sig deriver = do
     modify $ \st -> st { state_warp = old_warp }
     return result
 
--- | Like 'd_warp' but this will also warp controls in the environment.
---
--- 'd_warp' doesn't worp controls at all, but the control track that creates
--- them is warped so they are effectively warped by the surrounding d_warp
--- (TODO continuous control warp might change that).  Subsequent
--- warping inside the d_warp won't affect the controls, so @d_at p d@ won't
--- move the controls along with @d@.
---
--- TODO actually the whole concept is kinda bogus, because it transforms
--- controls after they have already been rendered, which is too late for
--- any kind of abstraction.  See thoughts in doc/tracklang
-d_control_warp :: (Monad m) => Signal.Warp -> DeriveT m a -> DeriveT m a
-d_control_warp sig deriver = do
-    old <- gets state_controls
-    old_pitch_warp <- gets state_pitch_warp
-    let warped = Score.modify_warps (`Score.compose_warp` sig) old
-    let warped_pitch = Score.compose_warp old_pitch_warp sig
-    modify $ \st -> st
-        { state_controls = warped
-        , state_pitch_warp = warped_pitch
-        }
-    result <- d_warp sig deriver
-    modify $ \st -> st
-        { state_controls = old
-        , state_pitch_warp = old_pitch_warp
-        }
-    return result
-
-d_control_at :: (Monad m) => ScoreTime -> DeriveT m a -> DeriveT m a
-d_control_at shift = with_control_warp (Score.shift_warp shift) . d_at shift
-
-d_control_stretch :: (Monad m) => ScoreTime -> DeriveT m a -> DeriveT m a
-d_control_stretch factor =
-    with_control_warp (Score.stretch_warp factor) . d_stretch factor
-
-with_control_warp :: (Monad m) => (Score.Warp -> Score.Warp)
-    -> DeriveT m a -> DeriveT m a
-with_control_warp f deriver = do
-    old <- gets state_controls
-    old_pitch_warp <- gets state_pitch_warp
-    old_pitch <- gets state_pitch
-    modify $ \st -> st
-        { state_controls = Score.modify_warps f old
-        , state_pitch_warp = f old_pitch_warp
-        }
-    v <- deriver
-    -- Restore the signal with the warp, since they may be collapsed.
-    -- This will be harder to get wrong once pitch is merged with controls.
-    modify $ \st -> st
-        { state_controls = old
-        , state_pitch_warp = old_pitch_warp
-        , state_pitch = old_pitch
-        }
-    return v
+-- | Shift the controls of a deriver.  You're supposed to apply the warp before
+-- deriving the controls, but I don't have a good solution for how to do this
+-- yet, so I can leave these here for the moment.
+d_control_at :: ScoreTime -> Deriver a -> Deriver a
+d_control_at shift deriver = do
+    real <- score_to_real shift
+    local (\st -> (state_controls st, state_pitch st))
+        (\(controls, pitch) st -> st { state_controls = controls,
+            state_pitch = pitch })
+        (\st -> return $ st
+            { state_controls = nudge real (state_controls st)
+            , state_pitch = nudge_pitch real (state_pitch st )})
+        deriver
+    where
+    nudge delay = Map.map (Signal.shift delay)
+    nudge_pitch = PitchSignal.shift
 
 
 -- | Warp a block with the given deriver with the given signal.

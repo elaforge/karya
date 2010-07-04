@@ -4,7 +4,6 @@ auto insert imports in vim:
   - turn 'module x.y.z where' into 'import qualified x.y.z as z'
   - figure out where to insert it, and insert it
 
-- remove control warp map stuff in Score
 - implement tunable just intonation scale
   - implement named pitch tracks
 - finish up derive profiling testing, logging monad
@@ -49,6 +48,8 @@ CURRENT
     I just need to split Twelve.scale_id into Score.default_scale_id or
     something.
 
+  - Derive.with_* should use local, or at least finally
+  - clean up warp stuff in Derive.Score
   - put TypeError into DeriveError and use Call.default_relative_note
   - LPitch.to_relative was broken by notes as calls, fix it
   - implement add_hz in Derive.Scale.Util
@@ -122,7 +123,7 @@ CURRENT
   / put prev, cur, next in PassedArgs too?
     except that transformers currently don't get these args
     what would the track transformer pass?
-  - remove warped control?
+  * remove warped control?
   - subblock derivation for control tracks
   - re-enable signal deriver, but in a more efficient way?  can I reuse the
     derived signals?

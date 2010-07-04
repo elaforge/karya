@@ -246,5 +246,6 @@ map_degree f = map_y $ \(from, to, at) -> (g from, g to, at)
 
 from_degree :: Pitch.Degree -> Float
 from_degree (Pitch.Degree n) = Num.d2f n
+
 to_degree :: Float -> Pitch.Degree
 to_degree f = Pitch.Degree (Num.f2d f)

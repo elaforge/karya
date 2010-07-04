@@ -63,8 +63,9 @@ generate_note n_inst rel_attrs event next = do
         Nothing -> Derive.lookup_val TrackLang.v_instrument
     attrs <- Maybe.fromMaybe Score.no_attrs <$>
         Derive.lookup_val TrackLang.v_attributes
-    (controls, pitch_sig) <- Derive.unwarped_controls
     st <- Derive.get
+    let controls = Derive.state_controls st
+        pitch_sig = Derive.state_pitch st
     return [Score.Event start (end - start)
         (Event.event_text event) controls (trimmed_pitch next_start pitch_sig)
         -- state_stack is kept in reverse order
