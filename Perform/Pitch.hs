@@ -15,6 +15,8 @@ module Perform.Pitch where
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
+import {-# SOURCE #-} qualified Derive.Derive as Derive (ValCall)
+
 
 -- There are many representations for pitch.  The types here are ordered
 -- from abstract to concrete.  'Degree', 'NoteNumber', and 'Hz' can be relative
@@ -122,6 +124,17 @@ newtype ScaleId = ScaleId String deriving (Eq, Ord, Read, Show)
 default_scale_id :: ScaleId
 default_scale_id = ScaleId ""
 
+-- | These scales are hardcoded in some places.  Putting them here instead of
+-- their scale modules avoids some circular imports.
+relative :: ScaleId
+relative = ScaleId "relative"
+
+is_relative :: ScaleId -> Bool
+is_relative = (==relative)
+
+twelve :: ScaleId
+twelve = ScaleId "twelve"
+
 data Scale = Scale {
     scale_id :: ScaleId
     -- | A pattern describing what the scale notes look like.  Used only for
@@ -142,7 +155,7 @@ data Scale = Scale {
     , scale_octave :: Octave
 
     -- | Used by derivation.
-    , scale_note_to_degree :: Note -> Maybe Degree
+    , scale_note_to_call :: Note -> Maybe Derive.ValCall
 
     -- | Used by note input.
     , scale_input_to_note :: InputKey -> Maybe Note
@@ -178,4 +191,4 @@ instance Show Scale where
     show scale = "<" ++ show (scale_id scale) ++ ">"
 
 note_in_scale :: Scale -> Note -> Bool
-note_in_scale scale = Maybe.isJust . scale_note_to_degree scale
+note_in_scale scale = Maybe.isJust . scale_note_to_call scale

@@ -13,13 +13,12 @@ import qualified Util.Seq as Seq
 import qualified Midi.Midi as Midi
 
 import qualified Derive.Score as Score
-import qualified Derive.Scale.Twelve as Twelve
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Midi.Control as Control
 
 
 default_scale :: Pitch.ScaleId
-default_scale = Twelve.scale_id
+default_scale = Pitch.twelve
 
 -- | The Instrument contains all the data necessary to render
 -- a Midi.Perform.Event to a midi message.  Each Event has an attached

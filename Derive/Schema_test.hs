@@ -84,13 +84,12 @@ test_compile = do
         no_pitch = PitchSignal.empty
 
     let (res, logs) = derive ("*twelve", [(0, 0, ".1")])
-    strings_like (map Log.msg_string logs)
-        ["Note \".1\" not in ScaleId \"twelve\""]
+    strings_like (map Log.msg_string logs) ["call not found: .1"]
     equal (controls res) (Right [cont_signal, cont_signal, cont_signal])
     equal (pitches res) (Right [no_pitch, no_pitch, no_pitch])
 
     let (res, logs) = derive
-            ("*twelve", [(0, 0, "4c"), (4, 0, "4d"), (12, 0, "i *4e")])
+            ("*twelve", [(0, 0, "4c"), (4, 0, "4d"), (12, 0, "i (4e)")])
     let complete_psig = PitchSignal.signal (Pitch.ScaleId "twelve")
             ([(0, (60, 60, 0)), (2, (62, 62, 0))]
                 ++ DeriveTest.pitch_interpolate 2 62 6 64)
@@ -161,8 +160,8 @@ derive_signal schema_map block_id = do
     deriver <- Schema.get_signal_deriver schema_map block_id
     let (result, _, _, logs, _) = Derive.derive
             -- Signal derivation doesn't do calls, so I can pass an empty map.
-            Derive.empty_lookup_deriver ui_state Derive.empty_call_map True
-            (Derive.with_stack_block block_id deriver)
+            Derive.empty_lookup_deriver ui_state Derive.empty_call_map
+            DeriveTest.environ True (Derive.with_stack_block block_id deriver)
     case result of
         Left err -> State.throw (show err)
         Right sig ->

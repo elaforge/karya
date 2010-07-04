@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 -- | Functions to help define call signatures.
 --
 -- This is not in TrackLang because it needs Derive.PassedArgs and Derive
@@ -12,6 +13,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import Derive.Derive (PassedArgs(..))
+import qualified Derive.Derive as Derive
 import qualified Derive.TrackLang as TrackLang
 import Derive.TrackLang (Typecheck, TypeError(..))
 import qualified Derive.Score as Score
@@ -208,3 +210,13 @@ extract_arg argno arg maybe_val = case (arg_default arg, maybe_val2) of
         Nothing -> err (Just val)
         Just v -> Right v
     err val = Left (TypeError argno (arg_name arg) (arg_type arg) val)
+
+-- | Cast a Val to a haskell val, or throw if it's the wrong type.
+cast :: forall a. (Typecheck a) => String -> TrackLang.Val -> Derive.Deriver a
+cast name val = case TrackLang.from_val val of
+        Nothing -> Derive.throw $
+            name ++ ": expected " ++ Pretty.pretty return_type
+            ++ " but val was " ++ Pretty.pretty (TrackLang.type_of val)
+            ++ " " ++ Pretty.pretty val
+        Just a -> return a
+    where return_type = TrackLang.to_type (error "cast" :: a)

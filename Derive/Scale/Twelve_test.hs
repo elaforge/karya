@@ -1,4 +1,5 @@
 module Derive.Scale.Twelve_test where
+import qualified Data.Map as Map
 
 import Util.Test
 
@@ -7,7 +8,7 @@ import qualified Derive.Scale.Twelve as Twelve
 
 
 test_note_to_nn = do
-    let f = Twelve.note_to_degree . Pitch.Note
+    let f = flip Map.lookup Twelve.note_to_degree . Pitch.Note
     equal (f "4c") (Just 60)
     equal (f "-1c") (Just 0)
     equal (f "-2b") Nothing

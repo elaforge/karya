@@ -233,7 +233,9 @@ derive_signal schema_map block_id = do
     deriver <- Schema.get_signal_deriver schema_map block_id
     let (result, _, _, logs, _) = Derive.derive
             -- Signal derivation doesn't do calls, so I can pass an empty map.
-            Derive.empty_lookup_deriver ui_state Derive.empty_call_map True
+            -- TODO no longer true
+            Derive.empty_lookup_deriver ui_state Derive.empty_call_map
+                Play.initial_environ True
             (Derive.with_stack_block block_id deriver)
     case result of
         Left err -> State.throw (show err)

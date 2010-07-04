@@ -4,6 +4,24 @@ auto insert imports in vim:
   - turn 'module x.y.z where' into 'import qualified x.y.z as z'
   - figure out where to insert it, and insert it
 
+- complete note call stuff, convert scales, etc.
+- remove VNote, add VDegree
+- finish up derive profiling testing, logging monad
+- remove control warp map stuff in Score
+- implement postproc, plus some fun postprocs
+- implement deriver like vla/cello duet?  that's a sekaran, so I need to think
+  about this more.
+- signals:
+  - profile
+  - switch to lazy signals, try to fix warp compose stuff
+  - make resample etc. more efficient
+- re-enable signal display
+- implement simple integrator
+- implement dense signal data in Ui.Track
+- extend signal display for pitch track
+
+- research ardour OSC control
+
 CURRENT
   Call as any word means I can't write ">inst" as a note track title.  prproc?
   First word is call means that "+attr" or ">inst" no longer works.  In
@@ -19,20 +37,21 @@ CURRENT
   So, I think arbitrary call names are too important.  If I later add call
   lookup handlers, I can both eliminate the control preproc (num is a call to
   "set num") and apply '+whatever' as a call.  However a lookup handler seems
-  morally equivalent to preproc.
+  morally equivalent to preproc.  Except it can handle proper expressions more
+  easily.
 
   - should I make the control title expression the first one instead of last?
 
-  - scale as sub-call
+  * scale as sub-call
     * parser supports ()s and sub exprs
     * evaluate each word separately
     * lookup in XyzMap, then in ValMap
     * control: preproc takes VNum d -> Symbol "set" (VNum d)
-    - absolute pitch: no preproc, val is a call that returns VDegree, fallback
+    * absolute pitch: no preproc, val is a call that returns VDegree, fallback
       turns that into 'set'
-    - relative pitch: relative pitch scale has -n -- n
-    - note: no preproc
-    - scale adds its degrees to val call map
+    * relative pitch: relative pitch scale has -n -- n
+    * note: no preproc
+    * scale adds its degrees to val call map
       I can use the current scale as a fallback in the val call lookup just
       like the note lookup looks in blocks.
 
@@ -42,11 +61,26 @@ CURRENT
 
       So either, put Val and Scale into Derive, or store ScaleIds in Val
 
-    - make a Degree type so calls don't have to take degree as VNum
+      Val will drag in too much stuff so I don't want to move it to Derive.
+
+      I can parameterize Val with scale, then use Derive.Val everywhere.  Will
+      anyone have a problem with this?
+
+      Or change Pitch.Scale to GenericScale, then give it ().  Add Derive.Scale
+      that puts in ValCall.
+
+      Make a hs-boot.  Scale imports Derive, for ValCall.
+      Scales need Derive since they have Derivers.  But Derive needs scales to
+      look them up.  Maybe put a 'import SOURCE Scale.scale_map'?
+
+      Or, can I split scale defs into uses Derive and doesn't?  Ugh.  I think
+      I just need to split Twelve.scale_id into Score.default_scale_id or
+      something.
+
+    * make a Degree type so calls don't have to take degree as VNum
       But I'll want a Typecheck promotion from Num -> Degree so I can write
       4 instead of (4), especially for relative pitches.  Except I think I
       don't because that will be error prone if relative scale is fancy.
-  * remove null call
 
   - derivers as normal args causes a problem for transformers with optional
     args: 'echo | xyz' -> 'echo (xyz)', but the required transformer arg
@@ -54,10 +88,16 @@ CURRENT
     implementing keyword args.  'echo | xyz' is sugar for
     'echo deriver:(xyz)'.  The typechecker first associates kw args with
     their matching args and then procedes normally.
+    Or some kind of * arg that skips intermediate args.  But I still need
+    a required to follow an optional.
 
-  - remove TrackLang.VMethod
+  - put TypeError into DeriveError and use Call.default_relative_note
+  - LPitch.to_relative was broken by notes as calls, fix it
+
+  * remove TrackLang.VMethod
   - remove consumed call return unless I can think of something good for it
   * test_util regex match uses a simplified regex that only supports *
+  - val calls to get the next/prev TimeStep
 
   - incremental saving: pair diffs with the changed bit.  Then save that chunk
     on every save.  Occaisionally write a checkpoint, which is just the whole
@@ -116,7 +156,7 @@ CURRENT
   * cc on a multiplexed inst is not being merged
   - why does creating a block in setup cmd without a view go to cpu 100%?
   - Derive: inst as a call rather than just something from the env
-  - symbolic score: remove null call
+  * symbolic score: remove null call
   * make some score generators for performance testing
 
   - more sophisticated function to find out the inst of a note track
@@ -181,14 +221,14 @@ MILESTONES
     - symbolic score
     - midi record / integrator
     - save undo history
-    - linux and windows ports
-  future
+    - solution for audio, plugins, track bouncing, etc.  ardour?
+    - linux port
+  1.0
     - display / edit derivations inline
     - print scores
     - mouse oriented signal editing
     - freeze tracks / audio memoization: doc/freeze_track
-    - vst host
-    - sync with audio editor: jack or rewire
+    - windows port?
     - non-midi instruments
   far future
     - render audio
@@ -599,23 +639,23 @@ Derive:
     - do a code version and a block version
     - block version requires block arguments and variable substitution
   TrackLang tracklang
-    - TrackLang.optional args should be able to pass Nothing if arg is not given
+    * TrackLang.optional args should be able to pass Nothing if arg is not given
     - Derive.Call.map_asc_events, I need Seq.merge_asc_lists for this.
     - make sure signal derivation doesn't do calls
     - implement call by arg name e.g. "delay time=%xyz"
-    - implement control calls
+    * implement control calls
     - implement block level calls in block title
     - other attributes in block title, e.g. "alias=?squiggle? | xyz"?
     - support pitch signals, e.g. "tune-to %*some-sig" but that requires named
       pitch signals
 
-    - implement sub-calls with TVal return type
+    * implement sub-calls with TVal return type
       Now I have so many call maps, can I merge them?
         - relative control and pitch
         - note, control, and pitch
         - tval
-    - implement scales as a set of sub-calls that return pitches
-      - they can take a number for cents offset: (*4c# 20)
+    * implement scales as a set of sub-calls that return pitches
+      * they can take a number for cents offset: (*4c# 20)
       Fancy pitch use cases:
         - retune a scale according to another signal
           Can be done by a call.
@@ -623,7 +663,7 @@ Derive:
           when playing quickly)
           I think this has to be postproc.
       - what about efficiency?
-    - merge pitch call namespace with normal call namespace
+    * merge pitch call namespace with normal call namespace
 
   - dynamics controls:
     - volume, velocity, and breath map directly to midi vals

@@ -61,6 +61,8 @@ data Val =
     | VInstrument Score.Instrument
     -- | Literal: @42.23@, @-.4@
     | VNum Double
+    -- | No literal yet, but is returned from val calls.
+    | VDegree Pitch.Degree
     -- | Escape a quote by doubling it.  Literal: @'hello'@, @'quinn''s hat'@
     | VString String
     -- | Relative attribute adjustment.  Literal: @+attr@, @-attr@, @=attr@,
@@ -89,7 +91,8 @@ instance Pretty.Pretty Val where
         VScale scale -> case Pitch.scale_id scale of
             Pitch.ScaleId scale_id -> note_literal_prefix ++ scale_id
         VInstrument (Score.Instrument inst) -> inst_literal_prefix ++ inst
-        VNum d -> Pretty.pretty d
+        VNum d -> show_num d
+        VDegree (Pitch.Degree d) -> show_num d ++ "d"
         VString s -> "'" ++ Seq.replace "'" "''" s ++ "'"
         VRelativeAttr (RelativeAttr (mode, attr)) -> case mode of
             Add -> '+' : attr
@@ -104,6 +107,10 @@ instance Pretty.Pretty Val where
             Control (Score.Control cont) -> '%' : cont
         VSymbol sym -> Pretty.pretty sym
         VNotGiven -> "_"
+
+-- | Show a VNum without the bother of converting it to a Val.
+show_num :: Double -> String
+show_num = Pretty.pretty
 
 data AttrMode = Add | Remove | Set | Clear deriving (Eq, Show)
 
@@ -155,7 +162,7 @@ v_srate = Symbol "srate"
 
 -- * types
 
-data Type = TNote | TScale | TInstrument | TNum | TString
+data Type = TNote | TScale | TInstrument | TNum | TDegree | TString
     | TRelativeAttr | TAttributes | TControl | TSymbol | TNotGiven
     | TMaybe Type | TVal
     deriving (Eq, Show)
@@ -174,6 +181,7 @@ type_of val = case val of
     VScale _ -> TScale
     VInstrument _ -> TInstrument
     VNum _ -> TNum
+    VDegree _ -> TDegree
     VString _ -> TString
     VRelativeAttr _ -> TRelativeAttr
     VAttributes _ -> TAttributes
@@ -227,6 +235,13 @@ instance Typecheck Double where
     from_val (VNum a) = Just a
     from_val _ = Nothing
     to_val = VNum
+    to_type _ = TNum
+
+instance Typecheck Pitch.Degree where
+    from_val (VDegree a) = Just a
+    from_val _ = Nothing
+    to_val = VDegree
+    to_type _ = TDegree
 
 instance Typecheck String where
     from_val (VString s) = Just s
@@ -343,6 +358,9 @@ data Term = ValCall Call | Literal Val deriving (Eq, Show)
 -- existential wrapper for that, or an infix operator.
 call :: String -> Call
 call sym = Call (Symbol sym) []
+
+val_call :: String -> Term
+val_call sym = ValCall (Call (Symbol sym) [])
 
 -- TODO These should remain the same as the ones in Derive.Schema.Default for
 -- consistency.  I can't use those directly because of circular imports.

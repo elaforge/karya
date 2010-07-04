@@ -2,6 +2,7 @@
 module Derive.Call.Pitch where
 
 import qualified Util.Num as Num
+import qualified Util.Pretty as Pretty
 
 import Ui
 import qualified Ui.Types as Types
@@ -22,17 +23,29 @@ import qualified Perform.Signal as Signal
 -- be used by scales to generate their val calls, but of course each scale may
 -- define degrees in its own way.
 --
--- [frac /Num/ @0@] Add this many scale degrees to the output.  Intended for
--- fractional scale degrees.
+-- [frac /Num/ @0@] Add this many hundredths of a scale degree to the output.
+-- Intended for fractional scale degrees.
 --
 -- [hz /Num/ @0@] Add an absolute hz value to the output.
-degree_call :: String
+degree_call :: Pitch.Note
     -> Pitch.Degree -> (Pitch.Degree -> Pitch.Hz -> Pitch.Degree)
     -> Derive.ValCall
-degree_call name degree add_hz = Derive.ValCall ("degree: " ++ name) $ \args ->
-    CallSig.call2 args (optional "frac" 0, optional "hz" 0) $ \frac hz -> do
-        let Pitch.Degree p = add_hz (degree + Pitch.Degree frac) hz
-        return $ TrackLang.VNum p
+degree_call note degree add_hz =
+    Derive.ValCall ("degree: " ++ Pitch.note_text note) $ \args ->
+        CallSig.call2 args (optional "frac" 0, optional "hz" 0) $ \frac hz -> do
+            return $ TrackLang.VDegree $
+                add_hz (degree + Pitch.Degree (frac/100)) hz
+
+note_call :: Pitch.Note -> Double -> String
+note_call (Pitch.Note note) frac
+    | frac == 0 = note
+    | otherwise = note ++ " " ++ Pretty.show_float (Just 2) (frac * 100)
+
+relative_call :: Pitch.Degree -> Derive.ValCall
+relative_call degree =
+    Derive.ValCall ("relative: " ++ Pretty.pretty val) $
+        \args -> CallSig.call0 args $ return val
+    where val = TrackLang.VDegree degree
 
 -- * pitch
 
@@ -54,10 +67,9 @@ pitch_calls = Derive.make_calls
 
 c_note_set :: Derive.PitchCall
 c_note_set = Derive.generate_one "note_set" $ \args -> CallSig.call1 args
-    (required "val") $ \note -> do
-        scale <- Derive.require_val TrackLang.v_scale
+    (required "val") $ \degree -> do
+        scale <- Call.get_scale
         pos <- Derive.now
-        degree <- Call.lookup_note scale note
         return $ PitchSignal.signal (Pitch.scale_id scale)
             [(pos, PitchSignal.degree_to_y degree)]
 
@@ -69,29 +81,28 @@ c_note_linear = Derive.generate_one "note_linear" $ \args ->
                 Derive.throw "can't set to previous val when there was none"
             Just (_, prev_y) -> return $ do
                 pos <- Derive.now
-                scale <- Derive.require_val TrackLang.v_scale
+                scale <- Call.get_scale
                 return $ PitchSignal.signal (Pitch.scale_id scale)
                     [(pos, prev_y)]
-        _ -> CallSig.call1 args (required "note") $ \note ->
-            pitch_interpolate id note args
+        _ -> CallSig.call1 args (required "degree") $ \degree ->
+            pitch_interpolate id degree args
 
 c_note_exponential :: Derive.PitchCall
 c_note_exponential = Derive.generate_one "note_exponential" $ \args ->
-    CallSig.call2 args (required "note", optional "exp" 2) $ \note exp ->
-        pitch_interpolate (Control.expon exp) note args
+    CallSig.call2 args (required "degree", optional "exp" 2) $ \degree exp ->
+        pitch_interpolate (Control.expon exp) degree args
 
 c_note_slide :: Derive.PitchCall
 c_note_slide = Derive.generate_one "note_slide" $ \args -> CallSig.call2 args
-    (required "note", optional "time" 0.1) $ \note time -> do
+    (required "degree", optional "time" 0.1) $ \degree time -> do
         start <- Derive.now
         end <- case Derive.passed_next_begin args of
             Nothing -> return $ start + RealTime time
             Just n -> do
                 next <- Derive.score_to_real n
                 return $ min (start + RealTime time) next
-        scale <- Derive.require_val TrackLang.v_scale
+        scale <- Call.get_scale
         srate <- Call.get_srate
-        degree <- Call.lookup_note scale note
         let signal = PitchSignal.signal (Pitch.scale_id scale)
         case Derive.passed_prev_val args of
                 Nothing -> do
@@ -108,28 +119,32 @@ c_note_slide = Derive.generate_one "note_slide" $ \args -> CallSig.call2 args
 -- [time /Number/ @.3@] Duration of ornament, in seconds.
 c_neighbor :: Derive.PitchCall
 c_neighbor = Derive.generate_one "neighbor" $ \args ->
-    CallSig.call3 (Call.default_relative_note args)
-    (required "note", optional "neighbor" 1, optional "time" 0.1) $
-    \note neighbor time -> do
+    if Call.in_relative_scale args
+        then CallSig.call2 args (cneighbor, ctime) $ \neighbor time -> do
+            degree <- CallSig.cast "relative pitch 0"
+                =<< Call.eval (TrackLang.val_call "0")
+            go args degree neighbor time
+        else CallSig.call3 args (required "degree", cneighbor, ctime) (go args)
+    where
+    cneighbor = optional "neighbor" 1
+    ctime = optional "time" 0.1
+    go args degree neighbor time = do
         start <- Derive.now
         let end = start + RealTime time
-        scale <- Derive.require_val TrackLang.v_scale
-        degree <- Call.lookup_note scale note
+        scale <- Call.get_scale
         srate <- Call.get_srate
         let signal = PitchSignal.signal (Pitch.scale_id scale)
         return $ signal $ interpolate_pitch True srate id
             start (Pitch.Degree neighbor + degree) end degree
 
-
 -- ** pitch util
 
-pitch_interpolate :: (Double -> Signal.Y) -> Pitch.Note
+pitch_interpolate :: (Double -> Signal.Y) -> Pitch.Degree
     -> Derive.PassedArgs Derive.Pitch -> Derive.PitchDeriver
-pitch_interpolate f note args = do
+pitch_interpolate f degree args = do
     start <- Derive.now
-    scale <- Derive.require_val TrackLang.v_scale
+    scale <- Call.get_scale
     srate <- Call.get_srate
-    degree <- Call.lookup_note scale note
     let signal = PitchSignal.signal (Pitch.scale_id scale)
     case Derive.passed_prev_val args of
         Nothing -> do

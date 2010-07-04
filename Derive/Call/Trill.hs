@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 {- | Various kinds of trills.
 
     - Trill cycles depend on real duration of note.  Cycle durations are given
@@ -120,29 +121,33 @@ pitch_calls = Derive.make_calls
     ]
 
 c_pitch_absolute_trill :: Derive.PitchCall
-c_pitch_absolute_trill = Derive.generate_one "pitch_absolute_trill" $
-    \args -> CallSig.call3 (Call.default_relative_note args)
-    (required "note", optional "neighbor" (control "trill-neighbor" 1),
-        optional "speed" (control "trill-speed" 14)) $
-    \note neighbor speed -> do
+c_pitch_absolute_trill = Derive.generate_one "pitch_absolute_trill" $ \args ->
+    if Call.in_relative_scale args
+        then CallSig.call2 args (cneighbor, cspeed) $ \neighbor speed -> do
+            degree <- CallSig.cast "relative pitch 0"
+                =<< Call.eval (TrackLang.val_call "0")
+            go args degree neighbor speed
+        else CallSig.call3 args (required "degree", cneighbor, cspeed) (go args)
+    where
+    cneighbor = optional "neighbor" (control "trill-neighbor" 1)
+    cspeed = optional "speed" (control "trill-speed" 14)
+    go args degree neighbor speed = do
         speed_sig <- Call.to_signal speed
         neighbor_sig <- Call.to_signal neighbor
         next_event <- maybe (return 1) Derive.score_to_real
             (Derive.passed_next_begin args)
-        pitch_absolute_trill note speed_sig neighbor_sig next_event
+        pitch_absolute_trill degree speed_sig neighbor_sig next_event
 
-pitch_absolute_trill :: Pitch.Note -> Signal.Control -> Signal.Control
+pitch_absolute_trill :: Pitch.Degree -> Signal.Control -> Signal.Control
     -> RealTime -> Derive.PitchDeriver
-pitch_absolute_trill note speed neighbor dur = do
-    degree <- Call.note_to_degree note
+pitch_absolute_trill degree speed neighbor dur = do
     start <- Derive.now
-    scale <- Derive.require_val TrackLang.v_scale
+    scale <- Call.get_scale
     let all_transitions = pos_at_speed speed start
     let transitions = integral_cycles (start + dur) all_transitions
     return $ PitchSignal.shorten start $ PitchSignal.sig_add
             (PitchSignal.constant (Pitch.scale_id scale) degree)
             (make_trill transitions neighbor)
-
 
 
 -- * util

@@ -8,6 +8,9 @@ import qualified Util.Parse as Parse
 import qualified Util.Seq as Seq
 import qualified Perform.Pitch as Pitch
 
+import qualified Derive.Call.Pitch as Call.Pitch
+import qualified Derive.Derive as Derive
+
 
 -- | A number between -1 and 1, representing the portion of the way between two
 -- scale degrees.  I could have used \"Cents\" for this, but that implies equal
@@ -38,13 +41,15 @@ scale_map notes inputs nns degrees = ScaleMap
 
 type InputMap = Map.Map Pitch.InputKey (Pitch.NoteNumber, Pitch.Note)
 
-note_to_degree :: ScaleMap -> Pitch.Note -> Maybe Pitch.Degree
-note_to_degree smap note = do
-    (step, frac) <- split_note note
-    degree <- Map.lookup (Pitch.Note step) (smap_note_to_degree smap)
-    -- TODO Degree has no field for absolute offset, I can add it if it would
-    -- be useful
-    return $ Pitch.Degree (fromIntegral degree + frac)
+note_to_call :: ScaleMap -> Pitch.Note -> Maybe Derive.ValCall
+note_to_call smap note = case Map.lookup note (smap_note_to_degree smap) of
+        Nothing -> Nothing
+        Just int_degree -> Just $
+            Call.Pitch.degree_call note
+                (Pitch.Degree (fromIntegral int_degree)) add_hz
+    where
+    -- TODO: need to put the (nn, nn, nn) triple in smap_note_to_degree
+    add_hz degree _ = degree
 
 input_to_note :: ScaleMap -> Pitch.InputKey -> Maybe Pitch.Note
 input_to_note smap input = flip fmap (lookup_input input input_map) $

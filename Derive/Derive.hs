@@ -63,7 +63,7 @@ import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Transport as Transport
 import qualified Perform.Warning as Warning
 
-import qualified Derive.Scale as Scale
+import {-# SOURCE #-} qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
@@ -172,13 +172,13 @@ data State = State {
     , state_ignore_tempo :: Bool
     }
 
-initial_state ui_state lookup_deriver calls ignore_tempo = State {
+initial_state ui_state lookup_deriver calls environ ignore_tempo = State {
     state_controls = initial_controls
     , state_pitch = PitchSignal.constant
         (State.state_project_scale ui_state) Pitch.middle_degree
     , state_pitch_warp = Score.id_warp
 
-    , state_environ = initial_environ
+    , state_environ = environ
     , state_warp = Score.id_warp
     , state_stack = []
     , state_log_context = []
@@ -196,11 +196,6 @@ initial_state ui_state lookup_deriver calls ignore_tempo = State {
 initial_controls :: Score.WarpedControls
 initial_controls = Score.warped_controls
     [(Score.c_velocity, Signal.constant default_velocity)]
-
-initial_environ :: TrackLang.Environ
-initial_environ = Map.fromList
-    [ (TrackLang.v_srate, TrackLang.VNum 0.05)
-    ]
 
 -- | See 'Perform.Midi.Perform.default_velocity' for 0.79.
 default_velocity :: Signal.Y
@@ -225,6 +220,8 @@ type ValCallMap = Map.Map TrackLang.CallId ValCall
 -- its position.  A call at the end of a compose pipeline will be called as
 -- a generator while ones composed with it will be called as transformers, so
 -- in @a | b@, @a@ is a transformer and @b@ is a generator.
+--
+-- More details on this strange setup are in the "Derive.Call" haddock.
 data Call derived = Call {
     -- | Since call IDs may be rebound dynamically, each call has its own name
     -- so that error msgs are unambiguous.
@@ -294,6 +291,10 @@ passed_prev_val = info_prev_val . passed_info
 -- Not used at all for val calls.
 -- events not used for transform calls.
 data CallInfo derived = CallInfo {
+    -- The below is not used at all for val calls, and the events are not
+    -- used for transform calls.  It might be cleaner to split those out, but
+    -- too much bother.
+
     -- | The deriver was stretched by the reciprocal of this number to put it
     -- into normalized 0--1 time (i.e. this is the deriver's original
     -- duration).  Calls can divide by this to get durations in the context of
@@ -321,7 +322,7 @@ dummy_call_info = CallInfo 1 Nothing (Event.event "<no event>" 1) [] []
 -- | args -> (deriver, consumed)
 type GeneratorCall derived = PassedArgs derived
     -> Either TrackLang.TypeError (Deriver derived, Int)
--- | args -> (deriver -> deriver)
+-- | args -> deriver -> deriver
 type TransformerCall derived = PassedArgs derived -> Deriver derived
     -> Either TrackLang.TypeError (Deriver derived)
 
@@ -382,16 +383,17 @@ instance Monad m => Log.LogMonad (DeriveT m) where
 
 -- * monadic ops
 
-derive :: LookupDeriver -> State.State -> CallMap -> Bool
+derive :: LookupDeriver -> State.State -> CallMap -> TrackLang.Environ -> Bool
     -> DeriveT Identity.Identity a
     -> (Either DeriveError a,
         Transport.TempoFunction, Transport.InverseTempoFunction, [Log.Msg],
         State) -- ^ State is not actually needed, but is handy for testing.
-derive lookup_deriver ui_state calls ignore_tempo deriver =
+derive lookup_deriver ui_state calls environ ignore_tempo deriver =
     (result, tempo_func, inv_tempo_func, logs, state)
     where
     (result, state, logs) = Identity.runIdentity $
-        run (initial_state ui_state lookup_deriver calls ignore_tempo) deriver
+        run (initial_state ui_state lookup_deriver calls environ ignore_tempo)
+            deriver
     track_warps = state_track_warps state
     tempo_func = make_tempo_func track_warps
     inv_tempo_func = make_inverse_tempo_func track_warps

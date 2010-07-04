@@ -153,18 +153,11 @@ modify_text_key key s = case key of
 backspace :: String -> Maybe String
 backspace s
     | null s = Nothing
-    | is_note = Just rest
     | otherwise = Just (Seq.rdrop 1 s)
-    where
-    (pre, post) = break (==note_prefix) (reverse s)
-    -- If post isn't null, then it must begin with note_prefix.
-    is_note = not $ any Char.isSpace pre || null post
-    -- drop note_prefix and leading (i.e. trailing) spaces
-    rest = reverse $ dropWhile Char.isSpace (drop 1 post)
 
 modify_text_note :: Pitch.Note -> String -> Maybe String
 modify_text_note note s = Just $
-    s ++ leading ++ note_prefix : Pitch.note_text note
+    s ++ leading ++ "(" ++ Pitch.note_text note ++ ")"
     where leading = if null s then "" else " "
 
 note_prefix :: Char

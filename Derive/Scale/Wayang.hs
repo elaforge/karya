@@ -10,7 +10,7 @@ scale = Pitch.Scale {
     , Pitch.scale_pattern = "[12356](\\.*|\\^*)"
     , Pitch.scale_octave = 5
 
-    , Pitch.scale_note_to_degree = Util.note_to_degree scale_map
+    , Pitch.scale_note_to_call = Util.note_to_call scale_map
     , Pitch.scale_input_to_note = Util.input_to_note scale_map
     , Pitch.scale_input_to_nn = Util.input_to_nn scale_map
     , Pitch.scale_degree_to_nn = Util.degree_to_nn scale_map

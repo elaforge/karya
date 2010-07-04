@@ -18,9 +18,13 @@ transform deriver = DeriveTest.derive_note $
 
 run_pitch :: [(Double, String)]
     -> Either String [(PitchSignal.X, PitchSignal.Y)]
-run_pitch events = extract $ DeriveTest.derive_tracks_tempo
+run_pitch = run_with_scale "twelve"
+
+run_with_scale :: String -> [(Double, String)]
+    -> Either String [(PitchSignal.X, PitchSignal.Y)]
+run_with_scale scale events = extract $ DeriveTest.derive_tracks_tempo
     [ (">", [(0, 10, "")])
-    , ("*twelve", [(start, 0, text) | (start, text) <- events])
+    , ('*' : scale, [(start, 0, text) | (start, text) <- events])
     ]
     where
     extract = fmap head . DeriveTest.extract_events_only

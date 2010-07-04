@@ -7,6 +7,63 @@
     Calls are evaluated in normalized time, which means that they start at
     @score_to_real 0@ and end at @score_to_real 1@.  The events passed to the
     generator are also in this time.
+
+    The way expression evaluation works is a little irregular.  The toplevel
+    expression returns a parameterized deriver, so this part of the type is
+    exported to the haskell type system.  The values and non-toplevel calls
+    return dynamically typed Vals though.  The difference between a generator
+    and a transformer is that the latter takes an extra deriver arg, but since
+    the type of the deriver is statically determined at the haskell level, it
+    isn't passed as a normal arg but is instead hardcoded into the evaluation
+    scheme for the toplevel expression.  So only the toplevel calls can take
+    and return derivers.
+
+    I experimented with a system that added a VDeriver type, but there were
+    several problems:
+
+    - If I don't parameterize Val I wind up with separate VEventDeriver,
+    VPitchDeriver, etc. constructors.  Every call that takes a deriver must
+    validate the type and there is no static guarantee that event deriver calls
+    won't wind up the pitch deriver symbol table.  It seems nice that the
+    CallMap and Environ can all be replaced with a single symbol table, but in
+    practice they should have different calls available so they would need to
+    be separated anyway.
+
+    - If I do parameterize Val, I need some complicated typeclass gymnastics
+    and a lot of redundant Typecheck instances to make the new VDeriver type
+    fit in with the calling scheme.  I have to differentiate PassedVals, which
+    includev VDeriver, from Vals, which don't, so Environ can remain
+    unparameterized.  Otherwise I would need a separate Environ per track,
+    and copy over vals which should be shared, like srate.  The implication is
+    that Environ should really have dynamically typed deriver vals.
+
+    - Replacing @a | b | c@ with @a (b (c))@ is appealing, but if the deriver
+    is the final argument then I have a problem where a required argument wants
+    to follow an optional one.  Solutions would be to implement some kind of
+    keyword args that allow the required arg to remain at the end, or simply
+    put it as the first arg, so that @a 1 | b 2 | c 3@ is sugar for
+    @a (b (c 3) 2) 1@.
+
+    - But, most importantly, I don't have a clear use for making derivers first
+    class.  Examples would be:
+
+        * A call that takes two derivers: @do-something (block1) (block2)@.
+        I can't think of a @do-something@.
+
+        * Derivers in the environment: @default-something = (block1)@.  I
+        can't think of a @default-something@.
+
+    I could move more in the direction of a real language by unifying all
+    symbols into Environ, looking up Symbols in @eval@, and making a VCall
+    type.  That way I could rebind calls with @tr = absolute-trill@ or
+    do argument substitution with @d = (block1); transpose 1 | d@.  However,
+    I don't have any uses in mind for that, and /haskell/ is supposed to be
+    the real language.  I should focus more on making it easy to write your own
+    calls in haskell.
+
+    - Making derivers first class would likely mean dropping \"consumed\"
+    unless I can stuff it into an environ value or something.  I don't mind
+    that though, because I don't have any convincing uses for it yet either.
 -}
 module Derive.Call where
 import qualified Data.Map as Map
@@ -26,7 +83,6 @@ import qualified Derive.CallSig as CallSig
 import Derive.CallSig (required)
 import qualified Derive.Derive as Derive
 import qualified Derive.TrackLang as TrackLang
-import qualified Derive.Scale.Relative as Relative
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
@@ -62,40 +118,51 @@ one_note :: Either TrackLang.TypeError Derive.EventDeriver
     -> Either TrackLang.TypeError (Derive.EventDeriver, Int)
 one_note = fmap $ \d -> (d, 1)
 
--- | There are a set of pitch calls that need a "note" arg when called in an
--- absolute context, but can more usefully default to (Note "0") in a relative
+-- | Return True if I'm in a relative scale context.
+--
+-- There are a set of pitch calls that need a \"note\" arg when called in an
+-- absolute context, but can more usefully default to @(Note "0") in a relative
+-- track.
+in_relative_scale :: Derive.PassedArgs derived -> Bool
+in_relative_scale args = case TrackLang.lookup_val TrackLang.v_scale environ of
+        Right scale -> Pitch.is_relative (Pitch.scale_id scale)
+        _ -> False
+    where environ = Derive.passed_environ args
+
+-- | There are a set of pitch calls that need a \"note\" arg when called in an
+-- absolute context, but can more usefully default to @(Note "0") in a relative
 -- track.  This will prepend a note arg if the scale in the environ is
 -- relative.
-default_relative_note :: Derive.PassedArgs derived -> Derive.PassedArgs derived
+--
+-- TODO this is much easier to use than 'in_relative_scale' but doesn't work
+-- since it needs to be in Deriver.  If I put TypeError into DeriveError then
+-- I can do it
+default_relative_note :: Derive.PassedArgs derived
+    -> Derive.Deriver (Derive.PassedArgs derived)
 default_relative_note args
-    | is_relative = args { Derive.passed_vals =
-        TrackLang.VNote (Pitch.Note "0") : Derive.passed_vals args }
-    | otherwise = args
+    | is_relative = do
+        degree <- CallSig.cast "relative pitch 0"
+            =<< eval (TrackLang.val_call "0")
+        return $ args { Derive.passed_vals =
+            TrackLang.VDegree degree : Derive.passed_vals args }
+    | otherwise = return args
     where
     environ = Derive.passed_environ args
     is_relative = case TrackLang.lookup_val TrackLang.v_scale environ of
-        Right scale -> Relative.is_relative (Pitch.scale_id scale)
+        Right scale -> Pitch.is_relative (Pitch.scale_id scale)
         _ -> False
 
 -- ** derive ops
 
--- | Find the given note in the current scale, or throw.
-note_to_degree :: Pitch.Note -> Derive.Deriver Pitch.Degree
-note_to_degree note = do
-    scale <- Derive.require_val TrackLang.v_scale
-    lookup_note scale note
-
--- | Look up the given note in the given scale, or throw.
-lookup_note :: Pitch.Scale -> Pitch.Note -> Derive.Deriver Pitch.Degree
-lookup_note scale note = case Pitch.scale_note_to_degree scale note of
-    Nothing -> Derive.throw $
-        show note ++ " not in " ++ show (Pitch.scale_id scale)
-    Just degree -> return degree
-
 get_srate :: Derive.Deriver RealTime
 get_srate = RealTime <$> Derive.require_val TrackLang.v_srate
 
+get_scale :: Derive.Deriver Pitch.Scale
+get_scale = Derive.require_val TrackLang.v_scale
+
 -- * eval
+
+type LookupCall call = TrackLang.CallId -> Derive.Deriver (Maybe call)
 
 type GeneratorReturn derived = Derive.Deriver (Derive.Deriver derived, Int)
 
@@ -104,26 +171,22 @@ skip empty = return (return empty, 1)
 
 -- | Evaluate a single note as a generator.  Fake up an event with no prev or
 -- next lists.
-eval_one :: String -> ScoreTime -> ScoreTime -> TrackLang.Expr
-    -> Derive.EventDeriver
-eval_one caller start dur expr = do
+eval_one :: ScoreTime -> ScoreTime -> TrackLang.Expr -> Derive.EventDeriver
+eval_one start dur expr = do
     -- Since the event was fake, I don't care if it wants to consume.
     (deriver, _) <- apply_toplevel (dinfo, cinfo) expr
     Derive.d_at start (Derive.d_stretch dur deriver)
     where
     cinfo = Derive.CallInfo 1 Nothing
         (Event.event ("expr: " ++ show expr) 1) [] []
-    dinfo = DeriveInfo caller Derive.no_events lookup_note_call
+    dinfo = DeriveInfo Derive.no_events lookup_note_call
 
 -- ** eval implementation
 
 data DeriveInfo derived = DeriveInfo {
-    -- | Used in errors and warnings.
-    info_caller :: String
     -- | This deriver's empty value to return on failure.
-    , info_empty :: derived
-    , info_lookup :: TrackLang.CallId
-        -> Derive.Deriver (Maybe (Derive.Call derived))
+    info_empty :: derived
+    , info_lookup :: LookupCall (Derive.Call derived)
     }
 
 type PreProcess = TrackLang.Expr -> TrackLang.Expr
@@ -191,6 +254,7 @@ derive_event dinfo preproc prev_val prev cur@(_, event) next
             ((pos-start) / stretch, Event.modify_duration (/stretch) evt)
         evt0 = Event.modify_duration (/stretch) (snd cur)
 
+-- | Apply a toplevel expression.
 apply_toplevel :: Info derived -> TrackLang.Expr -> GeneratorReturn derived
 apply_toplevel info expr = case Seq.break_last expr of
     (transform_calls, Just generator_call) -> do
@@ -203,14 +267,14 @@ apply_generator info@(dinfo, cinfo) (TrackLang.Call call_id args) = do
     maybe_call <- info_lookup dinfo call_id
     (call, vals) <- case maybe_call of
         Just call -> do
-            vals <- mapM (eval info) args
+            vals <- mapM eval args
             return (call, vals)
         Nothing -> do
             maybe_call <- lookup_val_call call_id
             case maybe_call of
                 Nothing -> Derive.throw $ unknown_call_id call_id
                 Just vcall -> do
-                    val <- apply info call_id vcall args
+                    val <- apply call_id vcall args
                     -- We only do this fallback thing once.
                     fb_call <- with_call fallback_call_id (info_lookup dinfo)
                     return (fb_call, [val])
@@ -225,20 +289,18 @@ apply_generator info@(dinfo, cinfo) (TrackLang.Call call_id args) = do
         Nothing -> with_msg call $
             Derive.throw "non-generator in generator position"
     where
-    with_msg call = Derive.with_msg $
-        info_caller dinfo ++ " generate " ++ Derive.call_name call
+    with_msg call = Derive.with_msg $ "generate " ++ Derive.call_name call
 
 apply_transformer :: Info derived -> TrackLang.Expr
     -> Derive.Deriver derived -> Derive.Deriver derived
 apply_transformer _ [] deriver = deriver
 apply_transformer info@(dinfo, cinfo) (TrackLang.Call call_id args : calls)
         deriver = do
-    vals <- mapM (eval info) args
+    vals <- mapM eval args
     let new_deriver = apply_transformer info calls deriver
     call <- with_call call_id (info_lookup dinfo)
     env <- Derive.gets Derive.state_environ
-    let with_msg = Derive.with_msg $
-            info_caller dinfo ++ " transform " ++ Derive.call_name call
+    let with_msg = Derive.with_msg $ "transform " ++ Derive.call_name call
     let passed = Derive.PassedArgs vals env call_id cinfo
     case Derive.call_transformer call of
         Just c -> case c passed new_deriver of
@@ -247,19 +309,18 @@ apply_transformer info@(dinfo, cinfo) (TrackLang.Call call_id args : calls)
         Nothing -> with_msg $
             Derive.throw "non-transformer in transformer position"
 
-eval :: Info derived -> TrackLang.Term -> Derive.Deriver TrackLang.Val
-eval _ (TrackLang.Literal val) = return val
-eval info (TrackLang.ValCall (TrackLang.Call call_id terms)) = do
+eval :: TrackLang.Term -> Derive.Deriver TrackLang.Val
+eval (TrackLang.Literal val) = return val
+eval (TrackLang.ValCall (TrackLang.Call call_id terms)) = do
     call <- with_call call_id lookup_val_call
-    apply info call_id call terms
+    apply call_id call terms
 
-apply :: Info derived -> TrackLang.CallId -> Derive.ValCall -> [TrackLang.Term]
+apply :: TrackLang.CallId -> Derive.ValCall -> [TrackLang.Term]
     -> Derive.Deriver TrackLang.Val
-apply info@(dinfo, _) call_id call args = do
+apply call_id call args = do
     env <- Derive.gets Derive.state_environ
-    let with_msg = Derive.with_msg $
-            info_caller dinfo ++ " val call " ++ Derive.vcall_name call
-    vals <- mapM (eval info) args
+    let with_msg = Derive.with_msg $ "val call " ++ Derive.vcall_name call
+    vals <- mapM eval args
     let passed = Derive.PassedArgs vals env call_id Derive.dummy_call_info
     case Derive.vcall_call call passed of
         Left err -> with_msg $ Derive.throw $ Pretty.pretty err
@@ -271,14 +332,14 @@ with_call call_id lookup =
     maybe (Derive.throw (unknown_call_id call_id)) return =<< lookup call_id
 
 unknown_call_id :: TrackLang.CallId -> String
-unknown_call_id call_id = "unknown " ++ show call_id
+unknown_call_id call_id = "call not found: " ++ Pretty.pretty call_id
 
 fallback_call_id :: TrackLang.CallId
 fallback_call_id = TrackLang.Symbol ""
 
 -- * lookup call
 
-lookup_note_call :: TrackLang.CallId -> Derive.Deriver (Maybe Derive.NoteCall)
+lookup_note_call :: LookupCall Derive.NoteCall
 lookup_note_call call_id = do
     st <- Derive.get
     let default_ns = State.state_project (Derive.state_ui st)
@@ -307,18 +368,25 @@ make_id default_ns (TrackLang.Symbol ident_str) = Id.id ns ident
     (w0, w1) = break (=='/') ident_str
     (ns, ident) = if null w1 then (default_ns, w0) else (w0, drop 1 w1)
 
-lookup_control_call :: TrackLang.CallId
-    -> Derive.Deriver (Maybe Derive.ControlCall)
+lookup_control_call :: LookupCall Derive.ControlCall
 lookup_control_call = lookup_call Derive.calls_control
 
-lookup_pitch_call :: TrackLang.CallId -> Derive.Deriver (Maybe Derive.PitchCall)
+lookup_pitch_call :: LookupCall Derive.PitchCall
 lookup_pitch_call = lookup_call Derive.calls_pitch
 
-lookup_val_call :: TrackLang.CallId -> Derive.Deriver (Maybe Derive.ValCall)
-lookup_val_call = lookup_call Derive.calls_val
+lookup_val_call :: LookupCall Derive.ValCall
+lookup_val_call call_id = do
+    -- Looking up calls_val first means that you can locally override a note.
+    maybe_call <- lookup_call Derive.calls_val call_id
+    case maybe_call of
+        Just vcall -> return (Just vcall)
+        Nothing -> do
+            scale <- get_scale
+            return $ Pitch.scale_note_to_call scale (to_note call_id)
+    where to_note (TrackLang.Symbol sym) = Pitch.Note sym
 
 lookup_call :: (Derive.CallMap -> Map.Map TrackLang.CallId call)
-    -> TrackLang.CallId -> Derive.Deriver (Maybe call)
+    -> LookupCall call
 lookup_call get_cmap call_id = do
     cmap <- Derive.gets (get_cmap . Derive.state_call_map)
     return (Map.lookup call_id cmap)

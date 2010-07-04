@@ -16,12 +16,10 @@ test_modify_text_key = do
 
 test_modify_text_note = do
     let f n = EditUtil.modify_text_note (Pitch.Note n)
-    equal (f "abc" "") (Just "*abc")
-    equal (f "abc" "a") (Just "a *abc")
+    equal (f "abc" "") (Just "(abc)")
+    equal (f "abc" "a") (Just "a (abc)")
 
 test_backspace = do
     let f = EditUtil.backspace
     equal (f "") Nothing
     equal (f "a") (Just "")
-    equal (f "a *hi") (Just "a")
-    equal (f "a *hi *there") (Just "a *hi")

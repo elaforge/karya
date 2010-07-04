@@ -48,7 +48,7 @@ tick time vel prev next = do
     (start, dur) <- stretch prev next time
     Derive.with_constant_pitch (next_pitch + transpose) $
         Derive.with_velocity (Signal.constant (next_vel * vel)) $
-        Call.eval_one "tick" start dur [TrackLang.call ""]
+        Call.eval_one start dur [TrackLang.call ""]
 
 -- TODO if I need to do more note shifting and placing, I could dream up some
 -- sort of constraint language like TeX's notion of stretchiness

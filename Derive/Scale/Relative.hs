@@ -4,6 +4,10 @@ module Derive.Scale.Relative where
 import Util.Control
 import qualified Util.Parse as Parse
 
+import qualified Derive.Call.Pitch as Call.Pitch
+import qualified Derive.Derive as Derive
+import qualified Derive.TrackLang as TrackLang
+
 import qualified Perform.Pitch as Pitch
 
 
@@ -11,20 +15,17 @@ import qualified Perform.Pitch as Pitch
 adjust :: Pitch.Scale -> Pitch.Scale
 adjust enclosing_scale = scale
     { Pitch.scale_octave = oct
-    -- would make is_relative kinda icky
+    -- would make Pitch.is_relative kinda icky
     -- , Pitch.scale_id = Pitch.ScaleId ("relative " ++ show oct)
     }
     where oct = Pitch.scale_octave enclosing_scale
-
-is_relative :: Pitch.ScaleId -> Bool
-is_relative = (==scale_id)
 
 scale :: Pitch.Scale
 scale = Pitch.Scale {
     Pitch.scale_id = scale_id
     , Pitch.scale_pattern = "float"
     , Pitch.scale_octave = 0
-    , Pitch.scale_note_to_degree = note_to_degree
+    , Pitch.scale_note_to_call = note_to_call
     , Pitch.scale_input_to_note = input_to_note
     , Pitch.scale_input_to_nn = input_to_nn
     , Pitch.scale_degree_to_nn = degree_to_nn
@@ -32,11 +33,16 @@ scale = Pitch.Scale {
     }
 
 scale_id :: Pitch.ScaleId
-scale_id = Pitch.ScaleId "relative"
+scale_id = Pitch.relative
 
 -- | TODO parse octave signs
 note_to_degree :: Pitch.Note -> Maybe Pitch.Degree
 note_to_degree note = Pitch.Degree <$> Parse.float (Pitch.note_text note)
+
+note_to_call :: Pitch.Note -> Maybe Derive.ValCall
+note_to_call note = case TrackLang.parse_val (Pitch.note_text note) of
+    Right (TrackLang.VNum d) -> Just (Call.Pitch.relative_call (Pitch.Degree d))
+    _ -> Nothing
 
 degree_to_note :: Pitch.Degree -> Pitch.Note
 degree_to_note (Pitch.Degree d) = Pitch.Note (Parse.show_float (Just 2) d)

@@ -1,7 +1,7 @@
 {- | Like Show, but designed to be easy to read rather than unambiguous and
     complete.
 -}
-module Util.Pretty (Pretty, pretty, show_float) where
+module Util.Pretty (Pretty(..), show_float) where
 import qualified Numeric
 import qualified Data.Map as Map
 

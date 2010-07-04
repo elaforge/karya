@@ -153,16 +153,16 @@ d_note_track track_id = do
     let pos_events = Track.event_list (Track.track_events track)
     -- Unlike event evaluation, if the title evaluation throws, the whole block
     -- will abort.  This seems reasonable to me.
-    Call.apply_transformer (derive_info "title", Derive.dummy_call_info)
-        track_expr (derive_notes pos_events)
+    Derive.with_msg "title" $
+        Call.apply_transformer (derive_info, Derive.dummy_call_info)
+            track_expr (derive_notes pos_events)
 
 derive_notes :: [Track.PosEvent] -> Derive.EventDeriver
-derive_notes events = Derive.merge_event_lists <$>
-    Call.derive_track (derive_info "note") id (\_ _ -> Nothing) events
+derive_notes events = Derive.with_msg "note" $ Derive.merge_event_lists <$>
+    Call.derive_track derive_info id (\_ _ -> Nothing) events
 
-derive_info :: String -> Call.DeriveInfo Derive.Events
-derive_info caller =
-    Call.DeriveInfo caller Derive.no_events Call.lookup_note_call
+derive_info :: Call.DeriveInfo Derive.Events
+derive_info = Call.DeriveInfo Derive.no_events Call.lookup_note_call
 
 -- | It's convenient to tag a note track with @>inst@ to set its instrument.
 -- Unfortunately, this is parsed as a call to @>inst@

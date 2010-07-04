@@ -50,7 +50,6 @@ import qualified Util.Num as Num
 
 import Ui
 
-import qualified Derive.Scale.Relative as Relative
 import qualified Perform.Pitch as Pitch
 import qualified Perform.SignalBase as SignalBase
 import Perform.SignalBase (max_x, default_srate, to_double)
@@ -138,10 +137,10 @@ signal :: Pitch.ScaleId -> [(X, Y)] -> PitchSignal
 signal scale_id ys = PitchSignal scale_id (SignalBase.signal ys)
 
 relative :: [(X, Y)] -> PitchSignal
-relative = signal Relative.scale_id
+relative = signal Pitch.relative
 
 relative_from_control :: Signal.Control -> Relative
-relative_from_control sig = signal Relative.scale_id
+relative_from_control sig = signal Pitch.relative
     [(x, (realToFrac y, realToFrac y, 0)) | (x, y) <- Signal.unsignal sig]
 
 empty :: PitchSignal

@@ -65,7 +65,7 @@ test_c_block = do
             ]
     let (evts, logs) = run [(0, 1, "nosuch")]
     equal evts (Right [])
-    strings_like (map fst logs) ["unknown Symbol \"nosuch\""]
+    strings_like (map fst logs) ["call not found: nosuch"]
     equal (map snd logs) [Just (mkstack [("b1", "b1.t0", (0, 1))])]
 
     strings_like (map fst (snd (run [(0, 1, "sub >arg")])))
@@ -152,8 +152,8 @@ test_call_errors = do
 
     let run_title title = extract $
             DeriveTest.derive_tracks_tempo [(title, [(0, 1, "--1")])]
-    left_like (run_title ">i | no-such-call") "unknown Symbol \"no-such-call\""
-    left_like (run_title ">i | delay *bad-arg") "expected type Control but got"
+    left_like (run_title ">i | no-such-call") "call not found: no-such-call"
+    left_like (run_title ">i | delay *bad-arg") "expected Control but got"
     left_like (run_title ">i | delay 1 2 3 4") "too many arguments"
     left_like (run_title ">i | delay") "not in environment and no default given"
     left_like (run_title ">i | delay _") "not in environment"
@@ -162,12 +162,11 @@ test_call_errors = do
     let run_evt evt = extract $
             DeriveTest.derive_tracks_tempo [(">i", [(0, 1, evt)])]
     left_like (run_evt "no-such-call")
-        "unknown Symbol \"no-such-call\""
+        "call not found: no-such-call"
     left_like (run_evt "abs-trill")
-        ("note generate absolute_trill: non-generator in generator "
-            ++ "position")
+        ("generate absolute_trill: non-generator in generator position")
     left_like (run_evt "abs-trill |")
-        "note transform absolute_trill: ArgError: too few arguments"
+        "transform absolute_trill: ArgError: too few arguments"
     equal (run_evt "delay 2 | abs-trill 2 |")
         (Right [(2, 1, "delay 2 | abs-trill 2 |")])
 

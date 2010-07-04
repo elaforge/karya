@@ -28,7 +28,7 @@ test_control_track = do
 
     let (val, logs) = derive ("cont", [(0, 0, "abc"), (1, 0, "def")])
     equal val (Right [Just []])
-    strings_like logs ["unknown Symbol \"abc\"", "unknown Symbol \"def\""]
+    strings_like logs ["call not found: abc", "call not found: def"]
     equal (derive ("cont", events)) (Right [Just [(0, 1), (1, 2)]], [])
 
 test_track_expression = do
@@ -41,7 +41,7 @@ test_track_expression = do
 
     let derive_pitch = do_derive (PitchSignal.unsignal . Score.event_pitch)
     equal
-        (derive_pitch ("srate = 2 | *twelve", [(0, 0, "4c"), (4, 0, "i *4d")]))
+        (derive_pitch ("srate = 2 | *twelve", [(0, 0, "4c"), (4, 0, "i (4d)")]))
         (Right [[(0, (60, 60, 0)), (2, (60, 62, 0.5)), (4, (60, 62, 1))]], [])
 
 
@@ -53,18 +53,16 @@ test_derive_control = do
             (Control.derive_control [] (map UiTest.mkevent events))
     equal (derive [(0, 0, "1"), (1, 0, "2")])
         (Right ([(0, 1), (1, 2)], []))
-    equal (derive [(0, 0, "1"), (0.1, 0, "i 2")])
-        (Right ([(0, 1), (0.05, 1.5), (0.1, 2)], []))
-    equal (derive [(0, 0, "1"), (0.1, 0, "i 2"), (0.2, 0, "i 1")])
-        (Right ([(0, 1), (0.05, 1.5), (0.1, 2),
-            (0.15000000000000002, 1.5), (0.2, 1)], []))
+    equal (derive [(0, 0, "1"), (2, 0, "i 2")])
+        (Right ([(0, 1), (1, 1.5), (2, 2)], []))
+    equal (derive [(0, 0, "1"), (2, 0, "i 2"), (4, 0, "i 1")])
+        (Right ([(0, 1), (1, 1.5), (2, 2), (3, 1.5), (4, 1)], []))
 
     -- evaluation continues after an error
     equal (derive [(0, 0, "1"), (1, 0, "def")])
-        (Right ([(0, 1)], ["unknown Symbol \"def\""]))
-    equal (derive [(0, 0, "1"), (0.05, 0, "def"), (0.1, 0, "i 2")])
-        (Right ([(0, 1), (0.05, 1.5), (0.1, 2)],
-            ["unknown Symbol \"def\""]))
+        (Right ([(0, 1)], ["control: call not found: def"]))
+    equal (derive [(0, 0, "1"), (1, 0, "def"), (2, 0, "i 2")])
+        (Right ([(0, 1), (1, 1.5), (2, 2)], ["control: call not found: def"]))
 
 test_pitch_track = do
     let derive = do_derive (PitchSignal.unsignal . Score.event_pitch)
@@ -75,18 +73,15 @@ test_pitch_track = do
 
     let (val, logs) = derive ("*twelve", [(0, 0, "1"), (1, 0, "2")])
     equal val (Right [[]])
-    strings_like logs
-        [ "generate note_set: Note \"1\" not in ScaleId"
-        , "generate note_set: Note \"2\" not in ScaleId"
-        ]
+    strings_like logs ["call not found: 1", "call not found: 2"]
     let (val, logs) = derive
             ("*twelve", [(0, 0, "4c"), (1, 0, "4d"), (2, 0, "4hc")])
     equal val (Right [[(0, (60, 60, 0)), (1, (62, 62, 0))]])
-    strings_like logs ["Note \"4hc\" not in ScaleId"]
+    strings_like logs ["call not found: 4hc"]
     equal (derive ("*twelve", [(0, 0, "4c"), (1, 0, "4d")]))
         (Right [[(0, (60, 60, 0)), (1, (62, 62, 0))]], [])
 
-    equal (derive ("*twelve", [(0, 0, "4c"), (2, 0, "i *4d")]))
+    equal (derive ("*twelve", [(0, 0, "4c"), (2, 0, "i (4d)")]))
         (Right [[(0, (60, 60, 0)), (1, (60, 62, 0.5)), (2, (60, 62, 1))]], [])
 
 do_derive :: (Score.Event -> a) -> UiTest.TrackSpec
@@ -129,7 +124,7 @@ test_relative_pitch = do
     let mksig = PitchSignal.signal (Pitch.ScaleId "twelve")
     equal (f []) (Right [mksig [(0, (base, base, 0))]], [])
 
-    equal (f [(0, 0, "0"), (4, 0, "i *2")])
+    equal (f [(0, 0, "0"), (4, 0, "i (2)")])
         (Right
             [mksig ((0, (60, 60, 0))
                 : DeriveTest.pitch_interpolate 0 base 4 (base+2))],

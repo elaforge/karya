@@ -54,7 +54,7 @@ track_to_degree base_note track_id scale_id events = do
     scale <- Cmd.get_scale name scale_id
     base <- maybe
         (Cmd.throw $ name ++ ": unknown base note: " ++ show base_note)
-        return (Pitch.scale_note_to_degree scale base_note)
+        return (note_to_degree scale base_note)
     let (bad_notes, degrees) = Seq.partition_either
             (map (event_to_degree scale . snd) events)
     unless (null bad_notes) $
@@ -77,5 +77,13 @@ set_note note = PitchTrack.modify f
 
 event_to_degree :: Pitch.Scale -> Event.Event -> Either Pitch.Note Pitch.Degree
 event_to_degree scale event =
-    maybe (Left note) Right (Pitch.scale_note_to_degree scale note)
+    maybe (Left note) Right (note_to_degree scale note)
     where note = Pitch.Note (snd (PitchTrack.parse (Event.event_string event)))
+
+-- | TODO I have a problem here.  I need to evaluate the note expression to
+-- know its degree, but there's no machinery for running derivation from Cmds.
+-- Technically the degree may be different depending on context anyway.
+-- It seems like there's still a use for a context-independent Note->Degree
+-- though, so maybe I should put it back in...
+note_to_degree :: Pitch.Scale -> Pitch.Note -> Maybe Pitch.Degree
+note_to_degree = undefined

@@ -43,7 +43,7 @@ test_cmd_raw_edit = do
         run track_specs cmd = run_sel track_specs cmd
     -- Created event has dur according to ruler.
     equal (run [(">i", [])] (f (CmdTest.m_note_on 60 60 127))) $
-        Right [(">i", [(0, 10, "*4c")])]
+        Right [(">i", [(0, 10, "(4c)")])]
     equal (run [(">i", [])] (f (mkkey (Key.KeyChar ' ')))) $
         Right [(">i", [(0, 10, "")])]
     equal (run [(">i", [])] (f (mkkey (Key.KeyChar 'x')))) $
@@ -54,8 +54,6 @@ test_cmd_raw_edit = do
     -- Modified event keeps dur.
     equal (run [(">i", [(0, 5, "a")])] (f (mkkey Key.Backspace))) $
         Right [(">i", [(0, 5, "")])]
-    equal (run [(">i", [(0, 5, "a *a")])] (f (mkkey Key.Backspace))) $
-        Right [(">i", [(0, 5, "a")])]
 
 test_cmd_val_edit = do
     let create_track = NoteTrack.CreateTrack 1 "*new" 2

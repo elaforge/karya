@@ -25,7 +25,7 @@ import qualified Perform.Signal as Signal
 control_calls :: Derive.ControlCallMap
 control_calls = Derive.make_calls
     [ ("=", Call.c_equal Derive.no_control)
-    -- | Fallback call will take val-call output.
+    -- Fallback call will take val-call output.
     , ("", c_set)
     , ("set", c_set)
     , ("i", c_linear)

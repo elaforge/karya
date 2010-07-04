@@ -101,8 +101,10 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.Derive as Derive
-import qualified Derive.Score as Score
+import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Schema as Schema
+import qualified Derive.Score as Score
+import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Transport as Transport
 import qualified Perform.Timestamp as Timestamp
@@ -241,10 +243,20 @@ derive schema_map block_id = do
     call_map <- Cmd.gets Cmd.state_call_map
     let (result, tempo_func, inv_tempo_func, logs, _) =
             Derive.derive (Schema.lookup_deriver schema_map ui_state)
-                ui_state call_map False (Derive.d_root_block block_id)
+                ui_state call_map initial_environ False
+                (Derive.d_root_block block_id)
     -- TODO does this force the derivation?
     mapM_ Log.write logs
     return (result, tempo_func, inv_tempo_func)
+
+-- | There are a few environ values that almost everything relies on.
+initial_environ :: TrackLang.Environ
+initial_environ = Map.fromList
+    -- Control interpolators rely on this.
+    [ (TrackLang.v_srate, TrackLang.VNum 0.05)
+    -- Looking up any val call relies on this.
+    , (TrackLang.v_scale, TrackLang.VScale Twelve.scale)
+    ]
 
 -- | Convert a Warning into an appropriate log msg.
 warn_to_msg :: String -> Warning.Warning -> Log.Msg

@@ -56,8 +56,15 @@ run ui_state m =
     -- trackpos.
     fake_stack = [(UiTest.bid "blck", Just (UiTest.tid "trck"), Nothing)]
     derive_state = (Derive.initial_state ui_state
-        (Schema.lookup_deriver Map.empty ui_state) Call.All.call_map False)
-            { Derive.state_stack = fake_stack }
+        (Schema.lookup_deriver Map.empty ui_state) Call.All.call_map
+            environ False) { Derive.state_stack = fake_stack }
+
+environ :: TrackLang.Environ
+environ = Map.fromList
+    -- tests are easier to write and read with integral interpolation
+    [ (TrackLang.v_srate, TrackLang.VNum 1)
+    , (TrackLang.v_scale, TrackLang.VScale Twelve.scale)
+    ]
 
 -- * derive
 
@@ -111,11 +118,9 @@ derive = derive_cmap Call.All.call_map
 derive_cmap :: Derive.CallMap -> Derive.LookupDeriver -> State.State
     -> Derive.Deriver a -> Result a
 derive_cmap cmap lookup_deriver ui_state deriver =
-    case Derive.derive lookup_deriver ui_state cmap False d of
+    case Derive.derive lookup_deriver ui_state cmap environ False deriver of
         (Left err, b, c, d, e) -> (Left (show err), b, c, d, e)
         (Right a, b, c, d, e) -> (Right a, b, c, d, e)
-    -- tests are easier to write and read with integral interpolation
-    where d = Derive.put_val TrackLang.v_srate (1 :: Double) >> deriver
 
 -- ** extract
 

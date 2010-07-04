@@ -49,7 +49,14 @@ con = Signal.constant
 -- * pitch calls
 
 test_pitch_absolute_trill = do
-    equal (CallTest.run_pitch [(0, "abs-trill *4e 2 2"), (2.8, "4c")]) $
+    equal (CallTest.run_pitch [(0, "abs-trill (4e) 2 2"), (2.8, "4c")]) $
         Right [(0, (64, 64, 0)), (0.5, (66, 66, 0)), (1, (64, 64, 0)),
             (1.5, (66, 66, 0)), (2, (64, 64, 0)),
             (2.8, (60, 60, 0))]
+
+test_default_relative_note = do
+    equal (CallTest.run_with_scale "twelve"
+            [(0, "abs-trill (4e) 2 2"), (1, "4c")])
+        (Right [(0, (64, 64, 0)), (0.5, (66, 66, 0)), (1, (60, 60, 0))])
+    equal (CallTest.run_with_scale "relative" [(0, "abs-trill 2 2"), (1, "8")])
+        (Right [(0, (0, 0, 0)), (0.5, (2, 2, 0)), (1, (8, 8, 0))])

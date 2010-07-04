@@ -36,5 +36,5 @@ test_slide = do
 -- * pitch
 
 test_neighbor = do
-    equal (CallTest.run_pitch [(0, "n *4c 1 2")])
+    equal (CallTest.run_pitch [(0, "n (4c) 1 2")])
         (Right [(0, (61, 60, 0)), (1, (61, 60, 0.5)), (2, (61, 60, 1))])
