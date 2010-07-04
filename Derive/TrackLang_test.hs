@@ -9,8 +9,6 @@ import Derive.TrackLang (AttrMode(..), Call(..), Control(..), Symbol(..),
     Val(..), Term(..))
 import qualified Derive.TrackLang as TrackLang
 
-import qualified Perform.Pitch as Pitch
-
 
 test_parse = do
     let f = TrackLang.parse
@@ -50,12 +48,8 @@ test_parse = do
 
 test_p_val = do
     let mkattr = Just . VRelativeAttr . TrackLang.RelativeAttr
-        mknote = Just . VNote . Pitch.Note
     let expr_expected =
-            [ ("*note", mknote "note")
-            , ("*5num*", mknote "5num*")
-
-            , (">", Just $ VInstrument (Score.Instrument ""))
+            [ (">", Just $ VInstrument (Score.Instrument ""))
             , (">fu/nny^*", Just $ VInstrument (Score.Instrument "fu/nny^*"))
 
             , ("+a", mkattr (Add, "a"))

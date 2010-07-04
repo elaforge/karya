@@ -10,7 +10,7 @@ regex-pcre
 data-ordlist
 
     no longer in base, I think these should come from the haskell platform?
-parsec
+parsec-2
 mtl
 network
 stm

@@ -263,7 +263,7 @@ apply_toplevel info expr = case Seq.break_last expr of
     _ -> Derive.throw "event with no calls at all (this shouldn't happen)"
 
 apply_generator :: Info derived -> TrackLang.Call -> GeneratorReturn derived
-apply_generator info@(dinfo, cinfo) (TrackLang.Call call_id args) = do
+apply_generator (dinfo, cinfo) (TrackLang.Call call_id args) = do
     maybe_call <- info_lookup dinfo call_id
     (call, vals) <- case maybe_call of
         Just call -> do

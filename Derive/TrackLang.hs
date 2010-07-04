@@ -50,11 +50,9 @@ import qualified Perform.Signal as Signal
 
 
 data Val =
-    -- | Goes in a pitch track val field.  Literal: @*5a@
-    VNote Pitch.Note
     -- | No special literal yet, but in the track title reuses note literal
     -- syntax.
-    | VScale Pitch.Scale
+    VScale Pitch.Scale
     -- | Sets the instrument in scope for a note.  An empty instrument doesn't
     -- set the instrument, but can be used to mark a track as a note track.
     -- Literal: @>@, @>inst@
@@ -87,10 +85,9 @@ data Val =
 
 instance Pretty.Pretty Val where
     pretty val = case val of
-        VNote (Pitch.Note n) -> note_literal_prefix ++ n
         VScale scale -> case Pitch.scale_id scale of
-            Pitch.ScaleId scale_id -> note_literal_prefix ++ scale_id
-        VInstrument (Score.Instrument inst) -> inst_literal_prefix ++ inst
+            Pitch.ScaleId scale_id -> '*' : scale_id
+        VInstrument (Score.Instrument inst) -> '>' : inst
         VNum d -> show_num d
         VDegree (Pitch.Degree d) -> show_num d ++ "d"
         VString s -> "'" ++ Seq.replace "'" "''" s ++ "'"
@@ -177,7 +174,6 @@ type_of val = case val of
     -- a VMaybe and doing @type_of . to_val@, but 'to_val' and 'type_of' both
     -- promising to not evaluate the value seems even more hacky than just
     -- 'to_type' making that promise.
-    VNote _ -> TNote
     VScale _ -> TScale
     VInstrument _ -> TInstrument
     VNum _ -> TNum
@@ -212,12 +208,6 @@ instance (Typecheck a) => Typecheck (Maybe a) where
     to_val Nothing = VNotGiven
     to_val (Just a) = to_val a
     to_type val = TMaybe (to_type (maybe undefined id val))
-
-instance Typecheck Pitch.Note where
-    from_val (VNote a) = Just a
-    from_val _ = Nothing
-    to_val = VNote
-    to_type _ = TNote
 
 instance Typecheck Pitch.Scale where
     from_val (VScale a) = Just a
@@ -362,12 +352,6 @@ call sym = Call (Symbol sym) []
 val_call :: String -> Term
 val_call sym = ValCall (Call (Symbol sym) [])
 
--- TODO These should remain the same as the ones in Derive.Schema.Default for
--- consistency.  I can't use those directly because of circular imports.
-inst_literal_prefix, note_literal_prefix :: String
-inst_literal_prefix = ">"
-note_literal_prefix = "*"
-
 -- | The returned Expr is never null.
 parse :: String -> Either String Expr
 parse text = Parse.parse_all p_pipeline (strip_comment text)
@@ -433,7 +417,7 @@ p_sub_call = P.between (P.char '(') (P.char ')') p_call
 
 p_val :: P.Parser Val
 p_val = Parse.lexeme $
-    VNote <$> p_note <|> VInstrument <$> p_instrument
+    VInstrument <$> p_instrument
     -- RelativeAttr and Num can both start with a '-', but an RelativeAttr has
     -- to have a letter afterwards, while a Num is a '.' or digit, so they're
     -- not ambiguous.
@@ -442,11 +426,8 @@ p_val = Parse.lexeme $
     <|> (P.char '_' >> return VNotGiven)
     <|> VSymbol <$> p_symbol
 
-p_note :: P.Parser Pitch.Note
-p_note = P.string note_literal_prefix >> Pitch.Note <$> p_null_word <?> "note"
-
 p_instrument :: P.Parser Score.Instrument
-p_instrument = P.string inst_literal_prefix >> Score.Instrument <$> p_null_word
+p_instrument = P.char '>' >> Score.Instrument <$> p_null_word
     <?> "instrument"
 
 p_num :: P.Parser Double
@@ -480,9 +461,13 @@ p_control = do
 -- | Symbols can have anything in them but they have to start with a letter.
 -- This means special literals can start with wacky characters and not be
 -- ambiguous.
+--
+-- They can also start with a *.  This is a special hack to support *scale
+-- syntax in pitch track titles, but who knows, maybe it'll be useful in other
+-- places too.
 p_symbol :: P.Parser Symbol
 p_symbol = do
-    c <- P.letter
+    c <- P.letter <|> P.char '*'
     rest <- p_null_word
     return (Symbol (c : rest))
 

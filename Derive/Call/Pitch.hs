@@ -123,12 +123,12 @@ c_neighbor = Derive.generate_one "neighbor" $ \args ->
         then CallSig.call2 args (cneighbor, ctime) $ \neighbor time -> do
             degree <- CallSig.cast "relative pitch 0"
                 =<< Call.eval (TrackLang.val_call "0")
-            go args degree neighbor time
-        else CallSig.call3 args (required "degree", cneighbor, ctime) (go args)
+            go degree neighbor time
+        else CallSig.call3 args (required "degree", cneighbor, ctime) go
     where
     cneighbor = optional "neighbor" 1
     ctime = optional "time" 0.1
-    go args degree neighbor time = do
+    go degree neighbor time = do
         start <- Derive.now
         let end = start + RealTime time
         scale <- Call.get_scale

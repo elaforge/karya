@@ -4,10 +4,10 @@ auto insert imports in vim:
   - turn 'module x.y.z where' into 'import qualified x.y.z as z'
   - figure out where to insert it, and insert it
 
-- complete note call stuff, convert scales, etc.
-- remove VNote, add VDegree
-- finish up derive profiling testing, logging monad
 - remove control warp map stuff in Score
+- implement tunable just intonation scale
+  - implement named pitch tracks
+- finish up derive profiling testing, logging monad
 - implement postproc, plus some fun postprocs
 - implement deriver like vla/cello duet?  that's a sekaran, so I need to think
   about this more.
@@ -23,76 +23,35 @@ auto insert imports in vim:
 - research ardour OSC control
 
 CURRENT
-  Call as any word means I can't write ">inst" as a note track title.  prproc?
-  First word is call means that "+attr" or ">inst" no longer works.  In
-  exchange I get calls named '4' or '>' or whatever.  I think if I want
-  a specific attr I should make it a call anyway: "rim = (attr = +rim)"
-
-  Or use null-parsing for note tracks.  Inconsistent parsing is bad.
-
-  Null parsing in pitch tracks means that '4' can't be a call, so I'd need
-  a preproc back to change x to (x).  Also preproc must go back to being
-  textual.  Then, '>' in a control track can't be a call.
-
-  So, I think arbitrary call names are too important.  If I later add call
-  lookup handlers, I can both eliminate the control preproc (num is a call to
-  "set num") and apply '+whatever' as a call.  However a lookup handler seems
-  morally equivalent to preproc.  Except it can handle proper expressions more
-  easily.
-
   - should I make the control title expression the first one instead of last?
+  - Circular imports of Derive.Derive and Derive.Scale causes a lot of
+    recompiling.  Can I eliminate or reduce it?
 
-  * scale as sub-call
-    * parser supports ()s and sub exprs
-    * evaluate each word separately
-    * lookup in XyzMap, then in ValMap
-    * control: preproc takes VNum d -> Symbol "set" (VNum d)
-    * absolute pitch: no preproc, val is a call that returns VDegree, fallback
-      turns that into 'set'
-    * relative pitch: relative pitch scale has -n -- n
-    * note: no preproc
-    * scale adds its degrees to val call map
-      I can use the current scale as a fallback in the val call lookup just
-      like the note lookup looks in blocks.
+    If I put (Note -> Maybe ValCall) in Scale, then Scale needs to import
+    Derive.  If I give it a type param then it's hard for TrackLang.Val to
+    have a Scale
 
-      If I put (Note -> Maybe ValCall) in Scale, then Scale needs to import
-      Derive.  If I give it a type param then it's hard for TrackLang.Val to
-      have a Scale
+    So either, put Val and Scale into Derive, or store ScaleIds in Val
 
-      So either, put Val and Scale into Derive, or store ScaleIds in Val
+    Val will drag in too much stuff so I don't want to move it to Derive.
 
-      Val will drag in too much stuff so I don't want to move it to Derive.
+    I can parameterize Val with scale, then use Derive.Val everywhere.  Will
+    anyone have a problem with this?
 
-      I can parameterize Val with scale, then use Derive.Val everywhere.  Will
-      anyone have a problem with this?
+    Or change Pitch.Scale to GenericScale, then give it ().  Add Derive.Scale
+    that puts in ValCall.
 
-      Or change Pitch.Scale to GenericScale, then give it ().  Add Derive.Scale
-      that puts in ValCall.
+    Make a hs-boot.  Scale imports Derive, for ValCall.
+    Scales need Derive since they have Derivers.  But Derive needs scales to
+    look them up.  Maybe put a 'import SOURCE Scale.scale_map'?
 
-      Make a hs-boot.  Scale imports Derive, for ValCall.
-      Scales need Derive since they have Derivers.  But Derive needs scales to
-      look them up.  Maybe put a 'import SOURCE Scale.scale_map'?
-
-      Or, can I split scale defs into uses Derive and doesn't?  Ugh.  I think
-      I just need to split Twelve.scale_id into Score.default_scale_id or
-      something.
-
-    * make a Degree type so calls don't have to take degree as VNum
-      But I'll want a Typecheck promotion from Num -> Degree so I can write
-      4 instead of (4), especially for relative pitches.  Except I think I
-      don't because that will be error prone if relative scale is fancy.
-
-  - derivers as normal args causes a problem for transformers with optional
-    args: 'echo | xyz' -> 'echo (xyz)', but the required transformer arg
-    can't follow an optional call arg.  I can solve this by partially
-    implementing keyword args.  'echo | xyz' is sugar for
-    'echo deriver:(xyz)'.  The typechecker first associates kw args with
-    their matching args and then procedes normally.
-    Or some kind of * arg that skips intermediate args.  But I still need
-    a required to follow an optional.
+    Or, can I split scale defs into uses Derive and doesn't?  Ugh.  I think
+    I just need to split Twelve.scale_id into Score.default_scale_id or
+    something.
 
   - put TypeError into DeriveError and use Call.default_relative_note
   - LPitch.to_relative was broken by notes as calls, fix it
+  - implement add_hz in Derive.Scale.Util
 
   * remove TrackLang.VMethod
   - remove consumed call return unless I can think of something good for it

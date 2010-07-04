@@ -1,6 +1,5 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 module Util.Seq_test where
-import qualified Data.Map as Map
 import Util.Test
 import qualified Util.Seq as Seq
 

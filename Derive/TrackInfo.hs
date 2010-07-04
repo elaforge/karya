@@ -52,18 +52,16 @@ parse_control_vals vals = case vals of
                 TrackLang.VSymbol control] ->
             Right $ Pitch (PitchAbsolute (scale_of scale))
                 (Just (control_of control))
+        TrackLang.VSymbol call : TrackLang.VSymbol (TrackLang.Symbol "*") : rest
+            | [] <- rest ->
+                Right $ Pitch (PitchRelative call) Nothing
+            | [TrackLang.VSymbol control] <- rest ->
+                Right $ Pitch (PitchRelative call) (Just (control_of control))
         [TrackLang.VSymbol (TrackLang.Symbol "tempo")] -> Right Tempo
         [TrackLang.VSymbol control] ->
             Right $ Control Nothing (control_of control)
         [TrackLang.VSymbol call, TrackLang.VSymbol control] ->
             Right $ Control (Just call) (control_of control)
-        TrackLang.VSymbol call : TrackLang.VNote note : rest
-            | not (null (Pitch.note_text note)) ->
-                Left "relative pitch track can't have a scale"
-            | [] <- rest ->
-                Right $ Pitch (PitchRelative call) Nothing
-            | [TrackLang.VSymbol control] <- rest ->
-                Right $ Pitch (PitchRelative call) (Just (control_of control))
         _ -> Left $ "args must be one of [\"tempo\", control, op control, "
             ++ "*scale, *scale pitch_control, op *, op * pitch_control]"
     where
@@ -82,14 +80,13 @@ unparse_control_vals ctype = case ctype of
         Pitch ptype name ->
             let pname = maybe [] (\(Score.Control c) -> [sym c]) name
             in case ptype of
-                PitchRelative call -> [TrackLang.VSymbol call, note ""] ++ pname
+                PitchRelative call -> [TrackLang.VSymbol call, sym "*"] ++ pname
                 PitchAbsolute (Just (Pitch.ScaleId scale_id)) ->
-                    [note scale_id] ++ pname
-                PitchAbsolute Nothing -> [note ""] ++ pname
+                    [sym ('*':scale_id)] ++ pname
+                PitchAbsolute Nothing -> [sym "*"] ++ pname
         Tempo -> [sym "tempo"]
     where
     sym = TrackLang.VSymbol . TrackLang.Symbol
-    note = TrackLang.VNote . Pitch.Note
 
 -- ** util
 
