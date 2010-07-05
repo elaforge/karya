@@ -4,8 +4,6 @@ auto insert imports in vim:
   - turn 'module x.y.z where' into 'import qualified x.y.z as z'
   - figure out where to insert it, and insert it
 
-- implement tunable just intonation scale
-  - implement named pitch tracks
 - finish up derive profiling testing, logging monad
 - implement postproc, plus some fun postprocs
 - implement deriver like vla/cello duet?  that's a sekaran, so I need to think
@@ -606,7 +604,7 @@ Derive:
     * implement control calls
     - implement block level calls in block title
     - other attributes in block title, e.g. "alias=?squiggle? | xyz"?
-    - support pitch signals, e.g. "tune-to %*some-sig" but that requires named
+    * support pitch signals, e.g. "tune-to %*some-sig" but that requires named
       pitch signals
 
     * implement sub-calls with TVal return type
@@ -616,13 +614,6 @@ Derive:
         - tval
     * implement scales as a set of sub-calls that return pitches
       * they can take a number for cents offset: (*4c# 20)
-      Fancy pitch use cases:
-        - retune a scale according to another signal
-          Can be done by a call.
-        - retune a note depending on the previous interval (e.g. sloppy pitches
-          when playing quickly)
-          I think this has to be postproc.
-      - what about efficiency?
     * merge pitch call namespace with normal call namespace
 
   - dynamics controls:
@@ -748,7 +739,7 @@ Derive:
       - hybrid where the initial part stretches, final part is absolute
 
   PitchTrack pitch
-    - Named pitch tracks, so derivers (e.g. tuned just scale) can take pitch
+    * Named pitch tracks, so derivers (e.g. tuned just scale) can take pitch
       track args.  The way this could work is that the state_pitch becomes
       'Map SignalName PitchSignal' and the "" signal is taken by the note
       deriver during convert.  Track syntax:
@@ -756,14 +747,20 @@ Derive:
       "*scale %psig -> ("psig", ScaleId scale)
 
   ControlTrack control
-    - configurable interpolators instead of a hardcoded ADT
+    interpolators
       - sine
       - constant slope, exp slope (i.e. slope until next control event)
+      - continuous tempo warping for signals
+        tempo: "2" -> "1", "2", cont: "2" -> "i, 1", should emit a bent line
   scales
     - implement pengumbang pengisep
     - enharmonics for Twelve
-    - just intonation
+    - just intonation tuned to a pitch signal
     - looks like fun: http://en.wikipedia.org/wiki/Bohlen-Pierce_scale
+    - retune a note depending on the previous interval (e.g. sloppy pitches
+      when playing quickly)
+      I think this has to be postproc.
+    - some kind of ratio based notation?  check out Ben Jonston's just notation
 
    - Control track management?  It should be possible to have a note or a bunch
      of note tracks with a bunch of control tracks and control the clutter.
@@ -804,8 +801,6 @@ Perform:
 
   Signal
     - lazy implementation
-    - continuous tempo warping for signals
-      tempo: "2" -> "1", "2", cont: "2" -> "i, 1", should emit a bent line
 
   Midi:
     - see if synths support the set pitchbend range controller

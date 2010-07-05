@@ -83,9 +83,7 @@ control_call track_id control maybe_op control_deriver =
 
 pitch_call :: TrackId -> Maybe Score.Control -> TrackInfo.PitchType
     -> TrackLang.Expr -> [Track.PosEvent] -> Derive.Transformer
-pitch_call _ (Just _) _ _ _ _ =
-    Derive.throw $ "named pitch tracks not supported yet"
-pitch_call track_id Nothing ptype track_expr events deriver =
+pitch_call track_id maybe_name ptype track_expr events deriver =
     Derive.track_setup track_id $ do
         with_scale <- case ptype of
             TrackInfo.PitchRelative _ -> do
@@ -99,10 +97,10 @@ pitch_call track_id Nothing ptype track_expr events deriver =
         with_scale $ case ptype of
             TrackInfo.PitchRelative op -> do
                 signal <- derive_relative_pitch events
-                Derive.with_pitch_operator op signal deriver
+                Derive.with_pitch_operator maybe_name op signal deriver
             _ -> do
                 signal <- derive_pitch track_expr events
-                Derive.with_pitch signal deriver
+                Derive.with_pitch maybe_name signal deriver
 
 derive_control :: TrackLang.Expr -> [Track.PosEvent] -> Derive.ControlDeriver
 derive_control track_expr events = Derive.with_msg "control" $

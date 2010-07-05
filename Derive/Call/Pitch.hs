@@ -121,8 +121,7 @@ c_neighbor :: Derive.PitchCall
 c_neighbor = Derive.generate_one "neighbor" $ \args ->
     if Call.in_relative_scale args
         then CallSig.call2 args (cneighbor, ctime) $ \neighbor time -> do
-            degree <- CallSig.cast "relative pitch 0"
-                =<< Call.eval (TrackLang.val_call "0")
+            degree <- Call.eval_note (Pitch.Note "0")
             go degree neighbor time
         else CallSig.call3 args (required "degree", cneighbor, ctime) go
     where

@@ -44,6 +44,7 @@ data Event = Event {
     } deriving (Eq, Show)
 
 type ControlMap = Map.Map Control Signal.Control
+type PitchMap = Map.Map Control PitchSignal.PitchSignal
 
 event_string :: Event -> String
 event_string = Text.unpack . event_text

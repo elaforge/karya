@@ -1,4 +1,5 @@
 {-# LANGUAGE TypeSynonymInstances #-} -- for instance Typecheck String
+{-# LANGUAGE FlexibleInstances #-} -- for instance Typecheck (Control X)
 {- | The event text in a note track forms a simple language.
 
     Notes with text are interpreted as function calls.  The function will be
@@ -72,8 +73,13 @@ data Val =
     | VRelativeAttr RelativeAttr
     | VAttributes Score.Attributes
     -- | A control name.  An optional value gives a default if the control
-    -- isn't present.  Literal: @%control@, @%control,.4@
+    -- isn't present.
+    -- Literal: @%control@, @%control,.4@
     | VControl Control
+    -- | If a control name starts with a *, it denotes a pitch signal and the
+    -- scale is taken from the environ.  TODO or provide one explicitly?
+    -- Literal: @%*pitch,4c@, @%*,4@, @%*@
+    | VPitchControl PitchControl
     -- | A call to a function.  There are two kinds: a subderive produces
     -- Events, and a call transforms Events.
     -- Literal: @func@
@@ -85,25 +91,28 @@ data Val =
 
 instance Pretty.Pretty Val where
     pretty val = case val of
-        VScale scale -> case Pitch.scale_id scale of
-            Pitch.ScaleId scale_id -> '*' : scale_id
-        VInstrument (Score.Instrument inst) -> '>' : inst
-        VNum d -> show_num d
-        VDegree (Pitch.Degree d) -> show_num d ++ "d"
-        VString s -> "'" ++ Seq.replace "'" "''" s ++ "'"
-        VRelativeAttr (RelativeAttr (mode, attr)) -> case mode of
-            Add -> '+' : attr
-            Remove -> '-' : attr
-            Set -> '=' : attr
-            Clear -> "=-"
-        VAttributes attrs -> Seq.join "+" (Score.attrs_list attrs)
-        VControl control -> case control of
-            ConstantControl val -> Pretty.pretty val
+            VScale scale -> case Pitch.scale_id scale of
+                Pitch.ScaleId scale_id -> '*' : scale_id
+            VInstrument (Score.Instrument inst) -> '>' : inst
+            VNum d -> show_num d
+            VDegree (Pitch.Degree d) -> show_num d ++ "d"
+            VString s -> "'" ++ Seq.replace "'" "''" s ++ "'"
+            VRelativeAttr (RelativeAttr (mode, attr)) -> case mode of
+                Add -> '+' : attr
+                Remove -> '-' : attr
+                Set -> '=' : attr
+                Clear -> "=-"
+            VAttributes attrs -> Seq.join "+" (Score.attrs_list attrs)
+            VControl control -> show_control Pretty.pretty id control
+            VPitchControl control -> show_control Pitch.note_text ('*':) control
+            VSymbol sym -> Pretty.pretty sym
+            VNotGiven -> "_"
+        where
+        show_control show_val show_cont control = case control of
+            ConstantControl val -> show_val val
             DefaultedControl (Score.Control cont) deflt ->
-                '%' : cont ++ ',' : Pretty.pretty deflt
-            Control (Score.Control cont) -> '%' : cont
-        VSymbol sym -> Pretty.pretty sym
-        VNotGiven -> "_"
+                '%' : show_cont cont ++ ',' : show_val deflt
+            Control (Score.Control cont) -> '%' : show_cont cont
 
 -- | Show a VNum without the bother of converting it to a Val.
 show_num :: Double -> String
@@ -121,14 +130,18 @@ instance Pretty.Pretty Symbol where
     pretty (Symbol "") = "<null>"
     pretty (Symbol s) = s
 
-data Control =
+type Control = ControlRef Signal.Y
+type PitchControl = ControlRef Pitch.Note
+
+data ControlRef val =
     -- | A constant signal.  This is coerced from a VNum literal.
-    ConstantControl Signal.Y
+    ConstantControl val
     -- | If the control isn't present, use the constant.
-    | DefaultedControl Score.Control Signal.Y
+    | DefaultedControl Score.Control val
     -- | Throw an exception if the control isn't present.
     | Control Score.Control
     deriving (Eq, Show)
+
 newtype RelativeAttr = RelativeAttr (AttrMode, Score.Attribute)
     deriving (Eq, Show)
 
@@ -160,8 +173,8 @@ v_srate = Symbol "srate"
 -- * types
 
 data Type = TNote | TScale | TInstrument | TNum | TDegree | TString
-    | TRelativeAttr | TAttributes | TControl | TSymbol | TNotGiven
-    | TMaybe Type | TVal
+    | TRelativeAttr | TAttributes | TControl | TPitchControl | TSymbol
+    | TNotGiven | TMaybe Type | TVal
     deriving (Eq, Show)
 
 instance Pretty.Pretty Type where
@@ -182,6 +195,7 @@ type_of val = case val of
     VRelativeAttr _ -> TRelativeAttr
     VAttributes _ -> TAttributes
     VControl _ -> TControl
+    VPitchControl _ -> TPitchControl
     VSymbol _ -> TSymbol
     VNotGiven -> TNotGiven
 
@@ -257,6 +271,12 @@ instance Typecheck Control where
     from_val _ = Nothing
     to_val = VControl
     to_type _ = TControl
+
+instance Typecheck PitchControl where
+    from_val (VPitchControl a) = Just a
+    from_val _ = Nothing
+    to_val = VPitchControl
+    to_type _ = TPitchControl
 
 instance Typecheck Symbol where
     from_val (VSymbol a) = Just a
@@ -422,7 +442,7 @@ p_val = Parse.lexeme $
     -- to have a letter afterwards, while a Num is a '.' or digit, so they're
     -- not ambiguous.
     <|> VRelativeAttr <$> P.try p_rel_attr <|> VNum <$> p_num
-    <|> VString <$> p_string <|> VControl <$> p_control
+    <|> VString <$> p_string <|> p_control_val
     <|> (P.char '_' >> return VNotGiven)
     <|> VSymbol <$> p_symbol
 
@@ -448,15 +468,29 @@ p_rel_attr = do
     return $ RelativeAttr (if null attr then Clear else mode, attr)
     <?> "relative attr"
 
+p_control_val :: P.Parser Val
+p_control_val = do
+    P.char '%'
+    VControl <$> p_control <|> VPitchControl <$> p_pitch_control
+
 p_control :: P.Parser Control
 p_control = do
-    P.char '%'
     control <- Score.Control <$> p_ident ","
     deflt <- Parse.optional (P.char ',' >> Parse.p_float)
     return $ case deflt of
         Nothing -> Control control
         Just val -> DefaultedControl control val
     <?> "control"
+
+p_pitch_control :: P.Parser PitchControl
+p_pitch_control = do
+    P.char '*'
+    control <- Score.Control <$> p_ident ","
+    deflt <- Parse.optional (P.char ',' >> p_word)
+    return $ case deflt of
+        Nothing -> Control control
+        Just val -> DefaultedControl control (Pitch.Note val)
+    <?> "pitch control"
 
 -- | Symbols can have anything in them but they have to start with a letter.
 -- This means special literals can start with wacky characters and not be

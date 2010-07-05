@@ -46,7 +46,7 @@ tick time vel prev next = do
     next_vel <- Derive.velocity_at next
     let transpose = if prev_pitch <= next_pitch then -1 else 1
     (start, dur) <- stretch prev next time
-    Derive.with_constant_pitch (next_pitch + transpose) $
+    Derive.with_constant_pitch Nothing (next_pitch + transpose) $
         Derive.with_velocity (Signal.constant (next_vel * vel)) $
         Call.eval_one start dur [TrackLang.call ""]
 

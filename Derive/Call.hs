@@ -85,6 +85,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
+import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
 
 
@@ -111,6 +112,36 @@ to_signal control = case control of
     TrackLang.Control cont ->
         maybe (Derive.throw $ "not found: " ++ show cont) return
             =<< Derive.get_control cont
+
+pitch_at :: ScoreTime -> TrackLang.PitchControl -> Derive.Deriver PitchSignal.Y
+pitch_at pos control = case control of
+    TrackLang.ConstantControl deflt ->
+        PitchSignal.degree_to_y <$> eval_note deflt
+    TrackLang.DefaultedControl cont deflt -> do
+        maybe_y <- Derive.named_pitch_at cont pos
+        maybe (PitchSignal.degree_to_y <$> eval_note deflt) return maybe_y
+    TrackLang.Control cont -> do
+        maybe_y <- Derive.named_pitch_at cont pos
+        maybe (Derive.throw $ "pitch not found and no default given: "
+            ++ show cont) return maybe_y
+
+to_pitch_signal :: TrackLang.PitchControl
+    -> Derive.Deriver PitchSignal.PitchSignal
+to_pitch_signal control = case control of
+    TrackLang.ConstantControl deflt -> constant deflt
+    TrackLang.DefaultedControl cont deflt -> do
+        sig <- Derive.get_named_pitch cont
+        maybe (constant deflt) return sig
+    TrackLang.Control cont ->
+        maybe (Derive.throw $ "not found: " ++ show cont) return
+            =<< Derive.get_named_pitch cont
+    where
+    constant note = do
+        scale <- get_scale
+        PitchSignal.constant (Pitch.scale_id scale) <$> eval_note note
+
+degree_at :: ScoreTime -> TrackLang.PitchControl -> Derive.Deriver Pitch.Degree
+degree_at pos control = PitchSignal.y_to_degree <$> pitch_at pos control
 
 -- * util
 
@@ -180,6 +211,10 @@ eval_one start dur expr = do
     cinfo = Derive.CallInfo 1 Nothing
         (Event.event ("expr: " ++ show expr) 1) [] []
     dinfo = DeriveInfo Derive.no_events lookup_note_call
+
+eval_note :: Pitch.Note -> Derive.Deriver Pitch.Degree
+eval_note note = CallSig.cast ("pitch " ++ show note)
+    =<< eval (TrackLang.val_call (Pitch.note_text note))
 
 -- ** eval implementation
 

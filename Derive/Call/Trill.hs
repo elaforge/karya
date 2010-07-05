@@ -32,7 +32,6 @@ import qualified Derive.Call as Call
 import Derive.CallSig (optional, required, control)
 import qualified Derive.CallSig as CallSig
 import qualified Derive.Derive as Derive
-import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
@@ -124,8 +123,7 @@ c_pitch_absolute_trill :: Derive.PitchCall
 c_pitch_absolute_trill = Derive.generate_one "pitch_absolute_trill" $ \args ->
     if Call.in_relative_scale args
         then CallSig.call2 args (cneighbor, cspeed) $ \neighbor speed -> do
-            degree <- CallSig.cast "relative pitch 0"
-                =<< Call.eval (TrackLang.val_call "0")
+            degree <- Call.eval_note (Pitch.Note "0")
             go args degree neighbor speed
         else CallSig.call3 args (required "degree", cneighbor, cspeed) (go args)
     where
@@ -155,7 +153,7 @@ pitch_absolute_trill degree speed neighbor dur = do
 trill_from_transitions :: [RealTime] -> Signal.Control
     -> Derive.EventDeriver -> Derive.EventDeriver
 trill_from_transitions transitions neighbor = Derive.with_relative_pitch
-    PitchSignal.sig_add (make_trill transitions neighbor)
+    Nothing PitchSignal.sig_add (make_trill transitions neighbor)
 
 -- | I feel like this should at least return
 -- @[(x0, (0, y, 0)), (x1, (0, y, 1)), ...]@, but does it make a difference?

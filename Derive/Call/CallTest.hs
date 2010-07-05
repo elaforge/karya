@@ -13,7 +13,7 @@ import qualified Derive.Score as Score
 
 transform :: Derive.Transformer -> DeriveTest.Result Derive.Events
 transform deriver = DeriveTest.derive_note $
-    Derive.with_constant_pitch (Pitch.Degree 60) $
+    Derive.with_constant_pitch Nothing (Pitch.Degree 60) $
     deriver DeriveTest.d_note
 
 run_pitch :: [(Double, String)]

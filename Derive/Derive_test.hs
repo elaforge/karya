@@ -7,6 +7,7 @@ import qualified Data.Set as Set
 import qualified Data.List as List
 import qualified Numeric
 
+import Util.Control
 import Util.Test
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
@@ -22,11 +23,12 @@ import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
-import qualified Perform.Signal as Signal
-import qualified Perform.PitchSignal as PitchSignal
-import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
+import qualified Perform.Pitch as Pitch
+import qualified Perform.PitchSignal as PitchSignal
+import qualified Perform.Signal as Signal
+import qualified Perform.Timestamp as Timestamp
 
 
 test_basic = do
@@ -420,6 +422,22 @@ test_tempo = do
     -- Change tempo.
     equal (f [(0, 0, "1"), (10, 0, "2")]) $
         Right [(0, 10, "--1"), (10, 5, "--2"), (15, 5, "--3")]
+
+test_named_pitch = do
+    let pname = Score.Control "psig"
+    let run op = extract <$> DeriveTest.run State.empty
+            (op $ Derive.named_degree_at pname 2)
+        extract (val, _, logs) = Log.trace_logs logs val
+
+    let with_const = Derive.with_constant_pitch (Just pname) 42
+    equal (run with_const)
+        (Right (Just (Pitch.Degree 42)))
+    equal (run (Derive.with_constant_pitch (Just (Score.Control "bad")) 42))
+        (Right Nothing)
+    let add1 = Derive.with_relative_pitch (Just pname) PitchSignal.sig_add
+            (PitchSignal.constant Pitch.relative 1)
+    equal (run (with_const . add1))
+        (Right (Just (Pitch.Degree 43)))
 
 test_negative_duration = do
     let extract = DeriveTest.extract (\e -> DeriveTest.e_event e) Log.msg_string

@@ -135,7 +135,12 @@ data State = State {
     -- | Derivers can modify it for sub-derivers, or look at it, whether to
     -- attach to an Event or to handle internally.
     state_controls :: Score.ControlMap
-    -- | Absolute pitch signal currently in scope.
+    -- | Named pitch signals.
+    , state_pitches :: Score.PitchMap
+    -- | Absolute pitch signal currently in scope.  This is the pitch signal
+    -- that's actually applied to notes.  It's split off from pitches because
+    -- it's convenient to guarentee that the main pitch signal is always
+    -- present.
     , state_pitch :: PitchSignal.PitchSignal
 
     , state_environ :: TrackLang.Environ
@@ -171,6 +176,7 @@ data State = State {
 
 initial_state ui_state lookup_deriver calls environ ignore_tempo = State {
     state_controls = initial_controls
+    , state_pitches = Map.empty
     , state_pitch = PitchSignal.constant
         (State.state_project_scale ui_state) Pitch.middle_degree
 
@@ -636,7 +642,27 @@ pitch_at pos = do
     return (PitchSignal.at real psig)
 
 pitch_degree_at :: (Monad m) => ScoreTime -> DeriveT m Pitch.Degree
-pitch_degree_at pos = fmap PitchSignal.y_to_degree (pitch_at pos)
+pitch_degree_at pos = PitchSignal.y_to_degree <$> pitch_at pos
+
+get_named_pitch :: (Monad m) => Score.Control
+    -> DeriveT m (Maybe PitchSignal.PitchSignal)
+get_named_pitch name = Map.lookup name <$> gets state_pitches
+
+named_pitch_at :: (Monad m) => Score.Control -> ScoreTime
+    -> DeriveT m (Maybe PitchSignal.Y)
+named_pitch_at name pos = do
+    maybe_psig <- Map.lookup name <$> gets state_pitches
+    case maybe_psig of
+        Nothing -> return Nothing
+        Just psig -> do
+            real <- score_to_real pos
+            return $ Just (PitchSignal.at real psig)
+
+named_degree_at :: (Monad m) => Score.Control -> ScoreTime
+    -> DeriveT m (Maybe Pitch.Degree)
+named_degree_at name pos = do
+    y <- named_pitch_at name pos
+    return $ fmap PitchSignal.y_to_degree y
 
 with_control :: (Monad m) =>
     Score.Control -> Signal.Control -> DeriveT m t -> DeriveT m t
@@ -666,40 +692,52 @@ with_relative_control cont op signal deriver = do
             deriver
         Just old_signal -> with_control cont (op old_signal signal) deriver
 
-with_pitch :: (Monad m) => PitchSignal.PitchSignal -> DeriveT m t -> DeriveT m t
-with_pitch signal deriver = do
-    old <- gets state_pitch
-    modify $ \st -> st { state_pitch = signal }
-    result <- deriver
-    modify $ \st -> st { state_pitch = old }
-    return result
+-- | Run the deriver in a context with the given pitch signal.  If a Control is
+-- given, the pitch has that name, otherwise it's the unnamed default pitch.
+with_pitch :: (Monad m) => Maybe Score.Control
+    -> PitchSignal.PitchSignal -> DeriveT m t -> DeriveT m t
+with_pitch = modify_pitch (flip const)
 
-with_constant_pitch :: (Monad m) => Pitch.Degree -> DeriveT m t -> DeriveT m t
-with_constant_pitch degree deriver = do
+with_constant_pitch :: (Monad m) => Maybe Score.Control -> Pitch.Degree
+    -> DeriveT m t -> DeriveT m t
+with_constant_pitch maybe_name degree deriver = do
     pitch <- gets state_pitch
-    with_pitch (PitchSignal.constant (PitchSignal.sig_scale pitch) degree)
-        deriver
+    with_pitch maybe_name
+        (PitchSignal.constant (PitchSignal.sig_scale pitch) degree) deriver
 
-with_relative_pitch :: (Monad m) =>
-    PitchOp -> PitchSignal.Relative -> DeriveT m t -> DeriveT m t
-with_relative_pitch sig_op signal deriver = do
+with_relative_pitch :: (Monad m) => Maybe Score.Control
+    -> PitchOp -> PitchSignal.Relative -> DeriveT m t -> DeriveT m t
+with_relative_pitch maybe_name sig_op signal deriver = do
     old <- gets state_pitch
     if old == PitchSignal.empty
         then do
             -- This shouldn't happen normally because of the default pitch.
             warn $ "relative pitch applied when no absolute pitch is in scope"
             deriver
-        else do
-            modify $ \st -> st { state_pitch = sig_op old signal }
-            result <- deriver
-            modify $ \st -> st { state_pitch = old }
-            return result
+        else modify_pitch sig_op maybe_name signal deriver
 
-with_pitch_operator :: (Monad m) =>
-    TrackLang.CallId -> PitchSignal.Relative -> DeriveT m t -> DeriveT m t
-with_pitch_operator c_op signal deriver = do
+with_pitch_operator :: (Monad m) => Maybe Score.Control
+    -> TrackLang.CallId -> PitchSignal.Relative -> DeriveT m t -> DeriveT m t
+with_pitch_operator maybe_name c_op signal deriver = do
     sig_op <- lookup_pitch_control_op c_op
-    with_relative_pitch sig_op signal deriver
+    with_relative_pitch maybe_name sig_op signal deriver
+
+modify_pitch :: (Monad m) =>
+    (PitchSignal.PitchSignal -> PitchSignal.PitchSignal
+        -> PitchSignal.PitchSignal)
+    -> Maybe Score.Control -> PitchSignal.PitchSignal
+    -> DeriveT m t -> DeriveT m t
+modify_pitch f Nothing signal = local
+    state_pitch (\old st -> st { state_pitch = old })
+    (\st -> return $ st { state_pitch = f (state_pitch st) signal })
+modify_pitch f (Just name) signal = local
+    (Map.lookup name . ps)
+    (\old st -> st { state_pitches = Map.alter (const old) name (ps st) })
+    (\st -> return $ st { state_pitches = Map.alter alter name (ps st) })
+    where
+    ps = state_pitches
+    alter Nothing = Just signal
+    alter (Just old) = Just (f old signal)
 
 -- *** specializations
 
