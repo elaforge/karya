@@ -158,7 +158,7 @@ d_note_track track_id = do
             track_expr (derive_notes pos_events)
 
 derive_notes :: [Track.PosEvent] -> Derive.EventDeriver
-derive_notes events = Derive.with_msg "note" $ Derive.merge_event_lists <$>
+derive_notes events = Derive.with_msg "note" $ Derive.merge_asc_events <$>
     Call.derive_track derive_info id (\_ _ -> Nothing) events
 
 derive_info :: Call.DeriveInfo Derive.Events

@@ -5,7 +5,7 @@ import Util.Test
 import qualified Util.Parse as Parse
 
 import qualified Derive.Score as Score
-import Derive.TrackLang (AttrMode(..), Call(..), Control(..), Symbol(..),
+import Derive.TrackLang (AttrMode(..), Call(..), ControlRef(..), Symbol(..),
     Val(..), Term(..))
 import qualified Derive.TrackLang as TrackLang
 

@@ -41,8 +41,8 @@ c_tick = Derive.generate_one "tick" $ \args -> CallSig.call2 args
 
 tick :: RealTime -> Signal.Y -> ScoreTime -> ScoreTime -> Derive.EventDeriver
 tick time vel prev next = do
-    prev_pitch <- Derive.pitch_degree_at prev
-    next_pitch <- Derive.pitch_degree_at next
+    prev_pitch <- Derive.pitch_degree_at =<< Derive.score_to_real prev
+    next_pitch <- Derive.pitch_degree_at =<< Derive.score_to_real next
     next_vel <- Derive.velocity_at next
     let transpose = if prev_pitch <= next_pitch then -1 else 1
     (start, dur) <- stretch prev next time

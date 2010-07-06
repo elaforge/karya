@@ -56,6 +56,7 @@ event_end event = event_start event + event_duration event
 
 -- These operate directly on events, so we are in RealTime at this point.
 
+-- | Change the start time of an event and move its controls along with it.
 move :: (RealTime -> RealTime) -> Event -> Event
 move f event =
     move_controls (pos - event_start event) $ event { event_start = pos }

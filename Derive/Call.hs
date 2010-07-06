@@ -82,6 +82,7 @@ import qualified Ui.Types as Types
 import qualified Derive.CallSig as CallSig
 import Derive.CallSig (required)
 import qualified Derive.Derive as Derive
+import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
@@ -93,9 +94,13 @@ import qualified Perform.Signal as Signal
 
 with_controls :: [TrackLang.Control] -> ([Signal.Y] -> Derive.Deriver a)
     -> Derive.Deriver a
-with_controls controls f = f =<< mapM (control_at 0) controls
+with_controls controls f = do
+    now <- Derive.now
+    f =<< mapM (control_at now) controls
 
-control_at :: ScoreTime -> TrackLang.Control -> Derive.Deriver Signal.Y
+-- | To accomodate both normal calls, which are in score time, and post
+-- processing calls, which are in real time, these functions take RealTimes.
+control_at :: RealTime -> TrackLang.Control -> Derive.Deriver Signal.Y
 control_at pos control = case control of
     TrackLang.ConstantControl deflt -> return deflt
     TrackLang.DefaultedControl cont deflt ->
@@ -113,7 +118,7 @@ to_signal control = case control of
         maybe (Derive.throw $ "not found: " ++ show cont) return
             =<< Derive.get_control cont
 
-pitch_at :: ScoreTime -> TrackLang.PitchControl -> Derive.Deriver PitchSignal.Y
+pitch_at :: RealTime -> TrackLang.PitchControl -> Derive.Deriver PitchSignal.Y
 pitch_at pos control = case control of
     TrackLang.ConstantControl deflt ->
         PitchSignal.degree_to_y <$> eval_note deflt
@@ -140,7 +145,7 @@ to_pitch_signal control = case control of
         scale <- get_scale
         PitchSignal.constant (Pitch.scale_id scale) <$> eval_note note
 
-degree_at :: ScoreTime -> TrackLang.PitchControl -> Derive.Deriver Pitch.Degree
+degree_at :: RealTime -> TrackLang.PitchControl -> Derive.Deriver Pitch.Degree
 degree_at pos control = PitchSignal.y_to_degree <$> pitch_at pos control
 
 -- * util
@@ -212,8 +217,9 @@ eval_one start dur expr = do
         (Event.event ("expr: " ++ show expr) 1) [] []
     dinfo = DeriveInfo Derive.no_events lookup_note_call
 
+-- | A version of 'eval' specialized to evaluate note calls.
 eval_note :: Pitch.Note -> Derive.Deriver Pitch.Degree
-eval_note note = CallSig.cast ("pitch " ++ show note)
+eval_note note = CallSig.cast ("eval note " ++ show note)
     =<< eval (TrackLang.val_call (Pitch.note_text note))
 
 -- ** eval implementation
@@ -444,84 +450,29 @@ c_equal empty = Derive.Call "equal"
 -- directly, and then repackage them as a Deriver.  This can accomplish
 -- concrete post-processing type effects but has the side-effect of collapsing
 -- the Deriver, which will no longer respond to the environment.
+
+
+-- | Reinstate warp behaviour on a list of events.
 --
--- The warp behaviour is reinstated though.
+-- Only offset is implemented, not stretch or general warp.
+d_move_events :: [Score.Event] -> Derive.EventDeriver
+d_move_events events = do
+    offset <- Derive.now
+    return $ map (Score.move (+offset)) events
 
-{-
--- | Transform an event list.  As a convenience, you can optionally pass a list
--- of signals which will be looked up at each event start.
+-- | Map a function with state over events and lookup pitch and controls vals
+-- for each event.  Exceptions are not caught.
 --
--- The iteratee can return any number of events in any order.  This is flexible
--- but destroys laziness.
-map_any :: (Monad m) => [Score.Event] -> st
-    -> (EventContext st -> Result m st) -> Derive.DeriveT m [Score.Event]
-map_any events st f = do
-    (emap, _) <- fold_events go (Map.empty, st) events
-    return (Map.elems emap)
+-- TODO needs a length encoded vector to be safer.
+map_signals :: [TrackLang.Control] -> [TrackLang.PitchControl]
+    -> (state -> [Signal.Y] -> [Pitch.Degree] -> Score.Event
+        -> Derive.Deriver (state, result))
+    -> state -> [Score.Event] -> Derive.Deriver [result]
+map_signals controls pitch_controls f state events =
+    map_accuml_m go state events
     where
-    go (emap, st) prev event next = do
-        (new_st, new_events) <- f (st, prev, event, next)
-        let epos = [(Score.start e, e) | e <- new_events]
-        return (Map.insert_list epos emap, new_st)
-
--- | This is the same as 'map_any' except that the iteratee promises that
--- @last r0 <= head r1@ where @r0@ and @r1@ are consecutive result lists.  This
--- is less flexible but preserves laziness.
-map_asc :: (Monad m) => [Score.Event] -> st
-    -> (EventContext st -> Result m st) -> Derive.DeriveT m [Score.Event]
-map_asc events st f = do
-    (new_events, _) <- fold_events go (DList.empty, st) events
-    return (DList.toList new_events)
-    where
-    go (collect, st) prev event next = do
-        (new_st, new_events) <- f (st, prev, event, next)
-        return (collect `DList.append` (DList.fromList new_events), new_st)
-
--- TODO: a variant map that promises to return ascending lists of events that
--- can overlap, e.g. 'head r0 <= head r1'.  If I can write a lazy
--- merge_sublists function...  I could use this one to make c_echo lazy.
-
-type EventContext st = (st, [Score.Event], Score.Event, [Score.Event])
-type Result m st = Derive.DeriveT m (st, [Score.Event])
-
-with_directive :: (Monad m) => (TrackLang.CallId -> Bool)
-    -> (Note.Call -> EventContext st -> Result m st)
-    -> EventContext st -> Result m st
-with_directive is_dir f context@(st, _, event, _) =
-    case Note.parse_directive event of
-        Nothing -> return (st, [event])
-        Just (Left msg) -> do
-            Log.warn $ "with_directive: error parsing directive: " ++ msg
-            return (st, [event])
-        Just (Right call)
-            | is_dir (Note.call_id call) -> f call context
-            | otherwise -> return (st, [event])
-
-with_directive_calls call_ids = with_directive (is_call call_ids)
-
-is_call :: [String] -> TrackLang.CallId -> Bool
-is_call call_id_strs call_id = Set.member call_id call_ids
-    where call_ids = Set.fromList (map TrackLang.Symbol call_id_strs)
-
--- * util
-
--- TODO merge this with Derive.map_events, which is doing the same kind of
--- thing
-
-fold_events :: (Monad m, Score.Eventlike e) =>
-    (st -> [e] -> e -> [e] -> Derive.DeriveT m st)
-    -> st -> [e] -> Derive.DeriveT m st
-fold_events f st events = foldM_neighbors go st events
-    where go st prev event next = Derive.with_event event (f st prev event next)
-
--- | This is like 'foldM', but additionally pass the iteratee a list of
--- previous events in reverse order and a list of following events.
-foldM_neighbors :: (Monad m) =>
-    (st -> [a] -> a -> [a] -> m st) -> st -> [a] -> m st
-foldM_neighbors f st xs = go st [] xs
-    where
-    go st _ [] = return st
-    go st prev (x:xs) = do
-        new_st <- f st prev x xs
-        go new_st (x:prev) xs
--}
+    go state event = do
+        let pos = Score.event_start event
+        control_vals <- mapM (control_at pos) controls
+        pitch_vals <- mapM (degree_at pos) pitch_controls
+        f state control_vals pitch_vals event

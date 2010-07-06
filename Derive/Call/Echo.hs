@@ -24,6 +24,7 @@ note_calls :: Derive.NoteCallMap
 note_calls = Derive.make_calls
     [ ("delay", c_delay)
     , ("echo", c_echo)
+    , ("e-echo", c_event_echo)
     ]
 
 -- * note calls
@@ -71,3 +72,31 @@ echo delay feedback times deriver
 scale_vel :: Signal.Y -> Derive.EventDeriver -> Derive.EventDeriver
 scale_vel d = Derive.with_relative_control
     Score.c_velocity Signal.sig_multiply (Signal.constant d)
+
+
+-- | This echo works directly on Events.
+--
+-- Args are the same as 'c_echo', except that their signals are sampled at
+-- every event, so parameters can vary over the course of the effect.
+c_event_echo :: Derive.NoteCall
+c_event_echo = Derive.transformer "post echo" $ \args deriver ->
+    CallSig.call3 args
+    ( optional "delay" (control "echo-delay" 1)
+    , optional "feedback" (control "echo-feedback" 0.4)
+    , optional "times" (control "echo-times" 1)) $ \delay feedback times -> do
+        events <- deriver
+        events <- Call.map_signals
+            [delay, feedback, times] [] go () events
+        Call.d_move_events (Derive.merge_asc_events events)
+    where
+    go () [delay, feedback, times] [] event =
+        return ((), echo_event (RealTime delay) feedback (floor times) event)
+    go () _ _ _ = Derive.throw "not reached"
+
+echo_event :: RealTime -> Double -> Int -> Score.Event -> [Score.Event]
+echo_event delay feedback times event = event : map (echo event) [1..times]
+    where
+    echo event n = Score.modify_velocity (*feedback^n) $ Score.move (+d) event
+        where d = delay * RealTime (fromIntegral n)
+    -- about efficiency... should be ok with lazy signals?  Or clip signals
+    -- on event creation?

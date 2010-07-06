@@ -570,7 +570,7 @@ Derive:
     - Think about how to keep incremental recomputation in the presence of
       postproc.  I suppose they have to declare how much they depend on.
     examples of postprocs:
-      - echo
+      * echo
       - retune a note depending on the previous interval (e.g. sloppy pitches
         when playing quickly)
       - negative duration
@@ -752,7 +752,7 @@ Derive:
       - constant slope, exp slope (i.e. slope until next control event)
       - continuous tempo warping for signals
         tempo: "2" -> "1", "2", cont: "2" -> "i, 1", should emit a bent line
-  scales
+  Derive.Scale scale scales
     - implement pengumbang pengisep
     - enharmonics for Twelve
     - just intonation tuned to a pitch signal
@@ -761,6 +761,7 @@ Derive:
       when playing quickly)
       I think this has to be postproc.
     - some kind of ratio based notation?  check out Ben Jonston's just notation
+    - octatonic
 
    - Control track management?  It should be possible to have a note or a bunch
      of note tracks with a bunch of control tracks and control the clutter.

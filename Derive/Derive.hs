@@ -620,45 +620,46 @@ type PitchOp = PitchSignal.PitchSignal -> PitchSignal.Relative
 
 -- | Return an entire signal.  Remember, signals are in RealTime, so if you
 -- want to index them in ScoreTime you will have to call 'score_to_real'.
--- 'control_at' does that for you.
+-- 'control_at_score' does that for you.
 get_control :: (Monad m) => Score.Control -> DeriveT m (Maybe Signal.Control)
 get_control cont = Map.lookup cont <$> gets state_controls
 
-control_at :: (Monad m) => Score.Control -> Maybe Signal.Y -> ScoreTime
+control_at_score :: (Monad m) => Score.Control -> Maybe Signal.Y -> ScoreTime
+    -> DeriveT m Signal.Y
+control_at_score cont deflt pos = control_at cont deflt =<< score_to_real pos
+
+control_at :: (Monad m) => Score.Control -> Maybe Signal.Y -> RealTime
     -> DeriveT m Signal.Y
 control_at cont deflt pos = do
     controls <- gets state_controls
-    real <- score_to_real pos
     case Map.lookup cont controls of
         Nothing -> maybe
             (throw $ "control_at: not in environment and no default given: "
                 ++ show cont) return deflt
-        Just sig -> return $ Signal.at real sig
+        Just sig -> return $ Signal.at pos sig
 
-pitch_at :: (Monad m) => ScoreTime -> DeriveT m PitchSignal.Y
+pitch_at_score :: (Monad m) => ScoreTime -> DeriveT m PitchSignal.Y
+pitch_at_score pos = pitch_at =<< score_to_real pos
+
+pitch_at :: (Monad m) => RealTime -> DeriveT m PitchSignal.Y
 pitch_at pos = do
     psig <- gets state_pitch
-    real <- score_to_real pos
-    return (PitchSignal.at real psig)
+    return (PitchSignal.at pos psig)
 
-pitch_degree_at :: (Monad m) => ScoreTime -> DeriveT m Pitch.Degree
+pitch_degree_at :: (Monad m) => RealTime -> DeriveT m Pitch.Degree
 pitch_degree_at pos = PitchSignal.y_to_degree <$> pitch_at pos
 
 get_named_pitch :: (Monad m) => Score.Control
     -> DeriveT m (Maybe PitchSignal.PitchSignal)
 get_named_pitch name = Map.lookup name <$> gets state_pitches
 
-named_pitch_at :: (Monad m) => Score.Control -> ScoreTime
+named_pitch_at :: (Monad m) => Score.Control -> RealTime
     -> DeriveT m (Maybe PitchSignal.Y)
 named_pitch_at name pos = do
-    maybe_psig <- Map.lookup name <$> gets state_pitches
-    case maybe_psig of
-        Nothing -> return Nothing
-        Just psig -> do
-            real <- score_to_real pos
-            return $ Just (PitchSignal.at real psig)
+    maybe_psig <- get_named_pitch name
+    return $ PitchSignal.at pos <$> maybe_psig
 
-named_degree_at :: (Monad m) => Score.Control -> ScoreTime
+named_degree_at :: (Monad m) => Score.Control -> RealTime
     -> DeriveT m (Maybe Pitch.Degree)
 named_degree_at name pos = do
     y <- named_pitch_at name pos
@@ -742,7 +743,8 @@ modify_pitch f (Just name) signal = local
 -- *** specializations
 
 velocity_at :: (Monad m) => ScoreTime -> DeriveT m Signal.Y
-velocity_at = control_at Score.c_velocity (Just default_velocity)
+velocity_at pos = control_at Score.c_velocity (Just default_velocity)
+    =<< score_to_real pos
 
 with_velocity :: (Monad m) => Signal.Control -> DeriveT m t -> DeriveT m t
 with_velocity = with_control Score.c_velocity
@@ -1043,6 +1045,7 @@ get_block :: (Monad m) => BlockId -> DeriveT m Block.Block
 get_block block_id = get >>= lookup_id block_id . State.state_blocks . state_ui
 
 -- | Lookup @map!key@, throwing if it doesn't exist.
+lookup_id :: (Ord k, Show k, Monad m) => k -> Map.Map k a -> DeriveT m a
 lookup_id key map = case Map.lookup key map of
     Nothing -> throw $ "unknown " ++ show key
     Just val -> return val
@@ -1055,8 +1058,8 @@ lookup_id key map = case Map.lookup key map of
 -- output.  An additional function extracts an event, so you can map over
 -- things which are not themselves events.
 map_events :: (Monad m) =>
-    (state -> x -> DeriveT m (a, state))
-    -> state -> (x -> Score.Event) -> [x] -> DeriveT m [a]
+    (state -> event -> DeriveT m (state, result))
+    -> state -> (event -> Score.Event) -> [event] -> DeriveT m [result]
 map_events f state event_of xs =
     fmap Maybe.catMaybes (map_accuml_m apply state xs)
     where
@@ -1064,10 +1067,7 @@ map_events f state event_of xs =
         val <- catch_warn id (f cur_state x)
         return $ case val of
             Nothing -> (cur_state, Nothing)
-            Just (val, next_state) -> (next_state, Just val)
-
--- | A little more descriptive than ().
-data NoState = NoState deriving (Show)
+            Just (next_state, val) -> (next_state, Just val)
 
 -- ** merge
 
@@ -1075,15 +1075,18 @@ d_merge :: (Monad m) => DeriveT m Events -> DeriveT m Events
     -> DeriveT m Events
 d_merge = liftM2 merge_events
 
-d_merge_list :: (Monad m) => [DeriveT m Events] -> DeriveT m Events
-d_merge_list = fmap merge_event_lists . sequence
--- d_merge_list = foldr d_merge (return [])
+-- | Merge a list of EventDerivers.  The precondition is that the events
+-- generated are ascending, so that the first event of each deriver is at or
+-- after the first event of the next deriver.
+d_merge_asc :: (Monad m) => [DeriveT m Events] -> DeriveT m Events
+d_merge_asc = fmap merge_asc_events . sequence
+-- d_merge_asc = foldr d_merge (return [])
 
 merge_events :: [Score.Event] -> [Score.Event] -> [Score.Event]
 merge_events = Seq.merge_on Score.event_start
 
-merge_event_lists :: [[Score.Event]] -> [Score.Event]
-merge_event_lists = Seq.merge_asc_lists Score.event_start
+merge_asc_events :: [[Score.Event]] -> [Score.Event]
+merge_asc_events = Seq.merge_asc_lists Score.event_start
 
 -- | Monoid instance for those who prefer that interface.
 instance Monoid.Monoid EventDeriver where
