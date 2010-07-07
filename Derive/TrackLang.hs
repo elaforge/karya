@@ -376,17 +376,17 @@ val_call sym = ValCall (Call (Symbol sym) [])
 parse :: String -> Either String Expr
 parse text = Parse.parse_all p_pipeline (strip_comment text)
 
--- | Parse a control track title.  The final expression in the composition is
+-- | Parse a control track title.  The first expression in the composition is
 -- parsed simply as a list of values, not a Call.  Control track titles don't
 -- follow the normal calling process but pattern match directly on vals.
 parse_control_track :: String -> Either String (Expr, [Val])
 parse_control_track text = do
     expr <- parse text
-    case Seq.break_last expr of
-        (calls, Just track_expr) -> do
+    case expr of
+        track_expr : calls -> do
             combined <- combine track_expr
             Right (calls, combined)
-        _ -> Left "not reached because of 'parse' postcondition"
+        [] -> Left "not reached because of 'parse' postcondition"
     where
     combine (Call call_id@(Symbol sym) terms)
         | not (null [() | ValCall _ <- terms]) =

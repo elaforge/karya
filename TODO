@@ -19,7 +19,7 @@ auto insert imports in vim:
 - research ardour OSC control
 
 CURRENT
-  - should I make the control title expression the first one instead of last?
+  * should I make the control title expression the first one instead of last?
   - Circular imports of Derive.Derive and Derive.Scale causes a lot of
     recompiling.  Can I eliminate or reduce it?
 
@@ -54,7 +54,6 @@ CURRENT
   * remove TrackLang.VMethod
   - remove consumed call return unless I can think of something good for it
   * test_util regex match uses a simplified regex that only supports *
-  - val calls to get the next/prev TimeStep
 
   - incremental saving: pair diffs with the changed bit.  Then save that chunk
     on every save.  Occaisionally write a checkpoint, which is just the whole
@@ -674,6 +673,9 @@ Derive:
   - some kind of notation for replacing the track interpreter, e.g.
     TrackId -> EventDeriver.
     This could be used to implement macros, and also preproc.
+
+  val calls:
+    - val calls to get the next/prev TimeStep
 
   note calls:
     * Implement tick as a call:

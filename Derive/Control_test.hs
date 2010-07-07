@@ -36,12 +36,12 @@ test_track_expression = do
             . Map.lookup (Score.Control "cont") . Score.event_controls)
     equal (derive ("cont", [(0, 0, "0"), (4, 0, "i 1")]))
         (Right [Just [(0, 0), (1, 0.25), (2, 0.5), (3, 0.75), (4, 1)]], [])
-    equal (derive ("srate = 2 | cont", [(0, 0, "0"), (4, 0, "i 1")]))
+    equal (derive ("cont | srate = 2", [(0, 0, "0"), (4, 0, "i 1")]))
         (Right [Just [(0, 0), (2, 0.5), (4, 1)]], [])
 
     let derive_pitch = do_derive (PitchSignal.unsignal . Score.event_pitch)
     equal
-        (derive_pitch ("srate = 2 | *twelve", [(0, 0, "4c"), (4, 0, "i (4d)")]))
+        (derive_pitch ("*twelve | srate = 2", [(0, 0, "4c"), (4, 0, "i (4d)")]))
         (Right [[(0, (60, 60, 0)), (2, (60, 62, 0.5)), (4, (60, 62, 1))]], [])
 
 

@@ -128,7 +128,7 @@ test_environ_across_tracks = do
     let interpolated = [(0, 0), (1, 0.25), (2, 0.5), (3, 0.75), (4, 1)]
     equal (run [("cont", [(0, 0, "0"), (4, 0, "i 1")])])
         (Right [Just interpolated], [])
-    equal (run [("srate = 2 | cont", [(1, 0, "0"), (5, 0, "i 1")])])
+    equal (run [("cont | srate = 2", [(1, 0, "0"), (5, 0, "i 1")])])
         (Right [Just [(1, 0), (3, 0.5), (5, 1)]], [])
     equal (run [("cont", [(0, 0, "srate = 2"), (1, 0, "0"), (5, 0, "i 1")])])
         (Right [Just [(1, 0), (3, 0.5), (5, 1)]], [])
@@ -139,9 +139,9 @@ test_environ_across_tracks = do
         (Right [Just interpolated], [])
     equal (run [cont, ("cont2", [(0, 0, "srate = 2")])])
         (Right [Just interpolated], [])
-    equal (run [("srate = 2 | cont2", []), cont])
+    equal (run [("cont2 | srate = 2", []), cont])
         (Right [Just interpolated], [])
-    equal (run [cont, ("srate = 2 | cont2", [])])
+    equal (run [cont, ("cont2 | srate = 2", [])])
         (Right [Just interpolated], [])
 
 test_call_errors = do
