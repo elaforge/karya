@@ -50,7 +50,7 @@ cmds_with_note kbd_entry cmds msg = do
                 Nothing -> Nothing
                 Just new_msg -> if repeat then Just Nothing else Just new_msg
         else return Nothing
-    midi_note <- get_midi_input msg
+    midi_note <- midi_input msg
     let maybe_new_msg = kbd_note `mplus` midi_note
     case maybe_new_msg of
         Just (Just new_msg) -> do
@@ -71,6 +71,10 @@ are_modifiers_down = fmap (not . Set.null) Keymap.mods_down
 
 -- ** kbd
 
+-- | The double Maybe this and 'midi_input' returns is a little confusing.
+-- Nothing means there's no input.  Just Nothing means there was input, but
+-- nothing to do.  Just Just means there was input and something should be done
+-- with it.
 kbd_input :: Pitch.Octave -> Msg.Msg -> Maybe (Maybe Msg.Msg)
 kbd_input octave (Msg.key -> Just (down, key)) =
     (fmap . fmap) Msg.InputNote (key_to_input octave down key)
@@ -104,12 +108,12 @@ make_key_map oct = map mk_input . zip [0..]
 
 -- ** midi
 
-get_midi_input :: (Monad m) => Msg.Msg -> Cmd.CmdT m (Maybe (Maybe Msg.Msg))
-get_midi_input (Msg.Midi (Midi.ReadMessage rdev _ midi_msg)) = do
+midi_input :: (Monad m) => Msg.Msg -> Cmd.CmdT m (Maybe (Maybe Msg.Msg))
+midi_input (Msg.Midi (Midi.ReadMessage rdev _ midi_msg)) = do
     rstate <- Cmd.get_rdev_state rdev
     case InputNote.from_midi rstate rdev midi_msg of
         Just (input, rstate2) -> do
             Cmd.set_rdev_state rdev rstate2
             return (Just (Just (Msg.InputNote input)))
         Nothing -> return (Just Nothing)
-get_midi_input _ = return Nothing
+midi_input _ = return Nothing

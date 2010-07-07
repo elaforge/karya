@@ -115,13 +115,15 @@ fallthrough :: (Monad m) => Msg.Msg -> Cmd.CmdT m ()
 fallthrough msg = do
     keys_down <- fmap Map.keys Cmd.keys_down
     -- Abort if there are modifiers down, so commands still work.
-    -- Except shift, of course.
+    -- Except shift, of course.  Oh, and midi, otherwise a note off would
+    -- always fall through.
     let is_mod mod = case mod of
             Cmd.KeyMod k -> case k of
                 Key.KeyChar _ -> False
                 Key.ShiftL -> False
                 Key.ShiftR -> False
                 _ -> True
+            Cmd.MidiMod _ _ -> False
             _ -> True
     when (any is_mod keys_down) Cmd.abort
 
