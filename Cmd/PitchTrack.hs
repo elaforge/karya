@@ -4,13 +4,14 @@
     This module creates the pitches that are later parsed by Derive.Control.
 -}
 module Cmd.PitchTrack where
+import qualified Data.List as List
 import qualified Data.Maybe as Maybe
 import Util.Control
+import qualified Util.Seq as Seq
 
 import qualified Ui.Event as Event
 import qualified Ui.Key as Key
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.ControlTrack as ControlTrack
 import qualified Cmd.EditUtil as EditUtil
 import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Msg as Msg
@@ -81,20 +82,29 @@ modify f event = Event.set_string text event
     process = unparse . justify . f . parse
     justify (a, b) = (Just a, Just b)
 
+-- | Try to figure out the call part of the expression and split it from the
+-- rest.
+--
+-- Like 'Derive.ControlTrack.parse', this is merely a heuristic.  It tries to
+-- get the simple case right, but may be fooled by complex expressions.
 parse :: String -> (String, String)
-parse = ControlTrack.parse
+parse s
+    | '(' `notElem` s =
+        if " " `List.isSuffixOf` s then (pre, "") else ("", s)
+    | otherwise = (pre, drop 1 post)
+    where (pre, post) = break (==' ') s
 
 unparse :: (Maybe String, Maybe String) -> Maybe String
 unparse (method, val) = case (pre, post) of
         ("", "") -> Nothing
         -- If the method is gone, the note no longer needs its *, due to
         -- 'Derive.Control.mangle_pitch_call'.
-        ("", '*':rest) -> Just rest
+        ("", '(':rest) -> Just $ Seq.rdrop 1 rest
         ("", _:_) -> Just post
-        (_:_, "") -> Just (pre ++ " ")
-        (_:_, '*':_) -> Just (pre ++ ' ' : post)
-        -- And add a * if the method is new.
-        (_:_, _:_) -> Just (pre ++ ' ' : '*' : post)
+        (_:_, "") -> Just $ pre ++ " "
+        (_:_, '(':_) -> Just $ pre ++ ' ' : post
+        -- And add parens if the method is new.
+        (_:_, _:_) -> Just $ pre ++ ' ' : '(' : post ++ ")"
     where
     pre = Maybe.fromMaybe "" method
     post = Maybe.fromMaybe "" val

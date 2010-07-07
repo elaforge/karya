@@ -34,13 +34,29 @@ test_cmd_method_edit = do
         f key = PitchTrack.cmd_method_edit key
     equal (run [("*", [])] (f (CmdTest.key_down 'x'))) $
         Right [("*", [(0, 0, "x ")])]
+    equal (run [("*", [(0, 0, "y")])] (f (CmdTest.key_down 'x'))) $
+        Right [("*", [(0, 0, "x (y)")])]
     equal (run [("*", [(0, 0, "y")])] (f CmdTest.backspace)) $
         Right [("*", [(0, 0, "y")])]
-    equal (run [("*", [(0, 0, "x *y")])] (f CmdTest.backspace)) $
+    equal (run [("*", [(0, 0, "x (y)")])] (f CmdTest.backspace)) $
         Right [("*", [(0, 0, "y")])]
     equal (run [("*", [(0, 0, "x ")])] (f CmdTest.backspace)) $
         Right [("*", [])]
 
+    equal (run [("*", [(0, 0, "x y")])] (f (CmdTest.key_down 'z'))) $
+        Right [("*", [(0, 0, "z (x y)")])]
+    equal (run [("*", [(0, 0, "z (x y)")])] (f CmdTest.backspace)) $
+        Right [("*", [(0, 0, "x y")])]
+
     -- tab falls through, does not create an event with tab
     equal (run_sel [] (f (CmdTest.make_key True Key.Tab))) $
         Right []
+
+test_parse = do
+    let f = PitchTrack.parse
+    equal (f "f x") ("", "f x")
+    equal (f "f (x) y") ("f", "(x) y")
+    equal (f "f x (y)") ("f", "x (y)")
+    equal (f "f x y") ("", "f x y")
+    equal (f "f (x)") ("f", "(x)")
+    equal (f "f ") ("f", "")

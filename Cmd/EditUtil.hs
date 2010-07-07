@@ -159,6 +159,3 @@ modify_text_note :: Pitch.Note -> String -> Maybe String
 modify_text_note note s = Just $
     s ++ leading ++ "(" ++ Pitch.note_text note ++ ")"
     where leading = if null s then "" else " "
-
-note_prefix :: Char
-note_prefix = '*'

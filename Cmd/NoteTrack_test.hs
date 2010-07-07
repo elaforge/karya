@@ -92,6 +92,6 @@ test_cmd_method_edit = do
         inst = (">i", [(0, 10, "")])
         note_track = [inst, ("*", [(0, 0, "4d")])]
     equal (run note_track (f (mkkey (Key.KeyChar 'x')))) $
-        Right [inst, ("*", [(0, 0, "x *4d")])]
-    equal (run [inst, ("*", [(0, 0, "x *4d")])] (f (mkkey Key.Backspace))) $
+        Right [inst, ("*", [(0, 0, "x (4d)")])]
+    equal (run [inst, ("*", [(0, 0, "x (4d)")])] (f (mkkey Key.Backspace))) $
         Right [inst, ("*", [(0, 0, "4d")])]
