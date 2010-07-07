@@ -106,6 +106,8 @@ sample start vec
     where rest = V.drop (bsearch vec start) vec
 
 -- | Find the index of the first element >= the key of the given element.
+-- Returns the length of the vector if element is greater than all the
+-- elements.
 bsearch_on :: (Storable.Storable y, Ord key) =>
     V.Vector y -> (y -> key) -> key -> Int
 bsearch_on vec key v = go vec 0 (V.length vec)
@@ -185,9 +187,14 @@ truncate :: (Signal y) => X -> SigVec y -> SigVec y
 truncate x vec = fst $ V.splitAt (bsearch vec x) vec
 
 -- | The dual of 'truncate'.  Trim a signal's head up until, but not including,
--- the given X.
-shorten :: (Signal y) => X -> SigVec y -> SigVec y
-shorten x vec = snd $ V.splitAt (bsearch vec x) vec
+-- the given X.  If there is no sample at @x@, keep one sample before it to
+-- preserve the value at @x@.
+drop_before :: (Signal y) => X -> SigVec y -> SigVec y
+drop_before x vec
+    | i < V.length vec && fst (VectorBase.unsafeIndex vec i) == x =
+        snd $ V.splitAt i vec
+    | otherwise = snd $ V.splitAt (i-1) vec
+    where i = bsearch vec x
 
 map_x :: (Signal y) => (X -> X) -> SigVec y -> SigVec y
 map_x f = V.map (Arrow.first f)

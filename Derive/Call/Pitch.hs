@@ -68,9 +68,9 @@ pitch_calls = Derive.make_calls
 c_note_set :: Derive.PitchCall
 c_note_set = Derive.generate_one "note_set" $ \args -> CallSig.call1 args
     (required "val") $ \degree -> do
-        scale <- Call.get_scale
+        scale_id <- Call.get_scale_id
         pos <- Derive.now
-        return $ PitchSignal.signal (Pitch.scale_id scale)
+        return $ PitchSignal.signal scale_id
             [(pos, PitchSignal.degree_to_y degree)]
 
 c_note_linear :: Derive.PitchCall
@@ -81,9 +81,8 @@ c_note_linear = Derive.generate_one "note_linear" $ \args ->
                 Derive.throw "can't set to previous val when there was none"
             Just (_, prev_y) -> return $ do
                 pos <- Derive.now
-                scale <- Call.get_scale
-                return $ PitchSignal.signal (Pitch.scale_id scale)
-                    [(pos, prev_y)]
+                scale_id <- Call.get_scale_id
+                return $ PitchSignal.signal scale_id [(pos, prev_y)]
         _ -> CallSig.call1 args (required "degree") $ \degree ->
             pitch_interpolate id degree args
 
@@ -101,15 +100,15 @@ c_note_slide = Derive.generate_one "note_slide" $ \args -> CallSig.call2 args
             Just n -> do
                 next <- Derive.score_to_real n
                 return $ min (start + RealTime time) next
-        scale <- Call.get_scale
+        scale_id <- Call.get_scale_id
         srate <- Call.get_srate
-        let signal = PitchSignal.signal (Pitch.scale_id scale)
         case Derive.passed_prev_val args of
                 Nothing -> do
                     Derive.warn "no previous value to slide from"
-                    return $ signal [(start, PitchSignal.degree_to_y degree)]
-                Just (_, prev_y) -> return $ signal $
-                    interpolate_pitch True srate id
+                    return $ PitchSignal.signal scale_id
+                        [(start, PitchSignal.degree_to_y degree)]
+                Just (_, prev_y) -> return $
+                    interpolator srate id scale_id True
                         start (PitchSignal.y_to_degree prev_y) end degree
 
 -- | Emit a quick slide from a neighboring pitch in absolute time.
@@ -130,10 +129,9 @@ c_neighbor = Derive.generate_one "neighbor" $ \args ->
     go degree neighbor time = do
         start <- Derive.now
         let end = start + RealTime time
-        scale <- Call.get_scale
+        scale_id <- Call.get_scale_id
         srate <- Call.get_srate
-        let signal = PitchSignal.signal (Pitch.scale_id scale)
-        return $ signal $ interpolate_pitch True srate id
+        return $ interpolator srate id scale_id True
             start (Pitch.Degree neighbor + degree) end degree
 
 -- ** pitch util
@@ -142,25 +140,26 @@ pitch_interpolate :: (Double -> Signal.Y) -> Pitch.Degree
     -> Derive.PassedArgs Derive.Pitch -> Derive.PitchDeriver
 pitch_interpolate f degree args = do
     start <- Derive.now
-    scale <- Call.get_scale
+    scale_id <- Call.get_scale_id
     srate <- Call.get_srate
-    let signal = PitchSignal.signal (Pitch.scale_id scale)
     case Derive.passed_prev_val args of
         Nothing -> do
             Derive.warn $ "no previous val to interpolate from"
-            return $ signal [(start, PitchSignal.degree_to_y degree)]
-        Just (prev, prev_y) -> return $ signal $
-            interpolate_pitch False srate f
+            return $ PitchSignal.signal scale_id
+                [(start, PitchSignal.degree_to_y degree)]
+        Just (prev, prev_y) -> return $
+            interpolator srate f scale_id False
                 prev (PitchSignal.y_to_degree prev_y) start degree
 
-interpolate_pitch :: Bool -> RealTime -> (Double -> Double)
-    -> RealTime -> Pitch.Degree -> RealTime -> Pitch.Degree
-    -> [(RealTime, PitchSignal.Y)]
-interpolate_pitch include_initial srate f x0 y0 x1 y1
-    | include_initial = sig
-    | otherwise = drop 1 sig
+-- | TODO more efficient version without the intermediate list
+interpolator :: RealTime -> (Double -> Double) -> Call.PitchInterpolator
+interpolator srate f scale_id include_initial x0 y0 x1 y1
+    -- Don't bother generating a bunch of constant points.
+    | y0 == y1 = PitchSignal.signal scale_id (take 1 sig)
+    | otherwise = PitchSignal.signal scale_id sig
     where
-    sig = [(x, (fy0, fy1, y_of x)) | x <- Control.range x0 x1 srate]
+    sig = let s = [(x, (fy0, fy1, y_of x)) | x <- Control.range x0 x1 srate]
+        in if include_initial then s else drop 1 s
     y_of = Num.d2f . f . Types.real_to_double . Num.normalize x0 x1
     (fy0, fy1) = (to_f y0, to_f y1)
     to_f (Pitch.Degree d) = Num.d2f d

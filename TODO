@@ -5,7 +5,6 @@ auto insert imports in vim:
   - figure out where to insert it, and insert it
 
 - finish up derive profiling testing, logging monad
-- implement postproc, plus some fun postprocs
 - implement deriver like vla/cello duet?  that's a sekaran, so I need to think
   about this more.
 - signals:
@@ -577,7 +576,8 @@ Derive:
       - instrument deriver that makes it retrigger on pitch changes, e.g. for
         trills on a piano... I think this has to be score postproc because it
         needs to be pre-scale conversion
-      - string emulation:  Every note is assigned a string.  When
+        I think I'd rather do this as part of the instrument, though.
+      * string emulation:  Every note is assigned a string.  When
         a legato new note is played, it either stops an existing string or takes
         a new one.  The previous note will either ring for a decay if the
         string is unassigned, or reset to its "open" pitch otherwise.  Strings

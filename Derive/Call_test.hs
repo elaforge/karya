@@ -3,12 +3,12 @@ import qualified Data.Map as Map
 import Util.Test
 import qualified Util.Log as Log
 
-import qualified Derive.Call.All as All
 import qualified Derive.CallSig as CallSig
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Derive as Derive
 import qualified Derive.TrackLang as TrackLang
 import qualified Derive.Score as Score
+import qualified Derive.Call.CallTest as CallTest
 
 import qualified Perform.Signal as Signal
 
@@ -31,7 +31,7 @@ test_val_call = do
         equal res (Right [Just []])
         strings_like logs ["too many arguments"]
 
-cmap = All.call_map { Derive.calls_val = Derive.make_calls [("add1", add_one)] }
+cmap = CallTest.add_val_call "add1" add_one CallTest.all_calls
 
 add_one :: Derive.ValCall
 add_one = Derive.ValCall "add" $ \args -> CallSig.call1 args

@@ -143,7 +143,7 @@ pitch_absolute_trill degree speed neighbor dur = do
     scale <- Call.get_scale
     let all_transitions = pos_at_speed speed start
     let transitions = integral_cycles (start + dur) all_transitions
-    return $ PitchSignal.shorten start $ PitchSignal.sig_add
+    return $ PitchSignal.drop_before start $ PitchSignal.sig_add
             (PitchSignal.constant (Pitch.scale_id scale) degree)
             (make_trill transitions neighbor)
 

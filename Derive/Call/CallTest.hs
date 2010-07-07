@@ -3,6 +3,8 @@ import qualified Data.Map as Map
 
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Call.All as All
+import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
@@ -41,3 +43,16 @@ run_control events = extract $ DeriveTest.derive_tracks_tempo
     get fm = case Map.lookup (Score.Control "cont") fm of
         Nothing -> error "expected a 'cont' control"
         Just c -> c
+
+-- * call map
+
+all_calls :: Derive.CallMap
+all_calls = All.call_map
+
+add_note_call :: String -> Derive.NoteCall -> Derive.CallMap -> Derive.CallMap
+add_note_call name call cmap = cmap { Derive.calls_note =
+    Map.insert (TrackLang.Symbol name) call (Derive.calls_note cmap) }
+
+add_val_call :: String -> Derive.ValCall -> Derive.CallMap -> Derive.CallMap
+add_val_call name call cmap = cmap { Derive.calls_val =
+    Map.insert (TrackLang.Symbol name) call (Derive.calls_val cmap) }

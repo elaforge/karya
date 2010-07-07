@@ -1059,9 +1059,10 @@ lookup_id key map = case Map.lookup key map of
 -- things which are not themselves events.
 map_events :: (Monad m) =>
     (state -> event -> DeriveT m (state, result))
-    -> state -> (event -> Score.Event) -> [event] -> DeriveT m [result]
-map_events f state event_of xs =
-    fmap Maybe.catMaybes (map_accuml_m apply state xs)
+    -> state -> (event -> Score.Event) -> [event] -> DeriveT m (state, [result])
+map_events f state event_of xs = do
+    (final_state, results) <- map_accuml_m apply state xs
+    return (final_state, Maybe.catMaybes results)
     where
     apply cur_state x = with_event (event_of x) $ do
         val <- catch_warn id (f cur_state x)

@@ -58,6 +58,18 @@ test_truncate = do
     equal (f 2 vec) [(0, 0), (1, 1)]
     equal (f 3 vec) [(0, 0), (1, 1), (2, 0)]
 
+test_drop_before = do
+    let vec = mkvec [(2, 0), (4, 1)]
+    let f p = unvec $ SignalBase.drop_before p vec
+    equal (f 0) [(2, 0), (4, 1)]
+    equal (f 2) [(2, 0), (4, 1)]
+    equal (f 3) [(2, 0), (4, 1)]
+    equal (f 4) [(4, 1)]
+    equal (f 900) [(4, 1)]
+
+    equal (unvec (SignalBase.drop_before 1 (mkvec []))) []
+
+
 test_sig_op = do
     let f vec0 vec1 = unvec $ SignalBase.sig_op (+) (mkvec vec0) (mkvec vec1)
     equal (f [(0, 0), (2, 2), (4, 0)] [(0, 1)])

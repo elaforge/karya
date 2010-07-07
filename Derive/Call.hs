@@ -92,6 +92,19 @@ import qualified Perform.Signal as Signal
 
 -- * signals
 
+-- | A function to generate a pitch curve.  It's convenient to define this
+-- as a type alias so it can be easily passed to various functions that want
+-- to draw curves.
+type PitchInterpolator = Pitch.ScaleId
+    -> Bool -- ^ include the initial sample or not
+    -> RealTime -> Pitch.Degree -> RealTime -> Pitch.Degree
+    -> PitchSignal.PitchSignal
+
+-- | Like 'PitchInterpolator' but for control signals.
+type ControlInterpolator = Bool -- ^ include the initial sample or not
+    -> RealTime -> Signal.Y -> RealTime -> Signal.Y
+    -> Signal.Control
+
 with_controls :: [TrackLang.Control] -> ([Signal.Y] -> Derive.Deriver a)
     -> Derive.Deriver a
 with_controls controls f = do
@@ -195,6 +208,9 @@ get_srate = RealTime <$> Derive.require_val TrackLang.v_srate
 
 get_scale :: Derive.Deriver Pitch.Scale
 get_scale = Derive.require_val TrackLang.v_scale
+
+get_scale_id :: Derive.Deriver Pitch.ScaleId
+get_scale_id = Pitch.scale_id <$> get_scale
 
 -- * eval
 
@@ -452,11 +468,11 @@ c_equal empty = Derive.Call "equal"
 -- the Deriver, which will no longer respond to the environment.
 
 
--- | Reinstate warp behaviour on a list of events.
+-- | Reinstate warp behaviour on a list of events.  The name is from nyquist.
 --
 -- Only offset is implemented, not stretch or general warp.
-d_move_events :: [Score.Event] -> Derive.EventDeriver
-d_move_events events = do
+cue :: [Score.Event] -> Derive.EventDeriver
+cue events = do
     offset <- Derive.now
     return $ map (Score.move (+offset)) events
 
@@ -465,9 +481,9 @@ d_move_events events = do
 --
 -- TODO needs a length encoded vector to be safer.
 map_signals :: [TrackLang.Control] -> [TrackLang.PitchControl]
-    -> (state -> [Signal.Y] -> [Pitch.Degree] -> Score.Event
+    -> ([Signal.Y] -> [Pitch.Degree] -> state -> Score.Event
         -> Derive.Deriver (state, result))
-    -> state -> [Score.Event] -> Derive.Deriver [result]
+    -> state -> [Score.Event] -> Derive.Deriver (state, [result])
 map_signals controls pitch_controls f state events =
     map_accuml_m go state events
     where
@@ -475,4 +491,15 @@ map_signals controls pitch_controls f state events =
         let pos = Score.event_start event
         control_vals <- mapM (control_at pos) controls
         pitch_vals <- mapM (degree_at pos) pitch_controls
-        f state control_vals pitch_vals event
+        f control_vals pitch_vals state event
+
+{-
+What I would really like is:
+
+map_signals :: Vec TrackLang.Control clen -> Vec TrackLang.PitchControl plen
+    -> (state -> Vec Signal.Y clen -> Vec Pitch.Degree plen -> Score.Event
+        -> Derive.Deriver (state, result))
+    -> state -> [Score.Event] -> Derive.Deriver (state, [result])
+
+then access with 'f (c1 :, c2 :, ()) (p1 :, ()) = ...'
+-}

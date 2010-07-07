@@ -28,7 +28,7 @@ module Perform.PitchSignal (
     , X, Y, y_to_degree, degree_to_y, max_x, default_srate
 
     , signal, relative, relative_from_control, constant, empty
-    , unsignal
+    , unsignal, unsignal_degree
 
     , at, at_linear, sample
     , first, last
@@ -40,7 +40,7 @@ module Perform.PitchSignal (
     , scalar_add, scalar_subtract
     , clip_max, clip_min
     , shift
-    , truncate, shorten
+    , truncate, drop_before
     , map_x, map_degree
 ) where
 import Prelude hiding (last, truncate)
@@ -153,6 +153,9 @@ constant scale_id degree = signal scale_id [(0, degree_to_y degree)]
 unsignal :: PitchSignal -> [(X, Y)]
 unsignal = SignalBase.unsignal . sig_vec
 
+unsignal_degree :: PitchSignal -> [(X, Pitch.Degree)]
+unsignal_degree = map (\(x, y) -> (x, y_to_degree y)) . unsignal
+
 -- | Flatten a pitch signal into an absolute note number signal.
 to_nn :: Pitch.Scale -> PitchSignal -> Signal.NoteNumber
 to_nn scale psig = Signal.Signal (V.map f (sig_vec psig))
@@ -224,8 +227,8 @@ shift x = modify_vec (SignalBase.shift x)
 truncate :: X -> PitchSignal -> PitchSignal
 truncate x = modify_vec (SignalBase.truncate x)
 
-shorten :: X -> PitchSignal -> PitchSignal
-shorten x = modify_vec (SignalBase.shorten x)
+drop_before :: X -> PitchSignal -> PitchSignal
+drop_before x = modify_vec (SignalBase.drop_before x)
 
 -- | Combine two PitchSignals with a binary operator.  This ignores the
 -- scale of the second signal, so anyone who wants to warn about that should do

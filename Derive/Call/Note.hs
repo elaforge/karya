@@ -67,7 +67,8 @@ generate_note n_inst rel_attrs event next = do
     let controls = Derive.state_controls st
         pitch_sig = Derive.state_pitch st
     return [Score.Event start (end - start)
-        (Event.event_text event) controls (trimmed_pitch next_start pitch_sig)
+        (Event.event_text event) controls
+            (trimmed_pitch start next_start pitch_sig)
         -- state_stack is kept in reverse order
         (reverse (Derive.state_stack st)) inst (apply rel_attrs attrs)]
     where
@@ -99,12 +100,12 @@ process_note_args inst attrs args = (inst', attrs', reverse invalid)
 -- | In a note track, the pitch signal for each note is constant as soon as the
 -- next note begins.  Otherwise, it looks like each note changes pitch during
 -- its decay.
--- TODO when signals are lazy I should drop the heads of the control
--- signals so they can be gced.
-trimmed_pitch :: Maybe RealTime -> PitchSignal.PitchSignal
+trimmed_pitch :: RealTime -> Maybe RealTime -> PitchSignal.PitchSignal
     -> PitchSignal.PitchSignal
-trimmed_pitch (Just next) sig = PitchSignal.truncate next sig
-trimmed_pitch Nothing sig = sig
+trimmed_pitch start maybe_end sig = case maybe_end of
+        Nothing -> short
+        Just end -> PitchSignal.truncate end short
+    where short = PitchSignal.drop_before start sig
 
 -- * misc
 

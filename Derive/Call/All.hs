@@ -10,6 +10,7 @@ import qualified Derive.Call.Pitch as Pitch
 import qualified Derive.Call.Echo as Echo
 import qualified Derive.Call.Rambat as Rambat
 import qualified Derive.Call.Trill as Trill
+import qualified Derive.Call.Idiom.String as String
 
 
 call_map :: Derive.CallMap
@@ -17,7 +18,7 @@ call_map = Derive.CallMap note_calls control_calls pitch_calls val_calls
 
 note_calls :: Derive.NoteCallMap
 note_calls = Map.unions [Note.note_calls, Echo.note_calls, Rambat.note_calls,
-    Trill.note_calls]
+    Trill.note_calls, String.note_calls]
 
 control_calls :: Derive.ControlCallMap
 control_calls = Map.unions [Control.control_calls]

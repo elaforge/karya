@@ -62,7 +62,7 @@ middle_octave = 5
 -- | This is a pitch in a certain scale, but the actual frequency can't be
 -- known untill it's applied to a scale.
 -- PitchSignals use this type.
-newtype Degree = Degree Double deriving (Eq, Ord, Show, Num)
+newtype Degree = Degree Double deriving (Eq, Ord, Show, Num, Fractional)
 
 -- | For consistency, scales should roughly center themselves around this
 -- degree.  This way you don't need to know the scale to know a good

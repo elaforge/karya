@@ -85,13 +85,13 @@ c_event_echo = Derive.transformer "post echo" $ \args deriver ->
     , optional "feedback" (control "echo-feedback" 0.4)
     , optional "times" (control "echo-times" 1)) $ \delay feedback times -> do
         events <- deriver
-        events <- Call.map_signals
-            [delay, feedback, times] [] go () events
-        Call.d_move_events (Derive.merge_asc_events events)
+        ((), result) <- Call.map_signals
+            [delay, feedback, times] [] (\[delay, feedback, times] [] ->
+                go delay feedback times) () events
+        Call.cue (Derive.merge_asc_events result)
     where
-    go () [delay, feedback, times] [] event =
+    go delay feedback times () event =
         return ((), echo_event (RealTime delay) feedback (floor times) event)
-    go () _ _ _ = Derive.throw "not reached"
 
 echo_event :: RealTime -> Double -> Int -> Score.Event -> [Score.Event]
 echo_event delay feedback times event = event : map (echo event) [1..times]

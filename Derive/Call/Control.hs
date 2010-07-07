@@ -70,8 +70,8 @@ c_slide = Derive.generate_one "slide" $ \args -> CallSig.call2 args
                 Nothing -> do
                     Derive.warn "no previous value to slide from"
                     return $ Signal.signal [(start, val)]
-                Just (_, prev_y) -> return $ Signal.signal $
-                    interpolate_control True srate id start prev_y end val
+                Just (_, prev_y) -> return $
+                    interpolator srate id True start prev_y end val
 
 
 -- * control util
@@ -89,20 +89,17 @@ control_interpolate f val args = do
         Nothing -> do
             Derive.warn "no previous value to interpolate from"
             return $ Signal.signal [(start, val)]
-        Just (prev, prev_val) -> return $ Signal.signal $
-            interpolate_control False srate f prev prev_val start val
+        Just (prev, prev_val) -> return $
+            interpolator srate f False prev prev_val start val
 
-interpolate_control :: Bool -> RealTime -> (Double -> Double)
-    -> RealTime -> Signal.Y -> RealTime -> Signal.Y
-    -> [(RealTime, Signal.Y)]
-interpolate_control include_initial srate f x0 y0 x1 y1
-    | include_initial = sig
-    | otherwise = drop 1 sig
+-- | TODO more efficient version without the intermediate list
+interpolator :: RealTime -> (Double -> Double) -> Call.ControlInterpolator
+interpolator srate f include_initial x0 y0 x1 y1
+    | include_initial = Signal.signal sig
+    | otherwise = Signal.signal (drop 1 sig)
     where
     sig = [(x, y_of x) | x <- range x0 x1 srate]
     y_of = Num.scale y0 y1 . f . Types.real_to_double . Num.normalize x0 x1
-
-
 
 -- * util
 
