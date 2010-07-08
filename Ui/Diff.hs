@@ -33,7 +33,7 @@ type DiffM a = Logger.LoggerT Update.Update
 throw :: String -> DiffM a
 throw = Error.throwError
 change :: [Update.Update] -> DiffM ()
-change = Logger.record_list
+change = Logger.logs
 
 run :: DiffM () -> Either DiffError [Update.Update]
 run = Identity.runIdentity . Error.runErrorT . Logger.exec

@@ -108,6 +108,7 @@ newtype CmdT m a = CmdT (CmdStack m a)
     deriving (Functor, Monad, Trans.MonadIO, Error.MonadError State.StateError)
 run_cmd_t (CmdT x) = x
 
+-- | For some reason, newtype deriving doesn't work on MonadTrans.
 instance Trans.MonadTrans CmdT where
     lift = CmdT . lift . lift . lift . lift -- whee!!
 
@@ -131,7 +132,7 @@ type MidiThru = (Midi.WriteDevice, Midi.Message)
 
 -- | Log some midi to send out immediately.  This is the midi thru mechanism.
 midi :: (Monad m) => Midi.WriteDevice -> Midi.Message -> CmdT m ()
-midi dev msg = (CmdT . lift) (Logger.record (dev, msg))
+midi dev msg = (CmdT . lift . lift) (Logger.log (dev, msg))
 
 -- | An abort is an exception to get out of CmdT, but it's considered the same
 -- as returning Continue.  It's so a command can back out if e.g. it's selected

@@ -222,10 +222,10 @@ instance Monad m => LogMonad (LogT m) where
     write msg = write_msg msg
 
 write_msg :: Monad m => Msg -> LogT m ()
-write_msg = LogT . Logger.record
+write_msg = LogT . Logger.log
 
 type LogM m = Logger.LoggerT Msg m
-newtype Monad m => LogT m a = LogT (LogM m a)
+newtype LogT m a = LogT (LogM m a)
     deriving (Functor, Monad, Trans.MonadIO, Trans.MonadTrans,
         Error.MonadError e)
 run_log_t (LogT x) = x

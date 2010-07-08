@@ -60,6 +60,6 @@ for prof in $profiles; do
     done
     if [[ -e $stem.hp ]]; then
         echo $stem.pdf
-        hp2ps -c <$stem.hp | ps2pdf - - >$stem.pdf
+        hp2ps -b -c <$stem.hp | ps2pdf - - >$stem.pdf
     fi
 done

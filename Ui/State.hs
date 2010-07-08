@@ -196,7 +196,7 @@ instance Monad m => UiStateMonad (StateT m) where
     get = StateT State.get
     put st = StateT (State.put st)
     modify f = StateT (State.modify f)
-    update upd = (StateT . lift) (Logger.record upd)
+    update upd = (StateT . lift) (Logger.log upd)
     throw msg = (StateT . lift . lift) (Error.throwError (StateError msg))
 
 instance (Monad m) => Applicative.Applicative (StateT m) where

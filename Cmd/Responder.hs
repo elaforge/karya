@@ -391,10 +391,10 @@ do_run exit runner rstate msg ui_from ui_state cmd_state cmds = do
         cmd_state runner (map ($msg) cmds)
     case res of
         Right (Cmd.Continue, ui_state, cmd_state, updates) -> do
-            Trans.lift $ Logger.record_list updates
+            Trans.lift $ Logger.logs updates
             return (ui_state, cmd_state)
         Right (status, ui_state, cmd_state, updates) -> do
-            Trans.lift $ Logger.record_list updates
+            Trans.lift $ Logger.logs updates
             exit (Right (status, ui_from, ui_state), cmd_state)
         Left err -> exit (Left err, cmd_state)
 

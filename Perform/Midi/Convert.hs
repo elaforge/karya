@@ -37,7 +37,7 @@ convert lookup_inst events = (maybe [] id evts, warns)
     where
     (evts, warns) = run_convert $ fmap Maybe.catMaybes $ mapM conv_catch events
     conv_catch event = fmap Just (conv_event event)
-        `Error.catchError` (\w -> Logger.record w >> return Nothing)
+        `Error.catchError` (\w -> Logger.log w >> return Nothing)
     conv_event event =
         Reader.local (const (Score.event_stack event))
             (convert_event lookup_inst event)
@@ -78,7 +78,7 @@ type ConvertT = Error.ErrorT Warning.Warning
 warn :: String -> ConvertT ()
 warn msg = do
     stack <- Reader.ask
-    Logger.record (Warning.warning msg stack Nothing)
+    Logger.log (Warning.warning msg stack Nothing)
 
 run_convert :: ConvertT a -> (Maybe a, [Warning.Warning])
 run_convert conv = (either (const Nothing) Just val, warn ++ warns)

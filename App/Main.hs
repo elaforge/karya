@@ -241,7 +241,8 @@ auto_setup_cmd = setup_normal
 setup_generate :: String -> Cmd.CmdIO
 setup_generate gen = do
     case gen of
-        "subderive" -> Derive_profile.make_subderive "b1" 100
+        "simple" -> Derive_profile.make_simple "b1" 0 2000
+        "subderive" -> Derive_profile.make_subderive "b1" 200
         "control" -> Derive_profile.make_big_control "b1" 15000
         "shared" -> Derive_profile.make_shared_control "b1" 2000
         _ -> error gen
