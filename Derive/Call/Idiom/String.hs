@@ -47,8 +47,7 @@ c_guzheng strings = Derive.transformer "guzheng" $ \args deriver ->
         srate <- Call.get_srate
         events <- deriver
         let linear = Call.Pitch.interpolator srate id
-        output <- string_idiom linear linear strings
-            attack delay release events
+        output <- string_idiom linear linear strings attack delay release events
         Call.cue output
 
 -- | A string idiom in the style of stopped strings like the violin family.
@@ -63,8 +62,7 @@ c_violin strings = Derive.transformer "violin" $ \args deriver ->
         let linear = Call.Pitch.interpolator srate id
             attack = TrackLang.ConstantControl 0
             release = TrackLang.ConstantControl 0
-        output <- string_idiom linear linear strings
-            attack delay release events
+        output <- string_idiom linear linear strings attack delay release events
         Call.cue output
 
 

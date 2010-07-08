@@ -134,26 +134,26 @@ data State = State {
 
     -- | Derivers can modify it for sub-derivers, or look at it, whether to
     -- attach to an Event or to handle internally.
-    state_controls :: Score.ControlMap
+    state_controls :: !Score.ControlMap
     -- | Named pitch signals.
-    , state_pitches :: Score.PitchMap
+    , state_pitches :: !Score.PitchMap
     -- | Absolute pitch signal currently in scope.  This is the pitch signal
     -- that's actually applied to notes.  It's split off from pitches because
     -- it's convenient to guarentee that the main pitch signal is always
     -- present.
-    , state_pitch :: PitchSignal.PitchSignal
+    , state_pitch :: !PitchSignal.PitchSignal
 
     , state_environ :: TrackLang.Environ
-    , state_warp :: Score.Warp
+    , state_warp :: !Score.Warp
     -- | This is the call stack for events.  It's used for error reporting,
     -- and attached to events in case they want to emit errors later (say
     -- during performance).  This is not a Warning.Stack becasue it's kept in
     -- reverse order for ease of construction.
-    , state_stack :: [Warning.StackPos]
+    , state_stack :: ![Warning.StackPos]
     -- | This is a free-form stack which can be used to record call sequences
     -- in derivation.  It represents logical position during derivation rather
     -- than position on the score.
-    , state_log_context :: [String]
+    , state_log_context :: ![String]
 
     -- | Remember the warp signal for each track.  A warp usually a applies to
     -- a set of tracks, so remembering them together will make the updater more

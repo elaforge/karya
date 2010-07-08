@@ -78,7 +78,7 @@ profile_notes = run_profile $ make_big_notes "b1" 15000
         ]
 
 -- | Block with lots of calls to sub-blocks.
-profile_subblocks = run_profile $ make_subderive "b1" 300
+profile_subderive = run_profile $ make_subderive "b1" 300
 
 make_subderive bid size = do
     let sub_bids = [bid ++ "." ++ show sub | sub <- [0..15]]
@@ -150,7 +150,7 @@ inst2 = ">fm8/2"
 
 note_track inst = ctrack 1 inst [""]
 simple_tempo_track = ctrack0 10 "tempo" ["1", "2", "3", "i 1"]
-mod_track = ctrack0 1 "srate = .02 | cc1" ["i 1", "i 0", "e 1", "i .5", "0"]
+mod_track = ctrack0 1 "cc1 | srate = .02" ["i 1", "i 0", "e 1", "i .5", "0"]
 simple_pitch_track =
     ctrack0 1 "*twelve" ["4a", "4b", "4c", "4d", "4e", "4f", "4g", "5c"]
 nontempered_pitch_track =

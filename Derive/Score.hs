@@ -123,9 +123,9 @@ transpose n = modify_pitch (+n)
 -- efficient since only the shift and stretch are changed.  They have to be
 -- flattened out when the warp is composed though (in 'd_warp').
 data Warp = Warp {
-    warp_signal :: Signal.Warp
-    , warp_shift :: ScoreTime
-    , warp_stretch :: ScoreTime
+    warp_signal :: !Signal.Warp
+    , warp_shift :: !ScoreTime
+    , warp_stretch :: !ScoreTime
     } deriving (Eq, Show)
 
 id_warp :: Warp

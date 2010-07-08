@@ -4,9 +4,11 @@ auto insert imports in vim:
   - turn 'module x.y.z where' into 'import qualified x.y.z as z'
   - figure out where to insert it, and insert it
 
-- finish up derive profiling testing, logging monad
-- implement deriver like vla/cello duet?  that's a sekaran, so I need to think
-  about this more.
+misc ghc fixes:
+  - .prof output should line up better
+  - hp2ps should use constant colors for biography
+
++ finish up derive profiling testing, logging monad
 - signals:
   - profile
   - switch to lazy signals, try to fix warp compose stuff
@@ -71,28 +73,32 @@ CURRENT
   * run a set of profilers as a script and save the results
 
   - performance:
-    - eliminate the deriver memory spike
+    + eliminate the deriver memory spike
+      * got some of it by strictifying a few Derive.State fields
+      - why does "get" produce so much garbage?
+      - at_linear is called a lot by compose, by compose_warp, by d_warp
+        can I make this more efficient?
+
       - doesn't seem to happen so much with subderivations
       - possibly put/get/modify is too lazy?
       - maybe split Derive.State into dynamic and static portions?
       - or maybe it's the control deriver creating a huge list of signal
         chunks, which is then all forced at once since merge needs them all.
 
-      - Deriver [Event] output is not lazy.  I think it's because >>= for
-        ErrorT is strict.  Can I have a form of exception that doesn't need to
-        see if any exceptinos are thrown before producing output?  That means
-        it needs to produce "CappedList = Cons val | Nil (Maybe Exception)"
-        What does >>= look like?
-
+      - Deriver [Event] output is not lazy, because ErrorT won't let it be.
         I think this means I need to localize derive exceptions and remove
         ErrorT from DeriveT.  I still run calls in ErrorT though.
 
-      data EventList = Nil (Maybe Exception)
-          -- | I produce a lot of singletons, so optimize away a pointer.
-          | Event1 !Score.Event
-          -- | Unroll a chunk of events.
-          | Event16 !Score.Event !Score.Event ... EventList
-          | EventCons !Score.Event EventList
+      - more efficient type for events:
+        data EventList = Nil (Maybe Exception)
+            -- | I produce a lot of singletons, so optimize away a pointer.
+            | Event1 !Score.Event
+            -- | Unroll a chunk of events.
+            | Event16 !Score.Event !Score.Event ... EventList
+            | EventCons !Score.Event EventList
+
+    - make a profile for modification and recomputation of a large structure,
+      the sort of thing memoization would help with
     - fix Perform and Signal memory spike exhibited by "generate control"
       - order of printing warns matters, experiment 'seq generate control'
         without warns
@@ -595,6 +601,8 @@ Derive:
   - derivers for sekaran patterns
     - do a code version and a block version
     - block version requires block arguments and variable substitution
+    - implement deriver like vla/cello duet?  that's a sekaran, so I need to
+      think about this more.
   TrackLang tracklang
     * TrackLang.optional args should be able to pass Nothing if arg is not given
     - Derive.Call.map_asc_events, I need Seq.merge_asc_lists for this.
