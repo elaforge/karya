@@ -965,10 +965,9 @@ d_control_at shift deriver = do
 -- TODO what to do about blocks with multiple tempo tracks?  I think it would
 -- be best to stretch the block to the first one.  I could break out
 -- stretch_to_1 and have compile apply it to only the first tempo track.
-d_tempo :: (Monad m) => BlockId -> Maybe TrackId -> DeriveT m Signal.Tempo
+d_tempo :: (Monad m) => BlockId -> Maybe TrackId -> Signal.Tempo
     -> DeriveT m a -> DeriveT m a
-d_tempo block_id maybe_track_id signalm deriver = do
-    signal <- signalm
+d_tempo block_id maybe_track_id signal deriver = do
     let warp = tempo_to_warp signal
     top_level <- is_top_level_block
     stretch_to_1 <- if top_level then return id

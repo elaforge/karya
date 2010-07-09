@@ -65,10 +65,10 @@ eval_track block_id track_id expr vals deriver = do
 -- Otherwise it would wind up being composed with the environmental
 -- warp twice.
 tempo_call :: BlockId -> TrackId -> Derive.Deriver Signal.Tempo
-    -> Derive.Transformer
-tempo_call block_id track_id sig_deriver =
-    Derive.d_tempo block_id (Just track_id) $
-        Derive.setup_without_warp sig_deriver
+    -> Derive.EventDeriver -> Derive.EventDeriver
+tempo_call block_id track_id sig_deriver deriver = do
+    sig <- Derive.setup_without_warp sig_deriver
+    Derive.d_tempo block_id (Just track_id) sig deriver
 
 control_call :: TrackId -> Score.Control -> Maybe TrackLang.CallId
     -> Derive.ControlDeriver -> Derive.Transformer

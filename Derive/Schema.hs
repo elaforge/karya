@@ -265,7 +265,7 @@ compile block_id tree = do
     -- d_tempo sets up some stuff that every block needs, so add one if a block
     -- doesn't have at least one top level tempo.
     let with_default_tempo = if has_tempo_track tree then id
-            else Derive.d_tempo block_id Nothing (return (Signal.constant 1))
+            else Derive.d_tempo block_id Nothing (Signal.constant 1)
     with_default_tempo (sub_compile block_id tree)
 
 -- | Does this tree have a tempo track at the top level?
