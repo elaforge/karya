@@ -13,7 +13,7 @@ import qualified Perform.Signal as Signal
 import qualified Derive.Score as Score
 
 
-transform :: Derive.Transformer -> DeriveTest.Result Derive.Events
+transform :: Derive.Transformer -> Derive.DeriveResult Derive.Events
 transform deriver = DeriveTest.derive_note $
     Derive.with_constant_pitch Nothing (Pitch.Degree 60) $
     deriver DeriveTest.d_note

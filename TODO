@@ -13,7 +13,6 @@ misc ghc fixes:
   - profile
   - switch to lazy signals, try to fix warp compose stuff
   - make resample etc. more efficient
-- re-enable signal display
 - implement simple integrator
 - implement dense signal data in Ui.Track
 - extend signal display for pitch track
@@ -21,6 +20,27 @@ misc ghc fixes:
 - research ardour OSC control
 
 CURRENT
+  - I think if the same TrackId appears in multiple places, it will be derived
+    redundantly.  I should be able to cache the signal output in a TrackSignal.
+  - TrackSignals is per TrackId, but the same TrackId may render to different
+    signals in different positions because it has a differnt environment.  It
+    should be (BlockId, TrackNum) + TrackId to verify in case the state was
+    modified
+
+  - redraw after track range damage draws things a pixel too low
+  - signal filled display is chunky and ugly
+  - set_render_style should trigger a rederive
+
+  - Can I not sync collapsed tracks?  I think the best is to implement
+    collapse at hs level, then an expand can trigger a rederive.
+    Also it would be nice to not rederive signal for tracks that haven't
+    changed, maybe tracks in calls above the modified one?
+
+  - have a way to not link with hint, to reduce link time for test runs
+
+  - support pitch signals
+  - support signals that aren't just 0--1
+
   * should I make the control title expression the first one instead of last?
   - Circular imports of Derive.Derive and Derive.Scale causes a lot of
     recompiling.  Can I eliminate or reduce it?
@@ -127,13 +147,7 @@ CURRENT
     what would the track transformer pass?
   * remove warped control?
   - subblock derivation for control tracks
-  - re-enable signal deriver, but in a more efficient way?  can I reuse the
-    derived signals?
-    Pass a signal ptr and a factor to c++, which then multiplies the factor
-    and displays as-is.
-    On derive run, record tracks with a constant tempo with that factor.
-    Run a separate signal deriver that skips already recorded signal tracks.
-    It evaluates signal tracks in ID warp and saves the results.
+  * re-enable signal deriver, but in a more efficient way?
 
 UNSORTED
   / move MakeRuler to Lang too?

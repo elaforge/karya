@@ -56,6 +56,8 @@ void remove_track(BlockViewWindow *view, int tracknum,
 void update_track(BlockViewWindow *view, int tracknum,
         Tracklike *track, Marklist *marklists, int nmarklists,
         FinalizeCallback finalizer, ScoreTime *start, ScoreTime *end);
+void set_track_signal(BlockViewWindow *view, int tracknum,
+        const TrackSignal *tsig);
 void set_track_width(BlockViewWindow *view, int tracknum, int width);
 void set_track_title(BlockViewWindow *view, int tracknum, const char *title);
 

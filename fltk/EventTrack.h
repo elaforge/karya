@@ -15,26 +15,67 @@ Events don't overlap.
 #include "Event.h"
 
 
+struct TrackSignal {
+    struct ControlSample {
+        ScoreTime time;
+        double val;
+        ControlSample(ScoreTime time, double val) : time(time), val(val) {}
+    };
+    struct PitchSample {
+        ScoreTime time;
+        float from, to, at;
+        PitchSample(ScoreTime time, float from, float to, float at)
+            : time(time), from(from), to(to), at(at)
+        {}
+    };
+    TrackSignal() : signal(NULL), pitch_signal(NULL), length(0) {}
+
+    // The track containing the TrackSignal is responsible for the freeing of
+    // the signal pointers.
+    void free_signals() {
+        if (signal)
+            free(signal);
+        // DEBUG("FREE " << signal);
+        if (pitch_signal)
+            free(pitch_signal);
+    }
+
+    // One of these pointers should be null.
+    ControlSample *signal;
+    PitchSample *pitch_signal;
+    // Length of above signal.
+    int length;
+
+    // These are to be applied to the signal's time values.
+    ScoreTime shift;
+    ScoreTime stretch;
+
+    // Get the time at the given index, taking shift, stretch, and the given
+    // zoom into account.
+    // TODO pitch_signal
+    int time_at(const ZoomInfo &zoom, int i) const {
+        ScoreTime warped = (signal[i].time - shift).divide(stretch);
+        return zoom.to_pixels(warped - zoom.offset);
+    }
+
+    // Get the val at the given index, normalized between 0--1.
+    // TODO pitch_signal
+    // TODO normalize to a max val
+    double val_at(int i) const {
+        return signal[i].val;
+    }
+};
+
 struct RenderConfig {
-    // Get samples from the one before start_pos to the one at or after
-    // end_pos.  'ret_tps' should be in ascending order.
-    // TODO start and end are actually const, but it's too much bother to
-    // convert them now.
-    typedef int (*FindSamples)(ScoreTime *start_pos, ScoreTime *end_pos,
-            ScoreTime **ret_tps, double **ret_samples);
     enum RenderStyle {
         render_none,
         render_line,
         render_filled
     };
+    RenderConfig(RenderStyle style, Color color) : style(style), color(color) {}
 
-    RenderConfig(RenderStyle style, FindSamples find_samples, Color color) :
-        style(style), color(color), find_samples(find_samples)
-    {}
     RenderStyle style;
     Color color;
-    // Samples should be within 0--1 inclusive.
-    FindSamples find_samples;
 };
 
 // TODO: as an optimization, I could cache the last set of found events plus
@@ -56,6 +97,7 @@ struct EventTrackConfig {
     ScoreTime time_end;
 
     RenderConfig render;
+    TrackSignal track_signal;
 };
 
 
@@ -77,6 +119,8 @@ public:
     virtual ScoreTime time_end() const;
     virtual void update(const Tracklike &track, FinalizeCallback finalizer,
             ScoreTime start, ScoreTime end);
+    // For the moment, only EventTracks can draw a signal.
+    virtual void set_track_signal(const TrackSignal &tsig);
     virtual void finalize_callbacks(FinalizeCallback finalizer);
 
 protected:
@@ -84,7 +128,7 @@ protected:
 
 private:
     void draw_area();
-    void draw_samples(ScoreTime start, ScoreTime end);
+    void draw_signal(ScoreTime start, ScoreTime end);
     void draw_upper_layer(int offset, const Event &event, int rank,
             Rect *previous, int *ranked_bottom, int prev_offset);
 

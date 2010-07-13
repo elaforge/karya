@@ -6,15 +6,12 @@
     cached derivation and realization (depending on deriver scope)
     modified event map, for derivation (old trackpos -> new trackpos)
 -}
-module Ui.TrackC (with_track, insert_render_samples) where
+module Ui.TrackC (with_track) where
 import Control.Monad
-import Data.Array.IArray ((!))
-import qualified Data.Array.IArray as IArray
+import qualified Data.StorableVector.Base as StorableVector.Base
 import Foreign
 import Foreign.C
 
-import qualified Util.Array as Array
-import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
 import Ui
@@ -22,20 +19,29 @@ import qualified Ui.Event as Event
 import qualified Ui.Track as Track
 import qualified Ui.Util as Util
 
+import qualified Perform.PitchSignal as PitchSignal
+import qualified Perform.Signal as Signal
+
 
 #include "c_interface.h"
 -- See comment in BlockC.hsc.
 #let alignment t = "%lu", (unsigned long)offsetof(struct {char x__; t (y__); }, y__)
 
--- Since converting a Track requires both a track and merged events, poke needs
--- two args.  So keep it out of Storable to prevent accidental use of 'with'.
--- instance Storable Track.Track where
---     sizeOf _ = #size EventTrackConfig
---     alignment _ = #{alignment EventTrackConfig}
-
-poke_track trackp (Track.Track _ _ bg render) = do
-    (#poke EventTrackConfig, bg_color) trackp bg
-    (#poke EventTrackConfig, render) trackp render
+-- | Since converting a Track requires both a track and merged events, poke
+-- needs two args.  So keep it out of Storable to prevent accidental use of
+-- 'with'.
+with_track :: Track.Track -> [Track.TrackEvents] -> (Ptr Track.Track -> IO a)
+    -> IO a
+with_track track event_lists f = allocaBytes size $ \trackp -> do
+    (#poke EventTrackConfig, bg_color) trackp (Track.track_bg track)
+    poke_find_events trackp (Track.track_events track : event_lists)
+    (#poke EventTrackConfig, render) trackp (Track.track_render track)
+    initialize_track_signal ((#ptr EventTrackConfig, track_signal) trackp)
+    f trackp
+    where
+    size = #size EventTrackConfig
+    -- allocaBytesAligned is not exported from Foreign.Marshal.Alloc
+    -- align = #{alignment EventTrackConfig}
 
 poke_find_events :: Ptr Track.Track -> [Track.TrackEvents] -> IO ()
 poke_find_events trackp event_lists = do
@@ -44,30 +50,9 @@ poke_find_events trackp event_lists = do
     (#poke EventTrackConfig, find_events) trackp find_events
     (#poke EventTrackConfig, time_end) trackp time_end
 
-with_track :: Track.Track -> [Track.TrackEvents] -> (Ptr Track.Track -> IO a)
-    -> IO a
-with_track track event_lists f = allocaBytes size $ \trackp -> do
-    poke_track trackp track
-    poke_find_events trackp (Track.track_events track : event_lists)
-    f trackp
-    where
-    size = #size EventTrackConfig
-    -- allocaBytesAligned is not exported from Foreign.Marshal.Alloc
-    -- align = #{alignment EventTrackConfig}
-
-insert_render_samples :: Ptr Track.Track -> Track.Samples -> IO ()
-insert_render_samples trackp samples = do
-    find_samples <- make_find_samples samples
-    let renderp = (#ptr EventTrackConfig, render) trackp
-    (#poke RenderConfig, find_samples) renderp find_samples
-
 make_find_events :: [Track.TrackEvents] -> IO (FunPtr FindEvents)
 make_find_events events = Util.make_fun_ptr "find_events" $
     c_make_find_events (cb_find_events events)
-
-make_find_samples :: Track.Samples -> IO (FunPtr FindSamples)
-make_find_samples samples = Util.make_fun_ptr "find_samples" $
-    c_make_find_samples (cb_find_samples samples)
 
 instance Storable Track.RenderConfig where
     sizeOf _ = #size RenderConfig
@@ -75,9 +60,57 @@ instance Storable Track.RenderConfig where
     peek _ = error "RenderConfig peek unimplemented"
     poke = poke_render_config
 
+poke_render_config :: Ptr Track.RenderConfig -> Track.RenderConfig -> IO ()
 poke_render_config configp (Track.RenderConfig style color) = do
     (#poke RenderConfig, style) configp (encode_style style)
     (#poke RenderConfig, color) configp color
+
+instance Storable Track.TrackSignal where
+    sizeOf _ = #size TrackSignal
+    alignment _ = #{alignment TrackSignal}
+    peek _ = error "TrackSignal peek unimplemented"
+    poke = poke_track_signal
+
+-- | This does a memcpy to marshal the signal for c++.  I could pass the
+-- pointer directly, but then I would have to arrange for haskell and c++
+-- to coordinate its lifespan.  I believe I could hold the ForeignPtr in
+-- a FunPtr which is then manually deleted from c++ via the usual finalizer.
+-- If that failed, I could use a StablePtr with a little more work.
+--
+-- However, memcpy is quite fast.  I tested 0.01s for 32mb, which is a good
+-- upper bound.  It's 87m of 0.1s pitch signal * 8 tracks * 4 controls, which
+-- is a lot.
+poke_track_signal :: Ptr Track.TrackSignal -> Track.TrackSignal -> IO ()
+poke_track_signal tsigp (Track.TrackSignal sig shift stretch) = do
+    case sig of
+        Left psig -> do
+            let (sigfp, offset, len) = StorableVector.Base.toForeignPtr
+                    (PitchSignal.sig_vec psig)
+            (#poke TrackSignal, signal) tsigp nullPtr
+            withForeignPtr sigfp $ \sigp -> do
+                destp <- mallocArray len
+                copyArray destp (advancePtr sigp offset) len
+                (#poke TrackSignal, pitch_signal) tsigp destp
+            (#poke TrackSignal, length) tsigp len
+        Right csig -> do
+            let (sigfp, offset, len) = StorableVector.Base.toForeignPtr
+                    (Signal.sig_vec csig)
+            withForeignPtr sigfp $ \sigp -> do
+                destp <- mallocArray len
+                copyArray destp (advancePtr sigp offset) len
+                (#poke TrackSignal, signal) tsigp destp
+            (#poke TrackSignal, pitch_signal) tsigp nullPtr
+            (#poke TrackSignal, length) tsigp len
+    (#poke TrackSignal, shift) tsigp shift
+    (#poke TrackSignal, stretch) tsigp stretch
+
+-- | Objects constructed from haskell don't have their constructors run,
+-- so make sure it doesn't have garbage.
+initialize_track_signal :: Ptr Track.TrackSignal -> IO ()
+initialize_track_signal tsigp = do
+    (#poke TrackSignal, signal) tsigp nullPtr
+    (#poke TrackSignal, pitch_signal) tsigp nullPtr
+    (#poke TrackSignal, length) tsigp (0 :: CInt)
 
 encode_style :: Track.RenderStyle -> (#type RenderConfig::RenderStyle)
 encode_style style = case style of
@@ -107,33 +140,5 @@ cb_find_events event_lists startp endp ret_tps ret_events ret_ranks = do
         poke ret_ranks =<< newArray ranks
     return (length evts)
 
--- typedef int (*FindSamples)(ScoreTime *start_pos, ScoreTime *end_pos,
---         ScoreTime **ret_tps, double **ret_samples);
-type FindSamples = Ptr ScoreTime -> Ptr ScoreTime -> Ptr (Ptr ScoreTime)
-    -> Ptr (Ptr CDouble) -> IO Int
-
-cb_find_samples :: Track.Samples -> FindSamples
-cb_find_samples (Track.Samples samples) startp endp ret_tps ret_samples = do
-    start <- peek startp
-    end <- peek endp
-    -- From one before start to one after end.
-    let start_i = max 0 (Array.bsearch_on fst samples start - 1)
-        max_i = snd (IArray.bounds samples)
-        (elts, rest) = break ((>=end) . fst) (map (samples!) [start_i..max_i])
-        -- Get one sample past the cutoff so it can draw the slope properly.
-        found = elts ++ take 1 rest
-    -- putStrLn $ "go find " ++ show start_i ++ "--" ++ show max_i
-    unless (null found) $ do
-        tp_array <- newArray (map fst found)
-        sample_array <- newArray (map (Num.d2c . snd) found)
-        poke ret_tps tp_array
-        poke ret_samples sample_array
-    -- putStrLn $ "find samples " ++ show start ++ "--" ++ show end
-    --     ++ ": " ++ show (length found)
-    --     ++ "\n" ++ show found
-    return (length found)
-
 foreign import ccall "wrapper"
     c_make_find_events :: FindEvents -> IO (FunPtr FindEvents)
-foreign import ccall "wrapper"
-    c_make_find_samples :: FindSamples -> IO (FunPtr FindSamples)

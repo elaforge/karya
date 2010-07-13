@@ -531,6 +531,16 @@ BlockView::update_track(int tracknum, const Tracklike &track,
 }
 
 
+void
+BlockView::set_track_signal(int tracknum, const TrackSignal &tsig)
+{
+    this->track_at(tracknum)->set_track_signal(tsig);
+    TrackView *collapsed = vector_get(collapsed_tracks, tracknum).track;
+    if (collapsed)
+        collapsed->set_track_signal(tsig);
+}
+
+
 // private
 
 // Update scrollbar display based on the current zoom and scroll offset.

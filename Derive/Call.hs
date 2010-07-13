@@ -170,8 +170,8 @@ one_note = fmap $ \d -> (d, 1)
 -- | Return True if I'm in a relative scale context.
 --
 -- There are a set of pitch calls that need a \"note\" arg when called in an
--- absolute context, but can more usefully default to @(Note "0") in a relative
--- track.
+-- absolute context, but can more usefully default to @(Note "0")@ in
+-- a relative track.
 in_relative_scale :: Derive.PassedArgs derived -> Bool
 in_relative_scale args = case TrackLang.lookup_val TrackLang.v_scale environ of
         Right scale -> Pitch.is_relative (Pitch.scale_id scale)
@@ -179,9 +179,9 @@ in_relative_scale args = case TrackLang.lookup_val TrackLang.v_scale environ of
     where environ = Derive.passed_environ args
 
 -- | There are a set of pitch calls that need a \"note\" arg when called in an
--- absolute context, but can more usefully default to @(Note "0") in a relative
--- track.  This will prepend a note arg if the scale in the environ is
--- relative.
+-- absolute context, but can more usefully default to @(Note "0")@ in
+-- a relative track.  This will prepend a note arg if the scale in the environ
+-- is relative.
 --
 -- TODO this is much easier to use than 'in_relative_scale' but doesn't work
 -- since it needs to be in Deriver.  If I put TypeError into DeriveError then

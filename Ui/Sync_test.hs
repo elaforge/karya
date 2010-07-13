@@ -14,7 +14,6 @@
     unfortunately remain io_human tests in here.
 -}
 module Ui.Sync_test where
-import qualified Control.Arrow as Arrow
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception
@@ -325,29 +324,8 @@ test_insert_into_selection = do
 insert_track bid tracknum tracklike_id width =
     State.insert_track bid tracknum (Block.block_track tracklike_id width)
 
-test_render_samples = do
-    state <- run_setup
-    let t_track2_id = Types.TrackId (mkid "b1.t2")
-        samples1 = Track.samples sample_pairs
-        bsamples = [(t_block_id, [(t_track2_id, samples1)])]
-    state <- io_human "new track with samples" $ run_samples bsamples state $ do
-        let track = Track.set_render_style Track.Line
-                (UiTest.empty_track "t2")
-        create_track "b1.t2" track
-        insert_track t_block_id 2 (Block.TId t_track2_id t_ruler_id) 40
-    state <- io_human "track samples filled" $ run_samples bsamples state $ do
-        State.modify_track_render t_track2_id $ \config ->
-            config { Track.render_style = Track.Filled }
-
-    let samples2 = Track.samples ((ScoreTime 0, 0) : tail sample_pairs)
-        bsamples2 = [(t_block_id, [(t_track2_id, samples2)])]
-    state <- io_human "first samples changed" $ run_samples bsamples2 state $ do
-        State.insert_events t_track2_id $ map UiTest.mkevent
-            [(0, 0, "0"), (32, 0, "0.5")]
-    return ()
-
-sample_pairs = map (Arrow.first ScoreTime)
-    [(0, 1), (32, 0.5), (32, 1), (64, 0), (500, 0), (510, 1), (520, 0)]
+-- test_set_track_signals = do
+--     state <- run_setup
 
 -- * util
 
@@ -372,23 +350,16 @@ create_ruler a b = State.create_ruler (mkid a) b
 run st1 m = do
     res <- State.run st1 m
     let (_val, st2, updates) = right res
-    sync st1 st2 updates []
+    sync st1 st2 updates
     return st2
 
-run_samples block_samples st1 m = do
-    res <- State.run st1 m
-    let (_val, st2, updates) = right res
-    sync st1 st2 updates block_samples
-    return st2
+sync_states st1 st2 = sync st1 st2 []
 
-
-sync_states st1 st2 = sync st1 st2 [] []
-
-sync st1 st2 hint_updates block_samples = do
+sync st1 st2 hint_updates = do
     let updates = right $ Diff.diff st1 st2
     putStrLn "updates:"
     plist (updates ++ hint_updates)
-    result <- Sync.sync st2 (updates ++ hint_updates) block_samples
+    result <- Sync.sync st2 (updates ++ hint_updates)
     case result of
         Just err -> putStrLn $ "err: " ++ show err
         Nothing -> putStrLn "synced"

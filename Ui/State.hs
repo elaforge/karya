@@ -126,26 +126,24 @@ run state m = do
         Left err -> Left err
         Right ((val, state), updates) -> Right (val, state, updates)
 
-eval_rethrow :: (UiStateMonad m) => String -> State
-    -> StateT Identity.Identity a -> m a
+eval_rethrow :: (UiStateMonad m) => String -> State -> StateId a -> m a
 eval_rethrow msg state = throw_either msg . eval state
 
 -- | A form of 'run' that returns only the val and automatically runs in
 -- Identity.
-eval :: State -> StateT Identity.Identity a -> Either StateError a
+eval :: State -> StateId a -> Either StateError a
 eval state m = case result of
         Left err -> Left err
         Right (val, _, _) -> Right val
     where result = Identity.runIdentity (run state m)
 
-exec :: State -> StateT Identity.Identity a -> Either StateError State
+exec :: State -> StateId a -> Either StateError State
 exec state m = case result of
         Left err -> Left err
         Right (_, state', _) -> Right state'
     where result = Identity.runIdentity (run state m)
 
-exec_rethrow :: (UiStateMonad m) => String -> State
-    -> StateT Identity.Identity a -> m State
+exec_rethrow :: (UiStateMonad m) => String -> State -> StateId a -> m State
 exec_rethrow msg state = throw_either msg . exec state
 
 throw_either :: (UiStateMonad m) => String -> Either StateError a -> m a
@@ -169,6 +167,9 @@ type StateStack m = State.StateT State
 newtype StateT m a = StateT (StateStack m a)
     deriving (Functor, Monad, Trans.MonadIO, Error.MonadError StateError)
 run_state_t (StateT x) = x
+
+-- | Just a convenient abbreviation.
+type StateId a = StateT Identity.Identity a
 
 instance Trans.MonadTrans StateT where
     lift = StateT . lift . lift . lift

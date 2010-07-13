@@ -1,9 +1,8 @@
 module Derive.Schema_test where
-import qualified Control.Arrow as Arrow
 import qualified Data.Map as Map
-import qualified Data.Array.IArray as IArray
 import qualified Data.Tree as Tree
 
+import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import Util.Test
@@ -102,70 +101,6 @@ test_compile = do
     equal (pitches res) (Right [psig 1, psig 2, psig 50])
     where
     mksig = Signal.signal
-
--- TODO compile_to_signals needs to be reimplemented
--- test_compile_to_signals = do
---     let derive track = signal_derive_tracks
---             [ ("tempo", [(0, 0, "2")])
---             , (">i1", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
---             , track
---             , ("c1", [(0, 0, "3"), (1, 0, "2"), (2, 0, "1")])
---             ]
---
---     let (res, logs) = derive ("*bogus", [])
---     equal logs []
---     left_like res
---         "compile_to_signals *: d_display_pitch: unknown ScaleId \"bogus\""
---
---     -- TODO re-enable when rendering pitch signals is in
---     -- let (_res, logs) = derive ("*twelve", [(10, 0, ".2")])
---     -- equal logs ["compile_to_signals: Note \".2\" not in ScaleId \"twelve\""]
---
---     let (res, logs) = derive
---             ("vel", [(0, 0, "1"), (1, 0, "i, 2"), (2, 0, "10")])
---     equal logs []
---     -- tempo, c1, and pitch tracks get signals.
---     equal (fmap (map fst) res)
---         (Right $ map UiTest.tid ["b0.t0", "b0.t3", "b0.t2"])
---
---     -- It's important that the tempo track *doesn't* apply, since these go to
---     -- the UI.
---     equal (fmap (map snd) res) $ Right
---         [ mksmps [(0, Set, 2)]
---         , mksmps [(0, Set, 3), (1, Set, 2), (2, Set, 1)]
---         , mksmps [(0, Set, 1), (1, Signal.Linear, 2), (2, Set, 10)]
---         ]
---     where
---     mksmps segs = extract_smps $ Signal.to_track_samples $
---         Signal.track_signal Signal.default_srate segs
-
-signal_derive_tracks :: [UiTest.TrackSpec]
-    -> (Either String [(TrackId, [(ScoreTime, Double)])], [Log.Msg])
-signal_derive_tracks tracks = case res of
-        Left err -> (Left (show err), [])
-        Right (track_smps, logs) -> (Right (map extract track_smps), logs)
-    where
-    res = State.eval State.empty $ do
-        UiTest.mkstate "b0" tracks
-        derive_signal Map.empty (UiTest.bid "b0")
-    extract (tid, smps) = (tid, extract_smps smps)
-
-extract_smps (Track.Samples smps) = IArray.elems smps
-
--- TODO copy pasted from ResponderSync to avoid having to import c++
-derive_signal :: (State.UiStateMonad m) =>
-    Schema.SchemaMap -> BlockId -> m (Track.TrackSamples, [Log.Msg])
-derive_signal schema_map block_id = do
-    ui_state <- State.get
-    deriver <- Schema.get_signal_deriver schema_map block_id
-    let (result, _, _, logs, _) = Derive.derive
-            -- Signal derivation doesn't do calls, so I can pass an empty map.
-            Derive.empty_lookup_deriver ui_state Derive.empty_call_map
-            DeriveTest.environ True (Derive.with_stack_block block_id deriver)
-    case result of
-        Left err -> State.throw (show err)
-        Right sig ->
-            return (map (Arrow.second Signal.to_track_samples) sig, logs)
 
 -- * parse
 

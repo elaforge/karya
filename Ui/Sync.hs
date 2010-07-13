@@ -22,13 +22,17 @@
     This is a hassle because case 1 has to go hunt down the event info and case
     2 has to go hunt down the per-block info, but such is life.
 -}
-module Ui.Sync (BlockSamples, sync, set_play_position, clear_play_position)
-where
+module Ui.Sync (
+    sync
+    , set_track_signals
+    , set_play_position, clear_play_position
+) where
 import Control.Monad
 import qualified Control.Monad.Trans as Trans
 import qualified Data.List as List
 import qualified Data.Map as Map
 
+import Util.Control
 import qualified Util.Seq as Seq
 
 import qualified App.Config as Config
@@ -45,17 +49,13 @@ import qualified Ui.Types as Types
 import qualified Util.Log as Log
 
 
-type BlockSamples = [(BlockId, Track.TrackSamples)]
-
 -- | Sync with the ui by applying the given updates to it.
-sync :: State.State -> [Update.Update] -> BlockSamples ->
-    IO (Maybe State.StateError)
-sync state updates block_samples = do
+sync :: State.State -> [Update.Update] -> IO (Maybe State.StateError)
+sync state updates = do
     -- TODO: TrackUpdates can overlap.  Merge them together here.
     -- Technically I can also cancel out all TrackUpdates that only apply to
     -- newly created views, but this optimization is probably not worth it.
-    result <- State.run state $
-        do_updates block_samples (Update.sort updates)
+    result <- State.run state $ do_updates (Update.sort updates)
     Log.timer $ "synced updates: " ++ show (length updates)
     return $ case result of
         Left err -> Just err
@@ -65,11 +65,36 @@ sync state updates block_samples = do
         -- express this in the type?
         Right _ -> Nothing
 
-do_updates :: BlockSamples -> [Update.Update] -> State.StateT IO ()
-do_updates block_samples updates = do
-    actions <- mapM (run_update block_samples) updates
+do_updates :: [Update.Update] -> State.StateT IO ()
+do_updates updates = do
+    actions <- mapM run_update updates
     -- Trans.liftIO $ putStrLn ("run updates: " ++ show updates)
     Trans.liftIO (Ui.send_action (sequence_ actions))
+
+set_track_signals :: State.State -> Track.TrackSignals -> IO ()
+set_track_signals state track_signals = do
+    case State.eval state tracknums of
+        Left err ->
+            -- This could happen if track_signals had a stale track_id.  That
+            -- could happen if I deleted a track before the deriver came back
+            -- with its signal.
+            -- TODO but I should just filter out the bad track_id in that case
+            Log.warn $ "getting tracknums of track_signals: " ++ show err
+        Right val -> Ui.send_action $ forM_ val $
+            \(view_id, tracknum, tsig) ->
+                BlockC.set_track_signal view_id tracknum tsig
+    where
+    tracknums :: State.StateId [(ViewId, TrackNum, Track.TrackSignal)]
+    tracknums =
+        fmap concat $ forM (Map.assocs track_signals) $ \(track_id, tsig) ->
+            tracknums_of track_id tsig
+    tracknums_of track_id tsig = do
+        blocks <- State.blocks_with_track track_id
+        fmap concat $ forM blocks $ \(block_id, tracks) -> do
+            view_ids <- Map.keys <$> State.get_views_of block_id
+            return [(view_id, tracknum, tsig)
+                | (tracknum, Block.TId tid _) <- tracks,
+                    tid == track_id, view_id <- view_ids]
 
 -- | The play position selection bypasses all the usual State -> Diff -> Sync
 -- stuff for a direct write to the UI.
@@ -101,19 +126,12 @@ track_title _ = return ""
 block_window_title :: ViewId -> BlockId -> String
 block_window_title view_id block_id = show block_id ++ " -- " ++ show view_id
 
-get_samples :: Maybe Track.TrackSamples -> Block.TracklikeId -> Track.Samples
-get_samples maybe_track_samples track = maybe Track.no_samples id $ do
-    track_samples <- maybe_track_samples
-    track_id <- Block.track_id_of track
-    lookup track_id track_samples
-
 -- | Apply the update to the UI.
 -- CreateView Updates will modify the State to add the ViewPtr
-run_update :: BlockSamples -> Update.Update -> State.StateT IO (IO ())
-run_update block_samples (Update.ViewUpdate view_id Update.CreateView) = do
+run_update :: Update.Update -> State.StateT IO (IO ())
+run_update (Update.ViewUpdate view_id Update.CreateView) = do
     view <- State.get_view view_id
     block <- State.get_block (Block.view_block view)
-    let maybe_track_samples = lookup (Block.view_block view) block_samples
 
     let track_ids = Block.block_tracklike_ids block
     ctracks <- mapM State.get_tracklike track_ids
@@ -135,11 +153,7 @@ run_update block_samples (Update.ViewUpdate view_id Update.CreateView) = do
         let tracks = map fst (Block.block_display_tracks block)
         let track_info = List.zip5 [0..] tracks ctracks widths titles
         forM_ track_info $ \(tracknum, dtrack, ctrack, width, title) -> do
-            -- The 'get_samples' may imply some work evaluating 'block_samples'
-            -- which will be serialized in the UI thread.  Should be ok though.
-            let track_id = Block.dtrack_tracklike_id dtrack
-            BlockC.insert_track view_id tracknum ctrack
-                (get_samples maybe_track_samples track_id) width
+            BlockC.insert_track view_id tracknum ctrack width
             unless (null title) $
                 BlockC.set_track_title view_id tracknum title
             BlockC.set_display_track view_id tracknum dtrack
@@ -153,7 +167,7 @@ run_update block_samples (Update.ViewUpdate view_id Update.CreateView) = do
         BlockC.set_zoom view_id (Block.view_zoom view)
         BlockC.set_track_scroll view_id (Block.view_track_scroll view)
 
-run_update _ (Update.ViewUpdate view_id update) = do
+run_update (Update.ViewUpdate view_id update) = do
     case update of
         -- The previous equation matches CreateView, but ghc warning doesn't
         -- figure that out.
@@ -174,9 +188,8 @@ run_update _ (Update.ViewUpdate view_id update) = do
         Update.BringToFront -> return $ BlockC.bring_to_front view_id
 
 -- Block ops apply to every view with that block.
-run_update block_samples (Update.BlockUpdate block_id update) = do
+run_update (Update.BlockUpdate block_id update) = do
     view_ids <- fmap Map.keys (State.get_views_of block_id)
-    let maybe_track_samples = lookup block_id block_samples
     case update of
         Update.BlockTitle title -> return $
             mapM_ (flip BlockC.set_title title) view_ids
@@ -190,8 +203,7 @@ run_update block_samples (Update.BlockUpdate block_id update) = do
             let tid = Block.dtrack_tracklike_id dtrack
             ctrack <- State.get_tracklike tid
             return $ forM_ view_ids $ \view_id -> do
-                BlockC.insert_track view_id tracknum ctrack
-                    (get_samples maybe_track_samples tid) width
+                BlockC.insert_track view_id tracknum ctrack width
                 case ctrack of
                     -- Configure new track.  This is analogous to the initial
                     -- config in CreateView.
@@ -208,13 +220,12 @@ run_update block_samples (Update.BlockUpdate block_id update) = do
             return $ forM_ view_ids $ \view_id -> do
                 BlockC.set_display_track view_id tracknum dtrack
                 let merged = Block.dtrack_merged dtrack
-                let samples = get_samples maybe_track_samples tracklike_id
                 -- This is unnecessary if I just collapsed the track, but
                 -- no big deal.
                 BlockC.update_entire_track view_id tracknum tracklike
-                    samples (events_of_track_ids ustate merged)
+                    (events_of_track_ids ustate merged)
 
-run_update block_samples (Update.TrackUpdate track_id update) = do
+run_update (Update.TrackUpdate track_id update) = do
     blocks <- State.blocks_with_track track_id
     let track_info = [(block_id, tracknum, tid)
             | (block_id, tracks) <- blocks, (tracknum, tid) <- tracks]
@@ -222,8 +233,6 @@ run_update block_samples (Update.TrackUpdate track_id update) = do
     fmap sequence_ $ forM track_info $ \(block_id, tracknum, tracklike_id) -> do
         view_ids <- fmap Map.keys (State.get_views_of block_id)
         tracklike <- State.get_tracklike tracklike_id
-        let maybe_track_samples = lookup block_id block_samples
-            samples = get_samples maybe_track_samples tracklike_id
 
         ustate <- State.get
         block <- State.get_block block_id
@@ -234,32 +243,31 @@ run_update block_samples (Update.TrackUpdate track_id update) = do
         fmap sequence_ $ forM view_ids $ \view_id -> case update of
             Update.TrackEvents low high ->
                 return $ BlockC.update_track view_id tracknum tracklike
-                    samples merged low high
+                    merged low high
             Update.TrackAllEvents ->
                 return $ BlockC.update_entire_track view_id tracknum tracklike
-                    samples merged
+                    merged
             Update.TrackTitle title ->
                 return $ BlockC.set_track_title view_id tracknum title
             Update.TrackBg ->
                 -- update_track also updates the bg color
                 return $ BlockC.update_track view_id tracknum tracklike
-                    samples merged (ScoreTime 0) (ScoreTime 0)
+                    merged (ScoreTime 0) (ScoreTime 0)
             Update.TrackRender ->
                 return $ BlockC.update_entire_track view_id tracknum tracklike
-                    samples merged
+                    merged
 
-run_update _ (Update.RulerUpdate ruler_id) = do
+run_update (Update.RulerUpdate ruler_id) = do
     blocks <- State.blocks_with_ruler ruler_id
     let track_info = [(block_id, tracknum, tid)
             | (block_id, tracks) <- blocks, (tracknum, tid) <- tracks]
     fmap sequence_ $ forM track_info $ \(block_id, tracknum, tracklike_id) -> do
         view_ids <- fmap Map.keys (State.get_views_of block_id)
         tracklike <- State.get_tracklike tracklike_id
-        -- A ruler track doesn't have samples or merged events so don't bother
-        -- to look for them.
+        -- A ruler track doesn't have merged events so don't bother to look for
+        -- them.
         fmap sequence_ $ forM view_ids $ \view_id -> return $
-            BlockC.update_entire_track view_id tracknum tracklike
-                Track.no_samples []
+            BlockC.update_entire_track view_id tracknum tracklike []
 
 events_of_track_ids :: State.State -> [TrackId] -> [Track.TrackEvents]
 events_of_track_ids ustate track_ids = Seq.map_maybe events_of track_ids

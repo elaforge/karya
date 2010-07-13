@@ -62,7 +62,9 @@ import qualified Cmd.ViewConfig as ViewConfig
 import qualified Cmd.Lang.LPitch ()
 import qualified Cmd.Lang.LInst as LInst
 
+import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
+
 import qualified Perform.Midi.Convert as Midi.Convert
 import qualified Perform.Midi.Perform as Midi.Perform
 import qualified Perform.Pitch as Pitch
@@ -391,15 +393,15 @@ derive_to_perf block_id = do
 derive :: BlockId -> Cmd.CmdL [Score.Event]
 derive block_id = do
     schema_map <- Cmd.get_schema_map
-    (result, _, _) <- Play.derive schema_map block_id
-    case result of
+    result <- Play.derive schema_map block_id
+    case Derive.r_result result of
         Left err -> Cmd.throw $ "derive error: " ++ show err
         Right events -> return events
 
 derive_tempo block_id ts = do
     schema_map <- Cmd.get_schema_map
-    (_, tempo, inv_tempo) <- Play.derive schema_map block_id
-    return $ map inv_tempo (map Timestamp.seconds [0..10])
+    result <- Play.derive schema_map block_id
+    return $ map (Derive.r_inv_tempo result) (map Timestamp.seconds [0..10])
 
 score_to_midi :: [Score.Event]
     -> Cmd.CmdL ([Midi.WriteMessage], [Warning.Warning])

@@ -26,6 +26,7 @@ import qualified Ui.Event as Event
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
+import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 import qualified Ui.Ui as Ui
 
@@ -262,8 +263,16 @@ setup_normal = do
         [(0, 0, "5c"), (1, 0, "5d"), (2, 0, "5e"), (3, 0, "5f")]
     State.set_track_title t1 "*twelve"
     State.set_track_width vid 3 50
-    -- tempo 1 -> *twelve 3 -> >fm8/bass 2
-    State.set_skeleton bid $ Skeleton.make [(1, 3), (3, 2)]
+
+    mod <- Create.track bid 4
+    State.insert_events mod $ map (control_event . UiTest.mkevent)
+        [(0, 0, "0"), (1, 0, "i 1"), (2, 0, "i 0"), (2.5, 0, "1"), (3, 0, ".5")]
+    State.set_track_title mod "modulation"
+    State.modify_track_render mod $ \render ->
+        render { Track.render_style = Track.Filled }
+
+    -- tempo 1 -> *twelve 3 -> mod -> >fm8/bass 2
+    State.set_skeleton bid $ Skeleton.make [(1, 4), (4, 3), (3, 2)]
 
     State.set_midi_config (make_inst_config [("fm8/bass", [0..2])])
     State.set_selection vid Config.insert_selnum (Types.point_selection 0 0)

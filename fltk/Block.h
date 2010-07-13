@@ -40,6 +40,7 @@ skel_box  skel_display  ruler_group _____________        track_group
 #include "config.h"
 #include "types.h"
 #include "Track.h"
+#include "EventTrack.h"
 #include "TrackTile.h"
 #include "Ruler.h"
 #include "Event.h"
@@ -121,13 +122,16 @@ private:
     TrackView *replace_ruler_track(TrackView *track, int width);
 public:
     // Update the given track.  Update scrollbars.
-    // 'track' should be the same kind of track as the one at 'tracknum' or this
-    // throws.  Update colors and whatnot if they have changed (pointers
+    // 'track' should be the same kind of track as the one at 'tracknum' or
+    // this throws.  Update colors and whatnot if they have changed (pointers
     // may be passed as NULL which means no change).  Also mark that the range
-    // 'start' to 'end' should be updated.  If 'end' is ScoreTime(0), the entire
-    // range should be updated.
+    // 'start' to 'end' should be updated.  If 'end' is ScoreTime(0), the
+    // entire range should be updated.
     void update_track(int tracknum, const Tracklike &track,
             FinalizeCallback finalizer, ScoreTime start, ScoreTime end);
+
+    // Update the signal for this track.
+    void set_track_signal(int tracknum, const TrackSignal &tsig);
 
     TrackView *track_at(int tracknum) {
         if (tracknum == 0)

@@ -93,24 +93,23 @@ test_subderive = do
     equal (map Log.msg_stack msgs) $ map mkstack
         [(0, 1), (1, 2), (2, 3)]
 
-    let (events, _tempo, inv_tempo, logs, _state) = run
-            [(0, 8, "--b1"), (8, 8, "sub"), (16, 1, "--b2")]
-    equal (fmap extract_events events) $
+    let res = run [(0, 8, "--b1"), (8, 8, "sub"), (16, 1, "--b2")]
+    equal (r_events res) $
         Right [(0, 4, "--b1"), (6, 2, "--sub1"), (8, 0.5, "--b2")]
-    equal (fmap (map Score.event_instrument) events) $
+    equal (fmap (map Score.event_instrument) (Derive.r_result res)) $
         Right (map (Just . Score.Instrument) ["i1", "i2", "i1"])
 
-    equal (map Log.msg_string logs) []
+    equal (DeriveTest.r_logs res) []
 
     let b0 pos = (UiTest.bid "b0",
             [(UiTest.tid ("b0.t" ++ show n), ScoreTime pos) | n <- [ 1, 0]])
         sub pos = (UiTest.bid "sub", [(UiTest.tid "sub.t0", ScoreTime pos)])
-        pos = map inv_tempo (map Timestamp.seconds [0, 2 .. 10])
+        pos = map (Derive.r_inv_tempo res) (map Timestamp.seconds [0, 2 .. 10])
     equal (map List.sort pos)
         [[b0 0], [b0 4], [b0 8, sub 0], [b0 12, sub 1], [b0 16], []]
 
     -- For eyeball verification.
-    -- pprint events
+    -- pprint (r_events res)
     -- pprint $ zip [0,2..] $ map inv_tempo (map Timestamp.seconds [0, 2 .. 10])
     -- pprint $ Derive.state_track_warps state
 
@@ -146,21 +145,24 @@ test_subderive_multiple = do
         , (2000, 62, 63), (2000, 74, 63)
         ]
 
+r_events :: Derive.DeriveResult [Score.Event]
+    -> Either Derive.DeriveError [(Double, Double, String)]
+r_events = fmap extract_events . Derive.r_result
+
 test_multiple_subderive = do
     -- make sure a sequence of sub calls works
-    let (events, _, inv_tempo, logs, _) =
-            DeriveTest.derive_blocks
+    let res = DeriveTest.derive_blocks
             [ ("b0", [(">i1", [(0, 2, "sub"), (2, 2, "sub"), (4, 2, "sub")])])
             , ("sub", [(">", [(0, 1, "--sub1")])])
             ]
-    equal logs []
-    equal (fmap extract_events events) $
+    equal (DeriveTest.r_logs res) []
+    equal (r_events res) $
         Right [(0, 2, "--sub1"), (2, 2, "--sub1"), (4, 2, "--sub1")]
     -- Empty inst inherits calling inst.
-    equal (fmap (map Score.event_instrument) events) $
+    equal (fmap (map Score.event_instrument) (Derive.r_result res)) $
         Right (replicate 3 (Just (Score.Instrument "i1")))
 
-    let pos = map inv_tempo (map Timestamp.seconds [0..6])
+    let pos = map (Derive.r_inv_tempo res) (map Timestamp.seconds [0..6])
     let b0 pos = (UiTest.bid "b0", [(UiTest.tid ("b0.t0"), ScoreTime pos)])
         sub pos = (UiTest.bid "sub", [(UiTest.tid "sub.t0", ScoreTime pos)])
     equal (map List.sort pos)
@@ -170,16 +172,15 @@ test_multiple_subderive = do
 
 test_tempo_compose = do
     let run tempo events sub_tempo =
-            Log.trace_logs logs $ fmap extract_events score_events
+            Log.trace_logs (Derive.r_logs res) (r_events res)
             where
-            (score_events, _tempo, _inv_tempo, logs, _state) =
-                DeriveTest.derive_blocks
-                    [ ("b0", [("tempo", tempo), (">i1", events)])
-                    , ("sub",
-                        [ ("tempo", sub_tempo)
-                        , (">", [(0, 1, ""), (1, 1, "")])
-                        ])
-                    ]
+            res = DeriveTest.derive_blocks
+                [ ("b0", [("tempo", tempo), (">i1", events)])
+                , ("sub",
+                    [ ("tempo", sub_tempo)
+                    , (">", [(0, 1, ""), (1, 1, "")])
+                    ])
+                ]
 
     equal (run [(0, 0, "1")] [(2, 2, "sub")] [(0, 0, "1")]) $
         Right [(2, 1, ""), (3, 1, "")]
@@ -295,15 +296,15 @@ test_tempo_funcs1 = do
 
     let ([t_tid, tid1], ui_state) = UiTest.run State.empty $
             UiTest.mkstate "b0" track_specs
-    let (_, tempo, inv_tempo, logs, _) = DeriveTest.derive_block ui_state bid
-    equal logs []
+    let res = DeriveTest.derive_block ui_state bid
+    equal (DeriveTest.r_logs res) []
 
     -- [(BlockId, [(TrackId, ScoreTime)])]
     let b0 pos = (bid, [(tid1, pos), (t_tid, pos)])
-    equal (map inv_tempo (map Timestamp.seconds [0, 2 .. 10]))
+    equal (map (Derive.r_inv_tempo res) (map Timestamp.seconds [0, 2 .. 10]))
         [[b0 0], [b0 4], [b0 8], [b0 12], [b0 16], []]
 
-    equal (map (tempo bid t_tid) [0, 2 .. 10])
+    equal (map (Derive.r_tempo res bid t_tid) [0, 2 .. 10])
         (map (Just . Timestamp.Timestamp) [0, 1000 .. 5000])
 
 test_tempo_funcs2 = do
@@ -313,16 +314,16 @@ test_tempo_funcs2 = do
                 , (">i2", [(0, 16, "--2b1")])
                 ]
         bid = UiTest.bid "b0"
-    let (_, tempo, inv_tempo, logs, _) = DeriveTest.derive_block ui_state bid
-    equal logs []
-    equal (map (tempo bid t_tid1) [0, 2 .. 10])
+    let res = DeriveTest.derive_block ui_state bid
+    equal (DeriveTest.r_logs res) []
+    equal (map (Derive.r_tempo res bid t_tid1) [0, 2 .. 10])
         (map (Just . Timestamp.Timestamp) [0, 1000 .. 5000])
-    equal (map (tempo bid t_tid2) [0, 2 .. 10])
+    equal (map (Derive.r_tempo res bid t_tid2) [0, 2 .. 10])
         (map (Just . Timestamp.Timestamp) [0, 2000 .. 10000])
     let b0 pos = (bid, [(tid1, pos), (t_tid1, pos)])
         b1 pos = (bid, [(tid2, pos), (t_tid2, pos)])
 
-    equal (map inv_tempo (map Timestamp.seconds [0, 2 .. 10]))
+    equal (map (Derive.r_inv_tempo res) (map Timestamp.seconds [0, 2 .. 10]))
         [[b1 0, b0 0], [b1 2, b0 4], [b1 4, b0 8], [b1 6, b0 12],
             [b1 8, b0 16], [b1 10]]
 

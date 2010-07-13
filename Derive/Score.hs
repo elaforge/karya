@@ -131,11 +131,11 @@ data Warp = Warp {
 id_warp :: Warp
 id_warp = signal_to_warp id_warp_signal
 
-is_id_warp :: Warp -> Bool
-is_id_warp = (== id_warp)
-
 id_warp_signal :: Signal.Warp
 id_warp_signal = Signal.signal [(0, 0), (Signal.max_x, Signal.max_y)]
+
+is_id_warp :: Warp -> Bool
+is_id_warp = (== id_warp)
 
 stretch_warp :: ScoreTime -> Warp -> Warp
 stretch_warp factor warp = warp { warp_stretch = warp_stretch warp * factor }

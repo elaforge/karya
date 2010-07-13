@@ -6,8 +6,11 @@ import qualified Util.Pretty as Pretty
 
 import Ui
 import qualified Ui.Key as Key
+import qualified Ui.Track as Track
 import qualified Ui.UiMsg as UiMsg
+
 import qualified Midi.Midi as Midi
+
 import qualified Perform.Transport as Transport
 import qualified Cmd.InputNote as InputNote
 
@@ -37,7 +40,8 @@ instance Pretty.Pretty Msg where
     pretty (Ui msg) = "Ui: " ++ Pretty.pretty msg
     pretty msg = show msg
 
-data DeriveStatus = Deriving | StartedDeriving | DeriveFailed | DeriveComplete
+data DeriveStatus = Deriving | StartedDeriving | DeriveFailed
+    | DeriveComplete Track.TrackSignals
     deriving (Show)
 
 -- * views

@@ -8,6 +8,7 @@ import qualified Util.Seq as Seq
 import Ui
 import qualified Ui.UiTest as UiTest
 
+import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
@@ -183,7 +184,7 @@ type Extracted =
     (RealTime, RealTime, String, Warning.Stack, Maybe Score.Instrument,
         Score.Attributes)
 
-extract_common :: DeriveTest.Result [Score.Event]
+extract_common :: Derive.DeriveResult [Score.Event]
     -> (Either String [Extracted], [(String, Maybe Warning.Stack)])
 extract_common = DeriveTest.extract extract_event extract_log
     where
@@ -193,7 +194,7 @@ extract_common = DeriveTest.extract extract_event extract_log
         Score.event_string e, Score.event_stack e, Score.event_instrument e,
         Score.event_attributes e)
 
-extract_nostack :: DeriveTest.Result [Score.Event]
+extract_nostack :: Derive.DeriveResult [Score.Event]
     -> (Either String [Extracted], [String])
 extract_nostack = f . extract_common
     where

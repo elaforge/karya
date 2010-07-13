@@ -139,8 +139,6 @@ struct EventInfo {
 
 typedef std::vector<EventInfo> TrackData;
 static TrackData t1_events;
-typedef std::vector<std::pair<ScoreTime, double> > SampleData;
-static SampleData t1_samples;
 
 void t1_set()
 {
@@ -177,10 +175,6 @@ void t1_set()
     e.push_back(EventInfo(ScoreTime(230),
         Event("bg4", ScoreTime(0), eventc, style), 0));
 
-    SampleData &s = t1_samples;
-    for (int i = 0; i < 145; i++) {
-        s.push_back(std::make_pair(ScoreTime(i), fmod(i / 60.0, 1)));
-    }
     /*
     e.push_back(EventInfo(ScoreTime(0*8),
         Event("main", ScoreTime(8), eventc, style), 0));
@@ -244,39 +238,13 @@ t1_no_events(ScoreTime *start_pos, ScoreTime *end_pos,
     return 0;
 }
 
-int
-t1_find_samples(ScoreTime *start_pos, ScoreTime *end_pos,
-        ScoreTime **ret_tps, double **ret_samples)
+// Of course I don't actually need to finalize any FunPtrs here...
+void
+dummy_finalizer(void *p)
 {
-    size_t count = 0;
-    size_t start = 0;
-    SampleData &a = t1_samples;
-    for (; start < a.size(); start++) {
-        if (start + 1 == a.size())
-            break;
-        else if (a[start+1].first >= *start_pos)
-            break;
-    }
-    while (start + count < a.size()) {
-        if (a[start+count].first >= *end_pos)
-            break;
-        count++;
-    }
-    if (start + count < a.size())
-        count++; // should get until one sample after the cutoff
-
-    *ret_tps = (ScoreTime *) calloc(count, sizeof(ScoreTime));
-    *ret_samples = (double *) calloc(count, sizeof(double));
-    for (size_t i = 0; i < count; i++) {
-        // Placement new since malloced space is uninitialized.
-        new((*ret_tps) + i) ScoreTime(a[start+i].first);
-        (*ret_samples)[i] = a[start+i].second;
-    }
-    return count;
+    DEBUG("FINALIZE " << p);
 }
 
-// Of course I don't actually need to finalize any FunPtrs here...
-void t1_finalizer(void *p) {}
 
 static const Color ruler_bg = Color(255, 230, 160);
 static const Color track_bg = Color(255, 255, 255);
@@ -292,10 +260,7 @@ timeout_func(void *vp)
     static int i = t1_events.size() - 1;
     static ScoreTime t1_time_end = t1_events[i].pos
         + t1_events[i].event.duration;
-    static RenderConfig render_config(RenderConfig::render_filled,
-        t1_find_samples, render_color);
-    static EventTrackConfig track1(track_bg, t1_no_events, t1_time_end,
-        render_config);
+    // static EventTrackConfig track1(track_bg, t1_no_events, t1_time_end);
     static RulerConfig truler(ruler_bg, false, true, true, arrival_beats,
         m44_last_pos);
 
@@ -308,7 +273,7 @@ timeout_func(void *vp)
         break;
     case 1:
         return;
-        view.block.insert_track(2, Tracklike(&track1, &truler), 30);
+        // view.block.insert_track(2, Tracklike(&track1, &truler), 30);
         break;
     case 2:
         // print_children(&view);
@@ -325,6 +290,28 @@ handle_argv(int argc, char **argv)
 {
     if (argc > 1 && strcmp(argv[1], "log") == 0)
         global_msg_collector()->log_collected = true;
+}
+
+TrackSignal *
+make_track_signal()
+{
+    TrackSignal *ts = new TrackSignal();
+
+    const int length = 145;
+    TrackSignal::ControlSample *samples = (TrackSignal::ControlSample *)
+        calloc(length, sizeof(TrackSignal::ControlSample));
+    for (int i = 0; i < length; i++) {
+        samples[i].time = ScoreTime(i);
+        samples[i].val = fmod(i / 60.0, 1);
+    }
+    ts->signal = samples;
+    ts->pitch_signal = NULL;
+    ts->length = length;
+
+    ts->shift = ScoreTime(0);
+    ts->stretch = ScoreTime(1);
+
+    return ts;
 }
 
 int
@@ -352,15 +339,14 @@ main(int argc, char **argv)
     int i = t1_events.size() - 1;
     ScoreTime t1_time_end = t1_events[i].pos + t1_events[i].event.duration;
 
-    RenderConfig render_config(RenderConfig::render_line,
-        t1_find_samples, render_color);
+    TrackSignal *track_signal = make_track_signal();
 
     EventTrackConfig empty_track(track_bg, t1_no_events, t1_time_end,
-            render_config);
+            RenderConfig(RenderConfig::render_none, render_color));
     EventTrackConfig track1(track_bg, t1_find_events, t1_time_end,
-        render_config);
+            RenderConfig(RenderConfig::render_line, render_color));
     EventTrackConfig track2(track_bg, t1_find_events, t1_time_end,
-        render_config);
+            RenderConfig(RenderConfig::render_filled, render_color));
 
     BlockViewWindow view(0, 100, 200, 500, "view1", config, view_config);
     view.testing = true;
@@ -375,10 +361,13 @@ main(int argc, char **argv)
     // view.block.insert_track(0, Tracklike(&ruler), 20);
     // view.block.insert_track(1, Tracklike(&divider), 10);
     view.block.insert_track(1, Tracklike(&empty_track, &truler), 100);
-    view.block.insert_track(2, Tracklike(&track2, &truler), 40);
-    view.block.insert_track(3, Tracklike(&empty_track, &truler), 60);
+    view.block.insert_track(2, Tracklike(&track1, &truler), 40);
+    view.block.insert_track(3, Tracklike(&track2, &truler), 60);
     view.block.insert_track(4, Tracklike(&empty_track, &truler), 40);
     // view.block.insert_track(5, Tracklike(&track2, &truler), 80);
+
+    view.block.set_track_signal(2, *track_signal);
+    view.block.set_track_signal(3, *track_signal);
 
     // int pairs[] = {0, 5, 2, 4, 3, 4};
     // SkeletonConfig skel = skeleton_config(pairs, 3);

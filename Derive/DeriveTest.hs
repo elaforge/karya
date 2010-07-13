@@ -7,6 +7,7 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 import Util.Control
 import qualified Util.Log as Log
+import Util.Test
 
 import qualified Midi.Midi as Midi
 import qualified Instrument.MidiDb as MidiDb
@@ -25,7 +26,6 @@ import qualified Derive.TrackLang as TrackLang
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Timestamp as Timestamp
-import qualified Perform.Transport as Transport
 import qualified Perform.Warning as Warning
 
 import qualified Perform.Midi.Control as Midi.Control
@@ -68,19 +68,16 @@ environ = Map.fromList
 
 -- * derive
 
-type Result a = (Either String a, Transport.TempoFunction,
-    Transport.InverseTempoFunction, [Log.Msg], Derive.State)
-
-derive_tracks :: [UiTest.TrackSpec] -> Result [Score.Event]
+derive_tracks :: [UiTest.TrackSpec] -> Derive.DeriveResult [Score.Event]
 derive_tracks = derive_tracks_cmap Call.All.call_map
 
 derive_tracks_cmap :: Derive.CallMap -> [UiTest.TrackSpec]
-    -> Result [Score.Event]
+    -> Derive.DeriveResult [Score.Event]
 derive_tracks_cmap cmap tracks =
     derive_block_cmap cmap ui_state UiTest.default_block_id
     where (_, ui_state) = UiTest.run_mkstate tracks
 
-derive_tracks_tempo :: [UiTest.TrackSpec] -> Result [Score.Event]
+derive_tracks_tempo :: [UiTest.TrackSpec] -> Derive.DeriveResult [Score.Event]
 derive_tracks_tempo tracks = derive_tracks (("tempo", [(0, 0, "1")]) : tracks)
 
 perform :: Instrument.Config -> [Score.Event]
@@ -94,57 +91,60 @@ perform inst_config events = (perf_events, convert_warns, mmsgs, perform_warns)
     mmsgs = map (\m -> (Midi.wmsg_ts m, Midi.wmsg_msg m)) msgs
 
 -- | Create multiple blocks, and derive the first one.
-derive_blocks :: [(String, [UiTest.TrackSpec])] -> Result [Score.Event]
+derive_blocks :: [(String, [UiTest.TrackSpec])]
+    -> Derive.DeriveResult [Score.Event]
 derive_blocks block_tracks = derive_block ui_state bid
     where
     (_, ui_state) = UiTest.run State.empty $
         forM_ block_tracks $ \(bid, tracks) -> UiTest.mkstate bid tracks
     bid = UiTest.bid (fst (head block_tracks))
 
-derive_block :: State.State -> BlockId -> Result [Score.Event]
+derive_block :: State.State -> BlockId -> Derive.DeriveResult [Score.Event]
 derive_block = derive_block_cmap Call.All.call_map
 
 derive_block_cmap :: Derive.CallMap -> State.State -> BlockId
-    -> Result [Score.Event]
+    -> Derive.DeriveResult [Score.Event]
 derive_block_cmap cmap ui_state block_id =
     derive_cmap cmap lookup_deriver ui_state deriver
     where
     lookup_deriver = Schema.lookup_deriver Map.empty ui_state
     deriver = Derive.d_root_block block_id
 
-derive :: Derive.LookupDeriver -> State.State -> Derive.Deriver a -> Result a
+derive :: Derive.LookupDeriver -> State.State -> Derive.Deriver a
+    -> Derive.DeriveResult a
 derive = derive_cmap Call.All.call_map
 
 derive_cmap :: Derive.CallMap -> Derive.LookupDeriver -> State.State
-    -> Derive.Deriver a -> Result a
+    -> Derive.Deriver a -> Derive.DeriveResult a
 derive_cmap cmap lookup_deriver ui_state deriver =
-    case Derive.derive lookup_deriver ui_state cmap environ False deriver of
-        (Left err, b, c, d, e) -> (Left (show err), b, c, d, e)
-        (Right a, b, c, d, e) -> (Right a, b, c, d, e)
+    Derive.derive lookup_deriver ui_state cmap environ False deriver
 
 -- ** extract
 
-e_val :: Result a -> (Either String a, [Log.Msg])
-e_val (val, _, _, msgs, _) = (val, msgs)
+e_val :: Derive.DeriveResult a -> (Either String a, [Log.Msg])
+e_val res = (map_left show (Derive.r_result res), Derive.r_logs res)
 
-e_val_right :: Result a -> (a, [Log.Msg])
+e_val_right :: Derive.DeriveResult a -> (a, [Log.Msg])
 e_val_right result = case e_val result of
     (Left err, _) -> error $ "e_val_right: unexpected Left: " ++ err
     (Right v, logs) -> (v, logs)
 
-e_logs :: Result a -> (Either String a, [String])
+r_logs :: Derive.DeriveResult a -> [String]
+r_logs = map Log.msg_string . Derive.r_logs
+
+e_logs :: Derive.DeriveResult a -> (Either String a, [String])
 e_logs result = let (val, msgs) = e_val result in (val, map Log.msg_string msgs)
 
-extract :: (Score.Event -> a) -> (Log.Msg -> b) -> Result [Score.Event]
-    -> (Either String [a], [b])
+extract :: (Score.Event -> a) -> (Log.Msg -> b)
+    -> Derive.DeriveResult [Score.Event] -> (Either String [a], [b])
 extract e_event e_log result = (fmap (map e_event) val, map e_log logs)
     where (val, logs) = e_val result
 
-extract_events :: (Score.Event -> a) -> Result [Score.Event]
+extract_events :: (Score.Event -> a) -> Derive.DeriveResult [Score.Event]
     -> (Either String [a], [Log.Msg])
 extract_events ex_event = extract ex_event id
 
-extract_events_only :: (Score.Event -> a) -> Result [Score.Event]
+extract_events_only :: (Score.Event -> a) -> Derive.DeriveResult [Score.Event]
     -> Either String [a]
 extract_events_only ex_event result = Log.trace_logs logs vals
     where (vals, logs) = extract ex_event id result
@@ -170,7 +170,7 @@ passed_args :: String -> [TrackLang.Val] -> Derive.PassedArgs derived
 passed_args call vals = Derive.PassedArgs vals Map.empty
     (TrackLang.Symbol call) Derive.dummy_call_info
 
-derive_note :: Derive.Deriver a -> Result a
+derive_note :: Derive.Deriver a -> Derive.DeriveResult a
 derive_note = derive Derive.empty_lookup_deriver State.empty
 
 d_note :: Derive.EventDeriver

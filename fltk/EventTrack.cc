@@ -90,15 +90,29 @@ EventTrackView::update(const Tracklike &track, FinalizeCallback finalizer,
     // Doesn't use finalize_callbacks because that finalizes the ruler,
     // which set_config is going to do.
     finalizer((void *) this->config.find_events);
-    finalizer((void *) this->config.render.find_samples);
     this->overlay_ruler.set_config(*track.ruler, finalizer, start, end);
     if (this->config.bg_color != track.track->bg_color) {
         this->bg_color = track.track->bg_color;
         this->set_event_brightness(this->brightness);
     }
+
+    TrackSignal tsig = this->config.track_signal;
     this->config = *track.track;
+    // Copy the previous track signal over even though it might be out of date
+    // now.  At the least I can't forget the pointers or there's a leak.
+    this->config.track_signal = tsig;
+
     // Use ruler's damage range since both have to be updated at the same time.
     this->damage(OverlayRuler::DAMAGE_RANGE);
+}
+
+void
+EventTrackView::set_track_signal(const TrackSignal &tsig)
+{
+    this->config.track_signal.free_signals();
+    // Copy over the pointers, I'm taking ownership now.
+    this->config.track_signal = tsig;
+    this->redraw();
 }
 
 
@@ -106,7 +120,7 @@ void
 EventTrackView::finalize_callbacks(FinalizeCallback finalizer)
 {
     finalizer((void *) this->config.find_events);
-    finalizer((void *) this->config.render.find_samples);
+    this->config.track_signal.free_signals();
     this->overlay_ruler.finalize_callbacks(finalizer);
 }
 
@@ -242,8 +256,7 @@ EventTrackView::draw_area()
         fl_rectf(this->x() + 1, y0, this->w() - 2, y1-y0);
     }
 
-    if (config.render.style != RenderConfig::render_none)
-        this->draw_samples(start, end);
+    this->draw_signal(start, end);
 
     // Draw the upper layer (event start line, text).
     // Don't use INT_MIN because it overflows too easily.
@@ -276,15 +289,47 @@ EventTrackView::draw_area()
         this->update_child(this->overlay_ruler);
 }
 
-void
-EventTrackView::draw_samples(ScoreTime start, ScoreTime end)
+
+static bool
+compare_control_sample(const TrackSignal::ControlSample &s1,
+        const TrackSignal::ControlSample &s2)
 {
-    ScoreTime *sample_pos;
-    double *sample_vals;
-    int sample_count = this->config.render.find_samples(&start, &end,
-        &sample_pos, &sample_vals);
-    int y = this->y() + 1; // avoid bevel
-    // TODO alpha not supported, I'd need a non-portable drawing routine for it.
+    return s1.time < s2.time;
+}
+
+
+// Return the index of the sample before 'start', or 0.
+static int
+find_sample(const TrackSignal &tsig, ScoreTime start)
+{
+    TrackSignal::ControlSample sample(start, 0);
+    TrackSignal::ControlSample *found =
+        std::lower_bound(tsig.signal, tsig.signal + tsig.length, sample,
+            compare_control_sample);
+    // Back up one to make sure I have the sample before start.
+    if (found > tsig.signal)
+        found--;
+    return found - tsig.signal;
+}
+
+
+void
+EventTrackView::draw_signal(ScoreTime start, ScoreTime end)
+{
+    const TrackSignal &tsig = config.track_signal;
+    // TODO support pitch signal
+    if (config.render.style == RenderConfig::render_none || !tsig.signal)
+    {
+        return;
+    }
+    const int found = find_sample(tsig, start);
+    if (found >= tsig.length)
+        return;
+
+    const int y = this->y() + 1; // avoid bevel
+
+    // TODO alpha not supported, I'd need a non-portable drawing routine for
+    // it.
     fl_color(color_to_fl(this->config.render.color.brightness(
         this->brightness)));
     if (config.render.style == RenderConfig::render_line)
@@ -293,21 +338,23 @@ EventTrackView::draw_samples(ScoreTime start, ScoreTime end)
         fl_line_style(FL_SOLID | FL_CAP_ROUND, 0);
 
     // Account for both the 1 pixel track border and the width of the line.
-    int min_x = x() + 2;
-    int max_x = x() + w() - 2;
+    const int min_x = x() + 2;
+    const int max_x = x() + w() - 2;
     int prev_xpos = min_x;
     int prev_offset = 0;
-    for (int i = 0; i < sample_count; i++) {
-        int offset = y + this->zoom.to_pixels(sample_pos[i] - zoom.offset);
-        if (offset <= prev_offset && i > 0)
+    for (int i = found; i < tsig.length; i++) {
+        int offset = y + tsig.time_at(zoom, i);
+        // Skip coincident samples, or at least ones that are too close.
+        if (offset <= prev_offset && i > found)
             continue;
-        // TODO later the max should come from the callback
+        double val = tsig.val_at(i);
+
         int xpos = floor(::scale(double(min_x), double(max_x),
-            ::clamp(0.0, 1.0, sample_vals[i])));
+            ::clamp(0.0, 1.0, val)));
 
         int next_offset;
-        if (i+1 < sample_count)
-            next_offset = y + zoom.to_pixels(sample_pos[i+1] - zoom.offset);
+        if (i+1 < tsig.length)
+            next_offset = y + tsig.time_at(zoom, i + 1);
         else
             next_offset = y + h();
         switch (config.render.style) {
@@ -324,7 +371,10 @@ EventTrackView::draw_samples(ScoreTime start, ScoreTime end)
         default:
             DEBUG("unknown render style: " << config.render.style);
         }
+        // DEBUG("draw " << i << " @ " << offset << "--" << next_offset);
 
+        if (tsig.signal[i].time >= end)
+            break;
         prev_xpos = xpos;
         prev_offset = offset;
     }

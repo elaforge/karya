@@ -20,6 +20,7 @@ import qualified Ui.Block as Block
 import qualified Ui.Id as Id
 import qualified Ui.Key as Key
 import qualified Ui.State as State
+import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.Update as Update
@@ -321,7 +322,9 @@ data Performance = Performance {
     , perf_logs :: [Log.Msg]
     , perf_tempo :: Transport.TempoFunction
     , perf_inv_tempo :: Transport.InverseTempoFunction
+    , perf_track_signals :: Track.TrackSignals
     }
+
 instance Show Performance where
     show perf = "<Performance: " ++ show (take 10 (perf_msgs perf))
         ++ ", " ++ show (take 10 (perf_logs perf)) ++ ">"
@@ -690,7 +693,7 @@ instance Show Schema where
     show _ = "<schema>"
 
 -- | A SchemaDeriver generates a Deriver from a given Block.
-type SchemaDeriver d = BlockId -> State.StateT Identity.Identity d
+type SchemaDeriver d = BlockId -> State.StateId d
 
 -- ** cmd types
 

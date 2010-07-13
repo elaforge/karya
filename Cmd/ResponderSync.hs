@@ -38,7 +38,6 @@ module Cmd.ResponderSync (
     , dirty_blocks
 ) where
 import Control.Monad
-import qualified Control.Arrow as Arrow
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Trans as Trans
@@ -56,17 +55,11 @@ import qualified Ui.Block as Block
 import qualified Ui.Diff as Diff
 import qualified Ui.State as State
 import qualified Ui.Sync as Sync
-import qualified Ui.Track as Track
 import qualified Ui.Update as Update
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Play as Play
-
-import qualified Derive.Derive as Derive
-import qualified Derive.Schema as Schema
-
-import qualified Perform.Signal as Signal
 
 
 -- | The background derive threads will wait this long before starting up,
@@ -88,15 +81,6 @@ sync send_status ui_from ui_to cmd_state cmd_updates = do
     -- but it's nice to see that it's definitely happening before syncs.
     ui_to <- verify_state ui_to
 
-    let (block_samples, sig_logs) = derive_signals
-            (Cmd.state_schema_map cmd_state) ui_to
-    -- Don't want to force block_samples because it computes a lot of stuff
-    -- that sync may never need.  TODO how can I lazily write log msgs?
-    -- Actually, the expensive part is the sampling, which has no logging,
-    -- so it should remain lazy... I think.  Verify this.
-    mapM_ Log.write sig_logs
-    Log.timer "wrote signal logs"
-    -- putStrLn $ "block samples: " ++ show block_samples
     diff_updates <- case Diff.diff ui_from ui_to of
         Left err -> Log.error ("diff error: " ++ err) >> return []
         Right diff_updates -> do
@@ -104,7 +88,7 @@ sync send_status ui_from ui_to cmd_state cmd_updates = do
                 Log.debug $ "diff_updates: " ++ show diff_updates
                     ++ " cmd_updates: " ++ show cmd_updates
             Log.timer "got diff updates"
-            err <- Sync.sync ui_to (diff_updates ++ cmd_updates) block_samples
+            err <- Sync.sync ui_to (diff_updates ++ cmd_updates)
             case err of
                 Nothing -> return ()
                 Just err -> Log.error $ "syncing updates: " ++ show err
@@ -207,37 +191,4 @@ evaluate_performance send_status block_id has_focus perf = do
     let logs = map (\log -> log { Log.msg_text = prefix (Log.msg_text log) })
             (Cmd.perf_logs perf)
     mapM_ Log.write logs
-    send_status block_id Msg.DeriveComplete
-
--- * derive signals
-
-derive_signals :: Schema.SchemaMap -> State.State
-    -> (Sync.BlockSamples, [Log.Msg])
-derive_signals schema_map ui_state = (block_samples, logs)
-    where
-    block_ids = Map.keys (State.state_blocks ui_state)
-    track_results = zip block_ids $
-        map (State.eval ui_state . derive_signal schema_map) block_ids
-
-    block_samples = [(block_id, track_samples)
-        | (block_id, Right (track_samples, _)) <- track_results]
-    logs = [warn block_id err | (block_id, Left err) <- track_results]
-        ++ concat [logs | (_, Right (_, logs)) <- track_results]
-    warn block_id err = Log.msg Log.Warn $
-        "exception deriving signal for " ++ show block_id ++ ": " ++ show err
-
-derive_signal :: (State.UiStateMonad m) =>
-    Schema.SchemaMap -> BlockId -> m (Track.TrackSamples, [Log.Msg])
-derive_signal schema_map block_id = do
-    ui_state <- State.get
-    deriver <- Schema.get_signal_deriver schema_map block_id
-    let (result, _, _, logs, _) = Derive.derive
-            -- Signal derivation doesn't do calls, so I can pass an empty map.
-            -- TODO no longer true
-            Derive.empty_lookup_deriver ui_state Derive.empty_call_map
-                Play.initial_environ True
-            (Derive.with_stack_block block_id deriver)
-    case result of
-        Left err -> State.throw (show err)
-        Right sig ->
-            return (map (Arrow.second Signal.to_track_samples) sig, logs)
+    send_status block_id (Msg.DeriveComplete (Cmd.perf_track_signals perf))

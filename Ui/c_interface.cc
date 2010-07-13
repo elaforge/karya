@@ -232,6 +232,13 @@ update_track(BlockViewWindow *view, int tracknum,
 }
 
 void
+set_track_signal(BlockViewWindow *view, int tracknum,
+        const TrackSignal *tsig)
+{
+    view->block.set_track_signal(tracknum, *tsig);
+}
+
+void
 set_track_width(BlockViewWindow *view, int tracknum, int width)
 {
     view->block.set_track_width(tracknum, width);

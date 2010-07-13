@@ -181,13 +181,18 @@ cmd_play_msg msg = do
         Transport.Stopped -> Cmd.modify_state $ \st ->
             st { Cmd.state_play_control = Nothing }
         Transport.Died err_msg -> Log.warn ("player died: " ++ err_msg)
-    derive_status_msg block_id status =
+    derive_status_msg block_id status = do
         State.set_play_box block_id (derive_status_color status)
+        case status of
+            Msg.DeriveComplete track_signals -> do
+                ui_state <- State.get
+                Trans.liftIO $ Sync.set_track_signals ui_state track_signals
+            _ -> return ()
     derive_status_color status = case status of
         Msg.StartedDeriving -> Config.busy_color
         Msg.Deriving -> Color.brightness 1.5 Config.busy_color
         Msg.DeriveFailed -> Config.warning_color
-        Msg.DeriveComplete -> Config.box_color
+        Msg.DeriveComplete _ -> Config.box_color
 
 -- * implementation
 
@@ -214,8 +219,9 @@ get_performance block_id = do
 perform :: (Monad m) => BlockId -> Instrument.Db.Db -> Schema.SchemaMap
     -> Cmd.CmdT m Cmd.Performance
 perform block_id inst_db schema_map = do
-    (derive_result, tempo, inv_tempo) <- derive schema_map block_id
-    events <- case derive_result of
+    -- (derive_result, tempo, inv_tempo) <- derive schema_map block_id
+    result <- derive schema_map block_id
+    events <- case Derive.r_result result of
         Left (Derive.DeriveError srcpos stack msg) -> do
             Log.write $
                 (Log.msg_srcpos srcpos Log.Warn ("deriving: " ++ msg))
@@ -232,22 +238,18 @@ perform block_id inst_db schema_map = do
             Perform.perform lookup_inst inst_config midi_events
     let logs = map (warn_to_msg "event conversion") convert_warnings
             ++ map (warn_to_msg "performance") perform_warnings
-    return $ Cmd.Performance midi_msgs logs tempo inv_tempo
+    return $ Cmd.Performance midi_msgs (Derive.r_logs result ++ logs)
+        (Derive.r_tempo result) (Derive.r_inv_tempo result)
+        (Derive.r_track_signals result)
 
 -- | Derive the contents of the given block to score events.
-derive :: (Monad m) => Schema.SchemaMap -> BlockId -> Cmd.CmdT m
-    (Either Derive.DeriveError [Score.Event], Transport.TempoFunction,
-        Transport.InverseTempoFunction)
+derive :: (Monad m) => Schema.SchemaMap -> BlockId
+    -> Cmd.CmdT m (Derive.DeriveResult [Score.Event])
 derive schema_map block_id = do
     ui_state <- State.get
     call_map <- Cmd.gets Cmd.state_call_map
-    let (result, tempo_func, inv_tempo_func, logs, _) =
-            Derive.derive (Schema.lookup_deriver schema_map ui_state)
-                ui_state call_map initial_environ False
-                (Derive.d_root_block block_id)
-    -- TODO does this force the derivation?
-    mapM_ Log.write logs
-    return (result, tempo_func, inv_tempo_func)
+    return $ Derive.derive (Schema.lookup_deriver schema_map ui_state)
+        ui_state call_map initial_environ False (Derive.d_root_block block_id)
 
 -- | There are a few environ values that almost everything relies on.
 initial_environ :: TrackLang.Environ

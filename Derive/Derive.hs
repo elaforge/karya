@@ -159,6 +159,7 @@ data State = State {
     -- a set of tracks, so remembering them together will make the updater more
     -- efficient when it inverts them to get playback position.
     , state_track_warps :: [TrackWarp]
+    , state_track_signals :: Track.TrackSignals
 
     -- | Constant throughout the derivation.  Used to look up tracks and
     -- blocks.
@@ -186,6 +187,7 @@ initial_state ui_state lookup_deriver calls environ ignore_tempo = State {
     , state_log_context = []
 
     , state_track_warps = []
+    , state_track_signals = Map.empty
     , state_ui = ui_state
     , state_lookup_deriver = lookup_deriver
     , state_control_op_map = default_control_op_map
@@ -362,6 +364,8 @@ empty_lookup_deriver :: LookupDeriver
 empty_lookup_deriver = const (Right empty_events)
 
 -- | Each track warp is a warp indexed by the block and tracks it covers.
+-- These are used by the updater to figure out where the play position
+-- indicator is at a given point in real time.
 data TrackWarp = TrackWarp {
     tw_start :: RealTime
     , tw_end :: RealTime
@@ -387,13 +391,22 @@ instance Monad m => Log.LogMonad (DeriveT m) where
 
 -- * monadic ops
 
+data DeriveResult a = DeriveResult {
+    r_result :: Either DeriveError a
+    , r_tempo :: Transport.TempoFunction
+    , r_inv_tempo :: Transport.InverseTempoFunction
+    , r_track_signals :: Track.TrackSignals
+    , r_logs :: [Log.Msg]
+    -- | The relevant parts of the final state should be extracted into the
+    -- above fields, but returning the whole state can be useful for testing.
+    , r_state :: State
+    }
+
 derive :: LookupDeriver -> State.State -> CallMap -> TrackLang.Environ -> Bool
-    -> DeriveT Identity.Identity a
-    -> (Either DeriveError a,
-        Transport.TempoFunction, Transport.InverseTempoFunction, [Log.Msg],
-        State) -- ^ State is not actually needed, but is handy for testing.
+    -> DeriveT Identity.Identity a -> DeriveResult a
 derive lookup_deriver ui_state calls environ ignore_tempo deriver =
-    (result, tempo_func, inv_tempo_func, logs, state)
+    DeriveResult result tempo_func inv_tempo_func (state_track_signals state)
+        logs state
     where
     (result, state, logs) = Identity.runIdentity $
         run (initial_state ui_state lookup_deriver calls environ ignore_tempo)

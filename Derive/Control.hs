@@ -12,7 +12,7 @@
     - method;val - Approach val with method, then jump to val.
 -}
 module Derive.Control where
-import Prelude
+import qualified Data.Map as Map
 import Control.Monad
 
 import Util.Control
@@ -67,16 +67,21 @@ eval_track block_id track_id expr vals deriver = do
 tempo_call :: BlockId -> TrackId -> Derive.Deriver Signal.Tempo
     -> Derive.EventDeriver -> Derive.EventDeriver
 tempo_call block_id track_id sig_deriver deriver = do
-    sig <- Derive.setup_without_warp sig_deriver
-    Derive.d_tempo block_id (Just track_id) sig deriver
+    signal <- Derive.setup_without_warp sig_deriver
+    rendered <- track_is_rendered track_id
+    when rendered $
+        put_track_signal track_id $
+            Track.TrackSignal (Right (Signal.coerce signal)) 0 1
+    Derive.d_tempo block_id (Just track_id) signal deriver
 
 control_call :: TrackId -> Score.Control -> Maybe TrackLang.CallId
     -> Derive.ControlDeriver -> Derive.Transformer
-control_call track_id control maybe_op control_deriver =
-    with_control $ Derive.track_setup track_id control_deriver
+control_call track_id control maybe_op control_deriver deriver = do
+    signal <- Derive.track_setup track_id control_deriver
+    stash_signal track_id (Right (signal, control_deriver))
+    with_control signal deriver
     where
-    with_control control_deriver deriver = do
-        signal <- control_deriver
+    with_control signal deriver = do
         case maybe_op of
             Nothing -> Derive.with_control control signal deriver
             Just op -> Derive.with_control_operator control op signal deriver
@@ -96,10 +101,14 @@ pitch_call track_id maybe_name ptype track_expr events deriver =
             TrackInfo.PitchAbsolute Nothing -> return id
         with_scale $ case ptype of
             TrackInfo.PitchRelative op -> do
-                signal <- derive_relative_pitch events
+                signal <- derive_relative_pitch track_expr events
+                stash_signal track_id
+                    (Left (signal, derive_relative_pitch track_expr events))
                 Derive.with_pitch_operator maybe_name op signal deriver
             _ -> do
                 signal <- derive_pitch track_expr events
+                stash_signal track_id
+                    (Left (signal, derive_pitch track_expr events))
                 Derive.with_pitch maybe_name signal deriver
 
 derive_control :: TrackLang.Expr -> [Track.PosEvent] -> Derive.ControlDeriver
@@ -120,6 +129,7 @@ preprocess_control expr = case Seq.break_last expr of
     _ -> expr
 
 
+-- TODO these two functions are about the same, merge them
 derive_pitch :: TrackLang.Expr -> [Track.PosEvent] -> Derive.PitchDeriver
 derive_pitch track_expr events = Derive.with_msg "pitch" $
     Call.apply_transformer (dinfo, Derive.dummy_call_info) track_expr deriver
@@ -129,13 +139,15 @@ derive_pitch track_expr events = Derive.with_msg "pitch" $
     dinfo = Call.DeriveInfo Derive.no_pitch Call.lookup_pitch_call
     last_sample prev chunk = PitchSignal.last chunk `mplus` prev
 
-derive_relative_pitch :: [Track.PosEvent] -> Derive.PitchDeriver
-derive_relative_pitch events = Derive.with_msg "relative pitch" $
-    PitchSignal.merge <$>
-        Call.derive_track dinfo id last_sample events
+derive_relative_pitch :: TrackLang.Expr -> [Track.PosEvent]
+    -> Derive.PitchDeriver
+derive_relative_pitch track_expr events = Derive.with_msg "relative pitch" $
+    Call.apply_transformer (dinfo, Derive.dummy_call_info) track_expr deriver
     where
-    last_sample prev chunk = PitchSignal.last chunk `mplus` prev
+    deriver = PitchSignal.merge <$>
+        Call.derive_track dinfo id last_sample events
     dinfo = Call.DeriveInfo Derive.no_pitch Call.lookup_pitch_call
+    last_sample prev chunk = PitchSignal.last chunk `mplus` prev
 
 -- TODO this can go away when pitches are calls
 -- preprocess_pitch :: Call.PreProcess
@@ -144,3 +156,57 @@ derive_relative_pitch events = Derive.with_msg "relative pitch" $
 --         calls ++ [TrackLang.Call (TrackLang.Symbol "set")
 --                 [TrackLang.Literal (TrackLang.VNote (Pitch.Note sym))]]
 --     _ -> expr
+
+
+-- * TrackSignal
+
+-- | If this track is to be rendered by the UI, stash the given signal away in
+-- the Derive state as a 'Track.TrackSignal'.  I may or may not need to
+-- re-derive the signal, for reasons explained in the TrackSignal doc.
+--
+-- TODO if TrackId appears in more than one place I may wind up running this
+-- redundantly.  However, I think the proper way to solve this is to cache
+-- the signals and avoid recalculating the control track at all.  Perhaps just
+-- add a warped signal to TrackSignal?
+stash_signal :: TrackId
+    -> Either (PitchSignal.PitchSignal, Derive.PitchDeriver)
+        (Signal.Signal y, Derive.Deriver (Signal.Signal y))
+    -> Derive.Deriver ()
+stash_signal track_id sig = do
+    rendered <- track_is_rendered track_id
+    if not rendered then return () else do
+    maybe_linear <- linear_tempo
+    case maybe_linear of
+        Just (shift, stretch) -> put_track_signal track_id $
+            Track.TrackSignal
+                (either (Left . fst) (Right . Signal.coerce . fst) sig)
+                shift stretch
+        Nothing -> do
+            signal <- case sig of
+                Left (_, deriver) ->
+                    Left <$> Derive.setup_without_warp deriver
+                Right (_, deriver) ->
+                    Right . Signal.coerce <$> Derive.setup_without_warp deriver
+            put_track_signal track_id (Track.TrackSignal signal 0 1)
+
+track_is_rendered :: TrackId -> Derive.Deriver Bool
+track_is_rendered track_id = do
+    track <- Derive.get_track track_id
+    return $ case Track.render_style (Track.track_render track) of
+        Track.NoRender -> False
+        _ -> True
+
+-- | Return (shift, stretch) if the tempo is linear.  This relies on an
+-- optimization in 'Derive.d_tempo' to notice when the tempo is constant and
+-- give it 'Score.id_warp_signal'.
+linear_tempo :: Derive.Deriver (Maybe (ScoreTime, ScoreTime))
+linear_tempo = do
+    warp <- Derive.gets Derive.state_warp
+    return $ if Score.warp_signal warp == Score.id_warp_signal
+        then Just (Score.warp_shift warp, Score.warp_stretch warp)
+        else Nothing
+
+put_track_signal :: TrackId -> Track.TrackSignal -> Derive.Deriver ()
+put_track_signal track_id tsig = Derive.modify $ \st ->
+    st { Derive.state_track_signals =
+        Map.insert track_id tsig (Derive.state_track_signals st) }

@@ -23,6 +23,13 @@ public:
     // Scale by a given factor, for zooming.
     double scale(double factor) const { return _val * factor; }
 
+    // I don't provide * and / directly because usually it doesn't make sense
+    // to do that to ScoreTimes.  However, I wind up scaling them according to
+    // zoom and warp so it happens anyway.
+    ScoreTime divide(ScoreTime div) const {
+        return ScoreTime(_val / div._val);
+    }
+
     // Basic arithmetic and comparisons work on a ScoreTime.
     ScoreTime operator-() const { return ScoreTime(-_val); }
 #define OP(X) \

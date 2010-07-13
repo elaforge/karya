@@ -62,7 +62,7 @@ module Perform.Signal (
     , Tempo, Warp, Control, NoteNumber, Display
 
     , signal, constant
-    , unsignal, to_track_samples
+    , unsignal
     , log_signal
     , coerce
 
@@ -90,8 +90,6 @@ import qualified Foreign.Storable as Storable
 import qualified Util.Log as Log
 
 import Ui
-import qualified Ui.Track as Track
-import qualified Ui.Types as Types
 
 import qualified Perform.SignalBase as SignalBase
 import Perform.SignalBase (max_x, default_srate)
@@ -200,14 +198,6 @@ constant n = signal [(0, n)]
 log_signal :: Signal y -> Log.Msg -> Log.Msg
 log_signal sig msg =
     msg { Log.msg_signal = [(x, y) | (RealTime x, y) <- unsignal sig] }
-
--- | TODO This is used by the signal deriver and is inefficient.  I should be
--- passing a pointer.
-to_track_samples :: Signal y -> Track.Samples
-to_track_samples = Track.samples . to_score . unsignal
-    -- Signals that go to the UI don't get warped, so they are actually still
-    -- in score time.  This conversion should be optimized away.
-    where to_score xs = [(Types.real_to_score x, y) | (x, y) <- xs]
 
 -- | Used for tests.
 unsignal :: Signal y -> [(X, Y)]

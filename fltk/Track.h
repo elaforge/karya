@@ -16,6 +16,7 @@
 // instead of splitting them, I have to forward declare this.
 class RulerConfig;
 class EventTrackConfig;
+class TrackSignal;
 
 
 // Dividers are not shared between views like tracks and rulers are, but being
@@ -61,11 +62,16 @@ public:
     {}
     virtual bool track_resizable() const { return true; }
     virtual void set_event_brightness(double d) {}
+
     // Return the end of the last event.
     virtual ScoreTime time_end() const { return ScoreTime(0); }
     virtual void update(const Tracklike &track, FinalizeCallback finalizer,
             ScoreTime start, ScoreTime end)
     {}
+
+    virtual void set_track_signal(const TrackSignal &tsig)
+    {}
+
     // This is called before the object is deleted.
     virtual void finalize_callbacks(FinalizeCallback finalizer) {}
 

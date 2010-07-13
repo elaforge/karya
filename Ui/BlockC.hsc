@@ -35,6 +35,7 @@ module Ui.BlockC (
 
     -- ** Track operations
     , insert_track, remove_track, update_track, update_entire_track
+    , set_track_signal
     , set_track_width
     , set_track_title
 
@@ -242,13 +243,12 @@ foreign import ccall "set_display_track"
 foreign import ccall "collapse_track"
     c_collapse_track :: Ptr CView -> CInt -> CChar -> IO ()
 
--- ** Track operations
+-- * Track operations
 
-insert_track :: ViewId -> TrackNum -> Block.Tracklike
-    -> Track.Samples -> Types.Width -> Fltk ()
-insert_track view_id tracknum tracklike samples width = do
+insert_track :: ViewId -> TrackNum -> Block.Tracklike -> Types.Width -> Fltk ()
+insert_track view_id tracknum tracklike width = do
     viewp <- get_ptr view_id
-    with_tracklike [] tracklike samples $ \tp mlistp len ->
+    with_tracklike [] tracklike $ \tp mlistp len ->
         c_insert_track viewp (Util.c_int tracknum) tp
             (Util.c_int width) mlistp len
 
@@ -259,21 +259,21 @@ remove_track view_id tracknum = do
         c_remove_track viewp (Util.c_int tracknum) finalize
 
 update_track :: ViewId -> TrackNum -> Block.Tracklike
-    -> Track.Samples -> [Track.TrackEvents] -> ScoreTime -> ScoreTime -> Fltk ()
-update_track view_id tracknum tracklike samples merged start end = do
+    -> [Track.TrackEvents] -> ScoreTime -> ScoreTime -> Fltk ()
+update_track view_id tracknum tracklike merged start end = do
     viewp <- get_ptr view_id
     with_finalizer $ \finalize ->
         with start $ \startp -> with end $ \endp ->
-            with_tracklike merged tracklike samples $ \tp mlistp len ->
+            with_tracklike merged tracklike $ \tp mlistp len ->
                 c_update_track viewp (Util.c_int tracknum) tp
                     mlistp len finalize startp endp
 
 -- | Like 'update_track' except update everywhere.
 update_entire_track :: ViewId -> TrackNum -> Block.Tracklike
-    -> Track.Samples -> [Track.TrackEvents] -> Fltk ()
-update_entire_track view_id tracknum tracklike samples merged =
+    -> [Track.TrackEvents] -> Fltk ()
+update_entire_track view_id tracknum tracklike merged =
     -- -1 is special cased in c++.
-    update_track view_id tracknum tracklike samples merged
+    update_track view_id tracknum tracklike merged
         (ScoreTime (-1)) (ScoreTime (-1))
 
 foreign import ccall "insert_track"
@@ -285,6 +285,14 @@ foreign import ccall "update_track"
     c_update_track :: Ptr CView -> CInt -> Ptr TracklikePtr
         -> Ptr Ruler.Marklist -> CInt -> FunPtr (FunPtrFinalizer a)
         -> Ptr ScoreTime -> Ptr ScoreTime -> IO ()
+
+set_track_signal :: ViewId -> TrackNum -> Track.TrackSignal -> Fltk ()
+set_track_signal view_id tracknum tsig = do
+    viewp <- get_ptr view_id
+    with tsig $ \tsigp -> c_set_track_signal viewp (Util.c_int tracknum) tsigp
+
+foreign import ccall "set_track_signal"
+    c_set_track_signal :: Ptr CView -> CInt -> Ptr Track.TrackSignal -> IO ()
 
 -- | When I do anything that will destroy previous callbacks, I have to pass
 -- yet another callback which will be used to mark the old callbacks as done,
@@ -302,13 +310,12 @@ with_finalizer = Exception.bracket make_free_fun_ptr Util.free_fun_ptr
 
 -- | Convert a Tracklike into the set of pointers that c++ knows it as.
 -- A set of event lists can be merged into event tracks.
-with_tracklike :: [Track.TrackEvents] -> Block.Tracklike -> Track.Samples
+with_tracklike :: [Track.TrackEvents] -> Block.Tracklike
     -> (Ptr TracklikePtr -> Ptr Ruler.Marklist -> CInt -> IO ()) -> IO ()
-with_tracklike merged_events tracklike samples f = case tracklike of
+with_tracklike merged_events tracklike f = case tracklike of
     Block.T track ruler -> RulerC.with_ruler ruler $ \rulerp mlistp len ->
         TrackC.with_track track merged_events $ \trackp ->
-            with (TPtr trackp samples rulerp) $ \tp ->
-                f tp mlistp len
+            with (TPtr trackp rulerp) $ \tp -> f tp mlistp len
     Block.R ruler -> RulerC.with_ruler ruler $ \rulerp mlistp len ->
         with (RPtr rulerp) $ \tp ->
             f tp mlistp len
@@ -316,10 +323,9 @@ with_tracklike merged_events tracklike samples f = case tracklike of
         f tp nullPtr 0
 
 data TracklikePtr =
-    TPtr (Ptr Track.Track) Track.Samples (Ptr Ruler.Ruler)
+    TPtr (Ptr Track.Track) (Ptr Ruler.Ruler)
     | RPtr (Ptr Ruler.Ruler)
     | DPtr (Ptr Block.Divider)
-
 
 set_track_width :: ViewId -> TrackNum -> Types.Width -> Fltk ()
 set_track_width view_id tracknum width = do
@@ -359,16 +365,15 @@ instance Storable TracklikePtr where
     alignment _ = #{alignment Tracklike}
     poke = poke_tracklike_ptr
 
-poke_tracklike_ptr tp trackp = do
+poke_tracklike_ptr tp tracklike_ptr = do
     -- Apparently 'with' doesn't zero out the memory it allocates.
     (#poke Tracklike, track) tp nullPtr
     (#poke Tracklike, ruler) tp nullPtr
     (#poke Tracklike, divider) tp nullPtr
-    case trackp of
-        TPtr trackp samples rulerp -> do
+    case tracklike_ptr of
+        TPtr trackp rulerp -> do
             (#poke Tracklike, track) tp trackp
             (#poke Tracklike, ruler) tp rulerp
-            TrackC.insert_render_samples trackp samples
         RPtr rulerp -> (#poke Tracklike, ruler) tp rulerp
         DPtr dividerp -> (#poke Tracklike, divider) tp dividerp
 

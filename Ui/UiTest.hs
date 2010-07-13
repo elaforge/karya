@@ -76,7 +76,7 @@ default_view_id = vid "v1"
 
 -- | Return the val and state, throwing an IO error on an exception.  Intended
 -- for tests that don't expect to fail here.
-run :: State.State -> State.StateT Identity.Identity a -> (a, State.State)
+run :: State.State -> State.StateId a -> (a, State.State)
 run state m = case result of
         Left err -> error $ "state error: " ++ show err
         Right (val, state', _) -> (val, state')
@@ -86,7 +86,7 @@ exec state m = case State.exec state m of
     Left err -> error $ "state error: " ++ show err
     Right state' -> state'
 
-eval :: State.State -> State.StateT Identity.Identity a -> a
+eval :: State.State -> State.StateId a -> a
 eval state m = case State.eval state m of
     Left err -> error $ "state error: " ++ show err
     Right val -> val
@@ -94,12 +94,10 @@ eval state m = case State.eval state m of
 run_mkstate track_specs = run State.empty (mkstate "b1" track_specs)
 run_mkview track_specs = run State.empty (mkstate_view "b1" track_specs)
 
-mkstate :: (State.UiStateMonad m) =>
-    String -> [TrackSpec] -> m [TrackId]
+mkstate :: (State.UiStateMonad m) => String -> [TrackSpec] -> m [TrackId]
 mkstate block_name tracks = mkstate_id (bid block_name) tracks
 
-mkstate_id :: (State.UiStateMonad m) =>
-    BlockId -> [TrackSpec] -> m [TrackId]
+mkstate_id :: (State.UiStateMonad m) => BlockId -> [TrackSpec] -> m [TrackId]
 mkstate_id block_id tracks = do
     State.set_project test_ns
     let (ns, block_name) = Id.un_id (Id.unpack_id block_id)
