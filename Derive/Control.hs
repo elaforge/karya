@@ -101,14 +101,16 @@ pitch_call track_id maybe_name ptype track_expr events deriver =
             TrackInfo.PitchAbsolute Nothing -> return id
         with_scale $ case ptype of
             TrackInfo.PitchRelative op -> do
-                signal <- derive_relative_pitch track_expr events
-                stash_signal track_id
-                    (Left (signal, derive_relative_pitch track_expr events))
+                let derive = Derive.with_msg "relative pitch" $
+                        derive_pitch track_expr events
+                signal <- derive
+                stash_signal track_id (Left (signal, derive))
                 Derive.with_pitch_operator maybe_name op signal deriver
             _ -> do
-                signal <- derive_pitch track_expr events
-                stash_signal track_id
-                    (Left (signal, derive_pitch track_expr events))
+                let derive = Derive.with_msg "pitch" $
+                        derive_pitch track_expr events
+                signal <- derive
+                stash_signal track_id (Left (signal, derive))
                 Derive.with_pitch maybe_name signal deriver
 
 derive_control :: TrackLang.Expr -> [Track.PosEvent] -> Derive.ControlDeriver
@@ -129,19 +131,8 @@ preprocess_control expr = case Seq.break_last expr of
     _ -> expr
 
 
--- TODO these two functions are about the same, merge them
 derive_pitch :: TrackLang.Expr -> [Track.PosEvent] -> Derive.PitchDeriver
-derive_pitch track_expr events = Derive.with_msg "pitch" $
-    Call.apply_transformer (dinfo, Derive.dummy_call_info) track_expr deriver
-    where
-    deriver = PitchSignal.merge <$>
-        Call.derive_track dinfo id last_sample events
-    dinfo = Call.DeriveInfo Derive.no_pitch Call.lookup_pitch_call
-    last_sample prev chunk = PitchSignal.last chunk `mplus` prev
-
-derive_relative_pitch :: TrackLang.Expr -> [Track.PosEvent]
-    -> Derive.PitchDeriver
-derive_relative_pitch track_expr events = Derive.with_msg "relative pitch" $
+derive_pitch track_expr events =
     Call.apply_transformer (dinfo, Derive.dummy_call_info) track_expr deriver
     where
     deriver = PitchSignal.merge <$>
