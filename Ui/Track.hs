@@ -1,5 +1,6 @@
 {-# LANGUAGE PatternGuards, TupleSections #-}
 module Ui.Track where
+import qualified Data.List as List
 import qualified Data.Map as Map
 
 import qualified Util.Map as Map
@@ -60,10 +61,22 @@ type TrackSignals = Map.Map TrackId TrackSignal
 -- if there is a non-trivial warp, the signal will have to be rederived in an
 -- id warp.
 data TrackSignal = TrackSignal {
-    ts_signal :: Either PitchSignal.PitchSignal Signal.Display
+    ts_signal :: Signal
     , ts_shift :: ScoreTime
     , ts_stretch :: ScoreTime
     } deriving (Show, Eq)
+
+data Signal =
+    Pitch PitchSignal.PitchSignal ScaleMap
+    | Control Signal.Display
+    deriving (Show, Eq)
+
+-- | ScaleMaps are sorted by their scale degree number.
+newtype ScaleMap = ScaleMap [ValName] deriving (Show, Eq)
+newtype ValName = ValName (Double, String) deriving (Show, Eq)
+
+make_scale_map :: [(String, Double)] -> ScaleMap
+make_scale_map = ScaleMap . map ValName . List.sort . map (\(a, b) -> (b, a))
 
 -- * track events
 
@@ -135,8 +148,8 @@ sort_events = Seq.sort_on event_start
 -- same place as existing events will replace the existing ones.
 --
 -- This should be the the only way to create a 'TrackEvents', short of
--- debugging, since it enforces import invariants.  However, the inserted
--- are assumed to be sorted, for efficiency's sake.
+-- debugging, since it enforces important invariants.  However, the inserted
+-- events are assumed to be sorted, for efficiency's sake.
 insert_sorted_events :: [PosEvent] -> TrackEvents -> TrackEvents
 insert_sorted_events [] events = events
 insert_sorted_events pos_events events =

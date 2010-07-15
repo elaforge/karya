@@ -6,6 +6,9 @@ import qualified Data.Map as Map
 import qualified Util.Num as Num
 import qualified Util.Parse as Parse
 import qualified Util.Seq as Seq
+
+import qualified Ui.Track as Track
+
 import qualified Perform.Pitch as Pitch
 
 import qualified Derive.Call.Pitch as Call.Pitch
@@ -40,6 +43,10 @@ scale_map notes inputs nns degrees = ScaleMap
     (Map.fromList (zip inputs (zip nns notes)))
 
 type InputMap = Map.Map Pitch.InputKey (Pitch.NoteNumber, Pitch.Note)
+
+make_scale_map :: ScaleMap -> Track.ScaleMap
+make_scale_map smap = Track.make_scale_map [(Pitch.note_text n, fromIntegral d)
+    | (n, d) <- Map.assocs (smap_note_to_degree smap)]
 
 note_to_call :: ScaleMap -> Pitch.Note -> Maybe Derive.ValCall
 note_to_call smap note = case Map.lookup note (smap_note_to_degree smap) of

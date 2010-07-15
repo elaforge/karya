@@ -4,6 +4,8 @@ module Derive.Scale.Relative where
 import Util.Control
 import qualified Util.Parse as Parse
 
+import qualified Ui.Track as Track
+
 import qualified Derive.Call.Pitch as Call.Pitch
 import qualified Derive.Derive as Derive
 import qualified Derive.TrackLang as TrackLang
@@ -24,6 +26,8 @@ scale :: Pitch.Scale
 scale = Pitch.Scale {
     Pitch.scale_id = scale_id
     , Pitch.scale_pattern = "float"
+    , Pitch.scale_map = Track.make_scale_map
+        [(note_of d, d) | d <- [-40..40]]
     , Pitch.scale_octave = 0
     , Pitch.scale_note_to_call = note_to_call
     , Pitch.scale_input_to_note = input_to_note
@@ -31,6 +35,9 @@ scale = Pitch.Scale {
     , Pitch.scale_degree_to_nn = degree_to_nn
     , Pitch.scale_set_pitch_bend = False
     }
+    where
+    note_of :: Double -> String
+    note_of = Pitch.note_text . degree_to_note . Pitch.Degree
 
 scale_id :: Pitch.ScaleId
 scale_id = Pitch.relative
@@ -49,7 +56,7 @@ degree_to_note (Pitch.Degree d) = Pitch.Note (Parse.show_float (Just 2) d)
 
 input_to_note :: Pitch.InputKey -> Maybe Pitch.Note
 input_to_note (Pitch.InputKey key) =
-    Just $ Pitch.Note $ Parse.show_float (Just 2) (key - middle)
+    Just $ degree_to_note (Pitch.Degree (key - middle))
 
 -- Relative pitches map through with no change, just so you can hear something
 -- when you play them.

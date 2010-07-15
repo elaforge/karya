@@ -285,15 +285,15 @@ timeout_func(void *vp)
     Fl::repeat_timeout(1, timeout_func, vp);
 }
 
-void
+static void
 handle_argv(int argc, char **argv)
 {
     if (argc > 1 && strcmp(argv[1], "log") == 0)
         global_msg_collector()->log_collected = true;
 }
 
-TrackSignal *
-make_track_signal()
+static TrackSignal *
+control_track_signal()
 {
     TrackSignal *ts = new TrackSignal();
 
@@ -307,6 +307,57 @@ make_track_signal()
     ts->signal = samples;
     ts->pitch_signal = NULL;
     ts->length = length;
+    ts->val_names = NULL;
+    ts->val_names_length = 0;
+
+    ts->shift = ScoreTime(0);
+    ts->stretch = ScoreTime(1);
+
+    return ts;
+}
+
+static TrackSignal *
+pitch_track_signal()
+{
+    TrackSignal *ts = new TrackSignal();
+
+    /*
+    const int length = 4;
+    TrackSignal::PitchSample *samples = (TrackSignal::PitchSample *)
+        calloc(length, sizeof(TrackSignal::PitchSample));
+    samples[0] = TrackSignal::PitchSample(ScoreTime(0), 2, 4, 0.2);
+    samples[1] = TrackSignal::PitchSample(ScoreTime(20), 2, 4, 0.75);
+    samples[2] = TrackSignal::PitchSample(ScoreTime(40), 1, 3, 0.5);
+    samples[3] = TrackSignal::PitchSample(ScoreTime(60), 1.75, 3.5, 0.5);
+    */
+
+    const int length = 80;
+    int i = 0;
+    TrackSignal::PitchSample *samples = (TrackSignal::PitchSample *)
+        calloc(length, sizeof(TrackSignal::PitchSample));
+    for (; i < 20; i++) {
+        samples[i] = TrackSignal::PitchSample(ScoreTime(i), 2, 4, i / 20.0);
+    }
+    for (; i < 40; i++) {
+        samples[i] = TrackSignal::PitchSample(ScoreTime(i), 1, 3,
+            (i-20) / 20.0);
+    }
+    for (; i < 80; i++) {
+        samples[i] = TrackSignal::PitchSample(ScoreTime(i), 1.5, 3.5,
+            (i-40) / 40.0);
+    }
+
+    ts->signal = NULL;
+    ts->pitch_signal = samples;
+    ts->length = length;
+
+    ts->val_names = new ValName[5];
+    ts->val_names[0] = ValName(0, "a");
+    ts->val_names[1] = ValName(1, "b");
+    ts->val_names[2] = ValName(2, "c");
+    ts->val_names[3] = ValName(3, "d");
+    ts->val_names[4] = ValName(4, "e");
+    ts->val_names_length = 5;
 
     ts->shift = ScoreTime(0);
     ts->stretch = ScoreTime(1);
@@ -339,10 +390,8 @@ main(int argc, char **argv)
     int i = t1_events.size() - 1;
     ScoreTime t1_time_end = t1_events[i].pos + t1_events[i].event.duration;
 
-    TrackSignal *track_signal = make_track_signal();
-
     EventTrackConfig empty_track(track_bg, t1_no_events, t1_time_end,
-            RenderConfig(RenderConfig::render_none, render_color));
+            RenderConfig(RenderConfig::render_line, render_color));
     EventTrackConfig track1(track_bg, t1_find_events, t1_time_end,
             RenderConfig(RenderConfig::render_line, render_color));
     EventTrackConfig track2(track_bg, t1_find_events, t1_time_end,
@@ -360,14 +409,18 @@ main(int argc, char **argv)
 
     // view.block.insert_track(0, Tracklike(&ruler), 20);
     // view.block.insert_track(1, Tracklike(&divider), 10);
-    view.block.insert_track(1, Tracklike(&empty_track, &truler), 100);
+    view.block.insert_track(1, Tracklike(&empty_track, &truler), 60);
     view.block.insert_track(2, Tracklike(&track1, &truler), 40);
     view.block.insert_track(3, Tracklike(&track2, &truler), 60);
-    view.block.insert_track(4, Tracklike(&empty_track, &truler), 40);
+    // view.block.insert_track(4, Tracklike(&empty_track, &truler), 40);
     // view.block.insert_track(5, Tracklike(&track2, &truler), 80);
 
-    view.block.set_track_signal(2, *track_signal);
-    view.block.set_track_signal(3, *track_signal);
+    TrackSignal *pitch_tsig = pitch_track_signal();
+    view.block.set_track_signal(1, *pitch_tsig);
+    TrackSignal *control_tsig = control_track_signal();
+    view.block.set_track_signal(2, *control_tsig);
+
+    view.block.set_track_signal(3, *control_tsig);
 
     // int pairs[] = {0, 5, 2, 4, 3, 4};
     // SkeletonConfig skel = skeleton_config(pairs, 3);

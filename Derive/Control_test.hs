@@ -15,6 +15,7 @@ import qualified Derive.Control as Control
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
+import qualified Derive.Scale.Twelve as Twelve
 
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Pitch as Pitch
@@ -147,7 +148,7 @@ test_stash_signal = do
     -- make sure that TrackSignals are recorded when control tracks are derived
     let itrack = ((">i", []), False)
         ctrack = ("cont", [(0, 0, "1"), (1, 0, "0")])
-        csig = Right $ Signal.signal [(0, 1), (1, 0)]
+        csig = Track.Control $ Signal.signal [(0, 1), (1, 0)]
     let run tracks = extract $ DeriveTest.derive_block ui_state bid
             where
             bid = UiTest.bid "b1"
@@ -161,11 +162,11 @@ test_stash_signal = do
     equal (run [itrack, (ctrack, True)]) [(csig, 0, 1)]
     -- constant tempo stretches track sig
     equal (run [(("tempo", [(0, 0, "2")]), False), itrack, (ctrack, True)])
-        [(Right (Signal.signal [(0, 1), (0.5, 0)]), 0, 0.5)]
+        [(Track.Control (Signal.signal [(0, 1), (0.5, 0)]), 0, 0.5)]
     -- tempo track also gets an unwarped track sig
     equal (run [(("tempo", [(0, 0, "2")]), True), itrack, (ctrack, True)])
-        [ (Right (Signal.signal [(0, 2)]), 0, 1)
-        , (Right (Signal.signal [(0, 1), (0.5, 0)]), 0, 0.5)]
+        [ (Track.Control (Signal.signal [(0, 2)]), 0, 1)
+        , (Track.Control (Signal.signal [(0, 1), (0.5, 0)]), 0, 0.5)]
 
     -- but a complicated tempo forces a rederive so output is still in RealTime
     equal (run [(("tempo", [(0, 0, "2"), (4, 0, "i 1")]), False), itrack,
@@ -173,8 +174,9 @@ test_stash_signal = do
         [(csig, 0, 1)]
 
     let ptrack = ("*twelve", [(0, 0, "4c"), (1, 0, "4d")])
-        psig = Left $ PitchSignal.signal Pitch.twelve
-            [(0, (60, 60, 0)), (1, (62, 62, 0))]
+        psig = Track.Pitch (PitchSignal.signal Twelve.scale_id
+                [(0, (60, 60, 0)), (1, (62, 62, 0))])
+            (Pitch.scale_map Twelve.scale)
     equal (run [itrack, (ptrack, False)]) []
     equal (run [itrack, (ptrack, True)]) [(psig, 0, 1)]
 

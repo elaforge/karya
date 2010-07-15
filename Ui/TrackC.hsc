@@ -80,26 +80,39 @@ instance Storable Track.TrackSignal where
 -- However, memcpy is quite fast.  I tested 0.01s for 32mb, which is a good
 -- upper bound.  It's 87m of 0.1s pitch signal * 8 tracks * 4 controls, which
 -- is a lot.
+--
+-- Capying over the valname list when it probably never changes galls a little.
+-- However, as with the signal above, a copy is probably fast enough and is
+-- much simpler wrt storage, especially because there are variable length
+-- strings involved.  I shouldn't use static storage because customizing pitch
+-- sig rendering by messing with ValNames seems like a useful thing to do.
 poke_track_signal :: Ptr Track.TrackSignal -> Track.TrackSignal -> IO ()
 poke_track_signal tsigp (Track.TrackSignal sig shift stretch) = do
+    (#poke TrackSignal, signal) tsigp nullPtr
+    (#poke TrackSignal, pitch_signal) tsigp nullPtr
+    (#poke TrackSignal, val_names) tsigp nullPtr
+    (#poke TrackSignal, val_names_length) tsigp (0 :: CInt)
     case sig of
-        Left psig -> do
+        Track.Pitch psig (Track.ScaleMap val_names) -> do
             let (sigfp, offset, len) = StorableVector.Base.toForeignPtr
                     (PitchSignal.sig_vec psig)
-            (#poke TrackSignal, signal) tsigp nullPtr
             withForeignPtr sigfp $ \sigp -> do
                 destp <- mallocArray len
                 copyArray destp (advancePtr sigp offset) len
                 (#poke TrackSignal, pitch_signal) tsigp destp
-            (#poke TrackSignal, length) tsigp len
-        Right csig -> do
+            -- As with the char * inside, c++ is expected to free this.
+            when (not (null val_names)) $ do
+                val_namesp <- newArray val_names
+                (#poke TrackSignal, val_names) tsigp val_namesp
+                (#poke TrackSignal, val_names_length) tsigp (length val_names)
+                (#poke TrackSignal, length) tsigp len
+        Track.Control csig -> do
             let (sigfp, offset, len) = StorableVector.Base.toForeignPtr
                     (Signal.sig_vec csig)
             withForeignPtr sigfp $ \sigp -> do
                 destp <- mallocArray len
                 copyArray destp (advancePtr sigp offset) len
                 (#poke TrackSignal, signal) tsigp destp
-            (#poke TrackSignal, pitch_signal) tsigp nullPtr
             (#poke TrackSignal, length) tsigp len
     (#poke TrackSignal, shift) tsigp shift
     (#poke TrackSignal, stretch) tsigp stretch
@@ -111,6 +124,9 @@ initialize_track_signal tsigp = do
     (#poke TrackSignal, signal) tsigp nullPtr
     (#poke TrackSignal, pitch_signal) tsigp nullPtr
     (#poke TrackSignal, length) tsigp (0 :: CInt)
+    (#poke TrackSignal, val_names) tsigp nullPtr
+    (#poke TrackSignal, val_names_length) tsigp (0 :: CInt)
+
 
 encode_style :: Track.RenderStyle -> (#type RenderConfig::RenderStyle)
 encode_style style = case style of
@@ -142,3 +158,14 @@ cb_find_events event_lists startp endp ret_tps ret_events ret_ranks = do
 
 foreign import ccall "wrapper"
     c_make_find_events :: FindEvents -> IO (FunPtr FindEvents)
+
+
+instance Storable Track.ValName where
+    sizeOf _ = #size ValName
+    alignment _ = #{alignment ValName}
+    peek _ = error "ValName peek unimplemented"
+    poke dp (Track.ValName (val, name)) = do
+        -- C is expected to free this!
+        namep <- newCString name
+        (#poke ValName, val) dp val
+        (#poke ValName, name) dp namep

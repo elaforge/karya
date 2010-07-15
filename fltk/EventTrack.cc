@@ -17,6 +17,143 @@ static const double rank_brightness = 1.5;
 // The color of events with a negative duration is scaled by this.
 static const double negative_duration_brightness = .85;
 
+
+// TrackSignal //////////
+
+static bool
+compare_control_sample(const TrackSignal::ControlSample &s1,
+        const TrackSignal::ControlSample &s2)
+{
+    return s1.time < s2.time;
+}
+
+static bool
+compare_pitch_sample(const TrackSignal::PitchSample &s1,
+        const TrackSignal::PitchSample &s2)
+{
+    return s1.time < s2.time;
+}
+
+// A pitch signal will find the first sample of a given (from, to) series
+// since only the first one gets the label.
+int
+TrackSignal::find_sample(ScoreTime start) const
+{
+    if (signal) {
+        ControlSample sample(start, 0);
+        ControlSample *found =
+            std::lower_bound(signal, signal + length, sample,
+                compare_control_sample);
+        // Back up one to make sure I have the sample before start.
+        if (found > signal)
+            found--;
+        return found - signal;
+    } else if (pitch_signal) {
+        PitchSample sample(start, 0, 0, 0);
+        PitchSample *found = std::lower_bound(pitch_signal,
+            pitch_signal + length, sample, compare_pitch_sample);
+        // Back up one to make sure I have the sample before start.
+        if (found > pitch_signal)
+            found--;
+        while (found > pitch_signal && found[-1].from == found[0].from
+                && found[-1].to == found[0].to)
+        {
+            found--;
+        }
+        return found - pitch_signal;
+    } else {
+        // Render was set but there is no signal... so just say nothing was
+        // found.
+        return length;
+    }
+}
+
+
+int
+TrackSignal::time_at(const ZoomInfo &zoom, int i) const {
+    ScoreTime at;
+    if (signal)
+        at = signal[i].time;
+    else if (pitch_signal)
+        at = pitch_signal[i].time;
+    else
+        ASSERT(0);
+    return zoom.to_pixels((at - shift).divide(stretch) - zoom.offset);
+}
+
+
+// Get the val at the given index, normalized between 0--1.  If appropriate,
+// return the val names below and above the val.  Otherwise, the pointers will
+// be set to NULL.
+//
+// TODO normalize to a max val
+double
+TrackSignal::val_at(int i, const char **lower, const char **upper) const {
+    *lower = *upper = NULL;
+    if (signal)
+        return signal[i].val;
+    else if (!pitch_signal)
+        ASSERT(0);
+
+    const PitchSample &sample = pitch_signal[i];
+    // If there's no range then no need to look up two, and .5 makes for a
+    // better looking signal than 1.
+    if (sample.from == sample.to) {
+        const ValName *val = name_of(sample.from, true);
+        if (val)
+            *lower = *upper = val->name;
+        return 0.5;
+    }
+    const ValName *low = name_of(std::min(sample.from, sample.to), true);
+    const ValName *high = name_of(std::max(sample.from, sample.to), false);
+    double low_val, high_val;
+    if (low) {
+        *lower = low->name;
+        low_val = low->val;
+    } else {
+        low_val = std::min(sample.from, sample.to);
+    }
+    if (high) {
+        *upper = high->name;
+        high_val = high->val;
+    } else {
+        high_val = std::max(sample.from, sample.to);
+    }
+
+    double mid = double(::scale(sample.from, sample.to, sample.at));
+    double result = ::normalize(low_val, high_val, mid);
+    // DEBUG("(" << sample.from << ", " << sample.to << ", " << mid << "): ("
+    //         << low_val << ", " << (*lower ? *lower : "null") << ") -- ("
+    //         << high_val << ", " << (*upper ? *upper : "null") << ") at "
+    //         << result);
+    return result;
+}
+
+
+static bool
+compare_val_name(const ValName &s1, const ValName &s2)
+{
+    return s1.val < s2.val;
+}
+
+// Find the closest ValName below or above val, depending on 'lower'.
+const ValName *
+TrackSignal::name_of(double val, bool lower) const {
+    if (!val_names)
+        return NULL;
+    // I don't expect duplicate vals in the map, so upper_bound is not needed.
+    const ValName *found = std::lower_bound(val_names,
+        val_names + val_names_length, ValName(val, ""), compare_val_name);
+    if (lower && found > val_names && found[0].val != val)
+        found--;
+
+    if (found == val_names + val_names_length)
+        return NULL;
+    else
+        return found;
+}
+
+
 // EventTrackView ///////
 
 EventTrackView::EventTrackView(const EventTrackConfig &config,
@@ -256,7 +393,7 @@ EventTrackView::draw_area()
         fl_rectf(this->x() + 1, y0, this->w() - 2, y1-y0);
     }
 
-    this->draw_signal(start, end);
+    this->draw_signal(clip.y, clip.b(), start);
 
     // Draw the upper layer (event start line, text).
     // Don't use INT_MIN because it overflows too easily.
@@ -290,65 +427,50 @@ EventTrackView::draw_area()
 }
 
 
-static bool
-compare_control_sample(const TrackSignal::ControlSample &s1,
-        const TrackSignal::ControlSample &s2)
-{
-    return s1.time < s2.time;
-}
-
-
-// Return the index of the sample before 'start', or 0.
-static int
-find_sample(const TrackSignal &tsig, ScoreTime start)
-{
-    TrackSignal::ControlSample sample(start, 0);
-    TrackSignal::ControlSample *found =
-        std::lower_bound(tsig.signal, tsig.signal + tsig.length, sample,
-            compare_control_sample);
-    // Back up one to make sure I have the sample before start.
-    if (found > tsig.signal)
-        found--;
-    return found - tsig.signal;
-}
-
-
 void
-EventTrackView::draw_signal(ScoreTime start, ScoreTime end)
+EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
 {
-    const TrackSignal &tsig = config.track_signal;
-    // TODO support pitch signal
-    if (config.render.style == RenderConfig::render_none || !tsig.signal)
-    {
+    if (config.render.style == RenderConfig::render_none)
         return;
-    }
-    const int found = find_sample(tsig, start);
-    if (found >= tsig.length)
+
+    const TrackSignal &tsig = config.track_signal;
+    const int found = tsig.find_sample(start);
+    if (found == tsig.length)
         return;
 
     const int y = this->y() + 1; // avoid bevel
 
     // TODO alpha not supported, I'd need a non-portable drawing routine for
     // it.
-    fl_color(color_to_fl(this->config.render.color.brightness(
-        this->brightness)));
-    if (config.render.style == RenderConfig::render_line)
-        fl_line_style(FL_SOLID | FL_CAP_ROUND, 2);
-    else
-        fl_line_style(FL_SOLID | FL_CAP_ROUND, 0);
+    Fl_Color signal_color =
+        color_to_fl(config.render.color.brightness(brightness));
+    Fl_Color text_color = color_to_fl(config.render.color.brightness(.5));
 
     // Account for both the 1 pixel track border and the width of the line.
     const int min_x = x() + 2;
     const int max_x = x() + w() - 2;
     int prev_xpos = min_x;
     int prev_offset = 0;
-    for (int i = found; i < tsig.length; i++) {
-        int offset = y + tsig.time_at(zoom, i);
+    const char *prev_lower = NULL;
+    const char *prev_upper = NULL;
+
+    // Set the font early to make sure subsequent fl_height() is correct.
+    fl_font(Config::font, Config::font_size::pitch_signal);
+
+    // Keep drawing fl_height() past max_y to make sure I get any text that
+    // might stick up.
+    for (int i = found, offset = 0;
+            i < tsig.length && (offset = y + tsig.time_at(zoom, i))
+                < max_y + fl_height();
+            i++, prev_offset = offset)
+    {
+        // if (i == found)
+        //     DEBUG("started at " << found << " offset " << (offset - min_y));
         // Skip coincident samples, or at least ones that are too close.
         if (offset <= prev_offset && i > found)
             continue;
-        double val = tsig.val_at(i);
-
+        const char *lower, *upper;
+        double val = tsig.val_at(i, &lower, &upper);
         int xpos = floor(::scale(double(min_x), double(max_x),
             ::clamp(0.0, 1.0, val)));
 
@@ -357,26 +479,67 @@ EventTrackView::draw_signal(ScoreTime start, ScoreTime end)
             next_offset = y + tsig.time_at(zoom, i + 1);
         else
             next_offset = y + h();
-        switch (config.render.style) {
-        case RenderConfig::render_line:
-            fl_line(prev_xpos, offset, xpos, offset, xpos, next_offset);
-            break;
-        case RenderConfig::render_filled:
-            // For some reason, on OS X at least, height 1 rects don't get
-            // drawn.
-            fl_rectf(min_x, offset, xpos - min_x, (next_offset - offset) + 1);
-            break;
-        case RenderConfig::render_none:
-            break;
-        default:
-            DEBUG("unknown render style: " << config.render.style);
+
+        // Skip drawing things out of the clip area.
+        // TODO avoid overlap with event text
+        // TODO skip drawing text if they would overlap each other
+        bool scale_changed = false;
+        if (lower && upper && offset + fl_height() >= min_y) {
+            // DEBUG((offset-min_y) << " text in range "
+            //         << (void *) prev_lower << " = " << (void *) lower);
+            if (lower != prev_lower || upper != prev_upper) {
+                // DEBUG("drawing text");
+                scale_changed = true;
+                fl_line_style(FL_SOLID | FL_CAP_ROUND, 0);
+                fl_color(text_color);
+
+                Point text;
+                if (lower != upper) {
+                    fl_measure(lower, text.x, text.y);
+                    fl_draw(lower, min_x, offset - 1);
+                    fl_line(min_x, offset, min_x + text.x, offset);
+                }
+                fl_measure(upper, text.x, text.y);
+                fl_draw(upper, max_x - text.x, offset - 1);
+                fl_line(max_x - text.x, offset, max_x, offset);
+            }
+        }
+
+        // TODO draw as one big line, I think this means text has to go in
+        // a separate pass
+        // TODO omit the jump from previous xpos if it's too small
+        if (next_offset > min_y) {
+            fl_color(signal_color);
+            switch (config.render.style) {
+            case RenderConfig::render_line:
+                fl_line_style(FL_SOLID | FL_CAP_ROUND, 2);
+                // If the xpos scale has changed, it doesn't make much sense to
+                // connect with the previous sample, which implies the signal
+                // actually made a jump.
+                // And don't draw a jump from prev_xpos if it didn't exist.
+                if (found == i || scale_changed)
+                    fl_line(xpos, offset, xpos, next_offset);
+                else
+                    fl_line(prev_xpos, offset, xpos, offset, xpos, next_offset);
+                break;
+            case RenderConfig::render_filled:
+                fl_line_style(FL_SOLID | FL_CAP_ROUND, 0);
+                // For some reason, on OS X at least, height 1 rects don't get
+                // drawn.
+                fl_rectf(min_x, offset, xpos - min_x,
+                    (next_offset - offset) + 1);
+                break;
+            case RenderConfig::render_none:
+                break;
+            default:
+                DEBUG("unknown render style: " << config.render.style);
+            }
         }
         // DEBUG("draw " << i << " @ " << offset << "--" << next_offset);
 
-        if (tsig.signal[i].time >= end)
-            break;
         prev_xpos = xpos;
-        prev_offset = offset;
+        prev_lower = lower;
+        prev_upper = upper;
     }
     fl_line_style(0);
 }

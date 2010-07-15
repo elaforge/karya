@@ -258,10 +258,12 @@ setup_normal = do
     State.insert_events t0 $ map (note_event . UiTest.mkevent)
         [(0, 1, ""), (1, 1, ""), (2, 1, ""), (3, 1, "")]
     State.set_track_title t0 ">fm8/bass"
-    t1 <- Create.track bid 3
-    State.insert_events t1 $ map (control_event . UiTest.mkevent)
-        [(0, 0, "5c"), (1, 0, "5d"), (2, 0, "5e"), (3, 0, "5f")]
-    State.set_track_title t1 "*twelve"
+    pitch <- Create.track bid 3
+    State.insert_events pitch $ map (control_event . UiTest.mkevent)
+        [(0, 0, "5c"), (1, 0, "n (5d)"), (2, 0, "5e"), (3, 0, "i (5f)")]
+    State.set_track_title pitch "*twelve"
+    State.modify_track_render pitch $ \render ->
+        render { Track.render_style = Track.Line }
     State.set_track_width vid 3 50
 
     mod <- Create.track bid 4

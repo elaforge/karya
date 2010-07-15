@@ -11,18 +11,42 @@
 
     C1 = 36
 -}
-module Perform.Pitch where
+module Perform.Pitch (
+    -- * Pitch
+    Pitch(..), pitch, Note(..), note_text
+
+    -- * InputKey
+    , InputKey(..), Octave, middle_c, middle_octave
+
+    -- * Degree
+    , Degree(..), middle_int_degree, middle_degree
+
+    -- * NoteNumber
+    , NoteNumber(..), nn
+
+    -- * Hz
+    , Hz, add_hz, nn_to_hz, hz_to_nn
+
+    -- * Scale
+    , ScaleMap, ScaleId(..), default_scale_id, twelve, relative, is_relative
+    , Scale(..)
+    , degree_to_nn
+) where
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
+import qualified Ui.Track as Track
 import {-# SOURCE #-} qualified Derive.Derive as Derive (ValCall)
+
+import Perform.PitchSignal (ScaleId(..), Degree(..), relative_scale_id,
+    is_relative)
 
 
 -- There are many representations for pitch.  The types here are ordered
 -- from abstract to concrete.  'Degree', 'NoteNumber', and 'Hz' can be relative
 -- or absolute, but at the moment no distinctions are made at the type level.
 
--- ** Pitch
+-- * Pitch
 
 -- | The main representation for a pitch.  Scale sharing is enforced by keeping
 -- the scale as an ID, which must be looked up in a map.
@@ -42,7 +66,7 @@ pitch scale note_s
 newtype Note = Note String deriving (Eq, Ord, Show)
 note_text (Note s) = s
 
--- ** InputKey
+-- * InputKey
 
 -- | A physically played key that hasn't been mapped to a scale yet.
 newtype InputKey = InputKey Double deriving (Eq, Ord, Show)
@@ -57,12 +81,7 @@ middle_c = InputKey 60
 middle_octave :: Octave
 middle_octave = 5
 
--- ** Degree
-
--- | This is a pitch in a certain scale, but the actual frequency can't be
--- known untill it's applied to a scale.
--- PitchSignals use this type.
-newtype Degree = Degree Double deriving (Eq, Ord, Show, Num, Fractional)
+-- * Degree
 
 -- | For consistency, scales should roughly center themselves around this
 -- degree.  This way you don't need to know the scale to know a good
@@ -71,7 +90,7 @@ middle_int_degree :: Int
 middle_int_degree = 60
 middle_degree = Degree (fromIntegral middle_int_degree)
 
--- ** NoteNumber
+-- * NoteNumber
 
 -- | This is equal tempered scale notes with the same definition as MIDI, so
 -- MIDI note 0 is NoteNumber 0, at 8.176 Hz.  Middle C is NoteNumber 60.
@@ -86,7 +105,7 @@ newtype NoteNumber = NoteNumber Double deriving (Eq, Ord, Show, Fractional, Num)
 nn :: (Real a) => a -> NoteNumber
 nn = NoteNumber . realToFrac
 
--- ** Hz
+-- * Hz
 
 -- | This is absolute non-logarithmic frequency.  Used only for certain
 -- functions.
@@ -118,19 +137,12 @@ _equal2 = log a_hz - (a_nn * _equal1)
 -- | Tie together Pitches and their Scales.
 type ScaleMap = Map.Map ScaleId Scale
 
-newtype ScaleId = ScaleId String deriving (Eq, Ord, Read, Show)
-
 -- | An empty scale defaults to the scale in scope.
 default_scale_id :: ScaleId
 default_scale_id = ScaleId ""
 
--- | These scales are hardcoded in some places.  Putting them here instead of
--- their scale modules avoids some circular imports.
 relative :: ScaleId
-relative = ScaleId "relative"
-
-is_relative :: ScaleId -> Bool
-is_relative = (==relative)
+relative = relative_scale_id
 
 twelve :: ScaleId
 twelve = ScaleId "twelve"
@@ -142,6 +154,9 @@ data Scale = Scale {
     -- doesn't have to follow any particular syntax.  A regex is recommended
     -- though.
     , scale_pattern :: String
+    -- | This is passed to the UI so it knows what to call scale degrees when
+    -- rendering a pitch signal with this scale.
+    , scale_map :: Track.ScaleMap
 
     -- | How many integral Degrees are there in an octave?  This is so
     -- that relative pitch notation, which includes an octave, can generate
@@ -189,6 +204,12 @@ instance Eq Scale where
 
 instance Show Scale where
     show scale = "<" ++ show (scale_id scale) ++ ">"
+
+-- | Make the function for 'Perform.PitchSignal.to_nn', since it can't import
+-- this module to do it itself.
+degree_to_nn :: Scale -> Degree -> Maybe Double
+degree_to_nn scale d = fmap un_nn (scale_degree_to_nn scale d)
+    where un_nn (NoteNumber n) = n
 
 note_in_scale :: Scale -> Note -> Bool
 note_in_scale scale = Maybe.isJust . scale_note_to_call scale

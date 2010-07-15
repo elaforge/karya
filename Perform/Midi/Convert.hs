@@ -16,6 +16,7 @@ import qualified Util.Logger as Logger
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 
+import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
 import qualified Perform.Warning as Warning
@@ -66,7 +67,7 @@ convert_pitch psig = case Map.lookup scale_id Scale.scale_map of
     Nothing -> do
         warn $ "unknown scale: " ++ show scale_id
         return (Signal.constant Signal.invalid_pitch)
-    Just scale -> return $ PitchSignal.to_nn scale psig
+    Just scale -> return $ PitchSignal.to_nn (Pitch.degree_to_nn scale) psig
     where scale_id = PitchSignal.sig_scale psig
 
 -- * monad

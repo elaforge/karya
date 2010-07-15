@@ -8,6 +8,7 @@ import qualified Derive.Scale.Util as Util
 scale = Pitch.Scale {
     Pitch.scale_id = scale_id
     , Pitch.scale_pattern = "[12356](\\.*|\\^*)"
+    , Pitch.scale_map = Util.make_scale_map scale_map
     , Pitch.scale_octave = 5
 
     , Pitch.scale_note_to_call = Util.note_to_call scale_map

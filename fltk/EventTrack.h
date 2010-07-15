@@ -15,6 +15,15 @@ Events don't overlap.
 #include "Event.h"
 
 
+struct ValName {
+    // These are created by haskell and are read-only from here.
+    // TODO should be constant but then it's hard to initialize an array
+    double val;
+    char *name;
+    ValName(double val, char *name) : val(val), name(name) {}
+    ValName() : val(0), name(NULL) {}
+};
+
 struct TrackSignal {
     struct ControlSample {
         ScoreTime time;
@@ -28,16 +37,24 @@ struct TrackSignal {
             : time(time), from(from), to(to), at(at)
         {}
     };
-    TrackSignal() : signal(NULL), pitch_signal(NULL), length(0) {}
+    TrackSignal() :
+        signal(NULL), pitch_signal(NULL), length(0), val_names(NULL),
+        val_names_length(0)
+    {}
 
     // The track containing the TrackSignal is responsible for the freeing of
     // the signal pointers.
     void free_signals() {
         if (signal)
             free(signal);
-        // DEBUG("FREE " << signal);
         if (pitch_signal)
             free(pitch_signal);
+        if (val_names) {
+            DEBUG("free valnames " << val_names << " " << val_names_length);
+            for (int i = 0; i < val_names_length; i++)
+                free(val_names[i].name);
+            free(val_names);
+        }
     }
 
     // One of these pointers should be null.
@@ -46,24 +63,21 @@ struct TrackSignal {
     // Length of above signal.
     int length;
 
+    ValName *val_names;
+    int val_names_length;
+
     // These are to be applied to the signal's time values.
     ScoreTime shift;
     ScoreTime stretch;
 
+    // Return the index of the sample before 'start', or 0.
+    int find_sample(ScoreTime start) const;
     // Get the time at the given index, taking shift, stretch, and the given
     // zoom into account.
-    // TODO pitch_signal
-    int time_at(const ZoomInfo &zoom, int i) const {
-        ScoreTime warped = (signal[i].time - shift).divide(stretch);
-        return zoom.to_pixels(warped - zoom.offset);
-    }
-
+    int time_at(const ZoomInfo &zoom, int i) const;
     // Get the val at the given index, normalized between 0--1.
-    // TODO pitch_signal
-    // TODO normalize to a max val
-    double val_at(int i) const {
-        return signal[i].val;
-    }
+    double val_at(int i, const char **lower, const char **upper) const;
+    const ValName *name_of(double val, bool lower) const;
 };
 
 struct RenderConfig {
@@ -128,7 +142,7 @@ protected:
 
 private:
     void draw_area();
-    void draw_signal(ScoreTime start, ScoreTime end);
+    void draw_signal(int min_y, int max_y, ScoreTime start);
     void draw_upper_layer(int offset, const Event &event, int rank,
             Rect *previous, int *ranked_bottom, int prev_offset);
 

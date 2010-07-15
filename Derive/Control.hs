@@ -22,15 +22,16 @@ import qualified Util.Seq as Seq
 import Ui
 import qualified Ui.Track as Track
 
-import qualified Perform.PitchSignal as PitchSignal
-import qualified Perform.Signal as Signal
-
 import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
 import qualified Derive.Scale.Relative as Relative
 import qualified Derive.Score as Score
 import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
+
+import qualified Perform.Pitch as Pitch
+import qualified Perform.PitchSignal as PitchSignal
+import qualified Perform.Signal as Signal
 
 
 -- | Top level deriver for control tracks.
@@ -71,7 +72,7 @@ tempo_call block_id track_id sig_deriver deriver = do
     rendered <- track_is_rendered track_id
     when rendered $
         put_track_signal track_id $
-            Track.TrackSignal (Right (Signal.coerce signal)) 0 1
+            Track.TrackSignal (Track.Control (Signal.coerce signal)) 0 1
     Derive.d_tempo block_id (Just track_id) signal deriver
 
 control_call :: TrackId -> Score.Control -> Maybe TrackLang.CallId
@@ -90,27 +91,31 @@ pitch_call :: TrackId -> Maybe Score.Control -> TrackInfo.PitchType
     -> TrackLang.Expr -> [Track.PosEvent] -> Derive.Transformer
 pitch_call track_id maybe_name ptype track_expr events deriver =
     Derive.track_setup track_id $ do
-        with_scale <- case ptype of
+        (with_scale, scale) <- case ptype of
             TrackInfo.PitchRelative _ -> do
                 scale <- Derive.lookup_val TrackLang.v_scale
                 let relative_scale = maybe Relative.scale Relative.adjust scale
-                return $ Derive.with_val TrackLang.v_scale relative_scale
+                return (Derive.with_val TrackLang.v_scale relative_scale,
+                    relative_scale)
             TrackInfo.PitchAbsolute (Just scale_id) -> do
                 scale <- Derive.get_scale "pitch_call" scale_id
-                return $ Derive.with_val TrackLang.v_scale scale
-            TrackInfo.PitchAbsolute Nothing -> return id
+                return (Derive.with_val TrackLang.v_scale scale, scale)
+            TrackInfo.PitchAbsolute Nothing -> do
+                scale <- Call.get_scale
+                return (id, scale)
+        let scale_map = Pitch.scale_map scale
         with_scale $ case ptype of
             TrackInfo.PitchRelative op -> do
                 let derive = Derive.with_msg "relative pitch" $
                         derive_pitch track_expr events
                 signal <- derive
-                stash_signal track_id (Left (signal, derive))
+                stash_signal track_id (Left (signal, derive, scale_map))
                 Derive.with_pitch_operator maybe_name op signal deriver
             _ -> do
                 let derive = Derive.with_msg "pitch" $
                         derive_pitch track_expr events
                 signal <- derive
-                stash_signal track_id (Left (signal, derive))
+                stash_signal track_id (Left (signal, derive, scale_map))
                 Derive.with_pitch maybe_name signal deriver
 
 derive_control :: TrackLang.Expr -> [Track.PosEvent] -> Derive.ControlDeriver
@@ -160,7 +165,7 @@ derive_pitch track_expr events =
 -- the signals and avoid recalculating the control track at all.  Perhaps just
 -- add a warped signal to TrackSignal?
 stash_signal :: TrackId
-    -> Either (PitchSignal.PitchSignal, Derive.PitchDeriver)
+    -> Either (PitchSignal.PitchSignal, Derive.PitchDeriver, Track.ScaleMap)
         (Signal.Signal y, Derive.Deriver (Signal.Signal y))
     -> Derive.Deriver ()
 stash_signal track_id sig = do
@@ -168,16 +173,18 @@ stash_signal track_id sig = do
     if not rendered then return () else do
     maybe_linear <- linear_tempo
     case maybe_linear of
-        Just (shift, stretch) -> put_track_signal track_id $
-            Track.TrackSignal
-                (either (Left . fst) (Right . Signal.coerce . fst) sig)
-                shift stretch
+        Just (shift, stretch) -> do
+            let tsig = case sig of
+                    Left (psig, _, smap) -> Track.Pitch psig smap
+                    Right (csig, _) -> Track.Control (Signal.coerce csig)
+            put_track_signal track_id (Track.TrackSignal tsig shift stretch)
         Nothing -> do
             signal <- case sig of
-                Left (_, deriver) ->
-                    Left <$> Derive.setup_without_warp deriver
-                Right (_, deriver) ->
-                    Right . Signal.coerce <$> Derive.setup_without_warp deriver
+                Left (_, deriver, smap) -> do
+                    sig <- Derive.setup_without_warp deriver
+                    return $ Track.Pitch sig smap
+                Right (_, deriver) -> Track.Control . Signal.coerce <$>
+                    Derive.setup_without_warp deriver
             put_track_signal track_id (Track.TrackSignal signal 0 1)
 
 track_is_rendered :: TrackId -> Derive.Deriver Bool

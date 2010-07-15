@@ -2,8 +2,6 @@ module Perform.PitchSignal_test where
 
 import Util.Test
 
-import qualified Derive.Scale.Twelve as Twelve
-
 import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
@@ -24,11 +22,11 @@ test_at = do
 test_clip_min_max = do
     let sig = mksig [(1, (1, 5, 0.5))]
     let f v = unsig $ PitchSignal.clip_max v sig
-    equal (map f (map Pitch.NoteNumber [0..6]))
+    equal (map f (map Pitch.Degree [0..6]))
         (map (\d -> [(1, (1, 5, d))]) [0, 0, 0.25, 0.5, 0.5, 0.5, 0.5])
 
 test_sig_add = do
-    let conv = PitchSignal.to_nn Twelve.scale
+    let conv = PitchSignal.to_nn (\(Pitch.Degree d) -> Just d)
     let f = PitchSignal.sig_add
 
     let s0 = mksig [(x, (4, 0, realToFrac (x/4))) | x <- [0..4]]

@@ -23,7 +23,8 @@ namespace font_size {
         event = 12,
         input = 12,
         ruler = 9,
-        track_status = 12
+        track_status = 12,
+        pitch_signal = 9
     };
 };
 

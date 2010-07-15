@@ -23,6 +23,8 @@ module Derive.Scale.Twelve where
 import qualified Data.Map as Map
 import qualified Util.Map as Map
 
+import qualified Ui.Track as Track
+
 import qualified Derive.Derive as Derive
 import qualified Derive.Call.Pitch as Call.Pitch
 import qualified Derive.Scale.Util as Util
@@ -33,6 +35,9 @@ import qualified Perform.Pitch as Pitch
 scale = Pitch.Scale {
     Pitch.scale_id = scale_id
     , Pitch.scale_pattern = "[-1-9][a-g]#?"
+    , Pitch.scale_map =
+        Track.make_scale_map [(Pitch.note_text n, fromIntegral d)
+            | (n, d) <- Map.assocs note_to_degree]
     , Pitch.scale_octave = 12
     , Pitch.scale_note_to_call = note_to_call
     , Pitch.scale_input_to_note = input_to_note

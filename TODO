@@ -20,6 +20,17 @@ misc ghc fixes:
 - research ardour OSC control
 
 CURRENT
+  - signal filled display is chunky and ugly.  I think they would be nicer
+    as one long line.  I should also not round xpos to an integer.
+
+  - fix trill to use pitch range so it makes a nicer looking signal
+
+  - I think PitchSignals may need to be reworked.  They should be (Note, Note,
+    Frac).  Otherwise, it's not clear what to call 4a# vs. 4ab.  I can still
+    use numbers (Ints this time) as indices into a table of names, but e.g.
+    (4c 50) will have to become (4c, 4c#, 0.5) instead of (60.5, 60.5, 0).
+    But this means displaying the signal will become more straightforward.
+
   - I think if the same TrackId appears in multiple places, it will be derived
     redundantly.  I should be able to cache the signal output in a TrackSignal.
   - TrackSignals is per TrackId, but the same TrackId may render to different
@@ -27,8 +38,6 @@ CURRENT
     should be (BlockId, TrackNum) + TrackId to verify in case the state was
     modified
 
-  - redraw after track range damage draws things a pixel too low
-  - signal filled display is chunky and ugly
   - set_render_style should trigger a rederive
 
   - Can I not sync collapsed tracks?  I think the best is to implement
@@ -37,9 +46,6 @@ CURRENT
     changed, maybe tracks in calls above the modified one?
 
   - have a way to not link with hint, to reduce link time for test runs
-
-  - support pitch signals
-  - support signals that aren't just 0--1
 
   * should I make the control title expression the first one instead of last?
   - Circular imports of Derive.Derive and Derive.Scale causes a lot of
@@ -176,7 +182,6 @@ UNSORTED
   - should tab in raw edit mode go to method?  how to go back then?
   - select track, st3 style select block, track
   - cut + paste didn't work with a point paste
-  - skel_display status can be two chars: Sm is solo+mute
 
   track management:
     - resize a bunch of tracks at once
@@ -371,6 +376,8 @@ symbolic score as in doc/custom_symbols
     so I would need some way to decide which to expand.
 
 fltk:
+  - some kind of special highlight to indicate the active block
+  - rethrow c++ exceptions as FltkError
   - bug: somehow capslock keydown is sent sometimes
   - auto add pitch track when a track title input is expanded crashes with
     assertion error 'title->w() == body->w()'
@@ -383,11 +390,15 @@ fltk:
     it doesn't get any kbd input
   - can I get the windows into an os x windows menu?
   draw bugs:
+    - redraw after track range damage draws things a pixel too low
     - when scrolling upwards, ruler mark text is not drawn completely
     - doesn't redraw after switching monitors
   Track
     / dividers can have separate color for upper part, for collapsable tracks
   event track
+    - events pass style as a uchar ID for consistency and memory savings
+    - visual indication when both solo and mute is on
+    - adjacent collpsed tracks are merged
     - editing event text should use a text entry widget, that way I get
       a cursor, IME, etc.  A side benefit is that I don't have to derive half
       edited data.  This also solves the problem where the currently edited
@@ -432,6 +443,18 @@ fltk:
       to the last event that had to change.  And I think I can still optimize
       scrolling, I just have to keep the local pos->hidden cache, which gets
       cleared on a track update.
+
+    - collapsed events: Or, record bounding boxes of text drawn, shift them on
+      scroll
+
+  control track, render signal
+    - support control signals that aren't just 0--1
+    - signal filled display is chunky and ugly.  I think they would be
+      nicer as one long line.  I should also not round xpos to an integer.
+    * scale markers on pitch signals
+    - render option: solid with color gradient
+    - combine multiple signals, e.g. one controls xpos, one controls color
+
   MoveTile
     - only capture drag on a plain drag with no modifiers
 
@@ -459,21 +482,13 @@ logview:
   - hide or display various attrs: date, file, function, ...
   - collapse duplicate lines
 
-control
-  scale markers on pitch signals
-    - haskell will have to send [(String, Val)].  Either cache it or avoid
-      cache problems by always passing it but keep as a a ForeignPtr in haskell.
-    - fltk implementation
-  - more render options, e.g. solid with color gradient
+control fltk
   dense sampled signals
     - efficient storage, preferably as a Signal so no conversion is necessary
     - display dense signals: omit text and trigger lines when zoomed out
 
 Ui:
-  - some kind of special highlight to indicate the active block
-  - rethrow c++ exceptions as FltkError
   Track
-    - events pass style as a uchar ID for consistency and memory savings
     - benchmark large TrackEvents
     more compact implemnetation than Data.Map?  profile first!
       - priorities: memory efficiency, persistent, merge speed (insert many)
@@ -481,10 +496,6 @@ Ui:
         can I take advantage of non-overlap?  [(pos0, data), (pos1, end), ...]
         data Event = Event String StyleId | End | ControlVal Double
       - I think memory efficiency is more important than modification speed
-    - modify IntMap for Word64s, add toDescList
-      - send patch to libraries@haskell.org
-    - visual indication when both solo and mute is on
-    - adjacent collpsed tracks are merged
 
 skeleton:
   - parse skeleton in LanguageCmds
@@ -786,6 +797,7 @@ Derive:
       I think this has to be postproc.
     - some kind of ratio based notation?  check out Ben Jonston's just notation
     - octatonic
+    - parser for scala .scl files
 
    - Control track management?  It should be possible to have a note or a bunch
      of note tracks with a bunch of control tracks and control the clutter.

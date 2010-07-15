@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleInstances, TypeSynonymInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {- | A PitchSignal has pitches instead of numbers.
 
     Pitches are more complicated than numbers because they represent a point on
@@ -24,7 +25,14 @@
     actual interpolation to an absolute pitch is delayed until the performance.
 -}
 module Perform.PitchSignal (
-    PitchSignal, Relative, sig_scale, sig_vec, set_scale
+    -- * basic pitch types
+
+    -- $basic_pitch_types
+    ScaleId(..), relative_scale_id, is_relative
+    , Degree(..)
+
+    -- * pitch signal
+    , PitchSignal, Relative, sig_scale, sig_vec, set_scale
     , X, Y, y_to_degree, degree_to_y, max_x, default_srate
 
     , signal, relative, relative_from_control, constant, empty
@@ -50,14 +58,38 @@ import qualified Util.Num as Num
 
 import Ui
 
-import qualified Perform.Pitch as Pitch
 import qualified Perform.SignalBase as SignalBase
 import Perform.SignalBase (max_x, default_srate, to_double)
 import qualified Perform.Signal as Signal
 
 
+-- * basic pitch types
+
+-- $basic_pitch_types
+-- Signals are very low level, since the Ui level modules import them to
+-- export signals to the UI.  So to avoid a circular import, this module is
+-- not allowed to imported "Perform.Pitch", which winds up importing
+-- "Ui.Track".  So define some simple things here to re-export from
+-- Perform.Pitch.
+
+newtype ScaleId = ScaleId String deriving (Eq, Ord, Read, Show)
+
+-- | These scales are hardcoded in some places.  Putting them here instead of
+-- their scale modules avoids some circular imports.
+relative_scale_id :: ScaleId
+relative_scale_id = ScaleId "relative"
+
+is_relative :: ScaleId -> Bool
+is_relative = (==relative_scale_id)
+
+-- | This is a pitch in a certain scale, but the actual frequency can't be
+-- known untill it's applied to a scale.  PitchSignals use this type.
+newtype Degree = Degree Double deriving (Eq, Ord, Show, Num, Fractional)
+
+-- * pitch signal
+
 data PitchSignal = PitchSignal
-    { sig_scale :: Pitch.ScaleId
+    { sig_scale :: ScaleId
     , sig_vec :: SignalBase.SigVec Y
     } deriving (Eq)
 
@@ -71,7 +103,7 @@ data PitchSignal = PitchSignal
 -- a pitch would destroy the pitch's structure.
 type Relative = PitchSignal
 
-set_scale :: Pitch.ScaleId -> PitchSignal -> PitchSignal
+set_scale :: ScaleId -> PitchSignal -> PitchSignal
 set_scale scale_id sig = sig { sig_scale = scale_id }
 
 modify_vec :: (SignalBase.SigVec Y -> SignalBase.SigVec Y)
@@ -81,7 +113,7 @@ modify_vec f sig = sig { sig_vec = f (sig_vec sig) }
 type X = SignalBase.X
 -- | Each sample is @(from, to, at)@, where @at@ is a normalized value between
 -- 0 and 1 describing how far between @from@ and @to@ the value is.  @from@ and
--- @to@ are really Pitch.Degree, but are Floats here to save space.
+-- @to@ are really Degree, but are Floats here to save space.
 --
 -- This encoding consumes 12 bytes, but it seems like it should be possible to
 -- reduce that.  There will be long sequences of samples with the same @from@
@@ -124,47 +156,46 @@ instance Show PitchSignal where
     show sig@(PitchSignal scale_id _) =
         "PitchSignal (" ++ show scale_id ++ ") " ++ show (unsignal sig)
 
-y_to_degree :: Y -> Pitch.Degree
-y_to_degree = Pitch.Degree . to_double
+y_to_degree :: Y -> Degree
+y_to_degree = Degree . to_double
 
-degree_to_y :: Pitch.Degree -> Y
-degree_to_y (Pitch.Degree d) = (f, f, 0)
+degree_to_y :: Degree -> Y
+degree_to_y (Degree d) = (f, f, 0)
     where f = Num.d2f d
 
 -- * construction / deconstruction
 
-signal :: Pitch.ScaleId -> [(X, Y)] -> PitchSignal
+signal :: ScaleId -> [(X, Y)] -> PitchSignal
 signal scale_id ys = PitchSignal scale_id (SignalBase.signal ys)
 
 relative :: [(X, Y)] -> PitchSignal
-relative = signal Pitch.relative
+relative = signal relative_scale_id
 
 relative_from_control :: Signal.Control -> Relative
-relative_from_control sig = signal Pitch.relative
+relative_from_control sig = relative
     [(x, (realToFrac y, realToFrac y, 0)) | (x, y) <- Signal.unsignal sig]
 
 empty :: PitchSignal
-empty = signal (Pitch.ScaleId "empty signal") []
+empty = signal (ScaleId "empty signal") []
 
-constant :: Pitch.ScaleId -> Pitch.Degree -> PitchSignal
+constant :: ScaleId -> Degree -> PitchSignal
 constant scale_id degree = signal scale_id [(0, degree_to_y degree)]
 
 -- | Used for tests.
 unsignal :: PitchSignal -> [(X, Y)]
 unsignal = SignalBase.unsignal . sig_vec
 
-unsignal_degree :: PitchSignal -> [(X, Pitch.Degree)]
+unsignal_degree :: PitchSignal -> [(X, Degree)]
 unsignal_degree = map (\(x, y) -> (x, y_to_degree y)) . unsignal
 
 -- | Flatten a pitch signal into an absolute note number signal.
-to_nn :: Pitch.Scale -> PitchSignal -> Signal.NoteNumber
-to_nn scale psig = Signal.Signal (V.map f (sig_vec psig))
+to_nn :: (Degree -> Maybe Double) -> PitchSignal -> Signal.NoteNumber
+to_nn degree_to_nn psig = Signal.Signal (V.map f (sig_vec psig))
     where
     f (x, (from, to, at)) = case (lookup_degree from, lookup_degree to) of
         (Just nn0, Just nn1) -> (x, Num.scale nn0 nn1 (Num.f2d at))
         _ -> (x, Signal.invalid_pitch)
-    lookup_degree n = fmap un_nn (Pitch.scale_degree_to_nn scale (to_degree n))
-    un_nn (Pitch.NoteNumber n) = n
+    lookup_degree = degree_to_nn . to_degree
 
 -- * access
 
@@ -205,15 +236,15 @@ sig_min = sig_op $ \y0 y1 -> ymin (to_double y1) y0
 
 -- ** scalar transformation
 
-scalar_add, scalar_subtract :: Pitch.Degree -> PitchSignal -> PitchSignal
+scalar_add, scalar_subtract :: Degree -> PitchSignal -> PitchSignal
 scalar_add d = map_degree (+d)
 scalar_subtract d = map_degree (subtract d)
 
 -- | Scalar versions of 'sig_max' and 'sig_min'.  Note that the arguments are
 -- also reversed for currying convenience.
-clip_max, clip_min :: Pitch.NoteNumber -> PitchSignal -> PitchSignal
-clip_max (Pitch.NoteNumber nn) = map_y (ymin nn)
-clip_min (Pitch.NoteNumber nn) = map_y (ymax nn)
+clip_max, clip_min :: Degree -> PitchSignal -> PitchSignal
+clip_max (Degree nn) = map_y (ymin nn)
+clip_min (Degree nn) = map_y (ymax nn)
 
 ymin, ymax :: Double -> Y -> Y
 ymin val (from, to, at) = (from, to, at2)
@@ -243,12 +274,12 @@ map_x f = modify_vec (SignalBase.map_x f)
 map_y :: (Y -> Y) -> PitchSignal -> PitchSignal
 map_y f = modify_vec (SignalBase.map_y f)
 
-map_degree :: (Pitch.Degree -> Pitch.Degree) -> PitchSignal -> PitchSignal
+map_degree :: (Degree -> Degree) -> PitchSignal -> PitchSignal
 map_degree f = map_y $ \(from, to, at) -> (g from, g to, at)
     where g = from_degree . f . to_degree
 
-from_degree :: Pitch.Degree -> Float
-from_degree (Pitch.Degree n) = Num.d2f n
+from_degree :: Degree -> Float
+from_degree (Degree n) = Num.d2f n
 
-to_degree :: Float -> Pitch.Degree
-to_degree f = Pitch.Degree (Num.f2d f)
+to_degree :: Float -> Degree
+to_degree f = Degree (Num.f2d f)
