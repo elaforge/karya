@@ -26,6 +26,9 @@
     piece.
 -}
 module Derive.Call.Trill where
+import qualified Data.List as List
+import qualified Util.Num as Num
+
 import Ui
 
 import qualified Derive.Call as Call
@@ -158,8 +161,10 @@ trill_from_transitions transitions neighbor = Derive.with_relative_pitch
 -- | I feel like this should at least return
 -- @[(x0, (0, y, 0)), (x1, (0, y, 1)), ...]@, but does it make a difference?
 make_trill :: [RealTime] -> Signal.Control -> PitchSignal.Relative
-make_trill transitions neighbor = PitchSignal.relative_from_control $
-    Signal.sig_multiply (make_square transitions) neighbor
+make_trill transitions neighbor =
+    PitchSignal.relative [(x, (0, Num.d2f neighbor, at))
+        | (x, neighbor, at) <- List.zip3 transitions neighbors (cycle [0, 1])]
+    where neighbors = map (flip Signal.at neighbor) transitions
 
 make_square :: [RealTime] -> Signal.Control
 make_square xs = Signal.signal (zip xs (cycle [0, 1]))

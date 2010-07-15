@@ -52,9 +52,9 @@ con = Signal.constant
 
 test_pitch_absolute_trill = do
     equal (CallTest.run_pitch [(0, "abs-trill (4e) 2 2"), (2.8, "4c")]) $
-        Right [(0, (64, 64, 0)), (0.5, (66, 66, 0)), (1, (64, 64, 0)),
-            (1.5, (66, 66, 0)), (2, (64, 64, 0)),
-            (2.8, (60, 60, 0))]
+        Right (
+            [(x, (64, 66, v)) | (x, v) <- zip [0, 0.5, 1, 1.5, 2] (cycle [0, 1])]
+            ++ [(2.8, (60, 60, 0))])
 
 test_default_relative_note = do
     equal (CallTest.run_with_scale "twelve"

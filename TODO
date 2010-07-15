@@ -23,7 +23,7 @@ CURRENT
   - signal filled display is chunky and ugly.  I think they would be nicer
     as one long line.  I should also not round xpos to an integer.
 
-  - fix trill to use pitch range so it makes a nicer looking signal
+  * fix trill to use pitch range so it makes a nicer looking signal
 
   - I think PitchSignals may need to be reworked.  They should be (Note, Note,
     Frac).  Otherwise, it's not clear what to call 4a# vs. 4ab.  I can still
