@@ -5,6 +5,7 @@
 
 #include "SeqInput.h"
 #include "EventTrack.h"
+#include "SymbolTable.h"
 
 
 // #define DEBUG(X) ;
@@ -493,15 +494,15 @@ EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
                 fl_line_style(FL_SOLID | FL_CAP_ROUND, 0);
                 fl_color(text_color);
 
-                Point text;
+                int width;
                 if (lower != upper) {
-                    fl_measure(lower, text.x, text.y);
+                    width = fl_width(lower);
                     fl_draw(lower, min_x, offset - 1);
-                    fl_line(min_x, offset, min_x + text.x, offset);
+                    fl_line(min_x, offset, min_x + width, offset);
                 }
-                fl_measure(upper, text.x, text.y);
-                fl_draw(upper, max_x - text.x, offset - 1);
-                fl_line(max_x - text.x, offset, max_x, offset);
+                width = fl_width(upper);
+                fl_draw(upper, max_x - width, offset - 1);
+                fl_line(max_x - width, offset, max_x, offset);
             }
         }
 
@@ -565,19 +566,22 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
     // has displayed text.  I think I might want to do this, but should
     // wait until I am caching events from the callback in general.
 
-    // A little overlap is ok.
-    const static int ok_overlap = 4;
-    fl_font(fl_font(), Config::font_size::event);
-    Rect text_rect(x() + 2, 0, 0, 0);
-    if (event.is_negative()) {
-        // Negative duration means text goes above the trigger line.
-        text_rect.y = offset - (fl_height() - fl_descent()) - 2;
-    } else {
-        text_rect.y = offset;
-    }
+    // A little overlap is ok... or not.
+    const static int ok_overlap = 0;
+    Rect text_rect(0, 0, 0, 0);
+
+    const Fl_Font font = Config::font;
+    const int size = Config::font_size::event;
+
+    text_rect.x = x() + 2;
+    text_rect.y = offset;
     if (event.text) {
-        // params modified through ref args
-        fl_measure(event.text, text_rect.w, text_rect.h, false);
+        Point box = SymbolTable::table()->measure(event.text, font, size);
+        text_rect.w = box.x;
+        text_rect.h = box.y;
+        // Text goes above the trigger line for negative events.
+        if (event.is_negative())
+            text_rect.y = offset - box.y - 1;
     }
     if (rank && text_rect.y >= previous->b() - ok_overlap)
         previous->w = 0;
@@ -600,6 +604,10 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
         }
     }
 
+    // DEBUG("offset " << offset << ", text_rect " << text_rect);
+    // fl_color(FL_BLUE);
+    // fl_rect(text_rect.x, text_rect.y, text_rect.w, text_rect.h);
+
     // Draw trigger line.  Try not to draw two in the same place.
     if (offset != prev_offset) {
         Color trigger_c;
@@ -619,8 +627,8 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
                         Color(0, 0, 0).brightness(rank_brightness)));
         else
             fl_color(FL_BLACK);
-        fl_font(Config::font, Config::font_size::event);
-        fl_draw(event.text, text_rect.x, text_rect.b() - fl_descent());
+        SymbolTable::table()->draw(std::string(event.text),
+            Point(text_rect.x, text_rect.b()), font, size);
         if (!rank) {
             if (text_rect.w > w() - 4) {
                 // If the text is too long it gets truncated with a blue

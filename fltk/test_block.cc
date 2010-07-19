@@ -9,6 +9,7 @@
 #include "Ruler.h"
 #include "SkeletonDisplay.h"
 #include "MsgCollector.h"
+#include "SymbolTable.h"
 
 
 static const bool arrival_beats = false;
@@ -148,16 +149,23 @@ void t1_set()
     style.font = FL_HELVETICA;
     style.size = 9;
 
+    // e.push_back(EventInfo(ScoreTime(0),
+    //     Event("`1^`", ScoreTime(16), eventc, style), 0));
+    // e.push_back(EventInfo(ScoreTime(32),
+    //     Event("`1^`", ScoreTime(-16), eventc, style), 0));
+
     e.push_back(EventInfo(ScoreTime(0),
-        Event("4c#@$", ScoreTime(16), eventc, style), 0));
+        Event("`1^`", ScoreTime(16), eventc, style), 0));
+    e.push_back(EventInfo(ScoreTime(16),
+        Event("a`tamil-i``xie`", ScoreTime(16), eventc, style), 0));
     e.push_back(EventInfo(ScoreTime(32),
-        Event("4d-", ScoreTime(4), eventc, style), 0));
-    e.push_back(EventInfo(ScoreTime(38),
-        Event("5cb", ScoreTime(4), eventc, style), 0));
+        Event("`nosym`", ScoreTime(4), eventc, style), 0));
+    e.push_back(EventInfo(ScoreTime(36),
+        Event("overlap", ScoreTime(4), eventc, style), 0));
     e.push_back(EventInfo(ScoreTime(44),
         Event("6--", ScoreTime(4), eventc, style), 0));
     e.push_back(EventInfo(ScoreTime(50),
-        Event("7--", ScoreTime(4), eventc, style), 0));
+        Event("mis`match", ScoreTime(4), eventc, style), 0));
     e.push_back(EventInfo(ScoreTime(128),
         Event("late!", ScoreTime(64), eventc, style), 0));
     // coincident with rank 0
@@ -397,7 +405,7 @@ main(int argc, char **argv)
     EventTrackConfig track2(track_bg, t1_find_events, t1_time_end,
             RenderConfig(RenderConfig::render_filled, render_color));
 
-    BlockViewWindow view(0, 100, 200, 500, "view1", config, view_config);
+    BlockViewWindow view(1100, 40, 200, 500, "view1", config, view_config);
     view.testing = true;
     // view.border(0);
     // BlockViewWindow view2(300, 100, 200, 500, "view2", config, view_config);
@@ -410,9 +418,9 @@ main(int argc, char **argv)
     // view.block.insert_track(0, Tracklike(&ruler), 20);
     // view.block.insert_track(1, Tracklike(&divider), 10);
     view.block.insert_track(1, Tracklike(&empty_track, &truler), 60);
-    view.block.insert_track(2, Tracklike(&track1, &truler), 40);
-    view.block.insert_track(3, Tracklike(&track2, &truler), 60);
-    // view.block.insert_track(4, Tracklike(&empty_track, &truler), 40);
+    view.block.insert_track(2, Tracklike(&track1, &truler), 130);
+    view.block.insert_track(3, Tracklike(&track2, &truler), 40);
+    view.block.insert_track(4, Tracklike(&empty_track, &truler), 40);
     // view.block.insert_track(5, Tracklike(&track2, &truler), 80);
 
     TrackSignal *pitch_tsig = pitch_track_signal();
@@ -422,9 +430,9 @@ main(int argc, char **argv)
 
     view.block.set_track_signal(3, *control_tsig);
 
-    // int pairs[] = {0, 5, 2, 4, 3, 4};
-    // SkeletonConfig skel = skeleton_config(pairs, 3);
-    // view.block.set_skeleton(skel);
+    int pairs[] = {0, 3, 3, 2, 2, 1};
+    SkeletonConfig skel = skeleton_config(pairs, 3);
+    view.block.set_skeleton(skel);
 
     DisplayTrack dtrack;
     dtrack.status = 'M';
@@ -443,7 +451,7 @@ main(int argc, char **argv)
     view.block.set_zoom(ZoomInfo(ScoreTime(0), 1.6));
 
     view.block.set_selection(0, Selection(selection_colors[0],
-                1, ScoreTime(32), 1, ScoreTime(32)));
+                1, ScoreTime(80), 1, ScoreTime(80)));
     /*
     view.block.set_selection(0, Selection(selection_colors[0],
                 1, ScoreTime(60), 4, ScoreTime(46)));
@@ -452,6 +460,41 @@ main(int argc, char **argv)
     view.block.set_selection(1, Selection(selection_colors[1],
                 1, ScoreTime(64), 4, ScoreTime(0)));
     */
+
+    SymbolTable *t = SymbolTable::table();
+    t->insert("tamil-i", t->simple(SymbolTable::Glyph("\xe0\xae\x87", NULL, 4)));
+    // t->load("yen", "\xc2\xa5");
+    // t->load("coda", "\xef\x80\xa5");
+
+    // xie2 radical, slant of dai4, CJK STROKE XG
+    // radicals are at +31c0
+    t->insert("xie", t->simple(
+        SymbolTable::Glyph("\xe3\x87\x82", t->font("LiSongPro"), 4)));
+    t->insert("1^", t->symbol(DPoint(.6, 1.4),
+        SymbolTable::Glyph("1"),
+        SymbolTable::Glyph("\xe2\x80\xa2", SymbolTable::font_default, 0,
+            DPoint(.2, -.6))));
+    t->insert("1^^", t->symbol(DPoint(),
+        SymbolTable::Glyph("1"),
+        SymbolTable::Glyph("\xe2\x80\xa2", SymbolTable::font_default, 0,
+            DPoint(0, -.6)),
+        SymbolTable::Glyph("\xe2\x80\xa2", SymbolTable::font_default, 0,
+            DPoint(.4, -.6))));
+    // dots: DOT OPERATOR e2 8b 85, bullet e2 80 a2
+    // t->load("v-angle-double", "\xef\xb8\xbd", "LiSongPro", 4);
+
+    // t->load("ding", "M", NULL, 10, Point(0, 0), Point(0, 0));
+    // t->load("ding", "i", "Bali-Simbar-B", 28, Point(12, 18), Point(12, 10));
+    // t->load("ding", "i", "Bali-Simbar-B", 10, Point(0, 0), Point(0, 0));
+    // t->load("dong", "o", "Bali-Simbar-B", 26, Point(0, 8), Point(0, 10));
+    // t->load("deng", "e", "Bali-Simbar-B", 16, Point(0, -6), Point(0, 0));
+    // t->load("dung", "u", "Bali-Simbar-B", 16, Point(7, -14), Point(7, 0));
+    // t->load("dang", "*", "Bali-Simbar-B", 16, Point(12, 2), Point(8, 0));
+    // t->load("pepet", ")", "Bali-Simbar-B", 16);
+
+    // for (char **fonts = t->fonts(); *fonts; ++fonts) {
+    //     printf("%s\n", *fonts);
+    // }
 
     view.show();
     Fl::run();

@@ -50,7 +50,7 @@ struct TrackSignal {
         if (pitch_signal)
             free(pitch_signal);
         if (val_names) {
-            DEBUG("free valnames " << val_names << " " << val_names_length);
+            // DEBUG("free valnames " << val_names << " " << val_names_length);
             for (int i = 0; i < val_names_length; i++)
                 free(val_names[i].name);
             free(val_names);
