@@ -21,7 +21,7 @@ Fl_Font
 SymbolTable::font(const char *name) const
 {
     if (!name)
-        return font_default;
+        return Config::font;
     std::map<string, Font>::const_iterator it = font_map.find(string(name));
     if (it == font_map.end())
         return font_not_found;
@@ -76,9 +76,8 @@ static void
 set_font(const SymbolTable::Glyph &glyph, SymbolTable::Size size)
 {
     // Make sure font_not_found doesn't creep in.
-    ASSERT(glyph.font == SymbolTable::font_default || glyph.font >= 0);
-    fl_font(glyph.font == SymbolTable::font_default ? fl_font() : glyph.font,
-        size + glyph.size);
+    ASSERT(glyph.font >= 0);
+    fl_font(glyph.font, size + glyph.size);
 }
 
 

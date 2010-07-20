@@ -23,11 +23,10 @@ public:
     typedef Fl_Font Font;
     typedef int Size;
 
-    // font_default means use the same font used for normal letters.
-    enum { font_default = -1, font_not_found = -2};
+    enum { font_not_found = -1 };
 
     struct Glyph {
-        Glyph(const char *utf8, Font font = font_default, Size size = 0,
+        Glyph(const char *utf8, Font font = Config::font, Size size = 0,
                 DPoint align = DPoint()) :
             utf8(utf8), font(font), size(size), align_x(align.x), align_y(align.y)
         {}
@@ -57,7 +56,7 @@ public:
         std::vector<Glyph> glyphs;
     };
 
-    // Convert a font name into a Font.  NULL means font_default.
+    // Convert a font name into a Font.  NULL means Config::font.
     // This will return font_not_found if 'name' is not valid.
     Font font(const char *name) const;
 

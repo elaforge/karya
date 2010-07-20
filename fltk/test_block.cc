@@ -478,14 +478,11 @@ main(int argc, char **argv)
         SymbolTable::Glyph("\xe3\x87\x82", t->font("LiSongPro"), 4)));
     t->insert("1^", SymbolTable::Symbol(
         SymbolTable::Glyph("1"),
-        SymbolTable::Glyph("\xe2\x80\xa2", SymbolTable::font_default, 0,
-            DPoint(.2, -.6))));
+        SymbolTable::Glyph("\xe2\x80\xa2", Config::font, 0, DPoint(.2, -.6))));
     t->insert("1^^", SymbolTable::Symbol(
         SymbolTable::Glyph("1"),
-        SymbolTable::Glyph("\xe2\x80\xa2", SymbolTable::font_default, 0,
-            DPoint(0, -.6)),
-        SymbolTable::Glyph("\xe2\x80\xa2", SymbolTable::font_default, 0,
-            DPoint(.4, -.6))));
+        SymbolTable::Glyph("\xe2\x80\xa2", Config::font, 0, DPoint(0, -.6)),
+        SymbolTable::Glyph("\xe2\x80\xa2", Config::font, 0, DPoint(.4, -.6))));
     // dots: DOT OPERATOR e2 8b 85, bullet e2 80 a2
     // t->load("v-angle-double", "\xef\xb8\xbd", "LiSongPro", 4);
 
@@ -505,10 +502,8 @@ main(int argc, char **argv)
 
     SymbolTable::Symbol sym = SymbolTable::Symbol(
         SymbolTable::Glyph("1"),
-        SymbolTable::Glyph("\xe2\x80\xa2", SymbolTable::font_default, 0,
-            DPoint(0, -.6)),
-        SymbolTable::Glyph("\xe2\x80\xa2", SymbolTable::font_default, 0,
-            DPoint(.4, -.6)));
+        SymbolTable::Glyph("\xe2\x80\xa2", Config::font, 0, DPoint(0, -.6)),
+        SymbolTable::Glyph("\xe2\x80\xa2", Config::font, 0, DPoint(.4, -.6)));
     // SymbolTable::Symbol sym = SymbolTable::Symbol(SymbolTable::Glyph("1"));
     DEBUG("box " << t->measure_symbol(sym, 9));
     DEBUG("box " << t->measure_symbol(sym, 12));

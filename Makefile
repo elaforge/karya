@@ -4,7 +4,7 @@
 
 ### c++ flags
 
-CXX_DEBUG := -ggdb -O2
+CXX_DEBUG := -ggdb
 CXX_OPT := -O2
 OPT := $(CXX_DEBUG)
 

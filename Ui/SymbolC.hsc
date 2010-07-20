@@ -50,7 +50,7 @@ foreign import ccall "insert_symbol"
 
 glyph_to_glyphc :: Symbol.Glyph -> IO (Maybe GlyphC)
 glyph_to_glyphc (Symbol.Glyph chars maybe_font size (x, y)) = do
-    cfont <- maybe (return (#const SymbolTable::font_default))
+    cfont <- maybe (return (#const Config::font))
         (\f -> withCString f c_get_font) maybe_font
     return $ if cfont == (#const SymbolTable::font_not_found)
         then Nothing

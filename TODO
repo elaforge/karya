@@ -28,7 +28,7 @@ CURRENT
       from the first glyph?
     * a symbol with only one glyph should use the normal spacing for that glyph
     - draw symbols in pitch curve
-    - remove font_default, use Config::font instead
+    * remove font_default, use Config::font instead
     * c_interface
     - namespacing?  don't worry about it for now, if I need it later it can be
       entirely at the haskell level, I can use the per-song config to import
