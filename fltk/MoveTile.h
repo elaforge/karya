@@ -49,7 +49,7 @@ public:
     virtual void insert_child(Fl_Widget &w, int c);
 
     virtual int handle(int evt);
-    void drag_tile(Point drag_from, Point drag_to);
+    void drag_tile(IPoint drag_from, IPoint drag_to);
 
     /* unimplemented
     void set_move_direction(MoveDirection horizontal, MoveDirection vertical) {
@@ -67,23 +67,23 @@ public:
     // Pass these constants as child to get the "special" boxes.
     enum { GROUP_SIZE = -2, GROUP_RESIZABLE = -1 };
     // this should be const, but sizes_ isn't declared mutable
-    Rect original_box(int child);
+    IRect original_box(int child);
 
 protected:
     // Put children in left->right, top->bottom order, and return true if
     // they weren't already sorted when this was called.
     bool sort_children();
     // Don't resize a pane smaller than the x and y here.
-    const Point minimum_size;
+    const IPoint minimum_size;
     // Child currently being dragged.  Reset to -1 before a drag and after
     // a release.  It's here so subclass callbacks can get the dragged child.
     int dragged_child;
 
 private:
-    // int handle_move(int evt, BoolPoint &drag_state, Point &drag_from);
+    // int handle_move(int evt, BoolPoint &drag_state, IPoint &drag_from);
     int handle_move(int evt, BoolPoint *drag_state, int *dragged_child);
-    void handle_drag_tile(Point drag_from, Point drag_to, int dragged_child);
-    int find_dragged_child(Point drag_from, BoolPoint *drag_state);
+    void handle_drag_tile(IPoint drag_from, IPoint drag_to, int dragged_child);
+    int find_dragged_child(IPoint drag_from, BoolPoint *drag_state);
 
     MoveDirection hmove, vmove;
     std::vector<bool> stiff_children;

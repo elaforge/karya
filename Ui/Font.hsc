@@ -1,5 +1,5 @@
 module Ui.Font (
-    TextStyle(..), Font(..), FontFace(..)
+    EventStyle(..), Font(..), FontFace(..)
 ) where
 import qualified Data.List as List
 import qualified Ui.Color as Color
@@ -13,7 +13,7 @@ import qualified Ui.Util as Util
 #let alignment t = "%lu", (unsigned long)offsetof(struct {char x__; t (y__); }, y__)
 
 
-data TextStyle = TextStyle {
+data EventStyle = EventStyle {
     style_font :: Font
     , style_face :: [FontFace]
     , style_size :: Int
@@ -25,17 +25,17 @@ data Font = Helvetica | Times | Courier
 data FontFace = Bold | Italic
     deriving (Eq, Show, Read)
 
-instance Storable TextStyle where
-    sizeOf _ = #size TextStyle
-    alignment _ = #{alignment TextStyle}
-    peek = error "TextStyle peek unimplemented"
+instance Storable EventStyle where
+    sizeOf _ = #size EventStyle
+    alignment _ = #{alignment EventStyle}
+    peek = error "EventStyle peek unimplemented"
     poke = poke_text_style
 
-poke_text_style stylep (TextStyle font face size color) = do
-    (#poke TextStyle, font) stylep
+poke_text_style stylep (EventStyle font face size color) = do
+    (#poke EventStyle, font) stylep
         (Util.c_int (font_code font + face_code face))
-    (#poke TextStyle, size) stylep (Util.c_nat size)
-    (#poke TextStyle, color) stylep color
+    (#poke EventStyle, size) stylep (Util.c_nat size)
+    (#poke EventStyle, color) stylep color
 
 font_code font = case font of
     Helvetica -> #const FL_HELVETICA

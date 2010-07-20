@@ -3,6 +3,6 @@
 
 #include "util.h"
 
-void alpha_rectf(Rect r, Color c);
+void alpha_rectf(IRect r, Color c);
 
 #endif

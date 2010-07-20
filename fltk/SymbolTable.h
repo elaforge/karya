@@ -88,7 +88,7 @@ public:
     // Return the bounding box of the symbols that were drawn, or would have been
     // drawn if measure is true.  The bounding box includes ascenders but doesn't
     // include descenders, because those can generally overlap.
-    Point draw(const string &text, Point pos, Font font, Size size,
+    IPoint draw(const string &text, IPoint pos, Font font, Size size,
         bool measure = false) const;
 
     // Specialization for 'draw' that just measures.

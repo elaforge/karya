@@ -42,7 +42,9 @@ operator<<(std::ostream &os, const PointTmpl<T> &p)
 }
 
 
-typedef PointTmpl<int> Point;
+// This was originally Point, but OS X headers steal Point, and it's too much
+// hassle to try to #define it away at every include.
+typedef PointTmpl<int> IPoint;
 typedef PointTmpl<double> DPoint;
 typedef PointTmpl<bool> BoolPoint;
 
@@ -141,7 +143,8 @@ operator<<(std::ostream &os, const RectTmpl<T> &r)
 }
 
 
-typedef RectTmpl<int> Rect;
+// Same story as Point.
+typedef RectTmpl<int> IRect;
 typedef RectTmpl<double> DRect;
 
 }

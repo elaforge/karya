@@ -88,7 +88,7 @@ style_table =
     where
     evt_color = Color.rgb 0.9 0.9 0.7
 
-default_font = Font.TextStyle Font.Helvetica [] 9 Color.black
+default_font = Font.EventStyle Font.Helvetica [] 9 Color.black
 
 -- | To save space, event styles are explicitly shared by storing them in
 -- a table.
@@ -97,7 +97,7 @@ newtype StyleId = StyleId Word8
 
 data Style = Style {
     style_color :: Color
-    , style_text :: Font.TextStyle
+    , style_text :: Font.EventStyle
     } deriving (Eq, Show, Read)
 
 -- * storable

@@ -108,7 +108,7 @@ struct UiMsg {
     int visible_time;
     ZoomInfo *update_zoom;
     // Set by msg_view_resize.
-    Rect *update_rect;
+    IRect *update_rect;
 
     // Every msg may have context.
     // Block that event occurred in.

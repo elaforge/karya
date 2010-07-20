@@ -134,10 +134,10 @@ TrackTile::track_end() const
     return end;
 }
 
-Point
+IPoint
 TrackTile::visible_pixels() const
 {
-    return Point(this->w(), std::max(0, this->h() - this->title_height));
+    return IPoint(this->w(), std::max(0, this->h() - this->title_height));
 }
 
 void

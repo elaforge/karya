@@ -180,7 +180,7 @@ EventTrackView::EventTrackView(const EventTrackConfig &config,
 void
 EventTrackView::resize(int x, int y, int w, int h)
 {
-    // DEBUG("resize " << rect(this) << " -> " << Rect(x, y, w, h));
+    // DEBUG("resize " << rect(this) << " -> " << IRect(x, y, w, h));
     // Don't call Fl_Group::resize because I just did the sizes myself.
     Fl_Widget::resize(x, y, w, h);
     this->overlay_ruler.resize(x, y, w, h);
@@ -269,7 +269,7 @@ static void dummy_scroll_draw(void *, int, int, int, int) {}
 void
 EventTrackView::draw()
 {
-    Rect draw_area = rect(this);
+    IRect draw_area = rect(this);
 
     // DEBUG("event track damage " << show_damage(damage()));
     if (this->damage() == FL_DAMAGE_SCROLL) {
@@ -320,7 +320,7 @@ EventTrackView::draw()
     // TODO It might be cleaner to eliminate bg_box and just call fl_rectf
     // and fl_draw_box myself.  But this draws the all-mighty bevel too.
     this->draw_child(this->bg_box);
-    Rect inside_bevel = rect(this);
+    IRect inside_bevel = rect(this);
     inside_bevel.x++; inside_bevel.w -= 2;
     inside_bevel.y++; inside_bevel.h -= 2;
     ClipArea clip_area2(inside_bevel);
@@ -347,7 +347,7 @@ show_found_events(ScoreTime start, ScoreTime end,
 void
 EventTrackView::draw_area()
 {
-    Rect clip = clip_rect(rect(this));
+    IRect clip = clip_rect(rect(this));
     int y = this->y() + 1; // top pixel is a bevel
 
     // Code copy and pasted from OverlayRuler::draw_marklists.
@@ -398,7 +398,7 @@ EventTrackView::draw_area()
 
     // Draw the upper layer (event start line, text).
     // Don't use INT_MIN because it overflows too easily.
-    Rect previous(x(), -9999, 0, 0);
+    IRect previous(x(), -9999, 0, 0);
     int ranked_bottom = -9999;
     int prev_offset = -9999;
     for (int i = 0; i < count; i++) {
@@ -548,7 +548,7 @@ EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
 
 void
 EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
-        Rect *previous, int *ranked_bottom, int prev_offset)
+        IRect *previous, int *ranked_bottom, int prev_offset)
 {
     // So the overlap stuff is actually pretty tricky.  I want to not display
     // text when it would overlap with the previous text, so it doesn't get
@@ -568,7 +568,7 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
 
     // A little overlap is ok... or not.
     const static int ok_overlap = 0;
-    Rect text_rect(0, 0, 0, 0);
+    IRect text_rect(0, 0, 0, 0);
 
     const Fl_Font font = Config::font;
     const int size = Config::font_size::event;
@@ -576,7 +576,7 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
     text_rect.x = x() + 2;
     text_rect.y = offset;
     if (event.text) {
-        Point box = SymbolTable::table()->measure(event.text, font, size);
+        IPoint box = SymbolTable::table()->measure(event.text, font, size);
         text_rect.w = box.x;
         text_rect.h = box.y;
         // Text goes above the trigger line for negative events.
@@ -628,7 +628,7 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
         else
             fl_color(FL_BLACK);
         SymbolTable::table()->draw(std::string(event.text),
-            Point(text_rect.x, text_rect.b()), font, size);
+            IPoint(text_rect.x, text_rect.b()), font, size);
         if (!rank) {
             if (text_rect.w > w() - 4) {
                 // If the text is too long it gets truncated with a blue

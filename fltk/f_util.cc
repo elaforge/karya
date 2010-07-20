@@ -141,7 +141,7 @@ const char *
 show_widget(const Fl_Widget *w)
 {
     static char buf[127];
-    Rect r = rect(*w);
+    IRect r = rect(*w);
     snprintf(buf, sizeof buf, "(%d %d %d %d) %s \"%s\" '%s'",
         r.x, r.y, r.w, r.h,
         typeid(*w).name(), w->label(), show_damage(w->damage()));

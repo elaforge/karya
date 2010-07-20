@@ -24,7 +24,7 @@ void
 SeqInput::resize(int x, int y, int w, int h)
 {
     if (!this->expanded)
-        this->proper_size = Point(w, h);
+        this->proper_size = IPoint(w, h);
     Fl_Input::resize(x, y, w, h);
 }
 
@@ -106,7 +106,7 @@ SeqInput::expand()
 {
     if (!this->do_expansion)
         return;
-    Point size(0, 0);
+    IPoint size(0, 0);
     fl_font(Config::font, Config::font_size::input);
     fl_measure(this->value(), size.x, size.y, false);
 
@@ -155,7 +155,7 @@ SeqInput::redraw_neighbors()
     // to redraw them when I contract() again.
     Fl_Group *parent = this->parent();
     ASSERT(parent);
-    Rect me(rect(this));
+    IRect me(rect(this));
     // DEBUG("me: " << me);
     for (int i = 0; i < parent->children(); i++) {
         Fl_Widget &sibling = *parent->child(i);

@@ -12,7 +12,8 @@ MIDI_LIBS := -framework CoreFoundation -framework CoreMIDI -framework CoreAudio
 CINCLUDE := -Ifltk -I.
 
 # Flags for all versions.
-FLTK_LD := -lpthread -framework Carbon -framework ApplicationServices
+FLTK_LD := -lpthread -framework Carbon -framework ApplicationServices \
+    -framework AudioToolbox
 LIBFLTK_D := -D_THREAD_SAFE -D_REENTRANT
 
 # vanilla fltk

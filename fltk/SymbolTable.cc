@@ -58,14 +58,14 @@ SymbolTable::insert(const string &name, const Symbol &sym)
 
 // Draw the given text and return its width.
 static double
-draw_text(const char *text, int n, Point pos, bool measure,
+draw_text(const char *text, int n, IPoint pos, bool measure,
     DPoint align = DPoint(0, 0))
 {
     if (n == 0)
         return 0;
     // DEBUG("draw_text " << n << ": " << string(text, n) << " " << pos);
 
-    pos = pos + Point(align.x * fl_size(), align.y * fl_size());
+    pos = pos + IPoint(align.x * fl_size(), align.y * fl_size());
     if (!measure)
         fl_draw(text, n, pos.x, pos.y);
     return fl_width(text, n);
@@ -83,7 +83,7 @@ set_font(const SymbolTable::Glyph &glyph, SymbolTable::Size size)
 
 // Draw a group of glyphs and return their width.
 static double
-draw_glyphs(Point pos, const SymbolTable::Symbol &sym, SymbolTable::Size size)
+draw_glyphs(IPoint pos, const SymbolTable::Symbol &sym, SymbolTable::Size size)
 {
     double w = 0;
     for (std::vector<SymbolTable::Glyph>::const_iterator
@@ -101,10 +101,10 @@ draw_glyphs(Point pos, const SymbolTable::Symbol &sym, SymbolTable::Size size)
 //
 // If the Symbol has an explicit box set, use that, otherwise take the box from
 // the first glyph.
-static Point
+static IPoint
 measure_glyphs(const SymbolTable::Symbol &sym, SymbolTable::Size size)
 {
-    Point box;
+    IPoint box;
     if (sym.box == DPoint(0, 0) && sym.glyphs.size() > 0) {
         const SymbolTable::Glyph &glyph = sym.glyphs[0];
         // Figure out the box automatically from the first glyph.
@@ -119,8 +119,8 @@ measure_glyphs(const SymbolTable::Symbol &sym, SymbolTable::Size size)
 }
 
 
-Point
-SymbolTable::draw(const string &text, Point pos, Font font, Size size,
+IPoint
+SymbolTable::draw(const string &text, IPoint pos, Font font, Size size,
         bool measure) const
 {
     size_t start = 0;
@@ -128,7 +128,7 @@ SymbolTable::draw(const string &text, Point pos, Font font, Size size,
 
     fl_font(font, size);
     // Keep track of the current bounding box.
-    Point box(0, fl_height() - fl_descent());
+    IPoint box(0, fl_height() - fl_descent());
 
     while ((i = text.find('`', start)) < text.size()) {
         i++;
@@ -138,20 +138,20 @@ SymbolTable::draw(const string &text, Point pos, Font font, Size size,
 
         fl_font(font, size);
         box.x += draw_text(text.c_str() + start, i-start-1,
-            Point(pos.x + box.x, pos.y), measure);
+            IPoint(pos.x + box.x, pos.y), measure);
 
         SymbolMap::const_iterator it = this->symbol_map.find(text.substr(i, j-i));
         if (it == symbol_map.end()) {
             box.x += draw_text(text.c_str() + i - 1, j-i + 2,
-                Point(pos.x + box.x, pos.y), measure);
+                IPoint(pos.x + box.x, pos.y), measure);
         } else {
             if (measure) {
-                Point glyphs_box = measure_glyphs(it->second, size);
+                IPoint glyphs_box = measure_glyphs(it->second, size);
                 box.x += glyphs_box.x;
                 box.y = std::max(box.y, glyphs_box.y);
             } else {
                 box.x += draw_glyphs(
-                    Point(pos.x + box.x, pos.y), it->second, size);
+                    IPoint(pos.x + box.x, pos.y), it->second, size);
             }
         }
         start = j + 1;
@@ -159,13 +159,13 @@ SymbolTable::draw(const string &text, Point pos, Font font, Size size,
     fl_font(font, size);
     if (start < text.size()) {
         box.x += draw_text(text.c_str() + start, text.size() - start,
-            Point(pos.x + box.x, pos.y), measure);
+            IPoint(pos.x + box.x, pos.y), measure);
     }
     return box;
 }
 
 
-Point
+IPoint
 SymbolTable::measure(const string &text, Font font, Size size) const
 {
     return this->draw(text, Point(0, 0), font, size, true);

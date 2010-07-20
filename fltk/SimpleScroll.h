@@ -23,14 +23,14 @@ public:
     {}
     void resize(int X, int Y, int W, int H);
 
-    Point get_offset() const { return offset; }
-    void set_offset(Point offset);
+    IPoint get_offset() const { return offset; }
+    void set_offset(IPoint offset);
 
 protected:
     void draw();
 
 private:
-    Point offset;
+    IPoint offset;
 };
 
 #endif

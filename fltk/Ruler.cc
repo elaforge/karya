@@ -100,7 +100,7 @@ OverlayRuler::draw()
     bool clip = false;
     // DEBUG("ruler damage " << show_damage(damage()));
     if (damage() == OverlayRuler::DAMAGE_RANGE) {
-        Rect c = rect(this).intersect(this->damaged_area);
+        IRect c = rect(this).intersect(this->damaged_area);
         fl_push_clip(c.x, c.y, c.w, c.h);
         // DEBUG("draw range " << c << c.height_range());
         clip = true;
@@ -119,7 +119,7 @@ OverlayRuler::draw()
 void
 OverlayRuler::damage_range(ScoreTime start, ScoreTime end)
 {
-    Rect r = rect(this);
+    IRect r = rect(this);
     if (start == ScoreTime(-1) && end == ScoreTime(-1)) {
         ; // leave it covering the whole widget
     } else {
@@ -147,7 +147,7 @@ OverlayRuler::damage_range(ScoreTime start, ScoreTime end)
 void
 OverlayRuler::draw_marklists()
 {
-    Rect clip = clip_rect(rect(this));
+    IRect clip = clip_rect(rect(this));
     // DEBUG("clip: " << clip);
     if (clip.w == 0 || clip.h == 0)
         return;
@@ -218,7 +218,7 @@ OverlayRuler::draw_mark(int offset, const Mark &mark)
     width = floor(width);
 
     if (this->zoom.factor >= mark.zoom_level)
-        alpha_rectf(Rect(x()+w() - width - 1, offset, width, mark.width), c);
+        alpha_rectf(IRect(x()+w() - width - 1, offset, width, mark.width), c);
 
     if (this->zoom.factor >= mark.name_zoom_level && this->config.show_names
             && mark.name)
@@ -247,7 +247,7 @@ OverlayRuler::draw_mark(int offset, const Mark &mark)
 void
 OverlayRuler::draw_selections()
 {
-    Rect sel_rect;
+    IRect sel_rect;
     int y = this->y() + 1; // avoid bevel
     for (int i = 0; i < Config::max_selections; i++) {
         const TrackSelection &sel = this->selections[i];
@@ -256,10 +256,10 @@ OverlayRuler::draw_selections()
         int start = y + this->zoom.to_pixels(sel.low() - this->zoom.offset);
         int height = std::max(selection_min_size,
                 this->zoom.to_pixels(sel.high() - sel.low()));
-        // Rect intersection is half-open ranges, but rect drawing is inclusive
+        // IRect intersection is half-open ranges, but rect drawing is inclusive
         // pixel ranges.  So add one to ensure that if I share a pixel border
         // with the clip rect, I'll still draw that pixel line.
-        sel_rect = clip_rect(Rect(x(), start, w(), height + 1));
+        sel_rect = clip_rect(IRect(x(), start, w(), height + 1));
         alpha_rectf(sel_rect, sel.color);
 
         // Darken the the cur pos a bit, and make it non-transparent.
@@ -337,7 +337,7 @@ RulerTrackView::update(const Tracklike &track, FinalizeCallback finalizer,
 void
 RulerTrackView::draw()
 {
-    Rect draw_area = rect(this);
+    IRect draw_area = rect(this);
 
     // TODO this is mostly a copy from EventTrackView
     // factor this stuff into a "ScrollableTrack" base class?
@@ -383,7 +383,7 @@ RulerTrackView::draw()
     ClipArea clip_area(draw_area);
     this->draw_child(this->bg_box);
 
-    Rect inside_bevel = rect(this);
+    IRect inside_bevel = rect(this);
     inside_bevel.x++; inside_bevel.w -= 2;
     inside_bevel.y++; inside_bevel.h -= 2;
     ClipArea clip_area2(inside_bevel);

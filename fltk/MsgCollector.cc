@@ -77,7 +77,7 @@ set_msg_context(BlockViewWindow *view, bool track_drag, UiMsg &m)
                 win = Fl::next_window(win))
         {
             // Events are reported relative to the window.
-            Rect r = rect(win);
+            IRect r = rect(win);
             r.x = r.y = 0;
             if (Fl::event_inside(r.x, r.y, r.w, r.h)) {
                 m.view = dynamic_cast<BlockViewWindow *>(win);
@@ -164,9 +164,9 @@ set_update_args(UiMsg &m, BlockView *view, UiMsg::MsgType type)
         m.update_zoom = new ZoomInfo(view->get_zoom());
         break;
     case UiMsg::msg_view_resize:
-        m.update_rect = new Rect(rect(view->window()));
+        m.update_rect = new IRect(rect(view->window()));
         {
-            Point track_size = view->get_track_size();
+            IPoint track_size = view->get_track_size();
             m.width_scroll_visible_track = track_size.x;
             m.visible_time = track_size.y;
         }

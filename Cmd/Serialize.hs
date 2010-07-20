@@ -332,10 +332,10 @@ instance Binary Color.Color where
     get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
         return (Color.Color a b c d)
 
-text_style = Font.TextStyle :: Font.Font -> [Font.FontFace] -> Int -> Color
-    -> Font.TextStyle
-instance Binary Font.TextStyle where
-    put (Font.TextStyle a b c d) = put a >> put b >> put c >> put d
+text_style = Font.EventStyle :: Font.Font -> [Font.FontFace] -> Int -> Color
+    -> Font.EventStyle
+instance Binary Font.EventStyle where
+    put (Font.EventStyle a b c d) = put a >> put b >> put c >> put d
     get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
         return (text_style a b c d)
 

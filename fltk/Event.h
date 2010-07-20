@@ -23,7 +23,7 @@ struct Event {
     // the EventTrackModel::Events map.
     Event() : duration(0), color(0, 0, 0) {}
     Event(char *text, ScoreTime duration, Color color,
-            const TextStyle &style, bool align_to_bottom = false) :
+            const EventStyle &style, bool align_to_bottom = false) :
         text(text), duration(duration), color(color), style(style)
     {}
     bool is_negative() const {
@@ -34,7 +34,7 @@ struct Event {
     char *text;
     ScoreTime duration;
     Color color;
-    TextStyle style;
+    EventStyle style;
 };
 
 #endif

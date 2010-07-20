@@ -101,7 +101,7 @@ public:
 
     enum { DAMAGE_RANGE = FL_DAMAGE_USER1 };
     // This area needs to be redrawn.
-    Rect damaged_area;
+    IRect damaged_area;
 
     RulerConfig config;
 

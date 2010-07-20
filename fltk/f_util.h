@@ -12,9 +12,9 @@
 
 // use more convenient types with standard fltk functions
 
-inline Rect
-rect(const Fl_Widget &w) { return Rect(w.x(), w.y(), w.w(), w.h()); }
-inline Rect
+inline IRect
+rect(const Fl_Widget &w) { return IRect(w.x(), w.y(), w.w(), w.h()); }
+inline IRect
 rect(const Fl_Widget *w) { return rect(*w); }
 
 inline Fl_Color
@@ -23,10 +23,10 @@ color_to_fl(const Color &c)
     return fl_rgb_color(c.r, c.g, c.b);
 }
 
-inline Point
+inline IPoint
 mouse_pos()
 {
-    return Point(Fl::event_x(), Fl::event_y());
+    return IPoint(Fl::event_x(), Fl::event_y());
 }
 
 
@@ -45,18 +45,18 @@ void print_children(const Fl_Widget *w, int nlevels=-1, int recurse = 0);
 // RAII style clipping
 
 struct ClipArea {
-    ClipArea(Rect r) { fl_push_clip(r.x, r.y, r.w, r.h); }
+    ClipArea(IRect r) { fl_push_clip(r.x, r.y, r.w, r.h); }
     ~ClipArea() { fl_pop_clip(); }
 };
 
 
 // Intersect 'r' with the clip area.
-inline Rect
-clip_rect(Rect r)
+inline IRect
+clip_rect(IRect r)
 {
     int x, y, w, h;
     fl_clip_box(r.x, r.y, r.w, r.h, x, y, w, h);
-    return Rect(x, y, w, h);
+    return IRect(x, y, w, h);
 }
 
 #endif

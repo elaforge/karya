@@ -34,7 +34,7 @@ DividerView::DividerView(const DividerConfig &config) :
 void
 DividerView::draw()
 {
-    Rect r = rect(this);
+    IRect r = rect(this);
     r.h--;
     ClipArea c(r);
     TrackView::draw();

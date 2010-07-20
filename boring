@@ -23,6 +23,8 @@ _stub.[ch]$
 ^tools/fixdeps$
 
 # .hs generated from .hsc
+^Instrument/BrowserC.hs$
+^LogView/LogViewC.hs$
 ^Midi/PortMidi.hs$
 ^Ui/BlockC.hs$
 ^Ui/Color.hs$
@@ -30,11 +32,10 @@ _stub.[ch]$
 ^Ui/Font.hs$
 ^Ui/Key.hs$
 ^Ui/RulerC.hs$
+^Ui/SymbolC.hs$
 ^Ui/TrackC.hs$
 ^Ui/Types.hs$
 ^Ui/UiMsgC.hs$
-^LogView/LogViewC.hs$
-^Instrument/BrowserC.hs$
 
 # Boring file regexps:
 \.hi$

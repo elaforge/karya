@@ -7,7 +7,8 @@
 #include "f_util.h"
 #include "alpha_draw.h"
 
-void alpha_rectf(Rect r, Color c)
+
+void alpha_rectf(IRect r, Color c)
 {
     // If it has no alpha, don't bother doing the aplha stuff.
     /*

@@ -35,6 +35,7 @@ module Perform.Pitch (
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
+import qualified Ui.Symbol as Symbol
 import qualified Ui.Track as Track
 import {-# SOURCE #-} qualified Derive.Derive as Derive (ValCall)
 
@@ -157,6 +158,11 @@ data Scale = Scale {
     -- | This is passed to the UI so it knows what to call scale degrees when
     -- rendering a pitch signal with this scale.
     , scale_map :: Track.ScaleMap
+
+    -- | If a scale uses 'Symbol.Symbol's, it can include the definitions here
+    -- so they are close to their use.  This symbol list should be loaded as
+    -- soon as possible, which means program startup for hardcoded scales.
+    , scale_symbols :: [Symbol.Symbol]
 
     -- | How many integral Degrees are there in an octave?  This is so
     -- that relative pitch notation, which includes an octave, can generate

@@ -35,14 +35,14 @@ rect_r rect = rect_x rect + rect_w rect
 rect_b rect = rect_y rect + rect_h rect
 
 instance Storable Rect where
-    sizeOf _ = #size Rect
-    alignment _ = #{alignment Rect}
+    sizeOf _ = #size IRect
+    alignment _ = #{alignment IRect}
     poke = error "Rect poke unimplemented"
     peek rectp = do
-        x <- (#peek Rect, x) rectp :: IO CInt
-        y <- (#peek Rect, y) rectp :: IO CInt
-        w <- (#peek Rect, w) rectp :: IO CInt
-        h <- (#peek Rect, h) rectp :: IO CInt
+        x <- (#peek IRect, x) rectp :: IO CInt
+        y <- (#peek IRect, y) rectp :: IO CInt
+        w <- (#peek IRect, w) rectp :: IO CInt
+        h <- (#peek IRect, h) rectp :: IO CInt
         return $ Rect (i x) (i y) (i w) (i h)
         where i = fromIntegral
 

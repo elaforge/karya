@@ -43,7 +43,7 @@ P9Scrollbar::set_scroll(double offset, double size)
         int pos = std::min(h() - this->min_size, int(offset*h()));
         int sz = std::max(this->min_size, int(size*h()));
         // DEBUG("scroll pos " << DPoint(offset, size) << " actually "
-        //         << Point(pos, sz));
+        //         << IPoint(pos, sz));
         scrollbox.resize(x()+1, y() + pos, w()-2, sz);
     } else if (orientation == P9Scrollbar::horizontal) {
         int pos = std::min(w() - this->min_size, int(offset*w()));

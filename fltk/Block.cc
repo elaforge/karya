@@ -157,7 +157,7 @@ BlockView::set_view_config(const BlockViewConfig &vconfig, bool _update_all)
             ruler_group_w, vconfig.skel_height);
     skel_display_scroll.resize(skel_box.x() + skel_box.w(), skel_box.y(),
             body.w() - ruler_group_w, vconfig.skel_height);
-    Rect p = rect(skel_display_scroll);
+    IRect p = rect(skel_display_scroll);
     skel_display.resize(p.x, p.y, p.w, p.h);
 
     // Re-use the existing ruler_track width so it is maintained across calls
@@ -314,7 +314,7 @@ BlockView::set_track_scroll(int offset)
     // offset = std::min(max_offset, offset);
 
     // If you update this, also update scrollbar_cb!
-    Point scroll_offset(-offset, 0);
+    IPoint scroll_offset(-offset, 0);
     if (scroll_offset == this->track_scroll.get_offset())
         return;
     this->track_scroll.set_offset(scroll_offset);
@@ -509,7 +509,7 @@ BlockView::replace_ruler_track(TrackView *track, int width)
     this->ruler_track = track;
     // Initially the widths match, so the inserted track is layed out
     // correctly.
-    Rect p = rect(this->ruler_group);
+    IRect p = rect(this->ruler_group);
     ruler_track->resize(p.x + time_sb.w(), p.y + track_box.h(),
             removed ? removed->w() : 1, time_sb.h());
     ruler_group.add(track);
@@ -584,7 +584,7 @@ BlockView::scrollbar_cb(Fl_Widget *_unused_w, void *vp)
     int track_end = self->track_tile.track_end();
     int max_offset = std::max(0, track_end - self->track_scroll.w());
     int offset = std::min(max_offset, int(track_offset * track_end));
-    Point new_offset(-offset, 0);
+    IPoint new_offset(-offset, 0);
     if (self->track_scroll.get_offset() != new_offset) {
         self->track_scroll.set_offset(new_offset);
         self->skel_display_scroll.set_offset(new_offset);

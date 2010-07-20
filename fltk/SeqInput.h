@@ -20,7 +20,7 @@ public:
 protected:
     int handle(int evt);
 private:
-    Point proper_size;
+    IPoint proper_size;
     bool expanded;
     bool do_expansion;
     void expand();

@@ -148,7 +148,7 @@ struct ZoomInfo {
 std::ostream &operator<<(std::ostream &os, const ZoomInfo &z);
 
 
-struct TextStyle {
+struct EventStyle {
     int font; // font and face as an fltk font index
     int size;
     Color color;

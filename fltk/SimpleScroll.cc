@@ -7,16 +7,16 @@
 void
 SimpleScroll::resize(int X, int Y, int W, int H)
 {
-    Point diff(W - w(), H - h());
+    IPoint diff(W - w(), H - h());
     Fl_Widget *c = child(0);
     c->resize(X + offset.x, Y + offset.y, c->w() + diff.x, c->h() + diff.y);
     Fl_Widget::resize(X, Y, W, H);
 }
 
 void
-SimpleScroll::set_offset(Point offset)
+SimpleScroll::set_offset(IPoint offset)
 {
-    Point shift(offset.x - this->offset.x, offset.y - this->offset.y);
+    IPoint shift(offset.x - this->offset.x, offset.y - this->offset.y);
     this->offset = offset;
     // When scrolling in negative x and y (so the child's x and y are getting
     // smaller), grow the child so its right edge stays in the same place.

@@ -145,7 +145,7 @@ void t1_set()
 {
     TrackData &e = t1_events;
     Color eventc = Color(200, 200, 170);
-    TextStyle style;
+    EventStyle style;
     style.font = FL_HELVETICA;
     style.size = 9;
 
@@ -486,19 +486,29 @@ main(int argc, char **argv)
     // dots: DOT OPERATOR e2 8b 85, bullet e2 80 a2
     // t->load("v-angle-double", "\xef\xb8\xbd", "LiSongPro", 4);
 
-    // t->load("ding", "M", NULL, 10, Point(0, 0), Point(0, 0));
-    // t->load("ding", "i", "Bali-Simbar-B", 28, Point(12, 18), Point(12, 10));
-    // t->load("ding", "i", "Bali-Simbar-B", 10, Point(0, 0), Point(0, 0));
-    // t->load("dong", "o", "Bali-Simbar-B", 26, Point(0, 8), Point(0, 10));
-    // t->load("deng", "e", "Bali-Simbar-B", 16, Point(0, -6), Point(0, 0));
-    // t->load("dung", "u", "Bali-Simbar-B", 16, Point(7, -14), Point(7, 0));
-    // t->load("dang", "*", "Bali-Simbar-B", 16, Point(12, 2), Point(8, 0));
+    // t->load("ding", "M", NULL, 10, IPoint(0, 0), IPoint(0, 0));
+    // t->load("ding", "i", "Bali-Simbar-B", 28, IPoint(12, 18), IPoint(12, 10));
+    // t->load("ding", "i", "Bali-Simbar-B", 10, IPoint(0, 0), IPoint(0, 0));
+    // t->load("dong", "o", "Bali-Simbar-B", 26, IPoint(0, 8), IPoint(0, 10));
+    // t->load("deng", "e", "Bali-Simbar-B", 16, IPoint(0, -6), IPoint(0, 0));
+    // t->load("dung", "u", "Bali-Simbar-B", 16, IPoint(7, -14), IPoint(7, 0));
+    // t->load("dang", "*", "Bali-Simbar-B", 16, IPoint(12, 2), IPoint(8, 0));
     // t->load("pepet", ")", "Bali-Simbar-B", 16);
 
     // for (char **fonts = t->fonts(); *fonts; ++fonts) {
     //     printf("%s\n", *fonts);
     // }
-
     view.show();
+
+    SymbolTable::Symbol sym = t->symbol(DPoint(),
+        SymbolTable::Glyph("1"),
+        SymbolTable::Glyph("\xe2\x80\xa2", SymbolTable::font_default, 0,
+            DPoint(0, -.6)),
+        SymbolTable::Glyph("\xe2\x80\xa2", SymbolTable::font_default, 0,
+            DPoint(.4, -.6)));
+    // SymbolTable::Symbol sym = t->simple(SymbolTable::Glyph("1"));
+    DEBUG("box " << t->measure_symbol(sym, 9));
+    DEBUG("box " << t->measure_symbol(sym, 9));
+
     Fl::run();
 }

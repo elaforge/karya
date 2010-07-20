@@ -39,7 +39,7 @@ dot_below s = Symbol.Symbol (s ++ ".") (Just (0.6, 1.2))
 
 dot2_below :: String -> Symbol.Symbol
 dot2_below s = Symbol.Symbol (s ++ "..") (Just (0.6, 1.2))
-    [Symbol.Glyph s Nothing 0 (0, -0.2)
+    [Symbol.Glyph s Nothing 0 (0, -0.2),
         Symbol.Glyph dot Nothing 0 (0, 0.5),
         Symbol.Glyph dot Nothing 0 (0.4, 0.5)]
 
