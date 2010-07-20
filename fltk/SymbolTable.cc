@@ -249,6 +249,12 @@ do_measure_symbol(const SymbolTable::Symbol &sym, SymbolTable::Size size)
 IRect
 SymbolTable::measure_symbol(const Symbol &sym, Size size) const
 {
+    // If there's just one glyph, using the font metrics looks better.
+    if (sym.glyphs.size() == 1) {
+        set_font(sym.glyphs[0], size);
+        return IRect(0, 0,
+            fl_width(sym.glyphs[0].utf8), fl_height() - fl_descent());
+    }
     std::map<const CacheKey, IRect>::iterator it =
         this->box_cache.find(std::make_pair(&sym, size));
     if (it == box_cache.end()) {

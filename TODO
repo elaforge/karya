@@ -26,7 +26,7 @@ CURRENT
       by drawing the symbol and counting pixels, if necessary
     - symbols are now not lined up vertically.  I think I can take the baseline
       from the first glyph?
-    - a symbol with only one glyph should use the normal spacing for that glyph
+    * a symbol with only one glyph should use the normal spacing for that glyph
     - draw symbols in pitch curve
     - remove font_default, use Config::font instead
     * c_interface
