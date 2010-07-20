@@ -150,6 +150,8 @@ void t1_set()
     style.size = 9;
 
     // e.push_back(EventInfo(ScoreTime(0),
+    //     Event("M`xie`M", ScoreTime(16), eventc, style), 0));
+    // e.push_back(EventInfo(ScoreTime(0),
     //     Event("`1^`", ScoreTime(16), eventc, style), 0));
     // e.push_back(EventInfo(ScoreTime(32),
     //     Event("`1^`", ScoreTime(-16), eventc, style), 0));
@@ -465,19 +467,20 @@ main(int argc, char **argv)
     // will be freed if there is a duplicate symbol.  But I don't care for a
     // test.
     SymbolTable *t = SymbolTable::table();
-    t->insert("tamil-i", t->simple(SymbolTable::Glyph("\xe0\xae\x87", NULL, 4)));
+    t->insert("tamil-i", SymbolTable::Symbol(
+        SymbolTable::Glyph("\xe0\xae\x87", NULL, 4)));
     // t->load("yen", "\xc2\xa5");
     // t->load("coda", "\xef\x80\xa5");
 
     // xie2 radical, slant of dai4, CJK STROKE XG
     // radicals are at +31c0
-    t->insert("xie", t->simple(
+    t->insert("xie", SymbolTable::Symbol(
         SymbolTable::Glyph("\xe3\x87\x82", t->font("LiSongPro"), 4)));
-    t->insert("1^", t->symbol(DPoint(.6, 1.4),
+    t->insert("1^", SymbolTable::Symbol(
         SymbolTable::Glyph("1"),
         SymbolTable::Glyph("\xe2\x80\xa2", SymbolTable::font_default, 0,
             DPoint(.2, -.6))));
-    t->insert("1^^", t->symbol(DPoint(),
+    t->insert("1^^", SymbolTable::Symbol(
         SymbolTable::Glyph("1"),
         SymbolTable::Glyph("\xe2\x80\xa2", SymbolTable::font_default, 0,
             DPoint(0, -.6)),
@@ -500,15 +503,15 @@ main(int argc, char **argv)
     // }
     view.show();
 
-    SymbolTable::Symbol sym = t->symbol(DPoint(),
+    SymbolTable::Symbol sym = SymbolTable::Symbol(
         SymbolTable::Glyph("1"),
         SymbolTable::Glyph("\xe2\x80\xa2", SymbolTable::font_default, 0,
             DPoint(0, -.6)),
         SymbolTable::Glyph("\xe2\x80\xa2", SymbolTable::font_default, 0,
             DPoint(.4, -.6)));
-    // SymbolTable::Symbol sym = t->simple(SymbolTable::Glyph("1"));
+    // SymbolTable::Symbol sym = SymbolTable::Symbol(SymbolTable::Glyph("1"));
     DEBUG("box " << t->measure_symbol(sym, 9));
-    DEBUG("box " << t->measure_symbol(sym, 9));
+    DEBUG("box " << t->measure_symbol(sym, 12));
 
     Fl::run();
 }

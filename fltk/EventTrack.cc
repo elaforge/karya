@@ -574,14 +574,14 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
     const int size = Config::font_size::event;
 
     text_rect.x = x() + 2;
-    text_rect.y = offset;
+    text_rect.y = offset + 1;
     if (event.text) {
         IPoint box = SymbolTable::table()->measure(event.text, font, size);
         text_rect.w = box.x;
         text_rect.h = box.y;
         // Text goes above the trigger line for negative events.
         if (event.is_negative())
-            text_rect.y = offset - box.y - 1;
+            text_rect.y = offset - box.y;
     }
     if (rank && text_rect.y >= previous->b() - ok_overlap)
         previous->w = 0;
@@ -627,8 +627,10 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
                         Color(0, 0, 0).brightness(rank_brightness)));
         else
             fl_color(FL_BLACK);
+        // I'm not sure why, but fl_draw seems to be drawing text a little
+        // below where I want it to.
         SymbolTable::table()->draw(std::string(event.text),
-            IPoint(text_rect.x, text_rect.b()), font, size);
+            IPoint(text_rect.x, text_rect.b() - 2), font, size);
         if (!rank) {
             if (text_rect.w > w() - 4) {
                 // If the text is too long it gets truncated with a blue

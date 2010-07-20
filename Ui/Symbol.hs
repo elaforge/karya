@@ -13,27 +13,24 @@ module Ui.Symbol where
 
 -- | Make a simple symbol with only text.
 simple :: String -> String -> Symbol
-simple name chars = Symbol name Nothing [Glyph chars Nothing 0 (0, 0)]
+simple name chars = Symbol name [Glyph chars Nothing 0 (0, 0)]
 
 -- | Make a simple symbol with a font and text.
 simple_font :: String -> String -> Font -> Symbol
-simple_font name chars font = Symbol name Nothing
-    [Glyph chars (Just font) 0 (0, 0)]
+simple_font name chars font = Symbol name [Glyph chars (Just font) 0 (0, 0)]
 
 glyph :: String -> Glyph
 glyph s = Glyph s Nothing 0 (0, 0)
 
 type Font = String
 
--- | A Symbol has a name, an optional bounding box, and a list of Glyphs that
--- make it up.
+-- | A Symbol has a name and a list of the Glyphs that make it up.
 --
 -- If the bounding box is not given, it will be inferred from the first glyph.
 -- The bounding box will be scaled by the eventual font size.  Don't pass an
 -- empty glyphs list.
 data Symbol = Symbol {
     sym_name :: String
-    , sym_box :: Maybe (Double, Double)
     , sym_glyphs :: [Glyph]
     } deriving (Show)
 

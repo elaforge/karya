@@ -1,5 +1,6 @@
 #include <FL/fl_draw.H>
 #include <FL/Fl.H>
+#include <FL/x.H> // Needed for Fl_Offscreen.
 
 #include "SymbolTable.h"
 #include "util.h"
@@ -81,41 +82,17 @@ set_font(const SymbolTable::Glyph &glyph, SymbolTable::Size size)
 }
 
 
-// Draw a group of glyphs and return their width.
-static double
+// Draw a group of glyphs.
+static void
 draw_glyphs(IPoint pos, const SymbolTable::Symbol &sym, SymbolTable::Size size)
 {
-    double w = 0;
     for (std::vector<SymbolTable::Glyph>::const_iterator
             glyph = sym.glyphs.begin(); glyph != sym.glyphs.end(); ++glyph)
     {
         set_font(*glyph, size);
-        w += draw_text(glyph->utf8, strlen(glyph->utf8), pos, false,
+        draw_text(glyph->utf8, strlen(glyph->utf8), pos, false,
             DPoint(glyph->align_x, glyph->align_y));
     }
-    return w;
-}
-
-
-// Measure a group of glyphs and return their bounding box.
-//
-// If the Symbol has an explicit box set, use that, otherwise take the box from
-// the first glyph.
-static IPoint
-measure_glyphs(const SymbolTable::Symbol &sym, SymbolTable::Size size)
-{
-    IPoint box;
-    if (sym.box == DPoint(0, 0) && sym.glyphs.size() > 0) {
-        const SymbolTable::Glyph &glyph = sym.glyphs[0];
-        // Figure out the box automatically from the first glyph.
-        set_font(glyph, size);
-        box.x = fl_width(glyph.utf8);
-        box.y = fl_height() - fl_descent();
-    } else {
-        box.x = size * sym.box.x;
-        box.y = size * sym.box.y;
-    }
-    return box;
 }
 
 
@@ -128,7 +105,7 @@ SymbolTable::draw(const string &text, IPoint pos, Font font, Size size,
 
     fl_font(font, size);
     // Keep track of the current bounding box.
-    IPoint box(0, fl_height() - fl_descent());
+    IPoint box(0, fl_height() - fl_descent() + 1);
 
     while ((i = text.find('`', start)) < text.size()) {
         i++;
@@ -145,14 +122,17 @@ SymbolTable::draw(const string &text, IPoint pos, Font font, Size size,
             box.x += draw_text(text.c_str() + i - 1, j-i + 2,
                 IPoint(pos.x + box.x, pos.y), measure);
         } else {
-            if (measure) {
-                IPoint glyphs_box = measure_glyphs(it->second, size);
-                box.x += glyphs_box.x;
-                box.y = std::max(box.y, glyphs_box.y);
-            } else {
-                box.x += draw_glyphs(
-                    IPoint(pos.x + box.x, pos.y), it->second, size);
+            IRect sym_box = this->measure_symbol(it->second, size);
+            // The box measures the actual bounding box of the symbol.  Clip
+            // out the spacing inserted by the characters by translating back by
+            // the box's offsets.
+            if (!measure) {
+                draw_glyphs(
+                    IPoint(pos.x + box.x - sym_box.x, pos.y - sym_box.y),
+                    it->second, size);
             }
+            box.x += sym_box.w;
+            box.y = std::max(box.y, sym_box.h);
         }
         start = j + 1;
     }
@@ -168,7 +148,116 @@ SymbolTable::draw(const string &text, IPoint pos, Font font, Size size,
 IPoint
 SymbolTable::measure(const string &text, Font font, Size size) const
 {
-    return this->draw(text, Point(0, 0), font, size, true);
+    return this->draw(text, IPoint(0, 0), font, size, true);
+}
+
+
+static bool
+white(const unsigned char *p)
+{
+    return p[0] == 255 && p[1] == 255 && p[2] == 255;
+}
+
+static IRect
+find_box(const unsigned char *buf, int w, int h)
+{
+    IPoint ul(w, h);
+    IPoint lr(0, 0);
+    int line_start = -1, line_end = -1;
+    bool previous_white = true;
+
+    // printf("   ");
+    // for (int i = 0; i < w; i++) {
+    //     printf("%02d", i);
+    // }
+    // printf("\n");
+    for (int line = 0; line < h; line++) {
+        int start = -1, end = -1;
+        // printf("%02d:", line);
+        for (int col = 0; col < w; col++) {
+            const unsigned char *p = buf + (line*w + col) * 3;
+            // printf("%02hhx", p[0]);
+            if (start == -1) {
+                if (!white(p))
+                    start = col;
+            }
+            if (!white(p) && (col + 1 == w || white(p+3))) {
+                end = col + 1;
+            }
+        }
+        // printf("\n");
+        bool white_line = start == -1 && end == -1;
+        if (line_start == -1) {
+            if (!white_line)
+                line_start = line;
+        }
+        if (white_line && !previous_white) {
+            line_end = line;
+        }
+        previous_white = white_line;
+
+        if (white_line)
+            continue; // all white
+        else if (start == -1)
+            start = 0;
+        else if (end == -1)
+            end = w;
+
+        ul.x = std::min(ul.x, start);
+        lr.x = std::max(lr.x, end);
+    }
+    if (line_start == -1)
+        line_start = 0;
+    if (line_end == -1)
+        line_end = h;
+
+    ul.y = line_start;
+    lr.y = line_end;
+    // DEBUG("rect " << ul << " -- " << lr);
+    return IRect(ul.x, ul.y, lr.x - ul.x, lr.y - ul.y);
+}
+
+static IRect
+do_measure_symbol(const SymbolTable::Symbol &sym, SymbolTable::Size size)
+{
+    // I don't bother to guess how big it will be, so give it plenty of
+    // room on all sides.
+    const int w = size*3;
+    const int h = size*3;
+    Fl_Offscreen screen = fl_create_offscreen(w, h);
+    fl_begin_offscreen(screen);
+    fl_color(FL_WHITE);
+    fl_rectf(-1, -1, w+2, h+2);
+    fl_color(FL_BLACK);
+    draw_glyphs(IPoint(size, size*2), sym, size);
+    unsigned char *buf = fl_read_image(NULL, 0, 0, w, h);
+    fl_end_offscreen();
+    IRect box = find_box(buf, w, h);
+    delete[] buf;
+    fl_delete_offscreen(screen);
+
+    // Clip the extra spacing back off.  If the symbol extends before or above
+    // the insertion point, this will be negative, meaning it should be shifted
+    // forward.
+    box.x -= size + 2;
+    box.y -= size;
+    // Leave some space around it.
+    box.w += 3;
+    return box;
+}
+
+IRect
+SymbolTable::measure_symbol(const Symbol &sym, Size size) const
+{
+    std::map<const CacheKey, IRect>::iterator it =
+        this->box_cache.find(std::make_pair(&sym, size));
+    if (it == box_cache.end()) {
+        IRect box = do_measure_symbol(sym, size);
+        box_cache.insert(std::make_pair(std::make_pair(&sym, size), box));
+        return box;
+    } else {
+        return it->second;
+    }
 }
 
 

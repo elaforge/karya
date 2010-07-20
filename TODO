@@ -20,10 +20,13 @@ misc ghc fixes:
 - research ardour OSC control
 
 CURRENT
+  - I think fractional note inserts aren't putting in spaces eg '5.-20'
   symbolic score
-    - the manual bounding box is awkward, it should figure it out automatically,
+    * the manual bounding box is awkward, it should figure it out automatically,
       by drawing the symbol and counting pixels, if necessary
-      - remove Symbol.box, always ask measure_symbol
+    - symbols are now not lined up vertically.  I think I can take the baseline
+      from the first glyph?
+    - a symbol with only one glyph should use the normal spacing for that glyph
     - draw symbols in pitch curve
     - remove font_default, use Config::font instead
     * c_interface

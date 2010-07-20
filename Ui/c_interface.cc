@@ -254,10 +254,9 @@ set_track_title(BlockViewWindow *view, int tracknum, const char *title)
 // symbols
 
 void
-insert_symbol(const char *name, double box_x, double box_y,
-    const SymbolTable::Glyph *glyphs, int glyphs_len)
+insert_symbol(const char *name, const SymbolTable::Glyph *glyphs, int glyphs_len)
 {
-    SymbolTable::Symbol sym(DPoint(box_x, box_y));
+    SymbolTable::Symbol sym;
     for (int i = 0; i < glyphs_len; i++) {
         sym.glyphs.push_back(glyphs[i]);
     }

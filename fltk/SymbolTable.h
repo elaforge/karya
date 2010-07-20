@@ -3,6 +3,7 @@
 
 #include <map>
 #include <string>
+#include <utility>
 
 #include <FL/fl_draw.H>
 
@@ -40,36 +41,21 @@ public:
         double align_x, align_y;
     };
     struct Symbol {
-        Symbol(DPoint box) : box(box) {}
-        // A bounding box for the symbol, scaled by its size.  If it's 0, use
-        // the box of the first glyph.
-        DPoint box;
+        Symbol() {}
+        Symbol(const Glyph &g1) {
+            glyphs.push_back(g1);
+        }
+        Symbol(const Glyph &g1, const Glyph &g2) {
+            glyphs.push_back(g1);
+            glyphs.push_back(g2);
+        }
+        Symbol(const Glyph &g1, const Glyph &g2, const Glyph &g3) {
+            glyphs.push_back(g1);
+            glyphs.push_back(g2);
+            glyphs.push_back(g3);
+        }
         std::vector<Glyph> glyphs;
     };
-
-    // A few convenience Symbol constructors.
-    static Symbol simple(const Glyph &glyph1) {
-        Symbol sym(DPoint(0, 0));
-        sym.glyphs.push_back(glyph1);
-        return sym;
-    }
-
-    static Symbol symbol(DPoint box, const Glyph &glyph1, const Glyph &glyph2) {
-        Symbol sym(box);
-        sym.glyphs.push_back(glyph1);
-        sym.glyphs.push_back(glyph2);
-        return sym;
-    }
-
-    static Symbol symbol(DPoint box, const Glyph &glyph1, const Glyph &glyph2,
-            const Glyph &glyph3)
-    {
-        Symbol sym(box);
-        sym.glyphs.push_back(glyph1);
-        sym.glyphs.push_back(glyph2);
-        sym.glyphs.push_back(glyph3);
-        return sym;
-    }
 
     // Convert a font name into a Font.  NULL means font_default.
     // This will return font_not_found if 'name' is not valid.
@@ -92,13 +78,22 @@ public:
         bool measure = false) const;
 
     // Specialization for 'draw' that just measures.
-    Point measure(const string &text, Font font, Size size) const;
+    IPoint measure(const string &text, Font font, Size size) const;
+
+    // Measure the Symbol by actually drawing it and seeing how many pixels it
+    // occupies.  This is expensive so it's cached.
+    //
+    // If this is called before the window is shown, it will crash horribly.
+    IRect measure_symbol(const Symbol &sym, Size size) const;
 
     static SymbolTable *table();
 private:
     typedef std::map<string, Symbol> SymbolMap;
     SymbolMap symbol_map;
     std::map<string, Font> font_map;
+
+    typedef std::pair<const Symbol *, Size> CacheKey;
+    mutable std::map<const CacheKey, IRect> box_cache;
 };
 
 #endif
