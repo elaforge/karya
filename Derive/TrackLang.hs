@@ -114,9 +114,9 @@ instance Pretty.Pretty Val where
                 '%' : show_cont cont ++ ',' : show_val deflt
             Control (Score.Control cont) -> '%' : show_cont cont
 
--- | Show a VNum without the bother of converting it to a Val.
-show_num :: Double -> String
-show_num = Pretty.pretty
+-- | Convert a haskell number into a tracklang number.
+show_num :: (RealFloat a) => a -> String
+show_num = Pretty.show_float (Just 2)
 
 data AttrMode = Add | Remove | Set | Clear deriving (Eq, Show)
 

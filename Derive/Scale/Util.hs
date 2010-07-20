@@ -4,7 +4,6 @@ module Derive.Scale.Util where
 import qualified Data.Map as Map
 
 import qualified Util.Num as Num
-import qualified Util.Parse as Parse
 import qualified Util.Seq as Seq
 
 import qualified Ui.Track as Track
@@ -13,6 +12,7 @@ import qualified Perform.Pitch as Pitch
 
 import qualified Derive.Call.Pitch as Call.Pitch
 import qualified Derive.Derive as Derive
+import qualified Derive.TrackLang as TrackLang
 
 
 -- | A number between -1 and 1, representing the portion of the way between two
@@ -112,19 +112,7 @@ join_note step frac = Pitch.Note $ step ++ frac_s
     where
     frac_s
         | frac == 0 = ""
-        | frac > 0 = '+':s
-        | otherwise = s
-        where s = show (round (frac*100))
-
--- | Examples: @\"4+32\" -> (4, 0.32)@, @\"-1c#-12\" -> (\"-1c#\", -0.12)@.
-split_note :: Pitch.Note -> Maybe (String, Frac)
-split_note (Pitch.Note note) = case frac of
-        Just f -> Just (step, fromIntegral f / 100)
-        Nothing -> Nothing
-    where
-    (degree0, rest0) = break (`elem` "-+") (drop 1 note)
-    step = take 1 note ++ degree0
-    frac = if null rest0 then Just 0 else Parse.int rest0
+        | otherwise = ' ' : TrackLang.show_num frac
 
 -- * misc
 

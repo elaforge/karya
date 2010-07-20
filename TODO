@@ -20,7 +20,6 @@ misc ghc fixes:
 - research ardour OSC control
 
 CURRENT
-  - I think fractional note inserts aren't putting in spaces eg '5.-20'
   symbolic score
     * the manual bounding box is awkward, it should figure it out automatically,
       by drawing the symbol and counting pixels, if necessary
@@ -30,10 +29,13 @@ CURRENT
     - draw symbols in pitch curve
     * remove font_default, use Config::font instead
     * c_interface
+    - dotted numbers mess up vertical spacing, dots should be smaller and off
+      to the side
     - namespacing?  don't worry about it for now, if I need it later it can be
       entirely at the haskell level, I can use the per-song config to import
       namespaces
     - find a free music font so I can use sharps and flats
+      ttf version of lilypond's feta?
     - find or make a font with jian ti symbols?
     - find or make a font with gong che pu
       meter: circle, downstroke
