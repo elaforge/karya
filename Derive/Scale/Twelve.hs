@@ -38,6 +38,7 @@ scale = Pitch.Scale {
     , Pitch.scale_map =
         Track.make_scale_map [(Pitch.note_text n, fromIntegral d)
             | (n, d) <- Map.assocs note_to_degree]
+    , Pitch.scale_symbols = [] -- later maybe I can use fancy sharps and flats
     , Pitch.scale_octave = 12
     , Pitch.scale_note_to_call = note_to_call
     , Pitch.scale_input_to_note = input_to_note

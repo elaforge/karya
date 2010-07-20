@@ -26,6 +26,8 @@ import qualified Ui.Event as Event
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
+import qualified Ui.Symbol as Symbol
+import qualified Ui.SymbolC as SymbolC
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 import qualified Ui.Ui as Ui
@@ -43,6 +45,7 @@ import qualified Cmd.Responder as Responder
 import qualified Cmd.Save as Save
 import qualified Cmd.Lang as Lang
 
+import qualified Derive.Scale.Symbols as Symbols
 
 import qualified Instrument.Db as Db
 
@@ -170,6 +173,8 @@ main = initialize $ \lang_socket midi_chan -> do
     get_msg <- Responder.create_msg_reader
         remap_rmsg midi_chan lang_socket msg_chan loopback_chan
 
+    load_symbols Symbols.symbols
+
     interpreter_chan <- Chan.newChan
     Thread.start_thread "interpreter" $ do
         Lang.interpreter interpreter_chan
@@ -192,6 +197,19 @@ main = initialize $ \lang_socket midi_chan -> do
         `Exception.catch` \(exc :: Exception.SomeException) ->
             Log.error $ "ui died from exception: " ++ show exc
     Log.notice "app quitting"
+
+-- | Tell the UI layer about the given Symbols.  Warnings are logged for
+-- Symbols that couldn't be loaded.
+--
+-- TODO should probably go in a more general place, once I know where that is
+load_symbols :: [Symbol.Symbol] -> IO ()
+load_symbols syms = do
+    forM_ syms $ \sym -> do
+        missing <- SymbolC.insert_symbol sym
+        when (not (null missing)) $
+            Log.warn $ "failed to load symbol " ++ show (Symbol.sym_name sym)
+                ++ ", fonts not found: " ++ show missing
+    Log.notice $ "loaded " ++ show (length syms) ++ " symbols"
 
 {-
 midi_thru remap_rmsg midi_chan write_midi = forever $ do
@@ -260,7 +278,7 @@ setup_normal = do
     State.set_track_title t0 ">fm8/bass"
     pitch <- Create.track bid 3
     State.insert_events pitch $ map (control_event . UiTest.mkevent)
-        [(0, 0, "5c"), (1, 0, "n (5d)"), (2, 0, "5e"), (3, 0, "i (5f)")]
+        [(0, 0, "tr (5c) 2 3"), (1, 0, "n (5d)"), (2, 0, "5e"), (3, 0, "i (5f)")]
     State.set_track_title pitch "*twelve"
     State.modify_track_render pitch $ \render ->
         render { Track.render_style = Track.Line }

@@ -41,6 +41,7 @@ import Ui
 import qualified Ui.Ui as Ui
 import qualified Ui.Block as Block
 import qualified Ui.BlockC as BlockC
+import qualified Ui.SymbolC as SymbolC
 import qualified Ui.Track as Track
 import qualified Ui.State as State
 import qualified Ui.Update as Update
@@ -118,13 +119,8 @@ clear_play_position :: ViewId -> IO ()
 clear_play_position view_id = Ui.send_action $
     BlockC.set_selection view_id Config.play_position_selnum Nothing
 
-track_title (Block.TId track_id _) =
-    fmap Track.track_title (State.get_track track_id)
-track_title _ = return ""
 
--- | Generate the title for block windows.
-block_window_title :: ViewId -> BlockId -> String
-block_window_title view_id block_id = show block_id ++ " -- " ++ show view_id
+-- * run_update
 
 -- | Apply the update to the UI.
 -- CreateView Updates will modify the State to add the ViewPtr
@@ -268,6 +264,14 @@ run_update (Update.RulerUpdate ruler_id) = do
         -- them.
         fmap sequence_ $ forM view_ids $ \view_id -> return $
             BlockC.update_entire_track view_id tracknum tracklike []
+
+track_title (Block.TId track_id _) =
+    fmap Track.track_title (State.get_track track_id)
+track_title _ = return ""
+
+-- | Generate the title for block windows.
+block_window_title :: ViewId -> BlockId -> String
+block_window_title view_id block_id = show block_id ++ " -- " ++ show view_id
 
 events_of_track_ids :: State.State -> [TrackId] -> [Track.TrackEvents]
 events_of_track_ids ustate track_ids = Seq.map_maybe events_of track_ids

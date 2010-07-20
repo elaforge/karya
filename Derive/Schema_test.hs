@@ -2,15 +2,12 @@ module Derive.Schema_test where
 import qualified Data.Map as Map
 import qualified Data.Tree as Tree
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import Util.Test
 
-import Ui
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
-import qualified Ui.Track as Track
 import qualified Ui.UiTest as UiTest
 
 import qualified Cmd.NoteTrack as NoteTrack

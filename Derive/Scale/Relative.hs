@@ -26,8 +26,8 @@ scale :: Pitch.Scale
 scale = Pitch.Scale {
     Pitch.scale_id = scale_id
     , Pitch.scale_pattern = "float"
-    , Pitch.scale_map = Track.make_scale_map
-        [(note_of d, d) | d <- [-40..40]]
+    , Pitch.scale_map = Track.make_scale_map [(note_of d, d) | d <- [-40..40]]
+    , Pitch.scale_symbols = []
     , Pitch.scale_octave = 0
     , Pitch.scale_note_to_call = note_to_call
     , Pitch.scale_input_to_note = input_to_note

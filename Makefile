@@ -47,10 +47,10 @@ HFLAGS = $(BASIC_HFLAGS) $(HDEBUG) # -fforce-recomp
 
 HLDFLAGS := $(LDFLAGS)
 
-GHC := ghc-6.12.1
+GHC := ghc-6.12.3
 # Used by haddock to find system docs, but it doesn't work anyway.
 # TODO Fix this someday.
-GHC_LIB := /Library/Frameworks/GHC.framework/Versions/Current/usr/lib/ghc-6.12.1
+GHC_LIB := /Library/Frameworks/GHC.framework/Versions/Current/usr/lib/ghc-6.12.3
 
 # hspp adds filename and lineno to various logging and testing functions.
 BASIC_HFLAGS := -threaded -W -fwarn-tabs \
@@ -72,7 +72,7 @@ BUNDLE = tools/make_bundle $@
 
 FLTK_OBJS := Block.o TrackTile.o Track.o Ruler.o EventTrack.o MoveTile.o \
 	Event.o P9Scrollbar.o SimpleScroll.o SeqInput.o MsgCollector.o \
-	SkeletonDisplay.o \
+	SkeletonDisplay.o SymbolTable.o \
 	f_util.o alpha_draw.o types.o config.o
 FLTK_OBJS := $(addprefix fltk/, $(FLTK_OBJS))
 

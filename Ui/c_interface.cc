@@ -251,6 +251,33 @@ set_track_title(BlockViewWindow *view, int tracknum, const char *title)
 }
 
 
+// symbols
+
+void
+insert_symbol(const char *name, double box_x, double box_y,
+    const SymbolTable::Glyph *glyphs, int glyphs_len)
+{
+    SymbolTable::Symbol sym(DPoint(box_x, box_y));
+    for (int i = 0; i < glyphs_len; i++) {
+        sym.glyphs.push_back(glyphs[i]);
+    }
+    SymbolTable::table()->insert(string(strdup(name)), sym);
+}
+
+
+int // Font is Fl_Font, which is just int
+get_font(const char *name)
+{
+    return SymbolTable::table()->font(name);
+}
+
+char **
+get_fonts()
+{
+    return SymbolTable::table()->fonts();
+}
+
+
 // debugging
 
 const char *

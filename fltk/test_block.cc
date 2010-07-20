@@ -461,6 +461,9 @@ main(int argc, char **argv)
                 1, ScoreTime(64), 4, ScoreTime(0)));
     */
 
+    // Technically the Glyphs should use heap space, not constants, since they
+    // will be freed if there is a duplicate symbol.  But I don't care for a
+    // test.
     SymbolTable *t = SymbolTable::table();
     t->insert("tamil-i", t->simple(SymbolTable::Glyph("\xe0\xae\x87", NULL, 4)));
     // t->load("yen", "\xc2\xa5");

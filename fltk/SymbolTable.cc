@@ -42,6 +42,19 @@ SymbolTable::fonts() const
     return fonts;
 }
 
+void
+SymbolTable::insert(const string &name, const Symbol &sym)
+{
+    SymbolMap::iterator it = this->symbol_map.find(name);
+    if (it != symbol_map.end()) {
+        for (size_t i = 0; i < it->second.glyphs.size(); i++) {
+            free(const_cast<char *>(it->second.glyphs[i].utf8));
+        }
+        symbol_map.erase(it);
+    }
+    symbol_map.insert(std::make_pair(name, sym));
+}
+
 
 // Draw the given text and return its width.
 static double
@@ -77,8 +90,8 @@ draw_glyphs(Point pos, const SymbolTable::Symbol &sym, SymbolTable::Size size)
             glyph = sym.glyphs.begin(); glyph != sym.glyphs.end(); ++glyph)
     {
         set_font(*glyph, size);
-        w += draw_text(glyph->utf8.c_str(), glyph->utf8.size(),
-            pos, false, glyph->align);
+        w += draw_text(glyph->utf8, strlen(glyph->utf8), pos, false,
+            DPoint(glyph->align_x, glyph->align_y));
     }
     return w;
 }
@@ -96,7 +109,7 @@ measure_glyphs(const SymbolTable::Symbol &sym, SymbolTable::Size size)
         const SymbolTable::Glyph &glyph = sym.glyphs[0];
         // Figure out the box automatically from the first glyph.
         set_font(glyph, size);
-        box.x = fl_width(glyph.utf8.c_str(), glyph.utf8.size());
+        box.x = fl_width(glyph.utf8);
         box.y = fl_height() - fl_descent();
     } else {
         box.x = size * sym.box.x;
@@ -162,6 +175,6 @@ SymbolTable::measure(const string &text, Font font, Size size) const
 SymbolTable *
 SymbolTable::table()
 {
-    static SymbolTable table;
-    return &table;
+    static SymbolTable *table = new SymbolTable();
+    return table;
 }

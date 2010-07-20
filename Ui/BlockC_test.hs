@@ -14,6 +14,8 @@ import qualified Ui.Ui as Ui
 
 import qualified Ui.Block as Block
 import qualified Ui.BlockC as BlockC
+import qualified Ui.Symbol as Symbol
+import qualified Ui.SymbolC as SymbolC
 
 import qualified Ui.UiTest as UiTest
 
@@ -173,9 +175,25 @@ test_track_signal = do
     io_human "signal warp" $
         send $ BlockC.set_track_signal view 1 (tsig { Track.ts_stretch = 2 })
 
-    -- have to put in a DEBUG print to see this
-    io_human "track gone and signal deleted" $
+    -- have to put in a DEBUG print to see if the memory was freed
+    io_human "track gone and signal memory freed" $
         send $ BlockC.remove_track view 1
+
+-- This should really be in Ui.SymbolC_test, but I'm lazy.
+test_symbols = do
+    let sym = Symbol.Symbol "1^" (Just (0.6, 1.4))
+            [Symbol.Glyph "1" Nothing 0 (0, 0),
+                Symbol.Glyph "•" Nothing 0 (0.2, -0.6)]
+
+    io_equal (SymbolC.insert_symbol (Symbol.simple_font "x" "y" "no such font"))
+        ["no such font"]
+    io_equal (SymbolC.insert_symbol sym) []
+    -- do it twice and make sure the memory from the first one is freed
+    io_equal (SymbolC.insert_symbol sym) []
+    view <- create_empty_view
+    io_human "track with symbol" $
+        send $ BlockC.insert_track view 1
+            (event_track (UiTest.mktrack ("syms", [(0, 16, "`1^`")]))) 40
 
 -- TODO
 -- test_print_children

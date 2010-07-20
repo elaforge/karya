@@ -1,0 +1,49 @@
+-- | A Symbol is a bit of text enclosed in ``s, such as `sharp`.  When rendered,
+-- it's turned into a special graphic that may be made up of multiple glyphs
+-- from different fonts.  The intent is to be able to write symbols in plain
+-- ascii but have them rendered in an attractive way on the score.
+--
+-- Symbols are rendered at the UI level and are generally static, so instead of
+-- sending the symbol data over every time I want to draw one, the UI level
+-- maintains a mapping between symbol names and data on how to render them.
+--
+-- This module is split from "Ui.SymbolC" so importers can avoid a C dependency.
+module Ui.Symbol where
+
+
+-- | Make a simple symbol with only text.
+simple :: String -> String -> Symbol
+simple name chars = Symbol name Nothing [Glyph chars Nothing 0 (0, 0)]
+
+-- | Make a simple symbol with a font and text.
+simple_font :: String -> String -> Font -> Symbol
+simple_font name chars font = Symbol name Nothing
+    [Glyph chars (Just font) 0 (0, 0)]
+
+glyph :: String -> Glyph
+glyph s = Glyph s Nothing 0 (0, 0)
+
+type Font = String
+
+-- | A Symbol has a name, an optional bounding box, and a list of Glyphs that
+-- make it up.
+--
+-- If the bounding box is not given, it will be inferred from the first glyph.
+-- The bounding box will be scaled by the eventual font size.  Don't pass an
+-- empty glyphs list.
+data Symbol = Symbol {
+    sym_name :: String
+    , sym_box :: Maybe (Double, Double)
+    , sym_glyphs :: [Glyph]
+    } deriving (Show)
+
+data Glyph = Glyph {
+    -- | Unicode characters that make up the glyph.
+    glyph_chars :: String
+    , glyph_font :: Maybe Font
+    -- | Relative size.  This is added to the font size when the glyph is drawn.
+    , glyph_size :: Int
+    -- | This is scaled by the font size and added to the position of the
+    -- glyph.
+    , glyph_align :: (Double, Double)
+    } deriving (Show)

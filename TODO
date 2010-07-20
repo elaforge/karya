@@ -20,8 +20,26 @@ misc ghc fixes:
 - research ardour OSC control
 
 CURRENT
+  symbolic score
+    - the manual bounding box is awkward, it should figure it out automatically,
+      by drawing the symbol and counting pixels, if necessary
+      - remove Symbol.box, always ask measure_symbol
+    - draw symbols in pitch curve
+    - remove font_default, use Config::font instead
+    * c_interface
+    - namespacing?  don't worry about it for now, if I need it later it can be
+      entirely at the haskell level, I can use the per-song config to import
+      namespaces
+    - find a free music font so I can use sharps and flats
+    - find or make a font with jian ti symbols?
+    - find or make a font with gong che pu
+      meter: circle, downstroke
+      fingering: downstroke, upstroke, cross, L, circle, figure-8
+      pitch: normal characters
+
   - signal filled display is chunky and ugly.  I think they would be nicer
     as one long line.  I should also not round xpos to an integer.
+    - line drawing doesn't redraw properly
 
   * fix trill to use pitch range so it makes a nicer looking signal
 
@@ -865,15 +883,11 @@ misc ideas:
     modifying core ADTs
   - Staff notation represents chords well, but tracks don't.  Think of a more
     compact notation.
+  - Staff notation output via lilypond?
   - if derivation needs event IDs, maybe I can use the value-supply package
   - safecopy package does version controlled serialization
   - think about yi's approach to keybindings as a parser and keybinding state
   - also investigate yi's approach to configuration
-
-research:
-  - loading fonts in fltk, and drawing new fonts
-  - download sequencers and see how they ship midi reliably
-  - learn about hs gtk for reference
 
 future:
   - I need to sync with a DAW but don't want to implement rewire.

@@ -3,12 +3,15 @@ module Derive.Scale.Wayang where
 
 import qualified Perform.Pitch as Pitch
 import qualified Derive.Scale.Util as Util
+import qualified Derive.Scale.Symbols as Symbols
 
 
 scale = Pitch.Scale {
     Pitch.scale_id = scale_id
     , Pitch.scale_pattern = "[12356](\\.*|\\^*)"
     , Pitch.scale_map = Util.make_scale_map scale_map
+    -- loaded from Derive.Scale.Symbols
+    , Pitch.scale_symbols = []
     , Pitch.scale_octave = 5
 
     , Pitch.scale_note_to_call = Util.note_to_call scale_map
@@ -76,7 +79,9 @@ note_numbers = note_numbers_umbang
 align = take (length note_numbers) . drop 4
 center = 5 -- index of middle pitch
 
-steps = map Pitch.Note [(d:o) | o <- ["..", ".", "", "^", "^^"], d <- "12356"]
+steps :: [Pitch.Note]
+steps = map Symbols.dotted_number
+    [(num, oct) | oct <- [-2..2], num <- [1, 2, 3, 5, 6]]
 
 input_keys = [Util.i_c, Util.i_d, Util.i_e, Util.i_f, Util.i_g]
 inputs = [Pitch.InputKey (middle + o*12 + d) | o <- [-2..2], d <- input_keys]
