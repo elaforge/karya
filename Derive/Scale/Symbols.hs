@@ -24,24 +24,24 @@ dot = "•" -- unicode \x2022
 
 dot_above :: String -> Symbol.Symbol
 dot_above s = Symbol.Symbol (s ++ "^")
-    [Symbol.glyph s, Symbol.Glyph dot Nothing 0 (0.2, -0.6)]
+    [Symbol.glyph s, Symbol.Glyph dot Nothing 0 (0.5, -0.3)]
 
 dot2_above :: String -> Symbol.Symbol
 dot2_above s = Symbol.Symbol (s ++ "^^")
     [Symbol.glyph s,
-        Symbol.Glyph dot Nothing 0 (0, -0.6),
-        Symbol.Glyph dot Nothing 0 (0.4, -0.6)]
+        Symbol.Glyph dot Nothing 0 (-0.3, -0.3),
+        Symbol.Glyph dot Nothing 0 (0.5, -0.3)]
 
 dot_below :: String -> Symbol.Symbol
 dot_below s = Symbol.Symbol (s ++ ".")
-    [Symbol.Glyph s Nothing 0 (0, -0.2),
-        Symbol.Glyph dot Nothing 0 (0.2, 0.5)]
+    [Symbol.glyph s,
+        Symbol.Glyph dot Nothing 0 (0.5, 0.3)]
 
 dot2_below :: String -> Symbol.Symbol
 dot2_below s = Symbol.Symbol (s ++ "..")
-    [Symbol.Glyph s Nothing 0 (0, -0.2),
-        Symbol.Glyph dot Nothing 0 (0, 0.5),
-        Symbol.Glyph dot Nothing 0 (0.4, 0.5)]
+    [Symbol.glyph s,
+        Symbol.Glyph dot Nothing 0 (-0.3, 0.3),
+        Symbol.Glyph dot Nothing 0 (0.5, 0.3)]
 
 dotted_numbers :: [Symbol.Symbol]
 dotted_numbers = map dot_above cs ++ map dot2_above
