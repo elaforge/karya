@@ -23,29 +23,28 @@ dot :: String
 dot = "•" -- unicode \x2022
 
 dot_above :: String -> Symbol.Symbol
-dot_above s = Symbol.Symbol (s ++ "^")
-    [Symbol.glyph s, Symbol.Glyph dot Nothing 0 (0.5, -0.3)]
+dot_above s = Symbol.Symbol (s ++ "^") True
+    [Symbol.glyph s, Symbol.glyph_at dot (0.5, -0.3)]
 
 dot2_above :: String -> Symbol.Symbol
-dot2_above s = Symbol.Symbol (s ++ "^^")
+dot2_above s = Symbol.Symbol (s ++ "^^") True
     [Symbol.glyph s,
-        Symbol.Glyph dot Nothing 0 (-0.3, -0.3),
-        Symbol.Glyph dot Nothing 0 (0.5, -0.3)]
+        Symbol.glyph_at dot (-0.3, -0.3),
+        Symbol.glyph_at dot (0.5, -0.3)]
 
 dot_below :: String -> Symbol.Symbol
-dot_below s = Symbol.Symbol (s ++ ".")
-    [Symbol.glyph s,
-        Symbol.Glyph dot Nothing 0 (0.5, 0.3)]
+dot_below s = Symbol.Symbol (s ++ ".") True
+    [Symbol.glyph s, Symbol.glyph_at dot (0.5, 0.3)]
 
 dot2_below :: String -> Symbol.Symbol
-dot2_below s = Symbol.Symbol (s ++ "..")
+dot2_below s = Symbol.Symbol (s ++ "..") True
     [Symbol.glyph s,
-        Symbol.Glyph dot Nothing 0 (-0.3, 0.3),
-        Symbol.Glyph dot Nothing 0 (0.5, 0.3)]
+        Symbol.glyph_at dot (-0.3, 0.3),
+        Symbol.glyph_at dot (0.5, 0.3)]
 
 dotted_numbers :: [Symbol.Symbol]
 dotted_numbers = map dot_above cs ++ map dot2_above
         cs ++ map dot_below cs ++ map dot2_below cs
     where
     -- If some scale wants higher numbers, they are easy to add.
-    cs = map show [1..12]
+    cs = map show [0..9]

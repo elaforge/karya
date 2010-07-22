@@ -64,8 +64,8 @@ void set_track_title(BlockViewWindow *view, int tracknum, const char *title);
 
 // symbols
 
-void insert_symbol(const char *name, const SymbolTable::Glyph *glyphs,
-    int glyphs_len);
+void insert_symbol(const char *name, int absolute_y,
+    const SymbolTable::Glyph *glyphs, int glyphs_len);
 int get_font(const char *name);
 char **get_fonts();
 

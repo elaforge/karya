@@ -54,6 +54,9 @@ public:
             glyphs.push_back(g2);
             glyphs.push_back(g3);
         }
+        // Turn off automatic y placement.  If the glyphs have descenders and
+        // you want them to actually descend, turn this on.
+        bool absolute_y;
         std::vector<Glyph> glyphs;
     };
 

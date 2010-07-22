@@ -13,14 +13,18 @@ module Ui.Symbol where
 
 -- | Make a simple symbol with only text.
 simple :: String -> String -> Symbol
-simple name chars = Symbol name [Glyph chars Nothing 0 (0, 0)]
+simple name chars = Symbol name True [Glyph chars Nothing 0 (0, 0)]
 
 -- | Make a simple symbol with a font and text.
 simple_font :: String -> String -> Font -> Symbol
-simple_font name chars font = Symbol name [Glyph chars (Just font) 0 (0, 0)]
+simple_font name chars font =
+    Symbol name True [Glyph chars (Just font) 0 (0, 0)]
 
 glyph :: String -> Glyph
 glyph s = Glyph s Nothing 0 (0, 0)
+
+glyph_at :: String -> (Double, Double) -> Glyph
+glyph_at s at = Glyph s Nothing 0 at
 
 type Font = String
 
@@ -31,6 +35,9 @@ type Font = String
 -- empty glyphs list.
 data Symbol = Symbol {
     sym_name :: String
+    -- | Turn off automatic y placement.  If the glyphs have descenders and
+    -- you want them to actually descend, turn this on.
+    , sym_absolute_y :: Bool
     , sym_glyphs :: [Glyph]
     } deriving (Show)
 

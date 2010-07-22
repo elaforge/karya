@@ -363,7 +363,7 @@ pitch_track_signal()
 
     ts->val_names = new ValName[5];
     ts->val_names[0] = ValName(0, "a");
-    ts->val_names[1] = ValName(1, "`1^`");
+    ts->val_names[1] = ValName(1, "`1.`");
     ts->val_names[2] = ValName(2, "c");
     ts->val_names[3] = ValName(3, "d");
     ts->val_names[4] = ValName(4, "e");
@@ -476,10 +476,10 @@ main(int argc, char **argv)
     t->insert("xie", SymbolTable::Symbol(
         SymbolTable::Glyph("\xe3\x87\x82", t->font("LiSongPro"), 4)));
 
-    t->insert("1^", SymbolTable::Symbol(
+    t->insert("1.", SymbolTable::Symbol(
         SymbolTable::Glyph("1"),
         SymbolTable::Glyph("\xe2\x80\xa2", Config::font, 0, DPoint(.5, .2))));
-    t->insert("1^^", SymbolTable::Symbol(
+    t->insert("1..", SymbolTable::Symbol(
         SymbolTable::Glyph("1"),
         SymbolTable::Glyph("\xe2\x80\xa2", Config::font, 0, DPoint(-.3, .2)),
         SymbolTable::Glyph("\xe2\x80\xa2", Config::font, 0, DPoint(.5, .2))));

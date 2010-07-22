@@ -23,7 +23,7 @@ CURRENT
   symbolic score
     * the manual bounding box is awkward, it should figure it out automatically,
       by drawing the symbol and counting pixels, if necessary
-    - symbols are now not lined up vertically.  a flag to disable symbol
+    * symbols are now not lined up vertically.  a flag to disable symbol
       vertical placement would make them behave.
     * a symbol with only one glyph should use the normal spacing for that glyph
     * draw symbols in pitch curve
@@ -31,12 +31,6 @@ CURRENT
     * c_interface
     * dotted numbers mess up vertical spacing, dots should be smaller and off
       to the side
-    - namespacing?  don't worry about it for now, if I need it later it can be
-      entirely at the haskell level, I can use the per-song config to import
-      namespaces
-    - find a free music font so I can use sharps and flats
-      ttf version of lilypond's feta?
-    - find or make a font with jian ti symbols?
     - find or make a font with gong che pu
       meter: circle, downstroke
       fingering: downstroke, upstroke, cross, L, circle, figure-8
@@ -219,7 +213,7 @@ MILESTONES
     - dense / efficient control signals
     - lazy signals
     - memoize deriver output, to avoid unnecessary rederivation
-    - symbolic score
+    * symbolic score
     - midi record / integrator
     - save undo history
     - solution for audio, plugins, track bouncing, etc.  ardour?
@@ -358,42 +352,17 @@ performance:
   - derive multiple blocks with strategies, par, parMap.  Can I spark all
     subderivations?
 
-symbolic score as in doc/custom_symbols
-  - tracklang parsing: remove null call so I can say the first word is
-    anything.  It would be really nice to have arbitrary symbols as calls.
-    I can do this by going to a purely location based system, so the first word
-    is always a symbol.  But then I need to think of a replacement for the null
-    call concept.
-
-    Note: "" -> null call, and I don't mind losing ">i" for "inst = >i"
-
-    Control: I suppose a special hack where if the text is a number, call "set
-    n".  I already have the syntax mangle.
-
-    Pitch: Same hack, only xyz -> 'set *xyz'.  That means there's no way to
-    write a nullary call, say 'subblock'.  But if notes wind up being calls,
-    the mangle can just go away and the problem is gone.
-
-    Note: no mangle?
-
-    How does this interact with the other idea to have inst be a call?
-      call = >some/inst
-    Now this actually affects the mangler, '' is mangled to
-    '>some/inst'.  It might be a little cleaner to always mangle to
-    'default', and then put the inst calling logic in 'default'.
-
-    Now what about 'block0'?  It's ok, the inst is still inherited by the sub.
-    What about '+attr'?  I want it to become '>inst +attr'  However, it might
-    be nicer to not implement +attr and leave it to local bindings.  E.g.
-    bind 'attr' to 'default +attr'.  That way, a call to 'sn' could be either
-    a call to 'attrs = +sn | default' or just a call to 'sn'.
-
-    How to represent symbols?
-
-    If I a native text entry widget then it should be possible to expand
-    symbols into their ?name? notation for editing, and render them as a symbol
-    for display.  Of course, for unicode characters I can also rely on an IME,
-    so I would need some way to decide which to expand.
+symbolic score
+  - namespacing?  don't worry about it for now, if I need it later it can be
+    entirely at the haskell level, I can use the per-song config to import
+    namespaces
+  - feta's tr symbol looks bad especially when small, is there a better one?
+  - find or make a font with jian ti symbols?
+  - find or make a font with gong che pu
+    meter: circle, downstroke
+    fingering: downstroke, upstroke, cross, L, circle, figure-8
+    pitch: normal characters
+    - ㄨ 工 六 士 一
 
 fltk:
   - some kind of special highlight to indicate the active block

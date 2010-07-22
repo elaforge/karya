@@ -226,10 +226,6 @@ enum {
     text_pad_bottom = 0
 };
 
-// Since this measure the pixels directly, it doesn't understand the glyph
-// baseline.  So glyphs that stick down a little will be out of line with
-// non-symbol text.  If it looks really ugly, I can disable vertical placement
-// for specific symbols by setting box.y = 0.
 static IRect
 do_measure_symbol(const SymbolTable::Symbol &sym, SymbolTable::Size size)
 {
@@ -256,11 +252,20 @@ do_measure_symbol(const SymbolTable::Symbol &sym, SymbolTable::Size size)
     // the insertion point, this will be negative, meaning it should be shifted
     // forward.
     box.x = box.x - size;
-    box.y = size*2 - box.b();
-    box.y -= text_pad_bottom;
-    box.h += text_pad_bottom + text_pad_top;
+    // Since this measure the pixels directly, it doesn't understand the glyph
+    // baseline.  So glyphs that stick down a little will be out of line with
+    // non-symbol text.  If it looks really ugly, I can disable vertical
+    // placement for specific symbols by setting box.y = 0.
+    if (sym.absolute_y) {
+        box.y = 0;
+    } else {
+        box.y = size*2 - box.b();
+        box.y -= text_pad_bottom;
+        box.h += text_pad_bottom + text_pad_top;
+    }
     box.x -= text_pad_left;
     box.w += text_pad_left + text_pad_right;
+
     // DEBUG("translate " << box);
     return box;
 }
@@ -268,12 +273,6 @@ do_measure_symbol(const SymbolTable::Symbol &sym, SymbolTable::Size size)
 IRect
 SymbolTable::measure_symbol(const Symbol &sym, Size size) const
 {
-    // If there's just one glyph, using the font metrics looks better.
-    if (sym.glyphs.size() == 1) {
-        set_font(sym.glyphs[0], size);
-        return IRect(0, 0,
-            fl_width(sym.glyphs[0].utf8), fl_height() - fl_descent());
-    }
     std::map<const CacheKey, IRect>::iterator it =
         this->box_cache.find(std::make_pair(&sym, size));
     if (it == box_cache.end()) {

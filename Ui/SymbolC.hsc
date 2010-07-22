@@ -31,7 +31,7 @@ foreign import ccall "get_fonts" c_get_fonts :: IO (Ptr CString)
 -- | Insert the given symbol into the symbol map.  Return any missing Fonts.  If
 -- the return is non-null, the symbol wasn't inserted.
 insert_symbol :: Symbol.Symbol -> IO [Symbol.Font]
-insert_symbol (Symbol.Symbol name glyphs) = do
+insert_symbol (Symbol.Symbol name absolute_y glyphs) = do
     maybe_glyphcs <- mapM glyph_to_glyphc glyphs
     let missing = [Symbol.glyph_font glyph
             | (glyph, Nothing) <- zip glyphs maybe_glyphcs]
@@ -42,11 +42,12 @@ insert_symbol (Symbol.Symbol name glyphs) = do
         else do
             let glyphcs = Maybe.catMaybes maybe_glyphcs
             withCString name $ \namep -> withArrayLen glyphcs $ \len glyphsp ->
-                c_insert_symbol namep glyphsp (Util.c_int len)
+                c_insert_symbol namep (fromBool absolute_y)
+                    glyphsp (Util.c_int len)
             return []
 
 foreign import ccall "insert_symbol"
-    c_insert_symbol :: CString -> Ptr GlyphC -> CInt -> IO ()
+    c_insert_symbol :: CString -> CInt -> Ptr GlyphC -> CInt -> IO ()
 
 glyph_to_glyphc :: Symbol.Glyph -> IO (Maybe GlyphC)
 glyph_to_glyphc (Symbol.Glyph chars maybe_font size (x, y)) = do
