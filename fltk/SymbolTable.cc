@@ -56,7 +56,6 @@ SymbolTable::insert(const string &name, const Symbol &sym)
     symbol_map.insert(std::make_pair(name, sym));
 }
 
-
 // Draw the given text and return its width.
 static double
 draw_text(const char *text, int n, IPoint pos, bool measure,
@@ -104,7 +103,7 @@ SymbolTable::draw(const string &text, IPoint pos, Font font, Size size,
 
     fl_font(font, size);
     // Keep track of the current bounding box.
-    IPoint box(0, fl_height() - fl_descent() + 1);
+    IPoint box(0, fl_height() - fl_descent());
 
     while ((i = text.find('`', start)) < text.size()) {
         i++;
@@ -116,18 +115,21 @@ SymbolTable::draw(const string &text, IPoint pos, Font font, Size size,
         box.x += draw_text(text.c_str() + start, i-start-1,
             IPoint(pos.x + box.x, pos.y), measure);
 
-        SymbolMap::const_iterator it = this->symbol_map.find(text.substr(i, j-i));
+        SymbolMap::const_iterator it =
+            this->symbol_map.find(text.substr(i, j-i));
         if (it == symbol_map.end()) {
             box.x += draw_text(text.c_str() + i - 1, j-i + 2,
                 IPoint(pos.x + box.x, pos.y), measure);
         } else {
             IRect sym_box = this->measure_symbol(it->second, size);
             // The box measures the actual bounding box of the symbol.  Clip
-            // out the spacing inserted by the characters by translating back by
-            // the box's offsets.
+            // out the spacing inserted by the characters by translating back
+            // by the box's offsets.
+            // DEBUG("draw " << text << " sym " << sym_box << ", pos " << pos
+            //         << " -> " << IPoint(pos.x + box.x - sym_box.x, pos.y + sym_box.y));
             if (!measure) {
                 draw_glyphs(
-                    IPoint(pos.x + box.x - sym_box.x, pos.y - sym_box.y),
+                    IPoint(pos.x + box.x - sym_box.x, pos.y + sym_box.y),
                     it->second, size);
             }
             box.x += sym_box.w;
@@ -165,6 +167,7 @@ find_box(const unsigned char *buf, int w, int h)
     int line_start = -1, line_end = -1;
     bool previous_white = true;
 
+    // printf("wh: %d %d\n", w, h);
     // printf("   ");
     // for (int i = 0; i < w; i++) {
     //     printf("%02d", i);
@@ -175,13 +178,13 @@ find_box(const unsigned char *buf, int w, int h)
         // printf("%02d:", line);
         for (int col = 0; col < w; col++) {
             const unsigned char *p = buf + (line*w + col) * 3;
-            // printf("%02hhx", p[0]);
+            // printf("%02hhx", std::min(std::min(p[0], p[1]), p[2]));
             if (start == -1) {
                 if (!white(p))
                     start = col;
             }
             if (!white(p) && (col + 1 == w || white(p+3))) {
-                end = col + 1;
+                end = col;
             }
         }
         // printf("\n");
@@ -216,6 +219,17 @@ find_box(const unsigned char *buf, int w, int h)
     return IRect(ul.x, ul.y, lr.x - ul.x, lr.y - ul.y);
 }
 
+enum {
+    text_pad_left = 2,
+    text_pad_right = 2,
+    text_pad_top = 0,
+    text_pad_bottom = 0
+};
+
+// Since this measure the pixels directly, it doesn't understand the glyph
+// baseline.  So glyphs that stick down a little will be out of line with
+// non-symbol text.  If it looks really ugly, I can disable vertical placement
+// for specific symbols by setting box.y = 0.
 static IRect
 do_measure_symbol(const SymbolTable::Symbol &sym, SymbolTable::Size size)
 {
@@ -228,7 +242,10 @@ do_measure_symbol(const SymbolTable::Symbol &sym, SymbolTable::Size size)
     fl_color(FL_WHITE);
     fl_rectf(-1, -1, w+2, h+2);
     fl_color(FL_BLACK);
-    draw_glyphs(IPoint(size, size*2), sym, size);
+
+    // Due to boundary issues, drawing text that touches the bottom of a box
+    // means drawing one above the bottom.  I don't totally understand this.
+    draw_glyphs(IPoint(size, size*2 - 1), sym, size);
     unsigned char *buf = fl_read_image(NULL, 0, 0, w, h);
     fl_end_offscreen();
     IRect box = find_box(buf, w, h);
@@ -238,10 +255,13 @@ do_measure_symbol(const SymbolTable::Symbol &sym, SymbolTable::Size size)
     // Clip the extra spacing back off.  If the symbol extends before or above
     // the insertion point, this will be negative, meaning it should be shifted
     // forward.
-    box.x -= size + 2;
-    box.y -= size;
-    // Leave some space around it.
-    box.w += 3;
+    box.x = box.x - size;
+    box.y = size*2 - box.b();
+    box.y -= text_pad_bottom;
+    box.h += text_pad_bottom + text_pad_top;
+    box.x -= text_pad_left;
+    box.w += text_pad_left + text_pad_right;
+    // DEBUG("translate " << box);
     return box;
 }
 

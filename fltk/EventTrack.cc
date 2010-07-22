@@ -455,19 +455,15 @@ EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
     const char *prev_lower = NULL;
     const char *prev_upper = NULL;
 
-    // Set the font early to make sure subsequent fl_height() is correct.
-    fl_font(Config::font, Config::font_size::pitch_signal);
+    const Fl_Font font = Config::font;
+    const int size = Config::font_size::pitch_signal;
 
-    // Keep drawing fl_height() past max_y to make sure I get any text that
-    // might stick up.
-    for (int i = found, offset = 0;
-            i < tsig.length && (offset = y + tsig.time_at(zoom, i))
-                < max_y + fl_height();
-            i++, prev_offset = offset)
-    {
+    int offset = 0;
+    for (int i = found; i < tsig.length; i++, prev_offset = offset) {
         // if (i == found)
         //     DEBUG("started at " << found << " offset " << (offset - min_y));
         // Skip coincident samples, or at least ones that are too close.
+        int offset = y + tsig.time_at(zoom, i);
         if (offset <= prev_offset && i > found)
             continue;
         const char *lower, *upper;
@@ -485,31 +481,39 @@ EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
         // TODO avoid overlap with event text
         // TODO skip drawing text if they would overlap each other
         bool scale_changed = false;
-        if (lower && upper && offset + fl_height() >= min_y) {
+        int text_height = 0;
+        if (lower && upper && (lower != prev_lower || upper != prev_upper)) {
+            IPoint lower_size, upper_size;
             // DEBUG((offset-min_y) << " text in range "
             //         << (void *) prev_lower << " = " << (void *) lower);
-            if (lower != prev_lower || upper != prev_upper) {
-                // DEBUG("drawing text");
-                scale_changed = true;
-                fl_line_style(FL_SOLID | FL_CAP_ROUND, 0);
-                fl_color(text_color);
+            scale_changed = true;
+            fl_line_style(FL_SOLID | FL_CAP_ROUND, 0);
+            fl_color(text_color);
 
-                int width;
-                if (lower != upper) {
-                    width = fl_width(lower);
-                    fl_draw(lower, min_x, offset - 1);
-                    fl_line(min_x, offset, min_x + width, offset);
-                }
-                width = fl_width(upper);
-                fl_draw(upper, max_x - width, offset - 1);
-                fl_line(max_x - width, offset, max_x, offset);
+            // If they are the same I don't need to draw both.  I omit the one
+            // on the left because that one is more likely to overlap with
+            // event text.
+            if (lower != upper) {
+                lower_size = SymbolTable::table()->draw(
+                    lower, IPoint(min_x, offset-1), font, size);
+                fl_line(min_x, offset, min_x + lower_size.x, offset);
             }
+            upper_size = SymbolTable::table()->measure(upper, font, size);
+            SymbolTable::table()->draw(
+                upper, IPoint(max_x - upper_size.x, offset-1), font, size);
+            fl_line(max_x - upper_size.x, offset, max_x, offset);
+            text_height = std::max(lower_size.y, upper_size.y);
         }
 
-        // TODO draw as one big line, I think this means text has to go in
-        // a separate pass
-        // TODO omit the jump from previous xpos if it's too small
-        if (next_offset > min_y) {
+        // I originally wanted to draw the signal as one big line in a separate
+        // pass, eliminating the jump from the previous xpos if the distance is
+        // below a threshold, but it turned out it seems to be slower and
+        // uglier, and ugly artifacts appear as seperate segments of the line
+        // pop across the threshold.
+        //
+        // I'm already skipping samples when they are too close together so I
+        // don't think I have to worry about dense signals.
+        if (next_offset > min_y && offset <= max_y) {
             fl_color(signal_color);
             switch (config.render.style) {
             case RenderConfig::render_line:
@@ -531,6 +535,8 @@ EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
                     (next_offset - offset) + 1);
                 break;
             case RenderConfig::render_none:
+                // shouldn't get here since the function returns early
+                ASSERT(0);
                 break;
             default:
                 DEBUG("unknown render style: " << config.render.style);
@@ -541,7 +547,21 @@ EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
         prev_xpos = xpos;
         prev_lower = lower;
         prev_upper = upper;
+
+        // I can't break as soon as offset crosses max_y because there may
+        // still be labels to draw that will stick up.  Unfortunately I can't
+        // know the height of the labels without actually measuring them.
+        //
+        // So pick a random number of pixels which I think is taller than
+        // label text and stop after that.  TODO ugh
+        if (tsig.has_labels()) {
+           if (offset > max_y)
+               break;
+        } else if (offset > max_y + 40) {
+            break;
+        }
     }
+    // Reset line style to not mess up other draw routines.
     fl_line_style(0);
 }
 
@@ -579,9 +599,9 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
         IPoint box = SymbolTable::table()->measure(event.text, font, size);
         text_rect.w = box.x;
         text_rect.h = box.y;
-        // Text goes above the trigger line for negative events.
+        // Text goes above the trigger line for negative events, plus spacing.
         if (event.is_negative())
-            text_rect.y = offset - box.y;
+            text_rect.y = offset - box.y - 1;
     }
     if (rank && text_rect.y >= previous->b() - ok_overlap)
         previous->w = 0;
@@ -627,10 +647,11 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
                         Color(0, 0, 0).brightness(rank_brightness)));
         else
             fl_color(FL_BLACK);
-        // I'm not sure why, but fl_draw seems to be drawing text a little
-        // below where I want it to.
+        // Due to boundary issues, drawing text that touches the bottom of a
+        // box means drawing one above the bottom.  I don't totally understand
+        // this.
         SymbolTable::table()->draw(std::string(event.text),
-            IPoint(text_rect.x, text_rect.b() - 2), font, size);
+            IPoint(text_rect.x, text_rect.b() - 1), font, size);
         if (!rank) {
             if (text_rect.w > w() - 4) {
                 // If the text is too long it gets truncated with a blue

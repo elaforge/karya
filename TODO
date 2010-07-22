@@ -15,7 +15,7 @@ misc ghc fixes:
   - make resample etc. more efficient
 - implement simple integrator
 - implement dense signal data in Ui.Track
-- extend signal display for pitch track
+- extend control track display to work with dense signals
 
 - research ardour OSC control
 
@@ -23,13 +23,13 @@ CURRENT
   symbolic score
     * the manual bounding box is awkward, it should figure it out automatically,
       by drawing the symbol and counting pixels, if necessary
-    - symbols are now not lined up vertically.  I think I can take the baseline
-      from the first glyph?
+    - symbols are now not lined up vertically.  a flag to disable symbol
+      vertical placement would make them behave.
     * a symbol with only one glyph should use the normal spacing for that glyph
-    - draw symbols in pitch curve
+    * draw symbols in pitch curve
     * remove font_default, use Config::font instead
     * c_interface
-    - dotted numbers mess up vertical spacing, dots should be smaller and off
+    * dotted numbers mess up vertical spacing, dots should be smaller and off
       to the side
     - namespacing?  don't worry about it for now, if I need it later it can be
       entirely at the haskell level, I can use the per-song config to import
@@ -41,10 +41,7 @@ CURRENT
       meter: circle, downstroke
       fingering: downstroke, upstroke, cross, L, circle, figure-8
       pitch: normal characters
-
-  - signal filled display is chunky and ugly.  I think they would be nicer
-    as one long line.  I should also not round xpos to an integer.
-    - line drawing doesn't redraw properly
+      - ㄨ 工 六 士 一
 
   * fix trill to use pitch range so it makes a nicer looking signal
 
@@ -509,6 +506,7 @@ control fltk
   dense sampled signals
     - efficient storage, preferably as a Signal so no conversion is necessary
     - display dense signals: omit text and trigger lines when zoomed out
+  / decided against rendering signal as one long line, comment in EventTrack.cc
 
 Ui:
   Track

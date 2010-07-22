@@ -13,8 +13,8 @@
 using std::string;
 
 
-// This class is responsible for drawing text, mapping specially quoted sequences
-// to Symbols, which are a composition of glyphs from some font.
+// This class is responsible for drawing text, mapping specially quoted
+// sequences to Symbols, which are a composition of glyphs from some font.
 //
 // The class should be accessed through a single global instance.
 class SymbolTable {
@@ -28,7 +28,8 @@ public:
     struct Glyph {
         Glyph(const char *utf8, Font font = Config::font, Size size = 0,
                 DPoint align = DPoint()) :
-            utf8(utf8), font(font), size(size), align_x(align.x), align_y(align.y)
+            utf8(utf8), font(font), size(size),
+            align_x(align.x), align_y(align.y)
         {}
         // This is owned by the glyph and must be freed explicitly.
         const char *utf8;
@@ -70,9 +71,9 @@ public:
     // Draw the text, rendering `` symbols in their proper font.  Symbols that
     // are not found are drawn as normal text.
     //
-    // Return the bounding box of the symbols that were drawn, or would have been
-    // drawn if measure is true.  The bounding box includes ascenders but doesn't
-    // include descenders, because those can generally overlap.
+    // Return the bounding box of the symbols that were drawn, or would have
+    // been drawn if measure is true.  The bounding box includes ascenders but
+    // doesn't include descenders, because those can generally overlap.
     IPoint draw(const string &text, IPoint pos, Font font, Size size,
         bool measure = false) const;
 

@@ -149,12 +149,12 @@ void t1_set()
     style.font = FL_HELVETICA;
     style.size = 9;
 
+    // e.push_back(EventInfo(ScoreTime(5),
+    //     Event("`tamil-i`", ScoreTime(16), eventc, style), 0));
     // e.push_back(EventInfo(ScoreTime(0),
-    //     Event("M`xie`M", ScoreTime(16), eventc, style), 0));
-    // e.push_back(EventInfo(ScoreTime(0),
-    //     Event("`1^`", ScoreTime(16), eventc, style), 0));
+    //     Event("15`1^`", ScoreTime(16), eventc, style), 0));
     // e.push_back(EventInfo(ScoreTime(32),
-    //     Event("`1^`", ScoreTime(-16), eventc, style), 0));
+    //     Event("15`1^`m", ScoreTime(-16), eventc, style), 0));
 
     e.push_back(EventInfo(ScoreTime(0),
         Event("`1^`", ScoreTime(16), eventc, style), 0));
@@ -363,7 +363,7 @@ pitch_track_signal()
 
     ts->val_names = new ValName[5];
     ts->val_names[0] = ValName(0, "a");
-    ts->val_names[1] = ValName(1, "b");
+    ts->val_names[1] = ValName(1, "`1^`");
     ts->val_names[2] = ValName(2, "c");
     ts->val_names[3] = ValName(3, "d");
     ts->val_names[4] = ValName(4, "e");
@@ -429,7 +429,6 @@ main(int argc, char **argv)
     view.block.set_track_signal(1, *pitch_tsig);
     TrackSignal *control_tsig = control_track_signal();
     view.block.set_track_signal(2, *control_tsig);
-
     view.block.set_track_signal(3, *control_tsig);
 
     int pairs[] = {0, 3, 3, 2, 2, 1};
@@ -476,13 +475,23 @@ main(int argc, char **argv)
     // radicals are at +31c0
     t->insert("xie", SymbolTable::Symbol(
         SymbolTable::Glyph("\xe3\x87\x82", t->font("LiSongPro"), 4)));
+
     t->insert("1^", SymbolTable::Symbol(
         SymbolTable::Glyph("1"),
-        SymbolTable::Glyph("\xe2\x80\xa2", Config::font, 0, DPoint(.2, -.6))));
+        SymbolTable::Glyph("\xe2\x80\xa2", Config::font, 0, DPoint(.5, .2))));
     t->insert("1^^", SymbolTable::Symbol(
         SymbolTable::Glyph("1"),
-        SymbolTable::Glyph("\xe2\x80\xa2", Config::font, 0, DPoint(0, -.6)),
-        SymbolTable::Glyph("\xe2\x80\xa2", Config::font, 0, DPoint(.4, -.6))));
+        SymbolTable::Glyph("\xe2\x80\xa2", Config::font, 0, DPoint(-.3, .2)),
+        SymbolTable::Glyph("\xe2\x80\xa2", Config::font, 0, DPoint(.5, .2))));
+
+    Fl_Font em = t->font("Emmentaler-11");
+    t->insert("sharp", SymbolTable::Symbol(
+        SymbolTable::Glyph("a"),
+        SymbolTable::Glyph("\xee\x84\x8e", em, 2, DPoint(.5, -.4))));
+    t->insert("flat", SymbolTable::Symbol(
+        SymbolTable::Glyph("a"),
+        SymbolTable::Glyph("\xee\x84\x8e", em, 2, DPoint(.5, -.4))));
+
     // dots: DOT OPERATOR e2 8b 85, bullet e2 80 a2
     // t->load("v-angle-double", "\xef\xb8\xbd", "LiSongPro", 4);
 
@@ -499,14 +508,6 @@ main(int argc, char **argv)
     //     printf("%s\n", *fonts);
     // }
     view.show();
-
-    SymbolTable::Symbol sym = SymbolTable::Symbol(
-        SymbolTable::Glyph("1"),
-        SymbolTable::Glyph("\xe2\x80\xa2", Config::font, 0, DPoint(0, -.6)),
-        SymbolTable::Glyph("\xe2\x80\xa2", Config::font, 0, DPoint(.4, -.6)));
-    // SymbolTable::Symbol sym = SymbolTable::Symbol(SymbolTable::Glyph("1"));
-    DEBUG("box " << t->measure_symbol(sym, 9));
-    DEBUG("box " << t->measure_symbol(sym, 12));
 
     Fl::run();
 }

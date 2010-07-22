@@ -75,6 +75,7 @@ struct TrackSignal {
     // Get the time at the given index, taking shift, stretch, and the given
     // zoom into account.
     int time_at(const ZoomInfo &zoom, int i) const;
+    bool has_labels() const { return val_names; }
     // Get the val at the given index, normalized between 0--1.
     double val_at(int i, const char **lower, const char **upper) const;
     const ValName *name_of(double val, bool lower) const;
