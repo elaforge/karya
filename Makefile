@@ -43,6 +43,11 @@ HOPT = -O2
 HTEST := -fhpc
 HPROFILE := -prof -auto-all -caf-all -O2
 
+# Compiler flags for the main app.
+# INTERPRETER links the hint library to provide a haskell interpreter.  It
+# adds about 10s to linking time, so it's off by default.
+SEQ_FLAGS := $(HDEBUG) # -DINTERPRETER
+
 # Flags for generic compiles that don't need to be debugging or profiling.
 HFLAGS = $(BASIC_HFLAGS) $(HDEBUG) # -fforce-recomp
 
@@ -144,7 +149,7 @@ SEQ_CMDLINE = $(GHC) -package ghc $(BASIC_HFLAGS) \
 # PHONY convinces make to always run ghc, which figures out deps on its own
 .PHONY: $(BUILD)/seq
 $(BUILD)/seq: $(UI_HS) $(UI_OBJS) $(COREMIDI_OBJS) fltk/fltk.a
-	$(SEQ_CMDLINE) $(HDEBUG) -o $@
+	$(SEQ_CMDLINE) $(SEQ_FLAGS) -o $@
 	$(BUNDLE) doc/seq.icns
 
 # not_mine = Instrument/BrowserC.o LogView/LogViewC.o Util/Fltk.o

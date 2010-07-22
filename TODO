@@ -20,25 +20,6 @@ misc ghc fixes:
 - research ardour OSC control
 
 CURRENT
-  symbolic score
-    * the manual bounding box is awkward, it should figure it out automatically,
-      by drawing the symbol and counting pixels, if necessary
-    * symbols are now not lined up vertically.  a flag to disable symbol
-      vertical placement would make them behave.
-    * a symbol with only one glyph should use the normal spacing for that glyph
-    * draw symbols in pitch curve
-    * remove font_default, use Config::font instead
-    * c_interface
-    * dotted numbers mess up vertical spacing, dots should be smaller and off
-      to the side
-    - find or make a font with gong che pu
-      meter: circle, downstroke
-      fingering: downstroke, upstroke, cross, L, circle, figure-8
-      pitch: normal characters
-      - ㄨ 工 六 士 一
-
-  * fix trill to use pitch range so it makes a nicer looking signal
-
   - I think PitchSignals may need to be reworked.  They should be (Note, Note,
     Frac).  Otherwise, it's not clear what to call 4a# vs. 4ab.  I can still
     use numbers (Ints this time) as indices into a table of names, but e.g.
@@ -59,7 +40,7 @@ CURRENT
     Also it would be nice to not rederive signal for tracks that haven't
     changed, maybe tracks in calls above the modified one?
 
-  - have a way to not link with hint, to reduce link time for test runs
+  * have a way to not link with hint, to reduce link time for test runs
 
   * should I make the control title expression the first one instead of last?
   - Circular imports of Derive.Derive and Derive.Scale causes a lot of

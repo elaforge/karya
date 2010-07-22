@@ -6,7 +6,6 @@
 module App.Main where
 
 import Control.Monad
-import qualified Control.Concurrent.Chan as Chan
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception
@@ -175,9 +174,9 @@ main = initialize $ \lang_socket midi_chan -> do
 
     load_symbols Symbols.symbols
 
-    interpreter_chan <- Chan.newChan
+    session <- Lang.make_session
     Thread.start_thread "interpreter" $ do
-        Lang.interpreter interpreter_chan
+        Lang.interpreter session
         `Exception.finally` Ui.quit_ui_thread quit_request
         -- ctrl-C is killing this thread now.  The interaction between signals
         -- and OS threads managed by the GHC RTS is probably unpredictable.
@@ -186,7 +185,7 @@ main = initialize $ \lang_socket midi_chan -> do
 
     Thread.start_thread "responder" $ do
         Responder.responder static_config get_msg write_midi abort_midi
-            get_now_ts setup_cmd interpreter_chan loopback_chan
+            get_now_ts setup_cmd session loopback_chan
         `Exception.catch` (\(exc :: Exception.SomeException) ->
             Log.error $ "responder thread died from exception: " ++ show exc)
             -- It would be possible to restart the responder, but chances are
@@ -278,7 +277,8 @@ setup_normal = do
     State.set_track_title t0 ">fm8/bass"
     pitch <- Create.track bid 3
     State.insert_events pitch $ map (control_event . UiTest.mkevent)
-        [(0, 0, "tr (5c) 2 3"), (1, 0, "n (5d)"), (2, 0, "5e"), (3, 0, "i (5f)")]
+        [(0, 0, "`tr` (5c) 2 3"), (1, 0, "n (5d)"), (2, 0, "5e"),
+            (3, 0, "i (5f)")]
     State.set_track_title pitch "*twelve"
     State.modify_track_render pitch $ \render ->
         render { Track.render_style = Track.Line }

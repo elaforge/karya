@@ -65,7 +65,7 @@ data ResponderState = ResponderState {
     , state_msg_reader :: MsgReader
     , state_midi_writer :: MidiWriter
     , state_transport_info :: Transport.Info
-    , state_interpreter_chan :: Lang.InterpreterChan
+    , state_session :: Lang.Session
     , state_loopback_chan :: TChan.TChan Msg.Msg
     }
 
@@ -74,9 +74,9 @@ type MsgReader = IO Msg.Msg
 
 responder :: StaticConfig.StaticConfig -> MsgReader -> MidiWriter
     -> IO () -> IO Timestamp.Timestamp -> Cmd.CmdIO
-    -> Lang.InterpreterChan -> TChan.TChan Msg.Msg -> IO ()
+    -> Lang.Session -> TChan.TChan Msg.Msg -> IO ()
 responder static_config get_msg write_midi abort_midi get_now_ts setup_cmd
-        interpreter_chan loopback_chan = do
+        lang_session loopback_chan = do
     Log.debug "start responder"
     -- Report keymap overlaps.
     mapM_ Log.warn
@@ -91,7 +91,7 @@ responder static_config get_msg write_midi abort_midi get_now_ts setup_cmd
     let rstate = ResponderState static_config ui_state cmd_state
             get_msg write_midi
             (Transport.Info send_status write_midi abort_midi get_now_ts)
-            interpreter_chan loopback_chan
+            lang_session loopback_chan
     respond_loop rstate
     where
     send_status block_id status =
@@ -327,7 +327,7 @@ run_core_cmds rstate msg exit = do
     -- I hardcode them in a special list that gets run in IO.
     let io_cmds = StaticConfig.config_global_cmds config
             ++ hardcoded_io_cmds (state_transport_info rstate)
-                (state_interpreter_chan rstate)
+                (state_session rstate)
                 (StaticConfig.config_local_lang_dirs config)
     (ui_to, cmd_state) <- do_run exit Cmd.run_io rstate msg ui_from
         ui_to cmd_state io_cmds
@@ -346,8 +346,8 @@ hardcoded_cmds =
     ]
 
 -- | And these special commands that run in IO.
-hardcoded_io_cmds transport_info interpreter_chan lang_dirs =
-    [ Lang.cmd_language interpreter_chan lang_dirs
+hardcoded_io_cmds transport_info lang_session lang_dirs =
+    [ Lang.cmd_language lang_session lang_dirs
     , Play.cmd_play_msg
     ] ++ GlobalKeymap.io_cmds transport_info
 

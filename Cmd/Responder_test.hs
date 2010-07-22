@@ -1,9 +1,8 @@
 module Cmd.Responder_test where
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.STM.TChan as TChan
-import qualified Control.Concurrent.Chan as Chan
-import qualified Data.Map as Map
-import qualified System.IO as IO
+-- import qualified Data.Map as Map
+-- import qualified System.IO as IO
 import qualified System.CPUTime as CPUTime
 
 import qualified Midi.CoreMidi as CoreMidi
@@ -12,15 +11,16 @@ import qualified Midi.Midi as Midi
 import qualified Util.Log as Log
 import Util.Test
 
-import qualified Ui.Key as Key
+-- import qualified Ui.Key as Key
 import qualified Ui.State as State
-import qualified Ui.Update as Update
+-- import qualified Ui.Update as Update
 import qualified Ui.UiTest as UiTest
 
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Responder as Responder
 import qualified Cmd.CmdTest as CmdTest
+import qualified Cmd.Lang as Lang
+import qualified Cmd.Responder as Responder
 
 import qualified Perform.Transport as Transport
 
@@ -89,12 +89,12 @@ run_msgs :: State.State -> Cmd.State -> [Msg.Msg]
 run_msgs ustate cstate msgs = do
     midi <- MVar.newMVar []
     let midi_writer wmsg = MVar.modifyMVar_ midi (\ms -> return (wmsg:ms))
-    interpreter_chan <- Chan.newChan
+    session <- Lang.make_session
     transport_info <- dummy_transport
     loopback_chan <- TChan.newTChanIO
     let rstate = Responder.ResponderState StaticConfig.empty_config
             ustate cstate (error "state_msg_reader unused") midi_writer
-            transport_info interpreter_chan loopback_chan
+            transport_info session loopback_chan
     statuses <- thread_states rstate msgs
     midi_msgs <- MVar.takeMVar midi
     return (statuses, midi_msgs)
