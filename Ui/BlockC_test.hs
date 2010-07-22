@@ -181,7 +181,7 @@ test_track_signal = do
 
 -- This should really be in Ui.SymbolC_test, but I'm lazy.
 test_symbols = do
-    let sym = Symbol.Symbol "1^"
+    let sym = Symbol.Symbol "1^" True
             [Symbol.Glyph "1" Nothing 0 (0, 0),
                 Symbol.Glyph "•" Nothing 0 (0.2, -0.6)]
 
