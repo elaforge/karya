@@ -8,7 +8,7 @@ import qualified Perform.Pitch as Pitch
 
 
 symbols :: [Symbol.Symbol]
-symbols = dotted_numbers
+symbols = dotted_numbers ++ staff_symbols ++ gongchepu
 
 -- * dotted numbers
 
@@ -48,3 +48,58 @@ dotted_numbers = map dot_above cs ++ map dot2_above
     where
     -- If some scale wants higher numbers, they are easy to add.
     cs = map show [0..9]
+
+
+-- * staff notation
+
+staff_symbols :: [Symbol.Symbol]
+staff_symbols =
+    [ Symbol.Symbol "sharp" False [g "\xe10e" 1]
+    , Symbol.Symbol "sharp2" False [g "\xe125" 2]
+    , Symbol.Symbol "flat" False [g "\xe11a" 2]
+    , Symbol.Symbol "flat2" False [g "\xe123" 2]
+    , Symbol.Symbol "tr" False [g "\xe17a" 2]
+    ]
+    where g str size = Symbol.Glyph str (Just "Emmentaler-11") size (0, 0)
+
+
+-- * 工尺譜 gongchepu for 南管
+
+gongchepu :: [Symbol.Symbol]
+gongchepu =
+    -- TODO fix names later
+    [ Symbol.simple "si" "士"
+    , Symbol.simple "e" "下"
+    , Symbol.simple "che" "ㄨ" -- bopo \x3128 ㄨ
+    , Symbol.simple "gong" "工"
+    , Symbol.simple "liu" "六"
+
+    -- 琵琶手法
+    , Symbol.simple "kou" "口"
+    , Symbol.simple "up" "㇀" -- \x31c0
+    , Symbol.simple "L" "㇄" -- \x31c4
+    -- \x2020 at least until I can make a better one
+    , Symbol.Symbol "dagger" True [Symbol.Glyph "†" Nothing 4 (0, 0)]
+    , Symbol.Symbol "wu1" True
+        [ g wu (0, 0)
+        , g dian (-0.5, 0)
+        ]
+    , Symbol.Symbol "wu666" True
+        [ g wu (0, 0)
+        , g dian (-0.5, 0)
+        , g dian (0, 0.5)
+        ]
+    , Symbol.Symbol "wu866" True
+        [ g wu (0, 0)
+        , g dian (-0.5, 0.2)
+        , g dian (-0.5, -0.2)
+        ]
+
+    -- meter
+    , Symbol.simple "ling" "○"
+    , Symbol.simple "dian" dian
+    ]
+    where
+    g str = Symbol.Glyph str Nothing 0
+    dian = "、"
+    wu = "ㄨ"

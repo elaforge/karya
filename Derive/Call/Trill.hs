@@ -119,6 +119,7 @@ score_pos_at_speed stretch sig pos end
 pitch_calls :: Derive.PitchCallMap
 pitch_calls = Derive.make_calls
     [ ("tr", c_pitch_absolute_trill)
+    , ("`tr`", c_pitch_absolute_trill)
     , ("abs-trill", c_pitch_absolute_trill)
     ]
 
