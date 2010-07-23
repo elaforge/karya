@@ -53,11 +53,13 @@ for prof in $profiles; do
             | tee $basename.stdout
     fi
 
-    for suf in gc prof hp aux tix stdout; do
+    for suf in gc hp aux tix stdout; do
         if [[ -e $basename.$suf ]]; then
             mv $basename.$suf $stem.$suf
         fi
     done
+    runghc tools/Columnize.hs <$basename.prof >$stem.prof
+    rm $basename.prof
     if [[ -e $stem.hp ]]; then
         echo $stem.pdf
         hp2ps -b -c <$stem.hp | ps2pdf - - >$stem.pdf

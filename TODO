@@ -340,10 +340,6 @@ symbolic score
   - feta's tr symbol looks bad especially when small, is there a better one?
   - find or make a font with jian ti symbols?
   - find or make a font with gong che pu
-    meter: circle, downstroke
-    fingering: downstroke, upstroke, cross, L, circle, figure-8
-    pitch: normal characters
-    - ㄨ 工 六 士 一
 
 fltk:
   - some kind of special highlight to indicate the active block
@@ -419,8 +415,8 @@ fltk:
 
   control track, render signal
     - support control signals that aren't just 0--1
-    - signal filled display is chunky and ugly.  I think they would be
-      nicer as one long line.  I should also not round xpos to an integer.
+    / decided against rendering signal as one long line, comment in
+      EventTrack.cc
     * scale markers on pitch signals
     - render option: solid with color gradient
     - combine multiple signals, e.g. one controls xpos, one controls color
@@ -452,12 +448,6 @@ logview:
   - hide or display various attrs: date, file, function, ...
   - collapse duplicate lines
 
-control fltk
-  dense sampled signals
-    - efficient storage, preferably as a Signal so no conversion is necessary
-    - display dense signals: omit text and trigger lines when zoomed out
-  / decided against rendering signal as one long line, comment in EventTrack.cc
-
 Ui:
   Track
     - benchmark large TrackEvents
@@ -467,6 +457,9 @@ Ui:
         can I take advantage of non-overlap?  [(pos0, data), (pos1, end), ...]
         data Event = Event String StyleId | End | ControlVal Double
       - I think memory efficiency is more important than modification speed
+    dense sampled signals
+      - efficient storage, preferably as a Signal so no conversion is necessary
+      - display dense signals: omit text and trigger lines when zoomed out
 
 skeleton:
   - parse skeleton in LanguageCmds
@@ -485,17 +478,23 @@ misc:
 integrator / midi record:
   - implement
 
-REPL repl language
+REPL repl language static config
   - haskeline sucks for long lines, add multiple line editing?
     really I'd prefer plan9 style esc then edit
   - could add syntax mangling, but probably better to add it to the mangler
     so it works for everyone
   - pass -fobject-code to avoid trying to recompile files?
   * add custom interpreter for some commands to make them fast?
+  - Recompiling for static config is not so attractive because it takes so long
+    to link, around 17s including hint.  Also, I need to preserve state
+    between compiles.  hs-plugins should be much faster, but it doesn't work
+    with modern ghc.
+    - figure out how yi does it
+    - ask dons about how to update hs-plugins
 
 Cmd:
   ? a module with easy access to all GlobalKeymap cmds for cmdline access
-  - cmd to give a view focus and bring it to the front
+  * cmd to give a view focus and bring it to the front
   vi style keymap:
     - movement: hjkl, HJKL to move timestep+1 or skip to
       next inst track, bf to move timestep at block section rank, BF to move to
@@ -516,6 +515,9 @@ Cmd:
    - stretch events in selection to another length (need two selections?)
   Cmd.Selection
     - select_and_scroll doesn't scroll down when going from no sel -> sel
+    - snap will snap to positions that arrows can't get to.  Snap absolute
+      should only be able to snap to an absolute set of positions.  Snap
+      relative should snap to all multiples of the current position.
   Cmd.TimeStep
     - snap to event begin/end
 
@@ -533,7 +535,6 @@ Cmd:
 
   Cmd.Play
     * warn about unallocated instruments (Convert.verify)
-    * make sure the whole stack is lazy
     - play loops
     smarter background derivation
       * wait a second before deriving
@@ -836,7 +837,10 @@ misc ideas:
     modifying core ADTs
   - Staff notation represents chords well, but tracks don't.  Think of a more
     compact notation.
-  - Staff notation output via lilypond?
+  - Staff notation output via lilypond?  This can be implemented as another kind
+    of backend.  I think events would need metadata so I have a place to put
+    formatting info.  Maybe tracks and blocks need it too so I can express
+    staff associations.
   - if derivation needs event IDs, maybe I can use the value-supply package
   - safecopy package does version controlled serialization
   - think about yi's approach to keybindings as a parser and keybinding state

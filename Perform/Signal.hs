@@ -370,6 +370,7 @@ pitches_share in_decay start end sig0 sig1 =
 -- audible.
 pitch_share :: Bool -> Y -> Y -> Bool
 pitch_share in_decay v0 v1 =
-    (in_decay || fst (properFraction v0) /= fst (properFraction v1))
-        && f v0 == f v1
-    where f v = floor (snd (properFraction v) * 1000)
+    (in_decay || n0 /= n1) && floor (f0*1000) == floor (f1*1000)
+    where
+    (n0, f0) = properFraction v0
+    (n1, f1) = properFraction v1
