@@ -226,6 +226,10 @@ data State = State {
     -- | Default time step.  Used for cursor movement, note duration, and
     -- whatever else.
     , state_step :: TimeStep.TimeStep
+    -- | 'Cmd.Play.cmd_play_from_previous_step' uses this to find the place to
+    -- start playing from.  It's separate from 'state_step' because it will
+    -- usually be a larger step.
+    , state_play_step :: TimeStep.TimeStep
     -- | If this is Rewind, create notes with negative durations.
     , state_note_direction :: TimeStep.Direction
     -- | Transpose note entry on the keyboard by this many octaves.  It's by
@@ -261,6 +265,8 @@ initial_state inst_db schema_map = State {
     , state_kbd_entry = False
     , state_step =
         TimeStep.UntilMark TimeStep.AllMarklists (TimeStep.MatchRank 3 0)
+    , state_play_step =
+        TimeStep.MarkDistance TimeStep.AllMarklists (TimeStep.MatchRank 1 0)
     , state_note_direction = TimeStep.Advance
     -- This should put middle C in the center of the kbd entry keys.
     , state_kbd_entry_octave = 4

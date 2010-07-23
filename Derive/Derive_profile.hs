@@ -154,7 +154,7 @@ mod_track = ctrack0 1 "cc1 | srate = .02" ["i 1", "i 0", "e 1", "i .5", "0"]
 simple_pitch_track =
     ctrack0 1 "*twelve" ["4a", "4b", "4c", "4d", "4e", "4f", "4g", "5c"]
 nontempered_pitch_track =
-    ctrack0 1 "*semar" ["1", "2", "3", "5", "6", "1^", "6."]
+    ctrack0 1 "*semar" ["1", "2", "3", "5", "6", "`1^`", "`6.`"]
 vel_track = ctrack0 1 "vel" ["1", ".2", ".4", ".6"]
 
 ctrack0 :: Double -> String -> [String] -> UiTest.TrackSpec

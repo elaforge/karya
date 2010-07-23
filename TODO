@@ -4,10 +4,6 @@ auto insert imports in vim:
   - turn 'module x.y.z where' into 'import qualified x.y.z as z'
   - figure out where to insert it, and insert it
 
-misc ghc fixes:
-  - .prof output should line up better
-  - hp2ps should use constant colors for biography
-
 + finish up derive profiling testing, logging monad
 - signals:
   - profile
@@ -20,6 +16,17 @@ misc ghc fixes:
 - research ardour OSC control
 
 CURRENT
+  - What if I want a relative pitch track that takes ratios relative to some
+    other pitch track?  I can set the scale and put the other signal in the
+    dynamic env, but what if it's another instrument's pitch track and not in
+    scope?  Either a way to name signals by track id, or get it into scope
+    somehow.  If it's really meant to be relative to some arbitrary other
+    instrument, moving that instrument's pitch track up in scope seems too
+    invasive.
+
+    But referring to outputs of other track ids introduces an order dependency,
+    which would be a problem if there's a loop.
+
   - I think PitchSignals may need to be reworked.  They should be (Note, Note,
     Frac).  Otherwise, it's not clear what to call 4a# vs. 4ab.  I can still
     use numbers (Ints this time) as indices into a table of names, but e.g.
@@ -28,6 +35,7 @@ CURRENT
 
   - I think if the same TrackId appears in multiple places, it will be derived
     redundantly.  I should be able to cache the signal output in a TrackSignal.
+    But with any luck derive caching will take care of this.
   - TrackSignals is per TrackId, but the same TrackId may render to different
     signals in different positions because it has a differnt environment.  It
     should be (BlockId, TrackNum) + TrackId to verify in case the state was
@@ -540,7 +548,7 @@ Cmd:
       * wait a second before deriving
       - don't derive while a key or mouse button is down
     - start playing from top of displayed area
-    - start playing from TimeStep before insert point
+    * start playing from TimeStep before insert point
 
   Undo
     - figure out how to checkpoint just state diffs
@@ -845,6 +853,10 @@ misc ideas:
   - safecopy package does version controlled serialization
   - think about yi's approach to keybindings as a parser and keybinding state
   - also investigate yi's approach to configuration
+
+misc ghc fixes:
+  - .prof output should line up better
+  - hp2ps should use constant colors for biography
 
 future:
   - I need to sync with a DAW but don't want to implement rewire.

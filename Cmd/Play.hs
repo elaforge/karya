@@ -99,6 +99,7 @@ import qualified Ui.Sync as Sync
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Selection as Selection
+import qualified Cmd.TimeStep as TimeStep
 
 import qualified Derive.Derive as Derive
 import qualified Derive.Scale.Twelve as Twelve
@@ -132,6 +133,13 @@ cmd_play_from_insert :: Transport.Info -> Cmd.CmdT IO Cmd.Status
 cmd_play_from_insert transport_info = do
     (block_id, _, track_id, pos) <- Selection.get_insert
     cmd_play transport_info block_id (track_id, pos)
+
+cmd_play_from_previous_step :: Transport.Info -> Cmd.CmdT IO Cmd.Status
+cmd_play_from_previous_step transport_info = do
+    step <- Cmd.gets Cmd.state_play_step
+    (block_id, tracknum, track_id, pos) <- Selection.get_insert
+    next <- TimeStep.step_from step TimeStep.Rewind block_id tracknum pos
+    cmd_play transport_info block_id (track_id, (maybe 0 id next))
 
 cmd_play :: Transport.Info -> BlockId -> (TrackId, ScoreTime)
     -> Cmd.CmdT IO Cmd.Status

@@ -94,6 +94,8 @@ player_bindings transport_info = fst $ Keymap.make_cmd_map $ concat
     [ bind_key Key.Enter "play block" (Play.cmd_play_focused transport_info)
     , bind_mod [Shift] Key.Enter "play from insert"
         (Play.cmd_play_from_insert transport_info)
+    , bind_mod [PrimaryCommand] Key.Enter "play from previous step"
+        (Play.cmd_play_from_previous_step transport_info)
     ]
 
 -- * pure cmds
