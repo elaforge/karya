@@ -1,16 +1,175 @@
-TODO: check out yi's approach to caching the results of incremental parsing:
-http://yi-editor.blogspot.com/2008/11/incremental-parsing-in-yi.html
-
-Derivation can be expensive, especially if there is a lot of data to derive.
-Clearly rederiving the entire song on every edit is not going to very well.
-
 Ideally, I rederive the minimum amount necessary to reflect the change that was
 just made.  In the presence of fully general derivation, I can't really know
-this since any event may generate some arbitrary amount of notes.
+this since any event may generate some arbitrary amount of notes, but the
+common case won't do that.
 
-However, I should be able to make some simplifying assumptions and restrictions
-to make the common case efficient.
+1 So if you edit a block derived from a parent, the parent should only
+re-derive the sections covered by your block.  2 Similarly, if you edit
+a region in a block, it only needs to rederive the edited region.  There also
+needs to be a way for a deriver to signal that you can't do this though.
 
+
+    Memoization strategy
+
+I think memoizing based on all inputs (controls, dynamic env) may be too much
+hassle.  Maybe I can memoize based on stack, so a block called from the same
+place will yield the same results.  Or I could put the caches in the calling
+block.
+
+The Score Events produced by each call is stored in the block.  Then when a
+section of the block is changed, remove the cache for only the edited events.
+The caller must also figure out that its callee has changed and delete its
+cache.  Maybe I can do that by saving stacks?
+
+On the other hand, maybe I can still do (controls, env) derivation by storing
+{Control: Fingerprint}, where Fingerprint is a checksum of the samples within
+the call's range.
+
+b1      b2      b3
+--      --      --
+b2      a       d
+x=y     b       e
+b2      c       f
+b3      b3
+
+If I change b1's b3, the first two b2s can be cached.
+
+If I change x=y, everything after it has to be rederived.  Any call that
+changes the dynamic env must invalidate everything after it.  However, those
+calls should be rare since they're dangerous anyway.  I can either figure
+out who they are by checking dynamic env before and after, or give such calls
+a "non-causal" flag.
+
+If I change b2's a, the 'b' 'c' and 'b3' can be cached.  b1 has to rederive
+its two 'b2s', but its 'b3' can be cached.
+
+If I change b3's anything, everything must be rederived.
+
+Non-causal:  If it sets the env, everything after it must be rederived when
+it's changed.  If it depends on previous events or samples then it must be
+rederived if the previous event changed.  In this context, "changed" doesn't
+just mean directly changed, but includes "had to be rederived".  If it depends
+on following events then the same goes for following events.
+
+I think I can avoid the NonCausal flag by just including the dynamic env in
+the memo table.  Depending on other events means either that it inspects the
+event itself or that it looks at signal outside of its event's extent.  Or,
+this flag could just change the extent at which the signal fingerprint is
+calculated.
+
+So each call is given a memo table:
+type CallMemos = Map.Map CallIdentity Memo
+-- | The Bool is True if the memo key was used in this derivation.
+type Table = Map.Map Key Val
+type Key = (Warp, Controls, Env)
+data Val = Val {
+    val_used :: Bool
+    , val_events :: Events
+    , val_env :: Derive.Environ
+    }
+type Warp = Fingerprint
+type Controls = Map.Map Score.Control Fingerprint
+type Env = Derive.Environ -- or EnvFingerprint?
+newtype Fingerprint = Fingerprint Int
+
+-- | This uniquely determines a call.  It's not the CallId, which may be
+-- rebound, and it shouldn't be the 'Derive.call_name', which is set by the
+-- user and may collide.  So where does it come from?  I don't know yet...
+-- Maybe I can store this in the CallMap itself and avoid the separate table.
+newtype CallIdentity = CallIdentity TrackLang.CallId
+
+On call, construct the MemoKey.  Look in the CallMemos table for a match, and
+if I see one, merge its environ with the current environ and return its events.
+Mark the 'val_used' True.  Otherwise, run the call and stuff the Events into
+CallMemos.  Optionally, if the call is "too small", skip all this memoization
+and just call it.
+
+Once derivation is complete, go through all the MemoTables and remove the
+MemoKeys that weren't used.
+
+Constructing a MemoKey: figure out the extent of the event, which may be
+expanded depending on the Call's non-causal flags.  Run 'fingerprint' on the
+controls.  This means that changing some top-level signal would rederive
+everyone even if no one used it.  Ideally I could know on which signals a call
+depends and only fingerprint those signals, but in the beginning I can just get
+them all.  Another optimization: if I store a Fingerprint for the entire signal
+and it hasn't changed, I should be able to bypass calculating the fingerprint.
+That would mean that the ControlsMemo would have to include the entire signal
+fingerprint as well.
+
+-- | Get a checksum of the signal in the specified range.
+-- I could also use this before midi performance to make sharing checking
+-- faster, in lieu of a ControlId.
+fingerprint_range :: RealTime -> RealTime -> Signal.Signal y -> Fingerprint
+fingerprint :: Signal.Signal y -> Fingerprint
+
+
+So what about the state of the environ if I skip a bunch of calls?  If
+a call changes the environ, that should be considered part of its output.  So
+that should also be memoized.  I could either diff the env or try to go more
+functional by insisting that any changes be returned.  I think diffing the env
+works for now.
+
+How does this interact with postproc?  In fact, how does this interact
+with transforms of all kinds?  I would need to fingerprint a set of events.
+Easiest is to not bother, but if I wind up with postproc running over most
+everything, and it's causal postproc, it would be nice to cache some of that.
+Say I'm running postproc for arrival beats... now the whole piece is under
+postproc.  I'm still saving time by memoizing, but perhaps not as much as I
+could be.
+
+    Range strategy
+
+But it would seem to require a totally different caching strategy, a time based
+one.  If a certain range of the track has changed, I can keep all the events
+associated with ui events outside of that range.  I rederive events in the
+changed range and splice them in.  This implies that output is cached at the
+level of each ui event and the cache is held in the track, not the calls.
+
+What if signal changes in a certain range?  That changed range has to propagate
+down to the evaluation of the called track and become its changed range.  If
+events depend on neighboring signal they may expand the range.  I don't think
+the range can be reduced.
+
+What about env changes?  If I cache the output of each event along with the
+environ state at that point, then I can simply initialize the env to the
+appropriate val when evaluating the changed range.  This ability to evaluate
+a fragment may be useful for midi thru as well.
+
+Evaluate a track.  As each event is evaluated, stash its events or signal chunk
+in a {ScoreTime: (derived, Environ)} map.  Now, when a bit of track is changed,
+the Updates are passed to 'derive'.  However, the modified range must propagate
+from the callees to the callers, how does that happen?  I think on derivation
+I would have to build a dependency tree.  So the event cache includes the
+[(TrackId, TrackPos)] it depends on.  Chase those deps upwards until I wind up
+at the derived block, then evaluate those ranges and splice the results into
+the cached results.  The ranges can be expanded by events with dependencies.
+
+x=y -> extend range to the end of the block
+next event is prev_sample -> extend to next event
+prev event is next -> extend to prev event
+
+I think I can extend this all the way to MIDI events.  The performer has a next
+dep on so I have to extend to the prev.
+
+Many calls that produce only a few events, maybe I can consolidate them into
+a larger chunk.
+
+    Hybrid strategy
+
+
+How to cache midi output?  The MIDI performer is more well behaved than the
+deriver, but since its input is a flat list of Events, it's not as clear
+where to cache.  This might be the same problem as caching the output of
+a causal transformer... though it's not totally causal because each event needs
+to look at the next one.
+
+
+
+------ old notes
+
+TODO: check out yi's approach to caching the results of incremental parsing:
+http://yi-editor.blogspot.com/2008/11/incremental-parsing-in-yi.html
 
     Memoize subderivations
 
