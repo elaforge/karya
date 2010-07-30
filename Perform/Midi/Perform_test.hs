@@ -439,6 +439,13 @@ test_can_share_chan = do
                 (Signal.signal psig) []
     let f evt0 evt1 = Perform.can_share_chan (pevent evt0) (pevent evt1)
 
+    -- Can't share, becase there is explicitly time for a leading pitch
+    -- bend in the second event.
+    equal (f (0, 2, [(0, 60)], []) (2, 2, [(0, 60), (2, 61)], [])) False
+
+    -- can't share because first pitch bends
+    equal (f (0, 2, [(0, 60), (1, 62)], []) (0, 2, [(0, 64)], [])) False
+
     -- Pitches with an integral difference overlap.
     equal (f (0, 2, [(0, 60)], []) (0, 2, [(0, 61)], [])) True
     -- Same pitch can't.
@@ -540,12 +547,14 @@ mkevents_inst1 evts = mkevents
     [(inst1, text, start, dur, conts) | (text, start, dur, conts) <- evts]
 
 -- | Takes a list so it can simulate the controls and pitch for one track.
+-- TODO except I don't do that anymore, so I don't need mkevents
 mkevents :: [EventSpec] -> [Perform.Event]
 mkevents events = trim_pitches
-    [Perform.Event inst start dur (Map.fromList controls) pitch_sig stack
-        | (inst, _, start, dur, controls) <- events]
+    [Perform.Event inst start dur (Map.fromList controls)
+            (pitch_sig start pitch) stack
+        | (inst, pitch, start, dur, controls) <- events]
     where
-    pitch_sig = Signal.signal [(pos, to_pitch p) | (_, p, pos, _, _) <- events]
+    pitch_sig pos p = Signal.signal [(pos, to_pitch p)]
     to_pitch p = Maybe.fromMaybe (error ("no pitch " ++ show p))
         (lookup p pitch_map)
     pitch_map = zip (map (:"") ['a'..'z']) [60..]

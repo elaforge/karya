@@ -448,37 +448,24 @@ shareable_chan overlapping event = fmap fst (List.find all_share by_chan)
 -- The reason this is not commutative is so I can assume the start of @old@
 -- precedes the start of @new@ and save a little computation.
 can_share_chan :: Event -> Event -> Bool
-can_share_chan old new
-    | start < end = event_instrument new == event_instrument old
-        && pitches_share
-        && controls_equal start end (event_controls new) (event_controls old)
-    | otherwise = True
+can_share_chan old new = case (initial_pitch old, initial_pitch new) of
+        _ | start >= end -> True
+        _ | event_instrument old /= event_instrument new -> False
+        (Just (initial_old, _), Just (initial_new, _)) ->
+            Signal.pitches_share in_decay start end
+                initial_old (event_pitch old) initial_new (event_pitch new)
+            && controls_equal start end (event_controls new)
+                (event_controls old)
+        _ -> True
     where
     start = note_begin new
     end = min (note_end new) (note_end old)
-
-    pitches_share = initial_pitch == current_pitch
-        && Signal.pitches_share in_decay start end
-            (event_pitch old) (event_pitch new)
-        where
-        -- If the overlap is in the decay of one or both notes, the rules are
-        -- slightly different.
-        in_decay = event_end new <= event_start old
-            || event_end old <= event_start new
-        -- If the old event is not at its initial pitch, it will have pitch
-        -- bend applied and therefore can't share with this one.  Actually, it
-        -- could possibly share if 'new' started on a pitch other than its
-        -- initial pitch and relied on the existing pitch bend to put it in
-        -- place, but I think this is hard with the current architecture.
-        -- TODO this will improperly split parallel pitch slides and whole
-        -- degree slides so it's not ideal.  I need to think more about how to
-        -- efficiently determine sharing.  Perhaps if can_share returned
-        -- a number if the signals are parallel with an integral offset, then
-        -- the caller can subtract that offset from the pitch.
-        initial_pitch = Signal.at (event_start old) (event_pitch old)
-        -- Note the current pitch is 'event_start' and *not* start, which
-        -- will be slightly before the current start, due to control lead.
-        current_pitch = Signal.at (event_start new) (event_pitch old)
+    initial_pitch event = event_pitch_at (event_pb_range event)
+        event (event_start event)
+    -- If the overlap is in the decay of one or both notes, the rules are
+    -- slightly different.
+    in_decay = event_end new <= event_start old
+        || event_end old <= event_start new
 
 -- | Are the controls equal in the given range?
 controls_equal :: RealTime -> RealTime
@@ -567,7 +554,7 @@ data Event = Event {
     , event_pitch :: Signal.NoteNumber
     -- original (TrackId, ScoreTime) for errors
     , event_stack :: Warning.Stack
-    } deriving (Show)
+    } deriving (Eq, Show)
 
 instance NFData Event where
     rnf (Event inst start dur controls pitch stack) =

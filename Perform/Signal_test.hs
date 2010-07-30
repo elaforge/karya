@@ -57,26 +57,29 @@ test_integrate = do
 
 test_pitches_share = do
     let sig = mksig
-    let f = Signal.pitches_share False
+    let sample0 sig = fromIntegral (floor y)
+            where Just (_, y) = Signal.first sig
+    let f start end sig0 sig1 = Signal.pitches_share False start end
+            (sample0 sig0) sig0 (sample0 sig1) sig1
 
     -- Different signals.
-    equal (f 0 1 (sig [(0, 0), (1, 1)]) (sig [(1, 1), (0, 0)])) False
-    -- Separated by an integer.
+    equal (f 0 1 (sig [(0, 0), (1, 1)]) (sig [(0, 1), (1, 0)])) False
+    -- Separated by an integer can share.
     equal (f 0 1 (sig [(0, 0), (1, 1)]) (sig [(0, 1), (1, 2)])) True
-    equal (f 0 1 (sig [(0, 0), (2, 2)]) (sig [(0, 1), (1, 2)])) True
-    equal (f 1 2 (sig [(0, 0), (2, 2)]) (sig [(0, 1), (10, 11)])) True
     -- Separated by 0 can't share.
     equal (f 0 1 (sig [(0, 0), (1, 1)]) (sig [(0, 0), (1, 1)])) False
-    equal (f 0 1 (sig [(0, 0), (1, 1)]) (sig [(0, 0), (2, 2)])) False
+    equal (Signal.pitches_share False 1 2 1 (sig [(0, 1)]) 1 (sig [(1, 1)]))
+        False
     -- Except when one note is in decay.
-    equal (Signal.pitches_share True 1 2
-            (sig [(0, 1), (4, 1)]) (sig [(1, 1), (5, 1)]))
-        True
+    equal (Signal.pitches_share True 1 2 1 (sig [(0, 1)]) 1 (sig [(1, 1)])) True
 
-    -- Must be separated by an integer.
-    equal (f 0 1 (sig [(0, 0), (1, 1)]) (sig [(0, 0.5), (1, 1.5)])) False
-    equal (f 0 1 (sig [(0, 0), (1, 1)]) (sig [(0, 1.5), (1, 2.5)])) False
+    -- Not an integral difference.
+    equal (f 1 3 (sig [(1, 60.01)]) (sig [(1, 61)])) False
+    -- But this difference is inaudible.
+    equal (f 1 3 (sig [(1, 60.001)]) (sig [(1, 61)])) True
 
     -- Signals with different starting times.
-    equal (f 1 3 (sig [(1, 0), (1, 61), (10, 61)]) (sig [(0, 60), (10, 60)]))
-        True
+    equal (f 1 3 (sig [(1, 61), (10, 61)]) (sig [(0, 60), (10, 60)])) True
+
+    -- one pitch changes but the other doesn't, so they can't share
+    equal (f 0 3 (sig [(0, 0), (1, 1)]) (sig [(0, 2)])) False

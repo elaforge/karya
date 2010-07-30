@@ -89,6 +89,8 @@ import qualified Data.StorableVector as V
 import qualified Foreign.Storable as Storable
 import qualified Util.Log as Log
 
+import qualified Midi.Midi as Midi
+
 import Ui
 
 import qualified Perform.SignalBase as SignalBase
@@ -353,24 +355,18 @@ equal x0 x1 sig0 sig1 = SignalBase.equal x0 x1 (sig_vec sig0) (sig_vec sig1)
 -- both notes, at which point 0 transposition is ok.
 --
 -- TODO this is actually a MIDI notion, so it should go in Perform.Midi
-pitches_share :: Bool -> X -> X -> NoteNumber -> NoteNumber -> Bool
-pitches_share in_decay start end sig0 sig1 =
-    pitch_share in_decay (at start sig0) (at start sig1)
-        && pitch_share in_decay (at end sig0) (at end sig1)
-        && all pitch_eq samples
+pitches_share :: Bool -> X -> X
+    -> Midi.Key -> NoteNumber -> Midi.Key -> NoteNumber -> Bool
+pitches_share in_decay start end initial0 sig0 initial1 sig1
+    | not in_decay && initial0 == initial1 = False
+    | otherwise = all pitch_eq ((start, at start sig0, at start sig1)
+        : (end, at end sig0, at end sig1) : samples)
     where
-    -- Unlike 'equal' I do resample, because there's a high chance of notes
-    -- matching but not lining up in time.
-    samples = SignalBase.resample_to_list
-        (SignalBase.within start end (sig_vec sig0))
-        (SignalBase.within start end (sig_vec sig1))
-    pitch_eq (_, ay, by) = pitch_share in_decay ay by
-
--- | Only compare out to cents, since differences below that aren't really
--- audible.
-pitch_share :: Bool -> Y -> Y -> Bool
-pitch_share in_decay v0 v1 =
-    (in_decay || n0 /= n1) && floor (f0*1000) == floor (f1*1000)
-    where
-    (n0, f0) = properFraction v0
-    (n1, f1) = properFraction v1
+    in0 = SignalBase.within start end (sig_vec sig0)
+    in1 = SignalBase.within start end (sig_vec sig1)
+    -- If they don't share any samples in the middle, then the start and end
+    -- checks are enough.
+    samples = if V.null in0 || V.null in1 then []
+        else SignalBase.resample_to_list in0 in1
+    pitch_eq (_, ay, by) = floor ((ay - fromIntegral initial0) * 1000)
+        == floor ((by - fromIntegral initial1) * 1000)
