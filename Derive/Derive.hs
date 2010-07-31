@@ -905,38 +905,33 @@ min_tempo :: Signal.Y
 min_tempo = 0.001
 
 d_at :: (Monad m) => ScoreTime -> DeriveT m a -> DeriveT m a
-d_at shift = with_warp (Score.shift_warp shift)
+d_at shift deriver
+    | shift == 0 = deriver
+    | otherwise = with_warp (Score.shift_warp shift) deriver
 
 d_stretch :: (Monad m) => ScoreTime -> DeriveT m a -> DeriveT m a
 d_stretch factor deriver
     -- A stretch of 0 is ok since the deriver may produce no events, or may
     -- work in real time.
     | factor <= 0 = throw $ "stretch <= 0: " ++ show factor
+    | factor == 1 = deriver
     | otherwise = with_warp (Score.stretch_warp factor) deriver
 
 with_warp :: (Monad m) => (Score.Warp -> Score.Warp) -> DeriveT m a
     -> DeriveT m a
-with_warp f deriver = do
-    old <- gets state_warp
-    modify $ \st -> st { state_warp = f (state_warp st) }
-    v <- deriver
-    modify $ \st -> st { state_warp = old }
-    return v
+with_warp f = local state_warp (\w st -> st { state_warp = w }) $ \st ->
+    return $ st { state_warp = f (state_warp st) }
 
 in_real_time :: (Monad m) => DeriveT m a -> DeriveT m a
 in_real_time = with_warp (const Score.id_warp)
 
 d_warp :: (Monad m) => Signal.Warp -> DeriveT m a -> DeriveT m a
 d_warp sig deriver = do
-    old_warp <- gets state_warp
-    -- Log.write $
-    --     Signal.log_signal (warp_signal (Score.compose_warp old_warp sig)) $
-    --     Log.msg Log.Debug "new warp"
-    modify $ \st -> st { state_warp = Score.compose_warp old_warp sig }
+    -- This can't use 'finally' because 'start_new_warp' is after the modify.
+    old <- gets state_warp
+    modify $ \st -> st { state_warp = Score.compose_warp old sig }
     start_new_warp
-    result <- deriver
-    modify $ \st -> st { state_warp = old_warp }
-    return result
+    deriver `finally` modify (\st -> st { state_warp = old })
 
 -- | Shift the controls of a deriver.  You're supposed to apply the warp before
 -- deriving the controls, but I don't have a good solution for how to do this
