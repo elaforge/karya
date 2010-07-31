@@ -210,14 +210,6 @@ gets f = fmap f get
 
 -- * global changes
 
-structure state = (views, blocks, tracks, rulers)
-    where
-    views = Map.keys (state_views state)
-    blocks = [(block_id, Block.block_tracks block)
-        | (block_id, block) <- Map.assocs (state_blocks state)]
-    tracks = Map.keys (state_tracks state)
-    rulers = Map.keys (state_rulers state)
-
 -- | Map a function across the IDs in the given state.  Any collisions are
 -- thrown in Left.
 map_state_ids :: (Id.Id -> Id.Id) -> State -> Either StateError State

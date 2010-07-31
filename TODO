@@ -16,6 +16,23 @@ auto insert imports in vim:
 - research ardour OSC control
 
 CURRENT
+  - lookup val calls in current inst as in current scale
+    Maybe I can get rid of the Instrument.inst_control_map if I do the mapping
+    in generate_note
+  - inst has a notion of polyphony so I can avoid overloading a channel, say
+    if I limit it to 2 voices
+  derive cache
+    - make a profile for modification and recomputation of a large structure,
+      the sort of thing memoization would help with
+    - if it helps, I can disallow modification of the Environ by wrapping
+      every call in with_local_environ, that way cache only has to save the
+      environ on each new call
+    - how does yi incremental parser handle exceptions?
+
+    Control derivers return (Signal, ScoreRegion), the score region is inserted
+    as track damage.  Event derivers return (Events, RealRegion), the region
+    is passed on to the performer for its cache.
+
   - What if I want a relative pitch track that takes ratios relative to some
     other pitch track?  I can set the scale and put the other signal in the
     dynamic env, but what if it's another instrument's pitch track and not in
@@ -92,6 +109,8 @@ CURRENT
     checkpoint, load it, and apply the subsequent diffs.  On undo, if there are
     no previous states, load the previous checkpoint and apply its diffs.
 
+    - check out cautious-file on hackage
+
   + rts crash
     - Did alignment change fix it?  Wait a while and mail list if it's still
       gone.
@@ -146,14 +165,10 @@ CURRENT
   * move test_obj/ and profile_obj/ to build/test and build/profile
   * cc on a multiplexed inst is not being merged
   - why does creating a block in setup cmd without a view go to cpu 100%?
-  - Derive: inst as a call rather than just something from the env
   * symbolic score: remove null call
   * make some score generators for performance testing
 
   - more sophisticated function to find out the inst of a note track
-  / put prev, cur, next in PassedArgs too?
-    except that transformers currently don't get these args
-    what would the track transformer pass?
   * remove warped control?
   - subblock derivation for control tracks
   * re-enable signal deriver, but in a more efficient way?
@@ -273,7 +288,7 @@ bugs:
 cleanup:
   - cleanup Ui.Track: event_list -> all_events?
   - split Derive.State into dynamically scoped, constant, and logging parts
-  - State.structure only used by Clip_test
+  * State.structure only used by Clip_test
   - Makefile: ghc --make doesn't understand the hsc -> hs link, which leads to
     manual inclusion of $(UI_HS) in the deps
   - remove Util.Log -> Perform.Warning import by translating IDs into strings?

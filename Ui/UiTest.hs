@@ -1,4 +1,5 @@
 module Ui.UiTest where
+import qualified Data.Map as Map
 
 import Control.Monad
 import qualified Control.Monad.Identity as Identity
@@ -82,6 +83,7 @@ run state m = case result of
         Right (val, state', _) -> (val, state')
     where result = Identity.runIdentity (State.run state m)
 
+exec :: State.State -> State.StateId a -> State.State
 exec state m = case State.exec state m of
     Left err -> error $ "state error: " ++ show err
     Right state' -> state'
@@ -178,3 +180,10 @@ overlay_ruler ruler = ruler
     , Ruler.ruler_use_alpha = True
     , Ruler.ruler_full_width = True
     }
+
+
+-- * extract
+
+block_structure :: State.State -> [(BlockId, [TrackId])]
+block_structure state = [(block_id, Block.block_track_ids block)
+    | (block_id, block) <- Map.assocs (State.state_blocks state)]

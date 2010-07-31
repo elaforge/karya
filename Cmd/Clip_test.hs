@@ -108,12 +108,12 @@ test_namespace_ops = do
         Clip.cmd_copy_selection
     -- TODO it's too hard at the moment to make sure they have been set, so
     -- I'll just make sure the state is at least valid
-    pprint (State.structure state)
+    pprint (UiTest.block_structure state)
     pprint (snd (State.verify state))
     check_msg $ valid_state state
 
     state <- run state $ Clip.clear_clip
-    pprint (State.structure state)
+    pprint (UiTest.block_structure state)
     check_msg $ valid_state state
 
 valid_state state = (null msgs, show msgs)
