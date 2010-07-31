@@ -13,8 +13,10 @@ import qualified Midi.Midi as Midi
 import qualified Instrument.MidiDb as MidiDb
 
 import Ui
-import qualified Ui.UiTest as UiTest
+import qualified Ui.Id as Id
 import qualified Ui.State as State
+import qualified Ui.Types as Types
+import qualified Ui.UiTest as UiTest
 
 import qualified Derive.Call.All as Call.All
 import qualified Derive.Derive as Derive
@@ -25,6 +27,7 @@ import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Pitch as Pitch
+import qualified Perform.Signal as Signal
 import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Warning as Warning
 
@@ -221,3 +224,29 @@ default_ksmap = Instrument.KeyswitchMap $
         , (["a2"], "a2", 3)
         ]
     where to_attrs = Score.attributes
+
+-- * mkevents
+
+-- | Name will determine the pitch.  It can be a-z.
+type EventSpec = (RealTime, RealTime, String,
+    [(Score.Control, Signal.Control)], Score.Instrument)
+
+mkevent :: EventSpec -> Score.Event
+mkevent (start, dur, text, controls, inst) =
+    Score.Event start dur (Text.pack text) (Map.fromList controls)
+        (psig start text) stack (Just inst) Score.no_attrs
+    where
+    psig pos p = PitchSignal.signal Pitch.twelve [(pos, to_pitch p)]
+    to_pitch p = PitchSignal.degree_to_y $ Pitch.Degree $
+        Maybe.fromMaybe (error ("no pitch " ++ show p)) (lookup p pitch_map)
+    pitch_map = zip (map (:"") ['a'..'z']) [60..]
+        ++ zip (map (:"2") ['a'..'z']) [60.5..]
+    stack =
+        [ (Types.BlockId (Id.id "test" "fakeblock")
+        , Just (Types.TrackId (Id.id "test" "faketrack"))
+        , Just (42, 43))
+        ]
+
+mkcontrols :: [(String, [(RealTime, Signal.Y)])] -> Score.ControlMap
+mkcontrols csigs = Map.fromList
+    [(Score.Control c, Signal.signal sig) | (c, sig) <- csigs]

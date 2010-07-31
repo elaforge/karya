@@ -135,7 +135,7 @@ test_control_lead_time = do
             [(ts, chan, msg) | Midi.WriteMessage _ (Timestamp.Timestamp ts)
                 (Midi.ChannelMessage chan msg) <- wmsgs]
         extract (msgs, warns) = trace_warns warns (extract_msgs msgs)
-    let f = extract . perform inst_config2 . mkevents_inst1
+    let f = extract . perform inst_config2 . mkevents_inst
 
     equal (f [("a", 0, 4, []), ("b2", 4, 4, [])])
         [ (0, 0, PitchBend 0)
@@ -207,7 +207,7 @@ test_clip_warns = do
 extract_warns = map (\w -> (Warning.warn_msg w, Warning.warn_pos w))
 
 test_vel_clip_warns = do
-    let (msgs, warns) = perform inst_config1 $ mkevents_inst1
+    let (msgs, warns) = perform inst_config1 $ mkevents_inst
             [("a", 0, 4, [badsig Control.c_velocity])]
     equal (extract_warns warns) [("Control \"vel\" clipped", Just (0, 4))]
     check (all_msgs_valid msgs)
@@ -533,28 +533,17 @@ test_allot_warn = do
 
 perform inst_config = Perform.perform test_lookup inst_config
 
-mkevent :: EventSpec -> Perform.Event
-mkevent event = head (mkevents [event])
-
-mkevents_inst = map (\ (p, s, d, c) -> mkevent (inst1, p, s, d, c))
-
 -- | Name will determine the pitch.  It can be a-z, or a2-z2, which will
 -- yield fractional pitches.
 type EventSpec = (Instrument.Instrument, String, RealTime, RealTime,
     [(Control.Control, Signal.Control)])
 
-mkevents_inst1 evts = mkevents
-    [(inst1, text, start, dur, conts) | (text, start, dur, conts) <- evts]
-
--- | Takes a list so it can simulate the controls and pitch for one track.
--- TODO except I don't do that anymore, so I don't need mkevents
-mkevents :: [EventSpec] -> [Perform.Event]
-mkevents events = trim_pitches
-    [Perform.Event inst start dur (Map.fromList controls)
-            (pitch_sig start pitch) stack
-        | (inst, pitch, start, dur, controls) <- events]
+mkevent :: EventSpec -> Perform.Event
+mkevent (inst, pitch, start, dur, controls) =
+    Perform.Event inst start dur (Map.fromList controls) (psig start pitch)
+        stack
     where
-    pitch_sig pos p = Signal.signal [(pos, to_pitch p)]
+    psig pos p = Signal.signal [(pos, to_pitch p)]
     to_pitch p = Maybe.fromMaybe (error ("no pitch " ++ show p))
         (lookup p pitch_map)
     pitch_map = zip (map (:"") ['a'..'z']) [60..]
@@ -565,18 +554,14 @@ mkevents events = trim_pitches
         , Just (42, 43))
         ]
 
+mkevents_inst = map (\(a, b, c, d) -> mkevent (inst1, a, b, c, d))
+
+mkevents :: [EventSpec] -> [Perform.Event]
+mkevents = map mkevent
+
 mkcontrols :: [(String, [(RealTime, Signal.Y)])] -> Perform.ControlMap
 mkcontrols csigs = Map.fromList
     [(Control.Control c, Signal.signal sig) | (c, sig) <- csigs]
-
--- snaked from Derive.Note.trim_pitches
-trim_pitches :: [Perform.Event] -> [Perform.Event]
-trim_pitches events = map trim_event (Seq.zip_next events)
-    where
-    trim_event (event, Nothing) = event
-    trim_event (event, Just next) = event { Perform.event_pitch =
-        Signal.truncate (Perform.event_start next) psig }
-        where psig = Perform.event_pitch event
 
 -- | Make a signal with linear interpolation between the points.
 mksignal :: [(RealTime, Signal.Y)] -> Signal.Control
