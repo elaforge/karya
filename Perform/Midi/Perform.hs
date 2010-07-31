@@ -454,8 +454,8 @@ can_share_chan old new = case (initial_pitch old, initial_pitch new) of
         (Just (initial_old, _), Just (initial_new, _)) ->
             Signal.pitches_share in_decay start end
                 initial_old (event_pitch old) initial_new (event_pitch new)
-            && controls_equal start end (event_controls new)
-                (event_controls old)
+            && controls_equal start end
+                (event_controls new) (event_controls old)
         _ -> True
     where
     start = note_begin new
@@ -515,9 +515,6 @@ allot_event state (event, ichan) =
     case Map.lookup (inst, ichan) (ast_map state) of
         Just addr -> (update_avail addr state, Just (event, addr))
         Nothing -> case steal_addr inst state of
-            -- nothing allocated to this instrument
-            -- TODO if I'm going to log about insts without allocation this
-            -- is the spot
             Nothing -> (insert_warning, Nothing)
             Just addr ->
                 (update_avail addr (update_map addr state), Just (event, addr))

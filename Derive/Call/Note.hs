@@ -36,7 +36,7 @@ c_note :: Derive.NoteCall
 c_note = Derive.Call "note"
     (Just $ \args -> case process (Derive.passed_vals args) of
         (inst, rel_attrs, []) ->
-            Right $ one_note $ generate_note inst rel_attrs
+            Right $ generate_note inst rel_attrs
                 (Derive.passed_event args) (Derive.passed_next_events args)
         (_, _, invalid) -> Left $
             TrackLang.ArgError $ "expected inst or attr: " ++ show invalid)
@@ -106,8 +106,3 @@ trimmed_pitch start maybe_end sig = case maybe_end of
         Nothing -> short
         Just end -> PitchSignal.truncate end short
     where short = PitchSignal.drop_before start sig
-
--- * misc
-
-one_note :: Derive.EventDeriver -> (Derive.EventDeriver, Int)
-one_note d = (d, 1)

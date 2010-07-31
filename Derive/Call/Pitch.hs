@@ -66,7 +66,7 @@ pitch_calls = Derive.make_calls
     ]
 
 c_note_set :: Derive.PitchCall
-c_note_set = Derive.generate_one "note_set" $ \args -> CallSig.call1 args
+c_note_set = Derive.generator "note_set" $ \args -> CallSig.call1 args
     (required "val") $ \degree -> do
         scale_id <- Call.get_scale_id
         pos <- Derive.now
@@ -74,7 +74,7 @@ c_note_set = Derive.generate_one "note_set" $ \args -> CallSig.call1 args
             [(pos, PitchSignal.degree_to_y degree)]
 
 c_note_linear :: Derive.PitchCall
-c_note_linear = Derive.generate_one "note_linear" $ \args ->
+c_note_linear = Derive.generator "note_linear" $ \args ->
     case Derive.passed_vals args of
         [] -> case Derive.passed_prev_val args of
             Nothing -> return $
@@ -87,12 +87,12 @@ c_note_linear = Derive.generate_one "note_linear" $ \args ->
             pitch_interpolate id degree args
 
 c_note_exponential :: Derive.PitchCall
-c_note_exponential = Derive.generate_one "note_exponential" $ \args ->
+c_note_exponential = Derive.generator "note_exponential" $ \args ->
     CallSig.call2 args (required "degree", optional "exp" 2) $ \degree exp ->
         pitch_interpolate (Control.expon exp) degree args
 
 c_note_slide :: Derive.PitchCall
-c_note_slide = Derive.generate_one "note_slide" $ \args -> CallSig.call2 args
+c_note_slide = Derive.generator "note_slide" $ \args -> CallSig.call2 args
     (required "degree", optional "time" 0.1) $ \degree time -> do
         start <- Derive.now
         end <- case Derive.passed_next_begin args of
@@ -117,7 +117,7 @@ c_note_slide = Derive.generate_one "note_slide" $ \args -> CallSig.call2 args
 --
 -- [time /Number/ @.3@] Duration of ornament, in seconds.
 c_neighbor :: Derive.PitchCall
-c_neighbor = Derive.generate_one "neighbor" $ \args ->
+c_neighbor = Derive.generator "neighbor" $ \args ->
     if Call.in_relative_scale args
         then CallSig.call2 args (cneighbor, ctime) $ \neighbor time -> do
             degree <- Call.eval_note (Pitch.Note "0")

@@ -34,13 +34,13 @@ control_calls = Derive.make_calls
     ]
 
 c_set :: Derive.ControlCall
-c_set = Derive.generate_one "set" $ \args -> CallSig.call1 args
+c_set = Derive.generator "set" $ \args -> CallSig.call1 args
     (required "val") $ \val -> do
         pos <- Derive.now
         return $ Signal.signal [(pos, val)]
 
 c_linear :: Derive.ControlCall
-c_linear = Derive.generate_one "linear" $ \args ->
+c_linear = Derive.generator "linear" $ \args ->
     case Derive.passed_vals args of
         [] -> case Derive.passed_prev_val args of
             Nothing -> return $ Derive.throw
@@ -52,12 +52,12 @@ c_linear = Derive.generate_one "linear" $ \args ->
             control_interpolate id val args
 
 c_exponential :: Derive.ControlCall
-c_exponential = Derive.generate_one "exponential" $ \args ->
+c_exponential = Derive.generator "exponential" $ \args ->
     CallSig.call2 args (required "val", optional "exp" 2) $ \val exp ->
         control_interpolate (expon exp) val args
 
 c_slide :: Derive.ControlCall
-c_slide = Derive.generate_one "slide" $ \args -> CallSig.call2 args
+c_slide = Derive.generator "slide" $ \args -> CallSig.call2 args
     (required "val", optional "time" 0.1) $ \val time -> do
         start <- Derive.now
         end <- case Derive.passed_next_begin args of

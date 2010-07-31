@@ -323,9 +323,9 @@ data CallInfo derived = CallInfo {
 dummy_call_info :: CallInfo derived
 dummy_call_info = CallInfo 1 Nothing (Event.event "<no event>" 1) [] []
 
--- | args -> (deriver, consumed)
+-- | args -> deriver
 type GeneratorCall derived = PassedArgs derived
-    -> Either TrackLang.TypeError (Deriver derived, Int)
+    -> Either TrackLang.TypeError (Deriver derived)
 -- | args -> deriver -> deriver
 type TransformerCall derived = PassedArgs derived -> Deriver derived
     -> Either TrackLang.TypeError (Deriver derived)
@@ -342,12 +342,6 @@ generator name call = Call name (Just call) Nothing
 
 transformer :: String -> TransformerCall derived -> Call derived
 transformer name call = Call name Nothing (Just call)
-
--- | Like 'generator', except for a generator that consumes a single event.
-generate_one :: String
-    -> (PassedArgs derived -> Either TrackLang.TypeError (Deriver derived))
-    -> Call derived
-generate_one name call = generator name $ \args -> fmap (, 1) (call args)
 
 make_calls :: [(String, call)] -> Map.Map TrackLang.CallId call
 make_calls = Map.fromList . map (first TrackLang.Symbol)

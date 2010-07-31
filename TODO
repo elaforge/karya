@@ -100,7 +100,7 @@ CURRENT
   - implement add_hz in Derive.Scale.Util
 
   * remove TrackLang.VMethod
-  - remove consumed call return unless I can think of something good for it
+  * remove consumed call return unless I can think of something good for it
   * test_util regex match uses a simplified regex that only supports *
 
   - incremental saving: pair diffs with the changed bit.  Then save that chunk

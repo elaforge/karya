@@ -216,18 +216,13 @@ get_scale_id = Pitch.scale_id <$> get_scale
 
 type LookupCall call = TrackLang.CallId -> Derive.Deriver (Maybe call)
 
-type GeneratorReturn derived = Derive.Deriver (Derive.Deriver derived, Int)
-
-skip :: derived -> GeneratorReturn derived
-skip empty = return (return empty, 1)
-
 -- | Evaluate a single note as a generator.  Fake up an event with no prev or
 -- next lists.
 eval_one :: ScoreTime -> ScoreTime -> TrackLang.Expr -> Derive.EventDeriver
 eval_one start dur expr = do
     -- Since the event was fake, I don't care if it wants to consume.
-    (deriver, _) <- apply_toplevel (dinfo, cinfo) expr
-    Derive.d_at start (Derive.d_stretch dur deriver)
+    Derive.d_at start $ Derive.d_stretch dur $
+        apply_toplevel (dinfo, cinfo) expr
     where
     cinfo = Derive.CallInfo 1 Nothing
         (Event.event ("expr: " ++ show expr) 1) [] []
@@ -253,23 +248,13 @@ derive_track :: DeriveInfo derived -> PreProcess
     -> (Maybe (RealTime, Derive.Element derived) -> derived
         -> Maybe (RealTime, Derive.Element derived))
     -> [Track.PosEvent] -> Derive.Deriver [derived]
-derive_track dinfo preproc get_last_sample events = do
-    chunks <- go Nothing [] events
-    return chunks
+derive_track dinfo preproc get_last_sample events = go Nothing [] events
     where
     go _ _ [] = return []
     go prev_sample prev (cur@(pos, event) : rest) = do
-        (chunk, consumed) <- with_catch (info_empty dinfo, 1) pos event $ do
-            (deriver, consumed) <- derive_event dinfo preproc
-                prev_sample prev cur rest
-            chunk <- deriver
-            return (chunk, consumed)
-        -- TODO is this really an optimization?  profile later
-        let (prev2, next2) = if consumed == 1
-                then (cur : prev, rest)
-                else let (pre, post) = splitAt consumed (cur : rest)
-                    in (reverse pre ++ prev, post)
-        rest <- go (get_last_sample prev_sample chunk) prev2 next2
+        chunk <- with_catch (info_empty dinfo) pos event $
+            derive_event dinfo preproc prev_sample prev cur rest
+        rest <- go (get_last_sample prev_sample chunk) (cur:prev) rest
         return $ chunk : rest
 
     with_catch deflt pos evt =
@@ -281,17 +266,15 @@ derive_event :: DeriveInfo derived -> PreProcess
     -> [Track.PosEvent] -- ^ previous events, in reverse order
     -> Track.PosEvent -- ^ cur event
     -> [Track.PosEvent] -- ^ following events
-    -> GeneratorReturn derived
+    -> Derive.Deriver derived
 derive_event dinfo preproc prev_val prev cur@(_, event) next
-    | Event.event_string event == "--" = skip (info_empty dinfo)
+    | Event.event_string event == "--" = return (info_empty dinfo)
     | otherwise = case TrackLang.parse (Event.event_string event) of
-        Left err -> Derive.warn err >> skip (info_empty dinfo)
+        Left err -> Derive.warn err >> return (info_empty dinfo)
         Right expr -> run_call (preproc expr)
     where
     -- TODO move with_catch down here
-    run_call expr = do
-            (deriver, consumed) <- apply_toplevel (dinfo, cinfo) expr
-            return (place deriver, consumed)
+    run_call expr = place $ apply_toplevel (dinfo, cinfo) expr
         where
         cinfo = Derive.CallInfo stretch prev_val
             evt0 (map warp prev) (map warp next)
@@ -312,14 +295,14 @@ derive_event dinfo preproc prev_val prev cur@(_, event) next
         evt0 = Event.modify_duration (/stretch) (snd cur)
 
 -- | Apply a toplevel expression.
-apply_toplevel :: Info derived -> TrackLang.Expr -> GeneratorReturn derived
+apply_toplevel :: Info derived -> TrackLang.Expr -> Derive.Deriver derived
 apply_toplevel info expr = case Seq.break_last expr of
-    (transform_calls, Just generator_call) -> do
-        (deriver, consumed) <- apply_generator info generator_call
-        return (apply_transformer info transform_calls deriver, consumed)
+    (transform_calls, Just generator_call) ->
+        apply_transformer info transform_calls $
+            apply_generator info generator_call
     _ -> Derive.throw "event with no calls at all (this shouldn't happen)"
 
-apply_generator :: Info derived -> TrackLang.Call -> GeneratorReturn derived
+apply_generator :: Info derived -> TrackLang.Call -> Derive.Deriver derived
 apply_generator (dinfo, cinfo) (TrackLang.Call call_id args) = do
     maybe_call <- info_lookup dinfo call_id
     (call, vals) <- case maybe_call of
@@ -341,8 +324,7 @@ apply_generator (dinfo, cinfo) (TrackLang.Call call_id args) = do
     case Derive.call_generator call of
         Just c -> case c passed of
             Left err -> with_msg call $ Derive.throw $ Pretty.pretty err
-            Right (deriver, consumed) ->
-                return (with_msg call deriver, consumed)
+            Right deriver -> with_msg call deriver
         Nothing -> with_msg call $
             Derive.throw "non-generator in generator position"
     where
@@ -406,7 +388,7 @@ lookup_note_call call_id = do
         else lookup_call Derive.calls_note call_id
 
 c_block :: BlockId -> Derive.NoteCall
-c_block block_id = Derive.generate_one "block" $ \args ->
+c_block block_id = Derive.generator "block" $ \args ->
     if null (Derive.passed_vals args)
         then Right $ block_call block_id
         else Left $ TrackLang.ArgError "args for block call not implemented yet"
@@ -458,7 +440,7 @@ c_equal empty = Derive.Call "equal"
     with_args args = CallSig.call2 args
         (required "symbol", required "value" :: CallSig.Arg TrackLang.Val)
     transform deriver sym val = Derive.with_val sym val deriver
-    generate sym val = (Derive.put_val sym val >> return empty, 1)
+    generate sym val = Derive.put_val sym val >> return empty
 
 -- * map score events
 

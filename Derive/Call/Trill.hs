@@ -124,7 +124,7 @@ pitch_calls = Derive.make_calls
     ]
 
 c_pitch_absolute_trill :: Derive.PitchCall
-c_pitch_absolute_trill = Derive.generate_one "pitch_absolute_trill" $ \args ->
+c_pitch_absolute_trill = Derive.generator "pitch_absolute_trill" $ \args ->
     if Call.in_relative_scale args
         then CallSig.call2 args (cneighbor, cspeed) $ \neighbor speed -> do
             degree <- Call.eval_note (Pitch.Note "0")
