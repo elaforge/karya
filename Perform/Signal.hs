@@ -85,6 +85,7 @@ module Perform.Signal (
 import Prelude hiding (last, truncate)
 import Control.DeepSeq
 import qualified Control.Arrow as Arrow
+import qualified Data.Monoid as Monoid
 import qualified Data.StorableVector as V
 import qualified Foreign.Storable as Storable
 import qualified Util.Log as Log
@@ -152,6 +153,11 @@ instance SignalBase.Y Y where
 
 instance Show (Signal y) where
     show (Signal vec) = "Signal " ++ show (SignalBase.unsignal vec)
+
+instance Monoid.Monoid (Signal y) where
+    mempty = empty
+    mappend s1 s2 = Monoid.mconcat [s1, s2]
+    mconcat = merge
 
 x_to_y :: X -> Y
 x_to_y (RealTime x) = x

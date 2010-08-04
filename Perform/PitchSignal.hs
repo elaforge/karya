@@ -52,6 +52,7 @@ module Perform.PitchSignal (
     , map_x, map_degree
 ) where
 import Prelude hiding (last, truncate)
+import qualified Data.Monoid as Monoid
 import qualified Data.StorableVector as V
 import qualified Foreign.Storable as Storable
 import qualified Util.Num as Num
@@ -155,6 +156,11 @@ instance SignalBase.Y Y where
 instance Show PitchSignal where
     show sig@(PitchSignal scale_id _) =
         "PitchSignal (" ++ show scale_id ++ ") " ++ show (unsignal sig)
+
+instance Monoid.Monoid PitchSignal where
+    mempty = empty
+    mappend s1 s2 = Monoid.mconcat [s1, s2]
+    mconcat = merge
 
 y_to_degree :: Y -> Degree
 y_to_degree = Degree . to_double
