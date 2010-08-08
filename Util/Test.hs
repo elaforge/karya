@@ -7,6 +7,7 @@ module Util.Test (
     , check, check_srcpos, check_msg, check_msg_srcpos
     , equal, equal_srcpos
     , strings_like, strings_like_srcpos
+    , has_string, has_string_srcpos
     , map_left, left_like, left_like_srcpos
     -- ** exception checks
     , throws, throws_srcpos, catch_srcpos
@@ -95,6 +96,18 @@ strings_like_srcpos srcpos gotten expected
         | pattern_matches reg gotten = success_srcpos srcpos $
             gotten ++ " =~ " ++ reg
         | otherwise = failure_srcpos srcpos $ gotten ++ " !~ " ++ reg
+
+-- | The given list of strings contains the given pattern.  Useful to make sure
+-- a certain message was logged.
+has_string :: [String] -> String -> IO ()
+has_string = has_string_srcpos Nothing
+
+has_string_srcpos :: SrcPos.SrcPos -> [String] -> String -> IO ()
+has_string_srcpos srcpos strings expected
+    | any (pattern_matches expected) strings = success_srcpos srcpos $
+        show strings ++ " contains '" ++ expected ++ "'"
+    | otherwise = failure_srcpos srcpos $
+        show strings ++ " doesn't contain '" ++ expected ++ "'"
 
 map_left f (Left a) = Left (f a)
 map_left _ (Right a) = Right a
