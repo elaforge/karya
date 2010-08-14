@@ -1097,7 +1097,8 @@ get_tracks_of block_id = do
     return $ Map.fromList (zip track_ids tracks)
 
 -- | Find @track_id@ in all the blocks it exists in, and return the track info
--- for each tracknum at which @track_id@ lives.
+-- for each tracknum at which @track_id@ lives.  Blocks with no matching tracks
+-- won't be returned, so the return track lists will always be non-null.
 blocks_with_track :: (UiStateMonad m) =>
     TrackId -> m [(BlockId, [(TrackNum, Block.TracklikeId)])]
 blocks_with_track track_id =
@@ -1115,7 +1116,11 @@ find_tracks_m f = gets (find_tracks f . state_blocks)
 
 find_tracks :: (Block.TracklikeId -> Bool) -> Map.Map BlockId Block.Block
     -> [(BlockId, [(TrackNum, Block.TracklikeId)])]
-find_tracks f blocks = [(bid, get_tracks b) | (bid, b) <- Map.assocs blocks]
+find_tracks f blocks = do
+    (bid, b) <- Map.assocs blocks
+    let tracks = get_tracks b
+    guard (not (null tracks))
+    return (bid, tracks)
     where
     all_tracks block = Seq.enumerate (Block.block_tracks block)
     get_tracks block =

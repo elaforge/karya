@@ -153,9 +153,10 @@ d_note_track track_id = do
     let pos_events = Track.event_list (Track.track_events track)
     -- Unlike event evaluation, if the title evaluation throws, the whole block
     -- will abort.  This seems reasonable to me.
-    Derive.with_msg "title" $
-        Call.apply_transformer (derive_info, Derive.dummy_call_info)
-            track_expr (derive_notes pos_events)
+    result <- Call.apply_transformer info track_expr (derive_notes pos_events)
+    Derive.insert_event_damage =<< Derive.take_local_damage
+    return result
+    where info = (derive_info, Derive.dummy_call_info "note track")
 
 derive_notes :: [Track.PosEvent] -> Derive.EventDeriver
 derive_notes events = Derive.with_msg "note" $ Derive.merge_asc_events <$>

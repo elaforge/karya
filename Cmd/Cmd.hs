@@ -191,6 +191,7 @@ data State = State {
     -- recalculated (in the background) and stored here, so play can be started
     -- without latency.
     , state_performance :: Map.Map BlockId Performance
+    , state_derive_cache :: Derive.Cache
     -- | IDs of background derivation threads, so they can be killed if
     -- a new derivation is needed before they finish.
     , state_derive_threads :: Map.Map BlockId Concurrent.ThreadId
@@ -252,6 +253,7 @@ initial_state inst_db schema_map = State {
 
     , state_play_control = Nothing
     , state_performance = Map.empty
+    , state_derive_cache = Derive.empty_cache
     , state_derive_threads = Map.empty
 
     , state_keys_down = Map.empty

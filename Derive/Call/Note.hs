@@ -34,17 +34,19 @@ note_calls = Derive.make_calls
 -- @>i | call@ to run call with that instrument.
 c_note :: Derive.NoteCall
 c_note = Derive.Call "note"
-    (Just $ \args -> case process (Derive.passed_vals args) of
+    (Just $ Derive.GeneratorCall generate Derive.NonCachingGenerator)
+    (Just $ Derive.TransformerCall transform Derive.NonIncremental)
+    where
+    generate args = case process (Derive.passed_vals args) of
         (inst, rel_attrs, []) ->
             Right $ generate_note inst rel_attrs
                 (Derive.passed_event args) (Derive.passed_next_events args)
         (_, _, invalid) -> Left $
-            TrackLang.ArgError $ "expected inst or attr: " ++ show invalid)
-    (Just $ \args deriver -> case process (Derive.passed_vals args) of
+            TrackLang.ArgError $ "expected inst or attr: " ++ show invalid
+    transform args deriver = case process (Derive.passed_vals args) of
         (inst, rel_attrs, []) -> Right $ transform_note inst rel_attrs deriver
         (_, _, invalid) -> Left $
-            TrackLang.ArgError $ "expected inst or attr: " ++ show invalid)
-    where
+            TrackLang.ArgError $ "expected inst or attr: " ++ show invalid
     process = process_note_args Nothing []
 
 generate_note :: Maybe Score.Instrument -> [TrackLang.RelativeAttr]
@@ -69,8 +71,7 @@ generate_note n_inst rel_attrs event next = do
     return [Score.Event start (end - start)
         (Event.event_text event) controls
             (trimmed_pitch start next_start pitch_sig)
-        -- state_stack is kept in reverse order
-        (reverse (Derive.state_stack st)) inst (apply rel_attrs attrs)]
+        (Derive.state_stack st) inst (apply rel_attrs attrs)]
     where
     apply rel_attrs attrs =
         List.foldl' (.) id (map TrackLang.set_attr rel_attrs) attrs

@@ -17,10 +17,12 @@ import Control.Monad
 
 import Util.Control
 import qualified Util.Pretty as Pretty
+import qualified Util.Ranges as Ranges
 import qualified Util.Seq as Seq
 
 import Ui
 import qualified Ui.Track as Track
+import qualified Ui.Types as Types
 
 import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
@@ -53,7 +55,7 @@ eval_track block_id track_id expr vals deriver = do
         Right TrackInfo.Tempo -> do
             let control_deriver = derive_control expr events
             tempo_call block_id track_id
-                (Signal.coerce <$> control_deriver) deriver
+                (first Signal.coerce <$> control_deriver) deriver
         Right (TrackInfo.Control maybe_op control) -> do
             let control_deriver = derive_control expr events
             control_call track_id control maybe_op control_deriver deriver
@@ -65,22 +67,34 @@ eval_track block_id track_id expr vals deriver = do
 -- | A tempo track is derived like other signals, but in absolute time.
 -- Otherwise it would wind up being composed with the environmental
 -- warp twice.
-tempo_call :: BlockId -> TrackId -> Derive.Deriver Signal.Tempo
+tempo_call :: BlockId -> TrackId
+    -> Derive.Deriver (Signal.Tempo, Derive.EventDamage)
     -> Derive.EventDeriver -> Derive.EventDeriver
 tempo_call block_id track_id sig_deriver deriver = do
-    signal <- Derive.setup_without_warp sig_deriver
+    (signal, damage) <- Derive.setup_without_warp sig_deriver
     rendered <- track_is_rendered track_id
     when rendered $
         put_track_signal track_id $
             Track.TrackSignal (Track.Control (Signal.coerce signal)) 0 1
-    Derive.d_tempo block_id (Just track_id) signal deriver
+    -- TODO tempo damage should turn into score damage on all events after
+    -- it.  It might be more regular to give all generators a dep on tempo,
+    -- but this way is probably more efficient and just as clear.
+    Derive.with_control_damage (extend damage) $
+        Derive.d_tempo block_id (Just track_id) signal deriver
+    where
+    extend (Derive.EventDamage ranges) = Derive.EventDamage $
+        case Ranges.extract ranges of
+            Nothing -> Ranges.everything
+            Just [] -> Ranges.nothing
+            Just ((s, _) : _) -> Ranges.range s Types.max_real_time
 
 control_call :: TrackId -> Score.Control -> Maybe TrackLang.CallId
-    -> Derive.ControlDeriver -> Derive.Transformer
+    -> Derive.Deriver (Derive.Control, Derive.EventDamage)
+    -> Derive.Transformer
 control_call track_id control maybe_op control_deriver deriver = do
-    signal <- Derive.track_setup track_id control_deriver
-    stash_signal track_id (Right (signal, control_deriver))
-    with_control signal deriver
+    (signal, damage) <- Derive.track_setup track_id control_deriver
+    stash_signal track_id (Right (signal, fst <$> control_deriver))
+    Derive.with_control_damage damage $ with_control signal deriver
     where
     with_control signal deriver = do
         case maybe_op of
@@ -108,22 +122,28 @@ pitch_call track_id maybe_name ptype track_expr events deriver =
             TrackInfo.PitchRelative op -> do
                 let derive = Derive.with_msg "relative pitch" $
                         derive_pitch track_expr events
-                signal <- derive
-                stash_signal track_id (Left (signal, derive, scale_map))
-                Derive.with_pitch_operator maybe_name op signal deriver
+                (signal, damage) <- derive
+                stash_signal track_id (Left (signal, fst <$> derive, scale_map))
+                Derive.with_control_damage damage $
+                    Derive.with_pitch_operator maybe_name op signal deriver
             _ -> do
                 let derive = Derive.with_msg "pitch" $
                         derive_pitch track_expr events
-                signal <- derive
-                stash_signal track_id (Left (signal, derive, scale_map))
-                Derive.with_pitch maybe_name signal deriver
+                (signal, damage) <- derive
+                stash_signal track_id (Left (signal, fst <$> derive, scale_map))
+                Derive.with_control_damage damage $
+                    Derive.with_pitch maybe_name signal deriver
 
-derive_control :: TrackLang.Expr -> [Track.PosEvent] -> Derive.ControlDeriver
-derive_control track_expr events = Derive.with_msg "control" $
-    Call.apply_transformer (dinfo, Derive.dummy_call_info) track_expr deriver
+derive_control :: TrackLang.Expr -> [Track.PosEvent]
+    -> Derive.Deriver (Derive.Control, Derive.EventDamage)
+derive_control track_expr events = Derive.with_msg "control" $ do
+    result <- Call.apply_transformer
+        (dinfo, Derive.dummy_call_info "control track") track_expr deriver
+    damage <- Derive.take_local_damage
+    return (result, extend_control_damage result damage)
     where
-    deriver = Signal.merge <$> Call.derive_track dinfo preprocess_control
-        last_sample events
+    deriver = Signal.merge <$>
+        Call.derive_track dinfo preprocess_control last_sample events
     dinfo = Call.DeriveInfo Derive.no_control Call.lookup_control_call
     last_sample prev chunk = Signal.last chunk `mplus` prev
 
@@ -136,14 +156,40 @@ preprocess_control expr = case Seq.break_last expr of
     _ -> expr
 
 
-derive_pitch :: TrackLang.Expr -> [Track.PosEvent] -> Derive.PitchDeriver
-derive_pitch track_expr events =
-    Call.apply_transformer (dinfo, Derive.dummy_call_info) track_expr deriver
+derive_pitch :: TrackLang.Expr -> [Track.PosEvent]
+    -> Derive.Deriver (Derive.Pitch, Derive.EventDamage)
+derive_pitch track_expr events = do
+    result <- Call.apply_transformer
+        (dinfo, Derive.dummy_call_info "pitch track") track_expr deriver
+    damage <- Derive.take_local_damage
+    return (result, extend_pitch_damage result damage)
     where
-    deriver = PitchSignal.merge <$>
-        Call.derive_track dinfo id last_sample events
+    deriver =
+        PitchSignal.merge <$> Call.derive_track dinfo id last_sample events
     dinfo = Call.DeriveInfo Derive.no_pitch Call.lookup_pitch_call
     last_sample prev chunk = PitchSignal.last chunk `mplus` prev
+
+-- | Event damage for a control track only extends to the last sample.
+-- However, the actual changed region extends to the /next/ sample.
+extend_control_damage :: Derive.Control -> Derive.EventDamage
+    -> Derive.EventDamage
+extend_control_damage = _extend_damage Signal.sample
+
+extend_pitch_damage :: Derive.Pitch -> Derive.EventDamage -> Derive.EventDamage
+extend_pitch_damage = _extend_damage PitchSignal.sample
+
+_extend_damage :: (RealTime -> sig -> [(RealTime, y)]) -> sig
+    -> Derive.EventDamage -> Derive.EventDamage
+_extend_damage sample sig (Derive.EventDamage ranges) = Derive.EventDamage $
+    case Ranges.extract ranges of
+        Nothing -> Ranges.everything
+        Just pairs -> Ranges.sorted_ranges (map extend pairs)
+    where
+    extend (s, e) = (s, end)
+        where
+        end = case sample e sig of
+            _ : (x, _) : _ -> x
+            _ -> Types.max_real_time
 
 -- TODO this can go away when pitches are calls
 -- preprocess_pitch :: Call.PreProcess

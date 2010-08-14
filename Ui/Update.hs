@@ -42,7 +42,7 @@ data BlockUpdate
     -- | Unlike a TrackUpdate, these settings are local to the block, not
     -- global to this track in all its blocks.
     | DisplayTrack TrackNum Block.DisplayTrack
-    deriving Show
+    deriving (Show)
 
 -- | track, low_pos, high_pos
 data TrackUpdate

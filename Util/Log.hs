@@ -10,7 +10,7 @@ module Util.Log (
     initialize, swap_state
     -- * msgs
     , Msg(..), msg_string, Prio(..), State(..)
-    , msg, msg_srcpos
+    , msg, msg_srcpos, make_msg
     , timer, debug, notice, warn, error
     , is_first_timer, first_timer_prefix
     , timer_srcpos, debug_srcpos, notice_srcpos, warn_srcpos, error_srcpos
@@ -22,7 +22,7 @@ module Util.Log (
     , LogMonad
     , LogT, write, run
     -- * serialization
-    , format_msg, show_stack
+    , format_msg
     , deserialize_msg
 ) where
 import Prelude hiding (error, log)
@@ -40,13 +40,14 @@ import qualified System.IO.Unsafe  as Unsafe
 import Text.Printf (printf)
 
 import qualified Util.Logger as Logger
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.SrcPos as SrcPos
 
 -- This import is a little iffy because Util shouldn't be importing from
 -- elsewhere, but the stack uses TrackIds.  UI doesn't use the logging, so
 -- I'm safe for now...
-import qualified Perform.Warning as Warning
+import qualified Derive.Stack as Stack
 
 
 data Msg = Msg {
@@ -55,7 +56,7 @@ data Msg = Msg {
     , msg_prio :: Prio
     -- | Msgs which are logged from the deriver may record the position in the
     -- schema and event being processed.
-    , msg_stack :: Maybe Warning.Stack
+    , msg_stack :: Maybe Stack.Stack
     -- | Free form text for humans.
     , msg_text  :: Text.Text
     -- | Attach some typed data.  Data.Dynamic would be more generic, but
@@ -117,13 +118,13 @@ msg_srcpos :: SrcPos.SrcPos -> Prio -> String -> Msg
 msg_srcpos srcpos prio text = make_msg srcpos prio Nothing text
 msg :: Prio -> String -> Msg
 msg prio = msg_srcpos Nothing prio
-make_msg :: SrcPos.SrcPos -> Prio -> Maybe Warning.Stack -> String -> Msg
+make_msg :: SrcPos.SrcPos -> Prio -> Maybe Stack.Stack -> String -> Msg
 make_msg srcpos prio stack text = Msg no_date_yet srcpos prio stack
     (Text.pack text) []
 
 log :: LogMonad m => Prio -> SrcPos.SrcPos -> String -> m ()
 log prio srcpos text = write (make_msg srcpos prio Nothing text)
-log_stack :: LogMonad m => Prio -> SrcPos.SrcPos -> Warning.Stack -> String
+log_stack :: LogMonad m => Prio -> SrcPos.SrcPos -> Stack.Stack -> String
     -> m ()
 log_stack prio srcpos stack text =
     write (make_msg srcpos prio (Just stack) text)
@@ -155,14 +156,14 @@ first_timer_prefix = "first_timer: "
 -- Yay permutation game.  I could probably do a typeclass trick to make 'stack'
 -- an optional arg, but I think I'd wind up with all the same boilerplate here.
 debug_stack_srcpos, notice_stack_srcpos, warn_stack_srcpos, error_stack_srcpos
-    :: LogMonad m => SrcPos.SrcPos -> Warning.Stack -> String -> m ()
+    :: LogMonad m => SrcPos.SrcPos -> Stack.Stack -> String -> m ()
 debug_stack_srcpos = log_stack Debug
 notice_stack_srcpos = log_stack Notice
 warn_stack_srcpos = log_stack Warn
 error_stack_srcpos = log_stack Error
 
 debug_stack, notice_stack, warn_stack, error_stack
-    :: LogMonad m => Warning.Stack -> String -> m ()
+    :: LogMonad m => Stack.Stack -> String -> m ()
 debug_stack = debug_stack_srcpos Nothing
 notice_stack = notice_stack_srcpos Nothing
 warn_stack = warn_stack_srcpos Nothing
@@ -195,19 +196,12 @@ instance LogMonad IO where
 format_msg :: Msg -> String
 format_msg (Msg { msg_date = _date, msg_caller = srcpos, msg_prio = prio
         , msg_text = text, msg_stack = stack }) =
-    msg ++ maybe "" ((' ':) . show_stack) stack
+    msg ++ maybe "" ((' ':) . Pretty.pretty) stack
     where
     prio_stars Timer = "-"
     prio_stars prio = replicate (fromEnum prio) '*'
     msg = printf "%-4s %s - %s"
         (prio_stars prio) (SrcPos.show_srcpos srcpos) (Text.unpack text)
-
-show_stack :: Warning.Stack -> String
-show_stack stack = "[[" ++ Seq.join " -> " (map f stack) ++ "]]"
-    where
-    f (block_id, track_id, pos) = show block_id
-        ++ "/" ++ maybe "*" show track_id
-        ++ "/" ++ maybe "*" show pos
 
 -- | Add a time to the msg if it doesn't already have one.  Msgs can be logged
 -- outside of IO, so they don't get a date until they are written.

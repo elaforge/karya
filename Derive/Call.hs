@@ -79,6 +79,7 @@ import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 
+import qualified Derive.Cache as Cache
 import qualified Derive.CallSig as CallSig
 import Derive.CallSig (required)
 import qualified Derive.Derive as Derive
@@ -224,8 +225,8 @@ eval_one start dur expr = do
     Derive.d_at start $ Derive.d_stretch dur $
         apply_toplevel (dinfo, cinfo) expr
     where
-    cinfo = Derive.CallInfo 1 Nothing
-        (Event.event ("expr: " ++ show expr) 1) [] []
+    -- TODO use pretty instead of show
+    cinfo = Derive.dummy_call_info ("eval_one: " ++ show expr)
     dinfo = DeriveInfo Derive.no_events lookup_note_call
 
 -- | A version of 'eval' specialized to evaluate note calls.
@@ -244,9 +245,9 @@ data DeriveInfo derived = DeriveInfo {
 type PreProcess = TrackLang.Expr -> TrackLang.Expr
 type Info derived = (DeriveInfo derived, Derive.CallInfo derived)
 
-derive_track :: DeriveInfo derived -> PreProcess
-    -> (Maybe (RealTime, Derive.Element derived) -> derived
-        -> Maybe (RealTime, Derive.Element derived))
+derive_track :: (Derive.Derived derived) => DeriveInfo derived -> PreProcess
+    -> (Maybe (RealTime, Derive.Elem derived) -> derived
+        -> Maybe (RealTime, Derive.Elem derived))
     -> [Track.PosEvent] -> Derive.Deriver [derived]
 derive_track dinfo preproc get_last_sample events = go Nothing [] events
     where
@@ -259,15 +260,16 @@ derive_track dinfo preproc get_last_sample events = go Nothing [] events
 
     with_catch deflt pos evt =
         fmap (Maybe.fromMaybe deflt) . Derive.catch_warn id . with_stack pos evt
-    with_stack pos evt = Derive.with_stack_pos pos (Event.event_duration evt)
+    with_stack pos evt =
+        Derive.with_stack_region pos (pos + Event.event_duration evt)
 
-derive_event :: DeriveInfo derived -> PreProcess
-    -> Maybe (RealTime, Derive.Element derived)
+derive_event :: (Derive.Derived derived) => DeriveInfo derived -> PreProcess
+    -> Maybe (RealTime, Derive.Elem derived)
     -> [Track.PosEvent] -- ^ previous events, in reverse order
     -> Track.PosEvent -- ^ cur event
     -> [Track.PosEvent] -- ^ following events
     -> Derive.Deriver derived
-derive_event dinfo preproc prev_val prev cur@(_, event) next
+derive_event dinfo preproc prev_val prev cur@(pos, event) next
     | Event.event_string event == "--" = return (info_empty dinfo)
     | otherwise = case TrackLang.parse (Event.event_string event) of
         Left err -> Derive.warn err >> return (info_empty dinfo)
@@ -278,6 +280,7 @@ derive_event dinfo preproc prev_val prev cur@(_, event) next
         where
         cinfo = Derive.CallInfo stretch prev_val
             evt0 (map warp prev) (map warp next)
+            (pos, Event.event_duration event) prev next
         -- Derivation happens according to the extent of the note, not the
         -- duration.  This is how negative duration events begin deriving
         -- before arriving at the trigger.  Note generating calls that wish to
@@ -295,14 +298,16 @@ derive_event dinfo preproc prev_val prev cur@(_, event) next
         evt0 = Event.modify_duration (/stretch) (snd cur)
 
 -- | Apply a toplevel expression.
-apply_toplevel :: Info derived -> TrackLang.Expr -> Derive.Deriver derived
+apply_toplevel :: (Derive.Derived derived) => Info derived -> TrackLang.Expr
+    -> Derive.Deriver derived
 apply_toplevel info expr = case Seq.break_last expr of
     (transform_calls, Just generator_call) ->
         apply_transformer info transform_calls $
             apply_generator info generator_call
     _ -> Derive.throw "event with no calls at all (this shouldn't happen)"
 
-apply_generator :: Info derived -> TrackLang.Call -> Derive.Deriver derived
+apply_generator :: (Derive.Derived derived) => Info derived -> TrackLang.Call
+    -> Derive.Deriver derived
 apply_generator (dinfo, cinfo) (TrackLang.Call call_id args) = do
     maybe_call <- info_lookup dinfo call_id
     (call, vals) <- case maybe_call of
@@ -320,17 +325,22 @@ apply_generator (dinfo, cinfo) (TrackLang.Call call_id args) = do
                     return (fb_call, [val])
 
     env <- Derive.gets Derive.state_environ
-    let passed = Derive.PassedArgs vals env call_id cinfo
-    case Derive.call_generator call of
-        Just c -> case c passed of
-            Left err -> with_msg call $ Derive.throw $ Pretty.pretty err
-            Right deriver -> with_msg call deriver
-        Nothing -> with_msg call $
-            Derive.throw "non-generator in generator position"
-    where
-    with_msg call = Derive.with_msg $ "generate " ++ Derive.call_name call
+    let args = Derive.PassedArgs vals env call_id cinfo
+    state <- Derive.get
+    let with_stack = Derive.with_stack_call (Derive.call_name call)
+    with_stack $ case Derive.call_generator call of
+        Just gen -> do
+            result <- Cache.cached_generator (Derive.state_cache_state state)
+                (Derive.state_stack state) gen args
+            case result of
+                (Left err, _) -> Derive.throw $ Pretty.pretty err
+                (Right deriver, new_cache) -> do
+                    maybe (return ()) Derive.put_cache new_cache
+                    deriver
+        Nothing -> Derive.throw $ "non-generator in generator position: "
+            ++ Derive.call_name call
 
-apply_transformer :: Info derived -> TrackLang.Expr
+apply_transformer :: (Derive.Derived derived) => Info derived -> TrackLang.Expr
     -> Derive.Deriver derived -> Derive.Deriver derived
 apply_transformer _ [] deriver = deriver
 apply_transformer info@(dinfo, cinfo) (TrackLang.Call call_id args : calls)
@@ -339,14 +349,22 @@ apply_transformer info@(dinfo, cinfo) (TrackLang.Call call_id args : calls)
     let new_deriver = apply_transformer info calls deriver
     call <- with_call call_id (info_lookup dinfo)
     env <- Derive.gets Derive.state_environ
-    let with_msg = Derive.with_msg $ "transform " ++ Derive.call_name call
-    let passed = Derive.PassedArgs vals env call_id cinfo
-    case Derive.call_transformer call of
-        Just c -> case c passed new_deriver of
-            Left err -> with_msg $ Derive.throw $ Pretty.pretty err
-            Right result -> with_msg result
-        Nothing -> with_msg $
-            Derive.throw "non-transformer in transformer position"
+    let args = Derive.PassedArgs vals env call_id cinfo
+    state <- Derive.get
+    let cached = Cache.cached_transformer
+            (Derive.state_cache (Derive.state_cache_state state))
+            (Derive.state_stack state)
+    let with_stack = Derive.with_stack_call (Derive.call_name call)
+    with_stack $ case Derive.call_transformer call of
+        Just trans -> do
+            result <- cached trans args new_deriver
+            case result of
+                (Left err, _) -> Derive.throw $ Pretty.pretty err
+                (Right result, new_cache) -> do
+                    maybe (return ()) Derive.put_cache new_cache
+                    result
+        Nothing -> Derive.throw $ "non-transformer in transformer position: "
+            ++ Derive.call_name call
 
 eval :: TrackLang.Term -> Derive.Deriver TrackLang.Val
 eval (TrackLang.Literal val) = return val
@@ -360,8 +378,9 @@ apply call_id call args = do
     env <- Derive.gets Derive.state_environ
     let with_msg = Derive.with_msg $ "val call " ++ Derive.vcall_name call
     vals <- mapM eval args
-    let passed = Derive.PassedArgs vals env call_id Derive.dummy_call_info
-    case Derive.vcall_call call passed of
+    let args = Derive.PassedArgs vals env call_id
+            (Derive.dummy_call_info "val-call")
+    case Derive.vcall_call call args of
         Left err -> with_msg $ Derive.throw $ Pretty.pretty err
         Right result -> with_msg result
 
@@ -388,7 +407,7 @@ lookup_note_call call_id = do
         else lookup_call Derive.calls_note call_id
 
 c_block :: BlockId -> Derive.NoteCall
-c_block block_id = Derive.generator "block" $ \args ->
+c_block block_id = Derive.caching_generator "block" $ \args ->
     if null (Derive.passed_vals args)
         then Right $ block_call block_id
         else Left $ TrackLang.ArgError "args for block call not implemented yet"
@@ -432,10 +451,13 @@ lookup_call get_cmap call_id = do
 
 -- * c_equal
 
-c_equal :: derived -> Derive.Call derived
+c_equal :: (Derive.Derived derived) => derived -> Derive.Call derived
 c_equal empty = Derive.Call "equal"
-    (Just $ \args -> with_args args generate)
-    (Just $ \args deriver -> with_args args (transform deriver))
+    (Just (Derive.GeneratorCall
+        (\args -> with_args args generate) Derive.NonCachingGenerator))
+    (Just (Derive.TransformerCall
+        (\args deriver -> with_args args (transform deriver))
+        Derive.NonIncremental))
     where
     with_args args = CallSig.call2 args
         (required "symbol", required "value" :: CallSig.Arg TrackLang.Val)

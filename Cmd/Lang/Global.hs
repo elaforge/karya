@@ -64,6 +64,7 @@ import qualified Cmd.Lang.LInst as LInst
 
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
+import qualified Derive.Stack as Stack
 
 import qualified Perform.Midi.Convert as Midi.Convert
 import qualified Perform.Midi.Perform as Midi.Perform
@@ -80,7 +81,7 @@ import qualified App.Config as Config
 s :: String -> Cmd.CmdL ()
 s "" = unerror
 s stackpos = maybe (Cmd.throw $ "can't parse stackpos: " ++ show stackpos)
-        highlight_error (Warning.parse_stack stackpos)
+        highlight_error (Stack.parse_ui_frame stackpos)
 
 unerror :: Cmd.CmdL ()
 unerror = do
@@ -88,7 +89,7 @@ unerror = do
     forM_ view_ids $ \vid -> do
         State.set_selection vid Config.error_selnum Nothing
 
-highlight_error :: Warning.StackPos -> Cmd.CmdL ()
+highlight_error :: Stack.UiFrame -> Cmd.CmdL ()
 highlight_error (bid, maybe_tid, maybe_range) = do
     view_ids <- fmap Map.keys (State.get_views_of bid)
     mapM_ ViewConfig.bring_to_front view_ids
@@ -399,14 +400,14 @@ derive_to_perf block_id = do
 derive :: BlockId -> Cmd.CmdL [Score.Event]
 derive block_id = do
     schema_map <- Cmd.get_schema_map
-    result <- Play.derive schema_map block_id
+    result <- Play.derive schema_map [] block_id
     case Derive.r_result result of
         Left err -> Cmd.throw $ "derive error: " ++ show err
         Right events -> return events
 
 derive_tempo block_id ts = do
     schema_map <- Cmd.get_schema_map
-    result <- Play.derive schema_map block_id
+    result <- Play.derive schema_map [] block_id
     return $ map (Derive.r_inv_tempo result) (map Timestamp.seconds [0..10])
 
 score_to_midi :: [Score.Event]

@@ -32,6 +32,7 @@ import Ui
 import qualified Midi.Midi as Midi
 
 import qualified Derive.Score as Score
+import qualified Derive.Stack as Stack
 
 import qualified Perform.Signal as Signal
 import qualified Perform.Timestamp as Timestamp
@@ -504,7 +505,7 @@ data AllotState = AllotState {
     , ast_map :: Map.Map (Instrument.Instrument, Channel) Instrument.Addr
     -- | Addresses allocated to each instrument.
     , ast_inst_addrs :: InstAddrs
-    , ast_no_alloc :: Map.Map Instrument.InstrumentName Warning.Stack
+    , ast_no_alloc :: Map.Map Instrument.InstrumentName Stack.Stack
     } deriving (Show)
 initial_allot_state inst_addrs = AllotState Map.empty Map.empty inst_addrs
     Map.empty
@@ -550,7 +551,7 @@ data Event = Event {
     , event_controls :: ControlMap
     , event_pitch :: Signal.NoteNumber
     -- original (TrackId, ScoreTime) for errors
-    , event_stack :: Warning.Stack
+    , event_stack :: Stack.Stack
     } deriving (Eq, Show)
 
 instance DeepSeq.NFData Event where

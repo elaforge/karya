@@ -51,7 +51,7 @@ test_track_expression = do
 
 test_derive_control = do
     let extract (Left err) = Left err
-        extract (Right (val, _, logs)) =
+        extract (Right ((val, _damage), _, logs)) =
             Right (Signal.unsignal val, map Log.msg_string logs)
     let derive events = extract $ DeriveTest.run State.empty
             (Control.derive_control [] (map UiTest.mkevent events))

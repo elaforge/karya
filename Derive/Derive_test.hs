@@ -22,6 +22,7 @@ import qualified Midi.Midi as Midi
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
+import qualified Derive.Stack as Stack
 
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
@@ -48,8 +49,8 @@ test_basic = do
     equal convert_warns []
     let evt = (,,,,) (Instrument.inst_name perf_inst)
     equal (map extract_perf_event perf_events)
-        [ evt (Just "a0") 0 16 (mkstack [("b1", "b1.t0", (0, 16))])
-        , evt (Just "a1+a2") 16 16 (mkstack [("b1", "b1.t0", (16, 32))])
+        [ evt (Just "a0") 0 16 (mkstack (0, 16))
+        , evt (Just "a1+a2") 16 16 (mkstack (16, 32))
         ]
 
     -- 3: performance to midi protocol events
@@ -57,20 +58,40 @@ test_basic = do
         [1, 60, 0, 61]
     equal midi_warns []
     where
-    mkstack = map (\(bid, tid, pos) ->
-        (UiTest.bid bid, Just (UiTest.tid tid), Just pos))
+    mkstack (s, e) = Stack.make [Stack.Block (UiTest.bid "b1"),
+        Stack.Track (UiTest.tid "b1.t1"), Stack.Track (UiTest.tid "b1.t0"),
+        Stack.Call "note", Stack.Region s e, Stack.Call "note"]
     extract_perf_event (Perform.Event inst start dur _controls _pitch stack) =
         (Instrument.inst_name inst,
             fmap ks_name (Instrument.inst_keyswitch inst), start, dur, stack)
     ks_name (Instrument.Keyswitch name _) = name
 
-test_call = do
-    let (events, logs) = DeriveTest.e_val_right $ DeriveTest.derive_tracks
-            [ (">", [(0, 8, ""), (8, 8, "abs-trill |")])
-            , ("*twelve", [(0, 0, "4c"), (8, 0, "4c#")])
+test_stack = do
+    let result = DeriveTest.derive_blocks
+            [ ("b0", [(">i1", [(0, 1, ""), (1, 1, "sub")])])
+            , ("sub", [(">", [(0, 1, ""), (1, 1, "")])])
             ]
-    plist (map Log.msg_string logs)
-    pprint events
+    let stacks = DeriveTest.extract_events_only Score.event_stack result
+        block = Stack.Block . UiTest.bid
+        track = Stack.Track . UiTest.tid
+    equal (fmap (map (map Stack.unparse_ui_frame . Stack.to_ui)) stacks) $ Right
+        [ ["test/b0 test/b0.t0 0-1"]
+        , ["test/b0 test/b0.t0 1-2", "test/sub test/sub.t0 0-1"]
+        , ["test/b0 test/b0.t0 1-2", "test/sub test/sub.t0 1-2"]
+        ]
+    let b0 s e = [block "b0", track "b0.t0", Stack.Call "note",
+            Stack.Region s e]
+        sub s e = [block "sub", track "sub.t0", Stack.Call "note",
+            Stack.Region s e, Stack.Call "note"]
+    equal stacks $ Right $ map Stack.make
+        [ b0 0 1 ++ [Stack.Call "note"]
+        , b0 1 2 ++ [Stack.Call "block"] ++ sub 0 1
+        , b0 1 2 ++ [Stack.Call "block"] ++ sub 1 2
+        ]
+
+ui_stack :: Log.Msg -> Maybe [String]
+ui_stack msg =
+    fmap (map Stack.unparse_ui_frame . Stack.to_ui) (Log.msg_stack msg)
 
 test_subderive = do
     let run evts = DeriveTest.derive_blocks
@@ -88,10 +109,9 @@ test_subderive = do
     strings_like (map Log.msg_string msgs)
         ["call not found: nosuch", "block with zero duration",
             "recursive block"]
-    let mkstack (from, to) = Just
-            [(UiTest.bid "b0", Just (UiTest.tid "b0.t1"), Just (from, to))]
-    equal (map Log.msg_stack msgs) $ map mkstack
-        [(0, 1), (1, 2), (2, 3)]
+    equal (map ui_stack msgs)
+        [Just ["test/b0 test/b0.t1 0-1"], Just ["test/b0 test/b0.t1 1-2"],
+            Just ["test/b0 test/b0.t1 2-3"]]
 
     let res = run [(0, 8, "--b1"), (8, 8, "sub"), (16, 1, "--b2")]
     equal (r_events res) $
@@ -440,53 +460,53 @@ test_named_pitch = do
     equal (run (with_const . add1))
         (Right (Just (Pitch.Degree 43)))
 
-test_negative_duration = do
-    let extract = DeriveTest.extract (\e -> DeriveTest.e_event e) Log.msg_string
-    let run evts = extract $ DeriveTest.derive_tracks_tempo
-            [(DeriveTest.default_inst_title, evts)]
-
-    let deflt = Derive.negative_duration_default
-    -- events get lined up
-    equal (run [(1, -1, "--1"), (3, -2, "--2")])
-        (Right [(1, 2, "--1"), (3, deflt, "--2")], [])
-    -- rest
-    equal (run [(1, -1, "--1"), (3, -1, "--2")])
-        (Right [(1, 1, "--1"), (3, deflt, "--2")], [])
-    -- 0 dur is treated as negative
-    equal (run [(1, -1, "--1"), (3, 0, "--2")])
-        (Right [(1, 2, "--1"), (3, deflt, "--2")], [])
-
-    let run evts = extract $ DeriveTest.derive_blocks
-            [ ("b1", [(">", evts)])
-            , ("sub", [(">", [(1, -1, "--1"), (2, -1, "--2")])])
-            ]
-    -- last event extends up to "rest" at 5
-    equal (run [(4, -4, "sub"), (6, -1, "")])
-        (Right [(2, 2, "--1"), (4, 1, "--2"), (6, deflt, "")], [])
-
-    -- events between derivers work
-    equal (run [(4, -4, "sub"), (8, -4, "sub")])
-        (Right [(2, 2, "--1"), (4, 2, "--2"), (6, 2, "--1"),
-            (8, deflt, "--2")],
-        [])
-    let run evts = extract $ DeriveTest.derive_blocks
-            [ ("b1", [(">", evts)])
-            , ("sub",
-                [ (">i1", [(1, -1, "--11"), (2, -1, "--12")])
-                , (">i2", [(1, -1, "--21")])
-                ])
-            ]
-    -- as above but both last events are extended
-    equal (run [(4, -4, "sub"), (6, -1, "")])
-        (Right [(2, 2, "--11"), (2, 3, "--21"), (4, 1, "--12"),
-            (6, deflt, "")], [])
-
-    -- events between derivers work
-    equal (run [(4, -4, "sub"), (8, -4, "sub")])
-        (Right
-            [ (2, 2, "--11"), (2, 2, "--21"), (4, 2, "--12")
-            , (6, 2, "--11"), (6, deflt, "--21"), (8, deflt, "--12") ],
-        [])
+-- test_negative_duration = do
+--     let extract = DeriveTest.extract (\e -> DeriveTest.e_event e) Log.msg_string
+--     let run evts = extract $ DeriveTest.derive_tracks_tempo
+--             [(DeriveTest.default_inst_title, evts)]
+-- 
+--     let deflt = Derive.negative_duration_default
+--     -- events get lined up
+--     equal (run [(1, -1, "--1"), (3, -2, "--2")])
+--         (Right [(1, 2, "--1"), (3, deflt, "--2")], [])
+--     -- rest
+--     equal (run [(1, -1, "--1"), (3, -1, "--2")])
+--         (Right [(1, 1, "--1"), (3, deflt, "--2")], [])
+--     -- 0 dur is treated as negative
+--     equal (run [(1, -1, "--1"), (3, 0, "--2")])
+--         (Right [(1, 2, "--1"), (3, deflt, "--2")], [])
+-- 
+--     let run evts = extract $ DeriveTest.derive_blocks
+--             [ ("b1", [(">", evts)])
+--             , ("sub", [(">", [(1, -1, "--1"), (2, -1, "--2")])])
+--             ]
+--     -- last event extends up to "rest" at 5
+--     equal (run [(4, -4, "sub"), (6, -1, "")])
+--         (Right [(2, 2, "--1"), (4, 1, "--2"), (6, deflt, "")], [])
+-- 
+--     -- events between derivers work
+--     equal (run [(4, -4, "sub"), (8, -4, "sub")])
+--         (Right [(2, 2, "--1"), (4, 2, "--2"), (6, 2, "--1"),
+--             (8, deflt, "--2")],
+--         [])
+--     let run evts = extract $ DeriveTest.derive_blocks
+--             [ ("b1", [(">", evts)])
+--             , ("sub",
+--                 [ (">i1", [(1, -1, "--11"), (2, -1, "--12")])
+--                 , (">i2", [(1, -1, "--21")])
+--                 ])
+--             ]
+--     -- as above but both last events are extended
+--     equal (run [(4, -4, "sub"), (6, -1, "")])
+--         (Right [(2, 2, "--11"), (2, 3, "--21"), (4, 1, "--12"),
+--             (6, deflt, "")], [])
+-- 
+--     -- events between derivers work
+--     equal (run [(4, -4, "sub"), (8, -4, "sub")])
+--         (Right
+--             [ (2, 2, "--11"), (2, 2, "--21"), (4, 2, "--12")
+--             , (6, 2, "--11"), (6, deflt, "--21"), (8, deflt, "--12") ],
+--         [])
 
 -- * setup
 

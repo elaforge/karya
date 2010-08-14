@@ -95,6 +95,7 @@ import qualified Ui.State as State
 -- This causes a bunch of modules to import BlockC.  Can I move the updater
 -- stuff out?
 import qualified Ui.Sync as Sync
+import qualified Ui.Update as Update
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
@@ -225,10 +226,9 @@ get_performance block_id = do
 -- derivation.  By the time 'cmd_play' pulls out the Performance, it should be
 -- at least partially evaluated.
 perform :: (Monad m) => BlockId -> Instrument.Db.Db -> Schema.SchemaMap
-    -> Cmd.CmdT m Cmd.Performance
-perform block_id inst_db schema_map = do
-    -- (derive_result, tempo, inv_tempo) <- derive schema_map block_id
-    result <- derive schema_map block_id
+    -> [Update.Update] -> Cmd.CmdT m Cmd.Performance
+perform block_id inst_db schema_map updates = do
+    result <- derive schema_map updates block_id
     events <- case Derive.r_result result of
         Left (Derive.DeriveError srcpos stack msg) -> do
             Log.write $
@@ -251,13 +251,15 @@ perform block_id inst_db schema_map = do
         (Derive.r_track_signals result)
 
 -- | Derive the contents of the given block to score events.
-derive :: (Monad m) => Schema.SchemaMap -> BlockId
+derive :: (Monad m) => Schema.SchemaMap -> [Update.Update] -> BlockId
     -> Cmd.CmdT m (Derive.DeriveResult [Score.Event])
-derive schema_map block_id = do
+derive schema_map updates block_id = do
     ui_state <- State.get
     call_map <- Cmd.gets Cmd.state_call_map
-    return $ Derive.derive (Schema.lookup_deriver schema_map ui_state)
-        ui_state call_map initial_environ False (Derive.d_root_block block_id)
+    cache <- Cmd.gets Cmd.state_derive_cache
+    return $ Derive.derive cache (Schema.lookup_deriver schema_map ui_state)
+        ui_state updates call_map initial_environ False
+        (Derive.d_root_block block_id)
 
 -- | There are a few environ values that almost everything relies on.
 initial_environ :: TrackLang.Environ

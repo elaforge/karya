@@ -5,8 +5,9 @@
     RealTime are converted to these as the final stage of performance.
 -}
 module Perform.Timestamp where
-import Util.Pretty
+import qualified Control.DeepSeq as DeepSeq
 import Text.Printf
+import Util.Pretty
 
 import Ui
 
@@ -15,7 +16,7 @@ import Ui
 -- The resolution is only milliseconds, so it can't be used to align audio.
 -- This is just for the MIDI.
 newtype Timestamp = Timestamp Integer
-    deriving (Eq, Ord, Show, Num, Enum, Real, Integral)
+    deriving (Eq, Ord, Show, Num, Enum, Real, Integral, DeepSeq.NFData)
 
 immediately :: Timestamp
 immediately = Timestamp 0

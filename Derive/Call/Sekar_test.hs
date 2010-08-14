@@ -1,19 +1,19 @@
 module Derive.Call.Sekar_test where
 import Util.Test
 
-import qualified Ui.Track as Track
-import qualified Ui.Event as Event
+-- import qualified Ui.Track as Track
+-- import qualified Ui.Event as Event
 
-import qualified Derive.Call.Sekar as Sekar
-import qualified Derive.Derive as Derive
-import qualified Derive.DeriveTest as DeriveTest
-import Derive.Operator
-import qualified Derive.Scale.Twelve as Twelve
-import qualified Derive.Score as Score
+-- import qualified Derive.Call.Sekar as Sekar
+-- import qualified Derive.Derive as Derive
+-- import qualified Derive.DeriveTest as DeriveTest
+-- import Derive.Operator
+-- import qualified Derive.Scale.Twelve as Twelve
+-- import qualified Derive.Score as Score
 
-import qualified Perform.Pitch as Pitch
-import qualified Perform.PitchSignal as PitchSignal
-import qualified Perform.Signal as Signal
+-- import qualified Perform.Pitch as Pitch
+-- import qualified Perform.PitchSignal as PitchSignal
+-- import qualified Perform.Signal as Signal
 
 
 test_sekar = do

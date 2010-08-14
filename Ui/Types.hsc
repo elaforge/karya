@@ -74,6 +74,13 @@ newtype ScoreTime = ScoreTime Double
     deriving (Num, Enum, Real, Floating, Fractional, RealFrac, RealFloat,
         Eq, Ord, Show, Read, NFData)
 
+max_score_time :: ScoreTime
+    -- technically it should be 1.79e308 more or less but this is big enough
+max_score_time = ScoreTime 1e300
+
+max_real_time :: RealTime
+max_real_time = RealTime 1e300
+
 -- | A concrete unit of time, otherwise known as seconds.
 newtype RealTime = RealTime Double
     deriving (Num, Enum, Real, Floating, Fractional, RealFrac, RealFloat,
@@ -111,7 +118,7 @@ real_to_double :: RealTime -> Double
 real_to_double (RealTime p) = p
 
 instance Pretty.Pretty ScoreTime where
-    pretty (ScoreTime p) = Pretty.pretty p ++ "st" -- st for ScoreTime
+    pretty (ScoreTime p) = Pretty.pretty p ++ "t" -- t for time
 instance Pretty.Pretty RealTime where
     pretty (RealTime p) = Pretty.pretty p ++ "s" -- s for seconds
 

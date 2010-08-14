@@ -11,14 +11,14 @@ import Util.Test
 import qualified Util.Seq as Seq
 
 import Ui
-import qualified Ui.Id as Id
-import qualified Ui.Types as Types
 
 import qualified Midi.Midi as Midi
 import Midi.Midi (ChannelMessage(..))
 import qualified Instrument.MidiDb as MidiDb
 
+import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
+import qualified Derive.Stack as Stack
 
 import qualified Perform.Signal as Signal
 import qualified Perform.SignalBase as SignalBase
@@ -284,7 +284,7 @@ show_msg (Midi.WriteMessage dev ts msg) =
 
 test_pitch_curve = do
     let event pitch = Perform.Event inst1 (RealTime 1) (RealTime 0.5)
-            Map.empty (Signal.signal pitch) []
+            Map.empty (Signal.signal pitch) Stack.empty
     let f evt = (Seq.drop_dups id (map Midi.wmsg_msg msgs), warns)
             where
             (msgs, warns, _) = Perform.perform_note
@@ -388,7 +388,8 @@ test_perform_control2 = do
 test_channelize = do
     let inst_addrs = Perform.config_to_inst_addrs inst_config2 test_lookup
         pevent (start, dur, psig) =
-            Perform.Event inst1 start dur Map.empty (Signal.signal psig) []
+            Perform.Event inst1 start dur Map.empty (Signal.signal psig)
+                Stack.empty
         f = map snd . Perform.channelize inst_addrs . map pevent
 
     -- Re-use channels when the pitch is different, but don't when it's the
@@ -436,7 +437,7 @@ test_channelize = do
 test_can_share_chan = do
     let pevent (start, dur, psig, conts) =
             Perform.Event inst1 start dur (mkcontrols conts)
-                (Signal.signal psig) []
+                (Signal.signal psig) Stack.empty
     let f evt0 evt1 = Perform.can_share_chan (pevent evt0) (pevent evt1)
 
     -- Can't share, becase there is explicitly time for a leading pitch
@@ -541,18 +542,13 @@ type EventSpec = (Instrument.Instrument, String, RealTime, RealTime,
 mkevent :: EventSpec -> Perform.Event
 mkevent (inst, pitch, start, dur, controls) =
     Perform.Event inst start dur (Map.fromList controls) (psig start pitch)
-        stack
+        DeriveTest.fake_stack
     where
     psig pos p = Signal.signal [(pos, to_pitch p)]
     to_pitch p = Maybe.fromMaybe (error ("no pitch " ++ show p))
         (lookup p pitch_map)
     pitch_map = zip (map (:"") ['a'..'z']) [60..]
         ++ zip (map (:"2") ['a'..'z']) [60.5..]
-    stack =
-        [ (Types.BlockId (Id.id "test" "fakeblock")
-        , Just (Types.TrackId (Id.id "test" "faketrack"))
-        , Just (42, 43))
-        ]
 
 mkevents_inst = map (\(a, b, c, d) -> mkevent (inst1, a, b, c, d))
 

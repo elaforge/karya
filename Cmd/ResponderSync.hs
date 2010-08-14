@@ -62,8 +62,8 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.Play as Play
 
 
--- | The background derive threads will wait this long before starting up,
--- to avoid working too hard during an edit.
+-- | The background derive threads will wait this many seconds before starting
+-- up, to avoid working too hard during an edit.
 derive_wait_focused, derive_wait_unfocused :: Double
 derive_wait_focused = 1
 derive_wait_unfocused = 3
@@ -135,18 +135,19 @@ derive_events send_status ui_from ui_to updates = do
     -- In case they aren't done, their work is about to be obsolete.
     Trans.liftIO $ mapM_ Concurrent.killThread $
         Seq.map_maybe (flip Map.lookup old_threads) block_ids
-    threads <- mapM (background_derive send_status) block_ids
+    threads <- mapM (background_derive send_status updates) block_ids
     let new_threads = Map.fromList
             [(block_id, th) | (block_id, Just th) <- zip block_ids threads]
     Cmd.modify_state $ \st -> st { Cmd.state_derive_threads =
         Map.union new_threads (Map.delete_keys block_ids old_threads) }
 
-background_derive :: SendStatus -> BlockId
+background_derive :: SendStatus -> [Update.Update] -> BlockId
     -> Cmd.CmdT IO (Maybe Concurrent.ThreadId)
-background_derive send_status block_id = do
+background_derive send_status updates block_id = do
     st <- Cmd.get_state
     maybe_perf <- (Just <$> Play.perform
-            block_id (Cmd.state_instrument_db st) (Cmd.state_schema_map st))
+            block_id (Cmd.state_instrument_db st) (Cmd.state_schema_map st)
+            updates)
         `Error.catchError` \_ -> return Nothing
     case maybe_perf of
         Nothing -> do

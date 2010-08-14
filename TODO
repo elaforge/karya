@@ -21,17 +21,47 @@ CURRENT
     in generate_note
   - inst has a notion of polyphony so I can avoid overloading a channel, say
     if I limit it to 2 voices
+  - see if making a version of Derive.local that's non-monadic in the modifier
+    has any effect on performance
+  - remove Control.Util.when_just, maybe (return ()) is just as good
+  - now that the signal deriver is gone, I can also get rid of ignore_tempo,
+    unless I want to use it for a lilypond backend or something
+  - make Derive.control_at return a Maybe to make it consistent with pitch_at
+  - some way to write the default pitch in a tracklang literal?
+  ? switch mhead and mlast back to returning Maybe
+  - Typecheck implies Pretty, use pretty in Derive.insert_environ
+  - split some Derive.Derive types into their own module
   derive cache
     - make a profile for modification and recomputation of a large structure,
       the sort of thing memoization would help with
-    - if it helps, I can disallow modification of the Environ by wrapping
-      every call in with_local_environ, that way cache only has to save the
-      environ on each new call
-    - how does yi incremental parser handle exceptions?
+    - c_block should only cache if the block has > a certain number of events.
+    - implement tracks a generators so they can be cached too
+    - tempo damage should damage all events after the tempo change point
+      Actually, I should treat integration as a incremental transformer.
+      Then the tempo damage works because it expands the damaged region itself.
+      Otherwise, any change to tempo will have to re-integrate the entire
+      track.
+    - I won't rederive cached generators if they have control damage outside
+      of the event range.  But there's nothing stopping a generator from
+      reading ahead or behind... come up with some kind of solution for this.
+    - once I know what I'm doing with transformers, fix up negative duration
+      postproc
 
-    Control derivers return (Signal, ScoreRegion), the score region is inserted
-    as track damage.  Event derivers return (Events, RealRegion), the region
-    is passed on to the performer for its cache.
+    ? ability to group multiple generators and cache them as a group
+    - log cache stats during derivation so you can see how much cache you
+      invalidated, how many events and midi msgs were rederived
+    - more efficient version of Derive.concat_derived for events, maybe use
+      AppendList
+    - disallow modification of the Environ by wrapping every call in
+      with_local_environ, this reduces the amount of data the cache has to save
+      - modify control track
+    - tests for cache correctness, compare cached version with rederived version
+      * modify simple event track
+      * modify control track, dependent events should change
+      - modify events under incremental and non-incremental transformers
+      - modify events around events with pre and post deps
+      * modify track in child block and rederive parent
+      * modify tempo in various places
 
   - What if I want a relative pitch track that takes ratios relative to some
     other pitch track?  I can set the scale and put the other signal in the
@@ -44,11 +74,19 @@ CURRENT
     But referring to outputs of other track ids introduces an order dependency,
     which would be a problem if there's a loop.
 
+    Maybe move it to a higher level named track, and then have "signal
+    assignment" so I can say '* = *named' to assign default pitch sig or
+    '%mod = %vib' to assign control signals
+
   - I think PitchSignals may need to be reworked.  They should be (Note, Note,
     Frac).  Otherwise, it's not clear what to call 4a# vs. 4ab.  I can still
     use numbers (Ints this time) as indices into a table of names, but e.g.
     (4c 50) will have to become (4c, 4c#, 0.5) instead of (60.5, 60.5, 0).
     But this means displaying the signal will become more straightforward.
+
+    Remember that some scales may not have well defined degrees and may really
+    be in NNs, e.g. a ratio relative scale.  They can't have a notion of
+    transposition though.
 
   - I think if the same TrackId appears in multiple places, it will be derived
     redundantly.  I should be able to cache the signal output in a TrackSignal.
@@ -96,6 +134,8 @@ CURRENT
   - Derive.with_* should use local, or at least finally
   - clean up warp stuff in Derive.Score
   - put TypeError into DeriveError and use Call.default_relative_note
+  - either split the ErrorT out of DeriveT or run a new DeriveT for each
+    event in a track so that derivation can be lazy
   - LPitch.to_relative was broken by notes as calls, fix it
   - implement add_hz in Derive.Scale.Util
 

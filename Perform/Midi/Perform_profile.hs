@@ -8,6 +8,7 @@ import Ui
 import qualified Midi.Midi as Midi
 
 import qualified Derive.Score as Score
+import qualified Derive.Stack as Stack
 
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Perform as Perform
@@ -52,7 +53,7 @@ force val = DeepSeq.deepseq val val
 mkevent :: RealTime -> RealTime -> [(Control.Control, Signal.Control)]
     -> Signal.NoteNumber -> Perform.Event
 mkevent start dur controls pitch_sig =
-    Perform.Event inst1 start dur (Map.fromList controls) pitch_sig []
+    Perform.Event inst1 start dur (Map.fromList controls) pitch_sig Stack.empty
 
 
 test_lookup :: MidiDb.LookupMidiInstrument

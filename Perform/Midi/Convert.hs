@@ -15,6 +15,7 @@ import qualified Util.Logger as Logger
 
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
+import qualified Derive.Stack as Stack
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
@@ -74,7 +75,7 @@ convert_pitch psig = case Map.lookup scale_id Scale.scale_map of
 
 type ConvertT = Error.ErrorT Warning.Warning
     (Logger.LoggerT Warning.Warning
-        (Reader.ReaderT Warning.Stack Identity.Identity))
+        (Reader.ReaderT Stack.Stack Identity.Identity))
 
 warn :: String -> ConvertT ()
 warn msg = do
@@ -84,7 +85,7 @@ warn msg = do
 run_convert :: ConvertT a -> (Maybe a, [Warning.Warning])
 run_convert conv = (either (const Nothing) Just val, warn ++ warns)
     where
-    run = Identity.runIdentity . flip Reader.runReaderT []
+    run = Identity.runIdentity . flip Reader.runReaderT Stack.empty
         . Logger.run . Error.runErrorT
     (val, warns) = run conv
     warn = either (:[]) (const []) val

@@ -62,6 +62,7 @@ module Perform.Signal (
     , Tempo, Warp, Control, NoteNumber, Display
 
     , signal, constant
+    , length, null
     , unsignal
     , log_signal
     , coerce
@@ -82,8 +83,8 @@ module Perform.Signal (
 
     , equal, pitches_share
 ) where
-import Prelude hiding (last, truncate)
-import Control.DeepSeq
+import Prelude hiding (last, truncate, length, null)
+import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Arrow as Arrow
 import qualified Data.Monoid as Monoid
 import qualified Data.StorableVector as V
@@ -103,7 +104,7 @@ import Perform.SignalBase (max_x, default_srate)
 newtype Signal y = Signal { sig_vec :: SignalBase.SigVec Y }
     -- The Eq instance is only for tests, since it may be quite expensive on
     -- a real signal.
-    deriving (Eq, NFData)
+    deriving (Eq, DeepSeq.NFData)
 
 modify_vec :: (SignalBase.SigVec Y -> SignalBase.SigVec Y)
     -> Signal y0 -> Signal y1
@@ -200,6 +201,12 @@ signal ys = Signal (SignalBase.signal ys)
 
 constant :: Y -> Signal y
 constant n = signal [(0, n)]
+
+length :: Signal y -> Int
+length = V.length . sig_vec
+
+null :: Signal y -> Bool
+null = V.null . sig_vec
 
 -- | A hack to log a signal.  This way it can be extracted later and displayed
 -- in a format that's nicer than a huge log line.
