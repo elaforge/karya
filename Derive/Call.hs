@@ -280,8 +280,7 @@ derive_event dinfo preproc prev_val prev cur@(pos, event) next
     -- TODO move with_catch down here
     run_call expr = place $ apply_toplevel (dinfo, cinfo) expr
         where
-        cinfo = Derive.CallInfo stretch prev_val
-            evt0 (map warp prev) (map warp next)
+        cinfo = Derive.CallInfo prev_val evt0 (map warp prev) (map warp next)
             (pos, Event.event_duration event) prev next
         -- Derivation happens according to the extent of the note, not the
         -- duration.  This is how negative duration events begin deriving

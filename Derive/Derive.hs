@@ -364,21 +364,14 @@ data CallInfo derived = CallInfo {
     -- used for transform calls.  It might be cleaner to split those out, but
     -- too much bother.
 
-    -- | The deriver was stretched by the reciprocal of this number to put it
-    -- into normalized 0--1 time (i.e. this is the deriver's original
-    -- duration).  Calls can divide by this to get durations in the context of
-    -- the track.
-    --
-    -- Stretch for a 0 dur note is considered 1, not infinity, to avoid
-    -- problems with division by 0.
-    -- TODO this is redundant since I have 'info_track_pos' now, remove it
-    info_stretch :: ScoreTime
-
     -- | Hack so control calls have access to the previous sample, since
     -- they tend to want to interpolate from that value.
-    , info_prev_val :: Maybe (RealTime, Elem derived)
+    info_prev_val :: Maybe (RealTime, Elem derived)
 
     -- | These are warped into normalized time.
+    --
+    -- Calls can use this to interpret score times, which are intended to be
+    -- in track score time.
     , info_event :: Event.Event
     , info_prev_events :: [Track.PosEvent]
     , info_next_events :: [Track.PosEvent]
@@ -389,10 +382,22 @@ data CallInfo derived = CallInfo {
     , info_track_next :: [Track.PosEvent]
     }
 
+-- | The deriver was stretched by the reciprocal of this number to put it
+-- into normalized 0--1 time (i.e. this is the absolute value of the event's
+-- duration).  Calls can multiply by this to get durations in the context of
+-- the track.
+--
+-- Stretch for a 0 dur note is considered 1, not infinity, to avoid
+-- problems with division by 0.
+info_stretch :: CallInfo derived -> ScoreTime
+info_stretch (CallInfo { info_track_pos = (s, e) }) =
+    if start == end then 1 else end - start
+    where (start, end) = (min s e, max s e)
+
 -- | Transformer calls don't necessarily apply to any particular event, and
 -- neither to generators for that matter.
 dummy_call_info :: String -> CallInfo derived
-dummy_call_info text = CallInfo 1 Nothing (Event.event s 1) [] [] (0, 1) [] []
+dummy_call_info text = CallInfo Nothing (Event.event s 1) [] [] (0, 1) [] []
     where s = if null text then "<no-event>" else "<" ++ text ++ ">"
 
 -- | A Call will be called as either a generator or a transformer, depending on
