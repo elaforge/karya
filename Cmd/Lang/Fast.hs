@@ -5,6 +5,7 @@ module Cmd.Lang.Fast where
 import qualified Data.Char as Char
 
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Create as Create
 import qualified Cmd.Lang.Global as Global
 import qualified Cmd.Lang.LInst as LInst
 
@@ -26,6 +27,10 @@ interpret toks = case toks of
         -- Called by the browser.
         ["load_instrument", str] | Just arg <- val str ->
             cmd $ LInst.load_instrument arg
+
+        -- Make blocks and views.
+        ["Create.view", str] | Just arg <- val str ->
+            cmd $ Create.view (Global.bid arg)
 
         -- Misc.
         ["quit"] -> Just quit
@@ -57,8 +62,15 @@ magic_quit_string = "-- * YES, really quit * --"
 lex_all :: String -> Maybe [String]
 lex_all text
     | null (dropWhile Char.isSpace text) = Just []
-    | otherwise = case lex text of
+    | otherwise = case lex_dot text of
         [] -> Nothing
         (tok, rest) : _ -> do
             toks <- lex_all rest
             return (tok : toks)
+
+-- | A version of 'lex' that understands qualified names.
+lex_dot :: String -> [(String, String)]
+lex_dot s = case lex s of
+    [(tok1, '.':rest1)] ->
+        [(tok1 ++ "." ++ tok2, rest2) | (tok2, rest2) <- lex_dot rest1]
+    val -> val
