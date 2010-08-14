@@ -118,8 +118,10 @@ control_at :: RealTime -> TrackLang.Control -> Derive.Deriver Signal.Y
 control_at pos control = case control of
     TrackLang.ConstantControl deflt -> return deflt
     TrackLang.DefaultedControl cont deflt ->
-        Derive.control_at cont (Just deflt) pos
-    TrackLang.Control cont -> Derive.control_at cont Nothing pos
+        maybe deflt id <$> Derive.control_at cont pos
+    TrackLang.Control cont ->
+        maybe (Derive.throw $ "not found and no default: " ++ show cont) return
+            =<< Derive.control_at cont pos
 
 -- | Convert a 'TrackLang.Control' to a signal.
 to_signal :: TrackLang.Control -> Derive.Deriver Signal.Control

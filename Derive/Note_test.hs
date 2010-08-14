@@ -151,9 +151,9 @@ test_call_errors = do
     left_like (run_title ">i | no-such-call") "call not found: no-such-call"
     left_like (run_title ">i | delay *bad-arg") "expected Control but got"
     left_like (run_title ">i | delay 1 2 3 4") "too many arguments"
-    left_like (run_title ">i | delay") "not in environment and no default given"
-    left_like (run_title ">i | delay _") "not in environment"
-    left_like (run_title ">i | delay %delay") "not in environment"
+    left_like (run_title ">i | delay") "not found and no default"
+    left_like (run_title ">i | delay _") "not found and no default"
+    left_like (run_title ">i | delay %delay") "not found and no default"
 
     let run_evt evt = extract $
             DeriveTest.derive_tracks_tempo [(">i", [(0, 1, evt)])]

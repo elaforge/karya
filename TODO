@@ -23,10 +23,9 @@ CURRENT
     if I limit it to 2 voices
   - see if making a version of Derive.local that's non-monadic in the modifier
     has any effect on performance
-  - remove Control.Util.when_just, maybe (return ()) is just as good
   - now that the signal deriver is gone, I can also get rid of ignore_tempo,
     unless I want to use it for a lilypond backend or something
-  - make Derive.control_at return a Maybe to make it consistent with pitch_at
+  * make Derive.control_at return a Maybe to make it consistent with pitch_at
   - some way to write the default pitch in a tracklang literal?
   ? switch mhead and mlast back to returning Maybe
   - Typecheck implies Pretty, use pretty in Derive.insert_environ

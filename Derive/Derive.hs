@@ -2,6 +2,7 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE FlexibleContexts #-} -- for super-classes of Derived
 {- | Main module for the deriver monad.
 
     Derivers are always in DeriveT, even if they don't need its facilities.
@@ -839,19 +840,13 @@ type PitchOp = PitchSignal.PitchSignal -> PitchSignal.Relative
 get_control :: (Monad m) => Score.Control -> DeriveT m (Maybe Signal.Control)
 get_control cont = Map.lookup cont <$> gets state_controls
 
-control_at_score :: (Monad m) => Score.Control -> Maybe Signal.Y -> ScoreTime
-    -> DeriveT m Signal.Y
-control_at_score cont deflt pos = control_at cont deflt =<< score_to_real pos
+control_at_score :: Score.Control -> ScoreTime -> Deriver (Maybe Signal.Y)
+control_at_score cont pos = control_at cont =<< score_to_real pos
 
-control_at :: (Monad m) => Score.Control -> Maybe Signal.Y -> RealTime
-    -> DeriveT m Signal.Y
-control_at cont deflt pos = do
+control_at :: Score.Control -> RealTime -> Deriver (Maybe Signal.Y)
+control_at cont pos = do
     controls <- gets state_controls
-    case Map.lookup cont controls of
-        Nothing -> maybe
-            (throw $ "control_at: not in environment and no default given: "
-                ++ show cont) return deflt
-        Just sig -> return $ Signal.at pos sig
+    return $ fmap (\sig -> Signal.at pos sig) (Map.lookup cont controls)
 
 pitch_at_score :: (Monad m) => ScoreTime -> DeriveT m PitchSignal.Y
 pitch_at_score pos = pitch_at =<< score_to_real pos
@@ -957,11 +952,12 @@ modify_pitch f (Just name) signal = local
 
 -- *** specializations
 
-velocity_at :: (Monad m) => ScoreTime -> DeriveT m Signal.Y
-velocity_at pos = control_at Score.c_velocity (Just default_velocity)
-    =<< score_to_real pos
+velocity_at :: ScoreTime -> Deriver Signal.Y
+velocity_at pos = do
+    vel <- control_at Score.c_velocity =<< score_to_real pos
+    return $ maybe default_velocity id vel
 
-with_velocity :: (Monad m) => Signal.Control -> DeriveT m t -> DeriveT m t
+with_velocity :: Signal.Control -> Deriver a -> Deriver a
 with_velocity = with_control Score.c_velocity
 
 
