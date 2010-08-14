@@ -165,6 +165,19 @@ partition2 f g (x:xs)
     where (fs, gs, rest) = partition2 f g xs
 -}
 
+-- | Pair @a@ elements up with @b@ elements.  If they are equal according to
+-- @eq@, they'll both be Just in the result.  If an @a@ is deleted going from
+-- @a@ to @b@, it will be Nothing, and vice versa for @b@.
+--
+-- Kind of like an edit distance, or a diff.
+diff :: (a -> b -> Bool) -> [a] -> [b] -> [(Maybe a, Maybe b)]
+diff _ [] ys = [(Nothing, Just y) | y <- ys]
+diff _ xs [] = [(Just x, Nothing) | x <- xs]
+diff eq (x:xs) (y:ys)
+    | x `eq` y = (Just x, Just y) : diff eq xs ys
+    | any (eq x) ys = (Nothing, Just y) : diff eq (x:xs) ys
+    | otherwise = (Just x, Nothing) : diff eq xs (y:ys)
+
 -- * sublists
 
 -- | Partition a list of Eithers into a pair.  Lazy enough to handle an infinite

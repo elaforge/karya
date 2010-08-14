@@ -22,3 +22,20 @@ test_merge_lists = do
     -- sufficiently lazy
     equal (take 30 (f infinite))
         (take 30 (Seq.merge_lists fst (take 30 infinite)))
+
+
+test_diff = do
+    let f = Seq.diff (==)
+    equal (f "abc" "abc")
+        [(Just 'a', Just 'a'), (Just 'b', Just 'b'), (Just 'c', Just 'c')]
+    equal (f "abc" "axbc")
+        [(Just 'a', Just 'a'), (Nothing, Just 'x'), (Just 'b', Just 'b'),
+            (Just 'c', Just 'c')]
+    equal (f "abc" "axxbc")
+        [(Just 'a', Just 'a'), (Nothing, Just 'x'), (Nothing, Just 'x'),
+            (Just 'b', Just 'b'), (Just 'c', Just 'c')]
+    equal (f "abc" "bc")
+        [(Just 'a', Nothing), (Just 'b', Just 'b'), (Just 'c', Just 'c')]
+    equal (f "abc" "xyz")
+        [(Just 'a', Nothing), (Just 'b', Nothing), (Just 'c', Nothing),
+            (Nothing, Just 'x'), (Nothing, Just 'y'), (Nothing, Just 'z')]

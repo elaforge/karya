@@ -3,11 +3,7 @@ to make it display the second state.
 
 This is unpleasantly complicated and subtle.  I wish I knew a better way!
 -}
-module Ui.Diff (
-    diff, track_diff
-    -- for tests
-    , pair_lists
-) where
+module Ui.Diff (diff, track_diff) where
 import Control.Monad
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Identity as Identity
@@ -227,26 +223,13 @@ uncurry3 f (a, b, c) = f a b c
 unequal_on :: (Eq eq) => (a -> eq) -> a -> a -> Bool
 unequal_on key a b = key a /= key b
 
--- | Pair @a@ elements up with @b@ elements.  If they are equal according to
--- @eq@, they'll both be Just in the result.  If an @a@ is deleted going from
--- @a@ to @b@, it will be Nothing, and vice versa for @b@.
---
--- Kind of like an edit distance.
-pair_lists :: (a -> b -> Bool) -> [a] -> [b] -> [(Maybe a, Maybe b)]
-pair_lists _ [] ys = [(Nothing, Just y) | y <- ys]
-pair_lists _ xs [] = [(Just x, Nothing) | x <- xs]
-pair_lists eq (x:xs) (y:ys)
-    | x `eq` y = (Just x, Just y) : pair_lists eq xs ys
-    | any (eq x) ys = (Nothing, Just y) : pair_lists eq (x:xs) ys
-    | otherwise = (Just x, Nothing) : pair_lists eq xs (y:ys)
-
--- | This is just like 'pair_lists', except that the index of each pair in
+-- | This is just like 'Seq.diff', except that the index of each pair in
 -- the /right/ list is included.  In other words, given @(i, Nothing, Just y)@,
 -- @i@ is the position of @y@ in the @b@ list.  Given @(i, Just x, Nothing)@,
 -- @i@ is where @x@ was deleted from the @b@ list.
 indexed_pairs :: (a -> b -> Bool) -> [a] -> [b] -> [(Int, Maybe a, Maybe b)]
 indexed_pairs eq xs ys = zip3 (indexed pairs) (map fst pairs) (map snd pairs)
-    where pairs = pair_lists eq xs ys
+    where pairs = Seq.diff eq xs ys
 
 indexed_pairs_on :: (Eq eq) => (a -> eq) -> [a] -> [a]
     -> [(Int, Maybe a, Maybe a)]
