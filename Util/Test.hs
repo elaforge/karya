@@ -103,11 +103,16 @@ has_string :: [String] -> String -> IO ()
 has_string = has_string_srcpos Nothing
 
 has_string_srcpos :: SrcPos.SrcPos -> [String] -> String -> IO ()
-has_string_srcpos srcpos strings expected
-    | any (pattern_matches expected) strings = success_srcpos srcpos $
-        show strings ++ " contains '" ++ expected ++ "'"
-    | otherwise = failure_srcpos srcpos $
-        show strings ++ " doesn't contain '" ++ expected ++ "'"
+has_string_srcpos srcpos strings expected =
+    case [str | (str, True) <- zip strings matches] of
+        m : _ -> success_srcpos srcpos $
+            quoted m ++ " =~ " ++ quoted expected
+        [] -> failure_srcpos srcpos $
+            show strings ++ " doesn't contain " ++ quoted expected
+    where matches = map (pattern_matches expected) strings
+
+quoted :: String -> String
+quoted s = "'" ++ s ++ "'"
 
 map_left f (Left a) = Left (f a)
 map_left _ (Right a) = Right a
