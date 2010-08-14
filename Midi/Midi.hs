@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 module Midi.Midi where
+import qualified Control.DeepSeq as DeepSeq
 import Data.Bits
 import qualified Data.ByteString as ByteString
 import qualified Data.Generics as Generics
@@ -11,7 +12,10 @@ import qualified Util.Pretty as Pretty
 import qualified Midi.CC as CC
 
 
--- * devices
+-- | Declared abstract here so I can switch to a more compact representation
+-- later.
+type WriteMessages = [WriteMessage]
+type ReadMessages = [ReadMessage]
 
 data WriteMessage = WriteMessage {
     wmsg_dev :: WriteDevice
@@ -23,6 +27,8 @@ data ReadMessage = ReadMessage {
     , rmsg_ts :: Timestamp.Timestamp
     , rmsg_msg :: Message
     } deriving (Eq, Ord, Show)
+
+-- * devices
 
 -- | Implementation independent representation of a MIDI Device.
 --
@@ -116,6 +122,11 @@ data Message =
     | RealtimeMessage RealtimeMessage
     | UnknownMessage Word8 Word8 Word8
     deriving (Eq, Ord, Show, Read, Generics.Typeable)
+
+instance DeepSeq.NFData Message where
+    -- This should force enough of the Message.
+    rnf (ChannelMessage chan _) = DeepSeq.rnf chan
+    rnf _ = ()
 
 instance Pretty.Pretty Message where
     pretty (CommonMessage (SystemExclusive manuf bytes)) =

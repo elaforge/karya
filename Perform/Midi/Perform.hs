@@ -17,7 +17,7 @@
     of attributes into a keyswitch.
 -}
 module Perform.Midi.Perform where
-import Control.DeepSeq
+import qualified Control.DeepSeq as DeepSeq
 import Data.Function
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -553,10 +553,13 @@ data Event = Event {
     , event_stack :: Warning.Stack
     } deriving (Eq, Show)
 
-instance NFData Event where
+instance DeepSeq.NFData Event where
     rnf (Event inst start dur controls pitch stack) =
         rnf inst `seq` rnf start `seq` rnf dur `seq` rnf controls
         `seq` rnf pitch `seq` rnf stack
+        where
+        rnf :: DeepSeq.NFData a => a -> ()
+        rnf = DeepSeq.rnf
 
 event_end :: Event -> RealTime
 event_end event = event_start event + event_duration event

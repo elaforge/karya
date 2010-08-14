@@ -1,3 +1,4 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-} -- for NFData instance
 {- | This has the basic data structures for the deriver level.
 
     The events here are generated from UI Events, and will eventually be
@@ -5,6 +6,8 @@
     backend.
 -}
 module Derive.Score where
+import qualified Control.DeepSeq as DeepSeq
+import Control.DeepSeq (rnf)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
@@ -15,7 +18,8 @@ import qualified Ui.Types as Types
 import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
-import qualified Perform.Warning as Warning
+
+import qualified Derive.Stack as Stack
 
 
 -- * Event
@@ -35,13 +39,18 @@ data Event = Event {
     -- in more than one if it appears in a merged track).  That way, if an
     -- error or warning is emitted concerning this event, its position on the
     -- UI can be highlighted.
-    , event_stack :: Warning.Stack
+    , event_stack :: Stack.Stack
 
     -- | These are optional parameters that may or may not be required by the
     -- performer.
     , event_instrument :: Maybe Instrument
     , event_attributes :: Attributes
     } deriving (Eq, Show)
+
+instance DeepSeq.NFData Event where
+    rnf (Event start dur text controls pitch _ _ _) =
+        rnf start `seq`  rnf dur `seq` rnf text `seq` rnf controls
+            `seq` rnf pitch
 
 type ControlMap = Map.Map Control Signal.Control
 type PitchMap = Map.Map Control PitchSignal.PitchSignal
@@ -232,7 +241,7 @@ attributes = Attributes . Set.fromList
 no_attrs :: Attributes
 no_attrs = Attributes Set.empty
 
-newtype Control = Control String deriving (Eq, Ord, Show)
+newtype Control = Control String deriving (Eq, Ord, Show, DeepSeq.NFData)
 
 -- ** controls
 
