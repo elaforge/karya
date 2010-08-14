@@ -38,7 +38,7 @@ instance Pretty a => Pretty (Maybe a) where
     pretty (Just a) = pretty a
 
 instance (Pretty a, Pretty b) => Pretty (a, b) where
-    pretty x = show x
+    pretty (a, b) = "(" ++ pretty a ++ ", " ++ pretty b ++ ")"
 
 -- instance (Pretty k, Pretty v) => Pretty (Map.Map k v) where
 instance (Show k, Show v) => Pretty (Map.Map k v) where
