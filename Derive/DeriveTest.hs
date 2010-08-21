@@ -14,6 +14,7 @@ import qualified Instrument.MidiDb as MidiDb
 
 import Ui
 import qualified Ui.State as State
+import qualified Ui.Types as Types
 import qualified Ui.UiTest as UiTest
 
 import qualified Derive.Call.All as Call.All
@@ -82,8 +83,8 @@ perform :: Instrument.Config -> [Score.Event]
 perform inst_config events = (perf_events, convert_warns, mmsgs, perform_warns)
     where
     (perf_events, convert_warns) = Convert.convert default_lookup events
-    (msgs, perform_warns) =
-        Perform.perform default_lookup inst_config perf_events
+    (msgs, perform_warns, _) = Perform.perform Perform.initial_state
+        default_lookup inst_config perf_events
     mmsgs = map (\m -> (Midi.wmsg_ts m, Midi.wmsg_msg m)) msgs
 
 -- | Create multiple blocks, and derive the first one.

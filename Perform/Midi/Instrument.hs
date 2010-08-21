@@ -90,7 +90,12 @@ data Config = Config {
     -- configure it (probably a keyswitch, possibly a program change).
     config_alloc :: Map.Map Score.Instrument [Addr]
     } deriving (Eq, Read, Show)
+
+config :: [(Score.Instrument, [Addr])] -> Config
 config = Config . Map.fromList
+
+empty_config :: Config
+empty_config = config []
 
 -- | Midi instruments are addressed by a (device, channel) pair, allocated in
 -- 'Config'.

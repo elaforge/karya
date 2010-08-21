@@ -416,8 +416,8 @@ score_to_midi events = do
     inst_config <- State.gets State.state_midi_config
     lookup <- Cmd.get_lookup_midi_instrument
     let (midi_events, convert_warnings) = Midi.Convert.convert lookup events
-        (midi_msgs, perform_warnings) =
-            Midi.Perform.perform lookup inst_config midi_events
+        (midi_msgs, perform_warnings, _) = Midi.Perform.perform
+            Midi.Perform.initial_state lookup inst_config midi_events
     return (midi_msgs, convert_warnings ++ perform_warnings)
 
 

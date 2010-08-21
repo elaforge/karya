@@ -30,11 +30,69 @@ CURRENT
   ? switch mhead and mlast back to returning Maybe
   - Typecheck implies Pretty, use pretty in Derive.insert_environ
   - split some Derive.Derive types into their own module
+  - tracks with no ruler should default to free selection placement
+  - after creating a new track, focus should go to its title
+  - put a multiplier on play's timestamps to implement a play speed control
+  - spline curve interpolator: evoral/Curve.cpp, www.korf.co.uk/spline.pdf
+  - need a concept of a "toplevel" block.  This block is used for:
+    - calculating absolute time offset e.g. if a DAW wants to seek to a point
+    - ability to start playing from n seconds back from the current position on
+      the toplevel block as inferred from the current position in a sub block.
+      I can look at selection position on the parent blocks to know which
+      particular invocation of the sub-block is meant.
+    - Maybe if I know which invocation, I can figure out the environment so
+      that I can know current scale and inst?
+  midi performer next event dep:
+    - for now, just don't bother getting it right for cached perf
+    - change controls to be just like pitch: clip at event start and next event
+      start, for the same reasons as pitch
+    - make sure it clips from the sample *previous* so I get the initial val
+    - maybe an optimization where I don't bother to clip if the inst has no
+      multiplexing
+    - make sure this means I can remove next start for trailing control: just
+      perform all the controls the event has
+    - Remove perform legato.  If I need it later, it can be added as either
+      part of the note call (so it can also depend on inst) or as a postproc
+      like negative duration.
+
+  incremental midi performance
+    * pull states out to the 'perform' level
+    * have perform return a State
+    * pull inst_addrs and no_alloc out of AllotState
+    * write a wrapper function that, given a range, folds perform over it, and
+      saves the state every n RealTime
+    * put warns in Chunk so I can delay forcing the chunk until necessary, by
+      printing the warns
+    - store midi cache in cmd state
+
+    -- TODO call the cache instead, with the old cache value, and the damage
+    -- from the derivation
+    -- clear cache if inst config has changed
+    -- ResponderSync thread stays open for play pos msgs and forces chunk warns
+    -- according to that.
+    --
+    -- play from seeks through chunks instead, exposed by Performance
+
+    - hook Perform event damage up to output from deriver
+    - implement a more clever forcing policy for midi msgs, e.g.
+      - quickly force current block until t+n
+      - gradually force t+n .. end chunk by chunk, so as not to overwhelm the gc
+      - do the same with the toplevel block, stick to gradual if it's not
+        focused
+      - blocks which are neither focused nor toplevel are unforced until they
+        get focus
+    - I need to know the next event for the legato overlap
+    - performance plays from cache instead of [Message]
+    - use cache to seek quickly to events to play
+    - log cache stats
+    - cmd to clear out midi cache
+    - cmd to compare cached to uncached perf, put next to Global.score_to_midi
+
   derive cache
-    - make a profile for modification and recomputation of a large structure,
+    * make a profile for modification and recomputation of a large structure,
       the sort of thing memoization would help with
     - c_block should only cache if the block has > a certain number of events.
-    - implement tracks a generators so they can be cached too
+    - implement tracks as generators so they can be cached too
     - tempo damage should damage all events after the tempo change point
       Actually, I should treat integration as a incremental transformer.
       Then the tempo damage works because it expands the damaged region itself.

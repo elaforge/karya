@@ -242,8 +242,10 @@ perform block_id inst_db schema_map updates = do
 
     -- TODO call Convert.verify for more warnings
     inst_config <- State.gets State.state_midi_config
-    let (midi_msgs, perform_warnings) =
-            Perform.perform lookup_inst inst_config midi_events
+
+    let (midi_msgs, perform_warnings, _state) =
+            Perform.perform Perform.initial_state lookup_inst inst_config
+                midi_events
     let logs = map (warn_to_msg "event conversion") convert_warnings
             ++ map (warn_to_msg "performance") perform_warnings
     return $ Cmd.Performance midi_msgs (Derive.r_logs result ++ logs)

@@ -72,18 +72,43 @@ legato_overlap_time = Timestamp.to_real_time (Timestamp.seconds 0.01)
 
 -- * perform
 
+-- | These may later become a more efficient type.
+type Messages = [Midi.WriteMessage]
+type Events = [Event]
+
+-- | Performance state.  This is a snapshot of the state of the various
+-- functions in the performance pipeline.  You should be able to resume
+-- performance at any point given a RealTime and a State.
+data State = State {
+    state_channelize :: ChannelizeState
+    , state_allot :: AllotState
+    , state_perform :: PerformState
+    -- | Not so important, if I have a few dup msgs it should be ok.
+    , state_postproc :: PostprocState
+    } deriving (Eq, Show)
+
+initial_state :: State
+initial_state = State [] empty_allot_state empty_perform_state Map.empty
+
 -- | Render instrument tracks down to midi messages, sorted in timestamp order.
 -- This should be non-strict on the event list, so that it can start producing
 -- MIDI output as soon as it starts processing Events.
-perform :: MidiDb.LookupMidiInstrument
-    -> Instrument.Config -> [Event] -> ([Midi.WriteMessage], [Warning.Warning])
-perform lookup_inst config events = (post_process msgs, warns)
+perform :: State -> MidiDb.LookupMidiInstrument -> Instrument.Config
+    -> Events -> ([Midi.WriteMessage], [Warning.Warning], State)
+perform state _ _ [] = ([], [], state)
+perform state lookup_inst config events =
+    (final_msgs, warns,
+        State channelize_state allot_state perform_state postproc_state)
     where
     inst_addrs = config_to_inst_addrs config lookup_inst
-    (event_channels, allot_warns) = allot inst_addrs $
-        channelize inst_addrs events
-    (msgs, perform_warns) = perform_notes event_channels
+    (event_channels, channelize_state) =
+        channelize (state_channelize state) inst_addrs events
+    (event_allotted, allot_warns, allot_state) =
+        allot (state_allot state) inst_addrs event_channels
+    (msgs, perform_warns, perform_state) =
+        perform_notes (state_perform state) event_allotted
     warns = allot_warns ++ perform_warns
+    (final_msgs, postproc_state) = post_process (state_postproc state) msgs
 
 config_to_inst_addrs :: Instrument.Config -> MidiDb.LookupMidiInstrument
     -> InstAddrs
@@ -96,38 +121,55 @@ config_to_inst_addrs config lookup_inst = Map.fromList
 -- | Map each instrument to its allocated Addrs.
 type InstAddrs = Map.Map Instrument.InstrumentName [Instrument.Addr]
 
--- | As in 'Cmd.Cmd.WriteDeviceState', map an Addr to the Instrument active
--- at that address.
-type AddrInst = Map.Map Instrument.Addr Instrument.Instrument
-
 
 -- * perform notes
 
--- | Given an ordered list of note events, produce the apprapriate midi msgs.
--- The input events are ordered, but may overlap.
-perform_notes :: [(Event, Instrument.Addr)]
-    -> ([Midi.WriteMessage], [Warning.Warning])
-    -- Pass an empty AddrInst because I can't make any assumptions about the
-    -- state of the synthesizer.  The one from the wdev state might be out of
-    -- date by the time this performance is played.
-perform_notes events = (merge_sorted_messages msgs, concat warns)
-    where
-    (msgs, warns) = unzip $
-        map_notes _perform_note (Map.empty, Map.empty) events
-    -- This is like mapAccumL, but looks for the next event.
-    map_notes _ _ [] = []
-    map_notes f state (x@(_, addr):xs) = y : map_notes f state2 xs
-        where
-        next = fst <$> List.find ((==addr) . snd) xs
-        (state2, y) = f state next x
+type PerformState = (AddrInst, NoteOffMap)
+
+-- | As in 'Cmd.Cmd.WriteDeviceState', map an Addr to the Instrument active
+-- at that address.
+--
+-- Used to emit keyswitches or program changes.
+type AddrInst = Map.Map Instrument.Addr Instrument.Instrument
 
 -- | Map from an address to the last time a note was playing on that address.
 -- This includes the last note's decay time, so the channel should be reusable
 -- after this time.
+--
+-- Used to give leading cc times a little breathing room.
+--
+-- It only needs to be 'min cc_lead (now - note_off)'
 type NoteOffMap = Map.Map Instrument.Addr RealTime
 
-_perform_note :: (AddrInst, NoteOffMap) -> Maybe Event
-    -> (Event, Instrument.Addr)
+-- | Pass an empty AddrInst because I can't make any assumptions about the
+-- state of the synthesizer.  The one from the wdev state might be out of
+-- date by the time this performance is played.
+empty_perform_state :: PerformState
+empty_perform_state = (Map.empty, Map.empty)
+
+-- | Given an ordered list of note events, produce the apprapriate midi msgs.
+-- The input events are ordered, but may overlap.
+perform_notes :: PerformState -> [(Event, Instrument.Addr)]
+    -> ([Midi.WriteMessage], [Warning.Warning], PerformState)
+perform_notes state events =
+    (merge_sorted_messages msgs, concat warns, final_state)
+    where
+    (result, final_state) = map_notes _perform_note state events
+    (msgs, warns) = unzip result
+    -- This is like mapAccumL, but looks for the next event.
+    -- This is problematic in the face of performing cached chunks because it
+    -- introduces a forward dependency, which means I'd have to always
+    -- reperform the previous chunk, or maybe more depending on how far it
+    -- is to the next event with the same addr.
+    -- TODO remove this forward dep
+    map_notes _ state [] = ([], state)
+    map_notes f state (x@(_, addr):xs) = (y : ys, final_state)
+        where
+        next = fst <$> List.find ((==addr) . snd) xs
+        (state2, y) = f state next x
+        (ys, final_state) = map_notes f state2 xs
+
+_perform_note :: PerformState -> Maybe Event -> (Event, Instrument.Addr)
     -> ((AddrInst, NoteOffMap), ([Midi.WriteMessage], [Warning.Warning]))
 _perform_note (addr_inst, note_off_map) next_event (event, addr) =
     ((addr_inst2, Map.insert addr note_off note_off_map), (msgs, warns))
@@ -138,7 +180,6 @@ _perform_note (addr_inst, note_off_map) next_event (event, addr) =
         adjust_chan_state addr_inst addr event
     msgs = merge_messages [chan_state_msgs, note_msgs]
     warns = note_warns ++ chan_state_warns
-
 
 -- | Figure out of any msgs need to be emitted to convert the channel state to
 -- the given event on the given addr.
@@ -199,29 +240,33 @@ chan_state_msgs addr@(wdev, chan) ts maybe_old_inst new_inst
 
 -- * post process
 
--- | Some context free post-processing on the midi stream.
-post_process :: [Midi.WriteMessage] -> [Midi.WriteMessage]
-post_process = drop_duplicates
-
-drop_duplicates :: [Midi.WriteMessage] -> [Midi.WriteMessage]
-drop_duplicates = drop_dup_controls Map.empty
+type PostprocState = Map.Map Instrument.Addr AddrState
 
 -- | Keep a running state for each channel and drop duplicate msgs.
 type AddrState =
     (Maybe Midi.PitchBendValue, Map.Map Midi.Control Midi.ControlValue)
-type RunningState = Map.Map Instrument.Addr AddrState
 
-drop_dup_controls :: RunningState -> [Midi.WriteMessage] -> [Midi.WriteMessage]
-drop_dup_controls _ [] = []
-drop_dup_controls running (wmsg:wmsgs) = case wmsg of
+-- | Some context free post-processing on the midi stream.
+post_process :: PostprocState -> [Midi.WriteMessage]
+    -> ([Midi.WriteMessage], PostprocState)
+post_process = drop_duplicates
+
+drop_duplicates :: PostprocState -> [Midi.WriteMessage]
+    -> ([Midi.WriteMessage], PostprocState)
+drop_duplicates state = drop_dup_controls state
+
+drop_dup_controls :: PostprocState -> [Midi.WriteMessage]
+    -> ([Midi.WriteMessage], PostprocState)
+drop_dup_controls state [] = ([], state)
+drop_dup_controls state (wmsg:wmsgs) = case wmsg of
     Midi.WriteMessage dev _ (Midi.ChannelMessage chan cmsg) ->
         let addr = (dev, chan)
-            state = Map.lookup addr running
-            (keep, state2) = analyze_msg state cmsg
-            running2 = maybe running (\s -> Map.insert addr s running) state2
-            rest = drop_dup_controls running2 wmsgs
-        in if keep then wmsg : rest else rest
-    _ -> drop_dup_controls running wmsgs
+            addr_state = Map.lookup addr state
+            (keep, addr_state2) = analyze_msg addr_state cmsg
+            state2 = maybe state (\s -> Map.insert addr s state) addr_state2
+            (rest, final_state) = drop_dup_controls state2 wmsgs
+        in (if keep then wmsg : rest else rest, final_state)
+    _ -> drop_dup_controls state wmsgs
 
 analyze_msg :: Maybe AddrState -> Midi.ChannelMessage -> (Bool, Maybe AddrState)
 analyze_msg Nothing msg = case msg of
@@ -402,24 +447,30 @@ clip_val low high val
     | val > high = (high, True)
     | otherwise = (val, False)
 
--- | Merge the sorted midi messages into a single sorted list.
+-- | Merge an unsorted list of sorted lists of midi messages.
 merge_messages :: [[Midi.WriteMessage]] -> [Midi.WriteMessage]
 merge_messages = Seq.merge_lists Midi.wmsg_ts
 
+-- | Merge a sorted list of sorted midi messages.
 merge_sorted_messages :: [[Midi.WriteMessage]] -> [Midi.WriteMessage]
 merge_sorted_messages = Seq.merge_asc_lists Midi.wmsg_ts
 
 -- * channelize
 
--- | Assign channels.  Events will be merged into the same channel where they
--- can be.
+-- | Overlapping events and the channels they were given.
+type ChannelizeState = [(Event, Channel)]
+
+-- | Assign channels.  Events will be merged into the the lowest channel they
+-- can coexist with.
 --
 -- A less aggressive policy would be to distribute the instrument among all of
 -- its addrs and only share when out of channels, but it seems like this would
 -- quickly eat up all the channels, forcing a new note that can't share to snag
 -- a used one.
-channelize :: InstAddrs -> [Event] -> [(Event, Channel)]
-channelize inst_addrs events = overlap_map (channelize_event inst_addrs) events
+channelize :: ChannelizeState -> InstAddrs -> [Event]
+    -> ([(Event, Channel)], ChannelizeState)
+channelize overlapping inst_addrs events =
+    overlap_map overlapping (channelize_event inst_addrs) events
 
 channelize_event :: InstAddrs -> [(Event, Channel)] -> Event -> Channel
 channelize_event inst_addrs overlapping event =
@@ -488,52 +539,55 @@ controls_equal start end cs0 cs1 = all eq pairs
 --
 -- Events with instruments that have no address allocation in the config
 -- will be dropped.
-allot :: InstAddrs -> [(Event, Channel)]
-    -> ([(Event, Instrument.Addr)], [Warning.Warning])
-allot inst_addrs events = (Maybe.catMaybes event_addrs, warnings)
+allot :: AllotState -> InstAddrs -> [(Event, Channel)]
+    -> ([(Event, Instrument.Addr)], [Warning.Warning], AllotState)
+allot state inst_addrs events =
+    (Maybe.catMaybes event_addrs, warnings, final_state)
     where
-    (state, event_addrs) = List.mapAccumL allot_event
-        (initial_allot_state inst_addrs) events
+    ((final_state, _, no_alloc), event_addrs) =
+        List.mapAccumL allot_event (state, inst_addrs, Map.empty) events
     warnings = [Warning.warning ("no allocation for " ++ show inst) stack
-        Nothing | (inst, stack) <- Map.assocs (ast_no_alloc state)]
+        Nothing | (inst, stack) <- Map.assocs no_alloc]
 
 data AllotState = AllotState {
     -- | Allocated addresses, and when they were last used.
+    -- This is used by the voice stealer to figure out which voice is ripest
+    -- for plunder.
     ast_available :: Map.Map Instrument.Addr RealTime
     -- | Map arbitrary input channels to an instrument address in the allocated
     -- range.
     , ast_map :: Map.Map (Instrument.Instrument, Channel) Instrument.Addr
-    -- | Addresses allocated to each instrument.
-    , ast_inst_addrs :: InstAddrs
-    , ast_no_alloc :: Map.Map Instrument.InstrumentName Stack.Stack
-    } deriving (Show)
-initial_allot_state inst_addrs = AllotState Map.empty Map.empty inst_addrs
-    Map.empty
+    } deriving (Eq, Show)
+empty_allot_state = AllotState Map.empty Map.empty
 
-allot_event :: AllotState -> (Event, Channel)
-    -> (AllotState, Maybe (Event, Instrument.Addr))
-allot_event state (event, ichan) =
+type NoAlloc = Map.Map Instrument.InstrumentName Stack.Stack
+
+allot_event :: (AllotState, InstAddrs, NoAlloc) -> (Event, Channel)
+    -> ((AllotState, InstAddrs, NoAlloc), Maybe (Event, Instrument.Addr))
+allot_event (state, inst_addrs, no_alloc) (event, ichan) =
     case Map.lookup (inst, ichan) (ast_map state) of
-        Just addr -> (update_avail addr state, Just (event, addr))
-        Nothing -> case steal_addr inst state of
-            Nothing -> (insert_warning, Nothing)
+        Just addr -> (update addr state, Just (event, addr))
+        Nothing -> case steal_addr inst_addrs inst state of
             Just addr ->
-                (update_avail addr (update_map addr state), Just (event, addr))
+                (update addr (update_map addr state), Just (event, addr))
+            Nothing ->
+                let no_alloc2 = Map.insertWith' const
+                        (Instrument.inst_score_name inst) (event_stack event)
+                        no_alloc
+                in ((state, inst_addrs, no_alloc2), Nothing)
     where
     inst = event_instrument event
+    update addr state = (update_avail addr state, inst_addrs, no_alloc)
     update_avail addr state = state { ast_available =
-        Map.insert addr (event_end event) (ast_available state) }
+            Map.insert addr (event_end event) (ast_available state) }
     update_map addr state =
         state { ast_map = Map.insert (inst, ichan) addr (ast_map state) }
-    insert_warning = state { ast_no_alloc =
-        Map.insertWith' const (Instrument.inst_score_name inst)
-            (event_stack event) (ast_no_alloc state) }
-
 
 -- | Steal the least recently used address for the given instrument.
-steal_addr :: Instrument.Instrument -> AllotState -> Maybe Instrument.Addr
-steal_addr inst state =
-    case Map.lookup (Instrument.inst_name inst) (ast_inst_addrs state) of
+steal_addr :: InstAddrs -> Instrument.Instrument -> AllotState
+    -> Maybe Instrument.Addr
+steal_addr inst_addrs inst state =
+    case Map.lookup (Instrument.inst_name inst) inst_addrs of
         Just addrs -> let avail = zip addrs (map mlookup addrs)
             in if null avail then Nothing -- no addrs assigned
                 else let (addr, _) = List.minimumBy (compare `on` snd) avail
@@ -588,15 +642,18 @@ type ControlMap = Map.Map Control.Control Signal.Control
 -- overlaps with.  The previous events passed to the function are paired with
 -- its previous return values on those events.  The overlapping events are
 -- passed in reverse order, so the most recently overlapping is first.
-overlap_map :: ([(Event, a)] -> Event -> a) -> [Event] -> [(Event, a)]
-overlap_map = go []
+overlap_map :: [(Event, a)] -> ([(Event, a)] -> Event -> a) -> [Event]
+    -> ([(Event, a)], [(Event, a)])
+    -- ^ (output for each event, final overlapping state)
+overlap_map initial = go initial
     where
-    go _ _ [] = []
-    go prev f (e:events) = (e, val) : go ((e, val) : overlapping) f events
+    go prev _ [] = ([], prev)
+    go prev f (e:events) = ((e, val) : vals, final_state)
         where
         start = note_begin e
         overlapping = takeWhile ((> start) . note_end . fst) prev
         val = f overlapping e
+        (vals, final_state) = go ((e, val) : overlapping) f events
 
 event_warning :: Event -> String -> Warning.Warning
 event_warning event msg = Warning.warning msg (event_stack event)

@@ -224,7 +224,7 @@ unpack_msg (Midi.WriteMessage (Midi.WriteDevice _) _ msg) =
     error $ "unknown msg: " ++ show msg
 
 test_perform_lazy = do
-    let perform evts = Perform.perform_notes [(evt, (dev1, 0)) | evt <- evts]
+    let perform evts = perform_notes [(evt, (dev1, 0)) | evt <- evts]
     let endless = map mkevent [(inst1, n:"", ts, 4, [])
             | (n, ts) <- zip (cycle ['a'..'g']) [0,4..]]
     let (msgs, _warns) = perform endless
@@ -327,17 +327,26 @@ test_keyswitch = do
             (mkevent (ks_inst ks, note, start, dur, []), (dev1, 0))
         ks1 = Just (Instrument.Keyswitch "ks1" 1)
         ks2 = Just (Instrument.Keyswitch "ks2" 2)
-    let perform_notes evts = (extract msgs, warns)
-            where (msgs, warns) = Perform.perform_notes (map with_addr evts)
+    let f evts = (extract msgs, warns)
+            where (msgs, warns) = perform_notes (map with_addr evts)
 
     -- ts clips at 0, redundant ks suppressed.
-    equal (perform_notes [(ks1, "a", 0, 1), (ks1, "b", 10, 10)])
+    equal (f [(ks1, "a", 0, 1), (ks1, "b", 10, 10)])
         ([(0, 1), (0, 60), (10000, 61)], [])
-    equal (perform_notes [(ks1, "a", 0, 1), (ks2, "b", 10, 10)])
+    equal (f [(ks1, "a", 0, 1), (ks2, "b", 10, 10)])
         ([(0, 1), (0, 60), (9996, 2), (10000, 61)], [])
 
-    equal (perform_notes [(Nothing, "a", 0, 1), (ks1, "b", 10, 10)])
+    equal (f [(Nothing, "a", 0, 1), (ks1, "b", 10, 10)])
         ([(0, 60), (9996, 1), (10000, 61)], [])
+
+perform inst_config events = (msgs, warns)
+    where
+    (msgs, warns, _) =
+        Perform.perform Perform.initial_state inst_lookup inst_config events
+
+perform_notes events = (msgs, warns)
+    where
+    (msgs, warns, _) = Perform.perform_notes Perform.empty_perform_state events
 
 -- * post process
 
@@ -347,7 +356,7 @@ test_drop_duplicates = do
         mkwmsgs msgs =
             [Midi.WriteMessage dev1 ts msg | (ts, msg) <- zip [0..] msgs]
         extract wmsg = (Midi.wmsg_ts wmsg, Midi.wmsg_msg wmsg)
-    let f = map extract . Perform.drop_duplicates
+    let f = map extract . fst . Perform.drop_duplicates Map.empty
     let msgs = [mkcc 0 1 10, mkcc 1 1 10, mkcc 0 1 11, mkcc 0 2 10]
     -- no drops
     equal (f (mkwmsgs msgs)) (zip [0..] msgs)
@@ -386,11 +395,11 @@ test_perform_control2 = do
 
 -- test the overlap map and channel allocation
 test_channelize = do
-    let inst_addrs = Perform.config_to_inst_addrs inst_config2 test_lookup
+    let inst_addrs = Perform.config_to_inst_addrs inst_config2 inst_lookup
         pevent (start, dur, psig) =
             Perform.Event inst1 start dur Map.empty (Signal.signal psig)
                 Stack.empty
-        f = map snd . Perform.channelize inst_addrs . map pevent
+        f = map snd . channelize inst_addrs . map pevent
 
     -- Re-use channels when the pitch is different, but don't when it's the
     -- same.
@@ -428,7 +437,7 @@ test_channelize = do
         [0, 0]
 
     -- don't bother channelizing if the inst only has one addr
-    equal (map snd $ Perform.channelize inst_addrs $ mkevents
+    equal (map snd $ channelize inst_addrs $ mkevents
         [ (inst2, "a", 0, 2, [])
         , (inst2, "a2", 1, 2, [])
         ])
@@ -487,12 +496,14 @@ test_overlap_map = do
             , ("c", 1.5, 2, [])
             , ("d", 5, 2, [])
             ]
-    equal (map snd (Perform.overlap_map f events))
+    equal (map snd (fst (Perform.overlap_map [] f events)))
         [ ((0, 2), [])
         , ((1, 2), [(0, 2)])
         , ((1.5, 2), [(1, 2), (0, 2)])
         , ((5, 2), [])
         ]
+
+channelize inst_addrs events = fst $ Perform.channelize [] inst_addrs events
 
 -- * allot
 
@@ -500,9 +511,8 @@ test_allot = do
     let mk inst chan start = (mkevent (inst, "a", start, 1, []), chan)
         mk1 = mk inst1
         in_time mks = zipWith ($) mks [0..]
-        inst_addrs = Perform.config_to_inst_addrs inst_config1 test_lookup
-        allot_chans events = map snd $ map snd $ fst $
-                Perform.allot inst_addrs events
+        inst_addrs = Perform.config_to_inst_addrs inst_config1 inst_lookup
+        allot_chans events = map snd $ map snd $ fst $ allot inst_addrs events
 
     -- They should alternate channels, according to LRU.
     equal (allot_chans (in_time [mk1 0, mk1 1, mk1 2, mk1 3]))
@@ -517,12 +527,12 @@ test_allot = do
         [0, 1]
 
 test_allot_warn = do
-    let inst_addrs = Perform.config_to_inst_addrs inst_config1 test_lookup
+    let inst_addrs = Perform.config_to_inst_addrs inst_config1 inst_lookup
     let extract (evts, warns) =
             (map extract_evt evts, map Warning.warn_msg warns)
         extract_evt (e, (Midi.WriteDevice dev, chan)) =
             (Instrument.inst_name (Perform.event_instrument e), dev, chan)
-    let f = extract . Perform.allot inst_addrs
+    let f = extract . allot inst_addrs
             . map (\(evt, chan) -> (mkevent evt, chan))
     let no_inst = mkinst "no_inst"
     equal (f [((inst1, "a", 0, 1, []), 0)])
@@ -530,9 +540,12 @@ test_allot_warn = do
     equal (f [((no_inst, "a", 0, 1, []), 0), ((no_inst, "b", 1, 2, []), 0)])
         ([], ["no allocation for \"synth1/no_inst\""])
 
--- * setup
+allot inst_addrs events = (event_addrs, warnings)
+    where
+    (event_addrs, warnings, _) =
+        Perform.allot Perform.empty_allot_state inst_addrs events
 
-perform inst_config = Perform.perform test_lookup inst_config
+-- * setup
 
 -- | Name will determine the pitch.  It can be a-z, or a2-z2, which will
 -- yield fractional pitches.
@@ -592,8 +605,8 @@ inst_config2 = Instrument.config
 default_ksmap = Instrument.make_keyswitches
     [("a1+a2", 0), ("a0", 1), ("a1", 2), ("a2", 3)]
 
-test_lookup :: MidiDb.LookupMidiInstrument
-test_lookup attrs (Score.Instrument inst)
+inst_lookup :: MidiDb.LookupMidiInstrument
+inst_lookup attrs (Score.Instrument inst)
     | inst == "inst1" = Just $ inst1
         { Instrument.inst_keyswitch =
             Instrument.get_keyswitch default_ksmap attrs }
