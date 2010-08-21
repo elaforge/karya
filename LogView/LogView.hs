@@ -54,7 +54,7 @@ default_catch_patterns =
 
 -- | Remember this many log msgs.
 default_history :: Int
-default_history = 200
+default_history = 1000
 
 -- | UI will remember this many bytes.  This is not the same as
 -- 'default_history' because the history will remember filtered out msgs, and

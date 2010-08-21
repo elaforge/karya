@@ -11,7 +11,7 @@ import qualified Data.Text as Text
 import qualified Data.Time as Time
 import qualified System.IO as IO
 
-import qualified Perform.Warning as Warning
+import qualified Derive.Stack as Stack
 
 import Util.Control
 import qualified Util.Log as Log
@@ -183,9 +183,10 @@ emit_srcpos (file, func_name, line) = do
     maybe (return ())
         (\func -> with_style style_func_name ("[" ++ func ++ "]")) func_name
 
-emit_stack :: Warning.Stack -> Formatter
-emit_stack stack = with_style style_clickable $ Seq.join "/" (map fmt stack)
-    where fmt stack_pos = "{s " ++ show (Warning.unparse_stack stack_pos) ++ "}"
+emit_stack :: Stack.Stack -> Formatter
+emit_stack stack =
+    with_style style_clickable $ Seq.join "/" (map fmt (Stack.to_ui stack))
+    where fmt frame = "{s " ++ show (Stack.unparse_ui_frame frame) ++ "}"
 
 emit_msg_text :: Style -> String -> Formatter
 emit_msg_text style text = with_style style text
