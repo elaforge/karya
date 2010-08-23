@@ -231,8 +231,7 @@ at_linear x sig = SignalBase.at_linear x (sig_vec sig)
 is_constant :: Signal y -> Bool
 is_constant (Signal vec) = case V.viewL vec of
     Nothing -> True
-    Just ((x0, y0), rest) -> x0 == 0 && V.all ((==y0) . snd) rest
-        || V.all ((==0) . snd) vec
+    Just ((x0, y0), rest) -> V.all ((==y0) . snd) rest
 
 sample :: X -> Signal y -> [(X, Y)]
 sample start sig = SignalBase.sample start (sig_vec sig)
