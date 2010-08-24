@@ -24,6 +24,9 @@ module Util.Test (
     -- * pretty printing
     , plist, pslist, pmlist
     , module PPrint
+
+    -- * debugging
+    , module Debug
 ) where
 import Control.Monad
 import qualified Control.Exception as Exception
@@ -36,7 +39,8 @@ import qualified System.Posix.Terminal as Terminal
 import Text.Printf
 
 -- avoid ghci bug where a new import messes it up
-import qualified Util.Debug ()
+-- besides, it's useful to re-export this for tests
+import Util.Debug as Debug
 import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
 import qualified Util.SrcPos as SrcPos
