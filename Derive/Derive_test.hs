@@ -251,8 +251,11 @@ test_warp_ops = do
     equal (run (Derive.d_stretch 0.5 . Derive.d_at 2)) $ Right [1, 2]
 
     -- test compose
-    let plain = Signal.signal [(0, 0), (1, 1), (2, 2), (3, 3), (100, 100)]
-        slow = Signal.signal [(0, 0), (1, 2), (2, 4), (3, 6), (100, 200)]
+    let plain = Score.signal_to_warp $
+            Signal.signal [(n, Signal.x_to_y n) | n <- [0..100]]
+        slow = Score.signal_to_warp $
+            Signal.signal [(n, Signal.x_to_y (n*2)) | n <- [0..40]]
+
 
     equal (run (Derive.d_warp plain)) $ Right [0, 2]
     equal (run (Derive.d_at 2 . Derive.d_warp plain)) $ Right [2, 4]

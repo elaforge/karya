@@ -181,9 +181,8 @@ evaluate_performance :: SendStatus -> BlockId -> Bool -> Cmd.Performance
     -> IO ()
 evaluate_performance send_status block_id has_focus perf = do
     send_status block_id Msg.Deriving
-    Concurrent.threadDelay $ floor $
-        (if has_focus then derive_wait_focused else derive_wait_unfocused)
-            * 1000000
+    Thread.delay $
+        if has_focus then derive_wait_focused else derive_wait_unfocused
     send_status block_id Msg.StartedDeriving
     -- Force the performance to actually be evaluated.  Writing out the logs
     -- should do it.

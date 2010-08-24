@@ -1,9 +1,14 @@
-module Util.Thread where
+module Util.Thread (
+    start_thread, start_os_thread
+    , delay
+    , take_tmvar_timeout
+) where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception
 
 import qualified Util.Log as Log
+
 
 start_thread, start_os_thread :: String -> IO () -> IO Concurrent.ThreadId
 start_thread name op = Concurrent.forkIO (handle_thread name op)
@@ -19,6 +24,10 @@ handle_thread name op = do
         Right _ -> Log.notice $ thread_name ++ "completed"
         Left err -> Log.warn $ thread_name ++ "died: "
             ++ show (err :: Exception.SomeException)
+
+-- | Delay in seconds.  I can never remember what units 'threadDelay' is in.
+delay :: Double -> IO ()
+delay secs = Concurrent.threadDelay (floor (1000000 * secs))
 
 -- | Isn't there a simpler way to do this?  All I really want to do is return
 -- when a shared value has changed, or it's timed out.

@@ -1,6 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-} -- for pattern type sig in catch
 module Perform.Midi.Play where
-import qualified Control.Concurrent as Concurrent
 import qualified Control.Exception as Exception
 import Control.Monad
 import qualified Data.Set as Set
@@ -78,7 +77,7 @@ play_msgs state addrs_seen msgs = do
             -- will convert deschedued pitchbends to -1 pitchbends.  So abort,
             -- wait for it to send its bogus pitchbend, and then reset it.
             -- send_all write_midi addrs_seen now Midi.AllNotesOff
-            Concurrent.threadDelay 150000
+            Thread.delay 0.15
             send_all write_midi addrs_seen (now + Timestamp.Timestamp 150)
                 (Midi.PitchBend 0)
         (_, []) -> send_all write_midi addrs_seen now (Midi.PitchBend 0)

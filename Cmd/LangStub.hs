@@ -5,7 +5,7 @@ module Cmd.LangStub (
     , interpreter, interpret
 ) where
 import Control.Monad
-import qualified Control.Concurrent as Concurrent
+import qualified Util.Thread as Thread
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 
@@ -15,7 +15,7 @@ make_session :: IO Session
 make_session = return ()
 
 interpreter :: Session -> IO ()
-interpreter () = forever $ Concurrent.threadDelay (10 * 1000000)
+interpreter () = forever $ Thread.delay 10
 
 interpret :: Session -> [String] -> State.State
     -> Cmd.State -> String -> IO (Cmd.CmdT IO String)

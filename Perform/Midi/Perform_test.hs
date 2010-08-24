@@ -9,6 +9,7 @@ import qualified System.IO as IO
 import Util.Pretty
 import Util.Test
 import qualified Util.Seq as Seq
+import qualified Util.Thread as Thread
 
 import Ui
 
@@ -240,14 +241,14 @@ run_timeout timeout action = do
         val <- action
         Concurrent.putMVar mvar (Just val)
     th2 <- Concurrent.forkIO $ do
-        Concurrent.threadDelay (floor (timeout * 1000000))
+        Thread.delay timeout
         Concurrent.putMVar mvar Nothing
     result <- Concurrent.takeMVar mvar
     mapM_ Concurrent.killThread [th1, th2]
     return result
 
 --     (th_id, chan) <- pretend_to_write msgs
---     Concurrent.threadDelay (5 * 1000000)
+--     Thread.delay 5
 --     Concurrent.killThread th_id
     -- forever $ do
     --     (i, msg) <- Chan.readChan chan

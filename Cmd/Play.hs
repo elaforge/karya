@@ -76,7 +76,6 @@
     clears the updater control.
 -}
 module Cmd.Play where
-import qualified Control.Concurrent as Concurrent
 import qualified Control.Exception as Exception
 import qualified Control.Monad.Trans as Trans
 import qualified Data.Map as Map
@@ -342,9 +341,7 @@ updater_loop state = do
     if stopped || null block_pos
         then mapM_ Sync.clear_play_position $
             map fst (Set.toList (updater_active_sels state))
-        else do
-            Concurrent.threadDelay 40000
-            updater_loop state
+        else Thread.delay 0.1 >> updater_loop state
 
 
 -- | Do all the annoying shuffling around to convert the deriver-oriented

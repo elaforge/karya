@@ -1,5 +1,4 @@
 module LogView.Process where
-import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
 import Control.Monad
 import qualified Control.Monad.Writer as Writer
@@ -17,6 +16,7 @@ import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
+import qualified Util.Thread as Thread
 
 
 -- | Only display timing msgs that take longer than this.
@@ -258,7 +258,7 @@ deserialize_line line = do
 tail_getline :: IO.Handle -> IO String
 tail_getline hdl = do
     while_ (IO.hIsEOF hdl) $
-        Concurrent.threadDelay 500000
+        Thread.delay 0.5
     -- Since hGetLine in its infinite wisdom chops the newline it's impossible
     -- to tell if this is a complete line or not.  I'll set LineBuffering and
     -- hope for the best.
