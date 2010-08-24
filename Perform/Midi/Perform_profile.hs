@@ -19,12 +19,11 @@ import qualified Instrument.MidiDb as MidiDb
 import qualified Perform.Signal as Signal
 
 
--- perform :: MidiDb.LookupMidiInstrument
---     -> Instrument.Config -> [Event] -> ([Midi.WriteMessage], [Warning.Warning])
-
 profile_perform = do
     let f evts = (length msgs, logs)
-            where (msgs, logs) = Perform.perform test_lookup inst_config evts
+            where
+            (msgs, logs, _) = Perform.perform Perform.initial_state
+                test_lookup inst_config evts
     let len = 100000
     let sig = force $ Signal.signal (zip [0, 0.25 .. len] (cycle vals))
         vals = map (/10) ([0..10] ++ [10, 9 .. 1])

@@ -187,3 +187,8 @@ overlay_ruler ruler = ruler
 block_structure :: State.State -> [(BlockId, [TrackId])]
 block_structure state = [(block_id, Block.block_track_ids block)
     | (block_id, block) <- Map.assocs (State.state_blocks state)]
+
+simplify :: State.State -> [Simple.Block]
+simplify state = eval state $ mapM Simple.dump_block block_ids
+    where
+    block_ids = Map.keys (State.state_blocks state)

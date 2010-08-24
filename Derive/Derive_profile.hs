@@ -92,6 +92,7 @@ make_subderive bid size = do
 
 profile_nested = derive_profile $ make_nested_simple "b1" 8 3 128
 
+-- TODO fix this to make sense like make_nested_simple
 make_nested :: (State.UiStateMonad m) => String -> Double -> Int -> m [a]
 make_nested bid size 0 = do
     UiTest.mkstate bid $ map (track_until size)
@@ -115,13 +116,13 @@ make_nested bid size depth = do
 make_nested_simple :: (State.UiStateMonad m) => String -> Int -> Int -> Int
     -> m ()
 make_nested_simple bid _ 1 bottom_size = do
-    UiTest.mkstate bid $ map (track_until (fromIntegral bottom_size))
+    UiTest.mkstate bid $ map (track_take bottom_size)
         [note_track ">", simple_pitch_track]
     return ()
 make_nested_simple bid size depth bottom_size = do
-    let sub_bids = [bid ++ "." ++ show sub | sub <- [0 .. size]]
-        step = bottom_size * (size^(depth-2))
-    UiTest.mkstate bid $ map (track_until (fromIntegral (step * size)))
+    let sub_bids = [bid ++ "." ++ show sub | sub <- [0 .. size-1]]
+        step = bottom_size * size^(depth-2)
+    UiTest.mkstate bid $ map (track_take size)
         [ctrack (fromIntegral step) inst1 sub_bids]
     forM_ sub_bids $ \sub -> make_nested_simple sub size (depth-1) bottom_size
 
@@ -140,7 +141,7 @@ derive_profile create = do
     return ()
 
 run_profile :: Bool -> State.State -> IO (Derive.Cache, PerfResults)
-run_profile run_midi ui_state = do
+run_profile perform_midi ui_state = do
     start_cpu <- CPUTime.getCPUTime
     start <- now
     let section :: (Show log) => String -> IO ((), [a], [log]) -> IO ()
@@ -159,7 +160,7 @@ run_profile run_midi ui_state = do
 
     let (perf_events, convert_warns, mmsgs, midi_warns) =
             DeriveTest.perform inst_config events
-    when (run_midi) $ do
+    when perform_midi $ do
         section "convert" $ do
             force perf_events
             return ((), perf_events, convert_warns)
@@ -226,8 +227,11 @@ ctrack :: Double -> String -> [String] -> UiTest.TrackSpec
 ctrack step title ts =
     (title, [(p, step, t) | (p, t) <- zip [0, step..] (cycle ts)])
 
+track_take :: Int -> UiTest.TrackSpec -> UiTest.TrackSpec
+track_take n = second (take n)
+
 track_until :: Double -> UiTest.TrackSpec -> UiTest.TrackSpec
-track_until until = second (takeWhile (\(p, _, _) -> p <= until))
+track_until until = second (takeWhile (\(p, _, _) -> p < until))
 
 track_drop n = second (shift . drop n)
     where

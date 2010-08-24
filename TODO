@@ -55,6 +55,14 @@ CURRENT
       part of the note call (so it can also depend on inst) or as a postproc
       like negative duration.
 
+  - I really need to fix Signal.integrate
+  - rename Derive.DeriveResult -> Derive.Result
+  - seeking to play in a certain place will miss any controller initialization
+    but I could get that back by having Cache.messages_from inspect postproc
+    state to get the control state
+  - I can't put Derive.DeriveT in Applicative because ErrorT e is not in
+    Applicative?  What's up with that?
+  - replace Call.place with a single call to d_warp, profile
   incremental midi performance
     * pull states out to the 'perform' level
     * have perform return a State
@@ -63,28 +71,23 @@ CURRENT
       saves the state every n RealTime
     * put warns in Chunk so I can delay forcing the chunk until necessary, by
       printing the warns
-    - store midi cache in cmd state
-
-    -- TODO call the cache instead, with the old cache value, and the damage
-    -- from the derivation
-    -- clear cache if inst config has changed
-    -- ResponderSync thread stays open for play pos msgs and forces chunk warns
-    -- according to that.
-    --
-    -- play from seeks through chunks instead, exposed by Performance
-
-    - hook Perform event damage up to output from deriver
-    - implement a more clever forcing policy for midi msgs, e.g.
+    * store midi cache in cmd state
+    hook it up to derive output
+      * return event damage in Derive.Result
+      * pass it to cache perform
+      * implement event seek in cache, since it understands chunks
+    implement a more clever forcing policy for midi msgs, e.g.
+      - performance thread stays open and has a channel to receive the sel pos
       - quickly force current block until t+n
       - gradually force t+n .. end chunk by chunk, so as not to overwhelm the gc
       - do the same with the toplevel block, stick to gradual if it's not
         focused
       - blocks which are neither focused nor toplevel are unforced until they
         get focus
-    - I need to know the next event for the legato overlap
-    - performance plays from cache instead of [Message]
-    - use cache to seek quickly to events to play
     - log cache stats
+      For hits and misses I can subtract damage from length chunks.  But to
+      know about splice failures I need to look at the warnings, which can only
+      be done after derivation is complete.
     - cmd to clear out midi cache
     - cmd to compare cached to uncached perf, put next to Global.score_to_midi
 

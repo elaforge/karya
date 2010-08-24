@@ -77,8 +77,8 @@ import qualified Derive.TrackLang as TrackLang
 
 type Deriver a = DeriveT Identity.Identity a
 
-class (Show (Elem derived), Eq (Elem derived), Monoid.Monoid derived) =>
-        Derived derived where
+class (Show (Elem derived), Eq (Elem derived), Monoid.Monoid derived,
+        Show derived) => Derived derived where
     type Elem derived :: *
     -- | I would prefer to have a function to a generic reified type and then
     -- use that value to index the CacheEntry, but I can't think of how to do
@@ -533,6 +533,8 @@ instance Monad m => Log.LogMonad (DeriveT m) where
 data DeriveResult a = DeriveResult {
     r_result :: Either DeriveError a
     , r_cache :: Cache
+    -- | Ranges which were rederived on this derivation.
+    , r_event_damage :: EventDamage
     , r_tempo :: Transport.TempoFunction
     , r_inv_tempo :: Transport.InverseTempoFunction
     , r_track_signals :: Track.TrackSignals
@@ -547,8 +549,9 @@ derive :: Cache -> LookupDeriver -> State.State -> [Update.Update] -> CallMap
     -> DeriveResult a
 derive cache lookup_deriver ui_state updates calls environ ignore_tempo
         deriver =
-    DeriveResult result (state_cache (state_cache_state state)) tempo_func
-        inv_tempo_func (state_track_signals state) logs state
+    DeriveResult result (state_cache (state_cache_state state))
+        (state_event_damage (state_cache_state state))
+        tempo_func inv_tempo_func (state_track_signals state) logs state
     where
     (result, state, logs) = Identity.runIdentity $ run
         (initial_state clean_cache ui_state damage
@@ -1037,7 +1040,7 @@ with_stack frame = local
 -- playback updater, but I don't know if it's necessary.
 --
 -- The hack should work as long as 'start_new_warp' is called when the warp is
--- set (d_warp does this).  Otherwise, tracks will be grouped with the wrong
+-- set ('d_tempo' does this).  Otherwise, tracks will be grouped with the wrong
 -- tempo, which will cause the playback cursor to not track properly.
 add_track_warp :: (Monad m) => TrackId -> DeriveT m ()
 add_track_warp track_id = do
@@ -1096,17 +1099,20 @@ min_tempo :: Signal.Y
 min_tempo = 0.001
 
 d_at :: (Monad m) => ScoreTime -> DeriveT m a -> DeriveT m a
-d_at shift deriver
-    | shift == 0 = deriver
-    | otherwise = with_warp (Score.shift_warp shift) deriver
+d_at shift = d_warp (Score.id_warp { Score.warp_shift = shift })
 
 d_stretch :: (Monad m) => ScoreTime -> DeriveT m a -> DeriveT m a
-d_stretch factor deriver
-    -- A stretch of 0 is ok since the deriver may produce no events, or may
-    -- work in real time.
-    | factor <= 0 = throw $ "stretch <= 0: " ++ show factor
-    | factor == 1 = deriver
-    | otherwise = with_warp (Score.stretch_warp factor) deriver
+d_stretch factor = d_warp (Score.id_warp { Score.warp_stretch = factor })
+
+d_warp :: (Monad m) => Score.Warp -> DeriveT m a -> DeriveT m a
+d_warp warp deriver
+    | Score.is_id_warp warp = deriver
+    | Score.warp_stretch warp <= 0 =
+        throw $ "stretch <= 0: " ++ show (Score.warp_stretch warp)
+    | otherwise = local state_warp (\w st -> st { state_warp = w })
+        (\st -> return $
+            st { state_warp = Score.compose_warps (state_warp st) warp })
+        deriver
 
 with_warp :: (Monad m) => (Score.Warp -> Score.Warp) -> DeriveT m a
     -> DeriveT m a
@@ -1115,14 +1121,6 @@ with_warp f = local state_warp (\w st -> st { state_warp = w }) $ \st ->
 
 in_real_time :: (Monad m) => DeriveT m a -> DeriveT m a
 in_real_time = with_warp (const Score.id_warp)
-
-d_warp :: (Monad m) => Signal.Warp -> DeriveT m a -> DeriveT m a
-d_warp sig deriver = do
-    -- This can't use 'finally' because 'start_new_warp' is after the modify.
-    old <- gets state_warp
-    modify $ \st -> st { state_warp = Score.compose_warp old sig }
-    start_new_warp
-    deriver `finally` modify (\st -> st { state_warp = old })
 
 -- | Shift the controls of a deriver.  You're supposed to apply the warp before
 -- deriving the controls, but I don't have a good solution for how to do this
@@ -1172,22 +1170,14 @@ d_tempo block_id maybe_track_id signal deriver = do
     stretch_to_1 <- if top_level then return id
         else do
             block_dur <- get_block_dur block_id
-            real_dur <- with_warp (const (Score.signal_to_warp warp))
-                (score_to_real block_dur)
+            real_dur <- with_warp (const warp) (score_to_real block_dur)
             -- Log.debug $ "dur, global dur "
             --     ++ show (block_id, block_dur, real_dur)
             when (block_dur == 0) $
                 throw $ "can't derive a block with zero duration"
             return (d_stretch (1 / Types.real_to_score real_dur))
-    -- Optimize for a constant (or missing) tempo.
-    let tempo_warp d = if Signal.is_constant signal
-            then do
-                let tempo = Signal.at 0 signal
-                when (tempo <= 0) $
-                    throw $ "constant tempo <= 0: " ++ show tempo
-                d_stretch (Signal.y_to_score (1 / tempo)) $ start_new_warp >> d
-            else d_warp (tempo_to_warp signal) d
-    stretch_to_1 $ tempo_warp $ do
+    stretch_to_1 $ d_warp warp $ do
+        start_new_warp
         when_just maybe_track_id add_track_warp
         deriver
 
@@ -1210,9 +1200,16 @@ get_block_dur block_id = do
     either (throw . ("get_block_dur: "++) . show) return
         (State.eval ui_state (State.event_end block_id))
 
-tempo_to_warp :: Signal.Tempo -> Signal.Warp
-tempo_to_warp = Signal.integrate Signal.tempo_srate . Signal.map_y (1/)
-    . Signal.clip_min min_tempo
+tempo_to_warp :: Signal.Tempo -> Score.Warp
+tempo_to_warp sig
+    -- Optimize for a constant (or missing) tempo.
+    | Signal.is_constant sig =
+        let stretch = 1 / max min_tempo (Signal.at 0 sig)
+        in Score.Warp Score.id_warp_signal 0 (Signal.y_to_score stretch)
+    | otherwise = Score.Warp warp_sig 0 1
+    where
+    warp_sig = Signal.integrate Signal.tempo_srate $ Signal.map_y (1/) $
+         Signal.clip_min min_tempo sig
 
 
 -- ** track
@@ -1231,8 +1228,7 @@ track_setup track_id deriver = do
 -- | This is a version of 'track_setup' for the tempo track.  It doesn't record
 -- the track warp, see 'd_tempo' for why.
 setup_without_warp :: Deriver d -> Deriver d
-setup_without_warp deriver = do
-    with_local_environ $ with_warp (const Score.id_warp) deriver
+setup_without_warp deriver = with_local_environ (in_real_time deriver)
 
 -- * utils
 
@@ -1484,7 +1480,7 @@ clear_damage (ScoreDamage tracks _ blocks) (Cache cache) =
     overlapping stack (track_id, ranges) =
         any (Ranges.overlapping ranges) (Stack.track_regions stack track_id)
 
--- | This indicates a region of a track that was rederived.
+-- | This indicates ranges of time that were rederived.
 --
 -- It's created by cache misses on generators, and created by transformers that
 -- have to recompute or expanded by ones that can recompute incrementally.

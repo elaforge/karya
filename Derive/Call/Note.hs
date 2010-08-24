@@ -55,8 +55,9 @@ generate_note n_inst rel_attrs event next = do
     let (from, to) = if Event.event_duration event < 0 then (1, 0) else (0, 1)
     start <- Derive.score_to_real from
     end <- Derive.score_to_real to
-    -- TODO due to negative durations, end could be before start.  I need to
-    -- add a post-proc step to calculate the proper durations
+    -- Note that due to negative durations, the end could be before the start.
+    -- What this really means is that the sounding duration of the note depends
+    -- on the next one, which should be sorted out later by post processing.
     next_start <- case next of
         [] -> return Nothing
         (npos, _) : _ -> fmap Just (Derive.score_to_real npos)

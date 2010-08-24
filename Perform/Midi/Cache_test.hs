@@ -32,8 +32,8 @@ test_cached_performance = do
     -- The failure to change the note indicates that the cache is used when
     -- there is no damage.
     equal (compare_cached events1 events2 [])
-        ([ (False, (4800, Midi.NoteOff 42 100))
-        , (True, (4500, Midi.NoteOff 42 100))
+        ([ (Left (4800, Midi.NoteOff 42 100))
+        , (Right (4500, Midi.NoteOff 42 100))
         ], [])
 
     -- adding events to the end works, and skip a chunk
@@ -73,6 +73,28 @@ test_lazy_performance = do
     equal (take 5 (map Cache.chunk_warns (Cache.cache_chunks cached)))
         [[], [], [], [], []]
 
+test_messages_from = do
+    -- If the dur is always increasing then events don't all look the same.
+    let cache = perform_uncached [(n, (n+1)/16) | n <- [0..]]
+        f ts = extract_msgs (Cache.messages_from ts cache)
+    equal (take 3 (f 0))
+        [ (0, Midi.PitchBend 0)
+        , (0, Midi.NoteOn 42 100)
+        , (62, Midi.NoteOff 42 100)
+        ]
+    -- Timestamps subtracted from events.
+    equal (take 3 (f 60))
+        [ (2, Midi.NoteOff 42 100)
+        , (940, Midi.NoteOn 42 100)
+        , (1065, Midi.NoteOff 42 100)
+        ]
+    -- Halfway into another chunk.
+    equal (take 3 (f 6000))
+        [ (0, Midi.NoteOn 42 100)
+        , (438, Midi.NoteOff 42 100)
+        , (1000, Midi.NoteOn 42 100)
+        ]
+
 
 inst_lookup = Perform_test.inst_lookup
 inst_config = Perform_test.inst_config1
@@ -80,7 +102,7 @@ inst_config = Perform_test.inst_config1
 type Events = [(RealTime, RealTime)]
 
 compare_cached :: Events -> Events -> [(RealTime, RealTime)]
-    -> ([(Bool, (Timestamp.Timestamp, Midi.ChannelMessage))], [String])
+    -> ([Either Message Message], [String])
 compare_cached initial modified damage = (diff_msgs uncached cached, warns)
     where
     (_, cached, uncached) = perform_both initial modified damage
@@ -106,32 +128,17 @@ perform_uncached events =
 mkdamage :: [(RealTime, RealTime)] -> Cache.EventDamage
 mkdamage = Cache.EventDamage . Ranges.ranges
 
-diff_msgs msgs1 msgs2 = simple_diff $
-    Seq.diff (==) (extract msgs1) (extract msgs2)
+type Message = (Timestamp.Timestamp, Midi.ChannelMessage)
+
+diff_msgs :: Cache.Cache -> Cache.Cache -> [Either Message Message]
+diff_msgs msgs1 msgs2 = Seq.diff (==) (extract msgs1) (extract msgs2)
 
 extract :: Cache.Cache -> [(Timestamp.Timestamp, Midi.ChannelMessage)]
-extract cache =
-    [(ts, cmsg) | Midi.WriteMessage _ ts (Midi.ChannelMessage _ cmsg)
-        <- Cache.cache_messages cache]
+extract = extract_msgs . Cache.cache_messages
 
--- | True if the val was added, False if it was subtracted.
-simple_diff :: [(Maybe a, Maybe a)] -> [(Bool, a)]
-simple_diff = Seq.map_maybe f
-    where
-    f (Just a, Nothing) = Just (False, a)
-    f (Nothing, Just a) = Just (True, a)
-    f _ = Nothing
-
--- diff_events :: Result -> Result
---     -> Either Derive.DeriveError [(Bool, SimpleEvent)]
--- diff_events r1 r2 = do
---     e1 <- Derive.r_result r1
---     e2 <- Derive.r_result r2
---     return $ simple_diff $
---         Seq.diff (==) (map simple_event e1) (map simple_event e2)
-
--- cached_performance :: Cache -> EventDamage -> Perform.Events
---     -> (Cache, [Warning.Warning])
+extract_msgs :: Perform.Messages -> [(Timestamp.Timestamp, Midi.ChannelMessage)]
+extract_msgs msgs =
+    [(ts, cmsg) | Midi.WriteMessage _ ts (Midi.ChannelMessage _ cmsg) <- msgs]
 
 -- Give each one its own pitch
 mkevents pairs = [mkevent (start, dur, 42) | (start, dur) <- pairs]

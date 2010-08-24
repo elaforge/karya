@@ -1,14 +1,21 @@
 {-# LANGUAGE PatternGuards #-}
 module Perform.Midi.Cache (
     Cache(..), Chunk(..), EventDamage(..), cache_chunk_size
-    , cache, cache_messages, perform
+    , cache, cache_length, cache_messages, messages_from
+    , cache_stats, is_splice_failure
+    , perform
 ) where
+import qualified Data.List as List
+import qualified Data.Monoid as Monoid
 import qualified Util.Ranges as Ranges
+
+import qualified Midi.Midi as Midi
 
 import Ui
 
 import qualified Derive.Stack as Stack
 
+import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Warning as Warning
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.Instrument as Instrument
@@ -19,15 +26,66 @@ data Cache = Cache {
     -- | If either of these changes, the cache map has to be discarded.
     cache_lookup :: MidiDb.LookupMidiInstrument
     , cache_config :: Instrument.Config
+    , cache_damage :: Ranges.Ranges ChunkNum
     , cache_chunks :: Chunks
     }
 
 -- | Just for debugging.
 instance Show Cache where
-    show (Cache _ _ chunks) = "<midi cache: " ++ show (length chunks) ++ ">"
+    show (Cache _ _ _ chunks) = "<midi cache: " ++ show (length chunks) ++ ">"
 
 cache :: MidiDb.LookupMidiInstrument -> Instrument.Config -> Cache
-cache lookup config = Cache lookup config []
+cache lookup config = Cache lookup config Ranges.nothing []
+
+-- | Return the length of time of the cached events.
+cache_length :: Cache -> RealTime
+cache_length cache =
+    fromIntegral (length (cache_chunks cache)) * cache_chunk_size
+
+cache_messages :: Cache -> Perform.Messages
+cache_messages =
+    Perform.merge_sorted_messages . map chunk_messages . cache_chunks
+
+-- | Return messages starting from a certain timestamp.  Subtract that
+-- timestamp from the message timestamps so they always start at 0.
+--
+-- TODO look at postproc state to initialize the controls properly
+messages_from :: Timestamp.Timestamp -> Cache -> Perform.Messages
+messages_from start_ts cache =
+    map (Midi.add_timestamp (-start_ts)) (Perform.merge_sorted_messages chunks)
+    where
+    start_chunk = floor (Timestamp.to_real_time start_ts / cache_chunk_size)
+    chunks = case map chunk_messages (drop start_chunk (cache_chunks cache)) of
+        [] -> []
+        msgs : rest_msgs ->
+            dropWhile ((<start_ts) . Midi.wmsg_ts) msgs : rest_msgs
+
+-- | Figure out how much time of the performed MIDI messages were from
+-- the cache and how much time was reperformed.
+--
+-- If a splice failed, take the chunknum at which it failed.  Since splices
+-- can only fail once, every chunk beyond that will have been reperformed.
+--
+-- Since the splice failure is recorded in the log, and checking the logs
+-- forces the chunk, this function accepts the splice failure as an argument
+-- which is awkward but allows the caller to retain control over evaluation.
+cache_stats :: Maybe ChunkNum -> Cache -> (RealTime, RealTime)
+    -- ^ (time hit, time rederived)
+cache_stats splice_failed_at cache = case splice_failed_at of
+        Nothing -> stats (cache_damage cache)
+        Just chunknum -> stats $ Monoid.mappend
+            (Ranges.range chunknum (nchunks+1)) (cache_damage cache)
+    where
+    nchunks = fromIntegral (length (cache_chunks cache))
+    time n = fromIntegral n * cache_chunk_size
+    stats ranges = (time nchunks, time (total ranges))
+    total ranges = case Ranges.extract ranges of
+        Nothing -> nchunks
+        Just pairs -> sum (map (\(s, e) -> if e == s then 1 else e - s) pairs)
+
+is_splice_failure :: Warning.Warning -> Bool
+is_splice_failure warn =
+    "splice failure: " `List.isPrefixOf` Warning.warn_msg warn
 
 -- | Originally this was an IntMap which allows faster seeking to a a chunk,
 -- but it's essential that the chunk list be spine-lazy.  Since each chunk is
@@ -48,23 +106,21 @@ data Chunk = Chunk {
 newtype EventDamage = EventDamage (Ranges.Ranges RealTime)
     deriving (Show)
 
-cache_messages :: Cache -> Perform.Messages
-cache_messages =
-    Perform.merge_sorted_messages . map chunk_messages . cache_chunks
-
 perform :: Cache -> EventDamage -> Perform.Events -> Cache
 perform cache (EventDamage damage) events
-    | null (cache_chunks cache) = set_map everything
+    | null (cache_chunks cache) = set_map (everything, Ranges.everything)
     -- If the cache map is not null then it must be full except the areas under
     -- the damage.
     | otherwise = set_map $ case Ranges.extract damage of
-        Nothing -> everything
-        Just pairs -> make_map (chunk_damage pairs)
+        Nothing -> (everything, Ranges.everything)
+        Just pairs -> let damage = chunk_damage pairs
+            in (make_map damage, Ranges.ranges damage)
     where
     everything = perform_chunks config 0 Perform.initial_state events
     make_map chunk_damage = perform_cache config 0 (cache_chunks cache)
         Perform.initial_state events chunk_damage
-    set_map chunks = cache { cache_chunks = chunks }
+    set_map (chunks, damage) =
+        cache { cache_damage = damage, cache_chunks = chunks }
     config = (cache_lookup cache, cache_config cache)
 
 -- | Like the damage ranges, the chunk ranges are half-open.

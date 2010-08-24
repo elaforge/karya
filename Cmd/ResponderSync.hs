@@ -177,7 +177,6 @@ dirty_blocks ui_from ui_to updates = Seq.unique (track_block_ids ++ block_ids)
     blocks_of tid = map fst $ State.find_tracks
         ((== Just tid) . Block.track_id_of) (State.state_blocks ui_to)
 
-
 evaluate_performance :: SendStatus -> BlockId -> Bool -> Cmd.Performance
     -> IO ()
 evaluate_performance send_status block_id has_focus perf = do
@@ -193,3 +192,4 @@ evaluate_performance send_status block_id has_focus perf = do
             (Cmd.perf_logs perf)
     mapM_ Log.write logs
     send_status block_id (Msg.DeriveComplete (Cmd.perf_track_signals perf))
+    -- TODO write midi cache logs, calculate stats

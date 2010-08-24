@@ -41,6 +41,7 @@ import qualified Derive.Call.All as Call.All
 import qualified Derive.Derive as Derive
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
+import qualified Perform.Midi.Cache as Midi.Cache
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
@@ -191,7 +192,7 @@ data State = State {
     -- recalculated (in the background) and stored here, so play can be started
     -- without latency.
     , state_performance :: Map.Map BlockId Performance
-    , state_derive_cache :: Derive.Cache
+    , state_caches :: Caches
     -- | IDs of background derivation threads, so they can be killed if
     -- a new derivation is needed before they finish.
     , state_derive_threads :: Map.Map BlockId Concurrent.ThreadId
@@ -253,7 +254,7 @@ initial_state inst_db schema_map = State {
 
     , state_play_control = Nothing
     , state_performance = Map.empty
-    , state_derive_cache = Derive.empty_cache
+    , state_caches = empty_caches inst_db
     , state_derive_threads = Map.empty
 
     , state_keys_down = Map.empty
@@ -284,6 +285,11 @@ empty_state = initial_state Instrument.Db.empty Map.empty
 reinit_state :: State -> State
 reinit_state cstate = cstate
     { state_history = ([], [])
+
+    -- TODO play control, performance?
+    , state_caches = empty_caches (state_instrument_db cstate)
+
+    -- This is essential, otherwise lots of cmds break on the bad reference.
     , state_focused_view = Nothing
     -- I could go either way on these, but it seems nicer to reset them to
     -- the default status.
@@ -291,6 +297,26 @@ reinit_state cstate = cstate
     , state_kbd_entry = state_kbd_entry empty_state
     , state_step = state_step empty_state
     , state_kbd_entry_octave = state_kbd_entry_octave empty_state
+    }
+
+data Caches = Caches {
+    caches_derive :: Derive.Cache
+    , caches_midi :: Midi.Cache.Cache
+    } deriving (Show)
+
+-- | The tricky thing about the MIDI cache is that it depends on the inst
+-- lookup function and inst config.  If either of those change, it has to be
+-- cleared.
+--
+-- I can't compare functions so I just have to make sure to reinitialize the
+-- MIDI cache when the function changes (which should be rare if ever).  The
+-- instrument config /can/ be compared, so I just compare on play, and clear
+-- the cache if it's changed.
+empty_caches :: Instrument.Db.Db -> Caches
+empty_caches inst_db = Caches {
+    caches_derive = Derive.empty_cache
+    , caches_midi = Midi.Cache.cache (Instrument.Db.db_lookup_midi inst_db)
+        Instrument.empty_config
     }
 
 data WriteDeviceState = WriteDeviceState {
@@ -325,8 +351,11 @@ empty_wdev_state = WriteDeviceState
 
 type ReadDeviceState = Map.Map Midi.ReadDevice InputNote.ControlState
 
+-- | This holds the final performance for a given block.  It is used to
+-- actually play music, and poked and prodded in a separate thread to control
+-- its evaluation.
 data Performance = Performance {
-    perf_msgs :: [Midi.WriteMessage]
+    perf_cache :: Midi.Cache.Cache
     , perf_logs :: [Log.Msg]
     , perf_tempo :: Transport.TempoFunction
     , perf_inv_tempo :: Transport.InverseTempoFunction
@@ -334,8 +363,8 @@ data Performance = Performance {
     }
 
 instance Show Performance where
-    show perf = "<Performance: " ++ show (take 10 (perf_msgs perf))
-        ++ ", " ++ show (take 10 (perf_logs perf)) ++ ">"
+    show perf = "<Performance: " ++ Pretty.pretty len ++ ">"
+        where len = Midi.Cache.cache_length (perf_cache perf)
 
 data HistoryEntry = HistoryEntry {
     hist_name :: String

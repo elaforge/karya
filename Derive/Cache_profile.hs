@@ -3,30 +3,31 @@
 -- This module is about performance, correctness is tested in
 -- "Derive.Cache_test".
 module Derive.Cache_profile where
-import qualified Data.Map as Map
+import qualified Data.List as List
 import qualified Data.Text as Text
 import qualified Data.Time as Time
 import qualified System.CPUTime as CPUTime
 
 import Util.Test
 import qualified Util.Log as Log
-
-import qualified Midi.Midi as Midi
+import qualified Util.Pretty as Pretty
 
 import Ui
 import qualified Ui.Event as Event
 import qualified Ui.State as State
-import qualified Ui.Update as Update
 import qualified Ui.UiTest as UiTest
 
 import qualified Derive.Cache_test as Cache_test
 import qualified Derive.Derive as Derive
+import Derive.Derive_profile (force)
 import qualified Derive.Derive_profile as Derive_profile
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
-import qualified Perform.Timestamp as Timestamp
-import qualified Perform.Midi.Perform as Perform
+import qualified Perform.Warning as Warning
+import qualified Perform.Midi.Cache as Midi.Cache
+import qualified Perform.Midi.Cache_test as Midi.Cache_test
+import qualified Perform.Midi.Convert as Convert
 
 
 profile_normal = do
@@ -36,13 +37,24 @@ profile_normal = do
             ("b1.0." ++ show block ++ ".t1") pos
     rederive ui_state [modify 0 2, modify 1 0, modify 4 4]
 
+profile_midi_normal = do
+    let ui_state = UiTest.exec State.empty
+            (Derive_profile.make_nested_simple "b1" 10 3 128)
+        modify block pos = modify_note ("b1.0." ++ show block ++ ".t0")
+            ("b1.0." ++ show block ++ ".t1") pos
+    rederive_midi ui_state [modify 0 2, modify 1 0, modify 4 4]
+
 profile_small = do
     let ui_state = UiTest.exec State.empty
             (Derive_profile.make_nested_simple "b1" 4 3 128)
     -- pprint (Map.keys (State.state_tracks ui_state))
-    -- rederive ui_state [modify_note "b1.0.0.t0" "b1.0.0.t1" 2]
     rederive ui_state [modify_pitch "b1.0.0.t1" 2]
-    -- rederive ui_state []
+
+profile_midi_small = do
+    let ui_state = UiTest.exec State.empty
+            (Derive_profile.make_nested_simple "b1" 4 3 128)
+    -- pprint (UiTest.simplify ui_state)
+    rederive_midi ui_state [modify_pitch "b1.0.0.t1" 2]
 
 modify_note :: (State.UiStateMonad m) => String -> String -> ScoreTime -> m ()
 modify_note note_tid pitch_tid pos = do
@@ -64,22 +76,82 @@ rederive initial_state modifications = do
     where
     go _ _ _ [] = return ()
     go start_times state1 cache (modify:rest) = do
+        let section nmsgs = Derive_profile.time_section nmsgs start_times
         let (_, state2, updates) = Cache_test.run state1 modify
-        cached <- Derive_profile.time_section 10 start_times "cached" $ do
+        cached <- section 0 "cached" $ do
             let result = Cache_test.derive_block cache state2 updates
                     (UiTest.bid "b1")
             let events = extract_events result
-            Derive_profile.force events
+            force events
             return (result, events, filter_logs (Derive.r_logs result))
-        uncached <- Derive_profile.time_section 0 start_times "derive" $ do
+
+        uncached <- section 0 "uncached" $ do
             let result = Cache_test.derive_block Derive.empty_cache state2 []
                     (UiTest.bid "b1")
             let events = extract_events result
-            Derive_profile.force events
+            force events
             return (result, events, filter_logs (Derive.r_logs result))
         equal (Cache_test.diff_events cached uncached) (Right [])
+
         go start_times state2 (Derive.r_cache cached) rest
     filter_logs = map show_msg . filter (not . is_cache_msg)
+
+rederive_midi :: State.State -> [State.StateId ()] -> IO ()
+rederive_midi initial_state modifications = do
+    start_cpu <- CPUTime.getCPUTime
+    start <- now
+    go (start_cpu, start) initial_state Derive.empty_cache
+        initial_midi (return () : modifications)
+    where
+    initial_midi = Midi.Cache.cache DeriveTest.default_lookup
+        Derive_profile.inst_config
+    go _ _ _ _ [] = return ()
+    go start_times state1 derive_cache midi_cache (modify:rest) = do
+        let section nmsgs = Derive_profile.time_section nmsgs start_times
+        let (_, state2, updates) = Cache_test.run state1 modify
+        cached <- section 0 "cached" $ do
+            let result = Cache_test.derive_block derive_cache state2 updates
+                    (UiTest.bid "b1")
+            let events = extract_events result
+            force events
+            return (result, events, filter_logs (Derive.r_logs result))
+
+        (cached_midi, stats) <- section 10 "cached midi" $ do
+            let (out, warns, stats) = cached_perform midi_cache
+                    (event_damage cached) (extract_events cached)
+                msgs = Midi.Cache.cache_messages out
+            force warns
+            return ((out, stats), msgs, warns)
+        putStrLn $ "stats: " ++ Pretty.pretty stats
+
+        (uncached_midi, _) <- section 10 "uncached midi" $ do
+            let (out, warns, stats) = cached_perform initial_midi
+                    (event_damage cached) (extract_events cached)
+                msgs = Midi.Cache.cache_messages out
+            force warns
+            return ((out, stats), msgs, warns)
+        equal (Midi.Cache_test.diff_msgs cached_midi uncached_midi)
+            []
+
+        go start_times state2 (Derive.r_cache cached) cached_midi rest
+
+    filter_logs = map show_msg . filter (not . is_cache_msg)
+    event_damage result = Midi.Cache.EventDamage d
+        where Derive.EventDamage d = Derive.r_event_damage result
+
+cached_perform :: Midi.Cache.Cache -> Midi.Cache.EventDamage -> [Score.Event]
+    -> (Midi.Cache.Cache, [Warning.Warning], (RealTime, RealTime))
+cached_perform cache damage events =
+    (out, convert_warns ++ warns, Midi.Cache.cache_stats splice out)
+    where
+    (perf_events, convert_warns) =
+        Convert.convert (Midi.Cache.cache_lookup cache) events
+    out = Midi.Cache.perform cache damage perf_events
+    warns = concatMap Midi.Cache.chunk_warns (Midi.Cache.cache_chunks out)
+    splice = fmap fst $
+        List.find is_failure (zip [0..] (Midi.Cache.cache_chunks out))
+    is_failure (_, chunk) =
+        any Midi.Cache.is_splice_failure (Midi.Cache.chunk_warns chunk)
 
 extract_events result = either (error . ("Left: " ++) . show) id
     (Derive.r_result result)
@@ -91,40 +163,3 @@ is_cache_msg m = Text.pack "using cache" `Text.isInfixOf` Log.msg_text m
 show_msg = Cache_test.show_msg_stack
 
 now = fmap Time.utctDayTime Time.getCurrentTime
-
-{-
-
-type PerfResults = ([Perform.Event], [(Timestamp.Timestamp, Midi.Message)])
-
--- Make a nested structure with each call only appearing in one place and
--- a large number of events per block.  Run repeated modifications against
--- notes and controls.  Compare cached and uncached output, and cached and
--- uncached time.
---
--- Test with and without midi.
--- profile_rederive = do
---     let ui_state = UiTest.exec State.empty (make_nested "b1" 8 3)
---     (cache, perf_results) <- run_profile ui_state
---     rederive perf_results ui_state cache [append_note "b1" "b1.t0" "b1.t1"]
-
-append_note bid note_tid pitch_tid = do
-    pos <- State.track_end (UiTest.tid note_tid)
-    State.insert_event (UiTest.tid note_tid) pos (Event.event "" 1)
-    State.insert_event (UiTest.tid pitch_tid) pos (Event.event "1c" 0)
-
-show_rederive_diff :: String -> PerfResults -> PerfResults -> String
-show_rederive_diff msg (events1, mmsgs1) (events2, mmsgs2)
-    | null ediff && null mmdiff = ""
-    | otherwise = msg ++ " diffs:\n" ++ ediff ++ mmdiff
-    where
-    ediff = show_diff events1 events2
-    mmdiff = show_diff mmsgs1 mmsgs2
-
-show_diff :: (Eq a, Show a) => [a] -> [a] -> String
-show_diff xs ys = concatMap f (Seq.diff (==) xs ys)
-    where
-    f (Just x, Nothing) = "<" ++ show x ++ "\n"
-    f (Nothing, Just y) = ">" ++ show y ++ "\n"
-    f _ = ""
-
--}

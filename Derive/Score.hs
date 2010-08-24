@@ -129,13 +129,24 @@ transpose n = modify_pitch (+n)
 
 -- | A tempo warp signal.  The shift and stretch are an optimization hack
 -- stolen from nyquist.  The idea is to make composed shifts and stretches more
--- efficient since only the shift and stretch are changed.  They have to be
--- flattened out when the warp is composed though (in 'd_warp').
+-- efficient if only the shift and stretch are changed.  The necessary magic
+-- is in 'compose_warps'.
+--
+-- The order of operation is: stretch -> shift -> signal.  That is, if the
+-- signal is \"f\": f(t*stretch + shift).
 data Warp = Warp {
     warp_signal :: !Signal.Warp
     , warp_shift :: !ScoreTime
     , warp_stretch :: !ScoreTime
     } deriving (Eq, Show)
+
+pretty_warp :: Warp -> ([RealTime], ScoreTime, ScoreTime)
+pretty_warp (Warp sig shift stretch) =
+    ([Signal.y_to_real (Signal.at_linear n sig) | n <- [0..3]], shift, stretch)
+
+-- | Convert a Signal to a Warp.
+signal_to_warp :: Signal.Warp -> Warp
+signal_to_warp sig = Warp sig (ScoreTime 0) (ScoreTime 1)
 
 id_warp :: Warp
 id_warp = signal_to_warp id_warp_signal
@@ -146,18 +157,11 @@ id_warp_signal = Signal.signal [(0, 0), (Signal.max_x, Signal.max_y)]
 is_id_warp :: Warp -> Bool
 is_id_warp = (== id_warp)
 
-stretch_warp :: ScoreTime -> Warp -> Warp
-stretch_warp factor warp = warp { warp_stretch = warp_stretch warp * factor }
-
-shift_warp :: ScoreTime -> Warp -> Warp
-shift_warp shift warp =
-    warp { warp_shift = warp_shift warp + warp_stretch warp * shift }
-
 warp_pos :: ScoreTime -> Warp -> RealTime
 warp_pos pos warp@(Warp sig shift stretch)
     | is_id_warp warp = to_real pos
     | otherwise = Signal.y_to_real $
-        Signal.at_linear (to_real (pos * stretch + shift)) sig
+        Signal.at_linear (to_real (pos*stretch + shift)) sig
 
 -- | Unlike 'warp_pos', 'unwarp_pos' can fail.  This asymmetry is because
 -- at_linear will project a signal on forever, but inverse_at won't.
@@ -170,51 +174,41 @@ unwarp_pos pos (Warp sig shift stretch) = case Signal.inverse_at pos sig of
     Nothing -> Nothing
     Just p -> Just $ (Types.real_to_score p - shift) / stretch
 
--- | Warp a Warp with a warp signal.
-compose_warp :: Warp -> Signal.Warp -> Warp
-compose_warp warp sig
-    | is_id_warp warp = signal_to_warp sig
-    | otherwise = compose warp sig
+-- | Compose two warps.  Warps with id signals are optimized.
+compose_warps :: Warp -> Warp -> Warp
+compose_warps
+        warp1@(Warp sig1 shift1 stretch1) warp2@(Warp sig2 shift2 stretch2)
+    | is_id_warp warp1 = warp2
+    | is_id_warp warp2 = warp1
+    | sig2 == id_warp_signal =
+        Warp sig1 (shift1 + shift2 * stretch1) (stretch1 * stretch2)
+    | otherwise = compose warp1 warp2
     where
-    -- From the nyquist warp function:
-    -- > f(stretch * g(t) + shift)
-    -- > f(scale(stretch, g) + offset)
-    -- > (shift f -offset)(scale(stretch, g))
-    -- > (compose (shift-time f (- offset)) (scale stretch g))
-    compose (Warp f shift stretch) g = signal_to_warp $
-        Signal.compose (Signal.shift (- (to_real shift)) f)
-            (Signal.scale (Signal.x_to_y (to_real stretch)) g)
+    -- Shift and stretch are applied before the signal, so map the shift and
+    -- stretch of the first signal across the output of the second signal
+    -- before composing them.
+    --
+    -- f(g(t*sg + og)*sf + of)
+    -- f((warp_to_signal g sf of)*sf + of)
+    -- compose f (warp_to_signal g sf of)
+    compose warp1 (Warp sig2 shift2 stretch2) =
+        Warp fg shift2 stretch2
+        where fg = Signal.compose (warp_to_signal warp1) sig2
 
--- | Convert a Signal to a Warp.
-signal_to_warp :: Signal.Warp -> Warp
-signal_to_warp sig = Warp sig (ScoreTime 0) (ScoreTime 1)
-
--- TODO unused?  remove this?
 warp_to_signal :: Warp -> Signal.Warp
-warp_to_signal (Warp sig shift stretch) =
-    Signal.map_x (subtract (to_real shift) . (* to_real stretch)) sig
-
--- | Warp a signal.
--- TODO this does the same thing as compose_warp, but Signal.compose doesn't
--- work correctly with unmatched sampling rates.  I get around it composing
--- warps with warps because they go through integrate, which enforces
--- a constant sampling rate, but this is a brittle hack and should go away.
-warp_control :: Signal.Control -> Warp -> Signal.Control
-warp_control control warp@(Warp sig shift stretch)
-    | is_id_warp warp = control
-        -- optimization
-    | sig == id_warp_signal =
-        Signal.map_x (\p -> (p + to_real shift) * to_real stretch) control
-    | otherwise = Signal.map_x (\x -> warp_pos (to_score x) warp) control
+warp_to_signal (Warp sig shift stretch)
+    | stretch == 1 && shift == 0 = sig
+    | otherwise =
+        Signal.map_x ((/ to_real stretch) . subtract (to_real shift)) sig
 
 -- TODO this should be merged with warp_control, I need to use SignalBase.map_x
-warp_pitch :: PitchSignal.PitchSignal -> Warp -> PitchSignal.PitchSignal
-warp_pitch psig warp@(Warp sig shift stretch)
-    | is_id_warp warp = psig
-        -- optimization
-    | sig == id_warp_signal =
-        PitchSignal.map_x (\p -> (p + to_real shift) * to_real stretch) psig
-    | otherwise = PitchSignal.map_x (\x -> warp_pos (to_score x) warp) psig
+-- warp_pitch :: PitchSignal.PitchSignal -> Warp -> PitchSignal.PitchSignal
+-- warp_pitch psig warp@(Warp sig shift stretch)
+--     | is_id_warp warp = psig
+--         -- optimization
+--     | sig == id_warp_signal =
+--         PitchSignal.map_x (\p -> (p + to_real shift) * to_real stretch) psig
+--     | otherwise = PitchSignal.map_x (\x -> warp_pos (to_score x) warp) psig
 
 -- * instrument
 

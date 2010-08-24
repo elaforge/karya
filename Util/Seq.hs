@@ -170,13 +170,22 @@ partition2 f g (x:xs)
 -- @a@ to @b@, it will be Nothing, and vice versa for @b@.
 --
 -- Kind of like an edit distance, or a diff.
-diff :: (a -> b -> Bool) -> [a] -> [b] -> [(Maybe a, Maybe b)]
-diff _ [] ys = [(Nothing, Just y) | y <- ys]
-diff _ xs [] = [(Just x, Nothing) | x <- xs]
-diff eq (x:xs) (y:ys)
-    | x `eq` y = (Just x, Just y) : diff eq xs ys
-    | any (eq x) ys = (Nothing, Just y) : diff eq (x:xs) ys
-    | otherwise = (Just x, Nothing) : diff eq xs (y:ys)
+equal_pairs :: (a -> b -> Bool) -> [a] -> [b] -> [(Maybe a, Maybe b)]
+equal_pairs _ [] ys = [(Nothing, Just y) | y <- ys]
+equal_pairs _ xs [] = [(Just x, Nothing) | x <- xs]
+equal_pairs eq (x:xs) (y:ys)
+    | x `eq` y = (Just x, Just y) : equal_pairs eq xs ys
+    | any (eq x) ys = (Nothing, Just y) : equal_pairs eq (x:xs) ys
+    | otherwise = (Just x, Nothing) : equal_pairs eq xs (y:ys)
+
+-- | Left if the val was in the left list but not the right, Right for the
+-- converse.
+diff :: (a -> b -> Bool) -> [a] -> [b] -> [Either a b]
+diff eq xs ys = map_maybe f (equal_pairs eq xs ys)
+    where
+    f (Just a, Nothing) = Just (Left a)
+    f (Nothing, Just a) = Just (Right a)
+    f _ = Nothing
 
 -- * sublists
 

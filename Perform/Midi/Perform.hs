@@ -83,7 +83,6 @@ data State = State {
     state_channelize :: ChannelizeState
     , state_allot :: AllotState
     , state_perform :: PerformState
-    -- | Not so important, if I have a few dup msgs it should be ok.
     , state_postproc :: PostprocState
     } deriving (Eq, Show)
 

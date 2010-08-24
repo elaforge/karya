@@ -61,6 +61,7 @@ test_no_damage = do
     strings_like (r_cache_logs cached) ["parent.t0 1-3: * using cache"]
     -- make sure there's stuff in the cache now
     check (not (null (r_cache_stacks cached)))
+    equal (r_event_damage cached) (Just [])
 
 test_score_damage = do
     let create = mkblocks
@@ -79,6 +80,7 @@ test_score_damage = do
         , "b.t0 1-2: * rederived * not in cache"
         , "b.t0 2-3: * using cache"
         ]
+    equal (r_event_damage cached) (Just [(1, 2)])
 
 test_callee_damage = do
     -- test callee damage: sub-block is damaged, it should be rederived
@@ -96,6 +98,8 @@ test_callee_damage = do
         , ("test/sub test/sub.t0 1-2",
             Just [UiTest.bid "subsub"])
         ]
+    -- sub is 1-3, its first elt should be 1-2, except I replaced it with .5
+    equal (r_event_damage cached) (Just [(1, 1.5)])
 
     -- A change to subsub means the parent's "sub" call rederives as well.
     let (_, cached, uncached) = compare_cached parent_sub $
@@ -105,6 +109,8 @@ test_callee_damage = do
         [ "sub.t0 1-2: * rederived * sub-block damage"
         , "parent.t0 1-3: * rederived * sub-block damage"
         ]
+    -- subsub is at realtime position 2-3
+    equal (r_event_damage cached) (Just [(2, 3)])
 
 parent_sub = mkblocks
     [ ("parent", [(">i", [(0, 1, ""), (1, 2, "sub")])])
@@ -134,6 +140,7 @@ test_control_damage = do
         [ "b.t0 0-1: * using cache"
         , "b.t0 1-2: * using cache"
         ]
+    equal (r_event_damage cached) (Just [])
 
     -- only the  affceted event is rederived
     let (_, cached, uncached) = compare_cached create $
@@ -143,6 +150,7 @@ test_control_damage = do
         [ "b.t0 0-1: * using cache"
         , "b.t0 1-2: * rederived * control damage"
         ]
+    equal (r_event_damage cached) (Just [(1, 2)])
 
     -- if the change damages a greater control area, it should affect the event
     let (_, cached, uncached) = compare_cached create $
@@ -152,6 +160,7 @@ test_control_damage = do
         [ "b.t0 0-1: * rederived * control damage"
         , "b.t0 1-2: * rederived * control damage"
         ]
+    equal (r_event_damage cached) (Just [(0, 2)])
 
 -- | Extract cache logs so I can tell who rederived and who used the cache.
 -- I use strings instead of parsing it into structured data because strings
@@ -196,6 +205,8 @@ run state m = case result of
 
 type Result = Derive.DeriveResult [Score.Event]
 
+r_event_damage r = Ranges.extract ranges
+    where Derive.EventDamage ranges = Derive.r_event_damage r
 r_logs = map log_with_stack . Derive.r_logs
 
 log_with_stack :: Log.Msg -> String
@@ -239,21 +250,11 @@ compare_cached create modify = (result1, cached, uncached)
     uncached = derive_block Derive.empty_cache state2 [] bid
 
 diff_events :: Result -> Result
-    -> Either Derive.DeriveError [(Bool, SimpleEvent)]
+    -> Either Derive.DeriveError [(Either SimpleEvent SimpleEvent)]
 diff_events r1 r2 = do
     e1 <- Derive.r_result r1
     e2 <- Derive.r_result r2
-    return $ simple_diff $
-        Seq.diff (==) (map simple_event e1) (map simple_event e2)
-
--- | True if the val was added, False if it was subtracted.
-simple_diff :: [(Maybe a, Maybe a)] -> [(Bool, a)]
-simple_diff = Seq.map_maybe f
-    where
-    f (Just a, Nothing) = Just (False, a)
-    f (Nothing, Just a) = Just (True, a)
-    f _ = Nothing
-
+    return $ Seq.diff (==) (map simple_event e1) (map simple_event e2)
 
 -- * derive
 

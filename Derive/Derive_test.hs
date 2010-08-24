@@ -267,7 +267,22 @@ test_warp_ops = do
         Right [0, 4]
     equal (run (Derive.d_warp slow . Derive.d_warp slow)) $
         Right [0, 8]
+    equal (run (Derive.d_stretch 2 . Derive.d_warp slow)) $
+        Right [0, 8]
 
+    equal (run (Derive.d_stretch 2 . Derive.d_warp slow . Derive.d_warp slow)) $
+            Right [0, 16]
+
+
+    -- If you start at 1, but time is twice as slow, you really start at 2.
+    -- But that is backwards.  Twice as slow time starts at 1.
+    equal (run (Derive.d_at 1 . Derive.d_warp slow)) $ Right [1, 5]
+    equal (run (Derive.d_warp slow . Derive.d_at 1)) $ Right [2, 6]
+    equal (run (Derive.d_at 1 . Derive.d_stretch 2)) $ Right [1, 5]
+    equal (run (Derive.d_stretch 2 . Derive.d_at 1)) $ Right [2, 6]
+
+    equal (run (Derive.d_at 1 . Derive.d_stretch 2 . Derive.d_warp slow)) $
+            Right [1, 9]
     equal (run (Derive.d_at 1 . Derive.d_stretch 2 . Derive.d_warp slow
         . Derive.d_warp slow)) $
             Right [1, 17]
@@ -280,7 +295,8 @@ test_real_to_score = do
     equal (f (Derive.d_at 5) 1) (Right 1)
     equal (f (Derive.d_stretch 5) 1) (Right 1)
     equal (f (Derive.d_stretch 5 . Derive.d_at 5) 1) (Right 1)
-    let slow = Signal.signal [(0, 0), (1, 2), (2, 4), (3, 6), (100, 200)]
+    let slow = Score.signal_to_warp $
+            Signal.signal [(0, 0), (1, 2), (2, 4), (3, 6), (100, 200)]
     equal (f (Derive.d_warp slow . Derive.d_stretch 5 . Derive.d_at 5) 1)
         (Right 1)
     equal (f (Derive.d_stretch 5 . Derive.d_at 5 . Derive.d_warp slow) 1)
@@ -404,7 +420,7 @@ test_control = do
 test_make_inverse_tempo_func = do
     -- This is actually also tested in test_subderive.
     let track_id = Types.TrackId (UiTest.mkid "warp")
-        warp = Score.signal_to_warp (Derive.tempo_to_warp (Signal.constant 2))
+        warp = Derive.tempo_to_warp (Signal.constant 2)
         track_warps =
             [Derive.TrackWarp 0 2 UiTest.default_block_id [track_id] warp]
     let f = Derive.make_inverse_tempo_func track_warps

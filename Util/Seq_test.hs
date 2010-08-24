@@ -23,9 +23,8 @@ test_merge_lists = do
     equal (take 30 (f infinite))
         (take 30 (Seq.merge_lists fst (take 30 infinite)))
 
-
-test_diff = do
-    let f = Seq.diff (==)
+test_equal_pairs = do
+    let f = Seq.equal_pairs (==)
     equal (f "abc" "abc")
         [(Just 'a', Just 'a'), (Just 'b', Just 'b'), (Just 'c', Just 'c')]
     equal (f "abc" "axbc")

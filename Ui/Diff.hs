@@ -223,13 +223,13 @@ uncurry3 f (a, b, c) = f a b c
 unequal_on :: (Eq eq) => (a -> eq) -> a -> a -> Bool
 unequal_on key a b = key a /= key b
 
--- | This is just like 'Seq.diff', except that the index of each pair in
+-- | This is just like 'Seq.equal_pairs', except that the index of each pair in
 -- the /right/ list is included.  In other words, given @(i, Nothing, Just y)@,
 -- @i@ is the position of @y@ in the @b@ list.  Given @(i, Just x, Nothing)@,
 -- @i@ is where @x@ was deleted from the @b@ list.
 indexed_pairs :: (a -> b -> Bool) -> [a] -> [b] -> [(Int, Maybe a, Maybe b)]
 indexed_pairs eq xs ys = zip3 (indexed pairs) (map fst pairs) (map snd pairs)
-    where pairs = Seq.diff eq xs ys
+    where pairs = Seq.equal_pairs eq xs ys
 
 indexed_pairs_on :: (Eq eq) => (a -> eq) -> [a] -> [a]
     -> [(Int, Maybe a, Maybe a)]

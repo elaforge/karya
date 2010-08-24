@@ -14,7 +14,6 @@ import qualified Instrument.MidiDb as MidiDb
 
 import Ui
 import qualified Ui.State as State
-import qualified Ui.Types as Types
 import qualified Ui.UiTest as UiTest
 
 import qualified Derive.Call.All as Call.All

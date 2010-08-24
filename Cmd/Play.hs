@@ -82,11 +82,10 @@ import qualified Control.Monad.Trans as Trans
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
+import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
-
-import qualified Midi.Midi as Midi
 
 import Ui
 import qualified Ui.Block as Block
@@ -111,8 +110,8 @@ import qualified Derive.TrackLang as TrackLang
 import qualified Perform.Transport as Transport
 import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Warning as Warning
+import qualified Perform.Midi.Cache as Cache
 import qualified Perform.Midi.Convert as Convert
-import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.Play as Midi.Play
 import qualified Instrument.Db as Instrument.Db
 
@@ -155,7 +154,7 @@ cmd_play transport_info block_id (start_track, start_pos) = do
         Nothing -> Cmd.throw $ "unknown play start pos: "
             ++ show start_track ++ ", " ++ show start_pos
         Just ts -> return ts
-    let msgs = seek_msgs start_ts (Cmd.perf_msgs perf)
+    let msgs = Cache.messages_from start_ts (Cmd.perf_cache perf)
     (play_ctl, updater_ctl) <- Trans.liftIO $
         Midi.Play.play transport_info block_id msgs
 
@@ -205,13 +204,6 @@ cmd_play_msg msg = do
 
 -- * implementation
 
-seek_msgs :: Timestamp.Timestamp -> [Midi.WriteMessage] -> [Midi.WriteMessage]
-seek_msgs start_ts midi_msgs = map (Midi.add_timestamp (-start_ts)) $
-    dropWhile ((<start_ts) . Midi.wmsg_ts) midi_msgs
-    -- TODO This would be inefficient starting in the middle of a big block,
-    -- but it's simple and maybe fast enough.  Otherwise, maybe I put the msgs
-    -- in an array and bsearch?  Or a list of chunks?
-
 get_performance :: (Monad m) => BlockId -> Cmd.CmdT m Cmd.Performance
 get_performance block_id = do
     by_block <- Cmd.gets Cmd.state_performance
@@ -239,18 +231,24 @@ perform block_id inst_db schema_map updates = do
 
     let lookup_inst = Instrument.Db.db_lookup_midi inst_db
     let (midi_events, convert_warnings) = Convert.convert lookup_inst events
-
     -- TODO call Convert.verify for more warnings
-    inst_config <- State.gets State.state_midi_config
 
-    let (midi_msgs, perform_warnings, _state) =
-            Perform.perform Perform.initial_state lookup_inst inst_config
-                midi_events
-    let logs = map (warn_to_msg "event conversion") convert_warnings
-            ++ map (warn_to_msg "performance") perform_warnings
-    return $ Cmd.Performance midi_msgs (Derive.r_logs result ++ logs)
+    old_cache <- get_midi_cache inst_db
+    let Derive.EventDamage damage = Derive.r_event_damage result
+        cache = Cache.perform old_cache (Cache.EventDamage damage) midi_events
+        logs = map (warn_to_log "convert") convert_warnings
+            ++ Derive.r_logs result
+    return $ Cmd.Performance cache logs
         (Derive.r_tempo result) (Derive.r_inv_tempo result)
         (Derive.r_track_signals result)
+
+get_midi_cache :: (Monad m) => Instrument.Db.Db -> Cmd.CmdT m Cache.Cache
+get_midi_cache inst_db = do
+    cache <- (Cmd.caches_midi . Cmd.state_caches) <$> Cmd.get_state
+    config <- State.gets State.state_midi_config
+    return $ if config == Cache.cache_config cache
+        then cache
+        else Cache.cache (Instrument.Db.db_lookup_midi inst_db) config
 
 -- | Derive the contents of the given block to score events.
 derive :: (Monad m) => Schema.SchemaMap -> [Update.Update] -> BlockId
@@ -258,8 +256,9 @@ derive :: (Monad m) => Schema.SchemaMap -> [Update.Update] -> BlockId
 derive schema_map updates block_id = do
     ui_state <- State.get
     call_map <- Cmd.gets Cmd.state_call_map
-    cache <- Cmd.gets Cmd.state_derive_cache
-    return $ Derive.derive cache (Schema.lookup_deriver schema_map ui_state)
+    caches <- Cmd.gets Cmd.state_caches
+    return $ Derive.derive (Cmd.caches_derive caches)
+        (Schema.lookup_deriver schema_map ui_state)
         ui_state updates call_map initial_environ False
         (Derive.d_root_block block_id)
 
@@ -273,8 +272,8 @@ initial_environ = Map.fromList
     ]
 
 -- | Convert a Warning into an appropriate log msg.
-warn_to_msg :: String -> Warning.Warning -> Log.Msg
-warn_to_msg context (Warning.Warning msg event_stack maybe_range) =
+warn_to_log :: String -> Warning.Warning -> Log.Msg
+warn_to_log context (Warning.Warning msg event_stack maybe_range) =
     log { Log.msg_stack = Just event_stack }
     where
     log = Log.msg Log.Warn $ context ++ ": " ++ msg

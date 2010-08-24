@@ -134,27 +134,8 @@ cached_generator :: (Derive.Derived derived) => CacheState -> Stack.Stack
         (Either TrackLang.TypeError (Derive.Deriver derived), Maybe Cache)
 cached_generator state stack (Derive.GeneratorCall func gtype) args =
     case gtype of
-        Derive.NonCachingGenerator
-            | range_damaged score_damage stack event_range -> case func args of
-                Left err -> return (Left err, Nothing)
-                Right deriver -> do
-                    derived <- deriver
-                    -- This damage is not totally accurate, since the changed
-                    -- region actually extends to the *next* sample.  But I
-                    -- don't know what that is here, so rely on the control
-                    -- deriver to do that.  Ugh, not too pretty.
-                    Derive.insert_local_damage
-                        (EventDamage (Derive.derived_range derived))
-                    return (Right (return derived), Nothing)
-            | otherwise -> return (func args, Nothing)
-            -- To get the actual damaged region, either the call needs to
-            -- declare it, or I have to inspect the returned samples directly.
-            -- This goes for CachingGenerator below as well, only 0-1 works
-            -- because I expect to use it only for blocks and tracks.
-            --
-            -- Even so, this is going to wind up damaging everything unless I
-            -- only emit damage for the control in the score damage range.
-            -- That makes it cheaper too...
+        Derive.NonCachingGenerator ->
+            non_caching =<< has_damage state stack args
         Derive.CachingGenerator -> do
             start <- Derive.now
             end <- Derive.score_to_real 1
@@ -163,9 +144,22 @@ cached_generator state stack (Derive.GeneratorCall func gtype) args =
                     (state_score_damage state) (state_control_damage state)
                     (state_cache state)
     where
-    score_damage = Derive.state_score_damage state
-    event_range = uncurry Ranges.range $
-        Derive.info_track_pos (Derive.passed_info args)
+    -- A non-caching generator should just be called normally.  However, I need
+    -- to emit event damage if it was rederived because of score or control
+    -- damage.  Otherwise, damage on a track of non-caching generators would
+    -- never produce EventDamage.
+    non_caching True = case func args of
+        Left err -> return (Left err, Nothing)
+        Right deriver -> do
+            derived <- deriver
+            -- In the case of samples, this range is not accurate, since the
+            -- changed region actually extends to the *next* sample.  But
+            -- I don't know what that is here, so rely on the control deriver
+            -- to do that.  Ugh, not too pretty.
+            Derive.insert_local_damage
+                (EventDamage (Derive.derived_range derived))
+            return (Right (return derived), Nothing)
+    non_caching False = return (func args, Nothing)
     generate (Right (gdep, cached)) = do
         Derive.debug $ "using cache (" ++ show (Derive.derived_length cached)
             ++ " vals)"
@@ -200,13 +194,40 @@ cached_generator state stack (Derive.GeneratorCall func gtype) args =
             Monoid.mappend local_dep (Derive.state_local_dep st) }
         return (derived, local_dep)
 
-range_damaged :: ScoreDamage -> Stack.Stack -> Ranges.Ranges ScoreTime -> Bool
-range_damaged score_damage stack event_range = case track_ids of
-    [] -> False
-    tid : _ -> case Map.lookup tid (sdamage_tracks score_damage) of
-        Nothing -> False
-        Just range -> Ranges.overlapping event_range range
-    where track_ids = [tid | Stack.Track tid <- Stack.innermost stack]
+-- | Figure out if this event lies within damaged range, whether score or
+-- control.
+--
+-- This is called on every non-caching generator, which is most of them, and
+-- 'Derive.score_to_real' is already called too often, so I go to some effort
+-- to only call it if I already know there isn't score damage.  TODO profile
+-- and see if it actually makes a difference.  It's a lazy language, right?
+has_damage :: CacheState -> Stack.Stack -> Derive.PassedArgs derived
+    -> Derive.Deriver Bool
+has_damage state stack args
+    | score = return True
+    | no_control_damage = return False
+    | otherwise = do
+        start <- Derive.now
+        end <- Derive.score_to_real 1
+        return $ case Derive.state_control_damage state of
+            ControlDamage dmg -> Ranges.overlapping (Ranges.range start end) dmg
+    where
+    no_control_damage = Derive.state_control_damage state
+        == ControlDamage Ranges.nothing
+    score
+        -- Scan the stack for damaged tids before converting to UiFrames.
+        -- TODO profile and see if this really helps.
+        | not (any (`Map.member` damaged_tracks)
+            [tid | Stack.Track tid <- Stack.innermost stack]) = False
+        | otherwise = any overlapping (Stack.to_ui stack)
+    overlapping (_, Just tid, Just (s, e)) =
+        case Map.lookup tid damaged_tracks of
+            Nothing -> False
+            Just range -> Ranges.overlapping range (Ranges.range s e)
+    overlapping _ = False
+    damaged_tracks = sdamage_tracks (Derive.state_score_damage state)
+    event_range = uncurry Ranges.range $
+        Derive.info_track_pos (Derive.passed_info args)
 
 find_generator_cache :: (Derive.Derived derived) =>
     Stack.Stack -> Ranges.Ranges RealTime -> ScoreDamage -> ControlDamage
