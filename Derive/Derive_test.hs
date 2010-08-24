@@ -165,7 +165,7 @@ test_subderive_multiple = do
         , (2000, 62, 63), (2000, 74, 63)
         ]
 
-r_events :: Derive.DeriveResult [Score.Event]
+r_events :: Derive.Result [Score.Event]
     -> Either Derive.DeriveError [(Double, Double, String)]
 r_events = fmap extract_events . Derive.r_result
 

@@ -530,7 +530,7 @@ instance Monad m => Log.LogMonad (DeriveT m) where
 
 -- * monadic ops
 
-data DeriveResult a = DeriveResult {
+data Result a = Result {
     r_result :: Either DeriveError a
     , r_cache :: Cache
     -- | Ranges which were rederived on this derivation.
@@ -546,10 +546,10 @@ data DeriveResult a = DeriveResult {
 
 derive :: Cache -> LookupDeriver -> State.State -> [Update.Update] -> CallMap
     -> TrackLang.Environ -> Bool -> DeriveT Identity.Identity a
-    -> DeriveResult a
+    -> Result a
 derive cache lookup_deriver ui_state updates calls environ ignore_tempo
         deriver =
-    DeriveResult result (state_cache (state_cache_state state))
+    Result result (state_cache (state_cache_state state))
         (state_event_damage (state_cache_state state))
         tempo_func inv_tempo_func (state_track_signals state) logs state
     where

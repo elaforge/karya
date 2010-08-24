@@ -203,7 +203,7 @@ run state m = case result of
         Right (val, state', updates) -> (val, state', updates)
     where result = Identity.runIdentity (State.run state m)
 
-type Result = Derive.DeriveResult [Score.Event]
+type Result = Derive.Result [Score.Event]
 
 r_event_damage r = Ranges.extract ranges
     where Derive.EventDamage ranges = Derive.r_event_damage r
@@ -259,13 +259,13 @@ diff_events r1 r2 = do
 -- * derive
 
 derive_block :: Derive.Cache -> State.State -> [Update.Update]
-    -> BlockId -> Derive.DeriveResult [Score.Event]
+    -> BlockId -> Derive.Result [Score.Event]
 derive_block cache ui_state updates block_id =
     derive cache ui_state updates deriver
     where deriver = Derive.d_root_block block_id
 
 derive :: Derive.Cache -> State.State -> [Update.Update]
-    -> Derive.Deriver a -> Derive.DeriveResult a
+    -> Derive.Deriver a -> Derive.Result a
 derive cache ui_state updates deriver = Derive.derive
     cache (DeriveTest.default_lookup_deriver ui_state) ui_state updates
     DeriveTest.default_call_map DeriveTest.default_environ False deriver

@@ -251,7 +251,7 @@ get_midi_cache inst_db = do
 
 -- | Derive the contents of the given block to score events.
 derive :: (Monad m) => Schema.SchemaMap -> [Update.Update] -> BlockId
-    -> Cmd.CmdT m (Derive.DeriveResult [Score.Event])
+    -> Cmd.CmdT m (Derive.Result [Score.Event])
 derive schema_map updates block_id = do
     ui_state <- State.get
     call_map <- Cmd.gets Cmd.state_call_map

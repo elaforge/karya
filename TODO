@@ -56,7 +56,7 @@ CURRENT
       like negative duration.
 
   - I really need to fix Signal.integrate
-  - rename Derive.DeriveResult -> Derive.Result
+  * rename Derive.DeriveResult -> Derive.Result
   - seeking to play in a certain place will miss any controller initialization
     but I could get that back by having Cache.messages_from inspect postproc
     state to get the control state

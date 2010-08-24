@@ -178,7 +178,7 @@ test_environ_default = do
 type Extracted =
     (RealTime, RealTime, String, Maybe Score.Instrument, Score.Attributes)
 
-extract_nostack :: Derive.DeriveResult [Score.Event]
+extract_nostack :: Derive.Result [Score.Event]
     -> (Either String [Extracted], [String])
 extract_nostack = DeriveTest.extract extract_event Log.msg_string
     where
