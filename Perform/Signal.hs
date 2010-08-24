@@ -231,7 +231,7 @@ at_linear x sig = SignalBase.at_linear x (sig_vec sig)
 is_constant :: Signal y -> Bool
 is_constant (Signal vec) = case V.viewL vec of
     Nothing -> True
-    Just ((x0, y0), rest) -> V.all ((==y0) . snd) rest
+    Just ((_, y0), rest) -> V.all ((==y0) . snd) rest
 
 sample :: X -> Signal y -> [(X, Y)]
 sample start sig = SignalBase.sample start (sig_vec sig)
@@ -272,6 +272,7 @@ clip_max val = modify_vec (V.map (Arrow.second (min val)))
 clip_min val = modify_vec (V.map (Arrow.second (max val)))
 
 shift :: X -> Signal y -> Signal y
+shift 0 = id
 shift x = modify_vec (SignalBase.shift x)
 
 scale :: Y -> Signal y -> Signal y
@@ -339,7 +340,7 @@ integrate srate = modify_vec (SignalBase.map_signal_accum go final 0)
     -- integration.  This means a tempo track will only extend this far
     -- past the last sample, which is clearly not good, but when signals are
     -- lazy this can extend indefinitely and the problem goes away.
-    padding = 30
+    padding = 100
     final accum (x, y) = snd $ integrate_segment srate accum x y (x+padding) y
 
 integrate_segment :: X -> Y -> X -> Y -> X -> Y -> (Y, [(X, Y)])

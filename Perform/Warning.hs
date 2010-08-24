@@ -1,4 +1,5 @@
 module Perform.Warning where
+import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Monad.Error as Error
 
 import Ui
@@ -20,3 +21,7 @@ warning = Warning
 
 instance Error.Error Warning where
     strMsg msg = Warning msg Stack.empty Nothing
+
+instance DeepSeq.NFData Warning where
+    rnf (Warning msg stack pos) = DeepSeq.rnf msg `seq` DeepSeq.rnf stack
+        `seq` DeepSeq.rnf pos
