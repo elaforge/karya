@@ -2,7 +2,6 @@ module Derive.Schema_test where
 import qualified Data.Map as Map
 import qualified Data.Tree as Tree
 
-import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import Util.Test
 
@@ -63,7 +62,7 @@ test_compile = do
     let controls = either Left (Right . map Score.event_controls)
         pitches = either Left (Right . map Score.event_pitch)
 
-    let derive track = DeriveTest.e_val $ DeriveTest.derive_tracks
+    let derive track = DeriveTest.e_logs $ DeriveTest.derive_tracks
             [ ("tempo", [(0, 0, "2")])
             , (">i1", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
             , track
@@ -71,8 +70,8 @@ test_compile = do
             ]
 
     let (res, logs) = derive ("*c2", [(0, 0, ".1")])
-    equal logs []
-    left_like res "pitch_call: unknown ScaleId \"c2\""
+    strings_like logs ["pitch_call: unknown ScaleId \"c2\""]
+    equal res (Right [])
 
     let cont_signal = Map.union Derive.initial_controls
             (Map.fromList [(Score.Control "c1",
@@ -80,7 +79,7 @@ test_compile = do
         no_pitch = PitchSignal.empty
 
     let (res, logs) = derive ("*twelve", [(0, 0, ".1")])
-    strings_like (map Log.msg_string logs) ["call not found: .1"]
+    strings_like logs ["call not found: .1"]
     equal (controls res) (Right [cont_signal, cont_signal, cont_signal])
     equal (pitches res) (Right [no_pitch, no_pitch, no_pitch])
 

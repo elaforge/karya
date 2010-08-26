@@ -26,6 +26,9 @@ data Cache = Cache {
     -- | If either of these changes, the cache map has to be discarded.
     cache_lookup :: MidiDb.LookupMidiInstrument
     , cache_config :: Instrument.Config
+    -- | Which chunks were reperformed due to damage, /not including/ the
+    -- chunks rederived due to a failed splice.  The reason is laziness, see
+    -- 'cache_stats'.
     , cache_damage :: Ranges.Ranges ChunkNum
     , cache_chunks :: Chunks
     }

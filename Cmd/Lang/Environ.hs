@@ -12,6 +12,7 @@ import qualified Data.Map as Map
 import qualified Data.List as List
 import qualified Data.Set as Set
 
+import Util.Control
 import qualified Util.Map as Map
 import qualified Util.Log as Log
 import qualified Util.PPrint as PPrint
@@ -52,6 +53,7 @@ import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
+import qualified Perform.Midi.Cache as Midi.Cache
 import qualified Instrument.Db as Db
 import Cmd.Lang.Global
 

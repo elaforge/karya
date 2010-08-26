@@ -27,7 +27,7 @@ test_c_note = do
     equal (run ">i" [(0, 1, ""), (1, 2, ""), (3, 3, "")])
         (Right [evt 0 1, evt 1 2, evt 3 3], [])
 
-    let (evts, logs) = (run ">i" [(0, 1, "n +a 42")])
+    let (evts, logs) = run ">i" [(0, 1, "n +a 42")]
     equal evts (Right [])
     strings_like logs ["expected inst or attr"]
 
@@ -36,7 +36,9 @@ test_c_note = do
     strings_like logs ["parse error"]
 
     -- title error throws exception
-    left_like (fst (run ">i $parse/err" [(0, 1, "")])) "parse error"
+    let (evts, logs) = run ">i $parse/err" [(0, 1, "")]
+    equal evts (Right [])
+    strings_like logs ["parse error"]
 
     -- comment only event is filtered out
     equal (run ">i" [(0, 1, "--")]) (Right [], [])
@@ -90,10 +92,8 @@ test_c_equal = do
     let run = do_run e_evt
     -- log stack should be at the track level
     let (evts, logs) = run "> | inst = inst" [(0, 1, "")]
-    left_like evts $
-        "[(bid \"test/b1\") / (tid \"test/b1.t0\") / (tid \"test/b1.t1\") "
-        ++ "/ note / equal]*expected Instrument"
-    equal logs []
+    equal evts (Right [])
+    strings_like logs ["expected Instrument"]
 
     -- only the event with the error is omitted
     let (evts, logs) = run ">" [(0, 1, "inst = inst |"), (1, 1, "")]

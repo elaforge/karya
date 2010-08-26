@@ -497,11 +497,6 @@ make_calls = Map.fromList . map (first TrackLang.Symbol)
 -- the appropriate deriver.  It's created by 'Schema.lookup_deriver'.
 type LookupDeriver = BlockId -> Either State.StateError EventDeriver
 
--- | LookupDeriver that suppresses all sub-derivations.  Used by the signal
--- deriver since it only derives one block at a time.
-empty_lookup_deriver :: LookupDeriver
-empty_lookup_deriver = const (Right empty_events)
-
 -- | Each track warp is a warp indexed by the block and tracks it covers.
 -- These are used by the updater to figure out where the play position
 -- indicator is at a given point in real time.
@@ -522,6 +517,7 @@ instance Show DeriveError where
         "<DeriveError " ++ SrcPos.show_srcpos srcpos ++ " "
         ++ Pretty.pretty stack ++ ": " ++ msg ++ ">"
 
+error_message :: DeriveError -> String
 error_message (DeriveError _ _ s) = s
 
 instance Monad m => Log.LogMonad (DeriveT m) where
@@ -561,10 +557,6 @@ derive cache damage lookup_deriver ui_state calls environ ignore_tempo
     tempo_func = make_tempo_func track_warps
     inv_tempo_func = make_inverse_tempo_func track_warps
 
--- | Just like 'd_block', except run toplevel post processing.
-d_root_block :: BlockId -> EventDeriver
-d_root_block = fmap process_negative_durations . d_block
-
 d_block :: BlockId -> EventDeriver
 d_block block_id = do
     -- Do some error checking.  These are all caught later, but if I throw here
@@ -602,7 +594,7 @@ d_subderive fail_val deriver = do
             -- but I think that's ok because the msg gets the sub-block's
             -- context.
             Log.write $
-                (Log.msg_srcpos srcpos Log.Warn ("subderiving: " ++ msg))
+                (Log.msg_srcpos srcpos Log.Warn ("DeriveError: " ++ msg))
                 { Log.msg_stack = Just stack }
             return fail_val
         Right val -> do

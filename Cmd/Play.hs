@@ -99,6 +99,7 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.Selection as Selection
 import qualified Cmd.TimeStep as TimeStep
 
+import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Schema as Schema
@@ -250,7 +251,7 @@ derive derive_cache damage schema_map block_id = do
     return $ Derive.derive derive_cache damage
         (Schema.lookup_deriver schema_map ui_state)
         ui_state call_map initial_environ False
-        (Derive.d_root_block block_id)
+        (Call.eval_root_block block_id)
 
 -- | An uncached version of derive, for callers who don't want to bother
 -- looking up the PerformanceThread.

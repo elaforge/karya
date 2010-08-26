@@ -58,7 +58,8 @@ test_basic = do
         [1, 60, 0, 61]
     equal midi_warns []
     where
-    mkstack (s, e) = Stack.make [Stack.Block (UiTest.bid "b1"),
+    mkstack (s, e) = Stack.make [Stack.Call "block",
+        Stack.Block (UiTest.bid "b1"),
         Stack.Track (UiTest.tid "b1.t1"), Stack.Track (UiTest.tid "b1.t0"),
         Stack.Call "note", Stack.Region s e, Stack.Call "note"]
     extract_perf_event (Perform.Event inst start dur _controls _pitch stack) =
@@ -74,15 +75,16 @@ test_stack = do
     let stacks = DeriveTest.extract_events_only Score.event_stack result
         block = Stack.Block . UiTest.bid
         track = Stack.Track . UiTest.tid
+        call = Stack.Call
     equal (fmap (map (map Stack.unparse_ui_frame . Stack.to_ui)) stacks) $ Right
         [ ["test/b0 test/b0.t0 0-1"]
         , ["test/b0 test/b0.t0 1-2", "test/sub test/sub.t0 0-1"]
         , ["test/b0 test/b0.t0 1-2", "test/sub test/sub.t0 1-2"]
         ]
-    let b0 s e = [block "b0", track "b0.t0", Stack.Call "note",
+    let b0 s e = [call "block", block "b0", track "b0.t0", call "note",
             Stack.Region s e]
-        sub s e = [block "sub", track "sub.t0", Stack.Call "note",
-            Stack.Region s e, Stack.Call "note"]
+        sub s e = [block "sub", track "sub.t0", call "note",
+            Stack.Region s e, call "note"]
     equal stacks $ Right $ map Stack.make
         [ b0 0 1 ++ [Stack.Call "note"]
         , b0 1 2 ++ [Stack.Call "block"] ++ sub 0 1
@@ -92,6 +94,17 @@ test_stack = do
 ui_stack :: Log.Msg -> Maybe [String]
 ui_stack msg =
     fmap (map Stack.unparse_ui_frame . Stack.to_ui) (Log.msg_stack msg)
+
+test_simple_subderive = do
+    let (events, msgs) = DeriveTest.e_val $ DeriveTest.derive_blocks
+            [ ("parent", [(">i1", [(0, 2, "sub"), (2, 1, "sub")])])
+            , ("sub", [(">", [(0, 1, "--1"), (1, 1, "--2")])])
+            ]
+    equal msgs []
+    equal (fmap extract_events events) $ Right
+        [ (0, 1, "--1"), (1, 1, "--2")
+        , (2, 0.5, "--1"), (2.5, 0.5, "--2")
+        ]
 
 test_subderive = do
     let run evts = DeriveTest.derive_blocks
@@ -140,7 +153,7 @@ test_subderive_error = do
             ]
     let (val, logs) = (DeriveTest.e_logs $ run [(0, 1, "sub")])
     equal val (Right [])
-    strings_like logs ["subderiving: * failed to parse"]
+    strings_like logs ["DeriveError: * failed to parse"]
 
 test_subderive_multiple = do
     -- make sure subderiving a block with multiple tracks works correctly

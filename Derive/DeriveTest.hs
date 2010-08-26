@@ -18,6 +18,7 @@ import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 
 import qualified Derive.Call.All as Call.All
+import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Schema as Schema
@@ -102,7 +103,7 @@ derive_block_cmap :: Derive.CallMap -> State.State -> BlockId
     -> Derive.Result [Score.Event]
 derive_block_cmap cmap ui_state block_id =
     derive_cmap cmap (default_lookup_deriver ui_state) ui_state deriver
-    where deriver = Derive.d_root_block block_id
+    where deriver = Call.eval_root_block block_id
 
 derive :: Derive.LookupDeriver -> State.State -> Derive.Deriver a
     -> Derive.Result a
@@ -192,7 +193,10 @@ passed_args call vals = Derive.PassedArgs vals Map.empty
     (TrackLang.Symbol call) (Derive.dummy_call_info "DeriveTest")
 
 derive_note :: Derive.Deriver a -> Derive.Result a
-derive_note = derive Derive.empty_lookup_deriver State.empty
+derive_note = derive empty_lookup_deriver State.empty
+
+empty_lookup_deriver :: Derive.LookupDeriver
+empty_lookup_deriver = const (Right Derive.empty_events)
 
 d_note :: Derive.EventDeriver
 d_note = do

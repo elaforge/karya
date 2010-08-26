@@ -18,6 +18,7 @@ import qualified Ui.UiTest as UiTest
 import qualified Ui.Update as Update
 
 import qualified Derive.Cache as Cache
+import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
@@ -67,7 +68,7 @@ test_clear_damage = do
 test_no_damage = do
     let (_, cached, uncached) = compare_cached parent_sub (return ())
     equal (diff_events cached uncached) (Right [])
-    strings_like (r_cache_logs cached) ["parent.t0 1-3: * using cache"]
+    strings_like (r_cache_logs cached) ["using cache"]
     -- make sure there's stuff in the cache now
     check (not (null (r_cache_stacks cached)))
     equal (r_event_damage cached) (Just [])
@@ -88,6 +89,7 @@ test_has_score_damage = do
         [ "b.t0 0-1: * using cache"
         , "b.t0 1-2: * rederived * not in cache"
         , "b.t0 2-3: * using cache"
+        , toplevel_rederived
         ]
     equal (r_event_damage cached) (Just [(1, 2)])
 
@@ -99,10 +101,13 @@ test_callee_damage = do
     strings_like (r_cache_logs cached)
         [ "sub.t0 1-2: * using cache"
         , "parent.t0 1-3: * rederived * because of sub-block"
+        , toplevel_rederived
         ]
     -- The cached call to "sub" depends on "sub" and "subsub" transitively.
     equal (r_cache_gdeps cached)
-        [ ("test/parent test/parent.t0 1-3",
+        [ ("<no stack>",
+            Just [UiTest.bid "parent", UiTest.bid "sub", UiTest.bid "subsub"])
+        , ("test/parent test/parent.t0 1-3",
             Just [UiTest.bid "sub", UiTest.bid "subsub"])
         , ("test/sub test/sub.t0 1-2",
             Just [UiTest.bid "subsub"])
@@ -117,6 +122,7 @@ test_callee_damage = do
     strings_like (r_cache_logs cached)
         [ "sub.t0 1-2: * rederived * sub-block damage"
         , "parent.t0 1-3: * rederived * sub-block damage"
+        , toplevel_rederived
         ]
     -- subsub is at realtime position 2-3
     equal (r_event_damage cached) (Just [(2, 3)])
@@ -148,6 +154,7 @@ test_control_damage = do
     strings_like (r_cache_logs cached)
         [ "b.t0 0-1: * using cache"
         , "b.t0 1-2: * using cache"
+        , toplevel_rederived
         ]
     equal (r_event_damage cached) (Just [])
 
@@ -158,6 +165,7 @@ test_control_damage = do
     strings_like (r_cache_logs cached)
         [ "b.t0 0-1: * using cache"
         , "b.t0 1-2: * rederived * control damage"
+        , toplevel_rederived
         ]
     equal (r_event_damage cached) (Just [(1, 2)])
 
@@ -168,6 +176,7 @@ test_control_damage = do
     strings_like (r_cache_logs cached)
         [ "b.t0 0-1: * rederived * control damage"
         , "b.t0 1-2: * rederived * control damage"
+        , toplevel_rederived
         ]
     equal (r_event_damage cached) (Just [(0, 2)])
 
@@ -201,9 +210,14 @@ test_tempo_damage = do
         [ "b.t1 0-1: * using cache"
         , "b.t1 1-2: * rederived"
         , "b.t1 2-3: * rederived"
+        , toplevel_rederived
         ]
 
 -- ** support
+
+-- | The toplevel block is just about always damaged.
+toplevel_rederived :: String
+toplevel_rederived = "<no stack>: * rederived * sub-block damage"
 
 -- UiTest.run discards the Updates, which I need.
 run :: State.State -> State.StateId a -> (a, State.State, [Update.Update])
@@ -272,7 +286,7 @@ derive_block :: Derive.Cache -> Derive.ScoreDamage -> State.State
     -> BlockId -> Derive.Result [Score.Event]
 derive_block cache damage ui_state block_id =
     derive cache damage ui_state deriver
-    where deriver = Derive.d_root_block block_id
+    where deriver = Call.eval_root_block block_id
 
 derive :: Derive.Cache -> Derive.ScoreDamage -> State.State
     -> Derive.Deriver a -> Derive.Result a

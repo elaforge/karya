@@ -30,6 +30,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import Text.Printf
 
+import Util.Control
 import qualified Util.Seq as Seq
 import qualified Util.Map as Map
 import Util.Pretty as Pretty
@@ -68,6 +69,7 @@ import qualified Derive.Stack as Stack
 
 import qualified Perform.Midi.Convert as Midi.Convert
 import qualified Perform.Midi.Perform as Midi.Perform
+import qualified Perform.Midi.Cache as Midi.Cache
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Warning as Warning
@@ -389,21 +391,25 @@ load_instrument = LInst.load_instrument
 -- ** derivation
 
 derive_to_midi :: BlockId -> Cmd.CmdL ([Midi.WriteMessage], [Warning.Warning])
-derive_to_midi block_id = score_to_midi =<< derive block_id
+derive_to_midi block_id = score_to_midi =<< derive_to_events block_id
 
 derive_to_perf :: BlockId -> Cmd.CmdL ([Midi.Perform.Event], [Warning.Warning])
 derive_to_perf block_id = do
-    events <- derive block_id
+    events <- derive_to_events block_id
     lookup <- Cmd.get_lookup_midi_instrument
     return $ Midi.Convert.convert lookup events
 
-derive :: BlockId -> Cmd.CmdL [Score.Event]
-derive block_id = do
-    schema_map <- Cmd.get_schema_map
-    result <- Play.uncached_derive schema_map block_id
+derive_to_events :: BlockId -> Cmd.CmdL [Score.Event]
+derive_to_events block_id = do
+    result <- derive block_id
     case Derive.r_result result of
         Left err -> Cmd.throw $ "derive error: " ++ show err
         Right events -> return events
+
+derive :: BlockId -> Cmd.CmdL (Derive.Result Derive.Events)
+derive block_id = do
+    schema_map <- Cmd.get_schema_map
+    Play.uncached_derive schema_map block_id
 
 derive_tempo block_id ts = do
     schema_map <- Cmd.get_schema_map
@@ -420,6 +426,17 @@ score_to_midi events = do
             Midi.Perform.initial_state lookup inst_config midi_events
     return (midi_msgs, convert_warnings ++ perform_warnings)
 
+-- ** performance
+
+get_performance :: BlockId -> Cmd.CmdL Cmd.Performance
+get_performance block_id = do
+    threads <- Cmd.gets Cmd.state_performance_threads
+    maybe (Cmd.throw $ "no performance for block " ++ show block_id)
+        (return . Cmd.pthread_perf) (Map.lookup block_id threads)
+
+get_midi_cache :: BlockId -> Cmd.CmdL Midi.Cache.Cache
+get_midi_cache block_id =
+    Cmd.perf_midi_cache <$> get_performance block_id
 
 -- * util
 

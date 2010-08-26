@@ -236,6 +236,16 @@ eval_note :: Pitch.Note -> Derive.Deriver Pitch.Degree
 eval_note note = CallSig.cast ("eval note " ++ show note)
     =<< eval (TrackLang.val_call (Pitch.note_text note))
 
+-- | Evaluate the root block in a performance.  Making this an ordinary call
+-- means it participates in the derive cache just like all other calls.
+--
+-- TODO put global postproc here, like negative duration
+eval_root_block :: BlockId -> Derive.EventDeriver
+    -- Derive.d_tempo does a bit of magic to stretch all blocks to length 1,
+    -- except the root one.  The root block should operate in real time, so
+    -- no stretching here.  Otherwise, a tempo of '2' is the same as '1'.
+eval_root_block block_id = eval_one 0 1 [call_from_block_id block_id]
+
 -- ** eval implementation
 
 data DeriveInfo derived = DeriveInfo {
@@ -416,6 +426,11 @@ c_block block_id = Derive.caching_generator "block" $ \args ->
 block_call :: BlockId -> Derive.EventDeriver
 block_call block_id =
     Derive.d_subderive Derive.no_events (Derive.d_block block_id)
+
+-- | Given a block id, produce a call expression that will call that block.
+call_from_block_id :: BlockId -> TrackLang.Call
+call_from_block_id block_id =
+    TrackLang.call (Id.show_id (Id.unpack_id block_id))
 
 -- | Make an Id from a string, relative to the current ns if it doesn't already
 -- have one.

@@ -20,7 +20,8 @@ test_val_call = do
     let run evt = extract $ DeriveTest.derive_tracks_cmap cmap
             [(">", [(0, 1, "")]), ("cont", [(0, 0, evt)])]
     equal (run "foobar")
-        (Right [Just []], ["control: call not found: foobar"])
+        (Right [Just []],
+            ["cached generator / control: call not found: foobar"])
     equal (run "set 1")
         (Right [Just [(0, 1)]], [])
     equal (run "set (add1 1)")
