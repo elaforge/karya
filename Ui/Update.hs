@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 module Ui.Update where
 import qualified Data.Generics as Generics
+import qualified Util.Ranges as Ranges
 import qualified Util.Seq as Seq
 
 import Ui
@@ -73,18 +74,20 @@ is_view_update update = case update of
 -- | Does an update imply a change which would require rederiving?
 block_changed :: Update -> Maybe BlockId
 block_changed (BlockUpdate block_id update) = case update of
-    BlockConfig _ -> Nothing
-    -- TODO if DisplayTrack only changed collapsed, then it's not a change
+    BlockConfig {} -> Nothing
+    InsertTrack {} -> Nothing
+    -- TODO I'm really interested in the BlockTrack changes, specifically
+    -- TrackFlag changes, and the DisplayTrack status is only a side-effect.
+    -- Flag changes should have their own updates.
     _ -> Just block_id
 block_changed _ = Nothing
 
 -- | As 'block_changed', but for track updates.
-track_changed :: Update -> Maybe TrackId
-track_changed (TrackUpdate track_id update) = case update of
-    TrackEvents _ _ -> Just track_id
-    TrackAllEvents -> Just track_id
-    -- It could have changed the interpretation of the events.
-    TrackTitle _ -> Just track_id
+track_changed :: Update -> Maybe (TrackId, Ranges.Ranges ScoreTime)
+track_changed (TrackUpdate tid update) = case update of
+    TrackEvents start end -> Just (tid, Ranges.range start end)
+    TrackAllEvents -> Just (tid, Ranges.everything)
+    TrackTitle _ -> Just (tid, Ranges.everything)
     _ -> Nothing
 track_changed _ = Nothing
 

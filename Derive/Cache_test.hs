@@ -26,15 +26,24 @@ import qualified Derive.Stack as Stack
 
 -- * other functions
 
-test_updates_to_damage = do
-    let (_, state1) = UiTest.run State.empty parent_sub
-        (_, state2, updates) = run state1 (return ())
-    pprint (Derive.updates_to_damage state2 updates)
-        -- cached = derive_block (Derive.r_cache result1) state2 updates bid
-        -- uncached = derive_block Derive.empty_cache state2 [] bid
-    let track_blocks = State.find_tracks (const False)
-            (State.state_blocks state2)
-    pprint track_blocks
+test_score_damage = do
+    let bid = UiTest.default_block_id
+        ([tid], ustate) = UiTest.run_mkstate [("t1", [])]
+        mk tracks track_blocks blocks =
+            Derive.ScoreDamage (Map.fromList tracks) (Set.fromList track_blocks)
+                (Set.fromList blocks)
+    let f = Cache.score_damage
+
+    equal (f ustate ustate []) (mk [] [] [])
+    equal (f ustate (snd $ UiTest.run_mkstate [("t2", [])]) [])
+        (mk [(UiTest.tid "b1.t0", Ranges.everything)] [UiTest.bid "b1"] [])
+    equal (f ustate ustate [Update.BlockUpdate bid (Update.BlockTitle "ho")])
+        (mk [] [] [UiTest.bid "b1"])
+
+    equal (f ustate ustate [Update.TrackUpdate tid Update.TrackAllEvents])
+        (mk [(UiTest.tid "b1.t0", Ranges.everything)] [UiTest.bid "b1"] [])
+    equal (f ustate ustate [Update.TrackUpdate tid Update.TrackBg])
+        (mk [] [] [])
 
 test_clear_damage = do
     let mkdamage tracks blocks = Derive.ScoreDamage
@@ -63,7 +72,7 @@ test_no_damage = do
     check (not (null (r_cache_stacks cached)))
     equal (r_event_damage cached) (Just [])
 
-test_score_damage = do
+test_has_score_damage = do
     let create = mkblocks
             [ ("b", [(">i", [(0, 1, "sub"), (1, 1, "sub"), (2, 1, "sub")])])
             , ("sub", [(">i", [(0, 1, "")])])
@@ -244,10 +253,11 @@ compare_cached :: State.StateId BlockId -> State.StateId a
 compare_cached create modify = (result1, cached, uncached)
     where
     (bid, state1) = UiTest.run State.empty create
-    result1 = derive_block Derive.empty_cache state1 [] bid
+    result1 = derive_block Derive.empty_cache Monoid.mempty state1 bid
     (_, state2, updates) = run state1 modify
-    cached = derive_block (Derive.r_cache result1) state2 updates bid
-    uncached = derive_block Derive.empty_cache state2 [] bid
+    damage = Cache.score_damage state1 state2 updates
+    cached = derive_block (Derive.r_cache result1) damage state2 bid
+    uncached = derive_block Derive.empty_cache Monoid.mempty state2 bid
 
 diff_events :: Result -> Result
     -> Either Derive.DeriveError [(Either SimpleEvent SimpleEvent)]
@@ -258,16 +268,16 @@ diff_events r1 r2 = do
 
 -- * derive
 
-derive_block :: Derive.Cache -> State.State -> [Update.Update]
+derive_block :: Derive.Cache -> Derive.ScoreDamage -> State.State
     -> BlockId -> Derive.Result [Score.Event]
-derive_block cache ui_state updates block_id =
-    derive cache ui_state updates deriver
+derive_block cache damage ui_state block_id =
+    derive cache damage ui_state deriver
     where deriver = Derive.d_root_block block_id
 
-derive :: Derive.Cache -> State.State -> [Update.Update]
+derive :: Derive.Cache -> Derive.ScoreDamage -> State.State
     -> Derive.Deriver a -> Derive.Result a
-derive cache ui_state updates deriver = Derive.derive
-    cache (DeriveTest.default_lookup_deriver ui_state) ui_state updates
+derive cache damage ui_state deriver = Derive.derive cache damage
+    (DeriveTest.default_lookup_deriver ui_state) ui_state
     DeriveTest.default_call_map DeriveTest.default_environ False deriver
 
 -- *

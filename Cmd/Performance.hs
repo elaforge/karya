@@ -1,0 +1,178 @@
+-- | This module manages the performance of music, specifically the creation
+-- of 'Cmd.Cmd.PerformanceThread's.
+--
+-- Performance is relative to a toplevel block, so each block has its own set
+-- of caches.  Since performance is lazy, a separate thread will force it as
+-- needed:  enough so that playing will probably be lag free, but not so much
+-- to do too much unnecessary work (specifically, stressing the GC leads to
+-- UI latency).
+module Cmd.Performance (SendStatus, update_performance) where
+import qualified Control.Concurrent as Concurrent
+import qualified Control.Monad.Error as Error
+import qualified Control.Monad.Trans as Trans
+import qualified Data.Map as Map
+import qualified Data.Monoid as Monoid
+import qualified Data.Set as Set
+import qualified Data.Text as Text
+
+import Util.Control
+import qualified Util.Log as Log
+import qualified Util.Seq as Seq
+import qualified Util.Thread as Thread
+
+import Ui
+import qualified Ui.State as State
+import qualified Ui.Update as Update
+
+import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Play as Play
+import qualified Cmd.Msg as Msg
+
+import qualified Derive.Derive as Derive
+import qualified Derive.Cache as Derive.Cache
+
+import qualified Perform.Midi.Cache as Midi.Cache
+import qualified Perform.Midi.Instrument as Instrument
+
+import qualified Instrument.Db
+
+
+-- | The background derive threads will wait this many seconds before starting
+-- up, to avoid working too hard during an edit.
+derive_wait_focused, derive_wait_unfocused :: Double
+derive_wait_focused = 1
+derive_wait_unfocused = 3
+
+type SendStatus = BlockId -> Msg.DeriveStatus -> IO ()
+
+-- | Update 'Cmd.state_performance_threads'.  This means applying any new
+-- ScoreDamage to them, halting performance of blocks which have changed, and
+-- starting a performance for the focused block.
+--
+-- The majority of the calls here will bring neither score damage nor a changed
+-- view id, and thus this will do nothing.
+update_performance :: SendStatus -> State.State -> State.State -> Cmd.State
+    -> [Update.Update] -> IO Cmd.State
+update_performance send_status ui_from ui_to cmd_state updates = do
+    (cmd_state, _, logs, result) <- Cmd.run_io ui_to cmd_state $ do
+        let damage = Derive.Cache.score_damage ui_from ui_to updates
+        kill_obsolete_threads damage
+        insert_score_damage damage
+        regenerate_performance send_status =<< Cmd.lookup_focused_block
+        return Cmd.Done
+    mapM_ Log.write logs
+    case result of
+        Left err -> Log.error $ "ui error deriving: " ++ show err
+        _ -> return ()
+    return cmd_state
+
+-- | This doesn't remove the PerformanceThreads because their caches are still
+-- needed for the next performance.
+kill_obsolete_threads :: Derive.ScoreDamage -> Cmd.CmdT IO ()
+kill_obsolete_threads (Derive.ScoreDamage _ track_blocks blocks) = do
+    threads <- Cmd.gets Cmd.state_performance_threads
+    let block_ids = Set.toList (Set.union track_blocks blocks)
+    let thread_ids = map Cmd.pthread_id $
+            Seq.map_maybe (flip Map.lookup threads) block_ids
+    Trans.liftIO $ mapM_ Concurrent.killThread thread_ids
+
+-- | Since caches are stored per-block, score damage is also per-block.
+-- It accumulates in an existing performance and is cleared when a new
+-- performance is created from the old one.
+insert_score_damage :: Derive.ScoreDamage -> Cmd.CmdT IO ()
+insert_score_damage damage = Cmd.modify_state $ \st ->
+    st { Cmd.state_performance_threads =
+        Map.map update_pthread (Cmd.state_performance_threads st) }
+    where
+    update_pthread th = th { Cmd.pthread_perf = update (Cmd.pthread_perf th) }
+    update perf = perf { Cmd.perf_score_damage =
+        Monoid.mappend damage (Cmd.perf_score_damage perf) }
+
+regenerate_performance :: SendStatus -> Maybe BlockId -> Cmd.CmdT IO ()
+regenerate_performance _ Nothing = return ()
+regenerate_performance send_status (Just block_id) = do
+    threads <- Cmd.gets Cmd.state_performance_threads
+    if needs_regeneration threads block_id
+        then generate_performance send_status block_id
+        else return ()
+
+-- | A block should be rederived only if the it doesn't already have
+-- a performance or its performance has damage.
+needs_regeneration :: Map.Map BlockId Cmd.PerformanceThread -> BlockId -> Bool
+needs_regeneration threads block_id = case Map.lookup block_id threads of
+    Nothing -> True
+    Just pthread ->
+        Cmd.perf_score_damage (Cmd.pthread_perf pthread) /= Monoid.mempty
+
+-- | Start a new performance thread.
+--
+-- Pull previous caches from the existing performance, if any.  Use them to
+-- generate a new performance, kick off a thread for it, and insert the new
+-- PerformanceThread.
+generate_performance :: SendStatus -> BlockId -> Cmd.CmdT IO ()
+generate_performance send_status block_id = do
+    cmd_state <- Cmd.get_state
+    midi_config <- State.get_midi_config
+    let (old_thread, derive_cache, midi_cache, damage) =
+            performance_info (Cmd.state_instrument_db cmd_state)
+                midi_config block_id cmd_state
+    when_just old_thread (Trans.liftIO . Concurrent.killThread)
+
+    maybe_perf <- (Just <$>
+            Play.perform derive_cache midi_cache damage
+                (Cmd.state_schema_map cmd_state) block_id)
+        -- This is likely a Cmd.abort so the ultimate failure should have
+        -- already been logged.
+        `Error.catchError` \_ -> return Nothing
+    case maybe_perf of
+        Nothing -> Trans.liftIO $ send_status block_id Msg.DeriveFailed
+        Just perf -> do
+            selections <- Trans.liftIO Concurrent.newChan
+            th <- Trans.liftIO $
+                Thread.start_thread ("derive " ++ show block_id)
+                    (evaluate_performance send_status selections block_id perf)
+            let pthread = Cmd.PerformanceThread perf th selections
+            Cmd.modify_state $ \st -> st { Cmd.state_performance_threads =
+                Map.insert block_id pthread (Cmd.state_performance_threads st) }
+
+-- | The tricky thing about the MIDI cache is that it depends on the inst
+-- lookup function and inst config.  If either of those change, it has to be
+-- cleared.
+--
+-- I can't compare functions so I just have to make sure to reinitialize the
+-- MIDI cache when the function changes (which should be rare if ever).  The
+-- instrument config /can/ be compared, so I just compare on play, and clear
+-- the cache if it's changed.
+performance_info :: Instrument.Db.Db -> Instrument.Config -> BlockId
+    -> Cmd.State -> (Maybe Concurrent.ThreadId, Derive.Cache, Midi.Cache.Cache,
+        Derive.ScoreDamage)
+performance_info inst_db config block_id state = case maybe_pthread of
+        Nothing -> (Nothing, Derive.empty_cache, empty_midi, Monoid.mempty)
+        Just (Cmd.PerformanceThread perf th_id _) ->
+            ( Just th_id
+            , Cmd.perf_derive_cache perf
+            , get_midi (Cmd.perf_midi_cache perf)
+            , Cmd.perf_score_damage perf
+            )
+    where
+    maybe_pthread = Map.lookup block_id (Cmd.state_performance_threads state)
+    get_midi old
+        | config == Midi.Cache.cache_config old = old
+        | otherwise = empty_midi
+    empty_midi = Midi.Cache.cache (Instrument.Db.db_lookup_midi inst_db) config
+
+evaluate_performance :: SendStatus -> Cmd.SelectionSignal -> BlockId
+    -> Cmd.Performance -> IO ()
+evaluate_performance send_status selections block_id perf = do
+    send_status block_id Msg.Deriving
+    Thread.delay derive_wait_focused
+    send_status block_id Msg.StartedDeriving
+    -- Force the performance to actually be evaluated.  Writing out the logs
+    -- should do it.
+    -- TODO control log evaluation by reading from 'selections'
+    let prefix = Text.append (Text.pack ("deriving " ++ show block_id ++ ": "))
+    let logs = map (\log -> log { Log.msg_text = prefix (Log.msg_text log) })
+            (Cmd.perf_logs perf)
+    mapM_ Log.write logs
+    send_status block_id (Msg.DeriveComplete (Cmd.perf_track_signals perf))
+    -- TODO write midi cache logs, calculate stats

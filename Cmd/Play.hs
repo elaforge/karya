@@ -79,9 +79,9 @@ module Cmd.Play where
 import qualified Control.Exception as Exception
 import qualified Control.Monad.Trans as Trans
 import qualified Data.Map as Map
+import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
@@ -93,7 +93,6 @@ import qualified Ui.State as State
 -- This causes a bunch of modules to import BlockC.  Can I move the updater
 -- stuff out?
 import qualified Ui.Sync as Sync
-import qualified Ui.Update as Update
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
@@ -112,7 +111,6 @@ import qualified Perform.Warning as Warning
 import qualified Perform.Midi.Cache as Cache
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Play as Midi.Play
-import qualified Instrument.Db as Instrument.Db
 
 import qualified App.Config as Config
 
@@ -153,7 +151,7 @@ cmd_play transport_info block_id (start_track, start_pos) = do
         Nothing -> Cmd.throw $ "unknown play start pos: "
             ++ show start_track ++ ", " ++ show start_pos
         Just ts -> return ts
-    let msgs = Cache.messages_from start_ts (Cmd.perf_cache perf)
+    let msgs = Cache.messages_from start_ts (Cmd.perf_midi_cache perf)
     (play_ctl, updater_ctl) <- Trans.liftIO $
         Midi.Play.play transport_info block_id msgs
 
@@ -205,9 +203,10 @@ cmd_play_msg msg = do
 
 get_performance :: (Monad m) => BlockId -> Cmd.CmdT m Cmd.Performance
 get_performance block_id = do
-    by_block <- Cmd.gets Cmd.state_performance
-    maybe (State.throw $ "no performance for block " ++ show block_id) return
-        (Map.lookup block_id by_block)
+    threads <- Cmd.gets Cmd.state_performance_threads
+    case Map.lookup block_id threads of
+        Nothing -> State.throw $ "no performance for block " ++ show block_id
+        Just pthread -> return $ Cmd.pthread_perf pthread
 
 -- ** perform
 
@@ -216,10 +215,10 @@ get_performance block_id = do
 -- This is actually called from ResponderSync, when it kicks off background
 -- derivation.  By the time 'cmd_play' pulls out the Performance, it should be
 -- at least partially evaluated.
-perform :: (Monad m) => BlockId -> Instrument.Db.Db -> Schema.SchemaMap
-    -> [Update.Update] -> Cmd.CmdT m Cmd.Performance
-perform block_id inst_db schema_map updates = do
-    result <- derive schema_map updates block_id
+perform :: (Monad m) => Derive.Cache -> Cache.Cache -> Derive.ScoreDamage
+    -> Schema.SchemaMap -> BlockId -> Cmd.CmdT m Cmd.Performance
+perform derive_cache midi_cache damage schema_map block_id = do
+    result <- derive derive_cache damage schema_map block_id
     events <- case Derive.r_result result of
         Left (Derive.DeriveError srcpos stack msg) -> do
             Log.write $
@@ -228,38 +227,36 @@ perform block_id inst_db schema_map updates = do
             Cmd.abort
         Right events -> return events
 
-    let lookup_inst = Instrument.Db.db_lookup_midi inst_db
-    let (midi_events, convert_warnings) = Convert.convert lookup_inst events
+    let (midi_events, convert_warnings) =
+            Convert.convert (Cache.cache_lookup midi_cache) events
     -- TODO call Convert.verify for more warnings
 
-    old_cache <- get_midi_cache inst_db
-    let Derive.EventDamage damage = Derive.r_event_damage result
-        cache = Cache.perform old_cache (Cache.EventDamage damage) midi_events
-        logs = map (warn_to_log "convert") convert_warnings
-            ++ Derive.r_logs result
-    return $ Cmd.Performance cache logs
-        (Derive.r_tempo result) (Derive.r_inv_tempo result)
+    let Derive.EventDamage event_damage = Derive.r_event_damage result
+        new_midi_cache = Cache.perform midi_cache
+                (Cache.EventDamage event_damage) midi_events
+        logs = Derive.r_logs result
+            ++ map (warn_to_log "convert") convert_warnings
+    return $ Cmd.Performance
+        (Derive.r_cache result) new_midi_cache Monoid.mempty
+        logs (Derive.r_tempo result) (Derive.r_inv_tempo result)
         (Derive.r_track_signals result)
 
-get_midi_cache :: (Monad m) => Instrument.Db.Db -> Cmd.CmdT m Cache.Cache
-get_midi_cache inst_db = do
-    cache <- (Cmd.caches_midi . Cmd.state_caches) <$> Cmd.get_state
-    config <- State.gets State.state_midi_config
-    return $ if config == Cache.cache_config cache
-        then cache
-        else Cache.cache (Instrument.Db.db_lookup_midi inst_db) config
-
 -- | Derive the contents of the given block to score events.
-derive :: (Monad m) => Schema.SchemaMap -> [Update.Update] -> BlockId
-    -> Cmd.CmdT m (Derive.Result [Score.Event])
-derive schema_map updates block_id = do
+derive :: (Monad m) => Derive.Cache -> Derive.ScoreDamage -> Schema.SchemaMap
+    -> BlockId -> Cmd.CmdT m (Derive.Result [Score.Event])
+derive derive_cache damage schema_map block_id = do
     ui_state <- State.get
     call_map <- Cmd.gets Cmd.state_call_map
-    caches <- Cmd.gets Cmd.state_caches
-    return $ Derive.derive (Cmd.caches_derive caches)
+    return $ Derive.derive derive_cache damage
         (Schema.lookup_deriver schema_map ui_state)
-        ui_state updates call_map initial_environ False
+        ui_state call_map initial_environ False
         (Derive.d_root_block block_id)
+
+-- | An uncached version of derive, for callers who don't want to bother
+-- looking up the PerformanceThread.
+uncached_derive :: (Monad m) => Schema.SchemaMap
+    -> BlockId -> Cmd.CmdT m (Derive.Result [Score.Event])
+uncached_derive = derive Derive.empty_cache Monoid.mempty
 
 -- | There are a few environ values that almost everything relies on.
 initial_environ :: TrackLang.Environ
@@ -334,14 +331,10 @@ updater_loop state = do
     state <- return $ state { updater_active_sels = active_sels }
 
     stopped <- Transport.check_player_stopped (updater_ctl state)
-    -- putStrLn $ "UPDATER at " ++ show cur_ts ++ ": "
-    -- pprint play_pos
-    -- ++ show tmsg ++ ", " ++ show block_pos ++ ", gone: " ++ show gone
-    -- putStrLn updater_status
     if stopped || null block_pos
         then mapM_ Sync.clear_play_position $
             map fst (Set.toList (updater_active_sels state))
-        else Thread.delay 0.1 >> updater_loop state
+        else Thread.delay 0.05 >> updater_loop state
 
 
 -- | Do all the annoying shuffling around to convert the deriver-oriented

@@ -400,14 +400,14 @@ derive_to_perf block_id = do
 derive :: BlockId -> Cmd.CmdL [Score.Event]
 derive block_id = do
     schema_map <- Cmd.get_schema_map
-    result <- Play.derive schema_map [] block_id
+    result <- Play.uncached_derive schema_map block_id
     case Derive.r_result result of
         Left err -> Cmd.throw $ "derive error: " ++ show err
         Right events -> return events
 
 derive_tempo block_id ts = do
     schema_map <- Cmd.get_schema_map
-    result <- Play.derive schema_map [] block_id
+    result <- Play.uncached_derive schema_map block_id
     return $ map (Derive.r_inv_tempo result) (map Timestamp.seconds [0..10])
 
 score_to_midi :: [Score.Event]

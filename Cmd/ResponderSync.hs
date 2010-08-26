@@ -31,50 +31,23 @@
     able to render samples directly to a buffer which gets passed by pointer to
     c++.
 -}
-module Cmd.ResponderSync (
-    sync
-
-    -- for tests
-    , dirty_blocks
-) where
+module Cmd.ResponderSync (sync) where
 import Control.Monad
-import qualified Control.Concurrent as Concurrent
-import qualified Control.Monad.Error as Error
-import qualified Control.Monad.Trans as Trans
-import qualified Data.Map as Map
-import qualified Data.Text as Text
-
-import Util.Control
-import qualified Util.Map as Map
 import qualified Util.Log as Log
-import qualified Util.Seq as Seq
-import qualified Util.Thread as Thread
 
-import Ui
-import qualified Ui.Block as Block
 import qualified Ui.Diff as Diff
 import qualified Ui.State as State
 import qualified Ui.Sync as Sync
 import qualified Ui.Update as Update
 
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Msg as Msg
-import qualified Cmd.Play as Play
+import qualified Cmd.Performance as Performance
 
-
--- | The background derive threads will wait this many seconds before starting
--- up, to avoid working too hard during an edit.
-derive_wait_focused, derive_wait_unfocused :: Double
-derive_wait_focused = 1
-derive_wait_unfocused = 3
-
-
-type SendStatus = BlockId -> Msg.DeriveStatus -> IO ()
 
 -- | Sync @state2@ to the UI.
 -- Returns both UI state and cmd state since verification may clean up the UI
 -- state, and this is where the undo history is stored in Cmd.State.
-sync :: SendStatus -> State.State -> State.State -> Cmd.State
+sync :: Performance.SendStatus -> State.State -> State.State -> Cmd.State
     -> [Update.Update] -> IO ([Update.Update], State.State, Cmd.State)
 sync send_status ui_from ui_to cmd_state cmd_updates = do
     -- I'd catch problems closer to their source if I did this from run_cmds,
@@ -96,7 +69,8 @@ sync send_status ui_from ui_to cmd_state cmd_updates = do
 
     let updates = diff_updates ++ cmd_updates
     -- Kick off the background derivation threads.
-    cmd_state <- run_derive send_status ui_from ui_to cmd_state updates
+    cmd_state <- Performance.update_performance
+        send_status ui_from ui_to cmd_state updates
     return (updates, ui_to, cmd_state)
 
 -- | This should be run before every sync, since if errors get to sync they'll
@@ -111,84 +85,3 @@ verify_state state = do
     case res of
         Left err -> error $ "fatal state consistency error: " ++ show err
         Right state2 -> return state2
-
-
--- * derive events
-
-run_derive :: SendStatus -> State.State -> State.State -> Cmd.State
-    -> [Update.Update] -> IO Cmd.State
-run_derive send_status ui_from ui_to cmd_state updates = do
-    (cmd_state, _, logs, result) <- Cmd.run_io ui_to cmd_state $ do
-        derive_events send_status ui_from ui_to updates
-        return Cmd.Done
-    mapM_ Log.write logs
-    case result of
-        Left err -> Log.error $ "ui error deriving: " ++ show err
-        _ -> return ()
-    return cmd_state
-
-derive_events :: SendStatus -> State.State -> State.State -> [Update.Update]
-    -> Cmd.CmdT IO ()
-derive_events send_status ui_from ui_to updates = do
-    old_threads <- Cmd.gets Cmd.state_derive_threads
-    let block_ids = dirty_blocks ui_from ui_to updates
-    -- In case they aren't done, their work is about to be obsolete.
-    Trans.liftIO $ mapM_ Concurrent.killThread $
-        Seq.map_maybe (flip Map.lookup old_threads) block_ids
-    threads <- mapM (background_derive send_status updates) block_ids
-    let new_threads = Map.fromList
-            [(block_id, th) | (block_id, Just th) <- zip block_ids threads]
-    Cmd.modify_state $ \st -> st { Cmd.state_derive_threads =
-        Map.union new_threads (Map.delete_keys block_ids old_threads) }
-
-background_derive :: SendStatus -> [Update.Update] -> BlockId
-    -> Cmd.CmdT IO (Maybe Concurrent.ThreadId)
-background_derive send_status updates block_id = do
-    st <- Cmd.get_state
-    maybe_perf <- (Just <$> Play.perform
-            block_id (Cmd.state_instrument_db st) (Cmd.state_schema_map st)
-            updates)
-        `Error.catchError` \_ -> return Nothing
-    case maybe_perf of
-        Nothing -> do
-            Trans.liftIO $ send_status block_id Msg.DeriveFailed
-            return Nothing
-        Just perf -> do
-            Cmd.put_state $ st { Cmd.state_performance =
-                Map.insert block_id perf (Cmd.state_performance st) }
-            focused <- Cmd.lookup_focused_block
-            fmap Just $ Trans.liftIO $
-                Thread.start_thread ("derive " ++ show block_id) $
-                    -- If there is no focus I don't know who is going first, so
-                    -- they're all equal priority.
-                    evaluate_performance send_status block_id
-                        (maybe True (==block_id) focused) perf
-
--- | Figure out which blocks should be re-derived.
-dirty_blocks :: State.State -> State.State -> [Update.Update] -> [BlockId]
-dirty_blocks ui_from ui_to updates = Seq.unique (track_block_ids ++ block_ids)
-    where
-    block_ids = Seq.map_maybe Update.block_changed updates
-    track_block_ids = concatMap blocks_of track_ids
-    -- When track title changes come from the UI they aren't emitted as
-    -- Updates, but they should still trigger a re-derive.
-    track_ids = Seq.map_maybe Update.track_changed
-        (Diff.track_diff ui_from ui_to ++ updates)
-    blocks_of tid = map fst $ State.find_tracks
-        ((== Just tid) . Block.track_id_of) (State.state_blocks ui_to)
-
-evaluate_performance :: SendStatus -> BlockId -> Bool -> Cmd.Performance
-    -> IO ()
-evaluate_performance send_status block_id has_focus perf = do
-    send_status block_id Msg.Deriving
-    Thread.delay $
-        if has_focus then derive_wait_focused else derive_wait_unfocused
-    send_status block_id Msg.StartedDeriving
-    -- Force the performance to actually be evaluated.  Writing out the logs
-    -- should do it.
-    let prefix = Text.append (Text.pack ("deriving " ++ show block_id ++ ": "))
-    let logs = map (\log -> log { Log.msg_text = prefix (Log.msg_text log) })
-            (Cmd.perf_logs perf)
-    mapM_ Log.write logs
-    send_status block_id (Msg.DeriveComplete (Cmd.perf_track_signals perf))
-    -- TODO write midi cache logs, calculate stats

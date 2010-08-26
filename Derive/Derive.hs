@@ -48,6 +48,7 @@ import qualified Data.Set as Set
 
 import Util.Control
 import qualified Util.Log as Log
+import qualified Util.Map as Map
 import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
 import qualified Util.Seq as Seq
@@ -59,7 +60,6 @@ import qualified Ui.Event as Event
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
-import qualified Ui.Update as Update
 
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
@@ -294,7 +294,7 @@ empty_cache_state :: CacheState
 empty_cache_state = CacheState {
     state_cache = empty_cache
     , state_event_damage = EventDamage Monoid.mempty
-    , state_score_damage = empty_score_damage
+    , state_score_damage = Monoid.mempty
     , state_control_damage = ControlDamage Monoid.mempty
     , state_local_damage = EventDamage Monoid.mempty
     , state_local_dep = Monoid.mempty
@@ -544,10 +544,10 @@ data Result a = Result {
     , r_state :: State
     }
 
-derive :: Cache -> LookupDeriver -> State.State -> [Update.Update] -> CallMap
+derive :: Cache -> ScoreDamage -> LookupDeriver -> State.State -> CallMap
     -> TrackLang.Environ -> Bool -> DeriveT Identity.Identity a
     -> Result a
-derive cache lookup_deriver ui_state updates calls environ ignore_tempo
+derive cache damage lookup_deriver ui_state calls environ ignore_tempo
         deriver =
     Result result (state_cache (state_cache_state state))
         (state_event_damage (state_cache_state state))
@@ -556,7 +556,6 @@ derive cache lookup_deriver ui_state updates calls environ ignore_tempo
     (result, state, logs) = Identity.runIdentity $ run
         (initial_state clean_cache ui_state damage
         lookup_deriver calls environ ignore_tempo) deriver
-    damage = updates_to_damage ui_state updates
     clean_cache = clear_damage damage cache
     track_warps = state_track_warps state
     tempo_func = make_tempo_func track_warps
@@ -1427,7 +1426,6 @@ data TransformerType =
 type DamageRanges = Ranges.Ranges RealTime
 
 -- | Modified ranges in the score.
--- was modified.
 data ScoreDamage = ScoreDamage {
     -- | Damaged ranges in tracks.
     sdamage_tracks :: Map.Map TrackId (Ranges.Ranges ScoreTime)
@@ -1440,35 +1438,13 @@ data ScoreDamage = ScoreDamage {
     , sdamage_blocks :: Set.Set BlockId
     } deriving (Eq, Show)
 
-empty_score_damage :: ScoreDamage
-empty_score_damage = ScoreDamage Map.empty Set.empty Set.empty
-
--- | Updates to a track result in not only track damage on tha track, but
--- also damage on all the blocks the track belongs to.
-updates_to_damage :: State.State -> [Update.Update] -> ScoreDamage
-updates_to_damage ui_state updates =
-    ScoreDamage tracks track_blocks blocks
-    where
-    tracks = Map.fromListWith Monoid.mappend
-        (Seq.map_maybe convert_track updates)
-    track_blocks = Set.fromList $ map fst $ State.find_tracks track_of_block
-        (State.state_blocks ui_state)
-    track_of_block (Block.TId tid _) = Map.member tid tracks
-    track_of_block _ = False
-
-    convert_track (Update.TrackUpdate tid update) = case update of
-        Update.TrackEvents start end -> Just (tid, Ranges.range start end)
-        Update.TrackAllEvents -> Just (tid, Ranges.everything)
-        Update.TrackTitle _ -> Just (tid, Ranges.everything)
-        _ -> Nothing
-    convert_track _ = Nothing
-    blocks = Set.fromList (Seq.map_maybe convert_block updates)
-    convert_block (Update.BlockUpdate bid update) = case update of
-        Update.BlockTitle {} -> Just bid
-        Update.BlockSkeleton {} -> Just bid
-        Update.RemoveTrack {} -> Just bid
-        _ -> Nothing
-    convert_block _ = Nothing
+instance Monoid.Monoid ScoreDamage where
+    mempty = ScoreDamage Map.empty Set.empty Set.empty
+    mappend (ScoreDamage tracks1 tblocks1 blocks1)
+            (ScoreDamage tracks2 tblocks2 blocks2) =
+        ScoreDamage (Map.mappend tracks1 tracks2)
+            (Monoid.mappend tblocks1 tblocks2)
+            (Monoid.mappend blocks1 blocks2)
 
 -- | Clear the damaged portions out of the cache so they will rederive.
 clear_damage :: ScoreDamage -> Cache -> Cache

@@ -4,6 +4,7 @@ import Data.Function
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Monoid as Monoid
 
 
 -- | This is just 'findWithDefault' by a shorter name.
@@ -99,3 +100,8 @@ find_max :: Map.Map k a -> Maybe (k, a)
 find_max fm
     | Map.null fm = Nothing
     | otherwise = Just (Map.findMax fm)
+
+-- | The Data.Map Monoid instance is just a plain union, and doesn't mappend
+-- the values.
+mappend :: (Ord k, Monoid.Monoid a) => Map.Map k a -> Map.Map k a -> Map.Map k a
+mappend = Map.unionWith Monoid.mappend

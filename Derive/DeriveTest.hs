@@ -4,6 +4,7 @@ import qualified Control.Monad.Identity as Identity
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Monoid as Monoid
 import qualified Data.Text as Text
 import Util.Control
 import qualified Util.Log as Log
@@ -58,9 +59,9 @@ run ui_state m =
     -- throw.
     initial_stack = Stack.make [Stack.Block (UiTest.bid "fakeblock")]
     derive_state = (Derive.initial_state Derive.empty_cache
-        ui_state Derive.empty_score_damage
-        (default_lookup_deriver ui_state) Call.All.call_map
-            default_environ False) { Derive.state_stack = initial_stack }
+        ui_state Monoid.mempty (default_lookup_deriver ui_state)
+        Call.All.call_map default_environ False)
+            { Derive.state_stack = initial_stack }
 
 -- * derive
 
@@ -109,9 +110,9 @@ derive = derive_cmap default_call_map
 
 derive_cmap :: Derive.CallMap -> Derive.LookupDeriver -> State.State
     -> Derive.Deriver a -> Derive.Result a
-derive_cmap cmap lookup_deriver ui_state deriver = Derive.derive
-    Derive.empty_cache lookup_deriver ui_state [] cmap default_environ False
-    deriver
+derive_cmap cmap lookup_deriver ui_state deriver =
+    Derive.derive Derive.empty_cache Monoid.mempty lookup_deriver ui_state cmap
+        default_environ False deriver
 
 -- ** defaults
 

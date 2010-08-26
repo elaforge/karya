@@ -186,16 +186,13 @@ data State = State {
     , state_skip_history_record :: Bool
 
     -- Playing and derivation.
+
     -- | Transport control channel for the player, if one is running.
     , state_play_control :: Maybe Transport.PlayControl
     -- | As soon as any event changes are made to a block, its performance is
     -- recalculated (in the background) and stored here, so play can be started
     -- without latency.
-    , state_performance :: Map.Map BlockId Performance
-    , state_caches :: Caches
-    -- | IDs of background derivation threads, so they can be killed if
-    -- a new derivation is needed before they finish.
-    , state_derive_threads :: Map.Map BlockId Concurrent.ThreadId
+    , state_performance_threads :: Map.Map BlockId PerformanceThread
 
     -- | Map of keys held down.  Maintained by cmd_record_keys and accessed
     -- with 'keys_down'.
@@ -253,9 +250,7 @@ initial_state inst_db schema_map = State {
     , state_skip_history_record = False
 
     , state_play_control = Nothing
-    , state_performance = Map.empty
-    , state_caches = empty_caches inst_db
-    , state_derive_threads = Map.empty
+    , state_performance_threads = Map.empty
 
     , state_keys_down = Map.empty
     , state_focused_view = Nothing
@@ -286,8 +281,8 @@ reinit_state :: State -> State
 reinit_state cstate = cstate
     { state_history = ([], [])
 
-    -- TODO play control, performance?
-    , state_caches = empty_caches (state_instrument_db cstate)
+    -- TODO kill performance threads
+    , state_performance_threads = Map.empty
 
     -- This is essential, otherwise lots of cmds break on the bad reference.
     , state_focused_view = Nothing
@@ -297,26 +292,6 @@ reinit_state cstate = cstate
     , state_kbd_entry = state_kbd_entry empty_state
     , state_step = state_step empty_state
     , state_kbd_entry_octave = state_kbd_entry_octave empty_state
-    }
-
-data Caches = Caches {
-    caches_derive :: Derive.Cache
-    , caches_midi :: Midi.Cache.Cache
-    } deriving (Show)
-
--- | The tricky thing about the MIDI cache is that it depends on the inst
--- lookup function and inst config.  If either of those change, it has to be
--- cleared.
---
--- I can't compare functions so I just have to make sure to reinitialize the
--- MIDI cache when the function changes (which should be rare if ever).  The
--- instrument config /can/ be compared, so I just compare on play, and clear
--- the cache if it's changed.
-empty_caches :: Instrument.Db.Db -> Caches
-empty_caches inst_db = Caches {
-    caches_derive = Derive.empty_cache
-    , caches_midi = Midi.Cache.cache (Instrument.Db.db_lookup_midi inst_db)
-        Instrument.empty_config
     }
 
 data WriteDeviceState = WriteDeviceState {
@@ -355,7 +330,13 @@ type ReadDeviceState = Map.Map Midi.ReadDevice InputNote.ControlState
 -- actually play music, and poked and prodded in a separate thread to control
 -- its evaluation.
 data Performance = Performance {
-    perf_cache :: Midi.Cache.Cache
+    perf_derive_cache :: Derive.Cache
+    , perf_midi_cache :: Midi.Cache.Cache
+    -- | Score damage on top of the Performance, used by the derive cache.
+    -- This is empty when the Performance is first created and collects
+    -- thereafter.
+    , perf_score_damage :: Derive.ScoreDamage
+
     , perf_logs :: [Log.Msg]
     , perf_tempo :: Transport.TempoFunction
     , perf_inv_tempo :: Transport.InverseTempoFunction
@@ -364,7 +345,21 @@ data Performance = Performance {
 
 instance Show Performance where
     show perf = "<Performance: " ++ Pretty.pretty len ++ ">"
-        where len = Midi.Cache.cache_length (perf_cache perf)
+        where len = Midi.Cache.cache_length (perf_midi_cache perf)
+
+data PerformanceThread = PerformanceThread {
+    pthread_perf :: Performance
+    , pthread_id :: Concurrent.ThreadId
+    , pthread_selection_signal :: SelectionSignal
+    }
+
+instance Show PerformanceThread where
+    show (PerformanceThread perf th_id _) =
+        "<PerformanceThread " ++ show th_id ++ ", perf: " ++ show perf ++ ">"
+
+-- | This is used to communicate with the performance thread and tell it where
+-- the selection is, so it can prepare the performance as appropriate.
+type SelectionSignal = Concurrent.Chan RealTime
 
 data HistoryEntry = HistoryEntry {
     hist_name :: String

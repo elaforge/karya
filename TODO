@@ -63,6 +63,12 @@ CURRENT
   - I can't put Derive.DeriveT in Applicative because ErrorT e is not in
     Applicative?  What's up with that?
   - replace Call.place with a single call to d_warp, profile
+  make derivation lazy:
+    - exceptions are limited to calls in the track so the event output can be
+      lazy.  But calls call other blocks, so what about that?  Can I eliminate
+      DeriveError altogether?
+    - tempo map and inv tempo map have to be lazy, so they don't force the
+      entire derivation as soon as the first sample is touched
   incremental midi performance
     * pull states out to the 'perform' level
     * have perform return a State
@@ -72,6 +78,7 @@ CURRENT
     * put warns in Chunk so I can delay forcing the chunk until necessary, by
       printing the warns
     * store midi cache in cmd state
+    - bug: deleting the modwheel track didn't remove the modwheel midi
     hook it up to derive output
       * return event damage in Derive.Result
       * pass it to cache perform
@@ -84,6 +91,7 @@ CURRENT
         focused
       - blocks which are neither focused nor toplevel are unforced until they
         get focus
+
     - log cache stats
       For hits and misses I can subtract damage from length chunks.  But to
       know about splice failures I need to look at the warnings, which can only
