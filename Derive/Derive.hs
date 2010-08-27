@@ -678,12 +678,39 @@ get_cache_state = gets state_cache_state
 put_cache :: Cache -> Deriver ()
 put_cache cache = modify_cache_state $ \st -> st { state_cache = cache }
 
-take_local_damage :: Deriver EventDamage
-take_local_damage = do
+take_local_damage :: TrackId -> Deriver EventDamage
+take_local_damage track_id = do
     old <- get_cache_state
     modify_cache_state $ \st ->
         st { state_local_damage = EventDamage Monoid.mempty }
-    return (state_local_damage old)
+    track_damage <- get_track_damage track_id
+    return $ Monoid.mappend (state_local_damage old) track_damage
+
+-- | Get the score damage for a track, mapped into RealTime as EventDamage
+-- requires.
+--
+-- Local damage is obtained by recording the output of generators within the
+-- score damage range.  This is essential to handle generators that produce
+-- events outside of their range on the score.  However, it doesn't capture
+-- events which were deleted.  Deleted events will always have score damage
+-- in their former positions, but unfortunately have the same problem: if they
+-- produced score events outside of the ui event range, those events won't be
+-- covered under event damage after rederivation.
+--
+-- TODO A way to do this right would be to look at the previous score events
+-- and take a diff, but at the moment I can't think of how to do that
+-- efficiently.
+get_track_damage :: TrackId -> Deriver EventDamage
+get_track_damage track_id = do
+    damage <- state_score_damage <$> get_cache_state
+    case Map.lookup track_id (sdamage_tracks damage) of
+        Nothing -> return Monoid.mempty
+        Just ranges -> case Ranges.extract ranges of
+            Nothing -> return $ EventDamage Ranges.everything
+            Just pairs -> do
+                realtime <- forM pairs $ \(s, e) ->
+                    liftM2 (,) (score_to_real s) (score_to_real e)
+                return $ EventDamage (Ranges.ranges realtime)
 
 insert_local_damage :: EventDamage -> Deriver ()
 insert_local_damage damage = modify_cache_state $ \st ->
@@ -692,6 +719,7 @@ insert_local_damage damage = modify_cache_state $ \st ->
 put_local_damage :: EventDamage -> Deriver ()
 put_local_damage damage = modify_cache_state $ \st ->
     st { state_local_damage = damage }
+
 
 insert_event_damage :: EventDamage -> Deriver ()
 insert_event_damage damage = modify_cache_state $ \st ->

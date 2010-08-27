@@ -73,6 +73,24 @@ test_no_damage = do
     check (not (null (r_cache_stacks cached)))
     equal (r_event_damage cached) (Just [])
 
+test_add_remove = do
+    -- Make sure I get event damage from adding and removing event.
+    let create = mkblocks
+            [ ("b",
+                [ ("tempo", [(0, 0, ".5")])
+                , (">i", [(0, 1, ""), (1, 1, "")])
+                ])
+            ]
+    let (_, cached, uncached) = compare_cached create $
+            State.remove_event (UiTest.tid "b.t1") 1
+    equal (diff_events cached uncached) (Right [])
+    equal (r_event_damage cached) (Just [(2, 4)])
+
+    let (_, cached, uncached) = compare_cached create $
+            State.insert_event (UiTest.tid "b.t1") 4 (Event.event "" 1)
+    equal (diff_events cached uncached) (Right [])
+    equal (r_event_damage cached) (Just [(8, 10)])
+
 test_has_score_damage = do
     let create = mkblocks
             [ ("b", [(">i", [(0, 1, "sub"), (1, 1, "sub"), (2, 1, "sub")])])

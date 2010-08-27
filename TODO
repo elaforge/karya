@@ -63,6 +63,10 @@ CURRENT
   - I can't put Derive.DeriveT in Applicative because ErrorT e is not in
     Applicative?  What's up with that?
   - replace Call.place with a single call to d_warp, profile
+  - can I replace the Derive logging nonsense by writing a LogMonad instance
+    for DeriveT?
+  - Derive.insert_environ should use pretty, remember 'val' may be a Val
+  - remove with_msg for 'cached generator' and 'note', and 'control'
   make derivation lazy:
     - exceptions are limited to calls in the track so the event output can be
       lazy.  But calls call other blocks, so what about that?  Can I eliminate
@@ -78,7 +82,7 @@ CURRENT
     * put warns in Chunk so I can delay forcing the chunk until necessary, by
       printing the warns
     * store midi cache in cmd state
-    - bug: deleting the modwheel track didn't remove the modwheel midi
+    * bug: deleting the modwheel track didn't remove the modwheel midi
     hook it up to derive output
       * return event damage in Derive.Result
       * pass it to cache perform

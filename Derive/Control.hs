@@ -53,11 +53,11 @@ eval_track block_id track_id expr vals deriver = do
     let events = Track.event_list (Track.track_events track)
     case TrackInfo.parse_control_vals vals of
         Right TrackInfo.Tempo -> do
-            let control_deriver = derive_control expr events
+            let control_deriver = derive_control track_id expr events
             tempo_call block_id track_id
                 (first Signal.coerce <$> control_deriver) deriver
         Right (TrackInfo.Control maybe_op control) -> do
-            let control_deriver = derive_control expr events
+            let control_deriver = derive_control track_id expr events
             control_call track_id control maybe_op control_deriver deriver
         Right (TrackInfo.Pitch ptype maybe_name) ->
             pitch_call track_id maybe_name ptype expr events deriver
@@ -121,25 +121,25 @@ pitch_call track_id maybe_name ptype track_expr events deriver =
         with_scale $ case ptype of
             TrackInfo.PitchRelative op -> do
                 let derive = Derive.with_msg "relative pitch" $
-                        derive_pitch track_expr events
+                        derive_pitch track_id track_expr events
                 (signal, damage) <- derive
                 stash_signal track_id (Left (signal, fst <$> derive, scale_map))
                 Derive.with_control_damage damage $
                     Derive.with_pitch_operator maybe_name op signal deriver
             _ -> do
                 let derive = Derive.with_msg "pitch" $
-                        derive_pitch track_expr events
+                        derive_pitch track_id track_expr events
                 (signal, damage) <- derive
                 stash_signal track_id (Left (signal, fst <$> derive, scale_map))
                 Derive.with_control_damage damage $
                     Derive.with_pitch maybe_name signal deriver
 
-derive_control :: TrackLang.Expr -> [Track.PosEvent]
+derive_control :: TrackId -> TrackLang.Expr -> [Track.PosEvent]
     -> Derive.Deriver (Derive.Control, Derive.EventDamage)
-derive_control track_expr events = Derive.with_msg "control" $ do
+derive_control track_id track_expr events = Derive.with_msg "control" $ do
     result <- Call.apply_transformer
         (dinfo, Derive.dummy_call_info "control track") track_expr deriver
-    damage <- Derive.take_local_damage
+    damage <- Derive.take_local_damage track_id
     return (result, extend_control_damage result damage)
     where
     deriver = Signal.merge <$>
@@ -156,12 +156,12 @@ preprocess_control expr = case Seq.break_last expr of
     _ -> expr
 
 
-derive_pitch :: TrackLang.Expr -> [Track.PosEvent]
+derive_pitch :: TrackId -> TrackLang.Expr -> [Track.PosEvent]
     -> Derive.Deriver (Derive.Pitch, Derive.EventDamage)
-derive_pitch track_expr events = do
+derive_pitch track_id track_expr events = do
     result <- Call.apply_transformer
         (dinfo, Derive.dummy_call_info "pitch track") track_expr deriver
-    damage <- Derive.take_local_damage
+    damage <- Derive.take_local_damage track_id
     return (result, extend_pitch_damage result damage)
     where
     deriver =
@@ -171,6 +171,7 @@ derive_pitch track_expr events = do
 
 -- | Event damage for a control track only extends to the last sample.
 -- However, the actual changed region extends to the /next/ sample.
+-- Hacky hack hack.
 extend_control_damage :: Derive.Control -> Derive.EventDamage
     -> Derive.EventDamage
 extend_control_damage = _extend_damage Signal.sample

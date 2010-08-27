@@ -154,7 +154,7 @@ d_note_track track_id = do
     -- Unlike event evaluation, if the title evaluation throws, the whole block
     -- will abort.  This seems reasonable to me.
     result <- Call.apply_transformer info track_expr (derive_notes pos_events)
-    Derive.insert_event_damage =<< Derive.take_local_damage
+    Derive.insert_event_damage =<< Derive.take_local_damage track_id
     return result
     where info = (derive_info, Derive.dummy_call_info "note track")
 

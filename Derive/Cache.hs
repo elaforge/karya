@@ -207,6 +207,9 @@ cached_generator state stack (Derive.GeneratorCall func gtype) args =
 -- 'Derive.score_to_real' is already called too often, so I go to some effort
 -- to only call it if I already know there isn't score damage.  TODO profile
 -- and see if it actually makes a difference.  It's a lazy language, right?
+--
+-- This is never called for deleted events so it can't get damage for them,
+-- but there's a hack for that: 'Derive.Derive.get_track_damage'.
 has_damage :: CacheState -> Stack.Stack -> Derive.PassedArgs derived
     -> Derive.Deriver Bool
 has_damage state stack args
