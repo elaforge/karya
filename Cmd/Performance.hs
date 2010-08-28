@@ -27,24 +27,21 @@ import qualified Midi.Midi as Midi
 
 import Ui
 import qualified Ui.State as State
-import qualified Ui.Types as Types
 import qualified Ui.Update as Update
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Play as Play
 import qualified Cmd.Msg as Msg
+import qualified Cmd.Selection as Selection
 
 import qualified Derive.Derive as Derive
 import qualified Derive.Cache as Derive.Cache
 
 import qualified Perform.Timestamp as Timestamp
-import qualified Perform.Transport as Transport
 import qualified Perform.Midi.Cache as Midi.Cache
 import qualified Perform.Midi.Instrument as Instrument
 
 import qualified Instrument.Db
-
-import qualified App.Config as Config
 
 
 -- | The background derive threads will wait this many seconds before starting
@@ -67,8 +64,9 @@ update_performance send_status ui_from ui_to cmd_state updates = do
         let damage = Derive.Cache.score_damage ui_from ui_to updates
         kill_obsolete_threads damage
         insert_score_damage damage
-        regenerate_performance send_status =<< Cmd.lookup_focused_block
-        update_selection_pos
+        sel <- Selection.lookup_insert
+        regenerate_performance send_status sel =<< Cmd.lookup_focused_block
+        when_just sel update_selection_pos
         return Cmd.Done
     mapM_ Log.write logs
     case result of
@@ -98,12 +96,16 @@ insert_score_damage damage = Cmd.modify_state $ \st ->
     update perf = perf { Cmd.perf_score_damage =
         Monoid.mappend damage (Cmd.perf_score_damage perf) }
 
-regenerate_performance :: SendStatus -> Maybe BlockId -> Cmd.CmdT IO ()
-regenerate_performance _ Nothing = return ()
-regenerate_performance send_status (Just block_id) = do
+
+-- * performance evaluation
+
+regenerate_performance :: SendStatus -> Maybe Selection.Point -> Maybe BlockId
+    -> Cmd.CmdT IO ()
+regenerate_performance _ _ Nothing = return ()
+regenerate_performance send_status sel (Just block_id) = do
     threads <- Cmd.gets Cmd.state_performance_threads
     if needs_regeneration threads block_id
-        then generate_performance send_status block_id
+        then generate_performance send_status sel block_id
         else return ()
 
 -- | A block should be rederived only if the it doesn't already have
@@ -114,28 +116,14 @@ needs_regeneration threads block_id = case Map.lookup block_id threads of
     Just pthread ->
         Cmd.perf_score_damage (Cmd.pthread_perf pthread) /= Monoid.mempty
 
-update_selection_pos :: Cmd.CmdT IO ()
-update_selection_pos = update =<< current_selection
-    where
-    update Nothing = return ()
-    update (Just (sel_block, sel_track, sel_pos)) = do
-        -- for the selection in the focused block, find out what RealTime that
-        -- means to each block_id in the performances, and send that
-        threads <- Cmd.gets Cmd.state_performance_threads
-        forM_ (Map.elems threads) $ \pthread -> do
-            let perf = Cmd.pthread_perf pthread
-            let pos = find_appropriate_time (Cmd.perf_tempo perf)
-                    sel_block sel_track sel_pos
-            Trans.liftIO $ Cmd.write_selection pos
-                (Cmd.pthread_selection pthread)
-
 -- | Start a new performance thread.
 --
 -- Pull previous caches from the existing performance, if any.  Use them to
 -- generate a new performance, kick off a thread for it, and insert the new
 -- PerformanceThread.
-generate_performance :: SendStatus -> BlockId -> Cmd.CmdT IO ()
-generate_performance send_status block_id = do
+generate_performance :: SendStatus -> Maybe Selection.Point -> BlockId
+    -> Cmd.CmdT IO ()
+generate_performance send_status sel block_id = do
     cmd_state <- Cmd.get_state
     midi_config <- State.get_midi_config
     let (old_thread, derive_cache, midi_cache, damage) =
@@ -153,12 +141,9 @@ generate_performance send_status block_id = do
     case maybe_perf of
         Nothing -> Trans.liftIO $ send_status block_id Msg.DeriveFailed
         Just perf -> do
-            sel <- current_selection
-            let cur = case sel of
-                    Nothing -> 0
-                    Just (_, track_id, score_time) ->
-                        find_appropriate_time (Cmd.perf_tempo perf) block_id
-                            track_id score_time
+            root_sel <- Selection.lookup_block_insert block_id
+            let cur = maybe 0 (Selection.find_appropriate_time
+                    (Cmd.perf_tempo perf) root_sel) sel
             selection_pos <- Trans.liftIO $ IORef.newIORef cur
             th <- Trans.liftIO $
                 Thread.start_thread ("derive " ++ show block_id)
@@ -167,47 +152,6 @@ generate_performance send_status block_id = do
             let pthread = Cmd.PerformanceThread perf th selection_pos
             Cmd.modify_state $ \st -> st { Cmd.state_performance_threads =
                 Map.insert block_id pthread (Cmd.state_performance_threads st) }
-
--- | This is different than 'Cmd.Selection.get' because it doesn't fail
--- when there is no focused view.
-current_selection :: (Monad m) =>
-    Cmd.CmdT m (Maybe (BlockId, TrackId, ScoreTime))
-current_selection =
-    justm Cmd.lookup_focused_view $ \view_id ->
-    justm (State.get_selection view_id Config.insert_selnum) $ \sel -> do
-        block_id <- State.block_id_of_view view_id
-        justm (State.event_track_at block_id (Types.sel_cur_track sel)) $
-            \track_id -> return $
-                Just (block_id, track_id,
-                    max (Types.sel_cur_pos sel) (Types.sel_start_pos sel))
-
--- | This is sort of like a monad transformer, but the Maybe is on the inside
--- instead of the outside.
-justm :: (Monad m) => m (Maybe a) -> (a -> m (Maybe b)) -> m (Maybe b)
-justm op1 op2 = maybe (return Nothing) op2 =<< op1
-
--- | Transport.TempoFunction only works when called with the ScoreTime from the
--- root block.  But what I need is 'BlockId -> ScoreTime -> [RealTime]', since
--- if a block is called multiple times, a given score time may occur at
--- multiple real times.
---
--- So I need a way to figure which real time is appropriate.  I can look at
--- the selection position on the root block, and its RealTime (should only be
--- one), and pick the one closest to that.
---
--- So modify TempoFunction to return multiple RealTimes, and have another
--- function pick the closest one to the selection at the root block.
---
--- I think I also need this if I want to control a DAW position.  Also if I
--- want to play a block in the context of the root.  If the root is several
--- steps removed it might be not too easy to know, but I can deal with that
--- if it comes up.
---
--- So I need two play commands, but that waits until I have a root block.
-find_appropriate_time :: Transport.TempoFunction -> BlockId
-    -> TrackId -> ScoreTime -> RealTime
-find_appropriate_time tempo block_id track_id pos =
-    maybe 0 id (tempo block_id track_id pos)
 
 -- | The tricky thing about the MIDI cache is that it depends on the inst
 -- lookup function and inst config.  If either of those change, it has to be
@@ -299,3 +243,19 @@ evaluate_chunk chunk =
         -- A splice failure isn't really a warning.
         Log.write $ if splice then log { Log.msg_prio = Log.Notice } else log
         return splice
+
+
+-- * selection
+
+update_selection_pos :: Selection.Point -> Cmd.CmdT IO ()
+update_selection_pos focused_sel = do
+    -- for the selection in the focused block, find out what RealTime that
+    -- means to each block_id in the performances, and send that
+    threads <- Cmd.gets Cmd.state_performance_threads
+    forM_ (Map.assocs threads) $ \(block_id, pthread) -> do
+        let perf = Cmd.pthread_perf pthread
+        root_sel <- Selection.lookup_block_insert block_id
+        let pos = Selection.find_appropriate_time (Cmd.perf_tempo perf)
+                root_sel focused_sel
+        Trans.liftIO $ Cmd.write_selection pos
+            (Cmd.pthread_selection pthread)

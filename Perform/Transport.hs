@@ -59,14 +59,16 @@ check_player_stopped (UpdaterControl ref) = IORef.readIORef ref
 -- * play timing
 
 -- | Given a score time on a certain track in a certain block, give the real
--- time that it corresponds to.  Nothing if I don't know for that block and
--- track.
-type TempoFunction = BlockId -> TrackId -> ScoreTime -> Maybe RealTime
+-- times that it corresponds to.  There may be more than one if the block
+-- has been derived in more than one place, and there may be zero if the block
+-- and track combination wasn't derived at all or didn't extend to the given
+-- score time.
+type TempoFunction = BlockId -> TrackId -> ScoreTime -> [RealTime]
 
 -- | Return the ScoreTime play position in the various playing blocks at the
 -- given physical time.  If the Timestamp is past the end of all playing
--- blocks, return [].  The updater thread polls this at a given resolution for
--- all displayed blocks and updates the play selection accordingly.
+-- blocks, return [].  The updater thread polls this periodically for all
+-- displayed blocks and updates the play selection accordingly.
 --
 -- Since a given block may be playing in multiple places at the same time (e.g.
 -- for a block that is played like an instrument, if the notes overlap), the

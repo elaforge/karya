@@ -25,8 +25,7 @@ cmd_modify_zoom f view_id = do
 
 cmd_zoom_around_insert :: (Monad m) => (Double -> Double) -> Cmd.CmdT m ()
 cmd_zoom_around_insert f = do
-    view_id <- Cmd.get_focused_view
-    (_, _, pos) <- Selection.get_insert_any
+    (view_id, (_, _, pos)) <- Selection.get_any_insert
     cmd_zoom_around view_id pos f
 
 cmd_zoom_around :: (Monad m) =>

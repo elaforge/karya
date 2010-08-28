@@ -357,7 +357,7 @@ test_tempo_funcs1 = do
         [[b0 0], [b0 4], [b0 8], [b0 12], [b0 16], []]
 
     equal (map (Derive.r_tempo res bid t_tid) [0, 2 .. 10])
-        (map Just [0..5])
+        (map (:[]) [0..5])
 
 test_tempo_funcs2 = do
     let ([t_tid1, tid1, t_tid2, tid2], ui_state) = UiTest.run State.empty $
@@ -369,9 +369,9 @@ test_tempo_funcs2 = do
     let res = DeriveTest.derive_block ui_state bid
     equal (DeriveTest.r_logs res) []
     equal (map (Derive.r_tempo res bid t_tid1) [0, 2 .. 10])
-        (map Just [0..5])
+        (map (:[]) [0..5])
     equal (map (Derive.r_tempo res bid t_tid2) [0, 2 .. 10])
-        (map Just [0, 2 .. 10])
+        (map (:[]) [0, 2 .. 10])
     let b0 pos = (bid, [(tid1, pos), (t_tid1, pos)])
         b1 pos = (bid, [(tid2, pos), (t_tid2, pos)])
 
@@ -381,6 +381,15 @@ test_tempo_funcs2 = do
 
     -- test multiple tempo
     -- test subderive
+
+test_tempo_funcs_multiple_subblocks = do
+    -- A single score time can imply multiple real times.
+    let res = DeriveTest.derive_blocks
+            [ ("parent", [(">i", [(0, 1, "sub"), (1, 1, "sub")])])
+            , ("sub", [(">i", [(0, 1, "")])])
+            ]
+    equal (Derive.r_tempo res (UiTest.bid "sub") (UiTest.tid "sub.t0") 0.5)
+        [1.5, 0.5]
 
 test_fractional_pitch = do
     -- A pitch that requires pitch bends should distribute across multiple

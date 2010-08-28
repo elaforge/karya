@@ -178,8 +178,7 @@ append_track = do
 
 insert_track_after_selection :: (Monad m) => Bool -> Cmd.CmdT m TrackId
 insert_track_after_selection splice = do
-    (_, tracknum, _) <- Selection.get_insert_any
-    block_id <- Cmd.get_focused_block
+    (_, (block_id, tracknum, _)) <- Selection.get_any_insert
     block <- State.get_block block_id
     let new_tracknum = track_after block tracknum
     track_id <- track block_id new_tracknum

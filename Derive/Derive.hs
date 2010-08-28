@@ -612,19 +612,11 @@ run derive_state m = do
     return (err, state2, logs)
 
 make_tempo_func :: [TrackWarp] -> Transport.TempoFunction
-make_tempo_func track_warps block_id track_id pos = do
-    warp <- lookup_track_warp block_id track_id track_warps
-    return $ Score.warp_pos pos warp
-
-lookup_track_warp :: BlockId -> TrackId -> [TrackWarp] -> Maybe Score.Warp
-lookup_track_warp block_id track_id track_warps = case matches of
-        [] -> Nothing
-        w : _ -> Just w
+make_tempo_func track_warps block_id track_id pos =
+    map (Score.warp_pos pos) warps
     where
-    matches =
-        [ tw_warp tw | tw <- track_warps, tw_block tw == block_id
-        , any (==track_id) (tw_tracks tw)
-        ]
+    warps = [tw_warp tw | tw <- track_warps, tw_block tw == block_id,
+        any (==track_id) (tw_tracks tw)]
 
 make_inverse_tempo_func :: [TrackWarp] -> Transport.InverseTempoFunction
 make_inverse_tempo_func track_warps ts = do

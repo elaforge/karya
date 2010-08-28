@@ -9,11 +9,12 @@ duration, since they are weighted at the end.
 This behaviour is actually implemented in the low level "Ui.Track" functions.
 -}
 module Cmd.Selection where
+import Prelude hiding (lookup)
 import Control.Monad
 import qualified Data.List as List
 import qualified Data.Map as Map
 
-import qualified Util.Control as Control
+import Util.Control
 import qualified Util.Seq as Seq
 import qualified Util.Log as Log
 import qualified Util.Num as Num
@@ -30,6 +31,8 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Info as Info
 import qualified Cmd.Msg as Msg
 import qualified Cmd.TimeStep as TimeStep
+
+import qualified Perform.Transport as Transport
 
 import qualified App.Config as Config
 
@@ -244,7 +247,7 @@ sync_selection_status view_id = do
     maybe_sel <- State.get_selection view_id Config.insert_selnum
     Cmd.set_view_status view_id "sel" (fmap selection_status maybe_sel)
     block_id <- State.block_id_of_view view_id
-    Control.when_just maybe_sel $
+    when_just maybe_sel $
         Info.set_inst_status block_id . Types.sel_cur_track
 
 selection_status :: Types.Selection -> String
@@ -291,27 +294,120 @@ relevant_ruler block tracknum = Seq.at (Block.ruler_ids_of in_order) 0
     in_order = map (Block.tracklike_id . snd) $ dropWhile ((/=tracknum) . fst) $
         reverse $ zip [0..] (Block.block_tracks block)
 
+-- ** insertion point
 
--- I return a whole bunch of stuff and let the caller decide which it wants.
-type SelInfo = (BlockId, TrackNum, TrackId, ScoreTime)
+{- Getting the selection may seem pretty simple, but there are a number of
+    orthogonal flavors:
 
--- | Get the "insert position", which is the upper left corner of the insert
--- selection.  Abort if it's not an event track.
---
--- I return a whole bunch of stuff and let the caller decide which it wants.
-get_insert :: (Monad m) => Cmd.CmdT m (BlockId, TrackNum, TrackId, ScoreTime)
-get_insert = do
-    (block_id, tracknum, pos) <- get_insert_any
-    track_id <- Cmd.require =<< State.event_track_at block_id tracknum
-    return (block_id, tracknum, track_id, pos)
+    - Return a raw Types.Selection, or return its
+    (ViewId, BlockId, TrackId, ScoreTime) context.
+
+    - Get an arbitrary Types.SelNum or use the Config.insert_selnum.
+
+    - Return a Maybe or abort on Nothing.
+
+    - Return for any track, or return a TrackId and abort if it's not an event
+    track.
+
+    - Used an arbitrary ViewId, BlockId, or use the focused view.
+-}
+
+-- | A point on a track.
+type Point = (BlockId, TrackNum, TrackId, ScoreTime)
+type AnyPoint = (BlockId, TrackNum, ScoreTime)
+
+-- | Get the "insert position", which is the start track and position of the
+-- insert selection.  Abort if it's not an event track.
+get_insert :: (Monad m) => Cmd.CmdT m Point
+get_insert = Cmd.require =<< lookup_insert
+
+lookup_insert :: (Monad m) => Cmd.CmdT m (Maybe Point)
+lookup_insert = fmap (fmap snd) $ lookup_selnum_insert Config.insert_selnum
 
 -- | Return the leftmost tracknum and trackpos, even if it's not an event
 -- track.
-get_insert_any :: (Monad m) => Cmd.CmdT m (BlockId, TrackNum, ScoreTime)
-get_insert_any = do
-    (view_id, sel) <- get
-    block_id <- State.block_id_of_view view_id
-    return (block_id, Types.sel_start_track sel, Types.sel_start_pos sel)
+get_any_insert :: (Monad m) => Cmd.CmdT m (ViewId, AnyPoint)
+get_any_insert = Cmd.require =<< lookup_any_selnum_insert Config.insert_selnum
+
+lookup_selnum_insert :: (Monad m) => Types.SelNum
+    -> Cmd.CmdT m (Maybe (ViewId, Point))
+lookup_selnum_insert selnum =
+    justm (lookup_any_selnum_insert selnum) $
+    \(view_id, (block_id, tracknum, pos)) ->
+    justm (State.event_track_at block_id tracknum) $ \track_id ->
+    return $ Just (view_id, (block_id, tracknum, track_id, pos))
+
+-- | The most general insertion point function.
+lookup_any_selnum_insert :: (Monad m) => Types.SelNum
+    -> Cmd.CmdT m (Maybe (ViewId, AnyPoint))
+lookup_any_selnum_insert selnum =
+    justm (lookup_selnum selnum) $ \(view_id, sel) -> do
+        block_id <- State.block_id_of_view view_id
+        return $ Just (view_id,
+            (block_id, Types.sel_start_track sel, Types.sel_start_pos sel))
+
+-- | Given a block, get the selection on it, if any.  If there are multiple
+-- views, take the one with the alphabetically first ViewId.
+--
+-- I'm not sure how to choose, but the first one seems reasonable for now.
+lookup_block_insert :: (State.UiStateMonad m) => BlockId -> m (Maybe Point)
+lookup_block_insert block_id = do
+    view_ids <- Map.keys <$> State.get_views_of block_id
+    case view_ids of
+        [] -> return Nothing
+        view_id : _ ->
+            justm (State.get_selection view_id Config.insert_selnum) $ \sel ->
+            block_sel sel block_id
+    where
+    block_sel sel block_id =
+        justm (State.event_track_at block_id tracknum) $ \track_id ->
+        return $ Just (block_id, tracknum, track_id, Types.sel_start_pos sel)
+        where tracknum = Types.sel_start_track sel
+
+-- ** raw selection
+
+get :: (Monad m) => Cmd.CmdT m (ViewId, Types.Selection)
+get = get_selnum Config.insert_selnum
+
+-- | Get the requested selnum in the focused view.
+get_selnum :: (Monad m) => Types.SelNum -> Cmd.CmdT m (ViewId, Types.Selection)
+get_selnum selnum = Cmd.require =<< lookup_selnum selnum
+
+lookup :: (Monad m) => Cmd.CmdT m (Maybe (ViewId, Types.Selection))
+lookup = lookup_selnum Config.insert_selnum
+
+lookup_selnum :: (Monad m) => Types.SelNum
+    -> Cmd.CmdT m (Maybe (ViewId, Types.Selection))
+lookup_selnum selnum =
+    justm Cmd.lookup_focused_view $ \view_id ->
+    justm (State.get_selection view_id selnum) $ \sel ->
+    return $ Just (view_id, sel)
+
+-- | This is sort of like a monad transformer, but the Maybe is on the inside
+-- instead of the outside.
+justm :: (Monad m) => m (Maybe a) -> (a -> m (Maybe b)) -> m (Maybe b)
+justm op1 op2 = maybe (return Nothing) op2 =<< op1
+
+-- ** tempo map
+
+-- | If a block is called in multiple places, a score time on it may occur
+-- at multiple real times.  Pick the most appropriate one by looking at
+-- the selection position on the root block: pick the first realtime that
+-- occurs after the root block selection, or if there are none after, the
+-- first one before it.
+--
+-- TODO the name still sucks
+find_appropriate_time :: Transport.TempoFunction
+    -> Maybe Point -> Point -> RealTime
+find_appropriate_time tempo root_sel sel = case dropWhile (<root) realtimes of
+        rt : _ -> rt
+        [] -> Seq.mlast 0 id realtimes
+    where
+    root = maybe 0 (Seq.mhead 0 id . sel_to_real tempo) root_sel
+    realtimes = sel_to_real tempo sel
+
+sel_to_real :: Transport.TempoFunction -> Point -> [RealTime]
+sel_to_real tempo (block_id, _, track_id, pos) = tempo block_id track_id pos
 
 -- ** select events
 
@@ -426,13 +522,3 @@ tracknums_of block track_ids = do
         zip [0..] (Block.block_tracklike_ids block)
     guard (tid `elem` track_ids)
     return (tracknum, tid)
-
--- | Get the requested selnum in the focused view.
-get_selnum :: (Monad m) => Types.SelNum -> Cmd.CmdT m (ViewId, Types.Selection)
-get_selnum selnum = do
-    view_id <- Cmd.get_focused_view
-    sel <- Cmd.require =<< State.get_selection view_id selnum
-    return (view_id, sel)
-
-get :: (Monad m) => Cmd.CmdT m (ViewId, Types.Selection)
-get = get_selnum Config.insert_selnum

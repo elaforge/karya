@@ -67,7 +67,7 @@ CURRENT
     for DeriveT?
   * Derive.insert_environ should use pretty, remember 'val' may be a Val
   - remove with_msg for 'cached generator' and 'note', and 'control'
-  - Transport.TempoFunction should return multiple RealTimes if the block
+  * Transport.TempoFunction should return multiple RealTimes if the block
     is called in multiple places
   make derivation lazy:
     - exceptions are limited to calls in the track so the event output can be
@@ -98,7 +98,7 @@ CURRENT
       - blocks which are neither focused nor toplevel are unforced until they
         get focus
 
-    - log cache stats
+    * log cache stats
       For hits and misses I can subtract damage from length chunks.  But to
       know about splice failures I need to look at the warnings, which can only
       be done after derivation is complete.
