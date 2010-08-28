@@ -141,6 +141,9 @@ main = initialize $ \lang_socket midi_chan -> do
     Log.notice loaded_msg
     putStrLn loaded_msg
 
+    let _x = _x
+    -- satellites are out tonight
+
     (rdev_map, wdev_map) <- MidiImp.get_devices
     print_devs rdev_map wdev_map
     -- Don't open out IAC ports for read, otherwise any msgs written to them

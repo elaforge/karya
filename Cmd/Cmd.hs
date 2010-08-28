@@ -9,6 +9,7 @@ import qualified Control.Monad.State as MonadState
 import qualified Control.Monad.Trans as Trans
 import Control.Monad.Trans (lift)
 import qualified Data.Generics as Generics
+import qualified Data.IORef as IORef
 import qualified Data.Map as Map
 
 import qualified Util.Logger as Logger
@@ -350,7 +351,7 @@ instance Show Performance where
 data PerformanceThread = PerformanceThread {
     pthread_perf :: Performance
     , pthread_id :: Concurrent.ThreadId
-    , pthread_selection_signal :: SelectionSignal
+    , pthread_selection :: SelectionPosition
     }
 
 instance Show PerformanceThread where
@@ -359,7 +360,15 @@ instance Show PerformanceThread where
 
 -- | This is used to communicate with the performance thread and tell it where
 -- the selection is, so it can prepare the performance as appropriate.
-type SelectionSignal = Concurrent.Chan RealTime
+type SelectionPosition = IORef.IORef RealTime
+
+read_selection :: SelectionPosition -> IO RealTime
+read_selection selection_pos =
+    IORef.atomicModifyIORef selection_pos (\a -> (a, a))
+
+write_selection :: RealTime -> SelectionPosition -> IO ()
+write_selection pos selection_pos =
+    IORef.atomicModifyIORef selection_pos (const (pos, ()))
 
 data HistoryEntry = HistoryEntry {
     hist_name :: String
@@ -410,10 +419,13 @@ get_focused_block :: (Monad m) => CmdT m BlockId
 get_focused_block =
     fmap Block.view_block (get_focused_view >>= State.get_view)
 
+lookup_focused_view :: (Monad m) => CmdT m (Maybe ViewId)
+lookup_focused_view = gets state_focused_view
+
 -- | In some circumstances I don't want to abort if there's no focused block.
 lookup_focused_block :: (Monad m) => CmdT m (Maybe BlockId)
 lookup_focused_block = do
-    maybe_view_id <- gets state_focused_view
+    maybe_view_id <- lookup_focused_view
     case maybe_view_id of
         -- It's still an error if the view id doesn't exist.
         Just view_id -> fmap (Just . Block.view_block) (State.get_view view_id)

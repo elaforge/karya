@@ -58,10 +58,10 @@ check_player_stopped (UpdaterControl ref) = IORef.readIORef ref
 
 -- * play timing
 
--- | Given a pos on a certain track in a certain block, give the real time
--- that it corresponds to.  Nothing if I don't know for that block and track.
-type TempoFunction = BlockId -> TrackId -> ScoreTime
-    -> Maybe Timestamp.Timestamp
+-- | Given a score time on a certain track in a certain block, give the real
+-- time that it corresponds to.  Nothing if I don't know for that block and
+-- track.
+type TempoFunction = BlockId -> TrackId -> ScoreTime -> Maybe RealTime
 
 -- | Return the ScoreTime play position in the various playing blocks at the
 -- given physical time.  If the Timestamp is past the end of all playing

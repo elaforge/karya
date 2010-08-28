@@ -4,6 +4,7 @@
 -- "Derive.Cache_test".
 module Derive.Cache_profile where
 import qualified Data.List as List
+import qualified Data.Monoid as Monoid
 import qualified Data.Text as Text
 import qualified Data.Time as Time
 import qualified System.CPUTime as CPUTime
@@ -16,7 +17,9 @@ import Ui
 import qualified Ui.Event as Event
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
+import qualified Ui.Update as Update
 
+import qualified Derive.Cache as Cache
 import qualified Derive.Cache_test as Cache_test
 import qualified Derive.Derive as Derive
 import Derive.Derive_profile (force)
@@ -79,22 +82,30 @@ rederive initial_state modifications = do
         let section nmsgs = Derive_profile.time_section nmsgs start_times
         let (_, state2, updates) = Cache_test.run state1 modify
         cached <- section 0 "cached" $ do
-            let result = Cache_test.derive_block cache state2 updates
-                    (UiTest.bid "b1")
-            let events = extract_events result
-            force events
-            return (result, events, filter_logs (Derive.r_logs result))
+            eval_derivation cache state1 state2 updates
 
         uncached <- section 0 "uncached" $ do
-            let result = Cache_test.derive_block Derive.empty_cache state2 []
-                    (UiTest.bid "b1")
+            let result = Cache_test.derive_block Derive.empty_cache
+                    Monoid.mempty state2 (UiTest.bid "b1")
             let events = extract_events result
             force events
-            return (result, events, filter_logs (Derive.r_logs result))
+            return (result, events, filter_out_cache (Derive.r_logs result))
         equal (Cache_test.diff_events cached uncached) (Right [])
 
         go start_times state2 (Derive.r_cache cached) rest
-    filter_logs = map show_msg . filter (not . is_cache_msg)
+
+eval_derivation :: Derive.Cache -> State.State -> State.State -> [Update.Update]
+    -> IO (Derive.Result [Score.Event], [Score.Event], [String])
+eval_derivation cache state1 state2 updates = do
+    force events
+    return (result, events, filter_out_cache (Derive.r_logs result))
+    where
+    damage = Cache.score_damage state1 state2 updates
+    result = Cache_test.derive_block cache damage state2 (UiTest.bid "b1")
+    events = extract_events result
+
+filter_out_cache :: [Log.Msg] -> [String]
+filter_out_cache = map show_msg . filter (not . is_cache_msg)
 
 rederive_midi :: State.State -> [State.StateId ()] -> IO ()
 rederive_midi initial_state modifications = do
@@ -110,11 +121,7 @@ rederive_midi initial_state modifications = do
         let section nmsgs = Derive_profile.time_section nmsgs start_times
         let (_, state2, updates) = Cache_test.run state1 modify
         cached <- section 0 "cached" $ do
-            let result = Cache_test.derive_block derive_cache state2 updates
-                    (UiTest.bid "b1")
-            let events = extract_events result
-            force events
-            return (result, events, filter_logs (Derive.r_logs result))
+            eval_derivation derive_cache state1 state2 updates
 
         (cached_midi, stats) <- section 10 "cached midi" $ do
             let (out, warns, stats) = cached_perform midi_cache
@@ -135,7 +142,6 @@ rederive_midi initial_state modifications = do
 
         go start_times state2 (Derive.r_cache cached) cached_midi rest
 
-    filter_logs = map show_msg . filter (not . is_cache_msg)
     event_damage result = Midi.Cache.EventDamage d
         where Derive.EventDamage d = Derive.r_event_damage result
 

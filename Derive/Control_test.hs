@@ -56,7 +56,8 @@ test_derive_control = do
         extract (Right ((val, _damage), _, logs)) =
             Right (Signal.unsignal val, map Log.msg_string logs)
     let derive events = extract $ DeriveTest.run State.empty
-            (Control.derive_control [] (map UiTest.mkevent events))
+            (Control.derive_control (UiTest.tid "t0") []
+                (map UiTest.mkevent events))
     equal (derive [(0, 0, "1"), (1, 0, "2")])
         (Right ([(0, 1), (1, 2)], []))
     equal (derive [(0, 0, "1"), (2, 0, "i 2")])

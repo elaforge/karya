@@ -614,12 +614,12 @@ run derive_state m = do
 make_tempo_func :: [TrackWarp] -> Transport.TempoFunction
 make_tempo_func track_warps block_id track_id pos = do
     warp <- lookup_track_warp block_id track_id track_warps
-    return $ Timestamp.from_real_time (Score.warp_pos pos warp)
+    return $ Score.warp_pos pos warp
 
 lookup_track_warp :: BlockId -> TrackId -> [TrackWarp] -> Maybe Score.Warp
 lookup_track_warp block_id track_id track_warps = case matches of
         [] -> Nothing
-        (w:_) -> Just w
+        w : _ -> Just w
     where
     matches =
         [ tw_warp tw | tw <- track_warps, tw_block tw == block_id

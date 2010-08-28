@@ -151,7 +151,7 @@ cmd_play transport_info block_id (start_track, start_pos) = do
     start_ts <- case Cmd.perf_tempo perf block_id start_track start_pos of
         Nothing -> Cmd.throw $ "unknown play start pos: "
             ++ show start_track ++ ", " ++ show start_pos
-        Just ts -> return ts
+        Just realtime -> return (Timestamp.from_real_time realtime)
     let msgs = Cache.messages_from start_ts (Cmd.perf_midi_cache perf)
     (play_ctl, updater_ctl) <- Trans.liftIO $
         Midi.Play.play transport_info block_id msgs

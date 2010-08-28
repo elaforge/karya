@@ -7,9 +7,11 @@
 -- to do too much unnecessary work (specifically, stressing the GC leads to
 -- UI latency).
 module Cmd.Performance (SendStatus, update_performance) where
+import Control.Monad
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Trans as Trans
+import qualified Data.IORef as IORef
 import qualified Data.Map as Map
 import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
@@ -17,11 +19,15 @@ import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Log as Log
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
+import qualified Midi.Midi as Midi
+
 import Ui
 import qualified Ui.State as State
+import qualified Ui.Types as Types
 import qualified Ui.Update as Update
 
 import qualified Cmd.Cmd as Cmd
@@ -31,17 +37,20 @@ import qualified Cmd.Msg as Msg
 import qualified Derive.Derive as Derive
 import qualified Derive.Cache as Derive.Cache
 
+import qualified Perform.Timestamp as Timestamp
+import qualified Perform.Transport as Transport
 import qualified Perform.Midi.Cache as Midi.Cache
 import qualified Perform.Midi.Instrument as Instrument
 
 import qualified Instrument.Db
 
+import qualified App.Config as Config
+
 
 -- | The background derive threads will wait this many seconds before starting
 -- up, to avoid working too hard during an edit.
-derive_wait_focused, derive_wait_unfocused :: Double
+derive_wait_focused :: Double
 derive_wait_focused = 1
-derive_wait_unfocused = 3
 
 type SendStatus = BlockId -> Msg.DeriveStatus -> IO ()
 
@@ -59,6 +68,7 @@ update_performance send_status ui_from ui_to cmd_state updates = do
         kill_obsolete_threads damage
         insert_score_damage damage
         regenerate_performance send_status =<< Cmd.lookup_focused_block
+        update_selection_pos
         return Cmd.Done
     mapM_ Log.write logs
     case result of
@@ -104,6 +114,21 @@ needs_regeneration threads block_id = case Map.lookup block_id threads of
     Just pthread ->
         Cmd.perf_score_damage (Cmd.pthread_perf pthread) /= Monoid.mempty
 
+update_selection_pos :: Cmd.CmdT IO ()
+update_selection_pos = update =<< current_selection
+    where
+    update Nothing = return ()
+    update (Just (sel_block, sel_track, sel_pos)) = do
+        -- for the selection in the focused block, find out what RealTime that
+        -- means to each block_id in the performances, and send that
+        threads <- Cmd.gets Cmd.state_performance_threads
+        forM_ (Map.elems threads) $ \pthread -> do
+            let perf = Cmd.pthread_perf pthread
+            let pos = find_appropriate_time (Cmd.perf_tempo perf)
+                    sel_block sel_track sel_pos
+            Trans.liftIO $ Cmd.write_selection pos
+                (Cmd.pthread_selection pthread)
+
 -- | Start a new performance thread.
 --
 -- Pull previous caches from the existing performance, if any.  Use them to
@@ -118,6 +143,7 @@ generate_performance send_status block_id = do
                 midi_config block_id cmd_state
     when_just old_thread (Trans.liftIO . Concurrent.killThread)
 
+    -- Log.debug $ "re-performing midi with " ++ show damage
     maybe_perf <- (Just <$>
             Play.perform derive_cache midi_cache damage
                 (Cmd.state_schema_map cmd_state) block_id)
@@ -127,13 +153,61 @@ generate_performance send_status block_id = do
     case maybe_perf of
         Nothing -> Trans.liftIO $ send_status block_id Msg.DeriveFailed
         Just perf -> do
-            selections <- Trans.liftIO Concurrent.newChan
+            sel <- current_selection
+            let cur = case sel of
+                    Nothing -> 0
+                    Just (_, track_id, score_time) ->
+                        find_appropriate_time (Cmd.perf_tempo perf) block_id
+                            track_id score_time
+            selection_pos <- Trans.liftIO $ IORef.newIORef cur
             th <- Trans.liftIO $
                 Thread.start_thread ("derive " ++ show block_id)
-                    (evaluate_performance send_status selections block_id perf)
-            let pthread = Cmd.PerformanceThread perf th selections
+                    (evaluate_performance send_status selection_pos block_id
+                        perf)
+            let pthread = Cmd.PerformanceThread perf th selection_pos
             Cmd.modify_state $ \st -> st { Cmd.state_performance_threads =
                 Map.insert block_id pthread (Cmd.state_performance_threads st) }
+
+-- | This is different than 'Cmd.Selection.get' because it doesn't fail
+-- when there is no focused view.
+current_selection :: (Monad m) =>
+    Cmd.CmdT m (Maybe (BlockId, TrackId, ScoreTime))
+current_selection =
+    justm Cmd.lookup_focused_view $ \view_id ->
+    justm (State.get_selection view_id Config.insert_selnum) $ \sel -> do
+        block_id <- State.block_id_of_view view_id
+        justm (State.event_track_at block_id (Types.sel_cur_track sel)) $
+            \track_id -> return $
+                Just (block_id, track_id,
+                    max (Types.sel_cur_pos sel) (Types.sel_start_pos sel))
+
+-- | This is sort of like a monad transformer, but the Maybe is on the inside
+-- instead of the outside.
+justm :: (Monad m) => m (Maybe a) -> (a -> m (Maybe b)) -> m (Maybe b)
+justm op1 op2 = maybe (return Nothing) op2 =<< op1
+
+-- | Transport.TempoFunction only works when called with the ScoreTime from the
+-- root block.  But what I need is 'BlockId -> ScoreTime -> [RealTime]', since
+-- if a block is called multiple times, a given score time may occur at
+-- multiple real times.
+--
+-- So I need a way to figure which real time is appropriate.  I can look at
+-- the selection position on the root block, and its RealTime (should only be
+-- one), and pick the one closest to that.
+--
+-- So modify TempoFunction to return multiple RealTimes, and have another
+-- function pick the closest one to the selection at the root block.
+--
+-- I think I also need this if I want to control a DAW position.  Also if I
+-- want to play a block in the context of the root.  If the root is several
+-- steps removed it might be not too easy to know, but I can deal with that
+-- if it comes up.
+--
+-- So I need two play commands, but that waits until I have a root block.
+find_appropriate_time :: Transport.TempoFunction -> BlockId
+    -> TrackId -> ScoreTime -> RealTime
+find_appropriate_time tempo block_id track_id pos =
+    maybe 0 id (tempo block_id track_id pos)
 
 -- | The tricky thing about the MIDI cache is that it depends on the inst
 -- lookup function and inst config.  If either of those change, it has to be
@@ -161,18 +235,67 @@ performance_info inst_db config block_id state = case maybe_pthread of
         | otherwise = empty_midi
     empty_midi = Midi.Cache.cache (Instrument.Db.db_lookup_midi inst_db) config
 
-evaluate_performance :: SendStatus -> Cmd.SelectionSignal -> BlockId
+evaluate_performance :: SendStatus -> Cmd.SelectionPosition -> BlockId
     -> Cmd.Performance -> IO ()
-evaluate_performance send_status selections block_id perf = do
+evaluate_performance send_status selection_pos block_id perf = do
     send_status block_id Msg.Deriving
     Thread.delay derive_wait_focused
     send_status block_id Msg.StartedDeriving
     -- Force the performance to actually be evaluated.  Writing out the logs
     -- should do it.
-    -- TODO control log evaluation by reading from 'selections'
     let prefix = Text.append (Text.pack ("deriving " ++ show block_id ++ ": "))
     let logs = map (\log -> log { Log.msg_text = prefix (Log.msg_text log) })
             (Cmd.perf_logs perf)
     mapM_ Log.write logs
     send_status block_id (Msg.DeriveComplete (Cmd.perf_track_signals perf))
-    -- TODO write midi cache logs, calculate stats
+    let cache = Cmd.perf_midi_cache perf
+    evaluate_midi cache selection_pos False 0 (Midi.Cache.cache_chunks cache)
+
+evaluate_midi :: Midi.Cache.Cache -> Cmd.SelectionPosition -> Bool -> RealTime
+    -> Midi.Cache.Chunks -> IO ()
+evaluate_midi cache _ logged_stats _ [] = when (not logged_stats) $
+    log_stats Nothing cache
+evaluate_midi cache selection_pos logged_stats eval_pos chunks = do
+    pos <- Cmd.read_selection selection_pos
+    let eval_until = max pos eval_pos
+    when (pos > eval_pos) $
+        Log.notice $ "jumping forward to cursor: " ++ show pos
+    let (pre, post) = break ((>=eval_until) . chunk_time) chunks
+    splice_failed <- any id <$> mapM evaluate_chunk pre
+    when (not logged_stats && splice_failed) $
+        log_stats (Just eval_until) cache
+    -- Log.notice $ "eval until " ++ Pretty.pretty eval_pos
+    -- The delay here should be long enough to go easy on the GC but short
+    -- enough to have a good chance of having already evaluated the output
+    -- before the user hits "play".
+    -- TODO skip the delay for cached chunks
+    when (not (null post)) $
+        Thread.delay 0.5
+    evaluate_midi cache selection_pos (logged_stats || splice_failed)
+        (eval_until + Midi.Cache.cache_chunk_size) post
+
+log_stats :: Maybe RealTime -> Midi.Cache.Cache -> IO ()
+log_stats splice_failed cache =
+    Log.notice $ "midi cached/reperformed: " ++ Pretty.pretty cached
+        ++ "/" ++ Pretty.pretty reperformed
+        ++ maybe " (splice succeeded)"
+            (\p -> " (splice failed around " ++ Pretty.pretty p ++ ")")
+            splice_failed
+        ++ " chunk damage: " ++ Pretty.pretty (Midi.Cache.cache_damage cache)
+    where
+    (cached, reperformed) = Midi.Cache.cache_stats
+        (Midi.Cache.to_chunknum <$> splice_failed) cache
+
+chunk_time :: Midi.Cache.Chunk -> RealTime
+chunk_time chunk = case Midi.Cache.chunk_messages chunk of
+    [] -> 0
+    wmsg : _ -> Timestamp.to_real_time (Midi.wmsg_ts wmsg)
+
+evaluate_chunk :: Midi.Cache.Chunk -> IO Bool
+evaluate_chunk chunk =
+    fmap (any id) $ forM (Midi.Cache.chunk_warns chunk) $ \warn -> do
+        let log = Play.warn_to_log "perform" warn
+            splice = Midi.Cache.is_splice_failure warn
+        -- A splice failure isn't really a warning.
+        Log.write $ if splice then log { Log.msg_prio = Log.Notice } else log
+        return splice

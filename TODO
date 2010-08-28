@@ -67,6 +67,8 @@ CURRENT
     for DeriveT?
   - Derive.insert_environ should use pretty, remember 'val' may be a Val
   - remove with_msg for 'cached generator' and 'note', and 'control'
+  - Transport.TempoFunction should return multiple RealTimes if the block
+    is called in multiple places
   make derivation lazy:
     - exceptions are limited to calls in the track so the event output can be
       lazy.  But calls call other blocks, so what about that?  Can I eliminate
@@ -88,9 +90,9 @@ CURRENT
       * pass it to cache perform
       * implement event seek in cache, since it understands chunks
     implement a more clever forcing policy for midi msgs, e.g.
-      - performance thread stays open and has a channel to receive the sel pos
-      - quickly force current block until t+n
-      - gradually force t+n .. end chunk by chunk, so as not to overwhelm the gc
+      * performance thread stays open and has a channel to receive the sel pos
+      * quickly force current block until t+n
+      * gradually force t+n .. end chunk by chunk, so as not to overwhelm the gc
       - do the same with the toplevel block, stick to gradual if it's not
         focused
       - blocks which are neither focused nor toplevel are unforced until they

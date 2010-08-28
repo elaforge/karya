@@ -1,8 +1,9 @@
 {-# LANGUAGE PatternGuards #-}
 module Perform.Midi.Cache (
-    Cache(..), Chunk(..), EventDamage(..), cache_chunk_size
-    , cache, cache_length, cache_messages, messages_from
+    Cache(..), cache, cache_length, cache_messages, messages_from
+    , EventDamage(..)
     , cache_stats, is_splice_failure
+    , Chunks, ChunkNum, to_chunknum, cache_chunk_size, Chunk(..)
     , perform
 ) where
 import qualified Data.List as List
@@ -73,11 +74,11 @@ messages_from start_ts cache =
 -- forces the chunk, this function accepts the splice failure as an argument
 -- which is awkward but allows the caller to retain control over evaluation.
 cache_stats :: Maybe ChunkNum -> Cache -> (RealTime, RealTime)
-    -- ^ (time hit, time rederived)
+    -- ^ (time from cache, time re-performed)
 cache_stats splice_failed_at cache = case splice_failed_at of
         Nothing -> stats (cache_damage cache)
         Just chunknum -> stats $ Monoid.mappend
-            (Ranges.range chunknum (nchunks+1)) (cache_damage cache)
+            (Ranges.range chunknum nchunks) (cache_damage cache)
     where
     nchunks = fromIntegral (length (cache_chunks cache))
     time n = fromIntegral n * cache_chunk_size
@@ -88,7 +89,7 @@ cache_stats splice_failed_at cache = case splice_failed_at of
 
 is_splice_failure :: Warning.Warning -> Bool
 is_splice_failure warn =
-    "splice failure: " `List.isPrefixOf` Warning.warn_msg warn
+    "splice failed: " `List.isPrefixOf` Warning.warn_msg warn
 
 -- | Originally this was an IntMap which allows faster seeking to a a chunk,
 -- but it's essential that the chunk list be spine-lazy.  Since each chunk is
@@ -96,6 +97,9 @@ is_splice_failure warn =
 -- search to take a noticeable amount of time anyway.
 type Chunks = [Chunk]
 type ChunkNum = Integer
+
+to_chunknum :: RealTime -> ChunkNum
+to_chunknum = floor . (/cache_chunk_size)
 
 cache_chunk_size :: RealTime
 cache_chunk_size = 4
