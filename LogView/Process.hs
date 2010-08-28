@@ -252,7 +252,8 @@ deserialize_line :: String -> IO Log.Msg
 deserialize_line line = do
     err_msg <- Log.deserialize_msg line
     return $ case err_msg of
-        Left exc -> Log.msg Log.Error ("error parsing: " ++ show exc)
+        Left exc -> Log.msg Log.Error $ "error parsing: " ++ show exc
+            ++ ", line was: " ++ show line
         Right msg -> msg
 
 tail_getline :: IO.Handle -> IO String
