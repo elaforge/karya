@@ -235,8 +235,6 @@ has_damage state stack args
             Just range -> Ranges.overlapping range (Ranges.range s e)
     overlapping _ = False
     damaged_tracks = sdamage_tracks (Derive.state_score_damage state)
-    event_range = uncurry Ranges.range $
-        Derive.info_track_pos (Derive.passed_info args)
 
 find_generator_cache :: (Derive.Derived derived) =>
     Stack.Stack -> Ranges.Ranges RealTime -> ScoreDamage -> ControlDamage

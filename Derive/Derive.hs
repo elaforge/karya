@@ -35,6 +35,7 @@
 module Derive.Derive where
 import Prelude hiding (error)
 import qualified Prelude
+import qualified Control.Applicative as Applicative
 import Control.Monad
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Identity as Identity
@@ -168,6 +169,10 @@ type TrackDeriver m e = TrackId -> DeriveT m [e]
 newtype DeriveT m a = DeriveT (DeriveStack m a)
     deriving (Functor, Monad, Trans.MonadIO, Error.MonadError DeriveError)
 run_derive_t (DeriveT m) = m
+
+instance (Monad m) => Applicative.Applicative (DeriveT m) where
+    pure = return
+    (<*>) = ap
 
 type DeriveStack m = Error.ErrorT DeriveError
     (Monad.State.StateT State
