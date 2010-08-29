@@ -52,7 +52,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Edit as Edit
 import qualified Cmd.Info as Info
-import qualified Cmd.Play as Play
+import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.Save as Save
 import qualified Cmd.Selection as Selection
 import qualified Cmd.Simple as Simple
@@ -390,8 +390,41 @@ load_instrument = LInst.load_instrument
 
 -- ** derivation
 
-derive_to_midi :: BlockId -> Cmd.CmdL ([Midi.WriteMessage], [Warning.Warning])
-derive_to_midi block_id = score_to_midi =<< derive_to_events block_id
+-- These are mostly for testing, to find problems in performer output.
+
+-- | Clear out all caches and rederive from scratch for the given block.
+rederive :: BlockId -> Cmd.CmdL ()
+rederive = PlayUtil.clear_cache
+
+-- | Compare performances with and without the midi cache.
+compare_cached_midi :: BlockId
+    -> Cmd.CmdL [Either Midi.WriteMessage Midi.WriteMessage]
+compare_cached_midi block_id = do
+    result <- PlayUtil.cached_derive block_id
+    uncached <- PlayUtil.uncached_perform result
+    cached <- PlayUtil.cached_perform block_id result
+    return $ diff_events cached uncached
+    where
+    diff_events perf1 perf2 = Seq.diff (==) (msgs perf1) (msgs perf2)
+    msgs = Midi.Cache.cache_messages . Cmd.perf_midi_cache
+
+compare_cached_events :: BlockId
+    -> Cmd.CmdL [Either Simple.ScoreEvent Simple.ScoreEvent]
+compare_cached_events block_id = do
+    uncached <- PlayUtil.uncached_derive block_id
+    cached <- PlayUtil.cached_derive block_id
+    either (Cmd.throw . show) return (diff_events cached uncached)
+    where
+    diff_events r1 r2 = do
+        e1 <- Derive.r_result r1
+        e2 <- Derive.r_result r2
+        return $ Seq.diff (==)
+            (map Simple.score_event e1) (map Simple.score_event e2)
+
+cached_perform :: BlockId -> Cmd.CmdL Midi.Perform.Messages
+cached_perform block_id = do
+    perf <- PlayUtil.cached_perform block_id =<< PlayUtil.cached_derive block_id
+    return $ Midi.Cache.cache_messages (Cmd.perf_midi_cache perf)
 
 derive_to_perf :: BlockId -> Cmd.CmdL ([Midi.Perform.Event], [Warning.Warning])
 derive_to_perf block_id = do
@@ -399,7 +432,7 @@ derive_to_perf block_id = do
     lookup <- Cmd.get_lookup_midi_instrument
     return $ Midi.Convert.convert lookup events
 
-derive_to_events :: BlockId -> Cmd.CmdL [Score.Event]
+derive_to_events :: BlockId -> Cmd.CmdL Derive.Events
 derive_to_events block_id = do
     result <- derive block_id
     case Derive.r_result result of
@@ -407,24 +440,14 @@ derive_to_events block_id = do
         Right events -> return events
 
 derive :: BlockId -> Cmd.CmdL (Derive.Result Derive.Events)
-derive block_id = do
-    schema_map <- Cmd.get_schema_map
-    Play.uncached_derive schema_map block_id
+derive = PlayUtil.uncached_derive
 
-derive_tempo block_id ts = do
-    schema_map <- Cmd.get_schema_map
-    result <- Play.uncached_derive schema_map block_id
+-- | Test the tempo map output.
+-- TODO broken?
+derive_tempo :: BlockId -> Cmd.CmdL [[(BlockId, [(TrackId, ScoreTime)])]]
+derive_tempo block_id = do
+    result <- PlayUtil.cached_derive block_id
     return $ map (Derive.r_inv_tempo result) (map Timestamp.seconds [0..10])
-
-score_to_midi :: [Score.Event]
-    -> Cmd.CmdL ([Midi.WriteMessage], [Warning.Warning])
-score_to_midi events = do
-    inst_config <- State.gets State.state_midi_config
-    lookup <- Cmd.get_lookup_midi_instrument
-    let (midi_events, convert_warnings) = Midi.Convert.convert lookup events
-        (midi_msgs, perform_warnings, _) = Midi.Perform.perform
-            Midi.Perform.initial_state lookup inst_config midi_events
-    return (midi_msgs, convert_warnings ++ perform_warnings)
 
 -- ** performance
 

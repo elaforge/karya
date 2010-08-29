@@ -385,6 +385,8 @@ lookup_selnum selnum =
 
 -- | This is sort of like a monad transformer, but the Maybe is on the inside
 -- instead of the outside.
+--
+-- What I really want here is MaybeT, but it requres explicit lifting...
 justm :: (Monad m) => m (Maybe a) -> (a -> m (Maybe b)) -> m (Maybe b)
 justm op1 op2 = maybe (return Nothing) op2 =<< op1
 

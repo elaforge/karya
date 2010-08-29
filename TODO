@@ -28,7 +28,6 @@ CURRENT
   * make Derive.control_at return a Maybe to make it consistent with pitch_at
   - some way to write the default pitch in a tracklang literal?
   ? switch mhead and mlast back to returning Maybe
-  - Typecheck implies Pretty, use pretty in Derive.insert_environ
   - split some Derive.Derive types into their own module
   - tracks with no ruler should default to free selection placement
   - after creating a new track, focus should go to its title
@@ -102,8 +101,8 @@ CURRENT
       For hits and misses I can subtract damage from length chunks.  But to
       know about splice failures I need to look at the warnings, which can only
       be done after derivation is complete.
-    - cmd to clear out midi cache
-    - cmd to compare cached to uncached perf, put next to Global.score_to_midi
+    * cmd to clear out midi cache
+    * cmd to compare cached to uncached perf, put next to Global.score_to_midi
 
   derive cache
     * make a profile for modification and recomputation of a large structure,

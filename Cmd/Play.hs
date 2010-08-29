@@ -79,7 +79,6 @@ module Cmd.Play where
 import qualified Control.Exception as Exception
 import qualified Control.Monad.Trans as Trans
 import qualified Data.Map as Map
-import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
 
 import qualified Util.Log as Log
@@ -99,18 +98,9 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.Selection as Selection
 import qualified Cmd.TimeStep as TimeStep
 
-import qualified Derive.Call as Call
-import qualified Derive.Derive as Derive
-import qualified Derive.Scale.Twelve as Twelve
-import qualified Derive.Schema as Schema
-import qualified Derive.Score as Score
-import qualified Derive.TrackLang as TrackLang
-
 import qualified Perform.Transport as Transport
 import qualified Perform.Timestamp as Timestamp
-import qualified Perform.Warning as Warning
 import qualified Perform.Midi.Cache as Cache
-import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Play as Midi.Play
 
 import qualified App.Config as Config
@@ -208,75 +198,6 @@ get_performance block_id = do
     case Map.lookup block_id threads of
         Nothing -> State.throw $ "no performance for block " ++ show block_id
         Just pthread -> return $ Cmd.pthread_perf pthread
-
--- ** perform
-
--- | Convert a block ID into MIDI msgs and log msgs.  The logs are not
--- immediately written to preserve laziness on the returned MIDI msgs.
--- This is actually called from ResponderSync, when it kicks off background
--- derivation.  By the time 'cmd_play' pulls out the Performance, it should be
--- at least partially evaluated.
-perform :: (Monad m) => Derive.Cache -> Cache.Cache -> Derive.ScoreDamage
-    -> Schema.SchemaMap -> BlockId -> Cmd.CmdT m Cmd.Performance
-perform derive_cache midi_cache damage schema_map block_id = do
-    result <- derive derive_cache damage schema_map block_id
-    events <- case Derive.r_result result of
-        Left (Derive.DeriveError srcpos stack msg) -> do
-            Log.write $
-                (Log.msg_srcpos srcpos Log.Warn ("deriving: " ++ msg))
-                { Log.msg_stack = Just stack }
-            Cmd.abort
-        Right events -> return events
-
-    let (midi_events, convert_warnings) =
-            Convert.convert (Cache.cache_lookup midi_cache) events
-    -- TODO call Convert.verify for more warnings
-
-    let Derive.EventDamage event_damage = Derive.r_event_damage result
-        new_midi_cache = Cache.perform midi_cache
-                (Cache.EventDamage event_damage) midi_events
-        logs = Derive.r_logs result
-            ++ map (warn_to_log "convert") convert_warnings
-    return $ Cmd.Performance
-        (Derive.r_cache result) new_midi_cache Monoid.mempty
-        logs (Derive.r_tempo result) (Derive.r_inv_tempo result)
-        (Derive.r_track_signals result)
-
--- | Derive the contents of the given block to score events.
-derive :: (Monad m) => Derive.Cache -> Derive.ScoreDamage -> Schema.SchemaMap
-    -> BlockId -> Cmd.CmdT m (Derive.Result [Score.Event])
-derive derive_cache damage schema_map block_id = do
-    ui_state <- State.get
-    call_map <- Cmd.gets Cmd.state_call_map
-    return $ Derive.derive derive_cache damage
-        (Schema.lookup_deriver schema_map ui_state)
-        ui_state call_map initial_environ False
-        (Call.eval_root_block block_id)
-
--- | An uncached version of derive, for callers who don't want to bother
--- looking up the PerformanceThread.
-uncached_derive :: (Monad m) => Schema.SchemaMap
-    -> BlockId -> Cmd.CmdT m (Derive.Result [Score.Event])
-uncached_derive = derive Derive.empty_cache Monoid.mempty
-
--- | There are a few environ values that almost everything relies on.
-initial_environ :: TrackLang.Environ
-initial_environ = Map.fromList
-    -- Control interpolators rely on this.
-    [ (TrackLang.v_srate, TrackLang.VNum 0.05)
-    -- Looking up any val call relies on this.
-    , (TrackLang.v_scale, TrackLang.VScale Twelve.scale)
-    ]
-
--- | Convert a Warning into an appropriate log msg.
-warn_to_log :: String -> Warning.Warning -> Log.Msg
-warn_to_log context (Warning.Warning msg event_stack maybe_range) =
-    log { Log.msg_stack = Just event_stack }
-    where
-    log = Log.msg Log.Warn $ context ++ ": " ++ msg
-        -- TODO It would be more useful to append this to the stack, but I have
-        -- to convert real -> score.
-        ++ maybe "" ((" range: " ++) . show) maybe_range
 
 
 -- ** updater

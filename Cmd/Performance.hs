@@ -30,7 +30,7 @@ import qualified Ui.State as State
 import qualified Ui.Update as Update
 
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Play as Play
+import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Selection as Selection
 
@@ -39,9 +39,6 @@ import qualified Derive.Cache as Derive.Cache
 
 import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Midi.Cache as Midi.Cache
-import qualified Perform.Midi.Instrument as Instrument
-
-import qualified Instrument.Db
 
 
 -- | The background derive threads will wait this many seconds before starting
@@ -124,20 +121,14 @@ needs_regeneration threads block_id = case Map.lookup block_id threads of
 generate_performance :: SendStatus -> Maybe Selection.Point -> BlockId
     -> Cmd.CmdT IO ()
 generate_performance send_status sel block_id = do
-    cmd_state <- Cmd.get_state
-    midi_config <- State.get_midi_config
-    let (old_thread, derive_cache, midi_cache, damage) =
-            performance_info (Cmd.state_instrument_db cmd_state)
-                midi_config block_id cmd_state
+    old_thread <- fmap Cmd.pthread_id <$> PlayUtil.lookup_performance block_id
     when_just old_thread (Trans.liftIO . Concurrent.killThread)
-
-    -- Log.debug $ "re-performing midi with " ++ show damage
     maybe_perf <- (Just <$>
-            Play.perform derive_cache midi_cache damage
-                (Cmd.state_schema_map cmd_state) block_id)
-        -- This is likely a Cmd.abort so the ultimate failure should have
-        -- already been logged.
-        `Error.catchError` \_ -> return Nothing
+        (PlayUtil.cached_perform block_id =<< PlayUtil.cached_derive block_id))
+        `Error.catchError` \err -> do
+            when (Cmd.is_abort err) $
+                Log.warn $ "Error performing: " ++ show err
+            return Nothing
     case maybe_perf of
         Nothing -> Trans.liftIO $ send_status block_id Msg.DeriveFailed
         Just perf -> do
@@ -152,32 +143,6 @@ generate_performance send_status sel block_id = do
             let pthread = Cmd.PerformanceThread perf th selection_pos
             Cmd.modify_state $ \st -> st { Cmd.state_performance_threads =
                 Map.insert block_id pthread (Cmd.state_performance_threads st) }
-
--- | The tricky thing about the MIDI cache is that it depends on the inst
--- lookup function and inst config.  If either of those change, it has to be
--- cleared.
---
--- I can't compare functions so I just have to make sure to reinitialize the
--- MIDI cache when the function changes (which should be rare if ever).  The
--- instrument config /can/ be compared, so I just compare on play, and clear
--- the cache if it's changed.
-performance_info :: Instrument.Db.Db -> Instrument.Config -> BlockId
-    -> Cmd.State -> (Maybe Concurrent.ThreadId, Derive.Cache, Midi.Cache.Cache,
-        Derive.ScoreDamage)
-performance_info inst_db config block_id state = case maybe_pthread of
-        Nothing -> (Nothing, Derive.empty_cache, empty_midi, Monoid.mempty)
-        Just (Cmd.PerformanceThread perf th_id _) ->
-            ( Just th_id
-            , Cmd.perf_derive_cache perf
-            , get_midi (Cmd.perf_midi_cache perf)
-            , Cmd.perf_score_damage perf
-            )
-    where
-    maybe_pthread = Map.lookup block_id (Cmd.state_performance_threads state)
-    get_midi old
-        | config == Midi.Cache.cache_config old = old
-        | otherwise = empty_midi
-    empty_midi = Midi.Cache.cache (Instrument.Db.db_lookup_midi inst_db) config
 
 evaluate_performance :: SendStatus -> Cmd.SelectionPosition -> BlockId
     -> Cmd.Performance -> IO ()
@@ -238,7 +203,7 @@ chunk_time chunk = case Midi.Cache.chunk_messages chunk of
 evaluate_chunk :: Midi.Cache.Chunk -> IO Bool
 evaluate_chunk chunk =
     fmap (any id) $ forM (Midi.Cache.chunk_warns chunk) $ \warn -> do
-        let log = Play.warn_to_log "perform" warn
+        let log = PlayUtil.warn_to_log "perform" warn
             splice = Midi.Cache.is_splice_failure warn
         -- A splice failure isn't really a warning.
         Log.write $ if splice then log { Log.msg_prio = Log.Notice } else log

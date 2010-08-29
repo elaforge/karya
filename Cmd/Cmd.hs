@@ -150,6 +150,10 @@ catch_abort m = Error.catchError (fmap Just m) catch
     catch State.Abort = return Nothing
     catch err = Error.throwError err
 
+is_abort :: State.StateError -> Bool
+is_abort State.Abort = True
+is_abort _ = False
+
 -- | This is the same as State.throw, but it feels like things in Cmd may not
 -- always want to reuse State's exceptions, so they should call this one.
 throw :: (Monad m) => String -> CmdT m a
