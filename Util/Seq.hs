@@ -283,6 +283,16 @@ break_last [] = ([], Nothing)
 break_last [x] = ([], Just x)
 break_last (x:xs) = let (first, last) = break_last xs in (x:first, last)
 
+break_then :: (a -> Bool) -> ([a] -> ([a], rest)) -> [a] -> ([a], rest)
+break_then f cont (x:xs)
+    | f x = let (pre, post) = cont (x:xs) in (pre, post)
+    | otherwise = let (pre, post) = break_then f cont xs in (x:pre, post)
+break_then _ cont [] = cont []
+
+-- | Break right after the function returns True.
+break1 :: (a -> Bool) -> [a] -> ([a], [a])
+break1 f = break_then f (splitAt 1)
+
 -- | Split @xs@ before places where @f@ matches.
 --
 -- > split_with (==1) [1,2,1]

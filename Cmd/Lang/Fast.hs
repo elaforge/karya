@@ -3,6 +3,9 @@
 -- slow.  Shortcut a few common commands so they happen quickly.
 module Cmd.Lang.Fast where
 import qualified Data.Char as Char
+import qualified Util.Seq as Seq
+
+import qualified Ui.State as State
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
@@ -29,8 +32,7 @@ interpret toks = case toks of
             cmd $ LInst.load_instrument arg
 
         -- Make blocks and views.
-        ["Create.view", str] | Just arg <- val str ->
-            cmd $ Create.view (Global.bid arg)
+        ["Create.view", str] | Just arg <- val str -> cmd $ Create.view arg
 
         -- Misc.
         ["quit"] -> Just quit
@@ -46,10 +48,11 @@ interpret toks = case toks of
         _ -> Nothing
     where
     cmd c = Just (c >> return "")
-    val :: (Read a) => String -> Maybe a
-    val text = case reads text of
-        (val, "") : _ -> Just val
-        _ -> Nothing
+
+val :: (Read a) => String -> Maybe a
+val text = case reads text of
+    (val, "") : _ -> Just val
+    _ -> Nothing
 
 quit :: Cmd.CmdL String
 quit = return magic_quit_string
@@ -57,7 +60,6 @@ quit = return magic_quit_string
 -- | Hack so that language cmds can quit the app, since they return strings.
 magic_quit_string :: String
 magic_quit_string = "-- * YES, really quit * --"
-
 
 lex_all :: String -> Maybe [String]
 lex_all text
@@ -69,8 +71,14 @@ lex_all text
             return (tok : toks)
 
 -- | A version of 'lex' that understands qualified names.
+--
+-- It also lexes parenthesized text as a single token, but it doesn't count
+-- open parens so it doesn't work for nested ones.
 lex_dot :: String -> [(String, String)]
 lex_dot s = case lex s of
     [(tok1, '.':rest1)] ->
         [(tok1 ++ "." ++ tok2, rest2) | (tok2, rest2) <- lex_dot rest1]
+    [("(", rest)] ->
+        let (pre, post) = Seq.break1 (==')') rest
+        in [('(' : pre, post)]
     val -> val
