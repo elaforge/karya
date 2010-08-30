@@ -393,23 +393,26 @@ justm op1 op2 = maybe (return Nothing) op2 =<< op1
 -- ** tempo map
 
 -- | If a block is called in multiple places, a score time on it may occur
--- at multiple real times.  Pick the most appropriate one by looking at
--- the selection position on the root block: pick the first realtime that
--- occurs after the root block selection, or if there are none after, the
--- first one before it.
+-- at multiple real times.  Pick the real time from the given selection which
+-- is closest to the real time of the selection on the root block.
 --
--- TODO the name still sucks
-find_appropriate_time :: Transport.TempoFunction
-    -> Maybe Point -> Point -> RealTime
-find_appropriate_time tempo root_sel sel = case dropWhile (<root) realtimes of
-        rt : _ -> rt
-        [] -> Seq.mlast 0 id realtimes
+-- Return the first real time if there's no root or it doesn't have
+-- a selection.
+time_in_context :: Transport.TempoFunction -> Maybe Point -> Point -> RealTime
+time_in_context tempo root_sel sel = maybe 0 id (find_closest root realtimes)
     where
-    root = maybe 0 (Seq.mhead 0 id . sel_to_real tempo) root_sel
-    realtimes = sel_to_real tempo sel
+    -- Don't bother looking up the root sel if it's the same.
+    root = if root_sel == Just sel then 0
+        else maybe 0 (Seq.mhead 0 id . point_to_real tempo) root_sel
+    realtimes = point_to_real tempo sel
 
-sel_to_real :: Transport.TempoFunction -> Point -> [RealTime]
-sel_to_real tempo (block_id, _, track_id, pos) = tempo block_id track_id pos
+find_closest :: (Num a, Ord a) => a -> [a] -> Maybe a
+find_closest _ [] = Nothing
+find_closest _ [x] = Just x
+find_closest v xs = Just $ snd (minimum (zip (map (abs . subtract v) xs) xs))
+
+point_to_real :: Transport.TempoFunction -> Point -> [RealTime]
+point_to_real tempo (block_id, _, track_id, pos) = tempo block_id track_id pos
 
 -- ** select events
 

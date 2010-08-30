@@ -61,6 +61,12 @@ data State = State {
     -- save file is also derived from the project name.
     state_project :: Id.Namespace
     , state_project_dir :: String
+    -- | Derivation can start from any block, but it's useful to know which
+    -- block represents the entire piece.  This way, given a position on some
+    -- block I can determine where in the piece it lies, if anywhere.  This is
+    -- useful for playing a block in proper context, or communicating with
+    -- a program with a more absolute notion of time, like a DAW.
+    , state_root :: Maybe BlockId
     , state_views :: Map.Map ViewId Block.View
     , state_blocks :: Map.Map BlockId Block.Block
     -- | Track data also gets a symbol table.  This is so that I can
@@ -84,6 +90,7 @@ empty :: State
 empty = State {
     state_project = "untitled"
     , state_project_dir = "save"
+    , state_root = Nothing
     , state_views = Map.empty
     , state_blocks = Map.empty
     , state_tracks = Map.empty
@@ -401,6 +408,14 @@ set_project_scale scale_id = modify $ \st ->
 set_default_inst :: (UiStateMonad m) => Maybe Score.Instrument -> m ()
 set_default_inst inst = modify $ \st -> st { state_default_inst = inst }
 
+-- * root
+
+lookup_root_id :: (UiStateMonad m) => m (Maybe BlockId)
+lookup_root_id = gets state_root
+
+put_root_id :: (UiStateMonad m) => BlockId -> m ()
+put_root_id block_id = modify $ \st -> st { state_root = Just block_id }
+
 -- * view
 
 get_view :: (UiStateMonad m) => ViewId -> m Block.View
@@ -506,17 +521,26 @@ get_block block_id = get >>= lookup_id block_id . state_blocks
 lookup_block :: (UiStateMonad m) => BlockId -> m (Maybe Block.Block)
 lookup_block block_id = get >>= return . Map.lookup block_id . state_blocks
 
+-- | Make a new block.  If it's the first one, it will be set as the root.
 create_block :: (UiStateMonad m) => Id.Id -> Block.Block -> m BlockId
 create_block id block = get >>= insert (Types.BlockId id) block state_blocks
-    (\blocks st -> st { state_blocks = blocks })
+    (\blocks st -> st
+        { state_blocks = blocks
+        , state_root = if Map.size blocks == 1 then Just (Types.BlockId id)
+            else state_root st
+        })
 
--- | Destroy the block and all the views that display it.
--- Leaves its tracks intact.
+-- | Destroy the block and all the views that display it.  If the block was
+-- the root, it will be be unset.  The block's tracks are left intact.
 destroy_block :: (UiStateMonad m) => BlockId -> m ()
 destroy_block block_id = do
     views <- get_views_of block_id
     mapM_ destroy_view (Map.keys views)
-    modify $ \st -> st { state_blocks = Map.delete block_id (state_blocks st) }
+    modify $ \st -> st
+        { state_blocks = Map.delete block_id (state_blocks st)
+        , state_root = if state_root st == Just block_id then Nothing
+            else state_root st
+        }
 
 block_of_view :: (UiStateMonad m) => ViewId -> m Block.Block
 block_of_view view_id = get_block . Block.view_block =<< get_view view_id

@@ -45,6 +45,11 @@ interpret toks = case toks of
             Just $ Global.show_views arg
         ["show_blocks", str] | Just arg <- val str ->
             Just $ Global.show_blocks arg
+
+        -- State
+        ["State.lookup_root_id"] -> Just $ fmap show State.lookup_root_id
+        ["State.put_root_id", str] | Just arg <- val str ->
+            cmd $ State.put_root_id arg
         _ -> Nothing
     where
     cmd c = Just (c >> return "")

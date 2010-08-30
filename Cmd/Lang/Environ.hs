@@ -46,6 +46,7 @@ import qualified Cmd.TimeStep as TimeStep
 import qualified Cmd.Lang.LPitch as LPitch
 import qualified Cmd.Lang.LInst as LInst
 
+import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
 import qualified Derive.Schema as Schema
 import qualified Perform.Pitch as Pitch

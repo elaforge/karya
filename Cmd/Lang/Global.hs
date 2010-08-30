@@ -64,7 +64,6 @@ import qualified Cmd.Lang.LPitch ()
 import qualified Cmd.Lang.LInst as LInst
 
 import qualified Derive.Derive as Derive
-import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 
 import qualified Perform.Midi.Convert as Midi.Convert
@@ -153,12 +152,12 @@ tid = Types.TrackId . Id.read_id
 
 show_state :: Cmd.CmdL String
 show_state = do
-    (State.State project dir views blocks tracks rulers _midi_conf proj_scale
-        default_inst) <- State.get
+    (State.State project dir root views blocks tracks rulers _midi_conf
+        proj_scale default_inst) <- State.get
     -- midi config showed by show_midi_config
     let f fm = show_list (map show (Map.keys fm))
     return $ show_record
-        [ ("project", project), ("dir", dir)
+        [ ("project", project), ("dir", dir) , ("root", show root)
         , ("views", f views), ("blocks", f blocks)
         , ("tracks", f tracks), ("rulers", f rulers)
         , ("scale", show proj_scale)
@@ -283,10 +282,6 @@ show_events track_id start end = do
     return $ (map Simple.event
         . Track.events_in_range start end . Track.track_events) track
 
-set_render_style :: Track.RenderStyle -> TrackId -> Cmd.CmdL ()
-set_render_style style track_id = State.modify_track_render track_id $
-    \render -> render { Track.render_style = style }
-
 -- | Insert a track that already exists.
 insert_track :: TrackId -> TrackNum -> Cmd.CmdL ()
 insert_track track_id tracknum = do
@@ -371,6 +366,30 @@ replace_ruler ruler_id block_id = do
     map_head_tail _ _ [] = []
     map_head_tail f g (x:xs) = f x : map g xs
     set_r ruler_id track = Block.modify_id track (Block.set_rid ruler_id)
+
+-- * time
+
+-- | Get the real time of the focused selection in the context of the root
+-- block, along with all the possible positions.
+selection_in_context :: Cmd.CmdL (RealTime, [RealTime])
+selection_in_context = do
+    focused_sel <- Selection.get_insert
+    root_id <- Cmd.require =<< State.lookup_root_id
+    maybe_root_sel <- Selection.lookup_block_insert root_id
+    tempo <- Cmd.perf_tempo <$> Cmd.get_performance root_id
+    return (Selection.time_in_context tempo maybe_root_sel focused_sel,
+        Selection.point_to_real tempo focused_sel)
+
+score_to_real :: BlockId -> TrackId -> ScoreTime -> Cmd.CmdL [RealTime]
+score_to_real block_id track_id pos = do
+    perf <- Cmd.get_performance block_id
+    return $ Cmd.perf_tempo perf block_id track_id pos
+
+sel_to_real :: Cmd.CmdL [RealTime]
+sel_to_real = do
+    sel@(block_id, _, _, _) <- Selection.get_insert
+    perf <- Cmd.get_performance block_id
+    return $ Selection.point_to_real (Cmd.perf_tempo perf) sel
 
 -- * show / modify keymap
 

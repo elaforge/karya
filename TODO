@@ -33,7 +33,7 @@ CURRENT
   - after creating a new track, focus should go to its title
   - put a multiplier on play's timestamps to implement a play speed control
   - spline curve interpolator: evoral/Curve.cpp, www.korf.co.uk/spline.pdf
-  - need a concept of a "root" block.  This block is used for:
+  * need a concept of a "root" block.  This block is used for:
     - calculating absolute time offset e.g. if a DAW wants to seek to a point
     - ability to start playing from n seconds back from the current position on
       the root block as inferred from the current position in a sub block.
@@ -41,6 +41,9 @@ CURRENT
       particular invocation of the sub-block is meant.
     - Maybe if I know which invocation, I can figure out the environment so
       that I can know current scale and inst?
+    - include root block in set_global_status, but I should do this from an
+      always-run post cmd to avoid a separate Cmd.put_root_id.  Can I apply
+      this to other State attrs too?
   midi performer next event dep:
     - for now, just don't bother getting it right for cached perf
     - change controls to be just like pitch: clip at event start and next event

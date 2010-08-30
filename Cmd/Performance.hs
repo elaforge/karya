@@ -48,6 +48,8 @@ derive_wait_focused = 1
 
 type SendStatus = BlockId -> Msg.DeriveStatus -> IO ()
 
+type PerfInfo = (SendStatus, Maybe BlockId, Maybe Selection.Point)
+
 -- | Update 'Cmd.state_performance_threads'.  This means applying any new
 -- ScoreDamage to them, halting performance of blocks which have changed, and
 -- starting a performance for the focused block.
@@ -62,8 +64,11 @@ update_performance send_status ui_from ui_to cmd_state updates = do
         kill_obsolete_threads damage
         insert_score_damage damage
         sel <- Selection.lookup_insert
-        regenerate_performance send_status sel =<< Cmd.lookup_focused_block
-        when_just sel update_selection_pos
+        focused <- Cmd.lookup_focused_block
+        let perf_info = (send_status, State.state_root ui_to, sel)
+        when_just focused (regenerate_performance perf_info)
+        when_just (State.state_root ui_to) (regenerate_performance perf_info)
+        when_just sel (update_selection_pos (State.state_root ui_to))
         return Cmd.Done
     mapM_ Log.write logs
     case result of
@@ -96,13 +101,11 @@ insert_score_damage damage = Cmd.modify_state $ \st ->
 
 -- * performance evaluation
 
-regenerate_performance :: SendStatus -> Maybe Selection.Point -> Maybe BlockId
-    -> Cmd.CmdT IO ()
-regenerate_performance _ _ Nothing = return ()
-regenerate_performance send_status sel (Just block_id) = do
+regenerate_performance :: PerfInfo -> BlockId -> Cmd.CmdT IO ()
+regenerate_performance perf_info block_id = do
     threads <- Cmd.gets Cmd.state_performance_threads
     if needs_regeneration threads block_id
-        then generate_performance send_status sel block_id
+        then generate_performance perf_info block_id
         else return ()
 
 -- | A block should be rederived only if the it doesn't already have
@@ -111,6 +114,9 @@ needs_regeneration :: Map.Map BlockId Cmd.PerformanceThread -> BlockId -> Bool
 needs_regeneration threads block_id = case Map.lookup block_id threads of
     Nothing -> True
     Just pthread ->
+        -- It could be this damage is on a parent block and hence not
+        -- relevant to this one.  But in that case it should hit the caches
+        -- and be cheap all the same.
         Cmd.perf_score_damage (Cmd.pthread_perf pthread) /= Monoid.mempty
 
 -- | Start a new performance thread.
@@ -118,10 +124,9 @@ needs_regeneration threads block_id = case Map.lookup block_id threads of
 -- Pull previous caches from the existing performance, if any.  Use them to
 -- generate a new performance, kick off a thread for it, and insert the new
 -- PerformanceThread.
-generate_performance :: SendStatus -> Maybe Selection.Point -> BlockId
-    -> Cmd.CmdT IO ()
-generate_performance send_status sel block_id = do
-    old_thread <- fmap Cmd.pthread_id <$> PlayUtil.lookup_performance block_id
+generate_performance :: PerfInfo -> BlockId -> Cmd.CmdT IO ()
+generate_performance (send_status, root_id, sel) block_id = do
+    old_thread <- fmap Cmd.pthread_id <$> Cmd.lookup_pthread block_id
     when_just old_thread (Trans.liftIO . Concurrent.killThread)
     maybe_perf <- (Just <$>
         (PlayUtil.cached_perform block_id =<< PlayUtil.cached_derive block_id))
@@ -132,8 +137,9 @@ generate_performance send_status sel block_id = do
     case maybe_perf of
         Nothing -> Trans.liftIO $ send_status block_id Msg.DeriveFailed
         Just perf -> do
-            root_sel <- Selection.lookup_block_insert block_id
-            let cur = maybe 0 (Selection.find_appropriate_time
+            root_sel <- maybe (return Nothing) (Selection.lookup_block_insert)
+                root_id
+            let cur = maybe 0 (Selection.time_in_context
                     (Cmd.perf_tempo perf) root_sel) sel
             selection_pos <- Trans.liftIO $ IORef.newIORef cur
             th <- Trans.liftIO $
@@ -147,45 +153,48 @@ generate_performance send_status sel block_id = do
 evaluate_performance :: SendStatus -> Cmd.SelectionPosition -> BlockId
     -> Cmd.Performance -> IO ()
 evaluate_performance send_status selection_pos block_id perf = do
+    let prefix = "deriving " ++ show block_id ++ ": "
     send_status block_id Msg.Deriving
     Thread.delay derive_wait_focused
     send_status block_id Msg.StartedDeriving
     -- Force the performance to actually be evaluated.  Writing out the logs
     -- should do it.
-    let prefix = Text.append (Text.pack ("deriving " ++ show block_id ++ ": "))
-    let logs = map (\log -> log { Log.msg_text = prefix (Log.msg_text log) })
+    let text_prefix = Text.append (Text.pack prefix)
+    let logs = map
+            (\log -> log { Log.msg_text = text_prefix (Log.msg_text log) })
             (Cmd.perf_logs perf)
     mapM_ Log.write logs
     send_status block_id (Msg.DeriveComplete (Cmd.perf_track_signals perf))
     let cache = Cmd.perf_midi_cache perf
-    evaluate_midi cache selection_pos False 0 (Midi.Cache.cache_chunks cache)
+    evaluate_midi prefix cache selection_pos False 0
+        (Midi.Cache.cache_chunks cache)
 
-evaluate_midi :: Midi.Cache.Cache -> Cmd.SelectionPosition -> Bool -> RealTime
-    -> Midi.Cache.Chunks -> IO ()
-evaluate_midi cache _ logged_stats _ [] = when (not logged_stats) $
-    log_stats Nothing cache
-evaluate_midi cache selection_pos logged_stats eval_pos chunks = do
+evaluate_midi :: String -> Midi.Cache.Cache -> Cmd.SelectionPosition -> Bool
+    -> RealTime -> Midi.Cache.Chunks -> IO ()
+evaluate_midi prefix cache _ logged_stats _ [] = when (not logged_stats) $
+    log_stats prefix Nothing cache
+evaluate_midi prefix cache selection_pos logged_stats eval_pos chunks = do
     pos <- Cmd.read_selection selection_pos
     let eval_until = max pos eval_pos
     when (pos > eval_pos) $
-        Log.notice $ "jumping forward to cursor: " ++ show pos
+        Log.notice $ prefix ++ "jumping forward to cursor: " ++ show pos
     let (pre, post) = break ((>=eval_until) . chunk_time) chunks
     splice_failed <- any id <$> mapM evaluate_chunk pre
     when (not logged_stats && splice_failed) $
-        log_stats (Just eval_until) cache
-    -- Log.notice $ "eval until " ++ Pretty.pretty eval_pos
+        log_stats prefix (Just eval_until) cache
+    -- Log.notice $ prefix ++ "eval until " ++ Pretty.pretty eval_pos
     -- The delay here should be long enough to go easy on the GC but short
     -- enough to have a good chance of having already evaluated the output
     -- before the user hits "play".
     -- TODO skip the delay for cached chunks
     when (not (null post)) $
         Thread.delay 0.5
-    evaluate_midi cache selection_pos (logged_stats || splice_failed)
+    evaluate_midi prefix cache selection_pos (logged_stats || splice_failed)
         (eval_until + Midi.Cache.cache_chunk_size) post
 
-log_stats :: Maybe RealTime -> Midi.Cache.Cache -> IO ()
-log_stats splice_failed cache =
-    Log.notice $ "midi cached/reperformed: " ++ Pretty.pretty cached
+log_stats :: String -> Maybe RealTime -> Midi.Cache.Cache -> IO ()
+log_stats prefix splice_failed cache =
+    Log.notice $ prefix ++ "midi cached/reperformed: " ++ Pretty.pretty cached
         ++ "/" ++ Pretty.pretty reperformed
         ++ maybe " (splice succeeded)"
             (\p -> " (splice failed around " ++ Pretty.pretty p ++ ")")
@@ -212,15 +221,16 @@ evaluate_chunk chunk =
 
 -- * selection
 
-update_selection_pos :: Selection.Point -> Cmd.CmdT IO ()
-update_selection_pos focused_sel = do
+update_selection_pos :: Maybe BlockId -> Selection.Point -> Cmd.CmdT IO ()
+update_selection_pos root_id focused_sel = do
     -- for the selection in the focused block, find out what RealTime that
     -- means to each block_id in the performances, and send that
     threads <- Cmd.gets Cmd.state_performance_threads
-    forM_ (Map.assocs threads) $ \(block_id, pthread) -> do
+    forM_ (Map.elems threads) $ \pthread -> do
         let perf = Cmd.pthread_perf pthread
-        root_sel <- Selection.lookup_block_insert block_id
-        let pos = Selection.find_appropriate_time (Cmd.perf_tempo perf)
+        root_sel <- maybe (return Nothing) (Selection.lookup_block_insert)
+            root_id
+        let pos = Selection.time_in_context (Cmd.perf_tempo perf)
                 root_sel focused_sel
         Trans.liftIO $ Cmd.write_selection pos
             (Cmd.pthread_selection pthread)

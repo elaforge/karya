@@ -116,23 +116,12 @@ instance Binary SaveState where
             _ -> version_error "SaveState" v
 
 instance Binary State.State where
-    put (State.State a b c d e f g h i) = put_version 3
+    put (State.State a b c d e f g h i j) = put_version 4
         >> put a >> put b >> put c >> put d >> put e >> put f >> put g >> put h
-        >> put i
+        >> put i >> put j
     get = do
         v <- get_version
         case v of
-            2 -> do
-                proj <- get :: Get String
-                dir <- get :: Get String
-                views <- get :: Get (Map.Map Types.ViewId Block.View)
-                blocks <- get :: Get (Map.Map Types.BlockId Block.Block)
-                tracks <- get :: Get (Map.Map Types.TrackId Track.Track)
-                rulers <- get :: Get (Map.Map Types.RulerId Ruler.Ruler)
-                midi_config <- get :: Get Instrument.Config
-                project_scale <- get :: Get Pitch.ScaleId
-                return $ State.State proj dir views blocks tracks rulers
-                    midi_config project_scale Nothing
             3 -> do
                 proj <- get :: Get String
                 dir <- get :: Get String
@@ -143,7 +132,20 @@ instance Binary State.State where
                 midi_config <- get :: Get Instrument.Config
                 project_scale <- get :: Get Pitch.ScaleId
                 default_inst <- get :: Get (Maybe Score.Instrument)
-                return $ State.State proj dir views blocks tracks rulers
+                return $ State.State proj dir Nothing views blocks tracks
+                    rulers midi_config project_scale default_inst
+            4 -> do
+                proj <- get :: Get String
+                dir <- get :: Get String
+                root <- get :: Get (Maybe BlockId)
+                views <- get :: Get (Map.Map Types.ViewId Block.View)
+                blocks <- get :: Get (Map.Map Types.BlockId Block.Block)
+                tracks <- get :: Get (Map.Map Types.TrackId Track.Track)
+                rulers <- get :: Get (Map.Map Types.RulerId Ruler.Ruler)
+                midi_config <- get :: Get Instrument.Config
+                project_scale <- get :: Get Pitch.ScaleId
+                default_inst <- get :: Get (Maybe Score.Instrument)
+                return $ State.State proj dir root views blocks tracks rulers
                     midi_config project_scale default_inst
             _ -> version_error "State.State" v
 

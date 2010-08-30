@@ -43,7 +43,7 @@ initial_environ = Map.fromList
 cached_derive :: (Monad m) =>
     BlockId -> Cmd.CmdT m (Derive.Result [Score.Event])
 cached_derive block_id = do
-    (cache, damage) <- get_derive_cache <$> lookup_performance block_id
+    (cache, damage) <- get_derive_cache <$> Cmd.lookup_performance block_id
     derive cache damage block_id
 
 uncached_derive :: (Monad m) =>
@@ -56,7 +56,7 @@ cached_perform block_id result = do
     midi_config <- State.get_midi_config
     lookup_inst <- Cmd.get_lookup_midi_instrument
     midi_cache <- get_midi_cache lookup_inst midi_config <$>
-        lookup_performance block_id
+        Cmd.lookup_performance block_id
     perform result midi_cache
 
 uncached_perform :: (Monad m) => Derive.Result Derive.Events
@@ -124,26 +124,19 @@ perform result cache = do
 -- instrument config /can/ be compared, so I just compare on play, and clear
 -- the cache if it's changed.
 get_midi_cache :: MidiDb.LookupMidiInstrument -> Instrument.Config
-    -> Maybe Cmd.PerformanceThread -> Midi.Cache.Cache
-get_midi_cache lookup_inst config maybe_pthread = case maybe_pthread of
+    -> Maybe Cmd.Performance -> Midi.Cache.Cache
+get_midi_cache lookup_inst config maybe_perf = case maybe_perf of
     Nothing -> empty
-    Just pthread ->
-        let cache = Cmd.perf_midi_cache (Cmd.pthread_perf pthread)
+    Just perf ->
+        let cache = Cmd.perf_midi_cache perf
         in if config == Midi.Cache.cache_config cache then cache else empty
     where
     empty = Midi.Cache.cache lookup_inst config
 
-get_derive_cache :: Maybe Cmd.PerformanceThread
-    -> (Derive.Cache, Derive.ScoreDamage)
+get_derive_cache :: Maybe Cmd.Performance -> (Derive.Cache, Derive.ScoreDamage)
 get_derive_cache Nothing = (Derive.empty_cache, Monoid.mempty)
-get_derive_cache (Just pthread) =
+get_derive_cache (Just perf) =
     (Cmd.perf_derive_cache perf, Cmd.perf_score_damage perf)
-    where perf = Cmd.pthread_perf pthread
-
-lookup_performance :: (Monad m) =>
-    BlockId -> Cmd.CmdT m (Maybe Cmd.PerformanceThread)
-lookup_performance block_id =
-    Map.lookup block_id <$> Cmd.gets Cmd.state_performance_threads
 
 -- | Convert a Warning into an appropriate log msg.
 warn_to_log :: String -> Warning.Warning -> Log.Msg

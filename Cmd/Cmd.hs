@@ -12,6 +12,7 @@ import qualified Data.Generics as Generics
 import qualified Data.IORef as IORef
 import qualified Data.Map as Map
 
+import Util.Control
 import qualified Util.Logger as Logger
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
@@ -411,6 +412,16 @@ put_state st = (CmdT . lift) (MonadState.put st)
 
 modify_state :: (Monad m) => (State -> State) -> CmdT m ()
 modify_state f = (CmdT . lift) (MonadState.modify f)
+
+
+lookup_pthread :: (Monad m) => BlockId -> CmdT m (Maybe PerformanceThread)
+lookup_pthread block_id = Map.lookup block_id <$> gets state_performance_threads
+
+lookup_performance :: (Monad m) => BlockId -> CmdT m (Maybe Performance)
+lookup_performance block_id = fmap (fmap pthread_perf) (lookup_pthread block_id)
+
+get_performance :: (Monad m) => BlockId -> CmdT m Performance
+get_performance block_id = require =<< lookup_performance block_id
 
 -- | Keys currently held down, as in 'state_keys_down'.
 keys_down :: (Monad m) => CmdT m (Map.Map Modifier Modifier)
