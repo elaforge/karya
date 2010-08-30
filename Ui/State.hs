@@ -913,6 +913,11 @@ modify_track_render :: (UiStateMonad m) => TrackId
 modify_track_render track_id f = _modify_track track_id $ \track ->
     track { Track.track_render = f (Track.track_render track) }
 
+set_render_style :: (UiStateMonad m) => Track.RenderStyle -> TrackId
+    -> m ()
+set_render_style style track_id = modify_track_render track_id $
+    \render -> render { Track.render_style = style }
+
 modify_track_events :: (UiStateMonad m) => TrackId
     -> (Track.TrackEvents -> Track.TrackEvents) -> m ()
 modify_track_events track_id f = do

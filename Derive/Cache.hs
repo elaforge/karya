@@ -91,11 +91,11 @@ cached_transformer cache stack (Derive.TransformerCall call ttype)
                 let new_cache = put_transformer_cache stack derived cache
                 return (Right (return derived), Just new_cache)
 
--- | Get the deps of the last evaluated call.  See 'Derive.state_local_dep'
+-- | Get the deps of the last evaluated call.  See 'Derive.collect_local_dep'
 -- for details.
 get_recorded_tdep :: Derive.Deriver TransformerDep
 get_recorded_tdep = undefined
-    -- gdep <- state_local_dep <$> Derive.get_cache_state
+    -- gdep <- collect_local_dep <$> Derive.get_cache_state
     -- return $ TransformerDep (gdep_controls gdep)
 
 lookup_transformer :: (Derive.Derived derived) =>
@@ -166,20 +166,19 @@ cached_generator state stack (Derive.GeneratorCall func gtype) args =
                 (EventDamage (Derive.derived_range derived))
             return (Right (return derived), Nothing)
     non_caching False = return (func args, Nothing)
-    generate (Right (gdep, cached)) = do
+    generate (Right (collect, cached)) = do
         Derive.debug $ "using cache (" ++ show (Derive.derived_length cached)
             ++ " vals)"
-        -- The cached deriver still has the same deps as it would if it had
+        -- The cached deriver still has the same collect as it would if it had
         -- been actually derived.
-        Derive.modify_cache_state $ \st -> st { Derive.state_local_dep =
-            Monoid.mappend gdep (Derive.state_local_dep st) }
+        Derive.modify_collect $ \st -> Monoid.mappend collect st
         return (Right (return cached), Nothing)
     generate (Left reason) = case func args of
         Left err -> return (Left err, Nothing)
         Right deriver -> do
-            (derived, local_dep) <- with_local_dep deriver
+            (derived, collect) <- with_collect deriver
             cur_cache <- state_cache <$> Derive.get_cache_state
-            let new_cache = insert_generator stack local_dep derived cur_cache
+            let new_cache = insert_generator stack collect derived cur_cache
             Derive.debug $ "rederived generator ("
                 ++ show (Derive.derived_length derived) ++ " vals) because of "
                 ++ reason
@@ -188,17 +187,17 @@ cached_generator state stack (Derive.GeneratorCall func gtype) args =
     -- To get the deps of just the deriver below me, I have to clear out
     -- the local deps.  But this call is itself collecting deps for another
     -- call, so I have to merge the sub-deps back in before returning.
-    with_local_dep deriver = do
-        (derived, local_dep) <- Derive.with_local_dep $ do
+    with_collect deriver = do
+        (derived, collect) <- Derive.with_empty_collect $ do
             derived <- deriver
             -- It's essential that the evaluation happens above.  Not only do
-            -- I need the derived to cache, I need it to put control deps in
-            -- the cache so I can compute the new deps.
-            local_dep <- state_local_dep <$> Derive.get_cache_state
-            return (derived, local_dep)
-        Derive.modify_cache_state $ \st -> st { Derive.state_local_dep =
-            Monoid.mappend local_dep (Derive.state_local_dep st) }
-        return (derived, local_dep)
+            -- I need the derived to cache, I need it to stick stuff in
+            -- Collect.
+            collect <- Derive.gets Derive.state_collect
+            return (derived, collect)
+        Derive.modify $ \st -> st { Derive.state_collect =
+            Monoid.mappend collect (Derive.state_collect st) }
+        return (derived, collect)
 
 -- | Figure out if this event lies within damaged range, whether score or
 -- control.
@@ -238,32 +237,33 @@ has_damage state stack args
 
 find_generator_cache :: (Derive.Derived derived) =>
     Stack.Stack -> Ranges.Ranges RealTime -> ScoreDamage -> ControlDamage
-    -> Cache -> Either String (GeneratorDep, derived)
+    -> Cache -> Either String (Derive.Collect, derived)
 find_generator_cache stack event_range (ScoreDamage _ damaged_blocks _)
         (ControlDamage control_damage) cache = do
-    (gdep@(GeneratorDep block_deps), cached) <-
-        maybe (Left "not in cache") Right (lookup_generator stack cache)
+    (collect, derived) <- maybe (Left "not in cache") Right
+        (lookup_generator stack cache)
+    let Derive.GeneratorDep block_deps = Derive.collect_local_dep collect
     unless (Set.null (Set.intersection damaged_blocks block_deps)) $
         Left "sub-block damage"
     when (Ranges.overlapping control_damage event_range) $
         Left "control damage"
-    return (gdep, cached)
+    return (collect, derived)
 
 lookup_generator :: (Derive.Derived derived) =>
-    Stack.Stack -> Cache -> Maybe (GeneratorDep, derived)
+    Stack.Stack -> Cache -> Maybe (Derive.Collect, derived)
 lookup_generator stack cache = do
     ctype <- lookup_cache stack cache
     case ctype of
-        CachedGenerator dep derived -> Just (dep, derived)
+        CachedGenerator collect derived -> Just (collect, derived)
         _ -> Nothing
 
 insert_generator :: (Derive.Derived derived) =>
-    Stack.Stack -> GeneratorDep -> derived -> Cache -> Cache
-insert_generator stack dep derived (Cache cache) =
+    Stack.Stack -> Derive.Collect -> derived -> Cache -> Cache
+insert_generator stack collect derived (Cache cache) =
     Cache $ Map.insert stack entry cache
     where
     -- TODO clear out other bits of cache that this overlaps with
-    entry = Derive.to_cache_entry (CachedGenerator dep derived)
+    entry = Derive.to_cache_entry (CachedGenerator collect derived)
 
 -- * types
 

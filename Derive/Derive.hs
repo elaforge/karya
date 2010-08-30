@@ -204,12 +204,7 @@ data State = State {
     -- than position on the score.
     , state_log_context :: ![String]
 
-    -- | Remember the warp signal for each track.  A warp usually a applies to
-    -- a set of tracks, so remembering them together will make the updater more
-    -- efficient when it inverts them to get playback position.
-    , state_track_warps :: [TrackWarp]
-    , state_track_signals :: Track.TrackSignals
-
+    , state_collect :: Collect
     , state_cache_state :: CacheState
 
     -- | Constant throughout the derivation.  Used to look up tracks and
@@ -239,9 +234,7 @@ initial_state cache ui_state score_damage lookup_deriver calls environ
     , state_stack = Stack.empty
     , state_log_context = []
 
-    , state_track_warps = []
-    , state_track_signals = Map.empty
-
+    , state_collect = Monoid.mempty
     , state_cache_state = initial_cache_state cache score_damage
 
     , state_ui = ui_state
@@ -260,6 +253,31 @@ initial_controls = Map.fromList
 -- | See 'Perform.Midi.Perform.default_velocity' for 0.79.
 default_velocity :: Signal.Y
 default_velocity = 0.79
+
+-- | These are things that collect throughout derivation, and are cached in
+-- addition to the derived values.  Effectively they are return values
+-- alongside the values.
+--
+-- 'state_local_damage' also collects, but isn't recorded by the cache since
+-- by definition a cached call returns no damage.
+data Collect = Collect {
+    -- | Remember the warp signal for each track.  A warp usually a applies to
+    -- a set of tracks, so remembering them together will make the updater more
+    -- efficient when it inverts them to get playback position.
+    collect_track_warps :: [TrackWarp]
+    , collect_track_signals :: Track.TrackSignals
+    -- | Similar to 'state_local_damage', this is how a call records its
+    -- dependencies.  After evaluation of a deriver, this will contain the
+    -- dependencies of the most recent call.
+    , collect_local_dep :: LocalDep
+    } deriving (Eq, Show)
+
+instance Monoid.Monoid Collect where
+    mempty = Collect Monoid.mempty Monoid.mempty Monoid.mempty
+    mappend (Collect warps1 signals1 deps1) (Collect warps2 signals2 deps2) =
+        Collect (Monoid.mappend warps1 warps2)
+            (Monoid.mappend signals1 signals2)
+            (Monoid.mappend deps1 deps2)
 
 data CacheState = CacheState {
     state_cache :: Cache -- modified
@@ -283,16 +301,6 @@ data CacheState = CacheState {
     --
     -- So yes, this is implicitly returning a value by modifying a global.
     , state_local_damage :: EventDamage
-
-    -- | Similar to 'state_local_damage', this is how a call records its
-    -- dependencies.  After evaluation of a deriver, this will contain the
-    -- dependencies of the most recent call.  Furthermore, the type is wrong
-    -- since this is also how transformers record their deps, but fortunately
-    -- 'GeneratorDep' is a superset of 'TransformerDep'.  In addition, I can't
-    -- record the 'gdep_prev_val' without making CacheState polymorphic, but
-    -- 'Cache.cached_generator' already knows what the prev val was, so this
-    -- only needs to record whether or not the call looked at the prev val.
-    , state_local_dep :: LocalDep
     } deriving (Show)
 
 empty_cache_state :: CacheState
@@ -302,7 +310,6 @@ empty_cache_state = CacheState {
     , state_score_damage = Monoid.mempty
     , state_control_damage = ControlDamage Monoid.mempty
     , state_local_damage = EventDamage Monoid.mempty
-    , state_local_dep = Monoid.mempty
     }
 
 initial_cache_state :: Cache -> ScoreDamage -> CacheState
@@ -311,7 +318,7 @@ initial_cache_state cache score_damage = empty_cache_state {
     , state_score_damage = score_damage
     }
 
--- | Hack, see 'state_local_dep'.
+-- | Hack, see 'collect_local_dep'.
 type LocalDep = GeneratorDep
 
 -- ** calls
@@ -511,7 +518,7 @@ data TrackWarp = TrackWarp {
     , tw_block :: BlockId
     , tw_tracks :: [TrackId]
     , tw_warp :: Score.Warp
-    } deriving (Show)
+    } deriving (Eq, Show)
 
 data DeriveError = DeriveError SrcPos.SrcPos Stack.Stack String
     deriving (Eq)
@@ -552,13 +559,14 @@ derive cache damage lookup_deriver ui_state calls environ ignore_tempo
         deriver =
     Result result (state_cache (state_cache_state state))
         (state_event_damage (state_cache_state state))
-        tempo_func inv_tempo_func (state_track_signals state) logs state
+        tempo_func inv_tempo_func (collect_track_signals (state_collect state))
+        logs state
     where
     (result, state, logs) = Identity.runIdentity $ run
         (initial_state clean_cache ui_state damage
         lookup_deriver calls environ ignore_tempo) deriver
     clean_cache = clear_damage damage cache
-    track_warps = state_track_warps state
+    track_warps = collect_track_warps (state_collect state)
     tempo_func = make_tempo_func track_warps
     inv_tempo_func = make_inverse_tempo_func track_warps
 
@@ -643,7 +651,7 @@ gets :: (Monad m) => (State -> a) -> DeriveT m a
 gets f = fmap f get
 
 -- | This is a little different from Reader.local because only a portion of
--- the state is used Reader-style, i.e. 'state_track_warps' always collects.
+-- the state is used Reader-style, i.e. 'collect_track_warps' always collects.
 -- TODO split State into dynamically scoped portion and use Reader for that.
 local :: (Monad m) => (State -> b) -> (b -> State -> State)
     -> (State -> DeriveT m State) -> DeriveT m a -> DeriveT m a
@@ -666,6 +674,11 @@ get_scale caller scale_id = do
         else return scale_id
     maybe (throw (caller ++ ": unknown " ++ show scale_id)) return
         (Map.lookup scale_id Scale.scale_map)
+
+-- ** collect
+
+modify_collect :: (Monad m) => (Collect -> Collect) -> DeriveT m ()
+modify_collect f = modify $ \st -> st { state_collect = f (state_collect st) }
 
 -- ** cache
 
@@ -731,15 +744,20 @@ with_control_damage (EventDamage damage) = local_cache_state
     insert (ControlDamage ranges) = ControlDamage (Monoid.mappend ranges damage)
 
 add_block_dep :: BlockId -> Deriver ()
-add_block_dep block_id = modify_cache_state $ \st ->
-    st { state_local_dep = insert (state_local_dep st) }
+add_block_dep block_id = modify_collect $ \st ->
+    st { collect_local_dep = insert (collect_local_dep st) }
     where
     insert (GeneratorDep blocks) = GeneratorDep (Set.insert block_id blocks)
 
-with_local_dep :: Deriver a -> Deriver a
-with_local_dep = local_cache_state
-    state_local_dep (\old st -> st { state_local_dep = old })
-    (\st -> st { state_local_dep = Monoid.mempty })
+-- | Both track warps and local deps are used as dynamic return values (aka
+-- modifying a variable to \"return\" something).  When evaluating a cached
+-- generator, the caller wants to know the callee's track warps and local deps,
+-- without getting them mixed up with its own warps and deps.  So run a deriver
+-- in an empty environment, and restore it afterwards.
+with_empty_collect :: Deriver a -> Deriver a
+with_empty_collect = local state_collect
+    (\old st -> st { state_collect = old })
+    (\st -> return $ st { state_collect = Monoid.mempty })
 
 local_cache_state :: (CacheState -> st) -> (st -> CacheState -> CacheState)
     -> (CacheState -> CacheState)
@@ -1062,14 +1080,14 @@ with_stack frame = local
 add_track_warp :: (Monad m) => TrackId -> DeriveT m ()
 add_track_warp track_id = do
     block_id <- get_current_block_id
-    track_warps <- gets state_track_warps
+    track_warps <- gets (collect_track_warps . state_collect)
     case track_warps of
             -- This happens if the initial block doesn't have a tempo track.
         [] -> start_new_warp >> add_track_warp track_id
         (tw:tws)
             | tw_block tw == block_id -> do
                 let new_tws = tw { tw_tracks = track_id : tw_tracks tw } : tws
-                modify $ \st -> st { state_track_warps = new_tws }
+                modify_collect $ \st -> st { collect_track_warps = new_tws }
             -- start_new_warp wasn't called, either by accident or because
             -- this block doesn't have a tempo track.
             | otherwise -> start_new_warp >> add_track_warp track_id
@@ -1081,14 +1099,15 @@ add_track_warp track_id = do
 start_new_warp :: (Monad m) => DeriveT m ()
 start_new_warp = do
     block_id <- get_current_block_id
-    start <- score_to_real (ScoreTime 0)
+    start <- now
     ui_state <- gets state_ui
     let time_end = either (const (ScoreTime 0)) id $
             State.eval ui_state (State.event_end block_id)
     end <- score_to_real time_end
-    modify $ \st ->
-        let tw = TrackWarp start end block_id [] (state_warp st)
-        in st { state_track_warps = tw : state_track_warps st }
+    warp <- gets state_warp
+    modify_collect $ \st ->
+        let tw = TrackWarp start end block_id [] warp
+        in st { collect_track_warps = tw : collect_track_warps st }
 
 -- * basic derivers
 
@@ -1413,7 +1432,7 @@ data CacheEntry =
 
 -- | The type here should match the type of the stack it's associated with,
 -- but I'm not quite up to those type gymnastics yet.
-data CallType derived = CachedGenerator GeneratorDep derived
+data CallType derived = CachedGenerator Collect derived
     deriving (Show)
 
 -- ** deps

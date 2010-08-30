@@ -252,6 +252,6 @@ linear_tempo = do
         else Nothing
 
 put_track_signal :: TrackId -> Track.TrackSignal -> Derive.Deriver ()
-put_track_signal track_id tsig = Derive.modify $ \st ->
-    st { Derive.state_track_signals =
-        Map.insert track_id tsig (Derive.state_track_signals st) }
+put_track_signal track_id tsig = Derive.modify_collect $ \st ->
+    st { Derive.collect_track_signals =
+        Map.insert track_id tsig (Derive.collect_track_signals st) }

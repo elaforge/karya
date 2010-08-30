@@ -33,10 +33,10 @@ CURRENT
   - after creating a new track, focus should go to its title
   - put a multiplier on play's timestamps to implement a play speed control
   - spline curve interpolator: evoral/Curve.cpp, www.korf.co.uk/spline.pdf
-  - need a concept of a "toplevel" block.  This block is used for:
+  - need a concept of a "root" block.  This block is used for:
     - calculating absolute time offset e.g. if a DAW wants to seek to a point
     - ability to start playing from n seconds back from the current position on
-      the toplevel block as inferred from the current position in a sub block.
+      the root block as inferred from the current position in a sub block.
       I can look at selection position on the parent blocks to know which
       particular invocation of the sub-block is meant.
     - Maybe if I know which invocation, I can figure out the environment so
@@ -59,8 +59,6 @@ CURRENT
   - seeking to play in a certain place will miss any controller initialization
     but I could get that back by having Cache.messages_from inspect postproc
     state to get the control state
-  - I can't put Derive.DeriveT in Applicative because ErrorT e is not in
-    Applicative?  What's up with that?
   - replace Call.place with a single call to d_warp, profile
   - can I replace the Derive logging nonsense by writing a LogMonad instance
     for DeriveT?
@@ -103,6 +101,10 @@ CURRENT
       be done after derivation is complete.
     * cmd to clear out midi cache
     * cmd to compare cached to uncached perf, put next to Global.score_to_midi
+  - note entry with a relative track, it added an absolute one
+  - why does save/subderive want pitch bend?
+  - even if I can't tell if damage is a parent, I can still have midi cache
+    immediately return everything if damage is []
 
   derive cache
     * make a profile for modification and recomputation of a large structure,
@@ -973,9 +975,9 @@ misc ideas:
     modifying core ADTs
   - Staff notation represents chords well, but tracks don't.  Think of a more
     compact notation.
-  - Staff notation output via lilypond?  This can be implemented as another kind
-    of backend.  I think events would need metadata so I have a place to put
-    formatting info.  Maybe tracks and blocks need it too so I can express
+  - Staff notation output via lilypond?  This can be implemented as another
+    kind of backend.  I think events would need metadata so I have a place to
+    put formatting info.  Maybe tracks and blocks need it too so I can express
     staff associations.
   - if derivation needs event IDs, maybe I can use the value-supply package
   - safecopy package does version controlled serialization

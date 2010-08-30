@@ -14,6 +14,7 @@ import Util.Test
 import Ui
 import qualified Ui.Event as Event
 import qualified Ui.State as State
+import qualified Ui.Track as Track
 import qualified Ui.UiTest as UiTest
 import qualified Ui.Update as Update
 
@@ -23,6 +24,8 @@ import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
+
+import qualified Perform.Signal as Signal
 
 
 -- * other functions
@@ -122,7 +125,7 @@ test_callee_damage = do
         , toplevel_rederived
         ]
     -- The cached call to "sub" depends on "sub" and "subsub" transitively.
-    equal (r_cache_gdeps cached)
+    equal (r_cache_deps cached)
         [ ("<no stack>",
             Just [UiTest.bid "parent", UiTest.bid "sub", UiTest.bid "subsub"])
         , ("test/parent test/parent.t0 1-3",
@@ -150,6 +153,37 @@ parent_sub = mkblocks
     , ("sub", [(">i", [(0, 1, ""), (1, 1, "subsub")])])
     , ("subsub", [(">i", [(0, 1, "")])])
     ]
+
+test_collect = do
+    let blocks = mkblocks
+            [ ("parent", [(">i", [(0, 1, "sub"), (1, 1, "sub")])])
+            , ("sub",
+                [ (">i", [(0, 1, "")])
+                , ("cont", [(0, 0, "1")])
+                ])
+            ]
+    let create = do
+            bid <- blocks
+            State.set_render_style Track.Line (UiTest.tid "sub.t1")
+            return bid
+    let (_, cached, _) = compare_cached create $
+            State.insert_event (UiTest.tid "parent.t0") 1 (Event.event "" 1)
+    let twarp start end block tracks = Derive.TrackWarp start end
+            (UiTest.bid block) (map UiTest.tid tracks) Score.id_warp
+    -- pprint (r_cache_collect cached)
+    let [root, _parent] = r_cache_collect cached
+    let tsig = Track.TrackSignal (Track.Control (Signal.signal [(0, 1)])) 0 1
+    -- Wow, this is a hassle, but it's hard to figure out how to verify this
+    -- otherwise.
+    equal root ("<no stack>", Just $
+        Derive.Collect
+            [ twarp 0 1 "sub" ["sub.t0", "sub.t1"]
+            , twarp 0 2 "parent" ["parent.t0"]
+            ]
+            (Map.fromList [(UiTest.tid "sub.t1", tsig)])
+            (Derive.GeneratorDep
+                (Set.fromList [UiTest.bid "parent", UiTest.bid "sub"])))
+
 
 -- If I modify a control in a certain place, say a pitch track, I don't want it
 -- to derive the whole control.  Then it will damage the whole control and
@@ -255,14 +289,23 @@ log_with_stack msg = Log.msg_string msg
     -- Pretty.pretty (Log.msg_stack msg) ++ ": " ++ Log.msg_string msg
 
 r_events = fmap (map simple_event) . Derive.r_result
-r_cache_gdeps result =
-    [(simple_stack stack, cache_gdeps c) | (stack, c) <- Map.assocs c]
+
+r_cache_collect :: Derive.Result a -> [(String, Maybe Derive.Collect)]
+r_cache_collect result =
+    [(simple_stack stack, collect ctype) | (stack, ctype) <- Map.assocs cmap]
     where
-    c = uncache (Derive.r_cache result)
-    cache_gdeps (Derive.CachedEvents (Derive.CachedGenerator
-            (Derive.GeneratorDep blocks) _)) =
-        Just (Set.elems blocks)
-    cache_gdeps _ = Nothing
+    cmap = uncache (Derive.r_cache result)
+    collect (Derive.CachedEvents (Derive.CachedGenerator collect _)) =
+        Just collect
+    collect _ = Nothing
+
+r_cache_deps :: Derive.Result a -> [(String, Maybe [BlockId])]
+r_cache_deps result =
+    [(stack, fmap deps collect) | (stack, collect) <- r_cache_collect result]
+    where
+    deps collect = case Derive.collect_local_dep collect of
+        Derive.GeneratorDep blocks -> Set.elems blocks
+
 r_cache_stacks = Map.keys . uncache . Derive.r_cache
 uncache (Derive.Cache cache) = cache
 
