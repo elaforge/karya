@@ -66,9 +66,9 @@ test_derive_control = do
 
     -- evaluation continues after an error
     equal (derive [(0, 0, "1"), (1, 0, "def")])
-        (Right ([(0, 1)], ["control: call not found: def"]))
+        (Right ([(0, 1)], ["call not found: def"]))
     equal (derive [(0, 0, "1"), (1, 0, "def"), (2, 0, "i 2")])
-        (Right ([(0, 1), (1, 1.5), (2, 2)], ["control: call not found: def"]))
+        (Right ([(0, 1), (1, 1.5), (2, 2)], ["call not found: def"]))
 
 test_pitch_track = do
     let derive = do_derive (PitchSignal.unsignal . Score.event_pitch)

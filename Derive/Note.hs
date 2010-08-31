@@ -161,9 +161,8 @@ d_note_track block_id track_id = do
     where info = (derive_info, Derive.dummy_call_info "note track")
 
 derive_notes :: ScoreTime -> [Track.PosEvent] -> Derive.EventDeriver
-derive_notes block_end events = Derive.with_msg "note" $
-    Derive.merge_asc_events <$>
-        Call.derive_track block_end derive_info id (\_ _ -> Nothing) events
+derive_notes block_end events = Derive.merge_asc_events <$>
+    Call.derive_track block_end derive_info id (\_ _ -> Nothing) events
 
 derive_info :: Call.DeriveInfo Derive.Events
 derive_info = Call.DeriveInfo Derive.no_events Call.lookup_note_call

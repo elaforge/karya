@@ -145,10 +145,9 @@ cached_generator state stack (Derive.GeneratorCall func gtype) args =
         Derive.CachingGenerator -> do
             start <- Derive.now
             end <- Derive.score_to_real 1
-            Derive.with_msg "cached generator" $ generate $
-                find_generator_cache stack (Ranges.range start end)
-                    (state_score_damage state) (state_control_damage state)
-                    (state_cache state)
+            generate $ find_generator_cache stack (Ranges.range start end)
+                (state_score_damage state) (state_control_damage state)
+                (state_cache state)
     where
     -- A non-caching generator should just be called normally.  However, I need
     -- to emit event damage if it was rederived because of score or control

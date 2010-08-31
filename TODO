@@ -68,7 +68,7 @@ CURRENT
   - can I replace the Derive logging nonsense by writing a LogMonad instance
     for DeriveT?
   * Derive.insert_environ should use pretty, remember 'val' may be a Val
-  - remove with_msg for 'cached generator' and 'note', and 'control'
+  * remove with_msg for 'cached generator' and 'note', and 'control'
   * Transport.TempoFunction should return multiple RealTimes if the block
     is called in multiple places
   make derivation lazy:

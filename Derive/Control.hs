@@ -122,15 +122,13 @@ pitch_call block_end track_id maybe_name ptype track_expr events deriver =
         let scale_map = Pitch.scale_map scale
         with_scale $ case ptype of
             TrackInfo.PitchRelative op -> do
-                let derive = Derive.with_msg "relative pitch" $
-                        derive_pitch block_end track_id track_expr events
+                let derive = derive_pitch block_end track_id track_expr events
                 (signal, damage) <- derive
                 stash_signal track_id (Left (signal, fst <$> derive, scale_map))
                 Derive.with_control_damage damage $
                     Derive.with_pitch_operator maybe_name op signal deriver
             _ -> do
-                let derive = Derive.with_msg "pitch" $
-                        derive_pitch block_end track_id track_expr events
+                let derive = derive_pitch block_end track_id track_expr events
                 (signal, damage) <- derive
                 stash_signal track_id (Left (signal, fst <$> derive, scale_map))
                 Derive.with_control_damage damage $
@@ -138,12 +136,11 @@ pitch_call block_end track_id maybe_name ptype track_expr events deriver =
 
 derive_control :: ScoreTime -> TrackId -> TrackLang.Expr -> [Track.PosEvent]
     -> Derive.Deriver (Derive.Control, Derive.EventDamage)
-derive_control block_end track_id track_expr events =
-    Derive.with_msg "control" $ do
-        result <- Call.apply_transformer
-            (dinfo, Derive.dummy_call_info "control track") track_expr deriver
-        damage <- Derive.take_local_damage track_id
-        return (result, extend_control_damage result damage)
+derive_control block_end track_id track_expr events = do
+    result <- Call.apply_transformer
+        (dinfo, Derive.dummy_call_info "control track") track_expr deriver
+    damage <- Derive.take_local_damage track_id
+    return (result, extend_control_damage result damage)
     where
     deriver = Signal.merge <$>
         Call.derive_track block_end dinfo preprocess_control last_sample events

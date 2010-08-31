@@ -107,9 +107,9 @@ test_has_score_damage = do
             State.insert_event (UiTest.tid "b.t0") 1 (Event.event "sub2" 1)
     equal (diff_events cached uncached) (Right [])
     strings_like (r_cache_logs cached)
-        [ "b.t0 0-1: * using cache"
-        , "b.t0 1-2: * rederived * not in cache"
-        , "b.t0 2-3: * using cache"
+        [ "b.t0 0-1: using cache"
+        , "b.t0 1-2: rederived * not in cache"
+        , "b.t0 2-3: using cache"
         , toplevel_rederived
         ]
     equal (r_event_damage cached) (Just [(1, 2)])
@@ -120,8 +120,8 @@ test_callee_damage = do
             State.insert_event (UiTest.tid "sub.t0") 0 (Event.event "" 0.5)
     equal (diff_events cached uncached) (Right [])
     strings_like (r_cache_logs cached)
-        [ "sub.t0 1-2: * using cache"
-        , "parent.t0 1-3: * rederived * because of sub-block"
+        [ "sub.t0 1-2: using cache"
+        , "parent.t0 1-3: rederived * because of sub-block"
         , toplevel_rederived
         ]
     -- The cached call to "sub" depends on "sub" and "subsub" transitively.
@@ -141,8 +141,8 @@ test_callee_damage = do
             State.insert_event (UiTest.tid "subsub.t0") 0 (Event.event "" 0.5)
     equal (diff_events cached uncached) (Right [])
     strings_like (r_cache_logs cached)
-        [ "sub.t0 1-2: * rederived * sub-block damage"
-        , "parent.t0 1-3: * rederived * sub-block damage"
+        [ "sub.t0 1-2: rederived * sub-block damage"
+        , "parent.t0 1-3: rederived * sub-block damage"
         , toplevel_rederived
         ]
     -- subsub is at realtime position 2-3
@@ -204,8 +204,8 @@ test_control_damage = do
             State.insert_event (UiTest.tid "b.t1") 2 (Event.event "0" 0)
     equal (diff_events cached uncached) (Right [])
     strings_like (r_cache_logs cached)
-        [ "b.t0 0-1: * using cache"
-        , "b.t0 1-2: * using cache"
+        [ "b.t0 0-1: using cache"
+        , "b.t0 1-2: using cache"
         , toplevel_rederived
         ]
     equal (r_event_damage cached) (Just [])
@@ -215,8 +215,8 @@ test_control_damage = do
             State.insert_event (UiTest.tid "b.t1") 1 (Event.event ".5" 0)
     equal (diff_events cached uncached) (Right [])
     strings_like (r_cache_logs cached)
-        [ "b.t0 0-1: * using cache"
-        , "b.t0 1-2: * rederived * control damage"
+        [ "b.t0 0-1: using cache"
+        , "b.t0 1-2: rederived * control damage"
         , toplevel_rederived
         ]
     equal (r_event_damage cached) (Just [(1, 2)])
@@ -226,8 +226,8 @@ test_control_damage = do
             State.insert_event (UiTest.tid "b.t1") 0 (Event.event ".5" 0)
     equal (diff_events cached uncached) (Right [])
     strings_like (r_cache_logs cached)
-        [ "b.t0 0-1: * rederived * control damage"
-        , "b.t0 1-2: * rederived * control damage"
+        [ "b.t0 0-1: rederived * control damage"
+        , "b.t0 1-2: rederived * control damage"
         , toplevel_rederived
         ]
     equal (r_event_damage cached) (Just [(0, 2)])
@@ -259,9 +259,9 @@ test_tempo_damage = do
     equal (diff_events cached uncached) (Right [])
     -- first is cached, second and third are not
     strings_like (r_cache_logs cached)
-        [ "b.t1 0-1: * using cache"
-        , "b.t1 1-2: * rederived"
-        , "b.t1 2-3: * rederived"
+        [ "b.t1 0-1: using cache"
+        , "b.t1 1-2: rederived"
+        , "b.t1 2-3: rederived"
         , toplevel_rederived
         ]
 
@@ -269,7 +269,7 @@ test_tempo_damage = do
 
 -- | The toplevel block is just about always damaged.
 toplevel_rederived :: String
-toplevel_rederived = "<no stack>: * rederived * sub-block damage"
+toplevel_rederived = "<no stack>: rederived * sub-block damage"
 
 -- UiTest.run discards the Updates, which I need.
 run :: State.State -> State.StateId a -> (a, State.State, [Update.Update])
