@@ -1,7 +1,6 @@
 module Derive.Derive_profile where
 import qualified Control.DeepSeq as DeepSeq
 import Control.Monad
--- import qualified Control.Concurrent as Concurrent
 import qualified Data.Time as Time
 import qualified System.CPUTime as CPUTime
 import qualified Text.Printf as Printf

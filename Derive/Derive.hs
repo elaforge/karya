@@ -1142,6 +1142,12 @@ d_at shift = d_warp (Score.id_warp { Score.warp_shift = shift })
 d_stretch :: (Monad m) => ScoreTime -> DeriveT m a -> DeriveT m a
 d_stretch factor = d_warp (Score.id_warp { Score.warp_stretch = factor })
 
+-- | 'd_at' and 'd_stretch' in one.  It's a little faster than using them
+-- separately.
+d_place :: (Monad m) => ScoreTime -> ScoreTime -> DeriveT m a -> DeriveT m a
+d_place shift stretch = d_warp
+    (Score.id_warp { Score.warp_stretch = stretch, Score.warp_shift = shift })
+
 d_warp :: (Monad m) => Score.Warp -> DeriveT m a -> DeriveT m a
 d_warp warp deriver
     | Score.is_id_warp warp = deriver

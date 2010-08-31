@@ -64,7 +64,7 @@ CURRENT
   - seeking to play in a certain place will miss any controller initialization
     but I could get that back by having Cache.messages_from inspect postproc
     state to get the control state
-  - replace Call.place with a single call to d_warp, profile
+  * replace Call.place with a single call to d_warp, profile
   - can I replace the Derive logging nonsense by writing a LogMonad instance
     for DeriveT?
   * Derive.insert_environ should use pretty, remember 'val' may be a Val

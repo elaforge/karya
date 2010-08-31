@@ -291,7 +291,8 @@ derive_event block_end dinfo preproc prev_val prev cur@(pos, event) next
         Right expr -> run_call (preproc expr)
     where
     -- TODO move with_catch down here
-    run_call expr = place $ apply_toplevel (dinfo, cinfo) expr
+    run_call expr =
+        Derive.d_place start stretch $ apply_toplevel (dinfo, cinfo) expr
         where
         cinfo = Derive.CallInfo prev_val
             evt0 (map warp prev) (map warp next) ((block_end-start) / stretch)
@@ -302,7 +303,6 @@ derive_event block_end dinfo preproc prev_val prev cur@(pos, event) next
         -- actually generate negative duration may check the event_duration and
         -- reverse this by looking at a (start, end) of (1, 0) instead of
         -- (0, 1).
-        place = Derive.d_at start . Derive.d_stretch stretch
         (start, end) = (Track.event_min cur, Track.event_max cur)
         -- A 0 dur event can't be normalized, so don't try.
         stretch = if start == end then 1 else end - start
