@@ -6,7 +6,6 @@ import Util.Control
 
 import Ui
 import qualified Ui.Event as Event
-import qualified Ui.Track as Track
 
 import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
@@ -40,7 +39,7 @@ c_note = Derive.Call "note"
     generate args = case process (Derive.passed_vals args) of
         (inst, rel_attrs, []) ->
             Right $ generate_note inst rel_attrs
-                (Derive.passed_event args) (Derive.passed_next_events args)
+                (Derive.passed_event args) (next_start args)
         (_, _, invalid) -> Left $
             TrackLang.ArgError $ "expected inst or attr: " ++ show invalid
     transform args deriver = case process (Derive.passed_vals args) of
@@ -48,19 +47,19 @@ c_note = Derive.Call "note"
         (_, _, invalid) -> Left $
             TrackLang.ArgError $ "expected inst or attr: " ++ show invalid
     process = process_note_args Nothing []
+    next_start args = case Derive.passed_next_events args of
+        [] -> Derive.info_block_end (Derive.passed_info args)
+        (pos, _) : _ -> pos
 
 generate_note :: Maybe Score.Instrument -> [TrackLang.RelativeAttr]
-    -> Event.Event -> [Track.PosEvent] -> Derive.EventDeriver
-generate_note n_inst rel_attrs event next = do
+    -> Event.Event -> ScoreTime -> Derive.EventDeriver
+generate_note n_inst rel_attrs event next_start = do
     let (from, to) = if Event.event_duration event < 0 then (1, 0) else (0, 1)
     start <- Derive.score_to_real from
     end <- Derive.score_to_real to
     -- Note that due to negative durations, the end could be before the start.
     -- What this really means is that the sounding duration of the note depends
     -- on the next one, which should be sorted out later by post processing.
-    next_start <- case next of
-        [] -> return Nothing
-        (npos, _) : _ -> fmap Just (Derive.score_to_real npos)
     inst <- case n_inst of
         Just inst -> return (Just inst)
         Nothing -> Derive.lookup_val TrackLang.v_instrument
@@ -69,9 +68,10 @@ generate_note n_inst rel_attrs event next = do
     st <- Derive.get
     let controls = Derive.state_controls st
         pitch_sig = Derive.state_pitch st
+    real_next_start <- Derive.score_to_real next_start
     return [Score.Event start (end - start)
         (Event.event_text event) controls
-            (trimmed_pitch start next_start pitch_sig)
+            (trimmed_pitch start real_next_start pitch_sig)
         (Derive.state_stack st) inst (apply rel_attrs attrs)]
     where
     apply rel_attrs attrs =
@@ -102,9 +102,7 @@ process_note_args inst attrs args = (inst', attrs', reverse invalid)
 -- | In a note track, the pitch signal for each note is constant as soon as the
 -- next note begins.  Otherwise, it looks like each note changes pitch during
 -- its decay.
-trimmed_pitch :: RealTime -> Maybe RealTime -> PitchSignal.PitchSignal
+trimmed_pitch :: RealTime -> RealTime -> PitchSignal.PitchSignal
     -> PitchSignal.PitchSignal
-trimmed_pitch start maybe_end sig = case maybe_end of
-        Nothing -> short
-        Just end -> PitchSignal.truncate end short
-    where short = PitchSignal.drop_before start sig
+trimmed_pitch start end =
+    PitchSignal.truncate end . PitchSignal.drop_before start

@@ -142,8 +142,8 @@ import qualified Derive.TrackLang as TrackLang
 -- * note track
 
 -- | Top level deriver for note tracks.
-d_note_track :: TrackId -> Derive.EventDeriver
-d_note_track track_id = do
+d_note_track :: BlockId -> TrackId -> Derive.EventDeriver
+d_note_track block_id track_id = do
     track <- Derive.get_track track_id
     track_expr <- case TrackLang.parse (Track.track_title track) of
         Left err -> Derive.throw $ "track title: " ++ err
@@ -151,16 +151,19 @@ d_note_track track_id = do
     -- TODO event calls are evaluated in normalized time, but track calls
     -- aren't.  Should they be?
     let pos_events = Track.event_list (Track.track_events track)
+    block_end <- Derive.get_block_dur block_id
     -- Unlike event evaluation, if the title evaluation throws, the whole block
     -- will abort.  This seems reasonable to me.
-    result <- Call.apply_transformer info track_expr (derive_notes pos_events)
+    result <- Call.apply_transformer info track_expr
+        (derive_notes block_end pos_events)
     Derive.insert_event_damage =<< Derive.take_local_damage track_id
     return result
     where info = (derive_info, Derive.dummy_call_info "note track")
 
-derive_notes :: [Track.PosEvent] -> Derive.EventDeriver
-derive_notes events = Derive.with_msg "note" $ Derive.merge_asc_events <$>
-    Call.derive_track derive_info id (\_ _ -> Nothing) events
+derive_notes :: ScoreTime -> [Track.PosEvent] -> Derive.EventDeriver
+derive_notes block_end events = Derive.with_msg "note" $
+    Derive.merge_asc_events <$>
+        Call.derive_track block_end derive_info id (\_ _ -> Nothing) events
 
 derive_info :: Call.DeriveInfo Derive.Events
 derive_info = Call.DeriveInfo Derive.no_events Call.lookup_note_call

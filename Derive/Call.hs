@@ -257,16 +257,18 @@ data DeriveInfo derived = DeriveInfo {
 type PreProcess = TrackLang.Expr -> TrackLang.Expr
 type Info derived = (DeriveInfo derived, Derive.CallInfo derived)
 
-derive_track :: (Derive.Derived derived) => DeriveInfo derived -> PreProcess
+derive_track :: (Derive.Derived derived) =>
+    ScoreTime -> DeriveInfo derived -> PreProcess
     -> (Maybe (RealTime, Derive.Elem derived) -> derived
         -> Maybe (RealTime, Derive.Elem derived))
     -> [Track.PosEvent] -> Derive.Deriver [derived]
-derive_track dinfo preproc get_last_sample events = go Nothing [] events
+derive_track block_end dinfo preproc get_last_sample events =
+    go Nothing [] events
     where
     go _ _ [] = return []
     go prev_sample prev (cur@(pos, event) : rest) = do
         chunk <- with_catch (info_empty dinfo) pos event $
-            derive_event dinfo preproc prev_sample prev cur rest
+            derive_event block_end dinfo preproc prev_sample prev cur rest
         rest <- go (get_last_sample prev_sample chunk) (cur:prev) rest
         return $ chunk : rest
 
@@ -275,13 +277,14 @@ derive_track dinfo preproc get_last_sample events = go Nothing [] events
     with_stack pos evt =
         Derive.with_stack_region pos (pos + Event.event_duration evt)
 
-derive_event :: (Derive.Derived derived) => DeriveInfo derived -> PreProcess
+derive_event :: (Derive.Derived derived) =>
+    ScoreTime -> DeriveInfo derived -> PreProcess
     -> Maybe (RealTime, Derive.Elem derived)
     -> [Track.PosEvent] -- ^ previous events, in reverse order
     -> Track.PosEvent -- ^ cur event
     -> [Track.PosEvent] -- ^ following events
     -> Derive.Deriver derived
-derive_event dinfo preproc prev_val prev cur@(pos, event) next
+derive_event block_end dinfo preproc prev_val prev cur@(pos, event) next
     | Event.event_string event == "--" = return (info_empty dinfo)
     | otherwise = case TrackLang.parse (Event.event_string event) of
         Left err -> Derive.warn err >> return (info_empty dinfo)
@@ -290,7 +293,8 @@ derive_event dinfo preproc prev_val prev cur@(pos, event) next
     -- TODO move with_catch down here
     run_call expr = place $ apply_toplevel (dinfo, cinfo) expr
         where
-        cinfo = Derive.CallInfo prev_val evt0 (map warp prev) (map warp next)
+        cinfo = Derive.CallInfo prev_val
+            evt0 (map warp prev) (map warp next) ((block_end-start) / stretch)
             (pos, Event.event_duration event) prev next
         -- Derivation happens according to the extent of the note, not the
         -- duration.  This is how negative duration events begin deriving

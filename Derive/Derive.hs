@@ -369,8 +369,7 @@ passed_prev_val args = info_prev_val (passed_info args)
 -- | Additional data for a call.  This part is invariant for all calls on
 -- an event.
 --
--- Not used at all for val calls.
--- events not used for transform calls.
+-- Not used at all for val calls.  The events not used for transform calls.
 data CallInfo derived = CallInfo {
     -- The below is not used at all for val calls, and the events are not
     -- used for transform calls.  It might be cleaner to split those out, but
@@ -387,6 +386,9 @@ data CallInfo derived = CallInfo {
     , info_event :: Event.Event
     , info_prev_events :: [Track.PosEvent]
     , info_next_events :: [Track.PosEvent]
+    -- | If there is no next event, you might want to fall back on the end of
+    -- the block.
+    , info_block_end :: ScoreTime
 
     -- | These are not warped, so they are still in track score time.
     , info_track_pos :: (ScoreTime, ScoreTime)
@@ -409,7 +411,7 @@ info_stretch (CallInfo { info_track_pos = (s, e) }) =
 -- | Transformer calls don't necessarily apply to any particular event, and
 -- neither to generators for that matter.
 dummy_call_info :: String -> CallInfo derived
-dummy_call_info text = CallInfo Nothing (Event.event s 1) [] [] (0, 1) [] []
+dummy_call_info text = CallInfo Nothing (Event.event s 1) [] [] 1 (0, 1) [] []
     where s = if null text then "<no-event>" else "<" ++ text ++ ">"
 
 -- | A Call will be called as either a generator or a transformer, depending on
@@ -651,7 +653,7 @@ gets :: (Monad m) => (State -> a) -> DeriveT m a
 gets f = fmap f get
 
 -- | This is a little different from Reader.local because only a portion of
--- the state is used Reader-style, i.e. 'collect_track_warps' always collects.
+-- the state is used Reader-style.
 -- TODO split State into dynamically scoped portion and use Reader for that.
 local :: (Monad m) => (State -> b) -> (b -> State -> State)
     -> (State -> DeriveT m State) -> DeriveT m a -> DeriveT m a

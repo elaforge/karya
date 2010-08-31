@@ -33,6 +33,8 @@ CURRENT
   - after creating a new track, focus should go to its title
   - put a multiplier on play's timestamps to implement a play speed control
   - spline curve interpolator: evoral/Curve.cpp, www.korf.co.uk/spline.pdf
+  - If I quit and then restart, the second start takes a long time.  What's
+    it waiting on?  Midi init?
   * need a concept of a "root" block.  This block is used for:
     - calculating absolute time offset e.g. if a DAW wants to seek to a point
     - ability to start playing from n seconds back from the current position on
@@ -45,7 +47,7 @@ CURRENT
       always-run post cmd to avoid a separate Cmd.put_root_id.  Can I apply
       this to other State attrs too?
   midi performer next event dep:
-    - for now, just don't bother getting it right for cached perf
+    * for now, just don't bother getting it right for cached perf
     - change controls to be just like pitch: clip at event start and next event
       start, for the same reasons as pitch
     - make sure it clips from the sample *previous* so I get the initial val
@@ -93,9 +95,9 @@ CURRENT
       * performance thread stays open and has a channel to receive the sel pos
       * quickly force current block until t+n
       * gradually force t+n .. end chunk by chunk, so as not to overwhelm the gc
-      - do the same with the toplevel block, stick to gradual if it's not
+      * do the same with the toplevel block, stick to gradual if it's not
         focused
-      - blocks which are neither focused nor toplevel are unforced until they
+      * blocks which are neither focused nor toplevel are unforced until they
         get focus
 
     * log cache stats
@@ -105,9 +107,12 @@ CURRENT
     * cmd to clear out midi cache
     * cmd to compare cached to uncached perf, put next to Global.score_to_midi
   - note entry with a relative track, it added an absolute one
-  - why does save/subderive want pitch bend?
-  - even if I can't tell if damage is a parent, I can still have midi cache
-    immediately return everything if damage is []
+  * why does save/subderive want pitch bend?
+  - midi performer note overlap checking should use a bit of eta, or at least
+    round to Timestamps first
+    - convert Perform.Event to use Timestamps
+    this means I have to convert back to index signals, is this a problem?
+  - make Timestamp not Integral to conceal its implementation
 
   derive cache
     * make a profile for modification and recomputation of a large structure,
@@ -137,7 +142,6 @@ CURRENT
       * modify simple event track
       * modify control track, dependent events should change
       - modify events under incremental and non-incremental transformers
-      - modify events around events with pre and post deps
       * modify track in child block and rederive parent
       * modify tempo in various places
 
@@ -210,12 +214,11 @@ CURRENT
     something.
 
   - Derive.with_* should use local, or at least finally
-  - clean up warp stuff in Derive.Score
+  * clean up warp stuff in Derive.Score
   - put TypeError into DeriveError and use Call.default_relative_note
-  - either split the ErrorT out of DeriveT or run a new DeriveT for each
-    event in a track so that derivation can be lazy
   - LPitch.to_relative was broken by notes as calls, fix it
   - implement add_hz in Derive.Scale.Util
+    or at least think about how to implement pengumbang and pengisep
 
   * remove TrackLang.VMethod
   * remove consumed call return unless I can think of something good for it
@@ -263,7 +266,7 @@ CURRENT
             | Event16 !Score.Event !Score.Event ... EventList
             | EventCons !Score.Event EventList
 
-    - make a profile for modification and recomputation of a large structure,
+    * make a profile for modification and recomputation of a large structure,
       the sort of thing memoization would help with
     - fix Perform and Signal memory spike exhibited by "generate control"
       - order of printing warns matters, experiment 'seq generate control'

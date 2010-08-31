@@ -64,7 +64,8 @@ test_basic = do
         Stack.Call "note", Stack.Region s e, Stack.Call "note"]
     extract_perf_event (Perform.Event inst start dur _controls _pitch stack) =
         (Instrument.inst_name inst,
-            fmap ks_name (Instrument.inst_keyswitch inst), start, dur, stack)
+            fmap ks_name (Instrument.inst_keyswitch inst),
+            Timestamp.to_seconds start, Timestamp.to_seconds dur, stack)
     ks_name (Instrument.Keyswitch name _) = name
 
 test_stack = do
@@ -500,6 +501,19 @@ test_named_pitch = do
             (PitchSignal.constant Pitch.relative 1)
     equal (run (with_const . add1))
         (Right (Just (Pitch.Degree 43)))
+
+test_block_end = do
+    -- Make sure the pitch for the sub block event is trimmed to the end
+    -- of the block, since there's no next event for it.
+    let (events, _) = DeriveTest.e_val $ DeriveTest.derive_blocks
+            [ ("p",
+                [ (">i1", [(0, 1, "sub"), (1, 1, "")])
+                , ("*twelve", [(0, 0, "5d"), (1, 0, "5e")])
+                ])
+            , ("sub", [(">", [(0, 1, "")])])
+            ]
+    equal (fmap (map (PitchSignal.unsignal_degree . Score.event_pitch)) events)
+        (Right [[(0, 74)], [(1, 76)]])
 
 -- test_negative_duration = do
 --     let extract = DeriveTest.extract (\e -> DeriveTest.e_event e) Log.msg_string

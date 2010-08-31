@@ -94,7 +94,7 @@ test_compile = do
     -- The pitch signal gets truncated so it doesn't look like the note's decay
     -- wants to change pitch.
     equal (controls res) (Right [cont_signal, cont_signal, cont_signal])
-    equal (pitches res) (Right [psig 1, psig 2, psig 50])
+    equal (pitches res) (Right [psig 1, psig 2, psig 6])
     where
     mksig = Signal.signal
 

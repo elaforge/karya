@@ -50,13 +50,12 @@ test_track_expression = do
         (derive_pitch ("*twelve | srate = 2", [(0, 0, "4c"), (4, 0, "i (4d)")]))
         (Right [[(0, (60, 60, 0)), (2, (60, 62, 0.5)), (4, (60, 62, 1))]], [])
 
-
 test_derive_control = do
     let extract (Left err) = Left err
         extract (Right ((val, _damage), _, logs)) =
             Right (Signal.unsignal val, map Log.msg_string logs)
     let derive events = extract $ DeriveTest.run State.empty
-            (Control.derive_control (UiTest.tid "t0") []
+            (Control.derive_control 10 (UiTest.tid "t0") []
                 (map UiTest.mkevent events))
     equal (derive [(0, 0, "1"), (1, 0, "2")])
         (Right ([(0, 1), (1, 2)], []))
@@ -94,7 +93,7 @@ test_pitch_track = do
 do_derive :: (Score.Event -> a) -> UiTest.TrackSpec
     -> (Either String [a], [String])
 do_derive extract track = DeriveTest.extract extract Log.msg_string $
-        DeriveTest.derive_tracks [(">", [(0, 2, "")]), track]
+        DeriveTest.derive_tracks [(">", [(0, 8, "")]), track]
 
 test_relative_control = do
     let (events, logs) = DeriveTest.e_logs $ DeriveTest.derive_tracks
