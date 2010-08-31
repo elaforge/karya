@@ -59,7 +59,8 @@ messages_from :: Timestamp.Timestamp -> Cache -> Perform.Messages
 messages_from start cache =
     map (Midi.add_timestamp (-start)) (Perform.merge_sorted_messages chunks)
     where
-    start_chunk = fromIntegral $ start `div` cache_chunk_size
+    start_chunk = fromIntegral $
+        Timestamp.to_millis start `div` Timestamp.to_millis cache_chunk_size
     chunks = case map chunk_messages (drop start_chunk (cache_chunks cache)) of
         [] -> []
         msgs:rest_msgs -> dropWhile ((<start) . Midi.wmsg_ts) msgs : rest_msgs

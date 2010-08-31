@@ -110,7 +110,7 @@ CURRENT
   * why does save/subderive want pitch bend?
   * midi performer note overlap checking should use a bit of eta, or at least
     round to Timestamps first
-  - make Timestamp not Integral to conceal its implementation
+  * make Timestamp not Integral to conceal its implementation
 
   derive cache
     * make a profile for modification and recomputation of a large structure,

@@ -237,9 +237,8 @@ make_write_midi :: Map.Map Midi.WriteDevice Midi.WriteDevice
     -> MidiImp.WriteMap -> Midi.WriteMessage -> IO ()
 make_write_midi wdev_map write_map (Midi.WriteMessage wdev ts msg) = do
     let real_wdev = Map.get wdev wdev wdev_map
-    let Timestamp.Timestamp ts_int = ts
     Printf.printf "PLAY %s->%s %s: %s\n" (Midi.un_write_device wdev)
-        (Midi.un_write_device real_wdev) (show ts_int) (show msg)
+        (Midi.un_write_device real_wdev) (Timestamp.to_millis ts) (show msg)
     case Map.lookup real_wdev write_map of
         Nothing -> Log.error $ show real_wdev ++ " not in devs: "
             ++ show (Map.keys write_map)

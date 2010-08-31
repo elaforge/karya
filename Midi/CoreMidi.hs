@@ -139,7 +139,7 @@ check val err
 check_ = check (return ())
 
 decode_timestamp :: CTimestamp -> Timestamp.Timestamp
-decode_timestamp cts = Timestamp.Timestamp (fromIntegral cts)
+decode_timestamp = Timestamp.from_millis . fromIntegral
 
 encode_timestamp :: Timestamp.Timestamp -> CTimestamp
-encode_timestamp (Timestamp.Timestamp ts) = fromIntegral ts
+encode_timestamp = fromIntegral . Timestamp.to_millis

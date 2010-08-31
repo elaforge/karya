@@ -78,7 +78,7 @@ play_msgs state addrs_seen msgs = do
             -- wait for it to send its bogus pitchbend, and then reset it.
             -- send_all write_midi addrs_seen now Midi.AllNotesOff
             Thread.delay 0.15
-            send_all write_midi addrs_seen (now + Timestamp.Timestamp 150)
+            send_all write_midi addrs_seen (now + Timestamp.from_millis 150)
                 (Midi.PitchBend 0)
         (_, []) -> send_all write_midi addrs_seen now (Midi.PitchBend 0)
         _ -> play_msgs state addrs_seen rest

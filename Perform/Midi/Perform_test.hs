@@ -130,10 +130,9 @@ trace_warns warns val
 test_control_lead_time = do
     -- verify that controls are given lead time if they are on their own
     -- channels, and not if they aren't
-    let Timestamp.Timestamp lead = Perform.control_lead_time
-    let extract_msgs wmsgs =
-            [(ts, chan, msg) | Midi.WriteMessage _ (Timestamp.Timestamp ts)
-                (Midi.ChannelMessage chan msg) <- wmsgs]
+    let lead = Timestamp.to_millis Perform.control_lead_time
+    let extract_msgs wmsgs = [(Timestamp.to_millis ts, chan, msg)
+            | Midi.WriteMessage _ ts (Midi.ChannelMessage chan msg) <- wmsgs]
         extract (msgs, warns) = trace_warns warns (extract_msgs msgs)
     let f = extract . perform inst_config2 . mkevents_inst
 
@@ -325,9 +324,9 @@ test_pitch_curve = do
                 Nothing evt (dev1, 1)
     -- Try to use the control_lead_time unless the previous note is too close.
     equal (head (notes 0 (event [(1, 42.5)])))
-        (Timestamp.Timestamp 900, Midi.ChannelMessage 1 (Midi.PitchBend 0.5))
+        (Timestamp.from_millis 900, Midi.ChannelMessage 1 (Midi.PitchBend 0.5))
     equal (head (notes 1 (event [(1, 42.5)])))
-        (Timestamp.Timestamp 1000, Midi.ChannelMessage 1 (Midi.PitchBend 0.5))
+        (Timestamp.from_millis 1000, Midi.ChannelMessage 1 (Midi.PitchBend 0.5))
 
 test_no_pitch = do
     let event = (mkevent (inst1, "a", 0, 2, []))

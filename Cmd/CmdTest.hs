@@ -149,7 +149,7 @@ drag btn = Msg.Ui $ UiMsg.UiMsg empty_context $
 
 make_midi :: Midi.ChannelMessage -> Msg.Msg
 make_midi chan_msg = Msg.Midi $
-    Midi.ReadMessage (Midi.ReadDevice "test") Timestamp.immediately
+    Midi.ReadMessage (Midi.ReadDevice "test") Timestamp.zero
         (Midi.ChannelMessage 0 chan_msg)
 
 note_on note_id nn vel =

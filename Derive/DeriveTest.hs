@@ -181,9 +181,8 @@ e_pitch e = (Score.event_start e, Score.event_duration e, Score.event_string e,
 
 note_on_times :: [(Timestamp.Timestamp, Midi.Message)]
     -> [(Integer, Midi.Key, Midi.Velocity)]
-note_on_times mmsgs = [(ts, nn, vel)
-    | (Timestamp.Timestamp ts, Midi.ChannelMessage _ (Midi.NoteOn nn vel))
-        <- mmsgs]
+note_on_times mmsgs = [(Timestamp.to_millis ts, nn, vel)
+    | (ts, Midi.ChannelMessage _ (Midi.NoteOn nn vel)) <- mmsgs]
 
 
 -- * call

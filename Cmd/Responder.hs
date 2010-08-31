@@ -404,7 +404,7 @@ run_cmd_list :: (Monad m) => [Update.Update] -> MidiWriter -> State.State
         (Cmd.Status, State.State, Cmd.State, [Update.Update]))
 run_cmd_list updates0 write_midi ui_state cmd_state runner (cmd:cmds) = do
     (cmd_state, midi, logs, ui_result) <- runner ui_state cmd_state cmd
-    sequence_ [write_midi (Midi.WriteMessage dev Timestamp.immediately msg)
+    sequence_ [write_midi (Midi.WriteMessage dev Timestamp.zero msg)
         | (dev, msg) <- midi]
     mapM_ Log.write logs
     case ui_result of

@@ -4,7 +4,12 @@
 
     RealTime are converted to these as the final stage of performance.
 -}
-module Perform.Timestamp where
+module Perform.Timestamp (
+    Timestamp, zero
+    , from_millis, to_millis, to_micros
+    , seconds, to_seconds
+    , from_real_time, to_real_time
+) where
 import qualified Control.DeepSeq as DeepSeq
 import Text.Printf
 import Util.Pretty
@@ -16,23 +21,31 @@ import Ui
 -- The resolution is only milliseconds, so it can't be used to align audio.
 -- This is just for the MIDI.
 newtype Timestamp = Timestamp Integer
-    deriving (Eq, Ord, Show, Num, Enum, Real, Integral, DeepSeq.NFData)
+    deriving (Eq, Ord, Show, Num, Enum, Real, DeepSeq.NFData)
 
-immediately :: Timestamp
-immediately = Timestamp 0
+zero :: Timestamp
+zero = Timestamp 0
+
+from_millis :: Integer -> Timestamp
+from_millis = Timestamp
+
+to_millis :: Timestamp -> Integer
+to_millis (Timestamp i) = i
+
+to_micros :: Timestamp -> Integer
+to_micros (Timestamp ts) = ts * 1000
 
 seconds :: (RealFrac a) => a -> Timestamp
 seconds secs = Timestamp (round (secs * 1000))
+
 to_seconds :: Timestamp -> Double
 to_seconds (Timestamp ts) = fromIntegral ts / 1000
 
-to_microseconds :: Timestamp -> Integer
-to_microseconds (Timestamp ts) = ts * 1000
-
 from_real_time :: RealTime -> Timestamp
-from_real_time = round . (*1000)
+from_real_time = Timestamp . round . (*1000)
+
 to_real_time :: Timestamp -> RealTime
-to_real_time = RealTime . (/1000) . fromIntegral
+to_real_time = RealTime . (/1000) . fromIntegral . to_millis
 
 instance Pretty Timestamp where
     pretty ts = printf "%.3fs" (to_seconds ts)

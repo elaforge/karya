@@ -666,5 +666,4 @@ event_warning event msg = warning msg (event_stack event)
 warning :: String -> Stack.Stack -> Maybe (Timestamp, Timestamp)
     -> Warning.Warning
 warning msg stack range = Warning.warning msg stack (fmap real range)
-    where
-    real (s, e) = (Timestamp.to_real_time s, Timestamp.to_real_time e)
+    where real (s, e) = (Timestamp.to_real_time s, Timestamp.to_real_time e)
