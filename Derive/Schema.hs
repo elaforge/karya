@@ -22,7 +22,7 @@ module Derive.Schema (
     , CmdContext(..), ContextCmds, SchemaMap
 
     -- * lookup
-    , lookup_deriver, get_signal_deriver, get_cmds
+    , lookup_deriver, get_cmds
 
     -- * parser
     , default_parser
@@ -32,7 +32,7 @@ module Derive.Schema (
 
     -- * exported for testing
     , get_defaults, get_track_info, TrackType(..)
-    , compile, compile_to_signals
+    , compile
     , default_schema
 ) where
 import Control.Monad
@@ -91,19 +91,6 @@ lookup_deriver schema_map ui_state block_id = State.eval ui_state $ do
         (merge_schemas hardcoded_schemas schema_map)
     schema_deriver schema block_id
 
--- | Get the signal deriver for the given block.  Unlike the event deriver,
--- the signal deriver is only ever local to one block, so it doesn't need
--- a lookup mechanism.
-get_signal_deriver :: (State.UiStateMonad m) => SchemaMap -> BlockId
-    -> m Derive.DisplaySignalDeriver
-get_signal_deriver schema_map block_id = do
-    block <- State.get_block block_id
-    schema <- State.lookup_id (Block.block_schema block)
-        (merge_schemas hardcoded_schemas schema_map)
-    state <- State.get
-    State.eval_rethrow "get signal deriver" state
-        (schema_signal_deriver schema block_id)
-
 -- | A block's Schema also implies a set of Cmds, possibly based on the
 -- focused track.  This is so that e.g. control tracks use control editing keys
 -- and note tracks use note entry keys, and they can set up the midi thru
@@ -136,8 +123,7 @@ cmd_context ustate lookup_midi edit_mode kbd_entry focused_tracknum ttree =
 -- | The default schema is supposed to be simple but useful, and rather
 -- trackerlike.
 default_schema :: Schema
-default_schema =
-    Schema default_schema_deriver default_schema_signal_deriver default_cmds
+default_schema = Schema default_schema_deriver default_cmds
 
 -- ** cmds
 
@@ -254,10 +240,6 @@ default_schema_deriver :: SchemaDeriver Derive.EventDeriver
 default_schema_deriver block_id =
     fmap (compile block_id) (State.get_unmuted_track_tree block_id)
 
-default_schema_signal_deriver :: SchemaDeriver Derive.DisplaySignalDeriver
-default_schema_signal_deriver block_id =
-    fmap (compile_to_signals block_id) (State.get_track_tree block_id)
-
 -- | Transform a deriver skeleton into a real deriver.  The deriver may throw
 -- if the skeleton was malformed.
 compile :: BlockId -> State.TrackTree -> Derive.EventDeriver
@@ -286,50 +268,6 @@ _compile block_id (Tree.Node (State.TrackInfo _ track_id _) subs)
     | otherwise = Control.d_control_track block_id track_id
         (sub_compile block_id subs)
 
-
--- | Compile a Skeleton to its DisplaySignalDeriver.  The DisplaySignalDeriver
--- is like the main Deriver except that it derives down to track signals
--- instead of events.  While the events go on to performance, the track signals
--- go to the UI so it can draw pretty graphs.
---
--- TODO Think about this some more in light of more complicated derivers.  It
--- seems annoying to have to make a whole separate signal deriver.  Getting the
--- signals from the track could be more hardcoded and less work when writing
--- a new schema.
---
--- Can I generate this as a side-effect of the normal derivation?  If each
--- track records its samples then I don't need to generate them separately.
--- Of course I have to map real->score but it should be possible to do that
--- relatively efficiently.
---
--- TODO disabled for the moment
-compile_to_signals :: BlockId -> State.TrackTree -> Derive.DisplaySignalDeriver
-compile_to_signals _block_id _tree = return []
-    -- Derive.with_msg ("compile_to_signals " ++ show block_id) $
-    --     Derive.d_signal_merge =<< mapM _compile_to_signals tree
-
-{-
-_compile_to_signals :: Tree.Tree State.TrackInfo -> Derive.DisplaySignalDeriver
-_compile_to_signals (Tree.Node (State.TrackInfo title track_id _) subs)
-    | TrackInfo.is_note_track title = return []
-    | otherwise = do
-        -- Note no special treatment for the tempo track, since signal output
-        -- shouldn't be warped.
-        track_sigs <- signal_control title track_id
-        rest_sigs <- Derive.d_signal_merge =<< mapM _compile_to_signals subs
-        return (track_sigs : rest_sigs)
-
-signal_control :: (Monad m) => String -> TrackId
-    -> Derive.DeriveT m (TrackId, Signal.Display)
-signal_control title track_id = do
-    events <- Derive.with_track_warp Control.d_control_events track_id
-    sig <- case TrackInfo.parse_control_title title of
-        (_, Left _) -> Control.d_display_signal events
-        (Nothing, Right scale_id) -> Control.d_display_pitch scale_id events
-        (Just _, Right scale_id) ->
-            Control.d_display_relative_pitch scale_id events
-    return (track_id, sig)
--}
 
 -- * parser
 

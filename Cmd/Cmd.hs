@@ -739,7 +739,6 @@ type SchemaMap = Map.Map SchemaId Schema
 -- | A Schema attaches a number of things to a Block.
 data Schema = Schema {
     schema_deriver :: SchemaDeriver Derive.EventDeriver
-    , schema_signal_deriver :: SchemaDeriver Derive.DisplaySignalDeriver
     -- | Get a set of Cmds that are applicable within the given CmdContext.
     , schema_cmds :: CmdContext -> ContextCmds
     }
