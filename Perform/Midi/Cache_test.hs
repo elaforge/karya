@@ -20,7 +20,7 @@ import qualified Perform.Midi.Cache as Cache
 
 
 test_cached_performance = do
-    let sz = Cache.cache_chunk_size
+    let sz = Timestamp.to_real_time Cache.cache_chunk_size
         events1 = [(0, 0.5), (sz, 0.5), (sz+1, 0.5), (sz*2, 0.5)]
         events2 = [(0, 0.5), (sz, 0.8), (sz+1, 0.5), (sz*2, 0.5)]
 
@@ -145,5 +145,6 @@ mkevents pairs = [mkevent (start, dur, 42) | (start, dur) <- pairs]
 
 mkevent :: (RealTime, RealTime, Int) -> Perform.Event
 mkevent (start, dur, pitch) =
-    Perform.Event Perform_test.inst1 start dur Map.empty
-        (Signal.signal [(start, fromIntegral pitch)]) Stack.empty
+    Perform.Event Perform_test.inst1
+        (Timestamp.from_real_time start) (Timestamp.from_real_time dur)
+        Map.empty (Signal.signal [(start, fromIntegral pitch)]) Stack.empty

@@ -10,6 +10,7 @@ import qualified Midi.Midi as Midi
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 
+import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.Instrument as Instrument
@@ -41,7 +42,7 @@ profile_perform_control = do
         vals = map (/10) ([0..10] ++ [10, 9 .. 1])
     let f end  = Perform.perform_control Control.empty_map 0 0 end
             (Control.Control Control.c_mod, sig)
-    let (msg, warns) = f len
+    let (msg, warns) = f (Timestamp.seconds len)
     pprint warns
     pprint (length msg)
 
@@ -52,7 +53,9 @@ force val = DeepSeq.deepseq val val
 mkevent :: RealTime -> RealTime -> [(Control.Control, Signal.Control)]
     -> Signal.NoteNumber -> Perform.Event
 mkevent start dur controls pitch_sig =
-    Perform.Event inst1 start dur (Map.fromList controls) pitch_sig Stack.empty
+    Perform.Event inst1 (Timestamp.from_real_time start)
+        (Timestamp.from_real_time dur) (Map.fromList controls) pitch_sig
+        Stack.empty
 
 
 test_lookup :: MidiDb.LookupMidiInstrument

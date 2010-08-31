@@ -17,6 +17,7 @@ import Ui
 import qualified Derive.Stack as Stack
 
 import qualified Perform.Timestamp as Timestamp
+import Perform.Timestamp (Timestamp)
 import qualified Perform.Warning as Warning
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.Instrument as Instrument
@@ -43,7 +44,7 @@ cache lookup config = Cache lookup config Ranges.nothing []
 
 -- | Return the length of time of the cached events.
 cache_length :: Cache -> RealTime
-cache_length cache =
+cache_length cache = Timestamp.to_real_time $
     fromIntegral (length (cache_chunks cache)) * cache_chunk_size
 
 cache_messages :: Cache -> Perform.Messages
@@ -55,14 +56,13 @@ cache_messages =
 --
 -- TODO look at postproc state to initialize the controls properly
 messages_from :: Timestamp.Timestamp -> Cache -> Perform.Messages
-messages_from start_ts cache =
-    map (Midi.add_timestamp (-start_ts)) (Perform.merge_sorted_messages chunks)
+messages_from start cache =
+    map (Midi.add_timestamp (-start)) (Perform.merge_sorted_messages chunks)
     where
-    start_chunk = floor (Timestamp.to_real_time start_ts / cache_chunk_size)
+    start_chunk = fromIntegral $ start `div` cache_chunk_size
     chunks = case map chunk_messages (drop start_chunk (cache_chunks cache)) of
         [] -> []
-        msgs : rest_msgs ->
-            dropWhile ((<start_ts) . Midi.wmsg_ts) msgs : rest_msgs
+        msgs:rest_msgs -> dropWhile ((<start) . Midi.wmsg_ts) msgs : rest_msgs
 
 -- | Figure out how much time of the performed MIDI messages were from
 -- the cache and how much time was reperformed.
@@ -81,7 +81,7 @@ cache_stats splice_failed_at cache = case splice_failed_at of
             (Ranges.range chunknum nchunks) (cache_damage cache)
     where
     nchunks = fromIntegral (length (cache_chunks cache))
-    time n = fromIntegral n * cache_chunk_size
+    time n = Timestamp.to_real_time (fromIntegral n * cache_chunk_size)
     stats ranges = (time nchunks, time (total ranges))
     total ranges = case Ranges.extract ranges of
         Nothing -> nchunks
@@ -99,10 +99,10 @@ type Chunks = [Chunk]
 type ChunkNum = Integer
 
 to_chunknum :: RealTime -> ChunkNum
-to_chunknum = floor . (/cache_chunk_size)
+to_chunknum = floor . (/ Timestamp.to_real_time cache_chunk_size)
 
-cache_chunk_size :: RealTime
-cache_chunk_size = 4
+cache_chunk_size :: Timestamp
+cache_chunk_size = Timestamp.seconds 4
 
 data Chunk = Chunk {
     chunk_messages :: Perform.Messages
@@ -124,16 +124,16 @@ perform cache (EventDamage damage) events
             in (make_map damage, Ranges.ranges damage)
     where
     everything = perform_chunks config 0 Perform.initial_state events
-    make_map chunk_damage = perform_cache config 0 (cache_chunks cache)
-        Perform.initial_state events chunk_damage
+    make_map damage = perform_cache config 0 (cache_chunks cache)
+        Perform.initial_state events damage
     set_map (chunks, damage) =
         cache { cache_damage = damage, cache_chunks = chunks }
     config = (cache_lookup cache, cache_config cache)
 
 -- | Like the damage ranges, the chunk ranges are half-open.
 chunk_damage :: [(RealTime, RealTime)] -> [(ChunkNum, ChunkNum)]
-chunk_damage = map $ \(s, e) ->
-    (floor (s / cache_chunk_size), ceiling (e / cache_chunk_size))
+chunk_damage = map $ \(s, e) -> (floor (s / size), ceiling (e / size))
+    where size = Timestamp.to_real_time cache_chunk_size
 
 -- * implementation
 
@@ -158,7 +158,7 @@ perform_cache config chunknum [] prev_state events _ =
     -- If there is no damage I can just reuse the chunks and don't have to look
     -- at the events.  This won't be true for the initially empty cache, but
     -- the case above should catch that.
-perform_cache _ _ cache _ _ [] = cache
+perform_cache _ _ chunks _ _ [] = chunks
 perform_cache config chunknum (cached : rest_cache) prev_state events
         damage@((start, end) : rest_damage)
     | chunknum < start =
@@ -242,7 +242,7 @@ incompatible state1 state2
 -- it more likely to be possible to splice a reperformed section into the
 -- cache.  However, the normalization itself must be cheap or it defeats the
 -- purpose.
-normalize_state :: RealTime -> Perform.State -> Perform.State
+normalize_state :: Timestamp -> Perform.State -> Perform.State
 normalize_state now state = state {
     Perform.state_channelize =
         takeWhile overlapping (Perform.state_channelize state)

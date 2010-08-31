@@ -19,6 +19,7 @@ import qualified Cmd.Selection as Selection
 import qualified Derive.Score as Score
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
+import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.Instrument as Instrument
 
@@ -45,6 +46,7 @@ type PerfEvent = (String, Double, Double, Pitch.NoteNumber)
 
 from_score :: ScoreTime -> Double
 from_score (ScoreTime d) = d
+
 from_real :: RealTime -> Double
 from_real (RealTime d) = d
 
@@ -58,10 +60,13 @@ score_event evt = (from_real (Score.event_start evt),
     Score.event_string evt, Score.initial_pitch evt)
 
 perf_event :: Perform.Event -> PerfEvent
-perf_event evt = (Instrument.inst_name (Perform.event_instrument evt),
-    from_real start, from_real (Perform.event_duration evt),
-    Pitch.nn (Signal.at start (Perform.event_pitch evt)))
-    where start = Perform.event_start evt
+perf_event evt =
+    ( Instrument.inst_name (Perform.event_instrument evt)
+    , from_real start
+    , from_real (Timestamp.to_real_time (Perform.event_duration evt))
+    , Pitch.nn (Signal.at start (Perform.event_pitch evt))
+    )
+    where start = Timestamp.to_real_time (Perform.event_start evt)
 
 
 dump_block :: (State.UiStateMonad m) => BlockId -> m Block

@@ -108,10 +108,8 @@ CURRENT
     * cmd to compare cached to uncached perf, put next to Global.score_to_midi
   - note entry with a relative track, it added an absolute one
   * why does save/subderive want pitch bend?
-  - midi performer note overlap checking should use a bit of eta, or at least
+  * midi performer note overlap checking should use a bit of eta, or at least
     round to Timestamps first
-    - convert Perform.Event to use Timestamps
-    this means I have to convert back to index signals, is this a problem?
   - make Timestamp not Integral to conceal its implementation
 
   derive cache

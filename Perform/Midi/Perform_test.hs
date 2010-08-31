@@ -32,7 +32,7 @@ import qualified Perform.Midi.Perform as Perform
 
 
 legato :: Double
-legato = (\(RealTime pos) -> pos) Perform.legato_overlap_time
+legato = Timestamp.to_seconds Perform.legato_overlap_time
 
 -- * perform
 
@@ -130,8 +130,7 @@ trace_warns warns val
 test_control_lead_time = do
     -- verify that controls are given lead time if they are on their own
     -- channels, and not if they aren't
-    let Timestamp.Timestamp lead =
-            Timestamp.from_real_time Perform.control_lead_time
+    let Timestamp.Timestamp lead = Perform.control_lead_time
     let extract_msgs wmsgs =
             [(ts, chan, msg) | Midi.WriteMessage _ (Timestamp.Timestamp ts)
                 (Midi.ChannelMessage chan msg) <- wmsgs]
@@ -185,6 +184,25 @@ test_control_lead_time = do
         , (5000, 2, ControlChange 7 63)
         , (6000, 2, ControlChange 7 127)
         , (8000, 2, NoteOff 61 100)
+        ]
+
+test_overlap_eta = do
+    -- Make sure events which don't overlap according to midi aren't treated as
+    -- overlapping.
+    let t_perform events = (extract msgs, warns)
+            where
+            evts = Seq.sort_on Perform.event_start (mkevents events)
+            (msgs, warns) = perform inst_config2 evts
+            extract = map unpack_msg . filter (Midi.is_note . Midi.wmsg_msg)
+    let (msgs, warns) = t_perform
+            [(inst1, "a", 0, 1.0001, []), (inst1, "a", 1, 1, [])]
+    equal warns []
+    -- All allocated on channel 0, since none overlap enough.
+    equal msgs
+        [ ("dev1", 0, 0, NoteOn 60 100)
+        , ("dev1", 1, 0, NoteOff 60 100)
+        , ("dev1", 1, 0, NoteOn 60 100)
+        , ("dev1", 2, 0, NoteOff 60 100)
         ]
 
 
@@ -284,12 +302,10 @@ show_msg (Midi.WriteMessage dev ts msg) =
     show dev ++ ": " ++ pretty ts ++ ": " ++ show msg
 
 test_pitch_curve = do
-    let event pitch = Perform.Event inst1 (RealTime 1) (RealTime 0.5)
-            Map.empty (Signal.signal pitch) Stack.empty
+    let event pitch = mkpevent (1, 0.5, pitch, [])
     let f evt = (Seq.drop_dups id (map Midi.wmsg_msg msgs), warns)
             where
-            (msgs, warns, _) = Perform.perform_note
-                (RealTime 0) Nothing evt (dev1, 1)
+            (msgs, warns, _) = Perform.perform_note 0 Nothing evt (dev1, 1)
         chan msgs = (map (Midi.ChannelMessage 1) msgs, [])
 
     equal (f (event [(1, 42.5)]))
@@ -305,11 +321,12 @@ test_pitch_curve = do
 
     let notes prev evt = [(Midi.wmsg_ts msg, Midi.wmsg_msg msg) | msg <- msgs]
             where
-            (msgs, _, _) = Perform.perform_note prev Nothing evt (dev1, 1)
+            (msgs, _, _) = Perform.perform_note (secs prev)
+                Nothing evt (dev1, 1)
     -- Try to use the control_lead_time unless the previous note is too close.
-    equal (head (notes (RealTime 0) (event [(1, 42.5)])))
+    equal (head (notes 0 (event [(1, 42.5)])))
         (Timestamp.Timestamp 900, Midi.ChannelMessage 1 (Midi.PitchBend 0.5))
-    equal (head (notes (RealTime 1) (event [(1, 42.5)])))
+    equal (head (notes 1 (event [(1, 42.5)])))
         (Timestamp.Timestamp 1000, Midi.ChannelMessage 1 (Midi.PitchBend 0.5))
 
 test_no_pitch = do
@@ -379,7 +396,8 @@ test_drop_duplicates = do
 test_perform_control1 = do
     -- Bad signal that goes over 1 in two places.
     let sig = (vol_cc, mksignal [(0, 0), (1, 1.5), (2, 0), (2.5, 0), (3, 2)])
-        (msgs, warns) = Perform.perform_control Control.empty_map 0 0 4 sig
+        (msgs, warns) = Perform.perform_control Control.empty_map
+            (secs 0) (secs 0) (secs 4) sig
 
     -- controls are not emitted after they reach steady values
     check $ all Midi.valid_chan_msg (map snd msgs)
@@ -397,9 +415,7 @@ test_perform_control2 = do
 -- test the overlap map and channel allocation
 test_channelize = do
     let inst_addrs = Perform.config_to_inst_addrs inst_config2 inst_lookup
-        pevent (start, dur, psig) =
-            Perform.Event inst1 start dur Map.empty (Signal.signal psig)
-                Stack.empty
+        pevent (start, dur, psig) = mkpevent (start, dur, psig, [])
         f = map snd . channelize inst_addrs . map pevent
 
     -- Re-use channels when the pitch is different, but don't when it's the
@@ -422,7 +438,7 @@ test_channelize = do
         [0, 1]
 
     -- still can't share because of the control lead time
-    let evt0_end = Perform.note_end (pevent (0, 2, []))
+    let evt0_end = Timestamp.to_real_time $ Perform.note_end (pevent (0, 2, []))
     equal (f
         [ (0, 2, [(0, 60)])
         , (evt0_end, 2, [(evt0_end, 60.5)])
@@ -430,7 +446,7 @@ test_channelize = do
         [0, 1]
 
     -- can finally share
-    let evt0_end2 = evt0_end + Perform.control_lead_time
+    let evt0_end2 = evt0_end + Timestamp.to_real_time Perform.control_lead_time
     equal (f
         [ (0, 2, [(0, 60)])
         , (evt0_end2, 2, [(evt0_end2, 60.5)])
@@ -445,9 +461,7 @@ test_channelize = do
         [0, 0]
 
 test_can_share_chan = do
-    let pevent (start, dur, psig, conts) =
-            Perform.Event inst1 start dur (mkcontrols conts)
-                (Signal.signal psig) Stack.empty
+    let pevent = mkpevent
     let f evt0 evt1 = Perform.can_share_chan (pevent evt0) (pevent evt1)
 
     -- Can't share, becase there is explicitly time for a leading pitch
@@ -468,10 +482,11 @@ test_can_share_chan = do
     equal (f (0, 2, [(0, 60)], []) (0, 2, [(0, 60.5)], [])) False
     equal (f (0, 2, [(0, 60)], []) (2, 2, [(2, 60.5)], [])) False
     -- Still can't share because of the control lead time.
-    let e0_end = Perform.note_end (pevent (0, 2, [], []))
+    let e0_end = Timestamp.to_real_time $
+            Perform.note_end (pevent (0, 2, [], []))
     equal (f (0, 2, [(0, 60)], []) (e0_end, 2, [(e0_end, 60.5)], [])) False
     -- Finally can share.
-    let e0_end2 = e0_end + Perform.control_lead_time
+    let e0_end2 = e0_end + Timestamp.to_real_time Perform.control_lead_time
     equal (f (0, 2, [(0, 60)], []) (e0_end2, 2, [(e0_end2, 60.5)], [])) True
 
     -- First pitch can't share because it's bent from its original pitch.
@@ -493,15 +508,18 @@ test_overlap_map = do
     let f overlapping event = (extent event, map (extent . fst) overlapping)
     let events = mkevents_inst
             [ ("a", 0, 2, [])
-            , ("b", 1, 2, [])
-            , ("c", 1.5, 2, [])
-            , ("d", 5, 2, [])
+            , ("b", 1, 3, [])
+            , ("c", 2, 2, [])
+            , ("d", 6, 2, [])
             ]
-    equal (map snd (fst (Perform.overlap_map [] f events)))
+    let to_sec = map $ \(event, overlap) -> (sec event, map sec overlap)
+            where sec (a, b) = (Timestamp.to_seconds a, Timestamp.to_seconds b)
+    -- remember that overlap includes cc lead and decay
+    equal (to_sec (map snd (fst (Perform.overlap_map [] f events))))
         [ ((0, 2), [])
-        , ((1, 2), [(0, 2)])
-        , ((1.5, 2), [(1, 2), (0, 2)])
-        , ((5, 2), [])
+        , ((1, 3), [(0, 2)])
+        , ((2, 2), [(1, 3), (0, 2)])
+        , ((6, 2), [])
         ]
 
 channelize inst_addrs events = fst $ Perform.channelize [] inst_addrs events
@@ -548,6 +566,9 @@ allot inst_addrs events = (event_addrs, warnings)
 
 -- * setup
 
+secs :: Double -> Timestamp.Timestamp
+secs = Timestamp.seconds
+
 -- | Name will determine the pitch.  It can be a-z, or a2-z2, which will
 -- yield fractional pitches.
 type EventSpec = (Instrument.Instrument, String, RealTime, RealTime,
@@ -555,14 +576,21 @@ type EventSpec = (Instrument.Instrument, String, RealTime, RealTime,
 
 mkevent :: EventSpec -> Perform.Event
 mkevent (inst, pitch, start, dur, controls) =
-    Perform.Event inst start dur (Map.fromList controls) (psig start pitch)
-        DeriveTest.fake_stack
+    Perform.Event inst (ts start) (ts dur) (Map.fromList controls)
+        (psig start pitch) DeriveTest.fake_stack
     where
+    ts = Timestamp.from_real_time
     psig pos p = Signal.signal [(pos, to_pitch p)]
     to_pitch p = Maybe.fromMaybe (error ("no pitch " ++ show p))
         (lookup p pitch_map)
     pitch_map = zip (map (:"") ['a'..'z']) [60..]
         ++ zip (map (:"2") ['a'..'z']) [60.5..]
+
+-- Similar to mkevent, but allow a pitch curve.
+mkpevent (start, dur, psig, conts) =
+    Perform.Event inst1 (Timestamp.from_real_time start)
+        (Timestamp.from_real_time dur) (mkcontrols conts)
+        (Signal.signal psig) Stack.empty
 
 mkevents_inst = map (\(a, b, c, d) -> mkevent (inst1, a, b, c, d))
 

@@ -20,6 +20,7 @@ import qualified Derive.Stack as Stack
 import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
+import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Warning as Warning
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Perform as Perform
@@ -54,8 +55,10 @@ convert_event lookup_inst event = do
 
     pitch <- convert_pitch (Score.event_pitch event)
     let controls = convert_controls (Score.event_controls event)
-    return $ Perform.Event midi_inst (Score.event_start event)
-        (Score.event_duration event) controls pitch (Score.event_stack event)
+    return $ Perform.Event midi_inst
+        (Timestamp.from_real_time (Score.event_start event))
+        (Timestamp.from_real_time (Score.event_duration event))
+        controls pitch (Score.event_stack event)
 
 -- | They're both newtypes so this should boil down to id.
 -- I could filter out the ones MIDI doesn't handle but laziness should do its

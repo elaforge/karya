@@ -190,7 +190,7 @@ evaluate_midi prefix cache selection_pos logged_stats eval_pos chunks = do
     when (not (null post)) $
         Thread.delay 0.5
     evaluate_midi prefix cache selection_pos (logged_stats || splice_failed)
-        (eval_until + Midi.Cache.cache_chunk_size) post
+        (eval_until + Timestamp.to_real_time Midi.Cache.cache_chunk_size) post
 
 log_stats :: String -> Maybe RealTime -> Midi.Cache.Cache -> IO ()
 log_stats prefix splice_failed cache =
