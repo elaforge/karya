@@ -15,6 +15,21 @@
     Convert time so that the Perform.Events can get their slightly different
     Instruments.  It's up to the conversion code to convert an arbitrary set
     of attributes into a keyswitch.
+
+    Misc notes:
+
+    Not knowing the next event remains a problem.  If I clip the signal to the
+    end of the block I may miss control changes during the decay.  While
+    unfortunate, this isn't fatal, so oh well.
+
+    I can't know the next score event because it might be a call.  I would have
+    to evaluate the next event to get the current event, and that leads to
+    evaluating from back to front... and then I have the same problem with the
+    previous event.
+
+    The performer can't know the next event because it might be in the next
+    chunk.  That means evaluating the chunks back to front, with the same
+    problem.
 -}
 module Perform.Midi.Perform where
 import qualified Control.DeepSeq as DeepSeq
@@ -60,14 +75,6 @@ keyswitch_interval = 4
 control_lead_time :: Timestamp
 control_lead_time = Timestamp.seconds 0.1
 
--- | When a track's NoteOff lines up with the next NoneOn, make them overlap by
--- this amount.  Normally this won't be audible, but if the instrument is set
--- for fingered portamento then this should trigger it.
-legato_overlap_time :: Timestamp
-legato_overlap_time = Timestamp.seconds 0.01
-
--- Neither of those are exactly representable, but they get rounded to
--- milliseconds anyway.
 
 -- * perform
 
@@ -152,28 +159,16 @@ perform_notes :: PerformState -> [(Event, Instrument.Addr)]
 perform_notes state events =
     (merge_sorted_messages msgs, concat warns, final_state)
     where
-    (result, final_state) = map_notes _perform_note state events
+    (final_state, result) = List.mapAccumL _perform_note state events
     (msgs, warns) = unzip result
-    -- This is like mapAccumL, but looks for the next event.
-    -- This is problematic in the face of performing cached chunks because it
-    -- introduces a forward dependency, which means I'd have to always
-    -- reperform the previous chunk, or maybe more depending on how far it
-    -- is to the next event with the same addr.
-    -- TODO remove this forward dep
-    map_notes _ state [] = ([], state)
-    map_notes f state (x@(_, addr):xs) = (y : ys, final_state)
-        where
-        next = fst <$> List.find ((==addr) . snd) xs
-        (state2, y) = f state next x
-        (ys, final_state) = map_notes f state2 xs
 
-_perform_note :: PerformState -> Maybe Event -> (Event, Instrument.Addr)
+_perform_note :: PerformState -> (Event, Instrument.Addr)
     -> ((AddrInst, NoteOffMap), ([Midi.WriteMessage], [Warning.Warning]))
-_perform_note (addr_inst, note_off_map) next_event (event, addr) =
+_perform_note (addr_inst, note_off_map) (event, addr) =
     ((addr_inst2, Map.insert addr note_off note_off_map), (msgs, warns))
     where
     (note_msgs, note_warns, note_off) = perform_note
-        (Map.findWithDefault 0 addr note_off_map) next_event event addr
+        (Map.findWithDefault 0 addr note_off_map) event addr
     (chan_state_msgs, chan_state_warns, addr_inst2) =
         adjust_chan_state addr_inst addr event
     msgs = merge_messages [chan_state_msgs, note_msgs]
@@ -283,13 +278,10 @@ analyze_msg (Just (pb_val, cmap)) msg = case msg of
 -- * perform note
 
 -- | Emit MIDI for a single event.
---
--- @next_event@ is the next event with the same Addr which is used for the
--- legato tweak and to see how far to render controls.
-perform_note :: Timestamp -> Maybe Event -> Event -> Instrument.Addr
+perform_note :: Timestamp -> Event -> Instrument.Addr
     -> ([Midi.WriteMessage], [Warning.Warning], Timestamp)
     -- ^ (msgs, warns, note_off)
-perform_note prev_note_off next_event event addr =
+perform_note prev_note_off event addr =
     case event_pitch_at (event_pb_range event) event (event_start event) of
         Nothing -> ([], [event_warning event "no pitch signal"], prev_note_off)
         Just (midi_nn, _) ->
@@ -301,35 +293,27 @@ perform_note prev_note_off next_event event addr =
     -- 'perform_note_msgs' and 'perform_control_msgs' are really part of one
     -- big function.  Splitting it apart led to a bit of duplicated work but
     -- hopefully it's easier to understand this way.
-    _note_msgs = perform_note_msgs next_event event addr
-    _control_msgs = perform_control_msgs prev_note_off next_event event addr
+    _note_msgs = perform_note_msgs event addr
+    _control_msgs = perform_control_msgs prev_note_off event addr
 
 -- | Perform the note on and note off.
-perform_note_msgs :: Maybe Event -> Event -> Instrument.Addr
-    -> Midi.Key -> ([Midi.WriteMessage], [Warning.Warning], Timestamp)
-perform_note_msgs next_event event (dev, chan) midi_nn =
+perform_note_msgs :: Event -> Instrument.Addr -> Midi.Key
+    -> ([Midi.WriteMessage], [Warning.Warning], Timestamp)
+perform_note_msgs event (dev, chan) midi_nn =
     ([ chan_msg note_on (Midi.NoteOn midi_nn on_vel)
     , chan_msg note_off (Midi.NoteOff midi_nn off_vel)
     ], warns, note_off)
     where
     note_on = event_start event
-    -- Don't legato between repeated notes.
-    should_legato = event_end event == next_note_on
-        && Just midi_nn /= next_midi_nn
     note_off = event_end event
-        + if should_legato then legato_overlap_time else 0
     (on_vel, off_vel, vel_clip_warns) = note_velocity event note_on note_off
-    next_midi_nn = do
-        next <- next_event
-        fmap fst $ event_pitch_at (event_pb_range event) next next_note_on
-    next_note_on = maybe (note_end event) event_start next_event
     warns = make_clip_warnings event (Control.c_velocity, vel_clip_warns)
     chan_msg pos msg = Midi.WriteMessage dev pos (Midi.ChannelMessage chan msg)
 
 -- | Perform control change messages.
-perform_control_msgs :: Timestamp -> Maybe Event -> Event
+perform_control_msgs :: Timestamp -> Event
     -> Instrument.Addr -> Midi.Key -> ([Midi.WriteMessage], [Warning.Warning])
-perform_control_msgs prev_note_off next_event event (dev, chan) midi_nn =
+perform_control_msgs prev_note_off event (dev, chan) midi_nn =
     (control_msgs, warns)
     where
     control_msgs = merge_messages $
@@ -337,13 +321,11 @@ perform_control_msgs prev_note_off next_event event (dev, chan) midi_nn =
     control_sigs = Map.assocs (event_controls event)
     cmap = Instrument.inst_control_map (event_instrument event)
     (control_pos_msgs, clip_warns) = unzip $
-        map (perform_control cmap prev_note_off note_on next_note_on)
-            control_sigs
+        map (perform_control cmap prev_note_off note_on) control_sigs
     pitch_pos_msgs = perform_pitch (event_pb_range event)
-        midi_nn prev_note_off note_on next_note_on (event_pitch event)
+        midi_nn prev_note_off note_on (event_pitch event)
     note_on = event_start event
 
-    next_note_on = maybe (note_end event) event_start next_event
     warns = concatMap (make_clip_warnings event)
         (zip (map fst control_sigs) clip_warns)
     chan_msg (pos, msg) =
@@ -390,27 +372,27 @@ control_at event control pos = do
     sig <- Map.lookup control (event_controls event)
     return (Signal.at (Timestamp.to_real_time pos) sig)
 
-perform_pitch :: Control.PbRange -> Midi.Key -> Timestamp -> Timestamp
+perform_pitch :: Control.PbRange -> Midi.Key -> Timestamp
     -> Timestamp -> Signal.NoteNumber -> [(Timestamp, Midi.ChannelMessage)]
-perform_pitch pb_range nn prev_note_off start end sig =
+perform_pitch pb_range nn prev_note_off start sig =
     [(pos, Midi.PitchBend (Control.pb_from_nn pb_range nn val)) |
         (pos, val) <- pos_vals2]
     where
-    pos_vals = takeWhile ((<=end) . fst) $ signal_sample start sig
+    pos_vals = signal_sample start sig
     pos_vals2 = create_leading_cc prev_note_off start sig pos_vals
 
 -- | Return the (pos, msg) pairs, and whether the signal value went out of the
 -- allowed control range, 0--1.
-perform_control :: Control.ControlMap -> Timestamp -> Timestamp -> Timestamp
+perform_control :: Control.ControlMap -> Timestamp -> Timestamp
     -> (Control.Control, Signal.Control)
     -> ([(Timestamp, Midi.ChannelMessage)], [ClipWarning])
-perform_control cmap prev_note_off start end (control, sig) =
+perform_control cmap prev_note_off start (control, sig) =
     case Control.control_constructor cmap control of
         Nothing -> ([], []) -- TODO warn about a control not in the cmap
         Just ctor -> ([(pos, ctor val) | (pos, val) <- pos_vals3], clip_warns)
     where
     pos_vals3 = create_leading_cc prev_note_off start sig pos_vals2
-    pos_vals = takeWhile ((<=end) . fst) $ signal_sample start sig
+    pos_vals = signal_sample start sig
     (low, high) = Control.control_range
     -- Ack.  Extract the vals, clip them, zip clipped vals back in.
     (clipped_vals, clips) = unzip (map (clip_val low high) (map snd pos_vals))
@@ -494,11 +476,10 @@ channelize_event inst_addrs overlapping event =
 -- | Find a channel from the list of overlapping (Event, Channel) all of whose
 -- events can share with the given event.
 shareable_chan :: [(Event, Channel)] -> Event -> Maybe Channel
-shareable_chan overlapping event = fmap fst (List.find all_share by_chan)
+shareable_chan overlapping event = fst <$> List.find (all_share . snd) by_chan
     where
     by_chan = Seq.keyed_group_on snd overlapping
-    all_share (_chan, evt_chans) =
-        all (flip can_share_chan event) (map fst evt_chans)
+    all_share evt_chans = all (flip can_share_chan event) (map fst evt_chans)
 
 -- | Can the two events coexist in the same channel without interfering?
 -- The reason this is not commutative is so I can assume the start of @old@
@@ -511,8 +492,7 @@ can_share_chan old new = case (initial_pitch old, initial_pitch new) of
             Signal.pitches_share in_decay
                 (Timestamp.to_real_time start) (Timestamp.to_real_time end)
                 initial_old (event_pitch old) initial_new (event_pitch new)
-            && controls_equal start end
-                (event_controls new) (event_controls old)
+            && controls_equal (event_controls new) (event_controls old)
         _ -> True
     where
     start = note_begin new
@@ -525,15 +505,19 @@ can_share_chan old new = case (initial_pitch old, initial_pitch new) of
         || event_end old <= event_start new
 
 -- | Are the controls equal in the given range?
-controls_equal :: Timestamp -> Timestamp -> ControlMap -> ControlMap -> Bool
-controls_equal start end cs0 cs1 = all eq pairs
+controls_equal :: ControlMap -> ControlMap -> Bool
+controls_equal cs0 cs1 = all eq pairs
     where
     -- Velocity and aftertouch are per-note addressable in midi, but the rest
     -- of the controls require their own channel.
     relevant = Map.filterWithKey (\k _ -> Control.is_channel_control k)
     pairs = Map.pairs (relevant cs0) (relevant cs1)
-    eq (_, Just sig0, Just sig1) = Signal.equal
-        (Timestamp.to_real_time start) (Timestamp.to_real_time end) sig0 sig1
+    -- Previously I would compare only the overlapping range.  But controls
+    -- for multiplexed instruments are trimmed to the event start and end
+    -- already.  Comparing the entire signal will fail to merge events that
+    -- have different signals after the decay is over, but what are you
+    -- doing creating those anyway?
+    eq (_, Just sig0, Just sig1) = sig0 == sig1
     eq _ = False
 
 -- * allot channels

@@ -1,11 +1,13 @@
 -- | Basic calls for note tracks.
 module Derive.Call.Note where
 import qualified Data.List as List
+import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import Util.Control
 
 import Ui
 import qualified Ui.Event as Event
+import qualified Ui.State as State
 
 import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
@@ -13,6 +15,8 @@ import qualified Derive.TrackLang as TrackLang
 import qualified Derive.Score as Score
 
 import qualified Perform.PitchSignal as PitchSignal
+import qualified Perform.Signal as Signal
+import qualified Perform.Midi.Instrument as Instrument
 
 
 note_calls :: Derive.NoteCallMap
@@ -51,6 +55,8 @@ c_note = Derive.Call "note"
         [] -> Derive.info_block_end (Derive.passed_info args)
         (pos, _) : _ -> pos
 
+-- ** generate
+
 generate_note :: Maybe Score.Instrument -> [TrackLang.RelativeAttr]
     -> Event.Event -> ScoreTime -> Derive.EventDeriver
 generate_note n_inst rel_attrs event next_start = do
@@ -65,17 +71,49 @@ generate_note n_inst rel_attrs event next_start = do
         Nothing -> Derive.lookup_val TrackLang.v_instrument
     attrs <- Maybe.fromMaybe Score.no_attrs <$>
         Derive.lookup_val TrackLang.v_attributes
+    multiplexed <- inst_is_multiplexed inst
     st <- Derive.get
-    let controls = Derive.state_controls st
-        pitch_sig = Derive.state_pitch st
-    real_next_start <- Derive.score_to_real next_start
-    return [Score.Event start (end - start)
-        (Event.event_text event) controls
-            (trimmed_pitch start real_next_start pitch_sig)
-        (Derive.state_stack st) inst (apply rel_attrs attrs)]
+    real_next <- Derive.score_to_real next_start
+    let controls = if multiplexed
+            then trimmed_controls start real_next (Derive.state_controls st)
+            else Derive.state_controls st
+        -- Perform.Midi.Convert flattens the entire pitch signal, so it's best
+        -- to always trim the pitch to avoid extra work.
+        pitch_sig = trimmed_pitch start real_next (Derive.state_pitch st)
+    return [Score.Event start (end - start) (Event.event_text event)
+        controls pitch_sig (Derive.state_stack st) inst (apply rel_attrs attrs)]
     where
     apply rel_attrs attrs =
         List.foldl' (.) id (map TrackLang.set_attr rel_attrs) attrs
+
+inst_is_multiplexed :: Maybe Score.Instrument -> Derive.Deriver Bool
+inst_is_multiplexed Nothing = return False
+inst_is_multiplexed (Just inst) = do
+    config <- State.state_midi_config <$> Derive.gets Derive.state_ui
+    return $ case Map.lookup inst (Instrument.config_alloc config) of
+        Just (_:_) -> True
+        _ -> False
+
+-- | In a note track, the pitch signal for each note is constant as soon as the
+-- next note begins.  Otherwise, it looks like each note changes pitch during
+-- its decay.
+trimmed_pitch :: RealTime -> RealTime -> PitchSignal.PitchSignal
+    -> PitchSignal.PitchSignal
+trimmed_pitch start end =
+    PitchSignal.truncate end . PitchSignal.drop_before start
+
+-- Trims will almost all be increasing in time.  Can I save indices or
+-- something to make them faster?  That would only work with linear search
+-- though.
+--
+-- It would be nice to strip out deriver-only controls, but without specific
+-- annotation I can't know which ones those are.  Presumably laziness will
+-- do its thing?
+trimmed_controls :: RealTime -> RealTime -> Score.ControlMap -> Score.ControlMap
+trimmed_controls start end controls = Map.map trim controls
+    where trim = Signal.truncate end . Signal.drop_before start
+
+-- ** transform
 
 transform_note :: Maybe Score.Instrument -> [TrackLang.RelativeAttr]
     -> Derive.EventDeriver -> Derive.EventDeriver
@@ -98,11 +136,3 @@ process_note_args inst attrs args = (inst', attrs', reverse invalid)
         TrackLang.VRelativeAttr rel_attr ->
             (inst, attrs ++ [rel_attr], invalid)
         _ -> (inst, attrs, arg : invalid)
-
--- | In a note track, the pitch signal for each note is constant as soon as the
--- next note begins.  Otherwise, it looks like each note changes pitch during
--- its decay.
-trimmed_pitch :: RealTime -> RealTime -> PitchSignal.PitchSignal
-    -> PitchSignal.PitchSignal
-trimmed_pitch start end =
-    PitchSignal.truncate end . PitchSignal.drop_before start

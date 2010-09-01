@@ -75,7 +75,7 @@ module Perform.Signal (
     , sig_max, sig_min, clip_max, clip_min
     , scalar_add, scalar_subtract, scalar_multiply, scalar_divide
     , shift, scale
-    , truncate
+    , truncate, drop_before
     , map_x, map_y
 
     , inverse_at, compose, integrate
@@ -283,6 +283,9 @@ scale mult vec
 
 truncate :: X -> Signal y -> Signal y
 truncate x = modify_vec (SignalBase.truncate x)
+
+drop_before :: X -> Signal y -> Signal y
+drop_before x = modify_vec (SignalBase.drop_before x)
 
 map_x :: (X -> X) -> Signal y -> Signal y
 map_x f = modify_vec (SignalBase.map_x f)

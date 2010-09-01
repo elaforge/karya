@@ -1,20 +1,3 @@
-auto insert imports in vim:
-  - follow tag under cursor
-  - Get module name of current file
-  - turn 'module x.y.z where' into 'import qualified x.y.z as z'
-  - figure out where to insert it, and insert it
-
-+ finish up derive profiling testing, logging monad
-- signals:
-  - profile
-  - switch to lazy signals, try to fix warp compose stuff
-  - make resample etc. more efficient
-- implement simple integrator
-- implement dense signal data in Ui.Track
-- extend control track display to work with dense signals
-
-- research ardour OSC control
-
 CURRENT
   - lookup val calls in current inst as in current scale
     Maybe I can get rid of the Instrument.inst_control_map if I do the mapping
@@ -48,17 +31,22 @@ CURRENT
       this to other State attrs too?
   midi performer next event dep:
     * for now, just don't bother getting it right for cached perf
-    - change controls to be just like pitch: clip at event start and next event
+    * change controls to be just like pitch: clip at event start and next event
       start, for the same reasons as pitch
-    - make sure it clips from the sample *previous* so I get the initial val
-    - maybe an optimization where I don't bother to clip if the inst has no
+      But... directly passing the controls is so appealing.  Isn't trimming
+      inefficient?  Can I strip out the non-midi controls?
+    * make sure it clips from the sample *previous* so I get the initial val
+    * maybe an optimization where I don't bother to clip if the inst has no
       multiplexing
-    - make sure this means I can remove next start for trailing control: just
+    * make sure this means I can remove next start for trailing control: just
       perform all the controls the event has
-    - Remove perform legato.  If I need it later, it can be added as either
+    * Remove perform legato.  If I need it later, it can be added as either
       part of the note call (so it can also depend on inst) or as a postproc
       like negative duration.
 
+  - derive profile should run several derives on the same state to minimize
+    state construction overhead
+  - naming conventions: get/set or get/put?  inst_config or midi_config?
   - I really need to fix Signal.integrate
   * rename Derive.DeriveResult -> Derive.Result
   - seeking to play in a certain place will miss any controller initialization
@@ -71,12 +59,6 @@ CURRENT
   * remove with_msg for 'cached generator' and 'note', and 'control'
   * Transport.TempoFunction should return multiple RealTimes if the block
     is called in multiple places
-  make derivation lazy:
-    - exceptions are limited to calls in the track so the event output can be
-      lazy.  But calls call other blocks, so what about that?  Can I eliminate
-      DeriveError altogether?
-    - tempo map and inv tempo map have to be lazy, so they don't force the
-      entire derivation as soon as the first sample is touched
   incremental midi performance
     * pull states out to the 'perform' level
     * have perform return a State
@@ -297,6 +279,7 @@ UNSORTED
     no, it's used by Cmd.Create, which is used by keybindings
 
   - clicking jumps to timestep points that arrows won't jump to
+    this happens after scrolling
   - playback should have multiple lines when a block is derived multiple times
     have a set of playback selnums?
   - rederive lang cmd
@@ -315,7 +298,6 @@ UNSORTED
   - rename project -> namespace
   - document / enforce naming restrictions for CallId, Control, etc?
 
-  - test relative pitch slide!
   - should tab in raw edit mode go to method?  how to go back then?
   - select track, st3 style select block, track
   - cut + paste didn't work with a point paste
@@ -335,7 +317,7 @@ MILESTONES
     + tracklang complete with set of basic calls
     - dense / efficient control signals
     - lazy signals
-    - memoize deriver output, to avoid unnecessary rederivation
+    + memoize deriver output, to avoid unnecessary rederivation
     * symbolic score
     - midi record / integrator
     - save undo history
@@ -429,6 +411,7 @@ cleanup:
     rash, think about ways to derive e.g. 工尺譜.
 
 performance:
+  - derivation down to a Either is synchronous with the sync makes for laggy UI
   - More efficient signal comparison in Perform.Midi
     Derive.State keeps a counter.  This is incremented and assigned by
     'with_control'.  The MIDI layer can then compare IDs to tell if the signal
@@ -443,6 +426,12 @@ performance:
     Except that hardly ever happens if I do shortcut thru.
 
   - profile derivation, if parsing is a problem, look into attoparsec
+  make derivation lazy:
+    - exceptions are limited to calls in the track so the event output can be
+      lazy.  But calls call other blocks, so what about that?  Can I eliminate
+      DeriveError altogether?
+    - tempo map and inv tempo map have to be lazy, so they don't force the
+      entire derivation as soon as the first sample is touched
   * profile with and without strict state monad
   speed and memory profiling:
     - respond to incoming notes
@@ -471,7 +460,7 @@ performance:
     - in c++, cache marks and events from callback
     - cache track cmds for each track, update when the track title or skeleton
       changes
-    - deriver caching, see doc/derive_cache
+    * deriver caching, see doc/derive_cache
   - derive multiple blocks with strategies, par, parMap.  Can I spark all
     subderivations?
 
@@ -580,7 +569,6 @@ logging:
     that somehow?
   - commands like Selection or MIDI thru generate too much log spam, maybe
     filter logs for those?
-  - compile_to_signals spams too much when there is an error
 
 logview:
   - haskell and c++ use the same machine readable format
@@ -603,8 +591,27 @@ Ui:
       - efficient storage, preferably as a Signal so no conversion is necessary
       - display dense signals: omit text and trigger lines when zoomed out
 
-skeleton:
-  - parse skeleton in LanguageCmds
+plugin host track freeze audio
+  features needed:
+    - host synth plugins: programmatically load and configure plugins
+    - route midi: associate each plugin with its own midi ports
+    - audio graph config: configure the audio graph, placing synth plugins,
+      filter plugins, track record / fader / etc. daw stuff, and outputs
+      at various places
+    - DAW: Need to sync play position and send current cursor position when
+      it changes.
+    - track freezer: Record plugin output, sync play position.
+  rpc
+    - osc, but no good for two way
+    - thrift?
+  ardour
+    - ardour3 supports synth plugins, but doesn't compile on OS X yet
+      wait for paul to post his updated build instructions, try again then
+
+  reaper
+    it can sync to mmc
+    - route multiple plugins to the same bus?  can this be scripted?
+    - can it send cursor position?
 
 test:
   - write a fltk structure dump so UI tests can be non-interactive

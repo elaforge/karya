@@ -31,9 +31,6 @@ import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
 
 
-legato :: Double
-legato = Timestamp.to_seconds Perform.legato_overlap_time
-
 -- * perform
 
 test_perform = do
@@ -96,17 +93,16 @@ test_perform = do
         ]
 
     -- velocity curve shows up in NoteOns and NoteOffs
-    -- also legato overlap comes into play
     let c_vel = (Control.c_velocity, mksignal [(0, 1), (4, 0)])
     msgs <- t_perform
         [ [ (inst1, "a", 0, 2, [c_vel])
         , (inst1, "b", 2, 2, [c_vel])
         ] ]
     equal msgs
-        [ ("dev1", 0.0, 0, NoteOn 60 127)
-        , ("dev1", 2.0, 0, NoteOn 61 63)
-        , ("dev1", 2.0 + legato, 0, NoteOff 60 63)
-        , ("dev1", 4.0, 0, NoteOff 61 0)
+        [ ("dev1", 0, 0, NoteOn 60 127)
+        , ("dev1", 2, 0, NoteOff 60 63)
+        , ("dev1", 2, 0, NoteOn 61 63)
+        , ("dev1", 4, 0, NoteOff 61 0)
         ]
 
     -- Legato does not apply to consecutive notes with the same pitch, since
@@ -168,18 +164,18 @@ test_control_lead_time = do
     equal (f2 [(inst2, "a", 0, 4, []), (inst2, "b2", 4, 4, [])])
         [ (0, 2, PitchBend 0)
         , (0, 2, NoteOn 60 100)
+        , (4000, 2, NoteOff 60 100)
         , (4000, 2, PitchBend 0.5)
         , (4000, 2, NoteOn 61 100)
-        , (4010, 2, NoteOff 60 100) -- legato overlap kicks in
         , (8000, 2, NoteOff 61 100)
         ]
 
     equal (f2 [(inst2, "a", 0, 4, []), (inst2, "b", 4, 4, [vol])])
         [ (0, 2, PitchBend 0)
         , (0, 2, NoteOn 60 100)
+        , (4000, 2, NoteOff 60 100)
         , (4000, 2, ControlChange 7 0)
         , (4000, 2, NoteOn 61 100)
-        , (4010, 2, NoteOff 60 100) -- legato overlap kicks in
         , (5000, 2, ControlChange 7 63)
         , (6000, 2, ControlChange 7 127)
         , (8000, 2, NoteOff 61 100)
@@ -303,8 +299,7 @@ show_msg (Midi.WriteMessage dev ts msg) =
 test_pitch_curve = do
     let event pitch = mkpevent (1, 0.5, pitch, [])
     let f evt = (Seq.drop_dups id (map Midi.wmsg_msg msgs), warns)
-            where
-            (msgs, warns, _) = Perform.perform_note 0 Nothing evt (dev1, 1)
+            where (msgs, warns, _) = Perform.perform_note 0 evt (dev1, 1)
         chan msgs = (map (Midi.ChannelMessage 1) msgs, [])
 
     equal (f (event [(1, 42.5)]))
@@ -319,9 +314,7 @@ test_pitch_curve = do
             ])
 
     let notes prev evt = [(Midi.wmsg_ts msg, Midi.wmsg_msg msg) | msg <- msgs]
-            where
-            (msgs, _, _) = Perform.perform_note (secs prev)
-                Nothing evt (dev1, 1)
+            where (msgs, _, _) = Perform.perform_note (secs prev) evt (dev1, 1)
     -- Try to use the control_lead_time unless the previous note is too close.
     equal (head (notes 0 (event [(1, 42.5)])))
         (Timestamp.from_millis 900, Midi.ChannelMessage 1 (Midi.PitchBend 0.5))
@@ -396,7 +389,7 @@ test_perform_control1 = do
     -- Bad signal that goes over 1 in two places.
     let sig = (vol_cc, mksignal [(0, 0), (1, 1.5), (2, 0), (2.5, 0), (3, 2)])
         (msgs, warns) = Perform.perform_control Control.empty_map
-            (secs 0) (secs 0) (secs 4) sig
+            (secs 0) (secs 0) sig
 
     -- controls are not emitted after they reach steady values
     check $ all Midi.valid_chan_msg (map snd msgs)
@@ -405,7 +398,7 @@ test_perform_control1 = do
 
 test_perform_control2 = do
     let sig = (vol_cc, mksignal [(0, 0), (4, 1)])
-        (msgs, warns) = Perform.perform_control Control.empty_map 0 2 4 sig
+        (msgs, warns) = Perform.perform_control Control.empty_map 0 2 sig
     plist warns
     plist msgs
 

@@ -62,7 +62,7 @@ convert_event lookup_inst event = do
 
 -- | They're both newtypes so this should boil down to id.
 -- I could filter out the ones MIDI doesn't handle but laziness should do its
--- thing.  TODO unless that preverts timely GC?
+-- thing.  TODO unless that prevents timely GC?
 convert_controls :: Score.ControlMap -> Perform.ControlMap
 convert_controls = Map.mapKeys (\(Score.Control c) -> Control.Control c)
 

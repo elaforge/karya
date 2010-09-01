@@ -40,9 +40,8 @@ profile_perform_control = do
     let len = 300000
     let sig = force $ Signal.signal (zip [0, 0.25 .. len] (cycle vals))
         vals = map (/10) ([0..10] ++ [10, 9 .. 1])
-    let f end  = Perform.perform_control Control.empty_map 0 0 end
+    let (msg, warns) = Perform.perform_control Control.empty_map 0 0
             (Control.Control Control.c_mod, sig)
-    let (msg, warns) = f (Timestamp.seconds len)
     pprint warns
     pprint (length msg)
 
