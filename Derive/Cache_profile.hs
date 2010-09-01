@@ -35,27 +35,27 @@ import qualified Perform.Midi.Convert as Convert
 
 profile_normal = do
     let ui_state = UiTest.exec State.empty
-            (Derive_profile.make_nested_simple "b1" 10 3 128)
+            (Derive_profile.make_nested_controls "b1" 10 3 128)
         modify block pos = modify_note ("b1.0." ++ show block ++ ".t0")
             ("b1.0." ++ show block ++ ".t1") pos
     rederive ui_state [modify 0 2, modify 1 0, modify 4 4]
 
 profile_midi_normal = do
     let ui_state = UiTest.exec State.empty
-            (Derive_profile.make_nested_simple "b1" 10 3 128)
+            (Derive_profile.make_nested_controls "b1" 10 3 128)
         modify block pos = modify_note ("b1.0." ++ show block ++ ".t0")
             ("b1.0." ++ show block ++ ".t1") pos
     rederive_midi ui_state [modify 0 2, modify 1 0, modify 4 4]
 
 profile_small = do
     let ui_state = UiTest.exec State.empty
-            (Derive_profile.make_nested_simple "b1" 4 3 128)
+            (Derive_profile.make_nested_controls "b1" 4 3 128)
     -- pprint (Map.keys (State.state_tracks ui_state))
     rederive ui_state [modify_pitch "b1.0.0.t1" 2]
 
 profile_midi_small = do
     let ui_state = UiTest.exec State.empty
-            (Derive_profile.make_nested_simple "b1" 4 3 128)
+            (Derive_profile.make_nested_controls "b1" 4 3 128)
     -- pprint (UiTest.simplify ui_state)
     rederive_midi ui_state [modify_pitch "b1.0.0.t1" 2]
 

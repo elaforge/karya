@@ -89,50 +89,50 @@ make_subderive bid size = do
         make_simple sub_bid offset 16
     UiTest.mkstate bid [track_until size $ ctrack 1 ">" sub_bids]
 
-profile_nested = derive_profile $ make_nested_simple "b1" 8 3 128
+profile_nested_simple = derive_profile $ make_nested_notes "b1" 10 3 128
+profile_nested_controls = derive_profile $ make_nested_controls "b1" 10 3 128
 
--- TODO fix this to make sense like make_nested_simple
-make_nested :: (State.UiStateMonad m) => String -> Double -> Int -> m [a]
-make_nested bid size 0 = do
-    UiTest.mkstate bid $ map (track_until size)
-        [note_track ">", simple_pitch_track]
-    return []
-make_nested bid size depth = do
-    let sub_bids = [bid ++ "." ++ show sub | sub <- [0 .. min 4 (floor size)]]
-    UiTest.mkstate bid $ map (track_until (step * size))
-        [ctrack step inst1 sub_bids, pitch_track]
-    forM_ sub_bids $ \sub -> make_nested sub size (depth-1)
-    return []
-    where
-    step = size^depth
-    pitch_track = ctrack0 step "*twelve"
-        ["4a", "4b", "4c", "4d", "4e", "4f", "4g", "5c"]
+-- See if there's a difference between deriving for multiplexed and
+-- non-multiplexed instruments.
+profile_multiplex = do
+    derive_profile $ do
+        make_nested_controls "b1" 10 3 128
+        DeriveTest.set_defaults
+    derive_profile $ do
+        make_nested_controls "b1" 10 3 128
+        State.set_midi_config (DeriveTest.make_inst_config [("i", [0])])
 
-
--- | Try to duplicate a "normal" score, only without control curves.
--- This means a lightly nested structure, with the terminal blocks having
--- a more events than the intermediate ones.
-make_nested_simple :: (State.UiStateMonad m) => String -> Int -> Int -> Int
+make_nested_notes :: (State.UiStateMonad m) => String -> Int -> Int -> Int
     -> m ()
-make_nested_simple bid _ 1 bottom_size = do
-    UiTest.mkstate bid $ map (track_take bottom_size)
-        [note_track ">", simple_pitch_track]
-    return ()
-make_nested_simple bid size depth bottom_size = do
+make_nested_notes = make_nested [note_track ">i", simple_pitch_track]
+
+make_nested_controls :: (State.UiStateMonad m) => String -> Int -> Int -> Int
+    -> m ()
+make_nested_controls = make_nested
+    [ note_track ">i"
+    , simple_pitch_track
+    , mod_track
+    ]
+
+-- | Try to generate a "normal" score.  This means a lightly nested structure,
+-- with the terminal blocks having a more events than the intermediate ones.
+--
+-- This doesn't produce intermediate tempo or control curves.
+make_nested :: (State.UiStateMonad m) => [UiTest.TrackSpec]
+    -> String -> Int -> Int -> Int -> m ()
+make_nested bottom_tracks bid _ 1 bottom_size = do
+    UiTest.mkstate bid $ map (track_take bottom_size) bottom_tracks
+make_nested bottom_tracks bid size depth bottom_size = do
     let sub_bids = [bid ++ "." ++ show sub | sub <- [0 .. size-1]]
         step = bottom_size * size^(depth-2)
     UiTest.mkstate bid $ map (track_take size)
         [ctrack (fromIntegral step) inst1 sub_bids]
-    forM_ sub_bids $ \sub -> make_nested_simple sub size (depth-1) bottom_size
-
-
--- | Make a UI state and force it.
--- ui_exec :: State.State -> State.StateId a -> IO State.State
--- ui_exec state modify = return (UiTest.exec state modify)
-type PerfResults = ([Perform.Event], [(Timestamp.Timestamp, Midi.Message)])
-
+    forM_ sub_bids $ \sub ->
+        make_nested bottom_tracks sub size (depth-1) bottom_size
 
 -- * implementation
+
+type PerfResults = ([Perform.Event], [(Timestamp.Timestamp, Midi.Message)])
 
 derive_profile :: State.StateId a -> IO ()
 derive_profile create = do
@@ -211,7 +211,7 @@ inst2 = ">fm8/2"
 
 note_track inst = ctrack 1 inst [""]
 simple_tempo_track = ctrack0 10 "tempo" ["1", "2", "3", "i 1"]
-mod_track = ctrack0 1 "cc1 | srate = .02" ["i 1", "i 0", "e 1", "i .5", "0"]
+mod_track = ctrack0 1 "cc1 | srate = .02" ["1", "i 0", "e 1", "i .5", "i 0"]
 simple_pitch_track =
     ctrack0 1 "*twelve" ["4a", "4b", "4c", "4d", "4e", "4f", "4g", "5c"]
 nontempered_pitch_track =

@@ -72,8 +72,7 @@ derive_tracks = derive_tracks_cmap Call.All.call_map
 derive_tracks_cmap :: Derive.CallMap -> [UiTest.TrackSpec]
     -> Derive.Result [Score.Event]
 derive_tracks_cmap cmap tracks =
-    derive_block_cmap cmap ui_state UiTest.default_block_id
-    where (_, ui_state) = UiTest.run_mkstate tracks
+    derive_blocks_cmap cmap [(UiTest.default_block_name, tracks)]
 
 derive_tracks_tempo :: [UiTest.TrackSpec] -> Derive.Result [Score.Event]
 derive_tracks_tempo tracks = derive_tracks (("tempo", [(0, 0, "1")]) : tracks)
@@ -90,11 +89,17 @@ perform inst_config events = (perf_events, convert_warns, mmsgs, perform_warns)
 
 -- | Create multiple blocks, and derive the first one.
 derive_blocks :: [(String, [UiTest.TrackSpec])] -> Derive.Result [Score.Event]
-derive_blocks block_tracks = derive_block ui_state bid
+derive_blocks = derive_blocks_cmap Call.All.call_map
+
+derive_blocks_cmap :: Derive.CallMap -> [(String, [UiTest.TrackSpec])]
+    -> Derive.Result [Score.Event]
+derive_blocks_cmap cmap block_tracks = derive_block_cmap cmap ui_state bid
     where
-    (_, ui_state) = UiTest.run State.empty $
+    (_, ui_state) = UiTest.run State.empty $ do
         forM_ block_tracks $ \(bid, tracks) -> UiTest.mkstate bid tracks
+        set_defaults
     bid = UiTest.bid (fst (head block_tracks))
+
 
 derive_block :: State.State -> BlockId -> Derive.Result [Score.Event]
 derive_block = derive_block_cmap Call.All.call_map
@@ -112,10 +117,14 @@ derive = derive_cmap default_call_map
 derive_cmap :: Derive.CallMap -> Derive.LookupDeriver -> State.State
     -> Derive.Deriver a -> Derive.Result a
 derive_cmap cmap lookup_deriver ui_state deriver =
-    Derive.derive Derive.empty_cache Monoid.mempty lookup_deriver ui_state cmap
-        default_environ False deriver
+    Derive.derive Derive.empty_cache Monoid.mempty lookup_deriver ui_state
+        cmap default_environ False deriver
 
 -- ** defaults
+
+-- | Set UI state defaults that every derivation should have.
+set_defaults :: (State.UiStateMonad m) => m ()
+set_defaults = State.set_midi_config default_inst_config
 
 default_call_map :: Derive.CallMap
 default_call_map = Call.All.call_map
@@ -230,6 +239,7 @@ default_inst_title = ">i"
 
 synth = "fm8"
 
+default_inst_config :: Instrument.Config
 default_inst_config = make_inst_config [("i", [0..2])]
 
 make_inst_config :: [(String, [Midi.Channel])] -> Instrument.Config
