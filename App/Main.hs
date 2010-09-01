@@ -268,7 +268,7 @@ setup_generate gen = do
         "control" -> Derive_profile.make_big_control "b1" 15000
         "shared" -> Derive_profile.make_shared_control "b1" 2000
         _ -> error gen
-    State.set_midi_config Derive_profile.inst_config
+    State.set_midi_config Derive_profile.midi_config
     Create.view (UiTest.bid "b1")
     return Cmd.Done
 
@@ -298,7 +298,7 @@ setup_normal = do
     -- tempo 1 -> *twelve 3 -> mod -> >fm8/bass 2
     State.set_skeleton bid $ Skeleton.make [(1, 4), (4, 3), (3, 2)]
 
-    State.set_midi_config (make_inst_config [("fm8/bass", [0..2])])
+    State.set_midi_config (make_midi_config [("fm8/bass", [0..2])])
     State.set_selection vid Config.insert_selnum (Types.point_selection 0 0)
     return Cmd.Done
     where
@@ -340,7 +340,7 @@ setup_big = do
         (take 100 (mknotes (cycle (reverse (map ((,) 6) notes)))))
     State.insert_events t1_vel (take 100 (mkvels (cycle (reverse vels))))
 
-    State.set_midi_config (make_inst_config [("fm8/bass", [0..2])])
+    State.set_midi_config (make_midi_config [("fm8/bass", [0..2])])
     State.set_default_inst (Just (Score.Instrument "fm8/bass"))
     State.set_selection view Config.insert_selnum (Types.point_selection 0 0)
     return Cmd.Done
@@ -357,7 +357,7 @@ empty_block = do
     State.insert_events t_tempo $ map UiTest.mkevent [(0, 0, "1")]
     return (bid, vid)
 
-make_inst_config :: [(String, [Midi.Channel])] -> Instrument.Config
-make_inst_config config = Instrument.config
+make_midi_config :: [(String, [Midi.Channel])] -> Instrument.Config
+make_midi_config config = Instrument.config
     [(Score.Instrument inst, map mkaddr chans) | (inst, chans) <- config]
     where mkaddr chan = (Instrument.synth_device Fm8.fm8, chan)

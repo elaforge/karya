@@ -37,7 +37,7 @@ test_perform = do
     let t_perform events = do
         let evts = Seq.sort_on Perform.event_start (concatMap mkevents events)
         -- pprint evts
-        let (msgs, warns) = perform inst_config2 evts
+        let (msgs, warns) = perform midi_config2 evts
         -- print_msgs msgs
         -- putStrLn ""
         equal warns []
@@ -130,7 +130,7 @@ test_control_lead_time = do
     let extract_msgs wmsgs = [(Timestamp.to_millis ts, chan, msg)
             | Midi.WriteMessage _ ts (Midi.ChannelMessage chan msg) <- wmsgs]
         extract (msgs, warns) = trace_warns warns (extract_msgs msgs)
-    let f = extract . perform inst_config2 . mkevents_inst
+    let f = extract . perform midi_config2 . mkevents_inst
 
     equal (f [("a", 0, 4, []), ("b2", 4, 4, [])])
         [ (0, 0, PitchBend 0)
@@ -160,7 +160,7 @@ test_control_lead_time = do
 
     -- Force them to be on the same channel, so there shouldn't be any
     -- control lead.
-    let f2 = extract . perform inst_config2 . mkevents
+    let f2 = extract . perform midi_config2 . mkevents
     equal (f2 [(inst2, "a", 0, 4, []), (inst2, "b2", 4, 4, [])])
         [ (0, 2, PitchBend 0)
         , (0, 2, NoteOn 60 100)
@@ -187,7 +187,7 @@ test_overlap_eta = do
     let t_perform events = (extract msgs, warns)
             where
             evts = Seq.sort_on Perform.event_start (mkevents events)
-            (msgs, warns) = perform inst_config2 evts
+            (msgs, warns) = perform midi_config2 evts
             extract = map unpack_msg . filter (Midi.is_note . Midi.wmsg_msg)
     let (msgs, warns) = t_perform
             [(inst1, "a", 0, 1.0001, []), (inst1, "a", 1, 1, [])]
@@ -206,7 +206,7 @@ badsig cont = (cont, mksignal [(0, 0), (1.5, 1.5), (2.5, 0.5), (4, 2)])
 
 test_clip_warns = do
     let events = [mkevent (inst1, "a", 0, 4, [badsig vol_cc])]
-        (msgs, warns) = perform inst_config1 events
+        (msgs, warns) = perform midi_config1 events
     -- TODO check that warnings came at the right places
     -- check that the clips happen at the same places as the warnings
 
@@ -221,7 +221,7 @@ test_clip_warns = do
 extract_warns = map (\w -> (Warning.warn_msg w, Warning.warn_pos w))
 
 test_vel_clip_warns = do
-    let (msgs, warns) = perform inst_config1 $ mkevents_inst
+    let (msgs, warns) = perform midi_config1 $ mkevents_inst
             [("a", 0, 4, [badsig Control.c_velocity])]
     equal (extract_warns warns) [("Control \"vel\" clipped", Just (0, 4))]
     check (all_msgs_valid msgs)
@@ -324,7 +324,7 @@ test_pitch_curve = do
 test_no_pitch = do
     let event = (mkevent (inst1, "a", 0, 2, []))
             { Perform.event_pitch = Signal.constant Signal.invalid_pitch }
-    let (midi, logs) = perform inst_config1 [event]
+    let (midi, logs) = perform midi_config1 [event]
     equal (map Midi.wmsg_msg midi) []
     equal (map (\w -> (Warning.warn_msg w, Warning.warn_pos w)) logs)
         [("no pitch signal", Just (0, 2))]
@@ -349,10 +349,10 @@ test_keyswitch = do
     equal (f [(Nothing, "a", 0, 1), (ks1, "b", 10, 10)])
         ([(0, 60), (9996, 1), (10000, 61)], [])
 
-perform inst_config events = (msgs, warns)
+perform midi_config events = (msgs, warns)
     where
     (msgs, warns, _) =
-        Perform.perform Perform.initial_state inst_lookup inst_config events
+        Perform.perform Perform.initial_state inst_lookup midi_config events
 
 perform_notes events = (msgs, warns)
     where
@@ -406,7 +406,7 @@ test_perform_control2 = do
 
 -- test the overlap map and channel allocation
 test_channelize = do
-    let inst_addrs = Perform.config_to_inst_addrs inst_config2 inst_lookup
+    let inst_addrs = Perform.config_to_inst_addrs midi_config2 inst_lookup
         pevent (start, dur, psig) = mkpevent (start, dur, psig, [])
         f = map snd . channelize inst_addrs . map pevent
 
@@ -522,7 +522,7 @@ test_allot = do
     let mk inst chan start = (mkevent (inst, "a", start, 1, []), chan)
         mk1 = mk inst1
         in_time mks = zipWith ($) mks [0..]
-        inst_addrs = Perform.config_to_inst_addrs inst_config1 inst_lookup
+        inst_addrs = Perform.config_to_inst_addrs midi_config1 inst_lookup
         allot_chans events = map snd $ map snd $ fst $ allot inst_addrs events
 
     -- They should alternate channels, according to LRU.
@@ -538,7 +538,7 @@ test_allot = do
         [0, 1]
 
 test_allot_warn = do
-    let inst_addrs = Perform.config_to_inst_addrs inst_config1 inst_lookup
+    let inst_addrs = Perform.config_to_inst_addrs midi_config1 inst_lookup
     let extract (evts, warns) =
             (map extract_evt evts, map Warning.warn_msg warns)
         extract_evt (e, (Midi.WriteDevice dev, chan)) =
@@ -615,12 +615,12 @@ mkinst name = Instrument.instrument (Instrument.synth_name synth1) name Nothing
 dev1 = Midi.WriteDevice "dev1"
 dev2 = Midi.WriteDevice "dev2"
 synth1 = Instrument.synth "synth1" "synth1" []
-inst_config1 = Instrument.config [(score_inst inst1, [(dev1, 0), (dev1, 1)])]
+midi_config1 = Instrument.config [(score_inst inst1, [(dev1, 0), (dev1, 1)])]
 
 score_inst inst = Score.Instrument (Instrument.inst_name inst)
 
 -- Also includes inst2.
-inst_config2 = Instrument.config
+midi_config2 = Instrument.config
     [ (score_inst inst1, [(dev1, 0), (dev1, 1)])
     , (score_inst inst2, [(dev2, 2)]) ]
 default_ksmap = Instrument.make_keyswitches

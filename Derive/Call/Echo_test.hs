@@ -60,4 +60,4 @@ derive_midi (title, events) tracks =
     result = derive (DeriveTest.default_inst_title ++ " | " ++ title)
     (score_events, logs) = DeriveTest.e_val_right result
     (_perf_events, convert_warns, mmsgs, perf_warns) =
-        DeriveTest.perform DeriveTest.default_inst_config score_events
+        DeriveTest.perform DeriveTest.default_midi_config score_events

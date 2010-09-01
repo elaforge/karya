@@ -115,7 +115,7 @@ rederive_midi initial_state modifications = do
         initial_midi (return () : modifications)
     where
     initial_midi = Midi.Cache.cache DeriveTest.default_lookup
-        Derive_profile.inst_config
+        Derive_profile.midi_config
     go _ _ _ _ [] = return ()
     go start_times state1 derive_cache midi_cache (modify:rest) = do
         let section nmsgs = Derive_profile.time_section nmsgs start_times

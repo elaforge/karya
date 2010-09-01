@@ -48,8 +48,8 @@ interpret toks = case toks of
 
         -- State
         ["State.lookup_root_id"] -> Just $ fmap show State.lookup_root_id
-        ["State.put_root_id", str] | Just arg <- val str ->
-            cmd $ State.put_root_id arg
+        ["State.set_root_id", str] | Just arg <- val str ->
+            cmd $ State.set_root_id arg
         _ -> Nothing
     where
     cmd c = Just (c >> return "")

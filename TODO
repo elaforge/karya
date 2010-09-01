@@ -27,7 +27,7 @@ CURRENT
     - Maybe if I know which invocation, I can figure out the environment so
       that I can know current scale and inst?
     - include root block in set_global_status, but I should do this from an
-      always-run post cmd to avoid a separate Cmd.put_root_id.  Can I apply
+      always-run post cmd to avoid a separate Cmd.set_root_id.  Can I apply
       this to other State attrs too?
   midi performer next event dep:
     * for now, just don't bother getting it right for cached perf
@@ -46,7 +46,7 @@ CURRENT
 
   - derive profile should run several derives on the same state to minimize
     state construction overhead
-  - naming conventions: get/set or get/put?  inst_config or midi_config?
+  * naming conventions: get/set or get/put?  inst_config or midi_config?
   - I really need to fix Signal.integrate
   * rename Derive.DeriveResult -> Derive.Result
   - seeking to play in a certain place will miss any controller initialization

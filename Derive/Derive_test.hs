@@ -40,7 +40,7 @@ test_basic = do
             , ("*twelve", [(0, 0, "4c"), (16, 0, "4c#")])
             ]
     let (perf_events, convert_warns, mmsgs, midi_warns) = DeriveTest.perform
-            DeriveTest.default_inst_config events
+            DeriveTest.default_midi_config events
 
     equal logs []
     equal (extract_events events) [(0, 16, "n +a0"), (16, 16, "n +a2")]
@@ -172,7 +172,7 @@ test_subderive_multiple = do
                 ])
             ]
     let (_, _, mmsgs, _) = DeriveTest.perform
-            DeriveTest.default_inst_config events
+            DeriveTest.default_midi_config events
     equal logs []
     equal (DeriveTest.note_on_times mmsgs)
         [ (0, 60, 127), (0, 72, 127)
@@ -403,7 +403,7 @@ test_fractional_pitch = do
                 , ("*semar", [(0, 16, "1"), (16, 16, "2")])
                 ]
     let (_perf_events, convert_warns, mmsgs, perform_warns) =
-            DeriveTest.perform DeriveTest.default_inst_config events
+            DeriveTest.perform DeriveTest.default_midi_config events
 
     equal derive_logs []
     -- pprint events
@@ -423,7 +423,7 @@ test_overlapping_controls = do
             , ("cc1", [(0, 0, "0"), (1, 0, "1")])
             ]
     let (_, _, mmsgs, _) =
-            DeriveTest.perform DeriveTest.default_inst_config events
+            DeriveTest.perform DeriveTest.default_midi_config events
     let extract = map (first Timestamp.to_seconds) . filter (Midi.is_note . snd)
     equal (map (extract_control "cc1") events)
         [Just [(0, 0)], Just [(1, 1)]]
@@ -440,7 +440,7 @@ test_overlapping_controls = do
             , ("cc1", [(0, 0, "0"), (5, 0, "1")])
             ]
     let (_, _, mmsgs, _) =
-            DeriveTest.perform DeriveTest.default_inst_config events
+            DeriveTest.perform DeriveTest.default_midi_config events
     equal (extract mmsgs)
         [ (0, Midi.ChannelMessage 0 (Midi.NoteOn 60 100))
         , (1, Midi.ChannelMessage 0 (Midi.NoteOff 60 100))
@@ -459,7 +459,7 @@ test_control = do
             , ("cc1", [(0, 0, "1"), (1, 0, "i .75"), (2, 0, "i 0")])
             ]
     let (perf_events, convert_warns, mmsgs, midi_warns) = DeriveTest.perform
-            DeriveTest.default_inst_config events
+            DeriveTest.default_midi_config events
 
     -- Cursory checks, more detailed checks are in more Note_test and
     -- Control_test.

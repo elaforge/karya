@@ -80,11 +80,11 @@ derive_tracks_tempo tracks = derive_tracks (("tempo", [(0, 0, "1")]) : tracks)
 perform :: Instrument.Config -> [Score.Event]
     -> ([Perform.Event], [Warning.Warning],
         [(Timestamp.Timestamp, Midi.Message)], [Warning.Warning])
-perform inst_config events = (perf_events, convert_warns, mmsgs, perform_warns)
+perform midi_config events = (perf_events, convert_warns, mmsgs, perform_warns)
     where
     (perf_events, convert_warns) = Convert.convert default_lookup events
     (msgs, perform_warns, _) = Perform.perform Perform.initial_state
-        default_lookup inst_config perf_events
+        default_lookup midi_config perf_events
     mmsgs = map (\m -> (Midi.wmsg_ts m, Midi.wmsg_msg m)) msgs
 
 -- | Create multiple blocks, and derive the first one.
@@ -124,7 +124,7 @@ derive_cmap cmap lookup_deriver ui_state deriver =
 
 -- | Set UI state defaults that every derivation should have.
 set_defaults :: (State.UiStateMonad m) => m ()
-set_defaults = State.set_midi_config default_inst_config
+set_defaults = State.set_midi_config default_midi_config
 
 default_call_map :: Derive.CallMap
 default_call_map = Call.All.call_map
@@ -239,11 +239,11 @@ default_inst_title = ">i"
 
 synth = "fm8"
 
-default_inst_config :: Instrument.Config
-default_inst_config = make_inst_config [("i", [0..2])]
+default_midi_config :: Instrument.Config
+default_midi_config = make_midi_config [("i", [0..2])]
 
-make_inst_config :: [(String, [Midi.Channel])] -> Instrument.Config
-make_inst_config config = Instrument.config
+make_midi_config :: [(String, [Midi.Channel])] -> Instrument.Config
+make_midi_config config = Instrument.config
     [(Score.Instrument inst, map mkaddr chans) | (inst, chans) <- config]
     where mkaddr chan = (Midi.WriteDevice "fm8", chan)
 

@@ -24,7 +24,7 @@ profile_perform = do
     let f evts = (length msgs, logs)
             where
             (msgs, logs, _) = Perform.perform Perform.initial_state
-                test_lookup inst_config evts
+                test_lookup midi_config evts
     let len = 100000
     let sig = force $ Signal.signal (zip [0, 0.25 .. len] (cycle vals))
         vals = map (/10) ([0..10] ++ [10, 9 .. 1])
@@ -66,6 +66,6 @@ inst1 = mkinst "inst1"
 mkinst name = Instrument.instrument "synth" name Nothing Control.empty_map
     (-1, 1)
 
-inst_config = Instrument.config
+midi_config = Instrument.config
     [ (Score.Instrument "inst1", [(dev, 0), (dev, 1)]) ]
     where dev = Midi.WriteDevice "dev1"

@@ -100,7 +100,7 @@ profile_multiplex = do
         DeriveTest.set_defaults
     derive_profile $ do
         make_nested_controls "b1" 10 3 128
-        State.set_midi_config (DeriveTest.make_inst_config [("i", [0])])
+        State.set_midi_config (DeriveTest.make_midi_config [("i", [0])])
 
 make_nested_notes :: (State.UiStateMonad m) => String -> Int -> Int -> Int
     -> m ()
@@ -122,6 +122,7 @@ make_nested :: (State.UiStateMonad m) => [UiTest.TrackSpec]
     -> String -> Int -> Int -> Int -> m ()
 make_nested bottom_tracks bid _ 1 bottom_size = do
     UiTest.mkstate bid $ map (track_take bottom_size) bottom_tracks
+    return ()
 make_nested bottom_tracks bid size depth bottom_size = do
     let sub_bids = [bid ++ "." ++ show sub | sub <- [0 .. size-1]]
         step = bottom_size * size^(depth-2)
@@ -158,7 +159,7 @@ run_profile perform_midi ui_state = do
         return ((), events, DeriveTest.quiet_filter_logs (Derive.r_logs result))
 
     let (perf_events, convert_warns, mmsgs, midi_warns) =
-            DeriveTest.perform inst_config events
+            DeriveTest.perform midi_config events
     when perform_midi $ do
         section "convert" $ do
             force perf_events
@@ -238,5 +239,5 @@ track_drop n = second (shift . drop n)
     shift ((p, d, t) : rest) =
         (0, d, t) : map (\(p', d', t') -> (p' - p, d', t')) rest
 
-inst_config = DeriveTest.make_inst_config
+midi_config = DeriveTest.make_midi_config
     [(drop 1 inst1, [0, 1]), (drop 1 inst2, [2])]

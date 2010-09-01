@@ -413,8 +413,8 @@ set_default_inst inst = modify $ \st -> st { state_default_inst = inst }
 lookup_root_id :: (UiStateMonad m) => m (Maybe BlockId)
 lookup_root_id = gets state_root
 
-put_root_id :: (UiStateMonad m) => BlockId -> m ()
-put_root_id block_id = modify $ \st -> st { state_root = Just block_id }
+set_root_id :: (UiStateMonad m) => BlockId -> m ()
+set_root_id block_id = modify $ \st -> st { state_root = Just block_id }
 
 -- * view
 
