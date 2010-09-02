@@ -77,11 +77,11 @@ data State = State {
     state_log_hdl :: Maybe IO.Handle
     , state_log_level :: Prio
     }
-initial_state = State Nothing Debug
+initial_state = State (Just IO.stderr) Debug
 global_state = Unsafe.unsafePerformIO (MVar.newMVar initial_state)
 
 -- | Configure the log system to write to the given file.  Before you call
--- this, log output will go to stdout.  Return the old state.
+-- this, log output will go to stderr.  Return the old state.
 initialize :: Maybe IO.FilePath -> Prio -> IO State
 initialize log_fn prio = do
     hdl <- case log_fn of
