@@ -142,7 +142,7 @@ cached_generator :: (Derive.Derived derived) => CacheState -> Stack.Stack
 cached_generator state stack (Derive.GeneratorCall func gtype) args =
     case gtype of
         Derive.NonCachingGenerator ->
-            non_caching =<< has_damage state stack args
+            non_caching =<< has_damage state stack
         Derive.CachingGenerator -> do
             start <- Derive.now
             end <- Derive.score_to_real 1
@@ -209,9 +209,8 @@ cached_generator state stack (Derive.GeneratorCall func gtype) args =
 --
 -- This is never called for deleted events so it can't get damage for them,
 -- but there's a hack for that: 'Derive.Derive.get_track_damage'.
-has_damage :: CacheState -> Stack.Stack -> Derive.PassedArgs derived
-    -> Derive.Deriver Bool
-has_damage state stack args
+has_damage :: CacheState -> Stack.Stack -> Derive.Deriver Bool
+has_damage state stack
     | score = return True
     | no_control_damage = return False
     | otherwise = do
