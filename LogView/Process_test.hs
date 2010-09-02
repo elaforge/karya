@@ -21,14 +21,16 @@ test_process_msg = do
             where
             (new_state, styled) = Process.process_msg state msg
 
-    equal (f state (Log.msg Log.Debug "hi"))
+    msg <- Log.msg Log.Debug "hi"
+    equal (f state msg)
         (Nothing, Just "*\thi\n")
 
     let day = Time.UTCTime (Time.ModifiedJulianDay 42)
-        timing t = (Log.msg Log.Timer "hello") { Log.msg_date = t }
-        msg0 = timing (day 0)
-        msg1 = timing (day 0.01)
-        msg2 = timing (day 1)
+        timing t = fmap (\m -> m { Log.msg_date = t })
+            (Log.msg Log.Timer "hello")
+    msg0 <- timing (day 0)
+    msg1 <- timing (day 0.01)
+    msg2 <- timing (day 1)
 
     -- first timer is suppressed
     equal (f state msg0)

@@ -19,8 +19,8 @@ module Util.Log (
         , error_stack_srcpos
     , trace_logs
     -- * LogT monad
-    , LogMonad
-    , LogT, write, run
+    , LogMonad(..)
+    , LogT, run
     -- * serialization
     , format_msg
     , deserialize_msg
@@ -114,30 +114,35 @@ data Prio =
     deriving (Show, Enum, Eq, Ord, Read)
 
 -- | Create a msg with the give prio and text.
-msg_srcpos :: SrcPos.SrcPos -> Prio -> String -> Msg
+msg_srcpos :: (LogMonad m) => SrcPos.SrcPos -> Prio -> String -> m Msg
 msg_srcpos srcpos prio text = make_msg srcpos prio Nothing text
-msg :: Prio -> String -> Msg
-msg prio = msg_srcpos Nothing prio
-make_msg :: SrcPos.SrcPos -> Prio -> Maybe Stack.Stack -> String -> Msg
-make_msg srcpos prio stack text = Msg no_date_yet srcpos prio stack
-    (Text.pack text) []
 
-log :: LogMonad m => Prio -> SrcPos.SrcPos -> String -> m ()
-log prio srcpos text = write (make_msg srcpos prio Nothing text)
-log_stack :: LogMonad m => Prio -> SrcPos.SrcPos -> Stack.Stack -> String
+msg :: (LogMonad m) => Prio -> String -> m Msg
+msg prio = msg_srcpos Nothing prio
+
+-- | This should be the only way to construct a Msg.
+make_msg :: (LogMonad m) =>
+    SrcPos.SrcPos -> Prio -> Maybe Stack.Stack -> String -> m Msg
+make_msg srcpos prio stack text = initialize_msg $
+    Msg no_date_yet srcpos prio stack (Text.pack text) []
+
+log :: (LogMonad m) => Prio -> SrcPos.SrcPos -> String -> m ()
+log prio srcpos text = write =<< make_msg srcpos prio Nothing text
+
+log_stack :: (LogMonad m) => Prio -> SrcPos.SrcPos -> Stack.Stack -> String
     -> m ()
 log_stack prio srcpos stack text =
-    write (make_msg srcpos prio (Just stack) text)
+    write =<< make_msg srcpos prio (Just stack) text
 
 timer_srcpos, debug_srcpos, notice_srcpos, warn_srcpos, error_srcpos
-    :: LogMonad m => SrcPos.SrcPos -> String -> m ()
+    :: (LogMonad m) => SrcPos.SrcPos -> String -> m ()
 timer_srcpos = log Timer
 debug_srcpos = log Debug
 notice_srcpos = log Notice
 warn_srcpos = log Warn
 error_srcpos = log Error
 
-timer, debug, notice, warn, error :: LogMonad m => String -> m ()
+timer, debug, notice, warn, error :: (LogMonad m) => String -> m ()
 timer = timer_srcpos Nothing
 debug = debug_srcpos Nothing
 notice = notice_srcpos Nothing
@@ -156,14 +161,14 @@ first_timer_prefix = "first_timer: "
 -- Yay permutation game.  I could probably do a typeclass trick to make 'stack'
 -- an optional arg, but I think I'd wind up with all the same boilerplate here.
 debug_stack_srcpos, notice_stack_srcpos, warn_stack_srcpos, error_stack_srcpos
-    :: LogMonad m => SrcPos.SrcPos -> Stack.Stack -> String -> m ()
+    :: (LogMonad m) => SrcPos.SrcPos -> Stack.Stack -> String -> m ()
 debug_stack_srcpos = log_stack Debug
 notice_stack_srcpos = log_stack Notice
 warn_stack_srcpos = log_stack Warn
 error_stack_srcpos = log_stack Error
 
 debug_stack, notice_stack, warn_stack, error_stack
-    :: LogMonad m => Stack.Stack -> String -> m ()
+    :: (LogMonad m) => Stack.Stack -> String -> m ()
 debug_stack = debug_stack_srcpos Nothing
 notice_stack = notice_stack_srcpos Nothing
 warn_stack = warn_stack_srcpos Nothing
@@ -182,15 +187,24 @@ trace_logs logs val
 class Monad m => LogMonad m where
     write :: Msg -> m ()
 
+    -- | An instance for whatever monad you're using can use this to add some
+    -- custom data, like stack information.
+    initialize_msg :: Msg -> m Msg
+    initialize_msg = return
+
 instance LogMonad IO where
     write msg = do
+        -- This is also done by 'initialize_msg', but if the msg was created
+        -- outside of IO, it won't have had IO's 'initialize_msg' run on it.
         msg <- add_time msg
         MVar.withMVar global_state $ \(State m_hdl prio) -> case m_hdl of
             Just hdl | prio <= msg_prio msg ->
                 IO.hPutStrLn hdl (serialize_msg msg)
             _ -> return ()
         when (msg_prio msg == Error) $
-            putStrLn (format_msg msg)
+            IO.hPutStrLn IO.stderr (format_msg msg)
+
+    initialize_msg = add_time
 
 -- TODO show the date, if any
 format_msg :: Msg -> String
@@ -209,10 +223,10 @@ add_time :: Msg -> IO Msg
 add_time msg
     | msg_date msg == no_date_yet = do
         utc <- Time.getCurrentTime
-        return $ msg {msg_date = utc}
+        return $ msg { msg_date = utc }
     | otherwise = return msg
 
-instance Monad m => LogMonad (LogT m) where
+instance (Monad m) => LogMonad (LogT m) where
     write msg = write_msg msg
 
 write_msg :: Monad m => Msg -> LogT m ()

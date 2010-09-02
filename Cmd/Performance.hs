@@ -212,8 +212,8 @@ chunk_time chunk = case Midi.Cache.chunk_messages chunk of
 evaluate_chunk :: Midi.Cache.Chunk -> IO Bool
 evaluate_chunk chunk =
     fmap (any id) $ forM (Midi.Cache.chunk_warns chunk) $ \warn -> do
-        let log = PlayUtil.warn_to_log "perform" warn
-            splice = Midi.Cache.is_splice_failure warn
+        log <- PlayUtil.warn_to_log "perform" warn
+        let splice = Midi.Cache.is_splice_failure warn
         -- A splice failure isn't really a warning.
         Log.write $ if splice then log { Log.msg_prio = Log.Notice } else log
         return splice

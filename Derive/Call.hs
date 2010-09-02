@@ -68,7 +68,9 @@
 module Derive.Call where
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+
 import Util.Control
+import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
@@ -287,7 +289,7 @@ derive_event :: (Derive.Derived derived) =>
 derive_event block_end dinfo preproc prev_val prev cur@(pos, event) next
     | Event.event_string event == "--" = return (info_empty dinfo)
     | otherwise = case TrackLang.parse (Event.event_string event) of
-        Left err -> Derive.warn err >> return (info_empty dinfo)
+        Left err -> Log.warn err >> return (info_empty dinfo)
         Right expr -> run_call (preproc expr)
     where
     -- TODO move with_catch down here

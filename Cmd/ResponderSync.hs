@@ -52,5 +52,7 @@ verify_state state = do
     let (res, logs) = State.verify state
     mapM_ Log.write logs
     case res of
-        Left err -> error $ "fatal state consistency error: " ++ show err
+        Left err -> do
+            Log.error $ "state error while verifying: " ++ show err
+            return state
         Right state2 -> return state2

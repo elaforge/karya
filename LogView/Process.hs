@@ -251,10 +251,10 @@ tail_file log_chan filename seek = do
 deserialize_line :: String -> IO Log.Msg
 deserialize_line line = do
     err_msg <- Log.deserialize_msg line
-    return $ case err_msg of
+    case err_msg of
         Left exc -> Log.msg Log.Error $ "error parsing: " ++ show exc
             ++ ", line was: " ++ show line
-        Right msg -> msg
+        Right msg -> return msg
 
 tail_getline :: IO.Handle -> IO String
 tail_getline hdl = do

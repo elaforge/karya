@@ -26,7 +26,7 @@
     The current stack is stored in 'state_stack' and will be added to by
     'with_stack_block', 'with_stack_track', and 'with_stack_pos' as the deriver
     processes a block, a track, and individual events respectively.
-    'warn' and 'throw' will pick the current stack out of 'state_stack'.
+    Log msgs and 'throw' will pick the current stack out of 'state_stack'.
 
     When 'Derive.Score.Event's are emitted they are also given the stack at the
     time of their derivation.  If there is a problem in performance, log msgs
@@ -46,6 +46,7 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Log as Log
@@ -536,7 +537,26 @@ error_message (DeriveError _ _ s) = s
 
 instance Monad m => Log.LogMonad (DeriveT m) where
     write = DeriveT . lift . lift . Log.write
+    initialize_msg msg = do
+        -- If the msg was created by *_stack (for instance, by 'catch_warn'),
+        -- it may already have a stack.
+        stack <- maybe (gets state_stack) return (Log.msg_stack msg)
+        context <- gets state_log_context
+        return $ msg {
+            Log.msg_stack = Just stack
+            , Log.msg_text = add_text_context context (Log.msg_text msg)
+            }
 
+add_context :: [String] -> String -> String
+add_context [] s = s
+add_context context s = Seq.join " / " (reverse context) ++ ": " ++ s
+
+-- duplicated code, ugh
+add_text_context :: [String] -> Text.Text -> Text.Text
+add_text_context [] s = s
+add_text_context context s =
+    Text.intercalate (Text.pack " / ") (map Text.pack (reverse context))
+        `Text.append` (Text.pack ": ") `Text.append` s
 
 -- * monadic ops
 
@@ -605,12 +625,8 @@ d_subderive fail_val deriver = do
     mapM_ Log.write logs
     case res of
         Left (DeriveError srcpos stack msg) -> do
-            -- I don't use 'warn', which means I don't get the local context,
-            -- but I think that's ok because the msg gets the sub-block's
-            -- context.
-            Log.write $
-                (Log.msg_srcpos srcpos Log.Warn ("DeriveError: " ++ msg))
-                { Log.msg_stack = Just stack }
+            msg <- Log.msg_srcpos srcpos Log.Warn ("DeriveError: " ++ msg)
+            Log.write $ msg { Log.msg_stack = Just stack }
             return fail_val
         Right val -> do
             -- TODO once the logging portion of the state is factored out I
@@ -798,29 +814,6 @@ catch_warn msg_of op = Error.catchError (fmap Just op) $
     \(DeriveError srcpos stack msg) ->
         Log.warn_stack_srcpos srcpos stack (msg_of msg) >> return Nothing
 
--- There' s got be a better way to get srcpos.
-
-debug, notice, warn, error :: (Monad m) => String -> DeriveT m ()
-debug = debug_srcpos Nothing
-notice = notice_srcpos Nothing
-warn = warn_srcpos Nothing
-error = error_srcpos Nothing
-
-debug_srcpos, notice_srcpos, warn_srcpos, error_srcpos
-    :: (Monad m) => SrcPos.SrcPos -> String -> DeriveT m ()
-debug_srcpos = log_msg Log.Debug
-notice_srcpos = log_msg Log.Notice
-warn_srcpos = log_msg Log.Warn
-error_srcpos = log_msg Log.Error
-
-log_msg :: (Monad m) => Log.Prio -> SrcPos.SrcPos -> String -> DeriveT m ()
-log_msg prio srcpos text = do
-    stack <- gets state_stack
-    context <- gets state_log_context
-    Log.write $ Log.make_msg srcpos prio (Just stack) (add_context context text)
-
-add_context [] s = s
-add_context context s = Seq.join " / " (reverse context) ++ ": " ++ s
 
 -- ** environment
 
@@ -944,7 +937,7 @@ with_relative_control cont op signal deriver = do
     let msg = "relative control applied when no absolute control is in scope: "
     case Map.lookup cont controls of
         Nothing -> do
-            warn (msg ++ show cont)
+            Log.warn (msg ++ show cont)
             deriver
         Just old_signal -> with_control cont (op old_signal signal) deriver
 
@@ -968,7 +961,8 @@ with_relative_pitch maybe_name sig_op signal deriver = do
     if old == PitchSignal.empty
         then do
             -- This shouldn't happen normally because of the default pitch.
-            warn $ "relative pitch applied when no absolute pitch is in scope"
+            Log.warn $
+                "relative pitch applied when no absolute pitch is in scope"
             deriver
         else modify_pitch sig_op maybe_name signal deriver
 
@@ -1295,7 +1289,7 @@ lookup_id key map = case Map.lookup key map of
 -- | General purpose iterator over events.
 --
 -- It's like 'map_accuml_m' but sets the current event stack before operating
--- on each event, so that 'warn' can use it.  In addition, EventErrors are
+-- on each event, so that 'Log.warn' can use it.  In addition, EventErrors are
 -- caught and turned into warnings.  Events that threw aren't included in the
 -- output.  An additional function extracts an event, so you can map over
 -- things which are not themselves events.
@@ -1315,7 +1309,7 @@ map_events f state event_of xs = do
 -- | So this is kind of confusing.  When events are created, they are assigned
 -- their stack based on the current event_stack, which is set by the
 -- with_stack_* functions.  Then, when they are processed, the stack is used
--- to *set* event_stack, which is what 'warn' and 'throw' will look at.
+-- to *set* event_stack, which is what 'Log.warn' and 'throw' will look at.
 with_event :: (Monad m) => Score.Event -> DeriveT m a -> DeriveT m a
 with_event event = local state_stack
     (\old st -> st { state_stack = old })

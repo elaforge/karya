@@ -1,6 +1,6 @@
 -- | Basic calls for control tracks.
 module Derive.Call.Control where
-
+import qualified Util.Log as Log
 import qualified Util.Num as Num
 
 import Ui
@@ -68,7 +68,7 @@ c_slide = Derive.generator "slide" $ \args -> CallSig.call2 args
         srate <- Call.get_srate
         case Derive.passed_prev_val args of
                 Nothing -> do
-                    Derive.warn "no previous value to slide from"
+                    Log.warn "no previous value to slide from"
                     return $ Signal.signal [(start, val)]
                 Just (_, prev_y) -> return $
                     interpolator srate id True start prev_y end val
@@ -87,7 +87,7 @@ control_interpolate f val args = do
     srate <- Call.get_srate
     case Derive.passed_prev_val args of
         Nothing -> do
-            Derive.warn "no previous value to interpolate from"
+            Log.warn "no previous value to interpolate from"
             return $ Signal.signal [(start, val)]
         Just (prev, prev_val) -> return $
             interpolator srate f False prev prev_val start val

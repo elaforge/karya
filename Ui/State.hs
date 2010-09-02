@@ -350,12 +350,8 @@ safe_union name fm0 fm1
 -- The invariants should be protected by the modifiers in this module, but
 -- this is just in case.
 verify :: State -> (Either StateError State, [Log.Msg])
-verify state = (fmap (\(_, s, _) -> s) result, error_log ++ logs)
-    where
-    (result, logs) = Identity.runIdentity (Log.run (run state do_verify))
-    error_log = case result of
-        Left err -> [Log.msg Log.Error $ "state error: " ++ show err]
-        _ -> []
+verify state = (fmap (\(_, s, _) -> s) result, logs)
+    where (result, logs) = Identity.runIdentity (Log.run (run state do_verify))
 
 -- TODO
 -- check that all views refer to valid blocks, and all TracklikeIds have

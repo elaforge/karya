@@ -12,6 +12,7 @@ import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
 
 import Util.Control
+import qualified Util.Log as Log
 import qualified Util.Map as Map
 import qualified Util.Ranges as Ranges
 import qualified Util.Seq as Seq
@@ -166,7 +167,7 @@ cached_generator state stack (Derive.GeneratorCall func gtype) args =
             return (Right (return derived), Nothing)
     non_caching False = return (func args, Nothing)
     generate (Right (collect, cached)) = do
-        Derive.debug $ "using cache (" ++ show (Derive.derived_length cached)
+        Log.debug $ "using cache (" ++ show (Derive.derived_length cached)
             ++ " vals)"
         -- The cached deriver still has the same collect as it would if it had
         -- been actually derived.
@@ -178,7 +179,7 @@ cached_generator state stack (Derive.GeneratorCall func gtype) args =
             (derived, collect) <- with_collect deriver
             cur_cache <- state_cache <$> Derive.get_cache_state
             let new_cache = insert_generator stack collect derived cur_cache
-            Derive.debug $ "rederived generator ("
+            Log.debug $ "rederived generator ("
                 ++ show (Derive.derived_length derived) ++ " vals) because of "
                 ++ reason
             return (Right (return derived), Just new_cache)

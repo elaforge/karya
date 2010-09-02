@@ -1,6 +1,7 @@
 -- | Create val calls for scale degrees.
 module Derive.Call.Pitch where
 
+import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 
@@ -104,7 +105,7 @@ c_note_slide = Derive.generator "note_slide" $ \args -> CallSig.call2 args
         srate <- Call.get_srate
         case Derive.passed_prev_val args of
                 Nothing -> do
-                    Derive.warn "no previous value to slide from"
+                    Log.warn "no previous value to slide from"
                     return $ PitchSignal.signal scale_id
                         [(start, PitchSignal.degree_to_y degree)]
                 Just (_, prev_y) -> return $
@@ -144,7 +145,7 @@ pitch_interpolate f degree args = do
     srate <- Call.get_srate
     case Derive.passed_prev_val args of
         Nothing -> do
-            Derive.warn $ "no previous val to interpolate from"
+            Log.warn $ "no previous val to interpolate from"
             return $ PitchSignal.signal scale_id
                 [(start, PitchSignal.degree_to_y degree)]
         Just (prev, prev_y) -> return $

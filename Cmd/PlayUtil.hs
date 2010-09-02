@@ -93,9 +93,8 @@ perform :: (Monad m) => Derive.Result Derive.Events -> Midi.Cache.Cache
 perform result cache = do
     events <- case Derive.r_result result of
         Left (Derive.DeriveError srcpos stack msg) -> do
-            Log.write $
-                (Log.msg_srcpos srcpos Log.Warn ("deriving: " ++ msg))
-                { Log.msg_stack = Just stack }
+            msg <- Log.msg_srcpos srcpos Log.Warn ("deriving: " ++ msg)
+            Log.write $ msg { Log.msg_stack = Just stack }
             Cmd.abort
         Right events -> return events
 
@@ -106,8 +105,8 @@ perform result cache = do
     let Derive.EventDamage event_damage = Derive.r_event_damage result
         new_midi_cache = Midi.Cache.perform cache
                 (Midi.Cache.EventDamage event_damage) midi_events
-        logs = Derive.r_logs result
-            ++ map (warn_to_log "convert") convert_warnings
+    warn_logs <- mapM (warn_to_log "convert") convert_warnings
+    let logs = Derive.r_logs result ++ warn_logs
     return $ Cmd.Performance
         (Derive.r_cache result) new_midi_cache Monoid.mempty
         logs (Derive.r_tempo result) (Derive.r_inv_tempo result)
@@ -139,11 +138,10 @@ get_derive_cache (Just perf) =
     (Cmd.perf_derive_cache perf, Cmd.perf_score_damage perf)
 
 -- | Convert a Warning into an appropriate log msg.
-warn_to_log :: String -> Warning.Warning -> Log.Msg
-warn_to_log context (Warning.Warning msg event_stack maybe_range) =
-    log { Log.msg_stack = Just event_stack }
-    where
-    log = Log.msg Log.Warn $ context ++ ": " ++ msg
+warn_to_log :: (Log.LogMonad m) => String -> Warning.Warning -> m Log.Msg
+warn_to_log context (Warning.Warning msg event_stack maybe_range) = do
+    log <- Log.msg Log.Warn $ context ++ ": " ++ msg
         -- TODO It would be more useful to append this to the stack, but I have
         -- to convert real -> score.
         ++ maybe "" ((" range: " ++) . show) maybe_range
+    return $ log { Log.msg_stack = Just event_stack }
