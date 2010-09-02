@@ -138,9 +138,15 @@ cmd_play transport_info block_id (start_track, start_pos) = do
         _ -> return ()
     perf <- get_performance block_id
 
+    -- Yes I already logged these, but that may have been buried.
+    let warn_logs = filter ((>=Log.Warn) . Log.msg_prio) (Cmd.perf_logs perf)
+        warn_text = if null warn_logs
+            then "But there were no warnings which is odd."
+            else "Warnings deriving: "
+                ++ Seq.join ", " (map Log.msg_string warn_logs)
     start_ts <- case Cmd.perf_tempo perf block_id start_track start_pos of
-        [] -> Cmd.throw $ "unknown play start pos: "
-            ++ show start_track ++ ", " ++ show start_pos
+        [] -> Cmd.throw $ show block_id ++ " has no tempo information, so it "
+            ++ "probably failed to derive.  " ++ warn_text
         realtime : _ -> return (Timestamp.from_real_time realtime)
     let msgs = Cache.messages_from start_ts (Cmd.perf_midi_cache perf)
     (play_ctl, updater_ctl) <- Trans.liftIO $

@@ -43,7 +43,7 @@ cmd_val_edit pitch_track scale_id msg = do
             InputNote.NoteOn note_id key _vel -> do
                 -- TODO if I can find a vel track, put the vel there
                 (pitch_tracknum, track_id) <-
-                    get_pitch_track (Just note_id) pitch_track
+                    make_pitch_track (Just note_id) pitch_track
                 note <- EditUtil.parse_key scale_id key
                 PitchTrack.val_edit_at (pitch_tracknum, track_id, pos) note
                 -- TODO if I do chords, this will have to be the chosen note
@@ -81,7 +81,7 @@ cmd_method_edit pitch_track msg = do
     case msg of
         (EditUtil.method_key -> Just key) -> do
             (_, _, pos) <- EditUtil.get_sel_pos
-            (tracknum, track_id) <- get_pitch_track Nothing pitch_track
+            (tracknum, track_id) <- make_pitch_track Nothing pitch_track
             PitchTrack.method_edit_at (tracknum, track_id, pos) key
             ensure_exists
         _ -> Cmd.abort
@@ -102,10 +102,11 @@ track_of note_id = do
     track_id <- State.get_event_track_at "NoteTrack.track_of" block_id tracknum
     return (tracknum, track_id)
 
--- | PitchTrack will presumably have to be a list if chords are supported.
-get_pitch_track :: (Monad m) => Maybe InputNote.NoteId -> PitchTrack
+-- | Turn the given PitchTrack into a TrackId, creating a new track if it's
+-- a CreateTrack.  If a NoteId is given, associate that ID with the track.
+make_pitch_track :: (Monad m) => Maybe InputNote.NoteId -> PitchTrack
     -> Cmd.CmdT m (TrackNum, TrackId)
-get_pitch_track maybe_note_id pitch_track = do
+make_pitch_track maybe_note_id pitch_track = do
     block_id <- Cmd.get_focused_block
     (tracknum, tid) <- case pitch_track of
         CreateTrack note_tracknum title pitch_tracknum -> do
@@ -113,7 +114,7 @@ get_pitch_track maybe_note_id pitch_track = do
                 pitch_tracknum
             return (pitch_tracknum, tid)
         ExistingTrack tracknum -> do
-            tid <- State.get_event_track_at "NoteTrack.get_pitch_track"
+            tid <- State.get_event_track_at "NoteTrack.make_pitch_track"
                 block_id tracknum
             return (tracknum, tid)
     st <- Cmd.get_wdev_state

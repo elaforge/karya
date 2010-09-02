@@ -57,6 +57,9 @@ parse_control_vals vals = case vals of
                 Right $ Pitch (PitchRelative call) Nothing
             | [TrackLang.VSymbol control] <- rest ->
                 Right $ Pitch (PitchRelative call) (Just (control_of control))
+        TrackLang.VSymbol _
+                : TrackLang.VSymbol (TrackLang.Symbol ('*':scale)) : _ ->
+            Left $ "can't put a scale on a relative pitch: " ++ show scale
         [TrackLang.VSymbol (TrackLang.Symbol "tempo")] -> Right Tempo
         [TrackLang.VSymbol control] ->
             Right $ Control Nothing (control_of control)
