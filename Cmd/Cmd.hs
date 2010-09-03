@@ -319,7 +319,7 @@ data WriteDeviceState = WriteDeviceState {
     -- a PitchChange uses this to know which pitch track to update.
     , wdev_note_track :: Map.Map InputNote.NoteId (BlockId, TrackNum)
 
-    -- Used by no one, yet:
+    -- Used by no one, yet:  (TODO should someone use this?)
     -- | Remember the current inst of each addr.  More than one instrument or
     -- keyswitch can share the same addr, so I need to keep track which one is
     -- active to minimize switches.

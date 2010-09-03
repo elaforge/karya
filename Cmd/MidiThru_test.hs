@@ -37,6 +37,12 @@ test_input_to_midi = do
         [(0, Midi.NoteOn 0 127), (1, Midi.NoteOn 1 127), (2, Midi.NoteOn 2 127),
             (2, Midi.NoteOff 2 127), (2, Midi.NoteOn 3 127)]
 
+    -- once assigned a note_id, controls get mapped to that channel
+    equal (f [note_on 64 64 127, note_on 66 66 127,
+            control 64 "modulation" 127, control 66 "breath" 64])
+        [(0, Midi.NoteOn 64 127), (1, Midi.NoteOn 66 127),
+            (0, Midi.ControlChange 1 127), (1, Midi.ControlChange 2 64)]
+
 
 extract_msg (_, Midi.ChannelMessage chan msg) = (chan, msg)
 extract_msg (_, msg) = error $ "bad msg: " ++ show msg

@@ -44,6 +44,11 @@ data Input =
     -- would make converting this back into midi for thru harder.
     NoteOn NoteId Pitch.InputKey Signal.Y
     | NoteOff NoteId Signal.Y
+    -- | Controls coming from MIDI are mapped to control names, since this is
+    -- a superset of MIDI CC numbers, and may include non-MIDI as well.  But
+    -- for MidiThru to map back to a CC number, I need 1:1 mapping between
+    -- Score.Controls and CC numbers.  This is what 'cc_to_control' and
+    -- 'control_to_cc' provide.
     | Control NoteId Score.Control Signal.Y
     -- | Pitch could also be a Control, but this way the pitch is typed.
     | PitchChange NoteId Pitch.InputKey
@@ -56,6 +61,12 @@ input_id input = case input of
     Control note_id _ _ -> note_id
     PitchChange note_id _ -> note_id
 
+-- | In theory, NoteId is an arbitrary ID, but in practice it's the same as
+-- the initial note on Midi.Key.  The reason is that pitch bend needs to
+-- know the original key so it knows what the pitch bend is relative to.  I
+-- could store the original key separately, but it's convenient to put them
+-- both into NoteId, and I can't think of any instances where I'd want them
+-- to be different.
 newtype NoteId = NoteId Int deriving (Eq, Ord, Show)
 key_to_id :: Midi.Key -> NoteId
 key_to_id = NoteId . fromIntegral

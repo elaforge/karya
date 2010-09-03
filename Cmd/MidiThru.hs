@@ -12,6 +12,12 @@
     This means keeping track of note ids assigned to addrs and serial numbers
     for each addr.
 
+    It's different from the usual simple thru in that it attempts to assign
+    control messages to a single note.  So if the instrument is multiplexed,
+    control changes (including pitch bend) will go only to the last sounding
+    key.  This also means that controls will not go through at all unless
+    there is a note sounding.
+
     It should be possible to reduce latency by bypassing the responder loop and
     running this in its own thread.  It does mean the InputNote work is
     duplicated and synchronization of state, such as current instrument info,
@@ -23,8 +29,7 @@
     have happened and skip sync.
 
     - Marshalling the cmd list: cache the expensive parts.  The only changing
-    bit is the focus cmds, so keep those until focus changes.  Or if it's the
-    skeleton parse, that might be fixed by moving to the explicit skeleton.
+    bit is the focus cmds, so keep those until focus changes.
 
     - Duplicate NoteInput conversions.
 
@@ -108,7 +113,6 @@ input_to_midi pb_range wdev_state addrs input = case alloc addrs input of
     where
     alloc = alloc_addr (Cmd.wdev_note_addr wdev_state)
         (Cmd.wdev_addr_serial wdev_state) (Cmd.wdev_serial wdev_state)
-
 
 merge_state :: Maybe (Map.Map NoteId Addr, Map.Map Addr Integer)
     -> Addr -> Midi.PitchBendValue -> Cmd.WriteDeviceState

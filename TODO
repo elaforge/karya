@@ -282,12 +282,8 @@ UNSORTED
     this happens after scrolling
   - playback should have multiple lines when a block is derived multiple times
     have a set of playback selnums?
-  - rederive lang cmd
-  - insts with breath are not easy to use
-    if I make sure breah control goes thru then I shouldn't need anything
-    special
+  - should be able to rescan midi ports when something new is plugged in
   - local inst db, in Ui.State, so I can e.g. set pb range for fm/* inst
-
   * midi input doesn't advance on note off
   - midi thru doesn't pick up default inst
     empty scale defaults in Derive, but not in Cmd
