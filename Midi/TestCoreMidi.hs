@@ -95,8 +95,7 @@ usage = unlines
 
 monitor :: ReadMsg -> IO ()
 monitor read_msg = forever $ do
-    Just (Midi.ReadMessage (Midi.ReadDevice dev) (Timestamp.Timestamp ts) msg)
-        <- read_msg
+    Just (Midi.ReadMessage (Midi.ReadDevice dev) ts msg) <- read_msg
     print (ts, dev, msg)
 
 
@@ -106,7 +105,7 @@ thru_loop :: WriteMsg -> ReadMsg -> IO ()
 thru_loop write_msg read_msg = forever $ do
     Just (Midi.ReadMessage dev ts msg) <- read_msg
     putStrLn $ "thru: " ++ show (ts, dev, msg)
-    write_msg (Timestamp.immediately, msg)
+    write_msg (Timestamp.zero, msg)
 
 
 -- * melody
@@ -170,7 +169,7 @@ test_sysex write_msg read_msg = do
     let size = 20
     let msg = Midi.CommonMessage $ Midi.SystemExclusive 42
             (ByteString.pack (take (size*1024) (cycle [0..9]) ++ [0xf7]))
-    write_msg (Timestamp.immediately, msg)
+    write_msg (Timestamp.zero, msg)
     putStrLn "waiting for sysex to arrive..."
     Just (out, secs) <- read_until 10 read_msg
     putStrLn $ show secs ++ " seconds for " ++ show size ++ "k"
