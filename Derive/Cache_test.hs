@@ -168,8 +168,6 @@ test_collect = do
             return bid
     let (_, cached, _) = compare_cached create $
             State.insert_event (UiTest.tid "parent.t0") 1 (Event.event "" 1)
-    let twarp start end block tracks = Derive.TrackWarp start end
-            (UiTest.bid block) (map UiTest.tid tracks) Score.id_warp
     -- pprint (r_cache_collect cached)
     let [root, _parent] = r_cache_collect cached
     let tsig = Track.TrackSignal (Track.Control (Signal.signal [(0, 1)])) 0 1
@@ -177,13 +175,45 @@ test_collect = do
     -- otherwise.
     equal root ("<no stack>", Just $
         Derive.Collect
-            [ twarp 0 1 "sub" ["sub.t0", "sub.t1"]
-            , twarp 0 2 "parent" ["parent.t0"]
+            [ mk_twarp 0 1 "sub" ["sub.t0", "sub.t1"]
+            , mk_twarp 0 2 "parent" ["parent.t0"]
             ]
             (Map.fromList [(UiTest.tid "sub.t1", tsig)])
-            (Derive.GeneratorDep
-                (Set.fromList [UiTest.bid "parent", UiTest.bid "sub"])))
+            (mk_gdep ["parent", "sub"]))
 
+
+test_event_damage_exception = do
+    -- make sure a deriver that throws still emits EventDamage and the proper
+    -- Collect
+    let result = DeriveTest.derive_tracks
+            [ ("tempo", [(0, 0, ".5")])
+            , (">i", [(0, 2, "")])
+            , ("*badscale", [])
+            ]
+    strings_like (map Log.msg_string (Derive.r_logs result))
+        ["unknown ScaleId" , "*rederived generator*"]
+    equal (Derive.r_event_damage result) (Derive.EventDamage Ranges.everything)
+    equal (r_cache_collect result)
+        [ ("<no stack>",
+            Just (Derive.Collect [] Map.empty (mk_gdep ["b1"])))
+        ]
+
+test_event_damage_sub_exception = do
+    let result = DeriveTest.derive_blocks
+            [ ("p", [(">i", [(0, 2, "sub"), (5, 1, "sub")])])
+            , ("sub", [(">i", [(0, 2, "")]), ("*badscale", [])])
+            ]
+    equal (Derive.r_event_damage result)
+        (Derive.EventDamage (Ranges.ranges [(0, 2), (5, 6)]))
+    equal (r_cache_collect result)
+        [ ("<no stack>", Just $ Derive.Collect
+            [mk_twarp 0 6 "p" ["p.t0"]]
+                Map.empty (mk_gdep ["p", "sub"]))
+        , ("test/p test/p.t0 0-2", Just $ Derive.Collect
+            [] Map.empty (mk_gdep ["sub"]))
+        , ("test/p test/p.t0 5-6", Just $ Derive.Collect
+            [] Map.empty (mk_gdep ["sub"]))
+        ]
 
 -- If I modify a control in a certain place, say a pitch track, I don't want it
 -- to derive the whole control.  Then it will damage the whole control and
@@ -305,6 +335,13 @@ r_cache_deps result =
     where
     deps collect = case Derive.collect_local_dep collect of
         Derive.GeneratorDep blocks -> Set.elems blocks
+
+mk_gdep :: [String] -> Derive.GeneratorDep
+mk_gdep = Derive.GeneratorDep . Set.fromList . map UiTest.bid
+
+mk_twarp :: RealTime -> RealTime -> String -> [String] -> Derive.TrackWarp
+mk_twarp start end block tracks = Derive.TrackWarp start end
+    (UiTest.bid block) (map UiTest.tid tracks) Score.id_warp
 
 r_cache_stacks = Map.keys . uncache . Derive.r_cache
 uncache (Derive.Cache cache) = cache

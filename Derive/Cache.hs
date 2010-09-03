@@ -6,6 +6,7 @@ module Derive.Cache (
     , find_generator_cache, lookup_prefix
 ) where
 import Control.Monad
+import qualified Control.Monad.Error as Error
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Monoid as Monoid
@@ -176,28 +177,30 @@ cached_generator state stack (Derive.GeneratorCall func gtype) args =
     generate (Left reason) = case func args of
         Left err -> return (Left err, Nothing)
         Right deriver -> do
-            (derived, collect) <- with_collect deriver
+            (result, collect) <- with_collect deriver
             cur_cache <- state_cache <$> Derive.get_cache_state
+            let derived = either (const Derive.empty_derived) id result
             let new_cache = insert_generator stack collect derived cur_cache
             Log.debug $ "rederived generator ("
                 ++ show (Derive.derived_length derived) ++ " vals) because of "
-                ++ reason
-            return (Right (return derived), Just new_cache)
+                ++ reason ++ case result of
+                    Left exc -> "  Raised: " ++ show exc
+                    Right _ -> ""
+            case result of
+                Left exc -> Error.throwError exc
+                Right derived -> return (Right (return derived), Just new_cache)
 
     -- To get the deps of just the deriver below me, I have to clear out
     -- the local deps.  But this call is itself collecting deps for another
     -- call, so I have to merge the sub-deps back in before returning.
     with_collect deriver = do
-        (derived, collect) <- Derive.with_empty_collect $ do
-            derived <- deriver
-            -- It's essential that the evaluation happens above.  Not only do
-            -- I need the derived to cache, I need it to stick stuff in
-            -- Collect.
-            collect <- Derive.gets Derive.state_collect
-            return (derived, collect)
+        -- So far the only cached generator is d_block, which is wrapped in
+        -- d_subderive, which catches exceptions, so I should never catch an
+        -- exception here.  But in case I do, this is the right thing to do.
+        (result, collect) <- Derive.with_empty_collect deriver
         Derive.modify $ \st -> st { Derive.state_collect =
             Monoid.mappend collect (Derive.state_collect st) }
-        return (derived, collect)
+        return (result, collect)
 
 -- | Figure out if this event lies within damaged range, whether score or
 -- control.

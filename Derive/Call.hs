@@ -430,8 +430,7 @@ c_block block_id = Derive.caching_generator "block" $ \args ->
         else Left $ TrackLang.ArgError "args for block call not implemented yet"
 
 block_call :: BlockId -> Derive.EventDeriver
-block_call block_id =
-    Derive.d_subderive Derive.no_events (Derive.d_block block_id)
+block_call block_id = Derive.d_subderive (Derive.d_block block_id)
 
 -- | Given a block id, produce a call expression that will call that block.
 call_from_block_id :: BlockId -> TrackLang.Call

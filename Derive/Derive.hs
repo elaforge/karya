@@ -89,6 +89,7 @@ class (Show (Elem derived), Eq (Elem derived), Monoid.Monoid derived,
     to_cache_entry :: CallType derived -> CacheEntry
     derived_length :: derived -> Int
     derived_range :: derived -> Ranges.Ranges RealTime
+    empty_derived :: derived
 
 instance Derived Events where
     type Elem Events = Score.Event
@@ -103,6 +104,7 @@ instance Derived Events where
             (Just e1, Just e2) ->
                 Ranges.range (Score.event_start e1) (Score.event_end e2)
             _ -> Ranges.nothing
+    empty_derived = []
 
 instance Derived Control where
     type Elem Control = Signal.Y
@@ -113,6 +115,7 @@ instance Derived Control where
     derived_range sig = case (Signal.first sig, Signal.last sig) of
         (Just (x1, _), Just (x2, _)) -> Ranges.range x1 x2
         _ -> Ranges.nothing
+    empty_derived = Signal.empty
 
 instance Derived Pitch where
     type Elem Pitch = PitchSignal.Y
@@ -123,9 +126,7 @@ instance Derived Pitch where
     derived_range sig = case (PitchSignal.first sig, PitchSignal.last sig) of
         (Just (x1, _), Just (x2, _)) -> Ranges.range x1 x2
         _ -> Ranges.nothing
-
-data DerivedVal = Events Events | Control Control | Pitch Pitch
-    deriving (Show)
+    empty_derived = PitchSignal.empty
 
 
 -- ** events
@@ -593,47 +594,70 @@ derive cache damage lookup_deriver ui_state calls environ ignore_tempo
     inv_tempo_func = make_inverse_tempo_func track_warps
 
 d_block :: BlockId -> EventDeriver
-d_block block_id = do
+d_block block_id = with_stack_block block_id $ do
     -- Do some error checking.  These are all caught later, but if I throw here
-    -- the stack doesn't include the bogus block yet and I can give more
-    -- specific error msgs.
-    let bthrow s = throw ("d_block " ++ show block_id ++ ": " ++ s)
+    -- I can give more specific error msgs.
     ui_state <- gets state_ui
     case Map.lookup block_id (State.state_blocks ui_state) of
-        Nothing -> bthrow "block_id not found"
+        Nothing -> throw "block_id not found"
         _ -> return ()
-    stack <- gets state_stack
-    -- Since there is no branching, any recursion will be endless.
-    when (Stack.Block block_id `elem` Stack.outermost stack) $
-        bthrow "recursive block derivation"
-    block_dur <- get_block_dur block_id
-    when (block_dur <= 0) $
-        bthrow "block with zero duration"
-    state <- get
-    let rethrow exc = bthrow $ "lookup deriver for " ++ show block_id
-            ++ ": " ++ show exc
-    deriver <- either rethrow return (state_lookup_deriver state block_id)
     -- Record a dependency on this block.
     add_block_dep block_id
-    with_stack_block block_id deriver
+    stack <- gets state_stack
+    -- Since there is no branching, any recursion will be endless.
+    when (Stack.Block block_id `elem` drop 1 (Stack.innermost stack)) $
+        throw "recursive block derivation"
+    state <- get
+    let rethrow exc = throw $ "lookup deriver for " ++ show block_id
+            ++ ": " ++ show exc
+    deriver <- either rethrow return (state_lookup_deriver state block_id)
+    deriver
 
 -- | Run a derivation, catching and logging any exception.
-d_subderive :: (Monad m) => a -> DeriveT Identity.Identity a -> DeriveT m a
-d_subderive fail_val deriver = do
+d_subderive :: (Derived derived) => Deriver derived -> Deriver derived
+d_subderive deriver = do
     state <- get
     let (res, state2, logs) = Identity.runIdentity $ run state deriver
     mapM_ Log.write logs
     case res of
         Left (DeriveError srcpos stack msg) -> do
+            -- HACKERY
+            --
+            -- If a sub-derivation failed, I need to emit EventDamage in
+            -- its range.  Assuming I'm working in normalized time as
+            -- established by Derive.Call, this is simply 0--1.  However,
+            -- there is a special hack for the root block where it is not in
+            -- normalized time.
+            --
+            -- You'd think you could just stretch the root block to its
+            -- duration and cancel out the normalization, but normalization
+            -- requires the duration of the block, which requires the block's
+            -- local warp, which is only available within the block below
+            -- the tempo track.
+            --
+            -- It's too hard to figure out the real length of the root block
+            -- since I have to be under the tempo track, so just say everything
+            -- is damaged.
+            is_root <- is_super_root
+            range <- if is_root
+                then return $ Ranges.everything
+                else Ranges.range <$> score_to_real 0 <*> score_to_real 1
+            insert_event_damage (EventDamage range)
             msg <- Log.msg_srcpos srcpos Log.Warn ("DeriveError: " ++ msg)
             Log.write $ msg { Log.msg_stack = Just stack }
-            return fail_val
+            let new_collect = (state_collect state2)
+                    { collect_track_warps = [] }
+            modify $ \st -> st { state_collect = new_collect }
+            return empty_derived
         Right val -> do
             -- TODO once the logging portion of the state is factored out I
             -- should copy back only that part
             modify (const state2)
             return val
-
+    where
+    is_super_root = do
+        stack <- gets state_stack
+        return $ null [bid | Stack.Block bid <- Stack.outermost stack]
 
 run :: (Monad m) =>
     State -> DeriveT m a -> m (Either DeriveError a, State, [Log.Msg])
@@ -737,7 +761,7 @@ get_track_damage track_id = do
             Nothing -> return $ EventDamage Ranges.everything
             Just pairs -> do
                 realtime <- forM pairs $ \(s, e) ->
-                    liftM2 (,) (score_to_real s) (score_to_real e)
+                    (,) <$> score_to_real s <*> score_to_real e
                 return $ EventDamage (Ranges.ranges realtime)
 
 insert_local_damage :: EventDamage -> Deriver ()
@@ -747,7 +771,6 @@ insert_local_damage damage = modify_cache_state $ \st ->
 put_local_damage :: EventDamage -> Deriver ()
 put_local_damage damage = modify_cache_state $ \st ->
     st { state_local_damage = damage }
-
 
 insert_event_damage :: EventDamage -> Deriver ()
 insert_event_damage damage = modify_cache_state $ \st ->
@@ -772,10 +795,19 @@ add_block_dep block_id = modify_collect $ \st ->
 -- generator, the caller wants to know the callee's track warps and local deps,
 -- without getting them mixed up with its own warps and deps.  So run a deriver
 -- in an empty environment, and restore it afterwards.
-with_empty_collect :: Deriver a -> Deriver a
-with_empty_collect = local state_collect
-    (\old st -> st { state_collect = old })
-    (\st -> return $ st { state_collect = Monoid.mempty })
+--
+-- This catches and returns any exception rather than rethrowing because the
+-- caller wants the Collect regardless of whether there was an exception or
+-- not.
+with_empty_collect :: Deriver a -> Deriver (Either DeriveError a, Collect)
+with_empty_collect deriver = do
+    old <- gets state_collect
+    new <- (\st -> return $ st { state_collect = Monoid.mempty }) =<< get
+    modify (const new)
+    result <- (fmap Right deriver) `Error.catchError` (return . Left)
+    collect <- gets state_collect
+    modify (\st -> st { state_collect = old })
+    return (result, collect)
 
 local_cache_state :: (CacheState -> st) -> (st -> CacheState -> CacheState)
     -> (CacheState -> CacheState)
@@ -1096,9 +1128,7 @@ start_new_warp :: (Monad m) => DeriveT m ()
 start_new_warp = do
     block_id <- get_current_block_id
     start <- now
-    ui_state <- gets state_ui
-    let time_end = either (const (ScoreTime 0)) id $
-            State.eval ui_state (State.event_end block_id)
+    time_end <- get_block_dur block_id
     end <- score_to_real time_end
     warp <- gets state_warp
     modify_collect $ \st ->
@@ -1204,8 +1234,8 @@ d_tempo :: (Monad m) => BlockId -> Maybe TrackId -> Signal.Tempo
     -> DeriveT m a -> DeriveT m a
 d_tempo block_id maybe_track_id signal deriver = do
     let warp = tempo_to_warp signal
-    top_level <- is_top_level_block
-    stretch_to_1 <- if top_level then return id
+    root <- is_root_block
+    stretch_to_1 <- if root then return id
         else do
             block_dur <- get_block_dur block_id
             real_dur <- with_warp (const warp) (score_to_real block_dur)
@@ -1219,8 +1249,8 @@ d_tempo block_id maybe_track_id signal deriver = do
         when_just maybe_track_id add_track_warp
         deriver
 
-is_top_level_block :: (Monad m) => DeriveT m Bool
-is_top_level_block = do
+is_root_block :: (Monad m) => DeriveT m Bool
+is_root_block = do
     stack <- gets state_stack
     let blocks = [bid | Stack.Block bid <- Stack.outermost stack]
     return $ case blocks of

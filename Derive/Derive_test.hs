@@ -124,8 +124,10 @@ test_subderive = do
         ["call not found: nosuch", "block with zero duration",
             "recursive block"]
     equal (map ui_stack msgs)
-        [Just ["test/b0 test/b0.t1 0-1"], Just ["test/b0 test/b0.t1 1-2"],
-            Just ["test/b0 test/b0.t1 2-3"]]
+        [ Just ["test/b0 test/b0.t1 0-1"]
+        , Just ["test/b0 test/b0.t1 1-2", "test/empty * *"]
+        , Just ["test/b0 test/b0.t1 2-3", "test/b0 * *"]
+        ]
 
     let res = run [(0, 8, "--b1"), (8, 8, "sub"), (16, 1, "--b2")]
     equal (r_events res) $
@@ -146,6 +148,22 @@ test_subderive = do
     -- pprint (r_events res)
     -- pprint $ zip [0,2..] $ map inv_tempo (map Timestamp.seconds [0, 2 .. 10])
     -- pprint $ Derive.state_track_warps state
+
+test_subderive_timing = do
+    -- Just make sure that sub-blocks stretch to the correct times.
+    let extract = DeriveTest.extract DeriveTest.e_event id
+    let (events, logs) = extract $ DeriveTest.derive_blocks
+            [ ("p",
+                [ ("tempo", [(0, 0, ".5")])
+                , (">i", [(0, 2, "sub"), (5, 1, "sub")])
+                ])
+            , ("sub", [(">i", [(0, 1, ""), (1, 1, "")])])
+            ]
+    equal events $ Right
+        [ (0, 2, ""), (2, 2, "")
+        , (10, 1, ""), (11, 1, "")
+        ]
+    equal logs []
 
 test_subderive_error = do
     let run evts = DeriveTest.derive_blocks
