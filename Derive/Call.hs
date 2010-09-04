@@ -472,18 +472,10 @@ lookup_call get_cmap call_id = do
 
 -- * c_equal
 
-c_equal :: (Derive.Derived derived) => derived -> Derive.Call derived
-c_equal empty = Derive.Call "equal"
-    (Just (Derive.GeneratorCall
-        (\args -> with_args args generate) Derive.NonCachingGenerator))
-    (Just (Derive.TransformerCall
-        (\args deriver -> with_args args (transform deriver))
-        Derive.NonIncremental))
-    where
-    with_args args = CallSig.call2 args
-        (required "symbol", required "value" :: CallSig.Arg TrackLang.Val)
-    transform deriver sym val = Derive.with_val sym val deriver
-    generate sym val = Derive.put_val sym val >> return empty
+c_equal :: (Derive.Derived derived) => Derive.Call derived
+c_equal = Derive.transformer "equal" $ \args deriver -> CallSig.call2 args
+    (required "symbol", required "value" :: CallSig.Arg TrackLang.Val) $
+    \sym val -> Derive.with_val sym val deriver
 
 -- * map score events
 

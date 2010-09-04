@@ -869,25 +869,18 @@ require_val name = do
     val <- lookup_val name
     maybe (throw $ "environ val not found: " ++ Pretty.pretty name) return val
 
-put_val :: (Monad m, TrackLang.Typecheck val) => TrackLang.ValName -> val
-    -> DeriveT m ()
-put_val name val = do
-    environ <- insert_environ name val =<< gets state_environ
-    modify $ \st -> st { state_environ = environ }
-
--- | Set the given val dynamically within the given computation.
+-- | Set the given val dynamically within the given computation.  This is
+-- analogous to a dynamic let.
+--
+-- There is intentionally no way to modify the environment via assignment.
+-- It would introduce an order of execution dependency that would complicate
+-- caching as well as have a confusing non-local effect.
 with_val :: (TrackLang.Typecheck val) => TrackLang.ValName -> val
     -> Deriver a -> Deriver a
 with_val name val =
     local state_environ (\old st -> st { state_environ = old }) $ \st -> do
         environ <- insert_environ name val (state_environ st)
         return (st { state_environ = environ })
-
--- | This is like 'with_val', only it doesn't make any changes to the environ,
--- only restores it on return.
-with_local_environ :: (Monad m) => DeriveT m a -> DeriveT m a
-with_local_environ =
-    local state_environ (\old st -> st { state_environ = old }) return
 
 insert_environ :: (Monad m, TrackLang.Typecheck val) => TrackLang.ValName
     -> val -> TrackLang.Environ -> DeriveT m TrackLang.Environ
@@ -1291,12 +1284,12 @@ track_setup :: TrackId -> Deriver d -> Deriver d
 track_setup track_id deriver = do
     ignore_tempo <- gets state_ignore_tempo
     unless ignore_tempo (add_track_warp track_id)
-    with_local_environ deriver
+    deriver
 
 -- | This is a version of 'track_setup' for the tempo track.  It doesn't record
 -- the track warp, see 'd_tempo' for why.
 setup_without_warp :: Deriver d -> Deriver d
-setup_without_warp deriver = with_local_environ (in_real_time deriver)
+setup_without_warp = in_real_time
 
 -- * utils
 

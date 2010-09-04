@@ -2,8 +2,8 @@ CURRENT
   - lookup val calls in current inst as in current scale
     Maybe I can get rid of the Instrument.inst_control_map if I do the mapping
     in generate_note
-  - inst has a notion of polyphony so I can avoid overloading a channel, say
-    if I limit it to 2 voices
+
+    use case: drum tracks with symbols
   - see if making a version of Derive.local that's non-monadic in the modifier
     has any effect on performance
   - now that the signal deriver is gone, I can also get rid of ignore_tempo,
@@ -15,7 +15,6 @@ CURRENT
   - tracks with no ruler should default to free selection placement
   - after creating a new track, focus should go to its title
   - put a multiplier on play's timestamps to implement a play speed control
-  - spline curve interpolator: evoral/Curve.cpp, www.korf.co.uk/spline.pdf
   - If I quit and then restart, the second start takes a long time.  What's
     it waiting on?  Midi init?
   * need a concept of a "root" block.  This block is used for:
@@ -88,7 +87,6 @@ CURRENT
       be done after derivation is complete.
     * cmd to clear out midi cache
     * cmd to compare cached to uncached perf, put next to Global.score_to_midi
-  - note entry with a relative track, it added an absolute one
   * why does save/subderive want pitch bend?
   * midi performer note overlap checking should use a bit of eta, or at least
     round to Timestamps first
@@ -115,9 +113,7 @@ CURRENT
       invalidated, how many events and midi msgs were rederived
     - more efficient version of Derive.concat_derived for events, maybe use
       AppendList
-    - disallow modification of the Environ by wrapping every call in
-      with_local_environ, this reduces the amount of data the cache has to save
-      - modify control track
+    * change c_equal to not do "free equals"
     - tests for cache correctness, compare cached version with rederived version
       * modify simple event track
       * modify control track, dependent events should change
@@ -710,6 +706,13 @@ Derive:
       That way the inst has control over the interpretation of e.g. attributes
       and pitch slide (to implement piano style retrigger)
 
+      or maybe, lookup val calls in current inst analogous to current scale
+      Maybe I can get rid of the Instrument.inst_control_map if I do the mapping
+      in generate_note?
+
+      - drum tracks with symbols
+      - custom attributes
+
   - implement postproc calls
     - framework for determining scope of a postproc: per inst, per track,
       for pre or post overlaps, etc.
@@ -745,6 +748,31 @@ Derive:
     - block version requires block arguments and variable substitution
     - implement deriver like vla/cello duet?  that's a sekaran, so I need to
       think about this more.
+  - Inline subderivation.  E.g.
+      inst = >foo | {
+      ""
+      ""}
+    Will run the two events as a subderivation.  Uses:
+      - set inst, scale, srate, whatever for a range
+      - transform a range, e.g. echo
+      - set a signal: e.g. set staccato in a range
+      If I implement as just {} = subderive, then I don't have access to the
+      events inside.  That means I can only use it to group Environ changes.
+      However, if I present it as [(Start, Dur, Deriver)] then I can do a few
+      more:
+      - tuple
+      - This doesn't completely solve the sekaran problem, because I still need
+        to put controls on, but it would work for note-only sekaran... wait,
+        what about pitch?
+      I can't move anything, because of the controls problem.
+
+  - Is there a use for "free equals"?  I had planned to use it to set inst
+    within a track but there may be easier ways to do that, i.e. bind inst
+    aliases within a track and then put an inst on every note, but it
+    complicates caching.  Free equals is also awkward because of next note
+    having to skip it.  It's also analogous to assignment, and it's nice to
+    exclude that.
+  - sustain signal, to control staccato vs. legato
   TrackLang tracklang
     * TrackLang.optional args should be able to pass Nothing if arg is not given
     - Derive.Call.map_asc_events, I need Seq.merge_asc_lists for this.
@@ -952,13 +980,28 @@ Perform:
   Instrument
     - some kind of organized way to manage instruments and instrument config
     - some basic midi instrument defs for generic midi (dev, patch)
-
   Signal
     - lazy implementation
-
   Midi:
     - see if synths support the set pitchbend range controller
     - Convert certain attrs to controls for cc 'keyswitches'.
+    / inst has a notion of polyphony so I can avoid overloading a channel, say
+      if I limit it to 2 voices
+
+      The problem is 'allot' doesn't know which channels are going to have
+      a lot of notes so it can allot wrong.  For instance, a large chord might
+      take up all the polyphony of the first addrs, and then the Nothing addr
+      gets the bendy notes.  I think I would have to look into the future and
+      make a decision based on the notes that will be overlapping with this
+      one.
+
+      The problem comes up with chord oriented instruments that have a few bent
+      notes.  However, I'm not totally sure this will be a problem, and it
+      would be simpler to simply make two instruments, one for non-bendy notes
+      and the other with multiplexing for bendy ones.  Yes, this is putting
+      some busywork on the user which should be left to the performer, but
+      since the solution is fairly complicated I think I'll leave it be for
+      now.
 
 Instrument DB:
   - search lang supports quotes
@@ -994,6 +1037,9 @@ misc ideas:
 misc ghc fixes:
   - .prof output should line up better
   - hp2ps should use constant colors for biography
+
+research:
+  - spline curve interpolator: evoral/Curve.cpp, www.korf.co.uk/spline.pdf
 
 future:
   - I need to sync with a DAW but don't want to implement rewire.

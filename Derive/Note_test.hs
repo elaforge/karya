@@ -101,16 +101,6 @@ test_c_equal = do
     strings_like logs ["expected Instrument"]
 
     let run = do_run e_evt
-    -- works as "generator"
-    equal (run ">i" [(0, 0, "inst = >i2"), (1, 1, ""),
-            (2, 0, "inst = >i3"), (3, 1, "")])
-        (Right [(1, inst "i2", []), (3, inst "i3", [])], [])
-
-    equal (run ">i +a" [(0, 0, "attr = +b"), (1, 1, ""),
-            (2, 0, "attr = -a"), (3, 1, "")])
-        (Right [(1, inst "i", ["a", "b"]), (3, inst "i", ["b"])], [])
-
-    -- works as transformer
     equal (run ">i" [(0, 1, ""), (1, 1, "inst = >i2 |"), (2, 1, "n >i3 |")])
         (Right [(0, inst "i", []), (1, inst "i2", []), (2, inst "i3", [])], [])
 
@@ -126,15 +116,9 @@ test_environ_across_tracks = do
         (Right [Just interpolated], [])
     equal (run [("cont | srate = 2", [(1, 0, "0"), (5, 0, "i 1")])])
         (Right [Just [(1, 0), (3, 0.5), (5, 1)]], [])
-    equal (run [("cont", [(0, 0, "srate = 2"), (1, 0, "0"), (5, 0, "i 1")])])
-        (Right [Just [(1, 0), (3, 0.5), (5, 1)]], [])
 
     -- now make sure srate in one track doesn't affect another
     let cont = ("cont", [(0, 0, "0"), (4, 0, "i 1")])
-    equal (run [("cont2", [(0, 0, "srate = 2")]), cont])
-        (Right [Just interpolated], [])
-    equal (run [cont, ("cont2", [(0, 0, "srate = 2")])])
-        (Right [Just interpolated], [])
     equal (run [("cont2 | srate = 2", []), cont])
         (Right [Just interpolated], [])
     equal (run [cont, ("cont2 | srate = 2", [])])
@@ -170,10 +154,11 @@ test_environ_default = do
     -- Mostly tested in TrackLang_test, but also make sure c_equal and and
     -- track evaluation and the environ default all work together.
     let extract = DeriveTest.extract DeriveTest.e_event Log.msg_string
-    let run evts = extract $ DeriveTest.derive_tracks_tempo [(">i", evts)]
-    equal (run [(0, 0, "delay-time = 0"), (1, 1, "delay |"),
-            (2, 0, "delay-time = 1"), (3, 1, "delay |")])
-        (Right [(1, 1, "delay |"), (4, 1, "delay |")], [])
+    let run title evts = extract $
+            DeriveTest.derive_tracks_tempo [(title, evts)]
+    equal (run ">i1 | delay-time = 0"
+            [(1, 1, "delay |"), (3, 1, "delay-time = 1 | delay |")])
+        (Right [(1, 1, "delay |"), (4, 1, "delay-time = 1 | delay |")], [])
 
 type Extracted =
     (RealTime, RealTime, String, Maybe Score.Instrument, Score.Attributes)

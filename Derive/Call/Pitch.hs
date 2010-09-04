@@ -55,7 +55,7 @@ relative_call degree =
 
 pitch_calls :: Derive.PitchCallMap
 pitch_calls = Derive.make_calls
-    [ ("=", Call.c_equal Derive.no_pitch)
+    [ ("=", Call.c_equal)
     , ("", c_note_set)
     , ("set", c_note_set)
     , ("i", c_note_linear)

@@ -25,7 +25,7 @@ note_calls = Derive.make_calls
     -- Since you can never call "" with arguments, I need a non-null form
     -- to handle the args version.
     , ("n", c_note)
-    , ("=", Call.c_equal Derive.no_events)
+    , ("=", Call.c_equal)
     ]
 
 -- * note call
