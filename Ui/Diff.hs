@@ -118,20 +118,20 @@ diff_view st1 st2 view_id view1 view2 = do
 
     -- The track view info (widths) is in the View, while the track data itself
     -- (Tracklikes) is in the Block.  Since one track may have been added or
-    -- deleted while another's width was changed, I have to run 'indexed_pairs'
-    -- here with the Blocks' Tracklikes to pair up the the same Tracklikes
-    -- before comparing their widths.  'i' will be the TrackNum index for the
-    -- tracks pre insertion/deletion, which is correct since the view is diffed
-    -- and its Updates run before the Block updates.  This also means it
-    -- actually matters that updates are run in order.  This is a lot of
-    -- subtlety just to detect width changes!
+    -- deleted while another's width was changed, I have to run
+    -- 'Seq.indexed_pairs' here with the Blocks' Tracklikes to pair up the the
+    -- same Tracklikes before comparing their widths.  'i' will be the TrackNum
+    -- index for the tracks pre insertion/deletion, which is correct since the
+    -- view is diffed and its Updates run before the Block updates.  This also
+    -- means it actually matters that updates are run in order.  This is a lot
+    -- of subtlety just to detect width changes!
     --
-    -- 'indexed_pairs' is run again on the Blocks to actually delete or insert
-    -- tracks.
+    -- 'Seq.indexed_pairs' is run again on the Blocks to actually delete or
+    -- insert tracks.
 
     tracks1 <- track_info view_id view1 st1
     tracks2 <- track_info view_id view2 st2
-    let pairs = indexed_pairs_on fst tracks1 tracks2
+    let pairs = Seq.indexed_pairs_on fst tracks1 tracks2
     forM_ pairs $ \(i2, track1, track2) -> case (track1, track2) of
         (Just (_, tview1), Just (_, tview2)) ->
             diff_track_view view_id i2 tview1 tview2
@@ -185,7 +185,7 @@ diff_block block_id block1 block2 = do
 
     let (dtracks1, dtracks2) = (Block.block_display_tracks block1,
             Block.block_display_tracks block2)
-    let pairs = indexed_pairs_on (Block.dtrack_tracklike_id . fst)
+    let pairs = Seq.indexed_pairs_on (Block.dtrack_tracklike_id . fst)
             dtracks1 dtracks2
     forM_ pairs $ \(i2, track1, track2) -> case (track1, track2) of
         (Just _, Nothing) -> change [block_update $ Update.RemoveTrack i2]
@@ -222,20 +222,3 @@ uncurry3 f (a, b, c) = f a b c
 
 unequal_on :: (Eq eq) => (a -> eq) -> a -> a -> Bool
 unequal_on key a b = key a /= key b
-
--- | This is just like 'Seq.equal_pairs', except that the index of each pair in
--- the /right/ list is included.  In other words, given @(i, Nothing, Just y)@,
--- @i@ is the position of @y@ in the @b@ list.  Given @(i, Just x, Nothing)@,
--- @i@ is where @x@ was deleted from the @b@ list.
-indexed_pairs :: (a -> b -> Bool) -> [a] -> [b] -> [(Int, Maybe a, Maybe b)]
-indexed_pairs eq xs ys = zip3 (indexed pairs) (map fst pairs) (map snd pairs)
-    where pairs = Seq.equal_pairs eq xs ys
-
-indexed_pairs_on :: (Eq eq) => (a -> eq) -> [a] -> [a]
-    -> [(Int, Maybe a, Maybe a)]
-indexed_pairs_on key xs ys = indexed_pairs (\a b -> key a == key b) xs ys
-
-indexed pairs = scanl f 0 pairs
-    where
-    f i (_, Nothing) = i
-    f i _ = i+1

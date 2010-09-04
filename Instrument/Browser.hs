@@ -12,7 +12,6 @@ import Text.Printf
 
 import qualified Util.Seq as Seq
 import qualified Util.Fltk as Fltk
-import qualified Ui.Diff as Diff
 
 import qualified Midi.Midi as Midi
 
@@ -122,6 +121,10 @@ cmap_info cmap = -- Seq.join "\n" $ map (Seq.join ", ") $ groups 3
     Seq.join ", " [cont ++ " (" ++ show num ++ ")"
         | (Control.Control cont, num) <- Map.assocs cmap]
 
+-- groups n xs
+--     | null xs || n <= 0 = []
+--     | otherwise = let (pre, post) = List.splitAt n xs in pre : groups n post
+
 tags_info tags = unwords [quote k ++ "=" ++ quote v | (k, v) <- tags]
 
 initialize_info Instrument.NoInitialization = "(none)"
@@ -140,10 +143,6 @@ quote s
     | any Char.isSpace s = "\"" ++ s ++ "\""
     | otherwise = s
 
-groups n xs
-    | null xs || n <= 0 = []
-    | otherwise = let (pre, post) = List.splitAt n xs in pre : groups n post
-
 -- | Send the chosen instrument to the sequencer.
 choose_instrument :: String -> IO ()
 choose_instrument inst_name = do
@@ -161,7 +160,7 @@ process_query :: BrowserC.Window -> Db.Db -> [Score.Instrument] -> String
 process_query win db displayed query = do
     -- putStrLn $ "query: " ++ show (Search.parse query)
     let matches = Db.db_search db (Search.parse query)
-        diff = Diff.indexed_pairs (==) displayed matches
+        diff = Seq.indexed_pairs (==) displayed matches
     forM_ diff $ \(i, old, new) -> case (old, new) of
         (Nothing, Just inst) -> Fltk.send_action $
             BrowserC.insert_line win (i+1) (show_inst inst)

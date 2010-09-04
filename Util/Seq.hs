@@ -178,6 +178,23 @@ equal_pairs eq (x:xs) (y:ys)
     | any (eq x) ys = (Nothing, Just y) : equal_pairs eq (x:xs) ys
     | otherwise = (Just x, Nothing) : equal_pairs eq xs (y:ys)
 
+-- | This is like 'equal_pairs', except that the index of each pair in the
+-- /right/ list is included.  In other words, given @(i, Nothing, Just y)@,
+-- @i@ is the position of @y@ in the @b@ list.  Given @(i, Just x, Nothing)@,
+-- @i@ is where @x@ was deleted from the @b@ list.
+indexed_pairs :: (a -> b -> Bool) -> [a] -> [b] -> [(Int, Maybe a, Maybe b)]
+indexed_pairs eq xs ys = zip3 (indexed pairs) (map fst pairs) (map snd pairs)
+    where
+    pairs = equal_pairs eq xs ys
+    indexed pairs = scanl f 0 pairs
+        where
+        f i (_, Nothing) = i
+        f i _ = i+1
+
+indexed_pairs_on :: (Eq eq) => (a -> eq) -> [a] -> [a]
+    -> [(Int, Maybe a, Maybe a)]
+indexed_pairs_on key xs ys = indexed_pairs (\a b -> key a == key b) xs ys
+
 -- | Left if the val was in the left list but not the right, Right for the
 -- converse.
 diff :: (a -> b -> Bool) -> [a] -> [b] -> [Either a b]
