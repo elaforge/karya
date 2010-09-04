@@ -188,6 +188,17 @@ e_pitch :: Score.Event -> (RealTime, RealTime, String, Pitch.Degree)
 e_pitch e = (Score.event_start e, Score.event_duration e, Score.event_string e,
     Score.initial_pitch e)
 
+e_everything :: Score.Event
+    -> (RealTime, RealTime, String, Maybe String, [String])
+e_everything e =
+        ( Score.event_start e
+        , Score.event_duration e
+        , Score.event_string e
+        , fmap uninst (Score.event_instrument e)
+        , Score.attrs_list (Score.event_attributes e)
+        )
+    where uninst (Score.Instrument inst) = inst
+
 note_on_times :: [(Timestamp.Timestamp, Midi.Message)]
     -> [(Integer, Midi.Key, Midi.Velocity)]
 note_on_times mmsgs = [(Timestamp.to_millis ts, nn, vel)

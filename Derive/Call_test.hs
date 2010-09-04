@@ -1,7 +1,9 @@
 module Derive.Call_test where
 import qualified Data.Map as Map
+
 import Util.Test
 import qualified Util.Log as Log
+import qualified Util.Seq as Seq
 
 import qualified Derive.CallSig as CallSig
 import qualified Derive.DeriveTest as DeriveTest
@@ -12,6 +14,95 @@ import qualified Derive.Call.CallTest as CallTest
 
 import qualified Perform.Signal as Signal
 
+
+test_c_block = do
+    -- This also tests Derive.Call.Note.lookup_note_call
+    let run evts = DeriveTest.extract DeriveTest.e_everything Log.msg_string $
+            DeriveTest.derive_blocks
+                [ ("b1", [(">", evts)])
+                , ("sub", [(">", [(0, 22, "--sub")])])
+                ]
+    let (evts, logs) = run [(0, 1, "nosuch")]
+    equal evts (Right [])
+    strings_like logs ["call not found: nosuch"]
+
+    strings_like (snd (run [(0, 1, "sub >arg")]))
+        ["args for block call not implemented yet"]
+
+    -- subderived stuff is stretched and placed, inherits instrument
+    let (evts, logs) = run [(0, 1, "sub"), (1, 2, "n >i +a | sub")]
+    equal logs []
+    equal evts $ Right
+        [ (0, 1, "--sub", Nothing, [])
+        , (1, 2, "--sub", Just "i", ["a"])
+        ]
+
+test_c_equal = do
+    -- Test the '=' call, but also test the special parsing Derive.Note deriver
+    -- eval in general.
+    let run title evts = DeriveTest.extract extract Log.msg_string $
+            DeriveTest.derive_tracks_tempo [(title, evts)]
+        extract e = (s, inst, attrs)
+            where (s, _, _, inst, attrs) = DeriveTest.e_everything e
+
+    -- log stack should be at the track level
+    let (evts, logs) = run "> | inst = inst" [(0, 1, "")]
+    equal evts (Right [])
+    strings_like logs ["expected Instrument"]
+
+    -- only the event with the error is omitted
+    let (evts, logs) = run ">" [(0, 1, "inst = inst |"), (1, 1, "")]
+    equal evts (Right [(1, Nothing, [])])
+    strings_like logs ["expected Instrument"]
+
+    equal (run ">i" [(0, 1, ""), (1, 1, "inst = >i2 |"), (2, 1, "n >i3 |")])
+        (Right [(0, Just "i", []), (1, Just "i2", []), (2, Just "i3", [])], [])
+
+test_environ_across_tracks = do
+    let e_evt = fmap Signal.unsignal . Map.lookup (Score.Control "cont")
+            . Score.event_controls
+    let run tracks = DeriveTest.extract e_evt Log.msg_string $
+            DeriveTest.derive_tracks_tempo ((">", [(0, 10, "")]) : tracks)
+
+    -- first make sure srate works as I expect
+    let interpolated = [(0, 0), (1, 0.25), (2, 0.5), (3, 0.75), (4, 1)]
+    equal (run [("cont", [(0, 0, "0"), (4, 0, "i 1")])])
+        (Right [Just interpolated], [])
+    equal (run [("cont | srate = 2", [(1, 0, "0"), (5, 0, "i 1")])])
+        (Right [Just [(1, 0), (3, 0.5), (5, 1)]], [])
+
+    -- now make sure srate in one track doesn't affect another
+    let cont = ("cont", [(0, 0, "0"), (4, 0, "i 1")])
+    equal (run [("cont2 | srate = 2", []), cont])
+        (Right [Just interpolated], [])
+    equal (run [cont, ("cont2 | srate = 2", [])])
+        (Right [Just interpolated], [])
+
+test_call_errors = do
+    let extract r = case DeriveTest.extract DeriveTest.e_event id r of
+            (Right val, []) -> Right val
+            (Left err, []) -> Left err
+            (_, logs) -> Left (Seq.join "\n" (map Log.msg_string logs))
+
+    let run_title title = extract $
+            DeriveTest.derive_tracks_tempo [(title, [(0, 1, "--1")])]
+    left_like (run_title ">i | no-such-call") "call not found: no-such-call"
+    left_like (run_title ">i | delay *bad-arg") "expected Control but got"
+    left_like (run_title ">i | delay 1 2 3 4") "too many arguments"
+    left_like (run_title ">i | delay") "not found and no default"
+    left_like (run_title ">i | delay _") "not found and no default"
+    left_like (run_title ">i | delay %delay") "not found and no default"
+
+    let run_evt evt = extract $
+            DeriveTest.derive_tracks_tempo [(">i", [(0, 1, evt)])]
+    left_like (run_evt "no-such-call")
+        "call not found: no-such-call"
+    left_like (run_evt "abs-trill")
+        "non-generator in generator position: absolute_trill"
+    left_like (run_evt "abs-trill |")
+        "ArgError: too few arguments"
+    equal (run_evt "delay 2 | abs-trill 2 |")
+        (Right [(2, 1, "delay 2 | abs-trill 2 |")])
 
 test_val_call = do
     let extract = DeriveTest.extract e_event Log.msg_string

@@ -226,7 +226,11 @@ inst_name (Instrument s) = s
 -- a drum from a drumset, or something like that.
 type Attribute = String
 newtype Attributes = Attributes (Set.Set Attribute) deriving (Eq, Show)
+
+attrs_set :: Attributes -> Set.Set Attribute
 attrs_set (Attributes attrs) = attrs
+
+attrs_list :: Attributes -> [Attribute]
 attrs_list = Set.toList . attrs_set
 
 attributes :: [String] -> Attributes
