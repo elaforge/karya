@@ -51,51 +51,76 @@ import qualified Perform.Signal as Signal
 
 
 data Val =
-    -- | No special literal yet, but in the track title reuses note literal
-    -- syntax.
-    VScale Pitch.Scale
-    -- | Sets the instrument in scope for a note.  An empty instrument doesn't
-    -- set the instrument, but can be used to mark a track as a note track.
-    -- Literal: @>@, @>inst@
-    | VInstrument Score.Instrument
     -- | Literal: @42.23@, @-.4@
-    | VNum Double
-    -- | No literal yet, but is returned from val calls.
-    | VDegree Pitch.Degree
-    -- | Escape a quote by doubling it.  Literal: @'hello'@, @'quinn''s hat'@
+    VNum Double
+    -- | Escape a quote by doubling it.
+    --
+    -- Literal: @'hello'@, @'quinn''s hat'@
     | VString String
-    -- | Relative attribute adjustment.  Literal: @+attr@, @-attr@, @=attr@,
-    -- @=-@ (to clear attributes).
+
+    -- | Relative attribute adjustment.
     --
     -- This is a bit of a hack, but means I can do attr adjustment without +=
-    -- or -= operators.  It's ambiguous with 'p_equal' when spaces are omitted,
-    -- e.g. @a=-42@ can be parsed as @[a, =-, 42]@ or @[=, a, -42]@.
+    -- or -= operators.
+    --
+    -- Literal: @+attr@, @-attr@, @=attr@, @=-@ (to clear attributes).
     | VRelativeAttr RelativeAttr
+    -- | A set of Attributs for an instrument.  No literal, since you can use
+    -- VRelativeAttr.
     | VAttributes Score.Attributes
+
     -- | A control name.  An optional value gives a default if the control
     -- isn't present.
+    --
     -- Literal: @%control@, @%control,.4@
     | VControl Control
     -- | If a control name starts with a *, it denotes a pitch signal and the
-    -- scale is taken from the environ.  TODO or provide one explicitly?
-    -- Literal: @%*pitch,4c@, @%*,4@, @%*@
+    -- scale is taken from the environ.  Unlike a control signal, the empty
+    -- string is a valid signal name and means the default pitch signal.
+    --
+    -- Literal: @#pitch,4c@, @#,4@, @#@
     | VPitchControl PitchControl
-    -- | A call to a function.  There are two kinds: a subderive produces
-    -- Events, and a call transforms Events.
+
+    -- | The literal names a ScaleId, and will probably result in an exception
+    -- if the lookup fails.  The empty scale is taken to mean the relative
+    -- scale.
+    --
+    -- Literal: @*scale@, @*@.
+    | VScaleId Pitch.ScaleId
+    -- | Storing the scale in the environ instead of the scale id saves looking
+    -- it up again and again.  TODO does it really matter?
+    --
+    -- It would be nicer to look up the scale in the parser and do away with
+    -- VScaleId, but that means mingling Deriver with Deriver with Parser,
+    -- which I don't think is a good idea.
+    | VScale Pitch.Scale
+    -- | No literal yet, but is returned from val calls.
+    | VDegree Pitch.Degree
+    -- | Sets the instrument in scope for a note.  An empty instrument doesn't
+    -- set the instrument, but can be used to mark a track as a note track.
+    --
+    -- Literal: @>@, @>inst@
+    | VInstrument Score.Instrument
+
+    -- | A call to a function.  Symbol parsing is special in that the first
+    -- word is always parsed as a symbol.  So you can have symbols of numbers
+    -- or other special characters.  This means that a symbol can't be in the
+    -- middle of an expression, but if you surround a word with parens like
+    -- @(42)@, it will be interpreted as a call.  So the only characters a
+    -- symbol can't have are space and parens.
+    --
     -- Literal: @func@
     | VSymbol Symbol
     -- | An explicit not-given arg for functions so you can use positional args
-    -- with defaults.  Literal: @_@
+    -- with defaults.
+    --
+    -- Literal: @_@
     | VNotGiven
     deriving (Eq, Show)
 
 instance Pretty.Pretty Val where
     pretty val = case val of
-            VScale scale -> case Pitch.scale_id scale of
-                Pitch.ScaleId scale_id -> '*' : scale_id
-            VInstrument (Score.Instrument inst) -> '>' : inst
             VNum d -> show_num d
-            VDegree (Pitch.Degree d) -> show_num d ++ "d"
             VString s -> "'" ++ Seq.replace "'" "''" s ++ "'"
             VRelativeAttr (RelativeAttr (mode, attr)) -> case mode of
                 Add -> '+' : attr
@@ -103,16 +128,21 @@ instance Pretty.Pretty Val where
                 Set -> '=' : attr
                 Clear -> "=-"
             VAttributes attrs -> Seq.join "+" (Score.attrs_list attrs)
-            VControl control -> show_control Pretty.pretty id control
-            VPitchControl control -> show_control Pitch.note_text ('*':) control
+            VControl control -> show_control '%' Pretty.pretty control
+            VPitchControl control -> show_control '#' Pitch.note_text control
+            VScaleId (Pitch.ScaleId scale_id) -> '*' : scale_id
+            VScale scale -> case Pitch.scale_id scale of
+                Pitch.ScaleId scale_id -> "<scale: " ++ scale_id ++ ">"
+            VDegree (Pitch.Degree d) -> "<degree: " ++ show_num d ++ ">"
+            VInstrument (Score.Instrument inst) -> '>' : inst
             VSymbol sym -> Pretty.pretty sym
             VNotGiven -> "_"
         where
-        show_control show_val show_cont control = case control of
+        show_control prefix show_val control = case control of
             ConstantControl val -> show_val val
             DefaultedControl (Score.Control cont) deflt ->
-                '%' : show_cont cont ++ ',' : show_val deflt
-            Control (Score.Control cont) -> '%' : show_cont cont
+                prefix : cont ++ ',' : show_val deflt
+            Control (Score.Control cont) -> prefix : cont
 
 -- | Convert a haskell number into a tracklang number.
 show_num :: (RealFloat a) => a -> String
@@ -134,7 +164,8 @@ type Control = ControlRef Signal.Y
 type PitchControl = ControlRef Pitch.Note
 
 data ControlRef val =
-    -- | A constant signal.  This is coerced from a VNum literal.
+    -- | A constant signal.  For 'Control', this is coerced from a VNum
+    -- literal.
     ConstantControl val
     -- | If the control isn't present, use the constant.
     | DefaultedControl Score.Control val
@@ -172,8 +203,8 @@ v_srate = Symbol "srate"
 
 -- * types
 
-data Type = TNote | TScale | TInstrument | TNum | TDegree | TString
-    | TRelativeAttr | TAttributes | TControl | TPitchControl | TSymbol
+data Type = TNum | TString | TRelativeAttr | TAttributes | TControl
+    | TPitchControl | TScaleId | TScale | TDegree | TInstrument | TSymbol
     | TNotGiven | TMaybe Type | TVal
     deriving (Eq, Show)
 
@@ -187,16 +218,17 @@ type_of val = case val of
     -- a VMaybe and doing @type_of . to_val@, but 'to_val' and 'type_of' both
     -- promising to not evaluate the value seems even more hacky than just
     -- 'to_type' making that promise.
-    VScale _ -> TScale
-    VInstrument _ -> TInstrument
-    VNum _ -> TNum
-    VDegree _ -> TDegree
-    VString _ -> TString
-    VRelativeAttr _ -> TRelativeAttr
-    VAttributes _ -> TAttributes
-    VControl _ -> TControl
-    VPitchControl _ -> TPitchControl
-    VSymbol _ -> TSymbol
+    VNum {} -> TNum
+    VString {} -> TString
+    VRelativeAttr {} -> TRelativeAttr
+    VAttributes {} -> TAttributes
+    VControl {} -> TControl
+    VPitchControl {} -> TPitchControl
+    VScaleId {} -> TScaleId
+    VScale {} -> TScale
+    VDegree {} -> TDegree
+    VInstrument {} -> TInstrument
+    VSymbol {} -> TSymbol
     VNotGiven -> TNotGiven
 
 class Show a => Typecheck a where
@@ -223,29 +255,11 @@ instance (Typecheck a) => Typecheck (Maybe a) where
     to_val (Just a) = to_val a
     to_type val = TMaybe (to_type (maybe undefined id val))
 
-instance Typecheck Pitch.Scale where
-    from_val (VScale a) = Just a
-    from_val _ = Nothing
-    to_val = VScale
-    to_type _ = TScale
-
-instance Typecheck Score.Instrument where
-    from_val (VInstrument a) = Just a
-    from_val _ = Nothing
-    to_val = VInstrument
-    to_type _ = TInstrument
-
 instance Typecheck Double where
     from_val (VNum a) = Just a
     from_val _ = Nothing
     to_val = VNum
     to_type _ = TNum
-
-instance Typecheck Pitch.Degree where
-    from_val (VDegree a) = Just a
-    from_val _ = Nothing
-    to_val = VDegree
-    to_type _ = TDegree
 
 instance Typecheck String where
     from_val (VString s) = Just s
@@ -277,6 +291,30 @@ instance Typecheck PitchControl where
     from_val _ = Nothing
     to_val = VPitchControl
     to_type _ = TPitchControl
+
+instance Typecheck Pitch.ScaleId where
+    from_val (VScaleId a) = Just a
+    from_val _ = Nothing
+    to_val = VScaleId
+    to_type _ = TScaleId
+
+instance Typecheck Pitch.Scale where
+    from_val (VScale a) = Just a
+    from_val _ = Nothing
+    to_val = VScale
+    to_type _ = TScale
+
+instance Typecheck Pitch.Degree where
+    from_val (VDegree a) = Just a
+    from_val _ = Nothing
+    to_val = VDegree
+    to_type _ = TDegree
+
+instance Typecheck Score.Instrument where
+    from_val (VInstrument a) = Just a
+    from_val _ = Nothing
+    to_val = VInstrument
+    to_type _ = TInstrument
 
 instance Typecheck Symbol where
     from_val (VSymbol a) = Just a
@@ -379,23 +417,14 @@ parse text = Parse.parse_all p_pipeline (strip_comment text)
 -- | Parse a control track title.  The first expression in the composition is
 -- parsed simply as a list of values, not a Call.  Control track titles don't
 -- follow the normal calling process but pattern match directly on vals.
-parse_control_track :: String -> Either String (Expr, [Val])
-parse_control_track text = do
-    expr <- parse text
-    case expr of
-        track_expr : calls -> do
-            combined <- combine track_expr
-            Right (calls, combined)
-        [] -> Left "not reached because of 'parse' postcondition"
-    where
-    combine (Call call_id@(Symbol sym) terms)
-        | not (null [() | ValCall _ <- terms]) =
-            Left "val calls not supported in control track title"
-        | null sym = Right [val | Literal val <- terms]
-        | otherwise = Right $ VSymbol call_id : [val | Literal val <- terms]
+parse_control_title :: String -> Either String ([Val], Expr)
+parse_control_title text = Parse.parse_all p_control_title (strip_comment text)
 
-parse_vals :: String -> Either String [Val]
-parse_vals text = Parse.parse_all (P.many p_val) (strip_comment text)
+p_control_title :: P.Parser ([Val], Expr)
+p_control_title = do
+    vals <- P.many p_val
+    expr <- P.option [] (Parse.symbol "|" >> p_pipeline)
+    return (vals, expr)
 
 parse_val :: String -> Either String Val
 parse_val = Parse.parse_all p_val
@@ -442,13 +471,12 @@ p_val = Parse.lexeme $
     -- to have a letter afterwards, while a Num is a '.' or digit, so they're
     -- not ambiguous.
     <|> VRelativeAttr <$> P.try p_rel_attr <|> VNum <$> p_num
-    <|> VString <$> p_string <|> p_control_val
+    <|> VString <$> p_string
+    <|> VControl <$> p_control
+    <|> VPitchControl <$> p_pitch_control
+    <|> VScaleId <$> p_scale_id
     <|> (P.char '_' >> return VNotGiven)
     <|> VSymbol <$> p_symbol
-
-p_instrument :: P.Parser Score.Instrument
-p_instrument = P.char '>' >> Score.Instrument <$> p_null_word
-    <?> "instrument"
 
 p_num :: P.Parser Double
 p_num = Parse.p_float
@@ -468,13 +496,9 @@ p_rel_attr = do
     return $ RelativeAttr (if null attr then Clear else mode, attr)
     <?> "relative attr"
 
-p_control_val :: P.Parser Val
-p_control_val = do
-    P.char '%'
-    VControl <$> p_control <|> VPitchControl <$> p_pitch_control
-
 p_control :: P.Parser Control
 p_control = do
+    P.char '%'
     control <- Score.Control <$> p_ident ","
     deflt <- Parse.optional (P.char ',' >> Parse.p_float)
     return $ case deflt of
@@ -484,13 +508,23 @@ p_control = do
 
 p_pitch_control :: P.Parser PitchControl
 p_pitch_control = do
-    P.char '*'
-    control <- Score.Control <$> p_ident ","
+    P.char '#'
+    control <- Score.Control <$> P.option "" (p_ident ",")
     deflt <- Parse.optional (P.char ',' >> p_word)
     return $ case deflt of
         Nothing -> Control control
         Just val -> DefaultedControl control (Pitch.Note val)
     <?> "pitch control"
+
+p_scale_id :: P.Parser Pitch.ScaleId
+p_scale_id = do
+    P.char '*'
+    Pitch.ScaleId <$> P.option "" (p_ident "")
+    <?> "scale id"
+
+p_instrument :: P.Parser Score.Instrument
+p_instrument = P.char '>' >> Score.Instrument <$> p_null_word
+    <?> "instrument"
 
 -- | Symbols can have anything in them but they have to start with a letter.
 -- This means special literals can start with wacky characters and not be

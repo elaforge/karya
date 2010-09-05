@@ -3,11 +3,14 @@ import Control.Monad
 
 import Util.Test
 import qualified Util.Parse as Parse
+import qualified Util.Pretty as Pretty
 
 import qualified Derive.Score as Score
 import Derive.TrackLang (AttrMode(..), Call(..), ControlRef(..), Symbol(..),
     Val(..), Term(..))
 import qualified Derive.TrackLang as TrackLang
+
+import qualified Perform.Pitch as Pitch
 
 
 test_parse = do
@@ -71,6 +74,15 @@ test_p_val = do
                 DefaultedControl (Score.Control "sig") 0)
             , ("%sig,", Nothing)
 
+            , ("#", Just $ VPitchControl $
+                Control (Score.Control ""))
+            , ("#sig,0", Just $ VPitchControl $
+                DefaultedControl (Score.Control "sig") (Pitch.Note "0"))
+
+            , ("*", Just $ VScaleId (Pitch.ScaleId ""))
+            , ("*scale", Just $ VScaleId (Pitch.ScaleId "scale"))
+            , ("*bad/scale", Nothing)
+
             , ("sym", Just $ VSymbol (Symbol "sym"))
             , ("s!$_", Just $ VSymbol (Symbol "s!$_"))
             , ("$bad", Nothing)
@@ -84,7 +96,9 @@ test_p_val = do
                 err ++ ", expected " ++ show expect
             (Right val, Nothing) -> failure $
                 "shouldn't have parsed: " ++ show expr ++ " -> " ++ show val
-            (Right val, Just expect) -> equal val expect
+            (Right val, Just expect) -> do
+                equal val expect
+                equal (Pretty.pretty val) expr
             _ -> success $ show res ++ " == " ++ show expected
 
 test_p_equal = do

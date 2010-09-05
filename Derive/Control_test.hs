@@ -30,7 +30,7 @@ test_control_track = do
     -- various failures
     let (val, logs) = derive ("", events)
     equal val (Right [])
-    strings_like logs ["failed to parse"]
+    strings_like logs ["DeriveError: track title"]
 
     let (val, logs) = derive ("cont", [(0, 0, "abc"), (1, 0, "def")])
     equal val (Right [Just []])
@@ -73,9 +73,9 @@ test_derive_control = do
 test_pitch_track = do
     let derive = do_derive (PitchSignal.unsignal . Score.event_pitch)
 
-    let (val, logs) = derive ("*no_scale", [(0, 0, "1"), (1, 0, "2")])
+    let (val, logs) = derive ("*no-scale", [(0, 0, "1"), (1, 0, "2")])
     equal val (Right [])
-    strings_like logs ["unknown ScaleId \"no_scale\""]
+    strings_like logs ["unknown ScaleId \"no-scale\""]
 
     let (val, logs) = derive ("*twelve", [(0, 0, "1"), (1, 0, "2")])
     equal val (Right [[]])
@@ -123,7 +123,7 @@ test_relative_pitch = do
             where (events, logs) = DeriveTest.e_logs result
     let f track = extract $ DeriveTest.derive_tracks
                 [ (">", [(0, 10, "")])
-                , ("add *", track)
+                , ("add #", track)
                 , ("*twelve", [(0, 0, "4c")])
                 ]
         base = 60
@@ -140,7 +140,7 @@ test_relative_pitch = do
     let (pitches, logs) = extract $ DeriveTest.derive_tracks
             [ (">", [(0, 10, "")])
             , ("*twelve", [(0, 0, "4c")])
-            , ("add *", [(0, 0, "1")])
+            , ("add #", [(0, 0, "1")])
             ]
     equal pitches $ Right [mksig [(0, (base, base, 0))]]
     -- no warning because of default pitch

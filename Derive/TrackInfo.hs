@@ -1,4 +1,4 @@
-{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE PatternGuards, ViewPatterns #-}
 -- | Utilities to deal with track titles.
 --
 -- Like Derive.Schema, this module is used by both Cmd and Derive.
@@ -40,37 +40,47 @@ parse_control = fmap fst . parse_control_expr
 
 parse_control_expr :: String -> Either String (ControlType, TrackLang.Expr)
 parse_control_expr title = do
-    (expr, vals) <- TrackLang.parse_control_track title
+    (vals, expr) <- TrackLang.parse_control_title title
     ctrack <- parse_control_vals vals
     return (ctrack, expr)
 
+-- | It would be more regular to require \"%cont\" and \"add %cont\" for
+-- control tracks, but it looks nicer without the extra noise.
 parse_control_vals :: [TrackLang.Val] -> Either String ControlType
 parse_control_vals vals = case vals of
-        [TrackLang.VSymbol (TrackLang.Symbol ('*':scale))] ->
+        -- *twelve -> default pitch track in twelve
+        [TrackLang.VScaleId scale] ->
             Right $ Pitch (PitchAbsolute (scale_of scale)) Nothing
-        [TrackLang.VSymbol (TrackLang.Symbol ('*':scale)),
-                TrackLang.VSymbol control] ->
-            Right $ Pitch (PitchAbsolute (scale_of scale))
-                (Just (control_of control))
-        TrackLang.VSymbol call : TrackLang.VSymbol (TrackLang.Symbol "*") : rest
-            | [] <- rest ->
-                Right $ Pitch (PitchRelative call) Nothing
-            | [TrackLang.VSymbol control] <- rest ->
-                Right $ Pitch (PitchRelative call) (Just (control_of control))
-        TrackLang.VSymbol _
-                : TrackLang.VSymbol (TrackLang.Symbol ('*':scale)) : _ ->
-            Left $ "can't put a scale on a relative pitch: " ++ show scale
+        -- *twelve # -> default ptich track in twelve
+        -- *twelve #name -> named pitch track
+        [TrackLang.VScaleId scale, pitch_control -> Just cont] ->
+            Right $ Pitch (PitchAbsolute (scale_of scale)) cont
+        -- add # -> relative pitch for default
+        -- add #name -> relative pitch for named track
+        [TrackLang.VSymbol call, pitch_control -> Just cont] ->
+            Right $ Pitch (PitchRelative call) cont
+        -- "tempo"
         [TrackLang.VSymbol (TrackLang.Symbol "tempo")] -> Right Tempo
+        -- control
         [TrackLang.VSymbol control] ->
             Right $ Control Nothing (control_of control)
+        -- add control
         [TrackLang.VSymbol call, TrackLang.VSymbol control] ->
             Right $ Control (Just call) (control_of control)
-        _ -> Left $ "args must be one of [\"tempo\", control, op control, "
-            ++ "*scale, *scale pitch_control, op *, op * pitch_control]"
+        _ -> Left $ "control track must be one of [\"tempo\", control, "
+            ++ "op control, " ++ "*scale, *scale #name, op #, op #name], "
+            ++ "got: " ++ Pretty.pretty vals
     where
-    scale_of "" = Nothing
-    scale_of text = Just (Pitch.ScaleId text)
+    scale_of (Pitch.ScaleId "") = Nothing
+    scale_of scale = Just scale
     control_of (TrackLang.Symbol control) = Score.Control control
+
+    pitch_control :: TrackLang.Val -> Maybe (Maybe Score.Control)
+    pitch_control (TrackLang.VPitchControl
+            (TrackLang.Control cont@(Score.Control name)))
+        | null name = Just Nothing
+        | otherwise = Just (Just cont)
+    pitch_control _ = Nothing
 
 unparse_control :: ControlType -> String
 unparse_control = Seq.join " " . map Pretty.pretty . unparse_control_vals

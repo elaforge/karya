@@ -16,7 +16,6 @@ import qualified Data.Map as Map
 import Control.Monad
 
 import Util.Control
-import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
 import qualified Util.Seq as Seq
 
@@ -40,30 +39,28 @@ import qualified Perform.Signal as Signal
 d_control_track :: BlockId -> TrackId -> Derive.Transformer
 d_control_track block_id track_id deriver = do
     track <- Derive.get_track track_id
-    (expr, vals) <- either (\err -> Derive.throw $ "track title: " ++ err)
-        return (TrackLang.parse_control_track (Track.track_title track))
+    (ctype, expr) <- either (\err -> Derive.throw $ "track title: " ++ err)
+        return (TrackInfo.parse_control_expr (Track.track_title track))
     -- TODO event calls are evaluated in normalized time, but track calls
     -- aren't.  Should they be?
-    eval_track block_id track_id expr vals deriver
+    eval_track block_id track_id expr ctype deriver
 
-eval_track :: BlockId -> TrackId -> TrackLang.Expr -> [TrackLang.Val]
+eval_track :: BlockId -> TrackId -> TrackLang.Expr -> TrackInfo.ControlType
     -> Derive.Transformer
-eval_track block_id track_id expr vals deriver = do
+eval_track block_id track_id expr ctype deriver = do
     track <- Derive.get_track track_id
     let events = Track.event_list (Track.track_events track)
     block_end <- Derive.get_block_dur block_id
-    case TrackInfo.parse_control_vals vals of
-        Right TrackInfo.Tempo -> do
+    case ctype of
+        TrackInfo.Tempo -> do
             let control_deriver = derive_control block_end track_id expr events
             tempo_call block_id track_id
                 (first Signal.coerce <$> control_deriver) deriver
-        Right (TrackInfo.Control maybe_op control) -> do
+        TrackInfo.Control maybe_op control -> do
             let control_deriver = derive_control block_end track_id expr events
             control_call track_id control maybe_op control_deriver deriver
-        Right (TrackInfo.Pitch ptype maybe_name) ->
+        TrackInfo.Pitch ptype maybe_name ->
             pitch_call block_end track_id maybe_name ptype expr events deriver
-        Left msg -> Derive.throw $
-            "failed to parse " ++ Pretty.pretty vals ++ ": " ++ msg
 
 -- | A tempo track is derived like other signals, but in absolute time.
 -- Otherwise it would wind up being composed with the environmental

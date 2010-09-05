@@ -28,9 +28,9 @@ import qualified Util.Graph_test as Graph_test
 
 test_get_track_info = do
     let tree = mk_track_tree
-            -- ["c0", ">inst1", "add *", "c1", ">inst2", "add c2"]
+            -- ["c0", ">inst1", "add #", "c1", ">inst2", "add c2"]
             [ node ("c0", 0)
-                [ node ("c1", 3) [node ("add *", 2) [node (">inst1", 1) []]]
+                [ node ("c1", 3) [node ("add #", 2) [node (">inst1", 1) []]]
                 , node ("add c2", 5) [node (">inst2", 4) []]
                 ]
             ]
