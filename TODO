@@ -1,15 +1,14 @@
 CURRENT
+  - ratio scale relative to another scale
   - lookup val calls in current inst as in current scale
     Maybe I can get rid of the Instrument.inst_control_map if I do the mapping
     in generate_note
-
     use case: drum tracks with symbols
   - see if making a version of Derive.local that's non-monadic in the modifier
     has any effect on performance
   - now that the signal deriver is gone, I can also get rid of ignore_tempo,
     unless I want to use it for a lilypond backend or something
   * make Derive.control_at return a Maybe to make it consistent with pitch_at
-  - some way to write the default pitch in a tracklang literal?
   ? switch mhead and mlast back to returning Maybe
   - split some Derive.Derive types into their own module
   - tracks with no ruler should default to free selection placement
@@ -121,7 +120,9 @@ CURRENT
       * modify track in child block and rederive parent
       * modify tempo in various places
 
-  - What if I want a relative pitch track that takes ratios relative to some
+  - assign scale, e.g. 'scale = *something', it has to be special-cased because
+    * is a scale_id, not a scale
+  * What if I want a relative pitch track that takes ratios relative to some
     other pitch track?  I can set the scale and put the other signal in the
     dynamic env, but what if it's another instrument's pitch track and not in
     scope?  Either a way to name signals by track id, or get it into scope

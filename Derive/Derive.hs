@@ -940,12 +940,12 @@ named_degree_at name pos = do
 
 with_control :: (Monad m) =>
     Score.Control -> Signal.Control -> DeriveT m t -> DeriveT m t
-with_control cont signal op = do
+with_control cont signal deriver = do
     controls <- gets state_controls
     -- TODO only revert the specific control
     modify $ \st ->
         st { state_controls = Map.insert cont signal controls }
-    result <- op
+    result <- deriver
     modify $ \st -> st { state_controls = controls }
     return result
 

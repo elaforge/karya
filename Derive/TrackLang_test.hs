@@ -102,14 +102,22 @@ test_p_val = do
             _ -> success $ show res ++ " == " ++ show expected
 
 test_p_equal = do
-    let eq a b = Right (Call (Symbol "=") [Literal $ VSymbol (Symbol a), b])
+    let eq a b = Right (Call (Symbol "=") [Literal a, b])
+        sym = VSymbol . Symbol
     let f = Parse.parse_all TrackLang.p_equal
-    equal (f "a = b") (eq "a" (Literal (VSymbol (Symbol "b"))))
-    equal (f "a = 10") (eq "a" (Literal (VNum 10)))
-    equal (f "a = (b c)") (eq "a" (val_call "b" [Literal (symbol "c")]))
+    equal (f "a = b") (eq (sym "a") (Literal (VSymbol (Symbol "b"))))
+    equal (f "a = 10") (eq (sym "a") (Literal (VNum 10)))
+    equal (f "a = (b c)") (eq (sym "a") (val_call "b" [Literal (symbol "c")]))
     left_like (f "a = ()") "unexpected \")\""
     left_like (f "(a) = b") "unexpected \"(\""
     left_like (f "a=") "unexpected end of input"
+    left_like (f "a=b") "unexpected end of input"
+
+    equal (f "*a = *b") (eq (VScaleId (Pitch.ScaleId "a"))
+        (Literal (VScaleId (Pitch.ScaleId "b"))))
+    equal (f "a = =b") (eq (sym "a")
+        (Literal (VRelativeAttr (TrackLang.RelativeAttr (Set, "b")))))
+
 
     let parse = TrackLang.parse
     equal (parse "a =b") $ Right [Call (Symbol "a")

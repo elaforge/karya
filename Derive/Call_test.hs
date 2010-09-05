@@ -12,6 +12,7 @@ import qualified Derive.TrackLang as TrackLang
 import qualified Derive.Score as Score
 import qualified Derive.Call.CallTest as CallTest
 
+import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
 
 
@@ -57,6 +58,49 @@ test_c_equal = do
 
     equal (run ">i" [(0, 1, ""), (1, 1, "inst = >i2 |"), (2, 1, "n >i3 |")])
         (Right [(0, Just "i", []), (1, Just "i2", []), (2, Just "i3", [])], [])
+
+test_assign_controls = do
+    let run inst_title cont_title val = extract $ DeriveTest.derive_tracks
+            [ (inst_title, [(0, 1, "")])
+            , (cont_title, [(0, 0, val)])
+            ]
+        extract = DeriveTest.extract e_event Log.msg_string
+        e_event e = (head (PitchSignal.unsignal_degree (Score.event_pitch e)),
+            fmap head $ DeriveTest.e_control "cont" e)
+
+    -- normal
+    equal (run ">i" "cont" "1")
+        (Right [((0, 60), Just (0, 1))], [])
+    -- not seen
+    equal (run ">i" "gont" "1")
+        (Right [((0, 60), Nothing)], [])
+
+    -- a non-existent control with no default is an error
+    let (events, logs) = run ">i | %cont = %bonk" "gont" "1"
+    equal events (Right [])
+    strings_like logs ["not found: Control \"bonk\""]
+    -- control assigned
+    equal (run ">i | %cont = %gont" "gont" "1")
+        (Right [((0, 60), Just (0, 1))], [])
+
+    -- set a constant signal
+    equal (run ">i | %cont = 42" "gont" "1")
+        (Right [((0, 60), Just (0, 42))], [])
+    -- set constant signal with a default
+    equal (run ">i | %cont = %gont,42" "bonk" "1")
+        (Right [((0, 60), Just (0, 42))], [])
+    equal (run ">i | %cont = %gont,42" "gont" "1")
+        (Right [((0, 60), Just (0, 1))], [])
+
+    -- named pitch doesn't show up
+    equal (run ">i" "*twelve #foo" "2c")
+        (Right [((0, 60), Nothing)], [])
+    -- assigned to default pitch, so it shows up
+    equal (run ">i | # = #foo" "*twelve #foo" "2c")
+        (Right [((0, 36), Nothing)], [])
+    -- set constant pitch
+    equal (run ">i | # = (1c)" "*twelve #foo" "2c")
+        (Right [((0, 24), Nothing)], [])
 
 test_environ_across_tracks = do
     let e_evt = fmap Signal.unsignal . Map.lookup (Score.Control "cont")

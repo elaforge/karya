@@ -1,3 +1,4 @@
+{-# LANGUAGE ViewPatterns #-}
 {- | Utilities for writing calls.  This is higher-level than TrackLang, so
     it can import "Derive.Derive".
 
@@ -83,7 +84,6 @@ import qualified Ui.Types as Types
 
 import qualified Derive.Cache as Cache
 import qualified Derive.CallSig as CallSig
-import Derive.CallSig (required)
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
@@ -473,9 +473,30 @@ lookup_call get_cmap call_id = do
 -- * c_equal
 
 c_equal :: (Derive.Derived derived) => Derive.Call derived
-c_equal = Derive.transformer "equal" $ \args deriver -> CallSig.call2 args
-    (required "symbol", required "value" :: CallSig.Arg TrackLang.Val) $
-    \sym val -> Derive.with_val sym val deriver
+c_equal = Derive.transformer "equal" $ \args deriver ->
+    case Derive.passed_vals args of
+        [TrackLang.VSymbol assignee, val] -> Right $ do
+            Derive.with_val assignee val deriver
+        [control -> Just assignee, TrackLang.VControl val] -> Right $ do
+            sig <- to_signal val
+            Derive.with_control assignee sig deriver
+        [control -> Just assignee, TrackLang.VNum val] -> Right $ do
+            Derive.with_control assignee (Signal.constant val) deriver
+        [pitch -> Just assignee, TrackLang.VPitchControl val] -> Right $ do
+            sig <- to_pitch_signal val
+            Derive.with_pitch assignee sig deriver
+        [pitch -> Just assignee, TrackLang.VDegree val] -> Right $ do
+            scale_id <- get_scale_id
+            Derive.with_pitch assignee (PitchSignal.constant scale_id val)
+                deriver
+        _ -> Left $ TrackLang.ArgError "unhappy"
+    where
+    control (TrackLang.VControl (TrackLang.Control c)) = Just c
+    control _ = Nothing
+    pitch (TrackLang.VPitchControl (TrackLang.Control c@(Score.Control n)))
+        | null n = Just Nothing
+        | otherwise = Just (Just c)
+    pitch _ = Nothing
 
 -- * map score events
 

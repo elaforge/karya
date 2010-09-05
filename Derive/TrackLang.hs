@@ -422,12 +422,12 @@ parse_control_title text = Parse.parse_all p_control_title (strip_comment text)
 
 p_control_title :: P.Parser ([Val], Expr)
 p_control_title = do
-    vals <- P.many p_val
+    vals <- P.many (Parse.lexeme p_val)
     expr <- P.option [] (Parse.symbol "|" >> p_pipeline)
     return (vals, expr)
 
 parse_val :: String -> Either String Val
-parse_val = Parse.parse_all p_val
+parse_val = Parse.parse_all (Parse.lexeme p_val)
 
 p_pipeline :: P.Parser Expr
 p_pipeline = P.sepBy p_expr (Parse.symbol "|")
@@ -435,13 +435,13 @@ p_pipeline = P.sepBy p_expr (Parse.symbol "|")
 p_expr, p_equal :: P.Parser Call
 p_expr = P.try p_equal <|> P.try p_call <|> p_null_call
 p_equal = do
-    a1 <- p_call_symbol
+    a1 <- p_val
     P.skipMany1 P.space
     P.char '='
     -- This ensures that "a =b" is not interpreted as an equal expression.
     P.skipMany1 P.space
     a2 <- p_term
-    return $ Call c_equal [Literal (VSymbol a1), a2]
+    return $ Call c_equal [Literal a1, a2]
 
 p_call :: P.Parser Call
 p_call = Call <$> Parse.lexeme p_call_symbol <*> P.many p_term
@@ -465,7 +465,7 @@ p_sub_call :: P.Parser Call
 p_sub_call = P.between (P.char '(') (P.char ')') p_call
 
 p_val :: P.Parser Val
-p_val = Parse.lexeme $
+p_val =
     VInstrument <$> p_instrument
     -- RelativeAttr and Num can both start with a '-', but an RelativeAttr has
     -- to have a letter afterwards, while a Num is a '.' or digit, so they're

@@ -205,6 +205,10 @@ e_everything e =
         )
     where uninst (Score.Instrument inst) = inst
 
+e_control :: String -> Score.Event -> Maybe [(RealTime, Signal.Y)]
+e_control cont event = fmap Signal.unsignal $
+    Map.lookup (Score.Control cont) (Score.event_controls event)
+
 note_on_times :: [(Timestamp.Timestamp, Midi.Message)]
     -> [(Integer, Midi.Key, Midi.Velocity)]
 note_on_times mmsgs = [(Timestamp.to_millis ts, nn, vel)
