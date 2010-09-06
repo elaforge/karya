@@ -103,8 +103,8 @@ process_msg state msg = (new_state { state_status = status }, msg_styled)
                 then Just styled
                 else Nothing
         Nothing -> Nothing
-    caught = catch_patterns (state_catch_patterns state) (Log.msg_string msg)
-    status = Map.union caught (state_status state)
+    status = catch_patterns (state_catch_patterns state) (Log.msg_string msg)
+        (state_status state)
 
 -- | Filter out timer msgs that don't have a minimum time from the previous
 -- timing, and prepend the interval and bump the priority to Warn if they do.
@@ -128,8 +128,12 @@ timer_filter state msg
         where
         diff = Log.msg_date msg `Time.diffUTCTime` Log.msg_date last_msg
 
-catch_patterns :: [CatchPattern] -> String -> Status
-catch_patterns patterns text = Map.fromList $ concatMap match patterns
+catch_patterns :: [CatchPattern] -> String -> Status -> Status
+catch_patterns patterns text old
+    -- The app sends this on startup, so I can clear out any status from the
+    -- last session.
+    | text == "app starting" = Map.empty
+    | otherwise = Map.union (Map.fromList $ concatMap match patterns) old
     where
     match (title, reg) = map extract (Regex.find_groups reg text)
         where

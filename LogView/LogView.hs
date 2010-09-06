@@ -125,6 +125,8 @@ handle_msgs st history log_chan view = flip State.evalStateT st $ forever $ do
             all_msgs <- State.gets (reverse . Process.state_msgs)
             mapM_ (handle_new_msg view) all_msgs
 
+handle_new_msg :: LogViewC.LogView -> Log.Msg
+    -> State.StateT Process.State IO ()
 handle_new_msg view msg = do
     state <- State.get
     let (new_state, styled) = Process.process_msg state msg

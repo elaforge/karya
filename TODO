@@ -3,7 +3,7 @@ CURRENT
   - 'M' to mute and solo tracks isn't working
   - paste was wrong (missed first event)
   - lang cmds to rederive / perform within selection
-  - logview clears status line when it sees 'app starting'
+  * logview clears status line when it sees 'app starting'
   - am I even using Pitch.scale_set_pitch_bend?  what does it mean exactly?
   * ratio scale relative to another scale
   - lookup val calls in current inst as in current scale
@@ -1050,7 +1050,7 @@ misc ghc fixes:
 
 research:
   - spline curve interpolator: evoral/Curve.cpp, www.korf.co.uk/spline.pdf
-  - check out Ben Jonston's just notation
+  - check out Ben Johnston's just notation
 
 future:
   - I need to sync with a DAW but don't want to implement rewire.
