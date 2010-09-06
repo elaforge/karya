@@ -103,6 +103,9 @@ unparse_control_vals ctype = case ctype of
 
 -- ** util
 
+strip_expr :: String -> String
+strip_expr = Seq.rstrip . takeWhile (/='|')
+
 scale_to_title :: Pitch.ScaleId -> String
 scale_to_title scale_id =
     unparse_control (Pitch (PitchAbsolute (Just scale_id)) Nothing)
@@ -117,10 +120,8 @@ title_to_scale title = case parse_control title of
 --
 -- This is a hack because the track title is actually code and I'm trying to
 -- pick an instrument out without executing it.
---
--- TODO this will break on anything complicated like @>inst | xyz@.
 title_to_instrument :: String -> Maybe Score.Instrument
-title_to_instrument ('>':name) = Just (Score.Instrument name)
+title_to_instrument ('>':name) = Just (Score.Instrument (strip_expr name))
 title_to_instrument _ = Nothing
 
 -- | Convert from an instrument to the title of its instrument track.
@@ -139,8 +140,7 @@ is_relative _ = False
 -- figure out a skeleton in the first place I need to guess which one is the
 -- note track.
 looks_like_note_track :: String -> Bool
-looks_like_note_track ('>':_) = True
-looks_like_note_track _ = False
+looks_like_note_track = maybe False (const True) . title_to_instrument
 
 is_tempo_track :: String -> Bool
 is_tempo_track = (=="tempo")

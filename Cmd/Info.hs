@@ -95,7 +95,7 @@ get_track_status block_id ttree tracknum = case note_track_of ttree tracknum of
         let addrs = Map.findWithDefault [] inst
                 (Instrument.config_alloc midi_config)
         let title = TrackInfo.instrument_to_title inst
-        return $ Printf.printf "%s at %d: %s, [%s]" title note_tracknum
+        return $ Printf.printf "%s at %d: %s -- [%s]" title note_tracknum
             (show_addrs addrs) (Seq.join ", " track_descs)
     Nothing -> return $ "track " ++ show tracknum ++ ": no inst"
 
@@ -138,15 +138,15 @@ note_track_of ttree tracknum = case find_track tracknum ttree of
 show_track_status :: (State.UiStateMonad m) => BlockId -> [State.TrackInfo]
     -> m [String]
 show_track_status block_id status = forM status $ \info -> do
-    let title = State.track_title info
-        tracknum = State.track_tracknum info
+    let tracknum = State.track_tracknum info
     btrack <- State.block_track_at block_id tracknum
     let cmd_text = case fmap Block.track_flags btrack of
             Nothing -> "?"
             Just flags
                 | Block.Collapse `elem` flags -> "expand"
                 | otherwise -> "collapse"
-    return $ Printf.printf "%s {%s %d}" (str title) cmd_text tracknum
+    return $ Printf.printf "%s {%s %d}"
+        (str (TrackInfo.strip_expr (State.track_title info))) cmd_text tracknum
 
 paths_of :: State.TrackTree -> TrackNum
     -> Maybe (State.TrackInfo, [State.TrackInfo], [State.TrackInfo])

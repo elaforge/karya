@@ -1,8 +1,9 @@
 CURRENT
-  - track info only needs to print the title before the first "|"
+  * track info only needs to print the title before the first "|"
   - 'M' to mute and solo tracks isn't working
   - paste was wrong (missed first event)
   - lang cmds to rederive / perform within selection
+  - splice track didn't work
   * logview clears status line when it sees 'app starting'
   - am I even using Pitch.scale_set_pitch_bend?  what does it mean exactly?
   * ratio scale relative to another scale
