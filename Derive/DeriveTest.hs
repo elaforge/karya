@@ -9,7 +9,7 @@ import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Log as Log
-import qualified Util.SrcPos as SrcPos
+-- import qualified Util.SrcPos as SrcPos
 import Util.Test
 
 import qualified Midi.Midi as Midi
@@ -145,12 +145,17 @@ default_lookup_deriver ui_state = Schema.lookup_deriver Map.empty ui_state
 -- | Tests generally shouldn't depend on logs below a certain priority since
 -- those don't indicate anything interesting.
 filter_logs :: [Log.Msg] -> [Log.Msg]
-filter_logs logs = Log.trace_logs (filter (not . cache) low) high
+filter_logs logs =
+    Log.trace_logs (filter (not . cache_msg) low) high
     where
     (low, high) = List.partition ((< Log.Warn) . Log.msg_prio) logs
-    -- it's a hack, but the cache logs are annoying
-    cache = (== Just (Just "cached_generator")) . fmap SrcPos.srcpos_func
-        . Log.msg_caller
+    -- It's a hack, but the cache logs are annoying.
+    -- I can't use the srcpos because it doesn't exist in ghci.
+    -- cache = (== Just (Just "cached_generator")) . fmap SrcPos.srcpos_func
+    --     . Log.msg_caller
+    cache_msg msg =
+        any (`List.isInfixOf` s) ["using cache", "rederived generator"]
+        where s = Log.msg_string msg
 
 quiet_filter_logs :: [Log.Msg] -> [Log.Msg]
 quiet_filter_logs = filter ((>=Log.Warn) . Log.msg_prio)
