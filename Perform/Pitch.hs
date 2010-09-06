@@ -30,7 +30,7 @@ module Perform.Pitch (
     -- * Scale
     , ScaleMap, ScaleId(..), default_scale_id, twelve, relative, is_relative
     , Scale(..)
-    , degree_to_nn
+    , degree_to_double
 ) where
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -119,6 +119,8 @@ add_hz hz nn = hz_to_nn (hz + nn_to_hz nn)
 nn_to_hz :: NoteNumber -> Hz
 nn_to_hz (NoteNumber nn) = exp (nn * _equal1 + _equal2)
 
+-- | Negative hz will result in NaN.  TODO take an abs or throw an error, or
+-- let the NaN propagate?
 hz_to_nn :: Hz -> NoteNumber
 hz_to_nn hz = NoteNumber $ (log hz - _equal2) / _equal1
 
@@ -213,8 +215,8 @@ instance Show Scale where
 
 -- | Make the function for 'Perform.PitchSignal.to_nn', since it can't import
 -- this module to do it itself.
-degree_to_nn :: Scale -> Degree -> Maybe Double
-degree_to_nn scale d = fmap un_nn (scale_degree_to_nn scale d)
+degree_to_double :: Scale -> Degree -> Maybe Double
+degree_to_double scale d = fmap un_nn (scale_degree_to_nn scale d)
     where un_nn (NoteNumber n) = n
 
 note_in_scale :: Scale -> Note -> Bool

@@ -44,7 +44,7 @@ test_score_trill = do
 
 transform = extract . CallTest.transform
 extract = DeriveTest.extract_events_only
-    (Signal.unsignal . PitchSignal.to_nn (Pitch.degree_to_nn Twelve.scale)
+    (Signal.unsignal . PitchSignal.to_nn (Pitch.degree_to_double Twelve.scale)
         . Score.event_pitch)
 con = Signal.constant
 

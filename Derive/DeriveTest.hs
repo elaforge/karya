@@ -183,8 +183,8 @@ extract e_event e_log result =
     where (val, logs) = e_val result
 
 extract_events :: (Score.Event -> a) -> Derive.Result [Score.Event]
-    -> (Either String [a], [Log.Msg])
-extract_events ex_event = extract ex_event id
+    -> (Either String [a], [String])
+extract_events ex_event = extract ex_event Log.msg_string
 
 extract_events_only :: (Score.Event -> a) -> Derive.Result [Score.Event]
     -> Either String [a]

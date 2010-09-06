@@ -1,6 +1,4 @@
 module Derive.Call.Rambat_test where
-
-import qualified Util.Log as Log
 import Util.Test
 
 import qualified Derive.DeriveTest as DeriveTest
@@ -25,7 +23,7 @@ test_tick = do
     let (_evts, logs) = run
             [(0, 1, "tick"), (1, 1, "tick"), (2, 1, "")]
             [("*twelve", [(0, 0, "4c"), (2, 0, "4d")])]
-    strings_like (map Log.msg_string logs) ["no previous event"]
+    strings_like logs ["no previous event"]
 
     -- tick is a constant time before second note regardless of tempo
     let (evts, logs) = run [(0, 1, ""), (1, 1, "tick .5"), (2, 1, "")]

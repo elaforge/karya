@@ -833,6 +833,9 @@ throw_srcpos srcpos msg = do
     context <- gets state_log_context
     Error.throwError (DeriveError srcpos stack (add_context context msg))
 
+require :: String -> Maybe a -> Deriver a
+require msg = maybe (throw msg) return
+
 with_msg :: (Monad m) => String -> DeriveT m a -> DeriveT m a
 with_msg msg = local state_log_context
     (\old st -> st { state_log_context = old })

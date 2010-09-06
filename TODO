@@ -1,5 +1,11 @@
 CURRENT
-  - ratio scale relative to another scale
+  - track info only needs to print the title before the first "|"
+  - 'M' to mute and solo tracks isn't working
+  - paste was wrong (missed first event)
+  - lang cmds to rederive / perform within selection
+  - logview clears status line when it sees 'app starting'
+  - am I even using Pitch.scale_set_pitch_bend?  what does it mean exactly?
+  * ratio scale relative to another scale
   - lookup val calls in current inst as in current scale
     Maybe I can get rid of the Instrument.inst_control_map if I do the mapping
     in generate_note
@@ -50,6 +56,7 @@ CURRENT
   - seeking to play in a certain place will miss any controller initialization
     but I could get that back by having Cache.messages_from inspect postproc
     state to get the control state
+    This is bad because if you start on a note it will lose any tuning it had.
   * replace Call.place with a single call to d_warp, profile
   * can I replace the Derive logging nonsense by writing a LogMonad instance
     for DeriveT?
@@ -941,7 +948,9 @@ Derive:
     - retune a note depending on the previous interval (e.g. sloppy pitches
       when playing quickly)
       I think this has to be postproc.
-    - some kind of ratio based notation?  check out Ben Jonston's just notation
+    * some kind of ratio based notation?
+    - Ratio based notation where the ratios are from the previous pitch.
+      Should be able to do this with val calls.
     - octatonic
     - parser for scala .scl files
 
@@ -1041,6 +1050,7 @@ misc ghc fixes:
 
 research:
   - spline curve interpolator: evoral/Curve.cpp, www.korf.co.uk/spline.pdf
+  - check out Ben Jonston's just notation
 
 future:
   - I need to sync with a DAW but don't want to implement rewire.
