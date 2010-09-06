@@ -343,12 +343,14 @@ apply_generator (dinfo, cinfo) (TrackLang.Call call_id args) = do
 
     env <- Derive.gets Derive.state_environ
     let args = Derive.PassedArgs vals env call_id cinfo
-    state <- Derive.get
-    let with_stack = Derive.with_stack_call (Derive.call_name call)
+    let with_stack = case Derive.gcall_block =<< Derive.call_generator call of
+            Just block_id -> Derive.with_stack_block block_id
+            Nothing -> Derive.with_stack_call (Derive.call_name call)
     with_stack $ case Derive.call_generator call of
         Just gen -> do
-            result <- Cache.cached_generator (Derive.state_cache_state state)
-                (Derive.state_stack state) gen args
+            cache <- Derive.gets Derive.state_cache_state
+            stack <- Derive.gets Derive.state_stack
+            result <- Cache.cached_generator cache stack gen args
             case result of
                 (Left err, _) -> Derive.throw $ Pretty.pretty err
                 (Right deriver, new_cache) -> do
@@ -424,10 +426,14 @@ lookup_note_call call_id = do
         else lookup_call Derive.calls_note call_id
 
 c_block :: BlockId -> Derive.NoteCall
-c_block block_id = Derive.caching_generator "block" $ \args ->
+c_block block_id = add_block $ Derive.caching_generator "block" $ \args ->
     if null (Derive.passed_vals args)
         then Right $ block_call block_id
         else Left $ TrackLang.ArgError "args for block call not implemented yet"
+    where
+    add_block call =
+        call { Derive.call_generator = add <$> Derive.call_generator call }
+        where add gcall = gcall { Derive.gcall_block = Just block_id }
 
 block_call :: BlockId -> Derive.EventDeriver
 block_call block_id = Derive.d_subderive (Derive.d_block block_id)

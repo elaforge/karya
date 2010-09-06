@@ -58,10 +58,11 @@ test_basic = do
         [1, 60, 0, 61]
     equal midi_warns []
     where
-    mkstack (s, e) = Stack.make [Stack.Call "block",
-        Stack.Block (UiTest.bid "b1"),
-        Stack.Track (UiTest.tid "b1.t1"), Stack.Track (UiTest.tid "b1.t0"),
-        Stack.Call "note", Stack.Region s e, Stack.Call "note"]
+    mkstack (s, e) = Stack.make
+        [ Stack.Block (UiTest.bid "b1")
+        , Stack.Track (UiTest.tid "b1.t1"), Stack.Track (UiTest.tid "b1.t0")
+        , Stack.Call "note", Stack.Region s e, Stack.Call "note"
+        ]
     extract_perf_event (Perform.Event inst start dur _controls _pitch stack) =
         (Instrument.inst_name inst,
             fmap ks_name (Instrument.inst_keyswitch inst),
@@ -82,14 +83,14 @@ test_stack = do
         , ["test/b0 test/b0.t0 1-2", "test/sub test/sub.t0 0-1"]
         , ["test/b0 test/b0.t0 1-2", "test/sub test/sub.t0 1-2"]
         ]
-    let b0 s e = [call "block", block "b0", track "b0.t0", call "note",
+    let b0 s e = [block "b0", track "b0.t0", call "note",
             Stack.Region s e]
         sub s e = [block "sub", track "sub.t0", call "note",
             Stack.Region s e, call "note"]
     equal stacks $ Right $ map Stack.make
         [ b0 0 1 ++ [Stack.Call "note"]
-        , b0 1 2 ++ [Stack.Call "block"] ++ sub 0 1
-        , b0 1 2 ++ [Stack.Call "block"] ++ sub 1 2
+        , b0 1 2 ++ sub 0 1
+        , b0 1 2 ++ sub 1 2
         ]
 
 ui_stack :: Log.Msg -> Maybe [String]

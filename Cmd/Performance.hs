@@ -176,8 +176,8 @@ evaluate_midi prefix cache _ logged_stats _ [] = when (not logged_stats) $
 evaluate_midi prefix cache selection_pos logged_stats eval_pos chunks = do
     pos <- Cmd.read_selection selection_pos
     let eval_until = max pos eval_pos
-    when (pos > eval_pos) $
-        Log.notice $ prefix ++ "jumping forward to cursor: " ++ show pos
+    -- when (pos > eval_pos) $
+    --     Log.notice $ prefix ++ "jumping forward to cursor: " ++ show pos
     let (pre, post) = break ((>=eval_until) . chunk_time) chunks
     splice_failed <- any id <$> mapM evaluate_chunk pre
     when (not logged_stats && splice_failed) $

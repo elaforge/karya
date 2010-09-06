@@ -140,7 +140,7 @@ cached_generator :: (Derive.Derived derived) => CacheState -> Stack.Stack
     -> Derive.GeneratorCall derived -> Derive.PassedArgs derived
     -> Derive.Deriver
         (Either TrackLang.TypeError (Derive.Deriver derived), Maybe Cache)
-cached_generator state stack (Derive.GeneratorCall func gtype) args =
+cached_generator state stack (Derive.GeneratorCall func gtype _) args =
     case gtype of
         Derive.NonCachingGenerator ->
             non_caching =<< has_damage state stack
@@ -170,8 +170,8 @@ cached_generator state stack (Derive.GeneratorCall func gtype) args =
     generate (Right (collect, cached)) = do
         Log.debug $ "using cache (" ++ show (Derive.derived_length cached)
             ++ " vals)"
-        -- The cached deriver still has the same collect as it would if it had
-        -- been actually derived.
+        -- The cached deriver must return the same collect as it would if it
+        -- had been actually derived.
         Derive.modify_collect $ \st -> Monoid.mappend collect st
         return (Right (return cached), Nothing)
     generate (Left reason) = case func args of

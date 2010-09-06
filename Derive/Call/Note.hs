@@ -37,7 +37,7 @@ note_calls = Derive.make_calls
 -- @>i | call@ to run call with that instrument.
 c_note :: Derive.NoteCall
 c_note = Derive.Call "note"
-    (Just $ Derive.GeneratorCall generate Derive.NonCachingGenerator)
+    (Just $ Derive.GeneratorCall generate Derive.NonCachingGenerator Nothing)
     (Just $ Derive.TransformerCall transform Derive.NonIncremental)
     where
     generate args = case process (Derive.passed_vals args) of

@@ -57,12 +57,12 @@ test_clear_damage = do
     let f damage stack = Map.keys $ uncache $
             Derive.clear_damage damage (mkcache stack)
 
-    let stack = Stack.make [block "b", track "t", call "c", region 1 2]
+    let stack = Stack.make [block "top", track "t", call "c", region 1 2]
     equal (f (mkdamage [] []) stack) [stack]
-    equal (f (mkdamage [] [UiTest.bid "b"]) stack) []
+    equal (f (mkdamage [] [UiTest.bid "top"]) stack) []
     equal (f (mkdamage [(UiTest.tid "t", Ranges.range 2 3)] []) stack) [stack]
     equal (f (mkdamage [(UiTest.tid "t", Ranges.range 1 3)] []) stack) []
-    equal (f (mkdamage [(UiTest.tid "b", Ranges.range 1 3)] []) stack) [stack]
+    equal (f (mkdamage [(UiTest.tid "top", Ranges.range 1 3)] []) stack) [stack]
 
 -- * cached generators
 
@@ -79,24 +79,24 @@ test_no_damage = do
 test_add_remove = do
     -- Make sure I get event damage from adding and removing event.
     let create = mkblocks
-            [ ("b",
+            [ ("top",
                 [ ("tempo", [(0, 0, ".5")])
                 , (">i", [(0, 1, ""), (1, 1, "")])
                 ])
             ]
     let (_, cached, uncached) = compare_cached create $
-            State.remove_event (UiTest.tid "b.t1") 1
+            State.remove_event (UiTest.tid "top.t1") 1
     equal (diff_events cached uncached) (Right [])
     equal (r_event_damage cached) (Just [(2, 4)])
 
     let (_, cached, uncached) = compare_cached create $
-            State.insert_event (UiTest.tid "b.t1") 4 (Event.event "" 1)
+            State.insert_event (UiTest.tid "top.t1") 4 (Event.event "" 1)
     equal (diff_events cached uncached) (Right [])
     equal (r_event_damage cached) (Just [(8, 10)])
 
 test_has_score_damage = do
     let create = mkblocks
-            [ ("b", [(">i", [(0, 1, "sub"), (1, 1, "sub"), (2, 1, "sub")])])
+            [ ("top", [(">i", [(0, 1, "sub"), (1, 1, "sub"), (2, 1, "sub")])])
             , ("sub", [(">i", [(0, 1, "")])])
             , ("sub2", [(">i", [(0, 1, ""), (1, 1, "")])])
             ]
@@ -104,12 +104,12 @@ test_has_score_damage = do
     -- Swap it out for an event of the same size, so the stack is the same,
     -- but it should rederive because of score damage.
     let (_, cached, uncached) = compare_cached create $
-            State.insert_event (UiTest.tid "b.t0") 1 (Event.event "sub2" 1)
+            State.insert_event (UiTest.tid "top.t0") 1 (Event.event "sub2" 1)
     equal (diff_events cached uncached) (Right [])
     strings_like (r_cache_logs cached)
-        [ "b.t0 0-1: using cache"
-        , "b.t0 1-2: rederived * not in cache"
-        , "b.t0 2-3: using cache"
+        [ "top.t0 0-1: * using cache"
+        , "top.t0 1-2: * rederived * not in cache"
+        , "top.t0 2-3: * using cache"
         , toplevel_rederived
         ]
     equal (r_event_damage cached) (Just [(1, 2)])
@@ -120,43 +120,44 @@ test_callee_damage = do
             State.insert_event (UiTest.tid "sub.t0") 0 (Event.event "" 0.5)
     equal (diff_events cached uncached) (Right [])
     strings_like (r_cache_logs cached)
-        [ "sub.t0 1-2: using cache"
-        , "parent.t0 1-3: rederived * because of sub-block"
+        [ "sub.t0 1-2: * using cache"
+        , "top.t0 1-3: * rederived * because of sub-block"
         , toplevel_rederived
         ]
     -- The cached call to "sub" depends on "sub" and "subsub" transitively.
     equal (r_cache_deps cached)
-        [ ("<no stack>",
-            Just [UiTest.bid "parent", UiTest.bid "sub", UiTest.bid "subsub"])
-        , ("test/parent test/parent.t0 1-3",
+        [ ("test/top * *",
+            Just [UiTest.bid "sub", UiTest.bid "subsub", UiTest.bid "top"])
+        , ("test/top test/top.t0 1-3: test/sub * *",
             Just [UiTest.bid "sub", UiTest.bid "subsub"])
-        , ("test/sub test/sub.t0 1-2",
+        , ("test/top test/top.t0 1-3: test/sub test/sub.t0 1-2: "
+                ++ "test/subsub * *",
             Just [UiTest.bid "subsub"])
         ]
     -- sub is 1-3, its first elt should be 1-2, except I replaced it with .5
     equal (r_event_damage cached) (Just [(1, 1.5)])
 
-    -- A change to subsub means the parent's "sub" call rederives as well.
+    -- A change to subsub means the top's "sub" call rederives as well.
     let (_, cached, uncached) = compare_cached parent_sub $
             State.insert_event (UiTest.tid "subsub.t0") 0 (Event.event "" 0.5)
     equal (diff_events cached uncached) (Right [])
     strings_like (r_cache_logs cached)
-        [ "sub.t0 1-2: rederived * sub-block damage"
-        , "parent.t0 1-3: rederived * sub-block damage"
+        [ "sub.t0 1-2: * rederived * sub-block damage"
+        , "top.t0 1-3: * rederived * sub-block damage"
         , toplevel_rederived
         ]
     -- subsub is at realtime position 2-3
     equal (r_event_damage cached) (Just [(2, 3)])
 
 parent_sub = mkblocks
-    [ ("parent", [(">i", [(0, 1, ""), (1, 2, "sub")])])
+    [ ("top", [(">i", [(0, 1, ""), (1, 2, "sub")])])
     , ("sub", [(">i", [(0, 1, ""), (1, 1, "subsub")])])
     , ("subsub", [(">i", [(0, 1, "")])])
     ]
 
 test_collect = do
     let blocks = mkblocks
-            [ ("parent", [(">i", [(0, 1, "sub"), (1, 1, "sub")])])
+            [ ("top", [(">i", [(0, 1, "sub"), (1, 1, "sub")])])
             , ("sub",
                 [ (">i", [(0, 1, "")])
                 , ("cont", [(0, 0, "1")])
@@ -167,20 +168,19 @@ test_collect = do
             State.set_render_style Track.Line (UiTest.tid "sub.t1")
             return bid
     let (_, cached, _) = compare_cached create $
-            State.insert_event (UiTest.tid "parent.t0") 1 (Event.event "" 1)
+            State.insert_event (UiTest.tid "top.t0") 1 (Event.event "" 1)
     -- pprint (r_cache_collect cached)
     let [root, _parent] = r_cache_collect cached
     let tsig = Track.TrackSignal (Track.Control (Signal.signal [(0, 1)])) 0 1
     -- Wow, this is a hassle, but it's hard to figure out how to verify this
     -- otherwise.
-    equal root ("<no stack>", Just $
+    equal root ("test/top * *", Just $
         Derive.Collect
             [ mk_twarp 0 1 "sub" ["sub.t0", "sub.t1"]
-            , mk_twarp 0 2 "parent" ["parent.t0"]
+            , mk_twarp 0 2 "top" ["top.t0"]
             ]
             (Map.fromList [(UiTest.tid "sub.t1", tsig)])
-            (mk_gdep ["parent", "sub"]))
-
+            (mk_gdep ["top", "sub"]))
 
 test_event_damage_exception = do
     -- make sure a deriver that throws still emits EventDamage and the proper
@@ -194,8 +194,7 @@ test_event_damage_exception = do
         ["unknown ScaleId" , "*rederived generator*"]
     equal (Derive.r_event_damage result) (Derive.EventDamage Ranges.everything)
     equal (r_cache_collect result)
-        [ ("<no stack>",
-            Just (Derive.Collect [] Map.empty (mk_gdep ["b1"])))
+        [ ("test/b1 * *", Just (Derive.Collect [] Map.empty (mk_gdep ["b1"])))
         ]
 
 test_event_damage_sub_exception = do
@@ -206,12 +205,12 @@ test_event_damage_sub_exception = do
     equal (Derive.r_event_damage result)
         (Derive.EventDamage (Ranges.ranges [(0, 2), (5, 6)]))
     equal (r_cache_collect result)
-        [ ("<no stack>", Just $ Derive.Collect
+        [ ("test/p * *", Just $ Derive.Collect
             [mk_twarp 0 6 "p" ["p.t0"]]
                 Map.empty (mk_gdep ["p", "sub"]))
-        , ("test/p test/p.t0 0-2", Just $ Derive.Collect
+        , ("test/p test/p.t0 0-2: test/sub * *", Just $ Derive.Collect
             [] Map.empty (mk_gdep ["sub"]))
-        , ("test/p test/p.t0 5-6", Just $ Derive.Collect
+        , ("test/p test/p.t0 5-6: test/sub * *", Just $ Derive.Collect
             [] Map.empty (mk_gdep ["sub"]))
         ]
 
@@ -222,7 +221,7 @@ test_event_damage_sub_exception = do
 
 test_control_damage = do
     let create = mkblocks
-            [ ("b",
+            [ ("top",
                 [ (">i", [(0, 1, "sub"), (1, 1, "sub")])
                 , ("c1", [(0, 0, "1")])
                 ])
@@ -231,33 +230,33 @@ test_control_damage = do
 
     -- the modification is out of range, so the caches are reused
     let (_, cached, uncached) = compare_cached create $
-            State.insert_event (UiTest.tid "b.t1") 2 (Event.event "0" 0)
+            State.insert_event (UiTest.tid "top.t1") 2 (Event.event "0" 0)
     equal (diff_events cached uncached) (Right [])
     strings_like (r_cache_logs cached)
-        [ "b.t0 0-1: using cache"
-        , "b.t0 1-2: using cache"
+        [ "top.t0 0-1: * using cache"
+        , "top.t0 1-2: * using cache"
         , toplevel_rederived
         ]
     equal (r_event_damage cached) (Just [])
 
     -- only the  affceted event is rederived
     let (_, cached, uncached) = compare_cached create $
-            State.insert_event (UiTest.tid "b.t1") 1 (Event.event ".5" 0)
+            State.insert_event (UiTest.tid "top.t1") 1 (Event.event ".5" 0)
     equal (diff_events cached uncached) (Right [])
     strings_like (r_cache_logs cached)
-        [ "b.t0 0-1: using cache"
-        , "b.t0 1-2: rederived * control damage"
+        [ "top.t0 0-1: * using cache"
+        , "top.t0 1-2: * rederived * control damage"
         , toplevel_rederived
         ]
     equal (r_event_damage cached) (Just [(1, 2)])
 
     -- if the change damages a greater control area, it should affect the event
     let (_, cached, uncached) = compare_cached create $
-            State.insert_event (UiTest.tid "b.t1") 0 (Event.event ".5" 0)
+            State.insert_event (UiTest.tid "top.t1") 0 (Event.event ".5" 0)
     equal (diff_events cached uncached) (Right [])
     strings_like (r_cache_logs cached)
-        [ "b.t0 0-1: rederived * control damage"
-        , "b.t0 1-2: rederived * control damage"
+        [ "top.t0 0-1: * rederived * control damage"
+        , "top.t0 1-2: * rederived * control damage"
         , toplevel_rederived
         ]
     equal (r_event_damage cached) (Just [(0, 2)])
@@ -272,12 +271,14 @@ cache_logs msgs = [show_msg_stack m | m <- msgs,
 
 show_msg_stack m = simple_stack (maybe (Stack.make []) id (Log.msg_stack m))
         ++ ": " ++ Log.msg_string m
-simple_stack stack =
-    Seq.mlast "<no stack>" Stack.unparse_ui_frame (Stack.to_ui stack)
+simple_stack stack
+    | null ui = "<no stack>"
+    | otherwise = Seq.join ": " (map Stack.unparse_ui_frame ui)
+    where ui = Stack.to_ui stack
 
 test_tempo_damage = do
     let create = mkblocks
-            [ ("b",
+            [ ("top",
                 [ ("tempo", [(0, 0, "1")])
                 , (">i", [(0, 1, "sub"), (1, 1, "sub"), (2, 1, "sub")])
                 ])
@@ -285,13 +286,13 @@ test_tempo_damage = do
                 [ (">i", [(0, 1, "")]) ])
             ]
     let (_, cached, uncached) = compare_cached create $
-            State.insert_event (UiTest.tid "b.t0") 1 (Event.event "2" 0)
+            State.insert_event (UiTest.tid "top.t0") 1 (Event.event "2" 0)
     equal (diff_events cached uncached) (Right [])
     -- first is cached, second and third are not
     strings_like (r_cache_logs cached)
-        [ "b.t1 0-1: using cache"
-        , "b.t1 1-2: rederived"
-        , "b.t1 2-3: rederived"
+        [ "top.t1 0-1: * using cache"
+        , "top.t1 1-2: * rederived"
+        , "top.t1 2-3: * rederived"
         , toplevel_rederived
         ]
 
@@ -299,7 +300,7 @@ test_tempo_damage = do
 
 -- | The toplevel block is just about always damaged.
 toplevel_rederived :: String
-toplevel_rederived = "<no stack>: rederived * sub-block damage"
+toplevel_rederived = "test/top *: rederived * sub-block damage"
 
 -- UiTest.run discards the Updates, which I need.
 run :: State.State -> State.StateId a -> (a, State.State, [Update.Update])
@@ -334,7 +335,7 @@ r_cache_deps result =
     [(stack, fmap deps collect) | (stack, collect) <- r_cache_collect result]
     where
     deps collect = case Derive.collect_local_dep collect of
-        Derive.GeneratorDep blocks -> Set.elems blocks
+        Derive.GeneratorDep blocks -> Set.toAscList blocks
 
 mk_gdep :: [String] -> Derive.GeneratorDep
 mk_gdep = Derive.GeneratorDep . Set.fromList . map UiTest.bid

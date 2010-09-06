@@ -1,6 +1,7 @@
 CURRENT
   * track info only needs to print the title before the first "|"
   * 'M' to mute and solo tracks isn't working
+  - track should get damage due to TrackFlag change, not DisplayTrack updates
   - paste was wrong (missed first event)
   - lang cmds to rederive / perform within selection
   - splice track didn't work

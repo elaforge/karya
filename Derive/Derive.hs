@@ -431,7 +431,8 @@ data Call derived = Call {
     }
 
 instance Show (Call derived) where
-    show (Call name gen trans) = "<call " ++ name ++ Seq.join " " tags ++ ">"
+    show (Call name gen trans) =
+        "<call " ++ name ++ Seq.join " " tags ++ ">"
         where
         tags = [t | (t, True) <- [("generator", Maybe.isJust gen),
             ("transformer", Maybe.isJust trans)]]
@@ -462,6 +463,9 @@ data PassedArgs derived = PassedArgs {
 data GeneratorCall derived = GeneratorCall {
     gcall_func :: GeneratorFunc derived
     , gcall_type :: GeneratorType
+    -- | Block calls should put their BlockId on the stack instead of the call
+    -- name.
+    , gcall_block :: Maybe BlockId
     }
 
 -- | args -> deriver
@@ -471,12 +475,12 @@ type GeneratorFunc derived = PassedArgs derived
 generator :: (Derived derived) =>
     String -> GeneratorFunc derived -> Call derived
 generator name func =
-    Call name (Just (GeneratorCall func NonCachingGenerator)) Nothing
+    Call name (Just (GeneratorCall func NonCachingGenerator Nothing)) Nothing
 
 caching_generator :: (Derived derived) =>
     String -> GeneratorFunc derived -> Call derived
 caching_generator name func =
-    Call name (Just (GeneratorCall func CachingGenerator)) Nothing
+    Call name (Just (GeneratorCall func CachingGenerator Nothing)) Nothing
 
 -- *** transformer
 
@@ -594,10 +598,11 @@ derive cache damage lookup_deriver ui_state calls environ ignore_tempo
     inv_tempo_func = make_inverse_tempo_func track_warps
 
 d_block :: BlockId -> EventDeriver
-d_block block_id = with_stack_block block_id $ do
+d_block block_id = do
+    -- The block id is put on the stack by 'gdep_block' before this is called.
+    ui_state <- gets state_ui
     -- Do some error checking.  These are all caught later, but if I throw here
     -- I can give more specific error msgs.
-    ui_state <- gets state_ui
     case Map.lookup block_id (State.state_blocks ui_state) of
         Nothing -> throw "block_id not found"
         _ -> return ()
@@ -638,7 +643,7 @@ d_subderive deriver = do
             -- It's too hard to figure out the real length of the root block
             -- since I have to be under the tempo track, so just say everything
             -- is damaged.
-            is_root <- is_super_root
+            is_root <- is_root_block
             range <- if is_root
                 then return $ Ranges.everything
                 else Ranges.range <$> score_to_real 0 <*> score_to_real 1
@@ -654,10 +659,6 @@ d_subderive deriver = do
             -- should copy back only that part
             modify (const state2)
             return val
-    where
-    is_super_root = do
-        stack <- gets state_stack
-        return $ null [bid | Stack.Block bid <- Stack.outermost stack]
 
 run :: (Monad m) =>
     State -> DeriveT m a -> m (Either DeriveError a, State, [Log.Msg])
