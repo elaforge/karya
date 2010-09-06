@@ -1,6 +1,6 @@
 CURRENT
   * track info only needs to print the title before the first "|"
-  - 'M' to mute and solo tracks isn't working
+  * 'M' to mute and solo tracks isn't working
   - paste was wrong (missed first event)
   - lang cmds to rederive / perform within selection
   - splice track didn't work

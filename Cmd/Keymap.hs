@@ -36,7 +36,7 @@ bind_key = bind_mod []
 --
 -- Binding functions that take Char will add a Shift if it's uppercase.
 bind_char :: (Monad m) => Char -> String -> Cmd.CmdT m a -> [Binding m]
-bind_char char = bind_mod (char_shift char []) (key_char char)
+bind_char char = bind_mod (char_shift char []) (Key.KeyChar char)
 
 -- | Many cmds are mapped to both a plain keystroke and command key version.
 -- This is a little unusual, but it means the command can still be invoked when
@@ -51,7 +51,8 @@ command_char char desc cmd =
 
 -- | But some commands are too dangerous to get a plain keystroke version.
 command_only :: (Monad m) => Char -> String -> Cmd.CmdT m a -> [Binding m]
-command_only char = bind_mod (char_shift char [PrimaryCommand]) (key_char char)
+command_only char =
+    bind_mod (char_shift char [PrimaryCommand]) (Key.KeyChar char)
 
 -- | Bind a key with the given modifiers.
 bind_mod :: (Monad m) => [SimpleMod] -> Key.Key -> String -> Cmd.CmdT m a
@@ -85,9 +86,6 @@ bind smods bindable desc bcmd =
 expand_mods :: [SimpleMod] -> [[Cmd.Modifier]]
 expand_mods [] = [[]]
 expand_mods smods = Seq.cartesian (map simple_to_mods smods)
-
-key_char :: Char -> Key.Key
-key_char c = Key.KeyChar (Char.toLower c)
 
 char_shift :: Char -> [SimpleMod] -> [SimpleMod]
 char_shift c mods
