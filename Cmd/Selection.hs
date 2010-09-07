@@ -188,23 +188,17 @@ select view_id selnum sel = do
 select_and_scroll :: (Monad m) =>
      ViewId -> Types.SelNum -> Maybe Types.Selection -> Cmd.CmdT m ()
 select_and_scroll view_id selnum sel = do
-    old_sel <- State.get_selection view_id selnum
     State.set_selection view_id selnum sel
     sync_selection_status view_id
-    case (old_sel, sel) of
-        (Just old, Just new) -> auto_scroll view_id old new
-        _ -> return ()
+    when_just sel (auto_scroll view_id)
 
 -- | If @new@ has scrolled off the edge of the window, automatically scroll
 -- it so that the selection is in view.
-auto_scroll :: (Monad m) => ViewId
-    -> Types.Selection -- ^ old selection, to determine scroll direction
-    -> Types.Selection -- ^ new selection
-    -> Cmd.CmdT m ()
-auto_scroll view_id old new = do
+auto_scroll :: (Monad m) => ViewId -> Types.Selection -> Cmd.CmdT m ()
+auto_scroll view_id sel = do
     view <- State.get_view view_id
-    let zoom_offset = auto_time_scroll view new
-        track_offset = auto_track_scroll view old new
+    let zoom_offset = auto_time_scroll view sel
+        track_offset = auto_track_scroll view sel
     State.set_zoom view_id $
         (Block.view_zoom view) { Types.zoom_offset = zoom_offset }
     State.set_track_scroll view_id track_offset
@@ -213,7 +207,7 @@ auto_scroll view_id old new = do
 -- TODO this scrolls too fast when dragging.  Detect a drag and scroll at
 -- a rate determined by how far past the bottom the pointer is.
 auto_time_scroll :: Block.View -> Types.Selection -> ScoreTime
-auto_time_scroll view new
+auto_time_scroll view sel
     | scroll_to >= view_end = scroll_to - visible + space
     | scroll_to < view_start = scroll_to - space
     | otherwise = view_start
@@ -221,25 +215,25 @@ auto_time_scroll view new
     visible = Block.visible_time view
     view_start = Types.zoom_offset (Block.view_zoom view)
     view_end = view_start + visible
-    scroll_to = Types.sel_cur_pos new
+    scroll_to = Types.sel_cur_pos sel
     space = ScoreTime
         (visible_pixels / Types.zoom_factor (Block.view_zoom view))
     visible_pixels = 30
 
-auto_track_scroll :: Block.View -> Types.Selection -> Types.Selection
-    -> Types.Width
-auto_track_scroll view old new
-    | cur_tracknum >= prev_tracknum = max view_start (track_end - visible)
-    | otherwise = min view_start track_start
+auto_track_scroll :: Block.View -> Types.Selection -> Types.Width
+auto_track_scroll view sel
+    | track_end > view_end = track_end - visible
+    | track_start < view_start = track_start
+    | otherwise = view_start
     where
     -- Pesky ruler track doesn't count towards the track scroll.
     widths = map Block.track_view_width (drop 1 (Block.view_tracks view))
     track_start = sum (take (cur_tracknum-1) widths)
     track_end = sum (take cur_tracknum widths)
     view_start = Block.view_track_scroll view
+    view_end = view_start + visible
     visible = Block.view_visible_track view
-    prev_tracknum = Types.sel_cur_track old
-    cur_tracknum = Types.sel_cur_track new
+    cur_tracknum = Types.sel_cur_track sel
 
 
 -- ** status

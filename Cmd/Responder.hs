@@ -126,7 +126,7 @@ respond_loop :: ResponderState -> IO ()
 respond_loop rstate = do
     Log.timer "---------- responder loop"
     (quit, rstate) <- respond rstate
-    when quit (respond_loop rstate)
+    unless quit (respond_loop rstate)
 
 -- | Create the MsgReader to pass to 'responder'.
 create_msg_reader ::
@@ -236,7 +236,7 @@ respond rstate = do
             cmd_state <- return $ record_history updates ui_from cmd_state
             return (status,
                 rstate { state_cmd = cmd_state, state_ui = ui_state })
-    return (status /= Cmd.Quit, rstate)
+    return (status == Cmd.Quit, rstate)
 
 -- | If the focused view is removed, cmd state should stop pointing to it.
 fix_cmd_state :: State.State -> Cmd.State -> Cmd.State

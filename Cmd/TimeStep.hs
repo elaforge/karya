@@ -3,7 +3,6 @@
     It's used to advance a cursor, snap a selection, set a note duration, etc.
 -}
 module Cmd.TimeStep where
-import Data.Function
 import qualified Data.Maybe as Maybe
 import qualified Data.Fixed as Fixed
 

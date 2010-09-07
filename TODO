@@ -4,7 +4,6 @@ CURRENT
   - track should get damage due to TrackFlag change, not DisplayTrack updates
   - paste was wrong (missed first event)
   - lang cmds to rederive / perform within selection
-  - splice track didn't work
   * logview clears status line when it sees 'app starting'
   - am I even using Pitch.scale_set_pitch_bend?  what does it mean exactly?
   * ratio scale relative to another scale
@@ -359,33 +358,10 @@ bugs:
   - unparsed notes are played instead of dropped, it's because the pitch is
     dropped but not the note
   - bizarre hint importing requirements in Cmd.LanguageEnviron
-  + track down ghc rts crashes, assertion failure
-    could be:
-      - bad poke in Ui/*.hsc, perhaps due to alignment
-        * eliminated use of allocaBytes for alloca, see if that helps
-            no
-        * find_events
-        - update selection
-        - ...
-      * concurrent call problem with CoreMidi
-        * replace CoreMidi with stub interface
-        no, still happens
-      * bad poke in CoreMidi
-      * inconsistent compile, hptSomeThingBelowUs is another symptom
-        - report bug with repro instructions
-      - bad write in c++ (but it's read-only, isn't it?  bad free?)
-
-    - it showed up when ghc started paying attention to alignment, look into
-      allocaBytes and allocaBytesAligned
-    add -DS flag
-    crash is when evacuating pinned memory, is it a foreign ptr?
-    - run under valgrind
+  * track down ghc rts crashes, assertion failure
+    - make a repro case if ghc guys want it
+  - run under valgrind every once and a while, just for fun
     - why doesn't valgrind reveal bad memory access from haskell, e.g. poke...
-      from http://www.haskell.org/gtk2hs/
-      A note of caution: Using Gtk2Hs together with the -threaded ghc is
-      currently not supported. The reason is that GHC's garbage collector might
-      free Xlib or Win32 objects using an OS thread different to the one that
-      is used to execute all other Gtk+ functions.
   - hint refuses to compile when a module emits a warning
 
 cleanup:
@@ -665,7 +641,7 @@ Cmd:
    - double / halve events under selection
    - stretch events in selection to another length (need two selections?)
   Cmd.Selection
-    - select_and_scroll doesn't scroll down when going from no sel -> sel
+    * select_and_scroll doesn't scroll down when going from no sel -> sel
     * snap will snap to positions that arrows can't get to.  Snap absolute
       should only be able to snap to an absolute set of positions.  Snap
       relative should snap to all multiples of the current position.
