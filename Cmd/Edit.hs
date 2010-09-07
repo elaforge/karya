@@ -236,9 +236,30 @@ cmd_clear_selected = do
         then State.remove_event track_id start
         else State.remove_events track_id start end
 
-cmd_meter_step :: (Monad m) => TimeStep.MarkMatch -> Cmd.CmdT m ()
-cmd_meter_step match = do
-    let step = TimeStep.UntilMark (TimeStep.NamedMarklists ["meter"]) match
+set_step_rank :: (Monad m) => TimeStep.TimeStep -> Int -> Int -> Cmd.CmdT m ()
+set_step_rank deflt rank skip = do
+    Cmd.modify_state $ \st -> st { Cmd.state_step = set (Cmd.state_step st) }
+    sync_step_status
+    where
+    set (TimeStep.AbsoluteMark names (TimeStep.MatchRank _ _)) =
+        TimeStep.AbsoluteMark names (TimeStep.MatchRank rank skip)
+    set (TimeStep.RelativeMark names (TimeStep.MatchRank _ _)) =
+        TimeStep.RelativeMark names (TimeStep.MatchRank rank skip)
+    set _ = deflt
+
+toggle_mark_step :: (Monad m) => Cmd.CmdT m ()
+toggle_mark_step = do
+    Cmd.modify_state $ \st -> st { Cmd.state_step = toggle (Cmd.state_step st) }
+    sync_step_status
+    where
+    toggle (TimeStep.AbsoluteMark names matcher) =
+        TimeStep.RelativeMark names matcher
+    toggle (TimeStep.RelativeMark names matcher) =
+        TimeStep.AbsoluteMark names matcher
+    toggle step = step
+
+set_step :: (Monad m) => TimeStep.TimeStep -> Cmd.CmdT m ()
+set_step step = do
     Cmd.modify_state $ \st -> st { Cmd.state_step = step }
     sync_step_status
 
@@ -260,10 +281,10 @@ sync_step_status = do
 show_step :: TimeStep.TimeStep -> TimeStep.Direction -> String
 show_step step direction = dir_s : case step of
     TimeStep.Absolute pos -> "abs:" ++ show pos
-    TimeStep.UntilMark mlists match ->
-        "until:" ++ show_marklists mlists ++ "/" ++ show_match match
-    TimeStep.MarkDistance mlists match ->
-        "dist:" ++ show_marklists mlists ++ "/" ++ show_match match
+    TimeStep.AbsoluteMark mlists match ->
+        "mark:" ++ show_marklists mlists ++ "/" ++ show_match match
+    TimeStep.RelativeMark mlists match ->
+        "rel mark:" ++ show_marklists mlists ++ "/" ++ show_match match
     where
     dir_s = case direction of
         TimeStep.Advance -> '+'

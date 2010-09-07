@@ -96,9 +96,11 @@ at (Marklist a) pos = (map (a!) [i-1, i-2..low], map (a!) [i..high])
 
 -- | Marks starting at the first mark >= the given pos, to the end.
 forward :: Marklist -> ScoreTime -> [PosMark]
+forward (Marklist a) 0 = IArray.elems a
 forward marklist pos = snd (at marklist pos)
 
 -- | Like 'forward', but don't include a mark equal to @pos@.
+forward_from :: Marklist -> ScoreTime -> [PosMark]
 forward_from marklist pos
     | not (null marks) && fst (head marks) == pos = tail marks
     | otherwise = marks

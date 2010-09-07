@@ -186,6 +186,8 @@ edit_bindings = concat
     , command_char 'u' "undo" Edit.undo
     , command_char 'r' "redo" Edit.redo
 
+    , command_char 'j' "join events" Edit.cmd_join_events
+
     -- The convention from MakeRuler is: 0 = block, 1 = block section,
     -- 2 = whole, 3 = quarter, 4 = 16th, etc.  Since it goes to /4 after
     -- rank 2, I use a skip to keep the note divisions binary.
@@ -198,15 +200,18 @@ edit_bindings = concat
     , command_char '5' "step rank 4+0" (step_rank 4 0) -- 16th
     , command_char '6' "step rank 5+1" (step_rank 5 1) -- 32nd
     , command_char '7' "step_rank 6+0" (step_rank 6 0) -- 64th
-    , command_only '`' "invert step" Edit.cmd_invert_step_direction
+    , command_only '`' "toggle step mode" Edit.toggle_mark_step
+
+    , command_only '~' "invert step" Edit.cmd_invert_step_direction
 
     , bind_char '-' "octave -1" (Edit.cmd_modify_octave (subtract 1))
     , bind_char '=' "octave +1" (Edit.cmd_modify_octave (+1))
-
-    , command_char 'j' "join events" Edit.cmd_join_events
     ]
     where
-    step_rank rank skips = Edit.cmd_meter_step (TimeStep.MatchRank rank skips)
+    meter = TimeStep.NamedMarklists ["meter"]
+    step_rank rank skips = Edit.set_step_rank
+        (TimeStep.AbsoluteMark meter (TimeStep.MatchRank rank skips))
+        rank skips
 
 create_bindings = concat
     [ command_only 't' "insert track" (Create.insert_track False)

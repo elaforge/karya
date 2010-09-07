@@ -137,15 +137,17 @@ cmd_snap_selection btn selnum extend msg = do
     (down_tracknum, _, mouse_tracknum, mouse_pos) <- mouse_drag btn msg
     block_id <- Cmd.get_focused_block
     step <- Cmd.get_current_step
-    snap_pos <- TimeStep.snap step block_id mouse_tracknum mouse_pos
     view_id <- Cmd.get_focused_view
     old_sel <- State.get_selection view_id selnum
+    snap_pos <- TimeStep.snap step block_id mouse_tracknum
+        (fmap Types.sel_cur_pos old_sel) mouse_pos
     let sel = case old_sel of
             _ | Msg.mouse_down msg && not extend || old_sel == Nothing ->
                 Types.selection down_tracknum snap_pos mouse_tracknum snap_pos
             Just (Types.Selection tracknum pos _ _) ->
                 Types.selection tracknum pos mouse_tracknum snap_pos
-            _ -> error "not reached" -- ghc doesn't realize it is exhaustive
+            -- ghc doesn't realize it is exhaustive
+            _ -> error "Cmd.Selection: not reached"
     select_and_scroll view_id selnum sel
 
 -- | Get the dragged range, or abort if this isn't a drag Msg.

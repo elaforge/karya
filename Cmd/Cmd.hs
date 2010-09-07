@@ -268,9 +268,9 @@ initial_state inst_db schema_map = State {
     , state_edit_mode = NoEdit
     , state_kbd_entry = False
     , state_step =
-        TimeStep.UntilMark TimeStep.AllMarklists (TimeStep.MatchRank 3 0)
+        TimeStep.AbsoluteMark TimeStep.AllMarklists (TimeStep.MatchRank 3 0)
     , state_play_step =
-        TimeStep.MarkDistance TimeStep.AllMarklists (TimeStep.MatchRank 1 0)
+        TimeStep.RelativeMark TimeStep.AllMarklists (TimeStep.MatchRank 1 0)
     , state_note_direction = TimeStep.Advance
     -- This should put middle C in the center of the kbd entry keys.
     , state_kbd_entry_octave = 4

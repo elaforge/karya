@@ -666,7 +666,7 @@ Cmd:
    - stretch events in selection to another length (need two selections?)
   Cmd.Selection
     - select_and_scroll doesn't scroll down when going from no sel -> sel
-    - snap will snap to positions that arrows can't get to.  Snap absolute
+    * snap will snap to positions that arrows can't get to.  Snap absolute
       should only be able to snap to an absolute set of positions.  Snap
       relative should snap to all multiples of the current position.
   Cmd.TimeStep
