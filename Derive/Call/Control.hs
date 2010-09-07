@@ -2,6 +2,7 @@
 module Derive.Call.Control where
 import qualified Util.Log as Log
 import qualified Util.Num as Num
+import qualified Util.Seq as Seq
 
 import Ui
 import qualified Ui.Types as Types
@@ -98,7 +99,7 @@ interpolator srate f include_initial x0 y0 x1 y1
     | include_initial = Signal.signal sig
     | otherwise = Signal.signal (drop 1 sig)
     where
-    sig = [(x, y_of x) | x <- range x0 x1 srate]
+    sig = [(x, y_of x) | x <- Seq.range x0 x1 srate]
     y_of = Num.scale y0 y1 . f . Types.real_to_double . Num.normalize x0 x1
 
 -- * util
@@ -110,13 +111,3 @@ interpolator srate f include_initial x0 y0 x1 y1
 expon :: Double -> Double -> Double
 expon n x = x**exp
     where exp = if n >= 0 then n else (1 / abs n)
-
--- | Enumerate an inclusive range.  Uses multiplication instead of successive
--- addition to avoid loss of precision.
-range :: (Num a, Ord a) => a -> a -> a -> [a]
-range start end step = go 0
-    where
-    go i
-        | val >= end = [end]
-        | otherwise = val : go (i+1)
-        where val = start + (i*step)

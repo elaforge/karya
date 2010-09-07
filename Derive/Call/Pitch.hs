@@ -4,6 +4,7 @@ module Derive.Call.Pitch where
 import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
+import qualified Util.Seq as Seq
 
 import Ui
 import qualified Ui.Types as Types
@@ -159,7 +160,7 @@ interpolator srate f scale_id include_initial x0 y0 x1 y1
     | y0 == y1 = PitchSignal.signal scale_id (take 1 sig)
     | otherwise = PitchSignal.signal scale_id sig
     where
-    sig = let s = [(x, (fy0, fy1, y_of x)) | x <- Control.range x0 x1 srate]
+    sig = let s = [(x, (fy0, fy1, y_of x)) | x <- Seq.range x0 x1 srate]
         in if include_initial then s else drop 1 s
     y_of = Num.d2f . f . Types.real_to_double . Num.normalize x0 x1
     (fy0, fy1) = (to_f y0, to_f y1)

@@ -7,10 +7,22 @@ import qualified Data.List as List
 import qualified Data.List.Ordered as Ordered
 
 
--- * transformation
+-- * enumeration
 
 enumerate :: [a] -> [(Int, a)]
 enumerate = zip [0..]
+
+-- | Enumerate an inclusive range.  Uses multiplication instead of successive
+-- addition to avoid loss of precision.
+range :: (Num a, Ord a) => a -> a -> a -> [a]
+range start end step = go 0
+    where
+    go i
+        | val >= end = [end]
+        | otherwise = val : go (i+1)
+        where val = start + (i*step)
+
+-- * transformation
 
 key_on :: (a -> k) -> [a] -> [(k, a)]
 key_on f xs = zip (map f xs) xs
@@ -75,6 +87,14 @@ maximum_on :: (Ord ord) => (a -> ord) -> a -> [a] -> a
 maximum_on _ ifnull [] = ifnull
 maximum_on key _ xs = List.foldl1' f xs
     where f high x = if key x > key high then x else high
+
+minimum :: (Ord a) => a -> [a] -> a
+minimum z [] = z
+minimum _ xs = List.minimum xs
+
+maximum :: (Ord a) => a -> [a] -> a
+maximum z [] = z
+maximum _ xs = List.maximum xs
 
 -- * ordered lists
 
