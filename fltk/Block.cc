@@ -98,11 +98,20 @@ BlockView::handle(int evt)
         if (Fl::event_dy()) {
             ScoreTime scroll = this->zoom.to_trackpos(
                     Fl::event_dy() * mousewheel_time_scale);
+            ScoreTime old = this->zoom.offset;
             set_zoom(ZoomInfo(this->zoom.offset + scroll, this->zoom.factor));
+            if (this->zoom.offset != old)
+                global_msg_collector()->block_update(this, UiMsg::msg_zoom);
         }
         if (Fl::event_dx()) {
             int scroll_y = Fl::event_dx() * mousewheel_track_scale;
-            this->set_track_scroll(this->get_track_scroll() + scroll_y);
+            int old = this->get_track_scroll();
+            this->set_track_scroll(old + scroll_y);
+            if (this->get_track_scroll() != old) {
+                global_msg_collector()->block_update(
+                    this, UiMsg::msg_track_scroll);
+            }
+
         }
         return 1;
     }
@@ -276,6 +285,9 @@ BlockView::set_zoom(const ZoomInfo &zoom)
     // this->zoom = ZoomInfo(clamp(ScoreTime(0), max_pos, zoom.offset),
     //         zoom.factor);
 
+    // This function, and hence set_zoom_attr below, is called from the outside
+    // to set the zoom.  Therefore, no msg should be sent back out, since I
+    // don't need to tell the outside what it already knows.
     this->set_zoom_attr(zoom);
     this->update_scrollbars();
 }
@@ -284,17 +296,16 @@ BlockView::set_zoom(const ZoomInfo &zoom)
 void
 BlockView::set_zoom_attr(const ZoomInfo &new_zoom)
 {
-    ZoomInfo zoom2 = new_zoom;
+    ZoomInfo clamped = new_zoom;
     // Clip offset to be positive, and quantize it to conform exactly to
     // a pixel boundary.  Otherwise, some events may move 1 pixel while others
     // move 2 pixels, which messes up the blit-oriented scrolling.
-    zoom2.offset = std::max(ScoreTime(0), zoom2.offset);
+    clamped.offset = std::max(ScoreTime(0), clamped.offset);
     ScoreTime max_offset = track_tile.time_end() - track_tile.visible_time();
-    zoom2.offset = clamp(ScoreTime(0), max_offset, zoom2.offset);
-    if (zoom2 == this->zoom)
+    clamped.offset = clamp(ScoreTime(0), max_offset, clamped.offset);
+    if (clamped == this->zoom)
         return;
-    this->zoom = zoom2;
-    global_msg_collector()->block_update(this, UiMsg::msg_zoom);
+    this->zoom = clamped;
     this->track_tile.set_zoom(zoom);
     this->ruler_track->set_zoom(zoom);
 }
@@ -319,7 +330,6 @@ BlockView::set_track_scroll(int offset)
     IPoint scroll_offset(-offset, 0);
     if (scroll_offset == this->track_scroll.get_offset())
         return;
-    global_msg_collector()->block_update(this, UiMsg::msg_track_scroll);
     this->track_scroll.set_offset(scroll_offset);
     this->skel_display_scroll.set_offset(scroll_offset);
     this->update_scrollbars();
@@ -576,6 +586,7 @@ BlockView::scrollbar_cb(Fl_Widget *_unused_w, void *vp)
     ZoomInfo new_zoom(ScoreTime(end.scale(time_offset)),
             self->get_zoom().factor);
     if (new_zoom != self->get_zoom()) {
+        global_msg_collector()->block_update(self, UiMsg::msg_zoom);
         self->set_zoom_attr(new_zoom);
     }
 
