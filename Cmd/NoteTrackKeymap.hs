@@ -17,7 +17,7 @@ import qualified Cmd.Selection as Selection
 
 make_keymap :: (Monad m) => NoteTrack.PitchTrack -> (Keymap.CmdMap m, [String])
 make_keymap pitch_track = Keymap.make_cmd_map $ concat
-    [ bind_mod [Shift, PrimaryCommand] (Key.KeyChar 'm')
+    [ bind_mod [Shift, PrimaryCommand] (Key.KeyChar 'M')
         "toggle merged" (cmd_toggle_merged pitch_track)
 
     , command_char 's' "set dur" Edit.cmd_set_duration
