@@ -1,12 +1,24 @@
 CURRENT
-  * track info only needs to print the title before the first "|"
-  * 'M' to mute and solo tracks isn't working
+  - seeking to play in a certain place will miss any controller initialization
+    but I could get that back by having Cache.messages_from inspect postproc
+    state to get the control state
+    This is bad because if you start on a note it will lose any tuning it had.
+
+UNSORTED
+  - set skel to ruler / track 0 makes State.verify unhappy
+  - put timing info in rederive msgs, see how long derivation took
+  - why does track merge / unmerge cause splice failures?
+  - muting a note track means it thinks the control track is a note track, and
+    fails to parse, and aborts everything.  A failed track title should abort
+    just that track.
+  - save/ratio_ptq does weird things: base note missing, base note bends with
+    melody
+  - why does logview go to 100 cpu?
+  - Log msgs are getting munched together.  The logging lock isn't working?
   - track should get damage due to TrackFlag change, not DisplayTrack updates
-  - paste was wrong (missed first event)
+  - paste was wrong (lost first event from the copy range)
   - lang cmds to rederive / perform within selection
-  * logview clears status line when it sees 'app starting'
   - am I even using Pitch.scale_set_pitch_bend?  what does it mean exactly?
-  * ratio scale relative to another scale
   - lookup val calls in current inst as in current scale
     Maybe I can get rid of the Instrument.inst_control_map if I do the mapping
     in generate_note
@@ -15,9 +27,6 @@ CURRENT
     has any effect on performance
   - now that the signal deriver is gone, I can also get rid of ignore_tempo,
     unless I want to use it for a lilypond backend or something
-  * make Derive.control_at return a Maybe to make it consistent with pitch_at
-  ? switch mhead and mlast back to returning Maybe
-  - split some Derive.Derive types into their own module
   - tracks with no ruler should default to free selection placement
   - after creating a new track, focus should go to its title
   - put a multiplier on play's timestamps to implement a play speed control
@@ -34,116 +43,10 @@ CURRENT
     - include root block in set_global_status, but I should do this from an
       always-run post cmd to avoid a separate Cmd.set_root_id.  Can I apply
       this to other State attrs too?
-  midi performer next event dep:
-    * for now, just don't bother getting it right for cached perf
-    * change controls to be just like pitch: clip at event start and next event
-      start, for the same reasons as pitch
-      But... directly passing the controls is so appealing.  Isn't trimming
-      inefficient?  Can I strip out the non-midi controls?
-    * make sure it clips from the sample *previous* so I get the initial val
-    * maybe an optimization where I don't bother to clip if the inst has no
-      multiplexing
-    * make sure this means I can remove next start for trailing control: just
-      perform all the controls the event has
-    * Remove perform legato.  If I need it later, it can be added as either
-      part of the note call (so it can also depend on inst) or as a postproc
-      like negative duration.
 
   - derive profile should run several derives on the same state to minimize
     state construction overhead
-  * naming conventions: get/set or get/put?  inst_config or midi_config?
   - I really need to fix Signal.integrate
-  * rename Derive.DeriveResult -> Derive.Result
-  - seeking to play in a certain place will miss any controller initialization
-    but I could get that back by having Cache.messages_from inspect postproc
-    state to get the control state
-    This is bad because if you start on a note it will lose any tuning it had.
-  * replace Call.place with a single call to d_warp, profile
-  * can I replace the Derive logging nonsense by writing a LogMonad instance
-    for DeriveT?
-  * Derive.insert_environ should use pretty, remember 'val' may be a Val
-  * remove with_msg for 'cached generator' and 'note', and 'control'
-  * Transport.TempoFunction should return multiple RealTimes if the block
-    is called in multiple places
-  incremental midi performance
-    * pull states out to the 'perform' level
-    * have perform return a State
-    * pull inst_addrs and no_alloc out of AllotState
-    * write a wrapper function that, given a range, folds perform over it, and
-      saves the state every n RealTime
-    * put warns in Chunk so I can delay forcing the chunk until necessary, by
-      printing the warns
-    * store midi cache in cmd state
-    * bug: deleting the modwheel track didn't remove the modwheel midi
-    hook it up to derive output
-      * return event damage in Derive.Result
-      * pass it to cache perform
-      * implement event seek in cache, since it understands chunks
-    implement a more clever forcing policy for midi msgs, e.g.
-      * performance thread stays open and has a channel to receive the sel pos
-      * quickly force current block until t+n
-      * gradually force t+n .. end chunk by chunk, so as not to overwhelm the gc
-      * do the same with the toplevel block, stick to gradual if it's not
-        focused
-      * blocks which are neither focused nor toplevel are unforced until they
-        get focus
-
-    * log cache stats
-      For hits and misses I can subtract damage from length chunks.  But to
-      know about splice failures I need to look at the warnings, which can only
-      be done after derivation is complete.
-    * cmd to clear out midi cache
-    * cmd to compare cached to uncached perf, put next to Global.score_to_midi
-  * why does save/subderive want pitch bend?
-  * midi performer note overlap checking should use a bit of eta, or at least
-    round to Timestamps first
-  * make Timestamp not Integral to conceal its implementation
-
-  derive cache
-    * make a profile for modification and recomputation of a large structure,
-      the sort of thing memoization would help with
-    - c_block should only cache if the block has > a certain number of events.
-    - implement tracks as generators so they can be cached too
-    - tempo damage should damage all events after the tempo change point
-      Actually, I should treat integration as a incremental transformer.
-      Then the tempo damage works because it expands the damaged region itself.
-      Otherwise, any change to tempo will have to re-integrate the entire
-      track.
-    - I won't rederive cached generators if they have control damage outside
-      of the event range.  But there's nothing stopping a generator from
-      reading ahead or behind... come up with some kind of solution for this.
-    - once I know what I'm doing with transformers, fix up negative duration
-      postproc
-
-    ? ability to group multiple generators and cache them as a group
-    - log cache stats during derivation so you can see how much cache you
-      invalidated, how many events and midi msgs were rederived
-    - more efficient version of Derive.concat_derived for events, maybe use
-      AppendList
-    * change c_equal to not do "free equals"
-    - tests for cache correctness, compare cached version with rederived version
-      * modify simple event track
-      * modify control track, dependent events should change
-      - modify events under incremental and non-incremental transformers
-      * modify track in child block and rederive parent
-      * modify tempo in various places
-
-  - assign scale, e.g. 'scale = *something', it has to be special-cased because
-    * is a scale_id, not a scale
-  * What if I want a relative pitch track that takes ratios relative to some
-    other pitch track?  I can set the scale and put the other signal in the
-    dynamic env, but what if it's another instrument's pitch track and not in
-    scope?  Either a way to name signals by track id, or get it into scope
-    somehow.  If it's really meant to be relative to some arbitrary other
-    instrument, moving that instrument's pitch track up in scope seems too
-    invasive.
-
-    But referring to outputs of other track ids introduces an order dependency,
-    which would be a problem if there's a loop.
-
-    Maybe move it to a higher level named track, and then have "signal
-    assignment" so I can say '* = *named' to assign default pitch sig or
-    '%mod = %vib' to assign control signals
 
   - I think PitchSignals may need to be reworked.  They should be (Note, Note,
     Frac).  Otherwise, it's not clear what to call 4a# vs. 4ab.  I can still
@@ -163,18 +66,15 @@ CURRENT
     should be (BlockId, TrackNum) + TrackId to verify in case the state was
     modified
 
-  - set_render_style should trigger a rederive
-
+  - set_render_style should trigger a rederive to get the track signal
   - Can I not sync collapsed tracks?  I think the best is to implement
     collapse at hs level, then an expand can trigger a rederive.
     Also it would be nice to not rederive signal for tracks that haven't
     changed, maybe tracks in calls above the modified one?
-
-  * have a way to not link with hint, to reduce link time for test runs
-
-  * should I make the control title expression the first one instead of last?
   - Circular imports of Derive.Derive and Derive.Scale causes a lot of
     recompiling.  Can I eliminate or reduce it?
+
+    - split some Derive.Derive types into their own module
 
     If I put (Note -> Maybe ValCall) in Scale, then Scale needs to import
     Derive.  If I give it a type param then it's hard for TrackLang.Val to
@@ -199,87 +99,15 @@ CURRENT
     something.
 
   - Derive.with_* should use local, or at least finally
-  * clean up warp stuff in Derive.Score
   - put TypeError into DeriveError and use Call.default_relative_note
   - LPitch.to_relative was broken by notes as calls, fix it
   - implement add_hz in Derive.Scale.Util
     or at least think about how to implement pengumbang and pengisep
 
-  * remove TrackLang.VMethod
-  * remove consumed call return unless I can think of something good for it
-  * test_util regex match uses a simplified regex that only supports *
-
-  - incremental saving: pair diffs with the changed bit.  Then save that chunk
-    on every save.  Occaisionally write a checkpoint, which is just the whole
-    state, and throw away all states before it.  On load, scan to the last
-    checkpoint, load it, and apply the subsequent diffs.  On undo, if there are
-    no previous states, load the previous checkpoint and apply its diffs.
-
-    - check out cautious-file on hackage
-
-  + rts crash
-    - Did alignment change fix it?  Wait a while and mail list if it's still
-      gone.
-    easier to repro if I start a bunch of derive threads and click
-    try removing pokes and see if I can still repro, I can get positive
-    confirmation at least
-
-  * run a set of profilers as a script and save the results
-
-  - performance:
-    + eliminate the deriver memory spike
-      * got some of it by strictifying a few Derive.State fields
-      - why does "get" produce so much garbage?
-      - at_linear is called a lot by compose, by compose_warp, by d_warp
-        can I make this more efficient?
-
-      - doesn't seem to happen so much with subderivations
-      - possibly put/get/modify is too lazy?
-      - maybe split Derive.State into dynamic and static portions?
-      - or maybe it's the control deriver creating a huge list of signal
-        chunks, which is then all forced at once since merge needs them all.
-
-      - Deriver [Event] output is not lazy, because ErrorT won't let it be.
-        I think this means I need to localize derive exceptions and remove
-        ErrorT from DeriveT.  I still run calls in ErrorT though.
-
-      - more efficient type for events:
-        data EventList = Nil (Maybe Exception)
-            -- | I produce a lot of singletons, so optimize away a pointer.
-            | Event1 !Score.Event
-            -- | Unroll a chunk of events.
-            | Event16 !Score.Event !Score.Event ... EventList
-            | EventCons !Score.Event EventList
-
-    * make a profile for modification and recomputation of a large structure,
-      the sort of thing memoization would help with
-    - fix Perform and Signal memory spike exhibited by "generate control"
-      - order of printing warns matters, experiment 'seq generate control'
-        without warns
-      - can I eliminate the warn/msg order thing by inserting strictness?
-    - Signal.pitch_share I think is still used even when I have signal IDs
-      profile and make sure it's fast for common cases
-
-    - implement signal IDs
-      - Avoid converting signals more than once.  For this I need to not
-        truncate the pitch signal, or at least chop off the beginning as well.
-      - Avoid expensive sharing check for channelize.
-    - switch to attoparsec for parsing
-
   - clean up inst_config / lookup_inst situation in DeriveTest / Derive_profile
-
-  * move test_obj/ and profile_obj/ to build/test and build/profile
-  * cc on a multiplexed inst is not being merged
   - why does creating a block in setup cmd without a view go to cpu 100%?
-  * symbolic score: remove null call
-  * make some score generators for performance testing
-
-  - more sophisticated function to find out the inst of a note track
-  * remove warped control?
   - subblock derivation for control tracks
-  * re-enable signal deriver, but in a more efficient way?
 
-UNSORTED
   / move MakeRuler to Lang too?
     no, it's used by Cmd.Create, which is used by keybindings
 
@@ -289,7 +117,6 @@ UNSORTED
     have a set of playback selnums?
   - should be able to rescan midi ports when something new is plugged in
   - local inst db, in Ui.State, so I can e.g. set pb range for fm/* inst
-  * midi input doesn't advance on note off
   - midi thru doesn't pick up default inst
     empty scale defaults in Derive, but not in Cmd
   - cmd to resize window to fit tracks
@@ -365,6 +192,7 @@ bugs:
   - hint refuses to compile when a module emits a warning
 
 cleanup:
+  ? switch mhead and mlast back to returning Maybe
   - cleanup Ui.Track: event_list -> all_events?
   - split Derive.State into dynamically scoped, constant, and logging parts
   * State.structure only used by Clip_test
@@ -389,58 +217,79 @@ cleanup:
     rash, think about ways to derive e.g. 工尺譜.
 
 performance:
-  - derivation down to a Either is synchronous with the sync makes for laggy UI
-  - More efficient signal comparison in Perform.Midi
-    Derive.State keeps a counter.  This is incremented and assigned by
-    'with_control'.  The MIDI layer can then compare IDs to tell if the signal
-    is the same.  It's reasonable for controls to extend through the decay of
-    the note, so this is enough for them.  Should I try to merge even when the
-    IDs differ?  How about no at first.
+  Cmd
+    - try to figure out why editing is so laggy
+      profile to find out were the time is going
+    - If a msg aborts or doesn't run any cmds, don't bother to run diff.
+      Except that hardly ever happens if I do shortcut thru.
+    random little hangs are annoying.  figure out what's going on.  GC?
+      - timer can summarize one responder loop cycle?
+      - get diff results is really slow
+      from yi bug:
+        * GHC triggers a major GC everytime Yi becomes active whenever user
+        resumes typing
+        * Major GC takes increasingly long time as number of object grows (as
+        expected)
+        So, we have to iron out all memory leaks.
+    - cache track cmds for each track, update when the track title or skeleton
+      changes
+  Derive
+    derive cache
+      - c_block should only cache if the block has > a certain number of events.
+      - implement tracks as generators so they can be cached too
+      - I won't rederive cached generators if they have control damage outside
+        of the event range.  But there's nothing stopping a generator from
+        reading ahead or behind... come up with some kind of solution for this.
+      - more efficient version of Derive.concat_derived for events, maybe use
+        AppendList
+    implement incremental transformer caching, if necessary
+      - tempo damage should damage all events after the tempo change point
+        Actually, I should treat integration as a incremental transformer.
+        Then the tempo damage works because it expands the damaged region
+        itself.  Otherwise, any change to tempo will have to re-integrate the
+        entire track.
+      - once I know what I'm doing with transformers, fix up negative duration
+        postproc
+    - derivation down to a Either is synchronous with the sync makes for laggy
+      UI.  If I can't make derivation lazy, I can at least fill in the
+      Performance in the background, perhaps with a SampleVar
+    - why does "get" produce so much garbage?
+    - at_linear is called a lot by compose, by compose_warp, by d_warp
+      can I make this more efficient?
 
-    Pitch is unusual in that it is implicitly clipped at the start of the next
-    note.
+    - doesn't seem to happen so much with subderivations
+    - possibly put/get/modify is too lazy?
+    - maybe split Derive.State into dynamic and static portions?
+    - or maybe it's the control deriver creating a huge list of signal
+      chunks, which is then all forced at once since merge needs them all.
+    - to control lazy evaluation, emit log msg every n sec of derivation
+    - Parallelize derivation with strategies.  Can I spark subderivations?
 
-  - If a msg aborts or doesn't run any cmds, don't bother to run diff.
-    Except that hardly ever happens if I do shortcut thru.
+    make derivation lazy:
+      Deriver [Event] output is not lazy, because ErrorT won't let it be.
+      I think this means I need to localize derive exceptions and remove ErrorT
+      from DeriveT.  I still run calls in ErrorT though.
+      - exceptions are limited to calls in the track so the event output can be
+        lazy.  But calls call other blocks, so what about that?  Can I eliminate
+        DeriveError altogether?
+      - tempo map and inv tempo map have to be lazy, so they don't force the
+        entire derivation as soon as the first sample is touched
 
-  - profile derivation, if parsing is a problem, look into attoparsec
-  make derivation lazy:
-    - exceptions are limited to calls in the track so the event output can be
-      lazy.  But calls call other blocks, so what about that?  Can I eliminate
-      DeriveError altogether?
-    - tempo map and inv tempo map have to be lazy, so they don't force the
-      entire derivation as soon as the first sample is touched
-  * profile with and without strict state monad
-  speed and memory profiling:
-    - respond to incoming notes
-    - diff and modify UI
-    - derive a large score
-  - only derive first few seconds?  Or derive up to selection + a few seconds?
-    implement caching first
-    to log incrementally, emit log msg every n sec of derivation
-  - use a lazy storeable vector for [Score.Event] and [Midi.Message] to save
+    - more efficient type for events:
+      data EventList = Nil (Maybe Exception)
+          -- | I produce a lot of singletons, so optimize away a pointer.
+          | Event1 !Score.Event
+          -- | Unroll a chunk of events.
+          | Event16 !Score.Event !Score.Event ... EventList
+          | EventCons !Score.Event EventList
+    - switch to attoparsec for parsing
+  Perform
+    - use a lazy storeable vector for [Score.Event] and [Midi.Message] to save
     memory?
-  random little hangs are annoying.  figure out what's going on.  GC?
-    - timer can summarize one responder loop cycle?
-    - get diff results is really slow
-    from yi bug:
-      * GHC triggers a major GC everytime Yi becomes active whenever user
-      resumes typing
-      * Major GC takes increasingly long time as number of object grows (as
-      expected)
-      So, we have to iron out all memory leaks.
-
   - send style id to c++ instead of all the style elements
   - strictify some basic datatypes with ! and {-# UNPACK #-}:
     Ui.Event, Midi.Message, Perform.Midi.Instrument.Instrument
   - collapsing a track shouldn't trigger a rederive
-  caching:
-    - in c++, cache marks and events from callback
-    - cache track cmds for each track, update when the track title or skeleton
-      changes
-    * deriver caching, see doc/derive_cache
-  - derive multiple blocks with strategies, par, parMap.  Can I spark all
-    subderivations?
 
 symbolic score
   - namespacing?  don't worry about it for now, if I need it later it can be
@@ -619,6 +468,19 @@ REPL repl language static config
     - figure out how yi does it
     - ask dons about how to update hs-plugins
 
+save undo history / incremental saving
+  I can't just serialize the undo states because then I lose sharing on
+  deserialization.  Either explicitly save diffs and checkpoints, or come
+  up with a way to serialize and keep sharing.
+
+  explicit diffs:
+    Pair diffs with the changed bit.  Then save that chunk on every save.
+    Occaisionally write a checkpoint, which is just the whole
+    state, and throw away all states before it.  On load, scan to the last
+    checkpoint, load it, and apply the subsequent diffs.  On undo, if there are
+    no previous states, load the previous checkpoint and apply its diffs.
+    - check out cautious-file on hackage
+
 Cmd:
   ? a module with easy access to all GlobalKeymap cmds for cmdline access
   * cmd to give a view focus and bring it to the front
@@ -661,17 +523,17 @@ Cmd:
       pvid, etc., or the mangler turns <foo> into <current/foo>
 
   Cmd.Play
-    * warn about unallocated instruments (Convert.verify)
     - play loops
     smarter background derivation
-      * wait a second before deriving
       - don't derive while a key or mouse button is down
     - start playing from top of displayed area
     * start playing from TimeStep before insert point
+    - start playing from this block' position in the root block
 
   Undo
-    - figure out how to checkpoint just state diffs
-    - add undo history to on-disk format
+    - undo as a tree?  On modification, split the undo tree instead of throwing
+      away the future.
+    - undo only within selection
 
   Cmd.MakeRuler
     - functions to modify zoom levels and other mark attributes
