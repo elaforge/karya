@@ -104,6 +104,8 @@ mkmap mkdev pairs = Map.fromList [(mkdev k, mkdev v) | (k, v) <- pairs]
 
 write_device_map = mkmap Midi.WriteDevice
     [ ("fm8", iac 1)
+    , ("ptq", iac 1)
+    , ("iac1", iac 1)
     , ("z1", tapco 1)
     , ("vl1", tapco 2)
     , ("morpheus", tapco 2)
