@@ -77,20 +77,25 @@ test_messages_from = do
     -- If the dur is always increasing then events don't all look the same.
     let cache = perform_uncached [(n, (n+1)/16) | n <- [0..]]
         f ts = extract_msgs (Cache.messages_from ts cache)
-    equal (take 3 (f 0))
-        [ (0, Midi.PitchBend 0)
+    -- Extra pitch bend msgs are from the initialization.
+    let pb0 = (0, Midi.PitchBend 0)
+    equal (take 4 (f 0))
+        [ pb0
+        , pb0
         , (0, Midi.NoteOn 42 100)
         , (62, Midi.NoteOff 42 100)
         ]
     -- Timestamps subtracted from events.
-    equal (take 3 (f 60))
-        [ (2, Midi.NoteOff 42 100)
+    equal (take 4 (f 60))
+        [ pb0
+        , (2, Midi.NoteOff 42 100)
         , (940, Midi.NoteOn 42 100)
         , (1065, Midi.NoteOff 42 100)
         ]
     -- Halfway into another chunk.
-    equal (take 3 (f 6000))
-        [ (0, Midi.NoteOn 42 100)
+    equal (take 4 (f 6000))
+        [ pb0
+        , (0, Midi.NoteOn 42 100)
         , (438, Midi.NoteOff 42 100)
         , (1000, Midi.NoteOn 42 100)
         ]

@@ -1,5 +1,5 @@
 CURRENT
-  - seeking to play in a certain place will miss any controller initialization
+  * seeking to play in a certain place will miss any controller initialization
     but I could get that back by having Cache.messages_from inspect postproc
     state to get the control state
     This is bad because if you start on a note it will lose any tuning it had.

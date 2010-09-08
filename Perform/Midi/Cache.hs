@@ -7,6 +7,7 @@ module Perform.Midi.Cache (
     , perform
 ) where
 import qualified Data.List as List
+import qualified Data.Map as Map
 import qualified Data.Monoid as Monoid
 import qualified Util.Ranges as Ranges
 
@@ -56,14 +57,30 @@ cache_messages =
 --
 -- TODO look at postproc state to initialize the controls properly
 messages_from :: Timestamp.Timestamp -> Cache -> Perform.Messages
-messages_from start cache =
-    map (Midi.add_timestamp (-start)) (Perform.merge_sorted_messages chunks)
+messages_from start cache = initialize_msgs ++
+    map (Midi.add_timestamp (-start)) (Perform.merge_sorted_messages msgs)
     where
     start_chunk = fromIntegral $
         Timestamp.to_millis start `div` Timestamp.to_millis cache_chunk_size
-    chunks = case map chunk_messages (drop start_chunk (cache_chunks cache)) of
+    chunks = drop start_chunk (cache_chunks cache)
+    msgs = case map chunk_messages chunks of
         [] -> []
-        msgs:rest_msgs -> dropWhile ((<start) . Midi.wmsg_ts) msgs : rest_msgs
+        m : rest -> dropWhile ((<start) . Midi.wmsg_ts) m : rest
+    initialize_msgs = case chunks of
+        [] -> []
+        chunk : _ -> state_initialization $
+            Perform.state_postproc (chunk_state chunk)
+
+state_initialization :: Perform.PostprocState -> Perform.Messages
+state_initialization state = concatMap mkmsgs (Map.assocs state)
+    where
+    mkmsgs ((dev, chan), (pb, controls)) = map wmsg (pb_msg ++ control_msgs)
+        where
+        pb_msg = maybe [] ((:[]) . Midi.PitchBend) pb
+        control_msgs = map mkcontrol (Map.assocs controls)
+        wmsg msg = Midi.WriteMessage dev Timestamp.zero
+            (Midi.ChannelMessage chan msg)
+    mkcontrol (cc, val) = Midi.ControlChange cc val
 
 -- | Figure out how much time of the performed MIDI messages were from
 -- the cache and how much time was reperformed.
