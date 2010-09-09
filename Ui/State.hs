@@ -456,6 +456,9 @@ set_track_width view_id tracknum width = do
 
 -- ** zoom and track scroll
 
+get_zoom :: (UiStateMonad m) => ViewId -> m Types.Zoom
+get_zoom view_id = fmap Block.view_zoom (get_view view_id)
+
 set_zoom :: (UiStateMonad m) => ViewId -> Types.Zoom -> m ()
 set_zoom view_id zoom =
     modify_view view_id (\view -> view { Block.view_zoom = clamped })

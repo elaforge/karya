@@ -5,7 +5,7 @@ CURRENT
     This is bad because if you start on a note it will lose any tuning it had.
 
 UNSORTED
-  - zoom isn't zooming around the cursor properly
+  * zoom isn't zooming around the cursor properly
   - set skel to ruler / track 0 makes State.verify unhappy
   - put timing info in rederive msgs, see how long derivation took
   - why does track merge / unmerge cause splice failures?
@@ -20,6 +20,7 @@ UNSORTED
   - save/ratio_ptq does weird things: base note missing, base note bends with
     melody
   - why does logview go to 100 cpu?
+    put some prints in there to see what it's doing when it does that
   - Log msgs are getting munched together.  The logging lock isn't working?
   - track should get damage due to TrackFlag change, not DisplayTrack updates
   - paste was wrong (lost first event from the copy range)

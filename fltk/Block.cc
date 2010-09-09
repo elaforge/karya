@@ -301,7 +301,8 @@ BlockView::set_zoom_attr(const ZoomInfo &new_zoom)
     // a pixel boundary.  Otherwise, some events may move 1 pixel while others
     // move 2 pixels, which messes up the blit-oriented scrolling.
     clamped.offset = std::max(ScoreTime(0), clamped.offset);
-    ScoreTime max_offset = track_tile.time_end() - track_tile.visible_time();
+    ScoreTime visible = clamped.to_trackpos(track_tile.visible_pixels().y);
+    ScoreTime max_offset = track_tile.time_end() - visible;
     clamped.offset = clamp(ScoreTime(0), max_offset, clamped.offset);
     if (clamped == this->zoom)
         return;
