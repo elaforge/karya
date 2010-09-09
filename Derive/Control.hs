@@ -54,11 +54,11 @@ eval_track block_id track_id expr ctype deriver = do
     block_end <- Derive.get_block_dur block_id
     case ctype of
         TrackInfo.Tempo -> do
-            let control_deriver = derive_control block_end track_id expr events
+            let control_deriver = derive_control block_end expr events
             tempo_call block_id track_id
                 (first Signal.coerce <$> control_deriver) deriver
         TrackInfo.Control maybe_op control -> do
-            let control_deriver = derive_control block_end track_id expr events
+            let control_deriver = derive_control block_end expr events
             control_call track_id control maybe_op control_deriver deriver
         TrackInfo.Pitch ptype maybe_name ->
             pitch_call block_end track_id maybe_name ptype expr events deriver
@@ -118,26 +118,25 @@ pitch_call block_end track_id maybe_name ptype track_expr events deriver =
                 scale <- Call.get_scale
                 return (id, scale)
         let scale_map = Pitch.scale_map scale
+            derive = derive_pitch block_end track_expr events
         with_scale $ case ptype of
             TrackInfo.PitchRelative op -> do
-                let derive = derive_pitch block_end track_id track_expr events
                 (signal, damage) <- derive
                 stash_signal track_id (Left (signal, fst <$> derive, scale_map))
                 Derive.with_control_damage damage $
                     Derive.with_pitch_operator maybe_name op signal deriver
             _ -> do
-                let derive = derive_pitch block_end track_id track_expr events
                 (signal, damage) <- derive
                 stash_signal track_id (Left (signal, fst <$> derive, scale_map))
                 Derive.with_control_damage damage $
                     Derive.with_pitch maybe_name signal deriver
 
-derive_control :: ScoreTime -> TrackId -> TrackLang.Expr -> [Track.PosEvent]
+derive_control :: ScoreTime -> TrackLang.Expr -> [Track.PosEvent]
     -> Derive.Deriver (Derive.Control, Derive.EventDamage)
-derive_control block_end track_id track_expr events = do
+derive_control block_end track_expr events = do
     result <- Call.apply_transformer
         (dinfo, Derive.dummy_call_info "control track") track_expr deriver
-    damage <- Derive.take_local_damage track_id
+    damage <- Derive.take_local_damage
     return (result, extend_control_damage result damage)
     where
     deriver = Signal.merge <$>
@@ -154,12 +153,12 @@ preprocess_control expr = case Seq.break_last expr of
     _ -> expr
 
 
-derive_pitch :: ScoreTime -> TrackId -> TrackLang.Expr -> [Track.PosEvent]
+derive_pitch :: ScoreTime -> TrackLang.Expr -> [Track.PosEvent]
     -> Derive.Deriver (Derive.Pitch, Derive.EventDamage)
-derive_pitch block_end track_id track_expr events = do
+derive_pitch block_end track_expr events = do
     result <- Call.apply_transformer
         (dinfo, Derive.dummy_call_info "pitch track") track_expr deriver
-    damage <- Derive.take_local_damage track_id
+    damage <- Derive.take_local_damage
     return (result, extend_pitch_damage result damage)
     where
     deriver = PitchSignal.merge <$>

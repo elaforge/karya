@@ -219,6 +219,7 @@ run_update (Update.BlockUpdate block_id update) = do
                 -- no big deal.
                 BlockC.update_entire_track view_id tracknum tracklike
                     (events_of_track_ids ustate merged)
+        Update.TrackFlags -> return (return ())
 
 run_update (Update.TrackUpdate track_id update) = do
     blocks <- State.blocks_with_track track_id

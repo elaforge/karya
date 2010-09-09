@@ -69,9 +69,8 @@ test_compile = do
             , ("c1", [(0, 0, "3"), (1, 0, "2"), (2, 0, "1")])
             ]
 
-    let (res, logs) = derive ("*c2", [(0, 0, ".1")])
+    let (_, logs) = derive ("*c2", [(0, 0, ".1")])
     strings_like logs ["pitch_call: unknown ScaleId \"c2\""]
-    equal res (Right [])
 
     let cont_signal = Map.union Derive.initial_controls
             (Map.fromList [(Score.Control "c1",

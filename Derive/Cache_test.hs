@@ -12,6 +12,8 @@ import qualified Util.Seq as Seq
 import Util.Test
 
 import Ui
+import qualified Ui.Block as Block
+import qualified Ui.Diff as Diff
 import qualified Ui.Event as Event
 import qualified Ui.State as State
 import qualified Ui.Track as Track
@@ -93,6 +95,56 @@ test_add_remove = do
             State.insert_event (UiTest.tid "top.t1") 4 (Event.event "" 1)
     equal (diff_events cached uncached) (Right [])
     equal (r_event_damage cached) (Just [(8, 10)])
+
+test_block_damage = do
+    let create = mkblocks
+            [ ("top",
+                [ ("tempo", [(0, 0, ".5")])
+                , (">i", [(0, 1, "sub"), (1, 1, ""), (2, 1, "sub")])
+                ])
+            , ("sub", [(">", [(0, 1, "")])])
+            ]
+    -- A track mute should emit event damage for that block's range.
+    let (_, cached, uncached) = compare_cached create $
+            State.add_track_flag (UiTest.bid "sub") 1 Block.Mute
+    equal (diff_events cached uncached) (Right [])
+    equal (r_event_damage cached) (Just [(0, 2), (4, 6)])
+
+    -- Plain old event modification works too.
+    let (_, cached, uncached) = compare_cached create $
+            State.insert_event (UiTest.tid "sub.t0") 0 (Event.event "" 0.5)
+    equal (diff_events cached uncached) (Right [])
+    equal (r_event_damage cached) (Just [(0, 2), (4, 6)])
+
+-- These two tests were originally testing blocks that threw... but since
+-- track title errors are now caught, they just test that changing the track
+-- title emits the proper damage, which is mostly the same mechanism that
+-- 'test_block_damage' tests.
+test_failed_track = do
+    let create = mkblocks
+            [ ("top",
+                [ ("tempo", [(0, 0, ".5")])
+                , (">i", [(0, 2, "")])
+                , ("*twelve", [])
+                ])
+            ]
+    let (_, cached, uncached) = compare_cached create $
+            State.set_track_title (UiTest.tid "top.t2") "*broken"
+    equal (diff_events cached uncached) (Right [])
+    equal (r_event_damage cached)
+        (Just [(0, 4)])
+
+test_failed_sub_track = do
+    let create = mkblocks
+            [ ("top", [(">i", [(0, 2, "sub"), (5, 1, "sub")])])
+            , ("sub", [(">i", [(0, 2, "")]), ("*twelve", [])])
+            ]
+    let (_, cached, uncached) = compare_cached create $
+            State.set_track_title (UiTest.tid "sub.t1") "*broken"
+    equal (diff_events cached uncached) (Right [])
+    equal (r_event_damage cached)
+        (Just [(0, 2), (5, 6)])
+
 
 test_has_score_damage = do
     let create = mkblocks
@@ -182,43 +234,10 @@ test_collect = do
             (Map.fromList [(UiTest.tid "sub.t1", tsig)])
             (mk_gdep ["top", "sub"]))
 
-test_event_damage_exception = do
-    -- make sure a deriver that throws still emits EventDamage and the proper
-    -- Collect
-    let result = DeriveTest.derive_tracks
-            [ ("tempo", [(0, 0, ".5")])
-            , (">i", [(0, 2, "")])
-            , ("*badscale", [])
-            ]
-    strings_like (map Log.msg_string (Derive.r_logs result))
-        ["unknown ScaleId" , "*rederived generator*"]
-    equal (Derive.r_event_damage result) (Derive.EventDamage Ranges.everything)
-    equal (r_cache_collect result)
-        [ ("test/b1 * *", Just (Derive.Collect [] Map.empty (mk_gdep ["b1"])))
-        ]
-
-test_event_damage_sub_exception = do
-    let result = DeriveTest.derive_blocks
-            [ ("p", [(">i", [(0, 2, "sub"), (5, 1, "sub")])])
-            , ("sub", [(">i", [(0, 2, "")]), ("*badscale", [])])
-            ]
-    equal (Derive.r_event_damage result)
-        (Derive.EventDamage (Ranges.ranges [(0, 2), (5, 6)]))
-    equal (r_cache_collect result)
-        [ ("test/p * *", Just $ Derive.Collect
-            [mk_twarp 0 6 "p" ["p.t0"]]
-                Map.empty (mk_gdep ["p", "sub"]))
-        , ("test/p test/p.t0 0-2: test/sub * *", Just $ Derive.Collect
-            [] Map.empty (mk_gdep ["sub"]))
-        , ("test/p test/p.t0 5-6: test/sub * *", Just $ Derive.Collect
-            [] Map.empty (mk_gdep ["sub"]))
-        ]
-
 -- If I modify a control in a certain place, say a pitch track, I don't want it
 -- to derive the whole control.  Then it will damage the whole control and
 -- force everything below it to rederive.  I want it to emit control damage
 -- for only the bit of control signal that actually changed.
-
 test_control_damage = do
     let create = mkblocks
             [ ("top",
@@ -237,7 +256,7 @@ test_control_damage = do
         , "top.t0 1-2: * using cache"
         , toplevel_rederived
         ]
-    equal (r_event_damage cached) (Just [])
+    equal (r_event_damage cached) (Just [(2, 2)])
 
     -- only the  affceted event is rederived
     let (_, cached, uncached) = compare_cached create $
@@ -367,10 +386,14 @@ compare_cached create modify = (result1, cached, uncached)
     where
     (bid, state1) = UiTest.run State.empty create
     result1 = derive_block Derive.empty_cache Monoid.mempty state1 bid
-    (_, state2, updates) = run state1 modify
+    (_, state2, ui_updates) = run state1 modify
+    updates = ui_updates ++ diff_updates
     damage = Cache.score_damage state1 state2 updates
     cached = derive_block (Derive.r_cache result1) damage state2 bid
     uncached = derive_block Derive.empty_cache Monoid.mempty state2 bid
+    diff_updates = case Diff.diff state1 state2 of
+        Left err -> error ("diff error: " ++ err)
+        Right diff_updates -> diff_updates
 
 diff_events :: Result -> Result
     -> Either Derive.DeriveError [(Either SimpleEvent SimpleEvent)]

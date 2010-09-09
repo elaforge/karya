@@ -585,9 +585,8 @@ derive :: Cache -> ScoreDamage -> LookupDeriver -> State.State -> CallMap
 derive cache damage lookup_deriver ui_state calls environ ignore_tempo
         deriver =
     Result result (state_cache (state_cache_state state))
-        (state_event_damage (state_cache_state state))
-        tempo_func inv_tempo_func (collect_track_signals (state_collect state))
-        logs state
+        event_damage tempo_func inv_tempo_func
+        (collect_track_signals (state_collect state)) logs state
     where
     (result, state, logs) = Identity.runIdentity $ run
         (initial_state clean_cache ui_state damage
@@ -596,6 +595,45 @@ derive cache damage lookup_deriver ui_state calls environ ignore_tempo
     track_warps = collect_track_warps (state_collect state)
     tempo_func = make_tempo_func track_warps
     inv_tempo_func = make_inverse_tempo_func track_warps
+    event_damage = Monoid.mappend
+        (state_event_damage (state_cache_state state))
+        (score_to_event_damage track_warps damage)
+
+-- | Convert ScoreDamage into EventDamage.
+--
+-- Local damage is obtained by recording the output of generators within the
+-- score damage range.  This is essential to handle generators that produce
+-- events outside of their range on the score.  However, it doesn't capture
+-- events which were deleted, or modifications that don't produce track damage
+-- ranges at all, like title changes.
+--
+-- Deleted events will always have score damage in their former positions, but
+-- unfortunately have the same problem: if they produced score events outside
+-- of the ui event range, those events won't be covered under event damage
+-- after rederivation.
+--
+-- TODO A way to do this right would be to look at the previous score events
+-- and take a diff, but at the moment I can't think of how to do that
+-- efficiently.
+score_to_event_damage :: [TrackWarp] -> ScoreDamage -> EventDamage
+score_to_event_damage track_warps score =
+    EventDamage $ Monoid.mconcat (block_ranges ++ track_ranges)
+    where
+    block_ranges = map block_damage (Set.elems (sdamage_blocks score))
+    block_damage block_id = Ranges.ranges
+        [(tw_start tw, tw_end tw) | tw <- track_warps, tw_block tw == block_id]
+
+    track_ranges = map track_damage (Map.assocs (sdamage_tracks score))
+    track_damage (track_id, ranges) =
+        Ranges.ranges $ case Ranges.extract ranges of
+            Nothing -> [(tw_start tw, tw_end tw)
+                | tw <- track_warps, track_id `elem` tw_tracks tw]
+            Just pairs -> concatMap warp pairs
+        where
+        warp (start, end) =
+            [(Score.warp_pos start w, Score.warp_pos end w) | w <- warps]
+        warps = [tw_warp tw | tw <- track_warps, track_id `elem` tw_tracks tw]
+
 
 d_block :: BlockId -> EventDeriver
 d_block block_id = do
@@ -672,7 +710,7 @@ make_tempo_func track_warps block_id track_id pos =
     map (Score.warp_pos pos) warps
     where
     warps = [tw_warp tw | tw <- track_warps, tw_block tw == block_id,
-        any (==track_id) (tw_tracks tw)]
+        track_id `elem` tw_tracks tw]
 
 make_inverse_tempo_func :: [TrackWarp] -> Transport.InverseTempoFunction
 make_inverse_tempo_func track_warps ts = do
@@ -731,39 +769,12 @@ get_cache_state = gets state_cache_state
 put_cache :: Cache -> Deriver ()
 put_cache cache = modify_cache_state $ \st -> st { state_cache = cache }
 
-take_local_damage :: TrackId -> Deriver EventDamage
-take_local_damage track_id = do
+take_local_damage :: Deriver EventDamage
+take_local_damage = do
     old <- get_cache_state
     modify_cache_state $ \st ->
         st { state_local_damage = EventDamage Monoid.mempty }
-    track_damage <- get_track_damage track_id
-    return $ Monoid.mappend (state_local_damage old) track_damage
-
--- | Get the score damage for a track, mapped into RealTime as EventDamage
--- requires.
---
--- Local damage is obtained by recording the output of generators within the
--- score damage range.  This is essential to handle generators that produce
--- events outside of their range on the score.  However, it doesn't capture
--- events which were deleted.  Deleted events will always have score damage
--- in their former positions, but unfortunately have the same problem: if they
--- produced score events outside of the ui event range, those events won't be
--- covered under event damage after rederivation.
---
--- TODO A way to do this right would be to look at the previous score events
--- and take a diff, but at the moment I can't think of how to do that
--- efficiently.
-get_track_damage :: TrackId -> Deriver EventDamage
-get_track_damage track_id = do
-    damage <- state_score_damage <$> get_cache_state
-    case Map.lookup track_id (sdamage_tracks damage) of
-        Nothing -> return Monoid.mempty
-        Just ranges -> case Ranges.extract ranges of
-            Nothing -> return $ EventDamage Ranges.everything
-            Just pairs -> do
-                realtime <- forM pairs $ \(s, e) ->
-                    (,) <$> score_to_real s <*> score_to_real e
-                return $ EventDamage (Ranges.ranges realtime)
+    return $ state_local_damage old
 
 insert_local_damage :: EventDamage -> Deriver ()
 insert_local_damage damage = modify_cache_state $ \st ->
@@ -1495,7 +1506,7 @@ data ScoreDamage = ScoreDamage {
     -- | Damaged ranges in tracks.
     sdamage_tracks :: Map.Map TrackId (Ranges.Ranges ScoreTime)
     -- | The blocks with damaged tracks.  Calls depend on blocks
-    -- ('gdep_blocks') rather than tracks, so it's convenient to keep the
+    -- ('GeneratorDep') rather than tracks, so it's convenient to keep the
     -- blocks here.  This is different than block damage because a damaged
     -- block will invalidate all caches below it, but a block with damaged
     -- tracks must be called but may still have valid caches within.

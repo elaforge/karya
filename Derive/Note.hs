@@ -156,7 +156,7 @@ d_note_track block_id track_id = Derive.catch_warn (return Derive.no_events) $do
     -- will abort.  This seems reasonable to me.
     result <- Call.apply_transformer info track_expr
         (derive_notes block_end pos_events)
-    Derive.insert_event_damage =<< Derive.take_local_damage track_id
+    Derive.insert_event_damage =<< Derive.take_local_damage
     return result
     where info = (derive_info, Derive.dummy_call_info "note track")
 

@@ -240,11 +240,13 @@ has_damage state stack
 find_generator_cache :: (Derive.Derived derived) =>
     Stack.Stack -> Ranges.Ranges RealTime -> ScoreDamage -> ControlDamage
     -> Cache -> Either String (Derive.Collect, derived)
-find_generator_cache stack event_range (ScoreDamage _ damaged_blocks _)
+find_generator_cache stack event_range score_damage
         (ControlDamage control_damage) cache = do
     (collect, derived) <- maybe (Left "not in cache") Right
         (lookup_generator stack cache)
     let Derive.GeneratorDep block_deps = Derive.collect_local_dep collect
+    let damaged_blocks = Set.union
+            (sdamage_track_blocks score_damage) (sdamage_blocks score_damage)
     unless (Set.null (Set.intersection damaged_blocks block_deps)) $
         Left "sub-block damage"
     when (Ranges.overlapping control_damage event_range) $
@@ -283,8 +285,8 @@ score_damage ui_from ui_to updates =
     -- When track title changes come from the UI they aren't emitted as
     -- Updates, but should still trigger a re-derive.
     track_updates = Diff.track_diff ui_from ui_to
-    tracks = Map.fromListWith Monoid.mappend
-        (Seq.map_maybe Update.track_changed (track_updates ++ updates))
+    tracks = Map.fromListWith Monoid.mappend $
+        Seq.map_maybe Update.track_changed (track_updates ++ updates)
     track_blocks = Set.fromList $ map fst $ State.find_tracks track_of_block
         (State.state_blocks ui_to)
     track_of_block (Block.TId tid _) = Map.member tid tracks

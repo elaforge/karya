@@ -42,19 +42,41 @@ diff st1 st2 = fmap (munge_updates st2) $ run $ do
     -- don't hurt and filtering them would be complicated).
     diff_views st1 st2 (State.state_views st1) (State.state_views st2)
 
-    -- Only emit updates for blocks that are actually in a displayed view.
-    let visible_ids = (List.nub . map Block.view_block . Map.elems)
-            (State.state_views st2)
-        visible_blocks = Map.filterWithKey (\k _v -> k `elem` visible_ids)
-            (State.state_blocks st2)
+    -- -- Only emit updates for blocks that are actually in a displayed view.
+    -- let visible_ids = (List.nub . map Block.view_block . Map.elems)
+    --         (State.state_views st2)
+    --     visible_blocks = Map.filterWithKey (\k _v -> k `elem` visible_ids)
+    --         (State.state_blocks st2)
     mapM_ (uncurry3 diff_block)
-        (Map.zip_intersection (State.state_blocks st1) visible_blocks)
+        (Map.zip_intersection (State.state_blocks st1) (State.state_blocks st2))
     mapM_ (uncurry3 diff_track)
         (Map.zip_intersection (State.state_tracks st1) (State.state_tracks st2))
     mapM_ (uncurry3 diff_ruler)
         (Map.zip_intersection (State.state_rulers st1) (State.state_rulers st2))
 
 -- | Find only the TrackUpdates between two states.
+--
+-- The new state is diffed with the old state to emit updates to keep the UI
+-- in sync.  But wait, some changes come from the UI and shouldn't be
+-- sent back to it, so the UI originating changes are first applied to the
+-- state, and *then* the diff is run.
+--
+-- But I also use Updates to see which bits of state have changed to invalidate
+-- the cache, and for that I *do* need to include the UI originating changes.
+-- In addition the requirements are slightly different: I care about changes
+-- not directly related to UI changes like track flag changes, and don't care
+-- about ones that are purely visual, like hidden tracks.  Also, I care about
+-- changes to blocks which aren't visible, while the UI diff doesn't.
+--
+-- Another approach would be to have flag changes explicitly store diffs, like
+-- event track changes.  This won't work for chages from the UI, but I have
+-- explicit notification of those too.  It seems like if I took this to its
+-- logical conclusion I could eliminate the diff altogether, but at the cost
+-- of missing updates.  And diff isn't necessarily super expensive.
+--
+-- TODO Since I need to do all the diffing anyway, I might as well do it all
+-- at once.  The redundant Updates can be canceled out by UiMsgs before being
+-- sent back to the UI.
 track_diff :: State.State -> State.State -> [Update.Update]
 track_diff old new = either (const []) id $ run $ mapM_ (uncurry3 diff_track)
     (Map.zip_intersection (State.state_tracks old) (State.state_tracks new))
@@ -196,6 +218,24 @@ diff_block block_id block1 block2 = do
         (Just (dtrack1, _), Just (dtrack2, _)) | dtrack1 /= dtrack2 -> change
             [block_update $ Update.DisplayTrack i2 dtrack2]
         _ -> return ()
+
+    -- The TrackFlags update is for rederivation, not syncing with the GUI.
+    let (ts1, ts2) = (Block.block_tracks block1, Block.block_tracks block2)
+    let tpairs = Seq.indexed_pairs_on Block.tracklike_id ts1 ts2
+    forM_ tpairs $ \(_, t1, t2) -> case (t1, t2) of
+        (Just track1, Just track2) | flags_differ track1 track2 ->
+            change [block_update Update.TrackFlags]
+        _ -> return ()
+
+-- | True if the tracks flags differ in an a way that will require
+-- rederivation.
+flags_differ :: Block.BlockTrack -> Block.BlockTrack -> Bool
+flags_differ track1 track2 = relevant track1 /= relevant track2
+    where
+    relevant = filter flag . Block.track_flags
+    flag Block.Collapse = False
+    flag Block.Mute = True
+    flag Block.Solo = True
 
 diff_track track_id track1 track2 = do
     let track_update = Update.TrackUpdate track_id

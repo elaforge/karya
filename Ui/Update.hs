@@ -43,6 +43,11 @@ data BlockUpdate
     -- | Unlike a TrackUpdate, these settings are local to the block, not
     -- global to this track in all its blocks.
     | DisplayTrack TrackNum Block.DisplayTrack
+    -- | Unlike other Updates, this isn't meant to be synced to the GUI.  It's
+    -- a hint to the cache system, via 'block_changed'.  I don't really care
+    -- *which* track changed flags, because any flag change damages the entire
+    -- block.
+    | TrackFlags
     deriving (Show)
 
 -- | track, low_pos, high_pos
@@ -76,9 +81,7 @@ block_changed :: Update -> Maybe BlockId
 block_changed (BlockUpdate block_id update) = case update of
     BlockConfig {} -> Nothing
     InsertTrack {} -> Nothing
-    -- TODO I'm really interested in the BlockTrack changes, specifically
-    -- TrackFlag changes, and the DisplayTrack status is only a side-effect.
-    -- Flag changes should have their own updates.
+    DisplayTrack {} -> Nothing
     _ -> Just block_id
 block_changed _ = Nothing
 
