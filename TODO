@@ -8,9 +8,11 @@ UNSORTED
   - set skel to ruler / track 0 makes State.verify unhappy
   - put timing info in rederive msgs, see how long derivation took
   - why does track merge / unmerge cause splice failures?
-  - muting a note track means it thinks the control track is a note track, and
+  * muting a note track means it thinks the control track is a note track, and
     fails to parse, and aborts everything.  A failed track title should abort
     just that track.
+  - deleted and muted tracks don't emit EventDamage
+  - muting a track should replace it with a nop, not remove it entirely
   - save/ratio_ptq does weird things: base note missing, base note bends with
     melody
   - why does logview go to 100 cpu?

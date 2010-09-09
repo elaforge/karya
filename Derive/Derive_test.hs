@@ -173,7 +173,7 @@ test_subderive_error = do
             ]
     let (val, logs) = (DeriveTest.e_logs $ run [(0, 1, "sub")])
     equal val (Right [])
-    strings_like logs ["DeriveError: track title: control track must be one of"]
+    strings_like logs ["track title: control track must be one of"]
 
 test_subderive_multiple = do
     -- make sure subderiving a block with multiple tracks works correctly

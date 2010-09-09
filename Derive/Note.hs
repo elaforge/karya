@@ -143,7 +143,7 @@ import qualified Derive.TrackLang as TrackLang
 
 -- | Top level deriver for note tracks.
 d_note_track :: BlockId -> TrackId -> Derive.EventDeriver
-d_note_track block_id track_id = do
+d_note_track block_id track_id = Derive.catch_warn (return Derive.no_events) $do
     track <- Derive.get_track track_id
     track_expr <- case TrackLang.parse (Track.track_title track) of
         Left err -> Derive.throw $ "track title: " ++ err

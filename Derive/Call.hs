@@ -68,7 +68,6 @@
 -}
 module Derive.Call where
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Log as Log
@@ -275,7 +274,7 @@ derive_track block_end dinfo preproc get_last_sample events =
         return $ chunk : rest
 
     with_catch deflt pos evt =
-        fmap (Maybe.fromMaybe deflt) . Derive.catch_warn id . with_stack pos evt
+        Derive.catch_warn (return deflt) . with_stack pos evt
     with_stack pos evt =
         Derive.with_stack_region pos (pos + Event.event_duration evt)
 

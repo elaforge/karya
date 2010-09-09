@@ -29,8 +29,8 @@ test_control_track = do
 
     -- various failures
     let (val, logs) = derive ("", events)
-    equal val (Right [])
-    strings_like logs ["DeriveError: track title"]
+    equal val (Right [Nothing])
+    strings_like logs ["track title: control track must be one of"]
 
     let (val, logs) = derive ("cont", [(0, 0, "abc"), (1, 0, "def")])
     equal val (Right [Just []])
@@ -74,7 +74,7 @@ test_pitch_track = do
     let derive = do_derive (PitchSignal.unsignal . Score.event_pitch)
 
     let (val, logs) = derive ("*no-scale", [(0, 0, "1"), (1, 0, "2")])
-    equal val (Right [])
+    equal val (Right [[(0, (60, 60, 0))]])
     strings_like logs ["unknown ScaleId \"no-scale\""]
 
     let (val, logs) = derive ("*twelve", [(0, 0, "1"), (1, 0, "2")])

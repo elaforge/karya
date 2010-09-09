@@ -842,13 +842,12 @@ with_msg msg = local state_log_context
     (\old st -> st { state_log_context = old })
     (\st -> return $ st { state_log_context = msg : state_log_context st })
 
--- | Catch DeriveErrors and convert them into warnings.  If an error is caught,
--- return Nothing, otherwise return Just op's value.
-catch_warn :: (Monad m) => (String -> String) -> DeriveT m a
-    -> DeriveT m (Maybe a)
-catch_warn msg_of op = Error.catchError (fmap Just op) $
+-- | If the derive throws, turn the error into a warning and return a default
+-- value.
+catch_warn :: (Monad m) => DeriveT m a -> DeriveT m a -> DeriveT m a
+catch_warn deflt deriver = Error.catchError deriver $
     \(DeriveError srcpos stack msg) ->
-        Log.warn_stack_srcpos srcpos stack (msg_of msg) >> return Nothing
+        Log.warn_stack_srcpos srcpos stack msg >> deflt
 
 
 -- ** environment
@@ -1328,7 +1327,7 @@ map_events f state event_of xs = do
     return (final_state, Maybe.catMaybes results)
     where
     apply cur_state x = with_event (event_of x) $ do
-        val <- catch_warn id (f cur_state x)
+        val <- catch_warn (return Nothing) (Just <$> f cur_state x)
         return $ case val of
             Nothing -> (cur_state, Nothing)
             Just (next_state, val) -> (next_state, Just val)
