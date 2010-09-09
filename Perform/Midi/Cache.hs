@@ -92,7 +92,7 @@ state_initialization state = concatMap mkmsgs (Map.assocs state)
 -- forces the chunk, this function accepts the splice failure as an argument
 -- which is awkward but allows the caller to retain control over evaluation.
 cache_stats :: Maybe ChunkNum -> Cache -> (RealTime, RealTime)
-    -- ^ (time from cache, time re-performed)
+    -- ^ (time re-performed, total time)
 cache_stats splice_failed_at cache = case splice_failed_at of
         Nothing -> stats (cache_damage cache)
         Just chunknum -> stats $ Monoid.mappend
@@ -100,7 +100,7 @@ cache_stats splice_failed_at cache = case splice_failed_at of
     where
     nchunks = fromIntegral (length (cache_chunks cache))
     time n = Timestamp.to_real_time (fromIntegral n * cache_chunk_size)
-    stats ranges = (time nchunks, time (total ranges))
+    stats ranges = (time (total ranges), time nchunks)
     total ranges = case Ranges.extract ranges of
         Nothing -> nchunks
         Just pairs -> sum (map (\(s, e) -> if e == s then 1 else e - s) pairs)

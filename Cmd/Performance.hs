@@ -194,14 +194,14 @@ evaluate_midi prefix cache selection_pos logged_stats eval_pos chunks = do
 
 log_stats :: String -> Maybe RealTime -> Midi.Cache.Cache -> IO ()
 log_stats prefix splice_failed cache =
-    Log.notice $ prefix ++ "midi cached/reperformed: " ++ Pretty.pretty cached
-        ++ "/" ++ Pretty.pretty reperformed
+    Log.notice $ prefix ++ "midi reperformed: "
+        ++ Pretty.pretty reperformed ++ "/" ++ Pretty.pretty total
         ++ maybe " (splice succeeded)"
             (\p -> " (splice failed around " ++ Pretty.pretty p ++ ")")
             splice_failed
         ++ " chunk damage: " ++ Pretty.pretty (Midi.Cache.cache_damage cache)
     where
-    (cached, reperformed) = Midi.Cache.cache_stats
+    (reperformed, total) = Midi.Cache.cache_stats
         (Midi.Cache.to_chunknum <$> splice_failed) cache
 
 chunk_time :: Midi.Cache.Chunk -> RealTime
