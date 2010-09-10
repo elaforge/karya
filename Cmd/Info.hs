@@ -40,10 +40,11 @@ show_instrument_info addrs (MidiDb.Info _synth patch) = unlines
     , "addrs: " ++ show_addrs addrs
     ]
 
--- | Looks like: "wdev1:[0,1,2]; wdev2:[0]"
+-- | Looks like: "wdev1 [0..2]; wdev2 [0,4]"
 show_addrs :: [Instrument.Addr] -> String
 show_addrs addrs = show_list2
-    [ Midi.un_write_device wdev ++ ":" ++ Seq.join "," (map (show . snd) addrs)
+    [ Midi.un_write_device wdev ++ " "
+        ++ "[" ++ Seq.join "," (show_runs (map snd addrs)) ++ "]"
     | (wdev, addrs) <- Seq.keyed_group_on fst addrs]
 
 show_inst :: Score.Instrument -> String
@@ -63,6 +64,12 @@ show_list2 xs = Seq.join "; " xs
 str :: String -> String
 str "" = '"' : '"' : ""
 str s = s
+
+show_runs :: (Num a, Ord a) => [a] -> [String]
+show_runs = concatMap show_run . Seq.split_between (\a b -> a+1 < b)
+    where
+    show_run xs@(_:_:_:_) = [show (head xs) ++ ".." ++ show (last xs)]
+    show_run xs = map show xs
 
 -- * set_inst_status
 
@@ -98,7 +105,6 @@ get_track_status block_id ttree tracknum = case note_track_of ttree tracknum of
         return $ Printf.printf "%s at %d: %s -- [%s]" title note_tracknum
             (show_addrs addrs) (Seq.join ", " track_descs)
     Nothing -> return $ "track " ++ show tracknum ++ ": no inst"
-
 
 find_track :: TrackNum -> State.TrackTree -> Maybe (Tree.Tree State.TrackInfo)
 find_track tracknum = Util.Tree.find ((==tracknum) . State.track_tracknum)

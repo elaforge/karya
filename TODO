@@ -5,6 +5,10 @@ CURRENT
     This is bad because if you start on a note it will lose any tuning it had.
 
 UNSORTED
+  - keyboard editing: non-chord mode that advances as soon as it gets NoteOn
+    either an easier way to set note duration, or tracker style where every
+    note extends to the end of the track or the next event
+  * track info should collapse consecutive channels into a lo..hi range
   * zoom isn't zooming around the cursor properly
   - set skel to ruler / track 0 makes State.verify unhappy
   - put timing info in rederive msgs, see how long derivation took
