@@ -10,7 +10,7 @@ UNSORTED
     note extends to the end of the track or the next event
   * track info should collapse consecutive channels into a lo..hi range
   * zoom isn't zooming around the cursor properly
-  - set skel to ruler / track 0 makes State.verify unhappy
+  * set skel to ruler / track 0 makes State.get_track_tree unhappy
   - put timing info in rederive msgs, see how long derivation took
   - why does track merge / unmerge cause splice failures?
   * muting a note track means it thinks the control track is a note track, and

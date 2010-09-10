@@ -597,6 +597,7 @@ toggle_skeleton_edge :: (UiStateMonad m) => BlockId
     -> (TrackNum, TrackNum) -> m Bool
 toggle_skeleton_edge block_id edge = do
     block <- get_block block_id
+    when_just (verify_edge block edge) (throw . ("toggle: " ++))
     let skel = Block.block_skeleton block
     case Skeleton.toggle_edge edge skel of
         Nothing -> return False
@@ -611,9 +612,18 @@ toggle_skeleton_edge block_id edge = do
 splice_skeleton :: (UiStateMonad m) => BlockId -> (TrackNum, TrackNum) -> m ()
 splice_skeleton block_id edge = do
     block <- get_block block_id
+    when_just (verify_edge block edge) (throw . ("splice: " ++))
     let skel = Block.block_skeleton block
     set_block block_id $
         block { Block.block_skeleton = Skeleton.splice edge skel }
+
+verify_edge :: Block.Block -> (TrackNum, TrackNum) -> Maybe String
+verify_edge block (from, to) = case (Seq.at tracks from, Seq.at tracks to) of
+    (Just t1, Just t2) -> case (Block.tracklike_id t1, Block.tracklike_id t2) of
+        (Block.TId {}, Block.TId {}) -> Nothing
+        _ -> Just "edge points to non event track"
+    _ -> Just "edge points to track out of range"
+    where tracks = Block.block_tracks block
 
 -- *** TrackTree
 

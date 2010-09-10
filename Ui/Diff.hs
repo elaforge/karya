@@ -8,7 +8,6 @@ import Control.Monad
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Identity as Identity
 import qualified Data.Map as Map
-import qualified Data.List as List
 
 import qualified Util.Seq as Seq
 import qualified Util.Logger as Logger
