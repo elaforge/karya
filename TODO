@@ -16,13 +16,13 @@ UNSORTED
   - get rid of Diff.track_diff by doing all diffs in the main diff, and
     avoid sending msgs back to the UI by having ui msgs cancel updates.
 
-  - muting a track should replace it with a nop, not remove it entirely
+  * muting a track should replace it with a nop, not remove it entirely
   - save/ratio_ptq does weird things: base note missing, base note bends with
     melody
   - why does logview go to 100 cpu?
     put some prints in there to see what it's doing when it does that
   - Log msgs are getting munched together.  The logging lock isn't working?
-  - track should get damage due to TrackFlag change, not DisplayTrack updates
+  * track should get damage due to TrackFlag change, not DisplayTrack updates
   - paste was wrong (lost first event from the copy range)
   - lang cmds to rederive / perform within selection
   - am I even using Pitch.scale_set_pitch_bend?  what does it mean exactly?
@@ -30,8 +30,6 @@ UNSORTED
     Maybe I can get rid of the Instrument.inst_control_map if I do the mapping
     in generate_note
     use case: drum tracks with symbols
-  - see if making a version of Derive.local that's non-monadic in the modifier
-    has any effect on performance
   - now that the signal deriver is gone, I can also get rid of ignore_tempo,
     unless I want to use it for a lilypond backend or something
   - tracks with no ruler should default to free selection placement
@@ -241,6 +239,8 @@ performance:
     - cache track cmds for each track, update when the track title or skeleton
       changes
   Derive
+    - see if making a version of Derive.local that's non-monadic in the modifier
+      has any effect on performance
     derive cache
       - c_block should only cache if the block has > a certain number of events.
       - implement tracks as generators so they can be cached too

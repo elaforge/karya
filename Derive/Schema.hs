@@ -238,11 +238,11 @@ track_type _ (State.TrackInfo title _ _) _ False =
 
 default_schema_deriver :: SchemaDeriver Derive.EventDeriver
 default_schema_deriver block_id =
-    fmap (compile block_id) (State.get_unmuted_track_tree block_id)
+    fmap (compile block_id) (State.get_track_tree_mutes block_id)
 
 -- | Transform a deriver skeleton into a real deriver.  The deriver may throw
 -- if the skeleton was malformed.
-compile :: BlockId -> State.TrackTree -> Derive.EventDeriver
+compile :: BlockId -> State.TrackTreeMutes -> Derive.EventDeriver
 compile block_id tree = do
     -- d_tempo sets up some stuff that every block needs, so add one if a block
     -- doesn't have at least one top level tempo.
@@ -251,18 +251,21 @@ compile block_id tree = do
     with_default_tempo (sub_compile block_id tree)
 
 -- | Does this tree have a tempo track at the top level?
-has_tempo_track :: State.TrackTree -> Bool
-has_tempo_track = any $ \(Tree.Node track _) ->
+has_tempo_track :: State.TrackTreeMutes -> Bool
+has_tempo_track = any $ \(Tree.Node (track, _) _) ->
     TrackInfo.is_tempo_track (State.track_title track)
 
-sub_compile :: BlockId -> State.TrackTree -> Derive.EventDeriver
+sub_compile :: BlockId -> State.TrackTreeMutes -> Derive.EventDeriver
 sub_compile block_id tree = Derive.d_merge_asc (map with_track tree)
     where
-    with_track tree@(Tree.Node track _) =
+    with_track tree@(Tree.Node (track, _) _) =
         Derive.with_stack_track (State.track_id track) (_compile block_id tree)
 
-_compile :: BlockId -> Tree.Tree State.TrackInfo -> Derive.EventDeriver
-_compile block_id (Tree.Node (State.TrackInfo _ track_id _) subs)
+_compile :: BlockId -> Tree.Tree (State.TrackInfo, Bool) -> Derive.EventDeriver
+_compile block_id (Tree.Node (State.TrackInfo _ _ _, True) subs)
+    | null subs = return []
+    | otherwise = sub_compile block_id subs
+_compile block_id (Tree.Node (State.TrackInfo _ track_id _, False) subs)
     | null subs =
         Derive.track_setup track_id (Note.d_note_track block_id track_id)
     | otherwise = Control.d_control_track block_id track_id

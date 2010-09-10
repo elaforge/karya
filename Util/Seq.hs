@@ -391,3 +391,14 @@ replace val repl = replaceWith (replaceVal val repl)
 replaceVal val repl xs
     | val `List.isPrefixOf` xs = Just (repl, drop (length val) xs)
     | otherwise = Nothing
+
+split_between :: (a -> a -> Bool) -> [a] -> [[a]]
+split_between _ [] = []
+split_between f xs = pre : split_between f post
+    where (pre, post) = break_between f xs
+
+break_between :: (a -> a -> Bool) -> [a] -> ([a], [a])
+break_between f (x1 : xs@(x2:_))
+    | f x1 x2 = ([x1], xs)
+    | otherwise = let (pre, post) = break_between f xs in (x1 : pre, post)
+break_between _ xs = (xs, [])

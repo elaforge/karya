@@ -1,6 +1,5 @@
 module Ui.State_test where
 import qualified Data.Map as Map
-import qualified Data.Tree as Tree
 
 import qualified Util.Log as Log
 import Util.Test
@@ -21,30 +20,29 @@ test_verify = do
         ["block has 2 tracks while view has 0, fixing"]
     equal (snd (State.verify unbroken)) []
 
-test_get_track_tree_muted = do
+test_muted_tracknums = do
     let (_, st) = UiTest.run_mkstate
             [("tempo", []), (">i1", []), ("c1", []), (">i2", [])]
-        tree = [Tree.Node "tempo" [Tree.Node ">i2" [],
-            Tree.Node "c1" [Tree.Node ">i1" []]]]
-    let to_title = map (fmap State.track_title)
-        f = fmap to_title
-            (State.get_unmuted_track_tree UiTest.default_block_id)
-    let with_flag flag ts = UiTest.eval st $
+    let with_flag flag ts = UiTest.eval st $ do
             mapM_ (\n -> State.toggle_track_flag UiTest.default_block_id n flag)
-                ts >> f
+                ts
+            block <- State.get_block UiTest.default_block_id
+            tree <- State.get_track_tree UiTest.default_block_id
+            return $ State.muted_tracknums block tree
+    -- pprint (UiTest.eval st (State.get_track_tree UiTest.default_block_id))
 
     let mute = with_flag Block.Mute
-    equal (mute []) tree
-    equal (mute [1]) []
-    equal (mute [3]) [Tree.Node "tempo" [Tree.Node ">i2" []]]
-    equal (mute [4]) [Tree.Node "tempo" [Tree.Node "c1" [Tree.Node ">i1" []]]]
+    equal (mute []) []
+    equal (mute [1]) [1]
+    equal (mute [3]) [3]
+    equal (mute [4]) [4]
 
     -- solo keeps both parents and children alive
     let solo = with_flag Block.Solo
-    equal (solo [4]) [Tree.Node "tempo" [Tree.Node ">i2" []]]
-    equal (solo [3, 4]) tree
-    equal (solo [2, 4]) tree
-    equal (solo [1]) tree
+    equal (solo [4]) [2, 3]
+    equal (solo [3, 4]) []
+    equal (solo [2, 4]) []
+    equal (solo [1]) []
 
 mkid = UiTest.mkid
 

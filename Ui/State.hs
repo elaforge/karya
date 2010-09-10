@@ -619,6 +619,8 @@ splice_skeleton block_id edge = do
 
 -- | A TrackTree is the Skeleton resolved to the tracks it references.
 type TrackTree = Tree.Forest TrackInfo
+-- | A TrackTree annotated with which tracks are muted.
+type TrackTreeMutes = Tree.Forest (TrackInfo, Bool)
 
 -- | Summary information on a Track.
 data TrackInfo = TrackInfo {
@@ -650,18 +652,23 @@ get_track_tree block_id = do
             ++ " names missing tracknums: " ++ show really_missing
     return resolved
 
-get_unmuted_track_tree :: (UiStateMonad m) => BlockId -> m TrackTree
-get_unmuted_track_tree block_id = do
+get_track_tree_mutes :: (UiStateMonad m) => BlockId -> m TrackTreeMutes
+get_track_tree_mutes block_id = do
     tree <- get_track_tree block_id
     block <- get_block block_id
-    return $ filter_tracknums (muted_tracknums block tree) tree
+    return $ track_tree_mutes (muted_tracknums block tree) tree
 
 muted_tracknums :: Block.Block -> TrackTree -> [TrackNum]
 muted_tracknums block tree
     | null solo = mute
     | otherwise = map fst tracks List.\\ soloed
     where
-    tracks = Seq.enumerate (Block.block_tracks block)
+    tracks = [(i, track)
+        | (i, track) <- Seq.enumerate (Block.block_tracks block),
+        is_track track]
+    is_track track = case Block.tracklike_id track of
+        Block.TId {} -> True
+        _ -> False
     solo = [i | (i, t) <- tracks, Block.Solo `elem` Block.track_flags t]
     mute = [i | (i, t) <- tracks, Block.Mute `elem` Block.track_flags t]
     -- A soloed track will keep all its parents and children unmuted.
@@ -669,12 +676,11 @@ muted_tracknums block tree
         [ track_tracknum t : map track_tracknum (ps ++ cs)
         | (t, ps, cs) <- Tree.paths tree, track_tracknum t `elem` solo ]
 
-filter_tracknums :: [TrackNum] -> TrackTree -> TrackTree
-filter_tracknums muted forest = concatMap f forest
+track_tree_mutes :: [TrackNum] -> TrackTree -> TrackTreeMutes
+track_tree_mutes muted forest = map f forest
     where
-    f (Tree.Node info cs)
-        | track_tracknum info `elem` muted = []
-        | otherwise = [Tree.Node info (filter_tracknums muted cs)]
+    f (Tree.Node info subs) = Tree.Node (add_mute info) (map f subs)
+    add_mute info = (info, track_tracknum info `elem` muted)
 
 
 _tracks_of :: Block.Block -> Map.Map TrackId Track.Track
