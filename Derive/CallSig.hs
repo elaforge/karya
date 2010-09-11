@@ -15,7 +15,7 @@ import qualified Util.Seq as Seq
 import Derive.Derive (PassedArgs(..))
 import qualified Derive.Derive as Derive
 import qualified Derive.TrackLang as TrackLang
-import Derive.TrackLang (Typecheck, TypeError(..))
+import Derive.TrackLang (Typecheck)
 import qualified Derive.Score as Score
 
 import qualified Perform.Signal as Signal
@@ -72,12 +72,6 @@ required_control name = TrackLang.Control (Score.Control name)
 
 -- * extract and call
 
-type WithError = Either String
-
-with_error :: WithError result -> Either TypeError result
-with_error (Left s) = Left (ArgError s)
-with_error (Right v) = Right v
-
 -- | Each call function will typecheck and call a function.  For the @_error@
 -- variants, the function may also check the args and return Left, which will
 -- be converted into an ArgError.
@@ -89,53 +83,50 @@ with_error (Right v) = Right v
 -- TODO However with extensible exceptions couldn't I do this more cleanly?
 -- And I think if events consumed depends on deriver processing then this will
 -- be necessary.
-call0_error :: PassedArgs y -> WithError result -> Either TypeError result
-call0_error vals f = check_args vals [] >> with_error f
-call0 vals f = call0_error vals (return f)
+call0 :: PassedArgs y -> Derive.Deriver a -> Derive.Deriver a
+call0 vals f = check_args vals [] >> f
 
-extract1 :: (Typecheck a) => PassedArgs y -> Arg a -> Either TypeError a
+extract1 :: (Typecheck a) => PassedArgs y -> Arg a -> Derive.Deriver a
 extract1 vals sig0 = do
     arg0 : _ <- check_args vals [arg_required sig0]
     extract_arg 0 sig0 arg0
 
-call1_error :: (Typecheck a) => PassedArgs y -> Arg a -> (a -> WithError result)
-    -> Either TypeError result
-call1_error vals arg0 f = with_error . f =<< extract1 vals arg0
-call1 vals arg0 f = call1_error vals arg0 (return . f)
+call1 :: (Typecheck a) => PassedArgs y -> Arg a
+    -> (a -> Derive.Deriver result) -> Derive.Deriver result
+call1 vals arg0 f = f =<< extract1 vals arg0
 
 extract2 :: (Typecheck a, Typecheck b) =>
-    PassedArgs y -> (Arg a, Arg b) -> Either TypeError (a, b)
+    PassedArgs y -> (Arg a, Arg b) -> Derive.Deriver (a, b)
 extract2 vals (sig0, sig1) = do
     arg0 : arg1 : _ <- check_args vals [arg_required sig0, arg_required sig1]
     (,) <$> extract_arg 0 sig0 arg0 <*> extract_arg 1 sig1 arg1
 
-call2_error :: (Typecheck a, Typecheck b) =>
-    PassedArgs y -> (Arg a, Arg b) -> (a -> b -> WithError result)
-    -> Either TypeError result
-call2_error vals (arg0, arg1) f = do
+call2 :: (Typecheck a, Typecheck b) =>
+    PassedArgs y -> (Arg a, Arg b) -> (a -> b -> Derive.Deriver result)
+    -> Derive.Deriver result
+call2 vals (arg0, arg1) f = do
     (val0, val1) <- extract2 vals (arg0, arg1)
-    with_error $ f val0 val1
-call2 vals args f = call2_error vals args (\a0 a1 -> return (f a0 a1))
+    f val0 val1
 
 extract3 :: (Typecheck a, Typecheck b, Typecheck c) =>
-    PassedArgs y -> (Arg a, Arg b, Arg c) -> Either TypeError (a, b, c)
+    PassedArgs y -> (Arg a, Arg b, Arg c) -> Derive.Deriver (a, b, c)
 extract3 vals (sig0, sig1, sig2) = do
     arg0 : arg1 : arg2 : _ <- check_args vals
         [arg_required sig0, arg_required sig1, arg_required sig2]
     (,,) <$> extract_arg 0 sig0 arg0 <*> extract_arg 1 sig1 arg1
         <*> extract_arg 2 sig2 arg2
 
-call3_error :: (Typecheck a, Typecheck b, Typecheck c) =>
-    PassedArgs y -> (Arg a, Arg b, Arg c) -> (a -> b -> c -> WithError result)
-    -> Either TypeError result
-call3_error vals (arg0, arg1, arg2) f = do
+call3 :: (Typecheck a, Typecheck b, Typecheck c) =>
+    PassedArgs y -> (Arg a, Arg b, Arg c)
+    -> (a -> b -> c -> Derive.Deriver result)
+    -> Derive.Deriver result
+call3 vals (arg0, arg1, arg2) f = do
     (val0, val1, val2) <- extract3 vals (arg0, arg1, arg2)
-    with_error $ f val0 val1 val2
-call3 vals args f = call3_error vals args (\a0 a1 a2 -> return (f a0 a1 a2))
+    f val0 val1 val2
 
 extract4 :: (Typecheck a, Typecheck b, Typecheck c, Typecheck d) =>
     PassedArgs y -> (Arg a, Arg b, Arg c, Arg d)
-    -> Either TypeError (a, b, c, d)
+    -> Derive.Deriver (a, b, c, d)
 extract4 vals (sig0, sig1, sig2, sig3) = do
     arg0 : arg1 : arg2 : arg3 : _ <- check_args vals
         [arg_required sig0, arg_required sig1, arg_required sig2,
@@ -143,15 +134,13 @@ extract4 vals (sig0, sig1, sig2, sig3) = do
     (,,,) <$> extract_arg 0 sig0 arg0 <*> extract_arg 1 sig1 arg1
         <*> extract_arg 2 sig2 arg2 <*> extract_arg 3 sig3 arg3
 
-call4_error :: (Typecheck a, Typecheck b, Typecheck c, Typecheck d) =>
+call4 :: (Typecheck a, Typecheck b, Typecheck c, Typecheck d) =>
     PassedArgs y -> (Arg a, Arg b, Arg c, Arg d)
-    -> (a -> b -> c -> d -> WithError result)
-    -> Either TypeError result
-call4_error vals (arg0, arg1, arg2, arg3) f = do
+    -> (a -> b -> c -> d -> Derive.Deriver result)
+    -> Derive.Deriver result
+call4 vals (arg0, arg1, arg2, arg3) f = do
     (val0, val1, val2, val3) <- extract4 vals (arg0, arg1, arg2, arg3)
-    with_error $ f val0 val1 val2 val3
-call4 vals args f =
-    call4_error vals args (\a0 a1 a2 a3 -> return (f a0 a1 a2 a3))
+    f val0 val1 val2 val3
 
 -- | The call sequence is a little complicated because an argument can be
 -- given explicitly, given implicitly by the environment, or defaulted if
@@ -164,14 +153,20 @@ call4 vals args f =
 --
 -- Defaulting optional args and type-checking both require a typed 'Typecheck'
 -- instance and happen in 'extract_arg'.
-check_args :: PassedArgs y -> [(Bool, String)] -- ^ @(arg_required?, name)@
-    -> Either TypeError [Maybe TrackLang.Val]
-check_args passed args
-    | supplied_args < length required = Left $ ArgError $
+check_args :: PassedArgs y -> [(Bool, String)]
+    -> Derive.Deriver [Maybe TrackLang.Val]
+check_args passed args = either (Derive.throw_error . Derive.CallError) return
+    (pure_check_args passed args)
+
+pure_check_args :: PassedArgs y
+    -> [(Bool, String)] -- ^ @(arg_required?, name)@
+    -> Either Derive.CallError [Maybe TrackLang.Val]
+pure_check_args passed args
+    | supplied_args < length required = Left $ Derive.ArgError $
         "too few arguments: " ++ expected
-    | length vals > length args = Left $ ArgError $
+    | length vals > length args = Left $ Derive.ArgError $
         "too many arguments: " ++ expected
-    | not (null bad_required) = Left $ ArgError $
+    | not (null bad_required) = Left $ Derive.ArgError $
         "required arg can't follow an optional one: "
             ++ Seq.join ", " [show i ++ "/" ++ name | (i, name) <- bad_required]
     | otherwise = Right $ defaulted_vals ++ repeat Nothing
@@ -197,8 +192,14 @@ check_args passed args
             else " (" ++ show from_env ++ " from environ)"
 
 extract_arg :: (Typecheck a) => Int -> Arg a -> Maybe TrackLang.Val
-    -> Either TypeError a
-extract_arg argno arg maybe_val = case (arg_default arg, maybe_val2) of
+    -> Derive.Deriver a
+extract_arg argno arg maybe_val =
+    either (Derive.throw_error . Derive.CallError) return
+        (pure_extract_arg argno arg maybe_val)
+
+pure_extract_arg :: (Typecheck a) => Int -> Arg a -> Maybe TrackLang.Val
+    -> Either Derive.CallError a
+pure_extract_arg argno arg maybe_val = case (arg_default arg, maybe_val2) of
         (Nothing, Nothing) -> err Nothing
         (_, Just val) -> check val
         (Just v, Nothing) -> Right v
@@ -209,7 +210,7 @@ extract_arg argno arg maybe_val = case (arg_default arg, maybe_val2) of
     check val = case TrackLang.from_val val of
         Nothing -> err (Just val)
         Just v -> Right v
-    err val = Left (TypeError argno (arg_name arg) (arg_type arg) val)
+    err val = Left (Derive.TypeError argno (arg_name arg) (arg_type arg) val)
 
 -- | Cast a Val to a haskell val, or throw if it's the wrong type.
 cast :: forall a. (Typecheck a) => String -> TrackLang.Val -> Derive.Deriver a

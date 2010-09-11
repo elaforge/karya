@@ -1,8 +1,4 @@
 CURRENT
-  * seeking to play in a certain place will miss any controller initialization
-    but I could get that back by having Cache.messages_from inspect postproc
-    state to get the control state
-    This is bad because if you start on a note it will lose any tuning it had.
 
 UNSORTED
   - keyboard editing: non-chord mode that advances as soon as it gets NoteOn
@@ -108,7 +104,7 @@ UNSORTED
     something.
 
   - Derive.with_* should use local, or at least finally
-  - put TypeError into DeriveError and use Call.default_relative_note
+  * put TypeError into DeriveError and use Call.default_relative_note
   - LPitch.to_relative was broken by notes as calls, fix it
   - implement add_hz in Derive.Scale.Util
     or at least think about how to implement pengumbang and pengisep
@@ -120,8 +116,6 @@ UNSORTED
   / move MakeRuler to Lang too?
     no, it's used by Cmd.Create, which is used by keybindings
 
-  - clicking jumps to timestep points that arrows won't jump to
-    this happens after scrolling
   - playback should have multiple lines when a block is derived multiple times
     have a set of playback selnums?
   - should be able to rescan midi ports when something new is plugged in
@@ -184,12 +178,9 @@ note input / thru:
 
 bugs:
   - #(poke Mispeled, field) fieldp field results in compiler bus error
-  - clipboard is not copying the skeleton
-  - deriving signal causes event derive to fail too?
   - keymap collisions are logged twice
   - Create.rename_project loses the merged tracks
   * bring block windows to the front after a load / no don't, it's annoying
-
   - tracks with different tempos play correctly, but playback follows tempo
   - unparsed notes are played instead of dropped, it's because the pitch is
     dropped but not the note
@@ -211,8 +202,6 @@ cleanup:
     On the other hand, it's not unreasonable for logs to use other data types
   - having collapsed state in c++ is kind of error-prone, should I go back to
     trying to put it in haskell?
-  * hspp doesn't catch calls to Derive.throw and Derive.warn within Derive
-  * hspp screws up \\ string continuations
   error prone things:
     - setting some state like project directly through State won't update
       global status.  Maybe I could fix this and also avoid the scattered syncs
@@ -280,11 +269,11 @@ performance:
       Deriver [Event] output is not lazy, because ErrorT won't let it be.
       I think this means I need to localize derive exceptions and remove ErrorT
       from DeriveT.  I still run calls in ErrorT though.
-      - exceptions are limited to calls in the track so the event output can be
+      - Exceptions are limited to calls in the track so the event output can be
         lazy.  But calls call other blocks, so what about that?  Can I eliminate
         DeriveError altogether?
-      - tempo map and inv tempo map have to be lazy, so they don't force the
-        entire derivation as soon as the first sample is touched
+      - Tempo map and inv tempo map have to be lazy, so they don't force the
+        entire derivation as soon as the first sample is touched.
 
     - more efficient type for events:
       data EventList = Nil (Maybe Exception)

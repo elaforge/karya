@@ -124,21 +124,18 @@ pitch_calls = Derive.make_calls
     ]
 
 c_pitch_absolute_trill :: Derive.PitchCall
-c_pitch_absolute_trill = Derive.generator "pitch_absolute_trill" $ \args ->
-    if Call.in_relative_scale args
-        then CallSig.call2 args (cneighbor, cspeed) $ \neighbor speed -> do
-            degree <- Call.eval_note (Pitch.Note "0")
-            go args degree neighbor speed
-        else CallSig.call3 args (required "degree", cneighbor, cspeed) (go args)
-    where
-    cneighbor = optional "neighbor" (control "trill-neighbor" 1)
-    cspeed = optional "speed" (control "trill-speed" 14)
-    go args degree neighbor speed = do
-        speed_sig <- Call.to_signal speed
-        neighbor_sig <- Call.to_signal neighbor
-        next_event <- maybe (return 1) Derive.score_to_real
-            (Derive.passed_next_begin args)
-        pitch_absolute_trill degree speed_sig neighbor_sig next_event
+c_pitch_absolute_trill = Derive.generator "pitch_absolute_trill" $ \args -> do
+    args <- Call.default_relative_note args
+    CallSig.call3 args
+        (required "degree",
+            optional "neighbor" (control "trill-neighbor" 1),
+            optional "speed" (control "trill-speed" 14)) $
+        \degree neighbor speed -> do
+            speed_sig <- Call.to_signal speed
+            neighbor_sig <- Call.to_signal neighbor
+            next_event <- maybe (return 1) Derive.score_to_real
+                (Derive.passed_next_begin args)
+            pitch_absolute_trill degree speed_sig neighbor_sig next_event
 
 pitch_absolute_trill :: Pitch.Degree -> Signal.Control -> Signal.Control
     -> RealTime -> Derive.PitchDeriver

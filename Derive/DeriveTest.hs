@@ -9,6 +9,7 @@ import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Log as Log
+import qualified Util.Pretty as Pretty
 -- import qualified Util.SrcPos as SrcPos
 import Util.Test
 
@@ -51,11 +52,11 @@ pitch_interpolate x0 y0 x1 y1 = drop 1 [(x, (y0, y1, to_n x)) | x <- [x0 .. x1]]
 
 -- * run
 
-run :: State.State -> Derive.DeriveT Identity.Identity a
+run :: State.State -> Derive.Deriver a
     -> Either String (a, Derive.State, [Log.Msg])
 run ui_state m =
     case Identity.runIdentity (Derive.run derive_state m) of
-        (Left err, _, _logs) -> Left (Derive.error_message err)
+        (Left err, _, _logs) -> Left (Pretty.pretty err)
         (Right val, state, logs) -> Right (val, state, logs)
     where
     -- Make sure Derive.get_current_block_id, called by add_track_warp, doesn't
@@ -65,6 +66,12 @@ run ui_state m =
         ui_state Monoid.mempty (default_lookup_deriver ui_state)
         Call.All.call_map default_environ False)
             { Derive.state_stack = initial_stack }
+
+eval :: State.State -> Derive.Deriver a -> Either String a
+eval state m = case run state m of
+    Left err -> Left err
+    Right (val, _, _) -> Right val
+
 
 -- * derive
 

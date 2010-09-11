@@ -27,7 +27,7 @@ global_macros = map (SrcposMacro (Just "Util.Log"))
     , "debug_stack", "notice_stack", "warn_stack", "error_stack"
     ]
     ++ map (SrcposMacro (Just "Derive.Derive"))
-    [ "throw", "debug", "notice", "warn", "error"
+    [ "throw", "throw_error", "throw_arg_error"
     ]
 
 -- These are only substituted in test modules.

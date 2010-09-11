@@ -10,7 +10,7 @@ module Util.Log (
     initialize, swap_state
     -- * msgs
     , Msg(..), msg_string, Prio(..), State(..)
-    , msg, msg_srcpos, make_msg
+    , msg, msg_srcpos, make_msg, make_uninitialized_msg
     , timer, debug, notice, warn, error
     , is_first_timer, first_timer_prefix
     , timer_srcpos, debug_srcpos, notice_srcpos, warn_srcpos, error_srcpos
@@ -120,10 +120,16 @@ msg_srcpos srcpos prio text = make_msg srcpos prio Nothing text
 msg :: (LogMonad m) => Prio -> String -> m Msg
 msg prio = msg_srcpos Nothing prio
 
--- | This should be the only way to construct a Msg.
+-- | This is the main way to construct a Msg since 'initialize_msg' is called.
 make_msg :: (LogMonad m) =>
     SrcPos.SrcPos -> Prio -> Maybe Stack.Stack -> String -> m Msg
-make_msg srcpos prio stack text = initialize_msg $
+make_msg srcpos prio stack text =
+    initialize_msg (make_uninitialized_msg srcpos prio stack text)
+
+-- | Create a msg without initializing it.
+make_uninitialized_msg :: SrcPos.SrcPos -> Prio -> Maybe Stack.Stack -> String
+    -> Msg
+make_uninitialized_msg srcpos prio stack text =
     Msg no_date_yet srcpos prio stack (Text.pack text) []
 
 log :: (LogMonad m) => Prio -> SrcPos.SrcPos -> String -> m ()

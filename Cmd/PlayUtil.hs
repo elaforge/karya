@@ -93,9 +93,8 @@ perform :: (Monad m) => Derive.Result Derive.Events -> Midi.Cache.Cache
     -> Cmd.CmdT m Cmd.Performance
 perform result cache = do
     events <- case Derive.r_result result of
-        Left (Derive.DeriveError srcpos stack msg) -> do
-            msg <- Log.msg_srcpos srcpos Log.Warn ("deriving: " ++ msg)
-            Log.write $ msg { Log.msg_stack = Just stack }
+        Left err -> do
+            Log.write (Derive.error_to_warn err)
             Cmd.abort
         Right events -> return events
 

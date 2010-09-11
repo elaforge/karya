@@ -30,7 +30,6 @@ import Derive.Derive (
     , GeneratorDep(..), TransformerType(..)
     , ScoreDamage(..), DamageRanges, EventDamage(..), ControlDamage(..))
 import qualified Derive.Stack as Stack
-import qualified Derive.TrackLang as TrackLang
 
 
 -- * cached_transformer
@@ -51,9 +50,7 @@ import qualified Derive.TrackLang as TrackLang
 cached_transformer :: (Derive.Derived derived) => Cache -> Stack.Stack
     -> Derive.TransformerCall derived -> Derive.PassedArgs derived
     -> Derive.Deriver derived
-    -> Derive.Deriver
-        -- TODO this gets simpler once I integrate TypeError into DeriveError
-        (Either TrackLang.TypeError (Derive.Deriver derived), Maybe Cache)
+    -> Derive.Deriver (Derive.Deriver derived, Maybe Cache)
 cached_transformer cache stack (Derive.TransformerCall call ttype)
         args deriver =
     case ttype of
@@ -138,8 +135,7 @@ control_damage = undefined
 -- This is called around each generator, or possibly a group of generators.
 cached_generator :: (Derive.Derived derived) => CacheState -> Stack.Stack
     -> Derive.GeneratorCall derived -> Derive.PassedArgs derived
-    -> Derive.Deriver
-        (Either TrackLang.TypeError (Derive.Deriver derived), Maybe Cache)
+    -> Derive.Deriver (Derive.Deriver derived, Maybe Cache)
 cached_generator state stack (Derive.GeneratorCall func gtype _) args =
     case gtype of
         Derive.NonCachingGenerator ->
@@ -155,17 +151,15 @@ cached_generator state stack (Derive.GeneratorCall func gtype _) args =
     -- to emit event damage if it was rederived because of score or control
     -- damage.  Otherwise, damage on a track of non-caching generators would
     -- never produce EventDamage.
-    non_caching True = case func args of
-        Left err -> return (Left err, Nothing)
-        Right deriver -> do
-            derived <- deriver
-            -- In the case of samples, this range is not accurate, since the
-            -- changed region actually extends to the *next* sample.  But
-            -- I don't know what that is here, so rely on the control deriver
-            -- to do that.  Ugh, not too pretty.
-            Derive.insert_local_damage
-                (EventDamage (Derive.derived_range derived))
-            return (Right (return derived), Nothing)
+    non_caching True = do
+        derived <- func args
+        -- In the case of samples, this range is not accurate, since the
+        -- changed region actually extends to the *next* sample.  But
+        -- I don't know what that is here, so rely on the control deriver
+        -- to do that.  Ugh, not too pretty.
+        Derive.insert_local_damage
+            (EventDamage (Derive.derived_range derived))
+        return (return derived, Nothing)
     non_caching False = return (func args, Nothing)
     generate (Right (collect, cached)) = do
         Log.debug $ "using cache (" ++ show (Derive.derived_length cached)
@@ -173,22 +167,20 @@ cached_generator state stack (Derive.GeneratorCall func gtype _) args =
         -- The cached deriver must return the same collect as it would if it
         -- had been actually derived.
         Derive.modify_collect $ \st -> Monoid.mappend collect st
-        return (Right (return cached), Nothing)
-    generate (Left reason) = case func args of
-        Left err -> return (Left err, Nothing)
-        Right deriver -> do
-            (result, collect) <- with_collect deriver
-            cur_cache <- state_cache <$> Derive.get_cache_state
-            let derived = either (const Derive.empty_derived) id result
-            let new_cache = insert_generator stack collect derived cur_cache
-            Log.debug $ "rederived generator ("
-                ++ show (Derive.derived_length derived) ++ " vals) because of "
-                ++ reason ++ case result of
-                    Left exc -> "  Raised: " ++ show exc
-                    Right _ -> ""
-            case result of
-                Left exc -> Error.throwError exc
-                Right derived -> return (Right (return derived), Just new_cache)
+        return (return cached, Nothing)
+    generate (Left reason) = do
+        (result, collect) <- with_collect (func args)
+        cur_cache <- state_cache <$> Derive.get_cache_state
+        let derived = either (const Derive.empty_derived) id result
+        let new_cache = insert_generator stack collect derived cur_cache
+        Log.debug $ "rederived generator ("
+            ++ show (Derive.derived_length derived) ++ " vals) because of "
+            ++ reason ++ case result of
+                Left exc -> "  Raised: " ++ show exc
+                Right _ -> ""
+        case result of
+            Left exc -> Error.throwError exc
+            Right derived -> return (return derived, Just new_cache)
 
     -- To get the deps of just the deriver below me, I have to clear out
     -- the local deps.  But this call is itself collecting deps for another

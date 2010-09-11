@@ -167,29 +167,10 @@ degree_at pos control = PitchSignal.y_to_degree <$> pitch_at pos control
 
 -- * util
 
-one_note :: Either TrackLang.TypeError Derive.EventDeriver
-    -> Either TrackLang.TypeError (Derive.EventDeriver, Int)
-one_note = fmap $ \d -> (d, 1)
-
--- | Return True if I'm in a relative scale context.
---
--- There are a set of pitch calls that need a \"note\" arg when called in an
--- absolute context, but can more usefully default to @(Note "0")@ in
--- a relative track.
-in_relative_scale :: Derive.PassedArgs derived -> Bool
-in_relative_scale args = case TrackLang.lookup_val TrackLang.v_scale environ of
-        Right scale -> Pitch.is_relative (Pitch.scale_id scale)
-        _ -> False
-    where environ = Derive.passed_environ args
-
 -- | There are a set of pitch calls that need a \"note\" arg when called in an
 -- absolute context, but can more usefully default to @(Note "0")@ in
 -- a relative track.  This will prepend a note arg if the scale in the environ
 -- is relative.
---
--- TODO this is much easier to use than 'in_relative_scale' but doesn't work
--- since it needs to be in Deriver.  If I put TypeError into DeriveError then
--- I can do it
 default_relative_note :: Derive.PassedArgs derived
     -> Derive.Deriver (Derive.PassedArgs derived)
 default_relative_note args
@@ -349,12 +330,9 @@ apply_generator (dinfo, cinfo) (TrackLang.Call call_id args) = do
         Just gen -> do
             cache <- Derive.gets Derive.state_cache_state
             stack <- Derive.gets Derive.state_stack
-            result <- Cache.cached_generator cache stack gen args
-            case result of
-                (Left err, _) -> Derive.throw $ Pretty.pretty err
-                (Right deriver, new_cache) -> do
-                    maybe (return ()) Derive.put_cache new_cache
-                    deriver
+            (deriver, new_cache) <- Cache.cached_generator cache stack gen args
+            when_just new_cache Derive.put_cache
+            deriver
         Nothing -> Derive.throw $ "non-generator in generator position: "
             ++ Derive.call_name call
 
@@ -375,12 +353,9 @@ apply_transformer info@(dinfo, cinfo) (TrackLang.Call call_id args : calls)
     let with_stack = Derive.with_stack_call (Derive.call_name call)
     with_stack $ case Derive.call_transformer call of
         Just trans -> do
-            result <- cached trans args new_deriver
-            case result of
-                (Left err, _) -> Derive.throw $ Pretty.pretty err
-                (Right result, new_cache) -> do
-                    maybe (return ()) Derive.put_cache new_cache
-                    result
+            (transformed, new_cache) <- cached trans args new_deriver
+            when_just new_cache Derive.put_cache
+            transformed
         Nothing -> Derive.throw $ "non-transformer in transformer position: "
             ++ Derive.call_name call
 
@@ -394,13 +369,11 @@ apply :: TrackLang.CallId -> Derive.ValCall -> [TrackLang.Term]
     -> Derive.Deriver TrackLang.Val
 apply call_id call args = do
     env <- Derive.gets Derive.state_environ
-    let with_msg = Derive.with_msg $ "val call " ++ Derive.vcall_name call
     vals <- mapM eval args
     let args = Derive.PassedArgs vals env call_id
             (Derive.dummy_call_info "val-call")
-    case Derive.vcall_call call args of
-        Left err -> with_msg $ Derive.throw $ Pretty.pretty err
-        Right result -> with_msg result
+    Derive.with_msg ("val call " ++ Derive.vcall_name call) $
+        Derive.vcall_call call args
 
 with_call :: TrackLang.CallId
     -> (TrackLang.CallId -> Derive.Deriver (Maybe call)) -> Derive.Deriver call
@@ -427,8 +400,8 @@ lookup_note_call call_id = do
 c_block :: BlockId -> Derive.NoteCall
 c_block block_id = add_block $ Derive.caching_generator "block" $ \args ->
     if null (Derive.passed_vals args)
-        then Right $ block_call block_id
-        else Left $ TrackLang.ArgError "args for block call not implemented yet"
+        then block_call block_id
+        else Derive.throw_arg_error "args for block call not implemented yet"
     where
     add_block call =
         call { Derive.call_generator = add <$> Derive.call_generator call }
@@ -480,21 +453,22 @@ lookup_call get_cmap call_id = do
 c_equal :: (Derive.Derived derived) => Derive.Call derived
 c_equal = Derive.transformer "equal" $ \args deriver ->
     case Derive.passed_vals args of
-        [TrackLang.VSymbol assignee, val] -> Right $ do
+        [TrackLang.VSymbol assignee, val] -> do
             Derive.with_val assignee val deriver
-        [control -> Just assignee, TrackLang.VControl val] -> Right $ do
+        [control -> Just assignee, TrackLang.VControl val] -> do
             sig <- to_signal val
             Derive.with_control assignee sig deriver
-        [control -> Just assignee, TrackLang.VNum val] -> Right $ do
+        [control -> Just assignee, TrackLang.VNum val] -> do
             Derive.with_control assignee (Signal.constant val) deriver
-        [pitch -> Just assignee, TrackLang.VPitchControl val] -> Right $ do
+        [pitch -> Just assignee, TrackLang.VPitchControl val] -> do
             sig <- to_pitch_signal val
             Derive.with_pitch assignee sig deriver
-        [pitch -> Just assignee, TrackLang.VDegree val] -> Right $ do
+        [pitch -> Just assignee, TrackLang.VDegree val] -> do
             scale_id <- get_scale_id
             Derive.with_pitch assignee (PitchSignal.constant scale_id val)
                 deriver
-        _ -> Left $ TrackLang.ArgError "unhappy"
+        _ -> Derive.throw_arg_error
+            "equal call expected (sym, val) or (sig, sig) args"
     where
     control (TrackLang.VControl (TrackLang.Control c)) = Just c
     control _ = Nothing

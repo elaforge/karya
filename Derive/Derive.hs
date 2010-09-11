@@ -443,8 +443,7 @@ type PitchCall = Call Pitch
 
 data ValCall = ValCall {
     vcall_name :: String
-    , vcall_call :: PassedArgs TrackLang.Val
-        -> Either TrackLang.TypeError (Deriver TrackLang.Val)
+    , vcall_call :: PassedArgs TrackLang.Val -> Deriver TrackLang.Val
     }
 
 instance Show ValCall where
@@ -469,8 +468,7 @@ data GeneratorCall derived = GeneratorCall {
     }
 
 -- | args -> deriver
-type GeneratorFunc derived = PassedArgs derived
-    -> Either TrackLang.TypeError (Deriver derived)
+type GeneratorFunc derived = PassedArgs derived -> Deriver derived
 
 generator :: (Derived derived) =>
     String -> GeneratorFunc derived -> Call derived
@@ -490,8 +488,8 @@ data TransformerCall derived = TransformerCall {
     }
 
 -- | args -> deriver -> deriver
-type TransformerFunc derived = PassedArgs derived -> Deriver derived
-    -> Either TrackLang.TypeError (Deriver derived)
+type TransformerFunc derived =
+    PassedArgs derived -> Deriver derived -> Deriver derived
 
 transformer :: (Derived derived) =>
     String -> TransformerFunc derived -> Call derived
@@ -528,17 +526,6 @@ data TrackWarp = TrackWarp {
     , tw_warp :: Score.Warp
     } deriving (Eq, Show)
 
-data DeriveError = DeriveError SrcPos.SrcPos Stack.Stack String
-    deriving (Eq)
-instance Error.Error DeriveError where
-    strMsg = DeriveError Nothing Stack.empty
-instance Show DeriveError where
-    show (DeriveError srcpos stack msg) =
-        "<DeriveError " ++ SrcPos.show_srcpos srcpos ++ " "
-        ++ Pretty.pretty stack ++ ": " ++ msg ++ ">"
-
-error_message :: DeriveError -> String
-error_message (DeriveError _ _ s) = s
 
 instance Monad m => Log.LogMonad (DeriveT m) where
     write = DeriveT . lift . lift . Log.write
@@ -663,7 +650,7 @@ d_subderive deriver = do
     let (res, state2, logs) = Identity.runIdentity $ run state deriver
     mapM_ Log.write logs
     case res of
-        Left (DeriveError srcpos stack msg) -> do
+        Left err -> do
             -- HACKERY
             --
             -- If a sub-derivation failed, I need to emit EventDamage in
@@ -686,8 +673,7 @@ d_subderive deriver = do
                 then return $ Ranges.everything
                 else Ranges.range <$> score_to_real 0 <*> score_to_real 1
             insert_event_damage (EventDamage range)
-            msg <- Log.msg_srcpos srcpos Log.Warn ("DeriveError: " ++ msg)
-            Log.write $ msg { Log.msg_stack = Just stack }
+            Log.write (error_to_warn err)
             let new_collect = (state_collect state2)
                     { collect_track_warps = [] }
             modify $ \st -> st { state_collect = new_collect }
@@ -836,14 +822,63 @@ modify_cache_state f = modify $ \st ->
 
 -- ** errors
 
+data DeriveError = DeriveError SrcPos.SrcPos Stack.Stack ErrorVal
+    deriving (Eq, Show)
+
+instance Pretty.Pretty DeriveError where
+    pretty (DeriveError srcpos stack val) = "<DeriveError "
+        ++ SrcPos.show_srcpos srcpos ++ " " ++ Pretty.pretty stack ++ ": "
+        ++ Pretty.pretty val ++ ">"
+
+data ErrorVal = Error String | CallError CallError
+    deriving (Eq, Show)
+
+instance Pretty.Pretty ErrorVal where
+    pretty (Error s) = s
+    pretty (CallError err) = Pretty.pretty err
+
+instance Error.Error DeriveError where
+    strMsg _ = DeriveError Nothing Stack.empty
+        (Error "Why are you calling fail?  Don't do that!")
+
+data CallError =
+    -- | arg number, arg name, expected type, received val
+    TypeError Int String TrackLang.Type (Maybe TrackLang.Val)
+    -- | Couldn't even call the thing because the name was not found.
+    | CallNotFound TrackLang.CallId
+    -- | Calling error that doesn't fit into the above categories.
+    | ArgError String
+    deriving (Eq, Show)
+
+instance Pretty.Pretty CallError where
+    pretty err = case err of
+        TypeError argno name expected received ->
+            "TypeError: arg " ++ show argno ++ "/" ++ name ++ ": expected "
+            ++ Pretty.pretty expected ++ " but got "
+            ++ Pretty.pretty (TrackLang.type_of <$> received)
+            ++ " " ++ Pretty.pretty received
+        ArgError err -> "ArgError: " ++ err
+        CallNotFound call_id -> "CallNotFound: " ++ Pretty.pretty call_id
+
 throw :: (Monad m) => String -> DeriveT m a
-throw = throw_srcpos Nothing
+throw msg = throw_error (Error msg)
 
 throw_srcpos :: (Monad m) => SrcPos.SrcPos -> String -> DeriveT m a
-throw_srcpos srcpos msg = do
+throw_srcpos srcpos msg = throw_error_srcpos srcpos (Error msg)
+
+throw_arg_error :: (Monad m) => String -> DeriveT m a
+throw_arg_error = throw_arg_error_srcpos Nothing
+
+throw_arg_error_srcpos :: (Monad m) => SrcPos.SrcPos -> String -> DeriveT m a
+throw_arg_error_srcpos srcpos = throw_error_srcpos srcpos . CallError . ArgError
+
+throw_error :: (Monad m) => ErrorVal -> DeriveT m a
+throw_error = throw_error_srcpos Nothing
+
+throw_error_srcpos :: (Monad m) => SrcPos.SrcPos -> ErrorVal -> DeriveT m a
+throw_error_srcpos srcpos err = do
     stack <- gets state_stack
-    context <- gets state_log_context
-    Error.throwError (DeriveError srcpos stack (add_context context msg))
+    Error.throwError (DeriveError srcpos stack err)
 
 require :: String -> Maybe a -> Deriver a
 require msg = maybe (throw msg) return
@@ -857,8 +892,12 @@ with_msg msg = local state_log_context
 -- value.
 catch_warn :: (Monad m) => DeriveT m a -> DeriveT m a -> DeriveT m a
 catch_warn deflt deriver = Error.catchError deriver $
-    \(DeriveError srcpos stack msg) ->
-        Log.warn_stack_srcpos srcpos stack msg >> deflt
+    \err -> Log.write (error_to_warn err) >> deflt
+
+error_to_warn :: DeriveError -> Log.Msg
+error_to_warn (DeriveError srcpos stack val) =
+    Log.make_uninitialized_msg srcpos Log.Warn (Just stack)
+        ("DeriveError: " ++ Pretty.pretty val)
 
 
 -- ** environment

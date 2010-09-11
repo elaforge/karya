@@ -79,9 +79,9 @@ c_note_linear :: Derive.PitchCall
 c_note_linear = Derive.generator "note_linear" $ \args ->
     case Derive.passed_vals args of
         [] -> case Derive.passed_prev_val args of
-            Nothing -> return $
+            Nothing ->
                 Derive.throw "can't set to previous val when there was none"
-            Just (_, prev_y) -> return $ do
+            Just (_, prev_y) -> do
                 pos <- Derive.now
                 scale_id <- Call.get_scale_id
                 return $ PitchSignal.signal scale_id [(pos, prev_y)]
@@ -119,22 +119,16 @@ c_note_slide = Derive.generator "note_slide" $ \args -> CallSig.call2 args
 --
 -- [time /Number/ @.3@] Duration of ornament, in seconds.
 c_neighbor :: Derive.PitchCall
-c_neighbor = Derive.generator "neighbor" $ \args ->
-    if Call.in_relative_scale args
-        then CallSig.call2 args (cneighbor, ctime) $ \neighbor time -> do
-            degree <- Call.eval_note (Pitch.Note "0")
-            go degree neighbor time
-        else CallSig.call3 args (required "degree", cneighbor, ctime) go
-    where
-    cneighbor = optional "neighbor" 1
-    ctime = optional "time" 0.1
-    go degree neighbor time = do
-        start <- Derive.now
-        let end = start + RealTime time
-        scale_id <- Call.get_scale_id
-        srate <- Call.get_srate
-        return $ interpolator srate id scale_id True
-            start (Pitch.Degree neighbor + degree) end degree
+c_neighbor = Derive.generator "neighbor" $ \args -> do
+    args <- Call.default_relative_note args
+    CallSig.call3 args (required "degree", optional "neighbor" 1,
+        optional "time" 0.1) $ \degree neighbor time -> do
+            start <- Derive.now
+            let end = start + RealTime time
+            scale_id <- Call.get_scale_id
+            srate <- Call.get_srate
+            return $ interpolator srate id scale_id True
+                start (Pitch.Degree neighbor + degree) end degree
 
 -- ** pitch util
 

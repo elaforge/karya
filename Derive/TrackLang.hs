@@ -32,7 +32,6 @@
 -}
 module Derive.TrackLang where
 import Control.Monad
-import qualified Control.Monad.Error as Error
 import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -369,29 +368,6 @@ lookup_val name environ = case Map.lookup name environ of
         Nothing -> Left (WrongType (type_of val))
         Just v -> Right v
 
--- * extract and call
-
-data TypeError =
-    -- | arg number, arg name, expected type, received val
-    TypeError Int String Type (Maybe Val)
-    -- | Couldn't even call the thing because the name was not found.
-    | CallNotFound CallId
-    -- | Calling error that doesn't fit into the above categories.
-    | ArgError String
-    deriving (Eq, Show)
-
-instance Pretty.Pretty TypeError where
-    pretty err = case err of
-        TypeError argno name expected received ->
-            "TypeError: arg " ++ show argno ++ "/" ++ name ++ ": expected "
-            ++ Pretty.pretty expected ++ " but got "
-            ++ Pretty.pretty (type_of <$> received)
-            ++ " " ++ Pretty.pretty received
-        ArgError err -> "ArgError: " ++ err
-        CallNotFound call_id -> "CallNotFound: " ++ Pretty.pretty call_id
-
-instance Error.Error TypeError where
-    strMsg _ = error "strMsg not defined for TypeError"
 
 -- * parsing
 

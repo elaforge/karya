@@ -44,9 +44,9 @@ c_linear :: Derive.ControlCall
 c_linear = Derive.generator "linear" $ \args ->
     case Derive.passed_vals args of
         [] -> case Derive.passed_prev_val args of
-            Nothing -> return $ Derive.throw
+            Nothing -> Derive.throw
                 "can't set to previous val when there was none"
-            Just (_, prev_y) -> return $ do
+            Just (_, prev_y) -> do
                 pos <- Derive.now
                 return $ Signal.signal [(pos, prev_y)]
         _ -> CallSig.call1 args (required "val") $ \val ->

@@ -42,14 +42,14 @@ c_note = Derive.Call "note"
     where
     generate args = case process (Derive.passed_vals args) of
         (inst, rel_attrs, []) ->
-            Right $ generate_note inst rel_attrs
-                (Derive.passed_event args) (next_start args)
-        (_, _, invalid) -> Left $
-            TrackLang.ArgError $ "expected inst or attr: " ++ show invalid
+            generate_note inst rel_attrs (Derive.passed_event args)
+                (next_start args)
+        (_, _, invalid) ->
+            Derive.throw_arg_error $ "expected inst or attr: " ++ show invalid
     transform args deriver = case process (Derive.passed_vals args) of
-        (inst, rel_attrs, []) -> Right $ transform_note inst rel_attrs deriver
-        (_, _, invalid) -> Left $
-            TrackLang.ArgError $ "expected inst or attr: " ++ show invalid
+        (inst, rel_attrs, []) -> transform_note inst rel_attrs deriver
+        (_, _, invalid) ->
+            Derive.throw_arg_error $ "expected inst or attr: " ++ show invalid
     process = process_note_args Nothing []
     next_start args = case Derive.passed_next_events args of
         [] -> Derive.info_block_end (Derive.passed_info args)
