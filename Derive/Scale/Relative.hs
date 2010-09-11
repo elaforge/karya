@@ -33,7 +33,6 @@ scale = Pitch.Scale {
     , Pitch.scale_input_to_note = input_to_note
     , Pitch.scale_input_to_nn = input_to_nn
     , Pitch.scale_degree_to_nn = degree_to_nn
-    , Pitch.scale_set_pitch_bend = False
     }
     where
     note_of :: Double -> String

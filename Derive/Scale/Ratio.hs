@@ -39,7 +39,6 @@ scale = Pitch.Scale {
     , Pitch.scale_input_to_note = const Nothing
     , Pitch.scale_input_to_nn = const Nothing
     , Pitch.scale_degree_to_nn = degree_to_nn
-    , Pitch.scale_set_pitch_bend = True
     }
 
 scale_id :: Pitch.ScaleId

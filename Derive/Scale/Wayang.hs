@@ -18,7 +18,6 @@ scale = Pitch.Scale {
     , Pitch.scale_input_to_note = Util.input_to_note scale_map
     , Pitch.scale_input_to_nn = Util.input_to_nn scale_map
     , Pitch.scale_degree_to_nn = Util.degree_to_nn scale_map
-    , Pitch.scale_set_pitch_bend = False
     }
 
 scale_id :: Pitch.ScaleId

@@ -189,19 +189,6 @@ data Scale = Scale {
 
     -- | Used by conversion before performance.
     , scale_degree_to_nn :: Degree -> Maybe NoteNumber
-
-    -- | A special hack for midi, since it needs additional pitch bend msgs
-    -- to play a non-tempered scale (well, there is a midi tuning standard, but
-    -- it's not widely supported).  If this is false, never emit pitch bends,
-    -- which assumes the scale is tempered, but won't mess with an existing
-    -- pitch bend setting.
-    --
-    -- TODO a better solution might be to always send pitch bend, but add it to
-    -- the current pb state so I can keep using the wheel on a non-tempered
-    -- scale.  This would also resolve the Midi.Play sproing problem, but is
-    -- somewhat complicated since I have to remember pitch bend state.  I don't
-    -- think I'll use the wheel much anyway.
-    , scale_set_pitch_bend :: Bool
     }
 
 -- | These instances are just so TrackLang.Val can have VScale.  You could
