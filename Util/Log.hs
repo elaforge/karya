@@ -67,6 +67,9 @@ data Msg = Msg {
 msg_string :: Msg -> String
 msg_string = Text.unpack . msg_text
 
+instance Pretty.Pretty Msg where
+    pretty = format_msg
+
 -- | Pure code can't give a date, but making msg_date Maybe makes it awkward
 -- for everyone who processes Msgs, so cheat with this.
 no_date_yet :: Time.UTCTime
