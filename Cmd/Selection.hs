@@ -32,6 +32,8 @@ import qualified Cmd.Info as Info
 import qualified Cmd.Msg as Msg
 import qualified Cmd.TimeStep as TimeStep
 
+import qualified Derive.Score as Score
+
 import qualified Perform.Transport as Transport
 
 import qualified App.Config as Config
@@ -290,13 +292,16 @@ relevant_ruler block tracknum = Seq.at (Block.ruler_ids_of in_order) 0
     in_order = map (Block.tracklike_id . snd) $ dropWhile ((/=tracknum) . fst) $
         reverse $ zip [0..] (Block.block_tracks block)
 
--- ** insertion point
+-- * get selection info
 
 {- Getting the selection may seem pretty simple, but there are a number of
     orthogonal flavors:
 
     - Return a raw Types.Selection, or return its
     (ViewId, BlockId, TrackId, ScoreTime) context.
+
+    - Get a single point from a selection, or a range on a single track, or
+    a range of tracks.
 
     - Get an arbitrary Types.SelNum or use the Config.insert_selnum.
 
@@ -306,7 +311,24 @@ relevant_ruler block tracknum = Seq.at (Block.ruler_ids_of in_order) 0
     track.
 
     - Used an arbitrary ViewId, BlockId, or use the focused view.
+
+    And then there is a whole other dimension of converting selections, which
+    are in ScoreTime, to RealTime.  The selection can be converted either
+    relative to its block's tempo, or relative to a calling block's tempo,
+    namely the root block.
+
+    Also, when a selection is interpreted as a point (for instance, for
+    operations like \"play from selection\"), there is a choice of taking the
+    point from the beginning of the selection, the end, or the 'sel_cur_pos',
+    which is the dragged-to point.  The convention, established by
+    'point_pos' and 'point_track', is to take the first point.
 -}
+
+point_pos :: Types.Selection -> ScoreTime
+point_pos sel = min (Types.sel_start_pos sel) (Types.sel_cur_pos sel)
+
+point_track :: Types.Selection -> TrackNum
+point_track sel = min (Types.sel_start_track sel) (Types.sel_cur_track sel)
 
 -- | A point on a track.
 type Point = (BlockId, TrackNum, TrackId, ScoreTime)
@@ -339,8 +361,7 @@ lookup_any_selnum_insert :: (Monad m) => Types.SelNum
 lookup_any_selnum_insert selnum =
     justm (lookup_selnum selnum) $ \(view_id, sel) -> do
         block_id <- State.block_id_of_view view_id
-        return $ Just (view_id,
-            (block_id, Types.sel_start_track sel, Types.sel_start_pos sel))
+        return $ Just (view_id, (block_id, point_track sel, point_pos sel))
 
 -- | Given a block, get the selection on it, if any.  If there are multiple
 -- views, take the one with the alphabetically first ViewId.
@@ -353,15 +374,17 @@ lookup_block_insert block_id = do
         [] -> return Nothing
         view_id : _ ->
             justm (State.get_selection view_id Config.insert_selnum) $ \sel ->
-            block_sel sel block_id
-    where
-    block_sel sel block_id =
-        justm (State.event_track_at block_id tracknum) $ \track_id ->
-        return $ Just (block_id, tracknum, track_id, Types.sel_start_pos sel)
-        where tracknum = Types.sel_start_track sel
+            justm (sel_track block_id sel) $ \track_id ->
+            return $ Just (block_id, point_track sel, track_id, point_pos sel)
 
--- ** raw selection
+-- | Get the point track of a selection.
+sel_track :: (State.UiStateMonad m) => BlockId -> Types.Selection
+    -> m (Maybe TrackId)
+sel_track block_id sel = State.event_track_at block_id (point_track sel)
 
+-- ** plain Selection
+
+-- | Get the insertion selection in the focused view.
 get :: (Monad m) => Cmd.CmdT m (ViewId, Types.Selection)
 get = get_selnum Config.insert_selnum
 
@@ -386,29 +409,66 @@ lookup_selnum selnum =
 justm :: (Monad m) => m (Maybe a) -> (a -> m (Maybe b)) -> m (Maybe b)
 justm op1 op2 = maybe (return Nothing) op2 =<< op1
 
--- ** tempo map
+-- ** selections in RealTime
 
--- | If a block is called in multiple places, a score time on it may occur
--- at multiple real times.  Pick the real time from the given selection which
--- is closest to the real time of the selection on the root block.
+-- TODO too much hardcoded use of the focused selection means this might not
+-- be flexible enough.  Fix it if necessary.  Why are selections such a pain?
+
+-- | Get the real time range of the focused selection.  If there's a root
+-- block, then it will be in relative to that root, otherwise it's equivalent
+-- to 'local_realtime'.
+realtime :: (Monad m) => Cmd.CmdT m (RealTime, RealTime)
+realtime = do
+    maybe_root_id <- State.lookup_root_id
+    case maybe_root_id of
+        Nothing -> local_realtime
+        Just root_id -> relative_realtime root_id
+
+-- | Get the current selection in RealTime relative to another block.
 --
--- Return the first real time if there's no root or it doesn't have
--- a selection.
-time_in_context :: Transport.TempoFunction -> Maybe Point -> Point -> RealTime
-time_in_context tempo root_sel sel = maybe 0 id (find_closest root realtimes)
+-- If a block is called in multiple places, a score time on it may occur at
+-- multiple real times.  Pick the real time from the given selection which is
+-- closest to the real time of the selection on the given root block.
+--
+-- If there's no selection on the root block then return the RealTime from the
+-- block's first occurrance.
+relative_realtime :: (Monad m) => BlockId -> Cmd.CmdT m (RealTime, RealTime)
+relative_realtime root_id = do
+    (view_id, sel) <- get
+    block_id <- State.block_id_of_view view_id
+    track_id <- Cmd.require =<< sel_track block_id sel
+    maybe_root_sel <- lookup_block_insert root_id
+    perf <- Cmd.get_performance root_id
+    let root_pos = point_to_real (Cmd.perf_tempo perf) maybe_root_sel
+    let warp = Cmd.perf_closest_warp perf block_id track_id root_pos
+    let (start, end) = Types.sel_range sel
+    return (Score.warp_pos start warp, Score.warp_pos end warp)
+
+-- | Get the RealTime range of the current selection, as derived from current
+-- selection's block.  This means that the top should be 0.
+local_realtime :: (Monad m) => Cmd.CmdT m (RealTime, RealTime)
+local_realtime = do
+    (view_id, sel) <- get
+    block_id <- State.block_id_of_view view_id
+    track_id <- Cmd.require =<< sel_track block_id sel
+    perf <- Cmd.get_performance block_id
+    let (start, end) = Types.sel_range sel
+    let warp = Cmd.perf_closest_warp perf block_id track_id 0
+    return (Score.warp_pos start warp, Score.warp_pos end warp)
+
+-- | This is like 'relative_realtime' but gets a RealTime relative to a Point,
+-- not a range.
+relative_realtime_point :: Cmd.Performance -> Maybe Point -> Point -> RealTime
+relative_realtime_point perf maybe_root_sel (block_id, _, track_id, pos) =
+    Score.warp_pos pos warp
     where
-    -- Don't bother looking up the root sel if it's the same.
-    root = if root_sel == Just sel then 0
-        else maybe 0 (Seq.mhead 0 id . point_to_real tempo) root_sel
-    realtimes = point_to_real tempo sel
+    root_pos = point_to_real (Cmd.perf_tempo perf) maybe_root_sel
+    warp = Cmd.perf_closest_warp perf block_id track_id root_pos
 
-find_closest :: (Num a, Ord a) => a -> [a] -> Maybe a
-find_closest _ [] = Nothing
-find_closest _ [x] = Just x
-find_closest v xs = Just $ snd (minimum (zip (map (abs . subtract v) xs) xs))
-
-point_to_real :: Transport.TempoFunction -> Point -> [RealTime]
-point_to_real tempo (block_id, _, track_id, pos) = tempo block_id track_id pos
+point_to_real :: Transport.TempoFunction -> Maybe Point -> RealTime
+point_to_real _ Nothing = 0
+point_to_real tempo (Just (block_id, _, track_id, pos)) =
+    Seq.mhead 0 id $ tempo block_id track_id pos
 
 -- ** select events
 

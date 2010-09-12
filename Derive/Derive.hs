@@ -558,6 +558,7 @@ data Result a = Result {
     -- | Ranges which were rederived on this derivation.
     , r_event_damage :: EventDamage
     , r_tempo :: Transport.TempoFunction
+    , r_closest_warp :: Transport.ClosestWarpFunction
     , r_inv_tempo :: Transport.InverseTempoFunction
     , r_track_signals :: Track.TrackSignals
     , r_logs :: [Log.Msg]
@@ -572,7 +573,7 @@ derive :: Cache -> ScoreDamage -> LookupDeriver -> State.State -> CallMap
 derive cache damage lookup_deriver ui_state calls environ ignore_tempo
         deriver =
     Result result (state_cache (state_cache_state state))
-        event_damage tempo_func inv_tempo_func
+        event_damage tempo_func closest_func inv_tempo_func
         (collect_track_signals (state_collect state)) logs state
     where
     (result, state, logs) = Identity.runIdentity $ run
@@ -581,6 +582,7 @@ derive cache damage lookup_deriver ui_state calls environ ignore_tempo
     clean_cache = clear_damage damage cache
     track_warps = collect_track_warps (state_collect state)
     tempo_func = make_tempo_func track_warps
+    closest_func = make_closest_warp track_warps
     inv_tempo_func = make_inverse_tempo_func track_warps
     event_damage = Monoid.mappend
         (state_event_damage (state_cache_state state))
@@ -696,6 +698,26 @@ make_tempo_func track_warps block_id track_id pos =
     map (Score.warp_pos pos) warps
     where
     warps = [tw_warp tw | tw <- track_warps, tw_block tw == block_id,
+        track_id `elem` tw_tracks tw]
+
+-- | If a block is called in multiple places, a score time on it may occur at
+-- multiple real times.  Find the Warp which is closest to a given RealTime, or
+-- the ID warp if there are none.
+--
+-- Pick the real time from the given selection which is
+-- closest to the real time of the selection on the root block.
+--
+-- Return the first real time if there's no root or it doesn't have
+-- a selection.
+--
+-- This can't use Transport.TempoFunction because I need to pick the
+-- appropriate Warp and then look up multiple ScoreTimes in it.
+make_closest_warp :: [TrackWarp] -> Transport.ClosestWarpFunction
+make_closest_warp track_warps block_id track_id pos = maybe Score.id_warp id $
+    fmap (tw_warp . snd) (Seq.minimum_on (abs . subtract pos . fst) annotated)
+    where
+    annotated = zip (map tw_start warps) warps
+    warps = [tw | tw <- track_warps, tw_block tw == block_id,
         track_id `elem` tw_tracks tw]
 
 make_inverse_tempo_func :: [TrackWarp] -> Transport.InverseTempoFunction

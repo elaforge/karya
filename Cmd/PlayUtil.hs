@@ -109,8 +109,8 @@ perform result cache = do
     let logs = Derive.r_logs result ++ warn_logs
     return $ Cmd.Performance
         (Derive.r_cache result) new_midi_cache Monoid.mempty
-        logs (Derive.r_tempo result) (Derive.r_inv_tempo result)
-        (Derive.r_track_signals result)
+        logs (Derive.r_tempo result) (Derive.r_closest_warp result)
+        (Derive.r_inv_tempo result) (Derive.r_track_signals result)
 
 
 -- * util

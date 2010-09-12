@@ -139,8 +139,8 @@ generate_performance (send_status, root_id, sel) block_id = do
         Just perf -> do
             root_sel <- maybe (return Nothing) (Selection.lookup_block_insert)
                 root_id
-            let cur = maybe 0 (Selection.time_in_context
-                    (Cmd.perf_tempo perf) root_sel) sel
+            let cur = maybe 0
+                    (Selection.relative_realtime_point perf root_sel) sel
             selection_pos <- Trans.liftIO $ IORef.newIORef cur
             th <- Trans.liftIO $
                 Thread.start_thread ("derive " ++ show block_id)
@@ -230,7 +230,6 @@ update_selection_pos root_id focused_sel = do
         let perf = Cmd.pthread_perf pthread
         root_sel <- maybe (return Nothing) (Selection.lookup_block_insert)
             root_id
-        let pos = Selection.time_in_context (Cmd.perf_tempo perf)
-                root_sel focused_sel
+        let pos = Selection.relative_realtime_point perf root_sel focused_sel
         Trans.liftIO $ Cmd.write_selection pos
             (Cmd.pthread_selection pthread)

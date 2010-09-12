@@ -345,6 +345,7 @@ data Performance = Performance {
 
     , perf_logs :: [Log.Msg]
     , perf_tempo :: Transport.TempoFunction
+    , perf_closest_warp :: Transport.ClosestWarpFunction
     , perf_inv_tempo :: Transport.InverseTempoFunction
     , perf_track_signals :: Track.TrackSignals
     }

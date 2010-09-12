@@ -9,6 +9,7 @@ import qualified Util.Thread as Thread
 
 import Ui
 import qualified Midi.Midi as Midi
+import qualified Derive.Score as Score
 import qualified Perform.Timestamp as Timestamp
 
 
@@ -64,6 +65,14 @@ check_player_stopped (UpdaterControl ref) = IORef.readIORef ref
 -- and track combination wasn't derived at all or didn't extend to the given
 -- score time.
 type TempoFunction = BlockId -> TrackId -> ScoreTime -> [RealTime]
+
+-- | This is similar to 'TempoFunction' but finds the warp for the given block
+-- that occurs closest to the given RealTime.  Callers can use the warp to
+-- find multiple real times on that block.
+--
+-- 'TempoFunction' simply returns all real times for a given score time, with
+-- no control over whether they come from the same block or not.
+type ClosestWarpFunction = BlockId -> TrackId -> RealTime -> Score.Warp
 
 -- | Return the ScoreTime play position in the various playing blocks at the
 -- given physical time.  If the Timestamp is past the end of all playing
