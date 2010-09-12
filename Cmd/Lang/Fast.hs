@@ -24,6 +24,7 @@ interpret :: [String] -> Maybe (Cmd.CmdT IO String)
 interpret toks = case toks of
         -- Called by logview.
         ["s", str] | Just arg <- val str -> cmd $ Global.s arg
+        ["unerror"] -> cmd $ Global.unerror
         ["collapse", int] | Just arg <- val int -> cmd $ Global.collapse arg
         ["expand", int] | Just arg <- val int -> cmd $ Global.expand arg
 
@@ -50,6 +51,7 @@ interpret toks = case toks of
         ["State.lookup_root_id"] -> Just $ fmap show State.lookup_root_id
         ["State.set_root_id", str] | Just arg <- val str ->
             cmd $ State.set_root_id arg
+        ["State.get_midi_config"] -> cmd $ State.get_midi_config
         _ -> Nothing
     where
     cmd c = Just (c >> return "")

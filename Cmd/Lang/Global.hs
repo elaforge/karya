@@ -36,8 +36,6 @@ import qualified Util.Map as Map
 import Util.Pretty as Pretty
 import qualified Util.PPrint as PPrint
 
-import qualified Midi.Midi as Midi
-
 import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
@@ -52,7 +50,6 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Edit as Edit
 import qualified Cmd.Info as Info
-import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.Save as Save
 import qualified Cmd.Selection as Selection
 import qualified Cmd.Simple as Simple
@@ -60,18 +57,13 @@ import qualified Cmd.TimeStep as TimeStep
 import qualified Cmd.ViewConfig as ViewConfig
 
 -- Just make sure these are compiled.
+import qualified Cmd.Lang.LPerf ()
 import qualified Cmd.Lang.LPitch ()
 import qualified Cmd.Lang.LInst as LInst
 
-import qualified Derive.Derive as Derive
 import qualified Derive.Stack as Stack
 
-import qualified Perform.Midi.Convert as Midi.Convert
-import qualified Perform.Midi.Perform as Midi.Perform
-import qualified Perform.Midi.Cache as Midi.Cache
 import qualified Perform.Pitch as Pitch
-import qualified Perform.Timestamp as Timestamp
-import qualified Perform.Warning as Warning
 
 import qualified App.Config as Config
 
@@ -369,27 +361,11 @@ replace_ruler ruler_id block_id = do
 
 -- * time
 
--- | Get the real time of the focused selection in the context of the root
--- block, along with all the possible positions.
-selection_in_context :: Cmd.CmdL (RealTime, [RealTime])
-selection_in_context = do
-    focused_sel <- Selection.get_insert
-    root_id <- Cmd.require =<< State.lookup_root_id
-    maybe_root_sel <- Selection.lookup_block_insert root_id
-    tempo <- Cmd.perf_tempo <$> Cmd.get_performance root_id
-    return (Selection.time_in_context tempo maybe_root_sel focused_sel,
-        Selection.point_to_real tempo focused_sel)
-
-score_to_real :: BlockId -> TrackId -> ScoreTime -> Cmd.CmdL [RealTime]
-score_to_real block_id track_id pos = do
-    perf <- Cmd.get_performance block_id
-    return $ Cmd.perf_tempo perf block_id track_id pos
-
 sel_to_real :: Cmd.CmdL [RealTime]
 sel_to_real = do
-    sel@(block_id, _, _, _) <- Selection.get_insert
-    perf <- Cmd.get_performance block_id
-    return $ Selection.point_to_real (Cmd.perf_tempo perf) sel
+    (block_id, _, track_id, pos) <- Selection.get_insert
+    tempo <- Cmd.perf_tempo <$> Cmd.get_performance block_id
+    return $ tempo block_id track_id pos
 
 -- * show / modify keymap
 
@@ -403,82 +379,6 @@ sel_to_real = do
 -- | Called from the browser.
 load_instrument :: String -> Cmd.CmdL ()
 load_instrument = LInst.load_instrument
-
-
--- * schema
-
--- ** derivation
-
--- These are mostly for testing, to find problems in performer output.
-
--- | Clear out all caches and rederive from scratch for the given block.
-rederive :: BlockId -> Cmd.CmdL ()
-rederive = PlayUtil.clear_cache
-
--- | Compare performances with and without the midi cache.
-compare_cached_midi :: BlockId
-    -> Cmd.CmdL [Either Midi.WriteMessage Midi.WriteMessage]
-compare_cached_midi block_id = do
-    result <- PlayUtil.cached_derive block_id
-    uncached <- PlayUtil.uncached_perform result
-    cached <- PlayUtil.cached_perform block_id result
-    return $ diff_events cached uncached
-    where
-    diff_events perf1 perf2 = Seq.diff (==) (msgs perf1) (msgs perf2)
-    msgs = Midi.Cache.cache_messages . Cmd.perf_midi_cache
-
-compare_cached_events :: BlockId
-    -> Cmd.CmdL [Either Simple.ScoreEvent Simple.ScoreEvent]
-compare_cached_events block_id = do
-    uncached <- PlayUtil.uncached_derive block_id
-    cached <- PlayUtil.cached_derive block_id
-    either (Cmd.throw . show) return (diff_events cached uncached)
-    where
-    diff_events r1 r2 = do
-        e1 <- Derive.r_result r1
-        e2 <- Derive.r_result r2
-        return $ Seq.diff (==)
-            (map Simple.score_event e1) (map Simple.score_event e2)
-
-cached_perform :: BlockId -> Cmd.CmdL Midi.Perform.Messages
-cached_perform block_id = do
-    perf <- PlayUtil.cached_perform block_id =<< PlayUtil.cached_derive block_id
-    return $ Midi.Cache.cache_messages (Cmd.perf_midi_cache perf)
-
-derive_to_perf :: BlockId -> Cmd.CmdL ([Midi.Perform.Event], [Warning.Warning])
-derive_to_perf block_id = do
-    events <- derive_to_events block_id
-    lookup <- Cmd.get_lookup_midi_instrument
-    return $ Midi.Convert.convert lookup events
-
-derive_to_events :: BlockId -> Cmd.CmdL Derive.Events
-derive_to_events block_id = do
-    result <- derive block_id
-    case Derive.r_result result of
-        Left err -> Cmd.throw $ "derive error: " ++ show err
-        Right events -> return events
-
-derive :: BlockId -> Cmd.CmdL (Derive.Result Derive.Events)
-derive = PlayUtil.uncached_derive
-
--- | Test the tempo map output.
--- TODO broken?
-derive_tempo :: BlockId -> Cmd.CmdL [[(BlockId, [(TrackId, ScoreTime)])]]
-derive_tempo block_id = do
-    result <- PlayUtil.cached_derive block_id
-    return $ map (Derive.r_inv_tempo result) (map Timestamp.seconds [0..10])
-
--- ** performance
-
-get_performance :: BlockId -> Cmd.CmdL Cmd.Performance
-get_performance block_id = do
-    threads <- Cmd.gets Cmd.state_performance_threads
-    maybe (Cmd.throw $ "no performance for block " ++ show block_id)
-        (return . Cmd.pthread_perf) (Map.lookup block_id threads)
-
-get_midi_cache :: BlockId -> Cmd.CmdL Midi.Cache.Cache
-get_midi_cache block_id =
-    Cmd.perf_midi_cache <$> get_performance block_id
 
 -- * util
 

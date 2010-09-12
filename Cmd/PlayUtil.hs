@@ -9,6 +9,7 @@ import qualified Data.Map as Map
 
 import Util.Control
 import qualified Util.Log as Log
+import qualified Util.Pretty as Pretty
 
 import Ui
 import qualified Ui.State as State
@@ -23,6 +24,7 @@ import qualified Derive.TrackLang as TrackLang
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Cache as Midi.Cache
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Perform as Perform
 import qualified Derive.Scale.Twelve as Twelve
 
 import qualified Perform.Warning as Warning
@@ -112,6 +114,19 @@ perform result cache = do
         logs (Derive.r_tempo result) (Derive.r_closest_warp result)
         (Derive.r_inv_tempo result) (Derive.r_track_signals result)
 
+-- | Perform some events with no caching or anything.  For interactive
+-- debugging.
+perform_events :: (Monad m) => Derive.Events
+    -> Cmd.CmdT m (Perform.Messages, [String])
+perform_events events = do
+    lookup_inst <- Cmd.get_lookup_midi_instrument
+    midi_config <- State.get_midi_config
+    let (midi_events, convert_warnings) = Convert.convert lookup_inst events
+        (msgs, perf_warns, _) = Perform.perform Perform.initial_state
+            lookup_inst midi_config midi_events
+    convert_logs <- mapM (warn_to_log "convert") convert_warnings
+    perf_logs <- mapM (warn_to_log "perform") perf_warns
+    return (msgs, map Pretty.pretty (convert_logs ++ perf_logs))
 
 -- * util
 
