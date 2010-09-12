@@ -2,6 +2,7 @@
 {- | Functions common between the different signal types.
 -}
 module Perform.SignalBase where
+import Prelude hiding (truncate)
 import qualified Control.Arrow as Arrow
 import Control.DeepSeq
 import qualified Data.DList as DList
@@ -189,12 +190,19 @@ truncate x vec = fst $ V.splitAt (bsearch vec x) vec
 -- | The dual of 'truncate'.  Trim a signal's head up until, but not including,
 -- the given X.  If there is no sample at @x@, keep one sample before it to
 -- preserve the value at @x@.
+--
+-- As with 'truncate', this doesn't do any copying.
 drop_before :: (Signal y) => X -> SigVec y -> SigVec y
 drop_before x vec
     | i < V.length vec && fst (VectorBase.unsafeIndex vec i) == x =
         snd $ V.splitAt i vec
     | otherwise = snd $ V.splitAt (i-1) vec
     where i = bsearch vec x
+
+-- | Return samples within a range.  This is a combination of 'drop_before' and
+-- 'truncate'.
+within :: (Signal y) => X -> X -> SigVec y -> SigVec y
+within start end = truncate end . drop_before start
 
 map_x :: (Signal y) => (X -> X) -> SigVec y -> SigVec y
 map_x f = V.map (Arrow.first f)
@@ -241,20 +249,6 @@ map_signal f = map_signal_accum go (\_ _ -> []) ()
     where go _ x0 y0 x1 y1 = ((), f x0 y0 x1 y1)
 
 -- * misc
-
-within :: (Signal y) => X -> X -> SigVec y -> SigVec y
-within start end vec = V.drop extra inside
-    where
-    -- TODO use bsearch_above?
-    (_, above) = V.splitAt (bsearch vec start) vec
-    (inside, _) = V.splitAt (bsearch above end) above
-    -- Otherwise concurrent samples confuse pitches_share.
-    -- TODO leading concurrent samples could confuse other things, maybe put
-    -- this in unpack?
-    extra = if V.null inside then 0
-        else case V.findIndex ((/= fst (V.head inside)) . fst) inside of
-            Nothing -> V.length inside - 1
-            Just i -> i - 1
 
 -- | Resample the signals to have coincident sample points.
 --

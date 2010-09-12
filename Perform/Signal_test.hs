@@ -83,3 +83,4 @@ test_pitches_share = do
 
     -- one pitch changes but the other doesn't, so they can't share
     equal (f 0 3 (sig [(0, 0), (1, 1)]) (sig [(0, 2)])) False
+    equal (f 1 5 (sig [(1, 74), (2, 76), (3, 74)]) (sig [(0, 48)])) False

@@ -17,8 +17,8 @@ UNSORTED
     avoid sending msgs back to the UI by having ui msgs cancel updates.
 
   * muting a track should replace it with a nop, not remove it entirely
-  - save/ratio_ptq does weird things: base note missing, base note bends with
-    melody
+  - save/ratio_ptq does weird things: base note missing
+  * base note bends with melody
   - why does logview go to 100 cpu?
     put some prints in there to see what it's doing when it does that
   - Log msgs are getting munched together.  The logging lock isn't working?

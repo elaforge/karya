@@ -371,6 +371,9 @@ equal x0 x1 sig0 sig1 = SignalBase.equal x0 x1 (sig_vec sig0) (sig_vec sig1)
 -- both notes, at which point 0 transposition is ok.
 --
 -- TODO this is actually a MIDI notion, so it should go in Perform.Midi
+--
+-- This function will be confused by multiple samples at the same time, so
+-- don't do that.
 pitches_share :: Bool -> X -> X
     -> Midi.Key -> NoteNumber -> Midi.Key -> NoteNumber -> Bool
 pitches_share in_decay start end initial0 sig0 initial1 sig1
@@ -380,9 +383,13 @@ pitches_share in_decay start end initial0 sig0 initial1 sig1
     where
     in0 = SignalBase.within start end (sig_vec sig0)
     in1 = SignalBase.within start end (sig_vec sig1)
-    -- If they don't share any samples in the middle, then the start and end
-    -- checks are enough.
-    samples = if V.null in0 || V.null in1 then []
-        else SignalBase.resample_to_list in0 in1
+    -- I need to sample points from start to end, including the start and the
+    -- end.  Unfortunately it's not as simple as it seems it should be,
+    -- especially since this function is a hotspot and must be efficient.
+    --
+    -- SignalBase.within may return samples before start to get the proper
+    -- value so I have to drop them before testing.
+    samples = dropWhile (\(t, _, _) -> t < start) $
+        SignalBase.resample_to_list in0 in1
     pitch_eq (_, ay, by) = floor ((ay - fromIntegral initial0) * 1000)
         == floor ((by - fromIntegral initial1) * 1000)
