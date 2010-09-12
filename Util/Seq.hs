@@ -78,23 +78,23 @@ modify_at xs i f = case post of
 
 -- * min max
 
-minimum_on :: (Ord ord) => (a -> ord) -> a -> [a] -> a
-minimum_on _ ifnull [] = ifnull
-minimum_on key _ xs = List.foldl1' f xs
+minimum_on :: (Ord ord) => (a -> ord) -> [a] -> Maybe a
+minimum_on _ [] = Nothing
+minimum_on key xs = Just (List.foldl1' f xs)
     where f low x = if key x < key low then x else low
 
-maximum_on :: (Ord ord) => (a -> ord) -> a -> [a] -> a
-maximum_on _ ifnull [] = ifnull
-maximum_on key _ xs = List.foldl1' f xs
+maximum_on :: (Ord ord) => (a -> ord) -> [a] -> Maybe a
+maximum_on _ [] = Nothing
+maximum_on key xs = Just (List.foldl1' f xs)
     where f high x = if key x > key high then x else high
 
-minimum :: (Ord a) => a -> [a] -> a
-minimum z [] = z
-minimum _ xs = List.minimum xs
+minimum :: (Ord a) => [a] -> Maybe a
+minimum [] = Nothing
+minimum xs = Just (List.minimum xs)
 
-maximum :: (Ord a) => a -> [a] -> a
-maximum z [] = z
-maximum _ xs = List.maximum xs
+maximum :: (Ord a) => [a] -> Maybe a
+maximum [] = Nothing
+maximum xs = Just (List.maximum xs)
 
 -- * ordered lists
 

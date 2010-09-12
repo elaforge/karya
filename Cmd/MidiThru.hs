@@ -150,11 +150,8 @@ alloc_addr note_addr addr_serial serial addrs input
         (Map.insert note_id addr note_addr, Map.insert addr serial addr_serial)
     unassign addr = Just
         (Map.delete note_id note_addr, Map.insert addr serial addr_serial)
-
     (allocated, free) = List.partition (`elem` (Map.elems note_addr)) addrs
-    old_addr = if null allocated then Nothing
-        else Just $ Seq.minimum_on (flip Map.lookup addr_serial)
-            (error "unreached") allocated
+    old_addr = Seq.minimum_on (flip Map.lookup addr_serial) allocated
 
 pb_of :: Midi.PitchBendValue -> [Midi.ChannelMessage] -> Midi.PitchBendValue
 pb_of = List.foldl' f

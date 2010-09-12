@@ -112,7 +112,7 @@ all_points step marklists pos = case step of
         AbsoluteMark names matcher -> matches names matcher
         RelativeMark names matcher -> shift (matches names matcher)
     where
-    end = Seq.maximum 0 (map (Ruler.last_pos . snd) marklists)
+    end = Maybe.fromMaybe 0 $ Seq.maximum (map (Ruler.last_pos . snd) marklists)
     matches names matcher = match_all matcher
         (get_marks marklists names)
     shift points = case find_before_equal pos points of
