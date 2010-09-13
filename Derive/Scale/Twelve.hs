@@ -10,7 +10,8 @@
     scale_note_to_nn and scale_input_to_note be passed performance and input
     context respectively.  And I'll need a flip enharmonic command here.
 
-    Middle c = c-4, and I limit the range to the midi range.
+    4c is middle C, and the range is limited to the midi range.  Since
+    'Pitch.NoteNumber's also use midi numbering, conversions are trivial.
 
     > nn 127 = 9g
     > nn 120 = 9c

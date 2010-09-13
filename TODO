@@ -1,6 +1,10 @@
 CURRENT
 
 UNSORTED
+  - Create.rename_project is broken again
+  - fast cmd for State.get_midi_config returns ""
+  - what's with the extra leading pb 0 on save/drum?
+  - convert should complain about unmatched attrs
   - keyboard editing: non-chord mode that advances as soon as it gets NoteOn
     either an easier way to set note duration, or tracker style where every
     note extends to the end of the track or the next event
@@ -17,11 +21,18 @@ UNSORTED
     avoid sending msgs back to the UI by having ui msgs cancel updates.
 
   * muting a track should replace it with a nop, not remove it entirely
-  - save/ratio_ptq does weird things: base note missing
+  - problem with pianoteq: if the same note occurs on two channels, one
+    will be dropped.  Report to pianoteq.  I could work around, but it won't
+    occur with real multitimbral instruments anyway.
   * base note bends with melody
   - why does logview go to 100 cpu?
     put some prints in there to see what it's doing when it does that
-  - Log msgs are getting munched together.  The logging lock isn't working?
+  + Log msgs are getting munched together.  The logging lock isn't working?
+    try flushing explicitly instead of setting line buffering
+    nope, still happened
+    It's always a thread being killed and another starting.  But I can't repro.
+    And how does the newline just get totally lost?
+    I'm suspicious of the unsafePerformIO to initialize the state, are there >1?
   * track should get damage due to TrackFlag change, not DisplayTrack updates
   - paste was wrong (lost first event from the copy range)
   * lang cmds to rederive / perform within selection
@@ -438,7 +449,10 @@ plugin host track freeze audio
   reaper
     it can sync to mmc
     - route multiple plugins to the same bus?  can this be scripted?
+      Probably, but to use apple IAC I need to create a bunch of IAC ports and
+      make sure they are configured the same way on both sides.
     - can it send cursor position?
+      I can poll.
 
 test:
   - write a fltk structure dump so UI tests can be non-interactive

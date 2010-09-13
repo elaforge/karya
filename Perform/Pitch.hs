@@ -8,8 +8,6 @@
     you need a NoteNumber, which is just a logarithmic representation of
     a frequency.  However, once the pitch becomes a NoteNumber it can no
     longer be diatonically transposed since the scale information is lost.
-
-    C1 = 36
 -}
 module Perform.Pitch (
     -- * Pitch
