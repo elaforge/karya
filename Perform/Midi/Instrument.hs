@@ -8,6 +8,7 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
@@ -20,13 +21,16 @@ import qualified Perform.Midi.Control as Control
 default_scale :: Pitch.ScaleId
 default_scale = Pitch.twelve
 
+-- * instrument
+
 -- | The Instrument contains all the data necessary to render
 -- a Midi.Perform.Event to a midi message.  Each Event has an attached
 -- Instrument.
 --
 -- Don't put data unnecessary to derivation in here because they are compared
 -- to each other a lot when trying to merge channels.  All that stuff should go
--- into the Patch.
+-- into the Patch.  TODO if it helps performance, have a separate
+-- Perform.Instrument that includes a fingerprint for fast comparison.
 data Instrument = Instrument {
     inst_synth :: SynthName
     , inst_name :: InstrumentName
@@ -34,6 +38,10 @@ data Instrument = Instrument {
     -- | Instrument name as given in the Score.Instrument.  It's just used
     -- to print msgs, but it should be the same to avoid confusion.
     , inst_score_name :: String
+    -- | Some midi instruments, like drum kits, have a different sound on each
+    -- key.  If there is a match in this map, the pitch will be replaced with
+    -- the given key.
+    , inst_keymap :: Map.Map Score.Attributes Midi.Key
     -- | Map control names to a control number.  Some controls are shared by
     -- all midi instruments, but some instruments have special controls.
     , inst_control_map :: Control.ControlMap
@@ -52,19 +60,23 @@ instance NFData Instrument where
     -- don't bother with the rest since instruments are constructed all at once
     rnf inst = rnf (inst_score_name inst)
 
+instance Pretty.Pretty Instrument where
+    pretty inst = '>' : inst_score_name inst
+
+-- ** construction
+
+-- These functions are the external interface for creating Instruments.  It's
+-- important to have a somewhat abstract interface because lots of instruments
+-- are created by hand in the Local.Instrument hierarchy.  If everyone uses the
+-- functions in here I can hopefully provide some insulation against changes
+-- in the underlying type.
+
 instrument :: SynthName -> InstrumentName -> Maybe Keyswitch
     -> Control.ControlMap -> Control.PbRange -> Instrument
 instrument synth_name name keyswitch cmap pb_range =
     set_instrument_name synth_name name keyswitch
-        (Instrument "" "" Nothing "" cmap pb_range Nothing default_scale)
-
--- | Somewhat conservative default decay which should suit most instruments.
--- 'inst_decay' will probably only rarely be explicitly set.
-default_decay :: Double
-default_decay = 1.0
-
-inst_decay :: Instrument -> Double
-inst_decay = maybe default_decay id . inst_maybe_decay
+        (Instrument "" "" Nothing "" Map.empty cmap pb_range Nothing
+            default_scale)
 
 set_instrument_name :: SynthName -> String -> Maybe Keyswitch -> Instrument
     -> Instrument
@@ -79,6 +91,20 @@ set_instrument_name synth_name name keyswitch inst = inst
         Just (Keyswitch ks_name _) -> "/" ++ ks_name
         _ -> ""
 
+set_keymap :: [(Score.Attributes, Midi.Key)] -> Instrument -> Instrument
+set_keymap kmap inst = inst { inst_keymap = Map.fromList kmap }
+
+-- ** defaults
+
+-- | Somewhat conservative default decay which should suit most instruments.
+-- 'inst_decay' will probably only rarely be explicitly set.
+default_decay :: Double
+default_decay = 1.0
+
+inst_decay :: Instrument -> Double
+inst_decay = maybe default_decay id . inst_maybe_decay
+
+-- * config
 
 -- | Per-song instrument configuration.
 data Config = Config {

@@ -6,11 +6,12 @@ import qualified Util.Log as Log
 import qualified Instrument.Db as Db
 import qualified Instrument.MidiDb as MidiDb
 
+import qualified Local.Instrument.Drummax as Drummax
 import qualified Local.Instrument.Fm8 as Fm8
-import qualified Local.Instrument.Z1 as Z1
-import qualified Local.Instrument.Vl1m as Vl1m
 import qualified Local.Instrument.Kontakt as Kontakt
 import qualified Local.Instrument.Pianoteq as Pianoteq
+import qualified Local.Instrument.Vl1m as Vl1m
+import qualified Local.Instrument.Z1 as Z1
 
 import qualified Derive.Score as Score
 import qualified Instrument.Serialize as Serialize
@@ -22,8 +23,10 @@ import qualified App.Config as Config
 load :: FilePath -> IO Db.Db
 load app_dir = do
     let dir = app_dir </> Config.instrument_dir
-    synth_maps <- mapM ($dir) [Fm8.load, Z1.load, Vl1m.load, Kontakt.load,
-        Pianoteq.load]
+    synth_maps <- mapM ($dir)
+        [ Drummax.load, Fm8.load, Kontakt.load, Pianoteq.load, Vl1m.load
+        , Z1.load
+        ]
     -- (midi_db, index) <- load_db app_dir
     let (midi_db, index) = (MidiDb.midi_db [], Search.empty_index)
     let (merged, overlaps) = MidiDb.merge (MidiDb.midi_db synth_maps) midi_db

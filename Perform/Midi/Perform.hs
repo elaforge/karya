@@ -8,13 +8,12 @@
     the same channels.  That way the normal channel sharing stuff in
     'can_share_chan' will try to give each instrument on its own channel to
     minimize keyswitches.  Every note with a keyswitch will emit the keyswitch
-    slightly before the note, relying on postprocessing to strip out the
-    redundant ones.
+    slightly before the note if necessary.
 
     Score.Event level Attributes are mapped to keyswitches.  This happens at
-    Convert time so that the Perform.Events can get their slightly different
-    Instruments.  It's up to the conversion code to convert an arbitrary set
-    of attributes into a keyswitch.
+    Convert by 'MidiDb.LookupMidiInstrument' so that the Perform.Events can get
+    their slightly different Instruments.  It's up to the conversion code to
+    convert an arbitrary set of attributes into a keyswitch.
 
     Misc notes:
 

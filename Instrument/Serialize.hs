@@ -77,11 +77,11 @@ instance Binary Instrument.Patch where
         return (Instrument.Patch a b c d e)
 
 instance Binary Instrument.Instrument where
-    put (Instrument.Instrument a b c d e f g h) = put a >> put b >> put c
-        >> put d >> put e >> put f >> put g >> put h
+    put (Instrument.Instrument a b c d e f g h i) = put a >> put b >> put c
+        >> put d >> put e >> put f >> put g >> put h >> put i
     get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
-        get >>= \e -> get >>= \f -> get >>= \g -> get >>= \h ->
-            return (Instrument.Instrument a b c d e f g h)
+        get >>= \e -> get >>= \f -> get >>= \g -> get >>= \h -> get >>= \i ->
+            return (Instrument.Instrument a b c d e f g h i)
 
 instance Binary Instrument.InitializePatch where
     put (Instrument.InitializeMidi a) = putWord8 0 >> put a

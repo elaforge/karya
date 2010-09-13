@@ -24,6 +24,7 @@ import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Warning as Warning
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Perform as Perform
+import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.MidiDb as MidiDb
 
 -- TODO warnings about:
@@ -49,11 +50,24 @@ convert_event :: MidiDb.LookupMidiInstrument -> Score.Event
     -> ConvertT Perform.Event
 convert_event lookup_inst event = do
     score_inst <- require "instrument" (Score.event_instrument event)
+    -- TODO lookup_inst involves creating a new inst from the synth.  Since
+    -- this is done a lot for the same insts, maybe I should cache it?
     midi_inst <- require
         ("midi instrument in instrument db: " ++ show score_inst)
         (lookup_inst (Score.event_attributes event) score_inst)
 
-    pitch <- convert_pitch (Score.event_pitch event)
+    -- Use attrs to look up pitch, then they don't need to be included
+    -- in the inst.  But if they're not in the inst, then there's no real
+    -- place to put them.
+    -- Should I subtract out the ks attrs?  But I don't know what those were.
+
+    -- Map attrs through the keymap.  If I want keyswitches to coexist with
+    -- keymaps, I'll have to filter out the keyswitch attrs somehow.  It
+    -- probably means Instrument.get_keyswitch has to return the attrs matched.
+    let kmap = Instrument.inst_keymap midi_inst
+    pitch <- case Map.lookup (Score.event_attributes event) kmap of
+        Nothing -> convert_pitch (Score.event_pitch event)
+        Just key -> return (Signal.constant (fromIntegral key))
     let controls = convert_controls (Score.event_controls event)
     return $ Perform.Event midi_inst
         (Timestamp.from_real_time (Score.event_start event))

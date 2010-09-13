@@ -1,4 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-} -- for NFData instance
+{-# LANGUAGE GeneralizedNewtypeDeriving #-} -- for Monoid and NFData instance
 {- | This has the basic data structures for the deriver level.
 
     The events here are generated from UI Events, and will eventually be
@@ -9,8 +9,11 @@ module Derive.Score where
 import qualified Control.DeepSeq as DeepSeq
 import Control.DeepSeq (rnf)
 import qualified Data.Map as Map
+import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
 import qualified Data.Text as Text
+import qualified Util.Pretty as Pretty
+import qualified Util.Seq as Seq
 
 import Ui
 import qualified Ui.Types as Types
@@ -225,7 +228,11 @@ inst_name (Instrument s) = s
 -- arguments to an instrument, and will typically select an articulation, or
 -- a drum from a drumset, or something like that.
 type Attribute = String
-newtype Attributes = Attributes (Set.Set Attribute) deriving (Eq, Show)
+newtype Attributes = Attributes (Set.Set Attribute)
+    deriving (Monoid.Monoid, Eq, Ord, Show)
+
+instance Pretty.Pretty Attributes where
+    pretty = Seq.join "+" . attrs_list
 
 attrs_set :: Attributes -> Set.Set Attribute
 attrs_set (Attributes attrs) = attrs
@@ -235,6 +242,9 @@ attrs_list = Set.toList . attrs_set
 
 attributes :: [String] -> Attributes
 attributes = Attributes . Set.fromList
+
+attr :: String -> Attributes
+attr = Attributes . Set.singleton
 
 no_attrs :: Attributes
 no_attrs = Attributes Set.empty
@@ -251,19 +261,6 @@ c_pressure = Control "pres"
 
 c_velocity = Control "vel"
 c_breath = Control "breath"
-
--- * attributes
-
--- ** articulations
-
-pizz = "pizz"
-trem = "trem"
-
--- ** dynamics
-
-cresc = "cresc"
-dim = "dim"
-sfz = "sfz"
 
 -- * util
 
