@@ -21,32 +21,30 @@ import qualified Perform.Midi.Instrument as Instrument
 
 -- * patch file
 
-patch_file :: Instrument.SynthName -> FilePath -> IO [Instrument.Patch]
-patch_file synth fn = do
-    parsed <- parse_patch_file synth fn
+patch_file :: FilePath -> IO [Instrument.Patch]
+patch_file fn = do
+    parsed <- parse_patch_file fn
     case parsed of
         Left err -> error $ "parse patches: " ++ show err
         Right patches -> return patches
 
-parse_patch_file synth fn = do
+parse_patch_file fn = do
     contents <- readFile fn
-    return $ Parsec.runParser (p_patch_file synth) initial_state fn contents
+    return $ Parsec.runParser p_patch_file initial_state fn contents
 
-p_patch_file synth = do
+p_patch_file = do
     plines <- p_patch_lines
-    return $ map (make_patch synth (-2, 2)) plines
+    return $ map (make_patch (-2, 2)) plines
 
-make_patch :: Instrument.SynthName -> Control.PbRange -> PatchLine
-    -> Instrument.Patch
-make_patch synth pb_range (PatchLine name cat bank patch_num) =
+make_patch :: Control.PbRange -> PatchLine -> Instrument.Patch
+make_patch pb_range (PatchLine name cat bank patch_num) =
     (Instrument.patch inst)
         { Instrument.patch_initialize = Instrument.InitializeMidi $
             map (Midi.ChannelMessage 0) (Midi.program_change bank patch_num)
         , Instrument.patch_tags = tags
         }
     where
-    inst = Instrument.instrument
-        synth name Nothing Control.empty_map pb_range
+    inst = Instrument.instrument name [] pb_range
     tags = [Instrument.tag "category" cat]
 
 p_patch_lines = fmap Maybe.catMaybes $ Parsec.many p_line

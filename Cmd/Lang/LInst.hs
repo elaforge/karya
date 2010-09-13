@@ -102,7 +102,9 @@ send_instrument_init inst chan = do
     info <- Cmd.require_msg ("inst not found: " ++ show inst)
         =<< Cmd.lookup_instrument_info inst
     let init = Instrument.patch_initialize (MidiDb.info_patch info)
-        dev = Instrument.synth_device (MidiDb.info_synth info)
+    dev <- Cmd.require_msg
+        ("can't init instrument with no default device: " ++ show inst)
+        (Instrument.synth_device (MidiDb.info_synth info))
     send_initialization init inst dev chan
 
 -- | This feels like it should go in another module... Cmd.Instrument?
@@ -163,13 +165,16 @@ auto_config block_id = do
             | (dev, by_dev) <- Seq.keyed_group_on snd inst_devs
             , (i, (inst, _dev)) <- Seq.enumerate by_dev]
     unless (null no_dev) $
-        Log.warn $ "no synth found for instruments: " ++ show insts
+        Log.warn $ "no synth or midi device found for instruments: "
+            ++ show no_dev
     return $ Instrument.config allocs
 
 device_of :: Score.Instrument -> Cmd.CmdL (Maybe Midi.WriteDevice)
 device_of inst = do
     maybe_info <- Cmd.lookup_instrument_info inst
-    return $ fmap (Instrument.synth_device . MidiDb.info_synth) maybe_info
+    return $ do
+        info <- maybe_info
+        Instrument.synth_device (MidiDb.info_synth info)
 
 controls_of :: Score.Instrument -> [Control.Control]
 controls_of _inst = undefined -- TODO

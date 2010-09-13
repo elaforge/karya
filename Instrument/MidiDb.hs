@@ -5,12 +5,33 @@ import Control.Monad
 import qualified Data.Char as Char
 import qualified Data.Map as Map
 
+import qualified Midi.Midi as Midi
+
 import qualified Util.Map as Map
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 
 import qualified Derive.Score as Score
+import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
+
+
+
+-- * local instrument utils
+
+-- | Utility to construct a soft synth.  Soft synths are assumed to have
+-- their own internal patch management, and thus have only a single wildcard
+-- patch, which can be modified if necessary by a passed in function.  In case
+-- some patches are special, you can also pass named patches in to be merged.
+softsynth :: Instrument.SynthName -> Maybe String -> Control.PbRange
+    -> [Instrument.Patch] -> [(Midi.Control, String)]
+    -> (Instrument.Patch -> Instrument.Patch) -> SynthDesc
+softsynth name device pb_range patches controls set_patch =
+    (synth, merge_patch_maps (wildcard_patch_map (set_patch template_patch))
+        (fst (patch_map patches)))
+    where
+    (synth, template_patch) =
+        Instrument.make_softsynth name device pb_range controls
 
 
 -- * midi db
@@ -63,6 +84,7 @@ make_inst :: Instrument.Synth -> Instrument.Patch
 make_inst synth patch (Score.Instrument score_inst) attrs = inst
         { Instrument.inst_control_map = Map.union inst_cmap synth_cmap
         , Instrument.inst_score_name = score_inst
+        , Instrument.inst_synth = Instrument.synth_name synth
         , Instrument.inst_keyswitch = ks
         }
     where
@@ -98,8 +120,10 @@ patch_map patches = (PatchMap pmap, rejects)
         [(clean_inst_name (Instrument.inst_name
             (Instrument.patch_instrument p)), p) | p <- patches]
 
-load_synth_desc :: Instrument.Synth -> [Instrument.Patch] -> IO SynthDesc
-load_synth_desc synth patches = do
+-- | Make the patches into a PatchMap.  This is just a version of 'patch_map'
+-- that logs colliding patches and is hence in IO.
+logged_patch_map :: Instrument.Synth -> [Instrument.Patch] -> IO SynthDesc
+logged_patch_map synth patches = do
     let (pmap, rejects) = patch_map patches
     forM_ rejects $ \(patch_name, patch) ->
         -- Printing the text is sort of a hack, because I know it contains
@@ -118,8 +142,7 @@ merge_patch_maps (PatchMap pmap0) (PatchMap pmap1) =
 
 -- ** lookup
 
-lookup_patch ::
-    Instrument.InstrumentName -> PatchMap -> Maybe Instrument.Patch
+lookup_patch :: Instrument.InstrumentName -> PatchMap -> Maybe Instrument.Patch
 lookup_patch inst_name (PatchMap patches) =
     case Map.lookup inst_name patches of
         Just patch -> Just patch

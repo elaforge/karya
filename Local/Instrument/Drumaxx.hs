@@ -1,16 +1,14 @@
-module Local.Instrument.Drummax where
+-- | Image-Line's Drumaxx softsynth.
+module Local.Instrument.Drumaxx where
 import Midi.Key
 import Derive.Attrs
 import qualified Perform.Midi.Instrument as Instrument
-import qualified Perform.Midi.Control as Control
 import qualified Instrument.MidiDb as MidiDb
 
-load :: FilePath -> IO MidiDb.SynthDesc
-load _dir = return (inst, MidiDb.wildcard_patch_map patch_template)
 
-patch_template = Instrument.patch $
-    Instrument.set_keymap keymap $
-    (Instrument.instrument synth_name "" Nothing Control.empty_map (-24, 24))
+load :: FilePath -> IO MidiDb.SynthDesc
+load _dir = return $ MidiDb.softsynth "dmx" (Just "dmx") (-24, 24) [] []
+    (Instrument.set_keymap keymap)
 
 -- The octave numbers on the drummax are one greater than the standard usage.
 -- This is for "Acoustic 1 FG".  I'll have to come up with a standard mapping
@@ -26,7 +24,3 @@ keymap =
     , (tom @+ middle, b2)
     , (tom @+ low, g2)
     ]
-
-synth_name = "dmx"
-inst = Instrument.synth synth_name "dmx" controls
-controls = []

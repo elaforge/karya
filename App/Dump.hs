@@ -10,6 +10,7 @@ import Text.Printf
 
 import qualified Util.Seq as Seq
 import qualified Util.PPrint as PPrint
+
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.Ruler as Ruler
@@ -46,10 +47,11 @@ fail_with msg = do
     putStrLn msg
     System.Exit.exitWith (System.Exit.ExitFailure 1)
 
-pprint_ui_state abbr (State.State project dir views blocks tracks rulers
+pprint_ui_state abbr (State.State project dir root views blocks tracks rulers
         midi_config proj_scale default_inst) = do
     put_field "project" project
     put_field "project_dir" dir
+    put_field "root" (show root)
     put_field "state_midi_config" (PPrint.pshow midi_config)
     put_field "state_project_scale" (show proj_scale)
     put_field "state_views" (PPrint.pshow views)

@@ -22,7 +22,6 @@ import qualified Derive.Score as Score
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Midi.Instrument as Instrument
-import qualified Perform.Midi.Control as Midi.Control
 
 import qualified Instrument.Db
 import qualified Instrument.MidiDb as MidiDb
@@ -113,18 +112,16 @@ default_midi_config inst_names =
     Instrument.Config (Map.fromList (zip insts addrs))
     where
     insts = map Score.Instrument inst_names
-    addrs = [[(default_wdev, chan)] | chan <- [0..]]
-default_wdev = Midi.WriteDevice "test"
+    addrs = [[(Midi.WriteDevice default_wdev, chan)] | chan <- [0..]]
+default_wdev = "test"
 
 make_lookup :: [String] -> MidiDb.LookupMidiInstrument
 make_lookup inst_names _attrs (Score.Instrument inst) = Map.lookup inst inst_map
     where inst_map = Map.fromList $ zip inst_names (map make_inst inst_names)
 
 make_inst name = default_perf_inst { Instrument.inst_name = name }
-default_perf_inst = Instrument.instrument "synth" "i0" Nothing
-            Midi.Control.empty_map (-2, 2)
-default_synth = Instrument.Synth "synth" default_wdev
-    (Midi.Control.control_map [])
+default_perf_inst = Instrument.instrument "i0" [] (-2, 2)
+default_synth = Instrument.set_device "test" $ Instrument.synth "synth" []
 
 
 -- * msg

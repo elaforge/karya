@@ -609,12 +609,12 @@ vol_cc = Control.Control "volume"
 
 inst1 = mkinst "inst1"
 inst2 = mkinst "inst2"
-mkinst name = Instrument.instrument (Instrument.synth_name synth1) name Nothing
-    Control.empty_map (-1, 1)
+mkinst name = (Instrument.instrument name [] (-1, 1))
+    { Instrument.inst_score_name = "synth1/" ++ name }
 
 dev1 = Midi.WriteDevice "dev1"
 dev2 = Midi.WriteDevice "dev2"
-synth1 = Instrument.synth "synth1" "synth1" []
+synth1 = Instrument.synth "synth1" []
 midi_config1 = Instrument.config [(score_inst inst1, [(dev1, 0), (dev1, 1)])]
 
 score_inst inst = Score.Instrument (Instrument.inst_name inst)

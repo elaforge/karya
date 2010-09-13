@@ -1,5 +1,4 @@
-{- | Instrument db for the Yamaha VL1-m.
--}
+-- | Yamaha VL1 synthesizer.
 module Local.Instrument.Vl1m where
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -18,12 +17,12 @@ import qualified Instrument.MidiDb as MidiDb
 import qualified Instrument.Parse as Parse
 
 
-load dir = Parse.patch_file (Instrument.synth_name vl1) (dir </> "vl1")
-    >>= MidiDb.load_synth_desc vl1
-load_slow dir = parse_dir (dir </> "vl1_vc") >>= MidiDb.load_synth_desc vl1
+-- In fast mode, just parse the patch file and return built-in patches.
+-- In slow mode, scan the directory of sysex dumps.
+load dir = Parse.patch_file (dir </> "vl1") >>= MidiDb.logged_patch_map synth
+load_slow dir = parse_dir (dir </> "vl1_vc") >>= MidiDb.logged_patch_map synth
 
-vl1 = Instrument.synth "vl1" "vl1" vl1_controls
-vl1_controls = []
+synth = Instrument.set_device "vl1" $ Instrument.synth "vl1" []
 
 parse_dir :: FilePath -> IO [Instrument.Patch]
 parse_dir dir = do
@@ -98,14 +97,13 @@ vl1_patch name (pb_range1, name1, cc_groups1) (pb_range2, name2, cc_groups2) =
     -- Initialization and text will be filled in later.
     (Instrument.patch inst) { Instrument.patch_tags = tags }
     where
-        -- Optimistically take the widest range.
+    -- Optimistically take the widest range.
     pb_range = if range pb_range1 > range pb_range2
         then pb_range1 else pb_range2
     range (low, high) = max (abs low) (abs high)
-    inst = Instrument.instrument
-        (Instrument.synth_name vl1) name Nothing cmap pb_range
+    inst = Instrument.instrument name cmap pb_range
     tags = maybe_tags [("vl1_elt1", name1), ("vl1_elt2", name2)]
-    cmap = Control.control_map $ Map.assocs $ Map.mapMaybe highest_prio $
+    cmap = Map.assocs $ Map.mapMaybe highest_prio $
         Map.unionWith (++) (Map.fromList cc_groups1) (Map.fromList cc_groups2)
     highest_prio cs = List.find (`elem` cs) control_prios
 

@@ -35,7 +35,6 @@ import qualified Perform.Signal as Signal
 import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Warning as Warning
 
-import qualified Perform.Midi.Control as Midi.Control
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
@@ -266,8 +265,8 @@ default_lookup attrs (Score.Instrument inst)
     | otherwise = Nothing
 
 default_inst = Score.Instrument "i"
-default_perf_inst = Instrument.instrument synth "patch" Nothing
-            Midi.Control.empty_map (-2, 2)
+default_perf_inst = (Instrument.instrument "patch" [] (-2, 2))
+    { Instrument.inst_synth = synth }
 default_inst_title = ">i"
 
 synth = "fm8"

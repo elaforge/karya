@@ -4,20 +4,21 @@ import Util.Test
 
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
-import qualified Perform.Midi.Control as Control
 import qualified Instrument.MidiDb as MidiDb
 import qualified Local.Instrument.Kontakt as Kontakt
 
 
-test_lookup_instrument = do
-    synth_descs <- mapM ($"") [Kontakt.load]
-    let midi_db = MidiDb.midi_db synth_descs
+test_lookup_midi = do
+    synth_desc <- Kontakt.load ""
+    let midi_db = MidiDb.midi_db [synth_desc]
     let f inst attrs = MidiDb.lookup_midi midi_db
             (Score.attributes attrs) (Score.Instrument inst)
 
     let ks name key = Just (Instrument.Keyswitch name key)
-        kkt_inst name = Instrument.instrument "kkt" name Nothing
-            Control.empty_map (-96, 96)
+        kkt_inst name = (Instrument.instrument name [] (-96, 96))
+            { Instrument.inst_score_name = "kkt/" ++ name
+            , Instrument.inst_synth = "kkt"
+            }
         hang = kkt_inst "hang1"
     equal (f "kkt/hang1" ["slap"]) $ Just $
         hang { Instrument.inst_keyswitch = ks "slap" 38 }

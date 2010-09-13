@@ -6,7 +6,6 @@ import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
 import qualified Data.ByteString as ByteString
 import qualified Data.Char as Char
-import qualified Data.List as List
 import qualified Data.Map as Map
 import Text.Printf
 
@@ -91,8 +90,9 @@ info_of db score_inst (MidiDb.Info synth patch) =
             , ("Tags", tags)
             ]
     where
-    Instrument.Synth synth_name (Midi.WriteDevice dev) synth_cmap = synth
+    Instrument.Synth synth_name maybe_dev synth_cmap = synth
     Instrument.Patch inst initialize keyswitches _ text = patch
+    dev = maybe "<no default device>" (\(Midi.WriteDevice s) -> s) maybe_dev
     name = let n = Instrument.inst_name inst in if null n then "*" else n
     inst_cmap = Instrument.inst_control_map inst
     tags = maybe "" tags_info $

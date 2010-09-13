@@ -1,5 +1,4 @@
-{- | Instrument db for the Korg Z1 keyboard.
--}
+-- | Korg Z1 keyboard.
 module Local.Instrument.Z1 where
 import qualified Data.Bits as Bits
 import qualified Data.List as List
@@ -9,19 +8,17 @@ import System.FilePath ((</>))
 import qualified Util.Seq as Seq
 
 import qualified Perform.Midi.Instrument as Instrument
-import qualified Perform.Midi.Control as Control
 import qualified Instrument.MidiDb as MidiDb
 import qualified Instrument.Parse as Parse
 
 
-load dir = Parse.patch_file (Instrument.synth_name z1) (dir </> "z1")
-    >>= MidiDb.load_synth_desc z1
+load dir = Parse.patch_file (dir </> "z1") >>= MidiDb.logged_patch_map synth
 load_slow dir = Parse.parse_sysex_dir korg_sysex (dir </> "z1_sysex")
-    >>= MidiDb.load_synth_desc z1
+    >>= MidiDb.logged_patch_map synth
 
-z1 = Instrument.synth "z1" "z1" z1_controls
+synth = Instrument.set_device "z1" $ Instrument.synth "z1" synth_controls
 
-z1_controls =
+synth_controls =
     [
     -- The PE controls are the "performance expression" knobs whose effect
     -- depends on the instrument.
@@ -43,15 +40,16 @@ z1_controls =
 --
 -- I should write something to convert them into current program format.
 
+-- Interactive testing.
 tparse = Parse.parse_sysex_dir korg_sysex "Local/Instrument/z1_sysex"
 tshow ps = mapM_ putStrLn (map Instrument.patch_summary ps)
 
 korg_sysex = do
     Parse.start_sysex Parse.korg_code
     Parse.match_bytes [0x30, 0x46]
-    info <- current_program_dump
+    patch <- current_program_dump
     Parse.end_sysex
-    return info
+    return patch
 
 current_program_dump = do
     Parse.match_bytes [0x40, 0x01]
@@ -81,8 +79,7 @@ make_patch (name, cat, pb_range, osc1, osc2) =
     -- Initialization will be filled in later.
     (Instrument.patch inst) { Instrument.patch_tags = tags }
     where
-    inst = Instrument.instrument (Instrument.synth_name z1)
-        name Nothing Control.empty_map pb_range
+    inst = Instrument.instrument name [] pb_range
     tags = maybe_tags
         [("z1-category", cat), ("z1-osc", osc1), ("z1-osc", osc2)]
 

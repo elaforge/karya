@@ -52,7 +52,6 @@ import qualified App.Config as Config
 import qualified App.StaticConfig as StaticConfig
 
 import qualified Local.Instrument
-import qualified Local.Instrument.Fm8 as Fm8
 
 -- This is only used by the interpreter,  but by importing it here I can make
 -- sure it doesn't have any compile errors in advance.
@@ -362,4 +361,4 @@ empty_block = do
 make_midi_config :: [(String, [Midi.Channel])] -> Instrument.Config
 make_midi_config config = Instrument.config
     [(Score.Instrument inst, map mkaddr chans) | (inst, chans) <- config]
-    where mkaddr chan = (Instrument.synth_device Fm8.fm8, chan)
+    where mkaddr chan = (Midi.WriteDevice "fm8", chan)

@@ -1,5 +1,21 @@
 {- | Description of a midi-specific instrument, as well as the runtime midi
     device and channel mapping.
+
+    This is all a little too complicated.
+
+    The complete description for a set of instruments is a 'MidiDb.SynthDesc'.
+    This is just a (Synth, PatchMap) pair, and a PatchMap is a map from
+    instrument name to Patch.  A Patch contains an Instrument, which is the
+    subset of data needed for performance.  Since there is a separate
+    Instrument per keyswitch, multiple Instruments may be generated from
+    a single Patch.  Patches also inherit some information from their Synth.
+    So the hierarchy, from general to specific, goes
+    @Synth -> Patch -> Instrument@.
+
+    Creation of a SynthDesc is a little complicated because of the
+    inter-relationships between the types.  A Patch is created with an
+    Instrument as a template, but the template Instrument also wants know
+    the synth name for error reporting, so those should be kept in sync.
 -}
 module Perform.Midi.Instrument where
 import Control.DeepSeq
@@ -32,12 +48,17 @@ default_scale = Pitch.twelve
 -- into the Patch.  TODO if it helps performance, have a separate
 -- Perform.Instrument that includes a fingerprint for fast comparison.
 data Instrument = Instrument {
-    inst_synth :: SynthName
-    , inst_name :: InstrumentName
-    , inst_keyswitch :: Maybe Keyswitch
-    -- | Instrument name as given in the Score.Instrument.  It's just used
-    -- to print msgs, but it should be the same to avoid confusion.
+    -- | For wildcard patches, the name should be left blank and will be filled
+    -- in by however the instrument is looked up.
+    inst_name :: InstrumentName
+
+    -- | 'inst_score_name', 'inst_synth', and 'inst_keyswitch' are
+    -- automatically filled with data from the Synth and Patch.  They should
+    -- be left empty if the 'patch_instrument' instance.
     , inst_score_name :: String
+    , inst_synth :: SynthName
+    , inst_keyswitch :: Maybe Keyswitch
+
     -- | Some midi instruments, like drum kits, have a different sound on each
     -- key.  If there is a match in this map, the pitch will be replaced with
     -- the given key.
@@ -71,28 +92,26 @@ instance Pretty.Pretty Instrument where
 -- functions in here I can hopefully provide some insulation against changes
 -- in the underlying type.
 
-instrument :: SynthName -> InstrumentName -> Maybe Keyswitch
-    -> Control.ControlMap -> Control.PbRange -> Instrument
-instrument synth_name name keyswitch cmap pb_range =
-    set_instrument_name synth_name name keyswitch
-        (Instrument "" "" Nothing "" Map.empty cmap pb_range Nothing
-            default_scale)
-
-set_instrument_name :: SynthName -> String -> Maybe Keyswitch -> Instrument
+-- | Initialize with values I think just about every instrument will want to
+-- set.  The rest can be initialized with set_* functions.
+instrument :: InstrumentName -> [(Midi.Control, String)] -> Control.PbRange
     -> Instrument
-set_instrument_name synth_name name keyswitch inst = inst
-    { inst_synth = synth_name
-    , inst_name = name
-    , inst_keyswitch = keyswitch
-    , inst_score_name = synth_name ++ "/" ++ name ++ ks_str
+instrument name cmap pb_range = Instrument {
+    inst_name = name
+    , inst_score_name = ""
+    , inst_synth = ""
+    , inst_keyswitch = Nothing
+    , inst_keymap = Map.empty
+    , inst_control_map = Control.control_map cmap
+    , inst_pitch_bend_range = pb_range
+    , inst_maybe_decay = Nothing
+    , inst_scale = default_scale
     }
-    where
-    ks_str = case keyswitch of
-        Just (Keyswitch ks_name _) -> "/" ++ ks_name
-        _ -> ""
 
-set_keymap :: [(Score.Attributes, Midi.Key)] -> Instrument -> Instrument
-set_keymap kmap inst = inst { inst_keymap = Map.fromList kmap }
+-- | A wildcard instrument has its name automatically filled in, and has no
+-- need for controls since they can go in the Synth.
+wildcard_instrument :: Control.PbRange -> Instrument
+wildcard_instrument = instrument "" []
 
 -- ** defaults
 
@@ -164,6 +183,9 @@ patch inst = Patch inst NoInitialization (KeyswitchMap []) [] ""
 patch_name :: Patch -> InstrumentName
 patch_name = inst_name . patch_instrument
 
+set_keyswitches :: [(String, Midi.Key)] -> Patch -> Patch
+set_keyswitches ks patch = patch { patch_keyswitches = make_keyswitches ks }
+
 -- | A KeyswitchMap maps a set of attributes to a keyswitch and gives
 -- a piority for those mapping.  For example, if {pizz} is before {cresc}, then
 -- {pizz, cresc} will map to {pizz}, unless, of course, {pizz, cresc} comes
@@ -227,19 +249,30 @@ type TagKey = String
 type TagVal = String
 
 -- | A Synth defines common features for a set of instruments, like device and
--- controls.
+-- controls.  Synths form a global flat namespace and must be unique.  They
+-- have abbreviated names because they prefix the instrument name, which has
+-- to be written in the score.
 data Synth = Synth {
-    -- | Uniquely defines the synth, and is indexed by the
-    -- Instrument.inst_synth field.
+    -- | Uniquely defines the synth.
     synth_name :: SynthName
-    , synth_device :: Midi.WriteDevice
+    -- | Instruments are allocated to 'Addr's in the 'Config', but since synth
+    -- device associations are sometimes static (especially for hardware
+    -- synths), it can be useful to have a hardcoded default.
+    , synth_device :: Maybe Midi.WriteDevice
     -- | Often synths have a set of common controls in addition to the
     -- global midi defaults.
     , synth_control_map :: Control.ControlMap
     } deriving (Eq, Show)
 
-synth name wdev controls =
-    Synth name (Midi.WriteDevice wdev) (Control.control_map controls)
+synth :: SynthName -> [(Midi.Control, String)] -> Synth
+synth name controls = Synth name Nothing (Control.control_map controls)
+
+set_device :: String -> Synth -> Synth
+set_device dev synth = synth { synth_device = Just (Midi.WriteDevice dev) }
+
+set_keymap :: [(Score.Attributes, Midi.Key)] -> Patch -> Patch
+set_keymap kmap patch = patch { patch_instrument = (patch_instrument patch)
+    { inst_keymap = Map.fromList kmap } }
 
 type SynthName = String
 type InstrumentName = String
@@ -260,3 +293,14 @@ patch_summary patch = inst_name inst ++ " -- " ++ show (patch_tags patch)
 
 add_tag :: Tag -> Patch -> Patch
 add_tag tag patch = patch { patch_tags = tag : patch_tags patch }
+
+
+-- | Constructor for a softsynth with a single wildcard patch.  Used by
+-- 'Instrument.MidiDb.softsynth'.
+make_softsynth :: SynthName -> Maybe String -> Control.PbRange
+    -> [(Midi.Control, String)] -> (Synth, Patch)
+make_softsynth name device pb_range controls = (synth, template_patch)
+    where
+    synth = Synth name (fmap Midi.WriteDevice device)
+        (Control.control_map controls)
+    template_patch = patch (wildcard_instrument pb_range)

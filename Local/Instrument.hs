@@ -6,7 +6,7 @@ import qualified Util.Log as Log
 import qualified Instrument.Db as Db
 import qualified Instrument.MidiDb as MidiDb
 
-import qualified Local.Instrument.Drummax as Drummax
+import qualified Local.Instrument.Drumaxx as Drumaxx
 import qualified Local.Instrument.Fm8 as Fm8
 import qualified Local.Instrument.Kontakt as Kontakt
 import qualified Local.Instrument.Pianoteq as Pianoteq
@@ -24,7 +24,7 @@ load :: FilePath -> IO Db.Db
 load app_dir = do
     let dir = app_dir </> Config.instrument_dir
     synth_maps <- mapM ($dir)
-        [ Drummax.load, Fm8.load, Kontakt.load, Pianoteq.load, Vl1m.load
+        [ Drumaxx.load, Fm8.load, Kontakt.load, Pianoteq.load, Vl1m.load
         , Z1.load
         ]
     -- (midi_db, index) <- load_db app_dir
