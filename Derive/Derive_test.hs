@@ -3,7 +3,6 @@
 -}
 module Derive.Derive_test where
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 import qualified Data.List as List
 import qualified Numeric
 
@@ -24,38 +23,39 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 
-import qualified Perform.Midi.Instrument as Instrument
-import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
 import qualified Perform.Timestamp as Timestamp
+import qualified Perform.Warning as Warning
+import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Perform as Perform
 
 
 test_basic = do
     -- verify the three phases of derivation
     -- 1: derivation to score events
     let (events, logs) = DeriveTest.e_val_right $ DeriveTest.derive_tracks
-            [ (inst_title ++ " +a1", [(0, 16, "n +a0"), (16, 16, "n +a2")])
+            [ (inst_title, [(0, 16, ""), (16, 16, "")])
             , ("*twelve", [(0, 0, "4c"), (16, 0, "4c#")])
             ]
-    let (perf_events, convert_warns, mmsgs, midi_warns) = DeriveTest.perform
-            DeriveTest.default_midi_config events
+    let (perf_events, convert_warns, mmsgs, midi_warns) =
+            DeriveTest.perform_defaults events
 
     equal logs []
-    equal (extract_events events) [(0, 16, "n +a0"), (16, 16, "n +a2")]
+    equal (extract_events events) [(0, 16, ""), (16, 16, "")]
 
     -- 2: conversion to midi perf events
-    equal convert_warns []
-    let evt = (,,,,) (Instrument.inst_name perf_inst)
+    equal (map Warning.warn_msg convert_warns) []
+    let evt = (,,,) "i"
+    -- ks key numbers are from DeriveTest.default_ksmap
     equal (map extract_perf_event perf_events)
-        [ evt (Just "a0") 0 16 (mkstack (0, 16))
-        , evt (Just "a1+a2") 16 16 (mkstack (16, 32))
+        [ evt 0 16 (mkstack (0, 16))
+        , evt 16 16 (mkstack (16, 32))
         ]
 
     -- 3: performance to midi protocol events
-    equal [nn | Midi.ChannelMessage _ (Midi.NoteOn nn _) <- map snd mmsgs]
-        [1, 60, 0, 61]
+    equal (filter_note_on mmsgs) [60, 61]
     equal midi_warns []
     where
     mkstack (s, e) = Stack.make
@@ -65,9 +65,43 @@ test_basic = do
         ]
     extract_perf_event (Perform.Event inst start dur _controls _pitch stack) =
         (Instrument.inst_name inst,
-            fmap ks_name (Instrument.inst_keyswitch inst),
             Timestamp.to_seconds start, Timestamp.to_seconds dur, stack)
-    ks_name (Instrument.Keyswitch name _) = name
+
+test_attributes = do
+    -- Test that attributes work, through derivation and performance.
+    let patch = Instrument.set_keymap keymap $
+            Instrument.set_keyswitches keyswitches $ Instrument.patch $
+                Instrument.instrument "ks" [] (-1, 1)
+        keyswitches = map (first Score.attributes)
+            [ (["a1", "a2"], 0)
+            , (["a0"], 1)
+            , (["a1"], 2)
+            , (["a2"], 3)
+            ]
+        keymap = [(Score.attr "km", 42)]
+        lookup_inst = DeriveTest.make_lookup_inst [patch]
+        midi_config = DeriveTest.make_midi_config [("s/ks", [0])]
+    let (events, logs) = DeriveTest.e_val_right $ DeriveTest.derive_tracks
+            [ (">s/ks +a1",
+                [(0, 1, "n +a0"), (1, 1, "n +a2"), (2, 1, "n -a1 +km")])
+            , ("*twelve", [(0, 0, "4c")])
+            ]
+    let (_, convert_warns, mmsgs, _) =
+            DeriveTest.perform lookup_inst midi_config events
+
+    equal logs []
+    -- Attribute inheritance thing works.
+    equal (map (Score.attrs_list . Score.event_attributes) events)
+        [["a0", "a1"], ["a1", "a2"], ["km"]]
+    equal (map Warning.warn_msg convert_warns)
+        ["attrs have no match in keyswitches or keymap of >s/ks: {a1}"]
+    -- Attrs get the proper keyswitches and keymap keys.
+    equal (filter_note_on mmsgs)
+        [1, 60, 0, 60, 42]
+
+filter_note_on :: [(Timestamp.Timestamp, Midi.Message)] -> [Midi.Key]
+filter_note_on msgs =
+    [nn | Midi.ChannelMessage _ (Midi.NoteOn nn _) <- map snd msgs]
 
 test_stack = do
     let result = DeriveTest.derive_blocks
@@ -180,7 +214,7 @@ test_subderive_multiple = do
     let (Right events, logs) = DeriveTest.e_val $ DeriveTest.derive_blocks
             [ ("b0",
                 [ ("tempo", [(0, 0, "2")])
-                , (">i", [(0, 8, "sub")])
+                , (inst_title, [(0, 8, "sub")])
                 , ("vel", [(0, 0, "1"), (8, 0, "i 0")])
                 ])
             , ("sub",
@@ -190,8 +224,7 @@ test_subderive_multiple = do
                 , ("*twelve", [(0, 0, "5c"), (1, 0, "5d")])
                 ])
             ]
-    let (_, _, mmsgs, _) = DeriveTest.perform
-            DeriveTest.default_midi_config events
+    let (_, _, mmsgs, _) = DeriveTest.perform_defaults events
     equal logs []
     equal (DeriveTest.note_on_times mmsgs)
         [ (0, 60, 127), (0, 72, 127)
@@ -422,7 +455,7 @@ test_fractional_pitch = do
                 , ("*semar", [(0, 16, "1"), (16, 16, "2")])
                 ]
     let (_perf_events, convert_warns, mmsgs, perform_warns) =
-            DeriveTest.perform DeriveTest.default_midi_config events
+            DeriveTest.perform_defaults events
 
     equal derive_logs []
     -- pprint events
@@ -441,8 +474,7 @@ test_overlapping_controls = do
             [ (inst_title, [(0, 1, ""), (1, 1, "")])
             , ("cc1", [(0, 0, "0"), (1, 0, "1")])
             ]
-    let (_, _, mmsgs, _) =
-            DeriveTest.perform DeriveTest.default_midi_config events
+    let (_, _, mmsgs, _) = DeriveTest.perform_defaults events
     let extract = map (first Timestamp.to_seconds) . filter (Midi.is_note . snd)
     equal (map (extract_control "cc1") events)
         [Just [(0, 0)], Just [(1, 1)]]
@@ -458,8 +490,7 @@ test_overlapping_controls = do
             [ (inst_title, [(0, 1, ""), (5, 1, "")])
             , ("cc1", [(0, 0, "0"), (5, 0, "1")])
             ]
-    let (_, _, mmsgs, _) =
-            DeriveTest.perform DeriveTest.default_midi_config events
+    let (_, _, mmsgs, _) = DeriveTest.perform_defaults events
     equal (extract mmsgs)
         [ (0, Midi.ChannelMessage 0 (Midi.NoteOn 60 100))
         , (1, Midi.ChannelMessage 0 (Midi.NoteOff 60 100))
@@ -473,31 +504,24 @@ extract_control cont = fmap Signal.unsignal
 
 test_control = do
     let (events, logs) = DeriveTest.e_val_right $ DeriveTest.derive_tracks
-            [ (inst_title, [(0, 1, "n +a1"), (1, 1, "n +a2")])
+            [ (inst_title, [(0, 1, ""), (1, 1, "")])
             , ("*twelve", [(0, 1, "4c"), (1, 1, "4c#")])
             , ("cc1", [(0, 0, "1"), (1, 0, "i .75"), (2, 0, "i 0")])
             ]
-    let (perf_events, convert_warns, mmsgs, midi_warns) = DeriveTest.perform
-            DeriveTest.default_midi_config events
+    let (perf_events, convert_warns, mmsgs, midi_warns) =
+            DeriveTest.perform_defaults events
 
     -- Cursory checks, more detailed checks are in more Note_test and
     -- Control_test.
     equal logs []
-    equal (extract_events events) [(0, 1, "n +a1"), (1, 1, "n +a2")]
-    equal (map (Set.toList . Score.attrs_set . Score.event_attributes) events)
-        [["a1"], ["a2"]]
+    equal (extract_events events) [(0, 1, ""), (1, 1, "")]
 
     equal convert_warns []
     equal (length perf_events) 2
-    equal (map Perform.event_instrument perf_events)
-        [set_ks perf_inst "a1" 2, set_ks perf_inst "a2" 3]
 
     -- Just make sure it did in fact emit ccs.
     check $ any Midi.is_cc (map snd mmsgs)
     equal midi_warns []
-    where
-    set_ks inst ks nn = inst
-        { Instrument.inst_keyswitch = Just (Instrument.Keyswitch ks nn) }
 
 test_make_inverse_tempo_func = do
     -- This is actually also tested in test_subderive.
@@ -622,7 +646,6 @@ test_block_end = do
 -- * setup
 
 inst_title = DeriveTest.default_inst_title
-perf_inst = DeriveTest.default_perf_inst
 
 extract_events :: [Score.Event] -> [(Double, Double, String)]
 extract_events = map $ \event ->

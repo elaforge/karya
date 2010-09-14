@@ -6,6 +6,7 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified System.IO as IO
 
+import Util.Control
 import Util.Pretty
 import Util.Test
 import qualified Util.Seq as Seq
@@ -15,7 +16,6 @@ import Ui
 
 import qualified Midi.Midi as Midi
 import Midi.Midi (ChannelMessage(..))
-import qualified Instrument.MidiDb as MidiDb
 
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
@@ -335,8 +335,8 @@ test_keyswitch = do
         ks_inst ks = inst1 { Instrument.inst_keyswitch = ks }
         with_addr (ks, note, start, dur) =
             (mkevent (ks_inst ks, note, start, dur, []), (dev1, 0))
-        ks1 = Just (Instrument.Keyswitch "ks1" 1)
-        ks2 = Just (Instrument.Keyswitch "ks2" 2)
+        ks1 = Just (Instrument.Keyswitch 1)
+        ks2 = Just (Instrument.Keyswitch 2)
     let f evts = (extract msgs, warns)
             where (msgs, warns) = perform_notes (map with_addr evts)
 
@@ -351,8 +351,7 @@ test_keyswitch = do
 
 perform midi_config events = (msgs, warns)
     where
-    (msgs, warns, _) =
-        Perform.perform Perform.initial_state inst_lookup midi_config events
+    (msgs, warns, _) = Perform.perform Perform.initial_state midi_config events
 
 perform_notes events = (msgs, warns)
     where
@@ -406,7 +405,7 @@ test_perform_control2 = do
 
 -- test the overlap map and channel allocation
 test_channelize = do
-    let inst_addrs = Perform.config_to_inst_addrs midi_config2 inst_lookup
+    let inst_addrs = Instrument.config_alloc midi_config2
         pevent (start, dur, psig) = mkpevent (start, dur, psig, [])
         f = map snd . channelize inst_addrs . map pevent
 
@@ -522,7 +521,7 @@ test_allot = do
     let mk inst chan start = (mkevent (inst, "a", start, 1, []), chan)
         mk1 = mk inst1
         in_time mks = zipWith ($) mks [0..]
-        inst_addrs = Perform.config_to_inst_addrs midi_config1 inst_lookup
+        inst_addrs = Instrument.config_alloc midi_config1
         allot_chans events = map snd $ map snd $ fst $ allot inst_addrs events
 
     -- They should alternate channels, according to LRU.
@@ -538,7 +537,7 @@ test_allot = do
         [0, 1]
 
 test_allot_warn = do
-    let inst_addrs = Perform.config_to_inst_addrs midi_config1 inst_lookup
+    let inst_addrs = Instrument.config_alloc midi_config1
     let extract (evts, warns) =
             (map extract_evt evts, map Warning.warn_msg warns)
         extract_evt (e, (Midi.WriteDevice dev, chan)) =
@@ -549,7 +548,7 @@ test_allot_warn = do
     equal (f [((inst1, "a", 0, 1, []), 0)])
         ([("inst1", "dev1", 0)], [])
     equal (f [((no_inst, "a", 0, 1, []), 0), ((no_inst, "b", 1, 2, []), 0)])
-        ([], ["no allocation for \"synth1/no_inst\""])
+        ([], ["no allocation for >synth1/no_inst"])
 
 allot inst_addrs events = (event_addrs, warnings)
     where
@@ -610,26 +609,18 @@ vol_cc = Control.Control "volume"
 inst1 = mkinst "inst1"
 inst2 = mkinst "inst2"
 mkinst name = (Instrument.instrument name [] (-1, 1))
-    { Instrument.inst_score_name = "synth1/" ++ name }
+    { Instrument.inst_score = Score.Instrument ("synth1/" ++ name) }
 
 dev1 = Midi.WriteDevice "dev1"
 dev2 = Midi.WriteDevice "dev2"
 synth1 = Instrument.synth "synth1" []
-midi_config1 = Instrument.config [(score_inst inst1, [(dev1, 0), (dev1, 1)])]
-
-score_inst inst = Score.Instrument (Instrument.inst_name inst)
+midi_config1 = Instrument.config
+    [(Instrument.inst_score inst1, [(dev1, 0), (dev1, 1)])]
 
 -- Also includes inst2.
 midi_config2 = Instrument.config
-    [ (score_inst inst1, [(dev1, 0), (dev1, 1)])
-    , (score_inst inst2, [(dev2, 2)]) ]
-default_ksmap = Instrument.make_keyswitches
-    [("a1+a2", 0), ("a0", 1), ("a1", 2), ("a2", 3)]
-
-inst_lookup :: MidiDb.LookupMidiInstrument
-inst_lookup attrs (Score.Instrument inst)
-    | inst == "inst1" = Just $ inst1
-        { Instrument.inst_keyswitch =
-            Instrument.get_keyswitch default_ksmap attrs }
-    | inst == "inst2" = Just inst2
-    | otherwise = Nothing
+    [ (Instrument.inst_score inst1, [(dev1, 0), (dev1, 1)])
+    , (Instrument.inst_score inst2, [(dev2, 2)]) ]
+default_ksmap = Instrument.keyswitch_map $
+    map (first (Score.attributes . words))
+        [("a1 a2", 0), ("a0", 1), ("a1", 2), ("a2", 3)]

@@ -16,7 +16,6 @@ import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 
 
-
 -- * local instrument utils
 
 -- | Utility to construct a soft synth.  Soft synths are assumed to have
@@ -64,8 +63,14 @@ empty = MidiDb Map.empty
 
 -- ** lookup
 
+-- | This returns the instrument, if found, and the attributes that were used
+-- to find a keyswitch, if any.
+--
+-- The attributes are returned because keyswitch matching is by subset rather
+-- than exact, so this is the only way for the caller to know which attributes
+-- were used.
 type LookupMidiInstrument = Score.Attributes -> Score.Instrument
-    -> Maybe Instrument.Instrument
+    -> Maybe (Instrument.Instrument, Score.Attributes)
 
 -- | Once I have other backends this should move back into Db.
 data Info = Info {
@@ -79,19 +84,20 @@ lookup_midi midi_db attrs inst = case lookup_instrument midi_db inst of
     Just (Info synth patch) -> Just $ make_inst synth patch inst attrs
 
 -- | Merge a Synth and a Patch to create an Instrument.
-make_inst :: Instrument.Synth -> Instrument.Patch
-    -> Score.Instrument -> Score.Attributes -> Instrument.Instrument
-make_inst synth patch (Score.Instrument score_inst) attrs = inst
+make_inst :: Instrument.Synth -> Instrument.Patch -> Score.Instrument
+    -> Score.Attributes -> (Instrument.Instrument, Score.Attributes)
+make_inst synth patch score_inst attrs = (inst
         { Instrument.inst_control_map = Map.union inst_cmap synth_cmap
-        , Instrument.inst_score_name = score_inst
+        , Instrument.inst_score = score_inst
         , Instrument.inst_synth = Instrument.synth_name synth
-        , Instrument.inst_keyswitch = ks
-        }
+        , Instrument.inst_keyswitch = fmap fst ks_attrs
+        }, maybe Score.no_attrs snd ks_attrs)
     where
     inst = Instrument.patch_instrument patch
     synth_cmap = Instrument.synth_control_map synth
     inst_cmap = Instrument.inst_control_map inst
-    ks = Instrument.get_keyswitch (Instrument.patch_keyswitches patch) attrs
+    ks_attrs = Instrument.get_keyswitch (Instrument.patch_keyswitches patch)
+        attrs
 
 lookup_instrument :: MidiDb -> Score.Instrument -> Maybe Info
 lookup_instrument (MidiDb synths) inst = do

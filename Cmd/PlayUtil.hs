@@ -29,8 +29,6 @@ import qualified Derive.Scale.Twelve as Twelve
 
 import qualified Perform.Warning as Warning
 
-import qualified Instrument.MidiDb as MidiDb
-
 
 -- | There are a few environ values that almost everything relies on.
 initial_environ :: TrackLang.Environ
@@ -57,17 +55,14 @@ cached_perform :: (Monad m) =>
     BlockId -> Derive.Result Derive.Events -> Cmd.CmdT m Cmd.Performance
 cached_perform block_id result = do
     midi_config <- State.get_midi_config
-    lookup_inst <- Cmd.get_lookup_midi_instrument
-    midi_cache <- get_midi_cache lookup_inst midi_config <$>
-        Cmd.lookup_performance block_id
+    midi_cache <- get_midi_cache midi_config <$> Cmd.lookup_performance block_id
     perform result midi_cache
 
 uncached_perform :: (Monad m) => Derive.Result Derive.Events
     -> Cmd.CmdT m Cmd.Performance
 uncached_perform result = do
     midi_config <- State.get_midi_config
-    lookup_inst <- Cmd.get_lookup_midi_instrument
-    perform result (Midi.Cache.cache lookup_inst midi_config)
+    perform result (Midi.Cache.cache midi_config)
 
 clear_cache :: (Monad m) => BlockId -> Cmd.CmdT m ()
 clear_cache block_id =
@@ -100,8 +95,8 @@ perform result cache = do
             Cmd.abort
         Right events -> return events
 
-    let (midi_events, convert_warnings) =
-            Convert.convert (Midi.Cache.cache_lookup cache) events
+    lookup_inst <- Cmd.get_lookup_midi_instrument
+    let (midi_events, convert_warnings) = Convert.convert lookup_inst events
     -- TODO call Convert.verify for more warnings
 
     let Derive.EventDamage event_damage = Derive.r_event_damage result
@@ -122,30 +117,23 @@ perform_events events = do
     lookup_inst <- Cmd.get_lookup_midi_instrument
     midi_config <- State.get_midi_config
     let (midi_events, convert_warnings) = Convert.convert lookup_inst events
-        (msgs, perf_warns, _) = Perform.perform Perform.initial_state
-            lookup_inst midi_config midi_events
+        (msgs, perf_warns, _) =
+            Perform.perform Perform.initial_state midi_config midi_events
     convert_logs <- mapM (warn_to_log "convert") convert_warnings
     perf_logs <- mapM (warn_to_log "perform") perf_warns
     return (msgs, map Pretty.pretty (convert_logs ++ perf_logs))
 
 -- * util
 
--- | The MIDI cache depends on the inst lookup function and inst config.  If
--- either of those change, it has to be cleared.
---
--- I can't compare functions so I just have to make sure to reinitialize the
--- MIDI cache when the function changes (which should be rare if ever).  The
--- instrument config /can/ be compared, so I just compare on play, and clear
--- the cache if it's changed.
-get_midi_cache :: MidiDb.LookupMidiInstrument -> Instrument.Config
-    -> Maybe Cmd.Performance -> Midi.Cache.Cache
-get_midi_cache lookup_inst config maybe_perf = case maybe_perf of
+-- | The MIDI cache depends on the inst config.  If it changes, the cache must
+-- be cleared.
+get_midi_cache :: Instrument.Config -> Maybe Cmd.Performance -> Midi.Cache.Cache
+get_midi_cache config maybe_perf = case maybe_perf of
     Nothing -> empty
     Just perf ->
         let cache = Cmd.perf_midi_cache perf
         in if config == Midi.Cache.cache_config cache then cache else empty
-    where
-    empty = Midi.Cache.cache lookup_inst config
+    where empty = Midi.Cache.cache config
 
 get_derive_cache :: Maybe Cmd.Performance -> (Derive.Cache, Derive.ScoreDamage)
 get_derive_cache Nothing = (Derive.empty_cache, Monoid.mempty)

@@ -11,7 +11,10 @@ import qualified Control.Monad.Reader as Reader
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
+import qualified Midi.Midi as Midi
+
 import qualified Util.Logger as Logger
+import qualified Util.Pretty as Pretty
 
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
@@ -50,29 +53,40 @@ convert_event :: MidiDb.LookupMidiInstrument -> Score.Event
     -> ConvertT Perform.Event
 convert_event lookup_inst event = do
     score_inst <- require "instrument" (Score.event_instrument event)
-    -- TODO lookup_inst involves creating a new inst from the synth.  Since
-    -- this is done a lot for the same insts, maybe I should cache it?
-    midi_inst <- require
-        ("midi instrument in instrument db: " ++ show score_inst)
-        (lookup_inst (Score.event_attributes event) score_inst)
-
-    -- Use attrs to look up pitch, then they don't need to be included
-    -- in the inst.  But if they're not in the inst, then there's no real
-    -- place to put them.
-    -- Should I subtract out the ks attrs?  But I don't know what those were.
-
-    -- Map attrs through the keymap.  If I want keyswitches to coexist with
-    -- keymaps, I'll have to filter out the keyswitch attrs somehow.  It
-    -- probably means Instrument.get_keyswitch has to return the attrs matched.
-    let kmap = Instrument.inst_keymap midi_inst
-    pitch <- case Map.lookup (Score.event_attributes event) kmap of
+    (midi_inst, maybe_key) <- convert_inst lookup_inst score_inst
+        (Score.event_attributes event)
+    pitch <- case maybe_key of
         Nothing -> convert_pitch (Score.event_pitch event)
-        Just key -> return (Signal.constant (fromIntegral key))
+        Just key -> return $ Signal.constant (fromIntegral key)
     let controls = convert_controls (Score.event_controls event)
     return $ Perform.Event midi_inst
         (Timestamp.from_real_time (Score.event_start event))
         (Timestamp.from_real_time (Score.event_duration event))
         controls pitch (Score.event_stack event)
+
+-- | Look up the score inst and figure out keyswitches and keymap based on
+-- its attributes.  Warn if there are attributes that didn't match anything.
+convert_inst :: MidiDb.LookupMidiInstrument -> Score.Instrument
+    -> Score.Attributes -> ConvertT (Instrument.Instrument, Maybe Midi.Key)
+convert_inst lookup_inst score_inst attrs = do
+    (midi_inst, ks_attrs) <- require
+        ("midi instrument in instrument db: " ++ show score_inst)
+        (lookup_inst attrs score_inst)
+    let kmap_attrs = Score.attrs_diff attrs ks_attrs
+    let kmap = Instrument.inst_keymap midi_inst
+    maybe_key <- if Map.null kmap
+        then return Nothing
+        else case Map.lookup kmap_attrs kmap of
+            Nothing -> return Nothing
+            Just key -> return (Just key)
+    case maybe_key of
+        Nothing | kmap_attrs /= Score.no_attrs ->
+            warn $ "attrs have no match in keyswitches or keymap of "
+                ++ Pretty.pretty midi_inst ++ ": " ++ Pretty.pretty kmap_attrs
+        -- If there was a keymap and lookup succeeded then all the attributes
+        -- are accounted for.
+        _ -> return ()
+    return (midi_inst, maybe_key)
 
 -- | They're both newtypes so this should boil down to id.
 -- I could filter out the ones MIDI doesn't handle but laziness should do its

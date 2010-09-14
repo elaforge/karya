@@ -100,8 +100,8 @@ instance Binary Instrument.KeyswitchMap where
     get = get >>= \a -> return (Instrument.KeyswitchMap a)
 
 instance Binary Instrument.Keyswitch where
-    put (Instrument.Keyswitch a b) = put a >> put b
-    get = get >>= \a -> get >>= \b -> return (Instrument.Keyswitch a b)
+    put (Instrument.Keyswitch a) = put a
+    get = get >>= \a -> return (Instrument.Keyswitch a)
 
 instance Binary Score.Attributes where
     put (Score.Attributes a) = put a

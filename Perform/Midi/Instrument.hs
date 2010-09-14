@@ -23,9 +23,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
-
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
 
@@ -49,13 +47,18 @@ default_scale = Pitch.twelve
 -- Perform.Instrument that includes a fingerprint for fast comparison.
 data Instrument = Instrument {
     -- | For wildcard patches, the name should be left blank and will be filled
-    -- in by however the instrument is looked up.
+    -- in by however the instrument is looked up.  This doesn't have the synth
+    -- on it, so it may not be unique.
     inst_name :: InstrumentName
 
-    -- | 'inst_score_name', 'inst_synth', and 'inst_keyswitch' are
-    -- automatically filled with data from the Synth and Patch.  They should
-    -- be left empty if the 'patch_instrument' instance.
-    , inst_score_name :: String
+    -- | 'inst_score', 'inst_synth', and 'inst_keyswitch' are
+    -- automatically filled with data from the Synth and Patch.  They should be
+    -- left empty in the 'patch_instrument' template instance.
+    --
+    -- 'inst_score' should uniquely name one instrument in a certain
+    -- performance, but I can't think about whether that's guaranteed at the
+    -- moment.  TODO think more
+    , inst_score :: Score.Instrument
     , inst_synth :: SynthName
     , inst_keyswitch :: Maybe Keyswitch
 
@@ -79,10 +82,10 @@ data Instrument = Instrument {
 
 instance NFData Instrument where
     -- don't bother with the rest since instruments are constructed all at once
-    rnf inst = rnf (inst_score_name inst)
+    rnf inst = rnf (inst_score inst)
 
 instance Pretty.Pretty Instrument where
-    pretty inst = '>' : inst_score_name inst
+    pretty inst = '>' : Score.inst_name (inst_score inst)
 
 -- ** construction
 
@@ -98,7 +101,7 @@ instrument :: InstrumentName -> [(Midi.Control, String)] -> Control.PbRange
     -> Instrument
 instrument name cmap pb_range = Instrument {
     inst_name = name
-    , inst_score_name = ""
+    , inst_score = Score.Instrument ""
     , inst_synth = ""
     , inst_keyswitch = Nothing
     , inst_keymap = Map.empty
@@ -146,11 +149,9 @@ empty_config = config []
 -- 'Config'.
 type Addr = (Midi.WriteDevice, Midi.Channel)
 
--- | Keyswitch name and key to activate it.
-data Keyswitch = Keyswitch
-    { ks_name :: String
-    , ks_key :: Midi.Key
-    } deriving (Eq, Ord, Show, Read)
+-- | Key to activate a keyswitch.
+newtype Keyswitch = Keyswitch { ks_key :: Midi.Key }
+    deriving (Eq, Ord, Show, Read)
 
 -- * instrument db types
 
@@ -183,14 +184,15 @@ patch inst = Patch inst NoInitialization (KeyswitchMap []) [] ""
 patch_name :: Patch -> InstrumentName
 patch_name = inst_name . patch_instrument
 
-set_keyswitches :: [(String, Midi.Key)] -> Patch -> Patch
-set_keyswitches ks patch = patch { patch_keyswitches = make_keyswitches ks }
+set_keyswitches :: [(Score.Attributes, Midi.Key)] -> Patch -> Patch
+set_keyswitches ks patch = patch { patch_keyswitches = keyswitch_map ks }
 
 -- | A KeyswitchMap maps a set of attributes to a keyswitch and gives
 -- a piority for those mapping.  For example, if {pizz} is before {cresc}, then
 -- {pizz, cresc} will map to {pizz}, unless, of course, {pizz, cresc} comes
 -- before either.  So if a previous attr set is a subset of a later one, the
--- later one will never be selected.  'validate_keyswithes' will check for that.
+-- later one will never be selected.  'overlapping_keyswitches' will check for
+-- that.
 --
 -- Two keyswitches with the same key will act as aliases for each other.
 --
@@ -200,47 +202,37 @@ set_keyswitches ks patch = patch { patch_keyswitches = make_keyswitches ks }
 newtype KeyswitchMap = KeyswitchMap [(Score.Attributes, Keyswitch)]
     deriving (Eq, Show)
 
--- | Implement attribute priorities as described in 'KeyswitchMap'.
-get_keyswitch :: KeyswitchMap -> Score.Attributes -> Maybe Keyswitch
+-- | Make a 'KeyswitchMap'.
+--
+-- An empty string will be the empty set keyswitch, which is used for notes
+-- with no attrs.
+keyswitch_map :: [(Score.Attributes, Midi.Key)] -> KeyswitchMap
+keyswitch_map attr_keys =
+    KeyswitchMap [(attrs, Keyswitch key) | (attrs, key) <- attr_keys]
+
+overlapping_keyswitches :: KeyswitchMap -> [String]
+overlapping_keyswitches (KeyswitchMap attr_ks) =
+    Maybe.catMaybes $ zipWith check (List.inits attrs) attrs
+    where
+    attrs = map (Score.attrs_set . fst) attr_ks
+    check prev attr = case List.find (`Set.isSubsetOf` attr) prev of
+        Just other_attr -> Just $ "attrs "
+            ++ Pretty.pretty (Score.Attributes attr) ++ " are shadowed by "
+            ++ Pretty.pretty (Score.Attributes other_attr)
+        Nothing -> Nothing
+
+-- | Implement attribute priorities as described in 'KeyswitchMap'.  Return
+-- the attributes matched in addition to the Keyswitch.
+get_keyswitch :: KeyswitchMap -> Score.Attributes
+    -> Maybe (Keyswitch, Score.Attributes)
 get_keyswitch (KeyswitchMap attr_ks) attrs =
-    fmap snd (List.find is_subset attr_ks)
+    fmap (uncurry (flip (,))) (List.find is_subset attr_ks)
     where
     is_subset (inst_attrs, _) = Score.attrs_set inst_attrs
         `Set.isSubsetOf` Score.attrs_set attrs
 
 keys_of :: KeyswitchMap -> Set.Set Midi.Key
 keys_of (KeyswitchMap attr_ks) = Set.fromList $ map (ks_key . snd) attr_ks
-
--- | Make a 'KeyswitchMap' from strings.
---
--- @
--- [(\"trem+cresc\", 38)]
---      -> KeyswitchMap [({trem, cresc}, Keyswitch \"trem+cresc\" 38)]
--- @
---
--- An empty string will be the empty set keyswitch, which is used for notes
--- with no attrs.
-make_keyswitches :: [(String, Midi.Key)] -> KeyswitchMap
-make_keyswitches attr_keys
-    | null errs = ks_map
-    | otherwise = error $ "errors constructing KeyswitchMap: "
-        ++ Seq.join "; " errs
-    where
-    ks_map = KeyswitchMap
-        [(split attr, Keyswitch attr key) | (attr, key) <- attr_keys]
-        where
-        split = Score.attributes . filter (not.null) . Seq.split "+"
-    errs = validate_keyswithes ks_map
-
-validate_keyswithes :: KeyswitchMap -> [String]
-validate_keyswithes (KeyswitchMap attr_ks) =
-    Maybe.catMaybes $ zipWith check (List.inits attrs) attrs
-    where
-    attrs = map (Score.attrs_set . fst) attr_ks
-    check prev attr = case List.find (`Set.isSubsetOf` attr) prev of
-        Just other_attr -> Just $ "attr " ++ show (Set.toList attr)
-            ++ " is shadowed by " ++ show (Set.toList other_attr)
-        Nothing -> Nothing
 
 type Tag = (TagKey, TagVal)
 tag :: String -> String -> Tag

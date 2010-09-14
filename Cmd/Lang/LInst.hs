@@ -30,7 +30,7 @@ import qualified Instrument.MidiDb as MidiDb
 lookup_instrument :: String -> Cmd.CmdL (Maybe Instrument.Instrument)
 lookup_instrument inst_name = do
     lookup_inst <- Cmd.get_lookup_midi_instrument
-    return $ lookup_inst Score.no_attrs (Score.Instrument inst_name)
+    return $ fmap fst $ lookup_inst Score.no_attrs (Score.Instrument inst_name)
 
 inst_info :: String -> Cmd.CmdL String
 inst_info inst_name = Info.inst_info (Score.Instrument inst_name)

@@ -22,13 +22,11 @@ import Perform.Timestamp (Timestamp)
 import qualified Perform.Warning as Warning
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.Instrument as Instrument
-import qualified Instrument.MidiDb as MidiDb
 
 
 data Cache = Cache {
-    -- | If either of these changes, the cache map has to be discarded.
-    cache_lookup :: MidiDb.LookupMidiInstrument
-    , cache_config :: Instrument.Config
+    -- | If this changes, the cache map has to be discarded.
+    cache_config :: Instrument.Config
     -- | Which chunks were reperformed due to damage, /not including/ the
     -- chunks rederived due to a failed splice.  The reason is laziness, see
     -- 'cache_stats'.
@@ -38,10 +36,10 @@ data Cache = Cache {
 
 -- | Just for debugging.
 instance Show Cache where
-    show (Cache _ _ _ chunks) = "<midi cache: " ++ show (length chunks) ++ ">"
+    show (Cache _ _ chunks) = "<midi cache: " ++ show (length chunks) ++ ">"
 
-cache :: MidiDb.LookupMidiInstrument -> Instrument.Config -> Cache
-cache lookup config = Cache lookup config Ranges.nothing []
+cache :: Instrument.Config -> Cache
+cache config = Cache config Ranges.nothing []
 
 -- | Return the length of time of the cached events.
 cache_length :: Cache -> RealTime
@@ -146,7 +144,7 @@ perform cache (EventDamage damage) events
         Perform.initial_state events damage
     set_map (chunks, damage) =
         cache { cache_damage = damage, cache_chunks = chunks }
-    config = (cache_lookup cache, cache_config cache)
+    config = cache_config cache
 
 -- | Like the damage ranges, the chunk ranges are half-open.
 chunk_damage :: [(RealTime, RealTime)] -> [(ChunkNum, ChunkNum)]
@@ -154,8 +152,6 @@ chunk_damage = map $ \(s, e) -> (floor (s / size), ceiling (e / size))
     where size = Timestamp.to_real_time cache_chunk_size
 
 -- * implementation
-
-type Config = (MidiDb.LookupMidiInstrument, Instrument.Config)
 
 -- | Run through the chunk cache, reperforming chunks that are within the
 -- damage ranges.
@@ -169,7 +165,7 @@ type Config = (MidiDb.LookupMidiInstrument, Instrument.Config)
 -- still significant.
 --
 -- This function is too complicated, sorry about that.
-perform_cache :: Config -> ChunkNum -> [Chunk] -> Perform.State
+perform_cache :: Instrument.Config -> ChunkNum -> [Chunk] -> Perform.State
     -> Perform.Events -> [(ChunkNum, ChunkNum)] -> [Chunk]
 perform_cache config chunknum [] prev_state events _ =
     perform_chunks config chunknum prev_state events
@@ -206,8 +202,8 @@ perform_cache config chunknum (cached : rest_cache) prev_state events
         where warn = Warning.warning msg Stack.empty Nothing
 
 -- | Just keep performing chunks until I run out of events.
-perform_chunks :: Config -> ChunkNum -> Perform.State -> Perform.Events
-    -> [Chunk]
+perform_chunks :: Instrument.Config -> ChunkNum -> Perform.State
+    -> Perform.Events -> [Chunk]
 perform_chunks config chunknum prev_state events =
     fst $ go chunknum prev_state events
     where
@@ -224,15 +220,15 @@ trim_events :: ChunkNum -> Perform.Events -> Perform.Events
 trim_events nchunk = dropWhile ((<start) . Perform.event_start)
     where start = fromIntegral nchunk * cache_chunk_size
 
-perform_chunk :: ChunkNum -> Perform.State -> Config -> Perform.Events
-    -> (Chunk, Perform.Events)
-perform_chunk chunknum state (lookup_inst, config) events =
+perform_chunk :: ChunkNum -> Perform.State -> Instrument.Config
+    -> Perform.Events -> (Chunk, Perform.Events)
+perform_chunk chunknum state config events =
     (Chunk msgs (normalize_state end final_state) warns, post)
     where
     (pre, post) = break ((>=end) . Perform.event_start)
         (trim_events chunknum events)
     end = fromIntegral (chunknum+1) * cache_chunk_size
-    (msgs, warns, final_state) = Perform.perform state lookup_inst config pre
+    (msgs, warns, final_state) = Perform.perform state config pre
 
 -- | Compare to States and if they aren't compatible, return why not.
 --

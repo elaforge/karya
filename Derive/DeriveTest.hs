@@ -85,15 +85,21 @@ derive_tracks_cmap cmap tracks =
 derive_tracks_tempo :: [UiTest.TrackSpec] -> Derive.Result [Score.Event]
 derive_tracks_tempo tracks = derive_tracks (("tempo", [(0, 0, "1")]) : tracks)
 
-perform :: Instrument.Config -> [Score.Event]
+perform :: MidiDb.LookupMidiInstrument -> Instrument.Config -> [Score.Event]
     -> ([Perform.Event], [Warning.Warning],
         [(Timestamp.Timestamp, Midi.Message)], [Warning.Warning])
-perform midi_config events = (perf_events, convert_warns, mmsgs, perform_warns)
+perform lookup_inst midi_config events =
+    (perf_events, convert_warns, mmsgs, perform_warns)
     where
-    (perf_events, convert_warns) = Convert.convert default_lookup events
+    (perf_events, convert_warns) = Convert.convert lookup_inst events
     (msgs, perform_warns, _) = Perform.perform Perform.initial_state
-        default_lookup midi_config perf_events
+        midi_config perf_events
     mmsgs = map (\m -> (Midi.wmsg_ts m, Midi.wmsg_msg m)) msgs
+
+perform_defaults :: [Score.Event]
+    -> ([Perform.Event], [Warning.Warning],
+        [(Timestamp.Timestamp, Midi.Message)], [Warning.Warning])
+perform_defaults = perform default_lookup_inst default_midi_config
 
 -- | Create multiple blocks, and derive the first one.
 derive_blocks :: [(String, [UiTest.TrackSpec])] -> Derive.Result [Score.Event]
@@ -253,40 +259,23 @@ d_note = do
 
 -- * inst
 
-default_lookup :: MidiDb.LookupMidiInstrument
-default_lookup attrs (Score.Instrument inst)
-    | inst == "i" = Just $ default_perf_inst
-        { Instrument.inst_keyswitch =
-            Instrument.get_keyswitch default_ksmap attrs }
-    | synth `List.isPrefixOf` inst = Just $ default_perf_inst
-        { Instrument.inst_name = drop (length synth + 1) inst
-        , Instrument.inst_score_name = inst
-        }
-    | otherwise = Nothing
-
-default_inst = Score.Instrument "i"
-default_perf_inst = (Instrument.instrument "patch" [] (-2, 2))
-    { Instrument.inst_synth = synth }
-default_inst_title = ">i"
-
-synth = "fm8"
-
-default_midi_config :: Instrument.Config
-default_midi_config = make_midi_config [("i", [0..2])]
+make_lookup_inst :: [Instrument.Patch] -> MidiDb.LookupMidiInstrument
+make_lookup_inst patches = MidiDb.lookup_midi (MidiDb.midi_db [sdesc])
+    where
+    sdesc = MidiDb.softsynth "s" (Just "wdev") (-2, 2) patches [] id
 
 make_midi_config :: [(String, [Midi.Channel])] -> Instrument.Config
 make_midi_config config = Instrument.config
     [(Score.Instrument inst, map mkaddr chans) | (inst, chans) <- config]
-    where mkaddr chan = (Midi.WriteDevice "fm8", chan)
+    where mkaddr chan = (Midi.WriteDevice "wdev", chan)
 
-default_ksmap = Instrument.KeyswitchMap $
-    map (\(attrs, name, nn) -> (to_attrs attrs, Instrument.Keyswitch name nn))
-        [ (["a1", "a2"], "a1+a2", 0)
-        , (["a0"], "a0", 1)
-        , (["a1"], "a1", 2)
-        , (["a2"], "a2", 3)
-        ]
-    where to_attrs = Score.attributes
+default_lookup_inst :: MidiDb.LookupMidiInstrument
+default_lookup_inst = make_lookup_inst []
+
+default_midi_config :: Instrument.Config
+default_midi_config = make_midi_config [("s/i", [0..2])]
+
+default_inst_title = ">s/i"
 
 -- * mkevents
 

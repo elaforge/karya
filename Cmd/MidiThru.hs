@@ -67,7 +67,7 @@ cmd_midi_thru scale_id score_inst msg = do
     lookup_inst <- Cmd.get_lookup_midi_instrument
     -- I could try to get attrs from the inst track title, but I'm not sure
     -- how useful that will be.
-    inst <- Cmd.require $ lookup_inst Score.no_attrs score_inst
+    (inst, _) <- Cmd.require $ lookup_inst Score.no_attrs score_inst
     let pb_range = Instrument.inst_pitch_bend_range inst
 
     scale <- Cmd.get_scale "cmd_midi_thu" scale_id

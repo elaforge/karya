@@ -220,8 +220,11 @@ warp_to_signal (Warp sig shift stretch)
 -- backend itself, but things at the Derive layer and above don't care about
 -- all that.
 newtype Instrument = Instrument String
-    deriving (Eq, Ord, Show, Read)
+    deriving (DeepSeq.NFData, Eq, Ord, Show, Read)
 inst_name (Instrument s) = s
+
+instance Pretty.Pretty Instrument where
+    pretty inst = '>' : inst_name inst
 
 -- | Instruments can have a set of attributes along with them.  These are
 -- propagated dynamically down the derivation stack.  They function like
@@ -232,13 +235,16 @@ newtype Attributes = Attributes (Set.Set Attribute)
     deriving (Monoid.Monoid, Eq, Ord, Show)
 
 instance Pretty.Pretty Attributes where
-    pretty = Seq.join "+" . attrs_list
+    pretty attrs = "{" ++ Seq.join ", " (attrs_list attrs) ++ "}"
 
 attrs_set :: Attributes -> Set.Set Attribute
 attrs_set (Attributes attrs) = attrs
 
 attrs_list :: Attributes -> [Attribute]
 attrs_list = Set.toList . attrs_set
+
+attrs_diff :: Attributes -> Attributes -> Attributes
+attrs_diff (Attributes x) (Attributes y) = Attributes (Set.difference x y)
 
 attributes :: [String] -> Attributes
 attributes = Attributes . Set.fromList

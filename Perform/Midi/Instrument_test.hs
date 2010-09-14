@@ -5,24 +5,28 @@ import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
 
 
-attr_map = Instrument.make_keyswitches
-    [("pizz", 0), ("sfz+trem", 1), ("sfz", 2), ("trem", 3)]
+ksmap = Instrument.keyswitch_map
+    [ (mkattrs "pizz", 0)
+    , (mkattrs "sfz trem", 1)
+    , (mkattrs "sfz", 2)
+    , (mkattrs "trem", 3)
+    ]
+mkattrs = Score.attributes . words
+unattrs = unwords . Score.attrs_list
 
 test_get_keyswitch = do
-    let f attrs = fmap (\(Instrument.Keyswitch name _) -> name) $
-            Instrument.get_keyswitch attr_map (Score.attributes (words attrs))
+    let f attrs = fmap (unattrs . snd) $
+            Instrument.get_keyswitch ksmap (mkattrs attrs)
     equal (f "bazzle") Nothing
     equal (f "pizz sfz") (Just "pizz")
-    equal (f "trem sfz") (Just "sfz+trem")
-    equal (f "sfz bazzle trem") (Just "sfz+trem")
+    equal (f "trem sfz") (Just "sfz trem")
+    equal (f "sfz bazzle trem") (Just "sfz trem")
     equal (f "pizz sfz trem") (Just "pizz")
     -- equal (f ("cresc.fast")) (Just "cresc")
 
-test_make_keyswitches = do
-    let f = Instrument.make_keyswitches
-    equal (f [("a+b", 1), ("", 2)]) $
-        Instrument.KeyswitchMap
-            [ (Score.attributes ["a", "b"], Instrument.Keyswitch "a+b" 1)
-            , (Score.no_attrs, Instrument.Keyswitch "" 2)
-            ]
-    throws (f [("", 1), ("pizz", 2)]) "attr [\"pizz\"] is shadowed by []"
+test_overlapping_keyswitches = do
+    let overlapping = Instrument.keyswitch_map
+            [(mkattrs "", 0), (mkattrs "a b", 1)]
+    let f = Instrument.overlapping_keyswitches
+    equal (f ksmap) []
+    equal (f overlapping) ["attrs {a, b} are shadowed by {}"]

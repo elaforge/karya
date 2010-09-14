@@ -159,7 +159,7 @@ run_profile perform_midi ui_state = do
         return ((), events, DeriveTest.quiet_filter_logs (Derive.r_logs result))
 
     let (perf_events, convert_warns, mmsgs, midi_warns) =
-            DeriveTest.perform midi_config events
+            DeriveTest.perform DeriveTest.default_lookup_inst midi_config events
     when perform_midi $ do
         section "convert" $ do
             force perf_events

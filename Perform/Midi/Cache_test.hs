@@ -101,9 +101,6 @@ test_messages_from = do
         ]
 
 
-inst_lookup = Perform_test.inst_lookup
-midi_config = Perform_test.midi_config1
-
 type Events = [(RealTime, RealTime)]
 
 compare_cached :: Events -> Events -> [(RealTime, RealTime)]
@@ -127,8 +124,7 @@ perform_uncached events =
     Cache.perform initial_cache (Cache.EventDamage Ranges.everything)
         (mkevents events)
     where
-    initial_cache = Cache.cache Perform_test.inst_lookup
-        Perform_test.midi_config1
+    initial_cache = Cache.cache Perform_test.midi_config1
 
 mkdamage :: [(RealTime, RealTime)] -> Cache.EventDamage
 mkdamage = Cache.EventDamage . Ranges.ranges

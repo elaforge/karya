@@ -9,6 +9,7 @@ import qualified Data.Char as Char
 import qualified Data.Map as Map
 import Text.Printf
 
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Fltk as Fltk
 
@@ -102,13 +103,7 @@ info_of db score_inst (MidiDb.Info synth patch) =
 show_keyswitches :: Instrument.KeyswitchMap -> String
 show_keyswitches (Instrument.KeyswitchMap ksmap) =
     Seq.join "\n" (map show_pair ksmap)
-    where
-    show_pair (attrs, ks) = show_attrs (Score.attrs_list attrs)
-        ++ ": " ++ show_ks ks
-    show_attrs [] = "{}"
-    show_attrs attrs = Seq.join " " ['+':attr | attr <- attrs]
-    show_ks ks = Instrument.ks_name ks
-        ++ " (" ++ show (Instrument.ks_key ks) ++ ")"
+    where show_pair (attrs, ks) = Pretty.pretty attrs ++ ": " ++ show ks
 
 info_sections = unlines . filter (not.null) . map info_section
 info_section (title, raw_text)

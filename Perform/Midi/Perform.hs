@@ -39,6 +39,7 @@ import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Map as Map
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
@@ -53,7 +54,6 @@ import qualified Perform.Warning as Warning
 
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
-import qualified Instrument.MidiDb as MidiDb
 
 
 -- * constants
@@ -97,14 +97,14 @@ initial_state = State [] empty_allot_state empty_perform_state Map.empty
 -- | Render instrument tracks down to midi messages, sorted in timestamp order.
 -- This should be non-strict on the event list, so that it can start producing
 -- MIDI output as soon as it starts processing Events.
-perform :: State -> MidiDb.LookupMidiInstrument -> Instrument.Config
-    -> Events -> ([Midi.WriteMessage], [Warning.Warning], State)
-perform state _ _ [] = ([], [], state)
-perform state lookup_inst config events =
+perform :: State -> Instrument.Config -> Events
+    -> ([Midi.WriteMessage], [Warning.Warning], State)
+perform state _ [] = ([], [], state)
+perform state config events =
     (final_msgs, warns,
         State channelize_state allot_state perform_state postproc_state)
     where
-    inst_addrs = config_to_inst_addrs config lookup_inst
+    inst_addrs = Instrument.config_alloc config
     (event_channels, channelize_state) =
         channelize (state_channelize state) inst_addrs events
     (event_allotted, allot_warns, allot_state) =
@@ -114,16 +114,8 @@ perform state lookup_inst config events =
     warns = allot_warns ++ perform_warns
     (final_msgs, postproc_state) = post_process (state_postproc state) msgs
 
-config_to_inst_addrs :: Instrument.Config -> MidiDb.LookupMidiInstrument
-    -> InstAddrs
-config_to_inst_addrs config lookup_inst = Map.fromList
-    [(Instrument.inst_name inst, addrs) | (Just inst, addrs) <- inst_addrs]
-    where
-    inst_addrs = [(lookup_inst Score.no_attrs inst, addrs)
-        | (inst, addrs) <- Map.assocs (Instrument.config_alloc config)]
-
 -- | Map each instrument to its allocated Addrs.
-type InstAddrs = Map.Map Instrument.InstrumentName [Instrument.Addr]
+type InstAddrs = Map.Map Score.Instrument [Instrument.Addr]
 
 
 -- * perform notes
@@ -207,7 +199,7 @@ chan_state_msgs addr@(wdev, chan) ts maybe_old_inst new_inst
     | otherwise = Right []
     where
     inst_desc = show (fmap extract maybe_old_inst, extract new_inst)
-    extract inst = (Instrument.inst_synth inst, Instrument.inst_name inst)
+    extract inst = (Instrument.inst_synth inst, Instrument.inst_score inst)
 
     same_synth = case maybe_old_inst of
         Nothing -> True
@@ -466,7 +458,7 @@ channelize_event inst_addrs overlapping event =
         Just (_:_:_) -> chan
         _ -> 0
     where
-    inst_name = Instrument.inst_name (event_instrument event)
+    inst_name = Instrument.inst_score (event_instrument event)
     -- If there's no shareable channel, make up a channel one higher than the
     -- maximum channel in use.
     chan = maybe (maximum (-1 : map snd overlapping) + 1) id
@@ -534,7 +526,7 @@ allot state inst_addrs events =
     where
     ((final_state, _, no_alloc), event_addrs) =
         List.mapAccumL allot_event (state, inst_addrs, Map.empty) events
-    warnings = [warning ("no allocation for " ++ show inst) stack
+    warnings = [warning ("no allocation for " ++ Pretty.pretty inst) stack
         Nothing | (inst, stack) <- Map.assocs no_alloc]
 
 data AllotState = AllotState {
@@ -548,7 +540,7 @@ data AllotState = AllotState {
     } deriving (Eq, Show)
 empty_allot_state = AllotState Map.empty Map.empty
 
-type NoAlloc = Map.Map Instrument.InstrumentName Stack.Stack
+type NoAlloc = Map.Map Score.Instrument Stack.Stack
 
 allot_event :: (AllotState, InstAddrs, NoAlloc) -> (Event, Channel)
     -> ((AllotState, InstAddrs, NoAlloc), Maybe (Event, Instrument.Addr))
@@ -560,7 +552,7 @@ allot_event (state, inst_addrs, no_alloc) (event, ichan) =
                 (update addr (update_map addr state), Just (event, addr))
             Nothing ->
                 let no_alloc2 = Map.insertWith' const
-                        (Instrument.inst_score_name inst) (event_stack event)
+                        (Instrument.inst_score inst) (event_stack event)
                         no_alloc
                 in ((state, inst_addrs, no_alloc2), Nothing)
     where
@@ -575,7 +567,7 @@ allot_event (state, inst_addrs, no_alloc) (event, ichan) =
 steal_addr :: InstAddrs -> Instrument.Instrument -> AllotState
     -> Maybe Instrument.Addr
 steal_addr inst_addrs inst state =
-    case Map.lookup (Instrument.inst_name inst) inst_addrs of
+    case Map.lookup (Instrument.inst_score inst) inst_addrs of
         Just addrs -> let avail = zip addrs (map mlookup addrs)
             in if null avail then Nothing -- no addrs assigned
                 else let (addr, _) = List.minimumBy (compare `on` snd) avail

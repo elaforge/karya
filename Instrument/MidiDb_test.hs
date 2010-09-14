@@ -14,17 +14,19 @@ test_lookup_midi = do
     let f inst attrs = MidiDb.lookup_midi midi_db
             (Score.attributes attrs) (Score.Instrument inst)
 
-    let ks name key = Just (Instrument.Keyswitch name key)
-        kkt_inst name = (Instrument.instrument name [] (-96, 96))
-            { Instrument.inst_score_name = "kkt/" ++ name
+    let ks = Just . Instrument.Keyswitch
+    let kkt_inst name = (Instrument.instrument name [] (-96, 96))
+            { Instrument.inst_score = Score.Instrument ("kkt/" ++ name)
             , Instrument.inst_synth = "kkt"
             }
         hang = kkt_inst "hang1"
-    equal (f "kkt/hang1" ["slap"]) $ Just $
-        hang { Instrument.inst_keyswitch = ks "slap" 38 }
-    equal (f "kkt/hang1" []) $ Just $
-        hang { Instrument.inst_keyswitch = ks "" 36 }
+    equal (f "kkt/hang1" ["slap"]) $
+        Just (hang { Instrument.inst_keyswitch = ks 38 },
+            (Score.attributes ["slap"]))
+    equal (f "kkt/hang1" []) $
+        Just (hang { Instrument.inst_keyswitch = ks 36 },
+            Score.no_attrs)
 
     -- wildcard allows any other name, but ks is not allowed
-    equal (f "kkt/none" []) $ Just (kkt_inst "none")
-    equal (f "kkt/none" ["slap"]) $ Just (kkt_inst "none")
+    equal (f "kkt/none" []) $ Just (kkt_inst "none", Score.no_attrs)
+    equal (f "kkt/none" ["slap"]) $ Just (kkt_inst "none", Score.no_attrs)
