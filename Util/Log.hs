@@ -81,6 +81,9 @@ data State = State {
     , state_log_level :: Prio
     }
 initial_state = State (Just IO.stderr) Debug
+
+global_state :: MVar.MVar State
+{-# NOINLINE global_state #-}
 global_state = Unsafe.unsafePerformIO (MVar.newMVar initial_state)
 
 -- | Configure the log system to write to the given file.  Before you call

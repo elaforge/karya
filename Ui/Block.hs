@@ -245,6 +245,7 @@ data CView
 -- because the underlying window system is also global mutable state, and is
 -- not well represented by a persistent functional state.
 view_id_to_ptr :: MVar.MVar (Map.Map ViewId (Foreign.Ptr CView))
+{-# NOINLINE view_id_to_ptr #-}
 view_id_to_ptr = Foreign.unsafePerformIO (MVar.newMVar Map.empty)
 
 -- | Rename view ids.  Throws if the views collide, because that would make

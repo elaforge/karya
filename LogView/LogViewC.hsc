@@ -40,6 +40,7 @@ send_action act = do
     c_awake
 
 acts_mvar :: Concurrent.MVar [a]
+{-# NOINLINE acts_mvar #-}
 acts_mvar = unsafePerformIO (Concurrent.newMVar [])
 
 foreign import ccall "initialize" c_initialize :: IO ()
