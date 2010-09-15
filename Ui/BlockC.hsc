@@ -1,4 +1,5 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
+{-# LANGUAGE EmptyDataDecls #-} -- for data CView
 {- | This layer gives direct wrapped access to the fltk API.
 
     It maintains a map from ViewIds to window pointers, which represents the on
@@ -57,8 +58,6 @@ import qualified Ui.Util as Util
 import Ui.Util (Fltk)
 
 import qualified Ui.Block as Block
--- They properly belong here but are in Ui.Block for convenience.
-import Ui.Block (CView, view_id_to_ptr)
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Ruler as Ruler
 import qualified Ui.RulerC as RulerC
@@ -72,6 +71,16 @@ import qualified Ui.TrackC as TrackC
 
 -- * errors
 
+-- Phantom type for block view ptrs.
+data CView
+
+-- | Global map of view IDs to their windows.  This is global mutable state
+-- because the underlying window system is also global mutable state, and is
+-- not well represented by a persistent functional state.
+view_id_to_ptr :: MVar.MVar (Map.Map ViewId (Foreign.Ptr CView))
+{-# NOINLINE view_id_to_ptr #-}
+view_id_to_ptr = Foreign.unsafePerformIO (MVar.newMVar Map.empty)
+
 -- TODO have a BlockC exception type
 -- also, turn c++ exceptions into this exception
 throw = error
@@ -81,7 +90,7 @@ get_ptr view_id = do
     ptr_map <- MVar.readMVar view_id_to_ptr
     case Map.lookup view_id ptr_map of
         Nothing -> throw $ show view_id ++ " not in displayed view list: "
-            ++ show (Map.elems ptr_map)
+            ++ show (Map.assocs ptr_map)
         Just viewp -> return viewp
 
 get_id :: Ptr CView -> IO ViewId

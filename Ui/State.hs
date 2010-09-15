@@ -220,7 +220,7 @@ gets f = fmap f get
 -- | Map a function across the IDs in the given state.  Any collisions are
 -- thrown in Left.
 map_state_ids :: (Id.Id -> Id.Id) -> State -> Either StateError State
-map_state_ids f state = exec state (pure_map_ids f)
+map_state_ids f state = exec state (map_ids f)
 
 -- | Transform IDs, but don't update view_id pointer map.  So only use this
 -- when you are sure there are no visible views ("invisible" views occur after
@@ -228,23 +228,12 @@ map_state_ids f state = exec state (pure_map_ids f)
 -- by 'map_state_ids'.
 --
 -- SchemaIds are not mapped, because they point to a global resource.
-pure_map_ids :: (UiStateMonad m) => (Id.Id -> Id.Id) -> m ()
-pure_map_ids f = do
+map_ids :: (UiStateMonad m) => (Id.Id -> Id.Id) -> m ()
+map_ids f = do
     map_view_ids f
     map_block_ids f
     map_track_ids f
     map_ruler_ids f
-
--- | Apply a transformation to all IDs.  Most likely used to rename a project,
--- see Cmd.Create.  Colliding IDs will throw.
---
--- This must be in IO because it modifies the global view_id pointer map.
-map_ids :: (State.MonadIO m, UiStateMonad m) => (Id.Id -> Id.Id) -> m ()
-map_ids f = do
-    pure_map_ids f
-    -- Do this last because it throws an IO exception on failure.
-    let view_f = Types.ViewId . f . Id.unpack_id
-    Trans.liftIO $ Block.map_ids view_f
 
 map_view_ids :: (UiStateMonad m) => (Id.Id -> Id.Id) -> m ()
 map_view_ids f = do

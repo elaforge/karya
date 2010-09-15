@@ -1,8 +1,11 @@
 CURRENT
 
 UNSORTED
-  - Create.rename_project is broken again
-  - fast cmd for State.get_midi_config returns ""
+  - new flag for inst: trigger, considers entire note in_decay
+    Maybe this can cause note entry to create zero length notes?
+  * Create.rename_project is broken again
+    It was Block.map_ids, works once removed.  Why did I go to so much trouble
+    to map view ids?  Why did it work before?  What was I thinking?
   - what's with the extra leading pb 0 on save/drum?
   - convert should complain about unmatched attrs
   - keyboard editing: non-chord mode that advances as soon as it gets NoteOn
@@ -157,21 +160,23 @@ MILESTONES
     * scales and keyswitches
     + efficient thru
     + tracklang complete with set of basic calls
-    - dense / efficient control signals
-    - lazy signals
-    + memoize deriver output, to avoid unnecessary rederivation
-    * symbolic score
     - midi record / integrator
+    - dense / efficient control signals
+    - lazy signals / lazy deriver
+    + derive cache
+      - transformer caching
+    * symbolic score
     - save undo history
-    - solution for audio, plugins, track bouncing, etc.  ardour?
+    - solution for audio, plugins, track bouncing, etc.  ardour / reaper?
     - linux port
+    - simple csound backend
+    - simple lilypond backend?
+    - documentation
   1.0
     - display / edit derivations inline
     - print scores
     - mouse oriented signal editing
-    - freeze tracks / audio memoization: doc/freeze_track
     - windows port?
-    - non-midi instruments
   far future
     - render audio
     - include audio inline

@@ -13,7 +13,6 @@
 -}
 module Cmd.Create where
 import Control.Monad
-import qualified Control.Monad.Trans as Trans
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -37,9 +36,8 @@ import qualified App.Config as Config
 
 -- * global modifications
 
--- | Rename all IDs beginning with @from.@ to @to.@.
-rename_project :: (State.UiStateMonad m, Trans.MonadIO m) =>
-    Id.Namespace -> Id.Namespace -> m ()
+-- | Rename all IDs in namespace @from@ to @to@.
+rename_project :: (State.UiStateMonad m) => Id.Namespace -> Id.Namespace -> m ()
 rename_project from to = State.map_ids set_ns
     where
     set_ns ident
