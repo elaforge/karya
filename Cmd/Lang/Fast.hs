@@ -3,6 +3,8 @@
 -- slow.  Shortcut a few common commands so they happen quickly.
 module Cmd.Lang.Fast where
 import qualified Data.Char as Char
+
+import qualified Util.PPrint as PPrint
 import qualified Util.Seq as Seq
 
 import qualified Ui.State as State
@@ -23,23 +25,28 @@ fast_interpret text = case lex_all text of
 interpret :: [String] -> Maybe (Cmd.CmdT IO String)
 interpret toks = case toks of
         -- Called by logview.
-        ["s", str] | Just arg <- val str -> cmd $ Global.s arg
-        ["unerror"] -> cmd $ Global.unerror
-        ["collapse", int] | Just arg <- val int -> cmd $ Global.collapse arg
-        ["expand", int] | Just arg <- val int -> cmd $ Global.expand arg
+        ["s", str] | Just arg <- val str -> action $ Global.s arg
+        ["unerror"] -> action $ Global.unerror
+        ["collapse", int] | Just arg <- val int -> action $ Global.collapse arg
+        ["expand", int] | Just arg <- val int -> action $ Global.expand arg
 
         -- Called by the browser.
         ["load_instrument", str] | Just arg <- val str ->
-            cmd $ LInst.load_instrument arg
+            action $ LInst.load_instrument arg
+
+        -- Called manually via the REPL.
 
         -- Make blocks and views.
-        ["Create.view", str] | Just arg <- val str -> cmd $ Create.view arg
+        ["Create.rename_project", a1, a2]
+            | Just v1 <- val a1, Just v2 <- val a2 ->
+                action $ Create.rename_project v1 v2
+        ["Create.view", str] | Just arg <- val str -> action $ Create.view arg
 
         -- Misc.
         ["quit"] -> Just quit
-        ["save"] -> cmd Global.save
-        ["save_as", str] | Just arg <- val str -> cmd $ Global.save_as arg
-        ["load", str] | Just arg <- val str -> cmd $ Global.load arg
+        ["save"] -> action Global.save
+        ["save_as", str] | Just arg <- val str -> action $ Global.save_as arg
+        ["load", str] | Just arg <- val str -> action $ Global.load arg
 
         ["show_state"] -> Just Global.show_state
         ["show_views", str] | Just arg <- val str ->
@@ -50,11 +57,14 @@ interpret toks = case toks of
         -- State
         ["State.lookup_root_id"] -> Just $ fmap show State.lookup_root_id
         ["State.set_root_id", str] | Just arg <- val str ->
-            cmd $ State.set_root_id arg
-        ["State.get_midi_config"] -> cmd $ State.get_midi_config
+            action $ State.set_root_id arg
+        ["State.get_midi_config"] -> pretty State.get_midi_config
         _ -> Nothing
     where
-    cmd c = Just (c >> return "")
+    -- Command that doesn't return a value.
+    action c = Just (c >> return "")
+    -- Command returns a value to be pretty-printed.
+    pretty c = Just (fmap PPrint.pshow c)
 
 val :: (Read a) => String -> Maybe a
 val text = case reads text of
@@ -71,7 +81,7 @@ magic_quit_string = "-- * YES, really quit * --"
 lex_all :: String -> Maybe [String]
 lex_all text
     | null (dropWhile Char.isSpace text) = Just []
-    | otherwise = case lex_dot text of
+    | otherwise = case lex_fancy text of
         [] -> Nothing
         (tok, rest) : _ -> do
             toks <- lex_all rest
@@ -81,10 +91,11 @@ lex_all text
 --
 -- It also lexes parenthesized text as a single token, but it doesn't count
 -- open parens so it doesn't work for nested ones.
-lex_dot :: String -> [(String, String)]
-lex_dot s = case lex s of
+-- TODO count parens, or come up with a better way to parse haskell
+lex_fancy :: String -> [(String, String)]
+lex_fancy s = case lex s of
     [(tok1, '.':rest1)] ->
-        [(tok1 ++ "." ++ tok2, rest2) | (tok2, rest2) <- lex_dot rest1]
+        [(tok1 ++ "." ++ tok2, rest2) | (tok2, rest2) <- lex_fancy rest1]
     [("(", rest)] ->
         let (pre, post) = Seq.break1 (==')') rest
         in [('(' : pre, post)]
