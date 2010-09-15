@@ -30,3 +30,11 @@ test_lookup_midi = do
     -- wildcard allows any other name, but ks is not allowed
     equal (f "kkt/none" []) $ Just (kkt_inst "none", Score.no_attrs)
     equal (f "kkt/none" ["slap"]) $ Just (kkt_inst "none", Score.no_attrs)
+
+test_validate = do
+    let midi_db = MidiDb.midi_db [synth_desc]
+        synth_desc = MidiDb.softsynth "syn" Nothing (-1, 1) [] []
+            (Instrument.set_keyswitches ks)
+        ks = [(Score.attributes ["a"], 0), (Score.attributes ["a", "b"], 1)]
+    equal (MidiDb.validate midi_db)
+        ["validate midi db: >syn/* keyswitch attrs {a, b} shadowed by {a}"]

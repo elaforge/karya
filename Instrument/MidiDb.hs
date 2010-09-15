@@ -9,6 +9,7 @@ import qualified Midi.Midi as Midi
 
 import qualified Util.Map as Map
 import qualified Util.Log as Log
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Derive.Score as Score
@@ -59,7 +60,20 @@ size :: MidiDb -> Int
 size (MidiDb synths) = sum $ map ssize (Map.elems synths)
     where ssize (_, PatchMap patches) = Map.size patches
 
+empty :: MidiDb
 empty = MidiDb Map.empty
+
+validate :: MidiDb -> [String]
+validate (MidiDb synths) = map ("validate midi db: "++) $
+    concatMap check_synth (Map.elems synths)
+    where
+    check_synth (synth, PatchMap patches) =
+        concatMap (check_patch synth) (Map.elems patches)
+    check_patch synth patch = map (\s -> prefix ++ " " ++ s) $
+        Instrument.overlapping_keyswitches (Instrument.patch_keyswitches patch)
+        where
+        prefix = Pretty.pretty $ join_inst
+            (Instrument.synth_name synth) (Instrument.patch_name patch)
 
 -- ** lookup
 

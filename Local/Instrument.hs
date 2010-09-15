@@ -3,8 +3,6 @@ import Control.Monad
 import System.FilePath ((</>))
 
 import qualified Util.Log as Log
-import qualified Instrument.Db as Db
-import qualified Instrument.MidiDb as MidiDb
 
 import qualified Local.Instrument.Drumaxx as Drumaxx
 import qualified Local.Instrument.Fm8 as Fm8
@@ -14,6 +12,8 @@ import qualified Local.Instrument.Vl1m as Vl1m
 import qualified Local.Instrument.Z1 as Z1
 
 import qualified Derive.Score as Score
+import qualified Instrument.Db as Db
+import qualified Instrument.MidiDb as MidiDb
 import qualified Instrument.Serialize as Serialize
 import qualified Instrument.Search as Search
 
@@ -33,6 +33,7 @@ load app_dir = do
     unless (null overlaps) $
         Log.warn $ "overlapping instruments discarded while merging: "
             ++ show (map (\(Score.Instrument inst) -> inst) overlaps)
+    mapM_ Log.warn (MidiDb.validate merged)
     return $ Db.db merged index
 
 load_db app_dir = do

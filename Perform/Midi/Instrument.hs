@@ -114,7 +114,9 @@ instrument name cmap pb_range = Instrument {
 -- | A wildcard instrument has its name automatically filled in, and has no
 -- need for controls since they can go in the Synth.
 wildcard_instrument :: Control.PbRange -> Instrument
-wildcard_instrument = instrument "" []
+wildcard_instrument = instrument "*" []
+    -- The inst name will be replaced, but 'MidiDb.validate' at least can use
+    -- the template name when reporting errors.
 
 -- ** defaults
 
@@ -216,8 +218,8 @@ overlapping_keyswitches (KeyswitchMap attr_ks) =
     where
     attrs = map (Score.attrs_set . fst) attr_ks
     check prev attr = case List.find (`Set.isSubsetOf` attr) prev of
-        Just other_attr -> Just $ "attrs "
-            ++ Pretty.pretty (Score.Attributes attr) ++ " are shadowed by "
+        Just other_attr -> Just $ "keyswitch attrs "
+            ++ Pretty.pretty (Score.Attributes attr) ++ " shadowed by "
             ++ Pretty.pretty (Score.Attributes other_attr)
         Nothing -> Nothing
 

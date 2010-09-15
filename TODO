@@ -7,7 +7,7 @@ UNSORTED
     It was Block.map_ids, works once removed.  Why did I go to so much trouble
     to map view ids?  Why did it work before?  What was I thinking?
   - what's with the extra leading pb 0 on save/drum?
-  - convert should complain about unmatched attrs
+  * convert should complain about unmatched attrs
   - keyboard editing: non-chord mode that advances as soon as it gets NoteOn
     either an easier way to set note duration, or tracker style where every
     note extends to the end of the track or the next event
