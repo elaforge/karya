@@ -138,9 +138,11 @@ default_cmds context = (cmds2, warns)
         Nothing -> ([], [])
         Just (NoteTrack ptrack) -> case edit_mode of
             Cmd.NoEdit -> ([], [])
-            Cmd.RawEdit -> ([NoteTrack.cmd_raw_edit scale_id], [])
-            Cmd.ValEdit -> ([NoteTrack.cmd_val_edit ptrack scale_id], [])
-            Cmd.MethodEdit -> ([], [NoteTrack.cmd_method_edit ptrack])
+            Cmd.RawEdit -> ([NoteTrack.cmd_raw_edit maybe_inst scale_id], [])
+            Cmd.ValEdit ->
+                ([NoteTrack.cmd_val_edit maybe_inst ptrack scale_id], [])
+            Cmd.MethodEdit ->
+                ([], [NoteTrack.cmd_method_edit maybe_inst ptrack])
         Just PitchTrack -> case edit_mode of
             Cmd.NoEdit -> ([], [])
             Cmd.RawEdit -> ([PitchTrack.cmd_raw_edit scale_id], [])

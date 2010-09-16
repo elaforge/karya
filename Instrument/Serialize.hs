@@ -72,9 +72,11 @@ instance Binary MidiDb.PatchMap where
     get = get >>= \a -> return (MidiDb.PatchMap a)
 
 instance Binary Instrument.Patch where
-    put (Instrument.Patch a b c d e) = put a >> put b >> put c >> put d >> put e
+    put (Instrument.Patch a b c d e f) = put a >> put b >> put c >> put d
+        >> put e >> put f
     get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d -> get >>= \e ->
-        return (Instrument.Patch a b c d e)
+        get >>= \f ->
+            return (Instrument.Patch a b c d e f)
 
 instance Binary Instrument.Instrument where
     put (Instrument.Instrument a b c d e f g h i) = put a >> put b >> put c

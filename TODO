@@ -1,8 +1,9 @@
 CURRENT
 
 UNSORTED
-  - new flag for inst: trigger, considers entire note in_decay
-    Maybe this can cause note entry to create zero length notes?
+  * new flag for inst: trigger, considers entire note in_decay
+  - flag for unpitched instruments, so they don't get pitch tracks
+    I think I'd want to do a reverse map through the keymap to get the attrs
   * Create.rename_project is broken again
     It was Block.map_ids, works once removed.  Why did I go to so much trouble
     to map view ids?  Why did it work before?  What was I thinking?
@@ -282,6 +283,10 @@ performance:
     - Parallelize derivation with strategies.  Can I spark subderivations?
 
     make derivation lazy:
+      Can return events through a Logger rather than the return val?  If the
+      exception isn't allowed to affect it, I don't have to evaluate the
+      exception to see if there are values?
+
       Deriver [Event] output is not lazy, because ErrorT won't let it be.
       I think this means I need to localize derive exceptions and remove ErrorT
       from DeriveT.  I still run calls in ErrorT though.
@@ -434,10 +439,34 @@ Ui:
       - efficient storage, preferably as a Signal so no conversion is necessary
       - display dense signals: omit text and trigger lines when zoomed out
 
-plugin host track freeze audio
+plugin host freeze audio
+  features:
+    3 load synth plugins: ardour3, reaper
+    1 programmatically configure them, e.g. load 4 fm8s each with poly of 2
+      and loading inst X, or switch them all to inst Y
+      - dunno?  can reascript do it?  osc on ardour?
+    3 sync play position seq, sync start time
+      - I think mmc can do this
+      - or maybe the control surface support can do this
+    3 start record too
+      - control surface support should do this
+    2 sync from daw back to seq
+      - Can I have the DAW also emit MMC?
+
   features needed:
     - host synth plugins: programmatically load and configure plugins
     - route midi: associate each plugin with its own midi ports
+      It would also be nice to split by midi channel, and route each chan to
+      its own plugin.
+
+      On OS X this means creating an IAC port for each synth, presumably
+      multiple ones for multiple instances of the synth.  Then I need to
+      route each synth to the right midi input and keep them configured.  This
+      seems like a bit of a hassle.
+
+      Can I use JACK midi to address a specific synth?  It's one midi stream
+      per jack port, so I need an association between insts and jack ports.
+
     - audio graph config: configure the audio graph, placing synth plugins,
       filter plugins, track record / fader / etc. daw stuff, and outputs
       at various places

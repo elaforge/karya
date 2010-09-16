@@ -167,6 +167,10 @@ data Patch = Patch {
     -- The patch_instrument is not necessarily the same as the one eventually
     -- used in performance, because e.g. synth controls can get added in.
     patch_instrument :: Instrument
+    -- | If true, this patch doesn't pay attention to duration.  E.g., drum
+    -- samples may not pay attention to note off.  The UI can use this to
+    -- create zero duration events for this patch.
+    , patch_triggered :: Bool
     , patch_initialize :: InitializePatch
     -- | Keyswitches available to this instrument, if any.  Each of these is
     -- considered its own instrument, like synth\/inst\/ks.  A keyswitch key may
@@ -181,13 +185,20 @@ data Patch = Patch {
 
 -- | Create a Patch with empty vals, to set them as needed.
 patch :: Instrument -> Patch
-patch inst = Patch inst NoInitialization (KeyswitchMap []) [] ""
+patch inst = Patch inst False NoInitialization (KeyswitchMap []) [] ""
 
 patch_name :: Patch -> InstrumentName
 patch_name = inst_name . patch_instrument
 
 set_keyswitches :: [(Score.Attributes, Midi.Key)] -> Patch -> Patch
 set_keyswitches ks patch = patch { patch_keyswitches = keyswitch_map ks }
+
+set_keymap :: [(Score.Attributes, Midi.Key)] -> Patch -> Patch
+set_keymap kmap patch = patch { patch_instrument = (patch_instrument patch)
+    { inst_keymap = Map.fromList kmap } }
+
+set_triggered :: Patch -> Patch
+set_triggered patch = patch { patch_triggered = True }
 
 -- | A KeyswitchMap maps a set of attributes to a keyswitch and gives
 -- a piority for those mapping.  For example, if {pizz} is before {cresc}, then
@@ -263,10 +274,6 @@ synth name controls = Synth name Nothing (Control.control_map controls)
 
 set_device :: String -> Synth -> Synth
 set_device dev synth = synth { synth_device = Just (Midi.WriteDevice dev) }
-
-set_keymap :: [(Score.Attributes, Midi.Key)] -> Patch -> Patch
-set_keymap kmap patch = patch { patch_instrument = (patch_instrument patch)
-    { inst_keymap = Map.fromList kmap } }
 
 type SynthName = String
 type InstrumentName = String
