@@ -60,6 +60,7 @@ data State = State {
     -- IDs, so each project can import other projects without clashes.  The
     -- save file is also derived from the project name.
     state_project :: Id.Namespace
+    -- | Save into this directory by default.
     , state_project_dir :: String
     -- | Derivation can start from any block, but it's useful to know which
     -- block represents the entire piece.  This way, given a position on some
@@ -244,6 +245,9 @@ map_view_ids f = do
 
 map_block_ids :: (UiStateMonad m) => (Id.Id -> Id.Id) -> m ()
 map_block_ids f = do
+    maybe_root <- lookup_root_id
+    let new_root = fmap (Types.BlockId . f . Id.unpack_id) maybe_root
+
     blocks <- gets state_blocks
     let block_f = Types.BlockId . f . Id.unpack_id
     new_blocks <- safe_map_keys "state_blocks" block_f blocks
@@ -252,7 +256,8 @@ map_block_ids f = do
     let new_views = Map.map
             (\v -> v { Block.view_block = block_f (Block.view_block v) })
             views
-    modify $ \st -> st { state_blocks = new_blocks, state_views = new_views }
+    modify $ \st -> st { state_root = new_root, state_blocks = new_blocks,
+        state_views = new_views }
 
 map_track_ids :: (UiStateMonad m) => (Id.Id -> Id.Id) -> m ()
 map_track_ids f = do
