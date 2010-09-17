@@ -36,9 +36,17 @@ import qualified App.Config as Config
 
 -- * global modifications
 
+-- | Set the project to the given value and renamespace the old project to the
+-- new one.
+rename_project :: (State.UiStateMonad m) => Id.Namespace -> m ()
+rename_project ns = do
+    old_ns <- State.get_project
+    renamespace old_ns ns
+    State.set_project ns
+
 -- | Rename all IDs in namespace @from@ to @to@.
-rename_project :: (State.UiStateMonad m) => Id.Namespace -> Id.Namespace -> m ()
-rename_project from to = State.map_ids set_ns
+renamespace :: (State.UiStateMonad m) => Id.Namespace -> Id.Namespace -> m ()
+renamespace from to = State.map_ids set_ns
     where
     set_ns ident
         | ns == from = Id.id to name

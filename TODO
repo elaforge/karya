@@ -1,9 +1,15 @@
 CURRENT
 
 UNSORTED
+  - bug: rename or delete a view while playback is running, and it will crash
+    when the ViewId becomes invalid
+    Select update should use a 'advise_set_selection' or something
+  - cmd to copy a block and clear the events
   * new flag for inst: trigger, considers entire note in_decay
   - flag for unpitched instruments, so they don't get pitch tracks
     I think I'd want to do a reverse map through the keymap to get the attrs
+    This also gets to the per-song config issue, since I want per-song or
+    per-track key -> call bindings.
   * Create.rename_project is broken again
     It was Block.map_ids, works once removed.  Why did I go to so much trouble
     to map view ids?  Why did it work before?  What was I thinking?
@@ -141,7 +147,6 @@ UNSORTED
   - implement continuous controller warp
   - make Track.UnsortedEvents and Track.SortedEvents, type or newtype?
   - insert and delete time should use the selection if non-point
-  - rename project -> namespace
   - document / enforce naming restrictions for CallId, Control, etc?
 
   - should tab in raw edit mode go to method?  how to go back then?
@@ -224,6 +229,14 @@ cleanup:
       global status.  Maybe I could fix this and also avoid the scattered syncs
       by doing a special state diff after cmds
       sync: state_project, state_project_scale
+
+      The problem is that this moves the set_global_status away from the cmds
+      that actually use it, and puts them in a distant function.  However, the
+      state itself is already centralized.
+
+      However, I'm worried that checking state on every single respond is going
+      to hurt latency even more.
+
     - creating a block through State.create_block instead of Cmd.create_block
       won't get the current track box color
   - since tracklang lets me apply derivers to tracks and skel makes the

@@ -397,11 +397,11 @@ initialize_state = do
 -- said global state changes.
 --
 -- TODO Except it won't be when you use State directly.  Solutions are: have
--- Cmd.set_namespace etc. and don't forget to call them, move logging to State,
+-- Cmd.set_project etc. and don't forget to call them, move logging to State,
 -- or modify the UiStateMonad instance so it logs in Cmd.
 sync_global_status :: (Monad m) => Cmd.CmdT m ()
 sync_global_status = do
     st <- State.get
-    Cmd.set_global_status "namespace" (State.state_project st)
+    Cmd.set_global_status "project" (State.state_project st)
     let (Pitch.ScaleId scale) = State.state_project_scale st
     Cmd.set_global_status "scale" scale

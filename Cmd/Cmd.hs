@@ -470,7 +470,7 @@ set_global_status key val = do
     when (Map.lookup key status_map /= Just val) $ do
         modify_state $ \st ->
             st { state_global_status = Map.insert key val status_map }
-        Log.notice $ "global status: " ++ key ++ " -- " ++ val
+        Log.debug $ "global status: " ++ key ++ " -- " ++ val
 
 -- | Set a status variable on all views.
 set_status :: (Monad m) => String -> Maybe String -> CmdT m ()
