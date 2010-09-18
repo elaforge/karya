@@ -1,5 +1,6 @@
 module App.StaticConfig where
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 import qualified Midi.Midi as Midi
 import qualified Cmd.Cmd as Cmd
@@ -36,6 +37,14 @@ data StaticConfig = StaticConfig {
     -- symbolic names.
     , config_read_device_map :: Map.Map Midi.ReadDevice Midi.ReadDevice
     , config_write_device_map :: Map.Map Midi.WriteDevice Midi.WriteDevice
+
+    -- | Only the given devices are opened for reading, if present.  If you
+    -- open a virtual device for both reading and writing you'll get a loop, so
+    -- don't do that.
+    --
+    -- There's no corresponding config_write_devices because if you don't want
+    -- to write to a device, just don't write to it!
+    , config_read_devices :: Set.Set Midi.ReadDevice
     }
 
 empty_config = StaticConfig {
@@ -46,4 +55,5 @@ empty_config = StaticConfig {
     , config_setup_cmd = const (return Cmd.Done)
     , config_read_device_map = Map.empty
     , config_write_device_map = Map.empty
+    , config_read_devices = Set.empty
     }

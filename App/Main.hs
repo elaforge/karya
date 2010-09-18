@@ -9,8 +9,8 @@ import Control.Monad
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception
-import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import System.FilePath ((</>))
 import qualified Network
 import qualified System.Environment
@@ -70,6 +70,10 @@ import qualified Perform.Timestamp as Timestamp
 import qualified Derive.Derive_profile as Derive_profile
 
 
+-- * static config
+
+-- Later this moves into its own file.
+
 load_static_config :: IO StaticConfig.StaticConfig
 load_static_config = do
     app_dir <- Config.get_app_dir
@@ -82,6 +86,7 @@ load_static_config = do
         , StaticConfig.config_setup_cmd = parse_args
         , StaticConfig.config_read_device_map = read_device_map
         , StaticConfig.config_write_device_map = write_device_map
+        , StaticConfig.config_read_devices = read_devices
         }
 
 parse_args :: [String] -> Cmd.CmdIO
@@ -97,10 +102,11 @@ parse_args argv = case argv of
         return Cmd.Done
     _ -> error $ "bad args: " ++ show argv -- TODO something better
 
-iac n = "IAC " ++ show n
+iac n = "IAC Synth " ++ show n
 tapco n = "Tapco " ++ show n
 mkmap mkdev pairs = Map.fromList [(mkdev k, mkdev v) | (k, v) <- pairs]
 
+write_device_map :: Map.Map Midi.WriteDevice Midi.WriteDevice
 write_device_map = mkmap Midi.WriteDevice
     [ ("fm8", iac 1)
     , ("ptq", iac 1)
@@ -112,12 +118,22 @@ write_device_map = mkmap Midi.WriteDevice
     , ("capybara", tapco 4)
     ]
 
+read_device_map :: Map.Map Midi.ReadDevice Midi.ReadDevice
 read_device_map = mkmap Midi.ReadDevice
     [ (tapco 1, "z1")
     , (tapco 2, "vl1")
     , (tapco 3, "morpheus")
     , (tapco 4, "continuum")
     ]
+
+read_devices :: Set.Set Midi.ReadDevice
+read_devices = Set.fromList $ map Midi.ReadDevice
+    [ "USB Oxygen 8 v2"
+    , "EDIROL UA-25"
+    ]
+
+
+-- * main
 
 initialize :: (Network.Socket -> MidiImp.ReadChan -> IO ()) -> IO ()
 initialize f = do
@@ -146,12 +162,10 @@ main = initialize $ \lang_socket midi_chan -> do
     -- satellites are out tonight
 
     (rdev_map, wdev_map) <- MidiImp.get_devices
-    print_devs rdev_map wdev_map
-    -- Don't open out IAC ports for read, otherwise any msgs written to them
-    -- will bounce back.
-    let is_rdev = not . ("IAC Out" `List.isPrefixOf`) . Midi.un_read_device
-    open_read_devices rdev_map (filter is_rdev (Map.keys rdev_map))
-    putStrLn $ "read devs opened " ++ show (filter is_rdev (Map.keys rdev_map))
+    let open_read = StaticConfig.config_read_devices static_config
+    print_devs open_read rdev_map wdev_map
+    open_read_devices rdev_map
+        (filter (`Set.member` open_read) (Map.keys rdev_map))
 
     quit_request <- MVar.newMVar ()
 
@@ -246,12 +260,16 @@ make_write_midi wdev_map write_map (Midi.WriteMessage wdev ts msg) = do
         Just dev_id -> do
             MidiImp.write_message dev_id ts msg
 
-print_devs :: MidiImp.ReadMap -> MidiImp.WriteMap -> IO ()
-print_devs rdev_map wdev_map = do
+print_devs :: Set.Set Midi.ReadDevice -> MidiImp.ReadMap -> MidiImp.WriteMap
+    -> IO ()
+print_devs opened_rdevs rdev_map wdev_map = do
     putStrLn "read devs:"
-    mapM_ print (Map.keys rdev_map)
+    forM_ (Map.keys rdev_map) $ \rdev ->
+        let prefix = if rdev `Set.member` opened_rdevs then "* " else "  "
+        in putStrLn $ prefix ++ show rdev
     putStrLn "write devs:"
-    mapM_ print (Map.keys wdev_map)
+    forM_ (Map.keys wdev_map) $ \wdev ->
+        putStrLn $ "* " ++ show wdev
 
 
 arrival_beats = False
