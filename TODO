@@ -4,7 +4,6 @@ UNSORTED
   - bug: rename or delete a view while playback is running, and it will crash
     when the ViewId becomes invalid
     Select update should use a 'advise_set_selection' or something
-  - cmd to copy a block and clear the events
   * new flag for inst: trigger, considers entire note in_decay
   - flag for unpitched instruments, so they don't get pitch tracks
     I think I'd want to do a reverse map through the keymap to get the attrs
@@ -188,10 +187,6 @@ MILESTONES
     - include audio inline
 
 ----------------------------------------------------------------------
-
-- switch to darcs hashed repo format
-  darcs optimize --upgrade
-  darcs optimize --pristine
 
 note input / thru:
   - some way to turn off all midi thru / input

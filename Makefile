@@ -62,7 +62,7 @@ GHC_LIB := /Library/Frameworks/GHC.framework/Versions/Current/usr/lib/ghc-6.12.3
 BASIC_HFLAGS := -threaded -W -fwarn-tabs \
 	$(CINCLUDE) -i../lib -pgmc g++ -pgml g++ \
 	-optc -ggdb -optl -ggdb \
-	-F -pgmF tools/hspp
+	-F -pgmF build/hspp
 
 
 ### misc variables
@@ -101,23 +101,23 @@ all:
 	done
 
 .PHONY: dep
-dep: tools/fixdeps
-	g++ -MM $(CXXFLAGS) */*.cc | tools/fixdeps >.depend
+dep: build/fixdeps
+	g++ -MM $(CXXFLAGS) */*.cc | build/fixdeps >.depend
 	printf '\n\n# hsc deps:\n' >>.depend
 	tools/hscdeps.py $(CINCLUDE) -I$(GHC_LIB)/include */*.hsc >>.depend
 
 include .depend
 
-tools/fixdeps: tools/fixdeps.hs
+build/fixdeps: tools/fixdeps.hs
 	$(GHC) -o $@ $^
 
-tools/hspp: tools/hspp.hs
+build/hspp: tools/hspp.hs
 	$(GHC) -O2 --make -W -o $@ $^
 
 .PHONY: clean
 clean:
 	rm -f `find . -name '*.o' -or -name '*.hi' -or -name '*.pyc'` \
-		fixdeps fltk/fltk.a \
+		fltk/fltk.a \
 		$(UI_HS) $(PORTMIDI_HS) $(LOGVIEW_HS) $(BROWSER_HS) haddock/*  \
 		hpc/* seq_language
 	rm -rf $(BUILD)/* .hpc

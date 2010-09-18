@@ -97,7 +97,7 @@ parse_args argv = case argv of
         return Cmd.Done
     _ -> error $ "bad args: " ++ show argv -- TODO something better
 
-iac n = "IAC Out " ++ show n
+iac n = "IAC " ++ show n
 tapco n = "Tapco " ++ show n
 mkmap mkdev pairs = Map.fromList [(mkdev k, mkdev v) | (k, v) <- pairs]
 

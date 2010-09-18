@@ -31,7 +31,7 @@ local_dir = "Local"
 
 -- | Store instrument db code and data.
 instrument_dir :: FilePath
-instrument_dir = local_dir </> "Instrument"
+instrument_dir = "inst_db"
 
 -- | Local CmdL code goes here.
 lang_dir :: FilePath
