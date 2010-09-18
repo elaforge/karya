@@ -58,6 +58,7 @@ import qualified Data.Monoid as Monoid
 import qualified Data.StorableVector as V
 import qualified Foreign.Storable as Storable
 import qualified Util.Num as Num
+import qualified Util.Pretty as Pretty
 
 import Ui
 
@@ -76,6 +77,10 @@ import qualified Perform.Signal as Signal
 -- Perform.Pitch.
 
 newtype ScaleId = ScaleId String deriving (Eq, Ord, Read, Show)
+
+instance Pretty.Pretty ScaleId where
+    -- This mirrors TrackLang scale id syntax.
+    pretty (ScaleId s) = '*' : s
 
 -- | These scales are hardcoded in some places.  Putting them here instead of
 -- their scale modules avoids some circular imports.
