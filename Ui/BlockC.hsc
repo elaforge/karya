@@ -51,6 +51,8 @@ import qualified Data.Map as Map
 import Foreign
 import Foreign.C
 
+import Util.Control
+
 import Ui
 import qualified Ui.Color as Color
 import qualified Ui.Types as Types
@@ -92,6 +94,11 @@ get_ptr view_id = do
         Nothing -> throw $ show view_id ++ " not in displayed view list: "
             ++ show (Map.assocs ptr_map)
         Just viewp -> return viewp
+
+lookup_ptr :: ViewId -> IO (Maybe (Ptr CView))
+lookup_ptr view_id = do
+    ptr_map <- MVar.readMVar view_id_to_ptr
+    return $ Map.lookup view_id ptr_map
 
 get_id :: Ptr CView -> IO ViewId
 get_id viewp = do
@@ -181,19 +188,25 @@ set_track_scroll view_id offset = do
 foreign import ccall "set_track_scroll"
     c_set_track_scroll :: Ptr CView -> CInt -> IO ()
 
-set_selection :: ViewId -> Types.SelNum -> Maybe CSelection -> Fltk ()
-set_selection view_id selnum maybe_sel = do
-    viewp <- get_ptr view_id
-    maybeWith with maybe_sel $ \selp ->
+-- | This is called asynchronously by the play updater, so it takes an extra
+-- flag to not throw an exception if the ViewId no longer exists.
+set_selection :: Bool -> ViewId -> Types.SelNum -> Maybe CSelection -> Fltk ()
+set_selection fail_on_view view_id selnum maybe_sel
+    | fail_on_view = set =<< get_ptr view_id
+    | otherwise = flip when_just set =<< lookup_ptr view_id
+    where
+    set viewp = maybeWith with maybe_sel $ \selp ->
         c_set_selection viewp (Util.c_int selnum) selp
 foreign import ccall "set_selection"
     c_set_selection :: Ptr CView -> CInt -> Ptr CSelection -> IO ()
 
-set_track_selection :: ViewId -> Types.SelNum -> TrackNum
+set_track_selection :: Bool -> ViewId -> Types.SelNum -> TrackNum
     -> Maybe CSelection -> Fltk ()
-set_track_selection view_id selnum tracknum maybe_sel = do
-    viewp <- get_ptr view_id
-    maybeWith with maybe_sel $ \selp ->
+set_track_selection fail_on_view view_id selnum tracknum maybe_sel
+    | fail_on_view = set =<< get_ptr view_id
+    | otherwise = flip when_just set =<< lookup_ptr view_id
+    where
+    set viewp = maybeWith with maybe_sel $ \selp ->
         c_set_track_selection viewp (Util.c_int selnum)
             (Util.c_int tracknum) selp
 foreign import ccall "set_track_selection"
@@ -295,11 +308,14 @@ foreign import ccall "update_track"
         -> Ptr Ruler.Marklist -> CInt -> FunPtr (FunPtrFinalizer a)
         -> Ptr ScoreTime -> Ptr ScoreTime -> IO ()
 
+-- | Unlike other Fltk functions, this doesn't throw if the ViewId is not
+-- found.  That's because it's called asynchronously when derivation is
+-- complete.
 set_track_signal :: ViewId -> TrackNum -> Track.TrackSignal -> Fltk ()
 set_track_signal view_id tracknum tsig = do
-    viewp <- get_ptr view_id
-    with tsig $ \tsigp -> c_set_track_signal viewp (Util.c_int tracknum) tsigp
-
+    maybe_viewp <- lookup_ptr view_id
+    when_just maybe_viewp $ \viewp -> with tsig $ \tsigp ->
+        c_set_track_signal viewp (Util.c_int tracknum) tsigp
 foreign import ccall "set_track_signal"
     c_set_track_signal :: Ptr CView -> CInt -> Ptr Track.TrackSignal -> IO ()
 

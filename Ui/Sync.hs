@@ -104,7 +104,7 @@ set_track_signals state track_signals = do
 -- should be saved anyway.
 set_play_position :: [(ViewId, [(TrackNum, Maybe ScoreTime)])] -> IO ()
 set_play_position block_sels = Ui.send_action $ sequence_
-    [ BlockC.set_track_selection view_id
+    [ BlockC.set_track_selection False view_id
         Config.play_position_selnum tracknum (sel_at pos)
     | (view_id, track_pos) <- block_sels, (tracknum, pos) <- track_pos
     ]
@@ -116,7 +116,7 @@ set_play_position block_sels = Ui.send_action $ sequence_
 
 clear_play_position :: ViewId -> IO ()
 clear_play_position view_id = Ui.send_action $
-    BlockC.set_selection view_id Config.play_position_selnum Nothing
+    BlockC.set_selection False view_id Config.play_position_selnum Nothing
 
 
 -- * run_update
@@ -157,7 +157,7 @@ run_update (Update.ViewUpdate view_id Update.CreateView) = do
             BlockC.set_title view_id (Block.block_title block)
         BlockC.set_skeleton view_id (Block.block_skeleton block)
         forM_ (zip (Map.keys sels) csels) $ \(selnum, csel) ->
-            BlockC.set_selection view_id selnum csel
+            BlockC.set_selection True view_id selnum csel
         BlockC.set_status view_id (Block.show_status view)
         BlockC.set_zoom view_id (Block.view_zoom view)
         BlockC.set_track_scroll view_id (Block.view_track_scroll view)
@@ -179,7 +179,7 @@ run_update (Update.ViewUpdate view_id update) = do
             BlockC.set_track_width view_id tracknum width
         Update.Selection selnum maybe_sel -> do
             csel <- to_csel view_id selnum maybe_sel
-            return $ BlockC.set_selection view_id selnum csel
+            return $ BlockC.set_selection True view_id selnum csel
         Update.BringToFront -> return $ BlockC.bring_to_front view_id
 
 -- Block ops apply to every view with that block.

@@ -1,9 +1,8 @@
 CURRENT
 
 UNSORTED
-  - bug: rename or delete a view while playback is running, and it will crash
+  * bug: rename or delete a view while playback is running, and it will crash
     when the ViewId becomes invalid
-    Select update should use a 'advise_set_selection' or something
   * new flag for inst: trigger, considers entire note in_decay
   - flag for unpitched instruments, so they don't get pitch tracks
     I think I'd want to do a reverse map through the keymap to get the attrs
@@ -138,7 +137,16 @@ UNSORTED
 
   - playback should have multiple lines when a block is derived multiple times
     have a set of playback selnums?
-  - should be able to rescan midi ports when something new is plugged in
+  - should be able to rescan midi devices when something new is plugged in
+    Centralize midi implementation functions in a record, include scan and
+    open/close, record is stored in Cmd state.
+    How to establish ID <-> device mapping?
+    I think OS X midi ID is just for a persistent ID since names can be
+    changed.  But I don't think I care too much about that?
+
+    Read is not a problem since the midi layer handles the mapping.  Write
+    needs: get (name, id), put name->id in write mapping
+
   - local inst db, in Ui.State, so I can e.g. set pb range for fm/* inst
   - midi thru doesn't pick up default inst
     empty scale defaults in Derive, but not in Cmd
@@ -538,6 +546,26 @@ save undo history / incremental saving
     - check out cautious-file on hackage
 
 Cmd:
+  - Can I give Cmds their own state without putting it in Cmd.State every time?
+    Each Cmd has to be
+      data forall a. Cmd = Cmd {
+        cmd_func :: a -> CmdT (Status, Cmd)
+        , cmd_state = a
+      }
+    This means that such cmds have to be able to be updated after they are run,
+    so the cmd lists have to be kept in responder state.  If I'm going to do
+    that, why not have cmds optionally return a continuation and handle state
+    that way?
+      cmd msg = do
+        state <- stuff
+        return $ continue $ \msg -> do
+          more stuff
+    Or if I can put it in the monad:
+      cmd msg = do
+        state <- stuff
+        msg2 <- yield Cmd.Done
+        more stuff
+
   ? a module with easy access to all GlobalKeymap cmds for cmdline access
   * cmd to give a view focus and bring it to the front
   vi style keymap:

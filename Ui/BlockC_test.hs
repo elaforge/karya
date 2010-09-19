@@ -83,13 +83,13 @@ test_set_selection = do
         (Block.T event_track_1 (UiTest.overlay_ruler ruler)) 30
     let c = Color.brightness 1.5 Color.blue
     io_human "point selection appears" $
-        send $ BlockC.set_selection view 0
+        send $ BlockC.set_selection True view 0
             (cselection c 1 (ScoreTime 0) 1 (ScoreTime 0))
     io_human "replaced by long selection" $
-        send $ BlockC.set_selection view 0
+        send $ BlockC.set_selection True view 0
             (cselection c 1 (ScoreTime 10) 1 (ScoreTime 20))
     io_human "goes away" $
-        send $ BlockC.set_selection view 0 Nothing
+        send $ BlockC.set_selection True view 0 Nothing
 
 cselection color track start tracks dur =
     Just (BlockC.CSelection color (Types.Selection track start tracks dur))
