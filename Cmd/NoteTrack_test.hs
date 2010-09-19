@@ -41,7 +41,7 @@ extract_sel (Right (ustate, cstate)) = (UiTest.extract_tracks ustate,
 extract_sel val = error $ "unexpected: " ++ show val
 
 test_cmd_raw_edit = do
-    let f = NoteTrack.cmd_raw_edit Twelve.scale_id
+    let f = NoteTrack.cmd_raw_edit Nothing Twelve.scale_id
         run track_specs cmd = run_sel track_specs cmd
     -- Created event has dur according to ruler.
     equal (run [(">i", [])] (f (CmdTest.m_note_on 60 60 127))) $
@@ -61,7 +61,7 @@ test_cmd_val_edit = do
     let create_track = NoteTrack.CreateTrack 1 "*new" 2
         run track_specs cmd = run_sel track_specs cmd
         note = CmdTest.m_note_on 60 60 127
-    let f = NoteTrack.cmd_val_edit create_track Twelve.scale_id
+    let f = NoteTrack.cmd_val_edit Nothing create_track Twelve.scale_id
     -- creates a new pitch track
     equal (run [(">i", [])] (f note)) $
         Right [(">i", [(0, 10, "")]), ("*new", [(0, 0, "4c")])]
@@ -69,7 +69,7 @@ test_cmd_val_edit = do
         Right [(">i", [(0, 10, "")]), ("*new", [(0, 0, "4c")]), ("mod", [])]
 
     -- modify existing track
-    let f = NoteTrack.cmd_val_edit
+    let f = NoteTrack.cmd_val_edit Nothing
             (NoteTrack.ExistingTrack 2) Twelve.scale_id
         note_tracks = [(">i", [(0, 10, "")]), ("*", [(0, 0, "4d")])]
     -- both note and pitch get deleted
@@ -89,7 +89,7 @@ test_cmd_val_edit = do
     -- TODO later test chord input
 
 test_cmd_method_edit = do
-    let f = NoteTrack.cmd_method_edit (NoteTrack.ExistingTrack 2)
+    let f = NoteTrack.cmd_method_edit Nothing (NoteTrack.ExistingTrack 2)
         run track_specs cmd = run_sel track_specs cmd
         inst = (">i", [(0, 10, "")])
         note_track = [inst, ("*", [(0, 0, "4d")])]
