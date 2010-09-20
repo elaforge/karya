@@ -2,22 +2,23 @@
 module Derive.Scale.Wayang where
 
 import qualified Perform.Pitch as Pitch
+import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Util as Util
 import qualified Derive.Scale.Symbols as Symbols
 
 
-scale = Pitch.Scale {
-    Pitch.scale_id = scale_id
-    , Pitch.scale_pattern = "[12356](\\.*|\\^*)"
-    , Pitch.scale_map = Util.make_scale_map scale_map
+scale = Scale.Scale {
+    Scale.scale_id = scale_id
+    , Scale.scale_pattern = "[12356](\\.*|\\^*)"
+    , Scale.scale_map = Util.make_scale_map scale_map
     -- loaded from Derive.Scale.Symbols
-    , Pitch.scale_symbols = []
-    , Pitch.scale_octave = 5
+    , Scale.scale_symbols = []
+    , Scale.scale_octave = 5
 
-    , Pitch.scale_note_to_call = Util.note_to_call scale_map
-    , Pitch.scale_input_to_note = Util.input_to_note scale_map
-    , Pitch.scale_input_to_nn = Util.input_to_nn scale_map
-    , Pitch.scale_degree_to_nn = Util.degree_to_nn scale_map
+    , Scale.scale_note_to_call = Util.note_to_call scale_map
+    , Scale.scale_input_to_note = Util.input_to_note scale_map
+    , Scale.scale_input_to_nn = Util.input_to_nn scale_map
+    , Scale.scale_degree_to_nn = Util.degree_to_nn scale_map
     }
 
 scale_id :: Pitch.ScaleId

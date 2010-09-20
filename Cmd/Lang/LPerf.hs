@@ -104,8 +104,9 @@ derive_tempo block_id = do
 derive_to_perf :: BlockId -> Cmd.CmdL ([Midi.Perform.Event], [Warning.Warning])
 derive_to_perf block_id = do
     events <- derive_to_events block_id
-    lookup <- Cmd.get_lookup_midi_instrument
-    return $ Midi.Convert.convert lookup events
+    lookup_scale <- Cmd.get_lookup_scale
+    lookup_inst <- Cmd.get_lookup_midi_instrument
+    return $ Midi.Convert.convert lookup_scale lookup_inst events
 
 cached_perform :: BlockId -> Cmd.CmdL Midi.Perform.Messages
 cached_perform block_id = do

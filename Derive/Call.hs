@@ -84,6 +84,7 @@ import qualified Ui.Types as Types
 import qualified Derive.Cache as Cache
 import qualified Derive.CallSig as CallSig
 import qualified Derive.Derive as Derive
+import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
@@ -160,7 +161,7 @@ to_pitch_signal control = case control of
     where
     constant note = do
         scale <- get_scale
-        PitchSignal.constant (Pitch.scale_id scale) <$> eval_note note
+        PitchSignal.constant (Scale.scale_id scale) <$> eval_note note
 
 degree_at :: RealTime -> TrackLang.PitchControl -> Derive.Deriver Pitch.Degree
 degree_at pos control = PitchSignal.y_to_degree <$> pitch_at pos control
@@ -182,20 +183,22 @@ default_relative_note args
     | otherwise = return args
     where
     environ = Derive.passed_environ args
-    is_relative = case TrackLang.lookup_val TrackLang.v_scale environ of
-        Right scale -> Pitch.is_relative (Pitch.scale_id scale)
-        _ -> False
+    is_relative = either (const False) Pitch.is_relative
+        (TrackLang.lookup_val TrackLang.v_scale environ)
 
 -- ** derive ops
 
 get_srate :: Derive.Deriver RealTime
 get_srate = RealTime <$> Derive.require_val TrackLang.v_srate
 
-get_scale :: Derive.Deriver Pitch.Scale
-get_scale = Derive.require_val TrackLang.v_scale
+get_scale :: Derive.Deriver Scale.Scale
+get_scale = Derive.get_scale =<< get_scale_id
+
+lookup_scale :: Derive.Deriver (Maybe Scale.Scale)
+lookup_scale = Derive.lookup_scale =<< get_scale_id
 
 get_scale_id :: Derive.Deriver Pitch.ScaleId
-get_scale_id = Pitch.scale_id <$> get_scale
+get_scale_id = Derive.require_val TrackLang.v_scale
 
 -- * eval
 
@@ -439,7 +442,7 @@ lookup_val_call call_id = do
         Just vcall -> return (Just vcall)
         Nothing -> do
             scale <- get_scale
-            return $ Pitch.scale_note_to_call scale (to_note call_id)
+            return $ Scale.scale_note_to_call scale (to_note call_id)
     where to_note (TrackLang.Symbol sym) = Pitch.Note sym
 
 lookup_call :: (Derive.CallMap -> Map.Map TrackLang.CallId call)

@@ -50,6 +50,7 @@ import qualified Cmd.InputNote as InputNote
 import Cmd.InputNote (NoteId)
 import qualified Cmd.Msg as Msg
 
+import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 
 import qualified Perform.Pitch as Pitch
@@ -87,7 +88,7 @@ cmd_midi_thru scale_id score_inst msg = do
     mapM_ (uncurry Cmd.midi) thru_msgs
     return Cmd.Continue
 
-map_scale :: Pitch.Scale -> InputNote.Input -> Maybe InputNote.Input
+map_scale :: Scale.Scale -> InputNote.Input -> Maybe InputNote.Input
 map_scale scale input = case input of
         InputNote.NoteOn note_id key vel ->
             fmap (\k -> InputNote.NoteOn note_id k vel) (convert key)
@@ -96,7 +97,7 @@ map_scale scale input = case input of
         _ -> Just input
     where
     convert input_key = fmap (\(Pitch.NoteNumber nn) -> Pitch.InputKey nn)
-        (Pitch.scale_input_to_nn scale input_key)
+        (Scale.scale_input_to_nn scale input_key)
 
 input_to_midi :: Control.PbRange -> Cmd.WriteDeviceState
     -> [Addr] -> InputNote.Input

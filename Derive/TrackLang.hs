@@ -86,13 +86,6 @@ data Val =
     --
     -- Literal: @*scale@, @*@.
     | VScaleId Pitch.ScaleId
-    -- | Storing the scale in the environ instead of the scale id saves looking
-    -- it up again and again.  TODO does it really matter?
-    --
-    -- It would be nicer to look up the scale in the parser and do away with
-    -- VScaleId, but that means mingling Deriver with Deriver with Parser,
-    -- which I don't think is a good idea.
-    | VScale Pitch.Scale
     -- | No literal yet, but is returned from val calls.
     | VDegree Pitch.Degree
     -- | Sets the instrument in scope for a note.  An empty instrument doesn't
@@ -130,8 +123,6 @@ instance Pretty.Pretty Val where
             VControl control -> show_control '%' Pretty.pretty control
             VPitchControl control -> show_control '#' Pitch.note_text control
             VScaleId (Pitch.ScaleId scale_id) -> '*' : scale_id
-            VScale scale -> case Pitch.scale_id scale of
-                Pitch.ScaleId scale_id -> "<scale: " ++ scale_id ++ ">"
             VDegree (Pitch.Degree d) -> "<degree: " ++ show_num d ++ ">"
             VInstrument (Score.Instrument inst) -> '>' : inst
             VSymbol sym -> Pretty.pretty sym
@@ -203,7 +194,7 @@ v_srate = Symbol "srate"
 -- * types
 
 data Type = TNum | TString | TRelativeAttr | TAttributes | TControl
-    | TPitchControl | TScaleId | TScale | TDegree | TInstrument | TSymbol
+    | TPitchControl | TScaleId | TDegree | TInstrument | TSymbol
     | TNotGiven | TMaybe Type | TVal
     deriving (Eq, Show)
 
@@ -224,7 +215,6 @@ type_of val = case val of
     VControl {} -> TControl
     VPitchControl {} -> TPitchControl
     VScaleId {} -> TScaleId
-    VScale {} -> TScale
     VDegree {} -> TDegree
     VInstrument {} -> TInstrument
     VSymbol {} -> TSymbol
@@ -297,12 +287,6 @@ instance Typecheck Pitch.ScaleId where
     to_val = VScaleId
     to_type _ = TScaleId
 
-instance Typecheck Pitch.Scale where
-    from_val (VScale a) = Just a
-    from_val _ = Nothing
-    to_val = VScale
-    to_type _ = TScale
-
 instance Typecheck Pitch.Degree where
     from_val (VDegree a) = Just a
     from_val _ = Nothing
@@ -355,7 +339,7 @@ hardcoded_types :: Map.Map ValName Type
 hardcoded_types = Map.fromList
     [ (v_instrument, TInstrument)
     , (v_attributes, TAttributes)
-    , (v_scale, TScale)
+    , (v_scale, TScaleId)
     , (v_srate, TNum)
     ]
 

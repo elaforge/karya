@@ -18,6 +18,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.PitchTrack as PitchTrack
 
+import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Relative as Relative
 import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
@@ -75,7 +76,7 @@ set_note :: Pitch.Note -> Event.Event -> Event.Event
 set_note note = PitchTrack.modify f
     where f (meth, _) = (meth, Pitch.note_text note)
 
-event_to_degree :: Pitch.Scale -> Event.Event -> Either Pitch.Note Pitch.Degree
+event_to_degree :: Scale.Scale -> Event.Event -> Either Pitch.Note Pitch.Degree
 event_to_degree scale event =
     maybe (Left note) Right (note_to_degree scale note)
     where note = Pitch.Note (snd (PitchTrack.parse (Event.event_string event)))
@@ -85,5 +86,5 @@ event_to_degree scale event =
 -- Technically the degree may be different depending on context anyway.
 -- It seems like there's still a use for a context-independent Note->Degree
 -- though, so maybe I should put it back in...
-note_to_degree :: Pitch.Scale -> Pitch.Note -> Maybe Pitch.Degree
+note_to_degree :: Scale.Scale -> Pitch.Note -> Maybe Pitch.Degree
 note_to_degree = undefined

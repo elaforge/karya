@@ -60,6 +60,7 @@ import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.State as State
+import qualified Ui.Symbol as Symbol
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 
@@ -69,7 +70,6 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Transport as Transport
 
-import {-# SOURCE #-} qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
@@ -216,6 +216,7 @@ data State = State {
     , state_control_op_map :: Map.Map TrackLang.CallId ControlOp
     , state_pitch_op_map :: Map.Map TrackLang.CallId PitchOp
     , state_call_map :: CallMap
+    , state_lookup_scale :: LookupScale
     -- | This is set if the derivation is for a signal deriver.  Signal
     -- derivers skip all special tempo treatment.  Ultimately, this is needed
     -- because of the 'add_track_warp' hack.  It might be 'add_track_warp' is
@@ -223,8 +224,8 @@ data State = State {
     , state_ignore_tempo :: Bool
     }
 
-initial_state cache ui_state score_damage lookup_deriver calls environ
-        ignore_tempo =
+initial_state cache ui_state score_damage lookup_deriver calls lookup_scale
+        environ ignore_tempo =
     State {
     state_controls = initial_controls
     , state_pitches = Map.empty
@@ -244,6 +245,7 @@ initial_state cache ui_state score_damage lookup_deriver calls environ
     , state_control_op_map = default_control_op_map
     , state_pitch_op_map = default_pitch_op_map
     , state_call_map = calls
+    , state_lookup_scale = lookup_scale
     , state_ignore_tempo = ignore_tempo
     }
 
@@ -567,18 +569,19 @@ data Result a = Result {
     , r_state :: State
     }
 
-derive :: Cache -> ScoreDamage -> LookupDeriver -> State.State -> CallMap
-    -> TrackLang.Environ -> Bool -> DeriveT Identity.Identity a
+-- | This has way too many arguments.
+derive :: Cache -> ScoreDamage -> LookupDeriver -> State.State -> LookupScale
+    -> CallMap -> TrackLang.Environ -> Bool -> DeriveT Identity.Identity a
     -> Result a
-derive cache damage lookup_deriver ui_state calls environ ignore_tempo
-        deriver =
+derive cache damage lookup_deriver ui_state lookup_scale calls environ
+        ignore_tempo deriver =
     Result result (state_cache (state_cache_state state))
         event_damage tempo_func closest_func inv_tempo_func
         (collect_track_signals (state_collect state)) logs state
     where
     (result, state, logs) = Identity.runIdentity $ run
         (initial_state clean_cache ui_state damage
-        lookup_deriver calls environ ignore_tempo) deriver
+        lookup_deriver calls lookup_scale environ ignore_tempo) deriver
     clean_cache = clear_damage damage cache
     track_warps = collect_track_warps (state_collect state)
     tempo_func = make_tempo_func track_warps
@@ -753,16 +756,19 @@ local from_state to_state modify_state deriver = do
 -- ** state access
 
 -- | Lookup a scale_id or throw.
--- TODO merge in the static config scales.
-get_scale :: (Monad m) => String -> Pitch.ScaleId -> DeriveT m Pitch.Scale
-get_scale caller scale_id = do
+get_scale :: Pitch.ScaleId -> Deriver Scale
+get_scale scale_id = maybe (throw $ "unknown " ++ show scale_id) return
+    =<< lookup_scale scale_id
+
+lookup_scale :: Pitch.ScaleId -> Deriver (Maybe Scale)
+lookup_scale scale_id = do
     -- Defaulting the scale here means that relative pitch tracks don't need
     -- to mention their scale.
     scale_id <- if scale_id == Pitch.default_scale_id
         then gets (PitchSignal.sig_scale . state_pitch)
         else return scale_id
-    maybe (throw (caller ++ ": unknown " ++ show scale_id)) return
-        (Map.lookup scale_id Scale.scale_map)
+    lookup_scale <- gets state_lookup_scale
+    return $ lookup_scale scale_id
 
 -- ** collect
 
@@ -1610,3 +1616,49 @@ newtype EventDamage = EventDamage DamageRanges
 -- itself, so that events that depend on it can be rederived.
 newtype ControlDamage = ControlDamage DamageRanges
     deriving (Monoid.Monoid, Eq, Show)
+
+
+-- * scale
+
+type LookupScale = Pitch.ScaleId -> Maybe Scale
+
+data Scale = Scale {
+    scale_id :: Pitch.ScaleId
+    -- | A pattern describing what the scale notes look like.  Used only for
+    -- error msgs (i.e. parse errors) so it should be human readable and
+    -- doesn't have to follow any particular syntax.  A regex is recommended
+    -- though.
+    , scale_pattern :: String
+    -- | This is passed to the UI so it knows what to call scale degrees when
+    -- rendering a pitch signal with this scale.
+    , scale_map :: Track.ScaleMap
+
+    -- | If a scale uses 'Symbol.Symbol's, it can include the definitions here
+    -- so they are close to their use.  This symbol list should be loaded as
+    -- soon as possible, which means program startup for hardcoded scales.
+    , scale_symbols :: [Symbol.Symbol]
+
+    -- | How many integral Degrees are there in an octave?  This is so
+    -- that relative pitch notation, which includes an octave, can generate
+    -- a PitchSignal.Relative, which doesn't.
+    --
+    -- This precludes fancy things like variably sized octaves, but that
+    -- requires putting an octave in PitchSignal.Relative and letting the scale
+    -- provide 'PitchSignal.sig_add'.
+    --
+    -- If this is zero, this scale has no concept of an octave.
+    , scale_octave :: Pitch.Octave
+
+    -- | Used by derivation.
+    , scale_note_to_call :: Pitch.Note -> Maybe ValCall
+
+    -- | Used by note input.
+    , scale_input_to_note :: Pitch.InputKey -> Maybe Pitch.Note
+    -- | Used by MIDI thru.  This is a shortcut for
+    -- @degree_to_nn . note_to_degree . input_to_note@ but can be implemented
+    -- more efficiently by the scale.
+    , scale_input_to_nn :: Pitch.InputKey -> Maybe Pitch.NoteNumber
+
+    -- | Used by conversion before performance.
+    , scale_degree_to_nn :: Pitch.Degree -> Maybe Pitch.NoteNumber
+    }

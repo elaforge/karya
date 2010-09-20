@@ -11,7 +11,7 @@
 -}
 module Perform.Pitch (
     -- * Pitch
-    Pitch(..), pitch, Note(..), note_text
+    Pitch(..), Note(..), note_text
 
     -- * InputKey
     , InputKey(..), Octave, middle_c, middle_octave
@@ -26,19 +26,10 @@ module Perform.Pitch (
     , Hz, add_hz, nn_to_hz, hz_to_nn
 
     -- * Scale
-    , ScaleMap, ScaleId(..), default_scale_id, twelve, relative, is_relative
-    , Scale(..)
-    , degree_to_double
+    , ScaleId(..), default_scale_id, twelve, relative, is_relative
 ) where
-import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
-
-import qualified Ui.Symbol as Symbol
-import qualified Ui.Track as Track
-import {-# SOURCE #-} qualified Derive.Derive as Derive (ValCall)
-
-import Perform.PitchSignal (ScaleId(..), Degree(..), relative_scale_id,
-    is_relative)
+import Perform.PitchSignal (ScaleId(..), relative_scale_id, is_relative,
+    Degree(..))
 
 
 -- There are many representations for pitch.  The types here are ordered
@@ -53,13 +44,6 @@ data Pitch = Pitch {
     pitch_scale :: ScaleId
     , pitch_note :: Note
     } deriving (Eq, Ord, Show)
-
--- | Verify that the string is a valid note in the scale, and return the Pitch.
-pitch :: Scale -> String -> Maybe Pitch
-pitch scale note_s
-    | note_in_scale scale note = Just (Pitch (scale_id scale) note)
-    | otherwise = Nothing
-    where note = Note note_s
 
 -- | A Note belongs to a scale and describes a certain note in that scale.
 newtype Note = Note String deriving (Eq, Ord, Show)
@@ -133,10 +117,7 @@ _equal2 = log a_hz - (a_nn * _equal1)
     a_nn = 69
 
 
--- * scale
-
--- | Tie together Pitches and their Scales.
-type ScaleMap = Map.Map ScaleId Scale
+-- * scale id
 
 -- | An empty scale defaults to the scale in scope.
 default_scale_id :: ScaleId
@@ -147,62 +128,3 @@ relative = relative_scale_id
 
 twelve :: ScaleId
 twelve = ScaleId "twelve"
-
-data Scale = Scale {
-    scale_id :: ScaleId
-    -- | A pattern describing what the scale notes look like.  Used only for
-    -- error msgs (i.e. parse errors) so it should be human readable and
-    -- doesn't have to follow any particular syntax.  A regex is recommended
-    -- though.
-    , scale_pattern :: String
-    -- | This is passed to the UI so it knows what to call scale degrees when
-    -- rendering a pitch signal with this scale.
-    , scale_map :: Track.ScaleMap
-
-    -- | If a scale uses 'Symbol.Symbol's, it can include the definitions here
-    -- so they are close to their use.  This symbol list should be loaded as
-    -- soon as possible, which means program startup for hardcoded scales.
-    , scale_symbols :: [Symbol.Symbol]
-
-    -- | How many integral Degrees are there in an octave?  This is so
-    -- that relative pitch notation, which includes an octave, can generate
-    -- a PitchSignal.Relative, which doesn't.
-    --
-    -- This precludes fancy things like variably sized octaves, but that
-    -- requires putting an octave in PitchSignal.Relative and letting the scale
-    -- provide 'PitchSignal.sig_add'.
-    --
-    -- If this is zero, this scale has no concept of an octave.
-    , scale_octave :: Octave
-
-    -- | Used by derivation.
-    , scale_note_to_call :: Note -> Maybe Derive.ValCall
-
-    -- | Used by note input.
-    , scale_input_to_note :: InputKey -> Maybe Note
-    -- | Used by MIDI thru.  This is a shortcut for
-    -- @degree_to_nn . note_to_degree . input_to_note@ but can be implemented
-    -- more efficiently by the scale.
-    , scale_input_to_nn :: InputKey -> Maybe NoteNumber
-
-    -- | Used by conversion before performance.
-    , scale_degree_to_nn :: Degree -> Maybe NoteNumber
-    }
-
--- | These instances are just so TrackLang.Val can have VScale.  You could
--- argue that it should store ScaleId instead of scale, but looking up the
--- scale all the time seems like a hassle.
-instance Eq Scale where
-    s0 == s1 = scale_id s0 == scale_id s1
-
-instance Show Scale where
-    show scale = "<" ++ show (scale_id scale) ++ ">"
-
--- | Make the function for 'Perform.PitchSignal.to_nn', since it can't import
--- this module to do it itself.
-degree_to_double :: Scale -> Degree -> Maybe Double
-degree_to_double scale d = fmap un_nn (scale_degree_to_nn scale d)
-    where un_nn (NoteNumber n) = n
-
-note_in_scale :: Scale -> Note -> Bool
-note_in_scale scale = Maybe.isJust . scale_note_to_call scale

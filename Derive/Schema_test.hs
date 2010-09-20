@@ -70,7 +70,7 @@ test_compile = do
             ]
 
     let (_, logs) = derive ("*c2", [(0, 0, ".1")])
-    strings_like logs ["pitch_call: unknown ScaleId \"c2\""]
+    strings_like logs ["unknown ScaleId \"c2\""]
 
     let cont_signal = Map.union Derive.initial_controls
             (Map.fromList [(Score.Control "c1",

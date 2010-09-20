@@ -61,7 +61,7 @@ chan_callback chan sourcep ctimestamp len bytesp = do
     bytes <- ByteString.packCStringLen (castPtr bytesp, fromIntegral len)
     rdev <- deRefStablePtr sourcep
     let rmsg = Midi.ReadMessage
-                rdev (decode_timestamp ctimestamp) (Parse.decode bytes)
+            rdev (decode_timestamp ctimestamp) (Parse.decode bytes)
     STM.atomically $ STM.writeTChan chan rmsg
 
 

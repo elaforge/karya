@@ -1,20 +1,30 @@
-{- | Hardcoded scale map.
--}
-module Derive.Scale where
-import qualified Data.Map as Map
+module Derive.Scale (
+    pitch
+    -- * Scale
+    , Scale(..)
+    , degree_to_double
+) where
+import qualified Data.Maybe as Maybe
 
-import qualified Derive.Scale.Ratio as Ratio
-import qualified Derive.Scale.Relative as Relative
-import qualified Derive.Scale.Twelve as Twelve
-import qualified Derive.Scale.Semar as Semar
-import qualified Derive.Scale.Wayang as Wayang
-
+import Derive.Derive (Scale(..))
 import qualified Perform.Pitch as Pitch
 
 
--- | This is the hardcoded scale map.  It is merged with the static config
--- scale map at startup.
--- TODO: well, no it's not, not yet, but it should be easy to do someday.
-scale_map :: Pitch.ScaleMap
-scale_map = Map.fromList $ map (\scale -> (Pitch.scale_id scale, scale))
-    [Ratio.scale, Relative.scale, Twelve.scale, Semar.scale, Wayang.scale]
+-- | Verify that the string is a valid note in the scale, and return the Pitch.
+pitch :: Scale -> String -> Maybe Pitch.Pitch
+pitch scale note_s
+    | note_in_scale scale note = Just (Pitch.Pitch (scale_id scale) note)
+    | otherwise = Nothing
+    where note = Pitch.Note note_s
+
+-- | Tie together Pitches and their Scales.
+-- type ScaleMap = Map.Map Pitch.ScaleId Scale
+
+-- | Make the function for 'Perform.PitchSignal.to_nn', since it can't import
+-- this module to do it itself.
+degree_to_double :: Scale -> Pitch.Degree -> Maybe Double
+degree_to_double scale d = fmap un_nn (scale_degree_to_nn scale d)
+    where un_nn (Pitch.NoteNumber n) = n
+
+note_in_scale :: Scale -> Pitch.Note -> Bool
+note_in_scale scale = Maybe.isJust . scale_note_to_call scale

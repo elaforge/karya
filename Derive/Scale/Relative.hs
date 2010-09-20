@@ -8,31 +8,23 @@ import qualified Ui.Track as Track
 
 import qualified Derive.Call.Pitch as Call.Pitch
 import qualified Derive.Derive as Derive
+import qualified Derive.Scale as Scale
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
 
 
--- | Create a relative scale adjusted to be relative for the enclosing scale.
-adjust :: Pitch.Scale -> Pitch.Scale
-adjust enclosing_scale = scale
-    { Pitch.scale_octave = oct
-    -- would make Pitch.is_relative kinda icky
-    -- , Pitch.scale_id = Pitch.ScaleId ("relative " ++ show oct)
-    }
-    where oct = Pitch.scale_octave enclosing_scale
-
-scale :: Pitch.Scale
-scale = Pitch.Scale {
-    Pitch.scale_id = scale_id
-    , Pitch.scale_pattern = "float"
-    , Pitch.scale_map = Track.make_scale_map [(note_of d, d) | d <- [-40..40]]
-    , Pitch.scale_symbols = []
-    , Pitch.scale_octave = 0
-    , Pitch.scale_note_to_call = note_to_call
-    , Pitch.scale_input_to_note = input_to_note
-    , Pitch.scale_input_to_nn = input_to_nn
-    , Pitch.scale_degree_to_nn = degree_to_nn
+scale :: Scale.Scale
+scale = Scale.Scale {
+    Scale.scale_id = scale_id
+    , Scale.scale_pattern = "float"
+    , Scale.scale_map = Track.make_scale_map [(note_of d, d) | d <- [-40..40]]
+    , Scale.scale_symbols = []
+    , Scale.scale_octave = 0
+    , Scale.scale_note_to_call = note_to_call
+    , Scale.scale_input_to_note = input_to_note
+    , Scale.scale_input_to_nn = input_to_nn
+    , Scale.scale_degree_to_nn = degree_to_nn
     }
     where
     note_of :: Double -> String

@@ -17,7 +17,6 @@ import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 
 import qualified Derive.Call as Call
-import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
 import qualified Derive.Schema as Schema
 import qualified Derive.TrackLang as TrackLang
@@ -25,6 +24,8 @@ import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Cache as Midi.Cache
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
+
+import qualified Derive.Derive as Derive
 import qualified Derive.Scale.Twelve as Twelve
 
 import qualified Perform.Warning as Warning
@@ -36,7 +37,7 @@ initial_environ = Map.fromList
     -- Control interpolators rely on this.
     [ (TrackLang.v_srate, TrackLang.VNum 0.05)
     -- Looking up any val call relies on this.
-    , (TrackLang.v_scale, TrackLang.VScale Twelve.scale)
+    , (TrackLang.v_scale, TrackLang.VScaleId Twelve.scale_id)
     ]
 
 -- | Derive with the cache.
@@ -76,9 +77,10 @@ derive derive_cache damage block_id = do
     schema_map <- Cmd.get_schema_map
     ui_state <- State.get
     call_map <- Cmd.gets Cmd.state_call_map
+    lookup_scale <- Cmd.get_lookup_scale
     return $ Derive.derive derive_cache damage
         (Schema.lookup_deriver schema_map ui_state)
-        ui_state call_map initial_environ False
+        ui_state lookup_scale call_map initial_environ False
         (Call.eval_root_block block_id)
 
 -- | Convert a block ID into MIDI msgs and log msgs.  The logs are not
@@ -95,8 +97,10 @@ perform result cache = do
             Cmd.abort
         Right events -> return events
 
+    lookup_scale <- Cmd.get_lookup_scale
     lookup_inst <- Cmd.get_lookup_midi_instrument
-    let (midi_events, convert_warnings) = Convert.convert lookup_inst events
+    let (midi_events, convert_warnings) =
+            Convert.convert lookup_scale lookup_inst events
     -- TODO call Convert.verify for more warnings
 
     let Derive.EventDamage event_damage = Derive.r_event_damage result
@@ -114,9 +118,11 @@ perform result cache = do
 perform_events :: (Monad m) => Derive.Events
     -> Cmd.CmdT m (Perform.Messages, [String])
 perform_events events = do
+    lookup_scale <- Cmd.get_lookup_scale
     lookup_inst <- Cmd.get_lookup_midi_instrument
     midi_config <- State.get_midi_config
-    let (midi_events, convert_warnings) = Convert.convert lookup_inst events
+    let (midi_events, convert_warnings) =
+            Convert.convert lookup_scale lookup_inst events
         (msgs, perf_warns, _) =
             Perform.perform Perform.initial_state midi_config midi_events
     convert_logs <- mapM (warn_to_log "convert") convert_warnings

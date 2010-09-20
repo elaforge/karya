@@ -18,6 +18,7 @@ import qualified Ui.Track as Track
 import qualified Derive.CallSig as CallSig
 import Derive.CallSig (optional)
 import qualified Derive.Derive as Derive
+import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
@@ -25,20 +26,20 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
 
 
-scale = Pitch.Scale {
-    Pitch.scale_id = scale_id
-    , Pitch.scale_pattern = "[+-]?\\d+/\\d+"
+scale = Scale.Scale {
+    Scale.scale_id = scale_id
+    , Scale.scale_pattern = "[+-]?\\d+/\\d+"
     -- no real sensible way to display this
-    , Pitch.scale_map = Track.make_scale_map []
-    , Pitch.scale_symbols = []
-    , Pitch.scale_octave = 0
-    , Pitch.scale_note_to_call = note_to_call
+    , Scale.scale_map = Track.make_scale_map []
+    , Scale.scale_symbols = []
+    , Scale.scale_octave = 0
+    , Scale.scale_note_to_call = note_to_call
     -- | Since this isn't a proper scale, I can't think of any sensible way to
     -- input this with a music keyboard, so we'll have to use the computer
     -- keyboard.
-    , Pitch.scale_input_to_note = const Nothing
-    , Pitch.scale_input_to_nn = const Nothing
-    , Pitch.scale_degree_to_nn = degree_to_nn
+    , Scale.scale_input_to_note = const Nothing
+    , Scale.scale_input_to_nn = const Nothing
+    , Scale.scale_degree_to_nn = degree_to_nn
     }
 
 scale_id :: Pitch.ScaleId
@@ -63,10 +64,10 @@ get_nn_at name pos = do
     sig <- Derive.require
         ("ratio scale requires a " ++ show name ++ " pitch signal")
         =<< Derive.get_named_pitch name
-    scale <- Derive.get_scale "get_nn_at" (PitchSignal.sig_scale sig)
+    scale <- Derive.get_scale (PitchSignal.sig_scale sig)
     let degree = PitchSignal.y_to_degree (PitchSignal.at pos sig)
-    Derive.require (show degree ++ " not in " ++ show (Pitch.scale_id scale))
-        (Pitch.scale_degree_to_nn scale degree)
+    Derive.require (show degree ++ " not in " ++ show (Scale.scale_id scale))
+        (Scale.scale_degree_to_nn scale degree)
 
 -- | Ratios look like @2/5@, @-4/3@.
 p_note :: P.Parser (Double -> Double)

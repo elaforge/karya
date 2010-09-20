@@ -6,9 +6,9 @@ import qualified Derive.Call.Trill as Trill
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
+import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Twelve as Twelve
 
-import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
 
@@ -44,7 +44,7 @@ test_score_trill = do
 
 transform = extract . CallTest.transform
 extract = DeriveTest.extract_events_only
-    (Signal.unsignal . PitchSignal.to_nn (Pitch.degree_to_double Twelve.scale)
+    (Signal.unsignal . PitchSignal.to_nn (Scale.degree_to_double Twelve.scale)
         . Score.event_pitch)
 con = Signal.constant
 

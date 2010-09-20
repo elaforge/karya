@@ -25,12 +25,12 @@ import qualified Ui.Types as Types
 
 import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
+import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Relative as Relative
 import qualified Derive.Score as Score
 import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
 
-import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
 
@@ -107,17 +107,17 @@ pitch_call block_end track_id maybe_name ptype track_expr events deriver =
     Derive.track_setup track_id $ do
         (with_scale, scale) <- case ptype of
             TrackInfo.PitchRelative _ -> do
-                scale <- Derive.lookup_val TrackLang.v_scale
-                let relative_scale = maybe Relative.scale Relative.adjust scale
-                return (Derive.with_val TrackLang.v_scale relative_scale,
-                    relative_scale)
+                -- TODO previously I mangled the scale to set the octave, but
+                -- I can't do that now unless I put it in the ScaleId
+                return (Derive.with_val TrackLang.v_scale Relative.scale_id,
+                    Relative.scale)
             TrackInfo.PitchAbsolute (Just scale_id) -> do
-                scale <- Derive.get_scale "pitch_call" scale_id
-                return (Derive.with_val TrackLang.v_scale scale, scale)
+                scale <- Derive.get_scale scale_id
+                return (Derive.with_val TrackLang.v_scale scale_id, scale)
             TrackInfo.PitchAbsolute Nothing -> do
                 scale <- Call.get_scale
                 return (id, scale)
-        let scale_map = Pitch.scale_map scale
+        let scale_map = Scale.scale_map scale
             derive = derive_pitch block_end track_expr events
         with_scale $ case ptype of
             TrackInfo.PitchRelative op -> do

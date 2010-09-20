@@ -35,6 +35,7 @@ import qualified Derive.Call as Call
 import Derive.CallSig (optional, required, control)
 import qualified Derive.CallSig as CallSig
 import qualified Derive.Derive as Derive
+import qualified Derive.Scale as Scale
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
@@ -145,7 +146,7 @@ pitch_absolute_trill degree speed neighbor dur = do
     let all_transitions = pos_at_speed speed start
     let transitions = integral_cycles (start + dur) all_transitions
     return $ PitchSignal.drop_before start $ PitchSignal.sig_add
-            (PitchSignal.constant (Pitch.scale_id scale) degree)
+            (PitchSignal.constant (Scale.scale_id scale) degree)
             (make_trill transitions neighbor)
 
 

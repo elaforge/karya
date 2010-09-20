@@ -40,6 +40,7 @@ import qualified Instrument.MidiDb as MidiDb
 import qualified App.Config as Config
 
 import qualified Derive.Call.All as Call.All
+import qualified Derive.Scale.All as Scale.All
 import qualified Derive.Derive as Derive
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
@@ -179,6 +180,8 @@ data State = State {
     , state_schema_map :: SchemaMap
     -- | Namespace for track function calls.
     , state_call_map :: Derive.CallMap
+    -- | Turn ScaleIds into Scales.
+    , state_lookup_scale :: LookupScale
     -- | Copies by default go to a block+tracks with this project.
     , state_clip_namespace :: Id.Namespace
 
@@ -250,6 +253,9 @@ initial_state inst_db schema_map = State {
     , state_schema_map = schema_map
     -- TODO later this should be merged with static config
     , state_call_map = Call.All.call_map
+    -- TODO later this should also be merged with static config
+    , state_lookup_scale = LookupScale $
+        \scale_id -> Map.lookup scale_id Scale.All.scales
     , state_clip_namespace = Config.clip_namespace
 
     , state_history = ([], [])
@@ -299,6 +305,11 @@ reinit_state cstate = cstate
     , state_step = state_step empty_state
     , state_kbd_entry_octave = state_kbd_entry_octave empty_state
     }
+
+-- | This is a hack so I can use the default Show instance for 'State'.
+newtype LookupScale = LookupScale Derive.LookupScale
+instance Show LookupScale where
+    show _ = "<lookup-scale>"
 
 data WriteDeviceState = WriteDeviceState {
     -- Used by Cmd.MidiThru:
@@ -493,15 +504,21 @@ get_schema_map = gets state_schema_map
 
 get_clip_namespace :: (Monad m) => CmdT m Id.Namespace
 get_clip_namespace = gets state_clip_namespace
+
 set_clip_namespace :: (Monad m) => Id.Namespace -> CmdT m ()
 set_clip_namespace ns = modify_state $ \st -> st { state_clip_namespace = ns }
 
+get_lookup_scale :: (Monad m) => CmdT m Derive.LookupScale
+get_lookup_scale = do
+    LookupScale lookup_scale <- gets state_lookup_scale
+    return lookup_scale
+
 -- | Lookup a scale_id or throw.
--- TODO merge in the static config scales.
-get_scale :: (Monad m) => String -> Pitch.ScaleId -> CmdT m Pitch.Scale
-get_scale caller scale_id = maybe
-    (throw (caller ++ ": unknown " ++ show scale_id)) return
-    (Map.lookup scale_id Scale.scale_map)
+get_scale :: (Monad m) => String -> Pitch.ScaleId -> CmdT m Scale.Scale
+get_scale caller scale_id = do
+    lookup_scale <- get_lookup_scale
+    maybe (throw (caller ++ ": unknown " ++ show scale_id)) return
+        (lookup_scale scale_id)
 
 get_rdev_state :: (Monad m) => Midi.ReadDevice
     -> CmdT m InputNote.ControlState

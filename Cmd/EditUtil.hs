@@ -20,6 +20,8 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.Selection as Selection
 import qualified Cmd.TimeStep as TimeStep
 
+import qualified Derive.Scale as Scale
+
 import qualified Perform.Pitch as Pitch
 
 
@@ -138,7 +140,7 @@ parse_key scale_id input = do
     let me = "EditUtil.parse_key"
     scale <- Cmd.get_scale me scale_id
     let msg = me ++ ": " ++ show input ++ " out of range for " ++ show scale_id
-    maybe (Cmd.throw msg) return (Pitch.scale_input_to_note scale input)
+    maybe (Cmd.throw msg) return (Scale.scale_input_to_note scale input)
 
 
 -- * modify

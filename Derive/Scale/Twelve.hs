@@ -28,23 +28,24 @@ import qualified Ui.Track as Track
 
 import qualified Derive.Derive as Derive
 import qualified Derive.Call.Pitch as Call.Pitch
+import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Util as Util
 
 import qualified Perform.Pitch as Pitch
 
 
-scale = Pitch.Scale {
-    Pitch.scale_id = scale_id
-    , Pitch.scale_pattern = "[-1-9][a-g]#?"
-    , Pitch.scale_map =
+scale = Scale.Scale {
+    Scale.scale_id = scale_id
+    , Scale.scale_pattern = "[-1-9][a-g]#?"
+    , Scale.scale_map =
         Track.make_scale_map [(Pitch.note_text n, fromIntegral d)
             | (n, d) <- Map.assocs note_to_degree]
-    , Pitch.scale_symbols = [] -- later maybe I can use fancy sharps and flats
-    , Pitch.scale_octave = 12
-    , Pitch.scale_note_to_call = note_to_call
-    , Pitch.scale_input_to_note = input_to_note
-    , Pitch.scale_input_to_nn = input_to_nn
-    , Pitch.scale_degree_to_nn = degree_to_nn
+    , Scale.scale_symbols = [] -- later maybe I can use fancy sharps and flats
+    , Scale.scale_octave = 12
+    , Scale.scale_note_to_call = note_to_call
+    , Scale.scale_input_to_note = input_to_note
+    , Scale.scale_input_to_nn = input_to_nn
+    , Scale.scale_degree_to_nn = degree_to_nn
     }
 
 scale_id :: Pitch.ScaleId

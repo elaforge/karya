@@ -16,11 +16,11 @@ import qualified Midi.Midi as Midi
 import qualified Util.Logger as Logger
 import qualified Util.Pretty as Pretty
 
+import qualified Derive.Derive as Derive
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 
-import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
 import qualified Perform.Timestamp as Timestamp
@@ -32,31 +32,30 @@ import qualified Instrument.MidiDb as MidiDb
 
 -- TODO warnings about:
 -- - Instrument has a control that's not in its control map.
--- - Attributes that match /no/ keyswitches.
 -- - No allocation should be warned about in performer?
 
 
 -- | Convert Score events to Perform events, emitting warnings that may have
 -- happened along the way.
-convert :: MidiDb.LookupMidiInstrument -> [Score.Event]
+convert :: Derive.LookupScale -> MidiDb.LookupMidiInstrument -> [Score.Event]
     -> ([Perform.Event], [Warning.Warning])
-convert lookup_inst events = (maybe [] id evts, warns)
+convert lookup_scale lookup_inst events = (maybe [] id evts, warns)
     where
     (evts, warns) = run_convert $ fmap Maybe.catMaybes $ mapM conv_catch events
     conv_catch event = fmap Just (conv_event event)
         `Error.catchError` (\w -> Logger.log w >> return Nothing)
     conv_event event =
         Reader.local (const (Score.event_stack event))
-            (convert_event lookup_inst event)
+            (convert_event lookup_scale lookup_inst event)
 
-convert_event :: MidiDb.LookupMidiInstrument -> Score.Event
-    -> ConvertT Perform.Event
-convert_event lookup_inst event = do
+convert_event :: Derive.LookupScale -> MidiDb.LookupMidiInstrument
+    -> Score.Event -> ConvertT Perform.Event
+convert_event lookup_scale lookup_inst event = do
     score_inst <- require "instrument" (Score.event_instrument event)
     (midi_inst, maybe_key) <- convert_inst lookup_inst score_inst
         (Score.event_attributes event)
     pitch <- case maybe_key of
-        Nothing -> convert_pitch (Score.event_pitch event)
+        Nothing -> convert_pitch lookup_scale (Score.event_pitch event)
         Just key -> return $ Signal.constant (fromIntegral key)
     let controls = convert_controls (Score.event_controls event)
     return $ Perform.Event midi_inst
@@ -94,12 +93,13 @@ convert_inst lookup_inst score_inst attrs = do
 convert_controls :: Score.ControlMap -> Perform.ControlMap
 convert_controls = Map.mapKeys (\(Score.Control c) -> Control.Control c)
 
-convert_pitch :: PitchSignal.PitchSignal -> ConvertT Signal.NoteNumber
-convert_pitch psig = case Map.lookup scale_id Scale.scale_map of
+convert_pitch :: Derive.LookupScale -> PitchSignal.PitchSignal
+    -> ConvertT Signal.NoteNumber
+convert_pitch lookup_scale psig = case lookup_scale scale_id of
     Nothing -> do
         warn $ "unknown scale: " ++ show scale_id
         return (Signal.constant Signal.invalid_pitch)
-    Just scale -> return $ PitchSignal.to_nn (Pitch.degree_to_double scale) psig
+    Just scale -> return $ PitchSignal.to_nn (Scale.degree_to_double scale) psig
     where scale_id = PitchSignal.sig_scale psig
 
 -- * monad

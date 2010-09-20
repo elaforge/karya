@@ -7,7 +7,7 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Perform.PitchSignal as PitchSignal
 
 
-test = do
+test_ratio = do
     let extract = DeriveTest.extract_events
             (PitchSignal.unsignal_degree . Score.event_pitch)
     let run ratio base  = extract $ DeriveTest.derive_tracks

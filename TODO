@@ -95,33 +95,8 @@ UNSORTED
     collapse at hs level, then an expand can trigger a rederive.
     Also it would be nice to not rederive signal for tracks that haven't
     changed, maybe tracks in calls above the modified one?
-  - Circular imports of Derive.Derive and Derive.Scale causes a lot of
+  * Circular imports of Derive.Derive and Derive.Scale causes a lot of
     recompiling.  Can I eliminate or reduce it?
-
-    - split some Derive.Derive types into their own module
-
-    If I put (Note -> Maybe ValCall) in Scale, then Scale needs to import
-    Derive.  If I give it a type param then it's hard for TrackLang.Val to
-    have a Scale
-
-    So either, put Val and Scale into Derive, or store ScaleIds in Val
-
-    Val will drag in too much stuff so I don't want to move it to Derive.
-
-    I can parameterize Val with scale, then use Derive.Val everywhere.  Will
-    anyone have a problem with this?
-
-    Or change Pitch.Scale to GenericScale, then give it ().  Add Derive.Scale
-    that puts in ValCall.
-
-    Make a hs-boot.  Scale imports Derive, for ValCall.
-    Scales need Derive since they have Derivers.  But Derive needs scales to
-    look them up.  Maybe put a 'import SOURCE Scale.scale_map'?
-
-    Or, can I split scale defs into uses Derive and doesn't?  Ugh.  I think
-    I just need to split Twelve.scale_id into Score.default_scale_id or
-    something.
-
   - Derive.with_* should use local, or at least finally
   * put TypeError into DeriveError and use Call.default_relative_note
   - LPitch.to_relative was broken by notes as calls, fix it

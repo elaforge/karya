@@ -1,4 +1,3 @@
-{-# LANGUAGE ParallelListComp #-}
 module Derive.Control_test where
 import Control.Monad
 import qualified Data.Map as Map
@@ -14,8 +13,9 @@ import qualified Ui.Track as Track
 import qualified Derive.Control as Control
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
-import qualified Derive.Score as Score
+import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Twelve as Twelve
+import qualified Derive.Score as Score
 
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Pitch as Pitch
@@ -178,7 +178,7 @@ test_stash_signal = do
     let ptrack = ("*twelve", [(0, 0, "4c"), (1, 0, "4d")])
         psig = Track.Pitch (PitchSignal.signal Twelve.scale_id
                 [(0, (60, 60, 0)), (1, (62, 62, 0))])
-            (Pitch.scale_map Twelve.scale)
+            (Scale.scale_map Twelve.scale)
     equal (run [itrack, (ptrack, False)]) []
     equal (run [itrack, (ptrack, True)]) [(psig, 0, 1)]
 

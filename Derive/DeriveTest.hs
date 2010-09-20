@@ -23,6 +23,7 @@ import qualified Ui.UiTest as UiTest
 import qualified Derive.Call.All as Call.All
 import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
+import qualified Derive.Scale.All as Scale.All
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Schema as Schema
 import qualified Derive.Score as Score
@@ -63,7 +64,7 @@ run ui_state m =
     initial_stack = Stack.make [Stack.Block (UiTest.bid "fakeblock")]
     derive_state = (Derive.initial_state Derive.empty_cache
         ui_state Monoid.mempty (default_lookup_deriver ui_state)
-        Call.All.call_map default_environ False)
+        default_call_map default_lookup_scale default_environ False)
             { Derive.state_stack = initial_stack }
 
 eval :: State.State -> Derive.Deriver a -> Either String a
@@ -91,7 +92,8 @@ perform :: MidiDb.LookupMidiInstrument -> Instrument.Config -> [Score.Event]
 perform lookup_inst midi_config events =
     (perf_events, convert_warns, mmsgs, perform_warns)
     where
-    (perf_events, convert_warns) = Convert.convert lookup_inst events
+    (perf_events, convert_warns) =
+        Convert.convert default_lookup_scale lookup_inst events
     (msgs, perform_warns, _) = Perform.perform Perform.initial_state
         midi_config perf_events
     mmsgs = map (\m -> (Midi.wmsg_ts m, Midi.wmsg_msg m)) msgs
@@ -132,13 +134,16 @@ derive_cmap :: Derive.CallMap -> Derive.LookupDeriver -> State.State
     -> Derive.Deriver a -> Derive.Result a
 derive_cmap cmap lookup_deriver ui_state deriver =
     Derive.derive Derive.empty_cache Monoid.mempty lookup_deriver ui_state
-        cmap default_environ False deriver
+        default_lookup_scale cmap default_environ False deriver
 
 -- ** defaults
 
 -- | Set UI state defaults that every derivation should have.
 set_defaults :: (State.UiStateMonad m) => m ()
 set_defaults = State.set_midi_config default_midi_config
+
+default_lookup_scale :: Derive.LookupScale
+default_lookup_scale scale_id = Map.lookup scale_id Scale.All.scales
 
 default_call_map :: Derive.CallMap
 default_call_map = Call.All.call_map
@@ -147,7 +152,7 @@ default_environ :: TrackLang.Environ
 default_environ = Map.fromList
     -- tests are easier to write and read with integral interpolation
     [ (TrackLang.v_srate, TrackLang.VNum 1)
-    , (TrackLang.v_scale, TrackLang.VScale Twelve.scale)
+    , (TrackLang.v_scale, TrackLang.VScaleId Twelve.scale_id)
     ]
 
 default_lookup_deriver ui_state = Schema.lookup_deriver Map.empty ui_state

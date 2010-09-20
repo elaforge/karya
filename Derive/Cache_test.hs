@@ -414,7 +414,8 @@ derive :: Derive.Cache -> Derive.ScoreDamage -> State.State
     -> Derive.Deriver a -> Derive.Result a
 derive cache damage ui_state deriver = Derive.derive cache damage
     (DeriveTest.default_lookup_deriver ui_state) ui_state
-    DeriveTest.default_call_map DeriveTest.default_environ False deriver
+    DeriveTest.default_lookup_scale DeriveTest.default_call_map
+    DeriveTest.default_environ False deriver
 
 -- *
 
