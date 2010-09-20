@@ -89,7 +89,7 @@ generate_note n_inst rel_attrs event next_start = do
 inst_is_multiplexed :: Maybe Score.Instrument -> Derive.Deriver Bool
 inst_is_multiplexed Nothing = return False
 inst_is_multiplexed (Just inst) = do
-    config <- State.state_midi_config <$> Derive.gets Derive.state_ui
+    config <- State.state_midi_config <$> Derive.get_ui_state
     return $ case Map.lookup inst (Instrument.config_alloc config) of
         Just (_:_) -> True
         _ -> False

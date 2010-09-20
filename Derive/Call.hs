@@ -393,10 +393,10 @@ fallback_call_id = TrackLang.Symbol ""
 
 lookup_note_call :: LookupCall Derive.NoteCall
 lookup_note_call call_id = do
-    st <- Derive.get
-    let default_ns = State.state_project (Derive.state_ui st)
+    ui_state <- Derive.get_ui_state
+    let default_ns = State.state_project ui_state
         block_id = Types.BlockId (make_id default_ns call_id)
-    if block_id `Map.member` State.state_blocks (Derive.state_ui st)
+    if block_id `Map.member` State.state_blocks ui_state
         then return $ Just $ c_block block_id
         else lookup_call Derive.calls_note call_id
 
@@ -448,7 +448,8 @@ lookup_val_call call_id = do
 lookup_call :: (Derive.CallMap -> Map.Map TrackLang.CallId call)
     -> LookupCall call
 lookup_call get_cmap call_id = do
-    cmap <- Derive.gets (get_cmap . Derive.state_call_map)
+    cmap <- Derive.gets
+        (get_cmap . Derive.state_call_map . Derive.state_constant)
     return (Map.lookup call_id cmap)
 
 -- * c_equal

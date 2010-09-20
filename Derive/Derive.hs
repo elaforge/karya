@@ -181,8 +181,8 @@ type DeriveStack m = Error.ErrorT DeriveError
         (Log.LogT m))
 
 data State = State {
-    -- Environment.  These form a dynamically scoped environment that applies
-    -- to generated events inside its scope.
+    -- Signal environment.  These form a dynamically scoped environment that
+    -- applies to generated events inside its scope.
 
     -- | Derivers can modify it for sub-derivers, or look at it, whether to
     -- attach to an Event or to handle internally.
@@ -194,24 +194,45 @@ data State = State {
     -- it's convenient to guarentee that the main pitch signal is always
     -- present.
     , state_pitch :: !PitchSignal.PitchSignal
-
     , state_environ :: TrackLang.Environ
     , state_warp :: !Score.Warp
+
     -- | This is the call stack for events.  It's used for error reporting,
     -- and attached to events in case they want to emit errors later (say
     -- during performance).
     , state_stack :: Stack.Stack
-    -- | This is a free-form stack which can be used to record call sequences
-    -- in derivation.  It represents logical position during derivation rather
-    -- than position on the score.
+    -- | This is a free-form stack which can be used to prefix log msgs with
+    -- a certain string.
     , state_log_context :: ![String]
 
+    -- | This data is generally written to, and only read in special places.
     , state_collect :: Collect
+    -- | Data pertaining to the deriver cache.
     , state_cache_state :: CacheState
 
-    -- | Constant throughout the derivation.  Used to look up tracks and
-    -- blocks.
-    , state_ui :: State.State
+    -- | This data is constant throughout the derivation.
+    , state_constant :: Constant
+    }
+
+initial_state :: Cache -> ScoreDamage -> TrackLang.Environ -> Constant -> State
+initial_state cache score_damage environ constant = State
+    { state_controls = initial_controls
+    , state_pitches = Map.empty
+    , state_pitch = PitchSignal.constant
+        (State.state_project_scale (state_ui constant)) Pitch.middle_degree
+
+    , state_environ = environ
+    , state_warp = Score.id_warp
+    , state_stack = Stack.empty
+    , state_log_context = []
+
+    , state_collect = Monoid.mempty
+    , state_cache_state = initial_cache_state cache score_damage
+    , state_constant = constant
+    }
+
+data Constant = Constant {
+    state_ui :: State.State
     , state_lookup_deriver :: LookupDeriver
     , state_control_op_map :: Map.Map TrackLang.CallId ControlOp
     , state_pitch_op_map :: Map.Map TrackLang.CallId PitchOp
@@ -224,27 +245,15 @@ data State = State {
     , state_ignore_tempo :: Bool
     }
 
-initial_state cache ui_state score_damage lookup_deriver calls lookup_scale
-        environ ignore_tempo =
-    State {
-    state_controls = initial_controls
-    , state_pitches = Map.empty
-    , state_pitch = PitchSignal.constant
-        (State.state_project_scale ui_state) Pitch.middle_degree
-
-    , state_environ = environ
-    , state_warp = Score.id_warp
-    , state_stack = Stack.empty
-    , state_log_context = []
-
-    , state_collect = Monoid.mempty
-    , state_cache_state = initial_cache_state cache score_damage
-
-    , state_ui = ui_state
+initial_constant :: State.State -> LookupDeriver -> CallMap -> LookupScale
+    -> Bool -> Constant
+initial_constant ui_state lookup_deriver call_map lookup_scale ignore_tempo =
+    Constant
+    { state_ui = ui_state
     , state_lookup_deriver = lookup_deriver
     , state_control_op_map = default_control_op_map
     , state_pitch_op_map = default_pitch_op_map
-    , state_call_map = calls
+    , state_call_map = call_map
     , state_lookup_scale = lookup_scale
     , state_ignore_tempo = ignore_tempo
     }
@@ -569,19 +578,19 @@ data Result a = Result {
     , r_state :: State
     }
 
--- | This has way too many arguments.
-derive :: Cache -> ScoreDamage -> LookupDeriver -> State.State -> LookupScale
-    -> CallMap -> TrackLang.Environ -> Bool -> DeriveT Identity.Identity a
-    -> Result a
-derive cache damage lookup_deriver ui_state lookup_scale calls environ
-        ignore_tempo deriver =
+-- | Kick off a derivation.
+--
+-- The derivation state is quite involved, so there are a lot of arguments
+-- here.
+derive :: Constant -> Cache -> ScoreDamage -> TrackLang.Environ
+    -> DeriveT Identity.Identity a -> Result a
+derive constant cache damage environ deriver =
     Result result (state_cache (state_cache_state state))
         event_damage tempo_func closest_func inv_tempo_func
         (collect_track_signals (state_collect state)) logs state
     where
     (result, state, logs) = Identity.runIdentity $ run
-        (initial_state clean_cache ui_state damage
-        lookup_deriver calls lookup_scale environ ignore_tempo) deriver
+        (initial_state clean_cache damage environ constant) deriver
     clean_cache = clear_damage damage cache
     track_warps = collect_track_warps (state_collect state)
     tempo_func = make_tempo_func track_warps
@@ -630,7 +639,7 @@ score_to_event_damage track_warps score =
 d_block :: BlockId -> EventDeriver
 d_block block_id = do
     -- The block id is put on the stack by 'gdep_block' before this is called.
-    ui_state <- gets state_ui
+    ui_state <- get_ui_state
     -- Do some error checking.  These are all caught later, but if I throw here
     -- I can give more specific error msgs.
     case Map.lookup block_id (State.state_blocks ui_state) of
@@ -645,7 +654,8 @@ d_block block_id = do
     state <- get
     let rethrow exc = throw $ "lookup deriver for " ++ show block_id
             ++ ": " ++ show exc
-    deriver <- either rethrow return (state_lookup_deriver state block_id)
+    deriver <- either rethrow return
+        (state_lookup_deriver (state_constant state) block_id)
     deriver
 
 -- | Run a derivation, catching and logging any exception.
@@ -767,7 +777,7 @@ lookup_scale scale_id = do
     scale_id <- if scale_id == Pitch.default_scale_id
         then gets (PitchSignal.sig_scale . state_pitch)
         else return scale_id
-    lookup_scale <- gets state_lookup_scale
+    lookup_scale <- gets (state_lookup_scale . state_constant)
     return $ lookup_scale scale_id
 
 -- ** collect
@@ -1110,7 +1120,7 @@ with_velocity = with_control Score.c_velocity
 
 lookup_control_op :: (Monad m) => TrackLang.CallId -> DeriveT m ControlOp
 lookup_control_op c_op = do
-    op_map <- gets state_control_op_map
+    op_map <- gets (state_control_op_map . state_constant)
     maybe (throw ("unknown control op: " ++ show c_op)) return
         (Map.lookup c_op op_map)
 
@@ -1127,7 +1137,7 @@ default_control_op_map = Map.fromList $ map (first TrackLang.Symbol)
 
 lookup_pitch_control_op :: (Monad m) => TrackLang.CallId -> DeriveT m PitchOp
 lookup_pitch_control_op c_op = do
-    op_map <- gets state_pitch_op_map
+    op_map <- gets (state_pitch_op_map . state_constant)
     maybe (throw ("unknown pitch op: " ++ show c_op)) return
         (Map.lookup c_op op_map)
 
@@ -1338,7 +1348,7 @@ is_root_block = do
 -- work around it though by appending a comment dummy event.
 get_block_dur :: (Monad m) => BlockId -> DeriveT m ScoreTime
 get_block_dur block_id = do
-    ui_state <- gets state_ui
+    ui_state <- get_ui_state
     either (throw . ("get_block_dur: "++) . show) return
         (State.eval ui_state (State.event_end block_id))
 
@@ -1363,7 +1373,7 @@ tempo_to_warp sig
 -- the environment.
 track_setup :: TrackId -> Deriver d -> Deriver d
 track_setup track_id deriver = do
-    ignore_tempo <- gets state_ignore_tempo
+    ignore_tempo <- gets (state_ignore_tempo . state_constant)
     unless ignore_tempo (add_track_warp track_id)
     deriver
 
@@ -1374,15 +1384,18 @@ setup_without_warp = in_real_time
 
 -- * utils
 
+get_ui_state :: (Monad m) => DeriveT m State.State
+get_ui_state = gets (state_ui . state_constant)
+
 -- | Because DeriveT is not a UiStateMonad.
 --
 -- TODO I suppose it could be, but then I'd be tempted to make
 -- a ReadOnlyUiStateMonad.  And I'd have to merge the exceptions.
 get_track :: (Monad m) => TrackId -> DeriveT m Track.Track
-get_track track_id = get >>= lookup_id track_id . State.state_tracks . state_ui
+get_track track_id = lookup_id track_id . State.state_tracks =<< get_ui_state
 
 get_block :: (Monad m) => BlockId -> DeriveT m Block.Block
-get_block block_id = get >>= lookup_id block_id . State.state_blocks . state_ui
+get_block block_id = lookup_id block_id . State.state_blocks =<< get_ui_state
 
 -- | Lookup @map!key@, throwing if it doesn't exist.
 lookup_id :: (Ord k, Show k, Monad m) => k -> Map.Map k a -> DeriveT m a

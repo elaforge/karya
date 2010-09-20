@@ -63,9 +63,13 @@ run ui_state m =
     -- throw.
     initial_stack = Stack.make [Stack.Block (UiTest.bid "fakeblock")]
     derive_state = (Derive.initial_state Derive.empty_cache
-        ui_state Monoid.mempty (default_lookup_deriver ui_state)
-        default_call_map default_lookup_scale default_environ False)
+        Monoid.mempty default_environ
+            (default_constant default_call_map ui_state))
             { Derive.state_stack = initial_stack }
+
+default_constant cmap ui_state =
+    Derive.initial_constant ui_state (default_lookup_deriver ui_state)
+        cmap default_lookup_scale False
 
 eval :: State.State -> Derive.Deriver a -> Either String a
 eval state m = case run state m of
@@ -76,7 +80,7 @@ eval state m = case run state m of
 -- * derive
 
 derive_tracks :: [UiTest.TrackSpec] -> Derive.Result [Score.Event]
-derive_tracks = derive_tracks_cmap Call.All.call_map
+derive_tracks = derive_tracks_cmap default_call_map
 
 derive_tracks_cmap :: Derive.CallMap -> [UiTest.TrackSpec]
     -> Derive.Result [Score.Event]
@@ -105,7 +109,7 @@ perform_defaults = perform default_lookup_inst default_midi_config
 
 -- | Create multiple blocks, and derive the first one.
 derive_blocks :: [(String, [UiTest.TrackSpec])] -> Derive.Result [Score.Event]
-derive_blocks = derive_blocks_cmap Call.All.call_map
+derive_blocks = derive_blocks_cmap default_call_map
 
 derive_blocks_cmap :: Derive.CallMap -> [(String, [UiTest.TrackSpec])]
     -> Derive.Result [Score.Event]
@@ -118,23 +122,21 @@ derive_blocks_cmap cmap block_tracks = derive_block_cmap cmap ui_state bid
 
 
 derive_block :: State.State -> BlockId -> Derive.Result [Score.Event]
-derive_block = derive_block_cmap Call.All.call_map
+derive_block = derive_block_cmap default_call_map
 
 derive_block_cmap :: Derive.CallMap -> State.State -> BlockId
     -> Derive.Result [Score.Event]
-derive_block_cmap cmap ui_state block_id =
-    derive_cmap cmap (default_lookup_deriver ui_state) ui_state deriver
+derive_block_cmap cmap ui_state block_id = derive_cmap cmap ui_state deriver
     where deriver = Call.eval_root_block block_id
 
-derive :: Derive.LookupDeriver -> State.State -> Derive.Deriver a
-    -> Derive.Result a
+derive :: State.State -> Derive.Deriver a -> Derive.Result a
 derive = derive_cmap default_call_map
 
-derive_cmap :: Derive.CallMap -> Derive.LookupDeriver -> State.State
+derive_cmap :: Derive.CallMap -> State.State
     -> Derive.Deriver a -> Derive.Result a
-derive_cmap cmap lookup_deriver ui_state deriver =
-    Derive.derive Derive.empty_cache Monoid.mempty lookup_deriver ui_state
-        default_lookup_scale cmap default_environ False deriver
+derive_cmap cmap ui_state deriver =
+    Derive.derive (default_constant cmap ui_state) Derive.empty_cache
+        Monoid.mempty default_environ deriver
 
 -- ** defaults
 
@@ -244,7 +246,7 @@ passed_args call vals = Derive.PassedArgs vals Map.empty
     (TrackLang.Symbol call) (Derive.dummy_call_info "DeriveTest")
 
 derive_note :: Derive.Deriver a -> Derive.Result a
-derive_note = derive empty_lookup_deriver State.empty
+derive_note = derive State.empty
 
 empty_lookup_deriver :: Derive.LookupDeriver
 empty_lookup_deriver = const (Right Derive.empty_events)

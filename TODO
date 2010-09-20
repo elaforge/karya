@@ -194,7 +194,7 @@ bugs:
 cleanup:
   ? switch mhead and mlast back to returning Maybe
   - cleanup Ui.Track: event_list -> all_events?
-  - split Derive.State into dynamically scoped, constant, and logging parts
+  * split Derive.State into dynamically scoped, constant, and logging parts
   * State.structure only used by Clip_test
   - Makefile: ghc --make doesn't understand the hsc -> hs link, which leads to
     manual inclusion of $(UI_HS) in the deps
