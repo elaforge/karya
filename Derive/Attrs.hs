@@ -21,8 +21,8 @@ sfz = attr "sfz"
 
 -- * strings
 
-pizz = attr "pizz" -- ^ pizzicato
-trem = attr "trem" -- ^ tremolo
+pizz = attr "pizz" -- pizzicato
+trem = attr "trem" -- tremolo
 
 -- * drums
 
@@ -35,17 +35,17 @@ legong = attr "legong"
 
 -- ** western
 
-snare = attr "snare" -- ^ snare
-bd = attr "bd" -- ^ base drum
-hh = attr "hh" -- ^ high-hat
-crash = attr "crash" -- ^ crash cymbal
-ride = attr "ride" -- ^ ride cymbal
+snare = attr "snare" -- snare
+bd = attr "bd" -- base drum
+hh = attr "hh" -- high-hat
+crash = attr "crash" -- crash cymbal
+ride = attr "ride" -- ride cymbal
 tom = attr "tom"
 
 -- * technique
 
-left = attr "left" -- ^ played with left hand
-right = attr "right" -- ^ played with right hand
+left = attr "left" -- played with left hand
+right = attr "right" -- played with right hand
 
 center = attr "center"
 edge = attr "edge"

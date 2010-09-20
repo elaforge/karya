@@ -114,8 +114,7 @@ rederive_midi initial_state modifications = do
     go (start_cpu, start) initial_state Derive.empty_cache
         initial_midi (return () : modifications)
     where
-    initial_midi = Midi.Cache.cache DeriveTest.default_lookup
-        Derive_profile.midi_config
+    initial_midi = Midi.Cache.cache Derive_profile.midi_config
     go _ _ _ _ [] = return ()
     go start_times state1 derive_cache midi_cache (modify:rest) = do
         let section nmsgs = Derive_profile.time_section nmsgs start_times
@@ -151,7 +150,8 @@ cached_perform cache damage events =
     (out, convert_warns ++ warns, Midi.Cache.cache_stats splice out)
     where
     (perf_events, convert_warns) =
-        Convert.convert (Midi.Cache.cache_lookup cache) events
+        Convert.convert DeriveTest.default_lookup_scale
+            DeriveTest.default_lookup_inst events
     out = Midi.Cache.perform cache damage perf_events
     warns = concatMap Midi.Cache.chunk_warns (Midi.Cache.cache_chunks out)
     splice = fmap fst $

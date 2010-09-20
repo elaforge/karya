@@ -104,12 +104,12 @@ profile_multiplex = do
 
 make_nested_notes :: (State.UiStateMonad m) => String -> Int -> Int -> Int
     -> m ()
-make_nested_notes = make_nested [note_track ">i", simple_pitch_track]
+make_nested_notes = make_nested [note_track inst1, simple_pitch_track]
 
 make_nested_controls :: (State.UiStateMonad m) => String -> Int -> Int -> Int
     -> m ()
 make_nested_controls = make_nested
-    [ note_track ">i"
+    [ note_track inst1
     , simple_pitch_track
     , mod_track
     ]
@@ -207,8 +207,8 @@ force val = DeepSeq.deepseq val (return ())
 
 -- * state building
 
-inst1 = ">fm8/1"
-inst2 = ">fm8/2"
+inst1 = ">s/1"
+inst2 = ">s/2"
 
 note_track inst = ctrack 1 inst [""]
 simple_tempo_track = ctrack0 10 "tempo" ["1", "2", "3", "i 1"]

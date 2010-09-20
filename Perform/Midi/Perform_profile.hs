@@ -15,8 +15,6 @@ import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.Instrument as Instrument
 
-import qualified Instrument.MidiDb as MidiDb
-
 import qualified Perform.Signal as Signal
 
 
@@ -24,7 +22,7 @@ profile_perform = do
     let f evts = (length msgs, logs)
             where
             (msgs, logs, _) = Perform.perform Perform.initial_state
-                test_lookup midi_config evts
+                midi_config evts
     let len = 100000
     let sig = force $ Signal.signal (zip [0, 0.25 .. len] (cycle vals))
         vals = map (/10) ([0..10] ++ [10, 9 .. 1])
@@ -57,14 +55,8 @@ mkevent start dur controls pitch_sig =
         Stack.empty
 
 
-test_lookup :: MidiDb.LookupMidiInstrument
-test_lookup _ (Score.Instrument inst)
-    | inst == "inst1" = Just $ inst1
-    | otherwise = Nothing
-
 inst1 = mkinst "inst1"
-mkinst name = Instrument.instrument "synth" name Nothing Control.empty_map
-    (-1, 1)
+mkinst name = Instrument.instrument name [] (-1, 1)
 
 midi_config = Instrument.config
     [ (Score.Instrument "inst1", [(dev, 0), (dev, 1)]) ]
