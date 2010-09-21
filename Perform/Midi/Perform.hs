@@ -2,6 +2,13 @@
 {- | Main entry point for Perform.Midi.  Render Deriver output down to actual
     midi events.
 
+    The functions in perform work in Timestamps, which are converted from
+    RealTime by "Perform.Midi.Convert".  Timestamps have a millisecond
+    resolution, which is the actual resolution supported by the underlying
+    MIDI driver.  Doing comparisons and calculations in Timestamps ensures
+    that floating point inaccuracy will be rounded off and won't lead to
+    unpredictable note overlaps.
+
     Keyswitch implementation:
 
     Keyswitches are implemented as separate instruments that are allocated
@@ -350,6 +357,12 @@ note_velocity event note_on note_off =
         if snd (clip_val 0 1 on_sig) || snd (clip_val 0 1 off_sig)
         then [(note_on, note_off)] else []
 
+clip_val :: Signal.Y -> Signal.Y -> Signal.Y -> (Signal.Y, Bool)
+clip_val low high val
+    | val < low = (low, True)
+    | val > high = (high, True)
+    | otherwise = (val, False)
+
 type ClipWarning = (Timestamp, Timestamp)
 make_clip_warnings :: Event -> (Control.Control, [ClipWarning])
     -> [Warning.Warning]
@@ -366,11 +379,14 @@ control_at event control pos = do
 perform_pitch :: Control.PbRange -> Midi.Key -> Timestamp
     -> Timestamp -> Signal.NoteNumber -> [(Timestamp, Midi.ChannelMessage)]
 perform_pitch pb_range nn prev_note_off start sig =
-    [(pos, Midi.PitchBend (Control.pb_from_nn pb_range nn val)) |
-        (pos, val) <- pos_vals2]
+    [(Timestamp.from_real_time x,
+            Midi.PitchBend (Control.pb_from_nn pb_range nn y))
+        | (x, y) <- pos_vals]
     where
-    pos_vals = signal_sample start sig
-    pos_vals2 = create_leading_cc prev_note_off start sig pos_vals
+    -- As per 'perform_control', there shouldn't be much to drop here.
+    trim = dropWhile ((< Timestamp.to_real_time start) . fst)
+    pos_vals = create_leading_cc prev_note_off start sig $
+        trim (Signal.unsignal sig)
 
 -- | Return the (pos, msg) pairs, and whether the signal value went out of the
 -- allowed control range, 0--1.
@@ -380,49 +396,36 @@ perform_control :: Control.ControlMap -> Timestamp -> Timestamp
 perform_control cmap prev_note_off start (control, sig) =
     case Control.control_constructor cmap control of
         Nothing -> ([], []) -- TODO warn about a control not in the cmap
-        Just ctor -> ([(pos, ctor val) | (pos, val) <- pos_vals3], clip_warns)
+        Just ctor ->
+            ([(Timestamp.from_real_time x, ctor y) | (x, y) <- pos_vals],
+                clip_warns)
     where
-    pos_vals3 = create_leading_cc prev_note_off start sig pos_vals2
-    pos_vals = signal_sample start sig
-    (low, high) = Control.control_range
-    -- Ack.  Extract the vals, clip them, zip clipped vals back in.
-    (clipped_vals, clips) = unzip (map (clip_val low high) (map snd pos_vals))
-    clip_warns = extract_clip_warns (zip pos_vals clips)
-    pos_vals2 = zip (map fst pos_vals) clipped_vals
-
--- | TODO will it make a performance difference if I push this down into
--- 'sample'?
-signal_sample :: Timestamp -> Signal.Signal y -> [(Timestamp, Signal.Y)]
-signal_sample start sig = map (first Timestamp.from_real_time)
-    (Signal.sample (Timestamp.to_real_time start) sig)
+    -- The signal should already be trimmed to the event range, except that,
+    -- as per the behaviour of Signal.drop_before, it may have a leading
+    -- sample.  I can drop that since it's handled specially be
+    -- 'create_leading_cc'.
+    pos_vals = create_leading_cc prev_note_off start sig $
+        trim (Signal.unsignal clipped)
+    trim = dropWhile ((< Timestamp.to_real_time start) . fst)
+    (clipped, out_of_bounds) = Signal.clip_bounds sig
+        -- (tracef (\s -> (start, Signal.first s, Signal.last s)) sig)
+    clip_warns = [(Timestamp.from_real_time s, Timestamp.from_real_time e)
+        | (s, e) <- out_of_bounds]
 
 -- | I rely on postprocessing to eliminate the redundant msgs.
 -- Since 'channelize' respects the 'control_lead_time', I expect msgs to be
 -- scheduled on their own channels if possible.
 create_leading_cc :: Timestamp -> Timestamp -> Signal.Signal y
-    -> [(Timestamp, Signal.Y)] -> [(Timestamp, Signal.Y)]
+    -> [(Signal.X, Signal.Y)] -> [(Signal.X, Signal.Y)]
 create_leading_cc prev_note_off start sig pos_vals =
-    initial : dropWhile ((<=start) . fst) pos_vals
+    initial : dropWhile ((<= Timestamp.to_real_time start) . fst) pos_vals
     where
     -- Don't go before 0.  Don't go before the previous note, but don't go
     -- after the start of this note, in case the previous note ends after this
     -- one begins.
     tweak = max 0 . max (min prev_note_off start)
-    initial = (tweak (start - control_lead_time),
+    initial = (Timestamp.to_real_time (tweak (start - control_lead_time)),
         Signal.at (Timestamp.to_real_time start) sig)
-
-extract_clip_warns :: [((Timestamp, Signal.Y), Bool)] -> [ClipWarning]
-extract_clip_warns pos_val_clips = [(head pos, last pos) | pos <- clip_pos]
-    where
-    groups = List.groupBy ((==) `on` snd) pos_val_clips
-    clip_pos = [[pos | ((pos, _val), _clipped) <- g ]
-        | g <- groups, snd (head g)]
-
-clip_val :: Signal.Y -> Signal.Y -> Signal.Y -> (Signal.Y, Bool)
-clip_val low high val
-    | val < low = (low, True)
-    | val > high = (high, True)
-    | otherwise = (val, False)
 
 -- | Merge an unsorted list of sorted lists of midi messages.
 merge_messages :: [[Midi.WriteMessage]] -> [Midi.WriteMessage]

@@ -72,7 +72,7 @@ module Perform.Signal (
 
     , merge
     , sig_add, sig_subtract, sig_multiply
-    , sig_max, sig_min, clip_max, clip_min
+    , sig_max, sig_min, clip_max, clip_min, clip_bounds
     , scalar_add, scalar_subtract, scalar_multiply, scalar_divide
     , shift, scale
     , truncate, drop_before
@@ -84,12 +84,15 @@ module Perform.Signal (
     , equal, pitches_share
 ) where
 import Prelude hiding (last, truncate, length, null)
-import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Arrow as Arrow
+import qualified Prelude
+import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Monoid as Monoid
 import qualified Data.StorableVector as V
 import qualified Foreign.Storable as Storable
+
 import qualified Util.Log as Log
+import qualified Util.Num as Num
 
 import qualified Midi.Midi as Midi
 
@@ -270,6 +273,26 @@ scalar_divide n = map_y (/n)
 clip_max, clip_min :: Y -> Signal y -> Signal y
 clip_max val = modify_vec (V.map (Arrow.second (min val)))
 clip_min val = modify_vec (V.map (Arrow.second (max val)))
+
+-- | Clip the signal's Y values to lie between (0, 1), inclusive.  Return the
+-- ranges during which the Y was out of range, if any.
+clip_bounds :: Signal y -> (Signal y, [(X, X)])
+clip_bounds sig = (clipped, out_of_range)
+    where
+    clipped = if Prelude.null out_of_range then sig
+        else Signal $ V.map (Arrow.second (Num.clamp low high)) (sig_vec sig)
+    (ranges, in_clip) = V.foldl' go ([], Nothing) (sig_vec sig)
+    out_of_range = case (in_clip, last sig) of
+        (Just start, Just (end, _)) -> (start, end) : ranges
+        _ -> ranges
+    go state@(accum, Nothing) (x, y)
+        | y < low || y > high = (accum, Just x)
+        | otherwise = state
+    go state@(accum, Just start) (x, y)
+        | y < low || y > high = state
+        | otherwise = ((start, x) : accum, Nothing)
+    low = 0
+    high = 1
 
 shift :: X -> Signal y -> Signal y
 shift 0 = id
