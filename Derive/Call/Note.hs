@@ -7,7 +7,6 @@ import Util.Control
 
 import Ui
 import qualified Ui.Event as Event
-import qualified Ui.State as State
 
 import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
@@ -16,7 +15,6 @@ import qualified Derive.Score as Score
 
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
-import qualified Perform.Midi.Instrument as Instrument
 
 
 note_calls :: Derive.NoteCallMap
@@ -71,12 +69,9 @@ generate_note n_inst rel_attrs event next_start = do
         Nothing -> Derive.lookup_val TrackLang.v_instrument
     attrs <- Maybe.fromMaybe Score.no_attrs <$>
         Derive.lookup_val TrackLang.v_attributes
-    multiplexed <- inst_is_multiplexed inst
     st <- Derive.get
     real_next <- Derive.score_to_real next_start
-    let controls = if multiplexed
-            then trimmed_controls start real_next (Derive.state_controls st)
-            else Derive.state_controls st
+    let controls = trimmed_controls start real_next (Derive.state_controls st)
         -- Perform.Midi.Convert flattens the entire pitch signal, so it's best
         -- to always trim the pitch to avoid extra work.
         pitch_sig = trimmed_pitch start real_next (Derive.state_pitch st)
@@ -86,14 +81,6 @@ generate_note n_inst rel_attrs event next_start = do
     apply rel_attrs attrs =
         List.foldl' (.) id (map TrackLang.set_attr rel_attrs) attrs
 
-inst_is_multiplexed :: Maybe Score.Instrument -> Derive.Deriver Bool
-inst_is_multiplexed Nothing = return False
-inst_is_multiplexed (Just inst) = do
-    config <- State.state_midi_config <$> Derive.get_ui_state
-    return $ case Map.lookup inst (Instrument.config_alloc config) of
-        Just (_:_) -> True
-        _ -> False
-
 -- | In a note track, the pitch signal for each note is constant as soon as the
 -- next note begins.  Otherwise, it looks like each note changes pitch during
 -- its decay.
@@ -102,6 +89,8 @@ trimmed_pitch :: RealTime -> RealTime -> PitchSignal.PitchSignal
 trimmed_pitch start end =
     PitchSignal.truncate end . PitchSignal.drop_before start
 
+-- | Trim control signals to the given range.
+--
 -- Trims will almost all be increasing in time.  Can I save indices or
 -- something to make them faster?  That would only work with linear search
 -- though.
