@@ -40,6 +40,7 @@ import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Id as Id
+import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
@@ -152,7 +153,8 @@ get_clip_block_id = do
 -- and it's nice to have a ruler for that.  But it's not too hard to just copy
 -- a ruler over, so I'll wait and see what experience shows.
 --
--- Also strip out the other track attributes, like hidden, muted, etc.
+-- Also strip out the skeleton and other track attributes, like hidden, muted,
+-- etc.
 selection_sub_state :: (Monad m) => Types.Selection -> Cmd.CmdT m State.State
 selection_sub_state sel = do
     block_id <- Cmd.get_focused_block
@@ -165,9 +167,12 @@ selection_sub_state sel = do
 
     clip_block_id <- get_clip_block_id
     State.exec_rethrow "build clip state" State.empty $ do
-        -- Inherit everything from the copied block, except the tracks.
-        b <- State.create_block (Id.unpack_id clip_block_id) $
-            block { Block.block_tracks = [] }
+        -- Inherit everything from the copied block, except the tracks and the
+        -- skeleton.
+        b <- State.create_block (Id.unpack_id clip_block_id) $ block
+            { Block.block_tracks = []
+            , Block.block_skeleton = Skeleton.empty
+            }
 
         -- Copy over the tracks, but without their rulers.
         let track_pairs = Seq.unique_on fst $ zip
@@ -191,6 +196,11 @@ events_in_sel sel track =
 
 -- *** namespace
 
+-- | Rename the blocks and tracks in the given state into the given namespace
+-- and replace the IDs already in that namespace with it.  Rulers are ignored.
+--
+-- This means that if the given state has IDs in more than one namespace, they
+-- will be flattened into one.  Any collisions will throw an exception.
 state_to_namespace :: (State.UiStateMonad m) =>
     State.State -> Id.Namespace -> m ()
 state_to_namespace state ns = do
