@@ -15,7 +15,7 @@ test_string = do
     let extract = DeriveTest.extract e_event Log.msg_string
         e_event e = (Score.event_start e,
             PitchSignal.unsignal_degree (Score.event_pitch e))
-    let run p1 p2 p3 = extract $ DeriveTest.derive_tracks_cmap call_map
+    let run p1 p2 p3 = extract $ DeriveTest.derive_tracks_with with_call
             [ ("> | guzheng 2 2 1", [(0, 5, ""), (5, 5, ""), (10, 5, "")])
             , ("*twelve", [(0, 0, p1), (5, 0, p2), (10, 0, p3)])
             ]
@@ -40,8 +40,7 @@ test_string = do
             ],
         [])
 
-call_map = CallTest.add_note_call
-    "guzheng" (String.c_guzheng (map Pitch.Degree strings))
-    CallTest.all_calls
+with_call = CallTest.with_note_call "guzheng"
+    (String.c_guzheng (map Pitch.Degree strings))
 
 strings = [60, 62, 64, 67, 69]

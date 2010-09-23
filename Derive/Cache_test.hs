@@ -413,9 +413,9 @@ derive_block cache damage ui_state block_id =
 derive :: Derive.Cache -> Derive.ScoreDamage -> State.State
     -> Derive.Deriver a -> Derive.Result a
 derive cache damage ui_state deriver =
-    Derive.derive constant cache damage DeriveTest.default_environ deriver
-    where
-    constant = DeriveTest.default_constant DeriveTest.default_call_map ui_state
+    Derive.derive constant DeriveTest.default_scopes cache damage
+        DeriveTest.default_environ deriver
+    where constant = DeriveTest.default_constant ui_state
 
 -- *
 

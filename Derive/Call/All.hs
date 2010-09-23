@@ -13,8 +13,13 @@ import qualified Derive.Call.Trill as Trill
 import qualified Derive.Call.Idiom.String as String
 
 
-call_map :: Derive.CallMap
-call_map = Derive.CallMap note_calls control_calls pitch_calls val_calls
+scopes :: [Derive.Scope]
+scopes =
+    [ Derive.NoteScope $ Derive.make_lookup note_calls
+    , Derive.ControlScope $ Derive.make_lookup control_calls
+    , Derive.PitchScope $ Derive.make_lookup pitch_calls
+    , Derive.ValScope $ Derive.make_lookup val_calls
+    ]
 
 note_calls :: Derive.NoteCallMap
 note_calls = Map.unions [Note.note_calls, Echo.note_calls, Rambat.note_calls,

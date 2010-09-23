@@ -44,6 +44,7 @@ import qualified Cmd.Responder as Responder
 import qualified Cmd.Save as Save
 import qualified Cmd.Lang as Lang
 
+import qualified Derive.Call.All as Call.All
 import qualified Derive.Scale.Symbols as Symbols
 
 import qualified Instrument.Db as Db
@@ -83,6 +84,7 @@ load_static_config = do
         , StaticConfig.config_schema_map = Map.empty
         , StaticConfig.config_local_lang_dirs = [app_dir </> Config.lang_dir]
         , StaticConfig.config_global_cmds = []
+        , StaticConfig.config_global_scopes = Call.All.scopes
         , StaticConfig.config_setup_cmd = parse_args
         , StaticConfig.config_read_device_map = read_device_map
         , StaticConfig.config_write_device_map = write_device_map
@@ -103,7 +105,7 @@ parse_args argv = case argv of
     _ -> error $ "bad args: " ++ show argv -- TODO something better
 
 iac n = "IAC Synth " ++ show n
-tapco n = "Tapco " ++ show n
+tapco n = "Tapco Port " ++ show n
 mkmap mkdev pairs = Map.fromList [(mkdev k, mkdev v) | (k, v) <- pairs]
 
 write_device_map :: Map.Map Midi.WriteDevice Midi.WriteDevice
@@ -127,10 +129,11 @@ read_device_map = mkmap Midi.ReadDevice
     ]
 
 read_devices :: Set.Set Midi.ReadDevice
-read_devices = Set.fromList $ map Midi.ReadDevice
+read_devices = Set.fromList $ map Midi.ReadDevice $
     [ "USB Oxygen 8 v2"
     , "EDIROL UA-25"
-    ]
+    , "828mk2 MIDI Port"
+    ] ++ map tapco [1..4]
 
 
 -- * main

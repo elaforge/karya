@@ -200,6 +200,20 @@ lookup_scale = Derive.lookup_scale =<< get_scale_id
 get_scale_id :: Derive.Deriver Pitch.ScaleId
 get_scale_id = Derive.require_val TrackLang.v_scale
 
+with_scale :: Derive.Scale -> Derive.Deriver a -> Derive.Deriver a
+with_scale scale = Derive.with_val TrackLang.v_scale (Scale.scale_id scale)
+    . Derive.with_scopes [Derive.ValScope (lookup_scale_val scale)]
+
+lookup_instrument :: Derive.Deriver (Maybe Score.Instrument)
+lookup_instrument = Derive.lookup_val TrackLang.v_instrument
+
+with_instrument :: Score.Instrument -> Derive.Deriver a -> Derive.Deriver a
+with_instrument inst = Derive.with_val TrackLang.v_instrument inst
+    . Derive.with_scopes
+        [ Derive.ValScope (lookup_instrument_val inst)
+        , Derive.NoteScope (lookup_instrument_note inst)
+        ]
+
 -- * eval
 
 type LookupCall call = TrackLang.CallId -> Derive.Deriver (Maybe call)
@@ -389,16 +403,7 @@ unknown_call_id call_id = "call not found: " ++ Pretty.pretty call_id
 fallback_call_id :: TrackLang.CallId
 fallback_call_id = TrackLang.Symbol ""
 
--- * lookup call
-
-lookup_note_call :: LookupCall Derive.NoteCall
-lookup_note_call call_id = do
-    ui_state <- Derive.get_ui_state
-    let default_ns = State.state_project ui_state
-        block_id = Types.BlockId (make_id default_ns call_id)
-    if block_id `Map.member` State.state_blocks ui_state
-        then return $ Just $ c_block block_id
-        else lookup_call Derive.calls_note call_id
+-- * block call
 
 c_block :: BlockId -> Derive.NoteCall
 c_block block_id = add_block $ Derive.caching_generator "block" $ \args ->
@@ -428,30 +433,6 @@ make_id default_ns (TrackLang.Symbol ident_str) = Id.id ns ident
     (w0, w1) = break (=='/') ident_str
     (ns, ident) = if null w1 then (default_ns, w0) else (w0, drop 1 w1)
 
-lookup_control_call :: LookupCall Derive.ControlCall
-lookup_control_call = lookup_call Derive.calls_control
-
-lookup_pitch_call :: LookupCall Derive.PitchCall
-lookup_pitch_call = lookup_call Derive.calls_pitch
-
-lookup_val_call :: LookupCall Derive.ValCall
-lookup_val_call call_id = do
-    -- Looking up calls_val first means that you can locally override a note.
-    maybe_call <- lookup_call Derive.calls_val call_id
-    case maybe_call of
-        Just vcall -> return (Just vcall)
-        Nothing -> do
-            scale <- get_scale
-            return $ Scale.scale_note_to_call scale (to_note call_id)
-    where to_note (TrackLang.Symbol sym) = Pitch.Note sym
-
-lookup_call :: (Derive.CallMap -> Map.Map TrackLang.CallId call)
-    -> LookupCall call
-lookup_call get_cmap call_id = do
-    cmap <- Derive.gets
-        (get_cmap . Derive.state_call_map . Derive.state_constant)
-    return (Map.lookup call_id cmap)
-
 -- * c_equal
 
 c_equal :: (Derive.Derived derived) => Derive.Call derived
@@ -480,6 +461,71 @@ c_equal = Derive.transformer "equal" $ \args deriver ->
         | null n = Just Nothing
         | otherwise = Just (Just c)
     pitch _ = Nothing
+
+-- * lookup call
+
+-- | First priority is the blocks.  So a block with a certain name will shadow
+-- everything else with that name.
+lookup_note_call :: LookupCall Derive.NoteCall
+lookup_note_call call_id = do
+    lookups <- get_scopes $ \scope -> case scope of
+        Derive.NoteScope lookup -> Just lookup
+        _ -> Nothing
+    lookup_scopes (lookup_block : lookups) call_id
+
+lookup_control_call :: LookupCall Derive.ControlCall
+lookup_control_call = lookup_with $ \scope -> case scope of
+    Derive.ControlScope lookup -> Just lookup
+    _ -> Nothing
+
+lookup_pitch_call :: LookupCall Derive.PitchCall
+lookup_pitch_call = lookup_with $ \scope -> case scope of
+    Derive.PitchScope lookup -> Just lookup
+    _ -> Nothing
+
+lookup_val_call :: LookupCall Derive.ValCall
+lookup_val_call = lookup_with $ \scope -> case scope of
+    Derive.ValScope lookup -> Just lookup
+    _ -> Nothing
+
+lookup_block :: LookupCall Derive.NoteCall
+lookup_block call_id = do
+    ui_state <- Derive.get_ui_state
+    let default_ns = State.state_project ui_state
+        block_id = Types.BlockId (make_id default_ns call_id)
+    if block_id `Map.member` State.state_blocks ui_state
+        then return $ Just $ c_block block_id
+        else return Nothing
+
+lookup_scale_val :: Derive.Scale -> LookupCall Derive.ValCall
+lookup_scale_val scale call_id =
+    return $ Scale.scale_note_to_call scale (to_note call_id)
+    where to_note (TrackLang.Symbol sym) = Pitch.Note sym
+
+-- | TODO implement
+lookup_instrument_val :: Score.Instrument -> LookupCall Derive.ValCall
+lookup_instrument_val inst = const (return Nothing)
+
+-- | TODO implement
+lookup_instrument_note :: Score.Instrument -> LookupCall Derive.NoteCall
+lookup_instrument_note inst = const (return Nothing)
+
+lookup_with :: (Derive.Scope -> Maybe (Derive.LookupCall call))
+    -> LookupCall call
+lookup_with get call_id = do
+    lookups <- get_scopes get
+    lookup_scopes lookups call_id
+
+get_scopes :: (Derive.Scope -> Maybe (Derive.LookupCall call))
+    -> Derive.Deriver [Derive.LookupCall call]
+get_scopes get = do
+    scopes <- Derive.gets Derive.state_scopes
+    return $ Seq.map_maybe get scopes
+
+lookup_scopes :: [Derive.LookupCall call] -> Derive.LookupCall call
+lookup_scopes [] _ = return Nothing
+lookup_scopes (lookup:rest) call_id =
+    maybe (lookup_scopes rest call_id) (return . Just) =<< lookup call_id
 
 -- * map score events
 

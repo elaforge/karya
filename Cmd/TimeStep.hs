@@ -44,7 +44,8 @@ type Matcher = [(ScoreTime, Ruler.Mark)] -> Maybe ScoreTime
 data Direction = Advance | Rewind deriving (Eq, Show)
 
 
--- | Given a pos, the point on a timestep at or previous to that pos.
+-- | Given a pos, the point on a timestep at or previous to that pos.  If there
+-- was no snap point, the pos is return unchanged.
 --
 -- To snap RelativeMark I need the last sel pos.
 snap :: (State.UiStateMonad m) => TimeStep -> BlockId -> TrackNum

@@ -152,7 +152,7 @@ test_val_call = do
     let extract = DeriveTest.extract e_event Log.msg_string
         e_event = fmap Signal.unsignal . Map.lookup (Score.Control "cont")
             . Score.event_controls
-    let run evt = extract $ DeriveTest.derive_tracks_cmap cmap
+    let run evt = extract $ DeriveTest.derive_tracks_with with_add1
             [(">", [(0, 1, "")]), ("cont", [(0, 0, evt)])]
     equal (run "foobar")
         (Right [Just []], ["DeriveError: call not found: foobar"])
@@ -166,7 +166,7 @@ test_val_call = do
         equal res (Right [Just []])
         strings_like logs ["too many arguments"]
 
-cmap = CallTest.add_val_call "add1" add_one CallTest.all_calls
+with_add1 = CallTest.with_val_call "add1" add_one
 
 add_one :: Derive.ValCall
 add_one = Derive.ValCall "add" $ \args -> CallSig.call1 args

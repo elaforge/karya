@@ -39,7 +39,6 @@ import qualified Instrument.MidiDb as MidiDb
 
 import qualified App.Config as Config
 
-import qualified Derive.Call.All as Call.All
 import qualified Derive.Scale.All as Scale.All
 import qualified Derive.Derive as Derive
 import qualified Derive.Scale as Scale
@@ -175,11 +174,12 @@ require_msg msg = maybe (throw msg) return
 -- | App global state.  Unlike Ui.State, this is not saved to disk.
 -- TODO break this up into a couple sections
 data State = State {
-    -- Config type variables that change never or rarely.
+    -- Config type variables that change never or rarely.  These come from the
+    -- static config.
     state_instrument_db :: Instrument.Db.Db
     , state_schema_map :: SchemaMap
-    -- | Namespace for track function calls.
-    , state_call_map :: Derive.CallMap
+    -- | Global namespace for deriver.
+    , state_global_scopes :: [Derive.Scope]
     -- | Turn ScaleIds into Scales.
     , state_lookup_scale :: LookupScale
     -- | Copies by default go to a block+tracks with this project.
@@ -248,11 +248,10 @@ data State = State {
     , state_edit_box :: (Color, Char)
     } deriving (Show, Generics.Typeable)
 
-initial_state inst_db schema_map = State {
+initial_state inst_db schema_map global_scopes = State {
     state_instrument_db = inst_db
     , state_schema_map = schema_map
-    -- TODO later this should be merged with static config
-    , state_call_map = Call.All.call_map
+    , state_global_scopes = global_scopes
     -- TODO later this should also be merged with static config
     , state_lookup_scale = LookupScale $
         \scale_id -> Map.lookup scale_id Scale.All.scales
@@ -285,7 +284,7 @@ initial_state inst_db schema_map = State {
     }
 
 empty_state :: State
-empty_state = initial_state Instrument.Db.empty Map.empty
+empty_state = initial_state Instrument.Db.empty Map.empty []
 
 -- | Reset the parts of the State which are specific to a \"session\".  This
 -- should be called whenever an entirely new state is loaded.

@@ -196,6 +196,8 @@ data State = State {
     , state_pitch :: !PitchSignal.PitchSignal
     , state_environ :: TrackLang.Environ
     , state_warp :: !Score.Warp
+    -- | Stack of calls currently in scope.
+    , state_scopes :: [Scope]
 
     -- | This is the call stack for events.  It's used for error reporting,
     -- and attached to events in case they want to emit errors later (say
@@ -214,8 +216,9 @@ data State = State {
     , state_constant :: Constant
     }
 
-initial_state :: Cache -> ScoreDamage -> TrackLang.Environ -> Constant -> State
-initial_state cache score_damage environ constant = State
+initial_state :: [Scope] -> Cache -> ScoreDamage -> TrackLang.Environ
+    -> Constant -> State
+initial_state scopes cache score_damage environ constant = State
     { state_controls = initial_controls
     , state_pitches = Map.empty
     , state_pitch = PitchSignal.constant
@@ -223,6 +226,7 @@ initial_state cache score_damage environ constant = State
 
     , state_environ = environ
     , state_warp = Score.id_warp
+    , state_scopes = scopes
     , state_stack = Stack.empty
     , state_log_context = []
 
@@ -231,12 +235,29 @@ initial_state cache score_damage environ constant = State
     , state_constant = constant
     }
 
+type LookupCall call = TrackLang.CallId -> Deriver (Maybe call)
+
+data Scope =
+    NoteScope (LookupCall NoteCall)
+    | ControlScope (LookupCall ControlCall)
+    | PitchScope (LookupCall PitchCall)
+    | ValScope (LookupCall ValCall)
+
+instance Show Scope where
+    show scope = case scope of
+        NoteScope {} -> "<note-scope>"
+        ControlScope {} -> "<control-scope>"
+        PitchScope {} -> "<pitch-scope>"
+        ValScope {} -> "<val-scope>"
+
+make_lookup :: Map.Map TrackLang.CallId call -> LookupCall call
+make_lookup cmap call_id = return $ Map.lookup call_id cmap
+
 data Constant = Constant {
     state_ui :: State.State
     , state_lookup_deriver :: LookupDeriver
     , state_control_op_map :: Map.Map TrackLang.CallId ControlOp
     , state_pitch_op_map :: Map.Map TrackLang.CallId PitchOp
-    , state_call_map :: CallMap
     , state_lookup_scale :: LookupScale
     -- | This is set if the derivation is for a signal deriver.  Signal
     -- derivers skip all special tempo treatment.  Ultimately, this is needed
@@ -245,15 +266,14 @@ data Constant = Constant {
     , state_ignore_tempo :: Bool
     }
 
-initial_constant :: State.State -> LookupDeriver -> CallMap -> LookupScale
-    -> Bool -> Constant
-initial_constant ui_state lookup_deriver call_map lookup_scale ignore_tempo =
+initial_constant :: State.State -> LookupDeriver -> LookupScale -> Bool
+    -> Constant
+initial_constant ui_state lookup_deriver lookup_scale ignore_tempo =
     Constant
     { state_ui = ui_state
     , state_lookup_deriver = lookup_deriver
     , state_control_op_map = default_control_op_map
     , state_pitch_op_map = default_pitch_op_map
-    , state_call_map = call_map
     , state_lookup_scale = lookup_scale
     , state_ignore_tempo = ignore_tempo
     }
@@ -335,14 +355,6 @@ initial_cache_state cache score_damage = empty_cache_state {
 type LocalDep = GeneratorDep
 
 -- ** calls
-
-data CallMap = CallMap {
-    calls_note :: NoteCallMap
-    , calls_control :: ControlCallMap
-    , calls_pitch :: PitchCallMap
-    , calls_val :: ValCallMap
-    } deriving (Show)
-empty_call_map = CallMap Map.empty Map.empty Map.empty Map.empty
 
 type NoteCallMap = Map.Map TrackLang.CallId NoteCall
 type ControlCallMap = Map.Map TrackLang.CallId ControlCall
@@ -582,15 +594,15 @@ data Result a = Result {
 --
 -- The derivation state is quite involved, so there are a lot of arguments
 -- here.
-derive :: Constant -> Cache -> ScoreDamage -> TrackLang.Environ
+derive :: Constant -> [Scope] -> Cache -> ScoreDamage -> TrackLang.Environ
     -> DeriveT Identity.Identity a -> Result a
-derive constant cache damage environ deriver =
+derive constant scopes cache damage environ deriver =
     Result result (state_cache (state_cache_state state))
         event_damage tempo_func closest_func inv_tempo_func
         (collect_track_signals (state_collect state)) logs state
     where
     (result, state, logs) = Identity.runIdentity $ run
-        (initial_state clean_cache damage environ constant) deriver
+        (initial_state scopes clean_cache damage environ constant) deriver
     clean_cache = clear_damage damage cache
     track_warps = collect_track_warps (state_collect state)
     tempo_func = make_tempo_func track_warps
@@ -1104,6 +1116,10 @@ modify_pitch f (Just name) signal = local
     ps = state_pitches
     alter Nothing = Just signal
     alter (Just old) = Just (f old signal)
+
+with_scopes :: [Scope] -> Deriver a -> Deriver a
+with_scopes scopes = local state_scopes (\old st -> st { state_scopes = old })
+    (\st -> return $ st { state_scopes = scopes ++ state_scopes st })
 
 -- *** specializations
 

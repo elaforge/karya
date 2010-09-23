@@ -62,14 +62,13 @@ run ui_state m =
     -- Make sure Derive.get_current_block_id, called by add_track_warp, doesn't
     -- throw.
     initial_stack = Stack.make [Stack.Block (UiTest.bid "fakeblock")]
-    derive_state = (Derive.initial_state Derive.empty_cache
-        Monoid.mempty default_environ
-            (default_constant default_call_map ui_state))
+    derive_state = (Derive.initial_state default_scopes Derive.empty_cache
+        Monoid.mempty default_environ (default_constant ui_state))
             { Derive.state_stack = initial_stack }
 
-default_constant cmap ui_state =
+default_constant ui_state =
     Derive.initial_constant ui_state (default_lookup_deriver ui_state)
-        cmap default_lookup_scale False
+        default_lookup_scale False
 
 eval :: State.State -> Derive.Deriver a -> Either String a
 eval state m = case run state m of
@@ -77,18 +76,7 @@ eval state m = case run state m of
     Right (val, _, _) -> Right val
 
 
--- * derive
-
-derive_tracks :: [UiTest.TrackSpec] -> Derive.Result [Score.Event]
-derive_tracks = derive_tracks_cmap default_call_map
-
-derive_tracks_cmap :: Derive.CallMap -> [UiTest.TrackSpec]
-    -> Derive.Result [Score.Event]
-derive_tracks_cmap cmap tracks =
-    derive_blocks_cmap cmap [(UiTest.default_block_name, tracks)]
-
-derive_tracks_tempo :: [UiTest.TrackSpec] -> Derive.Result [Score.Event]
-derive_tracks_tempo tracks = derive_tracks (("tempo", [(0, 0, "1")]) : tracks)
+-- * perform
 
 perform :: MidiDb.LookupMidiInstrument -> Instrument.Config -> [Score.Event]
     -> ([Perform.Event], [Warning.Warning],
@@ -107,36 +95,46 @@ perform_defaults :: [Score.Event]
         [(Timestamp.Timestamp, Midi.Message)], [Warning.Warning])
 perform_defaults = perform default_lookup_inst default_midi_config
 
+-- * derive
+
+derive_tracks :: [UiTest.TrackSpec] -> Derive.Result [Score.Event]
+derive_tracks = derive_tracks_with id
+
+derive_tracks_tempo :: [UiTest.TrackSpec] -> Derive.Result [Score.Event]
+derive_tracks_tempo tracks = derive_tracks (("tempo", [(0, 0, "1")]) : tracks)
+
+derive_tracks_with :: Transform [Score.Event] -> [UiTest.TrackSpec]
+    -> Derive.Result [Score.Event]
+derive_tracks_with with tracks =
+    derive_blocks_with with [(UiTest.default_block_name, tracks)]
+
 -- | Create multiple blocks, and derive the first one.
 derive_blocks :: [(String, [UiTest.TrackSpec])] -> Derive.Result [Score.Event]
-derive_blocks = derive_blocks_cmap default_call_map
+derive_blocks = derive_blocks_with id
 
-derive_blocks_cmap :: Derive.CallMap -> [(String, [UiTest.TrackSpec])]
+derive_blocks_with :: Transform [Score.Event] -> [(String, [UiTest.TrackSpec])]
     -> Derive.Result [Score.Event]
-derive_blocks_cmap cmap block_tracks = derive_block_cmap cmap ui_state bid
+derive_blocks_with with block_tracks = derive_block_with with ui_state bid
     where
     (_, ui_state) = UiTest.run State.empty $ do
         forM_ block_tracks $ \(bid, tracks) -> UiTest.mkstate bid tracks
         set_defaults
     bid = UiTest.bid (fst (head block_tracks))
 
-
 derive_block :: State.State -> BlockId -> Derive.Result [Score.Event]
-derive_block = derive_block_cmap default_call_map
+derive_block = derive_block_with id
 
-derive_block_cmap :: Derive.CallMap -> State.State -> BlockId
-    -> Derive.Result [Score.Event]
-derive_block_cmap cmap ui_state block_id = derive_cmap cmap ui_state deriver
-    where deriver = Call.eval_root_block block_id
+derive_block_with :: Transform [Score.Event] -> State.State
+    -> BlockId -> Derive.Result [Score.Event]
+derive_block_with with ui_state block_id = derive ui_state deriver
+    where deriver = with (Call.eval_root_block block_id)
 
 derive :: State.State -> Derive.Deriver a -> Derive.Result a
-derive = derive_cmap default_call_map
+derive ui_state deriver =
+    Derive.derive (default_constant ui_state) default_scopes
+        Derive.empty_cache Monoid.mempty default_environ deriver
 
-derive_cmap :: Derive.CallMap -> State.State
-    -> Derive.Deriver a -> Derive.Result a
-derive_cmap cmap ui_state deriver =
-    Derive.derive (default_constant cmap ui_state) Derive.empty_cache
-        Monoid.mempty default_environ deriver
+type Transform a = Derive.Deriver a -> Derive.Deriver a
 
 -- ** defaults
 
@@ -147,8 +145,8 @@ set_defaults = State.set_midi_config default_midi_config
 default_lookup_scale :: Derive.LookupScale
 default_lookup_scale scale_id = Map.lookup scale_id Scale.All.scales
 
-default_call_map :: Derive.CallMap
-default_call_map = Call.All.call_map
+default_scopes :: [Derive.Scope]
+default_scopes = Call.All.scopes
 
 default_environ :: TrackLang.Environ
 default_environ = Map.fromList

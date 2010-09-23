@@ -85,6 +85,7 @@ responder static_config get_msg write_midi abort_midi get_now_ts setup_cmd
     let cmd_state = Cmd.initial_state
             (StaticConfig.config_instrument_db static_config)
             (StaticConfig.config_schema_map static_config)
+            (StaticConfig.config_global_scopes static_config)
         cmd = setup_cmd >> Edit.initialize_state >> return Cmd.Done
     (ui_state, cmd_state) <-
         run_setup_cmd loopback_chan State.empty cmd_state cmd

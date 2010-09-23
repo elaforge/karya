@@ -76,13 +76,12 @@ derive :: (Monad m) => Derive.Cache -> Derive.ScoreDamage
 derive derive_cache damage block_id = do
     schema_map <- Cmd.get_schema_map
     ui_state <- State.get
-    call_map <- Cmd.gets Cmd.state_call_map
     lookup_scale <- Cmd.get_lookup_scale
     let constant = Derive.initial_constant ui_state
-            (Schema.lookup_deriver schema_map ui_state) call_map lookup_scale
-            False
-    return $ Derive.derive constant derive_cache damage initial_environ
-        (Call.eval_root_block block_id)
+            (Schema.lookup_deriver schema_map ui_state) lookup_scale False
+    scopes <- Cmd.gets Cmd.state_global_scopes
+    return $ Derive.derive constant scopes derive_cache damage
+        initial_environ (Call.eval_root_block block_id)
 
 -- | Convert a block ID into MIDI msgs and log msgs.  The logs are not
 -- immediately written to preserve laziness on the returned MIDI msgs.

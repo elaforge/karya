@@ -5,6 +5,8 @@ import qualified Data.Set as Set
 import qualified Midi.Midi as Midi
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
+
+import qualified Derive.Derive as Derive
 import qualified Derive.Schema as Schema
 
 import qualified Instrument.Db
@@ -24,6 +26,9 @@ data StaticConfig = StaticConfig {
     --
     -- Cmds that are local to a Block are part of the schema db.
     , config_global_cmds :: [Msg.Msg -> Cmd.CmdIO]
+
+    -- | Default global namespace for deriver calls.
+    , config_global_scopes :: [Derive.Scope]
 
     -- | Run this on startup, given the app's argv.  It can set up an initial
     -- block, load a given file, or do nothing.
@@ -47,11 +52,13 @@ data StaticConfig = StaticConfig {
     , config_read_devices :: Set.Set Midi.ReadDevice
     }
 
+empty_config :: StaticConfig
 empty_config = StaticConfig {
     config_instrument_db = Instrument.Db.empty
     , config_schema_map = Map.empty
     , config_local_lang_dirs = []
     , config_global_cmds = []
+    , config_global_scopes = []
     , config_setup_cmd = const (return Cmd.Done)
     , config_read_device_map = Map.empty
     , config_write_device_map = Map.empty

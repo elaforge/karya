@@ -3,7 +3,6 @@ import qualified Data.Map as Map
 
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
-import qualified Derive.Call.All as All
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
@@ -46,13 +45,16 @@ run_control events = extract $ DeriveTest.derive_tracks_tempo
 
 -- * call map
 
-all_calls :: Derive.CallMap
-all_calls = All.call_map
+with_note_call :: String -> Derive.NoteCall
+    -> Derive.Deriver a -> Derive.Deriver a
+with_note_call name call =
+    Derive.with_scopes [Derive.NoteScope (single_lookup name call)]
 
-add_note_call :: String -> Derive.NoteCall -> Derive.CallMap -> Derive.CallMap
-add_note_call name call cmap = cmap { Derive.calls_note =
-    Map.insert (TrackLang.Symbol name) call (Derive.calls_note cmap) }
+with_val_call :: String -> Derive.ValCall
+    -> Derive.Deriver a -> Derive.Deriver a
+with_val_call name call =
+    Derive.with_scopes [Derive.ValScope (single_lookup name call)]
 
-add_val_call :: String -> Derive.ValCall -> Derive.CallMap -> Derive.CallMap
-add_val_call name call cmap = cmap { Derive.calls_val =
-    Map.insert (TrackLang.Symbol name) call (Derive.calls_val cmap) }
+single_lookup name call call_id
+    | TrackLang.Symbol name == call_id = return $ Just call
+    | otherwise = return Nothing
