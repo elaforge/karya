@@ -371,20 +371,16 @@ passed_prev_events :: PassedArgs derived -> [Track.PosEvent]
 passed_prev_events = info_prev_events . passed_info
 
 passed_next_begin :: PassedArgs derived -> Maybe ScoreTime
-passed_next_begin = fmap fst . relevant_event . passed_next_events
+passed_next_begin = fmap fst . first_event . passed_next_events
 
 passed_prev_begin :: PassedArgs derived -> Maybe ScoreTime
-passed_prev_begin = fmap fst . relevant_event . passed_prev_events
+passed_prev_begin = fmap fst . first_event . passed_prev_events
 
--- | Get the next \"relevant\" event beginning.  Intended to be used by calls
--- to determine their extent, especially control calls, which have no explicit
--- duration.
---
--- This will skip 'x = y' calls, which are not indended to affect note scope.
--- TODO implement that
-relevant_event :: [Track.PosEvent] -> Maybe Track.PosEvent
-relevant_event ((pos, evt) : _) = Just (pos, evt)
-relevant_event _ = Nothing
+-- | Get the next event beginning.  Intended to be used by calls to determine
+-- their extent, especially control calls, which have no explicit duration.
+first_event :: [Track.PosEvent] -> Maybe Track.PosEvent
+first_event ((pos, evt) : _) = Just (pos, evt)
+first_event _ = Nothing
 
 -- | Get the previous derived val.  This is used by control derivers so they
 -- can interpolate from the previous sample.
