@@ -52,8 +52,8 @@ data StaticConfig = StaticConfig {
     , config_read_devices :: Set.Set Midi.ReadDevice
     }
 
-empty_config :: StaticConfig
-empty_config = StaticConfig {
+empty :: StaticConfig
+empty = StaticConfig {
     config_instrument_db = Instrument.Db.empty
     , config_schema_map = Map.empty
     , config_local_lang_dirs = []

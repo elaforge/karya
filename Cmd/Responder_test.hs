@@ -92,7 +92,7 @@ run_msgs ustate cstate msgs = do
     session <- Lang.make_session
     transport_info <- dummy_transport
     loopback_chan <- TChan.newTChanIO
-    let rstate = Responder.ResponderState StaticConfig.empty_config
+    let rstate = Responder.ResponderState StaticConfig.empty
             ustate cstate (error "state_msg_reader unused") midi_writer
             transport_info session loopback_chan
     statuses <- thread_states rstate msgs
