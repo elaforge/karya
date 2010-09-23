@@ -72,14 +72,14 @@ test_compile = do
     let (_, logs) = derive ("*c2", [(0, 0, ".1")])
     strings_like logs ["unknown ScaleId \"c2\""]
 
-    let cont_signal = Map.union Derive.initial_controls
-            (Map.fromList [(Score.Control "c1",
-                mksig [(0, 3), (0.5, 2), (1, 1)])])
+    let mkcont vals = Map.union Derive.initial_controls
+            (Map.singleton (Score.Control "c1") (mksig vals))
         no_pitch = PitchSignal.empty
 
     let (res, logs) = derive ("*twelve", [(0, 0, ".1")])
     strings_like logs ["call not found: .1"]
-    equal (controls res) (Right [cont_signal, cont_signal, cont_signal])
+    equal (controls res) $ Right
+        [mkcont [(0, 3)], mkcont [(0.5, 2)], mkcont [(1, 1)]]
     equal (pitches res) (Right [no_pitch, no_pitch, no_pitch])
 
     let (res, logs) = derive
@@ -92,7 +92,6 @@ test_compile = do
     equal logs []
     -- The pitch signal gets truncated so it doesn't look like the note's decay
     -- wants to change pitch.
-    equal (controls res) (Right [cont_signal, cont_signal, cont_signal])
     equal (pitches res) (Right [psig 1, psig 2, psig 6])
     where
     mksig = Signal.signal

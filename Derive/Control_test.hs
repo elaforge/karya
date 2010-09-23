@@ -97,7 +97,7 @@ do_derive extract track = DeriveTest.extract extract Log.msg_string $
 
 test_relative_control = do
     let (events, logs) = DeriveTest.e_logs $ DeriveTest.derive_tracks
-            [ (">", [(0, 1, "")])
+            [ (">", [(0, 5, "")])
             , ("*twelve", [(0, 0, "4c")])
             , ("add cont", [(0, 0, "1")])
             , ("cont", [(0, 0, "0"), (2, 0, "i 2"), (4, 0, "i 0")])

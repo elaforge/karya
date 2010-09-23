@@ -212,7 +212,7 @@ test_clip_warns = do
 
     equal (extract_warns warns)
         -- yeah matching floats is silly but it's quick and easy...
-        [ ("Control \"volume\" clipped", Just (1.5, 1.5))
+        [ ("Control \"volume\" clipped", Just (1.5, 2.5))
         , ("Control \"volume\" clipped", Just (3.5, 4))
         ]
 

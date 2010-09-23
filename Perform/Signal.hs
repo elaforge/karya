@@ -275,9 +275,9 @@ clip_max val = modify_vec (V.map (Arrow.second (min val)))
 clip_min val = modify_vec (V.map (Arrow.second (max val)))
 
 -- | Clip the signal's Y values to lie between (0, 1), inclusive.  Return the
--- ranges during which the Y was out of range, if any.
+-- half-open ranges during which the Y was out of range, if any.
 clip_bounds :: Signal y -> (Signal y, [(X, X)])
-clip_bounds sig = (clipped, out_of_range)
+clip_bounds sig = (clipped, reverse out_of_range)
     where
     clipped = if Prelude.null out_of_range then sig
         else Signal $ V.map (Arrow.second (Num.clamp low high)) (sig_vec sig)
