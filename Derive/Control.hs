@@ -140,7 +140,7 @@ derive_control block_end track_expr events = do
     where
     deriver = Signal.merge <$>
         Call.derive_track block_end dinfo preprocess_control last_sample events
-    dinfo = Call.DeriveInfo Derive.no_control Call.lookup_control_call
+    dinfo = Call.DeriveInfo Call.lookup_control_call
     last_sample prev chunk = Signal.last chunk `mplus` prev
 
 preprocess_control :: Call.PreProcess
@@ -162,7 +162,7 @@ derive_pitch block_end track_expr events = do
     where
     deriver = PitchSignal.merge <$>
         Call.derive_track block_end dinfo id last_sample events
-    dinfo = Call.DeriveInfo Derive.no_pitch Call.lookup_pitch_call
+    dinfo = Call.DeriveInfo Call.lookup_pitch_call
     last_sample prev chunk = PitchSignal.last chunk `mplus` prev
 
 -- | Event damage for a control track only extends to the last sample.

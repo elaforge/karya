@@ -226,7 +226,7 @@ eval_one start dur expr =
     where
     -- TODO use pretty instead of show
     cinfo = Derive.dummy_call_info ("eval_one: " ++ show expr)
-    dinfo = DeriveInfo Derive.no_events lookup_note_call
+    dinfo = DeriveInfo lookup_note_call
 
 -- | A version of 'eval' specialized to evaluate note calls.
 eval_note :: Pitch.Note -> Derive.Deriver Pitch.Degree
@@ -246,9 +246,12 @@ eval_root_block block_id = eval_one 0 1 [call_from_block_id block_id]
 -- ** eval implementation
 
 data DeriveInfo derived = DeriveInfo {
-    -- | This deriver's empty value to return on failure.
-    info_empty :: derived
-    , info_lookup :: Derive.LookupCall (Derive.Call derived)
+    -- | TODO If I could get rid of this I could make functions like 'eval_one'
+    -- and 'reapply' polymorphic.  It seems like this should be possible
+    -- because there can be a static mapping between the derived type and the
+    -- lookup.  Unfortunately ValCall is a problem since sinced it's not
+    -- a derived type like the others.
+    info_lookup :: Derive.LookupCall (Derive.Call derived)
     }
 
 type PreProcess = TrackLang.Expr -> TrackLang.Expr
@@ -264,7 +267,7 @@ derive_track block_end dinfo preproc get_last_sample events =
     where
     go _ _ [] = return []
     go prev_sample prev (cur@(pos, event) : rest) = do
-        chunk <- with_catch (info_empty dinfo) pos event $
+        chunk <- with_catch Derive.empty_derived pos event $
             derive_event block_end dinfo preproc prev_sample prev cur rest
         rest <- go (get_last_sample prev_sample chunk) (cur:prev) rest
         return $ chunk : rest
@@ -282,9 +285,9 @@ derive_event :: (Derive.Derived derived) =>
     -> [Track.PosEvent] -- ^ following events
     -> Derive.Deriver derived
 derive_event block_end dinfo preproc prev_val prev cur@(pos, event) next
-    | Event.event_string event == "--" = return (info_empty dinfo)
+    | Event.event_string event == "--" = return Derive.empty_derived
     | otherwise = case TrackLang.parse (Event.event_string event) of
-        Left err -> Log.warn err >> return (info_empty dinfo)
+        Left err -> Log.warn err >> return Derive.empty_derived
         Right expr -> run_call (preproc expr)
     where
     -- TODO move with_catch down here

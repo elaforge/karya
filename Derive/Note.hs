@@ -165,7 +165,7 @@ derive_notes block_end events = Derive.merge_asc_events <$>
     Call.derive_track block_end derive_info id (\_ _ -> Nothing) events
 
 derive_info :: Call.DeriveInfo Derive.Events
-derive_info = Call.DeriveInfo Derive.no_events Call.lookup_note_call
+derive_info = Call.DeriveInfo Call.lookup_note_call
 
 -- | It's convenient to tag a note track with @>inst@ to set its instrument.
 -- Unfortunately, this is parsed as a call to @>inst@
