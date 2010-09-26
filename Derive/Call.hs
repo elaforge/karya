@@ -216,15 +216,13 @@ with_instrument inst = Derive.with_val TrackLang.v_instrument inst
 
 -- * eval
 
-type LookupCall call = TrackLang.CallId -> Derive.Deriver (Maybe call)
+-- * eval
 
 -- | Evaluate a single note as a generator.  Fake up an event with no prev or
 -- next lists.
 eval_one :: ScoreTime -> ScoreTime -> TrackLang.Expr -> Derive.EventDeriver
-eval_one start dur expr = do
-    -- Since the event was fake, I don't care if it wants to consume.
-    Derive.d_at start $ Derive.d_stretch dur $
-        apply_toplevel (dinfo, cinfo) expr
+eval_one start dur expr =
+    Derive.d_place start dur (apply_toplevel (dinfo, cinfo) expr)
     where
     -- TODO use pretty instead of show
     cinfo = Derive.dummy_call_info ("eval_one: " ++ show expr)
@@ -250,7 +248,7 @@ eval_root_block block_id = eval_one 0 1 [call_from_block_id block_id]
 data DeriveInfo derived = DeriveInfo {
     -- | This deriver's empty value to return on failure.
     info_empty :: derived
-    , info_lookup :: LookupCall (Derive.Call derived)
+    , info_lookup :: Derive.LookupCall (Derive.Call derived)
     }
 
 type PreProcess = TrackLang.Expr -> TrackLang.Expr
@@ -466,29 +464,29 @@ c_equal = Derive.transformer "equal" $ \args deriver ->
 
 -- | First priority is the blocks.  So a block with a certain name will shadow
 -- everything else with that name.
-lookup_note_call :: LookupCall Derive.NoteCall
+lookup_note_call :: Derive.LookupCall Derive.NoteCall
 lookup_note_call call_id = do
     lookups <- get_scopes $ \scope -> case scope of
         Derive.NoteScope lookup -> Just lookup
         _ -> Nothing
     lookup_scopes (lookup_block : lookups) call_id
 
-lookup_control_call :: LookupCall Derive.ControlCall
+lookup_control_call :: Derive.LookupCall Derive.ControlCall
 lookup_control_call = lookup_with $ \scope -> case scope of
     Derive.ControlScope lookup -> Just lookup
     _ -> Nothing
 
-lookup_pitch_call :: LookupCall Derive.PitchCall
+lookup_pitch_call :: Derive.LookupCall Derive.PitchCall
 lookup_pitch_call = lookup_with $ \scope -> case scope of
     Derive.PitchScope lookup -> Just lookup
     _ -> Nothing
 
-lookup_val_call :: LookupCall Derive.ValCall
+lookup_val_call :: Derive.LookupCall Derive.ValCall
 lookup_val_call = lookup_with $ \scope -> case scope of
     Derive.ValScope lookup -> Just lookup
     _ -> Nothing
 
-lookup_block :: LookupCall Derive.NoteCall
+lookup_block :: Derive.LookupCall Derive.NoteCall
 lookup_block call_id = do
     ui_state <- Derive.get_ui_state
     let default_ns = State.state_project ui_state
@@ -497,21 +495,21 @@ lookup_block call_id = do
         then return $ Just $ c_block block_id
         else return Nothing
 
-lookup_scale_val :: Derive.Scale -> LookupCall Derive.ValCall
+lookup_scale_val :: Derive.Scale -> Derive.LookupCall Derive.ValCall
 lookup_scale_val scale call_id =
     return $ Scale.scale_note_to_call scale (to_note call_id)
     where to_note (TrackLang.Symbol sym) = Pitch.Note sym
 
 -- | TODO implement
-lookup_instrument_val :: Score.Instrument -> LookupCall Derive.ValCall
+lookup_instrument_val :: Score.Instrument -> Derive.LookupCall Derive.ValCall
 lookup_instrument_val inst = const (return Nothing)
 
 -- | TODO implement
-lookup_instrument_note :: Score.Instrument -> LookupCall Derive.NoteCall
+lookup_instrument_note :: Score.Instrument -> Derive.LookupCall Derive.NoteCall
 lookup_instrument_note inst = const (return Nothing)
 
 lookup_with :: (Derive.Scope -> Maybe (Derive.LookupCall call))
-    -> LookupCall call
+    -> Derive.LookupCall call
 lookup_with get call_id = do
     lookups <- get_scopes get
     lookup_scopes lookups call_id
