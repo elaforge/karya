@@ -40,7 +40,7 @@ test_thru_timing = do
         msgs = take msg_count many_msgs
     print (length msgs)
     -- This is awfully spammy otherwise.
-    log_state <- Log.initialize Nothing Log.Warn
+    log_state <- Log.initialize Nothing Log.Warn Log.format_msg
     secs <- time_op $ do
         midi <- fmap extract $ with_inst msgs
         putStrLn $ "midi back: " ++ show (length midi)

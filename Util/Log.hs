@@ -23,7 +23,7 @@ module Util.Log (
     , LogT, run
     -- * serialization
     , format_msg
-    , deserialize_msg
+    , serialize_msg, deserialize_msg
 ) where
 import Prelude hiding (error, log)
 import qualified Control.Concurrent.MVar as MVar
@@ -79,8 +79,14 @@ no_date_yet = Time.UTCTime (Time.ModifiedJulianDay 0) 0
 data State = State {
     state_log_hdl :: Maybe IO.Handle
     , state_log_level :: Prio
+    -- | Function to format a Msg for output.
+    -- TODO it could be Text, but there's not much point as long as the
+    -- default serialize and deserialize is show and read.
+    , state_log_formatter :: Msg -> String
     }
-initial_state = State (Just IO.stderr) Debug
+
+initial_state :: State
+initial_state = State (Just IO.stderr) Debug format_msg
 
 global_state :: MVar.MVar State
 {-# NOINLINE global_state #-}
@@ -88,15 +94,14 @@ global_state = Unsafe.unsafePerformIO (MVar.newMVar initial_state)
 
 -- | Configure the log system to write to the given file.  Before you call
 -- this, log output will go to stderr.  Return the old state.
-initialize :: Maybe IO.FilePath -> Prio -> IO State
-initialize log_fn prio = do
-    hdl <- case log_fn of
+initialize :: Maybe IO.Handle -> Prio -> (Msg -> String) -> IO State
+initialize log_hdl prio formatter = do
+    hdl <- case log_hdl of
         Nothing -> return Nothing
-        Just fn -> do
-            hdl <- IO.openFile fn IO.AppendMode
+        Just hdl -> do
             IO.hSetBuffering hdl IO.LineBuffering
             return (Just hdl)
-    swap_state (State hdl prio)
+    swap_state (State hdl prio formatter)
 
 swap_state :: State -> IO State
 swap_state = MVar.swapMVar global_state
@@ -209,16 +214,18 @@ instance LogMonad IO where
         -- This is also done by 'initialize_msg', but if the msg was created
         -- outside of IO, it won't have had IO's 'initialize_msg' run on it.
         msg <- add_time msg
-        MVar.withMVar global_state $ \(State m_hdl prio) -> case m_hdl of
-            Just hdl | prio <= msg_prio msg ->
-                IO.hPutStrLn hdl (serialize_msg msg)
-            _ -> return ()
+        MVar.withMVar global_state $ \(State m_hdl prio formatter) ->
+            case m_hdl of
+                Just hdl | prio <= msg_prio msg -> do
+                    IO.hPutStr hdl (formatter msg)
+                    IO.hPutChar hdl '\n'
+                _ -> return ()
         when (msg_prio msg == Error) $
             IO.hPutStrLn IO.stderr (format_msg msg)
 
     initialize_msg = add_time
 
--- TODO show the date, if any
+-- | Format a msg in a nice user readable way.
 format_msg :: Msg -> String
 format_msg (Msg { msg_date = _date, msg_caller = srcpos, msg_prio = prio
         , msg_text = text, msg_stack = stack }) =
