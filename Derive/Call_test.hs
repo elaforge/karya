@@ -5,15 +5,19 @@ import Util.Test
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 
+import qualified Derive.Attrs as Attrs
+import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.CallSig as CallSig
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Derive as Derive
-import qualified Derive.TrackLang as TrackLang
 import qualified Derive.Score as Score
-import qualified Derive.Call.CallTest as CallTest
+import qualified Derive.TrackLang as TrackLang
 
+import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
+
+import qualified Instrument.MidiDb as MidiDb
 
 
 test_c_block = do
@@ -166,8 +170,34 @@ test_val_call = do
         equal res (Right [Just []])
         strings_like logs ["too many arguments"]
 
+test_inst_call = do
+    let extract = DeriveTest.extract
+            (Score.attrs_list . Score.event_attributes)
+            Log.msg_string
+    let run inst = extract $ DeriveTest.derive_tracks_with
+            (set_inst_calls lookup_inst)
+            [(inst, [(0, 1, "sn")])]
+    equal (run "")
+        (Right [], ["DeriveError: call not found: sn"])
+    equal (run ">s/with-call")
+        (Right [["snare"]], [])
+
 with_add1 = CallTest.with_val_call "add1" add_one
 
 add_one :: Derive.ValCall
 add_one = Derive.ValCall "add" $ \args -> CallSig.call1 args
     (CallSig.required "v") $ \val -> return (TrackLang.VNum (val + 1))
+
+patch = Instrument.set_note_calls ["Derive.Instrument.Drums.note"] $
+    Instrument.set_keymap [(Attrs.snare, 42)] $
+        Instrument.patch (Instrument.instrument "with-call" [] (-1, 1))
+(midi_db, _) = MidiDb.midi_db [sdesc]
+    where sdesc = MidiDb.softsynth "s" (Just "wdev") (-2, 2) [patch] [] id
+lookup_inst = fmap MidiDb.info_inst_calls . MidiDb.lookup_instrument midi_db
+
+set_inst_calls :: (Score.Instrument -> Maybe Derive.InstrumentCalls)
+    -> Derive.Deriver d -> Derive.Deriver d
+set_inst_calls calls deriver = do
+    Derive.modify $ \st -> st { Derive.state_constant =
+        (Derive.state_constant st) { Derive.state_instrument_calls = calls } }
+    deriver

@@ -1,10 +1,9 @@
 {- | Instrument DB, for converting Score.Instruments, which are just names, to
-the detailed instrument in whatever backend.
+    the detailed instrument in whatever backend.
 
-TODO
-- Midi instruments are probably tangled with non-midi instruments, but I can
-figure that out when I have non-midi instruments.
-- Parsing of score instruments into synth/inst is scattered around.
+    TODO
+    - Midi instruments are probably tangled with non-midi instruments, but
+    I can figure that out when I have non-midi instruments.
 -}
 module Instrument.Db where
 
@@ -33,20 +32,22 @@ data Db = Db {
     , db_index :: Search.Index
     }
 
+empty :: Db
 empty = Db {
     db_search = const []
     , db_lookup_midi = \_ _ -> Nothing
     , db_lookup = const Nothing
     , db_midi_db = MidiDb.empty
-    , db_index = Search.make_index (MidiDb.midi_db [])
+    , db_index = Search.make_index MidiDb.empty
     }
 
--- So Cmd.State can be showable, for debugging.
+-- | So Cmd.State can be showable, for debugging.
 instance Show Db where
     show _ = "<instrument_db>"
 
 type MakeInitialize = Midi.Channel -> Instrument.InitializePatch
 
+db :: MidiDb.MidiDb -> Search.Index -> Db
 db midi_db extra_index = Db
     (Search.search index)
     (MidiDb.lookup_midi midi_db)
@@ -55,4 +56,5 @@ db midi_db extra_index = Db
     index
     where index = Search.merge_indices (Search.make_index midi_db) extra_index
 
+size :: Db -> Int
 size db = MidiDb.size (db_midi_db db)

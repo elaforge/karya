@@ -22,14 +22,14 @@ import qualified Instrument.Search as Search
 
 data SavedDb = SavedDb {
     save_creation_date :: Time.UTCTime
-    , save_midi_db :: MidiDb.MidiDb
+    , save_midi_db :: MidiDb.SerializableMidiDb
     , save_index :: Search.Index
     } deriving (Show)
 saved_db midi_db index = do
     utc <- Time.getCurrentTime
     return $ SavedDb utc midi_db index
 
-serialize :: FilePath -> MidiDb.MidiDb -> Search.Index -> IO ()
+serialize :: FilePath -> MidiDb.SerializableMidiDb -> Search.Index -> IO ()
 serialize fname midi_db index = do
     saved <- saved_db midi_db index
     File.backup_file fname
@@ -54,9 +54,9 @@ instance Binary Search.Index where
 
 -- ** MidiDb
 
-instance Binary MidiDb.MidiDb where
-    put (MidiDb.MidiDb a) = put a
-    get = get >>= \a -> return (MidiDb.MidiDb a)
+instance Binary MidiDb.SerializableMidiDb where
+    put (MidiDb.SerializableMidiDb a) = put a
+    get = get >>= \a -> return (MidiDb.SerializableMidiDb a)
 
 instance Binary Instrument.Synth where
     put (Instrument.Synth a b c) = put a >> put b >> put c
@@ -67,16 +67,16 @@ instance Binary Control.Control where
     put (Control.Control a) = put a
     get = get >>= \a -> return (Control.Control a)
 
-instance Binary MidiDb.PatchMap where
-    put (MidiDb.PatchMap a) = put a
-    get = get >>= \a -> return (MidiDb.PatchMap a)
+instance Binary MidiDb.UnresolvedPatchMap where
+    put (MidiDb.UnresolvedPatchMap a) = put a
+    get = get >>= \a -> return (MidiDb.UnresolvedPatchMap a)
 
 instance Binary Instrument.Patch where
-    put (Instrument.Patch a b c d e f) = put a >> put b >> put c >> put d
-        >> put e >> put f
+    put (Instrument.Patch a b c d e f g h) = put a >> put b >> put c >> put d
+        >> put e >> put f >> put g >> put h
     get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d -> get >>= \e ->
-        get >>= \f ->
-            return (Instrument.Patch a b c d e f)
+        get >>= \f -> get >>= \g -> get >>= \h ->
+            return (Instrument.Patch a b c d e f g h)
 
 instance Binary Instrument.Instrument where
     put (Instrument.Instrument a b c d e f g h i) = put a >> put b >> put c

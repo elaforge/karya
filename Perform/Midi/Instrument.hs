@@ -31,6 +31,8 @@ import qualified Derive.Score as Score
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Midi.Control as Control
 
+import qualified App.Link as Link
+
 
 default_scale :: Pitch.ScaleId
 default_scale = Pitch.twelve
@@ -167,6 +169,10 @@ data Patch = Patch {
     -- The patch_instrument is not necessarily the same as the one eventually
     -- used in performance, because e.g. synth controls can get added in.
     patch_instrument :: Instrument
+    -- | Links to calls which should come into scope when this instrument is in
+    -- scope.
+    , patch_note_calls :: Set.Set Link.ModuleId
+    , patch_val_calls :: Set.Set Link.ModuleId
     -- | If true, this patch doesn't pay attention to duration.  E.g., drum
     -- samples may not pay attention to note off.  The UI can use this to
     -- create zero duration events for this patch.
@@ -185,7 +191,8 @@ data Patch = Patch {
 
 -- | Create a Patch with empty vals, to set them as needed.
 patch :: Instrument -> Patch
-patch inst = Patch inst False NoInitialization (KeyswitchMap []) [] ""
+patch inst = Patch inst Set.empty Set.empty False NoInitialization
+    (KeyswitchMap []) [] ""
 
 patch_name :: Patch -> InstrumentName
 patch_name = inst_name . patch_instrument
@@ -199,6 +206,16 @@ set_keymap kmap patch = patch { patch_instrument = (patch_instrument patch)
 
 set_triggered :: Patch -> Patch
 set_triggered patch = patch { patch_triggered = True }
+
+set_note_calls :: [String] -> Patch -> Patch
+set_note_calls module_ids patch =
+    patch { patch_note_calls = Set.union mod_ids (patch_note_calls patch) }
+    where mod_ids = Set.fromList (map Link.ModuleId module_ids)
+
+set_val_calls :: [String] -> Patch -> Patch
+set_val_calls module_ids patch =
+    patch { patch_val_calls = Set.union mod_ids (patch_val_calls patch) }
+    where mod_ids = Set.fromList (map Link.ModuleId module_ids)
 
 -- | A KeyswitchMap maps a set of attributes to a keyswitch and gives
 -- a piority for those mapping.  For example, if {pizz} is before {cresc}, then

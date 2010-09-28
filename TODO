@@ -1,6 +1,9 @@
 CURRENT
 
 UNSORTED
+  - create a set of profiles and a custom target to run them, so I can run them
+    regularly and watch for regressions.  Maybe run them when tests run.
+  - use capslock for kbd entry mode
   * bug: rename or delete a view while playback is running, and it will crash
     when the ViewId becomes invalid
   * new flag for inst: trigger, considers entire note in_decay
@@ -42,7 +45,6 @@ UNSORTED
     And how does the newline just get totally lost?
     I'm suspicious of the unsafePerformIO to initialize the state, are there >1?
   * track should get damage due to TrackFlag change, not DisplayTrack updates
-  - paste was wrong (lost first event from the copy range)
   * lang cmds to rederive / perform within selection
   * am I even using Pitch.scale_set_pitch_bend?  what does it mean exactly?
   - lookup val calls in current inst as in current scale
@@ -51,7 +53,6 @@ UNSORTED
     use case: drum tracks with symbols
   - now that the signal deriver is gone, I can also get rid of ignore_tempo,
     unless I want to use it for a lilypond backend or something
-  - tracks with no ruler should default to free selection placement
   - after creating a new track, focus should go to its title
   - put a multiplier on play's timestamps to implement a play speed control
   - If I quit and then restart, the second start takes a long time.  What's
@@ -102,26 +103,12 @@ UNSORTED
   - LPitch.to_relative was broken by notes as calls, fix it
   - implement add_hz in Derive.Scale.Util
     or at least think about how to implement pengumbang and pengisep
-
-  - clean up inst_config / lookup_inst situation in DeriveTest / Derive_profile
   - why does creating a block in setup cmd without a view go to cpu 100%?
   - subblock derivation for control tracks
-
-  / move MakeRuler to Lang too?
-    no, it's used by Cmd.Create, which is used by keybindings
 
   - playback should have multiple lines when a block is derived multiple times
     have a set of playback selnums?
   - should be able to rescan midi devices when something new is plugged in
-    Centralize midi implementation functions in a record, include scan and
-    open/close, record is stored in Cmd state.
-    How to establish ID <-> device mapping?
-    I think OS X midi ID is just for a persistent ID since names can be
-    changed.  But I don't think I care too much about that?
-
-    Read is not a problem since the midi layer handles the mapping.  Write
-    needs: get (name, id), put name->id in write mapping
-
   - local inst db, in Ui.State, so I can e.g. set pb range for fm/* inst
   - midi thru doesn't pick up default inst
     empty scale defaults in Derive, but not in Cmd
@@ -129,11 +116,9 @@ UNSORTED
   - implement continuous controller warp
   - make Track.UnsortedEvents and Track.SortedEvents, type or newtype?
   - insert and delete time should use the selection if non-point
-  - document / enforce naming restrictions for CallId, Control, etc?
 
   - should tab in raw edit mode go to method?  how to go back then?
   - select track, st3 style select block, track
-  - cut + paste didn't work with a point paste
 
   track management:
     - resize a bunch of tracks at once
@@ -242,6 +227,9 @@ performance:
   Derive
     - see if making a version of Derive.local that's non-monadic in the modifier
       has any effect on performance
+    - to get arrival beats to work right with the control track, I think I can
+      make the 'set' control track call set from (prev, cur) instead of just
+      cur.  It will make simultaneious samples, but they should be ok.
     derive cache
       - c_block should only cache if the block has > a certain number of events.
       - implement tracks as generators so they can be cached too
@@ -297,7 +285,8 @@ performance:
     - switch to attoparsec for parsing
   Perform
     - use a lazy storeable vector for [Score.Event] and [Midi.Message] to save
-    memory?
+      memory?  If I make Messages a storable vector, I'd have to hash the wdev
+      or something.
   - send style id to c++ instead of all the style elements
   - strictify some basic datatypes with ! and {-# UNPACK #-}:
     Ui.Event, Midi.Message, Perform.Midi.Instrument.Instrument

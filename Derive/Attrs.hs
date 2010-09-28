@@ -42,6 +42,8 @@ crash = attr "crash" -- crash cymbal
 ride = attr "ride" -- ride cymbal
 tom = attr "tom"
 
+pedal = attr "pedal"
+
 -- * technique
 
 left = attr "left" -- played with left hand

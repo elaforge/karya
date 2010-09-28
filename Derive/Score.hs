@@ -246,6 +246,9 @@ attrs_list = Set.toList . attrs_set
 attrs_diff :: Attributes -> Attributes -> Attributes
 attrs_diff (Attributes x) (Attributes y) = Attributes (Set.difference x y)
 
+attrs_union :: Attributes -> Attributes -> Attributes
+attrs_union (Attributes x) (Attributes y) = Attributes (Set.union x y)
+
 attributes :: [String] -> Attributes
 attributes = Attributes . Set.fromList
 

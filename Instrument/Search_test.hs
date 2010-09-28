@@ -24,7 +24,7 @@ test_search = do
         ["fm8/*"]
 
 index = Search.make_index midi_db
-midi_db = MidiDb.midi_db
+midi_db = fst $ MidiDb.midi_db
     [(t_synth, t_patches), (t_synth2, t_patches2)]
 t_all_insts = map Score.inst_name (Map.keys (Search.idx_inverted index))
 
@@ -41,8 +41,6 @@ t_patches = fst $ MidiDb.patch_map $ map mkpatch
 
 t_synth2 = Instrument.set_device "fm8 dev" $ Instrument.synth "fm8" []
 t_patches2 = MidiDb.wildcard_patch_map (mkpatch ("none", "fm", []))
-
-t_tags = Search.patch_tags t_patches
 
 mkpatch (name, cat, conts) = (Instrument.patch inst)
     { Instrument.patch_tags = tags }

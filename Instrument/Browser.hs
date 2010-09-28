@@ -79,10 +79,11 @@ show_info win db inst_name = Fltk.send_action $ BrowserC.set_info win info
         return $ info_of db score_inst info
 
 info_of :: Db.Db -> Score.Instrument -> MidiDb.Info -> String
-info_of db score_inst (MidiDb.Info synth patch) =
+info_of db score_inst (MidiDb.Info synth patch _) =
     printf "%s -- %s -- %s\n\n" synth_name name dev
         ++ info_sections
             [ ("Instrument controls", cmap_info inst_cmap)
+            , ("Flags", Seq.join ", " flags)
             , ("Keyswitches", show_keyswitches keyswitches)
             , ("Synth controls", cmap_info synth_cmap)
             , ("Pitchbend range", show (Instrument.inst_pitch_bend_range inst))
@@ -92,7 +93,8 @@ info_of db score_inst (MidiDb.Info synth patch) =
             ]
     where
     Instrument.Synth synth_name maybe_dev synth_cmap = synth
-    Instrument.Patch inst initialize keyswitches _ text = patch
+    Instrument.Patch inst _ _ triggered initialize keyswitches _ text = patch
+    flags = if triggered then ["triggered"] else []
     dev = maybe "<no default device>" (\(Midi.WriteDevice s) -> s) maybe_dev
     name = let n = Instrument.inst_name inst in if null n then "*" else n
     inst_cmap = Instrument.inst_control_map inst

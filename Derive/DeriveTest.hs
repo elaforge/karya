@@ -68,7 +68,7 @@ run ui_state m =
 
 default_constant ui_state =
     Derive.initial_constant ui_state (default_lookup_deriver ui_state)
-        default_lookup_scale False
+        default_lookup_scale (const Nothing) False
 
 eval :: State.State -> Derive.Deriver a -> Either String a
 eval state m = case run state m of
@@ -153,6 +153,7 @@ default_environ = Map.fromList
     -- tests are easier to write and read with integral interpolation
     [ (TrackLang.v_srate, TrackLang.VNum 1)
     , (TrackLang.v_scale, TrackLang.VScaleId Twelve.scale_id)
+    , (TrackLang.v_attributes, TrackLang.VAttributes Score.no_attrs)
     ]
 
 default_lookup_deriver ui_state = Schema.lookup_deriver Map.empty ui_state
@@ -265,9 +266,8 @@ d_note = do
 -- * inst
 
 make_lookup_inst :: [Instrument.Patch] -> MidiDb.LookupMidiInstrument
-make_lookup_inst patches = MidiDb.lookup_midi (MidiDb.midi_db [sdesc])
-    where
-    sdesc = MidiDb.softsynth "s" (Just "wdev") (-2, 2) patches [] id
+make_lookup_inst patches = MidiDb.lookup_midi (fst (MidiDb.midi_db [sdesc]))
+    where sdesc = MidiDb.softsynth "s" (Just "wdev") (-2, 2) patches [] id
 
 make_midi_config :: [(String, [Midi.Channel])] -> Instrument.Config
 make_midi_config config = Instrument.config

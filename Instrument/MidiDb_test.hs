@@ -10,7 +10,7 @@ import qualified Local.Instrument.Kontakt as Kontakt
 
 test_lookup_midi = do
     synth_desc <- Kontakt.load ""
-    let midi_db = MidiDb.midi_db [synth_desc]
+    let midi_db = fst $ MidiDb.midi_db [synth_desc]
     let f inst attrs = MidiDb.lookup_midi midi_db
             (Score.attributes attrs) (Score.Instrument inst)
 
@@ -32,9 +32,14 @@ test_lookup_midi = do
     equal (f "kkt/none" ["slap"]) $ Just (kkt_inst "none", Score.no_attrs)
 
 test_validate = do
-    let midi_db = MidiDb.midi_db [synth_desc]
+    let (_, warns) = MidiDb.midi_db [synth_desc]
         synth_desc = MidiDb.softsynth "syn" Nothing (-1, 1) [] []
-            (Instrument.set_keyswitches ks)
+            (Instrument.set_note_calls ["bad"]
+                . Instrument.set_val_calls ["worse"]
+                . Instrument.set_keyswitches ks)
         ks = [(Score.attributes ["a"], 0), (Score.attributes ["a", "b"], 1)]
-    equal (MidiDb.validate midi_db)
-        ["validate midi db: >syn/* keyswitch attrs {a, b} shadowed by {a}"]
+    equal warns
+        [ "resolve >syn/*: note call not found: \"bad\""
+        , "resolve >syn/*: val call not found: \"worse\""
+        , "validate >syn/*: keyswitch attrs {a, b} shadowed by {a}"
+        ]

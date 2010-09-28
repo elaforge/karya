@@ -30,14 +30,18 @@ import qualified Derive.Scale.Twelve as Twelve
 
 import qualified Perform.Warning as Warning
 
+import qualified Instrument.Db
+import qualified Instrument.MidiDb as MidiDb
+
 
 -- | There are a few environ values that almost everything relies on.
 initial_environ :: TrackLang.Environ
 initial_environ = Map.fromList
     -- Control interpolators rely on this.
     [ (TrackLang.v_srate, TrackLang.VNum 0.05)
-    -- Looking up any val call relies on this.
+    -- Looking up any val call relies on having a scale in scope.
     , (TrackLang.v_scale, TrackLang.VScaleId Twelve.scale_id)
+    , (TrackLang.v_attributes, TrackLang.VAttributes Score.no_attrs)
     ]
 
 -- | Derive with the cache.
@@ -77,11 +81,19 @@ derive derive_cache damage block_id = do
     schema_map <- Cmd.get_schema_map
     ui_state <- State.get
     lookup_scale <- Cmd.get_lookup_scale
+    inst_calls <- get_lookup_inst_calls
     let constant = Derive.initial_constant ui_state
-            (Schema.lookup_deriver schema_map ui_state) lookup_scale False
+            (Schema.lookup_deriver schema_map ui_state) lookup_scale
+            inst_calls False
     scopes <- Cmd.gets Cmd.state_global_scopes
     return $ Derive.derive constant scopes derive_cache damage
         initial_environ (Call.eval_root_block block_id)
+
+get_lookup_inst_calls :: (Monad m) =>
+    Cmd.CmdT m (Score.Instrument -> Maybe Derive.InstrumentCalls)
+get_lookup_inst_calls = do
+    inst_db <- Cmd.gets Cmd.state_instrument_db
+    return $ fmap MidiDb.info_inst_calls . Instrument.Db.db_lookup inst_db
 
 -- | Convert a block ID into MIDI msgs and log msgs.  The logs are not
 -- immediately written to preserve laziness on the returned MIDI msgs.

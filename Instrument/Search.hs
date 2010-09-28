@@ -120,7 +120,7 @@ synth_tags synth patches = map (stags++) (patch_tags patches)
 patch_tags :: MidiDb.PatchMap -> [[Instrument.Tag]]
 patch_tags (MidiDb.PatchMap patches) = map ptags (Map.assocs patches)
     where
-    ptags (inst_name, patch) = Instrument.tag name_tag inst_name
+    ptags (inst_name, (patch, _)) = Instrument.tag name_tag inst_name
             : control_tags (Instrument.inst_control_map inst)
             ++ Instrument.patch_tags patch
             ++ has_sysex

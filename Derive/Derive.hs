@@ -259,6 +259,8 @@ data Constant = Constant {
     , state_control_op_map :: Map.Map TrackLang.CallId ControlOp
     , state_pitch_op_map :: Map.Map TrackLang.CallId PitchOp
     , state_lookup_scale :: LookupScale
+    -- | Get the calls that should be in scope with a certain instrument.
+    , state_instrument_calls :: Score.Instrument -> Maybe InstrumentCalls
     -- | This is set if the derivation is for a signal deriver.  Signal
     -- derivers skip all special tempo treatment.  Ultimately, this is needed
     -- because of the 'add_track_warp' hack.  It might be 'add_track_warp' is
@@ -266,15 +268,27 @@ data Constant = Constant {
     , state_ignore_tempo :: Bool
     }
 
-initial_constant :: State.State -> LookupDeriver -> LookupScale -> Bool
-    -> Constant
-initial_constant ui_state lookup_deriver lookup_scale ignore_tempo =
+-- | Some ornaments only apply to a particular instrument, so each instrument
+-- can bring a set of note calls and val calls into scope, via the 'Scope'
+-- type.
+data InstrumentCalls =
+    InstrumentCalls [LookupCall NoteCall] [LookupCall ValCall]
+
+instance Show InstrumentCalls where
+    show (InstrumentCalls nlookups vlookups) = "<call-map nlookups:"
+        ++ show (length nlookups) ++ " vlookups:" ++ show (length vlookups)
+        ++ ">"
+
+initial_constant :: State.State -> LookupDeriver -> LookupScale
+    -> (Score.Instrument -> Maybe InstrumentCalls) -> Bool -> Constant
+initial_constant ui_state lookup_deriver lookup_scale inst_calls ignore_tempo =
     Constant
     { state_ui = ui_state
     , state_lookup_deriver = lookup_deriver
     , state_control_op_map = default_control_op_map
     , state_pitch_op_map = default_pitch_op_map
     , state_lookup_scale = lookup_scale
+    , state_instrument_calls = inst_calls
     , state_ignore_tempo = ignore_tempo
     }
 
@@ -451,7 +465,7 @@ data Call derived = Call {
 
 instance Show (Call derived) where
     show (Call name gen trans) =
-        "<call " ++ name ++ Seq.join " " tags ++ ">"
+        "<call " ++ name ++ " " ++ Seq.join " " tags ++ ">"
         where
         tags = [t | (t, True) <- [("generator", Maybe.isJust gen),
             ("transformer", Maybe.isJust trans)]]

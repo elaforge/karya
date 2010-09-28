@@ -200,21 +200,27 @@ lookup_scale = Derive.lookup_scale =<< get_scale_id
 get_scale_id :: Derive.Deriver Pitch.ScaleId
 get_scale_id = Derive.require_val TrackLang.v_scale
 
-with_scale :: Derive.Scale -> Derive.Deriver a -> Derive.Deriver a
+with_scale :: Derive.Scale -> Derive.Deriver d -> Derive.Deriver d
 with_scale scale = Derive.with_val TrackLang.v_scale (Scale.scale_id scale)
     . Derive.with_scopes [Derive.ValScope (lookup_scale_val scale)]
 
 lookup_instrument :: Derive.Deriver (Maybe Score.Instrument)
 lookup_instrument = Derive.lookup_val TrackLang.v_instrument
 
-with_instrument :: Score.Instrument -> Derive.Deriver a -> Derive.Deriver a
-with_instrument inst = Derive.with_val TrackLang.v_instrument inst
-    . Derive.with_scopes
-        [ Derive.ValScope (lookup_instrument_val inst)
-        , Derive.NoteScope (lookup_instrument_note inst)
-        ]
+with_instrument :: Score.Instrument -> Derive.Deriver d -> Derive.Deriver d
+with_instrument inst deriver = do
+    scopes <- lookup_instrument_scopes inst
+    Derive.with_val TrackLang.v_instrument inst
+        (Derive.with_scopes scopes deriver)
 
--- * eval
+-- | Derive with transformed Attributes.
+with_attrs :: (Score.Attributes -> Score.Attributes) -> Derive.Deriver d
+    -> Derive.Deriver d
+with_attrs f deriver = do
+    -- Attributes should always be in the default environ so this shouldn't
+    -- abort.
+    attrs <- Derive.require_val TrackLang.v_attributes
+    Derive.with_val TrackLang.v_attributes (f attrs) deriver
 
 -- * eval
 
@@ -227,6 +233,14 @@ eval_one start dur expr =
     -- TODO use pretty instead of show
     cinfo = Derive.dummy_call_info ("eval_one: " ++ show expr)
     dinfo = DeriveInfo lookup_note_call
+
+-- | Apply an expr with the current call info.
+reapply :: Derive.PassedArgs Derive.Events -> TrackLang.Expr
+    -> Derive.EventDeriver
+reapply args expr = apply_toplevel (dinfo, cinfo) expr
+    where
+    dinfo = DeriveInfo lookup_note_call
+    cinfo = Derive.passed_info args
 
 -- | A version of 'eval' specialized to evaluate note calls.
 eval_note :: Pitch.Note -> Derive.Deriver Pitch.Degree
@@ -503,13 +517,15 @@ lookup_scale_val scale call_id =
     return $ Scale.scale_note_to_call scale (to_note call_id)
     where to_note (TrackLang.Symbol sym) = Pitch.Note sym
 
--- | TODO implement
-lookup_instrument_val :: Score.Instrument -> Derive.LookupCall Derive.ValCall
-lookup_instrument_val inst = const (return Nothing)
-
--- | TODO implement
-lookup_instrument_note :: Score.Instrument -> Derive.LookupCall Derive.NoteCall
-lookup_instrument_note inst = const (return Nothing)
+-- | Find the scopes that an instrument should bring into scope.
+lookup_instrument_scopes :: Score.Instrument -> Derive.Deriver [Derive.Scope]
+lookup_instrument_scopes inst = do
+    inst_calls <- Derive.gets
+        (Derive.state_instrument_calls . Derive.state_constant)
+    return $ case inst_calls inst of
+        Nothing -> []
+        Just (Derive.InstrumentCalls note_calls val_calls) ->
+            map Derive.NoteScope note_calls ++ map Derive.ValScope val_calls
 
 lookup_with :: (Derive.Scope -> Maybe (Derive.LookupCall call))
     -> Derive.LookupCall call

@@ -35,8 +35,9 @@ inst_info inst = do
     return $ show_inst inst ++ ": " ++ maybe "<not found>" show_info maybe_info
 
 show_instrument_info :: [Instrument.Addr] -> MidiDb.Info -> String
-show_instrument_info addrs (MidiDb.Info _synth patch) = unlines
-    [ "keyswitches: " ++ show_keyswitch_map (Instrument.patch_keyswitches patch)
+show_instrument_info addrs info = unlines
+    [ "keyswitches: " ++ show_keyswitch_map
+        (Instrument.patch_keyswitches (MidiDb.info_patch info))
     , "addrs: " ++ show_addrs addrs
     ]
 
