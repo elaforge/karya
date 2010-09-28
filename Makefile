@@ -34,6 +34,10 @@ CXXFLAGS = $(FLTK_CXX) $(OPT) $(CINCLUDE) -Wall
 
 LDFLAGS := $(LIBFLTK_1_3_LD) $(FLTK_LD)
 
+# Fltk 1.3 has a buggy and slow Fl_Text_Display, so use 1.1 for now.
+OLD_FLTK_CXX := $(LIBFLTK_1_1_INC) $(LIBFLTK_D) $(OPT) $(CINCLUDE) -Wall
+OLD_FLTK_LD := $(LIBFLTK_1_1_LD) $(FLTK_LD)
+
 
 ### ghc flags
 
@@ -63,7 +67,6 @@ BASIC_HFLAGS := -threaded -W -fwarn-tabs \
 	$(CINCLUDE) -i../lib -pgmc g++ -pgml g++ \
 	-optc -ggdb -optl -ggdb \
 	-F -pgmF build/hspp
-
 
 ### misc variables
 
@@ -195,23 +198,20 @@ LOGVIEW_OBJ = LogView/LogView.hs LogView/LogViewC.hs \
 	LogView/interface.o LogView/logview_ui.o
 LOGVIEW_HS = LogView/LogViewC.hs
 
-# Fltk 1.3 has a buggy and slow Fl_Text_Display, so use 1.1 for now.
-LOGVIEW_CXX := $(LIBFLTK_1_1_INC) $(LIBFLTK_D) $(OPT) $(CINCLUDE) -Wall
-LOGVIEW_LD := $(LIBFLTK_1_1_LD) $(FLTK_LD)
-
 .PHONY: $(BUILD)/logview
 # depend on Color because of Util.Log -> Peform.Warning import grossness
 # someday I should remove that
 $(BUILD)/logview: $(LOGVIEW_OBJ) Ui/Color.hs
-	$(GHC) $(HFLAGS) --make $^ -o $@ $(LOGVIEW_LD)
+	$(GHC) $(HFLAGS) --make $^ -o $@ $(OLD_FLTK_LD)
 	$(BUNDLE)
 
 $(BUILD)/test_logview: LogView/test_logview.o LogView/logview_ui.o fltk/f_util.o
-	$(CXX) -o $@ $^ $(LOGVIEW_LD)
+	$(CXX) -o $@ $^ $(OLD_FLTK_LD)
 	$(BUNDLE)
 
+# Override the default rule which uses CXXFLAGS, which uses the new fltk.  Ugh.
 $(addprefix LogView/,test_logview.o interface.o logview_ui.o): %.o: %.cc
-	$(CXX) $(LOGVIEW_CXX) -c -o $@ $<
+	$(CXX) $(OLD_FLTK_CXX) -c -o $@ $<
 
 ### log util
 
@@ -232,12 +232,16 @@ BROWSER_HS = Instrument/BrowserC.hs
 
 .PHONY: $(BUILD)/browser
 $(BUILD)/browser: $(BROWSER_OBJ) $(BROWSER_HS)
-	$(GHC) $(HFLAGS) --make $^ -o $@ \
-		$(HLDFLAGS)
+	$(GHC) $(HFLAGS) --make $^ -o $@ $(OLD_FLTK_LD)
 	$(BUNDLE)
 
-$(BUILD)/test_browser: Instrument/test_browser.o Instrument/browser_ui.o fltk/f_util.o
-	$(CXX) -o $@ $^ $(LDFLAGS)
+# Override the default rule which uses CXXFLAGS, which uses the new fltk.  Ugh.
+$(addprefix Instrument/,test_browser.o interface.o browser_ui.o): %.o: %.cc
+	$(CXX) $(OLD_FLTK_CXX) -c -o $@ $<
+
+$(BUILD)/test_browser: Instrument/test_browser.o Instrument/browser_ui.o \
+		fltk/f_util.o
+	$(CXX) -o $@ $^ $(OLD_FLTK_LD)
 	$(BUNDLE)
 
 .PHONY: $(BUILD)/make_db
