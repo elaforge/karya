@@ -135,10 +135,7 @@ UI_OBJS := Ui/c_interface.o
 
 COREMIDI_OBJS := Midi/core_midi.o
 
-# No longer used, but I haven't deleted them quite yet.
-OBSOLETE := Midi/PortMidiC.hs Midi/PortMidi.hsc Midi/TestMidi.hs
-
-ALL_HS = $(filter-out $(OBSOLETE), $(shell tools/all_hs.py))
+ALL_HS = $(shell tools/all_hs.py)
 
 ### main app
 
@@ -153,7 +150,7 @@ $(BUILD)/seq: $(UI_HS) $(UI_OBJS) $(COREMIDI_OBJS) fltk/fltk.a
 	$(BUNDLE) doc/seq.icns
 
 # not_mine = Instrument/BrowserC.o LogView/LogViewC.o Util/Fltk.o
-# ALL_O := $(patsubst %.hs, %.o, $(filter-out $(OBSOLETE), $(shell tools/all_hs.py notest hsc_as_hs)))
+# ALL_O := $(patsubst %.hs, %.o, $(shell tools/all_hs.py notest hsc_as_hs))
 # $(BUILD)/seqp: $(UI_OBJS) $(COREMIDI_OBJS) fltk/fltk.a Derive/Derive_test.o \
 # 		$(filter-out $(not_mine), $(ALL_O))
 # 	$(GHC) $(HFLAGS) -package ghc -package parsec -package binary \
@@ -259,7 +256,7 @@ doc: $(ALL_HSC)
 	@# Unless there's some way to tell firefox to go to a certain line in
 	@# a file, I can't use --source-entity without something like hscolour.
 	haddock --html -B $(GHC_LIB) --source-module="../%F" -o haddock \
-		$(filter-out %_test.hs, $(patsubst %.hsc, %.hs, $(ALL_HS)))
+		$(shell tools/all_hs.py notest nomain hsc_as_hs)
 
 ### tests ###
 
@@ -311,6 +308,7 @@ tags: $(ALL_HS)
 	@# hsc2hs stil includes INCLUDE but ghc 6.12 doesn't like that
 	grep -v INCLUDE $@ >$@.tmp
 	mv $@.tmp $@
+
 
 ### portmidi ###
 # I'm not using this now, but may use it again in the future

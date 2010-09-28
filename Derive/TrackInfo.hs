@@ -48,11 +48,11 @@ parse_control_expr title = do
 -- control tracks, but it looks nicer without the extra noise.
 parse_control_vals :: [TrackLang.Val] -> Either String ControlType
 parse_control_vals vals = case vals of
-        -- *twelve -> default pitch track in twelve
+        --  *twelve -> default pitch track in twelve
         [TrackLang.VScaleId scale] ->
             Right $ Pitch (PitchAbsolute (scale_of scale)) Nothing
-        -- *twelve # -> default ptich track in twelve
-        -- *twelve #name -> named pitch track
+        --  *twelve # -> default ptich track in twelve
+        --  *twelve #name -> named pitch track
         [TrackLang.VScaleId scale, pitch_control -> Just cont] ->
             Right $ Pitch (PitchAbsolute (scale_of scale)) cont
         -- add # -> relative pitch for default

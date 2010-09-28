@@ -34,7 +34,7 @@ scale = Scale.Scale {
     , Scale.scale_symbols = []
     , Scale.scale_octave = 0
     , Scale.scale_note_to_call = note_to_call
-    -- | Since this isn't a proper scale, I can't think of any sensible way to
+    -- Since this isn't a proper scale, I can't think of any sensible way to
     -- input this with a music keyboard, so we'll have to use the computer
     -- keyboard.
     , Scale.scale_input_to_note = const Nothing

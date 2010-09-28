@@ -226,8 +226,8 @@ diff eq xs ys = map_maybe f (equal_pairs eq xs ys)
 
 -- * sublists
 
--- | Partition a list of Eithers into a pair.  Lazy enough to handle an infinite
--- input list.
+-- | Partition a list of Eithers into a pair.  Lazy enough to handle an
+-- infinite input list.
 partition_either :: [Either a b] -> ([a], [b])
 partition_either [] = ([], [])
 partition_either (x:xs) =

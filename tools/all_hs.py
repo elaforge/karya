@@ -1,29 +1,20 @@
 #!/usr/bin/python
 """Return all the haskell library modules below this directory.  Automatically
-excludes .hs files generated from .hsc ones, and modules with no module
-declaration, or a declaration of "Main".
+excludes .hs files generated from .hsc ones.
+
+Args:
+    notest - exclude *_test.hs and *Test.hs
+    hsc_as_hs - replace .hsc files with their .hs equivalents
+    nomain - exclude modules with no name, or named Main
 """
 
 import sys, os
-
-obsolete = set(['Midi/PortMidiC.hs', 'Midi/PortMidi.hsc', 'Midi/TestMidi.hs'])
-
-more_obsolete = set('''
-    Cmd/Lang/Environ.hs
-    Derive/Call/Sekar.hs
-    Derive/Operator.hs
-    Derive/Parse.hs
-    LogView/Timer.hs
-    Midi/TestCoreMidi.hs
-    Util/Chart.hs
-'''.split())
-
-obsolete = obsolete.union(more_obsolete)
 
 
 def main():
     notest = 'notest' in sys.argv
     hsc_as_hs = 'hsc_as_hs' in sys.argv
+    nomain = 'nomain' in sys.argv
     hs_files = []
     hsc_files = []
     def accum(_arg, dirname, fnames):
@@ -38,9 +29,10 @@ def main():
     hs_files = [fn for fn in hs_files if fn+'c' not in hsc_files]
     fns = [fn[2:] for fn in hs_files + hsc_files]
     fns.sort()
-    fns = filter(lambda fn: not is_main(fn) and fn not in obsolete, fns)
     if notest:
         fns = filter(lambda fn: not is_test(fn), fns)
+    if nomain:
+        fns = filter(lambda fn: not is_main(fn), fns)
     if hsc_as_hs:
         fns = [fn.replace('.hsc', '.hs') for fn in fns]
     print ' '.join(fns)
