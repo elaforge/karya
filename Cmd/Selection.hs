@@ -1,12 +1,13 @@
 {- | Commands dealing with selection and cursor movement.
 
-As is typical, when it comes to selecting events, the selection represents a
-half-open range.  However, reflecting the orientation of events, a negative
-event at the start of the range won't be included, and a negative event at he
-end of the range will be included.  This is natural for events with negative
-duration, since they are weighted at the end.
+    As is typical, when it comes to selecting events, the selection represents
+    a half-open range.  However, reflecting the orientation of events,
+    a negative event at the start of the range won't be included, and
+    a negative event at he end of the range will be included.  This is natural
+    for events with negative duration, since they are weighted at the end.
 
-This behaviour is actually implemented in the low level "Ui.Track" functions.
+    This behaviour is actually implemented in the low level "Ui.Track"
+    functions.
 -}
 module Cmd.Selection where
 import Prelude hiding (lookup)
@@ -474,9 +475,9 @@ point_to_real tempo (Just (block_id, _, track_id, pos)) =
 
 -- | Selected events per track.  Gives events previous to, within, and after
 -- the selection.  As usual, previous events are in descending order.  The
--- event range is also returned, which is not the same as the selection range
--- because these functions may select more events than lie strictly within the
--- selection.
+-- event range is also returned, which may not be the same as the selection
+-- range because these functions may select more events than lie strictly
+-- within the selection.
 type SelectedAround = [(TrackId, (ScoreTime, ScoreTime),
     ([Track.PosEvent], [Track.PosEvent], [Track.PosEvent]))]
 type SelectedEvents = [(TrackId, (ScoreTime, ScoreTime), [Track.PosEvent])]
@@ -496,17 +497,6 @@ strict_events_around selnum = do
     return [(track_id, (start, end),
         Track.split_range start end (Track.track_events track))
             | (track_id, track) <- zip track_ids tracks]
-
--- | TODO not really used, delete this?
-overlapping_events_around :: (Monad m) =>
-    Types.SelNum -> Cmd.CmdT m SelectedAround
-overlapping_events_around selnum = do
-    (_, track_ids, start, end) <- tracks_selnum selnum
-    forM track_ids $ \track_id -> do
-        events <- fmap Track.track_events (State.get_track track_id)
-        let start2 = maybe start fst (Track.event_overlapping start events)
-        let end2 = maybe end fst (Track.event_overlapping end events)
-        return (track_id, (start2, end2), Track.split_range start2 end2 events)
 
 -- | Get events in the selection, but if no events are selected, expand it
 -- to include a previous positive event or a following negative one.  If both
@@ -542,32 +532,16 @@ extract_events = map $ \(track_id, range, (_, within, _)) ->
 -- ** select tracks
 
 -- | Get selected event tracks along with the selection.  The tracks are
--- returned in ascending order.  Only event tracks are returned.
+-- returned in ascending order.  Only event tracks are returned, and tracks
+-- merged into the selected tracks are included.
 tracks :: (Monad m) => Cmd.CmdT m ([TrackNum], [TrackId], ScoreTime, ScoreTime)
 tracks = tracks_selnum Config.insert_selnum
 
-tracks_selnum :: (Monad m) =>
-    Types.SelNum -> Cmd.CmdT m ([TrackNum], [TrackId], ScoreTime, ScoreTime)
-tracks_selnum selnum = do
-    (view_id, sel) <- get_selnum selnum
-    block_id <- State.block_id_of_view view_id
-    tracklikes <- mapM (State.track_at block_id) (Types.sel_tracknums sel)
-    let (tracknums, track_ids) = unzip
-            [(i, track_id) | (i, Just (Block.TId track_id _))
-                <- zip (Types.sel_tracknums sel) tracklikes]
-    let (start, end) = Types.sel_range sel
-    return (tracknums, track_ids, start, end)
-
--- | This is like 'tracks' except it also includes tracks merged into the
--- selected tracks.
-merged_tracks :: (Monad m) =>
-    Cmd.CmdT m ([TrackNum], [TrackId], ScoreTime, ScoreTime)
-merged_tracks = merged_tracks_selnum Config.insert_selnum
-
-merged_tracks_selnum :: (Monad m) => Types.SelNum
+-- | Selected tracks, including merged tracks.
+tracks_selnum :: (Monad m) => Types.SelNum
     -> Cmd.CmdT m ([TrackNum], [TrackId], ScoreTime, ScoreTime)
-merged_tracks_selnum selnum = do
-    (tracknums, track_ids, start, end) <- tracks_selnum selnum
+tracks_selnum selnum = do
+    (tracknums, track_ids, start, end) <- strict_tracks_selnum selnum
     block_id <- Cmd.get_focused_block
     tracks <- mapM (State.get_block_track block_id) tracknums
     let merged_track_ids = concatMap Block.track_merged tracks
@@ -576,6 +550,19 @@ merged_tracks_selnum selnum = do
     let (all_tracknums, all_track_ids) = unzip $ List.sort $ List.nub $
             merged ++ zip tracknums track_ids
     return (all_tracknums, all_track_ids, start, end)
+
+-- | Selected tracks, not including merged tracks.
+strict_tracks_selnum :: (Monad m) =>
+    Types.SelNum -> Cmd.CmdT m ([TrackNum], [TrackId], ScoreTime, ScoreTime)
+strict_tracks_selnum selnum = do
+    (view_id, sel) <- get_selnum selnum
+    block_id <- State.block_id_of_view view_id
+    tracklikes <- mapM (State.track_at block_id) (Types.sel_tracknums sel)
+    let (tracknums, track_ids) = unzip
+            [(i, track_id) | (i, Just (Block.TId track_id _))
+                <- zip (Types.sel_tracknums sel) tracklikes]
+    let (start, end) = Types.sel_range sel
+    return (tracknums, track_ids, start, end)
 
 tracknums_of :: Block.Block -> [TrackId] -> [(TrackNum, TrackId)]
 tracknums_of block track_ids = do
