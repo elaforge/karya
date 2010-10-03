@@ -148,21 +148,24 @@ cmd_insert_time = do
                 -- +1 to get final event if it's 0 dur, see move_events
                 State.remove_events track_id (min pos start) (track_end + 1)
                 State.insert_sorted_events track_id
-                    (map (stretch start end) evts)
+                    (map (insert_time start end) evts)
 
--- TODO both stretch and shrink could be faster by just mapping the shift
--- once the overlapping events are done, but it's probably not worth it.
-stretch :: ScoreTime -> ScoreTime -> Track.PosEvent -> Track.PosEvent
-stretch start end event@(pos, evt)
-    | Event.is_positive evt = stretchp
-    | otherwise = stretchm
+-- | Modify the event to insert time from @start@ to @end@, lengthening
+-- it if @start@ falls within the event's duration.
+--
+-- TODO both insert_time and delete_time could be faster by just mapping the
+-- shift once the overlapping events are done, but it's probably not worth it.
+insert_time :: ScoreTime -> ScoreTime -> Track.PosEvent -> Track.PosEvent
+insert_time start end event@(pos, evt)
+    | Event.is_positive evt = insertp
+    | otherwise = insertn
     where
     shift = end - start
-    stretchp
+    insertp
         | pos < start && Track.event_end event <= start = event
         | pos < start = (pos, Event.modify_duration (+shift) evt)
         | otherwise = (pos + shift, evt)
-    stretchm
+    insertn
         | pos <= start = event
         | Track.event_end event < start =
             (pos + shift, Event.modify_duration (subtract shift) evt)
@@ -183,37 +186,30 @@ cmd_delete_time = do
                 -- +1 to get final event if it's 0 dur, see move_events
                 State.remove_events track_id (min pos start) (track_end + 1)
                 State.insert_sorted_events track_id
-                    (Seq.map_maybe (shrink start end) evts)
+                    (Seq.map_maybe (delete_time start end) evts)
 
-shrink :: ScoreTime -> ScoreTime -> Track.PosEvent -> Maybe Track.PosEvent
-shrink start end event@(pos, evt)
-    | Event.is_positive evt = shrinkp
-    | otherwise = shrinkm
+-- | Modify the event to delete the time from @start@ to @end@, shortening it
+-- if @start@ falls within the event's duration.
+delete_time :: ScoreTime -> ScoreTime -> Track.PosEvent -> Maybe Track.PosEvent
+delete_time start end event@(pos, evt)
+    | Event.is_positive evt = deletep
+    | otherwise = deleten
     where
     shift = end - start
-    shrinkp
+    deletep
         | pos < start && Track.event_end event <= start = Just event
         | pos < start =
             Just (pos, Event.modify_duration
                 (subtract (min (Track.event_end event - start) shift)) evt)
         | pos < end = Nothing
         | otherwise = Just (pos - shift, evt)
-    shrinkm
+    deleten
         | pos <= start = Just event
         | pos <= end = Nothing
         | Track.event_end event < end =
             Just (pos - shift, Event.modify_duration
                 (+ min shift (end - Track.event_end event)) evt)
         | otherwise = Just (pos - shift, evt)
-
-clip_until :: ScoreTime -> [Track.PosEvent] -> [Track.PosEvent]
-clip_until until events = Seq.map_maybe f events
-    where
-    f pos_evt@(pos, evt)
-        | Track.event_end pos_evt <= until = Nothing
-        | pos >= until = Just pos_evt
-        | otherwise = Just $ (until,
-            Event.set_duration (Event.event_duration evt - (until-pos)) evt)
 
 -- | If the range is a point, then expand it to one timestep.
 expand_range :: (Monad m) => [TrackNum] -> ScoreTime -> ScoreTime

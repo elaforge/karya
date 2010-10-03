@@ -57,6 +57,7 @@ import qualified Cmd.TimeStep as TimeStep
 import qualified Cmd.ViewConfig as ViewConfig
 
 -- Just make sure these are compiled.
+import qualified Cmd.Lang.LEvent ()
 import qualified Cmd.Lang.LPerf ()
 import qualified Cmd.Lang.LPitch ()
 import qualified Cmd.Lang.LInst as LInst
