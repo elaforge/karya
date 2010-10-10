@@ -22,32 +22,34 @@ import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Timestamp as Timestamp
 
 
--- | Make a block with simple non-overlapping controls and tempo changes.
-profile_simple = derive_profile $ make_simple "b1" 0 2000
+-- q=90 means 1.5 quarters / sec
+-- So 3 8ths, 6 16ths, 12 32nds
+-- 32 * 60 * 60 * 2 = 230400 for 2 hours
+-- two_hours = 230400
+-- time_minutes events = events / 32 / 60
 
-make_simple :: (State.UiStateMonad m) => String -> Int -> Double -> m [TrackId]
-make_simple bid offset size = UiTest.mkstate bid $
-        track_until size simple_tempo_track
-        : note_tracks inst1 0 ++ note_tracks inst2 2
+-- | Make a giant block with simple non-overlapping controls and tempo changes.
+profile_big_block = derive_profile $ make_simple "b1" 2000
+
+make_simple :: (State.UiStateMonad m) => String -> Int -> m [TrackId]
+make_simple bid size = UiTest.mkstate bid $
+        make_tempo size
+        : note_tracks inst1 0 ++ note_tracks inst1 2 ++ note_tracks inst2 4
     where
-    note_tracks name offset2 =
-        [ track (note_track name)
-        , track simple_pitch_track
-        , track vel_track
-        ]
-        where track = track_until size . track_drop (offset + offset2)
+    note_tracks name offset = map (track_take size . track_drop offset)
+        [note_track name, simple_pitch_track, vel_track]
+
 
 -- | Block with a control controlling multiple note tracks.  Intended to
 -- profile channelize control sharing.
 profile_shared = derive_profile $ make_shared_control "b1" 2000
 
 make_shared_control bid size = UiTest.mkstate bid $
-        track simple_tempo_track
-        : track mod_track
+        make_tempo size
+        : track_take size mod_track
         : track_set 0 ++ track_set 2 -- ++ track_set 4
     where
-    track = track_until size
-    track_set offset = map (track . track_drop offset)
+    track_set offset = map (track_take size . track_drop offset)
         [ note_track inst1
         , simple_pitch_track
         , vel_track
@@ -58,7 +60,7 @@ make_shared_control bid size = UiTest.mkstate bid $
 profile_nontempered = derive_profile $ make_nontempered "b1" 1000
     where
     make_nontempered bid size = UiTest.mkstate bid $ map (track_until size)
-            [ simple_tempo_track
+            [ make_tempo (floor size)
             , note_track inst1
             , nontempered_pitch_track
             , vel_track
@@ -73,34 +75,8 @@ make_big_control bid size = UiTest.mkstate bid $ map (track_until size)
     , mod_track
     ]
 
--- | Giant note track.  Profile note track derivation.
-profile_notes = derive_profile $ make_big_notes "b1" 15000
-    where
-    make_big_notes bid size = UiTest.mkstate bid $ map (track_until size)
-        [ note_track inst1
-        ]
-
--- | Block with lots of calls to sub-blocks.
-profile_subderive = derive_profile $ make_subderive "b1" 300
-
-make_subderive bid size = do
-    let sub_bids = [bid ++ "." ++ show sub | sub <- [0..15]]
-    forM_ (zip sub_bids [0, 4..]) $ \(sub_bid, offset) ->
-        make_simple sub_bid offset 16
-    UiTest.mkstate bid [track_until size $ ctrack 1 ">" sub_bids]
-
-profile_nested_simple = derive_profile $ make_nested_notes "b1" 10 3 128
-profile_nested_controls = derive_profile $ make_nested_controls "b1" 10 3 128
-
--- See if there's a difference between deriving for multiplexed and
--- non-multiplexed instruments.
-profile_multiplex = do
-    derive_profile $ do
-        make_nested_controls "b1" 10 3 128
-        DeriveTest.set_defaults
-    derive_profile $ do
-        make_nested_controls "b1" 10 3 128
-        State.set_midi_config (DeriveTest.make_midi_config [("i", [0])])
+profile_nested_simple = derive_profile $ make_nested_notes "b1" 10 3 60
+profile_nested_controls = derive_profile $ make_nested_controls "b1" 10 3 60
 
 make_nested_notes :: (State.UiStateMonad m) => String -> Int -> Int -> Int
     -> m ()
@@ -135,10 +111,10 @@ make_nested bottom_tracks bid size depth bottom_size = do
 
 type PerfResults = ([Perform.Event], [(Timestamp.Timestamp, Midi.Message)])
 
+-- | This runs the derivation several times to minimize the creation cost.
 derive_profile :: State.StateId a -> IO ()
-derive_profile create = do
+derive_profile create = sequence_ $ replicate 6 $
     run_profile False (UiTest.exec State.empty create)
-    return ()
 
 run_profile :: Bool -> State.State -> IO (Derive.Cache, PerfResults)
 run_profile perform_midi ui_state = do
@@ -146,10 +122,6 @@ run_profile perform_midi ui_state = do
     start <- now
     let section :: (Show log) => String -> IO ((), [a], [log]) -> IO ()
         section = time_section 2 (start_cpu, start)
-
-    section "generate" $ do
-        force (UiTest.block_structure ui_state)
-        return ((), [], []) :: IO ((), [()], [()])
 
     let result = DeriveTest.derive_block ui_state (UiTest.bid "b1")
     let events = either (error . ("Left: " ++) . show) id
@@ -211,7 +183,8 @@ inst1 = ">s/1"
 inst2 = ">s/2"
 
 note_track inst = ctrack 1 inst [""]
-simple_tempo_track = ctrack0 10 "tempo" ["1", "2", "3", "i 1"]
+make_tempo n = track_take (ceiling (fromIntegral n / 10)) $
+    ctrack0 10 "tempo" ["1", "2", "3", "i 1"]
 mod_track = ctrack0 1 "cc1 | srate = .02" ["1", "i 0", "e 1", "i .5", "i 0"]
 simple_pitch_track =
     ctrack0 1 "*twelve" ["4a", "4b", "4c", "4d", "4e", "4f", "4g", "5c"]
@@ -227,9 +200,6 @@ ctrack :: Double -> String -> [String] -> UiTest.TrackSpec
 ctrack step title ts =
     (title, [(p, step, t) | (p, t) <- zip [0, step..] (cycle ts)])
 
-track_take :: Int -> UiTest.TrackSpec -> UiTest.TrackSpec
-track_take n = second (take n)
-
 track_until :: Double -> UiTest.TrackSpec -> UiTest.TrackSpec
 track_until until = second (takeWhile (\(p, _, _) -> p < until))
 
@@ -238,6 +208,9 @@ track_drop n = second (shift . drop n)
     shift [] = []
     shift ((p, d, t) : rest) =
         (0, d, t) : map (\(p', d', t') -> (p' - p, d', t')) rest
+
+track_take :: Int -> UiTest.TrackSpec -> UiTest.TrackSpec
+track_take = second . take
 
 midi_config = DeriveTest.make_midi_config
     [(drop 1 inst1, [0, 1]), (drop 1 inst2, [2])]

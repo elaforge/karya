@@ -60,7 +60,7 @@ HLDFLAGS := $(LDFLAGS)
 GHC := ghc-6.12.3
 # Used by haddock to find system docs, but it doesn't work anyway.
 # TODO Fix this someday.
-GHC_LIB := /Library/Frameworks/GHC.framework/Versions/Current/usr/lib/ghc-6.12.3
+GHC_LIB := /Library/Frameworks/GHC.framework/Versions/612/usr/lib/ghc-6.12.3
 
 # hspp adds filename and lineno to various logging and testing functions.
 BASIC_HFLAGS := -threaded -W -fwarn-tabs \
@@ -290,6 +290,10 @@ $(PBUILD)/seq: $(UI_HS) $(UI_OBJS) $(COREMIDI_OBJS) fltk/fltk.a
 	$(SEQ_CMDLINE) -i -i$(PBUILD):. -odir $(PBUILD) -hidir $(PBUILD) \
 		$(HPROFILE) -o $@
 	$(BUNDLE) doc/seq.icns
+
+.PHONY: profile
+profile: $(PBUILD)/RunProfile
+	tools/summarize_profile.py
 
 .PHONY: tests
 tests: $(TBUILD)/RunTests

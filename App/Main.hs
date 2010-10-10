@@ -284,8 +284,7 @@ auto_setup_cmd = setup_normal
 setup_generate :: String -> Cmd.CmdIO
 setup_generate gen = do
     case gen of
-        "simple" -> Derive_profile.make_simple "b1" 0 2000
-        "subderive" -> Derive_profile.make_subderive "b1" 200
+        "simple" -> Derive_profile.make_simple "b1" 200
         "nested" -> Derive_profile.make_nested_controls "b1" 8 3 128
             >> return []
         "control" -> Derive_profile.make_big_control "b1" 15000

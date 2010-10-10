@@ -1,10 +1,11 @@
 #!/bin/zsh
-# hc # by producing cost-center stack
-# hm # by module
-# hd # by closure description
-# hy # by type
-# hr # by retainer set
-# hb # by biography
+# Flags for 'head' env var:
+# hc - by producing cost-center stack
+# hm - by module
+# hd - by closure description
+# hy - by type
+# hr - by retainer set
+# hb - by biography
 
 prefixes=("$@")
 
@@ -65,3 +66,6 @@ for prof in $profiles; do
         hp2ps -b -c <$stem.hp | ps2pdf - - >$stem.pdf
     fi
 done
+
+# Report the directory so the calling script can do something with it.
+echo $stem 1>&2
