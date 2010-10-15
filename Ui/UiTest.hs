@@ -39,6 +39,7 @@ mkid = Id.id test_ns
 bid = Types.BlockId . mkid
 vid = Types.ViewId . mkid
 tid = Types.TrackId . mkid
+rid = Types.RulerId . mkid
 
 default_zoom = Config.zoom
 
@@ -93,7 +94,10 @@ eval state m = case State.eval state m of
     Left err -> error $ "state error: " ++ show err
     Right val -> val
 
+run_mkstate :: [TrackSpec] -> ([TrackId], State.State)
 run_mkstate track_specs = run State.empty (mkstate "b1" track_specs)
+
+run_mkview :: [TrackSpec] -> ([TrackId], State.State)
 run_mkview track_specs = run State.empty (mkstate_view "b1" track_specs)
 
 mkstate :: (State.UiStateMonad m) => String -> [TrackSpec] -> m [TrackId]
@@ -119,8 +123,11 @@ parse_skeleton block_id = do
     return $ Schema.default_parser tracks
 
 mkview :: (State.UiStateMonad m) => m ViewId
-mkview = State.create_view (Id.unpack_id default_view_id) $
-    Block.view default_block_id default_rect default_zoom
+mkview = do
+    view_id <- State.create_view (Id.unpack_id default_view_id) $
+        Block.view default_block_id default_rect default_zoom
+    State.set_track_size view_id (400, 800)
+    return view_id
 
 mkstate_view block_id tracks = do
     r <- mkstate block_id tracks
@@ -166,8 +173,7 @@ mkruler marks dist = Ruler.Ruler [marklist marks dist] ruler_bg
     True False False False
 ruler mlists = Ruler.Ruler mlists ruler_bg True False False False
 ruler_bg = Color.rgb 1 0.85 0.5
-marklist n dist =
-    Ruler.marklist "meter" (take n $ zip (map ScoreTime [0, dist ..]) m44)
+marklist n dist = Ruler.marklist "meter" (take n $ zip [0, dist ..] m44)
 m44 = concatMap (\n -> [major n, minor, minor, minor]) [0..]
 major n = Ruler.Mark 1 3 (Color.rgba 0.45 0.27 0 0.35) (show n) 0 0
 minor = Ruler.Mark 2 2 (Color.rgba 1 0.39 0.2 0.35) "" 0 0

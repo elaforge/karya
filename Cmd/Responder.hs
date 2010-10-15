@@ -15,7 +15,7 @@ module Cmd.Responder (
     create_msg_reader, responder
 
     -- for tests
-    , ResponderState(..), run_cmds, run_responder
+    , respond, State(..)
 ) where
 
 import Control.Monad
@@ -38,6 +38,7 @@ import qualified Util.Thread as Thread
 import Ui
 import qualified Ui.Block as Block
 import qualified Ui.State as State
+import qualified Ui.Sync as Sync
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.Update as Update
 import qualified Midi.Midi as Midi
@@ -58,25 +59,31 @@ import qualified App.Config as Config
 import qualified App.StaticConfig as StaticConfig
 
 
-data ResponderState = ResponderState {
+data State = State {
     state_static_config :: StaticConfig.StaticConfig
     , state_ui :: State.State
     , state_cmd :: Cmd.State
-    , state_msg_reader :: MsgReader
     , state_midi_writer :: MidiWriter
+    -- | Data needed by the performer threads.
     , state_transport_info :: Transport.Info
+    -- | State for the lang subsystem.
     , state_session :: Lang.Session
-    , state_loopback_chan :: TChan.TChan Msg.Msg
+    -- | This is used to feed msgs back into the MsgReader.
+    , state_loopback :: Loopback
+    -- | This function takes diffs and actually applies them to the UI.  It's
+    -- passed as an argument so tests can run the responder without a UI.
+    , state_sync :: ResponderSync.Sync
     }
 
 type MidiWriter = Midi.WriteMessage -> IO ()
 type MsgReader = IO Msg.Msg
+type Loopback = Msg.Msg -> IO ()
 
 responder :: StaticConfig.StaticConfig -> MsgReader -> MidiWriter
     -> IO () -> IO Timestamp.Timestamp -> Cmd.CmdIO
-    -> Lang.Session -> TChan.TChan Msg.Msg -> IO ()
-responder static_config get_msg write_midi abort_midi get_now_ts setup_cmd
-        lang_session loopback_chan = do
+    -> Lang.Session -> Loopback -> IO ()
+responder static_config msg_reader write_midi abort_midi get_now_ts setup_cmd
+        lang_session loopback = do
     Log.debug "start responder"
     -- Report keymap overlaps.
     mapM_ Log.warn
@@ -88,21 +95,19 @@ responder static_config get_msg write_midi abort_midi get_now_ts setup_cmd
             (StaticConfig.config_global_scopes static_config)
         cmd = setup_cmd >> Edit.initialize_state >> return Cmd.Done
     (ui_state, cmd_state) <-
-        run_setup_cmd loopback_chan State.empty cmd_state cmd
-    let rstate = ResponderState static_config ui_state cmd_state
-            get_msg write_midi
+        run_setup_cmd loopback State.empty cmd_state cmd
+    let rstate = State static_config ui_state cmd_state write_midi
             (Transport.Info send_status write_midi abort_midi get_now_ts)
-            lang_session loopback_chan
-    respond_loop rstate
+            lang_session loopback Sync.sync
+    respond_loop rstate msg_reader
     where
     send_status block_id status =
-        STM.atomically $ STM.writeTChan loopback_chan
-            (Msg.Transport (Transport.Status block_id status))
+        loopback (Msg.Transport (Transport.Status block_id status))
 
 -- | A special run-and-sync that runs before the respond loop gets started.
-run_setup_cmd :: TChan.TChan Msg.Msg -> State.State -> Cmd.State -> Cmd.CmdIO
+run_setup_cmd :: Loopback -> State.State -> Cmd.State -> Cmd.CmdIO
     -> IO (State.State, Cmd.State)
-run_setup_cmd loopback_chan ui_state cmd_state cmd = do
+run_setup_cmd loopback ui_state cmd_state cmd = do
     (cmd_state, _, logs, result) <- Cmd.run_io ui_state cmd_state cmd
     mapM_ Log.write logs
     (ui_to, updates) <- case result of
@@ -114,20 +119,20 @@ run_setup_cmd loopback_chan ui_state cmd_state cmd = do
                 Log.warn $ "setup_cmd not Done: " ++ show status
             return (ui_state, updates)
     (_, ui_state, cmd_state) <-
-        ResponderSync.sync (send_derive_status loopback_chan)
+        ResponderSync.sync Sync.sync (send_derive_status loopback)
             ui_state ui_to cmd_state updates
     return (ui_state, cmd_state)
 
-send_derive_status :: TChan.TChan Msg.Msg -> BlockId -> Msg.DeriveStatus
-    -> IO ()
-send_derive_status looppback_chan block_id status = STM.atomically $
-    TChan.writeTChan looppback_chan (Msg.DeriveStatus block_id status)
+send_derive_status :: Loopback -> BlockId -> Msg.DeriveStatus -> IO ()
+send_derive_status loopback block_id status =
+    loopback (Msg.DeriveStatus block_id status)
 
-respond_loop :: ResponderState -> IO ()
-respond_loop rstate = do
+respond_loop :: State -> MsgReader -> IO ()
+respond_loop rstate msg_reader = do
     Log.timer "---------- responder loop"
-    (quit, rstate) <- respond rstate
-    unless quit (respond_loop rstate)
+    msg <- msg_reader
+    (quit, rstate) <- respond rstate msg
+    unless quit (respond_loop rstate msg_reader)
 
 -- | Create the MsgReader to pass to 'responder'.
 create_msg_reader ::
@@ -218,9 +223,8 @@ run_responder = Logger.run . flip Cont.runContT return
 
     TODO: Give this some serious thought some day.  Also profile it.
 -}
-respond :: ResponderState -> IO (Bool, ResponderState)
-respond rstate = do
-    msg <- state_msg_reader rstate
+respond :: State -> Msg.Msg -> IO (Bool, State)
+respond rstate msg = do
     Log.timer $ Log.first_timer_prefix ++ "received msg: " ++ Pretty.pretty msg
     ((res, cmd_state), updates) <- run_responder (run_cmds rstate msg)
     rstate <- return $ rstate { state_cmd = cmd_state }
@@ -231,8 +235,9 @@ respond rstate = do
         Right (status, ui_from, ui_to) -> do
             Log.timer "cmds complete"
             cmd_state <- return $ fix_cmd_state ui_to cmd_state
-            (updates, ui_state, cmd_state) <- ResponderSync.sync
-                (send_derive_status (state_loopback_chan rstate))
+            (updates, ui_state, cmd_state) <-
+                ResponderSync.sync (state_sync rstate)
+                    (send_derive_status (state_loopback rstate))
                     ui_from ui_to cmd_state updates
             cmd_state <- return $ record_history updates ui_from cmd_state
             return (status,
@@ -271,7 +276,7 @@ record_history updates old_state cmd_state
 should_record_history :: [Update.Update] -> Bool
 should_record_history = any (not . Update.is_view_update)
 
-run_cmds :: ResponderState -> Msg.Msg -> ResponderM RType
+run_cmds :: State -> Msg.Msg -> ResponderM RType
 run_cmds rstate msg = do
     (result, cmd_state) <- Cont.callCC $ \exit -> run_core_cmds rstate msg exit
     -- Record the keys last, so they show up in the next cycle's keys_down,
@@ -296,7 +301,7 @@ run_cmds rstate msg = do
         Right (status, ui_from, ui_to) ->
             (Right (status, ui_from, ui_to), recorded_cstate)
 
-run_core_cmds :: ResponderState -> Msg.Msg
+run_core_cmds :: State -> Msg.Msg
     -> (RType -> ResponderM (State.State, Cmd.State)) -> ResponderM RType
 run_core_cmds rstate msg exit = do
     Trans.liftIO $ Log.timer "run core cmds"
@@ -385,7 +390,7 @@ eval err_msg ui_state cmd_state abort_val cmd = do
 -- a non Continue status.
 do_run :: (Monad m) => (RType -> ResponderM (State.State, Cmd.State))
     -> Cmd.RunCmd m IO Cmd.Status
-    -> ResponderState -> Msg.Msg -> State.State -> State.State -> Cmd.State
+    -> State -> Msg.Msg -> State.State -> State.State -> Cmd.State
     -> [Msg.Msg -> Cmd.CmdM m] -> ResponderM (State.State, Cmd.State)
 do_run exit runner rstate msg ui_from ui_state cmd_state cmds = do
     res <- Trans.liftIO $ run_cmd_list [] (state_midi_writer rstate) ui_state

@@ -420,6 +420,8 @@ get_all_view_ids = gets (Map.keys . state_views)
 -- | Create a new view.  Block.view_tracks can be left empty, since it will
 -- be replaced by views generated from the the block.  If the caller uses the
 -- 'Block.view' constructor, it won't have to worry about this.
+--
+-- Throw if the ViewId already exists.
 create_view :: (UiStateMonad m) => Id.Id -> Block.View -> m ViewId
 create_view id view = do
     block <- get_block (Block.view_block view)
@@ -515,6 +517,8 @@ lookup_block :: (UiStateMonad m) => BlockId -> m (Maybe Block.Block)
 lookup_block block_id = get >>= return . Map.lookup block_id . state_blocks
 
 -- | Make a new block.  If it's the first one, it will be set as the root.
+--
+-- Throw if the BlockId already exists.
 create_block :: (UiStateMonad m) => Id.Id -> Block.Block -> m BlockId
 create_block id block = get >>= insert (Types.BlockId id) block state_blocks
     (\blocks st -> st
@@ -918,6 +922,9 @@ get_track track_id = get >>= lookup_id track_id . state_tracks
 lookup_track :: (UiStateMonad m) => TrackId -> m (Maybe Track.Track)
 lookup_track track_id = get >>= return . Map.lookup track_id . state_tracks
 
+-- | Insert the given track with the given ID.
+--
+-- Throw if the TrackId already exists.
 create_track :: (UiStateMonad m) => Id.Id -> Track.Track -> m TrackId
 create_track id track = get >>= insert (Types.TrackId id) track state_tracks
     (\tracks st -> st { state_tracks = tracks })
@@ -1083,6 +1090,9 @@ get_ruler ruler_id = get >>= lookup_id ruler_id . state_rulers
 lookup_ruler :: (UiStateMonad m) => RulerId -> m (Maybe Ruler.Ruler)
 lookup_ruler ruler_id = get >>= return . Map.lookup ruler_id . state_rulers
 
+-- | Insert the given ruler with the given ID.
+--
+-- Throw if the RulerId already exists.
 create_ruler :: (UiStateMonad m) => Id.Id -> Ruler.Ruler -> m RulerId
 create_ruler id ruler
         -- no_ruler is global and assumed to always exist.
@@ -1112,6 +1122,8 @@ remove_marklist :: (UiStateMonad m) => RulerId -> TrackNum -> m ()
 remove_marklist ruler_id n = modify_ruler ruler_id $ \ruler -> ruler
     { Ruler.ruler_marklists = Seq.remove_at (Ruler.ruler_marklists ruler) n }
 
+modify_ruler :: (UiStateMonad m) => RulerId -> (Ruler.Ruler -> Ruler.Ruler)
+    -> m ()
 modify_ruler ruler_id f = do
     ruler <- get_ruler ruler_id
     modify $ \st ->

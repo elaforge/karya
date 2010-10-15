@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 module Ui.Update where
+import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Generics as Generics
 import qualified Util.Ranges as Ranges
 import qualified Util.Seq as Seq
@@ -59,6 +60,15 @@ data TrackUpdate
     | TrackBg
     | TrackRender
     deriving (Show)
+
+instance DeepSeq.NFData Update where
+    rnf update = case update of
+        ViewUpdate view_id update -> view_id `seq` update `seq` ()
+        BlockUpdate block_id update -> block_id `seq` update `seq` ()
+        TrackUpdate track_id update -> track_id `seq` update `seq` ()
+        RulerUpdate ruler_id -> ruler_id `seq` ()
+
+-- * functions
 
 -- | Updates which purely manipulate the view are treated differently by undo.
 is_view_update :: Update -> Bool

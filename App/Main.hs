@@ -8,6 +8,7 @@ module App.Main where
 import Control.Monad
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.STM as STM
+import qualified Control.Concurrent.STM.TChan as TChan
 import qualified Control.Exception as Exception
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -207,8 +208,9 @@ main = initialize $ \lang_socket midi_chan -> do
         -- handling, I'll do that if this causes more trouble.
 
     Thread.start_thread "responder" $ do
+        let loopback msg = STM.atomically (TChan.writeTChan loopback_chan msg)
         Responder.responder static_config get_msg write_midi abort_midi
-            get_now_ts setup_cmd session loopback_chan
+            get_now_ts setup_cmd session loopback
         `Exception.catch` (\(exc :: Exception.SomeException) ->
             Log.error $ "responder thread died from exception: " ++ show exc)
             -- It would be possible to restart the responder, but chances are
