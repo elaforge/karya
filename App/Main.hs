@@ -141,7 +141,8 @@ read_devices = Set.fromList $ map Midi.ReadDevice $
 initialize :: (Network.Socket -> MidiImp.ReadChan -> IO ()) -> IO ()
 initialize f = do
     log_hdl <- IO.openFile "seq.log" IO.AppendMode
-    Log.initialize (Just log_hdl) Log.Timer Log.serialize_msg
+    Log.configure $ const $
+        Log.State (Just log_hdl) Log.Debug Log.serialize_msg
     MidiImp.initialize $ \midi_chan ->
         Network.withSocketsDo $ do
             Config.initialize_lang_port

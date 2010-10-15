@@ -7,7 +7,7 @@
 -}
 
 module Util.Log (
-    initialize, swap_state
+    configure
     -- * msgs
     , Msg(..), msg_string, Prio(..), State(..)
     , msg, msg_srcpos, make_msg, make_uninitialized_msg
@@ -92,19 +92,17 @@ global_state :: MVar.MVar State
 {-# NOINLINE global_state #-}
 global_state = Unsafe.unsafePerformIO (MVar.newMVar initial_state)
 
--- | Configure the log system to write to the given file.  Before you call
--- this, log output will go to stderr.  Return the old state.
-initialize :: Maybe IO.Handle -> Prio -> (Msg -> String) -> IO State
-initialize log_hdl prio formatter = do
-    hdl <- case log_hdl of
-        Nothing -> return Nothing
-        Just hdl -> do
-            IO.hSetBuffering hdl IO.LineBuffering
-            return (Just hdl)
-    swap_state (State hdl prio formatter)
-
-swap_state :: State -> IO State
-swap_state = MVar.swapMVar global_state
+-- | Configure the logging system by modifying its internal state.
+-- Return the old state so you can restore it later.
+configure :: (State -> State) -> IO State
+configure f = MVar.modifyMVar global_state $ \old -> do
+    let new = f old
+    -- This seems like a bit of a hack, but it does seem like the hdl should be
+    -- in line mode.
+    case state_log_hdl new of
+        Just hdl -> IO.hSetBuffering hdl IO.LineBuffering
+        _ -> return ()
+    return (new, new)
 
 data Prio =
     -- | Generated everywhere, to figure out where hangs are happening.  Should

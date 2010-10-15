@@ -1,6 +1,5 @@
 import System.FilePath ((</>))
 import Control.Monad
-import qualified System.IO as IO
 import qualified Util.Log as Log
 
 import qualified Instrument.MidiDb as MidiDb
@@ -13,7 +12,6 @@ import qualified App.Config as Config
 
 main :: IO ()
 main = do
-    Log.initialize (Just IO.stdout) Log.Debug Log.format_msg
     app_dir <- Config.get_app_dir
     let fn = app_dir </> Config.instrument_db_cache
     synth_descs <- Local.Instrument.load_slow
