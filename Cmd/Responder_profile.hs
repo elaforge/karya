@@ -1,6 +1,8 @@
 module Cmd.Responder_profile where
 import qualified Data.Map as Map
 
+import qualified Midi.Midi as Midi
+
 import Util.Test
 import qualified Util.Log as Log
 
@@ -20,8 +22,8 @@ profile_null_cmd = do
     let states = ResponderTest.mkstates [(">i", [(0, 0, "")])]
     let key = keypress Key.ShiftL
     let keys = take (10*1024) (cycle key)
-    (updates, midi, states) <- print_timer $ ResponderTest.respond states keys
-    pprint (length updates)
+    (_, cpu) <- timer $ ResponderTest.respond states keys
+    printf "%.2f sec, %.4f sec per cmd\n" cpu (cpu / (10*1024))
 
 profile_selection = do
     Log.configure (\st -> st { Log.state_log_level = Log.Warn })
@@ -37,46 +39,18 @@ profile_selection = do
     let one_cycle = take (256*2) (cycle (keypress Key.Down))
             ++ take (256*2) (cycle (keypress Key.Up))
     let keys = take (10*1024) (cycle one_cycle)
-    (updates, midi, states) <- print_timer $ ResponderTest.respond states keys
-    pprint (length updates)
+    (_, cpu) <- timer $ ResponderTest.respond states keys
+    printf "%.2f sec, %.4f sec per cmd\n" cpu (cpu / (10*1024))
 
 keypress k = [CmdTest.make_key True k, CmdTest.make_key False k]
 
-
--- reintegrate these profiles
-{-
-
--- test_thru = do
-    res <- with_inst [CmdTest.make_midi $ Midi.NoteOn 10 20]
-    pprint res
-    -- TODO send a lot thru and do timing
-
--- test_thru_timing = do
-    let extract (_, midi) = midi
-        many_msgs = [CmdTest.make_midi msg
-            | n <- cycle [0..127], msg <- [Midi.NoteOn n 60, Midi.NoteOff n 60]]
-        msg_count = 100 -- increase this for real profiling
-        msgs = take msg_count many_msgs
-    print (length msgs)
-    -- This is awfully spammy otherwise.
-    log_state <- Log.configure $ \st -> st { Log.state_log_level = Log.Warn }
-    secs <- time_op $ do
-        midi <- fmap extract $ with_inst msgs
-        putStrLn $ "midi back: " ++ show (length midi)
-    print (secs, secs / fromIntegral msg_count)
-    Log.configure (const log_state)
-
-time_op :: IO a -> IO Double
-time_op op = do
-    start <- CPUTime.getCPUTime
-    op
-    end <- CPUTime.getCPUTime
-    return (fromIntegral (end-start) / (10**12))
-
-with_inst msgs = do
-    let (_, ustate) = UiTest.run_mkview [(">i0", [])]
-    let cstate = CmdTest.default_cmd_state
-    let (ustate2, cstate2) = CmdTest.set_insts ["i0"] ustate cstate
-    run_msgs ustate2 cstate2 msgs
-
--}
+profile_thru = do
+    let (ui_state, cmd_state) = ResponderTest.mkstates [(">i", [(0, 0, "")])]
+    let states = CmdTest.set_insts ["i"] ui_state cmd_state
+    let ncmds = 10 * 1024
+    let key = [CmdTest.make_midi (Midi.NoteOn 60 20),
+            CmdTest.make_midi (Midi.NoteOff 60 20)]
+        keys = take ncmds (cycle key)
+    ((_, midi, _), cpu) <- timer $ ResponderTest.respond states keys
+    printf "%.2f sec, %.4f sec per cmd\n" cpu (cpu / fromIntegral ncmds)
+    print (length midi)
