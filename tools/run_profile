@@ -68,4 +68,4 @@ for prof in $profiles; do
 done
 
 # Report the directory so the calling script can do something with it.
-echo $stem 1>&2
+echo "### $stem" 1>&2
