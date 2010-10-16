@@ -20,7 +20,7 @@ profile_null_cmd = do
     let states = ResponderTest.mkstates [(">i", [(0, 0, "")])]
     let key = keypress Key.ShiftL
     let keys = take (10*1024) (cycle key)
-    (updates, midi, states) <- ResponderTest.respond states keys
+    (updates, midi, states) <- print_timer $ ResponderTest.respond states keys
     pprint (length updates)
 
 profile_selection = do
@@ -37,7 +37,7 @@ profile_selection = do
     let one_cycle = take (256*2) (cycle (keypress Key.Down))
             ++ take (256*2) (cycle (keypress Key.Up))
     let keys = take (10*1024) (cycle one_cycle)
-    (updates, midi, states) <- ResponderTest.respond states keys
+    (updates, midi, states) <- print_timer $ ResponderTest.respond states keys
     pprint (length updates)
 
 keypress k = [CmdTest.make_key True k, CmdTest.make_key False k]

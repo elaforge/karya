@@ -21,6 +21,9 @@ module Util.Test (
     -- * extracting
     , expect_right
 
+    -- * profiling
+    , timer, print_timer
+
     -- * pretty printing
     , plist, pslist, pmlist
     , module PPrint
@@ -32,6 +35,7 @@ import Control.Monad
 import qualified Control.Exception as Exception
 import qualified Data.IORef as IORef
 import qualified Data.List as List
+import qualified System.CPUTime as CPUTime
 import qualified System.IO as IO
 import qualified System.IO.Unsafe as Unsafe
 import qualified System.Posix.IO as IO
@@ -204,6 +208,26 @@ io_human_srcpos srcpos expected_msg op = do
 expect_right :: (Show a) => String -> Either a b -> b
 expect_right msg (Left v) = error $ msg ++ ": " ++ show v
 expect_right _ (Right v) = v
+
+
+-- * profiling
+
+-- | Run an action and report the time in CPU seconds.
+timer :: IO a -> IO (a, Double)
+timer op = do
+    start_cpu <- CPUTime.getCPUTime
+    v <- op
+    end_cpu <- CPUTime.getCPUTime
+    return (v, cpu_to_sec (end_cpu - start_cpu))
+    where
+    cpu_to_sec :: Integer -> Double
+    cpu_to_sec s = fromIntegral s / fromIntegral (10^12)
+
+print_timer :: IO a -> IO a
+print_timer op = do
+    (val, secs) <- timer op
+    printf "time: %.2fs\n" secs
+    return val
 
 -- * util
 
