@@ -3,18 +3,16 @@ module Derive.Cache (
     , score_damage
 
     -- for testing
-    , find_generator_cache, lookup_prefix
+    , find_generator_cache
 ) where
 import Control.Monad
 import qualified Control.Monad.Error as Error
-import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
 
 import Util.Control
 import qualified Util.Log as Log
-import qualified Util.Map as Map
 import qualified Util.Ranges as Ranges
 import qualified Util.Seq as Seq
 
@@ -289,9 +287,3 @@ lookup_cache :: (Derive.Derived derived) =>
     Stack.Stack -> Cache -> Maybe (CallType derived)
 lookup_cache stack (Cache cache) =
     Derive.from_cache_entry =<< Map.lookup stack cache
-
-lookup_prefix :: Stack.Stack -> Cache -> [([Stack.Frame], CacheEntry)]
-lookup_prefix stack (Cache cache) =
-    takeWhile ((frames `List.isPrefixOf`) . fst) $ map (first Stack.outermost) $
-        Map.assocs $ snd $ Map.split2 stack cache
-    where frames = Stack.outermost stack

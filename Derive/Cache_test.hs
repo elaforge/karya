@@ -341,7 +341,7 @@ log_with_stack msg = Log.msg_string msg
 r_events = fmap (map simple_event) . Derive.r_result
 
 r_cache_collect :: Derive.Result a -> [(String, Maybe Derive.Collect)]
-r_cache_collect result =
+r_cache_collect result = Seq.sort_on fst
     [(simple_stack stack, collect ctype) | (stack, ctype) <- Map.assocs cmap]
     where
     cmap = uncache (Derive.r_cache result)
@@ -423,17 +423,3 @@ block = Stack.Block . UiTest.bid
 track = Stack.Track . UiTest.tid
 region = Stack.Region
 call = Stack.Call
-
-test_lookup_prefix = do
-    let no_cache = Derive.CachedEvents
-            (Derive.CachedGenerator Monoid.mempty Monoid.mempty)
-    let cache = Derive.Cache $ Map.fromList $
-            map (\k -> (Stack.make k, no_cache)) $
-                [ [block "A"]
-                , [block "A", track "T"]
-                , [block "B"]
-                ]
-    let f stack = map fst $ Cache.lookup_prefix stack cache
-    equal (f (Stack.make [block "A"]))
-        [[block "A"], [block "A", track "T"]]
-    equal (f (Stack.make [block "nothing"])) []
