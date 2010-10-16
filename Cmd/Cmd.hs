@@ -308,7 +308,7 @@ reinit_state cstate = cstate
 -- | This is a hack so I can use the default Show instance for 'State'.
 newtype LookupScale = LookupScale Derive.LookupScale
 instance Show LookupScale where
-    show _ = "<lookup-scale>"
+    show _ = "((LookupScale))"
 
 data WriteDeviceState = WriteDeviceState {
     -- Used by Cmd.MidiThru:
@@ -361,7 +361,7 @@ data Performance = Performance {
     }
 
 instance Show Performance where
-    show perf = "<Performance: " ++ Pretty.pretty len ++ ">"
+    show perf = "((Performance " ++ Pretty.pretty len ++ "))"
         where len = Midi.Cache.cache_length (perf_midi_cache perf)
 
 data PerformanceThread = PerformanceThread {
@@ -372,7 +372,7 @@ data PerformanceThread = PerformanceThread {
 
 instance Show PerformanceThread where
     show (PerformanceThread perf th_id _) =
-        "<PerformanceThread " ++ show th_id ++ ", perf: " ++ show perf ++ ">"
+        "((PerformanceThread " ++ show th_id ++ " perf " ++ show perf ++ "))"
 
 -- | This is used to communicate with the performance thread and tell it where
 -- the selection is, so it can prepare the performance as appropriate.
@@ -764,7 +764,7 @@ type ContextCmds = ([Cmd], [String])
 
 -- | So Cmd.State can be showable, for debugging.
 instance Show Schema where
-    show _ = "<schema>"
+    show _ = "((Schema))"
 
 -- | A SchemaDeriver generates a Deriver from a given Block.
 type SchemaDeriver d = BlockId -> State.StateId d

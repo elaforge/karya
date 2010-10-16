@@ -43,7 +43,7 @@ empty = Db {
 
 -- | So Cmd.State can be showable, for debugging.
 instance Show Db where
-    show _ = "<instrument_db>"
+    show _ = "((InstrumentDb))"
 
 type MakeInitialize = Midi.Channel -> Instrument.InitializePatch
 

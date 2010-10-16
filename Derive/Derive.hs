@@ -245,10 +245,10 @@ data Scope =
 
 instance Show Scope where
     show scope = case scope of
-        NoteScope {} -> "<note-scope>"
-        ControlScope {} -> "<control-scope>"
-        PitchScope {} -> "<pitch-scope>"
-        ValScope {} -> "<val-scope>"
+        NoteScope {} -> "((NoteScope))"
+        ControlScope {} -> "((ControlScope))"
+        PitchScope {} -> "((PitchScope))"
+        ValScope {} -> "((ValScope))"
 
 make_lookup :: Map.Map TrackLang.CallId call -> LookupCall call
 make_lookup cmap call_id = return $ Map.lookup call_id cmap
@@ -275,9 +275,9 @@ data InstrumentCalls =
     InstrumentCalls [LookupCall NoteCall] [LookupCall ValCall]
 
 instance Show InstrumentCalls where
-    show (InstrumentCalls nlookups vlookups) = "<call-map nlookups:"
-        ++ show (length nlookups) ++ " vlookups:" ++ show (length vlookups)
-        ++ ">"
+    show (InstrumentCalls nlookups vlookups) = "((InstrumentCalls nlookups "
+        ++ show (length nlookups) ++ " vlookups " ++ show (length vlookups)
+        ++ "))"
 
 initial_constant :: State.State -> LookupDeriver -> LookupScale
     -> (Score.Instrument -> Maybe InstrumentCalls) -> Bool -> Constant
@@ -465,7 +465,7 @@ data Call derived = Call {
 
 instance Show (Call derived) where
     show (Call name gen trans) =
-        "<call " ++ name ++ " " ++ Seq.join " " tags ++ ">"
+        "((Call " ++ show name ++ " " ++ Seq.join " " tags ++ "))"
         where
         tags = [t | (t, True) <- [("generator", Maybe.isJust gen),
             ("transformer", Maybe.isJust trans)]]
@@ -480,7 +480,7 @@ data ValCall = ValCall {
     }
 
 instance Show ValCall where
-    show (ValCall name _) = "<val call" ++ name ++ ">"
+    show (ValCall name _) = "((ValCall " ++ show name ++ "))"
 
 -- | Data passed to a 'Call'.
 data PassedArgs derived = PassedArgs {

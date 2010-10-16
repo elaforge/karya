@@ -32,11 +32,7 @@ data Cache = Cache {
     -- 'cache_stats'.
     , cache_damage :: Ranges.Ranges ChunkNum
     , cache_chunks :: Chunks
-    }
-
--- | Just for debugging.
-instance Show Cache where
-    show (Cache _ _ chunks) = "<midi cache: " ++ show (length chunks) ++ ">"
+    } deriving (Show)
 
 cache :: Instrument.Config -> Cache
 cache config = Cache config Ranges.nothing []
