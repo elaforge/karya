@@ -194,26 +194,26 @@ data State = State {
     -- it's convenient to guarentee that the main pitch signal is always
     -- present.
     , state_pitch :: !PitchSignal.PitchSignal
-    , state_environ :: TrackLang.Environ
+    , state_environ :: !TrackLang.Environ
     , state_warp :: !Score.Warp
     -- | Stack of calls currently in scope.
-    , state_scopes :: [Scope]
+    , state_scopes :: ![Scope]
 
     -- | This is the call stack for events.  It's used for error reporting,
     -- and attached to events in case they want to emit errors later (say
     -- during performance).
-    , state_stack :: Stack.Stack
+    , state_stack :: !Stack.Stack
     -- | This is a free-form stack which can be used to prefix log msgs with
     -- a certain string.
     , state_log_context :: ![String]
 
     -- | This data is generally written to, and only read in special places.
-    , state_collect :: Collect
+    , state_collect :: !Collect
     -- | Data pertaining to the deriver cache.
-    , state_cache_state :: CacheState
+    , state_cache_state :: !CacheState
 
     -- | This data is constant throughout the derivation.
-    , state_constant :: Constant
+    , state_constant :: !Constant
     }
 
 initial_state :: [Scope] -> Cache -> ScoreDamage -> TrackLang.Environ
@@ -718,7 +718,7 @@ d_subderive deriver = do
         Right val -> do
             -- TODO once the logging portion of the state is factored out I
             -- should copy back only that part
-            modify (const state2)
+            put state2
             return val
 
 run :: (Monad m) =>
@@ -766,7 +766,12 @@ make_inverse_tempo_func track_warps ts = do
     unwarp ts warp = Score.unwarp_pos (Timestamp.to_real_time ts) warp
 
 modify :: (Monad m) => (State -> State) -> DeriveT m ()
-modify f = (DeriveT . lift) (Monad.State.modify f)
+modify f = (DeriveT . lift) $ do
+    old <- Monad.State.get
+    Monad.State.put $! f old
+
+put :: (Monad m) => State -> DeriveT m ()
+put st = st `seq` (DeriveT . lift) (Monad.State.put $! st)
 
 get :: (Monad m) => DeriveT m State
 get = (DeriveT . lift) Monad.State.get
@@ -782,7 +787,7 @@ local :: (Monad m) => (State -> b) -> (b -> State -> State)
 local from_state to_state modify_state deriver = do
     old <- gets from_state
     new <- modify_state =<< get
-    modify (const new)
+    put new
     deriver `finally` modify (to_state old)
 
 -- ** state access
@@ -861,7 +866,7 @@ with_empty_collect :: Deriver a -> Deriver (Either DeriveError a, Collect)
 with_empty_collect deriver = do
     old <- gets state_collect
     new <- (\st -> return $ st { state_collect = Monoid.mempty }) =<< get
-    modify (const new)
+    put new
     result <- (fmap Right deriver) `Error.catchError` (return . Left)
     collect <- gets state_collect
     modify (\st -> st { state_collect = old })
@@ -1202,6 +1207,7 @@ with_stack :: Stack.Frame -> Deriver a -> Deriver a
 with_stack frame = local
     state_stack (\old st -> st { state_stack = old })
     (\st -> return $ st { state_stack = Stack.add frame (state_stack st) })
+
 
 -- ** track warps
 
