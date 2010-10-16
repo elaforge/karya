@@ -5,7 +5,7 @@ import Control.Monad
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Identity as Identity
-import qualified Control.Monad.State as MonadState
+import qualified Control.Monad.State.Strict as MonadState
 import qualified Control.Monad.Trans as Trans
 import Control.Monad.Trans (lift)
 import qualified Data.Generics as Generics
@@ -418,10 +418,12 @@ gets :: (Monad m) => (State -> a) -> CmdT m a
 gets f = fmap f get_state
 
 put_state :: (Monad m) => State -> CmdT m ()
-put_state st = (CmdT . lift) (MonadState.put st)
+put_state st = (CmdT . lift) (MonadState.put $! st)
 
 modify_state :: (Monad m) => (State -> State) -> CmdT m ()
-modify_state f = (CmdT . lift) (MonadState.modify f)
+modify_state f = (CmdT . lift) $ do
+    st <- MonadState.get
+    MonadState.put $! f st
 
 
 lookup_pthread :: (Monad m) => BlockId -> CmdT m (Maybe PerformanceThread)
