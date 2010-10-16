@@ -383,8 +383,7 @@ read_selection selection_pos =
     IORef.atomicModifyIORef selection_pos (\a -> (a, a))
 
 write_selection :: RealTime -> SelectionPosition -> IO ()
-write_selection pos selection_pos =
-    IORef.atomicModifyIORef selection_pos (const (pos, ()))
+write_selection pos selection_pos = IORef.writeIORef selection_pos pos
 
 data HistoryEntry = HistoryEntry {
     hist_name :: String

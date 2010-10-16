@@ -231,5 +231,4 @@ update_selection_pos root_id focused_sel = do
         root_sel <- maybe (return Nothing) (Selection.lookup_block_insert)
             root_id
         let pos = Selection.relative_realtime_point perf root_sel focused_sel
-        Trans.liftIO $ Cmd.write_selection pos
-            (Cmd.pthread_selection pthread)
+        Trans.liftIO $ Cmd.write_selection pos (Cmd.pthread_selection pthread)
