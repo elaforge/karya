@@ -211,17 +211,17 @@ instance LogMonad IO where
     write msg = do
         -- This is also done by 'initialize_msg', but if the msg was created
         -- outside of IO, it won't have had IO's 'initialize_msg' run on it.
-        msg <- add_time msg
         MVar.withMVar global_state $ \(State m_hdl prio formatter) ->
             case m_hdl of
                 Just hdl | prio <= msg_prio msg -> do
-                    IO.hPutStr hdl (formatter msg)
-                    IO.hPutChar hdl '\n'
+                    -- Go to a little bother to only run 'add_time' for msgs
+                    -- that are actually logged.
+                    msg <- add_time msg
+                    IO.hPutStrLn hdl (formatter msg)
                 _ -> return ()
-        when (msg_prio msg == Error) $
+        when (msg_prio msg == Error) $ do
+            msg <- add_time msg
             IO.hPutStrLn IO.stderr (format_msg msg)
-
-    initialize_msg = add_time
 
 -- | Format a msg in a nice user readable way.
 format_msg :: Msg -> String
