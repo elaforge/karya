@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances #-} -- for Error instance
 {- | Convert from the Derive events to MIDI performer specific events.
 
     Since this module depends on both the Derive and Perform.Midi layers, it
@@ -8,8 +9,10 @@ module Perform.Midi.Convert where
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.Reader as Reader
+import qualified Control.Monad.State.Strict as State
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Set as Set
 
 import qualified Midi.Midi as Midi
 
@@ -42,11 +45,12 @@ convert :: Derive.LookupScale -> MidiDb.LookupMidiInstrument -> [Score.Event]
 convert lookup_scale lookup_inst events = (maybe [] id evts, warns)
     where
     (evts, warns) = run_convert $ fmap Maybe.catMaybes $ mapM conv_catch events
-    conv_catch event = fmap Just (conv_event event)
-        `Error.catchError` (\w -> Logger.log w >> return Nothing)
+    conv_catch event = fmap Just (conv_event event) `Error.catchError` catch
     conv_event event =
         Reader.local (const (Score.event_stack event))
             (convert_event lookup_scale lookup_inst event)
+    catch Nothing = return Nothing
+    catch (Just warn) = Logger.log warn >> return Nothing
 
 convert_event :: Derive.LookupScale -> MidiDb.LookupMidiInstrument
     -> Score.Event -> ConvertT Perform.Event
@@ -68,9 +72,7 @@ convert_event lookup_scale lookup_inst event = do
 convert_inst :: MidiDb.LookupMidiInstrument -> Score.Instrument
     -> Score.Attributes -> ConvertT (Instrument.Instrument, Maybe Midi.Key)
 convert_inst lookup_inst score_inst attrs = do
-    (midi_inst, ks_attrs) <- require
-        ("midi instrument in instrument db: " ++ show score_inst)
-        (lookup_inst attrs score_inst)
+    (midi_inst, ks_attrs) <- get_inst score_inst (lookup_inst attrs score_inst)
     let kmap_attrs = Score.attrs_diff attrs ks_attrs
     let kmap = Instrument.inst_keymap midi_inst
     maybe_key <- if Map.null kmap
@@ -86,6 +88,20 @@ convert_inst lookup_inst score_inst attrs = do
         -- are accounted for.
         _ -> return ()
     return (midi_inst, maybe_key)
+
+-- | Lookup the instrument or throw.  If an instrument wasn't found the first
+-- time, it won't be found the second time either, so avoid spamming the log
+-- by throwing Nothing after the first time.
+get_inst :: Score.Instrument -> Maybe (Instrument.Instrument, Score.Attributes)
+    -> ConvertT (Instrument.Instrument, Score.Attributes)
+get_inst _ (Just v) = return v
+get_inst inst Nothing = do
+    not_found <- State.get
+    if Set.member inst not_found then Error.throwError Nothing
+        else do
+            State.put (Set.insert inst not_found)
+            require ("midi instrument in instrument db: " ++ show inst
+                ++ " (further warnings suppressed)") Nothing
 
 -- | They're both newtypes so this should boil down to id.
 -- I could filter out the ones MIDI doesn't handle but laziness should do its
@@ -104,9 +120,14 @@ convert_pitch lookup_scale psig = case lookup_scale scale_id of
 
 -- * monad
 
-type ConvertT = Error.ErrorT Warning.Warning
-    (Logger.LoggerT Warning.Warning
-        (Reader.ReaderT Stack.Stack Identity.Identity))
+-- | Bogus mandatory instance.
+instance Error.Error (Maybe Warning.Warning) where
+    strMsg = Just . Error.strMsg
+
+type ConvertT = Error.ErrorT (Maybe Warning.Warning)
+    (State.StateT (Set.Set Score.Instrument)
+        (Logger.LoggerT Warning.Warning
+            (Reader.ReaderT Stack.Stack Identity.Identity)))
 
 warn :: String -> ConvertT ()
 warn msg = do
@@ -117,15 +138,17 @@ run_convert :: ConvertT a -> (Maybe a, [Warning.Warning])
 run_convert conv = (either (const Nothing) Just val, warn ++ warns)
     where
     run = Identity.runIdentity . flip Reader.runReaderT Stack.empty
-        . Logger.run . Error.runErrorT
-    (val, warns) = run conv
-    warn = either (:[]) (const []) val
+        . Logger.run . flip State.runStateT Set.empty . Error.runErrorT
+    ((val, _), warns) = run conv
+    warn = case val of
+        Left (Just warn) -> [warn]
+        _ -> []
 
 require :: String -> Maybe a -> ConvertT a
 require msg val = do
     stack <- Reader.ask
     case val of
-        Nothing -> Error.throwError $
+        Nothing -> Error.throwError $ Just $
             Warning.warning ("event requires " ++ msg) stack Nothing
         Just val -> return val
 
