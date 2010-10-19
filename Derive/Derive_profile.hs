@@ -15,6 +15,8 @@ import Ui
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 
+import qualified Cmd.Create as Create
+
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 
@@ -96,16 +98,20 @@ make_nested_controls = make_nested
 -- This doesn't produce intermediate tempo or control curves.
 make_nested :: (State.UiStateMonad m) => [UiTest.TrackSpec]
     -> String -> Int -> Int -> Int -> m ()
-make_nested bottom_tracks bid _ 1 bottom_size = do
-    UiTest.mkstate bid $ map (track_take bottom_size) bottom_tracks
-    return ()
-make_nested bottom_tracks bid size depth bottom_size = do
-    let sub_bids = [bid ++ "." ++ show sub | sub <- [0 .. size-1]]
-        step = bottom_size * size^(depth-2)
-    UiTest.mkstate bid $ map (track_take size)
-        [ctrack (fromIntegral step) inst1 sub_bids]
-    forM_ sub_bids $ \sub ->
-        make_nested bottom_tracks sub size (depth-1) bottom_size
+make_nested bottom_tracks block_name size depth bottom_size = do
+    (ruler_id, _) <- Create.ruler "ruler" UiTest.default_ruler
+    go ruler_id block_name depth
+    where
+    go ruler_id block_name 1 = do
+        UiTest.mkstate_id_ruler (UiTest.bid block_name) ruler_id $
+            map (track_take bottom_size) bottom_tracks
+        return ()
+    go ruler_id block_name depth = do
+        let sub_bids = [block_name ++ "." ++ show sub | sub <- [0 .. size-1]]
+            step = bottom_size * size^(depth-2)
+        UiTest.mkstate_id_ruler (UiTest.bid block_name) ruler_id $
+            map (track_take size) [ctrack (fromIntegral step) inst1 sub_bids]
+        forM_ sub_bids $ \sub -> go ruler_id sub (depth-1)
 
 -- * implementation
 

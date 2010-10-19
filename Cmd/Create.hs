@@ -78,6 +78,18 @@ orphan_blocks = do
     blocks <- State.gets (Set.fromAscList . Map.keys . State.state_blocks)
     return $ Set.toList (blocks `Set.difference` ref_blocks)
 
+-- | Modify track titles with a function.
+--
+-- TODO this is inadequate.  I need a function to get parsed inst and control
+-- track titles separately.  Use State.get_track_tree to figure inst vs.
+-- control.
+map_track_titles :: (State.UiStateMonad m) => (String -> String) -> m ()
+map_track_titles f = do
+    tracks <- Map.assocs . State.state_tracks <$> State.get
+    forM_ tracks $ \(track_id, track) ->
+        State.set_track_title track_id (f (Track.track_title track))
+
+
 -- * block
 
 block_from_template :: (Monad m) => Bool -> Cmd.CmdT m BlockId

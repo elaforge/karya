@@ -25,6 +25,7 @@ module Util.Test (
     , timer, print_timer
 
     -- * pretty printing
+    , printf
     , plist, pslist, pmlist
     , module PPrint
 

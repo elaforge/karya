@@ -47,7 +47,7 @@ test_basic = do
 
     -- 2: conversion to midi perf events
     equal (map Warning.warn_msg convert_warns) []
-    let evt = (,,,) "i"
+    let evt = (,,,) "1"
     -- ks key numbers are from DeriveTest.default_ksmap
     equal (map extract_perf_event perf_events)
         [ evt 0 16 (mkstack (0, 16))

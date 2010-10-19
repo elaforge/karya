@@ -26,8 +26,8 @@ data Db = Db {
     -- | Lookup a score instrument.
     , db_lookup :: Score.Instrument -> Maybe MidiDb.Info
 
-    -- | Internal use, these are probably not totally necessary but can be
-    -- handy.
+    -- | Internal use.  It's probably not necessary to expose these, but they
+    -- can be handy for testing.
     , db_midi_db :: MidiDb.MidiDb
     , db_index :: Search.Index
     }

@@ -105,16 +105,26 @@ mkstate block_name tracks = mkstate_id (bid block_name) tracks
 
 mkstate_id :: (State.UiStateMonad m) => BlockId -> [TrackSpec] -> m [TrackId]
 mkstate_id block_id tracks = do
+    let (ns, block_name) = Id.un_id (Id.unpack_id block_id)
+    ruler_id <- State.create_ruler (Id.id ns (block_name ++ ".r0"))
+        default_ruler
+    mkstate_id_ruler block_id ruler_id tracks
+
+-- | Like 'mkstate_id', but uses the provided ruler instead of creating its
+-- own.  Important if you are creating multiple blocks and don't want
+-- a separate ruler for each.
+mkstate_id_ruler :: (State.UiStateMonad m) => BlockId -> RulerId
+    -> [TrackSpec] -> m [TrackId]
+mkstate_id_ruler block_id ruler_id tracks = do
     State.set_project test_ns
     let (ns, block_name) = Id.un_id (Id.unpack_id block_id)
         mkid = Id.id ns
     tids <- forM (zip [0..] tracks) $ \(i, track) -> do
         State.create_track (mkid (block_name ++ ".t" ++ show i)) (mktrack track)
 
-    ruler <- State.create_ruler (mkid (block_name ++ ".r0")) default_ruler
-    State.create_block (mkid block_name) $
-        mkblock "b1 title"
-            ((Block.RId ruler, 20) : [(Block.TId tid ruler, 40) | tid <- tids])
+    State.create_block (mkid block_name) $ mkblock "b1 title"
+        ((Block.RId ruler_id, 20)
+            : [(Block.TId tid ruler_id, 40) | tid <- tids])
     State.set_skeleton block_id =<< parse_skeleton block_id
     return tids
 
@@ -165,7 +175,7 @@ mkevent (pos, dur, text) = (realToFrac pos, Event.event text (realToFrac dur))
 
 -- * ruler
 
-default_ruler = mkruler 10 10
+default_ruler = mkruler 256 1
 no_ruler = mkruler 0 0
 ruler_until pos = ruler [Ruler.marklist "until" [(pos, Ruler.null_mark)]]
 

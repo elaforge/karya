@@ -14,7 +14,6 @@ import qualified Util.Pretty as Pretty
 import Util.Test
 
 import qualified Midi.Midi as Midi
-import qualified Instrument.MidiDb as MidiDb
 
 import Ui
 import qualified Ui.State as State
@@ -39,6 +38,10 @@ import qualified Perform.Warning as Warning
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
+
+import qualified Instrument.Db
+import qualified Instrument.MidiDb as MidiDb
+import qualified Instrument.Search as Search
 
 
 scale_id = Twelve.scale_id
@@ -275,12 +278,24 @@ make_midi_config config = Instrument.config
     where mkaddr chan = (Midi.WriteDevice "wdev", chan)
 
 default_lookup_inst :: MidiDb.LookupMidiInstrument
-default_lookup_inst = make_lookup_inst []
+default_lookup_inst = make_lookup_inst default_patches
+
+default_db :: Instrument.Db.Db
+default_db = Instrument.Db.db midi_db Search.empty_index
+    where
+    midi_db = fst $ MidiDb.midi_db
+        [MidiDb.softsynth "syn" Nothing (-2, 2) default_patches [] id]
+
+default_patches :: [Instrument.Patch]
+default_patches =
+    [ Instrument.patch $ Instrument.instrument "1" [] (-2, 2)
+    , Instrument.patch $ Instrument.instrument "2" [] (-2, 2)
+    ]
 
 default_midi_config :: Instrument.Config
-default_midi_config = make_midi_config [("s/i", [0..2])]
+default_midi_config = make_midi_config [("s/1", [0..2]), ("s/2", [3])]
 
-default_inst_title = ">s/i"
+default_inst_title = ">s/1"
 
 -- * mkevents
 

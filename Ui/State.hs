@@ -383,7 +383,7 @@ get_midi_config :: (UiStateMonad m) => m Instrument.Config
 get_midi_config = gets state_midi_config
 
 set_midi_config :: (UiStateMonad m) => Instrument.Config -> m ()
-set_midi_config config = modify $ \st -> st { state_midi_config = config}
+set_midi_config config = modify $ \st -> st { state_midi_config = config }
 
 get_project_scale :: (UiStateMonad m) => m Pitch.ScaleId
 get_project_scale = gets state_project_scale

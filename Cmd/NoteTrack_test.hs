@@ -45,11 +45,11 @@ test_cmd_raw_edit = do
         run track_specs cmd = run_sel track_specs cmd
     -- Created event has dur according to ruler.
     equal (run [(">i", [])] (f (CmdTest.m_note_on 60 60 127))) $
-        Right [(">i", [(0, 10, "(4c)")])]
+        Right [(">i", [(0, 1, "(4c)")])]
     equal (run [(">i", [])] (f (mkkey (Key.KeyChar ' ')))) $
-        Right [(">i", [(0, 10, "")])]
+        Right [(">i", [(0, 1, "")])]
     equal (run [(">i", [])] (f (mkkey (Key.KeyChar 'x')))) $
-        Right [(">i", [(0, 10, "x")])]
+        Right [(">i", [(0, 1, "x")])]
     equal (run [(">i", [(0, 5, "")])] (f (mkkey Key.Backspace))) $
         Right [(">i", [])]
 
@@ -64,34 +64,34 @@ test_cmd_val_edit = do
     let f = NoteTrack.cmd_val_edit Nothing create_track Twelve.scale_id
     -- creates a new pitch track
     equal (run [(">i", [])] (f note)) $
-        Right [(">i", [(0, 10, "")]), ("*new", [(0, 0, "4c")])]
+        Right [(">i", [(0, 1, "")]), ("*new", [(0, 0, "4c")])]
     equal (run [(">i", []), ("mod", [])] (f note)) $
-        Right [(">i", [(0, 10, "")]), ("*new", [(0, 0, "4c")]), ("mod", [])]
+        Right [(">i", [(0, 1, "")]), ("*new", [(0, 0, "4c")]), ("mod", [])]
 
     -- modify existing track
     let f = NoteTrack.cmd_val_edit Nothing
             (NoteTrack.ExistingTrack 2) Twelve.scale_id
-        note_tracks = [(">i", [(0, 10, "")]), ("*", [(0, 0, "4d")])]
+        note_tracks = [(">i", [(0, 1, "")]), ("*", [(0, 0, "4d")])]
     -- both note and pitch get deleted
     equal (run note_tracks (f (mkkey Key.Backspace))) $
         Right [(">i", []), ("*", [])]
     equal (run note_tracks (f note)) $
-        Right [(">i", [(0, 10, "")]), ("*", [(0, 0, "4c")])]
+        Right [(">i", [(0, 1, "")]), ("*", [(0, 0, "4c")])]
 
     -- selection advances after final keyup
     let empty_tracks = [(">i", []), ("*", [])]
         on nn = CmdTest.m_note_on nn (fromIntegral nn) 127
         off nn = CmdTest.m_note_off nn 127
     equal (thread empty_tracks f [on 60, off 60])
-        ([(">i", [(0, 10, "")]), ("*", [(0, 0, "4c")])], (1, 10))
+        ([(">i", [(0, 1, "")]), ("*", [(0, 0, "4c")])], (1, 1))
     equal (thread empty_tracks f [on 60, on 61, off 60, off 61]) $
-        ([(">i", [(0, 10, "")]), ("*", [(0, 0, "4c#")])], (1, 10))
+        ([(">i", [(0, 1, "")]), ("*", [(0, 0, "4c#")])], (1, 1))
     -- TODO later test chord input
 
 test_cmd_method_edit = do
     let f = NoteTrack.cmd_method_edit Nothing (NoteTrack.ExistingTrack 2)
         run track_specs cmd = run_sel track_specs cmd
-        inst = (">i", [(0, 10, "")])
+        inst = (">i", [(0, 1, "")])
         note_track = [inst, ("*", [(0, 0, "4d")])]
     equal (run note_track (f (mkkey (Key.KeyChar 'x')))) $
         Right [inst, ("*", [(0, 0, "x (4d)")])]

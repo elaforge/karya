@@ -49,7 +49,7 @@ newtype MidiDb = MidiDb {
     } deriving (Show)
 
 -- | An 'UnresolvedPatchMap' can be serialized, but not a 'PatchMap'.  So this
--- is a serializable of the 'MidiDb'.
+-- is a serializable version of the 'MidiDb'.
 newtype SerializableMidiDb = SerializableMidiDb [SynthDesc]
     deriving (Show)
 
