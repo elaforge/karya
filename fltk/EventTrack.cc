@@ -56,10 +56,17 @@ TrackSignal::find_sample(ScoreTime start) const
         // Back up one to make sure I have the sample before start.
         if (found > pitch_signal)
             found--;
-        while (found > pitch_signal && found[-1].from == found[0].from
-                && found[-1].to == found[0].to)
-        {
-            found--;
+        // Back up to the last place where the (from, to) changed.  This is
+        // where text labels will be drawn.  Since I don't know how tall they
+        // are, I just unconditionally back up to the last place where it would
+        // be drawn and rely on the draw code to know the text height and skip
+        // samples.
+        if (has_labels()) {
+            while (found > pitch_signal && found[-1].from == found[0].from
+                    && found[-1].to == found[0].to)
+            {
+                found--;
+            }
         }
         return found - pitch_signal;
     } else {
@@ -451,21 +458,22 @@ EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
     const int min_x = x() + 2;
     const int max_x = x() + w() - 2;
     int prev_xpos = min_x;
-    int prev_offset = 0;
+    int prev_offset = INT_MIN;
     const char *prev_lower = NULL;
     const char *prev_upper = NULL;
 
     const Fl_Font font = Config::font;
     const int size = Config::font_size::pitch_signal;
 
-    int offset = 0;
-    for (int i = found; i < tsig.length; i++, prev_offset = offset) {
-        // if (i == found)
-        //     DEBUG("started at " << found << " offset " << (offset - min_y));
+    for (int i = found; i < tsig.length; i++) {
         // Skip coincident samples, or at least ones that are too close.
         int offset = y + tsig.time_at(zoom, i);
-        if (offset <= prev_offset && i > found)
+        // if (i == found)
+        //     DEBUG("started at " << found << " offset " << (offset - min_y));
+        if (offset <= prev_offset && i > found) {
+            prev_offset = offset;
             continue;
+        }
         const char *lower, *upper;
         double val = tsig.val_at(i, &lower, &upper);
         int xpos = floor(::scale(double(min_x), double(max_x),
@@ -544,20 +552,22 @@ EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
         }
         // DEBUG("draw " << i << " @ " << offset << "--" << next_offset);
 
+        prev_offset = offset;
         prev_xpos = xpos;
         prev_lower = lower;
         prev_upper = upper;
 
-        // I can't break as soon as offset crosses max_y because there may
-        // still be labels to draw that will stick up.  Unfortunately I can't
-        // know the height of the labels without actually measuring them.
+        // I can't necessarily break as soon as offset crosses max_y because
+        // there may still be labels to draw that will stick up.  Unfortunately
+        // I can't know the height of the labels without actually measuring
+        // them.
         //
-        // So pick a random number of pixels which I think is taller than
+        // So pick a random number of pixels which I think is taller than the
         // label text and stop after that.  TODO ugh
         if (tsig.has_labels()) {
-           if (offset > max_y)
-               break;
-        } else if (offset > max_y + 40) {
+            if (offset > max_y + 40)
+                break;
+        } else if (offset > max_y) {
             break;
         }
     }
