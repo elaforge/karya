@@ -76,10 +76,6 @@ struct RectTmpl {
     bool contains(const PointTmpl<T> &p) const {
         return (x <= p.x && p.x < r() && y <= p.y && p.y < b());
     }
-    // TODO document this
-    bool intersects(const PointTmpl<T> &p) const {
-        return ! (p.r() < x || p.b() < y || p.x >= r() || p.y >= b());
-    }
 
     // Set size to given values.
     void size(T w, T h) { this->w = w; this->h = h; }
@@ -118,6 +114,14 @@ struct RectTmpl {
         T r_ = std::min(this->r(), o.r());
         T b_ = std::min(this->b(), o.b());
         return RectTmpl<T>(x_, y_, std::max(0, r_ - x_), std::max(0, b_ - y_));
+    }
+
+    // Return whether the two rects intersect each other at all.
+    // A rect with zero width or height will never intersect with anything.
+    bool intersects(const RectTmpl<T> &o) {
+        if (!(w && h && o.w && o.h))
+            return false;
+        return !(x >= o.r() || r() <= o.x || y >= o.b() || b() <= o.y);
     }
 
     void normalize() {
