@@ -18,6 +18,9 @@ static const double rank_brightness = 1.5;
 // The color of events with a negative duration is scaled by this.
 static const double negative_duration_brightness = .85;
 
+// Don't use INT_MIN because it overflows too easily.
+enum { MIN_PIXEL = -9999 };
+
 
 // TrackSignal //////////
 
@@ -404,10 +407,9 @@ EventTrackView::draw_area()
     this->draw_signal(clip.y, clip.b(), start);
 
     // Draw the upper layer (event start line, text).
-    // Don't use INT_MIN because it overflows too easily.
-    IRect previous(x(), -9999, 0, 0);
-    int ranked_bottom = -9999;
-    int prev_offset = -9999;
+    IRect previous(x(), MIN_PIXEL, 0, 0);
+    int ranked_bottom = MIN_PIXEL;
+    int prev_offset = MIN_PIXEL;
     for (int i = 0; i < count; i++) {
         const Event &event = events[i];
         const ScoreTime &pos = event_pos[i];
