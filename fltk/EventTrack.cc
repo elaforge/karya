@@ -386,12 +386,31 @@ EventTrackView::draw_area()
             continue;
         const Event &event = events[i];
         int height = this->zoom.to_pixels(event.duration);
-        // Make sure events don't quite extend as far as they should, so it's
-        // clearer which direction they're facing.
-        if (height > 0)
-            height -= 1;
-        else if (height < 0)
-            height += 1;
+        // If this event touches the next one, make it's box one pixel short,
+        // so it's clearer which direction it's facing.
+        if (height > 0) {
+            int next_offset = MAX_PIXEL;
+            for (int j = i+1; j < count; j++) {
+                if (!ranks[j]) {
+                    next_offset = offsets[j];
+                    break;
+                }
+            }
+            if (offsets[i] + height == next_offset) {
+                height--;
+            }
+        } else if (height < 0) {
+            int prev_offset = MIN_PIXEL;
+            for (int j = i-1; j >= 0; j--) {
+                if (!ranks[j]) {
+                    prev_offset = offsets[j];
+                    break;
+                }
+            }
+            if (offsets[i] + height == prev_offset) {
+                height += 2;
+            }
+        }
         int y0 = std::min(offsets[i], offsets[i] + height);
         int y1 = std::max(offsets[i], offsets[i] + height);
 
