@@ -144,8 +144,8 @@ protected:
 private:
     void draw_area();
     void draw_signal(int min_y, int max_y, ScoreTime start);
-    void draw_upper_layer(int offset, const Event &event, int rank,
-            IRect *previous, int *ranked_bottom, int prev_offset);
+    IRect draw_upper_layer(int offset, const Event &event, int rank,
+        int prev_offset, int next_offset, const IRect &prev_unranked_rect);
 
     EventTrackConfig config;
     ZoomInfo zoom;

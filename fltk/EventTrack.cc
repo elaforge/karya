@@ -19,7 +19,7 @@ static const double rank_brightness = 1.5;
 static const double negative_duration_brightness = .85;
 
 // Don't use INT_MIN because it overflows too easily.
-enum { MIN_PIXEL = -9999 };
+enum { MIN_PIXEL = -10000, MAX_PIXEL = 10000 };
 
 
 // TrackSignal //////////
@@ -360,14 +360,9 @@ EventTrackView::draw_area()
     IRect clip = clip_rect(rect(this));
     int y = this->y() + 1; // top pixel is a bevel
 
-    // Code copy and pasted from OverlayRuler::draw_marklists.
     ScoreTime start = this->zoom.to_trackpos(clip.y - y);
     ScoreTime end = start + this->zoom.to_trackpos(clip.h);
     start = start + this->zoom.offset;
-    // Go back far enough to get an event whose text would overlap the damaged
-    // area.  This won't work so well if I have different font sizes...
-    // but I think I don't have to do that.
-    start = std::max(ScoreTime(0), start - this->zoom.to_trackpos(fl_height()));
     end = end + this->zoom.offset;
     // DEBUG("TRACK CLIP: " << start << "--" << end << ", "
     //         << clip.y << "--" << clip.b());
@@ -376,7 +371,7 @@ EventTrackView::draw_area()
     ScoreTime *event_pos;
     int *ranks;
     int count = this->config.find_events(
-            &start, &end, &event_pos, &events, &ranks);
+        &start, &end, &event_pos, &events, &ranks);
     // show_found_events(start, end, event_pos, events, count);
 
     // Draw event boxes.  Rank >0 boxes are not drawn since I'd have to figure
@@ -406,17 +401,26 @@ EventTrackView::draw_area()
 
     this->draw_signal(clip.y, clip.b(), start);
 
-    // Draw the upper layer (event start line, text).
-    IRect previous(x(), MIN_PIXEL, 0, 0);
-    int ranked_bottom = MIN_PIXEL;
     int prev_offset = MIN_PIXEL;
+    IRect prev_unranked_rect(0, 0, 0, 0);
+    // Draw the upper layer (event start line, text).
     for (int i = 0; i < count; i++) {
         const Event &event = events[i];
         const ScoreTime &pos = event_pos[i];
         int rank = ranks[i];
-        int offset = y + this->zoom.to_pixels(pos - this->zoom.offset);
-        this->draw_upper_layer(offset, event, rank, &previous,
-            &ranked_bottom, prev_offset);
+
+        int offset = y + zoom.to_pixels(event_pos[i] - zoom.offset);
+        int next_offset = MAX_PIXEL;
+        // TODO negative events should do this for the prev_offset
+        for (int j = i+1; j < count; j++) {
+            if (rank && ranks[j] || !rank && !ranks[j]) {
+                next_offset = y + zoom.to_pixels(event_pos[j] - zoom.offset);
+                break;
+            }
+        }
+
+        prev_unranked_rect = this->draw_upper_layer(offset, event, rank,
+            prev_offset, next_offset, prev_unranked_rect);
         prev_offset = offset;
     }
     if (count) {
@@ -578,35 +582,44 @@ EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
 }
 
 
-void
+IRect
 EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
-        IRect *previous, int *ranked_bottom, int prev_offset)
+        int prev_offset, int next_offset, const IRect &prev_unranked_rect)
 {
-    // So the overlap stuff is actually pretty tricky.  I want to not display
-    // text when it would overlap with the previous text, so it doesn't get
-    // into an unreadable jumble.  So I hide the text if this event overlaps
-    // the previous one.  This is simple, but will hide all text when it could
-    // actually display every other one.  It also means that whenever I am
-    // redrawing, the callback needs to give me the previous event, so I know
-    // if the current one overlaps.
-    // I can display as much text as possible by only hiding text if it
-    // overlaps the previously displayed text.  However, to make drawing
-    // consistent, I need to be consistent about where the previously displayed
-    // text is, and in common situations this can require going all the way
-    // back to the first event since each event can depend on its predecessor.
-    // There's probably some way to get around this by caching whether an event
-    // has displayed text.  I think I might want to do this, but should
-    // wait until I am caching events from the callback in general.
-
-    // A little overlap is ok... or not.
-    const static int ok_overlap = 0;
-    IRect text_rect(0, 0, 0, 0);
+    // So the overlap stuff is actually pretty tricky.  I want to hide
+    // overlapping text so it doesn't get into an unreadable jumble.  It's also
+    // important that the algorithm be consistent and not require context,
+    // because this will be called to redraw various small fragments.  This
+    // is further complicated by the fact that text can be all different sizes
+    // and that there is text aligned to the left (unranked) and lower priority
+    // text aligned to the right (ranked).  Also, text of negative events goes
+    // above the trigger line, while for positive events it goes below.
+    //
+    // So the current plan is to for positive events to hide text if it will
+    // overlap with the offset of the next ranked or unranked event, as
+    // appropriate.  Negative events are the same but for the previous offset.
+    // Ranked events have the additional restriction that they can't overlap
+    // with the previous text rect, so if they bump into it horizontally they
+    // won't be drawn.
+    //
+    // This draws negative ranked text incorrectly since I should be checking
+    // the next_unranked_rect instead of the prev one, but I can fix that if
+    // it ever becomes a problem.
+    //
+    // This scheme hides all text that might overlap with other text, so it
+    // hides a lot of text that could be displayed.  I experimented with a
+    // scheme that recorded where all text was drawn to try to display more,
+    // but in addition to being complicated it wound up looking cluttered and
+    // ugly, and I don't think knowing some random note in the middle of a run
+    // is actually that useful.  If I want to give hints about the contents of
+    // small notes I'll have to come up with some other mechanism, like color
+    // coding.
 
     const Fl_Font font = Config::font;
     const int size = Config::font_size::event;
 
-    text_rect.x = x() + 2;
-    text_rect.y = offset + 1;
+    IRect text_rect(0, 0, 0, 0);
+    bool draw_text = false;
     if (event.text) {
         IPoint box = SymbolTable::table()->measure(event.text, font, size);
         text_rect.w = box.x;
@@ -614,33 +627,35 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
         // Text goes above the trigger line for negative events, plus spacing.
         if (event.is_negative())
             text_rect.y = offset - box.y - 1;
+        else
+            text_rect.y = offset + 1;
+        if (rank)
+            text_rect.x = (x() + w()) - text_rect.w - 2;
+        else
+            text_rect.x = x() + 2;
+
+        if (event.is_negative()) {
+            // I think this should be next_ranked_rect, but that's too much of
+            // a bother to get.
+            // Also, the text_rect intersection test is only for ranked text,
+            // but it doesn't hurt to do it for unranked text too.
+            draw_text = text_rect.x >= prev_offset
+                && !text_rect.intersects(prev_unranked_rect);
+        } else {
+            draw_text = text_rect.b() <= next_offset
+                && !text_rect.intersects(prev_unranked_rect);
+        }
     }
-    if (rank && text_rect.y >= previous->b() - ok_overlap)
-        previous->w = 0;
 
     // The various pixel tweaks in here were determined by zooming in and
     // squinting.
-    bool draw_text = false;
-    if (event.text) {
-        if (rank) {
-            text_rect.x = (x() + w()) - text_rect.w - 2;
-            // Only display if I won't overlap text at the left or above.
-            if (text_rect.x > previous->r() - 2
-                    && text_rect.y >= *ranked_bottom - ok_overlap)
-            {
-                draw_text = true;
-            }
-        } else {
-            if (text_rect.y >= previous->b() - ok_overlap)
-                draw_text = true;
-        }
-    }
 
     // DEBUG("offset " << offset << ", text_rect " << text_rect);
     // fl_color(FL_BLUE);
     // fl_rect(text_rect.x, text_rect.y, text_rect.w, text_rect.h);
 
-    // Draw trigger line.  Try not to draw two in the same place.
+    // Draw trigger line.  Try not to draw two in the same place, or the dimmed
+    // out ranked trigger will draw over the unranked one.
     if (offset != prev_offset) {
         Color trigger_c;
         if (draw_text || !event.text)
@@ -680,8 +695,8 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
         }
     }
     if (rank) {
-        *ranked_bottom = text_rect.b();
+        return prev_unranked_rect;
     } else {
-        *previous = text_rect;
+        return text_rect;
     }
 }

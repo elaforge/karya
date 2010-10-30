@@ -1,6 +1,8 @@
 CURRENT
 
 UNSORTED
+  - for control track entry, typing numbers puts them right of decimal, typing
+    backtick enters a 1
   - create a set of profiles and a custom target to run them, so I can run them
     regularly and watch for regressions.  Maybe run them when tests run.
   - use capslock for kbd entry mode
@@ -43,14 +45,13 @@ UNSORTED
     nope, still happened
     It's always a thread being killed and another starting.  But I can't repro.
     And how does the newline just get totally lost?
-    I'm suspicious of the unsafePerformIO to initialize the state, are there >1?
+    - Could the thread be killed before the print completes?
+      Maybe I don't really need to log thread deaths.
+    Put the print and mutex in C.
   * track should get damage due to TrackFlag change, not DisplayTrack updates
   * lang cmds to rederive / perform within selection
   * am I even using Pitch.scale_set_pitch_bend?  what does it mean exactly?
-  - lookup val calls in current inst as in current scale
-    Maybe I can get rid of the Instrument.inst_control_map if I do the mapping
-    in generate_note
-    use case: drum tracks with symbols
+  * lookup val calls in current inst as in current scale
   - now that the signal deriver is gone, I can also get rid of ignore_tempo,
     unless I want to use it for a lilypond backend or something
   - after creating a new track, focus should go to its title
@@ -103,7 +104,6 @@ UNSORTED
   - LPitch.to_relative was broken by notes as calls, fix it
   - implement add_hz in Derive.Scale.Util
     or at least think about how to implement pengumbang and pengisep
-  - why does creating a block in setup cmd without a view go to cpu 100%?
   - subblock derivation for control tracks
 
   - playback should have multiple lines when a block is derived multiple times
@@ -167,8 +167,6 @@ bugs:
   - Create.rename_project loses the merged tracks
   * bring block windows to the front after a load / no don't, it's annoying
   - tracks with different tempos play correctly, but playback follows tempo
-  - unparsed notes are played instead of dropped, it's because the pitch is
-    dropped but not the note
   - bizarre hint importing requirements in Cmd.LanguageEnviron
   * track down ghc rts crashes, assertion failure
     - make a repro case if ghc guys want it
@@ -266,6 +264,8 @@ performance:
       exception isn't allowed to affect it, I don't have to evaluate the
       exception to see if there are values?
 
+      But if signals are still eager, will this really have much effect?
+
       Deriver [Event] output is not lazy, because ErrorT won't let it be.
       I think this means I need to localize derive exceptions and remove ErrorT
       from DeriveT.  I still run calls in ErrorT though.
@@ -355,22 +355,6 @@ fltk:
         data Edited = Edited BlockId TrackNum ScoreTime String
 
       The UI can suppress this if it detects the text hasn't changed.
-
-    - "currently edited" event shouldn't be hidden by previous ones
-      bring event closest to cursor to front?
-
-    - I think I still need a better story for collapsed events.  Maybe keep
-      a local cache of TrackPos -> IsHidden, this is just a record of where
-      text was drawn.
-      It seems to do this right I'd have to redraw the events each time the
-      selection moved, start from the selection and work outwards.  This way
-      the "selected" event is visible.  Of course I only have to redraw out
-      to the last event that had to change.  And I think I can still optimize
-      scrolling, I just have to keep the local pos->hidden cache, which gets
-      cleared on a track update.
-
-    - collapsed events: Or, record bounding boxes of text drawn, shift them on
-      scroll
 
   control track, render signal
     - support control signals that aren't just 0--1
@@ -511,7 +495,11 @@ save undo history / incremental saving
 
 Cmd:
   - Can I give Cmds their own state without putting it in Cmd.State every time?
-    Each Cmd has to be
+    For instance, twelve scale may want to know what key you're in.
+    Actually, it would be best to have per-module state.
+    At worst I can have 'Map.Map String Dynamic'.
+
+    Use existentials:
       data forall a. Cmd = Cmd {
         cmd_func :: a -> CmdT (Status, Cmd)
         , cmd_state = a
@@ -520,15 +508,22 @@ Cmd:
     so the cmd lists have to be kept in responder state.  If I'm going to do
     that, why not have cmds optionally return a continuation and handle state
     that way?
+
       cmd msg = do
         state <- stuff
         return $ continue $ \msg -> do
           more stuff
+
     Or if I can put it in the monad:
       cmd msg = do
         state <- stuff
         msg2 <- yield Cmd.Done
         more stuff
+
+    For module level, each module of cmds would have to export a bunch of Cmds
+    and the responder retrieves the state and passes in another layer of
+    StateT, or directly.  I supposed Dynamic wouldn't be so bad for that.  What
+    happens when the module is reloaded?
 
   ? a module with easy access to all GlobalKeymap cmds for cmdline access
   * cmd to give a view focus and bring it to the front
