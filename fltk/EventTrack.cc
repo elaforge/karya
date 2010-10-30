@@ -374,14 +374,17 @@ EventTrackView::draw_area()
         &start, &end, &event_pos, &events, &ranks);
     // show_found_events(start, end, event_pos, events, count);
 
+    int *offsets = new int[count];
+    for (int i = 0; i < count; i++) {
+        offsets[i] = y + this->zoom.to_pixels(event_pos[i] - this->zoom.offset);
+    }
+
     // Draw event boxes.  Rank >0 boxes are not drawn since I'd have to figure
     // out overlaps and they're meant to be used with control tracks anyway.
     for (int i = 0; i < count; i++) {
         if (ranks[i])
             continue;
         const Event &event = events[i];
-        const ScoreTime &pos = event_pos[i];
-        int offset = y + this->zoom.to_pixels(pos - this->zoom.offset);
         int height = this->zoom.to_pixels(event.duration);
         // Make sure events don't quite extend as far as they should, so it's
         // clearer which direction they're facing.
@@ -389,8 +392,8 @@ EventTrackView::draw_area()
             height -= 1;
         else if (height < 0)
             height += 1;
-        int y0 = std::min(offset, offset + height);
-        int y1 = std::max(offset, offset + height);
+        int y0 = std::min(offsets[i], offsets[i] + height);
+        int y1 = std::max(offsets[i], offsets[i] + height);
 
         Color c = event.color.brightness(this->brightness);
         if (event.duration < ScoreTime(0))
@@ -401,27 +404,21 @@ EventTrackView::draw_area()
 
     this->draw_signal(clip.y, clip.b(), start);
 
-    int prev_offset = MIN_PIXEL;
     IRect prev_unranked_rect(0, 0, 0, 0);
     // Draw the upper layer (event start line, text).
     for (int i = 0; i < count; i++) {
-        const Event &event = events[i];
-        const ScoreTime &pos = event_pos[i];
         int rank = ranks[i];
-
-        int offset = y + zoom.to_pixels(event_pos[i] - zoom.offset);
         int next_offset = MAX_PIXEL;
+        int prev_offset = i == 0 ? MIN_PIXEL : offsets[i-1];
         // TODO negative events should do this for the prev_offset
         for (int j = i+1; j < count; j++) {
             if (rank && ranks[j] || !rank && !ranks[j]) {
-                next_offset = y + zoom.to_pixels(event_pos[j] - zoom.offset);
+                next_offset = offsets[j];
                 break;
             }
         }
-
-        prev_unranked_rect = this->draw_upper_layer(offset, event, rank,
-            prev_offset, next_offset, prev_unranked_rect);
-        prev_offset = offset;
+        prev_unranked_rect = this->draw_upper_layer(offsets[i], events[i],
+            rank, prev_offset, next_offset, prev_unranked_rect);
     }
     if (count) {
         for (int i = 0; i < count; i++) {
@@ -432,6 +429,7 @@ EventTrackView::draw_area()
         free(event_pos);
         free(ranks);
     }
+    delete[] offsets;
 
     // The overlay ruler overlaps me entirely, so I'm sure it's damaged.
     if (damage() & FL_DAMAGE_ALL)
