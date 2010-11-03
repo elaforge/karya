@@ -144,17 +144,24 @@ cb_find_events event_lists startp endp ret_tps ret_events ret_ranks = do
     start <- peek startp
     end <- peek endp
     let key (pos, _, rank) = (pos, rank)
-    -- Take 1 from before to get the event overlapping the beginning of the
-    -- damaged area and 1 from after in case it has a negative duration.
     let (tps, evts, ranks) = unzip3 $ Seq.sort_on key [ (pos, evt, rank)
             | (rank, events) <- zip [0..] event_lists
-            , (pos, evt) <- Track.in_range_around start end events ]
+            , (pos, evt) <- in_range start end events ]
     unless (null evts) $ do
         -- Calling c++ is responsible for freeing this.
         poke ret_tps =<< newArray tps
         poke ret_events =<< newArray evts
         poke ret_ranks =<< newArray ranks
     return (length evts)
+    where
+    -- Get everything in the half-open range, plus one event before and after.
+    -- The drawing code needs to know if the previous event text would overlap
+    -- the first one.  The same goes for the last event, in case it has
+    -- negative duration and the text goes above.
+    --
+    -- Almost, but not quite the same as 'Track.in_range_around'.
+    in_range start end events = take 1 pre ++ Seq.take1 ((<=end) . fst) post
+        where (pre, post) = Track.split start events
 
 foreign import ccall "wrapper"
     c_make_find_events :: FindEvents -> IO (FunPtr FindEvents)
