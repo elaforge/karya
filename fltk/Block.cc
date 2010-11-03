@@ -701,6 +701,10 @@ BlockViewWindow::handle(int evt)
     if (evt == FL_SHOW) {
         // Send an initial resize to inform the haskell layer about dimensions.
         global_msg_collector()->window_update(this, UiMsg::msg_view_resize);
+        // The new window will be focused, but fltk doesn't emit a focus msg
+        // and a resize msg isn't considered a focus msg, so emit one
+        // explicitly.
+        global_msg_collector()->event(FL_FOCUS, this);
     }
     if (this->testing && evt == FL_KEYDOWN && Fl::event_key() == FL_Escape) {
         this->hide();
