@@ -1,6 +1,8 @@
 CURRENT
 
 UNSORTED
+  - implement inst Cmd lookup, in same vein as call lookup
+  - during derivation, skip tracks with blank titles, don't emit warnings
   - for control track entry, typing numbers puts them right of decimal, typing
     backtick enters a 1
   - create a set of profiles and a custom target to run them, so I can run them
@@ -156,6 +158,43 @@ MILESTONES
 
 ----------------------------------------------------------------------
 
+hs plugins:
+  How can the plugins link against the core quickly?  They shouldn't link the
+  actual code because they are compiled as separate objects.  But to save
+  time of reading all those .hi files, I can make a package.  Except it looks
+  like it's just the same set of hi files.
+
+  There's a space leak, but maybe it's acceptable?
+
+  - Can I make relinking faster by making the static core a shared library?
+    Use cabal?
+  - Either dynamically load local inst definitions and local StaticConfig, or
+    auto-generate the link file Local/Instrument.hs.
+  - Implement a LangPlugins that uses plugins' eval.  Or is there too much
+    space leakage?
+
+  - come up with plan for reloading inst config and static config
+    Really what I want to be able to do is recompile the static config
+    incrementally, relink it with the main binary *quickly*, and restart the
+    app with exactly the same state.  This should be a lightweight operation,
+    so it's feasible to edit some code, press play, edit code, and play
+    again.  That means a full-on serialize restart is out, because the cache
+    could be quite large.
+
+    Of course, you want this stuff in a library so it can be reused across
+    projects, so you can put it all in Local/.  Then the song state would
+    have a (hopefully minimal) linkage from hs namespaces to the tracklang
+    namespaces.
+
+    So with hs-plugins: The static config is considered a plugin.  You edit
+    Local/Config.hs, or edit other files in Local/.  It detects the change,
+    regenerates Local/Config.hs, recompiles and reloads it.  Then the
+    responder is called again with the new static config.
+
+    So I need to be able to re-initialize the responder with a new static
+    config.  Actually, the bits I care about are the call map and the cmd
+    map.
+
 note input / thru:
   - some way to turn off all midi thru / input
   - keyswitch support in midi thru
@@ -223,6 +262,14 @@ performance:
     - cache track cmds for each track, update when the track title or skeleton
       changes
   Derive
+    - lazy derivation
+      Return vals in a Writer.  That way I don't have to check for an exception
+      until I get done with the vals.
+      But without lazy signals, I don't think this is very useful.
+      Maybe this could even help with the garbage?
+    - lazy signals
+      - check out 'at' and 'bsearch' occurrances and see if they can use tails
+      - There are lots of lookups in the tempo map
     - see if making a version of Derive.local that's non-monadic in the modifier
       has any effect on performance
     - to get arrival beats to work right with the control track, I think I can
@@ -251,37 +298,12 @@ performance:
     - at_linear is called a lot by compose, by compose_warp, by d_warp
       can I make this more efficient?
 
-    - doesn't seem to happen so much with subderivations
     - possibly put/get/modify is too lazy?
     - maybe split Derive.State into dynamic and static portions?
     - or maybe it's the control deriver creating a huge list of signal
       chunks, which is then all forced at once since merge needs them all.
     - to control lazy evaluation, emit log msg every n sec of derivation
     - Parallelize derivation with strategies.  Can I spark subderivations?
-
-    make derivation lazy:
-      Can return events through a Logger rather than the return val?  If the
-      exception isn't allowed to affect it, I don't have to evaluate the
-      exception to see if there are values?
-
-      But if signals are still eager, will this really have much effect?
-
-      Deriver [Event] output is not lazy, because ErrorT won't let it be.
-      I think this means I need to localize derive exceptions and remove ErrorT
-      from DeriveT.  I still run calls in ErrorT though.
-      - Exceptions are limited to calls in the track so the event output can be
-        lazy.  But calls call other blocks, so what about that?  Can I eliminate
-        DeriveError altogether?
-      - Tempo map and inv tempo map have to be lazy, so they don't force the
-        entire derivation as soon as the first sample is touched.
-
-    - more efficient type for events:
-      data EventList = Nil (Maybe Exception)
-          -- | I produce a lot of singletons, so optimize away a pointer.
-          | Event1 !Score.Event
-          -- | Unroll a chunk of events.
-          | Event16 !Score.Event !Score.Event ... EventList
-          | EventCons !Score.Event EventList
     - switch to attoparsec for parsing
   Perform
     - use a lazy storeable vector for [Score.Event] and [Midi.Message] to save
