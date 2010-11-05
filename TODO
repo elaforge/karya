@@ -2,7 +2,7 @@ CURRENT
 
 UNSORTED
   - implement inst Cmd lookup, in same vein as call lookup
-  - during derivation, skip tracks with blank titles, don't emit warnings
+  * during derivation, skip tracks with blank titles, don't emit warnings
   - for control track entry, typing numbers puts them right of decimal, typing
     backtick enters a 1
   - create a set of profiles and a custom target to run them, so I can run them
@@ -111,6 +111,16 @@ UNSORTED
   - playback should have multiple lines when a block is derived multiple times
     have a set of playback selnums?
   - should be able to rescan midi devices when something new is plugged in
+    Centralize midi implementation functions in a record, include scan and
+    open/close, record is stored in Cmd state.
+    How to establish ID <-> device mapping?
+    I think OS X midi ID is just for a persistent ID since names can be
+    changed.  But I don't think I care too much about that?
+
+    Read is not a problem since the midi layer handles the mapping.  Write
+    needs: get (name, id), put name->id in write mapping
+
+    Wait until I want to add JACK or alsa support.
   - local inst db, in Ui.State, so I can e.g. set pb range for fm/* inst
   - midi thru doesn't pick up default inst
     empty scale defaults in Derive, but not in Cmd

@@ -264,7 +264,7 @@ sub_compile block_id tree = Derive.d_merge_asc (map with_track tree)
         Derive.with_stack_track (State.track_id track) (_compile block_id tree)
 
 _compile :: BlockId -> Tree.Tree (State.TrackInfo, Bool) -> Derive.EventDeriver
-_compile block_id (Tree.Node (State.TrackInfo _ _ _, True) subs)
+_compile block_id (Tree.Node (_, True) subs)
     | null subs = return []
     | otherwise = sub_compile block_id subs
 _compile block_id (Tree.Node (State.TrackInfo _ track_id _, False) subs)

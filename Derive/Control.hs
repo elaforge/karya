@@ -40,6 +40,7 @@ d_control_track :: BlockId -> TrackId
     -> Derive.EventDeriver -> Derive.EventDeriver
 d_control_track block_id track_id deriver = Derive.catch_warn deriver $ do
     track <- Derive.get_track track_id
+    if null (Track.track_title track) then deriver else do
     (ctype, expr) <- either (\err -> Derive.throw $ "track title: " ++ err)
         return (TrackInfo.parse_control_expr (Track.track_title track))
     -- TODO event calls are evaluated in normalized time, but track calls
