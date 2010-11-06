@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 module Midi.Midi where
 import qualified Control.DeepSeq as DeepSeq
+import Control.DeepSeq (rnf)
 import Data.Bits
 import qualified Data.ByteString as ByteString
 import qualified Data.Generics as Generics
@@ -27,6 +28,11 @@ data ReadMessage = ReadMessage {
     , rmsg_ts :: Timestamp.Timestamp
     , rmsg_msg :: Message
     } deriving (Eq, Ord, Show)
+
+instance DeepSeq.NFData WriteMessage where
+    rnf (WriteMessage dev ts msg) = dev `seq` ts `seq` rnf msg
+instance DeepSeq.NFData ReadMessage where
+    rnf (ReadMessage dev ts msg) = dev `seq` ts `seq` rnf msg
 
 -- * devices
 
@@ -125,7 +131,8 @@ data Message =
 
 instance DeepSeq.NFData Message where
     -- This should force enough of the Message.
-    rnf (ChannelMessage chan _) = DeepSeq.rnf chan
+    rnf (ChannelMessage chan msg) = chan `seq` rnf msg
+    rnf (CommonMessage msg) = rnf msg
     rnf _ = ()
 
 instance Pretty.Pretty Message where
@@ -161,6 +168,16 @@ data ChannelMessage =
     | UndefinedChannelMode Word8 Word8
     deriving (Eq, Ord, Show, Read, Generics.Typeable)
 
+instance DeepSeq.NFData ChannelMessage where
+    rnf (NoteOff k v) = rnf k `seq` rnf v
+    rnf (NoteOn k v) = rnf k `seq` rnf v
+    rnf (Aftertouch k v) = rnf k `seq` rnf v
+    rnf (ControlChange k v) = rnf k `seq` rnf v
+    rnf (ProgramChange v) = rnf v
+    rnf (ChannelPressure v) = rnf v
+    rnf (PitchBend v) = rnf v
+    rnf msg = msg `seq` ()
+
 data CommonMessage =
     -- | manufacturer id, data including eox
     SystemExclusive Word8 ByteString.ByteString
@@ -170,6 +187,12 @@ data CommonMessage =
     | EOX
     | UndefinedCommon Word8
     deriving (Eq, Ord, Show, Read, Generics.Typeable)
+
+instance DeepSeq.NFData CommonMessage where
+    -- Surprisingly, ByteString doesn't have an NFData instance.  But it's
+    -- strict already.
+    rnf (SystemExclusive w bs) = rnf w `seq` bs `seq` ()
+    rnf msg = msg `seq` ()
 
 data RealtimeMessage = TimingClock | Start | Continue | Stop | ActiveSense
     | Reset | UndefinedRealtime Word8
