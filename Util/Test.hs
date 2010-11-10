@@ -224,11 +224,10 @@ timer op = do
     cpu_to_sec :: Integer -> Double
     cpu_to_sec s = fromIntegral s / fromIntegral (10^12)
 
-print_timer :: IO a -> IO a
-print_timer op = do
+print_timer :: String -> IO String -> IO ()
+print_timer msg op = do
     (val, secs) <- timer op
-    printf "time: %.2fs\n" secs
-    return val
+    printf "%s - time: %.2fs - %s\n" msg secs val
 
 -- * util
 

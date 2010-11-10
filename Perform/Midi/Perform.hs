@@ -539,7 +539,7 @@ data AllotState = AllotState {
     ast_available :: Map.Map Instrument.Addr Timestamp
     -- | Map arbitrary input channels to an instrument address in the allocated
     -- range.
-    , ast_map :: Map.Map (Instrument.Instrument, Channel) Instrument.Addr
+    , ast_allotted :: Map.Map (Instrument.Instrument, Channel) Instrument.Addr
     } deriving (Eq, Show)
 empty_allot_state = AllotState Map.empty Map.empty
 
@@ -548,7 +548,7 @@ type NoAlloc = Map.Map Score.Instrument Stack.Stack
 allot_event :: (AllotState, InstAddrs, NoAlloc) -> (Event, Channel)
     -> ((AllotState, InstAddrs, NoAlloc), Maybe (Event, Instrument.Addr))
 allot_event (state, inst_addrs, no_alloc) (event, ichan) =
-    case Map.lookup (inst, ichan) (ast_map state) of
+    case Map.lookup (inst, ichan) (ast_allotted state) of
         Just addr -> (update addr state, Just (event, addr))
         Nothing -> case steal_addr inst_addrs inst state of
             Just addr ->
@@ -563,8 +563,8 @@ allot_event (state, inst_addrs, no_alloc) (event, ichan) =
     update addr state = (update_avail addr state, inst_addrs, no_alloc)
     update_avail addr state = state { ast_available =
             Map.insert addr (event_end event) (ast_available state) }
-    update_map addr state =
-        state { ast_map = Map.insert (inst, ichan) addr (ast_map state) }
+    update_map addr state = state { ast_allotted =
+        Map.insert (inst, ichan) addr (ast_allotted state) }
 
 -- | Steal the least recently used address for the given instrument.
 steal_addr :: InstAddrs -> Instrument.Instrument -> AllotState

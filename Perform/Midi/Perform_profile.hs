@@ -1,7 +1,10 @@
 module Perform.Midi.Perform_profile where
+import Control.Monad
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Map as Map
 import Util.Test
+
+import qualified System.IO as IO
 
 import Ui
 
@@ -16,35 +19,77 @@ import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.Instrument as Instrument
 
 import qualified Perform.Signal as Signal
+import qualified Perform.Warning as Warning
 
 
-profile_perform = do
-    let f evts = (length msgs, logs)
-            where
-            (msgs, logs, _) = Perform.perform Perform.initial_state
-                midi_config evts
-    let len = 100000
-    let sig = force $ Signal.signal (zip [0, 0.25 .. len] (cycle vals))
+total_events :: Int
+total_events = 40 * 1000
+
+event_count msgs_per_event = floor (fromIntegral total_events / msgs_per_event)
+
+profile_notes = do
+    -- simple notes with no controls
+    let evts = take (event_count 2) [mkevent n 1 [] Signal.empty | n <- [0..]]
+    run_multiple evts $ \arg -> do
+        let (msgs, logs) = perform arg
+        force logs
+        force msgs
+        return $ show (length msgs) ++ " msgs"
+
+profile_control = do
+    -- just perform_control generating control msgs
+    let len = 150 * 1000
+    let sig = Signal.signal (zip [0, 0.25 .. len] (cycle vals))
         vals = map (/10) ([0..10] ++ [10, 9 .. 1])
-    let (msgs, logs) = f
-            [(mkevent 0 len [(Control.Control "cc1", sig)] Signal.empty)]
-    -- Forcing the msgs first leads to a big space drag.  I'm not sure why...
-    -- shouldn't forcing the logs result in a much larger unevaluated msgs?
-    pprint logs
-    pprint msgs
-    -- pprint $ f [(mkevent 0 len [(Control.Control "cc1", sig)] Signal.empty)]
+    let cont = (Control.Control Control.c_mod, sig)
+    run_multiple cont $ \arg -> do
+        let (msgs, warns) = Perform.perform_control Control.empty_map 0 0 arg
+        force warns
+        force msgs
+        return $ show (length msgs) ++ " msgs"
 
-profile_perform_control = do
-    let len = 300000
-    let sig = force $ Signal.signal (zip [0, 0.25 .. len] (cycle vals))
-        vals = map (/10) ([0..10] ++ [10, 9 .. 1])
-    let (msg, warns) = Perform.perform_control Control.empty_map 0 0
-            (Control.Control Control.c_mod, sig)
-    pprint warns
-    pprint (length msg)
+profile_complex = do
+    -- notes with pitches and multiple controls, but no multiplexing
+    let pitch_at n = Signal.signal [(n, fromIntegral (floor n `mod` 64 + 32))]
+        mod_sig = Signal.signal [(n, Signal.x_to_y n) | n <- [0, 1/16 .. 15/16]]
+        mod_at n = (Control.Control Control.c_mod, Signal.shift n mod_sig)
+        velocity_at n = fromIntegral (floor n `mod` 64) / 64 + 1/8
+        vel_at n = (Control.c_velocity, Signal.signal [(n, velocity_at n)])
+    let event n = mkevent n 1 [mod_at n, vel_at n] (pitch_at n)
+    -- 16 ccs + 2 notes = 18
+    let evts = take (event_count 18) (map event [0,4..])
+    run_multiple evts $ \arg -> do
+        let (msgs, logs) = perform arg
+        force logs
+        force msgs
+        return $ show (length msgs) ++ " msgs"
+
+profile_multiplex = do
+    -- notes with non-shareable pitches
+    let pitch_sig = Signal.signal
+            [(n, Signal.x_to_y n + 64.5) | n <- [0, 1/16 .. 15/16]]
+        pitch_at n = Signal.shift n pitch_sig
+    let event n = mkevent n 1 [] (pitch_at n)
+    let evts = take (event_count 18) (map event [0..])
+    run_multiple evts $ \arg -> do
+        let (msgs, logs) = perform arg
+        force logs
+        force msgs
+        return $ show (length msgs) ++ " msgs"
 
 
-force val = DeepSeq.deepseq val val
+perform :: Perform.Events -> ([Midi.WriteMessage], [Warning.Warning])
+perform evts = (msgs, logs)
+    where
+    (msgs, logs, _final_state) =
+        Perform.perform Perform.initial_state midi_config evts
+
+force val = DeepSeq.deepseq val (return ())
+
+run_multiple arg action = forM_ [1..6] $ \n -> do
+    putStr $ (show n) ++ ": "
+    IO.hFlush IO.stdout
+    print_timer (show n) (action arg)
 
 
 mkevent :: RealTime -> RealTime -> [(Control.Control, Signal.Control)]
@@ -54,10 +99,12 @@ mkevent start dur controls pitch_sig =
         (Timestamp.from_real_time dur) (Map.fromList controls) pitch_sig
         Stack.empty
 
-
 inst1 = mkinst "inst1"
-mkinst name = Instrument.instrument name [] (-1, 1)
+mkinst name = (Instrument.instrument name [] (-2, 2))
+    { Instrument.inst_score = Score.Instrument name
+    , Instrument.inst_maybe_decay = Just 1
+    }
 
-midi_config = Instrument.config
-    [ (Score.Instrument "inst1", [(dev, 0), (dev, 1)]) ]
+midi_config =
+    Instrument.config [(Score.Instrument "inst1", [(dev, n) | n <- [0..8]])]
     where dev = Midi.WriteDevice "dev1"

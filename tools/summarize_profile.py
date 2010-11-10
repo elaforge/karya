@@ -7,7 +7,8 @@ profiles = [
     'Derive_profile.profile_big_block',
     'Derive_profile.profile_nested_controls',
     'Cmd.Responder_profile.profile_selection',
-]
+] + ['Perform.Midi.Perform_profile.profile_' + n for n in
+    ['notes', 'control', 'complex', 'multiplex']]
 
 def main():
     date = datetime.datetime.now().strftime('%y-%m-%d')
