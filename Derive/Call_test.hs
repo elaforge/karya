@@ -159,7 +159,7 @@ test_val_call = do
     let run evt = extract $ DeriveTest.derive_tracks_with with_add1
             [(">", [(0, 1, "")]), ("cont", [(0, 0, evt)])]
     equal (run "foobar")
-        (Right [Just []], ["DeriveError: call not found: foobar"])
+        (Right [Just []], ["DeriveError: control call not found: foobar"])
     equal (run "set 1")
         (Right [Just [(0, 1)]], [])
     equal (run "set (add1 1)")
@@ -177,8 +177,8 @@ test_inst_call = do
     let run inst = extract $ DeriveTest.derive_tracks_with
             (set_inst_calls lookup_inst)
             [(inst, [(0, 1, "sn")])]
-    equal (run "")
-        (Right [], ["DeriveError: call not found: sn"])
+    equal (run ">s/1")
+        (Right [], ["DeriveError: note call not found: sn"])
     equal (run ">s/with-call")
         (Right [["snare"]], [])
 

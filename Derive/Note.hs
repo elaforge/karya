@@ -159,14 +159,11 @@ d_note_track block_id track_id = Derive.catch_warn (return Derive.no_events) $do
         (derive_notes block_end pos_events)
     Derive.insert_event_damage =<< Derive.take_local_damage
     return result
-    where info = (derive_info, Derive.dummy_call_info "note track")
+    where info = (Call.note_dinfo, Derive.dummy_call_info "note track")
 
 derive_notes :: ScoreTime -> [Track.PosEvent] -> Derive.EventDeriver
 derive_notes block_end events = Derive.merge_asc_events <$>
-    Call.derive_track block_end derive_info id (\_ _ -> Nothing) events
-
-derive_info :: Call.DeriveInfo Derive.Events
-derive_info = Call.DeriveInfo Call.lookup_note_call
+    Call.derive_track block_end Call.note_dinfo id (\_ _ -> Nothing) events
 
 -- | It's convenient to tag a note track with @>inst@ to set its instrument.
 -- Unfortunately, this is parsed as a call to @>inst@

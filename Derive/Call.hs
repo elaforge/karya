@@ -228,19 +228,16 @@ with_attrs f deriver = do
 -- next lists.
 eval_one :: ScoreTime -> ScoreTime -> TrackLang.Expr -> Derive.EventDeriver
 eval_one start dur expr =
-    Derive.d_place start dur (apply_toplevel (dinfo, cinfo) expr)
+    Derive.d_place start dur (apply_toplevel (note_dinfo, cinfo) expr)
     where
     -- TODO use pretty instead of show
     cinfo = Derive.dummy_call_info ("eval_one: " ++ show expr)
-    dinfo = DeriveInfo lookup_note_call
 
 -- | Apply an expr with the current call info.
 reapply :: Derive.PassedArgs Derive.Events -> TrackLang.Expr
     -> Derive.EventDeriver
-reapply args expr = apply_toplevel (dinfo, cinfo) expr
-    where
-    dinfo = DeriveInfo lookup_note_call
-    cinfo = Derive.passed_info args
+reapply args expr = apply_toplevel (note_dinfo, cinfo) expr
+    where cinfo = Derive.passed_info args
 
 -- | A version of 'eval' specialized to evaluate note calls.
 eval_note :: Pitch.Note -> Derive.Deriver Pitch.Degree
@@ -266,7 +263,14 @@ data DeriveInfo derived = DeriveInfo {
     -- lookup.  Unfortunately ValCall is a problem since sinced it's not
     -- a derived type like the others.
     info_lookup :: Derive.LookupCall (Derive.Call derived)
+    -- | Name of the lookup scope.  It would be cleaner to get this out of
+    -- 'derived' by using the typeclass, but this is simpler.  I could do this
+    -- with 'Derive.with_msg' but this seems more direct.
+    , info_name :: String
     }
+
+note_dinfo :: DeriveInfo Derive.Events
+note_dinfo = DeriveInfo lookup_note_call "note"
 
 type PreProcess = TrackLang.Expr -> TrackLang.Expr
 type Info derived = (DeriveInfo derived, Derive.CallInfo derived)
@@ -346,11 +350,13 @@ apply_generator (dinfo, cinfo) (TrackLang.Call call_id args) = do
         Nothing -> do
             maybe_call <- lookup_val_call call_id
             case maybe_call of
-                Nothing -> Derive.throw $ unknown_call_id call_id
+                Nothing -> Derive.throw $
+                    unknown_call_id (info_name dinfo) call_id
                 Just vcall -> do
                     val <- apply call_id vcall args
                     -- We only do this fallback thing once.
-                    fb_call <- with_call fallback_call_id (info_lookup dinfo)
+                    fb_call <- with_call fallback_call_id
+                        (info_name dinfo) (info_lookup dinfo)
                     return (fb_call, [val])
 
     env <- Derive.gets Derive.state_environ
@@ -375,7 +381,7 @@ apply_transformer info@(dinfo, cinfo) (TrackLang.Call call_id args : calls)
         deriver = do
     vals <- mapM eval args
     let new_deriver = apply_transformer info calls deriver
-    call <- with_call call_id (info_lookup dinfo)
+    call <- with_call call_id (info_name dinfo) (info_lookup dinfo)
     env <- Derive.gets Derive.state_environ
     let args = Derive.PassedArgs vals env call_id cinfo
     state <- Derive.get
@@ -394,7 +400,7 @@ apply_transformer info@(dinfo, cinfo) (TrackLang.Call call_id args : calls)
 eval :: TrackLang.Term -> Derive.Deriver TrackLang.Val
 eval (TrackLang.Literal val) = return val
 eval (TrackLang.ValCall (TrackLang.Call call_id terms)) = do
-    call <- with_call call_id lookup_val_call
+    call <- with_call call_id "val" lookup_val_call
     apply call_id call terms
 
 apply :: TrackLang.CallId -> Derive.ValCall -> [TrackLang.Term]
@@ -407,13 +413,15 @@ apply call_id call args = do
     Derive.with_msg ("val call " ++ Derive.vcall_name call) $
         Derive.vcall_call call args
 
-with_call :: TrackLang.CallId
+with_call :: TrackLang.CallId -> String
     -> (TrackLang.CallId -> Derive.Deriver (Maybe call)) -> Derive.Deriver call
-with_call call_id lookup =
-    maybe (Derive.throw (unknown_call_id call_id)) return =<< lookup call_id
+with_call call_id name lookup =
+    maybe (Derive.throw (unknown_call_id name call_id)) return
+        =<< lookup call_id
 
-unknown_call_id :: TrackLang.CallId -> String
-unknown_call_id call_id = "call not found: " ++ Pretty.pretty call_id
+unknown_call_id :: String -> TrackLang.CallId -> String
+unknown_call_id name call_id =
+    name ++ " call not found: " ++ Pretty.pretty call_id
 
 fallback_call_id :: TrackLang.CallId
 fallback_call_id = TrackLang.Symbol ""

@@ -28,7 +28,7 @@ test_control_track = do
     let events = [(0, 0, "1"), (1, 0, "2")]
 
     -- various failures
-    let (val, logs) = derive ("", events)
+    let (val, logs) = derive ("*bork *bork *bork", events)
     equal val (Right [Nothing])
     strings_like logs ["track title: control track must be one of"]
 
@@ -65,10 +65,10 @@ test_derive_control = do
 
     -- evaluation continues after an error
     equal (derive [(0, 0, "1"), (1, 0, "def")])
-        (Right ([(0, 1)], ["DeriveError: call not found: def"]))
+        (Right ([(0, 1)], ["DeriveError: control call not found: def"]))
     equal (derive [(0, 0, "1"), (1, 0, "def"), (2, 0, "i 2")])
         (Right ([(0, 1), (1, 1.5), (2, 2)],
-            ["DeriveError: call not found: def"]))
+            ["DeriveError: control call not found: def"]))
 
 test_pitch_track = do
     let derive = do_derive (PitchSignal.unsignal . Score.event_pitch)
