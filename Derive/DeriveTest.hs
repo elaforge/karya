@@ -284,7 +284,7 @@ default_db :: Instrument.Db.Db
 default_db = Instrument.Db.db midi_db Search.empty_index
     where
     midi_db = fst $ MidiDb.midi_db
-        [MidiDb.softsynth "syn" Nothing (-2, 2) default_patches [] id]
+        [MidiDb.softsynth "s" Nothing (-2, 2) default_patches [] id]
 
 default_patches :: [Instrument.Patch]
 default_patches =

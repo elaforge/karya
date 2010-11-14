@@ -2,6 +2,12 @@ module Cmd.ResponderTest where
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Concurrent.STM.TVar as TVar
 import qualified Control.DeepSeq as DeepSeq
+import qualified Data.Map as Map
+import qualified Text.Printf as Printf
+
+import qualified Util.Pretty as Pretty
+import qualified Util.Test as Test
+import qualified Util.Thread as Thread
 
 import qualified Midi.Midi as Midi
 
@@ -14,6 +20,8 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Responder as Responder
 
+import qualified Derive.DeriveTest as DeriveTest
+
 import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Transport as Transport
 
@@ -21,23 +29,37 @@ import qualified App.Config as Config
 import qualified App.StaticConfig as StaticConfig
 
 
-mkstates tracks = (ui_state, cmd_state)
+mkstates tracks = (ui_state, mk_cmd_state UiTest.default_view_id)
     where
-    (_, ui_state) = UiTest.run State.empty $ do
+    ui_state = UiTest.exec State.empty $ do
         UiTest.mkstate_view "b1" tracks
         State.set_selection UiTest.default_view_id Config.insert_selnum
             (Types.selection 1 0 1 0)
-    cmd_state = Cmd.empty_state
-        { Cmd.state_focused_view = Just UiTest.default_view_id }
+
+-- | Many cmds rely on a focused view, and it's easy to forget to add it, so
+-- make it mandatory.
+mk_cmd_state view_id = (Cmd.initial_state DeriveTest.default_db Map.empty
+    DeriveTest.default_scopes)
+        { Cmd.state_focused_view = Just view_id }
+
+-- | It would be nicer to have this happen automatically.
+set_midi_config :: State.StateId ()
+set_midi_config = State.set_midi_config DeriveTest.default_midi_config
 
 type States = (State.State, Cmd.State)
 
 respond :: States -> [Msg.Msg]
     -> IO ([[Update.Update]], [[Midi.WriteMessage]], States)
-respond states [] = return ([], [], states)
-respond states (msg:msgs) = do
-    (updates, midi, states) <- respond_msg states msg
-    (rest_updates, rest_midi, final_states) <- respond states msgs
+respond states msgs = respond_delay states (zip msgs (repeat 0))
+
+respond_delay :: States -> [(Msg.Msg, Double)]
+    -> IO ([[Update.Update]], [[Midi.WriteMessage]], States)
+respond_delay states [] = return ([], [], states)
+respond_delay states ((msg, delay):msgs) = do
+    ((updates, midi, states), secs) <- Test.timer $ respond_msg states msg
+    Printf.printf "%s -> lag: %.2fs\n" (Pretty.pretty msg) secs
+    Thread.delay delay
+    (rest_updates, rest_midi, final_states) <- respond_delay states msgs
     return (force updates : rest_updates, force midi : rest_midi, final_states)
 
 force :: (DeepSeq.NFData a) => a -> a
@@ -52,7 +74,6 @@ respond_msg states msg = do
     midi_chan <- new_chan
     let rstate = make_rstate update_chan midi_chan states
     (_, rstate) <- Responder.respond rstate msg
-    -- Thread.delay 0.5
     midi <- get_vals midi_chan
     updates <- get_vals update_chan
     return (concat updates, midi,

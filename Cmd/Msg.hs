@@ -38,6 +38,8 @@ data Msg =
 
 instance Pretty.Pretty Msg where
     pretty (Ui msg) = "Ui: " ++ Pretty.pretty msg
+    pretty (Midi msg) = "Midi: " ++ Pretty.pretty msg
+    pretty (InputNote msg) = "Input: " ++ show msg
     pretty msg = show msg
 
 data DeriveStatus = Deriving | StartedDeriving | DeriveFailed

@@ -5,6 +5,7 @@ import qualified Midi.Midi as Midi
 
 import Util.Test
 import qualified Util.Log as Log
+import qualified Util.Thread as Thread
 
 import qualified Ui.Key as Key
 import qualified Ui.State as State
@@ -12,9 +13,35 @@ import qualified Ui.UiTest as UiTest
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
+import qualified Cmd.Create as Create
 import qualified Cmd.ResponderTest as ResponderTest
 import qualified Cmd.TimeStep as TimeStep
 
+import qualified Derive.Derive_profile as Derive_profile
+
+
+profile_edits_middle = do
+    -- Test editing a large score in the middle as a real user would.
+    Log.configure $ \st -> st { Log.state_log_level = Log.Warn }
+    let edit_block = UiTest.bid "b1.5.0"
+    let (view_id, ui_state) = UiTest.run State.empty $ do
+            ResponderTest.set_midi_config
+            Derive_profile.make_nested_controls "b1" 15 3 60
+            view_id <- Create.view edit_block
+            UiTest.select_point view_id 1 0.0
+            return view_id
+    let cmd_state = (ResponderTest.mk_cmd_state view_id)
+            { Cmd.state_edit_mode = Cmd.ValEdit }
+    -- pprint (UiTest.dump_block ui_state edit_block)
+
+    let wait = [(CmdTest.make_key True Key.ShiftL, 0.1),
+            (CmdTest.make_key False Key.ShiftL, 4)]
+        alter_note = [(CmdTest.m_note_on 0 64 127, 1),
+            (CmdTest.m_note_off 0 127, 1)]
+        keys = concat $ take 4 $ repeat alter_note
+    (updates, _mthru, states) <-
+        ResponderTest.respond_delay (ui_state, cmd_state) (wait ++ keys)
+    return ()
 
 profile_null_cmd = do
     -- Test a msg that matches no cmds so I can see how much garbage it
@@ -26,7 +53,7 @@ profile_null_cmd = do
     printf "%.2f sec, %.4f sec per cmd\n" cpu (cpu / (10*1024))
 
 profile_selection = do
-    Log.configure (\st -> st { Log.state_log_level = Log.Warn })
+    Log.configure $ \st -> st { Log.state_log_level = Log.Warn }
     let (ui_state, cmd_state) = ResponderTest.mkstates [(">i", [(0, 0, "")])]
     let ui_state2 = ui_state { State.state_rulers =
             Map.insert (UiTest.rid "b1.r0") (UiTest.mkruler 256 1)

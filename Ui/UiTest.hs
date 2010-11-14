@@ -144,11 +144,24 @@ mkstate_view block_id tracks = do
     mkview
     return r
 
+-- * view
+
+select :: (State.UiStateMonad m) => ViewId -> Maybe Types.Selection -> m ()
+select view_id sel = State.set_selection view_id Config.insert_selnum sel
+
+select_point :: (State.UiStateMonad m) => ViewId -> TrackNum -> ScoreTime
+    -> m ()
+select_point view_id tracknum pos =
+    select view_id (Types.point_selection tracknum pos)
+
 -- * extract from ustate
 
 extract_tracks :: State.State -> [(String, [Simple.Event])]
 extract_tracks ustate = map (\(_, title, events) -> (title, events)) tracks
     where (_, _, tracks) = eval ustate (Simple.dump_block default_block_id)
+
+dump_block :: State.State -> BlockId -> Simple.Block
+dump_block ustate block_id = eval ustate (Simple.dump_block block_id)
 
 -- * block
 
