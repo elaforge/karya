@@ -105,7 +105,7 @@ initial_state = State [] empty_allot_state empty_perform_state Map.empty
 -- This should be non-strict on the event list, so that it can start producing
 -- MIDI output as soon as it starts processing Events.
 perform :: State -> Instrument.Config -> Events
-    -> ([Midi.WriteMessage], [Warning.Warning], State)
+    -> (Messages, [Warning.Warning], State)
 perform state _ [] = ([], [], state)
 perform state config events =
     (final_msgs, warns,

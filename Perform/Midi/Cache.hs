@@ -48,8 +48,6 @@ cache_messages =
 
 -- | Return messages starting from a certain timestamp.  Subtract that
 -- timestamp from the message timestamps so they always start at 0.
---
--- TODO look at postproc state to initialize the controls properly
 messages_from :: Timestamp.Timestamp -> Cache -> Perform.Messages
 messages_from start cache = initialize_msgs ++
     map (Midi.add_timestamp (-start)) (Perform.merge_sorted_messages msgs)

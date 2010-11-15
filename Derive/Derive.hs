@@ -771,7 +771,7 @@ modify f = (DeriveT . lift) $ do
     Monad.State.put $! f old
 
 put :: (Monad m) => State -> DeriveT m ()
-put st = st `seq` (DeriveT . lift) (Monad.State.put $! st)
+put st = (DeriveT . lift) (Monad.State.put $! st)
 
 get :: (Monad m) => DeriveT m State
 get = (DeriveT . lift) Monad.State.get
