@@ -40,7 +40,9 @@ logs :: (MonadLogger w m) => [w] -> m ()
 logs msgs = mapM_ log msgs
 
 instance (Monad m) => MonadLogger w (LoggerT w m) where
-    log msg = LoggerT $ State.modify (msg:)
+    log msg = LoggerT $ do
+        ms <- State.get
+        State.put $! (msg:ms)
 
 -- | I think I can't automatically derive this because LoggerT itself is
 -- a StateT.
@@ -63,27 +65,3 @@ instance (MonadLogger w m) => MonadLogger w (Reader.ReaderT r m) where
 instance (Monoid.Monoid w, MonadLogger log m) =>
         MonadLogger log (Writer.WriterT w m) where
     log = Trans.lift . log
-
-
--- | This is currently unused, but should theoretically be more efficient than
--- (:) + reverse for large lists.  Unfortunately, it seems to be a lot less
--- efficient.  Add strictness?
-data AppendList a = Nil | Single a | Pair (AppendList a) (AppendList a)
-    deriving (Eq, Show)
-
-append :: AppendList a -> AppendList a -> AppendList a
-append Nil ys = ys
-append xs Nil = xs
-append xs ys = Pair xs ys
-
-from_list :: [a] -> AppendList a
-from_list [] = Nil
-from_list [a] = Single a
-from_list (x:xs) = Pair (Single x) (from_list xs)
-
-to_list :: AppendList a -> [a]
-to_list alist = go alist []
-    where
-    go Nil xs = xs
-    go (Single x) xs = x : xs
-    go (Pair xs1 xs2) ys = go xs1 (go xs2 ys)
