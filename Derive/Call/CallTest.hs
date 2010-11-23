@@ -12,10 +12,11 @@ import qualified Perform.Signal as Signal
 import qualified Derive.Score as Score
 
 
-transform :: Derive.Transformer -> Derive.Result Derive.Events
-transform deriver = DeriveTest.derive_note $
+transform :: (Derive.EventDeriver -> Derive.EventDeriver)
+    -> Derive.Result Derive.Events
+transform trans = DeriveTest.derive_note $
     Derive.with_constant_pitch Nothing (Pitch.Degree 60) $
-    deriver DeriveTest.d_note
+    trans DeriveTest.d_note
 
 run_pitch :: [(Double, String)]
     -> Either String [(PitchSignal.X, PitchSignal.Y)]

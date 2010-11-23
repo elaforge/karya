@@ -48,7 +48,7 @@ d_control_track block_id track_id deriver = Derive.catch_warn deriver $ do
     eval_track block_id track_id expr ctype deriver
 
 eval_track :: BlockId -> TrackId -> TrackLang.Expr -> TrackInfo.ControlType
-    -> Derive.Transformer
+    -> Derive.EventDeriver -> Derive.EventDeriver
 eval_track block_id track_id expr ctype deriver = do
     track <- Derive.get_track track_id
     let events = Track.event_list (Track.track_events track)
@@ -90,7 +90,7 @@ tempo_call block_id track_id sig_deriver deriver = do
 
 control_call :: TrackId -> Score.Control -> Maybe TrackLang.CallId
     -> Derive.Deriver (Derive.Control, Derive.EventDamage)
-    -> Derive.Transformer
+    -> Derive.EventDeriver -> Derive.EventDeriver
 control_call track_id control maybe_op control_deriver deriver = do
     (signal, damage) <- Derive.track_setup track_id control_deriver
     stash_signal track_id (Right (signal, fst <$> control_deriver))
@@ -103,7 +103,7 @@ control_call track_id control maybe_op control_deriver deriver = do
 
 pitch_call :: ScoreTime -> TrackId -> Maybe Score.Control
     -> TrackInfo.PitchType -> TrackLang.Expr -> [Track.PosEvent]
-    -> Derive.Transformer
+    -> Derive.EventDeriver -> Derive.EventDeriver
 pitch_call block_end track_id maybe_name ptype track_expr events deriver =
     Derive.track_setup track_id $ do
         (with_scale, scale) <- case ptype of

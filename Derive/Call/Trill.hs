@@ -66,7 +66,8 @@ c_absolute_trill = Derive.transformer "absolute_trill" $
         speed_sig <- Call.to_signal speed
         absolute_trill neighbor_sig speed_sig deriver
 
-absolute_trill :: Signal.Control -> Signal.Control -> Derive.Transformer
+absolute_trill :: Signal.Control -> Signal.Control
+    -> Derive.EventDeriver -> Derive.EventDeriver
 absolute_trill neighbor speed deriver = do
     real_start <- Derive.now
     real_end <- Derive.score_to_real 1

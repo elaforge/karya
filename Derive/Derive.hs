@@ -77,7 +77,26 @@ import qualified Derive.TrackLang as TrackLang
 
 -- * DeriveT
 
+newtype DeriveT m a = DeriveT (DeriveStack m a)
+    deriving (Functor, Monad, Trans.MonadIO, Error.MonadError DeriveError)
+run_derive_t (DeriveT m) = m
+
+instance (Monad m) => Applicative.Applicative (DeriveT m) where
+    pure = return
+    (<*>) = ap
+
+type DeriveStack m = Error.ErrorT DeriveError
+    (Monad.State.StateT State
+        (Log.LogT m))
+
 type Deriver a = DeriveT Identity.Identity a
+
+run :: (Monad m) =>
+    State -> DeriveT m a -> m (Either DeriveError a, State, [Log.Msg])
+run derive_state m = do
+    ((err, state2), logs) <- (Log.run . flip Monad.State.runStateT derive_state
+        . Error.runErrorT . run_derive_t) m
+    return (err, state2, logs)
 
 class (Show (Elem derived), Eq (Elem derived), Monoid.Monoid derived,
         Show derived) => Derived derived where
@@ -90,6 +109,17 @@ class (Show (Elem derived), Eq (Elem derived), Monoid.Monoid derived,
     derived_length :: derived -> Int
     derived_range :: derived -> Ranges.Ranges RealTime
     empty_derived :: derived
+
+-- ** events
+
+type EventDeriver = Deriver Events
+type Events = [Score.Event]
+
+no_events :: Events
+no_events = []
+
+empty_events :: EventDeriver
+empty_events = return no_events
 
 instance Derived Events where
     type Elem Events = Score.Event
@@ -106,6 +136,17 @@ instance Derived Events where
             _ -> Ranges.nothing
     empty_derived = []
 
+-- ** control
+
+type ControlDeriver = Deriver Control
+type Control = Signal.Control
+
+no_control :: Control
+no_control = Signal.empty
+
+empty_control :: ControlDeriver
+empty_control = return no_control
+
 instance Derived Control where
     type Elem Control = Signal.Y
     from_cache_entry (CachedControl ctype) = Just ctype
@@ -116,41 +157,6 @@ instance Derived Control where
         (Just (x1, _), Just (x2, _)) -> Ranges.range x1 x2
         _ -> Ranges.nothing
     empty_derived = Signal.empty
-
-instance Derived Pitch where
-    type Elem Pitch = PitchSignal.Y
-    from_cache_entry (CachedPitch ctype) = Just ctype
-    from_cache_entry _ = Nothing
-    to_cache_entry = CachedPitch
-    derived_length = PitchSignal.length
-    derived_range sig = case (PitchSignal.first sig, PitchSignal.last sig) of
-        (Just (x1, _), Just (x2, _)) -> Ranges.range x1 x2
-        _ -> Ranges.nothing
-    empty_derived = PitchSignal.empty
-
-
--- ** events
-
-type EventDeriver = Deriver Events
-type Events = [Score.Event]
-
-no_events :: Events
-no_events = []
-
-empty_events :: EventDeriver
-empty_events = return no_events
-
--- ** control
-
-type ControlDeriver = Deriver Control
-type Control = Signal.Control
-type DisplaySignalDeriver = Deriver [(TrackId, Signal.Display)]
-
-no_control :: Control
-no_control = Signal.empty
-
-empty_control :: ControlDeriver
-empty_control = return no_control
 
 -- ** pitch
 
@@ -163,22 +169,18 @@ no_pitch = PitchSignal.empty
 empty_pitch :: PitchDeriver
 empty_pitch = return no_pitch
 
+instance Derived Pitch where
+    type Elem Pitch = PitchSignal.Y
+    from_cache_entry (CachedPitch ctype) = Just ctype
+    from_cache_entry _ = Nothing
+    to_cache_entry = CachedPitch
+    derived_length = PitchSignal.length
+    derived_range sig = case (PitchSignal.first sig, PitchSignal.last sig) of
+        (Just (x1, _), Just (x2, _)) -> Ranges.range x1 x2
+        _ -> Ranges.nothing
+    empty_derived = PitchSignal.empty
+
 -- ** state
-
--- TODO remove this
-type TrackDeriver m e = TrackId -> DeriveT m [e]
-
-newtype DeriveT m a = DeriveT (DeriveStack m a)
-    deriving (Functor, Monad, Trans.MonadIO, Error.MonadError DeriveError)
-run_derive_t (DeriveT m) = m
-
-instance (Monad m) => Applicative.Applicative (DeriveT m) where
-    pure = return
-    (<*>) = ap
-
-type DeriveStack m = Error.ErrorT DeriveError
-    (Monad.State.StateT State
-        (Log.LogT m))
 
 data State = State {
     -- Signal environment.  These form a dynamically scoped environment that
@@ -534,10 +536,7 @@ transformer name func = Call
 
 -- | The call for the whole control track.
 type ControlTrackCall = BlockId -> TrackId -> PassedArgs Control
-    -> Deriver Transformer
-
--- TODO remove?
-type Transformer = EventDeriver -> EventDeriver
+    -> Deriver (EventDeriver -> EventDeriver)
 
 make_calls :: [(String, call)] -> Map.Map TrackLang.CallId call
 make_calls = Map.fromList . map (first TrackLang.Symbol)
@@ -605,7 +604,7 @@ data Result a = Result {
 -- The derivation state is quite involved, so there are a lot of arguments
 -- here.
 derive :: Constant -> [Scope] -> Cache -> ScoreDamage -> TrackLang.Environ
-    -> DeriveT Identity.Identity a -> Result a
+    -> Deriver a -> Result a
 derive constant scopes cache damage environ deriver =
     Result result (state_cache (state_cache_state state))
         event_damage tempo_func closest_func inv_tempo_func
@@ -720,13 +719,6 @@ d_subderive deriver = do
             -- should copy back only that part
             put state2
             return val
-
-run :: (Monad m) =>
-    State -> DeriveT m a -> m (Either DeriveError a, State, [Log.Msg])
-run derive_state m = do
-    ((err, state2), logs) <- (Log.run . flip Monad.State.runStateT derive_state
-        . Error.runErrorT . run_derive_t) m
-    return (err, state2, logs)
 
 make_tempo_func :: [TrackWarp] -> Transport.TempoFunction
 make_tempo_func track_warps block_id track_id pos =
