@@ -91,12 +91,14 @@ type DeriveStack m = Error.ErrorT DeriveError
 
 type Deriver a = DeriveT Identity.Identity a
 
-run :: (Monad m) =>
-    State -> DeriveT m a -> m (Either DeriveError a, State, [Log.Msg])
-run derive_state m = do
-    ((err, state2), logs) <- (Log.run . flip Monad.State.runStateT derive_state
-        . Error.runErrorT . run_derive_t) m
-    return (err, state2, logs)
+run :: State -> Deriver a -> (Either DeriveError a, State, [Log.Msg])
+run derive_state m = (err, state2, logs)
+    where
+    ((err, state2), logs) = (Identity.runIdentity
+        . Log.run
+        . flip Monad.State.runStateT derive_state
+        . Error.runErrorT
+        . run_derive_t) m
 
 class (Show (Elem derived), Eq (Elem derived), Monoid.Monoid derived,
         Show derived) => Derived derived where
@@ -558,8 +560,7 @@ data TrackWarp = TrackWarp {
     , tw_warp :: Score.Warp
     } deriving (Eq, Show)
 
-
-instance Monad m => Log.LogMonad (DeriveT m) where
+instance (Monad m) => Log.LogMonad (DeriveT m) where
     write = DeriveT . lift . lift . Log.write
     initialize_msg msg = do
         -- If the msg was created by *_stack (for instance, by 'catch_warn'),
@@ -610,8 +611,8 @@ derive constant scopes cache damage environ deriver =
         event_damage tempo_func closest_func inv_tempo_func
         (collect_track_signals (state_collect state)) logs state
     where
-    (result, state, logs) = Identity.runIdentity $ run
-        (initial_state scopes clean_cache damage environ constant) deriver
+    (result, state, logs) =
+        run (initial_state scopes clean_cache damage environ constant) deriver
     clean_cache = clear_damage damage cache
     track_warps = collect_track_warps (state_collect state)
     tempo_func = make_tempo_func track_warps
@@ -683,7 +684,7 @@ d_block block_id = do
 d_subderive :: (Derived derived) => Deriver derived -> Deriver derived
 d_subderive deriver = do
     state <- get
-    let (res, state2, logs) = Identity.runIdentity $ run state deriver
+    let (res, state2, logs) = run state deriver
     mapM_ Log.write logs
     case res of
         Left err -> do
@@ -757,14 +758,15 @@ make_inverse_tempo_func track_warps ts = do
             tw <- track_warps, tw_start tw <= pos && pos < tw_end tw]
     unwarp ts warp = Score.unwarp_pos (Timestamp.to_real_time ts) warp
 
-modify :: (Monad m) => (State -> State) -> DeriveT m ()
+modify :: (State -> State) -> Deriver ()
 modify f = (DeriveT . lift) $ do
     old <- Monad.State.get
     Monad.State.put $! f old
 
-put :: (Monad m) => State -> DeriveT m ()
+put :: State -> Deriver ()
 put st = (DeriveT . lift) (Monad.State.put $! st)
 
+-- The Monad polymorphism is required for the LogMonad instance.
 get :: (Monad m) => DeriveT m State
 get = (DeriveT . lift) Monad.State.get
 
@@ -774,8 +776,8 @@ gets f = fmap f get
 -- | This is a little different from Reader.local because only a portion of
 -- the state is used Reader-style.
 -- TODO split State into dynamically scoped portion and use Reader for that.
-local :: (Monad m) => (State -> b) -> (b -> State -> State)
-    -> (State -> DeriveT m State) -> DeriveT m a -> DeriveT m a
+local :: (State -> b) -> (b -> State -> State)
+    -> (State -> Deriver State) -> Deriver a -> Deriver a
 local from_state to_state modify_state deriver = do
     old <- gets from_state
     new <- modify_state =<< get
@@ -801,7 +803,7 @@ lookup_scale scale_id = do
 
 -- ** collect
 
-modify_collect :: (Monad m) => (Collect -> Collect) -> DeriveT m ()
+modify_collect :: (Collect -> Collect) -> Deriver ()
 modify_collect f = modify $ \st -> st { state_collect = f (state_collect st) }
 
 -- ** cache
@@ -917,22 +919,22 @@ instance Pretty.Pretty CallError where
         ArgError err -> "ArgError: " ++ err
         CallNotFound call_id -> "CallNotFound: " ++ Pretty.pretty call_id
 
-throw :: (Monad m) => String -> DeriveT m a
+throw :: String -> Deriver a
 throw msg = throw_error (Error msg)
 
-throw_srcpos :: (Monad m) => SrcPos.SrcPos -> String -> DeriveT m a
+throw_srcpos :: SrcPos.SrcPos -> String -> Deriver a
 throw_srcpos srcpos msg = throw_error_srcpos srcpos (Error msg)
 
-throw_arg_error :: (Monad m) => String -> DeriveT m a
+throw_arg_error :: String -> Deriver a
 throw_arg_error = throw_arg_error_srcpos Nothing
 
-throw_arg_error_srcpos :: (Monad m) => SrcPos.SrcPos -> String -> DeriveT m a
+throw_arg_error_srcpos :: SrcPos.SrcPos -> String -> Deriver a
 throw_arg_error_srcpos srcpos = throw_error_srcpos srcpos . CallError . ArgError
 
-throw_error :: (Monad m) => ErrorVal -> DeriveT m a
+throw_error :: ErrorVal -> Deriver a
 throw_error = throw_error_srcpos Nothing
 
-throw_error_srcpos :: (Monad m) => SrcPos.SrcPos -> ErrorVal -> DeriveT m a
+throw_error_srcpos :: SrcPos.SrcPos -> ErrorVal -> Deriver a
 throw_error_srcpos srcpos err = do
     stack <- gets state_stack
     Error.throwError (DeriveError srcpos stack err)
@@ -940,14 +942,14 @@ throw_error_srcpos srcpos err = do
 require :: String -> Maybe a -> Deriver a
 require msg = maybe (throw msg) return
 
-with_msg :: (Monad m) => String -> DeriveT m a -> DeriveT m a
+with_msg :: String -> Deriver a -> Deriver a
 with_msg msg = local state_log_context
     (\old st -> st { state_log_context = old })
     (\st -> return $ st { state_log_context = msg : state_log_context st })
 
 -- | If the derive throws, turn the error into a warning and return a default
 -- value.
-catch_warn :: (Monad m) => DeriveT m a -> DeriveT m a -> DeriveT m a
+catch_warn :: Deriver a -> Deriver a -> Deriver a
 catch_warn deflt deriver = Error.catchError deriver $
     \err -> Log.write (error_to_warn err) >> deflt
 
@@ -959,8 +961,8 @@ error_to_warn (DeriveError srcpos stack val) =
 
 -- ** environment
 
-lookup_val :: forall a m. (TrackLang.Typecheck a, Monad m) =>
-    TrackLang.ValName -> DeriveT m (Maybe a)
+lookup_val :: forall a. (TrackLang.Typecheck a) =>
+    TrackLang.ValName -> Deriver (Maybe a)
 lookup_val name = do
     environ <- gets state_environ
     let return_type = TrackLang.to_type (Prelude.error "lookup_val" :: a)
@@ -973,8 +975,8 @@ lookup_val name = do
             Right v -> return (Just v)
 
 -- | Like 'lookup_val', but throw if the value isn't present.
-require_val :: forall a m. (TrackLang.Typecheck a, Monad m) =>
-    TrackLang.ValName -> DeriveT m a
+require_val :: forall a. (TrackLang.Typecheck a) =>
+    TrackLang.ValName -> Deriver a
 require_val name = do
     val <- lookup_val name
     maybe (throw $ "environ val not found: " ++ Pretty.pretty name) return val
@@ -992,8 +994,8 @@ with_val name val =
         environ <- insert_environ name val (state_environ st)
         return (st { state_environ = environ })
 
-insert_environ :: (Monad m, TrackLang.Typecheck val) => TrackLang.ValName
-    -> val -> TrackLang.Environ -> DeriveT m TrackLang.Environ
+insert_environ :: (TrackLang.Typecheck val) => TrackLang.ValName
+    -> val -> TrackLang.Environ -> Deriver TrackLang.Environ
 insert_environ name val environ =
     case TrackLang.put_val name val environ of
         Left typ -> throw $ "can't set " ++ show name ++ " to "
@@ -1010,7 +1012,7 @@ type PitchOp = PitchSignal.PitchSignal -> PitchSignal.Relative
 -- | Return an entire signal.  Remember, signals are in RealTime, so if you
 -- want to index them in ScoreTime you will have to call 'score_to_real'.
 -- 'control_at_score' does that for you.
-get_control :: (Monad m) => Score.Control -> DeriveT m (Maybe Signal.Control)
+get_control :: Score.Control -> Deriver (Maybe Signal.Control)
 get_control cont = Map.lookup cont <$> gets state_controls
 
 control_at_score :: Score.Control -> ScoreTime -> Deriver (Maybe Signal.Y)
@@ -1021,35 +1023,31 @@ control_at cont pos = do
     controls <- gets state_controls
     return $ fmap (\sig -> Signal.at pos sig) (Map.lookup cont controls)
 
-pitch_at_score :: (Monad m) => ScoreTime -> DeriveT m PitchSignal.Y
+pitch_at_score :: ScoreTime -> Deriver PitchSignal.Y
 pitch_at_score pos = pitch_at =<< score_to_real pos
 
-pitch_at :: (Monad m) => RealTime -> DeriveT m PitchSignal.Y
+pitch_at :: RealTime -> Deriver PitchSignal.Y
 pitch_at pos = do
     psig <- gets state_pitch
     return (PitchSignal.at pos psig)
 
-pitch_degree_at :: (Monad m) => RealTime -> DeriveT m Pitch.Degree
+pitch_degree_at :: RealTime -> Deriver Pitch.Degree
 pitch_degree_at pos = PitchSignal.y_to_degree <$> pitch_at pos
 
-get_named_pitch :: (Monad m) => Score.Control
-    -> DeriveT m (Maybe PitchSignal.PitchSignal)
+get_named_pitch :: Score.Control -> Deriver (Maybe PitchSignal.PitchSignal)
 get_named_pitch name = Map.lookup name <$> gets state_pitches
 
-named_pitch_at :: (Monad m) => Score.Control -> RealTime
-    -> DeriveT m (Maybe PitchSignal.Y)
+named_pitch_at :: Score.Control -> RealTime -> Deriver (Maybe PitchSignal.Y)
 named_pitch_at name pos = do
     maybe_psig <- get_named_pitch name
     return $ PitchSignal.at pos <$> maybe_psig
 
-named_degree_at :: (Monad m) => Score.Control -> RealTime
-    -> DeriveT m (Maybe Pitch.Degree)
+named_degree_at :: Score.Control -> RealTime -> Deriver (Maybe Pitch.Degree)
 named_degree_at name pos = do
     y <- named_pitch_at name pos
     return $ fmap PitchSignal.y_to_degree y
 
-with_control :: (Monad m) =>
-    Score.Control -> Signal.Control -> DeriveT m t -> DeriveT m t
+with_control :: Score.Control -> Signal.Control -> Deriver a -> Deriver a
 with_control cont signal deriver = do
     controls <- gets state_controls
     -- TODO only revert the specific control
@@ -1059,14 +1057,14 @@ with_control cont signal deriver = do
     modify $ \st -> st { state_controls = controls }
     return result
 
-with_control_operator :: (Monad m) => Score.Control -> TrackLang.CallId
-    -> Signal.Control -> DeriveT m t -> DeriveT m t
+with_control_operator :: Score.Control -> TrackLang.CallId
+    -> Signal.Control -> Deriver a -> Deriver a
 with_control_operator cont c_op signal deriver = do
     op <- lookup_control_op c_op
     with_relative_control cont op signal deriver
 
-with_relative_control :: (Monad m) =>
-    Score.Control -> ControlOp -> Signal.Control -> DeriveT m t -> DeriveT m t
+with_relative_control :: Score.Control -> ControlOp -> Signal.Control
+    -> Deriver a -> Deriver a
 with_relative_control cont op signal deriver = do
     controls <- gets state_controls
     let msg = "relative control applied when no absolute control is in scope: "
@@ -1078,19 +1076,19 @@ with_relative_control cont op signal deriver = do
 
 -- | Run the deriver in a context with the given pitch signal.  If a Control is
 -- given, the pitch has that name, otherwise it's the unnamed default pitch.
-with_pitch :: (Monad m) => Maybe Score.Control
-    -> PitchSignal.PitchSignal -> DeriveT m t -> DeriveT m t
+with_pitch :: Maybe Score.Control -> PitchSignal.PitchSignal
+    -> Deriver a -> Deriver a
 with_pitch = modify_pitch (flip const)
 
-with_constant_pitch :: (Monad m) => Maybe Score.Control -> Pitch.Degree
-    -> DeriveT m t -> DeriveT m t
+with_constant_pitch :: Maybe Score.Control -> Pitch.Degree
+    -> Deriver a -> Deriver a
 with_constant_pitch maybe_name degree deriver = do
     pitch <- gets state_pitch
     with_pitch maybe_name
         (PitchSignal.constant (PitchSignal.sig_scale pitch) degree) deriver
 
-with_relative_pitch :: (Monad m) => Maybe Score.Control
-    -> PitchOp -> PitchSignal.Relative -> DeriveT m t -> DeriveT m t
+with_relative_pitch :: Maybe Score.Control
+    -> PitchOp -> PitchSignal.Relative -> Deriver a -> Deriver a
 with_relative_pitch maybe_name sig_op signal deriver = do
     old <- gets state_pitch
     if old == PitchSignal.empty
@@ -1101,17 +1099,16 @@ with_relative_pitch maybe_name sig_op signal deriver = do
             deriver
         else modify_pitch sig_op maybe_name signal deriver
 
-with_pitch_operator :: (Monad m) => Maybe Score.Control
-    -> TrackLang.CallId -> PitchSignal.Relative -> DeriveT m t -> DeriveT m t
+with_pitch_operator :: Maybe Score.Control
+    -> TrackLang.CallId -> PitchSignal.Relative -> Deriver a -> Deriver a
 with_pitch_operator maybe_name c_op signal deriver = do
     sig_op <- lookup_pitch_control_op c_op
     with_relative_pitch maybe_name sig_op signal deriver
 
-modify_pitch :: (Monad m) =>
-    (PitchSignal.PitchSignal -> PitchSignal.PitchSignal
+modify_pitch :: (PitchSignal.PitchSignal -> PitchSignal.PitchSignal
         -> PitchSignal.PitchSignal)
     -> Maybe Score.Control -> PitchSignal.PitchSignal
-    -> DeriveT m t -> DeriveT m t
+    -> Deriver a -> Deriver a
 modify_pitch f Nothing signal = local
     state_pitch (\old st -> st { state_pitch = old })
     (\st -> return $ st { state_pitch = f (state_pitch st) signal })
@@ -1141,7 +1138,7 @@ with_velocity = with_control Score.c_velocity
 
 -- *** control ops
 
-lookup_control_op :: (Monad m) => TrackLang.CallId -> DeriveT m ControlOp
+lookup_control_op :: TrackLang.CallId -> Deriver ControlOp
 lookup_control_op c_op = do
     op_map <- gets (state_control_op_map . state_constant)
     maybe (throw ("unknown control op: " ++ show c_op)) return
@@ -1158,7 +1155,7 @@ default_control_op_map = Map.fromList $ map (first TrackLang.Symbol)
     , ("min", Signal.sig_min)
     ]
 
-lookup_pitch_control_op :: (Monad m) => TrackLang.CallId -> DeriveT m PitchOp
+lookup_pitch_control_op :: TrackLang.CallId -> Deriver PitchOp
 lookup_pitch_control_op c_op = do
     op_map <- gets (state_pitch_op_map . state_constant)
     maybe (throw ("unknown pitch op: " ++ show c_op)) return
@@ -1174,7 +1171,7 @@ default_pitch_op_map = Map.fromList $ map (first TrackLang.Symbol)
 
 -- ** stack
 
-get_current_block_id :: (Monad m) => DeriveT m BlockId
+get_current_block_id :: Deriver BlockId
 get_current_block_id = do
     stack <- gets state_stack
     case [bid | Stack.Block bid <- Stack.innermost stack] of
@@ -1213,7 +1210,7 @@ with_stack frame = local
 -- The hack should work as long as 'start_new_warp' is called when the warp is
 -- set ('d_tempo' does this).  Otherwise, tracks will be grouped with the wrong
 -- tempo, which will cause the playback cursor to not track properly.
-add_track_warp :: (Monad m) => TrackId -> DeriveT m ()
+add_track_warp :: TrackId -> Deriver ()
 add_track_warp track_id = do
     block_id <- get_current_block_id
     track_warps <- gets (collect_track_warps . state_collect)
@@ -1232,7 +1229,7 @@ add_track_warp track_id = do
 --
 -- This must be called for each block, and it must be called after the tempo is
 -- warped for that block so it can install the new warp.
-start_new_warp :: (Monad m) => DeriveT m ()
+start_new_warp :: Deriver ()
 start_new_warp = do
     block_id <- get_current_block_id
     start <- now
@@ -1251,15 +1248,15 @@ start_new_warp = do
 -- tempo: trackpos over time.  Warp is the time warping that the tempo implies,
 -- which is integral (1/tempo).
 
-score_to_real :: (Monad m) => ScoreTime -> DeriveT m RealTime
+score_to_real :: ScoreTime -> Deriver RealTime
 score_to_real pos = do
     warp <- gets state_warp
     return (Score.warp_pos pos warp)
 
-now :: (Monad m) => DeriveT m RealTime
+now :: Deriver RealTime
 now = score_to_real 0
 
-real_to_score :: (Monad m) => RealTime -> DeriveT m ScoreTime
+real_to_score :: RealTime -> Deriver ScoreTime
 real_to_score pos = do
     warp <- gets state_warp
     maybe (throw $ "real_to_score out of range: " ++ show pos) return
@@ -1268,19 +1265,19 @@ real_to_score pos = do
 min_tempo :: Signal.Y
 min_tempo = 0.001
 
-d_at :: (Monad m) => ScoreTime -> DeriveT m a -> DeriveT m a
+d_at :: ScoreTime -> Deriver a -> Deriver a
 d_at shift = d_warp (Score.id_warp { Score.warp_shift = shift })
 
-d_stretch :: (Monad m) => ScoreTime -> DeriveT m a -> DeriveT m a
+d_stretch :: ScoreTime -> Deriver a -> Deriver a
 d_stretch factor = d_warp (Score.id_warp { Score.warp_stretch = factor })
 
 -- | 'd_at' and 'd_stretch' in one.  It's a little faster than using them
 -- separately.
-d_place :: (Monad m) => ScoreTime -> ScoreTime -> DeriveT m a -> DeriveT m a
+d_place :: ScoreTime -> ScoreTime -> Deriver a -> Deriver a
 d_place shift stretch = d_warp
     (Score.id_warp { Score.warp_stretch = stretch, Score.warp_shift = shift })
 
-d_warp :: (Monad m) => Score.Warp -> DeriveT m a -> DeriveT m a
+d_warp :: Score.Warp -> Deriver a -> Deriver a
 d_warp warp deriver
     | Score.is_id_warp warp = deriver
     | Score.warp_stretch warp <= 0 =
@@ -1290,12 +1287,11 @@ d_warp warp deriver
             st { state_warp = Score.compose_warps (state_warp st) warp })
         deriver
 
-with_warp :: (Monad m) => (Score.Warp -> Score.Warp) -> DeriveT m a
-    -> DeriveT m a
+with_warp :: (Score.Warp -> Score.Warp) -> Deriver a -> Deriver a
 with_warp f = local state_warp (\w st -> st { state_warp = w }) $ \st ->
     return $ st { state_warp = f (state_warp st) }
 
-in_real_time :: (Monad m) => DeriveT m a -> DeriveT m a
+in_real_time :: Deriver a -> Deriver a
 in_real_time = with_warp (const Score.id_warp)
 
 -- | Shift the controls of a deriver.  You're supposed to apply the warp before
@@ -1338,8 +1334,7 @@ d_control_at shift deriver = do
 -- TODO what to do about blocks with multiple tempo tracks?  I think it would
 -- be best to stretch the block to the first one.  I could break out
 -- stretch_to_1 and have compile apply it to only the first tempo track.
-d_tempo :: (Monad m) => BlockId -> Maybe TrackId -> Signal.Tempo
-    -> DeriveT m a -> DeriveT m a
+d_tempo :: BlockId -> Maybe TrackId -> Signal.Tempo -> Deriver a -> Deriver a
 d_tempo block_id maybe_track_id signal deriver = do
     let warp = tempo_to_warp signal
     root <- is_root_block
@@ -1357,7 +1352,7 @@ d_tempo block_id maybe_track_id signal deriver = do
         when_just maybe_track_id add_track_warp
         deriver
 
-is_root_block :: (Monad m) => DeriveT m Bool
+is_root_block :: Deriver Bool
 is_root_block = do
     stack <- gets state_stack
     let blocks = [bid | Stack.Block bid <- Stack.outermost stack]
@@ -1370,7 +1365,7 @@ is_root_block = do
 -- function defines the length of a block.  'event_end' seems the most
 -- intuitive, but then you can't make blocks with trailing space.  You can
 -- work around it though by appending a comment dummy event.
-get_block_dur :: (Monad m) => BlockId -> DeriveT m ScoreTime
+get_block_dur :: BlockId -> Deriver ScoreTime
 get_block_dur block_id = do
     ui_state <- get_ui_state
     either (throw . ("get_block_dur: "++) . show) return
@@ -1408,21 +1403,21 @@ setup_without_warp = in_real_time
 
 -- * utils
 
-get_ui_state :: (Monad m) => DeriveT m State.State
+get_ui_state :: Deriver State.State
 get_ui_state = gets (state_ui . state_constant)
 
 -- | Because DeriveT is not a UiStateMonad.
 --
 -- TODO I suppose it could be, but then I'd be tempted to make
 -- a ReadOnlyUiStateMonad.  And I'd have to merge the exceptions.
-get_track :: (Monad m) => TrackId -> DeriveT m Track.Track
+get_track :: TrackId -> Deriver Track.Track
 get_track track_id = lookup_id track_id . State.state_tracks =<< get_ui_state
 
-get_block :: (Monad m) => BlockId -> DeriveT m Block.Block
+get_block :: BlockId -> Deriver Block.Block
 get_block block_id = lookup_id block_id . State.state_blocks =<< get_ui_state
 
 -- | Lookup @map!key@, throwing if it doesn't exist.
-lookup_id :: (Ord k, Show k, Monad m) => k -> Map.Map k a -> DeriveT m a
+lookup_id :: (Ord k, Show k) => k -> Map.Map k a -> Deriver a
 lookup_id key map = case Map.lookup key map of
     Nothing -> throw $ "unknown " ++ show key
     Just val -> return val
@@ -1434,9 +1429,8 @@ lookup_id key map = case Map.lookup key map of
 -- caught and turned into warnings.  Events that threw aren't included in the
 -- output.  An additional function extracts an event, so you can map over
 -- things which are not themselves events.
-map_events :: (Monad m) =>
-    (state -> event -> DeriveT m (state, result))
-    -> state -> (event -> Score.Event) -> [event] -> DeriveT m (state, [result])
+map_events :: (state -> event -> Deriver (state, result))
+    -> state -> (event -> Score.Event) -> [event] -> Deriver (state, [result])
 map_events f state event_of xs = do
     (final_state, results) <- map_accuml_m apply state xs
     return (final_state, Maybe.catMaybes results)
@@ -1451,21 +1445,20 @@ map_events f state event_of xs = do
 -- their stack based on the current event_stack, which is set by the
 -- with_stack_* functions.  Then, when they are processed, the stack is used
 -- to *set* event_stack, which is what 'Log.warn' and 'throw' will look at.
-with_event :: (Monad m) => Score.Event -> DeriveT m a -> DeriveT m a
+with_event :: Score.Event -> Deriver a -> Deriver a
 with_event event = local state_stack
     (\old st -> st { state_stack = old })
     (\st -> return $ st { state_stack = Score.event_stack event })
 
 -- ** merge
 
-d_merge :: (Monad m) => DeriveT m Events -> DeriveT m Events
-    -> DeriveT m Events
+d_merge :: Deriver Events -> Deriver Events -> Deriver Events
 d_merge = liftM2 merge_events
 
 -- | Merge a list of EventDerivers.  The precondition is that the events
 -- generated are ascending, so that the first event of each deriver is at or
 -- after the first event of the next deriver.
-d_merge_asc :: (Monad m) => [DeriveT m Events] -> DeriveT m Events
+d_merge_asc :: [Deriver Events] -> Deriver Events
 d_merge_asc = fmap merge_asc_events . sequence
 -- d_merge_asc = foldr d_merge (return [])
 

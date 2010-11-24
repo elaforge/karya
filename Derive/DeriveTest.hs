@@ -1,6 +1,5 @@
 module Derive.DeriveTest where
 import Control.Monad
-import qualified Control.Monad.Identity as Identity
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -58,7 +57,7 @@ pitch_interpolate x0 y0 x1 y1 = drop 1 [(x, (y0, y1, to_n x)) | x <- [x0 .. x1]]
 run :: State.State -> Derive.Deriver a
     -> Either String (a, Derive.State, [Log.Msg])
 run ui_state m =
-    case Identity.runIdentity (Derive.run derive_state m) of
+    case Derive.run derive_state m of
         (Left err, _, _logs) -> Left (Pretty.pretty err)
         (Right val, state, logs) -> Right (val, state, logs)
     where
