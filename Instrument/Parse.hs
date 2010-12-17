@@ -21,6 +21,19 @@ import qualified Perform.Midi.Instrument as Instrument
 
 -- * patch file
 
+-- type Parser = Parse.Parser State
+type Parser a = Parsec.GenParser Char State a
+
+data State = State {
+    state_prev :: String
+    , state_bank :: Integer
+    , state_patch_num :: Integer
+    }
+empty_state = State "" 0 0
+
+-- | name, category, bank, patch_num
+data PatchLine = PatchLine String String Integer Integer deriving (Show)
+
 patch_file :: FilePath -> IO [Instrument.Patch]
 patch_file fn = do
     parsed <- parse_patch_file fn
@@ -28,10 +41,27 @@ patch_file fn = do
         Left err -> error $ "parse patches: " ++ show err
         Right patches -> return patches
 
+-- | Parse a simple ad-hoc text file format to describe a synth's built-in
+-- patches.
+--
+-- If a line looks like @<word>, <word>@, the first word will be the patch name
+-- and the second will be be the @category@ tag.  If there is only one word,
+-- the patch inherits the previous line's category.
+--
+-- The patch's program change is incremented for each patch.  A line like
+-- @*bank <num>@ sets the bank number and resets the program change to 0.
+--
+-- Comments start with @#@, and blank lines are ignored.
+--
+-- There is no support currently for other attributes, but they could be added
+-- later if needed.
+parse_patch_file :: String -> IO (Either Parsec.ParseError [Instrument.Patch])
+-- parse_patch_file fn = Parsec.Text.parseFromFile p_patch_file empty_state fn
 parse_patch_file fn = do
     contents <- readFile fn
-    return $ Parsec.runParser p_patch_file initial_state fn contents
+    return $ Parsec.runParser p_patch_file empty_state fn contents
 
+p_patch_file :: Parser [Instrument.Patch]
 p_patch_file = do
     plines <- p_patch_lines
     return $ map (make_patch (-2, 2)) plines
@@ -50,6 +80,7 @@ make_patch pb_range (PatchLine name cat bank patch_num) =
 p_patch_lines = fmap Maybe.catMaybes $ Parsec.many p_line
 p_line = Parsec.try p_bank_decl <|> p_rest_of_line <|> fmap Just p_patch_line
 
+p_patch_line :: Parser PatchLine
 p_patch_line = do
     st <- Parsec.getState
     name <- word <?> "name"
@@ -63,6 +94,7 @@ p_patch_line = do
     word = Parsec.many1 (Parsec.noneOf "\n,")
     comma = Parsec.string ", "
 
+p_bank_decl :: Parser (Maybe PatchLine)
 p_bank_decl = do
     Parsec.string "*bank"
     Parsec.skipMany1 Parsec.space
@@ -71,6 +103,7 @@ p_bank_decl = do
     Parsec.setState (st { state_bank = n, state_patch_num = 0 })
     return Nothing
 
+p_rest_of_line :: Parser (Maybe PatchLine)
 p_rest_of_line = do
     spaces
     Parsec.optional (Parsec.char '#' >> Parsec.skipMany (Parsec.noneOf "\n"))
@@ -78,19 +111,12 @@ p_rest_of_line = do
     return Nothing
     where spaces = Parsec.skipMany (Parsec.oneOf " \t")
 
-data State = State {
-    state_prev :: String
-    , state_bank :: Integer
-    , state_patch_num :: Integer
-    }
-initial_state = State "" 0 0
-
-data PatchLine = PatchLine String String Integer Integer deriving (Show)
-
 
 -- * sysex
 
-type ByteParser = Parsec.GenParser (Parsec.Pos.SourcePos, Word.Word8)
+-- | Parse a sysex file as a stream of Word8s.  TODO this should be ByteString
+-- type ByteParser st = Parsec.Parsec [(Parsec.Pos.SourcePos, Word.Word8)] st
+type ByteParser st = Parsec.GenParser (Parsec.Pos.SourcePos, Word.Word8) st
 
 parse_sysex_dir :: ByteParser () Instrument.Patch -> FilePath
     -> IO [Instrument.Patch]
