@@ -34,6 +34,10 @@ instance DeepSeq.NFData WriteMessage where
 instance DeepSeq.NFData ReadMessage where
     rnf (ReadMessage dev ts msg) = dev `seq` ts `seq` rnf msg
 
+instance Pretty.Pretty ReadMessage where
+    pretty (ReadMessage (ReadDevice dev) ts msg) =
+        dev ++ ", " ++ Pretty.pretty ts ++ ": " ++ Pretty.pretty msg
+
 -- * devices
 
 -- | Implementation independent representation of a MIDI Device.
