@@ -101,7 +101,7 @@ UNSORTED
     changed, maybe tracks in calls above the modified one?
   * Circular imports of Derive.Derive and Derive.Scale causes a lot of
     recompiling.  Can I eliminate or reduce it?
-  - Derive.with_* should use local, or at least finally
+  * Derive.with_* should use local, or at least finally
   * put TypeError into DeriveError and use Call.default_relative_note
   - LPitch.to_relative was broken by notes as calls, fix it
   - implement add_hz in Derive.Scale.Util

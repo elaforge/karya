@@ -1048,14 +1048,14 @@ named_degree_at name pos = do
     return $ fmap PitchSignal.y_to_degree y
 
 with_control :: Score.Control -> Signal.Control -> Deriver a -> Deriver a
-with_control cont signal deriver = do
-    controls <- gets state_controls
-    -- TODO only revert the specific control
-    modify $ \st ->
-        st { state_controls = Map.insert cont signal controls }
-    result <- deriver
-    modify $ \st -> st { state_controls = controls }
-    return result
+with_control cont signal =
+    local (Map.lookup cont . state_controls) insert alter
+    where
+    insert Nothing st = st
+    insert (Just sig) st = st { state_controls =
+        Map.insert cont sig (state_controls st) }
+    alter st = return $ st { state_controls =
+        Map.insert cont signal (state_controls st) }
 
 with_control_operator :: Score.Control -> TrackLang.CallId
     -> Signal.Control -> Deriver a -> Deriver a
