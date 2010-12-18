@@ -425,6 +425,14 @@ realtime = do
         Nothing -> local_realtime
         Just root_id -> relative_realtime root_id
 
+-- | This is like 'get_insert', except get the selection on the root block,
+-- falling back to the current one if there is none.
+get_root_insert :: (Monad m) => Cmd.CmdT m Point
+get_root_insert = maybe get_insert return =<< rootsel
+    where
+    rootsel = justm State.lookup_root_id $ \root_id ->
+        lookup_block_insert root_id
+
 -- | Get the current selection in RealTime relative to another block.
 --
 -- If a block is called in multiple places, a score time on it may occur at

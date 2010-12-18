@@ -84,11 +84,10 @@ cmd_save, cmd_load :: Cmd.CmdT IO ()
 cmd_save = Save.get_save_file >>= Save.cmd_save
 cmd_load = Save.get_save_file >>= Save.cmd_load
 
--- | This is unfortunate.  In order to construct the cmd map only once, I
--- want it to be a CAF.  However, these Cmds take an argument, which means
--- I need to either have the CmdMap map to Cmds that take an argument, or
--- recreate the map on each call.  Since there are only two commands, I opt
--- for the latter.
+-- | This is unfortunate.  In order to construct the cmd map only once, I want
+-- it to be a CAF.  However, these Cmds take an argument, which means I need to
+-- either have the CmdMap map to Cmds that take an argument, or recreate the
+-- map on each call.  Since there are not many cmds, I opt for the latter.
 player_bindings :: Transport.Info -> Keymap.CmdMap IO
 player_bindings transport_info = fst $ Keymap.make_cmd_map $ concat
     [ bind_key Key.Enter "play block" (Play.cmd_play_focused transport_info)
@@ -96,6 +95,8 @@ player_bindings transport_info = fst $ Keymap.make_cmd_map $ concat
         (Play.cmd_play_from_insert transport_info)
     , bind_mod [PrimaryCommand] Key.Enter "play from previous step"
         (Play.cmd_play_from_previous_step transport_info)
+    , bind_mod [Shift, PrimaryCommand] Key.Enter "play from previous root step"
+        (Play.cmd_play_from_previous_root_step transport_info)
     ]
 
 -- * pure cmds

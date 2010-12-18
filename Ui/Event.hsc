@@ -38,10 +38,6 @@ import qualified Ui.Font as Font
 
 
 data Event = Event {
-    -- This is encoded as UTF8.  Data.Text would probably be more logical, but
-    -- I expected it to be sent to the UI much more frequently than modified
-    -- from haskell.  Don't access this directly, use 'event_text'.
-    -- TODO: or is it?  derivation could put the lie to that.
     event_text :: Text.Text
     , event_duration :: ScoreTime
     , event_style :: StyleId

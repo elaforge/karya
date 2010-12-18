@@ -126,8 +126,15 @@ cmd_play_from_previous_step :: Transport.Info -> Cmd.CmdT IO Cmd.Status
 cmd_play_from_previous_step transport_info = do
     step <- Cmd.gets Cmd.state_play_step
     (block_id, tracknum, track_id, pos) <- Selection.get_insert
-    next <- TimeStep.step_from step TimeStep.Rewind block_id tracknum pos
-    cmd_play transport_info block_id (track_id, (maybe 0 id next))
+    prev <- TimeStep.step_from step TimeStep.Rewind block_id tracknum pos
+    cmd_play transport_info block_id (track_id, (maybe 0 id prev))
+
+cmd_play_from_previous_root_step :: Transport.Info -> Cmd.CmdT IO Cmd.Status
+cmd_play_from_previous_root_step transport_info = do
+    (block_id, tracknum, track_id, pos) <- Selection.get_root_insert
+    step <- Cmd.gets Cmd.state_play_step
+    prev <- TimeStep.step_from step TimeStep.Rewind block_id tracknum pos
+    cmd_play transport_info block_id (track_id, (maybe 0 id prev))
 
 cmd_play :: Transport.Info -> BlockId -> (TrackId, ScoreTime)
     -> Cmd.CmdT IO Cmd.Status
