@@ -9,10 +9,10 @@ just comparing to a Double, so I should be able to do the operation unboxed.
 But decide about lazy signals before going nuts on this.  If I revert to linear
 search then none of this is necessary.
 
-- maybe I can reduce garbage with a better Events data structure, e.g. don't
-use ++
-
 CURRENT
+  - maybe I can reduce garbage with a better Events data structure, e.g. don't
+    use ++
+
   - use packed text instead of String
     Text or UTF8 ByteString?  Text is more correct.
     - parsec 3 + Text is much slower, ask on mailing list about profiling
@@ -51,11 +51,6 @@ CURRENT
       - transformers: simple nested score with a couple of transformers over
         the entire thing
 
-  * ability to start playing from n seconds back from the current position on
-    the root block as inferred from the current position in a sub block.
-    I can look at selection position on the parent blocks to know which
-    particular invocation of the sub-block is meant.
-
   - write down tabuh telu
   - create simple reaktor patch for pitch control, add melody part to longgoran
   - hack up silverwood to separate pitch bend from pitch change, midi pitch
@@ -71,15 +66,11 @@ or removing from the cmd list.
 UNSORTED
   - bug: clicking close on a window caused a bad view id exception
   - implement inst Cmd lookup, in same vein as call lookup
-  * during derivation, skip tracks with blank titles, don't emit warnings
   - for control track entry, typing numbers puts them right of decimal, typing
     backtick enters a 1
   - create a set of profiles and a custom target to run them, so I can run them
     regularly and watch for regressions.  Maybe run them when tests run.
   - use capslock for kbd entry mode
-  * bug: rename or delete a view while playback is running, and it will crash
-    when the ViewId becomes invalid
-  * new flag for inst: trigger, considers entire note in_decay
   - flag for unpitched instruments, so they don't get pitch tracks
     I think I'd want to do a reverse map through the keymap to get the attrs
     This also gets to the per-song config issue, since I want per-song or
@@ -88,27 +79,14 @@ UNSORTED
     It was Block.map_ids, works once removed.  Why did I go to so much trouble
     to map view ids?  Why did it work before?  What was I thinking?
   - what's with the extra leading pb 0 on save/drum?
-  * convert should complain about unmatched attrs
   - keyboard editing: non-chord mode that advances as soon as it gets NoteOn
     either an easier way to set note duration, or tracker style where every
     note extends to the end of the track or the next event
-  * track info should collapse consecutive channels into a lo..hi range
-  * zoom isn't zooming around the cursor properly
-  * set skel to ruler / track 0 makes State.get_track_tree unhappy
   - put timing info in rederive msgs, see how long derivation took
   - why does track merge / unmerge cause splice failures?
-  * muting a note track means it thinks the control track is a note track, and
-    fails to parse, and aborts everything.  A failed track title should abort
-    just that track.
-  * deleted and muted tracks don't emit EventDamage
   - get rid of Diff.track_diff by doing all diffs in the main diff, and
     avoid sending msgs back to the UI by having ui msgs cancel updates.
 
-  * muting a track should replace it with a nop, not remove it entirely
-  - problem with pianoteq: if the same note occurs on two channels, one
-    will be dropped.  Report to pianoteq.  I could work around, but it won't
-    occur with real multitimbral instruments anyway.
-  * base note bends with melody
   - why does logview go to 100 cpu?
     put some prints in there to see what it's doing when it does that
   + Log msgs are getting munched together.  The logging lock isn't working?
@@ -119,10 +97,6 @@ UNSORTED
     - Could the thread be killed before the print completes?
       Maybe I don't really need to log thread deaths.
     Put the print and mutex in C.
-  * track should get damage due to TrackFlag change, not DisplayTrack updates
-  * lang cmds to rederive / perform within selection
-  * am I even using Pitch.scale_set_pitch_bend?  what does it mean exactly?
-  * lookup val calls in current inst as in current scale
   - now that the signal deriver is gone, I can also get rid of ignore_tempo,
     unless I want to use it for a lilypond backend or something
   - after creating a new track, focus should go to its title
@@ -131,7 +105,7 @@ UNSORTED
     it waiting on?  Midi init?
   * need a concept of a "root" block.  This block is used for:
     - calculating absolute time offset e.g. if a DAW wants to seek to a point
-    - ability to start playing from n seconds back from the current position on
+    * ability to start playing from n seconds back from the current position on
       the root block as inferred from the current position in a sub block.
       I can look at selection position on the parent blocks to know which
       particular invocation of the sub-block is meant.
@@ -141,8 +115,6 @@ UNSORTED
       always-run post cmd to avoid a separate Cmd.set_root_id.  Can I apply
       this to other State attrs too?
 
-  * derive profile should run several derives on the same state to minimize
-    state construction overhead
   - I really need to fix Signal.integrate
 
   - I think PitchSignals may need to be reworked.  They should be (Note, Note,
@@ -168,10 +140,6 @@ UNSORTED
     collapse at hs level, then an expand can trigger a rederive.
     Also it would be nice to not rederive signal for tracks that haven't
     changed, maybe tracks in calls above the modified one?
-  * Circular imports of Derive.Derive and Derive.Scale causes a lot of
-    recompiling.  Can I eliminate or reduce it?
-  * Derive.with_* should use local, or at least finally
-  * put TypeError into DeriveError and use Call.default_relative_note
   - LPitch.to_relative was broken by notes as calls, fix it
   - implement add_hz in Derive.Scale.Util
     or at least think about how to implement pengumbang and pengisep
@@ -179,7 +147,7 @@ UNSORTED
 
   - playback should have multiple lines when a block is derived multiple times
     have a set of playback selnums?
-  - should be able to rescan midi devices when something new is plugged in
+  / should be able to rescan midi devices when something new is plugged in
     Centralize midi implementation functions in a record, include scan and
     open/close, record is stored in Cmd state.
     How to establish ID <-> device mapping?
@@ -208,6 +176,10 @@ UNSORTED
   - editing for "pattern list" block
   - double click call to jump to its block?
 
+OTHER
+  - problem with pianoteq: if the same note occurs on two channels, one
+    will be dropped.  Report to pianoteq.  I could work around, but it won't
+    occur with real multitimbral instruments anyway.
 
 MILESTONES
   0.1
@@ -283,7 +255,6 @@ bugs:
   - #(poke Mispeled, field) fieldp field results in compiler bus error
   - keymap collisions are logged twice
   - Create.rename_project loses the merged tracks
-  * bring block windows to the front after a load / no don't, it's annoying
   - tracks with different tempos play correctly, but playback follows tempo
   - bizarre hint importing requirements in Cmd.LanguageEnviron
   * track down ghc rts crashes, assertion failure
@@ -295,8 +266,6 @@ bugs:
 cleanup:
   ? switch mhead and mlast back to returning Maybe
   - cleanup Ui.Track: event_list -> all_events?
-  * split Derive.State into dynamically scoped, constant, and logging parts
-  * State.structure only used by Clip_test
   - Makefile: ghc --make doesn't understand the hsc -> hs link, which leads to
     manual inclusion of $(UI_HS) in the deps
   - remove Util.Log -> Perform.Warning import by translating IDs into strings?
@@ -475,7 +444,7 @@ libfltk:
     * had to patch fltk, test Fl_cocoa.mm, make str for Fl_mac.cxx
     * str 2309
   + fltk 1.3 Fl_Display_Text has alignment bugs, and too slow
-    - sent mail to list
+    + sent mail to list
 
 logging:
   - trying to derive relative blocks generates a lot of log spam, can I avoid
