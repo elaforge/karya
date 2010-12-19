@@ -368,8 +368,9 @@ get_context_cmds = do
     cmd_state <- Cmd.get_state
     track_tree <- State.get_track_tree block_id
 
+    let edit_state = Cmd.state_edit cmd_state
     let context = Schema.cmd_context ustate lookup_midi
-            (Cmd.state_edit_mode cmd_state) (Cmd.state_kbd_entry cmd_state)
+            (Cmd.state_edit_mode edit_state) (Cmd.state_kbd_entry edit_state)
             tracknum track_tree
     schema_map <- Cmd.get_schema_map
     block <- State.get_block block_id

@@ -42,7 +42,7 @@ cmds_with_note kbd_entry cmds msg = do
     has_mods <- are_modifiers_down
     kbd_note <- if kbd_entry && not has_mods
         then do
-            octave <- Cmd.gets Cmd.state_kbd_entry_octave
+            octave <- Cmd.gets (Cmd.state_kbd_entry_octave . Cmd.state_edit)
             repeat <- Keymap.is_repeat msg
             -- Just Nothing makes the repeats get eaten here, but make sure to
             -- only suppress them if this key would have generated a note.

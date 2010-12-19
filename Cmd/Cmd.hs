@@ -225,27 +225,11 @@ data State = State {
     -- range.
     , state_rdev_state :: ReadDeviceState
 
-    -- Editing state, modified in the course of editing.
+    , state_edit :: EditState
 
-    -- | Edit mode enables various commands that write to tracks.
-    , state_edit_mode :: EditMode
-    -- | Use the alphanumeric keys to enter notes instead of midi input.
-    , state_kbd_entry :: Bool
-    -- | Default time step.  Used for cursor movement, note duration, and
-    -- whatever else.
-    , state_step :: TimeStep.TimeStep
-    -- | 'Cmd.Play.cmd_play_from_previous_step' uses this to find the place to
-    -- start playing from.  It's separate from 'state_step' because it will
-    -- usually be a larger step.
+    -- | Some play commands can start playing from a short distance before the
+    -- cursor.
     , state_play_step :: TimeStep.TimeStep
-    -- | If this is Rewind, create notes with negative durations.
-    , state_note_direction :: TimeStep.Direction
-    -- | Transpose note entry on the keyboard by this many octaves.  It's by
-    -- octave instead of scale degree since scales may have different numbers
-    -- of notes per octave.
-    , state_kbd_entry_octave :: Pitch.Octave
-
-    , state_edit_box :: (Color, Char)
     } deriving (Show, Generics.Typeable)
 
 initial_state inst_db schema_map global_scopes = State {
@@ -270,17 +254,10 @@ initial_state inst_db schema_map global_scopes = State {
     , state_wdev_state = empty_wdev_state
     , state_rdev_state = Map.empty
 
-    , state_edit_mode = NoEdit
-    , state_kbd_entry = False
-    , state_step =
-        TimeStep.AbsoluteMark TimeStep.AllMarklists (TimeStep.MatchRank 3 0)
+    , state_edit = empty_edit_state
+
     , state_play_step =
         TimeStep.RelativeMark TimeStep.AllMarklists (TimeStep.MatchRank 1 0)
-    , state_note_direction = TimeStep.Advance
-    -- This should put middle C in the center of the kbd entry keys.
-    , state_kbd_entry_octave = 4
-
-    , state_edit_box = Config.bconfig_track_box
     }
 
 empty_state :: State
@@ -291,24 +268,50 @@ empty_state = initial_state Instrument.Db.empty Map.empty []
 reinit_state :: State -> State
 reinit_state cstate = cstate
     { state_history = ([], [])
-
     -- TODO kill performance threads
     , state_performance_threads = Map.empty
-
     -- This is essential, otherwise lots of cmds break on the bad reference.
     , state_focused_view = Nothing
-    -- I could go either way on these, but it seems nicer to reset them to
-    -- the default status.
-    , state_edit_mode = state_edit_mode empty_state
-    , state_kbd_entry = state_kbd_entry empty_state
-    , state_step = state_step empty_state
-    , state_kbd_entry_octave = state_kbd_entry_octave empty_state
+    , state_edit = empty_edit_state
     }
 
 -- | This is a hack so I can use the default Show instance for 'State'.
 newtype LookupScale = LookupScale Derive.LookupScale
 instance Show LookupScale where
     show _ = "((LookupScale))"
+
+-- | Editing state, modified in the course of editing.
+data EditState = EditState {
+    -- | Edit mode enables various commands that write to tracks.
+    state_edit_mode :: EditMode
+    -- | Use the alphanumeric keys to enter notes instead of midi input.
+    , state_kbd_entry :: Bool
+    -- | Default time step.  Used for cursor movement, note duration, and
+    -- whatever else.
+    , state_step :: TimeStep.TimeStep
+    -- | If this is Rewind, create notes with negative durations.
+    , state_note_direction :: TimeStep.Direction
+    -- | Transpose note entry on the keyboard by this many octaves.  It's by
+    -- octave instead of scale degree since scales may have different numbers
+    -- of notes per octave.
+    , state_kbd_entry_octave :: Pitch.Octave
+
+    -- | See 'set_edit_box'.
+    , state_edit_box :: (Color, Char)
+    } deriving (Show, Generics.Typeable)
+
+empty_edit_state :: EditState
+empty_edit_state = EditState {
+    state_edit_mode = NoEdit
+    , state_kbd_entry = False
+    , state_step =
+        TimeStep.AbsoluteMark TimeStep.AllMarklists (TimeStep.MatchRank 3 0)
+    , state_note_direction = TimeStep.Advance
+    -- This should put middle C in the center of the kbd entry keys.
+    , state_kbd_entry_octave = 4
+
+    , state_edit_box = Config.bconfig_track_box
+    }
 
 data WriteDeviceState = WriteDeviceState {
     -- Used by Cmd.MidiThru:
@@ -425,6 +428,10 @@ modify_state f = (CmdT . lift) $ do
     st <- MonadState.get
     MonadState.put $! f st
 
+modify_edit_state :: (Monad m) => (EditState -> EditState) -> CmdT m ()
+modify_edit_state f =
+    modify_state $ \st -> st { state_edit = f (state_edit st) }
+
 
 lookup_pthread :: (Monad m) => BlockId -> CmdT m (Maybe PerformanceThread)
 lookup_pthread block_id = Map.lookup block_id <$> gets state_performance_threads
@@ -459,7 +466,7 @@ lookup_focused_block = do
         Nothing -> return Nothing
 
 get_current_step :: (Monad m) => CmdT m TimeStep.TimeStep
-get_current_step = gets state_step
+get_current_step = gets (state_step . state_edit)
 
 -- | Get the leftmost track covered by the insert selection, which is
 -- considered the "focused" track by convention.
@@ -552,7 +559,7 @@ set_wdev_state wdev_state =
 -- with new blocks.
 set_edit_box :: (Monad m) => Color -> Char -> CmdT m ()
 set_edit_box color char = do
-    modify_state $ \st -> st { state_edit_box = (color, char) }
+    modify_edit_state $ \st -> st { state_edit_box = (color, char) }
     block_ids <- State.get_all_block_ids
     forM_ block_ids $ \bid -> State.set_edit_box bid color char
 
@@ -565,7 +572,7 @@ create_block block_id title tracks = do
 
 block_config :: (Monad m) => CmdT m Block.Config
 block_config = do
-    track_box <- gets state_edit_box
+    track_box <- gets (state_edit_box . state_edit)
     return $ Block.Config Config.bconfig_selection_colors
         Config.bconfig_bg_color track_box Config.bconfig_sb_box
 

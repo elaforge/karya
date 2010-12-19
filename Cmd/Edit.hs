@@ -48,7 +48,7 @@ cmd_toggle_method_edit = modify_edit_mode $ \m -> case m of
 -- | Turn on kbd entry mode, putting a K in the edit box as a reminder.  This
 -- is orthogonal to the previous edit modes.
 cmd_toggle_kbd_entry = do
-    Cmd.modify_state $ \st ->
+    Cmd.modify_edit_state $ \st ->
         st { Cmd.state_kbd_entry = not (Cmd.state_kbd_entry st) }
     sync_edit_box_status
 
@@ -56,14 +56,14 @@ cmd_toggle_kbd_entry = do
 
 modify_edit_mode :: (Monad m) => (Cmd.EditMode -> Cmd.EditMode) -> Cmd.CmdT m ()
 modify_edit_mode f = do
-    Cmd.modify_state $ \st ->
+    Cmd.modify_edit_state $ \st ->
         st { Cmd.state_edit_mode = f (Cmd.state_edit_mode st) }
     sync_edit_box_status
 
 sync_edit_box_status :: (Monad m) => Cmd.CmdT m ()
 sync_edit_box_status = do
-    edit_mode <- Cmd.gets Cmd.state_edit_mode
-    kbd_entry <- Cmd.gets Cmd.state_kbd_entry
+    edit_mode <- Cmd.gets (Cmd.state_edit_mode . Cmd.state_edit)
+    kbd_entry <- Cmd.gets (Cmd.state_kbd_entry . Cmd.state_edit)
     let c = if kbd_entry then 'K' else ' '
     Cmd.set_edit_box (edit_color edit_mode) c
 
@@ -234,7 +234,8 @@ cmd_clear_selected = do
 
 set_step_rank :: (Monad m) => TimeStep.TimeStep -> Int -> Int -> Cmd.CmdT m ()
 set_step_rank deflt rank skip = do
-    Cmd.modify_state $ \st -> st { Cmd.state_step = set (Cmd.state_step st) }
+    Cmd.modify_edit_state $ \st ->
+        st { Cmd.state_step = set (Cmd.state_step st) }
     sync_step_status
     where
     set (TimeStep.AbsoluteMark names (TimeStep.MatchRank _ _)) =
@@ -245,7 +246,8 @@ set_step_rank deflt rank skip = do
 
 toggle_mark_step :: (Monad m) => Cmd.CmdT m ()
 toggle_mark_step = do
-    Cmd.modify_state $ \st -> st { Cmd.state_step = toggle (Cmd.state_step st) }
+    Cmd.modify_edit_state $ \st ->
+        st { Cmd.state_step = toggle (Cmd.state_step st) }
     sync_step_status
     where
     toggle (TimeStep.AbsoluteMark names matcher) =
@@ -256,12 +258,12 @@ toggle_mark_step = do
 
 set_step :: (Monad m) => TimeStep.TimeStep -> Cmd.CmdT m ()
 set_step step = do
-    Cmd.modify_state $ \st -> st { Cmd.state_step = step }
+    Cmd.modify_edit_state $ \st -> st { Cmd.state_step = step }
     sync_step_status
 
 cmd_invert_step_direction :: (Monad m) => Cmd.CmdT m ()
 cmd_invert_step_direction = do
-    Cmd.modify_state $ \st -> st { Cmd.state_note_direction =
+    Cmd.modify_edit_state $ \st -> st { Cmd.state_note_direction =
         invert (Cmd.state_note_direction st) }
     sync_step_status
     where
@@ -270,7 +272,7 @@ cmd_invert_step_direction = do
 
 sync_step_status :: (Monad m) => Cmd.CmdT m ()
 sync_step_status = do
-    st <- Cmd.get_state
+    st <- Cmd.gets Cmd.state_edit
     Cmd.set_global_status "step" $
         show_step (Cmd.state_step st) (Cmd.state_note_direction st)
 
@@ -296,13 +298,13 @@ show_marklists (TimeStep.NamedMarklists mlists) = Seq.join "," mlists
 cmd_modify_octave :: (Monad m) => (Pitch.Octave -> Pitch.Octave)
     -> Cmd.CmdT m ()
 cmd_modify_octave f = do
-    Cmd.modify_state $ \st -> st
+    Cmd.modify_edit_state $ \st -> st
         { Cmd.state_kbd_entry_octave = f (Cmd.state_kbd_entry_octave st) }
     sync_octave_status
 
 sync_octave_status :: (Monad m) => Cmd.CmdT m ()
 sync_octave_status = do
-    octave <- Cmd.gets Cmd.state_kbd_entry_octave
+    octave <- Cmd.gets (Cmd.state_kbd_entry_octave . Cmd.state_edit)
     -- This is technically global state and doesn't belong in the block's
     -- status line, but I'm used to looking for it there, so put it in both
     -- places.

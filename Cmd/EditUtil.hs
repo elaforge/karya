@@ -64,7 +64,7 @@ modify_event_at :: (Monad m) => SelPos
     -> Bool -- ^ If True, modify the duration of an existing event.
     -> (String -> (Maybe String, Bool)) -> Cmd.CmdT m ()
 modify_event_at (tracknum, track_id, pos) zero_dur modify_dur f = do
-    direction <- Cmd.gets Cmd.state_note_direction
+    direction <- Cmd.gets (Cmd.state_note_direction . Cmd.state_edit)
     dur <- if zero_dur
         then return $ if direction == TimeStep.Advance then 0 else -0
         else do

@@ -49,7 +49,9 @@ test_cmds_with_note = do
     equal (run st (f True (CmdTest.key_up ',')))
         (through $ input (CmdTest.note_off 62 100))
 
-    equal (run (st { Cmd.state_kbd_entry_octave = 5 }) (f True key))
+    let oct5 = st { Cmd.state_edit = (Cmd.state_edit st)
+            { Cmd.state_kbd_entry_octave = 5 } }
+    equal (run oct5 (f True key))
         (through $ input (CmdTest.note_on 74 74 100))
     -- cmd not called, and further cmds skipped
     equal (run st (f True (CmdTest.key_down 'a')))

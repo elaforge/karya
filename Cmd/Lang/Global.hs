@@ -105,10 +105,10 @@ highlight_error (bid, maybe_tid, maybe_range) = do
 -- * show / modify cmd state
 
 show_step :: Cmd.CmdL TimeStep.TimeStep
-show_step = _cmd_state Cmd.state_step
+show_step = _cmd_state (Cmd.state_step . Cmd.state_edit)
 
 set_step :: TimeStep.TimeStep -> Cmd.CmdL ()
-set_step step = Cmd.modify_state $ \st -> st { Cmd.state_step = step }
+set_step step = Cmd.modify_edit_state $ \st -> st { Cmd.state_step = step }
 
 -- | Set play step to current step.
 set_play_step :: Cmd.CmdL ()
@@ -117,7 +117,7 @@ set_play_step = do
     Cmd.modify_state $ \st -> st { Cmd.state_play_step = step }
 
 show_octave :: Cmd.CmdL Pitch.Octave
-show_octave = _cmd_state Cmd.state_kbd_entry_octave
+show_octave = _cmd_state (Cmd.state_kbd_entry_octave . Cmd.state_edit)
 set_octave :: Pitch.Octave -> Cmd.CmdL ()
 set_octave n = Edit.cmd_modify_octave (const n) >> return ()
 
