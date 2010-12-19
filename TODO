@@ -10,9 +10,6 @@ But decide about lazy signals before going nuts on this.  If I revert to linear
 search then none of this is necessary.
 
 CURRENT
-  - maybe I can reduce garbage with a better Events data structure, e.g. don't
-    use ++
-
   - use packed text instead of String
     Text or UTF8 ByteString?  Text is more correct.
     - parsec 3 + Text is much slower, ask on mailing list about profiling

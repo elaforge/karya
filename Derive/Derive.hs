@@ -115,6 +115,13 @@ class (Show (Elem derived), Eq (Elem derived), Monoid.Monoid derived,
 -- ** events
 
 type EventDeriver = Deriver Events
+
+-- | This might seem like an inefficient way to represent the Event stream, but
+-- I can't think of how to make it better.
+--
+-- Each call generates a chunk [Event], and the chunks are then joined with
+-- 'd_merge_asc'.  This means every cons is copied once, but I think this is
+-- hard to avoid if I want to merge streams.
 type Events = [Score.Event]
 
 no_events :: Events
@@ -1462,10 +1469,10 @@ d_merge_asc :: [Deriver Events] -> Deriver Events
 d_merge_asc = fmap merge_asc_events . sequence
 -- d_merge_asc = foldr d_merge (return [])
 
-merge_events :: [Score.Event] -> [Score.Event] -> [Score.Event]
+merge_events :: Events -> Events -> Events
 merge_events = Seq.merge_on Score.event_start
 
-merge_asc_events :: [[Score.Event]] -> [Score.Event]
+merge_asc_events :: [Events] -> Events
 merge_asc_events = Seq.merge_asc_lists Score.event_start
 
 -- | Monoid instance for those who prefer that interface.
@@ -1476,7 +1483,7 @@ instance Monoid.Monoid EventDeriver where
 
 -- * negative duration
 
-process_negative_durations :: [Score.Event] -> [Score.Event]
+process_negative_durations :: Events -> Events
 process_negative_durations = id
 
 {- TODO put this in its own module
