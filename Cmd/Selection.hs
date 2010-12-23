@@ -56,7 +56,8 @@ cmd_step_selection selnum dir extend = do
     Types.Selection start_track start_pos cur_track cur_pos <-
         Cmd.require =<< State.get_selection view_id selnum
 
-    new_pos <- step_from cur_track cur_pos dir
+    step <- Cmd.get_current_step
+    new_pos <- step_from cur_track cur_pos dir step
     let new_sel = if extend
             then Types.selection start_track start_pos cur_track new_pos
             else Types.point_selection start_track new_pos
@@ -270,10 +271,9 @@ mouse_mod msg = do
 -- * util
 
 step_from :: (Monad m) => TrackNum -> ScoreTime -> TimeStep.Direction
-    -> Cmd.CmdT m ScoreTime
-step_from tracknum pos direction = do
+    -> TimeStep.TimeStep -> Cmd.CmdT m ScoreTime
+step_from tracknum pos direction step = do
     block_id <- Cmd.get_focused_block
-    step <- Cmd.get_current_step
     next <- TimeStep.step_from step direction block_id tracknum pos
     let msg = case direction of
             TimeStep.Advance -> "advance to "

@@ -286,9 +286,12 @@ data EditState = EditState {
     state_edit_mode :: EditMode
     -- | Use the alphanumeric keys to enter notes instead of midi input.
     , state_kbd_entry :: Bool
-    -- | Default time step.  Used for cursor movement, note duration, and
-    -- whatever else.
+    -- | Default time step for cursor movement.
     , state_step :: TimeStep.TimeStep
+    -- | Used for note duration.  It's separate from 'state_step' to allow
+    -- for tracker-style note entry where newly entered notes extend to the
+    -- next note or the end of the block.
+    , state_note_duration :: TimeStep.TimeStep
     -- | If this is Rewind, create notes with negative durations.
     , state_note_direction :: TimeStep.Direction
     -- | Transpose note entry on the keyboard by this many octaves.  It's by
@@ -306,6 +309,7 @@ empty_edit_state = EditState {
     , state_kbd_entry = False
     , state_step =
         TimeStep.AbsoluteMark TimeStep.AllMarklists (TimeStep.MatchRank 3 0)
+    , state_note_duration = TimeStep.BlockEnd
     , state_note_direction = TimeStep.Advance
     -- This should put middle C in the center of the kbd entry keys.
     , state_kbd_entry_octave = 4

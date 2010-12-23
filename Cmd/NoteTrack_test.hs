@@ -11,6 +11,7 @@ import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Selection as Selection
 import qualified Cmd.Simple as Simple
+import qualified Cmd.TimeStep as TimeStep
 import qualified Derive.Scale.Twelve as Twelve
 
 import qualified Cmd.NoteTrack as NoteTrack
@@ -19,7 +20,13 @@ import qualified Cmd.NoteTrack as NoteTrack
 mkkey = CmdTest.make_key True
 
 run_sel track_specs cmd = CmdTest.e_tracks $
-    CmdTest.run_tracks track_specs $ CmdTest.set_sel 1 0 1 0 >> cmd
+    CmdTest.run_tracks track_specs $ do
+        CmdTest.set_sel 1 0 1 0
+        Cmd.modify_edit_state $ \st -> st { Cmd.state_note_duration = step }
+        cmd
+    where
+    -- Make sure edit tests below make the notes of the appropriate duration.
+    step = TimeStep.AbsoluteMark TimeStep.AllMarklists (TimeStep.MatchRank 3 0)
 
 -- | Thread a bunch of msgs through the command and return the final state
 -- and the selection position.
@@ -83,9 +90,9 @@ test_cmd_val_edit = do
         on nn = CmdTest.m_note_on nn (fromIntegral nn) 127
         off nn = CmdTest.m_note_off nn 127
     equal (thread empty_tracks f [on 60, off 60])
-        ([(">i", [(0, 1, "")]), ("*", [(0, 0, "4c")])], (1, 1))
+        ([(">i", [(0, 255, "")]), ("*", [(0, 0, "4c")])], (1, 1))
     equal (thread empty_tracks f [on 60, on 61, off 60, off 61]) $
-        ([(">i", [(0, 1, "")]), ("*", [(0, 0, "4c#")])], (1, 1))
+        ([(">i", [(0, 255, "")]), ("*", [(0, 0, "4c#")])], (1, 1))
     -- TODO later test chord input
 
 test_cmd_method_edit = do

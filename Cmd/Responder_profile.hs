@@ -30,8 +30,8 @@ profile_edits_middle = do
             view_id <- Create.view edit_block
             UiTest.select_point view_id 1 0.0
             return view_id
-    let cmd_state = (ResponderTest.mk_cmd_state view_id)
-            { Cmd.state_edit_mode = Cmd.ValEdit }
+    let cmd_state = modify_edit_state (ResponderTest.mk_cmd_state view_id)
+            (\st -> st { Cmd.state_edit_mode = Cmd.ValEdit })
     -- pprint (UiTest.dump_block ui_state edit_block)
 
     let wait = [(CmdTest.make_key True Key.ShiftL, 0.1),
@@ -58,7 +58,7 @@ profile_selection = do
     let ui_state2 = ui_state { State.state_rulers =
             Map.insert (UiTest.rid "b1.r0") (UiTest.mkruler 256 1)
                 (State.state_rulers ui_state) }
-    let cmd_state2 = cmd_state
+    let cmd_state2 = modify_edit_state cmd_state $ \st -> st
             { Cmd.state_step = TimeStep.AbsoluteMark TimeStep.AllMarklists
                 (TimeStep.MatchRank 3 0)
             }
@@ -81,3 +81,5 @@ profile_thru = do
     ((_, midi, _), cpu) <- timer $ ResponderTest.respond states keys
     printf "%.2f sec, %.4f sec per cmd\n" cpu (cpu / fromIntegral ncmds)
     print (length midi)
+
+modify_edit_state st f = st { Cmd.state_edit = f (Cmd.state_edit st) }

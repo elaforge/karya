@@ -110,6 +110,10 @@ show_step = _cmd_state (Cmd.state_step . Cmd.state_edit)
 set_step :: TimeStep.TimeStep -> Cmd.CmdL ()
 set_step step = Cmd.modify_edit_state $ \st -> st { Cmd.state_step = step }
 
+set_note_duration :: TimeStep.TimeStep -> Cmd.CmdL ()
+set_note_duration step = Cmd.modify_edit_state $ \st ->
+    st { Cmd.state_note_duration = step }
+
 -- | Set play step to current step.
 set_play_step :: Cmd.CmdL ()
 set_play_step = do

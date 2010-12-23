@@ -68,7 +68,8 @@ modify_event_at (tracknum, track_id, pos) zero_dur modify_dur f = do
     dur <- if zero_dur
         then return $ if direction == TimeStep.Advance then 0 else -0
         else do
-            end <- Selection.step_from tracknum pos direction
+            step <- Cmd.gets (Cmd.state_note_duration . Cmd.state_edit)
+            end <- Selection.step_from tracknum pos direction step
             return (end - pos)
     event <- get_event modify_dur track_id pos dur
     -- TODO I could have the modifier take Text, if it were worth it.

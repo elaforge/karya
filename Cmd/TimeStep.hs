@@ -31,6 +31,8 @@ data TimeStep =
     | AbsoluteMark MarklistMatch MarkMatch
     -- | Until next matching mark + offset from previous mark.
     | RelativeMark MarklistMatch MarkMatch
+    -- | Until the end or beginning of the block.
+    | BlockEnd
     deriving (Show, Read)
 
 data MarklistMatch = AllMarklists | NamedMarklists [Ruler.MarklistName]
@@ -76,7 +78,7 @@ advance :: (State.UiStateMonad m) => TimeStep -> BlockId -> TrackNum
 advance step block_id tracknum pos = do
     maybe_points <- get_points step block_id tracknum pos
     return $ find_after =<< maybe_points
-    where find_after xs = Seq.mhead Nothing Just (drop 1 (dropWhile (<pos) xs))
+    where find_after xs = Seq.mhead Nothing Just (dropWhile (<=pos) xs)
 
 get_points :: (State.UiStateMonad m) =>
     TimeStep -> BlockId -> TrackNum -> ScoreTime -> m (Maybe [ScoreTime])
@@ -112,6 +114,7 @@ all_points step marklists pos = case step of
             Seq.range (Fixed.mod' pos incr) end incr
         AbsoluteMark names matcher -> matches names matcher
         RelativeMark names matcher -> shift (matches names matcher)
+        BlockEnd -> [0, end]
     where
     end = Maybe.fromMaybe 0 $ Seq.maximum (map (Ruler.last_pos . snd) marklists)
     matches names matcher = match_all matcher
