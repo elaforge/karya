@@ -68,6 +68,7 @@
 -}
 module Derive.Call where
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Log as Log
@@ -303,7 +304,7 @@ derive_event :: (Derive.Derived derived) =>
     -> [Track.PosEvent] -- ^ following events
     -> Derive.Deriver derived
 derive_event block_end dinfo preproc prev_val prev cur@(pos, event) next
-    | Event.event_string event == "--" = return Derive.empty_derived
+    | Event.event_text event == Text.pack "--" = return Derive.empty_derived
     | otherwise = case TrackLang.parse (Event.event_string event) of
         Left err -> Log.warn err >> return Derive.empty_derived
         Right expr -> run_call (preproc expr)
