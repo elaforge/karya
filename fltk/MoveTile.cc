@@ -96,7 +96,7 @@ MoveTile::handle(int evt)
     IPoint mouse = mouse_pos();
 
     switch (evt) {
-    case FL_MOVE: case FL_ENTER: case FL_PUSH:
+    case FL_MOVE: case FL_ENTER: case FL_PUSH: {
         int r = this->handle_move(evt, &drag_state, &this->dragged_child);
         if (drag_state.x)
             drag_from.x = mouse.x;
@@ -105,6 +105,7 @@ MoveTile::handle(int evt)
         if (drag_state.x || drag_state.y)
             ASSERT(0 <= this->dragged_child && dragged_child < children());
         return r;
+    }
 
     case FL_LEAVE:
         drag_state = BoolPoint(false, false);

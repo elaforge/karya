@@ -19,8 +19,9 @@ struct ValName {
     // These are created by haskell and are read-only from here.
     // TODO should be constant but then it's hard to initialize an array
     double val;
-    char *name;
-    ValName(double val, char *name) : val(val), name(name) {}
+    // This won't be modified, but will be freed, so const_cast for that.
+    const char *name;
+    ValName(double val, const char *name) : val(val), name(name) {}
     ValName() : val(0), name(NULL) {}
 };
 
@@ -52,7 +53,7 @@ struct TrackSignal {
         if (val_names) {
             // DEBUG("free valnames " << val_names << " " << val_names_length);
             for (int i = 0; i < val_names_length; i++)
-                free(val_names[i].name);
+                free(const_cast<char *>(val_names[i].name));
             free(val_names);
         }
     }

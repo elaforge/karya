@@ -1,29 +1,20 @@
     haskell deps, from hackage
-storablevector -> transformers, non-negative, QuickCheck-1
-binary
-dlist
-hint -> ghc-paths, MonadCatchIO-mtl, ghc-mtl
-haddock (only to build docs)
-text
-haskeline
-regex-pcre
-data-ordlist
 
-    no longer in base, I think these should come from the haskell platform?
+deepseq, data-ordlist, binary, storablevector
+dlist -- Perform.SignalBase
 parsec-2
-mtl
-network
-stm
-haskell-src -> happy
-
+text, stm, network
+haskell-src -- Util.PPrint
+regex-pcre -- make sure to install libpcre, port puts headers in /opt
+hint
 
     installed separately:
 libpcre library from http://www.pcre.org
 
     fltk
 
-configure flags:
---enable-debug --enable-threads --enable-quartz
+Add -m32 to the cmdline to compile in 32 bit mode.  One possibility is to edit
+makeinclude and add -m32 to OPTIM.
 
 Edit either configure.in or configure to remove -fno-exceptions since ASSERT
 uses them

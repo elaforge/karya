@@ -8,6 +8,10 @@ CXX_DEBUG := -ggdb
 CXX_OPT := -O2
 OPT := $(CXX_DEBUG)
 
+# Current ghc only compiles in 32 bit mode.  Newer ghc compiles 64 bit I think,
+# but I'm afraid it will take up much more memory.
+ARCH := -m32
+
 MIDI_LIBS := -framework CoreFoundation -framework CoreMIDI -framework CoreAudio
 CINCLUDE := -Ifltk -I.
 
@@ -30,9 +34,9 @@ LIBFLTK_1_1_LD := /usr/local/src/fltk-1.1.9/lib/libfltk.a
 LIBFLTK_1_1_INC := -I/usr/local/src/fltk-1.1.9 -DOLD_FLTK
 
 FLTK_CXX := $(LIBFLTK_1_3_INC) $(LIBFLTK_D)
-CXXFLAGS = $(FLTK_CXX) $(OPT) $(CINCLUDE) -Wall
+CXXFLAGS = $(FLTK_CXX) $(OPT) $(CINCLUDE) $(ARCH) -Wall
 
-LDFLAGS := $(LIBFLTK_1_3_LD) $(FLTK_LD)
+LDFLAGS := $(LIBFLTK_1_3_LD) $(FLTK_LD) $(ARCH)
 
 # Fltk 1.3 has a buggy and slow Fl_Text_Display, so use 1.1 for now.
 OLD_FLTK_CXX := $(LIBFLTK_1_1_INC) $(LIBFLTK_D) $(OPT) $(CINCLUDE) -Wall
@@ -55,7 +59,10 @@ SEQ_FLAGS := $(HDEBUG) # -DINTERPRETER
 # Flags for generic compiles that don't need to be debugging or profiling.
 HFLAGS = $(BASIC_HFLAGS) $(HDEBUG) # -fforce-recomp
 
-HLDFLAGS := $(LDFLAGS)
+# HLDFLAGS := $(LDFLAGS)
+# TODO ghc doesn't accept -m32 like gcc and ld do.
+# GHC 6.12 adds these flags already, but I think 7 doesn't.
+HLDFLAGS := $(LIBFLTK_1_3_LD) $(FLTK_LD) -optc-m32 -opta-m32 -optl-m32
 
 GHC := ghc-6.12.3
 # Used by haddock to find system docs, but it doesn't work anyway.
@@ -142,7 +149,7 @@ ALL_HS = $(shell tools/all_hs.py)
 
 ### main app
 
-SEQ_CMDLINE = $(GHC) -package ghc $(BASIC_HFLAGS) \
+SEQ_CMDLINE = $(GHC) $(BASIC_HFLAGS) \
 	--make -main-is App.Main App/Main.hs \
 	$(UI_OBJS) $(COREMIDI_OBJS) fltk/fltk.a $(MIDI_LIBS) $(HLDFLAGS)
 
@@ -312,7 +319,8 @@ tags: $(ALL_HS)
 	rm tags.sorted
 
 %.hs: %.hsc
-	hsc2hs -c g++ --cflag -Wno-invalid-offsetof $(CINCLUDE) $(PORTMIDI_I) $<
+	hsc2hs -c g++ --cflag -Wno-invalid-offsetof $(CINCLUDE) $(FLTK_CXX) \
+		--cflag=$(ARCH) $(PORTMIDI_I) $<
 	@# hsc2hs stil includes INCLUDE but ghc 6.12 doesn't like that
 	grep -v INCLUDE $@ >$@.tmp
 	mv $@.tmp $@

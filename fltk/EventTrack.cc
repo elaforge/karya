@@ -442,7 +442,7 @@ EventTrackView::draw_area()
     if (count) {
         for (int i = 0; i < count; i++) {
             if (events[i].text)
-                free(events[i].text);
+                free(const_cast<char *>(events[i].text));
         }
         free(events);
         free(event_pos);

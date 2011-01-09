@@ -22,7 +22,7 @@ struct Event {
     // This has a default contsructor so I can assign it by value into
     // the EventTrackModel::Events map.
     Event() : duration(0), color(0, 0, 0) {}
-    Event(char *text, ScoreTime duration, Color color,
+    Event(const char *text, ScoreTime duration, Color color,
             const EventStyle &style, bool align_to_bottom = false) :
         text(text), duration(duration), color(color), style(style)
     {}
@@ -31,7 +31,8 @@ struct Event {
     }
 
     // std::string would be nicer but I can't serialize to that from haskell.
-    char *text;
+    // This won't be modified, but will be freed, so const_cast for that.
+    const char *text;
     ScoreTime duration;
     Color color;
     EventStyle style;

@@ -58,7 +58,7 @@ SkeletonConfig skeleton_config(int *pairs, int len)
     return skel;
 }
 
-typedef static std::vector<std::pair<ScoreTime, Mark> > MarkData;
+typedef std::vector<std::pair<ScoreTime, Mark> > MarkData;
 static MarkData m44_marks;
 
 static ScoreTime m44_last_pos;
@@ -233,7 +233,7 @@ t1_find_events(ScoreTime *start_pos, ScoreTime *end_pos,
         // Placement new since malloced space is uninitialized.
         new((*ret_tps) + i) ScoreTime(t1_events[start+i].pos);
         new((*ret_events) + i) Event(t1_events[start+i].event);
-        char **textp = &(*ret_events)[i].text;
+        const char **textp = &(*ret_events)[i].text;
         if (*textp)
             *textp = strdup(*textp);
         (*ret_ranks)[i] = t1_events[start+i].rank;
