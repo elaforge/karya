@@ -21,6 +21,8 @@ module Util.Log (
     -- * LogT monad
     , LogMonad(..)
     , LogT, run
+    -- * LazyLogT monad
+    , LazyLogT, run_lazy
     -- * serialization
     , format_msg
     , serialize_msg, deserialize_msg
@@ -31,6 +33,7 @@ import qualified Control.Exception as Exception
 import Control.Monad
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Trans as Trans
+import qualified Control.Monad.Writer.Lazy as Writer
 import qualified Data.Generics as Generics
 import qualified Data.Text as Text
 import qualified Data.Time as Time
@@ -258,10 +261,23 @@ run_log_t (LogT x) = x
 run :: Monad m => LogT m a -> m (a, [Msg])
 run = Logger.run . run_log_t
 
+-- * LazyLogT
+
+newtype LazyLogT m a = LazyLogT (Writer.WriterT [Msg] m a)
+    deriving (Functor, Monad, Trans.MonadIO, Trans.MonadTrans,
+        Error.MonadError e)
+
+instance (Monad m) => LogMonad (LazyLogT m) where
+    write = LazyLogT . Writer.tell . (:[])
+
+run_lazy :: (Monad m) => LazyLogT m a -> m (a, [Msg])
+run_lazy (LazyLogT m) = Writer.runWriterT m
+
 -- * serialize
 
 serialize_msg :: Msg -> String
 serialize_msg = show
+
 deserialize_msg :: String -> IO (Either Exception.SomeException Msg)
 deserialize_msg msg = Exception.try (readIO msg)
 
