@@ -1,5 +1,4 @@
 #include <FL/Fl.H>
-#include <FL/x.H>
 #include "interface.h"
 
 extern "C" {
@@ -7,7 +6,7 @@ extern "C" {
 void initialize() { Fl::lock(); }
 void ui_wait() { Fl::wait(100); }
 void ui_awake() { Fl::awake((void*) 0); }
-int has_windows() { return Fl_X::first != NULL; }
+int has_windows() { return Fl::first_window() != NULL; }
 
 LogViewWindow *
 create_logview(int x, int y, int w, int h, MsgCallback cb, int max_bytes)
