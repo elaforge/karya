@@ -10,9 +10,10 @@ module Derive.TrackInfo where
 import qualified Util.Seq as Seq
 import qualified Util.Pretty as Pretty
 
+import qualified Derive.Parse as Parse
+import qualified Derive.Scale.Relative as Relative
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
-import qualified Derive.Scale.Relative as Relative
 import qualified Perform.Pitch as Pitch
 
 
@@ -38,9 +39,9 @@ data PitchType =
 parse_control :: String -> Either String ControlType
 parse_control = fmap fst . parse_control_expr
 
-parse_control_expr :: String -> Either String (ControlType, TrackLang.Expr)
+parse_control_expr :: String -> Either String (ControlType, Parse.Expr)
 parse_control_expr title = do
-    (vals, expr) <- TrackLang.parse_control_title title
+    (vals, expr) <- Parse.parse_control_title title
     ctrack <- parse_control_vals vals
     return (ctrack, expr)
 

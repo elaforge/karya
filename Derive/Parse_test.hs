@@ -1,20 +1,21 @@
-module Derive.TrackLang_test where
+module Derive.Parse_test where
 import Control.Monad
 
 import Util.Test
-import qualified Util.Parse as Parse
+import qualified Util.Parse as Util.Parse
 import qualified Util.Pretty as Pretty
 
 import qualified Derive.Score as Score
-import Derive.TrackLang (AttrMode(..), Call(..), ControlRef(..), Symbol(..),
-    Val(..), Term(..))
+import qualified Derive.Parse as Parse
+import Derive.Parse (Call(..), Term(..))
 import qualified Derive.TrackLang as TrackLang
+import Derive.TrackLang (AttrMode(..), ControlRef(..), Symbol(..), Val(..))
 
 import qualified Perform.Pitch as Pitch
 
 
 test_parse = do
-    let f = TrackLang.parse
+    let f = Parse.parse
     equal (f "a | b") $ Right
         [Call (Symbol "a") [], Call (Symbol "b") []]
     equal (f "a | b | c") $ Right $
@@ -90,7 +91,7 @@ test_p_val = do
             , ("_", Just VNotGiven)
             ]
     forM_ expr_expected $ \(expr, expected) -> do
-        let res = Parse.parse_all TrackLang.p_val expr
+        let res = Util.Parse.parse_all Parse.p_val expr
         case (res, expected) of
             (Left err, Just expect) -> failure $
                 err ++ ", expected " ++ show expect
@@ -104,7 +105,7 @@ test_p_val = do
 test_p_equal = do
     let eq a b = Right (Call (Symbol "=") [Literal a, b])
         sym = VSymbol . Symbol
-    let f = Parse.parse_all TrackLang.p_equal
+    let f = Util.Parse.parse_all Parse.p_equal
     equal (f "a = b") (eq (sym "a") (Literal (VSymbol (Symbol "b"))))
     equal (f "a = 10") (eq (sym "a") (Literal (VNum 10)))
     equal (f "a = (b c)") (eq (sym "a") (val_call "b" [Literal (symbol "c")]))
@@ -119,7 +120,7 @@ test_p_equal = do
         (Literal (VRelativeAttr (TrackLang.RelativeAttr (Set, "b")))))
 
 
-    let parse = TrackLang.parse
+    let parse = Parse.parse
     equal (parse "a =b") $ Right [Call (Symbol "a")
         [Literal (VRelativeAttr (TrackLang.RelativeAttr (Set, "b")))]]
     equal (parse "a= b") $ Right [Call (Symbol "a=") [Literal (symbol "b")]]

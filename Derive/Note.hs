@@ -135,6 +135,7 @@ import qualified Ui.Track as Track
 
 import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
+import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
@@ -146,7 +147,7 @@ d_note_track :: BlockId -> TrackId -> Derive.EventDeriver
 d_note_track block_id track_id = Derive.catch_warn (return Derive.no_events) $do
     track <- Derive.get_track track_id
     if null (Track.track_title track) then return Derive.no_events else do
-    track_expr <- case TrackLang.parse (Track.track_title track) of
+    track_expr <- case Parse.parse (Track.track_title track) of
         Left err -> Derive.throw $ "track title: " ++ err
         Right expr -> return (preprocess_title expr)
     -- TODO event calls are evaluated in normalized time, but track calls
@@ -168,8 +169,8 @@ derive_notes block_end events = Derive.merge_asc_events <$>
 -- | It's convenient to tag a note track with @>inst@ to set its instrument.
 -- Unfortunately, this is parsed as a call to @>inst@
 preprocess_title :: Call.PreProcess
-preprocess_title (TrackLang.Call (TrackLang.Symbol ('>':inst)) args : calls) =
-    TrackLang.Call (TrackLang.Symbol "n") (mkinst inst : args) : calls
+preprocess_title (Parse.Call (TrackLang.Symbol ('>':inst)) args : calls) =
+    Parse.Call (TrackLang.Symbol "n") (mkinst inst : args) : calls
     where
-    mkinst = TrackLang.Literal . TrackLang.VInstrument . Score.Instrument
+    mkinst = Parse.Literal . TrackLang.VInstrument . Score.Instrument
 preprocess_title expr = expr

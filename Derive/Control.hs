@@ -25,6 +25,7 @@ import qualified Ui.Types as Types
 
 import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
+import qualified Derive.Parse as Parse
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Relative as Relative
 import qualified Derive.Score as Score
@@ -47,7 +48,7 @@ d_control_track block_id track_id deriver = Derive.catch_warn deriver $ do
     -- aren't.  Should they be?
     eval_track block_id track_id expr ctype deriver
 
-eval_track :: BlockId -> TrackId -> TrackLang.Expr -> TrackInfo.ControlType
+eval_track :: BlockId -> TrackId -> Parse.Expr -> TrackInfo.ControlType
     -> Derive.EventDeriver -> Derive.EventDeriver
 eval_track block_id track_id expr ctype deriver = do
     track <- Derive.get_track track_id
@@ -102,7 +103,7 @@ control_call track_id control maybe_op control_deriver deriver = do
             Just op -> Derive.with_control_operator control op signal deriver
 
 pitch_call :: ScoreTime -> TrackId -> Maybe Score.Control
-    -> TrackInfo.PitchType -> TrackLang.Expr -> [Track.PosEvent]
+    -> TrackInfo.PitchType -> Parse.Expr -> [Track.PosEvent]
     -> Derive.EventDeriver -> Derive.EventDeriver
 pitch_call block_end track_id maybe_name ptype track_expr events deriver =
     Derive.track_setup track_id $ do
@@ -131,7 +132,7 @@ pitch_call block_end track_id maybe_name ptype track_expr events deriver =
                 Derive.with_control_damage damage $
                     Derive.with_pitch maybe_name signal deriver
 
-derive_control :: ScoreTime -> TrackLang.Expr -> [Track.PosEvent]
+derive_control :: ScoreTime -> Parse.Expr -> [Track.PosEvent]
     -> Derive.Deriver (Derive.Control, Derive.EventDamage)
 derive_control block_end track_expr events = do
     result <- Call.apply_transformer
@@ -146,14 +147,13 @@ derive_control block_end track_expr events = do
 
 preprocess_control :: Call.PreProcess
 preprocess_control expr = case Seq.break_last expr of
-    (calls, Just (TrackLang.Call (TrackLang.Symbol sym) []))
-        | Right num@(TrackLang.VNum _) <- TrackLang.parse_val sym ->
-            calls ++ [TrackLang.Call (TrackLang.Symbol "set")
-                [TrackLang.Literal num]]
+    (calls, Just (Parse.Call (TrackLang.Symbol sym) []))
+        | Right num@(TrackLang.VNum _) <- Parse.parse_val sym ->
+            calls ++ [Parse.Call (TrackLang.Symbol "set") [Parse.Literal num]]
     _ -> expr
 
 
-derive_pitch :: ScoreTime -> TrackLang.Expr -> [Track.PosEvent]
+derive_pitch :: ScoreTime -> Parse.Expr -> [Track.PosEvent]
     -> Derive.Deriver (Derive.Pitch, Derive.EventDamage)
 derive_pitch block_end track_expr events = do
     result <- Call.apply_transformer
@@ -192,9 +192,9 @@ _extend_damage sample sig (Derive.EventDamage ranges) = Derive.EventDamage $
 -- TODO this can go away when pitches are calls
 -- preprocess_pitch :: Call.PreProcess
 -- preprocess_pitch expr = case Seq.break_last expr of
---     (calls, Just (TrackLang.Call (TrackLang.Symbol sym) [])) ->
---         calls ++ [TrackLang.Call (TrackLang.Symbol "set")
---                 [TrackLang.Literal (TrackLang.VNote (Pitch.Note sym))]]
+--     (calls, Just (Parse.Call (TrackLang.Symbol sym) [])) ->
+--         calls ++ [Parse.Call (TrackLang.Symbol "set")
+--                 [Parse.Literal (TrackLang.VNote (Pitch.Note sym))]]
 --     _ -> expr
 
 

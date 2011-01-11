@@ -85,6 +85,7 @@ import qualified Ui.Types as Types
 import qualified Derive.Cache as Cache
 import qualified Derive.CallSig as CallSig
 import qualified Derive.Derive as Derive
+import qualified Derive.Parse as Parse
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
@@ -178,7 +179,7 @@ default_relative_note :: Derive.PassedArgs derived
 default_relative_note args
     | is_relative = do
         degree <- CallSig.cast "relative pitch 0"
-            =<< eval (TrackLang.val_call "0")
+            =<< eval (Parse.val_call "0")
         return $ args { Derive.passed_vals =
             TrackLang.VDegree degree : Derive.passed_vals args }
     | otherwise = return args
@@ -227,7 +228,7 @@ with_attrs f deriver = do
 
 -- | Evaluate a single note as a generator.  Fake up an event with no prev or
 -- next lists.
-eval_one :: ScoreTime -> ScoreTime -> TrackLang.Expr -> Derive.EventDeriver
+eval_one :: ScoreTime -> ScoreTime -> Parse.Expr -> Derive.EventDeriver
 eval_one start dur expr =
     Derive.d_place start dur (apply_toplevel (note_dinfo, cinfo) expr)
     where
@@ -235,7 +236,7 @@ eval_one start dur expr =
     cinfo = Derive.dummy_call_info ("eval_one: " ++ show expr)
 
 -- | Apply an expr with the current call info.
-reapply :: Derive.PassedArgs Derive.Events -> TrackLang.Expr
+reapply :: Derive.PassedArgs Derive.Events -> Parse.Expr
     -> Derive.EventDeriver
 reapply args expr = apply_toplevel (note_dinfo, cinfo) expr
     where cinfo = Derive.passed_info args
@@ -243,7 +244,7 @@ reapply args expr = apply_toplevel (note_dinfo, cinfo) expr
 -- | A version of 'eval' specialized to evaluate note calls.
 eval_note :: Pitch.Note -> Derive.Deriver Pitch.Degree
 eval_note note = CallSig.cast ("eval note " ++ show note)
-    =<< eval (TrackLang.val_call (Pitch.note_text note))
+    =<< eval (Parse.val_call (Pitch.note_text note))
 
 -- | Evaluate the root block in a performance.  Making this an ordinary call
 -- means it participates in the derive cache just like all other calls.
@@ -273,7 +274,7 @@ data DeriveInfo derived = DeriveInfo {
 note_dinfo :: DeriveInfo Derive.Events
 note_dinfo = DeriveInfo lookup_note_call "note"
 
-type PreProcess = TrackLang.Expr -> TrackLang.Expr
+type PreProcess = Parse.Expr -> Parse.Expr
 type Info derived = (DeriveInfo derived, Derive.CallInfo derived)
 
 derive_track :: (Derive.Derived derived) =>
@@ -305,7 +306,7 @@ derive_event :: (Derive.Derived derived) =>
     -> Derive.Deriver derived
 derive_event block_end dinfo preproc prev_val prev cur@(pos, event) next
     | Event.event_text event == Text.pack "--" = return Derive.empty_derived
-    | otherwise = case TrackLang.parse (Event.event_string event) of
+    | otherwise = case Parse.parse (Event.event_string event) of
         Left err -> Log.warn err >> return Derive.empty_derived
         Right expr -> run_call (preproc expr)
     where
@@ -332,7 +333,7 @@ derive_event block_end dinfo preproc prev_val prev cur@(pos, event) next
         evt0 = Event.modify_duration (/stretch) (snd cur)
 
 -- | Apply a toplevel expression.
-apply_toplevel :: (Derive.Derived derived) => Info derived -> TrackLang.Expr
+apply_toplevel :: (Derive.Derived derived) => Info derived -> Parse.Expr
     -> Derive.Deriver derived
 apply_toplevel info expr = case Seq.break_last expr of
     (transform_calls, Just generator_call) ->
@@ -340,9 +341,9 @@ apply_toplevel info expr = case Seq.break_last expr of
             apply_generator info generator_call
     _ -> Derive.throw "event with no calls at all (this shouldn't happen)"
 
-apply_generator :: (Derive.Derived derived) => Info derived -> TrackLang.Call
+apply_generator :: (Derive.Derived derived) => Info derived -> Parse.Call
     -> Derive.Deriver derived
-apply_generator (dinfo, cinfo) (TrackLang.Call call_id args) = do
+apply_generator (dinfo, cinfo) (Parse.Call call_id args) = do
     maybe_call <- info_lookup dinfo call_id
     (call, vals) <- case maybe_call of
         Just call -> do
@@ -375,10 +376,10 @@ apply_generator (dinfo, cinfo) (TrackLang.Call call_id args) = do
         Nothing -> Derive.throw $ "non-generator in generator position: "
             ++ Derive.call_name call
 
-apply_transformer :: (Derive.Derived derived) => Info derived -> TrackLang.Expr
+apply_transformer :: (Derive.Derived derived) => Info derived -> Parse.Expr
     -> Derive.Deriver derived -> Derive.Deriver derived
 apply_transformer _ [] deriver = deriver
-apply_transformer info@(dinfo, cinfo) (TrackLang.Call call_id args : calls)
+apply_transformer info@(dinfo, cinfo) (Parse.Call call_id args : calls)
         deriver = do
     vals <- mapM eval args
     let new_deriver = apply_transformer info calls deriver
@@ -398,13 +399,13 @@ apply_transformer info@(dinfo, cinfo) (TrackLang.Call call_id args : calls)
         Nothing -> Derive.throw $ "non-transformer in transformer position: "
             ++ Derive.call_name call
 
-eval :: TrackLang.Term -> Derive.Deriver TrackLang.Val
-eval (TrackLang.Literal val) = return val
-eval (TrackLang.ValCall (TrackLang.Call call_id terms)) = do
+eval :: Parse.Term -> Derive.Deriver TrackLang.Val
+eval (Parse.Literal val) = return val
+eval (Parse.ValCall (Parse.Call call_id terms)) = do
     call <- with_call call_id "val" lookup_val_call
     apply call_id call terms
 
-apply :: TrackLang.CallId -> Derive.ValCall -> [TrackLang.Term]
+apply :: TrackLang.CallId -> Derive.ValCall -> [Parse.Term]
     -> Derive.Deriver TrackLang.Val
 apply call_id call args = do
     env <- Derive.gets Derive.state_environ
@@ -443,9 +444,8 @@ block_call :: BlockId -> Derive.EventDeriver
 block_call block_id = Derive.d_subderive (Derive.d_block block_id)
 
 -- | Given a block id, produce a call expression that will call that block.
-call_from_block_id :: BlockId -> TrackLang.Call
-call_from_block_id block_id =
-    TrackLang.call (Id.show_id (Id.unpack_id block_id))
+call_from_block_id :: BlockId -> Parse.Call
+call_from_block_id block_id = Parse.call (Id.show_id (Id.unpack_id block_id))
 
 -- | Make an Id from a string, relative to the current ns if it doesn't already
 -- have one.
