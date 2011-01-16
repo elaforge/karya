@@ -169,8 +169,8 @@ derive_notes block_end events = Derive.merge_asc_events <$>
 -- | It's convenient to tag a note track with @>inst@ to set its instrument.
 -- Unfortunately, this is parsed as a call to @>inst@
 preprocess_title :: Call.PreProcess
-preprocess_title (Parse.Call (TrackLang.Symbol ('>':inst)) args : calls) =
-    Parse.Call (TrackLang.Symbol "n") (mkinst inst : args) : calls
+preprocess_title (TrackLang.Call (TrackLang.Symbol ('>':inst)) args : calls) =
+    TrackLang.Call (TrackLang.Symbol "n") (mkinst inst : args) : calls
     where
-    mkinst = Parse.Literal . TrackLang.VInstrument . Score.Instrument
+    mkinst = TrackLang.Literal . TrackLang.VInstrument . Score.Instrument
 preprocess_title expr = expr

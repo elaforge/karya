@@ -5,8 +5,8 @@ import Ui
 import Derive.CallSig (optional, control)
 import qualified Derive.CallSig as CallSig
 import qualified Derive.Derive as Derive
-import qualified Derive.Parse as Parse
 import qualified Derive.Call as Call
+import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Signal as Signal
 
@@ -48,7 +48,7 @@ tick time vel prev next = do
     (start, dur) <- stretch prev next time
     Derive.with_constant_pitch Nothing (next_pitch + transpose) $
         Derive.with_velocity (Signal.constant (next_vel * vel)) $
-        Call.eval_one start dur [Parse.call ""]
+        Call.eval_one start dur [TrackLang.call ""]
 
 -- TODO if I need to do more note shifting and placing, I could dream up some
 -- sort of constraint language like TeX's notion of stretchiness

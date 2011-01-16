@@ -1,4 +1,10 @@
-module Derive.Parse where
+module Derive.Parse (
+    parse, parse_control_title, parse_val
+    , parse_expr, p_num
+
+    -- * exported for testing
+    , p_val, p_equal
+) where
 import Control.Monad
 import qualified Data.Char as Char
 import qualified Data.List as List
@@ -15,32 +21,20 @@ import qualified Perform.Pitch as Pitch
 import qualified Derive.TrackLang as TrackLang
 
 
--- | The only operator is @|@, so a list of lists suffices for an AST.
-type Expr = [Call]
-data Call = Call TrackLang.CallId [Term] deriving (Eq, Show)
-data Term = ValCall Call | Literal TrackLang.Val deriving (Eq, Show)
-
--- | Convenient constructor for Call.  Not to be confused with 'call0'--calln.
---
--- TODO I should be able to have different types of vals, but I think I need an
--- existential wrapper for that, or an infix operator.
-call :: String -> Call
-call sym = Call (TrackLang.Symbol sym) []
-
-val_call :: String -> Term
-val_call sym = ValCall (Call (TrackLang.Symbol sym) [])
-
 -- | The returned Expr is never null.
-parse :: String -> Either String Expr
+parse :: String -> Either String TrackLang.Expr
 parse text = Parse.parse_all p_pipeline (strip_comment text)
+
+parse_expr :: P.Parser TrackLang.Expr -> String -> Either String TrackLang.Expr
+parse_expr p text = Parse.parse_all p (strip_comment text)
 
 -- | Parse a control track title.  The first expression in the composition is
 -- parsed simply as a list of values, not a Call.  Control track titles don't
 -- follow the normal calling process but pattern match directly on vals.
-parse_control_title :: String -> Either String ([TrackLang.Val], Expr)
+parse_control_title :: String -> Either String ([TrackLang.Val], TrackLang.Expr)
 parse_control_title text = Parse.parse_all p_control_title (strip_comment text)
 
-p_control_title :: P.Parser ([TrackLang.Val], Expr)
+p_control_title :: P.Parser ([TrackLang.Val], TrackLang.Expr)
 p_control_title = do
     vals <- P.many (Parse.lexeme p_val)
     expr <- P.option [] (Parse.symbol "|" >> p_pipeline)
@@ -49,10 +43,10 @@ p_control_title = do
 parse_val :: String -> Either String TrackLang.Val
 parse_val = Parse.parse_all (Parse.lexeme p_val)
 
-p_pipeline :: P.Parser Expr
+p_pipeline :: P.Parser TrackLang.Expr
 p_pipeline = P.sepBy p_expr (Parse.symbol "|")
 
-p_expr, p_equal :: P.Parser Call
+p_expr, p_equal :: P.Parser TrackLang.Call
 p_expr = P.try p_equal <|> P.try p_call <|> p_null_call
 p_equal = do
     a1 <- p_val
@@ -61,13 +55,13 @@ p_equal = do
     -- This ensures that "a =b" is not interpreted as an equal expression.
     P.skipMany1 P.space
     a2 <- p_term
-    return $ Call TrackLang.c_equal [Literal a1, a2]
+    return $ TrackLang.Call TrackLang.c_equal [TrackLang.Literal a1, a2]
 
-p_call :: P.Parser Call
-p_call = Call <$> Parse.lexeme p_call_symbol <*> P.many p_term
+p_call :: P.Parser TrackLang.Call
+p_call = TrackLang.Call <$> Parse.lexeme p_call_symbol <*> P.many p_term
 
-p_null_call :: P.Parser Call
-p_null_call = return (Call (TrackLang.Symbol "") []) <?> "null call"
+p_null_call :: P.Parser TrackLang.Call
+p_null_call = return (TrackLang.Call (TrackLang.Symbol "") []) <?> "null call"
 
 -- | Any word in call position is considered a Symbol.  This means that
 -- you can have calls like @4@ and @>@, which are useful names for notes or
@@ -78,10 +72,11 @@ p_call_symbol = TrackLang.Symbol <$> p_word
 strip_comment :: String -> String
 strip_comment = fst . Seq.break_tails ("--" `List.isPrefixOf`)
 
-p_term :: P.Parser Term
-p_term = Parse.lexeme $ Literal <$> p_val <|> ValCall <$> p_sub_call
+p_term :: P.Parser TrackLang.Term
+p_term = Parse.lexeme $
+    TrackLang.Literal <$> p_val <|> TrackLang.ValCall <$> p_sub_call
 
-p_sub_call :: P.Parser Call
+p_sub_call :: P.Parser TrackLang.Call
 p_sub_call = P.between (P.char '(') (P.char ')') p_call
 
 p_val :: P.Parser TrackLang.Val

@@ -7,7 +7,7 @@ import qualified Util.Pretty as Pretty
 
 import qualified Derive.Score as Score
 import qualified Derive.Parse as Parse
-import Derive.Parse (Call(..), Term(..))
+import Derive.TrackLang (Call(..), Term(..))
 import qualified Derive.TrackLang as TrackLang
 import Derive.TrackLang (AttrMode(..), ControlRef(..), Symbol(..), Val(..))
 

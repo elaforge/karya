@@ -31,6 +31,7 @@
     %note-pitch,*5c
 -}
 module Derive.TrackLang where
+import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Util.Pretty as Pretty
@@ -343,3 +344,31 @@ lookup_val name environ = case Map.lookup name environ of
     Just val -> case from_val val of
         Nothing -> Left (WrongType (type_of val))
         Just v -> Right v
+
+
+-- * parsing
+
+-- | The only operator is @|@, so a list of lists suffices for an AST.
+type Expr = [Call]
+data Call = Call CallId [Term] deriving (Eq, Show)
+data Term = ValCall Call | Literal Val deriving (Eq, Show)
+
+instance DeepSeq.NFData Call where
+    rnf (Call call_id terms) = call_id `seq` DeepSeq.rnf terms
+instance DeepSeq.NFData Term where
+    rnf (ValCall call) = DeepSeq.rnf call
+    rnf (Literal val) = DeepSeq.rnf val
+instance DeepSeq.NFData Val where
+    rnf (VNum d) = DeepSeq.rnf d
+    rnf (VSymbol (Symbol s)) = DeepSeq.rnf s
+    rnf _ = ()
+
+-- | Convenient constructor for Call.  Not to be confused with 'call0'--calln.
+--
+-- TODO I should be able to have different types of vals, but I think I need an
+-- existential wrapper for that, or an infix operator.
+call :: String -> Call
+call sym = Call (Symbol sym) []
+
+val_call :: String -> Term
+val_call sym = ValCall (Call (Symbol sym) [])
