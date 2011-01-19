@@ -8,10 +8,10 @@
 module Derive.Score where
 import qualified Control.DeepSeq as DeepSeq
 import Control.DeepSeq (rnf)
+import qualified Data.ByteString.Char8 as B
 import qualified Data.Map as Map
 import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
-import qualified Data.Text as Text
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
@@ -34,7 +34,7 @@ data Event = Event {
     , event_duration :: RealTime
     -- | The UI level keeps it in UTF8 for easy communication with fltk, but
     -- haskell will always need to decode it, so I might as well do it here.
-    , event_text :: Text.Text
+    , event_bs :: B.ByteString
     , event_controls :: ControlMap
     , event_pitch :: PitchSignal.PitchSignal
 
@@ -55,11 +55,16 @@ instance DeepSeq.NFData Event where
         rnf start `seq`  rnf dur `seq` rnf text `seq` rnf controls
             `seq` rnf pitch
 
+-- | This is not a great place, maybe I can make a special module for NFData
+-- orphans.
+instance DeepSeq.NFData B.ByteString where
+    rnf b = b `seq` () -- bytestrings are already strict
+
 type ControlMap = Map.Map Control Signal.Control
 type PitchMap = Map.Map Control PitchSignal.PitchSignal
 
 event_string :: Event -> String
-event_string = Text.unpack . event_text
+event_string = B.unpack . event_bs
 
 event_end :: Event -> RealTime
 event_end event = event_start event + event_duration event

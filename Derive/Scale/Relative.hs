@@ -8,7 +8,7 @@ import qualified Ui.Track as Track
 
 import qualified Derive.Call.Pitch as Call.Pitch
 import qualified Derive.Derive as Derive
-import qualified Derive.Parse as Parse
+import qualified Derive.ParseBs as Derive.Parse
 import qualified Derive.Scale as Scale
 import qualified Derive.TrackLang as TrackLang
 
@@ -39,7 +39,7 @@ note_to_degree :: Pitch.Note -> Maybe Pitch.Degree
 note_to_degree note = Pitch.Degree <$> Parse.float (Pitch.note_text note)
 
 note_to_call :: Pitch.Note -> Maybe Derive.ValCall
-note_to_call note = case Parse.parse_val (Pitch.note_text note) of
+note_to_call note = case Derive.Parse.parse_val (Pitch.note_text note) of
     Right (TrackLang.VNum d) -> Just (Call.Pitch.relative_call (Pitch.Degree d))
     _ -> Nothing
 

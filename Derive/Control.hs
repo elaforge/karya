@@ -25,7 +25,7 @@ import qualified Ui.Types as Types
 
 import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
-import qualified Derive.Parse as Parse
+import qualified Derive.ParseBs as Parse
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Relative as Relative
 import qualified Derive.Score as Score

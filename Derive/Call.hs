@@ -67,8 +67,8 @@
     that though, because I don't have any convincing uses for it yet either.
 -}
 module Derive.Call where
+import qualified Data.ByteString.Char8 as B
 import qualified Data.Map as Map
-import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Log as Log
@@ -85,7 +85,7 @@ import qualified Ui.Types as Types
 import qualified Derive.Cache as Cache
 import qualified Derive.CallSig as CallSig
 import qualified Derive.Derive as Derive
-import qualified Derive.Parse as Parse
+import qualified Derive.ParseBs as Parse
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
@@ -305,8 +305,8 @@ derive_event :: (Derive.Derived derived) =>
     -> [Track.PosEvent] -- ^ following events
     -> Derive.Deriver derived
 derive_event block_end dinfo preproc prev_val prev cur@(pos, event) next
-    | Event.event_text event == Text.pack "--" = return Derive.empty_derived
-    | otherwise = case Parse.parse (Event.event_string event) of
+    | Event.event_bs event == B.pack "--" = return Derive.empty_derived
+    | otherwise = case Parse.parse (Event.event_bs event) of
         Left err -> Log.warn err >> return Derive.empty_derived
         Right expr -> run_call (preproc expr)
     where

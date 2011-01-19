@@ -1,5 +1,5 @@
 #!/bin/zsh
-# Flags for 'head' env var:
+# Flags for 'heap' env var:
 # hc - by producing cost-center stack
 # hm - by module
 # hd - by closure description

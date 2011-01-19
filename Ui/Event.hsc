@@ -22,12 +22,11 @@
 
     No Event may overlap another Event on the same Track.
 -}
-
 module Ui.Event where
 import qualified Data.Array.IArray as IArray
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Encoding
-import qualified Data.ByteString as ByteString
+import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.Internal as Internal
 import Foreign
 import Foreign.C
@@ -38,20 +37,23 @@ import qualified Ui.Font as Font
 
 
 data Event = Event {
-    event_text :: Text.Text
+    event_bs :: B.ByteString
     , event_duration :: ScoreTime
     , event_style :: StyleId
     } deriving (Eq, Show, Read)
 
+event_text :: Event -> Text.Text
+event_text = Encoding.decodeUtf8 . event_bs
+
 -- | Manual event constructor.
 event :: String -> ScoreTime -> Event
-event text dur = Event (Text.pack text) dur default_style
+event text dur = Event (B.pack text) dur default_style
 
 event_string :: Event -> String
-event_string = Text.unpack . event_text
+event_string = B.unpack . event_bs
 
 set_string :: String -> Event -> Event
-set_string s evt = evt { event_text = Text.pack s }
+set_string s evt = evt { event_bs = B.pack s }
 
 set_duration :: ScoreTime -> Event -> Event
 set_duration dur event = event { event_duration = dur }
@@ -119,8 +121,8 @@ instance Storable Event where
 poke_event eventp (Event text dur style_id) = do
     let (Style color text_style) = lookup_style style_id
     -- Must be freed by the caller, EventTrackView::draw_area.
-    textp <- if Text.null text then return nullPtr
-        else unpackCString0 (Encoding.encodeUtf8 text)
+    textp <- if B.null text then return nullPtr
+        else unpackCString0 text
     (#poke Event, text) eventp textp
     (#poke Event, duration) eventp dur
     (#poke Event, color) eventp color
@@ -128,7 +130,7 @@ poke_event eventp (Event text dur style_id) = do
 
 -- | Unpack the bytestring to a null-terminated cstring, in malloc'd space.
 -- ByteString only has an alloca version of this.
-unpackCString0 :: ByteString.ByteString -> IO CString
+unpackCString0 :: B.ByteString -> IO CString
 unpackCString0 bs = do
     let (fptr, offset, len) = Internal.toForeignPtr bs
     stringp <- mallocBytes (len + 1)

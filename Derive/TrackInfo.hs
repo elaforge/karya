@@ -7,10 +7,12 @@
 -- needed.  Control tracks titles are rather more complicated, and Cmds in
 -- addition to the Schema need to agree on how they are parsed.
 module Derive.TrackInfo where
+import qualified Data.ByteString.Char8 as B
+
 import qualified Util.Seq as Seq
 import qualified Util.Pretty as Pretty
 
-import qualified Derive.Parse as Parse
+import qualified Derive.ParseBs as Parse
 import qualified Derive.Scale.Relative as Relative
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
@@ -39,9 +41,9 @@ data PitchType =
 parse_control :: String -> Either String ControlType
 parse_control = fmap fst . parse_control_expr
 
-parse_control_expr :: String -> Either String (ControlType, Parse.Expr)
+parse_control_expr :: String -> Either String (ControlType, TrackLang.Expr)
 parse_control_expr title = do
-    (vals, expr) <- Parse.parse_control_title title
+    (vals, expr) <- Parse.parse_control_title (B.pack title)
     ctrack <- parse_control_vals vals
     return (ctrack, expr)
 

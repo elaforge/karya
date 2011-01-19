@@ -19,7 +19,6 @@ import qualified Data.Binary as Binary
 import Data.Binary (Binary, Get, get, put, getWord8, putWord8)
 import qualified Data.ByteString as ByteString
 import qualified Data.Map as Map
-import qualified Data.Text.Encoding as Encoding
 import qualified Data.Time as Time
 
 import qualified System.IO as IO
@@ -470,14 +469,13 @@ instance Binary Track.TrackEvents where
 
 instance Binary Event.Event where
     put (Event.Event text dur style) = do
-        put (Encoding.encodeUtf8 text) -- Data.Text doesn't have Binary?
+        put text
         put dur
         put style
     get = do
-        bs <- get :: Get ByteString.ByteString
+        text <- get :: Get ByteString.ByteString
         dur <- get :: Get ScoreTime
         style <- get :: Get Event.StyleId
-        let text = Encoding.decodeUtf8 bs
         return $ Event.Event text dur style
 
 instance Binary Event.StyleId where

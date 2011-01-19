@@ -1,10 +1,10 @@
 module Derive.DeriveTest where
 import Control.Monad
+import qualified Data.ByteString.Char8 as B
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Monoid as Monoid
-import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Log as Log
@@ -262,7 +262,7 @@ d_note = do
     st <- Derive.get
     let controls = Derive.state_controls st
         pitch_sig = Derive.state_pitch st
-    return [Score.Event start (end-start) (Text.pack "evt")
+    return [Score.Event start (end-start) (B.pack "evt")
         controls pitch_sig Stack.empty inst attrs]
 
 -- * inst
@@ -304,7 +304,7 @@ type EventSpec = (RealTime, RealTime, String,
 
 mkevent :: EventSpec -> Score.Event
 mkevent (start, dur, text, controls, inst) =
-    Score.Event start dur (Text.pack text) (Map.fromList controls)
+    Score.Event start dur (B.pack text) (Map.fromList controls)
         (psig start text) fake_stack (Just inst) Score.no_attrs
     where
     psig pos p = PitchSignal.signal Pitch.twelve [(pos, to_pitch p)]
