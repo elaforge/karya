@@ -241,7 +241,7 @@ initial_state scopes cache score_damage environ constant = State
     , state_stack = Stack.empty
     , state_log_context = []
 
-    , state_collect = Monoid.mempty
+    , state_collect = mempty
     , state_cache_state = initial_cache_state cache score_damage
     , state_constant = constant
     }
@@ -331,11 +331,9 @@ data Collect = Collect {
     } deriving (Eq, Show)
 
 instance Monoid.Monoid Collect where
-    mempty = Collect Monoid.mempty Monoid.mempty Monoid.mempty
+    mempty = Collect mempty mempty mempty
     mappend (Collect warps1 signals1 deps1) (Collect warps2 signals2 deps2) =
-        Collect (Monoid.mappend warps1 warps2)
-            (Monoid.mappend signals1 signals2)
-            (Monoid.mappend deps1 deps2)
+        Collect (warps1 <> warps2) (signals1 <> signals2) (deps1 <> deps2)
 
 data CacheState = CacheState {
     state_cache :: Cache -- modified
@@ -364,10 +362,10 @@ data CacheState = CacheState {
 empty_cache_state :: CacheState
 empty_cache_state = CacheState {
     state_cache = empty_cache
-    , state_event_damage = EventDamage Monoid.mempty
-    , state_score_damage = Monoid.mempty
-    , state_control_damage = ControlDamage Monoid.mempty
-    , state_local_damage = EventDamage Monoid.mempty
+    , state_event_damage = EventDamage mempty
+    , state_score_damage = mempty
+    , state_control_damage = ControlDamage mempty
+    , state_local_damage = EventDamage mempty
     }
 
 initial_cache_state :: Cache -> ScoreDamage -> CacheState
@@ -625,9 +623,8 @@ derive constant scopes cache damage environ deriver =
     tempo_func = make_tempo_func track_warps
     closest_func = make_closest_warp track_warps
     inv_tempo_func = make_inverse_tempo_func track_warps
-    event_damage = Monoid.mappend
-        (state_event_damage (state_cache_state state))
-        (score_to_event_damage track_warps damage)
+    event_damage = (state_event_damage (state_cache_state state))
+        <> (score_to_event_damage track_warps damage)
 
 -- | Convert ScoreDamage into EventDamage.
 --
@@ -825,12 +822,12 @@ take_local_damage :: Deriver EventDamage
 take_local_damage = do
     old <- get_cache_state
     modify_cache_state $ \st ->
-        st { state_local_damage = EventDamage Monoid.mempty }
+        st { state_local_damage = EventDamage mempty }
     return $ state_local_damage old
 
 insert_local_damage :: EventDamage -> Deriver ()
 insert_local_damage damage = modify_cache_state $ \st ->
-    st { state_local_damage = Monoid.mappend damage (state_local_damage st) }
+    st { state_local_damage = damage <> state_local_damage st }
 
 put_local_damage :: EventDamage -> Deriver ()
 put_local_damage damage = modify_cache_state $ \st ->
@@ -838,7 +835,7 @@ put_local_damage damage = modify_cache_state $ \st ->
 
 insert_event_damage :: EventDamage -> Deriver ()
 insert_event_damage damage = modify_cache_state $ \st ->
-    st { state_event_damage = damage `Monoid.mappend` state_event_damage st }
+    st { state_event_damage = damage <> state_event_damage st }
 
 with_control_damage :: EventDamage -> Deriver derived -> Deriver derived
 with_control_damage (EventDamage damage) = local_cache_state
@@ -846,7 +843,7 @@ with_control_damage (EventDamage damage) = local_cache_state
     (\old st -> st { state_control_damage = old })
     (\st -> st { state_control_damage = insert (state_control_damage st) })
     where
-    insert (ControlDamage ranges) = ControlDamage (Monoid.mappend ranges damage)
+    insert (ControlDamage ranges) = ControlDamage (ranges <> damage)
 
 add_block_dep :: BlockId -> Deriver ()
 add_block_dep block_id = modify_collect $ \st ->
@@ -866,7 +863,7 @@ add_block_dep block_id = modify_collect $ \st ->
 with_empty_collect :: Deriver a -> Deriver (Either DeriveError a, Collect)
 with_empty_collect deriver = do
     old <- gets state_collect
-    new <- (\st -> return $ st { state_collect = Monoid.mempty }) =<< get
+    new <- (\st -> return $ st { state_collect = mempty }) =<< get
     put new
     result <- (fmap Right deriver) `Error.catchError` (return . Left)
     collect <- gets state_collect
@@ -1623,8 +1620,7 @@ instance Monoid.Monoid ScoreDamage where
     mappend (ScoreDamage tracks1 tblocks1 blocks1)
             (ScoreDamage tracks2 tblocks2 blocks2) =
         ScoreDamage (Map.mappend tracks1 tracks2)
-            (Monoid.mappend tblocks1 tblocks2)
-            (Monoid.mappend blocks1 blocks2)
+            (tblocks1 <> tblocks2) (blocks1 <> blocks2)
 
 -- | Clear the damaged portions out of the cache so they will rederive.
 clear_damage :: ScoreDamage -> Cache -> Cache

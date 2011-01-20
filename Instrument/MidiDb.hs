@@ -10,6 +10,7 @@ import qualified Data.Set as Set
 
 import qualified Midi.Midi as Midi
 
+import Util.Control
 import qualified Util.Map as Map
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
@@ -34,8 +35,8 @@ softsynth :: Instrument.SynthName -> Maybe String -> Control.PbRange
     -> [Instrument.Patch] -> [(Midi.Control, String)]
     -> (Instrument.Patch -> Instrument.Patch) -> SynthDesc
 softsynth name device pb_range patches controls set_patch =
-    (synth, Monoid.mappend (wildcard_patch_map (set_patch template_patch))
-        (fst (patch_map patches)))
+    (synth, wildcard_patch_map (set_patch template_patch)
+        <> fst (patch_map patches))
     where
     (synth, template_patch) =
         Instrument.make_softsynth name device pb_range controls
@@ -58,7 +59,7 @@ merge :: MidiDb -> MidiDb -> (MidiDb, [Score.Instrument])
 merge (MidiDb db1) (MidiDb db2) =
     (MidiDb (Map.unionWith merge_synth db1 db2), rejects)
     where
-    merge_synth (synth, pmap1) (_, pmap2) = (synth, Monoid.mappend pmap1 pmap2)
+    merge_synth (synth, pmap1) (_, pmap2) = (synth, pmap1 <> pmap2)
     rejects = concatMap find_dups (Map.zip_intersection db1 db2)
     find_dups (synth, (_, PatchMap ps1), (_, PatchMap ps2)) =
         map (join_inst synth) (Map.keys (Map.intersection ps2 ps1))

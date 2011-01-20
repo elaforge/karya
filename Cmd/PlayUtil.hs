@@ -4,7 +4,6 @@
 --
 -- TODO needs a better name
 module Cmd.PlayUtil where
-import qualified Data.Monoid as Monoid
 import qualified Data.Map as Map
 
 import Util.Control
@@ -54,7 +53,7 @@ cached_derive block_id = do
 
 uncached_derive :: (Monad m) =>
     BlockId -> Cmd.CmdT m (Derive.Result [Score.Event])
-uncached_derive block_id = derive Derive.empty_cache Monoid.mempty block_id
+uncached_derive block_id = derive Derive.empty_cache mempty block_id
 
 cached_perform :: (Monad m) =>
     BlockId -> Derive.Result Derive.Events -> Cmd.CmdT m Cmd.Performance
@@ -121,7 +120,7 @@ perform result cache = do
     warn_logs <- mapM (warn_to_log "convert") convert_warnings
     let logs = Derive.r_logs result ++ warn_logs
     return $ Cmd.Performance
-        (Derive.r_cache result) new_midi_cache Monoid.mempty
+        (Derive.r_cache result) new_midi_cache mempty
         logs (Derive.r_tempo result) (Derive.r_closest_warp result)
         (Derive.r_inv_tempo result) (Derive.r_track_signals result)
 
@@ -154,7 +153,7 @@ get_midi_cache config maybe_perf = case maybe_perf of
     where empty = Midi.Cache.cache config
 
 get_derive_cache :: Maybe Cmd.Performance -> (Derive.Cache, Derive.ScoreDamage)
-get_derive_cache Nothing = (Derive.empty_cache, Monoid.mempty)
+get_derive_cache Nothing = (Derive.empty_cache, mempty)
 get_derive_cache (Just perf) =
     (Cmd.perf_derive_cache perf, Cmd.perf_score_damage perf)
 

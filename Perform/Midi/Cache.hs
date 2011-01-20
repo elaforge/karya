@@ -8,8 +8,8 @@ module Perform.Midi.Cache (
 ) where
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Monoid as Monoid
 import qualified Util.Ranges as Ranges
+import Util.Control
 
 import qualified Midi.Midi as Midi
 
@@ -87,8 +87,8 @@ cache_stats :: Maybe ChunkNum -> Cache -> (RealTime, RealTime)
     -- ^ (time re-performed, total time)
 cache_stats splice_failed_at cache = case splice_failed_at of
         Nothing -> stats (cache_damage cache)
-        Just chunknum -> stats $ Monoid.mappend
-            (Ranges.range chunknum nchunks) (cache_damage cache)
+        Just chunknum -> stats $
+            Ranges.range chunknum nchunks <> cache_damage cache
     where
     nchunks = fromIntegral (length (cache_chunks cache))
     time n = Timestamp.to_real_time (fromIntegral n * cache_chunk_size)

@@ -13,7 +13,6 @@ import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Trans as Trans
 import qualified Data.IORef as IORef
 import qualified Data.Map as Map
-import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
@@ -95,8 +94,8 @@ insert_score_damage damage = Cmd.modify_state $ \st ->
         Map.map update_pthread (Cmd.state_performance_threads st) }
     where
     update_pthread th = th { Cmd.pthread_perf = update (Cmd.pthread_perf th) }
-    update perf = perf { Cmd.perf_score_damage =
-        Monoid.mappend damage (Cmd.perf_score_damage perf) }
+    update perf =
+        perf { Cmd.perf_score_damage = damage <> Cmd.perf_score_damage perf }
 
 
 -- * performance evaluation
@@ -117,7 +116,7 @@ needs_regeneration threads block_id = case Map.lookup block_id threads of
         -- It could be this damage is on a parent block and hence not
         -- relevant to this one.  But in that case it should hit the caches
         -- and be cheap all the same.
-        Cmd.perf_score_damage (Cmd.pthread_perf pthread) /= Monoid.mempty
+        Cmd.perf_score_damage (Cmd.pthread_perf pthread) /= mempty
 
 -- | Start a new performance thread.
 --

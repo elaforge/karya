@@ -4,7 +4,6 @@ import qualified Data.ByteString.Char8 as B
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
-import qualified Data.Monoid as Monoid
 
 import Util.Control
 import qualified Util.Log as Log
@@ -65,7 +64,7 @@ run ui_state m =
     -- throw.
     initial_stack = Stack.make [Stack.Block (UiTest.bid "fakeblock")]
     derive_state = (Derive.initial_state default_scopes Derive.empty_cache
-        Monoid.mempty default_environ (default_constant ui_state))
+        mempty default_environ (default_constant ui_state))
             { Derive.state_stack = initial_stack }
 
 default_constant ui_state =
@@ -134,7 +133,7 @@ derive_block_with with ui_state block_id = derive ui_state deriver
 derive :: State.State -> Derive.Deriver a -> Derive.Result a
 derive ui_state deriver =
     Derive.derive (default_constant ui_state) default_scopes
-        Derive.empty_cache Monoid.mempty default_environ deriver
+        Derive.empty_cache mempty default_environ deriver
 
 type Transform a = Derive.Deriver a -> Derive.Deriver a
 

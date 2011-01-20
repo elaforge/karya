@@ -8,7 +8,6 @@ module Derive.Cache (
 import Control.Monad
 import qualified Control.Monad.Error as Error
 import qualified Data.Map as Map
-import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
 
 import Util.Control
@@ -72,12 +71,12 @@ cached_transformer cache stack (Derive.TransformerCall call ttype)
         sub_result <- deriver
         TransformerDep control_deps <- get_recorded_tdep
         (damage, cached) <- case lookup_transformer stack cache of
-            Nothing -> return (entire_range sub_result, Monoid.mempty)
+            Nothing -> return (entire_range sub_result, mempty)
             Just cached -> do
                 local <- Derive.state_local_damage <$> Derive.get_cache_state
                 cont <- control_damage control_deps
-                return (expand_for_context context cached
-                    (Monoid.mappend local cont), cached)
+                return (expand_for_context context cached (local <> cont),
+                    cached)
         result <- recompute_regions damage call args cached sub_result
         case result of
             Left err -> return (Left err, Nothing)
@@ -164,7 +163,7 @@ cached_generator state stack (Derive.GeneratorCall func gtype _) args =
             ++ " vals)"
         -- The cached deriver must return the same collect as it would if it
         -- had been actually derived.
-        Derive.modify_collect $ \st -> Monoid.mappend collect st
+        Derive.modify_collect (collect <>)
         return (return cached, Nothing)
     generate (Left reason) = do
         (result, collect) <- with_collect (func args)
@@ -188,8 +187,8 @@ cached_generator state stack (Derive.GeneratorCall func gtype _) args =
         -- d_subderive, which catches exceptions, so I should never catch an
         -- exception here.  But in case I do, this is the right thing to do.
         (result, collect) <- Derive.with_empty_collect deriver
-        Derive.modify $ \st -> st { Derive.state_collect =
-            Monoid.mappend collect (Derive.state_collect st) }
+        Derive.modify $ \st ->
+            st { Derive.state_collect = collect <> Derive.state_collect st }
         return (result, collect)
 
 -- | Figure out if this event lies within damaged range, whether score or
@@ -275,7 +274,7 @@ score_damage ui_from ui_to updates =
     -- When track title changes come from the UI they aren't emitted as
     -- Updates, but should still trigger a re-derive.
     track_updates = Diff.track_diff ui_from ui_to
-    tracks = Map.fromListWith Monoid.mappend $
+    tracks = Map.fromListWith (<>) $
         Seq.map_maybe Update.track_changed (track_updates ++ updates)
     track_blocks = Set.fromList $ map fst $ State.find_tracks track_of_block
         (State.state_blocks ui_to)

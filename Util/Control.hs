@@ -3,6 +3,7 @@
 module Util.Control (
     (<$>), (<*>), (<*), (*>), (<|>)
     , first, second
+    , (<>), mempty
     , map_accuml_m
     , while, while_
     , whenM, when_just
@@ -13,6 +14,8 @@ import Control.Monad
 import qualified Control.Monad.Error as Error
 import Control.Applicative ((<$>), (<*>), (<*), (*>), (<|>))
 import qualified Control.Applicative as Applicative
+import qualified Data.Monoid as Monoid
+import Data.Monoid (mempty)
 import qualified Text.ParserCombinators.Parsec as P
 
 
@@ -23,6 +26,9 @@ first f (a, c) = (f a, c)
 
 second :: (a -> b) -> (c, a) -> (c, b)
 second f (c, a) = (c, f a)
+
+(<>) :: (Monoid.Monoid a) => a -> a -> a
+(<>) = Monoid.mappend
 
 -- | Like mapAccumL but lifted into a monad.
 -- I would prefer (ys, acc) to (acc, ys), but this is more consistent.
@@ -58,6 +64,7 @@ when_just :: (Monad m) => Maybe a -> (a -> m ()) -> m ()
 when_just val f = maybe (return ()) f val
 
 
+-- Parsec2 doesn't have these, but parsec3 does.
 instance Applicative.Applicative (P.GenParser s a) where
     pure = return
     (<*>) = ap
@@ -70,16 +77,8 @@ instance (Error.Error e) => Applicative.Applicative (Either e) where
     pure = return
     (<*>) = ap
 
-
--- | Annoyingly, Monad does not imply Applicative, so <* doesn't work
--- everywhere.
-(<#) :: (Monad m) => m a -> m b -> m a
-m0 <# m1 = do
-    r <- m0
-    m1
-    return r
-
 -- | Finally a finally for MonadError.
 finally :: (Error.MonadError e m) => m a -> m () -> m a
-finally action handler = Error.catchError (action <# handler) $
-    \exc -> handler >> Error.throwError exc
+finally action handler =
+    Error.catchError (action >>= \v -> handler >> return v) $
+        \exc -> handler >> Error.throwError exc
