@@ -33,8 +33,10 @@ import qualified Cmd.Lang.Fast as Fast
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 
-#ifdef INTERPRETER
+#if defined(INTERPRETER_HINT)
 import qualified Cmd.LangHint as LangImpl
+#elif defined(INTERPRETER_PLUGINS)
+import qualified Cmd.LangPlugins as LangImpl
 #else
 import qualified Cmd.LangStub as LangImpl
 #endif

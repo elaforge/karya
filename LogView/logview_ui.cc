@@ -54,15 +54,19 @@ LogView::LogView(int X, int Y, int W, int H, MsgCallback cb, int max_bytes) :
     command.textsize(default_font_size);
     command.callback(LogView::command_cb, static_cast<void *>(this));
     // Wrap at the edge of the widget.
-    display.wrap_mode(true, 0);
+    // TODO this makes it really slow on OS X
+    // display.wrap_mode(Fl_Text_Display::WRAP_AT_BOUNDS, 0);
     display.scrollbar_width(12);
     display.scrollbar_align(FL_ALIGN_RIGHT);
     display.textfont(FL_HELVETICA);
     display.textsize(8);
     display.buffer(this->buffer);
+    // I think style_unfinished_cb is a hook to highlight programmatically.
+    // Since I don't use it, I set its code to 'Z', which I'm not using, so
+    // it never gets called.
     display.highlight_data(&this->style_buffer, style_table,
             sizeof(style_table) / sizeof(style_table[0]),
-            'A', style_unfinished_cb, 0);
+            'Z', style_unfinished_cb, 0);
     buffer.add_modify_callback(style_update, &display);
 
     status.wrap_mode(false, 0);
@@ -71,8 +75,8 @@ LogView::LogView(int X, int Y, int W, int H, MsgCallback cb, int max_bytes) :
     status.buffer(this->status_buffer);
     status.highlight_data(&this->status_style_buffer, style_table,
             sizeof(style_table) / sizeof(style_table[0]),
-            'A', style_unfinished_cb, 0);
-    buffer.add_modify_callback(style_update, &status);
+            'Z', style_unfinished_cb, 0);
+    status_buffer.add_modify_callback(style_update, &status);
 }
 
 
@@ -119,10 +123,10 @@ select_word(Fl_Text_Buffer &buf, int pos, int *set_begin, int *set_end)
     int open_brace = -1;
     int begin = pos;
     while (begin >= 0) {
-        if (buf.character(begin) == '{') {
+        if (buf.byte_at(begin) == '{') {
             open_brace = begin;
             break;
-        } else if (buf.character(begin) == '}') {
+        } else if (buf.byte_at(begin) == '}') {
             break;
         } else {
             begin--;
@@ -132,10 +136,10 @@ select_word(Fl_Text_Buffer &buf, int pos, int *set_begin, int *set_end)
     int close_brace = -1;
     int end = pos;
     while (end < buf.length()) {
-        if (buf.character(end) == '}') {
+        if (buf.byte_at(end) == '}') {
             close_brace = end;
             break;
-        } else if (buf.character(end) == '{') {
+        } else if (buf.byte_at(end) == '{') {
             break;
         } else {
             end++;
@@ -149,14 +153,14 @@ select_word(Fl_Text_Buffer &buf, int pos, int *set_begin, int *set_end)
     }
     begin = end = pos;
 
-    while (begin && !isspace(buf.character(begin)))
+    while (begin && !isspace(buf.byte_at(begin)))
         begin--;
-    if (isspace(buf.character(begin)))
+    if (isspace(buf.byte_at(begin)))
         begin++;
 
-    while (end < buf.length() && !isspace(buf.character(end)))
+    while (end < buf.length() && !isspace(buf.byte_at(end)))
         end++;
-    if (isspace(buf.character(end)))
+    if (isspace(buf.byte_at(end)))
         end--;
 
     *set_begin = begin;

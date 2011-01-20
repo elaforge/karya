@@ -159,11 +159,7 @@ MoveTile::stiff_child(int child)
 IRect
 MoveTile::original_box(int child)
 {
-#ifdef OLD_FLTK
-    const short *p = this->sizes();
-#else
     const int *p = this->sizes();
-#endif
     p += 8 + child*4;
     return IRect(p[0], p[2], p[1] - p[0], p[3] - p[2]);
 }

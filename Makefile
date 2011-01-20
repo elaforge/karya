@@ -1,12 +1,34 @@
 # TODO BUGS
-# .depend needs 'touch .depend' to bootstrap
-# all hs depends on tools/hspp though none state that
+# - .depend needs 'touch .depend' to bootstrap.
+# - All hs depends on build/hspp though none state that.  So 'make build/hspp'
+#	is also necessary for bootstrap.
+#
+# The situation with flags is getting out of control.  Problems:
+#
+# - seq, test_core_midi need MIDI_LIBS
+#
+# - seq, test_block, logview, test_logview, browser, test_browser need fltk
+#
+# - hsc2hs needs the same flags the apps that the generated files will need
+# (practically, it just means LIBFLTK), but hsc2hs does't accept flags in the
+# same format as gcc.
+# Fixable as soon as I can get rid of -m I think.
+#
+# - tests and profiles are separate targets and require different flags
+#
+# - ghc generates only 32 bit, but new OS X gcc defaults to 64 bit, so I have
+# to pass -m32 to gcc and -optc-m32 etc. to ghc.
+# Might be fixable in newer ghc, but I might want 32 bit anyway.
 
 ### c++ flags
 
 CXX_DEBUG := -ggdb
 CXX_OPT := -O2
 OPT := $(CXX_DEBUG)
+
+# Global -D flags for all C compilers.
+DEFINE := -DMAC_OS_X_VERSION_MAX_ALLOWED=1060 \
+	-DMAC_OS_X_VERSION_MIN_REQUIRED=1050
 
 # Current ghc only compiles in 32 bit mode.  Newer ghc compiles 64 bit I think,
 # but I'm afraid it will take up much more memory.
@@ -29,35 +51,33 @@ LIBFLTK_1_3_LD := /usr/local/src/fltk-dev/fltk-1.3/lib/libfltk.a \
 	-framework Cocoa
 LIBFLTK_1_3_INC := -I/usr/local/src/fltk-dev/fltk-1.3/
 
-# fltk 1.1.9
-LIBFLTK_1_1_LD := /usr/local/src/fltk-1.1.9/lib/libfltk.a
-LIBFLTK_1_1_INC := -I/usr/local/src/fltk-1.1.9 -DOLD_FLTK
-
 FLTK_CXX := $(LIBFLTK_1_3_INC) $(LIBFLTK_D)
-CXXFLAGS = $(FLTK_CXX) $(OPT) $(CINCLUDE) $(ARCH) -Wall
+CXXFLAGS := $(FLTK_CXX) $(DEFINE) $(OPT) $(CINCLUDE) $(ARCH) -Wall
 
 LDFLAGS := $(LIBFLTK_1_3_LD) $(FLTK_LD) $(ARCH)
-
-# Fltk 1.3 has a buggy and slow Fl_Text_Display, so use 1.1 for now.
-OLD_FLTK_CXX := $(LIBFLTK_1_1_INC) $(LIBFLTK_D) $(OPT) $(CINCLUDE) -Wall
-OLD_FLTK_LD := $(LIBFLTK_1_1_LD) $(FLTK_LD)
 
 
 ### ghc flags
 
-HDEBUG := -debug
-HPROF := -O2 -prof -auto-all -caf-all
-HOPT = -O2
+# Turn this on to optimize the main app.
+# SEQ_OPT := -O2
+# INTERPRETER_HINT links the hint library to provide a haskell interpreter.  It
+# adds about 10s to linking time and I often don't need it, so here's a switch
+# for it.
+# INTERPRETER_PLUGINS links the plugins library for a haskell interpreter.
+# It links faster than hint but leaks memory.  And it's broken.
+# SEQ_INTERPRETER := -DINTERPRETER_HINT
+
+# without hint: make -j3 build/seq  9.06s user 1.17s system 99% cpu 10.333 total
+# with hint: make -j3 build/seq  18.89s user 1.90s system 98% cpu 21.125 total
+SEQ_FLAGS := $(SEQ_INTERPRETER) $(SEQ_OPT)
+
+
+# Flags to compile the tests.
 HTEST := -fhpc
+
+# Flags to compile the profiles.
 HPROFILE := -prof -auto-all -caf-all -O2
-
-# Compiler flags for the main app.
-# INTERPRETER links the hint library to provide a haskell interpreter.  It
-# adds about 10s to linking time, so it's off by default.
-SEQ_FLAGS := $(HDEBUG) # -DINTERPRETER
-
-# Flags for generic compiles that don't need to be debugging or profiling.
-HFLAGS = $(BASIC_HFLAGS) $(HDEBUG) # -fforce-recomp
 
 # HLDFLAGS := $(LDFLAGS)
 # TODO ghc doesn't accept -m32 like gcc and ld do.
@@ -70,7 +90,7 @@ GHC := ghc-6.12.3
 GHC_LIB := /Library/Frameworks/GHC.framework/Versions/612/usr/lib/ghc-6.12.3
 
 # hspp adds filename and lineno to various logging and testing functions.
-BASIC_HFLAGS := -threaded -W -fwarn-tabs \
+HFLAGS := -threaded -W -fwarn-tabs \
 	$(CINCLUDE) -i../lib -pgmc g++ -pgml g++ \
 	-optc -ggdb -optl -ggdb \
 	-F -pgmF build/hspp
@@ -107,6 +127,7 @@ TEST_BINARIES := $(addprefix $(BUILD)/, test_block test_logview test_browser \
 .PHONY: all
 all:
 	for target in $(BINARIES) $(TEST_BINARIES); do \
+		@echo Making $target...
 		if ! $(MAKE) -j1 $$target; then break; fi \
 	done
 
@@ -149,7 +170,7 @@ ALL_HS = $(shell tools/all_hs.py)
 
 ### main app
 
-SEQ_CMDLINE = $(GHC) $(BASIC_HFLAGS) \
+SEQ_CMDLINE = $(GHC) $(HFLAGS) \
 	--make -main-is App.Main App/Main.hs \
 	$(UI_OBJS) $(COREMIDI_OBJS) fltk/fltk.a $(MIDI_LIBS) $(HLDFLAGS)
 
@@ -159,26 +180,13 @@ $(BUILD)/seq: $(UI_HS) $(UI_OBJS) $(COREMIDI_OBJS) fltk/fltk.a
 	$(SEQ_CMDLINE) $(SEQ_FLAGS) -o $@
 	$(BUNDLE) doc/seq.icns
 
-# not_mine = Instrument/BrowserC.o LogView/LogViewC.o Util/Fltk.o
-# ALL_O := $(patsubst %.hs, %.o, $(shell tools/all_hs.py notest hsc_as_hs))
-# $(BUILD)/seqp: $(UI_OBJS) $(COREMIDI_OBJS) fltk/fltk.a Derive/Derive_test.o \
-# 		$(filter-out $(not_mine), $(ALL_O))
-# 	$(GHC) $(HFLAGS) -package ghc -package parsec -package binary \
-# 		-package mtl -package hint -package bytestring -package text \
-# 		-package dlist -package storablevector -package data-ordlist \
-# 		-package network -package stm \
-# 		-package regex-base -package regex-pcre \
-# 		-main-is App.Main $^ \
-# 		$(MIDI_LIBS) $(HLDFLAGS) \
-# 		-o $@
-
 ### midi
 
 .PHONY: $(BUILD)/test_core_midi
 $(BUILD)/test_core_midi: $(UI_HS) $(COREMIDI_OBJS)
 	$(GHC) $(HFLAGS) --make \
 		-main-is Midi.TestCoreMidi Midi/TestCoreMidi.hs -o $@ \
-		$(COREMIDI_OBJS) $(MIDI_LIBS) \
+		$(COREMIDI_OBJS) $(MIDI_LIBS)
 
 ### repl
 
@@ -209,16 +217,12 @@ LOGVIEW_HS = LogView/LogViewC.hs
 # depend on Color because of Util.Log -> Peform.Warning import grossness
 # someday I should remove that
 $(BUILD)/logview: $(LOGVIEW_OBJ) Ui/Color.hs
-	$(GHC) $(HFLAGS) --make $^ -o $@ $(OLD_FLTK_LD)
+	$(GHC) $(HFLAGS) --make $^ -o $@ $(HLDFLAGS)
 	$(BUNDLE)
 
 $(BUILD)/test_logview: LogView/test_logview.o LogView/logview_ui.o fltk/f_util.o
-	$(CXX) -o $@ $^ $(OLD_FLTK_LD)
+	$(CXX) -o $@ $^ $(LDFLAGS)
 	$(BUNDLE)
-
-# Override the default rule which uses CXXFLAGS, which uses the new fltk.  Ugh.
-$(addprefix LogView/,test_logview.o interface.o logview_ui.o): %.o: %.cc
-	$(CXX) $(OLD_FLTK_CXX) -c -o $@ $<
 
 ### log util
 
@@ -239,16 +243,12 @@ BROWSER_HS = Instrument/BrowserC.hs
 
 .PHONY: $(BUILD)/browser
 $(BUILD)/browser: $(BROWSER_OBJ) $(BROWSER_HS)
-	$(GHC) $(HFLAGS) --make $^ -o $@ $(OLD_FLTK_LD)
+	$(GHC) $(HFLAGS) --make $^ -o $@ $(HLDFLAGS)
 	$(BUNDLE)
-
-# Override the default rule which uses CXXFLAGS, which uses the new fltk.  Ugh.
-$(addprefix Instrument/,test_browser.o interface.o browser_ui.o): %.o: %.cc
-	$(CXX) $(OLD_FLTK_CXX) -c -o $@ $<
 
 $(BUILD)/test_browser: Instrument/test_browser.o Instrument/browser_ui.o \
 		fltk/f_util.o
-	$(CXX) -o $@ $^ $(OLD_FLTK_LD)
+	$(CXX) -o $@ $^ $(LDFLAGS)
 	$(BUNDLE)
 
 .PHONY: $(BUILD)/make_db
@@ -271,7 +271,7 @@ doc: $(ALL_HSC)
 
 ### tests ###
 
-TEST_CMDLINE = $(GHC) $(BASIC_HFLAGS) --make \
+TEST_CMDLINE = $(GHC) $(HFLAGS) --make \
 	$(UI_OBJS) $(COREMIDI_OBJS) fltk/fltk.a $(MIDI_LIBS) $(HLDFLAGS)
 
 # Compiles with -odir and -hidir into $(TBUILD)/ because they are compiled with
@@ -287,6 +287,8 @@ $(TBUILD)/RunTests: $(TBUILD)/RunTests.hs $(UI_HS) $(UI_OBJS) \
 
 $(PBUILD)/RunProfile.hs: $(ALL_HS)
 	test/generate_run_tests.py $@ $(filter %_profile.hs, $(ALL_HS))
+
+.PHONY: $(PBUILD)/RunProfile
 $(PBUILD)/RunProfile: $(PBUILD)/RunProfile.hs $(UI_HS) $(UI_OBJS) \
 		$(COREMIDI_OBJS) fltk/fltk.a
 	$(TEST_CMDLINE) -i -i$(PBUILD):. -odir $(PBUILD) -hidir $(PBUILD) \
@@ -318,9 +320,12 @@ tags: $(ALL_HS)
 	(echo -e '!_TAG_FILE_SORTED\t1\t ~'; cat tags.sorted) >tags
 	rm tags.sorted
 
+# TODO hsc2hs can't use the CXXFLAGS since it chokes on flags like -m.  So I
+# have to break it out into its components which is brittle.  Can I patch
+# hsc2hs to take a --cflags arg and include all flags literally?
 %.hs: %.hsc
 	hsc2hs -c g++ --cflag -Wno-invalid-offsetof $(CINCLUDE) $(FLTK_CXX) \
-		--cflag=$(ARCH) $(PORTMIDI_I) $<
+		$(DEFINE) --cflag=$(ARCH) $(PORTMIDI_I) $<
 	@# hsc2hs stil includes INCLUDE but ghc 6.12 doesn't like that
 	grep -v INCLUDE $@ >$@.tmp
 	mv $@.tmp $@
