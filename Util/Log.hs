@@ -10,7 +10,7 @@ module Util.Log (
     configure
     -- * msgs
     , Msg(..), msg_string, Prio(..), State(..)
-    , msg, msg_srcpos, make_msg, make_uninitialized_msg
+    , msg, msg_srcpos, uninitialized_msg, uninitialized_msg_srcpos
     , timer, debug, notice, warn, error
     , is_first_timer, first_timer_prefix
     , timer_srcpos, debug_srcpos, notice_srcpos, warn_srcpos, error_srcpos
@@ -22,6 +22,7 @@ module Util.Log (
     , LogMonad(..)
     , LogT, run
     -- * LazyLogT monad
+    , Msgs, empty_msgs
     , LazyLogT, run_lazy
     -- * serialization
     , format_msg
@@ -132,17 +133,22 @@ msg_srcpos srcpos prio text = make_msg srcpos prio Nothing text
 msg :: (LogMonad m) => Prio -> String -> m Msg
 msg prio = msg_srcpos Nothing prio
 
+-- | Create a msg without initializing it, so it doesn't have to be in
+-- LogMonad.
+uninitialized_msg :: Prio -> Maybe Stack.Stack -> String -> Msg
+uninitialized_msg = uninitialized_msg_srcpos Nothing
+
+-- | Create a msg without initializing it.
+uninitialized_msg_srcpos :: SrcPos.SrcPos -> Prio -> Maybe Stack.Stack -> String
+    -> Msg
+uninitialized_msg_srcpos srcpos prio stack text =
+    Msg no_date_yet srcpos prio stack (Text.pack text) []
+
 -- | This is the main way to construct a Msg since 'initialize_msg' is called.
 make_msg :: (LogMonad m) =>
     SrcPos.SrcPos -> Prio -> Maybe Stack.Stack -> String -> m Msg
 make_msg srcpos prio stack text =
-    initialize_msg (make_uninitialized_msg srcpos prio stack text)
-
--- | Create a msg without initializing it.
-make_uninitialized_msg :: SrcPos.SrcPos -> Prio -> Maybe Stack.Stack -> String
-    -> Msg
-make_uninitialized_msg srcpos prio stack text =
-    Msg no_date_yet srcpos prio stack (Text.pack text) []
+    initialize_msg (uninitialized_msg_srcpos srcpos prio stack text)
 
 log :: (LogMonad m) => Prio -> SrcPos.SrcPos -> String -> m ()
 log prio srcpos text = write =<< make_msg srcpos prio Nothing text
@@ -185,8 +191,8 @@ notice_stack_srcpos = log_stack Notice
 warn_stack_srcpos = log_stack Warn
 error_stack_srcpos = log_stack Error
 
-debug_stack, notice_stack, warn_stack, error_stack
-    :: (LogMonad m) => Stack.Stack -> String -> m ()
+debug_stack, notice_stack, warn_stack, error_stack :: (LogMonad m) =>
+    Stack.Stack -> String -> m ()
 debug_stack = debug_stack_srcpos Nothing
 notice_stack = notice_stack_srcpos Nothing
 warn_stack = warn_stack_srcpos Nothing
@@ -211,43 +217,43 @@ class Monad m => LogMonad m where
     initialize_msg = return
 
 instance LogMonad IO where
-    write msg = do
+    write log_msg = do
         -- This is also done by 'initialize_msg', but if the msg was created
         -- outside of IO, it won't have had IO's 'initialize_msg' run on it.
         MVar.withMVar global_state $ \(State m_hdl prio formatter) ->
             case m_hdl of
-                Just hdl | prio <= msg_prio msg -> do
+                Just hdl | prio <= msg_prio log_msg -> do
                     -- Go to a little bother to only run 'add_time' for msgs
                     -- that are actually logged.
-                    msg <- add_time msg
-                    IO.hPutStrLn hdl (formatter msg)
+                    log_msg <- add_time log_msg
+                    IO.hPutStrLn hdl (formatter log_msg)
                 _ -> return ()
-        when (msg_prio msg == Error) $ do
-            msg <- add_time msg
-            IO.hPutStrLn IO.stderr (format_msg msg)
+        when (msg_prio log_msg == Error) $ do
+            log_msg <- add_time log_msg
+            IO.hPutStrLn IO.stderr (format_msg log_msg)
 
 -- | Format a msg in a nice user readable way.
 format_msg :: Msg -> String
 format_msg (Msg { msg_date = _date, msg_caller = srcpos, msg_prio = prio
         , msg_text = text, msg_stack = stack }) =
-    msg ++ maybe "" ((' ':) . Pretty.pretty) stack
+    log_msg ++ maybe "" ((' ':) . Pretty.pretty) stack
     where
     prio_stars Timer = "-"
     prio_stars prio = replicate (fromEnum prio) '*'
-    msg = printf "%-4s %s - %s"
+    log_msg = printf "%-4s %s - %s"
         (prio_stars prio) (SrcPos.show_srcpos srcpos) (Text.unpack text)
 
 -- | Add a time to the msg if it doesn't already have one.  Msgs can be logged
 -- outside of IO, so they don't get a date until they are written.
 add_time :: Msg -> IO Msg
-add_time msg
-    | msg_date msg == no_date_yet = do
+add_time log_msg
+    | msg_date log_msg == no_date_yet = do
         utc <- Time.getCurrentTime
-        return $ msg { msg_date = utc }
-    | otherwise = return msg
+        return $ log_msg { msg_date = utc }
+    | otherwise = return log_msg
 
 instance (Monad m) => LogMonad (LogT m) where
-    write msg = write_msg msg
+    write log_msg = write_msg log_msg
 
 write_msg :: Monad m => Msg -> LogT m ()
 write_msg = LogT . Logger.log
@@ -279,35 +285,4 @@ serialize_msg :: Msg -> String
 serialize_msg = show
 
 deserialize_msg :: String -> IO (Either Exception.SomeException Msg)
-deserialize_msg msg = Exception.try (readIO msg)
-
-
--- unused
-
-{-
--- system could be dynamically scoped, 'Log.with_system sys (code)'
--- but only if I stuck a State into LogT, and wouldn't work for IO logs
-data System
-    = App -- ^ app level stuff, goes to stderr
-    | Playback
-    | Derive
-    | UI
-    deriving (Show, Eq)
-
--- | More specific data for the msg.  A derivation would send Progress
--- reports at Info, an error in derivation would send Block at Warn, and
--- playback would send Block at Info.
-data Context
-    -- | Progress report on a process.
-    = Progress
-        { progress_amount :: Double
-        , progress_total :: Double
-        }
-    -- | Msg pertains to this region in a block.
-    | Block
-        { block_name :: String -- ^ Just the name, to avoid circular imports.
-        , block_area :: () -- Types.Selection -- ^ affected area
-        }
-    deriving (Show, Eq)
-
--}
+deserialize_msg log_msg = Exception.try (readIO log_msg)

@@ -959,7 +959,7 @@ catch_warn deflt deriver = Error.catchError deriver $
 
 error_to_warn :: DeriveError -> Log.Msg
 error_to_warn (DeriveError srcpos stack val) =
-    Log.make_uninitialized_msg srcpos Log.Warn (Just stack)
+    Log.uninitialized_msg_srcpos srcpos Log.Warn (Just stack)
         ("DeriveError: " ++ Pretty.pretty val)
 
 
