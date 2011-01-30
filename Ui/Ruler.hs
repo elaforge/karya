@@ -1,4 +1,6 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Ui.Ruler where
+import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Array.IArray as IArray
 import Data.Array.IArray ((!))
 
@@ -26,6 +28,10 @@ data Ruler = Ruler {
     } deriving (Eq, Show, Read)
 ruler = Ruler
 
+instance DeepSeq.NFData Ruler where
+    rnf (Ruler mlists bg names alpha align full) = DeepSeq.rnf mlists
+        `seq` bg `seq` names `seq` alpha `seq` align `seq` full `seq` ()
+
 -- | Get the position of the last mark of the ruler.
 time_end :: Ruler -> ScoreTime
 time_end = maximum . (ScoreTime 0 :) . map (last_pos . snd) . ruler_marklists
@@ -44,8 +50,8 @@ clip pos = map_marklists (clip_marklist pos)
 
 -- * marklist
 
-data Marklist = Marklist (IArray.Array Int PosMark)
-    deriving (Eq, Show, Read)
+newtype Marklist = Marklist (IArray.Array Int PosMark)
+    deriving (DeepSeq.NFData, Eq, Show, Read)
 -- If I used a Map here instead of an Array I could reuse functions from
 -- EventList.  On the other hand, there aren't that many to reuse and arrays
 -- are compact, so I'll let it be.
@@ -82,7 +88,13 @@ data Mark = Mark {
     , mark_name_zoom_level :: Double
     , mark_zoom_level :: Double
     } deriving (Eq, Show, Read)
+
+null_mark :: Mark
 null_mark = Mark 0 0 Color.black "" 0 0
+
+instance DeepSeq.NFData Mark where
+    rnf (Mark rank width color name name_zoom zoom) = rank `seq` width
+        `seq` color `seq` name `seq` name_zoom `seq` zoom `seq` ()
 
 instance Pretty Mark where
     pretty m = "<mark: " ++ show (mark_rank m) ++ name ++ ">"

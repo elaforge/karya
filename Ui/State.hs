@@ -20,6 +20,7 @@
 -}
 module Ui.State where
 import qualified Control.Applicative as Applicative
+import qualified Control.DeepSeq as DeepSeq
 import Control.Monad
 import qualified Control.Monad.Trans as Trans
 import Control.Monad.Trans (lift)
@@ -102,6 +103,13 @@ empty = State {
     , state_default_inst = Nothing
     }
     where ruler_map = Map.fromList [(no_ruler, Ruler.no_ruler)]
+
+instance DeepSeq.NFData State where
+    rnf (State proj dir root views blocks tracks rulers midi_conf scale inst) =
+        proj `seq` dir `seq` root
+        `seq` DeepSeq.rnf views `seq` DeepSeq.rnf blocks
+        `seq` DeepSeq.rnf tracks `seq` DeepSeq.rnf rulers
+        `seq` midi_conf `seq` scale `seq` inst `seq` ()
 
 -- | Since all TracklikeIds must have a ruler, all States have a special empty
 -- ruler that can be used in a \"no ruler\" situation.

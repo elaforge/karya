@@ -1,5 +1,6 @@
-{-# LANGUAGE PatternGuards, TupleSections #-}
+{-# LANGUAGE PatternGuards, TupleSections, GeneralizedNewtypeDeriving #-}
 module Ui.Track where
+import qualified Control.DeepSeq as DeepSeq
 import qualified Data.List as List
 import qualified Data.Map as Map
 
@@ -31,6 +32,10 @@ data Track = Track {
 track :: String -> [PosEvent] -> Color -> RenderConfig -> Track
 track title events bg render =
     Track title (insert_events events empty_events) bg render
+
+instance DeepSeq.NFData Track where
+    rnf (Track title events bg render) = title `seq` DeepSeq.rnf events
+        `seq` bg `seq` render `seq` ()
 
 -- * track signal
 
@@ -120,7 +125,7 @@ time_end events = maybe 0 event_max (last_event events)
 -}
 newtype TrackEvents =
     TrackEvents (Map.Map ScoreTime Event.Event)
-    deriving (Eq, Show, Read)
+    deriving (DeepSeq.NFData, Eq, Show, Read)
     -- alternate efficient version for control tracks?
     -- ControlTrack (Array (ScoreTime, Double))
 

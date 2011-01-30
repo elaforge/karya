@@ -1,4 +1,5 @@
 module Ui.Block where
+import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Map as Map
 import qualified Util.Seq as Seq
 
@@ -20,6 +21,12 @@ data GenericBlock track = Block {
     , block_skeleton :: Skeleton.Skeleton
     , block_schema :: SchemaId
     } deriving (Eq, Show, Read)
+
+instance DeepSeq.NFData (GenericBlock track) where
+    -- I don't bother to force anything deep, but there isn't much data down
+    -- there anyway.
+    rnf (Block title config tracks skel schema) =
+        title `seq` config `seq` tracks `seq` skel `seq` schema `seq` ()
 
 type Block = GenericBlock BlockTrack
 type DisplayBlock = GenericBlock DisplayTrack
@@ -181,6 +188,11 @@ data View = View {
     -- should maintain this invariant.
     , view_tracks :: [TrackView]
     } deriving (Eq, Ord, Show, Read)
+
+instance DeepSeq.NFData View where
+    rnf (View bid rect track time config status scroll zoom selections tracks) =
+        bid `seq` rect `seq` track `seq` time `seq` config `seq` status
+        `seq` scroll `seq` zoom `seq` selections `seq` tracks `seq` ()
 
 -- | Construct a View, using default values for most of its fields.
 -- Don't construct views using View directly since State.create_view overwrites

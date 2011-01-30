@@ -23,6 +23,7 @@
     No Event may overlap another Event on the same Track.
 -}
 module Ui.Event where
+import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Array.IArray as IArray
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Encoding
@@ -41,6 +42,9 @@ data Event = Event {
     , event_duration :: ScoreTime
     , event_style :: StyleId
     } deriving (Eq, Show, Read)
+
+instance DeepSeq.NFData Event where
+    rnf (Event bs dur style) = bs `seq` dur `seq` style `seq` ()
 
 event_text :: Event -> Text.Text
 event_text = Encoding.decodeUtf8 . event_bs

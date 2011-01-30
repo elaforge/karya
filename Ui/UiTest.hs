@@ -95,10 +95,12 @@ eval state m = case State.eval state m of
     Right val -> val
 
 run_mkstate :: [TrackSpec] -> ([TrackId], State.State)
-run_mkstate track_specs = run State.empty (mkstate "b1" track_specs)
+run_mkstate track_specs =
+    run State.empty (mkstate default_block_name track_specs)
 
 run_mkview :: [TrackSpec] -> ([TrackId], State.State)
-run_mkview track_specs = run State.empty (mkstate_view "b1" track_specs)
+run_mkview track_specs =
+    run State.empty (mkstate_view default_block_name track_specs)
 
 mkstate :: (State.UiStateMonad m) => String -> [TrackSpec] -> m [TrackId]
 mkstate block_name tracks = mkstate_id (bid block_name) tracks
