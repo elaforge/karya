@@ -11,8 +11,7 @@ module Perform.Timestamp (
     , from_real_time, to_real_time
 ) where
 import qualified Control.DeepSeq as DeepSeq
-import Text.Printf
-import Util.Pretty
+import qualified Util.Pretty as Pretty
 
 import Ui
 
@@ -47,5 +46,5 @@ from_real_time = Timestamp . round . (*1000)
 to_real_time :: Timestamp -> RealTime
 to_real_time = RealTime . (/1000) . fromIntegral . to_millis
 
-instance Pretty Timestamp where
-    pretty ts = printf "%.3fs" (to_seconds ts)
+instance Pretty.Pretty Timestamp where
+    pretty ts = Pretty.show_float (Just 3) (to_seconds ts) ++ "s"
