@@ -136,9 +136,6 @@ data Message =
     | UnknownMessage !Word8 !Word8 !Word8
     deriving (Eq, Ord, Show, Read, Generics.Typeable)
 
-instance DeepSeq.NFData Message where
-    rnf _ = ()
-
 instance Pretty.Pretty Message where
     pretty (CommonMessage (SystemExclusive manuf bytes)) =
         "CommonMessage (SystemExclusive " ++ show manuf
@@ -185,6 +182,11 @@ data CommonMessage =
 data RealtimeMessage = TimingClock | Start | Continue | Stop | ActiveSense
     | Reset | UndefinedRealtime !Word8
     deriving (Eq, Ord, Show, Read, Generics.Typeable)
+
+instance DeepSeq.NFData Message where rnf _ = ()
+instance DeepSeq.NFData ChannelMessage where rnf _ = ()
+instance DeepSeq.NFData CommonMessage where rnf _ = ()
+instance DeepSeq.NFData RealtimeMessage where rnf _ = ()
 
 -- * util
 
