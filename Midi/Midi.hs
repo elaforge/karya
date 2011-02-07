@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# OPTIONS_GHC -funbox-strict-fields #-}
 module Midi.Midi where
 import qualified Control.DeepSeq as DeepSeq
 import Control.DeepSeq (rnf)
@@ -19,20 +20,22 @@ type WriteMessages = [WriteMessage]
 type ReadMessages = [ReadMessage]
 
 data WriteMessage = WriteMessage {
-    wmsg_dev :: WriteDevice
-    , wmsg_ts :: Timestamp.Timestamp
-    , wmsg_msg :: Message
+    wmsg_dev :: !WriteDevice
+    , wmsg_ts :: !Timestamp.Timestamp
+    , wmsg_msg :: !Message
     } deriving (Eq, Ord, Show)
 data ReadMessage = ReadMessage {
-    rmsg_dev :: ReadDevice
-    , rmsg_ts :: Timestamp.Timestamp
-    , rmsg_msg :: Message
+    rmsg_dev :: !ReadDevice
+    , rmsg_ts :: !Timestamp.Timestamp
+    , rmsg_msg :: !Message
     } deriving (Eq, Ord, Show)
 
+-- Midi msgs are already strict so deepseq is unnecessary, but an NFData
+-- instance will make deepseq work on things that contain msgs.
 instance DeepSeq.NFData WriteMessage where
-    rnf (WriteMessage dev ts msg) = dev `seq` ts `seq` rnf msg
+    rnf (WriteMessage _ _ _) = ()
 instance DeepSeq.NFData ReadMessage where
-    rnf (ReadMessage dev ts msg) = dev `seq` ts `seq` rnf msg
+    rnf (ReadMessage _ _ _) = ()
 
 instance Pretty.Pretty ReadMessage where
     pretty (ReadMessage (ReadDevice dev) ts msg) =
@@ -127,16 +130,13 @@ channel_message _ = Nothing
 -- * types
 
 data Message =
-    ChannelMessage Channel ChannelMessage
-    | CommonMessage CommonMessage
-    | RealtimeMessage RealtimeMessage
-    | UnknownMessage Word8 Word8 Word8
+    ChannelMessage !Channel !ChannelMessage
+    | CommonMessage !CommonMessage
+    | RealtimeMessage !RealtimeMessage
+    | UnknownMessage !Word8 !Word8 !Word8
     deriving (Eq, Ord, Show, Read, Generics.Typeable)
 
 instance DeepSeq.NFData Message where
-    -- This should force enough of the Message.
-    rnf (ChannelMessage chan msg) = chan `seq` rnf msg
-    rnf (CommonMessage msg) = rnf msg
     rnf _ = ()
 
 instance Pretty.Pretty Message where
@@ -157,49 +157,33 @@ type ControlValue = Word8
 -- | This is converted to and from the -0x2000 and +0x2000 range by the parser.
 type PitchBendValue = Float
 data ChannelMessage =
-    NoteOff Key Velocity
-    | NoteOn Key Velocity
-    | Aftertouch Key ControlValue
-    | ControlChange Control ControlValue
-    | ProgramChange Program
-    | ChannelPressure ControlValue
-    | PitchBend PitchBendValue
+    NoteOff !Key !Velocity
+    | NoteOn !Key !Velocity
+    | Aftertouch !Key !ControlValue
+    | ControlChange !Control !ControlValue
+    | ProgramChange !Program
+    | ChannelPressure !ControlValue
+    | PitchBend !PitchBendValue
     -- | channel mode messages (special control values)
     | AllSoundOff
     | ResetAllCcontrols
-    | LocalControl Bool
+    | LocalControl !Bool
     | AllNotesOff
-    | UndefinedChannelMode Word8 Word8
+    | UndefinedChannelMode !Word8 !Word8
     deriving (Eq, Ord, Show, Read, Generics.Typeable)
-
-instance DeepSeq.NFData ChannelMessage where
-    rnf (NoteOff k v) = rnf k `seq` rnf v
-    rnf (NoteOn k v) = rnf k `seq` rnf v
-    rnf (Aftertouch k v) = rnf k `seq` rnf v
-    rnf (ControlChange k v) = rnf k `seq` rnf v
-    rnf (ProgramChange v) = rnf v
-    rnf (ChannelPressure v) = rnf v
-    rnf (PitchBend v) = rnf v
-    rnf msg = msg `seq` ()
 
 data CommonMessage =
     -- | manufacturer id, data including eox
-    SystemExclusive Word8 ByteString.ByteString
-    | SongPositionPointer Int
-    | SongSelect Word8
+    SystemExclusive !Word8 !ByteString.ByteString
+    | SongPositionPointer !Int
+    | SongSelect !Word8
     | TuneRequest
     | EOX
-    | UndefinedCommon Word8
+    | UndefinedCommon !Word8
     deriving (Eq, Ord, Show, Read, Generics.Typeable)
 
-instance DeepSeq.NFData CommonMessage where
-    -- Surprisingly, ByteString doesn't have an NFData instance.  But it's
-    -- strict already.
-    rnf (SystemExclusive w bs) = rnf w `seq` bs `seq` ()
-    rnf msg = msg `seq` ()
-
 data RealtimeMessage = TimingClock | Start | Continue | Stop | ActiveSense
-    | Reset | UndefinedRealtime Word8
+    | Reset | UndefinedRealtime !Word8
     deriving (Eq, Ord, Show, Read, Generics.Typeable)
 
 -- * util
