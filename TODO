@@ -23,7 +23,7 @@ CURRENT
     not emit?
     - Perform.Midi.Cache.is_splice_failure is another possible use
 
-  - rename Log.uninitialized_msg -> msg, msg -> initialized_msg
+  * rename Log.uninitialized_msg -> msg, msg -> initialized_msg
   * move 'force' to Util.Test
   * remove UiTest.initial_state
   - replace Seq.mhead/tail with head/tail

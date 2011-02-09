@@ -37,8 +37,8 @@ data Macro = SrcposMacro (Maybe String) String
 -- These are substituted everywhere.
 global_macros :: [Macro]
 global_macros = map (SrcposMacro (Just "Util.Log"))
-    [ "uninitialized_msg"
-    , "msg", "debug", "notice", "warn", "error", "timer"
+    [ "msg", "initialized_msg"
+    , "debug", "notice", "warn", "error", "timer"
     , "debug_stack", "notice_stack", "warn_stack", "error_stack"
     ]
     ++ map (SrcposMacro (Just "Derive.Derive"))

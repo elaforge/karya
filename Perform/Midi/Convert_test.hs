@@ -33,7 +33,7 @@ noinst n = LEvent.Event $ mkevent n "c" "noinst"
 nopitch n = LEvent.Event $ (mkevent n "c" "s/1") { Score.event_pitch = mempty }
 good n = LEvent.Event $ mkevent n "c" "s/1"
 
-mklog = LEvent.Log  . Log.uninitialized_msg Log.Warn Nothing
+mklog = LEvent.Log  . Log.msg Log.Warn Nothing
 mkevent start text inst =
     DeriveTest.mkevent (start, 1, text, [], Score.Instrument inst)
 convert = show_logs extract_event

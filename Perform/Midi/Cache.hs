@@ -197,9 +197,7 @@ perform_cache config chunknum (cached : rest_cache) prev_state events
     perform_rest = perform_cache config (chunknum+1) rest_cache
     cons_log msg chunk =
         chunk { chunk_messages = LEvent.Log log : chunk_messages chunk }
-        where
-        log = Log.uninitialized_msg Log.Notice Nothing
-            ("Perform cache: " ++ msg)
+        where log = Log.msg Log.Notice Nothing ("Perform cache: " ++ msg)
 
 -- | Just keep performing chunks until I run out of events.
 perform_chunks :: Instrument.Config -> ChunkNum -> Perform.State

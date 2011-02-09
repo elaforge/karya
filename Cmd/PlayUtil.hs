@@ -141,7 +141,7 @@ get_derive_cache (Just perf) =
 -- | Convert a Warning into an appropriate log msg.
 warn_to_log :: (Log.LogMonad m) => String -> Warning.Warning -> m Log.Msg
 warn_to_log context (Warning.Warning msg event_stack maybe_range) = do
-    log <- Log.msg Log.Warn $ context ++ ": " ++ msg
+    log <- Log.initialized_msg Log.Warn $ context ++ ": " ++ msg
         -- TODO It would be more useful to append this to the stack, but I have
         -- to convert real -> score.
         ++ maybe "" ((" range: " ++) . show) maybe_range

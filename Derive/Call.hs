@@ -342,8 +342,7 @@ lazy_derive_event st block_end dinfo preproc prev_val prev cur@(pos, event) next
             Derive.state_collect st, Derive.state_cache_state st)
         Right expr -> run_call (preproc expr)
     where
-    parse_error msg = Log.uninitialized_msg
-        Log.Warn (Just (Derive.state_stack st)) msg
+    parse_error msg = Log.msg Log.Warn (Just (Derive.state_stack st)) msg
     run_call expr = lazy_apply_toplevel state (dinfo, cinfo) expr
 
     state = st {
@@ -386,8 +385,7 @@ lazy_apply_toplevel state info expr = case Seq.break_last expr of
     run d = case Derive.run state d of
         (result, state, logs) -> (result, logs, Derive.state_collect state,
             Derive.state_cache_state state)
-    err = Log.uninitialized_msg
-        Log.Warn (Just (Derive.state_stack state))
+    err = Log.msg Log.Warn (Just (Derive.state_stack state))
         "event with no calls at all (this shouldn't happen)"
 
 -- | Apply a toplevel expression.

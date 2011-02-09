@@ -10,7 +10,7 @@ module Util.Log (
     configure
     -- * msgs
     , Msg(..), msg_string, Prio(..), State(..)
-    , msg, msg_srcpos, uninitialized_msg, uninitialized_msg_srcpos
+    , msg, msg_srcpos, initialized_msg, initialized_msg_srcpos
     , timer, debug, notice, warn, error
     , is_first_timer, first_timer_prefix
     , timer_srcpos, debug_srcpos, notice_srcpos, warn_srcpos, error_srcpos
@@ -131,29 +131,29 @@ data Prio =
     | Error
     deriving (Show, Enum, Eq, Ord, Read)
 
--- | Create a msg with the give prio and text.
-msg_srcpos :: (LogMonad m) => SrcPos.SrcPos -> Prio -> String -> m Msg
-msg_srcpos srcpos prio text = make_msg srcpos prio Nothing text
-
-msg :: (LogMonad m) => Prio -> String -> m Msg
-msg prio = msg_srcpos Nothing prio
-
 -- | Create a msg without initializing it, so it doesn't have to be in
 -- LogMonad.
-uninitialized_msg :: Prio -> Maybe Stack.Stack -> String -> Msg
-uninitialized_msg = uninitialized_msg_srcpos Nothing
+msg :: Prio -> Maybe Stack.Stack -> String -> Msg
+msg = msg_srcpos Nothing
 
 -- | Create a msg without initializing it.
-uninitialized_msg_srcpos :: SrcPos.SrcPos -> Prio -> Maybe Stack.Stack -> String
-    -> Msg
-uninitialized_msg_srcpos srcpos prio stack text =
+msg_srcpos :: SrcPos.SrcPos -> Prio -> Maybe Stack.Stack -> String -> Msg
+msg_srcpos srcpos prio stack text =
     Msg no_date_yet srcpos prio stack (Text.pack text) []
+
+-- | Create a msg with the give prio and text.
+initialized_msg_srcpos :: (LogMonad m) => SrcPos.SrcPos -> Prio -> String
+    -> m Msg
+initialized_msg_srcpos srcpos prio text = make_msg srcpos prio Nothing text
+
+initialized_msg :: (LogMonad m) => Prio -> String -> m Msg
+initialized_msg prio = initialized_msg_srcpos Nothing prio
 
 -- | This is the main way to construct a Msg since 'initialize_msg' is called.
 make_msg :: (LogMonad m) =>
     SrcPos.SrcPos -> Prio -> Maybe Stack.Stack -> String -> m Msg
 make_msg srcpos prio stack text =
-    initialize_msg (uninitialized_msg_srcpos srcpos prio stack text)
+    initialize_msg (msg_srcpos srcpos prio stack text)
 
 log :: (LogMonad m) => Prio -> SrcPos.SrcPos -> String -> m ()
 log prio srcpos text = write =<< make_msg srcpos prio Nothing text
