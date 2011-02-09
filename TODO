@@ -31,7 +31,6 @@ CURRENT
 
   lazy deriver
     * finish Lazy tests
-    - try to at least make control evaluation go forwards
     * take RealTime off of Log
     - I still don't understand what's going on with exceptions but it seems
       to be working.  Figure this out later, esp Derive.with_empty_collect
@@ -51,7 +50,7 @@ CURRENT
       framework to filter them before they are emitted?  Is that really more
       efficient?
     * update Deriver_test to use DeriveTest.extract_run
-    - rearrange Perform.Midi.Perform
+    * rearrange Perform.Midi.Perform
     - fix TrackWarp monoid, write test to demonstrate
       TrackWarps are messed up, since d_merge and the other collect merging
       functions cause 'start_new_warp' and 'add_track_warp' to get called
@@ -93,17 +92,6 @@ CURRENT
     - try making Pitch.Note have Text instead of String
   * show whether unboxed midi takes less space or not
     Tiny bit less.  heap shows space consumed by deepseq?  weird.
-
-  Hang after every edit is unacceptable.  Two solutions:
-    1 Keep strict deriver, but put the rederive update in a separate thread.
-    2 Make derivation lazy.
-
-    If 2 makes derivation as a whole slower, it may not be worth it.  On the
-    other hand, if laziness lets garbage be collected faster, it may wind up
-    much faster.  Unfortunately it's a big change:
-      - Make Derive lazy by splitting out the exception-throwing calls.
-      - Make signals lazy, switch bsearches to linear searches, thread tails
-        so it's not too inefficient.
 
   - packed midi, encode to storable vector
     but I'm not sure this will much help

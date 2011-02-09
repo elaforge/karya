@@ -121,6 +121,148 @@ perform state config events = (final_msgs, final_state)
 
 -- | Map each instrument to its allocated Addrs.
 type InstAddrs = Map.Map Score.Instrument [Instrument.Addr]
+-- * channelize
+
+-- | Overlapping events and the channels they were given.
+type ChannelizeState = [(Event, Channel)]
+
+-- | Assign channels.  Events will be merged into the the lowest channel they
+-- can coexist with.
+--
+-- A less aggressive policy would be to distribute the instrument among all of
+-- its addrs and only share when out of channels, but it seems like this would
+-- quickly eat up all the channels, forcing a new note that can't share to snag
+-- a used one.
+channelize :: ChannelizeState -> InstAddrs -> Events
+    -> ([LEvent.LEvent (Event, Channel)], ChannelizeState)
+channelize overlapping inst_addrs events =
+    overlap_map overlapping (channelize_event inst_addrs) events
+
+channelize_event :: InstAddrs -> [(Event, Channel)] -> Event -> Channel
+channelize_event inst_addrs overlapping event =
+    case Map.lookup inst_name inst_addrs of
+        -- If the event has 0 or 1 addrs I can just give a constant channel.
+        -- 'allot' will assign the correct addr, or drop the event if there
+        -- are none.
+        Just (_:_:_) -> chan
+        _ -> 0
+    where
+    inst_name = Instrument.inst_score (event_instrument event)
+    -- If there's no shareable channel, make up a channel one higher than the
+    -- maximum channel in use.
+    chan = maybe (maximum (-1 : map snd overlapping) + 1) id
+        (shareable_chan overlapping event)
+
+-- | Find a channel from the list of overlapping (Event, Channel) all of whose
+-- events can share with the given event.
+shareable_chan :: [(Event, Channel)] -> Event -> Maybe Channel
+shareable_chan overlapping event = fst <$> List.find (all_share . snd) by_chan
+    where
+    by_chan = Seq.keyed_group_on snd overlapping
+    all_share evt_chans = all (flip can_share_chan event) (map fst evt_chans)
+
+-- | Can the two events coexist in the same channel without interfering?
+-- The reason this is not commutative is so I can assume the start of @old@
+-- precedes the start of @new@ and save a little computation.
+can_share_chan :: Event -> Event -> Bool
+can_share_chan old new = case (initial_pitch old, initial_pitch new) of
+        _ | start >= end -> True
+        _ | event_instrument old /= event_instrument new -> False
+        (Just (initial_old, _), Just (initial_new, _)) ->
+            Signal.pitches_share in_decay
+                (Timestamp.to_real_time start) (Timestamp.to_real_time end)
+                initial_old (event_pitch old) initial_new (event_pitch new)
+            && controls_equal (event_controls new) (event_controls old)
+        _ -> True
+    where
+    start = note_begin new
+    end = min (note_end new) (note_end old)
+    initial_pitch event = event_pitch_at (event_pb_range event)
+        event (event_start event)
+    -- If the overlap is in the decay of one or both notes, the rules are
+    -- slightly different.
+    in_decay = event_end new <= event_start old
+        || event_end old <= event_start new
+
+-- | Are the controls equal in the given range?
+controls_equal :: ControlMap -> ControlMap -> Bool
+controls_equal cs0 cs1 = all eq pairs
+    where
+    -- Velocity and aftertouch are per-note addressable in midi, but the rest
+    -- of the controls require their own channel.
+    relevant = Map.filterWithKey (\k _ -> Control.is_channel_control k)
+    pairs = Map.pairs (relevant cs0) (relevant cs1)
+    -- Previously I would compare only the overlapping range.  But controls
+    -- for multiplexed instruments are trimmed to the event start and end
+    -- already.  Comparing the entire signal will fail to merge events that
+    -- have different signals after the decay is over, but what are you
+    -- doing creating those anyway?
+    eq (_, Just sig0, Just sig1) = sig0 == sig1
+    eq _ = False
+
+
+-- * allot channels
+
+-- | 'channelize' will assign channels based on whether the notes can coexist
+-- without interfering with each other.  'allot' reduces those channels down
+-- to the real midi channels assigned to the instrument, stealing if necessary.
+--
+-- Events with instruments that have no address allocation in the config
+-- will be dropped.
+allot :: AllotState -> InstAddrs -> [LEvent.LEvent (Event, Channel)]
+    -> ([LEvent.LEvent (Event, Instrument.Addr)], AllotState)
+allot state inst_addrs events = (event_addrs, final_state)
+    where
+    (final_state, event_addrs) = List.mapAccumL allot1 state events
+    allot1 state (LEvent.Event e) = allot_event inst_addrs state e
+    allot1 state (LEvent.Log log) = (state, LEvent.Log log)
+
+data AllotState = AllotState {
+    -- | Allocated addresses, and when they were last used.
+    -- This is used by the voice stealer to figure out which voice is ripest
+    -- for plunder.
+    ast_available :: Map.Map Instrument.Addr Timestamp
+    -- | Map arbitrary input channels to an instrument address in the allocated
+    -- range.
+    , ast_allotted :: Map.Map (Instrument.Instrument, Channel) Instrument.Addr
+    } deriving (Eq, Show)
+empty_allot_state = AllotState Map.empty Map.empty
+
+-- | Try to find an Addr for the given Event.  If that's impossible, return
+-- a log msg.
+allot_event :: InstAddrs -> AllotState -> (Event, Channel)
+    -> (AllotState, LEvent.LEvent (Event, Instrument.Addr))
+allot_event inst_addrs state (event, ichan) =
+    case Map.lookup (inst, ichan) (ast_allotted state) of
+        Just addr -> (update addr state, LEvent.Event (event, addr))
+        Nothing -> case steal_addr inst_addrs inst state of
+            Just addr -> (update addr (update_map addr state),
+                LEvent.Event (event, addr))
+            -- This will return lots of msgs if an inst has no allocation.
+            -- A higher level should filter out the duplicates.
+            Nothing -> (state, LEvent.Log no_alloc)
+    where
+    inst = event_instrument event
+    update addr state = update_avail addr state
+    update_avail addr state = state { ast_available =
+            Map.insert addr (event_end event) (ast_available state) }
+    update_map addr state = state { ast_allotted =
+        Map.insert (inst, ichan) addr (ast_allotted state) }
+    no_alloc = event_warning event
+        ("no allocation for " ++ Pretty.pretty (Instrument.inst_score inst))
+
+-- | Steal the least recently used address for the given instrument.
+steal_addr :: InstAddrs -> Instrument.Instrument -> AllotState
+    -> Maybe Instrument.Addr
+steal_addr inst_addrs inst state =
+    case Map.lookup (Instrument.inst_score inst) inst_addrs of
+        Just addrs -> let avail = zip addrs (map mlookup addrs)
+            in if null avail then Nothing -- no addrs assigned
+                else let (addr, _) = List.minimumBy (compare `on` snd) avail
+                in Just addr
+        _ -> Nothing
+    where
+    mlookup addr = Map.findWithDefault 0 addr (ast_available state)
 
 
 -- * perform notes
@@ -226,50 +368,7 @@ chan_state_msgs addr@(wdev, chan) ts maybe_old_inst new_inst
     mkmsg ts msg = Midi.WriteMessage wdev ts (Midi.ChannelMessage chan msg)
     start = max 0 (ts - keyswitch_interval)
 
--- * post process
-
-type PostprocState = Map.Map Instrument.Addr AddrState
-
--- | Keep a running state for each channel and drop duplicate msgs.
-type AddrState =
-    (Maybe Midi.PitchBendValue, Map.Map Midi.Control Midi.ControlValue)
-
--- | Some context free post-processing on the midi stream.
-post_process :: PostprocState -> MidiEvents -> (MidiEvents, PostprocState)
-post_process = drop_dup_controls
-
--- | Having to deal with Log is ugly... can't I get that out with fmap?
-drop_dup_controls :: PostprocState -> MidiEvents -> (MidiEvents, PostprocState)
-drop_dup_controls state [] = ([], state)
-drop_dup_controls state (log@(LEvent.Log _) : events) =
-    let (rest, final_state) = drop_dup_controls state events
-    in (log : rest, final_state)
-drop_dup_controls state (event@(LEvent.Event wmsg) : wmsgs) = case wmsg of
-    Midi.WriteMessage dev _ (Midi.ChannelMessage chan cmsg) ->
-        let addr = (dev, chan)
-            addr_state = Map.lookup addr state
-            (keep, addr_state2) = analyze_msg addr_state cmsg
-            state2 = maybe state (\s -> Map.insert addr s state) addr_state2
-            (rest, final_state) = drop_dup_controls state2 wmsgs
-        in (if keep then event : rest else rest, final_state)
-    _ -> drop_dup_controls state wmsgs
-
-analyze_msg :: Maybe AddrState -> Midi.ChannelMessage -> (Bool, Maybe AddrState)
-analyze_msg Nothing msg = case msg of
-    Midi.PitchBend v -> (True, Just (Just v, Map.empty))
-    Midi.ControlChange c v -> (True, Just (Nothing, Map.singleton c v))
-    _ -> (True, Nothing)
-analyze_msg (Just (pb_val, cmap)) msg = case msg of
-    Midi.PitchBend v
-        | Just v == pb_val -> (False, Nothing)
-        | otherwise -> (True, Just (Just v, cmap))
-    Midi.ControlChange c v
-        | Just v == Map.lookup c cmap -> (False, Nothing)
-        | otherwise -> (True, Just (pb_val, Map.insert c v cmap))
-    _ -> (True, Nothing)
-
-
--- * perform note
+-- ** perform note
 
 -- | Emit MIDI for a single event.
 perform_note :: Timestamp -> Event -> Instrument.Addr
@@ -423,147 +522,48 @@ create_leading_cc prev_note_off start sig pos_vals =
     initial = (Timestamp.to_real_time (tweak (start - control_lead_time)),
         Signal.at (Timestamp.to_real_time start) sig)
 
--- * channelize
+-- * post process
 
--- | Overlapping events and the channels they were given.
-type ChannelizeState = [(Event, Channel)]
+type PostprocState = Map.Map Instrument.Addr AddrState
 
--- | Assign channels.  Events will be merged into the the lowest channel they
--- can coexist with.
---
--- A less aggressive policy would be to distribute the instrument among all of
--- its addrs and only share when out of channels, but it seems like this would
--- quickly eat up all the channels, forcing a new note that can't share to snag
--- a used one.
-channelize :: ChannelizeState -> InstAddrs -> Events
-    -> ([LEvent.LEvent (Event, Channel)], ChannelizeState)
-channelize overlapping inst_addrs events =
-    overlap_map overlapping (channelize_event inst_addrs) events
+-- | Keep a running state for each channel and drop duplicate msgs.
+type AddrState =
+    (Maybe Midi.PitchBendValue, Map.Map Midi.Control Midi.ControlValue)
 
-channelize_event :: InstAddrs -> [(Event, Channel)] -> Event -> Channel
-channelize_event inst_addrs overlapping event =
-    case Map.lookup inst_name inst_addrs of
-        -- If the event has 0 or 1 addrs I can just give a constant channel.
-        -- 'allot' will assign the correct addr, or drop the event if there
-        -- are none.
-        Just (_:_:_) -> chan
-        _ -> 0
-    where
-    inst_name = Instrument.inst_score (event_instrument event)
-    -- If there's no shareable channel, make up a channel one higher than the
-    -- maximum channel in use.
-    chan = maybe (maximum (-1 : map snd overlapping) + 1) id
-        (shareable_chan overlapping event)
+-- | Some context free post-processing on the midi stream.
+post_process :: PostprocState -> MidiEvents -> (MidiEvents, PostprocState)
+post_process = drop_dup_controls
 
--- | Find a channel from the list of overlapping (Event, Channel) all of whose
--- events can share with the given event.
-shareable_chan :: [(Event, Channel)] -> Event -> Maybe Channel
-shareable_chan overlapping event = fst <$> List.find (all_share . snd) by_chan
-    where
-    by_chan = Seq.keyed_group_on snd overlapping
-    all_share evt_chans = all (flip can_share_chan event) (map fst evt_chans)
+-- | Having to deal with Log is ugly... can't I get that out with fmap?
+drop_dup_controls :: PostprocState -> MidiEvents -> (MidiEvents, PostprocState)
+drop_dup_controls state [] = ([], state)
+drop_dup_controls state (log@(LEvent.Log _) : events) =
+    let (rest, final_state) = drop_dup_controls state events
+    in (log : rest, final_state)
+drop_dup_controls state (event@(LEvent.Event wmsg) : wmsgs) = case wmsg of
+    Midi.WriteMessage dev _ (Midi.ChannelMessage chan cmsg) ->
+        let addr = (dev, chan)
+            addr_state = Map.lookup addr state
+            (keep, addr_state2) = analyze_msg addr_state cmsg
+            state2 = maybe state (\s -> Map.insert addr s state) addr_state2
+            (rest, final_state) = drop_dup_controls state2 wmsgs
+        in (if keep then event : rest else rest, final_state)
+    _ -> drop_dup_controls state wmsgs
 
--- | Can the two events coexist in the same channel without interfering?
--- The reason this is not commutative is so I can assume the start of @old@
--- precedes the start of @new@ and save a little computation.
-can_share_chan :: Event -> Event -> Bool
-can_share_chan old new = case (initial_pitch old, initial_pitch new) of
-        _ | start >= end -> True
-        _ | event_instrument old /= event_instrument new -> False
-        (Just (initial_old, _), Just (initial_new, _)) ->
-            Signal.pitches_share in_decay
-                (Timestamp.to_real_time start) (Timestamp.to_real_time end)
-                initial_old (event_pitch old) initial_new (event_pitch new)
-            && controls_equal (event_controls new) (event_controls old)
-        _ -> True
-    where
-    start = note_begin new
-    end = min (note_end new) (note_end old)
-    initial_pitch event = event_pitch_at (event_pb_range event)
-        event (event_start event)
-    -- If the overlap is in the decay of one or both notes, the rules are
-    -- slightly different.
-    in_decay = event_end new <= event_start old
-        || event_end old <= event_start new
+analyze_msg :: Maybe AddrState -> Midi.ChannelMessage -> (Bool, Maybe AddrState)
+analyze_msg Nothing msg = case msg of
+    Midi.PitchBend v -> (True, Just (Just v, Map.empty))
+    Midi.ControlChange c v -> (True, Just (Nothing, Map.singleton c v))
+    _ -> (True, Nothing)
+analyze_msg (Just (pb_val, cmap)) msg = case msg of
+    Midi.PitchBend v
+        | Just v == pb_val -> (False, Nothing)
+        | otherwise -> (True, Just (Just v, cmap))
+    Midi.ControlChange c v
+        | Just v == Map.lookup c cmap -> (False, Nothing)
+        | otherwise -> (True, Just (pb_val, Map.insert c v cmap))
+    _ -> (True, Nothing)
 
--- | Are the controls equal in the given range?
-controls_equal :: ControlMap -> ControlMap -> Bool
-controls_equal cs0 cs1 = all eq pairs
-    where
-    -- Velocity and aftertouch are per-note addressable in midi, but the rest
-    -- of the controls require their own channel.
-    relevant = Map.filterWithKey (\k _ -> Control.is_channel_control k)
-    pairs = Map.pairs (relevant cs0) (relevant cs1)
-    -- Previously I would compare only the overlapping range.  But controls
-    -- for multiplexed instruments are trimmed to the event start and end
-    -- already.  Comparing the entire signal will fail to merge events that
-    -- have different signals after the decay is over, but what are you
-    -- doing creating those anyway?
-    eq (_, Just sig0, Just sig1) = sig0 == sig1
-    eq _ = False
-
--- * allot channels
-
--- | 'channelize' will assign channels based on whether the notes can coexist
--- without interfering with each other.  'allot' reduces those channels down
--- to the real midi channels assigned to the instrument, stealing if necessary.
---
--- Events with instruments that have no address allocation in the config
--- will be dropped.
-allot :: AllotState -> InstAddrs -> [LEvent.LEvent (Event, Channel)]
-    -> ([LEvent.LEvent (Event, Instrument.Addr)], AllotState)
-allot state inst_addrs events = (event_addrs, final_state)
-    where
-    (final_state, event_addrs) = List.mapAccumL allot1 state events
-    allot1 state (LEvent.Event e) = allot_event inst_addrs state e
-    allot1 state (LEvent.Log log) = (state, LEvent.Log log)
-
-data AllotState = AllotState {
-    -- | Allocated addresses, and when they were last used.
-    -- This is used by the voice stealer to figure out which voice is ripest
-    -- for plunder.
-    ast_available :: Map.Map Instrument.Addr Timestamp
-    -- | Map arbitrary input channels to an instrument address in the allocated
-    -- range.
-    , ast_allotted :: Map.Map (Instrument.Instrument, Channel) Instrument.Addr
-    } deriving (Eq, Show)
-empty_allot_state = AllotState Map.empty Map.empty
-
--- | Try to find an Addr for the given Event.  If that's impossible, return
--- a log msg.
-allot_event :: InstAddrs -> AllotState -> (Event, Channel)
-    -> (AllotState, LEvent.LEvent (Event, Instrument.Addr))
-allot_event inst_addrs state (event, ichan) =
-    case Map.lookup (inst, ichan) (ast_allotted state) of
-        Just addr -> (update addr state, LEvent.Event (event, addr))
-        Nothing -> case steal_addr inst_addrs inst state of
-            Just addr -> (update addr (update_map addr state),
-                LEvent.Event (event, addr))
-            -- This will return lots of msgs if an inst has no allocation.
-            -- A higher level should filter out the duplicates.
-            Nothing -> (state, LEvent.Log no_alloc)
-    where
-    inst = event_instrument event
-    update addr state = update_avail addr state
-    update_avail addr state = state { ast_available =
-            Map.insert addr (event_end event) (ast_available state) }
-    update_map addr state = state { ast_allotted =
-        Map.insert (inst, ichan) addr (ast_allotted state) }
-    no_alloc = event_warning event
-        ("no allocation for " ++ Pretty.pretty (Instrument.inst_score inst))
-
--- | Steal the least recently used address for the given instrument.
-steal_addr :: InstAddrs -> Instrument.Instrument -> AllotState
-    -> Maybe Instrument.Addr
-steal_addr inst_addrs inst state =
-    case Map.lookup (Instrument.inst_score inst) inst_addrs of
-        Just addrs -> let avail = zip addrs (map mlookup addrs)
-            in if null avail then Nothing -- no addrs assigned
-                else let (addr, _) = List.minimumBy (compare `on` snd) avail
-                in Just addr
-        _ -> Nothing
-    where
-    mlookup addr = Map.findWithDefault 0 addr (ast_available state)
 
 -- * data
 
