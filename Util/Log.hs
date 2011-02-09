@@ -30,6 +30,7 @@ module Util.Log (
 ) where
 import Prelude hiding (error, log)
 import qualified Control.Concurrent.MVar as MVar
+import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Exception as Exception
 import Control.Monad
 import qualified Control.Monad.Error as Error
@@ -43,6 +44,7 @@ import qualified System.IO as IO
 import qualified System.IO.Unsafe  as Unsafe
 import Text.Printf (printf)
 
+import qualified Util.AppendList as AppendList
 import qualified Util.Logger as Logger
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -55,18 +57,21 @@ import qualified Derive.Stack as Stack
 
 
 data Msg = Msg {
-    msg_date :: Time.UTCTime
-    , msg_caller :: SrcPos.SrcPos
-    , msg_prio :: Prio
+    msg_date :: !Time.UTCTime
+    , msg_caller :: !SrcPos.SrcPos
+    , msg_prio :: !Prio
     -- | Msgs which are logged from the deriver may record the position in the
     -- schema and event being processed.
-    , msg_stack :: Maybe Stack.Stack
+    , msg_stack :: !(Maybe Stack.Stack)
     -- | Free form text for humans.
-    , msg_text  :: Text.Text
+    , msg_text  :: !Text.Text
     -- | Attach some typed data.  Data.Dynamic would be more generic, but
     -- I can't think of anything I'd use it for other than signals.
-    , msg_signal :: [(Double, Double)]
+    , msg_signal :: ![(Double, Double)]
     } deriving (Eq, Show, Read, Generics.Typeable)
+
+instance DeepSeq.NFData Msg where
+    rnf (Msg {}) = ()
 
 msg_string :: Msg -> String
 msg_string = Text.unpack . msg_text
