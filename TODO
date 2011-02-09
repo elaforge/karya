@@ -49,7 +49,7 @@ CURRENT
       to prove that with profiles, and then remove it.  Use a log-suppression
       framework to filter them before they are emitted?  Is that really more
       efficient?
-    - update Deriver_test to use DeriveTest.extract_run
+    * update Deriver_test to use DeriveTest.extract_run
     - rearrange Perform.Midi.Perform
     - fix TrackWarp monoid, write test to demonstrate
       TrackWarps are messed up, since d_merge and the other collect merging

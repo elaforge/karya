@@ -64,12 +64,9 @@ test_one = do
 
 test_lazy = print $
     -- if I can take results from an infinite score, the derivation is lazy
-    take 5 $ extract_run $ DeriveTest.run State.empty $
+    fmap (take 5) $ DeriveTest.extract_run ex $ DeriveTest.run State.empty $
         Note.derive_notes 10 [UiTest.mkevent (n, 1, "") | n <- [0..]]
-    where
-    extract_run (Right (val, _, logs)) =
-        map Score.event_start $ LEvent.events_of val
-    extract_run (Left err) = error (show err)
+    where ex = map Score.event_start . LEvent.events_of
 
 test_two = do
     let mkblock n = snd $ UiTest.run_mkstate

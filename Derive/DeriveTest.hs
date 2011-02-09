@@ -76,9 +76,7 @@ default_constant ui_state =
         default_lookup_scale (const Nothing) False
 
 eval :: State.State -> Derive.Deriver a -> Either String a
-eval state m = case run state m of
-    Left err -> Left err
-    Right (val, _, _) -> Right val
+eval ui_state m = extract_run id (run ui_state m)
 
 
 -- * perform

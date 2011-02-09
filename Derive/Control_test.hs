@@ -50,11 +50,9 @@ test_track_expression = do
         ([[(0, (60, 60, 0)), (2, (60, 62, 0.5)), (4, (60, 62, 1))]], [])
 
 test_derive_control = do
-    let extract (Left err) = Left err
-        extract (Right ((sig, logs, _damage), _, _logs)) =
-            Right (Signal.unsignal sig,
-                map DeriveTest.show_log (LEvent.logs_of logs))
-    let derive events = extract $ DeriveTest.run State.empty
+    let ex (sig, logs, _damage) =
+            (Signal.unsignal sig, map DeriveTest.show_log (LEvent.logs_of logs))
+    let derive events = DeriveTest.extract_run ex $ DeriveTest.run State.empty
             (Control.derive_control 10 [] (map UiTest.mkevent events))
     equal (derive [(0, 0, "1"), (1, 0, "2")])
         (Right ([(0, 1), (1, 2)], []))

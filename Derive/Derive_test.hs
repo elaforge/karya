@@ -283,8 +283,7 @@ test_tempo_compose = do
 --     where showf f = Numeric.showFFloat (Just 3) f ""
 
 test_warp_ops = do
-    let run op = fmap extract $ DeriveTest.run State.empty (op record)
-            where extract (val, _, logs) = Log.trace_logs logs val
+    let run op = DeriveTest.eval State.empty (op record)
         record = do
             x0 <- Derive.now
             x1 <- Derive.score_to_real 2
@@ -339,8 +338,7 @@ test_warp_ops = do
             Right [1, 17]
 
 test_real_to_score = do
-    let extract (val, _, logs) = Log.trace_logs logs val
-    let f do_warp pos = fmap extract $ DeriveTest.run State.empty $
+    let f do_warp pos = DeriveTest.eval State.empty $
             do_warp (Derive.real_to_score =<< Derive.score_to_real pos)
     equal (f id 1) (Right 1)
     equal (f (Derive.d_at 5) 1) (Right 1)
@@ -358,14 +356,14 @@ test_d_control_at = do
             Signal.signal [(0, 1), (2, 2), (4, 0)])]
     let set_controls = Derive.modify $ \st ->
             st { Derive.state_controls = controls }
-    let run op = fmap extract $
+    let run op = DeriveTest.extract_run extract $
             DeriveTest.run State.empty (set_controls >> op get)
             where
             get = do
                 conts <- Derive.gets Derive.state_controls
                 psig <- Derive.gets Derive.state_pitch
                 return (conts, psig)
-            extract ((conts, pitch), _, logs) = Log.trace_logs logs
+            extract (conts, pitch) =
                 (Signal.unsignal (snd (head (Map.toList conts))),
                     PitchSignal.unsignal pitch)
     equal (run id) $ Right
@@ -546,9 +544,8 @@ test_tempo = do
 
 test_named_pitch = do
     let pname = Score.Control "psig"
-    let run op = extract <$> DeriveTest.run State.empty
+    let run op = DeriveTest.eval State.empty
             (op $ Derive.named_degree_at pname 2)
-        extract (val, _, logs) = Log.trace_logs logs val
 
     let with_const = Derive.with_constant_pitch (Just pname) 42
     equal (run with_const)
