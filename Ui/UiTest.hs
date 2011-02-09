@@ -43,33 +43,6 @@ rid = Types.RulerId . mkid
 
 default_zoom = Config.zoom
 
--- TODO convert to use mkstate
-initial_state :: State.UiStateMonad m => m ()
-initial_state = do
-    let cont text = Event.event text (ScoreTime 0)
-
-    ruler <- State.create_ruler (mkid "r1") (ruler [marklist 64 10])
-    overlay <- State.create_ruler (mkid "r1.overlay")
-        =<< fmap overlay_ruler (State.get_ruler ruler)
-
-    t0 <- State.create_track (mkid "b1.tempo") (empty_track "tempo")
-    State.insert_events t0
-        [(ScoreTime 0, cont ".05"), (ScoreTime 50, cont "i.1")]
-            -- (ScoreTime 100, cont "i.01")]
-    t1 <- State.create_track (mkid "b1.t1") (empty_track ">fm8/bass")
-    let notes = ["6a", "6b", "7c", "7d", "7e", "7f"]
-        -- note_events = zip (notes ++ tail (reverse notes)) [0, 10..]
-        note_events = zip notes [0, 10..]
-    State.insert_events t1 [(ScoreTime p, Event.event e (ScoreTime 10))
-        | (e, p) <- note_events]
-    t2 <- State.create_track (mkid "b1.t2") (empty_track "velocity")
-    State.insert_events t2 [(ScoreTime 0, cont "1")]
-    b1 <- State.create_block (mkid "b1") $
-        mkblock "hi b1" [(Block.RId ruler, 20), (Block.TId t0 overlay, 40),
-            (Block.TId t1 overlay, 40), (Block.TId t2 overlay, 40)]
-    State.create_view (mkid "v1") (Block.view b1 default_rect default_zoom)
-    return ()
-
 -- * mkstate
 
 default_block_id = bid default_block_name

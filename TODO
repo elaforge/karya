@@ -25,7 +25,7 @@ CURRENT
 
   - rename Log.uninitialized_msg -> msg, msg -> initialized_msg
   * move 'force' to Util.Test
-  - remove UiTest.initial_state
+  * remove UiTest.initial_state
   - replace Seq.mhead/tail with head/tail
 
   lazy deriver
