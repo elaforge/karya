@@ -22,11 +22,12 @@ CURRENT
     Who else produces dups?  Convert does.  But isn't it more efficient to just
     not emit?
     - Perform.Midi.Cache.is_splice_failure is another possible use
+    - suppress cache msgs from cache hits
 
   * rename Log.uninitialized_msg -> msg, msg -> initialized_msg
   * move 'force' to Util.Test
   * remove UiTest.initial_state
-  - replace Seq.mhead/tail with head/tail
+  * replace Seq.mhead/tail with head/tail
 
   lazy deriver
     * finish Lazy tests
@@ -336,7 +337,7 @@ bugs:
   - hint refuses to compile when a module emits a warning
 
 cleanup:
-  ? switch mhead and mlast back to returning Maybe
+  * switch mhead and mlast back to returning Maybe
   - cleanup Ui.Track: event_list -> all_events?
   - Makefile: ghc --make doesn't understand the hsc -> hs link, which leads to
     manual inclusion of $(UI_HS) in the deps

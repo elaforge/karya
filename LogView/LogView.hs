@@ -89,9 +89,9 @@ main = do
         usage ("unparsed args: " ++ show args)
     when (Help `elem` flags) (usage "usage:")
 
-    let seek = Seq.mlast (Just 0) id [s | Seek s <- flags]
-        history = Seq.mlast default_history id [n | History n <- flags]
-        filename = Seq.mlast mach_log_filename id [n | File n <- flags]
+    let seek = maybe (Just 0) id $ Seq.last [s | Seek s <- flags]
+        history = maybe default_history id $ Seq.last [n | History n <- flags]
+        filename = maybe mach_log_filename id $ Seq.last [n | File n <- flags]
 
     view <- LogViewC.create_logview 20 20 (fst initial_size) (snd initial_size)
         default_max_bytes

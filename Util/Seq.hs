@@ -1,5 +1,5 @@
 module Util.Seq where
-import Prelude hiding (last)
+import Prelude hiding (head, last)
 import qualified Data.Char as Char
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
@@ -136,7 +136,7 @@ reverse_compare a b = case compare a b of
 -- | Group the unsorted list into @(key x, xs)@ where all @xs@ compare equal
 -- after @key@ is applied to them.  List is returned in sorted order.
 keyed_group_on :: (Ord b) => (a -> b) -> [a] -> [(b, [a])]
-keyed_group_on key = map (\gs -> (key (head gs), gs))
+keyed_group_on key = map (\gs -> (key (List.head gs), gs))
     . group_on key . sort_on key
 
 -- | Like 'groupBy', but the list doesn't need to be sorted, and use a key
@@ -155,7 +155,7 @@ zip_next (x : xs@(y:_)) = (x, Just y) : zip_next xs
 -- | Like 'zip_next' but with both preceding and following elements.
 zip_neighbors :: [a] -> [(Maybe a, a, Maybe a)]
 zip_neighbors [] = []
-zip_neighbors (x:xs) = (Nothing, x, mhead Nothing Just xs) : go x xs
+zip_neighbors (x:xs) = (Nothing, x, head xs) : go x xs
     where
     go _ [] = []
     go prev [x] = [(Just prev, x, Nothing)]
@@ -239,16 +239,10 @@ partition_either (x:xs) =
 
 -- ** extracting sublists
 
--- | Total variants of unsafe list operations.  "m" is for "maybe".
-mhead, mlast :: b -> (a -> b) -> [a] -> b
-mhead empty _ [] = empty
-mhead _ full (x:_) = full x
-mlast empty _ [] = empty
-mlast _ full xs = full (List.last xs)
-
-first, last :: [a] -> Maybe a
-first [] = Nothing
-first (x:_) = Just x
+-- | Total variants of unsafe list operations.
+head, last :: [a] -> Maybe a
+head [] = Nothing
+head (x:_) = Just x
 last [] = Nothing
 last xs = Just (List.last xs)
 
@@ -389,7 +383,7 @@ replaceWith :: ([a] -> Maybe ([a], [a])) -> [a] -> [a]
 replaceWith _ [] = []
 replaceWith repl xs = case repl xs of
     Just (insert, rest) -> insert ++ replaceWith repl rest
-    Nothing -> head xs : replaceWith repl (tail xs)
+    Nothing -> List.head xs : replaceWith repl (tail xs)
 
 -- | Replace sublist 'val' with 'repl' in the given list.
 replace val repl = replaceWith (replaceVal val repl)

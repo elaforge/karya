@@ -105,7 +105,8 @@ shift_tracknum block tracknum shift
     where
     selectable = selectable_tracks block
     find_track [] = tracknum
-    find_track tracks@(first:_) = Seq.mhead tracknum id $ drop abs_shift tracks
+    find_track tracks@(first:_) =
+        maybe tracknum id $ Seq.head $ drop abs_shift tracks
         where abs_shift = if tracknum /= first then abs shift - 1 else abs shift
 
 -- | Get the tracknums from a block that should be selectable.
@@ -477,7 +478,7 @@ relative_realtime_point perf maybe_root_sel (block_id, _, track_id, pos) =
 point_to_real :: Transport.TempoFunction -> Maybe Point -> RealTime
 point_to_real _ Nothing = 0
 point_to_real tempo (Just (block_id, _, track_id, pos)) =
-    Seq.mhead 0 id $ tempo block_id track_id pos
+    maybe 0 id $ Seq.head $ tempo block_id track_id pos
 
 -- ** select events
 
@@ -527,8 +528,8 @@ events_around_selnum selnum = do
         | take_next = (before, take 1 after, drop 1 after)
         | otherwise = (before, [], after)
         where
-        take_prev = Seq.mhead False Track.event_positive before
-        take_next = Seq.mhead False Track.event_negative after
+        take_prev = maybe False Track.event_positive (Seq.head before)
+        take_next = maybe False Track.event_negative (Seq.head after)
     expand selected = selected
     expand_range (_, [evt], _) _ = (Track.event_min evt, Track.event_max evt)
     expand_range _ range = range

@@ -78,7 +78,7 @@ advance :: (State.UiStateMonad m) => TimeStep -> BlockId -> TrackNum
 advance step block_id tracknum pos = do
     maybe_points <- get_points step block_id tracknum pos
     return $ find_after =<< maybe_points
-    where find_after xs = Seq.mhead Nothing Just (dropWhile (<=pos) xs)
+    where find_after xs = Seq.head (dropWhile (<=pos) xs)
 
 get_points :: (State.UiStateMonad m) =>
     TimeStep -> BlockId -> TrackNum -> ScoreTime -> m (Maybe [ScoreTime])

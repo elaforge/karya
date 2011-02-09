@@ -195,7 +195,7 @@ cached_generator state stack (Derive.GeneratorCall func gtype _) args =
 -- they cover.
 derived_range :: (Derive.Derived d) => LEvent.LEvents d
     -> Ranges.Ranges RealTime
-derived_range events = case (Seq.first derived, Seq.last derived) of
+derived_range events = case (Seq.head derived, Seq.last derived) of
         (Just hd, Just tl) -> Ranges.range
             (fst (Derive.derived_range hd)) (snd (Derive.derived_range tl))
         _ -> Ranges.nothing

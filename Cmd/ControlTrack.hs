@@ -53,7 +53,7 @@ parse s
     where (pre, post) = break (==' ') s
 
 is_method :: String -> Bool
-is_method = Seq.mlast False (==' ')
+is_method = maybe False (==' ') . Seq.last
 
 unparse :: (Maybe String, Maybe String) -> Maybe String
 unparse (method, val) = case (pre, post) of
