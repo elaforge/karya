@@ -23,6 +23,7 @@ module Util.Test (
 
     -- * profiling
     , timer, print_timer
+    , force
 
     -- * pretty printing
     , printf
@@ -32,6 +33,7 @@ module Util.Test (
     -- * debugging
     , module Debug
 ) where
+import qualified Control.DeepSeq as DeepSeq
 import Control.Monad
 import qualified Control.Exception as Exception
 import qualified Data.IORef as IORef
@@ -228,6 +230,9 @@ print_timer :: String -> IO String -> IO ()
 print_timer msg op = do
     (val, secs) <- timer op
     printf "%s - time: %.2fs - %s\n" msg secs val
+
+force :: (DeepSeq.NFData a) => a -> IO ()
+force x = x `DeepSeq.deepseq` return ()
 
 -- * util
 

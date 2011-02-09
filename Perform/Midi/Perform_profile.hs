@@ -1,6 +1,5 @@
 module Perform.Midi.Perform_profile where
 import Control.Monad
-import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Map as Map
 import qualified System.IO as IO
 
@@ -84,7 +83,6 @@ perform :: [Perform.Event] -> ([Midi.WriteMessage], [String])
 perform = split_logs . fst
     . Perform.perform Perform.initial_state midi_config . map LEvent.Event
 
-force val = DeepSeq.deepseq val (return ())
 split_logs = second (map (DeriveTest.show_log)) . LEvent.partition
 
 run_multiple arg action = forM_ [1..6] $ \n -> do

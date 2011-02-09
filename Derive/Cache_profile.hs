@@ -21,7 +21,6 @@ import qualified Ui.Update as Update
 import qualified Derive.Cache as Cache
 import qualified Derive.Cache_test as Cache_test
 import qualified Derive.Derive as Derive
-import Derive.Derive_profile (force)
 import qualified Derive.Derive_profile as Derive_profile
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.LEvent as LEvent

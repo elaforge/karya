@@ -1,12 +1,11 @@
 module Cmd.ResponderTest where
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Concurrent.STM.TVar as TVar
-import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Map as Map
 import qualified Text.Printf as Printf
 
 import qualified Util.Pretty as Pretty
-import qualified Util.Test as Test
+import Util.Test
 import qualified Util.Thread as Thread
 
 import qualified Midi.Midi as Midi
@@ -56,14 +55,13 @@ respond_delay :: States -> [(Msg.Msg, Double)]
     -> IO ([[Update.Update]], [[Midi.WriteMessage]], States)
 respond_delay states [] = return ([], [], states)
 respond_delay states ((msg, delay):msgs) = do
-    ((updates, midi, states), secs) <- Test.timer $ respond_msg states msg
+    ((updates, midi, states), secs) <- timer $ respond_msg states msg
     Printf.printf "%s -> lag: %.2fs\n" (Pretty.pretty msg) secs
     Thread.delay delay
     (rest_updates, rest_midi, final_states) <- respond_delay states msgs
-    return (force updates : rest_updates, force midi : rest_midi, final_states)
-
-force :: (DeepSeq.NFData a) => a -> a
-force x = DeepSeq.deepseq x x
+    force updates
+    force midi
+    return (updates : rest_updates, midi : rest_midi, final_states)
 
 -- The updates are normally forced by syncing to the UI, but since that doesn't
 -- happen here, they should be forced by the caller.

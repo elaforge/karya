@@ -1,6 +1,4 @@
 module Derive.Lazy_test where
-import qualified Control.DeepSeq as DeepSeq
-
 import Util.Control
 import Util.Test
 
@@ -106,5 +104,3 @@ test_cache = do
 
 extract :: Derive.Result -> [Either RealTime String]
 extract = DeriveTest.extract_stream Score.event_start
-
-force x = x `DeepSeq.deepseq` return ()

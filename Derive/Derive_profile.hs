@@ -1,5 +1,4 @@
 module Derive.Derive_profile where
-import qualified Control.DeepSeq as DeepSeq
 import Control.Monad
 import qualified Data.Time as Time
 import qualified System.CPUTime as CPUTime
@@ -166,9 +165,6 @@ cpu_time op = do
 now = fmap Time.utctDayTime Time.getCurrentTime
 cpu_to_sec :: Integer -> Double
 cpu_to_sec s = fromIntegral s / fromIntegral (10^12)
-
-force :: (DeepSeq.NFData a) => a -> IO ()
-force val = DeepSeq.deepseq val (return ())
 
 
 -- * state building
