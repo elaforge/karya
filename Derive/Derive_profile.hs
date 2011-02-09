@@ -7,9 +7,6 @@ import qualified Text.Printf as Printf
 import qualified System.IO as IO
 
 import Util.Control
-import Util.Test
-
-import qualified Midi.Midi as Midi
 
 import Ui
 import qualified Ui.State as State
@@ -20,8 +17,7 @@ import qualified Cmd.Create as Create
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 
-import qualified Perform.Midi.Perform as Perform
-import qualified Perform.Timestamp as Timestamp
+import Util.Test
 
 
 -- q=90 means 1.5 quarters / sec
@@ -79,6 +75,9 @@ make_big_control bid size = UiTest.mkstate bid $ map (track_until size)
 
 profile_nested_simple = derive_profile $ make_nested_notes "b1" 10 3 60
 profile_nested_controls = derive_profile $ make_nested_controls "b1" 10 3 60
+-- Just plain notes, no controls, so laziness works.
+profile_nested_nocontrol = derive_profile $
+    make_nested [note_track inst1] "b1" 10 3 60
 
 make_nested_notes :: (State.UiStateMonad m) => String -> Int -> Int -> Int
     -> m ()
@@ -115,52 +114,41 @@ make_nested bottom_tracks block_name size depth bottom_size = do
 
 -- * implementation
 
-type PerfResults = ([Perform.Event], [(Timestamp.Timestamp, Midi.Message)])
-
 -- | This runs the derivation several times to minimize the creation cost.
 derive_profile :: State.StateId a -> IO ()
 derive_profile create = sequence_ $ replicate 6 $
     run_profile False (UiTest.exec State.empty create)
 
-run_profile :: Bool -> State.State -> IO (Derive.Cache, PerfResults)
+run_profile :: Bool -> State.State -> IO ()
 run_profile perform_midi ui_state = do
     start_cpu <- CPUTime.getCPUTime
     start <- now
-    let section :: (Show log) => String -> IO ((), [a], [log]) -> IO ()
-        section = time_section 2 (start_cpu, start)
+    let section :: String -> IO ((), [a]) -> IO ()
+        section = time_section (start_cpu, start)
 
     let result = DeriveTest.derive_block ui_state (UiTest.bid "b1")
-    let events = either (error . ("Left: " ++) . show) id
-            (Derive.r_result result)
+    let events = Derive.r_events result
     section "derive" $ do
         force events
-        return ((), events, DeriveTest.quiet_filter_logs (Derive.r_logs result))
+        return ((), events)
 
-    let (perf_events, convert_warns, mmsgs, midi_warns) =
-            DeriveTest.perform DeriveTest.default_lookup_inst midi_config events
-    when perform_midi $ do
-        section "convert" $ do
-            force perf_events
-            return ((), perf_events, convert_warns)
-        section "midi" $ do
-            force mmsgs
-            return ((), mmsgs, midi_warns)
-    return (Derive.r_cache result, (perf_events, mmsgs))
+    let mmsgs = snd $ DeriveTest.perform_stream DeriveTest.default_lookup_inst
+            midi_config events
+    when perform_midi $ section "midi" $ do
+        force mmsgs
+        return ((), mmsgs)
 
-time_section :: (Show log) => Int -> (Integer, Time.DiffTime) -> String
-    -> IO (result, [a], [log]) -> IO result
-time_section maxlogs (start_cpu, start_time) title op = do
+time_section :: (Integer, Time.DiffTime) -> String -> IO (result, [a])
+    -> IO result
+time_section (start_cpu, start_time) title op = do
     putStr $ "--> " ++ title ++ ": "
     IO.hFlush IO.stdout
-    ((result, vals, logs), cpu_secs, secs) <- cpu_time op
+    ((result, vals), cpu_secs, secs) <- cpu_time op
     cur_cpu <- CPUTime.getCPUTime
     cur_time <- now
     Printf.printf "%d vals -> %.2fcpu / %.2fs (running: %.2fcpu / %.2fs)\n"
         (length vals) cpu_secs (double secs)
         (cpu_to_sec (cur_cpu - start_cpu)) (double (cur_time - start_time))
-    let show_logs = take maxlogs logs
-    when (not (null show_logs)) $ do
-        pprint show_logs
     return result
     where
     double :: Time.DiffTime -> Double

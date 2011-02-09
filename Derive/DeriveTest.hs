@@ -8,8 +8,7 @@ import qualified Data.Maybe as Maybe
 import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
--- import qualified Util.SrcPos as SrcPos
-import Util.Test
+import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
 
@@ -20,6 +19,7 @@ import qualified Ui.UiTest as UiTest
 import qualified Derive.Call.All as Call.All
 import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
+import qualified Derive.LEvent as LEvent
 import qualified Derive.Scale.All as Scale.All
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Schema as Schema
@@ -31,7 +31,6 @@ import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 import qualified Perform.Timestamp as Timestamp
-import qualified Perform.Warning as Warning
 
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Instrument as Instrument
@@ -63,9 +62,14 @@ run ui_state m =
     -- Make sure Derive.get_current_block_id, called by add_track_warp, doesn't
     -- throw.
     initial_stack = Stack.make [Stack.Block (UiTest.bid "fakeblock")]
-    derive_state = (Derive.initial_state default_scopes Derive.empty_cache
+    derive_state = (Derive.initial_state default_scopes mempty
         mempty default_environ (default_constant ui_state))
             { Derive.state_stack = initial_stack }
+
+extract_run :: (a -> b) -> Either String (a, Derive.State, [Log.Msg])
+    -> Either String b
+extract_run _ (Left err) = Left err
+extract_run f (Right (val, _, msgs)) = Right $ trace_logs msgs (f val)
 
 default_constant ui_state =
     Derive.initial_constant ui_state (default_lookup_deriver ui_state)
@@ -79,42 +83,60 @@ eval state m = case run state m of
 
 -- * perform
 
-perform :: MidiDb.LookupMidiInstrument -> Instrument.Config -> [Score.Event]
-    -> ([Perform.Event], [Warning.Warning],
-        [(Timestamp.Timestamp, Midi.Message)], [Warning.Warning])
-perform lookup_inst midi_config events =
-    (perf_events, convert_warns, mmsgs, perform_warns)
-    where
-    (perf_events, convert_warns) =
-        Convert.convert default_lookup_scale lookup_inst events
-    (msgs, perform_warns, _) = Perform.perform Perform.initial_state
-        midi_config perf_events
-    mmsgs = map (\m -> (Midi.wmsg_ts m, Midi.wmsg_msg m)) msgs
+perform_block :: [UiTest.TrackSpec] -> ([(Integer, Midi.Message)], [String])
+perform_block tracks = perform_blocks [(UiTest.default_block_name, tracks)]
 
-perform_defaults :: [Score.Event]
-    -> ([Perform.Event], [Warning.Warning],
-        [(Timestamp.Timestamp, Midi.Message)], [Warning.Warning])
+perform_blocks :: [(String, [UiTest.TrackSpec])]
+    -> ([(Integer, Midi.Message)], [String])
+perform_blocks blocks = (mmsgs, map show_log (filter interesting_log logs))
+    where
+    (_, mmsgs, logs) = perform default_lookup_inst default_midi_config
+        (Derive.r_events result)
+    result = derive_blocks blocks
+
+perform :: MidiDb.LookupMidiInstrument -> Instrument.Config -> Derive.Events
+    -> ([Perform.Event], [(Integer, Midi.Message)], [Log.Msg])
+perform lookup_inst midi_config events =
+    (fst (LEvent.partition perf_events), mmsgs, filter interesting_log logs)
+    where
+    (perf_events, perf) = perform_stream lookup_inst midi_config events
+    (mmsgs, logs) = LEvent.partition perf
+
+perform_defaults :: Derive.Events
+    -> ([Perform.Event], [(Integer, Midi.Message)], [Log.Msg])
 perform_defaults = perform default_lookup_inst default_midi_config
+
+perform_stream :: MidiDb.LookupMidiInstrument -> Instrument.Config
+    -> Derive.Events
+    -> ([LEvent.LEvent Perform.Event],
+        [LEvent.LEvent (Integer, Midi.Message)])
+perform_stream lookup_inst midi_config events = (perf_events, mmsgs)
+    where
+    perf_events = Convert.convert default_lookup_scale lookup_inst events
+    (midi, _) = Perform.perform Perform.initial_state midi_config perf_events
+    mmsgs = map (fmap extract_m) midi
+    extract_m wmsg =
+        (Timestamp.to_millis (Midi.wmsg_ts wmsg), Midi.wmsg_msg wmsg)
 
 -- * derive
 
-derive_tracks :: [UiTest.TrackSpec] -> Derive.Result [Score.Event]
+derive_tracks :: [UiTest.TrackSpec] -> Derive.Result
 derive_tracks = derive_tracks_with id
 
-derive_tracks_tempo :: [UiTest.TrackSpec] -> Derive.Result [Score.Event]
+derive_tracks_tempo :: [UiTest.TrackSpec] -> Derive.Result
 derive_tracks_tempo tracks = derive_tracks (("tempo", [(0, 0, "1")]) : tracks)
 
-derive_tracks_with :: Transform [Score.Event] -> [UiTest.TrackSpec]
-    -> Derive.Result [Score.Event]
+derive_tracks_with :: Transform Derive.Events -> [UiTest.TrackSpec]
+    -> Derive.Result
 derive_tracks_with with tracks =
     derive_blocks_with with [(UiTest.default_block_name, tracks)]
 
 -- | Create multiple blocks, and derive the first one.
-derive_blocks :: [(String, [UiTest.TrackSpec])] -> Derive.Result [Score.Event]
+derive_blocks :: [(String, [UiTest.TrackSpec])] -> Derive.Result
 derive_blocks = derive_blocks_with id
 
-derive_blocks_with :: Transform [Score.Event] -> [(String, [UiTest.TrackSpec])]
-    -> Derive.Result [Score.Event]
+derive_blocks_with :: Transform Derive.Events -> [(String, [UiTest.TrackSpec])]
+    -> Derive.Result
 derive_blocks_with with block_tracks = derive_block_with with ui_state bid
     where
     (_, ui_state) = UiTest.run State.empty $ do
@@ -122,20 +144,35 @@ derive_blocks_with with block_tracks = derive_block_with with ui_state bid
         set_defaults
     bid = UiTest.bid (fst (head block_tracks))
 
-derive_block :: State.State -> BlockId -> Derive.Result [Score.Event]
+derive_block :: State.State -> BlockId -> Derive.Result
 derive_block = derive_block_with id
 
-derive_block_with :: Transform [Score.Event] -> State.State
-    -> BlockId -> Derive.Result [Score.Event]
+derive_block_with :: Transform Derive.Events -> State.State
+    -> BlockId -> Derive.Result
 derive_block_with with ui_state block_id = derive ui_state deriver
     where deriver = with (Call.eval_root_block block_id)
 
-derive :: State.State -> Derive.Deriver a -> Derive.Result a
+derive :: State.State -> Derive.EventDeriver -> Derive.Result
 derive ui_state deriver =
     Derive.derive (default_constant ui_state) default_scopes
-        Derive.empty_cache mempty default_environ deriver
+        mempty mempty default_environ deriver
 
 type Transform a = Derive.Deriver a -> Derive.Deriver a
+
+-- ** derive with cache
+
+derive_block_cache :: Derive.Cache -> Derive.ScoreDamage -> State.State
+    -> BlockId -> Derive.Result
+derive_block_cache cache damage ui_state block_id =
+    derive_cache cache damage ui_state deriver
+    where deriver = Call.eval_root_block block_id
+
+derive_cache :: Derive.Cache -> Derive.ScoreDamage -> State.State
+    -> Derive.EventDeriver -> Derive.Result
+derive_cache cache damage ui_state deriver =
+    Derive.derive (default_constant ui_state) default_scopes cache damage
+        default_environ deriver
+
 
 -- ** defaults
 
@@ -161,82 +198,94 @@ default_lookup_deriver ui_state = Schema.lookup_deriver Map.empty ui_state
 
 -- ** extract
 
+-- *** log msgs
+
+trace_logs :: [Log.Msg] -> a -> a
+trace_logs logs = Log.trace_logs (filter interesting_log logs)
+
 -- | Tests generally shouldn't depend on logs below a certain priority since
 -- those don't indicate anything interesting.
-filter_logs :: [Log.Msg] -> [Log.Msg]
-filter_logs logs =
-    Log.trace_logs (filter (not . cache_msg) low) high
-    where
-    (low, high) = List.partition ((< Log.Warn) . Log.msg_prio) logs
-    -- It's a hack, but the cache logs are annoying.
-    -- I can't use the srcpos because it doesn't exist in ghci.
-    -- cache = (== Just (Just "cached_generator")) . fmap SrcPos.srcpos_func
-    --     . Log.msg_caller
-    cache_msg msg =
-        any (`List.isInfixOf` s) ["using cache", "rederived generator"]
-        where s = Log.msg_string msg
+interesting_log :: Log.Msg -> Bool
+interesting_log = (>=Log.Warn) . Log.msg_prio
+
+-- It's a hack, but the cache logs are annoying.
+-- Srcpos would be better but it doesn't exist in ghci.
+-- cache = (== Just (Just "cached_generator")) . fmap SrcPos.srcpos_func
+--     . Log.msg_caller
+cache_msg :: Log.Msg -> Bool
+cache_msg msg = any (`List.isInfixOf` s) ["using cache", "rederived generator"]
+    where s = Log.msg_string msg
 
 quiet_filter_logs :: [Log.Msg] -> [Log.Msg]
 quiet_filter_logs = filter ((>=Log.Warn) . Log.msg_prio)
 
-e_val :: Derive.Result a -> (Either String a, [Log.Msg])
-e_val res = (map_left show (Derive.r_result res),
-    filter_logs (Derive.r_logs res))
+-- ** extract
 
-e_val_right :: Derive.Result a -> (a, [Log.Msg])
-e_val_right result = case e_val result of
-    (Left err, _) -> error $ "e_val_right: unexpected Left: " ++ err
-    (Right v, logs) -> (v, logs)
+extract :: (Score.Event -> a) -> Derive.Result -> ([a], [String])
+extract e_event result = (map e_event events, map show_log logs)
+    where (events, logs) = r_split result
 
-r_logs :: Derive.Result a -> [String]
-r_logs = map Log.msg_string . filter_logs . Derive.r_logs
+extract_events :: (Score.Event -> a) -> Derive.Result -> [a]
+extract_events e_event result = Log.trace_logs logs (map e_event events)
+    where (events, logs) = r_split result
 
-e_logs :: Derive.Result a -> (Either String a, [String])
-e_logs result = (val, map Log.msg_string (filter_logs msgs))
-    where (val, msgs) = e_val result
+extract_stream :: (Score.Event -> a) -> Derive.Result -> [Either a String]
+extract_stream e_event =
+    map (either (Left . e_event) (Right . show_log) . to_either)
+        . filter interesting . Derive.r_events
+    where
+    interesting (LEvent.Log log) = interesting_log log
+    interesting _ = False
+    to_either (LEvent.Event e) = Left e
+    to_either (LEvent.Log m) = Right m
 
-extract :: (Score.Event -> a) -> (Log.Msg -> b)
-    -> Derive.Result [Score.Event] -> (Either String [a], [b])
-extract e_event e_log result =
-    (fmap (map e_event) val, map e_log (filter_logs logs))
-    where (val, logs) = e_val result
+r_split :: Derive.Result -> ([Score.Event], [Log.Msg])
+r_split = second (filter interesting_log) . LEvent.partition . Derive.r_events
 
-extract_events :: (Score.Event -> a) -> Derive.Result [Score.Event]
-    -> (Either String [a], [String])
-extract_events ex_event = extract ex_event Log.msg_string
+r_logs :: Derive.Result -> [String]
+r_logs = snd . extract id
 
-extract_events_only :: (Score.Event -> a) -> Derive.Result [Score.Event]
-    -> Either String [a]
-extract_events_only ex_event result = Log.trace_logs logs vals
-    where (vals, logs) = extract ex_event id result
-
--- | Get standard event info.
 e_event :: Score.Event -> (RealTime, RealTime, String)
 e_event e = (Score.event_start e, Score.event_duration e, Score.event_string e)
-
-e_pitch :: Score.Event -> (RealTime, RealTime, String, Pitch.Degree)
-e_pitch e = (Score.event_start e, Score.event_duration e, Score.event_string e,
-    Score.initial_pitch e)
 
 e_everything :: Score.Event
     -> (RealTime, RealTime, String, Maybe String, [String])
 e_everything e =
-        ( Score.event_start e
-        , Score.event_duration e
-        , Score.event_string e
-        , fmap uninst (Score.event_instrument e)
-        , Score.attrs_list (Score.event_attributes e)
-        )
+    ( Score.event_start e
+    , Score.event_duration e
+    , Score.event_string e
+    , fmap uninst (Score.event_instrument e)
+    , Score.attrs_list (Score.event_attributes e)
+    )
     where uninst (Score.Instrument inst) = inst
+
 
 e_control :: String -> Score.Event -> Maybe [(RealTime, Signal.Y)]
 e_control cont event = fmap Signal.unsignal $
     Map.lookup (Score.Control cont) (Score.event_controls event)
 
-note_on_times :: [(Timestamp.Timestamp, Midi.Message)]
+-- ** extract log msgs
+
+show_log_stack :: Log.Msg -> String
+show_log_stack msg = show_stack (Log.msg_stack msg) ++ ": " ++ show_log msg
+
+show_stack :: Maybe Stack.Stack -> String
+show_stack Nothing = "<nothing>"
+show_stack (Just stack)
+    | null ui = "<no stack>"
+    -- This uses ': ' so 'x: *' works regardless of where in the stack x is.
+    | otherwise = Seq.join ": " (map Stack.unparse_ui_frame ui)
+    where ui = Stack.to_ui stack
+
+show_log :: Log.Msg -> String
+show_log = Log.msg_string
+
+-- ** extract midi msgs
+
+note_on_times :: [(Integer, Midi.Message)]
     -> [(Integer, Midi.Key, Midi.Velocity)]
-note_on_times mmsgs = [(Timestamp.to_millis ts, nn, vel)
-    | (ts, Midi.ChannelMessage _ (Midi.NoteOn nn vel)) <- mmsgs]
+note_on_times mmsgs =
+    [(ts, nn, vel) | (ts, Midi.ChannelMessage _ (Midi.NoteOn nn vel)) <- mmsgs]
 
 
 -- * call
@@ -245,11 +294,11 @@ passed_args :: String -> [TrackLang.Val] -> Derive.PassedArgs derived
 passed_args call vals = Derive.PassedArgs vals Map.empty
     (TrackLang.Symbol call) (Derive.dummy_call_info "DeriveTest")
 
-derive_note :: Derive.Deriver a -> Derive.Result a
-derive_note = derive State.empty
+-- derive_note :: Derive.Deriver a -> Derive.Result a
+-- derive_note = derive State.empty
 
 empty_lookup_deriver :: Derive.LookupDeriver
-empty_lookup_deriver = const (Right Derive.empty_events)
+empty_lookup_deriver = const (Right (return mempty))
 
 d_note :: Derive.EventDeriver
 d_note = do
@@ -261,8 +310,9 @@ d_note = do
     st <- Derive.get
     let controls = Derive.state_controls st
         pitch_sig = Derive.state_pitch st
-    return [Score.Event start (end-start) (B.pack "evt")
-        controls pitch_sig Stack.empty inst attrs]
+    return $ LEvent.one $ LEvent.Event $
+        Score.Event start (end-start) (B.pack "evt") controls pitch_sig
+            Stack.empty inst attrs
 
 -- * inst
 

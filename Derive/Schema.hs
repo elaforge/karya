@@ -32,7 +32,7 @@ module Derive.Schema (
 
     -- * exported for testing
     , get_defaults, get_track_info, TrackType(..)
-    , compile
+    , derive_tree
     , default_schema
 ) where
 import Control.Monad
@@ -236,42 +236,45 @@ track_type _ (State.TrackInfo title _ _) _ False =
         _ -> ControlTrack
 
 
--- ** compile
+-- ** default schema deriver
 
 default_schema_deriver :: SchemaDeriver Derive.EventDeriver
 default_schema_deriver block_id =
-    fmap (compile block_id) (State.get_track_tree_mutes block_id)
+    fmap (derive_tree block_id) (State.get_track_tree_mutes block_id)
 
--- | Transform a deriver skeleton into a real deriver.  The deriver may throw
--- if the skeleton was malformed.
-compile :: BlockId -> State.TrackTreeMutes -> Derive.EventDeriver
-compile block_id tree = do
+-- | Transform a deriver skeleton into a real deriver.
+derive_tree :: BlockId -> State.TrackTreeMutes -> Derive.EventDeriver
+derive_tree block_id tree = do
     -- d_tempo sets up some stuff that every block needs, so add one if a block
     -- doesn't have at least one top level tempo.
     let with_default_tempo = if has_tempo_track tree then id
             else Derive.d_tempo block_id Nothing (Signal.constant 1)
-    with_default_tempo (sub_compile block_id tree)
+    with_default_tempo (derive_tracks block_id tree)
 
 -- | Does this tree have a tempo track at the top level?
 has_tempo_track :: State.TrackTreeMutes -> Bool
 has_tempo_track = any $ \(Tree.Node (track, _) _) ->
     TrackInfo.is_tempo_track (State.track_title track)
 
-sub_compile :: BlockId -> State.TrackTreeMutes -> Derive.EventDeriver
-sub_compile block_id tree = Derive.d_merge_asc (map with_track tree)
+-- | Derive a set of \"top-level\" tracks and merge their results.
+derive_tracks :: BlockId -> State.TrackTreeMutes -> Derive.EventDeriver
+derive_tracks block_id tree = Derive.d_merge (map with_track tree)
     where
     with_track tree@(Tree.Node (track, _) _) =
-        Derive.with_stack_track (State.track_id track) (_compile block_id tree)
+        Derive.with_stack_track (State.track_id track)
+            (derive_track block_id tree)
 
-_compile :: BlockId -> Tree.Tree (State.TrackInfo, Bool) -> Derive.EventDeriver
-_compile block_id (Tree.Node (_, True) subs)
+-- | Derive a single track and any tracks below it.
+derive_track :: BlockId -> Tree.Tree (State.TrackInfo, Bool)
+    -> Derive.EventDeriver
+derive_track block_id (Tree.Node (_, True) subs)
     | null subs = return []
-    | otherwise = sub_compile block_id subs
-_compile block_id (Tree.Node (State.TrackInfo _ track_id _, False) subs)
+    | otherwise = derive_tracks block_id subs
+derive_track block_id (Tree.Node (State.TrackInfo _ track_id _, False) subs)
     | null subs =
         Derive.track_setup track_id (Note.d_note_track block_id track_id)
     | otherwise = Control.d_control_track block_id track_id
-        (sub_compile block_id subs)
+        (derive_tracks block_id subs)
 
 
 -- * parser

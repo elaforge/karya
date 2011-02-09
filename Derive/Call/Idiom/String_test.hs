@@ -1,6 +1,5 @@
 module Derive.Call.Idiom.String_test where
 import Util.Test
-import qualified Util.Log as Log
 
 import qualified Derive.Call.Idiom.String as String
 import qualified Derive.DeriveTest as DeriveTest
@@ -12,7 +11,7 @@ import qualified Perform.PitchSignal as PitchSignal
 
 
 test_string = do
-    let extract = DeriveTest.extract e_event Log.msg_string
+    let extract = DeriveTest.extract e_event
         e_event e = (Score.event_start e,
             PitchSignal.unsignal_degree (Score.event_pitch e))
     let run p1 p2 p3 = extract $ DeriveTest.derive_tracks_with with_call
@@ -20,25 +19,21 @@ test_string = do
             , ("*twelve", [(0, 0, p1), (5, 0, p2), (10, 0, p3)])
             ]
     let (res, logs) = run "4c" "2d" "2e"
-    equal res (Right [(0, [(0, 60)])])
+    equal res [(0, [(0, 60)])]
     strings_like logs ["event at 5s below", "event at 10s below"]
 
     -- All separate strings doesn't do anything interesting.
     equal (run "4c" "4d" "4e")
-        (Right
-            [ (0, [(0, 60)])
-            , (5, [(5, 62)])
-            , (10, [(10, 64)])
-            ],
-        [])
+        ([ (0, [(0, 60)])
+        , (5, [(5, 62)])
+        , (10, [(10, 64)])
+        ], [])
 
     equal (run "4c" "4c#" "4d")
-        (Right
-            [ (0, [(0, 60), (4, 60.5), (5, 61)]) -- bend up for attack
-            , (5, [(5, 61), (12, 60.5), (13, 60)]) -- bend back down for release
-            , (10, [(10, 62)])
-            ],
-        [])
+        ([ (0, [(0, 60), (4, 60.5), (5, 61)]) -- bend up for attack
+        , (5, [(5, 61), (12, 60.5), (13, 60)]) -- bend back down for release
+        , (10, [(10, 62)])
+        ], [])
 
 with_call = CallTest.with_note_call "guzheng"
     (String.c_guzheng (map Pitch.Degree strings))

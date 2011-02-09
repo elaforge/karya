@@ -11,15 +11,16 @@ import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.Reader as Reader
 import qualified Control.Monad.State.Strict as State
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
 import qualified Midi.Midi as Midi
 
+import qualified Util.Log as Log
 import qualified Util.Logger as Logger
 import qualified Util.Pretty as Pretty
 
 import qualified Derive.Derive as Derive
+import qualified Derive.LEvent as LEvent
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
@@ -40,17 +41,29 @@ import qualified Instrument.MidiDb as MidiDb
 
 -- | Convert Score events to Perform events, emitting warnings that may have
 -- happened along the way.
-convert :: Derive.LookupScale -> MidiDb.LookupMidiInstrument -> [Score.Event]
-    -> ([Perform.Event], [Warning.Warning])
-convert lookup_scale lookup_inst events = (maybe [] id evts, warns)
+convert :: Derive.LookupScale -> MidiDb.LookupMidiInstrument -> Derive.Events
+    -> [LEvent.LEvent Perform.Event]
+convert lookup_scale lookup_inst events = go Set.empty events
     where
-    (evts, warns) = run_convert $ fmap Maybe.catMaybes $ mapM conv_catch events
-    conv_catch event = fmap Just (conv_event event) `Error.catchError` catch
-    conv_event event =
-        Reader.local (const (Score.event_stack event))
+    go _ [] = []
+    go state ((LEvent.Log log) : rest) = LEvent.Log log : go state rest
+    go state (LEvent.Event event : rest) =
+        maybe [] ((:[]) . LEvent.Event) maybe_event ++ logs
+            ++ go next_state rest
+        where
+        (maybe_event, warns, next_state) = run_convert state
+            (Score.event_stack event)
             (convert_event lookup_scale lookup_inst event)
-    catch Nothing = return Nothing
-    catch (Just warn) = Logger.log warn >> return Nothing
+        logs = map (LEvent.Log . warn_to_log) warns
+
+-- | Convert a Warning into an appropriate log msg.
+warn_to_log :: Warning.Warning -> Log.Msg
+warn_to_log (Warning.Warning msg stack maybe_range) =
+    Log.uninitialized_msg Log.Warn (Just stack) $
+        "Convert: " ++ msg ++ maybe "" ((" range: " ++) . show) maybe_range
+    -- TODO It would be more useful to append the range to the stack, but
+    -- I would have to convert real -> score.
+
 
 convert_event :: Derive.LookupScale -> MidiDb.LookupMidiInstrument
     -> Score.Event -> ConvertT Perform.Event
@@ -124,8 +137,10 @@ convert_pitch lookup_scale psig = case lookup_scale scale_id of
 instance Error.Error (Maybe Warning.Warning) where
     strMsg = Just . Error.strMsg
 
+type State = Set.Set Score.Instrument
+
 type ConvertT = Error.ErrorT (Maybe Warning.Warning)
-    (State.StateT (Set.Set Score.Instrument)
+    (State.StateT State
         (Logger.LoggerT Warning.Warning
             (Reader.ReaderT Stack.Stack Identity.Identity)))
 
@@ -134,12 +149,14 @@ warn msg = do
     stack <- Reader.ask
     Logger.log (Warning.warning msg stack Nothing)
 
-run_convert :: ConvertT a -> (Maybe a, [Warning.Warning])
-run_convert conv = (either (const Nothing) Just val, warn ++ warns)
+run_convert :: State -> Stack.Stack -> ConvertT a
+    -> (Maybe a, [Warning.Warning], State)
+run_convert state stack conv =
+    (either (const Nothing) Just val, warn ++ warns, out_state)
     where
-    run = Identity.runIdentity . flip Reader.runReaderT Stack.empty
-        . Logger.run . flip State.runStateT Set.empty . Error.runErrorT
-    ((val, _), warns) = run conv
+    run = Identity.runIdentity . flip Reader.runReaderT stack
+        . Logger.run . flip State.runStateT state . Error.runErrorT
+    ((val, out_state), warns) = run conv
     warn = case val of
         Left (Just warn) -> [warn]
         _ -> []
@@ -151,19 +168,3 @@ require msg val = do
         Nothing -> Error.throwError $ Just $
             Warning.warning ("event requires " ++ msg) stack Nothing
         Just val -> return val
-
-
-{-
-verify :: Set.Set String -> Perform.Event -> ConvertT ()
-verify allocated event = do
-    -- The allocated map uses Score.Instrument since it gets serialized, but
-    -- the instruments have already been converted here.  Fortunately, their
-    -- names should be the same.
-    let event_inst = Instrument.inst_name (Perform.event_instrument event)
-    when (event_inst `Set.notMember` allocated) $
-        warn ("inst not allocated: " ++ show event_inst)
-    return ()
-
-    allocated = (Set.fromList . map Score.inst_name . Map.keys
-        . Instrument.config_alloc) config
--}

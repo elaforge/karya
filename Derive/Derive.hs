@@ -42,6 +42,7 @@ import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State.Strict as Monad.State
 import qualified Control.Monad.Trans as Trans
 import Control.Monad.Trans (lift)
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Monoid as Monoid
@@ -70,6 +71,7 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Transport as Transport
 
+import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
@@ -100,21 +102,24 @@ run derive_state m = (err, state2, logs)
         . Error.runErrorT
         . run_derive_t) m
 
-class (Show (Elem derived), Eq (Elem derived), Monoid.Monoid derived,
-        Show derived) => Derived derived where
+class (Show (Elem derived), Eq (Elem derived), Show derived) =>
+        Derived derived where
     type Elem derived :: *
     -- | I would prefer to have a function to a generic reified type and then
     -- use that value to index the CacheEntry, but I can't think of how to do
     -- that right now.
     from_cache_entry :: CacheEntry -> Maybe (CallType derived)
     to_cache_entry :: CallType derived -> CacheEntry
-    derived_length :: derived -> Int
-    derived_range :: derived -> Ranges.Ranges RealTime
-    empty_derived :: derived
+    derived_range :: derived -> (RealTime, RealTime)
+    derived_null :: derived -> Bool
+
+type LogsDeriver d = Deriver (LEvent.LEvents d)
+type Stream d = LEvent.Stream d
+type EventStream d = LEvent.Stream (LEvent.LEvent d)
 
 -- ** events
 
-type EventDeriver = Deriver Events
+type EventDeriver = LogsDeriver Score.Event
 
 -- | This might seem like an inefficient way to represent the Event stream, but
 -- I can't think of how to make it better.
@@ -122,72 +127,47 @@ type EventDeriver = Deriver Events
 -- Each call generates a chunk [Event], and the chunks are then joined with
 -- 'd_merge_asc'.  This means every cons is copied once, but I think this is
 -- hard to avoid if I want to merge streams.
-type Events = [Score.Event]
+-- type Events = Events Score.Event
 
-no_events :: Events
-no_events = []
+type Events = LEvent.LEvents Score.Event
 
-empty_events :: EventDeriver
-empty_events = return no_events
-
-instance Derived Events where
-    type Elem Events = Score.Event
+instance Derived Score.Event where
+    type Elem Score.Event = Score.Event
     from_cache_entry (CachedEvents ctype) = Just ctype
     from_cache_entry _ = Nothing
     to_cache_entry = CachedEvents
-    -- TODO inefficient, this is just for debug log
-    derived_length = length
-    -- TODO also inefficient
-    derived_range events =
-        case (Seq.mhead Nothing Just events, Seq.mlast Nothing Just events) of
-            (Just e1, Just e2) ->
-                Ranges.range (Score.event_start e1) (Score.event_end e2)
-            _ -> Ranges.nothing
-    empty_derived = []
+    derived_range event = (Score.event_start event, Score.event_end event)
+    derived_null _ = False
 
 -- ** control
 
-type ControlDeriver = Deriver Control
-type Control = Signal.Control
+type ControlDeriver = LogsDeriver Signal.Control
+-- type Control = Signal.Control
 
-no_control :: Control
-no_control = Signal.empty
-
-empty_control :: ControlDeriver
-empty_control = return no_control
-
-instance Derived Control where
-    type Elem Control = Signal.Y
+instance Derived Signal.Control where
+    type Elem Signal.Control = Signal.Y
     from_cache_entry (CachedControl ctype) = Just ctype
     from_cache_entry _ = Nothing
     to_cache_entry = CachedControl
-    derived_length = Signal.length
     derived_range sig = case (Signal.first sig, Signal.last sig) of
-        (Just (x1, _), Just (x2, _)) -> Ranges.range x1 x2
-        _ -> Ranges.nothing
-    empty_derived = Signal.empty
+        (Just (s, _), Just (e, _)) -> (s, e)
+        _ -> (0, 0) -- TODO ummm?
+    derived_null = Signal.null
 
 -- ** pitch
 
-type PitchDeriver = Deriver PitchSignal.PitchSignal
-type Pitch = PitchSignal.PitchSignal
+type PitchDeriver = LogsDeriver PitchSignal.PitchSignal
+-- type Pitch = PitchSignal.PitchSignal
 
-no_pitch :: Pitch
-no_pitch = PitchSignal.empty
-
-empty_pitch :: PitchDeriver
-empty_pitch = return no_pitch
-
-instance Derived Pitch where
-    type Elem Pitch = PitchSignal.Y
+instance Derived PitchSignal.PitchSignal where
+    type Elem PitchSignal.PitchSignal = PitchSignal.Y
     from_cache_entry (CachedPitch ctype) = Just ctype
     from_cache_entry _ = Nothing
     to_cache_entry = CachedPitch
-    derived_length = PitchSignal.length
     derived_range sig = case (PitchSignal.first sig, PitchSignal.last sig) of
-        (Just (x1, _), Just (x2, _)) -> Ranges.range x1 x2
-        _ -> Ranges.nothing
-    empty_derived = PitchSignal.empty
+        (Just (s, _), Just (e, _)) -> (s, e)
+        _ -> (0, 0)
+    derived_null = PitchSignal.null
 
 -- ** state
 
@@ -319,7 +299,7 @@ default_velocity = 0.79
 -- 'state_local_damage' also collects, but isn't recorded by the cache since
 -- by definition a cached call returns no damage.
 data Collect = Collect {
-    -- | Remember the warp signal for each track.  A warp usually a applies to
+    -- | Remember the warp signal for each track.  A warp usually applies to
     -- a set of tracks, so remembering them together will make the updater more
     -- efficient when it inverts them to get playback position.
     collect_track_warps :: [TrackWarp]
@@ -330,6 +310,7 @@ data Collect = Collect {
     , collect_local_dep :: LocalDep
     } deriving (Eq, Show)
 
+-- TODO this is incorrect because TrackWarps can't just be appended
 instance Monoid.Monoid Collect where
     mempty = Collect mempty mempty mempty
     mappend (Collect warps1 signals1 deps1) (Collect warps2 signals2 deps2) =
@@ -339,10 +320,6 @@ data CacheState = CacheState {
     state_cache :: Cache -- modified
     , state_event_damage :: EventDamage -- appended to
     , state_score_damage :: ScoreDamage -- constant
-    -- | Since ControlDamage doesn't contain the signal type, the same type
-    -- can be used for pitch signals and control signals.  To make things
-    -- simpler, I unify them by mapping their names through
-    -- 'universal_control'.
     , state_control_damage :: ControlDamage
 
     -- | This is an evil hack.  Derivers must return 'EventDamage' for reasons
@@ -356,20 +333,25 @@ data CacheState = CacheState {
     -- should be restricted to the track derivers.
     --
     -- So yes, this is implicitly returning a value by modifying a global.
+    -- TODO move this to Collect?
     , state_local_damage :: EventDamage
     } deriving (Show)
 
-empty_cache_state :: CacheState
-empty_cache_state = CacheState {
-    state_cache = empty_cache
-    , state_event_damage = EventDamage mempty
-    , state_score_damage = mempty
-    , state_control_damage = ControlDamage mempty
-    , state_local_damage = EventDamage mempty
-    }
+instance Monoid.Monoid CacheState where
+    mempty = CacheState {
+        state_cache = mempty
+        , state_event_damage = EventDamage mempty
+        , state_score_damage = mempty
+        , state_control_damage = ControlDamage mempty
+        , state_local_damage = EventDamage mempty
+        }
+    mappend (CacheState cache1 event1 score1 control1 local1)
+            (CacheState cache2 event2 score2 control2 local2) =
+        CacheState (cache1 <> cache2) (event1 <> event2) (score1 <> score2)
+            (control1 <> control2) (local1 <> local2)
 
 initial_cache_state :: Cache -> ScoreDamage -> CacheState
-initial_cache_state cache score_damage = empty_cache_state {
+initial_cache_state cache score_damage = mempty {
     state_cache = cache
     , state_score_damage = score_damage
     }
@@ -479,9 +461,9 @@ instance Show (Call derived) where
         tags = [t | (t, True) <- [("generator", Maybe.isJust gen),
             ("transformer", Maybe.isJust trans)]]
 
-type NoteCall = Call Events
-type ControlCall = Call Control
-type PitchCall = Call Pitch
+type NoteCall = Call Score.Event
+type ControlCall = Call Signal.Control
+type PitchCall = Call PitchSignal.PitchSignal
 
 data ValCall = ValCall {
     vcall_name :: String
@@ -505,18 +487,36 @@ data GeneratorCall derived = GeneratorCall {
     gcall_func :: GeneratorFunc derived
     , gcall_type :: GeneratorType
     -- | Block calls should put their BlockId on the stack instead of the call
-    -- name.
+    -- name.  Unfortunately by the time I get into 'd_block' it's too late.
     , gcall_block :: Maybe BlockId
     }
 
 -- | args -> deriver
-type GeneratorFunc derived = PassedArgs derived -> Deriver derived
+type GeneratorFunc derived = PassedArgs derived -> LogsDeriver derived
 
+-- | Create the most common kind of generator.  The result is wrapped in
+-- LEvent.Event.
 generator :: (Derived derived) =>
+    String -> (PassedArgs derived -> Deriver (Stream derived)) -> Call derived
+generator name func = stream_generator name ((map LEvent.Event <$>) . func)
+
+-- | Since Signals themselves are collections, there's little reason for a
+-- signal generator to return a Stream of events.  So wrap the generator result
+-- in a Stream singleton.
+generator1 :: (Derived derived) =>
+    String -> (PassedArgs derived -> Deriver derived) -> Call derived
+generator1 name func = generator name ((LEvent.one <$>) . func)
+
+-- | Like 'generator', but the deriver returns 'LEvent.LEvents' which already
+-- have logs mixed in.  Useful if the generator calls a sub-deriver which will
+-- already have merged the logs into the output.
+stream_generator :: (Derived derived) =>
     String -> GeneratorFunc derived -> Call derived
-generator name func =
+stream_generator name func =
     Call name (Just (GeneratorCall func NonCachingGenerator Nothing)) Nothing
 
+-- | Like 'stream_generator', but set the CachingGenerator flag, which will
+-- turn on caching for this generator.
 caching_generator :: (Derived derived) =>
     String -> GeneratorFunc derived -> Call derived
 caching_generator name func =
@@ -531,7 +531,7 @@ data TransformerCall derived = TransformerCall {
 
 -- | args -> deriver -> deriver
 type TransformerFunc derived =
-    PassedArgs derived -> Deriver derived -> Deriver derived
+    PassedArgs derived -> LogsDeriver derived -> LogsDeriver derived
 
 transformer :: (Derived derived) =>
     String -> TransformerFunc derived -> Call derived
@@ -542,7 +542,7 @@ transformer name func = Call
 -- *** misc TODO find a home
 
 -- | The call for the whole control track.
-type ControlTrackCall = BlockId -> TrackId -> PassedArgs Control
+type ControlTrackCall = BlockId -> TrackId -> PassedArgs Signal.Control
     -> Deriver (EventDeriver -> EventDeriver)
 
 make_calls :: [(String, call)] -> Map.Map TrackLang.CallId call
@@ -590,8 +590,8 @@ add_text_context context s =
 
 -- * monadic ops
 
-data Result a = Result {
-    r_result :: Either DeriveError a
+data Result = Result {
+    r_events :: Events
     , r_cache :: Cache
     -- | Ranges which were rederived on this derivation.
     , r_event_damage :: EventDamage
@@ -599,7 +599,7 @@ data Result a = Result {
     , r_closest_warp :: Transport.ClosestWarpFunction
     , r_inv_tempo :: Transport.InverseTempoFunction
     , r_track_signals :: Track.TrackSignals
-    , r_logs :: [Log.Msg]
+
     -- | The relevant parts of the final state should be extracted into the
     -- above fields, but returning the whole state can be useful for testing.
     , r_state :: State
@@ -610,11 +610,12 @@ data Result a = Result {
 -- The derivation state is quite involved, so there are a lot of arguments
 -- here.
 derive :: Constant -> [Scope] -> Cache -> ScoreDamage -> TrackLang.Environ
-    -> Deriver a -> Result a
+    -> EventDeriver -> Result
 derive constant scopes cache damage environ deriver =
-    Result result (state_cache (state_cache_state state))
+    Result (merge_logs result logs) (state_cache (state_cache_state state))
         event_damage tempo_func closest_func inv_tempo_func
-        (collect_track_signals (state_collect state)) logs state
+        (collect_track_signals (state_collect state))
+        state
     where
     (result, state, logs) =
         run (initial_state scopes clean_cache damage environ constant) deriver
@@ -623,8 +624,8 @@ derive constant scopes cache damage environ deriver =
     tempo_func = make_tempo_func track_warps
     closest_func = make_closest_warp track_warps
     inv_tempo_func = make_inverse_tempo_func track_warps
-    event_damage = (state_event_damage (state_cache_state state))
-        <> (score_to_event_damage track_warps damage)
+    event_damage = state_event_damage (state_cache_state state)
+        <> score_to_event_damage track_warps damage
 
 -- | Convert ScoreDamage into EventDamage.
 --
@@ -660,70 +661,6 @@ score_to_event_damage track_warps score =
         warp (start, end) =
             [(Score.warp_pos start w, Score.warp_pos end w) | w <- warps]
         warps = [tw_warp tw | tw <- track_warps, track_id `elem` tw_tracks tw]
-
-
-d_block :: BlockId -> EventDeriver
-d_block block_id = do
-    -- The block id is put on the stack by 'gdep_block' before this is called.
-    ui_state <- get_ui_state
-    -- Do some error checking.  These are all caught later, but if I throw here
-    -- I can give more specific error msgs.
-    case Map.lookup block_id (State.state_blocks ui_state) of
-        Nothing -> throw "block_id not found"
-        _ -> return ()
-    -- Record a dependency on this block.
-    add_block_dep block_id
-    stack <- gets state_stack
-    -- Since there is no branching, any recursion will be endless.
-    when (Stack.Block block_id `elem` drop 1 (Stack.innermost stack)) $
-        throw "recursive block derivation"
-    state <- get
-    let rethrow exc = throw $ "lookup deriver for " ++ show block_id
-            ++ ": " ++ show exc
-    deriver <- either rethrow return
-        (state_lookup_deriver (state_constant state) block_id)
-    deriver
-
--- | Run a derivation, catching and logging any exception.
-d_subderive :: (Derived derived) => Deriver derived -> Deriver derived
-d_subderive deriver = do
-    state <- get
-    let (res, state2, logs) = run state deriver
-    mapM_ Log.write logs
-    case res of
-        Left err -> do
-            -- HACKERY
-            --
-            -- If a sub-derivation failed, I need to emit EventDamage in
-            -- its range.  Assuming I'm working in normalized time as
-            -- established by Derive.Call, this is simply 0--1.  However,
-            -- there is a special hack for the root block where it is not in
-            -- normalized time.
-            --
-            -- You'd think you could just stretch the root block to its
-            -- duration and cancel out the normalization, but normalization
-            -- requires the duration of the block, which requires the block's
-            -- local warp, which is only available within the block below
-            -- the tempo track.
-            --
-            -- It's too hard to figure out the real length of the root block
-            -- since I have to be under the tempo track, so just say everything
-            -- is damaged.
-            is_root <- is_root_block
-            range <- if is_root
-                then return $ Ranges.everything
-                else Ranges.range <$> score_to_real 0 <*> score_to_real 1
-            insert_event_damage (EventDamage range)
-            Log.write (error_to_warn err)
-            let new_collect = (state_collect state2)
-                    { collect_track_warps = [] }
-            modify $ \st -> st { state_collect = new_collect }
-            return empty_derived
-        Right val -> do
-            -- TODO once the logging portion of the state is factored out I
-            -- should copy back only that part
-            put state2
-            return val
 
 make_tempo_func :: [TrackWarp] -> Transport.TempoFunction
 make_tempo_func track_warps block_id track_id pos =
@@ -765,10 +702,10 @@ make_inverse_tempo_func track_warps ts = do
 modify :: (State -> State) -> Deriver ()
 modify f = (DeriveT . lift) $ do
     old <- Monad.State.get
-    Monad.State.put $! f old
+    Monad.State.put $ f old
 
 put :: State -> Deriver ()
-put st = (DeriveT . lift) (Monad.State.put $! st)
+put st = (DeriveT . lift) (Monad.State.put st)
 
 -- The Monad polymorphism is required for the LogMonad instance.
 get :: (Monad m) => DeriveT m State
@@ -860,6 +797,9 @@ add_block_dep block_id = modify_collect $ \st ->
 -- This catches and returns any exception rather than rethrowing because the
 -- caller wants the Collect regardless of whether there was an exception or
 -- not.
+-- TODO I would think it shouldn't need to catch because the Collect after
+-- an exception should be mempty anyway, but something's not quite right
+-- because not catching breaks Cache_test.test_failed_sub_track
 with_empty_collect :: Deriver a -> Deriver (Either DeriveError a, Collect)
 with_empty_collect deriver = do
     old <- gets state_collect
@@ -1426,25 +1366,6 @@ lookup_id key map = case Map.lookup key map of
     Nothing -> throw $ "unknown " ++ show key
     Just val -> return val
 
--- | General purpose iterator over events.
---
--- It's like 'map_accuml_m' but sets the current event stack before operating
--- on each event, so that 'Log.warn' can use it.  In addition, EventErrors are
--- caught and turned into warnings.  Events that threw aren't included in the
--- output.  An additional function extracts an event, so you can map over
--- things which are not themselves events.
-map_events :: (state -> event -> Deriver (state, result))
-    -> state -> (event -> Score.Event) -> [event] -> Deriver (state, [result])
-map_events f state event_of xs = do
-    (final_state, results) <- map_accuml_m apply state xs
-    return (final_state, Maybe.catMaybes results)
-    where
-    apply cur_state x = with_event (event_of x) $ do
-        val <- catch_warn (return Nothing) (Just <$> f cur_state x)
-        return $ case val of
-            Nothing -> (cur_state, Nothing)
-            Just (next_state, val) -> (next_state, Just val)
-
 -- | So this is kind of confusing.  When events are created, they are assigned
 -- their stack based on the current event_stack, which is set by the
 -- with_stack_* functions.  Then, when they are processed, the stack is used
@@ -1456,32 +1377,63 @@ with_event event = local state_stack
 
 -- ** merge
 
-d_merge :: Deriver Events -> Deriver Events -> Deriver Events
-d_merge = liftM2 merge_events
+-- | The EventDerivers run as sub-derivers and the results are mappended, which
+-- lets them to interleave their work or run in parallel.
+d_merge :: [EventDeriver] -> EventDeriver
+d_merge [d] = d -- TODO this optimization lets exceptions through... do I care?
+d_merge derivers = do
+    state <- get
+    -- Since track warp mappend is plain concat, if I don't clear the collect
+    -- I will get duplicate entries.
+    let cleared = state { state_collect = mempty }
+    let (streams, collects, caches) =
+            List.unzip3 (map (run_sub cleared) derivers)
+    modify $ \st -> st
+        { state_collect = Monoid.mconcat (state_collect state : collects)
+        , state_cache_state = Monoid.mconcat caches
+        }
+    return (Seq.merge_lists _event_start streams)
 
--- | Merge a list of EventDerivers.  The precondition is that the events
--- generated are ascending, so that the first event of each deriver is at or
--- after the first event of the next deriver.
-d_merge_asc :: [Deriver Events] -> Deriver Events
-d_merge_asc = fmap merge_asc_events . sequence
--- d_merge_asc = foldr d_merge (return [])
+type PureResult derived = (Stream (LEvent.LEvent derived), Collect, CacheState)
+
+-- | Run the given deriver and return the relevant data.
+run_sub :: State -> LogsDeriver derived -> PureResult derived
+run_sub state deriver =
+    (merge_logs result logs, state_collect state2, state_cache_state state2)
+    where (result, state2, logs) = run state deriver
+
+merge_logs :: Either DeriveError (LEvent.LEvents d) -> [Log.Msg]
+    -> LEvent.LEvents d
+merge_logs result logs = case result of
+    Left err -> map LEvent.Log (logs ++ [error_to_warn err])
+    Right events -> events ++ map LEvent.Log logs
+
+-- | Merge sorted lists of events.  If the lists themselves are also sorted,
+-- I can produce output without scanning the entire input list, so this should
+-- be more efficient for a large input list than 'merge_events'.
+merge_asc_events :: [Events] -> Events
+merge_asc_events = Seq.merge_asc_lists _event_start
 
 merge_events :: Events -> Events -> Events
-merge_events = Seq.merge_on Score.event_start
+merge_events = Seq.merge_on _event_start
 
-merge_asc_events :: [Events] -> Events
-merge_asc_events = Seq.merge_asc_lists Score.event_start
+-- | This will make logs always merge ahead of score events, but that should
+-- be ok.
+_event_start :: LEvent.LEvent Score.Event -> RealTime
+_event_start (LEvent.Log _) = 0
+_event_start (LEvent.Event event) = Score.event_start event
 
--- | Monoid instance for those who prefer that interface.
-instance Monoid.Monoid EventDeriver where
-    mempty = empty_events
-    mappend = d_merge
+-- -- | unused monoidal interface
+-- instance Monoid.Monoid EventDeriver where
+--     mempty = return empty_stream
+--     mappend d1 d2 = d_merge [d1, d2]
+--     mconcat = d_merge
 
 
 -- * negative duration
 
-process_negative_durations :: Events -> Events
-process_negative_durations = id
+-- process_negative_durations :: Events -> Events
+-- process_negative_durations = id
 
 {- TODO put this in its own module
 
@@ -1551,28 +1503,27 @@ calculate_duration (_, dur) Nothing
 
 -- instead of a stack, this could be a tree of frames
 newtype Cache = Cache (Map.Map Stack.Stack CacheEntry)
-    deriving (Show)
+    deriving (Monoid.Monoid, Show)
+    -- The monoid instance winds up being a left-biased union.  This is ok
+    -- because merged caches shouldn't overlap anyway.
 
 -- finding prefixes becomes trivial, but lookup is probably slower
 -- or a 'Map.Map Stack.Frame (Either CacheEntry Cache)'
 -- newtype Cache = Cache (Tree.Forest (Stack.Frame, CacheEntry))
 --     deriving (Show)
 
-empty_cache :: Cache
-empty_cache = Cache Map.empty
-
 -- | Since an entire track is one type but will have many different calls of
 -- different types, the deriver type division goes above the call type
 -- division.
 data CacheEntry =
-    CachedEvents (CallType Events)
-    | CachedControl (CallType Control)
-    | CachedPitch (CallType Pitch)
+    CachedEvents (CallType Score.Event)
+    | CachedControl (CallType Signal.Control)
+    | CachedPitch (CallType PitchSignal.PitchSignal)
     deriving (Show)
 
 -- | The type here should match the type of the stack it's associated with,
 -- but I'm not quite up to those type gymnastics yet.
-data CallType derived = CachedGenerator Collect derived
+data CallType derived = CachedGenerator Collect (LEvent.LEvents derived)
     deriving (Show)
 
 -- ** deps

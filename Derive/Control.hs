@@ -25,6 +25,7 @@ import qualified Ui.Types as Types
 
 import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
+import qualified Derive.LEvent as LEvent
 import qualified Derive.ParseBs as Parse
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Relative as Relative
@@ -36,10 +37,13 @@ import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
 
 
+type Pitch = PitchSignal.PitchSignal
+type Control = Signal.Control
+
 -- | Top level deriver for control tracks.
 d_control_track :: BlockId -> TrackId
     -> Derive.EventDeriver -> Derive.EventDeriver
-d_control_track block_id track_id deriver = Derive.catch_warn deriver $ do
+d_control_track block_id track_id deriver = do
     track <- Derive.get_track track_id
     if null (Track.track_title track) then deriver else do
     (ctype, expr) <- either (\err -> Derive.throw $ "track title: " ++ err)
@@ -57,8 +61,7 @@ eval_track block_id track_id expr ctype deriver = do
     case ctype of
         TrackInfo.Tempo -> do
             let control_deriver = derive_control block_end expr events
-            tempo_call block_id track_id
-                (first Signal.coerce <$> control_deriver) deriver
+            tempo_call block_id track_id control_deriver deriver
         TrackInfo.Control maybe_op control -> do
             let control_deriver = derive_control block_end expr events
             control_call track_id control maybe_op control_deriver deriver
@@ -69,10 +72,10 @@ eval_track block_id track_id expr ctype deriver = do
 -- Otherwise it would wind up being composed with the environmental
 -- warp twice.
 tempo_call :: BlockId -> TrackId
-    -> Derive.Deriver (Signal.Tempo, Derive.EventDamage)
+    -> Derive.Deriver (TrackResults Signal.Control)
     -> Derive.EventDeriver -> Derive.EventDeriver
 tempo_call block_id track_id sig_deriver deriver = do
-    (signal, damage) <- Derive.setup_without_warp sig_deriver
+    (signal, logs, damage) <- Derive.setup_without_warp sig_deriver
     rendered <- track_is_rendered track_id
     when rendered $
         put_track_signal track_id $
@@ -80,8 +83,8 @@ tempo_call block_id track_id sig_deriver deriver = do
     -- TODO tempo damage should turn into score damage on all events after
     -- it.  It might be more regular to give all generators a dep on tempo,
     -- but this way is probably more efficient and just as clear.
-    Derive.with_control_damage (extend damage) $
-        Derive.d_tempo block_id (Just track_id) signal deriver
+    merge_logs logs $ Derive.with_control_damage (extend damage) $
+        Derive.d_tempo block_id (Just track_id) (Signal.coerce signal) deriver
     where
     extend (Derive.EventDamage ranges) = Derive.EventDamage $
         case Ranges.extract ranges of
@@ -90,17 +93,32 @@ tempo_call block_id track_id sig_deriver deriver = do
             Just ((s, _) : _) -> Ranges.range s Types.max_real_time
 
 control_call :: TrackId -> Score.Control -> Maybe TrackLang.CallId
-    -> Derive.Deriver (Derive.Control, Derive.EventDamage)
+    -> Derive.Deriver (TrackResults Signal.Control)
     -> Derive.EventDeriver -> Derive.EventDeriver
 control_call track_id control maybe_op control_deriver deriver = do
-    (signal, damage) <- Derive.track_setup track_id control_deriver
-    stash_signal track_id (Right (signal, fst <$> control_deriver))
-    Derive.with_control_damage damage $ with_control signal deriver
+    (signal, logs, damage) <- Derive.track_setup track_id control_deriver
+    stash_signal track_id (Right (signal, to_display <$> control_deriver))
+    -- I think this forces sequentialness because 'deriver' runs in the state
+    -- from the end of 'control_deriver'.  To make these parallelize, I need
+    -- to run control_deriver as a sub-derive, then mappend the Collect.
+    merge_logs logs $ Derive.with_control_damage damage $
+        with_control signal deriver
     where
     with_control signal deriver = do
         case maybe_op of
             Nothing -> Derive.with_control control signal deriver
             Just op -> Derive.with_control_operator control op signal deriver
+
+to_display :: TrackResults Signal.Control -> Signal.Display
+to_display (sig, _, _) = Signal.coerce sig
+    -- I discard the logs since I think if there is anything interesting it
+    -- will be logged in the "real" derivation.
+
+merge_logs :: Derive.Events -> Derive.EventDeriver
+    -> Derive.EventDeriver
+merge_logs logs deriver = do
+    events <- deriver
+    return $ Derive.merge_events logs events
 
 pitch_call :: ScoreTime -> TrackId -> Maybe Score.Control
     -> TrackInfo.PitchType -> TrackLang.Expr -> [Track.PosEvent]
@@ -122,26 +140,51 @@ pitch_call block_end track_id maybe_name ptype track_expr events deriver =
             derive = derive_pitch block_end track_expr events
         with_scale $ case ptype of
             TrackInfo.PitchRelative op -> do
-                (signal, damage) <- derive
-                stash_signal track_id (Left (signal, fst <$> derive, scale_map))
-                Derive.with_control_damage damage $
+                (signal, logs, damage) <- derive
+                stash_signal track_id
+                    (Left (signal, to_psig <$> derive, scale_map))
+                merge_logs logs $ Derive.with_control_damage damage $
                     Derive.with_pitch_operator maybe_name op signal deriver
             _ -> do
-                (signal, damage) <- derive
-                stash_signal track_id (Left (signal, fst <$> derive, scale_map))
-                Derive.with_control_damage damage $
+                (signal, logs, damage) <- derive
+                stash_signal track_id
+                    (Left (signal, to_psig <$> derive, scale_map))
+                merge_logs logs $ Derive.with_control_damage damage $
                     Derive.with_pitch maybe_name signal deriver
+    where
+    to_psig (sig, _, _) = sig
 
+
+-- | Split the signal chunks and log msgs of the 'LEvent.LEvents' stream.
+-- Return signal chunks merged into a signal, the logs cast to Score.Event
+-- logs, and damage incurred deriving the track.
+type TrackResults sig = (sig, Derive.Events, Derive.EventDamage)
+
+-- | Create a deriver for a track with control events in it.  The deriver will
+-- be run once in an unwarped context to generate signal for rendering (if its
+-- track is being rendered), and once in the normal context for the signal to
+-- place in the environment.
 derive_control :: ScoreTime -> TrackLang.Expr -> [Track.PosEvent]
-    -> Derive.Deriver (Derive.Control, Derive.EventDamage)
+    -> Derive.Deriver (TrackResults Signal.Control)
 derive_control block_end track_expr events = do
-    result <- Call.apply_transformer
+    stream <- Call.apply_transformer
         (dinfo, Derive.dummy_call_info "control track") track_expr deriver
     damage <- Derive.take_local_damage
-    return (result, extend_control_damage result damage)
+    let (signal_chunks, logs) = LEvent.extract_events stream
+        signal = Signal.merge signal_chunks
+    return (signal, logs, extend_control_damage signal damage)
     where
-    deriver = Signal.merge <$>
-        Call.derive_track block_end dinfo preprocess_control last_sample events
+    deriver :: Derive.ControlDeriver
+    deriver = do
+        state <- Derive.get
+        let (stream, collect, cache) = Call.lazy_derive_track
+                state block_end dinfo preprocess_control last_sample events
+        Derive.modify $ \st -> st {
+            Derive.state_collect = collect, Derive.state_cache_state = cache }
+        -- I can use concat instead of merge_asc_events because the signals
+        -- will be merged with Signal.merge and I don't care if the logs
+        -- are a little out of order.
+        return (concat stream)
     dinfo = Call.DeriveInfo Call.lookup_control_call "control"
     last_sample prev chunk = Signal.last chunk `mplus` prev
 
@@ -153,30 +196,38 @@ preprocess_control expr = case Seq.break_last expr of
                 [TrackLang.Literal num]]
     _ -> expr
 
-
 derive_pitch :: ScoreTime -> TrackLang.Expr -> [Track.PosEvent]
-    -> Derive.Deriver (Derive.Pitch, Derive.EventDamage)
+    -> Derive.Deriver (TrackResults Pitch)
 derive_pitch block_end track_expr events = do
-    result <- Call.apply_transformer
+    stream <- Call.apply_transformer
         (dinfo, Derive.dummy_call_info "pitch track") track_expr deriver
     damage <- Derive.take_local_damage
-    return (result, extend_pitch_damage result damage)
+    let (signal_chunks, logs) = LEvent.extract_events stream
+        signal = PitchSignal.merge signal_chunks
+    return (signal, logs, extend_pitch_damage signal damage)
     where
-    deriver = PitchSignal.merge <$>
-        Call.derive_track block_end dinfo id last_sample events
+    deriver = do
+        state <- Derive.get
+        let (stream, collect, cache) = Call.lazy_derive_track
+                state block_end dinfo id last_sample events
+        Derive.modify $ \st -> st {
+            Derive.state_collect = collect, Derive.state_cache_state = cache }
+        return (concat stream)
     dinfo = Call.DeriveInfo Call.lookup_pitch_call "pitch"
     last_sample prev chunk = PitchSignal.last chunk `mplus` prev
 
 -- | Event damage for a control track only extends to the last sample.
 -- However, the actual changed region extends to the /next/ sample.
 -- Hacky hack hack.
-extend_control_damage :: Derive.Control -> Derive.EventDamage
+extend_control_damage :: Signal.Control -> Derive.EventDamage
     -> Derive.EventDamage
 extend_control_damage = _extend_damage Signal.sample
 
-extend_pitch_damage :: Derive.Pitch -> Derive.EventDamage -> Derive.EventDamage
+extend_pitch_damage :: Pitch -> Derive.EventDamage -> Derive.EventDamage
 extend_pitch_damage = _extend_damage PitchSignal.sample
 
+-- TODO this will force the signal but only when the event damage itself is
+-- forced... but when is that?  Test and find out.
 _extend_damage :: (RealTime -> sig -> [(RealTime, y)]) -> sig
     -> Derive.EventDamage -> Derive.EventDamage
 _extend_damage sample sig (Derive.EventDamage ranges) = Derive.EventDamage $
@@ -190,14 +241,6 @@ _extend_damage sample sig (Derive.EventDamage ranges) = Derive.EventDamage $
             _ : (x, _) : _ -> x
             _ -> Types.max_real_time
 
--- TODO this can go away when pitches are calls
--- preprocess_pitch :: Call.PreProcess
--- preprocess_pitch expr = case Seq.break_last expr of
---     (calls, Just (TrackLang.Call (TrackLang.Symbol sym) [])) ->
---         calls ++ [TrackLang.Call (TrackLang.Symbol "set")
---                 [TrackLang.Literal (TrackLang.VNote (Pitch.Note sym))]]
---     _ -> expr
-
 
 -- * TrackSignal
 
@@ -210,8 +253,11 @@ _extend_damage sample sig (Derive.EventDamage ranges) = Derive.EventDamage $
 -- the signals and avoid recalculating the control track at all.  Perhaps just
 -- add a warped signal to TrackSignal?
 stash_signal :: TrackId
-    -> Either (PitchSignal.PitchSignal, Derive.PitchDeriver, Track.ScaleMap)
-        (Signal.Signal y, Derive.Deriver (Signal.Signal y))
+    -> Either (Pitch, Derive.Deriver Pitch, Track.ScaleMap)
+        (Signal.Signal y, Derive.Deriver Signal.Display)
+    -- ^ Either a PitchSignal or a control signal.  Both a signal and a deriver
+    -- to produce the signal are provided.  If the block has no warp the
+    -- already derived signal can be reused, otherwise it must be rederived.
     -> Derive.Deriver ()
 stash_signal track_id sig = do
     rendered <- track_is_rendered track_id

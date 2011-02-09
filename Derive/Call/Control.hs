@@ -35,13 +35,13 @@ control_calls = Derive.make_calls
     ]
 
 c_set :: Derive.ControlCall
-c_set = Derive.generator "set" $ \args -> CallSig.call1 args
+c_set = Derive.generator1 "set" $ \args -> CallSig.call1 args
     (required "val") $ \val -> do
         pos <- Derive.now
         return $ Signal.signal [(pos, val)]
 
 c_linear :: Derive.ControlCall
-c_linear = Derive.generator "linear" $ \args ->
+c_linear = Derive.generator1 "linear" $ \args ->
     case Derive.passed_vals args of
         [] -> case Derive.passed_prev_val args of
             Nothing -> Derive.throw
@@ -53,12 +53,12 @@ c_linear = Derive.generator "linear" $ \args ->
             control_interpolate id val args
 
 c_exponential :: Derive.ControlCall
-c_exponential = Derive.generator "exponential" $ \args ->
+c_exponential = Derive.generator1 "exponential" $ \args ->
     CallSig.call2 args (required "val", optional "exp" 2) $ \val exp ->
         control_interpolate (expon exp) val args
 
 c_slide :: Derive.ControlCall
-c_slide = Derive.generator "slide" $ \args -> CallSig.call2 args
+c_slide = Derive.generator1 "slide" $ \args -> CallSig.call2 args
     (required "val", optional "time" 0.1) $ \val time -> do
         start <- Derive.now
         end <- case Derive.passed_next_begin args of
@@ -82,7 +82,8 @@ c_slide = Derive.generator "slide" $ \args -> CallSig.call2 args
 -- return values from 0--1 representing the Y position at that time.  So linear
 -- interpolation is simply @id@.
 control_interpolate :: (Double -> Signal.Y) -> Signal.Y
-    -> Derive.PassedArgs Derive.Control -> Derive.ControlDeriver
+    -- -> Derive.PassedArgs Signal.Control -> Derive.ControlDeriver
+    -> Derive.PassedArgs Signal.Control -> Derive.Deriver Signal.Control
 control_interpolate f val args = do
     start <- Derive.now
     srate <- Call.get_srate

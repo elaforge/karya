@@ -10,7 +10,7 @@ import qualified Perform.Pitch as Pitch
 
 test_tick = do
     -- This also tests some error checking and absolute warp functions.
-    let extract = DeriveTest.extract_events $ \e ->
+    let extract = DeriveTest.extract $ \e ->
             (Score.event_start e, Score.event_duration e, pitch e,
                 Score.initial_velocity e)
         pitch e = let Pitch.Degree p = Score.initial_pitch e in p
@@ -29,17 +29,18 @@ test_tick = do
     let (evts, logs) = run [(0, 1, ""), (1, 1, "tick .5"), (2, 1, "")]
             [("*twelve", [(0, 0, "4c"), (2, 0, "4d")])]
     equal logs []
-    equal evts $ Right
+    equal evts
         [ (0, 2, 60, vel)
         , (3.5,  0.5, 61, vel*0.5)
         , (4, 2, 62, vel)
         ]
 
-    -- tick won't go between halfway between the two notes
+    -- a tick that doesn't have room for the requested duration will go halfway
+    -- between the two notes
     let (evts, logs) = run [(0, 0.5, ""), (0.5, 0.5, "tick 10 1"), (1, 0.5, "")]
             [("*twelve", [(0, 0, "4d"), (1, 0, "4c")])]
     equal logs []
-    equal evts $ Right
+    equal evts
         [ (0, 1, 62, vel)
         , (1, 1, 61, vel)
         , (2, 1, 60, vel)

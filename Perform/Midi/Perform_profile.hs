@@ -2,14 +2,17 @@ module Perform.Midi.Perform_profile where
 import Control.Monad
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Map as Map
-import Util.Test
-
 import qualified System.IO as IO
 
-import Ui
+import Util.Control
+import Util.Test
 
 import qualified Midi.Midi as Midi
 
+import Ui
+
+import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 
@@ -19,7 +22,6 @@ import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.Instrument as Instrument
 
 import qualified Perform.Signal as Signal
-import qualified Perform.Warning as Warning
 
 
 total_events :: Int
@@ -78,13 +80,12 @@ profile_multiplex = do
         return $ show (length msgs) ++ " msgs"
 
 
-perform :: Perform.Events -> ([Midi.WriteMessage], [Warning.Warning])
-perform evts = (msgs, logs)
-    where
-    (msgs, logs, _final_state) =
-        Perform.perform Perform.initial_state midi_config evts
+perform :: [Perform.Event] -> ([Midi.WriteMessage], [String])
+perform = split_logs . fst
+    . Perform.perform Perform.initial_state midi_config . map LEvent.Event
 
 force val = DeepSeq.deepseq val (return ())
+split_logs = second (map (DeriveTest.show_log)) . LEvent.partition
 
 run_multiple arg action = forM_ [1..6] $ \n -> do
     putStr $ (show n) ++ ": "

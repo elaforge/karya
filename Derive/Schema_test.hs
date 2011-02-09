@@ -59,10 +59,10 @@ test_get_track_info = do
 -- * compile
 
 test_compile = do
-    let controls = either Left (Right . map Score.event_controls)
-        pitches = either Left (Right . map Score.event_pitch)
+    let controls = map Score.event_controls
+        pitches = map Score.event_pitch
 
-    let derive track = DeriveTest.e_logs $ DeriveTest.derive_tracks
+    let derive track = DeriveTest.extract id $ DeriveTest.derive_tracks
             [ ("tempo", [(0, 0, "2")])
             , (">i1", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
             , track
@@ -76,13 +76,13 @@ test_compile = do
             (Map.singleton (Score.Control "c1") (mksig vals))
         no_pitch = PitchSignal.empty
 
-    let (res, logs) = derive ("*twelve", [(0, 0, ".1")])
+    let (events, logs) = derive ("*twelve", [(0, 0, ".1")])
     strings_like logs ["call not found: .1"]
-    equal (controls res) $ Right
+    equal (controls events)
         [mkcont [(0, 3)], mkcont [(0.5, 2)], mkcont [(1, 1)]]
-    equal (pitches res) (Right [no_pitch, no_pitch, no_pitch])
+    equal (pitches events) [no_pitch, no_pitch, no_pitch]
 
-    let (res, logs) = derive
+    let (events, logs) = derive
             ("*twelve", [(0, 0, "4c"), (4, 0, "4d"), (12, 0, "i (4e)")])
     let complete_psig = PitchSignal.signal (Pitch.ScaleId "twelve")
             ([(0, (60, 60, 0)), (2, (62, 62, 0))]
@@ -92,7 +92,7 @@ test_compile = do
     equal logs []
     -- The pitch signal gets truncated so it doesn't look like the note's decay
     -- wants to change pitch.
-    equal (pitches res) (Right [psig 1, psig 2, psig 6])
+    equal (pitches events) [psig 1, psig 2, psig 6]
     where
     mksig = Signal.signal
 

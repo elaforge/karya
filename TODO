@@ -11,6 +11,80 @@ But decide about lazy signals before going nuts on this.  If I revert to linear
 search then none of this is necessary.
 
 CURRENT
+  - remove the log timer stuff
+
+  - maybe I could split CacheState into the writable portion, in Collect, and
+    the read-only cache from the previous run, in Constant
+  - remember about caching tracks, how can I make a track into a call?
+
+  - instead of building log dup suppressing logic into various functions, e.g.
+    allot, maybe I can add 'key' field to Log.Msg and suppress dup keys?
+    Who else produces dups?  Convert does.  But isn't it more efficient to just
+    not emit?
+    - Perform.Midi.Cache.is_splice_failure is another possible use
+
+  - rename Log.uninitialized_msg -> msg, msg -> initialized_msg
+  - move 'force' to Util.Test
+  - remove UiTest.initial_state
+  - replace Seq.mhead/tail with head/tail
+
+  lazy deriver
+    * finish Lazy tests
+    - try to at least make control evaluation go forwards
+    * take RealTime off of Log
+    - I still don't understand what's going on with exceptions but it seems
+      to be working.  Figure this out later, esp Derive.with_empty_collect
+    * make perform lazy
+    * update Perform_cache to be happy with new types
+    * Perform_profile
+    * write Convert_test to make sure it's lazy and not leaky
+    * update Cmd.PlayUtil and Cmd.Performance for the new result type
+    * add tests to Lazy_test to see if laziness is preserved from derivation
+      through performance
+      - looks like it is, but I need to do more testing to verify that it
+        really is minimal.
+      - also test if blocks with control tracks are minimally derived too
+      - looks like sub-block derivation is also running backwards
+    - the log filter in Derive.Cache.insert_generator seems really bad.  Try
+      to prove that with profiles, and then remove it.  Use a log-suppression
+      framework to filter them before they are emitted?  Is that really more
+      efficient?
+    - update Deriver_test to use DeriveTest.extract_run
+    - rearrange Perform.Midi.Perform
+    - fix TrackWarp monoid, write test to demonstrate
+      TrackWarps are messed up, since d_merge and the other collect merging
+      functions cause 'start_new_warp' and 'add_track_warp' to get called
+      out of order.  It's brittle anyway, come up with a better way.
+      If I push TrackWarps with their stack, and a bool for tempo tracks,
+      I should be able to group the warps by containment, regardless of
+      order of evaluation.
+    - see if I can make signal tracks happen lazy, or at least in order, by
+      breaking state dependency
+    - see about not threading Collect and CacheState for the track derive,
+      and for doing it in parallel and mconcat.  Collect is just LocalDep,
+      which is just (Set BlockId)
+
+    lazy signals:
+      - see if I can make control tracks truly lazy by making signals lazy
+      - reimplement various functions like integrate and resample, bsearches
+        must be linear
+      - make linear searches faster for e.g. warp by dropping warp in the past
+
+    - split writable CacheState from readonly?
+
+    AppendList for Derive.Stream
+      - switch to AppendList and try to get garbage down
+      - see if a Merge constructor can reduce copying
+      - can I cache length and range in AppendList?  does it matter?
+      - insert parallelism?  maybe the evaluator can do that when it sees Merge?
+
+    - when I save the cache for signal tracks, can I save a (Signal, Logs) pair
+      to save space?
+
+  - make tracks into calls, so they cache and the sub-run stuff works the same
+    with them as other calls
+  - when the dust settles, look into removing or simplifying Schema
+
   + use packed text instead of String
     Text or UTF8 ByteString?  Text is more correct.
     - parsec 3 + Text is much slower, ask on mailing list about profiling

@@ -360,7 +360,6 @@ data Performance = Performance {
     -- thereafter.
     , perf_score_damage :: Derive.ScoreDamage
 
-    , perf_logs :: [Log.Msg]
     , perf_tempo :: Transport.TempoFunction
     , perf_closest_warp :: Transport.ClosestWarpFunction
     , perf_inv_tempo :: Transport.InverseTempoFunction

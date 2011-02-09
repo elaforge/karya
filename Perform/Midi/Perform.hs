@@ -45,19 +45,20 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
 import Util.Control
+import qualified Util.Log as Log
 import qualified Util.Map as Map
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
 
+import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 
 import qualified Perform.Signal as Signal
 import qualified Perform.Timestamp as Timestamp
 import Perform.Timestamp (Timestamp)
-import qualified Perform.Warning as Warning
 
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
@@ -85,8 +86,8 @@ control_lead_time = Timestamp.seconds 0.1
 -- * perform
 
 -- | These may later become a more efficient type.
-type Messages = [Midi.WriteMessage]
-type Events = [Event]
+type Events = [LEvent.LEvent Event]
+type MidiEvents = [LEvent.LEvent Midi.WriteMessage]
 
 -- | Performance state.  This is a snapshot of the state of the various
 -- functions in the performance pipeline.  You should be able to resume
@@ -104,21 +105,18 @@ initial_state = State [] empty_allot_state empty_perform_state Map.empty
 -- | Render instrument tracks down to midi messages, sorted in timestamp order.
 -- This should be non-strict on the event list, so that it can start producing
 -- MIDI output as soon as it starts processing Events.
-perform :: State -> Instrument.Config -> Events
-    -> (Messages, [Warning.Warning], State)
-perform state _ [] = ([], [], state)
-perform state config events =
-    (final_msgs, warns,
-        State channelize_state allot_state perform_state postproc_state)
+perform :: State -> Instrument.Config -> Events -> (MidiEvents, State)
+perform state _ [] = ([], state)
+perform state config events = (final_msgs, final_state)
     where
+    final_state =
+        State channelize_state allot_state perform_state postproc_state
     inst_addrs = Instrument.config_alloc config
     (event_channels, channelize_state) =
         channelize (state_channelize state) inst_addrs events
-    (event_allotted, allot_warns, allot_state) =
+    (event_allotted, allot_state) =
         allot (state_allot state) inst_addrs event_channels
-    (msgs, perform_warns, perform_state) =
-        perform_notes (state_perform state) event_allotted
-    warns = allot_warns ++ perform_warns
+    (msgs, perform_state) = perform_notes (state_perform state) event_allotted
     (final_msgs, postproc_state) = post_process (state_postproc state) msgs
 
 -- | Map each instrument to its allocated Addrs.
@@ -152,25 +150,25 @@ empty_perform_state = (Map.empty, Map.empty)
 
 -- | Given an ordered list of note events, produce the apprapriate midi msgs.
 -- The input events are ordered, but may overlap.
-perform_notes :: PerformState -> [(Event, Instrument.Addr)]
-    -> ([Midi.WriteMessage], [Warning.Warning], PerformState)
+perform_notes :: PerformState -> [LEvent.LEvent (Event, Instrument.Addr)]
+    -> (MidiEvents, PerformState)
 perform_notes state events =
-    (merge_sorted_messages msgs, concat warns, final_state)
+    (Seq.merge_asc_lists levent_start midi_msgs, final_state)
     where
-    (final_state, result) = List.mapAccumL _perform_note state events
-    (msgs, warns) = unzip result
+    (final_state, midi_msgs) = List.mapAccumL go state events
+    go state (LEvent.Log log) = (state, [LEvent.Log log])
+    go state (LEvent.Event event) = _perform_note state event
 
 _perform_note :: PerformState -> (Event, Instrument.Addr)
-    -> ((AddrInst, NoteOffMap), ([Midi.WriteMessage], [Warning.Warning]))
+    -> ((AddrInst, NoteOffMap), MidiEvents)
 _perform_note (addr_inst, note_off_map) (event, addr) =
-    ((addr_inst2, Map.insert addr note_off note_off_map), (msgs, warns))
+    ((addr_inst2, Map.insert addr note_off note_off_map), msgs)
     where
-    (note_msgs, note_warns, note_off) = perform_note
+    (note_msgs, note_off) = perform_note
         (Map.findWithDefault 0 addr note_off_map) event addr
-    (chan_state_msgs, chan_state_warns, addr_inst2) =
-        adjust_chan_state addr_inst addr event
-    msgs = merge_messages [chan_state_msgs, note_msgs]
-    warns = note_warns ++ chan_state_warns
+    (chan_state_msgs, addr_inst2) = adjust_chan_state addr_inst addr event
+    msgs = Seq.merge_on levent_start chan_state_msgs note_msgs
+
 
 -- | Figure out of any msgs need to be emitted to convert the channel state to
 -- the given event on the given addr.
@@ -184,11 +182,11 @@ _perform_note (addr_inst, note_off_map) (event, addr) =
 -- Another strategy would be to always emit msgs and rely on playback filter,
 -- but that would triple the number of msgs, which seems excessive.
 adjust_chan_state :: AddrInst -> Instrument.Addr -> Event
-    -> ([Midi.WriteMessage], [Warning.Warning], AddrInst)
+    -> (MidiEvents, AddrInst)
 adjust_chan_state addr_inst addr event =
     case chan_state_msgs addr (event_start event) old_inst inst of
-        Left err -> ([], [event_warning event err], new_addr_inst)
-        Right msgs -> (msgs, [], new_addr_inst)
+        Left err -> ([LEvent.Log $ event_warning event err], new_addr_inst)
+        Right msgs -> (map LEvent.Event msgs, new_addr_inst)
     where
     new_addr_inst = Map.insert addr inst addr_inst
     inst = event_instrument event
@@ -237,25 +235,23 @@ type AddrState =
     (Maybe Midi.PitchBendValue, Map.Map Midi.Control Midi.ControlValue)
 
 -- | Some context free post-processing on the midi stream.
-post_process :: PostprocState -> [Midi.WriteMessage]
-    -> ([Midi.WriteMessage], PostprocState)
-post_process = drop_duplicates
+post_process :: PostprocState -> MidiEvents -> (MidiEvents, PostprocState)
+post_process = drop_dup_controls
 
-drop_duplicates :: PostprocState -> [Midi.WriteMessage]
-    -> ([Midi.WriteMessage], PostprocState)
-drop_duplicates state = drop_dup_controls state
-
-drop_dup_controls :: PostprocState -> [Midi.WriteMessage]
-    -> ([Midi.WriteMessage], PostprocState)
+-- | Having to deal with Log is ugly... can't I get that out with fmap?
+drop_dup_controls :: PostprocState -> MidiEvents -> (MidiEvents, PostprocState)
 drop_dup_controls state [] = ([], state)
-drop_dup_controls state (wmsg:wmsgs) = case wmsg of
+drop_dup_controls state (log@(LEvent.Log _) : events) =
+    let (rest, final_state) = drop_dup_controls state events
+    in (log : rest, final_state)
+drop_dup_controls state (event@(LEvent.Event wmsg) : wmsgs) = case wmsg of
     Midi.WriteMessage dev _ (Midi.ChannelMessage chan cmsg) ->
         let addr = (dev, chan)
             addr_state = Map.lookup addr state
             (keep, addr_state2) = analyze_msg addr_state cmsg
             state2 = maybe state (\s -> Map.insert addr s state) addr_state2
             (rest, final_state) = drop_dup_controls state2 wmsgs
-        in (if keep then wmsg : rest else rest, final_state)
+        in (if keep then event : rest else rest, final_state)
     _ -> drop_dup_controls state wmsgs
 
 analyze_msg :: Maybe AddrState -> Midi.ChannelMessage -> (Bool, Maybe AddrState)
@@ -277,16 +273,16 @@ analyze_msg (Just (pb_val, cmap)) msg = case msg of
 
 -- | Emit MIDI for a single event.
 perform_note :: Timestamp -> Event -> Instrument.Addr
-    -> ([Midi.WriteMessage], [Warning.Warning], Timestamp)
+    -> (MidiEvents, Timestamp)
     -- ^ (msgs, warns, note_off)
 perform_note prev_note_off event addr =
     case event_pitch_at (event_pb_range event) event (event_start event) of
-        Nothing -> ([], [event_warning event "no pitch signal"], prev_note_off)
+        Nothing -> ([LEvent.Log $ event_warning event "no pitch signal"],
+            prev_note_off)
         Just (midi_nn, _) ->
-            let (note_msgs, note_warns, note_off) = _note_msgs midi_nn
-                (control_msgs, control_warns) = _control_msgs midi_nn
-                warns = note_warns ++ control_warns
-            in (merge_messages [control_msgs, note_msgs], warns, note_off)
+            let (note_msgs, note_off) = _note_msgs midi_nn
+                control_msgs = _control_msgs midi_nn
+            in (merge_events control_msgs note_msgs, note_off)
     where
     -- 'perform_note_msgs' and 'perform_control_msgs' are really part of one
     -- big function.  Splitting it apart led to a bit of duplicated work but
@@ -296,12 +292,14 @@ perform_note prev_note_off event addr =
 
 -- | Perform the note on and note off.
 perform_note_msgs :: Event -> Instrument.Addr -> Midi.Key
-    -> ([Midi.WriteMessage], [Warning.Warning], Timestamp)
-perform_note_msgs event (dev, chan) midi_nn =
-    ([ chan_msg note_on (Midi.NoteOn midi_nn on_vel)
-    , chan_msg note_off (Midi.NoteOff midi_nn off_vel)
-    ], warns, note_off)
+    -> (MidiEvents, Timestamp)
+perform_note_msgs event (dev, chan) midi_nn = (events, note_off)
     where
+    events = map LEvent.Event
+        [ chan_msg note_on (Midi.NoteOn midi_nn on_vel)
+        , chan_msg note_off (Midi.NoteOff midi_nn off_vel)
+        ]
+        ++ map LEvent.Log warns
     note_on = event_start event
     note_off = event_end event
     (on_vel, off_vel, vel_clip_warns) = note_velocity event note_on note_off
@@ -309,10 +307,10 @@ perform_note_msgs event (dev, chan) midi_nn =
     chan_msg pos msg = Midi.WriteMessage dev pos (Midi.ChannelMessage chan msg)
 
 -- | Perform control change messages.
-perform_control_msgs :: Timestamp -> Event
-    -> Instrument.Addr -> Midi.Key -> ([Midi.WriteMessage], [Warning.Warning])
+perform_control_msgs :: Timestamp -> Event -> Instrument.Addr -> Midi.Key
+    -> MidiEvents
 perform_control_msgs prev_note_off event (dev, chan) midi_nn =
-    (control_msgs, warns)
+    map LEvent.Event control_msgs ++ map LEvent.Log warns
     where
     control_msgs = merge_messages $
         map (map chan_msg) (pitch_pos_msgs : control_pos_msgs)
@@ -344,7 +342,7 @@ event_pitch_at pb_range event pos =
         (Signal.at (Timestamp.to_real_time pos) (event_pitch event))
 
 note_velocity :: Event -> Timestamp -> Timestamp
-    -> (Midi.Velocity, Midi.Velocity, [ClipWarning])
+    -> (Midi.Velocity, Midi.Velocity, [ClipRange])
 note_velocity event note_on note_off =
     (clipped_vel on_sig, clipped_vel off_sig, clip_warns)
     where
@@ -363,13 +361,11 @@ clip_val low high val
     | val > high = (high, True)
     | otherwise = (val, False)
 
-type ClipWarning = (Timestamp, Timestamp)
-make_clip_warnings :: Event -> (Control.Control, [ClipWarning])
-    -> [Warning.Warning]
+type ClipRange = (Timestamp, Timestamp)
+make_clip_warnings :: Event -> (Control.Control, [ClipRange]) -> [Log.Msg]
 make_clip_warnings event (control, clip_warns) =
-    [ warning (show control ++ " clipped")
-        (event_stack event) (Just (start, end))
-    | (start, end) <- clip_warns ]
+    [event_warning event (show control ++ " clipped: " ++ Pretty.pretty clip)
+        | clip <- clip_warns]
 
 control_at :: Event -> Control.Control -> Timestamp -> Maybe Signal.Y
 control_at event control pos = do
@@ -392,7 +388,7 @@ perform_pitch pb_range nn prev_note_off start sig =
 -- allowed control range, 0--1.
 perform_control :: Control.ControlMap -> Timestamp -> Timestamp
     -> (Control.Control, Signal.Control)
-    -> ([(Timestamp, Midi.ChannelMessage)], [ClipWarning])
+    -> ([(Timestamp, Midi.ChannelMessage)], [ClipRange])
 perform_control cmap prev_note_off start (control, sig) =
     case Control.control_constructor cmap control of
         Nothing -> ([], []) -- TODO warn about a control not in the cmap
@@ -427,14 +423,6 @@ create_leading_cc prev_note_off start sig pos_vals =
     initial = (Timestamp.to_real_time (tweak (start - control_lead_time)),
         Signal.at (Timestamp.to_real_time start) sig)
 
--- | Merge an unsorted list of sorted lists of midi messages.
-merge_messages :: [[Midi.WriteMessage]] -> [Midi.WriteMessage]
-merge_messages = Seq.merge_lists Midi.wmsg_ts
-
--- | Merge a sorted list of sorted midi messages.
-merge_sorted_messages :: [[Midi.WriteMessage]] -> [Midi.WriteMessage]
-merge_sorted_messages = Seq.merge_asc_lists Midi.wmsg_ts
-
 -- * channelize
 
 -- | Overlapping events and the channels they were given.
@@ -447,8 +435,8 @@ type ChannelizeState = [(Event, Channel)]
 -- its addrs and only share when out of channels, but it seems like this would
 -- quickly eat up all the channels, forcing a new note that can't share to snag
 -- a used one.
-channelize :: ChannelizeState -> InstAddrs -> [Event]
-    -> ([(Event, Channel)], ChannelizeState)
+channelize :: ChannelizeState -> InstAddrs -> Events
+    -> ([LEvent.LEvent (Event, Channel)], ChannelizeState)
 channelize overlapping inst_addrs events =
     overlap_map overlapping (channelize_event inst_addrs) events
 
@@ -522,15 +510,13 @@ controls_equal cs0 cs1 = all eq pairs
 --
 -- Events with instruments that have no address allocation in the config
 -- will be dropped.
-allot :: AllotState -> InstAddrs -> [(Event, Channel)]
-    -> ([(Event, Instrument.Addr)], [Warning.Warning], AllotState)
-allot state inst_addrs events =
-    (Maybe.catMaybes event_addrs, warnings, final_state)
+allot :: AllotState -> InstAddrs -> [LEvent.LEvent (Event, Channel)]
+    -> ([LEvent.LEvent (Event, Instrument.Addr)], AllotState)
+allot state inst_addrs events = (event_addrs, final_state)
     where
-    ((final_state, _, no_alloc), event_addrs) =
-        List.mapAccumL allot_event (state, inst_addrs, Map.empty) events
-    warnings = [warning ("no allocation for " ++ Pretty.pretty inst) stack
-        Nothing | (inst, stack) <- Map.assocs no_alloc]
+    (final_state, event_addrs) = List.mapAccumL allot1 state events
+    allot1 state (LEvent.Event e) = allot_event inst_addrs state e
+    allot1 state (LEvent.Log log) = (state, LEvent.Log log)
 
 data AllotState = AllotState {
     -- | Allocated addresses, and when they were last used.
@@ -543,28 +529,28 @@ data AllotState = AllotState {
     } deriving (Eq, Show)
 empty_allot_state = AllotState Map.empty Map.empty
 
-type NoAlloc = Map.Map Score.Instrument Stack.Stack
-
-allot_event :: (AllotState, InstAddrs, NoAlloc) -> (Event, Channel)
-    -> ((AllotState, InstAddrs, NoAlloc), Maybe (Event, Instrument.Addr))
-allot_event (state, inst_addrs, no_alloc) (event, ichan) =
+-- | Try to find an Addr for the given Event.  If that's impossible, return
+-- a log msg.
+allot_event :: InstAddrs -> AllotState -> (Event, Channel)
+    -> (AllotState, LEvent.LEvent (Event, Instrument.Addr))
+allot_event inst_addrs state (event, ichan) =
     case Map.lookup (inst, ichan) (ast_allotted state) of
-        Just addr -> (update addr state, Just (event, addr))
+        Just addr -> (update addr state, LEvent.Event (event, addr))
         Nothing -> case steal_addr inst_addrs inst state of
-            Just addr ->
-                (update addr (update_map addr state), Just (event, addr))
-            Nothing ->
-                let no_alloc2 = Map.insertWith' const
-                        (Instrument.inst_score inst) (event_stack event)
-                        no_alloc
-                in ((state, inst_addrs, no_alloc2), Nothing)
+            Just addr -> (update addr (update_map addr state),
+                LEvent.Event (event, addr))
+            -- This will return lots of msgs if an inst has no allocation.
+            -- A higher level should filter out the duplicates.
+            Nothing -> (state, LEvent.Log no_alloc)
     where
     inst = event_instrument event
-    update addr state = (update_avail addr state, inst_addrs, no_alloc)
+    update addr state = update_avail addr state
     update_avail addr state = state { ast_available =
             Map.insert addr (event_end event) (ast_available state) }
     update_map addr state = state { ast_allotted =
         Map.insert (inst, ichan) addr (ast_allotted state) }
+    no_alloc = event_warning event
+        ("no allocation for " ++ Pretty.pretty (Instrument.inst_score inst))
 
 -- | Steal the least recently used address for the given instrument.
 steal_addr :: InstAddrs -> Instrument.Instrument -> AllotState
@@ -620,28 +606,40 @@ type ControlMap = Map.Map Control.Control Signal.Control
 
 -- * util
 
+-- | Merge an unsorted list of sorted lists of midi messages.
+merge_messages :: [[Midi.WriteMessage]] -> [Midi.WriteMessage]
+merge_messages = Seq.merge_lists Midi.wmsg_ts
+
+merge_events :: MidiEvents -> MidiEvents -> MidiEvents
+merge_events = Seq.merge_on levent_start
+
+merge_sorted_events :: [MidiEvents] -> MidiEvents
+merge_sorted_events = Seq.merge_asc_lists levent_start
+
+levent_start :: LEvent.LEvent Midi.WriteMessage -> Timestamp.Timestamp
+levent_start (LEvent.Log _) = 0
+levent_start (LEvent.Event msg) = Midi.wmsg_ts msg
+
 -- | Map the given function across the events, passing it previous events it
 -- overlaps with.  The previous events passed to the function are paired with
 -- its previous return values on those events.  The overlapping events are
 -- passed in reverse order, so the most recently overlapping is first.
-overlap_map :: [(Event, a)] -> ([(Event, a)] -> Event -> a) -> [Event]
-    -> ([(Event, a)], [(Event, a)])
+overlap_map :: [(Event, a)] -> ([(Event, a)] -> Event -> a) -> Events
+    -> ([LEvent.LEvent (Event, a)], [(Event, a)])
     -- ^ (output for each event, final overlapping state)
 overlap_map initial = go initial
     where
     go prev _ [] = ([], prev)
-    go prev f (e:events) = ((e, val) : vals, final_state)
+    go prev f (LEvent.Log log : events) = (LEvent.Log log : rest, final_state)
+        where (rest, final_state) = go prev f events
+    go prev f (LEvent.Event e : events) =
+        (LEvent.Event (e, val) : vals, final_state)
         where
         start = note_begin e
         overlapping = takeWhile ((> start) . note_end . fst) prev
         val = f overlapping e
         (vals, final_state) = go ((e, val) : overlapping) f events
 
-event_warning :: Event -> String -> Warning.Warning
-event_warning event msg = warning msg (event_stack event)
-    (Just (event_start event, event_end event))
-
-warning :: String -> Stack.Stack -> Maybe (Timestamp, Timestamp)
-    -> Warning.Warning
-warning msg stack range = Warning.warning msg stack (fmap real range)
-    where real (s, e) = (Timestamp.to_real_time s, Timestamp.to_real_time e)
+event_warning :: Event -> String -> Log.Msg
+event_warning event msg = Log.uninitialized_msg Log.Warn
+    (Just (event_stack event)) ("Perform: " ++ msg)

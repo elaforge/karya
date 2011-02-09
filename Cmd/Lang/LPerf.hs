@@ -14,10 +14,10 @@ import qualified Cmd.Simple as Simple
 import qualified Cmd.PlayUtil as PlayUtil
 
 import qualified Derive.Derive as Derive
+import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 
 import qualified Perform.Timestamp as Timestamp
-import qualified Perform.Warning as Warning
 import qualified Perform.Midi.Convert as Midi.Convert
 import qualified Perform.Midi.Perform as Midi.Perform
 import qualified Perform.Midi.Cache as Midi.Cache
@@ -53,27 +53,21 @@ compare_cached_midi block_id = do
     return $ diff_events cached uncached
     where
     diff_events perf1 perf2 = Seq.diff (==) (msgs perf1) (msgs perf2)
-    msgs = Midi.Cache.cache_messages . Cmd.perf_midi_cache
+    msgs = LEvent.events_of . Midi.Cache.cache_messages . Cmd.perf_midi_cache
 
 compare_cached_events :: BlockId
     -> Cmd.CmdL [Either Simple.ScoreEvent Simple.ScoreEvent]
 compare_cached_events block_id = do
     uncached <- PlayUtil.uncached_derive block_id
     cached <- PlayUtil.cached_derive block_id
-    either (Cmd.throw . show) return (diff_events cached uncached)
+    return $ diff (LEvent.events_of (Derive.r_events cached))
+        (LEvent.events_of (Derive.r_events uncached))
     where
-    diff_events r1 r2 = do
-        e1 <- Derive.r_result r1
-        e2 <- Derive.r_result r2
-        return $ Seq.diff (==)
-            (map Simple.score_event e1) (map Simple.score_event e2)
+    diff e1 e2 = Seq.diff (==)
+        (map Simple.score_event e1) (map Simple.score_event e2)
 
 derive_to_events :: BlockId -> Cmd.CmdL Derive.Events
-derive_to_events block_id = do
-    result <- derive block_id
-    case Derive.r_result result of
-        Left err -> Cmd.throw $ "derive error: " ++ show err
-        Right events -> return events
+derive_to_events block_id = Derive.r_events <$> derive block_id
 
 -- | Derive the current block and return events that fall within the current
 -- selection.
@@ -83,13 +77,14 @@ derive_selection = do
     block_id <- Cmd.get_focused_block
     events <- derive_to_events block_id
     -- TODO filter out events from other tracks
-    return $ takeWhile ((<=end) . Score.event_end) $
-        dropWhile ((<start) . Score.event_start) events
+    let is_event f = LEvent.either f (const True)
+    return $ takeWhile (is_event ((<=end) . Score.event_end)) $
+        dropWhile (is_event ((<start) . Score.event_start)) events
 
-derive :: BlockId -> Cmd.CmdL (Derive.Result Derive.Events)
+derive :: BlockId -> Cmd.CmdL Derive.Result
 derive = PlayUtil.cached_derive
 
-uncached_derive :: BlockId -> Cmd.CmdL (Derive.Result Derive.Events)
+uncached_derive :: BlockId -> Cmd.CmdL Derive.Result
 uncached_derive = PlayUtil.uncached_derive
 
 -- | Test the tempo map output.
@@ -101,27 +96,28 @@ derive_tempo block_id = do
 
 -- * perform
 
-derive_to_perf :: BlockId -> Cmd.CmdL ([Midi.Perform.Event], [Warning.Warning])
+derive_to_perf :: BlockId -> Cmd.CmdL [LEvent.LEvent Midi.Perform.Event]
 derive_to_perf block_id = do
     events <- derive_to_events block_id
     lookup_scale <- Cmd.get_lookup_scale
     lookup_inst <- Cmd.get_lookup_midi_instrument
     return $ Midi.Convert.convert lookup_scale lookup_inst events
 
-cached_perform :: BlockId -> Cmd.CmdL Midi.Perform.Messages
+cached_perform :: BlockId -> Cmd.CmdL Midi.Perform.MidiEvents
 cached_perform block_id = do
     perf <- PlayUtil.cached_perform block_id =<< PlayUtil.cached_derive block_id
     return $ Midi.Cache.cache_messages (Cmd.perf_midi_cache perf)
 
-perform_selection :: Cmd.CmdL Midi.Perform.Messages
+perform_selection :: Cmd.CmdL Midi.Perform.MidiEvents
 perform_selection = do
     (start, end) <- Selection.realtime
     block_id <- Cmd.get_focused_block
     perf <- PlayUtil.cached_perform block_id =<< PlayUtil.cached_derive block_id
     let end_ts = Timestamp.from_real_time (end - start)
-    return $ takeWhile ((<=end_ts) . Midi.wmsg_ts) $
+        is_midi f = LEvent.either f (const True)
+    return $ takeWhile (is_midi ((<=end_ts) . Midi.wmsg_ts)) $
         Midi.Cache.messages_from (Timestamp.from_real_time start)
             (Cmd.perf_midi_cache perf)
 
-perform_events :: Derive.Events -> Cmd.CmdL (Midi.Perform.Messages, [String])
+perform_events :: Derive.Events -> Cmd.CmdL Midi.Perform.MidiEvents
 perform_events = PlayUtil.perform_events

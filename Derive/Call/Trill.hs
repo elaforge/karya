@@ -126,7 +126,7 @@ pitch_calls = Derive.make_calls
     ]
 
 c_pitch_absolute_trill :: Derive.PitchCall
-c_pitch_absolute_trill = Derive.generator "pitch_absolute_trill" $ \args -> do
+c_pitch_absolute_trill = Derive.generator1 "pitch_absolute_trill" $ \args -> do
     args <- Call.default_relative_note args
     CallSig.call3 args
         (required "degree",
@@ -140,7 +140,7 @@ c_pitch_absolute_trill = Derive.generator "pitch_absolute_trill" $ \args -> do
             pitch_absolute_trill degree speed_sig neighbor_sig next_event
 
 pitch_absolute_trill :: Pitch.Degree -> Signal.Control -> Signal.Control
-    -> RealTime -> Derive.PitchDeriver
+    -> RealTime -> Derive.Deriver PitchSignal.PitchSignal
 pitch_absolute_trill degree speed neighbor dur = do
     start <- Derive.now
     scale <- Call.get_scale

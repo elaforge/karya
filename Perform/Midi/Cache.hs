@@ -6,20 +6,20 @@ module Perform.Midi.Cache (
     , Chunks, ChunkNum, to_chunknum, cache_chunk_size, Chunk(..)
     , perform
 ) where
-import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Util.Ranges as Ranges
+import qualified Data.Text as Text
+
 import Util.Control
+import qualified Util.Log as Log
+import qualified Util.Ranges as Ranges
 
 import qualified Midi.Midi as Midi
 
 import Ui
-
-import qualified Derive.Stack as Stack
+import qualified Derive.LEvent as LEvent
 
 import qualified Perform.Timestamp as Timestamp
 import Perform.Timestamp (Timestamp)
-import qualified Perform.Warning as Warning
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.Instrument as Instrument
 
@@ -42,35 +42,36 @@ cache_length :: Cache -> RealTime
 cache_length cache = Timestamp.to_real_time $
     fromIntegral (length (cache_chunks cache)) * cache_chunk_size
 
-cache_messages :: Cache -> Perform.Messages
+cache_messages :: Cache -> Perform.MidiEvents
 cache_messages =
-    Perform.merge_sorted_messages . map chunk_messages . cache_chunks
+    Perform.merge_sorted_events . map chunk_messages . cache_chunks
 
 -- | Return messages starting from a certain timestamp.  Subtract that
 -- timestamp from the message timestamps so they always start at 0.
-messages_from :: Timestamp.Timestamp -> Cache -> Perform.Messages
-messages_from start cache = initialize_msgs
-    ++ map (Midi.add_timestamp (-start)) (Perform.merge_sorted_messages msgs)
+messages_from :: Timestamp.Timestamp -> Cache -> Perform.MidiEvents
+messages_from start cache =
+    initialize_msgs ++ map (fmap (Midi.add_timestamp (-start)))
+        (Perform.merge_sorted_events msgs)
     where
     start_chunk = fromIntegral $
         Timestamp.to_millis start `div` Timestamp.to_millis cache_chunk_size
     chunks = drop start_chunk (cache_chunks cache)
     msgs = case map chunk_messages chunks of
         [] -> []
-        m : rest -> dropWhile ((<start) . Midi.wmsg_ts) m : rest
+        m : rest -> dropWhile (is_event ((<start) . Midi.wmsg_ts)) m : rest
     initialize_msgs = case chunks of
         [] -> []
         chunk : _ -> state_initialization $
             Perform.state_postproc (chunk_state chunk)
 
-state_initialization :: Perform.PostprocState -> Perform.Messages
+state_initialization :: Perform.PostprocState -> Perform.MidiEvents
 state_initialization state = concatMap mkmsgs (Map.assocs state)
     where
     mkmsgs ((dev, chan), (pb, controls)) = map wmsg (pb_msg ++ control_msgs)
         where
         pb_msg = maybe [] ((:[]) . Midi.PitchBend) pb
         control_msgs = map mkcontrol (Map.assocs controls)
-        wmsg msg = Midi.WriteMessage dev Timestamp.zero
+        wmsg msg = LEvent.Event $ Midi.WriteMessage dev Timestamp.zero
             (Midi.ChannelMessage chan msg)
     mkcontrol (cc, val) = Midi.ControlChange cc val
 
@@ -97,9 +98,11 @@ cache_stats splice_failed_at cache = case splice_failed_at of
         Nothing -> nchunks
         Just pairs -> sum (map (\(s, e) -> if e == s then 1 else e - s) pairs)
 
-is_splice_failure :: Warning.Warning -> Bool
-is_splice_failure warn =
-    "splice failed: " `List.isPrefixOf` Warning.warn_msg warn
+-- TODO yuck... shouldn't there be a better way of putting semi-structured data
+-- in logs?  msg_key?
+is_splice_failure :: Log.Msg -> Bool
+is_splice_failure msg =
+    Text.pack "splice failed " `Text.isPrefixOf` Log.msg_text msg
 
 -- | Originally this was an IntMap which allows faster seeking to a a chunk,
 -- but it's essential that the chunk list be spine-lazy.  Since each chunk is
@@ -115,9 +118,8 @@ cache_chunk_size :: Timestamp
 cache_chunk_size = Timestamp.seconds 4
 
 data Chunk = Chunk {
-    chunk_messages :: Perform.Messages
+    chunk_messages :: Perform.MidiEvents
     , chunk_state :: Perform.State
-    , chunk_warns :: [Warning.Warning]
     } deriving (Show)
 
 newtype EventDamage = EventDamage (Ranges.Ranges RealTime)
@@ -181,7 +183,8 @@ perform_cache config chunknum (cached : rest_cache) prev_state events
             -- Putting this note in the warns is a bit of a hack, but it's nice
             -- to see when a splice failed and why.  The other other cache
             -- stats can be derived from the damage ranges.
-            Just reason -> with_warn ("splice failed: " ++ reason) new_chunk
+            Just reason ->
+                cons_log ("splice failed because of " ++ reason) new_chunk
                 : perform_chunks config (chunknum+1) (chunk_state new_chunk)
                     post_events
     | chunknum < end = new_chunk
@@ -192,8 +195,11 @@ perform_cache config chunknum (cached : rest_cache) prev_state events
     where
     (new_chunk, post_events) = perform_chunk chunknum prev_state config events
     perform_rest = perform_cache config (chunknum+1) rest_cache
-    with_warn msg chunk = chunk { chunk_warns = warn : chunk_warns chunk }
-        where warn = Warning.warning msg Stack.empty Nothing
+    cons_log msg chunk =
+        chunk { chunk_messages = LEvent.Log log : chunk_messages chunk }
+        where
+        log = Log.uninitialized_msg Log.Notice Nothing
+            ("Perform cache: " ++ msg)
 
 -- | Just keep performing chunks until I run out of events.
 perform_chunks :: Instrument.Config -> ChunkNum -> Perform.State
@@ -207,22 +213,25 @@ perform_chunks config chunknum prev_state events =
         (chunk, post_events) = perform_chunk chunknum prev_state config events
         (chunks, final_state) = go (chunknum+1) (chunk_state chunk) post_events
 
+perform_chunk :: ChunkNum -> Perform.State -> Instrument.Config
+    -> Perform.Events -> (Chunk, Perform.Events)
+perform_chunk chunknum state config events =
+    (Chunk msgs (normalize_state end final_state), post)
+    where
+    (pre, post) = break (is_event ((>=end) . Perform.event_start))
+        (trim_events chunknum events)
+    end = fromIntegral (chunknum+1) * cache_chunk_size
+    (msgs, final_state) = Perform.perform state config pre
+
 -- | TODO this will be inefficient the first time it is called and has to
 -- drop a lot of events.  Events should be a more efficiently seekable data
 -- structure to avoid this.
 trim_events :: ChunkNum -> Perform.Events -> Perform.Events
-trim_events nchunk = dropWhile ((<start) . Perform.event_start)
+trim_events nchunk = dropWhile (is_event ((<start) . Perform.event_start))
     where start = fromIntegral nchunk * cache_chunk_size
 
-perform_chunk :: ChunkNum -> Perform.State -> Instrument.Config
-    -> Perform.Events -> (Chunk, Perform.Events)
-perform_chunk chunknum state config events =
-    (Chunk msgs (normalize_state end final_state) warns, post)
-    where
-    (pre, post) = break ((>=end) . Perform.event_start)
-        (trim_events chunknum events)
-    end = fromIntegral (chunknum+1) * cache_chunk_size
-    (msgs, warns, final_state) = Perform.perform state config pre
+is_event :: (event -> Bool) -> LEvent.LEvent event -> Bool
+is_event f = LEvent.either f (const False)
 
 -- | Compare to States and if they aren't compatible, return why not.
 --

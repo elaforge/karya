@@ -98,6 +98,8 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.Selection as Selection
 import qualified Cmd.TimeStep as TimeStep
 
+import qualified Derive.LEvent as LEvent
+
 import qualified Perform.Transport as Transport
 import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Midi.Cache as Cache
@@ -145,19 +147,15 @@ cmd_play transport_info block_id (start_track, start_pos) = do
         _ -> return ()
     perf <- get_performance block_id
 
-    -- Yes I already logged these, but that may have been buried.
-    let warn_logs = filter ((>=Log.Warn) . Log.msg_prio) (Cmd.perf_logs perf)
-        warn_text = if null warn_logs
-            then "But there were no warnings which is odd."
-            else "Warnings deriving: "
-                ++ Seq.join ", " (map Log.msg_string warn_logs)
+    -- TODO previously I would print the logs again... reinstate that?
     start_ts <- case Cmd.perf_tempo perf block_id start_track start_pos of
         [] -> Cmd.throw $ show block_id ++ " has no tempo information, so it "
-            ++ "probably failed to derive.  " ++ warn_text
+            ++ "probably failed to derive."
         realtime : _ -> return (Timestamp.from_real_time realtime)
+
     let msgs = Cache.messages_from start_ts (Cmd.perf_midi_cache perf)
     (play_ctl, updater_ctl) <- Trans.liftIO $
-        Midi.Play.play transport_info block_id msgs
+        Midi.Play.play transport_info block_id (LEvent.events_of msgs)
 
     ui_state <- State.get
     Trans.liftIO $ Thread.start_thread "play position updater" $ updater_thread

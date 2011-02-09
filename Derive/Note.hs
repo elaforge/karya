@@ -128,8 +128,8 @@
     a departing note.
 -}
 module Derive.Note where
-import Util.Control
 import qualified Data.ByteString.Char8 as B
+import Util.Control
 
 import Ui
 import qualified Ui.Track as Track
@@ -145,9 +145,9 @@ import qualified Derive.TrackLang as TrackLang
 
 -- | Top level deriver for note tracks.
 d_note_track :: BlockId -> TrackId -> Derive.EventDeriver
-d_note_track block_id track_id = Derive.catch_warn (return Derive.no_events) $do
+d_note_track block_id track_id = do
     track <- Derive.get_track track_id
-    if null (Track.track_title track) then return Derive.no_events else do
+    if null (Track.track_title track) then return mempty else do
     track_expr <- case Parse.parse (B.pack (Track.track_title track)) of
         Left err -> Derive.throw $ "track title: " ++ err
         Right expr -> return (preprocess_title expr)
@@ -155,8 +155,9 @@ d_note_track block_id track_id = Derive.catch_warn (return Derive.no_events) $do
     -- aren't.  Should they be?
     let pos_events = Track.event_list (Track.track_events track)
     block_end <- Derive.get_block_dur block_id
-    -- Unlike event evaluation, if the title evaluation throws, the whole block
-    -- will abort.  This seems reasonable to me.
+
+    -- derive_notes block_end pos_events
+
     result <- Call.apply_transformer info track_expr
         (derive_notes block_end pos_events)
     Derive.insert_event_damage =<< Derive.take_local_damage
@@ -164,8 +165,13 @@ d_note_track block_id track_id = Derive.catch_warn (return Derive.no_events) $do
     where info = (Call.note_dinfo, Derive.dummy_call_info "note track")
 
 derive_notes :: ScoreTime -> [Track.PosEvent] -> Derive.EventDeriver
-derive_notes block_end events = Derive.merge_asc_events <$>
-    Call.derive_track block_end Call.note_dinfo id (\_ _ -> Nothing) events
+derive_notes block_end events = do
+    state <- Derive.get
+    let (event_groups, collect, cache) = Call.lazy_derive_track
+            state block_end Call.note_dinfo id (\_ _ -> Nothing) events
+    Derive.modify $ \st -> st {
+        Derive.state_collect = collect, Derive.state_cache_state = cache }
+    return $ Derive.merge_asc_events event_groups
 
 -- | It's convenient to tag a note track with @>inst@ to set its instrument.
 -- Unfortunately, this is parsed as a call to @>inst@

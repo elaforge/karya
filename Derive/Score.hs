@@ -12,6 +12,7 @@ import qualified Data.ByteString.Char8 as B
 import qualified Data.Map as Map
 import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
+
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
@@ -32,14 +33,11 @@ data Event = Event {
     -- attributes like font style are not preserved here.
     event_start :: RealTime
     , event_duration :: RealTime
-    -- | The UI level keeps it in UTF8 for easy communication with fltk, but
-    -- haskell will always need to decode it, so I might as well do it here.
     , event_bs :: B.ByteString
     , event_controls :: ControlMap
     , event_pitch :: PitchSignal.PitchSignal
 
-    -- | Keep track of this event's display in various tracks (it may appear
-    -- in more than one if it appears in a merged track).  That way, if an
+    -- | Keep track of where this event originally came from.  That way, if an
     -- error or warning is emitted concerning this event, its position on the
     -- UI can be highlighted.
     , event_stack :: Stack.Stack
@@ -48,7 +46,8 @@ data Event = Event {
     -- performer.
     , event_instrument :: Maybe Instrument
     , event_attributes :: Attributes
-    } deriving (Eq, Show)
+    }
+    deriving (Eq, Show)
 
 instance DeepSeq.NFData Event where
     rnf (Event start dur text controls pitch _ _ _) =
@@ -208,6 +207,15 @@ warp_to_signal (Warp sig shift stretch)
     | stretch == 1 && shift == 0 = sig
     | otherwise =
         Signal.map_x ((/ to_real stretch) . subtract (to_real shift)) sig
+
+-- ** warp util
+
+-- | Modify a warp to shift and stretch it.  The argument order is tricky:
+-- the composed warp goes *before* the modified warp, but in haskell tradition,
+-- the modified argument is last.
+place_warp :: ScoreTime -> ScoreTime -> Warp -> Warp
+place_warp shift stretch warp = compose_warps warp
+    (id_warp { warp_stretch = stretch, warp_shift = shift })
 
 -- TODO this should be merged with warp_control, I need to use SignalBase.map_x
 -- warp_pitch :: PitchSignal.PitchSignal -> Warp -> PitchSignal.PitchSignal

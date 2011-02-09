@@ -10,6 +10,7 @@ import qualified Ui.Event as Event
 
 import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
+import qualified Derive.LEvent as LEvent
 import qualified Derive.TrackLang as TrackLang
 import qualified Derive.Score as Score
 
@@ -75,8 +76,9 @@ generate_note n_inst rel_attrs event next_start = do
         -- Perform.Midi.Convert flattens the entire pitch signal, so it's best
         -- to always trim the pitch to avoid extra work.
         pitch_sig = trimmed_pitch start real_next (Derive.state_pitch st)
-    return [Score.Event start (end - start) (Event.event_bs event)
-        controls pitch_sig (Derive.state_stack st) inst (apply rel_attrs attrs)]
+    return $ LEvent.one $ LEvent.Event $
+        Score.Event start (end - start) (Event.event_bs event) controls
+            pitch_sig (Derive.state_stack st) inst (apply rel_attrs attrs)
     where
     apply rel_attrs attrs =
         List.foldl' (.) id (map TrackLang.set_attr rel_attrs) attrs

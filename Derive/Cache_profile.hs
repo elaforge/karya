@@ -5,13 +5,12 @@
 module Derive.Cache_profile where
 import qualified Data.List as List
 import qualified Data.Monoid as Monoid
-import qualified Data.Text as Text
 import qualified Data.Time as Time
 import qualified System.CPUTime as CPUTime
 
-import Util.Test
-import qualified Util.Log as Log
+import Util.Control
 import qualified Util.Pretty as Pretty
+import Util.Test
 
 import Ui
 import qualified Ui.Event as Event
@@ -25,9 +24,8 @@ import qualified Derive.Derive as Derive
 import Derive.Derive_profile (force)
 import qualified Derive.Derive_profile as Derive_profile
 import qualified Derive.DeriveTest as DeriveTest
-import qualified Derive.Score as Score
+import qualified Derive.LEvent as LEvent
 
-import qualified Perform.Warning as Warning
 import qualified Perform.Midi.Cache as Midi.Cache
 import qualified Perform.Midi.Cache_test as Midi.Cache_test
 import qualified Perform.Midi.Convert as Convert
@@ -74,68 +72,64 @@ rederive :: State.State -> [State.StateId ()] -> IO ()
 rederive initial_state modifications = do
     start_cpu <- CPUTime.getCPUTime
     start <- now
-    go (start_cpu, start) initial_state Derive.empty_cache
-        (return () : modifications)
+    go (start_cpu, start) initial_state mempty (return () : modifications)
     where
     go _ _ _ [] = return ()
     go start_times state1 cache (modify:rest) = do
-        let section nmsgs = Derive_profile.time_section nmsgs start_times
+        let section = Derive_profile.time_section start_times
         let (_, state2, updates) = Cache_test.run state1 modify
-        cached <- section 0 "cached" $ do
+        cached <- section "cached" $ do
             eval_derivation cache state1 state2 updates
 
-        uncached <- section 0 "uncached" $ do
-            let result = Cache_test.derive_block Derive.empty_cache
+        uncached <- section "uncached" $ do
+            let result = DeriveTest.derive_block_cache mempty
                     Monoid.mempty state2 (UiTest.bid "b1")
-            let events = extract_events result
+            let events = Derive.r_events result
             force events
-            return (result, events, filter_out_cache (Derive.r_logs result))
-        equal (Cache_test.diff_events cached uncached) (Right [])
+            return (result, events)
+        equal (Cache_test.diff_events cached uncached) []
 
         go start_times state2 (Derive.r_cache cached) rest
 
 eval_derivation :: Derive.Cache -> State.State -> State.State -> [Update.Update]
-    -> IO (Derive.Result [Score.Event], [Score.Event], [String])
+    -> IO (Derive.Result, Derive.Events)
 eval_derivation cache state1 state2 updates = do
     force events
-    return (result, events, filter_out_cache (Derive.r_logs result))
+    return (result, events)
     where
     damage = Cache.score_damage state1 state2 updates
-    result = Cache_test.derive_block cache damage state2 (UiTest.bid "b1")
-    events = extract_events result
-
-filter_out_cache :: [Log.Msg] -> [String]
-filter_out_cache = map show_msg . filter (not . is_cache_msg)
+    result = DeriveTest.derive_block_cache cache damage state2 (UiTest.bid "b1")
+    events = Derive.r_events result
 
 rederive_midi :: State.State -> [State.StateId ()] -> IO ()
 rederive_midi initial_state modifications = do
     start_cpu <- CPUTime.getCPUTime
     start <- now
-    go (start_cpu, start) initial_state Derive.empty_cache
+    go (start_cpu, start) initial_state mempty
         initial_midi (return () : modifications)
     where
     initial_midi = Midi.Cache.cache Derive_profile.midi_config
     go _ _ _ _ [] = return ()
     go start_times state1 derive_cache midi_cache (modify:rest) = do
-        let section nmsgs = Derive_profile.time_section nmsgs start_times
+        let section = Derive_profile.time_section start_times
         let (_, state2, updates) = Cache_test.run state1 modify
-        cached <- section 0 "cached" $ do
+        cached <- section "cached" $ do
             eval_derivation derive_cache state1 state2 updates
 
-        (cached_midi, stats) <- section 10 "cached midi" $ do
-            let (out, warns, stats) = cached_perform midi_cache
-                    (event_damage cached) (extract_events cached)
+        (cached_midi, stats) <- section "cached midi" $ do
+            let (out, stats) = cached_perform midi_cache
+                    (event_damage cached) (Derive.r_events cached)
                 msgs = Midi.Cache.cache_messages out
-            force warns
-            return ((out, stats), msgs, warns)
+            force msgs
+            return ((out, stats), msgs)
         putStrLn $ "stats: " ++ Pretty.pretty stats
 
-        (uncached_midi, _) <- section 10 "uncached midi" $ do
-            let (out, warns, stats) = cached_perform initial_midi
-                    (event_damage cached) (extract_events cached)
+        (uncached_midi, _) <- section "uncached midi" $ do
+            let (out, stats) = cached_perform initial_midi
+                    (event_damage cached) (Derive.r_events cached)
                 msgs = Midi.Cache.cache_messages out
-            force warns
-            return ((out, stats), msgs, warns)
+            force msgs
+            return ((out, stats), msgs)
         equal (Midi.Cache_test.diff_msgs cached_midi uncached_midi)
             []
 
@@ -144,28 +138,19 @@ rederive_midi initial_state modifications = do
     event_damage result = Midi.Cache.EventDamage d
         where Derive.EventDamage d = Derive.r_event_damage result
 
-cached_perform :: Midi.Cache.Cache -> Midi.Cache.EventDamage -> [Score.Event]
-    -> (Midi.Cache.Cache, [Warning.Warning], (RealTime, RealTime))
-cached_perform cache damage events =
-    (out, convert_warns ++ warns, Midi.Cache.cache_stats splice out)
+cached_perform :: Midi.Cache.Cache -> Midi.Cache.EventDamage -> Derive.Events
+    -> (Midi.Cache.Cache, (RealTime, RealTime))
+cached_perform cache damage events = (out, Midi.Cache.cache_stats splice out)
     where
-    (perf_events, convert_warns) =
-        Convert.convert DeriveTest.default_lookup_scale
-            DeriveTest.default_lookup_inst events
+    perf_events = Convert.convert DeriveTest.default_lookup_scale
+        DeriveTest.default_lookup_inst events
     out = Midi.Cache.perform cache damage perf_events
-    warns = concatMap Midi.Cache.chunk_warns (Midi.Cache.cache_chunks out)
     splice = fmap fst $
         List.find is_failure (zip [0..] (Midi.Cache.cache_chunks out))
-    is_failure (_, chunk) =
-        any Midi.Cache.is_splice_failure (Midi.Cache.chunk_warns chunk)
-
-extract_events result = either (error . ("Left: " ++) . show) id
-    (Derive.r_result result)
+    is_failure (_, chunk) = any Midi.Cache.is_splice_failure
+        (LEvent.logs_of (Midi.Cache.chunk_messages chunk))
 
 -- | Rederive and check correctness.
 rederive_check = undefined
-
-is_cache_msg m = Text.pack "using cache" `Text.isInfixOf` Log.msg_text m
-show_msg = Cache_test.show_msg_stack
 
 now = fmap Time.utctDayTime Time.getCurrentTime

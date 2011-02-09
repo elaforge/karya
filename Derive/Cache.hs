@@ -26,6 +26,7 @@ import Derive.Derive (
     CacheState(..), Cache(..), CacheEntry(..), CallType(..)
     , GeneratorDep(..), TransformerType(..)
     , ScoreDamage(..), DamageRanges, EventDamage(..), ControlDamage(..))
+import qualified Derive.LEvent as LEvent
 import qualified Derive.Stack as Stack
 
 
@@ -46,8 +47,8 @@ import qualified Derive.Stack as Stack
 -- evaluates the underlying deriver regardless.
 cached_transformer :: (Derive.Derived derived) => Cache -> Stack.Stack
     -> Derive.TransformerCall derived -> Derive.PassedArgs derived
-    -> Derive.Deriver derived
-    -> Derive.Deriver (Derive.Deriver derived, Maybe Cache)
+    -> Derive.LogsDeriver derived
+    -> Derive.Deriver (Derive.LogsDeriver derived, Maybe Cache)
 cached_transformer cache stack (Derive.TransformerCall call ttype)
         args deriver =
     case ttype of
@@ -132,7 +133,7 @@ control_damage = undefined
 -- This is called around each generator, or possibly a group of generators.
 cached_generator :: (Derive.Derived derived) => CacheState -> Stack.Stack
     -> Derive.GeneratorCall derived -> Derive.PassedArgs derived
-    -> Derive.Deriver (Derive.Deriver derived, Maybe Cache)
+    -> Derive.Deriver (Derive.LogsDeriver derived, Maybe Cache)
 cached_generator state stack (Derive.GeneratorCall func gtype _) args =
     case gtype of
         Derive.NonCachingGenerator ->
@@ -154,12 +155,11 @@ cached_generator state stack (Derive.GeneratorCall func gtype _) args =
         -- changed region actually extends to the *next* sample.  But
         -- I don't know what that is here, so rely on the control deriver
         -- to do that.  Ugh, not too pretty.
-        Derive.insert_local_damage
-            (EventDamage (Derive.derived_range derived))
+        Derive.insert_local_damage (EventDamage (derived_range derived))
         return (return derived, Nothing)
     non_caching False = return (func args, Nothing)
     generate (Right (collect, cached)) = do
-        Log.debug $ "using cache (" ++ show (Derive.derived_length cached)
+        Log.debug $ "using cache (" ++ show (LEvent.length cached)
             ++ " vals)"
         -- The cached deriver must return the same collect as it would if it
         -- had been actually derived.
@@ -168,28 +168,40 @@ cached_generator state stack (Derive.GeneratorCall func gtype _) args =
     generate (Left reason) = do
         (result, collect) <- with_collect (func args)
         cur_cache <- state_cache <$> Derive.get_cache_state
-        let derived = either (const Derive.empty_derived) id result
-        let new_cache = insert_generator stack collect derived cur_cache
-        Log.debug $ "rederived generator ("
-            ++ show (Derive.derived_length derived) ++ " vals) because of "
+        let stream = either (const mempty) id result
+        let new_cache = insert_generator stack collect stream cur_cache
+        Log.debug $ "rederived generator because of "
+            -- This destroys laziness, though I'm not sure why since the
+            -- log msg shouldn't be forced until the msgs already have been
+            -- forced themselves.
+            -- ++ show (LEvent.length stream) ++ " vals) because of "
             ++ reason ++ case result of
                 Left exc -> "  Raised: " ++ show exc
                 Right _ -> ""
         case result of
             Left exc -> Error.throwError exc
-            Right derived -> return (return derived, Just new_cache)
+            Right stream -> return (return stream, Just new_cache)
 
     -- To get the deps of just the deriver below me, I have to clear out
     -- the local deps.  But this call is itself collecting deps for another
     -- call, so I have to merge the sub-deps back in before returning.
     with_collect deriver = do
-        -- So far the only cached generator is d_block, which is wrapped in
-        -- d_subderive, which catches exceptions, so I should never catch an
-        -- exception here.  But in case I do, this is the right thing to do.
         (result, collect) <- Derive.with_empty_collect deriver
         Derive.modify $ \st ->
             st { Derive.state_collect = collect <> Derive.state_collect st }
         return (result, collect)
+
+-- | Sort through the events for the derived chunks and figure out the range
+-- they cover.
+derived_range :: (Derive.Derived d) => LEvent.LEvents d
+    -> Ranges.Ranges RealTime
+derived_range events = case (Seq.first derived, Seq.last derived) of
+        (Just hd, Just tl) -> Ranges.range
+            (fst (Derive.derived_range hd)) (snd (Derive.derived_range tl))
+        _ -> Ranges.nothing
+    where
+    derived = filter (not . Derive.derived_null) $
+        Seq.map_maybe LEvent.event events
 
 -- | Figure out if this event lies within damaged range, whether score or
 -- control.
@@ -200,7 +212,7 @@ cached_generator state stack (Derive.GeneratorCall func gtype _) args =
 -- and see if it actually makes a difference.  It's a lazy language, right?
 --
 -- This is never called for deleted events so it can't get damage for them,
--- but there's a hack for that: 'Derive.Derive.get_track_damage'.
+-- but there's a hack for that: 'Derive.Derive.score_to_event_damage'.
 has_damage :: CacheState -> Stack.Stack -> Derive.Deriver Bool
 has_damage state stack
     | score = return True
@@ -228,10 +240,10 @@ has_damage state stack
 
 find_generator_cache :: (Derive.Derived derived) =>
     Stack.Stack -> Ranges.Ranges RealTime -> ScoreDamage -> ControlDamage
-    -> Cache -> Either String (Derive.Collect, derived)
+    -> Cache -> Either String (Derive.Collect, LEvent.LEvents derived)
 find_generator_cache stack event_range score_damage
         (ControlDamage control_damage) cache = do
-    (collect, derived) <- maybe (Left "not in cache") Right
+    (collect, stream) <- maybe (Left "not in cache") Right
         (lookup_generator stack cache)
     let Derive.GeneratorDep block_deps = Derive.collect_local_dep collect
     let damaged_blocks = Set.union
@@ -240,23 +252,29 @@ find_generator_cache stack event_range score_damage
         Left "sub-block damage"
     when (Ranges.overlapping control_damage event_range) $
         Left "control damage"
-    return (collect, derived)
+    return (collect, stream)
 
 lookup_generator :: (Derive.Derived derived) =>
-    Stack.Stack -> Cache -> Maybe (Derive.Collect, derived)
+    Stack.Stack -> Cache -> Maybe (Derive.Collect, LEvent.LEvents derived)
 lookup_generator stack cache = do
     ctype <- lookup_cache stack cache
     case ctype of
-        CachedGenerator collect derived -> Just (collect, derived)
+        CachedGenerator collect stream -> Just (collect, stream)
         _ -> Nothing
 
 insert_generator :: (Derive.Derived derived) =>
-    Stack.Stack -> Derive.Collect -> derived -> Cache -> Cache
-insert_generator stack collect derived (Cache cache) =
+    Stack.Stack -> Derive.Collect -> LEvent.LEvents derived -> Cache -> Cache
+insert_generator stack collect stream (Cache cache) =
     Cache $ Map.insert stack entry cache
     where
     -- TODO clear out other bits of cache that this overlaps with
-    entry = Derive.to_cache_entry (CachedGenerator collect derived)
+    -- TODO filter log msgs so I don't get logs about cache misses back with
+    -- the cache hit.  This is unsatisfactory because it copies the stream.
+    -- Better solution?
+    entry = Derive.to_cache_entry
+        (CachedGenerator collect (filter is_event stream))
+    is_event (LEvent.Event _) = True
+    is_event _ = False
 
 -- * types
 

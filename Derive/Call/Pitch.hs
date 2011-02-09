@@ -68,7 +68,7 @@ pitch_calls = Derive.make_calls
     ]
 
 c_note_set :: Derive.PitchCall
-c_note_set = Derive.generator "note_set" $ \args -> CallSig.call1 args
+c_note_set = Derive.generator1 "note_set" $ \args -> CallSig.call1 args
     (required "val") $ \degree -> do
         scale_id <- Call.get_scale_id
         pos <- Derive.now
@@ -76,7 +76,7 @@ c_note_set = Derive.generator "note_set" $ \args -> CallSig.call1 args
             [(pos, PitchSignal.degree_to_y degree)]
 
 c_note_linear :: Derive.PitchCall
-c_note_linear = Derive.generator "note_linear" $ \args ->
+c_note_linear = Derive.generator1 "note_linear" $ \args ->
     case Derive.passed_vals args of
         [] -> case Derive.passed_prev_val args of
             Nothing ->
@@ -89,12 +89,12 @@ c_note_linear = Derive.generator "note_linear" $ \args ->
             pitch_interpolate id degree args
 
 c_note_exponential :: Derive.PitchCall
-c_note_exponential = Derive.generator "note_exponential" $ \args ->
+c_note_exponential = Derive.generator1 "note_exponential" $ \args ->
     CallSig.call2 args (required "degree", optional "exp" 2) $ \degree exp ->
         pitch_interpolate (Control.expon exp) degree args
 
 c_note_slide :: Derive.PitchCall
-c_note_slide = Derive.generator "note_slide" $ \args -> CallSig.call2 args
+c_note_slide = Derive.generator1 "note_slide" $ \args ->CallSig.call2 args
     (required "degree", optional "time" 0.1) $ \degree time -> do
         start <- Derive.now
         end <- case Derive.passed_next_begin args of
@@ -119,7 +119,7 @@ c_note_slide = Derive.generator "note_slide" $ \args -> CallSig.call2 args
 --
 -- [time /Number/ @.3@] Duration of ornament, in seconds.
 c_neighbor :: Derive.PitchCall
-c_neighbor = Derive.generator "neighbor" $ \args -> do
+c_neighbor = Derive.generator1 "neighbor" $ \args -> do
     args <- Call.default_relative_note args
     CallSig.call3 args (required "degree", optional "neighbor" 1,
         optional "time" 0.1) $ \degree neighbor time -> do
@@ -133,7 +133,8 @@ c_neighbor = Derive.generator "neighbor" $ \args -> do
 -- ** pitch util
 
 pitch_interpolate :: (Double -> Signal.Y) -> Pitch.Degree
-    -> Derive.PassedArgs Derive.Pitch -> Derive.PitchDeriver
+    -> Derive.PassedArgs PitchSignal.PitchSignal
+    -> Derive.Deriver PitchSignal.PitchSignal
 pitch_interpolate f degree args = do
     start <- Derive.now
     scale_id <- Call.get_scale_id

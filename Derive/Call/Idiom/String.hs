@@ -12,6 +12,7 @@ import qualified Derive.Call.Pitch as Call.Pitch
 import qualified Derive.CallSig as CallSig
 import Derive.CallSig (control, optional)
 import qualified Derive.Derive as Derive
+import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.TrackLang as TrackLang
@@ -47,8 +48,8 @@ c_guzheng strings = Derive.transformer "guzheng" $ \args deriver ->
         srate <- Call.get_srate
         events <- deriver
         let linear = Call.Pitch.interpolator srate id
-        output <- string_idiom linear linear strings attack delay release events
-        Call.cue output
+        string_idiom linear linear strings attack delay release events
+        -- Call.cue output
 
 -- | A string idiom in the style of stopped strings like the violin family.
 -- Strings instantly jump to their pitches.
@@ -62,8 +63,8 @@ c_violin strings = Derive.transformer "violin" $ \args deriver ->
         let linear = Call.Pitch.interpolator srate id
             attack = TrackLang.ConstantControl 0
             release = TrackLang.ConstantControl 0
-        output <- string_idiom linear linear strings attack delay release events
-        Call.cue output
+        string_idiom linear linear strings attack delay release events
+        -- Call.cue output
 
 
 -- | Post-process events to play them in a monophonic string-like idiom.
@@ -94,21 +95,20 @@ string_idiom ::
     -> TrackLang.Control -- ^ Attack time.
     -> TrackLang.Control -- ^ Release delay.
     -> TrackLang.Control -- ^ Time for string to return to its open pitch.
-    -> [Score.Event] -> Derive.Deriver [Score.Event]
-string_idiom attack_interpolator release_interpolator
-        open_strings attack delay release events =
-    case events of
-        [] -> return []
-        event : rest -> case initial_state open_strings event of
-            Nothing -> Derive.throw $ "initial degree below lowest string: "
-                ++ show (Score.initial_pitch event)
-            Just state -> do
-                (final, result) <- Call.map_signals [attack, delay, release] []
-                    (\[attack, delay, release] [] ->
-                        process attack_interpolator release_interpolator
-                            (attack, delay, release))
-                    state rest
-                return $ Derive.merge_asc_events result ++ [state_event final]
+    -> Derive.Events -> Derive.EventDeriver
+string_idiom attack_interpolator release_interpolator open_strings attack delay
+        release all_events = Call.head all_events $ \event events ->
+    case initial_state open_strings event of
+        Nothing -> Derive.throw $ "initial degree below lowest string: "
+            ++ show (Score.initial_pitch event)
+        Just state -> do
+            (result, final) <- Call.map_signals [attack, delay, release] []
+                (\[attack, delay, release] [] ->
+                    process attack_interpolator release_interpolator
+                        (attack, delay, release))
+                state events
+            return $ Derive.merge_asc_events result
+                ++ [LEvent.Event $ state_event final]
 
 -- | Monophonic:
 -- If the note falls on a new string, release the previously playing note (bend
@@ -117,7 +117,7 @@ string_idiom attack_interpolator release_interpolator
 -- be played and emit it.
 process :: Call.PitchInterpolator -> Call.PitchInterpolator
     -> (Signal.Y, Signal.Y, Signal.Y) -> State -> Score.Event
-    -> Derive.Deriver (State, [Score.Event])
+    -> Derive.Deriver ([Score.Event], State)
 process attack_interpolator release_interpolator
         (attack_time, delay_time, release_time)
         state@(State strings sounding_string prev)
@@ -126,8 +126,8 @@ process attack_interpolator release_interpolator
         Nothing -> do
             Log.warn $ "event at " ++ Pretty.pretty start
                 ++ " below lowest string: " ++ show degree
-            return (state, [])
-        Just string -> return (State strings string event, [emit string])
+            return ([], state)
+        Just string -> return ([emit string], State strings string event)
     where
     start = Score.event_start event
     emit string

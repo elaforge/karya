@@ -64,10 +64,9 @@ c_echo = Derive.transformer "echo" $ \args deriver -> CallSig.call3 args
 echo :: ScoreTime -> Double -> Int -> Derive.EventDeriver -> Derive.EventDeriver
 echo delay feedback times deriver
     | times <= 0 = deriver
-    | otherwise = do
-        Derive.d_merge deriver
-            (Derive.d_control_at delay (Derive.d_at delay (scale_vel feedback
-                (echo delay feedback (times - 1) deriver))))
+    | otherwise = Derive.d_merge [deriver,
+        Derive.d_control_at delay (Derive.d_at delay (scale_vel feedback
+            (echo delay feedback (times - 1) deriver)))]
 
 scale_vel :: Signal.Y -> Derive.EventDeriver -> Derive.EventDeriver
 scale_vel d = Derive.with_relative_control
@@ -85,13 +84,13 @@ c_event_echo = Derive.transformer "post echo" $ \args deriver ->
     , optional "feedback" (control "echo-feedback" 0.4)
     , optional "times" (control "echo-times" 1)) $ \delay feedback times -> do
         events <- deriver
-        ((), result) <- Call.map_signals
+        (result, ()) <- Call.map_signals
             [delay, feedback, times] [] (\[delay, feedback, times] [] ->
                 go delay feedback times) () events
-        Call.cue (Derive.merge_asc_events result)
+        return $ Derive.merge_asc_events result
     where
     go delay feedback times () event =
-        return ((), echo_event (RealTime delay) feedback (floor times) event)
+        return (echo_event (RealTime delay) feedback (floor times) event, ())
 
 echo_event :: RealTime -> Double -> Int -> Score.Event -> [Score.Event]
 echo_event delay feedback times event = event : map (echo event) [1..times]

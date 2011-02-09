@@ -9,11 +9,12 @@ import Ui
 
 import qualified Midi.Midi as Midi
 
+import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.LEvent as LEvent
 import qualified Derive.Stack as Stack
 
 import qualified Perform.Signal as Signal
 import qualified Perform.Timestamp as Timestamp
-import qualified Perform.Warning as Warning
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.Perform_test as Perform_test
 import qualified Perform.Midi.Cache as Cache
@@ -43,7 +44,7 @@ test_cached_performance = do
     -- Deleting events works.  State check fails on postproc because I deleted
     -- the pitchbend initialization.
     equal (compare_cached [(0, 1), (sz, 1)] [(sz, 1)] [(0, 1)])
-        ([], ["splice failed: postproc"])
+        ([], ["Perform cache: splice failed because of postproc"])
 
     -- This time the remaining event will establish the proper state before
     -- the next chunk.
@@ -54,6 +55,7 @@ test_lazy_performance = do
     let inf = [(n * 0.5, 0.25) | n <- [0..]]
     let uncached = perform_uncached inf
     -- Make sure this only forces what performance is necessary.
+
     equal (take 3 (extract uncached))
         [ (0, Midi.PitchBend 0)
         , (0, Midi.NoteOn 42 100)
@@ -70,8 +72,9 @@ test_lazy_performance = do
         , (400, Midi.NoteOff 42 100)
         ]
     -- No warns means the splice worked.
-    equal (take 5 (map Cache.chunk_warns (Cache.cache_chunks cached)))
-        [[], [], [], [], []]
+    let logs = map DeriveTest.show_log $ LEvent.logs_of $ take 200 $
+            Cache.cache_messages cached
+    equal logs []
 
 test_messages_from = do
     -- If the dur is always increasing then events don't all look the same.
@@ -105,11 +108,9 @@ type Events = [(RealTime, RealTime)]
 
 compare_cached :: Events -> Events -> [(RealTime, RealTime)]
     -> ([Either Message Message], [String])
-compare_cached initial modified damage = (diff_msgs uncached cached, warns)
-    where
-    (_, cached, uncached) = perform_both initial modified damage
-    warns = map Warning.warn_msg
-        (concatMap Cache.chunk_warns (Cache.cache_chunks cached))
+compare_cached initial modified damage =
+    (diff_msgs uncached cached, extract_logs cached)
+    where (_, cached, uncached) = perform_both initial modified damage
 
 perform_both :: Events -> Events -> [(RealTime, RealTime)]
     -> (Cache.Cache, Cache.Cache, Cache.Cache)
@@ -137,12 +138,18 @@ diff_msgs msgs1 msgs2 = Seq.diff (==) (extract msgs1) (extract msgs2)
 extract :: Cache.Cache -> [(Timestamp.Timestamp, Midi.ChannelMessage)]
 extract = extract_msgs . Cache.cache_messages
 
-extract_msgs :: Perform.Messages -> [(Timestamp.Timestamp, Midi.ChannelMessage)]
-extract_msgs msgs =
-    [(ts, cmsg) | Midi.WriteMessage _ ts (Midi.ChannelMessage _ cmsg) <- msgs]
+extract_logs :: Cache.Cache -> [String]
+extract_logs = map DeriveTest.show_log . LEvent.logs_of . Cache.cache_messages
 
--- Give each one its own pitch
-mkevents pairs = [mkevent (start, dur, 42) | (start, dur) <- pairs]
+extract_msgs :: [LEvent.LEvent Midi.WriteMessage]
+    -> [(Timestamp.Timestamp, Midi.ChannelMessage)]
+extract_msgs msgs =
+    [(ts, cmsg) | Midi.WriteMessage _ ts (Midi.ChannelMessage _ cmsg)
+        <- LEvent.events_of msgs]
+
+mkevents :: [(RealTime, RealTime)] -> [LEvent.LEvent Perform.Event]
+mkevents pairs =
+    map LEvent.Event [mkevent (start, dur, 42) | (start, dur) <- pairs]
 
 mkevent :: (RealTime, RealTime, Int) -> Perform.Event
 mkevent (start, dur, pitch) =

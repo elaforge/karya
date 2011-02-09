@@ -14,7 +14,6 @@ import qualified Control.Monad.Trans as Trans
 import qualified Data.IORef as IORef
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Log as Log
@@ -33,8 +32,9 @@ import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Selection as Selection
 
-import qualified Derive.Derive as Derive
 import qualified Derive.Cache as Derive.Cache
+import qualified Derive.Derive as Derive
+import qualified Derive.LEvent as LEvent
 
 import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Midi.Cache as Midi.Cache
@@ -156,22 +156,18 @@ evaluate_performance send_status selection_pos block_id perf = do
     send_status block_id Msg.Deriving
     Thread.delay derive_wait_focused
     send_status block_id Msg.StartedDeriving
-    -- Force the performance to actually be evaluated.  Writing out the logs
-    -- should do it.
-    let text_prefix = Text.append (Text.pack prefix)
-    let logs = map
-            (\log -> log { Log.msg_text = text_prefix (Log.msg_text log) })
-            (Cmd.perf_logs perf)
-    mapM_ Log.write logs
-    send_status block_id (Msg.DeriveComplete (Cmd.perf_track_signals perf))
     let cache = Cmd.perf_midi_cache perf
     evaluate_midi prefix cache selection_pos False 0
         (Midi.Cache.cache_chunks cache)
+    send_status block_id (Msg.DeriveComplete (Cmd.perf_track_signals perf))
 
+-- | Evaluate all chunks before 'eval_until'.  If I hit a splice failed msg,
+-- log the overall cache stats.  Otherwise, cache stats can only be logged
+-- once I'm out of chunks.
 evaluate_midi :: String -> Midi.Cache.Cache -> Cmd.SelectionPosition -> Bool
     -> RealTime -> Midi.Cache.Chunks -> IO ()
-evaluate_midi prefix cache _ logged_stats _ [] = when (not logged_stats) $
-    log_stats prefix Nothing cache
+evaluate_midi prefix cache _ logged_stats _ [] =
+    when (not logged_stats) $ log_stats prefix Nothing cache
 evaluate_midi prefix cache selection_pos logged_stats eval_pos chunks = do
     pos <- Cmd.read_selection selection_pos
     let eval_until = max pos eval_pos
@@ -204,18 +200,18 @@ log_stats prefix splice_failed cache =
         (Midi.Cache.to_chunknum <$> splice_failed) cache
 
 chunk_time :: Midi.Cache.Chunk -> RealTime
-chunk_time chunk = case Midi.Cache.chunk_messages chunk of
+chunk_time chunk = case LEvent.events_of (Midi.Cache.chunk_messages chunk) of
     [] -> 0
     wmsg : _ -> Timestamp.to_real_time (Midi.wmsg_ts wmsg)
 
 evaluate_chunk :: Midi.Cache.Chunk -> IO Bool
-evaluate_chunk chunk =
-    fmap (any id) $ forM (Midi.Cache.chunk_warns chunk) $ \warn -> do
-        log <- PlayUtil.warn_to_log "perform" warn
-        let splice = Midi.Cache.is_splice_failure warn
-        -- A splice failure isn't really a warning.
-        Log.write $ if splice then log { Log.msg_prio = Log.Notice } else log
-        return splice
+evaluate_chunk chunk = any id <$> mapM eval (Midi.Cache.chunk_messages chunk)
+    where
+    eval (LEvent.Log log) = do
+        Log.write log
+        return $ Midi.Cache.is_splice_failure log
+    -- Midi.WriteMessage is strict, so deepseq is unnecessary.
+    eval (LEvent.Event midi) = midi `seq` return False
 
 
 -- * selection

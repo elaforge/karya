@@ -165,6 +165,10 @@ extract_tracks ustate = map (\(_, title, events) -> (title, events)) tracks
 dump_block :: State.State -> BlockId -> Simple.Block
 dump_block ustate block_id = eval ustate (Simple.dump_block block_id)
 
+dump_blocks :: State.State -> [Simple.Block]
+dump_blocks ustate =
+    map (dump_block ustate) (Map.keys (State.state_blocks ustate))
+
 -- * block
 
 mkblock :: String -> [(Block.TracklikeId, Types.Width)] -> Block.Block

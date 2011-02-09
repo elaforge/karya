@@ -1,4 +1,5 @@
 module Util.Seq where
+import Prelude hiding (last)
 import qualified Data.Char as Char
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
@@ -243,7 +244,13 @@ mhead, mlast :: b -> (a -> b) -> [a] -> b
 mhead empty _ [] = empty
 mhead _ full (x:_) = full x
 mlast empty _ [] = empty
-mlast _ full xs = full (last xs)
+mlast _ full xs = full (List.last xs)
+
+first, last :: [a] -> Maybe a
+first [] = Nothing
+first (x:_) = Just x
+last [] = Nothing
+last xs = Just (List.last xs)
 
 -- | Drop adjacent elts if they are equal after applying the key function.  The
 -- first elt is kept.

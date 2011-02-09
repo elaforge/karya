@@ -67,6 +67,8 @@
     that though, because I don't have any convincing uses for it yet either.
 -}
 module Derive.Call where
+import Prelude hiding (head)
+import Control.Monad
 import qualified Data.ByteString.Char8 as B
 import qualified Data.Map as Map
 
@@ -84,10 +86,12 @@ import qualified Ui.Types as Types
 
 import qualified Derive.Cache as Cache
 import qualified Derive.CallSig as CallSig
+import qualified Derive.LEvent as LEvent
 import qualified Derive.Derive as Derive
 import qualified Derive.ParseBs as Parse
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
+import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
@@ -209,7 +213,8 @@ with_scale scale = Derive.with_val TrackLang.v_scale (Scale.scale_id scale)
 lookup_instrument :: Derive.Deriver (Maybe Score.Instrument)
 lookup_instrument = Derive.lookup_val TrackLang.v_instrument
 
-with_instrument :: Score.Instrument -> Derive.Deriver d -> Derive.Deriver d
+with_instrument :: Score.Instrument -> Derive.Deriver d
+    -> Derive.Deriver d
 with_instrument inst deriver = do
     scopes <- lookup_instrument_scopes inst
     Derive.with_val TrackLang.v_instrument inst
@@ -236,7 +241,7 @@ eval_one start dur expr =
     cinfo = Derive.dummy_call_info ("eval_one: " ++ show expr)
 
 -- | Apply an expr with the current call info.
-reapply :: Derive.PassedArgs Derive.Events -> TrackLang.Expr
+reapply :: Derive.PassedArgs Score.Event -> TrackLang.Expr
     -> Derive.EventDeriver
 reapply args expr = apply_toplevel (note_dinfo, cinfo) expr
     where cinfo = Derive.passed_info args
@@ -271,78 +276,132 @@ data DeriveInfo derived = DeriveInfo {
     , info_name :: String
     }
 
-note_dinfo :: DeriveInfo Derive.Events
+note_dinfo :: DeriveInfo Score.Event
 note_dinfo = DeriveInfo lookup_note_call "note"
 
 type PreProcess = TrackLang.Expr -> TrackLang.Expr
 type Info derived = (DeriveInfo derived, Derive.CallInfo derived)
 
-derive_track :: (Derive.Derived derived) =>
-    ScoreTime -> DeriveInfo derived -> PreProcess
-    -> (Maybe (RealTime, Derive.Elem derived) -> derived
-        -> Maybe (RealTime, Derive.Elem derived))
-    -> [Track.PosEvent] -> Derive.Deriver [derived]
-derive_track block_end dinfo preproc get_last_sample events =
-    go Nothing [] events
+type GetLastSample d =
+    Maybe (RealTime, Derive.Elem d) -> d -> Maybe (RealTime, Derive.Elem d)
+
+lazy_derive_track :: (Derive.Derived derived) =>
+    Derive.State -> ScoreTime -> DeriveInfo derived -> PreProcess
+    -> GetLastSample derived -> [Track.PosEvent]
+    -> ([LEvent.LEvents derived], Derive.Collect, Derive.CacheState)
+lazy_derive_track state block_end dinfo preproc get_last_sample events =
+    go (Derive.state_collect state) (Derive.state_cache_state state)
+        Nothing [] events
     where
-    go _ _ [] = return []
-    go prev_sample prev (cur@(pos, event) : rest) = do
-        chunk <- with_catch Derive.empty_derived pos event $
-            derive_event block_end dinfo preproc prev_sample prev cur rest
-        rest <- go (get_last_sample prev_sample chunk) (cur:prev) rest
-        return $ chunk : rest
+    go collect cache _ _ [] = ([], collect, cache)
+    go collect cache prev_sample prev (cur : rest) =
+        -- TODO is this no longer tail recursive because it has to keep
+        -- final_modify around?  Can I improve it with an accumulator?  Does it
+        -- matter if the events are lazily consumed?
+        (map LEvent.Log logs : score_events : rest_events,
+            last_collect, last_cache)
+        where
+        (result, logs, next_collect, next_cache) =
+            -- trace ("derive " ++ show_pos state (fst cur) ++ "**") $
+            lazy_derive_event
+                (state {Derive.state_collect = collect,
+                    Derive.state_cache_state = cache})
+                block_end dinfo preproc prev_sample prev cur rest
+        (rest_events, last_collect, last_cache) = go next_collect next_cache
+            sample (cur:prev) rest
+        score_events = case result of
+            Right stream -> stream
+            Left err -> [LEvent.Log (Derive.error_to_warn err)]
+        sample = case result of
+            Right derived ->
+                case Seq.last (Seq.map_maybe LEvent.event derived) of
+                    Just elt -> get_last_sample prev_sample elt
+                    Nothing -> prev_sample
+            Left _ -> prev_sample
 
-    with_catch deflt pos evt =
-        Derive.catch_warn (return deflt) . with_stack pos evt
-    with_stack pos evt =
-        Derive.with_stack_region pos (pos + Event.event_duration evt)
+show_pos state pos = stack ++ ": " ++ Pretty.pretty now
+    where
+    now = Score.warp_pos pos (Derive.state_warp state)
+    stack = Seq.join ", " $ map Stack.unparse_ui_frame $
+        Stack.to_ui (Derive.state_stack state)
 
-derive_event :: (Derive.Derived derived) =>
-    ScoreTime -> DeriveInfo derived -> PreProcess
-    -> Maybe (RealTime, Derive.Elem derived)
+
+lazy_derive_event :: (Derive.Derived d) =>
+    Derive.State -> ScoreTime -> DeriveInfo d -> PreProcess
+    -> Maybe (RealTime, Derive.Elem d)
     -> [Track.PosEvent] -- ^ previous events, in reverse order
     -> Track.PosEvent -- ^ cur event
     -> [Track.PosEvent] -- ^ following events
-    -> Derive.Deriver derived
-derive_event block_end dinfo preproc prev_val prev cur@(pos, event) next
-    | Event.event_bs event == B.pack "--" = return Derive.empty_derived
+    -> (Either Derive.DeriveError (LEvent.LEvents d), [Log.Msg],
+        Derive.Collect, Derive.CacheState)
+lazy_derive_event st block_end dinfo preproc prev_val prev cur@(pos, event) next
+    | Event.event_bs event == B.pack "--" =
+        (Right mempty, [], Derive.state_collect st, Derive.state_cache_state st)
     | otherwise = case Parse.parse (Event.event_bs event) of
-        Left err -> Log.warn err >> return Derive.empty_derived
+        Left err -> (Right mempty, [parse_error err],
+            Derive.state_collect st, Derive.state_cache_state st)
         Right expr -> run_call (preproc expr)
     where
-    -- TODO move with_catch down here
-    run_call expr =
-        Derive.d_place start stretch $ apply_toplevel (dinfo, cinfo) expr
-        where
-        cinfo = Derive.CallInfo prev_val
-            evt0 (map warp prev) (map warp next) ((block_end-start) / stretch)
-            (pos, Event.event_duration event) prev next
-        -- Derivation happens according to the extent of the note, not the
-        -- duration.  This is how negative duration events begin deriving
-        -- before arriving at the trigger.  Note generating calls that wish to
-        -- actually generate negative duration may check the event_duration and
-        -- reverse this by looking at a (start, end) of (1, 0) instead of
-        -- (0, 1).
-        (start, end) = (Track.event_min cur, Track.event_max cur)
-        -- A 0 dur event can't be normalized, so don't try.
-        stretch = if start == end then 1 else end - start
-        -- Warp all the events to be local to the warp established by 'place'.
-        -- TODO optimize the stretch=1 case and see if that affects performance
-        warp (pos, evt) =
-            ((pos-start) / stretch, Event.modify_duration (/stretch) evt)
-        evt0 = Event.modify_duration (/stretch) (snd cur)
+    parse_error msg = Log.uninitialized_msg
+        Log.Warn (Just (Derive.state_stack st)) msg
+    run_call expr = lazy_apply_toplevel state (dinfo, cinfo) expr
+
+    state = st {
+        Derive.state_stack =
+            Stack.add (Stack.Region pos (pos + Event.event_duration event))
+                (Derive.state_stack st)
+        , Derive.state_warp =
+            Score.place_warp start stretch (Derive.state_warp st)
+        }
+    cinfo = Derive.CallInfo prev_val
+        evt0 (map warp prev) (map warp next) ((block_end-start) / stretch)
+        (pos, Event.event_duration event) prev next
+    -- Derivation happens according to the extent of the note, not the
+    -- duration.  This is how negative duration events begin deriving
+    -- before arriving at the trigger.  Note generating calls that wish to
+    -- actually generate negative duration may check the event_duration and
+    -- reverse this by looking at a (start, end) of (1, 0) instead of
+    -- (0, 1).
+    (start, end) = (Track.event_min cur, Track.event_max cur)
+    -- A 0 dur event can't be normalized, so don't try.
+    stretch = if start == end then 1 else end - start
+    -- Warp all the events to be local to the warp established by 'place'.
+    -- TODO optimize the stretch=1 case and see if that affects performance
+    warp (pos, evt) =
+        ((pos-start) / stretch, Event.modify_duration (/stretch) evt)
+    evt0 = Event.modify_duration (/stretch) (snd cur)
+
+-- | Apply a toplevel expression.
+lazy_apply_toplevel :: (Derive.Derived d) => Derive.State -> Info d
+    -> TrackLang.Expr
+    -> (Either Derive.DeriveError (LEvent.LEvents d), [Log.Msg],
+        Derive.Collect, Derive.CacheState)
+lazy_apply_toplevel state info expr = case Seq.break_last expr of
+        (transform_calls, Just generator_call) -> run $
+            apply_transformer info transform_calls $
+                apply_generator info generator_call
+        _ -> (Right mempty, [err],
+            Derive.state_collect state, Derive.state_cache_state state)
+    where
+    run d = case Derive.run state d of
+        (result, state, logs) -> (result, logs, Derive.state_collect state,
+            Derive.state_cache_state state)
+    err = Log.uninitialized_msg
+        Log.Warn (Just (Derive.state_stack state))
+        "event with no calls at all (this shouldn't happen)"
 
 -- | Apply a toplevel expression.
 apply_toplevel :: (Derive.Derived derived) => Info derived -> TrackLang.Expr
-    -> Derive.Deriver derived
-apply_toplevel info expr = case Seq.break_last expr of
-    (transform_calls, Just generator_call) ->
-        apply_transformer info transform_calls $
-            apply_generator info generator_call
-    _ -> Derive.throw "event with no calls at all (this shouldn't happen)"
+    -> Derive.LogsDeriver derived
+apply_toplevel info expr = do
+    state <- Derive.get
+    let (res, logs, collect, cache) = lazy_apply_toplevel state info expr
+    Derive.modify $ \st -> st {
+        Derive.state_collect = collect, Derive.state_cache_state = cache }
+    return $ Derive.merge_logs res logs
 
 apply_generator :: (Derive.Derived derived) => Info derived -> TrackLang.Call
-    -> Derive.Deriver derived
+    -> Derive.LogsDeriver derived
 apply_generator (dinfo, cinfo) (TrackLang.Call call_id args) = do
     maybe_call <- info_lookup dinfo call_id
     (call, vals) <- case maybe_call of
@@ -367,6 +426,7 @@ apply_generator (dinfo, cinfo) (TrackLang.Call call_id args) = do
             Just block_id -> Derive.with_stack_block block_id
             Nothing -> Derive.with_stack_call (Derive.call_name call)
     with_stack $ case Derive.call_generator call of
+        -- Just (Derive.GeneratorCall gen _ _) -> gen args
         Just gen -> do
             cache <- Derive.gets Derive.state_cache_state
             stack <- Derive.gets Derive.state_stack
@@ -377,7 +437,7 @@ apply_generator (dinfo, cinfo) (TrackLang.Call call_id args) = do
             ++ Derive.call_name call
 
 apply_transformer :: (Derive.Derived derived) => Info derived -> TrackLang.Expr
-    -> Derive.Deriver derived -> Derive.Deriver derived
+    -> Derive.LogsDeriver derived -> Derive.LogsDeriver derived
 apply_transformer _ [] deriver = deriver
 apply_transformer info@(dinfo, cinfo) (TrackLang.Call call_id args : calls)
         deriver = do
@@ -433,15 +493,34 @@ fallback_call_id = TrackLang.Symbol ""
 c_block :: BlockId -> Derive.NoteCall
 c_block block_id = add_block $ Derive.caching_generator "block" $ \args ->
     if null (Derive.passed_vals args)
-        then block_call block_id
+        then d_block block_id
         else Derive.throw_arg_error "args for block call not implemented yet"
     where
     add_block call =
         call { Derive.call_generator = add <$> Derive.call_generator call }
         where add gcall = gcall { Derive.gcall_block = Just block_id }
 
-block_call :: BlockId -> Derive.EventDeriver
-block_call block_id = Derive.d_subderive (Derive.d_block block_id)
+d_block :: BlockId -> Derive.EventDeriver
+d_block block_id = do
+    -- The block id is put on the stack by 'gdep_block' before this is called.
+    ui_state <- Derive.get_ui_state
+    -- Do some error checking.  These are all caught later, but if I throw here
+    -- I can give more specific error msgs.
+    case Map.lookup block_id (State.state_blocks ui_state) of
+        Nothing -> Derive.throw "block_id not found"
+        _ -> return ()
+    -- Record a dependency on this block.
+    Derive.add_block_dep block_id
+    stack <- Derive.gets Derive.state_stack
+    -- Since there is no branching, any recursion will be endless.
+    when (Stack.Block block_id `elem` drop 1 (Stack.innermost stack)) $
+        Derive.throw "recursive block derivation"
+    state <- Derive.get
+    let rethrow exc = Derive.throw $ "lookup deriver for " ++ show block_id
+            ++ ": " ++ show exc
+    deriver <- either rethrow return
+        (Derive.state_lookup_deriver (Derive.state_constant state) block_id)
+    deriver
 
 -- | Given a block id, produce a call expression that will call that block.
 call_from_block_id :: BlockId -> TrackLang.Call
@@ -556,19 +635,23 @@ lookup_scopes (lookup:rest) call_id =
 
 -- * map score events
 
--- Functions here force a Deriver into its Score.Events and process them
+-- Functions here force a Deriver into its LEvent.LEvents and process them
 -- directly, and then repackage them as a Deriver.  This can accomplish
 -- concrete post-processing type effects but has the side-effect of collapsing
 -- the Deriver, which will no longer respond to the environment.
 
+-- Generators can mostly forget about LEvents and emit plain Events since
+-- 'Derive.generator' applies the fmap.  Unfortunately the story is not so
+-- simple for transformers.  Hopefully functions here can mostly hide LEvents
+-- from transformers.
 
--- | Reinstate warp behaviour on a list of events.  The name is from nyquist.
---
--- Only offset is implemented, not stretch or general warp.
-cue :: [Score.Event] -> Derive.EventDeriver
-cue events = do
-    offset <- Derive.now
-    return $ map (Score.move (+offset)) events
+-- | Head of an LEvent list.
+head :: Derive.EventStream d
+    -> (d -> Derive.EventStream d -> Derive.LogsDeriver d)
+    -> Derive.LogsDeriver d
+head [] _ = return []
+head (log@(LEvent.Log _) : rest) f = (log:) <$> head rest f
+head (LEvent.Event event : rest) f = f event rest
 
 -- | Map a function with state over events and lookup pitch and controls vals
 -- for each event.  Exceptions are not caught.
@@ -576,16 +659,29 @@ cue events = do
 -- TODO needs a length encoded vector to be safer.
 map_signals :: [TrackLang.Control] -> [TrackLang.PitchControl]
     -> ([Signal.Y] -> [Pitch.Degree] -> state -> Score.Event
-        -> Derive.Deriver (state, result))
-    -> state -> [Score.Event] -> Derive.Deriver (state, [result])
-map_signals controls pitch_controls f state events =
-    map_accuml_m go state events
+        -> Derive.Deriver ([Score.Event], state))
+    -> state -> Derive.Events -> Derive.Deriver ([Derive.Events], state)
+map_signals controls pitch_controls f state events = go state events
     where
-    go state event = do
+    go state [] = return ([], state)
+    go state (log@(LEvent.Log _) : rest) = do
+        (rest_vals, final_state) <- go state rest
+        return ([log] : rest_vals, final_state)
+    go state (LEvent.Event event : rest) = do
         let pos = Score.event_start event
         control_vals <- mapM (control_at pos) controls
         pitch_vals <- mapM (degree_at pos) pitch_controls
-        f control_vals pitch_vals state event
+        (val, next_state) <- f control_vals pitch_vals state event
+        (rest_vals, final_state) <- go next_state rest
+        return (map LEvent.Event val : rest_vals, final_state)
+
+-- | Reinstate warp behaviour on a list of events.  The name is from nyquist.
+--
+-- Only offset is implemented, not stretch or general warp.
+-- cue :: [Score.Event] -> Derive.EventDeriver
+-- cue events = do
+--     offset <- Derive.now
+--     return $ map (Score.move (+offset)) events
 
 {-
 What I would really like is:
