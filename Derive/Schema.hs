@@ -247,14 +247,18 @@ derive_tree :: BlockId -> State.TrackTreeMutes -> Derive.EventDeriver
 derive_tree block_id tree = do
     -- d_tempo sets up some stuff that every block needs, so add one if a block
     -- doesn't have at least one top level tempo.
-    let with_default_tempo = if has_tempo_track tree then id
-            else Derive.d_tempo block_id Nothing (Signal.constant 1)
+    let with_default_tempo = if has_nontempo_track tree
+            then Derive.d_tempo block_id Nothing (Signal.constant 1) else id
     with_default_tempo (derive_tracks block_id tree)
 
--- | Does this tree have a tempo track at the top level?
-has_tempo_track :: State.TrackTreeMutes -> Bool
-has_tempo_track = any $ \(Tree.Node (track, _) _) ->
-    TrackInfo.is_tempo_track (State.track_title track)
+-- | Does this tree have any non-tempo tracks at the top level?
+--
+-- To ensure that every track is associated with a TrackWarp, I can't have
+-- tracks that don't have a tempo track above them.  Those tracks implicitly
+-- have an id warp, so this just makes that explicit.
+has_nontempo_track :: State.TrackTreeMutes -> Bool
+has_nontempo_track = any $ \(Tree.Node (track, _) _) ->
+    not $ TrackInfo.is_tempo_track (State.track_title track)
 
 -- | Derive a set of \"top-level\" tracks and merge their results.
 derive_tracks :: BlockId -> State.TrackTreeMutes -> Derive.EventDeriver
