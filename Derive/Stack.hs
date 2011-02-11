@@ -2,6 +2,7 @@
 module Derive.Stack (
     Stack, empty, make, add, member, outermost, innermost
     , Frame(..)
+    , show_ui
 
     -- * more specialized utils
     , track_regions
@@ -50,7 +51,6 @@ outermost (Stack s) = reverse s
 innermost :: Stack -> [Frame]
 innermost (Stack s) = s
 
-
 data Frame =
     Block BlockId
     | Track TrackId
@@ -72,6 +72,9 @@ instance Pretty.Pretty Stack where
         f (Track tid) = show tid
         f (Region s e) = Pretty.pretty s ++ "--" ++ Pretty.pretty e
         f (Call call) = call
+
+show_ui :: Stack -> String
+show_ui = Seq.join ": " . map unparse_ui_frame . to_ui
 
 -- * more specialized utils
 

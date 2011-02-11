@@ -25,6 +25,7 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
+import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Perform.Signal as Signal
 
@@ -214,15 +215,26 @@ test_collect = do
     -- pprint (r_cache_collect cached)
     let [root, _parent] = r_cache_collect cached
     let tsig = Track.TrackSignal (Track.Control (Signal.signal [(0, 1)])) 0 1
+    let extract = second (fmap extract_collect)
+        extract_collect (Derive.Collect wmap tsigs ldep) =
+            (Seq.sort_on fst (map (first Stack.show_ui) (Map.toAscList wmap)),
+                tsigs, ldep)
+
     -- Wow, this is a hassle, but it's hard to figure out how to verify this
     -- otherwise.
-    equal root ("test/top * *", Just $
-        Derive.Collect
-            [ mk_twarp 0 1 "sub" ["sub.t0", "sub.t1"]
-            , mk_twarp 0 2 "top" ["top.t0"]
-            ]
-            (Map.fromList [(UiTest.tid "sub.t1", tsig)])
-            (mk_gdep ["top", "sub"]))
+    let tw start end bid = Left $ TrackWarp.TrackWarp
+            (start, end, Score.id_warp, UiTest.bid bid, Nothing)
+        track tid = Right (UiTest.tid tid)
+    equal (extract root) ("test/top * *", Just $
+        ( [ ("test/top * *", tw 0 2 "top")
+          , ("test/top test/top.t0 *", track "top.t0")
+          , ("test/top test/top.t0 0-1: test/sub * *", tw 0 1 "sub")
+          , ("test/top test/top.t0 0-1: test/sub test/sub.t0 *", track "sub.t0")
+          , ("test/top test/top.t0 0-1: test/sub test/sub.t1 *", track "sub.t1")
+          ]
+        , Map.fromList [(UiTest.tid "sub.t1", tsig)]
+        , mk_gdep ["top", "sub"]
+        ))
 
 -- If I modify a control in a certain place, say a pitch track, I don't want it
 -- to derive the whole control.  Then it will damage the whole control and
@@ -336,10 +348,6 @@ r_cache_deps result =
 
 mk_gdep :: [String] -> Derive.GeneratorDep
 mk_gdep = Derive.GeneratorDep . Set.fromList . map UiTest.bid
-
-mk_twarp :: RealTime -> RealTime -> String -> [String] -> Derive.TrackWarp
-mk_twarp start end block tracks = Derive.TrackWarp start end
-    (UiTest.bid block) (map UiTest.tid tracks) Score.id_warp
 
 r_cache_stacks = Map.keys . uncache . Derive.r_cache
 uncache (Derive.Cache cache) = cache

@@ -1,0 +1,121 @@
+{- | TrackWarps are collected throughout derivation each time there is a new
+    warp context.  By the end, they represent a complete mapping from ScoreTime
+    to RealTime and back again, and can be used to create a TempoFunction and
+    InverseTempoFunction, among other things.
+-}
+module Derive.TrackWarp where
+import qualified Data.List as List
+import qualified Data.Map as Map
+
+import Util.Control
+import qualified Util.Seq as Seq
+
+import Ui
+import qualified Ui.Id as Id
+import qualified Ui.Types as Types
+
+import qualified Derive.Stack as Stack
+import qualified Derive.Score as Score
+
+import qualified Perform.Transport as Transport
+import qualified Perform.Timestamp as Timestamp
+
+
+newtype TrackWarp =
+    -- | (start, dur, warp, block_id, track of tempo track if there is one)
+    TrackWarp (RealTime, RealTime, Score.Warp, BlockId, Maybe TrackId)
+    deriving (Eq, Show)
+
+-- | Each TrackWarp is collected at the Stack of the track it represents.
+-- A Left is a new TrackWarp and a Right is a track that uses the warp in
+-- the environment provided by its callers.  Later they will all be collected
+-- into a WarpCollection.
+--
+-- The reason I don't simply save the warps at every track is that many tracks
+-- share the same warp, and it's more efficient to consolidate them, yet I
+-- don't want to directly compare warp signals because they may be large or
+-- lazy.
+type WarpMap = Map.Map Stack.Stack (Either TrackWarp TrackId)
+type Frames = [Stack.Frame]
+
+-- | Each track warp is a warp indexed by the block and tracks it covers.
+-- These are used by the updater to figure out where the play position
+-- indicator is at a given point in real time.
+data WarpCollection = WarpCollection {
+    tw_start :: RealTime
+    , tw_end :: RealTime
+    , tw_block :: BlockId
+    , tw_tracks :: [TrackId]
+    , tw_warp :: Score.Warp
+    } deriving (Eq, Show)
+
+warp_collection :: WarpMap -> [WarpCollection]
+warp_collection = map convert . collect_warps
+
+convert :: (TrackWarp, [TrackId]) -> WarpCollection
+convert (TrackWarp (start, end, warp, block_id, maybe_track_id), tracks) =
+    WarpCollection start end block_id track_ids warp
+    where track_ids = maybe tracks (:tracks) maybe_track_id
+
+collect_warps :: WarpMap -> [(TrackWarp, [TrackId])]
+    -- TODO The first result will be the dummy TrackWarp with parentless
+    -- tracks as children, which shouldn't happen.  Warn about them anyway?
+collect_warps wmap = drop 1 $ map drop_stack $ collect [] dummy_tw assocs
+    where
+    assocs = Seq.sort_on fst $ map (first Stack.outermost) $ Map.assocs wmap
+    drop_stack (_, tw, tracks) = (tw, tracks)
+    dummy_tw = TrackWarp (0, 0, Score.id_warp, no_block, Nothing)
+    no_block = Types.BlockId (Id.global "_no_block_")
+
+-- | Group a list of stacks into a @(stack, parent, children)@ triples.
+-- A Left is a parent, and will collect the Rights prefixed by its stack.
+collect :: Frames -> a -> [(Frames, Either a b)]
+    -> [(Frames, a, [b])] -- ^ [(
+collect prefix a stacks = (prefix, a, bs)
+    : concat [collect pref sub_a substacks | (sub_a, pref, substacks) <- subs]
+    where
+    (subs, bs) = Seq.partition_either (split stacks)
+    split [] = []
+    split ((stack, Left a) : rest) = Left (a, stack, substacks) : split rest2
+        where (substacks, rest2) = span ((stack `List.isPrefixOf`) . fst) rest
+    split ((_, Right b) : rest) = Right b : split rest
+
+
+-- * functions on WarpCollection
+
+tempo_func :: [WarpCollection] -> Transport.TempoFunction
+tempo_func track_warps block_id track_id pos =
+    map (Score.warp_pos pos) warps
+    where
+    warps = [tw_warp tw | tw <- track_warps, tw_block tw == block_id,
+        track_id `elem` tw_tracks tw]
+
+-- | If a block is called in multiple places, a score time on it may occur at
+-- multiple real times.  Find the Warp which is closest to a given RealTime, or
+-- the ID warp if there are none.
+--
+-- Pick the real time from the given selection which is
+-- closest to the real time of the selection on the root block.
+--
+-- Return the first real time if there's no root or it doesn't have
+-- a selection.
+--
+-- This can't use Transport.TempoFunction because I need to pick the
+-- appropriate Warp and then look up multiple ScoreTimes in it.
+closest_warp :: [WarpCollection] -> Transport.ClosestWarpFunction
+closest_warp track_warps block_id track_id pos = maybe Score.id_warp id $
+    fmap (tw_warp . snd) (Seq.minimum_on (abs . subtract pos . fst) annotated)
+    where
+    annotated = zip (map tw_start warps) warps
+    warps = [tw | tw <- track_warps, tw_block tw == block_id,
+        track_id `elem` tw_tracks tw]
+
+inverse_tempo_func :: [WarpCollection] -> Transport.InverseTempoFunction
+inverse_tempo_func track_warps ts = do
+    (block_id, track_ids, Just pos) <- track_pos
+    return (block_id, [(track_id, pos) | track_id <- track_ids])
+    where
+    pos = Timestamp.to_real_time ts
+    track_pos = [(tw_block tw, tw_tracks tw, unwarp ts (tw_warp tw)) |
+            tw <- track_warps, tw_start tw <= pos && pos < tw_end tw]
+    unwarp ts warp = Score.unwarp_pos (Timestamp.to_real_time ts) warp

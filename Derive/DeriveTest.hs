@@ -73,7 +73,7 @@ extract_run f (Right (val, _, msgs)) = Right $ trace_logs msgs (f val)
 
 default_constant ui_state =
     Derive.initial_constant ui_state (default_lookup_deriver ui_state)
-        default_lookup_scale (const Nothing) False
+        default_lookup_scale (const Nothing)
 
 eval :: State.State -> Derive.Deriver a -> Either String a
 eval ui_state m = extract_run id (run ui_state m)

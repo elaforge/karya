@@ -1,6 +1,10 @@
 module Derive.Lazy_test where
+import Control.Monad
+import qualified Data.List as List
+import qualified Data.Map as Map
 import Util.Control
 import Util.Test
+import qualified Util.Seq as Seq
 
 import Ui
 import qualified Ui.State as State
@@ -11,6 +15,8 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Note as Note
 import qualified Derive.Score as Score
+import qualified Derive.Stack as Stack
+import qualified Derive.TrackWarp as TrackWarp
 
 
 bid = UiTest.default_block_id

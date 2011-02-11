@@ -20,6 +20,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
+import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
@@ -427,7 +428,7 @@ test_tempo_funcs_multiple_subblocks = do
             , ("sub", [(">i", [(0, 1, "")])])
             ]
     equal (Derive.r_tempo res (UiTest.bid "sub") (UiTest.tid "sub.t0") 0.5)
-        [1.5, 0.5]
+        [0.5, 1.5]
 
 test_fractional_pitch = do
     -- A pitch that requires pitch bends should distribute across multiple
@@ -501,11 +502,12 @@ test_control = do
 
 test_make_inverse_tempo_func = do
     -- This is actually also tested in test_subderive.
+    -- TODO and it belongs in TrackWarp_test now
     let track_id = Types.TrackId (UiTest.mkid "warp")
         warp = Derive.tempo_to_warp (Signal.constant 2)
-        track_warps =
-            [Derive.TrackWarp 0 2 UiTest.default_block_id [track_id] warp]
-    let f = Derive.make_inverse_tempo_func track_warps
+        track_warps = [TrackWarp.WarpCollection
+                0 2 UiTest.default_block_id [track_id] warp]
+    let f = TrackWarp.inverse_tempo_func track_warps
         with_block pos = [(UiTest.default_block_id, [(track_id, pos)])]
     -- Fast tempo means ScoreTime passes quickly relative to Timestamps.
     -- Second 2 at tempo 2 is trackpos 4, which is past the end of the block.

@@ -51,24 +51,19 @@ CURRENT
       efficient?
     * update Deriver_test to use DeriveTest.extract_run
     * rearrange Perform.Midi.Perform
-    - fix TrackWarp monoid, write test to demonstrate
-      TrackWarps are messed up, since d_merge and the other collect merging
-      functions cause 'start_new_warp' and 'add_track_warp' to get called
-      out of order.  It's brittle anyway, come up with a better way.
-      If I push TrackWarps with their stack, and a bool for tempo tracks,
-      I should be able to group the warps by containment, regardless of
-      order of evaluation.
+    * fix TrackWarp monoid, write test to demonstrate
     - see if I can make signal tracks happen lazy, or at least in order, by
-      breaking state dependency
-    - see about not threading Collect and CacheState for the track derive,
-      and for doing it in parallel and mconcat.  Collect is just LocalDep,
-      which is just (Set BlockId)
+      not threading Collect and CacheState.  Collect is just LocalDep, which is
+      just (Set BlockId)
 
     lazy signals:
       - see if I can make control tracks truly lazy by making signals lazy
       - reimplement various functions like integrate and resample, bsearches
         must be linear
       - make linear searches faster for e.g. warp by dropping warp in the past
+    - Performance evaluator should strip out the logs and replace the chunk
+      with logs filtered out, perhaps even compact into an unboxed type.
+      So the Cache must be mutable.
 
     - split writable CacheState from readonly?
 

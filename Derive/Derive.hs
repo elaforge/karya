@@ -68,13 +68,13 @@ import qualified Ui.Types as Types
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
 import qualified Perform.Pitch as Pitch
-import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Transport as Transport
 
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
+import qualified Derive.TrackWarp as TrackWarp
 
 
 -- * DeriveT
@@ -252,11 +252,6 @@ data Constant = Constant {
     , state_lookup_scale :: LookupScale
     -- | Get the calls that should be in scope with a certain instrument.
     , state_instrument_calls :: Score.Instrument -> Maybe InstrumentCalls
-    -- | This is set if the derivation is for a signal deriver.  Signal
-    -- derivers skip all special tempo treatment.  Ultimately, this is needed
-    -- because of the 'add_track_warp' hack.  It might be 'add_track_warp' is
-    -- too error-prone to allow to live...
-    , state_ignore_tempo :: Bool
     }
 
 -- | Some ornaments only apply to a particular instrument, so each instrument
@@ -271,16 +266,14 @@ instance Show InstrumentCalls where
         ++ "))"
 
 initial_constant :: State.State -> LookupDeriver -> LookupScale
-    -> (Score.Instrument -> Maybe InstrumentCalls) -> Bool -> Constant
-initial_constant ui_state lookup_deriver lookup_scale inst_calls ignore_tempo =
-    Constant
+    -> (Score.Instrument -> Maybe InstrumentCalls) -> Constant
+initial_constant ui_state lookup_deriver lookup_scale inst_calls = Constant
     { state_ui = ui_state
     , state_lookup_deriver = lookup_deriver
     , state_control_op_map = default_control_op_map
     , state_pitch_op_map = default_pitch_op_map
     , state_lookup_scale = lookup_scale
     , state_instrument_calls = inst_calls
-    , state_ignore_tempo = ignore_tempo
     }
 
 -- | Initial control environment.
@@ -302,7 +295,7 @@ data Collect = Collect {
     -- | Remember the warp signal for each track.  A warp usually applies to
     -- a set of tracks, so remembering them together will make the updater more
     -- efficient when it inverts them to get playback position.
-    collect_track_warps :: [TrackWarp]
+    collect_warp_map :: TrackWarp.WarpMap
     , collect_track_signals :: Track.TrackSignals
     -- | Similar to 'state_local_damage', this is how a call records its
     -- dependencies.  After evaluation of a deriver, this will contain the
@@ -554,17 +547,6 @@ make_calls = Map.fromList . map (first TrackLang.Symbol)
 -- the appropriate deriver.  It's created by 'Schema.lookup_deriver'.
 type LookupDeriver = BlockId -> Either State.StateError EventDeriver
 
--- | Each track warp is a warp indexed by the block and tracks it covers.
--- These are used by the updater to figure out where the play position
--- indicator is at a given point in real time.
-data TrackWarp = TrackWarp {
-    tw_start :: RealTime
-    , tw_end :: RealTime
-    , tw_block :: BlockId
-    , tw_tracks :: [TrackId]
-    , tw_warp :: Score.Warp
-    } deriving (Eq, Show)
-
 instance (Monad m) => Log.LogMonad (DeriveT m) where
     write = DeriveT . lift . lift . Log.write
     initialize_msg msg = do
@@ -620,12 +602,12 @@ derive constant scopes cache damage environ deriver =
     (result, state, logs) =
         run (initial_state scopes clean_cache damage environ constant) deriver
     clean_cache = clear_damage damage cache
-    track_warps = collect_track_warps (state_collect state)
-    tempo_func = make_tempo_func track_warps
-    closest_func = make_closest_warp track_warps
-    inv_tempo_func = make_inverse_tempo_func track_warps
+    warps = TrackWarp.warp_collection (collect_warp_map (state_collect state))
+    tempo_func = TrackWarp.tempo_func warps
+    closest_func = TrackWarp.closest_warp warps
+    inv_tempo_func = TrackWarp.inverse_tempo_func warps
     event_damage = state_event_damage (state_cache_state state)
-        <> score_to_event_damage track_warps damage
+        <> score_to_event_damage warps damage
 
 -- | Convert ScoreDamage into EventDamage.
 --
@@ -643,61 +625,27 @@ derive constant scopes cache damage environ deriver =
 -- TODO A way to do this right would be to look at the previous score events
 -- and take a diff, but at the moment I can't think of how to do that
 -- efficiently.
-score_to_event_damage :: [TrackWarp] -> ScoreDamage -> EventDamage
-score_to_event_damage track_warps score =
+score_to_event_damage :: [TrackWarp.WarpCollection] -> ScoreDamage
+    -> EventDamage
+score_to_event_damage warpcs score =
     EventDamage $ Monoid.mconcat (block_ranges ++ track_ranges)
     where
     block_ranges = map block_damage (Set.elems (sdamage_blocks score))
     block_damage block_id = Ranges.ranges
-        [(tw_start tw, tw_end tw) | tw <- track_warps, tw_block tw == block_id]
+        [(TrackWarp.tw_start tw, TrackWarp.tw_end tw)
+            | tw <- warpcs, TrackWarp.tw_block tw == block_id]
 
     track_ranges = map track_damage (Map.assocs (sdamage_tracks score))
     track_damage (track_id, ranges) =
         Ranges.ranges $ case Ranges.extract ranges of
-            Nothing -> [(tw_start tw, tw_end tw)
-                | tw <- track_warps, track_id `elem` tw_tracks tw]
+            Nothing -> [(TrackWarp.tw_start tw, TrackWarp.tw_end tw)
+                | tw <- warpcs, track_id `elem` TrackWarp.tw_tracks tw]
             Just pairs -> concatMap warp pairs
         where
         warp (start, end) =
             [(Score.warp_pos start w, Score.warp_pos end w) | w <- warps]
-        warps = [tw_warp tw | tw <- track_warps, track_id `elem` tw_tracks tw]
-
-make_tempo_func :: [TrackWarp] -> Transport.TempoFunction
-make_tempo_func track_warps block_id track_id pos =
-    map (Score.warp_pos pos) warps
-    where
-    warps = [tw_warp tw | tw <- track_warps, tw_block tw == block_id,
-        track_id `elem` tw_tracks tw]
-
--- | If a block is called in multiple places, a score time on it may occur at
--- multiple real times.  Find the Warp which is closest to a given RealTime, or
--- the ID warp if there are none.
---
--- Pick the real time from the given selection which is
--- closest to the real time of the selection on the root block.
---
--- Return the first real time if there's no root or it doesn't have
--- a selection.
---
--- This can't use Transport.TempoFunction because I need to pick the
--- appropriate Warp and then look up multiple ScoreTimes in it.
-make_closest_warp :: [TrackWarp] -> Transport.ClosestWarpFunction
-make_closest_warp track_warps block_id track_id pos = maybe Score.id_warp id $
-    fmap (tw_warp . snd) (Seq.minimum_on (abs . subtract pos . fst) annotated)
-    where
-    annotated = zip (map tw_start warps) warps
-    warps = [tw | tw <- track_warps, tw_block tw == block_id,
-        track_id `elem` tw_tracks tw]
-
-make_inverse_tempo_func :: [TrackWarp] -> Transport.InverseTempoFunction
-make_inverse_tempo_func track_warps ts = do
-    (block_id, track_ids, Just pos) <- track_pos
-    return (block_id, [(track_id, pos) | track_id <- track_ids])
-    where
-    pos = Timestamp.to_real_time ts
-    track_pos = [(tw_block tw, tw_tracks tw, unwarp ts (tw_warp tw)) |
-            tw <- track_warps, tw_start tw <= pos && pos < tw_end tw]
-    unwarp ts warp = Score.unwarp_pos (Timestamp.to_real_time ts) warp
+        warps = [TrackWarp.tw_warp tw | tw <- warpcs,
+            track_id `elem` TrackWarp.tw_tracks tw]
 
 modify :: (State -> State) -> Deriver ()
 modify f = (DeriveT . lift) $ do
@@ -1143,45 +1091,27 @@ with_stack frame = local
 
 -- ** track warps
 
--- | This doesn't actually take the Warp because it adds this track to the
--- existing \"open\" warp.  This is a hack to assign the same warp to many
--- tracks without having to compare warps to each other, which may be expensive
--- since they can be complicated signals.  Since many tracks should share the
--- same warp, I think grouping them should be a performance win for the
--- playback updater, but I don't know if it's necessary.
---
--- The hack should work as long as 'start_new_warp' is called when the warp is
--- set ('d_tempo' does this).  Otherwise, tracks will be grouped with the wrong
--- tempo, which will cause the playback cursor to not track properly.
 add_track_warp :: TrackId -> Deriver ()
 add_track_warp track_id = do
-    block_id <- get_current_block_id
-    track_warps <- gets (collect_track_warps . state_collect)
-    case track_warps of
-            -- This happens if the initial block doesn't have a tempo track.
-        [] -> start_new_warp >> add_track_warp track_id
-        (tw:tws)
-            | tw_block tw == block_id -> do
-                let new_tws = tw { tw_tracks = track_id : tw_tracks tw } : tws
-                modify_collect $ \st -> st { collect_track_warps = new_tws }
-            -- start_new_warp wasn't called, either by accident or because
-            -- this block doesn't have a tempo track.
-            | otherwise -> start_new_warp >> add_track_warp track_id
+    stack <- gets state_stack
+    modify_collect $ \st -> st { collect_warp_map =
+        Map.insert stack (Right track_id) (collect_warp_map st) }
 
--- | Start a new track warp for the current block_id, as in the stack.
+-- | Start a new track warp for the current block_id.
 --
 -- This must be called for each block, and it must be called after the tempo is
 -- warped for that block so it can install the new warp.
-start_new_warp :: Deriver ()
-start_new_warp = do
+add_new_track_warp :: Maybe TrackId -> Deriver ()
+add_new_track_warp track_id = do
+    stack <- gets state_stack
     block_id <- get_current_block_id
     start <- now
     time_end <- get_block_dur block_id
     end <- score_to_real time_end
     warp <- gets state_warp
-    modify_collect $ \st ->
-        let tw = TrackWarp start end block_id [] warp
-        in st { collect_track_warps = tw : collect_track_warps st }
+    let tw = Left $ TrackWarp.TrackWarp (start, end, warp, block_id, track_id)
+    modify_collect $ \st -> st { collect_warp_map =
+        Map.insert stack tw (collect_warp_map st) }
 
 -- * basic derivers
 
@@ -1257,22 +1187,21 @@ d_control_at shift deriver = do
 
 -- | Warp a block with the given deriver with the given signal.
 --
--- The track_id passed so that the track that emitted the signal can be marked
--- as having the tempo that it emits, even though it's really derived in real
--- time, so the tempo track's play position will move at the tempo track's
--- tempo.
+-- The track_id is needed to record this track in TrackWarps.  It's optional
+-- because, if there's no explicit tempo track, there's an implicit tempo
+-- around the whole block, but the implicit one doesn't have a track of course.
 --
 -- The block_id is used to stretch the block to a length of 1, regardless of
 -- the tempo.  This means that when the calling block stretches it to the
--- duration of the event it winds up being the right length.  Obviously, this
--- is skipped for the top level block.
+-- duration of the event it winds up being the right length.  This is skipped
+-- for the top level block or all pieces would last exactly 1 second.
+-- This is another reason every block must have a 'd_tempo' at the top.
+--
+-- d_block might seem like a better place to do this, but it doesn't have the
+-- local warp yet.
 --
 -- TODO relying on the stack seems a little implicit, would it be better
 -- to pass Maybe BlockId or Maybe ScoreTime?
---
--- d_block seems like a better place to do this, but I don't have a local warp
--- yet.  This relies on every block having a d_tempo at the top, but
--- 'add_track_warp' already relies on that so Schema.compile ensures it.
 --
 -- TODO what to do about blocks with multiple tempo tracks?  I think it would
 -- be best to stretch the block to the first one.  I could break out
@@ -1291,8 +1220,7 @@ d_tempo block_id maybe_track_id signal deriver = do
                 throw $ "can't derive a block with zero duration"
             return (d_stretch (1 / Types.real_to_score real_dur))
     stretch_to_1 $ d_warp warp $ do
-        start_new_warp
-        when_just maybe_track_id add_track_warp
+        add_new_track_warp maybe_track_id
         deriver
 
 is_root_block :: Deriver Bool
@@ -1334,10 +1262,7 @@ tempo_to_warp sig
 -- with this.  It doesn't actually affect the warp since that's already in
 -- the environment.
 track_setup :: TrackId -> Deriver d -> Deriver d
-track_setup track_id deriver = do
-    ignore_tempo <- gets (state_ignore_tempo . state_constant)
-    unless ignore_tempo (add_track_warp track_id)
-    deriver
+track_setup track_id deriver = add_track_warp track_id >> deriver
 
 -- | This is a version of 'track_setup' for the tempo track.  It doesn't record
 -- the track warp, see 'd_tempo' for why.
