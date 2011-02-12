@@ -32,7 +32,7 @@ interpret toks = case toks of
 
         -- Called by the browser.
         ["load_instrument", str] | Just arg <- val str ->
-            action $ LInst.load_instrument arg
+            action $ LInst.load arg
 
         -- Called manually via the REPL.
 

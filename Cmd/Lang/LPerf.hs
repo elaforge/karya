@@ -96,17 +96,19 @@ derive_tempo block_id = do
 
 -- * perform
 
+-- | Derive all the way to MIDI.
+perform :: BlockId -> Cmd.CmdL Midi.Perform.MidiEvents
+perform block_id = do
+    perf <- PlayUtil.cached_perform block_id =<< PlayUtil.cached_derive block_id
+    return $ Midi.Cache.cache_messages (Cmd.perf_midi_cache perf)
+
+-- | Derive only to Perform.Events.
 derive_to_perf :: BlockId -> Cmd.CmdL [LEvent.LEvent Midi.Perform.Event]
 derive_to_perf block_id = do
     events <- derive_to_events block_id
     lookup_scale <- Cmd.get_lookup_scale
     lookup_inst <- Cmd.get_lookup_midi_instrument
     return $ Midi.Convert.convert lookup_scale lookup_inst events
-
-cached_perform :: BlockId -> Cmd.CmdL Midi.Perform.MidiEvents
-cached_perform block_id = do
-    perf <- PlayUtil.cached_perform block_id =<< PlayUtil.cached_derive block_id
-    return $ Midi.Cache.cache_messages (Cmd.perf_midi_cache perf)
 
 perform_selection :: Cmd.CmdL Midi.Perform.MidiEvents
 perform_selection = do

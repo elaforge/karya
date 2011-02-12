@@ -1,5 +1,6 @@
 -- | REPL Cmds dealing with instruments and MIDI config.
 module Cmd.Lang.LInst where
+import Prelude hiding (lookup)
 import Control.Monad
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -26,11 +27,38 @@ import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.MidiDb as MidiDb
 
 
--- | Called from the browser.
-lookup_instrument :: String -> Cmd.CmdL (Maybe Instrument.Instrument)
-lookup_instrument inst_name = do
-    lookup_inst <- Cmd.get_lookup_midi_instrument
-    return $ fmap fst $ lookup_inst Score.no_attrs (Score.Instrument inst_name)
+-- * interactive
+
+-- | Send AllNotesOff msgs to all inst addr.
+all_notes_off :: Cmd.CmdL ()
+all_notes_off = do
+    config <- State.get_midi_config
+    let addrs = Seq.unique $ concat $
+            Map.elems (Instrument.config_alloc config)
+    let notes_off chan = Midi.ChannelMessage chan Midi.AllNotesOff
+    sequence_ [Cmd.midi dev (notes_off chan) | (dev, chan) <- addrs]
+
+lookup :: String -> Cmd.CmdL (Maybe MidiDb.Info)
+lookup = Cmd.lookup_instrument_info . Score.Instrument
+
+-- | Deallocate the old allocation, and set it to the new one.  Meant for
+-- interactive use.
+realloc :: String -> String -> [Midi.Channel] -> Cmd.CmdL ()
+realloc inst_name wdev chans = do
+    let inst = Score.Instrument inst_name
+    dealloc_instrument inst
+    alloc_instrument inst [(Midi.WriteDevice wdev, c) | c <- chans]
+
+dealloc :: String -> Cmd.CmdL ()
+dealloc = dealloc_instrument . Score.Instrument
+
+alloc :: String -> [Midi.Channel] -> Cmd.CmdL ()
+alloc inst_name chans = do
+    let inst = Score.Instrument inst_name
+    wdev <- maybe (Cmd.throw $ "inst not in db: " ++ Pretty.pretty inst) return
+        =<< device_of inst
+    alloc_instrument inst [(wdev, c) | c <- chans]
+
 
 inst_info :: String -> Cmd.CmdL String
 inst_info inst_name = Info.inst_info (Score.Instrument inst_name)
@@ -41,6 +69,7 @@ all_inst_info = do
     info <- mapM Info.inst_info (Map.keys (Instrument.config_alloc config))
     return $ show (length info) ++ " instruments:\n" ++ Seq.join "\n\n" info
 
+-- TODO this should probably go in LTrack or something
 track_info :: BlockId -> TrackNum
     -> Cmd.CmdL (Schema.TrackType, Maybe Score.Instrument, Pitch.ScaleId)
 track_info block_id tracknum = do
@@ -66,8 +95,8 @@ track_info block_id tracknum = do
 -- For example, typing a new instrument in a track title should only complain
 -- if there is no allocation, but not necessarily deallocate the replaced
 -- instrument or send midi init.
-load_instrument :: String -> Cmd.CmdL ()
-load_instrument inst_name = do
+load :: String -> Cmd.CmdL ()
+load inst_name = do
     let inst = Score.Instrument inst_name
     block_id <- Cmd.get_focused_block
     tracknum <- Cmd.require =<< Cmd.get_insert_tracknum
@@ -80,7 +109,7 @@ load_instrument inst_name = do
     alloc_instrument inst [(dev, chan)]
 
     State.set_track_title track_id (TrackInfo.instrument_to_title inst)
-    send_instrument_init inst chan
+    initialize inst chan
     Log.notice $ "deallocating " ++ show old_inst ++ ", allocating "
         ++ show (dev, chan) ++ " to " ++ show inst
     where
@@ -88,6 +117,9 @@ load_instrument inst_name = do
         -- maybe also accept control if there is just one inst
         -- but then I'd need some way to know the track_id
     inst_type _ = Nothing
+
+
+-- * implementation
 
 find_chan_for :: Midi.WriteDevice -> Cmd.CmdL Midi.Channel
 find_chan_for dev = do
@@ -97,8 +129,8 @@ find_chan_for dev = do
     let match = fmap snd $ List.find (not . (`elem` taken)) addrs
     Cmd.require_msg ("couldn't find free channel for " ++ show dev) match
 
-send_instrument_init :: Score.Instrument -> Midi.Channel -> Cmd.CmdL ()
-send_instrument_init inst chan = do
+initialize :: Score.Instrument -> Midi.Channel -> Cmd.CmdL ()
+initialize inst chan = do
     info <- Cmd.require_msg ("inst not found: " ++ show inst)
         =<< Cmd.lookup_instrument_info inst
     let init = Instrument.patch_initialize (MidiDb.info_patch info)
@@ -107,8 +139,6 @@ send_instrument_init inst chan = do
         (Instrument.synth_device (MidiDb.info_synth info))
     send_initialization init inst dev chan
 
--- | This feels like it should go in another module... Cmd.Instrument?
--- I have too many things called Instrument!
 send_initialization :: Instrument.InitializePatch
     -> Score.Instrument -> Midi.WriteDevice -> Midi.Channel -> Cmd.CmdL ()
 send_initialization init inst dev chan = case init of
@@ -133,14 +163,6 @@ dealloc_instrument inst = do
     let alloc = Instrument.config_alloc config
     State.set_midi_config $ config
         { Instrument.config_alloc = Map.delete inst alloc }
-
--- | Deallocate the old allocation, and set it to the new one.  Meant for
--- interactive use.
-realloc_instrument :: String -> String -> [Midi.Channel] -> Cmd.CmdL ()
-realloc_instrument inst_name wdev chans = do
-    let inst = Score.Instrument inst_name
-    dealloc_instrument inst
-    alloc_instrument inst [(Midi.WriteDevice wdev, c) | c <- chans]
 
 schema_instruments :: BlockId -> Cmd.CmdL [Score.Instrument]
 schema_instruments block_id = do
@@ -178,12 +200,3 @@ device_of inst = do
 
 controls_of :: Score.Instrument -> [Control.Control]
 controls_of _inst = undefined -- TODO
-
--- | Send AllNotesOff msgs to all inst addr.
-all_notes_off :: Cmd.CmdL ()
-all_notes_off = do
-    config <- State.get_midi_config
-    let addrs = Seq.unique $ concat $
-            Map.elems (Instrument.config_alloc config)
-    let notes_off chan = Midi.ChannelMessage chan Midi.AllNotesOff
-    sequence_ [Cmd.midi dev (notes_off chan) | (dev, chan) <- addrs]

@@ -383,7 +383,7 @@ sel_to_real = do
 
 -- | Called from the browser.
 load_instrument :: String -> Cmd.CmdL ()
-load_instrument = LInst.load_instrument
+load_instrument = LInst.load
 
 -- * util
 
