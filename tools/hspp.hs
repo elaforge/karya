@@ -106,7 +106,7 @@ find_macro macros func_name mod token
     mod_to_token mod sym
         | null qualification = sym
         | otherwise = qualification ++ "." ++ sym
-        where qualification = Seq.mlast "" id (Seq.split "." mod)
+        where qualification = maybe "" id $ Seq.last (Seq.split "." mod)
 
 fn_to_module :: FilePath -> String
 fn_to_module = map repl . FilePath.dropExtension
