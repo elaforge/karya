@@ -274,15 +274,22 @@ run = Logger.run . run_log_t
 
 -- * LazyLogT
 
-newtype LazyLogT m a = LazyLogT (Writer.WriterT [Msg] m a)
+type Msgs = AppendList.AppendList Msg
+
+empty_msgs :: Msgs
+empty_msgs = AppendList.empty
+
+newtype LazyLogT m a = LazyLogT (Writer.WriterT Msgs m a)
     deriving (Functor, Monad, Trans.MonadIO, Trans.MonadTrans,
         Error.MonadError e)
 
 instance (Monad m) => LogMonad (LazyLogT m) where
-    write = LazyLogT . Writer.tell . (:[])
+    write = LazyLogT . Writer.tell . AppendList.singleton
 
 run_lazy :: (Monad m) => LazyLogT m a -> m (a, [Msg])
-run_lazy (LazyLogT m) = Writer.runWriterT m
+run_lazy (LazyLogT m) = do
+    (a, msgs) <- Writer.runWriterT m
+    return (a, AppendList.to_list msgs)
 
 -- * serialize
 
