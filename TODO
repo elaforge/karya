@@ -107,12 +107,6 @@ CURRENT
       - transformers: simple nested score with a couple of transformers over
         the entire thing
 
-  - write down tabuh telu
-  - create simple reaktor patch for pitch control, add melody part to longgoran
-  - hack up silverwood to separate pitch bend from pitch change, midi pitch
-    bend should have no embouchure effects, and there should be a separate cc
-    that handles that.
-
   - test sending mtc to reapaer
     also test some mmc commands.  How does reaper support control surfaces?
 
@@ -311,7 +305,7 @@ bugs:
   - #(poke Mispeled, field) fieldp field results in compiler bus error
   - keymap collisions are logged twice
   - Create.rename_project loses the merged tracks
-  - tracks with different tempos play correctly, but playback follows tempo
+  * tracks with different tempos play correctly, but playback follows tempo
   - bizarre hint importing requirements in Cmd.LanguageEnviron
   * track down ghc rts crashes, assertion failure
     - make a repro case if ghc guys want it
@@ -366,11 +360,7 @@ performance:
     - cache track cmds for each track, update when the track title or skeleton
       changes
   Derive
-    - lazy derivation
-      Return vals in a Writer.  That way I don't have to check for an exception
-      until I get done with the vals.
-      But without lazy signals, I don't think this is very useful.
-      Maybe this could even help with the garbage?
+    * lazy derivation
     - lazy signals
       - check out 'at' and 'bsearch' occurrances and see if they can use tails
       - There are lots of lookups in the tempo map
@@ -402,13 +392,12 @@ performance:
     - at_linear is called a lot by compose, by compose_warp, by d_warp
       can I make this more efficient?
 
-    - possibly put/get/modify is too lazy?
     - maybe split Derive.State into dynamic and static portions?
     - or maybe it's the control deriver creating a huge list of signal
       chunks, which is then all forced at once since merge needs them all.
     - to control lazy evaluation, emit log msg every n sec of derivation
     - Parallelize derivation with strategies.  Can I spark subderivations?
-    - switch to attoparsec for parsing
+    * switch to attoparsec for parsing
   Perform
     - use a lazy storeable vector for [Score.Event] and [Midi.Message] to save
       memory?  If I make Messages a storable vector, I'd have to hash the wdev
@@ -1040,8 +1029,6 @@ Midi:
     - display widget
 
 misc ideas:
-  - should be a documented extensible way to add new track types without
-    modifying core ADTs
   - Staff notation represents chords well, but tracks don't.  Think of a more
     compact notation.
   - Staff notation output via lilypond?  This can be implemented as another

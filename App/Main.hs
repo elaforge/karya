@@ -113,11 +113,18 @@ write_device_map :: Map.Map Midi.WriteDevice Midi.WriteDevice
 write_device_map = mkmap Midi.WriteDevice
     [ ("fm8", iac 1)
     , ("ptq", iac 1)
-    , ("iac1", iac 1)
+
+    -- Generic names for loopback ports.  Since it looks like so many
+    -- softsynths will just sit on a loopback, I might as well assign that
+    -- explicitly.
+    , ("loop1", iac 1)
+    , ("loop2", iac 2)
+    , ("loop3", iac 3)
+    , ("loop4", iac 4)
     , ("z1", tapco 1)
     , ("vl1", tapco 2)
     , ("morpheus", tapco 2)
-    , ("pc_2496", tapco 3)
+    , ("pc2496", tapco 3)
     , ("capybara", tapco 4)
     ]
 
@@ -131,7 +138,7 @@ read_device_map = mkmap Midi.ReadDevice
 
 read_devices :: Set.Set Midi.ReadDevice
 read_devices = Set.fromList $ map Midi.ReadDevice $
-    [ "USB Oxygen 8 v2"
+    [ "Oxygen USB Oxygen 8 v2"
     , "EDIROL UA-25"
     , "828mk2 MIDI Port"
     ] ++ map tapco [1..4]

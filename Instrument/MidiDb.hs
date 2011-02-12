@@ -145,7 +145,7 @@ data Info = Info {
     info_synth :: Instrument.Synth
     , info_patch :: Instrument.Patch
     , info_inst_calls :: Derive.InstrumentCalls
-    }
+    } deriving (Show)
 
 lookup_midi :: MidiDb -> LookupMidiInstrument
 lookup_midi midi_db attrs inst = case lookup_instrument midi_db inst of
