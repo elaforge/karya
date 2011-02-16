@@ -1,0 +1,203 @@
+Documentation for caching system:
+
+The goal is to regenerate a performance quickly after a modification.  I do
+this with a cache, or rather, three caches: generator cache, transform cache,
+and midi cache.
+
+    Generator Cache
+
+'Derive.ScoreDamage'
+
+The process starts with the user making a change to the score.  The editing
+functions in Ui.State record 'Ui.Update.Update's that specify what was changed.
+The Updates go off to the UI diff to update the UI, but are also used by
+'Derive.Cache.score_damage' to construct a 'Derive.ScoreDamage'.
+
+ScoreDamage has damaged tracks, which is the track IDs and the damaged range on
+them.  It has damaged blocks, which means an entire block is damaged, say by
+soloing a track or changing the block skeleton.  It also has damaged
+track_blocks, which are derived from the damaged tracks so the generator cache
+can easily check if there is some damage in a track the block contains, rather
+than the entire block itself being damaged.
+
+Since a block may exist in multiple Performances, being performed relative to
+different roots, 'Cmd.Performance.insert_score_damage', at the end of the
+responder loop, will mappend the damage from this responder cycle into all
+performances.  When it comes time to derive a root (which is also kicked off by
+"Cmd.Performance"), the ScoreDamage will be part of the initial Derive.State.
+It will remain constant over the derivation.
+
+I'll get back to the derivation, but first a description of 'Derive.Cache'
+itself.
+
+The score is a series of calls, which themselves may make other calls.  The
+generator cache effectively memoizes some of those calls.  Since there are no
+loops, each occurrance of a call has a unique stack, and the cache is a Map
+from 'Derive.Stack.Stack' to 'Derive.CacheEntry'.  CacheEntry is split into
+CachedEvents, CachedControl, and CachedPitch which are the three possible
+return types for a toplevel call.  Elsewhere, these types are reflected into
+the haskell type system, but if I want a single cache which can actually be
+stored in a Performance it must be monomorphic.  The Derived typeclass has
+methods that map between the value level and type level.  In addition to their
+explicit return value of events or signals, calls also have an implicit return
+value, 'Derive.Collect'.  This records some administrative data for the UI
+(e.g. unwarped signals it may have emitted so that the UI can draw them) and
+its LocalDep, which expresses which blocks the call depends on.  I'll describe
+that later.
+
+Back to derivation.
+
+The main work of the cache system is to determine which bits of the
+'Derive.Cache' are invalid and may not be re-used.  The directly modified parts
+of the score are the easiest to invalidate, and 'Derive.Derive.clear_damage'
+does that as 'Derive.derive' is constructing the initial derive state.  It
+clears all stacks that touch a damaged block, and all stacks that lie in the
+range of a damaged track.
+
+Every call is wrapped in the core of the generator cache,
+'Derive.Cache.cached_generator'.  Most calls are too small to be worth caching,
+so the first thing it does is check a flag in the call, 'Derive.GeneratorType'.
+Since the large scale score organization is expected to be using block calls,
+currently only block calls are cached.  You might think NonCachingGenerator
+could simply fall through, but not quite, and that's because of EventDamage.
+
+Just as the generator cache needs ScoreDamage to know which bits of score
+should be rederived, the next cache down the line, the midi cache, needs
+'Derive.EventDamage' so it knows which parts of the derivation were changed.
+Fortunately the performer is flat so EventDamage is simple---it's just a
+set of RealTime ranges.
+
+Whenever a call generates events, and it was touched by ScoreDamage, it might
+be generating different events than it did last time.  So even a
+NonCachingGenerator must check to see if its call touches ScoreDamage and if
+so, emit its own damage for the range of RealTime that the generated events
+cover.  However, it can't just directly emit EventDamage because this might be
+a signal generator.  Signals aren't directly reflected in the eventual derived
+output, but can indirectly cause further event derivation.  So a
+NonCachingGenerator doesn't emit EventDamage, it emits local damage.
+
+Local damage is the same type as EventDamage, but is an implicit return value
+of calls, rather than globally collecting over the entire derivation.  A note
+track will pull out the local damage and simply merge it into the global
+EventDamage, but a signal track will merge it into the ControlDamage.  There's
+an additional wrinkle because while score events have their own time ranges,
+signal samples implicitly extend to the next sample, so the signal track must
+also expand the damage a little.  And yet another wrinkle for tempo tracks:
+because of how integration works, a change at point X will cause the warp from
+X until the end of the block to change.  I get around that with a special case
+in the tempo track deriver.
+
+'Derive.Derive.ControlDamage' expresses that a section of control signal has
+changed, and it's dynamically scoped in the same way that the control signal
+itself is.  My initial design actually kept track of which control was damaged
+where, but I decided it was too complicated, so any control signal change will
+result in ControlDamage.  Remember that control calls are calls too, so a
+signal may depend on another signal.  The point of ControlDamage is to help
+decide if a particular CachingGenerator is valid.
+
+So that brings us to the other branch of 'cached_generator'.  A cache may be
+invalid for a lot of reasons.  The simplest is that it doesn't exist---either
+this is the first derivation, or it was cleared by direct score damage.  Or
+maybe it has overlapping ControlDamage.  Or maybe it calls a damaged block,
+transitively.  How do I know what it's going to transitively call without
+actually calling it?  By looking at what it called last time, which is what
+LocalDep is.
+
+'Derive.d_block', the block deriver, will put its block ID into the local deps.
+Thus, when a call returns, 'Derive.collect_local_dep' will contain the set of
+blocks it has called.  Since the Collect is stored in the cache, the LocalDeps
+of the last call is available along with its other results in the cache.
+
+I previously kept track of which controls over which ranges a call depended by
+instrumenting the signal access functions to put control name and access range
+in the LocalDep in the same way that blocks do.  I rejected it not only because
+was it even more complicated, but imposed overhead on all calls, caching or
+not.  So I simply assume that all events calls on all controls, and in the
+range of the call itself.  This obviously derives more than is necessary for
+calls which don't care about a particular signal, and less than necessary for
+calls that depend on signal outside of their range.  The latter is a bigger
+problem than the former, but I don't see an easy way to fix that.
+
+If the entire guantlet is passed, the cached Collect is merged into the Collect
+in scope, and the cached events are returned.  Win!
+
+If it fails, the call must be called, of course.  But it has to be called with
+an empty Collect to record just its return value.  That Collect along with the
+derived events are saved in the Cache under the call's stack.  The returned
+Collect is mappended with the collect in scope, since this call is collecting
+deps for its own caller, and finally we can return.
+
+'Derive.Derive.score_to_event_damage'
+
+Unfortunately, if EventDamage is only emitted by calls, anything that prevents
+them from being called will also fail to produce EventDamage.  A track mute,
+title change, or block-level change can do that, in addition to simply deleting
+an event.  They will cause the relevant sections of cache to be cleared, but
+without EventDamage the midi cache won't know to invalidate its own cache.
+
+However, once the derivation is complete I have the set of TrackWarps, which
+express the mapping from a ScoreTime of a certain track to the set of RealTimes
+it produced, in addition to the RealTime ranges of each block.  So I map the
+ScoreDamage through the TrackWarps and merge the result into the EventDamage.
+Unfortunately, this doesn't quite cut it in the case of a deleted call, since
+it may have emitted events outside of its range.  For cached calls, I could
+look it up in the Cache and see what it returned last time, but that doesn't
+help for uncached calls.  So I just live with it being a little wrong.  The
+only way I can think of to really get it right is a full diff on the derived
+results, but that seems awfully slow for something that's supposed to be making
+derivation faster.
+
+The other problem is exceptions.
+TODO But they should be the same as returning [], shouldn' they?
+
+There are probably a lot of other subtle corners not mentioned here, but
+they're hopefully explained in comments in the code and exercised in the test.
+
+    Transform Cache
+
+    MIDI Cache
+
+
+- figure out why Cache_test.test_failed_track is not emitting the right damage
+- remove d_subderive
+- integrate d_block into Call.c_block?  Or move it to Derive.Call.Block?
+- figure out a replacement for the damage stuff in Derive.d_subderive
+- rationalize where exceptions are caught, remove d_subderive or run_sub
+- document the cache system
+
+Collect: [TrackWarp], TrackSignals, LocalDep
+
+with_empty_collect
+    if the call throws, it produces no Collect
+    so don't catch
+
+
+catch exceptions at:
+
+eval event (including call block)
+eval track (d_merge)
+
+these should use the same mechanism
+
+Exceptions cause damage to be emitted.  This is because...?
+But they should be the same as returning [], shouldn' they?
+So changing track title should be the same as muting it: making it not return
+anything.  Since exceptions toss the other return value, shouldn't they toss
+Collect too?
+
+Right, but muting etc. has special support via ScoreDamage.  Exception doesn't.
+But... editing it should have ScoreDamaged, right?
+
+rename Collect -> ImplicitResult?
+
+clear up the difference between accumulating values that I don't have to clear
+before calling the sub call, and ones that I do... or are they the same?
+
+eval event will emit damage for event range
+eval track will emit damage for the length of the block
+Remove track warps?  why does d_subderive do this?  I don't want to have
+playback on a non-deriving block.
+
+The thing is, block derivation no longer fails.
+
+If a track title fails, emit local damage in the range of the track.
