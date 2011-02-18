@@ -177,7 +177,6 @@ instance (Monad m) => Log.LogMonad (CmdT m) where
 instance (Functor m, Monad m) => State.M (CmdT m) where
     get = CmdT State.get
     put st = CmdT (State.put st)
-    modify f = CmdT (State.modify f)
     update upd = CmdT (State.update upd)
     throw msg = CmdT (State.throw msg)
 

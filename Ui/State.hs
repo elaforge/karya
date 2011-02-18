@@ -197,19 +197,15 @@ data StateError = StateError String | Abort deriving (Generics.Typeable, Show)
 instance Error.Error StateError where
     strMsg = StateError
 
--- TODO remove modify and implement in terms of get and put?
--- TODO I also think I can remove throw since it's in Error
 class (Applicative.Applicative m, Monad m) => M m where
     get :: m State
     put :: State -> m ()
-    modify :: (State -> State) -> m ()
     update :: Update.Update -> m ()
     throw :: String -> m a
 
 instance (Applicative.Applicative m, Monad m) => M (StateT m) where
     get = StateT State.get
     put st = StateT (State.put st)
-    modify f = StateT (State.modify f)
     update upd = (StateT . lift) (Logger.log upd)
     throw msg = (StateT . lift . lift) (Error.throwError (StateError msg))
 
@@ -219,6 +215,11 @@ instance (Functor m, Monad m) => Applicative.Applicative (StateT m) where
 
 gets :: (M m) => (State -> a) -> m a
 gets f = fmap f get
+
+modify :: (M m) => (State -> State) -> m ()
+modify f = do
+    state <- get
+    put $! f state
 
 
 -- * global changes
