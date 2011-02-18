@@ -13,6 +13,7 @@ import qualified Local.Instrument.Fm8 as Fm8
 import qualified Local.Instrument.Kontakt as Kontakt
 import qualified Local.Instrument.Morphine as Morphine
 import qualified Local.Instrument.Pianoteq as Pianoteq
+import qualified Local.Instrument.Reaktor as Reaktor
 import qualified Local.Instrument.Tassman as Tassman
 import qualified Local.Instrument.Vl1m as Vl1m
 import qualified Local.Instrument.Z1 as Z1
@@ -36,7 +37,7 @@ load app_dir = do
     let dir = app_dir </> Config.instrument_dir
     synth_descs <- mapM ($dir)
         [ Drumaxx.load, Fm8.load, Kontakt.load, Morphine.load, Pianoteq.load
-        , Tassman.load, Vl1m.load, Z1.load
+        , Reaktor.load, Tassman.load, Vl1m.load, Z1.load
         ]
     let (builtin, buildin_warns) = MidiDb.midi_db synth_descs
     forM_ buildin_warns $ \msg -> Log.warn $ "builtin inst db: " ++ msg

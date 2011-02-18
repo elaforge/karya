@@ -7,8 +7,8 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Instrument.Util as Util
 
 
-note :: Derive.NoteCallMap
-note = Derive.make_calls $ map (second Util.with_attrs)
+traps :: Derive.NoteCallMap
+traps = Derive.make_calls $ map (second Util.with_attrs)
     [ ("sn", snare)
     , ("bd", bd)
     , ("hh", hh)
@@ -22,3 +22,11 @@ note = Derive.make_calls $ map (second Util.with_attrs)
     ]
 
 -- TODO other drum style ornaments like double strikes, rolls, etc.
+
+hang :: Derive.NoteCallMap
+hang = Derive.make_calls $ map (second Util.with_attrs)
+    [ ("`pang2`", edge)
+    , ("`da3`", slap)
+    , ("`zhong1`", middle)
+    , ("`zhi3`", knuckle)
+    ]

@@ -177,7 +177,7 @@ add_one :: Derive.ValCall
 add_one = Derive.ValCall "add" $ \args -> CallSig.call1 args
     (CallSig.required "v") $ \val -> return (TrackLang.VNum (val + 1))
 
-patch = Instrument.set_note_calls ["Derive.Instrument.Drums.note"] $
+patch = Instrument.set_note_calls ["Derive.Instrument.Drums.traps"] $
     Instrument.set_keymap [(Attrs.snare, 42)] $
         Instrument.patch (Instrument.instrument "with-call" [] (-1, 1))
 (midi_db, _) = MidiDb.midi_db [sdesc]

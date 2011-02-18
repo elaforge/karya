@@ -10,7 +10,8 @@ import qualified App.Link as Link
 
 note :: Map.Map Link.ModuleId (Derive.LookupCall Derive.NoteCall)
 note = Map.fromList $ map make_module
-    [ ("Derive.Instrument.Drums.note", Derive.Instrument.Drums.note)
+    [ ("Derive.Instrument.Drums.traps", Derive.Instrument.Drums.traps)
+    , ("Derive.Instrument.Drums.hang", Derive.Instrument.Drums.hang)
     ]
 
 val :: Map.Map Link.ModuleId (Derive.LookupCall Derive.ValCall)

@@ -15,7 +15,7 @@ test_lookup_midi = do
             (Score.attributes attrs) (Score.Instrument inst)
 
     let ks = Just . Instrument.Keyswitch
-    let kkt_inst name = (Instrument.instrument name [] (-96, 96))
+    let kkt_inst name = (Instrument.instrument name [] (-12, 12))
             { Instrument.inst_score = Score.Instrument ("kkt/" ++ name)
             , Instrument.inst_synth = "kkt"
             }
