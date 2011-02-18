@@ -366,7 +366,7 @@ lookup_any_selnum_insert selnum =
 -- views, take the one with the alphabetically first ViewId.
 --
 -- I'm not sure how to choose, but the first one seems reasonable for now.
-lookup_block_insert :: (State.UiStateMonad m) => BlockId -> m (Maybe Point)
+lookup_block_insert :: (State.M m) => BlockId -> m (Maybe Point)
 lookup_block_insert block_id = do
     view_ids <- Map.keys <$> State.get_views_of block_id
     case view_ids of
@@ -377,8 +377,7 @@ lookup_block_insert block_id = do
             return $ Just (block_id, point_track sel, track_id, point_pos sel)
 
 -- | Get the point track of a selection.
-sel_track :: (State.UiStateMonad m) => BlockId -> Types.Selection
-    -> m (Maybe TrackId)
+sel_track :: (State.M m) => BlockId -> Types.Selection -> m (Maybe TrackId)
 sel_track block_id sel = State.event_track_at block_id (point_track sel)
 
 -- ** plain Selection

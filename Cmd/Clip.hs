@@ -201,8 +201,7 @@ events_in_sel sel track =
 --
 -- This means that if the given state has IDs in more than one namespace, they
 -- will be flattened into one.  Any collisions will throw an exception.
-state_to_namespace :: (State.UiStateMonad m) =>
-    State.State -> Id.Namespace -> m ()
+state_to_namespace :: (State.M m) => State.State -> Id.Namespace -> m ()
 state_to_namespace state ns = do
     destroy_namespace ns
     state2 <- set_namespace ns state
@@ -214,8 +213,7 @@ state_to_namespace state ns = do
 -- | Set all the IDs in the state to be in the given namespace, except rulers.
 -- Collisions will throw.  Rulers are omitted because copy and paste doesn't
 -- mess with rulers.
-set_namespace :: (State.UiStateMonad m) => Id.Namespace -> State.State
-    -> m State.State
+set_namespace :: (State.M m) => Id.Namespace -> State.State -> m State.State
 set_namespace ns state = do
     let set ident = Id.id ns name
             where (_, name) = Id.un_id ident
@@ -230,7 +228,7 @@ get_clip_namespace = Cmd.gets Cmd.state_clip_namespace
 
 -- | Destroy all views, blocks, tracks, and rulers with the given namespace.
 -- TODO move this to Ui.State?
-destroy_namespace :: (State.UiStateMonad m) => Id.Namespace -> m ()
+destroy_namespace :: (State.M m) => Id.Namespace -> m ()
 destroy_namespace ns = do
     let in_ns = ((==ns) . Id.id_namespace)
     block_ids <- fmap (filter (in_ns . Id.unpack_id))
@@ -257,7 +255,7 @@ paste_info = do
     clip_events <- mapM (clip_track_events start end) clip_track_ids
     return (start, end, track_ids, clip_events)
 
-clip_track_events :: (State.UiStateMonad m) =>
+clip_track_events :: (State.M m) =>
     ScoreTime -> ScoreTime -> TrackId -> m [Track.PosEvent]
 clip_track_events start end track_id = do
     track <- State.get_track track_id

@@ -175,7 +175,7 @@ derive_cache cache damage ui_state deriver =
 -- ** defaults
 
 -- | Set UI state defaults that every derivation should have.
-set_defaults :: (State.UiStateMonad m) => m ()
+set_defaults :: (State.M m) => m ()
 set_defaults = State.set_midi_config default_midi_config
 
 default_lookup_scale :: Derive.LookupScale

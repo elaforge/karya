@@ -72,8 +72,7 @@ pos_dur_sorted f = events_sorted $ \(pos, event) ->
     Just $ (f pos, Event.modify_duration f event)
 
 -- | Move everything at or after @start@ by @shift@.
-move_track_events :: (State.UiStateMonad m) =>
-    ScoreTime -> ScoreTime -> TrackId -> m ()
+move_track_events :: (State.M m) => ScoreTime -> ScoreTime -> TrackId -> m ()
 move_track_events start shift track_id = State.modify_track_events track_id $
     \events -> move_events start shift events
 

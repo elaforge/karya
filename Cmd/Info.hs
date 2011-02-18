@@ -142,8 +142,7 @@ note_track_of ttree tracknum = case find_track tracknum ttree of
     inst_of = TrackInfo.title_to_instrument . State.track_title
 
 -- | Looks like: [vel {collapse 2}, pedal {expand 3}]
-show_track_status :: (State.UiStateMonad m) => BlockId -> [State.TrackInfo]
-    -> m [String]
+show_track_status :: (State.M m) => BlockId -> [State.TrackInfo] -> m [String]
 show_track_status block_id status = forM status $ \info -> do
     let tracknum = State.track_tracknum info
     btrack <- State.block_track_at block_id tracknum

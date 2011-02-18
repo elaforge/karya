@@ -133,7 +133,7 @@ make_pitch_track maybe_note_id pitch_track = do
     return (tracknum, tid)
 
 -- | Create a pitch track for a note track.
-create_pitch_track :: (State.UiStateMonad m) => BlockId
+create_pitch_track :: (State.M m) => BlockId
     -> TrackNum -- ^ tracknum of corresponding note track
     -> String -- ^ created track has this title
     -> TrackNum -> m TrackId

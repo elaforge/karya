@@ -271,13 +271,11 @@ updater_loop state = do
 
 -- | Do all the annoying shuffling around to convert the deriver-oriented
 -- blocks and tracks to the view-oriented views and tracknums.
-block_pos_to_play_pos :: (State.UiStateMonad m) =>
-    [(BlockId, [(TrackId, ScoreTime)])]
+block_pos_to_play_pos :: (State.M m) => [(BlockId, [(TrackId, ScoreTime)])]
     -> m [(ViewId, [(TrackNum, Maybe ScoreTime)])]
 block_pos_to_play_pos block_pos = fmap concat (mapM convert block_pos)
 
-convert :: (State.UiStateMonad m) =>
-    (BlockId, [(TrackId, ScoreTime)])
+convert :: (State.M m) => (BlockId, [(TrackId, ScoreTime)])
     -> m [(ViewId, [(TrackNum, Maybe ScoreTime)])]
 convert (block_id, track_pos) = do
     view_ids <- fmap Map.keys (State.get_views_of block_id)

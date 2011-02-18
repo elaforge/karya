@@ -142,7 +142,7 @@ newtype CmdT m a = CmdT (CmdStack m a)
     deriving (Functor, Monad, Trans.MonadIO, Error.MonadError State.StateError)
 run_cmd_t (CmdT x) = x
 
-class (Log.LogMonad m, State.UiStateMonad m) => M m where
+class (Log.LogMonad m, State.M m) => M m where
     get_state :: m State
     put_state :: State -> m ()
     -- | Log some midi to send out immediately.  This is the midi thru
@@ -174,7 +174,7 @@ instance (Monad m) => Log.LogMonad (CmdT m) where
     write = CmdT . lift . lift . lift . Log.write
 
 -- And to the UI state operations.
-instance (Functor m, Monad m) => State.UiStateMonad (CmdT m) where
+instance (Functor m, Monad m) => State.M (CmdT m) where
     get = CmdT State.get
     put st = CmdT (State.put st)
     modify f = CmdT (State.modify f)

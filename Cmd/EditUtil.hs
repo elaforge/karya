@@ -45,7 +45,7 @@ raw_edit zero_dur scale_id msg = do
 
 -- | Get the event under insertion point, creating an empty one if there is
 -- none.
-get_event :: (State.UiStateMonad m) =>
+get_event :: (State.M m) =>
     Bool -> TrackId -> ScoreTime -> ScoreTime -> m Event.Event
 get_event modify_dur track_id pos dur = do
     track <- State.get_track track_id

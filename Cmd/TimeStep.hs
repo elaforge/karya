@@ -50,7 +50,7 @@ data Direction = Advance | Rewind deriving (Eq, Show)
 -- was no snap point, the pos is return unchanged.
 --
 -- To snap RelativeMark I need the last sel pos.
-snap :: (State.UiStateMonad m) => TimeStep -> BlockId -> TrackNum
+snap :: (State.M m) => TimeStep -> BlockId -> TrackNum
     -> Maybe ScoreTime -> ScoreTime -> m ScoreTime
 snap step block_id tracknum prev_pos pos = do
     -- RelativeMark needs to be relative to the previous select pos.
@@ -62,25 +62,25 @@ snap step block_id tracknum prev_pos pos = do
 
 -- | Step in the given direction from the given position, or Nothing if
 -- the step is out of range.
-step_from :: (State.UiStateMonad m) => TimeStep -> Direction -> BlockId
+step_from :: (State.M m) => TimeStep -> Direction -> BlockId
     -> TrackNum -> ScoreTime -> m (Maybe ScoreTime)
 step_from step direction =
     (if direction == Advance then advance else rewind) step
 
-rewind :: (State.UiStateMonad m) => TimeStep -> BlockId -> TrackNum
+rewind :: (State.M m) => TimeStep -> BlockId -> TrackNum
     -> ScoreTime -> m (Maybe ScoreTime)
 rewind step block_id tracknum pos = do
     maybe_points <- get_points step block_id tracknum pos
     return $ find_before pos =<< maybe_points
 
-advance :: (State.UiStateMonad m) => TimeStep -> BlockId -> TrackNum
+advance :: (State.M m) => TimeStep -> BlockId -> TrackNum
     -> ScoreTime -> m (Maybe ScoreTime)
 advance step block_id tracknum pos = do
     maybe_points <- get_points step block_id tracknum pos
     return $ find_after =<< maybe_points
     where find_after xs = Seq.head (dropWhile (<=pos) xs)
 
-get_points :: (State.UiStateMonad m) =>
+get_points :: (State.M m) =>
     TimeStep -> BlockId -> TrackNum -> ScoreTime -> m (Maybe [ScoreTime])
 get_points step block_id tracknum pos = do
     block <- State.get_block block_id

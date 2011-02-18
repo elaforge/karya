@@ -75,10 +75,10 @@ run_mkview :: [TrackSpec] -> ([TrackId], State.State)
 run_mkview track_specs =
     run State.empty (mkstate_view default_block_name track_specs)
 
-mkstate :: (State.UiStateMonad m) => String -> [TrackSpec] -> m [TrackId]
+mkstate :: (State.M m) => String -> [TrackSpec] -> m [TrackId]
 mkstate block_name tracks = mkstate_id (bid block_name) tracks
 
-mkstate_id :: (State.UiStateMonad m) => BlockId -> [TrackSpec] -> m [TrackId]
+mkstate_id :: (State.M m) => BlockId -> [TrackSpec] -> m [TrackId]
 mkstate_id block_id tracks = do
     let (ns, block_name) = Id.un_id (Id.unpack_id block_id)
     ruler_id <- State.create_ruler (Id.id ns (block_name ++ ".r0"))
@@ -88,7 +88,7 @@ mkstate_id block_id tracks = do
 -- | Like 'mkstate_id', but uses the provided ruler instead of creating its
 -- own.  Important if you are creating multiple blocks and don't want
 -- a separate ruler for each.
-mkstate_id_ruler :: (State.UiStateMonad m) => BlockId -> RulerId
+mkstate_id_ruler :: (State.M m) => BlockId -> RulerId
     -> [TrackSpec] -> m [TrackId]
 mkstate_id_ruler block_id ruler_id tracks = do
     State.set_project test_ns
@@ -107,7 +107,7 @@ parse_skeleton block_id = do
     tracks <- State.get_track_info block_id
     return $ Schema.default_parser tracks
 
-mkview :: (State.UiStateMonad m) => m ViewId
+mkview :: (State.M m) => m ViewId
 mkview = do
     view_id <- State.create_view (Id.unpack_id default_view_id) $
         Block.view default_block_id default_rect default_zoom
@@ -121,11 +121,10 @@ mkstate_view block_id tracks = do
 
 -- * view
 
-select :: (State.UiStateMonad m) => ViewId -> Maybe Types.Selection -> m ()
+select :: (State.M m) => ViewId -> Maybe Types.Selection -> m ()
 select view_id sel = State.set_selection view_id Config.insert_selnum sel
 
-select_point :: (State.UiStateMonad m) => ViewId -> TrackNum -> ScoreTime
-    -> m ()
+select_point :: (State.M m) => ViewId -> TrackNum -> ScoreTime -> m ()
 select_point view_id tracknum pos =
     select view_id (Types.point_selection tracknum pos)
 

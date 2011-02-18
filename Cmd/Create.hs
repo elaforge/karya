@@ -38,14 +38,14 @@ import qualified App.Config as Config
 
 -- | Set the project to the given value and renamespace the old project to the
 -- new one.
-rename_project :: (State.UiStateMonad m) => Id.Namespace -> m ()
+rename_project :: (State.M m) => Id.Namespace -> m ()
 rename_project ns = do
     old_ns <- State.get_project
     renamespace old_ns ns
     State.set_project ns
 
 -- | Rename all IDs in namespace @from@ to @to@.
-renamespace :: (State.UiStateMonad m) => Id.Namespace -> Id.Namespace -> m ()
+renamespace :: (State.M m) => Id.Namespace -> Id.Namespace -> m ()
 renamespace from to = State.map_ids set_ns
     where
     set_ns ident
@@ -55,7 +55,7 @@ renamespace from to = State.map_ids set_ns
 
 -- | Find tracks which are not found in any block.  Probably used to pass them
 -- to State.destroy_track for \"gc\".
-orphan_tracks :: (State.UiStateMonad m) => m [TrackId]
+orphan_tracks :: (State.M m) => m [TrackId]
 orphan_tracks = do
     blocks <- State.gets (Map.elems . State.state_blocks)
     let ref_tracks = Set.fromList (concatMap Block.block_track_ids blocks)
@@ -63,7 +63,7 @@ orphan_tracks = do
     return $ Set.toList (tracks `Set.difference` ref_tracks)
 
 -- | Find rulers which are not found in any block.
-orphan_rulers :: (State.UiStateMonad m) => m [RulerId]
+orphan_rulers :: (State.M m) => m [RulerId]
 orphan_rulers = do
     blocks <- State.gets (Map.elems . State.state_blocks)
     let ref_rulers = Set.fromList (concatMap Block.block_ruler_ids blocks)
@@ -71,7 +71,7 @@ orphan_rulers = do
     return $ Set.toList (rulers `Set.difference` ref_rulers)
 
 -- | Find blocks with no associated views.
-orphan_blocks :: (State.UiStateMonad m) => m [BlockId]
+orphan_blocks :: (State.M m) => m [BlockId]
 orphan_blocks = do
     views <- State.gets (Map.elems . State.state_views)
     let ref_blocks = Set.fromList (map Block.view_block views)
@@ -83,7 +83,7 @@ orphan_blocks = do
 -- TODO this is inadequate.  I need a function to get parsed inst and control
 -- track titles separately.  Use State.get_track_tree to figure inst vs.
 -- control.
-map_track_titles :: (State.UiStateMonad m) => (String -> String) -> m ()
+map_track_titles :: (State.M m) => (String -> String) -> m ()
 map_track_titles f = do
     tracks <- Map.assocs . State.state_tracks <$> State.get
     forM_ tracks $ \(track_id, track) ->
@@ -133,7 +133,7 @@ named_block name ruler_id = do
 
 -- | Delete a block and any views it appears in.  Also delete any tracks
 -- that only appeared in that block.
-destroy_block :: (State.UiStateMonad m) => BlockId -> m ()
+destroy_block :: (State.M m) => BlockId -> m ()
 destroy_block block_id = do
     track_ids <- fmap Block.block_track_ids (State.get_block block_id)
     State.destroy_block block_id
@@ -150,7 +150,7 @@ no_parent = Id.id [] ""
 
 -- * view
 
-view :: (State.UiStateMonad m) => BlockId -> m ViewId
+view :: (State.M m) => BlockId -> m ViewId
 view block_id = do
     views <- State.get_views_of block_id
     view_id <- require "view id" $ generate_view_id block_id views
@@ -169,7 +169,7 @@ generate_view_id block_id views =
 
 -- | Destroy a view, along with the underlying block if there were no other
 -- views.
-destroy_view :: (State.UiStateMonad m) => ViewId -> m ()
+destroy_view :: (State.M m) => ViewId -> m ()
 destroy_view view_id = do
     block_id <- State.block_id_of_view view_id
     State.destroy_view view_id
@@ -205,7 +205,7 @@ insert_track_after_selection splice = do
     return track_id
 
 -- | Tracks look like \"ns/b0.t0\", etc.
-track_ruler :: (State.UiStateMonad m) =>
+track_ruler :: (State.M m) =>
     BlockId -> RulerId -> TrackNum -> Types.Width -> m TrackId
 track_ruler block_id ruler_id tracknum width = do
     tracks <- State.gets State.state_tracks
@@ -219,7 +219,7 @@ track_ruler block_id ruler_id tracknum width = do
 --
 -- If the track to the left is a ruler track, it will assume there is
 -- a ".overlay" version of it.
-track :: (State.UiStateMonad m) => BlockId -> TrackNum -> m TrackId
+track :: (State.M m) => BlockId -> TrackNum -> m TrackId
 track block_id tracknum = do
     -- Clip to valid range so callers can use an out of range tracknum.
     tracknum <- clip_tracknum block_id tracknum
@@ -228,7 +228,7 @@ track block_id tracknum = do
 
 -- | Create a track with the given name and title.
 -- Looks like \"ns/b0.tempo\".
-named_track :: (State.UiStateMonad m) =>
+named_track :: (State.M m) =>
     BlockId -> RulerId -> TrackNum -> String -> String -> m TrackId
 named_track block_id ruler_id tracknum name title = do
     ident <- make_id (Id.id_name (Id.unpack_id block_id) ++ "." ++ name)
@@ -266,7 +266,7 @@ destroy_track block_id tracknum = do
 -- | Swap the tracks at the given tracknums.  If one of the tracknums is out
 -- of range, the track at the other tracknum will be moved to the beginning or
 -- end, i.e. swapped with empty space.
-swap_tracks :: (State.UiStateMonad m) => BlockId -> TrackNum -> TrackNum -> m ()
+swap_tracks :: (State.M m) => BlockId -> TrackNum -> TrackNum -> m ()
 swap_tracks block_id num0 num1 = do
     track0 <- State.block_track_at block_id num0
     track1 <- State.block_track_at block_id num1
@@ -284,8 +284,7 @@ swap_tracks block_id num0 num1 = do
 -- ** util
 
 -- | Given a hypothetical track at @tracknum@, what should it's ruler id be?
-get_overlay_ruler_id :: (State.UiStateMonad m) => BlockId -> TrackNum
-    -> m RulerId
+get_overlay_ruler_id :: (State.M m) => BlockId -> TrackNum -> m RulerId
 get_overlay_ruler_id block_id tracknum = do
     track <- State.block_track_at block_id tracknum
     -- The overlay suffix is just a convention, so it's not guaranteed to
@@ -297,7 +296,7 @@ get_overlay_ruler_id block_id tracknum = do
     maybe_ruler <- State.lookup_ruler ruler_id
     return $ maybe State.no_ruler (const ruler_id) maybe_ruler
 
-get_ruler_id :: (State.UiStateMonad m) => BlockId -> TrackNum -> m RulerId
+get_ruler_id :: (State.M m) => BlockId -> TrackNum -> m RulerId
 get_ruler_id block_id tracknum = do
     maybe_track <- State.block_track_at block_id tracknum
     let ruler_id = maybe State.no_ruler id $ do
@@ -313,7 +312,7 @@ add_overlay_suffix ruler_id
     where (ns, ident) = Id.un_id (Id.unpack_id ruler_id)
 
 -- | Clip the tracknum to within the valid range.
-clip_tracknum :: (State.UiStateMonad m) => BlockId -> TrackNum -> m TrackNum
+clip_tracknum :: (State.M m) => BlockId -> TrackNum -> m TrackNum
 clip_tracknum block_id tracknum = do
     tracks <- State.tracks block_id
     return $ max 0 (min tracks tracknum)
@@ -336,7 +335,7 @@ generate_track_id block_id code tracks =
 
 -- | This creates both a ruler with the given name, and an overlay version
 -- named with .overlay.
-ruler :: (State.UiStateMonad m) => String -> Ruler.Ruler -> m (RulerId, RulerId)
+ruler :: (State.M m) => String -> Ruler.Ruler -> m (RulerId, RulerId)
 ruler name ruler = do
     ident <- make_id name
     overlay_ident <- make_id (name ++ overlay_suffix)
@@ -346,7 +345,7 @@ ruler name ruler = do
 
 -- ** util
 
-make_id :: (State.UiStateMonad m) => String -> m Id.Id
+make_id :: (State.M m) => String -> m Id.Id
 make_id name = do
     ns <- State.get_project
     return (Id.id ns name)

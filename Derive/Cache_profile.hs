@@ -56,12 +56,12 @@ profile_midi_small = do
     -- pprint (UiTest.simplify ui_state)
     rederive_midi ui_state [modify_pitch "b1.0.0.t1" 2]
 
-modify_note :: (State.UiStateMonad m) => String -> String -> ScoreTime -> m ()
+modify_note :: (State.M m) => String -> String -> ScoreTime -> m ()
 modify_note note_tid pitch_tid pos = do
     State.insert_event (UiTest.tid note_tid) pos (Event.event "" 1)
     State.insert_event (UiTest.tid pitch_tid) pos (Event.event "1c" 0)
 
-modify_pitch :: (State.UiStateMonad m) => String -> ScoreTime -> m ()
+modify_pitch :: (State.M m) => String -> ScoreTime -> m ()
 modify_pitch pitch_tid pos = do
     State.insert_event (UiTest.tid pitch_tid) pos (Event.event "1c" 0)
 

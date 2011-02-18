@@ -69,14 +69,14 @@ perf_event evt =
     where start = Timestamp.to_real_time (Perform.event_start evt)
 
 
-dump_block :: (State.UiStateMonad m) => BlockId -> m Block
+dump_block :: (State.M m) => BlockId -> m Block
 dump_block block_id = do
     block <- State.get_block block_id
     let track_ids = Block.block_track_ids block
     tracks <- mapM dump_track track_ids
     return (show block_id, Block.block_title block, tracks)
 
-dump_track :: (State.UiStateMonad m) => TrackId -> m Track
+dump_track :: (State.M m) => TrackId -> m Track
 dump_track track_id = do
     track <- State.get_track track_id
     return (simplify_track track_id track)
@@ -110,8 +110,7 @@ convert_block (id_name, title, tracks) = do
         State.create_block (Id.read_id id_name)
             (Block.block config title tracks Config.schema)
 
-convert_track :: (State.UiStateMonad m) =>
-    Track -> m Block.BlockTrack
+convert_track :: (State.M m) => Track -> m Block.BlockTrack
 convert_track (id_name, title, events) = do
     let pos_events = map convert_event events
     track_id <- State.create_track (Id.read_id id_name) $
