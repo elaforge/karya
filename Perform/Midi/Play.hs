@@ -1,5 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-} -- for pattern type sig in catch
-module Perform.Midi.Play where
+module Perform.Midi.Play (play) where
 import qualified Control.Exception as Exception
 import Control.Monad
 import qualified Data.Set as Set
@@ -8,8 +8,10 @@ import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
-import Ui
+import qualified Midi.CC as CC
 import qualified Midi.Midi as Midi
+
+import Ui
 
 import qualified Perform.Transport as Transport
 import qualified Perform.Timestamp as Timestamp
@@ -44,6 +46,8 @@ player_thread state midi_msgs = do
 
 -- * implementation
 
+type AddrsSeen = Set.Set Instrument.Addr
+
 -- | 'play_msgs' tries to not get too far ahead of now both to avoid flooding
 -- the midi driver and so a stop will happen fairly quickly.
 write_ahead :: Timestamp.Timestamp
@@ -51,8 +55,7 @@ write_ahead = Timestamp.seconds 1
 
 -- | @devs@ keeps track of devices that have been seen, so I know which devices
 -- to reset.
-play_msgs :: Transport.State -> Set.Set Instrument.Addr -> [Midi.WriteMessage]
-    -> IO ()
+play_msgs :: Transport.State -> AddrsSeen -> [Midi.WriteMessage] -> IO ()
 play_msgs state addrs_seen msgs = do
     let write_midi = Transport.state_midi_writer state
     -- Make sure that I get a consistent play, not affected by previous
@@ -73,21 +76,30 @@ play_msgs state addrs_seen msgs = do
     case (stop, rest) of
         (True, _) -> do
             Transport.state_midi_abort state
+            send_all write_midi addrs_seen now Midi.AllNotesOff
+            -- Some breath oriented instruments don't pay attention to note on
+            -- and note off.
+            send_all write_midi addrs_seen now (Midi.ControlChange CC.breath 0)
             -- Ok, so there's this weird bug (?) in CoreMIDI, where an abort
             -- will convert deschedued pitchbends to -1 pitchbends.  So abort,
             -- wait for it to send its bogus pitchbend, and then reset it.
-            -- send_all write_midi addrs_seen now Midi.AllNotesOff
+            -- So I reported it on an apple mailing list, they confirmed it,
+            -- and in the next version of the OS it's gone... did apple
+            -- fix a bug?
             Thread.delay 0.15
             send_all write_midi addrs_seen (now + Timestamp.from_millis 150)
                 (Midi.PitchBend 0)
         (_, []) -> send_all write_midi addrs_seen now (Midi.PitchBend 0)
         _ -> play_msgs state addrs_seen rest
 
+send_all :: (Midi.WriteMessage -> IO ()) -> AddrsSeen
+    -> Timestamp.Timestamp -> Midi.ChannelMessage -> IO ()
 send_all write_midi addrs ts chan_msg =
     forM_ (Set.elems addrs) $ \(dev, chan) -> write_midi
         (Midi.WriteMessage dev ts (Midi.ChannelMessage chan chan_msg))
 
 -- Force 'addrs_seen' so I don't drag on 'wmsgs'.
+update_addrs :: AddrsSeen -> [Midi.WriteMessage] -> AddrsSeen
 update_addrs addrs_seen wmsgs = Set.size addrs_seen' `seq` addrs_seen'
     where
     addrs_seen' = Set.union addrs_seen
