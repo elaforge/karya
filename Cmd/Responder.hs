@@ -392,7 +392,7 @@ eval err_msg ui_state cmd_state abort_val cmd = do
 do_run :: (Monad m) => (RType -> ResponderM (State.State, Cmd.State))
     -> Cmd.RunCmd m IO Cmd.Status
     -> State -> Msg.Msg -> State.State -> State.State -> Cmd.State
-    -> [Msg.Msg -> Cmd.CmdM m] -> ResponderM (State.State, Cmd.State)
+    -> [Msg.Msg -> Cmd.CmdT m Cmd.Status] -> ResponderM (State.State, Cmd.State)
 do_run exit runner rstate msg ui_from ui_state cmd_state cmds = do
     res <- Trans.liftIO $ run_cmd_list [] (state_midi_writer rstate) ui_state
         cmd_state runner (map ($msg) cmds)
@@ -406,7 +406,7 @@ do_run exit runner rstate msg ui_from ui_state cmd_state cmds = do
         Left err -> exit (Left err, cmd_state)
 
 run_cmd_list :: (Monad m) => [Update.Update] -> MidiWriter -> State.State
-    -> Cmd.State -> Cmd.RunCmd m IO Cmd.Status -> [Cmd.CmdM m]
+    -> Cmd.State -> Cmd.RunCmd m IO Cmd.Status -> [Cmd.CmdT m Cmd.Status]
     -> IO (Either State.StateError
         (Cmd.Status, State.State, Cmd.State, [Update.Update]))
 run_cmd_list updates0 write_midi ui_state cmd_state runner (cmd:cmds) = do

@@ -35,8 +35,8 @@ cmd_method_edit msg = do
 
 -- * implementation
 
-modify_event :: (Monad m) =>
-    ((String, String) -> ((Maybe String, Maybe String), Bool)) -> Cmd.CmdT m ()
+modify_event :: (Cmd.M m) =>
+    ((String, String) -> ((Maybe String, Maybe String), Bool)) -> m ()
 modify_event f = EditUtil.modify_event True True (first unparse . f . parse)
 
 -- | Try to figure out the call part of the expression and split it from the

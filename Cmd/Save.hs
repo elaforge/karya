@@ -14,14 +14,14 @@ import qualified Cmd.Edit as Edit
 import qualified Cmd.Serialize as Serialize
 
 
-get_save_file :: (Monad m) => Cmd.CmdT m FilePath
+get_save_file :: (Cmd.M m) => m FilePath
 get_save_file = do
     dir <- State.gets State.state_project_dir
     ns <- State.get_project
     return $ FilePath.combine dir (map sanitize ns)
     where sanitize c = if FilePath.isPathSeparator c then '_' else c
 
-cmd_save :: (Trans.MonadIO m) => FilePath -> Cmd.CmdT m ()
+cmd_save :: FilePath -> Cmd.CmdT IO ()
 cmd_save fname = do
     ui_state <- State.get
     save <- Trans.liftIO $ Serialize.save_state ui_state
@@ -31,7 +31,7 @@ cmd_save fname = do
     Trans.liftIO $ Serialize.serialize_text (fname ++ ".text") save
     Trans.liftIO $ Serialize.serialize fname save
 
-cmd_load :: (Trans.MonadIO m) => FilePath -> Cmd.CmdT m ()
+cmd_load :: FilePath -> Cmd.CmdT IO ()
 cmd_load fname = do
     Log.notice $ "load state from " ++ show fname
     let unserialize = if ".text" `List.isSuffixOf` fname
@@ -46,14 +46,14 @@ cmd_load fname = do
     Cmd.modify_state Cmd.reinit_state
     Edit.initialize_state
 
-cmd_save_midi_config :: (Trans.MonadIO m) => FilePath -> Cmd.CmdT m ()
+cmd_save_midi_config :: FilePath -> Cmd.CmdT IO ()
 cmd_save_midi_config fname = do
     st <- State.get
     Log.notice $ "write midi config to " ++ show fname
     Trans.liftIO $ Serialize.serialize_pretty_text fname
         (State.state_midi_config st)
 
-cmd_load_midi_config :: (Trans.MonadIO m) => FilePath -> Cmd.CmdT m ()
+cmd_load_midi_config :: FilePath -> Cmd.CmdT IO ()
 cmd_load_midi_config fname = do
     Log.notice $ "load midi config from " ++ show fname
     try_config <- Trans.liftIO $ Serialize.unserialize_text fname

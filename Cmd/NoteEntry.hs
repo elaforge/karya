@@ -66,7 +66,7 @@ cmds_with_note kbd_entry cmds msg = do
                 forM cmds (\cmd -> Cmd.catch_abort (cmd msg))
             return $ if Cmd.Done `elem` status then Cmd.Done else Cmd.Continue
 
-are_modifiers_down :: (Monad m) => Cmd.CmdT m Bool
+are_modifiers_down :: (Cmd.M m) => m Bool
 are_modifiers_down = fmap (not . Set.null) Keymap.mods_down
 
 -- ** kbd
@@ -108,7 +108,7 @@ make_key_map oct = map mk_input . zip [0..]
 
 -- ** midi
 
-midi_input :: (Monad m) => Msg.Msg -> Cmd.CmdT m (Maybe (Maybe Msg.Msg))
+midi_input :: (Cmd.M m) => Msg.Msg -> m (Maybe (Maybe Msg.Msg))
 midi_input (Msg.Midi (Midi.ReadMessage rdev _ midi_msg)) = do
     rstate <- Cmd.get_rdev_state rdev
     case InputNote.from_midi rstate rdev midi_msg of

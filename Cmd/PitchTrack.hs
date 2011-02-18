@@ -47,11 +47,11 @@ cmd_method_edit msg = do
         _ -> Cmd.abort
     return Cmd.Done
 
-val_edit_at :: (Monad m) => EditUtil.SelPos -> Pitch.Note -> Cmd.CmdT m ()
+val_edit_at :: (Cmd.M m) => EditUtil.SelPos -> Pitch.Note -> m ()
 val_edit_at selpos note = modify_event_at selpos $ \(method, _) ->
     ((Just method, Just (Pitch.note_text note)), False)
 
-method_edit_at :: (Monad m) => EditUtil.SelPos -> Key.Key -> Cmd.CmdT m ()
+method_edit_at :: (Cmd.M m) => EditUtil.SelPos -> Key.Key -> m ()
 method_edit_at selpos key = modify_event_at selpos $ \(method, val) ->
     ((EditUtil.modify_text_key key method, Just val), False)
 
@@ -67,9 +67,9 @@ cmd_record_note_status scale_id msg = do
 
 -- * implementation
 
-modify_event_at :: (Monad m) => EditUtil.SelPos
+modify_event_at :: (Cmd.M m) => EditUtil.SelPos
     -> ((String, String) -> ((Maybe String, Maybe String), Bool))
-    -> Cmd.CmdT m ()
+    -> m ()
 modify_event_at selpos f = EditUtil.modify_event_at selpos True True
     (first unparse . f . parse)
 

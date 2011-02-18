@@ -15,7 +15,7 @@ import qualified Cmd.Selection as Selection
 -- * main modification
 
 -- | Map a function over the selected events.
-events :: (Monad m) => (Track.PosEvent -> Maybe Track.PosEvent) -> Cmd.CmdT m ()
+events :: (Cmd.M m) => (Track.PosEvent -> Maybe Track.PosEvent) -> m ()
 events f = do
     selected <- Selection.events
     forM_ selected $ \(track_id, (start, end), events) -> do
@@ -24,8 +24,7 @@ events f = do
 
 -- | This is like 'events'.  It's more efficient but the modify function must
 -- promise to return events in sorted order.
-events_sorted :: (Monad m) => (Track.PosEvent -> Maybe Track.PosEvent)
-    -> Cmd.CmdT m ()
+events_sorted :: (Cmd.M m) => (Track.PosEvent -> Maybe Track.PosEvent) -> m ()
 events_sorted f = do
     selected <- Selection.events
     forM_ selected $ \(track_id, (start, end), events) -> do
@@ -33,15 +32,13 @@ events_sorted f = do
         State.insert_sorted_events track_id (Seq.map_maybe f events)
 
 -- | Map a function over the selected events, passing the track id.
-tracks :: (Monad m) =>
-    (TrackId -> [Track.PosEvent] -> Cmd.CmdT m [Track.PosEvent])
-    -> Cmd.CmdT m ()
+tracks :: (Cmd.M m) => (TrackId -> [Track.PosEvent] -> m [Track.PosEvent])
+    -> m ()
 tracks f = tracks_sorted $ \track_id events ->
     fmap Track.sort_events (f track_id events)
 
-tracks_sorted :: (Monad m) =>
-    (TrackId -> [Track.PosEvent] -> Cmd.CmdT m [Track.PosEvent])
-    -> Cmd.CmdT m ()
+tracks_sorted :: (Cmd.M m) => (TrackId -> [Track.PosEvent]
+    -> m [Track.PosEvent]) -> m ()
 tracks_sorted f = do
     track_events <- Selection.events
     forM_ track_events $ \(track_id, (start, end), events) -> do
@@ -53,8 +50,8 @@ tracks_sorted f = do
 
 -- | Modify events in the selection.  For efficiency, this can't move the
 -- events.
-modify_pos_events :: (Monad m) => (ScoreTime -> Event.Event -> Event.Event)
-    -> Cmd.CmdT m ()
+modify_pos_events :: (Cmd.M m) => (ScoreTime -> Event.Event -> Event.Event)
+    -> m ()
 modify_pos_events f = do
     track_events <- Selection.events
     forM_ track_events $ \(track_id, _, events) -> do
@@ -62,15 +59,15 @@ modify_pos_events f = do
         State.insert_sorted_events track_id insert
 
 -- | A version of 'modify_events_pos' that doesn't pass the pos.
-modify_events :: (Monad m) => (Event.Event -> Event.Event) -> Cmd.CmdT m ()
+modify_events :: (Cmd.M m) => (Event.Event -> Event.Event) -> m ()
 modify_events f = modify_pos_events (\_ evt -> f evt)
 
 -- | Modify the start time and duration of the selected events.
-pos_dur :: (Monad m) => (ScoreTime -> ScoreTime) -> Cmd.CmdT m ()
+pos_dur :: (Cmd.M m) => (ScoreTime -> ScoreTime) -> m ()
 pos_dur f = events $ \(pos, event) ->
     Just $ (f pos, Event.modify_duration f event)
 
-pos_dur_sorted :: (Monad m) => (ScoreTime -> ScoreTime) -> Cmd.CmdT m ()
+pos_dur_sorted :: (Cmd.M m) => (ScoreTime -> ScoreTime) -> m ()
 pos_dur_sorted f = events_sorted $ \(pos, event) ->
     Just $ (f pos, Event.modify_duration f event)
 
@@ -96,17 +93,17 @@ move_events point shift events = merged
 
 -- * util
 
-map_track_sorted :: (Monad m) => (Track.PosEvent -> Maybe Track.PosEvent)
-    -> TrackId -> Cmd.CmdT m ()
+map_track_sorted :: (Cmd.M m) => (Track.PosEvent -> Maybe Track.PosEvent)
+    -> TrackId -> m ()
 map_track_sorted f track_id = State.modify_track_events track_id $
     Track.from_sorted_events . Seq.map_maybe f . Track.event_list
 
-map_track :: (Monad m) => (Track.PosEvent -> Maybe Track.PosEvent)
-    -> TrackId -> Cmd.CmdT m ()
+map_track :: (Cmd.M m) => (Track.PosEvent -> Maybe Track.PosEvent)
+    -> TrackId -> m ()
 map_track f track_id = State.modify_track_events track_id $
     Track.from_events . Seq.map_maybe f . Track.event_list
 
 -- | Mostly convenient for REPL use.
-for_track :: (Monad m) => TrackId -> (Track.PosEvent -> Maybe Track.PosEvent)
-    -> Cmd.CmdT m ()
+for_track :: (Cmd.M m) => TrackId -> (Track.PosEvent -> Maybe Track.PosEvent)
+    -> m ()
 for_track = flip map_track

@@ -53,16 +53,16 @@ get_event modify_dur track_id pos dur = do
     return $ maybe (Event.event "" dur) modify
         (Track.event_at pos (Track.track_events track))
 
-modify_event :: (Monad m) =>
-    Bool -> Bool -> (String -> (Maybe String, Bool)) -> Cmd.CmdT m ()
+modify_event :: (Cmd.M m) =>
+    Bool -> Bool -> (String -> (Maybe String, Bool)) -> m ()
 modify_event zero_dur modify_dur f = do
     sel <- get_sel_pos
     modify_event_at sel zero_dur modify_dur f
 
-modify_event_at :: (Monad m) => SelPos
+modify_event_at :: (Cmd.M m) => SelPos
     -> Bool -- ^ Created event has 0 dur, otherwise until next time step.
     -> Bool -- ^ If True, modify the duration of an existing event.
-    -> (String -> (Maybe String, Bool)) -> Cmd.CmdT m ()
+    -> (String -> (Maybe String, Bool)) -> m ()
 modify_event_at (tracknum, track_id, pos) zero_dur modify_dur f = do
     direction <- Cmd.gets (Cmd.state_note_direction . Cmd.state_edit)
     dur <- if zero_dur
@@ -82,7 +82,7 @@ modify_event_at (tracknum, track_id, pos) zero_dur modify_dur f = do
 
 type SelPos = (TrackNum, TrackId, ScoreTime)
 
-get_sel_pos :: (Monad m) => Cmd.CmdT m SelPos
+get_sel_pos :: (Cmd.M m) => m SelPos
 get_sel_pos = do
     (_, tracknum, track_id, pos) <- Selection.get_insert
     return (tracknum, track_id, pos)
@@ -114,7 +114,7 @@ extract_key _ _ = Nothing
 
 -- | When edit mode is on, the edit cmds tend to catch all msgs.  However, some
 -- msgs should go through anyway.
-fallthrough :: (Monad m) => Msg.Msg -> Cmd.CmdT m ()
+fallthrough :: (Cmd.M m) => Msg.Msg -> m ()
 fallthrough msg = do
     keys_down <- fmap Map.keys Cmd.keys_down
     -- Abort if there are modifiers down, so commands still work.
@@ -135,8 +135,7 @@ fallthrough msg = do
     (_, sel) <- Selection.get
     when (is_backspace && not (Types.sel_is_point sel)) Cmd.abort
 
-parse_key :: (Monad m) => Pitch.ScaleId -> Pitch.InputKey
-    -> Cmd.CmdT m Pitch.Note
+parse_key :: (Cmd.M m) => Pitch.ScaleId -> Pitch.InputKey -> m Pitch.Note
 parse_key scale_id input = do
     let me = "EditUtil.parse_key"
     scale <- Cmd.get_scale me scale_id

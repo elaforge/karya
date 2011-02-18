@@ -16,19 +16,18 @@ set_zoom view_id zoom = do
     State.set_zoom view_id zoom
     Cmd.sync_zoom_status view_id
 
-cmd_modify_zoom :: (Monad m) =>
-    (Double -> Double) -> ViewId -> Cmd.CmdT m ()
+cmd_modify_zoom :: (Cmd.M m) => (Double -> Double) -> ViewId -> m ()
 cmd_modify_zoom f view_id = do
     zoom <- State.get_zoom view_id
     set_zoom view_id (zoom { Types.zoom_factor = f (Types.zoom_factor zoom) })
 
-cmd_zoom_around_insert :: (Monad m) => (Double -> Double) -> Cmd.CmdT m ()
+cmd_zoom_around_insert :: (Cmd.M m) => (Double -> Double) -> m ()
 cmd_zoom_around_insert f = do
     (view_id, (_, _, pos)) <- Selection.get_any_insert
     cmd_zoom_around view_id pos f
 
-cmd_zoom_around :: (Monad m) =>
-    ViewId -> ScoreTime -> (Double -> Double) -> Cmd.CmdT m ()
+cmd_zoom_around :: (Cmd.M m) =>
+    ViewId -> ScoreTime -> (Double -> Double) -> m ()
 cmd_zoom_around view_id pos f = do
     -- Zoom by the given factor, but try to keep pos in the same place on the
     -- screen.
@@ -47,6 +46,6 @@ zoom_pos offset pos oldf newf = (offset - pos) * (oldf/newf) + pos
 
 -- * misc
 
-bring_to_front :: (Monad m) => ViewId -> Cmd.CmdT m ()
+bring_to_front :: (Cmd.M m) => ViewId -> m ()
 bring_to_front view_id =
     State.update $ Update.ViewUpdate view_id Update.BringToFront

@@ -110,7 +110,7 @@ import qualified App.Config as Config
 
 -- * cmds
 
-cmd_play_focused :: Transport.Info -> Cmd.CmdT IO Cmd.Status
+cmd_play_focused :: Transport.Info -> Cmd.CmdIO
 cmd_play_focused transport_info = do
     block_id <- Cmd.get_focused_block
     -- cmd_play wants to start with a track, so pick the first one.
@@ -119,27 +119,26 @@ cmd_play_focused transport_info = do
     track_id <- Cmd.require $ Seq.at (Block.block_track_ids block) 0
     cmd_play transport_info block_id (track_id, 0)
 
-cmd_play_from_insert :: Transport.Info -> Cmd.CmdT IO Cmd.Status
+cmd_play_from_insert :: Transport.Info -> Cmd.CmdIO
 cmd_play_from_insert transport_info = do
     (block_id, _, track_id, pos) <- Selection.get_insert
     cmd_play transport_info block_id (track_id, pos)
 
-cmd_play_from_previous_step :: Transport.Info -> Cmd.CmdT IO Cmd.Status
+cmd_play_from_previous_step :: Transport.Info -> Cmd.CmdIO
 cmd_play_from_previous_step transport_info = do
     step <- Cmd.gets Cmd.state_play_step
     (block_id, tracknum, track_id, pos) <- Selection.get_insert
     prev <- TimeStep.step_from step TimeStep.Rewind block_id tracknum pos
     cmd_play transport_info block_id (track_id, (maybe 0 id prev))
 
-cmd_play_from_previous_root_step :: Transport.Info -> Cmd.CmdT IO Cmd.Status
+cmd_play_from_previous_root_step :: Transport.Info -> Cmd.CmdIO
 cmd_play_from_previous_root_step transport_info = do
     (block_id, tracknum, track_id, pos) <- Selection.get_root_insert
     step <- Cmd.gets Cmd.state_play_step
     prev <- TimeStep.step_from step TimeStep.Rewind block_id tracknum pos
     cmd_play transport_info block_id (track_id, (maybe 0 id prev))
 
-cmd_play :: Transport.Info -> BlockId -> (TrackId, ScoreTime)
-    -> Cmd.CmdT IO Cmd.Status
+cmd_play :: Transport.Info -> BlockId -> (TrackId, ScoreTime) -> Cmd.CmdIO
 cmd_play transport_info block_id (start_track, start_pos) = do
     cmd_state <- Cmd.get_state
     case Cmd.state_play_control cmd_state of
@@ -164,7 +163,7 @@ cmd_play transport_info block_id (start_track, start_pos) = do
     Cmd.modify_state $ \st -> st { Cmd.state_play_control = Just play_ctl }
     return Cmd.Done
 
-cmd_stop :: Cmd.CmdT IO Cmd.Status
+cmd_stop :: Cmd.CmdIO
 cmd_stop = do
     ctl <- Cmd.get_state >>= maybe (Cmd.throw "player thread not running")
         return . Cmd.state_play_control
@@ -172,7 +171,7 @@ cmd_stop = do
     return Cmd.Done
 
 -- | Respond to msgs about derivation and playing status.
-cmd_play_msg :: Msg.Msg -> Cmd.CmdT IO Cmd.Status
+cmd_play_msg :: Msg.Msg -> Cmd.CmdIO
 cmd_play_msg msg = do
     case msg of
         Msg.Transport (Transport.Status _ status) -> transport_msg status
@@ -203,7 +202,7 @@ cmd_play_msg msg = do
 
 -- * implementation
 
-get_performance :: (Monad m) => BlockId -> Cmd.CmdT m Cmd.Performance
+get_performance :: (Cmd.M m) => BlockId -> m Cmd.Performance
 get_performance block_id = do
     threads <- Cmd.gets Cmd.state_performance_threads
     case Map.lookup block_id threads of

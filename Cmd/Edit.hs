@@ -27,7 +27,7 @@ import qualified App.Config as Config
 
 
 cmd_toggle_raw_edit, cmd_toggle_val_edit,
-    cmd_toggle_method_edit, cmd_toggle_kbd_entry :: (Monad m) => Cmd.CmdT m ()
+    cmd_toggle_method_edit, cmd_toggle_kbd_entry :: (Cmd.M m) => m ()
 
 cmd_toggle_raw_edit = modify_edit_mode $ \m -> case m of
     Cmd.RawEdit -> Cmd.NoEdit
@@ -54,13 +54,13 @@ cmd_toggle_kbd_entry = do
 
 -- ** util
 
-modify_edit_mode :: (Monad m) => (Cmd.EditMode -> Cmd.EditMode) -> Cmd.CmdT m ()
+modify_edit_mode :: (Cmd.M m) => (Cmd.EditMode -> Cmd.EditMode) -> m ()
 modify_edit_mode f = do
     Cmd.modify_edit_state $ \st ->
         st { Cmd.state_edit_mode = f (Cmd.state_edit_mode st) }
     sync_edit_box_status
 
-sync_edit_box_status :: (Monad m) => Cmd.CmdT m ()
+sync_edit_box_status :: (Cmd.M m) => m ()
 sync_edit_box_status = do
     edit_mode <- Cmd.gets (Cmd.state_edit_mode . Cmd.state_edit)
     kbd_entry <- Cmd.gets (Cmd.state_kbd_entry . Cmd.state_edit)
@@ -77,7 +77,7 @@ edit_color mode = case mode of
 -- * universal event cmds
 
 -- | Insert an event at the current insert pos.
-insert_event :: (Monad m) => String -> ScoreTime -> Cmd.CmdT m ()
+insert_event :: (Cmd.M m) => String -> ScoreTime -> m ()
 insert_event text dur = do
     (_, _, track_id, pos) <- Selection.get_insert
     State.insert_events track_id [(pos, Event.event text dur)]
@@ -87,7 +87,7 @@ insert_event text dur = do
 --
 -- To make it easy to create legato, if a point selection matches an event,
 -- modify the previous event instead of setting the current one to 0 duration.
-cmd_set_duration :: (Monad m) => Cmd.CmdT m ()
+cmd_set_duration :: (Cmd.M m) => m ()
 cmd_set_duration = do
     (_, sel) <- Selection.get
     ModifyEvents.modify_pos_events $ \pos event ->
@@ -95,13 +95,13 @@ cmd_set_duration = do
 
 -- | Modify event durations by applying a function to them.  0 durations
 -- are passed through, so you can't accidentally give control events duration.
-cmd_modify_dur :: (Monad m) => (ScoreTime -> ScoreTime) -> Cmd.CmdT m ()
+cmd_modify_dur :: (Cmd.M m) => (ScoreTime -> ScoreTime) -> m ()
 cmd_modify_dur f = ModifyEvents.modify_events $ \evt ->
     Event.set_duration (apply (Event.event_duration evt)) evt
     where apply dur = if dur == 0 then dur else f dur
 
 -- | If there is a following event, delete it and extend this one to its end.
-cmd_join_events :: (Monad m) => Cmd.CmdT m ()
+cmd_join_events :: (Cmd.M m) => m ()
 cmd_join_events = mapM_ process =<< Selection.events_around
     where
         -- If I only selected one, join with the next.  Otherwise, join
@@ -135,7 +135,7 @@ cmd_join_events = mapM_ process =<< Selection.events_around
 -- | Insert empty space at the beginning of the selection for the length of
 -- the selection, pushing subsequent events forwards.  If the selection is
 -- a point, insert one timestep.
-cmd_insert_time :: (Monad m) => Cmd.CmdT m ()
+cmd_insert_time :: (Cmd.M m) => m ()
 cmd_insert_time = do
     (tracknums, track_ids, start, end) <- Selection.tracks
     (start, end) <- expand_range tracknums start end
@@ -173,7 +173,7 @@ insert_time start end event@(pos, evt)
 
 -- | Remove the notes under the selection, and move everything else back.  If
 -- the selection is a point, delete one timestep.
-cmd_delete_time :: (Monad m) => Cmd.CmdT m ()
+cmd_delete_time :: (Cmd.M m) => m ()
 cmd_delete_time = do
     (tracknums, track_ids, start, end) <- Selection.tracks
     (start, end) <- expand_range tracknums start end
@@ -212,8 +212,8 @@ delete_time start end event@(pos, evt)
         | otherwise = Just (pos - shift, evt)
 
 -- | If the range is a point, then expand it to one timestep.
-expand_range :: (Monad m) => [TrackNum] -> ScoreTime -> ScoreTime
-    -> Cmd.CmdT m (ScoreTime, ScoreTime)
+expand_range :: (Cmd.M m) => [TrackNum] -> ScoreTime -> ScoreTime
+    -> m (ScoreTime, ScoreTime)
 expand_range (tracknum:_) start end
     | start == end = do
         block_id <- Cmd.get_focused_block
@@ -225,14 +225,14 @@ expand_range [] start end = return (start, end)
 
 -- | If the insertion selection is a point, clear any event under it.  If it's
 -- a range, clear all events within its half-open extent.
-cmd_clear_selected :: (Monad m) => Cmd.CmdT m ()
+cmd_clear_selected :: (Cmd.M m) => m ()
 cmd_clear_selected = do
     (_, track_ids, start, end) <- Selection.tracks
     forM_ track_ids $ \track_id -> if start == end
         then State.remove_event track_id start
         else State.remove_events track_id start end
 
-set_step_rank :: (Monad m) => TimeStep.TimeStep -> Int -> Int -> Cmd.CmdT m ()
+set_step_rank :: (Cmd.M m) => TimeStep.TimeStep -> Int -> Int -> m ()
 set_step_rank deflt rank skip = do
     Cmd.modify_edit_state $ \st ->
         st { Cmd.state_step = set (Cmd.state_step st) }
@@ -244,7 +244,7 @@ set_step_rank deflt rank skip = do
         TimeStep.RelativeMark names (TimeStep.MatchRank rank skip)
     set _ = deflt
 
-toggle_mark_step :: (Monad m) => Cmd.CmdT m ()
+toggle_mark_step :: (Cmd.M m) => m ()
 toggle_mark_step = do
     Cmd.modify_edit_state $ \st ->
         st { Cmd.state_step = toggle (Cmd.state_step st) }
@@ -256,12 +256,12 @@ toggle_mark_step = do
         TimeStep.AbsoluteMark names matcher
     toggle step = step
 
-set_step :: (Monad m) => TimeStep.TimeStep -> Cmd.CmdT m ()
+set_step :: (Cmd.M m) => TimeStep.TimeStep -> m ()
 set_step step = do
     Cmd.modify_edit_state $ \st -> st { Cmd.state_step = step }
     sync_step_status
 
-cmd_invert_step_direction :: (Monad m) => Cmd.CmdT m ()
+cmd_invert_step_direction :: (Cmd.M m) => m ()
 cmd_invert_step_direction = do
     Cmd.modify_edit_state $ \st -> st { Cmd.state_note_direction =
         invert (Cmd.state_note_direction st) }
@@ -270,7 +270,7 @@ cmd_invert_step_direction = do
     invert TimeStep.Advance = TimeStep.Rewind
     invert TimeStep.Rewind = TimeStep.Advance
 
-sync_step_status :: (Monad m) => Cmd.CmdT m ()
+sync_step_status :: (Cmd.M m) => m ()
 sync_step_status = do
     st <- Cmd.gets Cmd.state_edit
     Cmd.set_global_status "step" $
@@ -296,14 +296,13 @@ show_match (TimeStep.MatchRank rank skips) =
 show_marklists TimeStep.AllMarklists = "all"
 show_marklists (TimeStep.NamedMarklists mlists) = Seq.join "," mlists
 
-cmd_modify_octave :: (Monad m) => (Pitch.Octave -> Pitch.Octave)
-    -> Cmd.CmdT m ()
+cmd_modify_octave :: (Cmd.M m) => (Pitch.Octave -> Pitch.Octave) -> m ()
 cmd_modify_octave f = do
     Cmd.modify_edit_state $ \st -> st
         { Cmd.state_kbd_entry_octave = f (Cmd.state_kbd_entry_octave st) }
     sync_octave_status
 
-sync_octave_status :: (Monad m) => Cmd.CmdT m ()
+sync_octave_status :: (Cmd.M m) => m ()
 sync_octave_status = do
     octave <- Cmd.gets (Cmd.state_kbd_entry_octave . Cmd.state_edit)
     -- This is technically global state and doesn't belong in the block's
@@ -317,7 +316,7 @@ sync_octave_status = do
 -- TODO if I want to remember the name of the state from the undo, I'll have
 -- to stick it in the history: (past, future, now_name)
 
-undo :: (Monad m) => Cmd.CmdT m ()
+undo :: (Cmd.M m) => m ()
 undo = do
     (past, future) <- Cmd.gets Cmd.state_history
     now <- State.get
@@ -331,7 +330,7 @@ undo = do
             initialize_state
         [] -> Log.notice "no past to undo"
 
-redo :: (Monad m) => Cmd.CmdT m ()
+redo :: (Cmd.M m) => m ()
 redo = do
     (past, future) <- Cmd.gets Cmd.state_history
     now <- State.get
@@ -357,7 +356,7 @@ merge_undo_states old new = new {
     , State.state_midi_config = State.state_midi_config old
     }
 
-hist_status :: (Monad m) => Cmd.CmdT m ()
+hist_status :: (Cmd.M m) => m ()
 hist_status = do
     (past, future) <- Cmd.gets Cmd.state_history
     Log.debug $ "past length: " ++ show (length past)
@@ -376,7 +375,7 @@ merge_block old_blocks block_id new = case Map.lookup block_id old_blocks of
 
 
 -- | Sync UI state up with Cmd state and schedule UI updates.
-initialize_state :: (Monad m) => Cmd.CmdT m ()
+initialize_state :: (Cmd.M m) => m ()
 initialize_state = do
     -- TODO these scattered sync functions are kinda grody.  Isn't there a
     -- better way to keep track of state that needs to be synced?  Or avoid
@@ -398,7 +397,7 @@ initialize_state = do
 -- TODO Except it won't be when you use State directly.  Solutions are: have
 -- Cmd.set_project etc. and don't forget to call them, move logging to State,
 -- or modify the UiStateMonad instance so it logs in Cmd.
-sync_global_status :: (Monad m) => Cmd.CmdT m ()
+sync_global_status :: (Cmd.M m) => m ()
 sync_global_status = do
     st <- State.get
     Cmd.set_global_status "project" (State.state_project st)

@@ -95,13 +95,13 @@ cmd_method_edit inst pitch_track msg = do
         _ -> Cmd.abort
     return Cmd.Done
 
-all_keys_up :: (Monad m) => Cmd.CmdT m Bool
+all_keys_up :: (Cmd.M m) => m Bool
 all_keys_up = do
     st <- Cmd.get_wdev_state
     return (Map.null (Cmd.wdev_note_track st))
 
 -- | Find existing tracknum or throw.
-track_of :: (Monad m) => InputNote.NoteId -> Cmd.CmdT m (TrackNum, TrackId)
+track_of :: (Cmd.M m) => InputNote.NoteId -> m (TrackNum, TrackId)
 track_of note_id = do
     st <- Cmd.get_wdev_state
     (block_id, tracknum) <- maybe
@@ -112,8 +112,8 @@ track_of note_id = do
 
 -- | Turn the given PitchTrack into a TrackId, creating a new track if it's
 -- a CreateTrack.  If a NoteId is given, associate that ID with the track.
-make_pitch_track :: (Monad m) => Maybe InputNote.NoteId -> PitchTrack
-    -> Cmd.CmdT m (TrackNum, TrackId)
+make_pitch_track :: (Cmd.M m) => Maybe InputNote.NoteId -> PitchTrack
+    -> m (TrackNum, TrackId)
 make_pitch_track maybe_note_id pitch_track = do
     block_id <- Cmd.get_focused_block
     (tracknum, tid) <- case pitch_track of
@@ -146,11 +146,11 @@ create_pitch_track block_id note_tracknum title tracknum = do
 
 -- * implementation
 
-ensure_exists :: (Monad m) => Bool -> Cmd.CmdT m ()
+ensure_exists :: (Cmd.M m) => Bool -> m ()
 ensure_exists zero_dur =
     EditUtil.modify_event zero_dur True $ \txt -> (Just txt, False)
 
-remove :: (Monad m) => EditUtil.SelPos -> Cmd.CmdT m ()
+remove :: (Cmd.M m) => EditUtil.SelPos -> m ()
 remove selpos =
     EditUtil.modify_event_at selpos False False (const (Nothing, False))
 
@@ -172,7 +172,7 @@ raw_edit inst scale_id msg = do
 
 -- | Instruments with the triggered flag set don't pay attention to note off,
 -- so I can make the duration 0.
-triggered_inst :: (Monad m) => Maybe Score.Instrument -> Cmd.CmdT m Bool
+triggered_inst :: (Cmd.M m) => Maybe Score.Instrument -> m Bool
 triggered_inst Nothing = return False -- don't know, but guess it's not
 triggered_inst (Just inst) = do
     maybe_info <- Cmd.lookup_instrument_info inst

@@ -26,7 +26,7 @@ import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.MidiDb as MidiDb
 
 
-inst_info :: (Monad m) => Score.Instrument -> Cmd.CmdT m String
+inst_info :: (Cmd.M m) => Score.Instrument -> m String
 inst_info inst = do
     maybe_info <- Cmd.lookup_instrument_info inst
     midi_config <- State.get_midi_config
@@ -78,7 +78,7 @@ show_runs = concatMap show_run . Seq.split_between (\a b -> a+1 < b)
 --
 -- This should be run whenever the track focus changes, or tracks are expanded
 -- or collapsed.
-set_inst_status :: (Monad m) => BlockId -> TrackNum -> Cmd.CmdT m ()
+set_inst_status :: (Cmd.M m) => BlockId -> TrackNum -> m ()
 set_inst_status block_id tracknum = do
     ttree <- State.get_track_tree block_id
     -- This may be run loading a new state when there is no focused block, so
@@ -93,8 +93,8 @@ set_inst_status block_id tracknum = do
 -- | Looks like:
 -- title (tracknum): inst_name, allocation, [control tracks]
 -- fm8/inst1 at 1: fm8:0,1,2, [vel {collapse 2}, pedal {expand 3}]
-get_track_status :: (Monad m) => BlockId -> State.TrackTree -> TrackNum
-    -> Cmd.CmdT m String
+get_track_status :: (Cmd.M m) => BlockId -> State.TrackTree -> TrackNum
+    -> m String
 get_track_status block_id ttree tracknum = case note_track_of ttree tracknum of
     Just (inst, note_tracknum) -> do
         let controls = control_tracks_of ttree note_tracknum

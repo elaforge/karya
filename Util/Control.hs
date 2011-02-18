@@ -10,7 +10,7 @@ module Util.Control (
     , finally
 ) where
 import Control.Monad
-import qualified Control.Monad.Error as Error
+import qualified Control.Monad.Error.Class as Error
 import Control.Applicative ((<$>), (<*>), (<*), (*>), (<|>))
 import qualified Control.Applicative as Applicative
 import qualified Data.Monoid as Monoid
@@ -61,10 +61,6 @@ instance Applicative.Applicative (P.GenParser s a) where
 instance Applicative.Alternative (P.GenParser s a) where
     empty = mzero
     (<|>) = mplus
-
-instance (Error.Error e) => Applicative.Applicative (Either e) where
-    pure = return
-    (<*>) = ap
 
 -- | Finally a finally for MonadError.
 finally :: (Error.MonadError e m) => m a -> m () -> m a

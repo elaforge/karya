@@ -59,16 +59,16 @@ import qualified App.Config as Config
 -- TODO If there is an open view on a given block, maybe it can be reopened.
 -- Or maybe there can be a setting to automatically open a view on a copied
 -- block.
-state_to_clip :: (Monad m) => State.State -> Cmd.CmdT m ()
+state_to_clip :: (Cmd.M m) => State.State -> m ()
 state_to_clip state = state_to_namespace state =<< get_clip_namespace
 
-clear_clip :: (Monad m) => Cmd.CmdT m ()
+clear_clip :: (Cmd.M m) => m ()
 clear_clip = destroy_namespace =<< get_clip_namespace
 
 -- * copy
 
 -- | Copy events under the current selection into the buffer.
-cmd_copy_selection :: (Monad m) => Cmd.CmdT m ()
+cmd_copy_selection :: (Cmd.M m) => m ()
 cmd_copy_selection = do
     sel <- copy_selection Config.insert_selnum
     state <- selection_sub_state sel
@@ -76,13 +76,13 @@ cmd_copy_selection = do
 
 -- | Like 'cmd_copy_selection', but shift the following events back by the
 -- selection duration.
-cmd_cut_selection :: (Monad m) => Cmd.CmdT m ()
+cmd_cut_selection :: (Cmd.M m) => m ()
 cmd_cut_selection = do
     cmd_copy_selection
     Edit.cmd_clear_selected
 
 -- | During copies, a point selection is a no-op.
-copy_selection :: (Monad m) => Types.SelNum -> Cmd.CmdT m Types.Selection
+copy_selection :: (Cmd.M m) => Types.SelNum -> m Types.Selection
 copy_selection selnum = do
     view_id <- Cmd.get_focused_view
     sel <- Cmd.require =<< State.get_selection view_id selnum
@@ -95,14 +95,14 @@ copy_selection selnum = do
 -- is a point it's the same as if it extended to the end of the block.
 
 -- | The normal variety of paste that replaces the destination data.
-cmd_paste_overwrite :: (Monad m) => Cmd.CmdT m ()
+cmd_paste_overwrite :: (Cmd.M m) => m ()
 cmd_paste_overwrite = do
     (start, end, track_ids, clip_events) <- paste_info
     forM_  (zip track_ids clip_events) $ \(track_id, events) -> do
         State.remove_events track_id start end
         State.insert_events track_id events
 
-cmd_paste_merge :: (Monad m) => Cmd.CmdT m ()
+cmd_paste_merge :: (Cmd.M m) => m ()
 cmd_paste_merge = do
     (_start, _end, track_ids, clip_events) <- paste_info
     forM_  (zip track_ids clip_events) $ \(track_id, events) -> do
@@ -110,7 +110,7 @@ cmd_paste_merge = do
 
 -- | Like 'cmd_paste_merge', except don't merge events that overlap with
 -- existing ones.
-cmd_paste_soft_merge :: (Monad m) => Cmd.CmdT m ()
+cmd_paste_soft_merge :: (Cmd.M m) => m ()
 cmd_paste_soft_merge = do
     (_start, _end, track_ids, clip_events) <- paste_info
     forM_  (zip track_ids clip_events) $ \(track_id, events) -> do
@@ -123,7 +123,7 @@ cmd_paste_soft_merge = do
 -- | Insert the events after pushing events after the selection down by
 -- the inserted length, which is the minimum of the insert selection and the
 -- length of the buffer.
-cmd_paste_insert :: (Monad m) => Cmd.CmdT m ()
+cmd_paste_insert :: (Cmd.M m) => m ()
 cmd_paste_insert = do
     (start, end, track_ids, clip_events) <- paste_info
     -- Only shift the tracks that are in clip_events.
@@ -135,7 +135,7 @@ cmd_paste_insert = do
 
 -- * implementation
 
-get_clip_block_id :: (Monad m) => Cmd.CmdT m BlockId
+get_clip_block_id :: (Cmd.M m) => m BlockId
 get_clip_block_id = do
     clip_ns <- get_clip_namespace
     return $ Types.BlockId (Id.id clip_ns Config.clip_block_name)
@@ -155,7 +155,7 @@ get_clip_block_id = do
 --
 -- Also strip out the skeleton and other track attributes, like hidden, muted,
 -- etc.
-selection_sub_state :: (Monad m) => Types.Selection -> Cmd.CmdT m State.State
+selection_sub_state :: (Cmd.M m) => Types.Selection -> m State.State
 selection_sub_state sel = do
     block_id <- Cmd.get_focused_block
     block <- State.get_block block_id
@@ -225,7 +225,7 @@ set_namespace ns state = do
         State.map_block_ids set
         State.map_track_ids set
 
-get_clip_namespace :: (Monad m) => Cmd.CmdT m Id.Namespace
+get_clip_namespace :: (Cmd.M m) => m Id.Namespace
 get_clip_namespace = Cmd.gets Cmd.state_clip_namespace
 
 -- | Destroy all views, blocks, tracks, and rulers with the given namespace.
@@ -249,8 +249,8 @@ destroy_namespace ns = do
 -- the tracks in the destination selection, and the events from the clipboard
 -- grouped by track.  The clipboard events are clipped to start--end and
 -- shifted into the paste range.
-paste_info :: (Monad m) =>
-    Cmd.CmdT m (ScoreTime, ScoreTime, [TrackId], [[Track.PosEvent]])
+paste_info :: (Cmd.M m) =>
+    m (ScoreTime, ScoreTime, [TrackId], [[Track.PosEvent]])
 paste_info = do
     (track_ids, clip_track_ids, sel) <- get_paste_area
     let (start, end) = Types.sel_range sel
@@ -279,8 +279,7 @@ clip_events point (event@(pos, evt):events)
 --
 -- During pastes, a point selection extends to the end of the last pasted
 -- event.
-get_paste_area :: (Monad m) =>
-    Cmd.CmdT m ([TrackId], [TrackId], Types.Selection)
+get_paste_area :: (Cmd.M m) => m ([TrackId], [TrackId], Types.Selection)
 get_paste_area = do
     view_id <- Cmd.get_focused_view
     sel <- Cmd.require =<< State.get_selection view_id Config.insert_selnum

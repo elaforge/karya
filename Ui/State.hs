@@ -199,21 +199,21 @@ instance Error.Error StateError where
 
 -- TODO remove modify and implement in terms of get and put?
 -- TODO I also think I can remove throw since it's in Error
-class (Monad m, Functor m, Applicative.Applicative m) => UiStateMonad m where
+class (Applicative.Applicative m, Monad m) => UiStateMonad m where
     get :: m State
     put :: State -> m ()
     modify :: (State -> State) -> m ()
     update :: Update.Update -> m ()
     throw :: String -> m a
 
-instance Monad m => UiStateMonad (StateT m) where
+instance (Applicative.Applicative m, Monad m) => UiStateMonad (StateT m) where
     get = StateT State.get
     put st = StateT (State.put st)
     modify f = StateT (State.modify f)
     update upd = (StateT . lift) (Logger.log upd)
     throw msg = (StateT . lift . lift) (Error.throwError (StateError msg))
 
-instance (Monad m) => Applicative.Applicative (StateT m) where
+instance (Functor m, Monad m) => Applicative.Applicative (StateT m) where
     pure = return
     (<*>) = ap
 
@@ -356,6 +356,7 @@ verify state = (fmap (\(_, s, _) -> s) result, logs)
 -- check that all views refer to valid blocks, and all TracklikeIds have
 -- referents
 -- anything else?
+do_verify :: StateT (Log.LogT Identity.Identity) ()
 do_verify = do
     view_ids <- get_all_view_ids
     mapM_ verify_view view_ids
@@ -377,6 +378,7 @@ verify_view view_id = do
     forM_ [vtracks .. btracks-1] $ \tracknum ->
         modify_view view_id $ \v -> insert_into_view tracknum 20 v
 
+verify_block :: (UiStateMonad m) => Block.Block -> m ()
 verify_block block = do
     mapM_ get_track (Block.block_track_ids block)
     mapM_ get_ruler (Block.block_ruler_ids block)

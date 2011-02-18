@@ -1,4 +1,35 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, DeriveDataTypeable #-}
+{- | Core CmdT monad that cmds run in.
+
+    Cmds should be in the monad @(Cmd.M m) => m ...@.
+
+    They have to be polymorphic because they run in both IO and Identity.
+    IO because some cmds such saving and loading files require IO, and Identity
+    because the rest don't.  REPL cmds run in IO so they can load and save,
+    and the result is that any cmd that wants to be used from both Identity
+    cmds (bound to keystrokes) and the REPL must be polymorphic in the monad.
+
+    Formerly this was @(Monad m) => CmdT m ...@, but with the upgrade to mtl2
+    Functor would have to be added to the class context, but only some of the
+    time.  Rather than deal such messiness, there's a class @Cmd.M@ that brings
+    in Functor and Applicative as superclasses.
+
+    It's all a bit messy and unpleasant and should be technically unnecessary
+    since Identity monads should be able to run in IO anyway.  Other solutions:
+
+    - Run all cmds in IO.  I don't think I actually get anything from
+    disallowing IO.  It seems like a nice property to be able to always e.g.
+    abort cmds halfway through with nothing to undo.
+
+    - Run all cmds in restricted IO by only giving access to readFile and
+    writeFile.
+
+    - Run all cmds in Identity by giving unsafePerformIO access to r/w files.
+    The assumption is that read and write ordering is never important within
+    a single cmd.
+
+    Unfortunately cmds also use getDirectoryContents, forkIO, killThread, etc.
+-}
 module Cmd.Cmd where
 import qualified Control.Applicative as Applicative
 import Control.Monad
@@ -53,9 +84,8 @@ import qualified Perform.Pitch as Pitch
 -- run in other monads like IO.  It's unlikely to become a problem, but if it
 -- does, I'll have to stop using these aliases.
 type Cmd = Msg.Msg -> CmdId
-type CmdM m = CmdT m Status
-type CmdIO = CmdM IO
-type CmdId = CmdM Identity.Identity
+type CmdIO = CmdT IO Status
+type CmdId = CmdT Identity.Identity Status
 
 -- | Cmds used by the language system, which all run in Identity.
 type CmdL a = CmdT IO a
@@ -112,44 +142,50 @@ newtype CmdT m a = CmdT (CmdStack m a)
     deriving (Functor, Monad, Trans.MonadIO, Error.MonadError State.StateError)
 run_cmd_t (CmdT x) = x
 
+class (Log.LogMonad m, State.UiStateMonad m) => M m where
+    get_state :: m State
+    put_state :: State -> m ()
+    -- | Log some midi to send out immediately.  This is the midi thru
+    -- mechanism.
+    midi :: Midi.WriteDevice -> Midi.Message -> m ()
+    -- | An abort is an exception to get out of CmdT, but it's considered the
+    -- same as returning Continue.  It's so a command can back out if e.g. it's
+    -- selected by the 'Keymap' but has an additional prerequisite such as
+    -- having an active block.
+    abort :: m a
+    catch_abort :: m a -> m (Maybe a)
+
+instance (Applicative.Applicative m, Monad m) => M (CmdT m) where
+    get_state = (CmdT . lift) MonadState.get
+    put_state st = (CmdT . lift) (MonadState.put st)
+    midi dev msg = (CmdT . lift . lift) (Logger.log (dev, msg))
+    abort = Error.throwError State.Abort
+    catch_abort m = Error.catchError (fmap Just m) catch
+        where
+        catch State.Abort = return Nothing
+        catch err = Error.throwError err
+
 -- | For some reason, newtype deriving doesn't work on MonadTrans.
 instance Trans.MonadTrans CmdT where
     lift = CmdT . lift . lift . lift . lift -- whee!!
 
 -- Give CmdT unlifted access to all the logging functions.
-instance Monad m => Log.LogMonad (CmdT m) where
+instance (Monad m) => Log.LogMonad (CmdT m) where
     write = CmdT . lift . lift . lift . Log.write
 
 -- And to the UI state operations.
-instance Monad m => State.UiStateMonad (CmdT m) where
+instance (Functor m, Monad m) => State.UiStateMonad (CmdT m) where
     get = CmdT State.get
     put st = CmdT (State.put st)
     modify f = CmdT (State.modify f)
     update upd = CmdT (State.update upd)
     throw msg = CmdT (State.throw msg)
 
-instance (Monad m) => Applicative.Applicative (CmdT m) where
+instance (Functor m, Monad m) => Applicative.Applicative (CmdT m) where
     pure = return
     (<*>) = ap
 
 type MidiThru = (Midi.WriteDevice, Midi.Message)
-
--- | Log some midi to send out immediately.  This is the midi thru mechanism.
-midi :: (Monad m) => Midi.WriteDevice -> Midi.Message -> CmdT m ()
-midi dev msg = (CmdT . lift . lift) (Logger.log (dev, msg))
-
--- | An abort is an exception to get out of CmdT, but it's considered the same
--- as returning Continue.  It's so a command can back out if e.g. it's selected
--- by the 'Keymap' but has an additional prerequisite such as having an active
--- block.
-abort :: (Monad m) => CmdT m a
-abort = Error.throwError State.Abort
-
-catch_abort :: (Monad m) => CmdT m a -> CmdT m (Maybe a)
-catch_abort m = Error.catchError (fmap Just m) catch
-    where
-    catch State.Abort = return Nothing
-    catch err = Error.throwError err
 
 is_abort :: State.StateError -> Bool
 is_abort State.Abort = True
@@ -157,16 +193,16 @@ is_abort _ = False
 
 -- | This is the same as State.throw, but it feels like things in Cmd may not
 -- always want to reuse State's exceptions, so they should call this one.
-throw :: (Monad m) => String -> CmdT m a
+throw :: (M m) => String -> m a
 throw = State.throw
 
 -- | Extract a Just value, or 'abort'.  Generally used to check for Cmd
 -- conditions that don't fit into a Keymap.
-require :: (Monad m) => Maybe a -> CmdT m a
+require :: (M m) => Maybe a -> m a
 require = maybe abort return
 
 -- | Like 'require', but throw an exception with the given msg.
-require_msg :: (Monad m) => String -> Maybe a -> CmdT m a
+require_msg :: (M m) => String -> Maybe a -> m a
 require_msg msg = maybe (throw msg) return
 
 -- * State
@@ -417,50 +453,42 @@ mouse_mod_btn _ = Nothing
 
 -- ** state access
 
-get_state :: (Monad m) => CmdT m State
-get_state = (CmdT . lift) MonadState.get
+gets :: (M m) => (State -> a) -> m a
+gets f = f <$> get_state
 
-gets :: (Monad m) => (State -> a) -> CmdT m a
-gets f = fmap f get_state
+modify_state :: (M m) => (State -> State) -> m ()
+modify_state f = do
+    st <- get_state
+    put_state $! f st
 
-put_state :: (Monad m) => State -> CmdT m ()
-put_state st = (CmdT . lift) (MonadState.put $! st)
-
-modify_state :: (Monad m) => (State -> State) -> CmdT m ()
-modify_state f = (CmdT . lift) $ do
-    st <- MonadState.get
-    MonadState.put $! f st
-
-modify_edit_state :: (Monad m) => (EditState -> EditState) -> CmdT m ()
+modify_edit_state :: (M m) => (EditState -> EditState) -> m ()
 modify_edit_state f =
     modify_state $ \st -> st { state_edit = f (state_edit st) }
 
-
-lookup_pthread :: (Monad m) => BlockId -> CmdT m (Maybe PerformanceThread)
+lookup_pthread :: (M m) => BlockId -> m (Maybe PerformanceThread)
 lookup_pthread block_id = Map.lookup block_id <$> gets state_performance_threads
 
-lookup_performance :: (Monad m) => BlockId -> CmdT m (Maybe Performance)
+lookup_performance :: (M m) => BlockId -> m (Maybe Performance)
 lookup_performance block_id = fmap (fmap pthread_perf) (lookup_pthread block_id)
 
-get_performance :: (Monad m) => BlockId -> CmdT m Performance
+get_performance :: (M m) => BlockId -> m Performance
 get_performance block_id = require =<< lookup_performance block_id
 
 -- | Keys currently held down, as in 'state_keys_down'.
-keys_down :: (Monad m) => CmdT m (Map.Map Modifier Modifier)
+keys_down :: (M m) => m (Map.Map Modifier Modifier)
 keys_down = gets state_keys_down
 
-get_focused_view :: (Monad m) => CmdT m ViewId
+get_focused_view :: (M m) => m ViewId
 get_focused_view = gets state_focused_view >>= require
 
-get_focused_block :: (Monad m) => CmdT m BlockId
-get_focused_block =
-    fmap Block.view_block (get_focused_view >>= State.get_view)
+get_focused_block :: (M m) => m BlockId
+get_focused_block = fmap Block.view_block (get_focused_view >>= State.get_view)
 
-lookup_focused_view :: (Monad m) => CmdT m (Maybe ViewId)
+lookup_focused_view :: (M m) => m (Maybe ViewId)
 lookup_focused_view = gets state_focused_view
 
 -- | In some circumstances I don't want to abort if there's no focused block.
-lookup_focused_block :: (Monad m) => CmdT m (Maybe BlockId)
+lookup_focused_block :: (M m) => m (Maybe BlockId)
 lookup_focused_block = do
     maybe_view_id <- lookup_focused_view
     case maybe_view_id of
@@ -468,12 +496,12 @@ lookup_focused_block = do
         Just view_id -> fmap (Just . Block.view_block) (State.get_view view_id)
         Nothing -> return Nothing
 
-get_current_step :: (Monad m) => CmdT m TimeStep.TimeStep
+get_current_step :: (M m) => m TimeStep.TimeStep
 get_current_step = gets (state_step . state_edit)
 
 -- | Get the leftmost track covered by the insert selection, which is
 -- considered the "focused" track by convention.
-get_insert_tracknum :: (Monad m) => CmdT m (Maybe TrackNum)
+get_insert_tracknum :: (M m) => m (Maybe TrackNum)
 get_insert_tracknum = do
     view_id <- get_focused_view
     sel <- State.get_selection view_id Config.insert_selnum
@@ -481,11 +509,10 @@ get_insert_tracknum = do
 
 -- | This just calls 'State.set_view_status', but all status setting should
 -- go through here so they can be uniformly filtered or logged or something.
-set_view_status :: (Monad m) => ViewId -> String -> Maybe String
-    -> CmdT m ()
+set_view_status :: (M m) => ViewId -> String -> Maybe String -> m ()
 set_view_status view_id key val = State.set_view_status view_id key val
 
-set_global_status :: (Monad m) => String -> String -> CmdT m ()
+set_global_status :: (M m) => String -> String -> m ()
 set_global_status key val = do
     status_map <- gets state_global_status
     when (Map.lookup key status_map /= Just val) $ do
@@ -494,92 +521,88 @@ set_global_status key val = do
         Log.debug $ "global status: " ++ key ++ " -- " ++ val
 
 -- | Set a status variable on all views.
-set_status :: (Monad m) => String -> Maybe String -> CmdT m ()
+set_status :: (M m) => String -> Maybe String -> m ()
 set_status key val = do
     view_ids <- State.gets (Map.keys . State.state_views)
     forM_ view_ids $ \view_id -> set_view_status view_id key val
 
-get_lookup_midi_instrument :: (Monad m) => CmdT m MidiDb.LookupMidiInstrument
+get_lookup_midi_instrument :: (M m) => m MidiDb.LookupMidiInstrument
 get_lookup_midi_instrument =
     gets (Instrument.Db.db_lookup_midi . state_instrument_db)
 
-lookup_instrument_info :: (Monad m) => Score.Instrument
-    -> CmdT m (Maybe MidiDb.Info)
+lookup_instrument_info :: (M m) => Score.Instrument -> m (Maybe MidiDb.Info)
 lookup_instrument_info inst = do
     inst_db <- gets state_instrument_db
     return $ Instrument.Db.db_lookup inst_db inst
 
-get_schema_map :: (Monad m) => CmdT m SchemaMap
+get_schema_map :: (M m) => m SchemaMap
 get_schema_map = gets state_schema_map
 
-get_clip_namespace :: (Monad m) => CmdT m Id.Namespace
+get_clip_namespace :: (M m) => m Id.Namespace
 get_clip_namespace = gets state_clip_namespace
 
-set_clip_namespace :: (Monad m) => Id.Namespace -> CmdT m ()
+set_clip_namespace :: (M m) => Id.Namespace -> m ()
 set_clip_namespace ns = modify_state $ \st -> st { state_clip_namespace = ns }
 
-get_lookup_scale :: (Monad m) => CmdT m Derive.LookupScale
+get_lookup_scale :: (M m) => m Derive.LookupScale
 get_lookup_scale = do
     LookupScale lookup_scale <- gets state_lookup_scale
     return lookup_scale
 
 -- | Lookup a scale_id or throw.
-get_scale :: (Monad m) => String -> Pitch.ScaleId -> CmdT m Scale.Scale
+get_scale :: (M m) => String -> Pitch.ScaleId -> m Scale.Scale
 get_scale caller scale_id = do
     lookup_scale <- get_lookup_scale
     maybe (throw (caller ++ ": unknown " ++ show scale_id)) return
         (lookup_scale scale_id)
 
-get_rdev_state :: (Monad m) => Midi.ReadDevice
-    -> CmdT m InputNote.ControlState
+get_rdev_state :: (M m) => Midi.ReadDevice -> m InputNote.ControlState
 get_rdev_state rdev = do
     cmap <- gets state_rdev_state
     return $ maybe (InputNote.empty_state Config.control_pb_range) id
         (Map.lookup rdev cmap)
 
-set_rdev_state :: (Monad m) => Midi.ReadDevice
-    -> InputNote.ControlState -> CmdT m ()
+set_rdev_state :: (M m) => Midi.ReadDevice -> InputNote.ControlState -> m ()
 set_rdev_state rdev state = do
     st <- get_state
     put_state $ st { state_rdev_state =
         Map.insert rdev state (state_rdev_state st) }
 
-set_pitch_bend_range :: (Monad m) => Control.PbRange -> Midi.ReadDevice
-    -> CmdT m ()
+set_pitch_bend_range :: (M m) => Control.PbRange -> Midi.ReadDevice -> m ()
 set_pitch_bend_range range rdev = do
     state <- get_rdev_state rdev
     set_rdev_state rdev (state { InputNote.state_pb_range = range })
 
-get_wdev_state :: (Monad m) => CmdT m WriteDeviceState
+get_wdev_state :: (M m) => m WriteDeviceState
 get_wdev_state = gets state_wdev_state
 
-set_wdev_state :: (Monad m) => WriteDeviceState -> CmdT m ()
+set_wdev_state :: (M m) => WriteDeviceState -> m ()
 set_wdev_state wdev_state =
     modify_state $ \st -> st { state_wdev_state = wdev_state }
 
 -- | At the Ui level, the edit box is per-block, but I use it to indicate edit
 -- mode, which is global.  So it gets stored in Cmd.State and must be synced
 -- with new blocks.
-set_edit_box :: (Monad m) => Color -> Char -> CmdT m ()
+set_edit_box :: (M m) => Color -> Char -> m ()
 set_edit_box color char = do
     modify_edit_state $ \st -> st { state_edit_box = (color, char) }
     block_ids <- State.get_all_block_ids
     forM_ block_ids $ \bid -> State.set_edit_box bid color char
 
-create_block :: (Monad m) => Id.Id -> String -> [Block.BlockTrack]
-    -> CmdT m BlockId
+create_block :: (M m) => Id.Id -> String -> [Block.BlockTrack] -> m BlockId
 create_block block_id title tracks = do
     config <- block_config
     -- TODO get a default schema?
     State.create_block block_id (Block.block config title tracks Config.schema)
 
-block_config :: (Monad m) => CmdT m Block.Config
+block_config :: (M m) => m Block.Config
 block_config = do
     track_box <- gets (state_edit_box . state_edit)
     return $ Block.Config Config.bconfig_selection_colors
         Config.bconfig_bg_color track_box Config.bconfig_sb_box
 
 -- * basic cmds
+
 
 -- | Quit the app immediately.
 cmd_quit :: CmdId
@@ -665,7 +688,7 @@ cmd_record_active msg = case msg of
                _ -> Continue
     _ -> return Continue
 
-set_focused_view :: (Monad m) => ViewId -> CmdT m ()
+set_focused_view :: (M m) => ViewId -> m ()
 set_focused_view view_id = do
     -- Log.debug $ "active view is " ++ show view_id
     modify_state $ \st -> st { state_focused_view = Just view_id }
@@ -676,7 +699,6 @@ cmd_close_window (Msg.Ui (UiMsg.UiMsg
         (UiMsg.Context { UiMsg.ctx_block = Just view_id }) UiMsg.MsgClose)) =
     State.destroy_view view_id >> return Done
 cmd_close_window _ = return Continue
-
 
 -- | Catch 'UiMsg.UiUpdate's from the UI, and modify the state accordingly to
 -- reflect the UI state.
@@ -718,7 +740,7 @@ cmd_update_ui_state msg = do
     ui_update_state ctx update
     return Done
 
-sync_zoom_status :: (Monad m) => ViewId -> CmdT m ()
+sync_zoom_status :: (M m) => ViewId -> m ()
 sync_zoom_status view_id = do
     view <- State.get_view view_id
     set_view_status view_id "view"

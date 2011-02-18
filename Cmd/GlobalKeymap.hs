@@ -88,7 +88,7 @@ cmd_load = Save.get_save_file >>= Save.cmd_load
 -- it to be a CAF.  However, these Cmds take an argument, which means I need to
 -- either have the CmdMap map to Cmds that take an argument, or recreate the
 -- map on each call.  Since there are not many cmds, I opt for the latter.
-player_bindings :: Transport.Info -> Keymap.CmdMap IO
+player_bindings :: Transport.Info -> Keymap.CmdMap (Cmd.CmdT IO)
 player_bindings transport_info = fst $ Keymap.make_cmd_map $ concat
     [ bind_key Key.Enter "play block" (Play.cmd_play_focused transport_info)
     , bind_mod [Shift] Key.Enter "play from insert"

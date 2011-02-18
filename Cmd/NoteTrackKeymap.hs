@@ -15,7 +15,7 @@ import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.Selection as Selection
 
 
-make_keymap :: (Monad m) => NoteTrack.PitchTrack -> (Keymap.CmdMap m, [String])
+make_keymap :: (Cmd.M m) => NoteTrack.PitchTrack -> (Keymap.CmdMap m, [String])
 make_keymap pitch_track = Keymap.make_cmd_map $ concat
     [ bind_mod [Shift, PrimaryCommand] (Key.KeyChar 'M')
         "toggle merged" (cmd_toggle_merged pitch_track)
@@ -32,10 +32,10 @@ make_keymap pitch_track = Keymap.make_cmd_map $ concat
 --
 -- If it's more convenient, I could remove any existing "--" events before
 -- inserting the new one.
-cmd_insert_track_end :: (Monad m) => Cmd.CmdT m ()
+cmd_insert_track_end :: (Cmd.M m) => m ()
 cmd_insert_track_end = Edit.insert_event "--" 0
 
-cmd_toggle_merged :: (Monad m) => NoteTrack.PitchTrack -> Cmd.CmdT m ()
+cmd_toggle_merged :: (Cmd.M m) => NoteTrack.PitchTrack -> m ()
 cmd_toggle_merged (NoteTrack.CreateTrack _ _ _) =
     Cmd.throw "no pitch track to collapse"
 cmd_toggle_merged (NoteTrack.ExistingTrack pitch_tracknum) = do

@@ -29,6 +29,7 @@ module Util.Log (
     , serialize_msg, deserialize_msg
 ) where
 import Prelude hiding (error, log)
+import qualified Control.Applicative as Applicative
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Exception as Exception
@@ -213,7 +214,7 @@ trace_logs logs val
 
 -- * LogT
 
-class Monad m => LogMonad m where
+class (Monad m) => LogMonad m where
     write :: Msg -> m ()
 
     -- | An instance for whatever monad you're using can use this to add some
@@ -268,6 +269,10 @@ newtype LogT m a = LogT (LogM m a)
     deriving (Functor, Monad, Trans.MonadIO, Trans.MonadTrans,
         Error.MonadError e)
 run_log_t (LogT x) = x
+
+instance (Functor m, Monad m) => Applicative.Applicative (LogT m) where
+    pure = return
+    (<*>) = ap
 
 run :: Monad m => LogT m a -> m (a, [Msg])
 run = Logger.run . run_log_t

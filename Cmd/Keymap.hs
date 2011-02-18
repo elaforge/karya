@@ -29,54 +29,53 @@ import qualified Cmd.Cmd as Cmd
 -- * building
 
 -- | Binding with no modifiers.
-bind_key :: (Monad m) => Key.Key -> String -> Cmd.CmdT m a -> [Binding m]
+bind_key :: (Cmd.M m) => Key.Key -> String -> m a -> [Binding m]
 bind_key = bind_mod []
 
 -- | Bind a char with no modifiers.
 --
 -- Binding functions that take Char will add a Shift if it's uppercase.
-bind_char :: (Monad m) => Char -> String -> Cmd.CmdT m a -> [Binding m]
+bind_char :: (Cmd.M m) => Char -> String -> m a -> [Binding m]
 bind_char char = bind_mod (char_shift char []) (Key.KeyChar char)
 
 -- | Many cmds are mapped to both a plain keystroke and command key version.
 -- This is a little unusual, but it means the command can still be invoked when
 -- an edit mode has taken over the alphanumeric keys.
-command :: (Monad m) => Key.Key -> String -> Cmd.CmdT m a -> [Binding m]
+command :: (Cmd.M m) => Key.Key -> String -> m a -> [Binding m]
 command key desc cmd =
     bind_key key desc cmd ++ bind_mod [PrimaryCommand] key desc cmd
 
-command_char :: (Monad m) => Char -> String -> Cmd.CmdT m a -> [Binding m]
+command_char :: (Cmd.M m) => Char -> String -> m a -> [Binding m]
 command_char char desc cmd =
     bind_char char desc cmd ++ command_only char desc cmd
 
 -- | But some commands are too dangerous to get a plain keystroke version.
-command_only :: (Monad m) => Char -> String -> Cmd.CmdT m a -> [Binding m]
+command_only :: (Cmd.M m) => Char -> String -> m a -> [Binding m]
 command_only char =
     bind_mod (char_shift char [PrimaryCommand]) (Key.KeyChar char)
 
 -- | Bind a key with the given modifiers.
-bind_mod :: (Monad m) => [SimpleMod] -> Key.Key -> String -> Cmd.CmdT m a
-    -> [Binding m]
+bind_mod :: (Cmd.M m) => [SimpleMod] -> Key.Key -> String -> m a -> [Binding m]
 bind_mod smods bindable desc cmd = bind smods (Key bindable) desc (const cmd)
 
 -- | 'bind_click' passes the Msg to the cmd, since mouse cmds are more likely
 -- to want the msg to find out where the click was.  @clicks@ is 0 for a single
 -- click, 1 for a double click, etc.
-bind_click :: (Monad m) => [SimpleMod] -> UiMsg.MouseButton -> Int -> String
-    -> (Msg.Msg -> Cmd.CmdT m a) -> [Binding m]
+bind_click :: (Cmd.M m) => [SimpleMod] -> UiMsg.MouseButton -> Int -> String
+    -> (Msg.Msg -> m a) -> [Binding m]
 bind_click smods btn clicks desc cmd = bind smods (Click btn clicks) desc cmd
 
 -- | A 'bind_drag' binds both the click and the drag.  It's conceivable to have
 -- click and drag bound to different commands, but I don't have any yet.
-bind_drag :: (Monad m) => [SimpleMod] -> UiMsg.MouseButton -> String
-    -> (Msg.Msg -> Cmd.CmdT m a) -> [Binding m]
+bind_drag :: (Cmd.M m) => [SimpleMod] -> UiMsg.MouseButton -> String
+    -> (Msg.Msg -> m a) -> [Binding m]
 bind_drag smods btn desc cmd = bind smods (Click btn 0) desc cmd
     -- You can't have a drag without having that button down!
     ++ bind (Mouse btn : smods) (Drag btn) desc cmd
 
 -- | Bind a key with the given modifiers.
-bind :: (Monad m) => [SimpleMod] -> Bindable -> String
-    -> (Msg.Msg -> Cmd.CmdT m a) -> [Binding m]
+bind :: (Cmd.M m) => [SimpleMod] -> Bindable -> String
+    -> (Msg.Msg -> m a) -> [Binding m]
 bind smods bindable desc bcmd =
     [(key_spec mods bindable, cspec desc cmd) | mods <- expand_mods smods]
     where cmd msg = bcmd msg >> return Cmd.Done
@@ -107,7 +106,7 @@ make_cmd_map bindings = (Map.fromList bindings, warns)
 -- To look up a cmd, the Msg is restricted to a 'Bindable'.  Then modifiers
 -- that are allowed to overlap (such as keys) are stripped out of the mods and
 -- the KeySpec is looked up in the keymap.
-make_cmd :: (Monad m) => CmdMap m -> Msg.Msg -> Cmd.CmdM m
+make_cmd :: (Cmd.M m) => CmdMap m -> Msg.Msg -> m Cmd.Status
 make_cmd cmd_map msg = do
     bindable <- Cmd.require (msg_to_bindable msg)
     mods <- mods_down
@@ -173,13 +172,13 @@ key_spec mods bindable = KeySpec (Set.fromList mods) bindable
 
 -- | Pair a Cmd with a descriptive string that can be used for logging, undo,
 -- etc.
-data CmdSpec m = CmdSpec String (Msg.Msg -> Cmd.CmdM m)
+data CmdSpec m = CmdSpec String (Msg.Msg -> m Cmd.Status)
 
-cspec :: String -> (Msg.Msg -> Cmd.CmdM m) -> CmdSpec m
+cspec :: String -> (Msg.Msg -> m Cmd.Status) -> CmdSpec m
 cspec = CmdSpec
 
 -- | Make a CmdSpec for a CmdM, i.e. a Cmd that doesn't take a Msg.
-cspec_ :: String -> Cmd.CmdM m -> CmdSpec m
+cspec_ :: String -> m Cmd.Status -> CmdSpec m
 cspec_ desc cmd = CmdSpec desc (const cmd)
 
 -- ** CmdMap
@@ -194,7 +193,7 @@ overlaps bindings =
 -- | Return the mods currently down, stripping out non-modifier keys and notes,
 -- so that overlapping keys will still match.  Mouse mods are not filtered, so
 -- each mouse chord can be bound individually.
-mods_down :: (Monad m) => Cmd.CmdT m (Set.Set Cmd.Modifier)
+mods_down :: (Cmd.M m) => m (Set.Set Cmd.Modifier)
 mods_down = do
     mods <- fmap (filter is_mod . Map.keys) Cmd.keys_down
     return $ Set.fromList mods
@@ -204,7 +203,7 @@ mods_down = do
     is_mod (Cmd.MouseMod _ _) = True
 
 -- | True if this msg is a repeat keydown.
-is_repeat :: (Monad m) => Msg.Msg -> Cmd.CmdT m Bool
+is_repeat :: (Cmd.M m) => Msg.Msg -> m Bool
 is_repeat (Msg.key -> Just (True, key)) = do
     keys_down <- Cmd.keys_down
     return $ Cmd.KeyMod key `Map.member` keys_down

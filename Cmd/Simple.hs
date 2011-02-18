@@ -102,7 +102,7 @@ read_block fn = do
     simple_block <- Trans.liftIO $ (readIO =<< readFile fn :: IO Block)
     convert_block simple_block
 
-convert_block :: (Monad m) => Block -> Cmd.CmdT m State.State
+convert_block :: (Cmd.M m) => Block -> m State.State
 convert_block (id_name, title, tracks) = do
     config <- Cmd.block_config
     State.exec_rethrow "convert block" State.empty $ do

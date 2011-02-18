@@ -83,7 +83,7 @@ newtype DeriveT m a = DeriveT (DeriveStack m a)
     deriving (Functor, Monad, Trans.MonadIO, Error.MonadError DeriveError)
 run_derive_t (DeriveT m) = m
 
-instance (Monad m) => Applicative.Applicative (DeriveT m) where
+instance (Functor m, Monad m) => Applicative.Applicative (DeriveT m) where
     pure = return
     (<*>) = ap
 
@@ -547,7 +547,7 @@ make_calls = Map.fromList . map (first TrackLang.Symbol)
 -- the appropriate deriver.  It's created by 'Schema.lookup_deriver'.
 type LookupDeriver = BlockId -> Either State.StateError EventDeriver
 
-instance (Monad m) => Log.LogMonad (DeriveT m) where
+instance (Functor m, Monad m) => Log.LogMonad (DeriveT m) where
     write = DeriveT . lift . lift . Log.write
     initialize_msg msg = do
         -- If the msg was created by *_stack (for instance, by 'catch_warn'),
@@ -656,10 +656,10 @@ put :: State -> Deriver ()
 put st = (DeriveT . lift) (Monad.State.put st)
 
 -- The Monad polymorphism is required for the LogMonad instance.
-get :: (Monad m) => DeriveT m State
+get :: (Functor m, Monad m) => DeriveT m State
 get = (DeriveT . lift) Monad.State.get
 
-gets :: (Monad m) => (State -> a) -> DeriveT m a
+gets :: (Functor m, Monad m) => (State -> a) -> DeriveT m a
 gets f = fmap f get
 
 -- | This is a little different from Reader.local because only a portion of

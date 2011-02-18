@@ -49,8 +49,8 @@ import qualified App.Config as Config
 -- advance to the next relevant mark.  "next relevant mark" is the next visible
 -- mark in the ruler to the left.  If @extend@ is true, extend the current
 -- selection instead of setting a new point selection.
-cmd_step_selection :: (Monad m) => Types.SelNum -> TimeStep.Direction
-    -> Bool -> Cmd.CmdT m ()
+cmd_step_selection :: (Cmd.M m) => Types.SelNum -> TimeStep.Direction
+    -> Bool -> m ()
 cmd_step_selection selnum dir extend = do
     view_id <- Cmd.get_focused_view
     Types.Selection start_track start_pos cur_track cur_pos <-
@@ -65,7 +65,7 @@ cmd_step_selection selnum dir extend = do
 
 -- | Advance the insert selection by the current step, which is a popular thing
 -- to do.
-cmd_advance_insert :: (Monad m) => Cmd.CmdT m ()
+cmd_advance_insert :: (Cmd.M m) => m ()
 cmd_advance_insert =
     cmd_step_selection Config.insert_selnum TimeStep.Advance False
 
@@ -74,8 +74,7 @@ cmd_advance_insert =
 --
 -- If @extend@ is true, extend the current selection instead of setting a new
 -- selection.
-cmd_shift_selection :: (Monad m) =>
-    Types.SelNum -> TrackNum -> Bool -> Cmd.CmdT m ()
+cmd_shift_selection :: (Cmd.M m) => Types.SelNum -> TrackNum -> Bool -> m ()
 cmd_shift_selection selnum shift extend = do
     view_id <- Cmd.get_focused_view
     block <- State.block_of_view view_id
@@ -122,8 +121,8 @@ merge_sel (Types.Selection strack spos _ _) (Types.Selection _ _ ctrack cpos) =
     Types.Selection strack spos ctrack cpos
 
 -- | Set the selection based on a click or drag.
-cmd_mouse_selection :: (Monad m) =>
-    Int -> Types.SelNum -> Bool -> Msg.Msg -> Cmd.CmdT m ()
+cmd_mouse_selection :: (Cmd.M m) =>
+    Int -> Types.SelNum -> Bool -> Msg.Msg -> m ()
 cmd_mouse_selection btn selnum extend msg = do
     (down_tracknum, down_pos, mouse_tracknum, mouse_pos) <- mouse_drag btn msg
     view_id <- Cmd.get_focused_view
@@ -136,8 +135,8 @@ cmd_mouse_selection btn selnum extend msg = do
 
 -- | Like 'cmd_mouse_selection', but snap the selection to the current time
 -- step.
-cmd_snap_selection :: (Monad m) => Int -> Types.SelNum -> Bool -> Msg.Msg
-    -> Cmd.CmdT m ()
+cmd_snap_selection :: (Cmd.M m) => Int -> Types.SelNum -> Bool
+    -> Msg.Msg -> m ()
 cmd_snap_selection btn selnum extend msg = do
     (down_tracknum, _, mouse_tracknum, mouse_pos) <- mouse_drag btn msg
     block_id <- Cmd.get_focused_block
@@ -156,8 +155,8 @@ cmd_snap_selection btn selnum extend msg = do
     select_and_scroll view_id selnum sel
 
 -- | Get the dragged range, or abort if this isn't a drag Msg.
-mouse_drag :: (Monad m) => Int -> Msg.Msg
-    -> Cmd.CmdT m (TrackNum, ScoreTime, TrackNum, ScoreTime)
+mouse_drag :: (Cmd.M m) => Int -> Msg.Msg
+    -> m (TrackNum, ScoreTime, TrackNum, ScoreTime)
 mouse_drag btn msg = do
     (mod, (mouse_tracknum, mouse_pos)) <- Cmd.require (mouse_mod msg)
     msg_btn <- Cmd.require (Cmd.mouse_mod_btn mod)
@@ -174,11 +173,10 @@ mouse_drag btn msg = do
 -- * implementation
 
 -- | Handly shortcut for cmd_step_selection.
-advance :: (Monad m) => Cmd.CmdT m ()
+advance :: (Cmd.M m) => m ()
 advance = cmd_step_selection Config.insert_selnum TimeStep.Advance False
 
-select :: (Monad m) => ViewId -> Types.SelNum -> Maybe Types.Selection
-    -> Cmd.CmdT m ()
+select :: (Cmd.M m) => ViewId -> Types.SelNum -> Maybe Types.Selection -> m ()
 select view_id selnum sel = do
     State.set_selection view_id selnum sel
     sync_selection_status view_id
@@ -190,8 +188,8 @@ select view_id selnum sel = do
 --
 -- Anyone who wants to set a selection and automatically scroll the window to
 -- follow the selection should use this function.
-select_and_scroll :: (Monad m) =>
-     ViewId -> Types.SelNum -> Maybe Types.Selection -> Cmd.CmdT m ()
+select_and_scroll :: (Cmd.M m) =>
+     ViewId -> Types.SelNum -> Maybe Types.Selection -> m ()
 select_and_scroll view_id selnum sel = do
     State.set_selection view_id selnum sel
     sync_selection_status view_id
@@ -199,7 +197,7 @@ select_and_scroll view_id selnum sel = do
 
 -- | If @new@ has scrolled off the edge of the window, automatically scroll
 -- it so that the selection is in view.
-auto_scroll :: (Monad m) => ViewId -> Types.Selection -> Cmd.CmdT m ()
+auto_scroll :: (Cmd.M m) => ViewId -> Types.Selection -> m ()
 auto_scroll view_id sel = do
     view <- State.get_view view_id
     let zoom_offset = auto_time_scroll view sel
@@ -243,7 +241,7 @@ auto_track_scroll view sel
 
 -- ** status
 
-sync_selection_status :: (Monad m) => ViewId -> Cmd.CmdT m ()
+sync_selection_status :: (Cmd.M m) => ViewId -> m ()
 sync_selection_status view_id = do
     maybe_sel <- State.get_selection view_id Config.insert_selnum
     Cmd.set_view_status view_id "sel" (fmap selection_status maybe_sel)
@@ -271,8 +269,8 @@ mouse_mod msg = do
 
 -- * util
 
-step_from :: (Monad m) => TrackNum -> ScoreTime -> TimeStep.Direction
-    -> TimeStep.TimeStep -> Cmd.CmdT m ScoreTime
+step_from :: (Cmd.M m) => TrackNum -> ScoreTime -> TimeStep.Direction
+    -> TimeStep.TimeStep -> m ScoreTime
 step_from tracknum pos direction step = do
     block_id <- Cmd.get_focused_block
     next <- TimeStep.step_from step direction block_id tracknum pos
@@ -338,19 +336,18 @@ type AnyPoint = (BlockId, TrackNum, ScoreTime)
 
 -- | Get the "insert position", which is the start track and position of the
 -- insert selection.  Abort if it's not an event track.
-get_insert :: (Monad m) => Cmd.CmdT m Point
+get_insert :: (Cmd.M m) => m Point
 get_insert = Cmd.require =<< lookup_insert
 
-lookup_insert :: (Monad m) => Cmd.CmdT m (Maybe Point)
+lookup_insert :: (Cmd.M m) => m (Maybe Point)
 lookup_insert = fmap (fmap snd) $ lookup_selnum_insert Config.insert_selnum
 
 -- | Return the leftmost tracknum and trackpos, even if it's not an event
 -- track.
-get_any_insert :: (Monad m) => Cmd.CmdT m (ViewId, AnyPoint)
+get_any_insert :: (Cmd.M m) => m (ViewId, AnyPoint)
 get_any_insert = Cmd.require =<< lookup_any_selnum_insert Config.insert_selnum
 
-lookup_selnum_insert :: (Monad m) => Types.SelNum
-    -> Cmd.CmdT m (Maybe (ViewId, Point))
+lookup_selnum_insert :: (Cmd.M m) => Types.SelNum -> m (Maybe (ViewId, Point))
 lookup_selnum_insert selnum =
     justm (lookup_any_selnum_insert selnum) $
     \(view_id, (block_id, tracknum, pos)) ->
@@ -358,8 +355,8 @@ lookup_selnum_insert selnum =
     return $ Just (view_id, (block_id, tracknum, track_id, pos))
 
 -- | The most general insertion point function.
-lookup_any_selnum_insert :: (Monad m) => Types.SelNum
-    -> Cmd.CmdT m (Maybe (ViewId, AnyPoint))
+lookup_any_selnum_insert :: (Cmd.M m) => Types.SelNum
+    -> m (Maybe (ViewId, AnyPoint))
 lookup_any_selnum_insert selnum =
     justm (lookup_selnum selnum) $ \(view_id, sel) -> do
         block_id <- State.block_id_of_view view_id
@@ -387,18 +384,18 @@ sel_track block_id sel = State.event_track_at block_id (point_track sel)
 -- ** plain Selection
 
 -- | Get the insertion selection in the focused view.
-get :: (Monad m) => Cmd.CmdT m (ViewId, Types.Selection)
+get :: (Cmd.M m) => m (ViewId, Types.Selection)
 get = get_selnum Config.insert_selnum
 
 -- | Get the requested selnum in the focused view.
-get_selnum :: (Monad m) => Types.SelNum -> Cmd.CmdT m (ViewId, Types.Selection)
+get_selnum :: (Cmd.M m) => Types.SelNum -> m (ViewId, Types.Selection)
 get_selnum selnum = Cmd.require =<< lookup_selnum selnum
 
-lookup :: (Monad m) => Cmd.CmdT m (Maybe (ViewId, Types.Selection))
+lookup :: (Cmd.M m) => m (Maybe (ViewId, Types.Selection))
 lookup = lookup_selnum Config.insert_selnum
 
-lookup_selnum :: (Monad m) => Types.SelNum
-    -> Cmd.CmdT m (Maybe (ViewId, Types.Selection))
+lookup_selnum :: (Cmd.M m) => Types.SelNum
+    -> m (Maybe (ViewId, Types.Selection))
 lookup_selnum selnum =
     justm Cmd.lookup_focused_view $ \view_id ->
     justm (State.get_selection view_id selnum) $ \sel ->
@@ -419,7 +416,7 @@ justm op1 op2 = maybe (return Nothing) op2 =<< op1
 -- | Get the real time range of the focused selection.  If there's a root
 -- block, then it will be in relative to that root, otherwise it's equivalent
 -- to 'local_realtime'.
-realtime :: (Monad m) => Cmd.CmdT m (RealTime, RealTime)
+realtime :: (Cmd.M m) => m (RealTime, RealTime)
 realtime = do
     maybe_root_id <- State.lookup_root_id
     case maybe_root_id of
@@ -428,7 +425,7 @@ realtime = do
 
 -- | This is like 'get_insert', except get the selection on the root block,
 -- falling back to the current one if there is none.
-get_root_insert :: (Monad m) => Cmd.CmdT m Point
+get_root_insert :: (Cmd.M m) => m Point
 get_root_insert = maybe get_insert return =<< rootsel
     where
     rootsel = justm State.lookup_root_id $ \root_id ->
@@ -442,7 +439,7 @@ get_root_insert = maybe get_insert return =<< rootsel
 --
 -- If there's no selection on the root block then return the RealTime from the
 -- block's first occurrance.
-relative_realtime :: (Monad m) => BlockId -> Cmd.CmdT m (RealTime, RealTime)
+relative_realtime :: (Cmd.M m) => BlockId -> m (RealTime, RealTime)
 relative_realtime root_id = do
     (view_id, sel) <- get
     block_id <- State.block_id_of_view view_id
@@ -456,7 +453,7 @@ relative_realtime root_id = do
 
 -- | Get the RealTime range of the current selection, as derived from current
 -- selection's block.  This means that the top should be 0.
-local_realtime :: (Monad m) => Cmd.CmdT m (RealTime, RealTime)
+local_realtime :: (Cmd.M m) => m (RealTime, RealTime)
 local_realtime = do
     (view_id, sel) <- get
     block_id <- State.block_id_of_view view_id
@@ -492,14 +489,14 @@ type SelectedAround = [(TrackId, (ScoreTime, ScoreTime),
 type SelectedEvents = [(TrackId, (ScoreTime, ScoreTime), [Track.PosEvent])]
 
 -- | 'events_around' is the default selection behaviour.
-events :: (Monad m) => Cmd.CmdT m SelectedEvents
+events :: (Cmd.M m) => m SelectedEvents
 events = fmap extract_events events_around
 
-events_around :: (Monad m) => Cmd.CmdT m SelectedAround
+events_around :: (Cmd.M m) => m SelectedAround
 events_around = events_around_selnum Config.insert_selnum
 
 -- | Select events whose @pos@ lie strictly within the selection range.
-strict_events_around :: (Monad m) => Types.SelNum -> Cmd.CmdT m SelectedAround
+strict_events_around :: (Cmd.M m) => Types.SelNum -> m SelectedAround
 strict_events_around selnum = do
     (_, track_ids, start, end) <- tracks_selnum selnum
     tracks <- mapM State.get_track track_ids
@@ -514,7 +511,7 @@ strict_events_around selnum = do
 --
 -- This is the standard definition of a selection, and should be used in all
 -- standard selection using commands.
-events_around_selnum :: (Monad m) => Types.SelNum -> Cmd.CmdT m SelectedAround
+events_around_selnum :: (Cmd.M m) => Types.SelNum -> m SelectedAround
 events_around_selnum selnum = do
     selected <- strict_events_around selnum
     return $ do
@@ -543,12 +540,12 @@ extract_events = map $ \(track_id, range, (_, within, _)) ->
 -- | Get selected event tracks along with the selection.  The tracks are
 -- returned in ascending order.  Only event tracks are returned, and tracks
 -- merged into the selected tracks are included.
-tracks :: (Monad m) => Cmd.CmdT m ([TrackNum], [TrackId], ScoreTime, ScoreTime)
+tracks :: (Cmd.M m) => m ([TrackNum], [TrackId], ScoreTime, ScoreTime)
 tracks = tracks_selnum Config.insert_selnum
 
 -- | Selected tracks, including merged tracks.
-tracks_selnum :: (Monad m) => Types.SelNum
-    -> Cmd.CmdT m ([TrackNum], [TrackId], ScoreTime, ScoreTime)
+tracks_selnum :: (Cmd.M m) => Types.SelNum
+    -> m ([TrackNum], [TrackId], ScoreTime, ScoreTime)
 tracks_selnum selnum = do
     (tracknums, track_ids, start, end) <- strict_tracks_selnum selnum
     block_id <- Cmd.get_focused_block
@@ -561,8 +558,8 @@ tracks_selnum selnum = do
     return (all_tracknums, all_track_ids, start, end)
 
 -- | Selected tracks, not including merged tracks.
-strict_tracks_selnum :: (Monad m) =>
-    Types.SelNum -> Cmd.CmdT m ([TrackNum], [TrackId], ScoreTime, ScoreTime)
+strict_tracks_selnum :: (Cmd.M m) =>
+    Types.SelNum -> m ([TrackNum], [TrackId], ScoreTime, ScoreTime)
 strict_tracks_selnum selnum = do
     (view_id, sel) <- get_selnum selnum
     block_id <- State.block_id_of_view view_id

@@ -92,7 +92,7 @@ map_track_titles f = do
 
 -- * block
 
-block_from_template :: (Monad m) => Bool -> Cmd.CmdT m BlockId
+block_from_template :: (Cmd.M m) => Bool -> m BlockId
 block_from_template include_tracks = do
     template_block_id <- Cmd.get_focused_block
     ruler_id <- get_ruler_id template_block_id 0
@@ -113,7 +113,7 @@ block_from_template include_tracks = do
     return block_id
 
 -- | BlockIds look like \"ns/b0\", \"ns/b1\", etc.
-block :: (Monad m) => RulerId -> Cmd.CmdT m BlockId
+block :: (Cmd.M m) => RulerId -> m BlockId
 block ruler_id = do
     ns <- State.get_project
     blocks <- State.gets State.state_blocks
@@ -124,7 +124,7 @@ block ruler_id = do
 
 -- | Create a block with the given ID name.  Useful for blocks meant to be
 -- sub-derived.
-named_block :: (Monad m) => String -> RulerId -> Cmd.CmdT m BlockId
+named_block :: (Cmd.M m) => String -> RulerId -> m BlockId
 named_block name ruler_id = do
     ns <- State.get_project
     b <- Cmd.create_block (Id.id ns name) ""
@@ -158,7 +158,7 @@ view block_id = do
         . Map.elems . State.state_views)
     State.create_view view_id $ Block.view block_id rect Config.zoom
 
-block_view :: (Monad m) => RulerId -> Cmd.CmdT m ViewId
+block_view :: (Cmd.M m) => RulerId -> m ViewId
 block_view ruler_id = block ruler_id >>= view
 
 -- | ViewIds look like \"ns/b0.v0\", \"ns/b0.v1\", etc.
@@ -181,7 +181,7 @@ destroy_view view_id = do
 
 -- | Insert a track after the selection, or just append one if there isn't one.
 -- This is useful for empty blocks which of course have no selection.
-insert_track :: (Monad m) => Bool -> Cmd.CmdT m TrackId
+insert_track :: (Cmd.M m) => Bool -> m TrackId
 insert_track splice = do
     view_id <- Cmd.get_focused_view
     maybe_sel <- State.get_selection view_id Config.insert_selnum
@@ -189,12 +189,12 @@ insert_track splice = do
         Nothing -> append_track
         Just _ -> insert_track_after_selection splice
 
-append_track :: (Monad m) => Cmd.CmdT m TrackId
+append_track :: (Cmd.M m) => m TrackId
 append_track = do
     block_id <- Cmd.get_focused_block
     track block_id 99999
 
-insert_track_after_selection :: (Monad m) => Bool -> Cmd.CmdT m TrackId
+insert_track_after_selection :: (Cmd.M m) => Bool -> m TrackId
 insert_track_after_selection splice = do
     (_, (block_id, tracknum, _)) <- Selection.get_any_insert
     block <- State.get_block block_id
@@ -240,13 +240,13 @@ named_track block_id ruler_id tracknum name title = do
         (Block.block_track (Block.TId tid ruler_id) Config.track_width)
     return tid
 
-remove_selected_tracks :: (Monad m) => Cmd.CmdT m ()
+remove_selected_tracks :: (Cmd.M m) => m ()
 remove_selected_tracks = do
     block_id <- Cmd.get_focused_block
     (tracknums, _, _, _) <- Selection.tracks
     mapM_ (State.remove_track block_id) (reverse tracknums)
 
-destroy_selected_tracks :: (Monad m) => Cmd.CmdT m ()
+destroy_selected_tracks :: (Cmd.M m) => m ()
 destroy_selected_tracks = do
     block_id <- Cmd.get_focused_block
     (tracknums, _, _, _) <- Selection.tracks
@@ -254,7 +254,7 @@ destroy_selected_tracks = do
 
 -- | Remove a track from a block.  If that was the only block it appeared in,
 -- delete the underlying track.  Rulers are never deleted automatically.
-destroy_track :: (Monad m) => BlockId -> TrackNum -> Cmd.CmdT m ()
+destroy_track :: (Cmd.M m) => BlockId -> TrackNum -> m ()
 destroy_track block_id tracknum = do
     tracklike <- Cmd.require =<< State.track_at block_id tracknum
     State.remove_track block_id tracknum

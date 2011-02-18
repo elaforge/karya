@@ -48,8 +48,8 @@ to_relative note_s = ModifyEvents.tracks_sorted $ \track_id events -> do
             track_to_degree (Pitch.Note note_s) track_id scale_id events
         val -> Cmd.throw $ "not an absolute pitch track: " ++ show val
 
-track_to_degree :: (Monad m) => Pitch.Note -> TrackId -> Pitch.ScaleId
-    -> [Track.PosEvent] -> Cmd.CmdT m [Track.PosEvent]
+track_to_degree :: (Cmd.M m) => Pitch.Note -> TrackId -> Pitch.ScaleId
+    -> [Track.PosEvent] -> m [Track.PosEvent]
 track_to_degree base_note track_id scale_id events = do
     let name = "LPitch.track_to_degree"
     scale <- Cmd.get_scale name scale_id

@@ -43,35 +43,34 @@ initial_environ = Map.fromList
     ]
 
 -- | Derive with the cache.
-cached_derive :: (Monad m) => BlockId -> Cmd.CmdT m Derive.Result
+cached_derive :: (Cmd.M m) => BlockId -> m Derive.Result
 cached_derive block_id = do
     (cache, damage) <- get_derive_cache <$> Cmd.lookup_performance block_id
     -- Log.debug $ "rederiving with score damage: " ++ show damage
     derive cache damage block_id
 
-uncached_derive :: (Monad m) => BlockId -> Cmd.CmdT m Derive.Result
+uncached_derive :: (Cmd.M m) => BlockId -> m Derive.Result
 uncached_derive block_id = derive mempty mempty block_id
 
-cached_perform :: (Monad m) =>
-    BlockId -> Derive.Result -> Cmd.CmdT m Cmd.Performance
+cached_perform :: (Cmd.M m) => BlockId -> Derive.Result -> m Cmd.Performance
 cached_perform block_id result = do
     midi_config <- State.get_midi_config
     midi_cache <- get_midi_cache midi_config <$> Cmd.lookup_performance block_id
     perform result midi_cache
 
-uncached_perform :: (Monad m) => Derive.Result -> Cmd.CmdT m Cmd.Performance
+uncached_perform :: (Cmd.M m) => Derive.Result -> m Cmd.Performance
 uncached_perform result = do
     midi_config <- State.get_midi_config
     perform result (Midi.Cache.cache midi_config)
 
-clear_cache :: (Monad m) => BlockId -> Cmd.CmdT m ()
+clear_cache :: (Cmd.M m) => BlockId -> m ()
 clear_cache block_id =
     Cmd.modify_state $ \st -> st { Cmd.state_performance_threads =
         Map.delete block_id (Cmd.state_performance_threads st) }
 
 -- | Derive the contents of the given block to score events.
-derive :: (Monad m) => Derive.Cache -> Derive.ScoreDamage -> BlockId
-    -> Cmd.CmdT m Derive.Result
+derive :: (Cmd.M m) => Derive.Cache -> Derive.ScoreDamage -> BlockId
+    -> m Derive.Result
 derive derive_cache damage block_id = do
     schema_map <- Cmd.get_schema_map
     ui_state <- State.get
@@ -83,8 +82,8 @@ derive derive_cache damage block_id = do
     return $ Derive.derive constant scopes derive_cache damage
         initial_environ (Call.eval_root_block block_id)
 
-get_lookup_inst_calls :: (Monad m) =>
-    Cmd.CmdT m (Score.Instrument -> Maybe Derive.InstrumentCalls)
+get_lookup_inst_calls :: (Cmd.M m) =>
+    m (Score.Instrument -> Maybe Derive.InstrumentCalls)
 get_lookup_inst_calls = do
     inst_db <- Cmd.gets Cmd.state_instrument_db
     return $ fmap MidiDb.info_inst_calls . Instrument.Db.db_lookup inst_db
@@ -94,8 +93,7 @@ get_lookup_inst_calls = do
 -- This is actually called from ResponderSync, when it kicks off background
 -- derivation.  By the time 'cmd_play' pulls out the Performance, it should be
 -- at least partially evaluated.
-perform :: (Monad m) => Derive.Result -> Midi.Cache.Cache
-    -> Cmd.CmdT m Cmd.Performance
+perform :: (Cmd.M m) => Derive.Result -> Midi.Cache.Cache -> m Cmd.Performance
 perform result cache = do
     lookup_scale <- Cmd.get_lookup_scale
     lookup_inst <- Cmd.get_lookup_midi_instrument
@@ -112,7 +110,7 @@ perform result cache = do
 
 -- | Perform some events with no caching or anything.  For interactive
 -- debugging.
-perform_events :: (Monad m) => Derive.Events -> Cmd.CmdT m Perform.MidiEvents
+perform_events :: (Cmd.M m) => Derive.Events -> m Perform.MidiEvents
 perform_events events = do
     lookup_scale <- Cmd.get_lookup_scale
     lookup_inst <- Cmd.get_lookup_midi_instrument
