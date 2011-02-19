@@ -148,7 +148,7 @@ d_note_track :: BlockId -> TrackId -> Derive.EventDeriver
 d_note_track block_id track_id = do
     track <- Derive.get_track track_id
     if null (Track.track_title track) then return mempty else do
-    track_expr <- case Parse.parse (B.pack (Track.track_title track)) of
+    track_expr <- case Parse.parse_expr (B.pack (Track.track_title track)) of
         Left err -> Derive.throw $ "track title: " ++ err
         Right expr -> return (preprocess_title expr)
     -- TODO event calls are evaluated in normalized time, but track calls
@@ -168,14 +168,15 @@ derive_notes :: ScoreTime -> [Track.PosEvent] -> Derive.EventDeriver
 derive_notes block_end events = do
     state <- Derive.get
     let (event_groups, collect, cache) = Call.lazy_derive_track
-            state block_end Call.note_dinfo id (\_ _ -> Nothing) events
+            state block_end Call.note_dinfo Parse.parse_expr
+            (\_ _ -> Nothing) events
     Derive.modify $ \st -> st {
         Derive.state_collect = collect, Derive.state_cache_state = cache }
     return $ Derive.merge_asc_events event_groups
 
 -- | It's convenient to tag a note track with @>inst@ to set its instrument.
 -- Unfortunately, this is parsed as a call to @>inst@
-preprocess_title :: Call.PreProcess
+preprocess_title :: TrackLang.Expr -> TrackLang.Expr
 preprocess_title (TrackLang.Call (TrackLang.Symbol ('>':inst)) args : calls) =
     TrackLang.Call (TrackLang.Symbol "n") (mkinst inst : args) : calls
     where

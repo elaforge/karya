@@ -9,9 +9,9 @@
 -- This could support UTF8, but I'd need to make sure the packs and unpacks
 -- are encoding and decoding properly.
 module Derive.ParseBs (
-    parse, parse_control_title, parse_val
-    , parse_expr, p_pipeline, p_num_pipeline
-    , p_num
+    ParseExpr
+    , parse_expr, parse_num_expr, parse_control_title
+    , parse_val
     -- * exported for testing
     -- , p_val, p_equal
 ) where
@@ -33,11 +33,11 @@ import qualified Derive.TrackLang as TrackLang
 type Text = B.ByteString
 
 -- | The returned Expr is never null.
-parse :: Text -> Either String TrackLang.Expr
-parse text = Parse.parse_all p_pipeline (strip_comment text)
+type ParseExpr = Text -> Either String TrackLang.Expr
 
-parse_expr :: A.Parser TrackLang.Expr -> Text -> Either String TrackLang.Expr
-parse_expr p text = Parse.parse_all p (strip_comment text)
+parse_expr, parse_num_expr :: ParseExpr
+parse_expr = parse p_pipeline
+parse_num_expr = parse p_num_pipeline
 
 -- | Parse a control track title.  The first expression in the composition is
 -- parsed simply as a list of values, not a Call.  Control track titles don't
@@ -45,19 +45,24 @@ parse_expr p text = Parse.parse_all p (strip_comment text)
 parse_control_title :: Text -> Either String ([TrackLang.Val], TrackLang.Expr)
 parse_control_title text = Parse.parse_all p_control_title (strip_comment text)
 
+-- | Parse a single Val.  This takes a String since it's used with Notes and
+-- Symbols, which are still Strings.  As usual, non-ASCII is destroyed.
+parse_val :: String -> Either String TrackLang.Val
+parse_val = Parse.parse_all (Parse.lexeme p_val) . B.pack
+
+parse :: A.Parser a -> Text -> Either String a
+parse p text = Parse.parse_all p (strip_comment text)
+
 strip_comment :: Text -> Text
 strip_comment = fst . B.breakSubstring "--"
+
+-- * toplevel parsers
 
 p_control_title :: A.Parser ([TrackLang.Val], TrackLang.Expr)
 p_control_title = do
     vals <- A.many (Parse.lexeme p_val)
     expr <- A.option [] (p_pipe >> p_pipeline)
     return (vals, expr)
-
--- | Parse a single Val.  This takes a String since it's used with Notes and
--- Symbols, which are still Strings.  As usual, non-ASCII is destroyed.
-parse_val :: String -> Either String TrackLang.Val
-parse_val = Parse.parse_all (Parse.lexeme p_val) . B.pack
 
 p_pipeline :: A.Parser TrackLang.Expr
 p_pipeline = A.sepBy p_expr p_pipe

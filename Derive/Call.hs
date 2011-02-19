@@ -279,17 +279,16 @@ data DeriveInfo derived = DeriveInfo {
 note_dinfo :: DeriveInfo Score.Event
 note_dinfo = DeriveInfo lookup_note_call "note"
 
-type PreProcess = TrackLang.Expr -> TrackLang.Expr
 type Info derived = (DeriveInfo derived, Derive.CallInfo derived)
 
 type GetLastSample d =
     Maybe (RealTime, Derive.Elem d) -> d -> Maybe (RealTime, Derive.Elem d)
 
 lazy_derive_track :: (Derive.Derived derived) =>
-    Derive.State -> ScoreTime -> DeriveInfo derived -> PreProcess
-    -> GetLastSample derived -> [Track.PosEvent]
+    Derive.State -> ScoreTime -> DeriveInfo derived
+    -> Parse.ParseExpr -> GetLastSample derived -> [Track.PosEvent]
     -> ([LEvent.LEvents derived], Derive.Collect, Derive.CacheState)
-lazy_derive_track state block_end dinfo preproc get_last_sample events =
+lazy_derive_track state block_end dinfo parse get_last_sample events =
     go (Derive.state_collect state) (Derive.state_cache_state state)
         Nothing [] events
     where
@@ -306,7 +305,7 @@ lazy_derive_track state block_end dinfo preproc get_last_sample events =
             lazy_derive_event
                 (state {Derive.state_collect = collect,
                     Derive.state_cache_state = cache})
-                block_end dinfo preproc prev_sample prev cur rest
+                block_end dinfo parse prev_sample prev cur rest
         (rest_events, last_collect, last_cache) = go next_collect next_cache
             sample (cur:prev) rest
         score_events = case result of
@@ -327,20 +326,21 @@ show_pos state pos = stack ++ ": " ++ Pretty.pretty now
 
 
 lazy_derive_event :: (Derive.Derived d) =>
-    Derive.State -> ScoreTime -> DeriveInfo d -> PreProcess
+    Derive.State -> ScoreTime -> DeriveInfo d -> Parse.ParseExpr
     -> Maybe (RealTime, Derive.Elem d)
     -> [Track.PosEvent] -- ^ previous events, in reverse order
     -> Track.PosEvent -- ^ cur event
     -> [Track.PosEvent] -- ^ following events
     -> (Either Derive.DeriveError (LEvent.LEvents d), [Log.Msg],
         Derive.Collect, Derive.CacheState)
-lazy_derive_event st block_end dinfo preproc prev_val prev cur@(pos, event) next
+lazy_derive_event st block_end dinfo parse prev_val prev
+        cur@(pos, event) next
     | Event.event_bs event == B.pack "--" =
         (Right mempty, [], Derive.state_collect st, Derive.state_cache_state st)
-    | otherwise = case Parse.parse (Event.event_bs event) of
+    | otherwise = case parse (Event.event_bs event) of
         Left err -> (Right mempty, [parse_error err],
             Derive.state_collect st, Derive.state_cache_state st)
-        Right expr -> run_call (preproc expr)
+        Right expr -> run_call expr
     where
     parse_error msg = Log.msg Log.Warn (Just (Derive.state_stack st)) msg
     run_call expr = lazy_apply_toplevel state (dinfo, cinfo) expr

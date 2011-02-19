@@ -17,7 +17,6 @@ import Control.Monad
 
 import Util.Control
 import qualified Util.Ranges as Ranges
-import qualified Util.Seq as Seq
 
 import Ui
 import qualified Ui.Track as Track
@@ -178,7 +177,7 @@ derive_control block_end track_expr events = do
     deriver = do
         state <- Derive.get
         let (stream, collect, cache) = Call.lazy_derive_track
-                state block_end dinfo preprocess_control last_sample events
+                state block_end dinfo Parse.parse_num_expr last_sample events
         Derive.modify $ \st -> st {
             Derive.state_collect = collect, Derive.state_cache_state = cache }
         -- I can use concat instead of merge_asc_events because the signals
@@ -187,14 +186,6 @@ derive_control block_end track_expr events = do
         return (concat stream)
     dinfo = Call.DeriveInfo Call.lookup_control_call "control"
     last_sample prev chunk = Signal.last chunk `mplus` prev
-
-preprocess_control :: Call.PreProcess
-preprocess_control expr = case Seq.break_last expr of
-    (calls, Just (TrackLang.Call (TrackLang.Symbol sym) []))
-        | Right num@(TrackLang.VNum _) <- Parse.parse_val sym ->
-            calls ++ [TrackLang.Call (TrackLang.Symbol "set")
-                [TrackLang.Literal num]]
-    _ -> expr
 
 derive_pitch :: ScoreTime -> TrackLang.Expr -> [Track.PosEvent]
     -> Derive.Deriver (TrackResults Pitch)
@@ -209,7 +200,7 @@ derive_pitch block_end track_expr events = do
     deriver = do
         state <- Derive.get
         let (stream, collect, cache) = Call.lazy_derive_track
-                state block_end dinfo id last_sample events
+                state block_end dinfo Parse.parse_expr last_sample events
         Derive.modify $ \st -> st {
             Derive.state_collect = collect, Derive.state_cache_state = cache }
         return (concat stream)
