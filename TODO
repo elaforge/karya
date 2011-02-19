@@ -11,8 +11,27 @@ But decide about lazy signals before going nuts on this.  If I revert to linear
 search then none of this is necessary.
 
 CURRENT
-  - remove the log timer stuff
+  - merge main/ branch, pass parser instead of postproc
+  bugs
+    - copy and paste doesn't get collapsed tracks
+    - copy two events only gets the first one
+  * in a collapsed track, whether the trigger is collapsed only is too subtle
+    make it extend only partway across the track
+  performance:
+    - run derive then force output and try to see how big the score is
+    - try to see how much lists are copied and use AppendList
+    - try using call/cc instead of either T
+      Will require figuring out Derive.with_empty_collect when I get rid of
+      catchError
+      Also all 'local's no longer restore, which might be ok for the way the
+      schema uses them, but seems error-prone in general (e.g. in
+      a transformer).  Maybe I can catch errors by passing the continuation
+      in a Reader, and using 'local' there too?
+    - see if the cache filtering logs is causing significant copying and remove
 
+  - drawing *still* messed up for signals and hidden text
+
+  - remove the log timer stuff
   - maybe I could split CacheState into the writable portion, in Collect, and
     the read-only cache from the previous run, in Constant
   - remember about caching tracks, how can I make a track into a call?
@@ -266,6 +285,8 @@ hs plugins:
   like it's just the same set of hi files.
 
   There's a space leak, but maybe it's acceptable?
+
+  - research dynamic libraries: www.well-typed.com/blog/30
 
   - Can I make relinking faster by making the static core a shared library?
     Use cabal?

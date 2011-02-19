@@ -679,10 +679,12 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
             trigger_c = Config::event_trigger_color;
         else
             trigger_c = Config::abbreviation_color;
-        if (rank)
-            trigger_c = trigger_c.brightness(rank_brightness);
         fl_color(color_to_fl(trigger_c));
-        fl_line(x() + 1, offset, x()+w() - 2, offset);
+        if (rank) {
+            fl_line(x() + w()/2, offset, x()+w() - 2, offset);
+        } else {
+            fl_line(x() + 1, offset, x()+w() - 2, offset);
+        }
     }
 
     if (draw_text) {
