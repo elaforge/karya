@@ -654,13 +654,16 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
         if (event.is_negative()) {
             // I think this should be next_ranked_rect, but that's too much of
             // a bother to get.
-            // Also, the text_rect intersection test is only for ranked text,
-            // but it doesn't hurt to do it for unranked text too.
-            draw_text = text_rect.x >= prev_offset
-                && !text_rect.intersects(prev_unranked_rect);
+            draw_text = text_rect.x >= prev_offset;
+            if (rank && text_rect.intersects(prev_unranked_rect))
+                draw_text = false;
         } else {
-            draw_text = text_rect.b() <= next_offset
-                && !text_rect.intersects(prev_unranked_rect);
+            draw_text = text_rect.b() <= next_offset;
+            if (rank && text_rect.intersects(prev_unranked_rect))
+                draw_text = false;
+            // DEBUG(offset << " d " << draw_text << " next " << next_offset
+            //     << " prev_unranked_rect " << prev_unranked_rect);
+            // DEBUG("text rect: " << text_rect);
         }
     }
 
@@ -671,20 +674,18 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
     // fl_color(FL_BLUE);
     // fl_rect(text_rect.x, text_rect.y, text_rect.w, text_rect.h);
 
-    // Draw trigger line.  Try not to draw two in the same place, or the dimmed
-    // out ranked trigger will draw over the unranked one.
-    if (offset != prev_offset) {
-        Color trigger_c;
-        if (draw_text || !event.text)
-            trigger_c = Config::event_trigger_color;
-        else
-            trigger_c = Config::abbreviation_color;
-        fl_color(color_to_fl(trigger_c));
-        if (rank) {
-            fl_line(x() + w()/2, offset, x()+w() - 2, offset);
-        } else {
-            fl_line(x() + 1, offset, x()+w() - 2, offset);
-        }
+    // Draw trigger line.  This will draw ranked trigger lines over unranked
+    // ones, but it's ok because ranked ones start in the middle of the track.
+    Color trigger_c;
+    if (draw_text || !event.text)
+        trigger_c = Config::event_trigger_color;
+    else
+        trigger_c = Config::abbreviation_color;
+    fl_color(color_to_fl(trigger_c));
+    if (rank) {
+        fl_line(x() + w()/2, offset, x()+w() - 2, offset);
+    } else {
+        fl_line(x() + 1, offset, x()+w() - 2, offset);
     }
 
     if (draw_text) {
