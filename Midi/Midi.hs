@@ -60,6 +60,10 @@ un_write_device (WriteDevice dev) = dev
 add_timestamp :: Timestamp.Timestamp -> WriteMessage -> WriteMessage
 add_timestamp ts wmsg = wmsg { wmsg_ts = wmsg_ts wmsg + ts }
 
+modify_timestamp :: (Timestamp.Timestamp -> Timestamp.Timestamp)
+    -> WriteMessage -> WriteMessage
+modify_timestamp f wmsg = wmsg { wmsg_ts = f (wmsg_ts wmsg) }
+
 
 -- * constructors
 
@@ -122,6 +126,15 @@ is_note _ = False
 
 is_note_on (ChannelMessage _ (NoteOn _ _)) = True
 is_note_on _ = False
+
+-- | Is this a message that will change the channel state?  These are the
+-- messages that will affect subsequent NoteOns.
+is_state :: Message -> Bool
+is_state (ChannelMessage _ msg) = case msg of
+    NoteOn {} -> False
+    NoteOff {} -> False
+    _ -> True
+is_state _ = False
 
 channel_message :: Message -> Maybe ChannelMessage
 channel_message (ChannelMessage _ m) = Just m

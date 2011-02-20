@@ -11,6 +11,10 @@ But decide about lazy signals before going nuts on this.  If I revert to linear
 search then none of this is necessary.
 
 CURRENT
+  - add some repl utils to make it easier to fmap things into CmdL, eg
+    fmap Midi.Cache.cache_damage $ LPerf.get_midi_cache =<< block
+    fmap (Perform.state_postproc . Midi.Cache.chunk_state . (!!1)
+      . Midi.Cache.cache_chunks) $ LPerf.get_midi_cache =<< block
   bugs
     - copy and paste doesn't get collapsed tracks
     - copy two events only gets the first one

@@ -6,12 +6,12 @@ module Perform.Midi.Cache (
     , Chunks, ChunkNum, to_chunknum, cache_chunk_size, Chunk(..)
     , perform
 ) where
-import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Ranges as Ranges
+import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
 
@@ -50,7 +50,7 @@ cache_messages =
 -- timestamp from the message timestamps so they always start at 0.
 messages_from :: Timestamp.Timestamp -> Cache -> Perform.MidiEvents
 messages_from start cache =
-    initialize_msgs ++ map (fmap (Midi.add_timestamp (-start)))
+    map (fmap (Midi.modify_timestamp (max 0 . subtract start)))
         (Perform.merge_sorted_events msgs)
     where
     start_chunk = fromIntegral $
@@ -58,22 +58,19 @@ messages_from start cache =
     chunks = drop start_chunk (cache_chunks cache)
     msgs = case map chunk_messages chunks of
         [] -> []
-        m : rest -> dropWhile (is_event ((<start) . Midi.wmsg_ts)) m : rest
-    initialize_msgs = case chunks of
-        [] -> []
-        chunk : _ -> state_initialization $
-            Perform.state_postproc (chunk_state chunk)
+        -- I don't care about logs here because this goes to the player, which
+        -- doesn't log anyway.
+        -- TODO In the future this function should return plain WriteMessages
+        -- and the forcer should have stripped the logs anyway.
+        m : rest -> map LEvent.Event (clip_before start (LEvent.events_of m))
+            : rest
 
-state_initialization :: Perform.PostprocState -> Perform.MidiEvents
-state_initialization state = concatMap mkmsgs (Map.assocs state)
-    where
-    mkmsgs ((dev, chan), (pb, controls)) = map wmsg (pb_msg ++ control_msgs)
-        where
-        pb_msg = maybe [] ((:[]) . Midi.PitchBend) pb
-        control_msgs = map mkcontrol (Map.assocs controls)
-        wmsg msg = LEvent.Event $ Midi.WriteMessage dev Timestamp.zero
-            (Midi.ChannelMessage chan msg)
-    mkcontrol (cc, val) = Midi.ControlChange cc val
+-- | Drop midi msgs before the given timestamp.  Simple, right?  Not so fast!
+-- I have to keep msgs that set up channel state.  Technically I could drop
+-- msgs that will be overwritten by another, but it's too much work for now
+-- and I'll do it only if synths get confused.
+clip_before :: Timestamp.Timestamp -> [Midi.WriteMessage] -> [Midi.WriteMessage]
+clip_before start = Seq.filter_then (Midi.is_state . Midi.wmsg_msg) id
 
 -- | Figure out how much time of the performed MIDI messages were from
 -- the cache and how much time was reperformed.
@@ -238,7 +235,6 @@ is_event f = LEvent.either f (const False)
 incompatible :: Perform.State -> Perform.State -> Maybe String
 incompatible state1 state2
     -- The most likely to fail quickly go first.
-    | neq Perform.state_postproc = Just "postproc"
     | neq Perform.state_perform = Just "perform"
     | neq Perform.state_allot = Just "allot"
     -- TODO this has to compare signals because that determines if an event

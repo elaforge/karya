@@ -18,6 +18,7 @@ import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.Perform_test as Perform_test
 import qualified Perform.Midi.Cache as Cache
+import qualified Perform.Midi.Control as Control
 
 
 test_cached_performance = do
@@ -41,10 +42,15 @@ test_cached_performance = do
     equal (compare_cached [(0, 1)] [(0, 1), (sz*2, 1)] [(sz*2, sz*2+1)])
         ([], [])
 
-    -- Deleting events works.  State check fails on postproc because I deleted
-    -- the pitchbend initialization.
+    -- Deleting events works.  Splice fails on perform because there is now
+    -- no addr allocation since I deleted the only note.
     equal (compare_cached [(0, 1), (sz, 1)] [(sz, 1)] [(0, 1)])
-        ([], ["Perform cache: splice failed because of postproc"])
+        ([], ["Perform cache: splice failed because of perform"])
+
+    -- Splice succeeds this time because there is still a note in the previous
+    -- chunk that sets up addr allocation.
+    equal (compare_cached [(0, 1), (1, 1), (sz, 1)] [(1, 1), (sz, 1)] [(0, 1)])
+        ([], [])
 
     -- This time the remaining event will establish the proper state before
     -- the next chunk.
@@ -53,7 +59,7 @@ test_cached_performance = do
 
 test_lazy_performance = do
     let inf = [(n * 0.5, 0.25) | n <- [0..]]
-    let uncached = perform_uncached inf
+    let uncached = perform_uncached (mkevents inf)
     -- Make sure this only forces what performance is necessary.
 
     equal (take 3 (extract uncached))
@@ -78,15 +84,15 @@ test_lazy_performance = do
 
 test_messages_from = do
     -- If the dur is always increasing then events don't all look the same.
-    let cache = perform_uncached [(n, (n+1)/16) | n <- [0..]]
+    let cache = perform_uncached (mkevents [(n, (n+1)/16) | n <- [0..]])
         f ts = extract_msgs (Cache.messages_from ts cache)
     -- Extra pitch bend msgs are from the initialization.
     let pb0 = (0, Midi.PitchBend 0)
     equal (take 4 (f 0))
         [ pb0
-        , pb0
         , (0, Midi.NoteOn 42 100)
         , (62, Midi.NoteOff 42 100)
+        , (1000, Midi.NoteOn 42 100)
         ]
     -- Timestamps subtracted from events.
     equal (take 4 (f 60))
@@ -103,6 +109,29 @@ test_messages_from = do
         , (1000, Midi.NoteOn 42 100)
         ]
 
+test_state_initialization = do
+    let events =
+            [ set_control [(0, 0.5)] (mkevent (0, 1, 10))
+            , set_control [(0, 0.5), (13, 0.75)] (mkevent (12, 1, 20))
+            , set_control [(0, 0.5), (13, 0.75)] (mkevent (13, 1, 30))
+            ]
+    let cache = perform_uncached (map LEvent.Event events)
+    -- pprint $ map (Perform.state_postproc . Cache.chunk_state)
+    --     (Cache.cache_chunks cache))
+    -- pprint $ map (Cache.chunk_messages) (Cache.cache_chunks cache)
+
+    let f ts = extract_msgs (Cache.messages_from ts cache)
+    -- Even though the cc was already set in a previous chunk, it should be set
+    -- again explicitly if I skipped that chunk.
+    check $ (0, Midi.ControlChange 1 63) `elem` f 12000
+    -- And even if I am skipping notes.
+    check $ (0, Midi.ControlChange 1 63) `elem` f 13000
+    check $ (0, Midi.NoteOn 30 100) `elem` f 13000
+
+set_control sig event = event { Perform.event_controls =
+    Map.insert cont (Signal.signal sig) (Perform.event_controls event) }
+    where cont = Control.Control "cc1"
+
 
 type Events = [(RealTime, RealTime)]
 
@@ -116,16 +145,14 @@ perform_both :: Events -> Events -> [(RealTime, RealTime)]
     -> (Cache.Cache, Cache.Cache, Cache.Cache)
 perform_both initial modified damage = (initial_cache, cached, uncached)
     where
-    initial_cache = perform_uncached initial
+    initial_cache = perform_uncached (mkevents initial)
     cached = Cache.perform initial_cache (mkdamage damage) (mkevents modified)
-    uncached = perform_uncached modified
+    uncached = perform_uncached (mkevents modified)
 
-perform_uncached :: Events -> Cache.Cache
+perform_uncached :: [LEvent.LEvent Perform.Event] -> Cache.Cache
 perform_uncached events =
-    Cache.perform initial_cache (Cache.EventDamage Ranges.everything)
-        (mkevents events)
-    where
-    initial_cache = Cache.cache Perform_test.midi_config1
+    Cache.perform initial_cache (Cache.EventDamage Ranges.everything) events
+    where initial_cache = Cache.cache Perform_test.midi_config1
 
 mkdamage :: [(RealTime, RealTime)] -> Cache.EventDamage
 mkdamage = Cache.EventDamage . Ranges.ranges

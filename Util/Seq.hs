@@ -298,11 +298,11 @@ take_then f cont (x:xs)
     | f x = x : take_then f cont xs
     | otherwise = cont (x:xs)
 
-drop_then :: (a -> Bool) -> ([a] -> [a]) -> [a] -> [a]
-drop_then _ _ [] = []
-drop_then f cont (x:xs)
-    | f x = drop_then f cont xs
-    | otherwise = cont (x:xs)
+filter_then :: (a -> Bool) -> ([a] -> [a]) -> [a] -> [a]
+filter_then _ _ [] = []
+filter_then f cont (x:xs)
+    | f x = cont (x:xs)
+    | otherwise = filter_then f cont xs
 
 -- | takeWhile plus one extra
 take1 :: (a -> Bool) -> [a] -> [a]

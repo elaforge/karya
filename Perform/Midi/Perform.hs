@@ -96,11 +96,10 @@ data State = State {
     state_channelize :: ChannelizeState
     , state_allot :: AllotState
     , state_perform :: PerformState
-    , state_postproc :: PostprocState
     } deriving (Eq, Show)
 
 initial_state :: State
-initial_state = State [] empty_allot_state empty_perform_state Map.empty
+initial_state = State [] empty_allot_state empty_perform_state
 
 -- | Render instrument tracks down to midi messages, sorted in timestamp order.
 -- This should be non-strict on the event list, so that it can start producing
@@ -109,15 +108,18 @@ perform :: State -> Instrument.Config -> Events -> (MidiEvents, State)
 perform state _ [] = ([], state)
 perform state config events = (final_msgs, final_state)
     where
-    final_state =
-        State channelize_state allot_state perform_state postproc_state
+    final_state = State channelize_state allot_state perform_state
     inst_addrs = Instrument.config_alloc config
     (event_channels, channelize_state) =
         channelize (state_channelize state) inst_addrs events
     (event_allotted, allot_state) =
         allot (state_allot state) inst_addrs event_channels
     (msgs, perform_state) = perform_notes (state_perform state) event_allotted
-    (final_msgs, postproc_state) = post_process (state_postproc state) msgs
+    -- PostprocState is used to drop redundant msgs.  But I can't do that
+    -- across chunk boundaries since earlier chunks may not have been played.
+    -- Emitting a few redundant control messages is simpler than trying to
+    -- reset state based on the previous chunk.
+    (final_msgs, _) = post_process mempty msgs
 
 -- | Map each instrument to its allocated Addrs.
 type InstAddrs = Map.Map Score.Instrument [Instrument.Addr]
