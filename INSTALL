@@ -13,6 +13,8 @@ attoparsec
 
     installed separately:
 libpcre library from http://www.pcre.org
+lilypond, for some fonts
+    cp LilyPond.app/Contents/Resources/share/lilypond/current/fonts/otf/emmentaler* ~/Library/Fonts
 
     fltk
 
