@@ -74,6 +74,24 @@ import qualified App.Config as Config
 block :: Cmd.CmdL BlockId
 block = Cmd.get_focused_block
 
+-- | Some oprators to more conveniently string together monadic and non-monadic
+-- functions in the REPL.
+--
+-- For instance:
+--
+-- @
+--      block >>= LPerf.get_midi_cache $> Midi.Cache.cache_chunks
+--              .> (!!1) .> Midi.Cache.chunk_state .> Perform.state_postproc
+-- @
+
+($>) :: (Functor f) => f a -> (a -> b) -> f b
+($>) = flip (<$>)
+infixl 0 $>
+
+(.>) :: (a -> b) -> (b -> c) -> (a -> c)
+(.>) = flip (.)
+infixl 9 .>
+
 -- * errors
 
 -- | Called from logview
