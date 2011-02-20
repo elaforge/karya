@@ -2,7 +2,7 @@
 -}
 module Derive.Scale.Relative where
 import Util.Control
-import qualified Util.Parse as Parse
+import qualified Util.ParseBs as Parse
 
 import qualified Ui.Track as Track
 

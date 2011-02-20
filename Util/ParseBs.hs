@@ -1,5 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
--- | Parsing utilities for ByteStrings, using Attoparsec.
+{- | Parsing utilities for ByteStrings, using Attoparsec.
+
+    This module also exports some basic combinators.  The idea is that modules
+    that want to do a bit of parsing should be able to import this and need not
+    import the underlying parsing library, which should make it easier to
+    switch parsing libraries in the future if I want to.  Of course the parsers
+    may return a different type (ByteString vs. Text) so callers will still
+    need a little modification to switch libraries.
+-}
 module Util.ParseBs where
 import Control.Monad
 import qualified Data.ByteString.Char8 as B
@@ -7,10 +15,13 @@ import qualified Data.Attoparsec.Char8 as A
 import Data.Attoparsec ((<?>))
 
 import Util.Control
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 
-parse_all :: A.Parser a -> B.ByteString -> Either String a
+type Parser = A.Parser
+
+parse_all :: Parser a -> B.ByteString -> Either String a
 parse_all p text = go (A.parse p text)
     where
     go (A.Fail rest contexts msg) =
@@ -25,28 +36,54 @@ parse_all p text = go (A.parse p text)
         | t `B.isSuffixOf` text = show $ B.length text - B.length t + 1
         | otherwise = "?"
 
+-- * casual parsing
+
+maybe_parse :: Parser a -> B.ByteString -> Maybe a
+maybe_parse parser text = either (const Nothing) Just (parse_all parser text)
+
+maybe_parse_string :: Parser a -> String -> Maybe a
+maybe_parse_string parser = maybe_parse parser . B.pack
+
+float :: String -> Maybe Double
+float = maybe_parse_string p_float
+
+-- * other
+
+-- | Pretty's show_float is re-exported here because it produces a string that
+-- p_float can parse.
+show_float :: (RealFloat a) => Maybe Int -> a -> String
+show_float = Pretty.show_float
+
 -- * combinators
 
-between :: A.Parser _a -> A.Parser _b -> A.Parser a -> A.Parser a
+between :: Parser _a -> Parser _b -> Parser a -> Parser a
 between open close p = open >> p <* close
 
-optional :: A.Parser a -> A.Parser (Maybe a)
+optional :: Parser a -> Parser (Maybe a)
 optional p = A.option Nothing (Just <$> p)
+
+-- ** re-export
+
+char :: Char -> Parser Char
+char = A.char
+
+spaces :: Parser ()
+spaces = A.skipSpace
 
 -- * parsers
 
 -- | Convert a parser into a lexeme parser by skipping whitespace afterwards.
-lexeme :: A.Parser a -> A.Parser a
-lexeme p = p <* A.skipWhile A.isSpace
+lexeme :: Parser a -> Parser a
+lexeme p = p <* A.skipSpace
 
-p_float :: A.Parser Double
+p_float :: Parser Double
 p_float = do
     sign <- A.option 1 (A.char '-' >> return (-1))
     val <- p_unsigned_float
     return (val * sign)
     <?> "float"
 
-p_unsigned_float :: A.Parser Double
+p_unsigned_float :: Parser Double
 p_unsigned_float = do
     i <- A.takeWhile A.isDigit
     f <- A.option "" (A.char '.' >> A.takeWhile1 A.isDigit)
@@ -63,3 +100,21 @@ p_unsigned_float = do
         | otherwise = case B.readInt s of
             Just (d, rest) | B.null rest -> Just d
             _ -> Nothing
+
+p_int :: Parser Int
+p_int = do
+    sign <- A.option '+' (A.satisfy (\c -> c == '+' || c == '-'))
+    val <- p_nat
+    return $ (if sign == '-' then -1 else 1) * val
+
+p_nat :: Parser Int
+p_nat = do
+    i <- A.takeWhile1 A.isDigit
+    case B.readInt i of
+        Just (d, _) -> return d
+        Nothing -> mzero
+
+
+-- | A word of non-space chars.
+p_word :: Parser B.ByteString
+p_word = A.takeWhile1 (\c -> c /= ' ')

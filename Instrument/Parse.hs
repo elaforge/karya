@@ -11,8 +11,6 @@ import qualified Text.ParserCombinators.Parsec as Parsec
 import qualified Text.ParserCombinators.Parsec.Pos as Parsec.Pos
 import Text.ParserCombinators.Parsec ((<|>), (<?>))
 
-import qualified Util.Parse as Parse
-
 import qualified Util.File as File
 import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Control as Control
@@ -21,7 +19,10 @@ import qualified Perform.Midi.Instrument as Instrument
 
 -- * patch file
 
--- type Parser = Parse.Parser State
+-- | This module uses parsec.  The rest of the modules use attoparsec so it
+-- would be nice to entirely get rid of parsec dependency by using it here too,
+-- but I use state to have nicer error msgs and attoparsec doesn't support
+-- user state.
 type Parser a = Parsec.GenParser Char State a
 
 data State = State {
@@ -98,7 +99,7 @@ p_bank_decl :: Parser (Maybe PatchLine)
 p_bank_decl = do
     Parsec.string "*bank"
     Parsec.skipMany1 Parsec.space
-    n <- Parse.p_nat
+    n <- p_nat
     st <- Parsec.getState
     Parsec.setState (st { state_bank = n, state_patch_num = 0 })
     return Nothing
@@ -111,11 +112,18 @@ p_rest_of_line = do
     return Nothing
     where spaces = Parsec.skipMany (Parsec.oneOf " \t")
 
+p_nat :: Parsec.CharParser st Integer
+p_nat = do
+    i <- Parsec.many Parsec.digit
+    case Numeric.readDec i of
+        (n, _) : _ -> return n
+        _ -> Parsec.pzero -- this should never happen
+    <?> "natural int"
 
 -- * sysex
 
--- | Parse a sysex file as a stream of Word8s.  TODO this should be ByteString
--- type ByteParser st = Parsec.Parsec [(Parsec.Pos.SourcePos, Word.Word8)] st
+-- | Parse a sysex file as a stream of Word8s.
+-- TODO this should be ByteString, but I use state to get accurate error msgs.
 type ByteParser st = Parsec.GenParser (Parsec.Pos.SourcePos, Word.Word8) st
 
 parse_sysex_dir :: ByteParser () Instrument.Patch -> FilePath

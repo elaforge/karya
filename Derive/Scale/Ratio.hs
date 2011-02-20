@@ -9,8 +9,8 @@
 -- relative pitch, so if the source is moving the relative one won't move with
 -- it.
 module Derive.Scale.Ratio where
-import qualified Text.ParserCombinators.Parsec as P
-import qualified Util.Parse as Parse
+import Util.Control
+import qualified Util.ParseBs as Parse
 
 import Ui
 import qualified Ui.Track as Track
@@ -46,8 +46,8 @@ scale_id :: Pitch.ScaleId
 scale_id = Pitch.ScaleId "ratio"
 
 note_to_call :: Pitch.Note -> Maybe Derive.ValCall
-note_to_call note = either (const Nothing) (Just . note_call)
-    (Parse.parse_all p_note (Pitch.note_text note))
+note_to_call note = note_call <$>
+    Parse.maybe_parse_string p_note (Pitch.note_text note)
 
 note_call :: (Double -> Double) -> Derive.ValCall
 note_call ratio = Derive.ValCall "ratio" $ \args -> CallSig.call1 args
@@ -69,15 +69,15 @@ get_nn_at name pos = do
     Derive.require (show degree ++ " not in " ++ show (Scale.scale_id scale))
         (Scale.scale_degree_to_nn scale degree)
 
--- | Ratios look like @2/5@, @-4/3@.
-p_note :: P.Parser (Double -> Double)
+-- | Ratios look like @2/5@, @-4/3@.  A negative ratio divides, a positive one
+-- multiplies.
+p_note :: Parse.Parser (Double -> Double)
 p_note = do
-    sign <- P.option '+' (P.oneOf "-+")
-    num <- Parse.p_nat
-    P.char '/'
+    num <- Parse.p_int
+    Parse.char '/'
     denom <- Parse.p_nat
-    let ratio = fromIntegral num / fromIntegral denom
-    return $ if sign == '-' then (/ ratio) else (* ratio)
+    let ratio = fromIntegral (abs num) / fromIntegral denom
+    return $ if num < 0 then (/ ratio) else (* ratio)
 
 degree_to_nn :: Pitch.Degree -> Maybe Pitch.NoteNumber
 degree_to_nn (Pitch.Degree n) = Just (Pitch.NoteNumber n)

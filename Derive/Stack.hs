@@ -11,10 +11,10 @@ module Derive.Stack (
     , UiFrame, to_ui, unparse_ui_frame, parse_ui_frame
 ) where
 import qualified Control.DeepSeq as DeepSeq
-import qualified Text.ParserCombinators.Parsec as P
-import Text.ParserCombinators.Parsec ((<|>))
+import qualified Data.ByteString.Char8 as B
 
-import qualified Util.Parse as Parse
+import Util.Control
+import qualified Util.ParseBs as Parse
 import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
 import qualified Util.Seq as Seq
@@ -128,15 +128,16 @@ unparse_ui_frame (bid, maybe_tid, maybe_range) =
     float = Parse.show_float (Just 2)
 
 parse_ui_frame :: String -> Maybe UiFrame
-parse_ui_frame = Parse.maybe_parse $ do
-    bid <- Parse.p_word
-    tid <- optional Parse.p_word
+parse_ui_frame = Parse.maybe_parse_string $ do
+    bid <- Parse.lexeme Parse.p_word
+    tid <- optional (Parse.lexeme Parse.p_word)
     range <- optional $ do
         from <- Parse.p_float
-        P.char '-'
+        Parse.char '-'
         to <- Parse.p_float
         return (ScoreTime from, ScoreTime to)
-    return (Types.BlockId (Id.read_id bid),
-        fmap (Types.TrackId . Id.read_id) tid, range)
+    return (Types.BlockId (Id.read_id (B.unpack bid)),
+        fmap (Types.TrackId . Id.read_id . B.unpack) tid, range)
     where
-    optional p = (P.char '*' >> P.spaces >> return Nothing) <|> fmap Just p
+    optional p = (Parse.char '*' >> Parse.spaces >> return Nothing)
+        <|> fmap Just p

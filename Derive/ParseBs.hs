@@ -13,7 +13,7 @@ module Derive.ParseBs (
     , parse_expr, parse_num_expr, parse_control_title
     , parse_val
     -- * exported for testing
-    -- , p_val, p_equal
+    , p_equal
 ) where
 import Control.Monad
 import qualified Data.Attoparsec.Char8 as A

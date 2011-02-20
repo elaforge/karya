@@ -11,7 +11,6 @@ But decide about lazy signals before going nuts on this.  If I revert to linear
 search then none of this is necessary.
 
 CURRENT
-  - merge main/ branch, pass parser instead of postproc
   bugs
     - copy and paste doesn't get collapsed tracks
     - copy two events only gets the first one

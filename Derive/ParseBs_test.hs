@@ -1,12 +1,13 @@
-module Derive.Parse_test where
+{-# LANGUAGE OverloadedStrings #-}
+module Derive.ParseBs_test where
 import Control.Monad
 
 import Util.Test
-import qualified Util.Parse as Util.Parse
+import qualified Util.ParseBs as Util.Parse
 import qualified Util.Pretty as Pretty
 
 import qualified Derive.Score as Score
-import qualified Derive.Parse as Parse
+import qualified Derive.ParseBs as Parse
 import Derive.TrackLang (Call(..), Term(..))
 import qualified Derive.TrackLang as TrackLang
 import Derive.TrackLang (AttrMode(..), ControlRef(..), Symbol(..), Val(..))
@@ -14,8 +15,8 @@ import Derive.TrackLang (AttrMode(..), ControlRef(..), Symbol(..), Val(..))
 import qualified Perform.Pitch as Pitch
 
 
-test_parse = do
-    let f = Parse.parse
+test_parse_expr = do
+    let f = Parse.parse_expr
     equal (f "a | b") $ Right
         [Call (Symbol "a") [], Call (Symbol "b") []]
     equal (f "a | b | c") $ Right $
@@ -50,7 +51,7 @@ test_parse = do
     -- The error msg is strange for this one, I don't know why.
     left_like (f "a (b") "parse error"
 
-test_p_val = do
+test_parse_val = do
     let mkattr = Just . VRelativeAttr . TrackLang.RelativeAttr
     let expr_expected =
             [ (">", Just $ VInstrument (Score.Instrument ""))
@@ -91,7 +92,7 @@ test_p_val = do
             , ("_", Just VNotGiven)
             ]
     forM_ expr_expected $ \(expr, expected) -> do
-        let res = Util.Parse.parse_all Parse.p_val expr
+        let res = Parse.parse_val expr
         case (res, expected) of
             (Left err, Just expect) -> failure $
                 err ++ ", expected " ++ show expect
@@ -109,22 +110,22 @@ test_p_equal = do
     equal (f "a = b") (eq (sym "a") (Literal (VSymbol (Symbol "b"))))
     equal (f "a = 10") (eq (sym "a") (Literal (VNum 10)))
     equal (f "a = (b c)") (eq (sym "a") (val_call "b" [Literal (symbol "c")]))
-    left_like (f "a = ()") "unexpected \")\""
-    left_like (f "(a) = b") "unexpected \"(\""
-    left_like (f "a=") "unexpected end of input"
-    left_like (f "a=b") "unexpected end of input"
+    left_like (f "a = ()") "parse error on byte 6"
+    left_like (f "(a) = b") "parse error on byte 1"
+    left_like (f "a=") "not enough bytes"
+    left_like (f "a=b") "not enough bytes"
 
     equal (f "*a = *b") (eq (VScaleId (Pitch.ScaleId "a"))
         (Literal (VScaleId (Pitch.ScaleId "b"))))
     equal (f "a = =b") (eq (sym "a")
         (Literal (VRelativeAttr (TrackLang.RelativeAttr (Set, "b")))))
 
-
-    let parse = Parse.parse
+    let parse = Parse.parse_expr
     equal (parse "a =b") $ Right [Call (Symbol "a")
         [Literal (VRelativeAttr (TrackLang.RelativeAttr (Set, "b")))]]
     equal (parse "a= b") $ Right [Call (Symbol "a=") [Literal (symbol "b")]]
     equal (parse "a=b") $ Right [Call (Symbol "a=b") []]
+
 
 val_call sym args = ValCall (Call (Symbol sym) args)
 symbol sym = VSymbol (Symbol sym)
