@@ -15,7 +15,7 @@ CURRENT
   bugs
     - copy and paste doesn't get collapsed tracks
     - copy two events only gets the first one
-    - deleting a track with a collapsed track merged into it make the collapsed
+    * deleting a track with a collapsed track merged into it make the collapsed
       track un-openable
   * in a collapsed track, whether the trigger is collapsed only is too subtle
     make it extend only partway across the track

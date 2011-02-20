@@ -250,7 +250,8 @@ destroy_selected_tracks :: (Cmd.M m) => m ()
 destroy_selected_tracks = do
     block_id <- Cmd.get_focused_block
     (tracknums, _, _, _) <- Selection.tracks
-    mapM_ (destroy_track block_id) tracknums
+    -- Deleting each track will decrease the tracknum of the ones after it.
+    mapM_ (destroy_track block_id) (zipWith (-) tracknums [0..])
 
 -- | Remove a track from a block.  If that was the only block it appeared in,
 -- delete the underlying track.  Rulers are never deleted automatically.
