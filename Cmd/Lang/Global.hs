@@ -69,6 +69,11 @@ import qualified Perform.Pitch as Pitch
 import qualified App.Config as Config
 
 
+-- * util
+
+block :: Cmd.CmdL BlockId
+block = Cmd.get_focused_block
+
 -- * errors
 
 -- | Called from logview

@@ -66,21 +66,6 @@ compare_cached_events block_id = do
     diff e1 e2 = Seq.diff (==)
         (map Simple.score_event e1) (map Simple.score_event e2)
 
-derive_to_events :: BlockId -> Cmd.CmdL Derive.Events
-derive_to_events block_id = Derive.r_events <$> derive block_id
-
--- | Derive the current block and return events that fall within the current
--- selection.
-derive_selection :: Cmd.CmdL Derive.Events
-derive_selection = do
-    (start, end) <- Selection.realtime
-    block_id <- Cmd.get_focused_block
-    events <- derive_to_events block_id
-    -- TODO filter out events from other tracks
-    let is_event f = LEvent.either f (const True)
-    return $ takeWhile (is_event ((<=end) . Score.event_end)) $
-        dropWhile (is_event ((<start) . Score.event_start)) events
-
 derive :: BlockId -> Cmd.CmdL Derive.Result
 derive = PlayUtil.cached_derive
 
@@ -94,32 +79,57 @@ derive_tempo block_id = do
     result <- PlayUtil.cached_derive block_id
     return $ map (Derive.r_inv_tempo result) (map Timestamp.seconds [0..10])
 
--- * perform
+-- * block
+
+block_events :: BlockId -> Cmd.CmdL Derive.Events
+block_events block_id = Derive.r_events <$> derive block_id
+
+block_uncached_events :: BlockId -> Cmd.CmdL Derive.Events
+block_uncached_events block_id = Derive.r_events <$> uncached_derive block_id
 
 -- | Derive all the way to MIDI.
-perform :: BlockId -> Cmd.CmdL Midi.Perform.MidiEvents
-perform block_id = do
+block_midi :: BlockId -> Cmd.CmdL Midi.Perform.MidiEvents
+block_midi block_id = do
     perf <- PlayUtil.cached_perform block_id =<< PlayUtil.cached_derive block_id
     return $ Midi.Cache.cache_messages (Cmd.perf_midi_cache perf)
 
--- | Derive only to Perform.Events.
-derive_to_perf :: BlockId -> Cmd.CmdL [LEvent.LEvent Midi.Perform.Event]
-derive_to_perf block_id = do
-    events <- derive_to_events block_id
-    lookup_scale <- Cmd.get_lookup_scale
-    lookup_inst <- Cmd.get_lookup_midi_instrument
-    return $ Midi.Convert.convert lookup_scale lookup_inst events
+-- * selection
 
-perform_selection :: Cmd.CmdL Midi.Perform.MidiEvents
-perform_selection = do
+-- | Derive the current block and return events that fall within the current
+-- selection.
+sel_events :: Cmd.CmdL Derive.Events
+sel_events = get_sel block_events Score.event_start
+
+sel_midi :: Cmd.CmdL Midi.Perform.MidiEvents
+sel_midi = get_sel perf (Timestamp.to_real_time . Midi.wmsg_ts)
+    where
+    perf bid = do
+        p <- PlayUtil.cached_perform bid =<< PlayUtil.cached_derive bid
+        return $ Midi.Cache.messages_from Timestamp.zero $ Cmd.perf_midi_cache p
+
+get_sel :: (BlockId -> Cmd.CmdL [LEvent.LEvent d]) -> (d -> RealTime)
+    -> Cmd.CmdL [LEvent.LEvent d]
+get_sel block_events event_start = do
     (start, end) <- Selection.realtime
     block_id <- Cmd.get_focused_block
-    perf <- PlayUtil.cached_perform block_id =<< PlayUtil.cached_derive block_id
-    let end_ts = Timestamp.from_real_time (end - start)
-        is_midi f = LEvent.either f (const True)
-    return $ takeWhile (is_midi ((<=end_ts) . Midi.wmsg_ts)) $
-        Midi.Cache.messages_from (Timestamp.from_real_time start)
-            (Cmd.perf_midi_cache perf)
+    events <- block_events block_id
+    -- TODO filter out events from other tracks
+    return $ events_in_range event_start start end events
+
+events_in_range :: (Ord k) => (d -> k) -> k -> k
+    -> [LEvent.LEvent d] -> [LEvent.LEvent d]
+events_in_range start_of start end =
+    takeWhile (is_event ((<=end) . start_of))
+        . dropWhile (is_event ((<start) . start_of))
+    where is_event f = LEvent.either f (const True)
+
+-- * conversion
 
 perform_events :: Derive.Events -> Cmd.CmdL Midi.Perform.MidiEvents
 perform_events = PlayUtil.perform_events
+
+convert :: Derive.Events -> Cmd.CmdL [LEvent.LEvent Midi.Perform.Event]
+convert events = do
+    lookup_scale <- Cmd.get_lookup_scale
+    lookup_inst <- Cmd.get_lookup_midi_instrument
+    return $ Midi.Convert.convert lookup_scale lookup_inst events
