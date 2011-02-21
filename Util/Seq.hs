@@ -298,11 +298,14 @@ take_then f cont (x:xs)
     | f x = x : take_then f cont xs
     | otherwise = cont (x:xs)
 
-filter_then :: (a -> Bool) -> ([a] -> [a]) -> [a] -> [a]
-filter_then _ _ [] = []
-filter_then f cont (x:xs)
-    | f x = cont (x:xs)
-    | otherwise = filter_then f cont xs
+filter_then :: (a -> Bool) -> (a -> Bool) -> ([a] -> [a]) -> [a] -> [a]
+filter_then f done cont = go
+    where
+    go [] = []
+    go (x:xs)
+        | done x = cont (x:xs)
+        | f x = x : go xs
+        | otherwise = go xs
 
 -- | takeWhile plus one extra
 take1 :: (a -> Bool) -> [a] -> [a]

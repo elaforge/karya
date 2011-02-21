@@ -70,7 +70,8 @@ messages_from start cache =
 -- msgs that will be overwritten by another, but it's too much work for now
 -- and I'll do it only if synths get confused.
 clip_before :: Timestamp.Timestamp -> [Midi.WriteMessage] -> [Midi.WriteMessage]
-clip_before start = Seq.filter_then (Midi.is_state . Midi.wmsg_msg) id
+clip_before start = Seq.filter_then (Midi.is_state . Midi.wmsg_msg)
+    ((>=start) . Midi.wmsg_ts) id
 
 -- | Figure out how much time of the performed MIDI messages were from
 -- the cache and how much time was reperformed.
