@@ -48,6 +48,7 @@ import qualified Ui.Types as Types
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Edit as Edit
 import qualified Cmd.ModifyEvents as ModifyEvents
+import qualified Cmd.Selection as Selection
 
 import qualified App.Config as Config
 
@@ -81,12 +82,10 @@ cmd_cut_selection = do
     cmd_copy_selection
     Edit.cmd_clear_selected
 
--- | During copies, a point selection is a no-op.
-copy_selection :: (Cmd.M m) => Types.SelNum -> m Types.Selection
+copy_selection :: (Cmd.M m) => Types.SelNum -> m Selection.SelectedTracks
 copy_selection selnum = do
-    view_id <- Cmd.get_focused_view
-    sel <- Cmd.require =<< State.get_selection view_id selnum
-    when (Types.sel_is_point sel) Cmd.abort
+    sel@(_, _, start, end) <- Selection.tracks_selnum selnum
+    when (start == end) Cmd.abort
     return sel
 
 -- * paste
@@ -155,13 +154,13 @@ get_clip_block_id = do
 --
 -- Also strip out the skeleton and other track attributes, like hidden, muted,
 -- etc.
-selection_sub_state :: (Cmd.M m) => Types.Selection -> m State.State
-selection_sub_state sel = do
+selection_sub_state :: (Cmd.M m) => Selection.SelectedTracks -> m State.State
+selection_sub_state (tracknums, _, start, end) = do
     block_id <- Cmd.get_focused_block
     block <- State.get_block block_id
 
     tracks <- fmap Maybe.catMaybes $
-        mapM (State.block_track_at block_id) (Types.sel_tracknums sel)
+        mapM (State.block_track_at block_id) tracknums
     let tracklike_ids = map Block.tracklike_id tracks
     tracklikes <- mapM State.get_tracklike tracklike_ids
 
@@ -178,7 +177,8 @@ selection_sub_state sel = do
         let track_pairs = Seq.unique_on fst $ zip
                 (Block.track_ids_of tracklike_ids) (Block.tracks_of tracklikes)
         forM_ track_pairs $ \(track_id, track) ->
-            State.create_track (Id.unpack_id track_id) (events_in_sel sel track)
+            State.create_track (Id.unpack_id track_id)
+                (events_in_range start end track)
         forM_ (zip [1..] tracks) $ \(n, track) ->
             State.insert_track b n $ Block.block_track
                 (Block.set_rid State.no_ruler (Block.tracklike_id track))
@@ -186,13 +186,11 @@ selection_sub_state sel = do
 
 -- | Make a copy of the track with only the events in the selection shifted
 -- by the offset of the selection.
-events_in_sel :: Types.Selection -> Track.Track -> Track.Track
-events_in_sel sel track =
+events_in_range :: ScoreTime -> ScoreTime -> Track.Track -> Track.Track
+events_in_range start end track =
     track { Track.track_events =
         Track.event_map_asc [(pos-start, evt) | (pos, evt) <- events] }
-    where
-    (start, end) = Types.sel_range sel
-    events = Track.events_in_range start end (Track.track_events track)
+    where events = Track.events_in_range start end (Track.track_events track)
 
 -- *** namespace
 
@@ -250,8 +248,7 @@ destroy_namespace ns = do
 paste_info :: (Cmd.M m) =>
     m (ScoreTime, ScoreTime, [TrackId], [[Track.PosEvent]])
 paste_info = do
-    (track_ids, clip_track_ids, sel) <- get_paste_area
-    let (start, end) = Types.sel_range sel
+    (track_ids, clip_track_ids, start, end) <- get_paste_area
     clip_events <- mapM (clip_track_events start end) clip_track_ids
     return (start, end, track_ids, clip_events)
 
@@ -277,23 +274,14 @@ clip_events point (event@(pos, evt):events)
 --
 -- During pastes, a point selection extends to the end of the last pasted
 -- event.
-get_paste_area :: (Cmd.M m) => m ([TrackId], [TrackId], Types.Selection)
+get_paste_area :: (Cmd.M m) => m ([TrackId], [TrackId], ScoreTime, ScoreTime)
 get_paste_area = do
-    view_id <- Cmd.get_focused_view
-    sel <- Cmd.require =<< State.get_selection view_id Config.insert_selnum
+    (tracknums, track_ids, start, end) <- Selection.tracks
     clip_block_id <- get_clip_block_id
     clip_block <- State.get_block clip_block_id
-
     -- If the clip block has any rulers or anything, I skip them.
-    let clip_track_ids = take (length (Types.sel_tracknums sel))
-            (Block.block_track_ids clip_block)
+    let clip_track_ids =
+            take (length tracknums) (Block.block_track_ids clip_block)
     clip_end <- State.event_end clip_block_id
-    sel <- return $ if Types.sel_is_point sel
-        then Types.sel_set_duration clip_end sel
-        else sel
-
-    block_id <- Cmd.get_focused_block
-    block <- State.get_block block_id
-    let track_ids = Block.track_ids_of $ map Block.tracklike_id $
-            drop (Types.sel_start_track sel) (Block.block_tracks block)
-    return (track_ids, clip_track_ids, sel)
+    return (track_ids, clip_track_ids, start,
+        if start == end then start + clip_end else end)

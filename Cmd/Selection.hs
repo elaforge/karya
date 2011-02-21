@@ -536,15 +536,17 @@ extract_events = map $ \(track_id, range, (_, within, _)) ->
 
 -- ** select tracks
 
+-- | @([tracknums], [track_ids], start, end)@
+type SelectedTracks = ([TrackNum], [TrackId], ScoreTime, ScoreTime)
+
 -- | Get selected event tracks along with the selection.  The tracks are
 -- returned in ascending order.  Only event tracks are returned, and tracks
 -- merged into the selected tracks are included.
-tracks :: (Cmd.M m) => m ([TrackNum], [TrackId], ScoreTime, ScoreTime)
+tracks :: (Cmd.M m) => m SelectedTracks
 tracks = tracks_selnum Config.insert_selnum
 
 -- | Selected tracks, including merged tracks.
-tracks_selnum :: (Cmd.M m) => Types.SelNum
-    -> m ([TrackNum], [TrackId], ScoreTime, ScoreTime)
+tracks_selnum :: (Cmd.M m) => Types.SelNum -> m SelectedTracks
 tracks_selnum selnum = do
     (tracknums, track_ids, start, end) <- strict_tracks_selnum selnum
     block_id <- Cmd.get_focused_block
@@ -557,8 +559,7 @@ tracks_selnum selnum = do
     return (all_tracknums, all_track_ids, start, end)
 
 -- | Selected tracks, not including merged tracks.
-strict_tracks_selnum :: (Cmd.M m) =>
-    Types.SelNum -> m ([TrackNum], [TrackId], ScoreTime, ScoreTime)
+strict_tracks_selnum :: (Cmd.M m) => Types.SelNum -> m SelectedTracks
 strict_tracks_selnum selnum = do
     (view_id, sel) <- get_selnum selnum
     block_id <- State.block_id_of_view view_id

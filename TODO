@@ -13,12 +13,15 @@ search then none of this is necessary.
 CURRENT
   * add some repl utils to make it easier to fmap things into CmdL
   bugs
-    - copy and paste doesn't get collapsed tracks
-    - copy two events only gets the first one
+    * copy and paste doesn't get collapsed tracks
     * deleting a track with a collapsed track merged into it make the collapsed
       track un-openable
   * in a collapsed track, whether the trigger is collapsed only is too subtle
     make it extend only partway across the track
+  - do the log suppression stuff
+  - in the abscence of the ability to drag events, cmd to move start of event
+    to current point, or set start and end if it's a range
+  - lang cmd to show state hierarchically... or does it already exist?
   performance:
     - run derive then force output and try to see how big the score is
     - try to see how much lists are copied and use AppendList
