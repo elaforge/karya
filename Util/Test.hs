@@ -1,4 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-} -- for pattern type sig in catch
+{-# LANGUAGE BangPatterns #-}
 -- | Basic testing utilities.
 module Util.Test (
     skip_human
@@ -38,6 +39,7 @@ import Control.Monad
 import qualified Control.Exception as Exception
 import qualified Data.IORef as IORef
 import qualified Data.List as List
+import qualified Data.Time as Time
 import qualified System.CPUTime as CPUTime
 import qualified System.IO as IO
 import qualified System.IO.Unsafe as Unsafe
@@ -219,7 +221,7 @@ expect_right _ (Right v) = v
 timer :: IO a -> IO (a, Double)
 timer op = do
     start_cpu <- CPUTime.getCPUTime
-    v <- op
+    !v <- op
     end_cpu <- CPUTime.getCPUTime
     return (v, cpu_to_sec (end_cpu - start_cpu))
     where
@@ -228,8 +230,19 @@ timer op = do
 
 print_timer :: String -> IO String -> IO ()
 print_timer msg op = do
+    start <- now
+    printf "%s - " msg
+    IO.hFlush IO.stdout
     (val, secs) <- timer op
-    printf "%s - time: %.2fs - %s\n" msg secs val
+    end <- now
+    printf "time: %.2fcpu / %.2fs - %s\n" secs (double (end-start)) val
+    IO.hFlush IO.stdout
+    where
+    double :: Time.DiffTime -> Double
+    double = realToFrac
+
+now :: IO Time.DiffTime
+now = fmap Time.utctDayTime Time.getCurrentTime
 
 force :: (DeepSeq.NFData a) => a -> IO ()
 force x = x `DeepSeq.deepseq` return ()
