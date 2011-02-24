@@ -31,21 +31,21 @@ import qualified Derive.Stack as Stack
 data Event = Event {
     -- | These are the core attributes that define an event.  UI display
     -- attributes like font style are not preserved here.
-    event_start :: RealTime
-    , event_duration :: RealTime
-    , event_bs :: B.ByteString
-    , event_controls :: ControlMap
-    , event_pitch :: PitchSignal.PitchSignal
+    event_start :: !RealTime
+    , event_duration :: !RealTime
+    , event_bs :: !B.ByteString
+    , event_controls :: !ControlMap
+    , event_pitch :: !PitchSignal.PitchSignal
 
     -- | Keep track of where this event originally came from.  That way, if an
     -- error or warning is emitted concerning this event, its position on the
     -- UI can be highlighted.
-    , event_stack :: Stack.Stack
+    , event_stack :: !Stack.Stack
 
     -- | These are optional parameters that may or may not be required by the
     -- performer.
-    , event_instrument :: Maybe Instrument
-    , event_attributes :: Attributes
+    , event_instrument :: !(Maybe Instrument)
+    , event_attributes :: !Attributes
     }
     deriving (Eq, Show)
 

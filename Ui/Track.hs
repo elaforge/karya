@@ -123,11 +123,8 @@ time_end events = maybe 0 event_max (last_event events)
     I can change the types to Word64 to store ScoreTime's.  Then maybe I can
     implement toDescList with foldl?
 -}
-newtype TrackEvents =
-    TrackEvents (Map.Map ScoreTime Event.Event)
+newtype TrackEvents = TrackEvents (Map.Map ScoreTime Event.Event)
     deriving (DeepSeq.NFData, Eq, Show, Read)
-    -- alternate efficient version for control tracks?
-    -- ControlTrack (Array (ScoreTime, Double))
 
 -- | Create a TrackEvents.  The input must be in ascending order!
 event_map_asc :: [PosEvent] -> TrackEvents

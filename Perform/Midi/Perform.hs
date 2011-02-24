@@ -93,9 +93,9 @@ type MidiEvents = [LEvent.LEvent Midi.WriteMessage]
 -- functions in the performance pipeline.  You should be able to resume
 -- performance at any point given a Timestamp and a State.
 data State = State {
-    state_channelize :: ChannelizeState
-    , state_allot :: AllotState
-    , state_perform :: PerformState
+    state_channelize :: !ChannelizeState
+    , state_allot :: !AllotState
+    , state_perform :: !PerformState
     } deriving (Eq, Show)
 
 initial_state :: State
@@ -223,10 +223,11 @@ data AllotState = AllotState {
     -- | Allocated addresses, and when they were last used.
     -- This is used by the voice stealer to figure out which voice is ripest
     -- for plunder.
-    ast_available :: Map.Map Instrument.Addr Timestamp
+    ast_available :: !(Map.Map Instrument.Addr Timestamp)
     -- | Map arbitrary input channels to an instrument address in the allocated
     -- range.
-    , ast_allotted :: Map.Map (Instrument.Instrument, Channel) Instrument.Addr
+    , ast_allotted ::
+        !(Map.Map (Instrument.Instrument, Channel) Instrument.Addr)
     } deriving (Eq, Show)
 empty_allot_state = AllotState Map.empty Map.empty
 
@@ -570,13 +571,12 @@ analyze_msg (Just (pb_val, cmap)) msg = case msg of
 -- * data
 
 data Event = Event {
-    event_instrument :: Instrument.Instrument
-    , event_start :: Timestamp
-    , event_duration :: Timestamp
-    , event_controls :: ControlMap
-    , event_pitch :: Signal.NoteNumber
-    -- original (TrackId, ScoreTime) for errors
-    , event_stack :: Stack.Stack
+    event_instrument :: !Instrument.Instrument
+    , event_start :: !Timestamp
+    , event_duration :: !Timestamp
+    , event_controls :: !ControlMap
+    , event_pitch :: !Signal.NoteNumber
+    , event_stack :: !Stack.Stack
     } deriving (Eq, Show)
 
 instance DeepSeq.NFData Event where

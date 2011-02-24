@@ -295,12 +295,12 @@ data Collect = Collect {
     -- | Remember the warp signal for each track.  A warp usually applies to
     -- a set of tracks, so remembering them together will make the updater more
     -- efficient when it inverts them to get playback position.
-    collect_warp_map :: TrackWarp.WarpMap
-    , collect_track_signals :: Track.TrackSignals
+    collect_warp_map :: !TrackWarp.WarpMap
+    , collect_track_signals :: !Track.TrackSignals
     -- | Similar to 'state_local_damage', this is how a call records its
     -- dependencies.  After evaluation of a deriver, this will contain the
     -- dependencies of the most recent call.
-    , collect_local_dep :: LocalDep
+    , collect_local_dep :: !LocalDep
     } deriving (Eq, Show)
 
 -- TODO this is incorrect because TrackWarps can't just be appended
@@ -310,10 +310,10 @@ instance Monoid.Monoid Collect where
         Collect (warps1 <> warps2) (signals1 <> signals2) (deps1 <> deps2)
 
 data CacheState = CacheState {
-    state_cache :: Cache -- modified
-    , state_event_damage :: EventDamage -- appended to
-    , state_score_damage :: ScoreDamage -- constant
-    , state_control_damage :: ControlDamage
+    state_cache :: !Cache -- modified
+    , state_event_damage :: !EventDamage -- appended to
+    , state_score_damage :: !ScoreDamage -- constant
+    , state_control_damage :: !ControlDamage
 
     -- | This is an evil hack.  Derivers must return 'EventDamage' for reasons
     -- described in its haddock.  However, damage is a concept local to the
@@ -327,7 +327,7 @@ data CacheState = CacheState {
     --
     -- So yes, this is implicitly returning a value by modifying a global.
     -- TODO move this to Collect?
-    , state_local_damage :: EventDamage
+    , state_local_damage :: !EventDamage
     } deriving (Show)
 
 instance Monoid.Monoid CacheState where
@@ -396,13 +396,13 @@ data CallInfo derived = CallInfo {
 
     -- | Hack so control calls have access to the previous sample, since
     -- they tend to want to interpolate from that value.
-    info_prev_val :: Maybe (RealTime, Elem derived)
+    info_prev_val :: !(Maybe (RealTime, Elem derived))
 
     -- | These are warped into normalized time.
     --
     -- Calls can use this to interpret score times, which are intended to be
     -- in track score time.
-    , info_event :: Event.Event
+    , info_event :: !Event.Event
     , info_prev_events :: [Track.PosEvent]
     , info_next_events :: [Track.PosEvent]
     -- | If there is no next event, you might want to fall back on the end of
@@ -442,9 +442,9 @@ dummy_call_info text = CallInfo Nothing (Event.event s 1) [] [] 1 (0, 1) [] []
 data Call derived = Call {
     -- | Since call IDs may be rebound dynamically, each call has its own name
     -- so that error msgs are unambiguous.
-    call_name :: String
-    , call_generator :: Maybe (GeneratorCall derived)
-    , call_transformer :: Maybe (TransformerCall derived)
+    call_name :: !String
+    , call_generator :: !(Maybe (GeneratorCall derived))
+    , call_transformer :: !(Maybe (TransformerCall derived))
     }
 
 instance Show (Call derived) where
@@ -459,7 +459,7 @@ type ControlCall = Call Signal.Control
 type PitchCall = Call PitchSignal.PitchSignal
 
 data ValCall = ValCall {
-    vcall_name :: String
+    vcall_name :: !String
     , vcall_call :: PassedArgs TrackLang.Val -> Deriver TrackLang.Val
     }
 
@@ -468,10 +468,10 @@ instance Show ValCall where
 
 -- | Data passed to a 'Call'.
 data PassedArgs derived = PassedArgs {
-    passed_vals :: [TrackLang.Val]
-    , passed_environ :: TrackLang.Environ
-    , passed_call :: TrackLang.CallId
-    , passed_info :: CallInfo derived
+    passed_vals :: ![TrackLang.Val]
+    , passed_environ :: !TrackLang.Environ
+    , passed_call :: !TrackLang.CallId
+    , passed_info :: !(CallInfo derived)
     }
 
 -- *** generator
@@ -573,18 +573,18 @@ add_text_context context s =
 -- * monadic ops
 
 data Result = Result {
-    r_events :: Events
-    , r_cache :: Cache
+    r_events :: !Events
+    , r_cache :: !Cache
     -- | Ranges which were rederived on this derivation.
-    , r_event_damage :: EventDamage
-    , r_tempo :: Transport.TempoFunction
-    , r_closest_warp :: Transport.ClosestWarpFunction
-    , r_inv_tempo :: Transport.InverseTempoFunction
-    , r_track_signals :: Track.TrackSignals
+    , r_event_damage :: !EventDamage
+    , r_tempo :: !Transport.TempoFunction
+    , r_closest_warp :: !Transport.ClosestWarpFunction
+    , r_inv_tempo :: !Transport.InverseTempoFunction
+    , r_track_signals :: !Track.TrackSignals
 
     -- | The relevant parts of the final state should be extracted into the
     -- above fields, but returning the whole state can be useful for testing.
-    , r_state :: State
+    , r_state :: !State
     }
 
 -- | Kick off a derivation.
@@ -1440,14 +1440,14 @@ newtype Cache = Cache (Map.Map Stack.Stack CacheEntry)
 -- different types, the deriver type division goes above the call type
 -- division.
 data CacheEntry =
-    CachedEvents (CallType Score.Event)
-    | CachedControl (CallType Signal.Control)
-    | CachedPitch (CallType PitchSignal.PitchSignal)
+    CachedEvents !(CallType Score.Event)
+    | CachedControl !(CallType Signal.Control)
+    | CachedPitch !(CallType PitchSignal.PitchSignal)
     deriving (Show)
 
 -- | The type here should match the type of the stack it's associated with,
 -- but I'm not quite up to those type gymnastics yet.
-data CallType derived = CachedGenerator Collect (LEvent.LEvents derived)
+data CallType derived = CachedGenerator !Collect !(LEvent.LEvents derived)
     deriving (Show)
 
 -- ** deps

@@ -97,8 +97,8 @@ newtype Degree = Degree Double deriving (Eq, Ord, Show, Num, Fractional)
 -- * pitch signal
 
 data PitchSignal = PitchSignal
-    { sig_scale :: ScaleId
-    , sig_vec :: SignalBase.SigVec Y
+    { sig_scale :: !ScaleId
+    , sig_vec :: !(SignalBase.SigVec Y)
     } deriving (Eq)
 
 instance DeepSeq.NFData PitchSignal where

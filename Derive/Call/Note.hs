@@ -76,7 +76,7 @@ generate_note n_inst rel_attrs event next_start = do
         -- Perform.Midi.Convert flattens the entire pitch signal, so it's best
         -- to always trim the pitch to avoid extra work.
         pitch_sig = trimmed_pitch start real_next (Derive.state_pitch st)
-    return $ LEvent.one $ LEvent.Event $
+    return $! LEvent.one $! LEvent.Event $!
         Score.Event start (end - start) (Event.event_bs event) controls
             pitch_sig (Derive.state_stack st) inst (apply rel_attrs attrs)
     where

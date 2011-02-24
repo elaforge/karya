@@ -9,7 +9,7 @@ import qualified Util.Seq as Seq
 
 -- * LEvent
 
-data LEvent derived = Event derived | Log Log.Msg
+data LEvent derived = Event !derived | Log !Log.Msg
     deriving (Show)
 
 instance Functor LEvent where
@@ -72,4 +72,4 @@ length = List.length
 type LEvents d = Stream (LEvent d)
 
 one :: a -> Stream a
-one = (:[])
+one x = x `seq` [x]
