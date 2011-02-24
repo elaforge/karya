@@ -10,6 +10,7 @@ module Perform.Timestamp (
     , seconds, to_seconds
     , from_real_time, to_real_time
 ) where
+import qualified Data.Word as Word
 import qualified Control.DeepSeq as DeepSeq
 import qualified Util.Pretty as Pretty
 
@@ -19,20 +20,24 @@ import Ui
 -- | An absolute timestamp, measured from some arbitrary starting position.
 -- The resolution is only milliseconds, so it can't be used to align audio.
 -- This is just for the MIDI.
-newtype Timestamp = Timestamp Integer
+newtype Timestamp = Timestamp Word.Word64
     deriving (Eq, Ord, Show, Num, Enum, Real, DeepSeq.NFData)
+    -- The underlying type used by CoreMIDI is uint64.  I don't know what other
+    -- OSes use, but probably similar.
+    -- I previously used Integer, but that's a sum type and hence can't be
+    -- unpacked into another type, e.g. WriteMessage.
 
 zero :: Timestamp
 zero = Timestamp 0
 
 from_millis :: Integer -> Timestamp
-from_millis = Timestamp
+from_millis = Timestamp . fromIntegral
 
 to_millis :: Timestamp -> Integer
-to_millis (Timestamp i) = i
+to_millis (Timestamp i) = fromIntegral i
 
 to_micros :: Timestamp -> Integer
-to_micros (Timestamp ts) = ts * 1000
+to_micros (Timestamp ts) = fromIntegral (ts * 1000)
 
 seconds :: (RealFrac a) => a -> Timestamp
 seconds secs = Timestamp (round (secs * 1000))

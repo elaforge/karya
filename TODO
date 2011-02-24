@@ -11,6 +11,11 @@ But decide about lazy signals before going nuts on this.  If I revert to linear
 search then none of this is necessary.
 
 CURRENT
+  - get rid of the log nastiness by having derive threads not log on shutdown
+  - storing TrackEvents without duration would makke maintaining the no-overlap
+    invariant easier.  E.g. have explicit 'off' events, otherwise each event
+    extends to the next one.  It means after merging I have to clear redundent
+    offs, but that's easier right?
   * add some repl utils to make it easier to fmap things into CmdL
   bugs
     * copy and paste doesn't get collapsed tracks
@@ -18,13 +23,22 @@ CURRENT
       track un-openable
   * in a collapsed track, whether the trigger is collapsed only is too subtle
     make it extend only partway across the track
-  - do the log suppression stuff
+  - using default Data.Binary instances to serilaize is not good for
+    compatibility in the long run
   - in the abscence of the ability to drag events, cmd to move start of event
     to current point, or set start and end if it's a range
   - lang cmd to show state hierarchically... or does it already exist?
+  - do tuplets by setting local ruler?
+  make midi msgs smaller:
+    * timestamp -> Word64 (CoreMIDI uses UInt64 for timestamp)
+    - last step of performer is to compact into vector
+    * how many msgs in e.g. the ptrio?
+      127130, [pno 9205, flute 63748, clarinet 54177]
+      peak for 246114 msgs: 46mb for int, 38.7 for int, 38.7 for w64
+
   performance:
-    - run derive then force output and try to see how big the score is
-    - try to see how much lists are copied and use AppendList
+    / try to see how much lists are copied and use AppendList
+      not a win
     - try using call/cc instead of either T
       Will require figuring out Derive.with_empty_collect when I get rid of
       catchError
@@ -44,8 +58,17 @@ CURRENT
     allot, maybe I can add 'key' field to Log.Msg and suppress dup keys?
     Who else produces dups?  Convert does.  But isn't it more efficient to just
     not emit?
-    - Perform.Midi.Cache.is_splice_failure is another possible use
-    - suppress cache msgs from cache hits
+    - convert and perform want to suppress the same msgs for the current
+      derivation
+    - Perform.Midi.Cache.is_splice_failure is just a better way to identify
+      the msg than text
+    - cache wants to suppress all cache msgs until end of cached block
+    The problem is that it's hard to know the boundaries of the current
+    derivation, especially if there are multiple blocks being derived
+    simultaneously.  I would have to put a block id key.  On the other hand,
+    filtering in place knows that.  The extra copy is actually no worse than
+    the filter at perform time, maybe better for cache since it only happens
+    once.
 
   * rename Log.uninitialized_msg -> msg, msg -> initialized_msg
   * move 'force' to Util.Test
