@@ -141,10 +141,10 @@ generate_performance (send_status, root_id, sel) block_id = do
             let cur = maybe 0
                     (Selection.relative_realtime_point perf root_sel) sel
             selection_pos <- Trans.liftIO $ IORef.newIORef cur
-            th <- Trans.liftIO $
-                Thread.start_thread ("derive " ++ show block_id)
-                    (evaluate_performance send_status selection_pos block_id
-                        perf)
+            th <- Trans.liftIO $ do
+                Log.notice $ "start deriving " ++ show block_id
+                Thread.start $ evaluate_performance send_status selection_pos
+                    block_id perf
             let pthread = Cmd.PerformanceThread perf th selection_pos
             Cmd.modify_state $ \st -> st { Cmd.state_performance_threads =
                 Map.insert block_id pthread (Cmd.state_performance_threads st) }

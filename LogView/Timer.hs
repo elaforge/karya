@@ -25,7 +25,7 @@ main = do
             return hdl
         _ -> error $ "usage: timer [filename]"
     msgs <- Chan.newChan
-    Thread.start_thread "tail_hdl" (tail_hdl msgs hdl)
+    Thread.start_logged "tail_hdl" (tail_hdl msgs hdl)
     (last_date, _) <- Chan.readChan msgs
     print_loop msgs last_date
 

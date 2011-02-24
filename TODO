@@ -11,7 +11,7 @@ But decide about lazy signals before going nuts on this.  If I revert to linear
 search then none of this is necessary.
 
 CURRENT
-  - get rid of the log nastiness by having derive threads not log on shutdown
+  * get rid of the log nastiness by having derive threads not log on shutdown
   - storing TrackEvents without duration would makke maintaining the no-overlap
     invariant easier.  E.g. have explicit 'off' events, otherwise each event
     extends to the next one.  It means after merging I have to clear redundent

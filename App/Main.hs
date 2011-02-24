@@ -196,7 +196,7 @@ main = initialize $ \lang_socket midi_chan -> do
     -- thru.  So give it a shortcut here, but I'll need to give a way to insert
     -- the thru function.  I'll do some responder optimizations first.
     -- thru_chan <- STM.atomically (STM.dupTChan midi_chan)
-    -- Thread.start_thread "midi thru" $
+    -- Thread.start_logged "midi thru" $
     --     midi_thru remap_rmsg thru_chan write_midi
 
     loopback_chan <- STM.newTChanIO
@@ -208,7 +208,7 @@ main = initialize $ \lang_socket midi_chan -> do
     load_symbols Instrument.Symbols.symbols
 
     session <- Lang.make_session
-    Thread.start_thread "interpreter" $ do
+    Thread.start_logged "interpreter" $ do
         Lang.interpreter session
         `Exception.finally` Ui.quit_ui_thread quit_request
         -- ctrl-C is killing this thread now.  The interaction between signals
@@ -216,7 +216,7 @@ main = initialize $ \lang_socket midi_chan -> do
         -- I gather the recommended way is to start a thread for signal
         -- handling, I'll do that if this causes more trouble.
 
-    Thread.start_thread "responder" $ do
+    Thread.start_logged "responder" $ do
         let loopback msg = STM.atomically (TChan.writeTChan loopback_chan msg)
         Responder.responder static_config get_msg write_midi abort_midi
             get_now_ts setup_cmd session loopback

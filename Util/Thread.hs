@@ -1,5 +1,5 @@
 module Util.Thread (
-    start_thread, start_os_thread
+    start, start_logged
     , delay
     , take_tmvar_timeout
 ) where
@@ -10,9 +10,13 @@ import qualified Control.Exception as Exception
 import qualified Util.Log as Log
 
 
-start_thread, start_os_thread :: String -> IO () -> IO Concurrent.ThreadId
-start_thread name op = Concurrent.forkIO (handle_thread name op)
-start_os_thread name op = Concurrent.forkOS (handle_thread name op)
+-- | Start a noisy thread that will log when it starts and stops, and warn if
+-- it dies from an exception.
+--
+-- TODO when killed and it logs, the logger can emit mixed up msgs, somehow the
+-- lock is not actually serializing it.
+start_logged :: String -> IO () -> IO Concurrent.ThreadId
+start_logged name op = Concurrent.forkIO (handle_thread name op)
 
 handle_thread :: String -> IO a -> IO ()
 handle_thread name op = do
@@ -24,6 +28,9 @@ handle_thread name op = do
         Right _ -> Log.notice $ thread_name ++ "completed"
         Left err -> Log.warn $ thread_name ++ "died: "
             ++ show (err :: Exception.SomeException)
+
+start :: IO () -> IO Concurrent.ThreadId
+start = Concurrent.forkIO
 
 -- | Delay in seconds.  I can never remember what units 'threadDelay' is in.
 delay :: Double -> IO ()

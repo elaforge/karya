@@ -157,7 +157,7 @@ cmd_play transport_info block_id (start_track, start_pos) = do
         Midi.Play.play transport_info block_id (LEvent.events_of msgs)
 
     ui_state <- State.get
-    Trans.liftIO $ Thread.start_thread "play position updater" $ updater_thread
+    Trans.liftIO $ Thread.start_logged "play position updater" $ updater_thread
         updater_ctl transport_info (Cmd.perf_inv_tempo perf) start_ts ui_state
 
     Cmd.modify_state $ \st -> st { Cmd.state_play_control = Just play_ctl }

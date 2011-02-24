@@ -27,7 +27,7 @@ play transport_info block_id midi_msgs = do
     let ts_offset = Transport.state_timestamp_offset state
         -- Catch msgs up to realtime.
         ts_midi_msgs = map (Midi.add_timestamp ts_offset) midi_msgs
-    Thread.start_thread "render midi" (player_thread state ts_midi_msgs)
+    Thread.start_logged "render midi" (player_thread state ts_midi_msgs)
     return (Transport.state_play_control state,
         Transport.state_updater_control state)
 

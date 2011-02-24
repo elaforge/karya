@@ -18,7 +18,6 @@ import qualified Derive.DeriveTest as DeriveTest
 
 import Util.Test
 
-import qualified Util.Thread as Thread
 import qualified System.Mem as Mem
 
 

@@ -141,7 +141,7 @@ create_msg_reader ::
     -> IO MsgReader
 create_msg_reader remap_rmsg midi_chan lang_socket ui_chan loopback_chan = do
     lang_chan <- TChan.newTChanIO
-    Thread.start_thread "accept lang socket" (accept_loop lang_socket lang_chan)
+    Thread.start_logged "accept lang socket" (accept_loop lang_socket lang_chan)
     return $ STM.atomically $
         fmap Msg.Ui (TChan.readTChan ui_chan)
         `STM.orElse` fmap (Msg.Midi . remap_rmsg) (TChan.readTChan midi_chan)
