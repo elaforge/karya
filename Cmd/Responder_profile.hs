@@ -26,7 +26,7 @@ profile_edits_middle = do
     let edit_block = UiTest.bid "b1.5.0"
     let (view_id, ui_state) = UiTest.run State.empty $ do
             ResponderTest.set_midi_config
-            Derive_profile.make_nested_controls "b1" 15 3 60
+            Derive_profile.make_nested_controls 15 3 60
             view_id <- Create.view edit_block
             UiTest.select_point view_id 1 0.0
             return view_id

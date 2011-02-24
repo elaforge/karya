@@ -296,13 +296,13 @@ auto_setup_cmd = setup_normal
 setup_generate :: String -> Cmd.CmdIO
 setup_generate gen = do
     case gen of
-        "simple" -> Derive_profile.make_simple "b1" 200
-        "nested" -> Derive_profile.make_nested_controls "b1" 8 3 64
+        "simple" -> Derive_profile.make_simple 200
+        "nested" -> Derive_profile.make_nested_controls 8 3 64
             >> return []
-        "nested-small" -> Derive_profile.make_nested_controls "b1" 8 1 64
+        "nested-small" -> Derive_profile.make_nested_controls 8 1 64
             >> return []
-        "control" -> Derive_profile.make_big_control "b1" 15000
-        "shared" -> Derive_profile.make_shared_control "b1" 2000
+        "control" -> Derive_profile.make_big_control 15000
+        "shared" -> Derive_profile.make_shared_control 2000
         _ -> error gen
     State.set_midi_config (make_midi_config [("fm8/1", [0..2]), ("fm8/2", [3])])
     Create.view (UiTest.bid "b1")

@@ -18,6 +18,9 @@ import qualified Derive.DeriveTest as DeriveTest
 
 import Util.Test
 
+import qualified Util.Thread as Thread
+import qualified System.Mem as Mem
+
 
 -- q=90 means 1.5 quarters / sec
 -- So 3 8ths, 6 16ths, 12 32nds
@@ -26,11 +29,11 @@ import Util.Test
 -- time_minutes events = events / 32 / 60
 
 -- | Make a giant block with simple non-overlapping controls and tempo changes.
-profile_big_block = derive_profile $ make_simple "b1" 2000
+profile_big_block = derive_profile $ make_simple 2000
 
-make_simple :: (State.M m) => String -> Int -> m [TrackId]
-make_simple bid size = UiTest.mkstate bid $
-        make_tempo size
+make_simple :: (State.M m) => Int -> m [TrackId]
+make_simple size =
+    mkblock $ make_tempo size
         : note_tracks inst1 0 ++ note_tracks inst1 2 ++ note_tracks inst2 4
     where
     note_tracks name offset = map (track_take size . track_drop offset)
@@ -39,9 +42,9 @@ make_simple bid size = UiTest.mkstate bid $
 
 -- | Block with a control controlling multiple note tracks.  Intended to
 -- profile channelize control sharing.
-profile_shared = derive_profile $ make_shared_control "b1" 2000
+profile_shared = derive_profile $ make_shared_control 2000
 
-make_shared_control bid size = UiTest.mkstate bid $
+make_shared_control size = mkblock $
         make_tempo size
         : track_take size mod_track
         : track_set 0 ++ track_set 2 -- ++ track_set 4
@@ -54,9 +57,9 @@ make_shared_control bid size = UiTest.mkstate bid $
 
 -- | Block with non-tempered scale so pitches can't share.  Intended to profile
 -- channelize pitch sharing.
-profile_nontempered = derive_profile $ make_nontempered "b1" 1000
+profile_nontempered = derive_profile $ make_nontempered 1000
     where
-    make_nontempered bid size = UiTest.mkstate bid $ map (track_until size)
+    make_nontempered size = mkblock $ map (track_until size)
             [ make_tempo (floor size)
             , note_track inst1
             , nontempered_pitch_track
@@ -65,23 +68,25 @@ profile_nontempered = derive_profile $ make_nontempered "b1" 1000
 
 -- | Giant control track with lots of samples.  Intended to profile control
 -- track derivation.
-profile_control = derive_profile $ make_big_control "b1" 15000
+profile_control = derive_profile $ make_big_control 15000
 
-make_big_control bid size = UiTest.mkstate bid $ map (track_until size)
+make_big_control size = mkblock $ map (track_until size)
     [ (inst1, [(0, size, "")])
     , mod_track
     ]
 
-profile_nested_simple = derive_profile $ make_nested_notes "b1" 10 3 60
-profile_nested_controls = derive_profile $ make_nested_controls "b1" 10 3 60
+profile_nested_simple = derive_profile $ make_nested_notes 10 3 60
+profile_nested_controls = derive_profile $ make_nested_controls 10 3 60
 -- Just plain notes, no controls, so laziness works.
 profile_nested_nocontrol = derive_profile $
-    make_nested [note_track inst1] "b1" 10 3 60
+    make_nested [note_track inst1] 10 3 60
 
-make_nested_notes :: (State.M m) => String -> Int -> Int -> Int -> m ()
+profile_size = derive_size $ make_nested_controls 10 3 60
+
+make_nested_notes :: (State.M m) => Int -> Int -> Int -> m ()
 make_nested_notes = make_nested [note_track inst1, simple_pitch_track]
 
-make_nested_controls :: (State.M m) => String -> Int -> Int -> Int -> m ()
+make_nested_controls :: (State.M m) => Int -> Int -> Int -> m ()
 make_nested_controls = make_nested
     [ note_track inst1
     , simple_pitch_track
@@ -92,11 +97,10 @@ make_nested_controls = make_nested
 -- with the terminal blocks having a more events than the intermediate ones.
 --
 -- This doesn't produce intermediate tempo or control curves.
-make_nested :: (State.M m) => [UiTest.TrackSpec]
-    -> String -> Int -> Int -> Int -> m ()
-make_nested bottom_tracks block_name size depth bottom_size = do
+make_nested :: (State.M m) => [UiTest.TrackSpec] -> Int -> Int -> Int -> m ()
+make_nested bottom_tracks size depth bottom_size = do
     (ruler_id, _) <- Create.ruler "ruler" UiTest.default_ruler
-    go ruler_id block_name depth
+    go ruler_id default_block depth
     where
     go ruler_id block_name 1 = do
         UiTest.mkstate_id_ruler (UiTest.bid block_name) ruler_id $
@@ -109,7 +113,31 @@ make_nested bottom_tracks block_name size depth bottom_size = do
             map (track_take size) [ctrack (fromIntegral step) inst1 sub_bids]
         forM_ sub_bids $ \sub -> go ruler_id sub (depth-1)
 
+default_block = UiTest.default_block_name
+mkblock :: (State.M m) => [UiTest.TrackSpec] -> m [TrackId]
+mkblock = UiTest.mkstate default_block
+
 -- * implementation
+
+derive_size :: State.StateId a -> IO ()
+derive_size create = do
+    print_timer "force mmsgs" $ force mmsgs >> return "done"
+    print_timer "gc" $ Mem.performGC >> return ""
+    print_timer "busy" $ return $ show (busy_wait 100000000)
+    print_timer "length" $ return $ show (length mmsgs)
+    where
+    ui_state = UiTest.exec State.empty create
+    result = DeriveTest.derive_block ui_state UiTest.default_block_id
+    mmsgs = snd $ DeriveTest.perform_stream DeriveTest.default_lookup_inst
+            midi_config (Derive.r_events result)
+
+busy_wait :: Int -> Double
+busy_wait ops = go ops 2
+    where
+    go 0 accum = accum
+    go n accum
+        | even n = go (n-1) (accum**2)
+        | otherwise = go (n-1) (sqrt accum)
 
 -- | This runs the derivation several times to minimize the creation cost.
 derive_profile :: State.StateId a -> IO ()
