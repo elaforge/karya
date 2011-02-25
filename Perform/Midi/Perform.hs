@@ -74,7 +74,7 @@ default_velocity = 0.79
 -- | A keyswitch gets this much lead time before the note it is meant to
 -- apply to.
 keyswitch_interval :: Timestamp
-keyswitch_interval = 4
+keyswitch_interval = Timestamp.from_millis 4
 
 -- | Most synths don't respond to pitch bend instantly, but smooth it out, so
 -- if you set pitch bend immediately before playing the note you will get
@@ -265,7 +265,7 @@ steal_addr inst_addrs inst state =
                 in Just addr
         _ -> Nothing
     where
-    mlookup addr = Map.findWithDefault 0 addr (ast_available state)
+    mlookup addr = Map.findWithDefault Timestamp.zero addr (ast_available state)
 
 
 -- * perform notes
@@ -310,7 +310,7 @@ _perform_note (addr_inst, note_off_map) (event, addr) =
     ((addr_inst2, Map.insert addr note_off note_off_map), msgs)
     where
     (note_msgs, note_off) = perform_note
-        (Map.findWithDefault 0 addr note_off_map) event addr
+        (Map.findWithDefault Timestamp.zero addr note_off_map) event addr
     (chan_state_msgs, addr_inst2) = adjust_chan_state addr_inst addr event
     msgs = Seq.merge_on levent_start chan_state_msgs note_msgs
 
@@ -366,10 +366,11 @@ chan_state_msgs addr@(wdev, chan) ts maybe_old_inst new_inst
         (Instrument.inst_keyswitch new_inst)
     -- The velocity is arbitrary, but this is loud enough to hear if you got
     -- the keyswitches wrong.
-    mk_ks nn =
-        [mkmsg start (Midi.NoteOn nn 64), mkmsg (start+2) (Midi.NoteOff nn 64)]
+    mk_ks nn = [mkmsg start (Midi.NoteOn nn 64),
+        mkmsg (nudge start) (Midi.NoteOff nn 64)]
+    nudge = Timestamp.add (Timestamp.from_millis 2)
     mkmsg ts msg = Midi.WriteMessage wdev ts (Midi.ChannelMessage chan msg)
-    start = max 0 (ts - keyswitch_interval)
+    start = Timestamp.sub ts keyswitch_interval
 
 -- ** perform note
 
@@ -518,11 +519,10 @@ create_leading_cc :: Timestamp -> Timestamp -> Signal.Signal y
 create_leading_cc prev_note_off start sig pos_vals =
     initial : dropWhile ((<= Timestamp.to_real_time start) . fst) pos_vals
     where
-    -- Don't go before 0.  Don't go before the previous note, but don't go
-    -- after the start of this note, in case the previous note ends after this
-    -- one begins.
-    tweak = max 0 . max (min prev_note_off start)
-    initial = (Timestamp.to_real_time (tweak (start - control_lead_time)),
+    -- Don't go before the previous note, but don't go after the start of this
+    -- note, in case the previous note ends after this one begins.
+    tweak t = max (min prev_note_off start) (Timestamp.sub t control_lead_time)
+    initial = (Timestamp.to_real_time (tweak start),
         Signal.at (Timestamp.to_real_time start) sig)
 
 -- * post process
@@ -588,16 +588,16 @@ instance DeepSeq.NFData Event where
         rnf = DeepSeq.rnf
 
 event_end :: Event -> Timestamp
-event_end event = event_start event + event_duration event
+event_end event = Timestamp.add (event_start event) (event_duration event)
 
 note_begin :: Event -> Timestamp
-note_begin event = event_start event - control_lead_time
+note_begin event = Timestamp.sub (event_start event) control_lead_time
 
 -- | The end of an event after taking decay into account.  The note shouldn't
 -- be sounding past this time.
 note_end :: Event -> Timestamp
-note_end event = event_end event
-    + Timestamp.seconds (Instrument.inst_decay (event_instrument event))
+note_end event = Timestamp.add (event_end event)
+    (Timestamp.seconds (Instrument.inst_decay (event_instrument event)))
 
 
 -- | This isn't directly the midi channel, since it goes higher than 15, but
@@ -619,7 +619,7 @@ merge_sorted_events :: [MidiEvents] -> MidiEvents
 merge_sorted_events = Seq.merge_asc_lists levent_start
 
 levent_start :: LEvent.LEvent Midi.WriteMessage -> Timestamp.Timestamp
-levent_start (LEvent.Log _) = 0
+levent_start (LEvent.Log _) = Timestamp.zero
 levent_start (LEvent.Event msg) = Midi.wmsg_ts msg
 
 -- | Map the given function across the events, passing it previous events it

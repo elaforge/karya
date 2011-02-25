@@ -255,7 +255,8 @@ test_pitch_curve = do
     let event pitch = mkpevent (1, 0.5, pitch, [])
     let f evt = Seq.drop_dups id (map Midi.wmsg_msg msgs)
             where
-            msgs = LEvent.events_of $ fst $ Perform.perform_note 0 evt (dev1, 1)
+            msgs = LEvent.events_of $ fst $
+                Perform.perform_note Timestamp.zero evt (dev1, 1)
         chan msgs = map (Midi.ChannelMessage 1) msgs
 
     equal (f (event [(1, 42.5)]))
@@ -287,8 +288,10 @@ test_no_pitch = do
     equal logs ["Perform: no pitch signal"]
 
 test_keyswitch = do
-    let extract msgs = [(ts, key) | Midi.WriteMessage { Midi.wmsg_ts = ts,
-            Midi.wmsg_msg = Midi.ChannelMessage _ (Midi.NoteOn key _) } <- msgs]
+    let extract msgs = [(wmsg_ts wmsg, key)
+            | wmsg@(Midi.WriteMessage { Midi.wmsg_msg =
+                Midi.ChannelMessage _ (Midi.NoteOn key _) })
+            <- msgs]
         ks_inst ks = inst1 { Instrument.inst_keyswitch = ks }
         with_addr (ks, note, start, dur) =
             (mkevent (ks_inst ks, note, start, dur, []), (dev1, 0))
@@ -324,15 +327,17 @@ test_drop_dup_controls = do
     let mkcc chan cc val = Midi.ChannelMessage chan (Midi.ControlChange cc val)
         mkpb chan val = Midi.ChannelMessage chan (Midi.PitchBend val)
         mkwmsgs msgs =
-            [Midi.WriteMessage dev1 ts msg | (ts, msg) <- zip [0..] msgs]
-        extract wmsg = (Midi.wmsg_ts wmsg, Midi.wmsg_msg wmsg)
+            [Midi.WriteMessage dev1 (Timestamp.from_millis ts) msg
+                | (ts, msg) <- zip [0..] msgs]
+        extract wmsg = (wmsg_ts wmsg, Midi.wmsg_msg wmsg)
     let f = map extract . LEvent.events_of . fst
             . Perform.drop_dup_controls Map.empty . map LEvent.Event
     let msgs = [mkcc 0 1 10, mkcc 1 1 10, mkcc 0 1 11, mkcc 0 2 10]
     -- no drops
     equal (f (mkwmsgs msgs)) (zip [0..] msgs)
     let with_dev dmsgs =
-            [Midi.WriteMessage dev ts msg | (ts, (dev, msg)) <- zip [0..] dmsgs]
+            [Midi.WriteMessage dev (Timestamp.from_millis ts) msg
+                | (ts, (dev, msg)) <- zip [0..] dmsgs]
     equal (f (with_dev [(dev1, mkcc 0 1 10), (dev2, mkcc 0 1 10)]))
         [(0, mkcc 0 1 10), (1, mkcc 0 1 10)]
     -- dup is dropped
@@ -516,6 +521,9 @@ allot inst_addrs events = fst $
     Perform.allot Perform.empty_allot_state inst_addrs (map LEvent.Event events)
 
 -- * setup
+
+wmsg_ts :: Midi.WriteMessage -> Integer
+wmsg_ts = Timestamp.to_millis . Midi.wmsg_ts
 
 secs :: Double -> Timestamp.Timestamp
 secs = Timestamp.seconds

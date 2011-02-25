@@ -58,7 +58,7 @@ un_read_device (ReadDevice dev) = dev
 un_write_device (WriteDevice dev) = dev
 
 add_timestamp :: Timestamp.Timestamp -> WriteMessage -> WriteMessage
-add_timestamp ts wmsg = wmsg { wmsg_ts = wmsg_ts wmsg + ts }
+add_timestamp ts wmsg = wmsg { wmsg_ts = Timestamp.add (wmsg_ts wmsg) ts }
 
 modify_timestamp :: (Timestamp.Timestamp -> Timestamp.Timestamp)
     -> WriteMessage -> WriteMessage

@@ -39,8 +39,7 @@ cache config = Cache config Ranges.nothing []
 
 -- | Return the length of time of the cached events.
 cache_length :: Cache -> RealTime
-cache_length cache = Timestamp.to_real_time $
-    fromIntegral (length (cache_chunks cache)) * cache_chunk_size
+cache_length = chunks_duration . fromIntegral . length . cache_chunks
 
 cache_messages :: Cache -> Perform.MidiEvents
 cache_messages =
@@ -50,12 +49,11 @@ cache_messages =
 -- timestamp from the message timestamps so they always start at 0.
 messages_from :: Timestamp.Timestamp -> Cache -> Perform.MidiEvents
 messages_from start cache =
-    map (fmap (Midi.modify_timestamp (max 0 . subtract start)))
+    map (fmap (Midi.modify_timestamp (`Timestamp.sub` start)))
         (Perform.merge_sorted_events msgs)
     where
-    start_chunk = fromIntegral $
-        Timestamp.to_millis start `div` Timestamp.to_millis cache_chunk_size
-    chunks = drop start_chunk (cache_chunks cache)
+    chunks = drop (to_chunknum (Timestamp.to_real_time start))
+        (cache_chunks cache)
     msgs = case map chunk_messages chunks of
         [] -> []
         -- I don't care about logs here because this goes to the player, which
@@ -90,8 +88,7 @@ cache_stats splice_failed_at cache = case splice_failed_at of
             Ranges.range chunknum nchunks <> cache_damage cache
     where
     nchunks = fromIntegral (length (cache_chunks cache))
-    time n = Timestamp.to_real_time (fromIntegral n * cache_chunk_size)
-    stats ranges = (time (total ranges), time nchunks)
+    stats ranges = (chunks_duration (total ranges), chunks_duration nchunks)
     total ranges = case Ranges.extract ranges of
         Nothing -> nchunks
         Just pairs -> sum (map (\(s, e) -> if e == s then 1 else e - s) pairs)
@@ -107,13 +104,19 @@ is_splice_failure msg =
 -- a fixed period of time, the list should never get long enough for linear
 -- search to take a noticeable amount of time anyway.
 type Chunks = [Chunk]
-type ChunkNum = Integer
+type ChunkNum = Int
+
+cache_chunk_size :: Timestamp
+cache_chunk_size = Timestamp.seconds 4
 
 to_chunknum :: RealTime -> ChunkNum
 to_chunknum = floor . (/ Timestamp.to_real_time cache_chunk_size)
 
-cache_chunk_size :: Timestamp
-cache_chunk_size = Timestamp.seconds 4
+chunks_duration :: ChunkNum -> RealTime
+chunks_duration n = fromIntegral n * Timestamp.to_real_time cache_chunk_size
+
+chunks_time :: ChunkNum -> Timestamp.Timestamp
+chunks_time n = Timestamp.mul cache_chunk_size n
 
 data Chunk = Chunk {
     chunk_messages :: Perform.MidiEvents
@@ -216,7 +219,7 @@ perform_chunk chunknum state config events =
     where
     (pre, post) = break (is_event ((>=end) . Perform.event_start))
         (trim_events chunknum events)
-    end = fromIntegral (chunknum+1) * cache_chunk_size
+    end = chunks_time (chunknum+1)
     (msgs, final_state) = Perform.perform state config pre
 
 -- | TODO this will be inefficient the first time it is called and has to
@@ -224,7 +227,7 @@ perform_chunk chunknum state config events =
 -- structure to avoid this.
 trim_events :: ChunkNum -> Perform.Events -> Perform.Events
 trim_events nchunk = dropWhile (is_event ((<start) . Perform.event_start))
-    where start = fromIntegral nchunk * cache_chunk_size
+    where start = chunks_time nchunk
 
 is_event :: (event -> Bool) -> LEvent.LEvent event -> Bool
 is_event f = LEvent.either f (const False)

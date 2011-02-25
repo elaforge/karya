@@ -85,7 +85,8 @@ test_lazy_performance = do
 test_messages_from = do
     -- If the dur is always increasing then events don't all look the same.
     let cache = perform_uncached (mkevents [(n, (n+1)/16) | n <- [0..]])
-        f ts = extract_msgs (Cache.messages_from ts cache)
+        f ts = extract_msgs $
+            Cache.messages_from (Timestamp.from_millis ts) cache
     -- Extra pitch bend msgs are from the initialization.
     let pb0 = (0, Midi.PitchBend 0)
     equal (take 4 (f 0))
@@ -120,7 +121,8 @@ test_state_initialization = do
     --     (Cache.cache_chunks cache))
     -- pprint $ map (Cache.chunk_messages) (Cache.cache_chunks cache)
 
-    let f ts = extract_msgs (Cache.messages_from ts cache)
+    let f ts = extract_msgs $
+            Cache.messages_from (Timestamp.from_millis ts) cache
     -- Even though the cc was already set in a previous chunk, it should be set
     -- again explicitly if I skipped that chunk.
     check $ (0, Midi.ControlChange 1 63) `elem` f 12000
@@ -157,21 +159,21 @@ perform_uncached events =
 mkdamage :: [(RealTime, RealTime)] -> Cache.EventDamage
 mkdamage = Cache.EventDamage . Ranges.ranges
 
-type Message = (Timestamp.Timestamp, Midi.ChannelMessage)
+type Message = (Integer, Midi.ChannelMessage)
 
 diff_msgs :: Cache.Cache -> Cache.Cache -> [Either Message Message]
 diff_msgs msgs1 msgs2 = Seq.diff (==) (extract msgs1) (extract msgs2)
 
-extract :: Cache.Cache -> [(Timestamp.Timestamp, Midi.ChannelMessage)]
+extract :: Cache.Cache -> [(Integer, Midi.ChannelMessage)]
 extract = extract_msgs . Cache.cache_messages
 
 extract_logs :: Cache.Cache -> [String]
 extract_logs = map DeriveTest.show_log . LEvent.logs_of . Cache.cache_messages
 
 extract_msgs :: [LEvent.LEvent Midi.WriteMessage]
-    -> [(Timestamp.Timestamp, Midi.ChannelMessage)]
-extract_msgs msgs =
-    [(ts, cmsg) | Midi.WriteMessage _ ts (Midi.ChannelMessage _ cmsg)
+    -> [(Integer, Midi.ChannelMessage)]
+extract_msgs msgs = [(Timestamp.to_millis ts, cmsg)
+    | Midi.WriteMessage _ ts (Midi.ChannelMessage _ cmsg)
         <- LEvent.events_of msgs]
 
 mkevents :: [(RealTime, RealTime)] -> [LEvent.LEvent Perform.Event]

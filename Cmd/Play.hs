@@ -226,7 +226,7 @@ updater_thread ctl transport_info inv_tempo_func start_ts ui_state = do
     -- This won't be exactly the same as the renderer's ts offset, but it's
     -- probably close enough.
     ts_offset <- get_cur_ts
-    let state = UpdaterState ctl (ts_offset - start_ts) get_cur_ts
+    let state = UpdaterState ctl (Timestamp.sub ts_offset start_ts) get_cur_ts
             inv_tempo_func Set.empty ui_state
     let send status bid = Transport.info_send_status transport_info bid status
     Exception.bracket_
@@ -245,7 +245,7 @@ data UpdaterState = UpdaterState {
 
 updater_loop :: UpdaterState -> IO ()
 updater_loop state = do
-    cur_ts <- fmap (subtract (updater_ts_offset state))
+    cur_ts <- fmap (`Timestamp.sub` (updater_ts_offset state))
         (updater_get_cur_ts state)
 
     let block_pos = updater_inv_tempo_func state cur_ts

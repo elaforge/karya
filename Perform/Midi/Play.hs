@@ -65,12 +65,13 @@ play_msgs state addrs_seen msgs = do
     -- This should make the buffer always be between write_ahead*2 and
     -- write_ahead ahead of now.
     now <- Transport.state_get_current_timestamp state
-    let (chunk, rest) = span ((< (now + (write_ahead*2))) . Midi.wmsg_ts) msgs
+    let until = Timestamp.add now (Timestamp.mul write_ahead 2)
+    let (chunk, rest) = span ((<until) . Midi.wmsg_ts) msgs
     -- Log.debug $ "play at " ++ show now ++ " chunk: " ++ show (length chunk)
     mapM_ write_midi chunk
     addrs_seen <- return (update_addrs addrs_seen chunk)
 
-    let timeout = if null rest then write_ahead * 2 else write_ahead
+    let timeout = if null rest then Timestamp.mul write_ahead 2 else write_ahead
     stop <- Transport.check_for_stop (Timestamp.to_seconds timeout)
         (Transport.state_play_control state)
     case (stop, rest) of
@@ -87,7 +88,8 @@ play_msgs state addrs_seen msgs = do
             -- and in the next version of the OS it's gone... did apple
             -- fix a bug?
             Thread.delay 0.15
-            send_all write_midi addrs_seen (now + Timestamp.from_millis 150)
+            send_all write_midi addrs_seen
+                (Timestamp.add now (Timestamp.from_millis 150))
                 (Midi.PitchBend 0)
         (_, []) -> send_all write_midi addrs_seen now (Midi.PitchBend 0)
         _ -> play_msgs state addrs_seen rest

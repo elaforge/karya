@@ -5,7 +5,8 @@
     RealTime are converted to these as the final stage of performance.
 -}
 module Perform.Timestamp (
-    Timestamp, zero
+    Timestamp
+    , add, sub, mul, zero
     , from_millis, to_millis, to_micros
     , seconds, to_seconds
     , from_real_time, to_real_time
@@ -21,11 +22,20 @@ import Ui
 -- The resolution is only milliseconds, so it can't be used to align audio.
 -- This is just for the MIDI.
 newtype Timestamp = Timestamp Word.Word64
-    deriving (Eq, Ord, Show, Num, Enum, Real, DeepSeq.NFData)
+    deriving (Eq, Ord, Show, DeepSeq.NFData)
     -- The underlying type used by CoreMIDI is uint64.  I don't know what other
     -- OSes use, but probably similar.
     -- I previously used Integer, but that's a sum type and hence can't be
     -- unpacked into another type, e.g. WriteMessage.
+
+add, sub :: Timestamp -> Timestamp -> Timestamp
+add (Timestamp a) (Timestamp b) = Timestamp (a + b)
+sub (Timestamp a) (Timestamp b)
+    | b > a = zero
+    | otherwise = Timestamp (a - b)
+
+mul :: Timestamp -> Int -> Timestamp
+mul (Timestamp a) b = Timestamp (a * fromIntegral b)
 
 zero :: Timestamp
 zero = Timestamp 0
@@ -46,7 +56,7 @@ to_seconds :: Timestamp -> Double
 to_seconds (Timestamp ts) = fromIntegral ts / 1000
 
 from_real_time :: RealTime -> Timestamp
-from_real_time = Timestamp . round . (*1000)
+from_real_time = Timestamp . max 0 . round . (*1000)
 
 to_real_time :: Timestamp -> RealTime
 to_real_time = RealTime . (/1000) . fromIntegral . to_millis
