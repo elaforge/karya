@@ -48,12 +48,12 @@ import qualified Perform.Midi.Instrument as Instrument
 import qualified App.Config as Config
 
 
-serialize :: FilePath -> SaveState -> IO ()
+serialize :: (Binary a) => FilePath -> a -> IO ()
 serialize fname state = do
     File.backup_file fname
     Binary.encodeFile fname state
 
-serialize_text :: FilePath -> SaveState -> IO ()
+serialize_text :: (Show a) => FilePath -> a -> IO ()
 serialize_text fname state = do
     File.backup_file fname
     IO.writeFile fname (show state ++ "\n")
@@ -65,7 +65,8 @@ serialize_pretty_text fname state = do
     File.backup_file fname
     IO.writeFile fname (PPrint.pshow state)
 
-unserialize :: FilePath -> IO (Either Exception.SomeException SaveState)
+unserialize :: (Show a, Binary a) =>
+    FilePath -> IO (Either Exception.SomeException a)
 unserialize fname = Exception.try $ do
     st <- Binary.decodeFile fname
     -- Data.Binary is lazy, but I want errors parsing to get caught right here.
