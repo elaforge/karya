@@ -29,7 +29,7 @@ newtype TrackWarp =
 -- | Each TrackWarp is collected at the Stack of the track it represents.
 -- A Left is a new TrackWarp and a Right is a track that uses the warp in
 -- the environment provided by its callers.  Later they will all be collected
--- into a WarpCollection.
+-- into a Collection.
 --
 -- The reason I don't simply save the warps at every track is that many tracks
 -- share the same warp, and it's more efficient to consolidate them, yet I
@@ -41,7 +41,7 @@ type Frames = [Stack.Frame]
 -- | Each track warp is a warp indexed by the block and tracks it covers.
 -- These are used by the updater to figure out where the play position
 -- indicator is at a given point in real time.
-data WarpCollection = WarpCollection {
+data Collection = Collection {
     tw_start :: RealTime
     , tw_end :: RealTime
     , tw_block :: BlockId
@@ -49,12 +49,14 @@ data WarpCollection = WarpCollection {
     , tw_warp :: Score.Warp
     } deriving (Eq, Show)
 
-warp_collection :: WarpMap -> [WarpCollection]
-warp_collection = map convert . collect_warps
+type Collections = [Collection]
 
-convert :: (TrackWarp, [TrackId]) -> WarpCollection
+collections :: WarpMap -> Collections
+collections = map convert . collect_warps
+
+convert :: (TrackWarp, [TrackId]) -> Collection
 convert (TrackWarp (start, end, warp, block_id, maybe_track_id), tracks) =
-    WarpCollection start end block_id track_ids warp
+    Collection start end block_id track_ids warp
     where track_ids = maybe tracks (:tracks) maybe_track_id
 
 collect_warps :: WarpMap -> [(TrackWarp, [TrackId])]
@@ -81,11 +83,10 @@ collect prefix a stacks = (prefix, a, bs)
     split ((_, Right b) : rest) = Right b : split rest
 
 
--- * functions on WarpCollection
+-- * functions on Collection
 
-tempo_func :: [WarpCollection] -> Transport.TempoFunction
-tempo_func track_warps block_id track_id pos =
-    map (Score.warp_pos pos) warps
+tempo_func :: Collections -> Transport.TempoFunction
+tempo_func track_warps block_id track_id pos = map (Score.warp_pos pos) warps
     where
     warps = [tw_warp tw | tw <- track_warps, tw_block tw == block_id,
         track_id `elem` tw_tracks tw]
@@ -102,7 +103,7 @@ tempo_func track_warps block_id track_id pos =
 --
 -- This can't use Transport.TempoFunction because I need to pick the
 -- appropriate Warp and then look up multiple ScoreTimes in it.
-closest_warp :: [WarpCollection] -> Transport.ClosestWarpFunction
+closest_warp :: Collections -> Transport.ClosestWarpFunction
 closest_warp track_warps block_id track_id pos = maybe Score.id_warp id $
     fmap (tw_warp . snd) (Seq.minimum_on (abs . subtract pos . fst) annotated)
     where
@@ -110,12 +111,12 @@ closest_warp track_warps block_id track_id pos = maybe Score.id_warp id $
     warps = [tw | tw <- track_warps, tw_block tw == block_id,
         track_id `elem` tw_tracks tw]
 
-inverse_tempo_func :: [WarpCollection] -> Transport.InverseTempoFunction
+inverse_tempo_func :: Collections -> Transport.InverseTempoFunction
 inverse_tempo_func track_warps ts = do
     (block_id, track_ids, Just pos) <- track_pos
     return (block_id, [(track_id, pos) | track_id <- track_ids])
     where
-    pos = Timestamp.to_real_time ts
+    ts_time = Timestamp.to_real_time ts
     track_pos = [(tw_block tw, tw_tracks tw, unwarp ts (tw_warp tw)) |
-            tw <- track_warps, tw_start tw <= pos && pos < tw_end tw]
+            tw <- track_warps, tw_start tw <= ts_time && ts_time < tw_end tw]
     unwarp ts warp = Score.unwarp_pos (Timestamp.to_real_time ts) warp

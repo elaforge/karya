@@ -602,7 +602,7 @@ derive constant scopes cache damage environ deriver =
     (result, state, logs) =
         run (initial_state scopes clean_cache damage environ constant) deriver
     clean_cache = clear_damage damage cache
-    warps = TrackWarp.warp_collection (collect_warp_map (state_collect state))
+    warps = TrackWarp.collections (collect_warp_map (state_collect state))
     tempo_func = TrackWarp.tempo_func warps
     closest_func = TrackWarp.closest_warp warps
     inv_tempo_func = TrackWarp.inverse_tempo_func warps
@@ -625,7 +625,7 @@ derive constant scopes cache damage environ deriver =
 -- TODO A way to do this right would be to look at the previous score events
 -- and take a diff, but at the moment I can't think of how to do that
 -- efficiently.
-score_to_event_damage :: [TrackWarp.WarpCollection] -> ScoreDamage
+score_to_event_damage :: TrackWarp.Collections -> ScoreDamage
     -> EventDamage
 score_to_event_damage warpcs score =
     EventDamage $ Monoid.mconcat (block_ranges ++ track_ranges)
