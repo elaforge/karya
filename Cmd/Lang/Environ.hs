@@ -30,6 +30,7 @@ import qualified Ui.Types as Types
 import qualified Ui.Update as Update
 
 import qualified Midi.Midi as Midi
+import qualified Midi.Synth as Synth
 
 import qualified Cmd.Clip as Clip
 import qualified Cmd.Cmd as Cmd
@@ -49,6 +50,7 @@ import qualified Cmd.Lang.LPitch as LPitch
 import qualified Cmd.Lang.LInst as LInst
 
 import qualified Derive.Derive as Derive
+import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.Schema as Schema
 import qualified Perform.Pitch as Pitch

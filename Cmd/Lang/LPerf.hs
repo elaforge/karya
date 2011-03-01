@@ -25,15 +25,9 @@ import qualified Perform.Midi.Cache as Midi.Cache
 
 -- * performance
 
-get_performance :: BlockId -> Cmd.CmdL Cmd.Performance
-get_performance block_id = do
-    threads <- Cmd.gets Cmd.state_performance_threads
-    maybe (Cmd.throw $ "no performance for block " ++ show block_id)
-        (return . Cmd.pthread_perf) (Map.lookup block_id threads)
-
 get_midi_cache :: BlockId -> Cmd.CmdL Midi.Cache.Cache
 get_midi_cache block_id =
-    Cmd.perf_midi_cache <$> get_performance block_id
+    Cmd.perf_midi_cache <$> Cmd.get_performance block_id
 
 -- * derive
 
@@ -106,6 +100,15 @@ sel_midi = get_sel perf (Timestamp.to_real_time . Midi.wmsg_ts)
     perf bid = do
         p <- PlayUtil.cached_perform bid =<< PlayUtil.cached_derive bid
         return $ Midi.Cache.messages_from Timestamp.zero $ Cmd.perf_midi_cache p
+
+-- | Easier to read midi.
+simple_midi :: Cmd.CmdL Midi.Perform.MidiEvents
+    -> Cmd.CmdL [(Integer, Midi.Message)]
+simple_midi = fmap (map f . LEvent.events_of)
+    where
+    f wmsg = (Timestamp.to_millis (Midi.wmsg_ts wmsg), Midi.wmsg_msg wmsg)
+
+-- ** implementation
 
 get_sel :: (BlockId -> Cmd.CmdL [LEvent.LEvent d]) -> (d -> RealTime)
     -> Cmd.CmdL [LEvent.LEvent d]

@@ -152,6 +152,9 @@ zip_next [] = []
 zip_next [x] = [(x, Nothing)]
 zip_next (x : xs@(y:_)) = (x, Just y) : zip_next xs
 
+zip_prev :: [a] -> [(Maybe a, a)]
+zip_prev xs = zip (Nothing : map Just xs) xs
+
 -- | Like 'zip_next' but with both preceding and following elements.
 zip_neighbors :: [a] -> [(Maybe a, a, Maybe a)]
 zip_neighbors [] = []

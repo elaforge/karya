@@ -5,7 +5,7 @@ module Util.Control (
     , first, second
     , (<>), mempty
     , while, while_
-    , whenM, when_just
+    , whenM, when_just, ifM
 
     , finally
 ) where
@@ -51,6 +51,11 @@ whenM cond op = do
 
 when_just :: (Monad m) => Maybe a -> (a -> m ()) -> m ()
 when_just val f = maybe (return ()) f val
+
+ifM :: (Monad m) => m Bool -> m a -> m a -> m a
+ifM cond consequent alternative = do
+    b <- cond
+    if b then consequent else alternative
 
 
 -- Parsec2 doesn't have these, but parsec3 does.

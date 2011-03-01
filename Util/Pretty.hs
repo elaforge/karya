@@ -4,6 +4,7 @@
 module Util.Pretty (Pretty(..), show_float) where
 import qualified Numeric
 import qualified Data.Map as Map
+import qualified Data.Word as Word
 
 import qualified Util.Seq as Seq
 
@@ -16,8 +17,13 @@ class Show a => Pretty a where
 
 instance Pretty Int
 instance Pretty Integer
+instance Pretty Word.Word8
+instance Pretty Word.Word16
+instance Pretty Word.Word32
+instance Pretty Word.Word64
 instance Pretty Double where pretty = show_float (Just 3)
 instance Pretty Float where pretty = show_float (Just 3)
+
 
 -- | Display a float with the given precision, dropping leading and trailing
 -- zeros.  So this can produce ".2" which is not a valid haskell float.

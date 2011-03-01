@@ -30,6 +30,8 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import Text.Printf
 
+import qualified Midi.Synth ()
+
 import Util.Control
 import qualified Util.Seq as Seq
 import qualified Util.Map as Map
