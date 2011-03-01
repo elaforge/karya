@@ -6,6 +6,7 @@
     physically located in Perform.Midi.
 -}
 module Perform.Midi.Convert where
+import Control.Monad
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.Reader as Reader
@@ -14,7 +15,9 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import qualified Midi.Midi as Midi
+import Ui
 
+import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Logger as Logger
 import qualified Util.Pretty as Pretty
@@ -34,26 +37,29 @@ import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.MidiDb as MidiDb
 
+
+-- TODO record logs directly and remove warn_to_log
+
 -- TODO warnings about:
 -- - Instrument has a control that's not in its control map.
--- - No allocation should be warned about in performer?
 
 
 -- | Convert Score events to Perform events, emitting warnings that may have
 -- happened along the way.
 convert :: Derive.LookupScale -> MidiDb.LookupMidiInstrument -> Derive.Events
     -> [LEvent.LEvent Perform.Event]
-convert lookup_scale lookup_inst events = go Set.empty events
+convert lookup_scale lookup_inst events = go Set.empty Nothing events
     where
-    go _ [] = []
-    go state ((LEvent.Log log) : rest) = LEvent.Log log : go state rest
-    go state (LEvent.Event event : rest) =
+    go _ _ [] = []
+    go state prev ((LEvent.Log log) : rest) =
+        LEvent.Log log : go state prev rest
+    go state prev (LEvent.Event event : rest) =
         maybe [] ((:[]) . LEvent.Event) maybe_event ++ logs
-            ++ go next_state rest
+            ++ go next_state (Just (Score.event_start event)) rest
         where
         (maybe_event, warns, next_state) = run_convert state
             (Score.event_stack event)
-            (convert_event lookup_scale lookup_inst event)
+            (convert_event lookup_scale lookup_inst prev event)
         logs = map (LEvent.Log . warn_to_log) warns
 
 -- | Convert a Warning into an appropriate log msg.
@@ -66,8 +72,11 @@ warn_to_log (Warning.Warning msg stack maybe_range) =
 
 
 convert_event :: Derive.LookupScale -> MidiDb.LookupMidiInstrument
-    -> Score.Event -> ConvertT Perform.Event
-convert_event lookup_scale lookup_inst event = do
+    -> Maybe RealTime -> Score.Event -> ConvertT Perform.Event
+convert_event lookup_scale lookup_inst maybe_prev event = do
+    -- Sorted is a postcondition of the deriver.
+    when_just maybe_prev $ \prev -> when (Score.event_start event < prev) $
+        warn $ "start time less than previous of " ++ Pretty.pretty prev
     score_inst <- require "instrument" (Score.event_instrument event)
     (midi_inst, maybe_key) <- convert_inst lookup_inst score_inst
         (Score.event_attributes event)
@@ -137,6 +146,8 @@ convert_pitch lookup_scale psig = case lookup_scale scale_id of
 instance Error.Error (Maybe Warning.Warning) where
     strMsg = Just . Error.strMsg
 
+-- | Remember which non-allocated instruments have been warned about to
+-- suppress further warnings.
 type State = Set.Set Score.Instrument
 
 type ConvertT = Error.ErrorT (Maybe Warning.Warning)

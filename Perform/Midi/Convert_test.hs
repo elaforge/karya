@@ -28,6 +28,12 @@ test_convert = do
         , Right "Convert: unknown scale: ScaleId \"empty signal\""
         , Left (2, [(2, 62)])
         ]
+    equal (convert [good 2, good 0, good 1])
+        [ Left (2, [(2, 62)])
+        , Left (0, [(0, 62)])
+        , Right "Convert: start time less than previous of 2s"
+        , Left (1, [(1, 62)])
+        ]
 
 noinst n = LEvent.Event $ mkevent n "c" "noinst"
 nopitch n = LEvent.Event $ (mkevent n "c" "s/1") { Score.event_pitch = mempty }

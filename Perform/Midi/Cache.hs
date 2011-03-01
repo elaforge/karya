@@ -222,8 +222,11 @@ perform_chunk chunknum state config events =
     end = chunks_time (chunknum+1)
     (msgs, final_state) = Perform.perform state config pre
 
--- | TODO this will be inefficient the first time it is called and has to
--- drop a lot of events.  Events should be a more efficiently seekable data
+-- | Make sure each chunk performance is performing only the events that lie in
+-- its range.
+--
+-- TODO this will be inefficient the first time it is called and has to drop
+-- a lot of events.  Events should be a more efficiently seekable data
 -- structure to avoid this.
 trim_events :: ChunkNum -> Perform.Events -> Perform.Events
 trim_events nchunk = dropWhile (is_event ((<start) . Perform.event_start))
