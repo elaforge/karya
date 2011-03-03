@@ -11,10 +11,20 @@ But decide about lazy signals before going nuts on this.  If I revert to linear
 search then none of this is necessary.
 
 CURRENT
+  + importer for mods
+    - set up order block
+  - move _then functions
+  - track with no tempo doesn't play through?
+  - implement transpose cmd
+    - since this is a symbolic level operation, I think I just need
+      scale_transpose
+    - I can think about LPitch.note_to_degree later
+  - muting the first track with no tempo makes the block not derive
+
   * get rid of the log nastiness by having derive threads not log on shutdown
-  - storing TrackEvents without duration would makke maintaining the no-overlap
+  - storing TrackEvents without duration would make maintaining the no-overlap
     invariant easier.  E.g. have explicit 'off' events, otherwise each event
-    extends to the next one.  It means after merging I have to clear redundent
+    extends to the next one.  It means after merging I have to clear redundant
     offs, but that's easier right?
   * add some repl utils to make it easier to fmap things into CmdL
   bugs
@@ -37,8 +47,6 @@ CURRENT
       peak for 246114 msgs: 46mb for int, 38.7 for int, 38.7 for w64
 
   performance:
-    / try to see how much lists are copied and use AppendList
-      not a win
     - try using call/cc instead of either T
       Will require figuring out Derive.with_empty_collect when I get rid of
       catchError
@@ -54,7 +62,7 @@ CURRENT
     the read-only cache from the previous run, in Constant
   - remember about caching tracks, how can I make a track into a call?
 
-  - instead of building log dup suppressing logic into various functions, e.g.
+  / instead of building log dup suppressing logic into various functions, e.g.
     allot, maybe I can add 'key' field to Log.Msg and suppress dup keys?
     Who else produces dups?  Convert does.  But isn't it more efficient to just
     not emit?
@@ -113,8 +121,11 @@ CURRENT
 
     - split writable CacheState from readonly?
 
-    AppendList for Derive.Stream
+    AppendList / MergeList for Derive.Stream
       - switch to AppendList and try to get garbage down
+        Avoid copying sublists returned by block calls and cache hits
+      - Midi.Cache.trim_events is a linear scan on all events from the
+        beginning, seems like this would be faster if I could skip chunks.
       - see if a Merge constructor can reduce copying
       - can I cache length and range in AppendList?  does it matter?
       - insert parallelism?  maybe the evaluator can do that when it sees Merge?

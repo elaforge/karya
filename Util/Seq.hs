@@ -314,6 +314,13 @@ filter_then f done cont = go
 take1 :: (a -> Bool) -> [a] -> [a]
 take1 f = take_then f (take 1)
 
+map_accuml_then :: (acc -> x -> (acc, y)) -> acc -> (acc -> [y]) -> [x] -> [y]
+map_accuml_then f acc cont xs = go acc xs
+    where
+    go acc [] = cont acc
+    go acc (x:xs) = y : go acc2 xs
+        where (acc2, y) = f acc x
+
 -- ** splitting and joining
 
 break_tails :: ([a] -> Bool) -> [a] -> ([a], [a])

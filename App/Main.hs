@@ -6,6 +6,7 @@
 module App.Main where
 
 import Control.Monad
+import qualified Control.Monad.Trans as Trans
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Concurrent.STM.TChan as TChan
@@ -20,6 +21,7 @@ import qualified Text.Printf as Printf
 
 import qualified Util.Map as Map
 import qualified Util.Log as Log
+import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
 import qualified Ui.Event as Event
@@ -44,6 +46,7 @@ import qualified Cmd.Responder as Responder
 -- import qualified Cmd.TimeStep as TimeStep
 import qualified Cmd.Save as Save
 import qualified Cmd.Lang as Lang
+import qualified Cmd.LoadMod as LoadMod
 
 import qualified Derive.Call.All as Call.All
 import qualified Derive.Scale.Symbols as Scale.Symbols
@@ -97,6 +100,7 @@ parse_args :: [String] -> Cmd.CmdIO
 parse_args argv = case argv of
     [] -> auto_setup_cmd
     ["generate", gen] -> setup_generate gen
+    ["mod", fn] -> load_mod fn
     ["-a"] -> do
         Save.cmd_load "save/default"
         State.set_project "untitled"
@@ -304,7 +308,8 @@ setup_generate gen = do
         "control" -> Derive_profile.make_big_control 15000
         "shared" -> Derive_profile.make_shared_control 2000
         _ -> error gen
-    State.set_midi_config (make_midi_config [("fm8/1", [0..2]), ("fm8/2", [3])])
+    State.set_midi_config $
+        make_midi_config "fm8" [("fm8/1", [0..2]), ("fm8/2", [3])]
     Create.view (UiTest.bid "b1")
     Create.map_track_titles set_inst
     return Cmd.Done
@@ -313,6 +318,14 @@ setup_generate gen = do
         | title == Derive_profile.inst1 = ">fm8/1"
         | title == Derive_profile.inst2 = ">fm8/2"
         | otherwise = title
+
+load_mod :: String -> Cmd.CmdIO
+load_mod fn = do
+    blocks <- either Cmd.throw return =<< Trans.liftIO (LoadMod.parse fn)
+    LoadMod.create (head (Seq.split "." fn))
+        (LoadMod.convert_blocks 0.25 blocks)
+    State.set_midi_config $ make_midi_config "loop1" [("ptq/c1", [0..8])]
+    return Cmd.Done
 
 setup_normal :: Cmd.CmdIO
 setup_normal = do
@@ -340,7 +353,7 @@ setup_normal = do
     -- tempo 1 -> *twelve 3 -> mod -> >fm8/bass 2
     State.set_skeleton bid $ Skeleton.make [(1, 4), (4, 3), (3, 2)]
 
-    State.set_midi_config (make_midi_config [("fm8/bass", [0..2])])
+    State.set_midi_config (make_midi_config "fm8" [("fm8/bass", [0..2])])
     State.set_selection vid Config.insert_selnum (Types.point_selection 0 0)
     return Cmd.Done
     where
@@ -382,7 +395,7 @@ setup_big = do
         (take 100 (mknotes (cycle (reverse (map ((,) 6) notes)))))
     State.insert_events t1_vel (take 100 (mkvels (cycle (reverse vels))))
 
-    State.set_midi_config (make_midi_config [("fm8/bass", [0..2])])
+    State.set_midi_config (make_midi_config "fm8" [("fm8/bass", [0..2])])
     State.set_default_inst (Just (Score.Instrument "fm8/bass"))
     State.set_selection view Config.insert_selnum (Types.point_selection 0 0)
     return Cmd.Done
@@ -399,7 +412,7 @@ empty_block = do
     State.insert_events t_tempo $ map UiTest.mkevent [(0, 0, "1")]
     return (bid, vid)
 
-make_midi_config :: [(String, [Midi.Channel])] -> Instrument.Config
-make_midi_config config = Instrument.config
+make_midi_config :: String -> [(String, [Midi.Channel])] -> Instrument.Config
+make_midi_config dev config = Instrument.config
     [(Score.Instrument inst, map mkaddr chans) | (inst, chans) <- config]
-    where mkaddr chan = (Midi.WriteDevice "fm8", chan)
+    where mkaddr chan = (Midi.WriteDevice dev, chan)
