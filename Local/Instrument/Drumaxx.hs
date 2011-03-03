@@ -11,7 +11,7 @@ load _dir = return $ MidiDb.softsynth "dmx" (Just "dmx") (-24, 24) [] []
     (Instrument.set_note_calls note_calls . Instrument.set_triggered
         . Instrument.set_keymap keymap)
 
-note_calls = ["Derive.Instrument.Drums.note"]
+note_calls = ["Derive.Instrument.Drums.traps"]
 
 -- The octave numbers on the drummax are one greater than the standard usage.
 -- This is for "Acoustic 1 FG".  I'll have to come up with a standard mapping
