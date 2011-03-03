@@ -55,7 +55,7 @@ LogView::LogView(int X, int Y, int W, int H, MsgCallback cb, int max_bytes) :
     command.callback(LogView::command_cb, static_cast<void *>(this));
     // Wrap at the edge of the widget.
     // TODO this makes it really slow on OS X
-    // display.wrap_mode(Fl_Text_Display::WRAP_AT_BOUNDS, 0);
+    display.wrap_mode(Fl_Text_Display::WRAP_AT_BOUNDS, 0);
     display.scrollbar_width(12);
     display.scrollbar_align(FL_ALIGN_RIGHT);
     display.textfont(FL_HELVETICA);

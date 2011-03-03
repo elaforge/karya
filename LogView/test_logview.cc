@@ -36,11 +36,14 @@ main(int argc, char **argv)
                 s = 'A';
             memset(style, s, strlen(line));
             style[strlen(line)] = '\0';
+            printf("putting line %d\n", i+1);
+            fflush(stdout);
             win.view.append_log(line, style);
         }
         fclose(fp);
         argc--;
         argv++;
+        printf("\n");
     }
     const char *status = "hi this the {sta tus} is";
     const char *style  = "AAAAAAAAAAAACCCCCCCCCAAA";
