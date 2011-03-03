@@ -1143,14 +1143,9 @@ get_views_of block_id = do
     views <- gets state_views
     return $ Map.filter ((==block_id) . Block.view_block) views
 
--- | Get all the tracks in a given block.
-get_tracks_of :: (M m) =>
-    BlockId -> m (Map.Map TrackId Track.Track)
-get_tracks_of block_id = do
-    block <- get_block block_id
-    let track_ids = Block.block_track_ids block
-    tracks <- mapM get_track track_ids
-    return $ Map.fromList (zip track_ids tracks)
+-- | Get all TrackIds of the given block.
+track_ids_of :: (M m) => BlockId -> m [TrackId]
+track_ids_of block_id = Block.block_track_ids <$> get_block block_id
 
 -- | Find @track_id@ in all the blocks it exists in, and return the track info
 -- for each tracknum at which @track_id@ lives.  Blocks with no matching tracks

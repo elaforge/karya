@@ -14,12 +14,11 @@ CURRENT
   + importer for mods
     - set up order block
   * move _then functions
-  - track with no tempo doesn't play through?
   - implement transpose cmd
     - since this is a symbolic level operation, I think I just need
       scale_transpose
     - I can think about LPitch.note_to_degree later
-  - muting the first track with no tempo makes the block not derive
+  * muting the first track with no tempo makes the block not derive
 
   * get rid of the log nastiness by having derive threads not log on shutdown
   - storing TrackEvents without duration would make maintaining the no-overlap

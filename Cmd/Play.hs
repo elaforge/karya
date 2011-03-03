@@ -77,6 +77,7 @@
 -}
 module Cmd.Play where
 import qualified Control.Exception as Exception
+import Control.Monad
 import qualified Control.Monad.Trans as Trans
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -113,32 +114,28 @@ import qualified App.Config as Config
 cmd_play_focused :: Transport.Info -> Cmd.CmdIO
 cmd_play_focused transport_info = do
     block_id <- Cmd.get_focused_block
-    -- cmd_play wants to start with a track, so pick the first one.
-    -- TODO: pick the first event track!
-    block <- State.get_block block_id
-    track_id <- Cmd.require $ Seq.at (Block.block_track_ids block) 0
-    cmd_play transport_info block_id (track_id, 0)
+    cmd_play transport_info block_id (Nothing, 0)
 
 cmd_play_from_insert :: Transport.Info -> Cmd.CmdIO
 cmd_play_from_insert transport_info = do
     (block_id, _, track_id, pos) <- Selection.get_insert
-    cmd_play transport_info block_id (track_id, pos)
+    cmd_play transport_info block_id (Just track_id, pos)
 
 cmd_play_from_previous_step :: Transport.Info -> Cmd.CmdIO
 cmd_play_from_previous_step transport_info = do
     step <- Cmd.gets Cmd.state_play_step
     (block_id, tracknum, track_id, pos) <- Selection.get_insert
     prev <- TimeStep.step_from step TimeStep.Rewind block_id tracknum pos
-    cmd_play transport_info block_id (track_id, (maybe 0 id prev))
+    cmd_play transport_info block_id (Just track_id, (maybe 0 id prev))
 
 cmd_play_from_previous_root_step :: Transport.Info -> Cmd.CmdIO
 cmd_play_from_previous_root_step transport_info = do
     (block_id, tracknum, track_id, pos) <- Selection.get_root_insert
     step <- Cmd.gets Cmd.state_play_step
     prev <- TimeStep.step_from step TimeStep.Rewind block_id tracknum pos
-    cmd_play transport_info block_id (track_id, (maybe 0 id prev))
+    cmd_play transport_info block_id (Just track_id, (maybe 0 id prev))
 
-cmd_play :: Transport.Info -> BlockId -> (TrackId, ScoreTime) -> Cmd.CmdIO
+cmd_play :: Transport.Info -> BlockId -> (Maybe TrackId, ScoreTime) -> Cmd.CmdIO
 cmd_play transport_info block_id (start_track, start_pos) = do
     cmd_state <- Cmd.get_state
     case Cmd.state_play_control cmd_state of
@@ -147,11 +144,7 @@ cmd_play transport_info block_id (start_track, start_pos) = do
     perf <- get_performance block_id
 
     -- TODO previously I would print the logs again... reinstate that?
-    start_ts <- case Cmd.perf_tempo perf block_id start_track start_pos of
-        [] -> Cmd.throw $ show block_id ++ " has no tempo information, so it "
-            ++ "probably failed to derive."
-        realtime : _ -> return (Timestamp.from_real_time realtime)
-
+    start_ts <- find_realtime perf block_id start_track start_pos
     let msgs = Cache.messages_from start_ts (Cmd.perf_midi_cache perf)
     (play_ctl, updater_ctl) <- Trans.liftIO $
         Midi.Play.play transport_info block_id (LEvent.events_of msgs)
@@ -159,9 +152,23 @@ cmd_play transport_info block_id (start_track, start_pos) = do
     ui_state <- State.get
     Trans.liftIO $ Thread.start_logged "play position updater" $ updater_thread
         updater_ctl transport_info (Cmd.perf_inv_tempo perf) start_ts ui_state
-
     Cmd.modify_state $ \st -> st { Cmd.state_play_control = Just play_ctl }
     return Cmd.Done
+
+-- | Given a block, track, and time, find the realtime timestamp at that
+-- position.  If the track is Nothing, use the first track that has tempo
+-- information.  This is necessary because if a track is muted it will have
+-- no tempo, but it's confusing if playing from a muted track fails.
+find_realtime :: (Cmd.M m) => Cmd.Performance -> BlockId -> Maybe TrackId
+    -> ScoreTime -> m Timestamp.Timestamp
+find_realtime perf block_id maybe_track_id pos = do
+    track_ids <- maybe (State.track_ids_of block_id) (return . (:[]))
+        maybe_track_id
+    case msum (map tempo track_ids) of
+        Nothing -> Cmd.throw $ show block_id ++ " " ++ show track_ids
+            ++ " has no tempo information, so it probably failde to derive."
+        Just realtime -> return $ Timestamp.from_real_time realtime
+    where tempo tid = Seq.head $ Cmd.perf_tempo perf block_id tid pos
 
 cmd_stop :: Cmd.CmdIO
 cmd_stop = do
