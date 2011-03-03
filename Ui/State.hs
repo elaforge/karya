@@ -36,6 +36,7 @@ import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Logger as Logger
 import qualified Util.Map as Map
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Tree as Tree
 
@@ -196,6 +197,10 @@ instance Trans.MonadTrans StateT where
 data StateError = StateError String | Abort deriving (Generics.Typeable, Show)
 instance Error.Error StateError where
     strMsg = StateError
+
+instance Pretty.Pretty StateError where
+    pretty (StateError msg) = msg
+    pretty Abort = "(abort)"
 
 class (Applicative.Applicative m, Monad m) => M m where
     get :: m State

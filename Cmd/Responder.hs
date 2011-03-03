@@ -230,7 +230,7 @@ respond rstate msg = do
     rstate <- return $ rstate { state_cmd = cmd_state }
     (status, rstate) <- case res of
         Left err -> do
-            Log.warn $ "responder: " ++ show err
+            Log.warn $ "responder: " ++ Pretty.pretty err
             return (Cmd.Continue, rstate)
         Right (status, ui_from, ui_to) -> do
             Log.timer "cmds complete"
