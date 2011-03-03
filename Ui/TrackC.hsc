@@ -13,6 +13,7 @@ import Foreign
 import Foreign.C
 
 import qualified Util.Seq as Seq
+import qualified Util.Then as Then
 
 import Ui
 import qualified Ui.Event as Event
@@ -160,7 +161,8 @@ cb_find_events event_lists startp endp ret_tps ret_events ret_ranks = do
     -- negative duration and the text goes above.
     --
     -- Almost, but not quite the same as 'Track.in_range_around'.
-    in_range start end events = take 1 pre ++ Seq.take1 ((<=end) . fst) post
+    in_range start end events =
+        take 1 pre ++ Then.takeWhile1 ((<=end) . fst) post
         where (pre, post) = Track.split start events
 
 foreign import ccall "wrapper"

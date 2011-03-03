@@ -6,6 +6,7 @@ import qualified Data.Map as Map
 
 import qualified Util.Map as Map
 import qualified Util.Seq as Seq
+import qualified Util.Then as Then
 
 import Ui
 import qualified Ui.Color as Color
@@ -243,7 +244,7 @@ event_overlaps p e@(pos, evt)
 -- one after @end@.
 in_range_around :: ScoreTime -> ScoreTime -> TrackEvents -> [PosEvent]
 in_range_around start end =
-    Seq.take1 ((<end) . fst) .  snd . split_at_before start
+    Then.takeWhile1 ((<end) . fst) .  snd . split_at_before start
 
 events_in_range :: ScoreTime -> ScoreTime -> TrackEvents -> [PosEvent]
 events_in_range start end events = within

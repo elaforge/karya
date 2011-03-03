@@ -12,6 +12,7 @@ import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Ranges as Ranges
 import qualified Util.Seq as Seq
+import qualified Util.Then as Then
 
 import qualified Midi.Midi as Midi
 
@@ -68,7 +69,7 @@ messages_from start cache =
 -- msgs that will be overwritten by another, but it's too much work for now
 -- and I'll do it only if synths get confused.
 clip_before :: Timestamp.Timestamp -> [Midi.WriteMessage] -> [Midi.WriteMessage]
-clip_before start = Seq.filter_then (Midi.is_state . Midi.wmsg_msg)
+clip_before start = Then.filter (Midi.is_state . Midi.wmsg_msg)
     ((>=start) . Midi.wmsg_ts) id
 
 -- | Figure out how much time of the performed MIDI messages were from

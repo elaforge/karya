@@ -293,34 +293,6 @@ lstrip = dropWhile Char.isSpace
 rstrip = rdrop_while Char.isSpace
 strip = rstrip . lstrip
 
--- | Like takeWhile but with a continuation, so you can chain takes without
--- copying.
-take_then :: (a -> Bool) -> ([a] -> [a]) -> [a] -> [a]
-take_then _ _ [] = []
-take_then f cont (x:xs)
-    | f x = x : take_then f cont xs
-    | otherwise = cont (x:xs)
-
-filter_then :: (a -> Bool) -> (a -> Bool) -> ([a] -> [a]) -> [a] -> [a]
-filter_then f done cont = go
-    where
-    go [] = []
-    go (x:xs)
-        | done x = cont (x:xs)
-        | f x = x : go xs
-        | otherwise = go xs
-
--- | takeWhile plus one extra
-take1 :: (a -> Bool) -> [a] -> [a]
-take1 f = take_then f (take 1)
-
-map_accuml_then :: (acc -> x -> (acc, y)) -> acc -> (acc -> [y]) -> [x] -> [y]
-map_accuml_then f acc cont xs = go acc xs
-    where
-    go acc [] = cont acc
-    go acc (x:xs) = y : go acc2 xs
-        where (acc2, y) = f acc x
-
 -- ** splitting and joining
 
 break_tails :: ([a] -> Bool) -> [a] -> ([a], [a])

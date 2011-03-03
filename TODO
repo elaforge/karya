@@ -13,7 +13,7 @@ search then none of this is necessary.
 CURRENT
   + importer for mods
     - set up order block
-  - move _then functions
+  * move _then functions
   - track with no tempo doesn't play through?
   - implement transpose cmd
     - since this is a symbolic level operation, I think I just need

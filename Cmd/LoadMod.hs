@@ -12,6 +12,7 @@ import qualified Util.Map as Map
 import qualified Util.ParseBs as Parse
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+import qualified Util.Then as Then
 
 import Ui
 import qualified Ui.Block as Block
@@ -133,7 +134,7 @@ convert_track :: [Note] -> (NoteTrack, [ControlTrack])
 convert_track notes = (convert_notes notes, convert_controls notes)
 
 convert_notes :: [Note] -> NoteTrack
-convert_notes = Maybe.catMaybes . Seq.map_accuml_then go (Nothing, 0) final
+convert_notes = Maybe.catMaybes . Then.mapAccumL go (Nothing, 0) final
     where
     go (prev, at) note = ((next, at+1), event)
         where (event, next) = convert_note prev at note

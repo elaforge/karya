@@ -200,7 +200,7 @@ pretty_warn (Midi.WriteMessage (Midi.WriteDevice dev) ts msg, warn) =
     Pretty.pretty ts ++ " " ++ dev ++ ":" ++ show msg ++ ": " ++ warn
 
 instance Pretty.Pretty Note where
-    pretty (Note start dur key vel pitch controls addr) =
+    pretty (Note start dur _key vel pitch controls addr) =
         Printf.printf "%s %s--%s: %s V:%x C: %s" addr_s (Pretty.pretty start)
             (maybe "" Pretty.pretty dur) (Pretty.pretty pitch)
             vel (pretty_controls controls)
