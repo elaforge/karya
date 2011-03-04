@@ -322,8 +322,10 @@ setup_generate gen = do
 load_mod :: String -> Cmd.CmdIO
 load_mod fn = do
     blocks <- either Cmd.throw return =<< Trans.liftIO (LoadMod.parse fn)
+    let blocks2 = map (LoadMod.map_block (LoadMod.add_default_volume 1 38))
+            blocks
     LoadMod.create (head (Seq.split "." fn))
-        (LoadMod.convert_blocks 0.25 blocks)
+        (LoadMod.convert_blocks 0.25 blocks2)
     State.set_midi_config $ make_midi_config "loop1" [("ptq/c1", [0..8])]
     return Cmd.Done
 

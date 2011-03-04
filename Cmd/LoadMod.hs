@@ -31,46 +31,6 @@ import qualified App.Config as Config
 import Util.Test
 
 
--- * parse
-
-newtype Block = Block [Row] deriving (Show)
-newtype Row = Row [Note] deriving (Show)
-data Note = Note {
-    note_pitch :: Int
-    , note_inst :: Int
-    , note_effects :: [Effect]
-    }
-    deriving (Show)
-type Effect = (Int, Int)
-
-block_notes :: Block -> [Note]
-block_notes = concatMap row_notes . block_rows
-    where
-    block_rows (Block rows) = rows
-    row_notes (Row notes) = notes
-
-parse :: FilePath -> IO (Either String [Block])
-parse fn = do
-    s <- B.readFile fn
-    return $ Parse.parse_all p_blocks s
-
-p_blocks = A.many p_block
-p_block = Block <$> parens (A.many p_row)
-p_row = Row <$> parens (A.many p_note)
-
-p_note :: A.Parser Note
-p_note = parens $ do
-    pitch <- number
-    inst <- number
-    _vol <- number
-    fx1 <- p_effects
-    fx2 <- p_effects
-    return $ Note pitch inst (filter ((/=0) . fst) [fx1, fx2])
-
-p_effects = parens ((,) <$> number <*> number)
-parens = Parse.between (Parse.lexeme (A.char '(')) (Parse.lexeme (A.char ')'))
-number = Parse.lexeme Parse.p_nat
-
 -- * create ui state
 
 create :: (State.M m) => String -> [UiBlock] -> m ()
@@ -102,9 +62,10 @@ create_block mkid rid track_rid inst num ui_block = do
 -- * convert
 
 test = do
-    -- Right bs <- parse "test.dump"
-    Right bs <- parse "bloom.dump.short"
-    pprint $ convert_blocks 0.25 bs
+    Right bs <- parse "test.dump"
+    -- Right bs <- parse "bloom.dump.short"
+    let bs2 = map (map_block (add_default_volume 1 38)) bs
+    pprint $ convert_blocks 0.25 bs2
     -- pprint $ convert_track (head (to_tracks (head bs)))
     -- pprint $ convert_notes (head (to_tracks (head bs)))
     -- where to_tracks (Block rows) = rotate (map (\(Row ns) -> ns)  rows)
@@ -195,9 +156,6 @@ convert_effect (fx, arg)
     | otherwise = Nothing
     where c = Pretty.show_float (Just 2) . (/127) . fromIntegral
 
-with_fx blocks = filter (not . null . note_effects)
-    (concatMap block_notes blocks)
-
 fx_extended = 0x0e
 fx_vibrato = 0x04
 fx_volume = 0x0c
@@ -215,3 +173,58 @@ degree_to_note = Map.fromList $ zip [0..127] notes
 -- possible.
 note_degrees :: [String]
 note_degrees = ["c", "c#", "d", "d#", "e", "f", "f#", "g", "g#", "a", "a#", "b"]
+
+
+-- * parse
+
+newtype Block = Block [Row] deriving (Show)
+newtype Row = Row [Note] deriving (Show)
+data Note = Note {
+    note_pitch :: Int
+    , note_inst :: Int
+    , note_effects :: [Effect]
+    }
+    deriving (Show)
+type Effect = (Int, Int)
+
+add_default_volume :: Int -> Int -> Note -> Note
+add_default_volume inst vol note@(Note pitch note_inst effects)
+    | pitch /= 0 && note_inst == inst && not has_vol =
+        note { note_effects = (fx_volume, vol) : effects }
+    | otherwise = note
+    where has_vol = any ((==fx_volume) . fst) effects
+
+map_block :: (Note -> Note) -> Block -> Block
+map_block f (Block rows) = Block (map map_row rows)
+    where map_row (Row notes) = Row (map f notes)
+
+with_fx blocks = filter (not . null . note_effects)
+    (concatMap block_notes blocks)
+
+block_notes :: Block -> [Note]
+block_notes = concatMap row_notes . block_rows
+    where
+    block_rows (Block rows) = rows
+    row_notes (Row notes) = notes
+
+parse :: FilePath -> IO (Either String [Block])
+parse fn = do
+    s <- B.readFile fn
+    return $ Parse.parse_all p_blocks s
+
+p_blocks = A.many p_block
+p_block = Block <$> parens (A.many p_row)
+p_row = Row <$> parens (A.many p_note)
+
+p_note :: A.Parser Note
+p_note = parens $ do
+    pitch <- number
+    inst <- number
+    _vol <- number
+    fx1 <- p_effects
+    fx2 <- p_effects
+    return $ Note pitch inst (filter ((/=0) . fst) [fx1, fx2])
+
+p_effects = parens ((,) <$> number <*> number)
+parens = Parse.between (Parse.lexeme (A.char '(')) (Parse.lexeme (A.char ')'))
+number = Parse.lexeme Parse.p_nat
