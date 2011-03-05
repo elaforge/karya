@@ -11,14 +11,37 @@ But decide about lazy signals before going nuts on this.  If I revert to linear
 search then none of this is necessary.
 
 CURRENT
-  + importer for mods
-    - set up order block
+  * importer for mods
+  - wtf is up with the random pitch changes?  performer bug?
+  - cmd to collapse all pitch tracks in a block
+  - add logview support for Cmd.PitchTrack.log_event
+  - ^a once selects track, again selects entire block
+  - ^e on a note transposes the one before it, Selection.events is wrong?
+  - cmd to resize certain tracks, e.g. shrink down 'vel' tracks
+  - scrolling is slow with more than a few events onscreen
   * move _then functions
-  - implement transpose cmd
-    - since this is a symbolic level operation, I think I just need
-      scale_transpose
-    - I can think about LPitch.note_to_degree later
+  * implement transpose cmd
+  - fix LPitch.note_to_degree
   * muting the first track with no tempo makes the block not derive
+  - fix the broken way Cmd.Schema infers scale and instrument
+    Record env during derivation:
+    When entering a track, save stack and env.  Then to lookup env just look
+    for a stack ending with that track_id.  If >1, then just pick the first, or
+    look at selection position in the first caller with >1 position, pick the
+    one closest to the selection.
+
+    a 1-2 / b 1-2 / c
+    a 2-3 / b 1-2 / c
+
+    It's important for note tracks to be able to get the scale of their pitch
+    track, make sure the above scheme will work for that.
+
+    This opens the door for cmds depending on other kinds of env, though
+    I can't think of any compelling uses at the moment.  Maybe snap selection
+    by sample rate?
+
+    Move scale_of and instrument_of to Cmd.Cmd and use them instead of parsing
+    track titles.
 
   * get rid of the log nastiness by having derive threads not log on shutdown
   - storing TrackEvents without duration would make maintaining the no-overlap

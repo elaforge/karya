@@ -37,6 +37,7 @@
     events.
 -}
 module Cmd.GlobalKeymap where
+import qualified Control.Monad.Identity as Identity
 import qualified App.Config as Config
 
 import qualified Ui.Block as Block
@@ -54,6 +55,7 @@ import qualified Cmd.BlockConfig as BlockConfig
 import qualified Cmd.Clip as Clip
 import qualified Cmd.Create as Create
 import qualified Cmd.Edit as Edit
+import qualified Cmd.PitchTrack as PitchTrack
 import qualified Cmd.Play as Play
 import qualified Cmd.Save as Save
 import qualified Cmd.Selection as Selection
@@ -103,17 +105,19 @@ player_bindings transport_info = fst $ Keymap.make_cmd_map $ concat
 
 (cmd_map, cmd_map_errors) = Keymap.make_cmd_map $
     quit_bindings ++ selection_bindings ++ view_config_bindings
-    ++ block_config_bindings ++ edit_bindings ++ create_bindings
-    ++ clip_bindings
+    ++ block_config_bindings ++ edit_bindings ++ pitch_bindings
+    ++ create_bindings ++ clip_bindings
 
--- Quit is special because it's the only Cmd that returns Cmd.Quit.
+-- | Quit is special because it's the only Cmd that returns Cmd.Quit.
 -- See how annoying it is to make a keymap by hand?
+quit_bindings :: [Keymap.Binding (Cmd.CmdT Identity.Identity)]
 quit_bindings = [(kspec, cspec) | kspec <- kspecs]
     where
     kspecs = [Keymap.key_spec mods (Keymap.Key (Key.KeyChar '\''))
         | mods <- Keymap.expand_mods [PrimaryCommand]]
     cspec = Keymap.cspec "quit" (const Cmd.cmd_quit)
 
+selection_bindings :: (Cmd.M m) => [Keymap.Binding m]
 selection_bindings = concat
     [ bind_drag [] Config.mouse_select "snap drag selection"
         (Selection.cmd_snap_selection Config.mouse_select Config.insert_selnum
@@ -150,6 +154,7 @@ selection_bindings = concat
     ]
     where selnum = Config.insert_selnum
 
+view_config_bindings :: (Cmd.M m) => [Keymap.Binding m]
 view_config_bindings = concat
     [ command_char '[' "zoom out *0.8"
         (ViewConfig.cmd_zoom_around_insert (*0.8))
@@ -157,6 +162,7 @@ view_config_bindings = concat
         (ViewConfig.cmd_zoom_around_insert (*1.25))
     ]
 
+block_config_bindings :: (Cmd.M m) => [Keymap.Binding m]
 block_config_bindings = concat
     -- TODO I'm not supposed to use SecondaryCommand for the built in keymap.
     [ bind_click [SecondaryCommand] Config.mouse_select 0
@@ -168,7 +174,8 @@ block_config_bindings = concat
 -- delete = remove events and move following events back
 -- clear = just remove events
 
--- Global bindings for edit type things.
+-- | Global bindings for edit type things.
+edit_bindings :: (Cmd.M m) => [Keymap.Binding m]
 edit_bindings = concat
     [ bind_key Key.Escape "toggle val edit" Edit.cmd_toggle_val_edit
     , bind_mod [PrimaryCommand] Key.Escape "toggle raw edit"
@@ -214,6 +221,24 @@ edit_bindings = concat
         (TimeStep.AbsoluteMark meter (TimeStep.MatchRank rank skips))
         rank skips
 
+-- | Bindings which work on pitch tracks.  The reason this is global rather
+-- than in pitch track keymaps is that it's handy to select multiple tracks
+-- and have the cmd automatically skip non pitch tracks.
+pitch_bindings :: (Cmd.M m) => [Keymap.Binding m]
+pitch_bindings = concat
+    -- These are named after the vi commands for up and down, but they don't
+    -- feel right.
+    [ command_char 'y' "transpose up degree"
+        (PitchTrack.transpose_selection 0 1)
+    , command_char 'e' "transpose down degree"
+        (PitchTrack.transpose_selection 0 (-1))
+    , command_char 'Y' "transpose up octave"
+        (PitchTrack.transpose_selection 1 0)
+    , command_char 'E' "transpose down octave"
+        (PitchTrack.transpose_selection (-1) 0)
+    ]
+
+create_bindings :: (Cmd.M m) => [Keymap.Binding m]
 create_bindings = concat
     [ command_only 't' "insert track" (Create.insert_track False)
     , command_only 'T' "splice track" (Create.insert_track True)
@@ -229,6 +254,7 @@ create_bindings = concat
     , command_only 'B' "create block template" (Create.block_from_template True)
     ]
 
+clip_bindings :: (Cmd.M m) => [Keymap.Binding m]
 clip_bindings = concat
     [ command_only 'c' "copy selection" Clip.cmd_copy_selection
     , command_only 'x' "cut selection" Clip.cmd_cut_selection

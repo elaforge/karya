@@ -38,6 +38,11 @@ to_positive = ModifyEvents.events_sorted $ \evt ->
 negate_event (pos, evt) =
     (pos + Event.event_duration evt, Event.modify_duration negate evt)
 
+-- * transpose
+
+transpose :: Pitch.Octave -> Integer -> Cmd.CmdL ()
+transpose = PitchTrack.transpose_selection
+
 -- * to_relative
 
 to_relative :: String -> Cmd.CmdL ()
@@ -45,7 +50,8 @@ to_relative note_s = ModifyEvents.tracks_sorted $ \track_id events -> do
     title <- Track.track_title <$> State.get_track track_id
     case TrackInfo.parse_control title of
         Right (TrackInfo.Pitch (TrackInfo.PitchAbsolute (Just scale_id)) _) ->
-            track_to_degree (Pitch.Note note_s) track_id scale_id events
+            Just <$> track_to_degree (Pitch.Note note_s) track_id scale_id
+                events
         val -> Cmd.throw $ "not an absolute pitch track: " ++ show val
 
 track_to_degree :: (Cmd.M m) => Pitch.Note -> TrackId -> Pitch.ScaleId

@@ -1529,6 +1529,7 @@ newtype ControlDamage = ControlDamage DamageRanges
 -- * scale
 
 type LookupScale = Pitch.ScaleId -> Maybe Scale
+type Transpose = Pitch.Octave -> Integer -> Pitch.Note -> Maybe Pitch.Note
 
 data Scale = Scale {
     scale_id :: Pitch.ScaleId
@@ -1546,16 +1547,10 @@ data Scale = Scale {
     -- soon as possible, which means program startup for hardcoded scales.
     , scale_symbols :: [Symbol.Symbol]
 
-    -- | How many integral Degrees are there in an octave?  This is so
-    -- that relative pitch notation, which includes an octave, can generate
-    -- a PitchSignal.Relative, which doesn't.
-    --
-    -- This precludes fancy things like variably sized octaves, but that
-    -- requires putting an octave in PitchSignal.Relative and letting the scale
-    -- provide 'PitchSignal.sig_add'.
-    --
-    -- If this is zero, this scale has no concept of an octave.
-    , scale_octave :: Pitch.Octave
+    -- | Transpose a Note by a given number of octaves and integral degrees.
+    -- Will be nothing if the pitch is out of range, or the scale doesn't have
+    -- octaves.
+    , scale_transpose :: Transpose
 
     -- | Used by derivation.
     , scale_note_to_call :: Pitch.Note -> Maybe ValCall

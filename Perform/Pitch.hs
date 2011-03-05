@@ -69,7 +69,7 @@ middle_octave = 5
 -- | For consistency, scales should roughly center themselves around this
 -- degree.  This way you don't need to know the scale to know a good
 -- representative note for it, for example for a default pitch.
-middle_int_degree :: Int
+middle_int_degree :: Integer
 middle_int_degree = 60
 middle_degree = Degree (fromIntegral middle_int_degree)
 

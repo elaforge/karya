@@ -32,7 +32,7 @@ scale = Scale.Scale {
     -- no real sensible way to display this
     , Scale.scale_map = Track.make_scale_map []
     , Scale.scale_symbols = []
-    , Scale.scale_octave = 0
+    , Scale.scale_transpose = Scale.non_transposing
     , Scale.scale_note_to_call = note_to_call
     -- Since this isn't a proper scale, I can't think of any sensible way to
     -- input this with a music keyboard, so we'll have to use the computer

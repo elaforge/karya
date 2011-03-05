@@ -9,12 +9,13 @@ import qualified Ui.UiTest as UiTest
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Msg as Msg
+import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.Selection as Selection
 import qualified Cmd.Simple as Simple
 import qualified Cmd.TimeStep as TimeStep
 import qualified Derive.Scale.Twelve as Twelve
 
-import qualified Cmd.NoteTrack as NoteTrack
+import qualified Perform.Pitch as Pitch
 
 
 mkkey = CmdTest.make_key True
@@ -65,19 +66,19 @@ test_cmd_raw_edit = do
         Right [(">i", [(0, 5, "")])]
 
 test_cmd_val_edit = do
-    let create_track = NoteTrack.CreateTrack 1 "*new" 2
+    let create_track = NoteTrack.CreateTrack 1 (Pitch.ScaleId "twelve") 2
         run track_specs cmd = run_sel track_specs cmd
         note = CmdTest.m_note_on 60 60 127
-    let f = NoteTrack.cmd_val_edit Nothing create_track Twelve.scale_id
+    let f = NoteTrack.cmd_val_edit Nothing create_track
     -- creates a new pitch track
     equal (run [(">i", [])] (f note)) $
-        Right [(">i", [(0, 1, "")]), ("*new", [(0, 0, "4c")])]
+        Right [(">i", [(0, 1, "")]), ("*twelve", [(0, 0, "4c")])]
     equal (run [(">i", []), ("mod", [])] (f note)) $
-        Right [(">i", [(0, 1, "")]), ("*new", [(0, 0, "4c")]), ("mod", [])]
+        Right [(">i", [(0, 1, "")]), ("*twelve", [(0, 0, "4c")]), ("mod", [])]
 
     -- modify existing track
     let f = NoteTrack.cmd_val_edit Nothing
-            (NoteTrack.ExistingTrack 2) Twelve.scale_id
+            (NoteTrack.ExistingTrack 2 (Pitch.ScaleId "twelve"))
         note_tracks = [(">i", [(0, 1, "")]), ("*", [(0, 0, "4d")])]
     -- both note and pitch get deleted
     equal (run note_tracks (f (mkkey Key.Backspace))) $
@@ -96,7 +97,8 @@ test_cmd_val_edit = do
     -- TODO later test chord input
 
 test_cmd_method_edit = do
-    let f = NoteTrack.cmd_method_edit Nothing (NoteTrack.ExistingTrack 2)
+    let f = NoteTrack.cmd_method_edit Nothing
+            (NoteTrack.ExistingTrack 2 (Pitch.ScaleId ""))
         run track_specs cmd = run_sel track_specs cmd
         inst = (">i", [(0, 1, "")])
         note_track = [inst, ("*", [(0, 0, "4d")])]

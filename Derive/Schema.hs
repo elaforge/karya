@@ -140,7 +140,7 @@ default_cmds context = (cmds2, warns)
             Cmd.NoEdit -> ([], [])
             Cmd.RawEdit -> ([NoteTrack.cmd_raw_edit maybe_inst scale_id], [])
             Cmd.ValEdit ->
-                ([NoteTrack.cmd_val_edit maybe_inst ptrack scale_id], [])
+                ([NoteTrack.cmd_val_edit maybe_inst ptrack], [])
             Cmd.MethodEdit ->
                 ([], [NoteTrack.cmd_method_edit maybe_inst ptrack])
         Just PitchTrack -> case edit_mode of
@@ -222,11 +222,10 @@ track_type scale_id (State.TrackInfo _ _ tracknum) parents True =
     where
     pitch_track = case msum (map is_pitch parents) of
         Just pair -> pair
-        Nothing -> NoteTrack.CreateTrack
-            tracknum (TrackInfo.scale_to_title scale_id) (tracknum+1)
+        Nothing -> NoteTrack.CreateTrack tracknum scale_id (tracknum+1)
     is_pitch track = case TrackInfo.parse_control (State.track_title track) of
         Right (TrackInfo.Pitch _ _) -> Just $
-            NoteTrack.ExistingTrack (State.track_tracknum track)
+            NoteTrack.ExistingTrack (State.track_tracknum track) scale_id
         _ -> Nothing
 track_type _ (State.TrackInfo title _ _) _ False =
     case TrackInfo.parse_control title of

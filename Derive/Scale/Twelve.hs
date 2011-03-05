@@ -41,7 +41,7 @@ scale = Scale.Scale {
         Track.make_scale_map [(Pitch.note_text n, fromIntegral d)
             | (n, d) <- Map.assocs note_to_degree]
     , Scale.scale_symbols = [] -- later maybe I can use fancy sharps and flats
-    , Scale.scale_octave = 12
+    , Scale.scale_transpose = transpose
     , Scale.scale_note_to_call = note_to_call
     , Scale.scale_input_to_note = input_to_note
     , Scale.scale_input_to_nn = input_to_nn
@@ -50,6 +50,11 @@ scale = Scale.Scale {
 
 scale_id :: Pitch.ScaleId
 scale_id = Pitch.ScaleId "twelve"
+
+transpose :: Derive.Transpose
+transpose octaves degrees note = do
+    d <- Map.lookup note note_to_degree
+    Map.lookup (d + octaves*12 + degrees) degree_to_note
 
 note_to_call :: Pitch.Note -> Maybe Derive.ValCall
 note_to_call note = case Map.lookup note note_to_degree of

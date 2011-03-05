@@ -3,6 +3,7 @@ module Derive.Scale (
     -- * Scale
     , Scale(..)
     , degree_to_double
+    , non_transposing
 ) where
 import qualified Data.Maybe as Maybe
 
@@ -28,3 +29,9 @@ degree_to_double scale d = fmap un_nn (scale_degree_to_nn scale d)
 
 note_in_scale :: Scale -> Pitch.Note -> Bool
 note_in_scale scale = Maybe.isJust . scale_note_to_call scale
+
+-- | Transpose function for a non-transposing scale.
+--
+-- I can't use Derive.Transpose because of circular imports.
+non_transposing :: Pitch.Octave -> Integer -> Pitch.Note -> Maybe Pitch.Note
+non_transposing _ _ _ = Nothing

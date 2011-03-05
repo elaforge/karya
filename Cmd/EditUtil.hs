@@ -62,7 +62,10 @@ modify_event zero_dur modify_dur f = do
 modify_event_at :: (Cmd.M m) => SelPos
     -> Bool -- ^ Created event has 0 dur, otherwise until next time step.
     -> Bool -- ^ If True, modify the duration of an existing event.
-    -> (String -> (Maybe String, Bool)) -> m ()
+    -> (String -> (Maybe String, Bool))
+    -- ^ return transformed event text or Nothing to delete the event, and
+    -- whether or not to advance the selection after modification
+    -> m ()
 modify_event_at (tracknum, track_id, pos) zero_dur modify_dur f = do
     direction <- Cmd.gets (Cmd.state_note_direction . Cmd.state_edit)
     dur <- if zero_dur

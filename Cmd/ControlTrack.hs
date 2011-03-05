@@ -1,8 +1,8 @@
 {-# LANGUAGE ViewPatterns #-}
 module Cmd.ControlTrack where
+import qualified Data.List as List
 import qualified Data.Maybe as Maybe
 import Util.Control
-import qualified Util.Seq as Seq
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.EditUtil as EditUtil
@@ -48,12 +48,9 @@ modify_event f = EditUtil.modify_event True True (first unparse . f . parse)
 -- I use a trailing space to tell the difference between a method and a val.
 parse :: String -> (String, String)
 parse s
-    | null post = if is_method pre then (pre, "") else ("", pre)
+    | null post = if " " `List.isSuffixOf` pre then (pre, "") else ("", pre)
     | otherwise = (pre, tail post)
     where (pre, post) = break (==' ') s
-
-is_method :: String -> Bool
-is_method = maybe False (==' ') . Seq.last
 
 unparse :: (Maybe String, Maybe String) -> Maybe String
 unparse (method, val) = case (pre, post) of

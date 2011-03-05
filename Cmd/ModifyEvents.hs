@@ -1,6 +1,7 @@
 -- | Utilities to modify events in tracks.
 module Cmd.ModifyEvents where
 import Control.Monad
+import Util.Control
 import qualified Util.Seq as Seq
 
 import Ui
@@ -14,7 +15,8 @@ import qualified Cmd.Selection as Selection
 
 -- * main modification
 
--- | Map a function over the selected events.
+-- | Map a function over the selected events.  Returning Nothing will remove
+-- the event.
 events :: (Cmd.M m) => (Track.PosEvent -> Maybe Track.PosEvent) -> m ()
 events f = do
     selected <- Selection.events
@@ -31,20 +33,26 @@ events_sorted f = do
         State.remove_events track_id start end
         State.insert_sorted_events track_id (Seq.map_maybe f events)
 
--- | Map a function over the selected events, passing the track id.
-tracks :: (Cmd.M m) => (TrackId -> [Track.PosEvent] -> m [Track.PosEvent])
-    -> m ()
+-- | Map a function over the selected events, passing the track id.  Unlike
+-- 'events', returning Nothing will leave the track unchanged.
+tracks :: (Cmd.M m) =>
+    (TrackId -> [Track.PosEvent] -> m (Maybe [Track.PosEvent])) -> m ()
 tracks f = tracks_sorted $ \track_id events ->
-    fmap Track.sort_events (f track_id events)
+    fmap Track.sort_events <$> f track_id events
 
-tracks_sorted :: (Cmd.M m) => (TrackId -> [Track.PosEvent]
-    -> m [Track.PosEvent]) -> m ()
+-- | As with 'events_sorted', this is a more efficient version for sorted
+-- events.
+tracks_sorted :: (Cmd.M m) =>
+    (TrackId -> [Track.PosEvent] -> m (Maybe [Track.PosEvent])) -> m ()
 tracks_sorted f = do
     track_events <- Selection.events
     forM_ track_events $ \(track_id, (start, end), events) -> do
-        State.remove_events track_id start end
-        new_events <- f track_id events
-        State.insert_sorted_events track_id new_events
+        maybe_new_events <- f track_id events
+        case maybe_new_events of
+            Just new_events -> do
+                State.remove_events track_id start end
+                State.insert_sorted_events track_id new_events
+            Nothing -> return ()
 
 -- * convenience
 

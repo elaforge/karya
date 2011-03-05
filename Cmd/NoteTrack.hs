@@ -20,9 +20,10 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.PitchTrack as PitchTrack
 import qualified Cmd.Selection as Selection
 
-import qualified Perform.Pitch as Pitch
-
+import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.Score as Score
+
+import qualified Perform.Pitch as Pitch
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.MidiDb as MidiDb
 
@@ -30,10 +31,14 @@ import qualified Instrument.MidiDb as MidiDb
 -- | Indicate the pitch track of a note track, or how to create one if
 -- necessary.
 data PitchTrack =
-    -- | Create a pitch track with (note_tracknum, title, pitch_tracknum).
-    CreateTrack TrackNum String TrackNum
-    | ExistingTrack TrackNum
+    -- | Create a pitch track with (note_tracknum, scale_id, pitch_tracknum).
+    CreateTrack TrackNum Pitch.ScaleId TrackNum
+    | ExistingTrack TrackNum Pitch.ScaleId
     deriving (Show, Eq)
+
+scale_of :: PitchTrack -> Pitch.ScaleId
+scale_of (CreateTrack _ scale_id _) = scale_id
+scale_of (ExistingTrack _ scale_id) = scale_id
 
 cmd_raw_edit :: Maybe Score.Instrument -> Pitch.ScaleId -> Cmd.Cmd
 cmd_raw_edit = raw_edit
@@ -42,8 +47,8 @@ cmd_raw_edit = raw_edit
 -- if necessary), and creates a blank event on the note track.  It may also
 -- edit multiple pitch tracks for chords, or record velocity in addition to
 -- pitch.  TODO not implemented yet
-cmd_val_edit :: Maybe Score.Instrument -> PitchTrack -> Pitch.ScaleId -> Cmd.Cmd
-cmd_val_edit inst pitch_track scale_id msg = do
+cmd_val_edit :: Maybe Score.Instrument -> PitchTrack -> Cmd.Cmd
+cmd_val_edit inst pitch_track msg = do
     EditUtil.fallthrough msg
     (block_id, tracknum, track_id, pos) <- Selection.get_insert
     case msg of
@@ -52,14 +57,14 @@ cmd_val_edit inst pitch_track scale_id msg = do
                 -- TODO if I can find a vel track, put the vel there
                 (pitch_tracknum, track_id) <-
                     make_pitch_track (Just note_id) pitch_track
-                note <- EditUtil.parse_key scale_id key
+                note <- EditUtil.parse_key (scale_of pitch_track) key
                 PitchTrack.val_edit_at (pitch_tracknum, track_id, pos) note
                 -- TODO if I do chords, this will have to be the chosen note
                 -- track
                 ensure_exists =<< triggered_inst inst
             InputNote.PitchChange note_id key -> do
                 (tracknum, track_id) <- track_of note_id
-                note <- EditUtil.parse_key scale_id key
+                note <- EditUtil.parse_key (scale_of pitch_track) key
                 PitchTrack.val_edit_at (tracknum, track_id, pos) note
             InputNote.NoteOff note_id _vel -> do
                 delete_note_id note_id
@@ -69,7 +74,7 @@ cmd_val_edit inst pitch_track scale_id msg = do
             remove (tracknum, track_id, pos)
             -- clear out the pitch track too
             case pitch_track of
-                ExistingTrack tracknum -> do
+                ExistingTrack tracknum _ -> do
                     track_id <- State.get_event_track_at
                         "NoteTrack.cmd_val_edit" block_id tracknum
                     remove (tracknum, track_id, pos)
@@ -117,11 +122,11 @@ make_pitch_track :: (Cmd.M m) => Maybe InputNote.NoteId -> PitchTrack
 make_pitch_track maybe_note_id pitch_track = do
     block_id <- Cmd.get_focused_block
     (tracknum, tid) <- case pitch_track of
-        CreateTrack note_tracknum title pitch_tracknum -> do
-            tid <- create_pitch_track block_id note_tracknum title
-                pitch_tracknum
+        CreateTrack note_tracknum scale_id pitch_tracknum -> do
+            tid <- create_pitch_track block_id note_tracknum
+                (TrackInfo.scale_to_title scale_id) pitch_tracknum
             return (pitch_tracknum, tid)
-        ExistingTrack tracknum -> do
+        ExistingTrack tracknum _ -> do
             tid <- State.get_event_track_at "NoteTrack.make_pitch_track"
                 block_id tracknum
             return (tracknum, tid)

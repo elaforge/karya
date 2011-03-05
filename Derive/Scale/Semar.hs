@@ -17,7 +17,7 @@ scale = Scale.Scale {
     , Scale.scale_map = Util.make_scale_map scale_map
     -- loaded from Derive.Scale.Symbols
     , Scale.scale_symbols = []
-    , Scale.scale_octave = 5
+    , Scale.scale_transpose = Util.transpose scale_map 5
 
     , Scale.scale_note_to_call = Util.note_to_call scale_map
     , Scale.scale_input_to_note = Util.input_to_note scale_map

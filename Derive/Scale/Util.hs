@@ -23,11 +23,13 @@ type Frac = Double
 -- | This isn't Pitch.Degree because I want to force that they are integral.
 -- The whole point of Degree is that it has an integral relationship with
 -- notes, minus the fractional offset.
-type IntDegree = Int
+type IntDegree = Integer
 
 -- | Map a scale degree to the previous nn, matching nn, and following nn.
 data ScaleMap = ScaleMap {
     smap_note_to_degree :: Map.Map Pitch.Note IntDegree
+    -- | Should always be the inverse of the above.
+    , smap_degree_to_note :: Map.Map IntDegree Pitch.Note
     , smap_note_to_nn :: Map.Map Pitch.Note Pitch.NoteNumber
     , smap_degree_to_nn :: Map.Map IntDegree
         (Maybe Pitch.NoteNumber, Pitch.NoteNumber, Maybe Pitch.NoteNumber)
@@ -38,6 +40,7 @@ scale_map :: [Pitch.Note] -> [Pitch.InputKey] -> [Pitch.NoteNumber]
     -> [IntDegree] -> ScaleMap
 scale_map notes inputs nns degrees = ScaleMap
     (Map.fromList (zip notes degrees))
+    (Map.fromList (zip degrees notes))
     (Map.fromList (zip notes nns))
     (Map.fromList (zip degrees (Seq.zip_neighbors nns)))
     (Map.fromList (zip inputs (zip nns notes)))
@@ -47,6 +50,12 @@ type InputMap = Map.Map Pitch.InputKey (Pitch.NoteNumber, Pitch.Note)
 make_scale_map :: ScaleMap -> Track.ScaleMap
 make_scale_map smap = Track.make_scale_map [(Pitch.note_text n, fromIntegral d)
     | (n, d) <- Map.assocs (smap_note_to_degree smap)]
+
+transpose :: ScaleMap -> Pitch.Octave -> Derive.Transpose
+transpose scale_map per_octave = \octaves degrees note -> do
+    d <- Map.lookup note (smap_note_to_degree scale_map)
+    Map.lookup (d + octaves * per_octave + degrees)
+        (smap_degree_to_note scale_map)
 
 note_to_call :: ScaleMap -> Pitch.Note -> Maybe Derive.ValCall
 note_to_call smap note = case Map.lookup note (smap_note_to_degree smap) of
