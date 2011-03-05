@@ -31,6 +31,14 @@ import qualified App.Config as Config
 import Util.Test
 
 
+-- not implemented:
+-- - initial tempo and tempo changes, along with frames / row
+-- - all blocks are given the same length in the order block, so longer blocks
+-- will play faster
+-- - instruments (one instrument is hardcoded)
+-- - most effects
+-- - order list, so repeats are expanded
+
 -- * create ui state
 
 create :: (State.M m) => String -> [UiBlock] -> m ()
@@ -39,33 +47,50 @@ create name ui_blocks = do
     let mkid = Id.id name
     (rid, track_rid) <- Create.ruler "meter_44"
         (MakeRuler.ruler [MakeRuler.meter_ruler (1/16) MakeRuler.m44])
-    mapM_ (uncurry (create_block mkid rid track_rid "ptq/c1"))
+    block_ids <- mapM (uncurry (create_block mkid rid track_rid "ptq/c1"))
         (zip [0..] ui_blocks)
+    root <- create_order_block mkid rid track_rid block_ids
+    State.set_root_id root
+    Create.view root
+    return ()
 
 create_block :: (State.M m) => (String -> Id.Id) -> RulerId -> RulerId
-    -> String -> Int -> UiBlock -> m ()
-create_block mkid rid track_rid inst num ui_block = do
-    let block_name = "b" ++ show num
-    let tracks = concatMap mktracks ui_block
+    -> String -> Int -> UiBlock -> m BlockId
+create_block mkid rid track_rid inst num ui_block =
+    make_block mkid rid track_rid ("b" ++ show num) (concatMap mktrack ui_block)
+    where mktrack (ntrack, ctracks) = (">" ++ inst, ntrack) : ctracks
+
+create_order_block :: (State.M m) => (String -> Id.Id) -> RulerId -> RulerId
+    -> [BlockId] -> m BlockId
+create_order_block mkid rid track_rid block_ids =
+    make_block mkid rid track_rid "order" [("tempo", tempo), (">", events)]
+    where
+    tempo = [(0, Event.event ".1" 0)]
+    events = [(n, Event.event (block_call bid) 1)
+        | (n, bid) <- zip [0..] block_ids]
+    block_call = Id.show_id . Id.unpack_id
+
+make_block :: (State.M m) => ([Char] -> Id.Id) -> RulerId -> RulerId -> String
+    -> [(String, [Track.PosEvent])] -> m BlockId
+make_block mkid rid track_rid name tracks = do
     tids <- forM (zip [0..] tracks) $ \(i, (title, events)) -> do
-        State.create_track (mkid (block_name ++ ".t" ++ show i)) $
+        State.create_track (mkid (name ++ ".t" ++ show i)) $
             Track.track title events Config.track_bg Config.render_config
     let block_tracks = Block.block_track (Block.RId rid) 20
             : [Block.block_track (Block.TId tid track_rid) 40 | tid <- tids]
-    block_id <- State.create_block (mkid block_name) $
+    block_id <- State.create_block (mkid name) $
         Block.block Block.default_config ""  block_tracks Config.schema
     State.set_skeleton block_id =<<
         Schema.default_parser <$> State.get_track_info block_id
-    where
-    mktracks (ntrack, ctracks) = (">" ++ inst, ntrack) : ctracks
+    return block_id
 
 -- * convert
 
 test = do
     Right bs <- parse "test.dump"
-    -- Right bs <- parse "bloom.dump.short"
+    Right bs <- parse "bloom.dump"
     let bs2 = map (map_block (add_default_volume 1 38)) bs
-    pprint $ convert_blocks 0.25 bs2
+    pprint $ convert_blocks 0.25 (take 1 bs2)
     -- pprint $ convert_track (head (to_tracks (head bs)))
     -- pprint $ convert_notes (head (to_tracks (head bs)))
     -- where to_tracks (Block rows) = rotate (map (\(Row ns) -> ns)  rows)
@@ -100,13 +125,13 @@ convert_notes = Maybe.catMaybes . Then.mapAccumL go (Nothing, 0) final
     go (prev, at) note = ((next, at+1), event)
         where (event, next) = convert_note prev at note
     final (prev, at) =
-        [fst $ convert_note prev at (Note 0 0 [(fx_extended, ex_cut)])]
+        [fst $ convert_note prev at (Note 0 0 [cut_effect])]
 
 convert_note :: Maybe Track.PosEvent -> ScoreTime -> Note
     -> (Maybe Track.PosEvent, Maybe Track.PosEvent)
 convert_note maybe_prev at (Note pitch _ effects)
     | pitch /= 0 = (note, Just (start, Event.event "" 0))
-    | any (== (fx_extended, ex_cut)) effects = (note, Nothing)
+    | any (== cut_effect) effects = (note, Nothing)
     | otherwise = (Nothing, maybe_prev)
     where
     start = note_start effects at
@@ -156,6 +181,7 @@ convert_effect (fx, arg)
     | otherwise = Nothing
     where c = Pretty.show_float (Just 2) . (/127) . fromIntegral
 
+cut_effect = (0x0f, 0xff)
 fx_extended = 0x0e
 fx_vibrato = 0x04
 fx_volume = 0x0c
