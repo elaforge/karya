@@ -26,8 +26,6 @@ import qualified Perform.Midi.Perform as Perform
 import qualified Derive.Derive as Derive
 import qualified Derive.Scale.Twelve as Twelve
 
-import qualified Perform.Warning as Warning
-
 import qualified Instrument.Db
 import qualified Instrument.MidiDb as MidiDb
 
@@ -101,10 +99,10 @@ perform result cache = do
             (Derive.r_events result)
 
     let Derive.EventDamage event_damage = Derive.r_event_damage result
-        new_midi_cache = Midi.Cache.perform cache
+        new_cache = Midi.Cache.perform cache
                 (Midi.Cache.EventDamage event_damage) midi_events
     return $ Cmd.Performance
-        (Derive.r_cache result) new_midi_cache mempty
+        (Derive.r_cache result) new_cache mempty
         (Derive.r_tempo result) (Derive.r_closest_warp result)
         (Derive.r_inv_tempo result) (Derive.r_track_signals result)
 
@@ -134,12 +132,3 @@ get_derive_cache :: Maybe Cmd.Performance -> (Derive.Cache, Derive.ScoreDamage)
 get_derive_cache Nothing = (mempty, mempty)
 get_derive_cache (Just perf) =
     (Cmd.perf_derive_cache perf, Cmd.perf_score_damage perf)
-
--- | Convert a Warning into an appropriate log msg.
-warn_to_log :: (Log.LogMonad m) => String -> Warning.Warning -> m Log.Msg
-warn_to_log context (Warning.Warning msg event_stack maybe_range) = do
-    log <- Log.initialized_msg Log.Warn $ context ++ ": " ++ msg
-        -- TODO It would be more useful to append this to the stack, but I have
-        -- to convert real -> score.
-        ++ maybe "" ((" range: " ++) . show) maybe_range
-    return $ log { Log.msg_stack = Just event_stack }

@@ -11,7 +11,6 @@ import qualified Data.Text as Text
 import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Ranges as Ranges
-import qualified Util.Seq as Seq
 import qualified Util.Then as Then
 
 import qualified Midi.Midi as Midi
@@ -141,7 +140,7 @@ perform cache (EventDamage damage) events
     make_map damage = perform_cache config 0 (cache_chunks cache)
         Perform.initial_state events damage
     set_map (chunks, damage) =
-        cache { cache_damage = damage, cache_chunks = chunks }
+        cache { cache_chunks = chunks, cache_damage = damage }
     config = cache_config cache
 
 -- | Like the damage ranges, the chunk ranges are half-open.
@@ -162,7 +161,8 @@ chunk_damage = map $ \(s, e) -> (floor (s / size), ceiling (e / size))
 -- So the cache may just save on the work done before the damage, but that's
 -- still significant.
 --
--- This function is too complicated, sorry about that.
+-- This function is too complicated, sorry about that.  I've thought about how
+-- to simplify it and failed.
 perform_cache :: Instrument.Config -> ChunkNum -> [Chunk] -> Perform.State
     -> Perform.Events -> [(ChunkNum, ChunkNum)] -> [Chunk]
 perform_cache config chunknum [] prev_state events _ =
@@ -218,7 +218,7 @@ perform_chunk :: ChunkNum -> Perform.State -> Instrument.Config
 perform_chunk chunknum state config events =
     (Chunk msgs (normalize_state end final_state), post)
     where
-    (pre, post) = break (is_event ((>=end) . Perform.event_start))
+    (pre, post) = break (is_event False ((>=end) . Perform.event_start))
         (trim_events chunknum events)
     end = chunks_time (chunknum+1)
     (msgs, final_state) = Perform.perform state config pre
@@ -230,11 +230,11 @@ perform_chunk chunknum state config events =
 -- a lot of events.  Events should be a more efficiently seekable data
 -- structure to avoid this.
 trim_events :: ChunkNum -> Perform.Events -> Perform.Events
-trim_events nchunk = dropWhile (is_event ((<start) . Perform.event_start))
+trim_events nchunk = dropWhile (is_event True ((<start) . Perform.event_start))
     where start = chunks_time nchunk
 
-is_event :: (event -> Bool) -> LEvent.LEvent event -> Bool
-is_event f = LEvent.either f (const False)
+is_event :: Bool -> (event -> Bool) -> LEvent.LEvent event -> Bool
+is_event deflt f = LEvent.either f (const deflt)
 
 -- | Compare to States and if they aren't compatible, return why not.
 --
