@@ -257,7 +257,11 @@ map_signal f = map_signal_accum go (\_ _ -> []) ()
 resample_to_list :: (Signal y0, Signal y1) =>
     SigVec y0 -> SigVec y1 -> [(X, y0, y1)]
 resample_to_list vec0 vec1 =
-    resample zero_y zero_y (V.unpack vec0) (V.unpack vec1)
+    resample (first_y vec0) (first_y vec1) (V.unpack vec0) (V.unpack vec1)
+    where
+    first_y v = case V.viewL v of
+        Just ((_, y), _) -> y
+        _ -> zero_y
 
 resample :: y0 -> y1 -> [(X, y0)] -> [(X, y1)] -> [(X, y0, y1)]
 resample _ prev_by as [] = [(x, y, prev_by) | (x, y) <- as]
@@ -266,8 +270,6 @@ resample prev_ay prev_by as@((ax, ay) : rest_a) bs@((bx, by) : rest_b)
     | ax == bx = (ax, ay, by) : resample ay by rest_a rest_b
     | ax < bx = (ax, ay, prev_by) : resample ay prev_by rest_a bs
     | otherwise = (bx, prev_ay, by) : resample prev_ay by as rest_b
-
-
 
 -- | Like enumFromTo except it can include the final value.  Uses
 -- multiplication instead of successive addition to avoid loss of precision.

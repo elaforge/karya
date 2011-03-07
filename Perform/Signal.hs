@@ -411,8 +411,9 @@ pitches_share in_decay start end initial0 sig0 initial1 sig1
     -- especially since this function is a hotspot and must be efficient.
     --
     -- SignalBase.within may return samples before start to get the proper
-    -- value so I have to drop them before testing.
-    samples = dropWhile (\(t, _, _) -> t < start) $
+    -- value so I have to drop them before testing.  Start itself is tested
+    -- explicitly above.
+    samples = dropWhile (\(t, _, _) -> t <= start) $
         SignalBase.resample_to_list in0 in1
     pitch_eq (_, ay, by) = floor ((ay - fromIntegral initial0) * 1000)
         == floor ((by - fromIntegral initial1) * 1000)

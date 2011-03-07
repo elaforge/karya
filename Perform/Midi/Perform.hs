@@ -123,6 +123,8 @@ perform state config events = (final_msgs, final_state)
 
 -- | Map each instrument to its allocated Addrs.
 type InstAddrs = Map.Map Score.Instrument [Instrument.Addr]
+
+
 -- * channelize
 
 -- | Overlapping events and the channels they were given.
