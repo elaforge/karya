@@ -45,9 +45,10 @@ import qualified Cmd.Save as Save
 import qualified Cmd.Simple as Simple
 import qualified Cmd.TimeStep as TimeStep
 import qualified Cmd.Lang.LEvent as LEvent
+import qualified Cmd.Lang.LInst as LInst
 import qualified Cmd.Lang.LPerf as LPerf
 import qualified Cmd.Lang.LPitch as LPitch
-import qualified Cmd.Lang.LInst as LInst
+import qualified Cmd.Lang.LTrack as LTrack
 
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent

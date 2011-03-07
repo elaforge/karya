@@ -32,6 +32,8 @@ import qualified Text.ParserCombinators.ReadPrec as ReadPrec
 type Namespace = String
 newtype Id = Id (Namespace, String)
     deriving (Eq, Ord, Show, Read, NFData)
+
+un_id :: Id -> (Namespace, String)
 un_id (Id ident) = ident
 
 -- | BlockIds, RulerIds, etc. are just wrappers around Ids.  Giving them a

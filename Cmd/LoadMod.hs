@@ -68,7 +68,7 @@ create_order_block mkid rid track_rid block_ids =
     tempo = [(0, Event.event ".1" 0)]
     events = [(n, Event.event (block_call bid) 1)
         | (n, bid) <- zip [0..] block_ids]
-    block_call = Id.show_id . Id.unpack_id
+    block_call = snd . Id.un_id . Id.unpack_id
 
 make_block :: (State.M m) => ([Char] -> Id.Id) -> RulerId -> RulerId -> String
     -> [(String, [Track.PosEvent])] -> m BlockId
@@ -88,7 +88,7 @@ make_block mkid rid track_rid name tracks = do
 
 test = do
     Right bs <- parse "test.dump"
-    Right bs <- parse "bloom.dump"
+    -- Right bs <- parse "bloom.dump"
     let bs2 = map (map_block (add_default_volume 1 38)) bs
     pprint $ convert_blocks 0.25 (take 1 bs2)
     -- pprint $ convert_track (head (to_tracks (head bs)))

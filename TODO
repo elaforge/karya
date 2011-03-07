@@ -13,7 +13,7 @@ search then none of this is necessary.
 CURRENT
   * importer for mods
   - wtf is up with the random pitch changes?  performer bug?
-  - cmd to collapse all pitch tracks in a block
+  * cmd to collapse all pitch tracks in a block
   - add logview support for Cmd.PitchTrack.log_event
   - ^a once selects track, again selects entire block
   - ^e on a note transposes the one before it, Selection.events is wrong?
