@@ -112,8 +112,7 @@ simple_midi = fmap (map f . LEvent.events_of)
 get_sel :: (BlockId -> Cmd.CmdL [LEvent.LEvent d]) -> (d -> RealTime)
     -> Cmd.CmdL [LEvent.LEvent d]
 get_sel block_events event_start = do
-    (start, end) <- Selection.realtime
-    block_id <- Cmd.get_focused_block
+    (block_id, start, end) <- Selection.local_realtime
     events <- block_events block_id
     -- TODO filter out events from other tracks
     return $ events_in_range event_start start end events

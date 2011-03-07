@@ -415,12 +415,14 @@ justm op1 op2 = maybe (return Nothing) op2 =<< op1
 -- | Get the real time range of the focused selection.  If there's a root
 -- block, then it will be in relative to that root, otherwise it's equivalent
 -- to 'local_realtime'.
-realtime :: (Cmd.M m) => m (RealTime, RealTime)
+realtime :: (Cmd.M m) => m (BlockId, RealTime, RealTime)
 realtime = do
     maybe_root_id <- State.lookup_root_id
     case maybe_root_id of
         Nothing -> local_realtime
-        Just root_id -> relative_realtime root_id
+        Just root_id -> do
+            (s, e) <- relative_realtime root_id
+            return (root_id, s, e)
 
 -- | This is like 'get_insert', except get the selection on the root block,
 -- falling back to the current one if there is none.
@@ -452,7 +454,7 @@ relative_realtime root_id = do
 
 -- | Get the RealTime range of the current selection, as derived from current
 -- selection's block.  This means that the top should be 0.
-local_realtime :: (Cmd.M m) => m (RealTime, RealTime)
+local_realtime :: (Cmd.M m) => m (BlockId, RealTime, RealTime)
 local_realtime = do
     (view_id, sel) <- get
     block_id <- State.block_id_of_view view_id
@@ -460,7 +462,7 @@ local_realtime = do
     perf <- Cmd.get_performance block_id
     let (start, end) = Types.sel_range sel
     let warp = Cmd.perf_closest_warp perf block_id track_id 0
-    return (Score.warp_pos start warp, Score.warp_pos end warp)
+    return (block_id, Score.warp_pos start warp, Score.warp_pos end warp)
 
 -- | This is like 'relative_realtime' but gets a RealTime relative to a Point,
 -- not a range.
