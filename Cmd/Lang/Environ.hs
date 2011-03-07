@@ -16,6 +16,7 @@ import Util.Control
 import qualified Util.Map as Map
 import qualified Util.Log as Log
 import qualified Util.PPrint as PPrint
+import qualified Util.Pretty as Pretty
 
 import Ui
 import qualified Ui.Block as Block

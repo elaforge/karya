@@ -1,8 +1,10 @@
 {- | Like Show, but designed to be easy to read rather than unambiguous and
     complete.
 -}
-module Util.Pretty (Pretty(..), show_float) where
+module Util.Pretty (Pretty(..), lines, show_float) where
+import Prelude hiding (lines)
 import qualified Numeric
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Word as Word
 
@@ -23,6 +25,10 @@ instance Pretty Word.Word32
 instance Pretty Word.Word64
 instance Pretty Double where pretty = show_float (Just 3)
 instance Pretty Float where pretty = show_float (Just 3)
+
+-- | Pretty up a list with a line for each element.
+lines :: (Pretty a) => [a] -> String
+lines = List.unlines . map pretty
 
 
 -- | Display a float with the given precision, dropping leading and trailing
@@ -55,6 +61,5 @@ instance (Show k, Show v) => Pretty (Map.Map k v) where
         where ent (k, v) = show k ++ ": " ++ show v
 
 indent_lines :: String -> String
-indent_lines = unlines . map (indent++) . lines
-
-indent = "  "
+indent_lines = List.unlines . map (indent++) . List.lines
+    where indent = "  "

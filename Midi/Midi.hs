@@ -8,6 +8,7 @@ import qualified Data.ByteString as ByteString
 import qualified Data.Generics as Generics
 import qualified Perform.Timestamp as Timestamp
 import Data.Word (Word8)
+import qualified Text.Printf as Printf
 
 import qualified Util.Pretty as Pretty
 
@@ -39,7 +40,10 @@ instance DeepSeq.NFData ReadMessage where
 
 instance Pretty.Pretty ReadMessage where
     pretty (ReadMessage (ReadDevice dev) ts msg) =
-        dev ++ ", " ++ Pretty.pretty ts ++ ": " ++ Pretty.pretty msg
+        Printf.printf "%s %s: %s" dev (Pretty.pretty ts) (Pretty.pretty msg)
+instance Pretty.Pretty WriteMessage where
+    pretty (WriteMessage (WriteDevice dev) ts msg) =
+        Printf.printf "%s %s: %s" dev (Pretty.pretty ts) (Pretty.pretty msg)
 
 -- * devices
 
@@ -151,8 +155,9 @@ data Message =
 
 instance Pretty.Pretty Message where
     pretty (CommonMessage (SystemExclusive manuf bytes)) =
-        "CommonMessage (SystemExclusive " ++ show manuf
-            ++ " <" ++ show (ByteString.length bytes) ++ " bytes>)"
+        Printf.printf "sysex %x <%d bytes>" manuf (ByteString.length bytes)
+    pretty (ChannelMessage chan msg) =
+        Printf.printf "chan:%d %s" chan (show msg)
     pretty msg = show msg
 
 -- TODO using Word8 here is kind of iffy.  Word8s silently overflow after 0xff.

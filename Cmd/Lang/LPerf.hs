@@ -135,3 +135,10 @@ convert events = do
     lookup_scale <- Cmd.get_lookup_scale
     lookup_inst <- Cmd.get_lookup_midi_instrument
     return $ Midi.Convert.convert lookup_scale lookup_inst events
+
+-- * midi
+
+get_chunk :: Int -> Cmd.CmdT IO Midi.Cache.Chunk
+get_chunk n = do
+    cache <- get_midi_cache =<< Cmd.get_focused_block
+    return $ Midi.Cache.cache_chunks cache !! n

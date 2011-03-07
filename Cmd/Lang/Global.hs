@@ -35,7 +35,7 @@ import qualified Midi.Synth ()
 import Util.Control
 import qualified Util.Seq as Seq
 import qualified Util.Map as Map
-import Util.Pretty as Pretty
+import qualified Util.Pretty as Pretty
 import qualified Util.PPrint as PPrint
 
 import Ui
@@ -348,7 +348,7 @@ show_marklist :: RulerId -> Ruler.MarklistName -> Cmd.CmdL String
 show_marklist ruler_id marklist_name = do
     mlist <- get_marklist ruler_id marklist_name
     return $ show_list $
-        map (\(pos, m) -> printf "%s - %s" (show pos) (pretty m))
+        map (\(pos, m) -> printf "%s - %s" (show pos) (Pretty.pretty m))
             (Ruler.forward mlist 0)
 
 get_marklist :: RulerId -> Ruler.MarklistName -> Cmd.CmdL Ruler.Marklist

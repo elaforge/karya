@@ -4,6 +4,7 @@ import qualified Data.List as List
 import qualified Control.DeepSeq as DeepSeq
 
 import qualified Util.Log as Log
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 
@@ -15,6 +16,10 @@ data LEvent derived = Event !derived | Log !Log.Msg
 instance Functor LEvent where
     fmap f (Event a) = Event (f a)
     fmap _ (Log a) = Log a
+
+instance (Pretty.Pretty d) => Pretty.Pretty (LEvent d) where
+    pretty (Log msg) = Log.format_msg msg
+    pretty (Event event) = Pretty.pretty event
 
 event :: LEvent derived -> Maybe derived
 event (Event d) = Just d

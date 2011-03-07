@@ -5,9 +5,7 @@
 -- TODO needs a better name
 module Cmd.PlayUtil where
 import qualified Data.Map as Map
-
 import Util.Control
-import qualified Util.Log as Log
 
 import Ui
 import qualified Ui.State as State
