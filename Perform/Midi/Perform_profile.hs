@@ -13,7 +13,6 @@ import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 
-import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.Instrument as Instrument
@@ -45,8 +44,7 @@ profile_control = do
         vals = map (/10) ([0..10] ++ [10, 9 .. 1])
     let cont = (Control.Control Control.c_mod, sig)
     run_multiple cont $ \arg -> do
-        let (msgs, warns) = Perform.perform_control Control.empty_map
-                Timestamp.zero Timestamp.zero arg
+        let (msgs, warns) = Perform.perform_control Control.empty_map 0 0 arg
         force warns
         force msgs
         return $ show (length msgs) ++ " msgs"
@@ -96,8 +94,8 @@ run_multiple arg action = forM_ [1..6] $ \n -> do
 mkevent :: Double -> Double -> [(Control.Control, Signal.Control)]
     -> Signal.NoteNumber -> Perform.Event
 mkevent start dur controls pitch_sig =
-    Perform.Event inst1 (Timestamp.seconds start)
-        (Timestamp.seconds dur) (Map.fromList controls) pitch_sig Stack.empty
+    Perform.Event inst1 (RealTime.seconds start)
+        (RealTime.seconds dur) (Map.fromList controls) pitch_sig Stack.empty
 
 inst1 = mkinst "inst1"
 mkinst name = (Instrument.instrument name [] (-2, 2))

@@ -12,7 +12,7 @@ import qualified Data.Time as Time
 
 import qualified Midi.Midi as Midi
 
-import qualified Perform.Timestamp as Timestamp
+import qualified Perform.RealTime as RealTime
 
 
 type ReadChan = STM.TChan Midi.ReadMessage
@@ -31,13 +31,13 @@ get_devices = return (Map.empty, Map.empty)
 connect_read_device :: Midi.ReadDevice -> ReadDeviceId -> IO ()
 connect_read_device _ _ = return ()
 
-write_message :: WriteDeviceId -> Timestamp.Timestamp -> Midi.Message -> IO ()
+write_message :: WriteDeviceId -> RealTime.RealTime -> Midi.Message -> IO ()
 write_message _ _ _ = return ()
 
 abort :: IO ()
 abort = return ()
 
-now :: IO Timestamp.Timestamp
+now :: IO RealTime.RealTime
 now = do
     t <- Time.getCurrentTime
-    return $ Timestamp.seconds (realToFrac (Time.utctDayTime t))
+    return $ RealTime.seconds (realToFrac (Time.utctDayTime t))

@@ -22,7 +22,8 @@ import Foreign.C
 import qualified Midi.Midi as Midi
 import qualified Midi.Parse as Parse
 
-import qualified Perform.Timestamp as Timestamp
+import qualified Perform.RealTime as RealTime
+import Perform.RealTime (RealTime)
 
 
 type CError = CULong
@@ -61,9 +62,8 @@ chan_callback chan sourcep ctimestamp len bytesp = do
     bytes <- ByteString.packCStringLen (castPtr bytesp, fromIntegral len)
     rdev <- deRefStablePtr sourcep
     let rmsg = Midi.ReadMessage
-            rdev (decode_timestamp ctimestamp) (Parse.decode bytes)
+            rdev (decode_time ctimestamp) (Parse.decode bytes)
     STM.atomically $ STM.writeTChan chan rmsg
-
 
 get_devices :: IO (ReadMap, WriteMap)
 get_devices = do
@@ -101,15 +101,15 @@ connect_read_device rdev rdev_id = do
 foreign import ccall "core_midi_connect_read_device"
     c_connect_read_device :: ReadDeviceId -> Ptr () -> IO CError
 
--- | Timestamp will be ignored for sysex msgs.
-write_message :: WriteDeviceId -> Timestamp.Timestamp -> Midi.Message -> IO ()
+-- | RealTime will be ignored for sysex msgs.
+write_message :: WriteDeviceId -> RealTime -> Midi.Message -> IO ()
 write_message (WriteDeviceId wdev_id) ts msg = do
     -- I could probably avoid this copy by using unsafe unpack and then a
     -- ForeignPtr or something to keep the gc off it, but any sizable sysex
     -- will take forever to send anyway.
     ByteString.useAsCStringLen (Parse.encode msg) $ \(bytesp, len) ->
         check_ =<< c_write_message wdev_id
-            (encode_timestamp ts) (fromIntegral len) (castPtr bytesp)
+            (encode_time ts) (fromIntegral len) (castPtr bytesp)
 
 foreign import ccall "core_midi_write_message"
     c_write_message :: CInt -> CTimestamp -> CInt -> Ptr Word8 -> IO CError
@@ -120,8 +120,8 @@ abort = check_ =<< c_abort
 foreign import ccall "core_midi_abort" c_abort :: IO CError
 
 -- | Get current timestamp.
-now :: IO Timestamp.Timestamp
-now = fmap decode_timestamp c_get_now
+now :: IO RealTime
+now = fmap decode_time c_get_now
 foreign import ccall "core_midi_get_now" c_get_now :: IO CTimestamp
 
 
@@ -138,8 +138,8 @@ check val err
     | otherwise = throw (show err)
 check_ = check (return ())
 
-decode_timestamp :: CTimestamp -> Timestamp.Timestamp
-decode_timestamp = Timestamp.from_millis . fromIntegral
+decode_time :: CTimestamp -> RealTime
+decode_time = RealTime.microseconds . (*1000) . fromIntegral
 
-encode_timestamp :: Timestamp.Timestamp -> CTimestamp
-encode_timestamp = fromIntegral . Timestamp.to_millis
+encode_time :: RealTime -> CTimestamp
+encode_time = fromIntegral . (`div` 1000) . max 0 . RealTime.to_microseconds

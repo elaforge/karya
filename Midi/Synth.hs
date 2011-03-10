@@ -10,13 +10,14 @@ import qualified Control.Monad.Identity as Identity
 import qualified Data.Map as Map
 import qualified Text.Printf as Printf
 
+import Ui
 import Util.Control
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
-import qualified Perform.Timestamp as Timestamp
+import qualified Perform.RealTime as RealTime
 
 
 data State = State {
@@ -27,37 +28,37 @@ data State = State {
     , state_notes :: [Note]
     , state_warns :: [(Midi.WriteMessage, String)]
     -- | Decay time of instruments by addr.
-    , state_decay :: Map.Map Addr Timestamp.Timestamp
+    , state_decay :: Map.Map Addr RealTime
     -- | Pitch bend range for instruments by addr.
     , state_pb_range :: Map.Map Addr (Double, Double)
     } deriving (Show)
 empty_state = State mempty [] [] mempty mempty
 
-default_decay = Timestamp.seconds 1
+default_decay = RealTime.seconds 1
 default_pb_range = (-1, 1)
 
 data Note = Note {
-    note_start :: Timestamp.Timestamp
+    note_start :: RealTime
     -- | Nothing if there was no NoteOff.
-    , note_duration :: Maybe Timestamp.Timestamp
+    , note_duration :: Maybe RealTime
     , note_key :: Midi.Key
     , note_vel :: Midi.Velocity
-    , note_pitch :: [(Timestamp.Timestamp, Double)]
+    , note_pitch :: [(RealTime, Double)]
     , note_controls :: ControlMap
     , note_addr :: Addr
     } deriving (Eq, Show)
 
-make_note :: Addr -> Timestamp.Timestamp -> Midi.Key -> Midi.Velocity -> Note
+make_note :: Addr -> RealTime -> Midi.Key -> Midi.Velocity -> Note
 make_note addr start key vel =
     Note start Nothing key vel [(start, fromIntegral key)] Map.empty addr
 
-note_end :: Note -> Maybe Timestamp.Timestamp
-note_end n = Timestamp.add (note_start n) <$> note_duration n
+note_end :: Note -> Maybe RealTime
+note_end n = (+ note_start n) <$> note_duration n
 
 data Control = CC Midi.Control | Aftertouch | Pressure deriving (Eq, Ord, Show)
 
 type Addr = (Midi.WriteDevice, Midi.Channel)
-type ControlMap = Map.Map Control [(Timestamp.Timestamp, Midi.ControlValue)]
+type ControlMap = Map.Map Control [(RealTime, Midi.ControlValue)]
 
 type SynthM a = Reader.ReaderT Midi.WriteMessage
     (State.StateT State Identity.Identity) a
@@ -68,7 +69,7 @@ run state msgs = postproc $ run_state (mapM_ msg1 (Seq.zip_prev msgs))
     where
     run_state = Identity.runIdentity . flip State.execStateT state
     msg1 (prev, wmsg) = Reader.runReaderT
-        (run_msg (maybe Timestamp.zero Midi.wmsg_ts prev) wmsg) wmsg
+        (run_msg (maybe 0 Midi.wmsg_ts prev) wmsg) wmsg
 
 postproc :: State -> State
 postproc st0 = state
@@ -78,13 +79,13 @@ postproc st0 = state
     , state_warns = reverse (state_warns state)
     }
     where
-    state = deactivate (Timestamp.seconds 10000) st0
+    state = deactivate (RealTime.seconds 10000) st0
     postproc_note note = note
         { note_controls = Map.map reverse (note_controls note)
         , note_pitch = reverse (note_pitch note)
         }
 
-run_msg :: Timestamp.Timestamp -> Midi.WriteMessage -> SynthM ()
+run_msg :: RealTime -> Midi.WriteMessage -> SynthM ()
 run_msg prev_ts (Midi.WriteMessage dev ts (Midi.ChannelMessage chan msg))
         = do
     State.modify $ deactivate ts
@@ -117,26 +118,25 @@ is_active addr key = do
         Just notes -> any ((==key) . note_key) notes
         Nothing -> False
 
-note_on :: Addr -> Timestamp.Timestamp -> Midi.Key -> Midi.Velocity -> SynthM ()
+note_on :: Addr -> RealTime -> Midi.Key -> Midi.Velocity -> SynthM ()
 note_on addr ts key vel =
     modify_notes Nothing addr (make_note addr ts key vel :)
 
-note_off :: Addr -> Timestamp.Timestamp -> Midi.Key -> SynthM ()
+note_off :: Addr -> RealTime -> Midi.Key -> SynthM ()
 note_off addr ts key = modify_notes Nothing addr (map set_dur)
     where
     set_dur note
         | note_key note == key = note { note_duration = Just ts }
         | otherwise = note
 
-control :: Addr -> Timestamp.Timestamp -> Control -> Midi.ControlValue
-    -> SynthM ()
+control :: Addr -> RealTime -> Control -> Midi.ControlValue -> SynthM ()
 control addr ts control val = modify_notes (Just warning) addr (map insert)
     where
     insert note = note { note_controls =
         Map.insertWith (++) control [(ts, val)] (note_controls note) }
     warning = show control ++ " without note"
 
-pitch_bend :: Addr -> Timestamp.Timestamp -> Midi.PitchBendValue -> SynthM ()
+pitch_bend :: Addr -> RealTime -> Midi.PitchBendValue -> SynthM ()
 pitch_bend addr ts val = do
     (up, down) <- Map.findWithDefault default_pb_range addr <$>
         State.gets state_pb_range
@@ -161,7 +161,7 @@ warn msg = do
     State.modify $ \state ->
         state { state_warns = (wmsg, msg) : state_warns state }
 
-deactivate :: Timestamp.Timestamp -> State -> State
+deactivate :: RealTime -> State -> State
 deactivate ts state = state
     { state_active = Map.map (filter (not . decayed)) (state_active state)
     , state_notes = decayed_notes ++ state_notes state
@@ -170,7 +170,7 @@ deactivate ts state = state
     decayed_notes = filter decayed (concat (Map.elems (state_active state)))
     decayed n = case note_end n of
         Nothing -> False
-        Just end -> Timestamp.add end (decay_of (note_addr n)) <= ts
+        Just end -> end + decay_of (note_addr n) <= ts
     decay_of addr = Map.findWithDefault default_decay addr (state_decay state)
 
 

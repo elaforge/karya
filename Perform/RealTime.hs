@@ -39,7 +39,7 @@ instance Num RealTime where
     -- This makes me nervous because time * time = time handles units
     -- incorrectly.  But I can't not have a (*) operator without getting
     -- runtime errors, and so I might as well have one the acts intuitively.
-    a * b = seconds (to_seconds a * to_seconds b)
+    a * b = mul a (to_seconds b)
     negate (RealTime a) = RealTime (negate a)
     abs (RealTime a) = RealTime (abs a)
     signum (RealTime a) = RealTime (signum a)
@@ -48,7 +48,8 @@ instance Num RealTime where
 #ifdef TESTING
 -- This instance is incorrect because you can't divide time by time and get
 -- time.  However, it's needed for floating point literal syntax which is
--- extremely useful when writing tests.
+-- extremely useful when writing tests.  It's dangerous for real code though,
+-- because floating point is not exact.
 instance Fractional RealTime where
     fromRational ratio = seconds $
         fromIntegral (Ratio.numerator ratio)
@@ -61,6 +62,10 @@ div :: RealTime -> Double -> RealTime
 div a b = seconds (to_seconds a / b)
 infixl 7 `div`
 
+mul :: RealTime -> Double -> RealTime
+mul a b = seconds (to_seconds a * b)
+infixl 7 `mul`
+
 time_factor :: Int.Int64
 time_factor = 1000000
 
@@ -72,6 +77,9 @@ max = RealTime maxBound
 seconds :: Double -> RealTime
 seconds s = RealTime (round (s * fromIntegral time_factor))
 
+milliseconds :: Int -> RealTime
+milliseconds = microseconds . (*1000) . fromIntegral
+
 microseconds :: Int.Int64 -> RealTime
 microseconds = RealTime
 
@@ -82,6 +90,9 @@ score = seconds . Types.score_to_double
 
 to_seconds :: RealTime -> Double
 to_seconds (RealTime us) = fromIntegral us / fromIntegral time_factor
+
+to_milliseconds :: RealTime -> Integer
+to_milliseconds = fromIntegral . (`Prelude.div` 1000) . to_microseconds
 
 to_microseconds :: RealTime -> Int.Int64
 to_microseconds (RealTime us) = us

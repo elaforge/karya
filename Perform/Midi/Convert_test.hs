@@ -11,7 +11,6 @@ import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
-import qualified Perform.Timestamp as Timestamp
 
 
 test_lazy = do
@@ -48,7 +47,7 @@ convert = show_logs extract_event
     . Convert.convert DeriveTest.default_lookup_scale
         DeriveTest.default_lookup_inst
 
-extract_event e = (Timestamp.to_seconds (Perform.event_start e),
+extract_event e = (RealTime.to_seconds (Perform.event_start e),
     Signal.unsignal (Perform.event_pitch e))
 
 show_logs extract =

@@ -31,7 +31,6 @@ import qualified Derive.TrackLang as TrackLang
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
-import qualified Perform.Timestamp as Timestamp
 
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Instrument as Instrument
@@ -119,7 +118,7 @@ perform_stream lookup_inst midi_config events = (perf_events, mmsgs)
     (midi, _) = Perform.perform Perform.initial_state midi_config perf_events
     mmsgs = map (fmap extract_m) midi
     extract_m wmsg =
-        (Timestamp.to_millis (Midi.wmsg_ts wmsg), Midi.wmsg_msg wmsg)
+        (RealTime.to_milliseconds (Midi.wmsg_ts wmsg), Midi.wmsg_msg wmsg)
 
 -- * derive
 

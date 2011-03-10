@@ -16,10 +16,10 @@ import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 
-import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Midi.Convert as Midi.Convert
 import qualified Perform.Midi.Perform as Midi.Perform
 import qualified Perform.Midi.Cache as Midi.Cache
+import qualified Perform.RealTime as RealTime
 
 
 -- * performance
@@ -70,7 +70,7 @@ uncached_derive = PlayUtil.uncached_derive
 derive_tempo :: BlockId -> Cmd.CmdL [[(BlockId, [(TrackId, ScoreTime)])]]
 derive_tempo block_id = do
     result <- PlayUtil.cached_derive block_id
-    return $ map (Derive.r_inv_tempo result) (map Timestamp.seconds [0..10])
+    return $ map (Derive.r_inv_tempo result) (map RealTime.seconds [0..10])
 
 -- * block
 
@@ -94,18 +94,17 @@ sel_events :: Cmd.CmdL Derive.Events
 sel_events = get_sel block_events Score.event_start
 
 sel_midi :: Cmd.CmdL Midi.Perform.MidiEvents
-sel_midi = get_sel perf (Timestamp.to_real_time . Midi.wmsg_ts)
+sel_midi = get_sel perf Midi.wmsg_ts
     where
     perf bid = do
         p <- PlayUtil.cached_perform bid =<< PlayUtil.cached_derive bid
-        return $ Midi.Cache.messages_from Timestamp.zero $ Cmd.perf_midi_cache p
+        return $ Midi.Cache.messages_from 0 $ Cmd.perf_midi_cache p
 
 -- | Easier to read midi.
 simple_midi :: Cmd.CmdL Midi.Perform.MidiEvents
-    -> Cmd.CmdL [(Integer, Midi.Message)]
+    -> Cmd.CmdL [(RealTime, Midi.Message)]
 simple_midi = fmap (map f . LEvent.events_of)
-    where
-    f wmsg = (Timestamp.to_millis (Midi.wmsg_ts wmsg), Midi.wmsg_msg wmsg)
+    where f wmsg = (Midi.wmsg_ts wmsg, Midi.wmsg_msg wmsg)
 
 -- ** implementation
 

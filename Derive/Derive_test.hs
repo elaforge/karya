@@ -26,7 +26,6 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
-import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
 
@@ -62,7 +61,7 @@ test_basic = do
         ]
     extract_perf_event (Perform.Event inst start dur _controls _pitch stack) =
         (Instrument.inst_name inst,
-            Timestamp.to_seconds start, Timestamp.to_seconds dur, stack)
+            RealTime.to_seconds start, RealTime.to_seconds dur, stack)
 
 test_attributes = do
     -- Test that attributes work, through derivation and performance.
@@ -169,12 +168,12 @@ test_subderive = do
     let b0 pos = (UiTest.bid "b0",
             [(UiTest.tid "b0.t0", pos), (UiTest.tid "b0.t1", pos)])
         sub pos = (UiTest.bid "sub", [(UiTest.tid "sub.t0", pos)])
-    equal (map (inv_tempo res) (map Timestamp.seconds [0, 2 .. 10]))
+    equal (map (inv_tempo res) (map RealTime.seconds [0, 2 .. 10]))
         [[b0 0], [b0 4], [b0 8, sub 0], [b0 12, sub 1], [b0 16], []]
 
     -- For eyeball verification.
     -- pprint (r_events res)
-    -- pprint $ zip [0,2..] $ map inv_tempo (map Timestamp.seconds [0, 2 .. 10])
+    -- pprint $ zip [0,2..] $ map inv_tempo (map RealTime.seconds [0, 2 .. 10])
     -- pprint $ Derive.state_track_warps state
 
 test_subderive_timing = do
@@ -235,7 +234,7 @@ test_multiple_subderive = do
     equal (fst (DeriveTest.extract Score.event_instrument res))
         (replicate 3 (Just (Score.Instrument "i1")))
 
-    let pos = map (inv_tempo res) (map Timestamp.seconds [0..6])
+    let pos = map (inv_tempo res) (map RealTime.seconds [0..6])
     let b0 pos = (UiTest.bid "b0", [(UiTest.tid ("b0.t0"), pos)])
         sub pos = (UiTest.bid "sub", [(UiTest.tid "sub.t0", pos)])
     equal (map List.sort pos)
@@ -272,8 +271,6 @@ test_tempo_compose = do
         ([(0, 1, ""), (1, 1, ""), (2, 4, ""), (6, 4, "")], [])
 
     -- TODO test when the subblock has a tempo too
-    -- type TempoFunction = BlockId -> TrackId -> ScoreTime
-    --     -> Maybe Timestamp.Timestamp
 
 -- show_log msg
 --     | null (Log.msg_signal msg) = Log.format_msg msg
@@ -386,7 +383,7 @@ test_tempo_funcs1 = do
 
     -- [(BlockId, [(TrackId, ScoreTime)])]
     let b0 pos = (bid, [(t_tid, pos), (tid1, pos)])
-    equal (map (inv_tempo res) (map Timestamp.seconds [0, 2 .. 10]))
+    equal (map (inv_tempo res) (map RealTime.seconds [0, 2 .. 10]))
         [[b0 0], [b0 4], [b0 8], [b0 12], [b0 16], []]
 
     equal (map (Derive.r_tempo res bid t_tid) [0, 2 .. 10])
@@ -408,7 +405,7 @@ test_tempo_funcs2 = do
     let b0 pos = (bid, [(t_tid1, pos), (tid1, pos)])
         b1 pos = (bid, [(t_tid2, pos), (tid2, pos)])
 
-    equal (map (inv_tempo res) (map Timestamp.seconds [0, 2, 4, 6]))
+    equal (map (inv_tempo res) (map RealTime.seconds [0, 2, 4, 6]))
         [[b0 0, b1 0], [b0 4, b1 2], [b0 8, b1 4], [b0 12, b1 6]]
 
     -- test multiple tempo
@@ -416,8 +413,7 @@ test_tempo_funcs2 = do
 
 -- | Map through inv tempo and sort the results since their order isn't
 -- relevant.
-inv_tempo :: Derive.Result -> Timestamp.Timestamp
-    -> [(BlockId, [(TrackId, ScoreTime)])]
+inv_tempo :: Derive.Result -> RealTime -> [(BlockId, [(TrackId, ScoreTime)])]
 inv_tempo res = map (second List.sort) . List.sort . Derive.r_inv_tempo res
 
 test_tempo_funcs_multiple_subblocks = do
@@ -510,7 +506,7 @@ test_make_inverse_tempo_func = do
         with_block pos = [(UiTest.default_block_id, [(track_id, pos)])]
     -- Fast tempo means ScoreTime passes quickly relative to Timestamps.
     -- Second 2 at tempo 2 is trackpos 4, which is past the end of the block.
-    equal (map f (map Timestamp.seconds [0..2]))
+    equal (map f (map RealTime.seconds [0..2]))
         [with_block 0, with_block 2, []]
 
 test_tempo = do

@@ -35,8 +35,6 @@ import qualified Cmd.Selection as Selection
 import qualified Derive.Cache as Derive.Cache
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
-
-import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Midi.Cache as Midi.Cache
 
 
@@ -185,7 +183,7 @@ evaluate_midi prefix cache selection_pos logged_stats eval_pos chunks = do
     when (not (null post)) $
         Thread.delay 0.5
     evaluate_midi prefix cache selection_pos (logged_stats || splice_failed)
-        (eval_until + Timestamp.to_real_time Midi.Cache.cache_chunk_size) post
+        (eval_until + Midi.Cache.cache_chunk_size) post
 
 log_stats :: String -> Maybe RealTime -> Midi.Cache.Cache -> IO ()
 log_stats prefix splice_failed cache =
@@ -202,7 +200,7 @@ log_stats prefix splice_failed cache =
 chunk_time :: Midi.Cache.Chunk -> RealTime
 chunk_time chunk = case LEvent.events_of (Midi.Cache.chunk_messages chunk) of
     [] -> 0
-    wmsg : _ -> Timestamp.to_real_time (Midi.wmsg_ts wmsg)
+    wmsg : _ -> Midi.wmsg_ts wmsg
 
 evaluate_chunk :: Midi.Cache.Chunk -> IO Bool
 evaluate_chunk chunk = any id <$> mapM eval (Midi.Cache.chunk_messages chunk)

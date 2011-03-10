@@ -82,6 +82,7 @@ import qualified Control.Monad.Trans as Trans
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
+import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
@@ -102,7 +103,6 @@ import qualified Cmd.TimeStep as TimeStep
 import qualified Derive.LEvent as LEvent
 
 import qualified Perform.Transport as Transport
-import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Midi.Cache as Cache
 import qualified Perform.Midi.Play as Midi.Play
 
@@ -144,30 +144,30 @@ cmd_play transport_info block_id (start_track, start_pos) = do
     perf <- get_performance block_id
 
     -- TODO previously I would print the logs again... reinstate that?
-    start_ts <- find_realtime perf block_id start_track start_pos
-    let msgs = Cache.messages_from start_ts (Cmd.perf_midi_cache perf)
+    start <- find_realtime perf block_id start_track start_pos
+    let msgs = Cache.messages_from start (Cmd.perf_midi_cache perf)
     (play_ctl, updater_ctl) <- Trans.liftIO $
         Midi.Play.play transport_info block_id (LEvent.events_of msgs)
 
     ui_state <- State.get
     Trans.liftIO $ Thread.start_logged "play position updater" $ updater_thread
-        updater_ctl transport_info (Cmd.perf_inv_tempo perf) start_ts ui_state
+        updater_ctl transport_info (Cmd.perf_inv_tempo perf) start ui_state
     Cmd.modify_state $ \st -> st { Cmd.state_play_control = Just play_ctl }
     return Cmd.Done
 
--- | Given a block, track, and time, find the realtime timestamp at that
--- position.  If the track is Nothing, use the first track that has tempo
--- information.  This is necessary because if a track is muted it will have
--- no tempo, but it's confusing if playing from a muted track fails.
+-- | Given a block, track, and time, find the realtime at that position.  If
+-- the track is Nothing, use the first track that has tempo information.  This
+-- is necessary because if a track is muted it will have no tempo, but it's
+-- confusing if playing from a muted track fails.
 find_realtime :: (Cmd.M m) => Cmd.Performance -> BlockId -> Maybe TrackId
-    -> ScoreTime -> m Timestamp.Timestamp
+    -> ScoreTime -> m RealTime
 find_realtime perf block_id maybe_track_id pos = do
     track_ids <- maybe (State.track_ids_of block_id) (return . (:[]))
         maybe_track_id
     case msum (map tempo track_ids) of
         Nothing -> Cmd.throw $ show block_id ++ " " ++ show track_ids
             ++ " has no tempo information, so it probably failde to derive."
-        Just realtime -> return $ Timestamp.from_real_time realtime
+        Just realtime -> return realtime
     where tempo tid = Seq.head $ Cmd.perf_tempo perf block_id tid pos
 
 cmd_stop :: Cmd.CmdIO
@@ -223,17 +223,17 @@ get_performance block_id = do
 -- Note that this goes directly to the UI through Sync, bypassing the usual
 -- state diff folderol.
 updater_thread :: Transport.UpdaterControl -> Transport.Info
-    -> Transport.InverseTempoFunction -> Timestamp.Timestamp -> State.State
+    -> Transport.InverseTempoFunction -> RealTime -> State.State
     -> IO ()
-updater_thread ctl transport_info inv_tempo_func start_ts ui_state = do
+updater_thread ctl transport_info inv_tempo_func start ui_state = do
     -- Send Playing and Stopped msgs to the responder for all visible blocks.
     let block_ids = Seq.unique $ Map.elems (Map.map Block.view_block
             (State.state_views ui_state))
-        get_cur_ts = Transport.info_get_current_timestamp transport_info
+        get_now = Transport.info_get_current_time transport_info
     -- This won't be exactly the same as the renderer's ts offset, but it's
     -- probably close enough.
-    ts_offset <- get_cur_ts
-    let state = UpdaterState ctl (Timestamp.sub ts_offset start_ts) get_cur_ts
+    offset <- get_now
+    let state = UpdaterState ctl (offset - start) get_now
             inv_tempo_func Set.empty ui_state
     let send status bid = Transport.info_send_status transport_info bid status
     Exception.bracket_
@@ -243,8 +243,8 @@ updater_thread ctl transport_info inv_tempo_func start_ts ui_state = do
 
 data UpdaterState = UpdaterState {
     updater_ctl :: Transport.UpdaterControl
-    , updater_ts_offset :: Timestamp.Timestamp
-    , updater_get_cur_ts :: IO Timestamp.Timestamp
+    , updater_offset :: RealTime
+    , updater_get_now :: IO RealTime
     , updater_inv_tempo_func :: Transport.InverseTempoFunction
     , updater_active_sels :: Set.Set (ViewId, [TrackNum])
     , updater_ui_state :: State.State
@@ -252,10 +252,8 @@ data UpdaterState = UpdaterState {
 
 updater_loop :: UpdaterState -> IO ()
 updater_loop state = do
-    cur_ts <- fmap (`Timestamp.sub` (updater_ts_offset state))
-        (updater_get_cur_ts state)
-
-    let block_pos = updater_inv_tempo_func state cur_ts
+    now <- subtract (updater_offset state) <$> updater_get_now state
+    let block_pos = updater_inv_tempo_func state now
     play_pos <- either
         (\err -> Log.error ("state error in updater: " ++ show err)
             >> return [])

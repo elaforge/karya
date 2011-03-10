@@ -30,7 +30,6 @@ import qualified Derive.Stack as Stack
 
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Signal as Signal
-import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Warning as Warning
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Perform as Perform
@@ -85,8 +84,7 @@ convert_event lookup_scale lookup_inst maybe_prev event = do
         Just key -> return $ Signal.constant (fromIntegral key)
     let controls = convert_controls (Score.event_controls event)
     return $ Perform.Event midi_inst
-        (Timestamp.from_real_time (Score.event_start event))
-        (Timestamp.from_real_time (Score.event_duration event))
+        (Score.event_start event) (Score.event_duration event)
         controls pitch (Score.event_stack event)
 
 -- | Look up the score inst and figure out keyswitches and keymap based on

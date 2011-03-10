@@ -13,9 +13,9 @@ import qualified Midi.Midi as Midi
 
 import Ui
 
-import qualified Perform.Transport as Transport
-import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.RealTime as RealTime
+import qualified Perform.Transport as Transport
 
 
 -- | Start a thread to stream a list of WriteMessages, and return
@@ -24,7 +24,7 @@ play :: Transport.Info -> BlockId -> [Midi.WriteMessage]
     -> IO (Transport.PlayControl, Transport.UpdaterControl)
 play transport_info block_id midi_msgs = do
     state <- Transport.state transport_info block_id
-    let ts_offset = Transport.state_timestamp_offset state
+    let ts_offset = Transport.state_time_offset state
         -- Catch msgs up to realtime.
         ts_midi_msgs = map (Midi.add_timestamp ts_offset) midi_msgs
     Thread.start_logged "render midi" (player_thread state ts_midi_msgs)
@@ -35,7 +35,7 @@ player_thread :: Transport.State -> [Midi.WriteMessage] -> IO ()
 player_thread state midi_msgs = do
     let name = show (Transport.state_block_id state)
     Log.notice $ "play block " ++ name ++ " starting at "
-        ++ show (Transport.state_timestamp_offset state)
+        ++ show (Transport.state_time_offset state)
     play_msgs state Set.empty midi_msgs
         `Exception.catch` \(exc :: Exception.SomeException) ->
             Transport.state_send_status state
@@ -50,8 +50,8 @@ type AddrsSeen = Set.Set Instrument.Addr
 
 -- | 'play_msgs' tries to not get too far ahead of now both to avoid flooding
 -- the midi driver and so a stop will happen fairly quickly.
-write_ahead :: Timestamp.Timestamp
-write_ahead = Timestamp.seconds 1
+write_ahead :: RealTime
+write_ahead = RealTime.seconds 1
 
 -- | @devs@ keeps track of devices that have been seen, so I know which devices
 -- to reset.
@@ -64,15 +64,15 @@ play_msgs state addrs_seen msgs = do
 
     -- This should make the buffer always be between write_ahead*2 and
     -- write_ahead ahead of now.
-    now <- Transport.state_get_current_timestamp state
-    let until = Timestamp.add now (Timestamp.mul write_ahead 2)
+    now <- Transport.state_get_current_time state
+    let until = now + (RealTime.mul write_ahead 2)
     let (chunk, rest) = span ((<until) . Midi.wmsg_ts) msgs
     -- Log.debug $ "play at " ++ show now ++ " chunk: " ++ show (length chunk)
     mapM_ write_midi chunk
     addrs_seen <- return (update_addrs addrs_seen chunk)
 
-    let timeout = if null rest then Timestamp.mul write_ahead 2 else write_ahead
-    stop <- Transport.check_for_stop (Timestamp.to_seconds timeout)
+    let timeout = if null rest then RealTime.mul write_ahead 2 else write_ahead
+    stop <- Transport.check_for_stop (RealTime.to_seconds timeout)
         (Transport.state_play_control state)
     case (stop, rest) of
         (True, _) -> do
@@ -88,14 +88,13 @@ play_msgs state addrs_seen msgs = do
             -- and in the next version of the OS it's gone... did apple
             -- fix a bug?
             Thread.delay 0.15
-            send_all write_midi addrs_seen
-                (Timestamp.add now (Timestamp.from_millis 150))
+            send_all write_midi addrs_seen (now + RealTime.seconds 0.15)
                 (Midi.PitchBend 0)
         (_, []) -> send_all write_midi addrs_seen now (Midi.PitchBend 0)
         _ -> play_msgs state addrs_seen rest
 
 send_all :: (Midi.WriteMessage -> IO ()) -> AddrsSeen
-    -> Timestamp.Timestamp -> Midi.ChannelMessage -> IO ()
+    -> RealTime -> Midi.ChannelMessage -> IO ()
 send_all write_midi addrs ts chan_msg =
     forM_ (Set.elems addrs) $ \(dev, chan) -> write_midi
         (Midi.WriteMessage dev ts (Midi.ChannelMessage chan chan_msg))

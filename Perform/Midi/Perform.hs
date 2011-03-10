@@ -2,13 +2,6 @@
 {- | Main entry point for Perform.Midi.  Render Deriver output down to actual
     midi events.
 
-    The functions in perform work in Timestamps, which are converted from
-    RealTime by "Perform.Midi.Convert".  Timestamps have a millisecond
-    resolution, which is the actual resolution supported by the underlying
-    MIDI driver.  Doing comparisons and calculations in Timestamps ensures
-    that floating point inaccuracy will be rounded off and won't lead to
-    unpredictable note overlaps.
-
     Keyswitch implementation:
 
     Keyswitches are implemented as separate instruments that are allocated
@@ -57,8 +50,8 @@ import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 
 import qualified Perform.Signal as Signal
-import qualified Perform.Timestamp as Timestamp
-import Perform.Timestamp (Timestamp)
+import qualified Perform.RealTime as RealTime
+import Perform.RealTime (RealTime)
 
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
@@ -73,14 +66,14 @@ default_velocity = 0.79
 
 -- | A keyswitch gets this much lead time before the note it is meant to
 -- apply to.
-keyswitch_interval :: Timestamp
-keyswitch_interval = Timestamp.from_millis 4
+keyswitch_interval :: RealTime
+keyswitch_interval = RealTime.milliseconds 4
 
 -- | Most synths don't respond to pitch bend instantly, but smooth it out, so
 -- if you set pitch bend immediately before playing the note you will get
 -- a little sproing.  Put pitch bends before their notes by this amount.
-control_lead_time :: Timestamp
-control_lead_time = Timestamp.seconds 0.1
+control_lead_time :: RealTime
+control_lead_time = RealTime.milliseconds 100
 
 
 -- * perform
@@ -91,7 +84,7 @@ type MidiEvents = [LEvent.LEvent Midi.WriteMessage]
 
 -- | Performance state.  This is a snapshot of the state of the various
 -- functions in the performance pipeline.  You should be able to resume
--- performance at any point given a Timestamp and a State.
+-- performance at any point given a RealTime and a State.
 data State = State {
     state_channelize :: !ChannelizeState
     , state_allot :: !AllotState
@@ -173,8 +166,7 @@ can_share_chan old new = case (initial_pitch old, initial_pitch new) of
         _ | start >= end -> True
         _ | event_instrument old /= event_instrument new -> False
         (Just (initial_old, _), Just (initial_new, _)) ->
-            Signal.pitches_share in_decay
-                (Timestamp.to_real_time start) (Timestamp.to_real_time end)
+            Signal.pitches_share in_decay start end
                 initial_old (event_pitch old) initial_new (event_pitch new)
             && controls_equal (event_controls new) (event_controls old)
         _ -> True
@@ -225,7 +217,7 @@ data AllotState = AllotState {
     -- | Allocated addresses, and when they were last used.
     -- This is used by the voice stealer to figure out which voice is ripest
     -- for plunder.
-    ast_available :: !(Map.Map Instrument.Addr Timestamp)
+    ast_available :: !(Map.Map Instrument.Addr RealTime)
     -- | Map arbitrary input channels to an instrument address in the allocated
     -- range.
     , ast_allotted ::
@@ -267,7 +259,7 @@ steal_addr inst_addrs inst state =
                 in Just addr
         _ -> Nothing
     where
-    mlookup addr = Map.findWithDefault Timestamp.zero addr (ast_available state)
+    mlookup addr = Map.findWithDefault 0 addr (ast_available state)
 
 
 -- * perform notes
@@ -287,7 +279,7 @@ type AddrInst = Map.Map Instrument.Addr Instrument.Instrument
 -- Used to give leading cc times a little breathing room.
 --
 -- It only needs to be 'min cc_lead (now - note_off)'
-type NoteOffMap = Map.Map Instrument.Addr Timestamp
+type NoteOffMap = Map.Map Instrument.Addr RealTime
 
 -- | Pass an empty AddrInst because I can't make any assumptions about the
 -- state of the synthesizer.  The one from the wdev state might be out of
@@ -312,7 +304,7 @@ _perform_note (addr_inst, note_off_map) (event, addr) =
     ((addr_inst2, Map.insert addr note_off note_off_map), msgs)
     where
     (note_msgs, note_off) = perform_note
-        (Map.findWithDefault Timestamp.zero addr note_off_map) event addr
+        (Map.findWithDefault 0 addr note_off_map) event addr
     (chan_state_msgs, addr_inst2) = adjust_chan_state addr_inst addr event
     msgs = Seq.merge_on levent_start chan_state_msgs note_msgs
 
@@ -340,7 +332,7 @@ adjust_chan_state addr_inst addr event =
     old_inst = Map.lookup addr addr_inst
 
 -- | TODO support program change, I'll have to get ahold of patch_initialize.
-chan_state_msgs :: Instrument.Addr -> Timestamp
+chan_state_msgs :: Instrument.Addr -> RealTime
     -> Maybe Instrument.Instrument -> Instrument.Instrument
     -> Either String [Midi.WriteMessage]
 chan_state_msgs addr@(wdev, chan) ts maybe_old_inst new_inst
@@ -370,15 +362,15 @@ chan_state_msgs addr@(wdev, chan) ts maybe_old_inst new_inst
     -- the keyswitches wrong.
     mk_ks nn = [mkmsg start (Midi.NoteOn nn 64),
         mkmsg (nudge start) (Midi.NoteOff nn 64)]
-    nudge = Timestamp.add (Timestamp.from_millis 2)
+    nudge = (+ RealTime.milliseconds 2)
     mkmsg ts msg = Midi.WriteMessage wdev ts (Midi.ChannelMessage chan msg)
-    start = Timestamp.sub ts keyswitch_interval
+    start = ts - keyswitch_interval
 
 -- ** perform note
 
 -- | Emit MIDI for a single event.
-perform_note :: Timestamp -> Event -> Instrument.Addr
-    -> (MidiEvents, Timestamp)
+perform_note :: RealTime -> Event -> Instrument.Addr
+    -> (MidiEvents, RealTime)
     -- ^ (msgs, warns, note_off)
 perform_note prev_note_off event addr =
     case event_pitch_at (event_pb_range event) event (event_start event) of
@@ -397,7 +389,7 @@ perform_note prev_note_off event addr =
 
 -- | Perform the note on and note off.
 perform_note_msgs :: Event -> Instrument.Addr -> Midi.Key
-    -> (MidiEvents, Timestamp)
+    -> (MidiEvents, RealTime)
 perform_note_msgs event (dev, chan) midi_nn = (events, note_off)
     where
     events = map LEvent.Event
@@ -412,7 +404,7 @@ perform_note_msgs event (dev, chan) midi_nn = (events, note_off)
     chan_msg pos msg = Midi.WriteMessage dev pos (Midi.ChannelMessage chan msg)
 
 -- | Perform control change messages.
-perform_control_msgs :: Timestamp -> Event -> Instrument.Addr -> Midi.Key
+perform_control_msgs :: RealTime -> Event -> Instrument.Addr -> Midi.Key
     -> MidiEvents
 perform_control_msgs prev_note_off event (dev, chan) midi_nn =
     map LEvent.Event control_msgs ++ map LEvent.Log warns
@@ -440,13 +432,12 @@ event_pb_range = Instrument.inst_pitch_bend_range . event_instrument
 -- The pitch bend always tunes upwards from the tempered note.  It would be
 -- slicker to use a negative offset if the note is eventually going above
 -- unity, but that's too much work.
-event_pitch_at :: Control.PbRange -> Event -> Timestamp
+event_pitch_at :: Control.PbRange -> Event -> RealTime
     -> Maybe (Midi.Key, Midi.PitchBendValue)
 event_pitch_at pb_range event pos =
-    Control.pitch_to_midi pb_range
-        (Signal.at (Timestamp.to_real_time pos) (event_pitch event))
+    Control.pitch_to_midi pb_range (Signal.at pos (event_pitch event))
 
-note_velocity :: Event -> Timestamp -> Timestamp
+note_velocity :: Event -> RealTime -> RealTime
     -> (Midi.Velocity, Midi.Velocity, [ClipRange])
 note_velocity event note_on note_off =
     (clipped_vel on_sig, clipped_vel off_sig, clip_warns)
@@ -466,40 +457,37 @@ clip_val low high val
     | val > high = (high, True)
     | otherwise = (val, False)
 
-type ClipRange = (Timestamp, Timestamp)
+type ClipRange = (RealTime, RealTime)
 make_clip_warnings :: Event -> (Control.Control, [ClipRange]) -> [Log.Msg]
 make_clip_warnings event (control, clip_warns) =
     [event_warning event (show control ++ " clipped: " ++ Pretty.pretty clip)
         | clip <- clip_warns]
 
-control_at :: Event -> Control.Control -> Timestamp -> Maybe Signal.Y
+control_at :: Event -> Control.Control -> RealTime -> Maybe Signal.Y
 control_at event control pos = do
     sig <- Map.lookup control (event_controls event)
-    return (Signal.at (Timestamp.to_real_time pos) sig)
+    return (Signal.at pos sig)
 
-perform_pitch :: Control.PbRange -> Midi.Key -> Timestamp
-    -> Timestamp -> Signal.NoteNumber -> [(Timestamp, Midi.ChannelMessage)]
+perform_pitch :: Control.PbRange -> Midi.Key -> RealTime
+    -> RealTime -> Signal.NoteNumber -> [(RealTime, Midi.ChannelMessage)]
 perform_pitch pb_range nn prev_note_off start sig =
-    [(Timestamp.from_real_time x,
-            Midi.PitchBend (Control.pb_from_nn pb_range nn y))
+    [(x, Midi.PitchBend (Control.pb_from_nn pb_range nn y))
         | (x, y) <- pos_vals]
     where
     -- As per 'perform_control', there shouldn't be much to drop here.
-    trim = dropWhile ((< Timestamp.to_real_time start) . fst)
+    trim = dropWhile ((< start) . fst)
     pos_vals = create_leading_cc prev_note_off start sig $
         trim (Signal.unsignal sig)
 
 -- | Return the (pos, msg) pairs, and whether the signal value went out of the
 -- allowed control range, 0--1.
-perform_control :: Control.ControlMap -> Timestamp -> Timestamp
+perform_control :: Control.ControlMap -> RealTime -> RealTime
     -> (Control.Control, Signal.Control)
-    -> ([(Timestamp, Midi.ChannelMessage)], [ClipRange])
+    -> ([(RealTime, Midi.ChannelMessage)], [ClipRange])
 perform_control cmap prev_note_off start (control, sig) =
     case Control.control_constructor cmap control of
         Nothing -> ([], []) -- TODO warn about a control not in the cmap
-        Just ctor ->
-            ([(Timestamp.from_real_time x, ctor y) | (x, y) <- pos_vals],
-                clip_warns)
+        Just ctor -> ([(x, ctor y) | (x, y) <- pos_vals], clip_warns)
     where
     -- The signal should already be trimmed to the event range, except that,
     -- as per the behaviour of Signal.drop_before, it may have a leading
@@ -507,25 +495,23 @@ perform_control cmap prev_note_off start (control, sig) =
     -- 'create_leading_cc'.
     pos_vals = create_leading_cc prev_note_off start sig $
         trim (Signal.unsignal clipped)
-    trim = dropWhile ((< Timestamp.to_real_time start) . fst)
+    trim = dropWhile ((< start) . fst)
     (clipped, out_of_bounds) = Signal.clip_bounds sig
         -- (tracef (\s -> (start, Signal.first s, Signal.last s)) sig)
-    clip_warns = [(Timestamp.from_real_time s, Timestamp.from_real_time e)
-        | (s, e) <- out_of_bounds]
+    clip_warns = [(s, e) | (s, e) <- out_of_bounds]
 
 -- | I rely on postprocessing to eliminate the redundant msgs.
 -- Since 'channelize' respects the 'control_lead_time', I expect msgs to be
 -- scheduled on their own channels if possible.
-create_leading_cc :: Timestamp -> Timestamp -> Signal.Signal y
+create_leading_cc :: RealTime -> RealTime -> Signal.Signal y
     -> [(Signal.X, Signal.Y)] -> [(Signal.X, Signal.Y)]
 create_leading_cc prev_note_off start sig pos_vals =
-    initial : dropWhile ((<= Timestamp.to_real_time start) . fst) pos_vals
+    initial : dropWhile ((<= start) . fst) pos_vals
     where
     -- Don't go before the previous note, but don't go after the start of this
     -- note, in case the previous note ends after this one begins.
-    tweak t = max (min prev_note_off start) (Timestamp.sub t control_lead_time)
-    initial = (Timestamp.to_real_time (tweak start),
-        Signal.at (Timestamp.to_real_time start) sig)
+    tweak t = max (min prev_note_off start) (t - control_lead_time)
+    initial = ((tweak start), Signal.at start sig)
 
 -- * post process
 
@@ -574,8 +560,8 @@ analyze_msg (Just (pb_val, cmap)) msg = case msg of
 
 data Event = Event {
     event_instrument :: !Instrument.Instrument
-    , event_start :: !Timestamp
-    , event_duration :: !Timestamp
+    , event_start :: !RealTime
+    , event_duration :: !RealTime
     , event_controls :: !ControlMap
     , event_pitch :: !Signal.NoteNumber
     , event_stack :: !Stack.Stack
@@ -589,17 +575,17 @@ instance DeepSeq.NFData Event where
         rnf :: DeepSeq.NFData a => a -> ()
         rnf = DeepSeq.rnf
 
-event_end :: Event -> Timestamp
-event_end event = Timestamp.add (event_start event) (event_duration event)
+event_end :: Event -> RealTime
+event_end event = event_start event + event_duration event
 
-note_begin :: Event -> Timestamp
-note_begin event = Timestamp.sub (event_start event) control_lead_time
+note_begin :: Event -> RealTime
+note_begin event = event_start event - control_lead_time
 
 -- | The end of an event after taking decay into account.  The note shouldn't
 -- be sounding past this time.
-note_end :: Event -> Timestamp
-note_end event = Timestamp.add (event_end event)
-    (Timestamp.seconds (Instrument.inst_decay (event_instrument event)))
+note_end :: Event -> RealTime
+note_end event = event_end event
+    + RealTime.seconds (Instrument.inst_decay (event_instrument event))
 
 
 -- | This isn't directly the midi channel, since it goes higher than 15, but
@@ -620,8 +606,8 @@ merge_events = Seq.merge_on levent_start
 merge_sorted_events :: [MidiEvents] -> MidiEvents
 merge_sorted_events = Seq.merge_asc_lists levent_start
 
-levent_start :: LEvent.LEvent Midi.WriteMessage -> Timestamp.Timestamp
-levent_start (LEvent.Log _) = Timestamp.zero
+levent_start :: LEvent.LEvent Midi.WriteMessage -> RealTime
+levent_start (LEvent.Log _) = 0
 levent_start (LEvent.Event msg) = Midi.wmsg_ts msg
 
 -- | Map the given function across the events, passing it previous events it

@@ -21,6 +21,7 @@ import qualified Text.Printf as Printf
 
 import qualified Util.Map as Map
 import qualified Util.Log as Log
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
@@ -71,7 +72,6 @@ import qualified Derive.Score as Score
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Midi.Instrument as Instrument
-import qualified Perform.Timestamp as Timestamp
 
 import qualified Derive.Derive_profile as Derive_profile
 
@@ -251,8 +251,7 @@ load_symbols syms = do
 {-
 midi_thru remap_rmsg midi_chan write_midi = forever $ do
     rmsg <- fmap remap_rmsg (STM.atomically (STM.readTChan midi_chan))
-    let wmsgs = [Midi.WriteMessage dev Timestamp.immediately msg
-            | (dev, msg) <- process_thru rmsg]
+    let wmsgs = [Midi.WriteMessage dev 0 msg | (dev, msg) <- process_thru rmsg]
     print rmsg
     mapM_ write_midi wmsgs
 
@@ -272,13 +271,12 @@ make_write_midi :: Map.Map Midi.WriteDevice Midi.WriteDevice
     -> MidiImp.WriteMap -> Midi.WriteMessage -> IO ()
 make_write_midi wdev_map write_map (Midi.WriteMessage wdev ts msg) = do
     let real_wdev = Map.get wdev wdev wdev_map
-    Printf.printf "PLAY %s->%s %d: %s\n" (Midi.un_write_device wdev)
-        (Midi.un_write_device real_wdev) (Timestamp.to_millis ts) (show msg)
+    Printf.printf "PLAY %s->%s %s: %s\n" (Midi.un_write_device wdev)
+        (Midi.un_write_device real_wdev) (Pretty.pretty ts) (show msg)
     case Map.lookup real_wdev write_map of
         Nothing -> Log.error $ show real_wdev ++ " not in devs: "
             ++ show (Map.keys write_map)
-        Just dev_id -> do
-            MidiImp.write_message dev_id ts msg
+        Just dev_id -> MidiImp.write_message dev_id ts msg
 
 print_devs :: Set.Set Midi.ReadDevice -> MidiImp.ReadMap -> MidiImp.WriteMap
     -> IO ()

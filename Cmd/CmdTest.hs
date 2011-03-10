@@ -20,7 +20,6 @@ import qualified Cmd.Simple as Simple
 import qualified Derive.Score as Score
 
 import qualified Perform.Pitch as Pitch
-import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Midi.Instrument as Instrument
 
 import qualified Instrument.Db
@@ -147,8 +146,7 @@ drag btn = Msg.Ui $ UiMsg.UiMsg empty_context $
 
 make_midi :: Midi.ChannelMessage -> Msg.Msg
 make_midi chan_msg = Msg.Midi $
-    Midi.ReadMessage (Midi.ReadDevice "test") Timestamp.zero
-        (Midi.ChannelMessage 0 chan_msg)
+    Midi.ReadMessage (Midi.ReadDevice "test") 0 (Midi.ChannelMessage 0 chan_msg)
 
 note_on note_id nn vel =
     InputNote.NoteOn (nid note_id) (Pitch.InputKey nn) (vel / 127)

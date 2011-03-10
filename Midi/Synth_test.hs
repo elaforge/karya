@@ -6,7 +6,7 @@ import qualified Midi.Midi as Midi
 import Midi.Midi (ChannelMessage(..))
 import qualified Midi.Synth as Synth
 
-import qualified Perform.Timestamp as Timestamp
+import qualified Perform.RealTime as RealTime
 
 
 test_run = do
@@ -87,10 +87,10 @@ test_pitch = do
 
 run = Synth.run Synth.empty_state
 
-ts = Timestamp.from_millis
+ts = RealTime.milliseconds
 
 extract :: (Synth.Note -> a) -> Synth.State
-    -> ([a], [a], [(Timestamp.Timestamp, String)])
+    -> ([a], [a], [(RealTime.RealTime, String)])
 extract extract_note state =
     ( map extract_note (concat (Map.elems (Synth.state_active state)))
     , map extract_note (Synth.state_notes state)
@@ -99,5 +99,5 @@ extract extract_note state =
 
 mkmsg (ts, chan, msg) = Midi.WriteMessage
     (Midi.WriteDevice "dev")
-    (Timestamp.from_millis ts)
+    (RealTime.milliseconds ts)
     (Midi.ChannelMessage chan msg)

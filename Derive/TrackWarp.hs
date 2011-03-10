@@ -16,9 +16,7 @@ import qualified Ui.Types as Types
 
 import qualified Derive.Stack as Stack
 import qualified Derive.Score as Score
-
 import qualified Perform.Transport as Transport
-import qualified Perform.Timestamp as Timestamp
 
 
 newtype TrackWarp =
@@ -116,7 +114,6 @@ inverse_tempo_func track_warps ts = do
     (block_id, track_ids, Just pos) <- track_pos
     return (block_id, [(track_id, pos) | track_id <- track_ids])
     where
-    ts_time = Timestamp.to_real_time ts
     track_pos = [(tw_block tw, tw_tracks tw, unwarp ts (tw_warp tw)) |
-            tw <- track_warps, tw_start tw <= ts_time && ts_time < tw_end tw]
-    unwarp ts warp = Score.unwarp_pos (Timestamp.to_real_time ts) warp
+            tw <- track_warps, tw_start tw <= ts && ts < tw_end tw]
+    unwarp ts warp = Score.unwarp_pos ts warp

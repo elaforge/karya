@@ -8,12 +8,13 @@ import qualified Data.Map as Map
 import qualified Data.Time as Time
 import qualified System.Environment
 
+import qualified Util.Seq as Seq
+import Util.Test
+
 import qualified Midi.Midi as Midi
 import qualified Midi.CoreMidi as CoreMidi
 
--- this is not run by the test runner, but the functions are useful anyway
-import Util.Test
-import qualified Perform.Timestamp as Timestamp
+import qualified Perform.RealTime as RealTime
 
 
 test_rdev = Midi.ReadDevice "IAC Driver IAC Bus 1"
@@ -22,7 +23,7 @@ test_wdev = Midi.WriteDevice "IAC Driver IAC Bus 1"
 main = CoreMidi.initialize test
 
 type ReadMsg = IO (Maybe Midi.ReadMessage)
-type WriteMsg = (Timestamp.Timestamp, Midi.Message) -> IO ()
+type WriteMsg = (RealTime.RealTime, Midi.Message) -> IO ()
 
 test :: CoreMidi.ReadChan -> IO ()
 test read_chan = do
@@ -105,7 +106,7 @@ thru_loop :: WriteMsg -> ReadMsg -> IO ()
 thru_loop write_msg read_msg = forever $ do
     Just (Midi.ReadMessage dev ts msg) <- read_msg
     putStrLn $ "thru: " ++ show (ts, dev, msg)
-    write_msg (Timestamp.zero, msg)
+    write_msg (0, msg)
 
 
 -- * melody
@@ -116,8 +117,10 @@ thru_melody write_msg read_msg = do
     mapM_ write_msg (melody now)
     thru_loop write_msg read_msg
 
-melody start_ts = concat [[(ts, note_on nn), (ts+400, note_off nn)]
-        | (ts, nn) <- zip [start_ts, start_ts+500..] score]
+melody :: RealTime.RealTime -> [(RealTime.RealTime, Midi.Message)]
+melody start_ts = concat
+    [[(ts, note_on nn), (ts + RealTime.seconds 0.4, note_off nn)]
+        | (ts, nn) <- zip (Seq.range_ start_ts (RealTime.seconds 0.5)) score]
     where score = [53, 55 .. 61]
 
 
@@ -126,7 +129,8 @@ melody start_ts = concat [[(ts, note_on nn), (ts+400, note_off nn)]
 spam :: WriteMsg -> Int -> IO ()
 spam write_msg n = do
     now <- CoreMidi.now
-    mapM_ write_msg [(now+(i*10), msg) | (i, msg) <- zip [0..] msgs]
+    mapM_ write_msg
+        [(now + RealTime.milliseconds (i*10), msg) | (i, msg) <- zip [0..] msgs]
     where
     msgs = take n [Midi.ChannelMessage 0 msg | nn <- cycle [0..127],
         msg <- [Midi.NoteOn nn 127, Midi.NoteOff nn 127]]
@@ -142,7 +146,8 @@ run_tests write_msg read_msg = do
 test_abort write_msg read_msg = do
     now <- CoreMidi.now
     let msgs = [note_on 10, note_on 20, chan_msg (Midi.PitchBend 42)]
-    mapM_ write_msg [(now + (i*100), msg) | (i, msg) <- zip [5..] msgs]
+    mapM_ write_msg [(now + RealTime.milliseconds (i*100), msg)
+        | (i, msg) <- zip [5..] msgs]
     sleep 0.2
     CoreMidi.abort
     sleep 1
@@ -169,7 +174,7 @@ test_sysex write_msg read_msg = do
     let size = 20
     let msg = Midi.CommonMessage $ Midi.SystemExclusive 42
             (ByteString.pack (take (size*1024) (cycle [0..9]) ++ [0xf7]))
-    write_msg (Timestamp.zero, msg)
+    write_msg (0, msg)
     putStrLn "waiting for sysex to arrive..."
     Just (out, secs) <- read_until 10 read_msg
     putStrLn $ show secs ++ " seconds for " ++ show size ++ "k"

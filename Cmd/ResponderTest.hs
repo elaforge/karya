@@ -21,7 +21,6 @@ import qualified Cmd.Responder as Responder
 
 import qualified Derive.DeriveTest as DeriveTest
 
-import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Transport as Transport
 
 import qualified App.Config as Config
@@ -92,7 +91,7 @@ make_rstate update_chan midi_chan (ui_state, cmd_state) =
     lang_session = ()
     abort_midi = return ()
     write_midi msg = put_val midi_chan msg
-    get_now_ts = return Timestamp.zero
+    get_now_ts = return 0
     send_status block_id status =
         loopback (Msg.Transport (Transport.Status block_id status))
 

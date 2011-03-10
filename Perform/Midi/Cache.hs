@@ -18,8 +18,6 @@ import qualified Midi.Midi as Midi
 import Ui
 import qualified Derive.LEvent as LEvent
 
-import qualified Perform.Timestamp as Timestamp
-import Perform.Timestamp (Timestamp)
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.RealTime as RealTime
@@ -48,13 +46,12 @@ cache_messages =
 
 -- | Return messages starting from a certain timestamp.  Subtract that
 -- timestamp from the message timestamps so they always start at 0.
-messages_from :: Timestamp.Timestamp -> Cache -> Perform.MidiEvents
+messages_from :: RealTime -> Cache -> Perform.MidiEvents
 messages_from start cache =
-    map (fmap (Midi.modify_timestamp (`Timestamp.sub` start)))
+    map (fmap (Midi.modify_timestamp (subtract start)))
         (Perform.merge_sorted_events msgs)
     where
-    chunks = drop (to_chunknum (Timestamp.to_real_time start))
-        (cache_chunks cache)
+    chunks = drop (to_chunknum start) (cache_chunks cache)
     msgs = case map chunk_messages chunks of
         [] -> []
         -- I don't care about logs here because this goes to the player, which
@@ -68,7 +65,7 @@ messages_from start cache =
 -- I have to keep msgs that set up channel state.  Technically I could drop
 -- msgs that will be overwritten by another, but it's too much work for now
 -- and I'll do it only if synths get confused.
-clip_before :: Timestamp.Timestamp -> [Midi.WriteMessage] -> [Midi.WriteMessage]
+clip_before :: RealTime -> [Midi.WriteMessage] -> [Midi.WriteMessage]
 clip_before start = Then.filter (Midi.is_state . Midi.wmsg_msg)
     ((>=start) . Midi.wmsg_ts) id
 
@@ -107,18 +104,18 @@ is_splice_failure msg =
 type Chunks = [Chunk]
 type ChunkNum = Int
 
-cache_chunk_size :: Timestamp
-cache_chunk_size = Timestamp.seconds 4
+cache_chunk_size :: RealTime
+cache_chunk_size = RealTime.seconds 4
 
 to_chunknum :: RealTime -> ChunkNum
 to_chunknum =
-    RealTime.to_int . (`RealTime.div` Timestamp.to_seconds cache_chunk_size)
+    RealTime.to_int . (`RealTime.div` RealTime.to_seconds cache_chunk_size)
 
 chunks_duration :: ChunkNum -> RealTime
-chunks_duration n = fromIntegral n * Timestamp.to_real_time cache_chunk_size
+chunks_duration n = fromIntegral n * cache_chunk_size
 
-chunks_time :: ChunkNum -> Timestamp.Timestamp
-chunks_time n = Timestamp.mul cache_chunk_size n
+chunks_time :: ChunkNum -> RealTime
+chunks_time n = RealTime.mul cache_chunk_size (fromIntegral n)
 
 data Chunk = Chunk {
     chunk_messages :: Perform.MidiEvents
@@ -264,7 +261,7 @@ incompatible state1 state2
 -- it more likely to be possible to splice a reperformed section into the
 -- cache.  However, the normalization itself must be cheap or it defeats the
 -- purpose.
-normalize_state :: Timestamp -> Perform.State -> Perform.State
+normalize_state :: RealTime -> Perform.State -> Perform.State
 normalize_state now state = state {
     Perform.state_channelize =
         takeWhile overlapping (Perform.state_channelize state)

@@ -6,7 +6,7 @@ import Control.DeepSeq (rnf)
 import Data.Bits
 import qualified Data.ByteString as ByteString
 import qualified Data.Generics as Generics
-import qualified Perform.Timestamp as Timestamp
+import Perform.RealTime (RealTime)
 import Data.Word (Word8)
 import qualified Text.Printf as Printf
 
@@ -22,12 +22,12 @@ type ReadMessages = [ReadMessage]
 
 data WriteMessage = WriteMessage {
     wmsg_dev :: !WriteDevice
-    , wmsg_ts :: !Timestamp.Timestamp
+    , wmsg_ts :: !RealTime
     , wmsg_msg :: !Message
     } deriving (Eq, Ord, Show)
 data ReadMessage = ReadMessage {
     rmsg_dev :: !ReadDevice
-    , rmsg_ts :: !Timestamp.Timestamp
+    , rmsg_ts :: !RealTime
     , rmsg_msg :: !Message
     } deriving (Eq, Ord, Show)
 
@@ -61,11 +61,10 @@ newtype WriteDevice = WriteDevice String
 un_read_device (ReadDevice dev) = dev
 un_write_device (WriteDevice dev) = dev
 
-add_timestamp :: Timestamp.Timestamp -> WriteMessage -> WriteMessage
-add_timestamp ts wmsg = wmsg { wmsg_ts = Timestamp.add (wmsg_ts wmsg) ts }
+add_timestamp :: RealTime -> WriteMessage -> WriteMessage
+add_timestamp ts wmsg = wmsg { wmsg_ts = wmsg_ts wmsg + ts }
 
-modify_timestamp :: (Timestamp.Timestamp -> Timestamp.Timestamp)
-    -> WriteMessage -> WriteMessage
+modify_timestamp :: (RealTime -> RealTime) -> WriteMessage -> WriteMessage
 modify_timestamp f wmsg = wmsg { wmsg_ts = f (wmsg_ts wmsg) }
 
 

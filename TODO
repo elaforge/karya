@@ -16,13 +16,12 @@ CURRENT
   * signals are not clipped properly to their events due to double imprecision
     RealTime can be an integral type to round that stuff away
     Putting controls beneath their note tracks would solve this too
-  - a tempo track with just one sample can be optimized
   * make RealTime an integral type
     do I want an integral ScoreTime as well?
       It means I need a separate type for tempo signals, unless I want controls
       to be fixed point as well... I guess no reason not to actually, except
       that it must be signed.
-    - remove Timestamp
+    * remove Timestamp
     OS X uses nanos, I think, at least it converts to it:
       AudioConvertHostTimeToNanos(AudioGetCurrentHostTime())
     ms are not accurate enough for audio samples and as long as I'm using
@@ -57,6 +56,10 @@ CURRENT
       - event damage, and total range
       - seconds reperformed, seconds from cache, total seconds
       - splice status
+  - lang level pretty print for events, esp collapsing the stack
+  - add a Play.play_msgs function that plays the given msgs, normalizing so
+    fst event is at 0.  Use to debug: LPerf.sel_midi >>= Play.play_msgs
+  - cmd to save and load cache to disk
 
   - fix LPitch.note_to_degree
   * muting the first track with no tempo makes the block not derive
@@ -195,6 +198,32 @@ CURRENT
 
   - make tracks into calls, so they cache and the sub-run stuff works the same
     with them as other calls
+    It would be nice to make them calls in the scopes, so they can be
+    rebound like other calls.  This is effectively moving the Schema into
+    calls.  Then I can entirely get rid of it.
+    - move Schema.default_schema_deriver into c_block
+    - make Schema.derive_track into a call
+    The thing is block takes 'BlockId' and track takes (BlockId, TreeNode),
+    not CallArgs.  And it doesn't make sense to call from the tracks anyway,
+    so maybe not in Scopes.
+    Not much point to trying to put it in Environ or Scope since it's
+    a different type, but it could be dynamically scoped with the others, eg
+    Derive.state_schema :: (BlockId -> 
+    Basically it's the schema, but dynamicly scoped rather than attached to
+    blocks.  I can't actually see how dynamic scope makes sense, it should be
+    attached to blocks.  So keep it how it is, but call through generator
+    cache.
+
+    I want to do better tests about speed vs. space, cache hits and misses.
+    Improve logging so that I can see, given a change, which areas of score
+    were rederived, and then what range of midi was reperformed.
+
+  - write my own Deriver monad to try to avoid lifting overhead
+  - to be consistent, change Timestamp.from_millis to millis
+
+  - Can I make cached signal more efficient by merging the signals before
+    stashing it?  Of course laziness means that this won't actually happen
+    until the next time the cache is demanded, unless I force it.
   - when the dust settles, look into removing or simplifying Schema
 
   + use packed text instead of String

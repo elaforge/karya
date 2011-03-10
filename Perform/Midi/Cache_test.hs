@@ -1,9 +1,10 @@
 module Perform.Midi.Cache_test where
 import qualified Data.Map as Map
 
+import Util.Control
 import qualified Util.Ranges as Ranges
-import Util.Test
 import qualified Util.Seq as Seq
+import Util.Test
 
 import Ui
 
@@ -14,7 +15,6 @@ import qualified Derive.LEvent as LEvent
 import qualified Derive.Stack as Stack
 
 import qualified Perform.Signal as Signal
-import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.Perform_test as Perform_test
 import qualified Perform.Midi.Cache as Cache
@@ -23,7 +23,7 @@ import qualified Perform.RealTime as RealTime
 
 
 test_cached_performance = do
-    let sz = Timestamp.to_real_time Cache.cache_chunk_size
+    let sz = Cache.cache_chunk_size
         events1 = [(0, 0.5), (sz, 0.5), (sz+1, 0.5), (sz*2, 0.5)]
         events2 = [(0, 0.5), (sz, 0.8), (sz+1, 0.5), (sz*2, 0.5)]
 
@@ -88,26 +88,25 @@ test_messages_from = do
     let cache = perform_uncached
             (mkevents [(n, (n+1) `RealTime.div` 16) | n <- Seq.range_ 0 1])
         f ts = extract_msgs $
-            Cache.messages_from (Timestamp.from_millis ts) cache
-    -- Extra pitch bend msgs are from the initialization.
-    let pb0 = (0, Midi.PitchBend 0)
+            Cache.messages_from (RealTime.milliseconds ts) cache
 
+    -- Extra pitch bend msgs are from the initialization.
     equal (take 4 (f 0))
-        [ pb0
+        [ (0, Midi.PitchBend 0)
         , (0, Midi.NoteOn 42 100)
         , (62, Midi.NoteOff 42 100)
         , (1000, Midi.NoteOn 42 100)
         ]
     -- Timestamps subtracted from events.
     equal (take 4 (f 60))
-        [ pb0
+        [ (-60, Midi.PitchBend 0)
         , (2, Midi.NoteOff 42 100)
         , (940, Midi.NoteOn 42 100)
         , (1065, Midi.NoteOff 42 100)
         ]
     -- Halfway into another chunk.
     equal (take 4 (f 6000))
-        [ pb0
+        [ (-2100, Midi.PitchBend 0)
         , (0, Midi.NoteOn 42 100)
         , (437, Midi.NoteOff 42 100)
         , (1000, Midi.NoteOn 42 100)
@@ -124,8 +123,8 @@ test_state_initialization = do
     --     (Cache.cache_chunks cache))
     -- pprint $ map (Cache.chunk_messages) (Cache.cache_chunks cache)
 
-    let f ts = extract_msgs $
-            Cache.messages_from (Timestamp.from_millis ts) cache
+    let f ts = map (first (max 0)) $ extract_msgs $
+            Cache.messages_from (RealTime.milliseconds ts) cache
     -- Even though the cc was already set in a previous chunk, it should be set
     -- again explicitly if I skipped that chunk.
     check $ (0, Midi.ControlChange 1 63) `elem` f 12000
@@ -175,7 +174,7 @@ extract_logs = map DeriveTest.show_log . LEvent.logs_of . Cache.cache_messages
 
 extract_msgs :: [LEvent.LEvent Midi.WriteMessage]
     -> [(Integer, Midi.ChannelMessage)]
-extract_msgs msgs = [(Timestamp.to_millis ts, cmsg)
+extract_msgs msgs = [(RealTime.to_milliseconds ts, cmsg)
     | Midi.WriteMessage _ ts (Midi.ChannelMessage _ cmsg)
         <- LEvent.events_of msgs]
 
@@ -186,5 +185,5 @@ mkevents pairs =
 mkevent :: (RealTime, RealTime, Int) -> Perform.Event
 mkevent (start, dur, pitch) =
     Perform.Event Perform_test.inst1
-        (Timestamp.from_real_time start) (Timestamp.from_real_time dur)
-        Map.empty (Signal.signal [(start, fromIntegral pitch)]) Stack.empty
+        start dur Map.empty (Signal.signal [(start, fromIntegral pitch)])
+        Stack.empty

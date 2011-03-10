@@ -43,7 +43,6 @@ import qualified Ui.UiMsg as UiMsg
 import qualified Ui.Update as Update
 import qualified Midi.Midi as Midi
 import qualified Perform.Transport as Transport
-import qualified Perform.Timestamp as Timestamp
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Edit as Edit
@@ -80,9 +79,9 @@ type MsgReader = IO Msg.Msg
 type Loopback = Msg.Msg -> IO ()
 
 responder :: StaticConfig.StaticConfig -> MsgReader -> MidiWriter
-    -> IO () -> IO Timestamp.Timestamp -> Cmd.CmdIO
+    -> IO () -> IO RealTime -> Cmd.CmdIO
     -> Lang.Session -> Loopback -> IO ()
-responder static_config msg_reader write_midi abort_midi get_now_ts setup_cmd
+responder static_config msg_reader write_midi abort_midi get_now setup_cmd
         lang_session loopback = do
     Log.debug "start responder"
     -- Report keymap overlaps.
@@ -97,7 +96,7 @@ responder static_config msg_reader write_midi abort_midi get_now_ts setup_cmd
     (ui_state, cmd_state) <-
         run_setup_cmd loopback State.empty cmd_state cmd
     let rstate = State static_config ui_state cmd_state write_midi
-            (Transport.Info send_status write_midi abort_midi get_now_ts)
+            (Transport.Info send_status write_midi abort_midi get_now)
             lang_session loopback Sync.sync
     respond_loop rstate msg_reader
     where
@@ -411,7 +410,7 @@ run_cmd_list :: (Monad m) => [Update.Update] -> MidiWriter -> State.State
         (Cmd.Status, State.State, Cmd.State, [Update.Update]))
 run_cmd_list updates0 write_midi ui_state cmd_state runner (cmd:cmds) = do
     (cmd_state, midi, logs, ui_result) <- runner ui_state cmd_state cmd
-    sequence_ [write_midi (Midi.WriteMessage dev Timestamp.zero msg)
+    sequence_ [write_midi (Midi.WriteMessage dev 0 msg)
         | (dev, msg) <- midi]
     mapM_ Log.write logs
     case ui_result of
