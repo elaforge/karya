@@ -1,0 +1,2 @@
+#!/bin/sh
+exec ghci -DTESTING -hidir build/test -odir build/test
