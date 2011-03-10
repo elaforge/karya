@@ -135,7 +135,7 @@ parse_ui_frame = Parse.maybe_parse_string $ do
         from <- Parse.p_float
         Parse.char '-'
         to <- Parse.p_float
-        return (ScoreTime from, ScoreTime to)
+        return (Types.double_to_score from, Types.double_to_score to)
     return (Types.BlockId (Id.read_id (B.unpack bid)),
         fmap (Types.TrackId . Id.read_id . B.unpack) tid, range)
     where

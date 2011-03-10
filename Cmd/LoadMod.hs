@@ -19,6 +19,7 @@ import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Id as Id
 import qualified Ui.Track as Track
+import qualified Ui.Types as Types
 import qualified Ui.State as State
 
 import qualified Derive.Schema as Schema
@@ -144,7 +145,7 @@ convert_note maybe_prev at (Note pitch _ effects)
 -- is actually in frames which are in the song config (and set by effects), but
 -- I just hardcode it for the moment.
 note_start :: [Effect] -> ScoreTime -> ScoreTime
-note_start effects at = at + recip frames * ScoreTime (fromIntegral delay)
+note_start effects at = at + recip frames * Types.ScoreTime (fromIntegral delay)
     where
     delay = maybe 0 id $ Seq.maximum $ map delay_effect effects
     frames = 8

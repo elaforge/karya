@@ -27,6 +27,8 @@ import qualified Util.File as File
 import qualified Util.PPrint as PPrint
 import qualified Util.Binary
 
+import qualified Midi.Midi as Midi
+
 import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
@@ -38,8 +40,6 @@ import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
-
-import qualified Midi.Midi as Midi
 
 import qualified Derive.Score as Score
 import qualified Perform.Pitch as Pitch
@@ -255,7 +255,7 @@ instance Binary Block.TracklikeId where
             2 -> get >>= \a -> return (did a)
             _ -> fail "no parse for Block.TracklikeId"
 
-divider = Block.Divider :: Color -> Block.Divider
+divider = Block.Divider :: Color.Color -> Block.Divider
 instance Binary Block.Divider where
     put (Block.Divider a) = put a
     get = get >>= \a -> return (divider a)
@@ -326,16 +326,16 @@ instance Binary Types.Selection where
 -- ** Types, Color, Font
 
 instance Binary ScoreTime where
-    put (ScoreTime a) = put (Util.Binary.NDouble a)
-    get = get >>= \(Util.Binary.NDouble a) -> return (ScoreTime a)
+    put (Types.ScoreTime a) = put (Util.Binary.NDouble a)
+    get = get >>= \(Util.Binary.NDouble a) -> return (Types.ScoreTime a)
 
 instance Binary Color.Color where
     put (Color.Color a b c d) = put a >> put b >> put c >> put d
     get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
         return (Color.Color a b c d)
 
-text_style = Font.EventStyle :: Font.Font -> [Font.FontFace] -> Int -> Color
-    -> Font.EventStyle
+text_style = Font.EventStyle :: Font.Font -> [Font.FontFace] -> Int
+    -> Color.Color -> Font.EventStyle
 instance Binary Font.EventStyle where
     put (Font.EventStyle a b c d) = put a >> put b >> put c >> put d
     get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
@@ -378,7 +378,7 @@ instance Binary Ruler.Ruler where
         case v of
             0 -> do
                 marklists <- get :: Get [Ruler.NameMarklist]
-                bg <- get :: Get Color
+                bg <- get :: Get Color.Color
                 show_names <- get :: Get Bool
                 use_alpha <- get :: Get Bool
                 full_width <- get :: Get Bool
@@ -386,7 +386,7 @@ instance Binary Ruler.Ruler where
                     full_width
             1 -> do
                 marklists <- get :: Get [Ruler.NameMarklist]
-                bg <- get :: Get Color
+                bg <- get :: Get Color.Color
                 show_names <- get :: Get Bool
                 use_alpha <- get :: Get Bool
                 align_to_bottom <- get :: Get Bool
@@ -400,7 +400,7 @@ instance Binary Ruler.Marklist where
     put (Ruler.Marklist a) = put a
     get = get >>= \a -> return (marklist a)
 
-mark = Ruler.Mark :: Int -> Int -> Color -> String -> Double -> Double
+mark = Ruler.Mark :: Int -> Int -> Color.Color -> String -> Double -> Double
     -> Ruler.Mark
 instance Binary Ruler.Mark where
     put (Ruler.Mark a b c d e f) = put a >> put b >> put c >> put d >> put e
@@ -423,12 +423,12 @@ instance Binary Track.Track where
             0 -> do
                 title <- get :: Get String
                 events <- get :: Get Track.TrackEvents
-                bg <- get :: Get Color
+                bg <- get :: Get Color.Color
                 return $ Track.Track title events bg Config.render_config
             1 -> do
                 title <- get :: Get String
                 events <- get :: Get Track.TrackEvents
-                bg <- get :: Get Color
+                bg <- get :: Get Color.Color
                 render <- get :: Get Track.RenderConfig
                 return $ Track.Track title events bg render
             _ -> version_error "Track.Track" v
@@ -440,7 +440,7 @@ instance Binary Track.RenderConfig where
         case v of
             0 -> do
                 style <- get :: Get Track.RenderStyle
-                color <- get :: Get Color
+                color <- get :: Get Color.Color
                 return $ Track.RenderConfig style color
             _ -> version_error "Track.RenderConfig" v
 

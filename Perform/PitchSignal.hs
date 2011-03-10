@@ -33,11 +33,11 @@ module Perform.PitchSignal (
 
     -- * pitch signal
     , PitchSignal, Relative, sig_scale, sig_vec, set_scale
-    , X, Y, y_to_degree, degree_to_y, max_x, default_srate
+    , X, Y, y_to_degree, degree_to_y
 
-    , signal, relative, relative_from_control, constant, empty
+    , signal, unsignal, unsignal_degree
+    , relative, constant, empty
     , length, null
-    , unsignal, unsignal_degree
 
     , at, at_linear, sample
     , first, last
@@ -53,6 +53,7 @@ module Perform.PitchSignal (
     , map_x, map_degree
 ) where
 import Prelude hiding (last, truncate, length, null)
+import qualified Control.Arrow as Arrow
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Monoid as Monoid
 import qualified Data.StorableVector as V
@@ -63,7 +64,6 @@ import qualified Util.Pretty as Pretty
 import Ui
 
 import qualified Perform.SignalBase as SignalBase
-import Perform.SignalBase (max_x, default_srate, to_double)
 import qualified Perform.Signal as Signal
 
 
@@ -146,11 +146,11 @@ instance Storable.Storable (X, Y) where
         Storable.pokeByteOff cp 12 to
         Storable.pokeByteOff cp 16 at
     peek cp = do
-        pos <- Storable.peekByteOff cp 0 :: IO Double
+        pos <- Storable.peekByteOff cp 0 :: IO RealTime
         from <- Storable.peekByteOff cp 8 :: IO Float
         to <- Storable.peekByteOff cp 12 :: IO Float
         at <- Storable.peekByteOff cp 16 :: IO Float
-        return (RealTime pos, (from, to, at))
+        return (pos, (from, to, at))
 
 instance SignalBase.Y Y where
     zero_y = (0, 0, 0)
@@ -173,7 +173,7 @@ instance Monoid.Monoid PitchSignal where
     mconcat = merge
 
 y_to_degree :: Y -> Degree
-y_to_degree = Degree . to_double
+y_to_degree = Degree . SignalBase.to_double
 
 degree_to_y :: Degree -> Y
 degree_to_y (Degree d) = (f, f, 0)
@@ -184,12 +184,15 @@ degree_to_y (Degree d) = (f, f, 0)
 signal :: ScaleId -> [(X, Y)] -> PitchSignal
 signal scale_id ys = PitchSignal scale_id (SignalBase.signal ys)
 
+-- | The inverse of the 'signal' function.
+unsignal :: PitchSignal -> [(X, Y)]
+unsignal = SignalBase.unsignal . sig_vec
+
+unsignal_degree :: PitchSignal -> [(X, Degree)]
+unsignal_degree = map (Arrow.second y_to_degree) . unsignal
+
 relative :: [(X, Y)] -> PitchSignal
 relative = signal relative_scale_id
-
-relative_from_control :: Signal.Control -> Relative
-relative_from_control sig = relative
-    [(x, (realToFrac y, realToFrac y, 0)) | (x, y) <- Signal.unsignal sig]
 
 empty :: PitchSignal
 empty = signal (ScaleId "empty signal") []
@@ -202,13 +205,6 @@ null = V.null . sig_vec
 
 constant :: ScaleId -> Degree -> PitchSignal
 constant scale_id degree = signal scale_id [(0, degree_to_y degree)]
-
--- | Used for tests.
-unsignal :: PitchSignal -> [(X, Y)]
-unsignal = SignalBase.unsignal . sig_vec
-
-unsignal_degree :: PitchSignal -> [(X, Degree)]
-unsignal_degree = map (\(x, y) -> (x, y_to_degree y)) . unsignal
 
 -- | Flatten a pitch signal into an absolute note number signal.
 to_nn :: (Degree -> Maybe Double) -> PitchSignal -> Signal.NoteNumber
@@ -250,11 +246,12 @@ sig_add = sig_op add
     add y0@(from0, to0, _) y1@(from1, to1, _) = (from, to, at)
         where
         (from, to) = (from0 + from1, to0 + to1)
-        at = Num.normalize from to (realToFrac (to_double y0 + to_double y1))
+        at = Num.normalize from to
+            (realToFrac (SignalBase.to_double y0 + SignalBase.to_double y1))
 
 sig_max, sig_min :: PitchSignal -> Relative -> PitchSignal
-sig_max = sig_op $ \y0 y1 -> ymax (to_double y1) y0
-sig_min = sig_op $ \y0 y1 -> ymin (to_double y1) y0
+sig_max = sig_op $ \y0 y1 -> ymax (SignalBase.to_double y1) y0
+sig_min = sig_op $ \y0 y1 -> ymin (SignalBase.to_double y1) y0
 
 -- ** scalar transformation
 

@@ -219,7 +219,7 @@ auto_time_scroll view sel
     view_start = Types.zoom_offset (Block.view_zoom view)
     view_end = view_start + visible
     scroll_to = Types.sel_cur_pos sel
-    space = ScoreTime
+    space = Types.ScoreTime
         (visible_pixels / Types.zoom_factor (Block.view_zoom view))
     visible_pixels = 30
 

@@ -16,6 +16,7 @@ import qualified Control.DeepSeq as DeepSeq
 import qualified Util.Pretty as Pretty
 
 import Ui
+import qualified Perform.RealTime as RealTime
 
 
 -- | An absolute timestamp, measured from some arbitrary starting position.
@@ -56,10 +57,11 @@ to_seconds :: Timestamp -> Double
 to_seconds (Timestamp ts) = fromIntegral ts / 1000
 
 from_real_time :: RealTime -> Timestamp
-from_real_time = Timestamp . max 0 . round . (*1000)
+from_real_time = Timestamp . fromIntegral . (`div` 1000)
+    . RealTime.to_microseconds
 
 to_real_time :: Timestamp -> RealTime
-to_real_time = RealTime . (/1000) . fromIntegral . to_millis
+to_real_time (Timestamp ms) = RealTime.microseconds (fromIntegral ms * 1000)
 
 instance Pretty.Pretty Timestamp where
     pretty ts = Pretty.show_float (Just 3) (to_seconds ts) ++ "s"

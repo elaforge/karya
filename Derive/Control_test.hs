@@ -20,6 +20,7 @@ import qualified Derive.Score as Score
 
 import qualified Perform.PitchSignal as PitchSignal
 import qualified Perform.Pitch as Pitch
+import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
 
@@ -99,8 +100,9 @@ test_relative_control = do
             , ("add cont", [(0, 0, "1")])
             , ("cont", [(0, 0, "0"), (2, 0, "i 2"), (4, 0, "i 0")])
             ]
-        extract = (\sig -> map (flip Signal.at sig) [0..5])
+        extract = (\sig -> map (at sig) [0..5])
             . (Map.! Score.Control "cont") . Score.event_controls
+        at sig t = Signal.at (RealTime.seconds t) sig
     equal logs []
     equal events [[1, 2, 3, 2, 1, 1]]
 

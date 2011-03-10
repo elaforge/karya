@@ -82,7 +82,7 @@ instance Storable Track.TrackSignal where
 -- upper bound.  It's 87m of 0.1s pitch signal * 8 tracks * 4 controls, which
 -- is a lot.
 --
--- Capying over the valname list when it probably never changes galls a little.
+-- Copying over the valname list when it probably never changes galls a little.
 -- However, as with the signal above, a copy is probably fast enough and is
 -- much simpler wrt storage, especially because there are variable length
 -- strings involved.  I shouldn't use static storage because customizing pitch

@@ -1,9 +1,9 @@
 module Ui.Track_test where
 import Util.Test
 
-import Ui
 import qualified Ui.Event as Event
 import qualified Ui.Track as Track
+
 
 -- TODO improve tests
 
@@ -97,8 +97,7 @@ test_remove_events = do
 -- * util
 
 track_events = Track.make_track_events . mkevents
-mkevents =
-    map (\(pos, dur, text) -> (ScoreTime pos, Event.event text dur))
+mkevents = map (\(pos, dur, text) -> (pos, Event.event text dur))
 
 extract_text (_, event) = Event.event_string event
 extract_event (pos, evt) =

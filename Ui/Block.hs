@@ -4,10 +4,11 @@ import qualified Data.Map as Map
 import qualified Util.Seq as Seq
 
 import Ui
-import qualified Ui.Types as Types
+import qualified Ui.Color as Color
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Track as Track
+import qualified Ui.Types as Types
 
 import qualified App.Config as Config
 
@@ -46,10 +47,10 @@ block config title tracks schema_id =
 
 -- | Per-block configuration.
 data Config = Config {
-    config_selection_colors :: [Color]
-    , config_bg_color :: Color
-    , config_track_box :: (Color, Char)
-    , config_sb_box :: (Color, Char)
+    config_selection_colors :: [Color.Color]
+    , config_bg_color :: Color.Color
+    , config_track_box :: (Color.Color, Char)
+    , config_sb_box :: (Color.Color, Char)
     } deriving (Eq, Show, Read)
 
 default_config :: Config
@@ -77,7 +78,7 @@ block_track tracklike_id width = BlockTrack tracklike_id width [] []
 data DisplayTrack = DisplayTrack {
     dtrack_tracklike_id :: TracklikeId
     , dtrack_merged :: [TrackId]
-    , dtrack_status :: Maybe (Char, Color)
+    , dtrack_status :: Maybe (Char, Color.Color)
     , dtrack_event_brightness :: Double
     , dtrack_collapsed :: Bool
     } deriving (Eq, Show, Read)
@@ -105,7 +106,7 @@ block_track_config btrack =
         (Collapse `elem` track_flags btrack)
     where (status, brightness) = flags_to_status (track_flags btrack)
 
-flags_to_status :: [TrackFlag] -> (Maybe (Char, Color), Double)
+flags_to_status :: [TrackFlag] -> (Maybe (Char, Color.Color), Double)
 flags_to_status flags
     | Solo `elem` flags = (Just ('S', Config.solo_color), 1)
     | Mute `elem` flags = (Just ('M', Config.mute_color), 0.75)
@@ -159,7 +160,7 @@ rulers_of = Seq.map_maybe ruler_of
 
 -- | A divider separating tracks.
 -- Defined here in Block since it's so trivial.
-data Divider = Divider Color deriving (Eq, Ord, Show, Read)
+data Divider = Divider Color.Color deriving (Eq, Ord, Show, Read)
 
 -- * block view
 
@@ -217,7 +218,7 @@ visible_track = view_visible_track
 
 pixels_to_track_pos :: Types.Zoom -> Int -> ScoreTime
 pixels_to_track_pos zoom pixels =
-    ScoreTime (fromIntegral pixels) / ScoreTime (Types.zoom_factor zoom)
+    Types.double_to_score (fromIntegral pixels / Types.zoom_factor zoom)
 
 data TrackView = TrackView {
     track_view_width :: Types.Width

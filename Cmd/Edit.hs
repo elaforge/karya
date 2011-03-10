@@ -11,6 +11,7 @@ import qualified Util.Seq as Seq
 
 import Ui
 import qualified Ui.Block as Block
+import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 import qualified Ui.State as State
 import qualified Ui.Track as Track
@@ -67,7 +68,7 @@ sync_edit_box_status = do
     let c = if kbd_entry then 'K' else ' '
     Cmd.set_edit_box (edit_color edit_mode) c
 
-edit_color :: Cmd.EditMode -> Color
+edit_color :: Cmd.EditMode -> Color.Color
 edit_color mode = case mode of
     Cmd.NoEdit -> Config.box_color
     Cmd.RawEdit -> Config.raw_edit_color

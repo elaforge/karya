@@ -6,7 +6,6 @@ import qualified Control.Exception as Exception
 
 import Util.Test
 
-import Ui
 import qualified Ui.Color as Color
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
@@ -65,16 +64,16 @@ test_scroll_zoom = do
         send $ BlockC.set_track_scroll view 0
 
     io_human "scroll down a little" $
-        send $ BlockC.set_zoom view (Types.Zoom (ScoreTime 20) 1)
+        send $ BlockC.set_zoom view (Types.Zoom 20 1)
     io_human "scroll down all the way" $
-        send $ BlockC.set_zoom view (Types.Zoom (ScoreTime 99999) 1)
+        send $ BlockC.set_zoom view (Types.Zoom 99999 1)
     io_human "scroll back" $
-        send $ BlockC.set_zoom view (Types.Zoom (ScoreTime (-20)) 1)
+        send $ BlockC.set_zoom view (Types.Zoom (-20) 1)
 
     io_human "zoom in to 2" $
-        send $ BlockC.set_zoom view (Types.Zoom (ScoreTime 0) 2)
+        send $ BlockC.set_zoom view (Types.Zoom 0 2)
     io_human "zoom out back to 1" $
-        send $ BlockC.set_zoom view (Types.Zoom (ScoreTime 0) 1)
+        send $ BlockC.set_zoom view (Types.Zoom 0 1)
 
 test_set_selection = do
     view <- create_empty_view
@@ -83,11 +82,9 @@ test_set_selection = do
         (Block.T event_track_1 (UiTest.overlay_ruler ruler)) 30
     let c = Color.brightness 1.5 Color.blue
     io_human "point selection appears" $
-        send $ BlockC.set_selection True view 0
-            (cselection c 1 (ScoreTime 0) 1 (ScoreTime 0))
+        send $ BlockC.set_selection True view 0 (cselection c 1 0 1 0)
     io_human "replaced by long selection" $
-        send $ BlockC.set_selection True view 0
-            (cselection c 1 (ScoreTime 10) 1 (ScoreTime 20))
+        send $ BlockC.set_selection True view 0 (cselection c 1 10 1 20)
     io_human "goes away" $
         send $ BlockC.set_selection True view 0 Nothing
 
@@ -145,8 +142,7 @@ test_update_track = do
         send $ BlockC.update_entire_track view 1
             (Block.R (UiTest.mkruler 20 16)) []
         send $ BlockC.update_track view 2
-            (Block.T event_track_2 (UiTest.overlay_ruler ruler))
-            [] (ScoreTime 0) (ScoreTime 60)
+            (Block.T event_track_2 (UiTest.overlay_ruler ruler)) [] 0 60
 
 test_insert_remove_track = do
     view <- create_empty_view
@@ -154,7 +150,7 @@ test_insert_remove_track = do
     io_human "new event track" $
         send $ BlockC.insert_track view 1
             (Block.T event_track_1 ruler) 30
-    send $ BlockC.set_zoom view (Types.Zoom (ScoreTime 0) 2)
+    send $ BlockC.set_zoom view (Types.Zoom 0 2)
     io_human "another new event track also zoomed" $
         send $ BlockC.insert_track view 2 (Block.T event_track_2 ruler) 30
     io_human "remove ruler track, others move over" $

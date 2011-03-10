@@ -65,24 +65,12 @@ instance Storable Zoom where
         (#poke ZoomInfo, offset) zoomp offset
         (#poke ZoomInfo, factor) zoomp (Num.d2c factor)
 
--- * trackpos
+-- * ScoreTime
 
 -- | Score time is the abstract unit of time, and its mapping to real time
 -- is dependent on the score context.  ScoreTime units can be negative, but
 -- blocks only display events at >=0 ScoreTime.
 newtype ScoreTime = ScoreTime Double
-    deriving (Num, Enum, Real, Floating, Fractional, RealFrac, RealFloat,
-        Eq, Ord, Show, Read, NFData)
-
-max_score_time :: ScoreTime
-    -- technically it should be 1.79e308 more or less but this is big enough
-max_score_time = ScoreTime 1e300
-
-max_real_time :: RealTime
-max_real_time = RealTime 1e300
-
--- | A concrete unit of time, otherwise known as seconds.
-newtype RealTime = RealTime Double
     deriving (Num, Enum, Real, Floating, Fractional, RealFrac, RealFloat,
         Eq, Ord, Show, Read, NFData)
 
@@ -95,32 +83,15 @@ instance Storable ScoreTime where
     poke posp (ScoreTime pos) =
         (#poke ScoreTime, _val) posp pos
 
--- | These are stored in signals, but don't get handed to c++, so a plain
--- double is fine.
-instance Storable RealTime where
-    sizeOf _ = #size double
-    alignment _ = #{alignment double}
-    peek posp = do
-        v <- peek (castPtr posp) :: IO Double
-        return (RealTime v)
-    poke posp (RealTime pos) = poke (castPtr posp) pos
-
-score_to_real :: ScoreTime -> RealTime
-score_to_real (ScoreTime p) = RealTime p
-
-real_to_score :: RealTime -> ScoreTime
-real_to_score (RealTime p) = ScoreTime p
+instance Pretty.Pretty ScoreTime where
+    -- t is for time, since RealTime uses s for seconds
+    pretty (ScoreTime p) = Pretty.show_float (Just 3) p ++ "t"
 
 score_to_double :: ScoreTime -> Double
 score_to_double (ScoreTime p) = p
 
-real_to_double :: RealTime -> Double
-real_to_double (RealTime p) = p
-
-instance Pretty.Pretty ScoreTime where
-    pretty (ScoreTime p) = Pretty.pretty p ++ "t" -- t for time
-instance Pretty.Pretty RealTime where
-    pretty (RealTime p) = Pretty.pretty p ++ "s" -- s for seconds
+double_to_score :: Double -> ScoreTime
+double_to_score = ScoreTime
 
 -- * ID
 

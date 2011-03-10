@@ -24,6 +24,7 @@ import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
+import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Midi.Instrument as Instrument
@@ -300,9 +301,9 @@ test_warp_ops = do
 
     -- test compose
     let plain = Score.signal_to_warp $
-            Signal.signal [(n, Signal.x_to_y n) | n <- [0..100]]
+            Signal.signal [(RealTime.seconds n, n) | n <- [0..100]]
         slow = Score.signal_to_warp $
-            Signal.signal [(n, Signal.x_to_y (n*2)) | n <- [0..40]]
+            Signal.signal [(RealTime.seconds n, (n*2)) | n <- [0..40]]
 
 
     equal (run (Derive.d_warp plain)) $ Right [0, 2]
@@ -320,10 +321,8 @@ test_warp_ops = do
         Right [0, 8]
     equal (run (Derive.d_stretch 2 . Derive.d_warp slow)) $
         Right [0, 8]
-
     equal (run (Derive.d_stretch 2 . Derive.d_warp slow . Derive.d_warp slow)) $
             Right [0, 16]
-
 
     -- If you start at 1, but time is twice as slow, you really start at 2.
     -- But that is backwards.  Twice as slow time starts at 1.
@@ -391,7 +390,7 @@ test_tempo_funcs1 = do
         [[b0 0], [b0 4], [b0 8], [b0 12], [b0 16], []]
 
     equal (map (Derive.r_tempo res bid t_tid) [0, 2 .. 10])
-        (map (:[]) [0..5])
+        (map ((:[]) . RealTime.seconds) [0..5])
 
 test_tempo_funcs2 = do
     let ([t_tid1, tid1, t_tid2, tid2], ui_state) = UiTest.run State.empty $
@@ -403,9 +402,9 @@ test_tempo_funcs2 = do
     let res = DeriveTest.derive_block ui_state bid
     equal (DeriveTest.r_logs res) []
     equal (map (Derive.r_tempo res bid t_tid1) [0, 2 .. 10])
-        (map (:[]) [0..5])
+        (map ((:[]) . RealTime.seconds) [0..5])
     equal (map (Derive.r_tempo res bid t_tid2) [0, 2 .. 10])
-        (map (:[]) [0, 2 .. 10])
+        (map ((:[]) . RealTime.seconds) [0, 2 .. 10])
     let b0 pos = (bid, [(t_tid1, pos), (tid1, pos)])
         b1 pos = (bid, [(t_tid2, pos), (tid2, pos)])
 
@@ -516,7 +515,9 @@ test_make_inverse_tempo_func = do
 
 test_tempo = do
     let extract = e_floor . DeriveTest.e_event
-        e_floor (start, dur, text) = (floor start, floor dur, text)
+        e_floor (start, dur, text) =
+            (floor (secs start), floor (secs dur), text)
+        secs = RealTime.to_seconds
     let f tempo_track =
             DeriveTest.extract extract $ DeriveTest.derive_tracks
                 [ ("tempo", tempo_track)

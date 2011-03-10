@@ -9,13 +9,15 @@ import qualified Derive.Score as Score
 
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.Convert as Convert
+import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 import qualified Perform.Timestamp as Timestamp
 
 
 test_lazy = do
     equal (take 1 (convert (repeat (mklog "hi")))) [Right "hi"]
-    let events = zipWith ($) (cycle [noinst, nopitch, good]) [0..]
+    let events = zipWith ($) (cycle [noinst, nopitch, good])
+            (map RealTime.seconds [0..])
     equal (length (take 3 (convert events))) 3
 
 test_convert = do

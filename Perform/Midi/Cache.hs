@@ -22,6 +22,7 @@ import qualified Perform.Timestamp as Timestamp
 import Perform.Timestamp (Timestamp)
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.RealTime as RealTime
 
 
 data Cache = Cache {
@@ -29,7 +30,7 @@ data Cache = Cache {
     cache_config :: Instrument.Config
     -- | Which chunks were reperformed due to damage, /not including/ the
     -- chunks rederived due to a failed splice.  The reason is laziness, see
-    -- 'cache_stats'.
+    -- 'cache_stats'.  This is just here to calculate stats after the fact.
     , cache_damage :: Ranges.Ranges ChunkNum
     , cache_chunks :: Chunks
     } deriving (Show)
@@ -110,7 +111,8 @@ cache_chunk_size :: Timestamp
 cache_chunk_size = Timestamp.seconds 4
 
 to_chunknum :: RealTime -> ChunkNum
-to_chunknum = floor . (/ Timestamp.to_real_time cache_chunk_size)
+to_chunknum =
+    RealTime.to_int . (`RealTime.div` Timestamp.to_seconds cache_chunk_size)
 
 chunks_duration :: ChunkNum -> RealTime
 chunks_duration n = fromIntegral n * Timestamp.to_real_time cache_chunk_size
@@ -143,10 +145,11 @@ perform cache (EventDamage damage) events
         cache { cache_chunks = chunks, cache_damage = damage }
     config = cache_config cache
 
--- | Like the damage ranges, the chunk ranges are half-open.
+-- | The chunk ranges are half-open.  Damage ranges are as well, except that
+-- zero duration damage is still damage.  ChunkNums are integers so I don't
+-- have to worry about that.
 chunk_damage :: [(RealTime, RealTime)] -> [(ChunkNum, ChunkNum)]
-chunk_damage = map $ \(s, e) -> (floor (s / size), ceiling (e / size))
-    where size = Timestamp.to_real_time cache_chunk_size
+chunk_damage = map $ \(s, e) -> (to_chunknum s, to_chunknum e + 1)
 
 -- * implementation
 
@@ -175,7 +178,7 @@ perform_cache config chunknum (cached : rest_cache) prev_state events
         damage@((start, end) : rest_damage)
     | chunknum < start =
         cached : perform_rest (chunk_state cached) events damage
-    | chunknum+1 >= end = -- will be > for point damage, like (1, 1)
+    | chunknum+1 >= end =
         -- Check the final state of a damaged range against its old value.
         -- If they're compatible, the cache afterwards is still valid.
         case incompatible (chunk_state cached) (chunk_state new_chunk) of

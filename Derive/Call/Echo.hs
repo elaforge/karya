@@ -10,6 +10,7 @@
 module Derive.Call.Echo where
 
 import Ui
+import qualified Ui.Types as Types
 
 import qualified Derive.Call as Call
 import Derive.CallSig (optional, required_control, control)
@@ -17,6 +18,7 @@ import qualified Derive.CallSig as CallSig
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
 
+import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
 
@@ -35,7 +37,8 @@ note_calls = Derive.make_calls
 c_delay :: Derive.NoteCall
 c_delay = Derive.transformer "delay" $ \args deriver -> CallSig.call1 args
     (optional "time" (required_control "delay-time")) $ \time ->
-    Call.with_controls [time] $ \[time] -> Derive.d_at (ScoreTime time) deriver
+    Call.with_controls [time] $ \[time] ->
+        Derive.d_at (Types.ScoreTime time) deriver
 
 -- | This echo works on Derivers instead of Events, which means that the echoes
 -- happen in score time, so they will change tempo with the rest of the score,
@@ -89,13 +92,13 @@ c_event_echo = Derive.transformer "post echo" $ \args deriver ->
                 go delay feedback times) () events
         return $ Derive.merge_asc_events result
     where
-    go delay feedback times () event =
-        return (echo_event (RealTime delay) feedback (floor times) event, ())
+    go delay feedback times () event = return
+        (echo_event (RealTime.seconds delay) feedback (floor times) event, ())
 
 echo_event :: RealTime -> Double -> Int -> Score.Event -> [Score.Event]
 echo_event delay feedback times event = event : map (echo event) [1..times]
     where
     echo event n = Score.modify_velocity (*feedback^n) $ Score.move (+d) event
-        where d = delay * RealTime (fromIntegral n)
+        where d = delay * RealTime.seconds (fromIntegral n)
     -- about efficiency... should be ok with lazy signals?  Or clip signals
     -- on event creation?

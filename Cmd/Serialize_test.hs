@@ -24,9 +24,8 @@ test_serialize = do
 
 test_negative_zero = do
     -- make sure negative zero is encoded properly
-    equal (recode (ScoreTime 0)) 0
-    equal (recode (ScoreTime (-0))) (-0.0)
-
+    equal (recode (0 :: ScoreTime)) 0
+    equal (recode (-0 :: ScoreTime)) (-0.0)
 
 recode :: Binary.Binary a => a -> a
 recode = Binary.decode . Binary.encode

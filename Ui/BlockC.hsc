@@ -295,8 +295,7 @@ update_entire_track :: ViewId -> TrackNum -> Block.Tracklike
     -> [Track.TrackEvents] -> Fltk ()
 update_entire_track view_id tracknum tracklike merged =
     -- -1 is special cased in c++.
-    update_track view_id tracknum tracklike merged
-        (ScoreTime (-1)) (ScoreTime (-1))
+    update_track view_id tracknum tracklike merged (-1) (-1)
 
 foreign import ccall "insert_track"
     c_insert_track :: Ptr CView -> CInt -> Ptr TracklikePtr -> CInt

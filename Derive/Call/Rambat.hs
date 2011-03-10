@@ -8,6 +8,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Call as Call
 import qualified Derive.TrackLang as TrackLang
 
+import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
 
@@ -58,6 +59,7 @@ stretch prev next offset = do
     real_prev <- Derive.score_to_real prev
     real_next <- Derive.score_to_real next
     -- Try to use the offset, but use the midpoint if there isn't room.
-    let real_pos = max (real_next - offset) ((real_prev + real_next) / 2)
+    let real_pos = max (real_next - offset)
+            ((real_prev + real_next) `RealTime.div` 2)
     pos <- Derive.real_to_score real_pos
     return (pos, next - pos)

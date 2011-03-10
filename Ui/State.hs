@@ -42,6 +42,7 @@ import qualified Util.Tree as Tree
 
 import Ui
 import qualified Ui.Block as Block
+import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
@@ -471,9 +472,7 @@ get_zoom view_id = fmap Block.view_zoom (get_view view_id)
 set_zoom :: (M m) => ViewId -> Types.Zoom -> m ()
 set_zoom view_id zoom =
     modify_view view_id (\view -> view { Block.view_zoom = clamped })
-    where
-    clamped = zoom
-        { Types.zoom_offset = max (ScoreTime 0) (Types.zoom_offset zoom) }
+    where clamped = zoom { Types.zoom_offset = max 0 (Types.zoom_offset zoom) }
 
 set_track_scroll :: (M m) => ViewId -> Types.Width -> m ()
 set_track_scroll view_id offset =
@@ -562,14 +561,14 @@ set_block_config :: (M m) => BlockId -> Block.Config -> m ()
 set_block_config block_id config =
     modify_block block_id (\block -> block { Block.block_config = config })
 
-set_edit_box :: (M m) => BlockId -> Color -> Char -> m ()
+set_edit_box :: (M m) => BlockId -> Color.Color -> Char -> m ()
 set_edit_box block_id color char = do
     block <- get_block block_id
     set_block_config block_id $
         (Block.block_config block) { Block.config_track_box = (color, char) }
 
 -- | The play box doesn't use a char, so I leave that out.
-set_play_box :: (M m) => BlockId -> Color -> m ()
+set_play_box :: (M m) => BlockId -> Color.Color -> m ()
 set_play_box block_id color = do
     block <- get_block block_id
     set_block_config block_id $
@@ -581,7 +580,7 @@ ruler_end :: (M m) => BlockId -> m ScoreTime
 ruler_end block_id = do
     block <- get_block block_id
     case Block.block_ruler_ids block of
-        [] -> return $ ScoreTime 0
+        [] -> return 0
         ruler_id : _ -> Ruler.time_end <$> get_ruler ruler_id
 
 -- | Get the end of the block according to the last event of the block.
@@ -589,7 +588,7 @@ event_end :: (M m) => BlockId -> m ScoreTime
 event_end block_id = do
     block <- get_block block_id
     track_ends <- mapM track_end (Block.block_track_ids block)
-    return $ maximum (ScoreTime 0 : track_ends)
+    return $ maximum (0 : track_ends)
 
 -- ** skeleton
 
@@ -957,7 +956,7 @@ modify_track_title track_id f = _modify_track track_id $ \track ->
 set_track_title :: (M m) => TrackId -> String -> m ()
 set_track_title track_id text = modify_track_title track_id (const text)
 
-set_track_bg :: (M m) => TrackId -> Color -> m ()
+set_track_bg :: (M m) => TrackId -> Color.Color -> m ()
 set_track_bg track_id color = _modify_track track_id $ \track ->
     track { Track.track_bg = color }
 

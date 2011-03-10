@@ -1,5 +1,6 @@
 module Perform.SignalBase_test where
 
+import qualified Util.Seq as Seq
 import Util.Test
 
 import Perform.Signal (Y) -- use the instances for Y from Signal
@@ -16,9 +17,9 @@ unvec = SignalBase.unsignal
 
 test_at = do
     let range low high sig = [SignalBase.at p (SignalBase.signal sig)
-            | p <- [low..high-1]] :: [Y]
+            | p <- Seq.range low (high-1) 1] :: [Y]
     equal (range 0 4 []) [0, 0, 0, 0]
-    equal (range 0 5 (zip [0..] [0, 0.25, 0.5, 0.75, 1]))
+    equal (range 0 5 (zip (Seq.range_ 0 1) [0, 0.25, 0.5, 0.75, 1]))
         [0, 0.25, 0.5, 0.75, 1]
 
     -- Values before the first sample take its value.
@@ -30,7 +31,8 @@ test_at = do
 
 test_at_linear = do
     let f vec x = SignalBase.at_linear x vec
-    equal (map (f (mkvec [(2, 2), (4, 0)])) [0..5]) [2, 2, 2, 1, 0, 0]
+    equal (map (f (mkvec [(2, 2), (4, 0)])) (Seq.range 0 5 1))
+        [2, 2, 2, 1, 0, 0]
     equal (f (mkvec [(0, 2), (2, 0)]) (-1)) 2
 
 -- * transformation
@@ -75,7 +77,7 @@ test_sig_op = do
     equal (f [(0, 0), (2, 2), (4, 0)] [(0, 1)])
         [(0, 1), (2, 3), (4, 1)]
     equal (f [(0, 0), (2, 2), (4, 0)] [(1, 1), (3, 0)])
-        [(0, 0), (1, 1), (2, 3), (3, 2), (4, 0)]
+        [(0, 1), (1, 1), (2, 3), (3, 2), (4, 0)]
 
 test_map_signal_accum = do
     let go accum x0 y0 x1 y1 = (accum+1, [(x0, y0), (x1, y1)])

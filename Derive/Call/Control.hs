@@ -5,13 +5,12 @@ import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
 import Ui
-import qualified Ui.Types as Types
-
 import qualified Derive.Call as Call
 import Derive.CallSig (required, optional)
 import qualified Derive.CallSig as CallSig
 import qualified Derive.Derive as Derive
 
+import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
 
@@ -62,10 +61,10 @@ c_slide = Derive.generator1 "slide" $ \args -> CallSig.call2 args
     (required "val", optional "time" 0.1) $ \val time -> do
         start <- Derive.now
         end <- case Derive.passed_next_begin args of
-            Nothing -> return $ start + RealTime time
+            Nothing -> return $ start + RealTime.seconds time
             Just n -> do
                 next <- Derive.score_to_real n
-                return $ min (start + RealTime time) next
+                return $ min (start + RealTime.seconds time) next
         srate <- Call.get_srate
         case Derive.passed_prev_val args of
                 Nothing -> do
@@ -101,7 +100,8 @@ interpolator srate f include_initial x0 y0 x1 y1
     | otherwise = Signal.signal (drop 1 sig)
     where
     sig = [(x, y_of x) | x <- Seq.range x0 x1 srate]
-    y_of = Num.scale y0 y1 . f . Types.real_to_double . Num.normalize x0 x1
+    y_of = Num.scale y0 y1 . f . Num.normalize (secs x0) (secs x1) . secs
+    secs = RealTime.to_seconds
 
 -- * util
 

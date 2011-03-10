@@ -21,6 +21,7 @@ import qualified Ui.Types as Types
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
+import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
 import qualified Derive.Stack as Stack
@@ -149,17 +150,20 @@ data Warp = Warp {
 
 pretty_warp :: Warp -> ([RealTime], ScoreTime, ScoreTime)
 pretty_warp (Warp sig shift stretch) =
-    ([Signal.y_to_real (Signal.at_linear n sig) | n <- [0..3]], shift, stretch)
+    ([Signal.y_to_real (Signal.at_linear n sig) | n <- [0, 1, 2, 3]],
+        shift, stretch)
 
 -- | Convert a Signal to a Warp.
 signal_to_warp :: Signal.Warp -> Warp
-signal_to_warp sig = Warp sig (ScoreTime 0) (ScoreTime 1)
+signal_to_warp sig = Warp sig 0 1
 
 id_warp :: Warp
 id_warp = signal_to_warp id_warp_signal
 
 id_warp_signal :: Signal.Warp
-id_warp_signal = Signal.signal [(0, 0), (Signal.max_x, Signal.max_y)]
+    -- TODO this is ugly, but would disappear if I decide to make warps
+    -- implicitly end with 1/1
+id_warp_signal = Signal.signal [(0, 0), (RealTime.seconds (2^32), 2^32)]
 
 is_id_warp :: Warp -> Bool
 is_id_warp = (== id_warp)
@@ -179,7 +183,7 @@ warp_pos pos warp@(Warp sig shift stretch)
 unwarp_pos :: RealTime -> Warp -> Maybe ScoreTime
 unwarp_pos pos (Warp sig shift stretch) = case Signal.inverse_at pos sig of
     Nothing -> Nothing
-    Just p -> Just $ (Types.real_to_score p - shift) / stretch
+    Just p -> Just $ (to_score p - shift) / stretch
 
 -- | Compose two warps.  Warps with id signals are optimized.
 compose_warps :: Warp -> Warp -> Warp
@@ -205,8 +209,9 @@ compose_warps
 warp_to_signal :: Warp -> Signal.Warp
 warp_to_signal (Warp sig shift stretch)
     | stretch == 1 && shift == 0 = sig
-    | otherwise =
-        Signal.map_x ((/ to_real stretch) . subtract (to_real shift)) sig
+    | otherwise = Signal.map_x
+        ((`RealTime.div` factor) . subtract (to_real shift)) sig
+    where factor = Types.score_to_double stretch
 
 -- ** warp util
 
@@ -286,5 +291,5 @@ c_breath = Control "breath"
 
 -- * util
 
-to_real = Types.score_to_real
-to_score = Types.real_to_score
+to_real = RealTime.score
+to_score = RealTime.to_score

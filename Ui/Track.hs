@@ -25,12 +25,12 @@ event start dur txt = (start, Event.event txt dur)
 data Track = Track {
     track_title :: String
     , track_events :: TrackEvents
-    , track_bg :: Color
+    , track_bg :: Color.Color
     , track_render :: RenderConfig
     } deriving (Eq, Show, Read)
 
 -- | Construct an empty Track.
-track :: String -> [PosEvent] -> Color -> RenderConfig -> Track
+track :: String -> [PosEvent] -> Color.Color -> RenderConfig -> Track
 track title events bg render =
     Track title (insert_events events empty_events) bg render
 

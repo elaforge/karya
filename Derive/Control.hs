@@ -20,7 +20,6 @@ import qualified Util.Ranges as Ranges
 
 import Ui
 import qualified Ui.Track as Track
-import qualified Ui.Types as Types
 
 import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
@@ -33,6 +32,7 @@ import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.PitchSignal as PitchSignal
+import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
 
@@ -68,8 +68,7 @@ eval_track block_id track_id expr ctype deriver = do
             pitch_call block_end track_id maybe_name ptype expr events deriver
 
 -- | A tempo track is derived like other signals, but in absolute time.
--- Otherwise it would wind up being composed with the environmental
--- warp twice.
+-- Otherwise it would wind up being composed with the environmental warp twice.
 tempo_call :: BlockId -> TrackId
     -> Derive.Deriver (TrackResults Signal.Control)
     -> Derive.EventDeriver -> Derive.EventDeriver
@@ -89,7 +88,7 @@ tempo_call block_id track_id sig_deriver deriver = do
         case Ranges.extract ranges of
             Nothing -> Ranges.everything
             Just [] -> Ranges.nothing
-            Just ((s, _) : _) -> Ranges.range s Types.max_real_time
+            Just ((s, _) : _) -> Ranges.range s RealTime.max
 
 control_call :: TrackId -> Score.Control -> Maybe TrackLang.CallId
     -> Derive.Deriver (TrackResults Signal.Control)
@@ -230,7 +229,7 @@ _extend_damage sample sig (Derive.EventDamage ranges) = Derive.EventDamage $
         where
         end = case sample e sig of
             _ : (x, _) : _ -> x
-            _ -> Types.max_real_time
+            _ -> RealTime.max
 
 
 -- * TrackSignal

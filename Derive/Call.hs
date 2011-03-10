@@ -96,6 +96,7 @@ import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
+import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
 
@@ -195,7 +196,7 @@ default_relative_note args
 -- ** derive ops
 
 get_srate :: Derive.Deriver RealTime
-get_srate = RealTime <$> Derive.require_val TrackLang.v_srate
+get_srate = RealTime.seconds <$> Derive.require_val TrackLang.v_srate
 
 get_scale :: Derive.Deriver Scale.Scale
 get_scale = Derive.get_scale =<< get_scale_id

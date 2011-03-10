@@ -11,6 +11,7 @@ import qualified Ui.Event as Event
 import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Ui.Track as Track
+import qualified Ui.Types as Types
 
 import qualified Cmd.Clip as Clip
 import qualified Cmd.Cmd as Cmd
@@ -22,6 +23,7 @@ import qualified Perform.Signal as Signal
 import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.RealTime as RealTime
 
 import qualified App.Config as Config
 
@@ -45,10 +47,10 @@ type ScoreEvent = (Double, Double, String, Pitch.Degree)
 type PerfEvent = (String, Double, Double, Pitch.NoteNumber)
 
 from_score :: ScoreTime -> Double
-from_score (ScoreTime d) = d
+from_score (Types.ScoreTime d) = d
 
 from_real :: RealTime -> Double
-from_real (RealTime d) = d
+from_real = RealTime.to_seconds
 
 event :: Track.PosEvent -> Event
 event (start, event) = (from_score start,
@@ -120,4 +122,4 @@ convert_track (id_name, title, events) = do
 
 convert_event :: Event -> Track.PosEvent
 convert_event (start, dur, text) =
-    (ScoreTime start, Event.event text (ScoreTime dur))
+    (Types.ScoreTime start, Event.event text (Types.ScoreTime dur))

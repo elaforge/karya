@@ -1,6 +1,8 @@
 module Perform.Signal_test where
+import qualified Util.Seq as Seq
 import Util.Test
 
+import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
 
@@ -11,16 +13,16 @@ unsig = Signal.unsignal
 
 test_inverse_at = do
     let f sig pos_list = Signal.inverse_at pos_list (mksig sig)
-    equal (map (f [(0, 0), (2, 2)]) [0..3])
+    equal (map (f [(0, 0), (2, 2)]) (Seq.range 0 3 1))
         [Just 0, Just 1, Just 2, Nothing]
-    equal (map (f [(1, 1), (2, 2)]) [0..3])
+    equal (map (f [(1, 1), (2, 2)]) (Seq.range 0 3 1))
         [Just 0, Just 1, Just 2, Nothing]
     -- Flat curve.
-    equal (map (f [(1, 1), (2, 1), (3, 2)]) [0..3])
+    equal (map (f [(1, 1), (2, 1), (3, 2)]) (Seq.range 0 3 1))
         [Just 0, Just 1, Just 3, Nothing]
     -- Vertical discontinuity.  Signals shouldn't have those but it doesn't
     -- hurt to handle them correctly anyway.
-    equal (map (f [(1, 1), (1, 2), (2, 3)]) [0..4])
+    equal (map (f [(1, 1), (1, 2), (2, 3)]) (Seq.range 0 4 1))
         [Just 0, Just 1, Just 1, Just 2, Nothing]
 
 test_compose = do
@@ -42,7 +44,7 @@ test_compose = do
 test_integrate = do
         -- strip off the padding that integrate appends
     let f samples = take nxs $ unsig $ Signal.integrate 1 (mksig samples)
-            where nxs = floor (fst (last samples)) + 1
+            where nxs = floor (RealTime.to_seconds (fst (last samples))) + 1
 
     equal (f [(0, 1), (3, 2)])
         [(0, 0), (1, 1), (2, 2), (3, 3)]

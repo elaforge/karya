@@ -63,18 +63,18 @@ import qualified Ui.Event as Event
 import qualified Ui.State as State
 import qualified Ui.Symbol as Symbol
 import qualified Ui.Track as Track
-import qualified Ui.Types as Types
-
-import qualified Perform.PitchSignal as PitchSignal
-import qualified Perform.Signal as Signal
-import qualified Perform.Pitch as Pitch
-import qualified Perform.Transport as Transport
 
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
 import qualified Derive.TrackWarp as TrackWarp
+
+import qualified Perform.Pitch as Pitch
+import qualified Perform.PitchSignal as PitchSignal
+import qualified Perform.RealTime as RealTime
+import qualified Perform.Signal as Signal
+import qualified Perform.Transport as Transport
 
 
 -- * DeriveT
@@ -1218,7 +1218,7 @@ d_tempo block_id maybe_track_id signal deriver = do
             --     ++ show (block_id, block_dur, real_dur)
             when (block_dur == 0) $
                 throw $ "can't derive a block with zero duration"
-            return (d_stretch (1 / Types.real_to_score real_dur))
+            return (d_stretch (1 / RealTime.to_score real_dur))
     stretch_to_1 $ d_warp warp $ do
         add_new_track_warp maybe_track_id
         deriver

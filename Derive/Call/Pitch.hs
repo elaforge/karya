@@ -7,8 +7,6 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import Ui
-import qualified Ui.Types as Types
-
 import qualified Derive.Call as Call
 import qualified Derive.Call.Control as Control
 import qualified Derive.Derive as Derive
@@ -18,6 +16,7 @@ import Derive.CallSig (optional, required)
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
+import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
 
@@ -98,10 +97,10 @@ c_note_slide = Derive.generator1 "note_slide" $ \args ->CallSig.call2 args
     (required "degree", optional "time" 0.1) $ \degree time -> do
         start <- Derive.now
         end <- case Derive.passed_next_begin args of
-            Nothing -> return $ start + RealTime time
+            Nothing -> return $ start + RealTime.seconds time
             Just n -> do
                 next <- Derive.score_to_real n
-                return $ min (start + RealTime time) next
+                return $ min (start + RealTime.seconds time) next
         scale_id <- Call.get_scale_id
         srate <- Call.get_srate
         case Derive.passed_prev_val args of
@@ -124,7 +123,7 @@ c_neighbor = Derive.generator1 "neighbor" $ \args -> do
     CallSig.call3 args (required "degree", optional "neighbor" 1,
         optional "time" 0.1) $ \degree neighbor time -> do
             start <- Derive.now
-            let end = start + RealTime time
+            let end = start + RealTime.seconds time
             scale_id <- Call.get_scale_id
             srate <- Call.get_srate
             return $ interpolator srate id scale_id True
@@ -157,6 +156,7 @@ interpolator srate f scale_id include_initial x0 y0 x1 y1
     where
     sig = let s = [(x, (fy0, fy1, y_of x)) | x <- Seq.range x0 x1 srate]
         in if include_initial then s else drop 1 s
-    y_of = Num.d2f . f . Types.real_to_double . Num.normalize x0 x1
+    y_of = Num.d2f . f . Num.normalize (secs x0) (secs x1) . secs
+    secs = RealTime.to_seconds
     (fy0, fy1) = (to_f y0, to_f y1)
     to_f (Pitch.Degree d) = Num.d2f d

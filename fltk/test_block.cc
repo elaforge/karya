@@ -311,7 +311,7 @@ control_track_signal()
     TrackSignal::ControlSample *samples = (TrackSignal::ControlSample *)
         calloc(length, sizeof(TrackSignal::ControlSample));
     for (int i = 0; i < length; i++) {
-        samples[i].time = ScoreTime(i);
+        samples[i].time = ScoreTime(i).to_real();
         samples[i].val = fmod(i / 60.0, 1);
     }
     ts->signal = samples;
@@ -346,15 +346,16 @@ pitch_track_signal()
     TrackSignal::PitchSample *samples = (TrackSignal::PitchSample *)
         calloc(length, sizeof(TrackSignal::PitchSample));
     for (; i < 20; i++) {
-        samples[i] = TrackSignal::PitchSample(ScoreTime(i), 2, 4, i / 20.0);
+        samples[i] = TrackSignal::PitchSample(
+            ScoreTime(i).to_real(), 2, 4, i / 20.0);
     }
     for (; i < 40; i++) {
-        samples[i] = TrackSignal::PitchSample(ScoreTime(i), 1, 3,
-            (i-20) / 20.0);
+        samples[i] = TrackSignal::PitchSample(
+            ScoreTime(i).to_real(), 1, 3, (i-20) / 20.0);
     }
     for (; i < 80; i++) {
-        samples[i] = TrackSignal::PitchSample(ScoreTime(i), 1.5, 3.5,
-            (i-40) / 40.0);
+        samples[i] = TrackSignal::PitchSample(
+            ScoreTime(i).to_real(), 1.5, 3.5, (i-40) / 40.0);
     }
 
     ts->signal = NULL;

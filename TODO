@@ -12,15 +12,52 @@ search then none of this is necessary.
 
 CURRENT
   * importer for mods
-  - wtf is up with the random pitch changes?  performer bug?
+  - tests run with TESTING macro, use ifdefs for exports?
+  * signals are not clipped properly to their events due to double imprecision
+    RealTime can be an integral type to round that stuff away
+    Putting controls beneath their note tracks would solve this too
+  - a tempo track with just one sample can be optimized
+  * make RealTime an integral type
+    do I want an integral ScoreTime as well?
+      It means I need a separate type for tempo signals, unless I want controls
+      to be fixed point as well... I guess no reason not to actually, except
+      that it must be signed.
+    - remove Timestamp
+    OS X uses nanos, I think, at least it converts to it:
+      AudioConvertHostTimeToNanos(AudioGetCurrentHostTime())
+    ms are not accurate enough for audio samples and as long as I'm using
+    int64 I might as well crank it up.
+    1khz = 1ms
+    44khz = 0.027272 ms = 22.675us
+  signals below note track
+    also solves the non-integral real problem above
+    I think this means I don't need to worry about lazy signals anymore
+    for tempo track, I can interpret the last sample as 1/1 instead of 0/1
+    think about how I can use it to write sekaran
+
   * cmd to collapse all pitch tracks in a block
   - add logview support for Cmd.PitchTrack.log_event
   - ^a once selects track, again selects entire block
   - ^e on a note transposes the one before it, Selection.events is wrong?
   - cmd to resize certain tracks, e.g. shrink down 'vel' tracks
   - scrolling is slow with more than a few events onscreen
+  - Ranges.to_pairs or whatever is confusing how it returns Nothing, use
+    a custom type
   * move _then functions
   * implement transpose cmd
+  better logging for cache
+    - msgs should give context: which block were they deriving
+    - time to catch up to now
+    - why am I getting splice failed and succeeded at the same time?  is
+      midi not filtering out log msgs?
+    - reperformed msg should be 0-12s cached, 12-15s reperformed, 15-end cached
+    derive
+      - cache misses, clickable stack ranges
+    perform
+      - event damage, and total range
+      - seconds reperformed, seconds from cache, total seconds
+      - splice status
+
   - fix LPitch.note_to_degree
   * muting the first track with no tempo makes the block not derive
   - fix the broken way Cmd.Schema infers scale and instrument
@@ -66,6 +103,7 @@ CURRENT
     - last step of performer is to compact into vector
     * how many msgs in e.g. the ptrio?
       127130, [pno 9205, flute 63748, clarinet 54177]
+      5367 for bloom
       peak for 246114 msgs: 46mb for int, 38.7 for int, 38.7 for w64
 
   performance:

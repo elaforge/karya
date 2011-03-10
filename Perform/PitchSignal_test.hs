@@ -1,22 +1,24 @@
 module Perform.PitchSignal_test where
-
+import Util.Control
 import Util.Test
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
+import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
 
 scale = Pitch.ScaleId "scale"
-mksig = PitchSignal.signal scale
+mksig = PitchSignal.signal scale . map (first RealTime.seconds)
 unsig = PitchSignal.unsignal
 
 test_at = do
     let sig = mksig
             [(0, (2, 0, 0)), (2, (2, 0, 1)), (4, (0, 4, 0)), (6, (0, 4, 1))]
-    equal [PitchSignal.y_to_degree (PitchSignal.at x sig) | x <- [0..7]]
+        at f x = f (RealTime.seconds x) sig
+    equal (map (PitchSignal.y_to_degree . at PitchSignal.at) [0..7])
         (map Pitch.Degree [2, 2, 0, 0, 0, 0, 4, 4])
-    equal [PitchSignal.at_linear x sig | x <- [0..7]]
+    equal (map (at PitchSignal.at_linear) [0..7])
         [2, 1, 0, 0, 0, 2, 4, 4]
 
 test_clip_min_max = do

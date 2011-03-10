@@ -248,7 +248,7 @@ run_update (Update.TrackUpdate track_id update) = do
             Update.TrackBg ->
                 -- update_track also updates the bg color
                 return $ BlockC.update_track view_id tracknum tracklike
-                    merged (ScoreTime 0) (ScoreTime 0)
+                    merged 0 0
             Update.TrackRender ->
                 return $ BlockC.update_entire_track view_id tracknum tracklike
                     merged

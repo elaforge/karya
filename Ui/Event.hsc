@@ -98,7 +98,7 @@ newtype StyleId = StyleId Word8
     deriving (Eq, Show, Read)
 
 data Style = Style {
-    style_color :: Color
+    style_color :: Color.Color
     , style_text :: Font.EventStyle
     } deriving (Eq, Show, Read)
 

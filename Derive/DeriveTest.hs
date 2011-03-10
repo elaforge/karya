@@ -7,6 +7,7 @@ import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Log as Log
+import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
@@ -35,6 +36,7 @@ import qualified Perform.Timestamp as Timestamp
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
+import qualified Perform.RealTime as RealTime
 
 import qualified Instrument.Db
 import qualified Instrument.MidiDb as MidiDb
@@ -47,8 +49,11 @@ scale_id = Twelve.scale_id
 -- interpolators.
 pitch_interpolate :: RealTime -> Float -> RealTime -> Float
     -> [(RealTime, PitchSignal.Y)]
-pitch_interpolate x0 y0 x1 y1 = drop 1 [(x, (y0, y1, to_n x)) | x <- [x0 .. x1]]
-    where to_n x = realToFrac (x - x0) / fromIntegral (length [x0 .. x1] - 1)
+pitch_interpolate x0 y0 x1 y1 =
+    drop 1 [(x, (y0, y1, Num.d2f (to_n x))) | x <- Seq.range x0 x1 1]
+    where
+    to_n x = RealTime.to_seconds (x - x0) /
+        fromIntegral (length (Seq.range x0 x1 1) - 1)
 
 -- * run
 

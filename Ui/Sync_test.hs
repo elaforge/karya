@@ -21,7 +21,6 @@ import qualified Control.Exception as Exception
 import Util.Test
 import qualified Util.Seq as Seq
 
-import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Diff as Diff
@@ -30,7 +29,6 @@ import qualified Ui.Ruler as Ruler
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.Sync as Sync
-import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 import qualified Ui.Ui as Ui
 
@@ -51,7 +49,7 @@ initialize f = do
 test_create_resize_destroy_view = do
     state <- io_human "view with selection and titles" $ run State.empty $ do
         v1 <- setup_state
-        State.set_selection v1 0 (Types.point_selection 1 (ScoreTime 20))
+        State.set_selection v1 0 (Types.point_selection 1 20)
         view <- State.get_view v1
         State.set_block_title (Block.view_block view) "new block!"
         State.set_track_title t_track1_id "new track"
@@ -95,8 +93,7 @@ test_set_view_config = do
 test_set_block_config = do
     state <- run State.empty $ do
         setup_state
-        State.set_selection t_view_id 0
-            (Types.selection 1 (ScoreTime 10) 2 (ScoreTime 60))
+        State.set_selection t_view_id 0 (Types.selection 1 10 2 60)
     io_human "selections, bg, and boxes go red" $ run state $ do
         block <- State.get_block t_block_id
         let config = Block.block_config block
@@ -124,21 +121,21 @@ test_zoom_scroll = do
     state <- run State.empty $ do
         v1 <- setup_state
         State.insert_events t_track1_id
-            [ (ScoreTime 0, Event.event "one" 10)
-            , (ScoreTime 10, Event.event "scrunch" 6)
-            , (ScoreTime 20, Event.event "two" 32)
-            , (ScoreTime 100, Event.event "last" 64)
+            [ (0, Event.event "one" 10)
+            , (10, Event.event "scrunch" 6)
+            , (20, Event.event "two" 32)
+            , (100, Event.event "last" 64)
             ]
     state <- io_human "scrolls to bottom" $ run state $ do
-        State.set_zoom t_view_id (Types.Zoom (ScoreTime 128) 1)
+        State.set_zoom t_view_id (Types.Zoom 128 1)
     state <- io_human "scrolls back up" $ run state $ do
-        State.set_zoom t_view_id (Types.Zoom (ScoreTime 0) 1)
+        State.set_zoom t_view_id (Types.Zoom 0 1)
     state <- io_human "zoom in to 2" $ run state $ do
-        State.set_zoom t_view_id (Types.Zoom (ScoreTime 0) 2)
+        State.set_zoom t_view_id (Types.Zoom 0 2)
     state <- io_human "zoom out to .5" $ run state $ do
-        State.set_zoom t_view_id (Types.Zoom (ScoreTime 0) 0.5)
+        State.set_zoom t_view_id (Types.Zoom 0 0.5)
     state <- io_human "zoom out to 0, should clamp at a low number" $
-        run state $ State.set_zoom t_view_id (Types.Zoom (ScoreTime 0) 0)
+        run state $ State.set_zoom t_view_id (Types.Zoom 0 0)
     return ()
 
 test_set_status = do
@@ -226,8 +223,8 @@ test_update_track = do
     state <- io_human "create view with one track" run_setup
 
     state <- io_human "add events, get wider, turn green" $ run state $ do
-        State.insert_events t_track1_id [(ScoreTime 70, Event.event "last1" 10),
-            (ScoreTime 90, Event.event "last2" 15)]
+        State.insert_events t_track1_id [(70, Event.event "last1" 10),
+            (90, Event.event "last2" 15)]
         State.set_track_width t_view_id 1 50
         State.set_track_bg t_track1_id Color.green
     return ()
@@ -249,8 +246,7 @@ test_create_track = do
     let msg = "new track with selectio and new title, all bgs green"
     state <- io_human msg $ run state $ do
         insert_track t_block_id 1 (Block.TId t_track1_id t_ruler_id) 50
-        State.set_selection t_view_id 0
-            (Types.selection 1 (ScoreTime 10) 1 (ScoreTime 60))
+        State.set_selection t_view_id 0 (Types.selection 1 10 1 60)
         State.set_track_title t_track1_id "new track"
         State.set_track_bg t_track1_id Color.green
     return ()
@@ -267,21 +263,18 @@ test_alter_track = do
                 Seq.modify_at (Block.block_tracks block) 1 set_ruler }
     return ()
 
-
 test_selection = do
     state <- run_setup
     state <- io_human "selection is set" $ run state $ do
-        State.set_selection t_view_id 0
-            (Types.selection 0 (ScoreTime 10) 1 (ScoreTime 20))
+        State.set_selection t_view_id 0 (Types.selection 0 10 1 20)
     state <- io_human "selection is cleared" $ run state $ do
-        State.set_selection t_view_id 0
-            (Types.selection 0 (ScoreTime 10) 0 (ScoreTime 20))
+        State.set_selection t_view_id 0 (Types.selection 0 10 0 20)
     return ()
 
 
 cues_marklist = Ruler.marklist "cues"
-    [ (ScoreTime 0, UiTest.mark "start")
-    , (ScoreTime 90, UiTest.mark "head explodes")
+    [ (0, UiTest.mark "start")
+    , (90, UiTest.mark "head explodes")
     ]
 
 test_modify_ruler = do
@@ -297,9 +290,8 @@ test_modify_ruler = do
 -- | Selection is correct even when tracks are added or deleted.
 test_selection_change_tracks = do
     state <- run_setup
-    state <- run state $ do
-        State.set_selection t_view_id 0
-            (Types.selection 1 (ScoreTime 10) 1 (ScoreTime 20))
+    state <- run state $
+        State.set_selection t_view_id 0 (Types.selection 1 10 1 20)
     state <- io_human "sel moves when new track is added" $ run state $ do
         insert_track t_block_id 1 (Block.TId t_track1_id t_ruler_id) 40
     state <- io_human "sel moves back" $ run state $ do
@@ -313,8 +305,7 @@ test_insert_into_selection = do
         insert_track t_block_id 1 (Block.TId t2 t_ruler_id) 60
         t3 <- create_track "b1.t3" UiTest.event_track_2
         insert_track t_block_id 2 (Block.TId t2 t_ruler_id) 60
-        State.set_selection v1 0
-            (Types.selection 0 (ScoreTime 10) 2 (ScoreTime 60))
+        State.set_selection v1 0 (Types.selection 0 10 2 60)
     state <- io_human "insert into sel, gets bigger" $ run state $ do
         insert_track t_block_id 1 (Block.TId t_track1_id t_ruler_id) 20
     state <- io_human "remove from sel, gets smaller" $ run state $ do
@@ -323,9 +314,6 @@ test_insert_into_selection = do
 
 insert_track bid tracknum tracklike_id width =
     State.insert_track bid tracknum (Block.block_track tracklike_id width)
-
--- test_set_track_signals = do
---     state <- run_setup
 
 -- * util
 

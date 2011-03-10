@@ -19,6 +19,7 @@ import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.Perform_test as Perform_test
 import qualified Perform.Midi.Cache as Cache
 import qualified Perform.Midi.Control as Control
+import qualified Perform.RealTime as RealTime
 
 
 test_cached_performance = do
@@ -58,7 +59,7 @@ test_cached_performance = do
         ([], [])
 
 test_lazy_performance = do
-    let inf = [(n * 0.5, 0.25) | n <- [0..]]
+    let inf = [(n, 0.25) | n <- Seq.range_ 0 0.5]
     let uncached = perform_uncached (mkevents inf)
     -- Make sure this only forces what performance is necessary.
 
@@ -84,11 +85,13 @@ test_lazy_performance = do
 
 test_messages_from = do
     -- If the dur is always increasing then events don't all look the same.
-    let cache = perform_uncached (mkevents [(n, (n+1)/16) | n <- [0..]])
+    let cache = perform_uncached
+            (mkevents [(n, (n+1) `RealTime.div` 16) | n <- Seq.range_ 0 1])
         f ts = extract_msgs $
             Cache.messages_from (Timestamp.from_millis ts) cache
     -- Extra pitch bend msgs are from the initialization.
     let pb0 = (0, Midi.PitchBend 0)
+
     equal (take 4 (f 0))
         [ pb0
         , (0, Midi.NoteOn 42 100)
@@ -106,7 +109,7 @@ test_messages_from = do
     equal (take 4 (f 6000))
         [ pb0
         , (0, Midi.NoteOn 42 100)
-        , (438, Midi.NoteOff 42 100)
+        , (437, Midi.NoteOff 42 100)
         , (1000, Midi.NoteOn 42 100)
         ]
 

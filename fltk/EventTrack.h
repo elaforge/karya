@@ -27,14 +27,14 @@ struct ValName {
 
 struct TrackSignal {
     struct ControlSample {
-        ScoreTime time;
+        RealTime time;
         double val;
-        ControlSample(ScoreTime time, double val) : time(time), val(val) {}
+        ControlSample(RealTime time, double val) : time(time), val(val) {}
     };
     struct PitchSample {
-        ScoreTime time;
+        RealTime time;
         float from, to, at;
-        PitchSample(ScoreTime time, float from, float to, float at)
+        PitchSample(RealTime time, float from, float to, float at)
             : time(time), from(from), to(to), at(at)
         {}
     };

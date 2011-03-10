@@ -44,7 +44,7 @@ int
 TrackSignal::find_sample(ScoreTime start) const
 {
     if (signal) {
-        ControlSample sample(start, 0);
+        ControlSample sample(start.to_real(), 0);
         ControlSample *found =
             std::lower_bound(signal, signal + length, sample,
                 compare_control_sample);
@@ -53,7 +53,7 @@ TrackSignal::find_sample(ScoreTime start) const
             found--;
         return found - signal;
     } else if (pitch_signal) {
-        PitchSample sample(start, 0, 0, 0);
+        PitchSample sample(start.to_real(), 0, 0, 0);
         PitchSample *found = std::lower_bound(pitch_signal,
             pitch_signal + length, sample, compare_pitch_sample);
         // Back up one to make sure I have the sample before start.
@@ -81,12 +81,13 @@ TrackSignal::find_sample(ScoreTime start) const
 
 
 int
-TrackSignal::time_at(const ZoomInfo &zoom, int i) const {
+TrackSignal::time_at(const ZoomInfo &zoom, int i) const
+{
     ScoreTime at;
     if (signal)
-        at = signal[i].time;
+        at = ScoreTime::from_real(signal[i].time);
     else if (pitch_signal)
-        at = pitch_signal[i].time;
+        at = ScoreTime::from_real(pitch_signal[i].time);
     else
         ASSERT(0);
     return zoom.to_pixels((at - shift).divide(stretch) - zoom.offset);
@@ -99,7 +100,8 @@ TrackSignal::time_at(const ZoomInfo &zoom, int i) const {
 //
 // TODO normalize to a max val
 double
-TrackSignal::val_at(int i, const char **lower, const char **upper) const {
+TrackSignal::val_at(int i, const char **lower, const char **upper) const
+{
     *lower = *upper = NULL;
     if (signal)
         return signal[i].val;

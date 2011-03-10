@@ -50,6 +50,7 @@ import qualified Util.Pretty as Pretty
 
 import Ui
 import qualified Ui.Block as Block
+import qualified Ui.Color as Color
 import qualified Ui.Id as Id
 import qualified Ui.Key as Key
 import qualified Ui.State as State
@@ -335,7 +336,7 @@ data EditState = EditState {
     , state_kbd_entry_octave :: Pitch.Octave
 
     -- | See 'set_edit_box'.
-    , state_edit_box :: (Color, Char)
+    , state_edit_box :: (Color.Color, Char)
     } deriving (Show, Generics.Typeable)
 
 empty_edit_state :: EditState
@@ -582,7 +583,7 @@ set_wdev_state wdev_state =
 -- | At the Ui level, the edit box is per-block, but I use it to indicate edit
 -- mode, which is global.  So it gets stored in Cmd.State and must be synced
 -- with new blocks.
-set_edit_box :: (M m) => Color -> Char -> m ()
+set_edit_box :: (M m) => Color.Color -> Char -> m ()
 set_edit_box color char = do
     modify_edit_state $ \st -> st { state_edit_box = (color, char) }
     block_ids <- State.get_all_block_ids

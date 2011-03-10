@@ -11,6 +11,7 @@ import qualified Data.StorableVector.Base as VectorBase
 import qualified Foreign.Storable as Storable
 
 import Ui
+import qualified Perform.RealTime as RealTime
 
 -- * types
 
@@ -49,16 +50,6 @@ signal = V.pack
 unsignal :: (Signal y) => SigVec y -> [(X, y)]
 unsignal = V.unpack
 
--- * constants
-
--- | Used to create a segment that continues \"forever\".
-max_x :: X
-max_x = RealTime (2^52 - 1) -- 52 bits of mantissa only should be enough
-
--- Later, this should be under deriver control.
-default_srate :: X
-default_srate = RealTime 0.05
-
 -- * access
 
 at :: (Signal y) => X -> SigVec y -> y
@@ -87,7 +78,7 @@ at_linear x vec = interpolate x vec (highest_index x vec)
         (x1, y1) = V.index vec (i+1)
 
 x_to_double :: RealTime -> Double
-x_to_double (RealTime x) = x
+x_to_double = RealTime.to_seconds
 
 -- | Return the highest index of the given X.  So the next value is
 -- guaranteed to have a higher x, if it exists.  Return -1 if @x@ is before

@@ -15,6 +15,8 @@ enumerate = zip [0..]
 
 -- | Enumerate an inclusive range.  Uses multiplication instead of successive
 -- addition to avoid loss of precision.
+--
+-- Also it doesn't require an Enum instance.
 range :: (Num a, Ord a) => a -> a -> a -> [a]
 range start end step = go 0
     where
@@ -22,6 +24,11 @@ range start end step = go 0
         | val >= end = [end]
         | otherwise = val : go (i+1)
         where val = start + (i*step)
+
+-- | Infinite range.
+range_ :: (Num a) => a -> a -> [a]
+range_ start step = go 0
+    where go i = start + (i*step) : go (i+1)
 
 -- * transformation
 

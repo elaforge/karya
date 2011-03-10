@@ -18,7 +18,7 @@ data Ruler = Ruler {
     -- | It's handy for marklists to have symbolic names, but their order is
     -- also important.
     ruler_marklists :: [NameMarklist]
-    , ruler_bg :: Color
+    , ruler_bg :: Color.Color
     , ruler_show_names :: Bool
     , ruler_use_alpha :: Bool
     -- | Align bottoms of marks to beats, instead of the top.  Looks good used
@@ -34,7 +34,7 @@ instance DeepSeq.NFData Ruler where
 
 -- | Get the position of the last mark of the ruler.
 time_end :: Ruler -> ScoreTime
-time_end = maximum . (ScoreTime 0 :) . map (last_pos . snd) . ruler_marklists
+time_end = maximum . (0 :) . map (last_pos . snd) . ruler_marklists
 
 -- | Empty ruler.
 no_ruler :: Ruler
@@ -71,19 +71,19 @@ marklist name posmarks =
 -- pos.  This is because it's convenient for rulers to have a mark at the end.
 clip_marklist :: ScoreTime -> NameMarklist -> NameMarklist
 clip_marklist pos (name, mlist) =
-    marklist name (takeWhile ((<=pos) . fst) (forward mlist (ScoreTime 0)))
+    marklist name (takeWhile ((<=pos) . fst) (forward mlist 0))
 
 -- | Get the position of the last mark.
 last_pos :: Marklist -> ScoreTime
 last_pos (Marklist marray)
-    | i == -1 = ScoreTime 0
+    | i == -1 = 0
     | otherwise = fst (marray ! i)
     where i = snd (IArray.bounds marray)
 
 data Mark = Mark {
     mark_rank :: Int
     , mark_width :: Int
-    , mark_color :: Color
+    , mark_color :: Color.Color
     , mark_name :: String
     , mark_name_zoom_level :: Double
     , mark_zoom_level :: Double

@@ -56,14 +56,13 @@
 -}
 module Perform.Signal (
     Signal(Signal), sig_vec
-    , X, Y, x_to_y, y_to_real, y_to_score, max_x, max_y
-    , default_srate, tempo_srate
+    , X, Y, x_to_y, y_to_real, y_to_score
+    , tempo_srate
     , invalid_pitch, empty
     , Tempo, Warp, Control, NoteNumber, Display
 
-    , signal, constant
-    , length, null
-    , unsignal
+    , signal, unsignal
+    , constant, length, null
     , log_signal
     , coerce
 
@@ -97,9 +96,10 @@ import qualified Util.Num as Num
 import qualified Midi.Midi as Midi
 
 import Ui
+import qualified Ui.Types as Types
 
+import qualified Perform.RealTime as RealTime
 import qualified Perform.SignalBase as SignalBase
-import Perform.SignalBase (max_x, default_srate)
 
 
 -- * types
@@ -164,19 +164,16 @@ instance Monoid.Monoid (Signal y) where
     mconcat = merge
 
 x_to_y :: X -> Y
-x_to_y (RealTime x) = x
+x_to_y = RealTime.to_seconds
 
 y_to_real :: Y -> X
-y_to_real = RealTime
+y_to_real = RealTime.seconds
 
 -- | Some control signals may be interpreted as score time.
 y_to_score :: Y -> ScoreTime
-y_to_score = ScoreTime
+y_to_score = Types.double_to_score
 
 -- * constants
-
-max_y :: Y
-max_y = x_to_y SignalBase.max_x
 
 -- | A pitch that shouldn't be played.  Used for a non-existent pitch or one
 -- that goes out of the range of its scale.
@@ -195,12 +192,16 @@ empty = signal []
 tempo_srate :: X
     -- TODO resolution is very low for the moment since I have neither lazy
     -- signals nor a graphical way to log signals yet
-tempo_srate = 0.1
+tempo_srate = RealTime.seconds 0.1
 
 -- * construction / deconstruction
 
 signal :: [(X, Y)] -> Signal y
 signal ys = Signal (SignalBase.signal ys)
+
+-- | The inverse of the 'signal' function.
+unsignal :: Signal y -> [(X, Y)]
+unsignal = SignalBase.unsignal . sig_vec
 
 constant :: Y -> Signal y
 constant n = signal [(0, n)]
@@ -214,12 +215,8 @@ null = V.null . sig_vec
 -- | A hack to log a signal.  This way it can be extracted later and displayed
 -- in a format that's nicer than a huge log line.
 log_signal :: Signal y -> Log.Msg -> Log.Msg
-log_signal sig msg =
-    msg { Log.msg_signal = [(x, y) | (RealTime x, y) <- unsignal sig] }
-
--- | Used for tests.
-unsignal :: Signal y -> [(X, Y)]
-unsignal = SignalBase.unsignal . sig_vec
+log_signal sig msg = msg { Log.msg_signal =
+    map (Arrow.first RealTime.to_seconds) (unsignal sig) }
 
 -- | Sometimes signal types need to be converted.
 coerce :: Signal y0 -> Signal y1

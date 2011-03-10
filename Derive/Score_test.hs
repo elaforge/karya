@@ -4,9 +4,7 @@ import Util.Test
 
 import qualified Derive.Score as Score
 import qualified Perform.Signal as Signal
-
-mksig = Signal.signal
-unsig = Signal.unsignal
+import qualified Perform.RealTime as RealTime
 
 
 test_compose_warp = do
@@ -17,7 +15,7 @@ test_compose_warp = do
         shift n warp = warp { Score.warp_shift = n }
         stretch n warp = warp { Score.warp_stretch = n }
 
-    equal (f w w) [0..3]
+    equal (f w w) [0, 1, 2, 3]
     equal (f w (shift 2 w)) [2, 3, 4, 5]
     equal (f w (shift 2 (stretch 2 w))) [2, 4, 6, 8]
 
@@ -28,7 +26,7 @@ test_compose_warp = do
     equal (f curve (stretch 2 w)) [0, 1, 5, 9]
 
     let slow = Score.signal_to_warp $ Signal.signal
-            [(n, Signal.x_to_y n*2) | n <- [0..100]]
+            [(RealTime.seconds n, n*2) | n <- [0..100]]
     equal (f slow w) [0, 2, 4, 6]
     equal (f slow (stretch 2 w)) [0, 4, 8, 12]
     equal (f (stretch 2 w) slow) [0, 4, 8, 12]

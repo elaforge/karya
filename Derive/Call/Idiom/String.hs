@@ -19,6 +19,7 @@ import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.PitchSignal as PitchSignal
+import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
 
@@ -132,10 +133,10 @@ process attack_interpolator release_interpolator
     start = Score.event_start event
     emit string
         | string == sounding_string = attack attack_interpolator
-            (RealTime attack_time) degree start prev
+            (RealTime.seconds attack_time) degree start prev
         | otherwise = release release_interpolator
-            (RealTime delay_time) (RealTime release_time) sounding_string
-            start prev
+            (RealTime.seconds delay_time) (RealTime.seconds release_time)
+            sounding_string start prev
     degree = Score.initial_pitch event
 
 -- | Bend the event up to the next note.

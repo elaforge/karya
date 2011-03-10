@@ -6,6 +6,7 @@ import qualified Derive.Score as Score
 import qualified Derive.Derive as Derive
 
 import qualified Perform.Pitch as Pitch
+import qualified Perform.RealTime as RealTime
 
 
 test_tick = do
@@ -31,7 +32,7 @@ test_tick = do
     equal logs []
     equal evts
         [ (0, 2, 60, vel)
-        , (3.5,  0.5, 61, vel*0.5)
+        , (RealTime.seconds 3.5, RealTime.seconds 0.5, 61, vel*0.5)
         , (4, 2, 62, vel)
         ]
 

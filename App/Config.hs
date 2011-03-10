@@ -7,7 +7,6 @@ import System.FilePath ((</>))
 
 import qualified Util.File as File
 
-import Ui
 import qualified Ui.Id as Id
 import qualified Ui.Color as Color
 import qualified Ui.Track as Track
@@ -139,7 +138,7 @@ clip_namespace = "clip"
 clip_block_name :: String
 clip_block_name = "clip"
 
-make_selection_color :: Color -> Color
+make_selection_color :: Color.Color -> Color.Color
 make_selection_color = Color.alpha 0.3 . Color.brightness 1.25
 
 -- * hardcoded configs
