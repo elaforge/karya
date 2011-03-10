@@ -36,12 +36,13 @@ lines = List.unlines . map pretty
 show_float :: (RealFloat a) => Maybe Int -> a -> String
 show_float precision float
     | f == 0 = show i
-    | stripped == "." = "0"
+    | null stripped = "0"
     | otherwise = stripped
     where
     (i, f) = properFraction float
     s = Numeric.showFFloat precision float ""
-    stripped = Seq.rdrop_while (=='0') (dropWhile (=='0') s)
+    stripped = Seq.rdrop_while (=='.') $
+        Seq.rdrop_while (=='0') (dropWhile (=='0') s)
 
 instance Pretty a => Pretty [a] where
     pretty xs = "[" ++ Seq.join ", " (map pretty xs) ++ "]"
