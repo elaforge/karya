@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedStrings #-}
 -- | TrackLang parsers using ByteStrings and Attoparsec.
 --
@@ -12,8 +13,9 @@ module Derive.ParseBs (
     ParseExpr
     , parse_expr, parse_num_expr, parse_control_title
     , parse_val
-    -- * exported for testing
+#ifdef TESTING
     , p_equal
+#endif
 ) where
 import Control.Monad
 import qualified Data.Attoparsec.Char8 as A

@@ -1,10 +1,13 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-} -- instances for RealTime
 module Perform.RealTime where
 import Prelude hiding (div, max)
 import qualified Prelude
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Int as Int
+#ifdef TESTING
 import qualified Data.Ratio as Ratio
+#endif
 import qualified Foreign as Foreign
 
 import qualified Util.Pretty as Pretty
@@ -42,13 +45,17 @@ instance Num RealTime where
     signum (RealTime a) = RealTime (signum a)
     fromInteger = RealTime . (*time_factor) . fromIntegral
 
--- TODO: protect this with TESTING ifdefs
+#ifdef TESTING
+-- This instance is incorrect because you can't divide time by time and get
+-- time.  However, it's needed for floating point literal syntax which is
+-- extremely useful when writing tests.
 instance Fractional RealTime where
     fromRational ratio = seconds $
         fromIntegral (Ratio.numerator ratio)
             / fromIntegral (Ratio.denominator ratio)
     a / b = error $ show a ++ " / " ++ show b
         ++ ": Fractional instance is only for tests"
+#endif
 
 div :: RealTime -> Double -> RealTime
 div a b = seconds (to_seconds a / b)

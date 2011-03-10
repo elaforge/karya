@@ -12,7 +12,7 @@ search then none of this is necessary.
 
 CURRENT
   * importer for mods
-  - tests run with TESTING macro, use ifdefs for exports?
+  * tests run with TESTING macro, use ifdefs for exports?
   * signals are not clipped properly to their events due to double imprecision
     RealTime can be an integral type to round that stuff away
     Putting controls beneath their note tracks would solve this too

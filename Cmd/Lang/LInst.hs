@@ -15,12 +15,12 @@ import Ui
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Info as Info
+import qualified Cmd.Lang.LTrack as LTrack
 
 import qualified Derive.Schema as Schema
 import qualified Derive.Score as Score
 import qualified Derive.TrackInfo as TrackInfo
 
-import qualified Perform.Pitch as Pitch
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 
@@ -69,17 +69,6 @@ all_inst_info = do
     info <- mapM Info.inst_info (Map.keys (Instrument.config_alloc config))
     return $ show (length info) ++ " instruments:\n" ++ Seq.join "\n\n" info
 
--- TODO this should probably go in LTrack or something
-track_info :: BlockId -> TrackNum
-    -> Cmd.CmdL (Schema.TrackType, Maybe Score.Instrument, Pitch.ScaleId)
-track_info block_id tracknum = do
-    track_tree <- State.get_track_tree block_id
-    proj_scale <- State.get_project_scale
-    case Schema.get_track_info proj_scale track_tree (Just tracknum) of
-        (Nothing, _, _) -> Cmd.throw $ "can't get track type for "
-            ++ show block_id ++ " at " ++ show tracknum
-        (Just typ, inst, scale) -> return (typ, inst, scale)
-
 -- | Steps to load a new instrument.  All of them are optional, depending on
 -- the circumstances.
 --
@@ -101,7 +90,7 @@ load inst_name = do
     block_id <- Cmd.get_focused_block
     tracknum <- Cmd.require =<< Cmd.get_insert_tracknum
     track_id <- Cmd.require =<< State.event_track_at block_id tracknum
-    old_inst <- Cmd.require =<< fmap inst_type (track_info block_id tracknum)
+    old_inst <- Cmd.require =<< fmap inst_type (LTrack.info block_id tracknum)
 
     dealloc_instrument old_inst
     dev <- Cmd.require_msg ("no device for " ++ show inst)  =<< device_of inst

@@ -1,9 +1,11 @@
+{-# LANGUAGE CPP #-}
 module Derive.Cache (
     cached_transformer, cached_generator
     , score_damage
 
-    -- for testing
+#ifdef TESTING
     , find_generator_cache
+#endif
 ) where
 import Control.Monad
 import qualified Control.Monad.Error as Error

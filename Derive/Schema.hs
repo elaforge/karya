@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE PatternGuards #-}
 {- | A schema is a transformation from a block to a deriver.  It may intuit the
     deriver solely from the structure of the block, or it may ignore the block
@@ -29,11 +30,13 @@ module Derive.Schema (
 
     -- * util
     , cmd_context
+    , get_track_info, TrackType(..)
 
-    -- * exported for testing
-    , get_defaults, get_track_info, TrackType(..)
+#ifdef TESTING
+    , get_defaults
     , derive_tree
     , default_schema
+#endif
 ) where
 import Control.Monad
 import qualified Data.Map as Map

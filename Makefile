@@ -271,7 +271,7 @@ doc: $(ALL_HSC)
 
 ### tests ###
 
-TEST_CMDLINE = $(GHC) $(HFLAGS) --make \
+TEST_CMDLINE = $(GHC) $(HFLAGS) --make -DTESTING \
 	$(UI_OBJS) $(COREMIDI_OBJS) fltk/fltk.a $(MIDI_LIBS) $(HLDFLAGS)
 
 # Compiles with -odir and -hidir into $(TBUILD)/ because they are compiled with
