@@ -112,12 +112,9 @@ make_cmd cmd_map msg = do
     bindable <- Cmd.require (msg_to_bindable msg)
     mods <- mods_down
     case Map.lookup (KeySpec mods bindable) cmd_map of
-        Nothing -> do
-            -- Log.notice $ "no match for " ++ show (KeySpec mods bindable)
-            --     ++ " in " ++ show (Map.keys cmd_map)
-            return Cmd.Continue
+        Nothing -> return Cmd.Continue
         Just (CmdSpec name cmd) -> do
-            Log.notice $ "running command " ++ show name
+            Log.debug $ "running command " ++ show name
             cmd msg
 
 

@@ -18,8 +18,7 @@ test_process_msg = do
         f state msg =
             (Process.state_last_timing new_state,
                 fmap (fst . Process.extract_style) styled)
-            where
-            (new_state, styled) = Process.process_msg state msg
+            where (styled, new_state) = Process.process_msg state msg
 
     msg <- Log.initialized_msg Log.Debug "hi"
     equal (f state msg)

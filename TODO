@@ -12,6 +12,7 @@ search then none of this is necessary.
 
 CURRENT
   - changing a merged track doesn't change visually
+  * logview suppresses duplicate msgs
   * importer for mods
   * tests run with TESTING macro, use ifdefs for exports?
   * signals are not clipped properly to their events due to double imprecision
@@ -639,12 +640,6 @@ libfltk:
     * str 2309
   + fltk 1.3 Fl_Display_Text has alignment bugs, and too slow
     + sent mail to list
-
-logging:
-  - trying to derive relative blocks generates a lot of log spam, can I avoid
-    that somehow?
-  - commands like Selection or MIDI thru generate too much log spam, maybe
-    filter logs for those?
 
 logview:
   - haskell and c++ use the same machine readable format

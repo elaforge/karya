@@ -129,7 +129,7 @@ handle_new_msg :: LogViewC.LogView -> Log.Msg
     -> State.StateT Process.State IO ()
 handle_new_msg view msg = do
     state <- State.get
-    let (new_state, styled) = Process.process_msg state msg
+    let (styled, new_state) = Process.process_msg state msg
     State.put new_state
     case styled of
         Just styled -> let (log_s, style_s) = Process.extract_style styled

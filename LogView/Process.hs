@@ -1,8 +1,10 @@
 module LogView.Process where
 import qualified Control.Concurrent.STM as STM
 import Control.Monad
-import qualified Control.Monad.Writer as Writer
+import qualified Control.Monad.Trans.State as State
+import qualified Control.Monad.Trans.Writer as Writer
 import qualified Data.Foldable as Foldable
+import qualified Data.Functor.Identity as Identity
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Sequence as Sequence
@@ -35,11 +37,16 @@ data State = State {
     -- be displayed.  This way memory use is bounded but you can display recent
     -- msgs you missed because of the filter.
     , state_cached_msgs :: Sequence.Seq Log.Msg
+    -- | Last displayed msg, along with the number of times it has been seen.
+    -- Used to suppress duplicate msgs.
+    , state_last_displayed :: Maybe (Log.Msg, Int)
     -- | Last timing message.
     , state_last_timing :: Maybe Log.Msg
     } deriving (Show)
+
+initial_state :: String -> State
 initial_state filt = State
-    (compile_filter filt) [] Map.empty Sequence.empty Nothing
+    (compile_filter filt) [] Map.empty Sequence.empty Nothing Nothing
 
 add_msg :: Int -> Log.Msg -> State -> State
 add_msg history msg state = state { state_cached_msgs = seq }
@@ -47,13 +54,6 @@ add_msg history msg state = state { state_cached_msgs = seq }
 
 state_msgs :: State -> [Log.Msg]
 state_msgs = Foldable.toList . state_cached_msgs
-
--- ** filter
-
--- | Filter language.
-data Filter = Filter String (Log.Msg -> String -> Bool)
-instance Show Filter where
-    show (Filter src _) = "compile_filter " ++ show src
 
 -- ** catch
 
@@ -90,34 +90,54 @@ data StyledText = StyledText {
     } deriving (Show)
 extract_style (StyledText text style) = (text, style)
 
+type ProcessM = State.StateT State Identity.Identity
+
 -- | Process an incoming log msg.  If the msg isn't filtered out, returned
 -- a colorized version.  Also possibly modify the app state for things like
 -- catch and timing.
-process_msg :: State -> Log.Msg -> (State, Maybe StyledText)
-process_msg state msg = (new_state { state_status = status }, msg_styled)
-    where
-    (new_state, new_msg) = timer_filter state msg
-    msg_styled = case new_msg of
-        Just msg -> let styled = format_msg msg
-            in if eval_filter (state_filter new_state) msg (style_text styled)
+process_msg :: State -> Log.Msg -> (Maybe StyledText, State)
+process_msg state msg = run $ suppress_last msg $ do
+    maybe_msg <- timer_filter msg
+    case maybe_msg of
+        Nothing -> return Nothing
+        Just msg -> do
+            let styled = format_msg msg
+            filt <- State.gets state_filter
+            return $ if eval_filter filt msg (style_text styled)
                 then Just styled
                 else Nothing
-        Nothing -> Nothing
-    status = catch_patterns (state_catch_patterns state) (Log.msg_string msg)
-        (state_status state)
+    where
+    run = flip State.runState state
+
+suppress_last :: Log.Msg -> ProcessM (Maybe a) -> ProcessM (Maybe a)
+suppress_last msg process = do
+    last_displayed <- State.gets state_last_displayed
+    case last_displayed of
+        Just (last_msg, times) | matches last_msg msg -> do
+            State.modify $ \st ->
+                st { state_last_displayed = Just (msg, times+1) }
+            return Nothing
+        _ -> do
+            result <- process
+            when_just result $ \_ -> State.modify $ \st ->
+                st { state_last_displayed = Just (msg, 0) }
+            return result
+    where matches m1 m2 = Log.msg_text m1 == Log.msg_text m2
 
 -- | Filter out timer msgs that don't have a minimum time from the previous
 -- timing, and prepend the interval and bump the priority to Warn if they do.
-timer_filter :: State -> Log.Msg -> (State, Maybe Log.Msg)
-timer_filter state msg
-    | is_timer = case state_last_timing state of
-        Nothing -> (new_state, Nothing)
-        Just last_msg -> (new_state, timing_msg last_msg)
-    | otherwise = (state, Just msg)
+-- timer_filter :: State -> Log.Msg -> (State, Maybe Log.Msg)
+timer_filter :: Log.Msg -> ProcessM (Maybe Log.Msg)
+timer_filter msg
+    | is_timer = do
+        last_timing <- State.gets state_last_timing
+        State.modify $ \st -> st { state_last_timing = Just msg }
+        case last_timing of
+            Nothing -> return Nothing
+            Just last_msg -> return (timing_msg last_msg)
+    | otherwise = return (Just msg)
     where
     is_timer = Log.msg_prio msg == Log.Timer
-    new_state = if is_timer
-        then state { state_last_timing = Just msg } else state
     timing_msg last_msg
         | not (Log.is_first_timer msg) && diff >= timing_diff_threshold = Just $
             msg { Log.msg_text =
@@ -144,6 +164,11 @@ catch_patterns patterns text old
 
 -- ** filter
 
+-- | Filter language.
+data Filter = Filter String (Log.Msg -> String -> Bool)
+instance Show Filter where
+    show (Filter src _) = "compile_filter " ++ show src
+
 -- TODO implement a better language
 compile_filter :: String -> Filter
 compile_filter s = Filter s f
@@ -153,6 +178,7 @@ compile_filter s = Filter s f
     f _msg text = all (`List.isInfixOf` text) has
         && not (any (`List.isInfixOf` text) not_has)
 
+eval_filter :: Filter -> Log.Msg -> String -> Bool
 eval_filter (Filter _ pred) msg text = pred msg text
 
 
