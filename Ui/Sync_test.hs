@@ -49,7 +49,7 @@ initialize f = do
 test_create_resize_destroy_view = do
     state <- io_human "view with selection and titles" $ run State.empty $ do
         v1 <- setup_state
-        State.set_selection v1 0 (Types.point_selection 1 20)
+        set_selection v1 (Types.point_selection 1 20)
         view <- State.get_view v1
         State.set_block_title (Block.view_block view) "new block!"
         State.set_track_title t_track1_id "new track"
@@ -93,7 +93,7 @@ test_set_view_config = do
 test_set_block_config = do
     state <- run State.empty $ do
         setup_state
-        State.set_selection t_view_id 0 (Types.selection 1 10 2 60)
+        set_selection t_view_id (Types.selection 1 10 2 60)
     io_human "selections, bg, and boxes go red" $ run state $ do
         block <- State.get_block t_block_id
         let config = Block.block_config block
@@ -246,7 +246,7 @@ test_create_track = do
     let msg = "new track with selectio and new title, all bgs green"
     state <- io_human msg $ run state $ do
         insert_track t_block_id 1 (Block.TId t_track1_id t_ruler_id) 50
-        State.set_selection t_view_id 0 (Types.selection 1 10 1 60)
+        set_selection t_view_id (Types.selection 1 10 1 60)
         State.set_track_title t_track1_id "new track"
         State.set_track_bg t_track1_id Color.green
     return ()
@@ -266,9 +266,9 @@ test_alter_track = do
 test_selection = do
     state <- run_setup
     state <- io_human "selection is set" $ run state $ do
-        State.set_selection t_view_id 0 (Types.selection 0 10 1 20)
+        set_selection t_view_id (Types.selection 0 10 1 20)
     state <- io_human "selection is cleared" $ run state $ do
-        State.set_selection t_view_id 0 (Types.selection 0 10 0 20)
+        set_selection t_view_id (Types.selection 0 10 0 20)
     return ()
 
 
@@ -291,7 +291,7 @@ test_modify_ruler = do
 test_selection_change_tracks = do
     state <- run_setup
     state <- run state $
-        State.set_selection t_view_id 0 (Types.selection 1 10 1 20)
+        set_selection t_view_id (Types.selection 1 10 1 20)
     state <- io_human "sel moves when new track is added" $ run state $ do
         insert_track t_block_id 1 (Block.TId t_track1_id t_ruler_id) 40
     state <- io_human "sel moves back" $ run state $ do
@@ -305,7 +305,7 @@ test_insert_into_selection = do
         insert_track t_block_id 1 (Block.TId t2 t_ruler_id) 60
         t3 <- create_track "b1.t3" UiTest.event_track_2
         insert_track t_block_id 2 (Block.TId t2 t_ruler_id) 60
-        State.set_selection v1 0 (Types.selection 0 10 2 60)
+        set_selection v1 (Types.selection 0 10 2 60)
     state <- io_human "insert into sel, gets bigger" $ run state $ do
         insert_track t_block_id 1 (Block.TId t_track1_id t_ruler_id) 20
     state <- io_human "remove from sel, gets smaller" $ run state $ do
@@ -316,6 +316,8 @@ insert_track bid tracknum tracklike_id width =
     State.insert_track bid tracknum (Block.block_track tracklike_id width)
 
 -- * util
+
+set_selection view_id sel = State.set_selection view_id 0 (Just sel)
 
 t_ruler_id = Types.RulerId (mkid "r1")
 t_block_id = Types.BlockId (mkid "b1")

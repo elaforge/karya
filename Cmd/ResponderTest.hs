@@ -32,7 +32,7 @@ mkstates tracks = (ui_state, mk_cmd_state UiTest.default_view_id)
     ui_state = UiTest.exec State.empty $ do
         UiTest.mkstate_view "b1" tracks
         State.set_selection UiTest.default_view_id Config.insert_selnum
-            (Types.selection 1 0 1 0)
+            (Just (Types.selection 1 0 1 0))
 
 -- | Many cmds rely on a focused view, and it's easy to forget to add it, so
 -- make it mandatory.

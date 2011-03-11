@@ -81,7 +81,25 @@ cmd_shift_selection selnum shift extend = do
     sel <- Cmd.require =<< State.get_selection view_id selnum
     let sel' = shift_sel block shift sel
     select_and_scroll view_id selnum
-        (Just (if extend then merge_sel sel sel' else sel'))
+        (if extend then merge_sel sel sel' else sel')
+
+cmd_track_all :: (Cmd.M m) => Types.SelNum -> m ()
+cmd_track_all selnum = do
+    view_id <- Cmd.get_focused_view
+    sel <- Cmd.require =<< State.get_selection view_id selnum
+    block_id <- State.block_id_of_view view_id
+    dur <- State.event_end block_id
+    tracks <- length . Block.block_tracks <$> State.get_block block_id
+    State.set_selection view_id selnum (Just (select_track_all dur tracks sel))
+
+select_track_all :: ScoreTime -> TrackNum -> Types.Selection -> Types.Selection
+select_track_all dur tracks sel
+    | sel == select_tracks = select_all
+    | otherwise = select_tracks
+    where
+    select_all = Types.selection 0 0 tracks dur
+    select_tracks = sel
+        { Types.sel_start_pos = 0, Types.sel_cur_pos = dur }
 
 
 -- | Shift the selection along selectable tracks, clipping if it's out of
@@ -188,12 +206,12 @@ select view_id selnum sel = do
 --
 -- Anyone who wants to set a selection and automatically scroll the window to
 -- follow the selection should use this function.
-select_and_scroll :: (Cmd.M m) =>
-     ViewId -> Types.SelNum -> Maybe Types.Selection -> m ()
+select_and_scroll :: (Cmd.M m) => ViewId -> Types.SelNum -> Types.Selection
+    -> m ()
 select_and_scroll view_id selnum sel = do
-    State.set_selection view_id selnum sel
+    State.set_selection view_id selnum (Just sel)
     sync_selection_status view_id
-    when_just sel (auto_scroll view_id)
+    auto_scroll view_id sel
 
 -- | If @new@ has scrolled off the edge of the window, automatically scroll
 -- it so that the selection is in view.

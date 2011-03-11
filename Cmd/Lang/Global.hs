@@ -116,12 +116,12 @@ highlight_error (bid, maybe_tid, maybe_range) = do
     case (maybe_tid, maybe_range) of
         (Nothing, _) -> forM_ view_ids $ \vid ->
             Selection.select vid Config.error_selnum
-                (Types.selection 0 0 9999 9999)
+                (Just (Types.selection 0 0 9999 9999))
         (Just tid, Nothing) -> do
             tracknums <- State.track_id_tracknums bid tid
             forM_ view_ids $ \vid -> forM_ tracknums $ \tracknum ->
                 Selection.select vid Config.error_selnum
-                    (Types.selection tracknum 0 tracknum 9999)
+                    (Just (Types.selection tracknum 0 tracknum 9999))
         (Just tid, Just (from, to)) -> do
             tracknums <- State.track_id_tracknums bid tid
             forM_ view_ids $ \vid -> forM_ tracknums $ \tracknum ->

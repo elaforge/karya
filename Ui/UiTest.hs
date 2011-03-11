@@ -121,8 +121,8 @@ mkstate_view block_id tracks = do
 
 -- * view
 
-select :: (State.M m) => ViewId -> Maybe Types.Selection -> m ()
-select view_id sel = State.set_selection view_id Config.insert_selnum sel
+select :: (State.M m) => ViewId -> Types.Selection -> m ()
+select view_id sel = State.set_selection view_id Config.insert_selnum (Just sel)
 
 select_point :: (State.M m) => ViewId -> TrackNum -> ScoreTime -> m ()
 select_point view_id tracknum pos =

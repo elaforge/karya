@@ -165,13 +165,12 @@ data Selection = Selection {
     , sel_cur_pos :: ScoreTime
     } deriving (Eq, Ord, Show, Read)
 
--- | These constructors return Maybe because that's what set_selection expects.
-selection :: TrackNum -> ScoreTime -> TrackNum -> ScoreTime -> Maybe Selection
+selection :: TrackNum -> ScoreTime -> TrackNum -> ScoreTime -> Selection
 selection start_track start_pos cur_track cur_pos =
-    Just (Selection start_track start_pos cur_track cur_pos)
+    Selection start_track start_pos cur_track cur_pos
 
 -- | A point is a selection with no duration.
-point_selection :: TrackNum -> ScoreTime -> Maybe Selection
+point_selection :: TrackNum -> ScoreTime -> Selection
 point_selection tracknum pos = selection tracknum pos tracknum pos
 
 sel_is_point :: Selection -> Bool

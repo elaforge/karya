@@ -92,7 +92,7 @@ set_sel :: (Cmd.M m) => Types.TrackNum -> ScoreTime -> Types.TrackNum
     -> ScoreTime -> m ()
 set_sel t0 p0 t1 p1 = do
     let sel = Types.selection t0 p0 t1 p1
-    State.set_selection UiTest.default_view_id Config.insert_selnum sel
+    State.set_selection UiTest.default_view_id Config.insert_selnum (Just sel)
 
 default_cmd_state = Cmd.empty_state
     { Cmd.state_focused_view = Just default_view_id
