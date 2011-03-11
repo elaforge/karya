@@ -11,6 +11,7 @@ But decide about lazy signals before going nuts on this.  If I revert to linear
 search then none of this is necessary.
 
 CURRENT
+  - changing a merged track doesn't change visually
   * importer for mods
   * tests run with TESTING macro, use ifdefs for exports?
   * signals are not clipped properly to their events due to double imprecision
@@ -35,7 +36,7 @@ CURRENT
     think about how I can use it to write sekaran
 
   * cmd to collapse all pitch tracks in a block
-  - add logview support for Cmd.PitchTrack.log_event
+  * add logview support for Cmd.PitchTrack.log_event
   * ^a once selects track, again selects entire block
   * ^e on a note transposes the one before it, Selection.events is wrong?
   - cmd to resize certain tracks, e.g. shrink down 'vel' tracks
@@ -117,6 +118,7 @@ CURRENT
       schema uses them, but seems error-prone in general (e.g. in
       a transformer).  Maybe I can catch errors by passing the continuation
       in a Reader, and using 'local' there too?
+    - write my own Deriver monad to try to avoid lifting overhead
     - see if the cache filtering logs is causing significant copying and remove
 
   * drawing *still* messed up for signals and hidden text
@@ -218,7 +220,6 @@ CURRENT
     Improve logging so that I can see, given a change, which areas of score
     were rederived, and then what range of midi was reperformed.
 
-  - write my own Deriver monad to try to avoid lifting overhead
   - to be consistent, change Timestamp.from_millis to millis
 
   - Can I make cached signal more efficient by merging the signals before

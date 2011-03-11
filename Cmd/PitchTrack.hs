@@ -25,7 +25,6 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.Derive as Derive
-import qualified Derive.Stack as Stack
 import qualified Derive.TrackInfo as TrackInfo
 import qualified Perform.Pitch as Pitch
 
@@ -168,14 +167,8 @@ transpose_events block_id track_id scale_id octaves degrees events = do
         failed = [event | (event, Nothing) <- zip events transposed]
     when (not (null failed)) $
         Cmd.throw $ "transpose failed on events at: "
-            ++ Seq.join ", " (map (log_event block_id track_id) failed)
+            ++ Seq.join ", " (map (Cmd.log_event block_id track_id) failed)
     return $ Maybe.catMaybes transposed
-
--- TODO put this in a general place, and add logview support
-log_event :: BlockId -> TrackId -> Track.PosEvent -> String
-log_event block_id track_id (pos, event) =
-    "{" ++ Stack.unparse_ui_frame (block_id, Just track_id, range) ++ "}"
-    where range = Just (pos, pos + Event.event_duration event)
 
 transpose :: Derive.Scale -> Pitch.Octave -> Integer -> Track.PosEvent
     -> Maybe Track.PosEvent

@@ -51,6 +51,7 @@ import qualified Util.Pretty as Pretty
 import Ui
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
+import qualified Ui.Event as Event
 import qualified Ui.Id as Id
 import qualified Ui.Key as Key
 import qualified Ui.State as State
@@ -75,6 +76,7 @@ import qualified Derive.Scale.All as Scale.All
 import qualified Derive.Derive as Derive
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
+import qualified Derive.Stack as Stack
 import qualified Perform.Midi.Cache as Midi.Cache
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
@@ -204,6 +206,13 @@ require = maybe abort return
 -- | Like 'require', but throw an exception with the given msg.
 require_msg :: (M m) => String -> Maybe a -> m a
 require_msg msg = maybe (throw msg) return
+
+-- | Log an event so that it can be clicked on in logview.
+log_event :: BlockId -> TrackId -> Track.PosEvent -> String
+log_event block_id track_id (pos, event) = "{s" ++ show frame ++ "}"
+    where
+    range = Just (pos, pos + Event.event_duration event)
+    frame = Stack.unparse_ui_frame (block_id, Just track_id, range)
 
 -- * State
 
