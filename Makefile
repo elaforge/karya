@@ -121,15 +121,16 @@ TEST_BINARIES := $(addprefix $(BUILD)/, test_block test_logview test_browser \
 
 ### targets
 
-# If -j is given, this runs the ghcs in parallel, which results in endless
-# recompilation as the ghcs walk on each other.  So explicitly disable
-# jobs.
+# Run the things I think should be run before checkin.
+.PHONY: checkin
+checkin:
+	tools/make_all $(BUILD)/seq $(BUILD)/browser $(BUILD)/logview \
+		$(PBUILD)/RunProfile tests
+
+# Compile Everything.
 .PHONY: all
 all:
-	for target in $(BINARIES) $(TEST_BINARIES); do \
-		@echo Making $target...
-		if ! $(MAKE) -j1 $$target; then break; fi \
-	done
+	tools/make_all $(BINARIES) $(TEST_BINARIES)
 
 .PHONY: dep
 dep: build/fixdeps
