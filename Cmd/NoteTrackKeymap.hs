@@ -2,13 +2,12 @@
 module Cmd.NoteTrackKeymap where
 
 import qualified Ui.Block as Block
-import qualified Ui.Key as Key
 import qualified Ui.State as State
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Edit as Edit
 import qualified Cmd.Keymap as Keymap
-import Cmd.Keymap (bind_mod, command_char, bind_char, SimpleMod(..))
+import Cmd.Keymap (command_char, command_only, bind_char)
 
 import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.Selection as Selection
@@ -16,8 +15,7 @@ import qualified Cmd.Selection as Selection
 
 make_keymap :: (Cmd.M m) => NoteTrack.PitchTrack -> (Keymap.CmdMap m, [String])
 make_keymap pitch_track = Keymap.make_cmd_map $ concat
-    [ bind_mod [Shift, PrimaryCommand] (Key.KeyChar 'M')
-        "toggle merged" (cmd_toggle_merged pitch_track)
+    [ command_only 'm' "toggle merged" (cmd_toggle_merged pitch_track)
 
     , command_char 's' "set dur" Edit.cmd_set_duration
     , command_char '.' "dur * 1.5" (Edit.cmd_modify_dur (*1.5))

@@ -151,6 +151,9 @@ selection_bindings = concat
         (Selection.cmd_shift_selection selnum (-1) False)
     , bind_mod [Shift] Key.Left "extend shift selection left"
         (Selection.cmd_shift_selection selnum (-1) True)
+
+    , bind_mod [PrimaryCommand] (Key.KeyChar 'a') "select track / all"
+        (Selection.cmd_track_all selnum)
     ]
     where selnum = Config.insert_selnum
 
@@ -169,6 +172,8 @@ block_config_bindings = concat
         "toggle skeleton edge" BlockConfig.cmd_toggle_edge
     , bind_char 'M' "toggle mute" (BlockConfig.cmd_toggle_flag Block.Mute)
     , bind_char 'S' "toggle solo" (BlockConfig.cmd_toggle_flag Block.Solo)
+    , command_only 'M' "merge all tracks"
+        (BlockConfig.merge_all =<< Cmd.get_focused_block)
     ]
 
 -- delete = remove events and move following events back
@@ -260,5 +265,5 @@ clip_bindings = concat
     , command_only 'x' "cut selection" Clip.cmd_cut_selection
     , command_only 'v' "paste selection" Clip.cmd_paste_overwrite
     , command_only 'V' "insert selection" Clip.cmd_paste_insert
-    , command_only 'm' "merge selection" Clip.cmd_paste_merge
+    , command_only 'i' "merge selection" Clip.cmd_paste_merge
     ]
