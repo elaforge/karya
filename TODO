@@ -37,7 +37,7 @@ CURRENT
   * cmd to collapse all pitch tracks in a block
   - add logview support for Cmd.PitchTrack.log_event
   - ^a once selects track, again selects entire block
-  - ^e on a note transposes the one before it, Selection.events is wrong?
+  * ^e on a note transposes the one before it, Selection.events is wrong?
   - cmd to resize certain tracks, e.g. shrink down 'vel' tracks
   - scrolling is slow with more than a few events onscreen
   - Ranges.to_pairs or whatever is confusing how it returns Nothing, use

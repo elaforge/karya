@@ -508,7 +508,8 @@ strict_events_around selnum = do
 -- | Get events in the selection, but if no events are selected, expand it
 -- to include a previous positive event or a following negative one.  If both
 -- are present, the positive event is favored.  If neither are present, select
--- nothing.
+-- nothing.  And, if it's a point selection that coincides with the position
+-- of an event, that event will be selected.
 --
 -- This is the standard definition of a selection, and should be used in all
 -- standard selection using commands.
@@ -517,18 +518,20 @@ events_around_selnum selnum = do
     selected <- strict_events_around selnum
     return $ do
         (track_id, range, evts) <- selected
-        let evts2 = expand evts
+        let evts2 = expand (fst range) evts
         let range2 = expand_range evts2 range
         return (track_id, range2, evts2)
     where
-    expand (before, [], after)
+    expand sel_start (before, [], after)
+        | start_equal = (before, take 1 after, drop 1 after)
         | take_prev = (drop 1 before, take 1 before, after)
         | take_next = (before, take 1 after, drop 1 after)
         | otherwise = (before, [], after)
         where
+        start_equal = maybe False ((==sel_start) . fst) (Seq.head after)
         take_prev = maybe False Track.event_positive (Seq.head before)
         take_next = maybe False Track.event_negative (Seq.head after)
-    expand selected = selected
+    expand _ selected = selected
     expand_range (_, [evt], _) _ = (Track.event_min evt, Track.event_max evt)
     expand_range _ range = range
 
