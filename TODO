@@ -12,40 +12,16 @@ search then none of this is necessary.
 
 CURRENT
   - changing a merged track doesn't change visually
-  * logview suppresses duplicate msgs
-  * importer for mods
-  * tests run with TESTING macro, use ifdefs for exports?
-  * signals are not clipped properly to their events due to double imprecision
-    RealTime can be an integral type to round that stuff away
-    Putting controls beneath their note tracks would solve this too
-  * make RealTime an integral type
-    do I want an integral ScoreTime as well?
-      It means I need a separate type for tempo signals, unless I want controls
-      to be fixed point as well... I guess no reason not to actually, except
-      that it must be signed.
-    * remove Timestamp
-    OS X uses nanos, I think, at least it converts to it:
-      AudioConvertHostTimeToNanos(AudioGetCurrentHostTime())
-    ms are not accurate enough for audio samples and as long as I'm using
-    int64 I might as well crank it up.
-    1khz = 1ms
-    44khz = 0.027272 ms = 22.675us
   signals below note track
     also solves the non-integral real problem above
     I think this means I don't need to worry about lazy signals anymore
     for tempo track, I can interpret the last sample as 1/1 instead of 0/1
     think about how I can use it to write sekaran
 
-  * cmd to collapse all pitch tracks in a block
-  * add logview support for Cmd.PitchTrack.log_event
-  * ^a once selects track, again selects entire block
-  * ^e on a note transposes the one before it, Selection.events is wrong?
   - cmd to resize certain tracks, e.g. shrink down 'vel' tracks
   - scrolling is slow with more than a few events onscreen
   - Ranges.to_pairs or whatever is confusing how it returns Nothing, use
     a custom type
-  * move _then functions
-  * implement transpose cmd
   better logging for cache
     - msgs should give context: which block were they deriving
     - time to catch up to now
@@ -64,7 +40,6 @@ CURRENT
   - cmd to save and load cache to disk
 
   - fix LPitch.note_to_degree
-  * muting the first track with no tempo makes the block not derive
   - fix the broken way Cmd.Schema infers scale and instrument
     Record env during derivation:
     When entering a track, save stack and env.  Then to lookup env just look
@@ -85,18 +60,10 @@ CURRENT
     Move scale_of and instrument_of to Cmd.Cmd and use them instead of parsing
     track titles.
 
-  * get rid of the log nastiness by having derive threads not log on shutdown
   - storing TrackEvents without duration would make maintaining the no-overlap
     invariant easier.  E.g. have explicit 'off' events, otherwise each event
     extends to the next one.  It means after merging I have to clear redundant
     offs, but that's easier right?
-  * add some repl utils to make it easier to fmap things into CmdL
-  bugs
-    * copy and paste doesn't get collapsed tracks
-    * deleting a track with a collapsed track merged into it make the collapsed
-      track un-openable
-  * in a collapsed track, whether the trigger is collapsed only is too subtle
-    make it extend only partway across the track
   - using default Data.Binary instances to serilaize is not good for
     compatibility in the long run
   - in the abscence of the ability to drag events, cmd to move start of event
@@ -104,9 +71,8 @@ CURRENT
   - lang cmd to show state hierarchically... or does it already exist?
   - do tuplets by setting local ruler?
   make midi msgs smaller:
-    * timestamp -> Word64 (CoreMIDI uses UInt64 for timestamp)
     - last step of performer is to compact into vector
-    * how many msgs in e.g. the ptrio?
+    how many msgs in e.g. the ptrio?
       127130, [pno 9205, flute 63748, clarinet 54177]
       5367 for bloom
       peak for 246114 msgs: 46mb for int, 38.7 for int, 38.7 for w64
@@ -122,7 +88,6 @@ CURRENT
     - write my own Deriver monad to try to avoid lifting overhead
     - see if the cache filtering logs is causing significant copying and remove
 
-  * drawing *still* messed up for signals and hidden text
   - remove the log timer stuff
   - maybe I could split CacheState into the writable portion, in Collect, and
     the read-only cache from the previous run, in Constant
@@ -144,34 +109,13 @@ CURRENT
     the filter at perform time, maybe better for cache since it only happens
     once.
 
-  * rename Log.uninitialized_msg -> msg, msg -> initialized_msg
-  * move 'force' to Util.Test
-  * remove UiTest.initial_state
-  * replace Seq.mhead/tail with head/tail
-
   lazy deriver
-    * finish Lazy tests
-    * take RealTime off of Log
     - I still don't understand what's going on with exceptions but it seems
       to be working.  Figure this out later, esp Derive.with_empty_collect
-    * make perform lazy
-    * update Perform_cache to be happy with new types
-    * Perform_profile
-    * write Convert_test to make sure it's lazy and not leaky
-    * update Cmd.PlayUtil and Cmd.Performance for the new result type
-    * add tests to Lazy_test to see if laziness is preserved from derivation
-      through performance
-      - looks like it is, but I need to do more testing to verify that it
-        really is minimal.
-      - also test if blocks with control tracks are minimally derived too
-      - looks like sub-block derivation is also running backwards
     - the log filter in Derive.Cache.insert_generator seems really bad.  Try
       to prove that with profiles, and then remove it.  Use a log-suppression
       framework to filter them before they are emitted?  Is that really more
       efficient?
-    * update Deriver_test to use DeriveTest.extract_run
-    * rearrange Perform.Midi.Perform
-    * fix TrackWarp monoid, write test to demonstrate
     - see if I can make signal tracks happen lazy, or at least in order, by
       not threading Collect and CacheState.  Collect is just LocalDep, which is
       just (Set BlockId)
@@ -228,29 +172,15 @@ CURRENT
     until the next time the cache is demanded, unless I force it.
   - when the dust settles, look into removing or simplifying Schema
 
-  + use packed text instead of String
-    Text or UTF8 ByteString?  Text is more correct.
-    - parsec 3 + Text is much slower, ask on mailing list about profiling
-    - later, try attoparsec + utf8 bytestring
-    - try making Pitch.Note have Text instead of String
-  * show whether unboxed midi takes less space or not
-    Tiny bit less.  heap shows space consumed by deepseq?  weird.
-
   - packed midi, encode to storable vector
     but I'm not sure this will much help
-    The main thing is how to encode the device.  Either store each chunk as
-    'Map WriteDevice (Vector (Timestamp, Message))' and use complicated
-    packing and unpacking, or map devices to IDs:
-    '(Map WriteDevice Int, Vector (Int, Timestamp, Message))'
+    The main thing is how to encode the device.  I think I can hash it.  Or
+    use OS X persistent device ID?
 
   profiles
-    - look at midi for ptrio to get an idea of what a full score might look
-      like
     - profile edits (with and without auto-rederive)
       - without auto-rederive
       - with auto-rederive, derive to end
-      * several edits in the middle of a large score before it can be fully
-        rederived
     - derivation
       - transformers: simple nested score with a couple of transformers over
         the entire thing
@@ -273,13 +203,8 @@ UNSORTED
     I think I'd want to do a reverse map through the keymap to get the attrs
     This also gets to the per-song config issue, since I want per-song or
     per-track key -> call bindings.
-  * Create.rename_project is broken again
-    It was Block.map_ids, works once removed.  Why did I go to so much trouble
-    to map view ids?  Why did it work before?  What was I thinking?
   - what's with the extra leading pb 0 on save/drum?
   - keyboard editing: non-chord mode that advances as soon as it gets NoteOn
-  * either an easier way to set note duration, or tracker style where every
-    note extends to the end of the track or the next event
   - put timing info in rederive msgs, see how long derivation took
   - why does track merge / unmerge cause splice failures?
   - get rid of Diff.track_diff by doing all diffs in the main diff, and
@@ -287,14 +212,6 @@ UNSORTED
 
   - why does logview go to 100 cpu?
     put some prints in there to see what it's doing when it does that
-  + Log msgs are getting munched together.  The logging lock isn't working?
-    try flushing explicitly instead of setting line buffering
-    nope, still happened
-    It's always a thread being killed and another starting.  But I can't repro.
-    And how does the newline just get totally lost?
-    - Could the thread be killed before the print completes?
-      Maybe I don't really need to log thread deaths.
-    Put the print and mutex in C.
   - now that the signal deriver is gone, I can also get rid of ignore_tempo,
     unless I want to use it for a lilypond backend or something
   - after creating a new track, focus should go to its title
@@ -372,7 +289,6 @@ UNSORTED
     - collapse tracks down to minimum width?
 
   - editing for "pattern list" block
-  * double click call to jump to its block?
 
 OTHER
   - problem with pianoteq: if the same note occurs on two channels, one
@@ -455,7 +371,6 @@ bugs:
   - #(poke Mispeled, field) fieldp field results in compiler bus error
   - keymap collisions are logged twice
   - Create.rename_project loses the merged tracks
-  * tracks with different tempos play correctly, but playback follows tempo
   - bizarre hint importing requirements in Cmd.LanguageEnviron
   * track down ghc rts crashes, assertion failure
     - make a repro case if ghc guys want it
@@ -464,7 +379,6 @@ bugs:
   - hint refuses to compile when a module emits a warning
 
 cleanup:
-  * switch mhead and mlast back to returning Maybe
   - cleanup Ui.Track: event_list -> all_events?
   - Makefile: ghc --make doesn't understand the hsc -> hs link, which leads to
     manual inclusion of $(UI_HS) in the deps
@@ -547,7 +461,6 @@ performance:
       chunks, which is then all forced at once since merge needs them all.
     - to control lazy evaluation, emit log msg every n sec of derivation
     - Parallelize derivation with strategies.  Can I spark subderivations?
-    * switch to attoparsec for parsing
   Perform
     - use a lazy storeable vector for [Score.Event] and [Midi.Message] to save
       memory?  If I make Messages a storable vector, I'd have to hash the wdev
@@ -625,7 +538,6 @@ fltk:
     - support control signals that aren't just 0--1
     / decided against rendering signal as one long line, comment in
       EventTrack.cc
-    * scale markers on pitch signals
     - render option: solid with color gradient
     - combine multiple signals, e.g. one controls xpos, one controls color
 
@@ -633,11 +545,6 @@ fltk:
     - only capture drag on a plain drag with no modifiers
 
 libfltk:
-  * try cocoa fltk patch
-    * wait for clipping and modifier event patches to go in
-  * window position not restored on load
-    * had to patch fltk, test Fl_cocoa.mm, make str for Fl_mac.cxx
-    * str 2309
   + fltk 1.3 Fl_Display_Text has alignment bugs, and too slow
     + sent mail to list
 
@@ -731,7 +638,6 @@ REPL repl language static config
   - could add syntax mangling, but probably better to add it to the mangler
     so it works for everyone
   - pass -fobject-code to avoid trying to recompile files?
-  * add custom interpreter for some commands to make them fast?
   - Recompiling for static config is not so attractive because it takes so long
     to link, around 17s including hint.  Also, I need to preserve state
     between compiles.  hs-plugins should be much faster, but it doesn't work
@@ -785,7 +691,6 @@ Cmd:
     happens when the module is reloaded?
 
   ? a module with easy access to all GlobalKeymap cmds for cmdline access
-  * cmd to give a view focus and bring it to the front
   vi style keymap:
     - movement: hjkl, HJKL to move timestep+1 or skip to
       next inst track, bf to move timestep at block section rank, BF to move to
@@ -805,10 +710,6 @@ Cmd:
    - double / halve events under selection
    - stretch events in selection to another length (need two selections?)
   Cmd.Selection
-    * select_and_scroll doesn't scroll down when going from no sel -> sel
-    * snap will snap to positions that arrows can't get to.  Snap absolute
-      should only be able to snap to an absolute set of positions.  Snap
-      relative should snap to all multiples of the current position.
   Cmd.TimeStep
     - snap to event begin/end
 
@@ -829,7 +730,6 @@ Cmd:
     smarter background derivation
       - don't derive while a key or mouse button is down
     - start playing from top of displayed area
-    * start playing from TimeStep before insert point
     - start playing from this block' position in the root block
 
   Undo
@@ -939,9 +839,6 @@ Derive:
         - relative control and pitch
         - note, control, and pitch
         - tval
-    * implement scales as a set of sub-calls that return pitches
-      * they can take a number for cents offset: (*4c# 20)
-    * merge pitch call namespace with normal call namespace
 
   - dynamics controls:
     - volume, velocity, and breath map directly to midi vals
@@ -1090,7 +987,6 @@ Derive:
     - retune a note depending on the previous interval (e.g. sloppy pitches
       when playing quickly)
       I think this has to be postproc.
-    * some kind of ratio based notation?
     - Ratio based notation where the ratios are from the previous pitch.
       Should be able to do this with val calls.
     - octatonic
