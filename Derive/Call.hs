@@ -526,16 +526,6 @@ call_from_block_id :: BlockId -> TrackLang.Call
 call_from_block_id block_id =
     TrackLang.call (Id.show_id (Id.unpack_id block_id))
 
--- | Make an Id from a string, relative to the current ns if it doesn't already
--- have one.
---
--- TODO move this to a more generic place since LanguageCmds may want it too?
-make_id :: String -> TrackLang.CallId -> Id.Id
-make_id default_ns (TrackLang.Symbol ident_str) = Id.id ns ident
-    where
-    (w0, w1) = break (=='/') ident_str
-    (ns, ident) = if null w1 then (default_ns, w0) else (w0, drop 1 w1)
-
 -- * c_equal
 
 c_equal :: (Derive.Derived derived) => Derive.Call derived
@@ -592,10 +582,10 @@ lookup_val_call = lookup_with $ \scope -> case scope of
     _ -> Nothing
 
 lookup_block :: Derive.LookupCall Derive.NoteCall
-lookup_block call_id = do
+lookup_block (TrackLang.Symbol call_id) = do
     ui_state <- Derive.get_ui_state
     let default_ns = State.state_project ui_state
-        block_id = Types.BlockId (make_id default_ns call_id)
+        block_id = Types.BlockId (Id.make default_ns call_id)
     if block_id `Map.member` State.state_blocks ui_state
         then return $ Just $ c_block block_id
         else return Nothing

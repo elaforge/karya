@@ -103,10 +103,11 @@ player_bindings transport_info = fst $ Keymap.make_cmd_map $ concat
 
 -- * pure cmds
 
-(cmd_map, cmd_map_errors) = Keymap.make_cmd_map $
-    quit_bindings ++ selection_bindings ++ view_config_bindings
-    ++ block_config_bindings ++ edit_bindings ++ pitch_bindings
-    ++ create_bindings ++ clip_bindings
+(cmd_map, cmd_map_errors) = Keymap.make_cmd_map $ concat
+    [ quit_bindings, mouse_bindings, selection_bindings, view_config_bindings
+    , block_config_bindings, edit_bindings, pitch_bindings
+    , create_bindings, clip_bindings
+    ]
 
 -- | Quit is special because it's the only Cmd that returns Cmd.Quit.
 -- See how annoying it is to make a keymap by hand?
@@ -117,8 +118,10 @@ quit_bindings = [(kspec, cspec) | kspec <- kspecs]
         | mods <- Keymap.expand_mods [PrimaryCommand]]
     cspec = Keymap.cspec "quit" (const Cmd.cmd_quit)
 
-selection_bindings :: (Cmd.M m) => [Keymap.Binding m]
-selection_bindings = concat
+-- | I bind the mouse by device rather than function, since I can't detect
+-- overlaps as easily for mouse bindings.
+mouse_bindings :: (Cmd.M m) => [Keymap.Binding m]
+mouse_bindings = concat
     [ bind_drag [] Config.mouse_select "snap drag selection"
         (Selection.cmd_snap_selection Config.mouse_select Config.insert_selnum
             False)
@@ -131,8 +134,16 @@ selection_bindings = concat
     , bind_drag [Shift, PrimaryCommand] Config.mouse_select "extend selection"
         (Selection.cmd_mouse_selection Config.mouse_select Config.insert_selnum
             True)
+    -- TODO I'm not supposed to use SecondaryCommand for the built in keymap.
+    , bind_click [SecondaryCommand] Config.mouse_select 1
+        "toggle skeleton edge" BlockConfig.cmd_toggle_edge
+    , bind_click [] Config.mouse_select 2 "open block"
+        (const BlockConfig.cmd_open_block)
+    ]
 
-    , bind_mod [] Key.Down "advance selection"
+selection_bindings :: (Cmd.M m) => [Keymap.Binding m]
+selection_bindings = concat
+    [ bind_mod [] Key.Down "advance selection"
         (Selection.cmd_step_selection selnum TimeStep.Advance False)
     , bind_mod [Shift] Key.Down "extend advance selection"
         (Selection.cmd_step_selection selnum TimeStep.Advance True)
@@ -167,10 +178,7 @@ view_config_bindings = concat
 
 block_config_bindings :: (Cmd.M m) => [Keymap.Binding m]
 block_config_bindings = concat
-    -- TODO I'm not supposed to use SecondaryCommand for the built in keymap.
-    [ bind_click [SecondaryCommand] Config.mouse_select 0
-        "toggle skeleton edge" BlockConfig.cmd_toggle_edge
-    , bind_char 'M' "toggle mute" (BlockConfig.cmd_toggle_flag Block.Mute)
+    [ bind_char 'M' "toggle mute" (BlockConfig.cmd_toggle_flag Block.Mute)
     , bind_char 'S' "toggle solo" (BlockConfig.cmd_toggle_flag Block.Solo)
     , command_only 'M' "merge all tracks"
         (BlockConfig.merge_all =<< Cmd.get_focused_block)

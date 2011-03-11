@@ -370,7 +370,7 @@ UNSORTED
     - collapse tracks down to minimum width?
 
   - editing for "pattern list" block
-  - double click call to jump to its block?
+  * double click call to jump to its block?
 
 OTHER
   - problem with pianoteq: if the same note occurs on two channels, one

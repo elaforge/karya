@@ -3,7 +3,7 @@ module Ui.Id (
     Ident(..)
 
     -- * construction
-    , Id, Namespace, id, is_identifier, read_id, show_id
+    , Id, Namespace, id, make, is_identifier, read_id, show_id
     , read_ident, show_ident
 
     -- * deconstruction
@@ -62,6 +62,14 @@ read_ident witness = do
 -- | Construct an Id.  Non-identifier characters are stripped out.
 id :: Namespace -> String -> Id
 id ns ident = Id (filter is_identifier ns, filter is_identifier ident)
+
+-- | A smarter constructor that only applies the namespace if the string
+-- doesn't already have one.
+make :: Namespace -> String -> Id
+make default_ns text = id ns ident
+    where
+    (w0, w1) = break (=='/') text
+    (ns, ident) = if null w1 then (default_ns, w0) else (w0, drop 1 w1)
 
 -- | To make naming them in events easier, IDs and namespaces have a restricted
 -- character set.

@@ -1,4 +1,5 @@
 module Cmd.Keymap_test where
+import qualified Control.Monad.Identity as Identity
 import qualified Data.Map as Map
 
 import qualified Util.Log as Log
@@ -59,10 +60,11 @@ test_make_cmd = do
     equal (run [Cmd.MouseMod 3 Nothing] (CmdTest.drag 3))
         (did_run "drag-3" "cmd1")
 
-cmd1, cmd2 :: (Monad m) => Cmd.CmdT m ()
+cmd1, cmd2 :: Cmd.CmdT Identity.Identity ()
 cmd1 = Log.notice "cmd1"
 cmd2 = Log.notice "cmd2"
 
+binds :: [Keymap.Binding (Cmd.CmdT Identity.Identity)]
 binds = concat
     [ Keymap.bind_key (Key.KeyChar '1') "1" cmd1
     , Keymap.bind_key (Key.KeyChar '1') "12" cmd1
@@ -71,6 +73,6 @@ binds = concat
     , Keymap.bind_mod [Keymap.PrimaryCommand] (Key.KeyChar '1') "c-1" cmd1
     , Keymap.bind_mod [Keymap.PrimaryCommand, Keymap.Shift]
         (Key.KeyChar '1') "cs-1" cmd1
-    , Keymap.bind_click [Keymap.Mouse 1] 2 0 "chord-12" (const cmd1)
+    , Keymap.bind_click [Keymap.Mouse 1] 2 1 "chord-12" (const cmd1)
     , Keymap.bind_drag [] 3 "drag-3" (const cmd1)
     ]

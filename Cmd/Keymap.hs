@@ -59,11 +59,12 @@ bind_mod :: (Cmd.M m) => [SimpleMod] -> Key.Key -> String -> m a -> [Binding m]
 bind_mod smods bindable desc cmd = bind smods (Key bindable) desc (const cmd)
 
 -- | 'bind_click' passes the Msg to the cmd, since mouse cmds are more likely
--- to want the msg to find out where the click was.  @clicks@ is 0 for a single
--- click, 1 for a double click, etc.
+-- to want the msg to find out where the click was.  @clicks@ is 1 for a single
+-- click, 2 for a double click, etc.
 bind_click :: (Cmd.M m) => [SimpleMod] -> UiMsg.MouseButton -> Int -> String
     -> (Msg.Msg -> m a) -> [Binding m]
-bind_click smods btn clicks desc cmd = bind smods (Click btn clicks) desc cmd
+bind_click smods btn clicks desc cmd =
+    bind smods (Click btn (clicks-1)) desc cmd
 
 -- | A 'bind_drag' binds both the click and the drag.  It's conceivable to have
 -- click and drag bound to different commands, but I don't have any yet.

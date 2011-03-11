@@ -2,18 +2,24 @@
 -- more specefic modules.
 module Cmd.BlockConfig where
 import Control.Monad
+import qualified Data.Map as Map
 
+import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Util.Tree as Tree
 
 import Ui
 import qualified Ui.Block as Block
+import qualified Ui.Event as Event
 import qualified Ui.State as State
 
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Create as Create
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Selection as Selection
+import qualified Cmd.ViewConfig as ViewConfig
+import qualified Cmd.NoteTrack as NoteTrack
 
 
 -- * block
@@ -45,6 +51,16 @@ merge_all block_id = do
     collapsable _ = Nothing
     num = State.track_tracknum
 
+cmd_open_block :: (Cmd.M m) => m ()
+cmd_open_block = do
+    ns <- State.get_project
+    let call_of = NoteTrack.block_call ns
+    sel <- Selection.events
+    forM_ sel $ \(_, _, events) -> forM_ events $ \(_, event) ->
+        when_just (call_of (Event.event_string event)) $ \block_id -> do
+            views <- State.get_views_of block_id
+            maybe (Create.view block_id >> return ()) ViewConfig.bring_to_front
+                (Seq.head (Map.keys views))
 
 -- * track
 

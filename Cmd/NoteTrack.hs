@@ -7,10 +7,13 @@
 module Cmd.NoteTrack where
 import qualified Data.Map as Map
 import qualified Util.Control as Control
+import qualified Util.Seq as Seq
 
 import Ui
+import qualified Ui.Id as Id
 import qualified Ui.Key as Key
 import qualified Ui.State as State
+import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
@@ -148,6 +151,23 @@ create_pitch_track block_id note_tracknum title tracknum = do
     State.splice_skeleton block_id (tracknum, note_tracknum)
     State.set_track_title tid title
     return tid
+
+-- * parsing
+
+-- | Try to to figure out the BlockId of a block call in a note track.
+-- It's not guaranteed to be a real block because it might not even be
+-- a block call.
+--
+-- This doesn't use the full Derive.Parse machinery, but is simple and doesn't
+-- require the text to be fully parseable.
+block_call :: Id.Namespace -> String -> Maybe BlockId
+block_call ns expr
+    | null call = Nothing
+    | otherwise = Just $ Types.BlockId (Id.make ns call)
+    where call = generator_of expr
+
+generator_of :: String -> String
+generator_of = Seq.strip . last . Seq.split "|"
 
 -- * implementation
 
