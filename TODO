@@ -12,8 +12,8 @@ search then none of this is necessary.
 
 CURRENT
   - changing a merged track doesn't change visually
+  - double click -> create view doesn't set focus on the new view
   signals below note track
-    also solves the non-integral real problem above
     I think this means I don't need to worry about lazy signals anymore
     for tempo track, I can interpret the last sample as 1/1 instead of 0/1
     think about how I can use it to write sekaran
@@ -23,7 +23,7 @@ CURRENT
   - Ranges.to_pairs or whatever is confusing how it returns Nothing, use
     a custom type
   better logging for cache
-    - msgs should give context: which block were they deriving
+    * msgs should give context: which block were they deriving
     - time to catch up to now
     - why am I getting splice failed and succeeded at the same time?  is
       midi not filtering out log msgs?
@@ -64,7 +64,7 @@ CURRENT
     invariant easier.  E.g. have explicit 'off' events, otherwise each event
     extends to the next one.  It means after merging I have to clear redundant
     offs, but that's easier right?
-  - using default Data.Binary instances to serilaize is not good for
+  - using default Data.Binary instances to serialize is not good for
     compatibility in the long run
   - in the abscence of the ability to drag events, cmd to move start of event
     to current point, or set start and end if it's a range

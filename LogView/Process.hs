@@ -126,7 +126,6 @@ suppress_last msg process = do
 
 -- | Filter out timer msgs that don't have a minimum time from the previous
 -- timing, and prepend the interval and bump the priority to Warn if they do.
--- timer_filter :: State -> Log.Msg -> (State, Maybe Log.Msg)
 timer_filter :: Log.Msg -> ProcessM (Maybe Log.Msg)
 timer_filter msg
     | is_timer = do

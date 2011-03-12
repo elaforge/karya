@@ -41,7 +41,7 @@ compare_cached_midi :: BlockId
     -> Cmd.CmdL [Either Midi.WriteMessage Midi.WriteMessage]
 compare_cached_midi block_id = do
     result <- PlayUtil.cached_derive block_id
-    uncached <- PlayUtil.uncached_perform result
+    uncached <- PlayUtil.uncached_perform block_id result
     cached <- PlayUtil.cached_perform block_id result
     return $ diff_events cached uncached
     where

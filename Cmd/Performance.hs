@@ -35,6 +35,7 @@ import qualified Cmd.Selection as Selection
 import qualified Derive.Cache as Derive.Cache
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
+import qualified Derive.Stack as Stack
 import qualified Perform.Midi.Cache as Midi.Cache
 
 
@@ -140,7 +141,7 @@ generate_performance (send_status, root_id, sel) block_id = do
                     (Selection.relative_realtime_point perf root_sel) sel
             selection_pos <- Trans.liftIO $ IORef.newIORef cur
             th <- Trans.liftIO $ do
-                Log.notice $ "start deriving " ++ show block_id
+                Log.notice_stack (Stack.block block_id) "start deriving"
                 Thread.start $ evaluate_performance send_status selection_pos
                     block_id perf
             let pthread = Cmd.PerformanceThread perf th selection_pos
@@ -150,44 +151,43 @@ generate_performance (send_status, root_id, sel) block_id = do
 evaluate_performance :: SendStatus -> Cmd.SelectionPosition -> BlockId
     -> Cmd.Performance -> IO ()
 evaluate_performance send_status selection_pos block_id perf = do
-    let prefix = "deriving " ++ show block_id ++ ": "
     send_status block_id Msg.Deriving
     Thread.delay derive_wait_focused
     send_status block_id Msg.StartedDeriving
     let cache = Cmd.perf_midi_cache perf
-    evaluate_midi prefix cache selection_pos False 0
+    evaluate_midi block_id cache selection_pos False 0
         (Midi.Cache.cache_chunks cache)
     send_status block_id (Msg.DeriveComplete (Cmd.perf_track_signals perf))
 
 -- | Evaluate all chunks before 'eval_until'.  If I hit a splice failed msg,
 -- log the overall cache stats.  Otherwise, cache stats can only be logged
 -- once I'm out of chunks.
-evaluate_midi :: String -> Midi.Cache.Cache -> Cmd.SelectionPosition -> Bool
+evaluate_midi :: BlockId -> Midi.Cache.Cache -> Cmd.SelectionPosition -> Bool
     -> RealTime -> Midi.Cache.Chunks -> IO ()
-evaluate_midi prefix cache _ logged_stats _ [] =
-    when (not logged_stats) $ log_stats prefix Nothing cache
-evaluate_midi prefix cache selection_pos logged_stats eval_pos chunks = do
+evaluate_midi block_id cache _ logged_stats _ [] =
+    when (not logged_stats) $ log_stats block_id Nothing cache
+evaluate_midi block_id cache selection_pos logged_stats eval_pos chunks = do
     pos <- Cmd.read_selection selection_pos
     let eval_until = max pos eval_pos
     -- when (pos > eval_pos) $
-    --     Log.notice $ prefix ++ "jumping forward to cursor: " ++ show pos
+    --     Log.notice $ block_id ++ "jumping forward to cursor: " ++ show pos
     let (pre, post) = break ((>=eval_until) . chunk_time) chunks
     splice_failed <- any id <$> mapM evaluate_chunk pre
     when (not logged_stats && splice_failed) $
-        log_stats prefix (Just eval_until) cache
-    -- Log.notice $ prefix ++ "eval until " ++ Pretty.pretty eval_pos
+        log_stats block_id (Just eval_until) cache
+    -- Log.notice $ block_id ++ "eval until " ++ Pretty.pretty eval_pos
     -- The delay here should be long enough to go easy on the GC but short
     -- enough to have a good chance of having already evaluated the output
     -- before the user hits "play".
     -- TODO skip the delay for cached chunks
     when (not (null post)) $
         Thread.delay 0.5
-    evaluate_midi prefix cache selection_pos (logged_stats || splice_failed)
+    evaluate_midi block_id cache selection_pos (logged_stats || splice_failed)
         (eval_until + Midi.Cache.cache_chunk_size) post
 
-log_stats :: String -> Maybe RealTime -> Midi.Cache.Cache -> IO ()
-log_stats prefix splice_failed cache =
-    Log.notice $ prefix ++ "midi reperformed: "
+log_stats :: BlockId -> Maybe RealTime -> Midi.Cache.Cache -> IO ()
+log_stats block_id splice_failed cache =
+    Log.notice_stack (Stack.block block_id) $ "midi reperformed: "
         ++ Pretty.pretty reperformed ++ "/" ++ Pretty.pretty total
         ++ maybe " (splice succeeded)"
             (\p -> " (splice failed around " ++ Pretty.pretty p ++ ")")
@@ -210,7 +210,6 @@ evaluate_chunk chunk = any id <$> mapM eval (Midi.Cache.chunk_messages chunk)
         return $ Midi.Cache.is_splice_failure log
     -- Midi.WriteMessage is strict, so deepseq is unnecessary.
     eval (LEvent.Event midi) = midi `seq` return False
-
 
 -- * selection
 

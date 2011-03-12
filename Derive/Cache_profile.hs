@@ -24,6 +24,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Derive_profile as Derive_profile
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.LEvent as LEvent
+import qualified Derive.Stack as Stack
 
 import qualified Perform.Midi.Cache as Midi.Cache
 import qualified Perform.Midi.Cache_test as Midi.Cache_test
@@ -143,7 +144,8 @@ cached_perform cache damage events = (out, Midi.Cache.cache_stats splice out)
     where
     perf_events = Convert.convert DeriveTest.default_lookup_scale
         DeriveTest.default_lookup_inst events
-    out = Midi.Cache.perform cache damage perf_events
+    out = Midi.Cache.perform (Stack.block UiTest.default_block_id)
+        cache damage perf_events
     splice = fmap fst $
         List.find is_failure (zip [0..] (Midi.Cache.cache_chunks out))
     is_failure (_, chunk) = any Midi.Cache.is_splice_failure

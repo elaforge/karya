@@ -17,6 +17,7 @@ import qualified Midi.Midi as Midi
 
 import Ui
 import qualified Derive.LEvent as LEvent
+import qualified Derive.Stack as Stack
 
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.Instrument as Instrument
@@ -125,8 +126,8 @@ data Chunk = Chunk {
 newtype EventDamage = EventDamage (Ranges.Ranges RealTime)
     deriving (Show)
 
-perform :: Cache -> EventDamage -> Perform.Events -> Cache
-perform cache (EventDamage damage) events
+perform :: Stack.Stack -> Cache -> EventDamage -> Perform.Events -> Cache
+perform stack cache (EventDamage damage) events
     | null (cache_chunks cache) = set_map (everything, Ranges.everything)
     -- If the cache map is not null then it must be full except the areas under
     -- the damage.
@@ -136,7 +137,7 @@ perform cache (EventDamage damage) events
             in (make_map damage, Ranges.ranges damage)
     where
     everything = perform_chunks config 0 Perform.initial_state events
-    make_map damage = perform_cache config 0 (cache_chunks cache)
+    make_map damage = perform_cache stack config 0 (cache_chunks cache)
         Perform.initial_state events damage
     set_map (chunks, damage) =
         cache { cache_chunks = chunks, cache_damage = damage }
@@ -163,15 +164,15 @@ chunk_damage = map $ \(s, e) -> (to_chunknum s, to_chunknum e + 1)
 --
 -- This function is too complicated, sorry about that.  I've thought about how
 -- to simplify it and failed.
-perform_cache :: Instrument.Config -> ChunkNum -> [Chunk] -> Perform.State
-    -> Perform.Events -> [(ChunkNum, ChunkNum)] -> [Chunk]
-perform_cache config chunknum [] prev_state events _ =
+perform_cache :: Stack.Stack -> Instrument.Config -> ChunkNum -> [Chunk]
+    -> Perform.State -> Perform.Events -> [(ChunkNum, ChunkNum)] -> [Chunk]
+perform_cache _ config chunknum [] prev_state events _ =
     perform_chunks config chunknum prev_state events
     -- If there is no damage I can just reuse the chunks and don't have to look
     -- at the events.  This won't be true for the initially empty cache, but
     -- the case above should catch that.
-perform_cache _ _ chunks _ _ [] = chunks
-perform_cache config chunknum (cached : rest_cache) prev_state events
+perform_cache _ _ _ chunks _ _ [] = chunks
+perform_cache stack config chunknum (cached : rest_cache) prev_state events
         damage@((start, end) : rest_damage)
     | chunknum < start =
         cached : perform_rest (chunk_state cached) events damage
@@ -192,14 +193,14 @@ perform_cache config chunknum (cached : rest_cache) prev_state events
     | chunknum < end = new_chunk
         : perform_rest (chunk_state new_chunk) post_events damage
     -- This shouldn't happen, 'damage' should always be above 'chunknum'.
-    | otherwise = perform_cache config chunknum (cached : rest_cache)
+    | otherwise = perform_cache stack config chunknum (cached : rest_cache)
         prev_state events rest_damage
     where
     (new_chunk, post_events) = perform_chunk chunknum prev_state config events
-    perform_rest = perform_cache config (chunknum+1) rest_cache
+    perform_rest = perform_cache stack config (chunknum+1) rest_cache
     cons_log msg chunk =
         chunk { chunk_messages = LEvent.Log log : chunk_messages chunk }
-        where log = Log.msg Log.Notice Nothing ("Perform cache: " ++ msg)
+        where log = Log.msg Log.Notice (Just stack) ("Perform cache: " ++ msg)
 
 -- | Just keep performing chunks until I run out of events.
 perform_chunks :: Instrument.Config -> ChunkNum -> Perform.State

@@ -7,6 +7,7 @@ import qualified Util.Seq as Seq
 import Util.Test
 
 import Ui
+import qualified Ui.UiTest as UiTest
 
 import qualified Midi.Midi as Midi
 
@@ -72,7 +73,8 @@ test_lazy_performance = do
     -- Modifying an infinite sequence will reperform the modified parts,
     -- and splice back into the rest.
     let inf2 = (0, 0.4) : drop 1 inf
-    let cached = Cache.perform uncached (mkdamage [(0, 0.25)]) (mkevents inf2)
+    let cached = Cache.perform fake_stack uncached
+            (mkdamage [(0, 0.25)]) (mkevents inf2)
     equal (take 3 (extract cached))
         [ (0, Midi.PitchBend 0)
         , (0, Midi.NoteOn 42 100)
@@ -150,12 +152,14 @@ perform_both :: Events -> Events -> [(RealTime, RealTime)]
 perform_both initial modified damage = (initial_cache, cached, uncached)
     where
     initial_cache = perform_uncached (mkevents initial)
-    cached = Cache.perform initial_cache (mkdamage damage) (mkevents modified)
+    cached = Cache.perform fake_stack initial_cache (mkdamage damage)
+        (mkevents modified)
     uncached = perform_uncached (mkevents modified)
 
 perform_uncached :: [LEvent.LEvent Perform.Event] -> Cache.Cache
 perform_uncached events =
-    Cache.perform initial_cache (Cache.EventDamage Ranges.everything) events
+    Cache.perform fake_stack initial_cache
+        (Cache.EventDamage Ranges.everything) events
     where initial_cache = Cache.cache Perform_test.midi_config1
 
 mkdamage :: [(RealTime, RealTime)] -> Cache.EventDamage
@@ -187,3 +191,6 @@ mkevent (start, dur, pitch) =
     Perform.Event Perform_test.inst1
         start dur Map.empty (Signal.signal [(start, fromIntegral pitch)])
         Stack.empty
+
+fake_stack :: Stack.Stack
+fake_stack = Stack.block UiTest.default_block_id

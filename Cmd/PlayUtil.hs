@@ -23,6 +23,7 @@ import qualified Perform.Midi.Perform as Perform
 
 import qualified Derive.Derive as Derive
 import qualified Derive.Scale.Twelve as Twelve
+import qualified Derive.Stack as Stack
 
 import qualified Instrument.Db
 import qualified Instrument.MidiDb as MidiDb
@@ -52,12 +53,12 @@ cached_perform :: (Cmd.M m) => BlockId -> Derive.Result -> m Cmd.Performance
 cached_perform block_id result = do
     midi_config <- State.get_midi_config
     midi_cache <- get_midi_cache midi_config <$> Cmd.lookup_performance block_id
-    perform result midi_cache
+    perform block_id result midi_cache
 
-uncached_perform :: (Cmd.M m) => Derive.Result -> m Cmd.Performance
-uncached_perform result = do
+uncached_perform :: (Cmd.M m) => BlockId -> Derive.Result -> m Cmd.Performance
+uncached_perform block_id result = do
     midi_config <- State.get_midi_config
-    perform result (Midi.Cache.cache midi_config)
+    perform block_id result (Midi.Cache.cache midi_config)
 
 clear_cache :: (Cmd.M m) => BlockId -> m ()
 clear_cache block_id =
@@ -89,15 +90,16 @@ get_lookup_inst_calls = do
 -- This is actually called from ResponderSync, when it kicks off background
 -- derivation.  By the time 'cmd_play' pulls out the Performance, it should be
 -- at least partially evaluated.
-perform :: (Cmd.M m) => Derive.Result -> Midi.Cache.Cache -> m Cmd.Performance
-perform result cache = do
+perform :: (Cmd.M m) => BlockId -> Derive.Result -> Midi.Cache.Cache
+    -> m Cmd.Performance
+perform block_id result cache = do
     lookup_scale <- Cmd.get_lookup_scale
     lookup_inst <- Cmd.get_lookup_midi_instrument
     let midi_events = Convert.convert lookup_scale lookup_inst
             (Derive.r_events result)
 
     let Derive.EventDamage event_damage = Derive.r_event_damage result
-        new_cache = Midi.Cache.perform cache
+        new_cache = Midi.Cache.perform (Stack.block block_id) cache
                 (Midi.Cache.EventDamage event_damage) midi_events
     return $ Cmd.Performance
         (Derive.r_cache result) new_cache mempty
