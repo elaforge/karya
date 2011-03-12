@@ -11,8 +11,11 @@ But decide about lazy signals before going nuts on this.  If I revert to linear
 search then none of this is necessary.
 
 CURRENT
+  run timing tests with bloom
+    - compile with optimization and make sure it rederives fast
+    - edit bits and make sure it rederives extra fast
   - changing a merged track doesn't change visually
-  - double click -> create view doesn't set focus on the new view
+  * double click -> create view doesn't set focus on the new view
   signals below note track
     I think this means I don't need to worry about lazy signals anymore
     for tempo track, I can interpret the last sample as 1/1 instead of 0/1
