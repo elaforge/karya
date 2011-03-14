@@ -31,6 +31,7 @@ import qualified Ui.State as State
 import qualified Ui.Sync as Sync
 import qualified Ui.Types as Types
 import qualified Ui.Ui as Ui
+import qualified Ui.Update as Update
 
 import qualified Ui.UiTest as UiTest
 import Ui.UiTest (mkid)
@@ -174,6 +175,8 @@ test_set_track_merge = do
     state <- io_human "has two tracks" $ run State.empty $ State.put state
     state <- io_human "t2 merged with t1" $ run state $ do
         State.set_merged_tracks UiTest.default_block_id 1 [t2]
+    state <- io_human "t2 modifications visible in t1" $ run state $ do
+        State.insert_event t2 0.5 (Event.event "xxx" 0)
     return ()
 
 test_merge_unmerge_track = do
@@ -184,8 +187,24 @@ test_merge_unmerge_track = do
     state <- io_human "has two tracks" $ run State.empty $ State.put state
     state <- io_human "t2 merged with t1" $ run state $ do
         State.merge_track UiTest.default_block_id 1 2
+    state <- io_human "t2 modifications visible in t1" $ run state $ do
+        State.insert_event t2 0.5 (Event.event "xxx" 0)
     state <- io_human "t1 unmerged, t1 reappears" $ run state $ do
         State.unmerge_track UiTest.default_block_id 1
+    return ()
+
+test_update_merged = do
+    let ((t1, t2), state) = UiTest.run State.empty $ do
+        [t1, t2] <- UiTest.mkstate_view UiTest.default_block_name
+            [ ("t1", [(0, 1, "n1"), (2, 1, "")])
+            , ("t2", [(0, 0, "p1"), (0.5, 0, "p2"), (2, 0, "p3")])
+            ]
+        State.set_merged_tracks UiTest.default_block_id 1 [t2]
+        return (t1, t2)
+    state <- io_human "block with merged track" $ run State.empty $
+        State.put state
+    state <- io_human "t2 modifications visible in t1" $ run state $ do
+        State.insert_event t2 0.5 (Event.event "xxx" 0)
     return ()
 
 test_insert_remove_track = do
@@ -337,19 +356,22 @@ create_block a b = State.create_block (mkid a) b
 create_track a b = State.create_track (mkid a) b
 create_ruler a b = State.create_ruler (mkid a) b
 
+run :: State.State -> State.StateT IO a -> IO State.State
 run st1 m = do
     res <- State.run st1 m
-    let (_val, st2, updates) = right res
-    sync st1 st2 updates
+    let (_val, st2, cmd_updates) = right res
+    sync st1 st2 cmd_updates
     return st2
 
+sync_states :: State.State -> State.State -> IO ()
 sync_states st1 st2 = sync st1 st2 []
 
-sync st1 st2 hint_updates = do
-    let updates = right $ Diff.diff st1 st2
-    putStrLn "updates:"
-    plist (updates ++ hint_updates)
-    result <- Sync.sync st2 (updates ++ hint_updates)
+sync :: State.State -> State.State -> [Update.Update] -> IO ()
+sync st1 st2 cmd_updates = do
+    let updates = right $ Diff.diff cmd_updates st1 st2
+    pmlist "cmd updates" cmd_updates
+    pmlist "updates" updates
+    result <- Sync.sync st2 updates
     case result of
         Just err -> putStrLn $ "err: " ++ show err
         Nothing -> putStrLn "synced"

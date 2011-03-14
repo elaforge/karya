@@ -15,8 +15,11 @@ import qualified Util.Map as Map
 
 import Ui
 import qualified Ui.Block as Block
+import qualified Ui.Color as Color
+import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
 import qualified Ui.Track as Track
+import qualified Ui.Types as Types
 import qualified Ui.Update as Update
 
 
@@ -34,8 +37,9 @@ run :: DiffM () -> Either DiffError [Update.Update]
 run = Identity.runIdentity . Error.runErrorT . Logger.exec
 
 -- | Emit a list of the necessary 'Update's to turn @st1@ into @st2@.
-diff :: State.State -> State.State -> Either DiffError [Update.Update]
-diff st1 st2 = fmap (munge_updates st2) $ run $ do
+diff :: [Update.Update] -> State.State -> State.State
+    -> Either DiffError [Update.Update]
+diff cmd_updates st1 st2 = fmap postproc $ run $ do
     -- View diff needs to happen first, because other updates may want to
     -- update the new view (technically these updates are redundant, but they
     -- don't hurt and filtering them would be complicated).
@@ -52,6 +56,37 @@ diff st1 st2 = fmap (munge_updates st2) $ run $ do
         (Map.zip_intersection (State.state_tracks st1) (State.state_tracks st2))
     mapM_ (uncurry3 diff_ruler)
         (Map.zip_intersection (State.state_rulers st1) (State.state_rulers st2))
+    where
+    postproc updates = cmd_updates ++ merge_updates st2 cmd_updates
+        ++ munge_updates st2 updates
+
+-- | Given the track updates, figure out which other tracks have those tracks
+-- merged and should also be updated.
+--
+-- The track diff doesn't generate event updates at all, they are expected to
+-- be collected as a side-effect of the event insertion and deletion functions.
+-- But that doesn't take into account merged tracks.
+merge_updates :: State.State -> [Update.Update] -> [Update.Update]
+merge_updates state updates = concatMap propagate updates
+    where
+    -- For each track update, find tracks that have it in merged
+    track_to_merged = Seq.map_maybe merged_ids_of
+        (concatMap Block.block_tracks (Map.elems (State.state_blocks state)))
+    merged_ids_of track = case Block.tracklike_id track of
+        Block.TId track_id _ -> Just (track_id, Block.track_merged track)
+        _ -> Nothing
+    -- Map from a track to all tracks that merge it.
+    merged_to_track = Map.multimap [(merged_id, track_id)
+        | (track_id, merged_ids) <- track_to_merged, merged_id <- merged_ids]
+    propagate (Update.TrackUpdate track_id update)
+        | is_event_update update =
+            map (\tid -> (Update.TrackUpdate tid update)) merges_this
+        | otherwise = []
+        where merges_this = Map.get [] track_id merged_to_track
+    propagate _ = []
+    is_event_update (Update.TrackEvents {}) = True
+    is_event_update Update.TrackAllEvents = True
+    is_event_update _ = False
 
 -- | Find only the TrackUpdates between two states.
 --
@@ -110,6 +145,8 @@ munge_updates state updates = updates ++ munged
 
 -- ** view
 
+diff_views :: State.State -> State.State -> Map.Map ViewId Block.View
+    -> Map.Map ViewId Block.View -> DiffM ()
 diff_views st1 st2 views1 views2 = do
     change $ map (flip Update.ViewUpdate Update.DestroyView) $
         Map.keys (Map.difference views1 views2)
@@ -118,6 +155,8 @@ diff_views st1 st2 views1 views2 = do
     mapM_ (uncurry3 (diff_view st1 st2))
         (Map.zip_intersection views1 views2)
 
+diff_view :: State.State -> State.State -> ViewId -> Block.View -> Block.View
+    -> DiffM ()
 diff_view st1 st2 view_id view1 view2 = do
     let view_update = Update.ViewUpdate view_id
     let unequal f = unequal_on f view1 view2
@@ -164,10 +203,15 @@ diff_view st1 st2 view_id view1 view2 = do
     mapM_ (uncurry3 (diff_selection view_update colors1 colors2))
         (Map.pairs (Block.view_selections view1) (Block.view_selections view2))
 
+view_selection_colors :: State.State -> Block.View -> Maybe [Color.Color]
 view_selection_colors state view = do
     block <- Map.lookup (Block.view_block view) (State.state_blocks state)
     return $ Block.config_selection_colors (Block.block_config block)
 
+diff_selection :: (Update.ViewUpdate -> Update.Update)
+    -> [Color.Color] -> [Color.Color] -> Types.SelNum
+    -> Maybe Types.Selection -> Maybe Types.Selection
+    -> DiffM ()
 diff_selection view_update colors1 colors2 selnum sel1 sel2 =
     -- Also update the selections if the selection color config has changed,
     -- because this isn't covered by Update.BlockConfig, because selection
@@ -175,6 +219,8 @@ diff_selection view_update colors1 colors2 selnum sel1 sel2 =
     when (sel1 /= sel2 || Seq.at colors1 selnum /= Seq.at colors2 selnum) $
         change [view_update $ Update.Selection selnum sel2]
 
+diff_track_view :: ViewId -> TrackNum -> Block.TrackView -> Block.TrackView
+    -> DiffM ()
 diff_track_view view_id tracknum tview1 tview2 = do
     when (unequal_on Block.track_view_width tview1 tview2) $
         change [Update.ViewUpdate view_id
@@ -193,6 +239,7 @@ track_info view_id view st =
 
 -- ** block / track / ruler
 
+diff_block :: BlockId -> Block.Block -> Block.Block -> DiffM ()
 diff_block block_id block1 block2 = do
     let block_update = Update.BlockUpdate block_id
     let unequal f = unequal_on f block1 block2
@@ -236,7 +283,10 @@ flags_differ track1 track2 = relevant track1 /= relevant track2
     flag Block.Mute = True
     flag Block.Solo = True
 
+diff_track :: TrackId -> Track.Track -> Track.Track -> DiffM ()
 diff_track track_id track1 track2 = do
+    -- Track events updates are collected directly by the State.State functions
+    -- as they happen.
     let track_update = Update.TrackUpdate track_id
     let unequal f = unequal_on f track1 track2
     when (unequal Track.track_title) $
@@ -246,6 +296,7 @@ diff_track track_id track1 track2 = do
     when (unequal Track.track_render) $
         change [track_update $ Update.TrackRender]
 
+diff_ruler :: RulerId -> Ruler.Ruler -> Ruler.Ruler -> DiffM ()
 diff_ruler ruler_id ruler1 ruler2 = do
     -- This does a complete compare of all the marks in all the rulers after
     -- each msg receive.  There shouldn't ever be that many rulers, but if this

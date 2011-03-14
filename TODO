@@ -14,7 +14,9 @@ CURRENT
   run timing tests with bloom
     - compile with optimization and make sure it rederives fast
     - edit bits and make sure it rederives extra fast
-  - changing a merged track doesn't change visually
+  * changing a merged track doesn't change visually
+  - BlockC.insert_track passes a null merged so you can't make a view with
+    tracks already merged
   * double click -> create view doesn't set focus on the new view
   signals below note track
     I think this means I don't need to worry about lazy signals anymore

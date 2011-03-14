@@ -25,20 +25,18 @@ sync sync_func send_status ui_from ui_to cmd_state cmd_updates = do
     -- but it's nice to see that it's definitely happening before syncs.
     ui_to <- verify_state ui_to
 
-    diff_updates <- case Diff.diff ui_from ui_to of
+    updates <- case Diff.diff cmd_updates ui_from ui_to of
         Left err -> Log.error ("diff error: " ++ err) >> return []
-        Right diff_updates -> do
-            unless (null diff_updates && null cmd_updates) $
-                Log.debug $ "diff_updates: " ++ show diff_updates
-                    ++ " cmd_updates: " ++ show cmd_updates
+        Right updates -> do
+            unless (null updates) $
+                Log.debug $ "updates: " ++ show updates
             Log.timer "got diff updates"
-            err <- sync_func ui_to (diff_updates ++ cmd_updates)
+            err <- sync_func ui_to updates
             case err of
                 Nothing -> return ()
                 Just err -> Log.error $ "syncing updates: " ++ show err
-            return diff_updates
+            return updates
 
-    let updates = diff_updates ++ cmd_updates
     -- Kick off the background derivation threads.
     cmd_state <- Performance.update_performance
         send_status ui_from ui_to cmd_state updates

@@ -367,13 +367,12 @@ compare_cached create modify = (result1, cached, uncached)
     where
     (bid, state1) = UiTest.run State.empty create
     result1 = DeriveTest.derive_block_cache mempty mempty state1 bid
-    (_, state2, ui_updates) = run state1 modify
-    updates = ui_updates ++ diff_updates
+    (_, state2, cmd_updates) = run state1 modify
     damage = Cache.score_damage state1 state2 updates
     cached = DeriveTest.derive_block_cache (Derive.r_cache result1)
         damage state2 bid
     uncached = DeriveTest.derive_block_cache mempty mempty state2 bid
-    diff_updates = case Diff.diff state1 state2 of
+    updates = case Diff.diff cmd_updates state1 state2 of
         Left err -> error ("diff error: " ++ err)
         Right diff_updates -> diff_updates
 

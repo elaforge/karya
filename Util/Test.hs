@@ -258,7 +258,10 @@ pslist :: [String] -> IO ()
 pslist xs = putStr $
     concatMap (\(i, x) -> printf "%02d. %s\n" i x) (Seq.enumerate xs)
 
-pmlist msg xs = putStrLn (msg++":") >> plist xs
+pmlist :: (Show a) => String -> [a] -> IO ()
+pmlist msg xs
+    | null xs = return ()
+    | otherwise = putStrLn (msg++":") >> plist xs
 
 
 -- These used to write to stderr, but the rest of the diagnostic output goes to
