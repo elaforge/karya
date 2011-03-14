@@ -33,7 +33,7 @@ send = Ui.send_action
 -- TODO
 -- test_errors = do
 --     view <- create_empty_view
---     send $ BlockC.insert_track view 0 (Block.R ruler) 30
+--     send $ BlockC.insert_track view 0 (Block.R ruler) [] 30
 --     -- fltk errors
 --     io_throws (BlockC.FltkError "tracknum out of bounds") $
 --         send $ BlockC.set_track_width view 1 50
@@ -55,7 +55,7 @@ test_create_set_size = do
 
 test_scroll_zoom = do
     view <- create_empty_view
-    send $ BlockC.insert_track view 1 (event_track long_event_track) 200
+    send $ BlockC.insert_track view 1 (event_track long_event_track) [] 200
     io_human "scroll a little to the right" $
         send $ BlockC.set_track_scroll view 10
     io_human "all the way to the right" $
@@ -79,7 +79,7 @@ test_set_selection = do
     view <- create_empty_view
     let ruler = UiTest.mkruler 20 10
     send $ BlockC.insert_track view 1
-        (Block.T event_track_1 (UiTest.overlay_ruler ruler)) 30
+        (Block.T event_track_1 (UiTest.overlay_ruler ruler)) [] 30
     let c = Color.brightness 1.5 Color.blue
     io_human "point selection appears" $
         send $ BlockC.set_selection True view 0 (cselection c 1 0 1 0)
@@ -93,8 +93,8 @@ cselection color track start tracks dur =
 
 test_set_track_width = do
     view <- create_empty_view
-    send $ BlockC.insert_track view 1 (event_track event_track_1) 20
-    send $ BlockC.insert_track view 2 (event_track event_track_2) 30
+    send $ BlockC.insert_track view 1 (event_track event_track_1) [] 20
+    send $ BlockC.insert_track view 2 (event_track event_track_2) [] 30
     io_human "track 1 gets bigger" $
         send $ BlockC.set_track_width view 1 60
     io_human "track 1 goes to minimum size" $
@@ -117,7 +117,7 @@ test_set_model_config = do
 
 test_set_title = do
     view <- create_empty_view
-    send $ BlockC.insert_track view 1 (event_track event_track_1) 20
+    send $ BlockC.insert_track view 1 (event_track event_track_1) [] 20
 
     io_human "block gets hi title" $
         send $ BlockC.set_title view "hi"
@@ -132,11 +132,11 @@ test_set_title = do
 test_update_track = do
     view <- create_empty_view
     let ruler = UiTest.mkruler 20 10
-    send $ BlockC.insert_track view 0 (Block.D UiTest.default_divider) 5
-    send $ BlockC.insert_track view 1 (Block.R ruler) 30
+    send $ BlockC.insert_track view 0 (Block.D UiTest.default_divider) [] 5
+    send $ BlockC.insert_track view 1 (Block.R ruler) [] 30
     send $ BlockC.insert_track view 2
-        (Block.T event_track_1 (UiTest.overlay_ruler ruler)) 30
-    send $ BlockC.insert_track view 1 (Block.D UiTest.default_divider) 10
+        (Block.T event_track_1 (UiTest.overlay_ruler ruler)) [] 30
+    send $ BlockC.insert_track view 1 (Block.D UiTest.default_divider) [] 10
 
     io_human "ruler gets wider, both events change" $ do
         send $ BlockC.update_entire_track view 1
@@ -149,10 +149,10 @@ test_insert_remove_track = do
     let ruler = UiTest.mkruler 20 10
     io_human "new event track" $
         send $ BlockC.insert_track view 1
-            (Block.T event_track_1 ruler) 30
+            (Block.T event_track_1 ruler) [] 30
     send $ BlockC.set_zoom view (Types.Zoom 0 2)
     io_human "another new event track also zoomed" $
-        send $ BlockC.insert_track view 2 (Block.T event_track_2 ruler) 30
+        send $ BlockC.insert_track view 2 (Block.T event_track_2 ruler) [] 30
     io_human "remove ruler track, others move over" $
         send $ BlockC.remove_track view 0
 
@@ -160,7 +160,7 @@ test_track_signal = do
     view <- create_empty_view
     let track = Track.set_render_style Track.Line event_track_1
     io_human "track without signal" $
-        send $ BlockC.insert_track view 1 (event_track track) 40
+        send $ BlockC.insert_track view 1 (event_track track) [] 40
 
     let csig = Signal.signal [(0, 1), (32, 0.5), (64, 0), (500, 0), (510, 1)]
     let tsig = Track.TrackSignal (Track.Control csig) 0 1
@@ -189,7 +189,7 @@ test_symbols = do
     view <- create_empty_view
     io_human "track with symbol" $
         send $ BlockC.insert_track view 1
-            (event_track (UiTest.mktrack ("syms", [(0, 16, "`1^`")]))) 40
+            (event_track (UiTest.mktrack ("syms", [(0, 16, "`1^`")]))) [] 40
 
 -- TODO
 -- test_print_children

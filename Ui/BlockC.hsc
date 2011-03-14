@@ -267,10 +267,11 @@ foreign import ccall "collapse_track"
 
 -- * Track operations
 
-insert_track :: ViewId -> TrackNum -> Block.Tracklike -> Types.Width -> Fltk ()
-insert_track view_id tracknum tracklike width = do
+insert_track :: ViewId -> TrackNum -> Block.Tracklike -> [Track.TrackEvents]
+    -> Types.Width -> Fltk ()
+insert_track view_id tracknum tracklike merged width = do
     viewp <- get_ptr view_id
-    with_tracklike [] tracklike $ \tp mlistp len ->
+    with_tracklike merged tracklike $ \tp mlistp len ->
         c_insert_track viewp (Util.c_int tracknum) tp
             (Util.c_int width) mlistp len
 

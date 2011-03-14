@@ -121,8 +121,19 @@ clear_play_position view_id = Ui.send_action $
 
 -- * run_update
 
--- | Apply the update to the UI.
--- CreateView Updates will modify the State to add the ViewPtr
+-- There's a fair amount of copy and paste in here, since CreateView subsumes
+-- the functions of InsertTrack and many others.  For example, the merged
+-- events of a given track are calculated in 4 separate places.  It's nasty
+-- error-prone imperative code.  I'd like to factor it better but I don't know
+-- how.
+--
+-- It's also a little confusing in that this function runs in StateT, but
+-- returns an IO action to be run in the UI thread, so there are two monads
+-- here.
+
+-- | Generate an IO action that applies the update to the UI.
+--
+-- CreateView Updates will modify the State to add the ViewPtr.
 run_update :: Update.Update -> State.StateT IO (IO ())
 run_update (Update.ViewUpdate view_id Update.CreateView) = do
     view <- State.get_view view_id
@@ -136,6 +147,7 @@ run_update (Update.ViewUpdate view_id Update.CreateView) = do
     let sels = Block.view_selections view
     csels <- mapM (\(selnum, sel) -> to_csel view_id selnum (Just sel))
         (Map.assocs sels)
+    ustate <- State.get
     -- I manually sync the new empty view with its state.  It might reduce
     -- repetition to let Diff.diff do that by diffing against a state with an
     -- empty view, but this way seems less complicated if more error-prone.
@@ -148,7 +160,8 @@ run_update (Update.ViewUpdate view_id Update.CreateView) = do
         let tracks = map fst (Block.block_display_tracks block)
         let track_info = List.zip5 [0..] tracks ctracks widths titles
         forM_ track_info $ \(tracknum, dtrack, ctrack, width, title) -> do
-            BlockC.insert_track view_id tracknum ctrack width
+            let merged = events_of_track_ids ustate (Block.dtrack_merged dtrack)
+            BlockC.insert_track view_id tracknum ctrack merged width
             unless (null title) $
                 BlockC.set_track_title view_id tracknum title
             BlockC.set_display_track view_id tracknum dtrack
@@ -197,8 +210,11 @@ run_update (Update.BlockUpdate block_id update) = do
         Update.InsertTrack tracknum width dtrack -> do
             let tid = Block.dtrack_tracklike_id dtrack
             ctrack <- State.get_tracklike tid
+            ustate <- State.get
             return $ forM_ view_ids $ \view_id -> do
-                BlockC.insert_track view_id tracknum ctrack width
+                let merged = events_of_track_ids ustate
+                        (Block.dtrack_merged dtrack)
+                BlockC.insert_track view_id tracknum ctrack merged width
                 case ctrack of
                     -- Configure new track.  This is analogous to the initial
                     -- config in CreateView.
@@ -214,11 +230,11 @@ run_update (Update.BlockUpdate block_id update) = do
             ustate <- State.get
             return $ forM_ view_ids $ \view_id -> do
                 BlockC.set_display_track view_id tracknum dtrack
-                let merged = Block.dtrack_merged dtrack
+                let merged = events_of_track_ids ustate
+                        (Block.dtrack_merged dtrack)
                 -- This is unnecessary if I just collapsed the track, but
                 -- no big deal.
-                BlockC.update_entire_track view_id tracknum tracklike
-                    (events_of_track_ids ustate merged)
+                BlockC.update_entire_track view_id tracknum tracklike merged
         Update.TrackFlags -> return (return ())
 
 run_update (Update.TrackUpdate track_id update) = do
