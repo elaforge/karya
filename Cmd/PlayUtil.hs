@@ -81,7 +81,7 @@ derive derive_cache damage block_id = do
     let constant = Derive.initial_constant ui_state
             (Schema.lookup_deriver schema_map ui_state) lookup_scale inst_calls
     scopes <- Cmd.gets Cmd.state_global_scopes
-    let env = initial_environ (State.state_project_scale ui_state)
+    let env = initial_environ (State.state_default_scale ui_state)
             (State.state_default_inst ui_state)
     return $ Derive.derive constant scopes derive_cache damage env
         (Call.eval_root_block block_id)

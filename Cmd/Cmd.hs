@@ -619,7 +619,7 @@ get_scale_id block_id track_id = do
     scale <- lookup_env block_id track_id TrackLang.v_scale
     case scale of
         Just (TrackLang.VScaleId scale_id) -> return scale_id
-        _ -> State.get_project_scale
+        _ -> State.get_default_scale
 
 lookup_instrument :: (M m) => BlockId -> TrackId -> m (Maybe Score.Instrument)
 lookup_instrument block_id track_id = do

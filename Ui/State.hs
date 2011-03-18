@@ -83,7 +83,7 @@ data State = State {
     , state_midi_config :: Instrument.Config
     -- | Automatically created pitch tracks will have this scale.  MIDI thru
     -- will also use it when a scale can't be derived from focus.
-    , state_project_scale :: Pitch.ScaleId
+    , state_default_scale :: Pitch.ScaleId
     -- | This instrument is present in the initial environment, so it will be
     -- the instrument in scope in abscence of any others.
     , state_default_inst :: Maybe Score.Instrument
@@ -101,7 +101,7 @@ empty = State {
     , state_rulers = ruler_map
 
     , state_midi_config = Instrument.config []
-    , state_project_scale = Pitch.ScaleId Config.project_scale_id
+    , state_default_scale = Pitch.ScaleId Config.default_scale_id
     , state_default_inst = Nothing
     }
     where ruler_map = Map.fromList [(no_ruler, Ruler.no_ruler)]
@@ -402,12 +402,12 @@ get_midi_config = gets state_midi_config
 set_midi_config :: (M m) => Instrument.Config -> m ()
 set_midi_config config = modify $ \st -> st { state_midi_config = config }
 
-get_project_scale :: (M m) => m Pitch.ScaleId
-get_project_scale = gets state_project_scale
+get_default_scale :: (M m) => m Pitch.ScaleId
+get_default_scale = gets state_default_scale
 
-set_project_scale :: (M m) => Pitch.ScaleId -> m ()
-set_project_scale scale_id = modify $ \st ->
-    st { state_project_scale = scale_id }
+set_default_scale :: (M m) => Pitch.ScaleId -> m ()
+set_default_scale scale_id = modify $ \st ->
+    st { state_default_scale = scale_id }
 
 get_default_inst :: (M m) => m (Maybe Score.Instrument)
 get_default_inst = gets state_default_inst

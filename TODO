@@ -47,7 +47,10 @@ CURRENT
 
   - Cmd.CmdId is inconsistent with State.StateId
     if I convert, don't forget to remove CmdTest.CmdId
-  - rename State.state_project_scale to default_scale
+  * rename State.state_project_scale to default_scale
+  - rename project to namespace
+  - Derive.initial_state should get a default pitch from whatever scale is in
+    the environ... or no default pitch at all
   - Call.with_scale is not quite right because it should replace an existing
     scale scope.  So I think scopes have to have keys so they can be
     replaced.

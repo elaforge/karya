@@ -130,10 +130,10 @@ instance Binary State.State where
                 tracks <- get :: Get (Map.Map Types.TrackId Track.Track)
                 rulers <- get :: Get (Map.Map Types.RulerId Ruler.Ruler)
                 midi_config <- get :: Get Instrument.Config
-                project_scale <- get :: Get Pitch.ScaleId
+                default_scale <- get :: Get Pitch.ScaleId
                 default_inst <- get :: Get (Maybe Score.Instrument)
                 return $ State.State proj dir Nothing views blocks tracks
-                    rulers midi_config project_scale default_inst
+                    rulers midi_config default_scale default_inst
             4 -> do
                 proj <- get :: Get String
                 dir <- get :: Get String
@@ -143,10 +143,10 @@ instance Binary State.State where
                 tracks <- get :: Get (Map.Map Types.TrackId Track.Track)
                 rulers <- get :: Get (Map.Map Types.RulerId Ruler.Ruler)
                 midi_config <- get :: Get Instrument.Config
-                project_scale <- get :: Get Pitch.ScaleId
+                default_scale <- get :: Get Pitch.ScaleId
                 default_inst <- get :: Get (Maybe Score.Instrument)
                 return $ State.State proj dir root views blocks tracks rulers
-                    midi_config project_scale default_inst
+                    midi_config default_scale default_inst
             _ -> version_error "State.State" v
 
 instance Binary Pitch.ScaleId where

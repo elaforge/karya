@@ -98,9 +98,9 @@ ruler_bg = Color.rgb 1 0.85 0.5
 
 -- * defaults
 
--- | New project scale id.
-project_scale_id :: String
-project_scale_id = "twelve"
+-- | Default scale id for new projects.
+default_scale_id :: String
+default_scale_id = "twelve"
 
 -- | Default range for instruments that don't say otherwise.
 control_pb_range :: Control.PbRange
