@@ -70,12 +70,14 @@ instance DeepSeq.NFData Frame where
         Call s -> s `seq` ()
 
 instance Pretty.Pretty Stack where
-    pretty stack = "[" ++ Seq.join " / " (map f (outermost stack)) ++ "]"
-        where
-        f (Block bid) = show bid
-        f (Track tid) = show tid
-        f (Region s e) = Pretty.pretty s ++ "--" ++ Pretty.pretty e
-        f (Call call) = call
+    pretty stack =
+        "[" ++ Seq.join " / " (map Pretty.pretty (outermost stack)) ++ "]"
+
+instance Pretty.Pretty Frame where
+    pretty (Block bid) = show bid
+    pretty (Track tid) = show tid
+    pretty (Region s e) = Pretty.pretty s ++ "--" ++ Pretty.pretty e
+    pretty (Call call) = call
 
 show_ui :: Stack -> String
 show_ui = Seq.join ": " . map unparse_ui_frame . to_ui
